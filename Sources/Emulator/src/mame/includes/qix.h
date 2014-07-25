@@ -19,8 +19,6 @@
 #define QIX_CHARACTER_CLOCK     (20000000/2/16)
 
 
-#define NUM_PENS    (0x100)
-
 class qix_state : public driver_device
 {
 public:
@@ -30,6 +28,7 @@ public:
 		m_audiocpu(*this, "audiocpu"),
 		m_videocpu(*this, "videocpu"),
 		m_mcu(*this, "mcu"),
+		m_crtc(*this, "vid_u18"),
 		m_pia0(*this, "pia0"),
 		m_pia1(*this, "pia1"),
 		m_pia2(*this, "pia2"),
@@ -38,20 +37,24 @@ public:
 		m_sndpia2(*this, "sndpia2"),
 		m_sn1 (*this, "sn1"),
 		m_sn2 (*this, "sn2"),
+		m_discrete(*this, "discrete"),
 		m_68705_port_out(*this, "68705_port_out"),
 		m_68705_ddr(*this, "68705_ddr"),
+		m_paletteram(*this, "paletteram"),
 		m_videoram(*this, "videoram"),
 		m_videoram_address(*this, "videoram_addr"),
 		m_videoram_mask(*this, "videoram_mask"),
-		m_paletteram(*this, "paletteram"),
 		m_scanline_latch(*this, "scanline_latch"),
-		m_discrete(*this, "discrete") { }
+		m_bank0(*this, "bank0"),
+		m_bank1(*this, "bank1"),
+		m_screen(*this, "screen") { }
 
 	/* devices */
-	required_device<m6809_device> m_maincpu;
+	required_device<m6809_base_device> m_maincpu;
 	optional_device<cpu_device> m_audiocpu;
-	required_device<m6809_device> m_videocpu;
+	required_device<m6809_base_device> m_videocpu;
 	optional_device<cpu_device> m_mcu;
+	required_device<mc6845_device> m_crtc;
 	required_device<pia6821_device> m_pia0;
 	required_device<pia6821_device> m_pia1;
 	required_device<pia6821_device> m_pia2;
@@ -60,6 +63,7 @@ public:
 	optional_device<pia6821_device> m_sndpia2;
 	optional_device<sn76489_device> m_sn1;
 	optional_device<sn76489_device> m_sn2;
+	optional_device<discrete_device> m_discrete;
 
 	/* machine state */
 	optional_shared_ptr<UINT8> m_68705_port_out;
@@ -68,16 +72,20 @@ public:
 	UINT8  m_coinctrl;
 
 	/* video state */
+	required_shared_ptr<UINT8> m_paletteram;
 	optional_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_videoram_address;
 	optional_shared_ptr<UINT8> m_videoram_mask;
-	required_shared_ptr<UINT8> m_paletteram;
+	required_shared_ptr<UINT8> m_scanline_latch;
 	UINT8  m_flip;
 	UINT8  m_palette_bank;
 	UINT8  m_leds;
-	required_shared_ptr<UINT8> m_scanline_latch;
-	optional_device<discrete_device> m_discrete;
-	pen_t m_pens[NUM_PENS];
+
+	optional_memory_bank m_bank0;
+	optional_memory_bank m_bank1;
+	required_device<screen_device> m_screen;
+
+	pen_t m_pens[0x400];
 	DECLARE_WRITE8_MEMBER(zookeep_bankswitch_w);
 	DECLARE_WRITE8_MEMBER(qix_data_firq_w);
 	DECLARE_WRITE8_MEMBER(qix_data_firq_ack_w);
@@ -120,7 +128,7 @@ public:
 	DECLARE_READ8_MEMBER(slither_trak_lr_r);
 	DECLARE_READ8_MEMBER(slither_trak_ud_r);
 	DECLARE_WRITE_LINE_MEMBER(display_enable_changed);
-	DECLARE_WRITE8_MEMBER(qix_flip_screen_w);
+	DECLARE_WRITE_LINE_MEMBER(qix_flip_screen_w);
 	DECLARE_WRITE8_MEMBER(qix_dac_w);
 	DECLARE_WRITE8_MEMBER(qix_vol_w);
 	DECLARE_WRITE8_MEMBER(sndpia_2_warning_w);
@@ -128,26 +136,20 @@ public:
 	DECLARE_WRITE8_MEMBER(slither_coinctl_w);
 	DECLARE_WRITE_LINE_MEMBER(qix_pia_dint);
 	DECLARE_WRITE_LINE_MEMBER(qix_pia_sint);
-	void get_pens(pen_t *pens);
+	MC6845_BEGIN_UPDATE(crtc_begin_update);
+	MC6845_UPDATE_ROW(crtc_update_row);
+	void set_pen(int offs);
 	int kram3_permut1(int idx, int value);
 	int kram3_permut2(int tbl_index, int idx, const UINT8 *xor_table);
 	int kram3_decrypt(int address, int value);
+	DECLARE_WRITE_LINE_MEMBER(kram3_lic_maincpu_changed);
+	DECLARE_WRITE_LINE_MEMBER(kram3_lic_videocpu_changed);
 };
-
-
-/*----------- defined in machine/qix.c -----------*/
-
-extern const pia6821_interface qix_pia_0_intf;
-extern const pia6821_interface qix_pia_1_intf;
-extern const pia6821_interface qix_pia_2_intf;
-extern const pia6821_interface qixmcu_pia_0_intf;
-extern const pia6821_interface qixmcu_pia_2_intf;
-extern const pia6821_interface slither_pia_1_intf;
-extern const pia6821_interface slither_pia_2_intf;
 
 /*----------- defined in video/qix.c -----------*/
 
 MACHINE_CONFIG_EXTERN( qix_video );
+MACHINE_CONFIG_EXTERN( kram3_video );
 MACHINE_CONFIG_EXTERN( zookeep_video );
 MACHINE_CONFIG_EXTERN( slither_video );
 

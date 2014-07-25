@@ -34,7 +34,8 @@ public:
 		m_io_vblank(*this, "vblank"),
 		m_io_console_buttons(*this, "console_buttons"),
 		m_bank10(NULL),
-		m_bank11(NULL) { }
+		m_bank11(NULL),
+		m_screen(*this, "screen") { }
 
 	int m_lines;
 	int m_ispal;
@@ -84,7 +85,7 @@ public:
 	DECLARE_DRIVER_INIT(a7800_ntsc);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(a7800);
 	DECLARE_PALETTE_INIT(a7800p);
 	UINT32 screen_update_a7800(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(a7800_interrupt);
@@ -113,6 +114,7 @@ protected:
 	required_ioport m_io_console_buttons;
 	memory_bank *m_bank10;
 	memory_bank *m_bank11;
+	required_device<screen_device> m_screen;
 
 	void maria_draw_scanline();
 	int is_holey(unsigned int addr);
@@ -122,8 +124,6 @@ protected:
 };
 
 /*----------- defined in machine/a7800.c -----------*/
-
-extern const riot6532_interface a7800_r6532_interface;
 
 void a7800_partialhash(hash_collection &dest, const unsigned char *data, unsigned long length, const char *functions);
 

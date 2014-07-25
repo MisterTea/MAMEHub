@@ -34,7 +34,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_ram(*this, "ram"),
 		m_eeprom(*this, "eeprom"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_palette(*this, "palette")  { }
 
 	UINT32 m_seed;
 	UINT32 m_magic;
@@ -94,6 +95,7 @@ public:
 	void pxa255_lcd_check_load_next_branch(int channel);
 	void pxa255_start();
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -1101,7 +1103,7 @@ void _39in1_state::pxa255_lcd_dma_kickoff(int channel)
 			{
 				UINT16 color = space.read_word((lcd_regs->dma[channel].fsadr &~ 1) + index);
 				m_pxa255_lcd_palette[index >> 1] = (((((color >> 11) & 0x1f) << 3) | (color >> 13)) << 16) | (((((color >> 5) & 0x3f) << 2) | ((color >> 9) & 0x3)) << 8) | (((color & 0x1f) << 3) | ((color >> 2) & 0x7));
-				palette_set_color_rgb(machine(), index >> 1, (((color >> 11) & 0x1f) << 3) | (color >> 13), (((color >> 5) & 0x3f) << 2) | ((color >> 9) & 0x3), ((color & 0x1f) << 3) | ((color >> 2) & 0x7));
+				m_palette->set_pen_color(index >> 1, (((color >> 11) & 0x1f) << 3) | (color >> 13), (((color >> 5) & 0x3f) << 2) | ((color >> 9) & 0x3), ((color & 0x1f) << 3) | ((color >> 2) & 0x7));
 			}
 		}
 		else
@@ -1512,7 +1514,7 @@ UINT32 _39in1_state::screen_update_39in1(screen_device &screen, bitmap_rgb32 &bi
 	return 0;
 }
 
-/* To be moved to DEVICE_START( pxa255 ) upon completion */
+/* To be moved to device start of pxa255 upon completion */
 void _39in1_state::pxa255_start()
 {
 	int index = 0;
@@ -1580,8 +1582,6 @@ static MACHINE_CONFIG_START( 39in1, _39in1_state )
 	MCFG_CPU_PROGRAM_MAP(39in1_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", _39in1_state,  pxa255_vblank_start)
 
-	MCFG_PALETTE_LENGTH(32768)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
@@ -1589,7 +1589,7 @@ static MACHINE_CONFIG_START( 39in1, _39in1_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 295, 0, 479)
 	MCFG_SCREEN_UPDATE_DRIVER(_39in1_state, screen_update_39in1)
 
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_ADD("palette", 256)
 
 	MCFG_EEPROM_SERIAL_93C66_ADD("eeprom")
 

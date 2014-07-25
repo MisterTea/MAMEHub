@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, Robbbert
 /************************************************************************************************************
 
     Gundam RX-78 (c) 1983 Bandai
@@ -54,7 +56,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_cass(*this, "cassette"),
-		m_ram(*this, RAM_TAG)
+		m_ram(*this, RAM_TAG),
+		m_palette(*this, "palette")
 	{ }
 
 	DECLARE_READ8_MEMBER( key_r );
@@ -80,6 +83,7 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<cassette_image_device> m_cass;
 	required_device<ram_device> m_ram;
+	required_device<palette_device> m_palette;
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( rx78_cart );
 };
 
@@ -228,7 +232,7 @@ WRITE8_MEMBER( rx78_state::vdp_reg_w )
 		g = (res & 0x22) == 0x22 ? 0xff : ((res & 0x22) == 0x02 ? 0x7f : 0x00);
 		b = (res & 0x44) == 0x44 ? 0xff : ((res & 0x44) == 0x04 ? 0x7f : 0x00);
 
-		palette_set_color(machine(), i, MAKE_RGB(r,g,b));
+		m_palette->set_pen_color(i, rgb_t(r,g,b));
 	}
 }
 
@@ -240,7 +244,7 @@ WRITE8_MEMBER( rx78_state::vdp_bg_reg_w )
 	g = (data & 0x22) == 0x22 ? 0xff : ((data & 0x22) == 0x02 ? 0x7f : 0x00);
 	b = (data & 0x44) == 0x44 ? 0xff : ((data & 0x44) == 0x04 ? 0x7f : 0x00);
 
-	palette_set_color(machine(), 0x10, MAKE_RGB(r,g,b));
+	m_palette->set_pen_color(0x10, rgb_t(r,g,b));
 }
 
 WRITE8_MEMBER( rx78_state::vdp_pri_mask_w )
@@ -453,16 +457,6 @@ static GFXDECODE_START( rx78 )
 GFXDECODE_END
 
 
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( rx78, rx78_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",Z80, MASTER_CLOCK/7) // unknown divider
@@ -477,8 +471,10 @@ static MACHINE_CONFIG_START( rx78, rx78_state )
 	MCFG_SCREEN_UPDATE_DRIVER(rx78_state, screen_update)
 	MCFG_SCREEN_SIZE(192, 184)
 	MCFG_SCREEN_VISIBLE_AREA(0, 192-1, 0, 184-1)
-	MCFG_PALETTE_LENGTH(16+1) //+1 for the background color
-	MCFG_GFXDECODE(rx78)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD("palette", 16+1) //+1 for the background color
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rx78)
 
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("rom")
@@ -490,13 +486,14 @@ static MACHINE_CONFIG_START( rx78, rx78_state )
 	MCFG_RAM_DEFAULT_SIZE("32k")
 	MCFG_RAM_EXTRA_OPTIONS("16k")
 
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+
 	MCFG_SOUND_ADD("sn1", SN76489A, XTAL_28_63636MHz/8) // unknown divider
-	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Software lists */

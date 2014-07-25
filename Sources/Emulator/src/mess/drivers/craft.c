@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Ryan Holtz
 /*\
 * * Linus Akesson's "Craft"
 * *
@@ -11,23 +13,6 @@
 #define VERBOSE_LEVEL   (0)
 
 #define ENABLE_VERBOSE_LOG (0)
-
-#if ENABLE_VERBOSE_LOG
-inline void craft_state::verboselog(int n_level, const char *s_fmt, ...)
-{
-	if( VERBOSE_LEVEL >= n_level )
-	{
-		va_list v;
-		char buf[ 32768 ];
-		va_start( v, s_fmt );
-		vsprintf( buf, s_fmt, v );
-		va_end( v );
-		logerror( "%08x: %s", m_maincpu->safe_pc(), buf );
-	}
-}
-#else
-#define verboselog(x,y,z,...)
-#endif
 
 #define MASTER_CLOCK    20000000
 
@@ -75,11 +60,24 @@ public:
 	DECLARE_DRIVER_INIT(craft);
 	virtual void machine_reset();
 	UINT32 screen_update_craft(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-#if ENABLE_VERBOSE_LOG
-	inline void verboselog(int n_level, const char *s_fmt, ...);
-#endif
+	inline void verboselog(int n_level, const char *s_fmt, ...) ATTR_PRINTF(3,4);
 	required_device<dac_device> m_dac;
 };
+
+inline void craft_state::verboselog(int n_level, const char *s_fmt, ...)
+{
+#if ENABLE_VERBOSE_LOG
+	if( VERBOSE_LEVEL >= n_level )
+	{
+		va_list v;
+		char buf[ 32768 ];
+		va_start( v, s_fmt );
+		vsprintf( buf, s_fmt, v );
+		va_end( v );
+		logerror( "%08x: %s", m_maincpu->safe_pc(), buf );
+	}
+#endif
+}
 
 void craft_state::machine_start()
 {
@@ -104,11 +102,11 @@ WRITE8_MEMBER(craft_state::port_w)
 {
 	switch( offset )
 	{
-		case 0x00: // Port A
+		case AVR8_IO_PORTA: // Port A
 			// Unhandled
 			break;
 
-		case 0x01: // Port B
+		case AVR8_IO_PORTB: // Port B
 		{
 			UINT8 old_port_b = m_port_b;
 			UINT8 pins = data;
@@ -127,13 +125,13 @@ WRITE8_MEMBER(craft_state::port_w)
 			break;
 		}
 
-		case 0x02: // Port C
+		case AVR8_IO_PORTC: // Port C
 			video_update();
 			m_port_c = data;
 			m_latched_color = m_port_c;
 			break;
 
-		case 0x03: // Port D
+		case AVR8_IO_PORTD: // Port D
 		{
 			m_port_d = data;
 			UINT8 audio_sample = (data & 0x02) | ((data & 0xf4) >> 2);
@@ -187,7 +185,7 @@ static ADDRESS_MAP_START( craft_data_map, AS_DATA, 8, craft_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( craft_io_map, AS_IO, 8, craft_state )
-	AM_RANGE(0x00, 0x03) AM_READWRITE( port_r, port_w )
+	AM_RANGE(AVR8_IO_PORTA, AVR8_IO_PORTD) AM_READWRITE( port_r, port_w )
 ADDRESS_MAP_END
 
 /****************************************************\
@@ -257,7 +255,7 @@ static MACHINE_CONFIG_START( craft, craft_state )
 	MCFG_SCREEN_SIZE(635, 525)
 	MCFG_SCREEN_VISIBLE_AREA(47, 526, 36, 515)
 	MCFG_SCREEN_UPDATE_DRIVER(craft_state, screen_update_craft)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("avr8")

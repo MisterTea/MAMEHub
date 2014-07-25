@@ -26,13 +26,13 @@ static const INT64 MAX_48 = (S64(1) << 47) - 1;
 static inline INT32 SX(INT32 x) { return IS_NEGATIVE(x) ? x | 0xff000000 : x & 0x00ffffff; }
 static inline INT32 SC(INT32 x) { return x & 0x00ffffff; }
 static inline INT64 SX64(INT64 x) { return (x & S64(0x0000800000000000)) ? x | S64(0xffff000000000000) : x & S64(0x0000ffffffffffff); }
-static inline INT64 SC64(INT64 x) { return x & S64(0x0000ffffffffffff); }
+//static inline INT64 SC64(INT64 x) { return x & S64(0x0000ffffffffffff); }
 
 #define VERBOSE 0
 #define VERBOSE_EXEC 0
 
 #if VERBOSE
-void log_to_stderr(const char *format, ...) {
+INLINE void ATTR_PRINTF(1,2) log_to_stderr(const char *format, ...) {
 	va_list ap;
 	va_start(ap, format);
 	vfprintf(stderr, format, ap);
@@ -214,6 +214,8 @@ static inline char * DESCRIBE_REG(char *s, UINT8 r, const char *name) {
 	} else {
 		return stpcpy_int(s, REGNAME(r));
 	}
+
+	return 0;
 }
 
 const alu_op_t es5510_device::ALU_OPS[16] = {
@@ -355,7 +357,7 @@ READ8_MEMBER(es5510_device::host_r)
 	//  printf("%06x: DSP read offset %04x (data is %04x)\n",space.device().safe_pc(),offset,dsp_ram[offset]);
 
 	// VFX hack
-	if (mame_stricmp(space.machine().system().name, "vfx") == 0)
+	if (core_stricmp(space.machine().system().name, "vfx") == 0)
 	{
 		if (space.device().safe_pc() == 0xc091f0)
 		{
@@ -598,8 +600,8 @@ void es5510_device::list_program(void(p)(const char *, ...)) {
 	LOG(("ES5501: Starting!\n"));
 
 	char buf[1024];
-	bool is_written[0xff], is_read[0xff];
-	char name[0xff][16];
+	bool is_written[0x100], is_read[0x100];
+	char name[0x100][16];
 	int addr;
 
 	for (int i = 0; i < 0x100; i++) {

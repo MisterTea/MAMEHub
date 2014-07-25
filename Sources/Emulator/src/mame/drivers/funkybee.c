@@ -267,17 +267,6 @@ static GFXDECODE_START( funkybee )
 GFXDECODE_END
 
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW"),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 void funkybee_state::machine_start()
 {
 	save_item(NAME(m_gfx_bank));
@@ -304,16 +293,17 @@ static MACHINE_CONFIG_START( funkybee, funkybee_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(12, 32*8-8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(funkybee_state, screen_update_funkybee)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(funkybee)
-	MCFG_PALETTE_LENGTH(32)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", funkybee)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(funkybee_state, funkybee)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1500000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

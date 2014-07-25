@@ -6,12 +6,11 @@
 #include "machine/ram.h"
 #include "formats/bw12_dsk.h"
 #include "machine/6821pia.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/kb3600.h"
 #include "machine/pit8253.h"
 #include "machine/ram.h"
 #include "machine/rescap.h"
-#include "machine/serial.h"
 #include "machine/upd765.h"
 #include "machine/z80dart.h"
 #include "video/mc6845.h"
@@ -46,6 +45,7 @@ public:
 			m_kbc(*this, AY3600PRO002_TAG),
 			m_crtc(*this, MC6845_TAG),
 			m_pit(*this, PIT8253_TAG),
+			m_palette(*this, "palette"),
 			m_centronics(*this, CENTRONICS_TAG),
 			m_ram(*this, RAM_TAG),
 			m_floppy0(*this, UPD765_TAG ":1:525dd"),
@@ -64,6 +64,7 @@ public:
 	required_device<ay3600_device> m_kbc;
 	required_device<mc6845_device> m_crtc;
 	required_device<pit8253_device> m_pit;
+	required_device<palette_device> m_palette;
 	required_device<centronics_device> m_centronics;
 	required_device<ram_device> m_ram;
 	required_device<floppy_image_device> m_floppy0;
@@ -85,12 +86,12 @@ public:
 	DECLARE_READ8_MEMBER( ls259_r );
 	DECLARE_WRITE8_MEMBER( ls259_w );
 	DECLARE_READ8_MEMBER( pia_pa_r );
-	DECLARE_READ_LINE_MEMBER( pia_cb1_r );
 	DECLARE_WRITE_LINE_MEMBER( pia_cb2_w );
 	DECLARE_WRITE_LINE_MEMBER( pit_out2_w );
 	DECLARE_READ_LINE_MEMBER( ay3600_shift_r );
 	DECLARE_READ_LINE_MEMBER( ay3600_control_r );
 	DECLARE_WRITE_LINE_MEMBER( ay3600_data_ready_w );
+	MC6845_UPDATE_ROW( crtc_update_row );
 
 	/* memory state */
 	int m_bank;
@@ -112,6 +113,13 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(pit_out0_w);
 	DECLARE_FLOPPY_FORMATS( bw12_floppy_formats );
 	DECLARE_FLOPPY_FORMATS( bw14_floppy_formats );
+
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_fault);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_perror);
+	int m_centronics_busy;
+	int m_centronics_fault;
+	int m_centronics_perror;
 };
 
 #endif

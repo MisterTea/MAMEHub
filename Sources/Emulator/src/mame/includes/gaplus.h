@@ -34,7 +34,10 @@ public:
 		m_samples(*this, "samples") ,
 		m_customio_3(*this,"customio_3"),
 		m_videoram(*this,"videoram"),
-		m_spriteram(*this,"spriteram") { }
+		m_spriteram(*this,"spriteram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
@@ -44,6 +47,9 @@ public:
 	required_shared_ptr<UINT8> m_customio_3;
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_spriteram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 	namco58xx_device *m_namco58xx;
 	namco56xx_device *m_namco56xx;
 
@@ -78,7 +84,7 @@ public:
 	TILE_GET_INFO_MEMBER(get_tile_info);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(gaplus);
 	UINT32 screen_update_gaplus(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_gaplus(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(gaplus_vblank_main_irq);

@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     MZ-3500 (c) 198? Sharp
@@ -47,7 +49,8 @@ public:
 			m_hgdc2(*this, "upd7220_gfx"),
 			m_fdc(*this, "upd765a"),
 			m_video_ram(*this, "video_ram"),
-			m_beeper(*this, "beeper")
+			m_beeper(*this, "beeper"),
+			m_palette(*this, "palette")
 	{ }
 
 	// devices
@@ -58,6 +61,7 @@ public:
 	required_device<upd765a_device> m_fdc;
 	required_shared_ptr<UINT8> m_video_ram;
 	required_device<beep_device> m_beeper;
+	required_device<palette_device> m_palette;
 
 	UINT8 *m_ipl_rom;
 	UINT8 *m_basic_rom;
@@ -90,11 +94,11 @@ public:
 	DECLARE_WRITE8_MEMBER(mz3500_pb_w);
 	DECLARE_WRITE8_MEMBER(mz3500_pc_w);
 
-	void fdc_irq(bool state);
-	void fdc_drq(bool state);
-
 	// screen updates
 	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	DECLARE_PALETTE_INIT(mz3500);
+	UPD7220_DISPLAY_PIXELS_MEMBER( hgdc_display_pixels );
+	UPD7220_DRAW_TEXT_LINE_MEMBER( hgdc_draw_text );
 
 protected:
 	// driver_device overrides
@@ -102,7 +106,6 @@ protected:
 	virtual void machine_reset();
 
 	virtual void video_start();
-	virtual void palette_init();
 };
 
 void mz3500_state::video_start()
@@ -137,15 +140,14 @@ CRTC regs
 (mirror of [5]?)
 */
 
-static UPD7220_DISPLAY_PIXELS( hgdc_display_pixels )
+UPD7220_DISPLAY_PIXELS_MEMBER( mz3500_state::hgdc_display_pixels )
 {
 	// ...
 }
 
-static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
+UPD7220_DRAW_TEXT_LINE_MEMBER( mz3500_state::hgdc_draw_text )
 {
-	mz3500_state *state = device->machine().driver_data<mz3500_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	int x;
 	int xi,yi;
 	int tile;
@@ -156,24 +158,24 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 	UINT8 hires;
 	UINT8 color_mode;
 
-//  popmessage("%02x",state->m_crtc[6]);
+//  popmessage("%02x",m_crtc[6]);
 
-	color_mode = state->m_crtc[4] & 1;
-	width80 = (state->m_crtc[5] & 2) >> 1;
-	hires = (state->m_crtc[6] & 1);
+	color_mode = m_crtc[4] & 1;
+	width80 = (m_crtc[5] & 2) >> 1;
+	hires = (m_crtc[6] & 1);
 	char_size = (hires) ? 16 : 8;
 
 	for( x = 0; x < pitch; x++ )
 	{
-		tile = (state->m_video_ram[((addr+x)*2) & 0x1fff] & 0xff);
-		attr = (state->m_video_ram[((addr+x)*2+1) & 0x3ffff] & 0x0f);
+		tile = (m_video_ram[((addr+x)*2) & 0x1fff] & 0xff);
+		attr = (m_video_ram[((addr+x)*2+1) & 0x3ffff] & 0x0f);
 
 		//if(hires)
 		//  tile <<= 1;
 
 		for( yi = 0; yi < lr; yi++)
 		{
-			tile_data = state->m_char_rom[((tile*16+yi) & 0xfff) | (hires*0x1000)];
+			tile_data = m_char_rom[((tile*16+yi) & 0xfff) | (hires*0x1000)];
 
 			for( xi = 0; xi < 8; xi++)
 			{
@@ -226,33 +228,13 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 
 UINT32 mz3500_state::screen_update( screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect )
 {
-	bitmap.fill(machine().pens[(m_crtc[4] & 2) ? m_crtc[3] & 7 : 0], cliprect);
+	bitmap.fill(m_palette->pen((m_crtc[4] & 2) ? m_crtc[3] & 7 : 0), cliprect);
 
 	/* graphics */
 	m_hgdc2->screen_update(screen, bitmap, cliprect);
 	m_hgdc1->screen_update(screen, bitmap, cliprect);
 	return 0;
 }
-
-
-
-static UPD7220_INTERFACE( hgdc_1_intf )
-{
-	NULL,
-	hgdc_draw_text,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER("upd7220_gfx", upd7220_device, ext_sync_w),
-	DEVCB_NULL
-};
-
-static UPD7220_INTERFACE( hgdc_2_intf )
-{
-	hgdc_display_pixels,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 READ8_MEMBER(mz3500_state::mz3500_ipl_r)
 {
@@ -290,7 +272,7 @@ READ8_MEMBER(mz3500_state::mz3500_master_mem_r)
 			if(m_ma == 0xf) { return mz3500_shared_ram_r(space,(offset & 0x7ff)); }
 		}
 
-		printf("Error: read with unmapped memory bank offset %04x MS %02x MA %02x\n",offset,m_ms,m_ma);
+		printf("Read with unmapped memory bank offset %04x MS %02x MA %02x\n",offset,m_ms,m_ma);
 	}
 	else if(m_ms == 1)
 	{
@@ -332,7 +314,7 @@ READ8_MEMBER(mz3500_state::mz3500_master_mem_r)
 			}
 		}
 
-		printf("Error: read with unmapped memory bank offset %04x MS %02x MA %02x MO %02x\n",offset,m_ms,m_ma,m_mo);
+		printf("Read with unmapped memory bank offset %04x MS %02x MA %02x MO %02x\n",offset,m_ms,m_ma,m_mo);
 	}
 	else if (m_ms == 3) // RAM based BASIC
 	{
@@ -346,7 +328,7 @@ READ8_MEMBER(mz3500_state::mz3500_master_mem_r)
 				case 0x2: return mz3500_work_ram_r(space,(offset & 0x1fff) | 0xe000);
 			}
 
-			printf("Error: read with unmapped memory bank offset %04x MS %02x MO %02x\n",offset,m_ms,m_mo);
+			printf("Read with unmapped memory bank offset %04x MS %02x MO %02x\n",offset,m_ms,m_mo);
 		}
 		if((offset & 0xc000) == 0x4000) { return mz3500_work_ram_r(space,(offset & 0x3fff) | 0x4000); }
 		if((offset & 0xc000) == 0x8000) { return mz3500_work_ram_r(space,(offset & 0x3fff) | 0x8000); }
@@ -388,7 +370,7 @@ WRITE8_MEMBER(mz3500_state::mz3500_master_mem_w)
 			if(m_ma == 0xf) { mz3500_shared_ram_w(space,(offset & 0x7ff),data); return; }
 		}
 
-		printf("Error: write with unmapped memory bank offset %04x data %02x MS %02x MA %02x\n",offset,data,m_ms,m_ma);
+		printf("Write with unmapped memory bank offset %04x data %02x MS %02x MA %02x\n",offset,data,m_ms,m_ma);
 	}
 	else if(m_ms == 1) // System Loading & CP/M
 	{
@@ -425,7 +407,7 @@ WRITE8_MEMBER(mz3500_state::mz3500_master_mem_w)
 			}
 		}
 
-		printf("Error: write with unmapped memory bank offset %04x data %02x MS %02x MA %02x\n",offset,data,m_ms,m_ma);
+		printf("Write with unmapped memory bank offset %04x data %02x MS %02x MA %02x\n",offset,data,m_ms,m_ma);
 	}
 	else if (m_ms == 3) // RAM based BASIC
 	{
@@ -439,7 +421,7 @@ WRITE8_MEMBER(mz3500_state::mz3500_master_mem_w)
 				case 0x2: mz3500_work_ram_w(space,(offset & 0x1fff) | 0xe000,data); return;
 			}
 
-			printf("Error: read with unmapped memory bank offset %04x MS %02x MO %02x\n",offset,m_ms,m_mo);
+			printf("Read with unmapped memory bank offset %04x MS %02x MO %02x\n",offset,m_ms,m_mo);
 		}
 		if((offset & 0xc000) == 0x4000) { mz3500_work_ram_w(space,(offset & 0x3fff) | 0x4000,data); return; }
 		if((offset & 0xc000) == 0x8000) { mz3500_work_ram_w(space,(offset & 0x3fff) | 0x8000,data); return; }
@@ -666,17 +648,6 @@ WRITE8_MEMBER(mz3500_state::mz3500_pc_w)
 
 }
 
-static I8255A_INTERFACE( i8255_intf )
-{
-	DEVCB_NULL,                     /* Port A read */
-	DEVCB_DRIVER_MEMBER(mz3500_state,mz3500_pa_w),            /* Port A write */
-	DEVCB_NULL,     /* Port B read */
-	DEVCB_DRIVER_MEMBER(mz3500_state,mz3500_pb_w),            /* Port B write */
-	DEVCB_NULL,     /* Port C read */
-	DEVCB_DRIVER_MEMBER(mz3500_state,mz3500_pc_w),            /* Port C write */
-};
-
-
 static INPUT_PORTS_START( mz3500 )
 	PORT_START("DSW")
 	PORT_DIPNAME( 0x01, 0x00, "SYSA" )
@@ -762,18 +733,6 @@ static GFXDECODE_START( mz3500 )
 	GFXDECODE_ENTRY( "gfx1", 0x1000, charlayout_8x16,     0, 1 )
 GFXDECODE_END
 
-void mz3500_state::fdc_irq(bool state)
-{
-//  printf("%d IRQ\n",state);
-	m_master->set_input_line(INPUT_LINE_IRQ0, state ? ASSERT_LINE : CLEAR_LINE);
-
-}
-
-void mz3500_state::fdc_drq(bool state)
-{
-	printf("%02x DRQ\n",state);
-}
-
 void mz3500_state::machine_start()
 {
 	m_ipl_rom = memregion("ipl")->base();
@@ -799,9 +758,6 @@ void mz3500_state::machine_reset()
 
 	if (fdc)
 	{
-		fdc->setup_intrq_cb(upd765a_device::line_cb(FUNC(mz3500_state::fdc_irq), this));
-		fdc->setup_drq_cb(upd765a_device::line_cb(FUNC(mz3500_state::fdc_drq), this));
-
 		m_fdd_sel = 0;
 		{
 			static const char *const m_fddnames[4] = { "upd765a:0", "upd765a:1", "upd765a:2", "upd765a:3"};
@@ -822,12 +778,12 @@ void mz3500_state::machine_reset()
 
 
 
-void mz3500_state::palette_init()
+PALETTE_INIT_MEMBER(mz3500_state, mz3500)
 {
 	int i;
 
 	for(i=0;i<8;i++)
-		palette_set_color_rgb(machine(), i,pal1bit((i >> 1) & 1),pal1bit(i >> 2),pal1bit((i >> 0) & 1));
+		palette.set_pen_color(i,pal1bit((i >> 1) & 1),pal1bit(i >> 2),pal1bit((i >> 0) & 1));
 
 }
 
@@ -858,16 +814,26 @@ static MACHINE_CONFIG_START( mz3500, mz3500_state )
 
 	MCFG_QUANTUM_PERFECT_CPU("master")
 
-	MCFG_I8255A_ADD( "i8255", i8255_intf )
+	MCFG_DEVICE_ADD("i8255", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(mz3500_state, mz3500_pa_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(mz3500_state, mz3500_pb_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(mz3500_state, mz3500_pc_w))
 
 	MCFG_UPD765A_ADD("upd765a", true, true)
+	MCFG_UPD765_INTRQ_CALLBACK(INPUTLINE("master", INPUT_LINE_IRQ0))
 	MCFG_FLOPPY_DRIVE_ADD("upd765a:0", mz3500_floppies, "525ssdd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("upd765a:1", mz3500_floppies, "525ssdd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("upd765a:2", mz3500_floppies, "525ssdd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("upd765a:3", mz3500_floppies, "525ssdd", floppy_image_device::default_floppy_formats)
 
-	MCFG_UPD7220_ADD("upd7220_chr", MAIN_CLOCK/5, hgdc_1_intf, upd7220_1_map)
-	MCFG_UPD7220_ADD("upd7220_gfx", MAIN_CLOCK/5, hgdc_2_intf, upd7220_2_map)
+	MCFG_DEVICE_ADD("upd7220_chr", UPD7220, MAIN_CLOCK/5)
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, upd7220_1_map)
+	MCFG_UPD7220_DRAW_TEXT_CALLBACK_OWNER(mz3500_state, hgdc_draw_text)
+	MCFG_UPD7220_VSYNC_CALLBACK(DEVWRITELINE("upd7220_gfx", upd7220_device, ext_sync_w))
+
+	MCFG_DEVICE_ADD("upd7220_gfx", UPD7220, MAIN_CLOCK/5)
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, upd7220_2_map)
+	MCFG_UPD7220_DISPLAY_PIXELS_CALLBACK_OWNER(mz3500_state, hgdc_display_pixels)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -877,9 +843,10 @@ static MACHINE_CONFIG_START( mz3500, mz3500_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 
-	MCFG_GFXDECODE(mz3500)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mz3500)
 
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(mz3500_state, mz3500)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -906,4 +873,4 @@ ROM_START( mz3500 )
 	ROM_LOAD( "mz-3500_cg-rom_2-b_m5l2764k.bin", 0x000000, 0x002000, CRC(29f2f80a) SHA1(64b307cd9de5a3327e3ec9f3d0d6b3485706f436) )
 ROM_END
 
-GAME( 198?, mz3500,  0,   mz3500,  mz3500, driver_device,  0,       ROT0, "Sharp",      "MZ-3500", GAME_IS_SKELETON )
+COMP( 198?, mz3500,  0,   0,   mz3500,  mz3500, driver_device,  0,  "Sharp",      "MZ-3500", GAME_IS_SKELETON )

@@ -55,7 +55,11 @@ public:
 		m_f3_ram(*this,"f3_ram") ,
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_oki(*this, "oki") { }
+		m_oki(*this, "oki"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"),
+		m_paletteram32(*this, "paletteram") { }
 
 	UINT16 *m_videoram;
 	UINT16 *m_spriteram;
@@ -279,6 +283,7 @@ public:
 	TILE_GET_INFO_MEMBER(get_tile_info_vram);
 	TILE_GET_INFO_MEMBER(get_tile_info_pixel);
 	DECLARE_MACHINE_START(f3);
+	DECLARE_MACHINE_RESET(f3);
 	DECLARE_VIDEO_START(f3);
 	UINT32 screen_update_f3(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void screen_eof_f3(screen_device &screen, bool state);
@@ -286,10 +291,17 @@ public:
 	required_device<cpu_device> m_maincpu;
 	optional_device<cpu_device> m_audiocpu;
 	optional_device<okim6295_device> m_oki;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+	optional_shared_ptr<UINT32> m_paletteram32;
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
 private:
 	inline void get_tile_info(tile_data &tileinfo, int tile_index, UINT16 *gfx_base);
+	inline void f3_drawgfx(bitmap_rgb32 &dest_bmp,const rectangle &clip,gfx_element *gfx,int code,int color,int flipx,int flipy,int sx,int sy,UINT8 pri_dst);
+	inline void f3_drawgfxzoom(bitmap_rgb32 &dest_bmp,const rectangle &clip,gfx_element *gfx,int code,int color,int flipx,int flipy,int sx,int sy,int scalex,int scaley,UINT8 pri_dst);
+	void draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect);
 };

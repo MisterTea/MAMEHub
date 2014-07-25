@@ -8,8 +8,7 @@ inline void darius_state::actual_get_fg_tile_info( tile_data &tileinfo, int tile
 	UINT16 code = (ram[tile_index + 0x2000] & 0x7ff);
 	UINT16 attr = ram[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			gfxnum,
+	SET_TILE_INFO_MEMBER(gfxnum,
 			code,
 			((attr & 0xff) << 2),
 			TILE_FLIPYX((attr & 0xc000) >> 14));
@@ -24,7 +23,7 @@ TILE_GET_INFO_MEMBER(darius_state::get_fg_tile_info)
 
 void darius_state::video_start()
 {
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(darius_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,128,64);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(darius_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,128,64);
 
 	m_fg_tilemap->set_transparent_pen(0);
 }
@@ -75,7 +74,7 @@ void darius_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 			if (curx > 900) curx -= 1024;
 			if (cury > 400) cury -= 512;
 
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+			m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 					code, color,
 					flipx, flipy,
 					curx, cury, 0);

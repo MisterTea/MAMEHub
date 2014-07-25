@@ -26,7 +26,7 @@
   bit 0 -- 2.2kohm resistor  -- RED/GREEN/BLUE
 
 ***************************************************************************/
-void shaolins_state::palette_init()
+PALETTE_INIT_MEMBER(shaolins_state, shaolins)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances[4] = { 2200, 1000, 470, 220 };
@@ -38,9 +38,6 @@ void shaolins_state::palette_init()
 			4, resistances, rweights, 470, 0,
 			4, resistances, gweights, 470, 0,
 			4, resistances, bweights, 470, 0);
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x100);
 
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x100; i++)
@@ -69,7 +66,7 @@ void shaolins_state::palette_init()
 		bit3 = (color_prom[i + 0x200] >> 3) & 0x01;
 		b = combine_4_weights(bweights, bit0, bit1, bit2, bit3);
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table,*/
@@ -84,7 +81,7 @@ void shaolins_state::palette_init()
 		for (j = 0; j < 8; j++)
 		{
 			UINT8 ctabentry = (j << 5) | ((~i & 0x100) >> 4) | (color_prom[i] & 0x0f);
-			colortable_entry_set_value(machine().colortable, ((i & 0x100) << 3) | (j << 8) | (i & 0xff), ctabentry);
+			palette.set_pen_indirect(((i & 0x100) << 3) | (j << 8) | (i & 0xff), ctabentry);
 		}
 	}
 }
@@ -141,7 +138,7 @@ TILE_GET_INFO_MEMBER(shaolins_state::get_bg_tile_info)
 
 void shaolins_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(shaolins_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(shaolins_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
 			8, 8, 32, 32);
 
 	m_bg_tilemap->set_scroll_cols(32);
@@ -171,11 +168,11 @@ void shaolins_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 				flipy = !flipy;
 			}
 
-			drawgfx_transmask(bitmap, cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transmask(bitmap,cliprect,
 				code, color,
 				flipx, flipy,
 				sx, sy,
-				colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color, m_palettebank << 5));
+				m_palette->transpen_mask(*m_gfxdecode->gfx(1), color, m_palettebank << 5));
 		}
 	}
 }

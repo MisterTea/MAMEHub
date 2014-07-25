@@ -1064,9 +1064,9 @@ static MACHINE_CONFIG_START( wecleman, wecleman_state )
 	MCFG_SCREEN_VISIBLE_AREA(0 +8, 320-1 +8, 0 +8, 224-1 +8)
 	MCFG_SCREEN_UPDATE_DRIVER(wecleman_state, screen_update_wecleman)
 
-	MCFG_GFXDECODE(wecleman)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", wecleman)
 
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 	MCFG_VIDEO_START_OVERRIDE(wecleman_state,wecleman)
 
@@ -1092,22 +1092,6 @@ INTERRUPT_GEN_MEMBER(wecleman_state::hotchase_sound_timer)
 	device.execute().set_input_line(M6809_FIRQ_LINE, HOLD_LINE);
 }
 
-static const k051316_interface hotchase_k051316_intf_0 =
-{
-	"gfx2", 1,
-	4, FALSE, 0,
-	1, -0xb0 / 2, -16,
-	hotchase_zoom_callback_0
-};
-
-static const k051316_interface hotchase_k051316_intf_1 =
-{
-	"gfx3", 2,
-	4, FALSE, 0,
-	0, -0xb0 / 2, -16,
-	hotchase_zoom_callback_1
-};
-
 MACHINE_RESET_MEMBER(wecleman_state,hotchase)
 {
 	int i;
@@ -1117,7 +1101,7 @@ MACHINE_RESET_MEMBER(wecleman_state,hotchase)
 	for(i=0;i<0x2000/2;i++)
 	{
 		m_generic_paletteram_16[i] = 0xffff;
-		palette_set_color_rgb(machine(),i,0xff,0xff,0xff);
+		m_palette->set_pen_color(i,0xff,0xff,0xff);
 	}
 }
 
@@ -1147,14 +1131,23 @@ static MACHINE_CONFIG_START( hotchase, wecleman_state )
 	MCFG_SCREEN_SIZE(320 +16, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(wecleman_state, screen_update_hotchase)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(hotchase)
-	MCFG_PALETTE_LENGTH(2048*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", hotchase)
+	MCFG_PALETTE_ADD("palette", 2048*2)
 
-	MCFG_VIDEO_START_OVERRIDE(wecleman_state,hotchase)
+	MCFG_VIDEO_START_OVERRIDE(wecleman_state, hotchase)
 
-	MCFG_K051316_ADD("k051316_1", hotchase_k051316_intf_0)
-	MCFG_K051316_ADD("k051316_2", hotchase_k051316_intf_1)
+	MCFG_DEVICE_ADD("k051316_1", K051316, 0)
+	MCFG_GFX_PALETTE("palette")
+	MCFG_K051316_OFFSETS(-0xb0 / 2, -16)
+	MCFG_K051316_WRAP(1)
+	MCFG_K051316_CB(wecleman_state, hotchase_zoom_callback_1)
+
+	MCFG_DEVICE_ADD("k051316_2", K051316, 0)
+	MCFG_GFX_PALETTE("palette")
+	MCFG_K051316_OFFSETS(-0xb0 / 2, -16)
+	MCFG_K051316_CB(wecleman_state, hotchase_zoom_callback_2)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1295,7 +1288,7 @@ void wecleman_state::wecleman_unpack_sprites()
 
 void wecleman_state::bitswap(UINT8 *src,size_t len,int _14,int _13,int _12,int _11,int _10,int _f,int _e,int _d,int _c,int _b,int _a,int _9,int _8,int _7,int _6,int _5,int _4,int _3,int _2,int _1,int _0)
 {
-	UINT8 *buffer = auto_alloc_array(machine(), UINT8, len);
+	dynamic_buffer buffer(len);
 	int i;
 
 	memcpy(buffer,src,len);
@@ -1304,7 +1297,6 @@ void wecleman_state::bitswap(UINT8 *src,size_t len,int _14,int _13,int _12,int _
 		src[i] =
 			buffer[BITSWAP24(i,23,22,21,_14,_13,_12,_11,_10,_f,_e,_d,_c,_b,_a,_9,_8,_7,_6,_5,_4,_3,_2,_1,_0)];
 	}
-	auto_free(machine(), buffer);
 }
 
 /* Unpack sprites data and do some patching */
@@ -1376,11 +1368,13 @@ ROM_START( hotchase )
 	ROM_LOAD16_WORD_SWAP( "763e19", 0x200000, 0x080000, CRC(a2622e56) SHA1(0a0ed9713882b987518e6f06a02dba417c1f4f32) )
 	ROM_LOAD16_WORD_SWAP( "763e22", 0x280000, 0x080000, CRC(967c49d1) SHA1(01979d216a9fd8085298445ac5f7870d1598db74) )
 
-	ROM_REGION( 0x20000, "gfx2", 0 )    /* bg */
+	ROM_REGION( 0x20000, "k051316_1", 0 )    /* bg */
 	ROM_LOAD( "763e14", 0x000000, 0x020000, CRC(60392aa1) SHA1(8499eb40a246587e24f6fd00af2eaa6d75ee6363) )
 
-	ROM_REGION( 0x10000, "gfx3", 0 )    /* fg (patched) */
-	ROM_LOAD( "763a13", 0x000000, 0x010000, CRC(8bed8e0d) SHA1(ccff330abc23fe499e76c16cab5783c3daf155dd) )
+	ROM_REGION( 0x08000, "k051316_2", 0 )    /* fg */
+	/* first half empty - PCB silkscreen reads "27256/27512" */
+	ROM_LOAD( "763a13", 0x000000, 0x008000, CRC(8bed8e0d) SHA1(ccff330abc23fe499e76c16cab5783c3daf155dd) )
+	ROM_CONTINUE( 0x000000, 0x008000 )
 
 	ROM_REGION( 0x20000, "gfx4", 0 )    /* road */
 	ROM_LOAD( "763e15", 0x000000, 0x020000, CRC(7110aa43) SHA1(639dc002cc1580f0530bb5bb17f574e2258d5954) )
@@ -1405,11 +1399,11 @@ ROM_END
 
 void wecleman_state::hotchase_sprite_decode( int num16_banks, int bank_size )
 {
-	UINT8 *base, *temp;
+	UINT8 *base;
 	int i;
 
 	base = memregion("gfx1")->base(); // sprites
-	temp = auto_alloc_array(machine(), UINT8,  bank_size );
+	dynamic_buffer temp( bank_size );
 
 	for( i = num16_banks; i >0; i-- ){
 		UINT8 *finish   = base + 2*bank_size*i;
@@ -1447,7 +1441,6 @@ void wecleman_state::hotchase_sprite_decode( int num16_banks, int bank_size )
 			*dest++ = data & 0xF;
 		} while( dest<finish );
 	}
-	auto_free( machine(), temp );
 }
 
 /* Unpack sprites data and do some patching */
@@ -1456,19 +1449,8 @@ DRIVER_INIT_MEMBER(wecleman_state,hotchase)
 //  UINT16 *RAM1 = (UINT16) memregion("maincpu")->base(); /* Main CPU patches */
 //  RAM[0x1140/2] = 0x0015; RAM[0x195c/2] = 0x601A; // faster self test
 
-	UINT8 *RAM;
-
-	/* Decode GFX Roms */
-
-	/* Let's swap even and odd bytes of the sprites gfx roms */
-	RAM = memregion("gfx1")->base();
-
 	/* Now we can unpack each nibble of the sprites into a pixel (one byte) */
 	hotchase_sprite_decode(3,0x80000*2);  // num banks, bank len
-
-	/* Let's copy the second half of the fg layer gfx (charset) over the first */
-	RAM = memregion("gfx3")->base();
-	memcpy(&RAM[0], &RAM[0x10000/2], 0x10000/2);
 
 	m_spr_color_offs = 0;
 }

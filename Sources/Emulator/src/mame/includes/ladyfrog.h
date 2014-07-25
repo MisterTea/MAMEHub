@@ -15,14 +15,16 @@ public:
 		m_scrlram(*this, "scrlram"),
 		m_audiocpu(*this, "audiocpu"),
 		m_maincpu(*this, "maincpu"),
-		m_msm(*this, "msm") { }
+		m_msm(*this, "msm"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
 	UINT8 *    m_spriteram;
 	required_shared_ptr<UINT8> m_scrlram;
-//      UINT8 *    m_paletteram;    // currently this uses generic palette handling
-//      UINT8 *    m_paletteram2;   // currently this uses generic palette handling
+	dynamic_array<UINT8> m_paletteram;
+	dynamic_array<UINT8> m_paletteram_ext;
 
 	/* video-related */
 	tilemap_t    *m_bg_tilemap;
@@ -68,4 +70,6 @@ public:
 	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
 	required_device<cpu_device> m_maincpu;
 	required_device<msm5232_device> m_msm;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

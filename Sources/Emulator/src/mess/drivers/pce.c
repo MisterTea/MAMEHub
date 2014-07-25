@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Charles Mac Donald, Wilbert Pol, Angelo Salese
 /****************************************************************************
 
  PC-Engine / Turbo Grafx 16 driver
@@ -57,7 +59,7 @@ Super System Card:
 #include "emu.h"
 #include "cpu/h6280/h6280.h"
 #include "includes/pce.h"
-#include "machine/pce_rom.h"
+#include "bus/pce/pce_rom.h"
 #include "sound/c6280.h"
 #include "sound/cdda.h"
 #include "sound/msm5205.h"
@@ -282,11 +284,6 @@ static ADDRESS_MAP_START( sgx_io , AS_IO, 8, pce_state )
 ADDRESS_MAP_END
 
 
-static const c6280_interface c6280_config =
-{
-	"maincpu"
-};
-
 UINT32 pce_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	m_huc6260->video_update( bitmap, cliprect );
@@ -298,62 +295,6 @@ WRITE_LINE_MEMBER(pce_state::pce_irq_changed)
 {
 	m_maincpu->set_input_line(0, state);
 }
-
-
-static const huc6270_interface pce_huc6270_config =
-{
-	0x10000,
-	DEVCB_DRIVER_LINE_MEMBER(pce_state,pce_irq_changed)
-};
-
-
-static const huc6260_interface pce_huc6260_config =
-{
-	DEVCB_DEVICE_MEMBER16( "huc6270", huc6270_device, next_pixel ),
-	DEVCB_DEVICE_MEMBER16( "huc6270", huc6270_device, time_until_next_event ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6270", huc6270_device, vsync_changed ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6270", huc6270_device, hsync_changed )
-};
-
-
-static const huc6270_interface sgx_huc6270_0_config =
-{
-	0x10000,
-	DEVCB_DRIVER_LINE_MEMBER(pce_state,pce_irq_changed)
-};
-
-
-static const huc6270_interface sgx_huc6270_1_config =
-{
-	0x10000,
-	DEVCB_DRIVER_LINE_MEMBER(pce_state,pce_irq_changed)
-};
-
-
-static const huc6202_interface sgx_huc6202_config =
-{
-	DEVCB_DEVICE_MEMBER16( "huc6270_0", huc6270_device, next_pixel ),
-	DEVCB_DEVICE_MEMBER16( "huc6270_0", huc6270_device, time_until_next_event ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6270_0", huc6270_device, vsync_changed ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6270_0", huc6270_device, hsync_changed ),
-	DEVCB_DEVICE_MEMBER( "huc6270_0", huc6270_device, read ),
-	DEVCB_DEVICE_MEMBER( "huc6270_0", huc6270_device, write ),
-	DEVCB_DEVICE_MEMBER16( "huc6270_1", huc6270_device, next_pixel ),
-	DEVCB_DEVICE_MEMBER16( "huc6270_1", huc6270_device, time_until_next_event ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6270_1", huc6270_device, vsync_changed ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6270_1", huc6270_device, hsync_changed ),
-	DEVCB_DEVICE_MEMBER( "huc6270_1", huc6270_device, read ),
-	DEVCB_DEVICE_MEMBER( "huc6270_1", huc6270_device, write ),
-};
-
-
-static const huc6260_interface sgx_huc6260_config =
-{
-	DEVCB_DEVICE_MEMBER16( "huc6202", huc6202_device, next_pixel ),
-	DEVCB_DEVICE_MEMBER16( "huc6202", huc6202_device, time_until_next_event ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6202", huc6202_device, vsync_changed ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6202", huc6202_device, hsync_changed )
-};
 
 
 static SLOT_INTERFACE_START(pce_cart)
@@ -378,15 +319,20 @@ static MACHINE_CONFIG_START( pce_common, pce_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MAIN_CLOCK, HUC6260_WPF, 64, 64 + 1024 + 64, HUC6260_LPF, 18, 18 + 242)
 	MCFG_SCREEN_UPDATE_DRIVER( pce_state, screen_update )
+	MCFG_SCREEN_PALETTE("huc6260:palette")
 
-	MCFG_PALETTE_LENGTH( HUC6260_PALETTE_SIZE )
-
-	MCFG_HUC6260_ADD( "huc6260", MAIN_CLOCK, pce_huc6260_config )
-	MCFG_HUC6270_ADD( "huc6270", pce_huc6270_config )
+	MCFG_DEVICE_ADD( "huc6260", HUC6260, MAIN_CLOCK )
+	MCFG_HUC6260_NEXT_PIXEL_DATA_CB(DEVREAD16("huc6270", huc6270_device, next_pixel))
+	MCFG_HUC6260_TIME_TIL_NEXT_EVENT_CB(DEVREAD16("huc6270", huc6270_device, time_until_next_event))
+	MCFG_HUC6260_VSYNC_CHANGED_CB(DEVWRITELINE("huc6270", huc6270_device, vsync_changed))
+	MCFG_HUC6260_HSYNC_CHANGED_CB(DEVWRITELINE("huc6270", huc6270_device, hsync_changed))
+	MCFG_DEVICE_ADD( "huc6270", HUC6270, 0 )
+	MCFG_HUC6270_VRAM_SIZE(0x10000)
+	MCFG_HUC6270_IRQ_CHANGED_CB(WRITELINE(pce_state, pce_irq_changed))
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD(C6280_TAG, C6280, MAIN_CLOCK/6)
-	MCFG_SOUND_CONFIG(c6280_config)
+	MCFG_C6280_CPU("maincpu")
 	MCFG_SOUND_ROUTE( 0, "lspeaker", 1.00 )
 	MCFG_SOUND_ROUTE( 1, "rspeaker", 1.00 )
 
@@ -422,17 +368,36 @@ static MACHINE_CONFIG_START( sgx, pce_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MAIN_CLOCK, HUC6260_WPF, 64, 64 + 1024 + 64, HUC6260_LPF, 18, 18 + 242)
 	MCFG_SCREEN_UPDATE_DRIVER( pce_state, screen_update )
+	MCFG_SCREEN_PALETTE("huc6260:palette")
 
-	MCFG_PALETTE_LENGTH( HUC6260_PALETTE_SIZE )
-
-	MCFG_HUC6260_ADD( "huc6260", MAIN_CLOCK, sgx_huc6260_config )
-	MCFG_HUC6270_ADD( "huc6270_0", sgx_huc6270_0_config )
-	MCFG_HUC6270_ADD( "huc6270_1", sgx_huc6270_1_config )
-	MCFG_HUC6202_ADD( "huc6202", sgx_huc6202_config )
+	MCFG_DEVICE_ADD( "huc6260", HUC6260, MAIN_CLOCK )
+	MCFG_HUC6260_NEXT_PIXEL_DATA_CB(DEVREAD16("huc6202", huc6202_device, next_pixel))
+	MCFG_HUC6260_TIME_TIL_NEXT_EVENT_CB(DEVREAD16("huc6202", huc6202_device, time_until_next_event))
+	MCFG_HUC6260_VSYNC_CHANGED_CB(DEVWRITELINE("huc6202", huc6202_device, vsync_changed))
+	MCFG_HUC6260_HSYNC_CHANGED_CB(DEVWRITELINE("huc6202", huc6202_device, hsync_changed))
+	MCFG_DEVICE_ADD( "huc6270_0", HUC6270, 0 )
+	MCFG_HUC6270_VRAM_SIZE(0x10000)
+	MCFG_HUC6270_IRQ_CHANGED_CB(WRITELINE(pce_state, pce_irq_changed))
+	MCFG_DEVICE_ADD( "huc6270_1", HUC6270, 0 )
+	MCFG_HUC6270_VRAM_SIZE(0x10000)
+	MCFG_HUC6270_IRQ_CHANGED_CB(WRITELINE(pce_state, pce_irq_changed))
+	MCFG_DEVICE_ADD( "huc6202", HUC6202, 0 )
+	MCFG_HUC6202_NEXT_PIXEL_0_CB(DEVREAD16("huc6270_0", huc6270_device, next_pixel))
+	MCFG_HUC6202_TIME_TIL_NEXT_EVENT_0_CB(DEVREAD16("huc6270_0", huc6270_device, time_until_next_event))
+	MCFG_HUC6202_VSYNC_CHANGED_0_CB(DEVWRITELINE("huc6270_0", huc6270_device, vsync_changed))
+	MCFG_HUC6202_HSYNC_CHANGED_0_CB(DEVWRITELINE("huc6270_0", huc6270_device, hsync_changed))
+	MCFG_HUC6202_READ_0_CB(DEVREAD8("huc6270_0", huc6270_device, read))
+	MCFG_HUC6202_WRITE_0_CB(DEVWRITE8("huc6270_0", huc6270_device, write))
+	MCFG_HUC6202_NEXT_PIXEL_1_CB(DEVREAD16("huc6270_1", huc6270_device, next_pixel))
+	MCFG_HUC6202_TIME_TIL_NEXT_EVENT_1_CB(DEVREAD16("huc6270_1", huc6270_device, time_until_next_event))
+	MCFG_HUC6202_VSYNC_CHANGED_1_CB(DEVWRITELINE("huc6270_1", huc6270_device, vsync_changed))
+	MCFG_HUC6202_HSYNC_CHANGED_1_CB(DEVWRITELINE("huc6270_1", huc6270_device, hsync_changed))
+	MCFG_HUC6202_READ_1_CB(DEVREAD8("huc6270_1", huc6270_device, read))
+	MCFG_HUC6202_WRITE_1_CB(DEVWRITE8("huc6270_1", huc6270_device, write))
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD(C6280_TAG, C6280, MAIN_CLOCK/6)
-	MCFG_SOUND_CONFIG(c6280_config)
+	MCFG_C6280_CPU("maincpu")
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.00)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.00)
 

@@ -20,11 +20,11 @@
 
 ***************************************************************************/
 
-void blueprnt_state::palette_init()
+PALETTE_INIT_MEMBER(blueprnt_state, blueprnt)
 {
 	int i;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		UINT8 pen;
 		int r, g, b;
@@ -42,7 +42,7 @@ void blueprnt_state::palette_init()
 		g = ((pen >> 2) & 1) * ((pen & 0x08) ? 0xbf : 0xff);
 		b = ((pen >> 1) & 1) * ((pen & 0x08) ? 0xbf : 0xff);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -116,7 +116,7 @@ TILE_GET_INFO_MEMBER(blueprnt_state::get_bg_tile_info)
 
 VIDEO_START_MEMBER(blueprnt_state,blueprnt)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(blueprnt_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS_FLIP_X, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(blueprnt_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS_FLIP_X, 8, 8, 32, 32);
 	m_bg_tilemap->set_transparent_pen(0);
 	m_bg_tilemap->set_scroll_cols(32);
 
@@ -145,7 +145,7 @@ void blueprnt_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &clipre
 		}
 
 		// sprites are slightly misplaced, regardless of the screen flip
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code, 0, flipx, flipy, 2 + sx, sy - 1, 0);
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, code, 0, flipx, flipy, 2 + sx, sy - 1, 0);
 	}
 }
 
@@ -160,7 +160,7 @@ UINT32 blueprnt_state::screen_update_blueprnt(screen_device &screen, bitmap_ind1
 		for (i = 0; i < 32; i++)
 			m_bg_tilemap->set_scrolly(i, m_scrollram[30 - i]);
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	draw_sprites(bitmap, cliprect);
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 1, 0);

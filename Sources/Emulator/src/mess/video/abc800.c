@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*****************************************************************************
  *
  * video/abc800.c
@@ -12,19 +14,6 @@
 // not position the active display area correctly
 #define HORIZONTAL_PORCH_HACK   115
 #define VERTICAL_PORCH_HACK     29
-
-
-static const rgb_t PALETTE[] =
-{
-	RGB_BLACK,
-	MAKE_RGB(0xff, 0x00, 0x00), // red
-	MAKE_RGB(0x00, 0xff, 0x00), // green
-	MAKE_RGB(0xff, 0xff, 0x00), // yellow
-	MAKE_RGB(0x00, 0x00, 0xff), // blue
-	MAKE_RGB(0xff, 0x00, 0xff), // magenta
-	MAKE_RGB(0x00, 0xff, 0xff), // cyan
-	RGB_WHITE
-};
 
 
 
@@ -81,6 +70,8 @@ offs_t abc800c_state::translate_trom_offset(offs_t offset)
 
 void abc800c_state::hr_update(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
+	const pen_t *pen = m_palette->pens();
+
 	UINT16 addr = 0;
 
 	for (int y = m_hrs; y < MIN(cliprect.max_y + 1, m_hrs + 480); y += 2)
@@ -99,16 +90,16 @@ void abc800c_state::hr_update(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 
 				if (color)
 				{
-					bool black = bitmap.pix32(y, x) == RGB_BLACK;
+					bool black = bitmap.pix32(y, x) == rgb_t::black;
 					bool opaque = !BIT(fgctl, 3);
 
 					if (black || opaque)
 					{
-						bitmap.pix32(y, x) = PALETTE[color];
-						bitmap.pix32(y, x + 1) = PALETTE[color];
+						bitmap.pix32(y, x) = pen[color];
+						bitmap.pix32(y, x + 1) = pen[color];
 
-						bitmap.pix32(y + 1, x) = PALETTE[color];
-						bitmap.pix32(y + 1, x + 1) = PALETTE[color];
+						bitmap.pix32(y + 1, x) = pen[color];
+						bitmap.pix32(y + 1, x + 1) = pen[color];
 					}
 				}
 
@@ -135,7 +126,7 @@ void abc800_state::video_start()
 UINT32 abc800c_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	// clear screen
-	bitmap.fill(RGB_BLACK, cliprect);
+	bitmap.fill(rgb_t::black, cliprect);
 
 	// draw text
 	if (!BIT(m_fgctl, 7))
@@ -159,11 +150,22 @@ READ8_MEMBER( abc800c_state::char_ram_r )
 	return m_char_ram[translate_trom_offset(offset)];
 }
 
-static SAA5050_INTERFACE( trom_intf )
+
+//-------------------------------------------------
+//  PALETTE_INIT( abc800c )
+//-------------------------------------------------
+
+PALETTE_INIT_MEMBER( abc800c_state, abc800c )
 {
-	DEVCB_DRIVER_MEMBER(abc800c_state, char_ram_r),
-	40, 24, 40  // x, y, size
-};
+	palette.set_pen_color(0, rgb_t(0x00, 0x00, 0x00)); // black
+	palette.set_pen_color(1, rgb_t(0xff, 0x00, 0x00)); // red
+	palette.set_pen_color(2, rgb_t(0x00, 0xff, 0x00)); // green
+	palette.set_pen_color(3, rgb_t(0xff, 0xff, 0x00)); // yellow
+	palette.set_pen_color(4, rgb_t(0x00, 0x00, 0xff)); // blue
+	palette.set_pen_color(5, rgb_t(0xff, 0x00, 0xff)); // magenta
+	palette.set_pen_color(6, rgb_t(0x00, 0xff, 0xff)); // cyan
+	palette.set_pen_color(7, rgb_t(0xff, 0xff, 0xff)); // white
+}
 
 
 //-------------------------------------------------
@@ -173,13 +175,17 @@ static SAA5050_INTERFACE( trom_intf )
 MACHINE_CONFIG_FRAGMENT( abc800c_video )
 	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
 	MCFG_SCREEN_UPDATE_DRIVER(abc800c_state, screen_update)
-
 	MCFG_SCREEN_REFRESH_RATE(50)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_SIZE(480, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 480-1, 0, 480-1)
 
-	MCFG_SAA5052_ADD(SAA5052_TAG, XTAL_12MHz/2, trom_intf)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(abc800c_state, abc800c)
+
+	MCFG_DEVICE_ADD(SAA5052_TAG, SAA5052, XTAL_12MHz/2)
+	MCFG_SAA5050_D_CALLBACK(READ8(abc800c_state, char_ram_r))
+	MCFG_SAA5050_SCREEN_SIZE(40, 24, 40)
 MACHINE_CONFIG_END
 
 
@@ -196,6 +202,8 @@ void abc800m_state::hr_update(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	UINT16 addr = 0;
 
+	const pen_t *pen = m_palette->pens();
+
 	for (int y = m_hrs + VERTICAL_PORCH_HACK; y < MIN(cliprect.max_y + 1, m_hrs + VERTICAL_PORCH_HACK + 240); y++)
 	{
 		int x = HORIZONTAL_PORCH_HACK;
@@ -209,8 +217,8 @@ void abc800m_state::hr_update(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 				UINT16 fgctl_addr = ((m_fgctl & 0x7f) << 2) | ((data >> 6) & 0x03);
 				int color = (m_fgctl_prom->base()[fgctl_addr] & 0x07) ? 1 : 0;
 
-				bitmap.pix32(y, x++) = RGB_MONOCHROME_YELLOW[color];
-				bitmap.pix32(y, x++) = RGB_MONOCHROME_YELLOW[color];
+				bitmap.pix32(y, x++) = pen[color];
+				bitmap.pix32(y, x++) = pen[color];
 
 				data <<= 2;
 			}
@@ -223,23 +231,19 @@ void abc800m_state::hr_update(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 //  MC6845_UPDATE_ROW( abc800m_update_row )
 //-------------------------------------------------
 
-static MC6845_UPDATE_ROW( abc800m_update_row )
+MC6845_UPDATE_ROW( abc800m_state::abc800m_update_row )
 {
-	abc800m_state *state = device->machine().driver_data<abc800m_state>();
-
 	int column;
+	rgb_t fgpen = m_palette->pen(1);
 
-	// prevent wraparound
-	if (y >= 240) return;
-
-	y += VERTICAL_PORCH_HACK;
+	y += vbp;
 
 	for (column = 0; column < x_count; column++)
 	{
 		int bit;
 
-		UINT16 address = (state->m_char_ram[(ma + column) & 0x7ff] << 4) | (ra & 0x0f);
-		UINT8 data = (state->m_char_rom->base()[address & 0x7ff] & 0x3f);
+		UINT16 address = (m_char_ram[(ma + column) & 0x7ff] << 4) | (ra & 0x0f);
+		UINT8 data = (m_char_rom->base()[address & 0x7ff] & 0x3f);
 
 		if (column == cursor_x)
 		{
@@ -250,11 +254,11 @@ static MC6845_UPDATE_ROW( abc800m_update_row )
 
 		for (bit = 0; bit < ABC800_CHAR_WIDTH; bit++)
 		{
-			int x = HORIZONTAL_PORCH_HACK + (column * ABC800_CHAR_WIDTH) + bit;
+			int x = hbp + (column * ABC800_CHAR_WIDTH) + bit;
 
-			if (BIT(data, 7))
+			if (BIT(data, 7) && de)
 			{
-				bitmap.pix32(y, x) = RGB_MONOCHROME_YELLOW[1];
+				bitmap.pix32(y, x) = fgpen;
 			}
 
 			data <<= 1;
@@ -264,35 +268,13 @@ static MC6845_UPDATE_ROW( abc800m_update_row )
 
 
 //-------------------------------------------------
-//  mc6845_interface crtc_intf
-//-------------------------------------------------
-
-static MC6845_INTERFACE( crtc_intf )
-{
-	false,
-	ABC800_CHAR_WIDTH,
-	NULL,
-	abc800m_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80DART_TAG, z80dart_device, rib_w),
-	NULL
-};
-
-
-//-------------------------------------------------
 //  SCREEN_UPDATE( abc800m )
 //-------------------------------------------------
 
 UINT32 abc800m_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	// HACK expand visible area to workaround MC6845
-	screen.set_visible_area(0, 767, 0, 311);
-
 	// clear screen
-	bitmap.fill(RGB_BLACK, cliprect);
+	bitmap.fill(rgb_t::black, cliprect);
 
 	// draw HR graphics
 	hr_update(bitmap, cliprect);
@@ -312,13 +294,18 @@ UINT32 abc800m_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap,
 //-------------------------------------------------
 
 MACHINE_CONFIG_FRAGMENT( abc800m_video )
-	MCFG_MC6845_ADD(MC6845_TAG, MC6845, SCREEN_TAG, ABC800_CCLK, crtc_intf)
+	MCFG_MC6845_ADD(MC6845_TAG, MC6845, SCREEN_TAG, ABC800_CCLK)
+	MCFG_MC6845_SHOW_BORDER_AREA(true)
+	MCFG_MC6845_CHAR_WIDTH(ABC800_CHAR_WIDTH)
+	MCFG_MC6845_UPDATE_ROW_CB(abc800m_state, abc800m_update_row)
+	MCFG_MC6845_OUT_VSYNC_CB(DEVWRITELINE(Z80DART_TAG, z80dart_device, rib_w))
 
 	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
 	MCFG_SCREEN_UPDATE_DRIVER(abc800m_state, screen_update)
-
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_SIZE(768, 312)
 	MCFG_SCREEN_VISIBLE_AREA(0,768-1, 0, 312-1)
+
+	MCFG_PALETTE_ADD_MONOCHROME_YELLOW("palette")
 MACHINE_CONFIG_END

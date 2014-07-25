@@ -25,7 +25,7 @@ WRITE8_MEMBER(runaway_state::runaway_paletteram_w)
 		0x47 * ((~data >> 0) & 1) +
 		0x97 * ((~data >> 1) & 1);
 
-	palette_set_color(machine(), offset, MAKE_RGB(R, G, B));
+	m_palette->set_pen_color(offset, rgb_t(R, G, B));
 }
 
 
@@ -68,7 +68,7 @@ TILE_GET_INFO_MEMBER(runaway_state::qwak_get_tile_info)
 
 void runaway_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(runaway_state::runaway_get_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 30);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(runaway_state::runaway_get_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 30);
 
 	save_item(NAME(m_tile_bank));
 }
@@ -76,7 +76,7 @@ void runaway_state::video_start()
 
 VIDEO_START_MEMBER(runaway_state,qwak)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(runaway_state::qwak_get_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 30);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(runaway_state::qwak_get_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 30);
 
 	save_item(NAME(m_tile_bank));
 }
@@ -101,13 +101,13 @@ UINT32 runaway_state::screen_update_runaway(screen_device &screen, bitmap_ind16 
 
 		code |= (m_sprite_ram[i + 0x30] << 2) & 0x1c0;
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 			code,
 			0,
 			flipx, flipy,
 			x, 240 - y, 0);
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 			code,
 			0,
 			flipx, flipy,
@@ -135,13 +135,13 @@ UINT32 runaway_state::screen_update_qwak(screen_device &screen, bitmap_ind16 &bi
 
 		code |= (m_sprite_ram[i + 0x30] << 2) & 0x1c0;
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 			code,
 			0,
 			flipx, flipy,
 			x, 240 - y, 0);
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 			code,
 			0,
 			flipx, flipy,

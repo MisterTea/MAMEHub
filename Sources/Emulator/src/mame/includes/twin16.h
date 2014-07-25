@@ -16,7 +16,10 @@ public:
 		m_audiocpu(*this, "audiocpu"),
 		m_subcpu(*this, "sub"),
 		m_k007232(*this, "k007232"),
-		m_upd7759(*this, "upd") { }
+		m_upd7759(*this, "upd"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_device<buffered_spriteram16_device> m_spriteram;
 	required_shared_ptr<UINT16> m_text_ram;
@@ -26,9 +29,6 @@ public:
 
 	UINT16 m_CPUA_register;
 	UINT16 m_CPUB_register;
-	UINT16 m_sound_command;
-	int m_cuebrickj_nvram_bank;
-	UINT16 m_cuebrickj_nvram[0x400*0x20];
 	UINT16 m_custom_video;
 	UINT16 *m_gfx_rom;
 	UINT16 m_sprite_buffer[0x800];
@@ -40,30 +40,20 @@ public:
 	UINT16 m_scrolly[3];
 	UINT16 m_video_register;
 	tilemap_t *m_text_tilemap;
-	DECLARE_READ16_MEMBER(videoram16_r);
-	DECLARE_WRITE16_MEMBER(videoram16_w);
-	DECLARE_READ16_MEMBER(extra_rom_r);
 	DECLARE_READ16_MEMBER(twin16_gfx_rom1_r);
 	DECLARE_READ16_MEMBER(twin16_gfx_rom2_r);
-	DECLARE_WRITE16_MEMBER(sound_command_w);
 	DECLARE_WRITE16_MEMBER(twin16_CPUA_register_w);
 	DECLARE_WRITE16_MEMBER(twin16_CPUB_register_w);
 	DECLARE_WRITE16_MEMBER(fround_CPU_register_w);
-	DECLARE_READ16_MEMBER(twin16_input_r);
-	DECLARE_READ16_MEMBER(cuebrickj_nvram_r);
-	DECLARE_WRITE16_MEMBER(cuebrickj_nvram_w);
-	DECLARE_WRITE16_MEMBER(cuebrickj_nvram_bank_w);
 	DECLARE_WRITE16_MEMBER(twin16_text_ram_w);
-	DECLARE_WRITE16_MEMBER(twin16_paletteram_word_w);
 	DECLARE_WRITE16_MEMBER(fround_gfx_bank_w);
 	DECLARE_WRITE16_MEMBER(twin16_video_register_w);
 	DECLARE_READ16_MEMBER(twin16_sprite_status_r);
 	DECLARE_READ8_MEMBER(twin16_upd_busy_r);
 	DECLARE_WRITE8_MEMBER(twin16_upd_reset_w);
 	DECLARE_WRITE8_MEMBER(twin16_upd_start_w);
-	DECLARE_DRIVER_INIT(fround);
 	DECLARE_DRIVER_INIT(twin16);
-	DECLARE_DRIVER_INIT(cuebrickj);
+	DECLARE_DRIVER_INIT(fround);
 	TILE_GET_INFO_MEMBER(get_text_tile_info);
 	DECLARE_MACHINE_START(twin16);
 	DECLARE_MACHINE_RESET(twin16);
@@ -78,11 +68,27 @@ public:
 	void draw_sprites( screen_device &screen, bitmap_ind16 &bitmap );
 	void draw_layer( screen_device &screen, bitmap_ind16 &bitmap, int opaque );
 	int twin16_spriteram_process_enable(  );
-	void gfx_untangle(  );
 	DECLARE_WRITE8_MEMBER(volume_callback);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	optional_device<cpu_device> m_subcpu;
 	required_device<k007232_device> m_k007232;
 	required_device<upd7759_device> m_upd7759;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+};
+
+class cuebrickj_state : public twin16_state
+{
+public:
+	cuebrickj_state(const machine_config &mconfig, device_type type, const char *tag)
+		: twin16_state(mconfig, type, tag)
+	{}
+
+	DECLARE_WRITE8_MEMBER(nvram_bank_w);
+	DECLARE_DRIVER_INIT(cuebrickj);
+
+private:
+	UINT16 m_nvram[0x400 * 0x20 / 2];
 };

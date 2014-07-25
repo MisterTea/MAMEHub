@@ -37,16 +37,15 @@ public:
 		m_k053936(*this, "k053936"),
 		m_k054000(*this, "k054000"),
 		m_upd7759(*this, "upd"),
-		m_samples(*this, "samples"){ }
+		m_samples(*this, "samples"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	optional_shared_ptr<UINT16> m_spriteram;
 	optional_shared_ptr<UINT16> m_tmnt2_rom;
 	optional_shared_ptr<UINT16> m_sunset_104000;
 	optional_shared_ptr<UINT16> m_tmnt2_1c0800;
-//  UINT16 *    m_paletteram;    // currently this uses generic palette handling
-//  UINT8 *     m_nvram;    // currently cuebrick uses generic nvram handling
-//  UINT8 *     m_cuebrick_nvram;
 
 	/* video-related */
 	int        m_layer_colorbase[3];
@@ -69,11 +68,9 @@ public:
 
 	/* misc */
 	int        m_tmnt_soundlatch;
-	int        m_cuebrick_snd_irqlatch;
-	int        m_cuebrick_nvram_bank;
 	int        m_toggle;
 	int        m_last;
-	UINT16     m_cuebrick_nvram[0x400 * 0x20];  // 32k paged in a 1k window
+	UINT16     m_cuebrick_nvram[0x400 * 0x20 / 2];  // 32k paged in a 1k window
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
@@ -89,6 +86,8 @@ public:
 	optional_device<k054000_device> m_k054000;
 	optional_device<upd7759_device> m_upd7759;
 	optional_device<samples_device> m_samples;
+	optional_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	/* memory buffers */
 	INT16      m_sampledata[0x40000];
@@ -102,9 +101,6 @@ public:
 	DECLARE_WRITE16_MEMBER(k053245_scattered_word_w);
 	DECLARE_READ16_MEMBER(k053244_word_noA1_r);
 	DECLARE_WRITE16_MEMBER(k053244_word_noA1_w);
-	DECLARE_WRITE16_MEMBER(tmnt_sound_command_w);
-	DECLARE_READ16_MEMBER(prmrsocr_sound_r);
-	DECLARE_WRITE16_MEMBER(prmrsocr_sound_cmd_w);
 	DECLARE_WRITE16_MEMBER(prmrsocr_sound_irq_w);
 	DECLARE_WRITE8_MEMBER(prmrsocr_audio_bankswitch_w);
 	DECLARE_READ8_MEMBER(tmnt_sres_r);
@@ -120,15 +116,12 @@ public:
 	DECLARE_READ16_MEMBER(thndrx2_eeprom_r);
 	DECLARE_WRITE16_MEMBER(thndrx2_eeprom_w);
 	DECLARE_WRITE16_MEMBER(prmrsocr_eeprom_w);
-	DECLARE_READ16_MEMBER(cuebrick_nv_r);
-	DECLARE_WRITE16_MEMBER(cuebrick_nv_w);
-	DECLARE_WRITE16_MEMBER(cuebrick_nvbank_w);
+	DECLARE_WRITE8_MEMBER(cuebrick_nvbank_w);
 	DECLARE_WRITE16_MEMBER(ssriders_soundkludge_w);
 	DECLARE_WRITE16_MEMBER(k053251_glfgreat_w);
 	DECLARE_WRITE16_MEMBER(tmnt2_1c0800_w);
 	DECLARE_READ8_MEMBER(k054539_ctrl_r);
 	DECLARE_WRITE8_MEMBER(k054539_ctrl_w);
-	DECLARE_WRITE16_MEMBER(tmnt_paletteram_word_w);
 	DECLARE_WRITE16_MEMBER(tmnt_0a0000_w);
 	DECLARE_WRITE16_MEMBER(punkshot_0a0020_w);
 	DECLARE_WRITE16_MEMBER(lgtnfght_0a0018_w);
@@ -169,31 +162,26 @@ public:
 	UINT32 screen_update_tmnt2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_thndrx2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_blswhstl(screen_device &screen, bool state);
-	INTERRUPT_GEN_MEMBER(cuebrick_interrupt);
+	INTERRUPT_GEN_MEMBER(tmnt_interrupt);
 	INTERRUPT_GEN_MEMBER(punkshot_interrupt);
 	INTERRUPT_GEN_MEMBER(lgtnfght_interrupt);
-	INTERRUPT_GEN_MEMBER(tmnt_vblank_irq);
 	void sound_nmi_callback( int param );
 	inline UINT32 tmnt2_get_word( UINT32 addr );
 	void tmnt2_put_word( address_space &space, UINT32 addr, UINT16 data );
 	DECLARE_WRITE8_MEMBER(volume_callback);
+	K051960_CB_MEMBER(mia_sprite_callback);
+	K051960_CB_MEMBER(tmnt_sprite_callback);
+	K051960_CB_MEMBER(punkshot_sprite_callback);
+	K051960_CB_MEMBER(thndrx2_sprite_callback);
+	K05324X_CB_MEMBER(lgtnfght_sprite_callback);
+	K05324X_CB_MEMBER(blswhstl_sprite_callback);
+	K05324X_CB_MEMBER(prmrsocr_sprite_callback);
+	K052109_CB_MEMBER(mia_tile_callback);
+	K052109_CB_MEMBER(cuebrick_tile_callback);
+	K052109_CB_MEMBER(tmnt_tile_callback);
+	K052109_CB_MEMBER(ssbl_tile_callback);
+	K052109_CB_MEMBER(blswhstl_tile_callback);
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
-
-
-/*----------- defined in video/tmnt.c -----------*/
-
-extern void mia_tile_callback(running_machine &machine, int layer,int bank,int *code,int *color,int *flags,int *priority);
-extern void cuebrick_tile_callback(running_machine &machine, int layer,int bank,int *code,int *color,int *flags,int *priority);
-extern void tmnt_tile_callback(running_machine &machine, int layer,int bank,int *code,int *color,int *flags,int *priority);
-extern void ssbl_tile_callback(running_machine &machine, int layer,int bank,int *code,int *color,int *flags,int *priority);
-extern void blswhstl_tile_callback(running_machine &machine, int layer,int bank,int *code,int *color,int *flags,int *priority);
-extern void mia_sprite_callback(running_machine &machine, int *code,int *color,int *priority,int *shadow);
-extern void tmnt_sprite_callback(running_machine &machine, int *code,int *color,int *priority,int *shadow);
-extern void punkshot_sprite_callback(running_machine &machine, int *code,int *color,int *priority_mask,int *shadow);
-extern void thndrx2_sprite_callback(running_machine &machine, int *code,int *color,int *priority_mask,int *shadow);
-extern void lgtnfght_sprite_callback(running_machine &machine, int *code,int *color,int *priority_mask);
-extern void blswhstl_sprite_callback(running_machine &machine, int *code,int *color,int *priority_mask);
-extern void prmrsocr_sprite_callback(running_machine &machine, int *code,int *color,int *priority_mask);

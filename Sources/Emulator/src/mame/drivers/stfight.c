@@ -253,8 +253,8 @@ TODO:
 static ADDRESS_MAP_START( cpu1_map, AS_PROGRAM, 8, stfight_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")                  /* sf02.bin */
-	AM_RANGE(0xc000, 0xc0ff) AM_RAM AM_SHARE("paletteram")
-	AM_RANGE(0xc100, 0xc1ff) AM_RAM AM_SHARE("paletteram2")
+	AM_RANGE(0xc000, 0xc0ff) AM_RAM_DEVWRITE("palette", palette_device, write_indirect) AM_SHARE("palette")
+	AM_RANGE(0xc100, 0xc1ff) AM_RAM_DEVWRITE("palette", palette_device, write_indirect_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0xc200, 0xc200) AM_READ_PORT("P1")
 	AM_RANGE(0xc201, 0xc201) AM_READ_PORT("P2")
 	AM_RANGE(0xc202, 0xc202) AM_READ_PORT("START")
@@ -530,12 +530,6 @@ static GFXDECODE_START( cshooter )
 GFXDECODE_END
 
 
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(stfight_state, stfight_adpcm_int), // Interrupt function
-	MSM5205_S48_4B  // 8KHz, 4-bit
-};
-
 static MACHINE_CONFIG_START( stfight, stfight_state )
 
 	/* basic machine hardware */
@@ -559,10 +553,14 @@ static MACHINE_CONFIG_START( stfight, stfight_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(stfight_state, screen_update_stfight)
+	MCFG_SCREEN_PALETTE("palette")
 	MCFG_VIDEO_START_OVERRIDE(stfight_state,stfight)
 
-	MCFG_GFXDECODE(stfight)
-	MCFG_PALETTE_LENGTH(16*4+16*16+16*16+16*16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", stfight)
+	MCFG_PALETTE_ADD("palette", 16*4+16*16+16*16+16*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_FORMAT(xxxxBBBBRRRRGGGG)
+	MCFG_PALETTE_INIT_OWNER(stfight_state, stfight)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -581,7 +579,8 @@ static MACHINE_CONFIG_START( stfight, stfight_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.10)
 
 	MCFG_SOUND_ADD("msm", MSM5205, XTAL_384kHz)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(stfight_state, stfight_adpcm_int)) // Interrupt function
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)  // 8KHz, 4-bit
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -600,7 +599,7 @@ static MACHINE_CONFIG_DERIVED( cshooter, stfight )
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(stfight_state, screen_update_cshooter)
 
-	MCFG_GFXDECODE(cshooter)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", cshooter)
 	MCFG_VIDEO_START_OVERRIDE(stfight_state,cshooter)
 
 	MCFG_SOUND_MODIFY("ym1")
@@ -1044,5 +1043,5 @@ GAME( 1986, empcityj, empcity, stfight, stfight, stfight_state, stfight, ROT0,  
 GAME( 1986, empcityi, empcity, stfight, stfight, stfight_state, stfight, ROT0,   "Seibu Kaihatsu (Eurobed license)",         "Empire City: 1931 (Italy)", GAME_IMPERFECT_SOUND )
 GAME( 1986, stfight,  empcity, stfight, stfight, stfight_state, stfight, ROT0,   "Seibu Kaihatsu (Tuning license)",          "Street Fight (Germany)", GAME_IMPERFECT_SOUND )
 GAME( 1986, stfighta, empcity, stfight, stfight, stfight_state, stfight, ROT0,   "Seibu Kaihatsu",                           "Street Fight (bootleg?)", GAME_IMPERFECT_SOUND )
-/* Cross Shooter runs on a slightly modified PCB, with a different text tilemap and gfx blobs (see also airraid.c) */
+/* Cross Shooter runs on a slightly modified PCB, with a different text tilemap and gfx blobs (see also cshooter.c) */
 GAME( 1987, cshooter,  0,      cshooter,cshooter, stfight_state, cshooter,ROT270,"Seibu Kaihatsu (Taito license)",           "Cross Shooter (not encrypted)", GAME_NOT_WORKING )

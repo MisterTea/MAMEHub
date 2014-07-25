@@ -80,7 +80,7 @@ static const opcode_struct g_opcodes[256] =
 /* 0C */ {ASL    , {ABS , IMP }},
 /* 0D */ {PUSH   , {PSW , IMP }},
 /* 0E */ {TSET1  , {ABS , IMP }},
-/* 0F */ {BRK    , {IMM , IMP }},
+/* 0F */ {BRK    , {IMP , IMP }},
 /* 10 */ {BPL    , {REL , IMP }},
 /* 11 */ {TCALL  , {N1  , IMP }},
 /* 12 */ {CLR1   , {DP0 , IMP }},
@@ -360,7 +360,14 @@ CPU_DISASSEMBLE( spc700 )
 	else if (opcode->name == RET || opcode->name == RETI)
 		flags = DASMFLAG_STEP_OUT;
 
-	for(i=0;i<2;i++)
+	if (opcode->args[0] == DP && (opcode->args[1] == DP || opcode->args[1] == IMM))
+	{
+		int src = read_8_immediate();
+		int dst = read_8_immediate();
+		sprintf(ptr, "$%02x,%s$%02x", dst, (opcode->args[1] == IMM ? "#" : ""), src);
+		ptr += strlen(ptr);
+	}
+	else for(i=0;i<2;i++)
 	{
 		if(i == 1 && opcode->args[0] != IMP && opcode->args[1] != IMP)
 		{

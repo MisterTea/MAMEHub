@@ -459,15 +459,6 @@ static GFXDECODE_START( kikcubic )
 GFXDECODE_END
 
 
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( vigilant, vigilant_state )
 
 	/* basic machine hardware */
@@ -488,9 +479,10 @@ static MACHINE_CONFIG_START( vigilant, vigilant_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(16*8, (64-16)*8-1, 0*8, 32*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(vigilant_state, screen_update_vigilant)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(vigilant)
-	MCFG_PALETTE_LENGTH(512+32) /* 512 real palette, 32 virtual palette */
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", vigilant)
+	MCFG_PALETTE_ADD("palette", 512+32) /* 512 real palette, 32 virtual palette */
 
 
 	/* sound hardware */
@@ -528,9 +520,10 @@ static MACHINE_CONFIG_START( buccanrs, vigilant_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(16*8, (64-16)*8-1, 0*8, 32*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(vigilant_state, screen_update_vigilant)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(buccanrs)
-	MCFG_PALETTE_LENGTH(512+32) /* 512 real palette, 32 virtual palette */
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", buccanrs)
+	MCFG_PALETTE_ADD("palette", 512+32) /* 512 real palette, 32 virtual palette */
 
 
 	/* sound hardware */
@@ -540,7 +533,6 @@ static MACHINE_CONFIG_START( buccanrs, vigilant_state )
 
 	MCFG_SOUND_ADD("ym1", YM2203, 18432000/6)
 	MCFG_YM2203_IRQ_HANDLER(DEVWRITELINE("m72", m72_audio_device, ym2151_irq_handler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.35)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.35)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  0.35)
@@ -585,9 +577,10 @@ static MACHINE_CONFIG_START( kikcubic, vigilant_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 0*8, 32*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(vigilant_state, screen_update_kikcubic)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(kikcubic)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", kikcubic)
+	MCFG_PALETTE_ADD("palette", 256)
 
 
 	/* sound hardware */

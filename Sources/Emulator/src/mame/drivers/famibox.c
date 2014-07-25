@@ -71,7 +71,14 @@ class famibox_state : public driver_device
 public:
 	famibox_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_nesapu(*this, "nesapu"),
+		m_ppu(*this, "ppu") { }
+
+
+	required_device<cpu_device> m_maincpu;
+	required_device<nesapu_device> m_nesapu;
+	required_device<ppu2c0x_device> m_ppu;
 
 	UINT8* m_nt_ram;
 	UINT8* m_nt_page[4];
@@ -109,7 +116,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(famibox);
 	UINT32 screen_update_famibox(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(famicombox_attract_timer_callback);
 	TIMER_CALLBACK_MEMBER(famicombox_gameplay_timer_callback);
@@ -117,7 +124,6 @@ public:
 	void famicombox_bankswitch(UINT8 bank);
 	void famicombox_reset();
 	void ppu_irq(int *ppu_regs);
-	required_device<cpu_device> m_maincpu;
 };
 
 /******************************************************
@@ -181,27 +187,23 @@ READ8_MEMBER(famibox_state::famibox_nt_r)
 
 WRITE8_MEMBER(famibox_state::sprite_dma_w)
 {
-	ppu2c0x_device *ppu = machine().device<ppu2c0x_device>("ppu");
 	int source = (data & 7);
-	ppu->spriteram_dma(space, source);
+	m_ppu->spriteram_dma(space, source);
 }
 
 READ8_MEMBER(famibox_state::psg_4015_r)
 {
-	device_t *device = machine().device("nes");
-	return nes_psg_r(device, space, 0x15);
+	return m_nesapu->read(space, 0x15);
 }
 
 WRITE8_MEMBER(famibox_state::psg_4015_w)
 {
-	device_t *device = machine().device("nes");
-	nes_psg_w(device, space, 0x15, data);
+	m_nesapu->write(space, 0x15, data);
 }
 
 WRITE8_MEMBER(famibox_state::psg_4017_w)
 {
-	device_t *device = machine().device("nes");
-	nes_psg_w(device, space, 0x17, data);
+	m_nesapu->write(space, 0x17, data);
 }
 
 /******************************************************
@@ -270,7 +272,7 @@ void famibox_state::famicombox_bankswitch(UINT8 bank)
 	};
 
 
-	for (int i = 0; i < sizeof(famicombox_banks)/sizeof(famicombox_banks[0]); i++ )
+	for (int i = 0; i < ARRAY_LENGTH(famicombox_banks); i++ )
 	{
 		if ( bank == famicombox_banks[i].bank ||
 				famicombox_banks[i].bank == 0 )
@@ -393,7 +395,7 @@ WRITE8_MEMBER(famibox_state::famibox_system_w)
 static ADDRESS_MAP_START( famibox_map, AS_PROGRAM, 8, famibox_state )
 	AM_RANGE(0x0000, 0x1fff) AM_RAM
 	AM_RANGE(0x2000, 0x3fff) AM_DEVREADWRITE("ppu", ppu2c0x_device, read, write)
-	AM_RANGE(0x4000, 0x4013) AM_DEVREADWRITE_LEGACY("nes", nes_psg_r, nes_psg_w)            /* PSG primary registers */
+	AM_RANGE(0x4000, 0x4013) AM_DEVREADWRITE("nesapu", nesapu_device, read, write)            /* PSG primary registers */
 	AM_RANGE(0x4014, 0x4014) AM_WRITE(sprite_dma_w)
 	AM_RANGE(0x4015, 0x4015) AM_READWRITE(psg_4015_r, psg_4015_w)           /* PSG status / first control register */
 	AM_RANGE(0x4016, 0x4016) AM_READWRITE(famibox_IN0_r, famibox_IN0_w) /* IN0 - input port 1 */
@@ -509,30 +511,15 @@ INPUT_PORTS_END
 
 *******************************************************/
 
-static const nes_interface famibox_interface_1 =
+PALETTE_INIT_MEMBER(famibox_state, famibox)
 {
-	"maincpu"
-};
-
-void famibox_state::palette_init()
-{
-	ppu2c0x_device *ppu = machine().device<ppu2c0x_device>("ppu");
-	ppu->init_palette(machine(), 0);
+	m_ppu->init_palette(palette, 0);
 }
 
 void famibox_state::ppu_irq(int *ppu_regs)
 {
 	m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
-
-/* our ppu interface                                            */
-static const ppu2c0x_interface ppu_interface =
-{
-	"maincpu",
-	0,                  /* gfxlayout num */
-	0,                  /* color base */
-	PPU_MIRROR_NONE     /* mirroring */
-};
 
 void famibox_state::video_start()
 {
@@ -541,8 +528,7 @@ void famibox_state::video_start()
 UINT32 famibox_state::screen_update_famibox(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	/* render the ppu */
-	ppu2c0x_device *ppu = machine().device<ppu2c0x_device>("ppu");
-	ppu->render(bitmap, 0, 0, 0, 0);
+	m_ppu->render(bitmap, 0, 0, 0, 0);
 	return 0;
 }
 
@@ -563,8 +549,8 @@ void famibox_state::machine_start()
 	m_nt_page[2] = m_nt_ram + 0x800;
 	m_nt_page[3] = m_nt_ram + 0xc00;
 
-	machine().device("ppu")->memory().space(AS_PROGRAM).install_readwrite_handler(0x2000, 0x3eff, read8_delegate(FUNC(famibox_state::famibox_nt_r), this), write8_delegate(FUNC(famibox_state::famibox_nt_w), this));
-	machine().device("ppu")->memory().space(AS_PROGRAM).install_read_bank(0x0000, 0x1fff, "ppubank1");
+	m_ppu->space(AS_PROGRAM).install_readwrite_handler(0x2000, 0x3eff, read8_delegate(FUNC(famibox_state::famibox_nt_r), this), write8_delegate(FUNC(famibox_state::famibox_nt_w), this));
+	m_ppu->space(AS_PROGRAM).install_read_bank(0x0000, 0x1fff, "ppubank1");
 
 	famicombox_bankswitch(0);
 
@@ -583,26 +569,27 @@ static MACHINE_CONFIG_START( famibox, famibox_state )
 	MCFG_CPU_ADD("maincpu", N2A03, N2A03_DEFAULTCLOCK)
 	MCFG_CPU_PROGRAM_MAP(famibox_map)
 
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(32*8, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(famibox_state, screen_update_famibox)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(famibox)
-	MCFG_PALETTE_LENGTH(8*4*16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", famibox)
+	MCFG_PALETTE_ADD("palette", 8*4*16)
+	MCFG_PALETTE_INIT_OWNER(famibox_state, famibox)
 
-
-	MCFG_PPU2C04_ADD("ppu", ppu_interface)
+	MCFG_PPU2C04_ADD("ppu")
+	MCFG_PPU2C0X_CPU("maincpu")
 	MCFG_PPU2C0X_SET_NMI(famibox_state, ppu_irq)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("nes", NES, N2A03_DEFAULTCLOCK)
-	MCFG_SOUND_CONFIG(famibox_interface_1)
+	MCFG_SOUND_ADD("nesapu", NES_APU, N2A03_DEFAULTCLOCK)
+	MCFG_NES_APU_CPU("maincpu")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_DAC_ADD("dac")

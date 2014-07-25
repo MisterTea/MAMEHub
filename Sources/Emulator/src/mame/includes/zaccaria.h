@@ -12,7 +12,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_audio2(*this, "audio2"),
-		m_dac2(*this, "dac2") { }
+		m_dac2(*this, "dac2"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	int m_dsw;
 	int m_active_8910;
@@ -49,7 +51,7 @@ public:
 	DECLARE_WRITE8_MEMBER(mc1408_data_w);
 	TILE_GET_INFO_MEMBER(get_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(zaccaria);
 	UINT32 screen_update_zaccaria(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(zaccaria_cb1_toggle);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
@@ -58,4 +60,6 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_audio2;
 	required_device<dac_device> m_dac2;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

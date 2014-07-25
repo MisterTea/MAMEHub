@@ -14,9 +14,9 @@
 
 #include "emu.h"
 #include "imagedev/cassette.h"
-#include "imagedev/bitbngr.h"
+#include "bus/rs232/rs232.h"
 #include "machine/6821pia.h"
-#include "machine/cococart.h"
+#include "bus/coco/cococart.h"
 #include "machine/coco_vhd.h"
 #include "machine/ram.h"
 #include "sound/dac.h"
@@ -47,7 +47,7 @@ SLOT_INTERFACE_EXTERN( coco_cart );
 #define SCREEN_TAG                  "screen"
 #define DAC_TAG                     "dac"
 #define CARTRIDGE_TAG               "ext"
-#define BITBANGER_TAG               "bitbanger"
+#define RS232_TAG                   "rs232"
 #define VHD0_TAG                    "vhd0"
 #define VHD1_TAG                    "vhd1"
 
@@ -92,20 +92,13 @@ public:
 	required_device<cococart_slot_device> m_cococart;
 	required_device<ram_device> m_ram;
 	required_device<cassette_image_device> m_cassette;
-	optional_device<bitbanger_device> m_bitbanger;
+	optional_device<rs232_port_device> m_rs232;
 	optional_device<coco_vhd_image_device> m_vhd_0;
 	optional_device<coco_vhd_image_device> m_vhd_1;
-
-	static const pia6821_interface pia0_config;
-	static const pia6821_interface pia1_config;
-	static const cococart_interface cartridge_config;
-	static const bitbanger_config coco_bitbanger_config;
-	static const cassette_interface coco_cassette_interface;
 
 	// driver update handlers
 	DECLARE_INPUT_CHANGED_MEMBER(keyboard_changed);
 	DECLARE_INPUT_CHANGED_MEMBER(joystick_mode_changed);
-	static void bitbanger_callback(running_machine &machine, UINT8 bit);
 
 	// IO
 	virtual DECLARE_READ8_MEMBER( ff00_read );
@@ -116,32 +109,6 @@ public:
 	virtual DECLARE_WRITE8_MEMBER( ff40_write );
 	DECLARE_READ8_MEMBER( ff60_read );
 	DECLARE_WRITE8_MEMBER( ff60_write );
-
-	// floating bus
-	DECLARE_READ8_MEMBER( floating_bus_read )   { return floating_bus_read(); }
-
-protected:
-	// device-level overrides
-	virtual void device_start();
-	virtual void device_reset();
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
-
-	// interrupts
-	virtual bool firq_get_line(void);
-	virtual bool irq_get_line(void);
-	void recalculate_irq(void);
-	void recalculate_firq(void);
-
-	// changed handlers
-	virtual void pia1_pa_changed(void);
-	virtual void pia1_pb_changed(void);
-	virtual void bitbanger_changed(bool newvalue);
-
-	// miscellaneous
-	virtual void update_keyboard_input(UINT8 value, UINT8 z);
-	virtual void cart_w(bool state);
-	DECLARE_WRITE_LINE_MEMBER( cart_w ) { cart_w((bool) state); }
-	virtual void update_cart_base(UINT8 *cart_base) = 0;
 
 	// PIA0
 	DECLARE_WRITE8_MEMBER( pia0_pa_w );
@@ -160,6 +127,31 @@ protected:
 	DECLARE_WRITE_LINE_MEMBER( pia1_cb2_w );
 	DECLARE_WRITE_LINE_MEMBER( pia1_firq_a );
 	DECLARE_WRITE_LINE_MEMBER( pia1_firq_b );
+
+	// floating bus
+	DECLARE_READ8_MEMBER( floating_bus_read )   { return floating_bus_read(); }
+
+	DECLARE_WRITE_LINE_MEMBER( cart_w ) { cart_w((bool) state); }
+protected:
+	// device-level overrides
+	virtual void device_start();
+	virtual void device_reset();
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+
+	// interrupts
+	virtual bool firq_get_line(void);
+	virtual bool irq_get_line(void);
+	void recalculate_irq(void);
+	void recalculate_firq(void);
+
+	// changed handlers
+	virtual void pia1_pa_changed(void);
+	virtual void pia1_pb_changed(void);
+
+	// miscellaneous
+	virtual void update_keyboard_input(UINT8 value, UINT8 z);
+	virtual void cart_w(bool state);
+	virtual void update_cart_base(UINT8 *cart_base) = 0;
 
 private:
 	// timer constants
@@ -216,7 +208,6 @@ private:
 	void poll_hires_joystick(void);
 	void update_cassout(int cassout);
 	void update_prinout(bool prinout);
-	DECLARE_WRITE_LINE_MEMBER( bitbanger_callback );
 	void diecom_lightgun_clock(void);
 
 	// thin wrappers for PIA output

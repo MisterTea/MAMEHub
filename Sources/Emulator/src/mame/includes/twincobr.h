@@ -18,7 +18,10 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_dsp(*this, "dsp"),
-		m_spritegen(*this, "toaplan_scu")
+		m_spritegen(*this, "scu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")
 	{ }
 
 	optional_shared_ptr<UINT8> m_sharedram;
@@ -26,7 +29,6 @@ public:
 	optional_device<buffered_spriteram16_device> m_spriteram16;
 
 	int m_toaplan_main_cpu;
-	int m_wardner_membank;
 	INT32 m_fg_rom_bank;
 	INT32 m_bg_ram_bank;
 	int m_intenable;
@@ -51,10 +53,7 @@ public:
 	INT32 m_txoffs;
 	INT32 m_fgoffs;
 	INT32 m_bgoffs;
-	INT32 m_scroll_x;
-	INT32 m_scroll_y;
 	INT32 m_display_on;
-	INT32 m_flip_screen;
 	tilemap_t *m_bg_tilemap;
 	tilemap_t *m_fg_tilemap;
 	tilemap_t *m_tx_tilemap;
@@ -106,12 +105,10 @@ public:
 	TILE_GET_INFO_MEMBER(get_tx_tile_info);
 	DECLARE_MACHINE_RESET(twincobr);
 	DECLARE_VIDEO_START(toaplan0);
-	DECLARE_MACHINE_RESET(wardner);
 	void copy_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority);
 	UINT32 screen_update_toaplan0(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(twincobr_interrupt);
 	INTERRUPT_GEN_MEMBER(wardner_interrupt);
-	void twincobr_restore_screen();
 	void twincobr_restore_dsp();
 	void twincobr_create_tilemaps();
 	void twincobr_display(int enable);
@@ -127,15 +124,7 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_dsp;
 	required_device<toaplan_scu_device> m_spritegen;
-
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
-
-
-/*----------- defined in machine/twincobr.c -----------*/
-extern void twincobr_driver_savestate(running_machine &machine);
-
-/*----------- defined in video/twincobr.c -----------*/
-
-extern const mc6845_interface twincobr_mc6845_intf;
-extern void twincobr_flipscreen(running_machine &machine, int flip);
-extern void twincobr_display(running_machine &machine, int enable);

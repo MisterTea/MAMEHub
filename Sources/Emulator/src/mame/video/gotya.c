@@ -9,7 +9,7 @@
 
 ***************************************************************************/
 
-void gotya_state::palette_init()
+PALETTE_INIT_MEMBER(gotya_state, gotya)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances_rg[3] = { 1000, 470, 220 };
@@ -22,9 +22,6 @@ void gotya_state::palette_init()
 			3, &resistances_rg[0], rweights, 0, 0,
 			3, &resistances_rg[0], gweights, 0, 0,
 			2, &resistances_b[0],  bweights, 0, 0);
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 32);
 
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x20; i++)
@@ -49,7 +46,7 @@ void gotya_state::palette_init()
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		b = combine_2_weights(bweights, bit0, bit1);
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -58,7 +55,7 @@ void gotya_state::palette_init()
 	for (i = 0; i < 0x40; i++)
 	{
 		UINT8 ctabentry = color_prom[i] & 0x07;
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 }
 
@@ -107,7 +104,7 @@ TILEMAP_MAPPER_MEMBER(gotya_state::tilemap_scan_rows_thehand)
 
 void gotya_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(gotya_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(gotya_state::tilemap_scan_rows_thehand),this), 8, 8, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(gotya_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(gotya_state::tilemap_scan_rows_thehand),this), 8, 8, 64, 32);
 }
 
 void gotya_state::draw_status_row( bitmap_ind16 &bitmap, const rectangle &cliprect, int sx, int col )
@@ -128,8 +125,8 @@ void gotya_state::draw_status_row( bitmap_ind16 &bitmap, const rectangle &clipre
 		else
 			sy = 31 - row;
 
-		drawgfx_opaque(bitmap,cliprect,
-			machine().gfx[0],
+
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect,
 			m_videoram2[row * 32 + col],
 			m_videoram2[row * 32 + col + 0x10] & 0x0f,
 			flip_screen_x(), flip_screen_y(),
@@ -152,8 +149,8 @@ void gotya_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect 
 		if (flip_screen())
 			sy = 240 - sy;
 
-		drawgfx_transpen(bitmap,cliprect,
-			machine().gfx[1],
+
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 			code, color,
 			flip_screen_x(), flip_screen_y(),
 			sx, sy, 0);

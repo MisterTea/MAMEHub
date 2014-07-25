@@ -10,7 +10,9 @@ public:
 		m_scroll2(*this, "scroll2"),
 		m_maincpu(*this,"maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_mcu(*this, "mcu"){ }
+		m_mcu(*this, "mcu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT8> m_spriteram;
 	int m_nmi_enable;
@@ -30,6 +32,9 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_mcu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(thedeep_nmi_w);
 	DECLARE_WRITE8_MEMBER(thedeep_sound_w);
 	DECLARE_WRITE8_MEMBER(thedeep_protection_w);
@@ -48,7 +53,7 @@ public:
 	TILE_GET_INFO_MEMBER(get_tile_info_1);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(thedeep);
 	UINT32 screen_update_thedeep(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(thedeep_mcu_irq);
 	TIMER_DEVICE_CALLBACK_MEMBER(thedeep_interrupt);

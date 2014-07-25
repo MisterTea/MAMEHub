@@ -4,12 +4,14 @@
 #include "emu.h"
 #include "imagedev/floppy.h"
 
-#define MCFG_AMIGA_FDC_ADD(_tag, _clock)    \
-	MCFG_DEVICE_ADD(_tag, AMIGA_FDC, _clock)
+#define MCFG_AMIGA_FDC_INDEX_CALLBACK(_write) \
+	devcb = &amiga_fdc::set_index_wr_callback(*device, DEVCB_##_write);
 
 class amiga_fdc : public device_t {
 public:
 	amiga_fdc(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	template<class _Object> static devcb_base &set_index_wr_callback(device_t &device, _Object object) { return downcast<amiga_fdc &>(device).m_write_index.set_callback(object); }
 
 	DECLARE_WRITE8_MEMBER(ciaaprb_w);
 
@@ -60,9 +62,17 @@ private:
 
 		attotime delays[38];
 
-		void set_clock(attotime period);
-		void reset(attotime when);
-		int get_next_bit(attotime &tm, floppy_image_device *floppy, attotime limit);
+		attotime write_start_time;
+		attotime write_buffer[32];
+		int write_position;
+
+		void set_clock(const attotime &period);
+		void reset(const attotime &when);
+		int get_next_bit(attotime &tm, floppy_image_device *floppy, const attotime &limit);
+		bool write_next_bit(bool bit, attotime &tm, floppy_image_device *floppy, const attotime &limit);
+		void start_writing(const attotime &tm);
+		void commit(floppy_image_device *floppy, const attotime &tm);
+		void stop_writing(floppy_image_device *floppy, const attotime &tm);
 	};
 
 	struct live_info {
@@ -72,6 +82,8 @@ private:
 		int bit_counter;
 		pll_t pll;
 	};
+
+	devcb_write_line m_write_index;
 
 	floppy_image_device *floppy;
 	floppy_image_device *floppy_devices[4];
@@ -91,6 +103,7 @@ private:
 	void dma_check();
 	void dma_done();
 	void dma_write(UINT16 value);
+	UINT16 dma_read();
 
 	void live_start();
 	void checkpoint();
@@ -98,7 +111,7 @@ private:
 	void live_delay(int state);
 	void live_sync();
 	void live_abort();
-	void live_run(attotime limit = attotime::never);
+	void live_run(const attotime &limit = attotime::never);
 };
 
 extern const device_type AMIGA_FDC;

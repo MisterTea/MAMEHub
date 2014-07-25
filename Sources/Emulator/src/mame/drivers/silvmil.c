@@ -32,7 +32,8 @@ public:
 			m_fg_videoram(*this, "fg_videoram"),
 			m_spriteram(*this, "spriteram"),
 			m_sprgen(*this, "spritegen"),
-			m_maincpu(*this, "maincpu") { }
+			m_maincpu(*this, "maincpu"),
+			m_gfxdecode(*this, "gfxdecode") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_bg_videoram;
@@ -114,6 +115,7 @@ public:
 	UINT32 screen_update_silvmil(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void tumblepb_gfx1_rearrange();
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -145,8 +147,8 @@ TILEMAP_MAPPER_MEMBER(silvmil_state::deco16_scan_rows)
 
 void silvmil_state::video_start()
 {
-	m_bg_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(silvmil_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(silvmil_state::deco16_scan_rows),this), 16, 16, 64, 32);
-	m_fg_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(silvmil_state::get_fg_tile_info),this), tilemap_mapper_delegate(FUNC(silvmil_state::deco16_scan_rows),this), 16, 16, 64, 32);
+	m_bg_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(silvmil_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(silvmil_state::deco16_scan_rows),this), 16, 16, 64, 32);
+	m_fg_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(silvmil_state::get_fg_tile_info),this), tilemap_mapper_delegate(FUNC(silvmil_state::deco16_scan_rows),this), 16, 16, 64, 32);
 
 	m_fg_layer->set_transparent_pen(0);
 }
@@ -174,7 +176,7 @@ static ADDRESS_MAP_START( silvmil_map, AS_PROGRAM, 16, silvmil_state )
 
 	AM_RANGE(0x120000, 0x120fff) AM_RAM_WRITE(silvmil_fg_videoram_w) AM_SHARE("fg_videoram")
 	AM_RANGE(0x122000, 0x122fff) AM_RAM_WRITE(silvmil_bg_videoram_w) AM_SHARE("bg_videoram")
-	AM_RANGE(0x200000, 0x2005ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x200000, 0x2005ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x210000, 0x2107ff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x270000, 0x270001) AM_WRITE(silvmil_soundcmd_w)
 	AM_RANGE(0x280000, 0x280001) AM_READ_PORT("P1_P2")
@@ -319,15 +321,19 @@ static MACHINE_CONFIG_START( silvmil, silvmil_state )
 	MCFG_SCREEN_SIZE(64*8, 64*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 40*8-1, 0, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(silvmil_state, screen_update_silvmil)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x300)
-	MCFG_GFXDECODE(silvmil)
+	MCFG_PALETTE_ADD("palette", 0x300)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", silvmil)
 
 
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 0);
-	decospr_device::set_is_bootleg(*device, true);
-	decospr_device::set_offsets(*device, 5,7);
+	MCFG_DECO_SPRITE_GFX_REGION(0)
+	MCFG_DECO_SPRITE_ISBOOTLEG(true)
+	MCFG_DECO_SPRITE_OFFSETS(5, 7)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 

@@ -1,4 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder, Olivier Galibert
 #include "includes/atarist.h"
+#include "machine/clock.h"
+#include "bus/midi/midi.h"
 #include "video/atarist.h"
 
 /*
@@ -592,7 +596,7 @@ WRITE8_MEMBER( st_state::ikbd_port2_w )
 	m_ikbd_joy = BIT(data, 0);
 
 	// serial transmit
-	m_ikbd_rx = BIT(data, 4);
+	m_acia0->write_rxd(BIT(data, 4));
 }
 
 
@@ -705,6 +709,12 @@ WRITE16_MEMBER( megast_state::fpu_w )
 {
 }
 
+WRITE_LINE_MEMBER( st_state::write_monochrome )
+{
+	m_monochrome = state;
+	m_mfp->i7_w(m_monochrome);
+}
+
 
 
 //**************************************************************************
@@ -718,7 +728,8 @@ WRITE16_MEMBER( megast_state::fpu_w )
 void ste_state::dmasound_set_state(int level)
 {
 	m_dmasnd_active = level;
-	m_mfp->tai_w(level);
+	m_mfp->tai_w(m_dmasnd_active);
+	m_mfp->i7_w(m_monochrome ^ m_dmasnd_active);
 
 	if (level == 0)
 	{
@@ -731,6 +742,12 @@ void ste_state::dmasound_set_state(int level)
 	}
 }
 
+
+WRITE_LINE_MEMBER( ste_state::write_monochrome )
+{
+	m_monochrome = state;
+	m_mfp->i7_w(m_monochrome ^ m_dmasnd_active);
+}
 
 //-------------------------------------------------
 //  dmasound_tick -
@@ -1239,10 +1256,10 @@ static ADDRESS_MAP_START( st_map, AS_PROGRAM, 16, st_state )
 	AM_RANGE(0xff8a3c, 0xff8a3d) AM_READWRITE(blitter_ctrl_r, blitter_ctrl_w)
 #endif
 	AM_RANGE(0xfffa00, 0xfffa3f) AM_DEVREADWRITE8(MC68901_TAG, mc68901_device, read, write, 0x00ff)
-	AM_RANGE(0xfffc00, 0xfffc01) AM_DEVREADWRITE8(MC6850_0_TAG, acia6850_device, status_read, control_write, 0xff00)
-	AM_RANGE(0xfffc02, 0xfffc03) AM_DEVREADWRITE8(MC6850_0_TAG, acia6850_device, data_read, data_write, 0xff00)
-	AM_RANGE(0xfffc04, 0xfffc05) AM_DEVREADWRITE8(MC6850_1_TAG, acia6850_device, status_read, control_write, 0xff00)
-	AM_RANGE(0xfffc06, 0xfffc07) AM_DEVREADWRITE8(MC6850_1_TAG, acia6850_device, data_read, data_write, 0xff00)
+	AM_RANGE(0xfffc00, 0xfffc01) AM_DEVREADWRITE8(MC6850_0_TAG, acia6850_device, status_r, control_w, 0xff00)
+	AM_RANGE(0xfffc02, 0xfffc03) AM_DEVREADWRITE8(MC6850_0_TAG, acia6850_device, data_r, data_w, 0xff00)
+	AM_RANGE(0xfffc04, 0xfffc05) AM_DEVREADWRITE8(MC6850_1_TAG, acia6850_device, status_r, control_w, 0xff00)
+	AM_RANGE(0xfffc06, 0xfffc07) AM_DEVREADWRITE8(MC6850_1_TAG, acia6850_device, data_r, data_w, 0xff00)
 ADDRESS_MAP_END
 
 
@@ -1283,10 +1300,10 @@ static ADDRESS_MAP_START( megast_map, AS_PROGRAM, 16, megast_state )
 	AM_RANGE(0xff8a3c, 0xff8a3d) AM_READWRITE(blitter_ctrl_r, blitter_ctrl_w)
 	AM_RANGE(0xfffa00, 0xfffa3f) AM_DEVREADWRITE8(MC68901_TAG, mc68901_device, read, write, 0x00ff)
 	AM_RANGE(0xfffa40, 0xfffa57) AM_READWRITE(fpu_r, fpu_w)
-	AM_RANGE(0xfffc00, 0xfffc01) AM_DEVREADWRITE8(MC6850_0_TAG, acia6850_device, status_read, control_write, 0xff00)
-	AM_RANGE(0xfffc02, 0xfffc03) AM_DEVREADWRITE8(MC6850_0_TAG, acia6850_device, data_read, data_write, 0xff00)
-	AM_RANGE(0xfffc04, 0xfffc05) AM_DEVREADWRITE8(MC6850_1_TAG, acia6850_device, status_read, control_write, 0xff00)
-	AM_RANGE(0xfffc06, 0xfffc07) AM_DEVREADWRITE8(MC6850_1_TAG, acia6850_device, data_read, data_write, 0xff00)
+	AM_RANGE(0xfffc00, 0xfffc01) AM_DEVREADWRITE8(MC6850_0_TAG, acia6850_device, status_r, control_w, 0xff00)
+	AM_RANGE(0xfffc02, 0xfffc03) AM_DEVREADWRITE8(MC6850_0_TAG, acia6850_device, data_r, data_w, 0xff00)
+	AM_RANGE(0xfffc04, 0xfffc05) AM_DEVREADWRITE8(MC6850_1_TAG, acia6850_device, status_r, control_w, 0xff00)
+	AM_RANGE(0xfffc06, 0xfffc07) AM_DEVREADWRITE8(MC6850_1_TAG, acia6850_device, data_r, data_w, 0xff00)
 	AM_RANGE(0xfffc20, 0xfffc3f) AM_DEVREADWRITE8(RP5C15_TAG, rp5c15_device, read, write, 0x00ff)
 ADDRESS_MAP_END
 
@@ -1570,7 +1587,7 @@ static INPUT_PORTS_START( st )
 	PORT_CONFNAME( 0x01, 0x00, "Input Port 0 Device")
 	PORT_CONFSETTING( 0x00, "Mouse" )
 	PORT_CONFSETTING( 0x01, DEF_STR( Joystick ) )
-	PORT_CONFNAME( 0x80, 0x80, "Monitor")
+	PORT_CONFNAME( 0x80, 0x80, "Monitor") PORT_WRITE_LINE_DEVICE_MEMBER(DEVICE_SELF, st_state, write_monochrome)
 	PORT_CONFSETTING( 0x00, "Monochrome (Atari SM124)" )
 	PORT_CONFSETTING( 0x80, "Color (Atari SC1224)" )
 
@@ -1608,7 +1625,7 @@ static INPUT_PORTS_START( ste )
 	PORT_CONFNAME( 0x01, 0x00, "Input Port 0 Device")
 	PORT_CONFSETTING( 0x00, "Mouse" )
 	PORT_CONFSETTING( 0x01, DEF_STR( Joystick ) )
-	PORT_CONFNAME( 0x80, 0x80, "Monitor")
+	PORT_CONFNAME( 0x80, 0x80, "Monitor") PORT_WRITE_LINE_DEVICE_MEMBER(DEVICE_SELF, st_state, write_monochrome)
 	PORT_CONFSETTING( 0x00, "Monochrome (Atari SM124)" )
 	PORT_CONFSETTING( 0x80, "Color (Atari SC1435)" )
 
@@ -1738,25 +1755,14 @@ WRITE8_MEMBER( st_state::psg_pa_w )
 	m_fdc->set_floppy(floppy);
 
 	// request to send
-	m_rs232->rts_w(BIT(data, 3));
+	m_rs232->write_rts(BIT(data, 3));
 
 	// data terminal ready
-	m_rs232->dtr_w(BIT(data, 4));
+	m_rs232->write_dtr(BIT(data, 4));
 
 	// centronics strobe
-	m_centronics->strobe_w(BIT(data, 5));
+	m_centronics->write_strobe(BIT(data, 5));
 }
-
-static const ay8910_interface psg_intf =
-{
-	AY8910_SINGLE_OUTPUT,
-	{ RES_K(1) },
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(st_state, psg_pa_w),
-	DEVCB_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, write)
-};
-
 
 //-------------------------------------------------
 //  ay8910_interface stbook_psg_intf
@@ -1793,36 +1799,16 @@ WRITE8_MEMBER( stbook_state::psg_pa_w )
 	m_fdc->set_floppy(floppy);
 
 	// request to send
-	m_rs232->rts_w(BIT(data, 3));
+	m_rs232->write_rts(BIT(data, 3));
 
 	// data terminal ready
-	m_rs232->dtr_w(BIT(data, 4));
+	m_rs232->write_dtr(BIT(data, 4));
 
 	// centronics strobe
-	m_centronics->strobe_w(BIT(data, 5));
+	m_centronics->write_strobe(BIT(data, 5));
 
 	// density select
 	m_fdc->dden_w(BIT(data, 7));
-}
-
-static const ay8910_interface stbook_psg_intf =
-{
-	AY8910_SINGLE_OUTPUT,
-	{ RES_K(1) },
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(stbook_state, psg_pa_w),
-	DEVCB_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, write)
-};
-
-
-//-------------------------------------------------
-//  ACIA6850_INTERFACE( acia_ikbd_intf )
-//-------------------------------------------------
-
-READ_LINE_MEMBER( st_state::ikbd_rx_r )
-{
-	return m_ikbd_rx;
 }
 
 WRITE_LINE_MEMBER( st_state::ikbd_tx_w )
@@ -1837,49 +1823,6 @@ WRITE_LINE_MEMBER( st_state::acia_ikbd_irq_w )
 	m_mfp->i4_w(!(m_acia_ikbd_irq || m_acia_midi_irq));
 }
 
-static ACIA6850_INTERFACE( acia_ikbd_intf )
-{
-	Y2/64,
-	Y2/64,
-	DEVCB_DRIVER_LINE_MEMBER(st_state, ikbd_rx_r),
-	DEVCB_DRIVER_LINE_MEMBER(st_state, ikbd_tx_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(st_state, acia_ikbd_irq_w)
-};
-
-
-//-------------------------------------------------
-//  ACIA6850_INTERFACE( stbook_acia_ikbd_intf )
-//-------------------------------------------------
-
-static ACIA6850_INTERFACE( stbook_acia_ikbd_intf )
-{
-	U517/2/16, // 500kHz
-	U517/2/2, // 1MHZ
-	DEVCB_DRIVER_LINE_MEMBER(st_state, ikbd_rx_r),
-	DEVCB_DRIVER_LINE_MEMBER(st_state, ikbd_tx_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(st_state, acia_ikbd_irq_w)
-};
-
-
-//-------------------------------------------------
-//  ACIA6850_INTERFACE( acia_midi_intf )
-//-------------------------------------------------
-
-READ_LINE_MEMBER( st_state::midi_rx_in )
-{
-	return m_midi_rx_state;
-}
-
-WRITE_LINE_MEMBER( st_state::midi_tx_out )
-{
-	m_mdout->tx(state);
-}
 
 WRITE_LINE_MEMBER( st_state::acia_midi_irq_w )
 {
@@ -1888,310 +1831,25 @@ WRITE_LINE_MEMBER( st_state::acia_midi_irq_w )
 	m_mfp->i4_w(!(m_acia_ikbd_irq || m_acia_midi_irq));
 }
 
-static ACIA6850_INTERFACE( acia_midi_intf )
+WRITE_LINE_MEMBER(st_state::write_acia_clock)
 {
-	Y2/64,
-	0,          // rx clock (we manually clock rx)
-	DEVCB_DRIVER_LINE_MEMBER(st_state, midi_rx_in),
-	DEVCB_DRIVER_LINE_MEMBER(st_state, midi_tx_out),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(st_state, acia_midi_irq_w)
-};
-
-
-//-------------------------------------------------
-//  MC68901_INTERFACE( mfp_intf )
-//-------------------------------------------------
-
-READ8_MEMBER( st_state::mfp_gpio_r )
-{
-	/*
-
-	    bit     description
-
-	    0       Centronics BUSY
-	    1       RS232 DCD
-	    2       RS232 CTS
-	    3       Blitter done
-	    4       Keyboard/MIDI
-	    5       FDC
-	    6       RS232 RI
-	    7       Monochrome monitor detect
-
-	*/
-
-	UINT8 data = 0;
-
-	// centronics busy
-	data |= m_centronics->busy_r();
-
-	// data carrier detect
-	data |= m_rs232->dcd_r() << 1;
-
-	// clear to send
-	data |= m_rs232->cts_r() << 2;
-
-	// blitter done
-	data |= m_blitter_done << 3;
-
-	// keyboard/MIDI interrupt
-	data |= (!(m_acia_ikbd_irq || m_acia_midi_irq)) << 4;
-
-	// floppy interrupt request
-	data |= !m_fdc->intrq_r() << 5;
-
-	// ring indicator
-	data |= m_rs232->ri_r() << 6;
-
-	// monochrome monitor detect
-	data |= m_config->read() & 0x80;
-
-	return data;
+	m_acia0->write_txc(state);
+	m_acia0->write_rxc(state);
+	m_acia1->write_txc(state);
+	m_acia1->write_rxc(state);
 }
+
 
 WRITE_LINE_MEMBER( st_state::mfp_tdo_w )
 {
-	m_mfp->rc_w(state);
-	m_mfp->tc_w(state);
+	m_mfp->clock_w(state);
 }
 
-static MC68901_INTERFACE( mfp_intf )
-{
-	Y1,                                                 /* timer clock */
-	0,                                                  /* receive clock */
-	0,                                                  /* transmit clock */
-	DEVCB_CPU_INPUT_LINE(M68000_TAG, M68K_IRQ_6),       /* interrupt */
-	DEVCB_DRIVER_MEMBER(st_state, mfp_gpio_r),          /* GPIO read */
-	DEVCB_NULL,                                         /* GPIO write */
-	DEVCB_NULL,                                         /* TAO */
-	DEVCB_NULL,                                         /* TBO */
-	DEVCB_NULL,                                         /* TCO */
-	DEVCB_DRIVER_LINE_MEMBER(st_state, mfp_tdo_w),      /* TDO */
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx)
-};
-
-
-//-------------------------------------------------
-//  MC68901_INTERFACE( atariste_mfp_intf )
-//-------------------------------------------------
-
-READ8_MEMBER( ste_state::mfp_gpio_r )
-{
-	/*
-
-	    bit     description
-
-	    0       Centronics BUSY
-	    1       RS232 DCD
-	    2       RS232 CTS
-	    3       Blitter done
-	    4       Keyboard/MIDI
-	    5       FDC
-	    6       RS232 RI
-	    7       Monochrome monitor detect / DMA sound active
-
-	*/
-
-	UINT8 data = 0;
-
-	// centronics busy
-	data |= m_centronics->busy_r();
-
-	// data carrier detect
-	data |= m_rs232->dcd_r() << 1;
-
-	// clear to send
-	data |= m_rs232->cts_r() << 2;
-
-	// blitter done
-	data |= m_blitter_done << 3;
-
-	// keyboard/MIDI interrupt
-	data |= (!(m_acia_ikbd_irq || m_acia_midi_irq)) << 4;
-
-	// floppy interrupt request
-	data |= !m_fdc->intrq_r() << 5;
-
-	// ring indicator
-	data |= m_rs232->ri_r() << 6;
-
-	// monochrome monitor detect, DMA sound active
-	data |= (m_config->read() & 0x80) ^ (m_dmasnd_active << 7);
-
-	return data;
-}
-
-static MC68901_INTERFACE( atariste_mfp_intf )
-{
-	Y1,                                                 /* timer clock */
-	0,                                                  /* receive clock */
-	0,                                                  /* transmit clock */
-	DEVCB_CPU_INPUT_LINE(M68000_TAG, M68K_IRQ_6),       /* interrupt */
-	DEVCB_DRIVER_MEMBER(ste_state, mfp_gpio_r),         /* GPIO read */
-	DEVCB_NULL,                                         /* GPIO write */
-	DEVCB_NULL,                                         /* TAO */
-	DEVCB_NULL,                                         /* TBO */
-	DEVCB_NULL,                                         /* TCO */
-	DEVCB_DRIVER_LINE_MEMBER(st_state, mfp_tdo_w),      /* TDO */
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx)
-};
-
-
-//-------------------------------------------------
-//  MC68901_INTERFACE( stbook_mfp_intf )
-//-------------------------------------------------
-
-READ8_MEMBER( stbook_state::mfp_gpio_r )
-{
-	/*
-
-	    bit     description
-
-	    0       Centronics BUSY
-	    1       RS232 DCD
-	    2       RS232 CTS
-	    3       Blitter done
-	    4       Keyboard/MIDI
-	    5       FDC
-	    6       RS232 RI
-	    7       POWER ALARMS
-
-	*/
-
-	UINT8 data = 0;
-
-	// centronics busy
-	data |= m_centronics->busy_r();
-
-	// data carrier detect
-	data |= m_rs232->dcd_r() << 1;
-
-	// clear to send
-	data |= m_rs232->cts_r() << 2;
-
-	// blitter done
-	data |= m_blitter_done << 3;
-
-	// keyboard/MIDI interrupt
-	data |= (!(m_acia_ikbd_irq || m_acia_midi_irq)) << 4;
-
-	// floppy data request
-	data |= !m_fdc->intrq_r() << 5;
-
-	// ring indicator
-	data |= m_rs232->ri_r() << 6;
-
-	// TODO power alarms
-
-	return data;
-}
-
-static MC68901_INTERFACE( stbook_mfp_intf )
-{
-	Y1,                                                 /* timer clock */
-	0,                                                  /* receive clock */
-	0,                                                  /* transmit clock */
-	DEVCB_CPU_INPUT_LINE(M68000_TAG, M68K_IRQ_6),       /* interrupt */
-	DEVCB_DRIVER_MEMBER(stbook_state, mfp_gpio_r),      /* GPIO read */
-	DEVCB_NULL,                                         /* GPIO write */
-	DEVCB_NULL,                                         /* TAO */
-	DEVCB_NULL,                                         /* TBO */
-	DEVCB_NULL,                                         /* TCO */
-	DEVCB_DRIVER_LINE_MEMBER(st_state, mfp_tdo_w),      /* TDO */
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx)
-};
-
-void st_state::fdc_intrq_w(bool state)
-{
-	m_mfp->i5_w(!state);
-}
-
-void st_state::fdc_drq_w(bool state)
+WRITE_LINE_MEMBER( st_state::fdc_drq_w )
 {
 	if (state && (!(m_fdc_mode & DMA_MODE_ENABLED)) && (m_fdc_mode & DMA_MODE_FDC_HDC_ACK))
 		fdc_dma_transfer();
 }
-
-
-//-------------------------------------------------
-//  RP5C15_INTERFACE( rtc_intf )
-//-------------------------------------------------
-
-static RP5C15_INTERFACE( rtc_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  centronics_interface centronics_intf
-//-------------------------------------------------
-
-static const centronics_interface centronics_intf =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(MC68901_TAG, mc68901_device, i0_w),
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  SLOT_INTERFACE( midiin_slot )
-//-------------------------------------------------
-
-static SLOT_INTERFACE_START( midiin_slot )
-	SLOT_INTERFACE("midiin", MIDIIN_PORT)
-SLOT_INTERFACE_END
-
-WRITE_LINE_MEMBER( st_state::midi_rx_w )
-{
-	m_midi_rx_state = state;
-
-	for (int i = 0; i < 64; i++)    // divider is set to 64
-	{
-		m_acia1->rx_clock_in();
-	}
-}
-
-static const serial_port_interface midiin_intf =
-{
-	DEVCB_DRIVER_LINE_MEMBER(st_state, midi_rx_w)
-};
-
-
-//-------------------------------------------------
-//  SLOT_INTERFACE( midiout_slot )
-//-------------------------------------------------
-
-static SLOT_INTERFACE_START( midiout_slot )
-	SLOT_INTERFACE("midiout", MIDIOUT_PORT)
-SLOT_INTERFACE_END
-
-static const serial_port_interface midiout_intf =
-{
-	DEVCB_NULL  // midi out ports don't transmit inward
-};
-
 
 
 //**************************************************************************
@@ -2262,10 +1920,8 @@ void st_state::state_save()
 	save_item(NAME(m_ikbd_mouse_px));
 	save_item(NAME(m_ikbd_mouse_py));
 	save_item(NAME(m_ikbd_mouse_pc));
-	save_item(NAME(m_ikbd_rx));
 	save_item(NAME(m_ikbd_tx));
 	save_item(NAME(m_ikbd_joy));
-	save_item(NAME(m_midi_rx));
 	save_item(NAME(m_midi_tx));
 	save_item(NAME(m_acia_ikbd_irq));
 	save_item(NAME(m_acia_midi_irq));
@@ -2280,9 +1936,6 @@ void st_state::machine_start()
 {
 	// configure RAM banking
 	configure_memory();
-
-	// set CPU interrupt callback
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(st_state::atarist_int_ack),this));
 
 	// allocate timers
 	if(m_mousex) {
@@ -2302,8 +1955,10 @@ void st_state::machine_start()
 			floppy_devices[i] = 0;
 	}
 
-	m_fdc->setup_drq_cb(wd1772_t::line_cb(FUNC(st_state::fdc_drq_w), this));
-	m_fdc->setup_intrq_cb(wd1772_t::line_cb(FUNC(st_state::fdc_intrq_w), this));
+	/// TODO: get callbacks to trigger these.
+	m_mfp->i0_w(1);
+	m_mfp->i5_w(1);
+	m_mfp->i7_w(1);
 }
 
 
@@ -2340,15 +1995,17 @@ void ste_state::machine_start()
 	/* configure RAM banking */
 	configure_memory();
 
-	/* set CPU interrupt callback */
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(st_state::atarist_int_ack),this));
-
 	/* allocate timers */
 	m_dmasound_timer = timer_alloc(TIMER_DMASOUND_TICK);
 	m_microwire_timer = timer_alloc(TIMER_MICROWIRE_TICK);
 
 	/* register for state saving */
 	state_save();
+
+	/// TODO: get callbacks to trigger these.
+	m_mfp->i0_w(1);
+	m_mfp->i5_w(1);
+	m_mfp->i7_w(1);
 }
 
 
@@ -2380,11 +2037,12 @@ void stbook_state::machine_start()
 		break;
 	}
 
-	/* set CPU interrupt callback */
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(st_state::atarist_int_ack),this));
-
 	/* register for state saving */
 	ste_state::state_save();
+
+	/// TODO: get callbacks to trigger these.
+	m_mfp->i0_w(1);
+	m_mfp->i5_w(1);
 }
 
 FLOPPY_FORMATS_MEMBER( st_state::floppy_formats )
@@ -2409,6 +2067,7 @@ static MACHINE_CONFIG_START( st, st_state )
 	// basic machine hardware
 	MCFG_CPU_ADD(M68000_TAG, M68000, Y2/4)
 	MCFG_CPU_PROGRAM_MAP(st_map)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(st_state,atarist_int_ack)
 
 	MCFG_CPU_ADD(HD6301V1_TAG, HD6301, Y2/8)
 	MCFG_CPU_PROGRAM_MAP(ikbd_map)
@@ -2419,27 +2078,59 @@ static MACHINE_CONFIG_START( st, st_state )
 	MCFG_SCREEN_UPDATE_DRIVER(st_state, screen_update)
 	MCFG_SCREEN_RAW_PARAMS(Y2/2, ATARIST_HTOT_PAL*2, ATARIST_HBEND_PAL*2, ATARIST_HBSTART_PAL*2, ATARIST_VTOT_PAL, ATARIST_VBEND_PAL, ATARIST_VBSTART_PAL)
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD(YM2149_TAG, YM2149, Y2/16)
-	MCFG_SOUND_CONFIG(psg_intf)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_RES_LOADS(RES_K(1), 0, 0)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(st_state, psg_pa_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	// devices
-	MCFG_ACIA6850_ADD(MC6850_0_TAG, acia_ikbd_intf)
-	MCFG_ACIA6850_ADD(MC6850_1_TAG, acia_midi_intf)
-	MCFG_MC68901_ADD(MC68901_TAG, Y2/8, mfp_intf)
-	MCFG_WD1772x_ADD(WD1772_TAG, Y2/4)
 
+	MCFG_WD1772x_ADD(WD1772_TAG, Y2/4)
+	MCFG_WD_FDC_INTRQ_CALLBACK(DEVWRITELINE(MC68901_TAG, mc68901_device, i5_w)) MCFG_DEVCB_INVERT
+	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(st_state, fdc_drq_w))
 	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":0", atari_floppies, "35dd", st_state::floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":1", atari_floppies, 0,      st_state::floppy_formats)
 
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
-	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin")
-	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout")
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i0_w))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+
+	MCFG_DEVICE_ADD(MC68901_TAG, MC68901, Y2/8)
+	MCFG_MC68901_TIMER_CLOCK(Y1)
+	MCFG_MC68901_RX_CLOCK(0)
+	MCFG_MC68901_TX_CLOCK(0)
+	MCFG_MC68901_OUT_IRQ_CB(INPUTLINE(M68000_TAG, M68K_IRQ_6))
+	MCFG_MC68901_OUT_TDO_CB(WRITELINE(st_state, mfp_tdo_w))
+	MCFG_MC68901_OUT_SO_CB(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, write_rx))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i1_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i2_w))
+	MCFG_RS232_RI_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i6_w))
+
+	MCFG_DEVICE_ADD(MC6850_0_TAG, ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(st_state, ikbd_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(st_state, acia_ikbd_irq_w))
+
+	MCFG_DEVICE_ADD(MC6850_1_TAG, ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(DEVWRITELINE("mdout", midi_port_device, write_txd))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(st_state, acia_midi_irq_w))
+
+	MCFG_MIDI_PORT_ADD("mdin", midiin_slot, "midiin")
+	MCFG_MIDI_RX_HANDLER(DEVWRITELINE(MC6850_1_TAG, acia6850_device, write_rxd))
+
+	MCFG_MIDI_PORT_ADD("mdout", midiout_slot, "midiout")
+
+	MCFG_DEVICE_ADD("acia_clock", CLOCK, Y2/64) // 500kHz
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(st_state, write_acia_clock))
 
 	// cartridge
 	MCFG_CARTSLOT_ADD("cart")
@@ -2466,6 +2157,7 @@ static MACHINE_CONFIG_START( megast, megast_state )
 	// basic machine hardware
 	MCFG_CPU_ADD(M68000_TAG, M68000, Y2/4)
 	MCFG_CPU_PROGRAM_MAP(megast_map)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(st_state,atarist_int_ack)
 
 	MCFG_CPU_ADD(HD6301V1_TAG, HD6301, Y2/8)
 	MCFG_CPU_PROGRAM_MAP(ikbd_map)
@@ -2476,26 +2168,60 @@ static MACHINE_CONFIG_START( megast, megast_state )
 	MCFG_SCREEN_UPDATE_DRIVER(megast_state, screen_update)
 	MCFG_SCREEN_RAW_PARAMS(Y2/4, ATARIST_HTOT_PAL, ATARIST_HBEND_PAL, ATARIST_HBSTART_PAL, ATARIST_VTOT_PAL, ATARIST_VBEND_PAL, ATARIST_VBSTART_PAL)
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD(YM2149_TAG, YM2149, Y2/16)
-	MCFG_SOUND_CONFIG(psg_intf)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_RES_LOADS(RES_K(1), 0, 0)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(st_state, psg_pa_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	// devices
-	MCFG_ACIA6850_ADD(MC6850_0_TAG, acia_ikbd_intf)
-	MCFG_ACIA6850_ADD(MC6850_1_TAG, acia_midi_intf)
-	MCFG_MC68901_ADD(MC68901_TAG, Y2/8, mfp_intf)
+	MCFG_DEVICE_ADD(RP5C15_TAG, RP5C15, XTAL_32_768kHz)
+
 	MCFG_WD1772x_ADD(WD1772_TAG, Y2/4)
+	MCFG_WD_FDC_INTRQ_CALLBACK(DEVWRITELINE(MC68901_TAG, mc68901_device, i5_w)) MCFG_DEVCB_INVERT
+	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(st_state, fdc_drq_w))
 	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":0", atari_floppies, "35dd", st_state::floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":1", atari_floppies, 0,      st_state::floppy_formats)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
-	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin")
-	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout")
-	MCFG_RP5C15_ADD(RP5C15_TAG, XTAL_32_768kHz, rtc_intf)
+
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i0_w))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+
+	MCFG_DEVICE_ADD(MC68901_TAG, MC68901, Y2/8)
+	MCFG_MC68901_TIMER_CLOCK(Y1)
+	MCFG_MC68901_RX_CLOCK(0)
+	MCFG_MC68901_TX_CLOCK(0)
+	MCFG_MC68901_OUT_IRQ_CB(INPUTLINE(M68000_TAG, M68K_IRQ_6))
+	MCFG_MC68901_OUT_TDO_CB(WRITELINE(st_state, mfp_tdo_w))
+	MCFG_MC68901_OUT_SO_CB(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, write_rx))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i1_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i2_w))
+	MCFG_RS232_RI_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i6_w))
+
+	MCFG_DEVICE_ADD(MC6850_0_TAG, ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(st_state, ikbd_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(st_state, acia_ikbd_irq_w))
+
+	MCFG_DEVICE_ADD(MC6850_1_TAG, ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(DEVWRITELINE("mdout", midi_port_device, write_txd))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(st_state, acia_midi_irq_w))
+
+	MCFG_MIDI_PORT_ADD("mdin", midiin_slot, "midiin")
+	MCFG_MIDI_RX_HANDLER(DEVWRITELINE(MC6850_1_TAG, acia6850_device, write_rxd))
+
+	MCFG_MIDI_PORT_ADD("mdout", midiout_slot, "midiout")
+
+	MCFG_DEVICE_ADD("acia_clock", CLOCK, Y2/64) // 500kHz
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(st_state, write_acia_clock))
 
 	// cartridge
 	MCFG_CARTSLOT_ADD("cart")
@@ -2522,6 +2248,7 @@ static MACHINE_CONFIG_START( ste, ste_state )
 	// basic machine hardware
 	MCFG_CPU_ADD(M68000_TAG, M68000, Y2/4)
 	MCFG_CPU_PROGRAM_MAP(ste_map)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(st_state,atarist_int_ack)
 
 	MCFG_CPU_ADD(HD6301V1_TAG, HD6301, Y2/8)
 	MCFG_CPU_PROGRAM_MAP(ikbd_map)
@@ -2532,13 +2259,16 @@ static MACHINE_CONFIG_START( ste, ste_state )
 	MCFG_SCREEN_UPDATE_DRIVER(ste_state, screen_update)
 	MCFG_SCREEN_RAW_PARAMS(Y2/4, ATARIST_HTOT_PAL, ATARIST_HBEND_PAL, ATARIST_HBSTART_PAL, ATARIST_VTOT_PAL, ATARIST_VBEND_PAL, ATARIST_VBSTART_PAL)
 
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_PALETTE_ADD("palette", 512)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD(YM2149_TAG, YM2149, Y2/16)
-	MCFG_SOUND_CONFIG(psg_intf)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_RES_LOADS(RES_K(1), 0, 0)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(st_state, psg_pa_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.50)
 /*
@@ -2549,16 +2279,47 @@ static MACHINE_CONFIG_START( ste, ste_state )
 	MCFG_LMC1992_ADD(LMC1992_TAG /* ,atariste_lmc1992_intf */)
 
 	// devices
-	MCFG_ACIA6850_ADD(MC6850_0_TAG, acia_ikbd_intf)
-	MCFG_ACIA6850_ADD(MC6850_1_TAG, acia_midi_intf)
-	MCFG_MC68901_ADD(MC68901_TAG, Y2/8, atariste_mfp_intf)
+
 	MCFG_WD1772x_ADD(WD1772_TAG, Y2/4)
+	MCFG_WD_FDC_INTRQ_CALLBACK(DEVWRITELINE(MC68901_TAG, mc68901_device, i5_w)) MCFG_DEVCB_INVERT
+	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(st_state, fdc_drq_w))
 	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":0", atari_floppies, "35dd", st_state::floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":1", atari_floppies, 0,      st_state::floppy_formats)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
-	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin")
-	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout")
+
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i0_w))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+
+	MCFG_DEVICE_ADD(MC68901_TAG, MC68901, Y2/8)
+	MCFG_MC68901_TIMER_CLOCK(Y1)
+	MCFG_MC68901_RX_CLOCK(0)
+	MCFG_MC68901_TX_CLOCK(0)
+	MCFG_MC68901_OUT_IRQ_CB(INPUTLINE(M68000_TAG, M68K_IRQ_6))
+	MCFG_MC68901_OUT_TDO_CB(WRITELINE(st_state, mfp_tdo_w))
+	MCFG_MC68901_OUT_SO_CB(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, write_rx))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i1_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i2_w))
+	MCFG_RS232_RI_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i6_w))
+
+	MCFG_DEVICE_ADD(MC6850_0_TAG, ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(st_state, ikbd_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(st_state, acia_ikbd_irq_w))
+
+	MCFG_DEVICE_ADD(MC6850_1_TAG, ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(DEVWRITELINE("mdout", midi_port_device, write_txd))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(st_state, acia_midi_irq_w))
+
+	MCFG_MIDI_PORT_ADD("mdin", midiin_slot, "midiin")
+	MCFG_MIDI_RX_HANDLER(DEVWRITELINE(MC6850_1_TAG, acia6850_device, write_rxd))
+
+	MCFG_MIDI_PORT_ADD("mdout", midiout_slot, "midiout")
+
+	MCFG_DEVICE_ADD("acia_clock", CLOCK, Y2/64) // 500kHz
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(st_state, write_acia_clock))
 
 	// cartridge
 	MCFG_CARTSLOT_ADD("cart")
@@ -2584,8 +2345,8 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( megaste, ste )
 	MCFG_CPU_MODIFY(M68000_TAG)
 	MCFG_CPU_PROGRAM_MAP(megaste_map)
-	MCFG_RP5C15_ADD(RP5C15_TAG, XTAL_32_768kHz, rtc_intf)
-	MCFG_SCC8530_ADD(Z8530_TAG, Y2/4, line_cb_t())
+	MCFG_DEVICE_ADD(RP5C15_TAG, RP5C15, XTAL_32_768kHz)
+	MCFG_DEVICE_ADD(Z8530_TAG, SCC8530, Y2/4)
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)
@@ -2602,6 +2363,7 @@ static MACHINE_CONFIG_START( stbook, stbook_state )
 	// basic machine hardware
 	MCFG_CPU_ADD(M68000_TAG, M68000, U517/2)
 	MCFG_CPU_PROGRAM_MAP(stbook_map)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(st_state,atarist_int_ack)
 
 	//MCFG_CPU_ADD(COP888_TAG, COP888, Y700)
 
@@ -2612,27 +2374,58 @@ static MACHINE_CONFIG_START( stbook, stbook_state )
 	MCFG_SCREEN_SIZE(640, 400)
 	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 399)
 
-	MCFG_PALETTE_LENGTH(2)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD(YM3439_TAG, YM3439, U517/8)
-	MCFG_SOUND_CONFIG(stbook_psg_intf)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_RES_LOADS(RES_K(1), 0, 0)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(stbook_state, psg_pa_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
-	// device hardware
-	MCFG_ACIA6850_ADD(MC6850_0_TAG, stbook_acia_ikbd_intf)
-	MCFG_ACIA6850_ADD(MC6850_1_TAG, acia_midi_intf)
-	MCFG_MC68901_ADD(MC68901_TAG, U517/8, stbook_mfp_intf)
+	MCFG_DEVICE_ADD(MC68901_TAG, MC68901, U517/8)
+	MCFG_MC68901_TIMER_CLOCK(Y1)
+	MCFG_MC68901_RX_CLOCK(0)
+	MCFG_MC68901_TX_CLOCK(0)
+	MCFG_MC68901_OUT_IRQ_CB(INPUTLINE(M68000_TAG, M68K_IRQ_6))
+	MCFG_MC68901_OUT_TDO_CB(WRITELINE(st_state, mfp_tdo_w))
+	MCFG_MC68901_OUT_SO_CB(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+
 	MCFG_WD1772x_ADD(WD1772_TAG, U517/2)
+	MCFG_WD_FDC_INTRQ_CALLBACK(DEVWRITELINE(MC68901_TAG, mc68901_device, i5_w)) MCFG_DEVCB_INVERT
+	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(st_state, fdc_drq_w))
 	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":0", atari_floppies, "35dd", 0, st_state::floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":1", atari_floppies, 0,      0, st_state::floppy_formats)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL, NULL)
-	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin", NULL)
-	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout", NULL)
+
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i0_w))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_SERIAL_OUT_RX_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, write_rx))
+	MCFG_RS232_OUT_DCD_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i1_w))
+	MCFG_RS232_OUT_CTS_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i2_w))
+	MCFG_RS232_OUT_RI_HANDLER(DEVWRITELINE(MC68901_TAG, mc68901_device, i6_w))
+
+	// device hardware
+	MCFG_DEVICE_ADD(MC6850_0_TAG, ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(st_state, ikbd_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(st_state, acia_ikbd_irq_w))
+
+	MCFG_DEVICE_ADD(MC6850_1_TAG, ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(DEVWRITELINE("mdout", midi_port_device, write_txd))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(st_state, acia_midi_irq_w))
+
+	MCFG_SERIAL_PORT_ADD("mdin", midiin_slot, "midiin")
+	MCFG_MIDI_RX_HANDLER(DEVWRITELINE(MC6850_1_TAG, acia6850_device, write_rxd))
+
+	MCFG_SERIAL_PORT_ADD("mdout", midiout_slot, "midiout")
+
+	MCFG_DEVICE_ADD("acia_clock", CLOCK, U517/2/16) // 500kHz
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(st_state, write_acia_clock))
 
 	// cartridge
 	MCFG_CARTSLOT_ADD("cart")
@@ -2981,6 +2774,7 @@ ROM_END
 //  ROM( stacy )
 //-------------------------------------------------
 
+#if 0
 ROM_START( stacy )
 	ROM_REGION16_BE( 0x30000, M68000_TAG, 0 )
 	ROM_SYSTEM_BIOS( 0, "tos104", "TOS 1.04 (Rainbow TOS)" )
@@ -2992,6 +2786,7 @@ ROM_START( stacy )
 	ROM_REGION( 0x1000, HD6301V1_TAG, 0 )
 	ROM_LOAD( "keyboard.u1", 0x0000, 0x1000, CRC(0296915d) SHA1(1102f20d38f333234041c13687d82528b7cde2e1) )
 ROM_END
+#endif
 
 
 //-------------------------------------------------
@@ -3303,6 +3098,7 @@ ROM_END
 //  ROM( stbook )
 //-------------------------------------------------
 
+#if 0
 ROM_START( stbook )
 	ROM_REGION16_BE( 0x40000, M68000_TAG, 0 )
 	ROM_SYSTEM_BIOS( 0, "tos208", "TOS 2.08" )
@@ -3314,12 +3110,14 @@ ROM_START( stbook )
 	ROM_REGION( 0x1000, COP888_TAG, 0 )
 	ROM_LOAD( "cop888c0.u703", 0x0000, 0x1000, NO_DUMP )
 ROM_END
+#endif
 
 
 //-------------------------------------------------
 //  ROM( stpad )
 //-------------------------------------------------
 
+#if 0
 ROM_START( stpad )
 	ROM_REGION16_BE( 0x40000, M68000_TAG, 0 )
 	ROM_SYSTEM_BIOS( 0, "tos205", "TOS 2.05" )
@@ -3328,6 +3126,7 @@ ROM_START( stpad )
 	ROM_REGION( 0x20000, "cart", ROMREGION_ERASE00 )
 	ROM_CART_LOAD( "cart", 0x00000, 0x20000, ROM_MIRROR | ROM_OPTIONAL )
 ROM_END
+#endif
 
 
 //-------------------------------------------------
@@ -3424,6 +3223,7 @@ ROM_END
 //  ROM( fx1 )
 //-------------------------------------------------
 
+#if 0
 ROM_START( fx1 )
 	ROM_REGION16_BE( 0x40000, M68000_TAG, 0 )
 	ROM_SYSTEM_BIOS( 0, "tos207", "TOS 2.07" )
@@ -3435,6 +3235,7 @@ ROM_START( fx1 )
 	ROM_REGION( 0x1000, HD6301V1_TAG, 0 )
 	ROM_LOAD( "keyboard.u1", 0x0000, 0x1000, CRC(0296915d) SHA1(1102f20d38f333234041c13687d82528b7cde2e1) )
 ROM_END
+#endif
 
 
 //-------------------------------------------------

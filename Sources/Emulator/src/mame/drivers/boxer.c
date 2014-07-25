@@ -33,7 +33,10 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_tile_ram(*this, "tile_ram"),
 		m_sprite_ram(*this, "sprite_ram"),
-		m_maincpu(*this, "maincpu"){ }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_tile_ram;
@@ -45,6 +48,10 @@ public:
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	DECLARE_READ8_MEMBER(boxer_input_r);
 	DECLARE_READ8_MEMBER(boxer_misc_r);
 	DECLARE_WRITE8_MEMBER(boxer_bell_w);
@@ -55,7 +62,7 @@ public:
 	DECLARE_WRITE8_MEMBER(boxer_led_w);
 	virtual void machine_start();
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(boxer);
 	UINT32 screen_update_boxer(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(pot_interrupt);
 	TIMER_CALLBACK_MEMBER(periodic_callback);
@@ -140,13 +147,13 @@ TIMER_CALLBACK_MEMBER(boxer_state::periodic_callback)
  *
  *************************************/
 
-void boxer_state::palette_init()
+PALETTE_INIT_MEMBER(boxer_state, boxer)
 {
-	palette_set_color(machine(),0, MAKE_RGB(0x00,0x00,0x00));
-	palette_set_color(machine(),1, MAKE_RGB(0xff,0xff,0xff));
+	palette.set_pen_color(0, rgb_t(0x00,0x00,0x00));
+	palette.set_pen_color(1, rgb_t(0xff,0xff,0xff));
 
-	palette_set_color(machine(),2, MAKE_RGB(0xff,0xff,0xff));
-	palette_set_color(machine(),3, MAKE_RGB(0x00,0x00,0x00));
+	palette.set_pen_color(2, rgb_t(0xff,0xff,0xff));
+	palette.set_pen_color(3, rgb_t(0x00,0x00,0x00));
 }
 
 void boxer_state::draw_boxer( bitmap_ind16 &bitmap, const rectangle &cliprect )
@@ -173,8 +180,8 @@ void boxer_state::draw_boxer( bitmap_ind16 &bitmap, const rectangle &cliprect )
 
 				code = p[32 * l + 4 * i + j];
 
-				drawgfx_transpen(bitmap, cliprect,
-					machine().gfx[n],
+
+					m_gfxdecode->gfx(n)->transpen(bitmap,cliprect,
 					code,
 					0,
 					code & 0x80, 0,
@@ -183,8 +190,8 @@ void boxer_state::draw_boxer( bitmap_ind16 &bitmap, const rectangle &cliprect )
 
 				code = p[32 * r + 4 * i - j + 3];
 
-				drawgfx_transpen(bitmap, cliprect,
-					machine().gfx[n],
+
+					m_gfxdecode->gfx(n)->transpen(bitmap,cliprect,
 					code,
 					0,
 					!(code & 0x80), 0,
@@ -208,8 +215,8 @@ UINT32 boxer_state::screen_update_boxer(screen_device &screen, bitmap_ind16 &bit
 		{
 			UINT8 code = m_tile_ram[32 * i + j];
 
-			drawgfx_transpen(bitmap, cliprect,
-				machine().gfx[2],
+
+				m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 				code,
 				0,
 				code & 0x40, code & 0x40,
@@ -478,9 +485,11 @@ static MACHINE_CONFIG_START( boxer, boxer_state )
 	MCFG_SCREEN_SIZE(256, 262)
 	MCFG_SCREEN_VISIBLE_AREA(8, 247, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(boxer_state, screen_update_boxer)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(boxer)
-	MCFG_PALETTE_LENGTH(4)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", boxer)
+	MCFG_PALETTE_ADD("palette", 4)
+	MCFG_PALETTE_INIT_OWNER(boxer_state, boxer)
 
 	/* sound hardware */
 MACHINE_CONFIG_END

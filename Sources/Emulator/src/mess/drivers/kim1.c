@@ -145,8 +145,8 @@ protected:
 
 static ADDRESS_MAP_START(kim1_map, AS_PROGRAM, 8, kim1_state)
 	AM_RANGE(0x0000, 0x03ff) AM_MIRROR(0xe000) AM_RAM
-	AM_RANGE(0x1700, 0x173f) AM_MIRROR(0xe000) AM_DEVREADWRITE_LEGACY("miot_u3", mos6530_r, mos6530_w )
-	AM_RANGE(0x1740, 0x177f) AM_MIRROR(0xe000) AM_DEVREADWRITE_LEGACY("miot_u2", mos6530_r, mos6530_w )
+	AM_RANGE(0x1700, 0x173f) AM_MIRROR(0xe000) AM_DEVREADWRITE("miot_u3", mos6530_device, read, write )
+	AM_RANGE(0x1740, 0x177f) AM_MIRROR(0xe000) AM_DEVREADWRITE("miot_u2", mos6530_device, read, write )
 	AM_RANGE(0x1780, 0x17bf) AM_MIRROR(0xe000) AM_RAM
 	AM_RANGE(0x17c0, 0x17ff) AM_MIRROR(0xe000) AM_RAM
 	AM_RANGE(0x1800, 0x1bff) AM_MIRROR(0xe000) AM_ROM
@@ -242,7 +242,7 @@ WRITE8_MEMBER( kim1_state::kim1_u2_write_a )
 
 READ8_MEMBER( kim1_state::kim1_u2_read_b )
 {
-	if ( mos6530_portb_out_get(m_riot2) & 0x20 )
+	if ( m_riot2->portb_out_get() & 0x20 )
 		return 0xFF;
 
 	return 0x7F | ( m_311_output ^ 0x80 );
@@ -259,23 +259,6 @@ WRITE8_MEMBER( kim1_state::kim1_u2_write_b )
 
 	/* Set IRQ when bit 7 is cleared */
 }
-
-
-static MOS6530_INTERFACE( kim1_u2_mos6530_interface )
-{
-	DEVCB_DRIVER_MEMBER(kim1_state, kim1_u2_read_a),
-	DEVCB_DRIVER_MEMBER(kim1_state, kim1_u2_write_a),
-	DEVCB_DRIVER_MEMBER(kim1_state, kim1_u2_read_b),
-	DEVCB_DRIVER_MEMBER(kim1_state, kim1_u2_write_b)
-};
-
-static MOS6530_INTERFACE( kim1_u3_mos6530_interface )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 
 TIMER_DEVICE_CALLBACK_MEMBER(kim1_state::kim1_cassette_input)
@@ -330,16 +313,6 @@ void kim1_state::machine_reset()
 }
 
 
-static const cassette_interface kim1_cassette_interface =
-{
-	kim1_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED),
-	NULL,
-	NULL
-};
-
-
 static MACHINE_CONFIG_START( kim1, kim1_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6502, 1000000)        /* 1 MHz */
@@ -355,10 +328,19 @@ static MACHINE_CONFIG_START( kim1, kim1_state )
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
-	/* Devices */
-	MCFG_MOS6530_ADD( "miot_u2", 1000000, kim1_u2_mos6530_interface )
-	MCFG_MOS6530_ADD( "miot_u3", 1000000, kim1_u3_mos6530_interface )
-	MCFG_CASSETTE_ADD( "cassette", kim1_cassette_interface )
+	/* devices */
+	MCFG_DEVICE_ADD("miot_u2", MOS6530, 1000000)
+	MCFG_MOS6530_IN_PA_CB(READ8(kim1_state, kim1_u2_read_a))
+	MCFG_MOS6530_OUT_PA_CB(WRITE8(kim1_state, kim1_u2_write_a))
+	MCFG_MOS6530_IN_PB_CB(READ8(kim1_state, kim1_u2_read_b))
+	MCFG_MOS6530_OUT_PB_CB(WRITE8(kim1_state, kim1_u2_write_b))
+
+	MCFG_DEVICE_ADD("miot_u3", MOS6530, 1000000)
+
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(kim1_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED)
+
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("led_timer", kim1_state, kim1_update_leds, attotime::from_hz(60))
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("cassette_timer", kim1_state, kim1_cassette_input, attotime::from_hz(44100))
 MACHINE_CONFIG_END

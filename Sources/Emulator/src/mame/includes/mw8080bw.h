@@ -45,7 +45,11 @@ public:
 		m_discrete(*this, "discrete"),
 		m_samples(*this, "samples"),
 		m_samples1(*this, "samples1"),
-		m_samples2(*this, "samples2")
+		m_samples2(*this, "samples2"),
+		m_sn1(*this, "sn1"),
+		m_sn2(*this, "sn2"),
+		m_sn(*this, "snsnd"),
+		m_screen(*this, "screen")
 	{ }
 
 	/* device/memory pointers */
@@ -83,9 +87,10 @@ public:
 	optional_device<samples_device> m_samples;
 	optional_device<samples_device> m_samples1;
 	optional_device<samples_device> m_samples2;
-	device_t *m_sn1;
-	device_t *m_sn2;
-	device_t *m_sn;
+	optional_device<sn76477_device> m_sn1;
+	optional_device<sn76477_device> m_sn2;
+	optional_device<sn76477_device> m_sn;
+	required_device<screen_device> m_screen;
 
 	DECLARE_READ8_MEMBER(mw8080bw_shift_result_rev_r);
 	DECLARE_READ8_MEMBER(mw8080bw_reversable_shift_result_r);
@@ -147,6 +152,7 @@ public:
 	DECLARE_MACHINE_START(spcenctr);
 	DECLARE_MACHINE_START(phantom2);
 	DECLARE_MACHINE_START(invaders);
+	DECLARE_SOUND_START(samples);
 	UINT32 screen_update_mw8080bw(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_spcenctr(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_phantom2(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
@@ -254,7 +260,7 @@ MACHINE_CONFIG_EXTERN( tornbase_audio );
 MACHINE_CONFIG_EXTERN( zzzap_audio );
 
 MACHINE_CONFIG_EXTERN( maze_audio );
-void maze_write_discrete(device_t *device, UINT8 maze_tone_timing_state);
+void maze_write_discrete(discrete_device *device, UINT8 maze_tone_timing_state);
 
 MACHINE_CONFIG_EXTERN( boothill_audio );
 

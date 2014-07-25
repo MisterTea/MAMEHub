@@ -2,6 +2,9 @@
 
     PC/AT 486 with Chips & Technologies CS4031 chipset
 
+    license: MAME, GPL-2.0+
+    copyright-holders: Dirk Best
+
 ***************************************************************************/
 
 #include "emu.h"
@@ -9,10 +12,10 @@
 #include "machine/ram.h"
 #include "machine/cs4031.h"
 #include "machine/at_keybc.h"
-#include "machine/pc_kbdc.h"
-#include "machine/pc_keyboards.h"
-#include "machine/isa.h"
-#include "machine/isa_cards.h"
+#include "bus/pc_kbd/pc_kbdc.h"
+#include "bus/pc_kbd/keyboards.h"
+#include "bus/isa/isa.h"
+#include "bus/isa/isa_cards.h"
 #include "sound/speaker.h"
 
 
@@ -38,8 +41,6 @@ public:
 
 	virtual void machine_start();
 
-	IRQ_CALLBACK_MEMBER( irq_callback ) { return m_cs4031->int_ack_r(); }
-
 	DECLARE_READ16_MEMBER( cs4031_ior );
 	DECLARE_WRITE16_MEMBER( cs4031_iow );
 	DECLARE_WRITE_LINE_MEMBER( cs4031_hold );
@@ -54,7 +55,6 @@ public:
 
 void ct486_state::machine_start()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(ct486_state::irq_callback), this));
 }
 
 READ16_MEMBER( ct486_state::cs4031_ior )
@@ -99,48 +99,11 @@ ADDRESS_MAP_END
 //  MACHINE DRIVERS
 //**************************************************************************
 
-static const at_keyboard_controller_interface keybc_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, kbrst_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, gatea20_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, irq01_w),
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER("pc_kbdc", pc_kbdc_device, clock_write_from_mb),
-	DEVCB_DEVICE_LINE_MEMBER("pc_kbdc", pc_kbdc_device, data_write_from_mb)
-};
-
-static const pc_kbdc_interface pc_kbdc_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER("keybc", at_keyboard_controller_device, keyboard_clock_w),
-	DEVCB_DEVICE_LINE_MEMBER("keybc", at_keyboard_controller_device, keyboard_data_w)
-};
-
-static const isa16bus_interface isabus_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, irq09_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, irq03_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, irq04_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, irq05_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, irq06_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, irq07_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, irq10_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, irq11_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, irq12_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, irq14_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, irq15_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, dreq0_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, dreq1_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, dreq2_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, dreq3_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, dreq5_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, dreq6_w),
-	DEVCB_DEVICE_LINE_MEMBER("cs4031", cs4031_device, dreq7_w),
-};
-
 static MACHINE_CONFIG_START( ct486, ct486_state )
 	MCFG_CPU_ADD("maincpu", I486, XTAL_25MHz)
 	MCFG_CPU_PROGRAM_MAP(ct486_map)
 	MCFG_CPU_IO_MAP(ct486_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("cs4031", cs4031_device, int_ack_r)
 
 	MCFG_CS4031_ADD("cs4031", XTAL_25MHz, "maincpu", "isa", "bios", "keybc")
 	// cpu connections
@@ -160,12 +123,38 @@ static MACHINE_CONFIG_START( ct486, ct486_state )
 	MCFG_RAM_DEFAULT_SIZE("4M")
 	MCFG_RAM_EXTRA_OPTIONS("1M,2M,8M,16M,32M,64M")
 
-	MCFG_AT_KEYBOARD_CONTROLLER_ADD("keybc", XTAL_12MHz, keybc_intf)
-	MCFG_PC_KBDC_ADD("pc_kbdc", pc_kbdc_intf)
+	MCFG_DEVICE_ADD("keybc", AT_KEYBOARD_CONTROLLER, XTAL_12MHz)
+	MCFG_AT_KEYBOARD_CONTROLLER_SYSTEM_RESET_CB(DEVWRITELINE("cs4031", cs4031_device, kbrst_w))
+	MCFG_AT_KEYBOARD_CONTROLLER_GATE_A20_CB(DEVWRITELINE("cs4031", cs4031_device, gatea20_w))
+	MCFG_AT_KEYBOARD_CONTROLLER_INPUT_BUFFER_FULL_CB(DEVWRITELINE("cs4031", cs4031_device, irq01_w))
+	MCFG_AT_KEYBOARD_CONTROLLER_KEYBOARD_CLOCK_CB(DEVWRITELINE("pc_kbdc", pc_kbdc_device, clock_write_from_mb))
+	MCFG_AT_KEYBOARD_CONTROLLER_KEYBOARD_DATA_CB(DEVWRITELINE("pc_kbdc", pc_kbdc_device, data_write_from_mb))
+	MCFG_DEVICE_ADD("pc_kbdc", PC_KBDC, 0)
+	MCFG_PC_KBDC_OUT_CLOCK_CB(DEVWRITELINE("keybc", at_keyboard_controller_device, keyboard_clock_w))
+	MCFG_PC_KBDC_OUT_DATA_CB(DEVWRITELINE("keybc", at_keyboard_controller_device, keyboard_data_w))
 	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_at_keyboards, STR_KBD_MICROSOFT_NATURAL)
 
-	MCFG_ISA16_BUS_ADD("isabus", ":maincpu", isabus_intf)
+	MCFG_DEVICE_ADD("isabus", ISA16, 0)
+	MCFG_ISA16_CPU(":maincpu")
 	MCFG_ISA_BUS_IOCHCK(DEVWRITELINE("cs4031", cs4031_device, iochck_w))
+	MCFG_ISA_OUT_IRQ2_CB(DEVWRITELINE("cs4031", cs4031_device, irq09_w))
+	MCFG_ISA_OUT_IRQ3_CB(DEVWRITELINE("cs4031", cs4031_device, irq03_w))
+	MCFG_ISA_OUT_IRQ4_CB(DEVWRITELINE("cs4031", cs4031_device, irq04_w))
+	MCFG_ISA_OUT_IRQ5_CB(DEVWRITELINE("cs4031", cs4031_device, irq05_w))
+	MCFG_ISA_OUT_IRQ6_CB(DEVWRITELINE("cs4031", cs4031_device, irq06_w))
+	MCFG_ISA_OUT_IRQ7_CB(DEVWRITELINE("cs4031", cs4031_device, irq07_w))
+	MCFG_ISA_OUT_IRQ10_CB(DEVWRITELINE("cs4031", cs4031_device, irq10_w))
+	MCFG_ISA_OUT_IRQ11_CB(DEVWRITELINE("cs4031", cs4031_device, irq11_w))
+	MCFG_ISA_OUT_IRQ12_CB(DEVWRITELINE("cs4031", cs4031_device, irq12_w))
+	MCFG_ISA_OUT_IRQ14_CB(DEVWRITELINE("cs4031", cs4031_device, irq14_w))
+	MCFG_ISA_OUT_IRQ15_CB(DEVWRITELINE("cs4031", cs4031_device, irq15_w))
+	MCFG_ISA_OUT_DRQ0_CB(DEVWRITELINE("cs4031", cs4031_device, dreq0_w))
+	MCFG_ISA_OUT_DRQ1_CB(DEVWRITELINE("cs4031", cs4031_device, dreq1_w))
+	MCFG_ISA_OUT_DRQ2_CB(DEVWRITELINE("cs4031", cs4031_device, dreq2_w))
+	MCFG_ISA_OUT_DRQ3_CB(DEVWRITELINE("cs4031", cs4031_device, dreq3_w))
+	MCFG_ISA_OUT_DRQ5_CB(DEVWRITELINE("cs4031", cs4031_device, dreq5_w))
+	MCFG_ISA_OUT_DRQ6_CB(DEVWRITELINE("cs4031", cs4031_device, dreq6_w))
+	MCFG_ISA_OUT_DRQ7_CB(DEVWRITELINE("cs4031", cs4031_device, dreq7_w))
 	MCFG_ISA16_SLOT_ADD("isabus", "board1", pc_isa16_cards, "fdcsmc", true)
 	MCFG_ISA16_SLOT_ADD("isabus", "board2", pc_isa16_cards, "comat", true)
 	MCFG_ISA16_SLOT_ADD("isabus", "board3", pc_isa16_cards, "ide", true)
@@ -182,7 +171,7 @@ static MACHINE_CONFIG_START( ct486, ct486_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	// video hardware
-	MCFG_PALETTE_LENGTH(256) // todo: really needed?
+	MCFG_PALETTE_ADD("palette", 256) // todo: really needed?
 MACHINE_CONFIG_END
 
 

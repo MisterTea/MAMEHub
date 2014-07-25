@@ -29,13 +29,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if HAVE_CONFIG_H
+#ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
 
 #include <math.h>
-#include "flac/assert.h"
-#include "flac/format.h"
+#include "FLAC/assert.h"
+#include "FLAC/format.h"
 #include "private/bitmath.h"
 #include "private/lpc.h"
 #if defined DEBUG || defined FLAC__OVERFLOW_DETECT || defined FLAC__OVERFLOW_DETECT_VERBOSE
@@ -238,7 +238,7 @@ int FLAC__lpc_quantize_coefficients(const FLAC__real lp_coeff[], unsigned order,
 		FLAC__double error = 0.0;
 		FLAC__int32 q;
 #ifdef DEBUG
-		//fprintf(stderr,"FLAC__lpc_quantize_coefficients: negative shift=%d order=%u cmax=%f\n", *shift, order, cmax);
+		fprintf(stderr,"FLAC__lpc_quantize_coefficients: negative shift=%d order=%u cmax=%f\n", *shift, order, cmax);
 #endif
 		for(i = 0; i < order; i++) {
 			error += lp_coeff[i] / (1 << nshift);

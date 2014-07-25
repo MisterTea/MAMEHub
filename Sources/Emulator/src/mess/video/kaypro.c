@@ -11,9 +11,9 @@
 
 PALETTE_INIT_MEMBER(kaypro_state,kaypro)
 {
-	palette_set_color(machine(), 0, RGB_BLACK); /* black */
-	palette_set_color(machine(), 1, MAKE_RGB(0, 220, 0)); /* green */
-	palette_set_color(machine(), 2, MAKE_RGB(0, 110, 0)); /* low intensity green */
+	palette.set_pen_color(0, rgb_t::black); /* black */
+	palette.set_pen_color(1, rgb_t(0, 220, 0)); /* green */
+	palette.set_pen_color(2, rgb_t(0, 110, 0)); /* low intensity green */
 }
 
 UINT32 kaypro_state::screen_update_kayproii(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -114,9 +114,6 @@ UINT32 kaypro_state::screen_update_omni2(screen_device &screen, bitmap_ind16 &bi
 UINT32 kaypro_state::screen_update_kaypro2x(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	m_framecnt++;
-	m_speed = m_mc6845_reg[10]&0x20;
-	m_flash = m_mc6845_reg[10]&0x40;                // cursor modes
-	m_cursor = (m_mc6845_reg[14]<<8) | m_mc6845_reg[15];                    // get cursor position
 	m_crtc->screen_update(screen, bitmap, cliprect);
 	return 0;
 }
@@ -134,10 +131,9 @@ UINT32 kaypro_state::screen_update_kaypro2x(screen_device &screen, bitmap_rgb32 
     Not sure how the attributes interact, for example does an underline blink? */
 
 
-MC6845_UPDATE_ROW( kaypro2x_update_row )
+MC6845_UPDATE_ROW( kaypro_state::kaypro2x_update_row )
 {
-	kaypro_state *state = device->machine().driver_data<kaypro_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	UINT32 *p = &bitmap.pix32(y);
 	UINT16 x;
 	UINT8 gfx,fg,bg;
@@ -147,8 +143,8 @@ MC6845_UPDATE_ROW( kaypro2x_update_row )
 		UINT8 inv=0;
 		//      if (x == cursor_x) inv=0xff;    /* uncomment when mame fixed */
 		UINT16 mem = (ma + x) & 0x7ff;
-		UINT8 chr = state->m_p_videoram[mem];
-		UINT8 attr = state->m_p_videoram[mem | 0x800];
+		UINT8 chr = m_p_videoram[mem];
+		UINT8 attr = m_p_videoram[mem | 0x800];
 
 		if ((attr & 3) == 3)
 		{
@@ -174,21 +170,18 @@ MC6845_UPDATE_ROW( kaypro2x_update_row )
 		}
 
 		/* Take care of flashing characters */
-		if ( (BIT(attr, 2)) & (BIT(state->m_framecnt, 3)) )
+		if ( (BIT(attr, 2)) & (BIT(m_framecnt, 3)) )
 			fg = bg;
 
-		/* process cursor - remove when mame fixed */
-		if ((((!state->m_flash) && (!state->m_speed)) ||
-			((state->m_flash) && (state->m_speed) && (state->m_framecnt & 0x10)) ||
-			((state->m_flash) && (!state->m_speed) && (state->m_framecnt & 8))) &&
-			(mem == state->m_cursor))
-				inv ^= state->m_mc6845_cursor[ra];
+		/* process cursor */
+		if (x == cursor_x)
+			inv ^= m_mc6845_cursor[ra];
 
 		/* get pattern of pixels for that character scanline */
 		if ( (ra == 15) & (BIT(attr, 3)) )  /* underline */
 			gfx = 0xff;
 		else
-			gfx = state->m_p_chargen[(chr<<4) | ra ] ^ inv;
+			gfx = m_p_chargen[(chr<<4) | ra ] ^ inv;
 
 		/* Display a scanline of a character (8 pixels) */
 		*p++ = palette[BIT( gfx, 7 ) ? fg : bg];
@@ -250,7 +243,7 @@ void kaypro_state::mc6845_screen_configure()
 
 	/* Resize the screen */
 	if ((width < 640) && (height < 400) && (bytes < 0x800)) /* bounds checking to prevent an assert or violation */
-		machine().primary_screen->set_visible_area(0, width, 0, height);
+		machine().first_screen()->set_visible_area(0, width, 0, height);
 }
 
 

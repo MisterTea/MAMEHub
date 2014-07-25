@@ -3298,30 +3298,6 @@ static GFXDECODE_START( crush4 )
 GFXDECODE_END
 
 
-
-/*************************************
- *
- *  Sound interfaces
- *
- *************************************/
-
-static const namco_interface namco_config =
-{
-	3,          /* number of voices */
-	0           /* stereo */
-};
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 /*************************************
  *
  *  Machine drivers
@@ -3338,21 +3314,23 @@ static MACHINE_CONFIG_START( pacman, pacman_state )
 	MCFG_WATCHDOG_VBLANK_INIT(16)
 
 	/* video hardware */
-	MCFG_GFXDECODE(pacman)
-	MCFG_PALETTE_LENGTH(128*4)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pacman)
+	MCFG_PALETTE_ADD("palette", 128*4)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(pacman_state,pacman)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(pacman_state, screen_update_pacman)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_INIT_OVERRIDE(pacman_state,pacman)
 	MCFG_VIDEO_START_OVERRIDE(pacman_state,pacman)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("namco", NAMCO, MASTER_CLOCK/6/32)
-	MCFG_SOUND_CONFIG(namco_config)
+	MCFG_NAMCO_AUDIO_VOICES(3)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -3463,10 +3441,10 @@ static MACHINE_CONFIG_DERIVED( vanvan, pacman )
 	/* sound hardware */
 	MCFG_DEVICE_REMOVE("namco")
 	MCFG_SOUND_ADD("sn1", SN76496, 1789750)
-	MCFG_SOUND_CONFIG(psg_intf)
+
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 	MCFG_SOUND_ADD("sn2", SN76496, 1789750)
-	MCFG_SOUND_CONFIG(psg_intf)
+
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 MACHINE_CONFIG_END
 
@@ -3492,7 +3470,7 @@ static MACHINE_CONFIG_DERIVED( s2650games, pacman )
 	MCFG_CPU_PROGRAM_MAP(s2650games_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", pacman_state,  s2650_interrupt)
 
-	MCFG_GFXDECODE(s2650games)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", s2650games)
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_SIZE(32*8, 32*8)
@@ -3505,7 +3483,6 @@ static MACHINE_CONFIG_DERIVED( s2650games, pacman )
 	/* sound hardware */
 	MCFG_DEVICE_REMOVE("namco")
 	MCFG_SOUND_ADD("sn1", SN76496, MASTER_CLOCK/6)    /* 1H */
-	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 MACHINE_CONFIG_END
 
@@ -3569,25 +3546,15 @@ static MACHINE_CONFIG_DERIVED( superabc, pacman )
 	MCFG_MACHINE_RESET_OVERRIDE(pacman_state,superabc)
 
 	/* video hardware */
-	MCFG_GFXDECODE(superabc)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", superabc)
 MACHINE_CONFIG_END
 
 
 static MACHINE_CONFIG_DERIVED( crush4, mschamp )
 
 	/* basic machine hardware */
-	MCFG_GFXDECODE(crush4)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", crush4)
 MACHINE_CONFIG_END
-
-static const ay8910_interface crushs_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 static MACHINE_CONFIG_DERIVED( crushs, pacman )
 
@@ -3598,7 +3565,6 @@ static MACHINE_CONFIG_DERIVED( crushs, pacman )
 
 	/* sound hardware */
 	MCFG_SOUND_ADD("ay8912", AY8912, 1789750)
-	MCFG_SOUND_CONFIG(crushs_ay8910_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 MACHINE_CONFIG_END
 
@@ -3821,6 +3787,47 @@ ROM_START( mspacmanbg )
 	ROM_LOAD( "82s129-2.c9",    0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) ) /* timing - not used */ // == 82s126.3m
 ROM_END
 
+ROM_START( mspacmanbgd )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "27256.01",  0x0000, 0x4000, CRC(5bcc195e) SHA1(9a82536f3a33c406b8cc9e076ccf21c61a009305) )
+	ROM_CONTINUE(0x8000,0x4000) // blocks 5+6 are repeated twice in here
+
+	ROM_REGION( 0x8000, "gfx1", 0 )
+	ROM_LOAD( "10.e5",    0x0000, 0x0800, CRC(f2c5da43) SHA1(6a6de2ecc313a11ad12d8d1712c05f923984f668) )
+	ROM_CONTINUE(0x1000,0x800)
+	ROM_CONTINUE(0x0800,0x800)
+	ROM_CONTINUE(0x1800,0x800)
+	ROM_IGNORE(0x6000) // this also contains regular pacman gfx, ignore them for now at least
+
+	ROM_REGION( 0x0120, "proms", 0 )
+	ROM_LOAD( "82s123.h7",    0x0000, 0x0020, CRC(3545e7e9) SHA1(b866b02579438afb11296e5c53a32c6425bd044d) ) // slightly different to original (verified)
+	ROM_LOAD( "82s129-3.d1",  0x0020, 0x0100, CRC(3eb3a8e4) SHA1(19097b5f60d1030f8b82d9f1d3a241f93e5c75d6) ) // == 82s126.4a
+
+	ROM_REGION( 0x0200, "namco", 0 )    /* sound PROMs */
+	ROM_LOAD( "82s129-1.a9",    0x0000, 0x0100, CRC(a9cc86bf) SHA1(bbcec0570aeceb582ff8238a4bc8546a23430081) ) // == 82s126.1m
+	ROM_LOAD( "82s129-2.c9",    0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) ) /* timing - not used */ // == 82s126.3m
+ROM_END
+
+ROM_START( mspacmanbcc )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "comecocos.bin",  0x0000, 0x4000, CRC(220eccae) SHA1(30183601d27e95f1e7a60983eaf2056505ab13d2) )
+	ROM_CONTINUE(0x8000,0x4000) // blocks 5+6 are repeated twice in here
+
+	ROM_REGION( 0x8000, "gfx1", 0 )
+	ROM_LOAD( "10.e5",    0x0000, 0x0800, CRC(f2c5da43) SHA1(6a6de2ecc313a11ad12d8d1712c05f923984f668) )
+	ROM_CONTINUE(0x1000,0x800)
+	ROM_CONTINUE(0x0800,0x800)
+	ROM_CONTINUE(0x1800,0x800)
+	ROM_IGNORE(0x6000) // this also contains regular pacman gfx, ignore them for now at least
+
+	ROM_REGION( 0x0120, "proms", 0 )
+	ROM_LOAD( "82s123.h7",    0x0000, 0x0020, CRC(3545e7e9) SHA1(b866b02579438afb11296e5c53a32c6425bd044d) ) // slightly different to original (verified)
+	ROM_LOAD( "82s129-3.d1",  0x0020, 0x0100, CRC(3eb3a8e4) SHA1(19097b5f60d1030f8b82d9f1d3a241f93e5c75d6) ) // == 82s126.4a
+
+	ROM_REGION( 0x0200, "namco", 0 )    /* sound PROMs */
+	ROM_LOAD( "82s129-1.a9",    0x0000, 0x0100, CRC(a9cc86bf) SHA1(bbcec0570aeceb582ff8238a4bc8546a23430081) ) // == 82s126.1m
+	ROM_LOAD( "82s129-2.c9",    0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) ) /* timing - not used */ // == 82s126.3m
+ROM_END
 
 
 ROM_START( hangly )
@@ -4240,6 +4247,30 @@ ROM_START( mspacman )
 ROM_END
 
 
+ROM_START( mspacmancr )  /* Bootleg on Crush Roller Board - Midway Graphics and Namco mentions are gone but Easter Egg still works */
+	ROM_REGION( 0x20000, "maincpu", 0 ) /* 64k for code+64k for decrypted code */
+	ROM_LOAD( "pacman.6e",    0x0000, 0x1000, CRC(c1e6ab10) SHA1(e87e059c5be45753f7e9f33dff851f16d6751181) ) // a.6e
+	ROM_LOAD( "pacman.6f",    0x1000, 0x1000, CRC(1a6fb2d4) SHA1(674d3a7f00d8be5e38b1fdc208ebef5a92d38329) ) // b.6f
+	ROM_LOAD( "pacman.6h",    0x2000, 0x1000, CRC(bcdd1beb) SHA1(8e47e8c2c4d6117d174cdac150392042d3e0a881) ) // c.6h
+	ROM_LOAD( "pacman.6j",    0x3000, 0x1000, CRC(817d94e3) SHA1(d4a70d56bb01d27d094d73db8667ffb00ca69cb9) ) // d.6j
+	ROM_LOAD( "u5",           0x8000, 0x0800, CRC(f45fbbcd) SHA1(b26cc1c8ee18e9b1daa97956d2159b954703a0ec) ) // 1.u5
+	ROM_LOAD( "u6",           0x9000, 0x1000, CRC(a90e7000) SHA1(e4df96f1db753533f7d770aa62ae1973349ea4cf) ) // 2.u6
+	ROM_LOAD( "3.u7",         0xb000, 0x1000, CRC(bd972c0c) SHA1(291bea78ba3cab862ab5c62488681f5848e50014) )
+
+	ROM_REGION( 0x2000, "gfx1", 0 )
+	ROM_LOAD( "5.5e",         0x0000, 0x1000, CRC(c45d4857) SHA1(06e8ceb7fcd745836b27b50495a4e9883a1ac88b) )
+	ROM_LOAD( "5f",           0x1000, 0x1000, CRC(615af909) SHA1(fd6a1dde780b39aea76bf1c4befa5882573c2ef4) ) // 6.5f
+
+	ROM_REGION( 0x0120, "proms", 0 )
+	ROM_LOAD( "mb7051.7f",    0x0000, 0x0020, CRC(ff344446) SHA1(45eb37533da8912645a089b014f3b3384702114a) )
+	ROM_LOAD( "82s126.4a",    0x0020, 0x0100, CRC(3eb3a8e4) SHA1(19097b5f60d1030f8b82d9f1d3a241f93e5c75d6) ) // m82s129n.4a
+
+	ROM_REGION( 0x0200, "namco", 0 )    /* sound PROMs */
+	ROM_LOAD( "82s126.1m",    0x0000, 0x0100, CRC(a9cc86bf) SHA1(bbcec0570aeceb582ff8238a4bc8546a23430081) ) // 7052.1m
+	ROM_LOAD( "82s126.3m",    0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) ) // 7052.3m   /* timing - not used */
+ROM_END
+
+
 ROM_START( mspacmnf )
 	ROM_REGION( 0x20000, "maincpu", 0 ) /* 64k for code+64k for decrypted code */
 	ROM_LOAD( "pacman.6e",    0x0000, 0x1000, CRC(c1e6ab10) SHA1(e87e059c5be45753f7e9f33dff851f16d6751181) )
@@ -4612,6 +4643,13 @@ ROM_START( crushbl3 )
 	ROM_LOAD( "cr3.5h",       0x0800, 0x0800, CRC(c15b6967) SHA1(d8f16e2d6af5bf0f610d1e23614c531f67490da9) )
 	ROM_LOAD( "cr2.5f",       0x1000, 0x0800, CRC(d5bc5cb8) SHA1(269b82ae2b838c72ae06bff77412f22bb779ad2e) )  /* copyright sign was removed */
 	ROM_LOAD( "cr4.5j",       0x1800, 0x0800, CRC(d35d1caf) SHA1(65dd7861e05651485626465dc97215fed58db551) )
+
+	// the set with the above 'crushbl3' program roms and these gfx roms just seems to be a bad dump (some bad maze tiles?)
+//  ROM_REGION( 0x2000, "gfx1", 0 )
+//  ROM_LOAD( "cr1.bin",       0x0000, 0x0800, CRC(cc31c649) SHA1(a0640d2abc21872b0e680e8e31e3bcb7e7a07953) )
+//  ROM_LOAD( "cr3.bin",       0x0800, 0x0800, CRC(14c121d8) SHA1(05f900a2e2a67401ab357340c1fb36153f365f1b) )
+//  ROM_LOAD( "cr2.bin",       0x1000, 0x0800, CRC(882dc667) SHA1(5ea01d9c692b3061a0e39e2227fbc6af4baaab11) )  /* copyright sign was removed */
+//  ROM_LOAD( "cr4.bin",       0x1800, 0x0800, CRC(0d3877c4) SHA1(0a6f4098181480aa85225324129e37bba375252d) )
 
 	ROM_REGION( 0x0120, "proms", 0 )
 	ROM_LOAD( "74s288.8a",    0x0000, 0x0020, CRC(ff344446) SHA1(45eb37533da8912645a089b014f3b3384702114a) )
@@ -6343,7 +6381,7 @@ GAME( 1980, newpuc2,  puckman,  pacman,   pacman,   driver_device, 0,        ROT
 GAME( 1980, newpuc2b, puckman,  pacman,   pacman,   driver_device, 0,        ROT90,  "hack", "Newpuc2 (set 2)", GAME_SUPPORTS_SAVE )
 GAME( 1980, newpuckx, puckman,  pacman,   pacman,   driver_device, 0,        ROT90,  "hack", "New Puck-X", GAME_SUPPORTS_SAVE )
 GAME( 1981, pacheart, puckman,  pacman,   pacman,   driver_device, 0,        ROT90,  "hack", "Pac-Man (Hearts)", GAME_SUPPORTS_SAVE )
-GAME( 19??, bucaner,  puckman,  pacman,   pacman,   driver_device, 0,        ROT90,  "hack", "Buccaneer", GAME_SUPPORTS_SAVE )
+GAME( 198?, bucaner,  puckman,  pacman,   pacman,   driver_device, 0,        ROT90,  "hack", "Buccaneer", GAME_SUPPORTS_SAVE )
 GAME( 1981, hangly,   puckman,  pacman,   pacman,   driver_device, 0,        ROT90,  "hack", "Hangly-Man (set 1)", GAME_SUPPORTS_SAVE )
 GAME( 1981, hangly2,  puckman,  pacman,   pacman,   driver_device, 0,        ROT90,  "hack", "Hangly-Man (set 2)", GAME_SUPPORTS_SAVE )
 GAME( 1981, hangly3,  puckman,  pacman,   pacman,   driver_device, 0,        ROT90,  "hack", "Hangly-Man (set 3)", GAME_SUPPORTS_SAVE )
@@ -6364,13 +6402,16 @@ GAME( 1981, mspacman, 0,        mspacman, mspacman, pacman_state,  mspacman, ROT
 GAME( 1981, mspacmnf, mspacman, mspacman, mspacman, pacman_state,  mspacman, ROT90,  "hack", "Ms. Pac-Man (speedup hack)", GAME_SUPPORTS_SAVE )
 GAME( 1981, mspacmat, mspacman, mspacman, mspacman, pacman_state,  mspacman, ROT90,  "hack", "Ms. Pac Attack", GAME_SUPPORTS_SAVE )
 GAME( 1989, msheartb, mspacman, mspacman, mspacman, pacman_state,  mspacman, ROT90,  "hack (Two-Bit Score)", "Ms. Pac-Man Heart Burn", GAME_SUPPORTS_SAVE )
+GAME( 1981, mspacmancr,mspacman,mspacman, mspacman, pacman_state,  mspacman, ROT90,  "bootleg", "Ms. Pac-Man (bootleg on Crush Roller Hardware)", GAME_SUPPORTS_SAVE )
 GAME( 1981, mspacmab, mspacman, woodpek,  mspacman, driver_device, 0,        ROT90,  "bootleg", "Ms. Pac-Man (bootleg)", GAME_SUPPORTS_SAVE )
 GAME( 1981, mspacmbe, mspacman, woodpek,  mspacman, pacman_state,  mspacmbe, ROT90,  "bootleg", "Ms. Pac-Man (bootleg, encrypted)", GAME_SUPPORTS_SAVE )
 GAME( 1981, mspacii,  mspacman, woodpek,  mspacman, pacman_state,  mspacii,  ROT90,  "bootleg (Orca)", "Ms. Pac-Man II (Orca bootleg set 1)", GAME_SUPPORTS_SAVE )
 GAME( 1981, mspacii2, mspacman, woodpek,  mspacman, pacman_state,  mspacii,  ROT90,  "bootleg (Orca)", "Ms. Pac-Man II (Orca bootleg set 2)", GAME_SUPPORTS_SAVE )
 GAME( 1981, pacgal,   mspacman, woodpek,  mspacman, driver_device, 0,        ROT90,  "hack", "Pac-Gal", GAME_SUPPORTS_SAVE )
 GAME( 1981, mspacpls, mspacman, woodpek,  mspacpls, driver_device, 0,        ROT90,  "hack", "Ms. Pac-Man Plus", GAME_SUPPORTS_SAVE )
-GAME( 198?, mspacmanbg,mspacman,woodpek,  mspacman, driver_device, 0,        ROT90,  "bootleg", "Ms. Pac-Man ('Made in Greece' bootleg)", GAME_SUPPORTS_SAVE ) // likely produced late 80s / early 90s, these bootlegs have very visible 'MADE IN GREECE' text etched onto the board
+GAME( 198?, mspacmanbg,mspacman,woodpek,  mspacman, driver_device, 0,        ROT90,  "bootleg", "Ms. Pac-Man ('Made in Greece' bootleg)", GAME_SUPPORTS_SAVE ) // likely produced late 80s / early 90s, these bootlegs have very visible 'MADE IN GREECE' text etched onto the board, probably actually made in Spain
+GAME( 1992, mspacmanbgd,mspacman,woodpek, mspacman, driver_device, 0,        ROT90,  "bootleg (Datamat)", "Miss Pukman ('Made in Greece' bootleg)", GAME_SUPPORTS_SAVE ) // shows 'Miss Pukman 1991/1992' but confirmed to be the bootleg distributed by Datamat
+GAME( 1991, mspacmanbcc,mspacman,woodpek, mspacman, driver_device, 0,        ROT90,  "bootleg (Tecnausa)", "Come-Cocos (Ms. Pac-Man) ('Made in Greece' bootleg)", GAME_SUPPORTS_SAVE ) // ^ same PCB, also dated 1991, distributed by Tecnausa
 GAME( 1992, mschamp,  mspacman, mschamp,  mschamp,  driver_device, 0,        ROT90,  "hack", "Ms. Pacman Champion Edition / Zola-Puc Gal", GAME_SUPPORTS_SAVE ) /* Rayglo version */
 GAME( 1995, mschamps, mspacman, mschamp,  mschamp,  driver_device, 0,        ROT90,  "hack", "Ms. Pacman Champion Edition / Super Zola-Puc Gal", GAME_SUPPORTS_SAVE )
 

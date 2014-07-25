@@ -140,17 +140,17 @@ void sidearms_state::video_start()
 
 	if (!m_gameid)
 	{
-		m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sidearms_state::get_sidearms_bg_tile_info),this), tilemap_mapper_delegate(FUNC(sidearms_state::sidearms_tilemap_scan),this),
+		m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sidearms_state::get_sidearms_bg_tile_info),this), tilemap_mapper_delegate(FUNC(sidearms_state::sidearms_tilemap_scan),this),
 				32, 32, 128, 128);
 
 		m_bg_tilemap->set_transparent_pen(15);
 	}
 	else
 	{
-		m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sidearms_state::get_philko_bg_tile_info),this), tilemap_mapper_delegate(FUNC(sidearms_state::sidearms_tilemap_scan),this), 32, 32, 128, 128);
+		m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sidearms_state::get_philko_bg_tile_info),this), tilemap_mapper_delegate(FUNC(sidearms_state::sidearms_tilemap_scan),this), 32, 32, 128, 128);
 	}
 
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sidearms_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sidearms_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,
 			8, 8, 64, 64);
 
 	m_fg_tilemap->set_transparent_pen(3);
@@ -164,7 +164,7 @@ void sidearms_state::video_start()
 void sidearms_state::draw_sprites_region(bitmap_ind16 &bitmap, const rectangle &cliprect, int start_offset, int end_offset )
 {
 	UINT8 *buffered_spriteram = m_spriteram->buffer();
-	gfx_element *gfx = machine().gfx[2];
+	gfx_element *gfx = m_gfxdecode->gfx(2);
 	int offs, attr, color, code, x, y, flipx, flipy;
 
 	flipy = flipx = m_flipon;
@@ -185,8 +185,8 @@ void sidearms_state::draw_sprites_region(bitmap_ind16 &bitmap, const rectangle &
 			y = (30 * 8) - y;
 		}
 
-		drawgfx_transpen(bitmap, cliprect,
-			gfx,
+
+			gfx->transpen(bitmap,cliprect,
 			code, color,
 			flipx, flipy,
 			x, y, 15);

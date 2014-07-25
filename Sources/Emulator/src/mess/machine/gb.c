@@ -164,16 +164,7 @@ void gb_state::gb_init()
 }
 
 
-MACHINE_START_MEMBER(gb_state,gb)
-{
-	/* Allocate the serial timer, and disable it */
-	m_gb_serial_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(gb_state::gb_serial_timer_proc),this));
-	m_gb_serial_timer->enable( 0 );
-
-	save_gb_base();
-}
-
-MACHINE_START_MEMBER(gb_state,gbpocket)
+void gb_state::machine_start()
 {
 	/* Allocate the serial timer, and disable it */
 	m_gb_serial_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(gb_state::gb_serial_timer_proc),this));
@@ -207,11 +198,12 @@ MACHINE_START_MEMBER(gb_state,sgb)
 	save_gb_base();
 	save_sgb_only();
 
-	if (m_cartslot && m_cartslot->get_sgb_hack())
-		machine().device<sgb_lcd_device>("lcd")->set_sgb_hack(TRUE);
+	if (m_cartslot && m_cartslot->get_sgb_hack()) {
+		dynamic_cast<sgb_lcd_device*>(m_lcd.target())->set_sgb_hack(TRUE);
+	}
 }
 
-MACHINE_RESET_MEMBER(gb_state,gb)
+void gb_state::machine_reset()
 {
 	gb_init();
 
@@ -219,22 +211,6 @@ MACHINE_RESET_MEMBER(gb_state,gb)
 	m_bios_disable = 0;
 
 	m_divcount = 0x0004;
-}
-
-MACHINE_RESET_MEMBER(gb_state,gbpocket)
-{
-	gb_init();
-
-	gb_init_regs();
-
-	m_bios_disable = 1;
-
-	/* Initialize the Sound registers */
-	m_custom->sound_w(generic_space(), 0x16, 0x80);
-	m_custom->sound_w(generic_space(), 0x15, 0xF3);
-	m_custom->sound_w(generic_space(), 0x14, 0x77);
-
-	m_divcount = 0xABC8;
 }
 
 MACHINE_RESET_MEMBER(gb_state,gbc)
@@ -346,7 +322,7 @@ WRITE8_MEMBER(gb_state::gb_io2_w)
 		//printf("here again?\n");
 	}
 	else
-		machine().device<gb_lcd_device>("lcd")->video_w(space, offset, data);
+		m_lcd->video_w(space, offset, data);
 }
 
 #ifdef MAME_DEBUG
@@ -454,7 +430,7 @@ WRITE8_MEMBER(gb_state::sgb_io_w)
 									m_sgb_controller_mode = 2;
 								break;
 							default:
-								machine().device<sgb_lcd_device>("lcd")->sgb_io_write_pal(sgb_data[0] >> 3, &sgb_data[0]);
+								dynamic_cast<sgb_lcd_device*>(m_lcd.target())->sgb_io_write_pal(sgb_data[0] >> 3, &sgb_data[0]);
 								break;
 						}
 						m_sgb_start = 0;
@@ -538,10 +514,6 @@ READ8_MEMBER(gb_state::gb_io_r)
 	}
 }
 
-
-INTERRUPT_GEN_MEMBER(gb_state::gb_scanline_interrupt)
-{
-}
 
 TIMER_CALLBACK_MEMBER(gb_state::gb_serial_timer_proc)
 {
@@ -632,7 +604,7 @@ WRITE8_MEMBER(gb_state::gbc_io2_w)
 		default:
 			break;
 	}
-	machine().device<cgb_lcd_device>("lcd")->video_w(space, offset, data);
+	m_lcd->video_w(space, offset, data);
 }
 
 READ8_MEMBER(gb_state::gbc_io2_r)
@@ -648,7 +620,7 @@ READ8_MEMBER(gb_state::gbc_io2_r)
 	default:
 		break;
 	}
-	return machine().device<cgb_lcd_device>("lcd")->video_r(space, offset);
+	return m_lcd->video_r(space, offset);
 }
 
 /****************************************************************************
@@ -718,7 +690,7 @@ READ8_MEMBER(megaduck_state::megaduck_video_r)
 	{
 		offset ^= 0x0C;
 	}
-	data = machine().device<gb_lcd_device>("lcd")->video_r(space, offset);
+	data = m_lcd->video_r(space, offset);
 	if ( offset )
 		return data;
 	return BITSWAP8(data,7,0,5,4,6,3,2,1);
@@ -734,7 +706,7 @@ WRITE8_MEMBER(megaduck_state::megaduck_video_w)
 	{
 		offset ^= 0x0C;
 	}
-	machine().device<gb_lcd_device>("lcd")->video_w(space, offset, data);
+	m_lcd->video_w(space, offset, data);
 }
 
 /* Map megaduck audio offset to game boy audio offsets */

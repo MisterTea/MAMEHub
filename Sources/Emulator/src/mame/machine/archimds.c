@@ -59,6 +59,8 @@ void archimedes_state::archimedes_request_irq_b(int mask)
 	if (m_ioc_regs[IRQ_STATUS_B] & m_ioc_regs[IRQ_MASK_B])
 	{
 		generic_pulse_irq_line(m_maincpu, ARM_IRQ_LINE, 1);
+		//m_maincpu->set_input_line(ARM_IRQ_LINE, CLEAR_LINE);
+		//m_maincpu->set_input_line(ARM_IRQ_LINE, ASSERT_LINE);
 	}
 }
 
@@ -66,27 +68,33 @@ void archimedes_state::archimedes_request_fiq(int mask)
 {
 	m_ioc_regs[FIQ_STATUS] |= mask;
 
+	//printf("STATUS:%02x IRQ:%02x MASK:%02x\n",m_ioc_regs[FIQ_STATUS],mask,m_ioc_regs[FIQ_MASK]);
+
 	if (m_ioc_regs[FIQ_STATUS] & m_ioc_regs[FIQ_MASK])
 	{
 		generic_pulse_irq_line(m_maincpu, ARM_FIRQ_LINE, 1);
+
+		//m_maincpu->set_input_line(ARM_FIRQ_LINE, CLEAR_LINE);
+		//m_maincpu->set_input_line(ARM_FIRQ_LINE, ASSERT_LINE);
 	}
 }
 
 void archimedes_state::archimedes_clear_irq_a(int mask)
 {
 	m_ioc_regs[IRQ_STATUS_A] &= ~mask;
+	archimedes_request_irq_a(0);
 }
 
 void archimedes_state::archimedes_clear_irq_b(int mask)
 {
 	m_ioc_regs[IRQ_STATUS_B] &= ~mask;
-	archimedes_request_irq_b(0);
+	//archimedes_request_irq_b(0);
 }
 
 void archimedes_state::archimedes_clear_fiq(int mask)
 {
 	m_ioc_regs[FIQ_STATUS] &= ~mask;
-	archimedes_request_fiq(0);
+	//archimedes_request_fiq(0);
 }
 
 void archimedes_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
@@ -111,19 +119,42 @@ void archimedes_state::vidc_vblank()
 
 /* video DMA */
 /* TODO: what type of DMA this is, burst or cycle steal? Docs doesn't explain it (4 usec is the DRAM refresh). */
+/* TODO: change m_region_vram into proper alloc array */
+/* TODO: Erotictac and Poizone sets up vidinit register AFTER vidend, for double buffering? (fixes Poizone "Eterna" logo display on attract) */
 void archimedes_state::vidc_video_tick()
 {
 	address_space &space = m_maincpu->space(AS_PROGRAM);
 	static UINT8 *vram = m_region_vram->base();
 	UINT32 size;
+	UINT32 m_vidc_ccur;
+	UINT32 offset_ptr;
 
 	size = m_vidc_vidend-m_vidc_vidstart+0x10;
 
+	offset_ptr = m_vidc_vidstart+m_vidc_vidinit;
+	if(offset_ptr >= m_vidc_vidend+0x10) // TODO: correct?
+		offset_ptr = m_vidc_vidstart;
+
+	//popmessage("%08x %08x %08x",m_vidc_vidstart,m_vidc_vidinit,m_vidc_vidend);
+
 	for(m_vidc_vidcur = 0;m_vidc_vidcur < size;m_vidc_vidcur++)
-		vram[m_vidc_vidcur] = (space.read_byte(m_vidc_vidstart+m_vidc_vidcur));
+	{
+		vram[m_vidc_vidcur] = (space.read_byte(offset_ptr));
+		offset_ptr++;
+		if(offset_ptr >= m_vidc_vidend+0x10) // TODO: correct?
+			offset_ptr = m_vidc_vidstart;
+	}
+
+	if(m_cursor_enabled == true)
+	{
+		for(m_vidc_ccur = 0;m_vidc_ccur < 0x200;m_vidc_ccur++)
+			m_cursor_vram[m_vidc_ccur] = (space.read_byte(m_vidc_cinit+m_vidc_ccur));
+	}
 
 	if(m_video_dma_on)
+	{
 		m_vid_timer->adjust(m_screen->time_until_pos(m_vidc_regs[0xb4]));
+	}
 	else
 		m_vid_timer->adjust(attotime::never);
 }
@@ -168,7 +199,7 @@ void archimedes_state::vidc_audio_tick()
 		372,   356,   340,   324,   308,   292,   276,   260,
 		244,   228,   212,   196,   180,   164,   148,   132,
 		120,   112,   104,    96,    88,    80,    72,    64,
-			56,    48,    40,    32,    24,    16,     8,     0
+		56,    48,    40,    32,    24,    16,     8,     0
 	};
 
 	for(ch=0;ch<8;ch++)
@@ -208,7 +239,7 @@ void archimedes_state::a310_set_timer(int tmr)
 	{
 		case 0:
 		case 1:
-			m_timer[tmr]->adjust(attotime::from_usec(m_ioc_timercnt[tmr]/8), tmr); // TODO: ARM timings are quite off there, it should be latch and not latch/8
+			m_timer[tmr]->adjust(attotime::from_usec(m_ioc_timercnt[tmr]/2), tmr); // TODO: ARM timings are quite off there, it should be latch and not latch/2
 			break;
 		case 2:
 			freq = 1000000.0 / (double)(m_ioc_timercnt[tmr]+1);
@@ -253,7 +284,7 @@ void archimedes_state::archimedes_reset()
 	}
 
 	m_ioc_regs[IRQ_STATUS_A] = 0x10 | 0x80; //set up POR (Power On Reset) and Force IRQ at start-up
-	m_ioc_regs[IRQ_STATUS_B] = 0x02; //set up IL[1] On
+	m_ioc_regs[IRQ_STATUS_B] = 0x00; //set up IL[1] On
 	m_ioc_regs[FIQ_STATUS] = 0x80;   //set up Force FIQ
 	m_ioc_regs[CONTROL] = 0xff;
 }
@@ -410,37 +441,37 @@ void archimedes_state::archimedes_driver_init()
 static const char *const ioc_regnames[] =
 {
 	"(rw) Control",                 // 0
-	"(read) Keyboard receive (write) keyboard send",    // 1
+	"(read) Keyboard receive (write) keyboard send",    // 4
 	"?",
 	"?",
-	"(read) IRQ status A",              // 4
-	"(read) IRQ request A (write) IRQ clear",   // 5
-	"(rw) IRQ mask A",              // 6
+	"(read) IRQ status A",              // 10
+	"(read) IRQ request A (write) IRQ clear",   // 14
+	"(rw) IRQ mask A",              // 18
 	"?",
-	"(read) IRQ status B",      // 8
-	"(read) IRQ request B",     // 9
-	"(rw) IRQ mask B",      // 10
+	"(read) IRQ status B",      // 20
+	"(read) IRQ request B",     // 24
+	"(rw) IRQ mask B",      // 28
 	"?",
-	"(read) FIQ status",        // 12
-	"(read) FIQ request",       // 13
-	"(rw) FIQ mask",        // 14
+	"(read) FIQ status",        // 30
+	"(read) FIQ request",       // 34
+	"(rw) FIQ mask",        // 38
 	"?",
-	"(read) Timer 0 count low (write) Timer 0 latch low",       // 16
-	"(read) Timer 0 count high (write) Timer 0 latch high",     // 17
-	"(write) Timer 0 go command",                   // 18
-	"(write) Timer 0 latch command",                // 19
-	"(read) Timer 1 count low (write) Timer 1 latch low",       // 20
-	"(read) Timer 1 count high (write) Timer 1 latch high",     // 21
-	"(write) Timer 1 go command",                   // 22
-	"(write) Timer 1 latch command",                // 23
-	"(read) Timer 2 count low (write) Timer 2 latch low",       // 24
-	"(read) Timer 2 count high (write) Timer 2 latch high",     // 25
-	"(write) Timer 2 go command",                   // 26
-	"(write) Timer 2 latch command",                // 27
-	"(read) Timer 3 count low (write) Timer 3 latch low",       // 28
-	"(read) Timer 3 count high (write) Timer 3 latch high",     // 29
-	"(write) Timer 3 go command",                   // 30
-	"(write) Timer 3 latch command"                 // 31
+	"(read) Timer 0 count low (write) Timer 0 latch low",       // 40
+	"(read) Timer 0 count high (write) Timer 0 latch high",     // 44
+	"(write) Timer 0 go command",                   // 48
+	"(write) Timer 0 latch command",                // 4c
+	"(read) Timer 1 count low (write) Timer 1 latch low",       // 50
+	"(read) Timer 1 count high (write) Timer 1 latch high",     // 54
+	"(write) Timer 1 go command",                   // 58
+	"(write) Timer 1 latch command",                // 5c
+	"(read) Timer 2 count low (write) Timer 2 latch low",       // 60
+	"(read) Timer 2 count high (write) Timer 2 latch high",     // 64
+	"(write) Timer 2 go command",                   // 68
+	"(write) Timer 2 latch command",                // 6c
+	"(read) Timer 3 count low (write) Timer 3 latch low",       // 70
+	"(read) Timer 3 count high (write) Timer 3 latch high",     // 74
+	"(write) Timer 3 go command",                   // 78
+	"(write) Timer 3 latch command"                 // 7c
 };
 
 void archimedes_state::latch_timer_cnt(int tmr)
@@ -448,6 +479,27 @@ void archimedes_state::latch_timer_cnt(int tmr)
 	double time = m_timer[tmr]->elapsed().as_double();
 	time *= 2000000.0;  // find out how many 2 MHz ticks have gone by
 	m_ioc_timerout[tmr] = m_ioc_timercnt[tmr] - (UINT32)time;
+}
+
+bool archimedes_state::check_floppy_ready()
+{
+	floppy_image_device *floppy = NULL;
+
+	if(!m_fdc)
+		return false;
+
+	switch(m_floppy_select & 3)
+	{
+		case 0:
+			floppy = m_floppy0->get_device(); break;
+		case 1:
+			floppy = m_floppy1->get_device(); break;
+	}
+
+	if(floppy)
+		return floppy->ready_r();
+
+	return false;
 }
 
 /* TODO: should be a 8-bit handler */
@@ -461,18 +513,21 @@ READ32_MEMBER( archimedes_state::ioc_ctrl_r )
 		case CONTROL:
 		{
 			UINT8 i2c_data = 1;
-			static UINT8 flyback; //internal name for vblank here
+			UINT8 flyback; //internal name for vblank here
 			int vert_pos;
+			bool floppy_ready_state;
 
 			vert_pos = m_screen->vpos();
 			flyback = (vert_pos <= m_vidc_regs[VIDC_VDSR] || vert_pos >= m_vidc_regs[VIDC_VDER]) ? 0x80 : 0x00;
 
 			if ( m_i2cmem )
 			{
-				i2c_data = (i2cmem_sda_read(m_i2cmem) & 1);
+				i2c_data = (m_i2cmem->read_sda() & 1);
 			}
 
-			return (flyback) | (m_ioc_regs[CONTROL] & 0x7c) | (m_i2c_clk<<1) | i2c_data;
+			floppy_ready_state = check_floppy_ready();
+
+			return (flyback) | (m_ioc_regs[CONTROL] & 0x78) | (floppy_ready_state<<2) | (m_i2c_clk<<1) | i2c_data;
 		}
 
 		case KART:  // keyboard read
@@ -537,10 +592,21 @@ WRITE32_MEMBER( archimedes_state::ioc_ctrl_w )
 			//logerror("IOC I2C: CLK %d DAT %d\n", (data>>1)&1, data&1);
 			if ( m_i2cmem )
 			{
-				i2cmem_sda_write(m_i2cmem, data & 0x01);
-				i2cmem_scl_write(m_i2cmem, (data & 0x02) >> 1);
+				m_i2cmem->write_sda(data & 0x01);
+				m_i2cmem->write_scl((data & 0x02) >> 1);
 			}
 			m_i2c_clk = (data & 2) >> 1;
+			//TODO: does writing bit 2 here causes a fdc force ready?
+			/*
+			-x-- ---- Printer ack
+			--x- ---- Sound mute
+			---x ---- Aux I/O connector
+			---- -x-- Floppy ready
+			---- --x- I2C clock
+			---- ---x I2C data
+			*/
+			//if(data & 0x40)
+			//  popmessage("Muting sound, contact MAME/MESSdev");
 			break;
 
 		case KART:
@@ -662,9 +728,18 @@ READ32_MEMBER(archimedes_state::archimedes_ioc_r)
 			{
 				case 0: return ioc_ctrl_r(space,offset,mem_mask);
 				case 1:
-					if (m_wd1772) {
-						logerror("17XX: R @ addr %x mask %08x\n", offset*4, mem_mask);
-						return wd17xx_data_r(m_wd1772, space, offset&0xf);
+					if (m_fdc)
+					{
+						//printf("17XX: R @ addr %x mask %08x\n", offset*4, mem_mask);
+						switch(ioc_addr & 0xc)
+						{
+							case 0x00: return m_fdc->status_r();
+							case 0x04: return m_fdc->track_r();
+							case 0x08: return m_fdc->sector_r();
+							case 0x0c: return m_fdc->data_r();
+						}
+
+						return 0;
 					} else {
 						logerror("Read from FDC device?\n");
 						return 0;
@@ -679,14 +754,21 @@ READ32_MEMBER(archimedes_state::archimedes_ioc_r)
 					logerror("IOC: Internal Podule Read\n");
 					return 0xffff;
 				case 5:
-					if (m_wd1772) {
+					if (m_fdc)
+					{
 						switch(ioc_addr & 0xfffc)
 						{
+							case 0x18: return 0xff; // FDC latch B
+							case 0x40: return 0xff; // FDC latch A
 							case 0x50: return 0; //fdc type, new model returns 5 here
+							case 0x70: return 0x0F;
+							case 0x74: return 0xFF; // unknown
+//                          case 0x78: /* joystick */
+//                          case 0x7c:
 						}
 					}
 
-					logerror("IOC: Internal Latches Read %08x\n",ioc_addr);
+					//printf("IOC: Internal Latches Read %08x\n",ioc_addr);
 
 					return 0xffff;
 			}
@@ -717,10 +799,30 @@ WRITE32_MEMBER(archimedes_state::archimedes_ioc_w)
 			{
 				case 0: ioc_ctrl_w(space,offset,data,mem_mask); return;
 				case 1:
-						if (m_wd1772) {
-							logerror("17XX: %x to addr %x mask %08x\n", data, offset*4, mem_mask);
-							wd17xx_data_w(m_wd1772, space, offset&0xf, data&0xff);
-						} else {
+						if (m_fdc)
+						{
+							//printf("17XX: %x to addr %x mask %08x\n", data, offset*4, mem_mask);
+							switch(ioc_addr & 0xc)
+							{
+								case 0x00:
+									m_fdc->cmd_w(data);
+									return;
+
+								case 0x04:
+									m_fdc->track_w(data);
+									return;
+
+								case 0x08:
+									m_fdc->sector_w(data);
+									return;
+
+									case 0x0c:
+									m_fdc->data_w(data);
+									return;
+							}
+						}
+						else
+						{
 							logerror("Write to FDC device?\n");
 						}
 						return;
@@ -734,23 +836,44 @@ WRITE32_MEMBER(archimedes_state::archimedes_ioc_w)
 					logerror("IOC: Internal Podule Write\n");
 					return;
 				case 5:
-					if (m_wd1772) {
+					if (m_fdc)
+					{
 						switch(ioc_addr & 0xfffc)
 						{
 							case 0x18: // latch B
-								wd17xx_dden_w(m_wd1772, BIT(data, 1));
+								/*
+								---- x--- floppy controller reset
+								*/
+								m_fdc->dden_w(BIT(data, 1));
+								if(data & 8)
+									m_fdc->soft_reset();
+								if(data & ~0xa)
+									printf("%02x Latch B\n",data);
 								return;
 
 							case 0x40: // latch A
-								if (data & 1) { wd17xx_set_drive(m_wd1772,0); }
-								if (data & 2) { wd17xx_set_drive(m_wd1772,1); }
-								if (data & 4) { wd17xx_set_drive(m_wd1772,2); }
-								if (data & 8) { wd17xx_set_drive(m_wd1772,3); }
+								/*
+								-x-- ---- In Use Control (floppy?)
+								*/
+								floppy_image_device *floppy = NULL;
 
-								wd17xx_set_side(m_wd1772,(data & 0x10)>>4);
+								if (!(data & 1)) { m_floppy_select = 0; floppy = m_floppy0->get_device(); }
+								if (!(data & 2)) { m_floppy_select = 1; floppy = m_floppy1->get_device(); }
+								if (!(data & 4)) { m_floppy_select = 2; floppy = NULL; } // floppy 2
+								if (!(data & 8)) { m_floppy_select = 3; floppy = NULL; } // floppy 3
+
+								m_fdc->set_floppy(floppy);
+
+								if(floppy)
+								{
+									floppy->mon_w(BIT(data, 5));
+									floppy->ss_w(!(BIT(data, 4)));
+								}
 								//bit 5 is motor on
 								return;
 						}
+
+						//printf("%08x\n",ioc_addr);
 					}
 					break;
 			}
@@ -790,17 +913,17 @@ void archimedes_state::vidc_dynamic_res_change()
 			visarea.min_x = 0;
 			visarea.min_y = 0;
 			visarea.max_x = m_vidc_regs[VIDC_HBER] - m_vidc_regs[VIDC_HBSR] - 1;
-			visarea.max_y = m_vidc_regs[VIDC_VBER] - m_vidc_regs[VIDC_VBSR];
+			visarea.max_y = (m_vidc_regs[VIDC_VBER] - m_vidc_regs[VIDC_VBSR]) * (m_vidc_interlace+1);
 
-			logerror("Configuring: htotal %d vtotal %d border %d x %d display %d x %d\n",
-				m_vidc_regs[VIDC_HCR], m_vidc_regs[VIDC_VCR],
-				visarea.max_x, visarea.max_y,
-				m_vidc_regs[VIDC_HDER]-m_vidc_regs[VIDC_HDSR],m_vidc_regs[VIDC_VDER]-m_vidc_regs[VIDC_VDSR]+1);
+			//logerror("Configuring: htotal %d vtotal %d border %d x %d display %d x %d\n",
+			//  m_vidc_regs[VIDC_HCR], m_vidc_regs[VIDC_VCR],
+			//  visarea.max_x, visarea.max_y,
+			//  m_vidc_regs[VIDC_HDER]-m_vidc_regs[VIDC_HDSR],m_vidc_regs[VIDC_VDER]-m_vidc_regs[VIDC_VDSR]+1);
 
 			/* FIXME: pixel clock */
 			refresh = HZ_TO_ATTOSECONDS(pixel_rate[m_vidc_pixel_clk]*2) * m_vidc_regs[VIDC_HCR] * m_vidc_regs[VIDC_VCR];
 
-			m_screen->configure(m_vidc_regs[VIDC_HCR], m_vidc_regs[VIDC_VCR], visarea, refresh);
+			m_screen->configure(m_vidc_regs[VIDC_HCR], m_vidc_regs[VIDC_VCR] * (m_vidc_interlace+1), visarea, refresh);
 		}
 	}
 }
@@ -809,7 +932,7 @@ WRITE32_MEMBER(archimedes_state::archimedes_vidc_w)
 {
 	UINT32 reg = data>>24;
 	UINT32 val = data & 0xffffff;
-	//#ifdef DEBUG
+	//#ifdef MAME_DEBUG
 	static const char *const vrnames[] =
 	{
 		"horizontal total",
@@ -847,7 +970,7 @@ WRITE32_MEMBER(archimedes_state::archimedes_vidc_w)
 		if(reg == 0x40 && val & 0xfff)
 			logerror("WARNING: border color write here (PC=%08x)!\n",space.device().safe_pc());
 
-		palette_set_color_rgb(machine(), reg >> 2, pal4bit(r), pal4bit(g), pal4bit(b) );
+		m_palette->set_pen_color(reg >> 2, pal4bit(r), pal4bit(g), pal4bit(b) );
 
 		/* handle 8bpp colors here */
 		if(reg <= 0x3c)
@@ -860,7 +983,7 @@ WRITE32_MEMBER(archimedes_state::archimedes_vidc_w)
 				g = ((val & 0x030) >> 4) | ((i & 0x20) >> 3) | ((i & 0x40) >> 3);
 				r = ((val & 0x007) >> 0) | ((i & 0x10) >> 1);
 
-				palette_set_color_rgb(machine(), (reg >> 2) + 0x100 + i, pal4bit(r), pal4bit(g), pal4bit(b) );
+				m_palette->set_pen_color((reg >> 2) + 0x100 + i, pal4bit(r), pal4bit(g), pal4bit(b) );
 			}
 		}
 
@@ -896,7 +1019,8 @@ WRITE32_MEMBER(archimedes_state::archimedes_vidc_w)
 		}
 
 
-		//#ifdef DEBUG
+		//#ifdef MAME_DEBUG
+		if(reg != VIDC_VCSR && reg != VIDC_VCER && reg != VIDC_HCSR)
 		logerror("VIDC: %s = %d\n", vrnames[(reg-0x80)/4], m_vidc_regs[reg]);
 		//#endif
 
@@ -907,6 +1031,7 @@ WRITE32_MEMBER(archimedes_state::archimedes_vidc_w)
 		m_vidc_bpp_mode = ((val & 0x0c) >> 2);
 		m_vidc_interlace = ((val & 0x40) >> 6);
 		m_vidc_pixel_clk = (val & 0x03);
+		//todo: vga/svga modes sets 0x1000
 		vidc_dynamic_res_change();
 	}
 	else
@@ -929,18 +1054,25 @@ WRITE32_MEMBER(archimedes_state::archimedes_memc_w)
 		switch ((data >> 17) & 7)
 		{
 			case 0: /* video init */
+				m_cursor_enabled = false;
 				m_vidc_vidinit = ((data>>2)&0x7fff)*16;
-				//logerror("MEMC: VIDINIT %08x\n",vidc_vidinit);
+				//printf("MEMC: VIDINIT %08x\n",m_vidc_vidinit);
 				break;
 
 			case 1: /* video start */
 				m_vidc_vidstart = 0x2000000 | (((data>>2)&0x7fff)*16);
-				//logerror("MEMC: VIDSTART %08x\n",vidc_vidstart);
+				//printf("MEMC: VIDSTART %08x\n",m_vidc_vidstart);
 				break;
 
 			case 2: /* video end */
 				m_vidc_vidend = 0x2000000 | (((data>>2)&0x7fff)*16);
-				//logerror("MEMC: VIDEND %08x\n",vidc_vidend);
+				//printf("MEMC: VIDEND %08x\n",m_vidc_vidend);
+				break;
+
+			case 3: /* cursor init */
+				//m_cursor_enabled = true;
+				m_vidc_cinit = 0x2000000 | (((data>>2)&0x7fff)*16);
+				//printf("MEMC: CURSOR INIT %08x\n",((data>>2)&0x7fff)*16);
 				break;
 
 			case 4: /* sound start */

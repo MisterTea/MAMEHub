@@ -1,9 +1,12 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
-        Dolphin
+        Dolphin / Dauphin
 
-        08/04/2010 Skeleton driver.
-        20/05/2012 Fixed keyboard, added notes & speaker [Robbbert]
+        2010-04-08 Skeleton driver.
+        2012-05-20 Fixed keyboard, added notes & speaker [Robbbert]
+        2013-11-03 Added cassette [Robbbert]
 
     Minimal Setup:
         0000-00FF ROM "MO" (74S471)
@@ -70,6 +73,7 @@
         TODO:
         - Find missing roms
         - Add optional hardware listed above
+        - Cassette is added, but no idea how to operate it.
 
         Thanks to Amigan site for various documents.
 
@@ -79,39 +83,60 @@
 #include "emu.h"
 #include "cpu/s2650/s2650.h"
 #include "sound/speaker.h"
+#include "imagedev/cassette.h"
+#include "sound/wave.h"
 #include "dolphunk.lh"
 
 
-class dolphunk_state : public driver_device
+class dauphin_state : public driver_device
 {
 public:
-	dolphunk_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_speaker(*this, "speaker")
+	dauphin_state(const machine_config &mconfig, device_type type, const char *tag)
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_speaker(*this, "speaker")
+		, m_cass(*this, "cassette")
 	{ }
 
+	DECLARE_READ8_MEMBER(cass_r);
+	DECLARE_WRITE_LINE_MEMBER(cass_w);
 	DECLARE_READ8_MEMBER(port07_r);
 	DECLARE_WRITE8_MEMBER(port00_w);
 	DECLARE_WRITE8_MEMBER(port06_w);
+	TIMER_DEVICE_CALLBACK_MEMBER(dauphin_c);
+private:
+	UINT8 m_cass_data;
 	UINT8 m_last_key;
+	bool m_cass_state;
+	bool m_cassold;
 	bool m_speaker_state;
 	required_device<cpu_device> m_maincpu;
 	required_device<speaker_sound_device> m_speaker;
+	required_device<cassette_image_device> m_cass;
 };
 
-WRITE8_MEMBER( dolphunk_state::port00_w )
+READ8_MEMBER( dauphin_state::cass_r )
+{
+	return (m_cass->input() > 0.03) ? 1 : 0;
+}
+
+WRITE_LINE_MEMBER( dauphin_state::cass_w )
+{
+	m_cass_state = state; // get flag bit
+}
+
+WRITE8_MEMBER( dauphin_state::port00_w )
 {
 	output_set_digit_value(offset, data);
 }
 
-WRITE8_MEMBER( dolphunk_state::port06_w )
+WRITE8_MEMBER( dauphin_state::port06_w )
 {
 	m_speaker_state ^=1;
 	m_speaker->level_w(m_speaker_state);
 }
 
-READ8_MEMBER( dolphunk_state::port07_r )
+READ8_MEMBER( dauphin_state::port07_r )
 {
 	UINT8 keyin, i, data = 0x40;
 
@@ -137,24 +162,40 @@ READ8_MEMBER( dolphunk_state::port07_r )
 	return data;
 }
 
-static ADDRESS_MAP_START( dolphunk_mem, AS_PROGRAM, 8, dolphunk_state )
+TIMER_DEVICE_CALLBACK_MEMBER(dauphin_state::dauphin_c)
+{
+	m_cass_data++;
+
+	if (m_cass_state != m_cassold)
+	{
+		m_cass_data = 0;
+		m_cassold = m_cass_state;
+	}
+
+	if (m_cass_state)
+		m_cass->output(BIT(m_cass_data, 1) ? -1.0 : +1.0); // 1000Hz
+	else
+		m_cass->output(BIT(m_cass_data, 0) ? -1.0 : +1.0); // 2000Hz
+}
+
+static ADDRESS_MAP_START( dauphin_mem, AS_PROGRAM, 8, dauphin_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE( 0x0000, 0x01ff) AM_ROM
 	AM_RANGE( 0x0200, 0x02ff) AM_RAM
 	AM_RANGE( 0x0c00, 0x0fff) AM_ROM
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( dolphunk_io, AS_IO, 8, dolphunk_state )
+static ADDRESS_MAP_START( dauphin_io, AS_IO, 8, dauphin_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x00, 0x03) AM_WRITE(port00_w) // 4-led display
 	AM_RANGE(0x06, 0x06) AM_WRITE(port06_w)  // speaker (NOT a keyclick)
 	AM_RANGE(0x07, 0x07) AM_READ(port07_r) // pushbuttons
-	//AM_RANGE(S2650_SENSE_PORT, S2650_FO_PORT) AM_READWRITE(dolphunk_cass_in,dolphunk_cass_out)
+	AM_RANGE(S2650_SENSE_PORT, S2650_SENSE_PORT) AM_READ(cass_r)
 	AM_RANGE(0x102, 0x103) AM_NOP // stops error log filling up while using debug
 ADDRESS_MAP_END
 
 /* Input ports */
-static INPUT_PORTS_START( dolphunk )
+static INPUT_PORTS_START( dauphin )
 	PORT_START("X0")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("0") PORT_CODE(KEYCODE_0) PORT_CHAR('0')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("1") PORT_CODE(KEYCODE_1) PORT_CHAR('1')
@@ -181,11 +222,12 @@ static INPUT_PORTS_START( dolphunk )
 INPUT_PORTS_END
 
 
-static MACHINE_CONFIG_START( dolphunk, dolphunk_state )
+static MACHINE_CONFIG_START( dauphin, dauphin_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",S2650, XTAL_1MHz)
-	MCFG_CPU_PROGRAM_MAP(dolphunk_mem)
-	MCFG_CPU_IO_MAP(dolphunk_io)
+	MCFG_CPU_PROGRAM_MAP(dauphin_mem)
+	MCFG_CPU_IO_MAP(dauphin_io)
+	MCFG_S2650_FLAG_HANDLER(WRITELINE(dauphin_state, cass_w))
 
 	/* video hardware */
 	MCFG_DEFAULT_LAYOUT(layout_dolphunk)
@@ -194,10 +236,16 @@ static MACHINE_CONFIG_START( dolphunk, dolphunk_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
+
+	/* cassette */
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	MCFG_TIMER_DRIVER_ADD_PERIODIC("dauphin_c", dauphin_state, dauphin_c, attotime::from_hz(4000))
 MACHINE_CONFIG_END
 
 /* ROM definition */
-ROM_START( dolphunk )
+ROM_START( dauphin )
 	ROM_REGION( 0x8000, "maincpu", 0 )
 	ROM_LOAD( "dolphin_mo.rom", 0x0000, 0x0100, CRC(a8811f48) SHA1(233c629dc20fac286c8c1559e461bb0b742a675e) )
 	// This one is used in winarcadia but it is a bad dump, we use the corrected one above
@@ -214,5 +262,5 @@ ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME       PARENT   COMPAT   MACHINE    INPUT     INIT     COMPANY    FULLNAME       FLAGS */
-COMP( 1979, dolphunk,  0,       0,       dolphunk,  dolphunk, driver_device, 0,     "<unknown>", "Dolphin", 0 )
+/*    YEAR  NAME       PARENT   COMPAT   MACHINE    INPUT     CLASS         INIT     COMPANY             FULLNAME   FLAGS */
+COMP( 1979, dauphin,   0,       0,       dauphin,  dauphin, driver_device, 0,     "LCD EPFL Stoppani", "Dauphin", 0 )

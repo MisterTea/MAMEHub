@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, David Haywood
 /******************************************************************************************************
 
     System H1 (c) 1994 Sega
@@ -309,6 +311,7 @@ public:
 		m_sound_dma(*this, "sound_dma"),
 		m_soundram(*this, "soundram"),
 		m_soundram2(*this, "soundram2"),
+		m_rom(*this, "share1"),
 		m_io_an0(*this, "AN0"),
 		m_io_an1(*this, "AN1"),
 		m_io_an2(*this, "AN2"),
@@ -317,7 +320,10 @@ public:
 		m_io_an5(*this, "AN5"),
 		m_io_an6(*this, "AN6"),
 		m_io_an7(*this, "AN7"),
-		m_io_config(*this, "CONFIG")
+		m_io_config(*this, "CONFIG"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"),
+		m_screen(*this, "screen")
 	{
 	}
 
@@ -339,8 +345,8 @@ public:
 	UINT32 m_clipvals[2][3];
 	UINT8  m_clipblitterMode[2]; // hack
 
-	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_subcpu;
+	required_device<sh2_device> m_maincpu;
+	required_device<sh2_device> m_subcpu;
 	required_device<cpu_device> m_soundcpu;
 	//required_device<am9517a_device> m_dmac;
 
@@ -351,6 +357,7 @@ public:
 	required_shared_ptr<UINT32> m_sound_dma;
 	required_shared_ptr<UINT16> m_soundram;
 	required_shared_ptr<UINT16> m_soundram2;
+	required_shared_ptr<UINT32> m_rom;
 	required_ioport m_io_an0;
 	required_ioport m_io_an1;
 	required_ioport m_io_an2;
@@ -360,6 +367,9 @@ public:
 	required_ioport m_io_an6;
 	required_ioport m_io_an7;
 	required_ioport m_io_config;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	required_device<screen_device> m_screen;
 
 	bitmap_ind16 m_temp_bitmap_sprites;
 	bitmap_ind16 m_temp_bitmap_sprites2;
@@ -371,7 +381,6 @@ public:
 
 	bitmap_ind16 m_screen1_bitmap;
 	bitmap_ind16 m_screen2_bitmap;
-	int m_scsp_last_line;
 	UINT8 an_mux_data;
 	UINT8 sound_data, sound_fifo;
 
@@ -430,7 +439,7 @@ public:
 	INTERRUPT_GEN_MEMBER(system_h1);
 	TIMER_DEVICE_CALLBACK_MEMBER(system_h1_main);
 	TIMER_DEVICE_CALLBACK_MEMBER(system_h1_sub);
-	DECLARE_WRITE_LINE_MEMBER(scsp_irq);
+	DECLARE_WRITE8_MEMBER(scsp_irq);
 
 	void sysh1_dma_transfer( address_space &space, UINT16 dma_index );
 
@@ -544,7 +553,7 @@ void coolridr_state::video_start()
 {
 	/* find first empty slot to decode gfx */
 	for (m_gfx_index = 0; m_gfx_index < MAX_GFX_ELEMENTS; m_gfx_index++)
-		if (machine().gfx[m_gfx_index] == 0)
+		if (m_gfxdecode->gfx(m_gfx_index) == 0)
 			break;
 
 	m_screen->register_screen_bitmap(m_temp_bitmap_sprites);
@@ -557,7 +566,7 @@ void coolridr_state::video_start()
 	m_screen->register_screen_bitmap(m_screen1_bitmap);
 	m_screen->register_screen_bitmap(m_screen2_bitmap);
 
-	machine().gfx[m_gfx_index] = auto_alloc(machine(), gfx_element(machine(), h1_tile_layout, m_h1_pcg, 8, 0));
+	m_gfxdecode->set_gfx(m_gfx_index, global_alloc(gfx_element(m_palette, h1_tile_layout, m_h1_pcg, 0, 8, 0)));
 }
 
 /*
@@ -776,7 +785,7 @@ void coolridr_state::draw_bg_coolridr(bitmap_ind16 &bitmap, const rectangle &cli
 		bg_r = (((m_pen_fill[which] >> 16) & 0x7f) << 1) | (((m_pen_fill[which] >> 16) & 0x80) >> 7);
 		bg_g = (((m_pen_fill[which] >> 8) & 0x7f) << 1) | (((m_pen_fill[which] >> 8) & 0x80) >> 7);
 		bg_b = (((m_pen_fill[which] >> 0) & 0x7f) << 1) | (((m_pen_fill[which] >> 0) & 0x80) >> 7);
-		bitmap.fill(MAKE_ARGB(0xff,bg_r,bg_g,bg_b),cliprect);
+		bitmap.fill(rgb_t(0xff,bg_r,bg_g,bg_b),cliprect);
 #endif
 
 		bg_r = (((m_pen_fill[which] >> 16) & 0x78) >> 2) | (((m_pen_fill[which] >> 16) & 0x80) >> 7);
@@ -791,7 +800,7 @@ void coolridr_state::draw_bg_coolridr(bitmap_ind16 &bitmap, const rectangle &cli
 		int scrollx;
 		int scrolly;
 		UINT8 transpen_setting;
-		gfx_element *gfx = machine().gfx[m_gfx_index];
+		gfx_element *gfx = m_gfxdecode->gfx(m_gfx_index);
 		#define VREG(_offs) \
 			m_framebuffer_vram[(0x9b80+_offs+which*0x40)/4]
 
@@ -918,12 +927,12 @@ UINT32 coolridr_state::screen_update_coolridr(screen_device &screen, bitmap_ind1
 UINT32 coolridr_state::screen_update_coolridr1(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 #if 0
-	if (screen.machine().input().code_pressed_once(KEYCODE_W))
+	if (machine().input().code_pressed_once(KEYCODE_W))
 	{
 		debug_randompal++;
 		popmessage("%02x",debug_randompal);
 	}
-	if (screen.machine().input().code_pressed_once(KEYCODE_Q))
+	if (machine().input().code_pressed_once(KEYCODE_Q))
 	{
 		debug_randompal--;
 		popmessage("%02x",debug_randompal);
@@ -2129,7 +2138,7 @@ void *coolridr_state::draw_object_threaded(void *param, int threadid)
 /* This is a RLE-based sprite blitter (US Patent #6,141,122), very unusual from Sega... */
 void coolridr_state::blit_current_sprite(address_space &space)
 {
-//  const pen_t *clut = &machine().pens[0];
+//  const pen_t *clut = &m_palette->pen(0);
 
 	// Serialized 32-bit words in order of appearance:
 	//  0: 00000000 - unknown, 0x00000000 or 0x00000001, 0 seems to be regular sprite, 1 seems to change meaning of below, possible clip area?
@@ -2752,7 +2761,7 @@ void coolridr_state::sysh1_dma_transfer( address_space &space, UINT16 dma_index 
 				for(int i=0;i<size;i++)
 				{
 					m_h1_pcg[dst] = space.read_byte(src);
-					machine().gfx[m_gfx_index]->mark_dirty(dst/256);
+					m_gfxdecode->gfx(m_gfx_index)->mark_dirty(dst/256);
 					dst++;
 					src++;
 				}
@@ -2994,9 +3003,9 @@ static ADDRESS_MAP_START( coolridr_submap, AS_PROGRAM, 32, coolridr_state )
 	AM_RANGE(0x01000000, 0x0100ffff) AM_RAM //communication RAM
 
 	AM_RANGE(0x03000000, 0x0307ffff) AM_READWRITE16(h1_soundram_r, h1_soundram_w,0xffffffff) //AM_SHARE("soundram")
-	AM_RANGE(0x03100000, 0x03100fff) AM_DEVREADWRITE16_LEGACY("scsp1", scsp_r, scsp_w, 0xffffffff)
+	AM_RANGE(0x03100000, 0x03100fff) AM_DEVREADWRITE16("scsp1", scsp_device, read, write, 0xffffffff)
 	AM_RANGE(0x03200000, 0x0327ffff) AM_READWRITE16(h1_soundram2_r, h1_soundram2_w,0xffffffff) //AM_SHARE("soundram2")
-	AM_RANGE(0x03300000, 0x03300fff) AM_DEVREADWRITE16_LEGACY("scsp2", scsp_r, scsp_w, 0xffffffff)
+	AM_RANGE(0x03300000, 0x03300fff) AM_DEVREADWRITE16("scsp2", scsp_device, read, write, 0xffffffff)
 
 	AM_RANGE(0x04000000, 0x0400003f) AM_READWRITE(sysh1_sound_dma_r,sysh1_sound_dma_w) AM_SHARE("sound_dma")
 //  AM_RANGE(0x04200000, 0x0420003f) AM_RAM /* unknown */
@@ -3028,9 +3037,9 @@ WRITE8_MEMBER(coolridr_state::sound_to_sh1_w)
 
 static ADDRESS_MAP_START( system_h1_sound_map, AS_PROGRAM, 16, coolridr_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_RAM AM_REGION("scsp1",0) AM_SHARE("soundram")
-	AM_RANGE(0x100000, 0x100fff) AM_DEVREADWRITE_LEGACY("scsp1", scsp_r, scsp_w)
+	AM_RANGE(0x100000, 0x100fff) AM_DEVREADWRITE("scsp1", scsp_device, read, write)
 	AM_RANGE(0x200000, 0x27ffff) AM_RAM AM_REGION("scsp2",0) AM_SHARE("soundram2")
-	AM_RANGE(0x300000, 0x300fff) AM_DEVREADWRITE_LEGACY("scsp2", scsp_r, scsp_w)
+	AM_RANGE(0x300000, 0x300fff) AM_DEVREADWRITE("scsp2", scsp_device, read, write)
 	AM_RANGE(0x800000, 0x80ffff) AM_MIRROR(0x200000) AM_RAM
 	AM_RANGE(0x900000, 0x900001) AM_WRITE8(sound_to_sh1_w,0x00ff)
 ADDRESS_MAP_END
@@ -3537,15 +3546,9 @@ void coolridr_state::machine_reset()
 	m_usethreads = m_io_config->read()&1;
 }
 
-WRITE_LINE_MEMBER(coolridr_state::scsp_irq)
+WRITE8_MEMBER(coolridr_state::scsp_irq)
 {
-	if (state > 0)
-	{
-		m_scsp_last_line = state;
-		m_soundcpu->set_input_line(state, ASSERT_LINE);
-	}
-	else
-		m_soundcpu->set_input_line(-state, CLEAR_LINE);
+	m_soundcpu->set_input_line(offset, data);
 }
 
 WRITE_LINE_MEMBER(coolridr_state::scsp1_to_sh1_irq)
@@ -3566,21 +3569,6 @@ WRITE_LINE_MEMBER(coolridr_state::scsp2_to_sh1_irq)
 		sound_data &= ~0x20;
 }
 
-static const scsp_interface scsp_config =
-{
-	0,
-	DEVCB_DRIVER_LINE_MEMBER(coolridr_state,scsp_irq),
-	DEVCB_DRIVER_LINE_MEMBER(coolridr_state, scsp1_to_sh1_irq)
-};
-
-static const scsp_interface scsp2_interface =
-{
-	0,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(coolridr_state, scsp2_to_sh1_irq)
-};
-
-
 #define MAIN_CLOCK XTAL_28_63636MHz
 
 static MACHINE_CONFIG_START( coolridr, coolridr_state )
@@ -3597,33 +3585,35 @@ static MACHINE_CONFIG_START( coolridr, coolridr_state )
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_GFXDECODE(coolridr)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", coolridr)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(640, 512)
 	MCFG_SCREEN_VISIBLE_AREA(CLIPMINX_FULL,CLIPMAXX_FULL, CLIPMINY_FULL, CLIPMAXY_FULL)
 	MCFG_SCREEN_UPDATE_DRIVER(coolridr_state, screen_update_coolridr1)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("screen2", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(640, 512)
 	MCFG_SCREEN_VISIBLE_AREA(CLIPMINX_FULL,CLIPMAXX_FULL, CLIPMINY_FULL, CLIPMAXY_FULL)
 	MCFG_SCREEN_UPDATE_DRIVER(coolridr_state, screen_update_coolridr2)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x10000)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRRR_GGGGG_BBBBB)
+	MCFG_PALETTE_ADD_RRRRRGGGGGBBBBB("palette")
 
 	MCFG_DEFAULT_LAYOUT(layout_dualhsxs)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("scsp1", SCSP, 0)
-	MCFG_SOUND_CONFIG(scsp_config)
+	MCFG_SCSP_IRQ_CB(WRITE8(coolridr_state, scsp_irq))
+	MCFG_SCSP_MAIN_IRQ_CB(WRITELINE(coolridr_state, scsp1_to_sh1_irq))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 1.0)
 
 	MCFG_SOUND_ADD("scsp2", SCSP, 0)
-	MCFG_SOUND_CONFIG(scsp2_interface)
+	MCFG_SCSP_MAIN_IRQ_CB(WRITELINE(coolridr_state, scsp2_to_sh1_irq))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -3716,8 +3706,14 @@ DRIVER_INIT_MEMBER(coolridr_state,coolridr)
 {
 	m_maincpu->space(AS_PROGRAM).install_read_handler(0x60d8894, 0x060d8897, read32_delegate(FUNC(coolridr_state::coolridr_hack2_r), this));
 
-	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
-	sh2drc_set_options(m_subcpu, SH2DRC_FASTEST_OPTIONS);
+	m_maincpu->sh2drc_set_options(SH2DRC_FASTEST_OPTIONS);
+	m_subcpu->sh2drc_set_options(SH2DRC_FASTEST_OPTIONS);
+
+	// work around the hack when mapping the workram directly
+	m_maincpu->sh2drc_add_fastram(0x06000000, 0x060d7fff, 0, &m_sysh1_workram_h[0]);
+	m_maincpu->sh2drc_add_fastram(0x060d9000, 0x060fffff, 0, &m_sysh1_workram_h[0xd9000/4]);
+	m_maincpu->sh2drc_add_fastram(0x00000000, 0x001fffff, 1, &m_rom[0]);
+	m_maincpu->sh2drc_add_fastram(0x20000000, 0x201fffff, 1, &m_rom[0]);
 }
 
 GAME( 1995, coolridr,    0, coolridr,    coolridr, coolridr_state,    coolridr, ROT0,  "Sega", "Cool Riders",GAME_IMPERFECT_SOUND) // region is set in test mode, this set is for Japan, USA and Export (all regions)

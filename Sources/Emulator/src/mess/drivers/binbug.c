@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
         BINBUG and DG640
@@ -48,36 +50,38 @@
 
 ****************************************************************************/
 
-#include "emu.h"
+#include "bus/rs232/keyboard.h"
 #include "cpu/s2650/s2650.h"
-#include "machine/keyboard.h"
 #include "imagedev/cassette.h"
 #include "sound/wave.h"
 #include "imagedev/snapquik.h"
 
+#define KEYBOARD_TAG "keyboard"
 
 class binbug_state : public driver_device
 {
 public:
 	binbug_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_keyboard(*this, KEYBOARD_TAG),
-	m_cass(*this, "cassette"),
-	m_p_videoram(*this, "videoram"),
-	m_p_attribram(*this, "attribram") ,
-		m_maincpu(*this, "maincpu") { }
+		m_rs232(*this, KEYBOARD_TAG),
+		m_cass(*this, "cassette"),
+		m_p_videoram(*this, "videoram"),
+		m_p_attribram(*this, "attribram"),
+		m_maincpu(*this, "maincpu")
+	{
+	}
 
 	DECLARE_WRITE8_MEMBER(binbug_ctrl_w);
 	DECLARE_READ8_MEMBER(binbug_serial_r);
-	DECLARE_WRITE8_MEMBER(binbug_serial_w);
+	DECLARE_WRITE_LINE_MEMBER(binbug_serial_w);
 	const UINT8 *m_p_chargen;
 	UINT8 m_framecnt;
 	virtual void video_start();
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	optional_device<serial_keyboard_device> m_keyboard;
+	optional_device<rs232_port_device> m_rs232;
 	required_device<cassette_image_device> m_cass;
-	required_shared_ptr<const UINT8> m_p_videoram;
-	required_shared_ptr<const UINT8> m_p_attribram;
+	required_shared_ptr<UINT8> m_p_videoram;
+	required_shared_ptr<UINT8> m_p_attribram;
 	required_device<cpu_device> m_maincpu;
 	DECLARE_QUICKLOAD_LOAD_MEMBER( binbug );
 };
@@ -88,12 +92,12 @@ WRITE8_MEMBER( binbug_state::binbug_ctrl_w )
 
 READ8_MEMBER( binbug_state::binbug_serial_r )
 {
-	return m_keyboard->tx_r() & (m_cass->input() < 0.03);
+	return m_rs232->rxd_r() & (m_cass->input() < 0.03);
 }
 
-WRITE8_MEMBER( binbug_state::binbug_serial_w )
+WRITE_LINE_MEMBER( binbug_state::binbug_serial_w )
 {
-	m_cass->output(BIT(data, 0) ? -1.0 : +1.0);
+	m_cass->output(state ? -1.0 : +1.0);
 }
 
 static ADDRESS_MAP_START(binbug_mem, AS_PROGRAM, 8, binbug_state)
@@ -107,17 +111,12 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START(binbug_io, AS_IO, 8, binbug_state)
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(S2650_CTRL_PORT, S2650_CTRL_PORT) AM_WRITE(binbug_ctrl_w)
-	AM_RANGE(S2650_SENSE_PORT, S2650_FO_PORT) AM_READWRITE(binbug_serial_r,binbug_serial_w)
+	AM_RANGE(S2650_SENSE_PORT, S2650_SENSE_PORT) AM_READ(binbug_serial_r)
 ADDRESS_MAP_END
 
 /* Input ports */
 static INPUT_PORTS_START( binbug )
 INPUT_PORTS_END
-
-static const serial_keyboard_interface keyboard_intf =
-{
-	DEVCB_NULL
-};
 
 void binbug_state::video_start()
 {
@@ -225,7 +224,7 @@ QUICKLOAD_LOAD_MEMBER( binbug_state, binbug )
 	int quick_addr = 0x440;
 	int exec_addr;
 	int quick_length;
-	UINT8 *quick_data;
+	dynamic_buffer quick_data;
 	int read_;
 	int result = IMAGE_INIT_FAIL;
 
@@ -242,61 +241,60 @@ QUICKLOAD_LOAD_MEMBER( binbug_state, binbug )
 	}
 	else
 	{
-		quick_data = (UINT8*)malloc(quick_length);
-		if (!quick_data)
+		quick_data.resize(quick_length);
+		read_ = image.fread( quick_data, quick_length);
+		if (read_ != quick_length)
 		{
-			image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot open file");
-			image.message(" Cannot open file");
+			image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot read the file");
+			image.message(" Cannot read the file");
+		}
+		else if (quick_data[0] != 0xc4)
+		{
+			image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Invalid header");
+			image.message(" Invalid header");
 		}
 		else
 		{
-			read_ = image.fread( quick_data, quick_length);
-			if (read_ != quick_length)
+			exec_addr = quick_data[1] * 256 + quick_data[2];
+
+			if (exec_addr >= quick_length)
 			{
-				image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot read the file");
-				image.message(" Cannot read the file");
-			}
-			else if (quick_data[0] != 0xc4)
-			{
-				image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Invalid header");
-				image.message(" Invalid header");
+				image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Exec address beyond end of file");
+				image.message(" Exec address beyond end of file");
 			}
 			else
 			{
-				exec_addr = quick_data[1] * 256 + quick_data[2];
+				for (i = quick_addr; i < read_; i++)
+					space.write_byte(i, quick_data[i]);
 
-				if (exec_addr >= quick_length)
-				{
-					image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Exec address beyond end of file");
-					image.message(" Exec address beyond end of file");
-				}
-				else
-				{
-					for (i = quick_addr; i < read_; i++)
-						space.write_byte(i, quick_data[i]);
+				/* display a message about the loaded quickload */
+				image.message(" Quickload: size=%04X : exec=%04X",quick_length,exec_addr);
 
-					/* display a message about the loaded quickload */
-					image.message(" Quickload: size=%04X : exec=%04X",quick_length,exec_addr);
+				// Start the quickload
+				m_maincpu->set_state_int(S2650_PC, exec_addr);
 
-					// Start the quickload
-					m_maincpu->set_pc(exec_addr);
-
-					result = IMAGE_INIT_PASS;
-				}
+				result = IMAGE_INIT_PASS;
 			}
 		}
-
-		free( quick_data );
 	}
 
 	return result;
 }
+
+static DEVICE_INPUT_DEFAULTS_START( keyboard )
+	DEVICE_INPUT_DEFAULTS( "RS232_TXBAUD", 0xff, RS232_BAUD_300 )
+	DEVICE_INPUT_DEFAULTS( "RS232_STARTBITS", 0xff, RS232_STARTBITS_1 )
+	DEVICE_INPUT_DEFAULTS( "RS232_DATABITS", 0xff, RS232_DATABITS_8 )
+	DEVICE_INPUT_DEFAULTS( "RS232_PARITY", 0xff, RS232_PARITY_NONE )
+	DEVICE_INPUT_DEFAULTS( "RS232_STOPBITS", 0xff, RS232_STOPBITS_1 )
+DEVICE_INPUT_DEFAULTS_END
 
 static MACHINE_CONFIG_START( binbug, binbug_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",S2650, XTAL_1MHz)
 	MCFG_CPU_PROGRAM_MAP(binbug_mem)
 	MCFG_CPU_IO_MAP(binbug_io)
+	MCFG_S2650_FLAG_HANDLER(WRITELINE(binbug_state, binbug_serial_w))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -305,15 +303,17 @@ static MACHINE_CONFIG_START( binbug, binbug_state )
 	MCFG_SCREEN_UPDATE_DRIVER(binbug_state, screen_update)
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 255)
-	MCFG_GFXDECODE(dg640)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_amber)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dg640)
+	MCFG_PALETTE_ADD_MONOCHROME_AMBER("palette")
 
 	/* Keyboard */
-	MCFG_SERIAL_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf, 300)
+	MCFG_RS232_PORT_ADD(KEYBOARD_TAG, default_rs232_devices, "keyboard")
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("keyboard", keyboard)
 
 	/* Cassette */
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
@@ -478,11 +478,6 @@ WRITE8_MEMBER( dg680_state::kbd_put )
 	m_pio->strobe_a(1);
 }
 
-static ASCII_KEYBOARD_INTERFACE( dg680_keyboard_intf )
-{
-	DEVCB_DRIVER_MEMBER(dg680_state, kbd_put)
-};
-
 READ8_MEMBER( dg680_state::porta_r )
 {
 	UINT8 data = m_term_data;
@@ -514,17 +509,6 @@ WRITE8_MEMBER( dg680_state::port08_w )
 	m_protection[breg] = data;
 }
 
-static Z80PIO_INTERFACE( z80pio_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0), //IRQ
-	DEVCB_DRIVER_MEMBER(dg680_state, porta_r),  // in port A
-	DEVCB_NULL,  // out port A
-	DEVCB_NULL, // ready line port A - this activates to ask for kbd data but not known if actually used
-	DEVCB_DRIVER_MEMBER(dg680_state, portb_r), // in port B
-	DEVCB_DRIVER_MEMBER(dg680_state, portb_w),                 // out port B
-	DEVCB_NULL
-};
-
 TIMER_DEVICE_CALLBACK_MEMBER(dg680_state::time_tick)
 {
 // ch0 is for the clock
@@ -542,14 +526,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(dg680_state::uart_tick)
 	m_ctc->trg3(0);
 }
 
-static Z80CTC_INTERFACE( z80ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),       // interrupt handler
-	DEVCB_DEVICE_LINE_MEMBER("z80ctc", z80ctc_device, trg1),        // ZC/TO0 callback
-	DEVCB_NULL,        // ZC/TO1 callback
-	DEVCB_NULL     // ZC/TO2 callback
-};
-
 static MACHINE_CONFIG_START( dg680, dg680_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",Z80, XTAL_8MHz / 4)
@@ -564,22 +540,33 @@ static MACHINE_CONFIG_START( dg680, dg680_state )
 	MCFG_SCREEN_UPDATE_DRIVER(binbug_state, screen_update)
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 255)
-	MCFG_GFXDECODE(dg640)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_amber)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dg640)
+	MCFG_PALETTE_ADD_MONOCHROME_AMBER("palette")
 
 	/* Keyboard */
-	MCFG_ASCII_KEYBOARD_ADD("keyb", dg680_keyboard_intf)
+	MCFG_DEVICE_ADD("keyb", GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(dg680_state, kbd_put))
 
 	/* Cassette */
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* Devices */
-	MCFG_Z80CTC_ADD( "z80ctc", XTAL_8MHz / 4, z80ctc_intf )
-	MCFG_Z80PIO_ADD( "z80pio", XTAL_8MHz / 4, z80pio_intf )
+	MCFG_DEVICE_ADD("z80ctc", Z80CTC, XTAL_8MHz / 4)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(DEVWRITELINE("z80ctc", z80ctc_device, trg1))
+
+	MCFG_DEVICE_ADD("z80pio", Z80PIO, XTAL_8MHz / 4)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_IN_PA_CB(READ8(dg680_state, porta_r))
+	// OUT_ARDY - this activates to ask for kbd data but not known if actually used
+	MCFG_Z80PIO_IN_PB_CB(READ8(dg680_state, portb_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(dg680_state, portb_w))
+
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("ctc0", dg680_state, time_tick, attotime::from_hz(200))
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("ctc3", dg680_state, uart_tick, attotime::from_hz(4800))
 MACHINE_CONFIG_END

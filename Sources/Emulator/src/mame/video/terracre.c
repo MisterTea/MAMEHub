@@ -17,20 +17,20 @@ TILE_GET_INFO_MEMBER(terracre_state::get_bg_tile_info)
 	 * ----.--xx.xxxx.xxxx */
 	unsigned data = m_amazon_videoram[tile_index];
 	unsigned color = data>>11;
-	SET_TILE_INFO_MEMBER( 1,data&0x3ff,color,0 );
+	SET_TILE_INFO_MEMBER(1,data&0x3ff,color,0 );
 }
 
 TILE_GET_INFO_MEMBER(terracre_state::get_fg_tile_info)
 {
 	UINT16 *videoram = m_videoram;
 	int data = videoram[tile_index];
-	SET_TILE_INFO_MEMBER( 0,data&0xff,0,0 );
+	SET_TILE_INFO_MEMBER(0,data&0xff,0,0 );
 }
 
 void terracre_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
 	const UINT8 *spritepalettebank = memregion("user1")->base();
-	gfx_element *pGfx = machine().gfx[2];
+	gfx_element *pGfx = m_gfxdecode->gfx(2);
 	const UINT16 *pSource = m_spriteram;
 	int i;
 	int transparent_pen;
@@ -81,20 +81,17 @@ void terracre_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 				flipy = !flipy;
 		}
 
-		drawgfx_transpen(
-			bitmap,cliprect,pGfx,tile, color,flipx,flipy,sx,sy,transparent_pen );
+		pGfx->transpen(
+			bitmap,cliprect,tile, color,flipx,flipy,sx,sy,transparent_pen );
 
 		pSource += 4;
 	}
 }
 
-void terracre_state::palette_init()
+PALETTE_INIT_MEMBER(terracre_state, terracre)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x100);
 
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x100; i++)
@@ -103,7 +100,7 @@ void terracre_state::palette_init()
 		int g = pal4bit(color_prom[i + 0x100]);
 		int b = pal4bit(color_prom[i + 0x200]);
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -111,7 +108,7 @@ void terracre_state::palette_init()
 
 	/* characters use colors 0-0x0f */
 	for (i = 0; i < 0x10; i++)
-		colortable_entry_set_value(machine().colortable, i, i);
+		palette.set_pen_indirect(i, i);
 
 	/* background tiles use colors 0xc0-0xff in four banks */
 	/* the bottom two bits of the color code select the palette bank for */
@@ -125,7 +122,7 @@ void terracre_state::palette_init()
 		else
 			ctabentry = 0xc0 | (i & 0x0f) | ((i & 0x30) >> 0);
 
-		colortable_entry_set_value(machine().colortable, 0x10 + i, ctabentry);
+		palette.set_pen_indirect(0x10 + i, ctabentry);
 	}
 
 	/* sprites use colors 128-191 in four banks */
@@ -143,7 +140,7 @@ void terracre_state::palette_init()
 		else
 			ctabentry = 0x80 | ((i & 0x03) << 4) | (color_prom[i >> 4] & 0x0f);
 
-		colortable_entry_set_value(machine().colortable, 0x110 + i_swapped, ctabentry);
+		palette.set_pen_indirect(0x110 + i_swapped, ctabentry);
 	}
 }
 
@@ -184,8 +181,8 @@ WRITE16_MEMBER(terracre_state::amazon_scrollx_w)
 
 void terracre_state::video_start()
 {
-	m_background = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(terracre_state::get_bg_tile_info),this),TILEMAP_SCAN_COLS,16,16,64,32);
-	m_foreground = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(terracre_state::get_fg_tile_info),this),TILEMAP_SCAN_COLS,8,8,64,32);
+	m_background = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(terracre_state::get_bg_tile_info),this),TILEMAP_SCAN_COLS,16,16,64,32);
+	m_foreground = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(terracre_state::get_fg_tile_info),this),TILEMAP_SCAN_COLS,8,8,64,32);
 	m_foreground->set_transparent_pen(0xf);
 
 	/* register for saving */
@@ -196,7 +193,7 @@ void terracre_state::video_start()
 UINT32 terracre_state::screen_update_amazon(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	if( m_xscroll&0x2000 )
-		bitmap.fill(get_black_pen(machine()), cliprect );
+		bitmap.fill(m_palette->black_pen(), cliprect );
 	else
 		m_background->draw(screen, bitmap, cliprect, 0, 0 );
 

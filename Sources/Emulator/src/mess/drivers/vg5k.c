@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 
     Philips VG-5000mu
@@ -349,23 +351,6 @@ DRIVER_INIT_MEMBER(vg5k_state,vg5k)
 }
 
 
-static const struct CassetteOptions vg5k_cassette_options =
-{
-	1,      /* channels */
-	16,     /* bits per sample */
-	44100   /* sample frequency */
-};
-
-static const cassette_interface vg5k_cassette_interface =
-{
-	vg5k_cassette_formats,
-	&vg5k_cassette_options,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MASK_SPEAKER),
-	"vg5k_cass",
-	NULL
-};
-
-
 static MACHINE_CONFIG_START( vg5k, vg5k_state )
 
 	/* basic machine hardware */
@@ -377,7 +362,8 @@ static MACHINE_CONFIG_START( vg5k, vg5k_state )
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("irq_timer", vg5k_state, z80_irq, attotime::from_msec(20))
 
-	MCFG_EF9345_ADD("ef9345", "screen")
+	MCFG_DEVICE_ADD("ef9345", EF9345, 0)
+	MCFG_EF9345_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -387,8 +373,8 @@ static MACHINE_CONFIG_START( vg5k, vg5k_state )
 	MCFG_SCREEN_SIZE(336, 300)
 	MCFG_SCREEN_VISIBLE_AREA(00, 336-1, 00, 270-1)
 
-	MCFG_GFXDECODE(vg5k)
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", vg5k)
+	MCFG_PALETTE_ADD("palette", 8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -399,10 +385,13 @@ static MACHINE_CONFIG_START( vg5k, vg5k_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( "cassette", vg5k_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(vg5k_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MASK_SPEAKER)
+	MCFG_CASSETTE_INTERFACE("vg5k_cass")
 
 	/* printer */
-	MCFG_PRINTER_ADD("printer")
+	MCFG_DEVICE_ADD("printer", PRINTER, 0)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

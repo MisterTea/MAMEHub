@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Sega System 32/Multi 32 hardware
@@ -22,7 +24,10 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_soundcpu(*this, "soundcpu"),
 		m_multipcm(*this, "sega"),
-		m_eeprom(*this, "eeprom") { }
+		m_eeprom(*this, "eeprom"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_z80_shared_ram;
 	optional_shared_ptr<UINT8> m_ga2_dpram;
@@ -35,6 +40,9 @@ public:
 	required_device<cpu_device> m_soundcpu;
 	optional_device<multipcm_device> m_multipcm;
 	required_device<eeprom_serial_93cxx_device> m_eeprom;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	typedef void (segas32_state::*sys32_output_callback)(int which, UINT16 data);
 

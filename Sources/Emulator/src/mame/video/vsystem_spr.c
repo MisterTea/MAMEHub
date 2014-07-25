@@ -70,7 +70,9 @@ Abstracts the VS9210
 const device_type VSYSTEM_SPR = &device_creator<vsystem_spr_device>;
 
 vsystem_spr_device::vsystem_spr_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, VSYSTEM_SPR, "vsystem_spr_device", tag, owner, clock, "vsystem_spr", __FILE__)
+	: device_t(mconfig, VSYSTEM_SPR, "Video System Sprites", tag, owner, clock, "vsystem_spr", __FILE__),
+		m_gfxdecode(*this),
+		m_palette(*this)
 {
 	m_transpen = 15;
 	m_pal_base = 0;
@@ -81,6 +83,26 @@ vsystem_spr_device::vsystem_spr_device(const machine_config &mconfig, const char
 	m_pal_mask = 0x3f;
 
 	m_newtilecb =  vsystem_tile_indirection_delegate(FUNC(vsystem_spr_device::tile_callback_noindirect), this);
+}
+
+//-------------------------------------------------
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
+//-------------------------------------------------
+
+void vsystem_spr_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
+{
+	downcast<vsystem_spr_device &>(device).m_gfxdecode.set_tag(tag);
+}
+
+//-------------------------------------------------
+//  static_set_palette_tag: Set the tag of the
+//  palette device
+//-------------------------------------------------
+
+void vsystem_spr_device::static_set_palette_tag(device_t &device, const char *tag)
+{
+	downcast<vsystem_spr_device &>(device).m_palette.set_tag(tag);
 }
 
 UINT32 vsystem_spr_device::tile_callback_noindirect(UINT32 tile)
@@ -124,6 +146,12 @@ void vsystem_spr_device::CG10103_set_pal_base(device_t &device, int pal_base)
 {
 	vsystem_spr_device &dev = downcast<vsystem_spr_device &>(device);
 	dev.m_pal_base = pal_base;
+}
+
+
+void vsystem_spr_device::set_pal_base(int pal_base)
+{
+	m_pal_base = pal_base;
 }
 
 // static
@@ -195,7 +223,7 @@ void vsystem_spr_device::get_sprite_attributes(UINT16* ram)
 
 void vsystem_spr_device::common_sprite_drawgfx( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap)
 {
-	gfx_element *gfx = machine.gfx[m_gfx_region];
+	gfx_element *gfx = m_gfxdecode->gfx(m_gfx_region);
 	int priority_mask = 0x00;
 
 	curr_sprite.oy += m_yoffs;
@@ -235,17 +263,17 @@ void vsystem_spr_device::common_sprite_drawgfx( running_machine &machine, bitmap
 			int startno = m_newtilecb(curr_sprite.map++);
 			if (m_pdraw)
 			{
-				pdrawgfxzoom_transpen(bitmap, cliprect, gfx, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, curr_sprite.ox + xcnt * curr_sprite.zoomx/2,        curr_sprite.oy + ycnt * curr_sprite.zoomy/2,        curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, priority_bitmap, priority_mask, m_transpen);
-				pdrawgfxzoom_transpen(bitmap, cliprect, gfx, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, -0x200+curr_sprite.ox + xcnt * curr_sprite.zoomx/2, curr_sprite.oy + ycnt * curr_sprite.zoomy/2,        curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, priority_bitmap, priority_mask, m_transpen);
-				pdrawgfxzoom_transpen(bitmap, cliprect, gfx, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, curr_sprite.ox + xcnt * curr_sprite.zoomx/2,        -0x200+curr_sprite.oy + ycnt * curr_sprite.zoomy/2, curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, priority_bitmap, priority_mask, m_transpen);
-				pdrawgfxzoom_transpen(bitmap, cliprect, gfx, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, -0x200+curr_sprite.ox + xcnt * curr_sprite.zoomx/2, -0x200+curr_sprite.oy + ycnt * curr_sprite.zoomy/2, curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, priority_bitmap, priority_mask, m_transpen);
+				gfx->prio_zoom_transpen(bitmap,cliprect, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, curr_sprite.ox + xcnt * curr_sprite.zoomx/2,        curr_sprite.oy + ycnt * curr_sprite.zoomy/2,        curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, priority_bitmap, priority_mask, m_transpen);
+				gfx->prio_zoom_transpen(bitmap,cliprect, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, -0x200+curr_sprite.ox + xcnt * curr_sprite.zoomx/2, curr_sprite.oy + ycnt * curr_sprite.zoomy/2,        curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, priority_bitmap, priority_mask, m_transpen);
+				gfx->prio_zoom_transpen(bitmap,cliprect, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, curr_sprite.ox + xcnt * curr_sprite.zoomx/2,        -0x200+curr_sprite.oy + ycnt * curr_sprite.zoomy/2, curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, priority_bitmap, priority_mask, m_transpen);
+				gfx->prio_zoom_transpen(bitmap,cliprect, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, -0x200+curr_sprite.ox + xcnt * curr_sprite.zoomx/2, -0x200+curr_sprite.oy + ycnt * curr_sprite.zoomy/2, curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, priority_bitmap, priority_mask, m_transpen);
 			}
 			else
 			{
-				drawgfxzoom_transpen(bitmap, cliprect, gfx, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, curr_sprite.ox + xcnt * curr_sprite.zoomx/2,        curr_sprite.oy + ycnt * curr_sprite.zoomy/2,        curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, m_transpen);
-				drawgfxzoom_transpen(bitmap, cliprect, gfx, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, -0x200+curr_sprite.ox + xcnt * curr_sprite.zoomx/2, curr_sprite.oy + ycnt * curr_sprite.zoomy/2,        curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, m_transpen);
-				drawgfxzoom_transpen(bitmap, cliprect, gfx, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, curr_sprite.ox + xcnt * curr_sprite.zoomx/2,        -0x200+curr_sprite.oy + ycnt * curr_sprite.zoomy/2, curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, m_transpen);
-				drawgfxzoom_transpen(bitmap, cliprect, gfx, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, -0x200+curr_sprite.ox + xcnt * curr_sprite.zoomx/2, -0x200+curr_sprite.oy + ycnt * curr_sprite.zoomy/2, curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, m_transpen);
+				gfx->zoom_transpen(bitmap,cliprect, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, curr_sprite.ox + xcnt * curr_sprite.zoomx/2,        curr_sprite.oy + ycnt * curr_sprite.zoomy/2,        curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, m_transpen);
+				gfx->zoom_transpen(bitmap,cliprect, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, -0x200+curr_sprite.ox + xcnt * curr_sprite.zoomx/2, curr_sprite.oy + ycnt * curr_sprite.zoomy/2,        curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, m_transpen);
+				gfx->zoom_transpen(bitmap,cliprect, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, curr_sprite.ox + xcnt * curr_sprite.zoomx/2,        -0x200+curr_sprite.oy + ycnt * curr_sprite.zoomy/2, curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, m_transpen);
+				gfx->zoom_transpen(bitmap,cliprect, startno, curr_sprite.color + m_pal_base, curr_sprite.flipx, curr_sprite.flipy, -0x200+curr_sprite.ox + xcnt * curr_sprite.zoomx/2, -0x200+curr_sprite.oy + ycnt * curr_sprite.zoomy/2, curr_sprite.zoomx << 11, curr_sprite.zoomy << 11, m_transpen);
 			}
 			xcnt+=xinc;
 		}

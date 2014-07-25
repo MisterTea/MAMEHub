@@ -256,10 +256,10 @@ XT U44 IBM.bin: IBM 5160 PC/XT Bank-selection decoding ROM (256x4 bit). Not mapp
 #include "emu.h"
 #include "cpu/i86/i86.h"
 #include "machine/ram.h"
-#include "machine/isa.h"
-#include "machine/isa_cards.h"
+#include "bus/isa/isa.h"
+#include "bus/isa/isa_cards.h"
 #include "machine/pc_lpt.h"
-#include "machine/pc_keyboards.h"
+#include "bus/pc_kbd/keyboards.h"
 #include "includes/genpc.h"
 
 class ibmpc_state : public driver_device
@@ -303,6 +303,7 @@ static MACHINE_CONFIG_START( ibm5150, ibmpc_state )
 	MCFG_CPU_ADD("maincpu", I8088, XTAL_14_31818MHz/3)
 	MCFG_CPU_PROGRAM_MAP(pc8_map)
 	MCFG_CPU_IO_MAP(pc8_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("mb:pic8259", pic8259_device, inta_cb)
 
 	MCFG_IBM5150_MOTHERBOARD_ADD("mb","maincpu")
 	MCFG_DEVICE_INPUT_DEFAULTS(cga)
@@ -337,6 +338,7 @@ static MACHINE_CONFIG_START( ibm5160, ibmpc_state )
 	MCFG_CPU_ADD("maincpu", I8088, XTAL_14_31818MHz/3)
 	MCFG_CPU_PROGRAM_MAP(pc8_map)
 	MCFG_CPU_IO_MAP(pc8_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("mb:pic8259", pic8259_device, inta_cb)
 
 	MCFG_IBM5160_MOTHERBOARD_ADD("mb","maincpu")
 	MCFG_DEVICE_INPUT_DEFAULTS(cga)
@@ -356,6 +358,10 @@ static MACHINE_CONFIG_START( ibm5160, ibmpc_state )
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("640K")
+
+	/* software lists */
+	MCFG_SOFTWARE_LIST_ADD("pc_disk_list","ibm5150")
+	MCFG_SOFTWARE_LIST_ADD("xt_disk_list","ibm5160_flop")
 MACHINE_CONFIG_END
 
 
@@ -560,9 +566,9 @@ ROM_END
 ***************************************************************************/
 
 /*     YEAR     NAME        PARENT      COMPAT  MACHINE     INPUT       INIT        COMPANY     FULLNAME */
-COMP(  1981,    ibm5150,    0,          0,      ibm5150,    ibm5150, driver_device, 0,    "International Business Machines",  "IBM PC 5150" , GAME_NO_SOUND)
-COMP(  1982,    ibm5155,    ibm5150,    0,      ibm5150,    ibm5150, driver_device, 0,    "International Business Machines",  "IBM PC 5155" , GAME_NO_SOUND)
-COMP(  1985,    ibm5140,    ibm5150,    0,      ibm5140,    ibm5150, driver_device, 0,    "International Business Machines",  "IBM PC 5140 Convertible" , GAME_NOT_WORKING | GAME_NO_SOUND)
+COMP(  1981,    ibm5150,    0,          0,      ibm5150,    ibm5150, driver_device, 0,    "International Business Machines",  "IBM PC 5150" , 0)
+COMP(  1982,    ibm5155,    ibm5150,    0,      ibm5150,    ibm5150, driver_device, 0,    "International Business Machines",  "IBM PC 5155" , 0)
+COMP(  1985,    ibm5140,    ibm5150,    0,      ibm5140,    ibm5150, driver_device, 0,    "International Business Machines",  "IBM PC 5140 Convertible" , GAME_NOT_WORKING)
 
 // xt class (pc but 8086)
-COMP(  1982,    ibm5160,    ibm5150,    0,      ibm5160,    ibm5150, driver_device, 0,    "International Business Machines",  "IBM XT 5160" , GAME_NO_SOUND)
+COMP(  1982,    ibm5160,    ibm5150,    0,      ibm5160,    ibm5150, driver_device, 0,    "International Business Machines",  "IBM XT 5160" , 0)

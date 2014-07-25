@@ -1,41 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 //============================================================
 //
 //  d3d9intf.c - Direct3D 9 abstraction layer
-//
-//============================================================
-//
-//  Copyright Aaron Giles
-//  All rights reserved.
-//
-//  Redistribution and use in source and binary forms, with or
-//  without modification, are permitted provided that the
-//  following conditions are met:
-//
-//    * Redistributions of source code must retain the above
-//      copyright notice, this list of conditions and the
-//      following disclaimer.
-//    * Redistributions in binary form must reproduce the
-//      above copyright notice, this list of conditions and
-//      the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//    * Neither the name 'MAME' nor the names of its
-//      contributors may be used to endorse or promote
-//      products derived from this software without specific
-//      prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND
-//  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-//  FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
-//  EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-//  DAMAGE (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-//  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-//  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-//  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-//  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-//  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //============================================================
 
@@ -106,7 +73,7 @@ base *drawd3d9_init(void)
 	HINSTANCE dllhandle = LoadLibrary(TEXT("d3d9.dll"));
 	if (dllhandle == NULL)
 	{
-		mame_printf_verbose("Direct3D: Unable to access d3d9.dll\n");
+		osd_printf_verbose("Direct3D: Unable to access d3d9.dll\n");
 		return NULL;
 	}
 
@@ -114,7 +81,7 @@ base *drawd3d9_init(void)
 	direct3dcreate9_ptr direct3dcreate9 = (direct3dcreate9_ptr)GetProcAddress(dllhandle, "Direct3DCreate9");
 	if (direct3dcreate9 == NULL)
 	{
-		mame_printf_verbose("Direct3D: Unable to find Direct3DCreate9\n");
+		osd_printf_verbose("Direct3D: Unable to find Direct3DCreate9\n");
 		FreeLibrary(dllhandle);
 		dllhandle = NULL;
 		return NULL;
@@ -124,7 +91,7 @@ base *drawd3d9_init(void)
 	IDirect3D9 *d3d9 = (*direct3dcreate9)(D3D_SDK_VERSION);
 	if (d3d9 == NULL)
 	{
-		mame_printf_verbose("Direct3D: Error attempting to initialize Direct3D9\n");
+		osd_printf_verbose("Direct3D: Error attempting to initialize Direct3D9\n");
 		FreeLibrary(dllhandle);
 		dllhandle = NULL;
 		return NULL;
@@ -144,7 +111,7 @@ base *drawd3d9_init(void)
 	}
 	if (fxhandle == NULL)
 	{
-		mame_printf_verbose("Direct3D: Warning - Unable find any D3D9 DLLs; disabling post-effect rendering\n");
+		osd_printf_verbose("Direct3D: Warning - Unable find any D3D9 DLLs; disabling post-effect rendering\n");
 		post_available = false;
 	}
 
@@ -157,7 +124,7 @@ base *drawd3d9_init(void)
 	d3dptr->libhandle = fxhandle;
 	set_interfaces(d3dptr);
 
-	mame_printf_verbose("Direct3D: Using Direct3D 9\n");
+	osd_printf_verbose("Direct3D: Using Direct3D 9\n");
 	return d3dptr;
 }
 

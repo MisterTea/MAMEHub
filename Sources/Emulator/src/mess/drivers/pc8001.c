@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
     http://www2.odn.ne.jp/~haf09260/Pc80/EnrPc.htm
@@ -49,7 +51,7 @@ WRITE8_MEMBER( pc8001_state::port10_w )
 	m_rtc->data_in_w(BIT(data, 3));
 
 	// centronics
-	m_centronics->write(space, 0, data);
+	m_cent_data_out->write(space, 0, data);
 }
 
 WRITE8_MEMBER( pc8001_state::port30_w )
@@ -97,6 +99,16 @@ WRITE8_MEMBER( pc8001mk2_state::port31_w )
 	*/
 }
 
+WRITE_LINE_MEMBER( pc8001_state::write_centronics_busy )
+{
+	m_centronics_busy = state;
+}
+
+WRITE_LINE_MEMBER( pc8001_state::write_centronics_ack )
+{
+	m_centronics_ack = state;
+}
+
 READ8_MEMBER( pc8001_state::port40_r )
 {
 	/*
@@ -116,8 +128,8 @@ READ8_MEMBER( pc8001_state::port40_r )
 
 	UINT8 data = 0x08;
 
-	data |= m_centronics->busy_r();
-	data |= m_centronics->ack_r() << 1;
+	data |= m_centronics_busy;
+	data |= m_centronics_ack << 1;
 	data |= m_rtc->data_out_r() << 4;
 	data |= m_crtc->vrtc_r() << 5;
 
@@ -141,7 +153,7 @@ WRITE8_MEMBER( pc8001_state::port40_w )
 
 	*/
 
-	m_centronics->strobe_w(BIT(data, 0));
+	m_centronics->write_strobe(BIT(data, 0));
 
 	m_rtc->clk_w(BIT(data, 2));
 	m_rtc->stb_w(BIT(data, 1));
@@ -176,7 +188,7 @@ static ADDRESS_MAP_START( pc8001_io, AS_IO, 8, pc8001_state )
 	AM_RANGE(0x30, 0x30) AM_MIRROR(0x0f) AM_WRITE(port30_w)
 	AM_RANGE(0x40, 0x40) AM_MIRROR(0x0f) AM_READWRITE(port40_r, port40_w)
 	AM_RANGE(0x50, 0x51) AM_DEVREADWRITE(UPD3301_TAG, upd3301_device, read, write)
-	AM_RANGE(0x60, 0x68) AM_DEVREADWRITE(I8257_TAG, i8257_device, i8257_r, i8257_w)
+	AM_RANGE(0x60, 0x68) AM_DEVREADWRITE(I8257_TAG, i8257_device, read, write)
 //  AM_RANGE(0x70, 0x7f) unused
 //  AM_RANGE(0x80, 0x80) AM_MIRROR(0x0f) AM_WRITE(pc8011_ext0_w)
 //  AM_RANGE(0x90, 0x90) AM_MIRROR(0x0f) AM_WRITE(pc8011_ext1_w)
@@ -340,35 +352,33 @@ INPUT_PORTS_END
 
 /* uPD3301 Interface */
 
-static const rgb_t PALETTE[] =
+static const rgb_t PALETTE_PC8001[] =
 {
-	RGB_BLACK,
-	MAKE_RGB(0x00, 0x00, 0xff),
-	MAKE_RGB(0xff, 0x00, 0x00),
-	MAKE_RGB(0xff, 0x00, 0xff),
-	MAKE_RGB(0x00, 0xff, 0x00),
-	MAKE_RGB(0x00, 0xff, 0xff),
-	MAKE_RGB(0xff, 0xff, 0x00),
-	RGB_WHITE
+	rgb_t::black,
+	rgb_t(0x00, 0x00, 0xff),
+	rgb_t(0xff, 0x00, 0x00),
+	rgb_t(0xff, 0x00, 0xff),
+	rgb_t(0x00, 0xff, 0x00),
+	rgb_t(0x00, 0xff, 0xff),
+	rgb_t(0xff, 0xff, 0x00),
+	rgb_t::white
 };
 
-static UPD3301_DISPLAY_PIXELS( pc8001_display_pixels )
+UPD3301_DRAW_CHARACTER_MEMBER( pc8001_state::pc8001_display_pixels )
 {
-	pc8001_state *state = device->machine().driver_data<pc8001_state>();
-
-	UINT8 data = state->m_char_rom->base()[(cc << 3) | lc];
+	UINT8 data = m_char_rom->base()[(cc << 3) | lc];
 	int i;
 
 	if (lc >= 8) return;
 	if (csr) data = 0xff;
 
-	if (state->m_width80)
+	if (m_width80)
 	{
 		for (i = 0; i < 8; i++)
 		{
 			int color = BIT(data, 7) ^ rvv;
 
-			bitmap.pix32(y, (sx * 8) + i) = PALETTE[color ? 7 : 0];
+			bitmap.pix32(y, (sx * 8) + i) = PALETTE_PC8001[color ? 7 : 0];
 
 			data <<= 1;
 		}
@@ -381,50 +391,13 @@ static UPD3301_DISPLAY_PIXELS( pc8001_display_pixels )
 		{
 			int color = BIT(data, 7) ^ rvv;
 
-			bitmap.pix32(y, (sx/2 * 16) + (i * 2)) = PALETTE[color ? 7 : 0];
-			bitmap.pix32(y, (sx/2 * 16) + (i * 2) + 1) = PALETTE[color ? 7 : 0];
+			bitmap.pix32(y, (sx/2 * 16) + (i * 2)) = PALETTE_PC8001[color ? 7 : 0];
+			bitmap.pix32(y, (sx/2 * 16) + (i * 2) + 1) = PALETTE_PC8001[color ? 7 : 0];
 
 			data <<= 1;
 		}
 	}
 }
-
-static UPD3301_INTERFACE( pc8001_upd3301_intf )
-{
-	8,
-	pc8001_display_pixels,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(I8257_TAG, i8257_device, i8257_drq2_w),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-/* 8251 Interface */
-
-static const i8251_interface uart_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-/* 8255 Interface */
-
-static I8255A_INTERFACE( ppi_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 /* 8257 Interface */
 
@@ -434,41 +407,15 @@ WRITE_LINE_MEMBER( pc8001_state::hrq_w )
 	m_maincpu->set_input_line(INPUT_LINE_HALT, state);
 
 	/* HACK - this should be connected to the BUSACK line of Z80 */
-	m_dma->i8257_hlda_w(state);
+	m_dma->hlda_w(state);
 }
 
-WRITE8_MEMBER( pc8001_state::dma_mem_w )
-{
-	//if (channel == 2)
-	{
-		m_crtc->dack_w(space, offset, data);
-	}
-}
-
-READ8_MEMBER( pc8001_state::dma_io_r )
+READ8_MEMBER( pc8001_state::dma_mem_r )
 {
 	address_space &program = m_maincpu->space(AS_PROGRAM);
 
 	return program.read_byte(offset);
 }
-
-WRITE8_MEMBER( pc8001_state::dma_io_w )
-{
-	address_space &program = m_maincpu->space(AS_PROGRAM);
-
-	program.write_byte(offset, data);
-}
-
-static I8257_INTERFACE( dmac_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(pc8001_state, hrq_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(pc8001_state, dma_mem_w),
-	{ DEVCB_DRIVER_MEMBER(pc8001_state, dma_io_r), DEVCB_DRIVER_MEMBER(pc8001_state, dma_io_r), DEVCB_DRIVER_MEMBER(pc8001_state, dma_io_r), DEVCB_DRIVER_MEMBER(pc8001_state, dma_io_r) },
-	{ DEVCB_DRIVER_MEMBER(pc8001_state, dma_io_w), DEVCB_DRIVER_MEMBER(pc8001_state, dma_io_w), DEVCB_DRIVER_MEMBER(pc8001_state, dma_io_w), DEVCB_DRIVER_MEMBER(pc8001_state, dma_io_w) },
-};
 
 /* Machine Initialization */
 
@@ -481,7 +428,7 @@ void pc8001_state::machine_start()
 	m_rtc->oe_w(1);
 
 	/* initialize DMA */
-	m_dma->i8257_ready_w(1);
+	m_dma->ready_w(1);
 
 	/* setup memory banking */
 	UINT8 *ram = m_ram->pointer();
@@ -524,17 +471,6 @@ void pc8001_state::machine_start()
 	save_item(NAME(m_color));
 }
 
-/* Cassette Configuration */
-
-static const cassette_interface pc8001_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED),
-	NULL,
-	NULL
-};
-
 /* Machine Drivers */
 
 static MACHINE_CONFIG_START( pc8001, pc8001_state )
@@ -546,7 +482,6 @@ static MACHINE_CONFIG_START( pc8001, pc8001_state )
 	/* video hardware */
 	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_UPDATE_DEVICE(UPD3301_TAG, upd3301_device, screen_update)
 	MCFG_SCREEN_SIZE(640, 220)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
@@ -557,14 +492,30 @@ static MACHINE_CONFIG_START( pc8001, pc8001_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_I8251_ADD(I8251_TAG, uart_intf)
-	MCFG_I8255A_ADD(I8255A_TAG, ppi_intf)
-	MCFG_I8257_ADD(I8257_TAG, 4000000, dmac_intf)
-	MCFG_UPD1990A_ADD(UPD1990A_TAG, XTAL_32_768kHz, NULL, NULL)
-	MCFG_UPD3301_ADD(UPD3301_TAG, 14318180, pc8001_upd3301_intf)
+	MCFG_DEVICE_ADD(I8251_TAG, I8251, 0)
 
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_CASSETTE_ADD("cassette", pc8001_cassette_interface)
+	MCFG_DEVICE_ADD(I8255A_TAG, I8255A, 0)
+
+	MCFG_DEVICE_ADD(I8257_TAG, I8257, 4000000)
+	MCFG_I8257_OUT_HRQ_CB(WRITELINE(pc8001_state, hrq_w))
+	MCFG_I8257_IN_MEMR_CB(READ8(pc8001_state, dma_mem_r))
+	MCFG_I8257_OUT_IOW_2_CB(DEVWRITE8(UPD3301_TAG, upd3301_device, dack_w))
+
+	MCFG_UPD1990A_ADD(UPD1990A_TAG, XTAL_32_768kHz, NULL, NULL)
+
+	MCFG_DEVICE_ADD(UPD3301_TAG, UPD3301, 14318180)
+	MCFG_UPD3301_CHARACTER_WIDTH(8)
+	MCFG_UPD3301_DRAW_CHARACTER_CALLBACK_OWNER(pc8001_state, pc8001_display_pixels)
+	MCFG_UPD3301_VRTC_CALLBACK(DEVWRITELINE(I8257_TAG, i8257_device, dreq2_w))
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(pc8001_state, write_centronics_ack))
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(pc8001_state, write_centronics_busy))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
 
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("16K")
@@ -580,7 +531,6 @@ static MACHINE_CONFIG_START( pc8001mk2, pc8001mk2_state )
 	/* video hardware */
 	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_UPDATE_DEVICE(UPD3301_TAG, upd3301_device, screen_update)
 	MCFG_SCREEN_SIZE(640, 220)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
@@ -591,14 +541,28 @@ static MACHINE_CONFIG_START( pc8001mk2, pc8001mk2_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_I8251_ADD(I8251_TAG, uart_intf)
-	MCFG_I8255A_ADD(I8255A_TAG, ppi_intf)
-	MCFG_I8257_ADD(I8257_TAG, 4000000, dmac_intf)
-	MCFG_UPD1990A_ADD(UPD1990A_TAG, XTAL_32_768kHz, NULL, NULL)
-	MCFG_UPD3301_ADD(UPD3301_TAG, 14318180, pc8001_upd3301_intf)
+	MCFG_DEVICE_ADD(I8251_TAG, I8251, 0)
 
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_CASSETTE_ADD("cassette", pc8001_cassette_interface)
+	MCFG_DEVICE_ADD(I8255A_TAG, I8255A, 0)
+
+	MCFG_DEVICE_ADD(I8257_TAG, I8257, 4000000)
+	MCFG_I8257_OUT_HRQ_CB(WRITELINE(pc8001_state, hrq_w))
+	MCFG_I8257_IN_MEMR_CB(READ8(pc8001_state, dma_mem_r))
+	MCFG_I8257_OUT_IOW_2_CB(DEVWRITE8(UPD3301_TAG, upd3301_device, dack_w))
+
+	MCFG_UPD1990A_ADD(UPD1990A_TAG, XTAL_32_768kHz, NULL, NULL)
+
+	MCFG_DEVICE_ADD(UPD3301_TAG, UPD3301, 14318180)
+	MCFG_UPD3301_CHARACTER_WIDTH(8)
+	MCFG_UPD3301_DRAW_CHARACTER_CALLBACK_OWNER(pc8001_state, pc8001_display_pixels)
+	MCFG_UPD3301_VRTC_CALLBACK(DEVWRITELINE(I8257_TAG, i8257_device, dreq2_w))
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
 
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("64K")

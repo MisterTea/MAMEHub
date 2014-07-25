@@ -66,7 +66,7 @@ public:
 	virtual void machine_start();
 
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(pokemini);
 	TIMER_CALLBACK_MEMBER(pokemini_seconds_timer_callback);
 	TIMER_CALLBACK_MEMBER(pokemini_256hz_timer_callback);
 	TIMER_CALLBACK_MEMBER(pokemini_timer1_callback);
@@ -136,12 +136,12 @@ static INPUT_PORTS_START( pokemini )
 INPUT_PORTS_END
 
 
-void pokemini_state::palette_init()
+PALETTE_INIT_MEMBER(pokemini_state, pokemini)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(0xff, 0xfb, 0x87));
-	palette_set_color(machine(), 1, MAKE_RGB(0xb1, 0xae, 0x4e));
-	palette_set_color(machine(), 2, MAKE_RGB(0x84, 0x80, 0x4e));
-	palette_set_color(machine(), 3, MAKE_RGB(0x4e, 0x4e, 0x4e));
+	palette.set_pen_color(0, rgb_t(0xff, 0xfb, 0x87));
+	palette.set_pen_color(1, rgb_t(0xb1, 0xae, 0x4e));
+	palette.set_pen_color(2, rgb_t(0x84, 0x80, 0x4e));
+	palette.set_pen_color(3, rgb_t(0x4e, 0x4e, 0x4e));
 }
 
 
@@ -532,7 +532,7 @@ WRITE8_MEMBER(pokemini_state::pokemini_hwreg_w)
 	case 0x02:  /* CPU related?
                Bit 0-7 R/W Unknown
             */
-		logerror( "%0X: Write to unknown hardware address: %02X, %02X\n", machine().firstcpu->pc( ), offset, data );
+		logerror( "%0X: Write to unknown hardware address: %02X, %02X\n", m_maincpu->pc(), offset, data );
 		break;
 	case 0x08:  /* Seconds-timer control
                Bit 0   R/W Timer enable
@@ -564,7 +564,7 @@ WRITE8_MEMBER(pokemini_state::pokemini_hwreg_w)
                Bit 5   R   Battery status: 0 - battery OK, 1 - battery low
                Bit 6-7     Unused
             */
-		logerror( "%0X: Write to unknown hardware address: %02X, %02X\n", machine().firstcpu->pc( ), offset, data );
+		logerror( "%0X: Write to unknown hardware address: %02X, %02X\n", m_maincpu->pc(), offset, data );
 		break;
 	case 0x18:  /* Timer 1 pre-scale + enable
                Bit 0-2 R/W low timer 1 prescaler select
@@ -1316,10 +1316,10 @@ WRITE8_MEMBER(pokemini_state::pokemini_hwreg_w)
                Bit 7   R/W IR received bit (mirror, if device not selected: 0)
             */
 		if ( m_pm_reg[0x60] & 0x04 )
-			m_i2cmem->set_sda_line( ( data & 0x04 ) ? 1 : 0 );
+			m_i2cmem->write_sda( ( data & 0x04 ) ? 1 : 0 );
 
 		if ( m_pm_reg[0x60] & 0x08 )
-			m_i2cmem->set_scl_line( ( data & 0x08 ) ? 1 : 0 );
+			m_i2cmem->write_scl( ( data & 0x08 ) ? 1 : 0 );
 		break;
 	case 0x70:  /* Sound related */
 		m_pm_reg[0x70] = data;
@@ -1423,7 +1423,7 @@ WRITE8_MEMBER(pokemini_state::pokemini_hwreg_w)
                            Map size 2: 0x00 to 0x60
                Bit 7       Unused
             */
-		logerror( "%0X: Write to unknown hardware address: %02X, %02X\n", machine().firstcpu->pc( ), offset, data );
+		logerror( "%0X: Write to unknown hardware address: %02X, %02X\n", m_maincpu->pc(), offset, data );
 		break;
 	case 0x87:  /* Sprite tile data memory offset (low)
                Bit 0-5     Always "0"
@@ -1464,7 +1464,7 @@ WRITE8_MEMBER(pokemini_state::pokemini_hwreg_w)
 //      lcd_data_w( data );
 		break;
 	default:
-		logerror( "%0X: Write to unknown hardware address: %02X, %02X\n", machine().firstcpu->pc( ), offset, data );
+		logerror( "%0X: Write to unknown hardware address: %02X, %02X\n", m_maincpu->pc(), offset, data );
 		break;
 	}
 	m_pm_reg[offset] = data;
@@ -1480,7 +1480,7 @@ READ8_MEMBER(pokemini_state::pokemini_hwreg_r)
 	case 0x61:
 		if ( ! ( m_pm_reg[0x60] & 0x04 ) )
 		{
-			data = ( data & ~ 0x04 ) | ( m_i2cmem->read_sda_line() ? 0x04 : 0x00 );
+			data = ( data & ~ 0x04 ) | ( m_i2cmem->read_sda() ? 0x04 : 0x00 );
 		}
 
 		if ( ! ( m_pm_reg[0x60] & 0x08 ) )
@@ -1758,15 +1758,9 @@ static const speaker_interface pokemini_speaker_interface =
 };
 
 
-static const i2cmem_interface i2cmem_interface =
-{
-		I2CMEM_SLAVE_ADDRESS, 0, 0x2000
-};
-
-
 void pokemini_state::video_start()
 {
-	machine().primary_screen->register_screen_bitmap(m_bitmap);
+	machine().first_screen()->register_screen_bitmap(m_bitmap);
 }
 
 
@@ -1784,7 +1778,8 @@ static MACHINE_CONFIG_START( pokemini, pokemini_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
-	MCFG_I2CMEM_ADD("i2cmem",i2cmem_interface)
+	MCFG_I2CMEM_ADD("i2cmem")
+	MCFG_I2CMEM_DATA_SIZE(0x2000)
 
 	/* This still needs to be improved to actually match the hardware */
 	MCFG_SCREEN_ADD("screen", LCD)
@@ -1792,10 +1787,12 @@ static MACHINE_CONFIG_START( pokemini, pokemini_state )
 	MCFG_SCREEN_SIZE( 96, 64 )
 	MCFG_SCREEN_VISIBLE_AREA( 0, 95, 0, 63 )
 	MCFG_SCREEN_REFRESH_RATE( 72 )
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 
-	MCFG_PALETTE_LENGTH( 4 )
+	MCFG_PALETTE_ADD( "palette", 4 )
+	MCFG_PALETTE_INIT_OWNER(pokemini_state, pokemini)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

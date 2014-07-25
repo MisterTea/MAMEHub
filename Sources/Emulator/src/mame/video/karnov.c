@@ -6,7 +6,6 @@
 
 #include "emu.h"
 #include "includes/karnov.h"
-#include "video/deckarn.h"
 
 /***************************************************************************
 
@@ -36,12 +35,12 @@
 
 ***************************************************************************/
 
-void karnov_state::palette_init()
+PALETTE_INIT_MEMBER(karnov_state, karnov)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, bit3, r, g, b;
 
@@ -55,13 +54,13 @@ void karnov_state::palette_init()
 		bit2 = (color_prom[0] >> 6) & 0x01;
 		bit3 = (color_prom[0] >> 7) & 0x01;
 		g = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
-		bit0 = (color_prom[machine().total_colors()] >> 0) & 0x01;
-		bit1 = (color_prom[machine().total_colors()] >> 1) & 0x01;
-		bit2 = (color_prom[machine().total_colors()] >> 2) & 0x01;
-		bit3 = (color_prom[machine().total_colors()] >> 3) & 0x01;
+		bit0 = (color_prom[palette.entries()] >> 0) & 0x01;
+		bit1 = (color_prom[palette.entries()] >> 1) & 0x01;
+		bit2 = (color_prom[palette.entries()] >> 2) & 0x01;
+		bit3 = (color_prom[palette.entries()] >> 3) & 0x01;
 		b = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 		color_prom++;
 	}
 }
@@ -100,10 +99,10 @@ void karnov_state::draw_background( bitmap_ind16 &bitmap, const rectangle &clipr
 		color = tile >> 12;
 		tile = tile & 0x7ff;
 		if (m_flipscreen)
-			drawgfx_opaque(*m_bitmap_f, m_bitmap_f->cliprect(), machine().gfx[1],tile,
+			m_gfxdecode->gfx(1)->opaque(*m_bitmap_f,m_bitmap_f->cliprect(),tile,
 				color, fx, fy, 496-16*mx,496-16*my);
 		else
-			drawgfx_opaque(*m_bitmap_f, m_bitmap_f->cliprect(), machine().gfx[1],tile,
+			m_gfxdecode->gfx(1)->opaque(*m_bitmap_f,m_bitmap_f->cliprect(),tile,
 				color, fx, fy, 16*mx,16*my);
 	}
 
@@ -126,7 +125,7 @@ void karnov_state::draw_background( bitmap_ind16 &bitmap, const rectangle &clipr
 UINT32 karnov_state::screen_update_karnov(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	draw_background(bitmap, cliprect);
-	machine().device<deco_karnovsprites_device>("spritegen")->draw_sprites(machine(), bitmap, cliprect, m_spriteram->buffer(), 0x800, 0);
+	m_spritegen->draw_sprites(machine(), bitmap, cliprect, m_spriteram->buffer(), 0x800, 0);
 	m_fix_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
@@ -136,8 +135,7 @@ UINT32 karnov_state::screen_update_karnov(screen_device &screen, bitmap_ind16 &b
 TILE_GET_INFO_MEMBER(karnov_state::get_fix_tile_info)
 {
 	int tile = m_videoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile&0xfff,
 			tile>>14,
 			0);
@@ -161,7 +159,7 @@ VIDEO_START_MEMBER(karnov_state,karnov)
 {
 	/* Allocate bitmap & tilemap */
 	m_bitmap_f = auto_bitmap_ind16_alloc(machine(), 512, 512);
-	m_fix_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(karnov_state::get_fix_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fix_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(karnov_state::get_fix_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	save_item(NAME(*m_bitmap_f));
 
@@ -172,7 +170,7 @@ VIDEO_START_MEMBER(karnov_state,wndrplnt)
 {
 	/* Allocate bitmap & tilemap */
 	m_bitmap_f = auto_bitmap_ind16_alloc(machine(), 512, 512);
-	m_fix_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(karnov_state::get_fix_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
+	m_fix_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(karnov_state::get_fix_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
 
 	save_item(NAME(*m_bitmap_f));
 

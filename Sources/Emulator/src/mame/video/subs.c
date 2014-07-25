@@ -12,13 +12,13 @@ WRITE8_MEMBER(subs_state::subs_invert1_w)
 {
 	if ((offset & 0x01) == 1)
 	{
-		palette_set_color(machine(), 0, MAKE_RGB(0x00, 0x00, 0x00));
-		palette_set_color(machine(), 1, MAKE_RGB(0xFF, 0xFF, 0xFF));
+		m_palette->set_pen_color(0, rgb_t(0x00, 0x00, 0x00));
+		m_palette->set_pen_color(1, rgb_t(0xFF, 0xFF, 0xFF));
 	}
 	else
 	{
-		palette_set_color(machine(), 1, MAKE_RGB(0x00, 0x00, 0x00));
-		palette_set_color(machine(), 0, MAKE_RGB(0xFF, 0xFF, 0xFF));
+		m_palette->set_pen_color(1, rgb_t(0x00, 0x00, 0x00));
+		m_palette->set_pen_color(0, rgb_t(0xFF, 0xFF, 0xFF));
 	}
 }
 
@@ -26,13 +26,13 @@ WRITE8_MEMBER(subs_state::subs_invert2_w)
 {
 	if ((offset & 0x01) == 1)
 	{
-		palette_set_color(machine(), 2, MAKE_RGB(0x00, 0x00, 0x00));
-		palette_set_color(machine(), 3, MAKE_RGB(0xFF, 0xFF, 0xFF));
+		m_palette->set_pen_color(2, rgb_t(0x00, 0x00, 0x00));
+		m_palette->set_pen_color(3, rgb_t(0xFF, 0xFF, 0xFF));
 	}
 	else
 	{
-		palette_set_color(machine(), 3, MAKE_RGB(0x00, 0x00, 0x00));
-		palette_set_color(machine(), 2, MAKE_RGB(0xFF, 0xFF, 0xFF));
+		m_palette->set_pen_color(3, rgb_t(0x00, 0x00, 0x00));
+		m_palette->set_pen_color(2, rgb_t(0xFF, 0xFF, 0xFF));
 	}
 }
 
@@ -74,11 +74,11 @@ UINT32 subs_state::screen_update_subs_left(screen_device &screen, bitmap_ind16 &
 
 		/* draw the left screen */
 		if ((left_enable || left_sonar_window) && (!right_sonar_window))
-			drawgfx_opaque(bitmap,cliprect,machine().gfx[0],
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect,
 					charcode, 1,
 					0,0,sx,sy);
 		else
-			drawgfx_opaque(bitmap,cliprect,machine().gfx[0],
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect,
 					0, 1,
 					0,0,sx,sy);
 	}
@@ -104,7 +104,7 @@ UINT32 subs_state::screen_update_subs_left(screen_device &screen, bitmap_ind16 &
 
 		/* left screen - special check for drawing right screen's sub */
 		if ((offs!=0) || (sub_enable))
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 					charcode + 32 * prom_set,
 					0,
 					0,0,sx,sy,0);
@@ -112,8 +112,8 @@ UINT32 subs_state::screen_update_subs_left(screen_device &screen, bitmap_ind16 &
 
 	/* Update sound */
 	address_space &space = machine().driver_data()->generic_space();
-	discrete_sound_w(m_discrete, space, SUBS_LAUNCH_DATA, spriteram[5] & 0x0f);   // Launch data
-	discrete_sound_w(m_discrete, space, SUBS_CRASH_DATA, spriteram[5] >> 4);      // Crash/explode data
+	m_discrete->write(space, SUBS_LAUNCH_DATA, spriteram[5] & 0x0f);   // Launch data
+	m_discrete->write(space, SUBS_CRASH_DATA, spriteram[5] >> 4);      // Crash/explode data
 	return 0;
 }
 
@@ -154,11 +154,11 @@ UINT32 subs_state::screen_update_subs_right(screen_device &screen, bitmap_ind16 
 
 		/* draw the right screen */
 		if ((right_enable || right_sonar_window) && (!left_sonar_window))
-			drawgfx_opaque(bitmap,cliprect,machine().gfx[0],
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect,
 					charcode, 0,
 					0,0,sx,sy);
 		else
-			drawgfx_opaque(bitmap,cliprect,machine().gfx[0],
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect,
 					0, 0,
 					0,0,sx,sy);
 	}
@@ -183,7 +183,7 @@ UINT32 subs_state::screen_update_subs_right(screen_device &screen, bitmap_ind16 
 		charcode = (charcode >> 3) & 0x1F;
 
 		if ((offs!=1) || (sub_enable))
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 					charcode + 32 * prom_set,
 					0,
 					0,0,sx,sy,0);

@@ -13,7 +13,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_subcpu(*this, "sub"),
-		m_msm(*this, "msm") { }
+		m_msm(*this, "msm"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_spritetile_ram;
 	required_shared_ptr<UINT8> m_spritexy_ram;
@@ -42,6 +44,8 @@ public:
 	DECLARE_WRITE8_MEMBER(gsword_AY8910_control_port_1_w);
 	DECLARE_READ8_MEMBER(gsword_fake_0_r);
 	DECLARE_READ8_MEMBER(gsword_fake_1_r);
+	DECLARE_READ8_MEMBER( gsword_8741_2_r );
+	DECLARE_READ8_MEMBER( gsword_8741_3_r );
 	DECLARE_WRITE8_MEMBER(gsword_adpcm_data_w);
 	DECLARE_DRIVER_INIT(gsword);
 	DECLARE_DRIVER_INIT(gsword2);
@@ -59,4 +63,6 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	optional_device<cpu_device> m_subcpu;
 	optional_device<msm5205_device> m_msm;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

@@ -9,13 +9,26 @@
 #ifndef APPLE2_H_
 #define APPLE2_H_
 
-#include "machine/a2bus.h"
-#include "machine/a2eauxslot.h"
+#include "cpu/m6502/m6502.h"
+#include "cpu/m6502/m65c02.h"
+#include "bus/a2bus/a2bus.h"
+#include "bus/a2bus/a2eauxslot.h"
 #include "machine/applefdc.h"
 #include "machine/ram.h"
 #include "imagedev/cassette.h"
+#include "machine/kb3600.h"
+#include "sound/speaker.h"
+#include "machine/ram.h"
+#include "bus/rs232/rs232.h"
+#include "machine/mos6551.h"
 
 #define AUXSLOT_TAG "auxbus"
+
+#define IIC_ACIA1_TAG "acia1"
+#define IIC_ACIA2_TAG "acia2"
+
+#define PRINTER_PORT_TAG "printer"
+#define MODEM_PORT_TAG "modem"
 
 /***************************************************************************
     SOFTSWITCH VALUES
@@ -45,20 +58,6 @@
 
 #define VAR_DHIRES      VAR_AN3
 
-
-/***************************************************************************
-    SPECIAL KEYS
-***************************************************************************/
-
-#define SPECIALKEY_CAPSLOCK     0x01
-#define SPECIALKEY_SHIFT        0x06
-#define SPECIALKEY_CONTROL      0x08
-#define SPECIALKEY_BUTTON0      0x10    /* open apple */
-#define SPECIALKEY_BUTTON1      0x20    /* closed apple */
-#define SPECIALKEY_BUTTON2      0x40
-#define SPECIALKEY_RESET        0x80
-
-
 /***************************************************************************
     OTHER
 ***************************************************************************/
@@ -77,10 +76,13 @@ enum machine_type_t
 {
 	APPLE_II,           // Apple II/II+
 	APPLE_IIE,          // Apple IIe with aux slots
-	APPLE_IIEPLUS,      // Apple IIc/IIgs/IIc+ with permanent aux memory
+	APPLE_IIGS,         // Apple IIgs
+	APPLE_IIC,          // Apple IIc
+	APPLE_IICPLUS,      // Apple IIc+
 	TK2000,             // Microdigital TK2000
 	LASER128,           // Laser 128/128EX/128EX2
-	SPACE84             // "Space 84" with flipped text mode
+	SPACE84,            // "Space 84" with flipped text mode
+	LABA2P              // lab equipment (?) II Plus with flipped text mode
 };
 
 enum bank_disposition_t
@@ -121,6 +123,7 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_ram(*this, RAM_TAG),
+		m_ay3600(*this, "ay3600"),
 		m_a2bus(*this, "a2bus"),
 		m_a2eauxslot(*this, AUXSLOT_TAG),
 		m_joy1x(*this, "joystick_1_x"),
@@ -128,34 +131,29 @@ public:
 		m_joy2x(*this, "joystick_2_x"),
 		m_joy2y(*this, "joystick_2_y"),
 		m_joybuttons(*this, "joystick_buttons"),
-		m_kb0(*this, "keyb_0"),
-		m_kb1(*this, "keyb_1"),
-		m_kb2(*this, "keyb_2"),
-		m_kb3(*this, "keyb_3"),
-		m_kb4(*this, "keyb_4"),
-		m_kb5(*this, "keyb_5"),
-		m_kb6(*this, "keyb_6"),
+		m_kbdrom(*this, "keyboard"),
 		m_kbspecial(*this, "keyb_special"),
 		m_kbrepeat(*this, "keyb_repeat"),
 		m_resetdip(*this, "reset_dip"),
-		m_kpad1(*this, "keypad_1"),
-		m_kpad2(*this, "keypad_2"),
-		m_kbprepeat(*this, "keyb_repeat"),
-		m_cassette(*this, "cassette")
+		m_cassette(*this, "cassette"),
+		m_acia1(*this, IIC_ACIA1_TAG),
+		m_acia2(*this, IIC_ACIA2_TAG)
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<ram_device> m_ram;
+	required_device<ay3600_device> m_ay3600;
 	required_device<a2bus_device> m_a2bus;
 	optional_device<a2eauxslot_device> m_a2eauxslot;
 
 	optional_ioport m_joy1x, m_joy1y, m_joy2x, m_joy2y, m_joybuttons;
-	required_ioport m_kb0, m_kb1, m_kb2, m_kb3, m_kb4, m_kb5, m_kb6, m_kbspecial;
+	optional_memory_region m_kbdrom;
+	required_ioport m_kbspecial;
 	optional_ioport m_kbrepeat;
 	optional_ioport m_resetdip;
-	optional_ioport m_kpad1, m_kpad2;
-	optional_ioport m_kbprepeat;
 	optional_device<cassette_image_device> m_cassette;
+
+	optional_device<mos6551_device> m_acia1, m_acia2;
 
 	UINT32 m_flags, m_flags_mask;
 	INT32 m_a2_cnxx_slot;
@@ -169,16 +167,6 @@ public:
 	apple2_memmap_config m_mem_config;
 	apple2_meminfo *m_current_meminfo;
 	int m_fdc_diskreg;
-	unsigned int *m_ay3600_keys;
-	UINT8 m_keycode;
-	UINT8 m_keycode_unmodified;
-	UINT8 m_keywaiting;
-	UINT8 m_keystilldown;
-	UINT8 m_keymodreg;
-	int m_reset_flag;
-	int m_last_key;
-	int m_last_key_unmodified;
-	unsigned int m_time_until_repeat;
 	const UINT8 *m_a2_videoram, *m_a2_videoaux, *m_textgfx_data;
 	UINT32 m_a2_videomask, m_textgfx_datalen;
 	UINT32 m_old_a2;
@@ -190,6 +178,7 @@ public:
 	UINT16 *m_dhires_artifact_map;
 	bool m_monochrome_dhr;
 	int m_inh_slot;
+	int m_reset_flag;
 
 	UINT8 *m_rambase;
 
@@ -199,6 +188,9 @@ public:
 	machine_type_t m_machinetype;
 
 	device_a2eauxslot_card_interface *m_auxslotdevice;
+
+	UINT16 m_lastchar, m_strobe;
+	UINT8 m_transchar;
 
 	READ8_MEMBER(apple2_c0xx_r);
 	WRITE8_MEMBER(apple2_c0xx_w);
@@ -316,22 +308,28 @@ public:
 	write8_delegate wd_inh_d000;
 	read8_delegate rd_inh_e000;
 	write8_delegate wd_inh_e000;
-	DECLARE_MACHINE_START(apple2);
-	DECLARE_MACHINE_START(apple2e);
-	DECLARE_VIDEO_START(apple2);
-	DECLARE_PALETTE_INIT(apple2);
 	DECLARE_MACHINE_START(apple2orig);
-	DECLARE_VIDEO_START(apple2p);
-	DECLARE_VIDEO_START(apple2e);
-	DECLARE_VIDEO_START(apple2c);
+	DECLARE_MACHINE_START(apple2e);
+	DECLARE_MACHINE_START(apple2c);
+	DECLARE_MACHINE_START(apple2cp);
 	DECLARE_MACHINE_START(tk2000);
 	DECLARE_MACHINE_START(laser128);
 	DECLARE_MACHINE_START(space84);
+	DECLARE_MACHINE_START(laba2p);
+	DECLARE_VIDEO_START(apple2);
+	DECLARE_PALETTE_INIT(apple2);
+	DECLARE_VIDEO_START(apple2p);
+	DECLARE_VIDEO_START(apple2e);
+	DECLARE_VIDEO_START(apple2c);
 	UINT32 screen_update_apple2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(apple2_interrupt);
-	DECLARE_WRITE8_MEMBER(a2bus_irq_w);
-	DECLARE_WRITE8_MEMBER(a2bus_nmi_w);
-	DECLARE_WRITE8_MEMBER(a2bus_inh_w);
+	DECLARE_WRITE_LINE_MEMBER(a2bus_irq_w);
+	DECLARE_WRITE_LINE_MEMBER(a2bus_nmi_w);
+	DECLARE_WRITE_LINE_MEMBER(a2bus_inh_w);
+	DECLARE_READ_LINE_MEMBER(ay3600_shift_r);
+	DECLARE_READ_LINE_MEMBER(ay3600_control_r);
+	DECLARE_WRITE_LINE_MEMBER(ay3600_data_ready_w);
+	DECLARE_WRITE_LINE_MEMBER(ay3600_iie_data_ready_w);
 	void apple2_update_memory_postload();
 	virtual void machine_reset();
 	void apple2_setup_memory(const apple2_memmap_config *config);
@@ -351,7 +349,9 @@ public:
 	int apple2_fdc_has_525();
 	void apple2_iwm_setdiskreg(UINT8 data);
 	void apple2_init_common();
+	void apple2eplus_init_common(void *apple2cp_ce00_ram);
 	INT8 apple2_slotram_r(address_space &space, int slotnum, int offset);
+	int a2_no_ctrl_reset();
 };
 /*----------- defined in drivers/apple2.c -----------*/
 INPUT_PORTS_EXTERN( apple2ep );

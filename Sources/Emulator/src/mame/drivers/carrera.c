@@ -58,13 +58,17 @@ public:
 	carrera_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_tileram(*this, "tileram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT8> m_tileram;
 	DECLARE_READ8_MEMBER(unknown_r);
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(carrera);
 	UINT32 screen_update_carrera(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -261,7 +265,7 @@ UINT32 carrera_state::screen_update_carrera(screen_device &screen, bitmap_ind16 
 		{
 			int tile = m_tileram[count&0x7ff] | m_tileram[(count&0x7ff)+0x800]<<8;
 
-			drawgfx_opaque(bitmap,cliprect,machine().gfx[0],tile,0,0,0,x*8,y*8);
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect,tile,0,0,0,x*8,y*8);
 			count++;
 		}
 	}
@@ -273,18 +277,7 @@ READ8_MEMBER(carrera_state::unknown_r)
 	return machine().rand();
 }
 
-/* these are set as input, but I have no idea which input port it uses is for the AY */
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(carrera_state,unknown_r),
-	DEVCB_DRIVER_MEMBER(carrera_state,unknown_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-void carrera_state::palette_init()
+PALETTE_INIT_MEMBER(carrera_state, carrera)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int br_bit0, br_bit1, bit0, bit1, r, g, b;
@@ -305,25 +298,10 @@ void carrera_state::palette_init()
 		bit1 = (color_prom[0] >> 5) & 0x01;
 		r = 0x0e * br_bit0 + 0x1f * br_bit1 + 0x43 * bit0 + 0x8f * bit1;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 		color_prom++;
 	}
 }
-
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
 
 
 static MACHINE_CONFIG_START( carrera, carrera_state )
@@ -340,17 +318,23 @@ static MACHINE_CONFIG_START( carrera, carrera_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(carrera_state, screen_update_carrera)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK / 16, mc6845_intf)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK / 16)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
-	MCFG_GFXDECODE(carrera)
-	MCFG_PALETTE_LENGTH(32)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", carrera)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(carrera_state, carrera)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, MASTER_CLOCK/12)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	/* these are set as input, but I have no idea which input port it uses is for the AY */
+	MCFG_AY8910_PORT_A_READ_CB(READ8(carrera_state, unknown_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(carrera_state, unknown_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 MACHINE_CONFIG_END
 

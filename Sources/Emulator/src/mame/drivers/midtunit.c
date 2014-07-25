@@ -54,7 +54,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, midtunit_state )
 	AM_RANGE(0x01f00000, 0x01f0001f) AM_WRITE(midtunit_control_w)
 	AM_RANGE(0x02000000, 0x07ffffff) AM_READ(midtunit_gfxrom_r) AM_SHARE("gfxrom")
 	AM_RANGE(0x1f800000, 0x1fffffff) AM_ROM AM_REGION("maincpu", 0) /* mirror used by MK */
-	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00001ff) AM_DEVREADWRITE("maincpu", tms34010_device, io_register_r, io_register_w)
 	AM_RANGE(0xff800000, 0xffffffff) AM_ROM AM_REGION("maincpu", 0)
 ADDRESS_MAP_END
 
@@ -579,7 +579,7 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static const tms34010_config tms_config =
+static const tms340x0_config tms_config =
 {
 	FALSE,                          /* halt on reset */
 	"screen",                       /* the screen operated on */
@@ -604,18 +604,19 @@ static MACHINE_CONFIG_START( tunit_core, midtunit_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", TMS34010, CPU_CLOCK)
-	MCFG_CPU_CONFIG(tms_config)
+	MCFG_TMS340X0_CONFIG(tms_config)
 	MCFG_CPU_PROGRAM_MAP(main_map)
 
 	MCFG_MACHINE_RESET_OVERRIDE(midtunit_state,midtunit)
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD("palette", 32768)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK * 2, 505, 0, 399, 289, 0, 253)
 	MCFG_SCREEN_UPDATE_DEVICE("maincpu", tms34010_device, tms340x0_ind16)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(midtunit_state,midtunit)
 MACHINE_CONFIG_END
@@ -633,7 +634,7 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( tunit_dcs, tunit_core )
 
 	/* basic machine hardware */
-	MCFG_FRAGMENT_ADD(dcs_audio_2k)
+	MCFG_DEVICE_ADD("dcs", DCS_AUDIO_2K, 0)
 MACHINE_CONFIG_END
 
 

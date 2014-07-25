@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:hap
 /***************************************************************************
 
     tc8830f.h - Toshiba TC8830F, CMOS voice recording/reproducing LSI
@@ -51,6 +53,9 @@ private:
 	UINT32 m_stop_address;
 	UINT8 m_bitcount;
 	UINT8 m_bitrate;
+	UINT8 m_prevbits;
+	int m_delta;
+	int m_output;
 	UINT8 m_command;
 	int m_cmd_rw;
 	UINT8 m_phrase;

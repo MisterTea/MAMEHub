@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /*******************************************************************************************
 
 MJ-8956 HW games (c) 1989 Jaleco / NMK / UPL
@@ -125,7 +127,9 @@ public:
 		m_sc3_vram(*this, "sc3_vram"),
 		m_jm_shared_ram(*this, "jshared_ram"),
 		m_jm_mcu_code(*this, "jmcu_code"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	tilemap_t *m_sc0_tilemap_0;
 	tilemap_t *m_sc0_tilemap_1;
@@ -219,6 +223,8 @@ public:
 	void urashima_mcu_run();
 	void second_mcu_run();
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -273,8 +279,7 @@ TILEMAP_MAPPER_MEMBER(jalmah_state::range3_8x8)
 TILE_GET_INFO_MEMBER(jalmah_state::get_sc0_tile_info)
 {
 	int code = m_sc0_vram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			3,
+	SET_TILE_INFO_MEMBER(3,
 			(code & 0xfff) + ((m_sc0bank & 3) << 12),
 			code >> 12,
 			0);
@@ -283,8 +288,7 @@ TILE_GET_INFO_MEMBER(jalmah_state::get_sc0_tile_info)
 TILE_GET_INFO_MEMBER(jalmah_state::get_sc1_tile_info)
 {
 	int code = m_sc1_vram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			2,
+	SET_TILE_INFO_MEMBER(2,
 			code & 0xfff,
 			code >> 12,
 			0);
@@ -293,8 +297,7 @@ TILE_GET_INFO_MEMBER(jalmah_state::get_sc1_tile_info)
 TILE_GET_INFO_MEMBER(jalmah_state::get_sc2_tile_info)
 {
 	int code = m_sc2_vram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code & 0xfff,
 			code >> 12,
 			0);
@@ -303,8 +306,7 @@ TILE_GET_INFO_MEMBER(jalmah_state::get_sc2_tile_info)
 TILE_GET_INFO_MEMBER(jalmah_state::get_sc3_tile_info)
 {
 	int code = m_sc3_vram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code & 0xfff,
 			code >> 12,
 			0);
@@ -312,25 +314,25 @@ TILE_GET_INFO_MEMBER(jalmah_state::get_sc3_tile_info)
 
 void jalmah_state::video_start()
 {
-	m_sc0_tilemap_0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc0_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range0_16x16),this),16,16,256,32);
-	m_sc0_tilemap_1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc0_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range1_16x16),this),16,16,128,64);
-	m_sc0_tilemap_2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc0_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range2_16x16),this),16,16,64,128);
-	m_sc0_tilemap_3 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc0_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range3_16x16),this),16,16,32,256);
+	m_sc0_tilemap_0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc0_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range0_16x16),this),16,16,256,32);
+	m_sc0_tilemap_1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc0_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range1_16x16),this),16,16,128,64);
+	m_sc0_tilemap_2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc0_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range2_16x16),this),16,16,64,128);
+	m_sc0_tilemap_3 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc0_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range3_16x16),this),16,16,32,256);
 
-	m_sc1_tilemap_0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc1_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range0_16x16),this),16,16,256,32);
-	m_sc1_tilemap_1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc1_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range1_16x16),this),16,16,128,64);
-	m_sc1_tilemap_2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc1_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range2_16x16),this),16,16,64,128);
-	m_sc1_tilemap_3 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc1_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range3_16x16),this),16,16,32,256);
+	m_sc1_tilemap_0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc1_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range0_16x16),this),16,16,256,32);
+	m_sc1_tilemap_1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc1_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range1_16x16),this),16,16,128,64);
+	m_sc1_tilemap_2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc1_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range2_16x16),this),16,16,64,128);
+	m_sc1_tilemap_3 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc1_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range3_16x16),this),16,16,32,256);
 
-	m_sc2_tilemap_0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc2_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range0_16x16),this),16,16,256,32);
-	m_sc2_tilemap_1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc2_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range1_16x16),this),16,16,128,64);
-	m_sc2_tilemap_2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc2_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range2_16x16),this),16,16,64,128);
-	m_sc2_tilemap_3 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc2_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range3_16x16),this),16,16,32,256);
+	m_sc2_tilemap_0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc2_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range0_16x16),this),16,16,256,32);
+	m_sc2_tilemap_1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc2_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range1_16x16),this),16,16,128,64);
+	m_sc2_tilemap_2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc2_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range2_16x16),this),16,16,64,128);
+	m_sc2_tilemap_3 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc2_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range3_16x16),this),16,16,32,256);
 
-	m_sc3_tilemap_0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc3_tile_info),this),TILEMAP_SCAN_COLS,8,8,256,32);
-	//m_sc3_tilemap_1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc3_tile_info),this),TILEMAP_SCAN_COLS,8,8,256,32);
-	m_sc3_tilemap_2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc3_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range2_8x8),this),8,8,128,64);
-	m_sc3_tilemap_3 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc3_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range3_8x8),this),8,8,64,128);
+	m_sc3_tilemap_0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc3_tile_info),this),TILEMAP_SCAN_COLS,8,8,256,32);
+	//m_sc3_tilemap_1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc3_tile_info),this),TILEMAP_SCAN_COLS,8,8,256,32);
+	m_sc3_tilemap_2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc3_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range2_8x8),this),8,8,128,64);
+	m_sc3_tilemap_3 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc3_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range3_8x8),this),8,8,64,128);
 
 	m_jm_scrollram = auto_alloc_array(machine(), UINT16, 0x80/2);
 	m_jm_vregs = auto_alloc_array(machine(), UINT16, 0x40/2);
@@ -358,8 +360,8 @@ void jalmah_state::video_start()
 
 VIDEO_START_MEMBER(jalmah_state,urashima)
 {
-	m_sc0_tilemap_0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc0_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range0_16x16),this),16,16,256,32);
-	m_sc3_tilemap_0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jalmah_state::get_sc3_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range2_8x8),this),8,8,128,64);
+	m_sc0_tilemap_0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc0_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range0_16x16),this),16,16,256,32);
+	m_sc3_tilemap_0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jalmah_state::get_sc3_tile_info),this),tilemap_mapper_delegate(FUNC(jalmah_state::range2_8x8),this),8,8,128,64);
 
 	m_jm_scrollram = auto_alloc_array(machine(), UINT16, 0x80/2);
 	m_jm_vregs = auto_alloc_array(machine(), UINT16, 0x40/2);
@@ -493,7 +495,7 @@ UINT32 jalmah_state::screen_update_jalmah(screen_device &screen, bitmap_ind16 &b
 	m_sc3_tilemap_2->set_scrolly(0, jm_scrollram[7] & 0x1ff);
 	m_sc3_tilemap_3->set_scrolly(0, jm_scrollram[7] & 0x3ff);
 
-	bitmap.fill(machine().pens[0xff], cliprect); //selectable by a ram address?
+	bitmap.fill(m_palette->pen(0xff), cliprect); //selectable by a ram address?
 
 	for(cur_prin=1;cur_prin<=0x8;cur_prin<<=1)
 	{
@@ -515,7 +517,7 @@ UINT32 jalmah_state::screen_update_urashima(screen_device &screen, bitmap_ind16 
 	m_sc0_tilemap_0->set_scrolly(0, jm_scrollram[4]);
 	m_sc3_tilemap_0->set_scrolly(0, jm_scrollram[7]);
 
-	bitmap.fill(machine().pens[0x1ff], cliprect);//selectable by a ram address?
+	bitmap.fill(m_palette->pen(0x1ff), cliprect);//selectable by a ram address?
 	if(m_jm_vregs[0] & 1) { m_sc0_tilemap_0->draw(screen, bitmap, cliprect, 0,0); }
 	if(m_jm_vregs[3] & 1) { m_sc3_tilemap_0->draw(screen, bitmap, cliprect, 0,0); }
 	return 0;
@@ -1014,7 +1016,7 @@ static ADDRESS_MAP_START( jalmah, AS_PROGRAM, 16, jalmah_state )
 /**/AM_RANGE(0x080020, 0x08003f) AM_RAM_WRITE(jalmah_scroll_w)
 	AM_RANGE(0x080040, 0x080041) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
 	//       0x084000, 0x084001  ?
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram") /* Palette RAM */
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") /* Palette RAM */
 	AM_RANGE(0x090000, 0x093fff) AM_RAM_WRITE(sc0_vram_w) AM_SHARE("sc0_vram")
 	AM_RANGE(0x094000, 0x097fff) AM_RAM_WRITE(sc1_vram_w) AM_SHARE("sc1_vram")
 	AM_RANGE(0x098000, 0x09bfff) AM_RAM_WRITE(sc2_vram_w) AM_SHARE("sc2_vram")
@@ -1038,7 +1040,7 @@ static ADDRESS_MAP_START( urashima, AS_PROGRAM, 16, jalmah_state )
 /**/AM_RANGE(0x08001c, 0x08001d) AM_RAM_WRITE(urashima_bank_w)
 	AM_RANGE(0x080040, 0x080041) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
 	//       0x084000, 0x084001  ?
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram") /* Palette RAM */
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") /* Palette RAM */
 	AM_RANGE(0x090000, 0x093fff) AM_RAM_WRITE(urashima_sc0_vram_w) AM_SHARE("sc0_vram")
 	AM_RANGE(0x094000, 0x097fff) AM_RAM_WRITE(urashima_sc0_vram_w)
 	AM_RANGE(0x098000, 0x09bfff) AM_RAM_WRITE(urashima_sc0_vram_w)
@@ -1412,7 +1414,7 @@ static MACHINE_CONFIG_START( jalmah, jalmah_state )
 
 	//M50747 MCU
 
-	MCFG_GFXDECODE(jalmah)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jalmah)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -1420,9 +1422,10 @@ static MACHINE_CONFIG_START( jalmah, jalmah_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(jalmah_state, screen_update_jalmah)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x400)
-
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("mcusim", jalmah_state, jalmah_mcu_sim, attotime::from_hz(10000))
 
@@ -1436,7 +1439,7 @@ static MACHINE_CONFIG_DERIVED( urashima, jalmah )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(urashima)
 
-	MCFG_GFXDECODE(urashima)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", urashima)
 
 	MCFG_VIDEO_START_OVERRIDE(jalmah_state,urashima)
 	MCFG_SCREEN_MODIFY("screen")
@@ -1759,7 +1762,7 @@ READ16_MEMBER(jalmah_state::urashima_mcu_r)
 	int res;
 
 	res = resp[m_respcount++];
-	if (m_respcount >= sizeof(resp)/sizeof(resp[0])) m_respcount = 0;
+	if (m_respcount >= ARRAY_LENGTH(resp)) m_respcount = 0;
 
 //  logerror("%04x: mcu_r %02x\n",space.device().safe_pc(),res);
 
@@ -1977,7 +1980,7 @@ READ16_MEMBER(jalmah_state::daireika_mcu_r)
 	int res;
 
 	res = resp[m_respcount++];
-	if (m_respcount >= sizeof(resp)/sizeof(resp[0])) m_respcount = 0;
+	if (m_respcount >= ARRAY_LENGTH(resp)) m_respcount = 0;
 
 //  logerror("%04x: mcu_r %02x\n",space.device().safe_pc(),res);
 
@@ -2256,7 +2259,7 @@ READ16_MEMBER(jalmah_state::mjzoomin_mcu_r)
 	int res;
 
 	res = resp[m_respcount++];
-	if (m_respcount >= sizeof(resp)/sizeof(resp[0])) m_respcount = 0;
+	if (m_respcount >= ARRAY_LENGTH(resp)) m_respcount = 0;
 
 //  logerror("%04x: mcu_r %02x\n",space.device().safe_pc(),res);
 
@@ -2393,7 +2396,7 @@ READ16_MEMBER(jalmah_state::kakumei_mcu_r)
 	int res;
 
 	res = resp[m_respcount++];
-	if (m_respcount >= sizeof(resp)/sizeof(resp[0])) m_respcount = 0;
+	if (m_respcount >= ARRAY_LENGTH(resp)) m_respcount = 0;
 
 //  popmessage("%04x: mcu_r %02x",space.device().safe_pc(),res);
 
@@ -2414,7 +2417,7 @@ READ16_MEMBER(jalmah_state::suchipi_mcu_r)
 	int res;
 
 	res = resp[m_respcount++];
-	if (m_respcount >= sizeof(resp)/sizeof(resp[0])) m_respcount = 0;
+	if (m_respcount >= ARRAY_LENGTH(resp)) m_respcount = 0;
 
 //  popmessage("%04x: mcu_r %02x",space.device().safe_pc(),res);
 

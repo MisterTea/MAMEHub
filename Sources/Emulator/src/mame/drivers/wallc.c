@@ -59,7 +59,8 @@ public:
 	wallc_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	tilemap_t *m_bg_tilemap;
@@ -67,11 +68,13 @@ public:
 	DECLARE_WRITE8_MEMBER(wallc_coin_counter_w);
 	DECLARE_DRIVER_INIT(wallc);
 	DECLARE_DRIVER_INIT(wallca);
+	DECLARE_DRIVER_INIT(sidam);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(wallc);
 	UINT32 screen_update_wallc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -100,7 +103,7 @@ public:
 
 ***************************************************************************/
 
-void wallc_state::palette_init()
+PALETTE_INIT_MEMBER(wallc_state, wallc)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -114,7 +117,7 @@ void wallc_state::palette_init()
 			2,  resistances_rg, weights_g,  330,    0,
 			3,  resistances_b,  weights_b,  330,    655+220);
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < palette.entries();i++)
 	{
 		int bit0,bit1,bit7,r,g,b;
 
@@ -134,7 +137,7 @@ void wallc_state::palette_init()
 		bit7 = (color_prom[i] >> 7) & 0x01;
 		b = combine_3_weights(weights_b, bit7, bit1, bit0);
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
@@ -153,7 +156,7 @@ TILE_GET_INFO_MEMBER(wallc_state::get_bg_tile_info)
 
 void wallc_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(wallc_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS_FLIP_Y,   8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(wallc_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS_FLIP_Y,   8, 8, 32, 32);
 }
 
 UINT32 wallc_state::screen_update_wallc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -313,10 +316,11 @@ static MACHINE_CONFIG_START( wallc, wallc_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(wallc_state, screen_update_wallc)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(wallc)
-	MCFG_PALETTE_LENGTH(32)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", wallc)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(wallc_state, wallc)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -359,5 +363,115 @@ ROM_START( wallca )
 	ROM_LOAD( "74s288.c2",  0x0000, 0x0020, CRC(83e3e293) SHA1(a98c5e63b688de8d175adb6539e0cdc668f313fd) )
 ROM_END
 
+/*
+
+It use a epoxy brick like wallc
+Inside the brick there are:
+- 74245
+- 74368
+- Pal16r4
+
+74368 is a tristate not, it's used to:
+-nagate D0 that goes to the CPU if A15 is low
+-nagate D1 that goes to the CPU if A15 is low
+-nagate D2 that goes to the CPU if A15 is low
+-nagate D3 that goes to the CPU if A15 is low
+
+-negate cpu clk to feed the pal clk ALWAYS
+-negate A15 to feed 74245 /EN ALWAYS
+
+
+The 74245 let pass the data unmodifyed if A15 is high (like wallc)
+
+If A15 is low a Pal16r4 kick in
+this chip can modify D2,D3,D4,D5,D6,D7
+
+D0 and D1 are negated from outside to real Z80
+D2 and D3 are negated after begin modified by the Pal
+
+Pal input
+A1
+A3
+A6
+A15 (Output enable, not in equation)
+
+D2
+D3
+D4
+D5  (2 times)
+D7  (2 times)
+
+Pal output
+D2 (via not to cpu)
+D3 (via not to cpu)
+D4 to cpu
+D5 to cpu
+D6 to cpu
+D7 to cpu
+
+*/
+
+ROM_START( sidampkr )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "11600.0",     0x0000, 0x1000, CRC(88cac4d2) SHA1(a369da3dc80671eeff549077cf2ce860d5f4ea35) )
+	ROM_LOAD( "11600.1",     0x1000, 0x1000, CRC(96cca320) SHA1(85326f7126c8250a22f35f6eed138051a9ab35cb) )
+
+	ROM_REGION( 0x3000, "gfx1", 0 )
+	ROM_LOAD( "11605.b",     0x0800, 0x0800, CRC(a7800f8a) SHA1(3955e0f71ced6fd759f52d12c0b39ab6aab31ca4) )
+	ROM_LOAD( "11605.g",     0x1800, 0x0800, CRC(b7bebf1e) SHA1(764536989ba4c4c143a61d4453c3bba547bc630a) )
+	ROM_LOAD( "11605.r",     0x2800, 0x0800, CRC(4d645b8d) SHA1(d4f8d11c4ef796cf66ebf2e6b8a11247d630951a) )
+
+	ROM_REGION( 0x0020, "proms", 0 )
+	ROM_LOAD( "11607-74.288",  0x0000, 0x0020, CRC(e14bf545) SHA1(5e8c5a9ea6e4842f27a47c1d7224ed294bbaa40b) )
+ROM_END
+
+DRIVER_INIT_MEMBER(wallc_state,sidam)
+{
+	UINT8 c;
+	UINT32 i;
+
+	UINT8 *ROM = memregion("maincpu")->base();
+	int count = 0;
+
+	for (i=0; i<0x2000; i++)
+	{
+		switch (i & 0x4a)  // A1, A3, A6
+		{
+			case 0x00:
+				logerror("%02x ", ROM[i]);
+				count++;
+				break;
+			case 0x02:
+				break;
+			case 0x08:
+				break;
+			case 0x0a:
+				break;
+			case 0x40:
+				break;
+			case 0x42:
+				break;
+			case 0x48:
+				break;
+			case 0x4a:
+				break;
+		}
+
+
+
+		if (count==16)
+		{
+			count = 0;
+			logerror("\n");
+		}
+
+		c = ROM[ i ] ^ 0x0f;
+		ROM[ i ] = c;
+	}
+
+
+}
+
 GAME( 1984, wallc,  0,      wallc,  wallc, wallc_state, wallc,  ROT0, "Midcoin", "Wall Crash (set 1)", 0 )
 GAME( 1984, wallca, wallc,  wallc,  wallc, wallc_state, wallca, ROT0, "Midcoin", "Wall Crash (set 2)", 0 )
+GAME( 1984, sidampkr,0,     wallc,  wallc, wallc_state, sidam,  ROT270, "Sidam", "unknown Sidam Poker", GAME_NOT_WORKING )

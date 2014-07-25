@@ -30,15 +30,14 @@ static const res_net_info carjmbre_net_info =
 	}
 };
 
-void carjmbre_state::palette_init()
+PALETTE_INIT_MEMBER(carjmbre_state, carjmbre)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
-	rgb_t *rgb;
+	dynamic_array<rgb_t> rgb;
 
-	rgb = compute_res_net_all(machine(), color_prom, &carjmbre_decode_info, &carjmbre_net_info);
-	palette_set_colors(machine(), 0, rgb, 64);
-	palette_normalize_range(machine().palette, 0, 63, 0, 255);
-	auto_free(machine(), rgb);
+	compute_res_net_all(rgb, color_prom, carjmbre_decode_info, carjmbre_net_info);
+	palette.set_pen_colors(0, rgb, 64);
+	palette.palette()->normalize_range(0, 63);
 }
 
 
@@ -60,11 +59,11 @@ WRITE8_MEMBER(carjmbre_state::carjmbre_bgcolor_w)
 		m_bgcolor = data;
 		if (data & 3)
 			for (i = 0; i < 64; i += 4)
-				palette_set_color(machine(), i, palette_get_color(machine(), data));
+				m_palette->set_pen_color(i, data);
 		else
 			// restore to initial state (black)
 			for (i = 0; i < 64; i += 4)
-				palette_set_color(machine(), i, RGB_BLACK);
+				m_palette->set_pen_color(i, rgb_t::black);
 	}
 }
 
@@ -87,8 +86,7 @@ TILE_GET_INFO_MEMBER(carjmbre_state::get_carjmbre_tile_info)
 	UINT8 attr = m_videoram[tile_index + 0x400];
 	tile_number += (attr & 0x80) << 1; /* bank */
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile_number,
 			attr & 0xf,
 			0);
@@ -96,7 +94,7 @@ TILE_GET_INFO_MEMBER(carjmbre_state::get_carjmbre_tile_info)
 
 void carjmbre_state::video_start()
 {
-	m_cj_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(carjmbre_state::get_carjmbre_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_cj_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(carjmbre_state::get_carjmbre_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	save_item(NAME(m_flipscreen));
 	save_item(NAME(m_bgcolor));
 }
@@ -145,7 +143,7 @@ UINT32 carjmbre_state::screen_update_carjmbre(screen_device &screen, bitmap_ind1
 				flipy = !flipy;
 			}
 
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 					m_spriteram[troffs + 1],
 					m_spriteram[troffs + 2] & 0xf,
 					flipx,flipy,

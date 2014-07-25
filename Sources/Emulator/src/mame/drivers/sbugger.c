@@ -211,43 +211,19 @@ WRITE_LINE_MEMBER(sbugger_state::sbugger_interrupt)
 	m_maincpu->set_input_line(I8085_RST75_LINE, state ? CLEAR_LINE : ASSERT_LINE );
 }
 
-static I8156_INTERFACE(i8156_intf)
-{
-	// all ports set to input
-	DEVCB_INPUT_PORT("INPUTS"),
-	DEVCB_NULL,
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_NULL,
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(sbugger_state,sbugger_interrupt)
-};
-
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( sbugger, sbugger_state )
 
 	MCFG_CPU_ADD("maincpu", I8085A, 6000000)        /* 3.00 MHz??? */
 	MCFG_CPU_PROGRAM_MAP(sbugger_map)
 	MCFG_CPU_IO_MAP(sbugger_io_map)
-	MCFG_I8156_ADD("i8156", 200000, i8156_intf)     /* freq is an approximation */
 
-	MCFG_GFXDECODE(sbugger)
+	MCFG_DEVICE_ADD("i8156", I8156, 200000)     /* freq is an approximation */
+	MCFG_I8155_IN_PORTA_CB(IOPORT("INPUTS"))
+	MCFG_I8155_IN_PORTB_CB(IOPORT("DSW1"))
+	MCFG_I8155_IN_PORTC_CB(IOPORT("DSW2"))
+	MCFG_I8155_OUT_TIMEROUT_CB(WRITELINE(sbugger_state, sbugger_interrupt))
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sbugger)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -255,20 +231,19 @@ static MACHINE_CONFIG_START( sbugger, sbugger_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(sbugger_state, screen_update_sbugger)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(512)
-
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INIT_OWNER(sbugger_state, sbugger)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn76489.1", SN76489, 3000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn76489.2", SN76489, 3000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 

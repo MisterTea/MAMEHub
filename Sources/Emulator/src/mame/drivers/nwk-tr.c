@@ -237,17 +237,34 @@ public:
 		m_dsp(*this, "dsp"),
 		m_k056800(*this, "k056800"),
 		m_k001604(*this, "k001604"),
-		m_adc12138(*this, "adc12138") { }
+		m_adc12138(*this, "adc12138"),
+		m_in0(*this, "IN0"),
+		m_in1(*this, "IN1"),
+		m_in2(*this, "IN2"),
+		m_dsw(*this, "DSW"),
+		m_analog1(*this, "ANALOG1"),
+		m_analog2(*this, "ANALOG2"),
+		m_analog3(*this, "ANALOG3"),
+		m_analog4(*this, "ANALOG4"),
+		m_analog5(*this, "ANALOG5"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_32(*this, "paletteram") { }
+
+	// TODO: Needs verification on real hardware
+	static const int m_sound_timer_usec = 2400;
 
 	UINT8 m_led_reg0;
 	UINT8 m_led_reg1;
 	required_shared_ptr<UINT32> m_work_ram;
-	required_device<cpu_device> m_maincpu;
+	required_device<ppc_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_dsp;
 	required_device<k056800_device> m_k056800;
 	required_device<k001604_device> m_k001604;
 	required_device<adc12138_device> m_adc12138;
+	required_ioport m_in0, m_in1, m_in2, m_dsw, m_analog1, m_analog2, m_analog3, m_analog4, m_analog5;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT32> m_generic_paletteram_32;
 	emu_timer *m_sound_irq_timer;
 	int m_fpga_uploaded;
 	int m_lanc2_ram_r;
@@ -263,16 +280,19 @@ public:
 	DECLARE_WRITE32_MEMBER(lanc2_w);
 	DECLARE_READ32_MEMBER(dsp_dataram_r);
 	DECLARE_WRITE32_MEMBER(dsp_dataram_w);
+	DECLARE_WRITE16_MEMBER(soundtimer_en_w);
+	DECLARE_WRITE16_MEMBER(soundtimer_count_w);
 	DECLARE_WRITE_LINE_MEMBER(voodoo_vblank_0);
+	ADC12138_IPT_CONVERT_CB(adc12138_input_callback);
+
+	TIMER_CALLBACK_MEMBER(sound_irq);
 	DECLARE_DRIVER_INIT(nwktr);
 	virtual void machine_start();
 	virtual void machine_reset();
 	UINT32 screen_update_nwktr(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	TIMER_CALLBACK_MEMBER(irq_off);
+
 	void lanc2_init();
 };
-
-
 
 
 
@@ -280,7 +300,7 @@ WRITE32_MEMBER(nwktr_state::paletteram32_w)
 {
 	COMBINE_DATA(&m_generic_paletteram_32[offset]);
 	data = m_generic_paletteram_32[offset];
-	palette_set_color_rgb(machine(), offset, pal5bit(data >> 10), pal5bit(data >> 5), pal5bit(data >> 0));
+	m_palette->set_pen_color(offset, pal5bit(data >> 10), pal5bit(data >> 5), pal5bit(data >> 0));
 }
 
 WRITE_LINE_MEMBER(nwktr_state::voodoo_vblank_0)
@@ -291,9 +311,9 @@ WRITE_LINE_MEMBER(nwktr_state::voodoo_vblank_0)
 
 UINT32 nwktr_state::screen_update_nwktr(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	device_t *voodoo = machine().device("voodoo");
+	device_t *voodoo = machine().device("voodoo0");
 
-	bitmap.fill(machine().pens[0], cliprect);
+	bitmap.fill(m_palette->pen(0), cliprect);
 
 	voodoo_update(voodoo, bitmap, cliprect);
 
@@ -316,15 +336,15 @@ READ32_MEMBER(nwktr_state::sysreg_r)
 	{
 		if (ACCESSING_BITS_24_31)
 		{
-			r |= ioport("IN0")->read() << 24;
+			r |= m_in0->read() << 24;
 		}
 		if (ACCESSING_BITS_16_23)
 		{
-			r |= ioport("IN1")->read() << 16;
+			r |= m_in1->read() << 16;
 		}
 		if (ACCESSING_BITS_8_15)
 		{
-			r |= ioport("IN2")->read() << 8;
+			r |= m_in2->read() << 8;
 		}
 		if (ACCESSING_BITS_0_7)
 		{
@@ -335,7 +355,7 @@ READ32_MEMBER(nwktr_state::sysreg_r)
 	{
 		if (ACCESSING_BITS_24_31)
 		{
-			r |= ioport("DSW")->read() << 24;
+			r |= m_dsw->read() << 24;
 		}
 	}
 	return r;
@@ -493,9 +513,9 @@ WRITE32_MEMBER(nwktr_state::lanc2_w)
 	{
 		// TODO: check if these should be transferred via PPC DMA.
 
-		if (mame_stricmp(machine().system().name, "thrilld") == 0 ||
-			mame_stricmp(machine().system().name, "thrilldb") == 0 ||
-			mame_stricmp(machine().system().name, "thrilldae") == 0)
+		if (core_stricmp(machine().system().name, "thrilld") == 0 ||
+			core_stricmp(machine().system().name, "thrilldb") == 0 ||
+			core_stricmp(machine().system().name, "thrilldae") == 0)
 		{
 			m_work_ram[(0x3ffed0/4) + 0] = 0x472a3731;      // G*71
 			m_work_ram[(0x3ffed0/4) + 1] = 0x33202020;      // 3
@@ -507,7 +527,7 @@ WRITE32_MEMBER(nwktr_state::lanc2_w)
 			m_work_ram[(0x3fff40/4) + 2] = 0x19994a41;      //   JA
 			m_work_ram[(0x3fff40/4) + 3] = 0x4100a9b1;      // A
 		}
-		else if (mame_stricmp(machine().system().name, "racingj2") == 0)
+		else if (core_stricmp(machine().system().name, "racingj2") == 0)
 		{
 			m_work_ram[(0x3ffc80/4) + 0] = 0x47453838;      // GE88
 			m_work_ram[(0x3ffc80/4) + 1] = 0x38003030;      // 8 00
@@ -521,20 +541,44 @@ WRITE32_MEMBER(nwktr_state::lanc2_w)
 
 /*****************************************************************************/
 
-TIMER_CALLBACK_MEMBER(nwktr_state::irq_off)
+TIMER_CALLBACK_MEMBER(nwktr_state::sound_irq)
 {
-	m_audiocpu->set_input_line(param, CLEAR_LINE);
+	m_audiocpu->set_input_line(M68K_IRQ_1, ASSERT_LINE);
 }
+
+
+WRITE16_MEMBER(nwktr_state::soundtimer_en_w)
+{
+	if (data & 1)
+	{
+		// Reset and disable timer
+		m_sound_irq_timer->adjust(attotime::from_usec(m_sound_timer_usec));
+		m_sound_irq_timer->enable(false);
+	}
+	else
+	{
+		// Enable timer
+		m_sound_irq_timer->enable(true);
+	}
+}
+
+WRITE16_MEMBER(nwktr_state::soundtimer_count_w)
+{
+	// Reset the count
+	m_sound_irq_timer->adjust(attotime::from_usec(m_sound_timer_usec));
+	m_audiocpu->set_input_line(M68K_IRQ_1, CLEAR_LINE);
+}
+
 
 void nwktr_state::machine_start()
 {
 	/* set conservative DRC options */
-	ppcdrc_set_options(m_maincpu, PPCDRC_COMPATIBLE_OPTIONS);
+	m_maincpu->ppcdrc_set_options(PPCDRC_COMPATIBLE_OPTIONS);
 
 	/* configure fast RAM regions for DRC */
-	ppcdrc_add_fastram(m_maincpu, 0x00000000, 0x003fffff, FALSE, m_work_ram);
+	m_maincpu->ppcdrc_add_fastram(0x00000000, 0x003fffff, FALSE, m_work_ram);
 
-	m_sound_irq_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(nwktr_state::irq_off),this));
+	m_sound_irq_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(nwktr_state::sound_irq), this));
 }
 
 static ADDRESS_MAP_START( nwktr_map, AS_PROGRAM, 32, nwktr_state )
@@ -543,14 +587,12 @@ static ADDRESS_MAP_START( nwktr_map, AS_PROGRAM, 32, nwktr_state )
 	AM_RANGE(0x74010000, 0x74017fff) AM_RAM_WRITE(paletteram32_w) AM_SHARE("paletteram")
 	AM_RANGE(0x74020000, 0x7403ffff) AM_DEVREADWRITE("k001604", k001604_device, tile_r, tile_w)
 	AM_RANGE(0x74040000, 0x7407ffff) AM_DEVREADWRITE("k001604", k001604_device, char_r, char_w)
-	AM_RANGE(0x78000000, 0x7800ffff) AM_READWRITE_LEGACY(cgboard_dsp_shared_r_ppc, cgboard_dsp_shared_w_ppc)
-	AM_RANGE(0x780c0000, 0x780c0003) AM_READWRITE_LEGACY(cgboard_dsp_comm_r_ppc, cgboard_dsp_comm_w_ppc)
+	AM_RANGE(0x78000000, 0x7800ffff) AM_DEVREADWRITE("konppc", konppc_device, cgboard_dsp_shared_r_ppc, cgboard_dsp_shared_w_ppc)
+	AM_RANGE(0x780c0000, 0x780c0003) AM_DEVREADWRITE("konppc", konppc_device, cgboard_dsp_comm_r_ppc, cgboard_dsp_comm_w_ppc)
 	AM_RANGE(0x7d000000, 0x7d00ffff) AM_READ(sysreg_r)
 	AM_RANGE(0x7d010000, 0x7d01ffff) AM_WRITE(sysreg_w)
 	AM_RANGE(0x7d020000, 0x7d021fff) AM_DEVREADWRITE8("m48t58", timekeeper_device, read, write, 0xffffffff)  /* M48T58Y RTC/NVRAM */
-	AM_RANGE(0x7d030000, 0x7d030007) AM_DEVREAD("k056800", k056800_device, host_r)
-	AM_RANGE(0x7d030000, 0x7d030007) AM_DEVWRITE("k056800", k056800_device, host_w)
-	AM_RANGE(0x7d030008, 0x7d03000f) AM_DEVWRITE("k056800", k056800_device, host_w)
+	AM_RANGE(0x7d030000, 0x7d03000f) AM_DEVREADWRITE8("k056800", k056800_device, host_r, host_w, 0xffffffff)
 	AM_RANGE(0x7d040000, 0x7d04ffff) AM_READWRITE(lanc1_r, lanc1_w)
 	AM_RANGE(0x7d050000, 0x7d05ffff) AM_READWRITE(lanc2_r, lanc2_w)
 	AM_RANGE(0x7e000000, 0x7e7fffff) AM_ROM AM_REGION("user2", 0)   /* Data ROM */
@@ -562,10 +604,11 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_memmap, AS_PROGRAM, 16, nwktr_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x100000, 0x10ffff) AM_RAM     /* Work RAM */
+	AM_RANGE(0x100000, 0x10ffff) AM_RAM
 	AM_RANGE(0x200000, 0x200fff) AM_DEVREADWRITE("rfsnd", rf5c400_device, rf5c400_r, rf5c400_w)      /* Ricoh RF5C400 */
-	AM_RANGE(0x300000, 0x30000f) AM_DEVREADWRITE("k056800", k056800_device, sound_r, sound_w)
-	AM_RANGE(0x600000, 0x600001) AM_NOP
+	AM_RANGE(0x300000, 0x30001f) AM_DEVREADWRITE8("k056800", k056800_device, sound_r, sound_w, 0x00ff)
+	AM_RANGE(0x500000, 0x500001) AM_WRITE(soundtimer_en_w) AM_READNOP
+	AM_RANGE(0x600000, 0x600001) AM_WRITE(soundtimer_count_w) AM_READNOP
 ADDRESS_MAP_END
 
 /*****************************************************************************/
@@ -582,12 +625,12 @@ WRITE32_MEMBER(nwktr_state::dsp_dataram_w)
 }
 
 static ADDRESS_MAP_START( sharc_map, AS_DATA, 32, nwktr_state )
-	AM_RANGE(0x0400000, 0x041ffff) AM_READWRITE_LEGACY(cgboard_0_shared_sharc_r, cgboard_0_shared_sharc_w)
+	AM_RANGE(0x0400000, 0x041ffff) AM_DEVREADWRITE("konppc", konppc_device, cgboard_0_shared_sharc_r, cgboard_0_shared_sharc_w)
 	AM_RANGE(0x0500000, 0x05fffff) AM_READWRITE(dsp_dataram_r, dsp_dataram_w)
 	AM_RANGE(0x1400000, 0x14fffff) AM_RAM
-	AM_RANGE(0x2400000, 0x27fffff) AM_DEVREADWRITE_LEGACY("voodoo", nwk_voodoo_0_r, nwk_voodoo_0_w)
-	AM_RANGE(0x3400000, 0x34000ff) AM_READWRITE_LEGACY(cgboard_0_comm_sharc_r, cgboard_0_comm_sharc_w)
-	AM_RANGE(0x3500000, 0x35000ff) AM_READWRITE_LEGACY(K033906_0_r, K033906_0_w)
+	AM_RANGE(0x2400000, 0x27fffff) AM_DEVREADWRITE("konppc", konppc_device, nwk_voodoo_0_r, nwk_voodoo_0_w)
+	AM_RANGE(0x3400000, 0x34000ff) AM_DEVREADWRITE("konppc", konppc_device, cgboard_0_comm_sharc_r, cgboard_0_comm_sharc_w)
+	AM_RANGE(0x3500000, 0x35000ff) AM_DEVREADWRITE("konppc", konppc_device, K033906_0_r, K033906_0_w)
 	AM_RANGE(0x3600000, 0x37fffff) AM_ROMBANK("bank5")
 ADDRESS_MAP_END
 
@@ -657,136 +700,111 @@ static INPUT_PORTS_START( nwktr )
 
 INPUT_PORTS_END
 
-static const sharc_config sharc_cfg =
-{
-	BOOT_MODE_EPROM
-};
 
-
-static double adc12138_input_callback( device_t *device, UINT8 input )
+ADC12138_IPT_CONVERT_CB(nwktr_state::adc12138_input_callback)
 {
 	int value = 0;
 	switch (input)
 	{
-		case 0:     value = device->machine().root_device().ioport("ANALOG1")->read(); break;
-		case 1:     value = device->machine().root_device().ioport("ANALOG2")->read(); break;
-		case 2:     value = device->machine().root_device().ioport("ANALOG3")->read(); break;
-		case 3:     value = device->machine().root_device().ioport("ANALOG4")->read(); break;
-		case 4:     value = device->machine().root_device().ioport("ANALOG5")->read(); break;
+		case 0: value = m_analog1->read(); break;
+		case 1: value = m_analog2->read(); break;
+		case 2: value = m_analog3->read(); break;
+		case 3: value = m_analog4->read(); break;
+		case 4: value = m_analog5->read(); break;
 	}
 
 	return (double)(value) / 4095.0;
 }
-
-static const adc12138_interface nwktr_adc_interface = {
-	adc12138_input_callback
-};
-
-static void sound_irq_callback(running_machine &machine, int irq)
-{
-	nwktr_state *state = machine.driver_data<nwktr_state>();
-	int line = (irq == 0) ? INPUT_LINE_IRQ1 : INPUT_LINE_IRQ2;
-
-	state->m_audiocpu->set_input_line(line, ASSERT_LINE);
-	state->m_sound_irq_timer->adjust(attotime::from_usec(5), line);
-}
-
-static const k056800_interface nwktr_k056800_interface =
-{
-	sound_irq_callback
-};
-
-static const k033906_interface nwktr_k033906_interface =
-{
-	"voodoo"
-};
-
-static const k001604_interface racingj_k001604_intf =
-{
-	0, 1,   /* gfx index 1 & 2 */
-	0, 1,       /* layer_size, roz_size */
-	0       /* slrasslt hack */
-};
-
-static const k001604_interface thrilld_k001604_intf =
-{
-	0, 1,   /* gfx index 1 & 2 */
-	1, 1,       /* layer_size, roz_size */
-	0       /* slrasslt hack */
-};
 
 void nwktr_state::machine_reset()
 {
 	m_dsp->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
-static const voodoo_config voodoo_intf =
-{
-	2, //               fbmem;
-	2,//                tmumem0;
-	2,//                tmumem1;
-	"screen",//         screen;
-	"dsp",//            cputag;
-	DEVCB_DRIVER_LINE_MEMBER(nwktr_state,voodoo_vblank_0),//  vblank;
-	DEVCB_NULL//             stall;
-};
-
 static MACHINE_CONFIG_START( nwktr, nwktr_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", PPC403GA, 64000000/2)   /* PowerPC 403GA 32MHz */
+	MCFG_CPU_ADD("maincpu", PPC403GA, XTAL_64MHz/2)   /* PowerPC 403GA 32MHz */
 	MCFG_CPU_PROGRAM_MAP(nwktr_map)
 
-	MCFG_CPU_ADD("audiocpu", M68000, 64000000/4)    /* 16MHz */
+	MCFG_CPU_ADD("audiocpu", M68000, XTAL_64MHz/4)    /* 16MHz */
 	MCFG_CPU_PROGRAM_MAP(sound_memmap)
 
-	MCFG_CPU_ADD("dsp", ADSP21062, 36000000)
-	MCFG_CPU_CONFIG(sharc_cfg)
+	MCFG_CPU_ADD("dsp", ADSP21062, XTAL_36MHz)
+	MCFG_SHARC_BOOT_MODE(BOOT_MODE_EPROM)
 	MCFG_CPU_DATA_MAP(sharc_map)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(9000))
 
+	MCFG_M48T58_ADD( "m48t58" )
 
-	MCFG_3DFX_VOODOO_1_ADD("voodoo", STD_VOODOO_1_CLOCK, voodoo_intf)
+	MCFG_DEVICE_ADD("adc12138", ADC12138, 0)
+	MCFG_ADC1213X_IPT_CONVERT_CB(nwktr_state, adc12138_input_callback)
 
-	MCFG_K033906_ADD("k033906_1", nwktr_k033906_interface)
+	MCFG_DEVICE_ADD("k033906_1", K033906, 0)
+	MCFG_K033906_VOODOO("voodoo0")
 
 	/* video hardware */
+	MCFG_DEVICE_ADD("voodoo0", VOODOO_1, STD_VOODOO_1_CLOCK)
+	MCFG_VOODOO_FBMEM(2)
+	MCFG_VOODOO_TMUMEM(2,2)
+	MCFG_VOODOO_SCREEN_TAG("screen")
+	MCFG_VOODOO_CPU_TAG("dsp")
+	MCFG_VOODOO_VBLANK_CB(WRITELINE(nwktr_state,voodoo_vblank_0))
+
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(512, 384)
 	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 383)
 	MCFG_SCREEN_UPDATE_DRIVER(nwktr_state, screen_update_nwktr)
 
-	MCFG_PALETTE_LENGTH(65536)
+	MCFG_PALETTE_ADD("palette", 65536)
 
-	MCFG_K001604_ADD("k001604", racingj_k001604_intf)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
 
-	MCFG_K056800_ADD("k056800", nwktr_k056800_interface, 64000000/4)
+	MCFG_DEVICE_ADD("k001604", K001604, 0)
+	MCFG_K001604_GFX_INDEX1(0)
+	MCFG_K001604_GFX_INDEX2(1)
+	MCFG_K001604_LAYER_SIZE(0)
+	MCFG_K001604_ROZ_SIZE(1)
+	MCFG_K001604_TXT_OFFSET(0)  // correct?
+	MCFG_K001604_ROZ_OFFSET(0)  // correct?
+	MCFG_K001604_GFXDECODE("gfxdecode")
+	MCFG_K001604_PALETTE("palette")
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_RF5C400_ADD("rfsnd", 16934400)  // as per Guru readme above
+	MCFG_K056800_ADD("k056800", XTAL_16_9344MHz)
+	MCFG_K056800_INT_HANDLER(INPUTLINE("audiocpu", M68K_IRQ_2))
+
+	MCFG_RF5C400_ADD("rfsnd", XTAL_16_9344MHz)  // as per Guru readme above
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_M48T58_ADD( "m48t58" )
-
-	MCFG_ADC12138_ADD( "adc12138", nwktr_adc_interface )
+	MCFG_DEVICE_ADD("konppc", KONPPC, 0)
+	MCFG_KONPPC_CGBOARD_NUMBER(2)
+	MCFG_KONPPC_CGBOARD_TYPE(CGBOARD_TYPE_NWKTR)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( thrilld, nwktr )
 
 	MCFG_DEVICE_REMOVE("k001604")
-	MCFG_K001604_ADD("k001604", thrilld_k001604_intf)
+	MCFG_DEVICE_ADD("k001604", K001604, 0)
+	MCFG_K001604_GFX_INDEX1(0)
+	MCFG_K001604_GFX_INDEX2(1)
+	MCFG_K001604_LAYER_SIZE(1)
+	MCFG_K001604_ROZ_SIZE(1)
+	MCFG_K001604_TXT_OFFSET(0)  // correct?
+	MCFG_K001604_ROZ_OFFSET(0)  // correct?
+	MCFG_K001604_GFXDECODE("gfxdecode")
+	MCFG_K001604_PALETTE("palette")
 MACHINE_CONFIG_END
 
 /*****************************************************************************/
 
 DRIVER_INIT_MEMBER(nwktr_state, nwktr)
 {
-	init_konami_cgboard(machine(), 1, CGBOARD_TYPE_NWKTR);
-	set_cgboard_texture_bank(machine(), 0, "bank5", memregion("user5")->base());
+	machine().device<konppc_device>("konppc")->set_cgboard_texture_bank(0, "bank5", memregion("user5")->base());
 
 	m_sharc_dataram = auto_alloc_array(machine(), UINT32, 0x100000/4);
 	m_led_reg0 = m_led_reg1 = 0x7f;

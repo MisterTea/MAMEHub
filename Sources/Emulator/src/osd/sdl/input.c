@@ -26,7 +26,7 @@
 
 // MAME headers
 #include "emu.h"
-#include "ui.h"
+#include "ui/ui.h"
 #include "uiinput.h"
 #include "emuopts.h"
 
@@ -39,6 +39,12 @@
 // winnt.h defines this
 #ifdef DELETE
 #undef DELETE
+#endif
+
+// Emscripten requires the SDL2 API for keyboard inputs, but nothing else
+#ifdef SDLMAME_EMSCRIPTEN
+#undef SDLMAME_SDL2
+#define SDLMAME_SDL2 1
 #endif
 
 //============================================================
@@ -132,7 +138,7 @@ struct device_info
 	// device information
 	device_info **          head;
 	device_info *           next;
-	char    *           name;
+	astring                 name;
 
 	// MAME information
 	input_device *          device;
@@ -206,10 +212,6 @@ static int sixaxis_mode;
 //============================================================
 //  PROTOTYPES
 //============================================================
-
-static void sdlinput_pause(running_machine &machine);
-static void sdlinput_resume(running_machine &machine);
-static void sdlinput_exit(running_machine &machine);
 
 // deivce list management
 static void device_list_reset_devices(device_info *devlist_head);
@@ -496,6 +498,13 @@ static kt_table sdl_key_trans_table[] =
 };
 #endif
 
+#if defined(SDLMAME_EMSCRIPTEN)
+#undef GET_WINDOW
+#undef GET_FOCUS_WINDOW
+#define GET_WINDOW(ev) sdl_window_list
+#define GET_FOCUS_WINDOW(ev) sdl_window_list
+#endif
+
 struct key_lookup_table
 {
 	int code;
@@ -672,7 +681,7 @@ static void devmap_init(running_machine &machine, device_map_t *devmap, const ch
 		if (dev_name && *dev_name && strcmp(dev_name,SDLOPTVAL_AUTO))
 		{
 			devmap->map[dev].name = remove_spaces(machine, dev_name);
-			mame_printf_verbose("%s: Logical id %d: %s\n", label, dev + 1, devmap->map[dev].name);
+			osd_printf_verbose("%s: Logical id %d: %s\n", label, dev + 1, devmap->map[dev].name);
 			devmap->initialized = 1;
 		}
 	}
@@ -717,10 +726,18 @@ static void sdlinput_register_joysticks(running_machine &machine)
 
 	devmap_init(machine, &joy_map, SDLOPTION_JOYINDEX, 8, "Joystick mapping");
 
-	mame_printf_verbose("Joystick: Start initialization\n");
+	osd_printf_verbose("Joystick: Start initialization\n");
 	for (physical_stick = 0; physical_stick < SDL_NumJoysticks(); physical_stick++)
 	{
-		char *joy_name = remove_spaces(machine, SDL_JoystickName(physical_stick));
+		char *joy_name;
+
+#if (SDLMAME_SDL2) && (!defined(SDLMAME_EMSCRIPTEN))
+		joy = SDL_JoystickOpen(physical_stick);
+		joy_name = remove_spaces(machine, SDL_JoystickName(joy));
+		SDL_JoystickClose(joy);
+#else
+		joy_name = remove_spaces(machine, SDL_JoystickName(physical_stick));
+#endif
 
 		devmap_register(&joy_map, physical_stick, joy_name);
 	}
@@ -738,9 +755,9 @@ static void sdlinput_register_joysticks(running_machine &machine)
 
 		devinfo->joystick.device = joy;
 
-		mame_printf_verbose("Joystick: %s\n", devinfo->name);
-		mame_printf_verbose("Joystick:   ...  %d axes, %d buttons %d hats %d balls\n", SDL_JoystickNumAxes(joy), SDL_JoystickNumButtons(joy), SDL_JoystickNumHats(joy), SDL_JoystickNumBalls(joy));
-		mame_printf_verbose("Joystick:   ...  Physical id %d mapped to logical id %d\n", physical_stick, stick);
+		osd_printf_verbose("Joystick: %s\n", devinfo->name.cstr());
+		osd_printf_verbose("Joystick:   ...  %d axes, %d buttons %d hats %d balls\n", SDL_JoystickNumAxes(joy), SDL_JoystickNumButtons(joy), SDL_JoystickNumHats(joy), SDL_JoystickNumBalls(joy));
+		osd_printf_verbose("Joystick:   ...  Physical id %d mapped to logical id %d\n", physical_stick, stick);
 
 		// loop over all axes
 		for (axis = 0; axis < SDL_JoystickNumAxes(joy); axis++)
@@ -754,7 +771,7 @@ static void sdlinput_register_joysticks(running_machine &machine)
 			else
 				itemid = ITEM_ID_OTHER_AXIS_ABSOLUTE;
 
-			sprintf(tempname, "A%d %s", axis, devinfo->name);
+			sprintf(tempname, "A%d %s", axis, devinfo->name.cstr());
 			devinfo->device->add_item(tempname, itemid, generic_axis_get_state, &devinfo->joystick.axes[axis]);
 		}
 
@@ -805,13 +822,13 @@ static void sdlinput_register_joysticks(running_machine &machine)
 			else
 				itemid = ITEM_ID_OTHER_AXIS_RELATIVE;
 
-			sprintf(tempname, "R%d %s", ball * 2, devinfo->name);
+			sprintf(tempname, "R%d %s", ball * 2, devinfo->name.cstr());
 			devinfo->device->add_item(tempname, (input_item_id) itemid, generic_axis_get_state, &devinfo->joystick.balls[ball * 2]);
-			sprintf(tempname, "R%d %s", ball * 2 + 1, devinfo->name);
+			sprintf(tempname, "R%d %s", ball * 2 + 1, devinfo->name.cstr());
 			devinfo->device->add_item(tempname, (input_item_id) (itemid + 1), generic_axis_get_state, &devinfo->joystick.balls[ball * 2 + 1]);
 		}
 	}
-	mame_printf_verbose("Joystick: End initialization\n");
+	osd_printf_verbose("Joystick: End initialization\n");
 }
 
 //============================================================
@@ -822,14 +839,14 @@ static void sdlinput_deregister_joysticks(running_machine &machine)
 {
 	device_info *curdev;
 
-	mame_printf_verbose("Joystick: Start deinitialization\n");
+	osd_printf_verbose("Joystick: Start deinitialization\n");
 
 	for (curdev = joystick_list; curdev != NULL; curdev = curdev->next)
 	{
 		SDL_JoystickClose(curdev->joystick.device);
 	}
 
-	mame_printf_verbose("Joystick: End deinitialization\n");
+	osd_printf_verbose("Joystick: End deinitialization\n");
 }
 
 //============================================================
@@ -852,7 +869,7 @@ static void sdlinput_register_mice(running_machine &machine)
 		devmap_register(&mouse_map, physical_mouse, mouse_name);
 	}
 
-	mame_printf_verbose("Mouse: Start initialization\n");
+	osd_printf_verbose("Mouse: Start initialization\n");
 	for (index = 0; index < MAX_DEVMAP_ENTRIES; index++)
 	{
 		device_info *devinfo;
@@ -865,9 +882,9 @@ static void sdlinput_register_mice(running_machine &machine)
 			continue;
 
 		// add the axes
-		sprintf(defname, "X %s", devinfo->name);
+		sprintf(defname, "X %s", devinfo->name.cstr());
 		devinfo->device->add_item(defname, ITEM_ID_XAXIS, generic_axis_get_state, &devinfo->mouse.lX);
-		sprintf(defname, "Y %s", devinfo->name);
+		sprintf(defname, "Y %s", devinfo->name.cstr());
 		devinfo->device->add_item(defname, ITEM_ID_YAXIS, generic_axis_get_state, &devinfo->mouse.lY);
 
 		for (button = 0; button < 4; button++)
@@ -882,9 +899,9 @@ static void sdlinput_register_mice(running_machine &machine)
 
 		if (0 && mouse_enabled)
 			SDL_SetRelativeMouseMode(index, SDL_TRUE);
-		mame_printf_verbose("Mouse: Registered %s\n", devinfo->name);
+		osd_printf_verbose("Mouse: Registered %s\n", devinfo->name.cstr());
 	}
-	mame_printf_verbose("Mouse: End initialization\n");
+	osd_printf_verbose("Mouse: End initialization\n");
 }
 #else
 static void sdlinput_register_mice(running_machine &machine)
@@ -893,13 +910,13 @@ static void sdlinput_register_mice(running_machine &machine)
 	char defname[20];
 	int button;
 
-	mame_printf_verbose("Mouse: Start initialization\n");
+	osd_printf_verbose("Mouse: Start initialization\n");
 
 	mouse_map.logical[0] = 0;
 
 	// SDL 1.2 has only 1 mouse - 1.3+ will also change that, so revisit this then
 	devinfo = generic_device_alloc(&mouse_list, "System mouse");
-	devinfo->device = machine.input().device_class(DEVICE_CLASS_MOUSE).add_device(devinfo->name, devinfo);
+	devinfo->device = machine.input().device_class(DEVICE_CLASS_MOUSE).add_device(devinfo->name.cstr(), devinfo);
 
 	mouse_enabled = machine.options().mouse();
 
@@ -915,8 +932,8 @@ static void sdlinput_register_mice(running_machine &machine)
 		devinfo->device->add_item(defname, itemid, generic_button_get_state, &devinfo->mouse.buttons[button]);
 	}
 
-	mame_printf_verbose("Mouse: Registered %s\n", devinfo->name);
-	mame_printf_verbose("Mouse: End initialization\n");
+	osd_printf_verbose("Mouse: Registered %s\n", devinfo->name.cstr());
+	osd_printf_verbose("Mouse: End initialization\n");
 }
 #endif
 
@@ -1122,9 +1139,9 @@ static void sdlinput_register_lightguns(running_machine &machine)
 		}
 
 
-		sprintf(defname, "X %s", devinfo->name);
+		sprintf(defname, "X %s", devinfo->name.cstr());
 		devinfo->device->add_item(defname, ITEM_ID_XAXIS, generic_axis_get_state, &devinfo->lightgun.lX);
-		sprintf(defname, "Y %s", devinfo->name);
+		sprintf(defname, "Y %s", devinfo->name.cstr());
 		devinfo->device->add_item(defname, ITEM_ID_YAXIS, generic_axis_get_state, &devinfo->lightgun.lY);
 
 
@@ -1136,7 +1153,7 @@ static void sdlinput_register_lightguns(running_machine &machine)
 		}
 		}
 	}
-	mame_printf_verbose("Lightgun: End initialization\n");
+	osd_printf_verbose("Lightgun: End initialization\n");
 }
 #endif
 
@@ -1212,12 +1229,12 @@ static kt_table * sdlinput_read_keymap(running_machine &machine)
 		return sdl_key_trans_table;
 
 	keymap_filename = (char *)downcast<sdl_options &>(machine.options()).keymap_file();
-	mame_printf_verbose("Keymap: Start reading keymap_file %s\n", keymap_filename);
+	osd_printf_verbose("Keymap: Start reading keymap_file %s\n", keymap_filename);
 
 	keymap_file = fopen(keymap_filename, "r");
 	if (keymap_file == NULL)
 	{
-		mame_printf_warning( "Keymap: Unable to open keymap %s, using default\n", keymap_filename);
+		osd_printf_warning( "Keymap: Unable to open keymap %s, using default\n", keymap_filename);
 		return sdl_key_trans_table;
 	}
 
@@ -1256,16 +1273,16 @@ static kt_table * sdlinput_read_keymap(running_machine &machine)
 					//key_trans_table[index][ASCII_KEY] = ak;
 					key_trans_table[index].ui_name = auto_alloc_array(machine, char, strlen(kns)+1);
 					strcpy(key_trans_table[index].ui_name, kns);
-					mame_printf_verbose("Keymap: Mapped <%s> to <%s> with ui-text <%s>\n", sks, mks, kns);
+					osd_printf_verbose("Keymap: Mapped <%s> to <%s> with ui-text <%s>\n", sks, mks, kns);
 				}
 				else
-					mame_printf_warning("Keymap: Error on line %d - %s key not found: %s\n", line, (sk<0) ? "sdl" : "mame", buf);
+					osd_printf_warning("Keymap: Error on line %d - %s key not found: %s\n", line, (sk<0) ? "sdl" : "mame", buf);
 			}
 		}
 		line++;
 	}
 	fclose(keymap_file);
-	mame_printf_verbose("Keymap: Processed %d lines\n", line);
+	osd_printf_verbose("Keymap: Processed %d lines\n", line);
 
 	return key_trans_table;
 }
@@ -1295,7 +1312,7 @@ static void sdlinput_register_keyboards(running_machine &machine)
 		devmap_register(&keyboard_map, physical_keyboard, defname);
 	}
 
-	mame_printf_verbose("Keyboard: Start initialization\n");
+	osd_printf_verbose("Keyboard: Start initialization\n");
 	for (index = 0; index < MAX_DEVMAP_ENTRIES; index++)
 	{
 		device_info *devinfo;
@@ -1321,9 +1338,9 @@ static void sdlinput_register_keyboards(running_machine &machine)
 			devinfo->device->add_item(defname, itemid, generic_button_get_state, &devinfo->keyboard.state[OSD_SDL_INDEX(key_trans_table[keynum].sdl_key)]);
 		}
 
-		mame_printf_verbose("Keyboard: Registered %s\n", devinfo->name);
+		osd_printf_verbose("Keyboard: Registered %s\n", devinfo->name.cstr());
 	}
-	mame_printf_verbose("Keyboard: End initialization\n");
+	osd_printf_verbose("Keyboard: End initialization\n");
 }
 #else
 static void sdlinput_register_keyboards(running_machine &machine)
@@ -1337,12 +1354,12 @@ static void sdlinput_register_keyboards(running_machine &machine)
 
 	keyboard_map.logical[0] = 0;
 
-	mame_printf_verbose("Keyboard: Start initialization\n");
+	osd_printf_verbose("Keyboard: Start initialization\n");
 
 	// SDL 1.2 only has 1 keyboard (1.3+ will have multiple, this must be revisited then)
 	// add it now
 	devinfo = generic_device_alloc(&keyboard_list, "System keyboard");
-	devinfo->device = machine.input().device_class(DEVICE_CLASS_KEYBOARD).add_device(devinfo->name, devinfo);
+	devinfo->device = machine.input().device_class(DEVICE_CLASS_KEYBOARD).add_device(devinfo->name.cstr(), devinfo);
 
 	// populate it
 	for (keynum = 0; sdl_key_trans_table[keynum].mame_key != ITEM_ID_INVALID; keynum++)
@@ -1359,16 +1376,16 @@ static void sdlinput_register_keyboards(running_machine &machine)
 		devinfo->device->add_item(defname, itemid, generic_button_get_state, &devinfo->keyboard.state[OSD_SDL_INDEX(key_trans_table[keynum].sdl_key)]);
 	}
 
-	mame_printf_verbose("Keyboard: Registered %s\n", devinfo->name);
-	mame_printf_verbose("Keyboard: End initialization\n");
+	osd_printf_verbose("Keyboard: Registered %s\n", devinfo->name.cstr());
+	osd_printf_verbose("Keyboard: End initialization\n");
 }
 #endif
 
 //============================================================
-//  sdlinput_init
+//  input_init
 //============================================================
 
-void sdlinput_init(running_machine &machine)
+bool sdl_osd_interface::input_init()
 {
 	keyboard_list = NULL;
 	joystick_list = NULL;
@@ -1377,37 +1394,32 @@ void sdlinput_init(running_machine &machine)
 
 	app_has_mouse_focus = 1;
 
-	// we need pause and exit callbacks
-	machine.add_notifier(MACHINE_NOTIFY_PAUSE, machine_notify_delegate(FUNC(sdlinput_pause), &machine));
-	machine.add_notifier(MACHINE_NOTIFY_RESUME, machine_notify_delegate(FUNC(sdlinput_resume), &machine));
-	machine.add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(sdlinput_exit), &machine));
-
 	// allocate a lock for input synchronizations
 	input_lock = osd_lock_alloc();
 	assert_always(input_lock != NULL, "Failed to allocate input_lock");
 
 	// register the keyboards
-	sdlinput_register_keyboards(machine);
+	sdlinput_register_keyboards(machine());
 
 	// register the mice
-	sdlinput_register_mice(machine);
+	sdlinput_register_mice(machine());
 
 #if (USE_XINPUT)
 	// register the lightguns
-	sdlinput_register_lightguns(machine);
+	sdlinput_register_lightguns(machine());
 #endif
 
-	if (machine.debug_flags & DEBUG_FLAG_OSD_ENABLED)
+	if (machine().debug_flags & DEBUG_FLAG_OSD_ENABLED)
 	{
-		mame_printf_warning("Debug Build: Disabling input grab for -debug\n");
+		osd_printf_warning("Debug Build: Disabling input grab for -debug\n");
 		mouse_enabled = 0;
 	}
 
 	// get Sixaxis special mode info
-	sixaxis_mode = downcast<sdl_options &>(machine.options()).sixaxis();
+	sixaxis_mode = downcast<sdl_options &>(machine().options()).sixaxis();
 
 	// register the joysticks
-	sdlinput_register_joysticks(machine);
+	sdlinput_register_joysticks(machine());
 
 	// now reset all devices
 	device_list_reset_devices(keyboard_list);
@@ -1416,6 +1428,7 @@ void sdlinput_init(running_machine &machine)
 #if (USE_XINPUT)
 	device_list_reset_devices(lightgun_list);
 #endif
+	return true;
 }
 
 
@@ -1423,13 +1436,13 @@ void sdlinput_init(running_machine &machine)
 //  sdlinput_pause
 //============================================================
 
-static void sdlinput_pause(running_machine &machine)
+void sdl_osd_interface::input_pause()
 {
 	// keep track of the paused state
 	input_paused = true;
 }
 
-static void sdlinput_resume(running_machine &machine)
+void sdl_osd_interface::input_resume()
 {
 	// keep track of the paused state
 	input_paused = false;
@@ -1440,14 +1453,14 @@ static void sdlinput_resume(running_machine &machine)
 //  sdlinput_exit
 //============================================================
 
-static void sdlinput_exit(running_machine &machine)
+void sdl_osd_interface::input_exit()
 {
 	// free the lock
 	osd_lock_free(input_lock);
 
 	// deregister
 
-	sdlinput_deregister_joysticks(machine);
+	sdlinput_deregister_joysticks(machine());
 
 	// free all devices
 	device_list_free_devices(&keyboard_list);
@@ -1525,7 +1538,7 @@ INT32 normalize_absolute_axis(INT32 raw, INT32 rawmin, INT32 rawmax)
 //  sdlinput_poll
 //============================================================
 
-#if (SDLMAME_SDL2)
+#if (SDLMAME_SDL2) && (!defined(SDLMAME_EMSCRIPTEN))
 INLINE sdl_window_info * window_from_id(Uint32 windowID)
 {
 	sdl_window_info *w;
@@ -1579,7 +1592,7 @@ void sdlinput_process_events_buf(running_machine &machine)
 			if (event_buf_count < MAX_BUF_EVENTS)
 				event_buf[event_buf_count++] = event;
 			else
-				mame_printf_warning("Event Buffer Overflow!\n");
+				osd_printf_warning("Event Buffer Overflow!\n");
 		}
 		osd_lock_release(input_lock);
 	}
@@ -1740,7 +1753,7 @@ void sdlinput_poll(running_machine &machine)
 		case SDL_KEYDOWN:
 #ifdef SDL2_MULTIAPI
 			devinfo = generic_device_find_index( keyboard_list, keyboard_map.logical[event.key.which]);
-			//printf("Key down %d %d %s => %d %s (scrlock keycode is %d)\n", event.key.which, event.key.keysym.scancode, devinfo->name, OSD_SDL_INDEX_KEYSYM(&event.key.keysym), sdl_key_trans_table[event.key.keysym.scancode].mame_key_name, KEYCODE_SCRLOCK);
+			//printf("Key down %d %d %s => %d %s (scrlock keycode is %d)\n", event.key.which, event.key.keysym.scancode, devinfo->name.cstr(), OSD_SDL_INDEX_KEYSYM(&event.key.keysym), sdl_key_trans_table[event.key.keysym.scancode].mame_key_name, KEYCODE_SCRLOCK);
 #else
 			devinfo = generic_device_find_index( keyboard_list, keyboard_map.logical[0]);
 #endif
@@ -1836,7 +1849,7 @@ void sdlinput_poll(running_machine &machine)
 			devinfo = generic_device_find_index(mouse_list, mouse_map.logical[0]);
 #endif
 			devinfo->mouse.buttons[event.button.button-1] = 0x80;
-			//printf("But down %d %d %d %d %s\n", event.button.which, event.button.button, event.button.x, event.button.y, devinfo->name);
+			//printf("But down %d %d %d %d %s\n", event.button.which, event.button.button, event.button.x, event.button.y, devinfo->name.cstr());
 			if (event.button.button == 1)
 			{
 				// FIXME Move static declaration
@@ -1894,7 +1907,7 @@ void sdlinput_poll(running_machine &machine)
 #endif
 #if (SDLMAME_SDL2)
 			// FIXME: may apply to 1.2 as well ...
-			//printf("Motion %d %d %d %s\n", event.motion.which, event.motion.x, event.motion.y, devinfo->name);
+			//printf("Motion %d %d %d %s\n", event.motion.which, event.motion.x, event.motion.y, devinfo->name.cstr());
 			devinfo->mouse.lX += event.motion.xrel * INPUT_RELATIVE_PER_PIXEL;
 			devinfo->mouse.lY += event.motion.yrel * INPUT_RELATIVE_PER_PIXEL;
 #else
@@ -1915,7 +1928,7 @@ void sdlinput_poll(running_machine &machine)
 			devinfo->joystick.balls[event.jball.ball * 2] = event.jball.xrel * INPUT_RELATIVE_PER_PIXEL;
 			devinfo->joystick.balls[event.jball.ball * 2 + 1] = event.jball.yrel * INPUT_RELATIVE_PER_PIXEL;
 			break;
-#if (!SDLMAME_SDL2)
+#if (!SDLMAME_SDL2) || defined(SDLMAME_EMSCRIPTEN)
 		case SDL_APPMOUSEFOCUS:
 			app_has_mouse_focus = event.active.gain;
 			if (!event.active.gain)
@@ -1992,7 +2005,7 @@ void sdlinput_poll(running_machine &machine)
 #endif
 		}
 	}
-#if (SDLMAME_SDL2)
+#if (SDLMAME_SDL2) && (!defined(SDLMAME_EMSCRIPTEN))
 	resize_all_windows();
 #endif
 }
@@ -2217,20 +2230,13 @@ static device_info *generic_device_alloc(device_info **devlist_head_ptr, const c
 	devinfo->head = devlist_head_ptr;
 
 	// allocate a UTF8 copy of the name
-	devinfo->name = (char *) global_alloc_array(char, strlen(name)+1);
-	if (devinfo->name == NULL)
-		goto error;
-	strcpy(devinfo->name, (char *)name);
+	devinfo->name.cpy(name);
 
 	// append us to the list
 	for (curdev_ptr = devinfo->head; *curdev_ptr != NULL; curdev_ptr = &(*curdev_ptr)->next) ;
 	*curdev_ptr = devinfo;
 
 	return devinfo;
-
-error:
-	global_free(devinfo);
-	return NULL;
 }
 
 
@@ -2246,13 +2252,6 @@ static void generic_device_free(device_info *devinfo)
 	for (curdev_ptr = devinfo->head; *curdev_ptr != devinfo && *curdev_ptr != NULL; curdev_ptr = &(*curdev_ptr)->next) ;
 	if (*curdev_ptr == devinfo)
 		*curdev_ptr = devinfo->next;
-
-	// free the copy of the name if present
-	if (devinfo->name != NULL)
-	{
-		global_free((void *)devinfo->name);
-	}
-	devinfo->name = NULL;
 
 	// and now free the info
 	global_free(devinfo);

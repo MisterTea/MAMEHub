@@ -610,15 +610,15 @@ WRITE8_MEMBER(wgp_state::sound_bankswitch_w)
 WRITE16_MEMBER(wgp_state::wgp_sound_w)
 {
 	if (offset == 0)
-		m_tc0140syt->tc0140syt_port_w(space, 0, data & 0xff);
+		m_tc0140syt->master_port_w(space, 0, data & 0xff);
 	else if (offset == 1)
-		m_tc0140syt->tc0140syt_comm_w(space, 0, data & 0xff);
+		m_tc0140syt->master_comm_w(space, 0, data & 0xff);
 }
 
 READ16_MEMBER(wgp_state::wgp_sound_r)
 {
 	if (offset == 1)
-		return ((m_tc0140syt->tc0140syt_comm_r(space, 0) & 0xff));
+		return ((m_tc0140syt->master_comm_r(space, 0) & 0xff));
 	else
 		return 0;
 }
@@ -644,7 +644,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, wgp_state )
 	AM_RANGE(0x502000, 0x517fff) AM_READWRITE(wgp_pivram_word_r, wgp_pivram_word_w) AM_SHARE("pivram") /* piv tilemaps */
 	AM_RANGE(0x520000, 0x52001f) AM_READWRITE(wgp_piv_ctrl_word_r, wgp_piv_ctrl_word_w) AM_SHARE("piv_ctrlram")
 	AM_RANGE(0x600000, 0x600003) AM_WRITE(rotate_port_w)    /* rotation control ? */
-	AM_RANGE(0x700000, 0x701fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x700000, 0x701fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( cpu2_map, AS_PROGRAM, 16  /* LAN areas not mapped... */, wgp_state )
@@ -667,8 +667,8 @@ static ADDRESS_MAP_START( z80_sound_map, AS_PROGRAM, 8, wgp_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0xc000, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xe003) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
-	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
-	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, slave_port_w)
+	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, slave_comm_r, slave_comm_w)
 	AM_RANGE(0xe400, 0xe403) AM_WRITENOP /* pan */
 	AM_RANGE(0xea00, 0xea00) AM_READNOP
 	AM_RANGE(0xee00, 0xee00) AM_WRITENOP /* ? */
@@ -933,35 +933,6 @@ void wgp_state::machine_start()
 	machine().save().register_postload(save_prepost_delegate(FUNC(wgp_state::wgp_postload), this));
 }
 
-static const tc0100scn_interface wgp_tc0100scn_intf =
-{
-	1, 3,       /* gfxnum, txnum */
-	0, 0,       /* x_offset, y_offset */
-	0, 0,       /* flip_xoff, flip_yoff */
-	0, 0,       /* flip_text_xoff, flip_text_yoff */
-	0, 0
-};
-
-static const tc0100scn_interface wgp2_tc0100scn_intf =
-{
-	1, 3,       /* gfxnum, txnum */
-	4, 2,       /* x_offset, y_offset */
-	0, 0,       /* flip_xoff, flip_yoff */
-	0, 0,       /* flip_text_xoff, flip_text_yoff */
-	0, 0
-};
-
-static const tc0220ioc_interface wgp_io_intf =
-{
-	DEVCB_INPUT_PORT("DSWA"), DEVCB_INPUT_PORT("DSWB"),
-	DEVCB_INPUT_PORT("IN0"), DEVCB_INPUT_PORT("IN1"), DEVCB_INPUT_PORT("IN2")   /* port read handlers */
-};
-
-static const tc0140syt_interface wgp_tc0140syt_intf =
-{
-	"sub", "audiocpu"
-};
-
 static MACHINE_CONFIG_START( wgp, wgp_state )
 
 	/* basic machine hardware */
@@ -979,7 +950,12 @@ static MACHINE_CONFIG_START( wgp, wgp_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(30000))
 
-	MCFG_TC0220IOC_ADD("tc0220ioc", wgp_io_intf)
+	MCFG_DEVICE_ADD("tc0220ioc", TC0220IOC, 0)
+	MCFG_TC0220IOC_READ_0_CB(IOPORT("DSWA"))
+	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
+	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
+	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -988,12 +964,17 @@ static MACHINE_CONFIG_START( wgp, wgp_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 2*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(wgp_state, screen_update_wgp)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(wgp)
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", wgp)
+	MCFG_PALETTE_ADD("palette", 4096)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBxxxx)
 
-
-	MCFG_TC0100SCN_ADD("tc0100scn", wgp_tc0100scn_intf)
+	MCFG_DEVICE_ADD("tc0100scn", TC0100SCN, 0)
+	MCFG_TC0100SCN_GFX_REGION(1)
+	MCFG_TC0100SCN_TX_REGION(3)
+	MCFG_TC0100SCN_GFXDECODE("gfxdecode")
+	MCFG_TC0100SCN_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -1005,7 +986,9 @@ static MACHINE_CONFIG_START( wgp, wgp_state )
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
 	MCFG_SOUND_ROUTE(2, "rspeaker", 1.0)
 
-	MCFG_TC0140SYT_ADD("tc0140syt", wgp_tc0140syt_intf)
+	MCFG_DEVICE_ADD("tc0140syt", TC0140SYT, 0)
+	MCFG_TC0140SYT_MASTER_CPU("sub")
+	MCFG_TC0140SYT_SLAVE_CPU("audiocpu")
 MACHINE_CONFIG_END
 
 
@@ -1015,8 +998,10 @@ static MACHINE_CONFIG_DERIVED( wgp2, wgp )
 	/* video hardware */
 	MCFG_VIDEO_START_OVERRIDE(wgp_state,wgp2)
 
-	MCFG_DEVICE_REMOVE("tc0100scn")
-	MCFG_TC0100SCN_ADD("tc0100scn", wgp2_tc0100scn_intf)
+	MCFG_DEVICE_MODIFY("tc0100scn")
+	MCFG_TC0100SCN_OFFSETS(4, 2)
+	MCFG_TC0100SCN_GFXDECODE("gfxdecode")
+	MCFG_TC0100SCN_PALETTE("palette")
 MACHINE_CONFIG_END
 
 

@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
         Powertran Cortex
@@ -20,8 +22,9 @@
 
 ****************************************************************************/
 
+
 #include "emu.h"
-#include "cpu/tms9900/tms9900l.h"
+#include "cpu/tms9900/tms9995.h"
 #include "video/tms9928a.h"
 
 class cortex_state : public driver_device
@@ -34,7 +37,7 @@ public:
 		{ }
 
 	virtual void machine_reset();
-	required_device<cpu_device> m_maincpu;
+	required_device<tms9995_device> m_maincpu;
 	required_shared_ptr<UINT8> m_p_ram;
 };
 
@@ -69,32 +72,19 @@ void cortex_state::machine_reset()
 {
 	UINT8* ROM = memregion("maincpu")->base();
 	memcpy(m_p_ram, ROM, 0x6000);
-	m_maincpu->reset();
+	m_maincpu->set_ready(ASSERT_LINE);
 }
-
-static const struct tms9995reset_param cortex_processor_config =
-{
-	0,  /* disable automatic wait state generation */
-	0,  /* no IDLE callback */
-	0   /* no MP9537 mask */
-};
-
-static TMS9928A_INTERFACE(cortex_tms9929a_interface)
-{
-	0x4000,     // vram size
-	DEVCB_NULL  // write line if int changes
-};
 
 static MACHINE_CONFIG_START( cortex, cortex_state )
 	/* basic machine hardware */
 	/* TMS9995 CPU @ 12.0 MHz */
-	MCFG_CPU_ADD("maincpu", TMS9995L, 12000000)
-	MCFG_CPU_CONFIG(cortex_processor_config)
-	MCFG_CPU_PROGRAM_MAP(cortex_mem)
-	MCFG_CPU_IO_MAP(cortex_io)
+	// Standard variant, no overflow int
+	// No lines connected yet
+	MCFG_TMS99xx_ADD("maincpu", TMS9995, 12000000, cortex_mem, cortex_io)
 
 	/* video hardware */
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9929A, cortex_tms9929a_interface )
+	MCFG_DEVICE_ADD( "tms9928a", TMS9929A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
 	MCFG_TMS9928A_SCREEN_ADD_PAL( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9928a_device, screen_update )
 MACHINE_CONFIG_END

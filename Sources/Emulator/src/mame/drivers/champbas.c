@@ -619,11 +619,12 @@ static MACHINE_CONFIG_START( talbot, champbas_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(champbas_state, screen_update_champbas)
 	MCFG_SCREEN_VBLANK_DRIVER(champbas_state, screen_eof_champbas)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(talbot)
-	MCFG_PALETTE_LENGTH(0x200)
-
-	MCFG_PALETTE_INIT_OVERRIDE(champbas_state,champbas)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", talbot)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(champbas_state,champbas)
 	MCFG_VIDEO_START_OVERRIDE(champbas_state,champbas)
 
 	/* sound hardware */
@@ -654,11 +655,12 @@ static MACHINE_CONFIG_START( champbas, champbas_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(champbas_state, screen_update_champbas)
 	MCFG_SCREEN_VBLANK_DRIVER(champbas_state, screen_eof_champbas)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(champbas)
-	MCFG_PALETTE_LENGTH(0x200)
-
-	MCFG_PALETTE_INIT_OVERRIDE(champbas_state,champbas)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", champbas)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(champbas_state,champbas)
 	MCFG_VIDEO_START_OVERRIDE(champbas_state,champbas)
 
 	/* sound hardware */
@@ -711,11 +713,12 @@ static MACHINE_CONFIG_START( exctsccr, champbas_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(champbas_state, screen_update_exctsccr)
 	MCFG_SCREEN_VBLANK_DRIVER(champbas_state, screen_eof_champbas)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(exctsccr)
-	MCFG_PALETTE_LENGTH(0x200)
-
-	MCFG_PALETTE_INIT_OVERRIDE(champbas_state,exctsccr)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", exctsccr)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(champbas_state,exctsccr)
 	MCFG_VIDEO_START_OVERRIDE(champbas_state,exctsccr)
 
 	/* sound hardware */
@@ -762,11 +765,12 @@ static MACHINE_CONFIG_START( exctsccrb, champbas_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(champbas_state, screen_update_exctsccr)
 	MCFG_SCREEN_VBLANK_DRIVER(champbas_state, screen_eof_champbas)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(exctsccr)
-	MCFG_PALETTE_LENGTH(0x200)
-
-	MCFG_PALETTE_INIT_OVERRIDE(champbas_state,exctsccr)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", exctsccr)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(champbas_state,exctsccr)
 	MCFG_VIDEO_START_OVERRIDE(champbas_state,exctsccr)
 
 	/* sound hardware */

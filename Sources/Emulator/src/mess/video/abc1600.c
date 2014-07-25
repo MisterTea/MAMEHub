@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /**********************************************************************
 
     Luxor ABC 1600 Mover emulation
@@ -12,7 +14,6 @@
     TODO:
 
     - portrait/landscape detection is broken
-    - bottom border is not respected
 
 */
 
@@ -46,11 +47,6 @@
 #define HOLD_FX     BIT(m_flag, 5)
 #define COMP_MOVE   BIT(m_flag, 6)
 #define REPLACE     BIT(m_flag, 7)
-
-
-// image position
-#define HFP         96
-#define VFP         23
 
 
 
@@ -131,7 +127,7 @@ const rom_entry *abc1600_mover_device::device_rom_region() const
 
 
 //-------------------------------------------------
-//  mc6845_interface crtc_intf
+//  mc6845
 //-------------------------------------------------
 
 inline UINT16 abc1600_mover_device::get_crtca(UINT16 ma, UINT8 ra, UINT8 column)
@@ -165,11 +161,10 @@ inline UINT16 abc1600_mover_device::get_crtca(UINT16 ma, UINT8 ra, UINT8 column)
 	return (cr << 10) | ((ra & 0x0f) << 6) | ((cc << 1) & 0x3c);
 }
 
-void abc1600_mover_device::crtc_update_row(device_t *device, bitmap_rgb32 &bitmap, const rectangle &cliprect, UINT16 ma, UINT8 ra, UINT16 y, UINT8 x_count, INT8 cursor_x, void *param)
+MC6845_UPDATE_ROW(abc1600_mover_device::crtc_update_row)
 {
-	if (y > 0x3ff) return;
-
-	int x = HFP;
+	int x = 0;
+	const pen_t *pen = m_palette->pens();
 
 	for (int column = 0; column < x_count; column += 2)
 	{
@@ -182,9 +177,9 @@ void abc1600_mover_device::crtc_update_row(device_t *device, bitmap_rgb32 &bitma
 
 			for (int bit = 0; bit < 16; bit++)
 			{
-				int color = (BIT(data, 15) ^ PIX_POL) && !BLANK;
+				int color = ((BIT(data, 15) ^ PIX_POL) && !BLANK) && de;
 
-				bitmap.pix32(y + VFP, x++) = RGB_MONOCHROME_GREEN[color];
+				bitmap.pix32(vbp + y, hbp + x++) = pen[color];
 
 				data <<= 1;
 			}
@@ -192,30 +187,9 @@ void abc1600_mover_device::crtc_update_row(device_t *device, bitmap_rgb32 &bitma
 	}
 }
 
-static MC6845_UPDATE_ROW( abc1600_update_row )
-{
-	abc1600_mover_device *mover = downcast<abc1600_mover_device *>(device->owner());
-	mover->crtc_update_row(device, bitmap, cliprect, ma, ra, y, x_count, cursor_x, param);
-}
-
-static MC6845_ON_UPDATE_ADDR_CHANGED( crtc_update )
+MC6845_ON_UPDATE_ADDR_CHANGED( abc1600_mover_device::crtc_update )
 {
 }
-
-static MC6845_INTERFACE( crtc_intf )
-{
-	true,
-	32,
-	NULL,
-	abc1600_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	crtc_update
-};
-
 
 //-------------------------------------------------
 //  MACHINE_CONFIG_FRAGMENT( abc1600_mover )
@@ -231,7 +205,13 @@ static MACHINE_CONFIG_FRAGMENT( abc1600_mover )
 	MCFG_SCREEN_SIZE(958, 1067)
 	MCFG_SCREEN_VISIBLE_AREA(0, 958-1, 0, 1067-1)
 
-	MCFG_MC6845_ADD(SY6845E_TAG, SY6845E, SCREEN_TAG, XTAL_64MHz/32, crtc_intf)
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN("palette")
+
+	MCFG_MC6845_ADD(SY6845E_TAG, SY6845E, SCREEN_TAG, XTAL_64MHz/32)
+	MCFG_MC6845_SHOW_BORDER_AREA(true)
+	MCFG_MC6845_CHAR_WIDTH(32)
+	MCFG_MC6845_UPDATE_ROW_CB(abc1600_mover_device, crtc_update_row)
+	MCFG_MC6845_ADDR_CHANGED_CB(abc1600_mover_device, crtc_update)
 MACHINE_CONFIG_END
 
 
@@ -255,14 +235,15 @@ machine_config_constructor abc1600_mover_device::device_mconfig_additions() cons
 //  abc1600_mover_device - constructor
 //-------------------------------------------------
 
-abc1600_mover_device::abc1600_mover_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, ABC1600_MOVER, "ABC 1600 Mover", tag, owner, clock, "abc1600mover", __FILE__),
-		device_memory_interface(mconfig, *this),
-		m_space_config("vram", ENDIANNESS_BIG, 16, 18, -1, *ADDRESS_MAP_NAME(mover_map)),
-		m_crtc(*this, SY6845E_TAG),
-		m_wrmsk_rom(*this, "wrmsk"),
-		m_shinf_rom(*this, "shinf"),
-		m_drmsk_rom(*this, "drmsk")
+abc1600_mover_device::abc1600_mover_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+	device_t(mconfig, ABC1600_MOVER, "ABC 1600 Mover", tag, owner, clock, "abc1600mover", __FILE__),
+	device_memory_interface(mconfig, *this),
+	m_space_config("vram", ENDIANNESS_BIG, 16, 18, -1, *ADDRESS_MAP_NAME(mover_map)),
+	m_crtc(*this, SY6845E_TAG),
+	m_palette(*this, "palette"),
+	m_wrmsk_rom(*this, "wrmsk"),
+	m_shinf_rom(*this, "shinf"),
+	m_drmsk_rom(*this, "drmsk")
 {
 }
 
@@ -1281,12 +1262,12 @@ UINT32 abc1600_mover_device::screen_update(screen_device &screen, bitmap_rgb32 &
 {
 	if (m_endisp)
 	{
-		bitmap.fill(RGB_MONOCHROME_GREEN[FRAME_POL], cliprect);
+		bitmap.fill(m_palette->pen(FRAME_POL), cliprect);
 		m_crtc->screen_update(screen, bitmap, cliprect);
 	}
 	else
 	{
-		bitmap.fill(RGB_BLACK, cliprect);
+		bitmap.fill(rgb_t::black, cliprect);
 	}
 
 	return 0;

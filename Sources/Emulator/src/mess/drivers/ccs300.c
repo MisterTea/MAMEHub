@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
         CCS Model 300
@@ -21,15 +23,17 @@ There's unknown usage of ports 11 thru 1B, 34, and F0 thru F2.
 #include "cpu/z80/z80.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class ccs300_state : public driver_device
 {
 public:
 	ccs300_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_maincpu(*this, "maincpu")
-		, m_terminal(*this, TERMINAL_TAG)
-	{ }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
 	DECLARE_DRIVER_INIT(ccs300);
 	DECLARE_MACHINE_RESET(ccs300);
@@ -89,11 +93,6 @@ WRITE8_MEMBER( ccs300_state::kbd_put )
 	m_term_data = data;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(ccs300_state, kbd_put)
-};
-
 //*************************************
 //
 //  Machine
@@ -127,7 +126,8 @@ static MACHINE_CONFIG_START( ccs300, ccs300_state )
 	MCFG_MACHINE_RESET_OVERRIDE(ccs300_state, ccs300)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(ccs300_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

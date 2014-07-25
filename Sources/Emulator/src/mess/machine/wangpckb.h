@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 	/**********************************************************************
 
 	Wang PC keyboard emulation
@@ -34,6 +36,8 @@
 #define MCFG_WANGPC_KEYBOARD_ADD() \
 	MCFG_DEVICE_ADD(WANGPC_KEYBOARD_TAG, WANGPC_KEYBOARD, 0)
 
+#define MCFG_WANGPCKB_TXD_HANDLER(_devcb) \
+	devcb = &wangpc_keyboard_device::set_txd_handler(*device, DEVCB_##_devcb);
 
 
 //**************************************************************************
@@ -49,10 +53,14 @@ public:
 	// construction/destruction
 	wangpc_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
+	template<class _Object> static devcb_base &set_txd_handler(device_t &device, _Object object) { return downcast<wangpc_keyboard_device &>(device).m_txd_handler.set_callback(object); }
+
 	// optional information overrides
 	virtual const rom_entry *device_rom_region() const;
 	virtual machine_config_constructor device_mconfig_additions() const;
 	virtual ioport_constructor device_input_ports() const;
+
+	DECLARE_WRITE_LINE_MEMBER( write_rxd );
 
 	// not really public
 	DECLARE_READ8_MEMBER( kb_p1_r );
@@ -69,7 +77,6 @@ protected:
 	virtual void device_reset();
 
 	// device_serial_interface overrides
-	virtual void input_callback(UINT8 state);
 
 private:
 	required_device<i8051_device> m_maincpu;
@@ -89,6 +96,7 @@ private:
 	required_ioport m_yd;
 	required_ioport m_ye;
 	required_ioport m_yf;
+	devcb_write_line m_txd_handler;
 
 	UINT8 m_y;
 };

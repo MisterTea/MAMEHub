@@ -36,15 +36,25 @@ const device_type CRT5037 = &device_creator<crt5037_device>;
 const device_type CRT5057 = &device_creator<crt5057_device>;
 
 tms9927_device::tms9927_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-				: device_t(mconfig, TMS9927, "TMS9927", tag, owner, clock, "tms9927", __FILE__),
-					device_video_interface(mconfig, *this)
+				: device_t(mconfig, TMS9927, "TMS9927 VTC", tag, owner, clock, "tms9927", __FILE__),
+					device_video_interface(mconfig, *this),
+					m_write_vsyn(*this),
+					m_hpixels_per_column(0),
+					m_selfload_region(NULL),
+					m_reset(0)
 {
+	memset(m_reg, 0x00, sizeof(m_reg));
 }
 
 tms9927_device::tms9927_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
 				: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-					device_video_interface(mconfig, *this)
+					device_video_interface(mconfig, *this),
+					m_write_vsyn(*this),
+					m_hpixels_per_column(0),
+					m_selfload_region(NULL),
+					m_reset(0)
 {
+	memset(m_reg, 0x00, sizeof(m_reg));
 }
 
 crt5027_device::crt5027_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
@@ -64,22 +74,6 @@ crt5057_device::crt5057_device(const machine_config &mconfig, const char *tag, d
 
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void tms9927_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const tms9927_interface *intf = reinterpret_cast<const tms9927_interface *>(static_config());
-
-	assert(intf != NULL);
-
-	*static_cast<tms9927_interface *>(this) = *intf;
-}
-
-//-------------------------------------------------
 //  device_start - device-specific startup
 //-------------------------------------------------
 
@@ -97,6 +91,12 @@ void tms9927_device::device_start()
 		m_selfload = machine().root_device().memregion(m_selfload_region)->base();
 		assert(m_selfload != NULL);
 	}
+
+	// resolve callbacks
+	m_write_vsyn.resolve_safe();
+
+	// allocate timers
+	m_vsync_timer = timer_alloc(TIMER_VSYNC);
 
 	/* register for state saving */
 	machine().save().register_postload(save_prepost_delegate(FUNC(tms9927_device::state_postload), this));
@@ -120,7 +120,7 @@ void tms9927_device::device_reset()
 
 void tms9927_device::device_stop()
 {
-	mame_printf_debug("TMS9937: Final params: (%d, %d, %d, %d, %d, %d, %d)\n",
+	osd_printf_debug("TMS9937: Final params: (%d, %d, %d, %d, %d, %d, %d)\n",
 						m_clock,
 						m_total_hpix,
 						0, m_visible_hpix,
@@ -130,6 +130,30 @@ void tms9927_device::device_stop()
 
 
 
+//-------------------------------------------------
+//  device_timer - handle timer events
+//-------------------------------------------------
+
+void tms9927_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_VSYNC:
+		m_vsyn = !m_vsyn;
+
+		m_write_vsyn(m_vsyn);
+
+		if (m_vsyn)
+		{
+			m_vsync_timer->adjust(m_screen->time_until_pos(3));
+		}
+		else
+		{
+			m_vsync_timer->adjust(m_screen->time_until_pos(0));
+		}
+		break;
+	}
+}
 
 void tms9927_device::state_postload()
 {
@@ -167,7 +191,7 @@ void tms9927_device::generic_access(address_space &space, offs_t offset)
 			break;
 
 		case 0x0b:  /* Up scroll */
-mame_printf_debug("Up scroll\n");
+osd_printf_debug("Up scroll\n");
 			m_screen->update_now();
 			m_start_datarow = (m_start_datarow + 1) % DATA_ROWS_PER_FRAME;
 			break;
@@ -201,7 +225,7 @@ WRITE8_MEMBER( tms9927_device::write )
 
 		case 0x0c:  /* LOAD CURSOR CHARACTER ADDRESS */
 		case 0x0d:  /* LOAD CURSOR ROW ADDRESS */
-mame_printf_debug("Cursor address changed\n");
+osd_printf_debug("Cursor address changed\n");
 			m_reg[offset - 0x0c + 7] = data;
 			recompute_parameters(FALSE);
 			break;
@@ -276,7 +300,7 @@ void tms9927_device::recompute_parameters(int postload)
 	offset_hpix = HSYNC_DELAY * m_hpixels_per_column;
 	offset_vpix = VERTICAL_DATA_START;
 
-	mame_printf_debug("TMS9937: Total = %dx%d, Visible = %dx%d, Offset=%dx%d, Skew=%d\n", m_total_hpix, m_total_vpix, m_visible_hpix, m_visible_vpix, offset_hpix, offset_vpix, SKEW_BITS);
+	osd_printf_debug("TMS9937: Total = %dx%d, Visible = %dx%d, Offset=%dx%d, Skew=%d\n", m_total_hpix, m_total_vpix, m_visible_hpix, m_visible_vpix, offset_hpix, offset_vpix, SKEW_BITS);
 
 	/* see if it all makes sense */
 	m_valid_config = TRUE;
@@ -297,4 +321,7 @@ void tms9927_device::recompute_parameters(int postload)
 	refresh = HZ_TO_ATTOSECONDS(m_clock) * m_total_hpix * m_total_vpix;
 
 	m_screen->configure(m_total_hpix, m_total_vpix, visarea, refresh);
+
+	m_vsyn = 0;
+	m_vsync_timer->adjust(m_screen->time_until_pos(0, 0));
 }

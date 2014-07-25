@@ -73,15 +73,6 @@ static ADDRESS_MAP_START( orionpro_io , AS_IO, 8, orion_state )
 	AM_RANGE( 0x0000, 0xffff) AM_READWRITE(orionpro_io_r, orionpro_io_w )
 ADDRESS_MAP_END
 
-static const cassette_interface orion_cassette_interface =
-{
-	rko_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED),
-	"orion_cass",
-	NULL
-};
-
 FLOPPY_FORMATS_MEMBER( orion_state::orion_floppy_formats )
 	FLOPPY_SMX_FORMAT
 FLOPPY_FORMATS_END
@@ -99,9 +90,16 @@ static MACHINE_CONFIG_START( orion128, orion_state )
 	MCFG_MACHINE_START_OVERRIDE(orion_state, orion128 )
 	MCFG_MACHINE_RESET_OVERRIDE(orion_state, orion128 )
 
-	MCFG_I8255A_ADD( "ppi8255_1", orion128_ppi8255_interface_1 )
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(orion_state, orion_romdisk_porta_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(orion_state, orion_romdisk_portb_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(orion_state, orion_romdisk_portc_w))
 
-	MCFG_I8255A_ADD( "ppi8255_2", radio86_ppi8255_interface_1 )
+	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(radio86_state, radio86_8255_porta_w2))
+	MCFG_I8255_IN_PORTB_CB(READ8(radio86_state, radio86_8255_portb_r2))
+	MCFG_I8255_IN_PORTC_CB(READ8(radio86_state, radio86_8255_portc_r2))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(radio86_state, radio86_8255_portc_w2))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -110,9 +108,10 @@ static MACHINE_CONFIG_START( orion128, orion_state )
 	MCFG_SCREEN_SIZE(384, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 384-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(orion_state, screen_update_orion128)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(18)
-	MCFG_PALETTE_INIT_OVERRIDE(orion_state, orion128 )
+	MCFG_PALETTE_ADD("palette", 18)
+	MCFG_PALETTE_INIT_OWNER(orion_state, orion128 )
 
 	MCFG_VIDEO_START_OVERRIDE(orion_state,orion128)
 
@@ -120,7 +119,11 @@ static MACHINE_CONFIG_START( orion128, orion_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( "cassette", orion_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(rko_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
+	MCFG_CASSETTE_INTERFACE("orion_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","orion_cass")
 
 	MCFG_FD1793x_ADD("fd1793", XTAL_8MHz / 8)
@@ -143,15 +146,13 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( orion128ms, orion128 )
 	MCFG_DEVICE_REMOVE("ppi8255_2")
-	MCFG_I8255A_ADD( "ppi8255_2", rk7007_ppi8255_interface )
+	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(radio86_state, radio86_8255_porta_w2))
+	MCFG_I8255_IN_PORTB_CB(READ8(radio86_state, radio86_8255_portb_r2))
+	MCFG_I8255_IN_PORTC_CB(READ8(radio86_state, rk7007_8255_portc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(radio86_state, radio86_8255_portc_w2))
 MACHINE_CONFIG_END
 
-static const ay8910_interface orionz80_ay_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL
-};
 
 static MACHINE_CONFIG_START( orionz80, orion_state )
 	MCFG_CPU_ADD("maincpu", Z80, 2500000)
@@ -162,9 +163,16 @@ static MACHINE_CONFIG_START( orionz80, orion_state )
 	MCFG_MACHINE_START_OVERRIDE(orion_state, orionz80 )
 	MCFG_MACHINE_RESET_OVERRIDE(orion_state, orionz80 )
 
-	MCFG_I8255A_ADD( "ppi8255_1", orion128_ppi8255_interface_1 )
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(orion_state, orion_romdisk_porta_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(orion_state, orion_romdisk_portb_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(orion_state, orion_romdisk_portc_w))
 
-	MCFG_I8255A_ADD( "ppi8255_2", radio86_ppi8255_interface_1 )
+	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(radio86_state, radio86_8255_porta_w2))
+	MCFG_I8255_IN_PORTB_CB(READ8(radio86_state, radio86_8255_portb_r2))
+	MCFG_I8255_IN_PORTC_CB(READ8(radio86_state, radio86_8255_portc_r2))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(radio86_state, radio86_8255_portc_w2))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -173,13 +181,14 @@ static MACHINE_CONFIG_START( orionz80, orion_state )
 	MCFG_SCREEN_SIZE(384, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 384-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(orion_state, screen_update_orion128)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(18)
-	MCFG_PALETTE_INIT_OVERRIDE(orion_state, orion128 )
+	MCFG_PALETTE_ADD("palette", 18)
+	MCFG_PALETTE_INIT_OWNER(orion_state, orion128 )
 
 	MCFG_VIDEO_START_OVERRIDE(orion_state,orion128)
 
-	MCFG_MC146818_ADD( "rtc", MC146818_IGNORE_CENTURY )
+	MCFG_MC146818_ADD( "rtc", XTAL_4_194304Mhz )
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
@@ -187,10 +196,13 @@ static MACHINE_CONFIG_START( orionz80, orion_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("ay8912", AY8912, 1773400)
-	MCFG_SOUND_CONFIG(orionz80_ay_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
-	MCFG_CASSETTE_ADD( "cassette", orion_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(rko_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
+	MCFG_CASSETTE_INTERFACE("orion_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","orion_cass")
 
 	MCFG_FD1793x_ADD("fd1793", XTAL_8MHz / 8)
@@ -214,7 +226,11 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( orionz80ms, orionz80 )
 
 	MCFG_DEVICE_REMOVE("ppi8255_2")
-	MCFG_I8255A_ADD( "ppi8255_2", rk7007_ppi8255_interface )
+	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(radio86_state, radio86_8255_porta_w2))
+	MCFG_I8255_IN_PORTB_CB(READ8(radio86_state, radio86_8255_portb_r2))
+	MCFG_I8255_IN_PORTC_CB(READ8(radio86_state, rk7007_8255_portc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(radio86_state, radio86_8255_portc_w2))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( orionpro, orion_state )
@@ -224,9 +240,16 @@ static MACHINE_CONFIG_START( orionpro, orion_state )
 
 	MCFG_MACHINE_RESET_OVERRIDE(orion_state, orionpro )
 
-	MCFG_I8255A_ADD( "ppi8255_1", orion128_ppi8255_interface_1 )
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(orion_state, orion_romdisk_porta_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(orion_state, orion_romdisk_portb_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(orion_state, orion_romdisk_portc_w))
 
-	MCFG_I8255A_ADD( "ppi8255_2", radio86_ppi8255_interface_1 )
+	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(radio86_state, radio86_8255_porta_w2))
+	MCFG_I8255_IN_PORTB_CB(READ8(radio86_state, radio86_8255_portb_r2))
+	MCFG_I8255_IN_PORTC_CB(READ8(radio86_state, radio86_8255_portc_r2))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(radio86_state, radio86_8255_portc_w2))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -235,9 +258,10 @@ static MACHINE_CONFIG_START( orionpro, orion_state )
 	MCFG_SCREEN_SIZE(384, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 384-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(orion_state, screen_update_orion128)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(18)
-	MCFG_PALETTE_INIT_OVERRIDE(orion_state, orion128 )
+	MCFG_PALETTE_ADD("palette", 18)
+	MCFG_PALETTE_INIT_OWNER(orion_state, orion128 )
 
 	MCFG_VIDEO_START_OVERRIDE(orion_state,orion128)
 
@@ -247,10 +271,13 @@ static MACHINE_CONFIG_START( orionpro, orion_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("ay8912", AY8912, 1773400)
-	MCFG_SOUND_CONFIG(orionz80_ay_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
-	MCFG_CASSETTE_ADD( "cassette", orion_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(rko_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
+	MCFG_CASSETTE_INTERFACE("orion_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","orion_cass")
 
 	MCFG_FD1793x_ADD("fd1793", XTAL_8MHz / 8)

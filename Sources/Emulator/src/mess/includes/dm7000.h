@@ -5,15 +5,19 @@
 #include "cpu/powerpc/ppc.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
+
 class dm7000_state : public driver_device
 {
 public:
 	dm7000_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
-		m_terminal(*this, TERMINAL_TAG)     { }
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
-	required_device<cpu_device> m_maincpu;
+	required_device<ppc4xx_device> m_maincpu;
 	required_device<generic_terminal_device> m_terminal;
 
 	DECLARE_WRITE8_MEMBER ( dm7000_iic0_w );
@@ -37,12 +41,17 @@ public:
 
 	DECLARE_WRITE16_MEMBER ( dm7000_enet_w );
 	DECLARE_READ16_MEMBER ( dm7000_enet_r );
+
+	DECLARE_READ32_MEMBER( dcr_r );
+	DECLARE_WRITE32_MEMBER( dcr_w );
+
+
 	UINT16          m_enet_regs[32];
 
 	UINT32          dcr[1024];
 	virtual void machine_reset();
 	virtual void video_start();
-	UINT32 screen_update_dm7000(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	UINT32 screen_update_dm7000(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 };
 
 /* */

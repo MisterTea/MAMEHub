@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*********************************************************************
 
     dvwpoints.c
 
     Watchpoint debugger view.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -92,11 +63,11 @@ void debug_view_watchpoints::enumerate_sources()
 	{
 		astring name;
 		name.printf("%s '%s'", dasm->device().name(), dasm->device().tag());
-		m_source_list.append(*auto_alloc(machine(), debug_view_source(name.cstr(), &dasm->device())));
+		m_source_list.append(*global_alloc(debug_view_source(name.cstr(), &dasm->device())));
 	}
 
 	// reset the source to a known good entry
-	set_source(*m_source_list.head());
+	set_source(*m_source_list.first());
 }
 
 
@@ -328,7 +299,7 @@ int debug_view_watchpoints::watchpoints(SortMode sort, device_debug::watchpoint*
 	// Alloc
 	int numWPs = 0;
 	wpList = NULL;
-	for (const debug_view_source *source = m_source_list.head(); source != NULL; source = source->next())
+	for (const debug_view_source *source = m_source_list.first(); source != NULL; source = source->next())
 	{
 		for (address_spacenum spacenum = AS_0; spacenum < ADDRESS_SPACES; spacenum++)
 		{
@@ -341,7 +312,7 @@ int debug_view_watchpoints::watchpoints(SortMode sort, device_debug::watchpoint*
 	wpList = new device_debug::watchpoint*[numWPs];
 
 	int wpAddIndex = 0;
-	for (const debug_view_source *source = m_source_list.head(); source != NULL; source = source->next())
+	for (const debug_view_source *source = m_source_list.first(); source != NULL; source = source->next())
 	{
 		// Collect
 		for (address_spacenum spacenum = AS_0; spacenum < ADDRESS_SPACES; spacenum++)

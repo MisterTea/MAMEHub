@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari System 1 hardware
@@ -606,7 +608,7 @@ int atarisy1_state::get_bank(UINT8 prom1, UINT8 prom2, int bpp)
 
 	/* don't have one? let's make it ... first find any empty slot */
 	for (gfx_index = 0; gfx_index < MAX_GFX_ELEMENTS; gfx_index++)
-		if (machine().gfx[gfx_index] == NULL)
+		if (m_gfxdecode->gfx(gfx_index) == NULL)
 			break;
 	assert(gfx_index != MAX_GFX_ELEMENTS);
 
@@ -615,15 +617,15 @@ int atarisy1_state::get_bank(UINT8 prom1, UINT8 prom2, int bpp)
 	switch (bpp)
 	{
 	case 4:
-		machine().gfx[gfx_index] = auto_alloc(machine(), gfx_element(machine(), objlayout_4bpp, srcdata, 0x40, 256));
+		m_gfxdecode->set_gfx(gfx_index,global_alloc(gfx_element(m_palette, objlayout_4bpp, srcdata, 0, 0x40, 256)));
 		break;
 
 	case 5:
-		machine().gfx[gfx_index] = auto_alloc(machine(), gfx_element(machine(), objlayout_5bpp, srcdata, 0x40, 256));
+		m_gfxdecode->set_gfx(gfx_index,global_alloc(gfx_element(m_palette, objlayout_5bpp, srcdata, 0, 0x40, 256)));
 		break;
 
 	case 6:
-		machine().gfx[gfx_index] = auto_alloc(machine(), gfx_element(machine(), objlayout_6bpp, srcdata, 0x40, 256));
+		m_gfxdecode->set_gfx(gfx_index,global_alloc(gfx_element(m_palette, objlayout_6bpp, srcdata, 0, 0x40, 256)));
 		break;
 
 	default:
@@ -631,7 +633,7 @@ int atarisy1_state::get_bank(UINT8 prom1, UINT8 prom2, int bpp)
 	}
 
 	/* set the color information */
-	machine().gfx[gfx_index]->set_granularity(8);
+	m_gfxdecode->gfx(gfx_index)->set_granularity(8);
 	m_bank_color_shift[gfx_index] = bpp - 3;
 
 	/* set the entry and return it */

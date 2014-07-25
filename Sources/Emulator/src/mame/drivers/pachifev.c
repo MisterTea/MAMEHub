@@ -78,7 +78,7 @@ Stephh's notes (based on the game TMS9995 code and some tests) :
 ***********************************************************************************************************/
 
 #include "emu.h"
-#include "cpu/tms9900/tms9900l.h"
+#include "cpu/tms9900/tms9995.h"
 #include "video/tms9928a.h"
 #include "sound/msm5205.h"
 #include "sound/sn76496.h"
@@ -249,23 +249,6 @@ static INPUT_PORTS_START( pachifev )
 INPUT_PORTS_END
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 #if USE_MSM
 
 
@@ -303,6 +286,10 @@ static const msm5205_interface msm5205_config =
 
 void pachifev_state::machine_reset()
 {
+	// Pulling down the line on RESET configures the CPU to insert one wait
+	// state on external memory accesses
+	static_cast<tms9995_device*>(machine().device("maincpu"))->set_ready(CLEAR_LINE);
+
 	m_power=0;
 	m_max_power=0;
 	m_input_power=0;
@@ -346,12 +333,6 @@ INTERRUPT_GEN_MEMBER(pachifev_state::pachifev_vblank_irq)
 
 }
 
-static TMS9928A_INTERFACE(pachifev_tms9928a_interface)
-{
-	0x4000,
-	DEVCB_NULL
-};
-
 void pachifev_state::machine_start()
 {
 	save_item(NAME(m_power));
@@ -361,23 +342,15 @@ void pachifev_state::machine_start()
 	save_item(NAME(m_cnt));
 }
 
-static const struct tms9995reset_param pachifev_processor_config =
-{
-	1,0,0
-};
-
 static MACHINE_CONFIG_START( pachifev, pachifev_state )
 
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", TMS9995L, XTAL_12MHz)
-	MCFG_CPU_CONFIG(pachifev_processor_config)
-	MCFG_CPU_PROGRAM_MAP(pachifev_map)
-	MCFG_CPU_IO_MAP(pachifev_cru)
+	// CPU TMS9995, standard variant; no line connections
+	MCFG_TMS99xx_ADD("maincpu", TMS9995, XTAL_12MHz, pachifev_map, pachifev_cru)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", pachifev_state, pachifev_vblank_irq)
 
-
 	/* video hardware */
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9928A, pachifev_tms9928a_interface )
+	MCFG_DEVICE_ADD( "tms9928a", TMS9928A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
 	MCFG_TMS9928A_SCREEN_ADD_NTSC( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9928a_device, screen_update )
 
@@ -390,10 +363,8 @@ static MACHINE_CONFIG_START( pachifev, pachifev_state )
 #endif
 	MCFG_SOUND_ADD("y2404_1", Y2404, XTAL_10_738635MHz/3) /* guess */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
-	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ADD("y2404_2", Y2404, XTAL_10_738635MHz/3) /* guess */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 ROM_START( pachifev )

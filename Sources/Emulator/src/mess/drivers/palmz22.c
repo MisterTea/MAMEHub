@@ -76,12 +76,13 @@ class palmz22_state : public driver_device
 public:
 	palmz22_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu")
+			m_maincpu(*this, "maincpu"),
+			m_s3c2410(*this, "s3c2410")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 
-	device_t *m_s3c2410;
+	required_device<s3c2410_device> m_s3c2410;
 	nand_device *m_nand;
 
 	UINT32 m_port[8];
@@ -89,7 +90,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	DECLARE_INPUT_CHANGED_MEMBER(palmz22_input_changed);
-	inline void ATTR_PRINTF(3,4) verboselog( int n_level, const char *s_fmt, ...);
+	inline void verboselog(int n_level, const char *s_fmt, ...) ATTR_PRINTF(3,4);
 	DECLARE_WRITE8_MEMBER( s3c2410_nand_command_w );
 	DECLARE_WRITE8_MEMBER( s3c2410_nand_address_w );
 	DECLARE_READ8_MEMBER( s3c2410_nand_data_r );
@@ -102,7 +103,7 @@ public:
 };
 
 
-inline void ATTR_PRINTF(3,4) palmz22_state::verboselog( int n_level, const char *s_fmt, ...)
+inline void palmz22_state::verboselog(int n_level, const char *s_fmt, ...)
 {
 	if (VERBOSE_LEVEL >= n_level)
 	{
@@ -236,11 +237,11 @@ INPUT_CHANGED_MEMBER(palmz22_state::palmz22_input_changed)
 {
 	if (param == 0)
 	{
-		s3c2410_touch_screen( m_s3c2410, (newval & 0x01) ? 1 : 0);
+		m_s3c2410->s3c2410_touch_screen( (newval & 0x01) ? 1 : 0);
 	}
 	else
 	{
-		s3c2410_request_eint( m_s3c2410, (FPTR)param - 1);
+		m_s3c2410->s3c2410_request_eint( (FPTR)param - 1);
 	}
 }
 
@@ -248,7 +249,6 @@ INPUT_CHANGED_MEMBER(palmz22_state::palmz22_input_changed)
 
 void palmz22_state::machine_start()
 {
-	m_s3c2410 = machine().device( "s3c2410");
 	m_nand = machine().device<nand_device>("nand");
 	m_nand->set_data_ptr( memregion("nand")->base());
 }
@@ -275,35 +275,11 @@ DRIVER_INIT_MEMBER(palmz22_state,palmz22)
 {
 }
 
-static S3C2410_INTERFACE( palmz22_s3c2410_intf )
-{
-	// CORE (pin read / pin write)
-	{ DEVCB_DRIVER_MEMBER32(palmz22_state,s3c2410_core_pin_r), DEVCB_NULL },
-	// GPIO (port read / port write)
-	{ DEVCB_DRIVER_MEMBER32(palmz22_state,s3c2410_gpio_port_r), DEVCB_DRIVER_MEMBER32(palmz22_state,s3c2410_gpio_port_w)},
-	// I2C (scl write / sda read / sda write)
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	// ADC (data read)
-	{ DEVCB_DRIVER_MEMBER32(palmz22_state,s3c2410_adc_data_r) },
-	// I2S (data write)
-	{ DEVCB_NULL },
-	// NAND (command write / address write / data read / data write)
-	{ DEVCB_DRIVER_MEMBER(palmz22_state,s3c2410_nand_command_w), DEVCB_DRIVER_MEMBER(palmz22_state,s3c2410_nand_address_w), DEVCB_DRIVER_MEMBER(palmz22_state,s3c2410_nand_data_r), DEVCB_DRIVER_MEMBER(palmz22_state,s3c2410_nand_data_w) },
-	// LCD (flags)
-	{ 0 }
-};
-
-static NAND_INTERFACE( palmz22_nand_intf )
-{
-	NAND_CHIP_K9F5608U0D_J,
-	DEVCB_DEVICE_LINE( "s3c2410", s3c2410_pin_frnb_w)
-};
-
 static MACHINE_CONFIG_START( palmz22, palmz22_state )
 	MCFG_CPU_ADD("maincpu", ARM920T, 266000000)
 	MCFG_CPU_PROGRAM_MAP(palmz22_map)
 
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD("palette", 32768)
 
 	MCFG_SCREEN_ADD("screen", LCD)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -314,10 +290,20 @@ static MACHINE_CONFIG_START( palmz22, palmz22_state )
 
 	MCFG_SCREEN_UPDATE_DEVICE("s3c2410", s3c2410_device, screen_update)
 
+	MCFG_DEVICE_ADD("s3c2410", S3C2410, 12000000)
+	MCFG_S3C2410_PALETTE("palette")
+	MCFG_S3C2410_CORE_PIN_R_CB(READ32(palmz22_state, s3c2410_core_pin_r))
+	MCFG_S3C2410_GPIO_PORT_R_CB(READ32(palmz22_state, s3c2410_gpio_port_r))
+	MCFG_S3C2410_GPIO_PORT_W_CB(WRITE32(palmz22_state, s3c2410_gpio_port_w))
+	MCFG_S3C2410_ADC_DATA_R_CB(READ32(palmz22_state, s3c2410_adc_data_r))
+	MCFG_S3C2410_NAND_COMMAND_W_CB(WRITE8(palmz22_state, s3c2410_nand_command_w))
+	MCFG_S3C2410_NAND_ADDRESS_W_CB(WRITE8(palmz22_state, s3c2410_nand_address_w))
+	MCFG_S3C2410_NAND_DATA_R_CB(READ8(palmz22_state, s3c2410_nand_data_r))
+	MCFG_S3C2410_NAND_DATA_W_CB(WRITE8(palmz22_state, s3c2410_nand_data_w))
 
-	MCFG_S3C2410_ADD("s3c2410", 12000000, palmz22_s3c2410_intf)
-
-	MCFG_NAND_ADD("nand", palmz22_nand_intf)
+	MCFG_DEVICE_ADD("nand", NAND, 0)
+	MCFG_NAND_TYPE(NAND_CHIP_K9F5608U0D_J)
+	MCFG_NAND_RNB_CALLBACK(DEVWRITELINE("s3c2410", s3c2410_device, frnb_w))
 MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( palmz22 )

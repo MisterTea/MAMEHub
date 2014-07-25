@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
     Jade JGZ80 Single board computer on a S100 card.
@@ -6,6 +8,9 @@
 
     No info found as yet.
 
+    It takes about 8 seconds to start up.
+    Type HE to get a list of commands.
+
 ****************************************************************************/
 
 #include "emu.h"
@@ -13,16 +18,18 @@
 #include "machine/i8251.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class jade_state : public driver_device
 {
 public:
 	jade_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_maincpu(*this, "maincpu")
-		, m_terminal(*this, TERMINAL_TAG)
-		, m_uart(*this, "uart")
-	{ }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG),
+		m_uart(*this, "uart")
+	{
+	}
 
 	DECLARE_WRITE8_MEMBER(kbd_put);
 	DECLARE_READ8_MEMBER(keyin_r);
@@ -73,24 +80,6 @@ WRITE8_MEMBER( jade_state::kbd_put )
 	m_term_data = data;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(jade_state, kbd_put)
-};
-
-static const i8251_interface uart_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 void jade_state::machine_reset()
 {
 	m_term_data = 0;
@@ -103,10 +92,11 @@ static MACHINE_CONFIG_START( jade, jade_state )
 	MCFG_CPU_IO_MAP(jade_io)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(jade_state, kbd_put))
 
 	/* Devices */
-	MCFG_I8251_ADD("uart", uart_intf)
+	MCFG_DEVICE_ADD("uart", I8251, 0)
 MACHINE_CONFIG_END
 
 /* ROM definition */

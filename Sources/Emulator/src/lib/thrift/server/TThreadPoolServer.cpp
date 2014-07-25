@@ -17,9 +17,7 @@
  * under the License.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <thrift_config.h>
-#endif
 
 #include <thrift/server/TThreadPoolServer.h>
 #include <thrift/transport/TTransportException.h>

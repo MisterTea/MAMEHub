@@ -24,9 +24,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/weak_ptr.hpp>
 
-#ifdef HAVE_CONFIG_H
 #include <thrift_config.h>
-#endif
 
 #ifdef USE_BOOST_THREAD
 #include <boost/thread.hpp>

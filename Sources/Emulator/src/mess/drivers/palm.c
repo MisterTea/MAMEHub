@@ -156,8 +156,8 @@ void palm_state::machine_reset()
 /* THIS IS PRETTY MUCH TOTALLY WRONG AND DOESN'T REFLECT THE MC68328'S INTERNAL FUNCTIONALITY AT ALL! */
 PALETTE_INIT_MEMBER(palm_state, palm)
 {
-	palette_set_color_rgb(machine(), 0, 0x7b, 0x8c, 0x5a);
-	palette_set_color_rgb(machine(), 1, 0x00, 0x00, 0x00);
+	palette.set_pen_color(0, 0x7b, 0x8c, 0x5a);
+	palette.set_pen_color(1, 0x00, 0x00, 0x00);
 }
 
 
@@ -185,57 +185,25 @@ WRITE8_MEMBER(palm_state::palm_dac_transition)
     MACHINE DRIVERS
 ***************************************************************************/
 
-
-static MC68328_INTERFACE(palm_dragonball_iface)
-{
-	"maincpu",
-
-	DEVCB_NULL,                   // Port A Output
-	DEVCB_NULL,                   // Port B Output
-	DEVCB_NULL,                   // Port C Output
-	DEVCB_NULL,                   // Port D Output
-	DEVCB_NULL,                   // Port E Output
-	DEVCB_DRIVER_MEMBER(palm_state,palm_port_f_out),// Port F Output
-	DEVCB_NULL,                   // Port G Output
-	DEVCB_NULL,                   // Port J Output
-	DEVCB_NULL,                   // Port K Output
-	DEVCB_NULL,                   // Port M Output
-
-	DEVCB_NULL,                   // Port A Input
-	DEVCB_NULL,                   // Port B Input
-	DEVCB_DRIVER_MEMBER(palm_state,palm_port_c_in),// Port C Input
-	DEVCB_NULL,                   // Port D Input
-	DEVCB_NULL,                   // Port E Input
-	DEVCB_DRIVER_MEMBER(palm_state,palm_port_f_in),// Port F Input
-	DEVCB_NULL,                   // Port G Input
-	DEVCB_NULL,                   // Port J Input
-	DEVCB_NULL,                   // Port K Input
-	DEVCB_NULL,                   // Port M Input
-
-	DEVCB_DRIVER_MEMBER(palm_state,palm_dac_transition),
-
-	DEVCB_DRIVER_MEMBER16(palm_state,palm_spim_out),
-	DEVCB_DRIVER_MEMBER16(palm_state,palm_spim_in),
-	DEVCB_DRIVER_LINE_MEMBER(palm_state, palm_spim_exchange)
-};
-
-
 static MACHINE_CONFIG_START( palm, palm_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD( "maincpu", M68000, 32768*506 )        /* 16.580608 MHz */
 	MCFG_CPU_PROGRAM_MAP( palm_map)
+
+	MCFG_QUANTUM_TIME( attotime::from_hz(60) )
+
 	MCFG_SCREEN_ADD( "screen", RASTER )
 	MCFG_SCREEN_REFRESH_RATE( 60 )
 	MCFG_SCREEN_VBLANK_TIME( ATTOSECONDS_IN_USEC(1260) )
-	MCFG_QUANTUM_TIME( attotime::from_hz(60) )
-
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES( VIDEO_UPDATE_BEFORE_VBLANK )
+	MCFG_SCREEN_VIDEO_ATTRIBUTES( VIDEO_UPDATE_BEFORE_VBLANK )
 	MCFG_SCREEN_SIZE( 160, 220 )
 	MCFG_SCREEN_VISIBLE_AREA( 0, 159, 0, 219 )
 	MCFG_SCREEN_UPDATE_DEVICE(MC68328_TAG, mc68328_device, screen_update)
-	MCFG_PALETTE_LENGTH( 2 )
-	MCFG_PALETTE_INIT_OVERRIDE(palm_state, palm)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD( "palette", 2 )
+	MCFG_PALETTE_INIT_OWNER(palm_state, palm)
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 
 	/* audio hardware */
@@ -243,7 +211,15 @@ static MACHINE_CONFIG_START( palm, palm_state )
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
-	MCFG_MC68328_ADD( MC68328_TAG, palm_dragonball_iface ) // lsi device
+	MCFG_DEVICE_ADD( MC68328_TAG, MC68328, 0 ) // lsi device
+	MCFG_MC68328_CPU("maincpu")
+	MCFG_MC68328_OUT_PORT_F_CB(WRITE8(palm_state, palm_port_f_out)) // Port F Output
+	MCFG_MC68328_IN_PORT_C_CB(READ8(palm_state, palm_port_c_in)) // Port C Input
+	MCFG_MC68328_IN_PORT_F_CB(READ8(palm_state, palm_port_f_in)) // Port F Input
+	MCFG_MC68328_OUT_PWM_CB(WRITE8(palm_state, palm_dac_transition))
+	MCFG_MC68328_OUT_SPIM_CB(WRITE16(palm_state, palm_spim_out))
+	MCFG_MC68328_IN_SPIM_CB(READ16(palm_state, palm_spim_in))
+	MCFG_MC68328_SPIM_XCH_TRIGGER_CB(WRITELINE(palm_state, palm_spim_exchange))
 MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( palm )

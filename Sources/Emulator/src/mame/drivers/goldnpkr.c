@@ -985,6 +985,13 @@
   - Added technical notes.
 
 
+  [2014-02-23]
+
+  - Added a new Videotron set with cards selector.
+  - Mundial/Mondial (Italian/French): Implemented the program banking
+     properly. Now you can choose the program through a DIP switch.
+
+
   TODO:
 
   - Missing PIA connections.
@@ -1021,7 +1028,9 @@ public:
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_maincpu(*this, "maincpu"),
-		m_discrete(*this, "discrete") { }
+		m_discrete(*this, "discrete"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -1065,17 +1074,20 @@ public:
 	DECLARE_DRIVER_INIT(vkdlswwr);
 	DECLARE_DRIVER_INIT(vkdlswwv);
 	DECLARE_DRIVER_INIT(bchancep);
-	DECLARE_DRIVER_INIT(mondial);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	TILE_GET_INFO_MEMBER(wcrdxtnd_get_bg_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(goldnpkr);
 	DECLARE_PALETTE_INIT(witchcrd);
 	DECLARE_VIDEO_START(wcrdxtnd);
 	DECLARE_PALETTE_INIT(wcrdxtnd);
+	DECLARE_MACHINE_START(mondial);
+	DECLARE_MACHINE_RESET(mondial);
 	UINT32 screen_update_goldnpkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	optional_device<discrete_device> m_discrete;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -1134,12 +1146,12 @@ TILE_GET_INFO_MEMBER(goldnpkr_state::wcrdxtnd_get_bg_tile_info)
 
 void goldnpkr_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(goldnpkr_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(goldnpkr_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 VIDEO_START_MEMBER(goldnpkr_state,wcrdxtnd)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(goldnpkr_state::wcrdxtnd_get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(goldnpkr_state::wcrdxtnd_get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 UINT32 goldnpkr_state::screen_update_goldnpkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -1148,7 +1160,7 @@ UINT32 goldnpkr_state::screen_update_goldnpkr(screen_device &screen, bitmap_ind1
 	return 0;
 }
 
-void goldnpkr_state::palette_init()
+PALETTE_INIT_MEMBER(goldnpkr_state, goldnpkr)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 /*  prom bits
@@ -1164,7 +1176,7 @@ void goldnpkr_state::palette_init()
 	/* 0000IBGR */
 	if (color_prom == 0) return;
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < palette.entries();i++)
 	{
 		int bit0, bit1, bit2, r, g, b, inten, intenmin, intenmax;
 
@@ -1188,7 +1200,7 @@ void goldnpkr_state::palette_init()
 		b = (bit2 * intenmin) + (inten * (bit2 * (intenmax - intenmin)));
 
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -1216,7 +1228,7 @@ PALETTE_INIT_MEMBER(goldnpkr_state,witchcrd)
 
 	if (color_prom == 0) return;
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < palette.entries();i++)
 	{
 		int bit0, bit1, bit2, bit3, r, g, b, bk;
 
@@ -1236,7 +1248,7 @@ PALETTE_INIT_MEMBER(goldnpkr_state,witchcrd)
 		bit2 = (color_prom[i] >> 2) & 0x01;
 		b = bk * (bit2 * 0xff);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -1260,7 +1272,7 @@ PALETTE_INIT_MEMBER(goldnpkr_state,wcrdxtnd)
 
 	if (color_prom == 0) return;
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < palette.entries();i++)
 	{
 		int bit0, bit1, bit2, bit3, r, g, b, bk;
 
@@ -1282,7 +1294,7 @@ PALETTE_INIT_MEMBER(goldnpkr_state,wcrdxtnd)
 		//if ((b == 0) & (bk = 1))   --> needs better implementation
 		//  b = 0x3f;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -1402,36 +1414,36 @@ WRITE8_MEMBER(goldnpkr_state::wcfalcon_snd_w)
   7654 3210
   ---- ---x  Bet Lamp.
   ---- --x-  Deal Lamp.
-  ---- -x--  Holds+Cancel Lamps.
+  ---- -x--  Holds + Cancel Lamps.
   ---- x---  Take Lamp.
 
 */
-
 WRITE8_MEMBER(goldnpkr_state::lamps_a_w)
 {
-	output_set_lamp_value(0, 1 - ((data) & 1));         /* Lamp 0 */
-	output_set_lamp_value(1, 1 - ((data >> 1) & 1));    /* Lamp 1 */
-	output_set_lamp_value(2, 1 - ((data >> 2) & 1));    /* Lamp 2 */
-	output_set_lamp_value(3, 1 - ((data >> 3) & 1));    /* Lamp 3 */
-	output_set_lamp_value(4, 1 - ((data >> 4) & 1));    /* Lamp 4 */
+/***** General Lamps and Counters wiring *****
+
+  7654 3210
+  ---- ---x  Bet lamp.
+  ---- --x-  Deal lamp.
+  ---- -x--  Holds + Cancel lamps.
+  ---- x---  Double Up & Take lamps. (Coin In counter (inverted) for witchcrd, bsuerte and sloco93 sets)
+  ---x ----  Big & Small lamps.
+  --x- ----  Coin Out counter. Inverted for witchcrd, bsuerte and sloco93 sets.
+  -x-- ----  Coin In counter.
+  x--- ----  Note In counter (only goldnpkr).
+
+*/
+	data = data ^ 0xff;
+
+	output_set_lamp_value(0, (data) & 1);         /* Lamp 0 */
+	output_set_lamp_value(1, (data >> 1) & 1);    /* Lamp 1 */
+	output_set_lamp_value(2, (data >> 2) & 1);    /* Lamp 2 */
+	output_set_lamp_value(3, (data >> 3) & 1);    /* Lamp 3 */
+	output_set_lamp_value(4, (data >> 4) & 1);    /* Lamp 4 */
 
 	coin_counter_w(machine(), 0, data & 0x40);  /* counter1 */
 	coin_counter_w(machine(), 1, data & 0x80);  /* counter2 */
 	coin_counter_w(machine(), 2, data & 0x20);  /* counter3 */
-
-//  popmessage("written : %02X", (0xff - data));
-
-/*  Counters:
-
-    bit 5 = Coin out
-    bit 6 = Coin counter
-    bit 7 = Note counter (only goldnpkr use it)
-
-    ONLY for witchcrd, bsuerte and sloco93 sets:
-
-    bit3 = Coin counter (inverted).
-    bit5 = Coin out (inverted).
-*/
 }
 
 WRITE8_MEMBER(goldnpkr_state::sound_w)
@@ -1440,8 +1452,8 @@ WRITE8_MEMBER(goldnpkr_state::sound_w)
 	logerror("Sound Data: %2x\n",data & 0x0f);
 
 	/* discrete sound is connected to PIA1, portA: bits 0-3 */
-	discrete_sound_w(m_discrete, space, NODE_01, data >> 3 & 0x01);
-	discrete_sound_w(m_discrete, space, NODE_10, data & 0x07);
+	m_discrete->write(space, NODE_01, data >> 3 & 0x01);
+	m_discrete->write(space, NODE_10, data & 0x07);
 }
 
 WRITE8_MEMBER(goldnpkr_state::pia0_a_w)
@@ -3397,6 +3409,9 @@ static INPUT_PORTS_START( mondial )
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
+	/* the following one is connected to DIP switches and is meant
+	for switch between different programs stored in different
+	halves of the program ROM */
 	PORT_START("SELDSW")
 	PORT_DIPNAME( 0x01, 0x00, "Game Selector" )
 	PORT_DIPSETTING(    0x00, "Game 1 (Italian" )
@@ -3510,150 +3525,6 @@ static GFXDECODE_START( wcrdxtnd )
 	GFXDECODE_ENTRY( "gfx14", 0, tilelayout, 0, 16 )
 	GFXDECODE_ENTRY( "gfx15", 0, tilelayout, 0, 16 )
 GFXDECODE_END
-
-/*******************************************
-*              PIA Interfaces              *
-*******************************************/
-
-/***** Golden Poker Double Up *****/
-
-static const pia6821_interface goldnpkr_pia0_intf =
-{
-	DEVCB_DRIVER_MEMBER(goldnpkr_state,goldnpkr_mux_port_r),        /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_NULL,     /* port A out */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state,lamps_a_w),      /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-static const pia6821_interface goldnpkr_pia1_intf =
-{
-	DEVCB_INPUT_PORT("SW1"),        /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state,sound_w),        /* port A out */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state,mux_w),      /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-/***** Jack Potten's Poker & Witch Card *****/
-
-static const pia6821_interface pottnpkr_pia0_intf =
-{
-	DEVCB_DRIVER_MEMBER(goldnpkr_state,pottnpkr_mux_port_r),        /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state,mux_port_w),     /* port A out */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state,lamps_a_w),      /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-/***** Witch Card (Falcon) *****/
-
-static const pia6821_interface wcfalcon_pia0_intf =
-{
-	DEVCB_DRIVER_MEMBER(goldnpkr_state,pottnpkr_mux_port_r),        /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state,mux_port_w),     /* port A out */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state,lamps_a_w),      /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-static const pia6821_interface wcfalcon_pia1_intf =
-{
-	DEVCB_INPUT_PORT("SW1"),        /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state,wcfalcon_snd_w), /* port A out, custom handler due to address + data are muxed */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state,mux_w),      /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-/***** Bonne Chance! *****/
-
-static const pia6821_interface bchancep_pia0_intf =
-{
-	DEVCB_DRIVER_MEMBER(goldnpkr_state, pia0_a_r),      /* port A in */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state, pia0_b_r),      /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state, pia0_a_w),      /* port A out */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state, pia0_b_w),      /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-static const pia6821_interface bchancep_pia1_intf =
-{
-	DEVCB_DRIVER_MEMBER(goldnpkr_state, pia1_a_r),      /* port A in */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state, pia1_b_r),      /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state, pia1_a_w),      /* port A out */
-	DEVCB_DRIVER_MEMBER(goldnpkr_state, pia1_b_w),      /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-
-/*******************************************
-*              CRTC Interface              *
-*******************************************/
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
 
 /**********************************************************
 *                 Discrete Sound Routines                 *
@@ -3791,20 +3662,23 @@ static DISCRETE_SOUND_START( pottnpkr )
 DISCRETE_SOUND_END
 
 
-/*******************************************
-*          Other Sound Interfaces          *
-*******************************************/
+/******************************************
+*          Machine Start & Reset          *
+******************************************/
 
-static const ay8910_interface ay8910_config =
+MACHINE_START_MEMBER(goldnpkr_state, mondial)
 {
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 2, &ROM[0], 0x4000);
+}
 
+MACHINE_RESET_MEMBER(goldnpkr_state, mondial)
+{
+	UINT8 seldsw = (ioport("SELDSW")->read() );
+	popmessage("ROM Bank: %02X", seldsw);
+
+	membank("bank1")->set_entry(seldsw);
+}
 
 /*********************************************
 *              Machine Drivers               *
@@ -3819,8 +3693,14 @@ static MACHINE_CONFIG_START( goldnpkr_base, goldnpkr_state )
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_PIA6821_ADD("pia0", goldnpkr_pia0_intf)
-	MCFG_PIA6821_ADD("pia1", goldnpkr_pia1_intf)
+	MCFG_DEVICE_ADD("pia0", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(goldnpkr_state, goldnpkr_mux_port_r))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(goldnpkr_state, lamps_a_w))
+
+	MCFG_DEVICE_ADD("pia1", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(IOPORT("SW1"))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(goldnpkr_state, sound_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(goldnpkr_state, mux_w))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -3829,11 +3709,15 @@ static MACHINE_CONFIG_START( goldnpkr_base, goldnpkr_state )
 	MCFG_SCREEN_SIZE((39+1)*8, (31+1)*8)                  /* From MC6845 init, registers 00 & 04 (programmed with value-1). */
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 29*8-1)    /* From MC6845 init, registers 01 & 06. */
 	MCFG_SCREEN_UPDATE_DRIVER(goldnpkr_state, screen_update_goldnpkr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", CPU_CLOCK, mc6845_intf) /* 68B45 or 6845s @ CPU clock */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", CPU_CLOCK) /* 68B45 or 6845s @ CPU clock */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
-	MCFG_GFXDECODE(goldnpkr)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", goldnpkr)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(goldnpkr_state, goldnpkr)
 MACHINE_CONFIG_END
 
 
@@ -3853,7 +3737,9 @@ static MACHINE_CONFIG_DERIVED( pottnpkr, goldnpkr_base )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(pottnpkr_map)
 
-	MCFG_PIA6821_MODIFY("pia0", pottnpkr_pia0_intf)
+	MCFG_DEVICE_MODIFY("pia0")
+	MCFG_PIA_READPA_HANDLER(READ8(goldnpkr_state, pottnpkr_mux_port_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(goldnpkr_state, mux_port_w))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -3869,10 +3755,13 @@ static MACHINE_CONFIG_DERIVED( witchcrd, goldnpkr_base )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(witchcrd_map)
 
-	MCFG_PIA6821_MODIFY("pia0", pottnpkr_pia0_intf)
+	MCFG_DEVICE_MODIFY("pia0")
+	MCFG_PIA_READPA_HANDLER(READ8(goldnpkr_state, pottnpkr_mux_port_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(goldnpkr_state, mux_port_w))
 
 	/* video hardware */
-	MCFG_PALETTE_INIT_OVERRIDE(goldnpkr_state,witchcrd)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(goldnpkr_state,witchcrd)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -3888,16 +3777,19 @@ static MACHINE_CONFIG_DERIVED( wcfalcon, goldnpkr_base )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(witchcrd_falcon_map)
 
-	MCFG_PIA6821_MODIFY("pia0", wcfalcon_pia0_intf)
-	MCFG_PIA6821_MODIFY("pia1", wcfalcon_pia1_intf)
+	MCFG_DEVICE_MODIFY("pia0")
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(goldnpkr_state, mux_port_w))
+
+	MCFG_DEVICE_MODIFY("pia1")
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(goldnpkr_state, wcfalcon_snd_w)) /* port A out, custom handler due to address + data are muxed */
 
 	/* video hardware */
-	MCFG_PALETTE_INIT_OVERRIDE(goldnpkr_state,witchcrd)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(goldnpkr_state,witchcrd)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ay8910", AY8910, MASTER_CLOCK/4)    /* guess, seems ok */
-	MCFG_SOUND_CONFIG(ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 MACHINE_CONFIG_END
 
@@ -3908,11 +3800,14 @@ static MACHINE_CONFIG_DERIVED( wildcard, goldnpkr_base )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(wildcard_map)
 
-	MCFG_PIA6821_MODIFY("pia0", pottnpkr_pia0_intf)
+	MCFG_DEVICE_MODIFY("pia0")
+	MCFG_PIA_READPA_HANDLER(READ8(goldnpkr_state, pottnpkr_mux_port_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(goldnpkr_state, mux_port_w))
 
 	/* video hardware */
-//  MCFG_GFXDECODE(wildcard)
-	MCFG_PALETTE_INIT_OVERRIDE(goldnpkr_state,witchcrd)
+//  MCFG_GFXDECODE_MODIFY("gfxdecode", wildcard)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(goldnpkr_state,witchcrd)
 //  MCFG_VIDEO_START_OVERRIDE(goldnpkr_state,wildcard)
 
 	/* sound hardware */
@@ -3929,11 +3824,14 @@ static MACHINE_CONFIG_DERIVED( wcrdxtnd, goldnpkr_base )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(wcrdxtnd_map)
 
-	MCFG_PIA6821_MODIFY("pia0", pottnpkr_pia0_intf)
+	MCFG_DEVICE_MODIFY("pia0")
+	MCFG_PIA_READPA_HANDLER(READ8(goldnpkr_state, pottnpkr_mux_port_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(goldnpkr_state, mux_port_w))
 
 	/* video hardware */
-	MCFG_GFXDECODE(wcrdxtnd)
-	MCFG_PALETTE_INIT_OVERRIDE(goldnpkr_state,wcrdxtnd)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", wcrdxtnd)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(goldnpkr_state,wcrdxtnd)
 	MCFG_VIDEO_START_OVERRIDE(goldnpkr_state,wcrdxtnd)
 
 	/* sound hardware */
@@ -3954,18 +3852,21 @@ static MACHINE_CONFIG_DERIVED( wildcrdb, goldnpkr_base )
 	MCFG_CPU_PROGRAM_MAP(wildcrdb_mcu_map)
 	MCFG_CPU_IO_MAP(wildcrdb_mcu_io_map)
 
-	MCFG_PIA6821_MODIFY("pia0", wcfalcon_pia0_intf)
-	MCFG_PIA6821_MODIFY("pia1", wcfalcon_pia1_intf)
+	MCFG_DEVICE_MODIFY("pia0")
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(goldnpkr_state, mux_port_w))
+
+	MCFG_DEVICE_MODIFY("pia1")
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(goldnpkr_state, wcfalcon_snd_w))
 
 	/* video hardware */
-//  MCFG_GFXDECODE(wildcard)
-	MCFG_PALETTE_INIT_OVERRIDE(goldnpkr_state,witchcrd)
+//  MCFG_GFXDECODE_MODIFY("gfxdecode", wildcard)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(goldnpkr_state,witchcrd)
 //  MCFG_VIDEO_START_OVERRIDE(goldnpkr_state,wildcard)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ay8910", AY8910, MASTER_CLOCK/4)    /* guess, seems ok */
-	MCFG_SOUND_CONFIG(ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 MACHINE_CONFIG_END
 
@@ -3976,10 +3877,13 @@ static MACHINE_CONFIG_DERIVED( genie, goldnpkr_base )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(genie_map)
 
-	MCFG_PIA6821_MODIFY("pia0", pottnpkr_pia0_intf)
+	MCFG_DEVICE_MODIFY("pia0")
+	MCFG_PIA_READPA_HANDLER(READ8(goldnpkr_state, pottnpkr_mux_port_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(goldnpkr_state, mux_port_w))
 
 	/* video hardware */
-	MCFG_PALETTE_INIT_OVERRIDE(goldnpkr_state,witchcrd)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(goldnpkr_state,witchcrd)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -3995,6 +3899,9 @@ static MACHINE_CONFIG_DERIVED( mondial, goldnpkr_base )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(mondial_map)
 
+	MCFG_MACHINE_START_OVERRIDE(goldnpkr_state, mondial)
+	MCFG_MACHINE_RESET_OVERRIDE(goldnpkr_state, mondial)
+
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
@@ -4008,8 +3915,17 @@ static MACHINE_CONFIG_DERIVED( bchancep, goldnpkr_base )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(bchancep_map)
 
-	MCFG_PIA6821_MODIFY("pia0", bchancep_pia0_intf)
-	MCFG_PIA6821_MODIFY("pia1", bchancep_pia1_intf)
+	MCFG_DEVICE_MODIFY("pia0")
+	MCFG_PIA_READPA_HANDLER(READ8(goldnpkr_state, pia0_a_r))
+	MCFG_PIA_READPB_HANDLER(READ8(goldnpkr_state, pia0_b_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(goldnpkr_state, pia0_a_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(goldnpkr_state, pia0_b_w))
+
+	MCFG_DEVICE_MODIFY("pia1")
+	MCFG_PIA_READPA_HANDLER(READ8(goldnpkr_state, pia1_a_r))
+	MCFG_PIA_READPB_HANDLER(READ8(goldnpkr_state, pia1_b_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(goldnpkr_state, pia1_a_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(goldnpkr_state, pia1_b_w))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -4082,6 +3998,25 @@ ROM_START( videtron )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "4.bin", 0x4000, 0x2000, CRC(0f00f87d) SHA1(3cd061463b0ed52cef88900f1d4511708588bfac) )
 	ROM_LOAD( "5.bin", 0x6000, 0x2000, CRC(395fbc5c) SHA1(f742d7a9312828997a4323ac2b957048687fbed2) )
+
+	ROM_REGION( 0x3000, "gfx1", 0 )
+	ROM_FILL(          0x0000, 0x2000, 0 ) /* filling the R-G bitplanes */
+	ROM_LOAD( "3.bin", 0x2000, 0x0800, CRC(23e83e89) SHA1(0c6352d46e3dfe176b0e970dd163e2bc01246890) )    /* text layer */
+
+	ROM_REGION( 0x1800, "gfx2", 0 )
+	ROM_LOAD( "0.bin", 0x0000, 0x0800, CRC(1f41c541) SHA1(00df5079193f78db0617a6b8a613d8a0616fc8e9) )    /* cards deck gfx, bitplane1 */
+	ROM_LOAD( "1.bin", 0x0800, 0x0800, CRC(6bbb1e2d) SHA1(51ee282219bf84218886ad11a24bc6a8e7337527) )    /* cards deck gfx, bitplane2 */
+	ROM_LOAD( "2.bin", 0x1000, 0x0800, CRC(6e3e9b1d) SHA1(14eb8d14ce16719a6ad7d13db01e47c8f05955f0) )    /* cards deck gfx, bitplane3 */
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "82s129.bin", 0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) )
+ROM_END
+
+ROM_START( videtron2 )
+	ROM_REGION( 0x10000, "maincpu", 0 ) /* different from videtron */
+	ROM_LOAD( "4.bin(__videtron2)", 0x5000, 0x1000, CRC(4a7dab42) SHA1(7fcdab985b783d90879a99b2a53a6814ca4278eb) )
+	ROM_LOAD( "5.bin(__videtron2)", 0x6000, 0x1000, CRC(c70e8127) SHA1(7db2d4a29cba7c336f254393955fad71f30a539a) )
+	ROM_LOAD( "6.bin", 0x7000, 0x1000, CRC(490c7304) SHA1(1a6c6112571fd0e35b640ed58f66582a2d99c58b) )
 
 	ROM_REGION( 0x3000, "gfx1", 0 )
 	ROM_FILL(          0x0000, 0x2000, 0 ) /* filling the R-G bitplanes */
@@ -4391,7 +4326,7 @@ ROM_START( ngoldb )
 
 	ROM_REGION( 0x1800, "gfx1", 0 )
 	ROM_FILL(           0x0000, 0x1000, 0 ) /* filling the R-G bitplanes */
-	ROM_LOAD( "0.bin",  0x1000, 0x0800, BAD_DUMP CRC(396ac32f) SHA1(14106f4c8765abd0192342de930b1f6656adb1b2) )    /* char ROM. need to be redumped */
+	ROM_LOAD( "0(__baddump).bin",  0x1000, 0x0800, BAD_DUMP CRC(396ac32f) SHA1(14106f4c8765abd0192342de930b1f6656adb1b2) )    /* char ROM. need to be redumped */
 
 	ROM_REGION( 0x1800, "gfx2", 0 )
 	ROM_LOAD( "7.bin",  0x0000, 0x0800, CRC(f2f94661) SHA1(f37f7c0dff680fd02897dae64e13e297d0fdb3e7) )    /* cards deck gfx, bitplane1 */
@@ -9765,8 +9700,8 @@ ROM_END
 */
 
 ROM_START( pokermon )
-	ROM_REGION( 0x18000, "maincpu", 0 ) /* using 1st bank program */
-	ROM_LOAD( "mbv_bi.bin",      0x10000, 0x8000, CRC(da00e08a) SHA1(98e52915178e29ab3ae674e6b895da14626d3dd8) )
+	ROM_REGION( 0x10000, "maincpu", 0 ) /* 2 programs, selectable via DIP switch */
+	ROM_LOAD( "mbv_bi.bin",      0x0000, 0x8000, CRC(da00e08a) SHA1(98e52915178e29ab3ae674e6b895da14626d3dd8) )
 
 	ROM_REGION( 0x18000, "gfx", 0 )
 	ROM_LOAD( "1m.bin",  0x00000, 0x4000, CRC(1b9e73ef) SHA1(fc9b67ab4c233a7e8ec8dc799732884f74166db0) )
@@ -9784,6 +9719,28 @@ ROM_START( pokermon )
 
 	ROM_REGION( 0x0100, "proms", 0 )
 	ROM_LOAD( "mb.bin",  0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) )
+ROM_END
+
+ROM_START( pokersis )
+	ROM_REGION( 0x10000, "maincpu", 0 ) /* seems  to contains 4 selectable programs, but vectors lack of sense */
+	ROM_LOAD( "gsub1.bin",      0x0000, 0x10000, CRC(d585dd64) SHA1(acc371aa8c6c9d1ae784e62eae9c90fd05fad0fc) )
+
+	ROM_REGION( 0x18000, "gfx", 0 )
+	ROM_LOAD( "gs1.bin",  0x00000, 0x8000, CRC(47834a0b) SHA1(5fbc7443fe22ebb35a2449647259dc06420ba3fd) )
+	ROM_LOAD( "gs2.bin",  0x08000, 0x8000, CRC(e882a2cc) SHA1(97819db7cef02a60ed689bb8c0c074807c08dc40) )
+	ROM_LOAD( "gs3.bin",  0x10000, 0x8000, CRC(12c37991) SHA1(e63a0504e697daddcdfcf90b2a136c4180a431a7) )
+
+	ROM_REGION( 0x1800, "gfx1", 0 )
+	ROM_FILL(                 0x0000, 0x1000, 0 )   /* filling the R-G bitplanes */
+	ROM_COPY( "gfx", 0x14800, 0x1000, 0x0800 )      /* text and suppossed 1bpp gfx */
+
+	ROM_REGION( 0x1800, "gfx2", 0 )
+	ROM_COPY( "gfx", 0x04000, 0x0000, 0x0800 )  /* cards gfx, bitplane 1 */
+	ROM_COPY( "gfx", 0x0c000, 0x0800, 0x0800 )  /* cards gfx, bitplane 2 */
+	ROM_COPY( "gfx", 0x14000, 0x1000, 0x0800 )  /* cards gfx, bitplane 3 */
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "n82s129n.bin",  0x0000, 0x0100, CRC(7f31066b) SHA1(15420780ec6b2870fc4539ec3afe4f0c58eedf12) )
 ROM_END
 
 
@@ -10202,22 +10159,7 @@ DRIVER_INIT_MEMBER(goldnpkr_state, bchancep)
 	{
 		ROM[i] = ROM[i] ^ 0x0f;
 	}
-}
-
-
-DRIVER_INIT_MEMBER(goldnpkr_state, mondial)
-{
-/*  Program banking..... */
-
-	UINT8 *ROM = memregion("maincpu")->base();
-	membank("bank1")->configure_entries(0, 2, &ROM[0x10000], 0x4000);
-
-	membank("bank1")->set_entry(0); // for now, fixed in italian.
-
-//  UINT8 seldsw = (ioport("SELDSW")->read() );
-//  popmessage("ROM Bank: %02X", seldsw);
-//  membank("bank1")->set_entry(seldsw);
-
+	m_palette->update();
 }
 
 
@@ -10229,7 +10171,8 @@ DRIVER_INIT_MEMBER(goldnpkr_state, mondial)
 GAMEL( 1981, goldnpkr,  0,        goldnpkr, goldnpkr, driver_device,  0,        ROT0,   "Bonanza Enterprises, Ltd", "Golden Poker Double Up (Big Boy)",        0,                layout_goldnpkr )
 GAMEL( 1981, goldnpkb,  goldnpkr, goldnpkr, goldnpkr, driver_device,  0,        ROT0,   "Bonanza Enterprises, Ltd", "Golden Poker Double Up (Mini Boy)",       0,                layout_goldnpkr )
 
-GAMEL( 198?, videtron,  0,        goldnpkr, videtron, driver_device,  0,        ROT0,   "<unknown>",                "Videotron Poker (cards selector)",        0,                layout_goldnpkr )
+GAMEL( 198?, videtron,  0,        goldnpkr, videtron, driver_device,  0,        ROT0,   "<unknown>",                "Videotron Poker (cards selector, set 1)", 0,                layout_goldnpkr )
+GAMEL( 198?, videtron2, videtron, goldnpkr, videtron, driver_device,  0,        ROT0,   "<unknown>",                "Videotron Poker (cards selector, set 2)", 0,                layout_goldnpkr )
 GAMEL( 198?, videtrna,  videtron, goldnpkr, goldnpkr, driver_device,  0,        ROT0,   "<unknown>",                "Videotron Poker (normal controls)",       0,                layout_goldnpkr )
 
 GAMEL( 198?, pottnpkr,  0,        pottnpkr, pottnpkr, driver_device,  0,        ROT0,   "bootleg",                  "Jack Potten's Poker (set 1)",             0,                layout_goldnpkr )
@@ -10356,5 +10299,6 @@ GAME(  1987, caspoker,  0,        goldnpkr, caspoker, driver_device,  0,        
 GAME(  198?, pokerdub,  0,        pottnpkr, goldnpkr, driver_device,  0,        ROT0,   "<unknown>",                "unknown French poker game",               GAME_NOT_WORKING )   // lacks of 2nd program ROM.
 GAME(  198?, pokerduc,  0,        goldnpkr, goldnpkr, goldnpkr_state, icp1db,   ROT0,   "<unknown>",                "unknown encrypted poker game",            GAME_NOT_WORKING )   // encrypted.
 
-GAMEL( 198?, bchancep,  0,        bchancep, goldnpkr, goldnpkr_state, bchancep, ROT0,   "<unknown>",                "Bonne Chance! (Golden Poker prequel hardware)", GAME_NOT_WORKING, layout_goldnpkr )
-GAME(  1987, pokermon,  0,        mondial,  mondial,  goldnpkr_state, mondial,  ROT0,   "<unknown>",                "Mundial/Mondial (Italian/French)",    0 )
+GAMEL( 198?, bchancep,  0,        bchancep, goldnpkr, goldnpkr_state, bchancep, ROT0,   "<unknown>",                "Bonne Chance! (Golden Poker prequel HW)", GAME_NOT_WORKING, layout_goldnpkr )
+GAME(  1987, pokermon,  0,        mondial,  mondial,  driver_device,  0,        ROT0,   "<unknown>",                "Mundial/Mondial (Italian/French)",        0 )                  // banked selectable program
+GAME(  198?, pokersis,  0,        bchancep, goldnpkr, driver_device,  0,        ROT0,   "Sisteme France",           "unknown Sisteme France Poker",            GAME_NOT_WORKING )   // fix banking (4 prgs?)...

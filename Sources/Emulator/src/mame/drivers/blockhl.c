@@ -26,8 +26,6 @@
 #include "includes/konamipt.h"
 #include "includes/blockhl.h"
 
-/* prototypes */
-static KONAMI_SETLINES_CALLBACK( blockhl_banking );
 
 INTERRUPT_GEN_MEMBER(blockhl_state::blockhl_interrupt)
 {
@@ -38,7 +36,7 @@ INTERRUPT_GEN_MEMBER(blockhl_state::blockhl_interrupt)
 READ8_MEMBER(blockhl_state::bankedram_r)
 {
 	if (m_palette_selected)
-		return m_generic_paletteram_8[offset];
+		return m_paletteram[offset];
 	else
 		return m_ram[offset];
 }
@@ -46,7 +44,7 @@ READ8_MEMBER(blockhl_state::bankedram_r)
 WRITE8_MEMBER(blockhl_state::bankedram_w)
 {
 	if (m_palette_selected)
-		paletteram_xBBBBBGGGGGRRRRR_byte_be_w(space, offset, data);
+		m_palette->write(space, offset, data);
 	else
 		m_ram[offset] = data;
 }
@@ -163,38 +161,48 @@ INPUT_PORTS_END
 
 ***************************************************************************/
 
-static const k052109_interface blockhl_k052109_intf =
-{
-	"gfx1", 0,
-	NORMAL_PLANE_ORDER,
-	KONAMI_ROM_DEINTERLEAVE_2,
-	blockhl_tile_callback
-};
-
-static const k051960_interface blockhl_k051960_intf =
-{
-	"gfx2", 1,
-	NORMAL_PLANE_ORDER,
-	KONAMI_ROM_DEINTERLEAVE_2,
-	blockhl_sprite_callback
-};
-
 void blockhl_state::machine_start()
 {
 	UINT8 *ROM = memregion("maincpu")->base();
 
 	membank("bank1")->configure_entries(0, 4, &ROM[0x10000], 0x2000);
 
+	m_paletteram.resize(m_palette->entries() * 2);
+	m_palette->basemem().set(m_paletteram, ENDIANNESS_BIG, 2);
+
+	save_item(NAME(m_paletteram));
 	save_item(NAME(m_palette_selected));
 	save_item(NAME(m_rombank));
 }
 
 void blockhl_state::machine_reset()
 {
-	konami_configure_set_lines(m_maincpu, blockhl_banking);
-
 	m_palette_selected = 0;
 	m_rombank = 0;
+}
+
+WRITE8_MEMBER( blockhl_state::banking_callback )
+{
+	/* bits 0-1 = ROM bank */
+	m_rombank = data & 0x03;
+	membank("bank1")->set_entry(m_rombank);
+
+	/* bits 3/4 = coin counters */
+	coin_counter_w(machine(), 0, data & 0x08);
+	coin_counter_w(machine(), 1, data & 0x10);
+
+	/* bit 5 = select palette RAM or work RAM at 5800-5fff */
+	m_palette_selected = ~data & 0x20;
+
+	/* bit 6 = enable char ROM reading through the video RAM */
+	m_k052109->set_rmrd_line((data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
+
+	/* bit 7 used but unknown */
+
+	/* other bits unknown */
+
+	if ((data & 0x84) != 0x80)
+		logerror("%04x: setlines %02x\n", machine().device("maincpu")->safe_pc(), data);
 }
 
 static MACHINE_CONFIG_START( blockhl, blockhl_state )
@@ -203,26 +211,31 @@ static MACHINE_CONFIG_START( blockhl, blockhl_state )
 	MCFG_CPU_ADD("maincpu", KONAMI,3000000)     /* Konami custom 052526 */
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", blockhl_state,  blockhl_interrupt)
+	MCFG_KONAMICPU_LINE_CB(WRITE8(blockhl_state, banking_callback))
 
 	MCFG_CPU_ADD("audiocpu", Z80, 3579545)
 	MCFG_CPU_PROGRAM_MAP(audio_map)
 
-
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(14*8, (64-14)*8-1, 2*8, 30*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(blockhl_state, screen_update_blockhl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_ENABLE_SHADOWS()
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
+	MCFG_DEVICE_ADD("k052109", K052109, 0)
+	MCFG_GFX_PALETTE("palette")
+	MCFG_K052109_CB(blockhl_state, tile_callback)
 
-	MCFG_K052109_ADD("k052109", blockhl_k052109_intf)
-	MCFG_K051960_ADD("k051960", blockhl_k051960_intf)
+	MCFG_DEVICE_ADD("k051960", K051960, 0)
+	MCFG_GFX_PALETTE("palette")
+	MCFG_K051960_CB(blockhl_state, sprite_callback)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -247,17 +260,17 @@ ROM_START( blockhl )
 	ROM_REGION( 0x10000, "audiocpu", 0 ) /* 64k for the sound CPU */
 	ROM_LOAD( "973d01.g6",  0x0000, 0x8000, CRC(eeee9d92) SHA1(6c6c324b1f6f4fba0aa12e0d1fc5dbab133ef669) )
 
-	ROM_REGION( 0x20000, "gfx1", 0 ) /* graphics (addressable by the main CPU) */
-	ROM_LOAD16_BYTE( "973f07.k15", 0x00000, 0x08000, CRC(1a8cd9b4) SHA1(7cb7944d24ac51fa6b610542d9dec68697cacf0f) ) /* tiles */
-	ROM_LOAD16_BYTE( "973f08.k18", 0x00001, 0x08000, CRC(952b51a6) SHA1(017575738d444b688b137cad5611638d53be84f2) )
-	ROM_LOAD16_BYTE( "973f09.k20", 0x10000, 0x08000, CRC(77841594) SHA1(e1bfdc5bb598d865868d578ef7faba8078becd7a) )
-	ROM_LOAD16_BYTE( "973f10.k23", 0x10001, 0x08000, CRC(09039fab) SHA1(a9dea17aacf4484d21ef3b16470263447b51b6b5) )
+	ROM_REGION( 0x20000, "k052109", 0 )    /* tiles */
+	ROM_LOAD32_BYTE( "973f07.k15", 0x00000, 0x08000, CRC(1a8cd9b4) SHA1(7cb7944d24ac51fa6b610542d9dec68697cacf0f) )
+	ROM_LOAD32_BYTE( "973f08.k18", 0x00001, 0x08000, CRC(952b51a6) SHA1(017575738d444b688b137cad5611638d53be84f2) )
+	ROM_LOAD32_BYTE( "973f09.k20", 0x00002, 0x08000, CRC(77841594) SHA1(e1bfdc5bb598d865868d578ef7faba8078becd7a) )
+	ROM_LOAD32_BYTE( "973f10.k23", 0x00003, 0x08000, CRC(09039fab) SHA1(a9dea17aacf4484d21ef3b16470263447b51b6b5) )
 
-	ROM_REGION( 0x20000, "gfx2", 0 ) /* graphics (addressable by the main CPU) */
-	ROM_LOAD16_BYTE( "973f06.k12", 0x00000, 0x08000, CRC(51acfdb6) SHA1(94d243f341b490684f5297d95d4835bd522ece35) ) /* sprites */
-	ROM_LOAD16_BYTE( "973f05.k9",  0x00001, 0x08000, CRC(4cfea298) SHA1(4772b5b99f5fd8174d8884bd84173512e1edabf4) )
-	ROM_LOAD16_BYTE( "973f04.k7",  0x10000, 0x08000, CRC(69ca41bd) SHA1(9b0b1c888efd2f2d5525f14778e18fb4a7353eb6) )
-	ROM_LOAD16_BYTE( "973f03.k4",  0x10001, 0x08000, CRC(21e98472) SHA1(8c697d369a1f57be0825c33b4e9107ce1b02a130) )
+	ROM_REGION( 0x20000, "k051960", 0 )    /* sprites */
+	ROM_LOAD32_BYTE( "973f06.k12", 0x00000, 0x08000, CRC(51acfdb6) SHA1(94d243f341b490684f5297d95d4835bd522ece35) )
+	ROM_LOAD32_BYTE( "973f05.k9",  0x00001, 0x08000, CRC(4cfea298) SHA1(4772b5b99f5fd8174d8884bd84173512e1edabf4) )
+	ROM_LOAD32_BYTE( "973f04.k7",  0x00002, 0x08000, CRC(69ca41bd) SHA1(9b0b1c888efd2f2d5525f14778e18fb4a7353eb6) )
+	ROM_LOAD32_BYTE( "973f03.k4",  0x00003, 0x08000, CRC(21e98472) SHA1(8c697d369a1f57be0825c33b4e9107ce1b02a130) )
 
 	ROM_REGION( 0x0100, "proms", 0 )    /* PROMs */
 	ROM_LOAD( "973a11.h10", 0x0000, 0x0100, CRC(46d28fe9) SHA1(9d0811a928c8907785ef483bfbee5445506b3ec8) )  /* priority encoder (not used) */
@@ -271,17 +284,17 @@ ROM_START( quarth )
 	ROM_REGION( 0x10000, "audiocpu", 0 ) /* 64k for the sound CPU */
 	ROM_LOAD( "973d01.g6",  0x0000, 0x8000, CRC(eeee9d92) SHA1(6c6c324b1f6f4fba0aa12e0d1fc5dbab133ef669) )
 
-	ROM_REGION( 0x20000, "gfx1", 0 ) /* graphics (addressable by the main CPU) */
-	ROM_LOAD16_BYTE( "973e07.k15", 0x00000, 0x08000, CRC(0bd6b0f8) SHA1(6c59cf637354fe2df424eaa89feb9c1bc1f66a92) ) /* tiles */
-	ROM_LOAD16_BYTE( "973e08.k18", 0x00001, 0x08000, CRC(104d0d5f) SHA1(595698911513113d01e5b565f5b073d1bd033d3f) )
-	ROM_LOAD16_BYTE( "973e09.k20", 0x10000, 0x08000, CRC(bd3a6f24) SHA1(eb45db3a6a52bb2b25df8c2dace877e59b4130a6) )
-	ROM_LOAD16_BYTE( "973e10.k23", 0x10001, 0x08000, CRC(cf5e4b86) SHA1(43348753894c1763b26dbfc70245dac92048db8f) )
+	ROM_REGION( 0x20000, "k052109", 0 )    /* tiles */
+	ROM_LOAD32_BYTE( "973e07.k15", 0x00000, 0x08000, CRC(0bd6b0f8) SHA1(6c59cf637354fe2df424eaa89feb9c1bc1f66a92) )
+	ROM_LOAD32_BYTE( "973e08.k18", 0x00001, 0x08000, CRC(104d0d5f) SHA1(595698911513113d01e5b565f5b073d1bd033d3f) )
+	ROM_LOAD32_BYTE( "973e09.k20", 0x00002, 0x08000, CRC(bd3a6f24) SHA1(eb45db3a6a52bb2b25df8c2dace877e59b4130a6) )
+	ROM_LOAD32_BYTE( "973e10.k23", 0x00003, 0x08000, CRC(cf5e4b86) SHA1(43348753894c1763b26dbfc70245dac92048db8f) )
 
-	ROM_REGION( 0x20000, "gfx2", 0 ) /* graphics (addressable by the main CPU) */
-	ROM_LOAD16_BYTE( "973e06.k12", 0x00000, 0x08000, CRC(0d58af85) SHA1(2efd661d614fb305a14cfe1aa4fb17714f215d4f) ) /* sprites */
-	ROM_LOAD16_BYTE( "973e05.k9",  0x00001, 0x08000, CRC(15d822cb) SHA1(70ecad5e0a461df0da6e6eb23f43a7b643297f0d) )
-	ROM_LOAD16_BYTE( "973e04.k7",  0x10000, 0x08000, CRC(d70f4a2c) SHA1(25f835a17bacf2b8debb2eb8a3cff90cab3f402a) )
-	ROM_LOAD16_BYTE( "973e03.k4",  0x10001, 0x08000, CRC(2c5a4b4b) SHA1(e2991dd78b9cd96cf93ebd6de0d4e060d346ab9c) )
+	ROM_REGION( 0x20000, "k051960", 0 )    /* sprites */
+	ROM_LOAD32_BYTE( "973e06.k12", 0x00000, 0x08000, CRC(0d58af85) SHA1(2efd661d614fb305a14cfe1aa4fb17714f215d4f) )
+	ROM_LOAD32_BYTE( "973e05.k9",  0x00001, 0x08000, CRC(15d822cb) SHA1(70ecad5e0a461df0da6e6eb23f43a7b643297f0d) )
+	ROM_LOAD32_BYTE( "973e04.k7",  0x00002, 0x08000, CRC(d70f4a2c) SHA1(25f835a17bacf2b8debb2eb8a3cff90cab3f402a) )
+	ROM_LOAD32_BYTE( "973e03.k4",  0x00003, 0x08000, CRC(2c5a4b4b) SHA1(e2991dd78b9cd96cf93ebd6de0d4e060d346ab9c) )
 
 	ROM_REGION( 0x0100, "proms", 0 )    /* PROMs */
 	ROM_LOAD( "973a11.h10", 0x0000, 0x0100, CRC(46d28fe9) SHA1(9d0811a928c8907785ef483bfbee5445506b3ec8) )  /* priority encoder (not used) */
@@ -293,33 +306,6 @@ ROM_END
   Game driver(s)
 
 ***************************************************************************/
-
-static KONAMI_SETLINES_CALLBACK( blockhl_banking )
-{
-	blockhl_state *state = device->machine().driver_data<blockhl_state>();
-
-	/* bits 0-1 = ROM bank */
-	state->m_rombank = lines & 0x03;
-	state->membank("bank1")->set_entry(state->m_rombank);
-
-	/* bits 3/4 = coin counters */
-	coin_counter_w(device->machine(), 0, lines & 0x08);
-	coin_counter_w(device->machine(), 1, lines & 0x10);
-
-	/* bit 5 = select palette RAM or work RAM at 5800-5fff */
-	state->m_palette_selected = ~lines & 0x20;
-
-	/* bit 6 = enable char ROM reading through the video RAM */
-	state->m_k052109->set_rmrd_line((lines & 0x40) ? ASSERT_LINE : CLEAR_LINE);
-
-	/* bit 7 used but unknown */
-
-	/* other bits unknown */
-
-	if ((lines & 0x84) != 0x80)
-		logerror("%04x: setlines %02x\n", device->safe_pc(), lines);
-}
-
 
 GAME( 1989, blockhl, 0,       blockhl, blockhl, driver_device, 0, ROT0, "Konami", "Block Hole", GAME_SUPPORTS_SAVE )
 GAME( 1989, quarth,  blockhl, blockhl, blockhl, driver_device, 0, ROT0, "Konami", "Quarth (Japan)", GAME_SUPPORTS_SAVE )

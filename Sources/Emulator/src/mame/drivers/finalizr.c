@@ -20,18 +20,23 @@
 #include "includes/finalizr.h"
 
 
-
-
 TIMER_DEVICE_CALLBACK_MEMBER(finalizr_state::finalizr_scanline)
 {
 	int scanline = param;
 
-	if(scanline == 240 && m_irq_enable) // vblank irq
+	if (scanline == 240 && m_irq_enable) // vblank irq
 		m_maincpu->set_input_line(M6809_IRQ_LINE, HOLD_LINE);
-	else if(((scanline % 32) == 0) && m_nmi_enable) // timer irq
+	else if (((scanline % 32) == 0) && m_nmi_enable) // timer irq
 		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
+
+WRITE8_MEMBER(finalizr_state::finalizr_videoctrl_w)
+{
+	m_charbank = data & 3;
+	m_spriterambank = data & 8;
+	/* other bits unknown */
+}
 
 WRITE8_MEMBER(finalizr_state::finalizr_coin_w)
 {
@@ -232,23 +237,6 @@ static GFXDECODE_START( finalizr )
 GFXDECODE_END
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 void finalizr_state::machine_start()
 {
 	save_item(NAME(m_spriterambank));
@@ -274,10 +262,9 @@ static MACHINE_CONFIG_START( finalizr, finalizr_state )
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", finalizr_state, finalizr_scanline, "screen", 0, 1)
 
-	MCFG_CPU_ADD("audiocpu", I8039,XTAL_18_432MHz/2)    /* 9.216MHz clkin ?? */
+	MCFG_CPU_ADD("audiocpu", I8039,XTAL_18_432MHz/2) /* 9.216MHz clkin ?? */
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 	MCFG_CPU_IO_MAP(sound_io_map)
-
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -286,17 +273,18 @@ static MACHINE_CONFIG_START( finalizr, finalizr_state )
 	MCFG_SCREEN_SIZE(36*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 35*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(finalizr_state, screen_update_finalizr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(finalizr)
-	MCFG_PALETTE_LENGTH(2*16*16)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", finalizr)
+	MCFG_PALETTE_ADD("palette", 2*16*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(finalizr_state, finalizr)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("snsnd", SN76489A, XTAL_18_432MHz/12)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_DAC_ADD("dac")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.65)

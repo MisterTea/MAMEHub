@@ -2,7 +2,7 @@
 //
 //  sdlmain.c - main file for SDLMAME.
 //
-//  Copyright (c) 1996-2013, Nicola Salmoria and the MAME Team.
+//  Copyright (c) 1996-2014, Nicola Salmoria and the MAME Team.
 //  Visit http://mamedev.org for licensing and usage restrictions.
 //
 //  SDLMAME by Olivier Galibert and R. Belmont
@@ -11,9 +11,9 @@
 
 
 #ifdef SDLMAME_UNIX
-#ifndef SDLMAME_MACOSX
+#if (!defined(SDLMAME_MACOSX)) && (!defined(SDLMAME_EMSCRIPTEN))
 #if (SDLMAME_SDL2)
-#include <SDL2/SDL_ttf.h>
+//#include <SDL2/SDL_ttf.h>
 #else
 #include <SDL/SDL_ttf.h>
 #endif
@@ -47,11 +47,19 @@
 // OSD headers
 #include "video.h"
 #include "input.h"
-#include "output.h"
 #include "osdsdl.h"
 #include "sdlos.h"
-#include "netdev.h"
-
+#include "modules/sound/sdl_sound.h"
+#if defined(SDLMAME_EMSCRIPTEN)
+#include "modules/sound/js_sound.h"
+#endif
+#if !defined(NO_DEBUGGER)
+#include "modules/debugger/debugqt.h"
+#endif
+#include "modules/debugger/none.h"
+#if defined(SDLMAME_MACOSX)
+#include "modules/debugger/debugosx.h"
+#endif
 // we override SDL's normal startup on Win32
 // please see sdlprefix.h as well
 
@@ -93,36 +101,14 @@ const options_entry sdl_options::s_option_entries[] =
 {
 	{ SDLOPTION_INIPATH,                     INI_PATH,    OPTION_STRING,     "path to ini files" },
 
-	// debugging options
-	{ NULL,                                   NULL,       OPTION_HEADER,     "DEBUGGING OPTIONS" },
-	{ SDLOPTION_OSLOG,                        "0",        OPTION_BOOLEAN,    "output error.log data to the system debugger" },
-	{ SDLOPTION_WATCHDOG ";wdog",             "0",        OPTION_INTEGER,    "force the program to terminate if no updates within specified number of seconds" },
-
 	// performance options
-	{ NULL,                                   NULL,       OPTION_HEADER,     "PERFORMANCE OPTIONS" },
-	{ SDLOPTION_MULTITHREADING ";mt",         "0",        OPTION_BOOLEAN,    "enable multithreading; this enables rendering and blitting on a separate thread" },
-	{ SDLOPTION_NUMPROCESSORS ";np",         "auto",      OPTION_STRING,     "number of processors; this overrides the number the system reports" },
+	{ NULL,                                   NULL,       OPTION_HEADER,     "SDL PERFORMANCE OPTIONS" },
 	{ SDLOPTION_SDLVIDEOFPS,                  "0",        OPTION_BOOLEAN,    "show sdl video performance" },
-	{ SDLOPTION_BENCH,                        "0",        OPTION_INTEGER,    "benchmark for the given number of emulated seconds; implies -video none -nosound -nothrottle" },
 	// video options
-	{ NULL,                                   NULL,       OPTION_HEADER,     "VIDEO OPTIONS" },
+	{ NULL,                                   NULL,       OPTION_HEADER,     "SDL VIDEO OPTIONS" },
 // OS X can be trusted to have working hardware OpenGL, so default to it on for the best user experience
-#ifdef SDLMAME_MACOSX
-	{ SDLOPTION_VIDEO,                   SDLOPTVAL_OPENGL,  OPTION_STRING,   "video output method: soft or opengl" },
-#else
-	{ SDLOPTION_VIDEO,                   SDLOPTVAL_SOFT,  OPTION_STRING,     "video output method: soft or opengl" },
-#endif
-	{ SDLOPTION_NUMSCREENS,                   "1",        OPTION_INTEGER,    "number of screens to create; SDLMAME only supports 1 at this time" },
-	{ SDLOPTION_WINDOW ";w",                  "0",        OPTION_BOOLEAN,    "enable window mode; otherwise, full screen mode is assumed" },
-	{ SDLOPTION_MAXIMIZE ";max",              "1",        OPTION_BOOLEAN,    "default to maximized windows; otherwise, windows will be minimized" },
-	{ SDLOPTION_KEEPASPECT ";ka",             "1",        OPTION_BOOLEAN,    "constrain to the proper aspect ratio" },
-	{ SDLOPTION_UNEVENSTRETCH ";ues",         "1",        OPTION_BOOLEAN,    "allow non-integer stretch factors" },
 	{ SDLOPTION_CENTERH,                      "1",        OPTION_BOOLEAN,    "center horizontally within the view area" },
 	{ SDLOPTION_CENTERV,                      "1",        OPTION_BOOLEAN,    "center vertically within the view area" },
-	#if (SDL_VERSION_ATLEAST(1,2,10))
-	{ SDLOPTION_WAITVSYNC ";vs",              "0",        OPTION_BOOLEAN,    "enable waiting for the start of VBLANK before flipping screens; reduces tearing effects" },
-	{ SDLOPTION_SYNCREFRESH ";srf",           "0",        OPTION_BOOLEAN,    "enable using the start of VBLANK for throttling instead of the game time" },
-	#endif
 #if (SDLMAME_SDL2)
 	{ SDLOPTION_SCALEMODE ";sm",         SDLOPTVAL_NONE,  OPTION_STRING,     "Scale mode: none, hwblit, hwbest, yv12, yuy2, yv12x2, yuy2x2 (-video soft only)" },
 #else
@@ -159,46 +145,13 @@ const options_entry sdl_options::s_option_entries[] =
 	{ SDLOPTION_SHADER_SCREEN "7",   SDLOPTVAL_NONE,  OPTION_STRING,  "custom OpenGL GLSL shader screen bitmap 7" },
 	{ SDLOPTION_SHADER_SCREEN "8",   SDLOPTVAL_NONE,  OPTION_STRING,  "custom OpenGL GLSL shader screen bitmap 8" },
 	{ SDLOPTION_SHADER_SCREEN "9",   SDLOPTVAL_NONE,  OPTION_STRING,  "custom OpenGL GLSL shader screen bitmap 9" },
-	{ SDLOPTION_GL_GLSL_VID_ATTR,            "1",    OPTION_BOOLEAN,  "enable OpenGL GLSL handling of brightness and contrast. Better RGB game performance for free. (default)" },
 #endif
 
-	// per-window options
-	{ NULL,                                   NULL,             OPTION_HEADER,    "PER-WINDOW VIDEO OPTIONS" },
-	{ SDLOPTION_SCREEN,                   SDLOPTVAL_AUTO,   OPTION_STRING,    "explicit name of the first screen; 'auto' here will try to make a best guess" },
-	{ SDLOPTION_ASPECT ";screen_aspect",  SDLOPTVAL_AUTO,   OPTION_STRING,    "aspect ratio for all screens; 'auto' here will try to make a best guess" },
-	{ SDLOPTION_RESOLUTION ";r",          SDLOPTVAL_AUTO,   OPTION_STRING,    "preferred resolution for all screens; format is <width>x<height>[@<refreshrate>] or 'auto'" },
-	{ SDLOPTION_VIEW,                     SDLOPTVAL_AUTO,   OPTION_STRING,    "preferred view for all screens" },
-
-	{ SDLOPTION_SCREEN "0",                  SDLOPTVAL_AUTO,   OPTION_STRING,    "explicit name of the first screen; 'auto' here will try to make a best guess" },
-	{ SDLOPTION_ASPECT "0",                  SDLOPTVAL_AUTO,   OPTION_STRING,    "aspect ratio of the first screen; 'auto' here will try to make a best guess" },
-	{ SDLOPTION_RESOLUTION "0;r0",        SDLOPTVAL_AUTO,   OPTION_STRING,    "preferred resolution of the first screen; format is <width>x<height>[@<refreshrate>] or 'auto'" },
-	{ SDLOPTION_VIEW "0",                    SDLOPTVAL_AUTO,   OPTION_STRING,    "preferred view for the first screen" },
-
-	{ SDLOPTION_SCREEN "1",                  SDLOPTVAL_AUTO,   OPTION_STRING,    "explicit name of the second screen; 'auto' here will try to make a best guess" },
-	{ SDLOPTION_ASPECT "1",                  SDLOPTVAL_AUTO,   OPTION_STRING,    "aspect ratio of the second screen; 'auto' here will try to make a best guess" },
-	{ SDLOPTION_RESOLUTION "1;r1",        SDLOPTVAL_AUTO,   OPTION_STRING,    "preferred resolution of the second screen; format is <width>x<height>[@<refreshrate>] or 'auto'" },
-	{ SDLOPTION_VIEW "1",                    SDLOPTVAL_AUTO,   OPTION_STRING,    "preferred view for the second screen" },
-
-	{ SDLOPTION_SCREEN "2",                  SDLOPTVAL_AUTO,   OPTION_STRING,    "explicit name of the third screen; 'auto' here will try to make a best guess" },
-	{ SDLOPTION_ASPECT "2",                  SDLOPTVAL_AUTO,   OPTION_STRING,    "aspect ratio of the third screen; 'auto' here will try to make a best guess" },
-	{ SDLOPTION_RESOLUTION "2;r2",        SDLOPTVAL_AUTO,   OPTION_STRING,    "preferred resolution of the third screen; format is <width>x<height>[@<refreshrate>] or 'auto'" },
-	{ SDLOPTION_VIEW "2",                    SDLOPTVAL_AUTO,   OPTION_STRING,    "preferred view for the third screen" },
-
-	{ SDLOPTION_SCREEN "3",                  SDLOPTVAL_AUTO,   OPTION_STRING,    "explicit name of the fourth screen; 'auto' here will try to make a best guess" },
-	{ SDLOPTION_ASPECT "3",                  SDLOPTVAL_AUTO,   OPTION_STRING,    "aspect ratio of the fourth screen; 'auto' here will try to make a best guess" },
-	{ SDLOPTION_RESOLUTION "3;r3",        SDLOPTVAL_AUTO,   OPTION_STRING,    "preferred resolution of the fourth screen; format is <width>x<height>[@<refreshrate>] or 'auto'" },
-	{ SDLOPTION_VIEW "3",                    SDLOPTVAL_AUTO,   OPTION_STRING,    "preferred view for the fourth screen" },
-
 	// full screen options
-	{ NULL,                                   NULL,  OPTION_HEADER,     "FULL SCREEN OPTIONS" },
-	{ SDLOPTION_SWITCHRES,                    "0",   OPTION_BOOLEAN,    "enable resolution switching" },
 	#ifdef SDLMAME_X11
+	{ NULL,                                   NULL,  OPTION_HEADER,     "SDL FULL SCREEN OPTIONS" },
 	{ SDLOPTION_USEALLHEADS,                 "0",     OPTION_BOOLEAN,    "split full screen image across monitors" },
 	#endif
-
-	// sound options
-	{ NULL,                                   NULL,  OPTION_HEADER,     "SOUND OPTIONS" },
-	{ SDLOPTION_AUDIO_LATENCY,                "2",   OPTION_INTEGER,    "set audio latency (increase to reduce glitches, decrease for responsiveness)" },
 
 	// keyboard mapping
 	{ NULL,                                   NULL,  OPTION_HEADER,     "SDL KEYBOARD MAPPING" },
@@ -337,11 +290,13 @@ int main(int argc, char *argv[])
 
 	#ifdef SDLMAME_UNIX
 	sdl_entered_debugger = 0;
-	#if (!defined(SDLMAME_MACOSX)) && (!defined(SDLMAME_HAIKU))
+	#if (!defined(SDLMAME_MACOSX)) && (!defined(SDLMAME_HAIKU)) && (!defined(SDLMAME_EMSCRIPTEN))
+#if !(SDLMAME_SDL2)
 	if (TTF_Init() == -1)
 	{
 		printf("SDL_ttf failed: %s\n", TTF_GetError());
 	}
+#endif
 	FcInit();
 	#endif
 	#endif
@@ -369,11 +324,10 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	osd_init_midi();    // this is a blues riff in B, watch me for the changes and try to keep up...
-
 	{
 		sdl_osd_interface osd;
 		sdl_options options;
+		osd.register_options(options);
 		cli_frontend frontend(options, osd);
 		res = frontend.execute(argc, argv);
 	}
@@ -389,17 +343,16 @@ int main(int argc, char *argv[])
 	//SDL_Quit();
 
 	#ifdef SDLMAME_UNIX
-	#if (!defined(SDLMAME_MACOSX)) && (!defined(SDLMAME_HAIKU))
+	#if (!defined(SDLMAME_MACOSX)) && (!defined(SDLMAME_HAIKU)) && (!defined(SDLMAME_EMSCRIPTEN))
+#if !(SDLMAME_SDL2)
 	TTF_Quit();
-
+#endif
 	if (!sdl_entered_debugger)
 	{
 		FcFini();
 	}
 	#endif
 	#endif
-
-	osd_shutdown_midi();
 
 	exit(res);
 
@@ -442,17 +395,15 @@ sdl_osd_interface::~sdl_osd_interface()
 //  osd_exit
 //============================================================
 
-void sdl_osd_interface::osd_exit(running_machine &machine)
+void sdl_osd_interface::osd_exit()
 {
-	#ifdef SDLMAME_NETWORK
-		sdlnetdev_deinit(machine);
-	#endif
+	osd_interface::osd_exit();
 
 	if (!SDLMAME_INIT_IN_WORKER_THREAD)
 	{
 		/* FixMe: Bug in SDL2.0, Quitting joystick will cause SIGSEGV */
 #if SDLMAME_SDL2
-		SDL_QuitSubSystem(SDL_INIT_TIMER|SDL_INIT_AUDIO| SDL_INIT_VIDEO /*| SDL_INIT_JOYSTICK */);
+		SDL_QuitSubSystem(SDL_INIT_TIMER| SDL_INIT_VIDEO /*| SDL_INIT_JOYSTICK */);
 #else
 		SDL_Quit();
 #endif
@@ -467,18 +418,18 @@ void sdl_osd_interface::osd_exit(running_machine &machine)
 #define MACRO_VERBOSE(_mac) \
 	do { \
 		if (strcmp(MAC_EXPAND_STR(_mac), #_mac) != 0) \
-			mame_printf_verbose("%s=%s ", #_mac, MAC_EXPAND_STR(_mac)); \
+			osd_printf_verbose("%s=%s ", #_mac, MAC_EXPAND_STR(_mac)); \
 	} while (0)
 
 #define _SDL_VER #SDL_MAJOR_VERSION "." #SDL_MINOR_VERSION "." #SDL_PATCHLEVEL
 
 static void defines_verbose(void)
 {
-	mame_printf_verbose("Build version:      %s\n", build_version);
-	mame_printf_verbose("Build architecure:  ");
+	osd_printf_verbose("Build version:      %s\n", build_version);
+	osd_printf_verbose("Build architecure:  ");
 	MACRO_VERBOSE(SDLMAME_ARCH);
-	mame_printf_verbose("\n");
-	mame_printf_verbose("Build defines 1:    ");
+	osd_printf_verbose("\n");
+	osd_printf_verbose("Build defines 1:    ");
 	MACRO_VERBOSE(SDLMAME_UNIX);
 	MACRO_VERBOSE(SDLMAME_X11);
 	MACRO_VERBOSE(SDLMAME_WIN32);
@@ -490,8 +441,8 @@ static void defines_verbose(void)
 	MACRO_VERBOSE(SDLMAME_NOASM);
 	MACRO_VERBOSE(SDLMAME_IRIX);
 	MACRO_VERBOSE(SDLMAME_BSD);
-	mame_printf_verbose("\n");
-	mame_printf_verbose("Build defines 1:    ");
+	osd_printf_verbose("\n");
+	osd_printf_verbose("Build defines 1:    ");
 	MACRO_VERBOSE(LSB_FIRST);
 	MACRO_VERBOSE(PTR64);
 	MACRO_VERBOSE(MAME_DEBUG);
@@ -500,30 +451,30 @@ static void defines_verbose(void)
 	MACRO_VERBOSE(CPP_COMPILE);
 	MACRO_VERBOSE(DISTRO);
 	MACRO_VERBOSE(SYNC_IMPLEMENTATION);
-	mame_printf_verbose("\n");
-	mame_printf_verbose("SDL/OpenGL defines: ");
-	mame_printf_verbose("SDL_COMPILEDVERSION=%d ", SDL_COMPILEDVERSION);
+	osd_printf_verbose("\n");
+	osd_printf_verbose("SDL/OpenGL defines: ");
+	osd_printf_verbose("SDL_COMPILEDVERSION=%d ", SDL_COMPILEDVERSION);
 	MACRO_VERBOSE(USE_OPENGL);
 	MACRO_VERBOSE(USE_DISPATCH_GL);
-	mame_printf_verbose("\n");
-	mame_printf_verbose("Compiler defines A: ");
+	osd_printf_verbose("\n");
+	osd_printf_verbose("Compiler defines A: ");
 	MACRO_VERBOSE(__GNUC__);
 	MACRO_VERBOSE(__GNUC_MINOR__);
 	MACRO_VERBOSE(__GNUC_PATCHLEVEL__);
 	MACRO_VERBOSE(__VERSION__);
-	mame_printf_verbose("\n");
-	mame_printf_verbose("Compiler defines B: ");
+	osd_printf_verbose("\n");
+	osd_printf_verbose("Compiler defines B: ");
 	MACRO_VERBOSE(__amd64__);
 	MACRO_VERBOSE(__x86_64__);
 	MACRO_VERBOSE(__unix__);
 	MACRO_VERBOSE(__i386__);
 	MACRO_VERBOSE(__ppc__);
 	MACRO_VERBOSE(__ppc64__);
-	mame_printf_verbose("\n");
-	mame_printf_verbose("Compiler defines C: ");
+	osd_printf_verbose("\n");
+	osd_printf_verbose("Compiler defines C: ");
 	MACRO_VERBOSE(_FORTIFY_SOURCE);
 	MACRO_VERBOSE(__USE_FORTIFY_LEVEL);
-	mame_printf_verbose("\n");
+	osd_printf_verbose("\n");
 }
 
 //============================================================
@@ -535,43 +486,88 @@ static void osd_sdl_info(void)
 #if SDLMAME_SDL2
 	int i, num = SDL_GetNumVideoDrivers();
 
-	mame_printf_verbose("Available videodrivers: ");
+	osd_printf_verbose("Available videodrivers: ");
 	for (i=0;i<num;i++)
 	{
 		const char *name = SDL_GetVideoDriver(i);
-		mame_printf_verbose("%s ", name);
+		osd_printf_verbose("%s ", name);
 	}
-	mame_printf_verbose("\n");
-	mame_printf_verbose("Current Videodriver: %s\n", SDL_GetCurrentVideoDriver());
+	osd_printf_verbose("\n");
+	osd_printf_verbose("Current Videodriver: %s\n", SDL_GetCurrentVideoDriver());
 	num = SDL_GetNumVideoDisplays();
 	for (i=0;i<num;i++)
 	{
 		SDL_DisplayMode mode;
 		int j;
 
-		mame_printf_verbose("\tDisplay #%d\n", i);
-		if (SDL_GetDesktopDisplayMode(i, &mode));
-			mame_printf_verbose("\t\tDesktop Mode:         %dx%d-%d@%d\n", mode.w, mode.h, SDL_BITSPERPIXEL(mode.format), mode.refresh_rate);
-		if (SDL_GetCurrentDisplayMode(i, &mode));
-			mame_printf_verbose("\t\tCurrent Display Mode: %dx%d-%d@%d\n", mode.w, mode.h, SDL_BITSPERPIXEL(mode.format), mode.refresh_rate);
-		mame_printf_verbose("\t\tRenderdrivers:\n");
+		osd_printf_verbose("\tDisplay #%d\n", i);
+		if (SDL_GetDesktopDisplayMode(i, &mode))
+			osd_printf_verbose("\t\tDesktop Mode:         %dx%d-%d@%d\n", mode.w, mode.h, SDL_BITSPERPIXEL(mode.format), mode.refresh_rate);
+		if (SDL_GetCurrentDisplayMode(i, &mode))
+			osd_printf_verbose("\t\tCurrent Display Mode: %dx%d-%d@%d\n", mode.w, mode.h, SDL_BITSPERPIXEL(mode.format), mode.refresh_rate);
+		osd_printf_verbose("\t\tRenderdrivers:\n");
 		for (j=0; j<SDL_GetNumRenderDrivers(); j++)
 		{
 			SDL_RendererInfo info;
 			SDL_GetRenderDriverInfo(j, &info);
-			mame_printf_verbose("\t\t\t%10s (%dx%d)\n", info.name, info.max_texture_width, info.max_texture_height);
+			osd_printf_verbose("\t\t\t%10s (%dx%d)\n", info.name, info.max_texture_width, info.max_texture_height);
 		}
 	}
 
-	mame_printf_verbose("Available audio drivers: \n");
+	osd_printf_verbose("Available audio drivers: \n");
 	num = SDL_GetNumAudioDrivers();
 	for (i=0;i<num;i++)
 	{
-		mame_printf_verbose("\t%-20s\n", SDL_GetAudioDriver(i));
+		osd_printf_verbose("\t%-20s\n", SDL_GetAudioDriver(i));
 	}
 #endif
 }
 
+
+//============================================================
+//  video_register
+//============================================================
+
+void sdl_osd_interface::video_register()
+{
+	video_options_add("soft", NULL);
+	video_options_add("opengl", NULL);
+	//video_options_add("auto", NULL); // making d3d video default one
+}
+
+//============================================================
+//  sound_register
+//============================================================
+
+void sdl_osd_interface::sound_register()
+{
+	sound_options_add("sdl", OSD_SOUND_SDL);
+#if defined(SDLMAME_EMSCRIPTEN)
+	sound_options_add("js", OSD_SOUND_JS);
+	sound_options_add("auto", OSD_SOUND_JS); // making JS audio default one
+#else
+	sound_options_add("auto", OSD_SOUND_SDL); // making SDL audio default one
+#endif
+}
+
+//============================================================
+//  debugger_register
+//============================================================
+
+void sdl_osd_interface::debugger_register()
+{
+#if defined(NO_DEBUGGER)
+	debugger_options_add("auto", OSD_DEBUGGER_NONE);
+#else
+#if defined(SDLMAME_MACOSX)
+	debugger_options_add("osx", OSD_DEBUGGER_OSX);
+	debugger_options_add("auto", OSD_DEBUGGER_OSX); // making OSX debugger default one
+#else
+	debugger_options_add("qt", OSD_DEBUGGER_QT);
+	debugger_options_add("auto", OSD_DEBUGGER_QT); // making QT debugger default one
+#endif // SDLMAME_MACOSX
+#endif // NO_DEBUGGER
+}
 
 //============================================================
 //  init
@@ -591,8 +587,8 @@ void sdl_osd_interface::init(running_machine &machine)
 	if (bench > 0)
 	{
 		options.set_value(OPTION_THROTTLE, false, OPTION_PRIORITY_MAXIMUM, error_string);
-		options.set_value(OPTION_SOUND, false, OPTION_PRIORITY_MAXIMUM, error_string);
-		options.set_value(SDLOPTION_VIDEO, "none", OPTION_PRIORITY_MAXIMUM, error_string);
+		options.set_value(OSDOPTION_SOUND, "none", OPTION_PRIORITY_MAXIMUM, error_string);
+		options.set_value(OSDOPTION_VIDEO, "none", OPTION_PRIORITY_MAXIMUM, error_string);
 		options.set_value(OPTION_SECONDS_TO_RUN, bench, OPTION_PRIORITY_MAXIMUM, error_string);
 		assert(!error_string);
 	}
@@ -601,14 +597,14 @@ void sdl_osd_interface::init(running_machine &machine)
 	stemp = options.audio_driver();
 	if (stemp != NULL && strcmp(stemp, SDLOPTVAL_AUTO) != 0)
 	{
-		mame_printf_verbose("Setting SDL audiodriver '%s' ...\n", stemp);
+		osd_printf_verbose("Setting SDL audiodriver '%s' ...\n", stemp);
 		osd_setenv(SDLENV_AUDIODRIVER, stemp, 1);
 	}
 
 	stemp = options.video_driver();
 	if (stemp != NULL && strcmp(stemp, SDLOPTVAL_AUTO) != 0)
 	{
-		mame_printf_verbose("Setting SDL videodriver '%s' ...\n", stemp);
+		osd_printf_verbose("Setting SDL videodriver '%s' ...\n", stemp);
 		osd_setenv(SDLENV_VIDEODRIVER, stemp, 1);
 	}
 
@@ -616,7 +612,7 @@ void sdl_osd_interface::init(running_machine &machine)
 		stemp = options.render_driver();
 		if (stemp != NULL && strcmp(stemp, SDLOPTVAL_AUTO) != 0)
 		{
-			mame_printf_verbose("Setting SDL renderdriver '%s' ...\n", stemp);
+			osd_printf_verbose("Setting SDL renderdriver '%s' ...\n", stemp);
 			//osd_setenv(SDLENV_RENDERDRIVER, stemp, 1);
 			SDL_SetHint(SDL_HINT_RENDER_DRIVER, stemp);
 		}
@@ -632,7 +628,7 @@ void sdl_osd_interface::init(running_machine &machine)
 	if (stemp != NULL && strcmp(stemp, SDLOPTVAL_AUTO) != 0)
 	{
 		osd_setenv("SDL_VIDEO_GL_DRIVER", stemp, 1);
-		mame_printf_verbose("Setting SDL_VIDEO_GL_DRIVER = '%s' ...\n", stemp);
+		osd_printf_verbose("Setting SDL_VIDEO_GL_DRIVER = '%s' ...\n", stemp);
 	}
 #endif
 
@@ -646,7 +642,7 @@ void sdl_osd_interface::init(running_machine &machine)
 		osd_num_processors = atoi(stemp);
 		if (osd_num_processors < 1)
 		{
-			mame_printf_warning("Warning: numprocessors < 1 doesn't make much sense. Assuming auto ...\n");
+			osd_printf_warning("numprocessors < 1 doesn't make much sense. Assuming auto ...\n");
 			osd_num_processors = 0;
 		}
 	}
@@ -656,44 +652,27 @@ void sdl_osd_interface::init(running_machine &machine)
 	if (!SDLMAME_INIT_IN_WORKER_THREAD)
 	{
 #if (SDLMAME_SDL2)
-		if (SDL_InitSubSystem(SDL_INIT_TIMER|SDL_INIT_AUDIO| SDL_INIT_VIDEO| SDL_INIT_JOYSTICK|SDL_INIT_NOPARACHUTE)) {
+		if (SDL_InitSubSystem(SDL_INIT_TIMER| SDL_INIT_VIDEO| SDL_INIT_JOYSTICK|SDL_INIT_NOPARACHUTE)) {
 #else
-		if (SDL_Init(SDL_INIT_TIMER|SDL_INIT_AUDIO| SDL_INIT_VIDEO| SDL_INIT_JOYSTICK|SDL_INIT_NOPARACHUTE)) {
+		if (SDL_Init(SDL_INIT_TIMER|SDL_INIT_VIDEO| SDL_INIT_JOYSTICK|SDL_INIT_NOPARACHUTE)) {
 #endif
-			mame_printf_error("Could not initialize SDL %s\n", SDL_GetError());
+			osd_printf_error("Could not initialize SDL %s\n", SDL_GetError());
 			exit(-1);
 		}
 		osd_sdl_info();
 	}
-	// must be before sdlvideo_init!
-	machine.add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(osd_exit), &machine));
 
 	defines_verbose();
 
 	if (!SDLMAME_HAS_DEBUGGER)
 		if (machine.debug_flags & DEBUG_FLAG_OSD_ENABLED)
 		{
-			mame_printf_error("sdlmame: -debug not supported on X11-less builds\n\n");
-			osd_exit(machine);
+			osd_printf_error("sdlmame: -debug not supported on X11-less builds\n\n");
+			osd_exit();
 			exit(-1);
 		}
 
-	if (sdlvideo_init(machine))
-	{
-		osd_exit(machine);
-		mame_printf_error("sdlvideo_init: Initialization failed!\n\n\n");
-		fflush(stderr);
-		fflush(stdout);
-		exit(-1);
-	}
-
-	sdlinput_init(machine);
-	sdlaudio_init(machine);
-	sdloutput_init(machine);
-
-#ifdef SDLMAME_NETWORK
-	sdlnetdev_init(machine);
-#endif
+	osd_interface::init_subsystems();
 
 	if (options.oslog())
 		machine.add_logerror_callback(output_oslog);
@@ -717,7 +696,7 @@ void sdl_osd_interface::init(running_machine &machine)
 #endif
 }
 
-#ifdef SDLMAME_UNIX
+#if defined(SDLMAME_UNIX) && (!defined(SDLMAME_EMSCRIPTEN))
 #define POINT_SIZE 144.0
 
 #ifdef SDLMAME_MACOSX
@@ -749,7 +728,7 @@ osd_font sdl_osd_interface::font_open(const char *_name, int &height)
 		if (name.makeupper().substr(name.len()-4,4) == ".BDF" )
 			return NULL;
 
-	font_name = CFStringCreateWithCString( NULL, _name, kCFStringEncodingUTF8 );
+	font_name = CFStringCreateWithCString( NULL, name.cstr(), kCFStringEncodingUTF8 );
 
 	if( font_name != NULL )
 	{
@@ -767,14 +746,14 @@ osd_font sdl_osd_interface::font_open(const char *_name, int &height)
 
 	if (!ct_font)
 	{
-		printf("WARNING: Couldn't find/open font %s, using MAME default\n", name.cstr());
+		osd_printf_verbose("Couldn't find/open font %s, using MAME default\n", name.cstr());
 		return NULL;
 	}
 
 	CFStringRef real_name = CTFontCopyPostScriptName( ct_font );
 	char real_name_c_string[255];
 	CFStringGetCString ( real_name, real_name_c_string, 255, kCFStringEncodingUTF8 );
-	mame_printf_verbose("Matching font: %s\n", real_name_c_string);
+	osd_printf_verbose("Matching font: %s\n", real_name_c_string);
 	CFRelease( real_name );
 
 	CGFloat line_height = 0.0;
@@ -804,8 +783,8 @@ void sdl_osd_interface::font_close(osd_font font)
 //-------------------------------------------------
 //  font_get_bitmap - allocate and populate a
 //  BITMAP_FORMAT_ARGB32 bitmap containing the
-//  pixel values MAKE_ARGB(0xff,0xff,0xff,0xff)
-//  or MAKE_ARGB(0x00,0xff,0xff,0xff) for each
+//  pixel values rgb_t(0xff,0xff,0xff,0xff)
+//  or rgb_t(0x00,0xff,0xff,0xff) for each
 //  pixel of a black & white font
 //-------------------------------------------------
 
@@ -877,6 +856,7 @@ bool sdl_osd_interface::font_get_bitmap(osd_font font, unicode_char chnum, bitma
 }
 #else // UNIX but not OSX
 
+#if !(SDLMAME_SDL2)
 static TTF_Font * TTF_OpenFont_Magic(astring name, int fsize)
 {
 	emu_file file(OPEN_FLAG_READ);
@@ -960,7 +940,7 @@ static TTF_Font *search_font_config(astring name, bool bold, bool italic, bool u
 			continue;
 		}
 
-		mame_printf_verbose("Matching font: %s\n", val.u.s);
+		osd_printf_verbose("Matching font: %s\n", val.u.s);
 		{
 			astring match_name((const char*)val.u.s);
 			font = TTF_OpenFont_Magic(match_name, POINT_SIZE);
@@ -997,7 +977,7 @@ static TTF_Font *search_font_config(astring name, bool bold, bool italic, bool u
 				continue;
 			}
 
-			mame_printf_verbose("Matching unstyled font: %s\n", val.u.s);
+			osd_printf_verbose("Matching unstyled font: %s\n", val.u.s);
 			{
 				astring match_name((const char*)val.u.s);
 				font = TTF_OpenFont_Magic(match_name, POINT_SIZE);
@@ -1016,6 +996,7 @@ static TTF_Font *search_font_config(astring name, bool bold, bool italic, bool u
 	return font;
 }
 #endif
+#endif
 
 //-------------------------------------------------
 //  font_open - attempt to "open" a handle to the
@@ -1024,6 +1005,7 @@ static TTF_Font *search_font_config(astring name, bool bold, bool italic, bool u
 
 osd_font sdl_osd_interface::font_open(const char *_name, int &height)
 {
+#if !(SDLMAME_SDL2)
 	TTF_Font *font = (TTF_Font *)NULL;
 	bool bakedstyles = false;
 	int style = 0;
@@ -1048,14 +1030,14 @@ osd_font sdl_osd_interface::font_open(const char *_name, int &height)
 
 	if (!font)
 	{
-		mame_printf_verbose("Searching font %s in -%s\n", name.cstr(), OPTION_FONTPATH);
+		osd_printf_verbose("Searching font %s in -%s\n", name.cstr(), OPTION_FONTPATH);
 		emu_file file(machine().options().font_path(), OPEN_FLAG_READ);
 		if (file.open(name) == FILERR_NONE)
 		{
 			astring full_name = file.fullpath();
 			font = TTF_OpenFont_Magic(full_name, POINT_SIZE);
 			if (font)
-				mame_printf_verbose("Found font %s\n", full_name.cstr());
+				osd_printf_verbose("Found font %s\n", full_name.cstr());
 		}
 	}
 
@@ -1071,7 +1053,7 @@ osd_font sdl_osd_interface::font_open(const char *_name, int &height)
 	{
 		if (!BDF_Check_Magic(name))
 		{
-			printf("WARNING: font %s, is not TrueType or BDF, using MAME default\n", name.cstr());
+			osd_printf_verbose("font %s is not TrueType or BDF, using MAME default\n", name.cstr());
 		}
 		return NULL;
 	}
@@ -1088,13 +1070,16 @@ osd_font sdl_osd_interface::font_open(const char *_name, int &height)
 	style |= strike ? TTF_STYLE_STRIKETHROUGH : 0;
 #else
 	if (strike)
-		mame_printf_warning("Ignoring strikethrough for SDL_TTF with version less 2.0.10\n");
+		osd_printf_warning("Ignoring strikethrough for SDL_TTF older than 2.0.10\n");
 #endif // PATCHLEVEL
 	TTF_SetFontStyle(font, style);
 
 	height = TTF_FontLineSkip(font);
 
 	return (osd_font)font;
+#else
+	return (osd_font)NULL;
+#endif
 }
 
 //-------------------------------------------------
@@ -1104,23 +1089,26 @@ osd_font sdl_osd_interface::font_open(const char *_name, int &height)
 
 void sdl_osd_interface::font_close(osd_font font)
 {
+#if !(SDLMAME_SDL2)
 	TTF_Font *ttffont;
 
 	ttffont = (TTF_Font *)font;
 
 	TTF_CloseFont(ttffont);
+#endif
 }
 
 //-------------------------------------------------
 //  font_get_bitmap - allocate and populate a
 //  BITMAP_FORMAT_ARGB32 bitmap containing the
-//  pixel values MAKE_ARGB(0xff,0xff,0xff,0xff)
-//  or MAKE_ARGB(0x00,0xff,0xff,0xff) for each
+//  pixel values rgb_t(0xff,0xff,0xff,0xff)
+//  or rgb_t(0x00,0xff,0xff,0xff) for each
 //  pixel of a black & white font
 //-------------------------------------------------
 
 bool sdl_osd_interface::font_get_bitmap(osd_font font, unicode_char chnum, bitmap_argb32 &bitmap, INT32 &width, INT32 &xoffs, INT32 &yoffs)
 {
+#if !(SDLMAME_SDL2)
 	TTF_Font *ttffont;
 	SDL_Surface *drawsurf;
 	SDL_Color fcol = { 0xff, 0xff, 0xff };
@@ -1148,7 +1136,7 @@ bool sdl_osd_interface::font_get_bitmap(osd_font font, unicode_char chnum, bitma
 
 			for (int x = 0; x < drawsurf->w; x++)
 			{
-				dstrow[x] = srcrow[x] ? MAKE_ARGB(0xff,0xff,0xff,0xff) : MAKE_ARGB(0x00,0xff,0xff,0xff);
+				dstrow[x] = srcrow[x] ? rgb_t(0xff,0xff,0xff,0xff) : rgb_t(0x00,0xff,0xff,0xff);
 			}
 		}
 
@@ -1160,6 +1148,9 @@ bool sdl_osd_interface::font_get_bitmap(osd_font font, unicode_char chnum, bitma
 	}
 
 	return bitmap.valid();
+#else
+	return false;
+#endif
 }
 #endif  // not OSX
 #else   // not UNIX
@@ -1185,8 +1176,8 @@ void sdl_osd_interface::font_close(osd_font font)
 //-------------------------------------------------
 //  font_get_bitmap - allocate and populate a
 //  BITMAP_FORMAT_ARGB32 bitmap containing the
-//  pixel values MAKE_ARGB(0xff,0xff,0xff,0xff)
-//  or MAKE_ARGB(0x00,0xff,0xff,0xff) for each
+//  pixel values rgb_t(0xff,0xff,0xff,0xff)
+//  or rgb_t(0x00,0xff,0xff,0xff) for each
 //  pixel of a black & white font
 //-------------------------------------------------
 

@@ -110,8 +110,6 @@ INPUT_PORTS_END
 
 void quakeat_state::machine_start()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(quakeat_state::irq_callback),this));
-
 }
 /*************************************************************/
 
@@ -120,6 +118,7 @@ static MACHINE_CONFIG_START( quake, quakeat_state )
 	MCFG_CPU_ADD("maincpu", PENTIUM2, 233000000) /* Pentium II, 233MHz */
 	MCFG_CPU_PROGRAM_MAP(quake_map)
 	MCFG_CPU_IO_MAP(quake_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_1", pic8259_device, inta_cb)
 
 	MCFG_FRAGMENT_ADD( pcat_common )
 
@@ -130,8 +129,9 @@ static MACHINE_CONFIG_START( quake, quakeat_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(quakeat_state, screen_update_quake)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_PALETTE_ADD("palette", 0x100)
 
 MACHINE_CONFIG_END
 

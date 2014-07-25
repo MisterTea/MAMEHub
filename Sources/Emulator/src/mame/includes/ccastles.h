@@ -16,7 +16,10 @@ public:
 			m_nvram_4b(*this, "nvram_4b"),
 			m_nvram_4a(*this, "nvram_4a") ,
 		m_videoram(*this, "videoram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"){ }
 
 	/* devices */
 	required_device<m6502_device> m_maincpu;
@@ -25,6 +28,10 @@ public:
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_spriteram;
+
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	/* video-related */
 	const UINT8 *m_syncprom;

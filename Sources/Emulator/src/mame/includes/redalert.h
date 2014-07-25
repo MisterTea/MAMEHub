@@ -20,7 +20,8 @@ public:
 		m_bitmap_color(*this, "bitmap_color"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_cvsd(*this, "cvsd") { }
+		m_cvsd(*this, "cvsd"),
+		m_screen(*this, "screen") { }
 
 	UINT8 m_ay8910_latch_1;
 	UINT8 m_ay8910_latch_2;
@@ -33,6 +34,7 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	optional_device<hc55516_device> m_cvsd;
+	required_device<screen_device> m_screen;
 
 	UINT8 *m_bitmap_colorram;
 	UINT8 m_control_xor;
@@ -48,6 +50,8 @@ public:
 	DECLARE_WRITE8_MEMBER(demoneye_audio_command_w);
 	DECLARE_VIDEO_START(redalert);
 	DECLARE_VIDEO_START(ww3);
+	DECLARE_SOUND_START(redalert);
+	DECLARE_SOUND_START(demoneye);
 	UINT32 screen_update_redalert(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_demoneye(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_panther(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);

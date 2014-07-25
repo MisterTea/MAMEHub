@@ -31,7 +31,10 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_playfield_ram(*this, "playfield_ram"),
 		m_rombase(*this, "rombase"),
-		m_maincpu(*this, "maincpu"){ }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_playfield_ram;
@@ -51,6 +54,10 @@ public:
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	DECLARE_READ8_MEMBER(flyball_input_r);
 	DECLARE_READ8_MEMBER(flyball_scanline_r);
 	DECLARE_READ8_MEMBER(flyball_potsense_r);
@@ -66,7 +73,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(flyball);
 	UINT32 screen_update_flyball(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(flyball_joystick_callback);
 	TIMER_CALLBACK_MEMBER(flyball_quarter_callback);
@@ -108,7 +115,7 @@ TILE_GET_INFO_MEMBER(flyball_state::flyball_get_tile_info)
 
 void flyball_state::video_start()
 {
-	m_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(flyball_state::flyball_get_tile_info),this), tilemap_mapper_delegate(FUNC(flyball_state::flyball_get_memory_offset),this), 8, 16, 32, 16);
+	m_tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(flyball_state::flyball_get_tile_info),this), tilemap_mapper_delegate(FUNC(flyball_state::flyball_get_memory_offset),this), 8, 16, 32, 16);
 }
 
 
@@ -129,7 +136,7 @@ UINT32 flyball_state::screen_update_flyball(screen_device &screen, bitmap_ind16 
 	m_tmap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* draw pitcher */
-	drawgfx_transpen(bitmap, cliprect, machine().gfx[1], m_pitcher_pic ^ 0xf, 0, 1, 0, pitcherx, pitchery, 1);
+	m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, m_pitcher_pic ^ 0xf, 0, 1, 0, pitcherx, pitchery, 1);
 
 	/* draw ball */
 
@@ -383,12 +390,12 @@ static GFXDECODE_START( flyball )
 GFXDECODE_END
 
 
-void flyball_state::palette_init()
+PALETTE_INIT_MEMBER(flyball_state, flyball)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(0x3F, 0x3F, 0x3F));  /* tiles, ball */
-	palette_set_color(machine(), 1, MAKE_RGB(0xFF, 0xFF, 0xFF));
-	palette_set_color(machine(), 2, MAKE_RGB(0xFF ,0xFF, 0xFF));  /* sprites */
-	palette_set_color(machine(), 3, MAKE_RGB(0x00, 0x00, 0x00));
+	palette.set_pen_color(0, rgb_t(0x3F, 0x3F, 0x3F));  /* tiles, ball */
+	palette.set_pen_color(1, rgb_t(0xFF, 0xFF, 0xFF));
+	palette.set_pen_color(2, rgb_t(0xFF ,0xFF, 0xFF));  /* sprites */
+	palette.set_pen_color(3, rgb_t(0x00, 0x00, 0x00));
 }
 
 
@@ -447,10 +454,11 @@ static MACHINE_CONFIG_START( flyball, flyball_state )
 	MCFG_SCREEN_SIZE(256, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(flyball_state, screen_update_flyball)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(flyball)
-	MCFG_PALETTE_LENGTH(4)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", flyball)
+	MCFG_PALETTE_ADD("palette", 4)
+	MCFG_PALETTE_INIT_OWNER(flyball_state, flyball)
 
 	/* sound hardware */
 MACHINE_CONFIG_END

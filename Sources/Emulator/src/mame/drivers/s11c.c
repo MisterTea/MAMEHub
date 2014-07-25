@@ -10,6 +10,7 @@
 #include "sound/hc55516.h"
 #include "sound/2151intf.h"
 #include "sound/dac.h"
+#include "audio/s11c_bg.h"
 #include "includes/s11.h"
 #include "s11c.lh"
 
@@ -33,16 +34,16 @@ static ADDRESS_MAP_START( s11c_audio_map, AS_PROGRAM, 8, s11c_state )
     AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank0")
     AM_RANGE(0xc000, 0xffff) AM_ROMBANK("bank1")
 ADDRESS_MAP_END
-*/
 static ADDRESS_MAP_START( s11c_bg_map, AS_PROGRAM, 8, s11c_state )
-	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x2000, 0x2001) AM_MIRROR(0x1ffe) AM_DEVREADWRITE("ym2151", ym2151_device, read, write)
-	AM_RANGE(0x4000, 0x4003) AM_MIRROR(0x1ffc) AM_DEVREADWRITE("pia40", pia6821_device, read, write)
-	AM_RANGE(0x6000, 0x67ff) AM_WRITE(bg_speech_digit_w)
-	AM_RANGE(0x6800, 0x6fff) AM_WRITE(bg_speech_clock_w)
-	AM_RANGE(0x7800, 0x7fff) AM_WRITE(bgbank_w)
-	AM_RANGE(0x8000, 0xffff) AM_ROMBANK("bgbank")
+    AM_RANGE(0x0000, 0x07ff) AM_RAM
+    AM_RANGE(0x2000, 0x2001) AM_MIRROR(0x1ffe) AM_DEVREADWRITE("ym2151", ym2151_device, read, write)
+    AM_RANGE(0x4000, 0x4003) AM_MIRROR(0x1ffc) AM_DEVREADWRITE("pia40", pia6821_device, read, write)
+    AM_RANGE(0x6000, 0x67ff) AM_WRITE(bg_speech_digit_w)
+    AM_RANGE(0x6800, 0x6fff) AM_WRITE(bg_speech_clock_w)
+    AM_RANGE(0x7800, 0x7fff) AM_WRITE(bgbank_w)
+    AM_RANGE(0x8000, 0xffff) AM_ROMBANK("bgbank")
 ADDRESS_MAP_END
+*/
 
 static INPUT_PORTS_START( s11c )
 	PORT_START("X0")
@@ -124,158 +125,31 @@ static INPUT_PORTS_START( s11c )
 	PORT_CONFSETTING( 0x10, "English" )
 INPUT_PORTS_END
 
+/*
 WRITE8_MEMBER( s11c_state::bgbank_w )
 {
-	UINT8 bank = ((data & 0x04) >> 2) | ((data & 0x03) << 1);
-	membank("bgbank")->set_entry(bank);
+    UINT8 bank = ((data & 0x04) >> 2) | ((data & 0x03) << 1);
+    membank("bgbank")->set_entry(bank);
 //  popmessage("BG bank set to %02x (%i)",data,bank);
 }
-
+*/
 MACHINE_RESET_MEMBER( s11c_state, s11c )
 {
-	membank("bgbank")->set_entry(0);
+//  membank("bgbank")->set_entry(0);
 	// reset the CPUs again, so that the CPUs are starting with the right vectors (otherwise sound may die on reset)
-	m_bgcpu->set_input_line(INPUT_LINE_RESET,PULSE_LINE);
+//  m_bgcpu->set_input_line(INPUT_LINE_RESET,PULSE_LINE);
 }
 
 DRIVER_INIT_MEMBER(s11c_state,s11c)
 {
 	emu_timer* timer = timer_alloc(TIMER_IRQ);
-	UINT8 *BGROM = memregion("bgcpu")->base();
-	membank("bgbank")->configure_entries(0, 8, &BGROM[0x10000], 0x8000);
-	membank("bgbank")->set_entry(0);
+//  UINT8 *BGROM = memregion("bgcpu")->base();
+//  membank("bgbank")->configure_entries(0, 8, &BGROM[0x10000], 0x8000);
+//  membank("bgbank")->set_entry(0);
 	set_invert(true);
 	set_timer(timer);
 	timer->adjust(attotime::from_ticks(S11_IRQ_CYCLES,E_CLOCK),1);
 }
-
-static const pia6821_interface pia21_intf =
-{
-	DEVCB_DRIVER_MEMBER(s11_state, dac_r),      /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_LINE_GND,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(s11_state, sound_w),        /* port A out */
-	DEVCB_DRIVER_MEMBER(s11_state, sol2_w),     /* port B out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia21_ca2_w),       /* line CA2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia21_cb2_w),       /* line CB2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia_irq),       /* IRQA */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia_irq)        /* IRQB */
-};
-
-static const pia6821_interface pia24_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_LINE_GND,     /* line CA1 in */
-	DEVCB_LINE_GND,     /* line CB1 in */
-	DEVCB_LINE_VCC,     /* line CA2 in */
-	DEVCB_LINE_VCC,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(s11_state, lamp0_w),        /* port A out */
-	DEVCB_DRIVER_MEMBER(s11_state, lamp1_w),        /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia24_cb2_w),       /* line CB2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia_irq),       /* IRQA */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia_irq)        /* IRQB */
-};
-
-static const pia6821_interface pia28_intf =
-{
-	DEVCB_DRIVER_MEMBER(s11_state, pia28_w7_r),     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(s11a_state, dig0_w),        /* port A out */
-	DEVCB_DRIVER_MEMBER(s11b_state, dig1_w),        /* port B out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia28_ca2_w),       /* line CA2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia28_cb2_w),       /* line CB2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia_irq),       /* IRQA */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia_irq)        /* IRQB */
-};
-
-static const pia6821_interface pia2c_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(s11b_state, pia2c_pa_w),        /* port A out */
-	DEVCB_DRIVER_MEMBER(s11b_state, pia2c_pb_w),        /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* line CB2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia_irq),   /* IRQA */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia_irq)        /* IRQB */
-};
-
-static const pia6821_interface pia30_intf =
-{
-	DEVCB_DRIVER_MEMBER(s11_state, switch_r),       /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_LINE_GND,     /* line CA1 in */
-	DEVCB_LINE_GND,     /* line CB1 in */
-	DEVCB_LINE_VCC,     /* line CA2 in */
-	DEVCB_LINE_VCC,     /* line CB2 in */
-	DEVCB_NULL,     /* port A out */
-	DEVCB_DRIVER_MEMBER(s11_state, switch_w),       /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia30_cb2_w),       /* line CB2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia_irq),   /* IRQA */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia_irq)        /* IRQB */
-};
-
-static const pia6821_interface pia34_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(s11b_state, pia34_pa_w),        /* port A out */
-	DEVCB_DRIVER_MEMBER(s11_state, pia34_pb_w),     /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia34_cb2_w),       /* line CB2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia_irq),   /* IRQA */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia_irq)        /* IRQB */
-};
-
-//static const pia6821_interface pias_intf =
-//{
-//  DEVCB_DRIVER_MEMBER(s11_state, dac_r),      /* port A in */
-//  DEVCB_NULL,     /* port B in */
-//  DEVCB_DRIVER_LINE_MEMBER(s11_state, pias_ca1_r),        /* line CA1 in */
-//  DEVCB_NULL,     /* line CB1 in */
-//  DEVCB_NULL,     /* line CA2 in */
-//  DEVCB_NULL,     /* line CB2 in */
-//  DEVCB_DRIVER_MEMBER(s11_state, sound_w),        /* port A out */
-//  DEVCB_DRIVER_MEMBER(s11_state, dac_w),      /* port B out */
-//  DEVCB_NULL,     /* line CA2 out */
-//  DEVCB_NULL,     /* line CB2 out */
-//  DEVCB_CPU_INPUT_LINE("audiocpu", M6800_IRQ_LINE),       /* IRQA */
-//  DEVCB_CPU_INPUT_LINE("audiocpu", M6800_IRQ_LINE)        /* IRQB */
-//};
-
-static const pia6821_interface pia40_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_LINE_VCC,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(s11_state, pia40_pa_w),     /* port A out */
-	DEVCB_DRIVER_MEMBER(s11_state, pia40_pb_w),     /* port B out */
-	DEVCB_DRIVER_LINE_MEMBER(s11b_state, pia40_ca2_w),      /* line CA2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s11_state, pia40_cb2_w),       /* line CB2 out */
-	DEVCB_CPU_INPUT_LINE("bgcpu", M6809_FIRQ_LINE),     /* IRQA */
-	DEVCB_CPU_INPUT_LINE("bgcpu", INPUT_LINE_NMI)       /* IRQB */
-};
 
 static MACHINE_CONFIG_START( s11c, s11c_state )
 	/* basic machine hardware */
@@ -290,17 +164,58 @@ static MACHINE_CONFIG_START( s11c, s11c_state )
 	MCFG_FRAGMENT_ADD( genpin_audio )
 
 	/* Devices */
-	MCFG_PIA6821_ADD("pia21", pia21_intf)
-	MCFG_PIA6821_ADD("pia24", pia24_intf)
-	MCFG_PIA6821_ADD("pia28", pia28_intf)
-	MCFG_PIA6821_ADD("pia2c", pia2c_intf)
-	MCFG_PIA6821_ADD("pia30", pia30_intf)
-	MCFG_PIA6821_ADD("pia34", pia34_intf)
+	MCFG_DEVICE_ADD("pia21", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(s11_state, dac_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s11_state, sound_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11_state, sol2_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(s11_state, pia21_ca2_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pia21_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(s11_state, pia_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(s11_state, pia_irq))
+
+	MCFG_DEVICE_ADD("pia24", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s11_state, lamp0_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11_state, lamp1_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pia24_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(s11_state, pia_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(s11_state, pia_irq))
+
+	MCFG_DEVICE_ADD("pia28", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(s11_state, pia28_w7_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s11a_state, dig0_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11b_state, dig1_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(s11_state, pia28_ca2_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pia28_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(s11_state, pia_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(s11_state, pia_irq))
+
+	MCFG_DEVICE_ADD("pia2c", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s11b_state, pia2c_pa_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11b_state, pia2c_pb_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(s11_state, pia_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(s11_state, pia_irq))
+
+	MCFG_DEVICE_ADD("pia30", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(s11_state, switch_r))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11_state, switch_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pia30_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(s11_state, pia_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(s11_state, pia_irq))
+
+	MCFG_DEVICE_ADD("pia34", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s11b_state, pia34_pa_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11_state, pia34_pb_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pia34_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(s11_state, pia_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(s11_state, pia_irq))
+
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
 	// generic sound board is not used in System 11C, except for Star Trax
 
 	/* Add the background music card */
+	MCFG_WMS_S11C_BG_ADD("bgm",":bgcpu")
+	/*
 	MCFG_CPU_ADD("bgcpu", M6809E, XTAL_8MHz) // MC68B09E (note: schematics show this as 8mhz/2, but games crash very quickly with that speed?)
 	MCFG_CPU_PROGRAM_MAP(s11c_bg_map)
 	MCFG_QUANTUM_TIME(attotime::from_hz(50))
@@ -316,7 +231,13 @@ static MACHINE_CONFIG_START( s11c, s11c_state )
 	MCFG_SOUND_ADD("hc55516_bg", HC55516, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "bg", 0.50)
 
-	MCFG_PIA6821_ADD("pia40", pia40_intf)
+	MCFG_DEVICE_ADD("pia40", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s11_state, pia40_pa_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s11_state, pia40_pb_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(s11_state, pia40_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(DEVWRITELINE("bgcpu", m6809_device, firq_line))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("bgcpu", m6809_device, nmi_line))
+	*/
 MACHINE_CONFIG_END
 
 /*--------------------
@@ -415,6 +336,16 @@ ROM_START(pool_l6)
 	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_LOAD("pool_u26.la6", 0x4000, 0x4000, CRC(fec70d5a) SHA1(bc155a590f64f2b43b8799c1a6d2336dde45a10c))
 	ROM_LOAD("pool_u27.la6", 0x8000, 0x8000, CRC(91fb5231) SHA1(538ddc66a5885e4b7a840d35a1e62b92f73b39ad))
+	ROM_REGION(0x50000, "bgcpu", ROMREGION_ERASEFF)
+	ROM_LOAD("pool_u4.l2", 0x10000, 0x10000, CRC(04e95e10) SHA1(3873b3cd6c2961b3f2f28a1e17f8a63c6db808d2))
+	ROM_LOAD("pool_u19.l2", 0x20000, 0x10000, CRC(0f45d02b) SHA1(58bbfdb3b98c43b66e11808cec7cd65a7f2dce6d))
+	ROM_LOAD("pool_u20.l2", 0x30000, 0x10000, CRC(925f62d6) SHA1(21b8d6f9a8b98fce8a3cdf7f5f2d40200544a898))
+ROM_END
+
+ROM_START(pool_l5)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD("pool_u26.l5", 0x4000, 0x4000, CRC(373d18d9) SHA1(320d72777380971c16fe59cb1ed2314dec76705d))
+	ROM_LOAD("pool_u27.l5", 0x8000, 0x8000, CRC(1a2f0717) SHA1(cb8a7a62e0aac721ce68ae0bb1157b92edda62cb))
 	ROM_REGION(0x50000, "bgcpu", ROMREGION_ERASEFF)
 	ROM_LOAD("pool_u4.l2", 0x10000, 0x10000, CRC(04e95e10) SHA1(3873b3cd6c2961b3f2f28a1e17f8a63c6db808d2))
 	ROM_LOAD("pool_u19.l2", 0x20000, 0x10000, CRC(0f45d02b) SHA1(58bbfdb3b98c43b66e11808cec7cd65a7f2dce6d))
@@ -603,6 +534,7 @@ GAME(1990,  dd_l2,      0,          s11c,   s11c, s11c_state,   s11c,   ROT0,   
 GAME(1990,  dd_p6,      dd_l2,      s11c,   s11c, s11c_state,   s11c,   ROT0,   "Bally",                "Dr. Dude (PA-6)",                              GAME_IS_SKELETON_MECHANICAL)
 GAME(1990,  pool_l7,    0,          s11c,   s11c, s11c_state,   s11c,   ROT0,   "Bally",                "Pool Sharks (LA-7)",                           GAME_IS_SKELETON_MECHANICAL)
 GAME(1990,  pool_l6,    pool_l7,    s11c,   s11c, s11c_state,   s11c,   ROT0,   "Bally",                "Pool Sharks (LA-6)",                           GAME_IS_SKELETON_MECHANICAL)
+GAME(1990,  pool_l5,    pool_l7,    s11c,   s11c, s11c_state,   s11c,   ROT0,   "Bally",                "Pool Sharks (LA-5)",                           GAME_IS_SKELETON_MECHANICAL)
 GAME(1990,  pool_le2,   pool_l7,    s11c,   s11c, s11c_state,   s11c,   ROT0,   "Bally",                "Pool Sharks (LE-2)",                           GAME_IS_SKELETON_MECHANICAL)
 GAME(1989,  pool_p7,    pool_l7,    s11c,   s11c, s11c_state,   s11c,   ROT0,   "Bally",                "Pool Sharks (PA-7)",                           GAME_IS_SKELETON_MECHANICAL)
 GAME(1990,  radcl_l1,   0,          s11c,   s11c, s11c_state,   s11c,   ROT0,   "Bally",                "Radical! (L-1)",                               GAME_IS_SKELETON_MECHANICAL)

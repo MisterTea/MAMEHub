@@ -178,7 +178,7 @@ static ADDRESS_MAP_START( megasys1A_map, AS_PROGRAM, 16, megasys1_state )
 	AM_RANGE(0x080006, 0x080007) AM_READ_PORT("DSW")
 	AM_RANGE(0x080008, 0x080009) AM_READ(soundlatch2_word_r)    /* from sound cpu */
 	AM_RANGE(0x084000, 0x0843ff) AM_RAM_WRITE(megasys1_vregs_A_w) AM_SHARE("vregs")
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x08e000, 0x08ffff) AM_RAM AM_SHARE("objectram")
 	AM_RANGE(0x090000, 0x093fff) AM_RAM_WRITE(megasys1_scrollram_0_w) AM_SHARE("scrollram.0")
 	AM_RANGE(0x094000, 0x097fff) AM_RAM_WRITE(megasys1_scrollram_1_w) AM_SHARE("scrollram.1")
@@ -255,7 +255,7 @@ static ADDRESS_MAP_START( megasys1B_map, AS_PROGRAM, 16, megasys1_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xfffff)
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x044000, 0x0443ff) AM_RAM_WRITE(megasys1_vregs_A_w) AM_SHARE("vregs")
-	AM_RANGE(0x048000, 0x0487ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x048000, 0x0487ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x04e000, 0x04ffff) AM_RAM AM_SHARE("objectram")
 	AM_RANGE(0x050000, 0x053fff) AM_RAM_WRITE(megasys1_scrollram_0_w) AM_SHARE("scrollram.0")
 	AM_RANGE(0x054000, 0x057fff) AM_RAM_WRITE(megasys1_scrollram_1_w) AM_SHARE("scrollram.1")
@@ -282,7 +282,7 @@ static ADDRESS_MAP_START( megasys1C_map, AS_PROGRAM, 16, megasys1_state )
 	AM_RANGE(0x0e0000, 0x0e3fff) AM_RAM_WRITE(megasys1_scrollram_0_w) AM_SHARE("scrollram.0")
 	AM_RANGE(0x0e8000, 0x0ebfff) AM_RAM_WRITE(megasys1_scrollram_1_w) AM_SHARE("scrollram.1")
 	AM_RANGE(0x0f0000, 0x0f3fff) AM_RAM_WRITE(megasys1_scrollram_2_w) AM_SHARE("scrollram.2")
-	AM_RANGE(0x0f8000, 0x0f87ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0f8000, 0x0f87ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0d8000, 0x0d8001) AM_READWRITE(ip_select_r,ip_select_w)
 	AM_RANGE(0x1c0000, 0x1cffff) AM_MIRROR(0x30000) AM_RAM AM_SHARE("ram") //0x1f****, Cybattler reads attract mode inputs at 0x1d****
 ADDRESS_MAP_END
@@ -303,7 +303,7 @@ static ADDRESS_MAP_START( megasys1D_map, AS_PROGRAM, 16, megasys1_state )
 	AM_RANGE(0x0ca000, 0x0cbfff) AM_RAM AM_SHARE("objectram")
 	AM_RANGE(0x0d0000, 0x0d3fff) AM_RAM_WRITE(megasys1_scrollram_1_w) AM_SHARE("scrollram.1")
 	AM_RANGE(0x0d4000, 0x0d7fff) AM_RAM_WRITE(megasys1_scrollram_2_w) AM_SHARE("scrollram.2")
-	AM_RANGE(0x0d8000, 0x0d87ff) AM_MIRROR(0x3000) AM_RAM_WRITE(paletteram_RRRRRGGGGGBBBBBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0d8000, 0x0d87ff) AM_MIRROR(0x3000) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0e0000, 0x0e0001) AM_READ_PORT("DSW")
 	AM_RANGE(0x0e8000, 0x0ebfff) AM_RAM_WRITE(megasys1_scrollram_0_w) AM_SHARE("scrollram.0")
 	AM_RANGE(0x0f0000, 0x0f0001) AM_READ_PORT("SYSTEM")
@@ -1475,11 +1475,12 @@ static MACHINE_CONFIG_START( system_A, megasys1_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(megasys1_state, screen_update_megasys1)
 	MCFG_SCREEN_VBLANK_DRIVER(megasys1_state, screen_eof_megasys1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ABC)
-	MCFG_PALETTE_LENGTH(1024)
-
-	MCFG_PALETTE_INIT_OVERRIDE(megasys1_state,megasys1)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ABC)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
+	MCFG_PALETTE_INIT_OWNER(megasys1_state,megasys1)
 	MCFG_VIDEO_START_OVERRIDE(megasys1_state,megasys1)
 
 	/* sound hardware */
@@ -1535,11 +1536,12 @@ static MACHINE_CONFIG_START( system_Bbl, megasys1_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(megasys1_state, screen_update_megasys1)
 	MCFG_SCREEN_VBLANK_DRIVER(megasys1_state, screen_eof_megasys1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ABC)
-	MCFG_PALETTE_LENGTH(1024)
-
-	MCFG_PALETTE_INIT_OVERRIDE(megasys1_state,megasys1)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ABC)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
+	MCFG_PALETTE_INIT_OWNER(megasys1_state,megasys1)
 	MCFG_VIDEO_START_OVERRIDE(megasys1_state,megasys1)
 
 	/* sound hardware */
@@ -1607,11 +1609,12 @@ static MACHINE_CONFIG_START( system_D, megasys1_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(megasys1_state, screen_update_megasys1)
 	MCFG_SCREEN_VBLANK_DRIVER(megasys1_state, screen_eof_megasys1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ABC)
-	MCFG_PALETTE_LENGTH(1024)
-
-	MCFG_PALETTE_INIT_OVERRIDE(megasys1_state,megasys1)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ABC)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRRGGGGGBBBBBx)
+	MCFG_PALETTE_INIT_OWNER(megasys1_state,megasys1)
 	MCFG_VIDEO_START_OVERRIDE(megasys1_state,megasys1)
 
 	/* sound hardware */
@@ -1640,14 +1643,6 @@ WRITE_LINE_MEMBER(megasys1_state::irqhandler)
 	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( system_Z, megasys1_state )
 
 	/* basic machine hardware */
@@ -1666,9 +1661,11 @@ static MACHINE_CONFIG_START( system_Z, megasys1_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(megasys1_state, screen_update_megasys1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(Z)
-	MCFG_PALETTE_LENGTH(768)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", Z)
+	MCFG_PALETTE_ADD("palette", 768)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(megasys1_state,megasys1)
 
@@ -1677,7 +1674,6 @@ static MACHINE_CONFIG_START( system_Z, megasys1_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(megasys1_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -3157,6 +3153,33 @@ ROM_START( peekaboo )
 	ROM_LOAD( "priority.69",    0x000000, 0x200, CRC(b40bff56) SHA1(39c95eed79328ef2df754988db83e07909e848f8) )
 ROM_END
 
+ROM_START( peekaboou )
+	ROM_REGION( 0x40000, "maincpu", 0 )     /* 68000 CPU Code */
+	ROM_LOAD16_BYTE( "pb92127a_3_ver1.0.ic29", 0x000000, 0x020000, CRC(4603176a) SHA1(bbdc3fa439b32bdaaef5ca374af89e25fc4d9c1a) )
+	ROM_LOAD16_BYTE( "pb92127a_2_ver1.0.ic28", 0x000001, 0x020000, CRC(7bf4716b) SHA1(f2c0bfa32426c9816d9d3fbd73560566a497912d) )
+
+	ROM_REGION( 0x1000, "mcu", 0 ) /* MCU Internal Code, M50747 */
+	ROM_LOAD( "mo-90233.mcu", 0x000000, 0x1000, NO_DUMP )
+
+	ROM_REGION( 0x080000, "gfx1", 0 ) /* Scroll 0 */
+	ROM_LOAD( "5",       0x000000, 0x080000, CRC(34fa07bb) SHA1(0f688acf302fd56701ee4fcc1d692adb7bf86ce4) )
+
+	ROM_REGION( 0x080000, "gfx2", 0 ) /* Scroll 1 */
+	ROM_LOAD( "4",       0x000000, 0x020000, CRC(f037794b) SHA1(235c278121921b234a27835284be80c136e6409b) )
+
+	ROM_REGION( 0x020000, "gfx3", ROMREGION_ERASEFF ) /* Scroll 2 */
+	// Unused
+
+	ROM_REGION( 0x080000, "gfx4", 0 ) /* Sprites */
+	ROM_LOAD( "1",       0x000000, 0x080000, CRC(5a444ecf) SHA1(38a7a6e91d0635a7f82a1c9a04efe1586ed3d856) )
+
+	ROM_REGION( 0x120000, "oki1", 0 )       /* Samples */
+	ROM_LOAD( "peeksamp.124", 0x000000, 0x020000, CRC(e1206fa8) SHA1(339d5a4fa2af7fb4ab2e9c6c66f4848fa8774832) )
+	ROM_CONTINUE(             0x040000, 0x0e0000 )
+
+	ROM_REGION( 0x0200, "proms", 0 )        /* Priority PROM */
+	ROM_LOAD( "priority.69",    0x000000, 0x200, CRC(b40bff56) SHA1(39c95eed79328ef2df754988db83e07909e848f8) )
+ROM_END
 
 /***************************************************************************
 
@@ -3660,7 +3683,6 @@ void megasys1_state::rodlandj_gfx_unmangle(const char *region)
 {
 	UINT8 *rom = memregion(region)->base();
 	int size = memregion(region)->bytes();
-	UINT8 *buffer;
 	int i;
 
 	/* data lines swap: 76543210 -> 64537210 */
@@ -3670,7 +3692,7 @@ void megasys1_state::rodlandj_gfx_unmangle(const char *region)
 				| ((rom[i] & 0x48) << 1)
 				| ((rom[i] & 0x10) << 2);
 
-	buffer = auto_alloc_array(machine(), UINT8, size);
+	dynamic_buffer buffer(size);
 
 	memcpy(buffer,rom,size);
 
@@ -3684,22 +3706,19 @@ void megasys1_state::rodlandj_gfx_unmangle(const char *region)
 				| ((i & 0x0008) << 5);
 		rom[i] = buffer[a];
 	}
-
-	auto_free(machine(), buffer);
 }
 
 void megasys1_state::jitsupro_gfx_unmangle(const char *region)
 {
 	UINT8 *rom = memregion(region)->base();
 	int size = memregion(region)->bytes();
-	UINT8 *buffer;
 	int i;
 
 	/* data lines swap: 76543210 -> 43576210 */
 	for (i = 0;i < size;i++)
 		rom[i] =   BITSWAP8(rom[i],0x4,0x3,0x5,0x7,0x6,0x2,0x1,0x0);
 
-	buffer = auto_alloc_array(machine(), UINT8, size);
+	dynamic_buffer buffer(size);
 
 	memcpy(buffer,rom,size);
 
@@ -3711,22 +3730,19 @@ void megasys1_state::jitsupro_gfx_unmangle(const char *region)
 
 		rom[i] = buffer[a];
 	}
-
-	auto_free(machine(), buffer);
 }
 
 void megasys1_state::stdragona_gfx_unmangle(const char *region)
 {
 	UINT8 *rom = memregion(region)->base();
 	int size = memregion(region)->bytes();
-	UINT8 *buffer;
 	int i;
 
 	/* data lines swap: 76543210 -> 37564210 */
 	for (i = 0;i < size;i++)
 		rom[i] =   BITSWAP8(rom[i],3,7,5,6,4,2,1,0);
 
-	buffer = auto_alloc_array(machine(), UINT8, size);
+	dynamic_buffer buffer(size);
 
 	memcpy(buffer,rom,size);
 
@@ -3738,8 +3754,6 @@ void megasys1_state::stdragona_gfx_unmangle(const char *region)
 
 		rom[i] = buffer[a];
 	}
-
-	auto_free(machine(), buffer);
 }
 
 /*************************************
@@ -4147,3 +4161,4 @@ GAME( 1993, chimerab, 0,        system_C,          chimerab, megasys1_state, chi
 GAME( 1993, cybattlr, 0,        system_C,          cybattlr, megasys1_state, cybattlr, ROT90,  "Jaleco", "Cybattler", 0 )
 GAME( 1993, hayaosi1, 0,        system_B_hayaosi1, hayaosi1, megasys1_state, hayaosi1, ROT0,   "Jaleco", "Hayaoshi Quiz Ouza Ketteisen - The King Of Quiz", GAME_IMPERFECT_GRAPHICS )
 GAME( 1993, peekaboo, 0,        system_D,          peekaboo, megasys1_state, peekaboo, ROT0,   "Jaleco", "Peek-a-Boo!", 0 )
+GAME( 1993, peekaboou,peekaboo, system_D,          peekaboo, megasys1_state, peekaboo, ROT0,   "Jaleco", "Peek-a-Boo! (North America, ver 1.0)", 0 )

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*
     Open questions:
 
@@ -221,7 +223,7 @@ void segas32_state::common_start(int multi32)
 	{
 		struct cache_entry *entry = auto_alloc(machine(), struct cache_entry);
 
-		entry->tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(segas32_state::get_tile_info),this), TILEMAP_SCAN_ROWS,  16,16, 32,16);
+		entry->tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(segas32_state::get_tile_info),this), TILEMAP_SCAN_ROWS,  16,16, 32,16);
 		entry->page = 0xff;
 		entry->bank = 0;
 		entry->next = m_cache_head;
@@ -334,7 +336,7 @@ inline void segas32_state::update_color(int offset, UINT16 data)
 	/* nice display when you hit F4, which is useful for debugging */
 
 	/* set the color */
-	palette_set_color_rgb(machine(), offset, pal5bit(data >> 0), pal5bit(data >> 5), pal5bit(data >> 10));
+	m_palette->set_pen_color(offset, pal5bit(data >> 0), pal5bit(data >> 5), pal5bit(data >> 10));
 }
 
 
@@ -2093,10 +2095,10 @@ void segas32_state::mix_all_layers(int which, int xoffs, bitmap_rgb32 &bitmap, c
     static const char *const layname[] = { "TEXT", "NBG0", "NBG1", "NBG2", "NBG3", "BITM", "SPRI", "LINE" };
     for (groupnum = 0; groupnum <= sprgroup_mask; groupnum++)
     {
-        mame_printf_debug("%X: ", groupnum);
+        osd_printf_debug("%X: ", groupnum);
         for (i = 0; i <= numlayers; i++)
-            mame_printf_debug("%s(%02X) ", layname[layerorder[groupnum][i].index], layerorder[groupnum][i].effpri);
-        mame_printf_debug("\n");
+            osd_printf_debug("%s(%02X) ", layname[layerorder[groupnum][i].index], layerorder[groupnum][i].effpri);
+        osd_printf_debug("\n");
     }
 }*/
 
@@ -2296,9 +2298,9 @@ void segas32_state::print_mixer_data(int which)
 {
 	if (++m_print_count > 60 * 5)
 	{
-		mame_printf_debug("\n");
-		mame_printf_debug("OP: %04X\n", m_system32_videoram[0x1ff8e/2]);
-		mame_printf_debug("SC: %04X %04X %04X %04X - %04X %04X %04X %04X\n",
+		osd_printf_debug("\n");
+		osd_printf_debug("OP: %04X\n", m_system32_videoram[0x1ff8e/2]);
+		osd_printf_debug("SC: %04X %04X %04X %04X - %04X %04X %04X %04X\n",
 			m_sprite_control_latched[0x00],
 			m_sprite_control_latched[0x01],
 			m_sprite_control_latched[0x02],
@@ -2307,7 +2309,7 @@ void segas32_state::print_mixer_data(int which)
 			m_sprite_control_latched[0x05],
 			m_sprite_control_latched[0x06],
 			m_sprite_control_latched[0x07]);
-		mame_printf_debug("00: %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X\n",
+		osd_printf_debug("00: %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X\n",
 			m_mixer_control[which][0x00],
 			m_mixer_control[which][0x01],
 			m_mixer_control[which][0x02],
@@ -2324,7 +2326,7 @@ void segas32_state::print_mixer_data(int which)
 			m_mixer_control[which][0x0d],
 			m_mixer_control[which][0x0e],
 			m_mixer_control[which][0x0f]);
-		mame_printf_debug("20: %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X\n",
+		osd_printf_debug("20: %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X\n",
 			m_mixer_control[which][0x10],
 			m_mixer_control[which][0x11],
 			m_mixer_control[which][0x12],
@@ -2341,7 +2343,7 @@ void segas32_state::print_mixer_data(int which)
 			m_mixer_control[which][0x1d],
 			m_mixer_control[which][0x1e],
 			m_mixer_control[which][0x1f]);
-		mame_printf_debug("40: %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X\n",
+		osd_printf_debug("40: %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X\n",
 			m_mixer_control[which][0x20],
 			m_mixer_control[which][0x21],
 			m_mixer_control[which][0x22],
@@ -2375,7 +2377,7 @@ UINT32 segas32_state::screen_update_system32(screen_device &screen, bitmap_rgb32
 	/* if the display is off, punt */
 	if (!m_system32_displayenable[0])
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 		return 0;
 	}
 
@@ -2553,7 +2555,7 @@ UINT32 segas32_state::multi32_update(screen_device &screen, bitmap_rgb32 &bitmap
 	/* if the display is off, punt */
 	if (!m_system32_displayenable[index])
 	{
-		bitmap.fill(get_black_pen(screen.machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 		return 0;
 	}
 

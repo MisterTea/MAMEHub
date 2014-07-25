@@ -49,7 +49,7 @@
 #define MODEL2_TEXTURED
 #define MODEL2_TRANSLUCENT
 #else
-#error "Model 2 renderer: Invalif function selected!"
+#error "Model 2 renderer: Invalid function selected!"
 #endif
 
 #ifndef MODEL2_TEXTURED
@@ -67,7 +67,6 @@ static void MODEL2_FUNC_NAME(void *dest, INT32 scanline, const poly_extent *exte
 	const UINT16 *colortable_g = (const UINT16 *)&state->m_colorxlat[0x4000/4];
 	const UINT16 *colortable_b = (const UINT16 *)&state->m_colorxlat[0x8000/4];
 	const UINT16 *lumaram = (const UINT16 *)state->m_lumaram.target();
-	const UINT16 *palram = (const UINT16 *)state->m_paletteram32.target();
 	UINT32  lumabase = extra->lumabase;
 	UINT32  color = extra->colorbase;
 	UINT8   luma;
@@ -81,7 +80,7 @@ static void MODEL2_FUNC_NAME(void *dest, INT32 scanline, const poly_extent *exte
 
 	luma = lumaram[BYTE_XOR_LE(lumabase + (0xf << 3))] & 0x3F;
 
-	color = palram[BYTE_XOR_LE(color + 0x1000)] & 0x7fff;
+	color = state->m_palram[BYTE_XOR_LE(color + 0x1000)] & 0x7fff;
 
 	colortable_r += ((color >>  0) & 0x1f) << 8;
 	colortable_g += ((color >>  5) & 0x1f) << 8;
@@ -95,7 +94,7 @@ static void MODEL2_FUNC_NAME(void *dest, INT32 scanline, const poly_extent *exte
 	tb = colortable_b[BYTE_XOR_LE(luma)] & 0xff;
 
 	/* build the final color */
-	color = MAKE_RGB(tr, tg, tb);
+	color = rgb_t(tr, tg, tb);
 
 	for(x = extent->startx; x < extent->stopx; x++)
 #if defined(MODEL2_CHECKER)
@@ -123,7 +122,6 @@ static void MODEL2_FUNC_NAME(void *dest, INT32 scanline, const poly_extent *exte
 	const UINT16 *colortable_g = (const UINT16 *)&state->m_colorxlat[0x4000/4];
 	const UINT16 *colortable_b = (const UINT16 *)&state->m_colorxlat[0x8000/4];
 	const UINT16 *lumaram = (const UINT16 *)state->m_lumaram.target();
-	const UINT16 *palram = (const UINT16 *)state->m_paletteram32.target();
 	UINT32  colorbase = extra->colorbase;
 	UINT32  lumabase = extra->lumabase;
 	UINT32  tex_x = extra->texx;
@@ -143,7 +141,7 @@ static void MODEL2_FUNC_NAME(void *dest, INT32 scanline, const poly_extent *exte
 	tex_x_mask  = tex_width - 1;
 	tex_y_mask  = tex_height - 1;
 
-	colorbase = palram[BYTE_XOR_LE(colorbase + 0x1000)] & 0x7fff;
+	colorbase = state->m_palram[BYTE_XOR_LE(colorbase + 0x1000)] & 0x7fff;
 
 	colortable_r += ((colorbase >>  0) & 0x1f) << 8;
 	colortable_g += ((colorbase >>  5) & 0x1f) << 8;
@@ -188,7 +186,7 @@ static void MODEL2_FUNC_NAME(void *dest, INT32 scanline, const poly_extent *exte
 		tg = colortable_g[BYTE_XOR_LE(luma)] & 0xff;
 		tb = colortable_b[BYTE_XOR_LE(luma)] & 0xff;
 
-		p[x] = MAKE_RGB(tr, tg, tb);
+		p[x] = rgb_t(tr, tg, tb);
 	}
 }
 

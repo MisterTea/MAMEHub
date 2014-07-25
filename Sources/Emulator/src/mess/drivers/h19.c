@@ -39,6 +39,7 @@
 #include "machine/ins8250.h"
 #include "machine/keyboard.h"
 
+#define KEYBOARD_TAG "keyboard"
 
 #define H19_CLOCK (XTAL_12_288MHz / 6)
 #define H19_BEEP_FRQ (H19_CLOCK / 1024)
@@ -54,12 +55,14 @@ public:
 
 	h19_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu"),
-			m_crtc(*this, "crtc"),
-			m_ace(*this, "ins8250"),
-			m_beep(*this, "beeper"),
-			m_p_videoram(*this, "videoram")
-	{ }
+		m_maincpu(*this, "maincpu"),
+		m_crtc(*this, "crtc"),
+		m_ace(*this, "ins8250"),
+		m_beep(*this, "beeper"),
+		m_p_videoram(*this, "videoram"),
+		m_palette(*this, "palette")
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<mc6845_device> m_crtc;
@@ -69,7 +72,9 @@ public:
 	DECLARE_READ8_MEMBER(h19_a0_r);
 	DECLARE_WRITE8_MEMBER(h19_c0_w);
 	DECLARE_WRITE8_MEMBER(h19_kbd_put);
+	MC6845_UPDATE_ROW(crtc_update_row);
 	required_shared_ptr<UINT8> m_p_videoram;
+	required_device<palette_device> m_palette;
 	UINT8 *m_p_chargen;
 	UINT8 m_term_data;
 	virtual void machine_reset();
@@ -316,10 +321,9 @@ void h19_state::video_start()
 	m_p_chargen = memregion("chargen")->base();
 }
 
-static MC6845_UPDATE_ROW( h19_update_row )
+MC6845_UPDATE_ROW( h19_state::crtc_update_row )
 {
-	h19_state *state = device->machine().driver_data<h19_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	UINT8 chr,gfx;
 	UINT16 mem,x;
 	UINT32 *p = &bitmap.pix32(y);
@@ -329,7 +333,7 @@ static MC6845_UPDATE_ROW( h19_update_row )
 		UINT8 inv=0;
 		if (x == cursor_x) inv=0xff;
 		mem = (ma + x) & 0x7ff;
-		chr = state->m_p_videoram[mem];
+		chr = m_p_videoram[mem];
 
 		if (chr & 0x80)
 		{
@@ -338,7 +342,7 @@ static MC6845_UPDATE_ROW( h19_update_row )
 		}
 
 		/* get pattern of pixels for that character scanline */
-		gfx = state->m_p_chargen[(chr<<4) | ra] ^ inv;
+		gfx = m_p_chargen[(chr<<4) | ra] ^ inv;
 
 		/* Display a scanline of a character (8 pixels) */
 		*p++ = palette[BIT(gfx, 7)];
@@ -356,31 +360,6 @@ WRITE_LINE_MEMBER(h19_state::h19_ace_irq)
 {
 	m_maincpu->set_input_line(0, (state ? HOLD_LINE : CLEAR_LINE));
 }
-
-static const ins8250_interface h19_ace_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(h19_state, h19_ace_irq), // interrupt
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-static MC6845_INTERFACE( h19_crtc6845_interface )
-{
-	false,
-	8 /*?*/,
-	NULL,
-	h19_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_NMI), // frame pulse
-	NULL
-};
 
 /* F4 Character Displayer */
 static const gfx_layout h19_charlayout =
@@ -406,11 +385,6 @@ WRITE8_MEMBER( h19_state::h19_kbd_put )
 	m_maincpu->set_input_line(0, HOLD_LINE);
 }
 
-static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
-{
-	DEVCB_DRIVER_MEMBER(h19_state, h19_kbd_put)
-};
-
 static MACHINE_CONFIG_START( h19, h19_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",Z80, H19_CLOCK) // From schematics
@@ -425,13 +399,20 @@ static MACHINE_CONFIG_START( h19, h19_state )
 	MCFG_SCREEN_UPDATE_DEVICE("crtc", mc6845_device, screen_update)
 	MCFG_SCREEN_SIZE(640, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640 - 1, 0, 200 - 1)
-	MCFG_GFXDECODE(h19)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_green)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", h19)
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN("palette")
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_12_288MHz / 8, h19_crtc6845_interface) // clk taken from schematics
-	MCFG_INS8250_ADD( "ins8250", h19_ace_interface, XTAL_12_288MHz / 4) // 3.072mhz clock which gets divided down for the various baud rates
-	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_12_288MHz / 8) // clk taken from schematics
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8) /*?*/
+	MCFG_MC6845_UPDATE_ROW_CB(h19_state, crtc_update_row)
+	MCFG_MC6845_OUT_VSYNC_CB(INPUTLINE("maincpu", INPUT_LINE_NMI)) // frame pulse
+
+	MCFG_DEVICE_ADD("ins8250", INS8250, XTAL_12_288MHz / 4) // 3.072mhz clock which gets divided down for the various baud rates
+	MCFG_INS8250_OUT_INT_CB(WRITELINE(h19_state, h19_ace_irq)) // interrupt
+
+	MCFG_DEVICE_ADD(KEYBOARD_TAG, GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(h19_state, h19_kbd_put))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

@@ -126,13 +126,8 @@ ROMs -
 
 ----------------------------------------------------------------*/
 
-#include "emu.h"
-
-#include "cpu/sh2/sh2.h"
-#include "machine/eepromser.h"
-#include "sound/ymf278b.h"
-#include "rendlay.h"
 #include "includes/psikyo4.h"
+#include "rendlay.h"
 
 
 static const gfx_layout layout_16x16x8 =
@@ -209,8 +204,8 @@ WRITE32_MEMBER(psikyo4_state::ps4_paletteram32_RRRRRRRRGGGGGGGGBBBBBBBBxxxxxxxx_
 	g = ((m_paletteram[offset] & 0x00ff0000) >> 16);
 	r = ((m_paletteram[offset] & 0xff000000) >> 24);
 
-	palette_set_color(machine(), offset, MAKE_RGB(r, g, b));
-	palette_set_color(machine(), offset + 0x800, MAKE_RGB(r, g, b)); // For screen 2
+	m_palette->set_pen_color(offset, rgb_t(r, g, b));
+	m_palette2->set_pen_color(offset, rgb_t(r, g, b)); // For screen 2
 }
 
 WRITE32_MEMBER(psikyo4_state::ps4_bgpen_1_dword_w)
@@ -222,7 +217,7 @@ WRITE32_MEMBER(psikyo4_state::ps4_bgpen_1_dword_w)
 	g = ((m_bgpen_1[0] & 0x00ff0000) >>16);
 	r = ((m_bgpen_1[0] & 0xff000000) >>24);
 
-	palette_set_color(machine(), 0x1000, MAKE_RGB(r, g, b)); // Clear colour for screen 1
+	m_palette->set_pen_color(0x800, rgb_t(r, g, b)); // Clear colour for screen 1
 }
 
 WRITE32_MEMBER(psikyo4_state::ps4_bgpen_2_dword_w)
@@ -234,7 +229,7 @@ WRITE32_MEMBER(psikyo4_state::ps4_bgpen_2_dword_w)
 	g = ((m_bgpen_2[0] & 0x00ff0000) >>16);
 	r = ((m_bgpen_2[0] & 0xff000000) >>24);
 
-	palette_set_color(machine(), 0x1001, MAKE_RGB(r, g, b)); // Clear colour for screen 2
+	m_palette2->set_pen_color(0x800, rgb_t(r, g, b)); // Clear colour for screen 2
 }
 
 WRITE32_MEMBER(psikyo4_state::ps4_screen1_brt_w)
@@ -253,7 +248,7 @@ WRITE32_MEMBER(psikyo4_state::ps4_screen1_brt_w)
 			int i;
 
 			for (i = 0; i < 0x800; i++)
-				palette_set_pen_contrast(machine(), i, brt1);
+				m_palette->set_pen_contrast(i, brt1);
 
 			m_oldbrt1 = brt1;
 		}
@@ -282,8 +277,8 @@ WRITE32_MEMBER(psikyo4_state::ps4_screen2_brt_w)
 		{
 			int i;
 
-			for (i = 0x800; i < 0x1000; i++)
-				palette_set_pen_contrast(machine(), i, brt2);
+			for (i = 0x000; i < 0x800; i++)
+				m_palette2->set_pen_contrast(i, brt2);
 
 			m_oldbrt2 = brt2;
 		}
@@ -660,9 +655,12 @@ static MACHINE_CONFIG_START( ps4big, psikyo4_state )
 	MCFG_EEPROM_SERIAL_DEFAULT_VALUE(0)
 
 	/* video hardware */
-	MCFG_GFXDECODE(ps4)
-	MCFG_PALETTE_LENGTH((0x2000/4)*2 + 2) /* 0x2000/4 for each screen. 1 for each screen clear colour */
+	MCFG_GFXDECODE_ADD("gfxdecode", "lpalette", ps4)
+	MCFG_PALETTE_ADD("lpalette", (0x2000/4) + 1) /* palette + clear colour */
+	MCFG_PALETTE_ADD("rpalette", (0x2000/4) + 1)
+
 	MCFG_DEFAULT_LAYOUT(layout_dualhsxs)
+
 
 	MCFG_SCREEN_ADD("lscreen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -670,6 +668,7 @@ static MACHINE_CONFIG_START( ps4big, psikyo4_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(psikyo4_state, screen_update_psikyo4_left)
+	MCFG_SCREEN_PALETTE("lpalette")
 
 	MCFG_SCREEN_ADD("rscreen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -677,6 +676,7 @@ static MACHINE_CONFIG_START( ps4big, psikyo4_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(psikyo4_state, screen_update_psikyo4_right)
+	MCFG_SCREEN_PALETTE("rpalette")
 
 
 	/* sound hardware */
@@ -940,15 +940,20 @@ DRIVER_INIT_MEMBER(psikyo4_state,hotgmck)
 	UINT8 *RAM = memregion("maincpu")->base();
 	membank("bank1")->set_base(&RAM[0x100000]);
 	install_hotgmck_pcm_bank();    // Banked PCM ROM
+
+	UINT32 *rom = (UINT32 *)memregion("maincpu")->base();
+	m_maincpu->sh2drc_add_fastram(0x00000000, 0x000fffff, 1, rom);
+	m_maincpu->sh2drc_add_fastram(0x03000000, 0x030037ff, 0, &m_spriteram[0]);
+	m_maincpu->sh2drc_add_fastram(0x06000000, 0x060fffff, 0, &m_ram[0]);
 }
 
 
-/*    YEAR  NAME      PARENT    MACHINE    INPUT     INIT      MONITOR COMPANY   FULLNAME     FLAGS */
-GAME( 1997, hotgmck,  0,        ps4big,    hotgmck, psikyo4_state,  hotgmck,  ROT0,   "Psikyo", "Taisen Hot Gimmick (Japan)", 0 )
-GAME( 1998, hgkairak, 0,        ps4big,    hotgmck, psikyo4_state,  hotgmck,  ROT0,   "Psikyo", "Taisen Hot Gimmick Kairakuten (Japan)", 0 )
-GAME( 1999, hotgmck3, 0,        ps4big,    hotgmck, psikyo4_state,  hotgmck,  ROT0,   "Psikyo", "Taisen Hot Gimmick 3 Digital Surfing (Japan)", 0 )
-GAME( 2000, hotgm4ev, 0,        ps4big,    hotgmck, psikyo4_state,  hotgmck,  ROT0,   "Psikyo", "Taisen Hot Gimmick 4 Ever (Japan)", 0 )
-GAME( 2001, hotgmcki, 0,        ps4big,    hotgmck, psikyo4_state,  hotgmck,  ROT0,   "Psikyo", "Mahjong Hot Gimmick Integral (Japan)", 0 )
+/*    YEAR  NAME      PARENT    MACHINE    INPUT     INIT                     MONITOR COMPANY   FULLNAME     FLAGS */
+GAME( 1997, hotgmck,  0,        ps4big,    hotgmck,  psikyo4_state, hotgmck,  ROT0,   "Psikyo", "Taisen Hot Gimmick (Japan)", 0 )
+GAME( 1998, hgkairak, 0,        ps4big,    hotgmck,  psikyo4_state, hotgmck,  ROT0,   "Psikyo", "Taisen Hot Gimmick Kairakuten (Japan)", 0 )
+GAME( 1999, hotgmck3, 0,        ps4big,    hotgmck,  psikyo4_state, hotgmck,  ROT0,   "Psikyo", "Taisen Hot Gimmick 3 Digital Surfing (Japan)", 0 )
+GAME( 2000, hotgm4ev, 0,        ps4big,    hotgmck,  psikyo4_state, hotgmck,  ROT0,   "Psikyo", "Taisen Hot Gimmick 4 Ever (Japan)", 0 )
+GAME( 2001, hotgmcki, 0,        ps4big,    hotgmck,  psikyo4_state, hotgmck,  ROT0,   "Psikyo", "Mahjong Hot Gimmick Integral (Japan)", 0 )
 GAME( 2000, loderndf, 0,        ps4small,  loderndf, driver_device, 0,        ROT0,   "Psikyo", "Lode Runner - The Dig Fight (ver. B)", 0 )
 GAME( 2000, loderndfa,loderndf, ps4small,  loderndf, driver_device, 0,        ROT0,   "Psikyo", "Lode Runner - The Dig Fight (ver. A)", 0 )
-GAME( 2000, hotdebut, 0,        ps4small,  hotdebut, driver_device, 0,        ROT0,   "Psikyo / Moss", "Quiz de Idol! Hot Debut (Japan)", 0 )
+GAME( 2000, hotdebut, 0,        ps4small,  hotdebut, driver_device, 0,        ROT0,   "MOSS / Psikyo", "Quiz de Idol! Hot Debut (Japan)", 0 )

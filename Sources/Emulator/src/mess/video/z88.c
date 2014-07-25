@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Kevin Thacker,Sandro Ronco
 /***************************************************************************
 
   z88.c
@@ -26,11 +28,11 @@ inline UINT8* z88_state::convert_address(UINT32 offset)
 ***************************************************************************/
 
 // Initialise the palette
-void z88_state::palette_init()
+PALETTE_INIT_MEMBER(z88_state, z88)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(138, 146, 148));
-	palette_set_color(machine(), 1, MAKE_RGB(92,  83,  88));
-	palette_set_color(machine(), 2, MAKE_RGB(122, 126, 129));
+	m_palette->set_pen_color(0, rgb_t(138, 146, 148));
+	m_palette->set_pen_color(1, rgb_t(92,  83,  88));
+	m_palette->set_pen_color(2, rgb_t(122, 126, 129));
 }
 
 /* temp - change to gfxelement structure */
@@ -70,7 +72,7 @@ void z88_state::vh_render_line(bitmap_ind16 &bitmap, int x, int y, UINT16 pen)
 		plot_pixel(bitmap, x + i, y + 7, pen);
 }
 
-void z88_state::lcd_update(bitmap_ind16 &bitmap, UINT16 sbf, UINT16 hires0, UINT16 hires1, UINT16 lores0, UINT16 lores1, int flash)
+UPD65031_SCREEN_UPDATE(z88_state::lcd_update)
 {
 	if (sbf == 0)
 	{

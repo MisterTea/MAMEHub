@@ -12,16 +12,19 @@
 #define __MC6847__
 
 
+#define MC6847_MODE_AG      0x80
+#define MC6847_MODE_GM2     0x40
+#define MC6847_MODE_GM1     0x20
+#define MC6847_MODE_GM0     0x10
+#define MC6847_MODE_CSS     0x08
+#define MC6847_MODE_AS      0x04
+#define MC6847_MODE_INTEXT  0x02
+#define MC6847_MODE_INV     0x01
+
+
 //**************************************************************************
 //  MC6847 CONFIGURATION / INTERFACE
 //**************************************************************************
-
-#define MCFG_MC6847_REMOVE(_tag) \
-	MCFG_DEVICE_REMOVE(_tag)
-
-#define MCFG_MC6847_ADD(_tag, _variant, _clock, _config)        \
-	MCFG_DEVICE_ADD(_tag, _variant, _clock)                     \
-	MCFG_DEVICE_CONFIG(_config)
 
 #define MCFG_SCREEN_MC6847_NTSC_ADD(_tag, _mctag) \
 	MCFG_SCREEN_ADD(_tag, RASTER)                               \
@@ -30,6 +33,7 @@
 	MCFG_SCREEN_SIZE(320, 243)                                  \
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 1, 241-1)                \
 	MCFG_SCREEN_VBLANK_TIME(0)
+
 #define MCFG_SCREEN_MC6847_PAL_ADD(_tag, _mctag) \
 	MCFG_SCREEN_ADD(_tag, RASTER)                               \
 	MCFG_SCREEN_UPDATE_DEVICE(_mctag, mc6847_base_device, screen_update) \
@@ -37,37 +41,29 @@
 	MCFG_SCREEN_SIZE(320, 243)                                  \
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 1, 241-1)                \
 	MCFG_SCREEN_VBLANK_TIME(0)
-/* interface */
-struct mc6847_interface
-{
-	/* screen we are acting on */
-	const char *m_screen_tag;
 
-	/* if specified, this gets called whenever reading a byte (offs_t ~0 specifies DA* entering the tristate mode) */
-	devcb_read8                 m_input_func;
+#define MCFG_MC6847_HSYNC_CALLBACK(_write) \
+	devcb = &mc6847_friend_device::set_hsync_wr_callback(*device, DEVCB_##_write);
 
-	/* if specified, this gets called for every change of the HS pin (pin 38) */
-	devcb_write_line            m_out_hsync_func;
+#define MCFG_MC6847_FSYNC_CALLBACK(_write) \
+	devcb = &mc6847_friend_device::set_fsync_wr_callback(*device, DEVCB_##_write);
 
-	/* if specified, this gets called for every change of the FS pin (pin 37) */
-	devcb_write_line            m_out_fsync_func;
+#define MCFG_MC6847_CHARROM_CALLBACK(_class, _method) \
+	mc6847_friend_device::set_get_char_rom(*device, mc6847_get_char_rom_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
 
-	/* mode control lines input */
-	devcb_read_line             m_in_ag_func;
-	devcb_read_line             m_in_gm2_func;
-	devcb_read_line             m_in_gm1_func;
-	devcb_read_line             m_in_gm0_func;
-	devcb_read_line             m_in_css_func;
-	devcb_read_line             m_in_as_func;
-	devcb_read_line             m_in_intext_func;
-	devcb_read_line             m_in_inv_func;
+#define MCFG_MC6847_INPUT_CALLBACK(_read) \
+	devcb = &mc6847_base_device::set_input_callback(*device, DEVCB_##_read);
 
-	/* if specified, this reads the external char rom off of the driver state */
-	UINT8 (*m_get_char_rom)(running_machine &machine, UINT8 ch, int line);
+#define MCFG_MC6847_FIXED_MODE(_mode) \
+	mc6847_base_device::set_get_fixed_mode(*device, _mode);
 
-	/* if true, this is black and white */
-	bool                        m_black_and_white;
-};
+#define MCFG_MC6847_BW(_bw) \
+	mc6847_base_device::set_black_and_white(*device, _bw);
+
+
+typedef device_delegate<UINT8 (UINT8 ch, int line)> mc6847_get_char_rom_delegate;
+#define MC6847_GET_CHARROM_MEMBER(_name)   UINT8 _name(UINT8 ch, int line)
+
 
 #define ARTIFACTING_TAG     "artifacting"
 
@@ -85,6 +81,11 @@ public:
 	// inlines
 	bool hs_r(void)                 { return m_horizontal_sync; }
 	bool fs_r(void)                 { return m_field_sync; }
+
+	template<class _Object> static devcb_base &set_hsync_wr_callback(device_t &device, _Object object) { return downcast<mc6847_friend_device &>(device).m_write_hsync.set_callback(object); }
+	template<class _Object> static devcb_base &set_fsync_wr_callback(device_t &device, _Object object) { return downcast<mc6847_friend_device &>(device).m_write_fsync.set_callback(object); }
+
+	static void set_get_char_rom(device_t &device, mc6847_get_char_rom_delegate callback) { downcast<mc6847_friend_device &>(device).m_charrom_cb = callback; }
 
 protected:
 	mc6847_friend_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock,
@@ -113,6 +114,7 @@ protected:
 	static const UINT8 ntsc_square_fontdata8x12[];
 	static const UINT8 semigraphics4_fontdata8x12[];
 	static const UINT8 semigraphics6_fontdata8x12[];
+	static const UINT8 s68047_fontdata8x12[];
 
 	// pixel definitions
 	typedef UINT32 pixel_t;
@@ -145,7 +147,7 @@ protected:
 				UINT8 character = data[i];
 
 				// based on the mode, determine which entry to use
-				const entry *e = &m_entries[mode % (sizeof(m_entries) / sizeof(m_entries[0]))];
+				const entry *e = &m_entries[mode % ARRAY_LENGTH(m_entries)];
 
 				// identify the character in the font data
 				const UINT8 *font_character = e->m_fontdata + (character & e->m_character_mask) * 12;
@@ -265,8 +267,12 @@ protected:
 	};
 
 	// callbacks
-	devcb_resolved_write_line m_res_out_hsync_func;
-	devcb_resolved_write_line m_res_out_fsync_func;
+	devcb_write_line   m_write_hsync;
+	devcb_write_line   m_write_fsync;
+
+	/* if specified, this reads the external char rom off of the driver state */
+	// moved here from mc6847_base_device so to be useable in GIME
+	mc6847_get_char_rom_delegate m_charrom_cb;
 
 	// incidentals
 	character_map m_character_map;
@@ -295,10 +301,10 @@ protected:
 	emu_timer *setup_timer(device_timer_id id, double offset, double period);
 
 	// converts to B&W
-	static pixel_t black_and_white(pixel_t color)
+	static pixel_t black_and_white(rgb_t color)
 	{
-		UINT8 average_color = (RGB_RED(color) + RGB_GREEN(color) + RGB_BLUE(color)) / 3;
-		return MAKE_RGB(average_color, average_color, average_color);
+		UINT8 average_color = (color.r() + color.g() + color.b()) / 3;
+		return rgb_t(average_color, average_color, average_color);
 	}
 
 	// changes the geometry
@@ -381,10 +387,27 @@ protected:
 		}
 	}
 
+	// template function for external bytes
+	template<int bits_per_pixel, int xscale>
+	ATTR_FORCE_INLINE void emit_extbytes(const UINT8 *data, int length, pixel_t *RESTRICT pixels, UINT16 color_base, const pixel_t *RESTRICT palette)
+	{
+		for (int i = 0; i < length; i++)
+		{
+			for (int j = 0; j < (8 / bits_per_pixel); j++)
+			{
+				for (int k = 0; k < xscale; k++)
+				{
+					UINT16 color = color_base + BIT(data[i], 7-j);
+					pixels[(i * (8 / bits_per_pixel) + j) * xscale + k] = palette[color];
+				}
+			}
+		}
+	}
+
 	// template function for emitting samples
 	template<int xscale>
 	UINT32 emit_mc6847_samples(UINT8 mode, const UINT8 *data, int length, pixel_t *RESTRICT pixels, const pixel_t *RESTRICT palette,
-		UINT8 (*get_char_rom)(running_machine &machine, UINT8 ch, int line), int x, int y)
+		mc6847_get_char_rom_delegate get_char_rom, int x, int y)
 	{
 		UINT32 result = 0;
 		if (mode & MODE_AG)
@@ -422,13 +445,13 @@ protected:
 					break;
 			}
 		}
-		else if ((get_char_rom != NULL) && ((mode & (MODE_AG|MODE_AS|MODE_INTEXT)) == MODE_INTEXT))
+		else if (!get_char_rom.isnull() && ((mode & (MODE_AG|MODE_AS|MODE_INTEXT)) == MODE_INTEXT))
 		{
 			/* external ROM */
 			for (int i = 0; i < length; i++)
 			{
-				UINT8 byte = get_char_rom(machine(), data[i], y % 12) ^ (mode & MODE_INV ? 0xFF : 0x00);
-				emit_graphics<2, xscale * 2>(&byte, 1, &pixels[i * 8], (mode & MODE_CSS) ? 14 : 12, palette);
+				UINT8 byte = get_char_rom(data[i], y % 12) ^ (mode & MODE_INV ? 0xFF : 0x00);
+				emit_extbytes<1, xscale>(&byte, 1, &pixels[i * 8], (mode & MODE_CSS) ? 14 : 12, palette);
 			}
 			result = length * 8 * xscale;
 		}
@@ -491,6 +514,11 @@ private:
 class mc6847_base_device : public mc6847_friend_device
 {
 public:
+	template<class _Object> static devcb_base &set_input_callback(device_t &device, _Object object) { return downcast<mc6847_base_device &>(device).m_input_cb.set_callback(object); }
+
+	static void set_get_fixed_mode(device_t &device, UINT8 mode) { downcast<mc6847_base_device &>(device).m_fixed_mode = mode; }
+	static void set_black_and_white(device_t &device, bool bw) { downcast<mc6847_base_device &>(device).m_black_and_white = bw; }
+
 	/* updates the screen -- this will call begin_update(),
 	   followed by update_row() reapeatedly and after all row
 	   updating is complete, end_update() */
@@ -519,6 +547,14 @@ protected:
 	virtual void record_body_scanline(UINT16 physical_scanline, UINT16 scanline);
 	virtual void record_partial_body_scanline(UINT16 physical_scanline, UINT16 logical_scanline, INT32 start_clock, INT32 end_clock);
 
+	void set_custom_palette(const pixel_t *custom_palette)
+	{
+		if ( m_palette != m_bw_palette )
+		{
+			m_palette = custom_palette ? custom_palette : s_palette;
+		}
+	}
+
 private:
 	struct video_scanline
 	{
@@ -532,8 +568,12 @@ private:
 	static const UINT32 s_palette[PALETTE_LENGTH];
 
 	// callbacks
-	devcb_resolved_read8 m_res_input_func;
-	UINT8 (*m_get_char_rom)(running_machine &machine, UINT8 ch, int line);
+
+	/* if specified, this gets called whenever reading a byte (offs_t ~0 specifies DA* entering the tristate mode) */
+	devcb_read8 m_input_cb;
+
+	/* if true, this is black and white */
+	bool m_black_and_white;
 
 	// incidentals
 	UINT8 m_fixed_mode;
@@ -575,7 +615,7 @@ private:
 	}
 
 	// setup functions
-	void setup_fixed_mode(struct devcb_read_line callback, UINT8 mode);
+	void setup_fixed_mode();
 
 	// runtime functions
 	void record_body_scanline(UINT16 physical_scanline, UINT16 scanline, INT32 start_pos, INT32 end_pos);
@@ -634,6 +674,23 @@ public:
 	mc6847t1_pal_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 };
 
+class s68047_device : public mc6847_base_device
+{
+public:
+	s68047_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	void hack_black_becomes_blue(bool flag);
+
+private:
+	static const UINT32 s_s68047_hack_palette[16];
+};
+
+class m5c6847p1_device : public mc6847_base_device
+{
+public:
+	m5c6847p1_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+};
+
 
 extern const device_type MC6847_NTSC;
 extern const device_type MC6847_PAL;
@@ -641,5 +698,7 @@ extern const device_type MC6847Y_NTSC;
 extern const device_type MC6847Y_PAL;
 extern const device_type MC6847T1_NTSC;
 extern const device_type MC6847T1_PAL;
+extern const device_type S68047;
+extern const device_type M5C6847P1;
 
 #endif /* __MC6847__ */

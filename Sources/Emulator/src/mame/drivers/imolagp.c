@@ -125,7 +125,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(imolagp);
 	UINT32 screen_update_imolagp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 };
 
@@ -136,16 +136,16 @@ public:
 
 ***************************************************************************/
 
-void imolagp_state::palette_init()
+PALETTE_INIT_MEMBER(imolagp_state, imolagp)
 {
 	// palette seems like 3bpp + intensity
 	// this still needs to be verified
 	for (int i = 0; i < 8; i++)
 	{
-		palette_set_color_rgb(machine(), i*4+0, 0, 0, 0);
-		palette_set_color_rgb(machine(), i*4+1, pal1bit(i >> 2)/2, pal1bit(i >> 1)/2, pal1bit(i >> 0)/2);
-		palette_set_color_rgb(machine(), i*4+2, 0, 0, 0);
-		palette_set_color_rgb(machine(), i*4+3, pal1bit(i >> 2), pal1bit(i >> 1), pal1bit(i >> 0));
+		palette.set_pen_color(i*4+0, 0, 0, 0);
+		palette.set_pen_color(i*4+1, pal1bit(i >> 2)/2, pal1bit(i >> 1)/2, pal1bit(i >> 0)/2);
+		palette.set_pen_color(i*4+2, 0, 0, 0);
+		palette.set_pen_color(i*4+3, pal1bit(i >> 2), pal1bit(i >> 1), pal1bit(i >> 0));
 	}
 }
 
@@ -480,17 +480,6 @@ void imolagp_state::machine_reset()
 }
 
 
-static I8255A_INTERFACE( ppi8255_intf )
-{
-	// mode $91 - ports A & C-lower as input, ports B & C-upper as output
-	DEVCB_INPUT_PORT("IN0"),
-	DEVCB_NULL,
-	DEVCB_UNMAPPED,
-	DEVCB_UNMAPPED,
-	DEVCB_INPUT_PORT("IN1"),
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( imolagp, imolagp_state )
 
 	/* basic machine hardware */
@@ -507,7 +496,12 @@ static MACHINE_CONFIG_START( imolagp, imolagp_state )
 
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
-	MCFG_I8255A_ADD( "ppi8255", ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	// mode $91 - ports A & C-lower as input, ports B & C-upper as output
+	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
+	MCFG_I8255_IN_PORTB_CB(LOGGER("PPI8255 - unmapped read port B", 0))
+	MCFG_I8255_OUT_PORTB_CB(LOGGER("PPI8255 - unmapped write port B", 0))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("IN1"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -515,10 +509,12 @@ static MACHINE_CONFIG_START( imolagp, imolagp_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(256,256)
 	MCFG_SCREEN_VISIBLE_AREA(0+48,255,0+16,255)
-
 	MCFG_SCREEN_UPDATE_DRIVER(imolagp_state, screen_update_imolagp)
-	MCFG_PALETTE_LENGTH(0x20)
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_SCANLINE)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_SCANLINE)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD("palette", 0x20)
+	MCFG_PALETTE_INIT_OWNER(imolagp_state, imolagp)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

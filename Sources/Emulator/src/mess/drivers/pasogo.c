@@ -172,12 +172,10 @@ public:
 	ems_t m_ems;
 	DECLARE_DRIVER_INIT(pasogo);
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(pasogo);
 	UINT32 screen_update_pasogo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(pasogo_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(vg230_timer);
-	DECLARE_WRITE_LINE_MEMBER(pasogo_pic8259_set_int_line);
-	IRQ_CALLBACK_MEMBER(pasogo_irq_callback);
 	void vg230_reset();
 	void vg230_init();
 	DECLARE_READ8_MEMBER( page_r );
@@ -212,7 +210,7 @@ protected:
 	bool m_cur_eop;
 	UINT8 m_dma_offset[4];
 	UINT8 m_pc_spkrdata;
-	UINT8 m_pc_input;
+	UINT8 m_pit_out2;
 
 	int m_ppi_portc_switch_high;
 	int m_ppi_speaker;
@@ -598,13 +596,13 @@ static const unsigned char pasogo_palette[][3] =
 };
 
 
-void pasogo_state::palette_init()
+PALETTE_INIT_MEMBER(pasogo_state, pasogo)
 {
 	int i;
 
 	for ( i = 0; i < ARRAY_LENGTH(pasogo_palette); i++ )
 	{
-		palette_set_color_rgb(machine(), i, pasogo_palette[i][0], pasogo_palette[i][1], pasogo_palette[i][2]);
+		palette.set_pen_color(i, pasogo_palette[i][0], pasogo_palette[i][1], pasogo_palette[i][2]);
 	}
 }
 
@@ -660,7 +658,7 @@ UINT32 pasogo_state::screen_update_pasogo(screen_device &screen, bitmap_ind16 &b
 	if (w!=width || h!=height)
 	{
 		width = w; height = h;
-//      machine().primary_screen->set_visible_area(0, width - 1, 0, height - 1);
+//      machine().first_screen()->set_visible_area(0, width - 1, 0, height - 1);
 		screen.set_visible_area(0, width - 1, 0, height - 1);
 	}
 #endif
@@ -672,18 +670,12 @@ INTERRUPT_GEN_MEMBER(pasogo_state::pasogo_interrupt)
 //  m_maincpu->set_input_line(UPD7810_INTFE1, PULSE_LINE);
 }
 
-IRQ_CALLBACK_MEMBER(pasogo_state::pasogo_irq_callback)
-{
-	return m_pic8259->acknowledge();
-}
-
 void pasogo_state::machine_reset()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(pasogo_state::pasogo_irq_callback),this));
 	m_u73_q2 = 0;
 	m_out1 = 2; // initial state of pit output is undefined
 	m_pc_spkrdata = 0;
-	m_pc_input = 0;
+	m_pit_out2 = 0;
 	m_dma_channel = -1;
 	m_cur_eop = false;
 }
@@ -692,7 +684,7 @@ void pasogo_state::machine_reset()
 WRITE_LINE_MEMBER(pasogo_state::speaker_set_spkrdata)
 {
 	m_pc_spkrdata = state ? 1 : 0;
-	m_speaker->level_w(m_pc_spkrdata & m_pc_input);
+	m_speaker->level_w(m_pc_spkrdata & m_pit_out2);
 }
 
 
@@ -710,29 +702,9 @@ WRITE_LINE_MEMBER( pasogo_state::pit8253_out1_changed )
 
 WRITE_LINE_MEMBER( pasogo_state::pit8253_out2_changed )
 {
-	m_pc_input = state ? 1 : 0;
-	m_speaker->level_w(m_pc_spkrdata & m_pc_input);
+	m_pit_out2 = state ? 1 : 0;
+	m_speaker->level_w(m_pc_spkrdata & m_pit_out2);
 }
-
-
-static const pit8253_interface pc_pit8254_config =
-{
-	{
-		{
-			4772720/4,              /* heartbeat IRQ */
-			DEVCB_NULL,
-			DEVCB_DEVICE_LINE_MEMBER("pic8259", pic8259_device, ir0_w)
-		}, {
-			4772720/4,              /* dram refresh */
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(pasogo_state, pit8253_out1_changed)
-		}, {
-			4772720/4,              /* pio port c pin 4, and speaker polling enough */
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(pasogo_state, pit8253_out2_changed)
-		}
-	}
-};
 
 
 READ8_MEMBER( pasogo_state::page_r )
@@ -861,33 +833,6 @@ void pasogo_state::select_dma_channel(int channel, bool state)
 	}
 }
 
-
-static I8237_INTERFACE( dma8237_config )
-{
-	DEVCB_DRIVER_LINE_MEMBER(pasogo_state, dma_hrq_changed),
-	DEVCB_DRIVER_LINE_MEMBER(pasogo_state, dma8237_out_eop),
-	DEVCB_DRIVER_MEMBER(pasogo_state, dma_read_byte),
-	DEVCB_DRIVER_MEMBER(pasogo_state, dma_write_byte),
-
-	{ DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(pasogo_state, dma8237_1_dack_r),
-		DEVCB_DRIVER_MEMBER(pasogo_state, dma8237_2_dack_r),
-		DEVCB_DRIVER_MEMBER(pasogo_state, dma8237_3_dack_r) },
-
-
-	{ DEVCB_DRIVER_MEMBER(pasogo_state, dma8237_0_dack_w),
-		DEVCB_DRIVER_MEMBER(pasogo_state, dma8237_1_dack_w),
-		DEVCB_DRIVER_MEMBER(pasogo_state, dma8237_2_dack_w),
-		DEVCB_DRIVER_MEMBER(pasogo_state, dma8237_3_dack_w) },
-
-	// DACK's
-	{ DEVCB_DRIVER_LINE_MEMBER(pasogo_state, dack0_w),
-		DEVCB_DRIVER_LINE_MEMBER(pasogo_state, dack1_w),
-		DEVCB_DRIVER_LINE_MEMBER(pasogo_state, dack2_w),
-		DEVCB_DRIVER_LINE_MEMBER(pasogo_state, dack3_w) }
-};
-
-
 READ8_MEMBER (pasogo_state::ppi_porta_r)
 {
 	int data = 0xFF;
@@ -906,7 +851,6 @@ READ8_MEMBER (pasogo_state::ppi_porta_r)
 
 READ8_MEMBER ( pasogo_state::ppi_portc_r )
 {
-	int timer2_output = m_pit8253->get_output(2);
 	int data=0xff;
 
 	data&=~0x80; // no parity error
@@ -925,9 +869,9 @@ READ8_MEMBER ( pasogo_state::ppi_portc_r )
 
 	if ( m_ppi_portb & 0x01 )
 	{
-		data = ( data & ~0x10 ) | ( timer2_output ? 0x10 : 0x00 );
+		data = ( data & ~0x10 ) | ( m_pit_out2 ? 0x10 : 0x00 );
 	}
-	data = ( data & ~0x20 ) | ( timer2_output ? 0x20 : 0x00 );
+	data = ( data & ~0x20 ) | ( m_pit_out2 ? 0x20 : 0x00 );
 
 	return data;
 }
@@ -940,7 +884,7 @@ WRITE8_MEMBER( pasogo_state::ppi_portb_w )
 	m_ppi_portc_switch_high = data & 0x08;
 	m_ppi_keyboard_clear = data & 0x80;
 	m_ppi_keyb_clock = data & 0x40;
-	m_pit8253->gate2_w(BIT(data, 0));
+	m_pit8253->write_gate2(BIT(data, 0));
 	speaker_set_spkrdata( data & 0x02 );
 
 	m_ppi_clock_signal = ( m_ppi_keyb_clock ) ? 1 : 0;
@@ -956,45 +900,55 @@ WRITE8_MEMBER( pasogo_state::ppi_portb_w )
 }
 
 
-static I8255A_INTERFACE( ppi8255_interface )
-{
-	DEVCB_DRIVER_MEMBER(pasogo_state, ppi_porta_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(pasogo_state, ppi_portb_w),
-	DEVCB_DRIVER_MEMBER(pasogo_state, ppi_portc_r),
-	DEVCB_NULL
-};
-
-
-WRITE_LINE_MEMBER(pasogo_state::pasogo_pic8259_set_int_line)
-{
-	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
-}
-
-
 static MACHINE_CONFIG_START( pasogo, pasogo_state )
 
 	MCFG_CPU_ADD("maincpu", V30, XTAL_32_22MHz/2)
 	MCFG_CPU_PROGRAM_MAP(pasogo_mem)
 	MCFG_CPU_IO_MAP( pasogo_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", pasogo_state,  pasogo_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259", pic8259_device, inta_cb)
 
-	MCFG_PIT8254_ADD( "pit8254", pc_pit8254_config )
+	MCFG_DEVICE_ADD("pit8254", PIT8254, 0)
+	MCFG_PIT8253_CLK0(4772720/4) /* heartbeat IRQ */
+	MCFG_PIT8253_OUT0_HANDLER(DEVWRITELINE("pic8259", pic8259_device, ir0_w))
+	MCFG_PIT8253_CLK1(4772720/4) /* dram refresh */
+	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(pasogo_state, pit8253_out1_changed))
+	MCFG_PIT8253_CLK2(4772720/4) /* pio port c pin 4, and speaker polling enough */
+	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(pasogo_state, pit8253_out2_changed))
 
-	MCFG_PIC8259_ADD( "pic8259", WRITELINE(pasogo_state, pasogo_pic8259_set_int_line), VCC, NULL )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
-	MCFG_I8237_ADD( "dma8237", XTAL_14_31818MHz/3, dma8237_config )
+	MCFG_DEVICE_ADD( "dma8237", AM9517A, XTAL_14_31818MHz/3 )
+	MCFG_I8237_OUT_HREQ_CB(WRITELINE(pasogo_state, dma_hrq_changed))
+	MCFG_I8237_OUT_EOP_CB(WRITELINE(pasogo_state, dma8237_out_eop))
+	MCFG_I8237_IN_MEMR_CB(READ8(pasogo_state, dma_read_byte))
+	MCFG_I8237_OUT_MEMW_CB(WRITE8(pasogo_state, dma_write_byte))
+	MCFG_I8237_IN_IOR_1_CB(READ8(pasogo_state, dma8237_1_dack_r))
+	MCFG_I8237_IN_IOR_2_CB(READ8(pasogo_state, dma8237_2_dack_r))
+	MCFG_I8237_IN_IOR_3_CB(READ8(pasogo_state, dma8237_3_dack_r))
+	MCFG_I8237_OUT_IOW_0_CB(WRITE8(pasogo_state, dma8237_0_dack_w))
+	MCFG_I8237_OUT_IOW_1_CB(WRITE8(pasogo_state, dma8237_1_dack_w))
+	MCFG_I8237_OUT_IOW_2_CB(WRITE8(pasogo_state, dma8237_2_dack_w))
+	MCFG_I8237_OUT_IOW_3_CB(WRITE8(pasogo_state, dma8237_3_dack_w))
+	MCFG_I8237_OUT_DACK_0_CB(WRITELINE(pasogo_state, dack0_w))
+	MCFG_I8237_OUT_DACK_1_CB(WRITELINE(pasogo_state, dack1_w))
+	MCFG_I8237_OUT_DACK_2_CB(WRITELINE(pasogo_state, dack2_w))
+	MCFG_I8237_OUT_DACK_3_CB(WRITELINE(pasogo_state, dack3_w))
 
-	MCFG_I8255_ADD( "ppi8255", ppi8255_interface )
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(pasogo_state, ppi_porta_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(pasogo_state, ppi_portb_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(pasogo_state, ppi_portc_r))
 
 	MCFG_SCREEN_ADD("screen", LCD)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(640, 400)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 400-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pasogo_state, screen_update_pasogo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(ARRAY_LENGTH(pasogo_palette))
+	MCFG_PALETTE_ADD("palette", ARRAY_LENGTH(pasogo_palette))
+	MCFG_PALETTE_INIT_OWNER(pasogo_state, pasogo)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)

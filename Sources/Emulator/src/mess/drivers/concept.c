@@ -190,13 +190,6 @@ INPUT_PORTS_END
 /* init with simple, fixed, B/W palette */
 /* Is the palette black on white or white on black??? */
 
-static const mm58274c_interface concept_mm58274c_interface =
-{
-	0,  /*  mode 24*/
-	1   /*  first day of week */
-};
-
-
 SLOT_INTERFACE_START( concept_exp_devices )
 	SLOT_INTERFACE("fdc", CONCEPT_FDC)
 	SLOT_INTERFACE("hdc", CONCEPT_HDC)
@@ -213,28 +206,38 @@ static MACHINE_CONFIG_START( concept, concept_state )
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)            /* 50 or 60, jumper-selectable */
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_SIZE(720, 560)
 	MCFG_SCREEN_VISIBLE_AREA(0, 720-1, 0, 560-1)
 	MCFG_SCREEN_UPDATE_DRIVER(concept_state, screen_update_concept)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* no sound? */
 
 	/* rtc */
-	MCFG_MM58274C_ADD("mm58274c", concept_mm58274c_interface)
+	MCFG_DEVICE_ADD("mm58274c", MM58274C, 0)
+	MCFG_MM58274C_MODE24(0) // 12 hour
+	MCFG_MM58274C_DAY1(1)   // monday
 
 	/* via */
-	MCFG_VIA6522_ADD("via6522_0", 1022750, concept_via6522_intf)
+	MCFG_DEVICE_ADD("via6522_0", VIA6522, 1022750)
+	MCFG_VIA6522_READPA_HANDLER(READ8(concept_state, via_in_a))
+	MCFG_VIA6522_READPB_HANDLER(READ8(concept_state, via_in_b))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(concept_state, via_out_a))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(concept_state, via_out_b))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(concept_state, via_out_cb2))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(concept_state, via_irq_func))
 
 	/* ACIAs */
-	MCFG_MOS6551_ADD(ACIA_0_TAG, XTAL_1_8432MHz, NULL)
-	MCFG_MOS6551_ADD(ACIA_1_TAG, XTAL_1_8432MHz, NULL)
+	MCFG_DEVICE_ADD(ACIA_0_TAG, MOS6551, 0)
+	MCFG_MOS6551_XTAL(XTAL_1_8432MHz)
+	MCFG_DEVICE_ADD(ACIA_1_TAG, MOS6551, 0)
+	MCFG_MOS6551_XTAL(XTAL_1_8432MHz)
 
 	MCFG_CONCEPT_EXP_PORT_ADD("exp1", concept_exp_devices, NULL)
 	MCFG_CONCEPT_EXP_PORT_ADD("exp2", concept_exp_devices, "fdc")   // Flat cable Hard Disk Controller in Slot 2

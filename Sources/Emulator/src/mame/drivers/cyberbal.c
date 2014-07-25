@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari Cyberball hardware
@@ -124,8 +126,8 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, cyberbal_state )
 	AM_RANGE(0xfd8000, 0xfd9fff) AM_DEVWRITE8("soundcomm", atari_sound_comm_device, main_command_w, 0xff00)
 	AM_RANGE(0xfe0000, 0xfe0fff) AM_READ_PORT("IN0")
 	AM_RANGE(0xfe1000, 0xfe1fff) AM_READ_PORT("IN1")
-	AM_RANGE(0xfe8000, 0xfe8fff) AM_RAM_WRITE(paletteram_1_w) AM_SHARE("paletteram_1")
-	AM_RANGE(0xfec000, 0xfecfff) AM_RAM_WRITE(paletteram_0_w) AM_SHARE("paletteram_0")
+	AM_RANGE(0xfe8000, 0xfe8fff) AM_RAM_DEVWRITE("rpalette", palette_device, write) AM_SHARE("rpalette")
+	AM_RANGE(0xfec000, 0xfecfff) AM_RAM_DEVWRITE("lpalette", palette_device, write) AM_SHARE("lpalette")
 	AM_RANGE(0xff0000, 0xff1fff) AM_RAM_DEVWRITE("playfield2", tilemap_device, write) AM_SHARE("playfield2")
 	AM_RANGE(0xff2000, 0xff2fff) AM_RAM_DEVWRITE("alpha2", tilemap_device, write) AM_SHARE("alpha2")
 	AM_RANGE(0xff3000, 0xff37ff) AM_RAM AM_SHARE("mob2")
@@ -151,8 +153,8 @@ static ADDRESS_MAP_START( extra_map, AS_PROGRAM, 16, cyberbal_state )
 	AM_RANGE(0xfc0000, 0xfdffff) AM_WRITE(video_int_ack_w)
 	AM_RANGE(0xfe0000, 0xfe0fff) AM_READ_PORT("IN0")
 	AM_RANGE(0xfe1000, 0xfe1fff) AM_READ_PORT("IN1")
-	AM_RANGE(0xfe8000, 0xfe8fff) AM_RAM_WRITE(paletteram_1_w) AM_SHARE("paletteram_1")
-	AM_RANGE(0xfec000, 0xfecfff) AM_RAM_WRITE(paletteram_0_w) AM_SHARE("paletteram_0")
+	AM_RANGE(0xfe8000, 0xfe8fff) AM_RAM_DEVWRITE("rpalette", palette_device, write) AM_SHARE("rpalette")
+	AM_RANGE(0xfec000, 0xfecfff) AM_RAM_DEVWRITE("lpalette", palette_device, write) AM_SHARE("lpalette")
 	AM_RANGE(0xff0000, 0xff1fff) AM_RAM_DEVWRITE("playfield2", tilemap_device, write) AM_SHARE("playfield2")
 	AM_RANGE(0xff2000, 0xff2fff) AM_RAM_DEVWRITE("alpha2", tilemap_device, write) AM_SHARE("alpha2")
 	AM_RANGE(0xff3000, 0xff37ff) AM_RAM AM_SHARE("mob2")
@@ -220,7 +222,7 @@ static ADDRESS_MAP_START( cyberbal2p_map, AS_PROGRAM, 16, cyberbal_state )
 	AM_RANGE(0xfc4000, 0xfc4003) AM_READ_PORT("IN2")
 	AM_RANGE(0xfc6000, 0xfc6003) AM_DEVREAD8("jsa", atari_jsa_ii_device, main_response_r, 0xff00)
 	AM_RANGE(0xfc8000, 0xfc8fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
-	AM_RANGE(0xfca000, 0xfcafff) AM_RAM_WRITE(paletteram_666_w) AM_SHARE("paletteram")
+	AM_RANGE(0xfca000, 0xfcafff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xfd0000, 0xfd0003) AM_DEVWRITE("eeprom", atari_eeprom_device, unlock_write)
 	AM_RANGE(0xfd2000, 0xfd2003) AM_DEVWRITE("jsa", atari_jsa_ii_device, sound_reset_w)
 	AM_RANGE(0xfd4000, 0xfd4003) AM_WRITE(watchdog_reset16_w)
@@ -407,29 +409,38 @@ static MACHINE_CONFIG_START( cyberbal, cyberbal_state )
 	MCFG_ATARI_EEPROM_2804_ADD("eeprom")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_GFXDECODE(interleaved)
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_GFXDECODE_ADD("gfxdecode", "lpalette", interleaved)
 
-	MCFG_TILEMAP_ADD_STANDARD("playfield", 2, cyberbal_state, get_playfield_tile_info, 16,8, SCAN_ROWS, 64,64)
-	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", 2, cyberbal_state, get_alpha_tile_info, 16,8, SCAN_ROWS, 64,32, 0)
+	MCFG_PALETTE_ADD("lpalette", 2048)
+	MCFG_PALETTE_FORMAT(IRRRRRGGGGGBBBBB)
+	MCFG_PALETTE_ADD("rpalette", 2048)
+	MCFG_PALETTE_FORMAT(IRRRRRGGGGGBBBBB)
+
+	MCFG_TILEMAP_ADD_STANDARD("playfield", "gfxdecode", 2, cyberbal_state, get_playfield_tile_info, 16,8, SCAN_ROWS, 64,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", "gfxdecode", 2, cyberbal_state, get_alpha_tile_info, 16,8, SCAN_ROWS, 64,32, 0)
 	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "lscreen", cyberbal_state::s_mob_config)
+	MCFG_ATARI_MOTION_OBJECTS_GFXDECODE("gfxdecode")
 
-	MCFG_TILEMAP_ADD_STANDARD("playfield2", 2, cyberbal_state, get_playfield_tile_info, 16,8, SCAN_ROWS, 64,64)
-	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha2", 2, cyberbal_state, get_alpha_tile_info, 16,8, SCAN_ROWS, 64,32, 0)
+	MCFG_TILEMAP_ADD_STANDARD("playfield2", "gfxdecode", 2, cyberbal_state, get_playfield_tile_info, 16,8, SCAN_ROWS, 64,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha2", "gfxdecode", 2, cyberbal_state, get_alpha_tile_info, 16,8, SCAN_ROWS, 64,32, 0)
 	MCFG_ATARI_MOTION_OBJECTS_ADD("mob2", "rscreen", cyberbal_state::s_mob_config)
+	MCFG_ATARI_MOTION_OBJECTS_GFXDECODE("gfxdecode")
 
 	MCFG_SCREEN_ADD("lscreen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	/* note: these parameters are from published specs, not derived */
 	/* the board uses an SOS-2 chip to generate video signals */
 	MCFG_SCREEN_RAW_PARAMS(ATARI_CLOCK_14MHz, 456*2, 0, 336*2, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(cyberbal_state, screen_update_cyberbal_left)
+	MCFG_SCREEN_PALETTE("lpalette")
 
 	MCFG_SCREEN_ADD("rscreen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	/* note: these parameters are from published specs, not derived */
 	/* the board uses an SOS-2 chip to generate video signals */
 	MCFG_SCREEN_RAW_PARAMS(ATARI_CLOCK_14MHz, 456*2, 0, 336*2, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(cyberbal_state, screen_update_cyberbal_right)
+	MCFG_SCREEN_PALETTE("rpalette")
 
 	MCFG_VIDEO_START_OVERRIDE(cyberbal_state,cyberbal)
 
@@ -469,19 +480,22 @@ static MACHINE_CONFIG_START( cyberbal2p, cyberbal_state )
 	MCFG_ATARI_EEPROM_2816_ADD("eeprom")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_GFXDECODE(cyberbal)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cyberbal)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(IRRRRRGGGGGBBBBB)
 
-	MCFG_TILEMAP_ADD_STANDARD("playfield", 2, cyberbal_state, get_playfield_tile_info, 16,8, SCAN_ROWS, 64,64)
-	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", 2, cyberbal_state, get_alpha_tile_info, 16,8, SCAN_ROWS, 64,32, 0)
+	MCFG_TILEMAP_ADD_STANDARD("playfield", "gfxdecode", 2, cyberbal_state, get_playfield_tile_info, 16,8, SCAN_ROWS, 64,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", "gfxdecode", 2, cyberbal_state, get_alpha_tile_info, 16,8, SCAN_ROWS, 64,32, 0)
 	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", cyberbal_state::s_mob_config)
+	MCFG_ATARI_MOTION_OBJECTS_GFXDECODE("gfxdecode")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	/* note: these parameters are from published specs, not derived */
 	/* the board uses an SOS-2 chip to generate video signals */
 	MCFG_SCREEN_RAW_PARAMS(ATARI_CLOCK_14MHz, 456*2, 0, 336*2, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(cyberbal_state, screen_update_cyberbal2p)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(cyberbal_state,cyberbal2p)
 

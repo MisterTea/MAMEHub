@@ -472,23 +472,6 @@ GFXDECODE_END
 
 /*************************************
  *
- *  Sound definition
- *
- *************************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-/*************************************
- *
  *  Machine drivers
  *
  *************************************/
@@ -500,7 +483,6 @@ void kyugo_state::machine_start()
 	save_item(NAME(m_scroll_y));
 	save_item(NAME(m_bgpalbank));
 	save_item(NAME(m_fgcolor));
-	save_item(NAME(m_flipscreen));
 }
 
 void kyugo_state::machine_reset()
@@ -515,7 +497,6 @@ void kyugo_state::machine_reset()
 	m_scroll_y = 0;
 	m_bgpalbank = 0;
 	m_fgcolor = 0;
-	m_flipscreen = 0;
 }
 
 INTERRUPT_GEN_MEMBER(kyugo_state::vblank_irq)
@@ -548,17 +529,17 @@ static MACHINE_CONFIG_START( gyrodine, kyugo_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(kyugo_state, screen_update_kyugo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(kyugo)
-	MCFG_PALETTE_LENGTH(256)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", kyugo)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 256)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, XTAL_18_432MHz/12)  /* verified on pcb */
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
 	MCFG_SOUND_ADD("ay2", AY8910, XTAL_18_432MHz/12)  /* verified on pcb */

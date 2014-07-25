@@ -259,48 +259,6 @@ WRITE8_MEMBER(turbo_state::turbo_ppi3c_w)
 }
 
 
-static I8255_INTERFACE(turbo_8255_intf_0)
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,turbo_ppi0a_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,turbo_ppi0b_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,turbo_ppi0c_w)
-};
-
-static I8255_INTERFACE(turbo_8255_intf_1)
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,turbo_ppi1a_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,turbo_ppi1b_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,turbo_ppi1c_w)
-};
-
-static I8255_INTERFACE(turbo_8255_intf_2)
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,turbo_sound_a_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,turbo_sound_b_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,turbo_sound_c_w)
-};
-
-static I8255_INTERFACE(turbo_8255_intf_3)
-{
-	DEVCB_DRIVER_MEMBER(turbo_state,turbo_analog_r),
-	DEVCB_NULL,
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,turbo_ppi3c_w)
-};
-
-
-
 /*************************************
  *
  *  Subroc 3D PPI handling
@@ -340,29 +298,6 @@ WRITE8_MEMBER(turbo_state::subroc3d_ppi0b_w)
 	set_led_status(machine(), 0, data & 0x04);
 	m_subroc3d_flip = (data >> 4) & 1;
 }
-
-
-static I8255_INTERFACE(subroc3d_8255_intf_0)
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,subroc3d_ppi0a_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,subroc3d_ppi0b_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,subroc3d_ppi0c_w)
-};
-
-static I8255_INTERFACE(subroc3d_8255_intf_1)
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,subroc3d_sound_a_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,subroc3d_sound_b_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,subroc3d_sound_c_w)
-};
-
-
 
 /*************************************
  *
@@ -411,29 +346,6 @@ WRITE8_MEMBER(turbo_state::buckrog_ppi1c_w)
 }
 
 
-static I8255_INTERFACE(buckrog_8255_intf_0)
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,buckrog_ppi0a_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,buckrog_ppi0b_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,buckrog_ppi0c_w)
-};
-
-static I8255_INTERFACE(buckrog_8255_intf_1)
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,buckrog_sound_a_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,buckrog_sound_b_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(turbo_state,buckrog_ppi1c_w)
-};
-
-
-
-
 /*************************************
  *
  *  8279 display/keyboard driver
@@ -453,20 +365,6 @@ WRITE8_MEMBER( turbo_state::digit_w )
 	output_set_digit_value(m_i8279_scanlines * 2 + 0, ls48_map[data & 0x0f]);
 	output_set_digit_value(m_i8279_scanlines * 2 + 1, ls48_map[(data>>4) & 0x0f]);
 }
-
-
-static I8279_INTERFACE( turbo_i8279_intf )
-{
-	DEVCB_NULL,                                     // irq
-	DEVCB_DRIVER_MEMBER(turbo_state, scanlines_w),  // scan SL lines
-	DEVCB_DRIVER_MEMBER(turbo_state, digit_w),      // display A&B
-	DEVCB_NULL,                                     // BD
-	DEVCB_INPUT_PORT("DSW1"),                       // kbd RL lines
-	DEVCB_NULL,                                     // Shift key
-	DEVCB_NULL                                      // Ctrl-Strobe line
-};
-
-
 
 /*************************************
  *
@@ -931,23 +829,42 @@ static MACHINE_CONFIG_START( turbo, turbo_state )
 	MCFG_CPU_PROGRAM_MAP(turbo_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", turbo_state,  irq0_line_hold)
 
-	MCFG_I8255_ADD( "i8255_0", turbo_8255_intf_0 )
-	MCFG_I8255_ADD( "i8255_1", turbo_8255_intf_1 )
-	MCFG_I8255_ADD( "i8255_2", turbo_8255_intf_2 )
-	MCFG_I8255_ADD( "i8255_3", turbo_8255_intf_3 )
+	MCFG_DEVICE_ADD("i8255_0", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(turbo_state, turbo_ppi0a_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(turbo_state, turbo_ppi0b_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(turbo_state, turbo_ppi0c_w))
 
-	MCFG_I8279_ADD("i8279", MASTER_CLOCK/4, turbo_i8279_intf)    // unknown clock
+	MCFG_DEVICE_ADD("i8255_1", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(turbo_state, turbo_ppi1a_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(turbo_state, turbo_ppi1b_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(turbo_state, turbo_ppi1c_w))
+
+	MCFG_DEVICE_ADD("i8255_2", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(turbo_state, turbo_sound_a_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(turbo_state, turbo_sound_b_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(turbo_state, turbo_sound_c_w))
+
+	MCFG_DEVICE_ADD("i8255_3", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(turbo_state, turbo_analog_r))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW2"))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(turbo_state, turbo_ppi3c_w))
+
+	MCFG_DEVICE_ADD("i8279", I8279, MASTER_CLOCK/4)    // unknown clock
+	MCFG_I8279_OUT_SL_CB(WRITE8(turbo_state, scanlines_w))    // scan SL lines
+	MCFG_I8279_OUT_DISP_CB(WRITE8(turbo_state, digit_w))      // display A&B
+	MCFG_I8279_IN_RL_CB(IOPORT("DSW1"))                       // kbd RL lines
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_GFXDECODE(turbo)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", turbo)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(turbo_state,turbo)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(turbo_state, screen_update_turbo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_INIT_OVERRIDE(turbo_state,turbo)
 	MCFG_VIDEO_START_OVERRIDE(turbo_state,turbo)
 
 	/* sound hardware */
@@ -962,21 +879,32 @@ static MACHINE_CONFIG_START( subroc3d, turbo_state )
 	MCFG_CPU_PROGRAM_MAP(subroc3d_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", turbo_state,  irq0_line_hold)
 
-	MCFG_I8255_ADD( "i8255_0", subroc3d_8255_intf_0 )
-	MCFG_I8255_ADD( "i8255_1", subroc3d_8255_intf_1 )
+	MCFG_DEVICE_ADD("i8255_0", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(turbo_state, subroc3d_ppi0a_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(turbo_state, subroc3d_ppi0b_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(turbo_state, subroc3d_ppi0c_w))
 
-	MCFG_I8279_ADD("i8279", MASTER_CLOCK/4, turbo_i8279_intf)    // unknown clock
+	MCFG_DEVICE_ADD("i8255_1", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(turbo_state, subroc3d_sound_a_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(turbo_state, subroc3d_sound_b_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(turbo_state, subroc3d_sound_c_w))
+
+	MCFG_DEVICE_ADD("i8279", I8279, MASTER_CLOCK/4)    // unknown clock
+	MCFG_I8279_OUT_SL_CB(WRITE8(turbo_state, scanlines_w))    // scan SL lines
+	MCFG_I8279_OUT_DISP_CB(WRITE8(turbo_state, digit_w))      // display A&B
+	MCFG_I8279_IN_RL_CB(IOPORT("DSW1"))                       // kbd RL lines
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_GFXDECODE(turbo)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", turbo)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(turbo_state,subroc3d)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(turbo_state, screen_update_subroc3d)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_INIT_OVERRIDE(turbo_state,subroc3d)
 	MCFG_VIDEO_START_OVERRIDE(turbo_state,turbo)
 
 	/* sound hardware */
@@ -998,21 +926,32 @@ static MACHINE_CONFIG_START( buckrog, turbo_state )
 	MCFG_QUANTUM_TIME(attotime::from_hz(600))
 	MCFG_MACHINE_RESET_OVERRIDE(turbo_state,buckrog)
 
-	MCFG_I8255_ADD( "i8255_0", buckrog_8255_intf_0 )
-	MCFG_I8255_ADD( "i8255_1", buckrog_8255_intf_1 )
+	MCFG_DEVICE_ADD("i8255_0", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(turbo_state, buckrog_ppi0a_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(turbo_state, buckrog_ppi0b_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(turbo_state, buckrog_ppi0c_w))
 
-	MCFG_I8279_ADD("i8279", MASTER_CLOCK/4, turbo_i8279_intf)    // unknown clock
+	MCFG_DEVICE_ADD("i8255_1", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(turbo_state, buckrog_sound_a_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(turbo_state, buckrog_sound_b_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(turbo_state, buckrog_ppi1c_w))
+
+	MCFG_DEVICE_ADD("i8279", I8279, MASTER_CLOCK/4)    // unknown clock
+	MCFG_I8279_OUT_SL_CB(WRITE8(turbo_state, scanlines_w))    // scan SL lines
+	MCFG_I8279_OUT_DISP_CB(WRITE8(turbo_state, digit_w))      // display A&B
+	MCFG_I8279_IN_RL_CB(IOPORT("DSW1"))                       // kbd RL lines
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_GFXDECODE(turbo)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", turbo)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_INIT_OWNER(turbo_state,buckrog)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(turbo_state, screen_update_buckrog)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_INIT_OVERRIDE(turbo_state,buckrog)
 	MCFG_VIDEO_START_OVERRIDE(turbo_state,buckrog)
 
 	/* sound hardware */

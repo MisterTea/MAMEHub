@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Cinemat/Leland driver
@@ -67,7 +69,7 @@ static ADDRESS_MAP_START( master_map_program, AS_PROGRAM, 8, leland_state )
 	AM_RANGE(0x2000, 0x9fff) AM_ROMBANK("bank1")
 	AM_RANGE(0xa000, 0xdfff) AM_ROMBANK("bank2") AM_WRITE(leland_battery_ram_w) AM_SHARE("battery")
 	AM_RANGE(0xe000, 0xefff) AM_RAM
-	AM_RANGE(0xf000, 0xf3ff) AM_READWRITE(leland_gated_paletteram_r, leland_gated_paletteram_w) AM_SHARE("paletteram")
+	AM_RANGE(0xf000, 0xf3ff) AM_READWRITE(leland_gated_paletteram_r, leland_gated_paletteram_w) AM_SHARE("palette")
 	AM_RANGE(0xf800, 0xf801) AM_WRITE(leland_master_video_addr_w)
 ADDRESS_MAP_END
 
@@ -714,17 +716,6 @@ INPUT_PORTS_END
    it does not take cross-chip mixing effects into account.
 */
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_SINGLE_OUTPUT,
-	{1000, 0, 0},
-	DEVCB_DRIVER_MEMBER(leland_state, leland_sound_port_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(leland_state, leland_sound_port_w),
-	DEVCB_NULL
-};
-
-
 
 /*************************************
  *
@@ -756,11 +747,17 @@ static MACHINE_CONFIG_START( leland, leland_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay8910.1", AY8910, 10000000/6)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_RES_LOADS(1000, 0, 0)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(leland_state, leland_sound_port_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(leland_state, leland_sound_port_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay8910.2", AY8910, 10000000/6)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_RES_LOADS(1000, 0, 0)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(leland_state, leland_sound_port_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(leland_state, leland_sound_port_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("dac0", DAC, 0)
@@ -776,7 +773,7 @@ static MACHINE_CONFIG_DERIVED( redline, leland )
 	MCFG_CPU_MODIFY("master")
 	MCFG_CPU_IO_MAP(master_redline_map_io)
 
-	MCFG_CPU_ADD("audiocpu", I80186, MCU_CLOCK/2)
+	MCFG_CPU_ADD("audiocpu", I80186, MCU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(leland_80186_map_program)
 	MCFG_CPU_IO_MAP(redline_80186_map_io)
 	MCFG_80186_CHIP_SELECT_CB(DEVWRITE16("custom", leland_80186_sound_device, peripheral_ctrl))

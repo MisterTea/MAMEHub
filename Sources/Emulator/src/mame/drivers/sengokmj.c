@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Pierpaolo Prazzoli
 /******************************************************************************************
 
 Sengoku Mahjong (c) 1991 Sigma
@@ -69,7 +71,9 @@ public:
 		m_sc2_vram(*this, "sc2_vram"),
 		m_sc3_vram(*this, "sc3_vram"),
 		m_spriteram16(*this, "sprite_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT16> m_sc0_vram;
 	required_shared_ptr<UINT16> m_sc1_vram;
@@ -77,6 +81,8 @@ public:
 	required_shared_ptr<UINT16> m_sc3_vram;
 	required_shared_ptr<UINT16> m_spriteram16;
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 	tilemap_t *m_sc0_tilemap;
 	tilemap_t *m_sc1_tilemap;
 	tilemap_t *m_sc2_tilemap;
@@ -101,7 +107,7 @@ public:
 	DECLARE_WRITE16_MEMBER(layer_en_w);
 	DECLARE_WRITE16_MEMBER(layer_scroll_w);
 
-	void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect,int pri);
+	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect,int pri);
 	virtual void video_start();
 	UINT32 screen_update_sengokmj(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 };
@@ -238,7 +244,7 @@ TILE_GET_INFO_MEMBER( sengokmj_state::seibucrtc_sc3_tile_info )
 	SET_TILE_INFO_MEMBER(4, tile, color, 0);
 }
 
-void sengokmj_state::draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect,int pri)
+void sengokmj_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect,int pri)
 {
 	int offs,fx,fy,x,y,color,sprite;
 	int dx,dy,ax,ay;
@@ -267,11 +273,11 @@ void sengokmj_state::draw_sprites(running_machine &machine, bitmap_ind16 &bitmap
 		for (ax=0; ax<dx; ax++)
 			for (ay=0; ay<dy; ay++) {
 				if (!fx)
-					drawgfx_transpen(bitmap,cliprect,machine.gfx[0],
+					m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 						sprite++,
 						color,fx,fy,x+ax*16,y+ay*16,15);
 				else
-					drawgfx_transpen(bitmap,cliprect,machine.gfx[0],
+					m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 						sprite++,
 						color,fx,fy,x+(dx-1-ax)*16,y+ay*16,15);
 			}
@@ -280,10 +286,10 @@ void sengokmj_state::draw_sprites(running_machine &machine, bitmap_ind16 &bitmap
 
 void sengokmj_state::video_start()
 {
-	m_sc0_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sengokmj_state::seibucrtc_sc0_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,32);
-	m_sc2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sengokmj_state::seibucrtc_sc2_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,32);
-	m_sc1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sengokmj_state::seibucrtc_sc1_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,32);
-	m_sc3_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sengokmj_state::seibucrtc_sc3_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_sc0_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sengokmj_state::seibucrtc_sc0_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,32);
+	m_sc2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sengokmj_state::seibucrtc_sc2_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,32);
+	m_sc1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sengokmj_state::seibucrtc_sc1_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,32);
+	m_sc3_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sengokmj_state::seibucrtc_sc3_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
 
 	m_sc2_tilemap->set_transparent_pen(15);
 	m_sc1_tilemap->set_transparent_pen(15);
@@ -292,7 +298,7 @@ void sengokmj_state::video_start()
 
 UINT32 sengokmj_state::screen_update_sengokmj(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(screen.machine().pens[0x7ff], cliprect); //black pen
+	bitmap.fill(m_palette->pen(0x7ff), cliprect); //black pen
 
 	/* TODO: offsetted? */
 	m_sc0_tilemap->set_scrollx(0, (SEIBU_CRTC_SC0_SX + 128) & 0x1ff );
@@ -305,13 +311,13 @@ UINT32 sengokmj_state::screen_update_sengokmj(screen_device &screen, bitmap_ind1
 	m_sc3_tilemap->set_scrolly(0, (0) & 0x1ff );
 
 	if(SEIBU_CRTC_ENABLE_SC0) { m_sc0_tilemap->draw(screen, bitmap, cliprect, 0,0); }
-	if(SEIBU_CRTC_ENABLE_SPR) { draw_sprites(screen.machine(), bitmap,cliprect, 2); }
+	if(SEIBU_CRTC_ENABLE_SPR) { draw_sprites(bitmap,cliprect, 2); }
 	if(SEIBU_CRTC_ENABLE_SC2) { m_sc2_tilemap->draw(screen, bitmap, cliprect, 0,0); }
-	if(SEIBU_CRTC_ENABLE_SPR) { draw_sprites(screen.machine(), bitmap,cliprect, 1); }
+	if(SEIBU_CRTC_ENABLE_SPR) { draw_sprites(bitmap,cliprect, 1); }
 	if(SEIBU_CRTC_ENABLE_SC1) { m_sc1_tilemap->draw(screen, bitmap, cliprect, 0,0); }
-	if(SEIBU_CRTC_ENABLE_SPR) { draw_sprites(screen.machine(), bitmap,cliprect, 0); }
+	if(SEIBU_CRTC_ENABLE_SPR) { draw_sprites(bitmap,cliprect, 0); }
 	if(SEIBU_CRTC_ENABLE_SC3) { m_sc3_tilemap->draw(screen, bitmap, cliprect, 0,0); }
-	if(SEIBU_CRTC_ENABLE_SPR) { draw_sprites(screen.machine(), bitmap,cliprect, 3); }
+	if(SEIBU_CRTC_ENABLE_SPR) { draw_sprites(bitmap,cliprect, 3); }
 
 	return 0;
 }
@@ -368,7 +374,7 @@ static ADDRESS_MAP_START( sengokmj_map, AS_PROGRAM, 16, sengokmj_state )
 	AM_RANGE(0x0c800, 0x0cfff) AM_RAM_WRITE(seibucrtc_sc1vram_w) AM_SHARE("sc1_vram")
 	AM_RANGE(0x0d000, 0x0d7ff) AM_RAM_WRITE(seibucrtc_sc2vram_w) AM_SHARE("sc2_vram")
 	AM_RANGE(0x0d800, 0x0e7ff) AM_RAM_WRITE(seibucrtc_sc3vram_w) AM_SHARE("sc3_vram")
-	AM_RANGE(0x0e800, 0x0f7ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0e800, 0x0f7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0f800, 0x0ffff) AM_RAM AM_SHARE("sprite_ram")
 	AM_RANGE(0xc0000, 0xfffff) AM_ROM
 ADDRESS_MAP_END
@@ -548,12 +554,6 @@ WRITE16_MEMBER( sengokmj_state::layer_scroll_w )
 }
 
 
-SEIBU_CRTC_INTERFACE(crtc_intf)
-{
-	DEVCB_DRIVER_MEMBER16(sengokmj_state, layer_en_w),
-	DEVCB_DRIVER_MEMBER16(sengokmj_state, layer_scroll_w),
-};
-
 static MACHINE_CONFIG_START( sengokmj, sengokmj_state )
 
 	/* basic machine hardware */
@@ -573,11 +573,15 @@ static MACHINE_CONFIG_START( sengokmj, sengokmj_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 16, 256-1) //TODO: dynamic resolution
 	MCFG_SCREEN_UPDATE_DRIVER(sengokmj_state, screen_update_sengokmj)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_SEIBU_CRTC_ADD("crtc",crtc_intf,0)
+	MCFG_DEVICE_ADD("crtc", SEIBU_CRTC, 0)
+	MCFG_SEIBU_CRTC_LAYER_EN_CB(WRITE16(sengokmj_state, layer_en_w))
+	MCFG_SEIBU_CRTC_LAYER_SCROLL_CB(WRITE16(sengokmj_state, layer_scroll_w))
 
-	MCFG_GFXDECODE(sengokmj)
-	MCFG_PALETTE_LENGTH(0x800)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sengokmj)
+	MCFG_PALETTE_ADD("palette", 0x800)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	SEIBU_SOUND_SYSTEM_YM3812_INTERFACE(14318180/4,1320000)

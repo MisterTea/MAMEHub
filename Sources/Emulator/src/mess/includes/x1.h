@@ -11,7 +11,6 @@
 #include "cpu/z80/z80.h"
 #include "cpu/z80/z80daisy.h"
 #include "machine/z80ctc.h"
-//#include "machine/z80sio.h"
 #include "machine/z80dart.h"
 #include "machine/i8255.h"
 #include "machine/wd17xx.h"
@@ -79,7 +78,10 @@ public:
 	m_cassette(*this, "cassette"),
 	m_fdc(*this, "fdc"),
 	m_crtc(*this, "crtc"),
-	m_ctc(*this, "ctc")
+	m_ctc(*this, "ctc"),
+	m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"),
+		m_dma(*this, "dma")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -214,11 +216,11 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(x1_keyboard_callback);
 	DECLARE_WRITE_LINE_MEMBER(fdc_drq_w);
 
-	void x1_draw_pixel(running_machine &machine, bitmap_rgb32 &bitmap,int y,int x,UINT16 pen,UINT8 width,UINT8 height);
-	void draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect);
-	void draw_gfxbitmap(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect, int plane,int pri);
-	UINT8 check_prev_height(running_machine &machine,int x,int y,int x_size);
-	UINT8 check_line_valid_height(running_machine &machine,int y,int x_size,int height);
+	void x1_draw_pixel(bitmap_rgb32 &bitmap,int y,int x,UINT16 pen,UINT8 width,UINT8 height);
+	void draw_fgtilemap(bitmap_rgb32 &bitmap,const rectangle &cliprect);
+	void draw_gfxbitmap(bitmap_rgb32 &bitmap,const rectangle &cliprect, int plane,int pri);
+	UINT8 check_prev_height(int x,int y,int x_size);
+	UINT8 check_line_valid_height(int y,int x_size,int height);
 
 	int priority_mixer_pri(int color);
 	void cmt_command( UINT8 cmd );
@@ -228,6 +230,9 @@ public:
 	DECLARE_WRITE8_MEMBER(memory_write_byte);
 	DECLARE_READ8_MEMBER(io_read_byte);
 	DECLARE_WRITE8_MEMBER(io_write_byte);
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	optional_device<z80dma_device> m_dma;
 };
 
 /*----------- defined in machine/x1.c -----------*/

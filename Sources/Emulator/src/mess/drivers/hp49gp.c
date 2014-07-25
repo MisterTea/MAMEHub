@@ -24,11 +24,12 @@ class hp49gp_state : public driver_device
 public:
 	hp49gp_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+		m_s3c2410(*this, "s3c2410"),
 		m_steppingstone(*this, "steppingstone"),
 		m_maincpu(*this, "maincpu") { }
 
 	UINT32 m_port[9];
-	device_t *m_s3c2410;
+	required_device<s3c2410_device> m_s3c2410;
 	required_shared_ptr<UINT32> m_steppingstone;
 	lcd_spi_t m_lcd_spi;
 	DECLARE_DRIVER_INIT(hp49gp);
@@ -37,7 +38,7 @@ public:
 	DECLARE_INPUT_CHANGED_MEMBER(port_changed);
 	DECLARE_READ32_MEMBER(s3c2410_gpio_port_r);
 	DECLARE_WRITE32_MEMBER(s3c2410_gpio_port_w);
-	inline void ATTR_PRINTF(3,4) verboselog( int n_level, const char *s_fmt, ...);
+	inline void verboselog(int n_level, const char *s_fmt, ...) ATTR_PRINTF(3,4);
 	void lcd_spi_reset( );
 	void lcd_spi_init( );
 	void lcd_spi_line_w( int line, int data);
@@ -58,7 +59,7 @@ enum
 	LCD_SPI_LINE_3
 };
 
-inline void ATTR_PRINTF(3,4) hp49gp_state::verboselog( int n_level, const char *s_fmt, ...)
+inline void hp49gp_state::verboselog(int n_level, const char *s_fmt, ...)
 {
 	if (VERBOSE_LEVEL >= n_level)
 	{
@@ -238,14 +239,13 @@ WRITE32_MEMBER(hp49gp_state::s3c2410_gpio_port_w)
 
 INPUT_CHANGED_MEMBER(hp49gp_state::port_changed)
 {
-	s3c2410_request_eint( m_s3c2410, (FPTR)param + 8);
+	m_s3c2410->s3c2410_request_eint( (FPTR)param + 8);
 }
 
 // ...
 
 void hp49gp_state::machine_start()
 {
-	m_s3c2410 = machine().device( "s3c2410");
 }
 
 void hp49gp_state::machine_reset()
@@ -276,29 +276,11 @@ DRIVER_INIT_MEMBER(hp49gp_state,hp49gp)
 	lcd_spi_init();
 }
 
-static S3C2410_INTERFACE( hp49gp_s3c2410_intf )
-{
-	// CORE (pin read / pin write)
-	{ DEVCB_NULL, DEVCB_NULL },
-	// GPIO (port read / port write)
-	{ DEVCB_DRIVER_MEMBER32(hp49gp_state,s3c2410_gpio_port_r), DEVCB_DRIVER_MEMBER32(hp49gp_state,s3c2410_gpio_port_w) },
-	// I2C (scl write / sda read / sda write)
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	// ADC (data read)
-	{DEVCB_NULL },
-	// I2S (data write)
-	{ DEVCB_NULL },
-	// NAND (command write / address write / data read / data write)
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	// LCD (flags)
-	{ S3C24XX_INTERFACE_LCD_REVERSE }
-};
-
 static MACHINE_CONFIG_START( hp49gp, hp49gp_state )
 	MCFG_CPU_ADD("maincpu", ARM9, 400000000)
 	MCFG_CPU_PROGRAM_MAP(hp49gp_map)
 
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD("palette", 32768)
 
 	MCFG_SCREEN_ADD("screen", LCD)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -310,7 +292,11 @@ static MACHINE_CONFIG_START( hp49gp, hp49gp_state )
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 
 
-	MCFG_S3C2410_ADD("s3c2410", 12000000, hp49gp_s3c2410_intf)
+	MCFG_DEVICE_ADD("s3c2410", S3C2410, 12000000)
+	MCFG_S3C2410_PALETTE("palette")
+	MCFG_S3C2410_GPIO_PORT_R_CB(READ32(hp49gp_state, s3c2410_gpio_port_r))
+	MCFG_S3C2410_GPIO_PORT_W_CB(WRITE32(hp49gp_state, s3c2410_gpio_port_w))
+	MCFG_S3C2410_LCD_FLAGS(S3C24XX_INTERFACE_LCD_REVERSE)
 MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( hp49gp )

@@ -21,7 +21,9 @@ public:
 		m_videoram(*this, "videoram"),
 		m_motion(*this, "motion"),
 		m_discrete(*this, "discrete"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -57,7 +59,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(bsktball);
 	UINT32 screen_update_bsktball(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(bsktball_scanline);
 	DECLARE_WRITE8_MEMBER(bsktball_bounce_w);
@@ -65,6 +67,8 @@ public:
 	DECLARE_WRITE8_MEMBER(bsktball_noise_reset_w);
 	void draw_sprites(  bitmap_ind16 &bitmap, const rectangle &cliprect );
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 /*----------- defined in audio/bsktball.c -----------*/

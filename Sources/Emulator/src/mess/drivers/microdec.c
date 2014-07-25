@@ -11,15 +11,17 @@
 #include "machine/upd765.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class microdec_state : public driver_device
 {
 public:
 	microdec_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_terminal(*this, TERMINAL_TAG)
-		, m_maincpu(*this, "maincpu")
-	{ }
+		: driver_device(mconfig, type, tag),
+		m_terminal(*this, TERMINAL_TAG),
+		m_maincpu(*this, "maincpu")
+	{
+	}
 
 	DECLARE_READ8_MEMBER(status_r);
 	DECLARE_READ8_MEMBER(keyin_r);
@@ -28,7 +30,6 @@ private:
 	UINT8 m_term_data;
 	virtual void machine_reset();
 	virtual void machine_start();
-	void fdc_irq(bool state);
 	required_device<generic_terminal_device> m_terminal;
 	required_device<cpu_device> m_maincpu;
 };
@@ -76,7 +77,6 @@ INPUT_PORTS_END
 
 void microdec_state::machine_start()
 {
-	machine().device<upd765a_device>("upd765")->setup_intrq_cb(upd765a_device::line_cb(FUNC(microdec_state::fdc_irq), this));
 }
 
 void microdec_state::machine_reset()
@@ -87,15 +87,6 @@ void microdec_state::machine_reset()
 WRITE8_MEMBER( microdec_state::kbd_put )
 {
 	m_term_data = data;
-}
-
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(microdec_state, kbd_put)
-};
-
-void microdec_state::fdc_irq(bool state)
-{
 }
 
 static SLOT_INTERFACE_START( microdec_floppies )
@@ -109,7 +100,8 @@ static MACHINE_CONFIG_START( microdec, microdec_state )
 	MCFG_CPU_IO_MAP(microdec_io)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(microdec_state, kbd_put))
 
 	MCFG_UPD765A_ADD("upd765", true, true)
 	MCFG_FLOPPY_DRIVE_ADD("upd765:0", microdec_floppies, "525hd", floppy_image_device::default_floppy_formats)

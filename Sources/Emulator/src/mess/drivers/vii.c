@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Ryan Holtz, Robbbert
 /******************************************************************************
 
 
@@ -160,7 +162,7 @@ protected:
 	void vii_blit_page(bitmap_rgb32 &bitmap, const rectangle &cliprect, int depth, UINT32 bitmap_addr, UINT16 *regs);
 	void vii_blit_sprite(bitmap_rgb32 &bitmap, const rectangle &cliprect, int depth, UINT32 base_addr);
 	void vii_blit_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect, int depth);
-	inline void verboselog(int n_level, const char *s_fmt, ...);
+	inline void verboselog(int n_level, const char *s_fmt, ...) ATTR_PRINTF(3,4);
 	inline UINT8 expand_rgb5_to_rgb8(UINT8 val);
 	inline UINT8 vii_mix_channel(UINT8 a, UINT8 b);
 	void vii_mix_pixel(UINT32 offset, UINT16 rgb);
@@ -186,9 +188,9 @@ enum
 
 #define ENABLE_VERBOSE_LOG (1)
 
-#if ENABLE_VERBOSE_LOG
 inline void vii_state::verboselog(int n_level, const char *s_fmt, ...)
 {
+#if ENABLE_VERBOSE_LOG
 	if( VERBOSE_LEVEL >= n_level )
 	{
 		va_list v;
@@ -197,10 +199,8 @@ inline void vii_state::verboselog(int n_level, const char *s_fmt, ...)
 		vsprintf( buf, s_fmt, v );
 		va_end( v );
 	}
-}
-#else
-#define verboselog(x,y,z,...)
 #endif
+}
 
 /*************************
 *     Video Hardware     *
@@ -1120,7 +1120,7 @@ static MACHINE_CONFIG_START( vii, vii_state )
 	MCFG_SCREEN_SIZE(320, 240)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(vii_state, screen_update_vii)
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD("palette", 32768)
 
 	MCFG_CARTSLOT_ADD( "cart" )
 	MCFG_CARTSLOT_EXTENSION_LIST( "bin" )
@@ -1142,7 +1142,7 @@ static MACHINE_CONFIG_START( vsmile, vii_state )
 	MCFG_SCREEN_SIZE(320, 240)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(vii_state, screen_update_vii)
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD("palette", 32768)
 
 	MCFG_CARTSLOT_ADD( "cart" )
 	MCFG_CARTSLOT_EXTENSION_LIST( "bin" )
@@ -1152,11 +1152,6 @@ static MACHINE_CONFIG_START( vsmile, vii_state )
 	MCFG_SOFTWARE_LIST_ADD("cart_list","vsmile_cart")
 MACHINE_CONFIG_END
 
-static const i2cmem_interface i2cmem_interface =
-{
-	I2CMEM_SLAVE_ADDRESS, 0, 0x200
-};
-
 static MACHINE_CONFIG_START( batman, vii_state )
 
 	MCFG_CPU_ADD( "maincpu", UNSP, XTAL_27MHz)
@@ -1164,14 +1159,15 @@ static MACHINE_CONFIG_START( batman, vii_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", vii_state,  vii_vblank)
 
 
-	MCFG_I2CMEM_ADD("i2cmem",i2cmem_interface)
+	MCFG_I2CMEM_ADD("i2cmem")
+	MCFG_I2CMEM_DATA_SIZE(0x200)
 
 	MCFG_SCREEN_ADD( "screen", RASTER )
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(320, 240)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(vii_state, screen_update_vii)
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD("palette", 32768)
 MACHINE_CONFIG_END
 
 DRIVER_INIT_MEMBER(vii_state,vii)

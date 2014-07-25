@@ -1,7 +1,9 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Jonathan Gevaryahu
 /******************************************************************************
 *
 *  DECtalk DTC-01 Driver
-*  By Jonathan Gevaryahu AKA Lord Nightmare
+*  Copyright (C) 2009-2013 Jonathan Gevaryahu AKA Lord Nightmare
 *  with major help (dumping, tech questions answered, etc)
 *  from Kevin 'kevtris' Horton, without whom this driver would
 *  have been impossible.
@@ -10,12 +12,54 @@
 *  which has been invaluable for work on this driver.
 *  Special thanks to leeeeee for helping figure out what the led selftest codes actually mean
 *
+*
+*  This source file is dual-licensed under the following licenses:
+*  1. The MAME license as of September 2013
+*  2. The GNU LGPLv2.1:
+*
+*  This library is free software; you can redistribute it and/or
+*  modify it under the terms of the GNU Lesser General Public
+*  License as published by the Free Software Foundation; either
+*  version 2.1 of the License, or (at your option) any later version.
+*
+*  This library is distributed in the hope that it will be useful,
+*  but WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+*  Lesser General Public License for more details.
+*
+*  You should have received a copy of the GNU Lesser General Public
+*  License along with this library; if not, write to the Free Software
+*  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+*
+*  Please contact the author if you require other licensing.
+*
+*
 *  This driver dedicated in memory of Dennis Klatt and Jonathan Allen, without whose
-*  original work MITalk and hence KlattTalk and DECtalk would never have existed, and
-*  in memory of Martin Minow, who wrote much of the DECtalk DTC-01 code.
+*  original work MITalk and hence KlattTalk and DECtalk would never have existed,
+*  in memory of Martin Minow, who wrote much of the DECtalk DTC-01 code, and
+*  in memory of Tony Vitale, who was one of the architects of the DECtalk project.
+*
+*  Staff behind DECtalk itself: (mostly from http://amhistory.si.edu/archives/speechsynthesis/ss_dec.htm ):
+*     John C. Broihier
+*     Edward A. Bruckert (who followed the DECtalk IP from DEC->Compaq->HP->Force Computers->Fonix inc and still works on DECtalk as of 2012)
+*     Dave Conroy (dtc-03 letter to sound rules; logic design, worked on dtc-01 and dtc-03, see correspondence below)
+*     Michael J. Crowley
+*     Dennis H. Klatt [1938 - Dec 30, 1988] (worked on klsyn and other parts of MITalk, wrote KLATTtalk which was exclusively licensed to DEC in 1982, worked on dtc-01 and dtc-03)
+*     Martin A. Minow [Nov 6, 1940 - Dec 21, 2000] (dtc-01 conversion of hunnicutt's letter to sound rules, phonetics and general programming)
+*     Walter Tetschner (DECtalk project director; as of 2013 publishes ASRnews: http://www.asrnews.com/)
+*     Anthony J. Vitale [Apr 30, 1945 - Aug 5, 2002] (DECtalk project architect; dtc-03 letter to sound rules; worked on dtc-01 and dtc-03)
+*
+*  Staff behind MITalk: (also see http://amhistory.si.edu/archives/speechsynthesis/ss_mit.htm )
+*     Dennis H. Klatt (see above)
+*     Jonathan Allen [Jun 4, 1934 - Apr 24, 2000] (speech synthesis theory and development)
+*     M. Sharon 'Sheri' Hunnicutt (worked on letter to phoneme rules, which were licensed non-exclusively to DEC in 1982; still works as a docent at KTH in Sweden as of 2013)
 *
 *  TODO:
 *  * DUART:
+*    * Get the duart self test to pass again; this used to work with the old non-devcb duart implementation but regressed with the newer one
+*      * The duart self tests are EXTENSIVE and make an excellent check of many of the duart internal bits.
+*        To enable the self tests rather than bypassing them, under dipswitches, set 'Skip Self Test(IP4)' to 'Open (VCC)'
+*        and under system configuration set 'Hack to prevent hang when skip self test is shorted' to 'Off'
 *    * <DONE> DUART needs to be reset on reset line activation. as is it works ok, but it should be done anyway.
 *    * DUART needs its i/o pins connected as well:
 *    * pins IP0, IP2, and IP3 are connected to the primary serial port:
@@ -29,6 +73,8 @@
 *    * pins OP0 and OP2 are connected to the primary serial port:
 *      * OP0 is RTS
 *      * OP2 is DTR
+*  * <DONE> Figure out why the v1.8 dectalk firmware clips/screeches like hell (it requires the older dsp code to work properly)
+*  * <DONE> Figure out why the older -165/-166 and newer -409/-410 tms32010 dsp firmwares don't produce any sound, while the middle -204/-205 one does (fifo implementations were busted)
 *  * <DONE> Actually store the X2212 nvram's eeprom data to disk rather than throwing it out on exit
 *    * Get setup mode with the serial BREAK int working enough to actually properly save the default nvram back to the chip in emulation, and get rid of the (currently unused) nvram default image in the rom definitions
 *  * emulate/simulate the MT8060 dtmf decoder as a 16-key input device? or hook it to some simple fft code? Francois Javier's fftmorse code ran full speed on a 6mhz 80286, maybe use that?
@@ -83,14 +129,18 @@ DTC-01 LEDs
 *    August 1983: Hardware version A done
 *    unknown date: Version 1.0 roms finalized
 *    unknown date: Version 1.1 roms released to fix a bug with insufficient stack space, see ss_dec1 above
-*    March 1984: Hardware version B done (integrates the output fifo sync error check onto the pcb; Version A units are retrofitted when sent in for firmware upgrades) (most of the schematics come from this time)
-     <there might be a v1.2 or v1.3 in this period, but there is definitely a v1.8, which isn't dumped.>
+*    October 11 1983: Second half of Version 1.8 rom finalized
+*    December 05 1983: First half of Version 1.8 rom finalized
+*    March 1984: Hardware version B done
+       (integrates the output fifo sync error check onto the pcb;
+       Version A units are retrofitted when sent in for firmware upgrades)
+       (most of the schematics come from this time, and have the version 1.8 roms listed on them)
 *    July 02 1984: Second half of Version 2.0 rom finalized
 *    July 23 1984: First half of Version 2.0 rom finalized
 *    October 1984 (the rest of the schematics come from this time)
-*    unknown date: version 2.1 rom finalized
+*    sometime after 6th week of 1985: dsp roms updated to the -409/-410 set
 *
-* NVRAM related stuff found by leeeeee:
+* NVRAM related stuff found by leeeeee (in v2.0):
 * $10402 - nvram recall/reset based on byte on stack (0 = recall, 1 = write default to nvram)
 * $10f2E - nvram recall
 * $10f52 - entry point for nvram check routine
@@ -128,7 +178,7 @@ TLC is INT level 4
 SPC is INT level 5
 DUART is INT level 6
 */
-/* dtc-03 post by dave conroy from usenet comp.sys.dec on 12/2011:
+/* dtc-03 post by dave conroy from usenet comp.sys.dec on 12/29/2011:
 > Wow.  were they better than the DTC01? (OK, I guess they had to be.)
 
 I worked on both of these at DEC (in fact, I think if you look in the
@@ -207,6 +257,8 @@ dgc (dg(no!spam)cx@mac.com)
 
 // USE_LOOSE_TIMING makes the cpu interleave much lower and boosts it on fifo and flag writes by the 68k and semaphore sets by the dsp
 #define USE_LOOSE_TIMING 1
+// makes use_loose_timing boost interleave when the outfifo is about to run out. slightly slows things down but may prevent some glitching
+#undef USE_LOOSE_TIMING_OUTPUT
 // generic logs like led state, and common writes for dsp and spc such as the speech int
 #undef VERBOSE
 // logs reads and writes to nvram, and nvram store/recall flag messages
@@ -221,13 +273,12 @@ dgc (dg(no!spam)cx@mac.com)
 #undef SERIAL_TO_STDERR
 
 /* Core includes */
-#include "emu.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/m68000/m68000.h"
 #include "cpu/tms32010/tms32010.h"
-#include "machine/n68681.h"
+#include "machine/mc68681.h"
 #include "machine/x2212.h"
 #include "sound/dac.h"
-#include "machine/serial.h"
 
 
 class dectalk_state : public driver_device
@@ -244,14 +295,18 @@ public:
 		m_dsp(*this, "dsp"),
 		m_duart(*this, "duartn68681"),
 		m_nvram(*this, "x2212"),
-		m_dac(*this, "dac") { }
+		m_dac(*this, "dac")
+	{
+	}
 
 	// input fifo, between m68k and tms32010
 	UINT16 m_infifo[32]; // technically eight 74LS224 4bit*16stage FIFO chips, arranged as a 32 stage, 16-bit wide fifo
+	UINT8 m_infifo_count;
 	UINT8 m_infifo_tail_ptr;
 	UINT8 m_infifo_head_ptr;
 	// output fifo, between tms32010 and 10khz sample latch for dac
 	UINT16 m_outfifo[16]; // technically three 74LS224 4bit*16stage FIFO chips, arranged as a 16 stage, 12-bit wide fifo
+	UINT8 m_outfifo_count;
 	UINT8 m_outfifo_tail_ptr;
 	UINT8 m_outfifo_head_ptr;
 	UINT8 m_infifo_semaphore; // latch for status of output fifo, d-latch 74ls74 @ E64 'lower half'
@@ -268,7 +323,7 @@ public:
 
 	required_device<m68000_base_device> m_maincpu;
 	required_device<cpu_device> m_dsp;
-	required_device<duartn68681_device> m_duart;
+	required_device<mc68681_device> m_duart;
 	required_device<x2212_device> m_nvram;
 	required_device<dac_device> m_dac;
 	DECLARE_WRITE_LINE_MEMBER(dectalk_duart_irq_handler);
@@ -295,6 +350,7 @@ public:
 	void dectalk_clear_all_fifos(  );
 	void dectalk_semaphore_w ( UINT16 data );
 	UINT16 dectalk_outfifo_r (  );
+	DECLARE_WRITE_LINE_MEMBER(dectalk_reset);
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -336,25 +392,6 @@ WRITE_LINE_MEMBER(dectalk_state::dectalk_duart_txa)
 #endif
 }
 
-static const duartn68681_config dectalk_duart_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(dectalk_state, dectalk_duart_irq_handler), /* irq callback */
-	DEVCB_DRIVER_LINE_MEMBER(dectalk_state, dectalk_duart_txa),         /* serial transmit A (alternate) */
-	DEVCB_DEVICE_LINE_MEMBER("rs232", serial_port_device, tx),          /* serial transmit B (main/local terminal) */
-	DEVCB_DRIVER_MEMBER(dectalk_state, dectalk_duart_input),            /* input port */
-	DEVCB_DRIVER_MEMBER(dectalk_state, dectalk_duart_output),           /* output port */
-};
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER("duartn68681", duartn68681_device, rx_b_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 /* FIFO and TMS32010 stuff */
 #define SPC_INITIALIZE state->m_m68k_spcflags_latch&0x1 // speech initialize flag
 #define SPC_IRQ_ENABLED ((state->m_m68k_spcflags_latch&0x40)>>6) // irq enable flag
@@ -362,7 +399,7 @@ static const rs232_port_interface rs232_intf =
 void dectalk_state::dectalk_outfifo_check ()
 {
 	// check if output fifo is full; if it isn't, set the int on the dsp
-	if (((m_outfifo_head_ptr-1)&0xF) != m_outfifo_tail_ptr)
+	if (m_outfifo_count < 16)
 		m_dsp->set_input_line(0, ASSERT_LINE); // TMS32010 INT
 	else
 		m_dsp->set_input_line(0, CLEAR_LINE); // TMS32010 INT
@@ -373,8 +410,10 @@ void dectalk_state::dectalk_clear_all_fifos(  )
 	// clear fifos (TODO: memset would work better here...)
 	int i;
 	for (i=0; i<16; i++) m_outfifo[i] = 0;
-	for (i=0; i<32; i++) m_infifo[i] = 0;
+	m_outfifo_count = 0;
 	m_outfifo_tail_ptr = m_outfifo_head_ptr = 0;
+	for (i=0; i<32; i++) m_infifo[i] = 0;
+	m_infifo_count = 0;
 	m_infifo_tail_ptr = m_infifo_head_ptr = 0;
 	dectalk_outfifo_check();
 }
@@ -398,10 +437,21 @@ void dectalk_state::dectalk_semaphore_w ( UINT16 data )
 UINT16 dectalk_state::dectalk_outfifo_r (  )
 {
 	UINT16 data = 0xFFFF;
+#ifdef USE_LOOSE_TIMING_OUTPUT
+	// if outfifo count is less than two, boost the interleave to prevent running the fifo out
+	if (m_outfifo_count < 2)
+	machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(25));
+#endif
+#ifdef VERBOSE
+	if (m_outfifo_count == 0) logerror("output fifo is EMPTY! repeating previous sample!\n");
+#endif
 	data = m_outfifo[m_outfifo_tail_ptr];
 	// if fifo is empty (tail ptr == head ptr), do not increment the tail ptr, otherwise do.
-	//if (m_outfifo_tail_ptr != m_outfifo_head_ptr) m_outfifo_tail_ptr++; // technically correct but doesn't match sn74ls224 sheet
-	if (((m_outfifo_head_ptr-1)&0xF) != m_outfifo_tail_ptr) m_outfifo_tail_ptr++; // matches sn74ls224 sheet
+	if (m_outfifo_count > 0)
+	{
+		m_outfifo_tail_ptr++;
+		m_outfifo_count--;
+	}
 	m_outfifo_tail_ptr&=0xF;
 	dectalk_outfifo_check();
 	return ((data&0xfff0)^0x8000); // yes this is right, top bit is inverted and bottom 4 are ignored
@@ -409,33 +459,32 @@ UINT16 dectalk_state::dectalk_outfifo_r (  )
 }
 
 /* Machine reset and friends: stuff that needs setting up which IS directly affected by reset */
-static void dectalk_reset(device_t *device)
+WRITE_LINE_MEMBER(dectalk_state::dectalk_reset)
 {
-	dectalk_state *state = device->machine().driver_data<dectalk_state>();
-	state->m_hack_self_test = 0; // hack
+	m_hack_self_test = 0; // hack
 	// stuff that is DIRECTLY affected by the RESET line
-	device->machine().device<x2212_device>("x2212")->recall(0);
-	device->machine().device<x2212_device>("x2212")->recall(1);
-	device->machine().device<x2212_device>("x2212")->recall(0); // nvram recall
-	state->m_m68k_spcflags_latch = 1; // initial status is speech reset(d0) active and spc int(d6) disabled
-	state->m_m68k_tlcflags_latch = 0; // initial status is tone detect int(d6) off, answer phone(d8) off, ring detect int(d14) off
-	device->machine().device("duartn68681")->reset(); // reset the DUART
+	machine().device<x2212_device>("x2212")->recall(0);
+	machine().device<x2212_device>("x2212")->recall(1);
+	machine().device<x2212_device>("x2212")->recall(0); // nvram recall
+	m_m68k_spcflags_latch = 1; // initial status is speech reset(d0) active and spc int(d6) disabled
+	m_m68k_tlcflags_latch = 0; // initial status is tone detect int(d6) off, answer phone(d8) off, ring detect int(d14) off
+	machine().device("duartn68681")->reset(); // reset the DUART
 	// stuff that is INDIRECTLY affected by the RESET line
-	state->dectalk_clear_all_fifos(); // speech reset clears the fifos, though we have to do it explicitly here since we're not actually in the m68k_spcflags_w function.
-	state->dectalk_semaphore_w(0); // on the original DECtalk DTC-01 pcb revision, this is a semaphore for the INPUT fifo, later dec hacked on a check for the 3 output fifo chips to see if they're in sync, and set both of these latches if true.
-	state->m_spc_error_latch = 0; // spc error latch is cleared on /reset
-	state->m_dsp->set_input_line(INPUT_LINE_RESET, ASSERT_LINE); // speech reset forces the CLR line active on the tms32010
-	state->m_tlc_tonedetect = 0; // TODO, needed for selftest pass
-	state->m_tlc_ringdetect = 0; // TODO
-	state->m_tlc_dtmf = 0; // TODO
-	state->m_duart_inport = 0xF;
-	state->m_duart_outport = 0;
+	dectalk_clear_all_fifos(); // speech reset clears the fifos, though we have to do it explicitly here since we're not actually in the m68k_spcflags_w function.
+	dectalk_semaphore_w(0); // on the original DECtalk DTC-01 pcb revision, this is a semaphore for the INPUT fifo, later dec hacked on a check for the 3 output fifo chips to see if they're in sync, and set both of these latches if true.
+	m_spc_error_latch = 0; // spc error latch is cleared on /reset
+	m_dsp->set_input_line(INPUT_LINE_RESET, ASSERT_LINE); // speech reset forces the CLR line active on the tms32010
+	m_tlc_tonedetect = 0; // TODO, needed for selftest pass
+	m_tlc_ringdetect = 0; // TODO
+	m_tlc_dtmf = 0; // TODO
+	m_duart_inport = 0xF;
+	m_duart_outport = 0;
 }
 
 void dectalk_state::machine_reset()
 {
 	/* hook the RESET line, which resets a slew of other components */
-	m68k_set_reset_callback(m_maincpu, dectalk_reset);
+	m_maincpu->set_reset_callback(write_line_delegate(FUNC(dectalk_state::dectalk_reset),this));
 }
 
 /* Begin 68k i/o handlers */
@@ -479,7 +528,7 @@ WRITE16_MEMBER(dectalk_state::m68k_infifo_w)// 68k write to the speech input fif
 	logerror("m68k: SPC infifo written with data = %04X, fifo head was: %02X; fifo tail: %02X\n",data, m_infifo_head_ptr, m_infifo_tail_ptr);
 #endif
 	// if fifo is full (head ptr = tail ptr-1), do not increment the head ptr and do not store the data
-	if (((m_infifo_tail_ptr-1)&0x1F) == m_infifo_head_ptr)
+	if (m_infifo_count == 32)
 	{
 #ifdef SPC_LOG_68K
 		logerror("infifo was full, write ignored!\n");
@@ -488,6 +537,7 @@ WRITE16_MEMBER(dectalk_state::m68k_infifo_w)// 68k write to the speech input fif
 	}
 	m_infifo[m_infifo_head_ptr] = data;
 	m_infifo_head_ptr++;
+	m_infifo_count++;
 	m_infifo_head_ptr&=0x1F;
 }
 
@@ -656,8 +706,8 @@ WRITE16_MEMBER(dectalk_state::spc_latch_outfifo_error_stats)// latch 74ls74 @ E6
 #ifdef SPC_LOG_DSP
 	logerror("dsp: set fifo semaphore and set error status = %01X\n",data&1);
 #endif
-	dectalk_semaphore_w((~m_simulate_outfifo_error)&1); // always set to 1 here, unless outfifo error.
-	m_spc_error_latch = (data&1);
+	dectalk_semaphore_w((~m_simulate_outfifo_error)&1); // always set to 1 here, unless outfifo desync-between-the-three-parallel-fifo-chips error occurs.
+	m_spc_error_latch = (data&1); // latch the dsp 'soft error' state aka "ERROR DETECTED D5 H" on schematics (different from the outfifo error state above!)
 }
 
 READ16_MEMBER(dectalk_state::spc_infifo_data_r)
@@ -668,8 +718,11 @@ READ16_MEMBER(dectalk_state::spc_infifo_data_r)
 	logerror("dsp: SPC infifo read with data = %04X, fifo head: %02X; fifo tail was: %02X\n",data, m_infifo_head_ptr, m_infifo_tail_ptr);
 #endif
 	// if fifo is empty (tail ptr == head ptr), do not increment the tail ptr, otherwise do.
-	if (m_infifo_tail_ptr != m_infifo_head_ptr) m_infifo_tail_ptr++; // technically correct but doesn't match sn74ls224 sheet
-	//if (((m_infifo_head_ptr-1)&0x1F) != m_infifo_tail_ptr) m_infifo_tail_ptr++; // matches sn74ls224 sheet
+	if (m_infifo_count > 0)
+	{
+		m_infifo_tail_ptr++;
+		m_infifo_count--;
+	}
 	m_infifo_tail_ptr&=0x1F;
 	return data;
 }
@@ -682,7 +735,7 @@ WRITE16_MEMBER(dectalk_state::spc_outfifo_data_w)
 #endif
 	m_dsp->set_input_line(0, CLEAR_LINE); //TMS32010 INT (cleared because LDCK inverts the IR line, clearing int on any outfifo write... for a moment at least.)
 	// if fifo is full (head ptr = tail ptr-1), do not increment the head ptr and do not store the data
-	if (((m_outfifo_tail_ptr-1)&0xF) == m_outfifo_head_ptr)
+	if (m_outfifo_count == 16)
 	{
 #ifdef SPC_LOG_DSP
 		logerror("outfifo was full, write ignored!\n");
@@ -691,8 +744,9 @@ WRITE16_MEMBER(dectalk_state::spc_outfifo_data_w)
 	}
 	m_outfifo[m_outfifo_head_ptr] = data;
 	m_outfifo_head_ptr++;
+	m_outfifo_count++;
 	m_outfifo_head_ptr&=0xF;
-	//dectalk_outfifo_check(); // commented to allow int to clear
+	//dectalk_outfifo_check(); // outfifo check should only be done in the audio 10khz polling function
 }
 
 READ16_MEMBER(dectalk_state::spc_semaphore_r)// Return state of d-latch 74ls74 @ E64 'lower half' in d0 which indicates whether infifo is readable
@@ -734,7 +788,7 @@ static ADDRESS_MAP_START(m68k_mem, AS_PROGRAM, 16, dectalk_state )
 	AM_RANGE(0x094000, 0x0943ff) AM_WRITE8(led_write, 0x00FF) AM_MIRROR(0x763C00) /* LED array */
 	AM_RANGE(0x094000, 0x0941ff) AM_DEVREADWRITE8("x2212", x2212_device, read, write, 0xFF00) AM_MIRROR(0x763C00) /* Xicor X2212 NVRAM */
 	AM_RANGE(0x094200, 0x0943ff) AM_READWRITE8(nvram_recall, nvram_store, 0xFF00) AM_MIRROR(0x763C00) /* Xicor X2212 NVRAM */
-	AM_RANGE(0x098000, 0x09801f) AM_DEVREADWRITE8("duartn68681", duartn68681_device, read, write, 0xff ) AM_MIRROR(0x763FE0) /* DUART */
+	AM_RANGE(0x098000, 0x09801f) AM_DEVREADWRITE8("duartn68681", mc68681_device, read, write, 0xff ) AM_MIRROR(0x763FE0) /* DUART */
 	AM_RANGE(0x09C000, 0x09C001) AM_READWRITE(m68k_spcflags_r, m68k_spcflags_w) AM_MIRROR(0x763FF8) /* SPC flags reg */
 	AM_RANGE(0x09C002, 0x09C003) AM_WRITE(m68k_infifo_w) AM_MIRROR(0x763FF8) /* SPC fifo reg */
 	AM_RANGE(0x09C004, 0x09C005) AM_READWRITE(m68k_tlcflags_r, m68k_tlcflags_w) AM_MIRROR(0x763FF8) /* telephone status flags */
@@ -753,7 +807,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START(tms32010_io, AS_IO, 16, dectalk_state )
 	AM_RANGE(0, 0) AM_WRITE(spc_latch_outfifo_error_stats) // *set* the outfifo_status_r semaphore, and also latch the error bit at D0.
 	AM_RANGE(1, 1) AM_READWRITE(spc_infifo_data_r, spc_outfifo_data_w) //read from input fifo, write to sound fifo
-	AM_RANGE(TMS32010_BIO, TMS32010_BIO) AM_READ(spc_semaphore_r) //read output fifo writable status
+	AM_RANGE(TMS32010_BIO, TMS32010_BIO) AM_READ(spc_semaphore_r) //read infifo-has-data-in-it fifo readable status
+	//AM_RANGE(8, 8) //the newer firmware seems to want something mapped here?
 ADDRESS_MAP_END
 
 /******************************************************************************
@@ -826,7 +881,12 @@ static MACHINE_CONFIG_START( dectalk, dectalk_state )
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_20MHz/2) /* E74 20MHz OSC (/2) */
 	MCFG_CPU_PROGRAM_MAP(m68k_mem)
 	MCFG_CPU_IO_MAP(m68k_io)
-	MCFG_DUARTN68681_ADD( "duartn68681", XTAL_3_6864MHz, dectalk_duart_config ) /* 2681 duart (not 68681!); Y3 3.6864MHz Xtal */
+	MCFG_MC68681_ADD( "duartn68681", XTAL_3_6864MHz ) /* 2681 duart (not 68681!); Y3 3.6864MHz Xtal */
+	MCFG_MC68681_IRQ_CALLBACK(WRITELINE(dectalk_state, dectalk_duart_irq_handler))
+	MCFG_MC68681_A_TX_CALLBACK(WRITELINE(dectalk_state, dectalk_duart_txa))
+	MCFG_MC68681_B_TX_CALLBACK(DEVWRITELINE("rs232", rs232_port_device, write_txd))
+	MCFG_MC68681_INPORT_CALLBACK(READ8(dectalk_state, dectalk_duart_input))
+	MCFG_MC68681_OUTPORT_CALLBACK(WRITE8(dectalk_state, dectalk_duart_output))
 
 	MCFG_CPU_ADD("dsp", TMS32010, XTAL_20MHz) /* Y1 20MHz xtal */
 	MCFG_CPU_PROGRAM_MAP(tms32010_mem)
@@ -848,7 +908,8 @@ static MACHINE_CONFIG_START( dectalk, dectalk_state )
 
 	/* Y2 is a 3.579545 MHz xtal for the dtmf decoder chip */
 
-	MCFG_RS232_PORT_ADD("rs232", rs232_intf, default_rs232_devices, "serial_terminal")
+	MCFG_RS232_PORT_ADD("rs232", default_rs232_devices, "terminal")
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("duartn68681", mc68681_device, rx_b_w))
 MACHINE_CONFIG_END
 
 
@@ -872,36 +933,68 @@ ROM_START( dectalk )
 	 *   for eproms/otproms or mask roms it is: e1 = 0x400, e2 = 0x800, e3 = 0x1000, e4 = 0x2000, e5 = 0x4000, e6 = 0x8000, etc)
 	 *   for proms it is: a1 = 82s123(0x20, 8b TS); a2 = 82s129(0x100 4b TS); a9 = 82s131(0x200 4b TS); b1 = 82s135(0x100 8b TS); f1 = 82s137(0x400 4b TS); f4 = 82s191(0x800 8b TS); s0 = MC68HC05; m2 = i8051 or other MCS-51; (there are more)
 	 */
-	ROM_LOAD16_BYTE("23-123e5.e8", 0x00000, 0x4000, CRC(03e1eefa) SHA1(e586de03e113683c2534fca1f3f40ba391193044)) // Label: "SP8510123E5" @ E8
-	ROM_LOAD16_BYTE("23-119e5.e22", 0x00001, 0x4000, CRC(af20411f) SHA1(7954bb56b7591f8954403a22d34de31c7d5441ac)) // Label: "SP8510119E5" @ E22
-	ROM_LOAD16_BYTE("23-124e5.e7", 0x08000, 0x4000, CRC(9edeafcb) SHA1(7724babf4ae5d77c0b4200f608d599058d04b25c)) // Label: "SP8510124E5" @ E7
-	ROM_LOAD16_BYTE("23-120e5.e21", 0x08001, 0x4000, CRC(f2a346a6) SHA1(af5e4ea0b3631f7d6f16c22e86a33fa2cb520ee0)) // Label: "SP8510120E5" @ E21
-	ROM_LOAD16_BYTE("23-125e5.e6", 0x10000, 0x4000, CRC(1c0100d1) SHA1(1b60cd71dfa83408b17e13f683b6bf3198c905cc)) // Label: "SP8510125E5" @ E6
-	ROM_LOAD16_BYTE("23-121e5.e20", 0x10001, 0x4000, CRC(4cb081bd) SHA1(4ad0b00628a90085cd7c78a354256c39fd14db6c)) // Label: "SP8510121E5" @ E20
-	ROM_LOAD16_BYTE("23-126e5.e5", 0x18000, 0x4000, CRC(7823dedb) SHA1(e2b2415eec838ddd46094f2fea93fd289dd0caa2)) // Label: "SP8510126E5" @ E5
-	ROM_LOAD16_BYTE("23-122e5.e19", 0x18001, 0x4000, CRC(b86370e6) SHA1(92ab22a24484ad0d0f5c8a07347105509999f3ee)) // Label: "SP8510122E5" @ E19
-	ROM_LOAD16_BYTE("23-103e5.e4", 0x20000, 0x4000, CRC(35aac6b9) SHA1(b5aec0bf37a176ff4d66d6a10357715957662ebd)) // Label: "SP8510103E5" @ E4
-	ROM_LOAD16_BYTE("23-095e5.e18", 0x20001, 0x4000, CRC(2296fe39) SHA1(891f3a3b4ce75ef14001257bc8f1f60463a9a7cb)) // Label: "SP8510095E5" @ E18
-	ROM_LOAD16_BYTE("23-104e5.e3", 0x28000, 0x4000, CRC(9658b43c) SHA1(4d6808f67cbdd316df23adc8ddf701df57aa854a)) // Label: "SP8510104E5" @ E3
-	ROM_LOAD16_BYTE("23-096e5.e17", 0x28001, 0x4000, CRC(cf236077) SHA1(496c69e52cfa013173f7b9c500ce544a03ad01f7)) // Label: "SP8510096E5" @ E17
-	ROM_LOAD16_BYTE("23-105e5.e2", 0x30000, 0x4000, CRC(09cddd28) SHA1(de0c25687bab3ff0c88c98622092e0b58331aa16)) // Label: "SP8510105E5" @ E2
-	ROM_LOAD16_BYTE("23-097e5.e16", 0x30001, 0x4000, CRC(49434da1) SHA1(c450abae0ccf372d7eb87370b8a8c97a45e164d3)) // Label: "SP8510097E5" @ E16
-	ROM_LOAD16_BYTE("23-106e5.e1", 0x38000, 0x4000, CRC(a389ab31) SHA1(355348bfc96a04193136cdde3418366e6476c3ca)) // Label: "SP8510106E5" @ E1
-	ROM_LOAD16_BYTE("23-098e5.e15", 0x38001, 0x4000, CRC(3d8910e7) SHA1(01921e77b46c2d4845023605239c45ffa4a35872)) // Label: "SP8510098E5" @ E15
+	ROM_SYSTEM_BIOS( 0, "v20", "DTC-01 Version 2.0")
+	ROMX_LOAD("23-123e5.e8", 0x00000, 0x4000, CRC(03e1eefa) SHA1(e586de03e113683c2534fca1f3f40ba391193044), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510123E5" @ E8
+	ROMX_LOAD("23-119e5.e22", 0x00001, 0x4000, CRC(af20411f) SHA1(7954bb56b7591f8954403a22d34de31c7d5441ac), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510119E5" @ E22
+	ROMX_LOAD("23-124e5.e7", 0x08000, 0x4000, CRC(9edeafcb) SHA1(7724babf4ae5d77c0b4200f608d599058d04b25c), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510124E5" @ E7
+	ROMX_LOAD("23-120e5.e21", 0x08001, 0x4000, CRC(f2a346a6) SHA1(af5e4ea0b3631f7d6f16c22e86a33fa2cb520ee0), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510120E5" @ E21
+	ROMX_LOAD("23-125e5.e6", 0x10000, 0x4000, CRC(1c0100d1) SHA1(1b60cd71dfa83408b17e13f683b6bf3198c905cc), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510125E5" @ E6
+	ROMX_LOAD("23-121e5.e20", 0x10001, 0x4000, CRC(4cb081bd) SHA1(4ad0b00628a90085cd7c78a354256c39fd14db6c), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510121E5" @ E20
+	ROMX_LOAD("23-126e5.e5", 0x18000, 0x4000, CRC(7823dedb) SHA1(e2b2415eec838ddd46094f2fea93fd289dd0caa2), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510126E5" @ E5
+	ROMX_LOAD("23-122e5.e19", 0x18001, 0x4000, CRC(b86370e6) SHA1(92ab22a24484ad0d0f5c8a07347105509999f3ee), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510122E5" @ E19
+	ROMX_LOAD("23-103e5.e4", 0x20000, 0x4000, CRC(35aac6b9) SHA1(b5aec0bf37a176ff4d66d6a10357715957662ebd), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510103E5" @ E4
+	ROMX_LOAD("23-095e5.e18", 0x20001, 0x4000, CRC(2296fe39) SHA1(891f3a3b4ce75ef14001257bc8f1f60463a9a7cb), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510095E5" @ E18
+	ROMX_LOAD("23-104e5.e3", 0x28000, 0x4000, CRC(9658b43c) SHA1(4d6808f67cbdd316df23adc8ddf701df57aa854a), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510104E5" @ E3
+	ROMX_LOAD("23-096e5.e17", 0x28001, 0x4000, CRC(cf236077) SHA1(496c69e52cfa013173f7b9c500ce544a03ad01f7), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510096E5" @ E17
+	ROMX_LOAD("23-105e5.e2", 0x30000, 0x4000, CRC(09cddd28) SHA1(de0c25687bab3ff0c88c98622092e0b58331aa16), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510105E5" @ E2
+	ROMX_LOAD("23-097e5.e16", 0x30001, 0x4000, CRC(49434da1) SHA1(c450abae0ccf372d7eb87370b8a8c97a45e164d3), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510097E5" @ E16
+	ROMX_LOAD("23-106e5.e1", 0x38000, 0x4000, CRC(a389ab31) SHA1(355348bfc96a04193136cdde3418366e6476c3ca), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510106E5" @ E1
+	ROMX_LOAD("23-098e5.e15", 0x38001, 0x4000, CRC(3d8910e7) SHA1(01921e77b46c2d4845023605239c45ffa4a35872), ROM_SKIP(1) | ROM_BIOS(1)) // Label: "SP8510098E5" @ E15
 
-	/* the undumped 1.8 or 2.0 (beta?) version likely has roms:
+	/* the undumped 2.0 (beta?) version likely has roms:
 	23-091e5.e22, 23-092e5.e21, 23-093e5.e20, 23-094e5.e19,
 	23-099e5.e8, 23-100e5.e7, 23-101e5.e6, 23-102e5.e5
 	and shares the 23-103e5 thru 106e5, and 095e5 thru 098e5 roms with
 	the 2.0 version above
 	*/
 
+	// DECtalk DTC-01 firmware v1.8 (first half: 05Dec83 tag; second half: 11Oct83 tag), all roms are 27128 eproms
+	ROM_SYSTEM_BIOS( 1, "v18", "DTC-01 Version 1.8")
+	ROMX_LOAD("23-063e5.e8", 0x00000, 0x4000, CRC(9f5ca045) SHA1(1b1b9c1e092c44329b385fb04001e13422eb8d39), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-059e5.e22", 0x00001, 0x4000, CRC(b299cf64) SHA1(84bbe9ff303ea6ce7b1c0b1ad05421edd18fae49), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-064e5.e7", 0x08000, 0x4000, CRC(e4ff20f4) SHA1(fdd91e4d2ef92608a08b2e78b6108e31ff53a1f9), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-060e5.e21", 0x08001, 0x4000, CRC(213c65ba) SHA1(c95662d0d40499af01cdc23f05936762ab54081a), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-065e5.e6", 0x10000, 0x4000, CRC(38ea0c75) SHA1(232b622cef6d69a493db1ed02e5236235c68daba), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-061e5.e20", 0x10001, 0x4000, CRC(44f6fe5c) SHA1(81daa4abae273c7f0aead902b5c3c842f7e7f116), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-066e5.e5", 0x18000, 0x4000, CRC(957aa8cf) SHA1(5f9f916b99867d1adbafd58d411feb630f6e4b6d), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-062e5.e19", 0x18001, 0x4000, CRC(10ab969c) SHA1(46ee22a295b8709b6f829751aca5f92e4f459a9f), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-032e5.e4", 0x20000, 0x4000, CRC(0f805e3a) SHA1(1d8008e30a448358224364fd8237dbb08907b219), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-031e5.e18", 0x20001, 0x4000, CRC(846b5b68) SHA1(55c759b3fb927d2dfc9d77e8e080748866bea854), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-034e5.e3", 0x28000, 0x4000, CRC(90700738) SHA1(738337c5b6acd3f30c3c4be2457370d2ce9313f9), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-033e5.e17", 0x28001, 0x4000, CRC(48756a4d) SHA1(5946ccd367d88a484bb1549d0cc990b9b7d88f0c), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-036e5.e2", 0x30000, 0x4000, CRC(5c2d4f73) SHA1(30f95e5383c4f71bc700346e2d49e8ad70b94c8c), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-035e5.e16", 0x30001, 0x4000, CRC(80116443) SHA1(7b3b68e61b421dedaad88b5600c739943a316c9e), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-038e5.e1", 0x38000, 0x4000, CRC(c840493f) SHA1(abd6af442690e981a9089f19febffc8f3fb52717), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("23-037e5.e15", 0x38001, 0x4000, CRC(d62ab309) SHA1(a743a23625feadf6e46ef889e2bb04af88589992), ROM_SKIP(1) | ROM_BIOS(2))
+
 	ROM_REGION(0x2000,"dsp", 0)
-	// DECtalk DTC-01 'klsyn' tms32010 firmware v2.0?, both proms are 82s191 equivalent
+	// NEWER/final? firmware 'later 2.0'; this firmware DOES WORK.
+	// this firmware seems to have some leftover test garbage mapped into its space, which is not present on the dtc-01 board
+	// it writes 0x0000 to 0x90 on start
+	// it writes a sequence of values to 0xFF down to 0xE9
+	// it wants something readable mapped at 0x08 or else it waits for an interrupt
+	// Is this the same firmware as on the tms320P15 on the dtc-07 or a backported variant of such?
+	ROM_LOAD16_BYTE("23-410f4.e70", 0x000, 0x800, CRC(121e2ec3) SHA1(3fabe018d0e0b478093951cb20501853358faa18))
+	ROM_LOAD16_BYTE("23-409f4.e69", 0x001, 0x800, CRC(61f67c79) SHA1(9a13426c92f879f2953f180f805990a91c37ac43))
+	// DECtalk DTC-01 'klsyn' tms32010 firmware 'earlier 2.0', both proms are 82s191 equivalent; this firmware DOES WORK.
 	ROM_LOAD16_BYTE("23-205f4.e70", 0x000, 0x800, CRC(ed76a3ad) SHA1(3136bae243ef48721e21c66fde70dab5fc3c21d0)) // Label: "LM8506205F4 // M1-76161-5" @ E70
 	ROM_LOAD16_BYTE("23-204f4.e69", 0x001, 0x800, CRC(79bb54ff) SHA1(9409f90f7a397b041e4440341f2d7934cb479285)) // Label: "LM8504204F4 // 78S191" @ E69
+	// older dsp firmware from dectalk firmware 1.8; this firmware DOES WORK, and even works with 2.0 dectalk firmware! its a bit quieter than the others, though.
+	ROM_LOAD16_BYTE("23-166f4.e70", 0x000, 0x800, CRC(2d036ffc) SHA1(e8c25ca092dde2dc0aec73921af806026bdfbbc3)) // HM1-76161-5
+	ROM_LOAD16_BYTE("23-165f4.e69", 0x001, 0x800, CRC(a3019ca4) SHA1(249f269c38f7f44edb6d025bcc867c8ca0de3e9c)) // HM1-76161-5
 
 	// TODO: load this as default if the nvram file is missing, OR get the setup page working enough that it can be saved properly to the chip from an NVR FAULT state!
+	// NOTE: this nvram image is ONLY VALID for v2.0; v1.8 expects a different image.
 	ROM_REGION(0x100,"nvram", 0) // default nvram image is at 0x1A7AE in main rom, read lsn first so 0x0005 in rom becomes 05 00 00 00 etc for all words of main rom
 	ROM_FILL(0x00, 0xff, 0x00) // blank it first;
 	ROM_FILL(0x00, 0x01, 0x05)

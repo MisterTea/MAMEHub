@@ -52,7 +52,7 @@ static const double tx1_engine_gains[16] =
 const device_type TX1 = &device_creator<tx1_sound_device>;
 
 tx1_sound_device::tx1_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, TX1, "TX-1 Custom", tag, owner, clock, "tx1_sound", __FILE__),
+	: device_t(mconfig, TX1, "TX-1 Audio Custom", tag, owner, clock, "tx1_sound", __FILE__),
 		device_sound_interface(mconfig, *this)
 {
 }
@@ -102,7 +102,7 @@ void tx1_sound_device::device_start()
 
 
 	/* Allocate the stream */
-	m_stream = machine().sound().stream_alloc(*this, 0, 2, machine().sample_rate(), this);
+	m_stream = machine().sound().stream_alloc(*this, 0, 2, machine().sample_rate());
 	m_freq_to_step = (double)(1 << TX1_FRAC) / (double)machine().sample_rate();
 
 	/* Compute the engine resistor weights */
@@ -150,13 +150,13 @@ WRITE8_MEMBER( tx1_sound_device::pit8253_w )
 			m_pit8253.counts[cntsel].val = 0;
 		}
 		else
-			mame_printf_debug("PIT8253: Unsupported mode %d.\n", mode);
+			osd_printf_debug("PIT8253: Unsupported mode %d.\n", mode);
 	}
 }
 
 READ8_MEMBER( tx1_sound_device::pit8253_r )
 {
-	mame_printf_debug("PIT R: %x", offset);
+	osd_printf_debug("PIT R: %x", offset);
 	return 0;
 }
 
@@ -345,7 +345,7 @@ static const double bb_engine_gains[16] =
 const device_type BUGGYBOY = &device_creator<buggyboy_sound_device>;
 
 buggyboy_sound_device::buggyboy_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: tx1_sound_device(mconfig, BUGGYBOY, "Buggy Boy Custom", tag, owner, clock, "buggyboy_sound", __FILE__)
+	: tx1_sound_device(mconfig, BUGGYBOY, "Buggy Boy Audio Custom", tag, owner, clock, "buggyboy_sound", __FILE__)
 {
 }
 
@@ -382,7 +382,7 @@ void buggyboy_sound_device::device_start()
 		m_eng_voltages[i] = combine_4_weights(aweights, BIT(tmp[i], 0), BIT(tmp[i], 1), BIT(tmp[i], 2), BIT(tmp[i], 3));
 
 	/* Allocate the stream */
-	m_stream = machine().sound().stream_alloc(*this, 0, 2, machine().sample_rate(), this);
+	m_stream = machine().sound().stream_alloc(*this, 0, 2, machine().sample_rate());
 	m_freq_to_step = (double)(1 << 24) / (double)machine().sample_rate();
 }
 

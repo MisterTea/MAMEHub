@@ -90,7 +90,8 @@ public:
 		m_ram_attr(*this, "raattr"),
 		m_ram_video(*this, "ravideo"),
 		m_backup_ram(*this, "backup_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_screen(*this, "screen") { }
 
 	void dodge_nvram_init(nvram_device &nvram, void *base, size_t size);
 	pen_t m_pens[NUM_PENS];
@@ -125,7 +126,10 @@ public:
 	DECLARE_DRIVER_INIT(dtrvwz5);
 	virtual void machine_start();
 	DECLARE_MACHINE_START(casino5);
+	MC6845_BEGIN_UPDATE(crtc_begin_update);
+	MC6845_UPDATE_ROW(crtc_update_row);
 	required_device<cpu_device> m_maincpu;
+	required_device<screen_device> m_screen;
 };
 
 
@@ -235,46 +239,38 @@ WRITE8_MEMBER(merit_state::palette_w)
 }
 
 
-static MC6845_BEGIN_UPDATE( begin_update )
+MC6845_BEGIN_UPDATE( merit_state::crtc_begin_update )
 {
-	merit_state *state = device->machine().driver_data<merit_state>();
-	int i;
 	int dim, bit0, bit1, bit2;
 
-	for (i=0; i < NUM_PENS; i++)
+	for (int i=0; i < NUM_PENS; i++)
 	{
 		dim = BIT(i,3) ? 255 : 127;
 		bit0 = BIT(i,0);
 		bit1 = BIT(i,1);
 		bit2 = BIT(i,2);
-		state->m_pens[i] = MAKE_RGB(dim*bit0, dim*bit1, dim*bit2);
+		m_pens[i] = rgb_t(dim*bit0, dim*bit1, dim*bit2);
 	}
-
-	return state->m_pens;
 }
 
 
-static MC6845_UPDATE_ROW( update_row )
+MC6845_UPDATE_ROW( merit_state::crtc_update_row )
 {
-	merit_state *state = device->machine().driver_data<merit_state>();
-	UINT8 cx;
-
-	pen_t *pens = (pen_t *)param;
 	UINT8 *gfx[2];
 	UINT16 x = 0;
 	int rlen;
 
-	gfx[0] = state->memregion("gfx1")->base();
-	gfx[1] = state->memregion("gfx2")->base();
-	rlen = state->memregion("gfx2")->bytes();
+	gfx[0] = memregion("gfx1")->base();
+	gfx[1] = memregion("gfx2")->base();
+	rlen = memregion("gfx2")->bytes();
 
 	//ma = ma ^ 0x7ff;
-	for (cx = 0; cx < x_count; cx++)
+	for (UINT8 cx = 0; cx < x_count; cx++)
 	{
 		int i;
-		int attr = state->m_ram_attr[ma & 0x7ff];
+		int attr = m_ram_attr[ma & 0x7ff];
 		int region = (attr & 0x40) >> 6;
-		int addr = ((state->m_ram_video[ma & 0x7ff] | ((attr & 0x80) << 1) | (state->m_extra_video_bank_bit)) << 4) | (ra & 0x0f);
+		int addr = ((m_ram_video[ma & 0x7ff] | ((attr & 0x80) << 1) | (m_extra_video_bank_bit)) << 4) | (ra & 0x0f);
 		int colour = (attr & 0x7f) << 3;
 		UINT8   *data;
 
@@ -294,8 +290,8 @@ static MC6845_UPDATE_ROW( update_row )
 			else
 				col |= 0x03;
 
-			col = state->m_ram_palette[col & 0x3ff];
-			bitmap.pix32(y, x) = pens[col ? col & (NUM_PENS-1) : (state->m_lscnblk ? 8 : 0)];
+			col = m_ram_palette[col & 0x3ff];
+			bitmap.pix32(y, x) = m_pens[col ? col & (NUM_PENS-1) : (m_lscnblk ? 8 : 0)];
 
 			x++;
 		}
@@ -314,20 +310,6 @@ WRITE_LINE_MEMBER(merit_state::vsync_changed)
 {
 	m_maincpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,                      /* show border area */
-	8,                          /* number of pixels per video memory address */
-	begin_update,               /* before pixel update callback */
-	update_row,                 /* row update callback */
-	NULL,                       /* after pixel update callback */
-	DEVCB_NULL,                 /* callback for display state changes */
-	DEVCB_NULL,                 /* callback for cursor state changes */
-	DEVCB_DRIVER_LINE_MEMBER(merit_state,hsync_changed),    /* HSYNC callback */
-	DEVCB_DRIVER_LINE_MEMBER(merit_state,vsync_changed),    /* VSYNC callback */
-	NULL                        /* update address callback */
-};
 
 WRITE8_MEMBER(merit_state::led1_w)
 {
@@ -1139,45 +1121,6 @@ static INPUT_PORTS_START( couplep )
 INPUT_PORTS_END
 
 
-static I8255A_INTERFACE( ppi8255_0_intf )
-{
-	DEVCB_INPUT_PORT("IN0"),    /* Port A read */
-	DEVCB_NULL,                 /* Port A write */
-	DEVCB_INPUT_PORT("IN1"),    /* Port B read */
-	DEVCB_NULL,                 /* Port B write */
-	DEVCB_INPUT_PORT("IN2"),    /* Port C read */
-	DEVCB_NULL                  /* Port C write */
-};
-
-static I8255A_INTERFACE( ppi8255_1_intf )
-{
-	DEVCB_INPUT_PORT("DSW"),    /* Port A read */
-	DEVCB_NULL,                 /* Port A write */
-	DEVCB_NULL,                 /* Port B read */
-	DEVCB_DRIVER_MEMBER(merit_state,led1_w),        /* Port B write */
-	DEVCB_NULL,                 /* Port C read */
-	DEVCB_DRIVER_MEMBER(merit_state,misc_w)     /* Port C write */
-};
-
-static I8255A_INTERFACE( couple_ppi8255_1_intf )
-{
-	DEVCB_INPUT_PORT("DSW"),    /* Port A read */
-	DEVCB_NULL,                 /* Port A write */
-	DEVCB_NULL,                 /* Port B read */
-	DEVCB_DRIVER_MEMBER(merit_state,led1_w),        /* Port B write */
-	DEVCB_NULL,                 /* Port C read */
-	DEVCB_DRIVER_MEMBER(merit_state,misc_couple_w)/* Port C write */
-};
-
-
-static const ay8910_interface merit_ay8912_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(merit_state,led2_w), DEVCB_NULL
-};
-
 void merit_state::dodge_nvram_init(nvram_device &nvram, void *base, size_t size)
 {
 	memset(base, 0x00, size);
@@ -1198,23 +1141,34 @@ static MACHINE_CONFIG_START( pitboss, merit_state )
 	MCFG_CPU_PROGRAM_MAP(pitboss_map)
 	MCFG_CPU_IO_MAP(trvwhiz_io_map)
 
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_0_intf )
-	MCFG_I8255A_ADD( "ppi8255_1", ppi8255_1_intf )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW"))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(merit_state, led1_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(merit_state, misc_w))
 
 	/* video hardware */
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 512, 0, 512, 256, 0, 256)   /* temporary, CRTC will configure screen */
 	MCFG_SCREEN_UPDATE_DEVICE("crtc", mc6845_device, screen_update)
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", CRTC_CLOCK, mc6845_intf)
-
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", CRTC_CLOCK)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_BEGIN_UPDATE_CB(merit_state, crtc_begin_update)
+	MCFG_MC6845_UPDATE_ROW_CB(merit_state, crtc_update_row)
+	MCFG_MC6845_OUT_HSYNC_CB(WRITELINE(merit_state, hsync_changed))
+	MCFG_MC6845_OUT_VSYNC_CB(WRITELINE(merit_state, vsync_changed))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, CRTC_CLOCK)
-	MCFG_SOUND_CONFIG(merit_ay8912_interface)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(merit_state, led2_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.33)
 MACHINE_CONFIG_END
 
@@ -1288,7 +1242,10 @@ static MACHINE_CONFIG_DERIVED( couple, pitboss )
 	MCFG_CPU_IO_MAP(tictac_io_map)
 
 	MCFG_DEVICE_REMOVE("ppi8255_1")
-	MCFG_I8255A_ADD( "ppi8255_1", couple_ppi8255_1_intf )
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW"))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(merit_state, led1_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(merit_state, misc_couple_w))
 MACHINE_CONFIG_END
 
 
@@ -2087,7 +2044,7 @@ DRIVER_INIT_MEMBER(merit_state,couple)
 			if(ROM[0x14000+i] == ROM[0x16000+i])
 				r++;
 		}
-		mame_printf_debug("%02x (in HEX) identical bytes (no offset done)\n",r);
+		osd_printf_debug("%02x (in HEX) identical bytes (no offset done)\n",r);
 	}
 	#endif
 
@@ -2141,7 +2098,7 @@ GAME( 1987, riviera,  0,       dodge,    riviera,  driver_device,  0,   ROT0,  "
 GAME( 1986, rivieraa, riviera, dodge,    riviera,  driver_device,  0,   ROT0,  "Merit", "Riviera Hi-Score (2131-08, U5-4)",  GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS )
 GAME( 1986, rivierab, riviera, dodge,    rivierab, driver_device,  0,   ROT0,  "Merit", "Riviera Hi-Score (2131-08, U5-2D)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS )
 
-GAME( 1986, bigappg,  0,       bigappg,  bigappg,  driver_device,  0,   ROT0,  "Merit", "Big Apple Games (2131-13, U5-0)",   GAME_SUPPORTS_SAVE )
+GAME( 1986, bigappg,  0,       bigappg,  bigappg,  driver_device,  0,   ROT0,  "Big Apple Games / Merit", "The Big Apple (2131-13, U5-0)",   GAME_SUPPORTS_SAVE )
 
 GAME( 1986, dodgectya,dodgecty,dodge,    dodge,    driver_device,  0,   ROT0,  "Merit", "Dodge City (2131-82, U5-0D)",      GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING )
 GAME( 1986, dodgectyb,dodgecty,dodge,    dodge,    driver_device,  0,   ROT0,  "Merit", "Dodge City (2131-82, U5-50)",      GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING )

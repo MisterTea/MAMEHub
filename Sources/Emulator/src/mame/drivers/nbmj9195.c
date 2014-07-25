@@ -20,13 +20,11 @@ Notes:
 ******************************************************************************/
 
 #include "emu.h"
-#include "cpu/z80/z80.h"
-#include "machine/z80ctc.h"
+#include "cpu/z80/tmpz84c011.h"
 #include "machine/nvram.h"
 #include "includes/nb1413m3.h"      // needed for mahjong input controller
 #include "sound/3812intf.h"
 #include "sound/dac.h"
-#include "cpu/z80/z80daisy.h"
 #include "includes/nbmj9195.h"
 
 
@@ -118,527 +116,217 @@ READ8_MEMBER(nbmj9195_state::mscoutm_dipsw_1_r)
 
 /* TMPZ84C011 PIO emulation */
 
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_pio_r)
+// mscoutm, imekura, mjegolf
+READ8_MEMBER(nbmj9195_state::mscoutm_cpu_porta_r)
 {
-	int portdata;
+	// COIN IN, ETC...
+	return  ioport("SYSTEM")->read();
+}
 
-	if ((!strcmp(machine().system().name, "mscoutm")) ||
-		(!strcmp(machine().system().name, "imekura")) ||
-		(!strcmp(machine().system().name, "mjegolf")))
+READ8_MEMBER(nbmj9195_state::mscoutm_cpu_portb_r)
+{
+	// PLAYER1 KEY, DIPSW A/B
+	switch (m_mscoutm_inputport)
 	{
-		switch (offset)
-		{
-			case 0:         /* PA_0 */
-				// COIN IN, ETC...
-				portdata = ioport("SYSTEM")->read();
-				break;
-			case 1:         /* PB_0 */
-				// PLAYER1 KEY, DIPSW A/B
-				switch (m_mscoutm_inputport)
-				{
-					case 0x01:
-						portdata = ioport("KEY0")->read();
-						break;
-					case 0x02:
-						portdata = ioport("KEY1")->read();
-						break;
-					case 0x04:
-						portdata = ioport("KEY2")->read();
-						break;
-					case 0x08:
-						portdata = ioport("KEY3")->read();
-						break;
-					case 0x10:
-						portdata = ioport("KEY4")->read();
-						break;
-					default:
-						portdata = (ioport("KEY0")->read() & ioport("KEY1")->read() & ioport("KEY2")->read()
-									& ioport("KEY3")->read() & ioport("KEY4")->read());
-						break;
-				}
-				break;
-			case 2:         /* PC_0 */
-				// PLAYER2 KEY
-				switch (m_mscoutm_inputport)
-				{
-					case 0x01:
-						portdata = ioport("KEY5")->read();
-						break;
-					case 0x02:
-						portdata = ioport("KEY6")->read();
-						break;
-					case 0x04:
-						portdata = ioport("KEY7")->read();
-						break;
-					case 0x08:
-						portdata = ioport("KEY8")->read();
-						break;
-					case 0x10:
-						portdata = ioport("KEY9")->read();
-						break;
-					default:
-						portdata = (ioport("KEY5")->read() & ioport("KEY6")->read() & ioport("KEY7")->read()
-									& ioport("KEY8")->read() & ioport("KEY9")->read());
-						break;
-				}
-				break;
-			case 3:         /* PD_0 */
-				portdata = 0xff;
-				break;
-			case 4:         /* PE_0 */
-				portdata = 0xff;
-				break;
-
-			case 5:         /* PA_1 */
-				portdata = 0xff;
-				break;
-			case 6:         /* PB_1 */
-				portdata = 0xff;
-				break;
-			case 7:         /* PC_1 */
-				portdata = 0xff;
-				break;
-			case 8:         /* PD_1 */
-				portdata = nbmj9195_sound_r(space, 0);
-				break;
-			case 9:         /* PE_1 */
-				portdata = 0xff;
-				break;
-
-			default:
-				logerror("%s: TMPZ84C011_PIO Unknown Port Read %02X\n", machine().describe_context(), offset);
-				portdata = 0xff;
-				break;
-		}
-	}
-	else
-	{
-		switch (offset)
-		{
-			case 0:         /* PA_0 */
-				// COIN IN, ETC...
-				portdata = ((ioport("SYSTEM")->read() & 0xfe) | m_outcoin_flag);
-				break;
-			case 1:         /* PB_0 */
-				// PLAYER1 KEY, DIPSW A/B
-				switch (m_inputport)
-				{
-					case 0x01:
-						portdata = ioport("KEY0")->read();
-						break;
-					case 0x02:
-						portdata = ioport("KEY1")->read();
-						break;
-					case 0x04:
-						portdata = ioport("KEY2")->read();
-						break;
-					case 0x08:
-						portdata = ioport("KEY3")->read();
-						break;
-					case 0x10:
-						portdata = ((ioport("KEY4")->read() & 0x7f) | (nbmj9195_dipsw_r() << 7));
-						break;
-					default:
-						portdata = (ioport("KEY0")->read() & ioport("KEY1")->read() & ioport("KEY2")->read() & ioport("KEY3")->read() & (ioport("KEY4")->read() & 0x7f));
-						break;
-				}
-				break;
-			case 2:         /* PC_0 */
-				// PLAYER2 KEY
-				switch (m_inputport)
-				{
-					case 0x01:
-						portdata = ioport("KEY5")->read();
-						break;
-					case 0x02:
-						portdata = ioport("KEY6")->read();
-						break;
-					case 0x04:
-						portdata = ioport("KEY7")->read();
-						break;
-					case 0x08:
-						portdata = ioport("KEY8")->read();
-						break;
-					case 0x10:
-						portdata = ioport("KEY9")->read() & 0x7f;
-						break;
-					default:
-						portdata = (ioport("KEY5")->read() & ioport("KEY6")->read() & ioport("KEY7")->read() & ioport("KEY8")->read() & (ioport("KEY9")->read() & 0x7f));
-						break;
-				}
-				break;
-			case 3:         /* PD_0 */
-				portdata = 0xff;
-				break;
-			case 4:         /* PE_0 */
-				portdata = 0xff;
-				break;
-
-			case 5:         /* PA_1 */
-				portdata = 0xff;
-				break;
-			case 6:         /* PB_1 */
-				portdata = 0xff;
-				break;
-			case 7:         /* PC_1 */
-				portdata = 0xff;
-				break;
-			case 8:         /* PD_1 */
-				portdata = nbmj9195_sound_r(space, 0);
-				break;
-			case 9:         /* PE_1 */
-				portdata = 0xff;
-				break;
-
-			default:
-				logerror("%s: TMPZ84C011_PIO Unknown Port Read %02X\n", machine().describe_context(), offset);
-				portdata = 0xff;
-				break;
-		}
+	case 0x01:
+		return ioport("KEY0")->read();
+		break;
+	case 0x02:
+		return ioport("KEY1")->read();
+		break;
+	case 0x04:
+		return ioport("KEY2")->read();
+		break;
+	case 0x08:
+		return ioport("KEY3")->read();
+		break;
+	case 0x10:
+		return ioport("KEY4")->read();
+		break;
+	default:
+		return (ioport("KEY0")->read() & ioport("KEY1")->read() & ioport("KEY2")->read()
+			& ioport("KEY3")->read() & ioport("KEY4")->read());
+		break;
 	}
 
-	return portdata;
+	return 0xff;
 }
 
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_pio_w)
+READ8_MEMBER(nbmj9195_state::mscoutm_cpu_portc_r)
 {
-	if ((!strcmp(machine().system().name, "imekura")) ||
-		(!strcmp(machine().system().name, "mscoutm")) ||
-		(!strcmp(machine().system().name, "mjegolf")))
+	// PLAYER2 KEY
+	switch (m_mscoutm_inputport)
 	{
-		switch (offset)
-		{
-			case 0:         /* PA_0 */
-				mscoutm_inputportsel_w(data);    // NB22090
-				break;
-			case 1:         /* PB_0 */
-				break;
-			case 2:         /* PC_0 */
-				break;
-			case 3:         /* PD_0 */
-				nbmj9195_clutsel_w(data);
-				break;
-			case 4:         /* PE_0 */
-				nbmj9195_gfxflag2_w(data);       // NB22090
-				break;
-
-			case 5:         /* PA_1 */
-				nbmj9195_soundbank_w(space, 0, data);
-				break;
-			case 6:         /* PB_1 */
-				m_dac2->write_unsigned8(data);
-				break;
-			case 7:         /* PC_1 */
-				m_dac1->write_unsigned8(data);
-				break;
-			case 8:         /* PD_1 */
-				break;
-			case 9:         /* PE_1 */
-				if (!(data & 0x01)) nbmj9195_soundclr_w(space, 0, 0);
-				break;
-
-			default:
-				logerror("%s: TMPZ84C011_PIO Unknown Port Write %02X, %02X\n", machine().describe_context(), offset, data);
-				break;
-		}
+	case 0x01:
+		return ioport("KEY5")->read();
+		break;
+	case 0x02:
+		return ioport("KEY6")->read();
+		break;
+	case 0x04:
+		return ioport("KEY7")->read();
+		break;
+	case 0x08:
+		return ioport("KEY8")->read();
+		break;
+	case 0x10:
+		return ioport("KEY9")->read();
+		break;
+	default:
+		return (ioport("KEY5")->read() & ioport("KEY6")->read() & ioport("KEY7")->read()
+			& ioport("KEY8")->read() & ioport("KEY9")->read());
+		break;
 	}
-	else
+	return 0xff;
+}
+
+
+
+// mscoutm, imekura, mjegolf
+WRITE8_MEMBER(nbmj9195_state::mscoutm_cpu_porta_w)
+{
+	mscoutm_inputportsel_w(data);    // NB22090
+}
+
+WRITE8_MEMBER(nbmj9195_state::mscoutm_cpu_portd_w)
+{
+	nbmj9195_clutsel_w(data);
+}
+
+WRITE8_MEMBER(nbmj9195_state::mscoutm_cpu_porte_w)
+{
+	nbmj9195_gfxflag2_w(data);       // NB22090
+}
+
+// other games
+
+READ8_MEMBER(nbmj9195_state::others_cpu_porta_r)
+{
+	// COIN IN, ETC...
+	return ((ioport("SYSTEM")->read() & 0xfe) | m_outcoin_flag);
+}
+
+READ8_MEMBER(nbmj9195_state::others_cpu_portb_r)
+{
+	// PLAYER1 KEY, DIPSW A/B
+	switch (m_inputport)
 	{
-		switch (offset)
-		{
-			case 0:         /* PA_0 */
-				break;
-			case 1:         /* PB_0 */
-				break;
-			case 2:         /* PC_0 */
-				nbmj9195_dipswbitsel_w(data);
-				break;
-			case 3:         /* PD_0 */
-				nbmj9195_clutsel_w(data);
-				break;
-			case 4:         /* PE_0 */
-				nbmj9195_outcoin_flag_w(data);
-				break;
-
-			case 5:         /* PA_1 */
-				nbmj9195_soundbank_w(space, 0, data);
-				break;
-			case 6:         /* PB_1 */
-				m_dac1->write_unsigned8(data);
-				break;
-			case 7:         /* PC_1 */
-				m_dac2->write_unsigned8(data);
-				break;
-			case 8:         /* PD_1 */
-				break;
-			case 9:         /* PE_1 */
-				if (!(data & 0x01)) nbmj9195_soundclr_w(space, 0, 0);
-				break;
-
-			default:
-				logerror("%s: TMPZ84C011_PIO Unknown Port Write %02X, %02X\n", machine().describe_context(), offset, data);
-				break;
-		}
+	case 0x01:
+		return ioport("KEY0")->read();
+		break;
+	case 0x02:
+		return ioport("KEY1")->read();
+		break;
+	case 0x04:
+		return ioport("KEY2")->read();
+		break;
+	case 0x08:
+		return ioport("KEY3")->read();
+		break;
+	case 0x10:
+		return ((ioport("KEY4")->read() & 0x7f) | (nbmj9195_dipsw_r() << 7));
+		break;
+	default:
+		return (ioport("KEY0")->read() & ioport("KEY1")->read() & ioport("KEY2")->read() & ioport("KEY3")->read() & (ioport("KEY4")->read() & 0x7f));
+		break;
 	}
+	return 0xff;
 }
 
-
-/* CPU interface */
-
-/* device 0 */
-READ8_MEMBER(nbmj9195_state::tmpz84c011_0_pa_r)
+READ8_MEMBER(nbmj9195_state::others_cpu_portc_r)
 {
-	return (tmpz84c011_pio_r(space,0) & ~m_pio_dir[0]) | (m_pio_latch[0] & m_pio_dir[0]);
+	// PLAYER2 KEY
+	switch (m_inputport)
+	{
+	case 0x01:
+		return ioport("KEY5")->read();
+		break;
+	case 0x02:
+		return ioport("KEY6")->read();
+		break;
+	case 0x04:
+		return ioport("KEY7")->read();
+		break;
+	case 0x08:
+		return ioport("KEY8")->read();
+		break;
+	case 0x10:
+		return ioport("KEY9")->read() & 0x7f;
+		break;
+	default:
+		return (ioport("KEY5")->read() & ioport("KEY6")->read() & ioport("KEY7")->read() & ioport("KEY8")->read() & (ioport("KEY9")->read() & 0x7f));
+		break;
+	}
+	return 0xff;;
 }
-READ8_MEMBER(nbmj9195_state::tmpz84c011_0_pb_r)
+
+
+WRITE8_MEMBER(nbmj9195_state::others_cpu_portc_w)
 {
-	return (tmpz84c011_pio_r(space,1) & ~m_pio_dir[1]) | (m_pio_latch[1] & m_pio_dir[1]);
+	nbmj9195_dipswbitsel_w(data);
 }
 
-READ8_MEMBER(nbmj9195_state::tmpz84c011_0_pc_r)
+WRITE8_MEMBER(nbmj9195_state::others_cpu_portd_w)
 {
-	return (tmpz84c011_pio_r(space,2) & ~m_pio_dir[2]) | (m_pio_latch[2] & m_pio_dir[2]);
+	nbmj9195_clutsel_w(data);
 }
 
-READ8_MEMBER(nbmj9195_state::tmpz84c011_0_pd_r)
+WRITE8_MEMBER(nbmj9195_state::others_cpu_porte_w)
 {
-	return (tmpz84c011_pio_r(space,3) & ~m_pio_dir[3]) | (m_pio_latch[3] & m_pio_dir[3]);
+	nbmj9195_outcoin_flag_w(data);
 }
 
-READ8_MEMBER(nbmj9195_state::tmpz84c011_0_pe_r)
+
+/* TMPZ84C011 sound CPU */
+
+READ8_MEMBER(nbmj9195_state::soundcpu_portd_r)
 {
-	return (tmpz84c011_pio_r(space,4) & ~m_pio_dir[4]) | (m_pio_latch[4] & m_pio_dir[4]);
+	return nbmj9195_sound_r(space, 0);
 }
 
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_0_pa_w)
+WRITE8_MEMBER(nbmj9195_state::soundcpu_porta_w)
 {
-	m_pio_latch[0] = data;
-	tmpz84c011_pio_w(space, 0, data);
+	nbmj9195_soundbank_w(space, 0, data);
 }
 
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_0_pb_w)
+WRITE8_MEMBER(nbmj9195_state::soundcpu_dac1_w)
 {
-	m_pio_latch[1] = data;
-	tmpz84c011_pio_w(space, 1, data);
+	m_dac1->write_unsigned8(data);
 }
 
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_0_pc_w)
+WRITE8_MEMBER(nbmj9195_state::soundcpu_dac2_w)
 {
-	m_pio_latch[2] = data;
-	tmpz84c011_pio_w(space, 2, data);
+	m_dac2->write_unsigned8(data);
 }
 
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_0_pd_w)
+WRITE8_MEMBER(nbmj9195_state::mscoutm_soundcpu_portb_w)
 {
-	m_pio_latch[3] = data;
-	tmpz84c011_pio_w(space, 3, data);
+	m_dac2->write_unsigned8(data);
 }
 
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_0_pe_w)
+WRITE8_MEMBER(nbmj9195_state::mscoutm_soundcpu_portc_w)
 {
-	m_pio_latch[4] = data;
-	tmpz84c011_pio_w(space, 4, data);
+	m_dac1->write_unsigned8(data);
 }
 
 
-READ8_MEMBER(nbmj9195_state::tmpz84c011_0_dir_pa_r)
+WRITE8_MEMBER(nbmj9195_state::soundcpu_porte_w)
 {
-	return m_pio_dir[0];
-}
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_0_dir_pb_r)
-{
-	return m_pio_dir[1];
-}
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_0_dir_pc_r)
-{
-	return m_pio_dir[2];
-}
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_0_dir_pd_r)
-{
-	return m_pio_dir[3];
-}
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_0_dir_pe_r)
-{
-	return m_pio_dir[4];
+	if (!(data & 0x01)) nbmj9195_soundclr_w(space, 0, 0);
 }
 
 
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_0_dir_pa_w)
-{
-	m_pio_dir[0] = data;
-}
 
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_0_dir_pb_w)
-{
-	m_pio_dir[1] = data;
-}
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_0_dir_pc_w)
-{
-	m_pio_dir[2] = data;
-}
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_0_dir_pd_w)
-{
-	m_pio_dir[3] = data;
-}
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_0_dir_pe_w)
-{
-	m_pio_dir[4] = data;
-}
-
-
-/* device 1 */
-READ8_MEMBER(nbmj9195_state::tmpz84c011_1_pa_r)
-{
-	return (tmpz84c011_pio_r(space,5) & ~m_pio_dir[5]) | (m_pio_latch[5] & m_pio_dir[5]);
-}
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_1_pb_r)
-{
-	return (tmpz84c011_pio_r(space,6) & ~m_pio_dir[6]) | (m_pio_latch[6] & m_pio_dir[6]);
-}
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_1_pc_r)
-{
-	return (tmpz84c011_pio_r(space,7) & ~m_pio_dir[7]) | (m_pio_latch[7] & m_pio_dir[7]);
-}
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_1_pd_r)
-{
-	return (tmpz84c011_pio_r(space,8) & ~m_pio_dir[8]) | (m_pio_latch[8] & m_pio_dir[8]);
-}
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_1_pe_r)
-{
-	return (tmpz84c011_pio_r(space,9) & ~m_pio_dir[9]) | (m_pio_latch[9] & m_pio_dir[9]);
-}
-
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_1_pa_w)
-{
-	m_pio_latch[5] = data;
-	tmpz84c011_pio_w(space, 5, data);
-}
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_1_pb_w)
-{
-	m_pio_latch[6] = data;
-	tmpz84c011_pio_w(space, 6, data);
-}
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_1_pc_w)
-{
-	m_pio_latch[7] = data;
-	tmpz84c011_pio_w(space, 7, data);
-}
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_1_pd_w)
-{
-	m_pio_latch[8] = data;
-	tmpz84c011_pio_w(space, 8, data);
-}
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_1_pe_w)
-{
-	m_pio_latch[9] = data;
-	tmpz84c011_pio_w(space, 9, data);
-}
-
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_1_dir_pa_r)
-{
-	return m_pio_dir[5];
-}
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_1_dir_pb_r)
-{
-	return m_pio_dir[6];
-}
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_1_dir_pc_r)
-{
-	return m_pio_dir[7];
-}
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_1_dir_pd_r)
-{
-	return m_pio_dir[8];
-}
-
-READ8_MEMBER(nbmj9195_state::tmpz84c011_1_dir_pe_r)
-{
-	return m_pio_dir[9];
-}
-
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_1_dir_pa_w)
-{
-	m_pio_dir[5] = data;
-}
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_1_dir_pb_w)
-{
-	m_pio_dir[6] = data;
-}
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_1_dir_pc_w)
-{
-	m_pio_dir[7] = data;
-}
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_1_dir_pd_w)
-{
-	m_pio_dir[8] = data;
-}
-
-WRITE8_MEMBER(nbmj9195_state::tmpz84c011_1_dir_pe_w)
-{
-	m_pio_dir[9] = data;
-}
 
 /* CTC of main cpu, ch0 trigger is vblank */
 INTERRUPT_GEN_MEMBER(nbmj9195_state::ctc0_trg1)
 {
-	z80ctc_device *ctc = machine().device<z80ctc_device>("main_ctc");
-	ctc->trg1(1);
-	ctc->trg1(0);
+	m_maincpu->trg1(1);
+	m_maincpu->trg1(0);
 }
-
-static Z80CTC_INTERFACE( ctc_intf_main )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),/* interrupt handler */
-	DEVCB_NULL,                 /* ZC/TO0 callback ctc1.zc0 -> ctc1.trg3 */
-	DEVCB_NULL,                 /* ZC/TO1 callback */
-	DEVCB_NULL                  /* ZC/TO2 callback */
-};
-
-static Z80CTC_INTERFACE( ctc_intf_audio )
-{
-	DEVCB_CPU_INPUT_LINE("audiocpu", INPUT_LINE_IRQ0),/* interrupt handler */
-	DEVCB_DEVICE_LINE_MEMBER("audio_ctc", z80ctc_device, trg3), /* ZC/TO0 callback ctc1.zc0 -> ctc1.trg3 */
-	DEVCB_NULL,                 /* ZC/TO1 callback */
-	DEVCB_NULL                  /* ZC/TO2 callback */
-};
 
 void nbmj9195_state::machine_reset()
 {
-	address_space &space = m_maincpu->space(AS_PROGRAM);
-	int i;
-
-	// initialize TMPZ84C011 PIO
-	for (i = 0; i < (5 * 2); i++)
-	{
-		m_pio_dir[i] = m_pio_latch[i] = 0;
-		tmpz84c011_pio_w(space, i, 0);
-	}
 }
 
 DRIVER_INIT_MEMBER(nbmj9195_state,nbmj9195)
@@ -654,19 +342,6 @@ DRIVER_INIT_MEMBER(nbmj9195_state,nbmj9195)
 	logerror("DRIVER_INIT( nbmj9195 )\n");
 }
 
-static ADDRESS_MAP_START( tmpz84c011_regs, AS_IO, 8, nbmj9195_state )
-	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE("main_ctc", z80ctc_device, read, write)
-	AM_RANGE(0x50, 0x50) AM_READWRITE(tmpz84c011_0_pa_r,tmpz84c011_0_pa_w)
-	AM_RANGE(0x51, 0x51) AM_READWRITE(tmpz84c011_0_pb_r,tmpz84c011_0_pb_w)
-	AM_RANGE(0x52, 0x52) AM_READWRITE(tmpz84c011_0_pc_r,tmpz84c011_0_pc_w)
-	AM_RANGE(0x30, 0x30) AM_READWRITE(tmpz84c011_0_pd_r,tmpz84c011_0_pd_w)
-	AM_RANGE(0x40, 0x40) AM_READWRITE(tmpz84c011_0_pe_r,tmpz84c011_0_pe_w)
-	AM_RANGE(0x54, 0x54) AM_READWRITE(tmpz84c011_0_dir_pa_r,tmpz84c011_0_dir_pa_w)
-	AM_RANGE(0x55, 0x55) AM_READWRITE(tmpz84c011_0_dir_pb_r,tmpz84c011_0_dir_pb_w)
-	AM_RANGE(0x56, 0x56) AM_READWRITE(tmpz84c011_0_dir_pc_r,tmpz84c011_0_dir_pc_w)
-	AM_RANGE(0x34, 0x34) AM_READWRITE(tmpz84c011_0_dir_pd_r,tmpz84c011_0_dir_pd_w)
-	AM_RANGE(0x44, 0x44) AM_READWRITE(tmpz84c011_0_dir_pe_r,tmpz84c011_0_dir_pe_w)
-ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sailorws_map, AS_PROGRAM, 8, nbmj9195_state )
 	AM_RANGE(0x0000, 0xefff) AM_ROM
@@ -710,7 +385,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mjuraden_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x80, 0x81) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x80, 0x8f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -724,7 +398,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( koinomp_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x80, 0x81) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x80, 0x8f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -743,7 +416,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( patimono_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x80, 0x81) AM_READ(nbmj9195_blitter_1_r)
 	AM_RANGE(0x80, 0x8f) AM_WRITE(nbmj9195_blitter_1_w)
@@ -761,7 +433,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mmehyou_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x80, 0x81) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x80, 0x8f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -775,7 +446,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( gal10ren_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x60, 0x61) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x60, 0x6f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -793,7 +463,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( renaiclb_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x20, 0x20) AM_WRITE(nbmj9195_sound_w)
 	AM_RANGE(0x24, 0x24) AM_WRITENOP
@@ -811,7 +480,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mjlaman_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x20, 0x20) AM_WRITE(nbmj9195_sound_w)
 	AM_RANGE(0x22, 0x22) AM_WRITENOP
@@ -829,7 +497,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mkeibaou_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x80, 0x81) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x80, 0x8f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -847,7 +514,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( pachiten_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x60, 0x61) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x60, 0x6f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -865,7 +531,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sailorws_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x60, 0x61) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x60, 0x6f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -883,7 +548,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sailorwr_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x60, 0x61) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x60, 0x6f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -901,7 +565,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( psailor1_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x60, 0x61) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x60, 0x6f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -919,7 +582,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( psailor2_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x60, 0x61) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x60, 0x6f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -937,7 +599,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( otatidai_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x60, 0x61) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x60, 0x6f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -955,7 +616,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( yosimoto_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x60, 0x61) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x60, 0x6f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -973,7 +633,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( yosimotm_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x60, 0x61) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x60, 0x6f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -991,7 +650,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( jituroku_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x60, 0x61) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x60, 0x6f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -1009,7 +667,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( ngpgal_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0xa0, 0xa0) AM_WRITE(nbmj9195_sound_w)
 	AM_RANGE(0xa4, 0xa4) AM_WRITENOP
@@ -1023,7 +680,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mjgottsu_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x80, 0x81) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x80, 0x8f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -1037,7 +693,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( cmehyou_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0xa0, 0xa0) AM_WRITE(nbmj9195_sound_w)
 	AM_RANGE(0xa8, 0xa8) AM_WRITENOP
@@ -1051,7 +706,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mjkoiura_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x80, 0x81) AM_READ(nbmj9195_blitter_0_r)
 	AM_RANGE(0x80, 0x8f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -1065,7 +719,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mkoiuraa_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0xa0, 0xa0) AM_WRITE(nbmj9195_sound_w)
 	AM_RANGE(0xa4, 0xa4) AM_WRITENOP
@@ -1079,7 +732,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mscoutm_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x80, 0x80) AM_READ(mscoutm_dipsw_1_r)
 	AM_RANGE(0x82, 0x82) AM_READ(mscoutm_dipsw_0_r)
@@ -1099,7 +751,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( imekura_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x80, 0x80) AM_READ(mscoutm_dipsw_1_r)
 	AM_RANGE(0x82, 0x82) AM_READ(mscoutm_dipsw_0_r)
@@ -1119,7 +770,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mjegolf_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 	AM_RANGE(0x80, 0x86) AM_WRITENOP            // nb22090 param ?
 
@@ -1147,17 +797,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sailorws_sound_io_map, AS_IO, 8, nbmj9195_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE("audio_ctc", z80ctc_device, read, write)
-	AM_RANGE(0x50, 0x50) AM_READWRITE(tmpz84c011_1_pa_r,tmpz84c011_1_pa_w)
-	AM_RANGE(0x51, 0x51) AM_READWRITE(tmpz84c011_1_pb_r,tmpz84c011_1_pb_w)
-	AM_RANGE(0x52, 0x52) AM_READWRITE(tmpz84c011_1_pc_r,tmpz84c011_1_pc_w)
-	AM_RANGE(0x30, 0x30) AM_READWRITE(tmpz84c011_1_pd_r,tmpz84c011_1_pd_w)
-	AM_RANGE(0x40, 0x40) AM_READWRITE(tmpz84c011_1_pe_r,tmpz84c011_1_pe_w)
-	AM_RANGE(0x54, 0x54) AM_READWRITE(tmpz84c011_1_dir_pa_r,tmpz84c011_1_dir_pa_w)
-	AM_RANGE(0x55, 0x55) AM_READWRITE(tmpz84c011_1_dir_pb_r,tmpz84c011_1_dir_pb_w)
-	AM_RANGE(0x56, 0x56) AM_READWRITE(tmpz84c011_1_dir_pc_r,tmpz84c011_1_dir_pc_w)
-	AM_RANGE(0x34, 0x34) AM_READWRITE(tmpz84c011_1_dir_pd_r,tmpz84c011_1_dir_pd_w)
-	AM_RANGE(0x44, 0x44) AM_READWRITE(tmpz84c011_1_dir_pe_r,tmpz84c011_1_dir_pe_w)
 	AM_RANGE(0x80, 0x81) AM_DEVWRITE("ymsnd", ym3812_device, write)
 ADDRESS_MAP_END
 
@@ -1178,7 +817,6 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( shabdama_io_map, AS_IO, 8, nbmj9195_state )
 //  ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_IMPORT_FROM( tmpz84c011_regs )
 
 //  AM_RANGE(0x60, 0x61) AM_READ(nbmj9195_blitter_0_r)
 //  AM_RANGE(0x60, 0x6f) AM_WRITE(nbmj9195_blitter_0_w)
@@ -3141,46 +2779,73 @@ INPUT_PORTS_END
 
 static const z80_daisy_config daisy_chain_main[] =
 {
-	{ "main_ctc" },
+	TMPZ84C011_DAISY_INTERNAL,
 	{ NULL }
 };
 
 static const z80_daisy_config daisy_chain_sound[] =
 {
-	{ "audio_ctc" },
+	TMPZ84C011_DAISY_INTERNAL,
 	{ NULL }
 };
 
 
-static MACHINE_CONFIG_START( NBMJDRV1, nbmj9195_state )
+// the only difference between these 2 setups is the DAC is swapped, is that intentional?
+#define OTHERS_TMZ84C011_SOUND_PORTS \
+	MCFG_TMPZ84C011_PORTA_WRITE_CB(WRITE8(nbmj9195_state, soundcpu_porta_w)) \
+	MCFG_TMPZ84C011_PORTB_WRITE_CB(WRITE8(nbmj9195_state, soundcpu_dac1_w)) \
+	MCFG_TMPZ84C011_PORTC_WRITE_CB(WRITE8(nbmj9195_state, soundcpu_dac2_w)) \
+	MCFG_TMPZ84C011_PORTD_READ_CB(READ8(nbmj9195_state, soundcpu_portd_r)) \
+	MCFG_TMPZ84C011_PORTE_WRITE_CB(WRITE8(nbmj9195_state, soundcpu_porte_w))
+#define MSCOUTM_TMZ84C011_SOUND_PORTS \
+	MCFG_TMPZ84C011_PORTA_WRITE_CB(WRITE8(nbmj9195_state, soundcpu_porta_w)) \
+	MCFG_TMPZ84C011_PORTB_WRITE_CB(WRITE8(nbmj9195_state, soundcpu_dac2_w)) \
+	MCFG_TMPZ84C011_PORTC_WRITE_CB(WRITE8(nbmj9195_state, soundcpu_dac1_w)) \
+	MCFG_TMPZ84C011_PORTD_READ_CB(READ8(nbmj9195_state, soundcpu_portd_r)) \
+	MCFG_TMPZ84C011_PORTE_WRITE_CB(WRITE8(nbmj9195_state, soundcpu_porte_w))
+
+
+#define MSCOUTM_TMZ84C011_MAIN_PORTS \
+	MCFG_TMPZ84C011_PORTA_READ_CB(READ8(nbmj9195_state, mscoutm_cpu_porta_r)) \
+	MCFG_TMPZ84C011_PORTA_WRITE_CB(WRITE8(nbmj9195_state, mscoutm_cpu_porta_w)) \
+	MCFG_TMPZ84C011_PORTB_READ_CB(READ8(nbmj9195_state, mscoutm_cpu_portb_r)) \
+	MCFG_TMPZ84C011_PORTC_READ_CB(READ8(nbmj9195_state, mscoutm_cpu_portc_r)) \
+	MCFG_TMPZ84C011_PORTD_WRITE_CB(WRITE8(nbmj9195_state, mscoutm_cpu_portd_w)) \
+	MCFG_TMPZ84C011_PORTE_WRITE_CB(WRITE8(nbmj9195_state, mscoutm_cpu_porte_w))
+
+#define OTHERS_TMZ84C011_MAIN_PORTS \
+	MCFG_TMPZ84C011_PORTA_READ_CB(READ8(nbmj9195_state, others_cpu_porta_r)) \
+	MCFG_TMPZ84C011_PORTB_READ_CB(READ8(nbmj9195_state, others_cpu_portb_r)) \
+	MCFG_TMPZ84C011_PORTC_READ_CB(READ8(nbmj9195_state, others_cpu_portc_r)) \
+	MCFG_TMPZ84C011_PORTC_WRITE_CB(WRITE8(nbmj9195_state, others_cpu_portc_w)) \
+	MCFG_TMPZ84C011_PORTD_WRITE_CB(WRITE8(nbmj9195_state, others_cpu_portd_w)) \
+	MCFG_TMPZ84C011_PORTE_WRITE_CB(WRITE8(nbmj9195_state, others_cpu_porte_w))
+
+static MACHINE_CONFIG_START( NBMJDRV1_base, nbmj9195_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, 12000000/2)        /* TMPZ84C011, 6.00 MHz */
+	MCFG_CPU_ADD("maincpu", TMPZ84C011, 12000000/2) /* TMPZ84C011, 6.00 MHz */
 	MCFG_CPU_CONFIG(daisy_chain_main)
 	MCFG_CPU_PROGRAM_MAP(sailorws_map)
 	MCFG_CPU_IO_MAP(sailorws_io_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", nbmj9195_state,  ctc0_trg1)                /* vblank is connect to ctc triggfer */
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", nbmj9195_state, ctc0_trg1) /* vblank is connect to ctc trigger */
 
-	MCFG_CPU_ADD("audiocpu", Z80, 8000000)                  /* TMPZ84C011, 8.00 MHz */
+	MCFG_CPU_ADD("audiocpu", TMPZ84C011, 8000000) /* TMPZ84C011, 8.00 MHz */
 	MCFG_CPU_CONFIG(daisy_chain_sound)
 	MCFG_CPU_PROGRAM_MAP(sailorws_sound_map)
 	MCFG_CPU_IO_MAP(sailorws_sound_io_map)
-
-	MCFG_Z80CTC_ADD("main_ctc", 12000000/2 /* same as "maincpu" */, ctc_intf_main)
-	MCFG_Z80CTC_ADD("audio_ctc", 8000000 /* same as "audiocpu" */, ctc_intf_audio)
-
+	MCFG_TMPZ84C011_ZC0_CB(DEVWRITELINE("audiocpu", tmpz84c011_device, trg3))
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(1024, 512)     /* no way this is correct */
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nbmj9195_state, screen_update_nbmj9195)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_PALETTE_ADD("palette", 256)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -3195,22 +2860,43 @@ static MACHINE_CONFIG_START( NBMJDRV1, nbmj9195_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
-
-static MACHINE_CONFIG_DERIVED( NBMJDRV2, NBMJDRV1 )
+static MACHINE_CONFIG_DERIVED( NBMJDRV1, NBMJDRV1_base )
 
 	/* basic machine hardware */
+	MCFG_CPU_MODIFY("maincpu")
+	OTHERS_TMZ84C011_MAIN_PORTS
+
+	MCFG_CPU_MODIFY("audiocpu")
+	OTHERS_TMZ84C011_SOUND_PORTS
+MACHINE_CONFIG_END
+
+
+static MACHINE_CONFIG_DERIVED( NBMJDRV2, NBMJDRV1_base )
+
+	/* basic machine hardware */
+	MCFG_CPU_MODIFY("maincpu")
+	OTHERS_TMZ84C011_MAIN_PORTS
+
+	MCFG_CPU_MODIFY("audiocpu")
+	OTHERS_TMZ84C011_SOUND_PORTS
 
 	/* video hardware */
 	MCFG_VIDEO_START_OVERRIDE(nbmj9195_state,nbmj9195_1layer)
 MACHINE_CONFIG_END
 
 
-static MACHINE_CONFIG_DERIVED( NBMJDRV3, NBMJDRV1 )
+static MACHINE_CONFIG_DERIVED( NBMJDRV3, NBMJDRV1_base )
 
 	/* basic machine hardware */
+	MCFG_CPU_MODIFY("maincpu")
+	MSCOUTM_TMZ84C011_MAIN_PORTS
+
+	MCFG_CPU_MODIFY("audiocpu")
+	MSCOUTM_TMZ84C011_SOUND_PORTS
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(512)
 
 	MCFG_VIDEO_START_OVERRIDE(nbmj9195_state,nbmj9195_nb22090)
 	MCFG_SCREEN_MODIFY("screen")
@@ -3473,7 +3159,6 @@ static MACHINE_CONFIG_DERIVED( shabdama, NBMJDRV1 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(shabdama_map)
 	MCFG_CPU_IO_MAP(shabdama_io_map)
-
 MACHINE_CONFIG_END
 
 

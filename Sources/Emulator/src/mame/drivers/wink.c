@@ -24,7 +24,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu") { }
+		m_audiocpu(*this, "audiocpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	tilemap_t *m_bg_tilemap;
@@ -48,6 +49,7 @@ public:
 	INTERRUPT_GEN_MEMBER(wink_sound);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -68,7 +70,7 @@ TILE_GET_INFO_MEMBER(wink_state::get_bg_tile_info)
 
 void wink_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(wink_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(wink_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 UINT32 wink_state::screen_update_wink(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -153,7 +155,7 @@ WRITE8_MEMBER(wink_state::prot_w)
 
 static ADDRESS_MAP_START( wink_io, AS_IO, 8, wink_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x1f) AM_RAM_WRITE(paletteram_xxxxBBBBRRRRGGGG_byte_le_w) AM_SHARE("paletteram") //0x10-0x1f is likely to be something else
+	AM_RANGE(0x00, 0x1f) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") //0x10-0x1f is likely to be something else
 //  AM_RANGE(0x20, 0x20) AM_WRITENOP                //??? seems unused..
 	AM_RANGE(0x21, 0x21) AM_WRITE(player_mux_w)     //??? no mux on the pcb.
 	AM_RANGE(0x22, 0x22) AM_WRITE(tile_banking_w)
@@ -323,16 +325,6 @@ READ8_MEMBER(wink_state::sound_r)
 	return m_sound_flag;
 }
 
-static const ay8910_interface ay8912_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(wink_state,sound_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 //AY portA is fed by an input clock at 15625 Hz
 INTERRUPT_GEN_MEMBER(wink_state::wink_sound)
 {
@@ -365,15 +357,17 @@ static MACHINE_CONFIG_START( wink, wink_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(wink_state, screen_update_wink)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(wink)
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", wink)
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_FORMAT(xxxxBBBBRRRRGGGG)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("aysnd", AY8912, 12000000 / 8)
-	MCFG_SOUND_CONFIG(ay8912_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(wink_state, sound_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -415,7 +409,7 @@ DRIVER_INIT_MEMBER(wink_state,wink)
 {
 	UINT32 i;
 	UINT8 *ROM = memregion("maincpu")->base();
-	UINT8 *buffer = auto_alloc_array(machine(), UINT8, 0x8000);
+	dynamic_buffer buffer(0x8000);
 
 	// protection module reverse engineered by HIGHWAYMAN
 
@@ -432,8 +426,6 @@ DRIVER_INIT_MEMBER(wink_state,wink)
 
 	for (i = 0x6000; i <= 0x7fff; i++)
 		ROM[i] = buffer[BITSWAP16(i,15,14,13, 11,12, 7, 9, 8,10, 6, 4, 5, 1, 2, 3, 0)];
-
-	auto_free(machine(), buffer);
 
 	for (i = 0; i < 0x8000; i++)
 		ROM[i] += BITSWAP8(i & 0xff, 7,5,3,1,6,4,2,0);

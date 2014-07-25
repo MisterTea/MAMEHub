@@ -196,13 +196,15 @@ static MACHINE_CONFIG_START( yard, m58_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", m58_state,  irq0_line_hold)
 
 	/* video hardware */
-	MCFG_GFXDECODE(yard)
-	MCFG_PALETTE_LENGTH(256+256+256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", yard)
+	MCFG_PALETTE_ADD("palette", 256+256+256)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256+256+16)
+	MCFG_PALETTE_INIT_OWNER(m58_state, m58)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/3, 384, 0, 256, 282, 42, 266)
 	MCFG_SCREEN_UPDATE_DRIVER(m58_state, screen_update_yard)
-
+	MCFG_SCREEN_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_FRAGMENT_ADD(m52_large_audio)
@@ -440,6 +442,7 @@ DRIVER_INIT_MEMBER(m58_state,yard85)
 		buffer[i] = region[0x20f-i];
 	}
 	memcpy(region+0x200, buffer, 0x10);
+	m_palette->update();
 }
 
 GAME( 1983, 10yard,   0,        yard,     yard, driver_device,     0, ROT0, "Irem", "10-Yard Fight (World, set 1)", GAME_SUPPORTS_SAVE ) // no copyright

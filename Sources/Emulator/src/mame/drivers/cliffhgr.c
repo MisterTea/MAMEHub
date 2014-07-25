@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles,Ernesto Corvi
 /*********************************************************
 
     Stern Cliffhanger Laserdisc Hardware
@@ -93,7 +95,8 @@ public:
 			m_port_bank(0),
 			m_phillips_code(0) ,
 		m_maincpu(*this, "maincpu"),
-		m_discrete(*this, "discrete") { }
+		m_discrete(*this, "discrete"),
+		m_screen(*this, "screen") { }
 
 	required_device<pioneer_pr8210_device> m_laserdisc;
 
@@ -117,6 +120,7 @@ public:
 	TIMER_CALLBACK_MEMBER(cliff_irq_callback);
 	required_device<cpu_device> m_maincpu;
 	required_device<discrete_device> m_discrete;
+	required_device<screen_device> m_screen;
 };
 
 
@@ -175,8 +179,8 @@ READ8_MEMBER(cliffhgr_state::cliff_irq_ack_r)
 WRITE8_MEMBER(cliffhgr_state::cliff_sound_overlay_w)
 {
 	/* audio */
-	discrete_sound_w(m_discrete, space, CLIFF_ENABLE_SND_1, data & 1);
-	discrete_sound_w(m_discrete, space, CLIFF_ENABLE_SND_2, (data >> 1) & 1);
+	m_discrete->write(space, CLIFF_ENABLE_SND_1, data & 1);
+	m_discrete->write(space, CLIFF_ENABLE_SND_2, (data >> 1) & 1);
 
 	// bit 4 (data & 0x10) is overlay related?
 }
@@ -675,12 +679,6 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static TMS9928A_INTERFACE(cliffhgr_tms9928a_interface)
-{
-	0x4000,
-	DEVCB_DRIVER_LINE_MEMBER(cliffhgr_state,vdp_interrupt)
-};
-
 DISCRETE_SOUND_EXTERN( cliffhgr );
 
 
@@ -705,7 +703,9 @@ static MACHINE_CONFIG_START( cliffhgr, cliffhgr_state )
 	MCFG_LASERDISC_OVERLAY_CLIP(TMS9928A_HORZ_DISPLAY_START-12, TMS9928A_HORZ_DISPLAY_START+32*8+12-1, TMS9928A_VERT_DISPLAY_START_NTSC - 12, TMS9928A_VERT_DISPLAY_START_NTSC+24*8+12-1)
 
 	/* start with the TMS9928a video configuration */
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9128, cliffhgr_tms9928a_interface )   /* TMS9128NL on the board */
+	MCFG_DEVICE_ADD( "tms9928a", TMS9128, XTAL_10_738635MHz / 2 )   /* TMS9128NL on the board */
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(cliffhgr_state, vdp_interrupt))
 
 	/* override video rendering and raw screen info */
 	MCFG_LASERDISC_SCREEN_ADD_NTSC("screen", "laserdisc")

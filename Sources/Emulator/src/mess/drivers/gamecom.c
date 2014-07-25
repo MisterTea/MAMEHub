@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Wilbert Pol, Robbbert
 /***************************************************************************
 
 Driver file to handle emulation of the Tiger Game.com by
@@ -60,7 +62,7 @@ static INPUT_PORTS_START( gamecom )
 	PORT_BIT( 0xff, 80, IPT_LIGHTGUN_Y ) PORT_CROSSHAIR(Y, 1, 0, 0) PORT_MINMAX(0,159) PORT_SENSITIVITY(50) PORT_KEYDELTA(8)
 INPUT_PORTS_END
 
-static const unsigned char palette[] =
+static const unsigned char palette_gamecom[] =
 {
 	0xDF, 0xFF, 0x8F,   /* White */
 	0x8F, 0xCF, 0x8F,   /* Gray 3 */
@@ -69,12 +71,12 @@ static const unsigned char palette[] =
 	0x00, 0x00, 0x00,   /* Black */
 };
 
-void gamecom_state::palette_init()
+PALETTE_INIT_MEMBER(gamecom_state, gamecom)
 {
 	int index;
 	for ( index = 0; index < 5; index++ )
 	{
-		palette_set_color_rgb(machine(),  4-index, palette[index*3+0], palette[index*3+1], palette[index*3+2] );
+		palette.set_pen_color(4-index, palette_gamecom[index*3+0], palette_gamecom[index*3+1], palette_gamecom[index*3+2] );
 	}
 }
 
@@ -110,18 +112,18 @@ static MACHINE_CONFIG_START( gamecom, gamecom_state )
 	MCFG_SCREEN_UPDATE_DRIVER(gamecom_state, screen_update)
 	MCFG_SCREEN_SIZE( 200, 200 )
 	MCFG_SCREEN_VISIBLE_AREA( 0, 199, 0, 159 )
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
-	MCFG_PALETTE_LENGTH(5)
+	MCFG_PALETTE_ADD("palette", 5)
+	MCFG_PALETTE_INIT_OWNER(gamecom_state, gamecom)
 
 	/* sound hardware */
-#if 0
-	MCFG_SPEAKER_STANDARD_STEREO( "left", "right" )
-	/* MCFG_SOUND_ADD( "custom", CUSTOM, 0 ) */
-	/* MCFG_SOUND_CONFIG */
-	MCFG_SOUND_ROUTE( 0, "left", 0.50 )
-	MCFG_SOUND_ROUTE( 1, "right", 0.50 )
-#endif
+	MCFG_SPEAKER_STANDARD_STEREO( "lspeaker", "rspeaker" )
+	/* TODO: much more complex than this */
+	MCFG_SOUND_ADD("dac", DAC, 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.00)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.00)
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart1")

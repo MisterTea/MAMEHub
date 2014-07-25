@@ -153,7 +153,7 @@ static ADDRESS_MAP_START( spbactn_map, AS_PROGRAM, 16, spbactn_state )
 	AM_RANGE(0x50000, 0x50fff) AM_RAM AM_SHARE("spvideoram")
 	AM_RANGE(0x60000, 0x67fff) AM_RAM_WRITE(fg_videoram_w) AM_SHARE("fgvideoram")
 	AM_RANGE(0x70000, 0x77fff) AM_RAM_WRITE(bg_videoram_w) AM_SHARE("bgvideoram")
-	AM_RANGE(0x80000, 0x827ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x80000, 0x827ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x90000, 0x90001) AM_READ_PORT("IN0")
 	AM_RANGE(0x90010, 0x90011) AM_READ_PORT("IN1")
 	AM_RANGE(0x90020, 0x90021) AM_READ_PORT("SYSTEM")
@@ -201,7 +201,7 @@ static ADDRESS_MAP_START( spbactnp_map, AS_PROGRAM, 16, spbactn_state )
 	AM_RANGE(0x50000, 0x50fff) AM_RAM AM_SHARE("spvideoram")
 	AM_RANGE(0x60000, 0x67fff) AM_RAM_WRITE(fg_videoram_w) AM_SHARE("fgvideoram")
 	AM_RANGE(0x70000, 0x77fff) AM_RAM_WRITE(bg_videoram_w) AM_SHARE("bgvideoram")
-	AM_RANGE(0x80000, 0x827ff) AM_RAM_WRITE(paletteram_xxxxBBBBRRRRGGGG_word_w) AM_SHARE("paletteram")   // yes R and G are swapped vs. the released version
+	AM_RANGE(0x80000, 0x827ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")   // yes R and G are swapped vs. the released version
 
 	AM_RANGE(0x90002, 0x90003) AM_WRITE( spbatnp_90002_w )
 	AM_RANGE(0x90006, 0x90007) AM_WRITE( spbatnp_90006_w )
@@ -363,7 +363,7 @@ static const gfx_layout spritelayout =
 static GFXDECODE_START( spbactn )
 	GFXDECODE_ENTRY( "gfx1", 0, fgtilelayout,   0x0200, 16 + 240 )
 	GFXDECODE_ENTRY( "gfx2", 0, bgtilelayout,   0x0300, 16 + 128 )
-	GFXDECODE_ENTRY( "gfx3", 0, spritelayout,   0x0000, 16 + 384 )
+	GFXDECODE_ENTRY( "gfx3", 0, spritelayout,   0x0000, 0x1000 )
 GFXDECODE_END
 
 
@@ -426,9 +426,18 @@ static MACHINE_CONFIG_START( spbactn, spbactn_state )
 	MCFG_VIDEO_START_OVERRIDE(spbactn_state,spbactn)
 	MCFG_SCREEN_UPDATE_DRIVER(spbactn_state, screen_update_spbactn)
 
-	MCFG_GFXDECODE(spbactn)
-	MCFG_PALETTE_LENGTH(0x2800/2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", spbactn)
+	MCFG_PALETTE_ADD("palette", 0x2800/2)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
+	MCFG_DEVICE_ADD("spritegen", TECMO_SPRITE, 0)
+	MCFG_TECMO_SPRITE_GFX_REGION(2)
+	MCFG_DEVICE_ADD("mixer", TECMO_MIXER, 0)
+	MCFG_TECMO_MIXER_SHIFTS(8,10,4)
+	MCFG_TECMO_MIXER_BLENDCOLS(   0x0000 + 0x300, 0x0000 + 0x200, 0x0000 + 0x100, 0x0000 + 0x000 )
+	MCFG_TECMO_MIXER_REGULARCOLS( 0x0800 + 0x300, 0x0800 + 0x200, 0x0800 + 0x100, 0x0800 + 0x000 )
+	MCFG_TECMO_MIXER_BLENDSOUCE( 0x1000 + 0x000, 0x1000 + 0x100)
+	MCFG_TECMO_MIXER_BGPEN(0x800 + 0x300)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -468,9 +477,18 @@ static MACHINE_CONFIG_START( spbactnp, spbactn_state )
 	MCFG_VIDEO_START_OVERRIDE(spbactn_state,spbactnp)
 	MCFG_SCREEN_UPDATE_DRIVER(spbactn_state, screen_update_spbactnp)
 
-	MCFG_GFXDECODE(spbactnp)
-	MCFG_PALETTE_LENGTH(0x2800/2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", spbactnp)
+	MCFG_PALETTE_ADD("palette", 0x2800/2)
+	MCFG_PALETTE_FORMAT(xxxxBBBBRRRRGGGG)
 
+	MCFG_DEVICE_ADD("spritegen", TECMO_SPRITE, 0)
+	MCFG_TECMO_SPRITE_GFX_REGION(2)
+	MCFG_DEVICE_ADD("mixer", TECMO_MIXER, 0)
+	MCFG_TECMO_MIXER_SHIFTS(12,14,8)
+	MCFG_TECMO_MIXER_BLENDCOLS(   0x0000 + 0x300, 0x0000 + 0x200, 0x0000 + 0x100, 0x0000 + 0x000 )
+	MCFG_TECMO_MIXER_REGULARCOLS( 0x0800 + 0x300, 0x0800 + 0x200, 0x0800 + 0x100, 0x0800 + 0x000 )
+	MCFG_TECMO_MIXER_BLENDSOUCE( 0x1000 + 0x000, 0x1000 + 0x100)
+	MCFG_TECMO_MIXER_BGPEN(0x800 + 0x300)
 
 	/* sound hardware  - different? */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

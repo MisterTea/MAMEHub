@@ -31,7 +31,7 @@ TILE_GET_INFO_MEMBER(pokechmp_state::get_bg_tile_info)
 
 void pokechmp_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pokechmp_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pokechmp_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
 			8, 8, 32, 32);
 }
 
@@ -62,7 +62,7 @@ void pokechmp_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 			if (spriteram[offs+1] & 0x01) tileno += 0x100;
 			if (spriteram[offs+1] & 0x08) tileno += 0x200;
 
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 					tileno,
 					(spriteram[offs+1] & 0xf0) >> 4,
 					flipx,flipy,

@@ -169,7 +169,7 @@ static ADDRESS_MAP_START( fitfight_main_map, AS_PROGRAM, 16, fitfight_state )
 	AM_RANGE(0xb14000, 0xb17fff) AM_RAM //used by histryma @0x0000b25a,b270
 	AM_RANGE(0xb18000, 0xb1bfff) AM_RAM //used by histryma @0x0000b25a,b270,b286
 
-	AM_RANGE(0xc00000, 0xc00fff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xc00000, 0xc00fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 
 	AM_RANGE(0xd00000, 0xd007ff) AM_RAM AM_SHARE("spriteram")
 
@@ -201,7 +201,7 @@ static ADDRESS_MAP_START( bbprot_main_map, AS_PROGRAM, 16, fitfight_state )
 	AM_RANGE(0xb0c000, 0xb0ffff) AM_RAM_WRITE(fof_txt_tileram_w) AM_SHARE("fof_txt_tileram")
 
 	AM_RANGE(0xc00000, 0xc00fff) AM_READONLY
-	AM_RANGE(0xc00000, 0xc03fff) AM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xc00000, 0xc03fff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 
 	AM_RANGE(0xd00000, 0xd007ff) AM_RAM AM_SHARE("spriteram")
 
@@ -220,35 +220,35 @@ ADDRESS_MAP_END
 
 READ8_MEMBER(fitfight_state::snd_porta_r)
 {
-	//mame_printf_debug("PA R @%x\n",space.device().safe_pc());
+	//osd_printf_debug("PA R @%x\n",space.device().safe_pc());
 	return machine().rand();
 }
 
 READ8_MEMBER(fitfight_state::snd_portb_r)
 {
-	//mame_printf_debug("PB R @%x\n",space.device().safe_pc());
+	//osd_printf_debug("PB R @%x\n",space.device().safe_pc());
 	return machine().rand();
 }
 
 READ8_MEMBER(fitfight_state::snd_portc_r)
 {
-	//mame_printf_debug("PC R @%x\n",space.device().safe_pc());
+	//osd_printf_debug("PC R @%x\n",space.device().safe_pc());
 	return machine().rand();
 }
 
 WRITE8_MEMBER(fitfight_state::snd_porta_w)
 {
-	//mame_printf_debug("PA W %x @%x\n",data,space.device().safe_pc());
+	//osd_printf_debug("PA W %x @%x\n",data,space.device().safe_pc());
 }
 
 WRITE8_MEMBER(fitfight_state::snd_portb_w)
 {
-	//mame_printf_debug("PB W %x @%x\n",data,space.device().safe_pc());
+	//osd_printf_debug("PB W %x @%x\n",data,space.device().safe_pc());
 }
 
 WRITE8_MEMBER(fitfight_state::snd_portc_w)
 {
-	//mame_printf_debug("PC W %x @%x\n",data,space.device().safe_pc());
+	//osd_printf_debug("PC W %x @%x\n",data,space.device().safe_pc());
 }
 
 static ADDRESS_MAP_START( snd_io, AS_IO, 8, fitfight_state )
@@ -261,12 +261,6 @@ INTERRUPT_GEN_MEMBER(fitfight_state::snd_irq)
 {
 	device.execute().set_input_line(UPD7810_INTF2, HOLD_LINE);
 }
-
-static const UPD7810_CONFIG sound_cpu_config =
-{
-	TYPE_7810,
-	0
-};
 
 
 // #define PRIORITY_EASINESS_TO_PLAY
@@ -736,13 +730,12 @@ static MACHINE_CONFIG_START( fitfight, fitfight_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", fitfight_state,  irq2_line_hold)
 
 	MCFG_CPU_ADD("audiocpu", UPD7810, 12000000)
-	MCFG_CPU_CONFIG(sound_cpu_config)
 	MCFG_CPU_PROGRAM_MAP(snd_mem)
 	MCFG_CPU_IO_MAP(snd_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", fitfight_state,  snd_irq)
 
 
-	MCFG_GFXDECODE(fitfight)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", fitfight)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -750,8 +743,10 @@ static MACHINE_CONFIG_START( fitfight, fitfight_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(2*8, 39*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(fitfight_state, screen_update_fitfight)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x800)
+	MCFG_PALETTE_ADD("palette", 0x800)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -767,7 +762,7 @@ static MACHINE_CONFIG_START( bbprot, fitfight_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", fitfight_state,  irq2_line_hold)
 
 
-	MCFG_GFXDECODE(prot)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", prot)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -775,8 +770,10 @@ static MACHINE_CONFIG_START( bbprot, fitfight_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(2*8, 39*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(fitfight_state, screen_update_fitfight)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x2000)
+	MCFG_PALETTE_ADD("palette", 0x2000)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")

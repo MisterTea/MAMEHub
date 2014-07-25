@@ -74,9 +74,6 @@ PALETTE_INIT_MEMBER(pacman_state,pacman)
 			3, &resistances[0], gweights, 0, 0,
 			2, &resistances[1], bweights, 0, 0);
 
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 32);
-
 	/* create a lookup table for the palette */
 	for (i = 0; i < 32; i++)
 	{
@@ -100,7 +97,7 @@ PALETTE_INIT_MEMBER(pacman_state,pacman)
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		b = combine_2_weights(bweights, bit0, bit1);
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -112,10 +109,10 @@ PALETTE_INIT_MEMBER(pacman_state,pacman)
 		UINT8 ctabentry = color_prom[i] & 0x0f;
 
 		/* first palette bank */
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 
 		/* second palette bank */
-		colortable_entry_set_value(machine().colortable, i + 64*4, 0x10 + ctabentry);
+		palette.set_pen_indirect(i + 64*4, 0x10 + ctabentry);
 	}
 }
 
@@ -174,10 +171,7 @@ VIDEO_START_MEMBER(pacman_state,pacman)
 	/* one pixel to the left to get a more correct placement */
 	m_xoffsethack = 1;
 
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pacman_state::pacman_get_tile_info),this), tilemap_mapper_delegate(FUNC(pacman_state::pacman_scan_rows),this),  8, 8, 36, 28 );
-
-	m_bg_tilemap->set_scrolldx(0, 384 - 288 );
-	m_bg_tilemap->set_scrolldy(0, 264 - 224 );
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pacman_state::pacman_get_tile_info),this), tilemap_mapper_delegate(FUNC(pacman_state::pacman_scan_rows),this),  8, 8, 36, 28 );
 }
 
 VIDEO_START_MEMBER(pacman_state,birdiy)
@@ -246,20 +240,20 @@ UINT32 pacman_state::screen_update_pacman(screen_device &screen, bitmap_ind16 &b
 
 			color = ( spriteram[offs + 1] & 0x1f ) | (m_colortablebank << 5) | (m_palettebank << 6 );
 
-			drawgfx_transmask(bitmap,spriteclip,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transmask(bitmap,spriteclip,
 					( spriteram[offs] >> 2 ) | (m_spritebank << 6),
 					color,
 					fx,fy,
 					sx,sy,
-					colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color & 0x3f, 0));
+					m_palette->transpen_mask(*m_gfxdecode->gfx(1), color & 0x3f, 0));
 
 			/* also plot the sprite with wraparound (tunnel in Crush Roller) */
-			drawgfx_transmask(bitmap,spriteclip,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transmask(bitmap,spriteclip,
 					( spriteram[offs] >> 2 ) | (m_spritebank << 6),
 					color,
 					fx,fy,
 					sx - 256,sy,
-					colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color & 0x3f, 0));
+					m_palette->transpen_mask(*m_gfxdecode->gfx(1), color & 0x3f, 0));
 		}
 		/* In the Pac Man based games (NOT Pengo) the first two sprites must be offset */
 		/* one pixel to the left to get a more correct placement */
@@ -284,20 +278,20 @@ UINT32 pacman_state::screen_update_pacman(screen_device &screen, bitmap_ind16 &b
 			fx = (spriteram[offs] & 1) ^ m_inv_spr;
 			fy = (spriteram[offs] & 2) ^ ((m_inv_spr) << 1);
 
-			drawgfx_transmask(bitmap,spriteclip,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transmask(bitmap,spriteclip,
 					( spriteram[offs] >> 2 ) | (m_spritebank << 6),
 					color,
 					fx,fy,
 					sx,sy + m_xoffsethack,
-					colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color & 0x3f, 0));
+					m_palette->transpen_mask(*m_gfxdecode->gfx(1), color & 0x3f, 0));
 
 			/* also plot the sprite with wraparound (tunnel in Crush Roller) */
-			drawgfx_transmask(bitmap,spriteclip,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transmask(bitmap,spriteclip,
 					( spriteram[offs] >> 2 ) | (m_spritebank << 6),
 					color,
 					fy,fx,          //FIXME: flipping bits are really supposed to be inverted here?
 					sx - 256,sy + m_xoffsethack,
-					colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color & 0x3f, 0));
+					m_palette->transpen_mask(*m_gfxdecode->gfx(1), color & 0x3f, 0));
 		}
 	}
 
@@ -326,10 +320,7 @@ VIDEO_START_MEMBER(pacman_state,pengo)
 	m_inv_spr = 0;
 	m_xoffsethack = 0;
 
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pacman_state::pacman_get_tile_info),this), tilemap_mapper_delegate(FUNC(pacman_state::pacman_scan_rows),this),  8, 8, 36, 28 );
-
-	m_bg_tilemap->set_scrolldx(0, 384 - 288 );
-	m_bg_tilemap->set_scrolldy(0, 264 - 224 );
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pacman_state::pacman_get_tile_info),this), tilemap_mapper_delegate(FUNC(pacman_state::pacman_scan_rows),this),  8, 8, 36, 28 );
 }
 
 WRITE8_MEMBER(pacman_state::pengo_palettebank_w)
@@ -392,7 +383,7 @@ VIDEO_START_MEMBER(pacman_state,s2650games)
 	m_inv_spr = 0;
 	m_xoffsethack = 1;
 
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pacman_state::s2650_get_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32 );
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pacman_state::s2650_get_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32 );
 
 	m_bg_tilemap->set_scroll_cols(32);
 }
@@ -416,12 +407,12 @@ UINT32 pacman_state::screen_update_s2650games(screen_device &screen, bitmap_ind1
 		color = spriteram[offs + 1] & 0x1f;
 
 		/* TODO: ?? */
-		drawgfx_transmask(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->transmask(bitmap,cliprect,
 				(spriteram[offs] >> 2) | ((m_s2650_spriteram[offs] & 3) << 6),
 				color,
 				spriteram[offs] & 1,spriteram[offs] & 2,
 				sx,sy,
-				colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color & 0x3f, 0));
+				m_palette->transpen_mask(*m_gfxdecode->gfx(1), color & 0x3f, 0));
 	}
 	/* In the Pac Man based games (NOT Pengo) the first two sprites must be offset */
 	/* one pixel to the left to get a more correct placement */
@@ -436,12 +427,12 @@ UINT32 pacman_state::screen_update_s2650games(screen_device &screen, bitmap_ind1
 		color = spriteram[offs + 1] & 0x1f;
 
 		/* TODO: ?? */
-		drawgfx_transmask(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->transmask(bitmap,cliprect,
 				(spriteram[offs] >> 2) | ((m_s2650_spriteram[offs] & 3)<<6),
 				color,
 				spriteram[offs] & 1,spriteram[offs] & 2,
 				sx,sy + m_xoffsethack,
-				colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color & 0x3f, 0));
+				m_palette->transpen_mask(*m_gfxdecode->gfx(1), color & 0x3f, 0));
 	}
 	return 0;
 }
@@ -560,7 +551,7 @@ VIDEO_START_MEMBER(pacman_state,jrpacman)
 	m_inv_spr = 0;
 	m_xoffsethack = 1;
 
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pacman_state::jrpacman_get_tile_info),this),tilemap_mapper_delegate(FUNC(pacman_state::jrpacman_scan_rows),this),8,8,36,54 );
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pacman_state::jrpacman_get_tile_info),this),tilemap_mapper_delegate(FUNC(pacman_state::jrpacman_scan_rows),this),8,8,36,54 );
 
 	m_bg_tilemap->set_transparent_pen(0 );
 	m_bg_tilemap->set_scroll_cols(36 );

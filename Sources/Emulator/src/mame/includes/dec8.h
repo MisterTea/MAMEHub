@@ -1,6 +1,8 @@
+#include "sound/msm5205.h"
 #include "video/bufsprite.h"
 #include "video/decbac06.h"
-#include "sound/msm5205.h"
+#include "video/deckarn.h"
+#include "video/decmxc06.h"
 
 class dec8_state : public driver_device
 {
@@ -20,8 +22,12 @@ public:
 		m_msm(*this, "msm"),
 		m_tilegen1(*this, "tilegen1"),
 		m_tilegen2(*this, "tilegen2"),
+		m_spritegen_krn(*this, "spritegen_krn"),
+		m_spritegen_mxc(*this, "spritegen_mxc"),
 		m_videoram(*this, "videoram"),
-		m_bg_data(*this, "bg_data") { }
+		m_bg_data(*this, "bg_data"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
@@ -32,10 +38,15 @@ public:
 	optional_device<msm5205_device> m_msm;
 	optional_device<deco_bac06_device> m_tilegen1;
 	optional_device<deco_bac06_device> m_tilegen2;
+	optional_device<deco_karnovsprites_device> m_spritegen_krn;
+	optional_device<deco_mxc06_device> m_spritegen_mxc;
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
 	optional_shared_ptr<UINT8> m_bg_data;
+
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	UINT8 *  m_pf1_data;
 	UINT8 *  m_row;

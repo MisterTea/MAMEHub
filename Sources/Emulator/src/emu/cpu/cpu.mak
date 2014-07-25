@@ -67,6 +67,20 @@ $(DRCOBJ): $(DRCDEPS)
 
 
 #-------------------------------------------------
+# Signetics 8X300 / Scientific Micro Systems SMS300
+#@src/emu/cpu/8x300/8x300.h,CPUS += 8X300
+#-------------------------------------------------
+
+ifneq ($(filter 8X300,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/8x300
+CPUOBJS += $(CPUOBJ)/8x300/8x300.o
+DASMOBJS += $(CPUOBJ)/8x300/8x300dasm.o
+endif
+
+$(CPUOBJ)/8x300/8x300.o:    $(CPUSRC)/8x300/8x300.c \
+							$(CPUSRC)/8x300/8x300.h
+
+#-------------------------------------------------
 # Acorn ARM series
 #
 #@src/emu/cpu/arm/arm.h,CPUS += ARM
@@ -95,9 +109,9 @@ $(CPUOBJ)/arm7/arm7.o:  $(CPUSRC)/arm7/arm7.c \
 						$(CPUSRC)/arm7/arm7help.h \
 						$(CPUSRC)/arm7/arm7thmb.c \
 						$(CPUSRC)/arm7/arm7ops.c \
-						$(CPUSRC)/arm7/arm7core.c \
-						$(CPUSRC)/arm7/arm7drc.c \
-						$(CPUSRC)/arm7/arm7tdrc.c
+						$(CPUSRC)/arm7/arm7core.inc \
+						$(CPUSRC)/arm7/arm7drc.inc \
+						$(CPUSRC)/arm7/arm7tdrc.inc
 
 $(CPUOBJ)/arm7/arm7ops.o:   $(CPUSRC)/arm7/arm7ops.c \
 						$(CPUSRC)/arm7/arm7.h \
@@ -154,7 +168,7 @@ endif
 
 $(CPUOBJ)/adsp2100/adsp2100.o:  $(CPUSRC)/adsp2100/adsp2100.c \
 								$(CPUSRC)/adsp2100/adsp2100.h \
-								$(CPUSRC)/adsp2100/2100ops.c
+								$(CPUSRC)/adsp2100/2100ops.inc
 
 
 
@@ -171,13 +185,13 @@ endif
 
 $(CPUOBJ)/sharc/sharc.o:    $(CPUSRC)/sharc/sharc.c \
 							$(CPUSRC)/sharc/sharc.h \
-							$(CPUSRC)/sharc/sharcops.c \
+							$(CPUSRC)/sharc/sharcops.inc \
 							$(CPUSRC)/sharc/sharcops.h \
 							$(CPUSRC)/sharc/sharcdsm.c \
 							$(CPUSRC)/sharc/sharcdsm.h \
-							$(CPUSRC)/sharc/compute.c \
-							$(CPUSRC)/sharc/sharcdma.c \
-							$(CPUSRC)/sharc/sharcmem.c
+							$(CPUSRC)/sharc/compute.inc \
+							$(CPUSRC)/sharc/sharcdma.inc \
+							$(CPUSRC)/sharc/sharcmem.inc
 
 
 
@@ -208,7 +222,7 @@ CPUOBJS += $(CPUOBJ)/dsp16/dsp16.o
 DASMOBJS += $(CPUOBJ)/dsp16/dsp16dis.o
 endif
 
-$(CPUOBJ)/dsp16/dsp16.o:    $(CPUSRC)/dsp16/dsp16ops.c \
+$(CPUOBJ)/dsp16/dsp16.o:    $(CPUSRC)/dsp16/dsp16ops.inc \
 							$(CPUSRC)/dsp16/dsp16.c \
 							$(CPUSRC)/dsp16/dsp16.h
 
@@ -226,7 +240,7 @@ endif
 
 $(CPUOBJ)/dsp32/dsp32.o:    $(CPUSRC)/dsp32/dsp32.c \
 							$(CPUSRC)/dsp32/dsp32.h \
-							$(CPUSRC)/dsp32/dsp32ops.c
+							$(CPUSRC)/dsp32/dsp32ops.inc
 
 
 
@@ -355,7 +369,7 @@ endif
 
 $(CPUOBJ)/cop400/cop400.o:  $(CPUSRC)/cop400/cop400.c \
 							$(CPUSRC)/cop400/cop400.h \
-							$(CPUSRC)/cop400/cop400op.c
+							$(CPUSRC)/cop400/cop400op.inc
 
 
 
@@ -404,8 +418,8 @@ endif
 
 $(CPUOBJ)/t11/t11.o:    $(CPUSRC)/t11/t11.c \
 						$(CPUSRC)/t11/t11.h \
-						$(CPUSRC)/t11/t11ops.c \
-						$(CPUSRC)/t11/t11table.c
+						$(CPUSRC)/t11/t11ops.inc \
+						$(CPUSRC)/t11/t11table.inc
 
 
 
@@ -468,57 +482,185 @@ $(CPUOBJ)/g65816/g65816o4.o:    $(CPUSRC)/g65816/g65816o4.c \
 
 
 #-------------------------------------------------
-# Hitachi H8/30xx (16/32-bit H8/3xx series)
-#@src/emu/cpu/h83002/h8.h,CPUS += H83002
+# Hitachi H8 (16/32-bit H8/300, H8/300H, H8S2000 and H8S2600 series)
+#@src/emu/cpu/h8/h8.h,CPUS += H8
 #-------------------------------------------------
 
-ifneq ($(filter H83002,$(CPUS)),)
-OBJDIRS += $(CPUOBJ)/h83002
-CPUOBJS += $(CPUOBJ)/h83002/h8_16.o $(CPUOBJ)/h83002/h8periph.o $(CPUOBJ)/h83002/h8speriph.o
-DASMOBJS += $(CPUOBJ)/h83002/h8disasm.o
+ifneq ($(filter H8,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/h8
+CPUOBJS += $(CPUOBJ)/h8/h8.o $(CPUOBJ)/h8/h8h.o $(CPUOBJ)/h8/h8s2000.o $(CPUOBJ)/h8/h8s2600.o \
+			$(CPUOBJ)/h8/h83337.o \
+			$(CPUOBJ)/h8/h83002.o $(CPUOBJ)/h8/h83006.o  $(CPUOBJ)/h8/h83008.o \
+			$(CPUOBJ)/h8/h83048.o \
+			$(CPUOBJ)/h8/h8s2245.o $(CPUOBJ)/h8/h8s2320.o $(CPUOBJ)/h8/h8s2357.o \
+			$(CPUOBJ)/h8/h8s2655.o \
+			$(CPUOBJ)/h8/h8_adc.o $(CPUOBJ)/h8/h8_port.o $(CPUOBJ)/h8/h8_intc.o \
+			$(CPUOBJ)/h8/h8_timer8.o $(CPUOBJ)/h8/h8_timer16.o $(CPUOBJ)/h8/h8_sci.o
+DASMOBJS +=
 endif
 
-$(CPUOBJ)/h83002/h8_16.o:       $(CPUSRC)/h83002/h8_16.c \
-								$(CPUSRC)/h83002/h8.h \
-								$(CPUSRC)/h83002/h8ops.h \
-								$(CPUSRC)/h83002/h8priv.h
+$(CPUOBJ)/h8/h8.o:              $(CPUSRC)/h8/h8.c \
+								$(CPUOBJ)/h8/h8.inc \
+								$(CPUSRC)/h8/h8.h
 
-$(CPUOBJ)/h83002/h8disasm.o:    $(CPUSRC)/h83002/h8disasm.c
+$(CPUOBJ)/h8/h8h.o:             $(CPUSRC)/h8/h8h.c \
+								$(CPUOBJ)/h8/h8h.inc \
+								$(CPUSRC)/h8/h8h.h \
+								$(CPUSRC)/h8/h8.h
 
-$(CPUOBJ)/h83002/h8periph.o:    $(CPUSRC)/h83002/h8periph.c \
-								$(CPUSRC)/h83002/h8priv.h \
-								$(CPUSRC)/h83002/h8.h
+$(CPUOBJ)/h8/h8s2000.o:         $(CPUSRC)/h8/h8s2000.c \
+								$(CPUOBJ)/h8/h8s2000.inc \
+								$(CPUSRC)/h8/h8s2000.h \
+								$(CPUSRC)/h8/h8h.h \
+								$(CPUSRC)/h8/h8.h
 
-$(CPUOBJ)/h83002/h8speriph.o:   $(CPUSRC)/h83002/h8speriph.c \
-								$(CPUSRC)/h83002/h8priv.h \
-								$(CPUSRC)/h83002/h8.h
+$(CPUOBJ)/h8/h8s2600.o:         $(CPUSRC)/h8/h8s2600.c \
+								$(CPUOBJ)/h8/h8s2600.inc \
+								$(CPUSRC)/h8/h8s2600.h \
+								$(CPUSRC)/h8/h8s2000.h \
+								$(CPUSRC)/h8/h8h.h \
+								$(CPUSRC)/h8/h8.h
 
+$(CPUOBJ)/h8/h83337.o:          $(CPUSRC)/h8/h83337.c \
+								$(CPUSRC)/h8/h83337.h \
+								$(CPUSRC)/h8/h8.h \
+								$(CPUSRC)/h8/h8_intc.h \
+								$(CPUSRC)/h8/h8_adc.h \
+								$(CPUSRC)/h8/h8_port.h \
+								$(CPUSRC)/h8/h8_timer8.h \
+								$(CPUSRC)/h8/h8_timer16.h \
+								$(CPUSRC)/h8/h8_sci.h
 
-#-------------------------------------------------
-# Hitachi H8/3334 (8/16-bit H8/3xx series)
-#@src/emu/cpu/h83002/h8.h,CPUS += H83334
-#-------------------------------------------------
+$(CPUOBJ)/h8/h83002.o:          $(CPUSRC)/h8/h83002.c \
+								$(CPUSRC)/h8/h83002.h \
+								$(CPUSRC)/h8/h8h.h \
+								$(CPUSRC)/h8/h8.h \
+								$(CPUSRC)/h8/h8_intc.h \
+								$(CPUSRC)/h8/h8_adc.h \
+								$(CPUSRC)/h8/h8_port.h \
+								$(CPUSRC)/h8/h8_timer16.h \
+								$(CPUSRC)/h8/h8_sci.h
 
-ifneq ($(filter H83334,$(CPUS)),)
-OBJDIRS += $(CPUOBJ)/h83002
-CPUOBJS += $(CPUOBJ)/h83002/h8_8.o $(CPUOBJ)/h83002/h8periph.o $(CPUOBJ)/h83002/h8speriph.o
-DASMOBJS += $(CPUOBJ)/h83002/h8disasm.o
-endif
+$(CPUOBJ)/h8/h83006.o:          $(CPUSRC)/h8/h83006.c \
+								$(CPUSRC)/h8/h83006.h \
+								$(CPUSRC)/h8/h8h.h \
+								$(CPUSRC)/h8/h8.h \
+								$(CPUSRC)/h8/h8_intc.h \
+								$(CPUSRC)/h8/h8_adc.h \
+								$(CPUSRC)/h8/h8_port.h \
+								$(CPUSRC)/h8/h8_timer8.h \
+								$(CPUSRC)/h8/h8_timer16.h \
+								$(CPUSRC)/h8/h8_sci.h
 
-$(CPUOBJ)/h83002/h8_8.o:        $(CPUSRC)/h83002/h8_8.c \
-								$(CPUSRC)/h83002/h8.h \
-								$(CPUSRC)/h83002/h8ops.h \
-								$(CPUSRC)/h83002/h8priv.h
+$(CPUOBJ)/h8/h83008.o:          $(CPUSRC)/h8/h83008.c \
+								$(CPUSRC)/h8/h83008.h \
+								$(CPUSRC)/h8/h8h.h \
+								$(CPUSRC)/h8/h8.h \
+								$(CPUSRC)/h8/h8_intc.h \
+								$(CPUSRC)/h8/h8_adc.h \
+								$(CPUSRC)/h8/h8_port.h \
+								$(CPUSRC)/h8/h8_timer8.h \
+								$(CPUSRC)/h8/h8_timer16.h \
+								$(CPUSRC)/h8/h8_sci.h
 
-$(CPUOBJ)/h83002/h8disasm.o:    $(CPUSRC)/h83002/h8disasm.c
+$(CPUOBJ)/h8/h83048.o:          $(CPUSRC)/h8/h83048.c \
+								$(CPUSRC)/h8/h83048.h \
+								$(CPUSRC)/h8/h8h.h \
+								$(CPUSRC)/h8/h8.h \
+								$(CPUSRC)/h8/h8_intc.h \
+								$(CPUSRC)/h8/h8_adc.h \
+								$(CPUSRC)/h8/h8_port.h \
+								$(CPUSRC)/h8/h8_timer16.h \
+								$(CPUSRC)/h8/h8_sci.h
 
-$(CPUOBJ)/h83002/h8periph.o:    $(CPUSRC)/h83002/h8periph.c \
-								$(CPUSRC)/h83002/h8priv.h \
-								$(CPUSRC)/h83002/h8.h
+$(CPUOBJ)/h8/h8s2245.o:         $(CPUSRC)/h8/h8s2245.c \
+								$(CPUSRC)/h8/h8s2245.h \
+								$(CPUSRC)/h8/h8s2000.h \
+								$(CPUSRC)/h8/h8h.h \
+								$(CPUSRC)/h8/h8.h \
+								$(CPUSRC)/h8/h8_intc.h \
+								$(CPUSRC)/h8/h8_adc.h \
+								$(CPUSRC)/h8/h8_port.h \
+								$(CPUSRC)/h8/h8_timer8.h \
+								$(CPUSRC)/h8/h8_timer16.h \
+								$(CPUSRC)/h8/h8_sci.h
 
-$(CPUOBJ)/h83002/h8speriph.o:   $(CPUSRC)/h83002/h8speriph.c \
-								$(CPUSRC)/h83002/h8priv.h \
-								$(CPUSRC)/h83002/h8.h
+$(CPUOBJ)/h8/h8s2320.o:         $(CPUSRC)/h8/h8s2320.c \
+								$(CPUSRC)/h8/h8s2320.h \
+								$(CPUSRC)/h8/h8s2000.h \
+								$(CPUSRC)/h8/h8h.h \
+								$(CPUSRC)/h8/h8.h \
+								$(CPUSRC)/h8/h8_intc.h \
+								$(CPUSRC)/h8/h8_adc.h \
+								$(CPUSRC)/h8/h8_port.h \
+								$(CPUSRC)/h8/h8_timer8.h \
+								$(CPUSRC)/h8/h8_timer16.h \
+								$(CPUSRC)/h8/h8_sci.h
+
+$(CPUOBJ)/h8/h8s2357.o:         $(CPUSRC)/h8/h8s2357.c \
+								$(CPUSRC)/h8/h8s2357.h \
+								$(CPUSRC)/h8/h8s2000.h \
+								$(CPUSRC)/h8/h8h.h \
+								$(CPUSRC)/h8/h8.h \
+								$(CPUSRC)/h8/h8_intc.h \
+								$(CPUSRC)/h8/h8_adc.h \
+								$(CPUSRC)/h8/h8_port.h \
+								$(CPUSRC)/h8/h8_timer8.h \
+								$(CPUSRC)/h8/h8_timer16.h \
+								$(CPUSRC)/h8/h8_sci.h
+
+$(CPUOBJ)/h8/h8s2655.o:         $(CPUSRC)/h8/h8s2655.c \
+								$(CPUSRC)/h8/h8s2655.h \
+								$(CPUSRC)/h8/h8s2600.h \
+								$(CPUSRC)/h8/h8s2000.h \
+								$(CPUSRC)/h8/h8h.h \
+								$(CPUSRC)/h8/h8.h \
+								$(CPUSRC)/h8/h8_intc.h \
+								$(CPUSRC)/h8/h8_adc.h \
+								$(CPUSRC)/h8/h8_port.h \
+								$(CPUSRC)/h8/h8_timer8.h \
+								$(CPUSRC)/h8/h8_timer16.h \
+								$(CPUSRC)/h8/h8_sci.h
+
+$(CPUOBJ)/h8/h8_intc.o:         $(CPUSRC)/h8/h8_intc.c \
+								$(CPUSRC)/h8/h8_intc.h \
+								$(CPUSRC)/h8/h8.h
+
+$(CPUOBJ)/h8/h8_adc.o:          $(CPUSRC)/h8/h8_adc.c \
+								$(CPUSRC)/h8/h8_adc.h \
+								$(CPUSRC)/h8/h8_intc.h \
+								$(CPUSRC)/h8/h8.h
+
+$(CPUOBJ)/h8/h8_port.o:         $(CPUSRC)/h8/h8_port.c \
+								$(CPUSRC)/h8/h8_port.h \
+								$(CPUSRC)/h8/h8.h
+
+$(CPUOBJ)/h8/h8_timer16.o:      $(CPUSRC)/h8/h8_timer16.c \
+								$(CPUSRC)/h8/h8_timer16.h \
+								$(CPUSRC)/h8/h8_intc.h \
+								$(CPUSRC)/h8/h8.h
+
+$(CPUOBJ)/h8/h8_sci.o:          $(CPUSRC)/h8/h8_sci.c \
+								$(CPUSRC)/h8/h8_sci.h \
+								$(CPUSRC)/h8/h8_intc.h \
+								$(CPUSRC)/h8/h8.h
+
+# rule to generate the C files
+$(CPUOBJ)/h8/h8.inc: $(CPUSRC)/h8/h8make.py $(CPUSRC)/h8/h8.lst
+	@echo Generating H8-300 source file...
+	$(PYTHON) $(CPUSRC)/h8/h8make.py $(CPUSRC)/h8/h8.lst o $@
+
+$(CPUOBJ)/h8/h8h.inc: $(CPUSRC)/h8/h8make.py $(CPUSRC)/h8/h8.lst
+	@echo Generating H8-300H source file...
+	$(PYTHON) $(CPUSRC)/h8/h8make.py $(CPUSRC)/h8/h8.lst h $@
+
+$(CPUOBJ)/h8/h8s2000.inc: $(CPUSRC)/h8/h8make.py $(CPUSRC)/h8/h8.lst
+	@echo Generating H8S/2000 source file...
+	$(PYTHON) $(CPUSRC)/h8/h8make.py $(CPUSRC)/h8/h8.lst s20 $@
+
+$(CPUOBJ)/h8/h8s2600.inc: $(CPUSRC)/h8/h8make.py $(CPUSRC)/h8/h8.lst
+	@echo Generating H8S/2600 source file...
+	$(PYTHON) $(CPUSRC)/h8/h8make.py $(CPUSRC)/h8/h8.lst s26 $@
 
 #-------------------------------------------------
 # Hitachi HCD62121
@@ -543,20 +685,14 @@ $(CPUOBJ)/hcd62121/hcd62121.o:  $(CPUSRC)/hcd62121/hcd62121.c \
 
 ifneq ($(filter SH2,$(CPUS)),)
 OBJDIRS += $(CPUOBJ)/sh2
-CPUOBJS += $(CPUOBJ)/sh2/sh2.o $(CPUOBJ)/sh2/sh2comn.o $(CPUOBJ)/sh2/sh2drc.o $(CPUOBJ)/sh2/sh2fe.o $(DRCOBJ)
+CPUOBJS += $(CPUOBJ)/sh2/sh2.o $(CPUOBJ)/sh2/sh2fe.o $(DRCOBJ)
 DASMOBJS += $(CPUOBJ)/sh2/sh2dasm.o
 endif
 
 $(CPUOBJ)/sh2/sh2.o:    $(CPUSRC)/sh2/sh2.c \
 			$(CPUSRC)/sh2/sh2.h \
-			$(CPUSRC)/sh2/sh2comn.h
-
-$(CPUOBJ)/sh2/sh2comn.o:  $(CPUSRC)/sh2/sh2comn.c \
-			$(CPUSRC)/sh2/sh2comn.h \
-			$(CPUSRC)/sh2/sh2.h
-
-$(CPUOBJ)/sh2/sh2drc.o: $(CPUSRC)/sh2/sh2drc.c \
-			$(CPUSRC)/sh2/sh2.h \
+			$(CPUSRC)/sh2/sh2comn.c \
+			$(CPUSRC)/sh2/sh2drc.c \
 			$(CPUSRC)/sh2/sh2comn.h \
 			$(DRCDEPS)
 
@@ -621,8 +757,7 @@ DASMOBJS += $(CPUOBJ)/h6280/6280dasm.o
 endif
 
 $(CPUOBJ)/h6280/h6280.o:    $(CPUSRC)/h6280/h6280.c \
-							$(CPUSRC)/h6280/h6280.h \
-							$(CPUSRC)/h6280/h6280ops.h \
+							$(CPUSRC)/h6280/h6280.h
 
 
 
@@ -639,7 +774,7 @@ endif
 
 $(CPUOBJ)/e132xs/e132xs.o:  $(CPUSRC)/e132xs/e132xs.c \
 							$(CPUSRC)/e132xs/e132xs.h \
-							$(CPUSRC)/e132xs/e132xsop.c
+							$(CPUSRC)/e132xs/e132xsop.inc
 
 
 
@@ -767,7 +902,7 @@ endif
 
 $(CPUOBJ)/mcs51/mcs51.o:    $(CPUSRC)/mcs51/mcs51.c \
 							$(CPUSRC)/mcs51/mcs51.h \
-							$(CPUSRC)/mcs51/mcs51ops.c
+							$(CPUSRC)/mcs51/mcs51ops.inc
 
 #-------------------------------------------------
 # Intel MCS-96
@@ -796,7 +931,7 @@ $(CPUOBJ)/mcs96/i8xc196.o:  $(CPUOBJ)/mcs96/i8xc196.inc \
 							$(CPUSRC)/mcs96/mcs96.h
 
 $(CPUOBJ)/mcs96/mcs96.inc:   $(CPUSRC)/mcs96/mcs96make.py $(CPUSRC)/mcs96/mcs96ops.lst
-	@echo Generating i8x9x source file...
+	@echo Generating mcs96 source file...
 	$(PYTHON) $(CPUSRC)/mcs96/mcs96make.py mcs96 $(CPUSRC)/mcs96/mcs96ops.lst $@
 
 $(CPUOBJ)/mcs96/i8x9x.inc:   $(CPUSRC)/mcs96/mcs96make.py $(CPUSRC)/mcs96/mcs96ops.lst
@@ -804,7 +939,7 @@ $(CPUOBJ)/mcs96/i8x9x.inc:   $(CPUSRC)/mcs96/mcs96make.py $(CPUSRC)/mcs96/mcs96o
 	$(PYTHON) $(CPUSRC)/mcs96/mcs96make.py i8x9x $(CPUSRC)/mcs96/mcs96ops.lst $@
 
 $(CPUOBJ)/mcs96/i8xc196.inc: $(CPUSRC)/mcs96/mcs96make.py $(CPUSRC)/mcs96/mcs96ops.lst
-	@echo Generating i8x9x source file...
+	@echo Generating i8xc196 source file...
 	$(PYTHON) $(CPUSRC)/mcs96/mcs96make.py i8xc196 $(CPUSRC)/mcs96/mcs96ops.lst $@
 
 #-------------------------------------------------
@@ -845,12 +980,12 @@ $(CPUOBJ)/i86/i286.o:   $(CPUSRC)/i86/i286.c \
 $(CPUOBJ)/i386/i386.o:  $(CPUSRC)/i386/i386.c \
 						$(CPUSRC)/i386/i386.h \
 						$(CPUSRC)/i386/i386priv.h \
-						$(CPUSRC)/i386/i386op16.c \
-						$(CPUSRC)/i386/i386op32.c \
-						$(CPUSRC)/i386/i386ops.c \
-						$(CPUSRC)/i386/i486ops.c \
-						$(CPUSRC)/i386/pentops.c \
-						$(CPUSRC)/i386/x87ops.c \
+						$(CPUSRC)/i386/i386op16.inc \
+						$(CPUSRC)/i386/i386op32.inc \
+						$(CPUSRC)/i386/i386ops.inc \
+						$(CPUSRC)/i386/i486ops.inc \
+						$(CPUSRC)/i386/pentops.inc \
+						$(CPUSRC)/i386/x87ops.inc \
 						$(CPUSRC)/i386/i386ops.h \
 						$(CPUSRC)/i386/cycles.h
 
@@ -869,7 +1004,7 @@ endif
 
 $(CPUOBJ)/i860/i860.o:  $(CPUSRC)/i860/i860.c \
 												$(CPUSRC)/i860/i860.h \
-												$(CPUSRC)/i860/i860dec.c
+												$(CPUSRC)/i860/i860dec.inc
 
 #-------------------------------------------------
 # Intel i960
@@ -899,7 +1034,7 @@ DASMOBJS += $(CPUOBJ)/lh5801/5801dasm.o
 endif
 
 $(CPUOBJ)/lh5801/lh5801.o:  $(CPUSRC)/lh5801/lh5801.c \
-							$(CPUSRC)/lh5801/5801tbl.c \
+							$(CPUSRC)/lh5801/5801tbl.inc \
 							$(CPUSRC)/lh5801/lh5801.h
 
 
@@ -950,6 +1085,19 @@ endif
 $(CPUOBJ)/mb86233/mb86233.o:    $(CPUSRC)/mb86233/mb86233.c \
 								$(CPUSRC)/mb86233/mb86233.h
 
+#-------------------------------------------------
+# Fujitsu MB86235
+#@src/emu/cpu/mb86233/mb86235.h,CPUS += MB86235
+#-------------------------------------------------
+
+ifneq ($(filter MB86235,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/mb86235
+CPUOBJS += $(CPUOBJ)/mb86235/mb86235.o
+DASMOBJS += $(CPUOBJ)/mb86235/mb86235d.o
+endif
+
+$(CPUOBJ)/mb86233/mb86235.o:    $(CPUSRC)/mb86233/mb86235.c \
+								$(CPUSRC)/mb86235/mb86235.h
 
 
 #-------------------------------------------------
@@ -1070,6 +1218,8 @@ endif
 
 M37710DEPS = \
 	$(CPUSRC)/m37710/m37710.h \
+	$(CPUSRC)/m37710/m37710cm.h \
+	$(CPUSRC)/m37710/m37710il.h \
 	$(CPUSRC)/m37710/m37710op.h \
 	$(CPUSRC)/m37710/m7700ds.h
 
@@ -1275,8 +1425,8 @@ endif
 
 $(CPUOBJ)/m6800/m6800.o:    $(CPUSRC)/m6800/m6800.c \
 							$(CPUSRC)/m6800/m6800.h \
-							$(CPUSRC)/m6800/6800ops.c \
-							$(CPUSRC)/m6800/6800tbl.c
+							$(CPUSRC)/m6800/6800ops.inc \
+							$(CPUSRC)/m6800/6800tbl.inc
 
 
 
@@ -1293,7 +1443,7 @@ endif
 
 $(CPUOBJ)/m6805/m6805.o:    $(CPUSRC)/m6805/m6805.c \
 							$(CPUSRC)/m6805/m6805.h \
-							$(CPUSRC)/m6805/6805ops.c
+							$(CPUSRC)/m6805/6805ops.inc
 
 
 
@@ -1354,7 +1504,9 @@ DASMOBJS += $(CPUOBJ)/mc68hc11/hc11dasm.o
 endif
 
 $(CPUOBJ)/mc68hc11/mc68hc11.o:  $(CPUSRC)/mc68hc11/mc68hc11.c \
-								$(CPUSRC)/mc68hc11/hc11ops.c
+								$(CPUSRC)/mc68hc11/mc68hc11.h \
+								$(CPUSRC)/mc68hc11/hc11ops.inc \
+								$(CPUSRC)/mc68hc11/hc11ops.h
 
 
 
@@ -1400,7 +1552,7 @@ endif
 
 # rule to ensure we build the header before building the core CPU file
 $(CPUOBJ)/m68000/m68kcpu.o:     $(CPUOBJ)/m68000/m68kops.c \
-								$(CPUSRC)/m68000/m68kcpu.h $(CPUSRC)/m68000/m68kfpu.c $(CPUSRC)/m68000/m68kmmu.h
+								$(CPUSRC)/m68000/m68kcpu.h $(CPUSRC)/m68000/m68kfpu.inc $(CPUSRC)/m68000/m68kmmu.h
 
 # m68kcpu.h now includes m68kops.h; m68kops.h won't exist until m68kops.c has been made
 $(CPUSRC)/m68000/m68kcpu.h: $(CPUOBJ)/m68000/m68kops.c
@@ -1431,7 +1583,8 @@ $(CPUOBJ)/dsp56k/dsp56pcu.o:    $(CPUSRC)/dsp56k/dsp56pcu.c \
 								$(CPUSRC)/dsp56k/dsp56pcu.h
 
 $(CPUOBJ)/dsp56k/dsp56k.o:  $(CPUSRC)/dsp56k/dsp56k.c \
-							$(CPUSRC)/dsp56k/dsp56k.h
+							$(CPUSRC)/dsp56k/dsp56k.h \
+							$(CPUSRC)/dsp56k/dsp56ops.inc
 
 $(CPUOBJ)/dsp56k/opcode.o:  $(CPUSRC)/dsp56k/opcode.c \
 							$(CPUSRC)/dsp56k/opcode.h
@@ -1529,7 +1682,7 @@ endif
 $(CPUOBJ)/nec/nec.o:    $(CPUSRC)/nec/nec.c \
 						$(CPUSRC)/nec/nec.h \
 						$(CPUSRC)/nec/necea.h \
-						$(CPUSRC)/nec/necinstr.c \
+						$(CPUSRC)/nec/necinstr.inc \
 						$(CPUSRC)/nec/necinstr.h \
 						$(CPUSRC)/nec/necmacro.h \
 						$(CPUSRC)/nec/necmodrm.h \
@@ -1538,8 +1691,8 @@ $(CPUOBJ)/nec/nec.o:    $(CPUSRC)/nec/nec.c \
 $(CPUOBJ)/nec/v25.o:    $(CPUSRC)/nec/v25.c \
 						$(CPUSRC)/nec/nec.h \
 						$(CPUSRC)/nec/necea.h \
-						$(CPUSRC)/nec/necinstr.c \
-						$(CPUSRC)/nec/v25instr.c \
+						$(CPUSRC)/nec/necinstr.inc \
+						$(CPUSRC)/nec/v25instr.inc \
 						$(CPUSRC)/nec/v25instr.h \
 						$(CPUSRC)/nec/necmacro.h \
 						$(CPUSRC)/nec/necmodrm.h \
@@ -1565,18 +1718,18 @@ CPUOBJS += $(CPUOBJ)/v60/v60.o
 DASMOBJS += $(CPUOBJ)/v60/v60d.o
 endif
 
-$(CPUOBJ)/v60/v60.o:    $(CPUSRC)/v60/am.c \
-						$(CPUSRC)/v60/am1.c \
-						$(CPUSRC)/v60/am2.c \
-						$(CPUSRC)/v60/am3.c \
-						$(CPUSRC)/v60/op12.c \
-						$(CPUSRC)/v60/op2.c \
-						$(CPUSRC)/v60/op3.c \
-						$(CPUSRC)/v60/op4.c \
-						$(CPUSRC)/v60/op5.c \
-						$(CPUSRC)/v60/op6.c \
-						$(CPUSRC)/v60/op7a.c \
-						$(CPUSRC)/v60/optable.c \
+$(CPUOBJ)/v60/v60.o:    $(CPUSRC)/v60/am.inc \
+						$(CPUSRC)/v60/am1.inc \
+						$(CPUSRC)/v60/am2.inc \
+						$(CPUSRC)/v60/am3.inc \
+						$(CPUSRC)/v60/op12.inc \
+						$(CPUSRC)/v60/op2.inc \
+						$(CPUSRC)/v60/op3.inc \
+						$(CPUSRC)/v60/op4.inc \
+						$(CPUSRC)/v60/op5.inc \
+						$(CPUSRC)/v60/op6.inc \
+						$(CPUSRC)/v60/op7a.inc \
+						$(CPUSRC)/v60/optable.inc \
 						$(CPUSRC)/v60/v60.c \
 						$(CPUSRC)/v60/v60.h \
 						$(CPUSRC)/v60/v60d.c
@@ -1621,14 +1774,17 @@ $(CPUOBJ)/upd7725/upd7725.o:    $(CPUSRC)/upd7725/upd7725.c \
 ifneq ($(filter UPD7810,$(CPUS)),)
 OBJDIRS += $(CPUOBJ)/upd7810
 CPUOBJS += $(CPUOBJ)/upd7810/upd7810.o
-DASMOBJS += $(CPUOBJ)/upd7810/7810dasm.o
+CPUOBJS += $(CPUOBJ)/upd7810/upd7810_opcodes.o
+CPUOBJS += $(CPUOBJ)/upd7810/upd7810_table.o
+DASMOBJS += $(CPUOBJ)/upd7810/upd7810_dasm.o
 endif
 
-$(CPUOBJ)/upd7810/upd7810.o:    $(CPUSRC)/upd7810/upd7810.c \
-								$(CPUSRC)/upd7810/7810tbl.c \
-								$(CPUSRC)/upd7810/7810ops.c \
-								$(CPUSRC)/upd7810/upd7810.h
+$(CPUOBJ)/upd7810/upd7810_opcodes.o: $(CPUSRC)/upd7810/upd7810_opcodes.c \
+										$(CPUSRC)/upd7810/upd7810_macros.h
 
+$(CPUOBJ)/upd7810/upd7810.o:    $(CPUSRC)/upd7810/upd7810.c \
+								$(CPUSRC)/upd7810/upd7810.h \
+								$(CPUSRC)/upd7810/upd7810_macros.h
 
 
 #-------------------------------------------------
@@ -1701,8 +1857,8 @@ DASMOBJS += $(CPUOBJ)/saturn/saturnds.o
 endif
 
 $(CPUOBJ)/saturn/saturn.o:  $(CPUSRC)/saturn/saturn.c \
-							$(CPUSRC)/saturn/sattable.c \
-							$(CPUSRC)/saturn/satops.c \
+							$(CPUSRC)/saturn/sattable.inc \
+							$(CPUSRC)/saturn/satops.inc \
 							$(CPUSRC)/saturn/saturn.h
 
 
@@ -1736,9 +1892,8 @@ DASMOBJS += $(CPUOBJ)/sc61860/scdasm.o
 endif
 
 $(CPUOBJ)/sc61860/sc61860.o:    $(CPUSRC)/sc61860/sc61860.h \
-								$(CPUSRC)/sc61860/sc.h \
-								$(CPUSRC)/sc61860/scops.c \
-								$(CPUSRC)/sc61860/sctable.c
+								$(CPUSRC)/sc61860/scops.inc \
+								$(CPUSRC)/sc61860/sctable.inc
 
 
 
@@ -1778,7 +1933,7 @@ $(CPUOBJ)/spc700/spc700.o:  $(CPUSRC)/spc700/spc700.c \
 
 #-------------------------------------------------
 # SSP1601
-#@src/emu/cpu/ssp1610/ssp1601.h,CPUS += SSP1601
+#@src/emu/cpu/ssp1601/ssp1601.h,CPUS += SSP1601
 #-------------------------------------------------
 
 ifneq ($(filter SSP1601,$(CPUS)),)
@@ -1787,8 +1942,8 @@ CPUOBJS += $(CPUOBJ)/ssp1601/ssp1601.o
 DASMOBJS += $(CPUOBJ)/ssp1601/ssp1601d.o
 endif
 
-$(CPUOBJ)/ssp1610/ssp1601.o:    $(CPUSRC)/ssp1601/ssp1601.c \
-								$(CPUSRC)/ssp1610/ssp1601.h
+$(CPUOBJ)/ssp1601/ssp1601.o:    $(CPUSRC)/ssp1601/ssp1601.c \
+								$(CPUSRC)/ssp1601/ssp1601.h
 
 
 
@@ -1856,8 +2011,7 @@ endif
 
 $(CPUOBJ)/tms7000/tms7000.o:    $(CPUSRC)/tms7000/tms7000.h \
 								$(CPUSRC)/tms7000/tms7000.c \
-								$(CPUSRC)/tms7000/tms70op.c \
-								$(CPUSRC)/tms7000/tms70tb.c
+								$(CPUSRC)/tms7000/tms70op.inc
 
 $(CPUOBJ)/tms7000/7000dasm.o:   $(CPUSRC)/tms7000/tms7000.h \
 								$(CPUSRC)/tms7000/7000dasm.c
@@ -1867,7 +2021,6 @@ $(CPUOBJ)/tms7000/7000dasm.o:   $(CPUSRC)/tms7000/tms7000.h \
 #-------------------------------------------------
 # Texas Instruments TMS99xx series
 #@src/emu/cpu/tms9900/tms9900.h,CPUS += TMS9900
-#@src/emu/cpu/tms9900/tms9900l.h,CPUS += TMS9900
 #@src/emu/cpu/tms9900/tms9980a.h,CPUS += TMS9900
 #@src/emu/cpu/tms9900/tms9995.h,CPUS += TMS9900
 
@@ -1876,46 +2029,29 @@ $(CPUOBJ)/tms7000/7000dasm.o:   $(CPUSRC)/tms7000/tms7000.h \
 ifneq ($(filter TMS9900,$(CPUS)),)
 OBJDIRS += $(CPUOBJ)/tms9900
 CPUOBJS += $(CPUOBJ)/tms9900/tms9900.o
-CPUOBJS += $(CPUOBJ)/tms9900/tms9900l.o
 CPUOBJS += $(CPUOBJ)/tms9900/tms9980a.o
-CPUOBJS += $(CPUOBJ)/tms9900/tms9980al.o
 CPUOBJS += $(CPUOBJ)/tms9900/tms9995.o
-CPUOBJS += $(CPUOBJ)/tms9900/tms9995l.o
-CPUOBJS += $(CPUOBJ)/tms9900/ti990_10l.o
+CPUOBJS += $(CPUOBJ)/tms9900/ti990_10.o
 DASMOBJS += $(CPUOBJ)/tms9900/9900dasm.o
 endif
 
 $(CPUOBJ)/tms9900/tms9900.o:    $(CPUSRC)/tms9900/tms9900.c \
-								$(CPUSRC)/tms9900/tms9900.h
-
-$(CPUOBJ)/tms9900/tms9900l.o:   $(CPUSRC)/tms9900/tms9900l.c \
-								$(CPUSRC)/tms9900/tms9900l.h \
-								$(CPUSRC)/tms9900/99xxcore.h \
-								$(CPUSRC)/tms9900/99xxstat.h
+								$(CPUSRC)/tms9900/tms9900.h \
+								$(CPUSRC)/tms9900/tms99com.h
 
 $(CPUOBJ)/tms9900/tms9980a.o:   $(CPUSRC)/tms9900/tms9980a.c \
 								$(CPUSRC)/tms9900/tms9980a.h \
 								$(CPUSRC)/tms9900/tms9900.c \
-								$(CPUSRC)/tms9900/tms9900.h
-
-$(CPUOBJ)/tms9900/tms9980al.o:  $(CPUSRC)/tms9900/tms9980al.c \
-								$(CPUSRC)/tms9900/tms9900l.h \
-								$(CPUSRC)/tms9900/99xxcore.h \
-								$(CPUSRC)/tms9900/99xxstat.h
+								$(CPUSRC)/tms9900/tms9900.h \
+								$(CPUSRC)/tms9900/tms99com.h
 
 $(CPUOBJ)/tms9900/tms9995.o:    $(CPUSRC)/tms9900/tms9995.c \
-								$(CPUSRC)/tms9900/tms9995.h
+								$(CPUSRC)/tms9900/tms9995.h \
+								$(CPUSRC)/tms9900/tms99com.h
 
-$(CPUOBJ)/tms9900/tms9995l.o:   $(CPUSRC)/tms9900/tms9995l.c \
-								$(CPUSRC)/tms9900/tms9900l.h \
-								$(CPUSRC)/tms9900/99xxcore.h \
-								$(CPUSRC)/tms9900/99xxstat.h
-
-$(CPUOBJ)/tms9900/ti990_10l.o:  $(CPUSRC)/tms9900/ti990_10l.c \
-								$(CPUSRC)/tms9900/tms9900l.h \
-								$(CPUSRC)/tms9900/99xxcore.h \
-								$(CPUSRC)/tms9900/99xxstat.h
-
+$(CPUOBJ)/tms9900/ti990_10.o:  $(CPUSRC)/tms9900/ti990_10.c \
+								$(CPUSRC)/tms9900/ti990_10.h \
+								$(CPUSRC)/tms9900/tms99com.h
 
 
 #-------------------------------------------------
@@ -2077,7 +2213,7 @@ DASMOBJS += $(CPUOBJ)/tlcs900/dasm900.o
 endif
 
 $(CPUOBJ)/tlcs900/tlcs900.o:    $(CPUSRC)/tlcs900/tlcs900.c \
-								$(CPUSRC)/tlcs900/900tbl.c \
+								$(CPUSRC)/tlcs900/900tbl.inc \
 								$(CPUSRC)/tlcs900/tlcs900.h
 
 $(CPUOBJ)/tlcs900/dasm900.o:    $(CPUSRC)/tlcs900/dasm900.c
@@ -2091,13 +2227,16 @@ $(CPUOBJ)/tlcs900/dasm900.o:    $(CPUSRC)/tlcs900/dasm900.c
 
 ifneq ($(filter Z80,$(CPUS)),)
 OBJDIRS += $(CPUOBJ)/z80
-CPUOBJS += $(CPUOBJ)/z80/z80.o $(CPUOBJ)/z80/z80daisy.o
+CPUOBJS += $(CPUOBJ)/z80/z80.o \
+	$(CPUOBJ)/z80/z80daisy.o \
+	$(CPUOBJ)/z80/tmpz84c011.o \
+	$(CPUOBJ)/z80/tmpz84c015.o
+
 DASMOBJS += $(CPUOBJ)/z80/z80dasm.o
 endif
 
 $(CPUOBJ)/z80/z80.o:    $(CPUSRC)/z80/z80.c \
 						$(CPUSRC)/z80/z80.h
-
 
 
 #-------------------------------------------------
@@ -2113,8 +2252,8 @@ endif
 
 $(CPUOBJ)/lr35902/lr35902.o:    $(CPUSRC)/lr35902/lr35902.c \
 								$(CPUSRC)/lr35902/lr35902.h \
-								$(CPUSRC)/lr35902/opc_cb.h \
-								$(CPUSRC)/lr35902/opc_main.h
+								$(CPUSRC)/lr35902/opc_cb.inc \
+								$(CPUSRC)/lr35902/opc_main.inc
 
 
 
@@ -2131,14 +2270,14 @@ endif
 
 $(CPUOBJ)/z180/z180.o:  $(CPUSRC)/z180/z180.c \
 						$(CPUSRC)/z180/z180.h \
-						$(CPUSRC)/z180/z180op.c \
+						$(CPUSRC)/z180/z180op.inc \
 						$(CPUSRC)/z180/z180ops.h \
 						$(CPUSRC)/z180/z180tbl.h \
-						$(CPUSRC)/z180/z180cb.c \
-						$(CPUSRC)/z180/z180dd.c \
-						$(CPUSRC)/z180/z180ed.c \
-						$(CPUSRC)/z180/z180fd.c \
-						$(CPUSRC)/z180/z180xy.c
+						$(CPUSRC)/z180/z180cb.inc \
+						$(CPUSRC)/z180/z180dd.inc \
+						$(CPUSRC)/z180/z180ed.inc \
+						$(CPUSRC)/z180/z180fd.inc \
+						$(CPUSRC)/z180/z180xy.inc
 
 
 
@@ -2157,8 +2296,8 @@ $(CPUOBJ)/z8000/z8000.o:    $(CPUSRC)/z8000/z8000.c \
 							$(CPUSRC)/z8000/z8000.h \
 							$(CPUSRC)/z8000/z8000cpu.h \
 							$(CPUSRC)/z8000/z8000dab.h \
-							$(CPUSRC)/z8000/z8000ops.c \
-							$(CPUSRC)/z8000/z8000tbl.c
+							$(CPUSRC)/z8000/z8000ops.inc \
+							$(CPUSRC)/z8000/z8000tbl.inc
 
 
 
@@ -2174,7 +2313,7 @@ DASMOBJS += $(CPUOBJ)/z8/z8dasm.o
 endif
 
 $(CPUOBJ)/z8/z8.o:  $(CPUSRC)/z8/z8.c \
-					$(CPUSRC)/z8/z8ops.c \
+					$(CPUSRC)/z8/z8ops.inc \
 					$(CPUSRC)/z8/z8.h
 
 
@@ -2237,15 +2376,17 @@ $(CPUOBJ)/lc8670/lc8670.o:  $(CPUSRC)/lc8670/lc8670.c \
 
 #-------------------------------------------------
 # Sega SCU DSP
-#@src/emu/cpu/,CPUS += SCUDSP
+#@src/emu/cpu/scudsp/scudsp.h,CPUS += SCUDSP
 #-------------------------------------------------
 
 ifneq ($(filter SCUDSP,$(CPUS)),)
 OBJDIRS += $(CPUOBJ)/scudsp
+CPUOBJS += $(CPUOBJ)/scudsp/scudsp.o
 DASMOBJS += $(CPUOBJ)/scudsp/scudspdasm.o
 endif
 
-$(CPUOBJ)/scudsp/scudspdasm.o: CPUOBJS += $(CPUOBJ)/scudsp/scudspdasm.c
+$(CPUOBJ)/scudsp/scudsp.o: $(CPUSRC)/scudsp/scudsp.c \
+							$(CPUSRC)/scudsp/scudsp.h
 
 
 #-------------------------------------------------
@@ -2265,4 +2406,113 @@ $(CPUOBJ)/score/score.o:    $(CPUSRC)/score/score.c \
 
 $(CPUOBJ)/score/scoredsm.o: $(CPUSRC)/score/scoredsm.c \
 							$(CPUSRC)/score/scorem.h
+
+
+#-------------------------------------------------
+# Xerox Alto-II
+#@src/emu/cpu/alto2/alto2cpu.h,CPUS += ALTO2
+#-------------------------------------------------
+
+ifneq ($(filter ALTO2,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/alto2
+CPUOBJS += $(CPUOBJ)/alto2/alto2cpu.o \
+	$(CPUOBJ)/alto2/a2disk.o \
+	$(CPUOBJ)/alto2/a2disp.o \
+	$(CPUOBJ)/alto2/a2curt.o \
+	$(CPUOBJ)/alto2/a2dht.o \
+	$(CPUOBJ)/alto2/a2dvt.o \
+	$(CPUOBJ)/alto2/a2dwt.o \
+	$(CPUOBJ)/alto2/a2emu.o \
+	$(CPUOBJ)/alto2/a2ether.o \
+	$(CPUOBJ)/alto2/a2hw.o \
+	$(CPUOBJ)/alto2/a2kbd.o \
+	$(CPUOBJ)/alto2/a2ksec.o \
+	$(CPUOBJ)/alto2/a2kwd.o \
+	$(CPUOBJ)/alto2/a2mem.o \
+	$(CPUOBJ)/alto2/a2mouse.o \
+	$(CPUOBJ)/alto2/a2mrt.o \
+	$(CPUOBJ)/alto2/a2part.o \
+	$(CPUOBJ)/alto2/a2ram.o \
+	$(CPUOBJ)/alto2/a2roms.o
+
+DASMOBJS += $(CPUOBJ)/alto2/alto2dsm.o
+endif
+
+$(CPUOBJ)/alto2/alto2cpu.o: $(CPUSRC)/alto2/alto2cpu.c \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2disk.o:   $(CPUSRC)/alto2/a2disk.c \
+							$(CPUSRC)/alto2/a2disk.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2disp.o:   $(CPUSRC)/alto2/a2disp.c \
+							$(CPUSRC)/alto2/a2disp.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2curt.o:   $(CPUSRC)/alto2/a2curt.c \
+							$(CPUSRC)/alto2/a2curt.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2dht.o:    $(CPUSRC)/alto2/a2dht.c \
+							$(CPUSRC)/alto2/a2dht.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2dvt.o:    $(CPUSRC)/alto2/a2dvt.c \
+							$(CPUSRC)/alto2/a2dvt.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2dwt.o:    $(CPUSRC)/alto2/a2dwt.c \
+							$(CPUSRC)/alto2/a2dwt.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2emu.o:    $(CPUSRC)/alto2/a2emu.c \
+							$(CPUSRC)/alto2/a2emu.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2ether.o:  $(CPUSRC)/alto2/a2ether.c \
+							$(CPUSRC)/alto2/a2ether.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2hw.o:     $(CPUSRC)/alto2/a2hw.c \
+							$(CPUSRC)/alto2/a2hw.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2kbd.o:    $(CPUSRC)/alto2/a2kbd.c \
+							$(CPUSRC)/alto2/a2kbd.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2ksec.o:   $(CPUSRC)/alto2/a2ksec.c \
+							$(CPUSRC)/alto2/a2ksec.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2kwd.o:    $(CPUSRC)/alto2/a2kwd.c \
+							$(CPUSRC)/alto2/a2kwd.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2mem.o:    $(CPUSRC)/alto2/a2mem.c \
+							$(CPUSRC)/alto2/a2mem.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2mouse.o:  $(CPUSRC)/alto2/a2mouse.c \
+							$(CPUSRC)/alto2/a2mouse.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2mrt.o:    $(CPUSRC)/alto2/a2mrt.c \
+							$(CPUSRC)/alto2/a2mrt.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2part.o:   $(CPUSRC)/alto2/a2part.c \
+							$(CPUSRC)/alto2/a2part.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2ram.o:    $(CPUSRC)/alto2/a2ram.c \
+							$(CPUSRC)/alto2/a2ram.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/a2roms.o:   $(CPUSRC)/alto2/a2roms.c \
+							$(CPUSRC)/alto2/a2roms.h \
+							$(CPUSRC)/alto2/alto2cpu.h
+
+$(CPUOBJ)/alto2/alto2dsm.o: $(CPUSRC)/alto2/alto2dsm.c \
+							$(CPUSRC)/alto2/alto2cpu.h
 

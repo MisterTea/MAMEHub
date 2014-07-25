@@ -10,18 +10,18 @@
 #include "includes/kchamp.h"
 
 
-void kchamp_state::palette_init()
+PALETTE_INIT_MEMBER(kchamp_state, kchamp)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i, red, green, blue;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		red = color_prom[i];
-		green = color_prom[machine().total_colors() + i];
-		blue = color_prom[2 * machine().total_colors() + i];
+		green = color_prom[palette.entries() + i];
+		blue = color_prom[2 * palette.entries() + i];
 
-		palette_set_color_rgb(machine(), i, pal4bit(red), pal4bit(green), pal4bit(blue));
+		palette.set_pen_color(i, pal4bit(red), pal4bit(green), pal4bit(blue));
 	}
 }
 
@@ -52,7 +52,7 @@ TILE_GET_INFO_MEMBER(kchamp_state::get_bg_tile_info)
 
 void kchamp_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(kchamp_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(kchamp_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 /*
@@ -89,7 +89,7 @@ void kchamp_state::kchamp_draw_sprites( bitmap_ind16 &bitmap, const rectangle &c
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[bank], code, color, flipx, flipy, sx, sy, 0);
+		m_gfxdecode->gfx(bank)->transpen(bitmap,cliprect, code, color, flipx, flipy, sx, sy, 0);
 	}
 }
 
@@ -117,7 +117,7 @@ void kchamp_state::kchampvs_draw_sprites( bitmap_ind16 &bitmap, const rectangle 
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[bank], code, color, flipx, flipy, sx, sy, 0);
+		m_gfxdecode->gfx(bank)->transpen(bitmap,cliprect, code, color, flipx, flipy, sx, sy, 0);
 	}
 }
 

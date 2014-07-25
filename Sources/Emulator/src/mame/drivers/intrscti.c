@@ -22,12 +22,16 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
 		m_subcpu(*this,"subcpu"),
-		m_vram(*this, "vram")
+		m_vram(*this, "vram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
 	required_shared_ptr<UINT8> m_vram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	DECLARE_DRIVER_INIT(intrscti);
 	virtual void video_start();
@@ -43,7 +47,7 @@ UINT32 intrscti_state::screen_update_intrscti(screen_device &screen, bitmap_ind1
 	int y,x;
 	int count;
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	count = 0;
 	for (y=0;y<32;y++)
@@ -52,7 +56,7 @@ UINT32 intrscti_state::screen_update_intrscti(screen_device &screen, bitmap_ind1
 		{
 			int dat;
 			dat = m_vram[count];
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[0],dat/*+0x100*/,0,0,0,x*8,y*8,0);
+			m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,dat/*+0x100*/,0,0,0,x*8,y*8,0);
 			count++;
 		}
 	}
@@ -64,7 +68,7 @@ UINT32 intrscti_state::screen_update_intrscti(screen_device &screen, bitmap_ind1
 		{
 			int dat;
 			dat = m_vram[count];
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[0],dat+0x100,0,0,0,x*8,y*8,0);
+			m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,dat+0x100,0,0,0,x*8,y*8,0);
 			count++;
 		}
 	}
@@ -188,9 +192,10 @@ static MACHINE_CONFIG_START( intrscti, intrscti_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(intrscti_state, screen_update_intrscti)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(intrscti)
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", intrscti)
+	MCFG_PALETTE_ADD("palette", 0x100)
 MACHINE_CONFIG_END
 
 

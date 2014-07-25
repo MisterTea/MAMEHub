@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
     TODO:
@@ -9,6 +11,7 @@
 
 */
 
+#include "bus/rs232/rs232.h"
 #include "includes/super6.h"
 
 
@@ -283,7 +286,7 @@ static ADDRESS_MAP_START( super6_io, AS_IO, 8, super6_state )
 	AM_RANGE(0x04, 0x07) AM_DEVREADWRITE(Z80PIO_TAG, z80pio_device, read, write)
 	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE(Z80CTC_TAG, z80ctc_device, read, write)
 	AM_RANGE(0x0c, 0x0f) AM_DEVREADWRITE(WD2793_TAG, wd2793_t, read, write)
-	AM_RANGE(0x10, 0x10) AM_MIRROR(0x03) AM_DEVREADWRITE_LEGACY(Z80DMA_TAG, z80dma_r, z80dma_w)
+	AM_RANGE(0x10, 0x10) AM_MIRROR(0x03) AM_DEVREADWRITE(Z80DMA_TAG, z80dma_device, read, write)
 	AM_RANGE(0x14, 0x14) AM_READWRITE(fdc_r, fdc_w)
 	AM_RANGE(0x15, 0x15) AM_READ_PORT("J7") AM_WRITE(s100_w)
 	AM_RANGE(0x16, 0x16) AM_WRITE(bank0_w)
@@ -343,7 +346,7 @@ INPUT_PORTS_END
 //**************************************************************************
 
 //-------------------------------------------------
-//  Z80CTC_INTERFACE( ctc_intf )
+//  Z80CTC
 //-------------------------------------------------
 
 TIMER_DEVICE_CALLBACK_MEMBER( super6_state::ctc_tick )
@@ -352,43 +355,8 @@ TIMER_DEVICE_CALLBACK_MEMBER( super6_state::ctc_tick )
 	m_ctc->trg0(0);
 }
 
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 //-------------------------------------------------
-//  Z80DART_INTERFACE( dart_intf )
-//-------------------------------------------------
-
-static Z80DART_INTERFACE( dart_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0)
-};
-
-
-//-------------------------------------------------
-//  Z80DMA_INTERFACE( dma_intf )
+//  Z80DMA
 //-------------------------------------------------
 
 READ8_MEMBER(super6_state::memory_read_byte)
@@ -415,34 +383,6 @@ WRITE8_MEMBER(super6_state::io_write_byte)
 	return prog_space.write_byte(offset, data);
 }
 
-static Z80DMA_INTERFACE( dma_intf )
-{
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_HALT),
-	DEVCB_DEVICE_LINE_MEMBER(Z80CTC_TAG, z80ctc_device, trg2),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(super6_state, memory_read_byte),
-	DEVCB_DRIVER_MEMBER(super6_state, memory_write_byte),
-	DEVCB_DRIVER_MEMBER(super6_state, io_read_byte),
-	DEVCB_DRIVER_MEMBER(super6_state, io_write_byte),
-};
-
-
-//-------------------------------------------------
-//  Z80PIO_INTERFACE( pio_intf )
-//-------------------------------------------------
-
-static Z80PIO_INTERFACE( pio_intf )
-{
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 //-------------------------------------------------
 //  COM8116_INTERFACE( brg_intf )
 //-------------------------------------------------
@@ -464,14 +404,14 @@ static SLOT_INTERFACE_START( super6_floppies )
 	SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
 SLOT_INTERFACE_END
 
-void super6_state::fdc_intrq_w(bool state)
+WRITE_LINE_MEMBER( super6_state::fdc_intrq_w )
 {
 	if (state) m_maincpu->set_input_line(Z80_INPUT_LINE_WAIT, CLEAR_LINE);
 
 	m_ctc->trg3(!state);
 }
 
-void super6_state::fdc_drq_w(bool state)
+WRITE_LINE_MEMBER( super6_state::fdc_drq_w )
 {
 	if (state) m_maincpu->set_input_line(Z80_INPUT_LINE_WAIT, CLEAR_LINE);
 
@@ -492,37 +432,14 @@ static const z80_daisy_config super6_daisy_chain[] =
 };
 
 
-//-------------------------------------------------
-//  rs232_port_interface rs232a_intf
-//-------------------------------------------------
-
 static DEVICE_INPUT_DEFAULTS_START( terminal )
-	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x0f, 0x08 ) // 19200
-	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x30, 0x00 ) // 8N1
+	DEVICE_INPUT_DEFAULTS( "RS232_TXBAUD", 0xff, RS232_BAUD_19200 )
+	DEVICE_INPUT_DEFAULTS( "RS232_RXBAUD", 0xff, RS232_BAUD_19200 )
+	DEVICE_INPUT_DEFAULTS( "RS232_STARTBITS", 0xff, RS232_STARTBITS_1 )
+	DEVICE_INPUT_DEFAULTS( "RS232_DATABITS", 0xff, RS232_DATABITS_8 )
+	DEVICE_INPUT_DEFAULTS( "RS232_PARITY", 0xff, RS232_PARITY_NONE )
+	DEVICE_INPUT_DEFAULTS( "RS232_STOPBITS", 0xff, RS232_STOPBITS_1 )
 DEVICE_INPUT_DEFAULTS_END
-
-static const rs232_port_interface rs232a_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232b_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232b_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 
 
@@ -536,10 +453,6 @@ static const rs232_port_interface rs232b_intf =
 
 void super6_state::machine_start()
 {
-	// floppy callbacks
-	m_fdc->setup_intrq_cb(wd2793_t::line_cb(FUNC(super6_state::fdc_intrq_w), this));
-	m_fdc->setup_drq_cb(wd2793_t::line_cb(FUNC(super6_state::fdc_drq_w), this));
-
 	// state saving
 	save_item(NAME(m_s100));
 	save_item(NAME(m_bank0));
@@ -577,18 +490,48 @@ static MACHINE_CONFIG_START( super6, super6_state )
 	MCFG_CPU_CONFIG(super6_daisy_chain)
 
 	// devices
-	MCFG_Z80CTC_ADD(Z80CTC_TAG, XTAL_24MHz/4, ctc_intf)
+	MCFG_DEVICE_ADD(Z80CTC_TAG, Z80CTC, XTAL_24MHz/4)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("ctc", super6_state, ctc_tick, attotime::from_hz(XTAL_24MHz/16))
-	MCFG_Z80DART_ADD(Z80DART_TAG, XTAL_24MHz/4, dart_intf)
-	MCFG_Z80DMA_ADD(Z80DMA_TAG, XTAL_24MHz/6, dma_intf)
-	MCFG_Z80PIO_ADD(Z80PIO_TAG, XTAL_24MHz/4, pio_intf)
+
+	MCFG_DEVICE_ADD(Z80DMA_TAG, Z80DMA, XTAL_24MHz/6)
+	MCFG_Z80DMA_OUT_BUSREQ_CB(INPUTLINE(Z80_TAG, INPUT_LINE_HALT))
+	MCFG_Z80DMA_OUT_INT_CB(DEVWRITELINE(Z80CTC_TAG, z80ctc_device, trg2))
+	MCFG_Z80DMA_IN_MREQ_CB(READ8(super6_state, memory_read_byte))
+	MCFG_Z80DMA_OUT_MREQ_CB(WRITE8(super6_state, memory_write_byte))
+	MCFG_Z80DMA_IN_IORQ_CB(READ8(super6_state, io_read_byte))
+	MCFG_Z80DMA_OUT_IORQ_CB(WRITE8(super6_state, io_write_byte))
+
+	MCFG_DEVICE_ADD(Z80PIO_TAG, Z80PIO, XTAL_24MHz/4)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
 	MCFG_WD2793x_ADD(WD2793_TAG, 1000000)
-	MCFG_COM8116_ADD(BR1945_TAG, XTAL_5_0688MHz, NULL, WRITELINE(super6_state, fr_w), DEVWRITELINE(Z80DART_TAG, z80dart_device, rxtxcb_w))
+	MCFG_WD_FDC_INTRQ_CALLBACK(WRITELINE(super6_state, fdc_intrq_w))
+	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(super6_state, fdc_drq_w))
+
 	MCFG_FLOPPY_DRIVE_ADD(WD2793_TAG":0", super6_floppies, "525dd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(WD2793_TAG":1", super6_floppies, NULL,    floppy_image_device::default_floppy_formats)
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232b_intf, default_rs232_devices, "serial_terminal")
-	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("serial_terminal", terminal)
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232a_intf, default_rs232_devices, NULL)
+
+	MCFG_Z80DART_ADD(Z80DART_TAG, XTAL_24MHz/4, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, "terminal")
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxa_w))
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("terminal", terminal)
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxb_w))
+
+	MCFG_DEVICE_ADD(BR1945_TAG, COM8116, XTAL_5_0688MHz)
+	MCFG_COM8116_FR_HANDLER(WRITELINE(super6_state, fr_w))
+	MCFG_COM8116_FT_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxtxcb_w))
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)

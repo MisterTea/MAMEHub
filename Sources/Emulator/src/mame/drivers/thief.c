@@ -424,13 +424,6 @@ static const samples_interface natodef_samples_interface =
 	natodef_sample_names
 };
 
-static const tms9927_interface tms9927_intf =
-{
-	8,
-	NULL
-};
-
-
 static MACHINE_CONFIG_START( sharkatt, thief_state )
 
 	/* basic machine hardware */
@@ -446,11 +439,12 @@ static MACHINE_CONFIG_START( sharkatt, thief_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 24*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(thief_state, screen_update_thief)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_TMS9927_ADD("tms", MASTER_CLOCK/4, tms9927_intf)
+	MCFG_DEVICE_ADD("tms", TMS9927, MASTER_CLOCK/4)
+	MCFG_TMS9927_CHAR_WIDTH(8)
 
-	MCFG_PALETTE_LENGTH(16)
-
+	MCFG_PALETTE_ADD("palette", 16)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -481,11 +475,12 @@ static MACHINE_CONFIG_START( thief, thief_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(thief_state, screen_update_thief)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_TMS9927_ADD("tms", MASTER_CLOCK/4, tms9927_intf)
+	MCFG_DEVICE_ADD("tms", TMS9927, MASTER_CLOCK/4)
+	MCFG_TMS9927_CHAR_WIDTH(8)
 
-	MCFG_PALETTE_LENGTH(16)
-
+	MCFG_PALETTE_ADD("palette", 16)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -516,11 +511,12 @@ static MACHINE_CONFIG_START( natodef, thief_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(thief_state, screen_update_thief)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_TMS9927_ADD("tms", MASTER_CLOCK/4, tms9927_intf)
+	MCFG_DEVICE_ADD("tms", TMS9927, MASTER_CLOCK/4)
+	MCFG_TMS9927_CHAR_WIDTH(8)
 
-	MCFG_PALETTE_LENGTH(16)
-
+	MCFG_PALETTE_ADD("palette", 16)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

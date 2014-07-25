@@ -1,38 +1,9 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     dsp32.h
     Interface file for the portable DSP32 emulator.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -124,29 +95,19 @@ enum
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-class dsp32c_device;
-
-
-// ======================> dsp32_config
-
-struct dsp32_config
-{
-	void (*m_output_pins_changed)(dsp32c_device &device, UINT32 pins);  // a change has occurred on an output pin
-};
-
-
+#define MCFG_DSP32C_OUTPUT_CALLBACK(_write) \
+	devcb = &dsp32c_device::set_output_pins_callback(*device, DEVCB_##_write);
 
 // ======================> dsp32c_device
 
-class dsp32c_device : public cpu_device,
-						public dsp32_config
+class dsp32c_device : public cpu_device
 {
 public:
 	// construction/destruction
 	dsp32c_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
-	// inline configuration helpers
-	static void static_set_config(device_t &device, const dsp32_config &config);
+	template<class _Object> static devcb_base &set_output_pins_callback(device_t &device, _Object object) { return downcast<dsp32c_device &>(device).m_output_pins_changed.set_callback(object); }
+
 
 	// public interfaces
 	void pio_w(int reg, int data);
@@ -472,6 +433,7 @@ protected:
 	address_space * m_program;
 	direct_read_data *m_direct;
 
+	devcb_write32 m_output_pins_changed;
 	// tables
 	static void (dsp32c_device::*const s_dsp32ops[])(UINT32 op);
 	static const UINT32 s_regmap[4][16];

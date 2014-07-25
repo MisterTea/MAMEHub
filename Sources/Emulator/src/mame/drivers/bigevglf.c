@@ -405,11 +405,6 @@ static GFXDECODE_START( bigevglf )
 	GFXDECODE_ENTRY( "gfx1", 0, gfxlayout,   0x20*16, 16 )
 GFXDECODE_END
 
-static const msm5232_interface msm5232_config =
-{
-	{ 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6 }, /* 0.65 (???) uF capacitors */
-	DEVCB_NULL
-};
 
 void bigevglf_state::machine_start()
 {
@@ -509,9 +504,10 @@ static MACHINE_CONFIG_START( bigevglf, bigevglf_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(bigevglf_state, screen_update_bigevglf)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bigevglf)
-	MCFG_PALETTE_LENGTH(0x800)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bigevglf)
+	MCFG_PALETTE_ADD("palette", 0x800)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -520,7 +516,7 @@ static MACHINE_CONFIG_START( bigevglf, bigevglf_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.15) /* YM2149 really */
 
 	MCFG_SOUND_ADD("msm", MSM5232, 8000000/4)
-	MCFG_SOUND_CONFIG(msm5232_config)
+	MCFG_MSM5232_SET_CAPACITORS(0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6) /* 0.65 (???) uF capacitors */
 	MCFG_SOUND_ROUTE(0, "mono", 1.0)    // pin 28  2'-1
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)    // pin 29  4'-1
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)    // pin 30  8'-1

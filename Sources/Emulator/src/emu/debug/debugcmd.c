@@ -53,10 +53,9 @@ struct cheat_map
 
 struct cheat_system
 {
-	char        cpu;
-	UINT64      length;
+	char        cpu[2];
 	UINT8       width;
-	cheat_map * cheatmap;
+	dynamic_array<cheat_map> cheatmap;
 	UINT8       undo;
 	UINT8       signed_cheat;
 	UINT8       swapped_cheat;
@@ -410,6 +409,8 @@ void debug_command_init(running_machine &machine)
 	name = machine.options().debug_script();
 	if (name[0] != 0)
 		debug_cpu_source_script(machine, name);
+
+	cheat.cpu[0] = cheat.cpu[1] = 0;
 }
 
 
@@ -419,8 +420,6 @@ void debug_command_init(running_machine &machine)
 
 static void debug_command_exit(running_machine &machine)
 {
-	if (cheat.length)
-		auto_free(machine, cheat.cheatmap);
 }
 
 
@@ -874,7 +873,7 @@ static void execute_tracelog(running_machine &machine, int ref, int params, cons
 
 static void execute_quit(running_machine &machine, int ref, int params, const char *param[])
 {
-	mame_printf_error("Exited via the debugger\n");
+	osd_printf_error("Exited via the debugger\n");
 	machine.schedule_exit();
 }
 
@@ -1996,14 +1995,14 @@ static void execute_cheatinit(running_machine &machine, int ref, int params, con
 		{
 			cheat_region[region_count].offset = space->address_to_byte(entry->m_addrstart) & space->bytemask();
 			cheat_region[region_count].endoffset = space->address_to_byte(entry->m_addrend) & space->bytemask();
-			cheat_region[region_count].share = entry->m_share;
+			cheat_region[region_count].share = entry->m_sharetag;
 			cheat_region[region_count].disabled = (entry->m_write.m_type == AMH_RAM) ? FALSE : TRUE;
 
 			/* disable double share regions */
-			if (entry->m_share != NULL)
+			if (entry->m_sharetag != NULL)
 				for (i = 0; i < region_count; i++)
 					if (cheat_region[i].share != NULL)
-						if (strcmp(cheat_region[i].share, entry->m_share) == 0)
+						if (strcmp(cheat_region[i].share, entry->m_sharetag) == 0)
 							cheat_region[region_count].disabled = TRUE;
 
 			region_count++;
@@ -2026,7 +2025,7 @@ static void execute_cheatinit(running_machine &machine, int ref, int params, con
 	}
 
 	/* determine the writable extent of each region in total */
-	for (i = 0; i <= region_count; i++)
+	for (i = 0; i < region_count; i++)
 		if (!cheat_region[i].disabled)
 			for (curaddr = cheat_region[i].offset; curaddr <= cheat_region[i].endoffset; curaddr += cheat.width)
 				if (cheat_address_is_valid(*space, curaddr))
@@ -2041,34 +2040,24 @@ static void execute_cheatinit(running_machine &machine, int ref, int params, con
 	if (ref == 0)
 	{
 		/* initialize new cheat system */
-		if (cheat.cheatmap != NULL)
-			auto_free(machine, cheat.cheatmap);
-		cheat.cheatmap = auto_alloc_array(machine, cheat_map, real_length);
-
-		cheat.length = real_length;
+		cheat.cheatmap.resize(real_length);
 		cheat.undo = 0;
-		cheat.cpu = (params > 3) ? *param[3] : '0';
+		cheat.cpu[0] = (params > 3) ? *param[3] : '0';
 	}
 	else
 	{
 		/* add range to cheat system */
-		if (cheat.cpu == 0)
+		if (cheat.cpu[0] == 0)
 		{
 			debug_console_printf(machine, "Use cheatinit before cheatrange\n");
 			return;
 		}
 
-		if (!debug_command_parameter_cpu_space(machine, &cheat.cpu, AS_PROGRAM, space))
+		if (!debug_command_parameter_cpu_space(machine, cheat.cpu, AS_PROGRAM, space))
 			return;
 
-		cheat_map *newmap = auto_alloc_array(machine, cheat_map, cheat.length + real_length);
-		for (UINT64 item = 0; item < cheat.length; item++)
-			newmap[item] = cheat.cheatmap[item];
-		auto_free(machine, cheat.cheatmap);
-		cheat.cheatmap = newmap;
-
-		active_cheat = cheat.length;
-		cheat.length += real_length;
+		active_cheat = cheat.cheatmap.count();
+		cheat.cheatmap.resize_keep(cheat.cheatmap.count() + real_length);
 	}
 
 	/* initialize cheatmap in the selected space */
@@ -2119,13 +2108,13 @@ static void execute_cheatnext(running_machine &machine, int ref, int params, con
 		CHEAT_CHANGEDBY
 	};
 
-	if (cheat.cpu == 0)
+	if (cheat.cpu[0] == 0)
 	{
 		debug_console_printf(machine, "Use cheatinit before cheatnext\n");
 		return;
 	}
 
-	if (!debug_command_parameter_cpu_space(machine, &cheat.cpu, AS_PROGRAM, space))
+	if (!debug_command_parameter_cpu_space(machine, cheat.cpu, AS_PROGRAM, space))
 		return;
 
 	if (params > 1 && !debug_command_parameter_number(machine, param[1], &comp_value))
@@ -2162,7 +2151,7 @@ static void execute_cheatnext(running_machine &machine, int ref, int params, con
 	cheat.undo++;
 
 	/* execute the search */
-	for (cheatindex = 0; cheatindex < cheat.length; cheatindex += 1)
+	for (cheatindex = 0; cheatindex < (UINT64)cheat.cheatmap.count(); cheatindex += 1)
 		if (cheat.cheatmap[cheatindex].state == 1)
 		{
 			UINT64 cheat_value = cheat_read_extended(&cheat, *space, cheat.cheatmap[cheatindex].offset);
@@ -2280,10 +2269,10 @@ static void execute_cheatlist(running_machine &machine, int ref, int params, con
 	UINT64 sizemask;
 	FILE *f = NULL;
 
-	if (!debug_command_parameter_cpu_space(machine, &cheat.cpu, AS_PROGRAM, space))
+	if (!debug_command_parameter_cpu_space(machine, cheat.cpu, AS_PROGRAM, space))
 		return;
 
-	if (!debug_command_parameter_cpu(machine, &cheat.cpu, &cpu))
+	if (!debug_command_parameter_cpu(machine, cheat.cpu, &cpu))
 		return;
 
 	if (params > 0)
@@ -2307,7 +2296,7 @@ static void execute_cheatlist(running_machine &machine, int ref, int params, con
 	}
 
 	/* write the cheat list */
-	for (cheatindex = 0; cheatindex < cheat.length; cheatindex += 1)
+	for (cheatindex = 0; cheatindex < (UINT64)cheat.cheatmap.count(); cheatindex += 1)
 	{
 		if (cheat.cheatmap[cheatindex].state == 1)
 		{
@@ -2343,7 +2332,7 @@ static void execute_cheatundo(running_machine &machine, int ref, int params, con
 
 	if (cheat.undo > 0)
 	{
-		for (cheatindex = 0; cheatindex < cheat.length; cheatindex += 1)
+		for (cheatindex = 0; cheatindex < (UINT64)cheat.cheatmap.count(); cheatindex += 1)
 		{
 			if (cheat.cheatmap[cheatindex].undo == cheat.undo)
 			{
@@ -2597,7 +2586,7 @@ static void execute_trace_internal(running_machine &machine, int ref, int params
 		return;
 
 	/* open the file */
-	if (mame_stricmp(filename, "off") != 0)
+	if (core_stricmp(filename, "off") != 0)
 	{
 		mode = "w";
 

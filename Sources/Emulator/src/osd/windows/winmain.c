@@ -1,41 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 //============================================================
 //
 //  winmain.c - Win32 main program
-//
-//============================================================
-//
-//  Copyright Aaron Giles
-//  All rights reserved.
-//
-//  Redistribution and use in source and binary forms, with or
-//  without modification, are permitted provided that the
-//  following conditions are met:
-//
-//    * Redistributions of source code must retain the above
-//      copyright notice, this list of conditions and the
-//      following disclaimer.
-//    * Redistributions in binary form must reproduce the
-//      above copyright notice, this list of conditions and
-//      the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//    * Neither the name 'MAME' nor the names of its
-//      contributors may be used to endorse or promote
-//      products derived from this software without specific
-//      prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND
-//  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-//  FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
-//  EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-//  DAMAGE (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-//  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-//  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-//  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-//  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-//  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //============================================================
 
@@ -62,7 +29,6 @@
 #include "winmain.h"
 #include "window.h"
 #include "video.h"
-#include "sound.h"
 #include "input.h"
 #include "output.h"
 #include "config.h"
@@ -72,10 +38,17 @@
 #include "winutil.h"
 #include "debugger.h"
 #include "winfile.h"
-#ifdef USE_NETWORK
-#include "netdev.h"
+
+#include "modules/sound/direct_sound.h"
+#if (USE_SDL)
+#include "modules/sound/sdl_sound.h"
 #endif
 
+#include "modules/debugger/debugwin.h"
+
+#if (USE_QTDEBUG)
+#include "modules/debugger/debugqt.h"
+#endif
 #define DEBUG_SLOW_LOCKS    0
 
 
@@ -231,7 +204,7 @@ private:
 	UINT8           m_stack_depth;
 	UINT8           m_entry_stride;
 	UINT32          m_max_seconds;
-	FPTR *          m_buffer;
+	dynamic_array<FPTR> m_buffer;
 	FPTR *          m_buffer_ptr;
 	FPTR *          m_buffer_end;
 };
@@ -252,11 +225,6 @@ int _CRT_glob = 0;
 //  LOCAL VARIABLES
 //**************************************************************************
 
-//static dynamic_bind<HANDLE (WINAPI *)(LPCTSTR, LPDWORD)> av_set_mm_thread_characteristics(TEXT("avrt.dll"), "AvSetMmThreadCharacteristics" UNICODE_POSTFIX);
-//static dynamic_bind<HANDLE (WINAPI *)(LPCTSTR, LPCTSTR, LPDWORD)> av_set_mm_max_thread_characteristics(TEXT("avrt.dll"), "AvSetMmMaxThreadCharacteristics" UNICODE_POSTFIX);
-//static dynamic_bind<BOOL (WINAPI *)(HANDLE)> av_revert_mm_thread_characteristics(TEXT("avrt.dll"), "AvRevertMmThreadCharacteristics");
-
-
 static LPTOP_LEVEL_EXCEPTION_FILTER pass_thru_filter;
 
 static HANDLE watchdog_reset_event;
@@ -265,11 +233,8 @@ static HANDLE watchdog_thread;
 
 static running_machine *g_current_machine;
 
-//static HANDLE mm_task = NULL;
-//static DWORD task_index = 0;
-static int timeresult;
-//static MMRESULT result;
-static TIMECAPS caps;
+static int timeresult = !TIMERR_NOERROR;
+static TIMECAPS timecaps;
 
 static sampling_profiler *profiler = NULL;
 static symbol_manager *symbols = NULL;
@@ -298,30 +263,17 @@ const options_entry windows_options::s_option_entries[] =
 {
 	// debugging options
 	{ NULL,                                           NULL,       OPTION_HEADER,     "WINDOWS DEBUGGING OPTIONS" },
-	{ WINOPTION_OSLOG,                                "0",        OPTION_BOOLEAN,    "output error.log data to the system debugger" },
-	{ WINOPTION_WATCHDOG ";wdog",                     "0",        OPTION_INTEGER,    "force the program to terminate if no updates within specified number of seconds" },
 	{ WINOPTION_DEBUGGER_FONT ";dfont",               "Lucida Console", OPTION_STRING,"specifies the font to use for debugging; defaults to Lucida Console" },
 	{ WINOPTION_DEBUGGER_FONT_SIZE ";dfontsize",      "9",        OPTION_FLOAT,      "specifies the font size to use for debugging; defaults to 9 pt" },
 
 	// performance options
 	{ NULL,                                           NULL,       OPTION_HEADER,     "WINDOWS PERFORMANCE OPTIONS" },
 	{ WINOPTION_PRIORITY "(-15-1)",                   "0",        OPTION_INTEGER,    "thread priority for the main game thread; range from -15 to 1" },
-	{ WINOPTION_MULTITHREADING ";mt",                 "1",        OPTION_BOOLEAN,    "enable multithreading; this enables rendering and blitting on a separate thread" },
-	{ WINOPTION_NUMPROCESSORS ";np",                  "auto",     OPTION_STRING,     "number of processors; this overrides the number the system reports" },
 	{ WINOPTION_PROFILE,                              "0",        OPTION_INTEGER,    "enable profiling, specifying the stack depth to track" },
-	{ WINOPTION_BENCH,                                "0",        OPTION_INTEGER,    "benchmark for the given number of emulated seconds; implies -video none -nosound -nothrottle" },
 
 	// video options
 	{ NULL,                                           NULL,       OPTION_HEADER,     "WINDOWS VIDEO OPTIONS" },
-	{ WINOPTION_VIDEO,                                "d3d",      OPTION_STRING,     "video output method: none, gdi, ddraw, or d3d" },
-	{ WINOPTION_NUMSCREENS "(1-4)",                   "1",        OPTION_INTEGER,    "number of screens to create; usually, you want just one" },
-	{ WINOPTION_WINDOW ";w",                          "0",        OPTION_BOOLEAN,    "enable window mode; otherwise, full screen mode is assumed" },
-	{ WINOPTION_MAXIMIZE ";max",                      "1",        OPTION_BOOLEAN,    "default to maximized windows; otherwise, windows will be minimized" },
-	{ WINOPTION_KEEPASPECT ";ka",                     "1",        OPTION_BOOLEAN,    "constrain to the proper aspect ratio" },
-	{ WINOPTION_UNEVENSTRETCH ";ues",                 "1",        OPTION_BOOLEAN,    "allow non-integer stretch factors" },
 	{ WINOPTION_PRESCALE,                             "1",        OPTION_INTEGER,    "scale screen rendering by this amount in software" },
-	{ WINOPTION_WAITVSYNC ";vs",                      "0",        OPTION_BOOLEAN,    "enable waiting for the start of VBLANK before flipping screens; reduces tearing effects" },
-	{ WINOPTION_SYNCREFRESH ";srf",                   "0",        OPTION_BOOLEAN,    "enable using the start of VBLANK for throttling instead of the game time" },
 	{ WINOPTION_MENU,                                 "0",        OPTION_BOOLEAN,    "enable menu bar if available by UI implementation" },
 
 	// DirectDraw-specific options
@@ -408,44 +360,12 @@ const options_entry windows_options::s_option_entries[] =
 	{ WINOPTION_BLOOM_LEVEL9_WEIGHT,                            "0.10",      OPTION_FLOAT,      "Bloom level 9  (.) weight" },
 	{ WINOPTION_BLOOM_LEVEL10_WEIGHT,                           "0.09",      OPTION_FLOAT,      "Bloom level 10 (1x1 target) weight" },
 
-	// per-window options
-	{ NULL,                                           NULL,       OPTION_HEADER,     "PER-WINDOW VIDEO OPTIONS" },
-	{ WINOPTION_SCREEN,                               "auto",     OPTION_STRING,     "explicit name of all screens; 'auto' here will try to make a best guess" },
-	{ WINOPTION_ASPECT ";screen_aspect",              "auto",     OPTION_STRING,     "aspect ratio for all screens; 'auto' here will try to make a best guess" },
-	{ WINOPTION_RESOLUTION ";r",                      "auto",     OPTION_STRING,     "preferred resolution for all screens; format is <width>x<height>[@<refreshrate>] or 'auto'" },
-	{ WINOPTION_VIEW,                                 "auto",     OPTION_STRING,     "preferred view for all screens" },
-
-	{ WINOPTION_SCREEN "0",                           "auto",     OPTION_STRING,     "explicit name of the first screen; 'auto' here will try to make a best guess" },
-	{ WINOPTION_ASPECT "0",                           "auto",     OPTION_STRING,     "aspect ratio of the first screen; 'auto' here will try to make a best guess" },
-	{ WINOPTION_RESOLUTION "0;r0",                    "auto",     OPTION_STRING,     "preferred resolution of the first screen; format is <width>x<height>[@<refreshrate>] or 'auto'" },
-	{ WINOPTION_VIEW "0",                             "auto",     OPTION_STRING,     "preferred view for the first screen" },
-
-	{ WINOPTION_SCREEN "1",                           "auto",     OPTION_STRING,     "explicit name of the second screen; 'auto' here will try to make a best guess" },
-	{ WINOPTION_ASPECT "1",                           "auto",     OPTION_STRING,     "aspect ratio of the second screen; 'auto' here will try to make a best guess" },
-	{ WINOPTION_RESOLUTION "1;r1",                    "auto",     OPTION_STRING,     "preferred resolution of the second screen; format is <width>x<height>[@<refreshrate>] or 'auto'" },
-	{ WINOPTION_VIEW "1",                             "auto",     OPTION_STRING,     "preferred view for the second screen" },
-
-	{ WINOPTION_SCREEN "2",                           "auto",     OPTION_STRING,     "explicit name of the third screen; 'auto' here will try to make a best guess" },
-	{ WINOPTION_ASPECT "2",                           "auto",     OPTION_STRING,     "aspect ratio of the third screen; 'auto' here will try to make a best guess" },
-	{ WINOPTION_RESOLUTION "2;r2",                    "auto",     OPTION_STRING,     "preferred resolution of the third screen; format is <width>x<height>[@<refreshrate>] or 'auto'" },
-	{ WINOPTION_VIEW "2",                             "auto",     OPTION_STRING,     "preferred view for the third screen" },
-
-	{ WINOPTION_SCREEN "3",                           "auto",     OPTION_STRING,     "explicit name of the fourth screen; 'auto' here will try to make a best guess" },
-	{ WINOPTION_ASPECT "3",                           "auto",     OPTION_STRING,     "aspect ratio of the fourth screen; 'auto' here will try to make a best guess" },
-	{ WINOPTION_RESOLUTION "3;r3",                    "auto",     OPTION_STRING,     "preferred resolution of the fourth screen; format is <width>x<height>[@<refreshrate>] or 'auto'" },
-	{ WINOPTION_VIEW "3",                             "auto",     OPTION_STRING,     "preferred view for the fourth screen" },
-
 	// full screen options
 	{ NULL,                                           NULL,       OPTION_HEADER,     "FULL SCREEN OPTIONS" },
 	{ WINOPTION_TRIPLEBUFFER ";tb",                   "0",        OPTION_BOOLEAN,    "enable triple buffering" },
-	{ WINOPTION_SWITCHRES,                            "0",        OPTION_BOOLEAN,    "enable resolution switching" },
 	{ WINOPTION_FULLSCREENBRIGHTNESS ";fsb(0.1-2.0)", "1.0",      OPTION_FLOAT,      "brightness value in full screen mode" },
 	{ WINOPTION_FULLSCREENCONTRAST ";fsc(0.1-2.0)",   "1.0",      OPTION_FLOAT,      "contrast value in full screen mode" },
 	{ WINOPTION_FULLSCREENGAMMA ";fsg(0.1-3.0)",      "1.0",      OPTION_FLOAT,      "gamma value in full screen mode" },
-
-	// sound options
-	{ NULL,                                           NULL,       OPTION_HEADER,     "WINDOWS SOUND OPTIONS" },
-	{ WINOPTION_AUDIO_LATENCY "(1-5)",                "2",        OPTION_INTEGER,    "set audio latency (increase to reduce glitches)" },
 
 	// input options
 	{ NULL,                                           NULL,       OPTION_HEADER,     "INPUT DEVICE OPTIONS" },
@@ -493,25 +413,21 @@ int main(int argc, char *argv[])
 	if (win_is_gui_application() || is_double_click_start(argc))
 	{
 		// if we are a GUI app, output errors to message boxes
-		mame_set_output_channel(OUTPUT_CHANNEL_ERROR, output_delegate(FUNC(winui_output_error), (delegate_late_bind *)0));
+		osd_set_output_channel(OSD_OUTPUT_CHANNEL_ERROR, output_delegate(FUNC(winui_output_error), (delegate_late_bind *)0));
 
 		// make sure any console window that opened on our behalf is nuked
 		FreeConsole();
 	}
-
-	osd_init_midi();
 
 	// parse config and cmdline options
 	DWORD result = 0;
 	{
 		windows_options options;
 		windows_osd_interface osd;
+		osd.register_options(options);
 		cli_frontend frontend(options, osd);
 		result = frontend.execute(argc, argv);
 	}
-
-	osd_shutdown_midi();
-
 	// free symbols
 	symbols = NULL;
 	return result;
@@ -613,6 +529,45 @@ windows_osd_interface::~windows_osd_interface()
 
 
 //============================================================
+//  video_register
+//============================================================
+
+void windows_osd_interface::video_register()
+{
+	video_options_add("gdi", NULL);
+	video_options_add("ddraw", NULL);
+	video_options_add("d3d", NULL);
+	//video_options_add("auto", NULL); // making d3d video default one
+}
+
+//============================================================
+//  sound_register
+//============================================================
+
+void windows_osd_interface::sound_register()
+{
+	sound_options_add("dsound", OSD_SOUND_DIRECT_SOUND);
+#if (USE_SDL)
+	sound_options_add("sdl", OSD_SOUND_SDL);
+#endif
+	sound_options_add("auto", OSD_SOUND_DIRECT_SOUND); // making Direct Sound audio default one
+}
+
+
+//============================================================
+//  debugger_register
+//============================================================
+
+void windows_osd_interface::debugger_register()
+{
+	debugger_options_add("windows", OSD_DEBUGGER_WINDOWS);
+#if (USE_QTDEBUG)
+	debugger_options_add("qt", OSD_DEBUGGER_QT);
+#endif
+	debugger_options_add("auto", OSD_DEBUGGER_WINDOWS); // making windows debugger default one
+}
+
+//============================================================
 //  init
 //============================================================
 
@@ -630,8 +585,8 @@ void windows_osd_interface::init(running_machine &machine)
 	if (bench > 0)
 	{
 		options.set_value(OPTION_THROTTLE, false, OPTION_PRIORITY_MAXIMUM, error_string);
-		options.set_value(OPTION_SOUND, false, OPTION_PRIORITY_MAXIMUM, error_string);
-		options.set_value(WINOPTION_VIDEO, "none", OPTION_PRIORITY_MAXIMUM, error_string);
+		options.set_value(OSDOPTION_SOUND, "none", OPTION_PRIORITY_MAXIMUM, error_string);
+		options.set_value(OSDOPTION_VIDEO, "none", OPTION_PRIORITY_MAXIMUM, error_string);
 		options.set_value(OPTION_SECONDS_TO_RUN, bench, OPTION_PRIORITY_MAXIMUM, error_string);
 		assert(!error_string);
 	}
@@ -641,17 +596,14 @@ void windows_osd_interface::init(running_machine &machine)
 	if (profile > 0)
 	{
 		options.set_value(OPTION_THROTTLE, false, OPTION_PRIORITY_MAXIMUM, error_string);
-		options.set_value(WINOPTION_MULTITHREADING, false, OPTION_PRIORITY_MAXIMUM, error_string);
-		options.set_value(WINOPTION_NUMPROCESSORS, 1, OPTION_PRIORITY_MAXIMUM, error_string);
+		options.set_value(OSDOPTION_MULTITHREADING, false, OPTION_PRIORITY_MAXIMUM, error_string);
+		options.set_value(OSDOPTION_NUMPROCESSORS, 1, OPTION_PRIORITY_MAXIMUM, error_string);
 		assert(!error_string);
 	}
 
 	// thread priority
 	if (!(machine.debug_flags & DEBUG_FLAG_OSD_ENABLED))
 		SetThreadPriority(GetCurrentThread(), options.priority());
-
-	// ensure we get called on the way out
-	machine.add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(osd_exit), &machine));
 
 	// get number of processors
 	stemp = options.numprocessors();
@@ -663,19 +615,14 @@ void windows_osd_interface::init(running_machine &machine)
 		osd_num_processors = atoi(stemp);
 		if (osd_num_processors < 1)
 		{
-			mame_printf_warning("Warning: numprocessors < 1 doesn't make much sense. Assuming auto ...\n");
+			osd_printf_warning("Warning: numprocessors < 1 doesn't make much sense. Assuming auto ...\n");
 			osd_num_processors = 0;
 		}
 	}
 
 	// initialize the subsystems
-	winvideo_init(machine);
-	winsound_init(machine);
-	wininput_init(machine);
-	winoutput_init(machine);
-#ifdef USE_NETWORK
-	winnetdev_init(machine);
-#endif
+	osd_interface::init_subsystems();
+
 	// notify listeners of screen configuration
 	astring tempstring;
 	for (win_window_info *info = win_window_list; info != NULL; info = info->next)
@@ -692,13 +639,9 @@ void windows_osd_interface::init(running_machine &machine)
 
 	// crank up the multimedia timer resolution to its max
 	// this gives the system much finer timeslices
-	timeresult = timeGetDevCaps(&caps, sizeof(caps));
+	timeresult = timeGetDevCaps(&timecaps, sizeof(timecaps));
 	if (timeresult == TIMERR_NOERROR)
-		timeBeginPeriod(caps.wPeriodMin);
-
-	// set our multimedia tasks if we can
-//      if (av_set_mm_thread_characteristics != NULL)
-//          mm_task = (*av_set_mm_thread_characteristics)(TEXT("Playback"), &task_index);
+		timeBeginPeriod(timecaps.wPeriodMin);
 
 	// if a watchdog thread is requested, create one
 	int watchdog = options.watchdog();
@@ -731,7 +674,7 @@ void windows_osd_interface::init(running_machine &machine)
 //  osd_exit
 //============================================================
 
-void windows_osd_interface::osd_exit(running_machine &machine)
+void windows_osd_interface::osd_exit()
 {
 	// no longer have a machine
 	g_current_machine = NULL;
@@ -739,9 +682,7 @@ void windows_osd_interface::osd_exit(running_machine &machine)
 	// cleanup sockets
 	win_cleanup_sockets();
 
-	#ifdef USE_NETWORK
-	winnetdev_deinit(machine);
-	#endif
+	osd_interface::osd_exit();
 
 	// take down the watchdog thread if it exists
 	if (watchdog_thread != NULL)
@@ -764,16 +705,12 @@ void windows_osd_interface::osd_exit(running_machine &machine)
 		global_free(profiler);
 	}
 
-	// turn off our multimedia tasks
-//      if (av_revert_mm_thread_characteristics)
-//          (*av_revert_mm_thread_characteristics)(mm_task);
-
 	// restore the timer resolution
 	if (timeresult == TIMERR_NOERROR)
-		timeEndPeriod(caps.wPeriodMin);
+		timeEndPeriod(timecaps.wPeriodMin);
 
 	// one last pass at events
-	winwindow_process_events(machine, 0, 0);
+	winwindow_process_events(machine(), 0, 0);
 }
 
 
@@ -828,7 +765,7 @@ osd_font windows_osd_interface::font_open(const char *_name, int &height)
 
 	// if it doesn't match our request, fail
 	char *utf = utf8_from_tstring(realname);
-	int result = mame_stricmp(utf, name);
+	int result = core_stricmp(utf, name);
 	osd_free(utf);
 
 	// if we didn't match, nuke our font and fall back
@@ -857,8 +794,8 @@ void windows_osd_interface::font_close(osd_font font)
 //-------------------------------------------------
 //  font_get_bitmap - allocate and populate a
 //  BITMAP_FORMAT_ARGB32 bitmap containing the
-//  pixel values MAKE_ARGB(0xff,0xff,0xff,0xff)
-//  or MAKE_ARGB(0x00,0xff,0xff,0xff) for each
+//  pixel values rgb_t(0xff,0xff,0xff,0xff)
+//  or rgb_t(0x00,0xff,0xff,0xff) for each
 //  pixel of a black & white font
 //-------------------------------------------------
 
@@ -980,7 +917,7 @@ bool windows_osd_interface::font_get_bitmap(osd_font font, unicode_char chnum, b
 			for (int x = 0; x < bitmap.width(); x++)
 			{
 				int effx = x + actbounds.min_x;
-				dstrow[x] = ((srcrow[effx / 8] << (effx % 8)) & 0x80) ? MAKE_ARGB(0xff,0xff,0xff,0xff) : MAKE_ARGB(0x00,0xff,0xff,0xff);
+				dstrow[x] = ((srcrow[effx / 8] << (effx % 8)) & 0x80) ? rgb_t(0xff,0xff,0xff,0xff) : rgb_t(0x00,0xff,0xff,0xff);
 			}
 		}
 
@@ -1681,7 +1618,7 @@ sampling_profiler::sampling_profiler(UINT32 max_seconds, UINT8 stack_depth = 0)
 		m_stack_depth(stack_depth),
 		m_entry_stride(stack_depth + 2),
 		m_max_seconds(max_seconds),
-		m_buffer(global_alloc(FPTR[max_seconds * 1000 * m_entry_stride])),
+		m_buffer(max_seconds * 1000 * m_entry_stride),
 		m_buffer_ptr(m_buffer),
 		m_buffer_end(m_buffer + max_seconds * 1000 * m_entry_stride)
 {
@@ -1694,7 +1631,6 @@ sampling_profiler::sampling_profiler(UINT32 max_seconds, UINT8 stack_depth = 0)
 
 sampling_profiler::~sampling_profiler()
 {
-	global_free(m_buffer);
 }
 
 

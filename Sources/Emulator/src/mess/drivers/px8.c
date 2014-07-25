@@ -682,10 +682,10 @@ INPUT_PORTS_END
     VIDEO
 ***************************************************************************/
 
-void px8_state::palette_init()
+PALETTE_INIT_MEMBER(px8_state, px8)
 {
-	palette_set_color_rgb(machine(), 0, 0xa5, 0xad, 0xa5);
-	palette_set_color_rgb(machine(), 1, 0x31, 0x39, 0x10);
+	palette.set_pen_color(0, 0xa5, 0xad, 0xa5);
+	palette.set_pen_color(1, 0x31, 0x39, 0x10);
 }
 
 UINT32 px8_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -717,40 +717,6 @@ static const gfx_layout px8_charlayout =
 static GFXDECODE_START( px8 )
 	GFXDECODE_ENTRY( SED1320_TAG, 0x0000, px8_charlayout, 0, 1 )
 GFXDECODE_END
-
-/***************************************************************************
-    DEVICE CONFIGURATION
-***************************************************************************/
-
-/*-------------------------------------------------
-    i8251_interface i8251_intf
--------------------------------------------------*/
-
-static const i8251_interface i8251_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-/*-------------------------------------------------
-    cassette_interface px8_cassette_interface
--------------------------------------------------*/
-
-static const cassette_interface px8_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
 
 /***************************************************************************
     MACHINE INITIALIZATION
@@ -808,9 +774,11 @@ static MACHINE_CONFIG_START( px8, px8_state )
 	MCFG_SCREEN_UPDATE_DRIVER(px8_state, screen_update)
 	MCFG_SCREEN_SIZE(480, 64)
 	MCFG_SCREEN_VISIBLE_AREA(0, 479, 0, 63)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(px8)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", px8)
+	MCFG_PALETTE_ADD("palette", 2)
+	MCFG_PALETTE_INIT_OWNER(px8_state, px8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -825,8 +793,10 @@ static MACHINE_CONFIG_START( px8, px8_state )
 	MCFG_CARTSLOT_EXTENSION_LIST("bin,rom")
 
 	/* devices */
-	MCFG_I8251_ADD(I8251_TAG, i8251_intf)
-	MCFG_CASSETTE_ADD("cassette", px8_cassette_interface)
+	MCFG_DEVICE_ADD(I8251_TAG, I8251, 0)
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

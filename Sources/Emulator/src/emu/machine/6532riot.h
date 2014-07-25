@@ -12,15 +12,24 @@
 #include "emu.h"
 
 
-
 //**************************************************************************
 //  INTERFACE CONFIGURATION MACROS
 //**************************************************************************
 
-#define MCFG_RIOT6532_ADD(_tag, _clock, _intrf) \
-	MCFG_DEVICE_ADD(_tag, RIOT6532, _clock) \
-	MCFG_DEVICE_CONFIG(_intrf)
+#define MCFG_RIOT6532_IN_PA_CB(_devcb) \
+	devcb = &riot6532_device::set_in_pa_callback(*device, DEVCB_##_devcb);
 
+#define MCFG_RIOT6532_OUT_PA_CB(_devcb) \
+	devcb = &riot6532_device::set_out_pa_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_RIOT6532_IN_PB_CB(_devcb) \
+	devcb = &riot6532_device::set_in_pb_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_RIOT6532_OUT_PB_CB(_devcb) \
+	devcb = &riot6532_device::set_out_pb_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_RIOT6532_IRQ_CB(_devcb) \
+	devcb = &riot6532_device::set_irq_callback(*device, DEVCB_##_devcb);
 
 
 /***************************************************************************
@@ -28,27 +37,19 @@
 ***************************************************************************/
 
 
-// ======================> riot6532_interface
-
-struct riot6532_interface
-{
-	devcb_read8         m_in_a_cb;
-	devcb_read8         m_in_b_cb;
-	devcb_write8        m_out_a_cb;
-	devcb_write8        m_out_b_cb;
-	devcb_write_line    m_irq_cb;
-};
-
-
-
 // ======================> riot6532_device
 
-class riot6532_device :  public device_t,
-							public riot6532_interface
+class riot6532_device :  public device_t
 {
 public:
 	// construction/destruction
 	riot6532_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	template<class _Object> static devcb_base &set_in_pa_callback(device_t &device, _Object object) { return downcast<riot6532_device &>(device).m_in_pa_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_out_pa_callback(device_t &device, _Object object) { return downcast<riot6532_device &>(device).m_out_pa_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_in_pb_callback(device_t &device, _Object object) { return downcast<riot6532_device &>(device).m_in_pb_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_out_pb_callback(device_t &device, _Object object) { return downcast<riot6532_device &>(device).m_out_pb_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_irq_callback(device_t &device, _Object object) { return downcast<riot6532_device &>(device).m_irq_cb.set_callback(object); }
 
 	DECLARE_READ8_MEMBER( read );
 	DECLARE_WRITE8_MEMBER( write );
@@ -74,12 +75,11 @@ protected:
 		UINT8                   m_in;
 		UINT8                   m_out;
 		UINT8                   m_ddr;
-		devcb_resolved_read8    m_in_func;
-		devcb_resolved_write8   m_out_func;
+		devcb_read8             *m_in_cb;
+		devcb_write8            *m_out_cb;
 	};
 
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
 	virtual void device_reset();
 	virtual void device_post_load() { }
@@ -95,7 +95,11 @@ private:
 
 	riot6532_port   m_port[2];
 
-	devcb_resolved_write_line   m_irq_func;
+	devcb_read8         m_in_pa_cb;
+	devcb_write8        m_out_pa_cb;
+	devcb_read8         m_in_pb_cb;
+	devcb_write8        m_out_pb_cb;
+	devcb_write_line    m_irq_cb;
 
 	UINT8           m_irqstate;
 	UINT8           m_irqenable;

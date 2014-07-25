@@ -142,9 +142,7 @@ Changes:
 #include "cpu/z80/z80.h"
 #include "sound/sn76496.h"
 #include "rendlay.h"
-#include "video/ppu2c0x.h"
 #include "sound/dac.h"
-#include "sound/nes_apu.h"
 #include "includes/vsnes.h"
 
 /******************************************************************************/
@@ -153,15 +151,13 @@ Changes:
 WRITE8_MEMBER(vsnes_state::sprite_dma_0_w)
 {
 	int source = ( data & 7 );
-	ppu2c0x_device *ppu = machine().device<ppu2c0x_device>("ppu1");
-	ppu->spriteram_dma( space, source );
+	m_ppu1->spriteram_dma( space, source );
 }
 
 WRITE8_MEMBER(vsnes_state::sprite_dma_1_w)
 {
 	int source = ( data & 7 );
-	ppu2c0x_device *ppu = machine().device<ppu2c0x_device>("ppu2");
-	ppu->spriteram_dma( space, source );
+	m_ppu2->spriteram_dma( space, source );
 }
 
 WRITE8_MEMBER(vsnes_state::vsnes_coin_counter_w)
@@ -196,44 +192,38 @@ WRITE8_MEMBER(vsnes_state::vsnes_coin_counter_1_w)
 
 READ8_MEMBER(vsnes_state::psg1_4015_r)
 {
-	device_t *device = machine().device("nes1");
-	return nes_psg_r(device, space, 0x15);
+	return m_nesapu1->read(space, 0x15);
 }
 
 WRITE8_MEMBER(vsnes_state::psg1_4015_w)
 {
-	device_t *device = machine().device("nes1");
-	nes_psg_w(device, space, 0x15, data);
+	m_nesapu1->write(space, 0x15, data);
 }
 
 WRITE8_MEMBER(vsnes_state::psg1_4017_w)
 {
-	device_t *device = machine().device("nes1");
-	nes_psg_w(device, space, 0x17, data);
+	m_nesapu1->write(space, 0x17, data);
 }
 
 READ8_MEMBER(vsnes_state::psg2_4015_r)
 {
-	device_t *device = machine().device("nes2");
-	return nes_psg_r(device, space, 0x15);
+	return m_nesapu2->read(space, 0x15);
 }
 
 WRITE8_MEMBER(vsnes_state::psg2_4015_w)
 {
-	device_t *device = machine().device("nes2");
-	nes_psg_w(device, space, 0x15, data);
+	m_nesapu2->write(space, 0x15, data);
 }
 
 WRITE8_MEMBER(vsnes_state::psg2_4017_w)
 {
-	device_t *device = machine().device("nes2");
-	nes_psg_w(device, space, 0x17, data);
+	m_nesapu2->write(space, 0x17, data);
 }
 static ADDRESS_MAP_START( vsnes_cpu1_map, AS_PROGRAM, 8, vsnes_state )
 	AM_RANGE(0x0000, 0x07ff) AM_MIRROR(0x1800) AM_RAM AM_SHARE("work_ram")
 	AM_RANGE(0x2000, 0x3fff) AM_DEVREADWRITE("ppu1", ppu2c0x_device, read, write)
 	AM_RANGE(0x4011, 0x4011) AM_DEVWRITE("dac1", dac_device, write_unsigned8)
-	AM_RANGE(0x4000, 0x4013) AM_DEVREADWRITE_LEGACY("nes1", nes_psg_r, nes_psg_w)
+	AM_RANGE(0x4000, 0x4013) AM_DEVREADWRITE("nesapu1", nesapu_device, read, write)
 	AM_RANGE(0x4014, 0x4014) AM_WRITE(sprite_dma_0_w)
 	AM_RANGE(0x4015, 0x4015) AM_READWRITE(psg1_4015_r, psg1_4015_w) /* PSG status / first control register */
 	AM_RANGE(0x4016, 0x4016) AM_READWRITE(vsnes_in0_r, vsnes_in0_w)
@@ -247,7 +237,7 @@ static ADDRESS_MAP_START( vsnes_cpu2_map, AS_PROGRAM, 8, vsnes_state )
 	AM_RANGE(0x0000, 0x07ff) AM_MIRROR(0x1800) AM_RAM AM_SHARE("work_ram_1")
 	AM_RANGE(0x2000, 0x3fff) AM_DEVREADWRITE("ppu2", ppu2c0x_device, read, write)
 	AM_RANGE(0x4011, 0x4011) AM_DEVWRITE("dac2", dac_device, write_unsigned8)
-	AM_RANGE(0x4000, 0x4013) AM_DEVREADWRITE_LEGACY("nes2", nes_psg_r, nes_psg_w)
+	AM_RANGE(0x4000, 0x4013) AM_DEVREADWRITE("nesapu2", nesapu_device, read, write)
 	AM_RANGE(0x4014, 0x4014) AM_WRITE(sprite_dma_1_w)
 	AM_RANGE(0x4015, 0x4015) AM_READWRITE(psg2_4015_r, psg2_4015_w) /* PSG status / first control register */
 	AM_RANGE(0x4016, 0x4016) AM_READWRITE(vsnes_in0_1_r, vsnes_in0_1_w)
@@ -264,7 +254,7 @@ static ADDRESS_MAP_START( vsnes_cpu1_bootleg_map, AS_PROGRAM, 8, vsnes_state )
 	AM_RANGE(0x0000, 0x07ff) AM_MIRROR(0x1800) AM_RAM AM_SHARE("work_ram")
 	AM_RANGE(0x2000, 0x3fff) AM_DEVREADWRITE("ppu1", ppu2c0x_device, read, write)
 	AM_RANGE(0x4011, 0x4011) AM_DEVWRITE("dac1", dac_device, write_unsigned8)
-	AM_RANGE(0x4000, 0x4013) AM_DEVREADWRITE_LEGACY("nes1", nes_psg_r, nes_psg_w)
+	AM_RANGE(0x4000, 0x4013) AM_DEVREADWRITE("nesapu1", nesapu_device, read, write)
 	AM_RANGE(0x4014, 0x4014) AM_WRITE(sprite_dma_0_w)
 	AM_RANGE(0x4015, 0x4015) AM_READWRITE(psg1_4015_r, psg1_4015_w) /* PSG status / first control register */
 	AM_RANGE(0x4016, 0x4016) AM_READWRITE(vsnes_in0_r, vsnes_in0_w)
@@ -1706,16 +1696,6 @@ static INPUT_PORTS_START( supxevs )
 	PORT_DIPSETTING(    0xc0, "RP2C04-0004" )
 INPUT_PORTS_END
 
-static const nes_interface nes_interface_1 =
-{
-	"maincpu"
-};
-
-static const nes_interface nes_interface_2 =
-{
-	"sub"
-};
-
 static MACHINE_CONFIG_START( vsnes, vsnes_state )
 
 	/* basic machine hardware */
@@ -1731,21 +1711,23 @@ static MACHINE_CONFIG_START( vsnes, vsnes_state )
 	MCFG_SCREEN_SIZE(32*8, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(vsnes_state, screen_update_vsnes)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(8*4*16)
+	MCFG_PALETTE_ADD("palette", 8*4*16)
 
-	MCFG_PALETTE_INIT_OVERRIDE(vsnes_state,vsnes)
+	MCFG_PALETTE_INIT_OWNER(vsnes_state,vsnes)
 	MCFG_VIDEO_START_OVERRIDE(vsnes_state,vsnes)
 
-	MCFG_PPU2C04_ADD("ppu1", vsnes_ppu_interface_1)
+	MCFG_PPU2C04_ADD("ppu1")
 	MCFG_PPU2C0X_SET_SCREEN("screen1")
+	MCFG_PPU2C0X_CPU("maincpu")
 	MCFG_PPU2C0X_SET_NMI(vsnes_state, ppu_irq_1)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("nes1", NES, N2A03_DEFAULTCLOCK)
-	MCFG_SOUND_CONFIG(nes_interface_1)
+	MCFG_SOUND_ADD("nesapu1", NES_APU, N2A03_DEFAULTCLOCK)
+	MCFG_NES_APU_CPU("maincpu")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_DAC_ADD("dac1")
@@ -1755,32 +1737,36 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( jajamaru, vsnes )
 
 	MCFG_DEVICE_REMOVE( "ppu1" )
-	MCFG_PPU2C05_01_ADD("ppu1", vsnes_ppu_interface_1)
+	MCFG_PPU2C05_01_ADD("ppu1")
 	MCFG_PPU2C0X_SET_SCREEN("screen1")
+	MCFG_PPU2C0X_CPU("maincpu")
 	MCFG_PPU2C0X_SET_NMI(vsnes_state, ppu_irq_1)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mightybj, vsnes )
 
 	MCFG_DEVICE_REMOVE( "ppu1" )
-	MCFG_PPU2C05_02_ADD("ppu1", vsnes_ppu_interface_1)
+	MCFG_PPU2C05_02_ADD("ppu1")
 	MCFG_PPU2C0X_SET_SCREEN("screen1")
+	MCFG_PPU2C0X_CPU("maincpu")
 	MCFG_PPU2C0X_SET_NMI(vsnes_state, ppu_irq_1)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( vsgshoe, vsnes )
 
 	MCFG_DEVICE_REMOVE( "ppu1" )
-	MCFG_PPU2C05_03_ADD("ppu1", vsnes_ppu_interface_1)
+	MCFG_PPU2C05_03_ADD("ppu1")
 	MCFG_PPU2C0X_SET_SCREEN("screen1")
+	MCFG_PPU2C0X_CPU("maincpu")
 	MCFG_PPU2C0X_SET_NMI(vsnes_state, ppu_irq_1)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( topgun, vsnes )
 
 	MCFG_DEVICE_REMOVE( "ppu1" )
-	MCFG_PPU2C05_04_ADD("ppu1", vsnes_ppu_interface_1)
+	MCFG_PPU2C05_04_ADD("ppu1")
 	MCFG_PPU2C0X_SET_SCREEN("screen1")
+	MCFG_PPU2C0X_CPU("maincpu")
 	MCFG_PPU2C0X_SET_NMI(vsnes_state, ppu_irq_1)
 MACHINE_CONFIG_END
 
@@ -1797,7 +1783,9 @@ static MACHINE_CONFIG_START( vsdual, vsnes_state )
 	MCFG_MACHINE_START_OVERRIDE(vsnes_state,vsdual)
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(2*8*4*16)
+	MCFG_PALETTE_ADD("palette", 2*8*4*16)
+	MCFG_PALETTE_INIT_OWNER(vsnes_state,vsdual)
+
 	MCFG_DEFAULT_LAYOUT(layout_dualhsxs)
 
 	MCFG_SCREEN_ADD("screen1", RASTER)
@@ -1805,32 +1793,37 @@ static MACHINE_CONFIG_START( vsdual, vsnes_state )
 	MCFG_SCREEN_SIZE(32*8, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(vsnes_state, screen_update_vsnes)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("screen2", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(32*8, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(vsnes_state, screen_update_vsnes_bottom)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_INIT_OVERRIDE(vsnes_state,vsdual)
 	MCFG_VIDEO_START_OVERRIDE(vsnes_state,vsdual)
 
-	MCFG_PPU2C04_ADD("ppu1", vsnes_ppu_interface_1)
+	MCFG_PPU2C04_ADD("ppu1")
 	MCFG_PPU2C0X_SET_SCREEN("screen1")
+	MCFG_PPU2C0X_CPU("maincpu")
 	MCFG_PPU2C0X_SET_NMI(vsnes_state, ppu_irq_1)
-	MCFG_PPU2C04_ADD("ppu2", vsnes_ppu_interface_2)
+
+	MCFG_PPU2C04_ADD("ppu2")
 	MCFG_PPU2C0X_SET_SCREEN("screen2")
+	MCFG_PPU2C0X_CPU("sub")
+	MCFG_PPU2C0X_COLORBASE(512)
 	MCFG_PPU2C0X_SET_NMI(vsnes_state, ppu_irq_2)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("nes1", NES, N2A03_DEFAULTCLOCK)
-	MCFG_SOUND_CONFIG(nes_interface_1)
+	MCFG_SOUND_ADD("nesapu1", NES_APU, N2A03_DEFAULTCLOCK)
+	MCFG_NES_APU_CPU("maincpu")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
-	MCFG_SOUND_ADD("nes2", NES, N2A03_DEFAULTCLOCK)
-	MCFG_SOUND_CONFIG(nes_interface_2)
+	MCFG_SOUND_ADD("nesapu2", NES_APU, N2A03_DEFAULTCLOCK)
+	MCFG_NES_APU_CPU("sub")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_DAC_ADD("dac1")
@@ -1839,12 +1832,6 @@ static MACHINE_CONFIG_START( vsdual, vsnes_state )
 	MCFG_DAC_ADD("dac2")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
-
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
 
 
 static MACHINE_CONFIG_START( vsnes_bootleg, vsnes_state )
@@ -1860,29 +1847,29 @@ static MACHINE_CONFIG_START( vsnes_bootleg, vsnes_state )
 	MCFG_CPU_PROGRAM_MAP(vsnes_bootleg_z80_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen1", vsnes_state,  irq0_line_hold)
 
-
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen1", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(32*8, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(vsnes_state, screen_update_vsnes)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(8*4*16)
+	MCFG_PALETTE_ADD("palette", 8*4*16)
 
-	MCFG_PALETTE_INIT_OVERRIDE(vsnes_state,vsnes)
+	MCFG_PALETTE_INIT_OWNER(vsnes_state,vsnes)
 	MCFG_VIDEO_START_OVERRIDE(vsnes_state,vsnes)
 
-	MCFG_PPU2C04_ADD("ppu1", vsnes_ppu_interface_1)
+	MCFG_PPU2C04_ADD("ppu1")
+	MCFG_PPU2C0X_CPU("maincpu")
 	MCFG_PPU2C0X_SET_SCREEN("screen1")
 	MCFG_PPU2C0X_SET_NMI(vsnes_state, ppu_irq_1)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("nes1", NES, N2A03_DEFAULTCLOCK)
-	MCFG_SOUND_CONFIG(nes_interface_1)
+	MCFG_SOUND_ADD("nesapu1", NES_APU, N2A03_DEFAULTCLOCK)
+	MCFG_NES_APU_CPU("maincpu")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_DAC_ADD("dac1")
@@ -1891,7 +1878,6 @@ static MACHINE_CONFIG_START( vsnes_bootleg, vsnes_state )
 	// instead of the above?
 	MCFG_SOUND_ADD("sn1", SN76489A, 4000000) // ?? Mhz
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 /******************************************************************************/
@@ -1933,38 +1919,38 @@ MACHINE_CONFIG_END
 
 /* Notes for Super Mario:
 
-mds-sm4-4 e.1c or 6c CRC32 0x5E3FB550 verified on 3 PCBs / dumped sets
-mds-sm4-4.1c or 6c   CRC32 0x0011FC5A differs by 2 bytes: 0x1634 = 0x0D (vs 0x11) & 0x163B = 0x11 (vs 0x14)
+mds-sm4-4__1cor6c_e.1c or 6c CRC32 0x5E3FB550 verified on 3 PCBs / dumped sets
+(__suprmrioa).1c or 6c       CRC32 0x0011FC5A differs by 2 bytes: 0x1634 = 0x0D (vs 0x11) & 0x163B = 0x11 (vs 0x14)
                      Each change is part of a LDA #$ statement IE: A9 0D  LDA #$0D (vs A9 11  LDA #$11)
                      It's unknown if it's an official alt version or hack.
 
 These 2 bytes affect timer speed, making 'suprmrioa' harder.
 */
 
-ROM_START( suprmrio ) /* Vs. Super Mario Bros. (Set E) */
+ROM_START( suprmrio ) /* Vs. Super Mario Bros. (Set E Rev 4) */
 	ROM_REGION( 0x10000,"maincpu", 0 ) /* 6502 memory */
-	ROM_LOAD( "mds-sm4-4 e.1d or 6d", 0x8000, 0x2000, CRC(be4d5436) SHA1(08162a7c987f1939d09bebdb676f596c86abf465) )
-	ROM_LOAD( "mds-sm4-4 e.1c or 6c", 0xa000, 0x2000, CRC(5e3fb550) SHA1(de4494e4dd52f7f7b04cf1d9019fd89fb90eaca9) )
-	ROM_LOAD( "mds-sm4-4 e.1b or 6b", 0xc000, 0x2000, CRC(b1b87893) SHA1(8563ceaca664cf4495ef1020c07179ca7e4af9f3) )
-	ROM_LOAD( "mds-sm4-4 e.1a or 6a", 0xe000, 0x2000, CRC(1abf053c) SHA1(f17db88ce0c9bf1ed88dc16b9650f11d10835cec) )
+	ROM_LOAD( "mds-sm4-4__1dor6d_e.1d or 6d", 0x8000, 0x2000, CRC(be4d5436) SHA1(08162a7c987f1939d09bebdb676f596c86abf465) )
+	ROM_LOAD( "mds-sm4-4__1cor6c_e.1c or 6c", 0xa000, 0x2000, CRC(5e3fb550) SHA1(de4494e4dd52f7f7b04cf1d9019fd89fb90eaca9) )
+	ROM_LOAD( "mds-sm4-4__1bor6b_e.1b or 6b", 0xc000, 0x2000, CRC(b1b87893) SHA1(8563ceaca664cf4495ef1020c07179ca7e4af9f3) )
+	ROM_LOAD( "mds-sm4-4__1aor6a_e.1a or 6a", 0xe000, 0x2000, CRC(1abf053c) SHA1(f17db88ce0c9bf1ed88dc16b9650f11d10835cec) )
 
 	ROM_REGION( 0x4000,"gfx1", 0  ) /* PPU memory */
-	ROM_LOAD( "mds-sm4-4 e.2b or 8b", 0x0000, 0x2000, CRC(42418d40) SHA1(22ab61589742cfa4cc6856f7205d7b4b8310bc4d) )
-	ROM_LOAD( "mds-sm4-4 e.2a or 8a", 0x2000, 0x2000, CRC(15506b86) SHA1(69ecf7a3cc8bf719c1581ec7c0d68798817d416f) )
+	ROM_LOAD( "mds-sm4-4__2bor8b_e.2b or 8b", 0x0000, 0x2000, CRC(42418d40) SHA1(22ab61589742cfa4cc6856f7205d7b4b8310bc4d) )
+	ROM_LOAD( "mds-sm4-4__2aor8a_e.2a or 8a", 0x2000, 0x2000, CRC(15506b86) SHA1(69ecf7a3cc8bf719c1581ec7c0d68798817d416f) )
 
 	PALETTE_2C04_0004
 ROM_END
 
-ROM_START( suprmrioa ) /* Vs. Super Mario Bros. (Set unknown) */
+ROM_START( suprmrioa ) /* Vs. Super Mario Bros. (Set unknown, possibly operator hack of E rev 4 to make the game harder) */
 	ROM_REGION( 0x10000,"maincpu", 0 ) /* 6502 memory */
-	ROM_LOAD( "mds-sm4-4 e.1d or 6d", 0x8000, 0x2000, CRC(be4d5436) SHA1(08162a7c987f1939d09bebdb676f596c86abf465) )
-	ROM_LOAD( "mds-sm4-4.1c or 6c",   0xa000, 0x2000, CRC(0011fc5a) SHA1(5c2c49938a12affc03e64e5bdab307998be20020) ) /* Need to verify correct label */
-	ROM_LOAD( "mds-sm4-4 e.1b or 6b", 0xc000, 0x2000, CRC(b1b87893) SHA1(8563ceaca664cf4495ef1020c07179ca7e4af9f3) )
-	ROM_LOAD( "mds-sm4-4 e.1a or 6a", 0xe000, 0x2000, CRC(1abf053c) SHA1(f17db88ce0c9bf1ed88dc16b9650f11d10835cec) )
+	ROM_LOAD( "mds-sm4-4__1dor6d_e.1d or 6d", 0x8000, 0x2000, CRC(be4d5436) SHA1(08162a7c987f1939d09bebdb676f596c86abf465) )
+	ROM_LOAD( "(__suprmrioa).1c or 6c",   0xa000, 0x2000, CRC(0011fc5a) SHA1(5c2c49938a12affc03e64e5bdab307998be20020) ) /* Need to verify correct label */
+	ROM_LOAD( "mds-sm4-4__1bor6b_e.1b or 6b", 0xc000, 0x2000, CRC(b1b87893) SHA1(8563ceaca664cf4495ef1020c07179ca7e4af9f3) )
+	ROM_LOAD( "mds-sm4-4__1aor6a_e.1a or 6a", 0xe000, 0x2000, CRC(1abf053c) SHA1(f17db88ce0c9bf1ed88dc16b9650f11d10835cec) )
 
 	ROM_REGION( 0x4000,"gfx1", 0  ) /* PPU memory */
-	ROM_LOAD( "mds-sm4-4 e.2b or 8b", 0x0000, 0x2000, CRC(42418d40) SHA1(22ab61589742cfa4cc6856f7205d7b4b8310bc4d) )
-	ROM_LOAD( "mds-sm4-4 e.2a or 8a", 0x2000, 0x2000, CRC(15506b86) SHA1(69ecf7a3cc8bf719c1581ec7c0d68798817d416f) )
+	ROM_LOAD( "mds-sm4-4__2bor8b_e.2b or 8b", 0x0000, 0x2000, CRC(42418d40) SHA1(22ab61589742cfa4cc6856f7205d7b4b8310bc4d) )
+	ROM_LOAD( "mds-sm4-4__2aor8a_e.2a or 8a", 0x2000, 0x2000, CRC(15506b86) SHA1(69ecf7a3cc8bf719c1581ec7c0d68798817d416f) )
 
 	PALETTE_2C04_0004
 ROM_END
@@ -2002,7 +1988,7 @@ ROM_START( suprmriobl )
 	ROM_LOAD( "2.bin",  0x0000, 0x2000, CRC(42418d40) SHA1(22ab61589742cfa4cc6856f7205d7b4b8310bc4d) )
 	ROM_LOAD( "5.bin",  0x2000, 0x2000, CRC(15506b86) SHA1(69ecf7a3cc8bf719c1581ec7c0d68798817d416f) )
 
-	/* this set has some extra files compared to the above one, they probably exist on that pcb too tho */
+	/* this set has some extra files compared to the above one, they probably exist on that pcb too though */
 	ROM_REGION( 0x200,"proms", 0  )
 	ROM_LOAD( "prom6301.1",  0x000, 0x100, CRC(a31dc330) SHA1(b652003f7e252bac3bdb19412839c2f03af7f8b8) )
 	ROM_LOAD( "prom6301.2",  0x100, 0x100, CRC(019c6141) SHA1(fdeda4dea6506807a3324fa941f0684208aa3b4b) )
@@ -2021,14 +2007,14 @@ ROM_END
 
 ROM_START( skatekds )
 	ROM_REGION( 0x10000,"maincpu", 0 ) /* 6502 memory */
-	ROM_LOAD( "mds-sm4-4 e.1d or 6d", 0x8000, 0x2000, CRC(be4d5436) SHA1(08162a7c987f1939d09bebdb676f596c86abf465) )
-	ROM_LOAD( "mds-sm4-4 e.1c or 6c", 0xa000, 0x2000, CRC(5e3fb550) SHA1(de4494e4dd52f7f7b04cf1d9019fd89fb90eaca9) )
-	ROM_LOAD( "mds-sm4-4 e.1b or 6b", 0xc000, 0x2000, CRC(b1b87893) SHA1(8563ceaca664cf4495ef1020c07179ca7e4af9f3) )
-	ROM_LOAD( "mds-sm4-4 e.1a or 6a", 0xe000, 0x2000, CRC(1abf053c) SHA1(f17db88ce0c9bf1ed88dc16b9650f11d10835cec) )
+	ROM_LOAD( "mds-sm4-4__1dor6d_e.1d or 6d", 0x8000, 0x2000, CRC(be4d5436) SHA1(08162a7c987f1939d09bebdb676f596c86abf465) )
+	ROM_LOAD( "mds-sm4-4__1cor6c_e.1c or 6c", 0xa000, 0x2000, CRC(5e3fb550) SHA1(de4494e4dd52f7f7b04cf1d9019fd89fb90eaca9) )
+	ROM_LOAD( "mds-sm4-4__1bor6b_e.1b or 6b", 0xc000, 0x2000, CRC(b1b87893) SHA1(8563ceaca664cf4495ef1020c07179ca7e4af9f3) )
+	ROM_LOAD( "mds-sm4-4__1aor6a_e.1a or 6a", 0xe000, 0x2000, CRC(1abf053c) SHA1(f17db88ce0c9bf1ed88dc16b9650f11d10835cec) )
 
 	ROM_REGION( 0x4000,"gfx1", 0  ) /* PPU memory */
-	ROM_LOAD( "mds-sm4.2b",  0x0000, 0x2000,CRC(f3980303) SHA1(b9a25c906d1861c89e2e40e878a34d318daf6619) )
-	ROM_LOAD( "mds-sm4.2a",  0x2000, 0x2000,CRC(7a0ab7eb) SHA1(b6c32791481fafddc8504adb4eaed30a2fb3a03e) )
+	ROM_LOAD( "(__skatekds).2b",  0x0000, 0x2000,CRC(f3980303) SHA1(b9a25c906d1861c89e2e40e878a34d318daf6619) )
+	ROM_LOAD( "(__skatekds).2a",  0x2000, 0x2000,CRC(7a0ab7eb) SHA1(b6c32791481fafddc8504adb4eaed30a2fb3a03e) )
 
 	PALETTE_2C04_0004
 ROM_END
@@ -2140,10 +2126,10 @@ ROM_END
 
 ROM_START( vsgradus )
 	ROM_REGION( 0x20000,"maincpu", 0  ) /* 6502 memory */
-	ROM_LOAD( "prg.u7",  0x10000, 0x10000, CRC(d99a2087) SHA1(b26efe78798453a903921723f3c9ac69f579b7d2) )
+	ROM_LOAD( "mds-gr__prg_e.u7",  0x10000, 0x10000, CRC(d99a2087) SHA1(b26efe78798453a903921723f3c9ac69f579b7d2) )
 
 	ROM_REGION( 0x10000,"gfx1", 0 ) /* PPU memory */
-	ROM_LOAD( "chr.u4",  0x0000, 0x10000, CRC(23cf2fc3) SHA1(0a3f48aec529b92abc261952e632af7ff766b1ef) )
+	ROM_LOAD( "mds-gr__chr_e.u4",  0x0000, 0x10000, CRC(23cf2fc3) SHA1(0a3f48aec529b92abc261952e632af7ff766b1ef) )
 
 	PALETTE_2C04_0001
 ROM_END
@@ -2317,16 +2303,16 @@ ROM_START( machridra )
 	PALETTE_2C04_0001
 ROM_END
 
-ROM_START( vspinbal ) /* Set ID should be something like MDS-PN3-1 xx or MDS-PN4-1 xx */
+ROM_START( vspinbal ) /* E-1 Set; used Nintendo labels, e and 1 written in red marker */
 	ROM_REGION( 0x10000, "maincpu", 0 ) /* 6502 memory */
-	ROM_LOAD( "pb-6d",  0x8000, 0x2000, CRC(69fc575e) SHA1(d5165959c3569f5ebccd03d2cad4714f9240cc4c) )
-	ROM_LOAD( "pb-6c",  0xa000, 0x2000, CRC(fa9472d2) SHA1(d20ffb156bea1f474ad7d9776e217cb05048f00f) )
-	ROM_LOAD( "pb-6b",  0xc000, 0x2000, CRC(f57d89c5) SHA1(03f3a27d806c61fef13b0d8b2d8b9a15ee968e80) )
-	ROM_LOAD( "pb-6a",  0xe000, 0x2000, CRC(640c4741) SHA1(930bed577bfc75b03d064dc0ef523c45186fc3c4) )
+	ROM_LOAD( "mds-pn4_1__6d_e.6d",  0x8000, 0x2000, CRC(69fc575e) SHA1(d5165959c3569f5ebccd03d2cad4714f9240cc4c) )
+	ROM_LOAD( "mds-pn4_1__6c_e.6c",  0xa000, 0x2000, CRC(fa9472d2) SHA1(d20ffb156bea1f474ad7d9776e217cb05048f00f) )
+	ROM_LOAD( "mds-pn4_1__6b_e.6b",  0xc000, 0x2000, CRC(f57d89c5) SHA1(03f3a27d806c61fef13b0d8b2d8b9a15ee968e80) )
+	ROM_LOAD( "mds-pn4_1__6a_e.6a",  0xe000, 0x2000, CRC(640c4741) SHA1(930bed577bfc75b03d064dc0ef523c45186fc3c4) )
 
 	ROM_REGION( 0x4000,"gfx1", 0 ) /* PPU memory */
-	ROM_LOAD( "pb-8b",  0x0000, 0x2000, CRC(8822ee9e) SHA1(950113952e6d356e45e03479ba5dd5a8cb131609) )
-	ROM_LOAD( "pb-8a",  0x2000, 0x2000, CRC(cbe98a28) SHA1(c00c5f15a33611bfe3ad420b93b1cc2cae011c3e) )
+	ROM_LOAD( "mds-pn4_1__8b_e.8b",  0x0000, 0x2000, CRC(8822ee9e) SHA1(950113952e6d356e45e03479ba5dd5a8cb131609) )
+	ROM_LOAD( "mds-pn4_1__8a_e.8a",  0x2000, 0x2000, CRC(cbe98a28) SHA1(c00c5f15a33611bfe3ad420b93b1cc2cae011c3e) )
 
 	PALETTE_2C04_0001
 ROM_END
@@ -2435,7 +2421,7 @@ ROM_END
 
 ROM_START( topgun )
 	ROM_REGION( 0x30000,"maincpu", 0 ) /* 6502 memory */
-	ROM_LOAD( "rc-003",  0x10000, 0x20000, CRC(8c0c2df5) SHA1(d9b1b87204e025a637821a0168475e1209ce0c8a) )
+	ROM_LOAD( "rc-003.u7",  0x10000, 0x20000, CRC(8c0c2df5) SHA1(d9b1b87204e025a637821a0168475e1209ce0c8a) )
 
 	/* No cart gfx - uses vram */
 
@@ -2587,24 +2573,24 @@ ROM_END
 
 ROM_START( vsbball )
 	ROM_REGION( 0x10000,"maincpu", 0 ) /* 6502 memory */
-	ROM_LOAD( "mds-ba e-1.1d",  0x08000, 0x02000, CRC(0cc5225f) SHA1(a8eb3153ce3f1282901c305177347112df0fb3b2) )
-	ROM_LOAD( "mds-ba e-1.1c",  0x0a000, 0x02000, CRC(9856ac60) SHA1(f033171c3dea6af63f1f328fee74e695c67adc92) )
-	ROM_LOAD( "mds-ba e-1.1b",  0x0c000, 0x02000, CRC(d1312e63) SHA1(0fc46a4ef0fb8a304320f8b3cac3edd1cd9ed286) )
-	ROM_LOAD( "mds-ba e-1.1a",  0x0e000, 0x02000, CRC(28199b4d) SHA1(e63d69662d3b70b883028d3103c8f65de8f5edda) )
+	ROM_LOAD( "mds-ba__1d_e-1.1d",  0x08000, 0x02000, CRC(7ec792bc) SHA1(92d1f8809db89a8d99f7ea1d2ba3f9be69195866) )
+	ROM_LOAD( "mds-ba__1c_e-1.1c",  0x0a000, 0x02000, CRC(b631f8aa) SHA1(0ee8a8def9512552037fdac1a14a3ea9393bb943) )
+	ROM_LOAD( "mds-ba__1b_e-1.1b",  0x0c000, 0x02000, CRC(c856b45a) SHA1(7f15613120d72859ea1ed647c9eee3074f63f0b9) )
+	ROM_LOAD( "mds-ba__1a_e-1.1a",  0x0e000, 0x02000, CRC(06b74c18) SHA1(9a61161b4856b88e40eee6edb39e0a608748cf0b) )
 
 	ROM_REGION( 0x4000,"gfx1", 0 ) /* PPU memory */
-	ROM_LOAD( "mds-ba e.2b",  0x0000, 0x2000, CRC(3ff8bec3) SHA1(28c1bf89ed1046243ca8cf122cefa0752c242577) ) /* Only had "e" not "e-1" */
-	ROM_LOAD( "mds-ba.2a",    0x2000, 0x2000, CRC(13b20cfd) SHA1(cb333cbea09557a9d2bdc351fabc61fc7760c35d) ) /* Did not have any red letter stamped */
+	ROM_LOAD( "mds-ba__2b_e.2b",  0x0000, 0x2000, CRC(3ff8bec3) SHA1(28c1bf89ed1046243ca8cf122cefa0752c242577) )
+	ROM_LOAD( "mds-ba__2a_e.2a",  0x2000, 0x2000, CRC(13b20cfd) SHA1(cb333cbea09557a9d2bdc351fabc61fc7760c35d) )
 
 	ROM_REGION( 0x10000,"sub",0 ) /* 6502 memory */
-	ROM_LOAD( "mds-ba e-1.6d",  0x08000, 0x02000, CRC(7ec792bc) SHA1(92d1f8809db89a8d99f7ea1d2ba3f9be69195866) )
-	ROM_LOAD( "mds-ba e-1.6c",  0x0a000, 0x02000, CRC(b631f8aa) SHA1(0ee8a8def9512552037fdac1a14a3ea9393bb943) )
-	ROM_LOAD( "mds-ba e-1.6b",  0x0c000, 0x02000, CRC(c856b45a) SHA1(7f15613120d72859ea1ed647c9eee3074f63f0b9) )
-	ROM_LOAD( "mds-ba e-1.6a",  0x0e000, 0x02000, CRC(06b74c18) SHA1(9a61161b4856b88e40eee6edb39e0a608748cf0b) )
+	ROM_LOAD( "mds-ba__6d_e-1.6d",  0x08000, 0x02000, CRC(0cc5225f) SHA1(a8eb3153ce3f1282901c305177347112df0fb3b2) )
+	ROM_LOAD( "mds-ba__6c_e-1.6c",  0x0a000, 0x02000, CRC(9856ac60) SHA1(f033171c3dea6af63f1f328fee74e695c67adc92) )
+	ROM_LOAD( "mds-ba__6b_e-1.6b",  0x0c000, 0x02000, CRC(d1312e63) SHA1(0fc46a4ef0fb8a304320f8b3cac3edd1cd9ed286) )
+	ROM_LOAD( "mds-ba__6a_e-1.6a",  0x0e000, 0x02000, CRC(28199b4d) SHA1(e63d69662d3b70b883028d3103c8f65de8f5edda) )
 
 	ROM_REGION( 0x4000,"gfx2", 0 ) /* PPU memory */
-	ROM_LOAD( "mds-ba e.8b",  0x0000, 0x2000, CRC(3ff8bec3) SHA1(28c1bf89ed1046243ca8cf122cefa0752c242577) ) /* Only had "e" not "e-1" */
-	ROM_LOAD( "mds-ba.8a",    0x2000, 0x2000, CRC(13b20cfd) SHA1(cb333cbea09557a9d2bdc351fabc61fc7760c35d) ) /* Did not have any red letter stamped */
+	ROM_LOAD( "mds-ba__8b_e.8b",  0x0000, 0x2000, CRC(3ff8bec3) SHA1(28c1bf89ed1046243ca8cf122cefa0752c242577) )
+	ROM_LOAD( "mds-ba__8a_e.8a",  0x2000, 0x2000, CRC(13b20cfd) SHA1(cb333cbea09557a9d2bdc351fabc61fc7760c35d) )
 
 	PALETTE_2C04_0001
 ROM_END
@@ -2729,8 +2715,32 @@ ROM_START( vstennisa )
 	PALETTE_STANDARD
 ROM_END
 
-ROM_START( wrecking )
+ROM_START( vstennisb )
 	ROM_REGION( 0x10000,"maincpu", 0 ) /* 6502 memory */
+	ROM_LOAD( "1d", 0x08000, 0x2000, CRC(34ba9922) SHA1(709d3034d98eaf519ab1a824483bf14470291dab) )
+	ROM_LOAD( "1c", 0x0a000, 0x2000, CRC(d4874908) SHA1(53c00468f87185dcc37f5f3874b395f639e7d34f) )
+	ROM_LOAD( "1b", 0x0c000, 0x2000, CRC(eee3fc51) SHA1(02e22506106026c84150e3d937d08d4bd2edefdd) )
+	ROM_LOAD( "1a", 0x0e000, 0x2000, CRC(83cc5e96) SHA1(edd5b7d466d2f7d5714c376cb781382d4e6c6fcc) )
+
+	ROM_REGION( 0x4000,"gfx1", 0 ) /* PPU memory */
+	ROM_LOAD( "2b",  0x0000, 0x2000, CRC(9de19c9c) SHA1(1cb65e423a6c2d2a56c67ad08ecf7e746551c322) )
+	ROM_LOAD( "2a",  0x2000, 0x2000, CRC(67a5800e) SHA1(7bad1b486d9dac962fa8c87984038be4ac6b699b) )
+
+	ROM_REGION( 0x10000,"sub", 0 ) /* 6502 memory */
+	ROM_LOAD( "6d", 0x08000, 0x2000, BAD_DUMP CRC(5da8a6a0) SHA1(a153a5bfb9e64978eb33d7ed4f4cf96d9bc7ee4a) )
+	ROM_LOAD( "6c", 0x0a000, 0x2000, BAD_DUMP CRC(154af5fe) SHA1(2459a31a3cd427609c427ade093b12abc3df2d78) )
+	ROM_LOAD( "6b", 0x0c000, 0x2000, BAD_DUMP CRC(0da89d4e) SHA1(f183729477b410e04ad5ccf8b7212f45bc0e466b) )
+	ROM_LOAD( "6a", 0x0e000, 0x2000, BAD_DUMP CRC(a5bc72be) SHA1(8046c2b7679d7a4bc9bd5a178404053113d3527e) )
+
+	ROM_REGION( 0x4000,"gfx2" , 0) /* PPU memory */
+	ROM_LOAD( "8b",  0x0000, 0x2000, CRC(c81e9260) SHA1(6d4809a05364cc05485ee1add833428529af2be6) )
+	ROM_LOAD( "8a",  0x2000, 0x2000, CRC(d91eb295) SHA1(6b69bcef5421a6bcde89a2d1f514853f9f7992c3) )
+
+	PALETTE_STANDARD
+ROM_END
+
+ROM_START( wrecking )
+ROM_REGION( 0x10000,"maincpu", 0 ) /* 6502 memory */
 	ROM_LOAD( "wr.1d",  0x08000, 0x02000, CRC(8897e1b9) SHA1(7d33f6ee78d8663d62e6e05e231fd3d19ad09baa) )
 	ROM_LOAD( "wr.1c",  0x0a000, 0x02000, CRC(d4dc5ebb) SHA1(bce9b2ebabe7b882f1bc71e2dd50906365521d78) )
 	ROM_LOAD( "wr.1b",  0x0c000, 0x02000, CRC(8ee4a454) SHA1(58e970780a2ef5d44950dba6b44e501d320c9588) )
@@ -2811,12 +2821,12 @@ GAME( 1984, smgolfb,  smgolf,   vsnes,   golf, vsnes_state,     vsnormal, ROT0, 
 GAME( 1984, smgolfj,  smgolf,   vsnes,   golf, vsnes_state,     vsnormal, ROT0, "Nintendo Co., Ltd.",     "Vs. Stroke & Match Golf (Men Version) (Japan, set GF3 B)", 0 )
 GAME( 1984, ladygolfe,smgolf,   vsnes,   golf, vsnes_state,     vsnormal, ROT0, "Nintendo",               "Vs. Stroke & Match Golf (Ladies Version, set LG4 E)", 0 )
 GAME( 1984, ladygolf, smgolf,   vsnes,   golf, vsnes_state,     vsnormal, ROT0, "Nintendo",               "Vs. Stroke & Match Golf (Ladies Version, set LG4 ?)", 0 )
-GAME( 1984, vspinbal, 0,        vsnes,   vspinbal, vsnes_state, vsnormal, ROT0, "Nintendo",               "Vs. Pinball (set ?)", 0 )
+GAME( 1984, vspinbal, 0,        vsnes,   vspinbal, vsnes_state, vsnormal, ROT0, "Nintendo",               "Vs. Pinball (US, set PN4 E-1)", 0 )
 GAME( 1984, vspinbalj,vspinbal, vsnes,   vspinblj, vsnes_state, vsnormal, ROT0, "Nintendo Co., Ltd.",     "Vs. Pinball (Japan, set PN3 B)", 0 )
 GAME( 1986, vsslalom, 0,        vsnes,   vsslalom, vsnes_state, vsnormal, ROT0, "Rare Coin-It Inc.",      "Vs. Slalom", GAME_IMPERFECT_GRAPHICS )
 GAME( 1985, vssoccer, 0,        vsnes,   vssoccer, vsnes_state, vsnormal, ROT0, "Nintendo",               "Vs. Soccer (set SC4-2 A)", 0 )
 GAME( 1985, vssoccera,vssoccer, vsnes,   vssoccer, vsnes_state, bnglngby, ROT0, "Nintendo",               "Vs. Soccer (set SC4-3 ?)", 0 )
-GAME( 1986, vsgradus, 0,        vsnes,   vsgradus, vsnes_state, vskonami, ROT0, "Konami",                 "Vs. Gradius", 0 )
+GAME( 1986, vsgradus, 0,        vsnes,   vsgradus, vsnes_state, vskonami, ROT0, "Konami",                 "Vs. Gradius (US, set GR E)", 0 )
 GAME( 1987, platoon,  0,        vsnes,   platoon, vsnes_state,  platoon,  ROT0, "Ocean Software Limited", "Vs. Platoon", 0 )
 GAME( 1987, vstetris, 0,        vsnes,   vstetris, vsnes_state, vsnormal, ROT0, "Academysoft-Elorg",      "Vs. Tetris" , 0 )
 GAME( 1986, mightybj, 0,        mightybj,mightybj, vsnes_state, vsnormal, ROT0, "Tecmo",                  "Vs. Mighty Bomb Jack (Japan)", 0 )
@@ -2833,7 +2843,8 @@ GAME( 1988, vsfdf,    0,        vsnes,   vsfdf, vsnes_state,    vsfdf,    ROT0, 
 
 /* Dual games */
 GAME( 1984, vstennis, 0,        vsdual,  vstennis, vsnes_state, vsdual,   ROT0, "Nintendo Co., Ltd.",     "Vs. Tennis (Japan/USA, set TE A-3)" , 0 )
-GAME( 1984, vstennisa,vstennis, vsdual,  vstennis, vsnes_state, vsdual,   ROT0, "Nintendo Co., Ltd.",     "Vs. Tennis (Japan/USA, set ?)" , 0 )
+GAME( 1984, vstennisa,vstennis, vsdual,  vstennis, vsnes_state, vsdual,   ROT0, "Nintendo Co., Ltd.",     "Vs. Tennis (Japan/USA, set 2)" , 0 )
+GAME( 1984, vstennisb,vstennis, vsdual,  vstennis, vsnes_state, vsdual,   ROT0, "Nintendo Co., Ltd.",     "Vs. Tennis (Japan/USA, set 3)" , GAME_IMPERFECT_GRAPHICS )
 GAME( 1984, wrecking, 0,        vsdual,  wrecking, vsnes_state, vsdual,   ROT0, "Nintendo",               "Vs. Wrecking Crew", 0 )
 GAME( 1984, balonfgt, 0,        vsdual,  balonfgt, vsnes_state, vsdual,   ROT0, "Nintendo",               "Vs. Balloon Fight (set BF4 A-3)", 0 )
 GAME( 1984, vsmahjng, 0,        vsdual,  vsmahjng, vsnes_state, vsdual,   ROT0, "Nintendo Co., Ltd.",     "Vs. Mahjong (Japan)" , 0 )

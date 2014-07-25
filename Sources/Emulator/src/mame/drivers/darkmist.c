@@ -45,7 +45,8 @@ static ADDRESS_MAP_START( memmap, AS_PROGRAM, 8, darkmist_state )
 	AM_RANGE(0xc806, 0xc806) AM_READ_PORT("DSW1")
 	AM_RANGE(0xc807, 0xc807) AM_READ_PORT("DSW2")
 	AM_RANGE(0xc808, 0xc808) AM_READ_PORT("UNK")
-	AM_RANGE(0xd000, 0xd3ff) AM_RAM AM_SHARE("paletteram")
+	AM_RANGE(0xd000, 0xd0ff) AM_RAM_DEVWRITE("palette", palette_device, write_indirect) AM_SHARE("palette")
+	AM_RANGE(0xd200, 0xd2ff) AM_RAM_DEVWRITE("palette", palette_device, write_indirect_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0xd400, 0xd41f) AM_RAM AM_SHARE("scroll")
 	AM_RANGE(0xd600, 0xd67f) AM_DEVREADWRITE("t5182", t5182_device, sharedram_r, sharedram_w)
 	AM_RANGE(0xd680, 0xd680) AM_DEVWRITE("t5182", t5182_device, sound_irq_w)
@@ -241,9 +242,13 @@ static MACHINE_CONFIG_START( darkmist, darkmist_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(darkmist_state, screen_update_darkmist)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(darkmist)
-	MCFG_PALETTE_LENGTH(0x100*4)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", darkmist)
+	MCFG_PALETTE_ADD("palette", 0x100*4)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256+1)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
+	MCFG_PALETTE_INIT_OWNER(darkmist_state, darkmist)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -311,7 +316,7 @@ ROM_END
 
 void darkmist_state::decrypt_gfx()
 {
-	UINT8 *buf = auto_alloc_array(machine(), UINT8, 0x40000);
+	dynamic_buffer buf(0x40000);
 	UINT8 *rom;
 	int size;
 	int i;
@@ -383,8 +388,6 @@ void darkmist_state::decrypt_gfx()
 	{
 		rom[i] = buf[BITSWAP24(i, 23,22,21,20,19,18,17,16,15,14, 12,11,10,9,8, 5,4,3, 13, 7,6, 1,0, 2)];
 	}
-
-	auto_free(machine(), buf);
 }
 
 void darkmist_state::decrypt_snd()
@@ -401,7 +404,7 @@ DRIVER_INIT_MEMBER(darkmist_state,darkmist)
 	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int i, len;
 	UINT8 *ROM = memregion("maincpu")->base();
-	UINT8 *buffer = auto_alloc_array(machine(), UINT8, 0x10000);
+	dynamic_buffer buffer(0x10000);
 	UINT8 *decrypt = auto_alloc_array(machine(), UINT8, 0x8000);
 
 	decrypt_gfx();
@@ -468,8 +471,6 @@ DRIVER_INIT_MEMBER(darkmist_state,darkmist)
 	{
 		ROM[i]=buffer[BITSWAP24(i,23,22,21,20,19,18,17,16,15,14 ,5,4,3,2,11,10,9,8,13,12,1,0,7,6)];
 	}
-
-	auto_free(machine(), buffer);
 }
 
 GAME( 1986, darkmist, 0, darkmist, darkmist, darkmist_state, darkmist, ROT270, "Taito Corporation", "The Lost Castle In Darkmist", GAME_IMPERFECT_GRAPHICS|GAME_NO_COCKTAIL )

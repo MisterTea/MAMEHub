@@ -22,6 +22,7 @@
 #define LOG_CUSTOM  0
 #define LOG_CIA     0
 #define LOG_BLITS   0
+#define LOG_SERIAL  1
 
 
 
@@ -133,34 +134,18 @@ const char *const amiga_custom_names[0x100] =
 
 /*************************************
  *
- *  Prototypes
- *
- *************************************/
-
-static void custom_reset(running_machine &machine);
-static void autoconfig_reset(running_machine &machine);
-
-
-
-
-
-
-/*************************************
- *
  *  Chipmem 16/32 bit access
  *
  *************************************/
 
 static UINT16 amiga_chip_ram16_r(amiga_state *state, offs_t offset)
 {
-	offset &= state->m_intf->chip_ram_mask;
+	// logerror("chip ram read %08x\n", offset);
 	return (offset < state->m_chip_ram.bytes()) ? state->m_chip_ram[offset/2] : 0xffff;
 }
 
 static UINT16 amiga_chip_ram32_r(amiga_state *state, offs_t offset)
 {
-	offset &= state->m_intf->chip_ram_mask;
-
 	if (offset < state->m_chip_ram.bytes())
 	{
 		UINT32 *amiga_chip_ram32 = reinterpret_cast<UINT32 *>(state->m_chip_ram.target());
@@ -177,16 +162,12 @@ static UINT16 amiga_chip_ram32_r(amiga_state *state, offs_t offset)
 
 static void amiga_chip_ram16_w(amiga_state *state, offs_t offset, UINT16 data)
 {
-	offset &= state->m_intf->chip_ram_mask;
-
 	if (offset < state->m_chip_ram.bytes())
 		state->m_chip_ram[offset/2] = data;
 }
 
 static void amiga_chip_ram32_w(amiga_state *state, offs_t offset, UINT16 data)
 {
-	offset &= state->m_intf->chip_ram_mask;
-
 	if (offset < state->m_chip_ram.bytes())
 	{
 		UINT32 *amiga_chip_ram32 = reinterpret_cast<UINT32 *>(state->m_chip_ram.target());
@@ -226,80 +207,77 @@ void amiga_chip_ram_w8(amiga_state *state, offs_t offset, UINT8 data)
 	(*state->m_chip_ram_w)(state, offset, dat);
 }
 
+
+
 /*************************************
  *
- *  Machine config/reset
+ *  Machine reset
  *
  *************************************/
 
-void amiga_machine_config(running_machine &machine, const amiga_machine_interface *intf)
+void amiga_state::machine_start()
 {
-	amiga_state *state = machine.driver_data<amiga_state>();
-	state->m_intf = intf;
+	// add callback for RESET instruction
+	m_maincpu->set_reset_callback(write_line_delegate(FUNC(amiga_state::m68k_reset), this));
 
-	/* setup chipmem handlers */
-	if ( IS_32BIT(intf) )
+	switch (m_maincpu->space(AS_PROGRAM).data_width())
 	{
-		state->m_chip_ram_r = amiga_chip_ram32_r;
-		state->m_chip_ram_w = amiga_chip_ram32_w;
+	case 16:
+		m_chip_ram_r = amiga_chip_ram16_r;
+		m_chip_ram_w = amiga_chip_ram16_w;
+		break;
+	case 32:
+		m_chip_ram_r = amiga_chip_ram32_r;
+		m_chip_ram_w = amiga_chip_ram32_w;
+		break;
+	default:
+		fatalerror("Invalid data bus width\n");
 	}
-	else
-	{
-		state->m_chip_ram_r = amiga_chip_ram16_r;
-		state->m_chip_ram_w = amiga_chip_ram16_w;
-	}
 
-	/* setup the timers */
-	state->m_irq_timer = state->timer_alloc(amiga_state::TIMER_AMIGA_IRQ);
-	state->m_blitter_timer = state->timer_alloc(amiga_state::TIMER_AMIGA_BLITTER);
+	m_chip_ram_mask = m_chip_ram.mask() & ~1;
+	m_chip_ram_mirror = ~m_chip_ram.mask() & 0x1fffff;
 
-}
+	// setup the timers
+	m_irq_timer = timer_alloc(TIMER_AMIGA_IRQ);
+	m_blitter_timer = timer_alloc(TIMER_AMIGA_BLITTER);
+	m_serial_timer = timer_alloc(TIMER_SERIAL);
 
-
-static void amiga_m68k_reset(device_t *device)
-{
-	amiga_state *state = device->machine().driver_data<amiga_state>();
-	address_space &space = device->memory().space(AS_PROGRAM);
-
-	logerror("Executed RESET at PC=%06x\n", space.device().safe_pc());
-
-	/* Initialize the various chips */
-	state->m_cia_0->reset();
-	state->m_cia_1->reset();
-	custom_reset(device->machine());
-	autoconfig_reset(device->machine());
-
-	/* set the overlay bit */
-	if ( IS_AGA(state->m_intf) )
-	{
-		space.write_byte( 0xbfa001, 1 );
-	}
-	else
-	{
-		state->amiga_cia_w(space, 0x1001/2, 1, 0xffff);
-	}
-}
-
-MACHINE_START_MEMBER(amiga_state,amiga)
-{
-	m_maincpu_program_space = &m_maincpu->space(AS_PROGRAM);
-}
-
-MACHINE_RESET_MEMBER(amiga_state,amiga)
-{
-	/* set m68k reset  function */
-	m68k_set_reset_callback(m_maincpu, amiga_m68k_reset);
-
-	amiga_m68k_reset(m_maincpu);
-
-	/* call the system-specific callback */
-	if (m_intf->reset_callback)
-		(*m_intf->reset_callback)(machine());
-
-	/* start the scanline timer */
+	// start the scanline timer
 	timer_set(m_screen->time_until_pos(0), TIMER_SCANLINE);
 }
 
+WRITE_LINE_MEMBER( amiga_state::m68k_reset )
+{
+	logerror("%s: Executed RESET\n", space().machine().describe_context());
+	machine_reset();
+}
+
+void amiga_state::machine_reset()
+{
+	// reset cia chips
+	m_cia_0->reset();
+	m_cia_1->reset();
+
+	// reset custom chip registers
+	custom_chip_reset();
+
+	// map kickstart rom to location 0
+	// this either done by reseting the cia chips
+	// or directly by gayle where available
+	m_gayle_reset = true;
+	m_overlay->set_bank(1);
+}
+
+// simple mirror of region 0xf80000 to 0xfbffff
+READ16_MEMBER( amiga_state::rom_mirror_r )
+{
+	return m_maincpu->space(AS_PROGRAM).read_word(offset + 0xf80000, mem_mask);
+}
+
+READ32_MEMBER( amiga_state::rom_mirror32_r )
+{
+	return m_maincpu->space(AS_PROGRAM).read_dword(offset + 0xf80000, mem_mask);
+}
 
 void amiga_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
@@ -314,11 +292,12 @@ void amiga_state::device_timer(emu_timer &timer, device_timer_id id, int param, 
 	case TIMER_AMIGA_BLITTER:
 		amiga_blitter_proc(ptr, param);
 		break;
-	case TIMER_FINISH_SERIAL_WRITE:
-		finish_serial_write(ptr, param);
+	case TIMER_SERIAL:
+		serial_shift();
 		break;
 	default:
-		assert_always(FALSE, "Unknown id in amiga_state::device_timer");
+		fatalerror("Invalid timer: %d\n", id);
+		break;
 	}
 }
 
@@ -329,46 +308,66 @@ void amiga_state::device_timer(emu_timer &timer, device_timer_id id, int param, 
  *
  *************************************/
 
-TIMER_CALLBACK_MEMBER(amiga_state::scanline_callback)
+void amiga_state::vblank()
 {
+}
+
+// todo: cia a clock can be connected to either a fixed 50/60hz signal from the power supply, or the vblank
+TIMER_CALLBACK_MEMBER( amiga_state::scanline_callback )
+{
+	amiga_state *state = this;
 	int scanline = param;
 
-	/* on the first scanline, we do some extra bookkeeping */
+	// vblank start
 	if (scanline == 0)
 	{
-		/* signal VBLANK IRQ */
-		amiga_custom_w(m_maincpu->space(AS_PROGRAM), REG_INTREQ, 0x8000 | INTENA_VERTB, 0xffff);
+		// signal vblank irq
+		set_interrupt(INTENA_SETCLR | INTENA_VERTB);
 
-		/* clock the first CIA TOD */
-		mos6526_tod_w(m_cia_0, 1);
+		// clock tod
+		m_cia_0->tod_w(1);
 
-		/* call the system-specific callback */
-		if (m_intf->scanline0_callback != NULL)
-			(*m_intf->scanline0_callback)(machine());
+		// additional bookkeeping by drivers
+		vblank();
 	}
 
-	/* on every scanline, clock the second CIA TOD */
-	mos6526_tod_w(m_cia_0, 1);
+	// vblank end
+	if (scanline == m_screen->visible_area().min_y)
+	{
+		m_cia_0->tod_w(0);
+	}
 
-	/* render up to this scanline */
+	// pot counters (start counting at 7 (ntsc) or 8 (pal))
+	if (BIT(CUSTOM_REG(REG_POTGO), 0) && (scanline /2 ) > 7)
+	{
+		m_pot0x += !(m_potgo_port->read() & 0x0100);
+		m_pot0y += !(m_potgo_port->read() & 0x0400);
+		m_pot1x += !(m_potgo_port->read() & 0x1000);
+		m_pot1y += !(m_potgo_port->read() & 0x4000);
+	}
+
+	// render up to this scanline
 	if (!m_screen->update_partial(scanline))
 	{
-		if (IS_AGA(m_intf))
+		if (IS_AGA(this))
 		{
 			bitmap_rgb32 dummy_bitmap;
-			amiga_aga_render_scanline(machine(), dummy_bitmap, scanline);
+			aga_render_scanline(dummy_bitmap, scanline);
 		}
 		else
 		{
 			bitmap_ind16 dummy_bitmap;
-			amiga_render_scanline(machine(), dummy_bitmap, scanline);
+			render_scanline(dummy_bitmap, scanline);
 		}
 	}
 
-	/* force a sound update */
+	// clock tod (if we actually render this scanline)
+	m_cia_1->tod_w((scanline & 1) ^ BIT(CUSTOM_REG(REG_VPOSR), 15));
+
+	// force a sound update
 	m_sound->update();
 
-	/* set timer for next line */
+	// set timer for next line
 	scanline = (scanline + 1) % m_screen->height();
 	timer_set(m_screen->time_until_pos(scanline), TIMER_SCANLINE, scanline);
 }
@@ -381,64 +380,87 @@ TIMER_CALLBACK_MEMBER(amiga_state::scanline_callback)
  *
  *************************************/
 
-static void update_irqs(running_machine &machine)
+void amiga_state::set_interrupt(int interrupt)
 {
-	amiga_state *state = machine.driver_data<amiga_state>();
+	custom_chip_w(m_maincpu->space(AS_PROGRAM), REG_INTREQ, interrupt, 0xffff);
+}
+
+void amiga_state::update_int2()
+{
+	set_interrupt((m_cia_0_irq ? INTENA_SETCLR : 0x0000) | INTENA_PORTS);
+}
+
+void amiga_state::update_int6()
+{
+	set_interrupt((m_cia_1_irq ? INTENA_SETCLR : 0x0000) | INTENA_EXTER);
+}
+
+void amiga_state::update_irqs()
+{
+	amiga_state *state = this;
 	int ints = CUSTOM_REG(REG_INTENA) & CUSTOM_REG(REG_INTREQ);
 
-	/* Master interrupt switch */
-	if (CUSTOM_REG(REG_INTENA) & 0x4000)
+	// master interrupt switch
+	if (CUSTOM_REG(REG_INTENA) & INTENA_INTEN)
 	{
-		/* Serial transmit buffer empty, disk block finished, software interrupts */
-		state->m_maincpu->set_input_line(1, ints & 0x0007 ? ASSERT_LINE : CLEAR_LINE);
-
-		/* I/O ports and timer interrupts */
-		state->m_maincpu->set_input_line(2, ints & 0x0008 ? ASSERT_LINE : CLEAR_LINE);
-
-		/* Copper, VBLANK, blitter interrupts */
-		state->m_maincpu->set_input_line(3, ints & 0x0070 ? ASSERT_LINE : CLEAR_LINE);
-
-		/* Audio interrupts */
-		state->m_maincpu->set_input_line(4, ints & 0x0780 ? ASSERT_LINE : CLEAR_LINE);
-
-		/* Serial receive buffer full, disk sync match */
-		state->m_maincpu->set_input_line(5, ints & 0x1800 ? ASSERT_LINE : CLEAR_LINE);
-
-		/* External interrupts */
-		state->m_maincpu->set_input_line(6, ints & 0x2000 ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(1, ints & (INTENA_TBE | INTENA_DSKBLK | INTENA_SOFT) ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(2, ints & (INTENA_PORTS) ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(3, ints & (INTENA_COPER | INTENA_VERTB | INTENA_BLIT) ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(4, ints & (INTENA_AUD0 | INTENA_AUD1 | INTENA_AUD2 | INTENA_AUD3) ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(5, ints & (INTENA_RBF | INTENA_DSKSYN) ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(6, ints & (INTENA_EXTER) ? ASSERT_LINE : CLEAR_LINE);
 	}
 	else
 	{
-		state->m_maincpu->set_input_line(1, CLEAR_LINE);
-		state->m_maincpu->set_input_line(2, CLEAR_LINE);
-		state->m_maincpu->set_input_line(3, CLEAR_LINE);
-		state->m_maincpu->set_input_line(4, CLEAR_LINE);
-		state->m_maincpu->set_input_line(5, CLEAR_LINE);
-		state->m_maincpu->set_input_line(6, CLEAR_LINE);
+		m_maincpu->set_input_line(1, CLEAR_LINE);
+		m_maincpu->set_input_line(2, CLEAR_LINE);
+		m_maincpu->set_input_line(3, CLEAR_LINE);
+		m_maincpu->set_input_line(4, CLEAR_LINE);
+		m_maincpu->set_input_line(5, CLEAR_LINE);
+		m_maincpu->set_input_line(6, CLEAR_LINE);
 	}
 }
 
-
-TIMER_CALLBACK_MEMBER(amiga_state::amiga_irq_proc)
+TIMER_CALLBACK_MEMBER( amiga_state::amiga_irq_proc )
 {
-	update_irqs(machine());
-	m_irq_timer->reset( );
+	update_irqs();
+	m_irq_timer->reset();
 }
 
 
+//**************************************************************************
+//  INPUTS
+//**************************************************************************
 
-/*************************************
- *
- *  Standard joystick conversion
- *
- *************************************/
+UINT16 amiga_state::joy0dat_r()
+{
+	if (m_input_device == NULL)
+		return m_joy0dat_port->read_safe(0xffff);
+
+	if (m_input_device->read_safe(0xff) & 0x10)
+		return m_joy0dat_port->read_safe(0xffff);
+	else
+		return (m_p1_mouse_y->read_safe(0xff) << 8) | m_p1_mouse_x->read_safe(0xff);
+}
+
+UINT16 amiga_state::joy1dat_r()
+{
+	if (m_input_device == NULL)
+		return m_joy1dat_port->read_safe(0xffff);
+
+	if (m_input_device->read_safe(0xff) & 0x20)
+		return m_joy1dat_port->read_safe(0xffff);
+	else
+		return (m_p2_mouse_y->read_safe(0xff) << 8) | m_p2_mouse_x->read_safe(0xff);
+}
 
 CUSTOM_INPUT_MEMBER( amiga_state::amiga_joystick_convert )
 {
-	ioport_port* ports[2] = { m_p1joy_port, m_p2joy_port };
-	UINT8 bits;
-	if (ports[(int)(FPTR)param]) bits = ports[(int)(FPTR)param]->read();
-	else bits = 0xff;
+	ioport_port *ports[2] = { m_p1joy_port, m_p2joy_port };
+	UINT8 bits = 0xff;
+
+	if (ports[(int)(FPTR)param])
+		bits = ports[(int)(FPTR)param]->read();
 
 	int up = (bits >> 0) & 1;
 	int down = (bits >> 1) & 1;
@@ -482,6 +504,7 @@ static UINT32 blit_ascending(amiga_state *state)
 			/* fetch data for A */
 			if (CUSTOM_REG(REG_BLTCON0) & 0x0800)
 			{
+				//CUSTOM_REG(REG_BLTADAT) = state->m_maincpu->space(AS_PROGRAM).read_word(CUSTOM_REG_LONG(REG_BLTAPTH));
 				CUSTOM_REG(REG_BLTADAT) = (*state->m_chip_ram_r)(state, CUSTOM_REG_LONG(REG_BLTAPTH));
 				CUSTOM_REG_LONG(REG_BLTAPTH) += 2;
 			}
@@ -912,7 +935,7 @@ static UINT32 blit_line(amiga_state *state)
  *
  *************************************/
 
-TIMER_CALLBACK_MEMBER(amiga_state::amiga_blitter_proc)
+TIMER_CALLBACK_MEMBER( amiga_state::amiga_blitter_proc )
 {
 	amiga_state *state = machine().driver_data<amiga_state>();
 	UINT32 blitsum = 0;
@@ -959,11 +982,11 @@ TIMER_CALLBACK_MEMBER(amiga_state::amiga_blitter_proc)
 	/* no longer busy */
 	CUSTOM_REG(REG_DMACON) &= ~0x4000;
 
-	/* signal an interrupt */
-	amiga_custom_w(m_maincpu->space(AS_PROGRAM), REG_INTREQ, 0x8000 | INTENA_BLIT, 0xffff);
+	// signal an interrupt
+	set_interrupt(0x8000 | INTENA_BLIT);
 
 	/* reset the blitter timer */
-	m_blitter_timer->reset( );
+	m_blitter_timer->reset();
 }
 
 
@@ -1021,7 +1044,7 @@ static void blitter_setup(address_space &space)
 	}
 
 	/* AGA has twice the bus bandwidth, so blits take half the time */
-	if ( IS_AGA(state->m_intf) )
+	if (IS_AGA(state))
 		blittime /= 2;
 
 	/* signal blitter busy */
@@ -1032,151 +1055,166 @@ static void blitter_setup(address_space &space)
 }
 
 
+//**************************************************************************
+//  CENTRONICS
+//**************************************************************************
 
-/*************************************
- *
- *  8520 CIA read handler
- *
- *************************************/
-
-READ16_MEMBER( amiga_state::amiga_cia_r )
+WRITE_LINE_MEMBER( amiga_state::centronics_ack_w )
 {
-	amiga_state *state = space.machine().driver_data<amiga_state>();
-	UINT8 data;
-	int shift;
-	device_t *cia;
+	m_cia_0->flag_w(state);
+}
 
-	/* offsets 0000-07ff reference CIA B, and are accessed via the MSB */
-	if ((offset & 0x0800) == 0)
-	{
-		cia = state->m_cia_1;
-		shift = 8;
-	}
+WRITE_LINE_MEMBER( amiga_state::centronics_busy_w )
+{
+	m_centronics_busy = state;
+	m_cia_1->sp_w(state);
+}
 
-	/* offsets 0800-0fff reference CIA A, and are accessed via the LSB */
-	else
-	{
-		cia = state->m_cia_0;
-		shift = 0;
-	}
+WRITE_LINE_MEMBER( amiga_state::centronics_perror_w )
+{
+	m_centronics_perror = state;
+	m_cia_1->cnt_w(state);
+}
 
-	/* handle the reads */
-	data = mos6526_r(cia, space, offset >> 7);
+WRITE_LINE_MEMBER( amiga_state::centronics_select_w )
+{
+	m_centronics_select = state;
+}
+
+
+//**************************************************************************
+//  8520 CIA
+//**************************************************************************
+
+// CIA-A access: 101x xxxx xxx0 oooo xxxx xxx1
+// CIA-B access: 101x xxxx xx0x oooo xxxx xxx0
+
+READ16_MEMBER( amiga_state::cia_r )
+{
+	UINT16 data = 0;
+
+	if ((offset & 0x1000/2) == 0 && ACCESSING_BITS_0_7)
+		data |= m_cia_0->read(space, offset >> 7);
+
+	if ((offset & 0x2000/2) == 0 && ACCESSING_BITS_8_15)
+		data |= m_cia_1->read(space, offset >> 7) << 8;
 
 	if (LOG_CIA)
-		logerror("%06x:cia_%c_read(%03x) = %04x & %04x\n", space.device().safe_pc(), 'A' + ((~offset & 0x0800) >> 11), offset * 2, data << shift, mem_mask);
+		logerror("%s: cia_r(%06x) = %04x & %04x\n", space.machine().describe_context(), offset, data, mem_mask);
 
-	return data << shift;
+	return data;
 }
 
-
-
-/*************************************
- *
- *  8520 CIA write handler
- *
- *************************************/
-
-WRITE16_MEMBER( amiga_state::amiga_cia_w )
+WRITE16_MEMBER( amiga_state::cia_w )
 {
-	amiga_state *state = space.machine().driver_data<amiga_state>();
-	device_t *cia;
-
 	if (LOG_CIA)
-		logerror("%06x:cia_%c_write(%03x) = %04x & %04x\n", space.device().safe_pc(), 'A' + ((~offset & 0x0800) >> 11), offset * 2, data, mem_mask);
+		logerror("%s: cia_w(%06x) = %04x & %04x\n", space.machine().describe_context(), offset, data, mem_mask);
 
-	/* offsets 0000-07ff reference CIA B, and are accessed via the MSB */
-	if ((offset & 0x0800) == 0)
+	if ((offset & 0x1000/2) == 0 && ACCESSING_BITS_0_7)
+		m_cia_0->write(space, offset >> 7, data & 0xff);
+
+	if ((offset & 0x2000/2) == 0 && ACCESSING_BITS_8_15)
+		m_cia_1->write(space, offset >> 7, data >> 8);
+}
+
+WRITE16_MEMBER( amiga_state::gayle_cia_w )
+{
+	// the first write to cia 0 after a reset switches in chip ram
+	if (m_gayle_reset && (offset & 0x1000/2) == 0 && ACCESSING_BITS_0_7)
 	{
-		if (!ACCESSING_BITS_8_15)
-			return;
-		cia = state->m_cia_1;
-		data >>= 8;
+		m_gayle_reset = false;
+		m_overlay->set_bank(0);
 	}
 
-	/* offsets 0800-0fff reference CIA A, and are accessed via the LSB */
-	else
+	// hand down to the standard cia handler
+	cia_w(space, offset, data, mem_mask);
+}
+
+CUSTOM_INPUT_MEMBER( amiga_state::floppy_drive_status )
+{
+	return m_fdc->ciaapra_r();
+}
+
+WRITE8_MEMBER( amiga_state::cia_0_port_a_write )
+{
+	// bit 0, kickstart overlay
+	m_overlay->set_bank(BIT(data, 0));
+
+	// bit 1, power led
+	set_led_status(space.machine(), 0, !BIT(data, 1));
+	output_set_value("power_led", !BIT(data, 1));
+}
+
+WRITE_LINE_MEMBER( amiga_state::cia_0_irq )
+{
+	if (LOG_CIA)
+		logerror("%s: cia_0_irq: %d\n", machine().describe_context(), state);
+
+	m_cia_0_irq = state;
+	update_int2();
+}
+
+READ8_MEMBER( amiga_state::cia_1_port_a_read )
+{
+	UINT8 data = 0;
+
+	// bit 0 to 2, centronics
+	data |= m_centronics_busy << 0;
+	data |= m_centronics_perror << 1;
+	data |= m_centronics_select << 2;
+
+	// bit 2 to 7, serial line
+	data |= m_rs232_ri << 2;
+	data |= m_rs232_dsr << 3;
+	data |= m_rs232_cts << 4;
+	data |= m_rs232_dcd << 5;
+
+	return data;
+}
+
+WRITE8_MEMBER( amiga_state::cia_1_port_a_write )
+{
+	if (m_rs232)
 	{
-		if (!ACCESSING_BITS_0_7)
-			return;
-		cia = state->m_cia_0;
-		data &= 0xff;
+		m_rs232->write_rts(BIT(data, 6));
+		m_rs232->write_dtr(BIT(data, 7));
 	}
+}
 
-	/* handle the writes */
-	mos6526_w(cia, space, offset >> 7, (UINT8) data);
+WRITE_LINE_MEMBER( amiga_state::cia_1_irq )
+{
+	if (LOG_CIA)
+		logerror("%s: cia_1_irq: %d\n", machine().describe_context(), state);
+
+	m_cia_1_irq = state;
+	update_int6();
 }
 
 
+//**************************************************************************
+//  CUSTOM CHIPS
+//**************************************************************************
 
-/*************************************
- *
- *  CIA interrupt callbacks
- *
- *************************************/
-
-WRITE_LINE_MEMBER(amiga_state::amiga_cia_0_irq)
+void amiga_state::custom_chip_reset()
 {
-	amiga_custom_w(m_maincpu->space(AS_PROGRAM), REG_INTREQ, (state ? 0x8000 : 0x0000) | INTENA_PORTS, 0xffff);
-}
+	amiga_state *state = this;
 
-
-WRITE_LINE_MEMBER(amiga_state::amiga_cia_1_irq)
-{
-	amiga_custom_w(m_maincpu->space(AS_PROGRAM), REG_INTREQ, (state ? 0x8000 : 0x0000) | INTENA_EXTER, 0xffff);
-}
-
-
-
-/*************************************
- *
- *  Custom chip reset
- *
- *************************************/
-
-static void custom_reset(running_machine &machine)
-{
-	amiga_state *state = machine.driver_data<amiga_state>();
-	int clock = state->m_maincpu->unscaled_clock();
-	UINT16  vidmode = (clock == AMIGA_68000_NTSC_CLOCK || clock == AMIGA_68EC020_NTSC_CLOCK ) ? 0x1000 : 0x0000; /* NTSC or PAL? */
-
+	CUSTOM_REG(REG_DENISEID) = m_denise_id;
+	CUSTOM_REG(REG_VPOSR) = m_agnus_id << 8;
 	CUSTOM_REG(REG_DDFSTRT) = 0x18;
 	CUSTOM_REG(REG_DDFSTOP) = 0xd8;
 	CUSTOM_REG(REG_INTENA) = 0x0000;
-	CUSTOM_REG(REG_VPOSR) = vidmode;
-	CUSTOM_REG(REG_SERDATR) = 0x3000;
-
-	switch (state->m_intf->chip_ram_mask)
-	{
-		case ANGUS_CHIP_RAM_MASK:
-		case FAT_ANGUS_CHIP_RAM_MASK:
-			CUSTOM_REG(REG_DENISEID) = 0x00FF;
-			break;
-
-		case ECS_CHIP_RAM_MASK:
-			CUSTOM_REG(REG_VPOSR) |= 0x2000;
-			CUSTOM_REG(REG_DENISEID) = 0x00FC;
-			if (IS_AGA(state->m_intf))
-			{
-				CUSTOM_REG(REG_VPOSR) |= 0x0300;
-				CUSTOM_REG(REG_DENISEID) = 0x00F8;
-			}
-			break;
-	}
+	CUSTOM_REG(REG_SERDATR) = SERDATR_RXD | SERDATR_TSRE | SERDATR_TBE;
+	CUSTOM_REG(REG_BEAMCON0) = (m_agnus_id & 0x10) ? 0x0000 : 0x0020;
 }
 
-
-
-/*************************************
- *
- *  Custom chip register read
- *
- *************************************/
-
-READ16_MEMBER( amiga_state::amiga_custom_r )
+READ16_MEMBER( amiga_state::custom_chip_r )
 {
-	amiga_state *state = space.machine().driver_data<amiga_state>();
+	amiga_state *state = this;
 	UINT16 temp;
+
+	if (LOG_CUSTOM)
+		logerror("%06X:read from custom %s\n", space.device().safe_pc(), amiga_custom_names[offset & 0xff]);
 
 	switch (offset & 0xff)
 	{
@@ -1187,10 +1225,8 @@ READ16_MEMBER( amiga_state::amiga_custom_r )
 			return CUSTOM_REG(REG_DMACON);
 
 		case REG_VPOSR:
-			CUSTOM_REG(REG_VPOSR) &= 0x7f00;
+			CUSTOM_REG(REG_VPOSR) &= 0xff00;
 			CUSTOM_REG(REG_VPOSR) |= amiga_gethvpos(*m_screen) >> 16;
-			if(CUSTOM_REG(REG_BPLCON0) & BPLCON0_LACE && m_screen->frame_number() & 0x1)
-				CUSTOM_REG(REG_VPOSR) |= 0x8000; // LOF bit
 
 			return CUSTOM_REG(REG_VPOSR);
 
@@ -1198,35 +1234,52 @@ READ16_MEMBER( amiga_state::amiga_custom_r )
 			return amiga_gethvpos(*m_screen) & 0xffff;
 
 		case REG_SERDATR:
-			CUSTOM_REG(REG_SERDATR) &= ~0x4000;
-			CUSTOM_REG(REG_SERDATR) |= (CUSTOM_REG(REG_INTREQ) & INTENA_RBF) ? 0x4000 : 0x0000;
+			if (LOG_SERIAL)
+				logerror("r SERDATR: %04x\n", CUSTOM_REG(REG_SERDATR));
+
 			return CUSTOM_REG(REG_SERDATR);
 
 		case REG_JOY0DAT:
-			if (state->m_intf->joy0dat_r != NULL)
-				return (*state->m_intf->joy0dat_r)(space.machine());
-
-			if (state->m_joy0dat_port) return state->m_joy0dat_port->read();
-			else return 0xffff;
+			return joy0dat_r();
 
 		case REG_JOY1DAT:
-			if (state->m_intf->joy1dat_r != NULL)
-				return (*state->m_intf->joy1dat_r)(space.machine());
-
-			if (state->m_joy1dat_port) return state->m_joy1dat_port->read();
-			else return 0xffff;
+			return joy1dat_r();
 
 		case REG_POTGOR:
-			if (state->m_potgo_port) return state->m_potgo_port->read();
-			else return 0x5500;
+			if (state->m_potgo_port)
+				return state->m_potgo_port->read();
+			else
+				return 0x5500;
 
 		case REG_POT0DAT:
-			if (state->m_pot0dat_port) return state->m_pot0dat_port->read();
-			else return 0x0000;
+			if (state->m_pot0dat_port)
+			{
+				return state->m_pot0dat_port->read();
+			}
+			else
+			{
+				int scale = m_agnus_id & 0x10 ? 525 : 625;
+
+				m_pot0dat  = (int) ((double) m_pot0x / scale) * 0xff;
+				m_pot0dat |= (int)(((double) m_pot0y / scale) * 0xff) << 8;
+
+				return m_pot0dat;
+			}
 
 		case REG_POT1DAT:
-			if (state->m_pot1dat_port) return state->m_pot1dat_port->read();
-			else return 0x0000;
+			if (state->m_pot1dat_port)
+			{
+				return state->m_pot1dat_port->read();
+			}
+			else
+			{
+				int scale = m_agnus_id & 0x10 ? 525 : 625;
+
+				m_pot1dat  = (int) ((double) m_pot1x / scale) * 0xff;
+				m_pot1dat |= (int)(((double) m_pot1y / scale) * 0xff) << 8;
+
+				return m_pot1dat;
+			}
 
 		case REG_DSKBYTR:
 			return state->m_fdc->dskbytr_r();
@@ -1267,33 +1320,10 @@ READ16_MEMBER( amiga_state::amiga_custom_r )
 			break;
 	}
 
-	if (LOG_CUSTOM)
-		logerror("%06X:read from custom %s\n", space.device().safe_pc(), amiga_custom_names[offset & 0xff]);
-
 	return 0xffff;
 }
 
-
-
-/*************************************
- *
- *  Custom chip register write
- *
- *************************************/
-
-TIMER_CALLBACK_MEMBER(amiga_state::finish_serial_write)
-{
-	amiga_state *state = machine().driver_data<amiga_state>();
-
-	/* mark the transfer buffer empty */
-	CUSTOM_REG(REG_SERDATR) |= 0x3000;
-
-	/* signal an interrupt */
-	amiga_custom_w(state->m_maincpu->space(AS_PROGRAM), REG_INTREQ, 0x8000 | INTENA_TBE, 0xffff);
-}
-
-
-WRITE16_MEMBER( amiga_state::amiga_custom_w )
+WRITE16_MEMBER( amiga_state::custom_chip_w )
 {
 	amiga_state *state = space.machine().driver_data<amiga_state>();
 	UINT16 temp;
@@ -1308,7 +1338,8 @@ WRITE16_MEMBER( amiga_state::amiga_custom_w )
 		case REG_DSKDATR:   case REG_JOY0DAT:   case REG_JOY1DAT:   case REG_CLXDAT:
 		case REG_ADKCONR:   case REG_POT0DAT:   case REG_POT1DAT:   case REG_POTGOR:
 		case REG_SERDATR:   case REG_DSKBYTR:   case REG_INTENAR:   case REG_INTREQR:
-			/* read-only registers */
+			// read-only registers
+			return;
 			break;
 
 		case REG_DSKDAT:
@@ -1332,16 +1363,51 @@ WRITE16_MEMBER( amiga_state::amiga_custom_w )
 			break;
 
 		case REG_POTGO:
-			if (state->m_intf->potgo_w != NULL)
-				(*state->m_intf->potgo_w)(space.machine(), data);
+			if (BIT(data, 0))
+			{
+				// start counters
+				m_pot0x = 0;
+				m_pot0y = 0;
+				m_pot1x = 0;
+				m_pot1y = 0;
+			}
+			potgo_w(data);
 			break;
 
 		case REG_SERDAT:
-			if (state->m_intf->serdat_w != NULL)
-				(*state->m_intf->serdat_w)(space.machine(), data);
-			CUSTOM_REG(REG_SERDATR) &= ~0x3000;
-			timer_set(amiga_get_serial_char_period(space.machine()), TIMER_FINISH_SERIAL_WRITE);
-			break;
+			if (LOG_SERIAL)
+				logerror("w SERDAT: %04x\n", data);
+
+			CUSTOM_REG(REG_SERDAT) = data;
+
+			// transmit shift register currently empty?
+			if (CUSTOM_REG(REG_SERDATR) & SERDATR_TSRE)
+			{
+				// transfer new data to shift register
+				m_tx_shift = CUSTOM_REG(REG_SERDAT);
+				CUSTOM_REG(REG_SERDAT) = 0;
+
+				// and signal transmit buffer empty
+				CUSTOM_REG(REG_SERDATR) &= ~SERDATR_TSRE;
+				CUSTOM_REG(REG_SERDATR) |= SERDATR_TBE;
+				set_interrupt(INTENA_SETCLR | INTENA_TBE);
+			}
+			else
+			{
+				// transmit buffer now full
+				CUSTOM_REG(REG_SERDATR) &= ~SERDATR_TBE;
+			}
+
+			return;
+
+		case REG_SERPER:
+			if (LOG_SERIAL)
+				logerror("w SERPER: %04x\n", data);
+
+			CUSTOM_REG(REG_SERPER) = data;
+			serial_adjust();
+
+			return;
 
 		case REG_BLTSIZE:
 			CUSTOM_REG(REG_BLTSIZE) = data;
@@ -1352,16 +1418,16 @@ WRITE16_MEMBER( amiga_state::amiga_custom_w )
 			blitter_setup(space);
 			break;
 
-		case REG_BLTSIZV:   /* ECS-AGA only */
-			if ( IS_ECS_OR_AGA(state->m_intf) )
+		case REG_BLTSIZV:
+			if (IS_ECS(state) || IS_AGA(state))
 			{
 				CUSTOM_REG(REG_BLTSIZV) = data & 0x7fff;
 				if ( CUSTOM_REG(REG_BLTSIZV) == 0 ) CUSTOM_REG(REG_BLTSIZV) = 0x8000;
 			}
 			break;
 
-		case REG_BLTSIZH:   /* ECS-AGA only */
-			if ( IS_ECS_OR_AGA(state->m_intf) )
+		case REG_BLTSIZH:
+			if (IS_ECS(state) || IS_AGA(state))
 			{
 				CUSTOM_REG(REG_BLTSIZH) = data & 0x7ff;
 				if ( CUSTOM_REG(REG_BLTSIZH) == 0 ) CUSTOM_REG(REG_BLTSIZH) = 0x800;
@@ -1369,8 +1435,8 @@ WRITE16_MEMBER( amiga_state::amiga_custom_w )
 			}
 			break;
 
-		case REG_BLTCON0L:  /* ECS-AGA only */
-			if ( IS_ECS_OR_AGA(state->m_intf) )
+		case REG_BLTCON0L:
+			if (IS_ECS(state) || IS_AGA(state))
 			{
 				CUSTOM_REG(REG_BLTCON0) &= 0xff00;
 				CUSTOM_REG(REG_BLTCON0) |= data & 0xff;
@@ -1379,7 +1445,7 @@ WRITE16_MEMBER( amiga_state::amiga_custom_w )
 
 		case REG_SPR0PTH:   case REG_SPR1PTH:   case REG_SPR2PTH:   case REG_SPR3PTH:
 		case REG_SPR4PTH:   case REG_SPR5PTH:   case REG_SPR6PTH:   case REG_SPR7PTH:
-			data &= ( state->m_intf->chip_ram_mask >> 16 );
+			data &= ( state->m_chip_ram_mask >> 16 );
 			break;
 
 		case REG_SPR0PTL:   case REG_SPR1PTL:   case REG_SPR2PTL:   case REG_SPR3PTL:
@@ -1400,7 +1466,7 @@ WRITE16_MEMBER( amiga_state::amiga_custom_w )
 			break;
 
 		case REG_COP1LCH:   case REG_COP2LCH:
-			data &= ( state->m_intf->chip_ram_mask >> 16 );
+			data &= ( state->m_chip_ram_mask >> 16 );
 			break;
 
 		case REG_COPJMP1:
@@ -1435,37 +1501,47 @@ WRITE16_MEMBER( amiga_state::amiga_custom_w )
 
 			/* if 'blitter-nasty' has been turned on and we have a blit pending, reschedule it */
 			if ( ( data & 0x400 ) && ( CUSTOM_REG(REG_DMACON) & 0x4000 ) )
-				state->m_blitter_timer->adjust( downcast<cpu_device *>(&space.device())->cycles_to_attotime( BLITTER_NASTY_DELAY ));
+				m_blitter_timer->adjust(m_maincpu->cycles_to_attotime(BLITTER_NASTY_DELAY));
 
 			break;
 
 		case REG_INTENA:
 			temp = data;
 
-			data = (data & 0x8000) ? (CUSTOM_REG(offset) | (data & 0x7fff)) : (CUSTOM_REG(offset) & ~(data & 0x7fff));
+			data = (data & INTENA_SETCLR) ? (CUSTOM_REG(offset) | (data & 0x7fff)) : (CUSTOM_REG(offset) & ~(data & 0x7fff));
 			CUSTOM_REG(offset) = data;
 
-			if ( temp & 0x8000  ) /* if we're enabling irq's, delay a bit */
-				state->m_irq_timer->adjust( downcast<cpu_device *>(&space.device())->cycles_to_attotime( AMIGA_IRQ_DELAY_CYCLES ));
-			else /* if we're disabling irq's, process right away */
-				update_irqs(space.machine());
+			if (temp & INTENA_SETCLR)
+				// if we're enabling irq's, delay a bit
+				m_irq_timer->adjust(m_maincpu->cycles_to_attotime(AMIGA_IRQ_DELAY_CYCLES));
+			else
+				// if we're disabling irq's, process right away
+				update_irqs();
 			break;
 
 		case REG_INTREQ:
 			temp = data;
-			/* Update serial data line status if appropiate */
-			if (!(data & 0x8000) && (data & INTENA_RBF))
-				CUSTOM_REG(REG_SERDATR) &= ~0x8000;
 
-			data = (data & 0x8000) ? (CUSTOM_REG(offset) | (data & 0x7fff)) : (CUSTOM_REG(offset) & ~(data & 0x7fff));
-			if ( mos6526_irq_r( state->m_cia_0 ) ) data |= INTENA_PORTS;
-			if ( mos6526_irq_r( state->m_cia_1 ) ) data |= INTENA_EXTER;
+			// clear receive buffer full?
+			if (!(data & INTENA_SETCLR) && (data & INTENA_RBF))
+			{
+				CUSTOM_REG(REG_SERDATR) &= ~SERDATR_OVRUN;
+				CUSTOM_REG(REG_SERDATR) &= ~SERDATR_RBF;
+			}
+
+			// clear transmit buffer empty?
+			if (!(data & INTENA_SETCLR) && (data & INTENA_TBE))
+				CUSTOM_REG(REG_SERDATR) |= SERDATR_TBE;
+
+			data = (data & INTENA_SETCLR) ? (CUSTOM_REG(offset) | (data & 0x7fff)) : (CUSTOM_REG(offset) & ~(data & 0x7fff));
 			CUSTOM_REG(offset) = data;
 
-			if ( temp & 0x8000  ) /* if we're generating irq's, delay a bit */
-				state->m_irq_timer->adjust( state->m_maincpu->cycles_to_attotime( AMIGA_IRQ_DELAY_CYCLES ));
-			else /* if we're clearing irq's, process right away */
-				update_irqs(space.machine());
+			if (temp & INTENA_SETCLR)
+				// if we're generating irq's, delay a bit
+				m_irq_timer->adjust(m_maincpu->cycles_to_attotime(AMIGA_IRQ_DELAY_CYCLES));
+			else
+				// if we're clearing irq's, process right away
+				update_irqs();
 			break;
 
 		case REG_ADKCON:
@@ -1487,7 +1563,7 @@ WRITE16_MEMBER( amiga_state::amiga_custom_w )
 
 		case REG_BPL1PTH:   case REG_BPL2PTH:   case REG_BPL3PTH:   case REG_BPL4PTH:
 		case REG_BPL5PTH:   case REG_BPL6PTH:
-			data &= ( state->m_intf->chip_ram_mask >> 16 );
+			data &= ( state->m_chip_ram_mask >> 16 );
 			break;
 
 		case REG_BPLCON0:
@@ -1497,6 +1573,7 @@ WRITE16_MEMBER( amiga_state::amiga_custom_w )
 				logerror( "This game is doing funky planes stuff. (planes > 6)\n" );
 				data &= ~BPLCON0_BPU0;
 			}
+			CUSTOM_REG(offset) = data;
 			break;
 
 		case REG_COLOR00:   case REG_COLOR01:   case REG_COLOR02:   case REG_COLOR03:
@@ -1507,7 +1584,7 @@ WRITE16_MEMBER( amiga_state::amiga_custom_w )
 		case REG_COLOR20:   case REG_COLOR21:   case REG_COLOR22:   case REG_COLOR23:
 		case REG_COLOR24:   case REG_COLOR25:   case REG_COLOR26:   case REG_COLOR27:
 		case REG_COLOR28:   case REG_COLOR29:   case REG_COLOR30:   case REG_COLOR31:
-			if (IS_AGA(state->m_intf))
+			if (IS_AGA(state))
 			{
 				amiga_aga_palette_write(space.machine(), offset - REG_COLOR00, data);
 			}
@@ -1517,21 +1594,36 @@ WRITE16_MEMBER( amiga_state::amiga_custom_w )
 				CUSTOM_REG(offset + 32) = (data >> 1) & 0x777;
 			}
 			break;
+
+		// display window start/stop
 		case REG_DIWSTRT:
 		case REG_DIWSTOP:
-			if (IS_AGA(state->m_intf))
-				amiga_aga_diwhigh_written(space.machine(), 0);
+			m_diwhigh_valid = false;
 			break;
+
+		// display window high
 		case REG_DIWHIGH:
-			if (IS_AGA(state->m_intf))
-				amiga_aga_diwhigh_written(space.machine(), 1);
+			if (IS_ECS(state) || IS_AGA(state))
+			{
+				m_diwhigh_valid = true;
+				CUSTOM_REG(REG_DIWHIGH) = data;
+			}
+			break;
+
+		case REG_BEAMCON0:
+			// only available on ecs agnus
+			if (m_agnus_id >= AGNUS_HR_PAL)
+			{
+				CUSTOM_REG(REG_BEAMCON0) = data;
+				update_screenmode();
+			}
 			break;
 
 		default:
 			break;
 	}
 
-	if (IS_AGA(state->m_intf))
+	if (IS_AGA(state))
 		CUSTOM_REG(offset) = data;
 	else
 		if (offset <= REG_COLOR31)
@@ -1539,298 +1631,165 @@ WRITE16_MEMBER( amiga_state::amiga_custom_w )
 }
 
 
+//**************************************************************************
+//  SERIAL
+//**************************************************************************
 
-/*************************************
- *
- *  Serial writes
- *
- *************************************/
-
-void amiga_serial_in_w(running_machine &machine, UINT16 data)
+void amiga_state::serial_adjust()
 {
-	amiga_state *state = machine.driver_data<amiga_state>();
-	address_space &space = state->m_maincpu->space(AS_PROGRAM);
-	int mask = (CUSTOM_REG(REG_SERPER) & 0x8000) ? 0x1ff : 0xff;
+	amiga_state *state = this;
 
-	/* copy the data to the low 8 bits of SERDATR and set RBF */
-	CUSTOM_REG(REG_SERDATR) &= ~0x3ff;
-	CUSTOM_REG(REG_SERDATR) |= (data & mask) | (mask + 1) | 0x4000;
-
-	/* set overrun if we weren't cleared */
-	if (CUSTOM_REG(REG_INTREQ) & INTENA_RBF)
-	{
-		mame_printf_debug("Serial data overflow\n");
-		CUSTOM_REG(REG_SERDATR) |= 0x8000;
-	}
-
-	/* signal an interrupt */
-	state->amiga_custom_w(space, REG_INTREQ, 0x8000 | INTENA_RBF, 0xffff);
-}
-
-
-attotime amiga_get_serial_char_period(running_machine &machine)
-{
-	amiga_state *state = machine.driver_data<amiga_state>();
 	UINT32 divisor = (CUSTOM_REG(REG_SERPER) & 0x7fff) + 1;
-	UINT32 baud = state->m_maincpu->unscaled_clock() / 2 / divisor;
-	UINT32 numbits = 2 + ((CUSTOM_REG(REG_SERPER) & 0x8000) ? 9 : 8);
-	return attotime::from_hz(baud) * numbits;
+	UINT32 baud = m_sound->clock() / divisor;
+
+	m_serial_timer->adjust(attotime::from_hz(baud) / 2, 0, attotime::from_hz(baud));
 }
 
-
-
-/*************************************
- *
- *  Autoconfig registration
- *
- *************************************/
-
-void amiga_add_autoconfig(running_machine &machine, const amiga_autoconfig_device *device)
+void amiga_state::serial_shift()
 {
-	amiga_state *state = machine.driver_data<amiga_state>();
-	autoconfig_device *dev, **d;
+	amiga_state *state = this;
 
-	/* validate the data */
-	assert_always(machine.phase() == MACHINE_PHASE_INIT, "Can only call amiga_add_autoconfig at init time!");
-	assert_always((device->size & (device->size - 1)) == 0, "device->size must be power of 2!");
-
-	/* allocate memory and link it in at the end of the list */
-	dev = auto_alloc(machine, autoconfig_device);
-	dev->next = NULL;
-	for (d = &state->m_autoconfig_list; *d; d = &(*d)->next) ;
-	*d = dev;
-
-	/* fill in the data */
-	dev->device = *device;
-	dev->base = 0;
-}
-
-
-
-/*************************************
- *
- *  Autoconfig reset
- *
- *************************************/
-
-static void autoconfig_reset(running_machine &machine)
-{
-	amiga_state *state = machine.driver_data<amiga_state>();
-	autoconfig_device *dev;
-
-	/* uninstall any installed devices */
-	for (dev = state->m_autoconfig_list; dev; dev = dev->next)
-		if (dev->base && dev->device.uninstall)
+	if (CUSTOM_REG(REG_ADKCON) & ADKCON_UARTBRK)
+	{
+		// break active, force low
+		rs232_tx(0);
+	}
+	else
+	{
+		// transmit shift register not empty?
+		if ((CUSTOM_REG(REG_SERDATR) & SERDATR_TSRE) == 0)
 		{
-			(*dev->device.uninstall)(machine, dev->base);
-			dev->base = 0;
-		}
-
-	/* reset the current autoconfig */
-	state->m_cur_autoconfig = state->m_autoconfig_list;
-}
-
-
-
-/*************************************
- *
- *  Autoconfig space read
- *
- *************************************/
-
-READ16_MEMBER( amiga_state::amiga_autoconfig_r )
-{
-	amiga_state *state = space.machine().driver_data<amiga_state>();
-	autoconfig_device *cur_autoconfig = state->m_cur_autoconfig;
-	UINT8 byte;
-	int i;
-
-	/* if nothing present, just return */
-	if (!cur_autoconfig)
-	{
-		logerror("autoconfig_r(%02X) but no device selected\n", offset);
-		return 0;
-	}
-
-	/* switch off of the base offset */
-	switch (offset/2)
-	{
-		/*
-		   00/02        1  1  x  x     x  0  0  0 = 8 Megabytes
-		                      ^  ^     ^  0  0  1 = 64 Kbytes
-		                      |  |     |  0  1  0 = 128 Kbytes
-		                      |  |     |  0  1  1 = 256 Kbytes
-		                      |  |     |  1  0  0 = 1 Megabyte
-		                      |  |     |  1  1  0 = 2 Megabytes
-		                      |  |     |  1  1  1 = 4 Megabytes
-		                      |  |     |
-		                      |  |     `-- 1 = multiple devices on this card
-		                      |  `-------- 1 = ROM vector offset is valid
-		                      `----------- 1 = link into free memory list
-		*/
-		case 0x00/4:
-			byte = 0xc0;
-			if (cur_autoconfig->device.link_memory)
-				byte |= 0x20;
-			if (cur_autoconfig->device.rom_vector_valid)
-				byte |= 0x10;
-			if (cur_autoconfig->device.multi_device)
-				byte |= 0x08;
-			for (i = 0; i < 8; i++)
-				if (cur_autoconfig->device.size & (1 << i))
-					break;
-			byte |= (i + 1) & 7;
-			break;
-
-		/*
-		   04/06          product number (all bits inverted)
-		*/
-		case 0x04/4:
-			byte = ~cur_autoconfig->device.product_number;
-			break;
-
-		/*
-		   08/0a        x  x  1  1     1  1  1  1
-		                ^  ^
-		                |  |
-		                |  `-- 1 = this board can be shut up
-		                `----- 0 = prefer 8 Meg address space
-		*/
-		case 0x08/4:
-			byte = 0x3f;
-			if (!cur_autoconfig->device.prefer_8meg)
-				byte |= 0x80;
-			if (cur_autoconfig->device.can_shutup)
-				byte |= 0x40;
-			break;
-
-		/*
-		   10/12         manufacturers number (high byte, all inverted)
-		   14/16                  ''          (low byte, all inverted)
-		*/
-		case 0x10/4:
-			byte = ~cur_autoconfig->device.mfr_number >> 8;
-			break;
-
-		case 0x14/4:
-			byte = ~cur_autoconfig->device.mfr_number >> 0;
-			break;
-
-		/*
-		   18/1a         optional serial number (all bits inverted) byte0
-		   1c/1e                              ''                    byte1
-		   20/22                              ''                    byte2
-		   24/26                              ''                    byte3
-		*/
-		case 0x18/4:
-			byte = ~cur_autoconfig->device.serial_number >> 24;
-			break;
-
-		case 0x1c/4:
-			byte = ~cur_autoconfig->device.serial_number >> 16;
-			break;
-
-		case 0x20/4:
-			byte = ~cur_autoconfig->device.serial_number >> 8;
-			break;
-
-		case 0x24/4:
-			byte = ~cur_autoconfig->device.serial_number >> 0;
-			break;
-
-		/*
-		   28/2a         optional ROM vector offset (all bits inverted) high byte
-		   2c/2e                              ''                        low byte
-		*/
-		case 0x28/4:
-			byte = ~cur_autoconfig->device.rom_vector >> 8;
-			break;
-
-		case 0x2c/4:
-			byte = ~cur_autoconfig->device.rom_vector >> 0;
-			break;
-
-		/*
-		   40/42   optional interrupt control and status register
-		*/
-		case 0x40/4:
-			byte = 0x00;
-			if (cur_autoconfig->device.int_control_r)
-				byte = (*cur_autoconfig->device.int_control_r)(space.machine());
-			break;
-
-		default:
-			byte = 0xff;
-			break;
-	}
-
-	/* return the appropriate nibble */
-	logerror("autoconfig_r(%02X) = %04X\n", offset, (offset & 1) ? ((byte << 12) | 0xfff) : ((byte << 8) | 0xfff));
-	return (offset & 1) ? ((byte << 12) | 0xfff) : ((byte << 8) | 0xfff);
-}
-
-
-
-/*************************************
- *
- *  Autoconfig space write
- *
- *************************************/
-
-WRITE16_MEMBER( amiga_state::amiga_autoconfig_w )
-{
-	amiga_state *state = space.machine().driver_data<amiga_state>();
-	autoconfig_device *cur_autoconfig = state->m_cur_autoconfig;
-	int move_to_next = FALSE;
-
-	logerror("autoconfig_w(%02X) = %04X & %04X\n", offset, data, mem_mask);
-
-	/* if no current device, bail */
-	if (!cur_autoconfig || !ACCESSING_BITS_8_15)
-		return;
-
-	/* switch off of the base offset */
-	switch (offset/2)
-	{
-		/*
-		   48/4a        write-only register for base address (A23-A16)
-		*/
-		case 0x48/4:
-			if ((offset & 1) == 0)
-				cur_autoconfig->base = (cur_autoconfig->base & ~0xf00000) | ((data & 0xf000) << 8);
+			if (m_tx_state == 0)
+			{
+				// transmit start bit
+				rs232_tx(0);
+				m_tx_state++;
+			}
+			else if (m_tx_state <= 8 + BIT(CUSTOM_REG(REG_SERPER), 15))
+			{
+				// send data bits
+				rs232_tx(m_tx_shift & 1);
+				m_tx_shift >>= 1;
+				m_tx_state++;
+			}
 			else
-				cur_autoconfig->base = (cur_autoconfig->base & ~0x0f0000) | ((data & 0xf000) << 4);
-			move_to_next = TRUE;
-			break;
+			{
+				// send stop bits until we run out
+				if (m_tx_shift & 1)
+				{
+					rs232_tx(m_tx_shift & 1);
+					m_tx_shift >>= 1;
+				}
+				else
+				{
+					// more data?
+					if (CUSTOM_REG(REG_SERDAT))
+					{
+						// transfer to shift register
+						m_tx_shift = CUSTOM_REG(REG_SERDAT);
+						CUSTOM_REG(REG_SERDAT) = 0;
 
-		/*
-		   4c/4e        optional write-only 'shutup' trigger
-		*/
-		case 0x4c/4:
-			cur_autoconfig->base = 0;
-			move_to_next = TRUE;
-			break;
+						// signal buffer empty
+						CUSTOM_REG(REG_SERDATR) |= SERDATR_TBE;
+						set_interrupt(INTENA_SETCLR | INTENA_TBE);
+					}
+					else
+					{
+						// we're done
+						CUSTOM_REG(REG_SERDATR) |= SERDATR_TSRE;
+					}
+
+					m_tx_state = 0;
+				}
+			}
+		}
+		else
+		{
+			// transmit register empty
+			rs232_tx(1);
+		}
 	}
 
-	/* install and move to the next device if requested */
-	if (move_to_next && (offset & 1) == 0)
+	// waiting for start bit?
+	if (m_rx_state == 0)
 	{
-		logerror("Install to %06X\n", cur_autoconfig->base);
-		if (cur_autoconfig->base && cur_autoconfig->device.install)
-			(*cur_autoconfig->device.install)(space.machine(), cur_autoconfig->base);
-		state->m_cur_autoconfig = cur_autoconfig->next;
+		// start bit seen (high to low transition)
+		if (m_rx_previous && (CUSTOM_REG(REG_SERDATR) & SERDATR_RXD) == 0)
+		{
+			m_rx_state++;
+		}
+	}
+	else if (m_rx_state <= 8 + BIT(CUSTOM_REG(REG_SERPER), 15))
+	{
+		// receive data
+		m_rx_shift >>= 1;
+		m_rx_shift = (m_rx_shift & 0x7fff) | (BIT(CUSTOM_REG(REG_SERDATR), 11) << 15);
+		m_rx_state++;
+	}
+	else
+	{
+		// stop bit
+		m_rx_shift >>= 1;
+		m_rx_shift = (m_rx_shift & 0x7fff) | (BIT(CUSTOM_REG(REG_SERDATR), 11) << 15);
+
+		// shift to start
+		m_rx_shift >>= (15 - (8 + BIT(CUSTOM_REG(REG_SERPER), 15)));
+
+		// save data
+		CUSTOM_REG(REG_SERDATR) &= ~0x3ff;
+		CUSTOM_REG(REG_SERDATR) |= m_rx_shift & 0x3ff;
+
+		// overrun?
+		if (CUSTOM_REG(REG_SERDATR) & SERDATR_RBF)
+			CUSTOM_REG(REG_SERDATR) |= SERDATR_OVRUN;
+
+		// set ready and signal interrupt
+		CUSTOM_REG(REG_SERDATR) |= SERDATR_RBF;
+		set_interrupt(INTENA_SETCLR | INTENA_RBF);
+
+		m_rx_shift = 0;
+		m_rx_state = 0;
 	}
 }
 
-
-
-/*************************************
- *
- *  Get interface
- *
- *************************************/
-
-const amiga_machine_interface *amiga_get_interface(running_machine &machine)
+void amiga_state::rs232_tx(int state)
 {
-	return machine.driver_data<amiga_state>()->m_intf;
+	if (m_rs232)
+		m_rs232->write_txd(state);
+}
+
+void amiga_state::rx_write(amiga_state *state, int level)
+{
+	m_rx_previous = BIT(CUSTOM_REG(REG_SERDATR), 11);
+	CUSTOM_REG(REG_SERDATR) &= ~SERDATR_RXD;
+	CUSTOM_REG(REG_SERDATR) |= level << 11;
+}
+
+WRITE_LINE_MEMBER( amiga_state::rs232_rx_w )
+{
+	rx_write(this, state);
+
+	// start bit received?
+	if (m_rx_state == 1)
+		serial_adjust();
+}
+
+WRITE_LINE_MEMBER( amiga_state::rs232_dcd_w )
+{
+	m_rs232_dcd = state;
+}
+
+WRITE_LINE_MEMBER( amiga_state::rs232_dsr_w )
+{
+	m_rs232_dsr = state;
+}
+
+WRITE_LINE_MEMBER( amiga_state::rs232_ri_w )
+{
+	m_rs232_ri = state;
+}
+
+WRITE_LINE_MEMBER( amiga_state::rs232_cts_w )
+{
+	m_rs232_cts = state;
 }

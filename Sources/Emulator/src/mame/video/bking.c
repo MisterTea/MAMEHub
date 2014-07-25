@@ -28,7 +28,7 @@
 
 ***************************************************************************/
 
-void bking_state::palette_init()
+PALETTE_INIT_MEMBER(bking_state, bking)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances_rg[3] = { 220, 390, 820 };
@@ -42,7 +42,7 @@ void bking_state::palette_init()
 			3, &resistances_rg[0], gweights, 0, 0,
 			2, &resistances_b[0],  bweights, 0, 0);
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		UINT16 pen;
 		int bit0, bit1, bit2, r, g, b;
@@ -78,7 +78,7 @@ void bking_state::palette_init()
 		bit1 = (color_prom[pen] >> 7) & 0x01;
 		b = combine_2_weights(gweights, bit0, bit1);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -124,9 +124,7 @@ WRITE8_MEMBER(bking_state::bking_cont1_w)
 
 	coin_lockout_global_w(machine(), ~data & 0x01);
 
-	flip_screen_set_no_update(data & 0x04);
-
-	machine().tilemap().set_flip_all(flip_screen() ? TILEMAP_FLIPX | TILEMAP_FLIPY : 0);
+	flip_screen_set(data & 0x04);
 
 	m_controller = data & 0x02;
 
@@ -220,7 +218,7 @@ TILE_GET_INFO_MEMBER(bking_state::get_tile_info)
 
 void bking_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bking_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bking_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_screen->register_screen_bitmap(m_colmap_bg);
 	m_screen->register_screen_bitmap(m_colmap_ball);
 }
@@ -231,20 +229,20 @@ UINT32 bking_state::screen_update_bking(screen_device &screen, bitmap_ind16 &bit
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* draw the balls */
-	drawgfx_transpen(bitmap, cliprect, machine().gfx[2],
+	m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 		m_ball1_pic,
 		m_palette_bank,
 		0, 0,
 		m_xld1, m_yld1, 0);
 
-	drawgfx_transpen(bitmap, cliprect, machine().gfx[3],
+	m_gfxdecode->gfx(3)->transpen(bitmap,cliprect,
 		m_ball2_pic,
 		m_palette_bank,
 		0, 0,
 		m_xld2, m_yld2, 0);
 
 	/* draw the crow */
-	drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+	m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 		m_crow_pic,
 		m_palette_bank,
 		m_crow_flip, m_crow_flip,
@@ -271,7 +269,7 @@ void bking_state::screen_eof_bking(screen_device &screen, bool state)
 			xld = m_xld1;
 			yld = m_yld1;
 
-			drawgfx_opaque(m_colmap_ball, rect, machine().gfx[2], m_ball1_pic, 0, 0, 0, 0, 0);
+			m_gfxdecode->gfx(2)->opaque(m_colmap_ball,rect, m_ball1_pic, 0, 0, 0, 0, 0);
 
 			latch = 0x0c00;
 		}
@@ -280,7 +278,7 @@ void bking_state::screen_eof_bking(screen_device &screen, bool state)
 			xld = m_xld2;
 			yld = m_yld2;
 
-			drawgfx_opaque(m_colmap_ball, rect, machine().gfx[3], m_ball2_pic, 0, 0, 0, 0, 0);
+			m_gfxdecode->gfx(3)->opaque(m_colmap_ball,rect, m_ball2_pic, 0, 0, 0, 0, 0);
 
 			latch = 0x0400;
 		}

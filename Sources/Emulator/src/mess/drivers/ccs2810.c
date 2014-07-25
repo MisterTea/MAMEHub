@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
 CCS Model 2810
@@ -64,17 +66,19 @@ ToDo:
 #include "machine/terminal.h"
 #include "machine/wd_fdc.h"
 
+#define TERMINAL_TAG "terminal"
 
 class ccs_state : public driver_device
 {
 public:
 	ccs_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_maincpu(*this, "maincpu")
-		, m_terminal(*this, TERMINAL_TAG)
-		, m_fdc (*this, "fdc")
-		, m_floppy0(*this, "fdc:0")
-	{ }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG),
+		m_fdc (*this, "fdc"),
+		m_floppy0(*this, "fdc:0")
+	{
+	}
 
 	DECLARE_DRIVER_INIT(ccs2810);
 	DECLARE_DRIVER_INIT(ccs2422);
@@ -92,8 +96,6 @@ public:
 private:
 	UINT8 m_term_data;
 	UINT8 m_26_count;
-	bool m_drq;
-	bool m_intrq;
 	bool m_ss;
 	bool m_dden;
 	bool m_dsize;
@@ -172,11 +174,6 @@ WRITE8_MEMBER( ccs_state::kbd_put )
 	m_term_data = data;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(ccs_state, kbd_put)
-};
-
 #if 0
 static const ins8250_interface com_intf =
 {
@@ -209,7 +206,7 @@ d7 : drq
 READ8_MEMBER( ccs_state::port34_r )
 {
 	//return (UINT8)m_drq | (m_ds << 1) | ((UINT8)fdc->hld_r() << 5) | 0x40 | ((UINT8)m_intrq << 7);
-	return (UINT8)m_drq | (m_ds << 1) | 0x20 | 0x40 | ((UINT8)m_intrq << 7); // hld_r doesn't do anything
+	return (UINT8)m_fdc->drq_r() | (m_ds << 1) | 0x20 | 0x40 | ((UINT8)m_fdc->intrq_r() << 7); // hld_r doesn't do anything
 }
 
 /* Status 2
@@ -235,7 +232,7 @@ READ8_MEMBER( ccs_state::port04_r )
 		dside = m_floppy->twosid_r();
 	}
 	return (UINT8)trk00 | 0 | ((UINT8)wprt << 2) | ((UINT8)m_ss << 3) |
-		idx << 4 | ((UINT8)m_dden << 5) | ((UINT8)dside << 6) | ((UINT8)m_drq << 7);
+		idx << 4 | ((UINT8)m_dden << 5) | ((UINT8)dside << 6) | ((UINT8)m_fdc->drq_r() << 7);
 }
 
 /* Control 1
@@ -311,9 +308,6 @@ DRIVER_INIT_MEMBER( ccs_state, ccs2810 )
 
 DRIVER_INIT_MEMBER( ccs_state, ccs2422 )
 {
-	m_fdc->setup_intrq_cb(mb8877_t::line_cb(FUNC(ccs_state::fdc_intrq_w), this));
-	m_fdc->setup_drq_cb(mb8877_t::line_cb(FUNC(ccs_state::fdc_drq_w), this));
-
 	UINT8 *main = memregion("maincpu")->base();
 
 	membank("bankr0")->configure_entry(1, &main[0x0000]);
@@ -326,15 +320,6 @@ DRIVER_INIT_MEMBER( ccs_state, ccs2422 )
 //  Disk
 //
 //*************************************
-void ccs_state::fdc_intrq_w(bool state)
-{
-	m_intrq = state;
-}
-
-void ccs_state::fdc_drq_w(bool state)
-{
-	m_drq = state;
-}
 
 static SLOT_INTERFACE_START( ccs_floppies )
 	SLOT_INTERFACE( "8sssd", FLOPPY_8_SSSD )
@@ -350,7 +335,8 @@ static MACHINE_CONFIG_START( ccs2810, ccs_state )
 	MCFG_MACHINE_RESET_OVERRIDE(ccs_state, ccs)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(ccs_state, kbd_put))
 
 	/* Devices */
 	//MCFG_INS8250_ADD( "ins8250", com_intf, XTAL_1_8432MHz )
@@ -364,7 +350,8 @@ static MACHINE_CONFIG_START( ccs2422, ccs_state )
 	MCFG_MACHINE_RESET_OVERRIDE(ccs_state, ccs)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(ccs_state, kbd_put))
 
 	/* Devices */
 	MCFG_MB8877x_ADD("fdc", XTAL_16MHz / 8) // UB1793 or MB8877

@@ -56,20 +56,68 @@ memory map:
 
 #include "emu.h"
 #include "k051960.h"
-#include "konami_helper.h"
 
 #define VERBOSE 0
 #define LOG(x) do { if (VERBOSE) logerror x; } while (0)
 
 const device_type K051960 = &device_creator<k051960_device>;
 
+const gfx_layout k051960_device::spritelayout =
+{
+	16,16,
+	RGN_FRAC(1,1),
+	4,
+	{ 0, 8, 16, 24 },
+	{ 0, 1, 2, 3, 4, 5, 6, 7,
+		8*32+0, 8*32+1, 8*32+2, 8*32+3, 8*32+4, 8*32+5, 8*32+6, 8*32+7 },
+	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32,
+		16*32, 17*32, 18*32, 19*32, 20*32, 21*32, 22*32, 23*32 },
+	128*8
+};
+
+const gfx_layout k051960_device::spritelayout_reverse =
+{
+	16,16,
+	RGN_FRAC(1,1),
+	4,
+	{ 24, 16, 8, 0 },
+	{ 0, 1, 2, 3, 4, 5, 6, 7,
+		8*32+0, 8*32+1, 8*32+2, 8*32+3, 8*32+4, 8*32+5, 8*32+6, 8*32+7 },
+	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32,
+		16*32, 17*32, 18*32, 19*32, 20*32, 21*32, 22*32, 23*32 },
+	128*8
+};
+
+const gfx_layout k051960_device::spritelayout_gradius3 =
+{
+	16,16,
+	RGN_FRAC(1,1),
+	4,
+	{ 0, 1, 2, 3 },
+	{ 2*4, 3*4, 0*4, 1*4, 6*4, 7*4, 4*4, 5*4,
+		32*8+2*4, 32*8+3*4, 32*8+0*4, 32*8+1*4, 32*8+6*4, 32*8+7*4, 32*8+4*4, 32*8+5*4 },
+	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32,
+		64*8+0*32, 64*8+1*32, 64*8+2*32, 64*8+3*32, 64*8+4*32, 64*8+5*32, 64*8+6*32, 64*8+7*32 },
+	128*8
+};
+
+GFXDECODE_MEMBER( k051960_device::gfxinfo )
+	GFXDECODE_DEVICE(DEVICE_SELF, 0, spritelayout, 0, 1)
+GFXDECODE_END
+
+GFXDECODE_MEMBER( k051960_device::gfxinfo_reverse )
+	GFXDECODE_DEVICE(DEVICE_SELF, 0, spritelayout_reverse, 0, 1)
+GFXDECODE_END
+
+GFXDECODE_MEMBER( k051960_device::gfxinfo_gradius3 )
+	GFXDECODE_DEVICE(DEVICE_SELF, 0, spritelayout_gradius3, 0, 1)
+GFXDECODE_END
+
+
 k051960_device::k051960_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, K051960, "Konami 051960", tag, owner, clock, "k051960", __FILE__),
+	: device_t(mconfig, K051960, "K051960 Sprite Generator", tag, owner, clock, "k051960", __FILE__),
+	device_gfx_interface(mconfig, *this, gfxinfo),
 	m_ram(NULL),
-	m_gfx(NULL),
-	//m_spriterombank[3],
-	m_dx(0),
-	m_dy(0),
 	m_romoffset(0),
 	m_spriteflip(0),
 	m_readroms(0),
@@ -79,27 +127,26 @@ k051960_device::k051960_device(const machine_config &mconfig, const char *tag, d
 {
 }
 
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void k051960_device::device_config_complete()
+void k051960_device::set_plane_order(device_t &device, int order)
 {
-	// inherit a copy of the static data
-	const k051960_interface *intf = reinterpret_cast<const k051960_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<k051960_interface *>(this) = *intf;
+	k051960_device &dev = downcast<k051960_device &>(device);
 
-	// or initialize to defaults if none provided
-	else
+	switch (order)
 	{
-		m_gfx_memory_region = "";
-		m_gfx_num = 0;
-		m_plane_order = 0;
-		m_deinterleave = 0;
-		m_callback = NULL;
+		case K051960_PLANEORDER_BASE:
+			device_gfx_interface::static_set_info(dev, gfxinfo);
+			break;
+
+		case K051960_PLANEORDER_MIA:
+			device_gfx_interface::static_set_info(dev, gfxinfo_reverse);
+			break;
+
+		case K051960_PLANEORDER_GRADIUS3:
+			device_gfx_interface::static_set_info(dev, gfxinfo_gradius3);
+			break;
+
+		default:
+			fatalerror("Unknown plane_order\n");
 	}
 }
 
@@ -109,74 +156,19 @@ void k051960_device::device_config_complete()
 
 void k051960_device::device_start()
 {
-	UINT32 total;
-	static const gfx_layout spritelayout =
-	{
-		16,16,
-		0,
-		4,
-		{ 0, 8, 16, 24 },
-		{ 0, 1, 2, 3, 4, 5, 6, 7,
-				8*32+0, 8*32+1, 8*32+2, 8*32+3, 8*32+4, 8*32+5, 8*32+6, 8*32+7 },
-		{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32,
-				16*32, 17*32, 18*32, 19*32, 20*32, 21*32, 22*32, 23*32 },
-		128*8
-	};
-	static const gfx_layout spritelayout_reverse =
-	{
-		16,16,
-		0,
-		4,
-		{ 24, 16, 8, 0 },
-		{ 0, 1, 2, 3, 4, 5, 6, 7,
-				8*32+0, 8*32+1, 8*32+2, 8*32+3, 8*32+4, 8*32+5, 8*32+6, 8*32+7 },
-		{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32,
-				16*32, 17*32, 18*32, 19*32, 20*32, 21*32, 22*32, 23*32 },
-		128*8
-	};
-	static const gfx_layout spritelayout_gradius3 =
-	{
-		16,16,
-		0,
-		4,
-		{ 0, 1, 2, 3 },
-		{ 2*4, 3*4, 0*4, 1*4, 6*4, 7*4, 4*4, 5*4,
-			32*8+2*4, 32*8+3*4, 32*8+0*4, 32*8+1*4, 32*8+6*4, 32*8+7*4, 32*8+4*4, 32*8+5*4 },
-		{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32,
-			64*8+0*32, 64*8+1*32, 64*8+2*32, 64*8+3*32, 64*8+4*32, 64*8+5*32, 64*8+6*32, 64*8+7*32 },
-		128*8
-	};
+	m_sprite_rom = region()->base();
+	m_sprite_size = region()->bytes();
 
-	/* decode the graphics */
-	switch (m_plane_order)
-	{
-	case NORMAL_PLANE_ORDER:
-		total = machine().root_device().memregion(m_gfx_memory_region)->bytes() / 128;
-		konami_decode_gfx(machine(), m_gfx_num, machine().root_device().memregion(m_gfx_memory_region)->base(), total, &spritelayout, 4);
-		break;
+	decode_gfx();
+	gfx(0)->set_colors(palette()->entries() / gfx(0)->depth());
 
-	case REVERSE_PLANE_ORDER:
-		total = machine().root_device().memregion(m_gfx_memory_region)->bytes() / 128;
-		konami_decode_gfx(machine(), m_gfx_num, machine().root_device().memregion(m_gfx_memory_region)->base(), total, &spritelayout_reverse, 4);
-		break;
-
-	case GRADIUS3_PLANE_ORDER:
-		total = 0x4000;
-		konami_decode_gfx(machine(), m_gfx_num, machine().root_device().memregion(m_gfx_memory_region)->base(), total, &spritelayout_gradius3, 4);
-		break;
-
-	default:
-		fatalerror("Unknown plane_order\n");
-	}
-
-	if (VERBOSE && !(machine().config().m_video_attributes & VIDEO_HAS_SHADOWS))
+	if (VERBOSE && !(palette()->shadows_enabled()))
 		popmessage("driver should use VIDEO_HAS_SHADOWS");
 
-	/* deinterleave the graphics, if needed */
-	konami_deinterleave_gfx(machine(), m_gfx_memory_region, m_deinterleave);
-
-	m_gfx = machine().gfx[m_gfx_num];
 	m_ram = auto_alloc_array_clear(machine(), UINT8, 0x400);
+
+	// bind callbacks
+	m_k051960_cb.bind_relative_to(*owner());
 
 	save_item(NAME(m_romoffset));
 	save_item(NAME(m_spriteflip));
@@ -185,8 +177,6 @@ void k051960_device::device_start()
 	save_pointer(NAME(m_ram), 0x400);
 	save_item(NAME(m_irq_enabled));
 	save_item(NAME(m_nmi_enabled));
-	save_item(NAME(m_dx));
-	save_item(NAME(m_dy));
 
 	save_item(NAME(m_k051937_counter));
 }
@@ -197,7 +187,6 @@ void k051960_device::device_start()
 
 void k051960_device::device_reset()
 {
-	m_dx = m_dy = 0;
 	m_k051937_counter = 0;
 
 	m_romoffset = 0;
@@ -226,14 +215,14 @@ int k051960_device::k051960_fetchromdata( int byte )
 	color = ((m_spriterombank[1] & 0xfc) >> 2) + ((m_spriterombank[2] & 0x03) << 6);
 	pri = 0;
 	shadow = color & 0x80;
-	m_callback(machine(), &code, &color, &pri, &shadow);
+	m_k051960_cb(&code, &color, &pri, &shadow);
 
 	addr = (code << 7) | (off1 << 2) | byte;
-	addr &= machine().root_device().memregion(m_gfx_memory_region)->bytes() - 1;
+	addr &= m_sprite_size - 1;
 
 //  popmessage("%s: addr %06x", machine().describe_context(), addr);
 
-	return machine().root_device().memregion(m_gfx_memory_region)->base()[addr];
+	return m_sprite_rom[addr];
 }
 
 READ8_MEMBER( k051960_device::k051960_r )
@@ -335,12 +324,6 @@ int k051960_device::k051960_is_nmi_enabled( )
 	return m_nmi_enabled;
 }
 
-void k051960_device::k051960_set_sprite_offsets( int dx, int dy )
-{
-	m_dx = dx;
-	m_dy = dy;
-}
-
 
 READ16_MEMBER( k051960_device::k051937_word_r )
 {
@@ -438,7 +421,7 @@ void k051960_device::k051960_sprites_draw( bitmap_ind16 &bitmap, const rectangle
 		color = m_ram[offs + 3] & 0xff;
 		pri = 0;
 		shadow = color & 0x80;
-		m_callback(machine(), &code, &color, &pri, &shadow);
+		m_k051960_cb(&code, &color, &pri, &shadow);
 
 		if (max_priority != -1)
 			if (pri < min_priority || pri > max_priority)
@@ -457,8 +440,6 @@ void k051960_device::k051960_sprites_draw( bitmap_ind16 &bitmap, const rectangle
 
 		ox = (256 * m_ram[offs + 6] + m_ram[offs + 7]) & 0x01ff;
 		oy = 256 - ((256 * m_ram[offs + 4] + m_ram[offs + 5]) & 0x01ff);
-		ox += m_dx;
-		oy += m_dy;
 		flipx = m_ram[offs + 6] & 0x02;
 		flipy = m_ram[offs + 4] & 0x02;
 		zoomx = (m_ram[offs + 6] & 0xfc) >> 2;
@@ -474,7 +455,7 @@ void k051960_device::k051960_sprites_draw( bitmap_ind16 &bitmap, const rectangle
 			flipy = !flipy;
 		}
 
-		drawmode_table[m_gfx->granularity() - 1] = shadow ? DRAWMODE_SHADOW : DRAWMODE_SOURCE;
+		drawmode_table[gfx(0)->granularity() - 1] = shadow ? DRAWMODE_SHADOW : DRAWMODE_SOURCE;
 
 		if (zoomx == 0x10000 && zoomy == 0x10000)
 		{
@@ -500,20 +481,18 @@ void k051960_device::k051960_sprites_draw( bitmap_ind16 &bitmap, const rectangle
 						c += yoffset[y];
 
 					if (max_priority == -1)
-						pdrawgfx_transtable(bitmap,cliprect,m_gfx,
-								c,
-								color,
+						gfx(0)->prio_transtable(bitmap,cliprect,
+								c,color,
 								flipx,flipy,
 								sx & 0x1ff,sy,
 								priority_bitmap,pri,
-								drawmode_table,machine().shadow_table);
+								drawmode_table);
 					else
-						drawgfx_transtable(bitmap,cliprect,m_gfx,
-								c,
-								color,
+						gfx(0)->transtable(bitmap,cliprect,
+								c,color,
 								flipx,flipy,
 								sx & 0x1ff,sy,
-								drawmode_table,machine().shadow_table);
+								drawmode_table);
 				}
 			}
 		}
@@ -543,22 +522,20 @@ void k051960_device::k051960_sprites_draw( bitmap_ind16 &bitmap, const rectangle
 						c += yoffset[y];
 
 					if (max_priority == -1)
-						pdrawgfxzoom_transtable(bitmap,cliprect,m_gfx,
-								c,
-								color,
+						gfx(0)->prio_zoom_transtable(bitmap,cliprect,
+								c,color,
 								flipx,flipy,
 								sx & 0x1ff,sy,
 								(zw << 16) / 16,(zh << 16) / 16,
 								priority_bitmap,pri,
-								drawmode_table,machine().shadow_table);
+								drawmode_table);
 					else
-						drawgfxzoom_transtable(bitmap,cliprect,m_gfx,
-								c,
-								color,
+						gfx(0)->zoom_transtable(bitmap,cliprect,
+								c,color,
 								flipx,flipy,
 								sx & 0x1ff,sy,
 								(zw << 16) / 16,(zh << 16) / 16,
-								drawmode_table,machine().shadow_table);
+								drawmode_table);
 				}
 			}
 		}

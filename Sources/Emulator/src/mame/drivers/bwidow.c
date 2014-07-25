@@ -226,9 +226,6 @@
 
 #include "includes/bwidow.h"
 
-#include "drivlgcy.h"
-#include "scrlegcy.h"
-
 
 
 #define IN_LEFT (1 << 0)
@@ -366,8 +363,8 @@ static ADDRESS_MAP_START( bwidow_map, AS_PROGRAM, 8, bwidow_state )
 	AM_RANGE(0x8000, 0x8000) AM_READ_PORT("IN3")
 	AM_RANGE(0x8800, 0x8800) AM_READ_PORT("IN4")
 	AM_RANGE(0x8800, 0x8800) AM_WRITE(bwidow_misc_w) /* coin counters, leds */
-	AM_RANGE(0x8840, 0x8840) AM_WRITE_LEGACY(avgdvg_go_w)
-	AM_RANGE(0x8880, 0x8880) AM_WRITE_LEGACY(avgdvg_reset_w)
+	AM_RANGE(0x8840, 0x8840) AM_DEVWRITE("avg", avg_device, go_w)
+	AM_RANGE(0x8880, 0x8880) AM_DEVWRITE("avg", avg_device, reset_w)
 	AM_RANGE(0x88c0, 0x88c0) AM_WRITE(irq_ack_w) /* interrupt acknowledge */
 	AM_RANGE(0x8900, 0x8900) AM_DEVWRITE("earom", atari_vg_earom_device, ctrl_w)
 	AM_RANGE(0x8940, 0x897f) AM_DEVWRITE("earom", atari_vg_earom_device, write)
@@ -383,9 +380,9 @@ static ADDRESS_MAP_START( spacduel_map, AS_PROGRAM, 8, bwidow_state )
 	AM_RANGE(0x0905, 0x0906) AM_WRITENOP /* ignore? */
 	AM_RANGE(0x0a00, 0x0a00) AM_DEVREAD("earom", atari_vg_earom_device, read)
 //  AM_RANGE(0x0c00, 0x0c00) AM_WRITE(coin_counter_w) /* coin out */
-	AM_RANGE(0x0c80, 0x0c80) AM_WRITE_LEGACY(avgdvg_go_w)
+	AM_RANGE(0x0c80, 0x0c80) AM_DEVWRITE("avg", avg_device, go_w)
 	AM_RANGE(0x0d00, 0x0d00) AM_WRITENOP /* watchdog clear */
-	AM_RANGE(0x0d80, 0x0d80) AM_WRITE_LEGACY(avgdvg_reset_w)
+	AM_RANGE(0x0d80, 0x0d80) AM_DEVWRITE("avg", avg_device, reset_w)
 	AM_RANGE(0x0e00, 0x0e00) AM_WRITE(irq_ack_w) /* interrupt acknowledge */
 	AM_RANGE(0x0e80, 0x0e80) AM_DEVWRITE("earom", atari_vg_earom_device, ctrl_w)
 	AM_RANGE(0x0f00, 0x0f3f) AM_DEVWRITE("earom", atari_vg_earom_device, write)
@@ -413,7 +410,7 @@ static INPUT_PORTS_START( bwidow )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME("Diagnostic Step") PORT_CODE(KEYCODE_F1)
 	/* bit 6 is the VG HALT bit. We set it to "low" */
 	/* per default (busy vector processor). */
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM(avgdvg_done_r, NULL)
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER("avg", avg_device, done_r, NULL)
 	/* bit 7 is tied to a 3kHz clock */
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, bwidow_state,clock_r, NULL)
 
@@ -492,7 +489,7 @@ static INPUT_PORTS_START( gravitar )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME("Diagnostic Step") PORT_CODE(KEYCODE_F1)
 	/* bit 6 is the VG HALT bit. We set it to "low" */
 	/* per default (busy vector processor). */
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM(avgdvg_done_r, NULL)
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER("avg", avg_device, done_r, NULL)
 	/* bit 7 is tied to a 3kHz clock */
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, bwidow_state,clock_r, NULL)
 
@@ -566,7 +563,7 @@ static INPUT_PORTS_START( lunarbat )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	/* bit 6 is the VG HALT bit. We set it to "low" */
 	/* per default (busy vector processor). */
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM(avgdvg_done_r, NULL)
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER("avg", avg_device, done_r, NULL)
 	/* bit 7 is tied to a 3kHz clock */
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, bwidow_state,clock_r, NULL)
 
@@ -600,7 +597,7 @@ static INPUT_PORTS_START( spacduel )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME("Diagnostic Step") PORT_CODE(KEYCODE_F1)
 	/* bit 6 is the VG HALT bit. We set it to "low" */
 	/* per default (busy vector processor). */
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM(avgdvg_done_r, NULL)
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER("avg", avg_device, done_r, NULL)
 	/* bit 7 is tied to a 3kHz clock */
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, bwidow_state,clock_r, NULL)
 
@@ -698,18 +695,20 @@ static MACHINE_CONFIG_START( bwidow, bwidow_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6502, MASTER_CLOCK / 8)
 	MCFG_CPU_PROGRAM_MAP(bwidow_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(bwidow_state, irq0_line_assert,  (double)MASTER_CLOCK / 4096 / 12)
+	MCFG_CPU_PERIODIC_INT_DRIVER(bwidow_state, irq0_line_assert, CLOCK_3KHZ / 12)
 
 	MCFG_ATARIVGEAROM_ADD("earom")
 
 	/* video hardware */
+	MCFG_VECTOR_ADD("vector")
 	MCFG_SCREEN_ADD("screen", VECTOR)
-	MCFG_SCREEN_REFRESH_RATE(60)
+	MCFG_SCREEN_REFRESH_RATE(CLOCK_3KHZ / 12 / 4)
 	MCFG_SCREEN_SIZE(400, 300)
 	MCFG_SCREEN_VISIBLE_AREA(0, 480, 0, 440)
-	MCFG_SCREEN_UPDATE_STATIC(vector)
+	MCFG_SCREEN_UPDATE_DEVICE("vector", vector_device, screen_update)
 
-	MCFG_VIDEO_START(avg)
+	MCFG_DEVICE_ADD("avg", AVG, 0)
+	MCFG_AVGDVG_VECTOR("vector")
 
 	/* sound hardware */
 	MCFG_FRAGMENT_ADD(bwidow_audio)
@@ -737,7 +736,6 @@ static MACHINE_CONFIG_DERIVED( lunarbat, gravitar )
 
 	/* video hardware */
 	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_REFRESH_RATE(45)
 	MCFG_SCREEN_VISIBLE_AREA(0, 500, 0, 440)
 MACHINE_CONFIG_END
 
@@ -750,7 +748,6 @@ static MACHINE_CONFIG_DERIVED( spacduel, gravitar )
 
 	/* video hardware */
 	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_REFRESH_RATE(45)
 	MCFG_SCREEN_VISIBLE_AREA(0, 540, 0, 400)
 MACHINE_CONFIG_END
 

@@ -292,9 +292,8 @@ WRITE8_MEMBER( s4_state::sol1_w )
 		if (BIT(data, 2))
 			m_samples->start(3, 3); // 1000 chime
 
-		// we don't have a 10k chime in samples yet
-		//if (BIT(data, 3))
-			//m_samples->start(1, x); // 10k chime
+		if (BIT(data, 3))
+			m_samples->start(1, 4); // 10k chime
 	}
 	else
 	{
@@ -323,22 +322,6 @@ WRITE8_MEMBER( s4_state::sol1_w )
 		m_samples->start(0, 6); // knocker
 }
 
-static const pia6821_interface pia22_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_LINE_GND,     /* line CA1 in */
-	DEVCB_LINE_GND,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(s4_state, sol0_w),      /* port A out */
-	DEVCB_DRIVER_MEMBER(s4_state, sol1_w),      /* port B out */
-	DEVCB_DRIVER_LINE_MEMBER(s4_state, pia22_ca2_w),        /* line CA2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s4_state, pia22_cb2_w),        /* line CB2 out */
-	DEVCB_CPU_INPUT_LINE("maincpu", M6800_IRQ_LINE),        /* IRQA */
-	DEVCB_CPU_INPUT_LINE("maincpu", M6800_IRQ_LINE)     /* IRQB */
-};
-
 WRITE8_MEMBER( s4_state::lamp0_w )
 {
 	m_maincpu->set_input_line(M6800_IRQ_LINE, CLEAR_LINE);
@@ -347,22 +330,6 @@ WRITE8_MEMBER( s4_state::lamp0_w )
 WRITE8_MEMBER( s4_state::lamp1_w )
 {
 }
-
-static const pia6821_interface pia24_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_LINE_GND,     /* line CA1 in */
-	DEVCB_LINE_GND,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(s4_state, lamp0_w),     /* port A out */
-	DEVCB_DRIVER_MEMBER(s4_state, lamp1_w),     /* port B out */
-	DEVCB_DRIVER_LINE_MEMBER(s4_state, pia24_ca2_w),        /* line CA2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s4_state, pia24_cb2_w),        /* line CB2 out */
-	DEVCB_CPU_INPUT_LINE("maincpu", M6800_IRQ_LINE),        /* IRQA */
-	DEVCB_CPU_INPUT_LINE("maincpu", M6800_IRQ_LINE)     /* IRQB */
-};
 
 READ_LINE_MEMBER( s4_state::pia28_ca1_r )
 {
@@ -412,22 +379,6 @@ WRITE8_MEMBER( s4_state::dig1_w )
 	m_data_ok = false;
 }
 
-static const pia6821_interface pia28_intf =
-{
-	DEVCB_DRIVER_MEMBER(s4_state, dips_r),      /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_DRIVER_LINE_MEMBER(s4_state, pia28_ca1_r),        /* line CA1 in */
-	DEVCB_DRIVER_LINE_MEMBER(s4_state, pia28_cb1_r),        /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(s4_state, dig0_w),      /* port A out */
-	DEVCB_DRIVER_MEMBER(s4_state, dig1_w),      /* port B out */
-	DEVCB_DRIVER_LINE_MEMBER(s4_state, pia28_ca2_w),        /* line CA2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s4_state, pia28_cb2_w),        /* line CB2 out */
-	DEVCB_CPU_INPUT_LINE("maincpu", M6800_IRQ_LINE),        /* IRQA */
-	DEVCB_CPU_INPUT_LINE("maincpu", M6800_IRQ_LINE)     /* IRQB */
-};
-
 READ8_MEMBER( s4_state::switch_r )
 {
 	char kbdrow[8];
@@ -439,22 +390,6 @@ WRITE8_MEMBER( s4_state::switch_w )
 {
 	m_kbdrow = data;
 }
-
-static const pia6821_interface pia30_intf =
-{
-	DEVCB_DRIVER_MEMBER(s4_state, switch_r),        /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_LINE_GND,     /* line CA1 in */
-	DEVCB_LINE_GND,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_NULL,     /* port A out */
-	DEVCB_DRIVER_MEMBER(s4_state, switch_w),        /* port B out */
-	DEVCB_DRIVER_LINE_MEMBER(s4_state, pia30_ca2_w),        /* line CA2 out */
-	DEVCB_DRIVER_LINE_MEMBER(s4_state, pia30_cb2_w),        /* line CB2 out */
-	DEVCB_CPU_INPUT_LINE("maincpu", M6800_IRQ_LINE),        /* IRQA */
-	DEVCB_CPU_INPUT_LINE("maincpu", M6800_IRQ_LINE)     /* IRQB */
-};
 
 READ_LINE_MEMBER( s4_state::pias_cb1_r )
 {
@@ -470,22 +405,6 @@ WRITE8_MEMBER( s4_state::dac_w )
 {
 	m_dac->write_unsigned8(data);
 }
-
-static const pia6821_interface pias_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_DRIVER_MEMBER(s4_state, dac_r),       /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_DRIVER_LINE_MEMBER(s4_state, pias_cb1_r),     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(s4_state, dac_w),       /* port A out */
-	DEVCB_NULL,     /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* line CB2 out */
-	DEVCB_CPU_INPUT_LINE("audiocpu", M6800_IRQ_LINE),       /* IRQA */
-	DEVCB_CPU_INPUT_LINE("audiocpu", M6800_IRQ_LINE)        /* IRQB */
-};
 
 TIMER_DEVICE_CALLBACK_MEMBER( s4_state::irq)
 {
@@ -509,10 +428,41 @@ static MACHINE_CONFIG_START( s4, s4_state )
 	MCFG_FRAGMENT_ADD( genpin_audio )
 
 	/* Devices */
-	MCFG_PIA6821_ADD("pia22", pia22_intf)
-	MCFG_PIA6821_ADD("pia24", pia24_intf)
-	MCFG_PIA6821_ADD("pia28", pia28_intf)
-	MCFG_PIA6821_ADD("pia30", pia30_intf)
+	MCFG_DEVICE_ADD("pia22", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s4_state, sol0_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s4_state, sol1_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(s4_state, pia22_ca2_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(s4_state, pia22_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(DEVWRITELINE("maincpu", m6800_cpu_device, irq_line))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("maincpu", m6800_cpu_device, irq_line))
+
+	MCFG_DEVICE_ADD("pia24", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s4_state, lamp0_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s4_state, lamp1_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(s4_state, pia24_ca2_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(s4_state, pia24_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(DEVWRITELINE("maincpu", m6800_cpu_device, irq_line))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("maincpu", m6800_cpu_device, irq_line))
+
+	MCFG_DEVICE_ADD("pia28", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(s4_state, dips_r))
+	MCFG_PIA_READCA1_HANDLER(READLINE(s4_state, pia28_ca1_r))
+	MCFG_PIA_READCB1_HANDLER(READLINE(s4_state, pia28_cb1_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s4_state, dig0_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s4_state, dig1_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(s4_state, pia28_ca2_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(s4_state, pia28_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(DEVWRITELINE("maincpu", m6800_cpu_device, irq_line))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("maincpu", m6800_cpu_device, irq_line))
+
+	MCFG_DEVICE_ADD("pia30", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(s4_state, switch_r))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(s4_state, switch_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(s4_state, pia30_ca2_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(s4_state, pia30_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(DEVWRITELINE("maincpu", m6800_cpu_device, irq_line))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("maincpu", m6800_cpu_device, irq_line))
+
 	MCFG_NVRAM_ADD_1FILL("nvram")
 MACHINE_CONFIG_END
 
@@ -524,7 +474,13 @@ static MACHINE_CONFIG_DERIVED( s4a, s4 )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-	MCFG_PIA6821_ADD("pias", pias_intf)
+
+	MCFG_DEVICE_ADD("pias", PIA6821, 0)
+	MCFG_PIA_READPB_HANDLER(READ8(s4_state, dac_r))
+	MCFG_PIA_READCB1_HANDLER(READLINE(s4_state, pias_cb1_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(s4_state, dac_w))
+	MCFG_PIA_IRQA_HANDLER(DEVWRITELINE("audiocpu", m6808_cpu_device, irq_line))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("audiocpu", m6808_cpu_device, irq_line))
 MACHINE_CONFIG_END
 
 
@@ -536,6 +492,16 @@ ROM_START(flash_l1)
 	ROM_LOAD("gamerom.716", 0x6000, 0x0800, CRC(287f12d6) SHA1(ede0c5b0ea2586d8bdf71ecadbd9cc8552bd6934))
 	ROM_LOAD("green1.716", 0x7000, 0x0800, CRC(2145f8ab) SHA1(ddf63208559a3a08d4e88327c55426b0eed27654))
 	ROM_LOAD("green2.716", 0x7800, 0x0800, CRC(1c978a4a) SHA1(1959184764643d58f1740c54bb74c2aad7d667d2))
+
+	ROM_REGION(0x10000, "audiocpu", 0)
+	ROM_LOAD("sound1.716", 0x7800, 0x0800, CRC(f4190ca3) SHA1(ee234fb5c894fca5876ee6dc7ea8e89e7e0aec9c))
+ROM_END
+
+ROM_START(flash_l2)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD("gamerom2.716", 0x6000, 0x0800, CRC(b7c2e4c7) SHA1(00ea34900af679b1b7e2698f4aa2fc9703d54cf2))
+	ROM_LOAD("yellow1.716", 0x7000, 0x0800, CRC(d251738c) SHA1(65ddbf5c36e429243331a4c5d2339df87a8a7f64))
+	ROM_LOAD("yellow2.716", 0x7800, 0x0800, CRC(5049326d) SHA1(3b2f4ea054962bf4ba41d46663b7d3d9a77590ef))
 
 	ROM_REGION(0x10000, "audiocpu", 0)
 	ROM_LOAD("sound1.716", 0x7800, 0x0800, CRC(f4190ca3) SHA1(ee234fb5c894fca5876ee6dc7ea8e89e7e0aec9c))
@@ -734,8 +700,9 @@ ROM_START(tstrk_l1)
 ROM_END
 
 
-GAME( 1979, flash_l1, 0,        s4a, s4, driver_device, 0, ROT0, "Williams", "Flash (L-1)", GAME_MECHANICAL | GAME_NO_SOUND)
-GAME( 1979, flash_t1, flash_l1, s4a, s4, driver_device, 0, ROT0, "Williams", "Flash (T-1) Ted Estes", GAME_MECHANICAL | GAME_NO_SOUND)
+GAME( 1979, flash_l2, 0,        s4a, s4, driver_device, 0, ROT0, "Williams", "Flash (L-2)", GAME_MECHANICAL | GAME_NO_SOUND)
+GAME( 1979, flash_l1, flash_l2, s4a, s4, driver_device, 0, ROT0, "Williams", "Flash (L-1)", GAME_MECHANICAL | GAME_NO_SOUND)
+GAME( 1979, flash_t1, flash_l2, s4a, s4, driver_device, 0, ROT0, "Williams", "Flash (T-1) Ted Estes", GAME_MECHANICAL | GAME_NO_SOUND)
 GAME( 1978, trizn_l1, 0,        s4a, s4, driver_device, 0, ROT0, "Williams", "Tri Zone (L-1)", GAME_MECHANICAL | GAME_NO_SOUND)
 GAME( 1978, trizn_t1, trizn_l1, s4a, s4, driver_device, 0, ROT0, "Williams", "Tri Zone (T-1)", GAME_MECHANICAL | GAME_NO_SOUND)
 GAME( 1979, tmwrp_l2, 0,        s4a, s4, driver_device, 0, ROT0, "Williams", "Time Warp (L-2)", GAME_MECHANICAL | GAME_NO_SOUND)

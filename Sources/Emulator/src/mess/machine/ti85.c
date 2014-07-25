@@ -175,9 +175,9 @@ MACHINE_START_MEMBER(ti85_state,ti83p)
 	membank("bank2")->set_base(m_bios);
 	membank("bank3")->set_base(m_bios);
 	membank("bank4")->set_base(m_ti8x_ram);
+	machine().device<nvram_device>("nvram")->set_base(m_ti8x_ram, sizeof(UINT8)*32*1024);
 
 	machine().scheduler().timer_pulse(attotime::from_hz(200), timer_expired_delegate(FUNC(ti85_state::ti85_timer_callback),this));
-
 }
 
 
@@ -211,6 +211,7 @@ MACHINE_START_MEMBER(ti85_state,ti86)
 	membank("bank2")->set_base(m_bios + 0x04000);
 
 	membank("bank4")->set_base(m_ti8x_ram);
+	machine().device<nvram_device>("nvram")->set_base(m_ti8x_ram, sizeof(UINT8)*128*1024);
 
 	machine().scheduler().timer_pulse(attotime::from_hz(200), timer_expired_delegate(FUNC(ti85_state::ti85_timer_callback),this));
 }
@@ -498,45 +499,6 @@ WRITE8_MEMBER(ti85_state::ti83p_port_0007_w)
 	update_ti83p_memory();
 }
 
-/* NVRAM functions */
-NVRAM_HANDLER( ti83p )
-{
-	ti85_state *state = machine.driver_data<ti85_state>();
-	if (read_or_write)
-	{
-		file->write(state->m_ti8x_ram, sizeof(unsigned char)*32*1024);
-	}
-	else
-	{
-			if (file)
-			{
-				file->read(state->m_ti8x_ram, sizeof(unsigned char)*32*1024);
-				state->m_maincpu->set_state_int(Z80_PC,0x0c59);
-			}
-			else
-				memset(state->m_ti8x_ram, 0, sizeof(unsigned char)*32*1024);
-	}
-}
-
-NVRAM_HANDLER( ti86 )
-{
-	ti85_state *state = machine.driver_data<ti85_state>();
-	if (read_or_write)
-	{
-		file->write(state->m_ti8x_ram, sizeof(unsigned char)*128*1024);
-	}
-	else
-	{
-			if (file)
-			{
-				file->read(state->m_ti8x_ram, sizeof(unsigned char)*128*1024);
-				state->m_maincpu->set_state_int(Z80_PC,0x0c59);
-			}
-			else
-				memset(state->m_ti8x_ram, 0, sizeof(unsigned char)*128*1024);
-	}
-}
-
 /***************************************************************************
   TI calculators snapshot files (SAV)
 ***************************************************************************/
@@ -679,7 +641,7 @@ void ti85_state::ti86_setup_snapshot (UINT8 * data)
 SNAPSHOT_LOAD_MEMBER( ti85_state, ti8x )
 {
 	int expected_snapshot_size = 0;
-	UINT8 *ti8x_snapshot_data;
+	dynamic_buffer ti8x_snapshot_data;
 
 	if (!strncmp(machine().system().name, "ti85", 4))
 		expected_snapshot_size = TI85_SNAPSHOT_SIZE;
@@ -694,8 +656,7 @@ SNAPSHOT_LOAD_MEMBER( ti85_state, ti8x )
 		return IMAGE_INIT_FAIL;
 	}
 
-	if (!(ti8x_snapshot_data = (UINT8*)malloc(snapshot_size)))
-		return IMAGE_INIT_FAIL;
+	ti8x_snapshot_data.resize(snapshot_size);
 
 	image.fread( ti8x_snapshot_data, snapshot_size);
 
@@ -704,6 +665,5 @@ SNAPSHOT_LOAD_MEMBER( ti85_state, ti8x )
 	else if (!strncmp(machine().system().name, "ti86", 4))
 		ti86_setup_snapshot(ti8x_snapshot_data);
 
-	free(ti8x_snapshot_data);
 	return IMAGE_INIT_PASS;
 }

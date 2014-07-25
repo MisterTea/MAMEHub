@@ -382,35 +382,6 @@ WRITE8_MEMBER(pmd85_state::pmd85_ppi_2_portc_w)
 
 /*******************************************************************************
 
-    I/O board 8253
-    --------------
-
-    Timer 0:
-        OUT0    - external interfaces connector (K2)
-        CLK0    - external interfaces connector (K2)
-        GATE0   - external interfaces connector (K2), default = 1
-    Timer 1:
-        OUT0    - external interfaces connector (K2), i8251 (for V24 only)
-        CLK0    - hardwired to 2 MHz system clock
-        GATE0   - external interfaces connector (K2), default = 1
-    Timer 2:
-        OUT0    - unused
-        CLK0    - hardwired to 1HZ signal generator
-        GATE0   - hardwired to 5V, default = 1
-
-*******************************************************************************/
-
-const struct pit8253_interface pmd85_pit8253_interface =
-{
-	{
-		{ 0,        DEVCB_NULL,     DEVCB_NULL },
-		{ 2000000,  DEVCB_NULL,     DEVCB_NULL },
-		{ 1,        DEVCB_LINE_VCC, DEVCB_NULL }
-	}
-};
-
-/*******************************************************************************
-
     I/O board external interfaces connector (K2)
     --------------------------------------------
 
@@ -677,81 +648,6 @@ WRITE8_MEMBER(pmd85_state::mato_io_w)
 	}
 }
 
-const i8255_interface pmd85_ppi8255_interface[4] =
-{
-	{
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_porta_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_porta_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_portb_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_portb_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_portc_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_portc_w)
-	},
-	{
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_1_porta_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_1_porta_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_1_portb_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_1_portb_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_1_portc_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_1_portc_w)
-	},
-	{
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_2_porta_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_2_porta_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_2_portb_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_2_portb_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_2_portc_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_2_portc_w)
-	},
-	{
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_3_porta_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_3_porta_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_3_portb_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_3_portb_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_3_portc_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_3_portc_w)
-	}
-};
-
-const i8255_interface alfa_ppi8255_interface[3] =
-{
-	{
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_porta_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_porta_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_portb_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_portb_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_portc_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_portc_w)
-	},
-	{
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_1_porta_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_1_porta_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_1_portb_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_1_portb_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_1_portc_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_1_portc_w)
-	},
-	{
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_2_porta_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_2_porta_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_2_portb_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_2_portb_w),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_2_portc_r),
-		DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_2_portc_w)
-	}
-};
-
-I8255_INTERFACE( mato_ppi8255_interface )
-{
-	DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_porta_r),
-	DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_porta_w),
-	DEVCB_DRIVER_MEMBER(pmd85_state,mato_ppi_0_portb_r),
-	DEVCB_DRIVER_MEMBER(pmd85_state,pmd85_ppi_0_portb_w),
-	DEVCB_DRIVER_MEMBER(pmd85_state,mato_ppi_0_portc_r),
-	DEVCB_DRIVER_MEMBER(pmd85_state,mato_ppi_0_portc_w)
-};
-
-
 void pmd85_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
 	switch (id)
@@ -759,17 +655,15 @@ void pmd85_state::device_timer(emu_timer &timer, device_timer_id id, int param, 
 	case TIMER_CASSETTE:
 		pmd85_cassette_timer_callback(ptr, param);
 		break;
-	case TIMER_RESET:
-		pmd_reset(ptr, param);
-		break;
-	case TIMER_SETUP_MACHINE_STATE:
-		setup_machine_state(ptr, param);
-		break;
 	default:
 		assert_always(FALSE, "Unknown id in pmd85_state::device_timer");
 	}
 }
 
+WRITE_LINE_MEMBER(pmd85_state::write_cas_tx)
+{
+	m_cas_tx = state;
+}
 
 TIMER_CALLBACK_MEMBER(pmd85_state::pmd85_cassette_timer_callback)
 {
@@ -797,12 +691,13 @@ TIMER_CALLBACK_MEMBER(pmd85_state::pmd85_cassette_timer_callback)
 						{
 							data = (!m_previous_level && current_level) ? 1 : 0;
 
-							m_sercas->send_bit(data);
-							m_uart->receive_clock();
+							m_uart->write_rxd(data);
 
 							m_clk_level_tape = 1;
 						}
 					}
+
+					m_uart->write_rxc(m_clk_level_tape);
 					return;
 				case PMD85_2:
 				case PMD85_2A:
@@ -817,36 +712,26 @@ TIMER_CALLBACK_MEMBER(pmd85_state::pmd85_cassette_timer_callback)
 		/* tape writing */
 		if (m_cassette->get_state()&CASSETTE_RECORD)
 		{
-			data = m_sercas->get_in_data_bit();
+			data = m_cas_tx;
 			data ^= m_clk_level_tape;
 			m_cassette->output(data&0x01 ? 1 : -1);
 
-			if (!m_clk_level_tape)
-				m_uart->transmit_clock();
-
 			m_clk_level_tape = m_clk_level_tape ? 0 : 1;
+			m_uart->write_txc(m_clk_level_tape);
 
 			return;
 		}
 
 		m_clk_level_tape = 1;
 
-		if (!m_clk_level)
-			m_uart->transmit_clock();
 		m_clk_level = m_clk_level ? 0 : 1;
+		m_uart->write_txc(m_clk_level);
 	}
 }
 
-TIMER_CALLBACK_MEMBER(pmd85_state::pmd_reset)
+INPUT_CHANGED_MEMBER(pmd85_state::pmd85_reset)
 {
 	machine().schedule_soft_reset();
-}
-
-DIRECT_UPDATE_MEMBER(pmd85_state::pmd85_opbaseoverride)
-{
-	if (m_io_reset->read() & 0x01)
-		timer_set(attotime::from_usec(10), TIMER_RESET);
-	return address;
 }
 
 void pmd85_state::pmd85_common_driver_init()
@@ -921,15 +806,6 @@ DRIVER_INIT_MEMBER(pmd85_state,c2717)
 	pmd85_common_driver_init();
 }
 
-TIMER_CALLBACK_MEMBER(pmd85_state::setup_machine_state)
-{
-	if (m_model != MATO)
-	{
-		m_uart->connect(m_sercas);
-	}
-}
-
-
 void pmd85_state::machine_reset()
 {
 	int i, j;
@@ -957,8 +833,4 @@ void pmd85_state::machine_reset()
 	m_pmd853_memory_mapping = 1;
 	m_startup_mem_map = 1;
 	(this->*update_memory)();
-
-	timer_set(attotime::zero, TIMER_SETUP_MACHINE_STATE);
-
-	m_maincpu->space(AS_PROGRAM).set_direct_update_handler(direct_update_delegate(FUNC(pmd85_state::pmd85_opbaseoverride), this));
 }

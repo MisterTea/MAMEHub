@@ -6,7 +6,7 @@
 
 #include "machine/eeprompar.h"
 #include "video/rgbutil.h"
-#include "video/polynew.h"
+#include "video/poly.h"
 
 enum
 {
@@ -125,6 +125,9 @@ class namcos22_renderer : public poly_manager<float, namcos22_object_data, 4, 80
 public:
 	namcos22_renderer(namcos22_state &state);
 
+	// static configuration
+	static void static_set_gfxdecode_tag(device_t &device, const char *tag);
+
 	void render_scene(screen_device &screen, bitmap_rgb32 &bitmap);
 	struct namcos22_scenenode *new_scenenode(running_machine &machine, UINT32 zsort, namcos22_scenenode_type type);
 
@@ -193,7 +196,10 @@ public:
 		m_tilemapattr(*this, "tilemapattr"),
 		m_czram(*this, "czram"),
 		m_motor_timer(*this, "motor_timer"),
-		m_pc_pedal_interrupt(*this, "pc_p_int")
+		m_pc_pedal_interrupt(*this, "pc_p_int"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -219,6 +225,10 @@ public:
 	optional_shared_ptr<UINT32> m_czram;
 	optional_device<timer_device> m_motor_timer;
 	optional_device<timer_device> m_pc_pedal_interrupt;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 
 	UINT8 m_syscontrol[0x20];
 	bool m_dsp_irq_enabled;
@@ -243,6 +253,7 @@ public:
 	int m_p4;
 	UINT16 m_su_82;
 	UINT16 m_keycus_id;
+	UINT16 m_keycus_rng;
 	int m_gametype;
 	int m_is_ss22;
 	int m_chipselect;
@@ -364,8 +375,8 @@ public:
 	DECLARE_READ8_MEMBER(namcos22_system_controller_r);
 	DECLARE_WRITE8_MEMBER(namcos22s_system_controller_w);
 	DECLARE_WRITE8_MEMBER(namcos22_system_controller_w);
-	DECLARE_READ32_MEMBER(namcos22_keycus_r);
-	DECLARE_WRITE32_MEMBER(namcos22_keycus_w);
+	DECLARE_READ16_MEMBER(namcos22_keycus_r);
+	DECLARE_WRITE16_MEMBER(namcos22_keycus_w);
 	DECLARE_READ16_MEMBER(namcos22_portbit_r);
 	DECLARE_WRITE16_MEMBER(namcos22_portbit_w);
 	DECLARE_READ16_MEMBER(namcos22_dipswitch_r);

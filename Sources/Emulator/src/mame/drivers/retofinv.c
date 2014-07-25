@@ -341,23 +341,6 @@ INTERRUPT_GEN_MEMBER(retofinv_state::sub_vblank_irq)
 }
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( retofinv, retofinv_state )
 
 	/* basic machine hardware */
@@ -385,21 +368,21 @@ static MACHINE_CONFIG_START( retofinv, retofinv_state )
 	MCFG_SCREEN_SIZE(36*8, 28*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(retofinv_state, screen_update_retofinv)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(retofinv)
-	MCFG_PALETTE_LENGTH(256*2+64*16+64*16)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", retofinv)
+	MCFG_PALETTE_ADD("palette", 256*2+64*16+64*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(retofinv_state, retofinv)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn1", SN76496, 18432000/6)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76496, 18432000/6)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 

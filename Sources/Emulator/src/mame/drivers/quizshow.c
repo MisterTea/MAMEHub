@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:hap
 /***************************************************************************
 
   Atari Quiz Show
@@ -37,18 +39,25 @@ class quizshow_state : public driver_device
 public:
 	quizshow_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_main_ram(*this, "main_ram"),
-		m_fo_state(*this, "fo_state"),
 		m_maincpu(*this, "maincpu"),
-		m_dac(*this, "dac") { }
+		m_dac(*this, "dac"),
+		m_main_ram(*this, "main_ram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen")
+	{ }
+
+	required_device<cpu_device> m_maincpu;
+	required_device<dac_device> m_dac;
+	required_shared_ptr<UINT8> m_main_ram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
 
 	tilemap_t *m_tilemap;
-	required_shared_ptr<UINT8> m_main_ram;
-	required_shared_ptr<UINT8> m_fo_state;
 	UINT32 m_clocks;
 	int m_blink_state;
 	int m_category_enable;
 	int m_tape_head_pos;
+
 	DECLARE_WRITE8_MEMBER(quizshow_lamps1_w);
 	DECLARE_WRITE8_MEMBER(quizshow_lamps2_w);
 	DECLARE_WRITE8_MEMBER(quizshow_lamps3_w);
@@ -64,11 +73,9 @@ public:
 	TILE_GET_INFO_MEMBER(get_tile_info);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(quizshow);
 	UINT32 screen_update_quizshow(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(quizshow_clock_timer_cb);
-	required_device<cpu_device> m_maincpu;
-	required_device<dac_device> m_dac;
 };
 
 
@@ -78,12 +85,10 @@ public:
 
 ***************************************************************************/
 
-void quizshow_state::palette_init()
+PALETTE_INIT_MEMBER(quizshow_state, quizshow)
 {
-	machine().colortable = colortable_alloc(machine(), 2);
-
-	colortable_palette_set_color(machine().colortable, 0, RGB_BLACK);
-	colortable_palette_set_color(machine().colortable, 1, RGB_WHITE);
+	palette.set_indirect_color(0, rgb_t::black);
+	palette.set_indirect_color(1, rgb_t::white);
 
 	// normal, blink/off, invert, blink+invert
 	const int lut_pal[16] = {
@@ -94,7 +99,7 @@ void quizshow_state::palette_init()
 	};
 
 	for (int i = 0; i < 16 ; i++)
-		colortable_entry_set_value(machine().colortable, i, lut_pal[i]);
+		palette.set_pen_indirect(i, lut_pal[i]);
 }
 
 TILE_GET_INFO_MEMBER(quizshow_state::get_tile_info)
@@ -109,7 +114,7 @@ TILE_GET_INFO_MEMBER(quizshow_state::get_tile_info)
 
 void quizshow_state::video_start()
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(quizshow_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 16, 32, 16);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(quizshow_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 16, 32, 16);
 }
 
 UINT32 quizshow_state::screen_update_quizshow(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -235,7 +240,6 @@ static ADDRESS_MAP_START( quizshow_io_map, AS_IO, 8, quizshow_state )
 //  AM_RANGE(S2650_CTRL_PORT, S2650_CTRL_PORT) AM_NOP // unused
 //  AM_RANGE(S2650_DATA_PORT, S2650_DATA_PORT) AM_NOP // unused
 	AM_RANGE(S2650_SENSE_PORT, S2650_SENSE_PORT) AM_READ(quizshow_tape_signal_r)
-	AM_RANGE(S2650_FO_PORT, S2650_FO_PORT) AM_RAM AM_SHARE("fo_state")
 ADDRESS_MAP_END
 
 
@@ -374,6 +378,7 @@ void quizshow_state::machine_reset()
 }
 
 static MACHINE_CONFIG_START( quizshow, quizshow_state )
+
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", S2650, MASTER_CLOCK / 16) // divider guessed
 	MCFG_CPU_PROGRAM_MAP(quizshow_mem_map)
@@ -385,10 +390,12 @@ static MACHINE_CONFIG_START( quizshow, quizshow_state )
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 
 	MCFG_SCREEN_UPDATE_DRIVER(quizshow_state, screen_update_quizshow)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(quizshow)
-	MCFG_PALETTE_LENGTH(8*2)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", quizshow)
+	MCFG_PALETTE_ADD("palette", 8*2)
+	MCFG_PALETTE_INDIRECT_ENTRIES(2)
+	MCFG_PALETTE_INIT_OWNER(quizshow_state, quizshow)
 
 	/* sound hardware (discrete) */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -416,11 +423,11 @@ ROM_START( quizshow )
 	ROM_REGION( 0x0800, "gfx1", ROMREGION_ERASEFF )
 
 	ROM_REGION( 0x0200, "user1", 0 ) // gfx1
-	ROM_LOAD_NIB_HIGH( "005466-01.m2", 0x0000, 0x0200, BAD_DUMP CRC(4f42fdd6) SHA1(f8ea4b582e26cad37b746174cdc9f1c7ae0819c3) ) // not dumped yet, placeholder taken from dominos.zip
-	ROM_LOAD_NIB_LOW ( "005466-02.n2", 0x0000, 0x0200, BAD_DUMP CRC(957dd8df) SHA1(280457392f40cd66eae34d2fcdbd4d2142793402) ) // "
+	ROM_LOAD_NIB_HIGH( "005466-01.m2", 0x0000, 0x0200, BAD_DUMP CRC(b2aa7578) SHA1(5c3eb80066420002bc3dcc7ca4ab6efad7ed4ae5) ) // missing rom, zerofilled
+	ROM_LOAD_NIB_LOW ( "005466-02.n2", 0x0000, 0x0200, CRC(cd554367) SHA1(04da83eb6e2f86f88a3495072b98fbdaca485ae8) )
 
-	ROM_REGION( 0x0020, "proms", 0 )
-	ROM_LOAD( "005465-01.f2", 0x0000, 0x0020, NO_DUMP ) // memory timing
+	ROM_REGION( 0x0200, "proms", 0 )
+	ROM_LOAD( "005465-01.f2", 0x0000, 0x0200, CRC(0fe46552) SHA1(d79b1ff0abfaba1ef2d564d1166c3696e0a1a3f1) ) // memory timing
 ROM_END
 
 
@@ -440,12 +447,9 @@ DRIVER_INIT_MEMBER(quizshow_state,quizshow)
 			dest[tile << 4 | line | 0x400] = 0;
 
 			if (line >= 4 && line < 12)
-				dest[tile << 4 | line] = gfxdata[tile << 3 | (line - 4)];
+				dest[tile << 4 | line] = gfxdata[(tile ^ 0x3f) << 3 | (line - 4)];
 		}
 	}
-
-	// HACK out a gfxrom glitch, remove it when a good dump is out
-	dest[0x208] = dest[0x209] = 0;
 }
 
 

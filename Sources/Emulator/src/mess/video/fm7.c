@@ -517,110 +517,42 @@ void fm7_state::fm77av_line_draw()
 	int x2 = m_alu.x1;
 	int y1 = m_alu.y0;
 	int y2 = m_alu.y1;
-	int horiz,vert;
-	int dirx,diry;
-	int rep;
+
+	int dx = abs(x2 - x1);
+	int dy = abs(y2 - y1);
+	int stepx, stepy;
+	int err,err2;
 	int byte_count = 0;
-	UINT16 old_addr = 0xffff;
-	UINT16 addr;
 
-	m_alu.busy = 1;
-
-	horiz = x2 - x1;
-	vert = y2 - y1;
-
-	if(horiz < 0)
-	{
-		dirx = -1;
-		horiz = -horiz;
-	}
+	if(x1 < x2)
+		stepx = 1;
 	else
-		dirx = 1;
-	if(vert < 0)
-	{
-		diry = -1;
-		vert = -vert;
-	}
+		stepx = -1;
+	if(y1 < y2)
+		stepy = 1;
 	else
-		diry = 1;
+		stepy = -1;
 
-	if(horiz == 0 && vert == 0)
+	err = dx - dy;
+
+	for(;;)
 	{
 		fm7_line_set_pixel(x1, y1);
-		byte_count = 1;
-	}
-	else if(horiz == 0)
-	{
-		for(;;)
+		byte_count++;
+
+		if(x1 == x2 && y1 == y2)
+			break;
+
+		err2 = 2*err;
+		if(err2 > -dy)
 		{
-			addr = fm7_line_set_pixel(x1, y1);
-			if(addr != old_addr)
-			{
-				byte_count++;
-				old_addr = addr;
-			}
-			if(y1 == y2)
-				break;
-			y1 += diry;
+			err -= dy;
+			x1 += stepx;
 		}
-	}
-	else if(vert == 0)
-	{
-		for(;;)
+		if(err2 < dx)
 		{
-			addr = fm7_line_set_pixel(x1, y1);
-			if(addr != old_addr)
-			{
-				byte_count++;
-				old_addr = addr;
-			}
-			if(x1 == x2)
-				break;
-			x1 += dirx;
-		}
-	}
-	else if(horiz >= vert)
-	{
-		rep = horiz >> 1;
-		for(;;)
-		{
-			addr = fm7_line_set_pixel(x1, y1);
-			if(addr != old_addr)
-			{
-				byte_count++;
-				old_addr = addr;
-			}
-			if(x1 == x2)
-				break;
-			x1 += dirx;
-			rep -= vert;
-			if(rep < 0)
-			{
-				rep += horiz;
-				y1 += diry;
-			}
-		}
-	}
-	else
-	{
-		rep = vert >> 1;
-		for(;;)
-		{
-			addr = fm7_line_set_pixel(x1, y1);
-			if(addr != old_addr)
-			{
-				byte_count++;
-				old_addr = addr;
-			}
-			if(y1 == y2)
-				break;
-			y1 += diry;
-			rep -= horiz;
-			if(rep < 0)
-			{
-				rep += vert;
-				x1 += dirx;
-			}
+			err += dx;
+			y1 += stepy;
 		}
 	}
 
@@ -991,7 +923,7 @@ WRITE8_MEMBER(fm7_state::fm7_palette_w)
 	if(data & 0x01)
 		b = 0xff;
 
-	palette_set_color(machine(),offset,MAKE_RGB(r,g,b));
+	m_palette->set_pen_color(offset,rgb_t(r,g,b));
 	m_video.fm7_pal[offset] = data & 0x07;
 }
 
@@ -1022,22 +954,22 @@ WRITE8_MEMBER(fm7_state::fm77av_analog_palette_w)
 			break;
 		case 2:
 			m_video.fm77av_pal_b[m_video.fm77av_pal_selected] = (data & 0x0f) << 4;
-			palette_set_color(machine(),m_video.fm77av_pal_selected+8,
-				MAKE_RGB(m_video.fm77av_pal_r[m_video.fm77av_pal_selected],
+			m_palette->set_pen_color(m_video.fm77av_pal_selected+8,
+				rgb_t(m_video.fm77av_pal_r[m_video.fm77av_pal_selected],
 				m_video.fm77av_pal_g[m_video.fm77av_pal_selected],
 				m_video.fm77av_pal_b[m_video.fm77av_pal_selected]));
 			break;
 		case 3:
 			m_video.fm77av_pal_r[m_video.fm77av_pal_selected] = (data & 0x0f) << 4;
-			palette_set_color(machine(),m_video.fm77av_pal_selected+8,
-				MAKE_RGB(m_video.fm77av_pal_r[m_video.fm77av_pal_selected],
+			m_palette->set_pen_color(m_video.fm77av_pal_selected+8,
+				rgb_t(m_video.fm77av_pal_r[m_video.fm77av_pal_selected],
 				m_video.fm77av_pal_g[m_video.fm77av_pal_selected],
 				m_video.fm77av_pal_b[m_video.fm77av_pal_selected]));
 			break;
 		case 4:
 			m_video.fm77av_pal_g[m_video.fm77av_pal_selected] = (data & 0x0f) << 4;
-			palette_set_color(machine(),m_video.fm77av_pal_selected+8,
-				MAKE_RGB(m_video.fm77av_pal_r[m_video.fm77av_pal_selected],
+			m_palette->set_pen_color(m_video.fm77av_pal_selected+8,
+				rgb_t(m_video.fm77av_pal_r[m_video.fm77av_pal_selected],
 				m_video.fm77av_pal_g[m_video.fm77av_pal_selected],
 				m_video.fm77av_pal_b[m_video.fm77av_pal_selected]));
 			break;
@@ -1063,7 +995,7 @@ READ8_MEMBER(fm7_state::fm77av_video_flags_r)
 {
 	UINT8 ret = 0xff;
 
-	if(machine().primary_screen->vblank())
+	if(machine().first_screen()->vblank())
 		ret &= ~0x80;
 
 	if(m_alu.busy != 0)
@@ -1104,7 +1036,7 @@ READ8_MEMBER(fm7_state::fm77av_sub_modestatus_r)
 	ret |= 0xbc;
 	ret |= (m_video.modestatus & 0x40);
 
-	if(!machine().primary_screen->vblank())
+	if(!machine().first_screen()->vblank())
 		ret |= 0x02;
 
 	if(m_video.vsync_flag != 0)
@@ -1119,12 +1051,12 @@ WRITE8_MEMBER(fm7_state::fm77av_sub_modestatus_w)
 	if(data & 0x40)
 	{
 		rectangle rect(0, 320-1, 0, 200-1);
-		machine().primary_screen->configure(320,200,rect,HZ_TO_ATTOSECONDS(60));
+		machine().first_screen()->configure(320,200,rect,HZ_TO_ATTOSECONDS(60));
 	}
 	else
 	{
 		rectangle rect(0, 640-1, 0, 200-1);
-		machine().primary_screen->configure(640,200,rect,HZ_TO_ATTOSECONDS(60));
+		machine().first_screen()->configure(640,200,rect,HZ_TO_ATTOSECONDS(60));
 	}
 }
 
@@ -1355,7 +1287,7 @@ TIMER_CALLBACK_MEMBER(fm7_state::fm77av_vsync)
 	else
 	{
 		m_video.vsync_flag = 0;
-		m_fm77av_vsync_timer->adjust(machine().primary_screen->time_until_vblank_end());
+		m_fm77av_vsync_timer->adjust(machine().first_screen()->time_until_vblank_end());
 	}
 }
 
@@ -1583,21 +1515,21 @@ UINT32 fm7_state::screen_update_fm7(screen_device &screen, bitmap_ind16 &bitmap,
 }
 
 static const rgb_t fm7_initial_palette[8] = {
-	MAKE_RGB(0x00, 0x00, 0x00), // 0
-	MAKE_RGB(0x00, 0x00, 0xff), // 1
-	MAKE_RGB(0xff, 0x00, 0x00), // 2
-	MAKE_RGB(0xff, 0x00, 0xff), // 3
-	MAKE_RGB(0x00, 0xff, 0x00), // 4
-	MAKE_RGB(0x00, 0xff, 0xff), // 5
-	MAKE_RGB(0xff, 0xff, 0x00), // 6
-	MAKE_RGB(0xff, 0xff, 0xff), // 7
+	rgb_t(0x00, 0x00, 0x00), // 0
+	rgb_t(0x00, 0x00, 0xff), // 1
+	rgb_t(0xff, 0x00, 0x00), // 2
+	rgb_t(0xff, 0x00, 0xff), // 3
+	rgb_t(0x00, 0xff, 0x00), // 4
+	rgb_t(0x00, 0xff, 0xff), // 5
+	rgb_t(0xff, 0xff, 0x00), // 6
+	rgb_t(0xff, 0xff, 0xff), // 7
 };
 
-void fm7_state::palette_init()
+PALETTE_INIT_MEMBER(fm7_state, fm7)
 {
 	int x;
 
-	palette_set_colors(machine(), 0, fm7_initial_palette, ARRAY_LENGTH(fm7_initial_palette));
+	palette.set_pen_colors(0, fm7_initial_palette, ARRAY_LENGTH(fm7_initial_palette));
 	for(x=0;x<8;x++)
 		m_video.fm7_pal[x] = x;
 }

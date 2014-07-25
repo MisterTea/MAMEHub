@@ -3,13 +3,10 @@
 
 
 /* Similar as Iron Horse */
-void scotrsht_state::palette_init()
+PALETTE_INIT_MEMBER(scotrsht_state, scotrsht)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x100);
 
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x100; i++)
@@ -18,7 +15,7 @@ void scotrsht_state::palette_init()
 		int g = pal4bit(color_prom[i + 0x100]);
 		int b = pal4bit(color_prom[i + 0x200]);
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -32,7 +29,7 @@ void scotrsht_state::palette_init()
 		for (j = 0; j < 8; j++)
 		{
 			UINT8 ctabentry = ((~i & 0x100) >> 1) | (j << 4) | (color_prom[i] & 0x0f);
-			colortable_entry_set_value(machine().colortable, ((i & 0x100) << 3) | (j << 8) | (i & 0xff), ctabentry);
+			palette.set_pen_indirect(((i & 0x100) << 3) | (j << 8) | (i & 0xff), ctabentry);
 		}
 	}
 }
@@ -114,15 +111,15 @@ void scotrsht_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 			flipy = !flipy;
 		}
 
-		drawgfx_transmask(bitmap, cliprect, machine().gfx[1], code, color, flipx, flipy,
+		m_gfxdecode->gfx(1)->transmask(bitmap,cliprect, code, color, flipx, flipy,
 			sx, sy,
-			colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color, m_palette_bank * 16));
+			m_palette->transpen_mask(*m_gfxdecode->gfx(1), color, m_palette_bank * 16));
 	}
 }
 
 void scotrsht_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(scotrsht_state::scotrsht_get_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(scotrsht_state::scotrsht_get_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
 
 	m_bg_tilemap->set_scroll_cols(64);
 }

@@ -1,10 +1,11 @@
+// license:?
+// copyright-holders:David Haywood, Angelo Salese, Olivier Galibert, Mariusz Wojcieszek, R.Belmont
 /**************************************************************************************************
 
     Sega Saturn & Sega ST-V (Sega Titan Video) HW (c) 1994 Sega
 
     Driver by David Haywood, Angelo Salese, Olivier Galibert & Mariusz Wojcieszek
     SCSP driver provided by R.Belmont, based on ElSemi's SCSP sound chip emulator
-    CD Block driver provided by ANY, based on sthief original emulator
     Many thanks to Guru, Fabien, Runik and Charles MacDonald for the help given.
 
 ===================================================================================================
@@ -26,34 +27,11 @@ TODO:
 - Add the RS232c interface (serial port), needed by fhboxers (accesses some ports in the a-bus dummy range).
 - Video emulation is nowhere near perfection.
 - Reimplement the idle skip if possible.
-- Properly emulate the protection chips, used by several games (check stvprot.c for more info)
 - Move SCU device into its respective file;
-- Split ST-V and Saturn files properly;
 
-(per-game issues)
-- stress: accesses the Sound Memory Expansion Area (0x05a80000-0x05afffff), unknown purpose;
-
-- smleague / finlarch: it randomly hangs / crashes,it works if you use a ridiculous MCFG_INTERLEAVE number,might need strict
-  SH-2 synching or it's actually a m68k comms issue.
-
-- groovef: ugly back screen color, caused by incorrect usage of the Color Calculation function.
-
-- myfairld: Apparently this game gives a black screen (either test mode and in-game mode),but let it wait for about
-  10 seconds and the game will load everything. This is because of a hellishly slow m68k sub-routine located at 54c2.
-  Likely to not be a bug but an in-game design issue.
-
-- danchih / danchiq: currently hangs randomly (regression).
-
-- batmanfr: Missing sound,caused by an extra ADSP chip which is on the cart.The CPU is a
-  ADSP-2181,and it's the same used by NBA Jam Extreme (ZN game).
-
-- vfremix: when you play as Akira, there is a problem with third match: game doesn't upload all textures
-  and tiles and doesn't enable display, although gameplay is normal - wait a while to get back
-  to title screen after losing a match
-
-- vfremix: various problems with SCU DSP: Jeffry causes a black screen hang. Akira's kick sometimes
-  sends the opponent out of the ring from whatever position.
-
+test1f diagnostic hacks:
+"chash parge error" test 0x6035d04 <- 0x0009 (nop the button check)
+"chase line pearg" test 0x6036964 <- 0x0009 (nop the button check again)
 
 ****************************************************************************************************/
 
@@ -61,20 +39,19 @@ TODO:
 #include "cpu/m68000/m68000.h"
 #include "machine/eepromser.h"
 #include "cpu/sh2/sh2.h"
-#include "machine/scudsp.h"
+#include "cpu/scudsp/scudsp.h"
 #include "sound/scsp.h"
 #include "sound/cdda.h"
 #include "machine/smpc.h"
+#include "machine/nvram.h"
 #include "includes/stv.h"
 #include "imagedev/chd_cd.h"
 #include "coreutil.h"
 
-#include "machine/sat_slot.h"
-#include "machine/sat_rom.h"
-#include "machine/sat_dram.h"
-#include "machine/sat_bram.h"
-
-#include "mcfglgcy.h"
+#include "bus/saturn/sat_slot.h"
+#include "bus/saturn/rom.h"
+#include "bus/saturn/dram.h"
+#include "bus/saturn/bram.h"
 
 
 class sat_console_state : public saturn_state
@@ -83,6 +60,8 @@ public:
 	sat_console_state(const machine_config &mconfig, device_type type, const char *tag)
 				: saturn_state(mconfig, type, tag)
 				, m_exp(*this, "exp")
+				, m_nvram(*this, "nvram")
+				, m_smpc_nv(*this, "smpc_nv")
 	{ }
 
 	DECLARE_INPUT_CHANGED_MEMBER(key_stroke);
@@ -104,55 +83,13 @@ public:
 	DECLARE_DRIVER_INIT(saturneu);
 	DECLARE_DRIVER_INIT(saturnjp);
 
+	void nvram_init(nvram_device &nvram, void *data, size_t size);
+
 	required_device<sat_cart_slot_device> m_exp;
+	required_device<nvram_device> m_nvram;
+	required_device<nvram_device> m_smpc_nv;    // TODO: move this in the base class saturn_state and add it to stv in MAME
 };
 
-
-/* TODO: if you change the driver configuration then NVRAM contents gets screwed, needs mods in MAME framework */
-static NVRAM_HANDLER(saturn)
-{
-	sat_console_state *state = machine.driver_data<sat_console_state>();
-	static const UINT32 BUP_SIZE = 32*1024;
-	UINT8 backup_file[(BUP_SIZE)+4];
-	static const UINT8 init[16] =
-	{
-		'B', 'a', 'c', 'k', 'U', 'p', 'R', 'a', 'm', ' ', 'F', 'o', 'r', 'm', 'a', 't'
-	};
-	UINT32 i;
-
-	if (read_or_write)
-	{
-		for(i=0;i<BUP_SIZE;i++)
-			backup_file[i] = state->m_backupram[i];
-		for(i=0;i<4;i++)
-			backup_file[i+(BUP_SIZE)] = state->m_smpc.SMEM[i];
-
-		file->write(backup_file, (BUP_SIZE)+4);
-	}
-	else
-	{
-		if (file)
-		{
-			file->read(backup_file, (BUP_SIZE)+4);
-
-			for(i=0;i<BUP_SIZE;i++)
-				state->m_backupram[i] = backup_file[i];
-			for(i=0;i<4;i++)
-				state->m_smpc.SMEM[i] = backup_file[i+BUP_SIZE];
-		}
-		else
-		{
-			UINT8 j;
-			memset(state->m_backupram, 0, BUP_SIZE);
-			for (i = 0; i < 4; i++)
-			{
-				for(j=0;j<16;j++)
-					state->m_backupram[i*16+j] = init[j];
-			}
-			memset(state->m_smpc.SMEM, 0, 4); // TODO: default for each region
-		}
-	}
-}
 
 READ8_MEMBER(sat_console_state::saturn_cart_type_r)
 {
@@ -170,7 +107,7 @@ READ32_MEMBER( sat_console_state::abus_dummy_r )
 }
 
 static ADDRESS_MAP_START( saturn_mem, AS_PROGRAM, 32, sat_console_state )
-	AM_RANGE(0x00000000, 0x0007ffff) AM_ROM AM_SHARE("share6")  // bios
+	AM_RANGE(0x00000000, 0x0007ffff) AM_ROM AM_SHARE("share6")  AM_WRITENOP // bios
 	AM_RANGE(0x00100000, 0x0010007f) AM_READWRITE8(saturn_SMPC_r, saturn_SMPC_w,0xffffffff)
 	AM_RANGE(0x00180000, 0x0018ffff) AM_READWRITE8(saturn_backupram_r, saturn_backupram_w,0xffffffff) AM_SHARE("share1")
 	AM_RANGE(0x00200000, 0x002fffff) AM_RAM AM_MIRROR(0x20100000) AM_SHARE("workram_l")
@@ -184,7 +121,7 @@ static ADDRESS_MAP_START( saturn_mem, AS_PROGRAM, 32, sat_console_state )
 	AM_RANGE(0x05800000, 0x0589ffff) AM_READWRITE(stvcd_r, stvcd_w)
 	/* Sound */
 	AM_RANGE(0x05a00000, 0x05a7ffff) AM_READWRITE16(saturn_soundram_r, saturn_soundram_w,0xffffffff)
-	AM_RANGE(0x05b00000, 0x05b00fff) AM_DEVREADWRITE16_LEGACY("scsp", scsp_r, scsp_w, 0xffffffff)
+	AM_RANGE(0x05b00000, 0x05b00fff) AM_DEVREADWRITE16("scsp", scsp_device, read, write, 0xffffffff)
 	/* VDP1 */
 	AM_RANGE(0x05c00000, 0x05c7ffff) AM_READWRITE(saturn_vdp1_vram_r, saturn_vdp1_vram_w)
 	AM_RANGE(0x05c80000, 0x05cbffff) AM_READWRITE(saturn_vdp1_framebuffer0_r, saturn_vdp1_framebuffer0_w)
@@ -198,12 +135,20 @@ static ADDRESS_MAP_START( saturn_mem, AS_PROGRAM, 32, sat_console_state )
 //  AM_RANGE(0x22000000, 0x24ffffff) AM_ROM // Cartridge area mirror
 	AM_RANGE(0x45000000, 0x46ffffff) AM_WRITENOP
 	AM_RANGE(0x60000000, 0x600003ff) AM_WRITENOP // cache address array
-	AM_RANGE(0xc0000000, 0xc00007ff) AM_RAM // cache data array, Dragon Ball Z sprites relies on this
+	AM_RANGE(0xc0000000, 0xc0000fff) AM_RAM // cache data array, Dragon Ball Z sprites relies on this
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_mem, AS_PROGRAM, 16, sat_console_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_RAM AM_SHARE("sound_ram")
-	AM_RANGE(0x100000, 0x100fff) AM_DEVREADWRITE_LEGACY("scsp", scsp_r, scsp_w)
+	AM_RANGE(0x100000, 0x100fff) AM_DEVREADWRITE("scsp", scsp_device, read, write)
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( scudsp_mem, AS_PROGRAM, 32, sat_console_state )
+	AM_RANGE(0x00, 0xff) AM_RAM
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( scudsp_data, AS_DATA, 32, sat_console_state )
+	AM_RANGE(0x00, 0xff) AM_RAM
 ADDRESS_MAP_END
 
 
@@ -599,28 +544,36 @@ static INPUT_PORTS_START( saturn )
 	PORT_CONFSETTING(0x01,"One Shot (Hack)")
 INPUT_PORTS_END
 
-static const sh2_cpu_core sh2_conf_master = { 0, NULL };
-static const sh2_cpu_core sh2_conf_slave  = { 1, NULL };
 
-static const scsp_interface scsp_config =
+/* TODO: if you change the driver configuration then NVRAM contents gets screwed, needs mods in MAME framework */
+void sat_console_state::nvram_init(nvram_device &nvram, void *data, size_t size)
 {
-	0,
-	DEVCB_DRIVER_LINE_MEMBER(saturn_state, scsp_irq),
-	DEVCB_DRIVER_LINE_MEMBER(saturn_state, scsp_to_main_irq)
-};
+	static const UINT8 init[64] = {
+	'B', 'a', 'c', 'k', 'U', 'p', 'R', 'a', 'm', ' ', 'F', 'o', 'r', 'm', 'a', 't',
+	'B', 'a', 'c', 'k', 'U', 'p', 'R', 'a', 'm', ' ', 'F', 'o', 'r', 'm', 'a', 't',
+	'B', 'a', 'c', 'k', 'U', 'p', 'R', 'a', 'm', ' ', 'F', 'o', 'r', 'm', 'a', 't',
+	'B', 'a', 'c', 'k', 'U', 'p', 'R', 'a', 'm', ' ', 'F', 'o', 'r', 'm', 'a', 't', };
 
-MACHINE_START_MEMBER(sat_console_state,saturn)
+	memset(data, 0x00, size);
+	memcpy(data, init, sizeof(init));
+}
+
+
+MACHINE_START_MEMBER(sat_console_state, saturn)
 {
 	system_time systime;
 	machine().base_datetime(systime);
 
-	scsp_set_ram_base(machine().device("scsp"), m_sound_ram);
+	machine().device<scsp_device>("scsp")->set_ram_base(m_sound_ram);
 
 	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x02400000, 0x027fffff, read32_delegate(FUNC(sat_console_state::saturn_null_ram_r),this), write32_delegate(FUNC(sat_console_state::saturn_null_ram_w),this));
 	m_slave->space(AS_PROGRAM).install_readwrite_handler(0x02400000, 0x027fffff, read32_delegate(FUNC(sat_console_state::saturn_null_ram_r),this), write32_delegate(FUNC(sat_console_state::saturn_null_ram_w),this));
 
 	m_maincpu->space(AS_PROGRAM).nop_readwrite(0x04000000, 0x047fffff);
 	m_slave->space(AS_PROGRAM).nop_readwrite(0x04000000, 0x047fffff);
+
+	m_nvram->set_base(m_backupram, 0x8000);
+	m_smpc_nv->set_base(&m_smpc.SMEM, 4);
 
 	if (m_exp)
 	{
@@ -698,7 +651,7 @@ MACHINE_START_MEMBER(sat_console_state,saturn)
 
 	m_stv_rtc_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(sat_console_state::stv_rtc_increment),this));
 
-	m68k_set_reset_callback(m_audiocpu, &sat_console_state::m68k_reset_callback);
+	m_audiocpu->set_reset_callback(write_line_delegate(FUNC(sat_console_state::m68k_reset_callback),this));
 }
 
 /* Die Hard Trilogy tests RAM address 0x25e7ffe bit 2 with Slave during FRT minit irq, in-development tool for breaking execution of it? */
@@ -718,6 +671,7 @@ MACHINE_RESET_MEMBER(sat_console_state,saturn)
 	// don't let the slave cpu and the 68k go anywhere
 	m_slave->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 	m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_scudsp->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 
 	m_smpc.SR = 0x40;   // this bit is always on according to docs
 
@@ -726,7 +680,6 @@ MACHINE_RESET_MEMBER(sat_console_state,saturn)
 	m_en_68k = 0;
 	m_NMI_reset = 0;
 	m_smpc.slave_on = 0;
-
 
 	//memset(stv_m_workram_l, 0, 0x100000);
 	//memset(stv_m_workram_h, 0, 0x100000);
@@ -743,33 +696,38 @@ MACHINE_RESET_MEMBER(sat_console_state,saturn)
 }
 
 
-struct cdrom_interface saturn_cdrom =
-{
-	"sat_cdrom",
-	NULL
-};
-
-
 static MACHINE_CONFIG_START( saturn, sat_console_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", SH2, MASTER_CLOCK_352/2) // 28.6364 MHz
 	MCFG_CPU_PROGRAM_MAP(saturn_mem)
-	MCFG_CPU_CONFIG(sh2_conf_master)
+	MCFG_SH2_IS_SLAVE(0)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", sat_console_state, saturn_scanline, "screen", 0, 1)
 
 	MCFG_CPU_ADD("slave", SH2, MASTER_CLOCK_352/2) // 28.6364 MHz
 	MCFG_CPU_PROGRAM_MAP(saturn_mem)
-	MCFG_CPU_CONFIG(sh2_conf_slave)
+	MCFG_SH2_IS_SLAVE(1)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("slave_scantimer", sat_console_state, saturn_slave_scanline, "screen", 0, 1)
 
 	MCFG_CPU_ADD("audiocpu", M68000, 11289600) //256 x 44100 Hz = 11.2896 MHz
 	MCFG_CPU_PROGRAM_MAP(sound_mem)
 
+	MCFG_CPU_ADD("scudsp", SCUDSP, MASTER_CLOCK_352/4) // 14 MHz
+	MCFG_CPU_PROGRAM_MAP(scudsp_mem)
+	MCFG_CPU_DATA_MAP(scudsp_data)
+	MCFG_SCUDSP_OUT_IRQ_CB(WRITELINE(saturn_state, scudsp_end_w))
+	MCFG_SCUDSP_IN_DMA_CB(READ16(saturn_state, scudsp_dma_r))
+	MCFG_SCUDSP_OUT_DMA_CB(WRITE16(saturn_state, scudsp_dma_w))
+
+//  SH-1
+
+//  SMPC MCU, running at 4 MHz (+ custom RTC device that runs at 32.768 KHz)
+
 	MCFG_MACHINE_START_OVERRIDE(sat_console_state,saturn)
 	MCFG_MACHINE_RESET_OVERRIDE(sat_console_state,saturn)
 
-	MCFG_NVRAM_HANDLER(saturn)
+	MCFG_NVRAM_ADD_CUSTOM_DRIVER("nvram", sat_console_state, nvram_init)
+	MCFG_NVRAM_ADD_0FILL("smpc_nv") // TODO: default for each region (+ move it inside SMPC when converted to device)
 
 	MCFG_TIMER_DRIVER_ADD("sector_timer", sat_console_state, stv_sector_cb)
 	MCFG_TIMER_DRIVER_ADD("sh1_cmd", sat_console_state, stv_sh1_sim)
@@ -778,16 +736,17 @@ static MACHINE_CONFIG_START( saturn, sat_console_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK_320/8, 427, 0, 320, 263, 0, 224)
 	MCFG_SCREEN_UPDATE_DRIVER(sat_console_state, screen_update_stv_vdp2)
-	MCFG_PALETTE_LENGTH(2048+(2048*2))//standard palette + extra memory for rgb brightness.
+	MCFG_PALETTE_ADD("palette", 2048+(2048*2))//standard palette + extra memory for rgb brightness.
 
-	MCFG_GFXDECODE(stv)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", stv)
 
 	MCFG_VIDEO_START_OVERRIDE(sat_console_state,stv_vdp2)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("scsp", SCSP, 0)
-	MCFG_SOUND_CONFIG(scsp_config)
+	MCFG_SCSP_IRQ_CB(WRITE8(saturn_state, scsp_irq))
+	MCFG_SCSP_MAIN_IRQ_CB(WRITELINE(saturn_state, scsp_to_main_irq))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
@@ -808,7 +767,8 @@ SLOT_INTERFACE_END
 
 
 MACHINE_CONFIG_DERIVED( saturnus, saturn )
-	MCFG_CDROM_ADD( "cdrom",saturn_cdrom )
+	MCFG_CDROM_ADD( "cdrom" )
+	MCFG_CDROM_INTERFACE("sat_cdrom")
 	MCFG_SOFTWARE_LIST_ADD("cd_list","saturn")
 	MCFG_SOFTWARE_LIST_FILTER("cd_list","NTSC-U")
 
@@ -818,7 +778,8 @@ MACHINE_CONFIG_DERIVED( saturnus, saturn )
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_DERIVED( saturneu, saturn )
-	MCFG_CDROM_ADD( "cdrom",saturn_cdrom )
+	MCFG_CDROM_ADD( "cdrom" )
+	MCFG_CDROM_INTERFACE("sat_cdrom")
 	MCFG_SOFTWARE_LIST_ADD("cd_list","saturn")
 	MCFG_SOFTWARE_LIST_FILTER("cd_list","PAL")
 
@@ -828,7 +789,8 @@ MACHINE_CONFIG_DERIVED( saturneu, saturn )
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_DERIVED( saturnjp, saturn )
-	MCFG_CDROM_ADD( "cdrom",saturn_cdrom )
+	MCFG_CDROM_ADD( "cdrom" )
+	MCFG_CDROM_INTERFACE("sat_cdrom")
 	MCFG_SOFTWARE_LIST_ADD("cd_list","saturn")
 	MCFG_SOFTWARE_LIST_FILTER("cd_list","NTSC-J")
 
@@ -844,8 +806,15 @@ void sat_console_state::saturn_init_driver(int rgn)
 	m_vdp2.pal = (rgn == 12) ? 1 : 0;
 
 	// set compatible options
-	sh2drc_set_options(m_maincpu, SH2DRC_STRICT_VERIFY|SH2DRC_STRICT_PCREL);
-	sh2drc_set_options(m_slave, SH2DRC_STRICT_VERIFY|SH2DRC_STRICT_PCREL);
+	m_maincpu->sh2drc_set_options(SH2DRC_STRICT_VERIFY|SH2DRC_STRICT_PCREL);
+	m_slave->sh2drc_set_options(SH2DRC_STRICT_VERIFY|SH2DRC_STRICT_PCREL);
+
+	m_maincpu->sh2drc_add_fastram(0x00000000, 0x0007ffff, 1, &m_rom[0]);
+	m_maincpu->sh2drc_add_fastram(0x00200000, 0x002fffff, 0, &m_workram_l[0]);
+	m_maincpu->sh2drc_add_fastram(0x06000000, 0x060fffff, 0, &m_workram_h[0]);
+	m_slave->sh2drc_add_fastram(0x00000000, 0x0007ffff, 1, &m_rom[0]);
+	m_slave->sh2drc_add_fastram(0x00200000, 0x002fffff, 0, &m_workram_l[0]);
+	m_slave->sh2drc_add_fastram(0x06000000, 0x060fffff, 0, &m_workram_h[0]);
 
 	/* amount of time to boost interleave for on MINIT / SINIT, needed for communication to work */
 	m_minit_boost = 400;
@@ -919,7 +888,10 @@ ROM_END
 
 ROM_START(hisaturn)
 	ROM_REGION( 0x480000, "maincpu", ROMREGION_ERASEFF ) /* SH2 code */
-	ROM_LOAD("hisaturn.bin", 0x00000000, 0x00080000, CRC(721e1b60) SHA1(49d8493008fa715ca0c94d99817a5439d6f2c796))
+	ROM_SYSTEM_BIOS(0, "102", "v1.02 (950519)")
+	ROMX_LOAD( "mpr-18100.bin", 0x000000, 0x080000, CRC(3408dbf4) SHA1(8a22710e09ce75f39625894366cafe503ed1942d), ROM_BIOS(1))
+	ROM_SYSTEM_BIOS(1, "101", "v1.01 (950130)")
+	ROMX_LOAD("hisaturn.bin", 0x00000000, 0x00080000, CRC(721e1b60) SHA1(49d8493008fa715ca0c94d99817a5439d6f2c796), ROM_BIOS(2))
 	ROM_REGION( 0x080000, "slave", 0 ) /* SH2 code */
 	ROM_COPY( "maincpu",0,0,0x080000)
 ROM_END

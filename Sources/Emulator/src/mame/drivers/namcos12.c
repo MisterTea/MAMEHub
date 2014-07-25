@@ -30,11 +30,14 @@ Ehrgeiz (EG2/VER.A)                      (C) Square/Namco, 1998  COH-700     SYS
 Ehrgeiz (EG3/VER.A)                      (C) Square/Namco, 1998  COH-700     SYSTEM12 MOTHER(B)  SYSTEM12 M4F6    KC021
 Fighting Layer (FTL0/VER.A)              (C) Arika/Namco,  1998  COH-700     SYSTEM12 MOTHER(B)  SYSTEM12 M5F4    KC037
 Ghoul Panic (OB2/VER.A)                  (C) Namco/Raizing,1999  COH-700     SYSTEM12 MOTHER(B)  SYSTEM12 M4F6    KC045
+Oh! Bakyuuun (OB1/VER.A)                 (C) Namco/Raizing,1999  COH-700     SYSTEM12 MOTHER(B)  SYSTEM12 M4F6    KC045
 Golgo 13 (GLG1/VER.A)                    (C) Raizing/Namco,1999  COH-700     SYSTEM12 MOTHER(C)  SYSTEM12 M8F6    KC054
 Golgo 13 Kiseki no Dandou (GLS1/VER.A)   (C) Raizing/Namco,2000  COH-700     SYSTEM12 MOTHER(C)  SYSTEM12 M8F6    KC059
-Kaiun Quiz (KW1/VER.A1)                  (C) Namco/Moss,   1999  COH-700     SYSTEM12 MOTHER(C)  SYSTEM12 M10X64  KC050
+Kaiun Quiz (KW1/VER.A1)                  (C) Namco/MOSS,   1999  COH-700     SYSTEM12 MOTHER(C)  SYSTEM12 M10X64  KC050
+Kart Duel (KTD1/VER.A)                   (C) Namco,        2000  COH-700     SYSTEM12 MOTHER(B)  SYSTEM12 M4F0    KC057
 Libero Grande (LG1/VER.A)                (C) Namco,        1997  COH-700     SYSTEM12 MOTHER(B)  SYSTEM12 M8F2F   KC014
 Libero Grande (LG2/VER.A)                (C) Namco,        1997  COH-700     SYSTEM12 MOTHER(B)  SYSTEM12 M8F2F   KC014
+Mr Driller (DRI3/VER.A2)                 (C) Namco,        1999  COH-700     SYSTEM12 MOTHER(C)  SYSTEM12 M8F2F   KC048
 Mr Driller (DRI1/VER.A2)                 (C) Namco,        1999  COH-700     SYSTEM12 MOTHER(C)  SYSTEM12 M8F2F   KC048
 Paca Paca Passion (PPP1/VER.A2)          (C) Produce/Namco,1999  COH-700     SYSTEM12 MOTHER(B)  SYSTEM12 M8F2F   KC038
 Paca Paca Passion Special (PSP1/VER.A)   (C) Produce/Namco,1999  COH-700     SYSTEM12 MOTHER(C)  SYSTEM12 M5F2    KC052
@@ -71,12 +74,6 @@ Wanted Games
 Aerosmith - Quest for Fame              (C) Namco,        2001
 http://www.bandainamcogames.co.jp/am/vg/questforfame/
 
-Kart Duel                               (C) Namco,        2000
-http://www.bandainamcogames.co.jp/am/english/aa/kartduel/
-
-Oh Bakyuuun                             (C) Namco/Raizing,1999
-http://www.8ing.net/prd/ohbakyun/index.html
-
 Soul Calibur Ver.B                      (C) Namco,        199?
 Probably doesn't exist
 
@@ -90,9 +87,6 @@ Some kind of music game similar to Konami's Keyboard Mania series
 
 Um Jammer Lammy                         (C) Namco,        1999
 http://www.wailee.com/sys/lpic/UM_Jammer_Lammy.jpg
-
-If you can help with the remaining undumped S12 games, please contact me at http://members.iinet.net.au/~lantra9jp1/gurudumps/
-Note that this list above may not be 100% complete. Alternative versions are also welcome :-)
 
 The Namco System 12 system comprises 3 mandatory PCB's....
 MOTHER PCB  - This is the main PCB. It holds all sound circuitry, sound ROMs, program ROMs, shared RAM, bank-switching
@@ -108,7 +102,7 @@ ROM PCB     - There are nine known revisions of this PCB (so far). They're mostl
 And 4 game-specific/optional PCBs....
 NETWORK PCB - Used to connect 2 PCBs together using standard USB cables. The board plugs in where the CPU board would
               normally be, and the CPU board plugs into another connector on the Network PCB. Seems to be only used on
-              Libero Grande, Tekken 3 and Ehrgeiz (so far?)
+              Kart Duel, Libero Grande, Tekken 3 and Ehrgeiz (so far?)
 GUN I/F PCB - Used to connect and control the light guns. The board plugs in where the CPU board would
               normally be, and the CPU board plugs into another connector on the GUN I/F PCB. The guns plug into this
               PCB directly, no extra gun hardware is needed. Used only on Ghoul Panic and Point Blank 2 so far.
@@ -238,7 +232,9 @@ Notes:
                      Golgo 13 Kiseki no Dandou GLS1 Ver.A   GLS1/VER.A       MOTHER(C) (ROMs serialised)
                      Kaiun Quiz                KW1 Ver.A    KW1/VER.A1       MOTHER(C) (ROMs serialised)
                      Libero Grande             LG2 Ver.A    LG2/VER.A        MOTHER(B)
+                     Mr Driller                DRI3 Ver.A   DRI3/VER.A2      MOTHER(C) (ROMs serialised)
                      Mr Driller                DRI1 Ver.A   DRI1/VER.A2      MOTHER(C) (ROMs serialised)
+                     Oh! Bakyuuun              OB1 Ver.A    OB1/VER.A        MOTHER(B)
                      Paca Paca Passion         PPP1 Ver.A   PPP1/VER.A2      MOTHER(B)
                      Paca Paca Passion 2       PKS1 Ver.A   PKS1/VER.A       MOTHER(B)
                      Paca Paca Passion SP      PSP1 Ver.A   PSP1/VER.A       MOTHER(C) (ROMs serialised)
@@ -357,6 +353,15 @@ Shooting                                                                        
 
 Ghoul Panic   OB2/VER.A    Same PCB but sticker says....                  KC045    OB1 WAVEB.IC2
                            'SYSTEM 12 M4F0 PCB 8661962000'                         OB1 PRG0U.IC11, OB1 PRG0L.IC12
+                           (i.e no FlashROMs)
+
+Oh! Bakyuuun  OB1/VER.A    Same PCB but sticker says....                  KC045    OB1 WAVEB.IC2
+                           'SYSTEM 12 M4F0 PCB 8661962000'                         OB1 PRG0U.IC11, OB1 PRG0L.IC12
+                           (i.e no FlashROMs)
+                           (i.e no FlashROMs)
+
+Kart Duel     KTD1/VER.A   Same PCB but sticker says....                  KC057    KTD1 WAVE-0.IC2
+                           'SYSTEM 12 M4F0 PCB 8661962000'                         KTD1 ROM-0U.IC11, KTD1 ROM-0L.IC12
                            (i.e no FlashROMs)
 
 Point Blank 2 GNB5/VER.A   Same PCB but sticker says....                  KC042    GNB1 WAVEB.IC2
@@ -567,6 +572,9 @@ Paca Paca      PPP1/VER.A2   Same PCB but sticker says....                  KC03
 Passion                      'SYSTEM 12 M8F0 PCB 8661961700'                         PPP1 ROM0U, PPP1 ROM1U
                              (i.e no FlashROMs)                                      PPP1 ROM2U, PPP1 ROM0L
                                                                                      PPP1 ROM1L, PPP1 ROM2L
+
+Mr Driller     DRI3/VER.A2   Same as Paca Paca Passion                      KC048    DRI1 WAVE0               R5, R7
+                                                                                     DRI1 ROM0U, DRI1 ROM0L
 
 Mr Driller     DRI1/VER.A2   Same as Paca Paca Passion                      KC048    DRI1 WAVE0               R5, R7
                                                                                      DRI1 ROM0U, DRI1 ROM0L
@@ -1031,11 +1039,12 @@ Notes:
 
 #include "emu.h"
 #include "cpu/psx/psx.h"
-#include "cpu/h83002/h8.h"
+#include "cpu/h8/h83002.h"
 #include "video/psx.h"
 #include "machine/at28c16.h"
 #include "sound/c352.h"
 #include "machine/rtc4543.h"
+#include "machine/namco_settings.h"
 
 #define VERBOSE_LEVEL ( 0 )
 
@@ -1044,30 +1053,33 @@ class namcos12_state : public driver_device
 public:
 	namcos12_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_rtc(*this, "rtc"),
-		m_sharedram(*this, "sharedram"),
 		m_maincpu(*this, "maincpu"),
-		m_ram(*this, "maincpu:ram")
-	{
-	}
+		m_ram(*this, "maincpu:ram"),
+		m_sub(*this, "sub"),
+		m_adc(*this, "sub:adc"),
+		m_rtc(*this, "rtc"),
+		m_settings(*this, "namco_settings"),
+		m_sharedram(*this, "sharedram")
+	{ }
 
+	required_device<psxcpu_device> m_maincpu;
+	required_device<ram_device> m_ram;
+	required_device<h83002_device> m_sub;
+	required_device<h8_adc_device> m_adc;
 	required_device<rtc4543_device> m_rtc;
+	required_device<namco_settings_device> m_settings;
 	required_shared_ptr<UINT16> m_sharedram;
-	UINT16 m_n_bankoffset;
 
+	UINT16 m_n_bankoffset;
 	UINT32 m_n_dmaoffset;
 	UINT32 m_n_tektagdmaoffset;
 	int m_has_tektagt_dma;
 
 	int m_ttt_cnt;
 	UINT32 m_ttt_val[2];
+	UINT8 m_sub_porta;
+	UINT8 m_sub_portb;
 
-	int m_s12_porta;
-	int m_s12_rtcstate;
-	int m_s12_lastpB;
-	int m_s12_setstate;
-	int m_s12_setnum;
-	int m_s12_settings[8];
 	DECLARE_WRITE16_MEMBER(sharedram_w);
 	DECLARE_READ16_MEMBER(sharedram_r);
 	DECLARE_WRITE16_MEMBER(bankoffset_w);
@@ -1079,23 +1091,23 @@ public:
 	DECLARE_WRITE16_MEMBER(tektagt_protection_2_w);
 	DECLARE_READ16_MEMBER(tektagt_protection_2_r);
 	DECLARE_READ16_MEMBER(tektagt_protection_3_r);
-	DECLARE_READ8_MEMBER(s12_mcu_p8_r);
-	DECLARE_READ8_MEMBER(s12_mcu_pa_r);
-	DECLARE_WRITE8_MEMBER(s12_mcu_pa_w);
-	DECLARE_READ8_MEMBER(s12_mcu_rtc_r);
-	DECLARE_READ8_MEMBER(s12_mcu_portB_r);
-	DECLARE_WRITE8_MEMBER(s12_mcu_portB_w);
-	DECLARE_WRITE8_MEMBER(s12_mcu_settings_w);
-	DECLARE_READ8_MEMBER(s12_mcu_gun_h_r);
-	DECLARE_READ8_MEMBER(s12_mcu_gun_v_r);
+	DECLARE_READ16_MEMBER(s12_mcu_p8_r);
+	DECLARE_READ16_MEMBER(s12_mcu_pa_r);
+	DECLARE_WRITE16_MEMBER(s12_mcu_pa_w);
+	DECLARE_READ16_MEMBER(s12_mcu_rtc_r);
+	DECLARE_READ16_MEMBER(s12_mcu_portB_r);
+	DECLARE_WRITE16_MEMBER(s12_mcu_portB_w);
+	DECLARE_READ16_MEMBER(s12_mcu_gun_h_r);
+	DECLARE_READ16_MEMBER(s12_mcu_gun_v_r);
+
 	DECLARE_DRIVER_INIT(namcos12);
 	DECLARE_DRIVER_INIT(ptblank2);
-	DECLARE_MACHINE_RESET(namcos12);
 	inline void ATTR_PRINTF(3,4) verboselog( int n_level, const char *s_fmt, ... );
 	void namcos12_rom_read( UINT32 *p_n_psxram, UINT32 n_address, INT32 n_size );
 	void namcos12_sub_irq( screen_device &screen, bool vblank_state );
-	required_device<psxcpu_device> m_maincpu;
-	required_device<ram_device> m_ram;
+
+protected:
+	virtual void machine_reset();
 };
 
 inline void ATTR_PRINTF(3,4) namcos12_state::verboselog( int n_level, const char *s_fmt, ... )
@@ -1152,12 +1164,6 @@ WRITE16_MEMBER(namcos12_state::dmaoffset_w)
 {
 	m_n_dmaoffset = ( offset * 2 ) | ( data << 16 );
 
-	/// HACK: it's unclear how exp_cfg & exp_base really play a part in this.
-	if( m_maincpu->exp_base() == 0x1f300000 )
-	{
-		m_n_dmaoffset |= 0x80000000;
-	}
-
 	verboselog(1, "dmaoffset_w( %08x, %08x, %08x ) %08x\n", offset, data, mem_mask, m_n_dmaoffset );
 }
 
@@ -1181,8 +1187,9 @@ void namcos12_state::namcos12_rom_read( UINT32 *p_n_psxram, UINT32 n_address, IN
 		n_offset = m_n_tektagdmaoffset & 0x7fffffff;
 		verboselog(1, "namcos12_rom_read( %08x, %08x ) tektagt %08x\n", n_address, n_size, n_offset );
 	}
-	else if( m_n_dmaoffset >= 0x80000000 )
+	else if( m_n_dmaoffset >= 0x80000000 || m_maincpu->exp_base() == 0x1f300000 )
 	{
+		/// HACK: it's unclear how exp_cfg & exp_base really play a part in this, tenkomor needs the test here and not in dmaoffset_w().
 		n_region = "maincpu:rom";
 		n_offset = m_n_dmaoffset & 0x003fffff;
 		verboselog(1, "namcos12_rom_read( %08x, %08x ) boot %08x\n", n_address, n_size, n_offset );
@@ -1226,7 +1233,9 @@ void namcos12_state::namcos12_rom_read( UINT32 *p_n_psxram, UINT32 n_address, IN
 
 void namcos12_state::namcos12_sub_irq( screen_device &screen, bool vblank_state )
 {
-	irq1_line_pulse( *machine().device( "sub" ) );
+	m_sub->set_input_line(1, vblank_state ? ASSERT_LINE : CLEAR_LINE);
+	m_adc->adtrg_w(vblank_state);
+	m_sub_portb = (m_sub_portb & 0x7f) | (vblank_state << 7);
 }
 
 static ADDRESS_MAP_START( namcos12_map, AS_PROGRAM, 32, namcos12_state )
@@ -1255,7 +1264,7 @@ ADDRESS_MAP_END
 
 WRITE16_MEMBER(namcos12_state::system11gun_w)
 {
-	switch( offset )
+	switch (offset)
 	{
 	case 0:
 		/* blowback 1 */
@@ -1282,7 +1291,7 @@ READ16_MEMBER(namcos12_state::system11gun_r)
 {
 	UINT16 data = 0;
 
-	switch( offset )
+	switch (offset)
 	{
 	case 0:
 		data = ioport("LIGHT0_X")->read();
@@ -1293,7 +1302,7 @@ READ16_MEMBER(namcos12_state::system11gun_r)
 		break;
 
 	case 3:
-			data = ioport("LIGHT0_Y")->read() + 1;
+		data = ioport("LIGHT0_Y")->read() + 1;
 		break;
 
 	case 4:
@@ -1316,7 +1325,7 @@ WRITE16_MEMBER(namcos12_state::tektagt_protection_1_w)
 {
 	// Second dma offset or protection ref values write
 
-	switch(offset)
+	switch (offset)
 	{
 	case 0:
 		m_n_tektagdmaoffset = data;
@@ -1335,11 +1344,13 @@ WRITE16_MEMBER(namcos12_state::tektagt_protection_1_w)
 
 READ16_MEMBER(namcos12_state::tektagt_protection_1_r)
 {
-	switch(offset)
+	switch (offset)
 	{
 	case 0:
 		// Reads are either ignored or bit 15 is tested for a busy flag
 		return 0x8000;
+	case 1:
+		break;
 	}
 
 	return 0;
@@ -1347,11 +1358,14 @@ READ16_MEMBER(namcos12_state::tektagt_protection_1_r)
 
 WRITE16_MEMBER(namcos12_state::tektagt_protection_2_w)
 {
-	switch( offset )
+	switch (offset)
 	{
 	case 0:
 		// Writes are 0 or rand(), only used as a "start prot value write" trigger
 		m_ttt_cnt = 0;
+		break;
+	case 1:
+		break;
 	}
 }
 
@@ -1396,7 +1410,7 @@ READ16_MEMBER(namcos12_state::tektagt_protection_3_r)
 	return 0;
 }
 
-MACHINE_RESET_MEMBER(namcos12_state,namcos12)
+void namcos12_state::machine_reset()
 {
 	address_space &space = m_maincpu->space(AS_PROGRAM);
 	bankoffset_w(space,0,0,0xffff);
@@ -1414,6 +1428,7 @@ MACHINE_RESET_MEMBER(namcos12_state,namcos12)
 		strcmp( machine().system().name, "golgo13" ) == 0 ||
 		strcmp( machine().system().name, "g13knd" ) == 0 ||
 		strcmp( machine().system().name, "mrdrillr" ) == 0 ||
+		strcmp( machine().system().name, "mrdrillrj" ) == 0 ||
 		strcmp( machine().system().name, "pacapp" ) == 0 ||
 		strcmp( machine().system().name, "pacappsp" ) == 0 ||
 		strcmp( machine().system().name, "pacapp2" ) == 0 ||
@@ -1424,6 +1439,8 @@ MACHINE_RESET_MEMBER(namcos12_state,namcos12)
 		strcmp( machine().system().name, "sws2000" ) == 0 ||
 		strcmp( machine().system().name, "sws2001" ) == 0 ||
 		strcmp( machine().system().name, "truckk" ) == 0 ||
+		strcmp( machine().system().name, "kartduel" ) == 0 ||
+		strcmp( machine().system().name, "ohbakyuun" ) == 0 ||
 		strcmp( machine().system().name, "ghlpanic" ) == 0 )
 	{
 		/* HACK: this is based on guesswork, it might not even be keycus. */
@@ -1445,152 +1462,78 @@ static ADDRESS_MAP_START( s12h8rwmap, AS_PROGRAM, 16, namcos12_state )
 	AM_RANGE(0x300030, 0x300031) AM_NOP // most S12 bioses write here simply to generate a wait state.  there is no deeper meaning.
 ADDRESS_MAP_END
 
-READ8_MEMBER(namcos12_state::s12_mcu_p8_r)
+READ16_MEMBER(namcos12_state::s12_mcu_p8_r)
 {
 	return 0x02;
 }
 
 // emulation of the Epson R4543 real time clock
-// in System 12, bit 0 of H8/3002 port A is connected to it's chip enable
+// in System 12, bit 0 of H8/3002 port A is connected to its chip enable
 // the actual I/O takes place through the H8/3002's serial port B.
 
-READ8_MEMBER(namcos12_state::s12_mcu_pa_r)
+READ16_MEMBER(namcos12_state::s12_mcu_pa_r)
 {
-	return m_s12_porta;
+	return m_sub_porta;
 }
 
-WRITE8_MEMBER(namcos12_state::s12_mcu_pa_w)
+WRITE16_MEMBER(namcos12_state::s12_mcu_pa_w)
 {
-	m_rtc->ce_w(data & 1);
-	m_s12_porta = data;
+	logerror("pa_w %02x\n", data);
+	m_sub_porta = data;
+	m_rtc->ce_w((m_sub_portb & 0x20) && (m_sub_porta & 1));
+	m_settings->ce_w((m_sub_portb & 0x20) && !(m_sub_porta & 1));
 }
 
-READ8_MEMBER(namcos12_state::s12_mcu_rtc_r)
+READ16_MEMBER(namcos12_state::s12_mcu_portB_r)
 {
-	UINT8 ret = 0;
-
-	for (int i = 0; i < 8; i++)
-	{
-		m_rtc->clk_w(0);
-		m_rtc->clk_w(1);
-		ret <<= 1;
-		ret |= m_rtc->data_r();
-	}
-
-	return ret;
+	return m_sub_portb;
 }
 
-READ8_MEMBER(namcos12_state::s12_mcu_portB_r)
+WRITE16_MEMBER(namcos12_state::s12_mcu_portB_w)
 {
-	// golgo13 won't boot if this doesn't toggle every read
-	m_s12_lastpB ^= 0x80;
-	return m_s12_lastpB;
+	m_sub_portb = (m_sub_portb & 0x80) | (data & 0x7f);
+	m_rtc->ce_w((m_sub_portb & 0x20) && (m_sub_porta & 1));
+	m_settings->ce_w((m_sub_portb & 0x20) && !(m_sub_porta & 1));
 }
 
-WRITE8_MEMBER(namcos12_state::s12_mcu_portB_w)
-{
-	// bit 7 = chip enable for the video settings controller
-	if (data & 0x80)
-	{
-		m_s12_setstate = 0;
-	}
-
-	m_s12_lastpB = data;
-}
-
-WRITE8_MEMBER(namcos12_state::s12_mcu_settings_w)
-{
-	int *s12_settings = m_s12_settings;
-
-	if (m_s12_setstate)
-	{
-		// data
-		s12_settings[m_s12_setnum] = data;
-
-		if (m_s12_setnum == 7)
-		{
-			logerror("S12 video settings: Contrast: %02x  R: %02x  G: %02x  B: %02x\n",
-				BITSWAP8(s12_settings[0], 0, 1, 2, 3, 4, 5, 6, 7),
-				BITSWAP8(s12_settings[1], 0, 1, 2, 3, 4, 5, 6, 7),
-				BITSWAP8(s12_settings[2], 0, 1, 2, 3, 4, 5, 6, 7),
-				BITSWAP8(s12_settings[3], 0, 1, 2, 3, 4, 5, 6, 7));
-		}
-	}
-	else
-	{   // setting number
-		m_s12_setnum = (data >> 4)-1;
-	}
-
-	m_s12_setstate ^= 1;
-}
-
-/* Golgo 13 lightgun inputs
- *
- * Note: The H8/3002's ADC is 10 bits wide, but
- * it expects the 10-bit value to be left-justified
- * within the 16-bit word.
- */
-
-READ8_MEMBER(namcos12_state::s12_mcu_gun_h_r)
-{
-	ioport_port *port = ioport("LIGHT0_X");
-	if( port != NULL )
-	{
-		int rv = port->read() << 6;
-
-		if( ( offset & 1 ) != 0 )
-		{
-			return rv;
-		}
-
-		return rv >> 8;
-	}
-
-	// if game has no lightgun ports, return 0
-	return 0;
-}
-
-READ8_MEMBER(namcos12_state::s12_mcu_gun_v_r)
-{
-	ioport_port *port = ioport("LIGHT0_Y");
-	if( port != NULL )
-	{
-		int rv = port->read() << 6;
-
-		if( ( offset & 1 ) != 0 )
-		{
-			return rv;
-		}
-
-		return rv >> 8;
-	}
-
-	// if game has no lightgun ports, return 0
-	return 0;
-}
-
-static ADDRESS_MAP_START( s12h8iomap, AS_IO, 8, namcos12_state )
-	AM_RANGE(H8_PORT_7, H8_PORT_7) AM_READ_PORT("DSW")
-	AM_RANGE(H8_PORT_8, H8_PORT_8) AM_READ(s12_mcu_p8_r ) AM_WRITENOP
-	AM_RANGE(H8_PORT_A, H8_PORT_A) AM_READWRITE(s12_mcu_pa_r, s12_mcu_pa_w )
-	AM_RANGE(H8_PORT_B, H8_PORT_B) AM_READWRITE(s12_mcu_portB_r, s12_mcu_portB_w )
-	AM_RANGE(H8_SERIAL_1, H8_SERIAL_1) AM_READ(s12_mcu_rtc_r ) AM_WRITE(s12_mcu_settings_w )
-	AM_RANGE(H8_ADC_0_H, H8_ADC_0_L) AM_NOP
-	AM_RANGE(H8_ADC_1_H, H8_ADC_1_L) AM_READ(s12_mcu_gun_h_r )  // golgo 13 gun X-axis
-	AM_RANGE(H8_ADC_2_H, H8_ADC_2_L) AM_READ(s12_mcu_gun_v_r )  // golgo 13 gun Y-axis
-	AM_RANGE(H8_ADC_3_H, H8_ADC_3_L) AM_NOP
+static ADDRESS_MAP_START( s12h8iomap, AS_IO, 16, namcos12_state )
+	AM_RANGE(h8_device::PORT_7, h8_device::PORT_7) AM_READ_PORT("DSW")
+	AM_RANGE(h8_device::PORT_8, h8_device::PORT_8) AM_READ(s12_mcu_p8_r) AM_WRITENOP
+	AM_RANGE(h8_device::PORT_A, h8_device::PORT_A) AM_READWRITE(s12_mcu_pa_r, s12_mcu_pa_w)
+	AM_RANGE(h8_device::PORT_B, h8_device::PORT_B) AM_READWRITE(s12_mcu_portB_r, s12_mcu_portB_w)
+	AM_RANGE(h8_device::ADC_0, h8_device::ADC_0) AM_NOP
+	AM_RANGE(h8_device::ADC_1, h8_device::ADC_1) AM_NOP
+	AM_RANGE(h8_device::ADC_2, h8_device::ADC_2) AM_NOP
+	AM_RANGE(h8_device::ADC_3, h8_device::ADC_3) AM_NOP
 ADDRESS_MAP_END
+
+
+// Golgo 13 lightgun inputs
+
+READ16_MEMBER(namcos12_state::s12_mcu_gun_h_r)
+{
+	return ioport("LIGHT0_X")->read();
+}
+
+READ16_MEMBER(namcos12_state::s12_mcu_gun_v_r)
+{
+	return ioport("LIGHT0_Y")->read();
+}
+
+static ADDRESS_MAP_START( golgo13_h8iomap, AS_IO, 16, namcos12_state )
+	AM_RANGE(h8_device::ADC_1, h8_device::ADC_1) AM_READ(s12_mcu_gun_h_r)
+	AM_RANGE(h8_device::ADC_2, h8_device::ADC_2) AM_READ(s12_mcu_gun_v_r)
+
+	AM_IMPORT_FROM( s12h8iomap )
+ADDRESS_MAP_END
+
 
 DRIVER_INIT_MEMBER(namcos12_state,namcos12)
 {
 	membank("bank1")->configure_entries(0, memregion( "user2" )->bytes() / 0x200000, memregion( "user2" )->base(), 0x200000 );
 
-	m_s12_porta = 0;
-	m_s12_rtcstate = 0;
-	m_s12_lastpB = 0x50;
-	m_s12_setstate = 0;
-	m_s12_setnum = 0;
-	memset(m_s12_settings, 0, sizeof(m_s12_settings));
+	m_sub_porta = 0;
+	m_sub_portb = 0x50;
 
 	m_n_tektagdmaoffset = 0;
 	m_n_dmaoffset = 0;
@@ -1610,8 +1553,9 @@ DRIVER_INIT_MEMBER(namcos12_state,ptblank2)
 }
 
 static MACHINE_CONFIG_START( coh700, namcos12_state )
+
 	/* basic machine hardware */
-	MCFG_CPU_ADD( "maincpu", CXD8661R, XTAL_100MHz )
+	MCFG_CPU_ADD("maincpu", CXD8661R, XTAL_100MHz)
 	MCFG_CPU_PROGRAM_MAP( namcos12_map)
 
 	MCFG_RAM_MODIFY("maincpu:ram")
@@ -1619,13 +1563,24 @@ static MACHINE_CONFIG_START( coh700, namcos12_state )
 
 	MCFG_PSX_DMA_CHANNEL_READ( "maincpu", 5, psx_dma_read_delegate( FUNC( namcos12_state::namcos12_rom_read ), (namcos12_state *) owner ) )
 
-	MCFG_CPU_ADD("sub", H83002, 16737350 )
-	MCFG_CPU_PROGRAM_MAP( s12h8rwmap)
-	MCFG_CPU_IO_MAP( s12h8iomap)
+	MCFG_CPU_ADD("sub", H83002, 16737350)
+	MCFG_CPU_PROGRAM_MAP(s12h8rwmap)
+	MCFG_CPU_IO_MAP(s12h8iomap)
 
-	MCFG_MACHINE_RESET_OVERRIDE(namcos12_state, namcos12 )
+	MCFG_NAMCO_SETTINGS_ADD("namco_settings")
 
 	MCFG_RTC4543_ADD("rtc", XTAL_32_768kHz)
+	MCFG_RTC4543_DATA_CALLBACK(DEVWRITELINE("sub:sci1", h8_sci_device, rx_w))
+
+	MCFG_LINE_DISPATCH_ADD("clk_dispatch", 2)
+	MCFG_LINE_DISPATCH_FWD_CB(0, 2, DEVWRITELINE(":rtc", rtc4543_device, clk_w)) MCFG_DEVCB_INVERT
+	MCFG_LINE_DISPATCH_FWD_CB(1, 2, DEVWRITELINE(":namco_settings", namco_settings_device, clk_w))
+
+	MCFG_DEVICE_MODIFY("sub:sci1")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE(":namco_settings", namco_settings_device, data_w))
+	MCFG_H8_SCI_CLK_CALLBACK(DEVWRITELINE(":clk_dispatch", devcb_line_dispatch_device<2>, in_w))
+
+	MCFG_AT28C16_ADD("at28c16", NULL)
 
 	/* video hardware */
 	MCFG_PSXGPU_ADD( "maincpu", "gpu", CXD8654Q, 0x200000, XTAL_53_693175MHz )
@@ -1634,23 +1589,32 @@ static MACHINE_CONFIG_START( coh700, namcos12_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_C352_ADD("c352", 16737350*1.5 ) // measured at 29.168MHz, but that's too highpitched
+	MCFG_C352_ADD("c352", 16737350*1.5) // measured at 29.168MHz, but that's too highpitched
 	MCFG_SOUND_ROUTE(0, "rspeaker", 1.00)
 	MCFG_SOUND_ROUTE(1, "lspeaker", 1.00)
 	MCFG_SOUND_ROUTE(2, "rspeaker", 1.00)
 	MCFG_SOUND_ROUTE(3, "lspeaker", 1.00)
-
-	MCFG_AT28C16_ADD( "at28c16", NULL )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ptblank2, coh700 )
-	MCFG_CPU_MODIFY( "maincpu" )
+
+	/* basic machine hardware */
+	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP( ptblank2_map )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( tektagt, coh700 )
-	MCFG_CPU_MODIFY( "maincpu" )
+
+	/* basic machine hardware */
+	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP( tektagt_map )
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( golgo13, coh700 )
+
+	/* basic machine hardware */
+	MCFG_CPU_MODIFY("sub")
+	MCFG_CPU_IO_MAP(golgo13_h8iomap)
 MACHINE_CONFIG_END
 
 
@@ -1946,7 +1910,23 @@ ROM_START( ghlpanic )
 	ROM_LOAD16_BYTE( "ob1rom0u.ic11",  0x0000001, 0x400000, CRC(0625db92) SHA1(b63be6e41b2c6e2194f02f0c31da1f30c4e08232) )
 
 	ROM_REGION( 0x0080000, "sub", 0 ) /* sound prg */
-	ROM_LOAD16_WORD_SWAP( "ob2vera.11s", 0x0000000, 0x080000, CRC(f8c459f2) SHA1(681520c891f5c8a0f321652d8834910310c88d1a) )
+	ROM_LOAD16_WORD_SWAP( "ob1vera.11s", 0x0000000, 0x080000, CRC(f8c459f2) SHA1(681520c891f5c8a0f321652d8834910310c88d1a) )
+
+	ROM_REGION( 0x1000000, "c352", 0 ) /* samples */
+	ROM_LOAD( "ob1wave.ic2",           0x000000, 0x800000, CRC(e7bc7202) SHA1(f0f598304866ebe62642eaac6b7d8709baa14fe1) )
+ROM_END
+
+ROM_START( ohbakyuun )
+	ROM_REGION32_LE( 0x00400000, "maincpu:rom", 0 ) /* main prg */
+	ROM_LOAD16_BYTE( "ob1vera.2l",     0x0000000, 0x200000, CRC(4cb3c25a) SHA1(18679b9ae54f2b001316d9a55065c859df292c4c) )
+	ROM_LOAD16_BYTE( "ob1vera.2p",     0x0000001, 0x200000, CRC(85abbe30) SHA1(0edfa34c45bd95882639a7d3e43bc9df3bc23586) )
+
+	ROM_REGION32_LE( 0x00800000, "user2", 0 ) /* main data */
+	ROM_LOAD16_BYTE( "ob1rom0l.ic12",  0x0000000, 0x400000, CRC(f8b6a599) SHA1(2af3186242a8cbf14ab7532496a91041300527e9) )
+	ROM_LOAD16_BYTE( "ob1rom0u.ic11",  0x0000001, 0x400000, CRC(0625db92) SHA1(b63be6e41b2c6e2194f02f0c31da1f30c4e08232) )
+
+	ROM_REGION( 0x0080000, "sub", 0 ) /* sound prg */
+	ROM_LOAD16_WORD_SWAP( "ob1vera.11s", 0x0000000, 0x080000, CRC(f8c459f2) SHA1(681520c891f5c8a0f321652d8834910310c88d1a) )
 
 	ROM_REGION( 0x1000000, "c352", 0 ) /* samples */
 	ROM_LOAD( "ob1wave.ic2",           0x000000, 0x800000, CRC(e7bc7202) SHA1(f0f598304866ebe62642eaac6b7d8709baa14fe1) )
@@ -1970,6 +1950,22 @@ ROM_START( kaiunqz )
 
 	ROM_REGION( 0x1000000, "c352", 0 ) /* samples */
 	ROM_LOAD( "kw1wave0.2",   0x000000, 0x800000, CRC(060e52ae) SHA1(7ea95cae9d3c648163b225d0c7d365644be90241) )
+ROM_END
+
+ROM_START( kartduel )
+	ROM_REGION32_LE( 0x00400000, "maincpu:rom", 0 ) /* main prg */
+	ROM_LOAD16_BYTE( "ktd1vera.2l",  0x0000000, 0x200000, CRC(0c207249) SHA1(6c57de25d452226a25f658638d89b81257960741) )
+	ROM_LOAD16_BYTE( "ktd1vera.2p",  0x0000001, 0x200000, CRC(f6e2581f) SHA1(06eb108c2775290590dba75f964f26443a585d70) )
+
+	ROM_REGION32_LE( 0x00800000, "user2", 0 ) /* main data */
+	ROM_LOAD16_BYTE( "kdt1rom0l.ic12", 0x000000, 0x400000, BAD_DUMP CRC(8e2d5d9e) SHA1(6f703e27a19740af4094004b783b3cc2974c3de0) ) // These probably should be 64MBIT
+	ROM_LOAD16_BYTE( "kdt1rom0u.ic11", 0x000001, 0x400000, BAD_DUMP CRC(49ec5dbd) SHA1(336db6d3e361938850a9234b6b64070dbdc36d45) ) //
+
+	ROM_REGION( 0x0080000, "sub", 0 ) /* sound prg */
+	ROM_LOAD16_WORD_SWAP( "ktd1vera.11s", 0x000000, 0x080000, CRC(c2ff1971) SHA1(32ee2afe08e92049d8139c9324a0ea1a3b7ee5a1) )
+
+	ROM_REGION( 0x1000000, "c352", 0 ) /* samples */
+	ROM_LOAD( "ktd1wave0.ic2",  0x0000000, 0x800000, CRC(c54d5539) SHA1(17518dc76bb3627ca42bac665938bb11ea926396) )
 ROM_END
 
 ROM_START( lbgrande )
@@ -2030,8 +2026,24 @@ ROM_END
 
 ROM_START( mrdrillr )
 	ROM_REGION32_LE( 0x00400000, "maincpu:rom", 0 ) /* main prg */
-	ROM_LOAD16_BYTE( "dri1vera.2l",  0x0000000, 0x200000, CRC(751ca21d) SHA1(1c271bba83d387c797ce8daa43885bcb6e1a51a6) )
-	ROM_LOAD16_BYTE( "dri1vera.2p",  0x0000001, 0x200000, CRC(2a2b0704) SHA1(5a8b40c6cf0adc43ca2ee0c576ec82f314aacd2c) )
+	ROM_LOAD16_BYTE( "dri3vera2.2l",  0x0000000, 0x200000, CRC(36b9eeab) SHA1(85f5d57d4fc6160bfed49a08ad31a2cc2b4a38c5) )
+	ROM_LOAD16_BYTE( "dri3vera2.2p",  0x0000001, 0x200000, CRC(811c00d5) SHA1(627685078fceb023e8af1b7af5269f9b01a06dba) )
+
+	ROM_REGION32_LE( 0x0800000, "user2", 0 ) /* main data */
+	ROM_LOAD16_BYTE( "dri1rom0l.6",  0x0000000, 0x400000, CRC(021bb2fa) SHA1(bfe3e46e9728d5b5a692f432515267ff8b8255e7) )
+	ROM_LOAD16_BYTE( "dri1rom0u.9",  0x0000001, 0x400000, CRC(5aae85ea) SHA1(a54dcc050c12ed3d77efc328e366e99c392eb139) )
+
+	ROM_REGION( 0x0080000, "sub", 0 ) /* sound prg */
+	ROM_LOAD16_WORD_SWAP( "dri1vera.11s", 0x0000000, 0x080000, CRC(33ea9c0e) SHA1(5018d7a1a45ec3133cd928435db8804f66321924) )
+
+	ROM_REGION( 0x1000000, "c352", 0 ) /* samples */
+	ROM_LOAD( "dri1wave0.5",         0x0000000, 0x800000, CRC(32928df1) SHA1(79af92a2d24a0e3d5bfe1785776b0f86a93882ce) )
+ROM_END
+
+ROM_START( mrdrillrj )
+	ROM_REGION32_LE( 0x00400000, "maincpu:rom", 0 ) /* main prg */
+	ROM_LOAD16_BYTE( "dri1vera2.2l",  0x0000000, 0x200000, CRC(751ca21d) SHA1(1c271bba83d387c797ce8daa43885bcb6e1a51a6) )
+	ROM_LOAD16_BYTE( "dri1vera2.2p",  0x0000001, 0x200000, CRC(2a2b0704) SHA1(5a8b40c6cf0adc43ca2ee0c576ec82f314aacd2c) )
 
 	ROM_REGION32_LE( 0x0800000, "user2", 0 ) /* main data */
 	ROM_LOAD16_BYTE( "dri1rom0l.6",  0x0000000, 0x400000, CRC(021bb2fa) SHA1(bfe3e46e9728d5b5a692f432515267ff8b8255e7) )
@@ -2583,7 +2595,7 @@ ROM_START( tektagtjc1 )
 	ROM_LOAD32_BYTE( "flou.ic7",        0x3000003, 0x200000, CRC(75894a07) SHA1(ee36dded4c78b0bddd4904eceabc0f0f2ca5cf07) ) //
 
 	ROM_REGION( 0x0080000, "sub", 0 ) /* sound prg */
-	ROM_LOAD16_WORD_SWAP( "teg1verb.11s", 0x0000000, 0x080000, BAD_DUMP CRC(0a6e5d6c) SHA1(fd37c190ac99dc9ab2373a43dc39ccf6eca6c178) ) // There is a single bit difference @ 0x1805
+	ROM_LOAD16_WORD_SWAP( "teg1verb.11s", 0x0000000, 0x080000, CRC(67d0c469) SHA1(da164702fc21b9f46a9e32c89e7b1d36070ddf79) )
 
 	ROM_REGION( 0x1000000, "c352", 0 ) /* samples */
 	ROM_LOAD( "teg1_wave0.ic1",      0x0000000, 0x800000, CRC(4bd99104) SHA1(f76b0576cc28fe49d3c1c402988b933933e52e15) )
@@ -2810,7 +2822,7 @@ GAME( 1998, soulclbrja,soulclbr, coh700,   namcos12, namcos12_state, namcos12, R
 GAME( 1998, ehrgeiz,   0,        coh700,   namcos12, namcos12_state, namcos12, ROT0, "Square / Namco",  "Ehrgeiz (US, EG3/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC021 */
 GAME( 1998, ehrgeizaa, ehrgeiz,  coh700,   namcos12, namcos12_state, namcos12, ROT0, "Square / Namco",  "Ehrgeiz (Asia, EG2/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC021 */
 GAME( 1998, ehrgeizja, ehrgeiz,  coh700,   namcos12, namcos12_state, namcos12, ROT0, "Square / Namco",  "Ehrgeiz (Japan, EG1/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC021 */
-GAME( 1998, mdhorse,   0,        coh700,   namcos12, namcos12_state, namcos12, ROT0, "Namco",           "Derby Quiz My Dream Horse (Japan, MDH1/VER.A2)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING ) /* KC035 */
+GAME( 1998, mdhorse,   0,        coh700,   namcos12, namcos12_state, namcos12, ROT0, "MOSS / Namco",    "Derby Quiz My Dream Horse (Japan, MDH1/VER.A2)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING ) /* KC035 */
 GAME( 1998, sws98,     0,        coh700,   namcos12, namcos12_state, namcos12, ROT0, "Namco",           "Super World Stadium '98 (Japan, SS81/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC0?? */
 GAME( 1998, tenkomor,  0,        coh700,   namcos12, namcos12_state, namcos12, ROT90,"Namco",           "Tenkomori Shooting (Asia, TKM2/VER.A1)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC036 */
 GAME( 1998, tenkomorja,tenkomor, coh700,   namcos12, namcos12_state, namcos12, ROT90,"Namco",           "Tenkomori Shooting (Japan, TKM1/VER.A1)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC036 */
@@ -2827,13 +2839,16 @@ GAME( 1999, tektagtjc1,tektagt,  tektagt,  namcos12, namcos12_state, namcos12, R
 GAME( 1999, tektagtjb, tektagt,  tektagt,  namcos12, namcos12_state, namcos12, ROT0, "Namco",           "Tekken Tag Tournament (Japan, TEG1/VER.B)", GAME_IMPERFECT_SOUND | GAME_NOT_WORKING ) /* KC044 */
 GAME( 1999, tektagtja, tektagt,  tektagt,  namcos12, namcos12_state, namcos12, ROT0, "Namco",           "Tekken Tag Tournament (Japan, TEG1/VER.A3)", GAME_IMPERFECT_SOUND | GAME_NOT_WORKING ) /* KC044 */
 GAME( 1999, ghlpanic,  0,        ptblank2, ghlpanic, namcos12_state, namcos12, ROT0, "Eighting / Raizing / Namco", "Ghoul Panic (Asia, OB2/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC045 */
+GAME( 1999, ohbakyuun, ghlpanic, ptblank2, ghlpanic, namcos12_state, namcos12, ROT0, "Eighting / Raizing / Namco", "Oh! Bakyuuun (Japan, OB1/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC045 */
 GAME( 1999, pacapp2,   0,        coh700,   namcos12, namcos12_state, namcos12, ROT0, "Produce / Namco", "Paca Paca Passion 2 (Japan, PKS1/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC046 */
-GAME( 1999, mrdrillr,  0,        coh700,   namcos124w,namcos12_state,namcos12,ROT0, "Namco",           "Mr. Driller (Japan, DRI1/VER.A2)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC048 */
+GAME( 1999, mrdrillr,  0,        coh700,   namcos124w,namcos12_state,namcos12, ROT0, "Namco",           "Mr. Driller (US, DRI3/VER.A2)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC048 */
+GAME( 1999, mrdrillrj, mrdrillr, coh700,   namcos124w,namcos12_state,namcos12, ROT0, "Namco",           "Mr. Driller (Japan, DRI1/VER.A2)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC048 */
 GAME( 1999, kaiunqz,   0,        coh700,   namcos12, namcos12_state, namcos12, ROT0, "Namco",           "Kaiun Quiz (Japan, KW1/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING ) /* KC050 */
 GAME( 1999, pacappsp,  0,        coh700,   namcos12, namcos12_state, namcos12, ROT0, "Produce / Namco", "Paca Paca Passion Special (Japan, PSP1/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC052 */
 GAME( 1999, aquarush,  0,        coh700,   namcos12, namcos12_state, namcos12, ROT0, "Namco",           "Aqua Rush (Japan, AQ1/VER.A1)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC053 */
-GAME( 1999, golgo13,   0,        coh700,   golgo13, namcos12_state,  namcos12, ROT0, "Eighting / Raizing / Namco", "Golgo 13 (Japan, GLG1/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC054 */
-GAME( 1999, g13knd,    0,        coh700,   golgo13, namcos12_state,  namcos12, ROT0, "Eighting / Raizing / Namco", "Golgo 13 Kiseki no Dandou (Japan, GLS1/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC059 */
+GAME( 1999, golgo13,   0,        golgo13,  golgo13,  namcos12_state, namcos12, ROT0, "Eighting / Raizing / Namco", "Golgo 13 (Japan, GLG1/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC054 */
+GAME( 1999, g13knd,    0,        golgo13,  golgo13,  namcos12_state, namcos12, ROT0, "Eighting / Raizing / Namco", "Golgo 13 Kiseki no Dandou (Japan, GLS1/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* KC059 */
 GAME( 2000, sws2000,   0,        coh700,   namcos12, namcos12_state, namcos12, ROT0, "Namco",           "Super World Stadium 2000 (Japan, SS01/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING ) /* KC055 */
 GAME( 2000, truckk,    0,        coh700,   namcos12, namcos12_state, namcos12, ROT0, "Metro / Namco",   "Truck Kyosokyoku (Japan, TKK2/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING ) /* KC056 */
+GAME( 2000, kartduel,  0,        coh700,   namcos12, namcos12_state, namcos12, ROT0, "Namco",           "Kart Duel (Japan, KTD1/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING ) /* KC057 */
 GAME( 2001, sws2001,   sws2000,  coh700,   namcos12, namcos12_state, namcos12, ROT0, "Namco",           "Super World Stadium 2001 (Japan, SS11/VER.A)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING ) /* KC061 */

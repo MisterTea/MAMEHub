@@ -5,9 +5,9 @@
  *
  * - emulate slave dsp!
  * - texture u/v mapping is often 1 pixel off, resulting in many glitch lines/gaps between textures. The glitch may be in MAME core:
- *       it used to be much worse with the old poly.h
- * - tokyowar tanks are not shootable, same for timecris helicopter, there's still a very small hitbox but almost impossible to hit
- *       (is this related to dsp? or cpu?)
+ *       it used to be much worse with the legacy_poly_manager
+ * - tokyowar tanks are not shootable, same for timecris helicopter, there's still a very small hitbox but almost impossible to hit.
+ *       airco22b may have a similar problem. (is this related to dsp? or cpu?)
  * - find out how/where vics num_sprites is determined exactly, currently a workaround is needed for airco22b and dirtdash
  * - improve ss22 fogging:
  *       + scene changes too rapidly sometimes, eg. dirtdash snow level finish (see attract), or aquajet going down the waterfall
@@ -282,7 +282,7 @@ void namcos22_renderer::poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bit
 	extra.fadefactor = 0;
 	extra.fogfactor = 0;
 
-	extra.pens = &screen.machine().pens[(color & 0x7f) << 8];
+	extra.pens = &m_state.m_palette->pen((color & 0x7f) << 8);
 	extra.primap = &screen.priority();
 	extra.bn = node->data.quad.texturebank;
 	extra.flags = flags;
@@ -503,7 +503,7 @@ void namcos22_renderer::poly3d_drawsprite(
 	int alpha
 )
 {
-	gfx_element *gfx = screen.machine().gfx[2];
+	gfx_element *gfx = m_state.m_gfxdecode->gfx(2);
 	int sprite_screen_height = (scaley * gfx->height() + 0x8000) >> 16;
 	int sprite_screen_width = (scalex * gfx->width() + 0x8000) >> 16;
 	if (sprite_screen_width && sprite_screen_height)
@@ -528,7 +528,7 @@ void namcos22_renderer::poly3d_drawsprite(
 		extra.line_modulo = gfx->rowbytes();
 		extra.flipx = flipx;
 		extra.flipy = flipy;
-		extra.pens = &gfx->machine().pens[gfx->colorbase() + gfx->granularity() * (color & 0x7f)];
+		extra.pens = &m_state.m_palette->pen(gfx->colorbase() + gfx->granularity() * (color & 0x7f));
 		extra.primap = &screen.priority();
 		extra.source = gfx->get_data(code % gfx->elements());
 
@@ -1624,6 +1624,10 @@ void namcos22_state::draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprec
 	int base = m_spriteram[0] & 0xffff; // alpinesa/alpinr2b
 	int num_sprites = ((m_spriteram[1] >> 16) - base) + 1;
 
+	// airco22b doesn't use spriteset #1
+	if (m_gametype == NAMCOS22_AIR_COMBAT22)
+		num_sprites = 0;
+
 	if (sprites_on && num_sprites > 0 && num_sprites < 0x400)
 	{
 		src = &m_spriteram[0x04000/4 + base*4];
@@ -1736,7 +1740,7 @@ WRITE32_MEMBER(namcos22_state::namcos22_textram_w)
 WRITE32_MEMBER(namcos22_state::namcos22_cgram_w)
 {
 	COMBINE_DATA(&m_cgram[offset]);
-	machine().gfx[0]->mark_dirty(offset/32);
+	m_gfxdecode->gfx(0)->mark_dirty(offset/32);
 }
 
 READ32_MEMBER(namcos22_state::namcos22_tilemapattr_r)
@@ -1859,7 +1863,7 @@ WRITE32_MEMBER(namcos22_state::namcos22s_spotram_w)
 
 void namcos22_state::namcos22s_mix_text_layer(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, int prival)
 {
-	const pen_t *pens = machine().pens;
+	const pen_t *pens = m_palette->pens();
 	UINT16 *src;
 	UINT32 *dest;
 	UINT8 *pri;
@@ -1941,7 +1945,7 @@ void namcos22_state::namcos22s_mix_text_layer(screen_device &screen, bitmap_rgb3
 
 void namcos22_state::namcos22_mix_text_layer(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	const pen_t *pens = machine().pens;
+	const pen_t *pens = m_palette->pens();
 	UINT16 *src;
 	UINT32 *dest;
 	UINT8 *pri;
@@ -2042,7 +2046,7 @@ void namcos22_state::update_palette()
 				int r = nthbyte(m_paletteram, which + 0x00000);
 				int g = nthbyte(m_paletteram, which + 0x08000);
 				int b = nthbyte(m_paletteram, which + 0x10000);
-				palette_set_color(machine(), which, MAKE_RGB(r, g, b));
+				m_palette->set_pen_color(which, rgb_t(r, g, b));
 			}
 			m_dirtypal[i] = 0;
 		}
@@ -2319,7 +2323,7 @@ UINT32 namcos22_state::screen_update_namcos22(screen_device &screen, bitmap_rgb3
 	screen.priority().fill(0, cliprect);
 
 	// background color
-	bitmap.fill(screen.machine().pens[0x7fff], cliprect);
+	bitmap.fill(m_palette->pen(0x7fff), cliprect);
 
 	// layers
 	draw_polygons(bitmap);
@@ -2386,12 +2390,12 @@ void namcos22_state::init_tables()
 
 	m_pointram = auto_alloc_array_clear(machine(), UINT32, 0x20000);
 
-	// textures
-	for (int i = 0; i < machine().gfx[1]->elements(); i++)
-		machine().gfx[1]->decode(i);
+	// force all texture tiles to be decoded now
+	for (int i = 0; i < m_gfxdecode->gfx(1)->elements(); i++)
+		m_gfxdecode->gfx(1)->get_data(i);
 
 	m_texture_tilemap = (UINT16 *)memregion("textilemap")->base();
-	m_texture_tiledata = (UINT8 *)machine().gfx[1]->get_data(0);
+	m_texture_tiledata = (UINT8 *)m_gfxdecode->gfx(1)->get_data(0);
 	m_texture_tileattr = auto_alloc_array(machine(), UINT8, 0x080000*2);
 
 	// unpack textures
@@ -2464,10 +2468,10 @@ VIDEO_START_MEMBER(namcos22_state,common)
 	init_tables();
 
 	m_mix_bitmap = auto_bitmap_ind16_alloc(machine(), 640, 480);
-	m_bgtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(namcos22_state::get_text_tile_info), this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
+	m_bgtilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(namcos22_state::get_text_tile_info), this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
 	m_bgtilemap->set_transparent_pen(0xf);
 
-	machine().gfx[0]->set_source((UINT8 *)m_cgram.target());
+	m_gfxdecode->gfx(0)->set_source((UINT8 *)m_cgram.target());
 
 	m_poly = auto_alloc(machine(), namcos22_renderer(*this));
 }

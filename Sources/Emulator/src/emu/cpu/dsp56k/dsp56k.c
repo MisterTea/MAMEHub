@@ -67,7 +67,7 @@ static CPU_RESET( dsp56k );
 /***************************************************************************
     Direct Update Handler
 ***************************************************************************/
-DIRECT_UPDATE_HANDLER( dsp56k_direct_handler )
+DIRECT_UPDATE_MEMBER( dsp56k_device::dsp56k_direct_handler )
 {
 	if (address <= (0x07ff<<1))
 	{
@@ -215,7 +215,6 @@ static CPU_INIT( dsp56k )
 	device->save_item(NAME(cpustate->bootstrap_mode));
 	device->save_item(NAME(cpustate->repFlag));
 	device->save_item(NAME(cpustate->repAddr));
-	device->save_item(NAME(cpustate->icount));
 	device->save_item(NAME(cpustate->ppc));
 	device->save_item(NAME(cpustate->op));
 	device->save_item(NAME(cpustate->interrupt_cycles));
@@ -238,7 +237,7 @@ static CPU_INIT( dsp56k )
 
 	/* Setup the direct memory handler for this CPU */
 	/* NOTE: Be sure to grab this guy and call him if you ever install another direct_update_hander in a driver! */
-	cpustate->program->set_direct_update_handler(direct_update_delegate(FUNC(dsp56k_direct_handler), &device->machine()));
+	cpustate->program->set_direct_update_handler(direct_update_delegate(FUNC(dsp56k_device::dsp56k_direct_handler), (dsp56k_device*)device));
 }
 
 
@@ -304,7 +303,7 @@ static CPU_EXIT( dsp56k )
 /***************************************************************************
     CORE INCLUDE
 ***************************************************************************/
-#include "dsp56ops.c"
+#include "dsp56ops.inc"
 
 
 /***************************************************************************
@@ -368,14 +367,14 @@ extern CPU_DISASSEMBLE( dsp56k );
 /****************************************************************************
  *  Internal Memory Maps
  ****************************************************************************/
-static ADDRESS_MAP_START( dsp56156_program_map, AS_PROGRAM, 16, legacy_cpu_device )
-	AM_RANGE(0x0000,0x07ff) AM_READWRITE_LEGACY(DSP56K::program_r, DSP56K::program_w)   /* 1-5 */
+static ADDRESS_MAP_START( dsp56156_program_map, AS_PROGRAM, 16, dsp56k_device )
+	AM_RANGE(0x0000,0x07ff) AM_READWRITE(program_r, program_w)   /* 1-5 */
 //  AM_RANGE(0x2f00,0x2fff) AM_ROM                              /* 1-5 PROM reserved memory.  Is this the right spot for it? */
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( dsp56156_x_data_map, AS_DATA, 16, legacy_cpu_device )
+static ADDRESS_MAP_START( dsp56156_x_data_map, AS_DATA, 16, dsp56k_device )
 	AM_RANGE(0x0000,0x07ff) AM_RAM                              /* 1-5 */
-	AM_RANGE(0xffc0,0xffff) AM_READWRITE_LEGACY(DSP56K::peripheral_register_r, DSP56K::peripheral_register_w)   /* 1-5 On-chip peripheral registers memory mapped in data space */
+	AM_RANGE(0xffc0,0xffff) AM_READWRITE(peripheral_register_r, peripheral_register_w)   /* 1-5 On-chip peripheral registers memory mapped in data space */
 ADDRESS_MAP_END
 
 

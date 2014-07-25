@@ -22,7 +22,9 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_vram(*this, "vram"),
 		m_pal(*this, "pal"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT8> m_vram;
 	required_shared_ptr<UINT8> m_pal;
@@ -33,9 +35,11 @@ public:
 	DECLARE_DRIVER_INIT(poker72);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(poker72);
 	UINT32 screen_update_poker72(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -60,7 +64,7 @@ UINT32 poker72_state::screen_update_poker72(screen_device &screen, bitmap_ind16 
 
 			tile|= m_tile_bank << 12;
 
-			drawgfx_opaque(bitmap,cliprect,machine().gfx[0],tile,color,fx,fy,x*8,y*8);
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect,tile,color,fx,fy,x*8,y*8);
 
 			count+=2;
 		}
@@ -78,7 +82,7 @@ WRITE8_MEMBER(poker72_state::poker72_paletteram_w)
 	g = m_pal[(offset & 0x3ff)+0x400] & 0x3f;
 	b = m_pal[(offset & 0x3ff)+0x800] & 0x3f;
 
-	palette_set_color_rgb( machine(), offset & 0x3ff, pal6bit(r), pal6bit(g), pal6bit(b));
+	m_palette->set_pen_color( offset & 0x3ff, pal6bit(r), pal6bit(g), pal6bit(b));
 }
 
 WRITE8_MEMBER(poker72_state::output_w)
@@ -320,7 +324,7 @@ static GFXDECODE_START( poker72 )
 GFXDECODE_END
 
 /* default 444 palette for debug purpose */
-void poker72_state::palette_init()
+PALETTE_INIT_MEMBER(poker72_state, poker72)
 {
 	int x,r,g,b;
 
@@ -329,19 +333,9 @@ void poker72_state::palette_init()
 		r = (x & 0xf)*0x10;
 		g = ((x & 0x3c)>>2)*0x10;
 		b = ((x & 0xf0)>>4)*0x10;
-		palette_set_color(machine(),x,MAKE_RGB(r,g,b));
+		palette.set_pen_color(x,rgb_t(r,g,b));
 	}
 }
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW0"),
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 void poker72_state::machine_reset()
 {
@@ -366,15 +360,17 @@ static MACHINE_CONFIG_START( poker72, poker72_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 64*8-1, 0, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(poker72_state, screen_update_poker72)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(poker72)
-	MCFG_PALETTE_LENGTH(0xe00)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", poker72)
+	MCFG_PALETTE_ADD("palette", 0xe00)
+	MCFG_PALETTE_INIT_OWNER(poker72_state, poker72)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay", AY8910, 8000000/8) /* ? Mhz */
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW0"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

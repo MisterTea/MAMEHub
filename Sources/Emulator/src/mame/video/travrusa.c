@@ -37,13 +37,10 @@ J Clegg
 
 ***************************************************************************/
 
-void travrusa_state::palette_init()
+PALETTE_INIT_MEMBER(travrusa_state, travrusa)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x90);
 
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x80; i++)
@@ -69,7 +66,7 @@ void travrusa_state::palette_init()
 		bit2 = (color_prom[i] >> 2) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	for (i = 0x80; i < 0x90; i++)
@@ -95,7 +92,7 @@ void travrusa_state::palette_init()
 		bit2 = (color_prom[(i - 0x80) + 0x200] >> 2) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -103,13 +100,13 @@ void travrusa_state::palette_init()
 
 	/* characters */
 	for (i = 0; i < 0x80; i++)
-		colortable_entry_set_value(machine().colortable, i, i);
+		palette.set_pen_indirect(i, i);
 
 	/* sprites */
 	for (i = 0x80; i < 0x100; i++)
 	{
 		UINT8 ctabentry = (color_prom[i - 0x80] & 0x0f) | 0x80;
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 }
 
@@ -117,9 +114,6 @@ PALETTE_INIT_MEMBER(travrusa_state,shtrider)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x90);
 
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x80; i++)
@@ -145,7 +139,7 @@ PALETTE_INIT_MEMBER(travrusa_state,shtrider)
 		bit2 = (color_prom[i + 0x100] >> 2) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	for (i = 0x80; i < 0x90; i++)
@@ -171,7 +165,7 @@ PALETTE_INIT_MEMBER(travrusa_state,shtrider)
 		bit2 = (color_prom[(i - 0x80) + 0x200] >> 2) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -179,13 +173,13 @@ PALETTE_INIT_MEMBER(travrusa_state,shtrider)
 
 	/* characters */
 	for (i = 0; i < 0x80; i++)
-		colortable_entry_set_value(machine().colortable, i, i);
+		palette.set_pen_indirect(i, i);
 
 	/* sprites */
 	for (i = 0x80; i < 0x100; i++)
 	{
 		UINT8 ctabentry = (color_prom[i - 0x80] & 0x0f) | 0x80;
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 }
 
@@ -204,8 +198,7 @@ TILE_GET_INFO_MEMBER(travrusa_state::get_tile_info)
 
 	tileinfo.group = ((attr & 0x0f) == 0x0f) ? 1 : 0;   /* tunnels */
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			m_videoram[2 * tile_index] + ((attr & 0xc0) << 2),
 			attr & 0x0f,
 			flags);
@@ -223,7 +216,7 @@ void travrusa_state::video_start()
 {
 	save_item(NAME(m_scrollx));
 
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(travrusa_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(travrusa_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_bg_tilemap->set_transmask(0, 0xff, 0x00); /* split type 0 is totally transparent in front half */
 	m_bg_tilemap->set_transmask(1, 0x3f, 0xc0); /* split type 1 has pens 6 and 7 opaque - tunnels */
@@ -317,7 +310,7 @@ void travrusa_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap, clip, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,clip,
 				code,
 				attr & 0x0f,
 				flipx, flipy,

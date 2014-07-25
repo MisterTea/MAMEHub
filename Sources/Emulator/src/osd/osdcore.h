@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     osdcore.h
 
     Core OS-dependent code interface.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************
 
@@ -49,11 +20,7 @@
 #define __OSDCORE_H__
 
 #include "osdcomm.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
+#include "delegate.h"
 
 /***************************************************************************
     FILE I/O INTERFACES
@@ -193,6 +160,23 @@ file_error osd_read(osd_file *file, void *buffer, UINT64 offset, UINT32 length, 
         the file, or FILERR_NONE if no error occurred
 -----------------------------------------------------------------------------*/
 file_error osd_write(osd_file *file, const void *buffer, UINT64 offset, UINT32 length, UINT32 *actual);
+
+
+/*-----------------------------------------------------------------------------
+    osd_truncate: change the size of an open file
+
+    Parameters:
+
+        file - handle to a file previously opened via osd_open
+
+        offset - future size of the file
+
+    Return value:
+
+        a file_error describing any error that occurred while writing to
+        the file, or FILERR_NONE if no error occurred
+-----------------------------------------------------------------------------*/
+file_error osd_truncate(osd_file *file, UINT64 offset);
 
 
 /*-----------------------------------------------------------------------------
@@ -859,7 +843,8 @@ char *osd_get_clipboard_text(void);
     Return value:
 
         an allocated pointer to an osd_directory_entry representing
-        info on the path; even if the file does not exist
+        info on the path; even if the file does not exist.
+        free with osd_free()
 
 -----------------------------------------------------------------------------*/
 osd_directory_entry *osd_stat(const char *path);
@@ -889,10 +874,10 @@ file_error osd_get_full_path(char **dst, const char *path);
 ***************************************************************************/
 struct osd_midi_device;
 
-void osd_init_midi(void);
-void osd_shutdown_midi(void);
 void osd_list_midi_devices(void);
+// free result with osd_close_midi_channel()
 osd_midi_device *osd_open_midi_input(const char *devname);
+// free result with osd_close_midi_channel()
 osd_midi_device *osd_open_midi_output(const char *devname);
 void osd_close_midi_channel(osd_midi_device *dev);
 bool osd_poll_midi_channel(osd_midi_device *dev);
@@ -917,8 +902,38 @@ void osd_write_midi_channel(osd_midi_device *dev, UINT8 data);
 -----------------------------------------------------------------------------*/
 const char *osd_get_volume_name(int idx);
 
-#ifdef __cplusplus
-}
-#endif
+/* ----- output management ----- */
+
+// output channels
+enum output_channel
+{
+	OSD_OUTPUT_CHANNEL_ERROR,
+	OSD_OUTPUT_CHANNEL_WARNING,
+	OSD_OUTPUT_CHANNEL_INFO,
+	OSD_OUTPUT_CHANNEL_DEBUG,
+	OSD_OUTPUT_CHANNEL_VERBOSE,
+	OSD_OUTPUT_CHANNEL_LOG,
+	OSD_OUTPUT_CHANNEL_COUNT
+};
+
+// output channel callback
+typedef delegate<void (const char *, va_list)> output_delegate;
+
+/* set the output handler for a channel, returns the current one */
+output_delegate osd_set_output_channel(output_channel channel, output_delegate callback);
+
+/* calls to be used by the code */
+void CLIB_DECL osd_printf_error(const char *format, ...) ATTR_PRINTF(1,2);
+void CLIB_DECL osd_printf_warning(const char *format, ...) ATTR_PRINTF(1,2);
+void CLIB_DECL osd_printf_info(const char *format, ...) ATTR_PRINTF(1,2);
+void CLIB_DECL osd_printf_verbose(const char *format, ...) ATTR_PRINTF(1,2);
+void CLIB_DECL osd_printf_debug(const char *format, ...) ATTR_PRINTF(1,2);
+
+/* discourage the use of printf directly */
+/* sadly, can't do this because of the ATTR_PRINTF under GCC */
+/*
+#undef printf
+#define printf !MUST_USE_osd_printf_*_CALLS_WITHIN_THE_CORE!
+*/
 
 #endif  /* __OSDEPEND_H__ */

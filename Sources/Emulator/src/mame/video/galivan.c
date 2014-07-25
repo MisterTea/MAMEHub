@@ -52,13 +52,10 @@ background: 0x4000 bytes of ROM:    76543210    tile code low bits
 
 ***************************************************************************/
 
-void galivan_state::palette_init()
+PALETTE_INIT_MEMBER(galivan_state, galivan)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x100);
 
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x100; i++)
@@ -67,7 +64,7 @@ void galivan_state::palette_init()
 		int g = pal4bit(color_prom[i + 0x100]);
 		int b = pal4bit(color_prom[i + 0x200]);
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -75,7 +72,7 @@ void galivan_state::palette_init()
 
 	/* characters use colors 0-0x7f */
 	for (i = 0; i < 0x80; i++)
-		colortable_entry_set_value(machine().colortable, i, i);
+		palette.set_pen_indirect(i, i);
 
 	/* I think that */
 	/* background tiles use colors 0xc0-0xff in four banks */
@@ -90,7 +87,7 @@ void galivan_state::palette_init()
 		else
 			ctabentry = 0xc0 | (i & 0x0f) | ((i & 0x30) >> 0);
 
-		colortable_entry_set_value(machine().colortable, 0x80 + i, ctabentry);
+		palette.set_pen_indirect(0x80 + i, ctabentry);
 	}
 
 	/* sprites use colors 0x80-0xbf in four banks */
@@ -108,7 +105,7 @@ void galivan_state::palette_init()
 		else
 			ctabentry = 0x80 | ((i & 0x03) << 4) | (color_prom[i >> 4] & 0x0f);
 
-		colortable_entry_set_value(machine().colortable, 0x180 + i_swapped, ctabentry);
+		palette.set_pen_indirect(0x180 + i_swapped, ctabentry);
 	}
 }
 
@@ -125,8 +122,7 @@ TILE_GET_INFO_MEMBER(galivan_state::get_bg_tile_info)
 	UINT8 *BGROM = memregion("gfx4")->base();
 	int attr = BGROM[tile_index + 0x4000];
 	int code = BGROM[tile_index] | ((attr & 0x03) << 8);
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code,
 			(attr & 0x78) >> 3,     /* seems correct */
 			0);
@@ -136,8 +132,7 @@ TILE_GET_INFO_MEMBER(galivan_state::get_tx_tile_info)
 {
 	int attr = m_videoram[tile_index + 0x400];
 	int code = m_videoram[tile_index] | ((attr & 0x01) << 8);
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			(attr & 0xe0) >> 5,     /* not sure */
 			0);
@@ -149,8 +144,7 @@ TILE_GET_INFO_MEMBER(galivan_state::ninjemak_get_bg_tile_info)
 	UINT8 *BGROM = memregion("gfx4")->base();
 	int attr = BGROM[tile_index + 0x4000];
 	int code = BGROM[tile_index] | ((attr & 0x03) << 8);
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code,
 			((attr & 0x60) >> 3) | ((attr & 0x0c) >> 2),    /* seems correct */
 			0);
@@ -164,8 +158,7 @@ TILE_GET_INFO_MEMBER(galivan_state::ninjemak_get_tx_tile_info)
 	if(tile_index < 0x12) /* don't draw the NB1414M4 params! TODO: could be a better fix */
 		code = attr = 0x01;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			(attr & 0x1c) >> 2,     /* seems correct ? */
 			0);
@@ -181,16 +174,16 @@ TILE_GET_INFO_MEMBER(galivan_state::ninjemak_get_tx_tile_info)
 
 VIDEO_START_MEMBER(galivan_state,galivan)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galivan_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 128, 128);
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galivan_state::get_tx_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(galivan_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 128, 128);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(galivan_state::get_tx_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
 
 	m_tx_tilemap->set_transparent_pen(15);
 }
 
 VIDEO_START_MEMBER(galivan_state,ninjemak)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galivan_state::ninjemak_get_bg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 512, 32);
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galivan_state::ninjemak_get_tx_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(galivan_state::ninjemak_get_bg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 512, 32);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(galivan_state::ninjemak_get_tx_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
 
 	m_tx_tilemap->set_transparent_pen(15);
 }
@@ -217,9 +210,7 @@ WRITE8_MEMBER(galivan_state::galivan_gfxbank_w)
 	coin_counter_w(machine(), 1,data & 2);
 
 	/* bit 2 flip screen */
-	m_flipscreen = data & 0x04;
-	m_bg_tilemap->set_flip(m_flipscreen ? TILEMAP_FLIPX | TILEMAP_FLIPY : 0);
-	m_tx_tilemap->set_flip(m_flipscreen ? TILEMAP_FLIPX | TILEMAP_FLIPY : 0);
+	flip_screen_set(data & 0x04);
 
 	/* bit 7 selects one of two ROM banks for c000-dfff */
 	membank("bank1")->set_entry((data & 0x80) >> 7);
@@ -234,9 +225,7 @@ WRITE8_MEMBER(galivan_state::ninjemak_gfxbank_w)
 	coin_counter_w(machine(), 1,data & 2);
 
 	/* bit 2 flip screen */
-	m_flipscreen = data & 0x04;
-	m_bg_tilemap->set_flip(m_flipscreen ? TILEMAP_FLIPX | TILEMAP_FLIPY : 0);
-	m_tx_tilemap->set_flip(m_flipscreen ? TILEMAP_FLIPX | TILEMAP_FLIPY : 0);
+	flip_screen_set(data & 0x04);
 
 	/* bit 3 unknown */
 
@@ -297,22 +286,24 @@ WRITE8_MEMBER(galivan_state::galivan_scrolly_w)
 void galivan_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
 	const UINT8 *spritepalettebank = memregion("user1")->base();
-	UINT8 *spriteram = m_spriteram;
-	int offs;
+	UINT8 *buffered_spriteram = m_spriteram->buffer();
+	int length = m_spriteram->bytes();
+	int flip = flip_screen();
+	gfx_element *gfx = m_gfxdecode->gfx(2);
 
 	/* draw the sprites */
-	for (offs = 0; offs < m_spriteram.bytes(); offs += 4)
+	for (int offs = 0; offs < length; offs += 4)
 	{
 		int code;
-		int attr = spriteram[offs + 2];
+		int attr = buffered_spriteram[offs + 2];
 		int color = (attr & 0x3c) >> 2;
 		int flipx = attr & 0x40;
 		int flipy = attr & 0x80;
 		int sx, sy;
 
-		sx = (spriteram[offs + 3] - 0x80) + 256 * (attr & 0x01);
-		sy = 240 - spriteram[offs];
-		if (m_flipscreen)
+		sx = (buffered_spriteram[offs + 3] - 0x80) + 256 * (attr & 0x01);
+		sy = 240 - buffered_spriteram[offs];
+		if (flip)
 		{
 			sx = 240 - sx;
 			sy = 240 - sy;
@@ -320,10 +311,10 @@ void galivan_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 			flipy = !flipy;
 		}
 
-//      code = spriteram[offs + 1] + ((attr & 0x02) << 7);
-		code = spriteram[offs + 1] + ((attr & 0x06) << 7);  // for ninjemak, not sure ?
+//      code = buffered_spriteram[offs + 1] + ((attr & 0x02) << 7);
+		code = buffered_spriteram[offs + 1] + ((attr & 0x06) << 7);  // for ninjemak, not sure ?
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
+		gfx->transpen(bitmap,cliprect,
 				code,
 				color + 16 * (spritepalettebank[code >> 2] & 0x0f),
 				flipx,flipy,

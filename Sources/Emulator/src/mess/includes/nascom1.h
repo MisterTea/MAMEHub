@@ -1,8 +1,11 @@
-/*****************************************************************************
- *
- * includes/nascom1.h
- *
- ****************************************************************************/
+/***************************************************************************
+
+    Nascom 1 and Nascom 2
+
+    license: MAME
+    copyright-holders: (Original Author?), Dirk Best
+
+***************************************************************************/
 
 #ifndef NASCOM1_H_
 #define NASCOM1_H_
@@ -35,15 +38,23 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_hd6402(*this, "hd6402"),
 		m_cassette(*this, "cassette"),
+		m_fdc(*this, "wd1793"),
 		m_ram(*this, RAM_TAG),
-		m_videoram(*this, "videoram")
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"),
+		m_videoram(*this, "videoram"),
+		m_keyboard(*this, "KEY")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<ay31015_device> m_hd6402;
 	required_device<cassette_image_device> m_cassette;
+	optional_device<fd1793_device> m_fdc;
 	required_device<ram_device> m_ram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 	required_shared_ptr<UINT8> m_videoram;
+	required_ioport_array<9> m_keyboard;
 	int m_tape_size;
 	UINT8 *m_tape_image;
 	int m_tape_index;
@@ -71,7 +82,4 @@ public:
 };
 
 
-/*----------- defined in machine/nascom1.c -----------*/
-
-extern const wd17xx_interface nascom2_wd17xx_interface;
 #endif /* NASCOM1_H_ */

@@ -4,7 +4,9 @@ class tiamc1_state : public driver_device
 public:
 	tiamc1_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag) ,
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	UINT8 *m_tileram;
 	UINT8 *m_charram;
@@ -17,7 +19,7 @@ public:
 	UINT8 m_bg_hshift;
 	tilemap_t *m_bg_tilemap1;
 	tilemap_t *m_bg_tilemap2;
-	rgb_t *m_palette;
+	rgb_t *m_palette_ptr;
 	DECLARE_WRITE8_MEMBER(tiamc1_control_w);
 	DECLARE_WRITE8_MEMBER(tiamc1_videoram_w);
 	DECLARE_WRITE8_MEMBER(tiamc1_bankswitch_w);
@@ -32,10 +34,12 @@ public:
 	TILE_GET_INFO_MEMBER(get_bg2_tile_info);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(tiamc1);
 	UINT32 screen_update_tiamc1(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -76,7 +80,7 @@ struct timer8253struct
 };
 
 
-// ======================> qsound_device
+// ======================> tiamc1_sound_device
 
 class tiamc1_sound_device : public device_t,
 							public device_sound_interface

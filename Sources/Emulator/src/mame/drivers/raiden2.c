@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Olivier Galibert, Angelo Salese, David Haywood, Tomasz Slanina
 /********************************************************************************************************
 
     Seibu Protected 1993-94 era hardware, V30 based (sequel to the 68k based hardware)
@@ -512,7 +514,7 @@ void raiden2_state::cop_take_hit_box_params(UINT8 offs)
 }
 
 
-UINT8 raiden2_state::cop_calculate_collsion_detection(running_machine &machine)
+UINT8 raiden2_state::cop_calculate_collsion_detection()
 {
 	static UINT8 res;
 
@@ -687,7 +689,7 @@ WRITE16_MEMBER(raiden2_state::cop_cmd_w)
 
 		/* do the math */
 		cop_take_hit_box_params(0);
-		cop_hit_status = cop_calculate_collsion_detection(space.machine());
+		cop_hit_status = cop_calculate_collsion_detection();
 		break;
 
 	case 0xb900:
@@ -697,7 +699,7 @@ WRITE16_MEMBER(raiden2_state::cop_cmd_w)
 
 		/* do the math */
 		cop_take_hit_box_params(1);
-		cop_hit_status = cop_calculate_collsion_detection(space.machine());
+		cop_hit_status = cop_calculate_collsion_detection();
 		break;
 
 	default:
@@ -720,11 +722,11 @@ void raiden2_state::combine32(UINT32 *val, int offset, UINT16 data, UINT16 mem_m
 
 /* SPRITE DRAWING (move to video file) */
 
-void raiden2_state::draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect ,int pri_mask )
+void raiden2_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect ,int pri_mask )
 {
 	UINT16 *source = sprites + sprites_cur_start/2 - 4;
 
-	gfx_element *gfx = machine.gfx[2];
+	gfx_element *gfx = m_gfxdecode->gfx(2);
 
 //  static int ytlim = 1;
 //  static int xtlim = 1;
@@ -795,37 +797,37 @@ void raiden2_state::draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,
 #define ZEROTEAM_MASK_Y (0x1ff)
 
 
-				drawgfx_transpen(
+
+						gfx->transpen(
 						bitmap,
 						cliprect,
-						gfx,
 						tile_number,
 						colr,
 						yflip,xflip,
 						(sx+xstep*xtiles)&ZEROTEAM_MASK_X,(sy+ystep*ytiles)&ZEROTEAM_MASK_Y,15);
 
-				drawgfx_transpen(
+
+						gfx->transpen(
 						bitmap,
 						cliprect,
-						gfx,
 						tile_number,
 						colr,
 						yflip,xflip,
 						((sx+xstep*xtiles)&ZEROTEAM_MASK_X)-0x200,(sy+ystep*ytiles)&ZEROTEAM_MASK_Y,15);
 
-				drawgfx_transpen(
+
+						gfx->transpen(
 						bitmap,
 						cliprect,
-						gfx,
 						tile_number,
 						colr,
 						yflip,xflip,
 						(sx+xstep*xtiles)&ZEROTEAM_MASK_X,((sy+ystep*ytiles)&ZEROTEAM_MASK_Y)-0x200,15);
 
-				drawgfx_transpen(
+
+						gfx->transpen(
 						bitmap,
 						cliprect,
-						gfx,
 						tile_number,
 						colr,
 						yflip,xflip,
@@ -991,10 +993,10 @@ TILE_GET_INFO_MEMBER(raiden2_state::get_text_tile_info)
 
 VIDEO_START_MEMBER(raiden2_state,raiden2)
 {
-	text_layer       = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(raiden2_state::get_text_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64,32 );
-	background_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(raiden2_state::get_back_tile_info),this), TILEMAP_SCAN_ROWS, 16,16, 32,32 );
-	midground_layer  = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(raiden2_state::get_mid_tile_info),this),  TILEMAP_SCAN_ROWS, 16,16, 32,32 );
-	foreground_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(raiden2_state::get_fore_tile_info),this), TILEMAP_SCAN_ROWS, 16,16, 32,32 );
+	text_layer       = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(raiden2_state::get_text_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64,32 );
+	background_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(raiden2_state::get_back_tile_info),this), TILEMAP_SCAN_ROWS, 16,16, 32,32 );
+	midground_layer  = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(raiden2_state::get_mid_tile_info),this),  TILEMAP_SCAN_ROWS, 16,16, 32,32 );
+	foreground_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(raiden2_state::get_fore_tile_info),this), TILEMAP_SCAN_ROWS, 16,16, 32,32 );
 
 	midground_layer->set_transparent_pen(15);
 	foreground_layer->set_transparent_pen(15);
@@ -1005,7 +1007,7 @@ VIDEO_START_MEMBER(raiden2_state,raiden2)
 
 UINT32 raiden2_state::screen_update_raiden2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	//if (!machine().input().code_pressed(KEYCODE_Q))
 	{
@@ -1028,7 +1030,7 @@ UINT32 raiden2_state::screen_update_raiden2(screen_device &screen, bitmap_ind16 
 	//if (!machine().input().code_pressed(KEYCODE_S))
 	{
 		if (!(raiden2_tilemap_enable & 0x10))
-			draw_sprites(machine(), bitmap, cliprect, 0);
+			draw_sprites(bitmap, cliprect, 0);
 	}
 
 	//if (!machine().input().code_pressed(KEYCODE_A))
@@ -1480,7 +1482,7 @@ static ADDRESS_MAP_START( raiden2_mem, AS_PROGRAM, 16, raiden2_state )
 	AM_RANGE(0x0f800, 0x0ffff) AM_RAM /* Stack area */
 
 	AM_RANGE(0x10000, 0x1efff) AM_RAM
-	AM_RANGE(0x1f000, 0x1ffff) AM_RAM AM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x1f000, 0x1ffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 
 	AM_RANGE(0x20000, 0x3ffff) AM_ROMBANK("mainbank")
 	AM_RANGE(0x40000, 0xfffff) AM_ROM AM_REGION("mainprg", 0x40000)
@@ -1516,7 +1518,7 @@ static ADDRESS_MAP_START( zeroteam_mem, AS_PROGRAM, 16, raiden2_state )
 	AM_RANGE(0x0c000, 0x0c7ff) AM_RAM_WRITE(raiden2_foreground_w) AM_SHARE("fore_data")
 	AM_RANGE(0x0c800, 0x0cfff) AM_RAM_WRITE(raiden2_midground_w) AM_SHARE("mid_data")
 	AM_RANGE(0x0d000, 0x0dfff) AM_RAM_WRITE(raiden2_text_w) AM_SHARE("text_data")
-	AM_RANGE(0x0e000, 0x0efff) AM_RAM AM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0e000, 0x0efff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0f000, 0x0ffff) AM_RAM AM_SHARE("sprites")
 	AM_RANGE(0x10000, 0x1ffff) AM_RAM
 
@@ -1546,7 +1548,7 @@ static ADDRESS_MAP_START( xsedae_mem, AS_PROGRAM, 16, raiden2_state )
 	AM_RANGE(0x0c000, 0x0c7ff) AM_RAM_WRITE(raiden2_foreground_w) AM_SHARE("fore_data")
 	AM_RANGE(0x0c800, 0x0cfff) AM_RAM_WRITE(raiden2_midground_w) AM_SHARE("mid_data")
 	AM_RANGE(0x0d000, 0x0dfff) AM_RAM_WRITE(raiden2_text_w) AM_SHARE("text_data")
-	AM_RANGE(0x0e000, 0x0efff) AM_RAM AM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0e000, 0x0efff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0f000, 0x0ffff) AM_RAM AM_SHARE("sprites")
 
 	AM_RANGE(0x10000, 0x1ffff) AM_RAM
@@ -1856,12 +1858,6 @@ static GFXDECODE_START( raiden2 )
 	GFXDECODE_ENTRY( "gfx3", 0x00000, raiden2_spritelayout, 0x000, 128 )
 GFXDECODE_END
 
-SEIBU_CRTC_INTERFACE(crtc_intf)
-{
-	DEVCB_DRIVER_MEMBER16(raiden2_state, tilemap_enable_w),
-	DEVCB_DRIVER_MEMBER16(raiden2_state, tile_scroll_w),
-};
-
 
 /* MACHINE DRIVERS */
 
@@ -1877,18 +1873,22 @@ static MACHINE_CONFIG_START( raiden2, raiden2_state )
 	SEIBU2_RAIDEN2_SOUND_SYSTEM_CPU(XTAL_28_63636MHz/8)
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(55.47)    /* verified on pcb */
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate *//2)
 	MCFG_SCREEN_SIZE(64*8, 64*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(raiden2_state, screen_update_raiden2)
-	MCFG_GFXDECODE(raiden2)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_SEIBU_CRTC_ADD("crtc",crtc_intf,0)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", raiden2)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+
+	MCFG_DEVICE_ADD("crtc", SEIBU_CRTC, 0)
+	MCFG_SEIBU_CRTC_LAYER_EN_CB(WRITE16(raiden2_state, tilemap_enable_w))
+	MCFG_SEIBU_CRTC_LAYER_SCROLL_CB(WRITE16(raiden2_state, tile_scroll_w))
 
 	MCFG_VIDEO_START_OVERRIDE(raiden2_state,raiden2)
 
@@ -1908,11 +1908,9 @@ static MACHINE_CONFIG_DERIVED( xsedae, raiden2 )
 
 	MCFG_MACHINE_RESET_OVERRIDE(raiden2_state,xsedae)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_SCREEN_MODIFY("screen")
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0, 32*8-1)
-
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( raidendx, raiden2 )
@@ -1935,16 +1933,20 @@ static MACHINE_CONFIG_START( zeroteam, raiden2_state )
 	SEIBU_NEWZEROTEAM_SOUND_SYSTEM_CPU(XTAL_28_63636MHz/8)
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 //  MCFG_SCREEN_REFRESH_RATE(55.47)    /* verified on pcb */
 	MCFG_SCREEN_RAW_PARAMS(XTAL_32MHz/4,546,0,40*8,264,0,32*8) /* hand-tuned to match ~55.47 */
 	MCFG_SCREEN_UPDATE_DRIVER(raiden2_state, screen_update_raiden2)
-	MCFG_GFXDECODE(raiden2)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_SEIBU_CRTC_ADD("crtc",crtc_intf,0)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", raiden2)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+
+	MCFG_DEVICE_ADD("crtc", SEIBU_CRTC, 0)
+	MCFG_SEIBU_CRTC_LAYER_EN_CB(WRITE16(raiden2_state, tilemap_enable_w))
+	MCFG_SEIBU_CRTC_LAYER_SCROLL_CB(WRITE16(raiden2_state, tile_scroll_w))
 
 	MCFG_VIDEO_START_OVERRIDE(raiden2_state,raiden2)
 
@@ -2459,6 +2461,45 @@ ROM_START( raiden2g ) // sort of a mixture of raiden2d easy set with voice rom o
 ROM_END
 
 
+ROM_START( raiden2nl )
+	ROM_REGION( 0x200000, "mainprg", 0 ) /* v30 main cpu */
+	ROM_LOAD16_BYTE("1_u0211.bin",   0x000000, 0x80000, CRC(53be3dd0) SHA1(304d118423e4085eea3b883bd625d90d21bb2054) )
+	ROM_RELOAD(0x100000, 0x80000)
+	ROM_LOAD16_BYTE("2_u0212.bin",  0x000001, 0x80000, CRC(88829c08) SHA1(ecdfbafeeffcd009bbc4cf5bf797bcd4b5bfcf50) )
+	ROM_RELOAD(0x100001, 0x80000)
+
+	ROM_REGION( 0x40000, "user2", 0 )   /* COPX */
+	ROM_LOAD( "copx-d2.u0313", 0x00000, 0x40000, CRC(a6732ff9) SHA1(c4856ec77869d9098da24b1bb3d7d58bb74b4cda) ) /* Soldered MASK ROM */
+
+	ROM_REGION( 0x20000, "audiocpu", ROMREGION_ERASEFF ) /* 64k code for sound Z80 */
+	ROM_LOAD( "5_u1110.bin",  0x000000, 0x08000, CRC(8f130589) SHA1(e58c8beaf9f27f063ffbcb0ab4600123c25ce6f3) )
+	ROM_CONTINUE(0x10000,0x8000)
+	ROM_COPY( "audiocpu", 0, 0x018000, 0x08000 )
+
+	ROM_REGION( 0x020000, "gfx1", 0 ) /* chars */
+	ROM_LOAD( "7_u0724.bin", 0x000000, 0x020000, CRC(c9ec9469) SHA1(a29f480a1bee073be7a177096ef58e1887a5af24) ) /* PCB silkscreened FX0 */
+
+	ROM_REGION( 0x400000, "gfx2", 0 ) /* background gfx */
+	ROM_LOAD( "raiden_2_seibu_bg-1.u0714", 0x000000, 0x200000, CRC(e61ad38e) SHA1(63b06cd38db946ad3fc5c1482dc863ef80b58fec) ) /* Soldered MASK ROM */
+	ROM_LOAD( "raiden_2_seibu_bg-2.u075",  0x200000, 0x200000, CRC(a694a4bb) SHA1(39c2614d0effc899fe58f735604283097769df77) ) /* Soldered MASK ROM */
+
+	ROM_REGION( 0x800000, "gfx3", 0 ) /* sprite gfx (encrypted) */
+	ROM_LOAD32_WORD( "raiden_2_seibu_obj-1.u0811", 0x000000, 0x200000, CRC(ff08ef0b) SHA1(a1858430e8171ca8bab785457ef60e151b5e5cf1) ) /* Soldered MASK ROM */
+	ROM_LOAD32_WORD( "raiden_2_seibu_obj-2.u082",  0x000002, 0x200000, CRC(638eb771) SHA1(9774cc070e71668d7d1d20795502dccd21ca557b) ) /* Soldered MASK ROM */
+	ROM_LOAD32_WORD( "raiden_2_seibu_obj-3.u0837", 0x400000, 0x200000, CRC(897a0322) SHA1(abb2737a2446da5b364fc2d96524b43d808f4126) ) /* Soldered MASK ROM */
+	ROM_LOAD32_WORD( "raiden_2_seibu_obj-4.u0836", 0x400002, 0x200000, CRC(b676e188) SHA1(19cc838f1ccf9c4203cd0e5365e5d99ff3a4ff0f) ) /* Soldered MASK ROM */
+
+	ROM_REGION( 0x100000, "oki1", 0 )   /* ADPCM samples */
+	ROM_LOAD( "6_u1017.bin", 0x00000, 0x40000, CRC(fb0fca23) SHA1(4b2217b121a66c5ab6015537609cf908ffedaf86) ) /* PCB silkscreened VOICE1 */
+
+	ROM_REGION( 0x100000, "oki2", 0 )   /* ADPCM samples */
+	ROM_LOAD( "raiden_2_pcm.u1018", 0x00000, 0x40000, CRC(8cf0d17e) SHA1(0fbe0b1e1ca5360c7c8329331408e3d799b4714c) ) /* Soldered MASK ROM */
+
+	ROM_REGION( 0x10000, "pals", 0 )    /* PALS */
+	ROM_LOAD( "jj4b02__ami18cv8-15.u0342.jed", 0x0000, 0x288, NO_DUMP)
+	ROM_LOAD( "jj4b01__mmipal16l8bcn.u0341.jed", 0x0000, 0x288, NO_DUMP)
+	ROM_END
+
 /* Raiden DX sets */
 
 ROM_START( raidendx )
@@ -2566,7 +2607,7 @@ ROM_START( raidendxa2 )
 	ROM_LOAD( "dx_pcm.3a", 0x00000, 0x40000, CRC(8cf0d17e) SHA1(0fbe0b1e1ca5360c7c8329331408e3d799b4714c) ) /* Shared with original Raiden 2 */
 ROM_END
 
-ROM_START( raidendxj )
+ROM_START( raidendxk )
 	ROM_REGION( 0x200000, "mainprg", 0 ) /* v30 main cpu */
 	ROM_LOAD32_BYTE("rdxj_1.bin",   0x000000, 0x80000, CRC(b5b32885) SHA1(fb3c592b2436d347103c17bd765176062be95fa2) )
 	ROM_LOAD32_BYTE("rdxj_2.bin",   0x000001, 0x80000, CRC(7efd581d) SHA1(4609a0d8afb3d62a38b461089295efed47beea91) )
@@ -2671,6 +2712,41 @@ ROM_START( raidendxg )
 	ROM_LOAD( "pcm.u1018", 0x00000, 0x40000, CRC(8cf0d17e) SHA1(0fbe0b1e1ca5360c7c8329331408e3d799b4714c) ) /* Shared with original Raiden 2 */
 ROM_END
 
+
+ROM_START( raidendxnl )
+	ROM_REGION( 0x200000, "mainprg", 0 ) /* v30 main cpu */
+	ROM_LOAD32_BYTE("u1210_4n.bin", 0x000000, 0x80000, CRC(c589019a) SHA1(9bdd7f7d0bca16d67ba234d8a1fed5d2c8ab7191) )
+	ROM_LOAD32_BYTE("u1211_4p.bin", 0x000001, 0x80000, CRC(b2222254) SHA1(b0e41d88111a96f0c0fb11b20ea99f436e8d493d) )
+	ROM_LOAD32_BYTE("u129_6n.bin",  0x000002, 0x80000, CRC(60f04634) SHA1(50f1b721a017d879838d920cf5d5355aa024e09b) )
+	ROM_LOAD32_BYTE("u1212_6p.bin", 0x000003, 0x80000, CRC(21ec37cc) SHA1(6da629e2bb5bd4c2192156af017148e99e274544) )
+
+	ROM_REGION( 0x40000, "user2", 0 )   /* COPX */
+	ROM_LOAD( "copx-d2.u0313", 0x00000, 0x40000, CRC(a6732ff9) SHA1(c4856ec77869d9098da24b1bb3d7d58bb74b4cda) ) /* Shared with original Raiden 2 */
+
+	ROM_REGION( 0x20000, "audiocpu", ROMREGION_ERASEFF ) /* 64k code for sound Z80 */
+	ROM_LOAD( "u1110_5b.bin", 0x000000, 0x08000, CRC(8c46857a) SHA1(8b269cb20adf960ba4eb594d8add7739dbc9a837) )
+	ROM_CONTINUE(0x10000,0x8000)
+	ROM_COPY( "audiocpu", 0, 0x018000, 0x08000 )
+
+	ROM_REGION( 0x020000, "gfx1", 0 ) /* chars */
+	ROM_LOAD( "seibu_7b_u724.bin", 0x000000, 0x020000, CRC(c73986d4) SHA1(d29345077753bda53560dedc95dd23f329e521d9) )
+
+	ROM_REGION( 0x400000, "gfx2", 0 ) /* background gfx */
+	ROM_LOAD( "dx_back-1.u075",  0x000000, 0x200000, CRC(90970355) SHA1(d71d57cd550a800f583550365102adb7b1b779fc) )
+	ROM_LOAD( "dx_back-2.u0714", 0x200000, 0x200000, CRC(5799af3e) SHA1(85d6532abd769da77bcba70bd2e77915af40f987) )
+
+	ROM_REGION( 0x800000, "gfx3", 0 ) /* sprite gfx (encrypted) */
+	ROM_LOAD32_WORD( "raiden_2_seibu_obj-1.u0811", 0x000000, 0x200000, CRC(ff08ef0b) SHA1(a1858430e8171ca8bab785457ef60e151b5e5cf1) ) /* Shared with original Raiden 2 */
+	ROM_LOAD32_WORD( "raiden_2_seibu_obj-2.u082",  0x000002, 0x200000, CRC(638eb771) SHA1(9774cc070e71668d7d1d20795502dccd21ca557b) ) /* Shared with original Raiden 2 */
+	ROM_LOAD32_WORD( "dx_obj-3.u0837", 0x400000, 0x200000, CRC(ba381227) SHA1(dfc4d659aca1722a981fa56a31afabe66f444d5d) )
+	ROM_LOAD32_WORD( "dx_obj-4.u0836", 0x400002, 0x200000, CRC(65e50d19) SHA1(c46147b4132abce7314b46bf419ce4773e024b05) )
+
+	ROM_REGION( 0x100000, "oki1", 0 )   /* ADPCM samples */
+	ROM_LOAD( "seibu_6_u1017.bin", 0x00000, 0x40000, CRC(9a9196da) SHA1(3d1ee67fb0d40a231ce04d10718f07ffb76db455) )
+
+	ROM_REGION( 0x100000, "oki2", 0 )   /* ADPCM samples */
+	ROM_LOAD( "pcm.u1018", 0x00000, 0x40000, CRC(8cf0d17e) SHA1(0fbe0b1e1ca5360c7c8329331408e3d799b4714c) ) /* Shared with original Raiden 2 */
+ROM_END
 
 /* Zero Team sets */
 /* Zero team is slightly older hardware (early 93 instead of late 93) but
@@ -3142,29 +3218,29 @@ DRIVER_INIT_MEMBER(raiden2_state,zeroteam)
 
 // rev numbers at end of the line just indicate which sets are the same code revisions (just a region byte change), they don't reflect the actual order of release
 GAME( 1993, raiden2,  0,       raiden2,  raiden2, raiden2_state,  raiden2,  ROT270, "Seibu Kaihatsu (Fabtek license)",        "Raiden II (set 1, US Fabtek)",     GAME_NOT_WORKING) // rev 1
-GAME( 1993, raiden2a, raiden2, raiden2,  raiden2, raiden2_state,  raiden2,  ROT270, "Seibu Kaihatsu (Metrotainment license)", "Raiden II (set 2, Metrotainment)", GAME_NOT_WORKING) //  ^
+GAME( 1993, raiden2a, raiden2, raiden2,  raiden2, raiden2_state,  raiden2,  ROT270, "Seibu Kaihatsu (Metrotainment license)", "Raiden II (set 2, Hong Kong, Metrotainment)", GAME_NOT_WORKING) //  ^
 GAME( 1993, raiden2b, raiden2, raiden2,  raiden2, raiden2_state,  raiden2,  ROT270, "Seibu Kaihatsu",                         "Raiden II (set 3, Japan)",         GAME_NOT_WORKING) //  ^
 GAME( 1993, raiden2c, raiden2, raiden2,  raiden2, raiden2_state,  raiden2,  ROT270, "Seibu Kaihatsu",                         "Raiden II (set 4, Italy)",         GAME_NOT_WORKING) // rev 2
 GAME( 1993, raiden2d, raiden2, raiden2,  raiden2, raiden2_state,  raiden2,  ROT270, "Seibu Kaihatsu",                         "Raiden II (set 5, Easy Version)",  GAME_NOT_WORKING) // rev 3
 GAME( 1993, raiden2e, raiden2, raiden2,  raiden2, raiden2_state,  raiden2,  ROT270, "Seibu Kaihatsu",                         "Raiden II (set 6, Easy Version)",  GAME_NOT_WORKING) // rev 4
 GAME( 1993, raiden2f, raiden2, raiden2,  raiden2, raiden2_state,  raiden2,  ROT270, "Seibu Kaihatsu (Fabtek license)",        "Raiden II (set 7, US Fabtek, Easy Version)",     GAME_NOT_WORKING) //  ^
 GAME( 1993, raiden2g, raiden2, raiden2,  raiden2, raiden2_state,  raiden2,  ROT270, "Seibu Kaihatsu (Fabtek license)",        "Raiden II (set 8, US Fabtek, Easy Version)",         GAME_NOT_WORKING) // rev 3 and 4 mix?
+GAME( 1993, raiden2nl,raiden2, raiden2,  raiden2, raiden2_state,  raiden2,  ROT270, "Seibu Kaihatsu",                         "Raiden II (set 9, The Netherlands)", GAME_NOT_WORKING)
 
 
-GAME( 1994, raidendx,  0,       raidendx,  raidendx, raiden2_state, raidendx,  ROT270, "Seibu Kaihatsu",                         "Raiden DX (UK)",                   GAME_NOT_WORKING)
-GAME( 1994, raidendxa1,raidendx, raidendx,  raidendx, raiden2_state, raidendx,  ROT270, "Seibu Kaihatsu (Metrotainment license)", "Raiden DX (Asia set 1)",           GAME_NOT_WORKING)
-GAME( 1994, raidendxa2,raidendx, raidendx,  raidendx, raiden2_state, raidendx,  ROT270, "Seibu Kaihatsu (Metrotainment license)", "Raiden DX (Asia set 2)",           GAME_NOT_WORKING)
-GAME( 1994, raidendxj, raidendx, raidendx,  raidendx, raiden2_state, raidendx,  ROT270, "Seibu Kaihatsu",                         "Raiden DX (Japan)",                GAME_NOT_WORKING)
+GAME( 1994, raidendx,  0,        raidendx,  raidendx, raiden2_state, raidendx,  ROT270, "Seibu Kaihatsu",                         "Raiden DX (UK)",                   GAME_NOT_WORKING)
+GAME( 1994, raidendxa1,raidendx, raidendx,  raidendx, raiden2_state, raidendx,  ROT270, "Seibu Kaihatsu (Metrotainment license)", "Raiden DX (Hong Kong, set 1)",           GAME_NOT_WORKING)
+GAME( 1994, raidendxa2,raidendx, raidendx,  raidendx, raiden2_state, raidendx,  ROT270, "Seibu Kaihatsu (Metrotainment license)", "Raiden DX (Hong Kong, set 2)",           GAME_NOT_WORKING)
+GAME( 1994, raidendxk, raidendx, raidendx,  raidendx, raiden2_state, raidendx,  ROT270, "Seibu Kaihatsu",                         "Raiden DX (Korea)",                GAME_NOT_WORKING)
 GAME( 1994, raidendxu, raidendx, raidendx,  raidendx, raiden2_state, raidendx,  ROT270, "Seibu Kaihatsu (Fabtek license)",        "Raiden DX (US)",                   GAME_NOT_WORKING)
 GAME( 1994, raidendxg, raidendx, raidendx,  raidendx, raiden2_state, raidendx,  ROT270, "Seibu Kaihatsu (Tuning license)",        "Raiden DX (Germany)",              GAME_NOT_WORKING)
+GAME( 1994, raidendxnl,raidendx, raidendx,  raidendx, raiden2_state, raidendx,  ROT270, "Seibu Kaihatsu",                         "Raiden DX (The Netherlands)",      GAME_NOT_WORKING)
 
 GAME( 1993, zeroteam, 0,       zeroteam, zeroteam, raiden2_state,  zeroteam,  ROT0,   "Seibu Kaihatsu", "Zero Team USA (set 1, US, Fabtek license)", GAME_NOT_WORKING)
 GAME( 1993, zeroteama,zeroteam,zeroteam, zeroteam, raiden2_state,  zeroteam,  ROT0,   "Seibu Kaihatsu", "Zero Team (set 2, Japan? (earlier?))", GAME_NOT_WORKING)
 GAME( 1993, zeroteamb,zeroteam,zeroteam, zeroteam, raiden2_state,  zeroteam,  ROT0,   "Seibu Kaihatsu", "Zero Team (set 3, Japan? (later batteryless))", GAME_NOT_WORKING) // reprograms the sprite decrypt data of the SEI251 on every boot, like raiden2 does. hack?
 GAME( 1993, zeroteamc,zeroteam,zeroteam, zeroteam, raiden2_state,  zeroteam,  ROT0,   "Seibu Kaihatsu", "Zero Team (set 4, Taiwan, Liang Hwa license)", GAME_NOT_WORKING)
 GAME( 1993, zeroteamd,zeroteam,zeroteam, zeroteam, raiden2_state,  zeroteam,  ROT0,   "Seibu Kaihatsu", "Zero Team (set 5, Korea, Dream Soft license)", GAME_NOT_WORKING)
-//GAME( 1993, zeroteame,zeroteam,zeroteam, zeroteam, raiden2_state,  zeroteam,  ROT0,   "Seibu Kaihatsu", "Zero Team Korea (set 6, Korea, Dream Soft license)", GAME_NOT_WORKING) // NOT DUMPED but seen on a board drkitty had
-
 GAME( 1993, zeroteams,zeroteam,zeroteam, zeroteam, raiden2_state,  zeroteam,  ROT0,   "Seibu Kaihatsu", "Zero Team Selection", GAME_NOT_WORKING)
 GAME( 1993, zeroteamsr,zeroteam,zeroteam, zeroteam, raiden2_state,  zeroteam,  ROT0,  "Seibu Kaihatsu", "Zero Team Suicide Revival Kit", GAME_NOT_WORKING) // reprograms the sprite decrypt data of the SEI251 only, no game code
 

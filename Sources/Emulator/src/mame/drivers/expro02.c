@@ -164,7 +164,9 @@ public:
 		m_view2_0(*this, "view2_0"),
 		m_kaneko_spr(*this, "kan_spr"),
 		m_spriteram(*this, "spriteram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_16(*this, "paletteram") { }
 
 	optional_shared_ptr<UINT16> m_galsnew_bg_pixram;
 	optional_shared_ptr<UINT16> m_galsnew_fg_pixram;
@@ -181,14 +183,16 @@ public:
 	DECLARE_DRIVER_INIT(galsnew);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(expro02);
 	UINT32 screen_update_galsnew(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(expro02_scanline);
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT16> m_generic_paletteram_16;
 };
 
 
-void expro02_state::palette_init()
+PALETTE_INIT_MEMBER(expro02_state, expro02)
 {
 	int i;
 
@@ -196,7 +200,7 @@ void expro02_state::palette_init()
 
 	/* initialize 555 RGB lookup */
 	for (i = 0; i < 32768; i++)
-		palette_set_color_rgb(machine(),2048 + i,pal5bit(i >> 5),pal5bit(i >> 10),pal5bit(i >> 0));
+		palette.set_pen_color(2048 + i,pal5bit(i >> 5),pal5bit(i >> 10),pal5bit(i >> 0));
 }
 
 UINT32 expro02_state::screen_update_galsnew(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -418,7 +422,7 @@ WRITE16_MEMBER(expro02_state::galsnew_6295_bankswitch_w)
 WRITE16_MEMBER(expro02_state::galsnew_paletteram_w)
 {
 	data = COMBINE_DATA(&m_generic_paletteram_16[offset]);
-	palette_set_color_rgb(machine(),offset,pal5bit(data >> 6),pal5bit(data >> 11),pal5bit(data >> 1));
+	m_palette->set_pen_color(offset,pal5bit(data >> 6),pal5bit(data >> 11),pal5bit(data >> 1));
 }
 
 
@@ -558,17 +562,21 @@ static MACHINE_CONFIG_START( galsnew, expro02_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0, 256-32-1)
 	MCFG_SCREEN_UPDATE_DRIVER(expro02_state, screen_update_galsnew)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(1x4bit_1x4bit)
-	MCFG_PALETTE_LENGTH(2048 + 32768)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", 1x4bit_1x4bit)
+	MCFG_PALETTE_ADD("palette", 2048 + 32768)
+	MCFG_PALETTE_INIT_OWNER(expro02_state, expro02)
 
 	MCFG_DEVICE_ADD("view2_0", KANEKO_TMAP, 0)
 	kaneko_view2_tilemap_device::set_gfx_region(*device, 1);
 	kaneko_view2_tilemap_device::set_offset(*device, 0x5b, 0x8, 256, 224);
+	MCFG_KANEKO_TMAP_GFXDECODE("gfxdecode")
 
 	MCFG_DEVICE_ADD_VU002_SPRITES
 	kaneko16_sprite_device::set_priorities(*device, 8,8,8,8); // above all (not verified)
 	kaneko16_sprite_device::set_offsets(*device, 0, -0x40);
+	MCFG_KANEKO16_SPRITE_GFXDECODE("gfxdecode")
 
 	MCFG_DEVICE_ADD("calc1_mcu", KANEKO_HIT, 0)
 	kaneko_hit_device::set_type(*device, 0);
@@ -894,6 +902,38 @@ ROM_START( fantasiaa ) /* PCB silkscreened COMAD INDUSTRY CO.,LTD 940307 MADE IN
 	ROM_LOAD16_BYTE( "g-scr3_11.ul19a", 0x100000, 0x80000, CRC(6d00a4c5) SHA1(8fc0d78200b82ab87658d364ebe2f2e7239722e7) )
 ROM_END
 
+ROM_START( fantasiab )
+	ROM_REGION( 0x500000, "maincpu", 0 )    /* 68000 code */
+	ROM_LOAD16_BYTE( "fantasia_16",  0x000000, 0x80000, CRC(c5d93077) SHA1(da615ea0704e77e888dbda664fc9f9fd873edbfa) )
+	ROM_LOAD16_BYTE( "fantasia_13",  0x000001, 0x80000, CRC(d88529bd) SHA1(06eb928f4aefe101140140ba7a3ce416215f9e39) )
+	ROM_LOAD16_BYTE( "9.bg7",    0x100000, 0x80000, CRC(2a588393) SHA1(ef66ed94dd40a95a9b0fb5c3b075c1f654f60927) )
+	ROM_LOAD16_BYTE( "5.bg3",    0x100001, 0x80000, CRC(6160e0f0) SHA1(faec9d082c9039885afa4560aa87c05e9ecb5217) )
+	ROM_LOAD16_BYTE( "8.bg6",    0x200000, 0x80000, CRC(f776b743) SHA1(bd4d666ede454a56181e109745ac4b3203b2a87c) )
+	ROM_LOAD16_BYTE( "4.bg2",    0x200001, 0x80000, CRC(5df0dff2) SHA1(62ebd3c79f2e8ab30d6862cc4bf80f1b56f1f572) )
+	ROM_LOAD16_BYTE( "7.bg5",    0x300000, 0x80000, CRC(5707d861) SHA1(33f1cff693dfcb04edbf8738d3ea2a1884e6ff0c) )
+	ROM_LOAD16_BYTE( "3.bg1",    0x300001, 0x80000, CRC(36cb811a) SHA1(403cef012990b0e01b481b8afc6b5811e7137833) )
+	ROM_LOAD16_BYTE( "10.imag2", 0x400000, 0x80000, CRC(1f14a395) SHA1(12ca5a5a30963ecf90f5a006029aa1098b9ee1df) )
+	ROM_LOAD16_BYTE( "6.imag1",  0x400001, 0x80000, CRC(faf870e4) SHA1(163a9aa3e5c550d3760d32e31048a7aa1f93db7f) )
+
+	ROM_REGION( 0x80000, "gfx1", 0 )    /* sprites */
+	ROM_LOAD( "17.scr3",  0x00000, 0x80000, CRC(aadb6eb7) SHA1(6eaa994ad7b4e8341360eaf5ddb46240316b7274) )
+	/* SCR1 and SCR2 are unpopulated */
+
+	ROM_REGION( 0x140000, "oki", 0 )    /* OKIM6295 samples */
+	/* 00000-2ffff is fixed, 30000-3ffff is bank switched from all the ROMs */
+	ROM_LOAD( "2.music1", 0x00000, 0x80000, CRC(22955efb) SHA1(791c18d1aa0c10810da05c199108f51f99fe1d49) )
+	ROM_RELOAD(           0x40000, 0x80000 )
+	ROM_LOAD( "1.music2", 0xc0000, 0x80000, CRC(4cd4d6c3) SHA1(a617472a810aef6d82f5fe75ef2980c03c21c2fa) )
+
+	ROM_REGION( 0x200000, "gfx2", ROMREGION_ERASEFF )   /* sprites */
+
+	ROM_REGION( 0x200000, "gfx3", 0 )   /* tiles - encrypted */
+	ROM_LOAD16_BYTE( "15.obj3", 0x000001, 0x80000, CRC(46666768) SHA1(7281c4b45f6f9f6ad89fa2bb3f67f30433c0c513) )
+	ROM_LOAD16_BYTE( "12.obj1", 0x000000, 0x80000, CRC(4bd25be6) SHA1(9834f081c0390ccaa1234efd2393b6495e946c64) )
+	ROM_LOAD16_BYTE( "14.obj4", 0x100001, 0x80000, CRC(4e7e6ed4) SHA1(3e9e942e3de398edc8ac9f82769c3f41708d3741) )
+	ROM_LOAD16_BYTE( "11.obj2", 0x100000, 0x80000, CRC(6d00a4c5) SHA1(8fc0d78200b82ab87658d364ebe2f2e7239722e7) )
+ROM_END
+
 /*************************************
  *
  *  Generic driver initialization
@@ -942,5 +982,6 @@ GAME( 1990, galsnewa,  galsnew,  galsnew,  galsnewa, expro02_state, galsnew, ROT
 GAME( 1990, galsnewj,  galsnew,  galsnew,  galsnewj, expro02_state, galsnew, ROT90, "Kaneko (Taito license)",  "Gals Panic (Japan, EXPRO-02 PCB)", GAME_NO_COCKTAIL )
 GAME( 1990, galsnewk,  galsnew,  galsnew,  galsnewj, expro02_state, galsnew, ROT90, "Kaneko (Inter license)",  "Gals Panic (Korea, EXPRO-02 PCB)", GAME_NO_COCKTAIL )
 
-GAME( 1994, fantasia,  0,        fantasia, fantasia, expro02_state, galsnew, ROT90, "Comad & New Japan System", "Fantasia (940429 PCB)", GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )
+GAME( 1994, fantasia,  0,        fantasia, fantasia, expro02_state, galsnew, ROT90, "Comad & New Japan System", "Fantasia (940429 PCB, set 1)", GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )
+GAME( 1994, fantasiab, fantasia, fantasia, fantasia, expro02_state, galsnew, ROT90, "Comad & New Japan System", "Fantasia (940429 PCB, set 2)", GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )
 GAME( 1994, fantasiaa, fantasia, fantasia, fantasia, expro02_state, galsnew, ROT90, "Comad & New Japan System", "Fantasia (940307 PCB)", GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )

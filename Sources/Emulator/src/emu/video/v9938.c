@@ -16,7 +16,6 @@ todo:
 
 #include "emu.h"
 #include "v9938.h"
-#include "drivlgcy.h"
 
 #define VERBOSE 0
 #define LOG(x)  do { if (VERBOSE) logerror x; } while (0)
@@ -77,6 +76,7 @@ v99x8_device::v99x8_device(const machine_config &mconfig, device_type type, cons
 	m_pal_write(0),
 	m_cmd_write(0),
 	m_read_ahead(0),
+	m_v9958_sp_mode(0),
 	m_address_latch(0),
 	m_vram_size(0),
 	m_int_state(0),
@@ -92,19 +92,20 @@ v99x8_device::v99x8_device(const machine_config &mconfig, device_type type, cons
 	m_my_delta(0),
 	m_button_state(0),
 	m_vdp_ops_count(0),
-	m_vdp_engine(NULL)
+	m_vdp_engine(NULL),
+	m_palette(*this, "palette")
 {
 	static_set_addrmap(*this, AS_DATA, ADDRESS_MAP_NAME(memmap));
 }
 
 v9938_device::v9938_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-: v99x8_device(mconfig, V9938, "V9938", "v9938", tag, owner, clock)
+: v99x8_device(mconfig, V9938, "V9938 VDP", "v9938", tag, owner, clock)
 {
 	m_model = MODEL_V9938;
 }
 
 v9958_device::v9958_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-: v99x8_device(mconfig, V9938, "V9938", "v9938", tag, owner, clock)
+: v99x8_device(mconfig, V9938, "V9958 VDP", "v9958", tag, owner, clock)
 {
 	m_model = MODEL_V9958;
 }
@@ -157,7 +158,7 @@ int v99x8_device::interrupt ()
 	}
 
 	max = (m_cont_reg[9] & 2) ? 313 : 262;
-	if (++m_scanline == max)
+	if (++m_scanline >= max)
 		m_scanline = 0;
 
 	return m_int_state;
@@ -218,7 +219,7 @@ Palette functions
 /*
 About the colour burst registers:
 
-The color burst registers will only have effect on the composite video outputfrom
+The color burst registers will only have effect on the composite video output from
 the V9938. but the output is only NTSC (Never The Same Color ,so the
 effects are already present) . this system is not used in europe
 the european machines use a separate PAL  (Phase Alternating Line) encoder
@@ -243,13 +244,13 @@ b0 is set if b2 and b1 are set (remember, color bus is 3 bits)
 
 */
 
-PALETTE_INIT_MEMBER(v99x8_device, v9938)
+PALETTE_INIT_MEMBER(v9938_device, v9938)
 {
 	int i;
 
 	// create the full 512 colour palette
 	for (i=0;i<512;i++)
-		palette_set_color_rgb(machine(), i, pal3bit(i >> 6), pal3bit(i >> 3), pal3bit(i >> 0));
+		palette.set_pen_color(i, pal3bit(i >> 6), pal3bit(i >> 3), pal3bit(i >> 0));
 }
 
 /*
@@ -263,7 +264,7 @@ to emulate this. Also it keeps the palette a reasonable size. :)
 
 */
 
-UINT16 *v99x8_device::s_pal_indYJK;
+UINT16 v99x8_device::s_pal_indYJK[0x20000];
 
 PALETTE_INIT_MEMBER(v9958_device, v9958)
 {
@@ -271,10 +272,12 @@ PALETTE_INIT_MEMBER(v9958_device, v9958)
 	UINT8 pal[19268*3];
 
 	// init v9938 512-color palette
-	PALETTE_INIT_CALL_MEMBER(v9938);
+	for (i=0;i<512;i++)
+		palette.set_pen_color(i, pal3bit(i >> 6), pal3bit(i >> 3), pal3bit(i >> 0));
 
-	if (v99x8_device::s_pal_indYJK == NULL)
-		v99x8_device::s_pal_indYJK = auto_alloc_array(machine(),UINT16, 0x20000);
+
+	if(palette.entries() != 19780)
+		fatalerror("V9958: not enough palette, must be 19780");
 
 	// set up YJK table
 	LOG(("Building YJK table for V9958 screens, may take a while ... \n"));
@@ -291,9 +294,9 @@ PALETTE_INIT_MEMBER(v9958_device, v9958)
 		if (g < 0) g = 0; else if (g > 31) g = 31;
 		if (b < 0) b = 0; else if (b > 31) b = 31;
 
-		r = (r << 3) | (r >> 2);
-		b = (b << 3) | (b >> 2);
-		g = (g << 3) | (g >> 2);
+		//r = (r << 3) | (r >> 2);
+		//b = (b << 3) | (b >> 2);
+		//g = (g << 3) | (g >> 2);
 		// have we seen this one before?
 		n = 0;
 		while (n < i)
@@ -312,7 +315,7 @@ PALETTE_INIT_MEMBER(v9958_device, v9958)
 			pal[i*3+0] = r;
 			pal[i*3+1] = g;
 			pal[i*3+2] = b;
-			palette_set_color(machine(), i+512, MAKE_RGB(r, g, b));
+			palette.set_pen_color(i+512, rgb_t(pal5bit(r), pal5bit(g), pal5bit(b)));
 			v99x8_device::s_pal_indYJK[y | j << 5 | k << (5 + 6)] = i + 512;
 			i++;
 		}
@@ -327,27 +330,6 @@ UINT32 v99x8_device::screen_update(screen_device &screen, bitmap_ind16 &bitmap, 
 	copybitmap(bitmap, m_bitmap, 0, 0, 0, 0, cliprect);
 	return 0;
 }
-
-/*
-    so lookups for screen 12 will look like:
-
-    int ind;
-
-    ind = (*data & 7) << 11 | (*(data + 1) & 7) << 14 |
-    (*(data + 2) & 7) << 5 | (*(data + 3) & 7) << 8;
-
-    pixel0 = s_pal_indYJK[ind | (*data >> 3) & 31];
-    pixel1 = s_pal_indYJK[ind | (*(data + 1) >> 3) & 31];
-    pixel2 = s_pal_indYJK[ind | (*(data + 2) >> 3) & 31];
-    pixel3 = s_pal_indYJK[ind | (*(data + 3) >> 3) & 31];
-
-    and for screen 11:
-
-    pixel0 = (*data) & 8 ? pal_ind16[(*data) >> 4] : s_pal_indYJK[ind | (*data >> 3) & 30];
-    pixel1 = *(data+1) & 8 ? pal_ind16[*(data+1) >> 4] : s_pal_indYJK[ind | *(data+1) >> 3) & 30];
-    pixel2 = *(data+2) & 8 ? pal_ind16[*(data+2) >> 4] : s_pal_indYJK[ind | *(data+2) >> 3) & 30];
-    pixel3 = *(data+3) & 8 ? pal_ind16[*(data+3) >> 4] : s_pal_indYJK[ind | *(data+3) >> 3) & 30];
-*/
 
 READ8_MEMBER( v99x8_device::read )
 {
@@ -858,6 +840,11 @@ void v99x8_device::register_write (int reg, int data)
 		{
 			LOG(("v9938: Attempting to write %02xh to V9958 R#%d\n", data, reg));
 			data = 0;
+		}
+		else
+		{
+			if(reg == 25)
+				m_v9958_sp_mode = data & 0x18;
 		}
 		break;
 
@@ -1437,7 +1424,87 @@ void v99x8_device::mode_graphic7(const pen_t *pens, _PixelType *ln, int line)
 		xx = m_offset_x * 2;
 	while (xx--) *ln++ = pen_bg;
 
-	if (m_cont_reg[2] & 0x40)
+	if ((m_v9958_sp_mode & 0x18) == 0x08) // v9958 screen 12, puzzle star title screen
+	{
+		for (x=0;x<64;x++)
+		{
+			int colour[4];
+			int ind;
+
+			colour[0] = m_vram_space->read_byte(((nametbl_addr&1) << 16) | (nametbl_addr>>1));
+			nametbl_addr++;
+			colour[1] = m_vram_space->read_byte(((nametbl_addr&1) << 16) | (nametbl_addr>>1));
+			nametbl_addr++;
+			colour[2] = m_vram_space->read_byte(((nametbl_addr&1) << 16) | (nametbl_addr>>1));
+			nametbl_addr++;
+			colour[3] = m_vram_space->read_byte(((nametbl_addr&1) << 16) | (nametbl_addr>>1));
+
+			ind = (colour[0] & 7) << 11 | (colour[1] & 7) << 14 |
+			(colour[2] & 7) << 5 | (colour[3] & 7) << 8;
+
+			*ln++ = s_pal_indYJK[ind | ((colour[0] >> 3) & 31)];
+			if (_Width > 512)
+				*ln++ = s_pal_indYJK[ind | ((colour[0] >> 3) & 31)];
+
+			*ln++ = s_pal_indYJK[ind | ((colour[1] >> 3) & 31)];
+
+			if (_Width > 512)
+				*ln++ = s_pal_indYJK[ind | ((colour[1] >> 3) & 31)];
+
+			*ln++ = s_pal_indYJK[ind | ((colour[2] >> 3) & 31)];
+
+			if (_Width > 512)
+				*ln++ = s_pal_indYJK[ind | ((colour[2] >> 3) & 31)];
+
+			*ln++ = s_pal_indYJK[ind | ((colour[3] >> 3) & 31)];
+
+			if (_Width > 512)
+				*ln++ = s_pal_indYJK[ind | ((colour[3] >> 3) & 31)];
+
+			nametbl_addr++;
+		}
+	}
+	else if ((m_v9958_sp_mode & 0x18) == 0x18) // v9958 screen 10/11, puzzle star & sexy boom gameplay
+	{
+		for (x=0;x<64;x++)
+		{
+			int colour[4];
+			int ind;
+
+			colour[0] = m_vram_space->read_byte(((nametbl_addr&1) << 16) | (nametbl_addr>>1));
+			nametbl_addr++;
+			colour[1] = m_vram_space->read_byte(((nametbl_addr&1) << 16) | (nametbl_addr>>1));
+			nametbl_addr++;
+			colour[2] = m_vram_space->read_byte(((nametbl_addr&1) << 16) | (nametbl_addr>>1));
+			nametbl_addr++;
+			colour[3] = m_vram_space->read_byte(((nametbl_addr&1) << 16) | (nametbl_addr>>1));
+
+			ind = (colour[0] & 7) << 11 | (colour[1] & 7) << 14 |
+			(colour[2] & 7) << 5 | (colour[3] & 7) << 8;
+
+			*ln++ = colour[0] & 8 ? m_pal_ind16[colour[0] >> 4] : s_pal_indYJK[ind | ((colour[0] >> 3) & 30)];
+			if (_Width > 512)
+				*ln++ = colour[0] & 8 ? m_pal_ind16[colour[0] >> 4] : s_pal_indYJK[ind | ((colour[0] >> 3) & 30)];
+
+			*ln++ = colour[1] & 8 ? m_pal_ind16[colour[1] >> 4] : s_pal_indYJK[ind | ((colour[1] >> 3) & 30)];
+
+			if (_Width > 512)
+				*ln++ = colour[1] & 8 ? m_pal_ind16[colour[1] >> 4] : s_pal_indYJK[ind | ((colour[1] >> 3) & 30)];
+
+			*ln++ = colour[2] & 8 ? m_pal_ind16[colour[2] >> 4] : s_pal_indYJK[ind | ((colour[2] >> 3) & 30)];
+
+			if (_Width > 512)
+				*ln++ = colour[2] & 8 ? m_pal_ind16[colour[2] >> 4] : s_pal_indYJK[ind | ((colour[2] >> 3) & 30)];
+
+			*ln++ = colour[3] & 8 ? m_pal_ind16[colour[3] >> 4] : s_pal_indYJK[ind | ((colour[3] >> 3) & 30)];
+
+			if (_Width > 512)
+				*ln++ = colour[3] & 8 ? m_pal_ind16[colour[3] >> 4] : s_pal_indYJK[ind | ((colour[3] >> 3) & 30)];
+
+			nametbl_addr++;
+		}
+	}
+	else if (m_cont_reg[2] & 0x40)
 	{
 		for (x=0;x<32;x++)
 		{
@@ -1956,7 +2023,7 @@ void v99x8_device::set_mode()
 
 void v99x8_device::refresh_16(int line)
 {
-	const pen_t *pens = machine().pens;
+	const pen_t *pens = m_palette->pens();
 	int i, double_lines;
 	UINT8 col[256];
 	UINT16 *ln, *ln2 = NULL;
@@ -2146,7 +2213,7 @@ void v99x8_device::interrupt_start_vblank()
 	#if 0
 	if (machine.input().code_pressed (KEYCODE_D) )
 	{
-		for (i=0;i<24;i++) mame_printf_debug ("R#%d = %02x\n", i, m_cont_reg[i]);
+		for (i=0;i<24;i++) osd_printf_debug ("R#%d = %02x\n", i, m_cont_reg[i]);
 	}
 	#endif
 
@@ -3195,7 +3262,8 @@ void v99x8_device::update_command()
 }
 
 static MACHINE_CONFIG_FRAGMENT( v9938 )
-	MCFG_PALETTE_INIT_OVERRIDE(v9938_device, v9938)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INIT_OWNER(v9938_device, v9938)
 MACHINE_CONFIG_END
 
 //-------------------------------------------------
@@ -3209,7 +3277,8 @@ machine_config_constructor v9938_device::device_mconfig_additions() const
 }
 
 static MACHINE_CONFIG_FRAGMENT( v9958 )
-	MCFG_PALETTE_INIT_OVERRIDE(v9958_device, v9958)
+	MCFG_PALETTE_ADD("palette", 19780)
+	MCFG_PALETTE_INIT_OWNER(v9958_device, v9958)
 MACHINE_CONFIG_END
 
 //-------------------------------------------------

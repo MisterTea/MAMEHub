@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /************************************************************************************************************
 
 Telcon Zorba
@@ -14,12 +16,12 @@ and might be swappable. Need a schematic.
 ToDo:
 - Add interrupt vector hardware and masking feature
 - Connect devices to the above hardware
-- Fix the unholy mess surrounding the dma and crtc
+- Fix the display
+- Fix floppy-disk
 - Connect up the PIT
 - Replace the ascii keyboard with the real one, if possible
 - Probably lots of other things
 
-Note: because the 8275 isn't working, a generic video handler is being used at this time.
 
 *************************************************************************************************************/
 
@@ -31,17 +33,19 @@ Note: because the 8275 isn't working, a generic video handler is being used at t
 #include "machine/6821pia.h"
 #include "machine/z80dma.h"
 #include "machine/pit8253.h"
-#include "video/i8275x.h"
+#include "video/i8275.h"
 #include "sound/beep.h"
 #include "machine/keyboard.h"
 #include "machine/wd_fdc.h"
+
+#define KEYBOARD_TAG "keyboard"
 
 class zorba_state : public driver_device
 {
 public:
 	zorba_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag)
-		, m_p_videoram(*this, "videoram")
+		, m_palette(*this, "palette")
 		, m_maincpu(*this, "maincpu")
 		, m_beep(*this, "beeper")
 		, m_dma(*this, "dma")
@@ -54,13 +58,10 @@ public:
 		, m_fdc (*this, "fdc")
 		, m_floppy0(*this, "fdc:0")
 		, m_floppy1(*this, "fdc:1")
-	{ }
+	{}
 
 public:
 	const UINT8 *m_p_chargen;
-	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void palette_init_zorba();
-	required_shared_ptr<const UINT8> m_p_videoram;
 	DECLARE_DRIVER_INIT(zorba);
 	DECLARE_MACHINE_RESET(zorba);
 	DECLARE_READ8_MEMBER(ram_r);
@@ -76,6 +77,9 @@ public:
 	DECLARE_WRITE8_MEMBER(pia0_porta_w);
 	DECLARE_WRITE8_MEMBER(kbd_put);
 	DECLARE_READ8_MEMBER(keyboard_r);
+	I8275_DRAW_CHARACTER_MEMBER( zorba_update_chr );
+	required_device<palette_device> m_palette;
+
 private:
 	UINT8 m_term_data;
 	required_device<cpu_device> m_maincpu;
@@ -86,7 +90,7 @@ private:
 	required_device<i8251_device> m_u2;
 	required_device<pia6821_device> m_pia0;
 	required_device<pia6821_device> m_pia1;
-	required_device<i8275x_device> m_crtc;
+	required_device<i8275_device> m_crtc;
 	required_device<fd1793_t> m_fdc;
 	required_device<floppy_connector> m_floppy0;
 	required_device<floppy_connector> m_floppy1;
@@ -94,8 +98,7 @@ private:
 
 static ADDRESS_MAP_START( zorba_mem, AS_PROGRAM, 8, zorba_state )
 	AM_RANGE( 0x0000, 0x3fff ) AM_READ_BANK("bankr0") AM_WRITE_BANK("bankw0")
-	AM_RANGE( 0x4000, 0xf6ff ) AM_RAM
-	AM_RANGE( 0xf700, 0xffff ) AM_RAM AM_SHARE("videoram")
+	AM_RANGE( 0x4000, 0xffff ) AM_RAM
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( zorba_kbdmem, AS_PROGRAM, 8, zorba_state )
@@ -109,7 +112,7 @@ static ADDRESS_MAP_START( zorba_io, AS_IO, 8, zorba_state )
 	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE("pit", pit8254_device, read, write)
 	AM_RANGE(0x04, 0x04) AM_READWRITE(rom_r,rom_w)
 	AM_RANGE(0x05, 0x05) AM_READWRITE(ram_r,ram_w)
-	AM_RANGE(0x10, 0x11) AM_DEVREADWRITE("crtc", i8275x_device, read, write)
+	AM_RANGE(0x10, 0x11) AM_DEVREADWRITE("crtc", i8275_device, read, write)
 	AM_RANGE(0x20, 0x20) AM_DEVREADWRITE("uart0", i8251_device, data_r, data_w)
 	AM_RANGE(0x21, 0x21) AM_DEVREADWRITE("uart0", i8251_device, status_r, control_w)
 	AM_RANGE(0x22, 0x22) AM_DEVREADWRITE("uart1", i8251_device, data_r, data_w)
@@ -118,7 +121,7 @@ static ADDRESS_MAP_START( zorba_io, AS_IO, 8, zorba_state )
 	//AM_RANGE(0x25, 0x25) AM_DEVREADWRITE("uart2", i8251_device, status_r, control_w)
 	AM_RANGE(0x24, 0x25) AM_READ(keyboard_r) AM_WRITENOP
 	AM_RANGE(0x26, 0x26) AM_WRITE(intmask_w)
-	AM_RANGE(0x30, 0x30) AM_DEVREADWRITE_LEGACY("dma", z80dma_r, z80dma_w)
+	AM_RANGE(0x30, 0x30) AM_DEVREADWRITE("dma", z80dma_device, read, write)
 	AM_RANGE(0x40, 0x43) AM_DEVREADWRITE("fdc", fd1793_t, read, write)
 	AM_RANGE(0x50, 0x53) AM_DEVREADWRITE("pia0", pia6821_device, read, write)
 	AM_RANGE(0x60, 0x63) AM_DEVREADWRITE("pia1", pia6821_device, read, write)
@@ -163,7 +166,7 @@ DRIVER_INIT_MEMBER( zorba_state, zorba )
 }
 
 //-------------------------------------------------
-//  Z80DMA_INTERFACE( dma_intf )
+//  Z80DMA
 //-------------------------------------------------
 
 WRITE_LINE_MEMBER( zorba_state::busreq_w )
@@ -183,7 +186,7 @@ READ8_MEMBER(zorba_state::memory_read_byte)
 WRITE8_MEMBER(zorba_state::memory_write_byte)
 {
 	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
-	return prog_space.write_byte(offset, data);
+	prog_space.write_byte(offset, data);
 }
 
 READ8_MEMBER(zorba_state::io_read_byte)
@@ -202,68 +205,14 @@ WRITE8_MEMBER(zorba_state::io_write_byte)
 	}
 	else
 	{
-		return prog_space.write_byte(offset, data);
+		prog_space.write_byte(offset, data);
 	}
 }
 
-// busack on cpu connects to bai pin
-static Z80DMA_INTERFACE( dma_intf )
-{
-	//DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_HALT), //busreq - connects to busreq on cpu
-	DEVCB_DRIVER_LINE_MEMBER(zorba_state, busreq_w), //busreq - connects to busreq on cpu
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0), //int/pulse - connects to IRQ0 on cpu
-	DEVCB_NULL, //ba0 - not connected
-	DEVCB_DRIVER_MEMBER(zorba_state, memory_read_byte),
-	DEVCB_DRIVER_MEMBER(zorba_state, memory_write_byte),
-	DEVCB_DRIVER_MEMBER(zorba_state, io_read_byte),
-	DEVCB_DRIVER_MEMBER(zorba_state, io_write_byte),
-};
 
 static SLOT_INTERFACE_START( zorba_floppies )
 	SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
 SLOT_INTERFACE_END
-
-// COM port
-static const i8251_interface u0_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-// printer port
-static const i8251_interface u1_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-// keyboard
-static const i8251_interface u2_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 WRITE8_MEMBER( zorba_state::pia0_porta_w )
 {
@@ -285,73 +234,12 @@ WRITE8_MEMBER( zorba_state::pia0_porta_w )
 	m_floppy1->get_device()->mon_w(BIT(data, 4));
 }
 
-// port A - disk select etc, beeper
-// port B - parallel interface
-static const pia6821_interface pia0_intf =
-{
-	DEVCB_NULL, /* port A input */
-	DEVCB_NULL, /* port B input */
-	DEVCB_NULL, /* CA1 input */
-	DEVCB_NULL, /* CB1 input */
-	DEVCB_NULL, /* CA2 input */
-	DEVCB_NULL, /* CB2 input */
-	DEVCB_DRIVER_MEMBER(zorba_state, pia0_porta_w), /* port A output */
-	DEVCB_NULL, /* port B output */
-	DEVCB_NULL, /* CA2 output */
-	DEVCB_NULL, /* CB2 output */
-	DEVCB_NULL, /* IRQA output */
-	DEVCB_NULL  /* IRQB output */
-};
-
-// IEEE488 interface
-static const pia6821_interface pia1_intf =
-{
-	DEVCB_NULL, /* port A input */
-	DEVCB_NULL, /* port B input */
-	DEVCB_NULL, /* CA1 input */
-	DEVCB_NULL, /* CB1 input */
-	DEVCB_NULL, /* CA2 input */
-	DEVCB_NULL, /* CB2 input */
-	DEVCB_NULL, /* port A output */
-	DEVCB_NULL, /* port B output */
-	DEVCB_NULL, /* CA2 output */
-	DEVCB_NULL, /* CB2 output */
-	DEVCB_NULL, /* IRQA output */
-	DEVCB_NULL  /* IRQB output */
-};
-
-static const struct pit8253_interface pit_intf =
-{
-	{
-		{
-			XTAL_24MHz / 3,                /* Timer 0: ? */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}, {
-			XTAL_24MHz / 3,                /* Timer 1: ? */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}, {
-			XTAL_24MHz / 3,                /* Timer 2: ? */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}
-	}
-};
-
-PALETTE_INIT_MEMBER( zorba_state, zorba )
-{
-	palette_set_color_rgb( machine(), 0, 0, 0, 0 ); /* Black */
-	palette_set_color_rgb( machine(), 1, 0, 255, 0 );   /* Full */
-	palette_set_color_rgb( machine(), 2, 0, 128, 0 );   /* Dimmed */
-}
-
-static I8275_DISPLAY_PIXELS( zorba_update_chr )
+I8275_DRAW_CHARACTER_MEMBER( zorba_state::zorba_update_chr )
 {
 	int i;
-	zorba_state *state = device->machine().driver_data<zorba_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
-	UINT8 gfx = state->m_p_chargen[(linecount & 15) + (charcode << 4)];
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
+
+	UINT8 gfx = m_p_chargen[(linecount & 15) + (charcode << 4) + ((gpa & 1) << 11)];
 
 	if (vsp)
 		gfx = 0;
@@ -366,46 +254,31 @@ static I8275_DISPLAY_PIXELS( zorba_update_chr )
 		bitmap.pix32(y, x + 7 - i) = palette[BIT(gfx, i) ? (hlgt ? 2 : 1) : 0];
 }
 
+
+/* F4 Character Displayer */
+static const gfx_layout u5_charlayout =
+{
+	8, 11,                   /* 8 x 11 characters */
+	256,                  /* 256 characters */
+	1,                  /* 1 bits per pixel */
+	{ 0 },                  /* no bitplanes */
+	/* x offsets */
+	{ 0, 1, 2, 3, 4, 5, 6, 7 },
+	/* y offsets */
+	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8, 8*8, 9*8, 10*8 },
+	8*16                    /* every char takes 16 bytes */
+};
+
+static GFXDECODE_START( zorba )
+	GFXDECODE_ENTRY( "chargen", 0x0000, u5_charlayout, 0, 1 )
+GFXDECODE_END
+
 MACHINE_RESET_MEMBER( zorba_state, zorba )
 {
 	m_beep->set_frequency(800);
 	m_p_chargen = memregion("chargen")->base();
 	membank("bankr0")->set_entry(1); // point at rom
 	membank("bankw0")->set_entry(0); // always write to ram
-}
-
-UINT32 zorba_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
-{
-	UINT8 y,ra,chr,gfx;
-	UINT16 sy=0,ma=0,x;
-
-	for (y = 0; y < 25; y++)
-	{
-		for (ra = 0; ra < 11; ra++)
-		{
-			UINT16 *p = &bitmap.pix16(sy++);
-
-			for (x = 0; x < 80; x++)
-			{
-				gfx = 0;
-				chr = m_p_videoram[x+ma];
-
-				if (chr) gfx = m_p_chargen[(chr<<4) | ra ];
-
-				/* Display a scanline of a character */
-				*p++ = BIT(gfx, 7);
-				*p++ = BIT(gfx, 6);
-				*p++ = BIT(gfx, 5);
-				*p++ = BIT(gfx, 4);
-				*p++ = BIT(gfx, 3);
-				*p++ = BIT(gfx, 2);
-				*p++ = BIT(gfx, 1);
-				*p++ = BIT(gfx, 0);
-			}
-		}
-		ma+=80;
-	}
-	return 0;
 }
 
 READ8_MEMBER( zorba_state::keyboard_r )
@@ -423,11 +296,6 @@ WRITE8_MEMBER( zorba_state::kbd_put )
 	m_term_data = data;
 }
 
-static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
-{
-	DEVCB_DRIVER_MEMBER(zorba_state, kbd_put)
-};
-
 static MACHINE_CONFIG_START( zorba, zorba_state )
 	// basic machine hardware
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_24MHz / 6)
@@ -441,36 +309,61 @@ static MACHINE_CONFIG_START( zorba, zorba_state )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	//MCFG_SCREEN_UPDATE_DEVICE("crtc", i8275x_device, screen_update) // not working
-	MCFG_SCREEN_UPDATE_DRIVER(zorba_state, screen_update)
-	MCFG_SCREEN_SIZE(640, 276)
-	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 275)
-	MCFG_PALETTE_LENGTH(3)
-	MCFG_PALETTE_INIT_OVERRIDE(zorba_state, zorba)
+	MCFG_SCREEN_REFRESH_RATE(50)
+	MCFG_SCREEN_UPDATE_DEVICE("crtc", i8275_device, screen_update)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", zorba)
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN_HIGHLIGHT("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
-	/* Devices */
-	MCFG_Z80DMA_ADD("dma", XTAL_24MHz/6, dma_intf)
-	MCFG_I8251_ADD("uart0", u0_intf)
-	MCFG_I8251_ADD("uart1", u1_intf)
-	MCFG_I8251_ADD("uart2", u2_intf)
-	MCFG_PIA6821_ADD("pia0", pia0_intf)
-	MCFG_PIA6821_ADD("pia1", pia1_intf)
-	MCFG_PIT8254_ADD( "pit", pit_intf)
-	MCFG_I8275_ADD("crtc", XTAL_14_31818MHz/7, 8, zorba_update_chr, DEVWRITELINE("dma", z80dma_device, rdy_w))
+	/* devices */
+	MCFG_DEVICE_ADD("dma", Z80DMA, XTAL_24MHz/6)
+	// busack on cpu connects to bai pin
+	MCFG_Z80DMA_OUT_BUSREQ_CB(WRITELINE(zorba_state, busreq_w))  //connects to busreq on cpu
+	MCFG_Z80DMA_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))   // connects to IRQ0 on cpu
+	//ba0 - not connected
+	MCFG_Z80DMA_IN_MREQ_CB(READ8(zorba_state, memory_read_byte))
+	MCFG_Z80DMA_OUT_MREQ_CB(WRITE8(zorba_state, memory_write_byte))
+	MCFG_Z80DMA_IN_IORQ_CB(READ8(zorba_state, io_read_byte))
+	MCFG_Z80DMA_OUT_IORQ_CB(WRITE8(zorba_state, io_write_byte))
+
+	MCFG_DEVICE_ADD("uart0", I8251, 0)
+	// COM port
+
+	MCFG_DEVICE_ADD("uart1", I8251, 0)
+	// printer port
+
+	MCFG_DEVICE_ADD("uart2", I8251, 0)
+	// keyboard
+
+// port A - disk select etc, beeper
+// port B - parallel interface
+	MCFG_DEVICE_ADD("pia0", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(zorba_state, pia0_porta_w))
+
+// IEEE488 interface
+	MCFG_DEVICE_ADD("pia1", PIA6821, 0)
+
+	MCFG_DEVICE_ADD("pit", PIT8254, 0)
+	MCFG_PIT8253_CLK0(XTAL_24MHz / 3) /* Timer 0: ? */
+	MCFG_PIT8253_CLK1(XTAL_24MHz / 3) /* Timer 1: ? */
+	MCFG_PIT8253_CLK2(XTAL_24MHz / 3) /* Timer 2: ? */
+
+	MCFG_DEVICE_ADD("crtc", I8275, XTAL_14_31818MHz/7)
+	MCFG_I8275_CHARACTER_WIDTH(8)
+	MCFG_I8275_DRAW_CHARACTER_CALLBACK_OWNER(zorba_state, zorba_update_chr)
+	MCFG_I8275_DRQ_CALLBACK(DEVWRITELINE("dma", z80dma_device, rdy_w))
 	MCFG_I8275_IRQ_CALLBACK(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
 	MCFG_FD1793x_ADD("fdc", XTAL_24MHz / 24)
 	MCFG_FLOPPY_DRIVE_ADD("fdc:0", zorba_floppies, "525dd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("fdc:1", zorba_floppies, "525dd", floppy_image_device::default_floppy_formats)
 
 	/* Keyboard */
-	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
+	MCFG_DEVICE_ADD(KEYBOARD_TAG, GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(zorba_state, kbd_put))
 MACHINE_CONFIG_END
 
 ROM_START( zorba )

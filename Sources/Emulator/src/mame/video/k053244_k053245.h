@@ -1,33 +1,43 @@
-/* */
-
 #pragma once
 #ifndef __K053244_K053245_H__
 #define __K053244_K053245_H__
 
 
-
-#define NORMAL_PLANE_ORDER 0x0123
-
-typedef void (*k05324x_callback)(running_machine &machine, int *code, int *color, int *priority);
+typedef device_delegate<void (int *code, int *color, int *priority)> k05324x_cb_delegate;
+#define K05324X_CB_MEMBER(_name)   void _name(int *code, int *color, int *priority)
 
 
-struct k05324x_interface
-{
-	const char         *m_gfx_memory_region;
-	int                m_gfx_num;
-	int                m_plane_order;
-	int                m_dx, m_dy;
-	int                m_deinterleave;
-	k05324x_callback   m_callback;
-};
+#define MCFG_K05324X_BPP(_bpp) \
+	k05324x_device::set_bpp(*device, _bpp);
+
+#define MCFG_K05324X_CB(_class, _method) \
+	k05324x_device::set_k05324x_callback(*device, k05324x_cb_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
+
+#define MCFG_K05324X_OFFSETS(_xoffs, _yoffs) \
+	k05324x_device::set_offsets(*device, _xoffs, _yoffs);
 
 
 class k05324x_device : public device_t,
-										public k05324x_interface
+							public device_gfx_interface
 {
+	static const gfx_layout spritelayout;
+	static const gfx_layout spritelayout_6bpp;
+	DECLARE_GFXDECODE_MEMBER(gfxinfo);
+	DECLARE_GFXDECODE_MEMBER(gfxinfo_6bpp);
+
 public:
 	k05324x_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	~k05324x_device() {}
+
+	// static configuration
+	static void set_bpp(device_t &device, int bpp);
+	static void set_k05324x_callback(device_t &device, k05324x_cb_delegate callback) { downcast<k05324x_device &>(device).m_k05324x_cb = callback; }
+	static void set_offsets(device_t &device, int x_offset, int y_offset)
+	{
+		k05324x_device &dev = downcast<k05324x_device &>(device);
+		dev.m_dx = x_offset;
+		dev.m_dy = y_offset;
+	}
 
 	DECLARE_READ16_MEMBER( k053245_word_r );
 	DECLARE_WRITE16_MEMBER( k053245_word_w );
@@ -39,50 +49,35 @@ public:
 	DECLARE_WRITE16_MEMBER( k053244_lsb_w );
 	DECLARE_READ16_MEMBER( k053244_word_r );
 	DECLARE_WRITE16_MEMBER( k053244_word_w );
-	void k053244_bankselect(int bank);    /* used by TMNT2, Asterix and Premier Soccer for ROM testing */
-	void k053245_sprites_draw(bitmap_ind16 &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap);
-	void k053245_sprites_draw_lethal(bitmap_ind16 &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap); /* for lethal enforcers */
-	void k053245_clear_buffer();
-	void k053245_update_buffer();
-	void k053245_set_sprite_offs(int offsx, int offsy);
-	void k05324x_set_z_rejection(int zcode); // common to k053244/5
+	void bankselect(int bank);    /* used by TMNT2, Asterix and Premier Soccer for ROM testing */
+	void sprites_draw(bitmap_ind16 &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap);
+	void clear_buffer();
+	void update_buffer();
+	void set_z_rejection(int zcode); // common to k053244/5
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
 	virtual void device_reset();
+
 private:
 	// internal state
 	UINT16    *m_ram;
 	UINT16    *m_buffer;
+	UINT8     *m_sprite_rom;
+	UINT32    m_sprite_size;
 
-	gfx_element *m_gfx;
+	int m_dx, m_dy;
+	k05324x_cb_delegate m_k05324x_cb;
 
 	UINT8    m_regs[0x10];    // 053244
 	int      m_rombank;       // 053244
 	int      m_ramsize;
 	int      m_z_rejection;
-
-	DECLARE_READ16_MEMBER( k053244_reg_word_r );    // OBJSET0 debug handler
 };
 
 
-
 extern const device_type K053244;
-
 #define K053245 K053244
-
-
-
-#define MCFG_K053244_ADD(_tag, _interface) \
-	MCFG_DEVICE_ADD(_tag, K053244, 0) \
-	MCFG_DEVICE_CONFIG(_interface)
-
-#define MCFG_K053245_ADD(_tag, _interface) \
-	MCFG_DEVICE_ADD(_tag, K053245, 0) \
-	MCFG_DEVICE_CONFIG(_interface)
-
-
 
 #endif

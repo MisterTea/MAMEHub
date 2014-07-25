@@ -22,7 +22,7 @@
 #include "emuopts.h"
 
 #include "unicode.h"
-#include "ui.h"
+#include "ui/ui.h"
 #include "osdcore.h"
 
 #include "google/protobuf/io/lzma_protobuf_stream.h"
@@ -442,8 +442,6 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
   return true;
 }
 
-extern astring &nvram_filename(astring &result, device_t &device);
-
 nsm::InitialSync initial_sync;
 
 void Client::loadInitialData(unsigned char *data,int size,running_machine *machine)
@@ -471,30 +469,13 @@ void Client::loadInitialData(unsigned char *data,int size,running_machine *machi
   if(initial_sync.nvram_size())
   {
     int nvram_index=0;
-    if (machine->config().m_nvram_handler != NULL)
-    {
-      astring filename;
-      emu_file file(machine->options().nvram_directory(), OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
-      if (file.open(nvram_filename(filename,machine->root_device()),".nv") == FILERR_NONE)
-      {
-        cout << "SAVING NVRAM OF SIZE: " << initial_sync.nvram(0).length() << endl;
-        file.write(initial_sync.nvram(0).c_str(),initial_sync.nvram(0).length());
-        file.close();
-      }
-      else
-      {
-        cout << "ERROR STORING NVRAM\n";
-        exit(1);
-      }
-      nvram_index++;
-    }
 
     nvram_interface_iterator iter(machine->root_device());
     for (device_nvram_interface *nvram = iter.first(); nvram != NULL; nvram = iter.next())
     {
       astring filename;
       emu_file file(machine->options().nvram_directory(), OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
-      if (file.open(nvram_filename(filename,nvram->device())) == FILERR_NONE)
+      if (file.open(machine->nvram_filename(filename,nvram->device())) == FILERR_NONE)
       {
         cout << "SAVING NVRAM OF SIZE: " << initial_sync.nvram(nvram_index).length() << endl;
         file.write(initial_sync.nvram(nvram_index).c_str(),initial_sync.nvram(nvram_index).length());
@@ -936,7 +917,7 @@ bool Client::resync(unsigned char *data,int size,running_machine *machine)
   }
 
   printf("CLIENT IS DIRTY (%d bad blocks, %f%% of total)\n",badByteCount,float(badByteCount)*100.0f/totalByteCount);
-  ui_popup_time(3, "You are out of sync with the server, resyncing...");
+  machine->ui().popup_time(3, "You are out of sync with the server, resyncing...");
 
   machine->save().doPreSave();
 

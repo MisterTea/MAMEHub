@@ -1,10 +1,34 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Jonathan Gevaryahu
+// Modernised by Robbbert. Portions of the code copyright Robbbert.
 /******************************************************************************
 *
 *  Self Contained zexall 'Z80 instruction exerciser' test driver
-*  By Jonathan Gevaryahu AKA Lord Nightmare
+*  Copyright (C) 2009 Jonathan Gevaryahu AKA Lord Nightmare
 *  Zexall originally written by Frank Cringle for ZX Spectrum
 *  Modularized Spectrum-independent Zexall binary supplied by Blargg
 *  Serial interface binary/preloader at 0x0000-0x00FF written by Kevin 'kevtris' Horton
+*
+*
+*  This source file is dual-licensed under the following licenses:
+*  1. The MAME license as of September 2013
+*  2. The GNU LGPLv2.1:
+*
+*  This library is free software; you can redistribute it and/or
+*  modify it under the terms of the GNU Lesser General Public
+*  License as published by the Free Software Foundation; either
+*  version 2.1 of the License, or (at your option) any later version.
+*
+*  This library is distributed in the hope that it will be useful,
+*  but WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+*  Lesser General Public License for more details.
+*
+*  You should have received a copy of the GNU Lesser General Public
+*  License along with this library; if not, write to the Free Software
+*  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+*
+*  Please contact the author if you require other licensing.
 *
 *
 * mem map:
@@ -23,32 +47,34 @@ One i/o port is used:
 #include "cpu/z80/z80.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class zexall_state : public driver_device
 {
 public:
 	zexall_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu"),
-			m_terminal(*this, TERMINAL_TAG)
-	,
-		m_main_ram(*this, "main_ram"){ }
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG),
+		m_main_ram(*this, "main_ram")
+	{
+	}
 
-	required_device<cpu_device> m_maincpu;
-	required_device<generic_terminal_device> m_terminal;
 	DECLARE_READ8_MEMBER( zexall_output_ack_r );
 	DECLARE_READ8_MEMBER( zexall_output_req_r );
 	DECLARE_READ8_MEMBER( zexall_output_data_r );
 	DECLARE_WRITE8_MEMBER( zexall_output_ack_w );
 	DECLARE_WRITE8_MEMBER( zexall_output_req_w );
 	DECLARE_WRITE8_MEMBER( zexall_output_data_w );
+	DECLARE_DRIVER_INIT(zexall);
+private:
+	required_device<cpu_device> m_maincpu;
+	required_device<generic_terminal_device> m_terminal;
 	required_shared_ptr<UINT8> m_main_ram;
-	UINT8 m_data[8]; // unused; to suppress the scalar initializer warning
 	UINT8 m_out_data; // byte written to 0xFFFF
 	UINT8 m_out_req; // byte written to 0xFFFE
 	UINT8 m_out_req_last; // old value at 0xFFFE before the most recent write
 	UINT8 m_out_ack; // byte written to 0xFFFC
-	DECLARE_DRIVER_INIT(zexall);
 	virtual void machine_reset();
 };
 
@@ -136,11 +162,6 @@ INPUT_PORTS_END
  Machine Drivers
 ******************************************************************************/
 
-static GENERIC_TERMINAL_INTERFACE( zexall_terminal_intf )
-{
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( zexall, zexall_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_3_579545MHz*10)
@@ -149,7 +170,7 @@ static MACHINE_CONFIG_START( zexall, zexall_state )
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, zexall_terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
 MACHINE_CONFIG_END
 
 

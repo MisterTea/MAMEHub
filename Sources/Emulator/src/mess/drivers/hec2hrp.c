@@ -74,7 +74,6 @@
 #include "imagedev/cassette.h"
 #include "formats/hect_tap.h"
 #include "imagedev/printer.h"
-#include "sound/sn76477.h"   /* for sn sound*/
 #include "sound/wave.h"      /* for K7 sound*/
 #include "sound/discrete.h"  /* for 1 Bit sound*/
 #include "machine/upd765.h" /* for floppy disc controller */
@@ -198,7 +197,7 @@ ADDRESS_MAP_END
 /* Input ports */
 static INPUT_PORTS_START( hec2hrp )
 	/* keyboard input */
-	PORT_START("KEY0") /* [0] - port 3000 @ 0 */
+	PORT_START("KEY.0") /* [0] - port 3000 @ 0 */
 		PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_BACKSLASH)    PORT_CHAR('\\') PORT_CHAR('|')
 		PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Space")          PORT_CODE(KEYCODE_SPACE)
 		PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Return")         PORT_CODE(KEYCODE_ENTER) PORT_CHAR(13)
@@ -207,7 +206,7 @@ static INPUT_PORTS_START( hec2hrp )
 		PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Caps Lock")      PORT_CODE(KEYCODE_CAPSLOCK)
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Ctrl")           PORT_CODE(KEYCODE_LCONTROL)   PORT_CHAR(UCHAR_MAMEKEY(LCONTROL))
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Shift")          PORT_CODE(KEYCODE_LSHIFT)     PORT_CODE(KEYCODE_RSHIFT) PORT_CHAR(UCHAR_SHIFT_1)
-	PORT_START("KEY1") /* [1] - port 3000 @ 1 */    /* touches => 2  1  0  /  .  -  ,  +     */
+	PORT_START("KEY.1") /* [1] - port 3000 @ 1 */    /* touches => 2  1  0  /  .  -  ,  +     */
 		PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("2 \"")           PORT_CODE(KEYCODE_2)    PORT_CHAR('2')
 		PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("1 >")            PORT_CODE(KEYCODE_1)    PORT_CHAR('1')
 		PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("0 <")            PORT_CODE(KEYCODE_0)    PORT_CHAR('0')
@@ -217,7 +216,7 @@ static INPUT_PORTS_START( hec2hrp )
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_M)
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_EQUALS)   PORT_CHAR('=') PORT_CHAR('+')
 
-	PORT_START("KEY2") /* [1] - port 3000 @ 2 */     /* touches => .. 9  8  7  6  5  4  3  */
+	PORT_START("KEY.2") /* [1] - port 3000 @ 2 */     /* touches => .. 9  8  7  6  5  4  3  */
 		PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("9 )")            PORT_CODE(KEYCODE_9)    PORT_CHAR('9')
 		PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("8 (")            PORT_CODE(KEYCODE_8)    PORT_CHAR('8')
@@ -226,7 +225,7 @@ static INPUT_PORTS_START( hec2hrp )
 		PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("5 %")            PORT_CODE(KEYCODE_5)    PORT_CHAR('5')
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("4 $")            PORT_CODE(KEYCODE_4)    PORT_CHAR('4')
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("3 /")            PORT_CODE(KEYCODE_3)    PORT_CHAR('3')
-	PORT_START("KEY3") /* [1] - port 3000 @ 3 */    /* touches =>  B  A  ..  ? .. =   ..  ;       */
+	PORT_START("KEY.3") /* [1] - port 3000 @ 3 */    /* touches =>  B  A  ..  ? .. =   ..  ;       */
 		PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_B)     PORT_CHAR('B')
 		PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("A")           PORT_CODE(KEYCODE_Q)   PORT_CHAR('Q')
 		PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_UNUSED)
@@ -235,7 +234,7 @@ static INPUT_PORTS_START( hec2hrp )
 		PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_CLOSEBRACE)   PORT_CHAR(']') PORT_CHAR('}')
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_UNUSED)
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_SLASH)       PORT_CHAR('/') PORT_CHAR('?')
-	PORT_START("KEY4") /* [1] - port 3000 @ 4 */
+	PORT_START("KEY.4") /* [1] - port 3000 @ 4 */
 		PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_J)            PORT_CHAR('J')
 		PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_I)            PORT_CHAR('I')
 		PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_H)            PORT_CHAR('H')
@@ -245,7 +244,7 @@ static INPUT_PORTS_START( hec2hrp )
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_C)            PORT_CHAR('C')
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_D)            PORT_CHAR('D')
 
-	PORT_START("KEY5") /* [1] - port 3000 @ 5 */
+	PORT_START("KEY.5") /* [1] - port 3000 @ 5 */
 		PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_R)            PORT_CHAR('R')
 		PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Q")         PORT_CODE(KEYCODE_A)         PORT_CHAR('A')
 		PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_P)            PORT_CHAR('P')
@@ -255,7 +254,7 @@ static INPUT_PORTS_START( hec2hrp )
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_L)            PORT_CHAR('L')
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_K)            PORT_CHAR('K')
 
-	PORT_START("KEY6") /* [1] - port 3000 @ 6 */
+	PORT_START("KEY.6") /* [1] - port 3000 @ 6 */
 		PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Z")          PORT_CODE(KEYCODE_W)            PORT_CHAR('W')
 		PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_Y)            PORT_CHAR('Y')
 		PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("X")          PORT_CODE(KEYCODE_X)            PORT_CHAR('X')
@@ -265,7 +264,7 @@ static INPUT_PORTS_START( hec2hrp )
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_T)            PORT_CHAR('T')
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_S)            PORT_CHAR('S')
 
-	PORT_START("KEY7") /* [1] - port 3000 @ 7  JOYSTICK */
+	PORT_START("KEY.7") /* [1] - port 3000 @ 7  JOYSTICK */
 		PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Joy(0) LEFT")        PORT_CODE(KEYCODE_LEFT)     PORT_CHAR(UCHAR_MAMEKEY(LEFT))
 		PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Joy(0) RIGHT")       PORT_CODE(KEYCODE_RIGHT)    PORT_CHAR(UCHAR_MAMEKEY(RIGHT))
 		PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Joy(0) UP")          PORT_CODE(KEYCODE_UP)       PORT_CHAR(UCHAR_MAMEKEY(UP))
@@ -275,7 +274,7 @@ static INPUT_PORTS_START( hec2hrp )
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Joy(1) UP")          PORT_CODE(KEYCODE_5_PAD)
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Joy(1) DOWN")        PORT_CODE(KEYCODE_2_PAD)
 
-	PORT_START("KEY8") /* [1] - port 3000 @ 8  not for the real machine, but to emulate the analog signal of the joystick */
+	PORT_START("KEY.8") /* [1] - port 3000 @ 8  not for the real machine, but to emulate the analog signal of the joystick */
 		PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("RESET")             PORT_CODE(KEYCODE_ESC)      PORT_CHAR(27)
 		PORT_BIT(0x02, IP_ACTIVE_LOW,  IPT_KEYBOARD) PORT_NAME("Joy(0) FIRE")       PORT_CODE(KEYCODE_TILDE)
 		PORT_BIT(0x04, IP_ACTIVE_LOW,  IPT_KEYBOARD) PORT_NAME("Joy(1) FIRE")       PORT_CODE(KEYCODE_PLUS_PAD)
@@ -330,7 +329,6 @@ MACHINE_START_MEMBER(hec2hrp_state,hec2hrx)
 	m_hector_videoram.set_target(m_hector_videoram_hrx,m_hector_videoram.bytes());
 
 	hector_init();
-	hector_disc2_init(); // Init of the Disc II !
 }
 /*****************************************************************************/
 MACHINE_START_MEMBER(hec2hrp_state,hec2mdhrx)
@@ -381,22 +379,6 @@ MACHINE_RESET_MEMBER(hec2hrp_state,hec2mdhrx)
 	hector_reset(1, 0);
 }
 
-/* Cassette definition */
-static const struct CassetteOptions hector_cassette_options = {
-	1,      /* channels */
-	16,     /* bits per sample */
-	44100   /* sample frequency */
-};
-
-static const cassette_interface hector_cassette_interface =
-{
-	hector_cassette_formats,
-	&hector_cassette_options,
-	(cassette_state)(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
-
 /* Discrete Sound */
 static DISCRETE_SOUND_START( hec2hrp )
 	DISCRETE_INPUT_LOGIC(NODE_01)
@@ -407,24 +389,10 @@ DISCRETE_SOUND_END
 /********* mini disque interface ***************************/
 /***********************************************************/
 
-const wd17xx_interface hector_wd17xx_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,// treatment for intrq line
-	DEVCB_NULL,// treatment for drq line
-	{FLOPPY_0, NULL, NULL, NULL}        // Only one floppy on the minidisc
-};
-
 const floppy_interface minidisc_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_3_5_DSDD,
 	LEGACY_FLOPPY_OPTIONS_NAME(hector_minidisc),
-	NULL,
 	NULL
 };
 
@@ -446,8 +414,9 @@ static MACHINE_CONFIG_START( hec2hr, hec2hrp_state )
 	MCFG_SCREEN_SIZE(512, 230)
 	MCFG_SCREEN_VISIBLE_AREA(0, 243, 0, 227)
 	MCFG_SCREEN_UPDATE_DRIVER(hec2hrp_state, screen_update_hec2hrp)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
 	MCFG_VIDEO_START_OVERRIDE(hec2hrp_state,hec2hrp)
 
 	/* sound hardware */
@@ -464,10 +433,12 @@ static MACHINE_CONFIG_START( hec2hr, hec2hrp_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* Gestion cassette*/
-	MCFG_CASSETTE_ADD( "cassette", hector_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(hector_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
 
 	/* printer */
-	MCFG_PRINTER_ADD("printer")
+	MCFG_DEVICE_ADD("printer", PRINTER, 0)
 
 MACHINE_CONFIG_END
 
@@ -489,8 +460,9 @@ static MACHINE_CONFIG_START( hec2hrp, hec2hrp_state )
 	MCFG_SCREEN_SIZE(512, 230)
 	MCFG_SCREEN_VISIBLE_AREA(0, 243, 0, 227)
 	MCFG_SCREEN_UPDATE_DRIVER(hec2hrp_state, screen_update_hec2hrp)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
 	MCFG_VIDEO_START_OVERRIDE(hec2hrp_state,hec2hrp)
 
 	/* sound hardware */
@@ -507,10 +479,12 @@ static MACHINE_CONFIG_START( hec2hrp, hec2hrp_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* Gestion cassette*/
-	MCFG_CASSETTE_ADD( "cassette", hector_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(hector_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
 
 	/* printer */
-	MCFG_PRINTER_ADD("printer")
+	MCFG_DEVICE_ADD("printer", PRINTER, 0)
 
 MACHINE_CONFIG_END
 
@@ -532,6 +506,8 @@ static MACHINE_CONFIG_START( hec2mx40, hec2hrp_state )
 	MCFG_CPU_PROGRAM_MAP(hecdisc2_mem)
 	MCFG_CPU_IO_MAP(hecdisc2_io)
 	MCFG_UPD765A_ADD("upd765", false, true)
+	MCFG_UPD765_INTRQ_CALLBACK(WRITELINE(hec2hrp_state, disc2_fdc_interrupt))
+	MCFG_UPD765_DRQ_CALLBACK(WRITELINE(hec2hrp_state, disc2_fdc_dma_irq))
 	MCFG_FLOPPY_DRIVE_ADD("upd765:0", hector_floppies, "525hd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("upd765:1", hector_floppies, "525hd", floppy_image_device::default_floppy_formats)
 	MCFG_MACHINE_RESET_OVERRIDE(hec2hrp_state,hec2hrx)
@@ -544,8 +520,9 @@ static MACHINE_CONFIG_START( hec2mx40, hec2hrp_state )
 	MCFG_SCREEN_SIZE(512, 230)
 	MCFG_SCREEN_VISIBLE_AREA(0, 243, 0, 227)
 	MCFG_SCREEN_UPDATE_DRIVER(hec2hrp_state, screen_update_hec2hrp)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
 	MCFG_VIDEO_START_OVERRIDE(hec2hrp_state,hec2hrp)
 
 	/* sound hardware */
@@ -562,10 +539,12 @@ static MACHINE_CONFIG_START( hec2mx40, hec2hrp_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* Gestion cassette*/
-	MCFG_CASSETTE_ADD( "cassette", hector_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(hector_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
 
 	/* printer */
-	MCFG_PRINTER_ADD("printer")
+	MCFG_DEVICE_ADD("printer", PRINTER, 0)
 
 MACHINE_CONFIG_END
 /*****************************************************************************/
@@ -584,6 +563,8 @@ static MACHINE_CONFIG_START( hec2hrx, hec2hrp_state )
 	MCFG_CPU_PROGRAM_MAP(hecdisc2_mem)
 	MCFG_CPU_IO_MAP(hecdisc2_io)
 	MCFG_UPD765A_ADD("upd765", false, true)
+	MCFG_UPD765_INTRQ_CALLBACK(WRITELINE(hec2hrp_state, disc2_fdc_interrupt))
+	MCFG_UPD765_DRQ_CALLBACK(WRITELINE(hec2hrp_state, disc2_fdc_dma_irq))
 	MCFG_FLOPPY_DRIVE_ADD("upd765:0", hector_floppies, "525hd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("upd765:1", hector_floppies, "525hd", floppy_image_device::default_floppy_formats)
 
@@ -594,8 +575,9 @@ static MACHINE_CONFIG_START( hec2hrx, hec2hrp_state )
 	MCFG_SCREEN_SIZE(512, 230)
 	MCFG_SCREEN_VISIBLE_AREA(0, 243, 0, 227)
 	MCFG_SCREEN_UPDATE_DRIVER(hec2hrp_state, screen_update_hec2hrp)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
 	MCFG_VIDEO_START_OVERRIDE(hec2hrp_state,hec2hrp)
 
 	/* sound hardware */
@@ -612,10 +594,12 @@ static MACHINE_CONFIG_START( hec2hrx, hec2hrp_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	// Gestion cassette
-	MCFG_CASSETTE_ADD( "cassette", hector_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(hector_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
 
 	/* printer */
-	MCFG_PRINTER_ADD("printer")
+	MCFG_DEVICE_ADD("printer", PRINTER, 0)
 
 MACHINE_CONFIG_END
 /*****************************************************************************/
@@ -631,7 +615,9 @@ static MACHINE_CONFIG_START( hec2mdhrx, hec2hrp_state )
 	MCFG_MACHINE_START_OVERRIDE(hec2hrp_state,hec2mdhrx)
 
 	/* Mini Disc */
-	MCFG_FD1793_ADD("wd179x", hector_wd17xx_interface )
+	MCFG_DEVICE_ADD("wd179x", FD1793, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE1_TAGS
+
 	MCFG_LEGACY_FLOPPY_DRIVE_ADD(FLOPPY_0, minidisc_floppy_interface)
 
 	/* video hardware */
@@ -641,9 +627,10 @@ static MACHINE_CONFIG_START( hec2mdhrx, hec2hrp_state )
 	MCFG_SCREEN_SIZE(512, 230)
 	MCFG_SCREEN_VISIBLE_AREA(0, 243, 0, 227)
 	MCFG_SCREEN_UPDATE_DRIVER(hec2hrp_state, screen_update_hec2hrp)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_VIDEO_START_OVERRIDE(hec2hrp_state,hec2hrp)
+	MCFG_PALETTE_ADD("palette", 16)
 	MCFG_VIDEO_START_OVERRIDE(hec2hrp_state,hec2hrp)
 
 	/* sound hardware */
@@ -660,10 +647,12 @@ static MACHINE_CONFIG_START( hec2mdhrx, hec2hrp_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	// Gestion cassette
-	MCFG_CASSETTE_ADD( "cassette", hector_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(hector_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
 
 	/* printer */
-	MCFG_PRINTER_ADD("printer")
+	MCFG_DEVICE_ADD("printer", PRINTER, 0)
 
 MACHINE_CONFIG_END
 
@@ -683,6 +672,8 @@ static MACHINE_CONFIG_START( hec2mx80, hec2hrp_state )
 	MCFG_CPU_PROGRAM_MAP(hecdisc2_mem)
 	MCFG_CPU_IO_MAP(hecdisc2_io)
 	MCFG_UPD765A_ADD("upd765", false, true)
+	MCFG_UPD765_INTRQ_CALLBACK(WRITELINE(hec2hrp_state, disc2_fdc_interrupt))
+	MCFG_UPD765_DRQ_CALLBACK(WRITELINE(hec2hrp_state, disc2_fdc_dma_irq))
 	MCFG_FLOPPY_DRIVE_ADD("upd765:0", hector_floppies, "525hd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("upd765:1", hector_floppies, "525hd", floppy_image_device::default_floppy_formats)
 
@@ -693,8 +684,9 @@ static MACHINE_CONFIG_START( hec2mx80, hec2hrp_state )
 	MCFG_SCREEN_SIZE(512, 230)
 	MCFG_SCREEN_VISIBLE_AREA(0, 243, 0, 227)
 	MCFG_SCREEN_UPDATE_DRIVER(hec2hrp_state, screen_update_hec2hrp)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
 	MCFG_VIDEO_START_OVERRIDE(hec2hrp_state,hec2hrp)
 
 	/* sound hardware */
@@ -711,10 +703,12 @@ static MACHINE_CONFIG_START( hec2mx80, hec2hrp_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* Gestion cassette*/
-	MCFG_CASSETTE_ADD( "cassette", hector_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(hector_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
 
 	/* printer */
-	MCFG_PRINTER_ADD("printer")
+	MCFG_DEVICE_ADD("printer", PRINTER, 0)
 
 	MACHINE_CONFIG_END
 

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari Toobin' hardware
@@ -204,18 +206,18 @@ static MACHINE_CONFIG_START( toobin, toobin_state )
 	MCFG_WATCHDOG_VBLANK_INIT(8)
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
-	MCFG_TILEMAP_ADD_STANDARD("playfield", 4, toobin_state, get_playfield_tile_info, 8,8, SCAN_ROWS, 128,64)
-	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", 2, toobin_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,48, 0)
+	MCFG_TILEMAP_ADD_STANDARD("playfield", "gfxdecode", 4, toobin_state, get_playfield_tile_info, 8,8, SCAN_ROWS, 128,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", "gfxdecode", 2, toobin_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,48, 0)
 	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", toobin_state::s_mob_config)
+	MCFG_ATARI_MOTION_OBJECTS_GFXDECODE("gfxdecode")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/2, 640, 0, 512, 416, 0, 384)
 	MCFG_SCREEN_UPDATE_DRIVER(toobin_state, screen_update_toobin)
 
-	MCFG_GFXDECODE(toobin)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", toobin)
+	MCFG_PALETTE_ADD("palette", 1024)
 
 	MCFG_VIDEO_START_OVERRIDE(toobin_state,toobin)
 

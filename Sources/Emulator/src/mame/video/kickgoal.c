@@ -91,7 +91,7 @@ TILEMAP_MAPPER_MEMBER(kickgoal_state::tilemap_scan_actionhwbg2)// 32x32 tiles
 void kickgoal_state::kickgoal_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
 {
 	UINT16 *spriteram = m_spriteram;
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 	int offs;
 
 	for (offs = 0; offs < m_spriteram.bytes() / 2; offs += 4)
@@ -106,7 +106,7 @@ void kickgoal_state::kickgoal_draw_sprites(bitmap_ind16 &bitmap,const rectangle 
 
 		ypos = 0x110 - ypos;
 
-		drawgfx_transpen(bitmap,cliprect,gfx,
+		gfx->transpen(bitmap,cliprect,
 				tileno+m_sprbase,
 				0x30 + color,
 				flipx,0,
@@ -127,9 +127,9 @@ VIDEO_START_MEMBER(kickgoal_state,kickgoal)
 	m_bg2_base = 0x2000 / 4;
 	m_bg2_mask = (0x2000/4) - 1;
 
-	m_fgtm = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(kickgoal_state::get_kickgoal_fg_tile_info),this), tilemap_mapper_delegate(FUNC(kickgoal_state::tilemap_scan_kicksfg),this), 8, 8, 64, 64);
-	m_bgtm = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(kickgoal_state::get_kickgoal_bg_tile_info),this), tilemap_mapper_delegate(FUNC(kickgoal_state::tilemap_scan_kicksbg),this), 16, 16, 64, 64);
-	m_bg2tm = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(kickgoal_state::get_kickgoal_bg2_tile_info),this), tilemap_mapper_delegate(FUNC(kickgoal_state::tilemap_scan_kicksbg2),this), 32, 32, 64, 64);
+	m_fgtm = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(kickgoal_state::get_kickgoal_fg_tile_info),this), tilemap_mapper_delegate(FUNC(kickgoal_state::tilemap_scan_kicksfg),this), 8, 8, 64, 64);
+	m_bgtm = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(kickgoal_state::get_kickgoal_bg_tile_info),this), tilemap_mapper_delegate(FUNC(kickgoal_state::tilemap_scan_kicksbg),this), 16, 16, 64, 64);
+	m_bg2tm = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(kickgoal_state::get_kickgoal_bg2_tile_info),this), tilemap_mapper_delegate(FUNC(kickgoal_state::tilemap_scan_kicksbg2),this), 32, 32, 64, 64);
 
 	m_fgtm->set_transparent_pen(15);
 	m_bgtm->set_transparent_pen(15);
@@ -147,9 +147,9 @@ VIDEO_START_MEMBER(kickgoal_state,actionhw)
 	m_bg2_base = 0x2000;
 	m_bg2_mask = 0x2000 - 1;
 
-	m_fgtm = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(kickgoal_state::get_kickgoal_fg_tile_info),this), tilemap_mapper_delegate(FUNC(kickgoal_state::tilemap_scan_kicksfg),this), 8, 8, 64, 64);
-	m_bgtm = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(kickgoal_state::get_kickgoal_bg_tile_info),this), tilemap_mapper_delegate(FUNC(kickgoal_state::tilemap_scan_kicksbg),this), 16, 16, 64, 64);
-	m_bg2tm = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(kickgoal_state::get_kickgoal_bg2_tile_info),this), tilemap_mapper_delegate(FUNC(kickgoal_state::tilemap_scan_actionhwbg2),this), 16, 16, 64, 64);
+	m_fgtm = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(kickgoal_state::get_kickgoal_fg_tile_info),this), tilemap_mapper_delegate(FUNC(kickgoal_state::tilemap_scan_kicksfg),this), 8, 8, 64, 64);
+	m_bgtm = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(kickgoal_state::get_kickgoal_bg_tile_info),this), tilemap_mapper_delegate(FUNC(kickgoal_state::tilemap_scan_kicksbg),this), 16, 16, 64, 64);
+	m_bg2tm = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(kickgoal_state::get_kickgoal_bg2_tile_info),this), tilemap_mapper_delegate(FUNC(kickgoal_state::tilemap_scan_actionhwbg2),this), 16, 16, 64, 64);
 
 	m_fgtm->set_transparent_pen(15);
 	m_bgtm->set_transparent_pen(15);

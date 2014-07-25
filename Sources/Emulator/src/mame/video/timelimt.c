@@ -20,11 +20,11 @@
 
 ***************************************************************************/
 
-void timelimt_state::palette_init(){
+PALETTE_INIT_MEMBER(timelimt_state, timelimt){
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < palette.entries();i++)
 	{
 		int bit0,bit1,bit2,r,g,b;
 
@@ -43,7 +43,7 @@ void timelimt_state::palette_init(){
 		bit1 = (*color_prom >> 7) & 0x01;
 		b = 0x4f * bit0 + 0xa8 * bit1;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 		color_prom++;
 	}
 }
@@ -67,10 +67,10 @@ TILE_GET_INFO_MEMBER(timelimt_state::get_fg_tile_info)
 
 void timelimt_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(timelimt_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(timelimt_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
 			8, 8, 64, 32);
 
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(timelimt_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(timelimt_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,
 			8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
@@ -126,7 +126,7 @@ void timelimt_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 		code += ( attr & 0x80 ) ? 0x40 : 0x00;
 		code += ( attr & 0x40 ) ? 0x80 : 0x00;
 
-		drawgfx_transpen( bitmap, cliprect,machine().gfx[2],
+		m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 				code,
 				attr & 7,
 				flipx,flipy,

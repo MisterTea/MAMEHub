@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari "Round" hardware
@@ -80,7 +82,7 @@ const atari_motion_objects_config relief_state::s_mob_config =
 VIDEO_START_MEMBER(relief_state,relief)
 {
 	/* MOs are 5bpp but with a 4-bit color granularity */
-	machine().gfx[1]->set_granularity(16);
+	m_gfxdecode->gfx(1)->set_granularity(16);
 }
 
 

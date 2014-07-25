@@ -116,11 +116,7 @@
 
 ***************************************************************************/
 
-#include "emu.h"
-#include "cpu/s2650/s2650.h"
 #include "includes/meadows.h"
-#include "sound/dac.h"
-#include "sound/samples.h"
 
 #include "deadeye.lh"
 #include "gypsyjug.lh"
@@ -214,7 +210,7 @@ INTERRUPT_GEN_MEMBER(meadows_state::meadows_interrupt)
 {
 	/* fake something toggling the sense input line of the S2650 */
 	m_main_sense_state ^= 1;
-	device.execute().set_input_line(1, m_main_sense_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->write_sense(m_main_sense_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -310,22 +306,9 @@ INTERRUPT_GEN_MEMBER(meadows_state::audio_interrupt)
 {
 	/* fake something toggling the sense input line of the S2650 */
 	m_audio_sense_state ^= 1;
-	device.execute().set_input_line(1, m_audio_sense_state ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->write_sense(m_audio_sense_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-
-
-/*************************************
- *
- *  Palette init
- *
- *************************************/
-
-void meadows_state::palette_init()
-{
-	palette_set_color(machine(), 0, RGB_BLACK);
-	palette_set_color(machine(), 1, RGB_WHITE);
-}
 
 
 /*************************************
@@ -657,9 +640,10 @@ static MACHINE_CONFIG_START( meadows, meadows_state )
 	MCFG_SCREEN_SIZE(32*8, 30*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(meadows_state, screen_update_meadows)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(meadows)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", meadows)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -686,9 +670,10 @@ static MACHINE_CONFIG_START( minferno, meadows_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 24*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(meadows_state, screen_update_meadows)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(minferno)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", minferno)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* audio hardware */
 	// TODO
@@ -714,9 +699,10 @@ static MACHINE_CONFIG_START( bowl3d, meadows_state )
 	MCFG_SCREEN_SIZE(32*8, 30*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(meadows_state, screen_update_meadows)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(meadows)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", meadows)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

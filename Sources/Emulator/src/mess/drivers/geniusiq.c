@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 Video Technology Genius computers:
     VTech Genius PC (France)
@@ -146,6 +148,52 @@ PCB - German Version:
  +------+    +--------------------------------------+    +-----------------------------------+    +----------+
 
 
+IQ Unlimited - GERMAN:
+      +------------------------------------------------------------------------------+
+      |                                                                              |
++-----+                                                                              |
+|                                                                                    |
+|                                                                                    |
+|                                                                                    |
+|  +----+                                                +---+                       |
+|  | A2 |                +----+                          |   |                       |
+|  |    |                | A4 |                          |A1 |        +-+            |
+|  +----+                +----+                          |   |        | |            |
+|                                                        |   |        +-+            |
+|                                                        |   |                       |
+|                                                        +---+                    +--+
+|                                                                                 |
+|                                                       +-------+                 |
++--+                                                    |65C5L5K|            +----+
+   |                                                    | HC374 |            |
++--+                         +----------+               +-------+            +--+
+|                            |DragonBall|                                       |
+| C         +----+           |EZ        |               +-------+             C |
+| A         | A3 |           |          |               |65C5L5K|             A |
+| R         +----+           |LSC414328P|               | HC374 |             R |
+| T                          |U16  IJ75C|               +-------+             T |
+| R                          | HHAV984S |                                     R |
+| I                          +----------+                                     I |
+| D  CARD 1 +------------+                                            CARD 0  D |
+| G         | AM29F0400  |                                                    G |
+| E         |            |     +------+                +--------+             E |
+|           +------------+     | LGS  |                |LHMN5KR7|               |
+| S                            |      |                |        |             S |
+| L                            |GM71C1|                |  1998  |             L |
+| O       GER                  |8163CJ|                |        |             O |
+| T       038                  |6     |                |27-06126|             T |
+|                              |      |                |-007    |               |
++--+                           |      |                |        |            +--+
+   |                           |      |                |  VTECH |            |
+   |                           +------+                +--------+            |
+   |                                                   35-19600-200  703139-G|
+   +-------------------------------------------------------------------------+
+
+A1 = 98AHCLT / 27-05992-0-0 / VTech
+A2 = 9932 HBL / C807U-1442 / 35016B / Japan
+A3 = ACT139
+A4 = MAX232
+
 
 Leader 8008 CX (German version)
 
@@ -217,7 +265,7 @@ public:
 
 	virtual void machine_start();
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(geniusiq);
 	virtual UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 	DECLARE_READ16_MEMBER(input_r);
@@ -268,10 +316,10 @@ public:
 	virtual UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 };
 
-void geniusiq_state::palette_init()
+PALETTE_INIT_MEMBER(geniusiq_state, geniusiq)
 {
 	// shades need to be verified
-	const UINT8 palette[] =
+	const UINT8 palette_val[] =
 	{
 		0x00, 0x00, 0x00,    // Black?? (used in the cursor for transparency)
 		0xff, 0xff, 0xff,    // White
@@ -291,8 +339,8 @@ void geniusiq_state::palette_init()
 		0xff, 0x00, 0xff     // Pink
 	};
 
-	for (int i=0; i<ARRAY_LENGTH(palette)/3; i++)
-		palette_set_color_rgb(machine(), i, palette[i*3], palette[i*3+1], palette[i*3+2]);
+	for (int i=0; i<ARRAY_LENGTH(palette_val)/3; i++)
+		palette.set_pen_color(i, palette_val[i*3], palette_val[i*3+1], palette_val[i*3+2]);
 }
 
 UINT32 gl8008cx_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -370,7 +418,7 @@ WRITE16_MEMBER(geniusiq_state::gfx_base_w)
 
 WRITE16_MEMBER(geniusiq_state::gfx_idx_w)
 {
-	UINT16 *gfx = ((UINT16 *)(*memregion("maincpu"))) + ((m_gfx_base + data*32)>>1);
+	UINT16 *gfx = ((UINT16 *)(*memregion("maincpu"))) + ((m_gfx_base + (data & 0xff)*32)>>1);
 
 	// first 16 bits are used to define the character size
 	UINT8 gfx_heigh = (gfx[0]>>0) & 0xff;
@@ -762,7 +810,10 @@ static MACHINE_CONFIG_START( iq128, geniusiq_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER( geniusiq_state, screen_update )
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(geniusiq_state, geniusiq)
 
 	/* internal flash */
 	MCFG_AMD_29F010_ADD("flash")
@@ -830,6 +881,36 @@ ROM_START( gl8008cx )
 	ROM_LOAD( "27-6296-0-0.u3", 0x000, 0x800, NO_DUMP )
 ROM_END
 
+ROM_START( bs9009cx )
+	ROM_REGION(0x200000, "maincpu", 0)
+	ROM_LOAD( "27-6603-01.u1", 0x0000, 0x200000, CRC(2c299f65) SHA1(44b37007a7c4087d7c2bd8c24907402bfe445ba4) )
+
+	ROM_REGION(0x800, "subcpu", 0)
+	ROM_LOAD( "mcu.u5", 0x000, 0x800, NO_DUMP )
+ROM_END
+
+ROM_START( itunlim )
+	ROM_REGION(0x200000, "maincpu", 0)
+	ROM_LOAD( "27-06124-002.u3", 0x000000, 0x200000, CRC(0c0753ce) SHA1(d22504d583ca8d6a9d2f56fbaa3e1d52c442a1e9) )
+
+	ROM_REGION(0x100000, "cart", ROMREGION_ERASEFF)
+ROM_END
+
+ROM_START( iqunlim )
+	ROM_REGION(0x200000, "maincpu", 0)
+	ROM_LOAD16_WORD_SWAP( "27-06126-007.bin", 0x000000, 0x200000, CRC(af38c743) SHA1(5b91748536905812e6de7145638699acb375865a) )
+
+	ROM_REGION(0x100000, "cart", ROMREGION_ERASEFF)
+ROM_END
+
+
+ROM_START( glmmc )
+	ROM_REGION(0x200000, "maincpu", 0)
+	ROM_LOAD( "27-5889-00.bin", 0x000000, 0x080000, CRC(5e2c6359) SHA1(cc01c7bd5c87224b63dd1044db5a36a5cb7824f1) )
+
+	ROM_REGION(0x100000, "cart", ROMREGION_ERASEFF)
+ROM_END
+
 /* Driver */
 
 /*    YEAR  NAME        PARENT          COMPAT MACHINE   INPUT        INIT                COMPANY             FULLNAME                  FLAGS */
@@ -837,3 +918,7 @@ COMP( 1997, iq128,      0,              0,    iq128,     geniusiq_de, driver_dev
 COMP( 1997, iq128_fr,   iq128,          0,    iq128,     geniusiq,    driver_device,  0,  "Video Technology", "Genius IQ 128 (France)", GAME_NOT_WORKING | GAME_NO_SOUND)
 COMP( 1998, iqtv512,    0,              0,    iqtv512,   geniusiq_de, driver_device,  0,  "Video Technology", "Genius IQ TV 512 (Germany)", GAME_NOT_WORKING | GAME_NO_SOUND)
 COMP( 1999, gl8008cx,   0,              0,    gl8008cx,  gl8008cx,    driver_device,  0,  "Video Technology", "Genius Leader 8008 CX (Germany)", GAME_IS_SKELETON)
+COMP( 1999, bs9009cx,   0,              0,    gl8008cx,  gl8008cx,    driver_device,  0,  "Video Technology", "BrainStation 9009 CXL (Germany)", GAME_IS_SKELETON)
+COMP( 1998, itunlim,    0,              0,    iq128,     geniusiq_de, driver_device,  0,  "Video Technology", "Vtech IT Unlimited (UK)", GAME_NO_SOUND)
+COMP( 19??, iqunlim,    0,              0,    iq128,     geniusiq_de, driver_device,  0,  "Video Technology", "Vtech IQ Unlimited (Germany)", GAME_IS_SKELETON)
+COMP( 19??, glmmc,      0,              0,    iq128,     geniusiq_de, driver_device,  0,  "Video Technology", "Genius Leader Master Mega Color (Germany)", GAME_IS_SKELETON)

@@ -166,7 +166,6 @@ Notes:
 #include "sound/2203intf.h"
 #include "sound/3812intf.h"
 #include "sound/okim6295.h"
-#include "sound/msm5205.h"
 
 
 /******************************************************************************/
@@ -303,8 +302,8 @@ static ADDRESS_MAP_START( dec0_map, AS_PROGRAM, 16, dec0_state )
 	AM_RANGE(0x300000, 0x30001f) AM_READ(dec0_rotary_r)
 	AM_RANGE(0x30c000, 0x30c00b) AM_READ(dec0_controls_r)
 	AM_RANGE(0x30c010, 0x30c01f) AM_WRITE(dec0_control_w)                                   /* Priority, sound, etc. */
-	AM_RANGE(0x310000, 0x3107ff) AM_RAM_WRITE(dec0_paletteram_rg_w) AM_SHARE("paletteram")
-	AM_RANGE(0x314000, 0x3147ff) AM_RAM_WRITE(dec0_paletteram_b_w) AM_SHARE("paletteram2")
+	AM_RANGE(0x310000, 0x3107ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0x314000, 0x3147ff) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0xff8000, 0xffbfff) AM_RAM AM_SHARE("ram")                                 /* Main ram */
 	AM_RANGE(0xffc000, 0xffc7ff) AM_RAM AM_SHARE("spriteram")                               /* Sprites */
 ADDRESS_MAP_END
@@ -396,100 +395,52 @@ READ16_MEMBER(dec0_state::slyspy_protection_r)
 
 */
 
-WRITE16_MEMBER(dec0_state::unmapped_w)
-{
-	// fall through for unmapped protection areas
-	logerror("unmapped memory write to %04x = %04x in mode %d\n", 0x240000+offset*2, data, m_slyspy_state);
-}
-
-void slyspy_set_protection_map(running_machine& machine, int type);
-
 WRITE16_MEMBER(dec0_state::slyspy_state_w)
 {
-	m_slyspy_state=0;
-	slyspy_set_protection_map(m_slyspy_state);
+	m_slyspy_state = 0;
+	m_pfprotect->set_bank(m_slyspy_state);
 }
 
 READ16_MEMBER(dec0_state::slyspy_state_r)
 {
-	m_slyspy_state++;
-	m_slyspy_state=m_slyspy_state%4;
-	slyspy_set_protection_map(m_slyspy_state);
+	m_slyspy_state = (m_slyspy_state + 1) % 4;
+	m_pfprotect->set_bank(m_slyspy_state);
 
 	return 0; /* Value doesn't mater */
 }
 
-void dec0_state::slyspy_set_protection_map( int type)
-{
-	address_space& space = m_maincpu->space(AS_PROGRAM);
 
-	space.install_write_handler( 0x240000, 0x24ffff, write16_delegate(FUNC(dec0_state::unmapped_w),this));
-
-	space.install_write_handler( 0x24a000, 0x24a001, write16_delegate(FUNC(dec0_state::slyspy_state_w),this));
-	space.install_read_handler( 0x244000, 0x244001, read16_delegate(FUNC(dec0_state::slyspy_state_r),this));
-
-	switch (type)
-	{
-		case 0:
-			space.install_write_handler(0x240000, 0x240007, write16_delegate(FUNC(deco_bac06_device::pf_control_0_w), (deco_bac06_device*)m_tilegen2));
-			space.install_write_handler(0x240010, 0x240017, write16_delegate(FUNC(deco_bac06_device::pf_control_1_w), (deco_bac06_device*)m_tilegen2));
-
-			space.install_write_handler(0x242000, 0x24207f, write16_delegate(FUNC(deco_bac06_device::pf_colscroll_w), (deco_bac06_device*)m_tilegen2));
-			space.install_write_handler(0x242400, 0x2427ff, write16_delegate(FUNC(deco_bac06_device::pf_rowscroll_w), (deco_bac06_device*)m_tilegen2));
-
-			space.install_write_handler(0x246000, 0x247fff, write16_delegate(FUNC(deco_bac06_device::pf_data_w), (deco_bac06_device*)m_tilegen2));
-
-			space.install_write_handler(0x248000, 0x280007, write16_delegate(FUNC(deco_bac06_device::pf_control_0_w), (deco_bac06_device*)m_tilegen1));
-			space.install_write_handler(0x248010, 0x280017, write16_delegate(FUNC(deco_bac06_device::pf_control_1_w), (deco_bac06_device*)m_tilegen1));
-
-			space.install_write_handler(0x24c000, 0x24c07f, write16_delegate(FUNC(deco_bac06_device::pf_colscroll_w), (deco_bac06_device*)m_tilegen1));
-			space.install_write_handler(0x24c400, 0x24c7ff, write16_delegate(FUNC(deco_bac06_device::pf_rowscroll_w), (deco_bac06_device*)m_tilegen1));
-
-			space.install_write_handler(0x24e000, 0x24ffff, write16_delegate(FUNC(deco_bac06_device::pf_data_w), (deco_bac06_device*)m_tilegen1));
-
-			break;
-
-		case 1:
-			// 0x240000 - 0x241fff not mapped
-			// 0x242000 - 0x243fff not mapped
-			// 0x246000 - 0x247fff not mapped
-			space.install_write_handler(0x248000, 0x249fff, write16_delegate(FUNC(deco_bac06_device::pf_data_w), (deco_bac06_device*)m_tilegen1));
-			space.install_write_handler(0x24c000, 0x24dfff, write16_delegate(FUNC(deco_bac06_device::pf_data_w), (deco_bac06_device*)m_tilegen2));
-			// 0x24e000 - 0x24ffff not mapped
-			break;
-
-		case 2:
-			space.install_write_handler(0x240000, 0x241fff, write16_delegate(FUNC(deco_bac06_device::pf_data_w), (deco_bac06_device*)m_tilegen2));
-			space.install_write_handler(0x242000, 0x243fff, write16_delegate(FUNC(deco_bac06_device::pf_data_w), (deco_bac06_device*)m_tilegen1));
-			// 0x242000 - 0x243fff not mapped
-			// 0x246000 - 0x247fff not mapped
-			// 0x248000 - 0x249fff not mapped
-			// 0x24c000 - 0x24dfff not mapped
-			space.install_write_handler(0x24e000, 0x24ffff, write16_delegate(FUNC(deco_bac06_device::pf_data_w), (deco_bac06_device*)m_tilegen1));
-			break;
-
-		case 3:
-			space.install_write_handler(0x240000, 0x241fff, write16_delegate(FUNC(deco_bac06_device::pf_data_w), (deco_bac06_device*)m_tilegen1));
-			// 0x242000 - 0x243fff not mapped
-			// 0x246000 - 0x247fff not mapped
-			space.install_write_handler(0x248000, 0x249fff, write16_delegate(FUNC(deco_bac06_device::pf_data_w), (deco_bac06_device*)m_tilegen2));
-			// 0x24c000 - 0x24dfff not mapped
-			// 0x24e000 - 0x24ffff not mapped
-			break;
-	}
-
-}
-
-
-
-
-
-
+static ADDRESS_MAP_START( slyspy_protection_map, AS_PROGRAM, 16, dec0_state )
+	AM_RANGE(0x04000, 0x04001) AM_MIRROR(0x30000) AM_READ(slyspy_state_r)
+	AM_RANGE(0x0a000, 0x0a001) AM_MIRROR(0x30000) AM_WRITE(slyspy_state_w)
+	// Default state (called by Traps 1, 3, 4, 7, C)
+	AM_RANGE(0x00000, 0x00007) AM_DEVWRITE("tilegen2", deco_bac06_device, pf_control_0_w)
+	AM_RANGE(0x00010, 0x00017) AM_DEVWRITE("tilegen2", deco_bac06_device, pf_control_1_w)
+	AM_RANGE(0x02000, 0x0207f) AM_DEVWRITE("tilegen2", deco_bac06_device, pf_colscroll_w)
+	AM_RANGE(0x02400, 0x027ff) AM_DEVWRITE("tilegen2", deco_bac06_device, pf_rowscroll_w)
+	AM_RANGE(0x06000, 0x07fff) AM_DEVWRITE("tilegen2", deco_bac06_device, pf_data_w)
+	AM_RANGE(0x08000, 0x08007) AM_DEVWRITE("tilegen1", deco_bac06_device, pf_control_0_w)
+	AM_RANGE(0x08010, 0x08017) AM_DEVWRITE("tilegen1", deco_bac06_device, pf_control_1_w)
+	AM_RANGE(0x0c000, 0x0c07f) AM_DEVWRITE("tilegen1", deco_bac06_device, pf_colscroll_w)
+	AM_RANGE(0x0c400, 0x0c7ff) AM_DEVWRITE("tilegen1", deco_bac06_device, pf_rowscroll_w)
+	AM_RANGE(0x0e000, 0x0ffff) AM_DEVWRITE("tilegen1", deco_bac06_device, pf_data_w)
+	// State 1 (Called by Trap 9)
+	AM_RANGE(0x18000, 0x19fff) AM_DEVWRITE("tilegen1", deco_bac06_device, pf_data_w)
+	AM_RANGE(0x1c000, 0x1dfff) AM_DEVWRITE("tilegen2", deco_bac06_device, pf_data_w)
+	// State 2 (Called by Trap A)
+	AM_RANGE(0x20000, 0x21fff) AM_DEVWRITE("tilegen2", deco_bac06_device, pf_data_w)
+	AM_RANGE(0x22000, 0x23fff) AM_DEVWRITE("tilegen1", deco_bac06_device, pf_data_w)
+	AM_RANGE(0x2e000, 0x2ffff) AM_DEVWRITE("tilegen1", deco_bac06_device, pf_data_w)
+	// State 3 (Called by Trap B)
+	AM_RANGE(0x30000, 0x31fff) AM_DEVWRITE("tilegen1", deco_bac06_device, pf_data_w)
+	AM_RANGE(0x38000, 0x39fff) AM_DEVWRITE("tilegen2", deco_bac06_device, pf_data_w)
+ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( slyspy_map, AS_PROGRAM, 16, dec0_state )
 	AM_RANGE(0x000000, 0x05ffff) AM_ROM
 
-	/* The location of p1 & pf2 can change in the 240000 - 24ffff region according to protection */
+	/* The location of pf1 & pf2 can change in the 240000 - 24ffff region according to protection */
+	AM_RANGE(0x240000, 0x24ffff) AM_DEVICE("pfprotect", address_map_bank_device, amap16)
 
 	/* Pf3 is unaffected by protection */
 	AM_RANGE(0x300000, 0x300007) AM_DEVWRITE("tilegen3", deco_bac06_device, pf_control_0_w)
@@ -500,7 +451,7 @@ static ADDRESS_MAP_START( slyspy_map, AS_PROGRAM, 16, dec0_state )
 
 	AM_RANGE(0x304000, 0x307fff) AM_RAM AM_SHARE("ram") /* Sly spy main ram */
 	AM_RANGE(0x308000, 0x3087ff) AM_RAM AM_SHARE("spriteram")   /* Sprites */
-	AM_RANGE(0x310000, 0x3107ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x310000, 0x3107ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x314000, 0x314003) AM_WRITE(slyspy_control_w)
 	AM_RANGE(0x314008, 0x31400f) AM_READ(slyspy_controls_r)
 	AM_RANGE(0x31c000, 0x31c00f) AM_READ(slyspy_protection_r) AM_WRITENOP
@@ -511,7 +462,7 @@ static ADDRESS_MAP_START( midres_map, AS_PROGRAM, 16, dec0_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x103fff) AM_RAM AM_SHARE("ram")
 	AM_RANGE(0x120000, 0x1207ff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x140000, 0x1407ff) AM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x140000, 0x1407ff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x160000, 0x160001) AM_WRITE(dec0_priority_w)
 	AM_RANGE(0x180000, 0x18000f) AM_READ(midres_controls_r)
 	AM_RANGE(0x180008, 0x18000f) AM_WRITENOP /* ?? watchdog ?? */
@@ -581,13 +532,13 @@ ADDRESS_MAP_END
 READ16_MEMBER( dec0_automat_state::automat_palette_r )
 {
 	offset ^=0xf;
-	return m_generic_paletteram_16[offset];
+	return m_paletteram[offset];
 }
 
 WRITE16_MEMBER( dec0_automat_state::automat_palette_w )
 {
 	offset ^=0xf;
-	paletteram_xxxxBBBBGGGGRRRR_word_w(space, offset, data, mem_mask);
+	m_palette->write(space, offset, data, mem_mask);
 }
 
 
@@ -617,7 +568,7 @@ static ADDRESS_MAP_START( automat_map, AS_PROGRAM, 16, dec0_automat_state )
 	AM_RANGE(0x300000, 0x30001f) AM_READ(dec0_rotary_r)
 	AM_RANGE(0x30c000, 0x30c00b) AM_READ(dec0_controls_r)
 	AM_RANGE(0x30c000, 0x30c01f) AM_WRITE(automat_control_w)            /* Priority, sound, etc. */
-	AM_RANGE(0x310000, 0x3107ff) AM_READWRITE(automat_palette_r, automat_palette_w) AM_SHARE("paletteram")
+	AM_RANGE(0x310000, 0x3107ff) AM_READWRITE(automat_palette_r, automat_palette_w) AM_SHARE("palette")
 	AM_RANGE(0x314000, 0x3147ff) AM_RAM
 
 	// video regs are moved to here..
@@ -651,7 +602,7 @@ static ADDRESS_MAP_START( secretab_map, AS_PROGRAM, 16, dec0_automat_state )
 	AM_RANGE(0x300c00, 0x300fff) AM_RAM
 	AM_RANGE(0x301000, 0x3017ff) AM_DEVREADWRITE("tilegen3", deco_bac06_device, pf_data_r, pf_data_w)
 	AM_RANGE(0x301800, 0x307fff) AM_RAM AM_SHARE("ram") /* Sly spy main ram */
-	AM_RANGE(0x310000, 0x3107ff) AM_READWRITE(automat_palette_r, automat_palette_w) AM_SHARE("paletteram")
+	AM_RANGE(0x310000, 0x3107ff) AM_READWRITE(automat_palette_r, automat_palette_w) AM_SHARE("palette")
 	AM_RANGE(0xb08000, 0xb08fff) AM_RAM AM_SHARE("spriteram") /* Sprites */
 ADDRESS_MAP_END
 
@@ -887,8 +838,8 @@ static INPUT_PORTS_START( baddudes )
 	PORT_DIPSETTING(      0x0400, DEF_STR( Hard ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( Hardest ) )
 	PORT_DIPNAME( 0x1000, 0x1000, DEF_STR( Allow_Continue ) ) PORT_DIPLOCATION("SW2:5")
-	PORT_DIPSETTING(      0x1000, DEF_STR( No ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( Yes ) )
+	PORT_DIPSETTING(      0x1000, DEF_STR( Yes ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( No ) )
 	PORT_DIPUNUSED_DIPLOC( 0x2000, IP_ACTIVE_LOW, "SW2:6" ) // Always OFF
 	PORT_DIPUNUSED_DIPLOC( 0x4000, IP_ACTIVE_LOW, "SW2:7" ) // Always OFF
 	PORT_DIPUNUSED_DIPLOC( 0x8000, IP_ACTIVE_LOW, "SW2:8" ) // Always OFF
@@ -1304,26 +1255,63 @@ WRITE_LINE_MEMBER(dec0_state::sound_irq2)
 /******************************************************************************/
 
 
+/* TODO: These are raw guesses, only to get ~57,41 Hz */
+#define DEC0_PIXEL_CLOCK XTAL_20MHz/4
+#define DEC0_HTOTAL 256+74
+#define DEC0_HBEND 0
+#define DEC0_HBSTART 256
+#define DEC0_VTOTAL 264
+#define DEC0_VBEND 8
+#define DEC0_VBSTART 256-8
 
 
 static MACHINE_CONFIG_START( dec0_base, dec0_state )
-	MCFG_GFXDECODE(dec0)
-	MCFG_PALETTE_LENGTH(1024)
+
+	/* video hardware */
+	MCFG_SCREEN_ADD("screen", RASTER)
+	//MCFG_SCREEN_REFRESH_RATE(57.41)
+	//MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
+	MCFG_SCREEN_RAW_PARAMS(DEC0_PIXEL_CLOCK,DEC0_HTOTAL,DEC0_HBEND,DEC0_HBSTART,DEC0_VTOTAL,DEC0_VBEND,DEC0_VBSTART)
+	//MCFG_SCREEN_SIZE(32*8, 32*8)
+	//MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
+	//MCFG_SCREEN_UPDATE_DRIVER differs per game
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dec0)
+	MCFG_PALETTE_ADD("palette", 1024)
 
 	MCFG_DEVICE_ADD("tilegen1", DECO_BAC06, 0)
 	deco_bac06_device::set_gfx_region_wide(*device,0,0,0);
+	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
 	MCFG_DEVICE_ADD("tilegen2", DECO_BAC06, 0)
 	deco_bac06_device::set_gfx_region_wide(*device,0,1,0);
+	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
 	MCFG_DEVICE_ADD("tilegen3", DECO_BAC06, 0)
 	deco_bac06_device::set_gfx_region_wide(*device,0,2,0);
+	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
 
 	MCFG_DEVICE_ADD("spritegen", DECO_MXC06, 0)
 	deco_mxc06_device::set_gfx_region(*device, 3);
-
-	MCFG_VIDEO_START_OVERRIDE(dec0_state,dec0)
+	MCFG_DECO_MXC06_GFXDECODE("gfxdecode")
+	MCFG_DECO_MXC06_PALETTE("palette")
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( dec0_base_sound, dec0_base )
+static MACHINE_CONFIG_DERIVED( dec0, dec0_base )
+
+	/* basic machine hardware */
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_20MHz / 2)
+	MCFG_CPU_PROGRAM_MAP(dec0_map)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", dec0_state,  irq6_line_assert) /* VBL */
+
+	MCFG_CPU_ADD("audiocpu", M6502, XTAL_12MHz / 8)
+	MCFG_CPU_PROGRAM_MAP(dec0_s_map)
+
+	/* video hardware */
+	MCFG_VIDEO_START_OVERRIDE(dec0_state,dec0)
+
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_FORMAT(XBGR)
+
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
@@ -1341,7 +1329,17 @@ static MACHINE_CONFIG_DERIVED( dec0_base_sound, dec0_base )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( dec0_base_sound_alt, dec0_base )
+
+static MACHINE_CONFIG_DERIVED( dec1, dec0_base )
+	/* basic machine hardware */
+	/* maincpu and audiocpu clocks and address maps differ per game */
+
+	/* video hardware */
+	MCFG_VIDEO_START_OVERRIDE(dec0_state,dec0_nodma)
+
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
@@ -1359,17 +1357,6 @@ static MACHINE_CONFIG_DERIVED( dec0_base_sound_alt, dec0_base )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 MACHINE_CONFIG_END
 
-//  MCFG_SCREEN_RAW_PARAMS(DEC0_PIXEL_CLOCK, DEC0_HTOTAL, DEC0_HBEND, DEC0_HBSTART, DEC0_VTOTAL, DEC0_VBEND, DEC0_VBSTART)
-
-/* TODO: These are raw guesses, only to get ~57,41 Hz */
-#define DEC0_PIXEL_CLOCK XTAL_20MHz/4
-#define DEC0_HTOTAL 256+74
-#define DEC0_HBEND 0
-#define DEC0_HBSTART 256
-#define DEC0_VTOTAL 264
-#define DEC0_VBEND 8
-#define DEC0_VBSTART 256-8
-
 
 WRITE_LINE_MEMBER(dec0_automat_state::automat_vclk_cb)
 {
@@ -1386,12 +1373,6 @@ WRITE_LINE_MEMBER(dec0_automat_state::automat_vclk_cb)
 	m_automat_msm5205_vclk_toggle ^= 1;
 }
 
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(dec0_automat_state,automat_vclk_cb),
-	MSM5205_S48_4B
-};
-
 
 static MACHINE_CONFIG_START( automat, dec0_automat_state )
 
@@ -1404,26 +1385,34 @@ static MACHINE_CONFIG_START( automat, dec0_automat_state )
 	MCFG_CPU_PROGRAM_MAP(automat_s_map)
 
 	/* video hardware */
+	MCFG_VIDEO_START_OVERRIDE(dec0_state,dec0_nodma)
+
 	MCFG_SCREEN_ADD("screen", RASTER)
 //  MCFG_SCREEN_REFRESH_RATE(57.41)
 //  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
 	MCFG_SCREEN_RAW_PARAMS(DEC0_PIXEL_CLOCK,DEC0_HTOTAL,DEC0_HBEND,DEC0_HBSTART,DEC0_VTOTAL,DEC0_VBEND,DEC0_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(dec0_automat_state, screen_update_automat)
-	MCFG_VIDEO_START_OVERRIDE(dec0_state,dec0_nodma)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("tilegen1", DECO_BAC06, 0)
 	deco_bac06_device::set_gfx_region_wide(*device,0,0,0);
+	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
 	MCFG_DEVICE_ADD("tilegen2", DECO_BAC06, 0)
 	deco_bac06_device::set_gfx_region_wide(*device,0,1,0);
+	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
 	MCFG_DEVICE_ADD("tilegen3", DECO_BAC06, 0)
 	deco_bac06_device::set_gfx_region_wide(*device,0,2,0);
+	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
 
 	MCFG_DEVICE_ADD("spritegen", DECO_MXC06, 0)
 	deco_mxc06_device::set_gfx_region(*device, 3);
+	MCFG_DECO_MXC06_GFXDECODE("gfxdecode")
+	MCFG_DECO_MXC06_PALETTE("palette")
 
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
-	MCFG_PALETTE_LENGTH(1024)
-	MCFG_GFXDECODE(automat)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", automat)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1441,7 +1430,8 @@ static MACHINE_CONFIG_START( automat, dec0_automat_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.35)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000/2)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(dec0_automat_state, automat_vclk_cb))
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1457,26 +1447,34 @@ static MACHINE_CONFIG_START( secretab, dec0_automat_state )
 	MCFG_CPU_PROGRAM_MAP(automat_s_map)
 
 	/* video hardware */
+	MCFG_VIDEO_START_OVERRIDE(dec0_state,dec0_nodma)
+
 	MCFG_SCREEN_ADD("screen", RASTER)
 //  MCFG_SCREEN_REFRESH_RATE(57.41)
 //  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
 	MCFG_SCREEN_RAW_PARAMS(DEC0_PIXEL_CLOCK,DEC0_HTOTAL,DEC0_HBEND,DEC0_HBSTART,DEC0_VTOTAL,DEC0_VBEND,DEC0_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(dec0_automat_state, screen_update_secretab)
-	MCFG_VIDEO_START_OVERRIDE(dec0_state,dec0_nodma)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("tilegen1", DECO_BAC06, 0)
 	deco_bac06_device::set_gfx_region_wide(*device,0,0,0);
+	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
 	MCFG_DEVICE_ADD("tilegen2", DECO_BAC06, 0)
 	deco_bac06_device::set_gfx_region_wide(*device,0,1,0);
+	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
 	MCFG_DEVICE_ADD("tilegen3", DECO_BAC06, 0)
 	deco_bac06_device::set_gfx_region_wide(*device,0,2,0);
+	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
 
 	MCFG_DEVICE_ADD("spritegen", DECO_MXC06, 0)
 	deco_mxc06_device::set_gfx_region(*device, 3);
+	MCFG_DECO_MXC06_GFXDECODE("gfxdecode")
+	MCFG_DECO_MXC06_PALETTE("palette")
 
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
-	MCFG_PALETTE_LENGTH(1024)
-	MCFG_GFXDECODE(secretab)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", secretab)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1494,84 +1492,38 @@ static MACHINE_CONFIG_START( secretab, dec0_automat_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.35)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000/2)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(dec0_automat_state, automat_vclk_cb))
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 MACHINE_CONFIG_END
 
 
-static MACHINE_CONFIG_DERIVED( hbarrel, dec0_base_sound )
-
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, XTAL_20MHz / 2)
-	MCFG_CPU_PROGRAM_MAP(dec0_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dec0_state,  irq6_line_assert)/* VBL, level 5 interrupts from i8751 */
-
-	MCFG_CPU_ADD("audiocpu", M6502, XTAL_12MHz / 8)
-	MCFG_CPU_PROGRAM_MAP(dec0_s_map)
+static MACHINE_CONFIG_DERIVED( hbarrel, dec0 )
 
 	MCFG_CPU_ADD("mcu", I8751, XTAL_8MHz)
 	MCFG_CPU_IO_MAP(mcu_io_map)
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	//MCFG_SCREEN_REFRESH_RATE(57.41)
-	//MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
-	MCFG_SCREEN_RAW_PARAMS(DEC0_PIXEL_CLOCK,DEC0_HTOTAL,DEC0_HBEND,DEC0_HBSTART,DEC0_VTOTAL,DEC0_VBEND,DEC0_VBSTART)
-	//MCFG_SCREEN_SIZE(32*8, 32*8)
-	//MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
+	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_hbarrel)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( baddudes, dec0_base_sound )
-
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, XTAL_20MHz / 2)
-	MCFG_CPU_PROGRAM_MAP(dec0_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dec0_state,  irq6_line_assert)/* VBL, level 5 interrupts from i8751 */
-
-	MCFG_CPU_ADD("audiocpu", M6502, XTAL_12MHz / 8)
-	MCFG_CPU_PROGRAM_MAP(dec0_s_map)
+static MACHINE_CONFIG_DERIVED( baddudes, dec0 )
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-//  MCFG_SCREEN_REFRESH_RATE(57.41)
-//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
-	MCFG_SCREEN_RAW_PARAMS(DEC0_PIXEL_CLOCK,DEC0_HTOTAL,DEC0_HBEND,DEC0_HBSTART,DEC0_VTOTAL,DEC0_VBEND,DEC0_VBSTART)
-//  MCFG_SCREEN_SIZE(32*8, 32*8)
-//  MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
+	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_baddudes)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( birdtry, dec0_base_sound )
-
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, XTAL_20MHz / 2)
-	MCFG_CPU_PROGRAM_MAP(dec0_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dec0_state,  irq6_line_assert)/* VBL, level 5 interrupts from i8751 */
-
-	MCFG_CPU_ADD("audiocpu", M6502, XTAL_12MHz / 8)
-	MCFG_CPU_PROGRAM_MAP(dec0_s_map)
+static MACHINE_CONFIG_DERIVED( birdtry, dec0 )
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-//  MCFG_SCREEN_REFRESH_RATE(57.41)
-//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
-	MCFG_SCREEN_RAW_PARAMS(DEC0_PIXEL_CLOCK,DEC0_HTOTAL,DEC0_HBEND,DEC0_HBSTART,DEC0_VTOTAL,DEC0_VBEND,DEC0_VBSTART)
-//  MCFG_SCREEN_SIZE(32*8, 32*8)
-//  MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
+	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_birdtry)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( robocop, dec0_base_sound )
-
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, XTAL_20MHz / 2)
-	MCFG_CPU_PROGRAM_MAP(dec0_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dec0_state,  irq6_line_assert)/* VBL */
-
-	MCFG_CPU_ADD("audiocpu", M6502, XTAL_12MHz / 8)
-	MCFG_CPU_PROGRAM_MAP(dec0_s_map)
+static MACHINE_CONFIG_DERIVED( robocop, dec0 )
 
 	MCFG_CPU_ADD("sub", H6280, XTAL_21_4772MHz / 16)
 	MCFG_CPU_PROGRAM_MAP(robocop_sub_map)
@@ -1579,44 +1531,18 @@ static MACHINE_CONFIG_DERIVED( robocop, dec0_base_sound )
 	MCFG_QUANTUM_TIME(attotime::from_hz(3000))  /* Interleave between HuC6280 & 68000 */
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-//  MCFG_SCREEN_REFRESH_RATE(57.41)
-//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
-	MCFG_SCREEN_RAW_PARAMS(DEC0_PIXEL_CLOCK,DEC0_HTOTAL,DEC0_HBEND,DEC0_HBSTART,DEC0_VTOTAL,DEC0_VBEND,DEC0_VBSTART)
-//  MCFG_SCREEN_SIZE(32*8, 32*8)
-//  MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
+	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_robocop)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( robocopb, dec0_base_sound )
-
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 10000000)
-	MCFG_CPU_PROGRAM_MAP(dec0_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dec0_state,  irq6_line_assert)/* VBL */
-
-	MCFG_CPU_ADD("audiocpu", M6502, 1500000)
-	MCFG_CPU_PROGRAM_MAP(dec0_s_map)
+static MACHINE_CONFIG_DERIVED( robocopb, dec0 )
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-//  MCFG_SCREEN_REFRESH_RATE(57.41)
-//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
-	MCFG_SCREEN_RAW_PARAMS(DEC0_PIXEL_CLOCK,DEC0_HTOTAL,DEC0_HBEND,DEC0_HBSTART,DEC0_VTOTAL,DEC0_VBEND,DEC0_VBSTART)
-//  MCFG_SCREEN_SIZE(32*8, 32*8)
-//  MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
+	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_robocop)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( hippodrm, dec0_base_sound )
-
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, XTAL_20MHz / 2)
-	MCFG_CPU_PROGRAM_MAP(dec0_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dec0_state,  irq6_line_assert)/* VBL */
-
-	MCFG_CPU_ADD("audiocpu", M6502, XTAL_12MHz / 8)
-	MCFG_CPU_PROGRAM_MAP(dec0_s_map)
+static MACHINE_CONFIG_DERIVED( hippodrm, dec0 )
 
 	MCFG_CPU_ADD("sub", H6280, XTAL_21_4772MHz / 16)
 	MCFG_CPU_PROGRAM_MAP(hippodrm_sub_map)
@@ -1624,24 +1550,11 @@ static MACHINE_CONFIG_DERIVED( hippodrm, dec0_base_sound )
 	MCFG_QUANTUM_TIME(attotime::from_hz(300))   /* Interleave between H6280 & 68000 */
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-//  MCFG_SCREEN_REFRESH_RATE(57.41)
-//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
-	MCFG_SCREEN_RAW_PARAMS(DEC0_PIXEL_CLOCK,DEC0_HTOTAL,DEC0_HBEND,DEC0_HBSTART,DEC0_VTOTAL,DEC0_VBEND,DEC0_VBSTART)
-//  MCFG_SCREEN_SIZE(32*8, 32*8)
-//  MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
+	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_hippodrm)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( ffantasybl, dec0_base_sound )
-
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, XTAL_20MHz / 2)
-	MCFG_CPU_PROGRAM_MAP(dec0_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dec0_state,  irq6_line_assert)/* VBL */
-
-	MCFG_CPU_ADD("audiocpu", M6502, XTAL_12MHz / 8)
-	MCFG_CPU_PROGRAM_MAP(dec0_s_map)
+static MACHINE_CONFIG_DERIVED( ffantasybl, dec0 )
 
 //  MCFG_CPU_ADD("sub", H6280, XTAL_21_4772MHz / 16)
 //  MCFG_CPU_PROGRAM_MAP(hippodrm_sub_map)
@@ -1649,22 +1562,18 @@ static MACHINE_CONFIG_DERIVED( ffantasybl, dec0_base_sound )
 //  MCFG_QUANTUM_TIME(attotime::from_hz(300))   /* Interleave between H6280 & 68000 */
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-//  MCFG_SCREEN_REFRESH_RATE(57.41)
-//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
-	MCFG_SCREEN_RAW_PARAMS(DEC0_PIXEL_CLOCK,DEC0_HTOTAL,DEC0_HBEND,DEC0_HBSTART,DEC0_VTOTAL,DEC0_VBEND,DEC0_VBSTART)
-//  MCFG_SCREEN_SIZE(32*8, 32*8)
-//  MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
+	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_hippodrm)
 MACHINE_CONFIG_END
 
 MACHINE_RESET_MEMBER(dec0_state,slyspy)
 {
 	// set initial memory map
-	slyspy_set_protection_map(0);
+	m_slyspy_state = 0;
+	m_pfprotect->set_bank(m_slyspy_state);
 }
 
-static MACHINE_CONFIG_DERIVED( slyspy, dec0_base_sound_alt )
+static MACHINE_CONFIG_DERIVED( slyspy, dec1 )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_20MHz/2) /* verified on pcb (20MHZ OSC) 68000P12 running at 10Mhz */
@@ -1674,24 +1583,21 @@ static MACHINE_CONFIG_DERIVED( slyspy, dec0_base_sound_alt )
 	MCFG_CPU_ADD("audiocpu", H6280, XTAL_12MHz/2/3) /* verified on pcb (6Mhz is XIN on pin 10 of H6280, verified on pcb */
 	MCFG_CPU_PROGRAM_MAP(slyspy_s_map)
 
-	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-//  MCFG_SCREEN_REFRESH_RATE(57.41)
-//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
-	MCFG_SCREEN_RAW_PARAMS(DEC0_PIXEL_CLOCK,DEC0_HTOTAL,DEC0_HBEND,DEC0_HBSTART,DEC0_VTOTAL,DEC0_VBEND,DEC0_VBSTART)
-//  MCFG_SCREEN_SIZE(32*8, 32*8)
-//  MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_slyspy)
+	MCFG_DEVICE_ADD("pfprotect", ADDRESS_MAP_BANK, 0)
+	MCFG_DEVICE_PROGRAM_MAP(slyspy_protection_map)
+	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_BIG)
+	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(16)
+	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(18)
+	MCFG_ADDRESS_MAP_BANK_STRIDE(0x10000)
 
-	MCFG_VIDEO_START_OVERRIDE(dec0_state,dec0_nodma)
+	/* video hardware */
+	MCFG_SCREEN_MODIFY("screen")
+	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_slyspy)
 
 	MCFG_MACHINE_RESET_OVERRIDE(dec0_state,slyspy)
 MACHINE_CONFIG_END
 
-
-
-
-static MACHINE_CONFIG_DERIVED( midres, dec0_base_sound_alt )
+static MACHINE_CONFIG_DERIVED( midres, dec1 )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_20MHz/2) /* verified on pcb (20MHZ OSC) 68000P12 running at 10Mhz */
@@ -1702,16 +1608,10 @@ static MACHINE_CONFIG_DERIVED( midres, dec0_base_sound_alt )
 	MCFG_CPU_PROGRAM_MAP(midres_s_map)
 
 	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-//  MCFG_SCREEN_REFRESH_RATE(57.41)
-//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(529) /* 57.41 Hz, 529us Vblank */)
-	MCFG_SCREEN_RAW_PARAMS(DEC0_PIXEL_CLOCK,DEC0_HTOTAL,DEC0_HBEND,DEC0_HBSTART,DEC0_VTOTAL,DEC0_VBEND,DEC0_VBSTART)
-//  MCFG_SCREEN_SIZE(32*8, 32*8)
-//  MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
+	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(dec0_state, screen_update_midres)
 
-	MCFG_GFXDECODE(midres)
-	MCFG_VIDEO_START_OVERRIDE(dec0_state,dec0_nodma)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", midres)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( midresb, midres )

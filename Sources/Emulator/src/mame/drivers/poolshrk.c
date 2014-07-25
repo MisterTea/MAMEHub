@@ -202,12 +202,12 @@ static GFXDECODE_START( poolshrk )
 GFXDECODE_END
 
 
-void poolshrk_state::palette_init()
+PALETTE_INIT_MEMBER(poolshrk_state, poolshrk)
 {
-	palette_set_color(machine(),0,MAKE_RGB(0x7F, 0x7F, 0x7F));
-	palette_set_color(machine(),1,MAKE_RGB(0xFF, 0xFF, 0xFF));
-	palette_set_color(machine(),2,MAKE_RGB(0x7F, 0x7F, 0x7F));
-	palette_set_color(machine(),3,MAKE_RGB(0x00, 0x00, 0x00));
+	palette.set_pen_color(0,rgb_t(0x7F, 0x7F, 0x7F));
+	palette.set_pen_color(1,rgb_t(0xFF, 0xFF, 0xFF));
+	palette.set_pen_color(2,rgb_t(0x7F, 0x7F, 0x7F));
+	palette.set_pen_color(3,rgb_t(0x00, 0x00, 0x00));
 }
 
 
@@ -224,9 +224,11 @@ static MACHINE_CONFIG_START( poolshrk, poolshrk_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(1, 255, 24, 255)
 	MCFG_SCREEN_UPDATE_DRIVER(poolshrk_state, screen_update_poolshrk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(poolshrk)
-	MCFG_PALETTE_LENGTH(4)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", poolshrk)
+	MCFG_PALETTE_ADD("palette", 4)
+	MCFG_PALETTE_INIT_OWNER(poolshrk_state, poolshrk)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

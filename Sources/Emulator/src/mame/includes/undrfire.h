@@ -29,7 +29,9 @@ public:
 		m_eeprom(*this, "eeprom"),
 		m_ram(*this, "ram"),
 		m_shared_ram(*this, "shared_ram"),
-		m_spriteram(*this, "spriteram") { }
+		m_spriteram(*this, "spriteram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_device<cpu_device> m_maincpu;
 	optional_device<cpu_device> m_subcpu;
@@ -45,7 +47,9 @@ public:
 	UINT16 m_rotate_ctrl[8];
 	UINT8 m_dislayer[6];
 	required_shared_ptr<UINT32> m_spriteram;
-	DECLARE_WRITE32_MEMBER(color_ram_w);
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	DECLARE_READ32_MEMBER(undrfire_input_r);
 	DECLARE_WRITE32_MEMBER(undrfire_input_w);
 	DECLARE_READ16_MEMBER(shared_ram_r);
@@ -57,7 +61,7 @@ public:
 	DECLARE_WRITE32_MEMBER(motor_control_w);
 	DECLARE_WRITE32_MEMBER(cbombers_cpua_ctrl_w);
 	DECLARE_READ32_MEMBER(cbombers_adc_r);
-	DECLARE_WRITE32_MEMBER(cbombers_adc_w);
+	DECLARE_WRITE8_MEMBER(cbombers_adc_w);
 	DECLARE_CUSTOM_INPUT_MEMBER(frame_counter_r);
 	DECLARE_DRIVER_INIT(undrfire);
 	DECLARE_DRIVER_INIT(cbombers);

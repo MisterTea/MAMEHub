@@ -11,16 +11,14 @@
 #include "includes/bishi.h"
 
 
-void bishi_tile_callback( running_machine &machine, int layer, int *code, int *color, int *flags )
+K056832_CB_MEMBER(bishi_state::tile_callback)
 {
-	bishi_state *state = machine.driver_data<bishi_state>();
-
 //  *code -= '0';
-//  *color = state->m_layer_colorbase[layer] | (*color>>2 & 0x0f);
+//  *color = m_layer_colorbase[layer] | (*color>>2 & 0x0f);
 //  K055555GX_decode_vmixcolor(layer, color);
-//  if (*color) mame_printf_debug("plane %x col %x [55 %x %x]\n", layer, *color, layer_colorbase[layer], K055555_get_palette_index(layer));
+//  if (*color) osd_printf_debug("plane %x col %x [55 %x %x]\n", layer, *color, layer_colorbase[layer], K055555_get_palette_index(layer));
 
-	*color = state->m_layer_colorbase[layer] + ((*color & 0xf0));
+	*color = m_layer_colorbase[layer] + ((*color & 0xf0));
 }
 
 void bishi_state::video_start()
@@ -48,13 +46,13 @@ UINT32 bishi_state::screen_update_bishi(screen_device &screen, bitmap_rgb32 &bit
 	static const int pris[4] = { K55_PRIINP_0, K55_PRIINP_3, K55_PRIINP_6, K55_PRIINP_7 };
 	static const int enables[4] = { K55_INP_VRAM_A, K55_INP_VRAM_B, K55_INP_VRAM_C, K55_INP_VRAM_D };
 
-	m_k054338->update_all_shadows(0);
-	m_k054338->fill_backcolor(bitmap, 0);
+	m_k054338->update_all_shadows(0, m_palette);
+	m_k054338->fill_solid_bg(bitmap, cliprect);
 
 	for (i = 0; i < 4; i++)
 	{
 		layers[i] = i;
-		layerpri[i] = m_k055555->k055555_read_register(m_k055555, pris[i]);
+		layerpri[i] = m_k055555->K055555_read_register(pris[i]);
 	}
 
 	konami_sortlayers4(layers, layerpri);
@@ -63,7 +61,7 @@ UINT32 bishi_state::screen_update_bishi(screen_device &screen, bitmap_rgb32 &bit
 
 	for (i = 0; i < 4; i++)
 	{
-		if (m_k055555->k055555_read_register(m_k055555, K55_INPUT_ENABLES) & enables[layers[i]])
+		if (m_k055555->K055555_read_register(K55_INPUT_ENABLES) & enables[layers[i]])
 		{
 			m_k056832->tilemap_draw(screen, bitmap, cliprect, layers[i], 0, 1 << i);
 		}

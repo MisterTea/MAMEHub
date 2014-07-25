@@ -161,7 +161,7 @@ Rowscroll style:
 
 #include "emu.h"
 #include "video/deco16ic.h"
-#include "ui.h"
+#include "ui/ui.h"
 
 
 const device_type DECO16IC = &device_creator<deco16ic_device>;
@@ -169,40 +169,41 @@ const device_type DECO16IC = &device_creator<deco16ic_device>;
 deco16ic_device::deco16ic_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, DECO16IC, "Data East IC 55 / 56 / 74 / 141", tag, owner, clock, "deco16ic", __FILE__),
 		device_video_interface(mconfig, *this),
-	m_pf1_data(NULL),
-	m_pf2_data(NULL),
-	m_pf12_control(NULL),
-	m_pf1_rowscroll_ptr(NULL),
-	m_pf2_rowscroll_ptr(NULL),
-	m_use_custom_pf1(0),
-	m_use_custom_pf2(0),
-	m_pf1_bank(0),
-	m_pf2_bank(0),
-	m_pf12_last_small(0),
-	m_pf12_last_big(0),
-	m_pf1_8bpp_mode(0)
+		m_pf1_data(NULL),
+		m_pf2_data(NULL),
+		m_pf12_control(NULL),
+		m_pf1_rowscroll_ptr(NULL),
+		m_pf2_rowscroll_ptr(NULL),
+		m_use_custom_pf1(0),
+		m_use_custom_pf2(0),
+		m_pf1_bank(0),
+		m_pf2_bank(0),
+		m_pf12_last_small(0),
+		m_pf12_last_big(0),
+		m_pf1_8bpp_mode(0),
+		m_split(0),
+		m_full_width12(1),
+		m_pf1_trans_mask(0xf),
+		m_pf2_trans_mask(0xf),
+		m_pf1_colour_bank(0),
+		m_pf2_colour_bank(0),
+		m_pf1_colourmask(0xf),
+		m_pf2_colourmask(0xf),
+		m_pf12_8x8_gfx_bank(0),
+		m_pf12_16x16_gfx_bank(0),
+		m_gfxdecode(*this),
+		m_palette(*this)
 {
 }
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
 //-------------------------------------------------
 
-void deco16ic_device::device_config_complete()
+void deco16ic_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
 {
-	// inherit a copy of the static data
-	const deco16ic_interface *intf = reinterpret_cast<const deco16ic_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<deco16ic_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-	m_bank_cb0 = NULL;
-	m_bank_cb1 = NULL;
-	}
+	downcast<deco16ic_device &>(device).m_gfxdecode.set_tag(tag);
 }
 
 //-------------------------------------------------
@@ -211,8 +212,11 @@ void deco16ic_device::device_config_complete()
 
 void deco16ic_device::device_start()
 {
-	m_bank_cb_func[0] = m_bank_cb0;
-	m_bank_cb_func[1] = m_bank_cb1;
+	if(!m_gfxdecode->started())
+		throw device_missing_dependencies();
+
+	m_bank1_cb.bind_relative_to(*owner());
+	m_bank2_cb.bind_relative_to(*owner());
 
 	int fullheight = 0;
 	int fullwidth = 0;
@@ -223,16 +227,16 @@ void deco16ic_device::device_start()
 	if (m_full_width12&1)
 		fullwidth = 1;
 
-	m_pf1_tilemap_16x16 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco16ic_device::get_pf1_tile_info),this), tilemap_mapper_delegate(FUNC(deco16ic_device::deco16_scan_rows),this), 16, 16, fullwidth ? 64 : 32, fullheight ?64 : 32);
-//  m_pf1_tilemap_8x8 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco16ic_device::get_pf1_tile_info_b),this), TILEMAP_SCAN_ROWS, 8, 8, m_full_width12 ? 64 : 32, 32);
-	m_pf1_tilemap_8x8 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco16ic_device::get_pf1_tile_info_b),this), TILEMAP_SCAN_ROWS, 8, 8, 64 , 32); // nitroball
+	m_pf1_tilemap_16x16 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco16ic_device::get_pf1_tile_info),this), tilemap_mapper_delegate(FUNC(deco16ic_device::deco16_scan_rows),this), 16, 16, fullwidth ? 64 : 32, fullheight ?64 : 32);
+//  m_pf1_tilemap_8x8 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco16ic_device::get_pf1_tile_info_b),this), TILEMAP_SCAN_ROWS, 8, 8, m_full_width12 ? 64 : 32, 32);
+	m_pf1_tilemap_8x8 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco16ic_device::get_pf1_tile_info_b),this), TILEMAP_SCAN_ROWS, 8, 8, 64 , 32); // nitroball
 
 	if (m_split)
-		m_pf2_tilemap_16x16 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco16ic_device::get_pf2_tile_info),this), tilemap_mapper_delegate(FUNC(deco16ic_device::deco16_scan_rows),this), 16, 16, fullwidth ? 64 : 32, fullheight ? 64 : 32);
+		m_pf2_tilemap_16x16 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco16ic_device::get_pf2_tile_info),this), tilemap_mapper_delegate(FUNC(deco16ic_device::deco16_scan_rows),this), 16, 16, fullwidth ? 64 : 32, fullheight ? 64 : 32);
 	else
-		m_pf2_tilemap_16x16 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco16ic_device::get_pf2_tile_info),this), tilemap_mapper_delegate(FUNC(deco16ic_device::deco16_scan_rows),this), 16, 16, fullwidth ? 64 : 32, fullheight ? 64 : 32);
+		m_pf2_tilemap_16x16 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco16ic_device::get_pf2_tile_info),this), tilemap_mapper_delegate(FUNC(deco16ic_device::deco16_scan_rows),this), 16, 16, fullwidth ? 64 : 32, fullheight ? 64 : 32);
 
-	m_pf2_tilemap_8x8 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco16ic_device::get_pf2_tile_info_b),this), TILEMAP_SCAN_ROWS, 8, 8, fullwidth ? 64 : 32, fullheight ? 64 : 32);
+	m_pf2_tilemap_8x8 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco16ic_device::get_pf2_tile_info_b),this), TILEMAP_SCAN_ROWS, 8, 8, fullwidth ? 64 : 32, fullheight ? 64 : 32);
 
 	m_pf1_tilemap_8x8->set_transparent_pen(0);
 	m_pf2_tilemap_8x8->set_transparent_pen(0);
@@ -306,8 +310,7 @@ TILE_GET_INFO_MEMBER(deco16ic_device::get_pf2_tile_info)
 		}
 	}
 
-	SET_TILE_INFO_MEMBER(
-			m_pf12_16x16_gfx_bank,
+	SET_TILE_INFO_MEMBER(m_pf12_16x16_gfx_bank,
 			(tile & 0xfff) | m_pf2_bank,
 			(colour & m_pf2_colourmask) + m_pf2_colour_bank,
 			flags);
@@ -338,16 +341,14 @@ TILE_GET_INFO_MEMBER(deco16ic_device::get_pf1_tile_info)
 		// Captain America operates this chip in 8bpp mode.
 		// In 8bpp mode you appear to only get 1 layer, not 2, but you also
 		// have an extra 2 tile bits, and 2 less colour bits.
-		SET_TILE_INFO_MEMBER(
-				m_pf12_16x16_gfx_bank,
+		SET_TILE_INFO_MEMBER(m_pf12_16x16_gfx_bank,
 				(tile & 0x3fff) | m_pf1_bank,
 				((colour & m_pf1_colourmask) + m_pf1_colour_bank)>>2,
 				flags);
 	}
 	else
 	{
-		SET_TILE_INFO_MEMBER(
-				m_pf12_16x16_gfx_bank,
+		SET_TILE_INFO_MEMBER(m_pf12_16x16_gfx_bank,
 				(tile & 0xfff) | m_pf1_bank,
 				(colour & m_pf1_colourmask) + m_pf1_colour_bank,
 				flags);
@@ -374,8 +375,7 @@ TILE_GET_INFO_MEMBER(deco16ic_device::get_pf2_tile_info_b)
 		}
 	}
 
-	SET_TILE_INFO_MEMBER(
-			m_pf12_8x8_gfx_bank,
+	SET_TILE_INFO_MEMBER(m_pf12_8x8_gfx_bank,
 			(tile & 0xfff) | m_pf2_bank,
 			(colour & m_pf2_colourmask) + m_pf2_colour_bank,
 			flags);
@@ -401,8 +401,7 @@ TILE_GET_INFO_MEMBER(deco16ic_device::get_pf1_tile_info_b)
 		}
 	}
 
-	SET_TILE_INFO_MEMBER(
-			m_pf12_8x8_gfx_bank,
+	SET_TILE_INFO_MEMBER(m_pf12_8x8_gfx_bank,
 			(tile & 0xfff) | m_pf1_bank,
 			(colour & m_pf1_colourmask) + m_pf1_colour_bank,
 			flags);
@@ -501,7 +500,7 @@ void deco16ic_device::custom_tilemap_draw(
 
 			if ((flags & TILEMAP_DRAW_OPAQUE) || (p & trans_mask))
 			{
-				bitmap.pix(y, x) = machine().pens[p];
+				bitmap.pix(y, x) = m_palette->pen(p);
 				if (screen.priority().valid())
 				{
 					UINT8 *pri = &screen.priority().pix8(y);
@@ -822,9 +821,9 @@ void deco16ic_device::pf_update( const UINT16 *rowscroll_1_ptr, const UINT16 *ro
 	m_use_custom_pf1 = deco16_pf_update(m_pf1_tilemap_8x8, m_pf1_tilemap_16x16, rowscroll_1_ptr, m_pf12_control[1], m_pf12_control[2], m_pf12_control[5] & 0xff, m_pf12_control[6] & 0xff);
 
 	/* Update banking and global flip state */
-	if (m_bank_cb_func[0])
+	if (!m_bank1_cb.isnull())
 	{
-		bank1 = m_bank_cb_func[0](m_pf12_control[7] & 0xff);
+		bank1 = m_bank1_cb(m_pf12_control[7] & 0xff);
 
 		if (bank1 != m_pf1_bank)
 		{
@@ -837,9 +836,9 @@ void deco16ic_device::pf_update( const UINT16 *rowscroll_1_ptr, const UINT16 *ro
 		}
 	}
 
-	if (m_bank_cb_func[1])
+	if (!m_bank2_cb.isnull())
 	{
-		bank2 = m_bank_cb_func[1](m_pf12_control[7] >> 8);
+		bank2 = m_bank2_cb(m_pf12_control[7] >> 8);
 
 		if (bank2 != m_pf2_bank)
 		{
@@ -870,7 +869,7 @@ void deco16ic_device::print_debug_info(bitmap_ind16 &bitmap)
 	else
 		sprintf(buf, "\n\n");
 
-	ui_draw_text(&machine().render().ui_container(), buf, 60, 40);
+	machine().ui().draw_text(&machine().render().ui_container(), buf, 60, 40);
 }
 
 /*****************************************************************************************/
@@ -932,4 +931,14 @@ void deco16ic_device::tilemap_12_combine_draw(screen_device &screen, bitmap_ind1
 void deco16ic_device::tilemap_12_combine_draw(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, int flags, UINT32 priority, int is_tattoo)
 {
 	custom_tilemap_draw(screen, bitmap, cliprect, 0, m_pf1_tilemap_16x16, 0, m_pf2_tilemap_16x16, m_pf1_rowscroll_ptr, m_pf12_control[1], m_pf12_control[2], m_pf12_control[5] & 0xff, m_pf12_control[6] & 0xff, 0xf, 4, 0xff, flags, priority, is_tattoo);
+}
+
+//-------------------------------------------------
+//  static_set_palette_tag: Set the tag of the
+//  palette device
+//-------------------------------------------------
+
+void deco16ic_device::static_set_palette_tag(device_t &device, const char *tag)
+{
+	downcast<deco16ic_device &>(device).m_palette.set_tag(tag);
 }

@@ -5,6 +5,7 @@
 ****************************************************************************/
 
 #include "sound/samples.h"
+#include "sound/sn76477.h"
 
 class astrof_state : public driver_device
 {
@@ -15,7 +16,9 @@ public:
 		m_astrof_color(*this, "astrof_color"),
 		m_tomahawk_protection(*this, "tomahawk_prot"),
 		m_maincpu(*this, "maincpu"),
-		m_samples(*this, "samples") { }
+		m_samples(*this, "samples"),
+		m_sn(*this, "snsnd"),
+		m_screen(*this, "screen") { }
 
 	/* video-related */
 	required_shared_ptr<UINT8> m_videoram;
@@ -40,7 +43,8 @@ public:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	optional_device<samples_device> m_samples;  // astrof & abattle
-	device_t *m_sn; // tomahawk
+	optional_device<sn76477_device> m_sn; // tomahawk
+	required_device<screen_device> m_screen;
 	DECLARE_READ8_MEMBER(irq_clear_r);
 	DECLARE_WRITE8_MEMBER(astrof_videoram_w);
 	DECLARE_WRITE8_MEMBER(tomahawk_videoram_w);
@@ -64,6 +68,7 @@ public:
 	DECLARE_DRIVER_INIT(afire);
 	DECLARE_DRIVER_INIT(abattle);
 	DECLARE_DRIVER_INIT(sstarbtl);
+	DECLARE_DRIVER_INIT(acombat3);
 	virtual void video_start();
 	DECLARE_MACHINE_START(astrof);
 	DECLARE_MACHINE_START(abattle);
@@ -79,7 +84,7 @@ public:
 	void astrof_set_video_control_2( UINT8 data );
 	void spfghmk2_set_video_control_2( UINT8 data );
 	void tomahawk_set_video_control_2( UINT8 data );
-	void video_update_common( bitmap_rgb32 &bitmap, const rectangle &cliprect, pen_t *pens );
+	void video_update_common( bitmap_rgb32 &bitmap, const rectangle &cliprect, pen_t *pens, int num_pens );
 };
 
 /*----------- defined in audio/astrof.c -----------*/

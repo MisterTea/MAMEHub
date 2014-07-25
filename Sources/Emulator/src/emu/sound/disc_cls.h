@@ -101,7 +101,7 @@ public:
 
 /*************************************
  *
- *  disc_sys.c
+ *  disc_sys.inc
  *
  *************************************/
 
@@ -137,7 +137,7 @@ DISCRETE_CLASS(dso_wavlog, 0,
 
 /*************************************
  *
- *  disc_inp.c
+ *  disc_inp.inc
  *
  *************************************/
 
@@ -230,8 +230,7 @@ public:
 	UINT32              m_stream_in_number;
 	stream_sample_t     *m_ptr;         /* current in ptr for stream */
 private:
-	static STREAM_UPDATE( static_stream_generate );
-	void stream_generate(stream_sample_t **inputs, stream_sample_t **outputs, int samples);
+	void stream_generate(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
 
 	double      m_gain;             /* node gain */
 	double      m_offset;           /* node offset */

@@ -6,6 +6,7 @@
 
 #include "emu.h"
 #include "includes/nemesis.h"
+#include "video/resnet.h"
 
 
 static const struct
@@ -40,11 +41,11 @@ TILE_GET_INFO_MEMBER(nemesis_state::get_bg_tile_info)
 
 	if (code & 0xf800)
 	{
-		SET_TILE_INFO_MEMBER( 0, code & 0x7ff, color & 0x7f, flags );
+		SET_TILE_INFO_MEMBER(0, code & 0x7ff, color & 0x7f, flags );
 	}
 	else
 	{
-		SET_TILE_INFO_MEMBER( 0, 0, 0x00, 0 );
+		SET_TILE_INFO_MEMBER(0, 0, 0x00, 0 );
 		tileinfo.pen_data = m_blank_tile;
 	}
 
@@ -75,11 +76,11 @@ TILE_GET_INFO_MEMBER(nemesis_state::get_fg_tile_info)
 
 	if (code & 0xf800)
 	{
-		SET_TILE_INFO_MEMBER( 0, code & 0x7ff, color & 0x7f, flags );
+		SET_TILE_INFO_MEMBER(0, code & 0x7ff, color & 0x7f, flags );
 	}
 	else
 	{
-		SET_TILE_INFO_MEMBER( 0, 0, 0x00, 0 );
+		SET_TILE_INFO_MEMBER(0, 0, 0x00, 0 );
 		tileinfo.pen_data = m_blank_tile;
 	}
 
@@ -165,55 +166,40 @@ WRITE16_MEMBER(nemesis_state::salamand_control_port_word_w)
 	}
 }
 
+void nemesis_state::create_palette_lookups()
+{
+	// driver is 74LS09 (AND gates with open collector)
+
+	static const res_net_info nemesis_net_info =
+	{
+		RES_NET_VCC_5V | RES_NET_VBIAS_5V | RES_NET_VIN_OPEN_COL,
+		{
+			{ RES_NET_AMP_EMITTER, 1000, 0, 5, { 4700, 2400, 1200, 620, 300 } },
+			{ RES_NET_AMP_EMITTER, 1000, 0, 5, { 4700, 2400, 1200, 620, 300 } },
+			{ RES_NET_AMP_EMITTER, 1000, 0, 5, { 4700, 2400, 1200, 620, 300 } }
+		}
+	};
+
+	for (int i = 0; i < 32; i++)
+		m_palette_lookup[i] = compute_res_net(i, 0, nemesis_net_info);
+
+	// normalize black/white levels
+	double black = m_palette_lookup[0];
+	double white = 255.0 / (m_palette_lookup[31] - black);
+	for (int i = 0; i < 32; i++)
+		m_palette_lookup[i] = (m_palette_lookup[i] - black) * white + 0.5;
+}
+
 
 WRITE16_MEMBER(nemesis_state::nemesis_palette_word_w)
 {
-	int r, g, b, bit1, bit2, bit3, bit4, bit5;
-
 	COMBINE_DATA(m_paletteram + offset);
 	data = m_paletteram[offset];
 
-	/* Mish, 30/11/99 - Schematics show the resistor values are:
-	    300 Ohms
-	    620 Ohms
-	    1200 Ohms
-	    2400 Ohms
-	    4700 Ohms
-
-	    So the correct weights per bit are 8, 17, 33, 67, 130
-	*/
-
-	#define MULTIPLIER 8 * bit1 + 17 * bit2 + 33 * bit3 + 67 * bit4 + 130 * bit5
-
-	bit1 = BIT(data, 0);
-	bit2 = BIT(data, 1);
-	bit3 = BIT(data, 2);
-	bit4 = BIT(data, 3);
-	bit5 = BIT(data, 4);
-	r = MULTIPLIER;
-	bit1 = BIT(data, 5);
-	bit2 = BIT(data, 6);
-	bit3 = BIT(data, 7);
-	bit4 = BIT(data, 8);
-	bit5 = BIT(data, 9);
-	g = MULTIPLIER;
-	bit1 = BIT(data, 10);
-	bit2 = BIT(data, 11);
-	bit3 = BIT(data, 12);
-	bit4 = BIT(data, 13);
-	bit5 = BIT(data, 14);
-	b = MULTIPLIER;
-
-	palette_set_color(machine(), offset, MAKE_RGB(r, g, b));
-}
-
-WRITE16_MEMBER(nemesis_state::salamander_palette_word_w)
-{
-	COMBINE_DATA(m_paletteram + offset);
-	offset &= ~1;
-
-	data = ((m_paletteram[offset] << 8) & 0xff00) | (m_paletteram[offset + 1] & 0xff);
-	palette_set_color_rgb(machine(), offset / 2, pal5bit(data >> 0), pal5bit(data >> 5), pal5bit(data >> 10));
+	int r = (data >> 0) & 0x1f;
+	int g = (data >> 5) & 0x1f;
+	int b = (data >> 10) & 0x1f;
+	m_palette->set_pen_color(offset, m_palette_lookup[r],m_palette_lookup[g],m_palette_lookup[b]);
 }
 
 
@@ -242,7 +228,6 @@ WRITE16_MEMBER(nemesis_state::nemesis_colorram2_word_w)
 }
 
 
-/* we have to straighten out the 16-bit word into bytes for gfxdecode() to work */
 WRITE16_MEMBER(nemesis_state::nemesis_charram_word_w)
 {
 	UINT16 oldword = m_charram[offset];
@@ -257,7 +242,7 @@ WRITE16_MEMBER(nemesis_state::nemesis_charram_word_w)
 		{
 			int w = sprite_data[i].width;
 			int h = sprite_data[i].height;
-			machine().gfx[sprite_data[i].char_type]->mark_dirty(offset * 4 / (w * h));
+			m_gfxdecode->gfx(sprite_data[i].char_type)->mark_dirty(offset * 4 / (w * h));
 		}
 	}
 }
@@ -265,29 +250,21 @@ WRITE16_MEMBER(nemesis_state::nemesis_charram_word_w)
 
 void nemesis_state::nemesis_postload()
 {
-	int i, offs;
-
-	for (offs = 0; offs < m_charram.bytes(); offs++)
+	for (int i = 0; i < 8; i++)
 	{
-		for (i = 0; i < 8; i++)
-		{
-			int w = sprite_data[i].width;
-			int h = sprite_data[i].height;
-			machine().gfx[sprite_data[i].char_type]->mark_dirty(offs * 4 / (w * h));
-		}
+		m_gfxdecode->gfx(i)->mark_all_dirty();
 	}
-	m_background->mark_all_dirty();
-	m_foreground->mark_all_dirty();
 }
 
 
-/* claim a palette dirty array */
 void nemesis_state::video_start()
 {
+	create_palette_lookups();
+
 	m_spriteram_words = m_spriteram.bytes() / 2;
 
-	m_background = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(nemesis_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
-	m_foreground = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(nemesis_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
+	m_background = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(nemesis_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
+	m_foreground = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(nemesis_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
 
 	m_background->set_transparent_pen(0);
 	m_foreground->set_transparent_pen(0);
@@ -296,15 +273,6 @@ void nemesis_state::video_start()
 
 	memset(m_charram, 0, m_charram.bytes());
 	memset(m_blank_tile, 0, ARRAY_LENGTH(m_blank_tile));
-
-	machine().gfx[0]->set_source((UINT8 *)m_charram.target());
-	machine().gfx[1]->set_source((UINT8 *)m_charram.target());
-	machine().gfx[2]->set_source((UINT8 *)m_charram.target());
-	machine().gfx[3]->set_source((UINT8 *)m_charram.target());
-	machine().gfx[4]->set_source((UINT8 *)m_charram.target());
-	machine().gfx[5]->set_source((UINT8 *)m_charram.target());
-	machine().gfx[6]->set_source((UINT8 *)m_charram.target());
-	machine().gfx[7]->set_source((UINT8 *)m_charram.target());
 
 	/* Set up save state */
 	machine().save().register_postload(save_prepost_delegate(FUNC(nemesis_state::nemesis_postload), this));
@@ -386,7 +354,7 @@ void nemesis_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, c
 						flipy = !flipy;
 					}
 
-					pdrawgfxzoom_transpen(bitmap,cliprect,machine().gfx[char_type],
+					m_gfxdecode->gfx(char_type)->prio_zoom_transpen(bitmap,cliprect,
 						code,
 						color,
 						flipx,flipy,

@@ -121,47 +121,10 @@ static INPUT_PORTS_START( kingpin )
 INPUT_PORTS_END
 
 
-
-static I8255A_INTERFACE( ppi8255_0_intf )
-{
-	DEVCB_NULL,                 /* Port A read = watchdog? */
-	DEVCB_NULL,                 /* Port A write */
-	DEVCB_INPUT_PORT("DSW1"),   /* Port B read */
-	DEVCB_NULL,                 /* Port B write */
-	DEVCB_NULL,                 /* Port C read = unused? */
-	DEVCB_NULL                  /* Port C write */
-};
-
-static I8255A_INTERFACE( ppi8255_1_intf )
-{
-	DEVCB_INPUT_PORT("IN0"),    /* Port A read */
-	DEVCB_NULL,                 /* Port A write */
-	DEVCB_INPUT_PORT("IN1"),    /* Port B read */
-	DEVCB_NULL,                 /* Port B write */
-	DEVCB_NULL,                 /* Port C read */
-	DEVCB_NULL                  /* Port C write = unknown */
-};
-
 WRITE_LINE_MEMBER(kingpin_state::vdp_interrupt)
 {
 	m_maincpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static TMS9928A_INTERFACE(kingpin_tms9928a_interface)
-{
-	0x4000,
-	DEVCB_DRIVER_LINE_MEMBER(kingpin_state, vdp_interrupt)
-};
-
-static const ay8910_interface ay8912_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 static MACHINE_CONFIG_START( kingpin, kingpin_state )
 
@@ -170,8 +133,15 @@ static MACHINE_CONFIG_START( kingpin, kingpin_state )
 	MCFG_CPU_PROGRAM_MAP(kingpin_program_map)
 	MCFG_CPU_IO_MAP(kingpin_io_map)
 
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_0_intf )
-	MCFG_I8255A_ADD( "ppi8255_1", ppi8255_1_intf )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	// PORT A read = watchdog?
+	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW1"))
+	// PORT C read = unused?
+
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
+	// PORT C read = unknown
 
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
@@ -180,14 +150,16 @@ static MACHINE_CONFIG_START( kingpin, kingpin_state )
 	MCFG_CPU_PERIODIC_INT_DRIVER(kingpin_state, irq0_line_hold,  1000) // unknown freq
 
 	/* video hardware */
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9928A, kingpin_tms9928a_interface )
+	MCFG_DEVICE_ADD( "tms9928a", TMS9928A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(kingpin_state, vdp_interrupt))
+
 	MCFG_TMS9928A_SCREEN_ADD_NTSC( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9928a_device, screen_update )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("aysnd", AY8912, XTAL_3_579545MHz)
-	MCFG_SOUND_CONFIG(ay8912_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

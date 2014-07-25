@@ -29,7 +29,6 @@ public:
 
 	slapshot_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_color_ram(*this,"color_ram"),
 		m_spriteram(*this,"spriteram"),
 		m_spriteext(*this,"spriteext"),
 		m_maincpu(*this, "maincpu"),
@@ -37,15 +36,15 @@ public:
 		m_tc0140syt(*this, "tc0140syt"),
 		m_tc0480scp(*this, "tc0480scp"),
 		m_tc0360pri(*this, "tc0360pri"),
-		m_tc0640fio(*this, "tc0640fio") { }
+		m_tc0640fio(*this, "tc0640fio"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
-	required_shared_ptr<UINT16> m_color_ram;
 	required_shared_ptr<UINT16> m_spriteram;
 	required_shared_ptr<UINT16> m_spriteext;
 	UINT16 *    m_spriteram_buffered;
 	UINT16 *    m_spriteram_delayed;
-//  UINT16 *    m_paletteram;    // currently this uses generic palette handling
 
 	/* video-related */
 	struct      slapshot_tempsprite *m_spritelist;
@@ -69,8 +68,9 @@ public:
 	required_device<tc0480scp_device> m_tc0480scp;
 	required_device<tc0360pri_device> m_tc0360pri;
 	required_device<tc0640fio_device> m_tc0640fio;
-	DECLARE_READ16_MEMBER(color_ram_word_r);
-	DECLARE_WRITE16_MEMBER(color_ram_word_w);
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	DECLARE_READ16_MEMBER(slapshot_service_input_r);
 	DECLARE_READ16_MEMBER(opwolf3_adc_r);
 	DECLARE_WRITE16_MEMBER(opwolf3_adc_req_w);

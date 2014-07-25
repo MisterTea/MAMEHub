@@ -26,7 +26,9 @@ public:
 		m_bg1_regs_y(*this, "bg1_regs_y"),
 		m_bg2_regs_x(*this, "bg2_regs_x"),
 		m_bg2_regs_y(*this, "bg2_regs_y"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	UINT8     m_paletteram[0x4000];
 	/* memory pointers */
@@ -60,6 +62,8 @@ public:
 	UINT32 screen_update_cultures(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(cultures_interrupt);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -86,9 +90,9 @@ TILE_GET_INFO_MEMBER(cultures_state::get_bg0_tile_info)
 
 void cultures_state::video_start()
 {
-	m_bg0_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cultures_state::get_bg0_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8, 64, 128);
-	m_bg1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cultures_state::get_bg1_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8, 512, 512);
-	m_bg2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cultures_state::get_bg2_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8, 512, 512);
+	m_bg0_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cultures_state::get_bg0_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8, 64, 128);
+	m_bg1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cultures_state::get_bg1_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8, 512, 512);
+	m_bg2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cultures_state::get_bg2_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8, 512, 512);
 
 	m_bg1_tilemap->set_transparent_pen(0);
 	m_bg0_tilemap->set_transparent_pen(0);
@@ -150,7 +154,7 @@ WRITE8_MEMBER(cultures_state::bg0_videoram_w)
 		g = ((datax >> 3) & 0x1e) | ((datax & 0x2000) ? 0x1 : 0);
 		b = ((datax << 1) & 0x1e) | ((datax & 0x1000) ? 0x1 : 0);
 
-		palette_set_color_rgb(machine(), offset, pal5bit(r), pal5bit(g), pal5bit(b));
+		m_palette->set_pen_color(offset, pal5bit(r), pal5bit(g), pal5bit(b));
 	}
 	else
 	{
@@ -410,9 +414,10 @@ static MACHINE_CONFIG_START( cultures, cultures_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 48*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cultures_state, screen_update_cultures)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(culture)
-	MCFG_PALETTE_LENGTH(0x2000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", culture)
+	MCFG_PALETTE_ADD("palette", 0x2000)
 
 
 	/* sound hardware */

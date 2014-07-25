@@ -41,7 +41,8 @@ public:
 		: pcat_base_state(mconfig, type, tag),
 		m_region_user1(*this, "user1"),
 		m_region_user5(*this, "user5"),
-		m_bank1(*this, "bank1") { }
+		m_bank1(*this, "bank1"),
+		m_palette(*this, "palette") { }
 
 	UINT32 *m_bios_ram;
 	UINT8 m_mxtc_config_reg[256];
@@ -50,6 +51,7 @@ public:
 	required_memory_region m_region_user1;
 	required_memory_region m_region_user5;
 	required_memory_bank m_bank1;
+	required_device<palette_device> m_palette;
 	DECLARE_WRITE32_MEMBER(pnp_config_w);
 	DECLARE_WRITE32_MEMBER(pnp_data_w);
 	DECLARE_WRITE32_MEMBER(bios_ram_w);
@@ -57,7 +59,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	#if !ENABLE_VGA
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(taitowlf);
 	#endif
 	UINT32 screen_update_taitowlf(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void intel82439tx_init();
@@ -69,7 +71,7 @@ UINT32 taitowlf_state::screen_update_taitowlf(screen_device &screen, bitmap_rgb3
 	int x,y,count;
 	const UINT8 *blit_ram = m_region_user5->base();
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	count = (0);
 
@@ -82,7 +84,7 @@ UINT32 taitowlf_state::screen_update_taitowlf(screen_device &screen, bitmap_rgb3
 			color = (blit_ram[count] & 0xff);
 
 			if(cliprect.contains(x+0, y))
-				bitmap.pix32(y, x+0) = machine().pens[color];
+				bitmap.pix32(y, x+0) = m_palette->pen(color);
 
 			count++;
 		}
@@ -98,7 +100,7 @@ UINT32 taitowlf_state::screen_update_taitowlf(screen_device &screen, bitmap_rgb3
 static UINT8 mxtc_config_r(device_t *busdevice, device_t *device, int function, int reg)
 {
 	taitowlf_state *state = busdevice->machine().driver_data<taitowlf_state>();
-//  mame_printf_debug("MXTC: read %d, %02X\n", function, reg);
+//  osd_printf_debug("MXTC: read %d, %02X\n", function, reg);
 
 	return state->m_mxtc_config_reg[reg];
 }
@@ -106,7 +108,7 @@ static UINT8 mxtc_config_r(device_t *busdevice, device_t *device, int function, 
 static void mxtc_config_w(device_t *busdevice, device_t *device, int function, int reg, UINT8 data)
 {
 	taitowlf_state *state = busdevice->machine().driver_data<taitowlf_state>();
-//  mame_printf_debug("%s:MXTC: write %d, %02X, %02X\n", machine.describe_context(), function, reg, data);
+//  osd_printf_debug("%s:MXTC: write %d, %02X, %02X\n", machine.describe_context(), function, reg, data);
 
 	switch(reg)
 	{
@@ -184,14 +186,14 @@ static void intel82439tx_pci_w(device_t *busdevice, device_t *device, int functi
 static UINT8 piix4_config_r(device_t *busdevice, device_t *device, int function, int reg)
 {
 	taitowlf_state *state = busdevice->machine().driver_data<taitowlf_state>();
-//  mame_printf_debug("PIIX4: read %d, %02X\n", function, reg);
+//  osd_printf_debug("PIIX4: read %d, %02X\n", function, reg);
 	return state->m_piix4_config_reg[function][reg];
 }
 
 static void piix4_config_w(device_t *busdevice, device_t *device, int function, int reg, UINT8 data)
 {
 	taitowlf_state *state = busdevice->machine().driver_data<taitowlf_state>();
-//  mame_printf_debug("%s:PIIX4: write %d, %02X, %02X\n", machine.describe_context(), function, reg, data);
+//  osd_printf_debug("%s:PIIX4: write %d, %02X, %02X\n", machine.describe_context(), function, reg, data);
 	state->m_piix4_config_reg[function][reg] = data;
 }
 
@@ -242,7 +244,7 @@ WRITE32_MEMBER(taitowlf_state::pnp_config_w)
 {
 	if (ACCESSING_BITS_8_15)
 	{
-//      mame_printf_debug("PNP Config: %02X\n", (data >> 8) & 0xff);
+//      osd_printf_debug("PNP Config: %02X\n", (data >> 8) & 0xff);
 	}
 }
 
@@ -250,7 +252,7 @@ WRITE32_MEMBER(taitowlf_state::pnp_data_w)
 {
 	if (ACCESSING_BITS_8_15)
 	{
-//      mame_printf_debug("PNP Data: %02X\n", (data >> 8) & 0xff);
+//      osd_printf_debug("PNP Data: %02X\n", (data >> 8) & 0xff);
 	}
 }
 
@@ -341,7 +343,6 @@ INPUT_PORTS_END
 
 void taitowlf_state::machine_start()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(taitowlf_state::irq_callback),this));
 }
 
 void taitowlf_state::machine_reset()
@@ -352,13 +353,13 @@ void taitowlf_state::machine_reset()
 
 #if !ENABLE_VGA
 /* debug purpose*/
-void taitowlf_state::palette_init()
+PALETTE_INIT_MEMBER(taitowlf_state, taitowlf)
 {
-	palette_set_color(machine(),0x70,MAKE_RGB(0xff,0xff,0xff));
-	palette_set_color(machine(),0x71,MAKE_RGB(0xff,0xff,0xff));
-	palette_set_color(machine(),0x01,MAKE_RGB(0x55,0x00,0x00));
-	palette_set_color(machine(),0x10,MAKE_RGB(0xaa,0x00,0x00));
-	palette_set_color(machine(),0x00,MAKE_RGB(0x00,0x00,0x00));
+	palette.set_pen_color(0x70,rgb_t(0xff,0xff,0xff));
+	palette.set_pen_color(0x71,rgb_t(0xff,0xff,0xff));
+	palette.set_pen_color(0x01,rgb_t(0x55,0x00,0x00));
+	palette.set_pen_color(0x10,rgb_t(0xaa,0x00,0x00));
+	palette.set_pen_color(0x00,rgb_t(0x00,0x00,0x00));
 }
 #endif
 
@@ -368,6 +369,7 @@ static MACHINE_CONFIG_START( taitowlf, taitowlf_state )
 	MCFG_CPU_ADD("maincpu", PENTIUM, 200000000)
 	MCFG_CPU_PROGRAM_MAP(taitowlf_map)
 	MCFG_CPU_IO_MAP(taitowlf_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_1", pic8259_device, inta_cb)
 
 
 	MCFG_PCI_BUS_LEGACY_ADD("pcibus", 0)
@@ -386,8 +388,9 @@ static MACHINE_CONFIG_START( taitowlf, taitowlf_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
-	MCFG_PALETTE_LENGTH(256)
 	MCFG_SCREEN_UPDATE_DRIVER(taitowlf_state, screen_update_taitowlf)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(taitowlf_state, taitowlf)
 	#endif
 MACHINE_CONFIG_END
 

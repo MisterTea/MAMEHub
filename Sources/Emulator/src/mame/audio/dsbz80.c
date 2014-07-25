@@ -11,7 +11,6 @@
 #include "audio/dsbz80.h"
 
 #define Z80_TAG "mpegcpu"
-#define YMZ770_TAG  "ymz770"
 
 static ADDRESS_MAP_START( dsbz80_map, AS_PROGRAM, 8, dsbz80_device )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM AM_REGION(":mpegcpu", 0)
@@ -75,7 +74,7 @@ void dsbz80_device::device_start()
 {
 	UINT8 *rom_base = machine().root_device().memregion("mpeg")->base();
 	decoder = new mpeg_audio(rom_base, mpeg_audio::L2, false, 0);
-	machine().sound().stream_alloc(*this, 0, 2, 32000, this);
+	machine().sound().stream_alloc(*this, 0, 2, 32000);
 }
 
 //-------------------------------------------------

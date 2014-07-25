@@ -60,12 +60,7 @@ CUS151      protection [1]
 Memory map
 ----------
 Main, Sub CPU:
-Address decoding is entirely handled by CUS117, which is a simple MMU providing a
-virtual address space 23 bits wide. The chip outputs the various enable lines for
-RAM, ROM, etc., and bits 12-21 of the virtual address (therefore bit 22 is handled
-only internally). There are 8 banks in the 6809 address space, each one redirectable
-to a portion of the virtual address space. The main and sub CPUs are independent,
-each one can set up its own banks.
+Address decoding is entirely handled by CUS117; see machine/c117.c.
 
 Main & sub CPU memory map:
 
@@ -179,7 +174,7 @@ Ernesto Corvi
 ernesto@imagina.com
 
 Updates by:
-Vernon C. Brooks, Acho A. Tang, Nicola Salmoria
+Vernon C. Brooks, Acho A. Tang, Nicola Salmoria, Alex W. Jackson
 
 
 Notes:
@@ -220,7 +215,7 @@ Notes:
 
 
 TODO:
-- There is still a big mistery about the first location of tri port ram, which is
+- There is still a big mystery about the first location of tri port ram, which is
   shared among all four CPUs. See namcos1_mcu_patch_w() for the kludge: essentially,
   this location has to be 0xA6 for the games to work. However, the MCU first sets it
   to 0xA6, then zeroes it - and there doesn't seem to be any code anywhere for any CPU
@@ -290,7 +285,7 @@ are programmed separately and may be 4,8,16,or 32 pixels.
 Sound:
 
 Namco custom 8 channel 16-bit stereo PSG for sound effects
-registor array based 2 channel 8-bit DAC for voice
+resistor array based 2 channel 8-bit DAC for voice
 Yamaha YM2151+YM3012 FM chip for background music
 
 Controls:
@@ -342,28 +337,16 @@ C - uses sub board with support for player 3 and 4 controls
 #include "cpu/m6809/m6809.h"
 #include "cpu/m6800/m6800.h"
 #include "sound/2151intf.h"
-#include "sound/dac.h"
 #include "machine/nvram.h"
 #include "includes/namcos1.h"
 
 
 /**********************************************************************/
 
-WRITE8_MEMBER(namcos1_state::namcos1_sub_firq_w)
-{
-	m_subcpu->set_input_line(M6809_FIRQ_LINE, ASSERT_LINE);
-}
-
 WRITE8_MEMBER(namcos1_state::irq_ack_w)
 {
 	space.device().execute().set_input_line(0, CLEAR_LINE);
 }
-
-WRITE8_MEMBER(namcos1_state::firq_ack_w)
-{
-	space.device().execute().set_input_line(M6809_FIRQ_LINE, CLEAR_LINE);
-}
-
 
 
 READ8_MEMBER(namcos1_state::dsw_r)
@@ -376,23 +359,21 @@ READ8_MEMBER(namcos1_state::dsw_r)
 WRITE8_MEMBER(namcos1_state::namcos1_coin_w)
 {
 	coin_lockout_global_w(machine(), ~data & 1);
-	coin_counter_w(machine(), 0,data & 2);
-	coin_counter_w(machine(), 1,data & 4);
+	coin_counter_w(machine(), 0, data & 2);
+	coin_counter_w(machine(), 1, data & 4);
 }
 
-static void namcos1_update_DACs(running_machine &machine)
+void namcos1_state::namcos1_update_DACs()
 {
-	namcos1_state *state = machine.driver_data<namcos1_state>();
-	state->m_dac->write_signed16(0x8000 + (state->m_dac0_value * state->m_dac0_gain) + (state->m_dac1_value * state->m_dac1_gain));
+	m_dac->write_signed16(0x8000 + (m_dac0_value * m_dac0_gain) + (m_dac1_value * m_dac1_gain));
 }
 
-void namcos1_init_DACs(running_machine &machine)
+void namcos1_state::namcos1_init_DACs()
 {
-	namcos1_state *state = machine.driver_data<namcos1_state>();
-	state->m_dac0_value = 0;
-	state->m_dac1_value = 0;
-	state->m_dac0_gain=0x80;
-	state->m_dac1_gain=0x80;
+	m_dac0_value = 0;
+	m_dac1_value = 0;
+	m_dac0_gain = 0x80;
+	m_dac1_gain = 0x80;
 }
 
 WRITE8_MEMBER(namcos1_state::namcos1_dac_gain_w)
@@ -407,70 +388,54 @@ WRITE8_MEMBER(namcos1_state::namcos1_dac_gain_w)
 	value = (data >> 3) & 3; /* GAIN2,GAIN3 */
 	m_dac1_gain = 0x20 * (value+1);
 
-	namcos1_update_DACs(machine());
+	namcos1_update_DACs();
 }
 
 WRITE8_MEMBER(namcos1_state::namcos1_dac0_w)
 {
 	m_dac0_value = data - 0x80; /* shift zero point */
-	namcos1_update_DACs(machine());
+	namcos1_update_DACs();
 }
 
 WRITE8_MEMBER(namcos1_state::namcos1_dac1_w)
 {
 	m_dac1_value = data - 0x80; /* shift zero point */
-	namcos1_update_DACs(machine());
+	namcos1_update_DACs();
 }
 
 
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, namcos1_state )
-	AM_RANGE(0x0000, 0x1fff) AM_RAMBANK("bank1")
-	AM_RANGE(0x2000, 0x3fff) AM_RAMBANK("bank2")
-	AM_RANGE(0x4000, 0x5fff) AM_RAMBANK("bank3")
-	AM_RANGE(0x6000, 0x7fff) AM_RAMBANK("bank4")
-	AM_RANGE(0x8000, 0x9fff) AM_RAMBANK("bank5")
-	AM_RANGE(0xa000, 0xbfff) AM_RAMBANK("bank6")
-	AM_RANGE(0xc000, 0xdfff) AM_RAMBANK("bank7")
-	AM_RANGE(0xe000, 0xefff) AM_WRITE(namcos1_bankswitch_w)
-	AM_RANGE(0xf000, 0xf000) AM_WRITE(namcos1_cpu_control_w)
-	AM_RANGE(0xf200, 0xf200) AM_WRITE(namcos1_watchdog_w)
-//  AM_RANGE(0xf400, 0xf400) AM_WRITENOP // unknown
-	AM_RANGE(0xf600, 0xf600) AM_WRITE(irq_ack_w)
-	AM_RANGE(0xf800, 0xf800) AM_WRITE(firq_ack_w)
-	AM_RANGE(0xfa00, 0xfa00) AM_WRITE(namcos1_sub_firq_w) // asserts FIRQ on CPU1
-	AM_RANGE(0xfc00, 0xfc01) AM_WRITE(namcos1_subcpu_bank_w)
-	AM_RANGE(0xe000, 0xffff) AM_ROMBANK("bank8")
+	AM_RANGE(0x0000, 0xffff) AM_DEVREADWRITE("c117", namco_c117_device, main_r, main_w)
 ADDRESS_MAP_END
 
-
 static ADDRESS_MAP_START( sub_map, AS_PROGRAM, 8, namcos1_state )
-	AM_RANGE(0x0000, 0x1fff) AM_RAMBANK("bank9")
-	AM_RANGE(0x2000, 0x3fff) AM_RAMBANK("bank10")
-	AM_RANGE(0x4000, 0x5fff) AM_RAMBANK("bank11")
-	AM_RANGE(0x6000, 0x7fff) AM_RAMBANK("bank12")
-	AM_RANGE(0x8000, 0x9fff) AM_RAMBANK("bank13")
-	AM_RANGE(0xa000, 0xbfff) AM_RAMBANK("bank14")
-	AM_RANGE(0xc000, 0xdfff) AM_RAMBANK("bank15")
-	AM_RANGE(0xe000, 0xefff) AM_WRITE(namcos1_bankswitch_w)
-//  AM_RANGE(0xf000, 0xf000) AM_WRITENOP // IO Chip
-	AM_RANGE(0xf200, 0xf200) AM_WRITE(namcos1_watchdog_w)
-//  AM_RANGE(0xf400, 0xf400) AM_WRITENOP // ?
-	AM_RANGE(0xf600, 0xf600) AM_WRITE(irq_ack_w)
-	AM_RANGE(0xf800, 0xf800) AM_WRITE(firq_ack_w)
-	AM_RANGE(0xe000, 0xffff) AM_ROMBANK("bank16")
+	AM_RANGE(0x0000, 0xffff) AM_DEVREADWRITE("c117", namco_c117_device, sub_r, sub_w)
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( virtual_map, AS_PROGRAM, 8, namcos1_state )
+	AM_RANGE(0x2c0000, 0x2c1fff) AM_WRITE(namcos1_3dcs_w)
+	AM_RANGE(0x2e0000, 0x2e7fff) AM_RAM_WRITE(namcos1_paletteram_w) AM_SHARE("paletteram")
+	AM_RANGE(0x2f0000, 0x2f7fff) AM_RAM_WRITE(namcos1_videoram_w) AM_SHARE("videoram")
+	AM_RANGE(0x2f8000, 0x2f9fff) AM_READWRITE(no_key_r, no_key_w)
+	AM_RANGE(0x2fc000, 0x2fcfff) AM_RAM_WRITE(namcos1_spriteram_w) AM_SHARE("spriteram")
+	AM_RANGE(0x2fd000, 0x2fd01f) AM_RAM AM_SHARE("pfcontrol") AM_MIRROR(0xfe0)
+	AM_RANGE(0x2fe000, 0x2fe3ff) AM_DEVREADWRITE("namco", namco_cus30_device, namcos1_cus30_r, namcos1_cus30_w) AM_MIRROR(0xc00) /* PSG ( Shared ) */
+	AM_RANGE(0x2ff000, 0x2ff7ff) AM_RAM AM_SHARE("triram") AM_MIRROR(0x800)
+	AM_RANGE(0x300000, 0x307fff) AM_RAM
+	AM_RANGE(0x400000, 0x7fffff) AM_ROM AM_REGION("user1", 0)
 ADDRESS_MAP_END
 
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, namcos1_state )
-	AM_RANGE(0x0000, 0x3fff) AM_ROMBANK("bank17")   /* Banked ROMs */
+	AM_RANGE(0x0000, 0x3fff) AM_ROMBANK("soundbank")   /* Banked ROMs */
 	AM_RANGE(0x4000, 0x4001) AM_DEVREAD("ymsnd", ym2151_device, status_r)
 	AM_RANGE(0x4000, 0x4001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0x5000, 0x53ff) AM_DEVREADWRITE("namco", namco_cus30_device, namcos1_cus30_r, namcos1_cus30_w) AM_MIRROR(0x400) /* PSG ( Shared ) */
-	AM_RANGE(0x7000, 0x77ff) AM_RAMBANK("bank18")   /* TRIRAM (shared) */
+	AM_RANGE(0x7000, 0x77ff) AM_RAM AM_SHARE("triram")
 	AM_RANGE(0x8000, 0x9fff) AM_RAM /* Sound RAM 3 */
 	AM_RANGE(0xc000, 0xc001) AM_WRITE(namcos1_sound_bankswitch_w) /* ROM bank selector */
-	AM_RANGE(0xd001, 0xd001) AM_WRITE(namcos1_watchdog_w)
+	AM_RANGE(0xd001, 0xd001) AM_DEVWRITE("c117", namco_c117_device, sound_watchdog_w)
 	AM_RANGE(0xe000, 0xe000) AM_WRITE(irq_ack_w)
 	AM_RANGE(0xc000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -482,9 +447,8 @@ static ADDRESS_MAP_START( mcu_map, AS_PROGRAM, 8, namcos1_state )
 	AM_RANGE(0x1000, 0x1003) AM_READ(dsw_r)
 	AM_RANGE(0x1400, 0x1400) AM_READ_PORT("CONTROL0")
 	AM_RANGE(0x1401, 0x1401) AM_READ_PORT("CONTROL1")
-	AM_RANGE(0x4000, 0xbfff) AM_ROMBANK("bank20") /* banked ROM */
-	AM_RANGE(0xc000, 0xc000) AM_WRITE(namcos1_mcu_patch_w)  /* kludge! see notes */
-	AM_RANGE(0xc000, 0xc7ff) AM_RAMBANK("bank19")   /* TRIRAM (shared) */
+	AM_RANGE(0x4000, 0xbfff) AM_ROMBANK("mcubank") /* banked ROM */
+	AM_RANGE(0xc000, 0xc7ff) AM_RAM AM_SHARE("triram")
 	AM_RANGE(0xc800, 0xcfff) AM_RAM AM_SHARE("nvram") /* EEPROM */
 	AM_RANGE(0xd000, 0xd000) AM_WRITE(namcos1_dac0_w)
 	AM_RANGE(0xd400, 0xd400) AM_WRITE(namcos1_dac1_w)
@@ -599,17 +563,17 @@ static INPUT_PORTS_START( quester )
 	PORT_INCLUDE( ns1 )
 
 	PORT_MODIFY( "CONTROL0" )
-	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_UNUSED )     /* paddle */
+	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_SPECIAL )     /* paddle */
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1 )
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_SPECIAL )     /* paddle strobe */
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SPECIAL )     /* paddle strobe */
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START1 )
 
 	PORT_MODIFY( "CONTROL1" )
-	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_UNUSED )     /* paddle */
+	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_SPECIAL )     /* paddle */
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_SPECIAL )     /* paddle strobe */
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SPECIAL )     /* paddle strobe */
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START2 )
 
 	PORT_MODIFY( "DIPSW" )
@@ -638,11 +602,11 @@ static INPUT_PORTS_START( tankfrc4 )
 	PORT_INCLUDE( ns1 )
 
 	PORT_MODIFY( "CONTROL0" )
-	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_SPECIAL ) /* multiplexed inputs */
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN3 )
 
 	PORT_MODIFY( "CONTROL1" )
-	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_SPECIAL ) /* multiplexed inputs */
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN4 )
 
 	PORT_START( "IN0" )
@@ -733,7 +697,7 @@ static INPUT_PORTS_START( berabohm )
 	PORT_INCLUDE( ns1 )
 
 	PORT_MODIFY( "CONTROL0" )
-	PORT_BIT( 0x70, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x70, IP_ACTIVE_LOW, IPT_SPECIAL )
 
 	PORT_MODIFY( "CONTROL1" )
 	PORT_BIT( 0x70, IP_ACTIVE_LOW, IPT_SPECIAL )    /* timing from the buttons interface */
@@ -915,11 +879,11 @@ static INPUT_PORTS_START( faceoff )
 	PORT_INCLUDE( ns1 )
 
 	PORT_MODIFY( "CONTROL0" )
-	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_SPECIAL ) /* multiplexed inputs */
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START1 )
 
 	PORT_MODIFY( "CONTROL1" )
-	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_SPECIAL ) /* multiplexed inputs */
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START2 )
 
 	PORT_START( "IN0" )
@@ -1058,12 +1022,6 @@ GFXDECODE_END
 
 
 
-static const namco_interface namco_config =
-{
-	8,          /* number of voices */
-	1           /* stereo */
-};
-
 /*
     namcos1 has two 8bit dac channel. But They are mixed before pre-amp.
     And,they are connected with pre-amp through active LPF.
@@ -1073,22 +1031,27 @@ static const namco_interface namco_config =
 static MACHINE_CONFIG_START( ns1, namcos1_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6809,49152000/32)
+	MCFG_CPU_ADD("maincpu", M6809,XTAL_49_152MHz/32)
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos1_state,  irq0_line_assert)
 
-	MCFG_CPU_ADD("sub", M6809,49152000/32)
+	MCFG_CPU_ADD("subcpu", M6809,XTAL_49_152MHz/32)
 	MCFG_CPU_PROGRAM_MAP(sub_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos1_state,  irq0_line_assert)
 
-	MCFG_CPU_ADD("audiocpu", M6809,49152000/32)
+	MCFG_CPU_ADD("audiocpu", M6809,XTAL_49_152MHz/32)
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos1_state,  irq0_line_assert)
 
-	MCFG_CPU_ADD("mcu",HD63701,49152000/8)
+	MCFG_CPU_ADD("mcu",HD63701,XTAL_49_152MHz/8)
 	MCFG_CPU_PROGRAM_MAP(mcu_map)
 	MCFG_CPU_IO_MAP(mcu_port_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos1_state,  irq0_line_assert)
+
+	MCFG_DEVICE_ADD("c117", NAMCO_C117, 0)
+	MCFG_DEVICE_PROGRAM_MAP(virtual_map)
+	MCFG_CUS117_CPUS("maincpu", "subcpu")
+	MCFG_CUS117_SUBRES_CB(WRITELINE(namcos1_state, subres_w))
 
 	// heavy sync required to prevent CPUs from fighting for video RAM access and going into deadlocks
 	MCFG_QUANTUM_TIME(attotime::from_hz(38400))
@@ -1096,19 +1059,16 @@ static MACHINE_CONFIG_START( ns1, namcos1_state )
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60.606060)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(64*8, 64*8)
-	MCFG_SCREEN_VISIBLE_AREA(9 + 8*8, 9 + 44*8-1, 2*8, 30*8-1)
+	MCFG_SCREEN_RAW_PARAMS(XTAL_49_152MHz/8, 384, 9+8*8, 9+44*8, 264, 2*8, 30*8)
 	MCFG_SCREEN_UPDATE_DRIVER(namcos1_state, screen_update_namcos1)
 	MCFG_SCREEN_VBLANK_DRIVER(namcos1_state, screen_eof_namcos1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(namcos1)
-	MCFG_PALETTE_LENGTH(0x2000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", namcos1)
 
+	MCFG_PALETTE_ADD("palette", 0x2000)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -1118,8 +1078,9 @@ static MACHINE_CONFIG_START( ns1, namcos1_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
 
-	MCFG_SOUND_ADD("namco", NAMCO_CUS30, 49152000/2048/2)
-	MCFG_SOUND_CONFIG(namco_config)
+	MCFG_SOUND_ADD("namco", NAMCO_CUS30, XTAL_49_152MHz/2048/2)
+	MCFG_NAMCO_AUDIO_VOICES(8)
+	MCFG_NAMCO_AUDIO_STEREO(1)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
 
@@ -1200,10 +1161,10 @@ ROM_START( shadowld )
 ROM_END
 
 /* Youkai Douchuuki (Shadowland Japan) */
-ROM_START( youkaidk )
+ROM_START( youkaidk2 )
 	ROM_REGION( 0x2c000, "audiocpu", 0 )       /* 176k for the sound cpu */
-	ROM_LOAD( "yd1.sd0",            0x0c000, 0x10000, CRC(a9cb51fb) SHA1(c46345b36306d35f73e25d0c8b1af53936927f0b) )
-	ROM_LOAD( "yd1.sd1",            0x1c000, 0x10000, CRC(65d1dc0d) SHA1(e758fa5279c1a36c7dad941091694daed13f8b9a) )
+	ROM_LOAD( "yd1_s0.bin",         0x0c000, 0x10000, CRC(a9cb51fb) SHA1(c46345b36306d35f73e25d0c8b1af53936927f0b) )
+	ROM_LOAD( "yd1_s1.bin",         0x1c000, 0x10000, CRC(65d1dc0d) SHA1(e758fa5279c1a36c7dad941091694daed13f8b9a) )
 
 	ROM_REGION( 0x400000, "user1", 0 ) /* 4M for ROMs */
 	ROM_LOAD_512( "yd1_p0.bin",      0x000000, CRC(07e49883) SHA1(b1e720b4d134893d3d9768d3f59162b31488a079) )
@@ -1243,7 +1204,7 @@ ROM_START( youkaidk )
 ROM_END
 
 /* Youkai Douchuuki (Shadowland Japan old version) */
-ROM_START( youkaidko )
+ROM_START( youkaidk1 )
 	ROM_REGION( 0x2c000, "audiocpu", 0 )       /* 176k for the sound cpu */
 	ROM_LOAD( "yd1.sd0",            0x0c000, 0x10000, CRC(a9cb51fb) SHA1(c46345b36306d35f73e25d0c8b1af53936927f0b) )
 	ROM_LOAD( "yd1.sd1",            0x1c000, 0x10000, CRC(65d1dc0d) SHA1(e758fa5279c1a36c7dad941091694daed13f8b9a) )
@@ -1285,7 +1246,7 @@ ROM_START( youkaidko )
 	ROM_LOAD( "yd_obj-4.bin",       0x80000, 0x20000, CRC(ef97bffb) SHA1(35bf2102cad41e50e59a31279e69c26d337f2353) )
 ROM_END
 
-/* Dragon Spirit */
+/* Dragon Spirit (DS3)*/
 ROM_START( dspirit )
 	ROM_REGION( 0x2c000, "audiocpu", 0 )       /* 176k for the sound cpu */
 	ROM_LOAD( "ds1_s0.bin",         0x0c000, 0x10000, CRC(27100065) SHA1(e8fbacaa43a5b858fce2ca3b579b90c1e016396b) )
@@ -1330,21 +1291,21 @@ ROM_START( dspirit )
 	ROM_LOAD_HS( "ds1_o4.bin",      0x80000, 0x10000, CRC(a6246fcb) SHA1(39de4fdb175ab16b791cdc5d757ff7bfee8e3d2b) )
 ROM_END
 
-/* Dragon Spirit (old version) */
-ROM_START( dspirito )
+/* Dragon Spirit (DS2, Atari had the license/rights for US distribution) */
+ROM_START( dspirit2 )
 	ROM_REGION( 0x2c000, "audiocpu", 0 )       /* 176k for the sound cpu */
 	ROM_LOAD( "ds1_s0.bin",         0x0c000, 0x10000, CRC(27100065) SHA1(e8fbacaa43a5b858fce2ca3b579b90c1e016396b) )
 	ROM_LOAD( "ds1_s1.bin",         0x1c000, 0x10000, CRC(b398645f) SHA1(e83208e2aea7b57b4a26f123a43c112e30495aca) )
 
 	ROM_REGION( 0x400000, "user1", 0 ) /* 4M for ROMs */
-	ROM_LOAD_512( "ds1_p0.bin",      0x000000, CRC(b22a2856) SHA1(8dea168e341460757c924bb510df4d4e9cdd908d) )
-	ROM_LOAD_512( "ds1_p1.bin",      0x080000, CRC(f7e3298a) SHA1(76c924ed1311e7e292bd67f57c1e831054625bb6) )
-	ROM_LOAD_512( "ds1_p2.bin",      0x100000, CRC(3c9b0100) SHA1(1def48a28b68e1e36cd1a165eb7127b05982c54d) )
-	ROM_LOAD_512( "ds1_p3.bin",      0x180000, CRC(c6e5954b) SHA1(586fc108f264e91a4bbbb05153dd1aa19be81b5b) )
-	ROM_LOAD_512( "ds1_p4.bin",      0x200000, CRC(f3307870) SHA1(a85d28c5dc55cbfa6c384d71e724db44c547d976) )
-	ROM_LOAD_512( "ds1_p5.bin",      0x280000, CRC(9a3a1028) SHA1(505808834677c433e0a4cfbf387b2874e2d0fc47) )
-	ROM_LOAD_512( "ds1_p6.bin",      0x300000, CRC(a82737b4) SHA1(13865eb05a5d7b5cf06316ad8e71da3abbad335a) )
-	ROM_LOAD_512( "ds1_p7.bin",      0x380000, CRC(f4c0d75e) SHA1(87ac334b5d66b9b66ee0d4fe222afb76ff190534) )
+	ROM_LOAD_512( "ds1_p0.bin",     0x000000, CRC(b22a2856) SHA1(8dea168e341460757c924bb510df4d4e9cdd908d) )
+	ROM_LOAD_512( "ds1_p1.bin",     0x080000, CRC(f7e3298a) SHA1(76c924ed1311e7e292bd67f57c1e831054625bb6) )
+	ROM_LOAD_512( "ds1_p2.bin",     0x100000, CRC(3c9b0100) SHA1(1def48a28b68e1e36cd1a165eb7127b05982c54d) )
+	ROM_LOAD_512( "ds1_p3.bin",     0x180000, CRC(c6e5954b) SHA1(586fc108f264e91a4bbbb05153dd1aa19be81b5b) )
+	ROM_LOAD_512( "ds1_p4.bin",     0x200000, CRC(f3307870) SHA1(a85d28c5dc55cbfa6c384d71e724db44c547d976) )
+	ROM_LOAD_512( "ds1_p5.bin",     0x280000, CRC(9a3a1028) SHA1(505808834677c433e0a4cfbf387b2874e2d0fc47) )
+	ROM_LOAD_512( "ds2-pr6d.s11",   0x300000, CRC(5382447d) SHA1(3034d3a57b493c86673ee0aa7172bae778edd76a) ) // aka 8722-1107.bin for Atari's part number
+	ROM_LOAD_512( "ds2-pr7d.t11",   0x380000, CRC(80ff492a) SHA1(716ff7444edc0dfcce0fda2d213feb183435471f) ) // aka 8722-1108.bin for Atari's part number
 
 	ROM_REGION( 0xd0000, "mcu", 0 )       /* the MCU & voice */
 	ROM_LOAD( "cus64-64a1.mcu",     0x0f000, 0x01000, CRC(ffb5c0bd) SHA1(7a38c0cc2553c627f4ec507fb6e807cf7d537c02) ) /* internal 63701 MCU code */
@@ -1375,8 +1336,8 @@ ROM_START( dspirito )
 	ROM_LOAD_HS( "ds1_o4.bin",      0x80000, 0x10000, CRC(a6246fcb) SHA1(39de4fdb175ab16b791cdc5d757ff7bfee8e3d2b) )
 ROM_END
 
-/* Dragon Spirit (Atari license) */
-ROM_START( dspirita )
+/* Dragon Spirit (DS1) */
+ROM_START( dspirit1 )
 	ROM_REGION( 0x2c000, "audiocpu", 0 )       /* 176k for the sound cpu */
 	ROM_LOAD( "ds1_s0.bin",         0x0c000, 0x10000, CRC(27100065) SHA1(e8fbacaa43a5b858fce2ca3b579b90c1e016396b) )
 	ROM_LOAD( "ds1_s1.bin",         0x1c000, 0x10000, CRC(b398645f) SHA1(e83208e2aea7b57b4a26f123a43c112e30495aca) )
@@ -1388,8 +1349,8 @@ ROM_START( dspirita )
 	ROM_LOAD_512( "ds1_p3.bin",      0x180000, CRC(c6e5954b) SHA1(586fc108f264e91a4bbbb05153dd1aa19be81b5b) )
 	ROM_LOAD_512( "ds1_p4.bin",      0x200000, CRC(f3307870) SHA1(a85d28c5dc55cbfa6c384d71e724db44c547d976) )
 	ROM_LOAD_512( "ds1_p5.bin",      0x280000, CRC(9a3a1028) SHA1(505808834677c433e0a4cfbf387b2874e2d0fc47) )
-	ROM_LOAD_512( "8722-1107.bin",   0x300000, CRC(5382447d) SHA1(3034d3a57b493c86673ee0aa7172bae778edd76a) )
-	ROM_LOAD_512( "8722-1108.bin",   0x380000, CRC(80ff492a) SHA1(716ff7444edc0dfcce0fda2d213feb183435471f) )
+	ROM_LOAD_512( "ds1_p6.bin",      0x300000, CRC(a82737b4) SHA1(13865eb05a5d7b5cf06316ad8e71da3abbad335a) )
+	ROM_LOAD_512( "ds1_p7.bin",      0x380000, CRC(f4c0d75e) SHA1(87ac334b5d66b9b66ee0d4fe222afb76ff190534) )
 
 	ROM_REGION( 0xd0000, "mcu", 0 )       /* the MCU & voice */
 	ROM_LOAD( "cus64-64a1.mcu",     0x0f000, 0x01000, CRC(ffb5c0bd) SHA1(7a38c0cc2553c627f4ec507fb6e807cf7d537c02) ) /* internal 63701 MCU code */
@@ -1607,8 +1568,8 @@ ROM_START( galaga88 )
 	/* 180000-1fffff empty */
 	/* 200000-27ffff empty */
 	ROM_LOAD_512( "g81_p5.bin",      0x280000, CRC(4fbd3f6c) SHA1(40d8dadc0a36b4c1886778cfc8d380a34aea2505) )
-	ROM_LOAD_512( "g8x_p6.bin",      0x300000, CRC(403d01c1) SHA1(86109087b10c4fbcc940df6a84f7546de56303d2) )
-	ROM_LOAD_512( "g8x_p7.bin",      0x380000, CRC(df75b7fc) SHA1(cb810e7ba05bd8e873559e529e25a99adbf6307d) )
+	ROM_LOAD_512( "g8x_p6.bin",      0x300000, CRC(403d01c1) SHA1(86109087b10c4fbcc940df6a84f7546de56303d2) ) /* Unknown number for the "x" */
+	ROM_LOAD_512( "g8x_p7.bin",      0x380000, CRC(df75b7fc) SHA1(cb810e7ba05bd8e873559e529e25a99adbf6307d) ) /* Unknown number for the "x" */
 
 	ROM_REGION( 0xd0000, "mcu", 0 )       /* the MCU & voice */
 	ROM_LOAD( "cus64-64a1.mcu",     0x0f000, 0x01000, CRC(ffb5c0bd) SHA1(7a38c0cc2553c627f4ec507fb6e807cf7d537c02) ) /* internal 63701 MCU code */
@@ -1679,6 +1640,51 @@ ROM_START( galaga88j )
 	ROM_LOAD( "g8_obj-4.bin",       0x80000, 0x20000, CRC(370ff4ad) SHA1(61d7306325103c6a03def619c21877faadf12699) )
 	ROM_LOAD( "g8_obj-5.bin",       0xa0000, 0x20000, CRC(b0645169) SHA1(e55dc9bd532b6bd821b7bf6994c35175600c317c) )
 ROM_END
+
+// roms all have handwritten labels with checksums and dates
+ROM_START( galaga88a )
+	ROM_REGION( 0x2c000, "audiocpu", 0 )       /* 176k for the sound cpu */
+	ROM_LOAD( "g81_s0.bin",         0x0c000, 0x10000, CRC(164a3fdc) SHA1(d7b026f6a617bb444e3bce80cec2cbb4772cb533) )  // 12-11-87
+	ROM_LOAD( "g81_s1.bin",         0x1c000, 0x10000, CRC(16a4b784) SHA1(a0d6f6ad4a68c9e10f2662e940ffaee691cafcac) )  // 11-12-87 - mistake?
+
+	ROM_REGION( 0x400000, "user1", 0 ) /* 4M for ROMs */
+	ROM_LOAD_512( "g81_p0.bin",      0x000000, CRC(0f0778ca) SHA1(17cc03c6ff138cf947dafe05dc0759ff968a399e) )  // 12-11-87
+	ROM_LOAD_512( "g81_p1.bin",      0x080000, CRC(e68cb351) SHA1(1087c0d9a53f3a4d238f19d479856b502bde7b77) )  // 12-11-87
+	/* 100000-17ffff empty */
+	/* 180000-1fffff empty */
+	/* 200000-27ffff empty */
+	ROM_LOAD_512( "g81_p5.bin",      0x280000, CRC(4fbd3f6c) SHA1(40d8dadc0a36b4c1886778cfc8d380a34aea2505) ) // 12-11-87
+	ROM_LOAD_512( "prg-6c.s10",      0x300000, CRC(c781b8b5) SHA1(93b75e7512aa48d55a4230a02e1012210a79d372) ) // 02-03-88    (romcmp g8x_p6.bin - 99.981689%)
+	ROM_LOAD_512( "prg-7c.t10",      0x380000, CRC(d2d7e4fa) SHA1(5de44d1ea4c3135f16dc5a4f8a2147d991bbe681) ) // 02-03-88    (romcmp g8x_p7.bin - 99.908447%)
+
+	ROM_REGION( 0xd0000, "mcu", 0 )       /* the MCU & voice */
+	ROM_LOAD( "cus64-64a1.mcu",     0x0f000, 0x01000, CRC(ffb5c0bd) SHA1(7a38c0cc2553c627f4ec507fb6e807cf7d537c02) ) /* internal 63701 MCU code */
+	ROM_LOAD_HS( "g81_v0.bin",      0x10000, 0x10000, CRC(86921dd4) SHA1(7048fd5b6ed5f4ddf6788958c30604418a6613ff) ) // 12-11-87
+	ROM_LOAD_HS( "g81_v1.bin",      0x30000, 0x10000, CRC(9c300e16) SHA1(6f3c82dc83290426068acef0b8fabba452421e8f) ) // 12-11-87
+	ROM_LOAD_HS( "g81_v2.bin",      0x50000, 0x10000, CRC(5316b4b0) SHA1(353c06e0e7c8dd9d609f8b341663bbf0ca60f6b5) ) // 12-11-87
+	ROM_LOAD_HS( "g81_v3.bin",      0x70000, 0x10000, CRC(dc077af4) SHA1(560090a335dfd345a6ae0eef8f1fd4d8098881f3) ) // 12-11-87
+	ROM_LOAD_HS( "g81_v4.bin",      0x90000, 0x10000, CRC(ac0279a7) SHA1(8d25292eec9953516fc5d25a94e30acc8159b360) ) // 12-11-87
+	ROM_LOAD_HS( "g81_v5.bin",      0xb0000, 0x10000, CRC(014ddba1) SHA1(26590b77a0c386dc076a8f8eccf6244c7e5a1e10) ) // 12-11-87
+
+	ROM_REGION( 0x20000, "gfx1", 0 )  /* character mask */
+	ROM_LOAD( "g8_chr-8.bin",       0x00000, 0x20000, CRC(3862ed0a) SHA1(4cae42bbfa434c7dce63fdceaa569fcb28768420) ) // 12-11-87
+
+	ROM_REGION( 0x100000, "gfx2", 0 ) /* characters */
+	ROM_LOAD( "g8_chr-0.bin",       0x00000, 0x20000, CRC(68559c78) SHA1(28f6284acbf1fc263c2d38ae464ee77f367b0af5) ) // 12-11-87
+	ROM_LOAD( "g8_chr-1.bin",       0x20000, 0x20000, CRC(3dc0f93f) SHA1(0db9f37cf6e06013b402df23e615b0ab0d32b9ee) ) // 12-11-87
+	ROM_LOAD( "g8_chr-2.bin",       0x40000, 0x20000, CRC(dbf26f1f) SHA1(e52723647a8fe6db0b9c5e11c02486b20a549506) ) // 12-11-87
+	ROM_LOAD( "g8_chr-3.bin",       0x60000, 0x20000, CRC(f5d6cac5) SHA1(3d098b8219de4a7729ec95547eebff17c9b505b9) ) // 12-11-87
+	ROM_LOAD( "g8chr-7.m8",       0xe0000, 0x20000, CRC(5f655016) SHA1(f6f1fa26dad363f1b50995fd1c52db0671365d83) ) // 10-27-87 (present, but not used by this version? possibly leftover from earlier development)
+
+	ROM_REGION( 0x100000, "gfx3", 0 ) /* sprites */
+	ROM_LOAD( "g8_obj-0.bin",       0x00000, 0x20000, CRC(d7112e3f) SHA1(476f9e1b636b257e517fc789508dac923d05ef67) ) // 12-11-87
+	ROM_LOAD( "g8_obj-1.bin",       0x20000, 0x20000, CRC(680db8e7) SHA1(84a68c27aaae27c0540f68f9c7d490a416c8f027) ) // 12-11-87
+	ROM_LOAD( "g8_obj-2.bin",       0x40000, 0x20000, CRC(13c97512) SHA1(9c5f39bcfe28abe1faa67bbe829a61fbcec98ec8) ) // 12-11-87
+	ROM_LOAD( "g8_obj-3.bin",       0x60000, 0x20000, CRC(3ed3941b) SHA1(5404aed795536ce6b37b8292d6a4446222bb50bf) ) // 12-11-87
+	ROM_LOAD( "g8_obj-4.bin",       0x80000, 0x20000, CRC(370ff4ad) SHA1(61d7306325103c6a03def619c21877faadf12699) ) // 12-11-87
+	ROM_LOAD( "g8_obj-5.bin",       0xa0000, 0x20000, CRC(b0645169) SHA1(e55dc9bd532b6bd821b7bf6994c35175600c317c) ) // 12-11-87
+ROM_END
+
 
 /* World Stadium */
 ROM_START( ws )
@@ -1762,7 +1768,7 @@ ROM_START( berabohm )
 	ROM_LOAD( "bm_obj-7.bin",       0xe0000, 0x20000, CRC(377c81ed) SHA1(85f4682c6079863793f5575d261a33309c221ba7) )
 ROM_END
 
-ROM_START( berabohmo )
+ROM_START( berabohmb )
 	ROM_REGION( 0x2c000, "audiocpu", 0 )       /* 176k for the sound cpu */
 	ROM_LOAD( "bm1_s0.bin",         0x0c000, 0x10000, CRC(d5d53cb1) SHA1(af5db529550382dab61197eb46e02110efc4c21b) )
 
@@ -2088,7 +2094,7 @@ ROM_START( splatter )
 	ROM_LOAD( "sh_obj-7.bin",       0xe0000, 0x20000, CRC(08b1953a) SHA1(f84f97e8e14ed6fcf99565d2603651831101ed2f) )
 ROM_END
 
-ROM_START( splattero )
+ROM_START( splatter2 )
 	ROM_REGION( 0x2c000, "audiocpu", 0 )       /* 176k for the sound cpu */
 	ROM_LOAD( "sh1_snd0.bin",       0x0c000, 0x10000, CRC(90abd4ad) SHA1(caeba5befcf57d90671786c7ef1ce49d54821949) )
 	ROM_LOAD( "sh1_snd1.bin",       0x1c000, 0x10000, CRC(8ece9e0a) SHA1(578da932a7684c6f633dde1d6412011c727c2380) )
@@ -2213,7 +2219,7 @@ ROM_START( faceoff )
 	ROM_LOAD( "fo1_o4.bin",         0x80000, 0x20000, CRC(985f04c7) SHA1(03fcb84c9134aa4521ce9549d09925a4f7a82318) )
 ROM_END
 
-/* Rompers */
+/* Rompers (revision B) */
 ROM_START( rompers )
 	ROM_REGION( 0x2c000, "audiocpu", 0 )       /* 176k for the sound cpu */
 	ROM_LOAD( "rp1_snd0.bin",       0x0c000, 0x10000, CRC(c7c8d649) SHA1(a60a58b4fc8e3f65e4e686b51fd2c17c9d74c444) )
@@ -2251,7 +2257,7 @@ ROM_START( rompers )
 	ROM_LOAD( "rp1_obj6.bin",       0xc0000, 0x10000, CRC(6bf2aca6) SHA1(ecd6022c0e4022ebfc571ee20d89369921cf3f1d) )
 ROM_END
 
-/* Rompers (old version) */
+/* Rompers */
 ROM_START( romperso )
 	ROM_REGION( 0x2c000, "audiocpu", 0 )       /* 176k for the sound cpu */
 	ROM_LOAD( "rp1_snd0.bin",       0x0c000, 0x10000, CRC(c7c8d649) SHA1(a60a58b4fc8e3f65e4e686b51fd2c17c9d74c444) )
@@ -2500,7 +2506,7 @@ ROM_START( boxyboy )
 	/* 200000-27ffff empty */
 	/* 280000-2fffff empty */
 	/* 300000-37ffff empty */
-	ROM_LOAD_512 ( "sbx_prg7.bin",    0x380000, CRC(7787c72e) SHA1(84b064165788481fbfb4836291c9c4000abcf7ce) )
+	ROM_LOAD_512 ( "sbx_prg7.bin",    0x380000, CRC(7787c72e) SHA1(84b064165788481fbfb4836291c9c4000abcf7ce) ) /* Unknown number for the "x" */
 
 	ROM_REGION( 0xd0000, "mcu", 0 )       /* the MCU & voice */
 	ROM_LOAD( "cus64-64a1.mcu",     0x0f000, 0x01000, CRC(ffb5c0bd) SHA1(7a38c0cc2553c627f4ec507fb6e807cf7d537c02) ) /* internal 63701 MCU code */
@@ -2694,39 +2700,40 @@ ROM_END
 
 
 
-GAME( 1987, shadowld, 0,        ns1,     shadowld, namcos1_state, shadowld, ROT180, "Namco", "Shadowland", 0 )
-GAME( 1987, youkaidk, shadowld, ns1,     shadowld, namcos1_state, shadowld, ROT180, "Namco", "Yokai Douchuuki (Japan new version)", 0 )
-GAME( 1987, youkaidko,shadowld, ns1,     shadowld, namcos1_state, shadowld, ROT180, "Namco", "Yokai Douchuuki (Japan old version)", 0 )
-GAME( 1987, dspirit,  0,        ns1,     dspirit, namcos1_state,  dspirit,  ROT90,  "Namco", "Dragon Spirit (new version)", 0 )
-GAME( 1987, dspirito, dspirit,  ns1,     dspirit, namcos1_state,  dspirit,  ROT90,  "Namco", "Dragon Spirit (old version)", 0 )
-GAME( 1987, dspirita, dspirit,  ns1,     dspirit, namcos1_state,  dspirit,  ROT90,  "Namco (Atari license)", "Dragon Spirit (Atari license)", 0 )
-GAME( 1987, blazer,   0,        ns1,     ns1, namcos1_state,      blazer,   ROT90,  "Namco", "Blazer (Japan)", 0 )
-GAME( 1987, quester,  0,        ns1,     quester, namcos1_state,  quester,  ROT90,  "Namco", "Quester (Japan)", 0 )
-GAME( 1987, questers, quester,  ns1,     quester, namcos1_state,  quester,  ROT90,  "Namco", "Quester Special Edition (Japan)", 0 )
-GAME( 1987, pacmania, 0,        ns1,     pacmania, namcos1_state, pacmania, ROT270, "Namco", "Pac-Mania", 0 )
-GAME( 1987, pacmaniaj,pacmania, ns1,     pacmania, namcos1_state, pacmania, ROT90,  "Namco", "Pac-Mania (Japan)", 0 )
-GAME( 1987, galaga88, 0,        ns1,     galaga88, namcos1_state, galaga88, ROT270, "Namco", "Galaga '88", 0 )
-GAME( 1987, galaga88j,galaga88, ns1,     galaga88, namcos1_state, galaga88, ROT90,  "Namco", "Galaga '88 (Japan)", 0 )
-GAME( 1988, ws,       0,        ns1,     ns1, namcos1_state,      ws,       ROT180, "Namco", "World Stadium (Japan)", 0 )
-GAME( 1988, berabohm, 0,        ns1,     berabohm, namcos1_state, berabohm, ROT180, "Namco", "Beraboh Man (Japan version C)", 0 )
-GAME( 1988, berabohmo,berabohm, ns1,     berabohm, namcos1_state, berabohm, ROT180, "Namco", "Beraboh Man (Japan version B)", 0 )
-GAME( 1988, mmaze,    0,        ns1,     mmaze, namcos1_state,    alice,    ROT180, "Namco", "Marchen Maze (Japan)", 0 )
-GAME( 1988, bakutotu, 0,        ns1,     bakutotu, namcos1_state, bakutotu, ROT180, "Namco", "Bakutotsu Kijuutei", 0 )
-GAME( 1988, wldcourt, 0,        ns1,     wldcourt, namcos1_state, wldcourt, ROT180, "Namco", "World Court (Japan)", 0 )
-GAME( 1988, splatter, 0,        ns1,     splatter, namcos1_state, splatter, ROT180, "Namco", "Splatter House (World new version)", 0 )
-GAME( 1988, splattero,splatter, ns1,     splatter, namcos1_state, splatter, ROT180, "Namco", "Splatter House (World old version)", 0 )
-GAME( 1988, splatterj,splatter, ns1,     splatter, namcos1_state, splatter, ROT180, "Namco", "Splatter House (Japan)", 0 )
-GAME( 1988, faceoff,  0,        ns1,     faceoff, namcos1_state,  faceoff,  ROT180, "Namco", "Face Off (Japan)", 0 )
-GAME( 1989, rompers,  0,        ns1,     ns1, namcos1_state,      rompers,  ROT90,  "Namco", "Rompers (Japan)", 0 )
-GAME( 1989, romperso, rompers,  ns1,     ns1, namcos1_state,      rompers,  ROT90,  "Namco", "Rompers (Japan old version)", 0 )
-GAME( 1989, blastoff, 0,        ns1,     ns1, namcos1_state,      blastoff, ROT90,  "Namco", "Blast Off (Japan)", 0 )
-GAME( 1989, ws89,     ws,       ns1,     ws89, namcos1_state,     ws89,     ROT180, "Namco", "World Stadium '89 (Japan)", 0 )
-GAME( 1989, dangseed, 0,        ns1,     dangseed, namcos1_state, dangseed, ROT90,  "Namco", "Dangerous Seed (Japan)", 0 )
-GAME( 1990, ws90,     ws,       ns1,     ws90, namcos1_state,     ws90,     ROT180, "Namco", "World Stadium '90 (Japan)", 0 )
-GAME( 1990, pistoldm, 0,        ns1,     ns1, namcos1_state,      pistoldm, ROT0,   "Namco", "Pistol Daimyo no Bouken (Japan)", 0 )
-GAME( 1990, boxyboy,  0,        ns1,     boxyboy, namcos1_state,  soukobdx, ROT0,   "Namco", "Boxy Boy (US)", 0 )
-GAME( 1990, soukobdx, boxyboy,  ns1,     boxyboy, namcos1_state,  soukobdx, ROT0,   "Namco", "Souko Ban Deluxe (Japan)", 0 )
-GAME( 1990, puzlclub, 0,        ns1,     puzlclub, namcos1_state, puzlclub, ROT90,  "Namco", "Puzzle Club (Japan prototype)", 0 )
-GAME( 1991, tankfrce, 0,        ns1,     ns1, namcos1_state,      tankfrce, ROT0,   "Namco", "Tank Force (US, 2 Player)", 0 )
-GAME( 1991, tankfrce4,tankfrce, ns1,     tankfrc4, namcos1_state, tankfrc4, ROT0,   "Namco", "Tank Force (US, 4 Player)", 0 )
-GAME( 1991, tankfrcej,tankfrce, ns1,     ns1, namcos1_state,      tankfrce, ROT0,   "Namco", "Tank Force (Japan)", 0 )
+GAME( 1987, shadowld,  0,        ns1,     shadowld, namcos1_state, shadowld, ROT180, "Namco", "Shadowland (YD3)", 0 )
+GAME( 1987, youkaidk2, shadowld, ns1,     shadowld, namcos1_state, shadowld, ROT180, "Namco", "Yokai Douchuuki (Japan, new version (YD2, Rev B))", 0 )
+GAME( 1987, youkaidk1, shadowld, ns1,     shadowld, namcos1_state, shadowld, ROT180, "Namco", "Yokai Douchuuki (Japan, old version (YD1))", 0 )
+GAME( 1987, dspirit,   0,        ns1,     dspirit,  namcos1_state, dspirit,  ROT90,  "Namco", "Dragon Spirit (new version (DS3))", 0 )
+GAME( 1987, dspirit2,  dspirit,  ns1,     dspirit,  namcos1_state, dspirit,  ROT90,  "Namco", "Dragon Spirit (DS2)", 0 ) /* Atari had rights to US market */
+GAME( 1987, dspirit1,  dspirit,  ns1,     dspirit,  namcos1_state, dspirit,  ROT90,  "Namco", "Dragon Spirit (old version (DS1))", 0 )
+GAME( 1987, blazer,    0,        ns1,     ns1,      namcos1_state, blazer,   ROT90,  "Namco", "Blazer (Japan)", 0 )
+GAME( 1987, quester,   0,        ns1,     quester,  namcos1_state, quester,  ROT90,  "Namco", "Quester (Japan)", 0 )
+GAME( 1987, questers,  quester,  ns1,     quester,  namcos1_state, quester,  ROT90,  "Namco", "Quester Special Edition (Japan)", 0 )
+GAME( 1987, pacmania,  0,        ns1,     pacmania, namcos1_state, pacmania, ROT270, "Namco", "Pac-Mania", 0 )
+GAME( 1987, pacmaniaj, pacmania, ns1,     pacmania, namcos1_state, pacmania, ROT90,  "Namco", "Pac-Mania (Japan)", 0 )
+GAME( 1987, galaga88,  0,        ns1,     galaga88, namcos1_state, galaga88, ROT270, "Namco", "Galaga '88", 0 )
+GAME( 1987, galaga88a, galaga88, ns1,     galaga88, namcos1_state, galaga88, ROT90,  "Namco", "Galaga '88 (02-03-88)", 0 )
+GAME( 1987, galaga88j, galaga88, ns1,     galaga88, namcos1_state, galaga88, ROT90,  "Namco", "Galaga '88 (Japan)", 0 )
+GAME( 1988, ws,        0,        ns1,     ns1,      namcos1_state, ws,       ROT180, "Namco", "World Stadium (Japan)", 0 )
+GAME( 1988, berabohm,  0,        ns1,     berabohm, namcos1_state, berabohm, ROT180, "Namco", "Beraboh Man (Japan, Rev C)", 0 )
+GAME( 1988, berabohmb, berabohm, ns1,     berabohm, namcos1_state, berabohm, ROT180, "Namco", "Beraboh Man (Japan, Rev B)", 0 )
+GAME( 1988, mmaze,     0,        ns1,     mmaze,    namcos1_state, alice,    ROT180, "Namco", "Marchen Maze (Japan)", 0 )
+GAME( 1988, bakutotu,  0,        ns1,     bakutotu, namcos1_state, bakutotu, ROT180, "Namco", "Bakutotsu Kijuutei", 0 )
+GAME( 1988, wldcourt,  0,        ns1,     wldcourt, namcos1_state, wldcourt, ROT180, "Namco", "World Court (Japan)", 0 )
+GAME( 1988, splatter,  0,        ns1,     splatter, namcos1_state, splatter, ROT180, "Namco", "Splatter House (World, new version (SH3))", 0 )
+GAME( 1988, splatter2, splatter, ns1,     splatter, namcos1_state, splatter, ROT180, "Namco", "Splatter House (World, old version (SH2))", 0 )
+GAME( 1988, splatterj, splatter, ns1,     splatter, namcos1_state, splatter, ROT180, "Namco", "Splatter House (Japan, SH1)", 0 )
+GAME( 1988, faceoff,   0,        ns1,     faceoff,  namcos1_state, faceoff,  ROT180, "Namco", "Face Off (Japan)", 0 )
+GAME( 1989, rompers,   0,        ns1,     ns1,      namcos1_state, rompers,  ROT90,  "Namco", "Rompers (Japan, new version (Rev B))", 0 )
+GAME( 1989, romperso,  rompers,  ns1,     ns1,      namcos1_state, rompers,  ROT90,  "Namco", "Rompers (Japan, old version)", 0 )
+GAME( 1989, blastoff,  0,        ns1,     ns1,      namcos1_state, blastoff, ROT90,  "Namco", "Blast Off (Japan)", 0 )
+GAME( 1989, ws89,      ws,       ns1,     ws89,     namcos1_state, ws89,     ROT180, "Namco", "World Stadium '89 (Japan)", 0 )
+GAME( 1989, dangseed,  0,        ns1,     dangseed, namcos1_state, dangseed, ROT90,  "Namco", "Dangerous Seed (Japan)", 0 )
+GAME( 1990, ws90,      ws,       ns1,     ws90,     namcos1_state, ws90,     ROT180, "Namco", "World Stadium '90 (Japan)", 0 )
+GAME( 1990, pistoldm,  0,        ns1,     ns1,      namcos1_state, pistoldm, ROT0,   "Namco", "Pistol Daimyo no Bouken (Japan)", 0 )
+GAME( 1990, boxyboy,   0,        ns1,     boxyboy,  namcos1_state, soukobdx, ROT0,   "Namco", "Boxy Boy (SB?)", 0 )
+GAME( 1990, soukobdx,  boxyboy,  ns1,     boxyboy,  namcos1_state, soukobdx, ROT0,   "Namco", "Souko Ban Deluxe (Japan, SB1)", 0 )
+GAME( 1990, puzlclub,  0,        ns1,     puzlclub, namcos1_state, puzlclub, ROT90,  "Namco", "Puzzle Club (Japan prototype)", 0 )
+GAME( 1991, tankfrce,  0,        ns1,     ns1,      namcos1_state, tankfrce, ROT0,   "Namco", "Tank Force (US, 2 Player)", 0 )
+GAME( 1991, tankfrce4, tankfrce, ns1,     tankfrc4, namcos1_state, tankfrc4, ROT0,   "Namco", "Tank Force (US, 4 Player)", 0 )
+GAME( 1991, tankfrcej, tankfrce, ns1,     ns1,      namcos1_state, tankfrce, ROT0,   "Namco", "Tank Force (Japan)", 0 )

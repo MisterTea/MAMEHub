@@ -298,7 +298,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, tecmosys_state )
 	AM_RANGE(0x700000, 0x703fff) AM_RAM_WRITE(fg_tilemap_w) AM_SHARE("fgtilemap_ram") // fix ram
 	AM_RANGE(0x800000, 0x80ffff) AM_RAM AM_SHARE("spriteram") // obj ram
 	AM_RANGE(0x880000, 0x88000b) AM_READ(unk880000_r)
-	AM_RANGE(0x900000, 0x907fff) AM_RAM_WRITE(paletteram_xGGGGGRRRRRBBBBB_word_w) AM_SHARE("paletteram") // AM_WRITEONLY // obj pal
+	AM_RANGE(0x900000, 0x907fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // AM_WRITEONLY // obj pal
 
 	//AM_RANGE(0x980000, 0x9807ff) AM_WRITEONLY // bg pal
 	//AM_RANGE(0x980800, 0x980fff) AM_WRITE(paletteram_xGGGGGRRRRRBBBBB_word_w) AM_SHARE("paletteram") // fix pal
@@ -454,21 +454,21 @@ static MACHINE_CONFIG_START( deroon, tecmosys_state )
 	MCFG_CPU_IO_MAP(io_map)
 
 
-	MCFG_GFXDECODE(tecmosys)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tecmosys)
 
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 	MCFG_EEPROM_SERIAL_ENABLE_STREAMING()
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(57.4458)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(3000))
 	MCFG_SCREEN_SIZE(64*8, 64*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tecmosys_state, screen_update_tecmosys)
 
-	MCFG_PALETTE_LENGTH(0x4000+0x800)
+	MCFG_PALETTE_ADD("palette", 0x4000+0x800)
+	MCFG_PALETTE_FORMAT(xGGGGGRRRRRBBBBB)
 
 
 	/* sound hardware */

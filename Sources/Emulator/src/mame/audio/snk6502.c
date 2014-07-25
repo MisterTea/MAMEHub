@@ -11,7 +11,6 @@
 
 
 #include "emu.h"
-#include "sound/sn76477.h"
 #include "sound/samples.h"
 #include "includes/snk6502.h"
 #include "sound/discrete.h"
@@ -353,7 +352,7 @@ DISCRETE_SOUND_END
 const device_type SNK6502 = &device_creator<snk6502_sound_device>;
 
 snk6502_sound_device::snk6502_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, SNK6502, "snk6502 Custom", tag, owner, clock, "snk6502_sound", __FILE__),
+	: device_t(mconfig, SNK6502, "SNK6502 Audio Custom", tag, owner, clock, "snk6502_sound", __FILE__),
 		device_sound_interface(mconfig, *this),
 		//m_tone_channels[CHANNELS],
 		m_tone_clock_expire(0),
@@ -394,7 +393,7 @@ void snk6502_sound_device::device_start()
 	// 38.99 Hz update (according to schematic)
 	set_music_clock(M_LN2 * (RES_K(18) * 2 + RES_K(1)) * CAP_U(1));
 
-	m_tone_stream = machine().sound().stream_alloc(*this, 0, 1, SAMPLE_RATE, this);
+	m_tone_stream = machine().sound().stream_alloc(*this, 0, 1, SAMPLE_RATE);
 }
 
 inline void snk6502_sound_device::validate_tone_channel(int channel)
@@ -771,7 +770,7 @@ WRITE8_MEMBER( snk6502_sound_device::vanguard_sound_w )
 		}
 
 		/* SHOT B */
-		sn76477_enable_w(space.machine().device("sn76477.2"), (data & 0x40) ? 0 : 1);
+		machine().device<sn76477_device>("sn76477.2")->enable_w((data & 0x40) ? 0 : 1);
 
 		m_LastPort1 = data;
 		break;
@@ -861,7 +860,7 @@ WRITE8_MEMBER( snk6502_sound_device::fantasy_sound_w )
 		}
 
 		/* BOMB */
-		discrete_sound_w(space.machine().device("discrete"), space, FANTASY_BOMB_EN, data & 0x80);
+		machine().device<discrete_device>("discrete")->write(space, FANTASY_BOMB_EN, data & 0x80);
 
 		m_LastPort1 = data;
 		break;

@@ -23,11 +23,11 @@
 
 ***************************************************************************/
 
-void crbaloon_state::palette_init()
+PALETTE_INIT_MEMBER(crbaloon_state, crbaloon)
 {
 	int i;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		UINT8 pen;
 		int h, r, g, b;
@@ -42,7 +42,7 @@ void crbaloon_state::palette_init()
 		g = h * ((~pen >> 1) & 1);
 		b = h * ((~pen >> 2) & 1);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -69,7 +69,7 @@ TILE_GET_INFO_MEMBER(crbaloon_state::get_bg_tile_info)
 
 void crbaloon_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(crbaloon_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS_FLIP_XY,  8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(crbaloon_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS_FLIP_XY,  8, 8, 32, 32);
 
 	save_item(NAME(m_collision_address));
 	save_item(NAME(m_collision_address_clear));

@@ -83,17 +83,11 @@ enum submode_flags
 
 const device_type PSXCD = &device_creator<psxcd_device>;
 
-static struct cdrom_interface psx_cdrom =
-{
-	"psx_cdrom",
-	NULL
-};
-
 psxcd_device::psxcd_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
 	cdrom_image_device(mconfig, PSXCD, "PSX Cdrom", tag, owner, clock, "psx_cd", __FILE__),
 	m_irq_handler(*this)
 {
-	static_set_static_config(*this, &psx_cdrom);
+	static_set_interface(*this, "psx_cdrom");
 }
 
 
@@ -113,6 +107,7 @@ void psxcd_device::device_start()
 	m_sysclock = sysclk;
 
 	res_queue = NULL;
+	rdp = 0;
 	status=status_shellopen;
 	mode=0;
 
@@ -150,7 +145,7 @@ void psxcd_device::device_stop()
 	for (int i = 0; i < MAX_PSXCD_TIMERS; i++)
 	{
 		if(m_timerinuse[i] && m_timers[i]->ptr())
-			global_free(m_timers[i]->ptr());
+			global_free((command_result *)m_timers[i]->ptr());
 	}
 	while(res_queue)
 	{
@@ -168,7 +163,7 @@ void psxcd_device::device_reset()
 	for (int i = 0; i < MAX_PSXCD_TIMERS; i++)
 	{
 		if(m_timerinuse[i] && m_timers[i]->ptr())
-			global_free(m_timers[i]->ptr());
+			global_free((command_result *)m_timers[i]->ptr());
 		m_timers[i]->adjust(attotime::never, 0, attotime::never);
 		m_timerinuse[i] = false;
 	}
@@ -1219,7 +1214,7 @@ void psxcd_device::device_timer(emu_timer &timer, device_timer_id tid, int param
 	}
 }
 
-int psxcd_device::add_system_event(int type, UINT64 t, void *ptr)
+int psxcd_device::add_system_event(int type, UINT64 t, command_result *ptr)
 {
 	// t is in maincpu clock cycles
 	UINT32 hz = m_sysclock / t;

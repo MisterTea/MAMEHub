@@ -20,14 +20,21 @@ class acefruit_state : public driver_device
 public:
 	acefruit_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_spriteram(*this, "spriteram"),
-		m_maincpu(*this, "maincpu") { }
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
+	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
 	required_shared_ptr<UINT8> m_spriteram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 	emu_timer *m_refresh_timer;
 	DECLARE_WRITE8_MEMBER(acefruit_colorram_w);
 	DECLARE_WRITE8_MEMBER(acefruit_coin_w);
@@ -39,12 +46,18 @@ public:
 	DECLARE_CUSTOM_INPUT_MEMBER(starspnr_payout_r);
 	DECLARE_DRIVER_INIT(sidewndr);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(acefruit);
 	UINT32 screen_update_acefruit(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(acefruit_vblank);
-	TIMER_CALLBACK_MEMBER(acefruit_refresh);
 	void acefruit_update_irq(int vpos);
-	required_device<cpu_device> m_maincpu;
+
+	enum
+	{
+		TIMER_ACEFRUIT_REFRESH
+	};
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -69,21 +82,29 @@ void acefruit_state::acefruit_update_irq(int vpos)
 }
 
 
-TIMER_CALLBACK_MEMBER(acefruit_state::acefruit_refresh)
+void acefruit_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
 	int vpos = m_screen->vpos();
 
-	m_screen->update_partial(vpos );
-	acefruit_update_irq(vpos);
+	switch(id)
+	{
+	case TIMER_ACEFRUIT_REFRESH:
 
-	vpos = ( ( vpos / 8 ) + 1 ) * 8;
+			m_screen->update_partial(vpos );
+			acefruit_update_irq(vpos);
 
-	m_refresh_timer->adjust( m_screen->time_until_pos(vpos) );
+			vpos = ( ( vpos / 8 ) + 1 ) * 8;
+
+			m_refresh_timer->adjust( m_screen->time_until_pos(vpos) );
+			break;
+	default:
+			assert_always(FALSE, "Unknown id in acefruit_state::device_timer");
+	}
 }
 
 void acefruit_state::video_start()
 {
-	m_refresh_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(acefruit_state::acefruit_refresh),this));
+	m_refresh_timer = timer_alloc(TIMER_ACEFRUIT_REFRESH);
 }
 
 INTERRUPT_GEN_MEMBER(acefruit_state::acefruit_vblank)
@@ -113,7 +134,7 @@ UINT32 acefruit_state::screen_update_acefruit(screen_device &screen, bitmap_ind1
 
 			if( color < 0x4 )
 			{
-				drawgfx_opaque( bitmap, cliprect, machine().gfx[ 1 ], code, color, 0, 0, col * 16, row * 8 );
+				m_gfxdecode->gfx(1)->opaque(bitmap,cliprect, code, color, 0, 0, col * 16, row * 8 );
 			}
 			else if( color >= 0x5 && color <= 0x7 )
 			{
@@ -121,7 +142,7 @@ UINT32 acefruit_state::screen_update_acefruit(screen_device &screen, bitmap_ind1
 				int x;
 				static const int spriteskip[] = { 1, 2, 4 };
 				int spritesize = spriteskip[ color - 5 ];
-				gfx_element *gfx = machine().gfx[ 0 ];
+				gfx_element *gfx =  m_gfxdecode->gfx(0);
 
 				for( x = 0; x < 16; x++ )
 				{
@@ -265,27 +286,27 @@ WRITE8_MEMBER(acefruit_state::acefruit_solenoid_w)
 	}
 }
 
-void acefruit_state::palette_init()
+PALETTE_INIT_MEMBER(acefruit_state, acefruit)
 {
 	/* sprites */
-	palette_set_color( machine(), 0, MAKE_RGB(0x00, 0x00, 0x00) );
-	palette_set_color( machine(), 1, MAKE_RGB(0x00, 0x00, 0xff) );
-	palette_set_color( machine(), 2, MAKE_RGB(0x00, 0xff, 0x00) );
-	palette_set_color( machine(), 3, MAKE_RGB(0xff, 0x7f, 0x00) );
-	palette_set_color( machine(), 4, MAKE_RGB(0xff, 0x00, 0x00) );
-	palette_set_color( machine(), 5, MAKE_RGB(0xff, 0xff, 0x00) );
-	palette_set_color( machine(), 6, MAKE_RGB(0xff, 0xff, 0xff) );
-	palette_set_color( machine(), 7, MAKE_RGB(0x7f, 0x3f, 0x1f) );
+	palette.set_pen_color( 0, rgb_t(0x00, 0x00, 0x00) );
+	palette.set_pen_color( 1, rgb_t(0x00, 0x00, 0xff) );
+	palette.set_pen_color( 2, rgb_t(0x00, 0xff, 0x00) );
+	palette.set_pen_color( 3, rgb_t(0xff, 0x7f, 0x00) );
+	palette.set_pen_color( 4, rgb_t(0xff, 0x00, 0x00) );
+	palette.set_pen_color( 5, rgb_t(0xff, 0xff, 0x00) );
+	palette.set_pen_color( 6, rgb_t(0xff, 0xff, 0xff) );
+	palette.set_pen_color( 7, rgb_t(0x7f, 0x3f, 0x1f) );
 
 	/* tiles */
-	palette_set_color( machine(), 8, MAKE_RGB(0x00, 0x00, 0x00) );
-	palette_set_color( machine(), 9, MAKE_RGB(0xff, 0xff, 0xff) );
-	palette_set_color( machine(), 10, MAKE_RGB(0x00, 0x00, 0x00) );
-	palette_set_color( machine(), 11, MAKE_RGB(0x00, 0x00, 0xff) );
-	palette_set_color( machine(), 12, MAKE_RGB(0x00, 0x00, 0x00) );
-	palette_set_color( machine(), 13, MAKE_RGB(0x00, 0xff, 0x00) );
-	palette_set_color( machine(), 14, MAKE_RGB(0x00, 0x00, 0x00) );
-	palette_set_color( machine(), 15, MAKE_RGB(0xff, 0x00, 0x00) );
+	palette.set_pen_color( 8, rgb_t(0x00, 0x00, 0x00) );
+	palette.set_pen_color( 9, rgb_t(0xff, 0xff, 0xff) );
+	palette.set_pen_color( 10, rgb_t(0x00, 0x00, 0x00) );
+	palette.set_pen_color( 11, rgb_t(0x00, 0x00, 0xff) );
+	palette.set_pen_color( 12, rgb_t(0x00, 0x00, 0x00) );
+	palette.set_pen_color( 13, rgb_t(0x00, 0xff, 0x00) );
+	palette.set_pen_color( 14, rgb_t(0x00, 0x00, 0x00) );
+	palette.set_pen_color( 15, rgb_t(0xff, 0x00, 0x00) );
 }
 
 static ADDRESS_MAP_START( acefruit_map, AS_PROGRAM, 8, acefruit_state )
@@ -585,8 +606,9 @@ static MACHINE_CONFIG_START( acefruit, acefruit_state )
 	MCFG_CPU_ADD("maincpu", Z80, 2500000) /* 2.5MHz */
 	MCFG_CPU_PROGRAM_MAP(acefruit_map)
 	MCFG_CPU_IO_MAP(acefruit_io)
-	MCFG_GFXDECODE(acefruit)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", acefruit_state,  acefruit_vblank)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", acefruit)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -595,8 +617,10 @@ static MACHINE_CONFIG_START( acefruit, acefruit_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 255)
 	MCFG_SCREEN_UPDATE_DRIVER(acefruit_state, screen_update_acefruit)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(acefruit_state, acefruit)
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __TRS80M2__
@@ -9,7 +11,7 @@
 #include "cpu/z80/z80daisy.h"
 #include "cpu/mcs48/mcs48.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/keyboard.h"
 #include "machine/pic8259.h"
 #include "machine/ram.h"
@@ -38,30 +40,33 @@ class trs80m2_state : public driver_device
 public:
 	trs80m2_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, Z80_TAG),
-			m_ctc(*this, Z80CTC_TAG),
-			m_dmac(*this, Z80DMA_TAG),
-			m_pio(*this, Z80PIO_TAG),
-			m_crtc(*this, MC6845_TAG),
-			m_fdc(*this, FD1791_TAG),
-			m_centronics(*this, CENTRONICS_TAG),
-			m_floppy0(*this, FD1791_TAG":0"),
-			m_floppy1(*this, FD1791_TAG":1"),
-			m_floppy2(*this, FD1791_TAG":2"),
-			m_floppy3(*this, FD1791_TAG":3"),
-			m_floppy(NULL),
-			m_ram(*this, RAM_TAG),
-			m_kb(*this, TRS80M2_KEYBOARD_TAG),
-			m_rom(*this, Z80_TAG),
-			m_char_rom(*this, MC6845_TAG),
-			m_video_ram(*this, "video_ram")
-	{ }
+		m_maincpu(*this, Z80_TAG),
+		m_ctc(*this, Z80CTC_TAG),
+		m_dmac(*this, Z80DMA_TAG),
+		m_pio(*this, Z80PIO_TAG),
+		m_crtc(*this, MC6845_TAG),
+		m_palette(*this, "palette"),
+		m_fdc(*this, FD1791_TAG),
+		m_centronics(*this, CENTRONICS_TAG),
+		m_floppy0(*this, FD1791_TAG":0"),
+		m_floppy1(*this, FD1791_TAG":1"),
+		m_floppy2(*this, FD1791_TAG":2"),
+		m_floppy3(*this, FD1791_TAG":3"),
+		m_floppy(NULL),
+		m_ram(*this, RAM_TAG),
+		m_kb(*this, TRS80M2_KEYBOARD_TAG),
+		m_rom(*this, Z80_TAG),
+		m_char_rom(*this, MC6845_TAG),
+		m_video_ram(*this, "video_ram")
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<z80ctc_device> m_ctc;
 	required_device<z80dma_device> m_dmac;
 	required_device<z80pio_device> m_pio;
 	required_device<mc6845_device> m_crtc;
+	required_device<palette_device> m_palette;
 	required_device<fd1791_t> m_fdc;
 	required_device<centronics_device> m_centronics;
 	required_device<floppy_connector> m_floppy0;
@@ -100,10 +105,10 @@ public:
 	DECLARE_READ8_MEMBER( pio_pa_r );
 	DECLARE_WRITE8_MEMBER( pio_pa_w );
 	DECLARE_WRITE_LINE_MEMBER( strobe_w );
-	void fdc_intrq_w(bool state);
-	void fdc_drq_w(bool state);
 	DECLARE_WRITE_LINE_MEMBER( kb_clock_w );
 	DECLARE_WRITE8_MEMBER( kbd_w );
+
+	MC6845_UPDATE_ROW( crtc_update_row );
 
 	// memory state
 	int m_boot_rom;
@@ -128,6 +133,14 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(ctc_tick);
 	DECLARE_READ8_MEMBER(io_read_byte);
 	DECLARE_WRITE8_MEMBER(io_write_byte);
+
+	int m_centronics_busy;
+	int m_centronics_fault;
+	int m_centronics_perror;
+
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_fault);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_perror);
 };
 
 class trs80m16_state : public trs80m2_state
@@ -146,8 +159,6 @@ public:
 
 	DECLARE_WRITE8_MEMBER( ual_w );
 	DECLARE_WRITE8_MEMBER( tcl_w );
-
-	IRQ_CALLBACK_MEMBER(trs80m16_irq_callback);
 
 	UINT16 m_ual;
 	UINT8 m_limit[2];

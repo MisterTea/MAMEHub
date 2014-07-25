@@ -22,28 +22,6 @@
 
 /* Result of the last ADC channel sampled */
 
-/* 8254 timer config */
-const struct pit8253_interface vertigo_pit8254_config =
-{
-	{
-		{
-			240000,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(vertigo_state,v_irq4_w)
-		}, {
-			240000,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(vertigo_state,v_irq3_w)
-		}, {
-			240000,
-			DEVCB_NULL,
-			DEVCB_NULL
-		}
-	}
-};
-
-
-
 /*************************************
  *
  *  IRQ handling. The priority encoder
@@ -52,16 +30,15 @@ const struct pit8253_interface vertigo_pit8254_config =
  *
  *************************************/
 
-void vertigo_update_irq(device_t *device)
+TTL74148_OUTPUT_CB(vertigo_state::update_irq)
 {
-	vertigo_state *state = device->machine().driver_data<vertigo_state>();
-	if (state->m_irq_state < 7)
-		state->m_maincpu->set_input_line(state->m_irq_state ^ 7, CLEAR_LINE);
+	if (m_irq_state < 7)
+		m_maincpu->set_input_line(m_irq_state ^ 7, CLEAR_LINE);
 
-	state->m_irq_state = state->m_ttl74148->output_r();
+	m_irq_state = m_ttl74148->output_r();
 
-	if (state->m_irq_state < 7)
-		state->m_maincpu->set_input_line(state->m_irq_state ^ 7, ASSERT_LINE);
+	if (m_irq_state < 7)
+		m_maincpu->set_input_line(m_irq_state ^ 7, ASSERT_LINE);
 }
 
 

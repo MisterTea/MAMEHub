@@ -11,7 +11,10 @@ public:
 		m_vctrl_0(*this, "vctrl_0"),
 		m_vram_0(*this, "vram_0"),
 		m_vram_1(*this, "vram_1"),
-		m_spriteram(*this, "spriteram")
+		m_spriteram(*this, "spriteram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")
 		{ }
 
 
@@ -22,6 +25,10 @@ public:
 	required_shared_ptr<UINT16> m_vram_0;
 	required_shared_ptr<UINT16> m_vram_1;
 	required_shared_ptr<UINT16> m_spriteram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	UINT16 *m_vctrl_1;
 	tilemap_t *m_tilemap_0;
 	tilemap_t *m_tilemap_1;
@@ -32,7 +39,6 @@ public:
 	DECLARE_READ8_MEMBER(powerinb_fake_ym2203_r);
 	DECLARE_WRITE16_MEMBER(powerins_flipscreen_w);
 	DECLARE_WRITE16_MEMBER(powerins_tilebank_w);
-	DECLARE_WRITE16_MEMBER(powerins_paletteram16_w);
 	DECLARE_WRITE16_MEMBER(powerins_vram_0_w);
 	DECLARE_WRITE16_MEMBER(powerins_vram_1_w);
 	TILE_GET_INFO_MEMBER(get_tile_info_0);

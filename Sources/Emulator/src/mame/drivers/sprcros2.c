@@ -228,23 +228,6 @@ static GFXDECODE_START( sprcros2 )
 	GFXDECODE_ENTRY( "gfx3", 0, sprcros2_fglayout,     512, 64 )
 GFXDECODE_END
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 TIMER_DEVICE_CALLBACK_MEMBER(sprcros2_state::sprcros2_m_interrupt)
 {
 	int scanline = param;
@@ -294,25 +277,24 @@ static MACHINE_CONFIG_START( sprcros2, sprcros2_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 31*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(sprcros2_state, screen_update_sprcros2)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sprcros2)
-	MCFG_PALETTE_LENGTH(768)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sprcros2)
+	MCFG_PALETTE_ADD("palette", 768)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(sprcros2_state, sprcros2)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn1", SN76489, 10000000/4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76489, 10000000/4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn3", SN76489, 10000000/4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 ROM_START( sprcros2 )

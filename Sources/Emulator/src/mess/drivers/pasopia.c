@@ -21,13 +21,14 @@ class pasopia_state : public driver_device
 public:
 	pasopia_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_ppi0(*this, "ppi8255_0"),
-	m_ppi1(*this, "ppi8255_1"),
-	m_ppi2(*this, "ppi8255_2"),
-	m_ctc(*this, "z80ctc"),
-	m_pio(*this, "z80pio"),
-	m_crtc(*this, "crtc")
+		m_maincpu(*this, "maincpu"),
+		m_ppi0(*this, "ppi8255_0"),
+		m_ppi1(*this, "ppi8255_1"),
+		m_ppi2(*this, "ppi8255_2"),
+		m_ctc(*this, "z80ctc"),
+		m_pio(*this, "z80pio"),
+		m_crtc(*this, "crtc"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -37,6 +38,7 @@ public:
 	required_device<z80ctc_device> m_ctc;
 	required_device<z80pio_device> m_pio;
 	required_device<mc6845_device> m_crtc;
+	required_device<palette_device> m_palette;
 
 	DECLARE_READ8_MEMBER(pasopia_romram_r);
 	DECLARE_WRITE8_MEMBER(pasopia_ram_w);
@@ -56,6 +58,7 @@ public:
 	DECLARE_READ8_MEMBER(mux_r);
 	DECLARE_READ8_MEMBER(keyb_r);
 	DECLARE_WRITE8_MEMBER(mux_w);
+	MC6845_UPDATE_ROW(crtc_update_row);
 
 	UINT8 m_hblank;
 	UINT16 m_vram_addr;
@@ -83,11 +86,10 @@ void pasopia_state::video_start()
 {
 }
 
-MC6845_UPDATE_ROW( pasopia_update_row )
+MC6845_UPDATE_ROW( pasopia_state::crtc_update_row )
 {
-	pasopia_state *state = device->machine().driver_data<pasopia_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
-	UINT8 *m_p_chargen = state->memregion("chargen")->base();
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
+	UINT8 *m_p_chargen = memregion("chargen")->base();
 	UINT8 chr,gfx,fg=7,bg=0; // colours need to be determined
 	UINT16 mem,x;
 	UINT32 *p = &bitmap.pix32(y);
@@ -97,7 +99,7 @@ MC6845_UPDATE_ROW( pasopia_update_row )
 		UINT8 inv=0;
 		if (x == cursor_x) inv=0xff;
 		mem = (ma + x) & 0xfff;
-		chr = state->m_p_vram[mem];
+		chr = m_p_vram[mem];
 
 		/* get pattern of pixels for that character scanline */
 		gfx = m_p_chargen[(chr<<3) | ra] ^ inv;
@@ -174,16 +176,6 @@ READ8_MEMBER( pasopia_state::vram_latch_r )
 	return m_p_vram[m_vram_addr];
 }
 
-static I8255A_INTERFACE( ppi8255_intf_0 )
-{
-	DEVCB_NULL,     /* Port A read */
-	DEVCB_DRIVER_MEMBER(pasopia_state, vram_addr_lo_w),     /* Port A write */
-	DEVCB_NULL,     /* Port B read */
-	DEVCB_DRIVER_MEMBER(pasopia_state, vram_latch_w),       /* Port B write */
-	DEVCB_DRIVER_MEMBER(pasopia_state, vram_latch_r),       /* Port C read */
-	DEVCB_NULL      /* Port C write */
-};
-
 READ8_MEMBER( pasopia_state::portb_1_r )
 {
 	/*
@@ -222,38 +214,10 @@ WRITE8_MEMBER( pasopia_state::screen_mode_w )
 	printf("Screen Mode=%02x\n",data);
 }
 
-static I8255A_INTERFACE( ppi8255_intf_1 )
-{
-	DEVCB_NULL,     /* Port A read */
-	DEVCB_DRIVER_MEMBER(pasopia_state, screen_mode_w),      /* Port A write */
-	DEVCB_DRIVER_MEMBER(pasopia_state, portb_1_r),      /* Port B read */
-	DEVCB_NULL,     /* Port B write */
-	DEVCB_NULL,     /* Port C read */
-	DEVCB_DRIVER_MEMBER(pasopia_state, vram_addr_hi_w)      /* Port C write */
-};
-
 READ8_MEMBER( pasopia_state::rombank_r )
 {
 	return (m_ram_bank) ? 4 : 0;
 }
-
-static I8255A_INTERFACE( ppi8255_intf_2 )
-{
-	DEVCB_NULL,     /* Port A read */
-	DEVCB_NULL,     /* Port A write */
-	DEVCB_NULL,     /* Port B read */
-	DEVCB_NULL,     /* Port B write */
-	DEVCB_DRIVER_MEMBER(pasopia_state, rombank_r),      /* Port C read */
-	DEVCB_NULL      /* Port C write */
-};
-
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),       // interrupt handler
-	DEVCB_DEVICE_LINE_MEMBER("z80ctc", z80ctc_device, trg1),        // ZC/TO0 callback
-	DEVCB_DEVICE_LINE_MEMBER("z80ctc", z80ctc_device, trg2),        // ZC/TO1 callback, beep interface
-	DEVCB_DEVICE_LINE_MEMBER("z80ctc", z80ctc_device, trg3)     // ZC/TO2 callback
-};
 
 READ8_MEMBER( pasopia_state::mux_r )
 {
@@ -288,31 +252,6 @@ WRITE8_MEMBER( pasopia_state::mux_w )
 {
 	m_mux_data = data;
 }
-
-static Z80PIO_INTERFACE( z80pio_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0), //IRQ
-	DEVCB_DRIVER_MEMBER(pasopia_state, mux_r),  // in port A
-	DEVCB_DRIVER_MEMBER(pasopia_state, mux_w),  // out port A
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(pasopia_state, keyb_r), // in port B
-	DEVCB_NULL,                 // out port B
-	DEVCB_NULL
-};
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,                  /* show border area */
-	8,                      /* number of pixels per video memory address */
-	NULL,                   /* before pixel update callback */
-	pasopia_update_row,     /* row update callback */
-	NULL,                   /* after pixel update callback */
-	DEVCB_NULL,             /* callback for display state changes */
-	DEVCB_NULL,             /* callback for cursor state changes */
-	DEVCB_NULL,             /* HSYNC callback */
-	DEVCB_NULL,             /* VSYNC callback */
-	NULL                    /* update address callback */
-};
 
 static const gfx_layout p7_chars_8x8 =
 {
@@ -359,7 +298,6 @@ static MACHINE_CONFIG_START( pasopia, pasopia_state )
 	MCFG_CPU_IO_MAP(pasopia_io)
 	MCFG_CPU_CONFIG(pasopia_daisy)
 
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -367,16 +305,39 @@ static MACHINE_CONFIG_START( pasopia, pasopia_state )
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 	MCFG_SCREEN_UPDATE_DEVICE("crtc", h46505_device, screen_update)
-	MCFG_GFXDECODE(pasopia)
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pasopia)
+	MCFG_PALETTE_ADD("palette", 8)
 
 	/* Devices */
-	MCFG_MC6845_ADD("crtc", H46505, "screen", XTAL_4MHz/4, mc6845_intf)   /* unknown clock, hand tuned to get ~60 fps */
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_intf_0 )
-	MCFG_I8255A_ADD( "ppi8255_1", ppi8255_intf_1 )
-	MCFG_I8255A_ADD( "ppi8255_2", ppi8255_intf_2 )
-	MCFG_Z80CTC_ADD( "z80ctc", XTAL_4MHz, ctc_intf )
-	MCFG_Z80PIO_ADD( "z80pio", XTAL_4MHz, z80pio_intf )
+	MCFG_MC6845_ADD("crtc", H46505, "screen", XTAL_4MHz/4)   /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(pasopia_state, crtc_update_row)
+
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(pasopia_state, vram_addr_lo_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(pasopia_state, vram_latch_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(pasopia_state, vram_latch_r))
+
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(pasopia_state, screen_mode_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(pasopia_state, portb_1_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(pasopia_state, vram_addr_hi_w))
+
+	MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
+	MCFG_I8255_IN_PORTC_CB(READ8(pasopia_state, rombank_r))
+
+	MCFG_DEVICE_ADD("z80ctc", Z80CTC, XTAL_4MHz)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(DEVWRITELINE("z80ctc", z80ctc_device, trg1))
+	MCFG_Z80CTC_ZC1_CB(DEVWRITELINE("z80ctc", z80ctc_device, trg2))
+	MCFG_Z80CTC_ZC2_CB(DEVWRITELINE("z80ctc", z80ctc_device, trg3))
+
+	MCFG_DEVICE_ADD("z80pio", Z80PIO, XTAL_4MHz)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_IN_PA_CB(READ8(pasopia_state, mux_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(pasopia_state, mux_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(pasopia_state, keyb_r))
 MACHINE_CONFIG_END
 
 /* ROM definition */

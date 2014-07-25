@@ -8,20 +8,20 @@ Atari Starship 1 video emulation
 #include "includes/starshp1.h"
 
 
-void starshp1_state::set_pens(colortable_t *colortable)
+void starshp1_state::set_pens()
 {
-	colortable_palette_set_color(colortable, m_inverse ? 7 : 0, MAKE_RGB(0x00, 0x00, 0x00));
-	colortable_palette_set_color(colortable, m_inverse ? 6 : 1, MAKE_RGB(0x1e, 0x1e, 0x1e));
-	colortable_palette_set_color(colortable, m_inverse ? 5 : 2, MAKE_RGB(0x4e, 0x4e, 0x4e));
-	colortable_palette_set_color(colortable, m_inverse ? 4 : 3, MAKE_RGB(0x6c, 0x6c, 0x6c));
-	colortable_palette_set_color(colortable, m_inverse ? 3 : 4, MAKE_RGB(0x93, 0x93, 0x93));
-	colortable_palette_set_color(colortable, m_inverse ? 2 : 5, MAKE_RGB(0xb1, 0xb1, 0xb1));
-	colortable_palette_set_color(colortable, m_inverse ? 1 : 6, MAKE_RGB(0xe1, 0xe1, 0xe1));
-	colortable_palette_set_color(colortable, m_inverse ? 0 : 7, MAKE_RGB(0xff, 0xff, 0xff));
+	m_palette->set_indirect_color(m_inverse ? 7 : 0, rgb_t(0x00, 0x00, 0x00));
+	m_palette->set_indirect_color(m_inverse ? 6 : 1, rgb_t(0x1e, 0x1e, 0x1e));
+	m_palette->set_indirect_color(m_inverse ? 5 : 2, rgb_t(0x4e, 0x4e, 0x4e));
+	m_palette->set_indirect_color(m_inverse ? 4 : 3, rgb_t(0x6c, 0x6c, 0x6c));
+	m_palette->set_indirect_color(m_inverse ? 3 : 4, rgb_t(0x93, 0x93, 0x93));
+	m_palette->set_indirect_color(m_inverse ? 2 : 5, rgb_t(0xb1, 0xb1, 0xb1));
+	m_palette->set_indirect_color(m_inverse ? 1 : 6, rgb_t(0xe1, 0xe1, 0xe1));
+	m_palette->set_indirect_color(m_inverse ? 0 : 7, rgb_t(0xff, 0xff, 0xff));
 }
 
 
-void starshp1_state::palette_init()
+PALETTE_INIT_MEMBER(starshp1_state, starshp1)
 {
 	int i;
 
@@ -37,11 +37,8 @@ void starshp1_state::palette_init()
 		5, 7        /* 0x11        - circle */
 	};
 
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 8);
-
-	for (i = 0; i < sizeof(colortable_source) / sizeof(colortable_source[0]); i++)
-		colortable_entry_set_value(machine().colortable, i, colortable_source[i]);
+	for (i = 0; i < ARRAY_LENGTH(colortable_source); i++)
+		palette.set_pen_indirect(i, colortable_source[i]);
 }
 
 
@@ -59,7 +56,7 @@ void starshp1_state::video_start()
 
 	int i;
 
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(starshp1_state::get_tile_info),this), TILEMAP_SCAN_ROWS,  16, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(starshp1_state::get_tile_info),this), TILEMAP_SCAN_ROWS,  16, 8, 32, 32);
 
 	m_bg_tilemap->set_transparent_pen(0);
 
@@ -183,7 +180,7 @@ void starshp1_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 	{
 		int code = (m_obj_ram[i] & 0xf) ^ 0xf;
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 			code % 8,
 			code / 8,
 			0, 0,
@@ -209,7 +206,7 @@ void starshp1_state::draw_spaceship(bitmap_ind16 &bitmap, const rectangle &clipr
 	if (y <= 0)
 		y -= (yzoom * m_ship_voffset) >> 16;
 
-	drawgfxzoom_transpen(bitmap, cliprect, machine().gfx[2],
+	m_gfxdecode->gfx(2)->zoom_transpen(bitmap,cliprect,
 		m_ship_picture & 0x03,
 		m_ship_explode,
 		m_ship_picture & 0x80, 0,
@@ -347,7 +344,7 @@ int starshp1_state::circle_collision(const rectangle &rect)
 
 UINT32 starshp1_state::screen_update_starshp1(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	set_pens(machine().colortable);
+	set_pens();
 
 	bitmap.fill(0, cliprect);
 
@@ -384,8 +381,8 @@ void starshp1_state::screen_eof_starshp1(screen_device &screen, bool state)
 
 		rect.min_x = get_sprite_hpos(13);
 		rect.min_y = get_sprite_vpos(13);
-		rect.max_x = rect.min_x + machine().gfx[1]->width() - 1;
-		rect.max_y = rect.min_y + machine().gfx[1]->height() - 1;
+		rect.max_x = rect.min_x + m_gfxdecode->gfx(1)->width() - 1;
+		rect.max_y = rect.min_y + m_gfxdecode->gfx(1)->height() - 1;
 
 		rect &= m_helper.cliprect();
 

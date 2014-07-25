@@ -14,7 +14,8 @@
 #include "video/mc6847.h"
 #include "imagedev/cassette.h"
 #include "machine/ay31015.h"
-
+#include "machine/kr2376.h"
+#include "machine/wd17xx.h"
 
 /***************************************************************************
     CONSTANTS
@@ -99,7 +100,7 @@ public:
 	optional_device<mc6847_base_device> m_vdg;
 	optional_shared_ptr<UINT8> m_videoram;
 	required_device<ay31015_device> m_ay31015;
-	optional_device<device_t> m_lx388_kr2376;
+	optional_device<kr2376_device> m_lx388_kr2376;
 	UINT8 m_lx383_scan_counter;
 	UINT8 m_lx383_key[LX383_KEYS];
 	int m_lx383_downsampler;
@@ -147,7 +148,7 @@ protected:
 	required_device<cpu_device> m_maincpu;
 	required_device<cassette_image_device> m_cassette1;
 	required_device<cassette_image_device> m_cassette2;
-	optional_device<device_t> m_wd1771;
+	optional_device<fd1771_device> m_wd1771;
 	required_memory_region m_region_z80ne;
 	optional_memory_bank m_bank1;
 	optional_memory_bank m_bank2;

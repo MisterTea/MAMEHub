@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /***************************************************************************
 
     VideoBrain FamilyComputer
@@ -142,7 +144,7 @@ WRITE8_MEMBER( vidbrain_state::sound_w )
 
 	if (!m_sound_clk && sound_clk)
 	{
-		//discrete_sound_w(m_discrete, space, NODE_01, m_keylatch & 0x03);
+		//m_discrete->write(space, NODE_01, m_keylatch & 0x03);
 
 		UINT8 dac_data = 0;
 
@@ -253,7 +255,7 @@ static ADDRESS_MAP_START( vidbrain_io, AS_IO, 8, vidbrain_state )
 	AM_RANGE(0x00, 0x00) AM_WRITE(keyboard_w)
 	AM_RANGE(0x01, 0x01) AM_READWRITE(keyboard_r, sound_w)
 	AM_RANGE(0x0c, 0x0f) AM_WRITE(f3853_w)
-//  AM_RANGE(0x0c, 0x0f) AM_DEVREADWRITE(F3853_TAG, f3853_device, f3853_r, f3853_w)
+//  AM_RANGE(0x0c, 0x0f) AM_DEVREADWRITE(F3853_TAG, f3853_device, read, write)
 ADDRESS_MAP_END
 
 
@@ -395,22 +397,14 @@ DISCRETE_SOUND_END
 //**************************************************************************
 
 //-------------------------------------------------
-//  f3853_interface smi_intf
+//  f3853 interrupt request callback
 //-------------------------------------------------
 
-static void f3853_int_req_w(device_t *device, UINT16 addr, int level)
+F3853_INTERRUPT_REQ_CB(vidbrain_state::f3853_int_req_w)
 {
-	vidbrain_state *state = device->machine().driver_data<vidbrain_state>();
-
-	state->m_vector = addr;
-	state->m_maincpu->set_input_line(F8_INPUT_LINE_INT_REQ, level);
+	m_vector = addr;
+	m_maincpu->set_input_line(F8_INPUT_LINE_INT_REQ, level);
 }
-
-static const f3853_interface smi_intf =
-{
-	f3853_int_req_w
-};
-
 
 //-------------------------------------------------
 //  UV201_INTERFACE( uv_intf )
@@ -455,29 +449,6 @@ READ8_MEMBER(vidbrain_state::memory_read_byte)
 	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
 	return prog_space.read_byte(offset);
 }
-
-static UV201_INTERFACE( uv_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(vidbrain_state, ext_int_w),
-	DEVCB_DRIVER_LINE_MEMBER(vidbrain_state, hblank_w),
-	DEVCB_DRIVER_MEMBER(vidbrain_state, memory_read_byte)
-};
-
-
-//-------------------------------------------------
-//  VIDEOBRAIN_EXPANSION_INTERFACE( expansion_intf )
-//-------------------------------------------------
-
-SLOT_INTERFACE_START( expansion_cards )
-	SLOT_INTERFACE_INTERNAL("standard", VB_STD)
-	SLOT_INTERFACE_INTERNAL("moneyminder", VB_MONEY_MINDER)
-	SLOT_INTERFACE_INTERNAL("timeshare", VB_TIMESHARE)
-SLOT_INTERFACE_END
-
-static VIDEOBRAIN_EXPANSION_INTERFACE( expansion_intf )
-{
-	DEVCB_NULL
-};
 
 
 
@@ -531,9 +502,6 @@ void vidbrain_state::device_timer(emu_timer &timer, device_timer_id id, int para
 
 void vidbrain_state::machine_start()
 {
-	// register IRQ callback
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(vidbrain_state::vidbrain_int_ack),this));
-
 	// allocate timers
 	m_timer_ne555 = timer_alloc(TIMER_JOYSTICK);
 
@@ -569,10 +537,15 @@ static MACHINE_CONFIG_START( vidbrain, vidbrain_state )
 	MCFG_CPU_ADD(F3850_TAG, F8, XTAL_4MHz/2)
 	MCFG_CPU_PROGRAM_MAP(vidbrain_mem)
 	MCFG_CPU_IO_MAP(vidbrain_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(vidbrain_state,vidbrain_int_ack)
 
 	// video hardware
-	MCFG_UV201_ADD(UV201_TAG, SCREEN_TAG, 3636363, uv_intf)
 	MCFG_DEFAULT_LAYOUT(layout_vidbrain)
+
+	MCFG_UV201_ADD(UV201_TAG, SCREEN_TAG, 3636363, uv_intf)
+	MCFG_UV201_EXT_INT_CALLBACK(WRITELINE(vidbrain_state, ext_int_w))
+	MCFG_UV201_HBLANK_CALLBACK(WRITELINE(vidbrain_state, hblank_w))
+	MCFG_UV201_DB_CALLBACK(READ8(vidbrain_state, memory_read_byte))
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -584,10 +557,11 @@ static MACHINE_CONFIG_START( vidbrain, vidbrain_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// devices
-	MCFG_F3853_ADD(F3853_TAG, XTAL_4MHz/2, smi_intf)
+	MCFG_DEVICE_ADD(F3853_TAG, F3853, XTAL_4MHz/2)
+	MCFG_F3853_EXT_INPUT_CB(vidbrain_state, f3853_int_req_w)
 
 	// cartridge
-	MCFG_VIDEOBRAIN_EXPANSION_SLOT_ADD(VIDEOBRAIN_EXPANSION_SLOT_TAG, expansion_intf, expansion_cards, NULL)
+	MCFG_VIDEOBRAIN_EXPANSION_SLOT_ADD(VIDEOBRAIN_EXPANSION_SLOT_TAG, vidbrain_expansion_cards, NULL)
 
 	// software lists
 	MCFG_SOFTWARE_LIST_ADD("cart_list", "vidbrain")

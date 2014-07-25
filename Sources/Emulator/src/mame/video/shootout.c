@@ -7,13 +7,13 @@
 #include "includes/shootout.h"
 
 
-void shootout_state::palette_init()
+PALETTE_INIT_MEMBER(shootout_state, shootout)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < palette.entries();i++)
 	{
 		int bit0,bit1,bit2,r,g,b;
 
@@ -33,7 +33,7 @@ void shootout_state::palette_init()
 		bit2 = (color_prom[i] >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
@@ -45,8 +45,7 @@ TILE_GET_INFO_MEMBER(shootout_state::get_bg_tile_info)
 	int tile_number = m_videoram[tile_index] + 256*(attributes&7);
 	int color = attributes>>4;
 
-	SET_TILE_INFO_MEMBER(
-			2,
+	SET_TILE_INFO_MEMBER(2,
 			tile_number,
 			color,
 			0);
@@ -58,8 +57,7 @@ TILE_GET_INFO_MEMBER(shootout_state::get_fg_tile_info)
 	int tile_number = m_textram[tile_index] + 256*(attributes&0x3);
 	int color = attributes>>4;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile_number,
 			color,
 			0);
@@ -79,15 +77,15 @@ WRITE8_MEMBER(shootout_state::shootout_textram_w)
 
 void shootout_state::video_start()
 {
-	m_background = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(shootout_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_foreground = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(shootout_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_background = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(shootout_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_foreground = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(shootout_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_foreground->set_transparent_pen(0 );
 }
 
 void shootout_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int bank_bits )
 {
 	UINT8 *spriteram = m_spriteram;
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 	const UINT8 *source = spriteram+127*4;
 	int count;
 
@@ -131,7 +129,7 @@ void shootout_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, c
 						vy = 240 - vy;
 					}
 
-					pdrawgfx_transpen(bitmap,cliprect,gfx,
+					gfx->prio_transpen(bitmap,cliprect,
 						number,
 						0 /*color*/,
 						flipx,flipy,
@@ -150,7 +148,7 @@ void shootout_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, c
 					vy = 240 - vy;
 				}
 
-				pdrawgfx_transpen(bitmap,cliprect,gfx,
+				gfx->prio_transpen(bitmap,cliprect,
 						number,
 						0 /*color*/,
 						flipx,flipy,

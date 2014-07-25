@@ -172,23 +172,6 @@ static GFXDECODE_START( markham )
 GFXDECODE_END
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( markham, markham_state )
 
 	/* basic machine hardware */
@@ -209,21 +192,21 @@ static MACHINE_CONFIG_START( markham, markham_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 31*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(markham_state, screen_update_markham)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(markham)
-	MCFG_PALETTE_LENGTH(1024)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", markham)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(markham_state, markham)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn1", SN76496, 8000000/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76496, 8000000/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 /****************************************************************************/

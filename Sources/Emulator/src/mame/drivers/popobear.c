@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, David Haywood
 /*******************************************************************************************
 
     Popo Bear (c) 2000 BMC
@@ -87,7 +89,9 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
 		m_spr(*this, "spr"),
-		m_vregs(*this, "vregs")
+		m_vregs(*this, "vregs"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 
 	{
 		tilemap_base[0] = 0xf0000;
@@ -104,6 +108,8 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT16> m_spr;
 	required_shared_ptr<UINT16> m_vregs;
+	optional_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	UINT16* m_vram;
 	UINT16* m_vram_rearranged;
@@ -143,7 +149,7 @@ public:
 
 
 		COMBINE_DATA(&m_vram_rearranged[swapped_offset]);
-		machine().gfx[m_gfx_index]->mark_dirty((swapped_offset)/32);
+		m_gfxdecode->gfx(m_gfx_index)->mark_dirty((swapped_offset)/32);
 
 		// unfortunately tilemaps and tilegfx share the same ram so we're always dirty if we write to RAM
 		m_bg_tilemap[0]->mark_all_dirty();
@@ -163,8 +169,8 @@ static const gfx_layout popobear_char_layout =
 	0x4000,
 	8,
 	{ 0,1,2,3,4,5,6,7 },
-	{ 8,0,24,16,40,32,56,48 },
-	{ 0*64, 1*64, 2*64, 3*64, 4*64, 5*64, 6*64, 7*64 },
+	{ STEP8(0, 8) },
+	{ STEP8(0, 64) },
 	8*64
 };
 
@@ -208,7 +214,7 @@ void popobear_state::video_start()
 {
 	/* find first empty slot to decode gfx */
 	for (m_gfx_index = 0; m_gfx_index < MAX_GFX_ELEMENTS; m_gfx_index++)
-		if (machine().gfx[m_gfx_index] == 0)
+		if (m_gfxdecode->gfx(m_gfx_index) == 0)
 			break;
 
 	assert(m_gfx_index != MAX_GFX_ELEMENTS);
@@ -218,12 +224,12 @@ void popobear_state::video_start()
 
 
 	/* create the char set (gfx will then be updated dynamically from RAM) */
-	machine().gfx[m_gfx_index] = auto_alloc(machine(), gfx_element(machine(), popobear_char_layout, (UINT8 *)m_vram_rearranged, machine().total_colors() / 16, 0));
+	m_gfxdecode->set_gfx(m_gfx_index, global_alloc(gfx_element(m_palette, popobear_char_layout, (UINT8 *)m_vram_rearranged, NATIVE_ENDIAN_VALUE_LE_BE(8,0), m_palette->entries() / 16, 0)));
 
-	m_bg_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(popobear_state::get_popobear_bg0_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
-	m_bg_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(popobear_state::get_popobear_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
-	m_bg_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(popobear_state::get_popobear_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
-	m_bg_tilemap[3] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(popobear_state::get_popobear_bg3_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
+	m_bg_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(popobear_state::get_popobear_bg0_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
+	m_bg_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(popobear_state::get_popobear_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
+	m_bg_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(popobear_state::get_popobear_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
+	m_bg_tilemap[3] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(popobear_state::get_popobear_bg3_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
 
 	m_bg_tilemap[0]->set_transparent_pen(0);
 	m_bg_tilemap[1]->set_transparent_pen(0);
@@ -334,7 +340,7 @@ void popobear_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect
 						// colours on game over screen are still wrong without the weird param kludge above
 						if (pix&0x3f)
 						{
-							bitmap.pix16(y_draw, x_draw) = machine().pens[((pix+(add_it))&0xff)+0x100];
+							bitmap.pix16(y_draw, x_draw) = m_palette->pen(((pix+(add_it))&0xff)+0x100);
 						}
 					}
 
@@ -487,7 +493,7 @@ static ADDRESS_MAP_START( popobear_mem, AS_PROGRAM, 16, popobear_state )
 	AM_RANGE(0x480034, 0x480035) AM_RAM // coin counter or coin lockout
 	AM_RANGE(0x48003a, 0x48003b) AM_RAM //AM_READ(popo_48003a_r) AM_WRITE(popo_48003a_w)
 
-	AM_RANGE(0x480400, 0x4807ff) AM_RAM AM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x480400, 0x4807ff) AM_RAM AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("IN0")
 	AM_RANGE(0x520000, 0x520001) AM_READ_PORT("IN1")
@@ -644,12 +650,17 @@ static MACHINE_CONFIG_START( popobear, popobear_state )
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_UPDATE_DRIVER(popobear_state, screen_update_popobear)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_SIZE(128*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 479, 0, 239)
-	MCFG_PALETTE_LENGTH(256*2)
+
+	MCFG_PALETTE_ADD("palette", 256*2)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
 
 	MCFG_SOUND_ADD("ymsnd", YM2413, XTAL_42MHz/16)  // XTAL CORRECT, DIVISOR GUESSED
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)

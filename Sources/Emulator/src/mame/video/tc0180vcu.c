@@ -18,27 +18,22 @@ tc0180vcu_device::tc0180vcu_device(const machine_config &mconfig, const char *ta
 	//m_fg_rambank(0),
 	//m_tx_rambank(0),
 	m_framebuffer_page(0),
-	m_video_control(0)
+	m_video_control(0),
+	m_bg_color_base(0),
+	m_fg_color_base(0),
+	m_tx_color_base(0),
+	m_gfxdecode(*this)
 {
 }
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
 //-------------------------------------------------
 
-void tc0180vcu_device::device_config_complete()
+void tc0180vcu_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
 {
-	// inherit a copy of the static data
-	const tc0180vcu_interface *intf = reinterpret_cast<const tc0180vcu_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<tc0180vcu_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-	}
+	downcast<tc0180vcu_device &>(device).m_gfxdecode.set_tag(tag);
 }
 
 //-------------------------------------------------
@@ -47,16 +42,15 @@ void tc0180vcu_device::device_config_complete()
 
 void tc0180vcu_device::device_start()
 {
-	m_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0180vcu_device::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
-	m_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0180vcu_device::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
-	m_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0180vcu_device::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	if(!m_gfxdecode->started())
+		throw device_missing_dependencies();
+
+	m_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0180vcu_device::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
+	m_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0180vcu_device::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
+	m_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0180vcu_device::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_tilemap[1]->set_transparent_pen(0);
 	m_tilemap[2]->set_transparent_pen(0);
-
-	m_tilemap[0]->set_scrolldx(0, 24 * 8);
-	m_tilemap[1]->set_scrolldx(0, 24 * 8);
-	m_tilemap[2]->set_scrolldx(0, 24 * 8);
 
 	m_ram = auto_alloc_array_clear(machine(), UINT16, TC0180VCU_RAM_SIZE / 2);
 	m_scrollram = auto_alloc_array_clear(machine(), UINT16, TC0180VCU_SCROLLRAM_SIZE / 2);
@@ -223,9 +217,7 @@ TILE_GET_INFO_MEMBER(tc0180vcu_device::get_bg_tile_info)
 	int tile  = m_ram[tile_index + m_bg_rambank[0]];
 	int color = m_ram[tile_index + m_bg_rambank[1]];
 
-	SET_TILE_INFO_MEMBER(
-		1,
-		tile,
+	SET_TILE_INFO_MEMBER(1, tile,
 		m_bg_color_base + (color & 0x3f),
 		TILE_FLIPYX((color & 0x00c0) >> 6));
 }
@@ -235,9 +227,7 @@ TILE_GET_INFO_MEMBER(tc0180vcu_device::get_fg_tile_info)
 	int tile  = m_ram[tile_index + m_fg_rambank[0]];
 	int color = m_ram[tile_index + m_fg_rambank[1]];
 
-	SET_TILE_INFO_MEMBER(
-		1,
-		tile,
+	SET_TILE_INFO_MEMBER(1, tile,
 		m_fg_color_base + (color & 0x3f),
 		TILE_FLIPYX((color & 0x00c0) >> 6));
 }
@@ -246,8 +236,7 @@ TILE_GET_INFO_MEMBER(tc0180vcu_device::get_tx_tile_info)
 {
 	int tile = m_ram[tile_index + m_tx_rambank];
 
-	SET_TILE_INFO_MEMBER(
-		0,
+	SET_TILE_INFO_MEMBER(0,
 		(tile & 0x07ff) | ((m_ctrl[4 + ((tile & 0x800) >> 11)]>>8) << 11),
 		m_tx_color_base + ((tile >> 12) & 0x0f),
 		0);

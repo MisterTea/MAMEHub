@@ -725,7 +725,6 @@ IRQ_CALLBACK_MEMBER(model1_state::irq_callback)
 void model1_state::irq_init()
 {
 	m_maincpu->set_input_line(0, CLEAR_LINE);
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(model1_state::irq_callback),this));
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(model1_state::model1_interrupt)
@@ -799,9 +798,9 @@ WRITE16_MEMBER(model1_state::md0_w)
 
 WRITE16_MEMBER(model1_state::p_w)
 {
-	UINT16 old = m_generic_paletteram_16[offset];
-	paletteram_xBBBBBGGGGGRRRRR_word_w(space, offset, data, mem_mask);
-	if(0 && m_generic_paletteram_16[offset] != old)
+	UINT16 old = m_paletteram16[offset];
+	m_palette->write(space, offset, data, mem_mask);
+	if(0 && m_paletteram16[offset] != old)
 		logerror("XVIDEO: p_w %x, %04x @ %04x (%x)\n", offset, data, mem_mask, space.device().safe_pc());
 }
 
@@ -896,7 +895,7 @@ static ADDRESS_MAP_START( model1_mem, AS_PROGRAM, 16, model1_state )
 	AM_RANGE(0x770000, 0x770001) AM_WRITENOP        // Video synchronization switch
 	AM_RANGE(0x780000, 0x7fffff) AM_DEVREADWRITE("tile", segas24_tile, char_r, char_w)
 
-	AM_RANGE(0x900000, 0x903fff) AM_RAM_WRITE(p_w) AM_SHARE("paletteram")
+	AM_RANGE(0x900000, 0x903fff) AM_RAM_WRITE(p_w) AM_SHARE("palette")
 	AM_RANGE(0x910000, 0x91bfff) AM_RAM  AM_SHARE("color_xlat")
 
 	AM_RANGE(0xc00000, 0xc0003f) AM_READWRITE(io_r, io_w)
@@ -944,7 +943,7 @@ static ADDRESS_MAP_START( model1_vr_mem, AS_PROGRAM, 16, model1_state )
 	AM_RANGE(0x770000, 0x770001) AM_WRITENOP        // Video synchronization switch
 	AM_RANGE(0x780000, 0x7fffff) AM_DEVREADWRITE("tile", segas24_tile, char_r, char_w)
 
-	AM_RANGE(0x900000, 0x903fff) AM_RAM_WRITE(p_w) AM_SHARE("paletteram")
+	AM_RANGE(0x900000, 0x903fff) AM_RAM_WRITE(p_w) AM_SHARE("palette")
 	AM_RANGE(0x910000, 0x91bfff) AM_RAM  AM_SHARE("color_xlat")
 
 	AM_RANGE(0xc00000, 0xc0003f) AM_READWRITE(io_r, io_w)
@@ -1469,27 +1468,71 @@ ROM_START( wingwarj )
 	ROM_LOAD32_BYTE( "mpr-16740.42", 0x000003, 0x80000, CRC(44b31007) SHA1(4bb265fea25a7bbcbb8ab080fdcf09849b18f1de) )
 ROM_END
 
+ROM_START( netmerc )
+
+	ROM_REGION( 0x2000000, "maincpu", ROMREGION_ERASEFF ) /* v60 code */
+	ROM_LOAD( "epr-18120.ic5", 0xf80000, 0x80000, CRC(de489762) SHA1(4e935f11e844489c5b5dc06439dc7902c4fddc9f) ) /* Rom board with Sega ID# ??? */
+
+	ROM_LOAD16_BYTE( "epr-18122.ic6",  0x1000000, 0x80000, CRC(10581ab3) SHA1(e3f5ec4ce14a1e1a1134c8b516c371b7655f3544) )
+	ROM_LOAD16_BYTE( "epr-18123.ic7",  0x1000001, 0x80000, CRC(27e0d848) SHA1(117f99efd0643ba92b3340171d8952b6a1a568d4) )
+	ROM_LOAD16_BYTE( "epr-18124.ic8",  0x1100000, 0x80000, CRC(5a0e5618) SHA1(a092d05a414532aa27d4bae908b053da4255462a) )
+	ROM_LOAD16_BYTE( "epr-18125.ic9",  0x1100001, 0x80000, CRC(bd47284f) SHA1(ae9325e6789bb956ab664c7ad9c48b80056f3916) )
+	ROM_LOAD16_BYTE( "epr-18126.ic10", 0x1200000, 0x80000, CRC(43dc5ca8) SHA1(249ed83b90b0237ceabbed814cd42dc60dc7a174) )
+	ROM_LOAD16_BYTE( "epr-18127.ic11", 0x1200001, 0x80000, CRC(d307a4ca) SHA1(5555235f740c1b09f6e1587d0fceb35b23d4a8a8) )
+
+	ROM_REGION( 0xc0000, M1AUDIO_CPU_REGION, ROMREGION_BE|ROMREGION_16BIT )  /* 68K code */
+	ROM_LOAD( "epr-18121.ic7", 0x00000, 0x80000, CRC(113285b5) SHA1(5d060cee41e8d6a4a918f890c2d169d87dbcad79) )
+	ROM_RELOAD( 0x80000, 0x20000) // ?
+
+	ROM_REGION( 0x400000, M1AUDIO_MPCM1_REGION, 0 ) /* Samples */
+	ROM_LOAD( "mpr-18134.ic32", 0x000000, 0x200000, BAD_DUMP CRC(9a4109e5) SHA1(ba59caac5f5a80fc52c507d8a47f322a380aa9a1) )
+	ROM_LOAD( "mpr-18135.ic33", 0x200000, 0x200000, CRC(291d17e4) SHA1(7465d5bde9ece5112932efa58b3c1c07f2b11543) )
+
+	ROM_REGION( 0x400000, M1AUDIO_MPCM2_REGION, 0 ) /* Samples */
+	ROM_LOAD( "mpr-18136.ic4", 0x000000, 0x200000, CRC(2a9c0aaf) SHA1(e8c52a6032ae968afcc41b3d8bfd15065057ea4a) )
+
+	ROM_REGION32_LE( 0x1000000, "user1", 0 ) /* TGP model roms */
+	ROM_LOAD32_WORD( "mpr-18128.ic26", 0x000000, 0x200000, CRC(70d8028c) SHA1(6e55028be778cd246f67e9d8cd69b9f5366bc429) )
+	ROM_LOAD32_WORD( "mpr-18129.ic27", 0x000002, 0x200000, CRC(134feea3) SHA1(afaf9fa08c5b0ab8c9d5fdef78d829e8582cc61a) )
+	ROM_LOAD32_WORD( "mpr-18130.ic28", 0x400000, 0x200000, CRC(c7aeae3e) SHA1(4f636178f903cd03e1b9de73a11d1105b7cdb084) )
+	ROM_LOAD32_WORD( "mpr-18131.ic29", 0x400002, 0x200000, CRC(32683b33) SHA1(daf808853d9d85dff87eba5c081f47b4af4ae0a2) )
+	ROM_LOAD32_WORD( "mpr-18132.ic30", 0x800000, 0x200000, CRC(a17e3ac2) SHA1(19827c06ebc3e9de63668ef07675224e169d853e) )
+	ROM_LOAD32_WORD( "mpr-18133.ic31", 0x800002, 0x200000, CRC(f56354dd) SHA1(2ef1fe8b4995a67b70b565adf8f0ea0ad6e10094) )
+
+	ROM_REGION( 0x10000, "user2", 0 ) /* IO board */
+	ROM_LOAD( "epr-18021.ic6", 0x00000, 0x10000, CRC(5551837e) SHA1(bf5b9aad99c0f8f5e262e0855796f39119d11a97) )
+
+	ROM_REGION( 0x8000, "user3", 0 ) /* POLHEMUS board - temporary holding place */
+	ROM_LOAD( "u1", 0x0000, 0x4000, CRC(7073a312) SHA1(d2582f9520b8c8c051708dd372633112af59206e) )  // Actually interleaved
+	ROM_LOAD( "u2", 0x4000, 0x4000, CRC(c589f428) SHA1(98dc0114a5f89636b4e237ed954e19f1cfd186ab) )
+ROM_END
 
 static MACHINE_CONFIG_START( model1, model1_state )
 	MCFG_CPU_ADD("maincpu", V60, 16000000)
 	MCFG_CPU_PROGRAM_MAP(model1_mem)
 	MCFG_CPU_IO_MAP(model1_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(model1_state,irq_callback)
+
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", model1_state, model1_interrupt, "screen", 0, 1)
 
 	MCFG_MACHINE_START_OVERRIDE(model1_state,model1)
 	MCFG_MACHINE_RESET_OVERRIDE(model1_state,model1)
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_S24TILE_DEVICE_ADD("tile", 0x3fff)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK )
+	MCFG_S24TILE_DEVICE_ADD("tile", 0x3fff)
+	MCFG_S24TILE_DEVICE_GFXDECODE("gfxdecode")
+	MCFG_S24TILE_DEVICE_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK )
 	MCFG_SCREEN_RAW_PARAMS(XTAL_16MHz, 656, 0/*+69*/, 496/*+69*/, 424, 0/*+25*/, 384/*+25*/)
 	MCFG_SCREEN_UPDATE_DRIVER(model1_state, screen_update_model1)
 	MCFG_SCREEN_VBLANK_DRIVER(model1_state, screen_eof_model1)
 
-	MCFG_PALETTE_LENGTH(8192)
+	MCFG_PALETTE_ADD("palette", 8192)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(model1_state,model1)
 
@@ -1507,6 +1550,7 @@ static MACHINE_CONFIG_START( model1_vr, model1_state )
 	MCFG_CPU_ADD("maincpu", V60, 16000000)
 	MCFG_CPU_PROGRAM_MAP(model1_vr_mem)
 	MCFG_CPU_IO_MAP(model1_vr_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(model1_state,irq_callback)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", model1_state, model1_interrupt, "screen", 0, 1)
 
 	MCFG_CPU_ADD("tgp", MB86233, 16000000)
@@ -1520,16 +1564,20 @@ static MACHINE_CONFIG_START( model1_vr, model1_state )
 	MCFG_MACHINE_RESET_OVERRIDE(model1_state,model1_vr)
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_S24TILE_DEVICE_ADD("tile", 0x3fff)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK )
+	MCFG_S24TILE_DEVICE_ADD("tile", 0x3fff)
+	MCFG_S24TILE_DEVICE_GFXDECODE("gfxdecode")
+	MCFG_S24TILE_DEVICE_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK )
 	MCFG_SCREEN_RAW_PARAMS(XTAL_16MHz, 656, 0/*+69*/, 496/*+69*/, 424, 0/*+25*/, 384/*+25*/)
 	MCFG_SCREEN_UPDATE_DRIVER(model1_state, screen_update_model1)
 	MCFG_SCREEN_VBLANK_DRIVER(model1_state, screen_eof_model1)
 
-	MCFG_PALETTE_LENGTH(8192)
+	MCFG_PALETTE_ADD("palette", 8192)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(model1_state,model1)
 
@@ -1543,3 +1591,4 @@ GAME( 1993, swa,      0,       swa,       swa, driver_device,      0, ROT0, "Seg
 GAME( 1994, wingwar,  0,       model1,    wingwar, driver_device,  0, ROT0, "Sega", "Wing War (World)", GAME_NOT_WORKING )
 GAME( 1994, wingwaru, wingwar, model1,    wingwar, driver_device,  0, ROT0, "Sega", "Wing War (US)", GAME_NOT_WORKING )
 GAME( 1994, wingwarj, wingwar, model1,    wingwar, driver_device,  0, ROT0, "Sega", "Wing War (Japan)", GAME_NOT_WORKING )
+GAME( 1993, netmerc,  0,       model1,    vf, driver_device,       0, ROT0, "Sega", "NetMerc?", GAME_NOT_WORKING )

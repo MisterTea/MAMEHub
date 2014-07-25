@@ -6,8 +6,7 @@
   using a Super Shanghai board and comparisons with the old protection
   simulations.
 
-  The 104 emulation (deco104.c) currently only has per-game cases and
-  is incomplete.
+  The Deco 104 emulation is handled through deco104.c
 
   The Deco 146 and 104 chips act as I/O chips and as protection devices
   by using 2 banks of 0x80 words of RAM built into the chips.
@@ -1510,7 +1509,7 @@ UINT16 deco_146_base_device::read_data_getloc(UINT16 address, int& location)
 
 
 deco146_device::deco146_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: deco_146_base_device(mconfig, DECO146PROT, "DECO146PROT", tag, owner, clock, "deco146", __FILE__)
+	: deco_146_base_device(mconfig, DECO146PROT, "DECO 146 Protection", tag, owner, clock, "deco146", __FILE__)
 {
 	m_bankswitch_swap_read_address = 0x78;
 	m_magic_read_address_xor = 0x44a;

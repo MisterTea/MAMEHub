@@ -13,11 +13,9 @@
 #include "sound/beep.h"
 #include "machine/6821pia.h"
 #include "machine/6850acia.h"
-#include "machine/ieee488.h"
+#include "bus/ieee488/ieee488.h"
 #include "machine/ram.h"
-#include "machine/wd17xx.h"
-#include "imagedev/flopdrv.h"
-#include "formats/basicdsk.h"
+#include "machine/wd_fdc.h"
 
 class osborne1_state : public driver_device
 {
@@ -37,6 +35,8 @@ public:
 		m_beep(*this, "beeper"),
 		m_ram(*this, RAM_TAG),
 		m_ieee(*this, IEEE488_TAG),
+		m_floppy0(*this, "mb8877:0:525ssdd"),
+		m_floppy1(*this, "mb8877:1:525ssdd"),
 		m_row0(*this, "ROW0"),
 		m_row1(*this, "ROW1"),
 		m_row2(*this, "ROW2"),
@@ -60,10 +60,12 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<pia6821_device> m_pia0;
 	required_device<pia6821_device> m_pia1;
-	required_device<mb8877_device> m_fdc;
+	required_device<mb8877_t> m_fdc;
 	required_device<beep_device> m_beep;
 	required_device<ram_device> m_ram;
 	required_device<ieee488_device> m_ieee;
+	required_device<floppy_image_device> m_floppy0;
+	required_device<floppy_image_device> m_floppy1;
 
 	DECLARE_WRITE8_MEMBER(osborne1_0000_w);
 	DECLARE_WRITE8_MEMBER(osborne1_1000_w);
@@ -75,7 +77,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(ieee_pia_irq_a_func);
 	DECLARE_READ8_MEMBER(ieee_pia_pb_r);
 	DECLARE_WRITE8_MEMBER(ieee_pia_pb_w);
-	DECLARE_WRITE8_MEMBER(video_pia_out_cb2_dummy);
+	DECLARE_WRITE_LINE_MEMBER(video_pia_out_cb2_dummy);
 	DECLARE_WRITE8_MEMBER(video_pia_port_a_w);
 	DECLARE_WRITE8_MEMBER(video_pia_port_b_w);
 	DECLARE_WRITE_LINE_MEMBER(video_pia_irq_a_func);
@@ -99,7 +101,7 @@ public:
 	bool m_beep_state;
 	DECLARE_DRIVER_INIT(osborne1);
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(osborne1);
 	TIMER_CALLBACK_MEMBER(osborne1_video_callback);
 	TIMER_CALLBACK_MEMBER(setup_osborne1);
 
@@ -120,14 +122,6 @@ protected:
 
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
-
-
-/*----------- defined in machine/osborne1.c -----------*/
-
-extern const pia6821_interface osborne1_ieee_pia_config;
-extern const pia6821_interface osborne1_video_pia_config;
-
-
 
 
 // ======================> osborne1_daisy_device

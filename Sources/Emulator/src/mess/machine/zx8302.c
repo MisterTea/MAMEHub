@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /**********************************************************************
 
     Sinclair ZX8302 emulation
@@ -44,44 +46,6 @@ static const int RTC_BASE_ADJUST = 283996800;
 
 const device_type ZX8302 = &device_creator<zx8302_device>;
 
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void zx8302_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const zx8302_interface *intf = reinterpret_cast<const zx8302_interface *>(static_config());
-	if (intf != NULL)
-		*static_cast<zx8302_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-		memset(&out_ipl1l_cb, 0, sizeof(out_ipl1l_cb));
-		memset(&out_baudx4_cb, 0, sizeof(out_baudx4_cb));
-		memset(&out_comdata_cb, 0, sizeof(out_comdata_cb));
-		memset(&out_txd1_cb, 0, sizeof(out_txd1_cb));
-		memset(&out_txd2_cb, 0, sizeof(out_txd2_cb));
-		memset(&in_dtr1_cb, 0, sizeof(in_dtr1_cb));
-		memset(&in_cts2_cb, 0, sizeof(in_cts2_cb));
-		memset(&out_netout_cb, 0, sizeof(out_netout_cb));
-		memset(&in_netin_cb, 0, sizeof(in_netin_cb));
-		memset(&out_mdselck_cb, 0, sizeof(out_mdselck_cb));
-		memset(&out_mdseld_cb, 0, sizeof(out_mdseld_cb));
-		memset(&out_mdrdw_cb, 0, sizeof(out_mdrdw_cb));
-		memset(&out_erase_cb, 0, sizeof(out_erase_cb));
-		memset(&out_raw1_cb, 0, sizeof(out_raw1_cb));
-		memset(&in_raw1_cb, 0, sizeof(in_raw1_cb));
-		memset(&out_raw2_cb, 0, sizeof(out_raw2_cb));
-		memset(&in_raw2_cb, 0, sizeof(in_raw2_cb));
-	}
-}
-
-
-
 //**************************************************************************
 //  INLINE HELPERS
 //**************************************************************************
@@ -94,7 +58,7 @@ inline void zx8302_device::trigger_interrupt(UINT8 line)
 {
 	m_irq |= line;
 
-	m_out_ipl1l_func(ASSERT_LINE);
+	m_out_ipl1l_cb(ASSERT_LINE);
 }
 
 
@@ -134,7 +98,7 @@ inline void zx8302_device::transmit_ipc_data()
 	case IPC_START:
 		if (LOG) logerror("ZX8302 '%s' COMDATA Start Bit\n", tag());
 
-		m_out_comdata_func(0);
+		m_out_comdata_cb(BIT(m_idr, 0));
 		m_ipc_busy = 1;
 		m_ipc_state = IPC_DATA;
 		break;
@@ -142,20 +106,16 @@ inline void zx8302_device::transmit_ipc_data()
 	case IPC_DATA:
 		if (LOG) logerror("ZX8302 '%s' COMDATA Data Bit: %x\n", tag(), BIT(m_idr, 1));
 
-		m_comdata = BIT(m_idr, 1);
-		m_out_comdata_func(m_comdata);
+		m_comdata_to_ipc = BIT(m_idr, 1);
+		m_out_comdata_cb(m_comdata_to_ipc);
 		m_ipc_state = IPC_STOP;
 		break;
 
 	case IPC_STOP:
-		if (!m_ipc_rx)
-		{
-			if (LOG) logerror("ZX8302 '%s' COMDATA Stop Bit\n", tag());
+		if (LOG) logerror("ZX8302 '%s' COMDATA Stop Bit\n", tag());
 
-			m_out_comdata_func(1);
-			m_ipc_busy = 0;
-			m_ipc_state = IPC_START;
-		}
+		m_out_comdata_cb(BIT(m_idr, 2));
+		m_ipc_busy = 0;
 		break;
 	}
 }
@@ -173,14 +133,32 @@ inline void zx8302_device::transmit_ipc_data()
 zx8302_device::zx8302_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, ZX8302, "Sinclair ZX8302", tag, owner, clock, "zx8302", __FILE__),
 		device_serial_interface(mconfig, *this),
+		m_rtc_clock(0),
+		m_out_ipl1l_cb(*this),
+		m_out_baudx4_cb(*this),
+		m_out_comdata_cb(*this),
+		m_out_txd1_cb(*this),
+		m_out_txd2_cb(*this),
+		m_out_netout_cb(*this),
+		m_out_mdselck_cb(*this),
+		m_out_mdseld_cb(*this),
+		m_out_mdrdw_cb(*this),
+		m_out_erase_cb(*this),
+		m_out_raw1_cb(*this),
+		m_in_raw1_cb(*this),
+		m_out_raw2_cb(*this),
+		m_in_raw2_cb(*this),
+		m_dtr1(0),
+		m_cts2(0),
 		m_idr(1),
 		m_irq(0),
 		m_ctr(time(NULL) + RTC_BASE_ADJUST),
 		m_status(0),
-		m_comdata(1),
+		m_comdata_from_ipc(1),
+		m_comdata_to_cpu(1),
+		m_comdata_to_ipc(1),
 		m_comctl(1),
 		m_ipc_state(0),
-		m_ipc_rx(0),
 		m_ipc_busy(0),
 		m_baudx4(0),
 		m_track(0)
@@ -195,44 +173,43 @@ zx8302_device::zx8302_device(const machine_config &mconfig, const char *tag, dev
 void zx8302_device::device_start()
 {
 	// resolve callbacks
-	m_out_ipl1l_func.resolve(out_ipl1l_cb, *this);
-	m_out_baudx4_func.resolve(out_baudx4_cb, *this);
-	m_out_comdata_func.resolve(out_comdata_cb, *this);
-	m_out_txd1_func.resolve(out_txd1_cb, *this);
-	m_out_txd2_func.resolve(out_txd2_cb, *this);
-	m_in_dtr1_func.resolve(in_dtr1_cb, *this);
-	m_in_cts2_func.resolve(in_cts2_cb, *this);
-	m_out_netout_func.resolve(out_netout_cb, *this);
-	m_in_netin_func.resolve(in_netin_cb, *this);
-	m_out_mdselck_func.resolve(out_mdselck_cb, *this);
-	m_out_mdseld_func.resolve(out_mdseld_cb, *this);
-	m_out_mdrdw_func.resolve(out_mdrdw_cb, *this);
-	m_out_erase_func.resolve(out_erase_cb, *this);
-	m_out_raw1_func.resolve(out_raw1_cb, *this);
-	m_in_raw1_func.resolve(in_raw1_cb, *this);
-	m_out_raw2_func.resolve(out_raw2_cb, *this);
-	m_in_raw2_func.resolve(in_raw2_cb, *this);
+	m_out_ipl1l_cb.resolve_safe();
+	m_out_baudx4_cb.resolve_safe();
+	m_out_comdata_cb.resolve_safe();
+	m_out_txd1_cb.resolve_safe();
+	m_out_txd2_cb.resolve_safe();
+	m_out_netout_cb.resolve_safe();
+	m_out_mdselck_cb.resolve_safe();
+	m_out_mdseld_cb.resolve_safe();
+	m_out_mdrdw_cb.resolve_safe();
+	m_out_erase_cb.resolve_safe();
+	m_out_raw1_cb.resolve_safe();
+	m_in_raw1_cb.resolve_safe(0);
+	m_out_raw2_cb.resolve_safe();
+	m_in_raw2_cb.resolve_safe(0);
 
 	// allocate timers
 	m_baudx4_timer = timer_alloc(TIMER_BAUDX4);
 	m_rtc_timer = timer_alloc(TIMER_RTC);
 	m_gap_timer = timer_alloc(TIMER_GAP);
-	m_ipc_timer = timer_alloc(TIMER_IPC);
 
-	m_rtc_timer->adjust(attotime::zero, 0, attotime::from_hz(rtc_clock / 32768));
+	m_rtc_timer->adjust(attotime::zero, 0, attotime::from_hz(m_rtc_clock / 32768));
 	m_gap_timer->adjust(attotime::zero, 0, attotime::from_msec(31));
 
 	// register for state saving
+	save_item(NAME(m_dtr1));
+	save_item(NAME(m_cts2));
 	save_item(NAME(m_idr));
 	save_item(NAME(m_tcr));
 	save_item(NAME(m_tdr));
 	save_item(NAME(m_irq));
 	save_item(NAME(m_ctr));
 	save_item(NAME(m_status));
-	save_item(NAME(m_comdata));
+	save_item(NAME(m_comdata_from_ipc));
+	save_item(NAME(m_comdata_to_cpu));
+	save_item(NAME(m_comdata_to_ipc));
 	save_item(NAME(m_comctl));
 	save_item(NAME(m_ipc_state));
-	save_item(NAME(m_ipc_rx));
 	save_item(NAME(m_ipc_busy));
 	save_item(NAME(m_baudx4));
 	save_item(NAME(m_mdv_data));
@@ -250,7 +227,7 @@ void zx8302_device::device_timer(emu_timer &timer, device_timer_id id, int param
 	{
 	case TIMER_BAUDX4:
 		m_baudx4 = !m_baudx4;
-		m_out_baudx4_func(m_baudx4);
+		m_out_baudx4_cb(m_baudx4);
 		break;
 
 	case TIMER_RTC:
@@ -261,12 +238,8 @@ void zx8302_device::device_timer(emu_timer &timer, device_timer_id id, int param
 		trigger_interrupt(INT_GAP);
 		break;
 
-	case TIMER_IPC:
-		m_idr = param;
-		m_ipc_state = IPC_START;
-		m_ipc_rx = 0;
-
-		transmit_ipc_data();
+	default:
+		device_serial_interface::device_timer(timer, id, param, ptr);
 		break;
 	}
 }
@@ -281,11 +254,11 @@ void zx8302_device::tra_callback()
 	switch (m_tcr & MODE_MASK)
 	{
 	case MODE_SER1:
-		m_out_txd1_func(transmit_register_get_data_bit());
+		m_out_txd1_cb(transmit_register_get_data_bit());
 		break;
 
 	case MODE_SER2:
-		m_out_txd2_func(transmit_register_get_data_bit());
+		m_out_txd2_cb(transmit_register_get_data_bit());
 		break;
 
 	case MODE_MDV:
@@ -293,7 +266,7 @@ void zx8302_device::tra_callback()
 		break;
 
 	case MODE_NET:
-		m_out_netout_func(transmit_register_get_data_bit());
+		m_out_netout_cb(transmit_register_get_data_bit());
 		break;
 	}
 }
@@ -320,7 +293,7 @@ void zx8302_device::rcv_callback()
 	switch (m_tcr & MODE_MASK)
 	{
 	case MODE_NET:
-		receive_register_update_bit(m_in_netin_func());
+		receive_register_update_bit(m_rs232_rx);
 		break;
 	}
 }
@@ -333,16 +306,6 @@ void zx8302_device::rcv_callback()
 void zx8302_device::rcv_complete()
 {
 	// TODO
-}
-
-
-//-------------------------------------------------
-//  input_callback -
-//-------------------------------------------------
-
-void zx8302_device::input_callback(UINT8 state)
-{
-	m_input_state = state;
 }
 
 
@@ -400,7 +363,7 @@ WRITE8_MEMBER( zx8302_device::control_w )
 	m_baudx4_timer->adjust(attotime::zero, 0, attotime::from_hz(baudx4));
 
 	set_tra_rate(baud);
-	set_data_frame(8, 2, SERIAL_PARITY_NONE);
+	set_data_frame(1, 8, PARITY_NONE, STOP_BITS_2);
 }
 
 
@@ -451,16 +414,16 @@ READ8_MEMBER( zx8302_device::status_r )
 	// TODO microdrive GAP
 
 	// data terminal ready
-	data |= m_in_dtr1_func() << 4;
+	data |= m_dtr1 << 4;
 
 	// clear to send
-	data |= m_in_cts2_func() << 5;
+	data |= m_cts2 << 5;
 
 	// IPC busy
 	data |= m_ipc_busy << 6;
 
 	// COMDATA
-	data |= m_comdata << 7;
+	data |= m_comdata_to_cpu << 7;
 
 	if (LOG) logerror("ZX8302 '%s' Status: %02x\n", tag(), data);
 
@@ -471,15 +434,25 @@ READ8_MEMBER( zx8302_device::status_r )
 //-------------------------------------------------
 //  ipc_command_w - IPC command
 //-------------------------------------------------
+// When the main CPU writes to the IPC it writes the lsn of 18003
+// this is encoded as follows :
+//
+// b0 start bit
+// b1 data bit
+// b2 stop bit
+// b3 extra stop bit.
+//
+// At startup the IPC sits in a loop waiting for the comdata bit to go
+// high, the main CPU does this by writing 0x01 to output register.
 
 WRITE8_MEMBER( zx8302_device::ipc_command_w )
 {
 	if (LOG) logerror("ZX8302 '%s' IPC Command: %02x\n", tag(), data);
 
-	if (data != 0x01)
-	{
-		m_ipc_timer->adjust(attotime::from_nsec(480), data);
-	}
+	m_idr = data;
+	m_ipc_state = IPC_START;
+
+	transmit_ipc_data();
 }
 
 
@@ -506,10 +479,10 @@ WRITE8_MEMBER( zx8302_device::mdv_control_w )
 
 	if (LOG) logerror("ZX8302 '%s' Microdrive Control: %02x\n", tag(), data);
 
-	m_out_mdseld_func(BIT(data, 0));
-	m_out_mdselck_func(BIT(data, 1));
-	m_out_mdrdw_func(BIT(data, 2));
-	m_out_erase_func(BIT(data, 3));
+	m_out_mdseld_cb(BIT(data, 0));
+	m_out_mdselck_cb(BIT(data, 1));
+	m_out_mdrdw_cb(BIT(data, 2));
+	m_out_erase_cb(BIT(data, 3));
 
 	if (BIT(data, 1))
 	{
@@ -542,7 +515,7 @@ WRITE8_MEMBER( zx8302_device::irq_acknowledge_w )
 
 	if (!m_irq)
 	{
-		m_out_ipl1l_func(CLEAR_LINE);
+		m_out_ipl1l_cb(CLEAR_LINE);
 	}
 }
 
@@ -586,6 +559,7 @@ WRITE_LINE_MEMBER( zx8302_device::comctl_w )
 	if (state)
 	{
 		transmit_ipc_data();
+		m_comdata_to_cpu = m_comdata_from_ipc;
 	}
 }
 
@@ -593,25 +567,14 @@ WRITE_LINE_MEMBER( zx8302_device::comctl_w )
 //-------------------------------------------------
 //  comdata_w - IPC COMDATA
 //-------------------------------------------------
+// IPC writing comdata to CPU
+//
 
 WRITE_LINE_MEMBER( zx8302_device::comdata_w )
 {
-	if (LOG) logerror("ZX8302 '%s' COMDATA: %x\n", tag(), state);
+	if (LOG) logerror("ZX8302 '%s' COMDATA->CPU(pending): %x\n", tag(), state);
 
-	if (m_ipc_state == IPC_DATA || m_ipc_state == IPC_STOP)
-	{
-		if (m_ipc_rx)
-		{
-			m_ipc_rx = 0;
-			m_ipc_busy = 0;
-			m_ipc_state = IPC_START;
-		}
-		else
-		{
-			m_ipc_rx = 1;
-			m_comdata = state;
-		}
-	}
+	m_comdata_from_ipc = state;
 }
 
 
@@ -627,4 +590,20 @@ WRITE_LINE_MEMBER( zx8302_device::extint_w )
 	{
 		trigger_interrupt(INT_EXTERNAL);
 	}
+}
+
+WRITE_LINE_MEMBER( zx8302_device::write_netin )
+{
+	m_rs232_rx = state;
+	device_serial_interface::rx_w(state);
+}
+
+WRITE_LINE_MEMBER( zx8302_device::write_dtr1 )
+{
+	m_dtr1 = state;
+}
+
+WRITE_LINE_MEMBER( zx8302_device::write_cts2 )
+{
+	m_cts2 = state;
 }

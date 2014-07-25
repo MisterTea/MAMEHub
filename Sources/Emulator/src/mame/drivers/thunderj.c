@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari ThunderJaws hardware
@@ -125,7 +127,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, thunderj_state )
 	AM_RANGE(0x360010, 0x360011) AM_WRITE(latch_w)
 	AM_RANGE(0x360020, 0x360021) AM_DEVWRITE("jsa", atari_jsa_ii_device, sound_reset_w)
 	AM_RANGE(0x360030, 0x360031) AM_DEVWRITE8("jsa", atari_jsa_ii_device, main_command_w, 0x00ff)
-	AM_RANGE(0x3e0000, 0x3e0fff) AM_RAM_WRITE(paletteram_666_w) AM_SHARE("paletteram")
+	AM_RANGE(0x3e0000, 0x3e0fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x3effc0, 0x3effff) AM_DEVREADWRITE("vad", atari_vad_device, control_read, control_write)
 	AM_RANGE(0x3f0000, 0x3f1fff) AM_RAM_DEVWRITE("vad", atari_vad_device, playfield2_latched_msb_w) AM_SHARE("vad:playfield2")
 	AM_RANGE(0x3f2000, 0x3f3fff) AM_RAM_DEVWRITE("vad", atari_vad_device, playfield_latched_lsb_w) AM_SHARE("vad:playfield")
@@ -261,21 +263,23 @@ static MACHINE_CONFIG_START( thunderj, thunderj_state )
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_GFXDECODE(thunderj)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", thunderj)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(IRRRRRGGGGGBBBBB)
 
 	MCFG_ATARI_VAD_ADD("vad", "screen", WRITELINE(atarigen_state, scanline_int_write_line))
-	MCFG_ATARI_VAD_PLAYFIELD(thunderj_state, get_playfield_tile_info)
-	MCFG_ATARI_VAD_PLAYFIELD2(thunderj_state, get_playfield2_tile_info)
-	MCFG_ATARI_VAD_ALPHA(thunderj_state, get_alpha_tile_info)
-	MCFG_ATARI_VAD_MOB(thunderj_state::s_mob_config)
+	MCFG_ATARI_VAD_PLAYFIELD(thunderj_state, "gfxdecode", get_playfield_tile_info)
+	MCFG_ATARI_VAD_PLAYFIELD2(thunderj_state, "gfxdecode", get_playfield2_tile_info)
+	MCFG_ATARI_VAD_ALPHA(thunderj_state, "gfxdecode", get_alpha_tile_info)
+	MCFG_ATARI_VAD_MOB(thunderj_state::s_mob_config, "gfxdecode")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	/* note: these parameters are from published specs, not derived */
 	/* the board uses a VAD chip to generate video signals */
 	MCFG_SCREEN_RAW_PARAMS(ATARI_CLOCK_14MHz/2, 456, 0, 336, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(thunderj_state, screen_update_thunderj)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(thunderj_state,thunderj)
 

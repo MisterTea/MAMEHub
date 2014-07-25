@@ -112,30 +112,13 @@ static const int pi_table[32] =
 const device_type MEA8000 = &device_creator<mea8000_device>;
 
 
-mea8000_device::mea8000_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-			: device_t(mconfig, MEA8000, "Philips / Signetics MEA 8000 speech synthesizer", tag, owner, clock, "mea8000", __FILE__)
+mea8000_device::mea8000_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+	device_t(mconfig, MEA8000, "Philips / Signetics MEA 8000 speech synthesizer", tag, owner, clock, "mea8000", __FILE__),
+	m_write_req(*this),
+	m_dac(*this)
 {
 }
 
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void mea8000_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const mea8000_interface *intf = reinterpret_cast<const mea8000_interface *>(static_config());
-	if (intf != NULL)
-		*static_cast<mea8000_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-	}
-}
 
 //-------------------------------------------------
 //  device_start - device-specific startup
@@ -143,9 +126,7 @@ void mea8000_device::device_config_complete()
 
 void mea8000_device::device_start()
 {
-	m_req_out.resolve(m_req_out_cb, *this);
-
-	m_dac = machine().device<dac_device>(m_channel);
+	m_write_req.resolve_safe();
 
 	init_tables();
 
@@ -214,8 +195,7 @@ void mea8000_device::update_req()
 	// it goes back up if there space left in the buffer, or stays low if the
 	// buffer contains a complete frame and the CPU nees to wait for the next
 	// frame end to compose a new frame.
-	if (!m_req_out.isnull())
-		m_req_out(0, accept_byte());
+	m_write_req(accept_byte());
 }
 
 
@@ -525,12 +505,12 @@ READ8_MEMBER( mea8000_device::read )
 	case 1:
 		/* ready to accept next frame */
 #if 0
-		LOG(("$%04x %f: mea8000_r ready=%i\n", machine().firstcpu->pcbase(), machine().time().as_double(), accept_byte()));
+		LOG(("%s %f: mea8000_r ready=%i\n", machine().describe_context(), machine().time().as_double(), accept_byte()));
 #endif
 		return accept_byte() << 7;
 
 	default:
-		logerror("$%04x mea8000_r invalid read offset %i\n", machine().firstcpu->pcbase(), offset);
+		logerror("%s mea8000_r invalid read offset %i\n", machine().describe_context(), offset);
 	}
 	return 0;
 }
@@ -544,19 +524,19 @@ WRITE8_MEMBER( mea8000_device::write )
 		{
 			/* got pitch byte before first frame */
 			m_pitch = 2 * data;
-			LOG(("$%04x %f: mea8000_w pitch %i\n", machine().firstcpu->pcbase(), machine().time().as_double(), m_pitch));
+			LOG(("%s %f: mea8000_w pitch %i\n", machine().describe_context(), machine().time().as_double(), m_pitch));
 			m_state = MEA8000_WAIT_FIRST;
 			m_bufpos = 0;
 		}
 		else if (m_bufpos == 4)
 		{
 			/* overflow */
-			LOG(("$%04x %f: mea8000_w data overflow %02X\n", machine().firstcpu->pcbase(), machine().time().as_double(), data));
+			LOG(("%s %f: mea8000_w data overflow %02X\n", machine().describe_context(), machine().time().as_double(), data));
 		}
 		else
 		{
 			/* enqueue frame byte */
-			LOG(("$%04x %f: mea8000_w data %02X in frame pos %i\n", machine().firstcpu->pcbase(), machine().time().as_double(),
+			LOG(("%s %f: mea8000_w data %02X in frame pos %i\n", machine().describe_context(), machine().time().as_double(),
 					data, m_bufpos));
 			m_buf[m_bufpos] = data;
 			m_bufpos++;
@@ -589,8 +569,8 @@ WRITE8_MEMBER( mea8000_device::write )
 		if (stop)
 			stop_frame();
 
-		LOG(( "$%04x %f: mea8000_w command %02X stop=%i cont=%i roe=%i\n",
-				machine().firstcpu->pcbase(), machine().time().as_double(), data,
+		LOG(( "%s %f: mea8000_w command %02X stop=%i cont=%i roe=%i\n",
+				machine().describe_context(), machine().time().as_double(), data,
 				stop, m_cont, m_roe));
 
 		update_req();
@@ -598,6 +578,6 @@ WRITE8_MEMBER( mea8000_device::write )
 	}
 
 	default:
-		logerror( "$%04x mea8000_w invalid write offset %i\n", machine().firstcpu->pcbase( ), offset);
+		logerror( "%s mea8000_w invalid write offset %i\n", machine().describe_context(), offset);
 	}
 }

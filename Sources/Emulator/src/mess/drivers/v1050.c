@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
 Visual 1050
@@ -103,14 +105,15 @@ Notes:
 
     Start the Visual 1050 emulator with the floppy and hard disk images mounted:
 
-    $??mess v1050 -flop1 cpm3:flop2 -hard cm5412.chd
+    $ mess v1050 -flop1 cpm3:flop2 -hard tm501.chd
+    $ mess v1050 -flop1 cpm3:flop2 -hard cm5412.chd
 
     Start the Winchester Format Program from the CP/M prompt:
 
     A>fmtwinch
 
     Enter Y to continue.
-    Ener A for 5MB, or B for 10MB hard disk.
+    Enter A for 5MB, or B for 10MB hard disk.
     Enter C to start formatting.
 
     Once the formatting is complete, the CP/M system files need to be copied over to the hard disk:
@@ -123,9 +126,15 @@ Notes:
     Enter "y" at the prompt for CCP.COM.
     Press RETURN to return to CP/M.
 
-    The hard disk can now be booted from with the following command line:
+    You can now boot from the hard disk with:
 
+    $ mess v1050 -hard tm501.chd
     $ mess v1050 -hard cm5412.chd
+
+    Or skip all of the above and use the preformatted images in the software list:
+
+    $ mess v1050 -hard cpm3hd5
+    $ mess v1050 -hard cpm3hd10
 
 */
 
@@ -133,6 +142,7 @@ Notes:
 
     TODO:
 
+    - floppy 1 is broken
     - write to banked RAM at 0x0000-0x1fff when ROM is active
     - real keyboard w/i8049
     - keyboard beeper (NE555 wired in strange mix of astable/monostable modes)
@@ -140,6 +150,7 @@ Notes:
 */
 
 #include "includes/v1050.h"
+#include "bus/rs232/rs232.h"
 
 void v1050_state::set_interrupt(UINT8 mask, int state)
 {
@@ -377,62 +388,38 @@ WRITE8_MEMBER( v1050_state::dvint_clr_w )
 
 WRITE8_MEMBER( v1050_state::sasi_data_w )
 {
-	data_out = data;
+	m_sasi_data = data;
 
-	if( !m_sasibus->scsi_io_r() )
+	if (m_sasi_data_enable)
 	{
-		m_sasibus->scsi_data_w( data );
+		m_sasi_data_out->write(m_sasi_data);
 	}
 }
 
-WRITE_LINE_MEMBER( v1050_state::sasi_io_w )
+WRITE_LINE_MEMBER( v1050_state::write_sasi_io )
 {
-	if( !state )
+	m_sasi_ctrl_in->write_bit4(state);
+
+	m_sasi_data_enable = state;
+
+	if (m_sasi_data_enable)
 	{
-		m_sasibus->scsi_data_w( data_out );
+		m_sasi_data_out->write(m_sasi_data);
 	}
 	else
 	{
-		m_sasibus->scsi_data_w( 0 );
+		m_sasi_data_out->write(0);
 	}
-}
-
-READ8_MEMBER( v1050_state::sasi_status_r )
-{
-	/*
-
-	    bit     description
-
-	    0       REQ-
-	    1       BUSY
-	    2       MESSAGE
-	    3       C/D-
-	    4       I-/O
-	    5
-	    6
-	    7
-
-	*/
-
-	UINT8 data = 0;
-
-	data |= !m_sasibus->scsi_req_r();
-	data |= m_sasibus->scsi_bsy_r() << 1;
-	data |= m_sasibus->scsi_msg_r() << 2;
-	data |= m_sasibus->scsi_cd_r() << 3;
-	data |= !m_sasibus->scsi_io_r() << 4;
-
-	return data;
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(v1050_state::sasi_ack_tick)
 {
-	m_sasibus->scsi_ack_w(0);
+	m_sasibus->write_ack(0);
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(v1050_state::sasi_rst_tick)
 {
-	m_sasibus->scsi_rst_w(0);
+	m_sasibus->write_rst(0);
 }
 
 WRITE8_MEMBER( v1050_state::sasi_ctrl_w )
@@ -452,12 +439,12 @@ WRITE8_MEMBER( v1050_state::sasi_ctrl_w )
 
 	*/
 
-	m_sasibus->scsi_sel_w(BIT(data, 0));
+	m_sasibus->write_sel(BIT(data, 0));
 
 	if (BIT(data, 1))
 	{
 		// send acknowledge pulse
-		m_sasibus->scsi_ack_w(1);
+		m_sasibus->write_ack(1);
 
 		m_timer_ack->adjust(attotime::from_nsec(100));
 	}
@@ -465,7 +452,7 @@ WRITE8_MEMBER( v1050_state::sasi_ctrl_w )
 	if (BIT(data, 7))
 	{
 		// send reset pulse
-		m_sasibus->scsi_rst_w(1);
+		m_sasibus->write_rst(1);
 
 		m_timer_rst->adjust(attotime::from_nsec(100));
 	}
@@ -499,8 +486,8 @@ static ADDRESS_MAP_START( v1050_io, AS_IO, 8, v1050_state )
 	AM_RANGE(0xb0, 0xb0) AM_READWRITE(dint_clr_r, dint_clr_w)
 	AM_RANGE(0xc0, 0xc0) AM_WRITE(v1050_i8214_w)
 	AM_RANGE(0xd0, 0xd0) AM_WRITE(bank_w)
-	AM_RANGE(0xe0, 0xe0) AM_WRITE(sasi_data_w) AM_DEVREAD(SASIBUS_TAG ":host", scsicb_device, scsi_data_r)
-	AM_RANGE(0xe1, 0xe1) AM_READWRITE(sasi_status_r, sasi_ctrl_w)
+	AM_RANGE(0xe0, 0xe0) AM_WRITE(sasi_data_w) AM_DEVREAD("scsi_data_in", input_buffer_device, read)
+	AM_RANGE(0xe1, 0xe1) AM_DEVREAD("scsi_ctrl_in", input_buffer_device, read) AM_WRITE(sasi_ctrl_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( v1050_crt_mem, AS_PROGRAM, 8, v1050_state )
@@ -655,58 +642,19 @@ WRITE_LINE_MEMBER(v1050_state::pic_int_w)
 	}
 }
 
-static I8214_INTERFACE( pic_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(v1050_state,pic_int_w),
-	DEVCB_NULL
-};
-
-// MSM58321 Interface
-
-static MSM58321_INTERFACE( rtc_intf )
-{
-	DEVCB_NULL
-};
-
 // Display 8255A Interface
 
 WRITE8_MEMBER(v1050_state::disp_ppi_pc_w)
 {
-	device_t *device = machine().device(I8255A_M6502_TAG);
-	i8255_device *ppi = static_cast<i8255_device*>(device);
-
-	ppi->pc2_w(BIT(data, 6));
-	ppi->pc4_w(BIT(data, 7));
+	m_ppi_6502->pc2_w(BIT(data, 6));
+	m_ppi_6502->pc4_w(BIT(data, 7));
 }
-
-static I8255A_INTERFACE( disp_ppi_intf )
-{
-	DEVCB_DEVICE_MEMBER(I8255A_M6502_TAG, i8255_device, pb_r),  // Port A read
-	DEVCB_NULL,                         // Port A write
-	DEVCB_NULL,                         // Port B read
-	DEVCB_NULL,                         // Port B write
-	DEVCB_NULL,                         // Port C read
-	DEVCB_DRIVER_MEMBER(v1050_state,disp_ppi_pc_w)      // Port C write
-};
 
 WRITE8_MEMBER(v1050_state::m6502_ppi_pc_w)
 {
-	device_t *device = machine().device(I8255A_DISP_TAG);
-	i8255_device *ppi = static_cast<i8255_device*>(device);
-
-	ppi->pc2_w(BIT(data, 7));
-	ppi->pc4_w(BIT(data, 6));
+	m_ppi_disp->pc2_w(BIT(data, 7));
+	m_ppi_disp->pc4_w(BIT(data, 6));
 }
-
-static I8255A_INTERFACE( m6502_ppi_intf )
-{
-	DEVCB_DEVICE_MEMBER(I8255A_DISP_TAG, i8255_device, pb_r),   // Port A read
-	DEVCB_NULL,                         // Port A write
-	DEVCB_NULL,                         // Port B read
-	DEVCB_NULL,                         // Port B write
-	DEVCB_NULL,                         // Port C read
-	DEVCB_DRIVER_MEMBER(v1050_state,m6502_ppi_pc_w) // Port C write
-};
 
 // Miscellanous 8255A Interface
 
@@ -747,9 +695,14 @@ WRITE8_MEMBER( v1050_state::misc_ppi_pa_w )
 	m_fdc->dden_w(BIT(data, 7));
 }
 
-WRITE8_MEMBER(v1050_state::misc_ppi_pb_w)
+WRITE_LINE_MEMBER(v1050_state::write_centronics_busy)
 {
-	m_centronics->write(~data & 0xff);
+	m_centronics_busy = state;
+}
+
+WRITE_LINE_MEMBER(v1050_state::write_centronics_perror)
+{
+	m_centronics_perror = state;
 }
 
 READ8_MEMBER(v1050_state::misc_ppi_pc_r)
@@ -771,10 +724,41 @@ READ8_MEMBER(v1050_state::misc_ppi_pc_r)
 
 	UINT8 data = 0;
 
-	data |= m_centronics->not_busy_r() << 4;
-	data |= m_centronics->pe_r() << 5;
+	data |= m_centronics_busy << 4;
+	data |= m_centronics_perror << 5;
 
 	return data;
+}
+
+void v1050_state::set_baud_sel(int baud_sel)
+{
+	if (baud_sel != m_baud_sel)
+	{
+		int divider = 1;
+
+		switch (baud_sel)
+		{
+		case 0:
+			divider = 13 * 16; // 19200
+			break;
+
+		case 1:
+			divider = 13 * 8; // 38400
+			break;
+
+		case 2:
+			divider = 8; // 500000
+			break;
+
+		case 3:
+			divider = 13 * 2; // 153600
+			break;
+		}
+
+		m_clock_sio->set_clock_scale((double) 1 / divider);
+
+		m_baud_sel = baud_sel;
+	}
 }
 
 WRITE8_MEMBER( v1050_state::misc_ppi_pc_w )
@@ -795,42 +779,15 @@ WRITE8_MEMBER( v1050_state::misc_ppi_pc_w )
 	*/
 
 	// printer strobe
-	m_centronics->strobe_w(BIT(data, 0));
+	m_centronics->write_strobe(BIT(data, 0));
 
 	// floppy interrupt enable
 	m_f_int_enb = BIT(data, 1);
 	update_fdc();
 
 	// baud select
-	int baud_sel = (data >> 2) & 0x03;
-
-	if (baud_sel != m_baud_sel)
-	{
-		attotime period = attotime::never;
-
-		switch (baud_sel)
-		{
-		case 0: period = attotime::from_hz((double)XTAL_16MHz/4/13/16); break;
-		case 1: period = attotime::from_hz((double)XTAL_16MHz/4/13/8); break;
-		case 2: period = attotime::from_hz((double)XTAL_16MHz/4/8); break;
-		case 3: period = attotime::from_hz((double)XTAL_16MHz/4/13/2); break;
-		}
-
-		m_timer_sio->adjust(attotime::zero, 0, period);
-
-		m_baud_sel = baud_sel;
-	}
+	set_baud_sel((data >> 2) & 0x03);
 }
-
-static I8255A_INTERFACE( misc_ppi_intf )
-{
-	DEVCB_NULL,                         // Port A read
-	DEVCB_DRIVER_MEMBER(v1050_state, misc_ppi_pa_w),        // Port A write
-	DEVCB_NULL,                         // Port B read
-	DEVCB_DRIVER_MEMBER(v1050_state,misc_ppi_pb_w),     // Port B write
-	DEVCB_DRIVER_MEMBER(v1050_state,misc_ppi_pc_r),     // Port C read
-	DEVCB_DRIVER_MEMBER(v1050_state, misc_ppi_pc_w)     // Port C write
-};
 
 // Real Time Clock 8255A Interface
 
@@ -854,6 +811,19 @@ WRITE8_MEMBER( v1050_state::rtc_ppi_pb_w )
 	m_int_mask = data;
 }
 
+READ8_MEMBER( v1050_state::rtc_ppi_pa_r )
+{
+	return m_rtc_ppi_pa;
+}
+
+WRITE8_MEMBER( v1050_state::rtc_ppi_pa_w )
+{
+	m_rtc->d0_w((data >> 0) & 1);
+	m_rtc->d1_w((data >> 1) & 1);
+	m_rtc->d2_w((data >> 2) & 1);
+	m_rtc->d3_w((data >> 3) & 1);
+}
+
 READ8_MEMBER( v1050_state::rtc_ppi_pc_r )
 {
 	/*
@@ -871,7 +841,7 @@ READ8_MEMBER( v1050_state::rtc_ppi_pc_r )
 
 	*/
 
-	return m_rtc->busy_r() << 3;
+	return m_rtc_ppi_pc;
 }
 
 WRITE8_MEMBER( v1050_state::rtc_ppi_pc_w )
@@ -897,22 +867,12 @@ WRITE8_MEMBER( v1050_state::rtc_ppi_pc_w )
 	m_rtc->cs2_w(BIT(data, 7));
 }
 
-static I8255A_INTERFACE( rtc_ppi_intf )
-{
-	DEVCB_DEVICE_MEMBER(MSM58321RS_TAG, msm58321_device, read),
-	DEVCB_DEVICE_MEMBER(MSM58321RS_TAG, msm58321_device, write),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(v1050_state, rtc_ppi_pb_w),
-	DEVCB_DRIVER_MEMBER(v1050_state, rtc_ppi_pc_r),
-	DEVCB_DRIVER_MEMBER(v1050_state, rtc_ppi_pc_w)
-};
-
 // Keyboard 8251A Interface
 
-TIMER_DEVICE_CALLBACK_MEMBER(v1050_state::kb_8251_tick)
+WRITE_LINE_MEMBER(v1050_state::write_keyboard_clock)
 {
-	m_uart_kb->transmit_clock();
-	m_uart_kb->receive_clock();
+	m_uart_kb->write_txc(state);
+	m_uart_kb->write_rxc(state);
 }
 
 WRITE_LINE_MEMBER( v1050_state::kb_rxrdy_w )
@@ -920,25 +880,12 @@ WRITE_LINE_MEMBER( v1050_state::kb_rxrdy_w )
 	set_interrupt(INT_KEYBOARD, state);
 }
 
-static const i8251_interface kb_8251_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(V1050_KEYBOARD_TAG, v1050_keyboard_device, so_r),
-	DEVCB_DEVICE_LINE_MEMBER(V1050_KEYBOARD_TAG, v1050_keyboard_device, si_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(v1050_state, kb_rxrdy_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 // Serial 8251A Interface
 
-TIMER_DEVICE_CALLBACK_MEMBER(v1050_state::sio_8251_tick)
+WRITE_LINE_MEMBER(v1050_state::write_sio_clock)
 {
-	m_uart_sio->transmit_clock();
-	m_uart_sio->receive_clock();
+	m_uart_sio->write_txc(state);
+	m_uart_sio->write_rxc(state);
 }
 
 WRITE_LINE_MEMBER( v1050_state::sio_rxrdy_w )
@@ -954,19 +901,6 @@ WRITE_LINE_MEMBER( v1050_state::sio_txrdy_w )
 
 	set_interrupt(INT_RS_232, m_rxrdy || m_txrdy);
 }
-
-static const i8251_interface sio_8251_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dsr_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
-	DEVCB_DRIVER_LINE_MEMBER(v1050_state, sio_rxrdy_w),
-	DEVCB_DRIVER_LINE_MEMBER(v1050_state, sio_txrdy_w),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 // MB8877 Interface
 
@@ -989,32 +923,19 @@ static SLOT_INTERFACE_START( v1050_floppies )
 	SLOT_INTERFACE( "525qd", FLOPPY_525_QD ) // Teac FD 55-FV-35-U
 SLOT_INTERFACE_END
 
-void v1050_state::fdc_intrq_w(bool state)
+WRITE_LINE_MEMBER( v1050_state::fdc_intrq_w )
 {
 	m_fdc_irq = state;
 
 	update_fdc();
 }
 
-void v1050_state::fdc_drq_w(bool state)
+WRITE_LINE_MEMBER( v1050_state::fdc_drq_w )
 {
 	m_fdc_drq = state;
 
 	update_fdc();
 }
-
-//-------------------------------------------------
-//  rs232_port_interface rs232_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 /*
 static LEGACY_FLOPPY_OPTIONS_START( v1050 )
@@ -1044,19 +965,12 @@ void v1050_state::machine_start()
 {
 	address_space &program = m_maincpu->space(AS_PROGRAM);
 
-	// floppy callbacks
-	m_fdc->setup_intrq_cb(wd_fdc_t::line_cb(FUNC(v1050_state::fdc_intrq_w), this));
-	m_fdc->setup_drq_cb(wd_fdc_t::line_cb(FUNC(v1050_state::fdc_drq_w), this));
-
 	// initialize I8214
 	m_pic->etlg_w(1);
 	m_pic->inte_w(1);
 
 	// initialize RTC
 	m_rtc->cs1_w(1);
-
-	// set CPU interrupt callback
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(v1050_state::v1050_int_ack),this));
 
 	// setup memory banking
 	UINT8 *ram = m_ram->pointer();
@@ -1093,6 +1007,8 @@ void v1050_state::machine_start()
 	save_item(NAME(m_txrdy));
 	save_item(NAME(m_baud_sel));
 	save_item(NAME(m_bank));
+	save_item(NAME(m_centronics_busy));
+	save_item(NAME(m_centronics_perror));
 }
 
 void v1050_state::machine_reset()
@@ -1100,7 +1016,7 @@ void v1050_state::machine_reset()
 	m_bank = 0;
 	bankswitch();
 
-	m_timer_sio->adjust(attotime::zero, 0, attotime::from_hz((double)XTAL_16MHz/4/13/16));
+	set_baud_sel(0);
 
 	m_fdc->reset();
 }
@@ -1112,6 +1028,8 @@ static MACHINE_CONFIG_START( v1050, v1050_state )
 	MCFG_CPU_ADD(Z80_TAG, Z80, XTAL_16MHz/4)
 	MCFG_CPU_PROGRAM_MAP(v1050_mem)
 	MCFG_CPU_IO_MAP(v1050_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(v1050_state,v1050_int_ack)
+
 	MCFG_QUANTUM_PERFECT_CPU(Z80_TAG)
 
 	MCFG_CPU_ADD(M6502_TAG, M6502, XTAL_15_36MHz/16)
@@ -1125,40 +1043,97 @@ static MACHINE_CONFIG_START( v1050, v1050_state )
 	MCFG_FRAGMENT_ADD(v1050_video)
 
 	// devices
-	MCFG_I8214_ADD(UPB8214_TAG, XTAL_16MHz/4, pic_intf)
-	MCFG_MSM58321_ADD(MSM58321RS_TAG, XTAL_32_768kHz, rtc_intf)
-	MCFG_I8255A_ADD(I8255A_DISP_TAG, disp_ppi_intf)
-	MCFG_I8255A_ADD(I8255A_MISC_TAG, misc_ppi_intf)
-	MCFG_I8255A_ADD(I8255A_RTC_TAG, rtc_ppi_intf)
-	MCFG_I8255A_ADD(I8255A_M6502_TAG, m6502_ppi_intf)
-	MCFG_I8251_ADD(I8251A_KB_TAG, /*XTAL_16MHz/8,*/ kb_8251_intf)
-	MCFG_I8251_ADD(I8251A_SIO_TAG, /*XTAL_16MHz/8,*/ sio_8251_intf)
+	MCFG_DEVICE_ADD(UPB8214_TAG, I8214, XTAL_16MHz/4)
+	MCFG_I8214_IRQ_CALLBACK(WRITELINE(v1050_state, pic_int_w))
+
+	MCFG_DEVICE_ADD(MSM58321RS_TAG, MSM58321, XTAL_32_768kHz)
+	MCFG_MSM58321_D0_HANDLER(WRITELINE(v1050_state, rtc_ppi_pa_0_w))
+	MCFG_MSM58321_D1_HANDLER(WRITELINE(v1050_state, rtc_ppi_pa_1_w))
+	MCFG_MSM58321_D2_HANDLER(WRITELINE(v1050_state, rtc_ppi_pa_2_w))
+	MCFG_MSM58321_D3_HANDLER(WRITELINE(v1050_state, rtc_ppi_pa_3_w))
+	MCFG_MSM58321_BUSY_HANDLER(WRITELINE(v1050_state, rtc_ppi_pc_3_w))
+
+	MCFG_DEVICE_ADD(I8255A_DISP_TAG, I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(DEVREAD8(I8255A_M6502_TAG, i8255_device, pb_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(v1050_state, disp_ppi_pc_w))
+
+	MCFG_DEVICE_ADD(I8255A_MISC_TAG, I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(v1050_state, misc_ppi_pa_w))
+	MCFG_I8255_OUT_PORTB_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_I8255_IN_PORTC_CB(READ8(v1050_state,misc_ppi_pc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(v1050_state,misc_ppi_pc_w))
+
+	MCFG_DEVICE_ADD(I8255A_RTC_TAG, I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(v1050_state, rtc_ppi_pa_r))
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(v1050_state, rtc_ppi_pa_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(v1050_state, rtc_ppi_pb_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(v1050_state, rtc_ppi_pc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(v1050_state, rtc_ppi_pc_w))
+
+	MCFG_DEVICE_ADD(I8255A_M6502_TAG, I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(DEVREAD8(I8255A_DISP_TAG, i8255_device, pb_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(v1050_state, m6502_ppi_pc_w))
+
+	MCFG_DEVICE_ADD(I8251A_KB_TAG, I8251, 0/*XTAL_16MHz/8,*/)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(V1050_KEYBOARD_TAG, v1050_keyboard_device, si_w))
+	MCFG_I8251_RXRDY_HANDLER(WRITELINE(v1050_state, kb_rxrdy_w))
+
+	MCFG_DEVICE_ADD(CLOCK_KB_TAG, CLOCK, XTAL_16MHz/4/13/8)
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(v1050_state, write_keyboard_clock))
+
+	// keyboard
+	MCFG_DEVICE_ADD(V1050_KEYBOARD_TAG, V1050_KEYBOARD, 0)
+	MCFG_V1050_KEYBOARD_OUT_TX_HANDLER(DEVWRITELINE(I8251A_KB_TAG, i8251_device, write_rxd))
+
+	MCFG_DEVICE_ADD(I8251A_SIO_TAG, I8251, 0/*XTAL_16MHz/8,*/)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_I8251_DTR_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_dtr))
+	MCFG_I8251_RTS_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_rts))
+	MCFG_I8251_RXRDY_HANDLER(WRITELINE(v1050_state, sio_rxrdy_w))
+	MCFG_I8251_TXRDY_HANDLER(WRITELINE(v1050_state, sio_txrdy_w))
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(I8251A_SIO_TAG, i8251_device, write_rxd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(I8251A_SIO_TAG, i8251_device, write_dsr))
+
+	MCFG_DEVICE_ADD(CLOCK_SIO_TAG, CLOCK, XTAL_16MHz/4)
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(v1050_state, write_sio_clock))
+
 	MCFG_MB8877x_ADD(MB8877_TAG, XTAL_16MHz/16)
+	MCFG_WD_FDC_INTRQ_CALLBACK(WRITELINE(v1050_state, fdc_intrq_w))
+	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(v1050_state, fdc_drq_w))
 	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":0", v1050_floppies, "525qd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":1", v1050_floppies, "525qd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":2", v1050_floppies, NULL,    floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":3", v1050_floppies, NULL,    floppy_image_device::default_floppy_formats)
-	MCFG_TIMER_DRIVER_ADD_PERIODIC(TIMER_KB_TAG, v1050_state, kb_8251_tick, attotime::from_hz((double)XTAL_16MHz/4/13/8))
-	MCFG_TIMER_DRIVER_ADD(TIMER_SIO_TAG, v1050_state, sio_8251_tick)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
 
 	// SASI bus
-	MCFG_SCSIBUS_ADD(SASIBUS_TAG)
-	MCFG_SCSIDEV_ADD(SASIBUS_TAG ":harddisk0", S1410, SCSI_ID_0)
-	MCFG_SCSICB_ADD(SASIBUS_TAG ":host")
-	MCFG_SCSICB_IO_HANDLER(DEVWRITELINE(DEVICE_SELF_OWNER, v1050_state, sasi_io_w))
+	MCFG_DEVICE_ADD(SASIBUS_TAG, SCSI_PORT, 0)
+	MCFG_SCSI_DATA_INPUT_BUFFER("scsi_data_in")
+	MCFG_SCSI_REQ_HANDLER(DEVWRITELINE("scsi_ctrl_in", input_buffer_device, write_bit0)) MCFG_DEVCB_XOR(1)
+	MCFG_SCSI_BSY_HANDLER(DEVWRITELINE("scsi_ctrl_in", input_buffer_device, write_bit1))
+	MCFG_SCSI_MSG_HANDLER(DEVWRITELINE("scsi_ctrl_in", input_buffer_device, write_bit2))
+	MCFG_SCSI_CD_HANDLER(DEVWRITELINE("scsi_ctrl_in", input_buffer_device, write_bit3))
+	MCFG_SCSI_IO_HANDLER(WRITELINE(v1050_state, write_sasi_io)) MCFG_DEVCB_XOR(1) // bit4
+	MCFG_SCSIDEV_ADD(SASIBUS_TAG ":" SCSI_PORT_DEVICE1, "harddisk", S1410, SCSI_ID_0)
+
+	MCFG_SCSI_OUTPUT_LATCH_ADD("scsi_data_out", SASIBUS_TAG)
+	MCFG_DEVICE_ADD("scsi_data_in", INPUT_BUFFER, 0)
+	MCFG_DEVICE_ADD("scsi_ctrl_in", INPUT_BUFFER, 0)
 
 	MCFG_TIMER_DRIVER_ADD(TIMER_ACK_TAG, v1050_state, sasi_ack_tick)
 	MCFG_TIMER_DRIVER_ADD(TIMER_RST_TAG, v1050_state, sasi_rst_tick)
 
-	// keyboard
-	MCFG_V1050_KEYBOARD_ADD()
-
 	// software lists
-	MCFG_SOFTWARE_LIST_ADD("disk_list","v1050")
+	MCFG_SOFTWARE_LIST_ADD("flop_list", "v1050_flop")
+	MCFG_SOFTWARE_LIST_ADD("hdd_list", "v1050_hdd")
 
 	// printer
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(v1050_state, write_centronics_busy))
+	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(v1050_state, write_centronics_perror))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)

@@ -195,16 +195,6 @@ static GFXDECODE_START( exedexes )
 GFXDECODE_END
 
 
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 void exedexes_state::machine_start()
 {
 	save_item(NAME(m_chon));
@@ -243,10 +233,13 @@ static MACHINE_CONFIG_START( exedexes, exedexes_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(exedexes_state, screen_update_exedexes)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram8_device, vblank_copy_rising)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(exedexes)
-	MCFG_PALETTE_LENGTH(64*4+64*4+16*16+16*16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", exedexes)
 
+	MCFG_PALETTE_ADD("palette", 64*4+64*4+16*16+16*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(exedexes_state, exedexes)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -256,11 +249,9 @@ static MACHINE_CONFIG_START( exedexes, exedexes_state )
 
 	MCFG_SOUND_ADD("sn1", SN76489, 3000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.36)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76489, 3000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.36)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 

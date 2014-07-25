@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 
         VTech Laser PC4
@@ -63,7 +65,7 @@ public:
 	INT8 m_disp_shift;
 	INT8 m_direction;
 	UINT8 m_blink;
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(pc4);
 
 protected:
 	required_memory_region m_region_charset;

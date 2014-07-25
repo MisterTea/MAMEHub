@@ -2,10 +2,14 @@
  * Signetics 2650 CPU Games
  *
  * Zaccaria - The Invaders
- * Zaccaria - Super Invader Attack
+ * Sidam    - Super Invader Attack
  * Zaccaria - Dodgem
  *
  * mike@the-coates.com
+ *
+ *
+ * TODO: discrete sound
+ *
  */
 
 #include "emu.h"
@@ -15,6 +19,7 @@
 #include "includes/zac2650.h"
 
 
+/***********************************************************************************************/
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, zac2650_state )
 	AM_RANGE(0x0000, 0x17ff) AM_ROM
@@ -180,12 +185,12 @@ static INPUT_PORTS_START( dodgem )
 INPUT_PORTS_END
 
 
-void zac2650_state::palette_init()
+PALETTE_INIT_MEMBER(zac2650_state, zac2650)
 {
-	palette_set_color(machine(),0,RGB_BLACK);
-	palette_set_color(machine(),1,RGB_WHITE);
-	palette_set_color(machine(),2,RGB_BLACK);
-	palette_set_color(machine(),3,RGB_BLACK);
+	palette.set_pen_color(0,rgb_t::black);
+	palette.set_pen_color(1,rgb_t::white);
+	palette.set_pen_color(2,rgb_t::black);
+	palette.set_pen_color(3,rgb_t::black);
 }
 
 /************************************************************************************************
@@ -244,15 +249,17 @@ static MACHINE_CONFIG_START( tinvader, zac2650_state )
 	MCFG_SCREEN_SIZE(30*24, 32*24)
 	MCFG_SCREEN_VISIBLE_AREA(0, 719, 0, 767)
 	MCFG_SCREEN_UPDATE_DRIVER(zac2650_state, screen_update_tinvader)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tinvader)
-	MCFG_PALETTE_LENGTH(4)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tinvader)
+	MCFG_PALETTE_ADD("palette", 4)
+	MCFG_PALETTE_INIT_OWNER(zac2650_state, zac2650)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("s2636snd", S2636, 0)
+	MCFG_DEVICE_ADD("s2636", S2636, 0)
+	MCFG_S2636_WORKRAM_SIZE(0x100)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -308,6 +315,6 @@ ROM_START( dodgem )
 ROM_END
 
 
-GAME( 1978, sia2650,  0,       tinvader, sinvader, driver_device, 0, ROT270, "Zaccaria / Zelco", "Super Invader Attack", 0 )
-GAMEL(1978, tinv2650, sia2650, tinvader, tinvader, driver_device, 0, ROT270, "Zaccaria / Zelco", "The Invaders",         0, layout_tinv2650 )
-GAME( 1979, dodgem,   0,       tinvader, dodgem, driver_device,   0, ROT0,   "Zaccaria",         "Dodgem",               0 )
+GAMEL(1979?,tinv2650, 0,        tinvader, tinvader, driver_device, 0, ROT270, "Zaccaria / Zelco", "The Invaders", GAME_IMPERFECT_SOUND, layout_tinv2650 )
+GAME( 1979?,sia2650,  tinv2650, tinvader, sinvader, driver_device, 0, ROT270, "bootleg (Sidam)", "Super Invader Attack (bootleg of The Invaders)", GAME_IMPERFECT_SOUND ) // 1980?
+GAME( 1979, dodgem,   0,        tinvader, dodgem,   driver_device, 0, ROT0,   "Zaccaria", "Dodgem", GAME_IMPERFECT_SOUND )

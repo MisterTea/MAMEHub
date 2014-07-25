@@ -28,7 +28,7 @@
   I'm not sure about the resistor values, I'm using the Galaxian ones.
 
 ***************************************************************************/
-void suprloco_state::palette_init()
+PALETTE_INIT_MEMBER(suprloco_state, suprloco)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -54,15 +54,15 @@ void suprloco_state::palette_init()
 		bit2 = (color_prom[i] >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 
 		/* hack: generate a second bank of sprite palette with red changed to purple */
 		if (i >= 256)
 		{
 			if ((i & 0x0f) == 0x09)
-				palette_set_color(machine(),i+256,MAKE_RGB(r,g,0xff));
+				palette.set_pen_color(i+256,rgb_t(r,g,0xff));
 			else
-				palette_set_color(machine(),i+256,MAKE_RGB(r,g,b));
+				palette.set_pen_color(i+256,rgb_t(r,g,b));
 		}
 	}
 }
@@ -78,8 +78,7 @@ void suprloco_state::palette_init()
 TILE_GET_INFO_MEMBER(suprloco_state::get_tile_info)
 {
 	UINT8 attr = m_videoram[2*tile_index+1];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			m_videoram[2*tile_index] | ((attr & 0x03) << 8),
 			(attr & 0x1c) >> 2,
 			0);
@@ -96,7 +95,7 @@ TILE_GET_INFO_MEMBER(suprloco_state::get_tile_info)
 
 void suprloco_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(suprloco_state::get_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(suprloco_state::get_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
 
 	m_bg_tilemap->set_scroll_rows(32);
 }

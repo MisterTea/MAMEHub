@@ -1,19 +1,16 @@
 /**********************************************************************
 
-  machine/nascom1.c
+    Nascom 1 and Nascom 2
+
+    license: MAME
+    copyright-holders: (Original Author?), Dirk Best
 
 **********************************************************************/
 
-/* Core includes */
 #include "emu.h"
 #include "includes/nascom1.h"
-
-/* Components */
 #include "cpu/z80/z80.h"
-#include "machine/wd17xx.h"
 #include "machine/ay31015.h"
-
-/* Devices */
 #include "imagedev/snapquik.h"
 #include "imagedev/cassette.h"
 #include "imagedev/flopdrv.h"
@@ -21,16 +18,6 @@
 
 #define NASCOM1_KEY_RESET   0x02
 #define NASCOM1_KEY_INCR    0x01
-
-
-
-/*************************************
- *
- *  Global variables
- *
- *************************************/
-
-
 
 
 /*************************************
@@ -49,15 +36,6 @@ WRITE_LINE_MEMBER(nascom1_state::nascom2_fdc_drq_w)
 	m_nascom2_fdc.drq = state;
 }
 
-const wd17xx_interface nascom2_wd17xx_interface =
-{
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_LINE_MEMBER(nascom1_state,nascom2_fdc_intrq_w),
-	DEVCB_DRIVER_LINE_MEMBER(nascom1_state,nascom2_fdc_drq_w),
-	{FLOPPY_0, FLOPPY_1, FLOPPY_2, FLOPPY_3}
-};
-
-
 READ8_MEMBER(nascom1_state::nascom2_fdc_select_r)
 {
 	return m_nascom2_fdc.select | 0xa0;
@@ -66,16 +44,15 @@ READ8_MEMBER(nascom1_state::nascom2_fdc_select_r)
 
 WRITE8_MEMBER(nascom1_state::nascom2_fdc_select_w)
 {
-	device_t *fdc = machine().device("wd1793");
 	m_nascom2_fdc.select = data;
 
 	logerror("nascom2_fdc_select_w: %02x\n", data);
 
-	if (data & 0x01) wd17xx_set_drive(fdc,0);
-	if (data & 0x02) wd17xx_set_drive(fdc,1);
-	if (data & 0x04) wd17xx_set_drive(fdc,2);
-	if (data & 0x08) wd17xx_set_drive(fdc,3);
-	if (data & 0x10) wd17xx_set_side(fdc,(data & 0x10) >> 4);
+	if (data & 0x01) m_fdc->set_drive(0);
+	if (data & 0x02) m_fdc->set_drive(1);
+	if (data & 0x04) m_fdc->set_drive(2);
+	if (data & 0x08) m_fdc->set_drive(3);
+	if (data & 0x10) m_fdc->set_side((data & 0x10) >> 4);
 }
 
 
@@ -99,10 +76,8 @@ READ8_MEMBER(nascom1_state::nascom2_fdc_status_r)
 
 READ8_MEMBER(nascom1_state::nascom1_port_00_r)
 {
-	static const char *const keynames[] = { "KEY0", "KEY1", "KEY2", "KEY3", "KEY4", "KEY5", "KEY6", "KEY7", "KEY8" };
-
 	if (m_portstat.stat_count < 9)
-		return (ioport(keynames[m_portstat.stat_count])->read() | ~0x7f);
+		return ((m_keyboard[m_portstat.stat_count])->read() | ~0x7f);
 
 	return (0xff);
 }

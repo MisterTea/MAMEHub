@@ -10,8 +10,8 @@
 #include "includes/snk6502.h"
 
 
-#define TOTAL_COLORS(m,gfxn) ((m).gfx[gfxn]->colors() * (m).gfx[gfxn]->granularity())
-#define COLOR(m,gfxn,offs) ((m).config().m_gfxdecodeinfo[gfxn].color_codes_start + offs)
+#define TOTAL_COLORS(gfxn) (m_gfxdecode->gfx(gfxn)->colors() * m_gfxdecode->gfx(gfxn)->granularity())
+#define COLOR(gfxn,offs) (m_gfxdecode->gfx(gfxn)->colorbase() + offs)
 
 
 
@@ -27,7 +27,7 @@ PALETTE_INIT_MEMBER(snk6502_state,snk6502)
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -55,22 +55,22 @@ PALETTE_INIT_MEMBER(snk6502_state,snk6502)
 
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		m_palette[i] = MAKE_RGB(r, g, b);
+		m_palette_val[i] = rgb_t(r, g, b);
 
 		color_prom++;
 	}
 
 	m_backcolor = 0;    /* background color can be changed by the game */
 
-	for (i = 0; i < TOTAL_COLORS(machine(),0); i++)
-		palette_set_color(machine(), COLOR(machine(), 0, i), m_palette[i]);
+	for (i = 0; i < TOTAL_COLORS(0); i++)
+		palette.set_pen_color(COLOR(0, i), m_palette_val[i]);
 
-	for (i = 0; i < TOTAL_COLORS(machine(),1); i++)
+	for (i = 0; i < TOTAL_COLORS(1); i++)
 	{
 		if (i % 4 == 0)
-			palette_set_color(machine(), COLOR(machine(), 1, i), m_palette[4 * m_backcolor + 0x20]);
+			palette.set_pen_color(COLOR(1, i), m_palette_val[4 * m_backcolor + 0x20]);
 		else
-			palette_set_color(machine(), COLOR(machine(), 1, i), m_palette[i + 0x20]);
+			palette.set_pen_color(COLOR(1, i), m_palette_val[i + 0x20]);
 	}
 }
 
@@ -98,7 +98,7 @@ WRITE8_MEMBER(snk6502_state::snk6502_charram_w)
 	if (m_charram[offset] != data)
 	{
 		m_charram[offset] = data;
-		machine().gfx[0]->mark_dirty((offset/8) % 256);
+		m_gfxdecode->gfx(0)->mark_dirty((offset/8) % 256);
 	}
 }
 
@@ -116,7 +116,7 @@ WRITE8_MEMBER(snk6502_state::snk6502_flipscreen_w)
 		m_backcolor = data & 7;
 
 		for (i = 0;i < 32;i += 4)
-			palette_set_color(machine(), COLOR(machine(), 1, i), m_palette[4 * m_backcolor + 0x20]);
+			m_palette->set_pen_color(COLOR(1, i), m_palette_val[4 * m_backcolor + 0x20]);
 	}
 
 	/* bit 3 selects char bank */
@@ -167,12 +167,12 @@ TILE_GET_INFO_MEMBER(snk6502_state::get_fg_tile_info)
 
 VIDEO_START_MEMBER(snk6502_state,snk6502)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snk6502_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snk6502_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(snk6502_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(snk6502_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 
-	machine().gfx[0]->set_source(m_charram);
+	m_gfxdecode->gfx(0)->set_source(m_charram);
 }
 
 VIDEO_START_MEMBER(snk6502_state,pballoon)
@@ -198,7 +198,7 @@ PALETTE_INIT_MEMBER(snk6502_state,satansat)
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -226,22 +226,22 @@ PALETTE_INIT_MEMBER(snk6502_state,satansat)
 
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		m_palette[i] = MAKE_RGB(r, g, b);
+		m_palette_val[i] = rgb_t(r, g, b);
 
 		color_prom++;
 	}
 
 	m_backcolor = 0;    /* background color can be changed by the game */
 
-	for (i = 0; i < TOTAL_COLORS(machine(),0); i++)
-		palette_set_color(machine(), COLOR(machine(), 0, i), m_palette[4 * (i % 4) + (i / 4)]);
+	for (i = 0; i < TOTAL_COLORS(0); i++)
+		palette.set_pen_color(COLOR(0, i), m_palette_val[4 * (i % 4) + (i / 4)]);
 
-	for (i = 0; i < TOTAL_COLORS(machine(),1); i++)
+	for (i = 0; i < TOTAL_COLORS(1); i++)
 	{
 		if (i % 4 == 0)
-			palette_set_color(machine(), COLOR(machine(), 1, i), m_palette[m_backcolor + 0x10]);
+			palette.set_pen_color(COLOR(1, i), m_palette_val[m_backcolor + 0x10]);
 		else
-			palette_set_color(machine(), COLOR(machine(), 1, i), m_palette[4 * (i % 4) + (i / 4) + 0x10]);
+			palette.set_pen_color(COLOR(1, i), m_palette_val[4 * (i % 4) + (i / 4) + 0x10]);
 	}
 }
 
@@ -272,7 +272,7 @@ WRITE8_MEMBER(snk6502_state::satansat_backcolor_w)
 		m_backcolor = data & 0x03;
 
 		for (i = 0; i < 16; i += 4)
-			palette_set_color(machine(), COLOR(machine(), 1, i), m_palette[m_backcolor + 0x10]);
+			m_palette->set_pen_color(COLOR(1, i), m_palette_val[m_backcolor + 0x10]);
 	}
 }
 
@@ -294,10 +294,10 @@ TILE_GET_INFO_MEMBER(snk6502_state::satansat_get_fg_tile_info)
 
 VIDEO_START_MEMBER(snk6502_state,satansat)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snk6502_state::satansat_get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snk6502_state::satansat_get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(snk6502_state::satansat_get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(snk6502_state::satansat_get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 
-	machine().gfx[0]->set_source(m_charram);
+	m_gfxdecode->gfx(0)->set_source(m_charram);
 }

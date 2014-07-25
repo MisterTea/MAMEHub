@@ -111,18 +111,31 @@
 #define MCFG_WD_FDC_FORCE_READY \
 	downcast<wd_fdc_t *>(device)->set_force_ready(true);
 
+#define MCFG_WD_FDC_INTRQ_CALLBACK(_write) \
+	devcb = &wd_fdc_t::set_intrq_wr_callback(*device, DEVCB_##_write);
+
+#define MCFG_WD_FDC_DRQ_CALLBACK(_write) \
+	devcb = &wd_fdc_t::set_drq_wr_callback(*device, DEVCB_##_write);
+
+#define MCFG_WD_FDC_HLD_CALLBACK(_write) \
+	devcb = &wd_fdc_t::set_hld_wr_callback(*device, DEVCB_##_write);
+
+#define MCFG_WD_FDC_ENP_CALLBACK(_write) \
+	devcb = &wd_fdc_t::set_enp_wr_callback(*device, DEVCB_##_write);
+
 class wd_fdc_t : public device_t {
 public:
-	typedef delegate<void (bool state)> line_cb;
-
 	wd_fdc_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
+
+	template<class _Object> static devcb_base &set_intrq_wr_callback(device_t &device, _Object object) { return downcast<wd_fdc_t &>(device).intrq_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_drq_wr_callback(device_t &device, _Object object) { return downcast<wd_fdc_t &>(device).drq_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_hld_wr_callback(device_t &device, _Object object) { return downcast<wd_fdc_t &>(device).hld_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_enp_wr_callback(device_t &device, _Object object) { return downcast<wd_fdc_t &>(device).enp_cb.set_callback(object); }
+
+	void soft_reset();
 
 	void dden_w(bool dden);
 	void set_floppy(floppy_image_device *floppy);
-	void setup_intrq_cb(line_cb cb);
-	void setup_drq_cb(line_cb cb);
-	void setup_hld_cb(line_cb cb);
-	void setup_enp_cb(line_cb cb);
 	void set_force_ready(bool force_ready);
 
 	void cmd_w(UINT8 val);
@@ -182,12 +195,12 @@ protected:
 	virtual int calc_sector_size(UINT8 size, UINT8 command) const;
 	virtual int settle_time() const;
 
-	virtual void pll_reset(bool fm, attotime when) = 0;
-	virtual void pll_start_writing(attotime tm) = 0;
-	virtual void pll_commit(floppy_image_device *floppy, attotime tm) = 0;
-	virtual void pll_stop_writing(floppy_image_device *floppy, attotime tm) = 0;
-	virtual int pll_get_next_bit(attotime &tm, floppy_image_device *floppy, attotime limit) = 0;
-	virtual bool pll_write_next_bit(bool bit, attotime &tm, floppy_image_device *floppy, attotime limit) = 0;
+	virtual void pll_reset(bool fm, const attotime &when) = 0;
+	virtual void pll_start_writing(const attotime &tm) = 0;
+	virtual void pll_commit(floppy_image_device *floppy, const attotime &tm) = 0;
+	virtual void pll_stop_writing(floppy_image_device *floppy, const attotime &tm) = 0;
+	virtual int pll_get_next_bit(attotime &tm, floppy_image_device *floppy, const attotime &limit) = 0;
+	virtual bool pll_write_next_bit(bool bit, attotime &tm, floppy_image_device *floppy, const attotime &limit) = 0;
 	virtual void pll_save_checkpoint() = 0;
 	virtual void pll_retrieve_checkpoint() = 0;
 
@@ -350,13 +363,14 @@ private:
 	int cmd_buffer, track_buffer, sector_buffer;
 
 	live_info cur_live, checkpoint_live;
-	line_cb intrq_cb, drq_cb, hld_cb, enp_cb;
+
+	devcb_write_line intrq_cb, drq_cb, hld_cb, enp_cb;
 
 	UINT8 format_last_byte;
 	int format_last_byte_count;
 	astring format_description_string;
 
-	static astring tts(attotime t);
+	static astring tts(const attotime &t);
 	astring ttsn();
 
 	void delay_cycles(emu_timer *tm, int cycles);
@@ -405,8 +419,8 @@ private:
 	void live_delay(int state);
 	void live_sync();
 	void live_run(attotime limit = attotime::never);
-	bool read_one_bit(attotime limit);
-	bool write_one_bit(attotime limit);
+	bool read_one_bit(const attotime &limit);
+	bool write_one_bit(const attotime &limit);
 
 	void live_write_raw(UINT16 raw);
 	void live_write_mfm(UINT8 mfm);
@@ -421,12 +435,12 @@ public:
 	wd_fdc_analog_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 protected:
-	virtual void pll_reset(bool fm, attotime when);
-	virtual void pll_start_writing(attotime tm);
-	virtual void pll_commit(floppy_image_device *floppy, attotime tm);
-	virtual void pll_stop_writing(floppy_image_device *floppy, attotime tm);
-	virtual int pll_get_next_bit(attotime &tm, floppy_image_device *floppy, attotime limit);
-	virtual bool pll_write_next_bit(bool bit, attotime &tm, floppy_image_device *floppy, attotime limit);
+	virtual void pll_reset(bool fm, const attotime &when);
+	virtual void pll_start_writing(const attotime &tm);
+	virtual void pll_commit(floppy_image_device *floppy, const attotime &tm);
+	virtual void pll_stop_writing(floppy_image_device *floppy, const attotime &tm);
+	virtual int pll_get_next_bit(attotime &tm, floppy_image_device *floppy, const attotime &limit);
+	virtual bool pll_write_next_bit(bool bit, attotime &tm, floppy_image_device *floppy, const attotime &limit);
 	virtual void pll_save_checkpoint();
 	virtual void pll_retrieve_checkpoint();
 
@@ -441,12 +455,12 @@ public:
 protected:
 	static const int wd_digital_step_times[4];
 
-	virtual void pll_reset(bool fm, attotime when);
-	virtual void pll_start_writing(attotime tm);
-	virtual void pll_commit(floppy_image_device *floppy, attotime tm);
-	virtual void pll_stop_writing(floppy_image_device *floppy, attotime tm);
-	virtual int pll_get_next_bit(attotime &tm, floppy_image_device *floppy, attotime limit);
-	virtual bool pll_write_next_bit(bool bit, attotime &tm, floppy_image_device *floppy, attotime limit);
+	virtual void pll_reset(bool fm, const attotime &when);
+	virtual void pll_start_writing(const attotime &tm);
+	virtual void pll_commit(floppy_image_device *floppy, const attotime &tm);
+	virtual void pll_stop_writing(floppy_image_device *floppy, const attotime &tm);
+	virtual int pll_get_next_bit(attotime &tm, floppy_image_device *floppy, const attotime &limit);
+	virtual bool pll_write_next_bit(bool bit, attotime &tm, floppy_image_device *floppy, const attotime &limit);
 	virtual void pll_save_checkpoint();
 	virtual void pll_retrieve_checkpoint();
 
@@ -466,13 +480,13 @@ private:
 		attotime write_buffer[32];
 		int write_position;
 
-		void set_clock(attotime period);
-		void reset(attotime when);
-		int get_next_bit(attotime &tm, floppy_image_device *floppy, attotime limit);
-		bool write_next_bit(bool bit, attotime &tm, floppy_image_device *floppy, attotime limit);
-		void start_writing(attotime tm);
-		void commit(floppy_image_device *floppy, attotime tm);
-		void stop_writing(floppy_image_device *floppy, attotime tm);
+		void set_clock(const attotime &period);
+		void reset(const attotime &when);
+		int get_next_bit(attotime &tm, floppy_image_device *floppy, const attotime &limit);
+		bool write_next_bit(bool bit, attotime &tm, floppy_image_device *floppy, const attotime &limit);
+		void start_writing(const attotime &tm);
+		void commit(floppy_image_device *floppy, const attotime &tm);
+		void stop_writing(floppy_image_device *floppy, const attotime &tm);
 	};
 
 	digital_pll_t cur_pll, checkpoint_pll;

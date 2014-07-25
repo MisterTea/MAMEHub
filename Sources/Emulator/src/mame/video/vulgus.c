@@ -1,6 +1,6 @@
 /***************************************************************************
 
-  video.c
+  Capcom Vulgus hardware
 
   Functions to emulate the video hardware of the machine.
 
@@ -16,12 +16,10 @@
 
 ***************************************************************************/
 
-void vulgus_state::palette_init()
+PALETTE_INIT_MEMBER(vulgus_state, vulgus)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-
-	machine().colortable = colortable_alloc(machine(), 256);
 
 	for (i = 0;i < 256;i++)
 	{
@@ -43,7 +41,7 @@ void vulgus_state::palette_init()
 		bit3 = (color_prom[2*256] >> 3) & 0x01;
 		b = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
 
-		colortable_palette_set_color(machine().colortable,i,MAKE_RGB(r,g,b));
+		palette.set_indirect_color(i,rgb_t(r,g,b));
 		color_prom++;
 	}
 
@@ -52,20 +50,20 @@ void vulgus_state::palette_init()
 
 
 	/* characters use colors 32-47 (?) */
-	for (i = 0;i < machine().gfx[0]->colors() * machine().gfx[0]->granularity();i++)
-		colortable_entry_set_value(machine().colortable, machine().gfx[0]->colorbase() + i, 32 + *color_prom++);
+	for (i = 0;i < m_gfxdecode->gfx(0)->colors() * m_gfxdecode->gfx(0)->granularity();i++)
+		palette.set_pen_indirect(m_gfxdecode->gfx(0)->colorbase() + i, 32 + *color_prom++);
 
 	/* sprites use colors 16-31 */
-	for (i = 0;i < machine().gfx[2]->colors() * machine().gfx[2]->granularity();i++)
-		colortable_entry_set_value(machine().colortable, machine().gfx[2]->colorbase() + i, 16 + *color_prom++);
+	for (i = 0;i < m_gfxdecode->gfx(2)->colors() * m_gfxdecode->gfx(2)->granularity();i++)
+		palette.set_pen_indirect(m_gfxdecode->gfx(2)->colorbase() + i, 16 + *color_prom++);
 
 	/* background tiles use colors 0-15, 64-79, 128-143, 192-207 in four banks */
-	for (i = 0;i < machine().gfx[1]->colors() * machine().gfx[1]->granularity() / 4;i++)
+	for (i = 0;i < m_gfxdecode->gfx(1)->colors() * m_gfxdecode->gfx(1)->granularity() / 4;i++)
 	{
-		colortable_entry_set_value(machine().colortable, machine().gfx[1]->colorbase() + 0*32*8 + i, *color_prom);
-		colortable_entry_set_value(machine().colortable, machine().gfx[1]->colorbase() + 1*32*8 + i, *color_prom + 64);
-		colortable_entry_set_value(machine().colortable, machine().gfx[1]->colorbase() + 2*32*8 + i, *color_prom + 128);
-		colortable_entry_set_value(machine().colortable, machine().gfx[1]->colorbase() + 3*32*8 + i, *color_prom + 192);
+		palette.set_pen_indirect(m_gfxdecode->gfx(1)->colorbase() + 0*32*8 + i, *color_prom);
+		palette.set_pen_indirect(m_gfxdecode->gfx(1)->colorbase() + 1*32*8 + i, *color_prom + 64);
+		palette.set_pen_indirect(m_gfxdecode->gfx(1)->colorbase() + 2*32*8 + i, *color_prom + 128);
+		palette.set_pen_indirect(m_gfxdecode->gfx(1)->colorbase() + 3*32*8 + i, *color_prom + 192);
 		color_prom++;
 	}
 }
@@ -83,8 +81,7 @@ TILE_GET_INFO_MEMBER(vulgus_state::get_fg_tile_info)
 
 	code = m_fgvideoram[tile_index];
 	color = m_fgvideoram[tile_index + 0x400];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code + ((color & 0x80) << 1),
 			color & 0x3f,
 			0);
@@ -97,8 +94,7 @@ TILE_GET_INFO_MEMBER(vulgus_state::get_bg_tile_info)
 
 	code = m_bgvideoram[tile_index];
 	color = m_bgvideoram[tile_index + 0x400];
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code + ((color & 0x80) << 1),
 			(color & 0x1f) + (0x20 * m_palette_bank),
 			TILE_FLIPYX((color & 0x60) >> 5));
@@ -113,10 +109,10 @@ TILE_GET_INFO_MEMBER(vulgus_state::get_bg_tile_info)
 
 void vulgus_state::video_start()
 {
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(vulgus_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8,32,32);
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(vulgus_state::get_bg_tile_info),this),TILEMAP_SCAN_COLS,16,16,32,32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(vulgus_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8,32,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(vulgus_state::get_bg_tile_info),this),TILEMAP_SCAN_COLS,16,16,32,32);
 
-	colortable_configure_tilemap_groups(machine().colortable, m_fg_tilemap, machine().gfx[0], 47);
+	m_fg_tilemap->configure_groups(*m_gfxdecode->gfx(0), 47);
 }
 
 
@@ -166,48 +162,35 @@ WRITE8_MEMBER(vulgus_state::vulgus_palette_bank_w)
 
 ***************************************************************************/
 
-void vulgus_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
+void vulgus_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	UINT8 *spriteram = m_spriteram;
-	int offs;
+	gfx_element *gfx = m_gfxdecode->gfx(2);
 
-
-	for (offs = m_spriteram.bytes() - 4;offs >= 0;offs -= 4)
+	for (int offs = m_spriteram.bytes() - 4; offs >= 0; offs -= 4)
 	{
-		int code,i,col,sx,sy,dir;
+		int code = m_spriteram[offs];
+		int color = m_spriteram[offs + 1] & 0x0f;
+		int sy = m_spriteram[offs + 2];
+		int sx = m_spriteram[offs + 3];
+		bool flip = flip_screen() ? true : false;
+		int dir = 1;
 
+		if (sy == 0)
+			continue;
 
-		code = spriteram[offs];
-		col = spriteram[offs + 1] & 0x0f;
-		sx = spriteram[offs + 3];
-		sy = spriteram[offs + 2];
-		dir = 1;
-		if (flip_screen())
+		if (flip)
 		{
 			sx = 240 - sx;
 			sy = 240 - sy;
 			dir = -1;
 		}
 
-		i = (spriteram[offs + 1] & 0xc0) >> 6;
-		if (i == 2) i = 3;
+		// draw sprite rows (16*16, 16*32, or 16*64)
+		int row = (m_spriteram[offs + 1] & 0xc0) >> 6;
+		if (row == 2) row = 3;
 
-		do
-		{
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
-					code + i,
-					col,
-					flip_screen(),flip_screen(),
-					sx, sy + 16 * i * dir,15);
-
-			/* draw again with wraparound */
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
-					code + i,
-					col,
-					flip_screen(),flip_screen(),
-					sx, sy + 16 * i * dir -  dir * 256,15);
-			i--;
-		} while (i >= 0);
+		for (; row >= 0; row--)
+			gfx->transpen(bitmap, cliprect, code + row, color, flip, flip, sx, sy + 16 * row * dir, 15);
 	}
 }
 
@@ -216,8 +199,9 @@ UINT32 vulgus_state::screen_update_vulgus(screen_device &screen, bitmap_ind16 &b
 	m_bg_tilemap->set_scrollx(0, m_scroll_low[1] + 256 * m_scroll_high[1]);
 	m_bg_tilemap->set_scrolly(0, m_scroll_low[0] + 256 * m_scroll_high[0]);
 
-	m_bg_tilemap->draw(screen, bitmap, cliprect, 0,0);
-	draw_sprites(bitmap,cliprect);
-	m_fg_tilemap->draw(screen, bitmap, cliprect, 0,0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	draw_sprites(bitmap, cliprect);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+
 	return 0;
 }

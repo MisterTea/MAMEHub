@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
     Aamber Pegasus computer (New Zealand)
@@ -73,7 +75,7 @@ public:
 	UINT8 m_kbd_row;
 	bool m_kbd_irq;
 	UINT8 *m_p_pcgram;
-	required_shared_ptr<const UINT8> m_p_videoram;
+	required_shared_ptr<UINT8> m_p_videoram;
 	const UINT8 *m_p_chargen;
 	UINT8 m_control_bits;
 	virtual void machine_reset();
@@ -276,50 +278,6 @@ static INPUT_PORTS_START( pegasus )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("{ }") PORT_CODE(KEYCODE_CLOSEBRACE) PORT_CHAR('{') PORT_CHAR('}')
 INPUT_PORTS_END
 
-/* System - for keyboard, video, general housekeeping */
-static const pia6821_interface pegasus_pia_s_intf=
-{
-	DEVCB_NULL,                     /* port A input */
-	DEVCB_DRIVER_MEMBER(pegasus_state, pegasus_keyboard_r), /* port B input */
-	DEVCB_DRIVER_LINE_MEMBER(pegasus_state, pegasus_cassette_r), /* CA1 input */
-	DEVCB_DRIVER_LINE_MEMBER(pegasus_state, pegasus_keyboard_irq), /* CB1 input */
-	DEVCB_NULL,                     /* CA2 input */
-	DEVCB_NULL,                     /* CB2 input */
-	DEVCB_DRIVER_MEMBER(pegasus_state, pegasus_keyboard_w), /* port A output */
-	DEVCB_DRIVER_MEMBER(pegasus_state, pegasus_controls_w), /* port B output */
-	DEVCB_DRIVER_LINE_MEMBER(pegasus_state, pegasus_cassette_w), /* CA2 output */
-	DEVCB_DRIVER_LINE_MEMBER(pegasus_state, pegasus_firq_clr), /* CB2 output */
-	DEVCB_CPU_INPUT_LINE("maincpu", M6809_IRQ_LINE),    /* IRQA output */
-	DEVCB_CPU_INPUT_LINE("maincpu", M6809_IRQ_LINE)     /* IRQB output */
-};
-
-/* User interface - for connection of external equipment */
-static const pia6821_interface pegasus_pia_u_intf=
-{
-	DEVCB_NULL,     /* port A input */
-	DEVCB_NULL,     /* port B input */
-	DEVCB_NULL,     /* CA1 input */
-	DEVCB_NULL,     /* CB1 input */
-	DEVCB_NULL,     /* CA2 input */
-	DEVCB_NULL,     /* CB2 input */
-	DEVCB_NULL,     /* port A output */
-	DEVCB_NULL,     /* port B output */
-	DEVCB_NULL,     /* CA2 output */
-	DEVCB_NULL,     /* CB2 output */
-	DEVCB_CPU_INPUT_LINE("maincpu", M6809_IRQ_LINE),
-	DEVCB_CPU_INPUT_LINE("maincpu", M6809_IRQ_LINE)
-};
-
-static const cassette_interface pegasus_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED|CASSETTE_MOTOR_ENABLED),
-	NULL,
-	NULL
-};
-
-
 void pegasus_state::video_start()
 {
 	m_p_chargen = memregion("chargen")->base();
@@ -509,9 +467,9 @@ static MACHINE_CONFIG_START( pegasus, pegasus_state )
 	MCFG_SCREEN_UPDATE_DRIVER(pegasus_state, screen_update)
 	MCFG_SCREEN_SIZE(32*8, 16*16)
 	MCFG_SCREEN_VISIBLE_AREA(0, 32*8-1, 0, 16*16-1)
-	MCFG_GFXDECODE(pegasus)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_PALETTE("palette")
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pegasus)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -519,8 +477,21 @@ static MACHINE_CONFIG_START( pegasus, pegasus_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_PIA6821_ADD( "pia_s", pegasus_pia_s_intf )
-	MCFG_PIA6821_ADD( "pia_u", pegasus_pia_u_intf )
+	MCFG_DEVICE_ADD("pia_s", PIA6821, 0)
+	MCFG_PIA_READPB_HANDLER(READ8(pegasus_state, pegasus_keyboard_r))
+	MCFG_PIA_READCA1_HANDLER(READLINE(pegasus_state, pegasus_cassette_r))
+	MCFG_PIA_READCB1_HANDLER(READLINE(pegasus_state, pegasus_keyboard_irq))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(pegasus_state, pegasus_keyboard_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(pegasus_state, pegasus_controls_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(pegasus_state, pegasus_cassette_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(pegasus_state, pegasus_firq_clr))
+	MCFG_PIA_IRQA_HANDLER(DEVWRITELINE("maincpu", m6809e_device, irq_line))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("maincpu", m6809e_device, irq_line))
+
+	MCFG_DEVICE_ADD( "pia_u", PIA6821, 0)
+	MCFG_PIA_IRQA_HANDLER(DEVWRITELINE("maincpu", m6809e_device, irq_line))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("maincpu", m6809e_device, irq_line))
+
 	MCFG_CARTSLOT_ADD("cart1")
 	MCFG_CARTSLOT_EXTENSION_LIST("bin")
 	MCFG_CARTSLOT_LOAD(pegasus_state,pegasus_cart_1)
@@ -536,7 +507,8 @@ static MACHINE_CONFIG_START( pegasus, pegasus_state )
 	MCFG_CARTSLOT_ADD("cart5")
 	MCFG_CARTSLOT_EXTENSION_LIST("bin")
 	MCFG_CARTSLOT_LOAD(pegasus_state,pegasus_cart_5)
-	MCFG_CASSETTE_ADD( "cassette", pegasus_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED|CASSETTE_MOTOR_ENABLED)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( pegasusm, pegasus )

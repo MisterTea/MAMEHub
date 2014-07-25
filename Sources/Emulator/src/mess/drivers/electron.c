@@ -34,19 +34,19 @@ Missing:
 
 static const rgb_t electron_palette[8]=
 {
-	MAKE_RGB(0x0ff,0x0ff,0x0ff),
-	MAKE_RGB(0x000,0x0ff,0x0ff),
-	MAKE_RGB(0x0ff,0x000,0x0ff),
-	MAKE_RGB(0x000,0x000,0x0ff),
-	MAKE_RGB(0x0ff,0x0ff,0x000),
-	MAKE_RGB(0x000,0x0ff,0x000),
-	MAKE_RGB(0x0ff,0x000,0x000),
-	MAKE_RGB(0x000,0x000,0x000)
+	rgb_t(0x0ff,0x0ff,0x0ff),
+	rgb_t(0x000,0x0ff,0x0ff),
+	rgb_t(0x0ff,0x000,0x0ff),
+	rgb_t(0x000,0x000,0x0ff),
+	rgb_t(0x0ff,0x0ff,0x000),
+	rgb_t(0x000,0x0ff,0x000),
+	rgb_t(0x0ff,0x000,0x000),
+	rgb_t(0x000,0x000,0x000)
 };
 
-void electron_state::palette_init()
+PALETTE_INIT_MEMBER(electron_state, electron)
 {
-	palette_set_colors(machine(), 0, electron_palette, ARRAY_LENGTH(electron_palette));
+	palette.set_pen_colors(0, electron_palette, ARRAY_LENGTH(electron_palette));
 }
 
 static ADDRESS_MAP_START(electron_mem, AS_PROGRAM, 8, electron_state )
@@ -170,15 +170,6 @@ ROM_START(electron)
 	/* 3c000 15 available for cartridges with a language ROM */
 ROM_END
 
-static const cassette_interface electron_cassette_interface =
-{
-	uef_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_PLAY),
-	NULL,
-	NULL
-};
-
 static MACHINE_CONFIG_START( electron, electron_state )
 	MCFG_CPU_ADD( "maincpu", M6502, 2000000 )
 	MCFG_CPU_PROGRAM_MAP( electron_mem)
@@ -189,16 +180,20 @@ static MACHINE_CONFIG_START( electron, electron_state )
 	MCFG_SCREEN_SIZE( 640, 312 )
 	MCFG_SCREEN_VISIBLE_AREA( 0, 640-1, 0, 256-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(electron_state, screen_update_electron)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_SCANLINE)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH( 16 )
+	MCFG_PALETTE_ADD( "palette", 16 )
+	MCFG_PALETTE_INIT_OWNER(electron_state, electron)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_SCANLINE)
 
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
 	MCFG_SOUND_ADD( "beeper", BEEP, 0 )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 
-	MCFG_CASSETTE_ADD( "cassette", electron_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(uef_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
 
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("bin")

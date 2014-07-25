@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /**********************************************************************
 
     PLS100 16x48x8 Programmable Logic Array emulation
@@ -66,7 +68,7 @@ public:
 	// construction/destruction
 	pla_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, int inputs, int outputs, int terms, UINT32 output_mask, const char *shortname, const char *source);
 
-	UINT32 read(UINT32 input);
+	virtual UINT32 read(UINT32 input);
 
 protected:
 	// device-level overrides
@@ -99,6 +101,14 @@ class pls100_device : public pla_device
 {
 public:
 	pls100_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// device-level overrides
+	virtual void device_start();
+
+	virtual UINT32 read(UINT32 input);
+
+private:
+	optional_shared_ptr<UINT8> m_output;
 };
 
 

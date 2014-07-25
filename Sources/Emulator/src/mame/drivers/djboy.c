@@ -501,13 +501,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(djboy_state::djboy_scanline)
 		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 }
 
-static const kaneko_pandora_interface djboy_pandora_config =
-{
-	0,  /* gfx_region */
-	0, 0    /* x_offs, y_offs */
-};
-
-
 void djboy_state::machine_start()
 {
 	UINT8 *MAIN = memregion("maincpu")->base();
@@ -579,12 +572,14 @@ static MACHINE_CONFIG_START( djboy, djboy_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(djboy_state, screen_update_djboy)
 	MCFG_SCREEN_VBLANK_DRIVER(djboy_state, screen_eof_djboy)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(djboy)
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", djboy)
+	MCFG_PALETTE_ADD("palette", 0x200)
 
-	MCFG_KANEKO_PANDORA_ADD("pandora", djboy_pandora_config)
-
+	MCFG_DEVICE_ADD("pandora", KANEKO_PANDORA, 0)
+	MCFG_KANEKO_PANDORA_GFXDECODE("gfxdecode")
+	MCFG_KANEKO_PANDORA_PALETTE("palette")
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 

@@ -21,7 +21,7 @@ public:
 	DECLARE_READ8_MEMBER(data_r);
 	DECLARE_WRITE8_MEMBER(data_w);
 	DECLARE_READ8_MEMBER(serial_r);
-	DECLARE_WRITE8_MEMBER(serial_w);
+	DECLARE_WRITE_LINE_MEMBER(serial_w);
 	UINT8 m_t_c;
 	UINT8 m_out_offs;
 	required_device<cpu_device> m_maincpu;
@@ -53,7 +53,7 @@ static ADDRESS_MAP_START(zac_2_io, AS_IO, 8, zac_2_state)
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(S2650_CTRL_PORT, S2650_CTRL_PORT) AM_READWRITE(ctrl_r,ctrl_w)
 	AM_RANGE(S2650_DATA_PORT, S2650_DATA_PORT) AM_READWRITE(data_r,data_w)
-	AM_RANGE(S2650_SENSE_PORT, S2650_FO_PORT) AM_READWRITE(serial_r,serial_w)
+	AM_RANGE(S2650_SENSE_PORT, S2650_SENSE_PORT) AM_READ(serial_r)
 ADDRESS_MAP_END
 
 static INPUT_PORTS_START( zac_2 )
@@ -164,7 +164,7 @@ READ8_MEMBER( zac_2_state::serial_r )
 	return 0;
 }
 
-WRITE8_MEMBER( zac_2_state::serial_w )
+WRITE_LINE_MEMBER( zac_2_state::serial_w )
 {
 // to printer
 }
@@ -202,6 +202,7 @@ static MACHINE_CONFIG_START( zac_2, zac_2_state )
 	MCFG_CPU_ADD("maincpu", S2650, 6000000/2)
 	MCFG_CPU_PROGRAM_MAP(zac_2_map)
 	MCFG_CPU_IO_MAP(zac_2_io)
+	MCFG_S2650_FLAG_HANDLER(WRITELINE(zac_2_state, serial_w))
 	MCFG_NVRAM_ADD_0FILL("ram")
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("zac_2_inttimer", zac_2_state, zac_2_inttimer, attotime::from_hz(200))
@@ -924,10 +925,10 @@ GAME(1983,  pinchamp7i, pinchamp, zac_2,  zac_2, driver_device, 0,  ROT0,    "Za
 GAME(1985,  poolcham,   0,        zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Pool Champion",                GAME_IS_SKELETON_MECHANICAL)
 GAME(1985,  poolchami,  poolcham, zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Pool Champion (Italian speech)",               GAME_IS_SKELETON_MECHANICAL)
 GAME(1985,  poolchama,  poolcham, zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Pool Champion (alternate sound)",              GAME_IS_SKELETON_MECHANICAL)
-GAME(1985,  robot,      0,        zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Robot",                GAME_IS_SKELETON_MECHANICAL)
-GAME(1985,  roboti,     robot,    zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Robot (Italian speech)",               GAME_IS_SKELETON_MECHANICAL)
-GAME(1985,  robotg,     robot,    zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Robot (German speech)",                GAME_IS_SKELETON_MECHANICAL)
-GAME(1985,  robotf,     robot,    zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Robot (French speech)",                GAME_IS_SKELETON_MECHANICAL)
+GAME(1985,  robot,      0,        zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Robot (Zaccaria)",                GAME_IS_SKELETON_MECHANICAL)
+GAME(1985,  roboti,     robot,    zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Robot (Zaccaria, Italian speech)",               GAME_IS_SKELETON_MECHANICAL)
+GAME(1985,  robotg,     robot,    zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Robot (Zaccaria, German speech)",                GAME_IS_SKELETON_MECHANICAL)
+GAME(1985,  robotf,     robot,    zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Robot (Zaccaria, French speech)",                GAME_IS_SKELETON_MECHANICAL)
 GAME(1987,  scram_tp,   0,        zac_2,  zac_2, driver_device, 0,  ROT0,    "Tecnoplay",   "Scramble (Pinball)",               GAME_IS_SKELETON_MECHANICAL)
 GAME(1982,  socrking,   0,        zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Soccer Kings",             GAME_IS_SKELETON_MECHANICAL)
 GAME(1982,  socrkingi,  socrking, zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Soccer Kings (Italian speech)",                GAME_IS_SKELETON_MECHANICAL)
@@ -936,6 +937,6 @@ GAME(1987,  spookyp,    0,        zac_2,  zac_2, driver_device, 0,  ROT0,    "Za
 GAME(1987,  spookyi,    spookyp,  zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Spooky (Italian speech)",              GAME_IS_SKELETON_MECHANICAL)
 GAME(1987,  strsphnx,   0,        zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Star's Phoenix (Italian speech)",              GAME_IS_SKELETON_MECHANICAL)
 GAME(1983,  tmachzac,   0,        zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Time Machine (Zaccaria)",              GAME_IS_SKELETON_MECHANICAL)
-GAME(1983,  tmachzacg,  tmachzac, zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Time Machine (Zaccaria German speech)",                GAME_IS_SKELETON_MECHANICAL)
-GAME(1983,  tmachzacf,  tmachzac, zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Time Machine (Zaccaria French speech)",                GAME_IS_SKELETON_MECHANICAL)
+GAME(1983,  tmachzacg,  tmachzac, zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Time Machine (Zaccaria, German speech)",                GAME_IS_SKELETON_MECHANICAL)
+GAME(1983,  tmachzacf,  tmachzac, zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Time Machine (Zaccaria, French speech)",                GAME_IS_SKELETON_MECHANICAL)
 GAME(1986,  zankor,     0,        zac_2,  zac_2, driver_device, 0,  ROT0,    "Zaccaria",    "Zankor (Italian speech)",              GAME_IS_SKELETON_MECHANICAL)

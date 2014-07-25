@@ -118,6 +118,7 @@ nick_device::nick_device(const machine_config &mconfig, const char *tag, device_
 		m_LD2(0),
 		m_virq(CLEAR_LINE)
 {
+	memset(&m_LPT, 0x00, sizeof(m_LPT));
 }
 
 
@@ -334,7 +335,7 @@ void nick_device::initialize_palette()
 		UINT8 g = combine_3_weights(color_weights_rg, gc, gb, ga);
 		UINT8 b = combine_2_weights(color_weights_b, bb, ba);
 
-		m_palette[i] = MAKE_RGB(r, g, b);
+		m_palette[i] = rgb_t(r, g, b);
 	}
 
 	for (int i = 0; i < 256; i++)
@@ -514,7 +515,7 @@ void nick_device::write_pixels(UINT8 data_byte, UINT8 char_idx)
 
 		case NICK_4_COLOUR_MODE:
 		{
-			//mame_printf_info("4 colour\r\n");
+			//osd_printf_info("4 colour\r\n");
 
 			/* left margin attributes */
 			if (m_LPT.LM & NICK_LM_MSBALT)
@@ -543,7 +544,7 @@ void nick_device::write_pixels(UINT8 data_byte, UINT8 char_idx)
 
 		case NICK_16_COLOUR_MODE:
 		{
-			//mame_printf_info("16 colour\r\n");
+			//osd_printf_info("16 colour\r\n");
 
 			/* left margin attributes */
 			if (m_LPT.LM & NICK_LM_MSBALT)
@@ -667,7 +668,7 @@ void nick_device::write_pixels_lpixel(UINT8 data_byte, UINT8 char_idx)
 
 		case NICK_4_COLOUR_MODE:
 		{
-			//mame_printf_info("4 colour\r\n");
+			//osd_printf_info("4 colour\r\n");
 
 			/* left margin attributes */
 			if (m_LPT.LM & NICK_LM_MSBALT)
@@ -698,7 +699,7 @@ void nick_device::write_pixels_lpixel(UINT8 data_byte, UINT8 char_idx)
 
 		case NICK_16_COLOUR_MODE:
 		{
-			//mame_printf_info("16 colour\r\n");
+			//osd_printf_info("16 colour\r\n");
 
 			/* left margin attributes */
 			if (m_LPT.LM & NICK_LM_MSBALT)
@@ -931,14 +932,14 @@ void nick_device::do_display()
 
 			case NICK_ATTR_MODE:
 			{
-				//mame_printf_info("attr mode\r\n");
+				//osd_printf_info("attr mode\r\n");
 				do_attr(clocks_visible);
 			}
 			break;
 
 			case NICK_CH256_MODE:
 			{
-				//mame_printf_info("ch256 mode\r\n");
+				//osd_printf_info("ch256 mode\r\n");
 				do_ch256(clocks_visible);
 			}
 			break;
@@ -951,7 +952,7 @@ void nick_device::do_display()
 
 			case NICK_CH64_MODE:
 			{
-				//mame_printf_info("ch64 mode\r\n");
+				//osd_printf_info("ch64 mode\r\n");
 				do_ch64(clocks_visible);
 			}
 			break;

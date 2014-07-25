@@ -10,7 +10,10 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_maincpu(*this, "maincpu"),
-		m_discrete(*this, "discrete") { }
+		m_discrete(*this, "discrete"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	int m_da_latch;
@@ -44,12 +47,15 @@ public:
 	TILE_GET_INFO_MEMBER(sprint4_tile_info);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(sprint4);
 	UINT32 screen_update_sprint4(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_sprint4(screen_device &screen, bool state);
 	TIMER_CALLBACK_MEMBER(nmi_callback);
 	required_device<cpu_device> m_maincpu;
 	required_device<discrete_device> m_discrete;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);

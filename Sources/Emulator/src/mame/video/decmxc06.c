@@ -48,9 +48,21 @@ void deco_mxc06_device::set_gfx_region(device_t &device, int region)
 const device_type DECO_MXC06 = &device_creator<deco_mxc06_device>;
 
 deco_mxc06_device::deco_mxc06_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, DECO_MXC06, "decmxc06_device", tag, owner, clock, "deco_mxc06", __FILE__),
-		m_gfxregion(0)
+	: device_t(mconfig, DECO_MXC06, "DECO MXC06 Sprite", tag, owner, clock, "deco_mxc06", __FILE__),
+		m_gfxregion(0),
+		m_gfxdecode(*this),
+		m_palette(*this)
 {
+}
+
+//-------------------------------------------------
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
+//-------------------------------------------------
+
+void deco_mxc06_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
+{
+	downcast<deco_mxc06_device &>(device).m_gfxdecode.set_tag(tag);
 }
 
 
@@ -85,7 +97,6 @@ void deco_mxc06_device::draw_sprites( running_machine &machine, bitmap_ind16 &bi
 		sx = 240 - sx;
 		sy = 240 - sy;
 
-
 		if (machine.driver_data()->flip_screen())
 		{
 			sy = 240 - sy;
@@ -117,7 +128,7 @@ void deco_mxc06_device::draw_sprites( running_machine &machine, bitmap_ind16 &bi
 				if (spriteram[offs] & 0x8000)
 				{
 					int draw = 0;
-					if (!flash || (machine.primary_screen->frame_number() & 1))
+					if (!flash || (machine.first_screen()->frame_number() & 1))
 					{
 						if (m_priority_type==0) // most cases
 						{
@@ -140,7 +151,7 @@ void deco_mxc06_device::draw_sprites( running_machine &machine, bitmap_ind16 &bi
 
 					if (draw)
 					{
-						drawgfx_transpen(bitmap,cliprect,machine.gfx[m_gfxregion],
+						m_gfxdecode->gfx(m_gfxregion)->transpen(bitmap,cliprect,
 							code - y * incy,
 							color & col_mask,
 							flipx,flipy,
@@ -180,7 +191,7 @@ void deco_mxc06_device::draw_sprites_bootleg( running_machine &machine, bitmap_i
 
 		sx -= 0x100;
 
-		drawgfx_transpen(bitmap,cliprect,machine.gfx[m_gfxregion],
+		m_gfxdecode->gfx(m_gfxregion)->transpen(bitmap,cliprect,
 			code,
 			color & col_mask,
 			flipx,flipy,
@@ -197,4 +208,14 @@ void deco_mxc06_device::device_start()
 
 void deco_mxc06_device::device_reset()
 {
+}
+
+//-------------------------------------------------
+//  static_set_palette_tag: Set the tag of the
+//  palette device
+//-------------------------------------------------
+
+void deco_mxc06_device::static_set_palette_tag(device_t &device, const char *tag)
+{
+	downcast<deco_mxc06_device &>(device).m_palette.set_tag(tag);
 }

@@ -402,7 +402,7 @@ static INPUT_PORTS_START (lviv)
 		PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Left") PORT_CODE(KEYCODE_LEFT) PORT_CHAR(UCHAR_MAMEKEY(LEFT))
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Down") PORT_CODE(KEYCODE_DOWN) PORT_CHAR(UCHAR_MAMEKEY(DOWN))
 	PORT_START("RESET") /* CPU */
-		PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("Reset") PORT_CODE(KEYCODE_PGDN) PORT_CHAR(UCHAR_MAMEKEY(PGDN))
+		PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("Reset") PORT_CODE(KEYCODE_PGDN) PORT_CHAR(UCHAR_MAMEKEY(PGDN)) PORT_CHANGED_MEMBER(DEVICE_SELF, lviv_state, lviv_reset, 0)
 	PORT_START("JOY") /* Joystick */
 		PORT_BIT(0x01,  IP_ACTIVE_HIGH, IPT_JOYSTICK_UP)
 		PORT_BIT(0x02,  IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN)
@@ -415,16 +415,6 @@ static INPUT_PORTS_START (lviv)
 INPUT_PORTS_END
 
 
-static const cassette_interface lviv_cassette_interface =
-{
-	lviv_lvt_format,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED),
-	"lviv_cass",
-	NULL
-};
-
-
 /* machine definition */
 static MACHINE_CONFIG_START( lviv, lviv_state )
 	/* basic machine hardware */
@@ -433,10 +423,21 @@ static MACHINE_CONFIG_START( lviv, lviv_state )
 	MCFG_CPU_IO_MAP(io_map)
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
+	MCFG_DEVICE_ADD("ppi8255_0", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(lviv_state, lviv_ppi_0_porta_r))
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(lviv_state, lviv_ppi_0_porta_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(lviv_state, lviv_ppi_0_portb_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(lviv_state, lviv_ppi_0_portb_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(lviv_state, lviv_ppi_0_portc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(lviv_state, lviv_ppi_0_portc_w))
 
-	MCFG_I8255_ADD( "ppi8255_0", lviv_ppi8255_interface_0 )
-
-	MCFG_I8255_ADD( "ppi8255_1", lviv_ppi8255_interface_1 )
+	MCFG_DEVICE_ADD("ppi8255_1", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(lviv_state, lviv_ppi_1_porta_r))
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(lviv_state, lviv_ppi_1_porta_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(lviv_state, lviv_ppi_1_portb_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(lviv_state, lviv_ppi_1_portb_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(lviv_state, lviv_ppi_1_portc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(lviv_state, lviv_ppi_1_portc_w))
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(50)
@@ -446,9 +447,10 @@ static MACHINE_CONFIG_START( lviv, lviv_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(lviv_state, screen_update_lviv)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(sizeof (lviv_palette) / 3)
-
+	MCFG_PALETTE_ADD("palette", sizeof (lviv_palette) / 3)
+	MCFG_PALETTE_INIT_OWNER(lviv_state, lviv)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -460,7 +462,11 @@ static MACHINE_CONFIG_START( lviv, lviv_state )
 	/* snapshot */
 	MCFG_SNAPSHOT_ADD("snapshot", lviv_state, lviv, "sav", 0)
 
-	MCFG_CASSETTE_ADD( "cassette", lviv_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(lviv_lvt_format)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("lviv_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","lviv")
 
 	/* internal ram */

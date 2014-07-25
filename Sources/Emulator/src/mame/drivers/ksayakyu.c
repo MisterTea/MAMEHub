@@ -183,27 +183,6 @@ WRITE8_MEMBER(ksayakyu_state::dummy3_w)
 //  printf("%02x 3\n", data);
 }
 
-
-static const ay8910_interface ay8910_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(ksayakyu_state,dummy1_w)
-};
-
-static const ay8910_interface ay8910_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(ksayakyu_state,dummy2_w),
-	DEVCB_DRIVER_MEMBER(ksayakyu_state,dummy3_w)
-};
-
 static const gfx_layout charlayout =
 {
 	8,8,
@@ -286,20 +265,23 @@ static MACHINE_CONFIG_START( ksayakyu, ksayakyu_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ksayakyu_state, screen_update_ksayakyu)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ksayakyu)
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ksayakyu)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(ksayakyu_state, ksayakyu)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, MAIN_CLOCK/16) //unknown clock
-	MCFG_SOUND_CONFIG(ay8910_interface_1)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(ksayakyu_state, dummy1_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, MAIN_CLOCK/16) //unknown clock
-	MCFG_SOUND_CONFIG(ay8910_interface_2)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(ksayakyu_state, dummy2_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(ksayakyu_state, dummy3_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_DAC_ADD("dac")

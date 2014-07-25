@@ -17,7 +17,9 @@ public:
 		m_nbg_yscroll(*this, "nbg_yscroll"),
 		m_nbg_xscroll(*this, "nbg_xscroll"),
 		m_bg_scroll(*this, "bg_scroll"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_device<buffered_spriteram8_device> m_spriteram;
@@ -48,9 +50,11 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(exedexes);
 	UINT32 screen_update_exedexes(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(exedexes_scanline);
 	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int priority );
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

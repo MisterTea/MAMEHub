@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     Last Bank (c) 1994 Excellent System
@@ -474,11 +476,14 @@ static MACHINE_CONFIG_START( lastbank, lastbank_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(lastbank_state, screen_update)
 	MCFG_SCREEN_VBLANK_DRIVER(lastbank_state, screen_eof)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lastbank )
+	MCFG_PALETTE_ADD("palette", 0x100)
 
 	MCFG_DEVICE_ADD("tc0091lvc", TC0091LVC, 0)
-
-	MCFG_GFXDECODE( lastbank )
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_TC0091LVC_GFXDECODE("gfxdecode")
+	MCFG_TC0091LVC_PALETTE("palette")
 
 //  MCFG_VIDEO_START_OVERRIDE(lastbank_state,lastbank)
 

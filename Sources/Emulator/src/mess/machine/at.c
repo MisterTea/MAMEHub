@@ -16,7 +16,7 @@
 READ8_MEMBER( at_state::get_slave_ack )
 {
 	if (offset==2) // IRQ = 2
-		return m_pic8259_slave->inta_r();
+		return m_pic8259_slave->acknowledge();
 
 	return 0x00;
 }
@@ -30,13 +30,7 @@ READ8_MEMBER( at_state::get_slave_ack )
 void at_state::at_speaker_set_spkrdata(UINT8 data)
 {
 	m_at_spkrdata = data ? 1 : 0;
-	m_speaker->level_w(m_at_spkrdata & m_at_speaker_input);
-}
-
-void at_state::at_speaker_set_input(UINT8 data)
-{
-	m_at_speaker_input = data ? 1 : 0;
-	m_speaker->level_w(m_at_spkrdata & m_at_speaker_input);
+	m_speaker->level_w(m_at_spkrdata & m_pit_out2);
 }
 
 
@@ -55,28 +49,9 @@ WRITE_LINE_MEMBER( at_state::at_pit8254_out0_changed )
 
 WRITE_LINE_MEMBER( at_state::at_pit8254_out2_changed )
 {
-	at_speaker_set_input( state );
+	m_pit_out2 = state ? 1 : 0;
+	m_speaker->level_w(m_at_spkrdata & m_pit_out2);
 }
-
-
-const struct pit8253_interface at_pit8254_config =
-{
-	{
-		{
-			4772720/4,              /* heartbeat IRQ */
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(at_state, at_pit8254_out0_changed)
-		}, {
-			4772720/4,              /* dram refresh */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}, {
-			4772720/4,              /* pio port c pin 4, and speaker polling enough */
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(at_state, at_pit8254_out2_changed)
-		}
-	}
-};
 
 
 /*************************************************************************
@@ -240,46 +215,15 @@ WRITE_LINE_MEMBER( at_state::pc_dack5_w ) { pc_set_dma_channel(5, state); }
 WRITE_LINE_MEMBER( at_state::pc_dack6_w ) { pc_set_dma_channel(6, state); }
 WRITE_LINE_MEMBER( at_state::pc_dack7_w ) { pc_set_dma_channel(7, state); }
 
-I8237_INTERFACE( at_dma8237_1_config )
-{
-	DEVCB_DEVICE_LINE_MEMBER("dma8237_2", am9517a_device, dreq0_w),
-	DEVCB_DRIVER_LINE_MEMBER(at_state, at_dma8237_out_eop),
-	DEVCB_DRIVER_MEMBER(at_state, pc_dma_read_byte),
-	DEVCB_DRIVER_MEMBER(at_state, pc_dma_write_byte),
-	{ DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_0_dack_r), DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_1_dack_r), DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_2_dack_r), DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_3_dack_r) },
-	{ DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_0_dack_w), DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_1_dack_w), DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_2_dack_w), DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_3_dack_w) },
-	{ DEVCB_DRIVER_LINE_MEMBER(at_state, pc_dack0_w), DEVCB_DRIVER_LINE_MEMBER(at_state, pc_dack1_w), DEVCB_DRIVER_LINE_MEMBER(at_state, pc_dack2_w), DEVCB_DRIVER_LINE_MEMBER(at_state, pc_dack3_w) }
-};
-
-
-I8237_INTERFACE( at_dma8237_2_config )
-{
-	DEVCB_DRIVER_LINE_MEMBER(at_state, pc_dma_hrq_changed),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(at_state, pc_dma_read_word),
-	DEVCB_DRIVER_MEMBER(at_state, pc_dma_write_word),
-	{ DEVCB_NULL, DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_5_dack_r), DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_6_dack_r), DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_7_dack_r) },
-	{ DEVCB_NULL, DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_5_dack_w), DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_6_dack_w), DEVCB_DRIVER_MEMBER(at_state, pc_dma8237_7_dack_w) },
-	{ DEVCB_DRIVER_LINE_MEMBER(at_state, pc_dack4_w), DEVCB_DRIVER_LINE_MEMBER(at_state, pc_dack5_w), DEVCB_DRIVER_LINE_MEMBER(at_state, pc_dack6_w), DEVCB_DRIVER_LINE_MEMBER(at_state, pc_dack7_w) }
-};
-
 READ8_MEMBER( at_state::at_portb_r )
 {
 	UINT8 data = m_at_speaker;
-	data &= ~0xc0; /* AT BIOS don't likes this being set */
+	data &= ~0xd0; /* AT BIOS don't likes this being set */
 
-	/* 0x10 is the dram refresh line bit.  The 5170 (bios 1) and 5162 test the cpu clock against it in post. */
-	if ( --m_poll_delay < 0 )
-	{
-		if(m_type == TYPE_286)
-			m_poll_delay = m_at_offset1 ? 3 : 2;
-		else
-			m_poll_delay = 3;
-		m_at_offset1 ^= 0x10;
-	}
-	data = (data & ~0x10) | ( m_at_offset1 & 0x10 );
+	/* 0x10 is the dram refresh line bit, 15.085us. */
+	data |= (machine().time().as_ticks(110000) & 1) ? 0x10 : 0;
 
-	if (m_pit8254->get_output(2))
+	if (m_pit_out2)
 		data |= 0x20;
 	else
 		data &= ~0x20; /* ps2m30 wants this */
@@ -290,10 +234,26 @@ READ8_MEMBER( at_state::at_portb_r )
 WRITE8_MEMBER( at_state::at_portb_w )
 {
 	m_at_speaker = data;
-	m_pit8254->gate2_w(BIT(data, 0));
+	m_pit8254->write_gate2(BIT(data, 0));
 	at_speaker_set_spkrdata( BIT(data, 1));
 	m_channel_check = BIT(data, 3);
 	m_isabus->set_nmi_state((m_nmi_enabled==0) && (m_channel_check==0));
+}
+
+READ8_MEMBER( at_state::ps2_portb_r )
+{
+	UINT8 data = m_at_speaker;
+	data &= ~0xd0; /* AT BIOS don't likes this being set */
+
+	/* 0x10 is the dram refresh line bit, 15.085us. */
+	data |= (machine().time().as_ticks(66291) & 1) ? 0x10 : 0;
+
+	if (m_pit_out2)
+		data |= 0x20;
+	else
+		data &= ~0x20; /* ps2m30 wants this */
+
+	return data;
 }
 
 
@@ -307,13 +267,6 @@ void at_state::init_at_common()
 {
 	address_space& space = m_maincpu->space(AS_PROGRAM);
 
-	if(!strncmp(m_maincpu->shortname(), "i386", 4))
-		m_type = TYPE_386;
-	else if(!strncmp(m_maincpu->shortname(), "i486", 4))
-		m_type = TYPE_486;
-	else
-		m_type = TYPE_286;
-
 	/* MESS managed RAM */
 	membank("bank10")->set_base(m_ram->pointer());
 
@@ -324,11 +277,6 @@ void at_state::init_at_common()
 		space.install_write_bank(0x100000,  ram_limit - 1, "bank1");
 		membank("bank1")->set_base(m_ram->pointer() + 0xa0000);
 	}
-
-	if(m_type == TYPE_286)
-		m_at_offset1 = 0;
-	else
-		m_at_offset1 = 0xff;
 }
 
 DRIVER_INIT_MEMBER(at_state,atcga)
@@ -341,30 +289,18 @@ DRIVER_INIT_MEMBER(at_state,atvga)
 	init_at_common();
 }
 
-DRIVER_INIT_MEMBER(at_state,at586)
+DRIVER_INIT_MEMBER(at586_state,at586)
 {
-	m_type = TYPE_586;
-	m_at_offset1 = 0xff;
-}
-
-IRQ_CALLBACK_MEMBER(at_state::at_irq_callback)
-{
-	return m_pic8259_master->inta_r();
 }
 
 MACHINE_START_MEMBER(at_state,at)
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(at_state::at_irq_callback),this));
 }
 
 MACHINE_RESET_MEMBER(at_state,at)
 {
-	if(m_type == TYPE_286)
-		m_poll_delay = 3;
-	else
-		m_poll_delay = 4;
 	m_at_spkrdata = 0;
-	m_at_speaker_input = 0;
+	m_pit_out2 = 0;
 	m_dma_channel = -1;
 	m_cur_eop = false;
 }

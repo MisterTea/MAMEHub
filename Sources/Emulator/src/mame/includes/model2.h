@@ -1,8 +1,9 @@
-#include "video/poly.h"
+#include "video/polylgcy.h"
 #include "audio/dsbz80.h"
 #include "audio/segam1audio.h"
 #include "machine/eepromser.h"
 #include "cpu/i960/i960.h"
+#include "sound/scsp.h"
 
 struct raster_state;
 struct geo_state;
@@ -15,31 +16,36 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_workram(*this, "workram"),
 		m_bufferram(*this, "bufferram"),
-		m_paletteram32(*this, "paletteram32"),
 		m_colorxlat(*this, "colorxlat"),
 		m_textureram0(*this, "textureram0"),
 		m_textureram1(*this, "textureram1"),
 		m_lumaram(*this, "lumaram"),
 		m_soundram(*this, "soundram"),
 		m_tgp_program(*this, "tgp_program"),
+		m_tgpx4_program(*this, "tgpx4_program"),
 		m_maincpu(*this,"maincpu"),
 		m_dsbz80(*this, DSBZ80_TAG),
 		m_m1audio(*this, "m1audio"),
 		m_audiocpu(*this, "audiocpu"),
 		m_tgp(*this, "tgp"),
 		m_dsp(*this, "dsp"),
+		m_tgpx4(*this, "tgpx4"),
 		m_drivecpu(*this, "drivecpu"),
-		m_eeprom(*this, "eeprom") { }
+		m_eeprom(*this, "eeprom"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"),
+		m_scsp(*this, "scsp") { }
 
 	required_shared_ptr<UINT32> m_workram;
 	required_shared_ptr<UINT32> m_bufferram;
-	required_shared_ptr<UINT32> m_paletteram32;
+	UINT16 *m_palram;
 	required_shared_ptr<UINT32> m_colorxlat;
 	required_shared_ptr<UINT32> m_textureram0;
 	required_shared_ptr<UINT32> m_textureram1;
 	required_shared_ptr<UINT32> m_lumaram;
 	optional_shared_ptr<UINT16> m_soundram;
 	optional_shared_ptr<UINT32> m_tgp_program;
+	optional_shared_ptr<UINT32> m_tgpx4_program;
 
 	required_device<i960_cpu_device> m_maincpu;
 	optional_device<dsbz80_device> m_dsbz80;    // Z80-based MPEG Digital Sound Board
@@ -47,8 +53,12 @@ public:
 	optional_device<cpu_device> m_audiocpu;
 	optional_device<cpu_device> m_tgp;
 	optional_device<cpu_device> m_dsp;
+	optional_device<cpu_device> m_tgpx4;
 	optional_device<cpu_device> m_drivecpu;
 	required_device<eeprom_serial_93cxx_device> m_eeprom;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+	optional_device<scsp_device> m_scsp;
 
 	UINT32 m_intreq;
 	UINT32 m_intena;
@@ -87,29 +97,39 @@ public:
 	int m_zflagi;
 	int m_zflag;
 	int m_sysres;
-	int m_scsp_last_line;
 	int m_jnet_time_out;
 	UINT32 m_geo_read_start_address;
 	UINT32 m_geo_write_start_address;
-	poly_manager *m_poly;
+	legacy_poly_manager *m_poly;
 	raster_state *m_raster;
 	geo_state *m_geo;
 	bitmap_rgb32 m_sys24_bitmap;
+	UINT32 m_videocontrol;
+	UINT32 m_soundack;
+	void model2_check_irq_state();
+	void model2_check_irqack_state(UINT32 data);
+	UINT8 m_gearsel;
+	UINT8 m_lightgun_mux;
 
 	DECLARE_CUSTOM_INPUT_MEMBER(_1c00000_r);
 	DECLARE_CUSTOM_INPUT_MEMBER(_1c0001c_r);
+	DECLARE_CUSTOM_INPUT_MEMBER(srallyc_gearbox_r);
 	DECLARE_CUSTOM_INPUT_MEMBER(rchase2_devices_r);
 	DECLARE_READ32_MEMBER(timers_r);
 	DECLARE_WRITE32_MEMBER(timers_w);
-	DECLARE_WRITE32_MEMBER(pal32_w);
+	DECLARE_READ16_MEMBER(model2_palette_r);
+	DECLARE_WRITE16_MEMBER(model2_palette_w);
 	DECLARE_WRITE32_MEMBER(ctrl0_w);
 	DECLARE_WRITE32_MEMBER(analog_2b_w);
 	DECLARE_READ32_MEMBER(fifoctl_r);
+	DECLARE_READ32_MEMBER(model2o_fifoctrl_r);
 	DECLARE_READ32_MEMBER(videoctl_r);
+	DECLARE_WRITE32_MEMBER(videoctl_w);
 	DECLARE_WRITE32_MEMBER(rchase2_devices_w);
 	DECLARE_WRITE32_MEMBER(srallyc_devices_w);
 	DECLARE_READ32_MEMBER(copro_prg_r);
 	DECLARE_WRITE32_MEMBER(copro_prg_w);
+	DECLARE_READ32_MEMBER(copro_ctl1_r);
 	DECLARE_WRITE32_MEMBER(copro_ctl1_w);
 	DECLARE_WRITE32_MEMBER(copro_function_port_w);
 	DECLARE_READ32_MEMBER(copro_fifo_r);
@@ -124,7 +144,8 @@ public:
 	DECLARE_WRITE32_MEMBER(geo_prg_w);
 	DECLARE_READ32_MEMBER(geo_r);
 	DECLARE_WRITE32_MEMBER(geo_w);
-	DECLARE_READ32_MEMBER(hotd_unk_r);
+	DECLARE_READ32_MEMBER(hotd_lightgun_r);
+	DECLARE_WRITE32_MEMBER(hotd_lightgun_w);
 	DECLARE_READ32_MEMBER(sonic_unk_r);
 	DECLARE_READ32_MEMBER(daytona_unk_r);
 	DECLARE_READ32_MEMBER(desert_unk_r);
@@ -155,6 +176,10 @@ public:
 	DECLARE_WRITE32_MEMBER(copro_sharc_buffer_w);
 	DECLARE_READ32_MEMBER(copro_tgp_buffer_r);
 	DECLARE_WRITE32_MEMBER(copro_tgp_buffer_w);
+	DECLARE_READ8_MEMBER(tgpid_r);
+	DECLARE_READ32_MEMBER(copro_status_r);
+	DECLARE_READ32_MEMBER(polygon_count_r);
+
 	DECLARE_READ8_MEMBER(driveio_port_r);
 	DECLARE_WRITE8_MEMBER(driveio_port_w);
 	DECLARE_READ8_MEMBER(driveio_port_str_r);
@@ -186,10 +211,19 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(model2_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(model2c_interrupt);
 	void model2_exit();
-	DECLARE_WRITE_LINE_MEMBER(scsp_irq);
+	DECLARE_WRITE8_MEMBER(scsp_irq);
 	DECLARE_READ_LINE_MEMBER(copro_tgp_fifoin_pop_ok);
 	DECLARE_READ32_MEMBER(copro_tgp_fifoin_pop);
 	DECLARE_WRITE32_MEMBER(copro_tgp_fifoout_push);
+	DECLARE_READ8_MEMBER(virtuacop_lightgun_r);
+	DECLARE_READ8_MEMBER(virtuacop_lightgun_offscreen_r);
+
+	bool copro_fifoin_pop(device_t *device, UINT32 *result,UINT32 offset, UINT32 mem_mask);
+	void copro_fifoin_push(device_t *device, UINT32 data, UINT32 offset, UINT32 mem_mask);
+	UINT32 copro_fifoout_pop(address_space &space, UINT32 offset, UINT32 mem_mask);
+	void copro_fifoout_push(device_t *device, UINT32 data,UINT32 offset,UINT32 mem_mask);
+
+	void model2_3d_frame_end( bitmap_rgb32 &bitmap, const rectangle &cliprect );
 };
 
 /*----------- defined in video/model2.c -----------*/

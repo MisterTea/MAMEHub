@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, David Haywood, MooglyGuy, Stephh, Pierpaolo Prazzoli, Roberto Fresca
 /*****************************************************************
 * Status Triv Two driver by David Haywood, MooglyGuy, and Stephh *
 * Super Triv II driver by MooglyGuy                              *
@@ -84,7 +86,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_tms(*this, "tms"),
 		m_videoram(*this, "videoram"),
-		m_question_offset(*this, "question_offset")
+		m_question_offset(*this, "question_offset"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 			{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -92,6 +96,8 @@ public:
 	required_shared_ptr<UINT8> m_videoram;
 	tilemap_t *m_tilemap;
 	required_shared_ptr<UINT8> m_question_offset;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 	UINT8 m_question_offset_low;
 	UINT8 m_question_offset_mid;
 	UINT8 m_question_offset_high;
@@ -112,7 +118,7 @@ public:
 	TILE_GET_INFO_MEMBER(horizontal_tile_info);
 	TILE_GET_INFO_MEMBER(vertical_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(statriv2);
 	DECLARE_VIDEO_START(vertical);
 	UINT32 screen_update_statriv2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(statriv2_interrupt);
@@ -154,25 +160,25 @@ TILE_GET_INFO_MEMBER(statriv2_state::vertical_tile_info)
  *
  *************************************/
 
-void statriv2_state::palette_init()
+PALETTE_INIT_MEMBER(statriv2_state, statriv2)
 {
 	int i;
 
 	for (i = 0; i < 64; i++)
 	{
-		palette_set_color_rgb(machine(), 2*i+0, pal1bit(i >> 2), pal1bit(i >> 0), pal1bit(i >> 1));
-		palette_set_color_rgb(machine(), 2*i+1, pal1bit(i >> 5), pal1bit(i >> 3), pal1bit(i >> 4));
+		palette.set_pen_color(2*i+0, pal1bit(i >> 2), pal1bit(i >> 0), pal1bit(i >> 1));
+		palette.set_pen_color(2*i+1, pal1bit(i >> 5), pal1bit(i >> 3), pal1bit(i >> 4));
 	}
 }
 
 void statriv2_state::video_start()
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(statriv2_state::horizontal_tile_info),this) ,TILEMAP_SCAN_ROWS, 8,15, 64,16);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(statriv2_state::horizontal_tile_info),this) ,TILEMAP_SCAN_ROWS, 8,15, 64,16);
 }
 
 VIDEO_START_MEMBER(statriv2_state,vertical)
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(statriv2_state::vertical_tile_info),this), TILEMAP_SCAN_ROWS, 8,8, 32,32);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(statriv2_state::vertical_tile_info),this), TILEMAP_SCAN_ROWS, 8,8, 32,32);
 }
 
 
@@ -201,7 +207,7 @@ WRITE8_MEMBER(statriv2_state::statriv2_videoram_w)
 UINT32 statriv2_state::screen_update_statriv2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	if (m_tms->screen_reset())
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 	else
 		m_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
@@ -272,28 +278,6 @@ WRITE8_MEMBER(statriv2_state::ppi_portc_hi_w)
 	if (data != 0x0f)
 		m_latched_coin = 0;
 }
-
-
-
-
-/*************************************
- *
- *  8255 PPI interfaces
- *
- *************************************/
-
-static I8255A_INTERFACE( ppi8255_intf )
-{
-	/* PPI 8255 group A & B set to Mode 0.
-	 Port A, B and lower 4 bits of C set as Input.
-	 High 4 bits of C set as Output */
-	DEVCB_INPUT_PORT("IN0"),            /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_INPUT_PORT("IN1"),            /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_INPUT_PORT("IN2"),            /* Port C read */
-	DEVCB_DRIVER_MEMBER(statriv2_state,ppi_portc_hi_w)      /* Port C write */
-};
 
 
 /*************************************
@@ -580,21 +564,6 @@ static GFXDECODE_START( vertical )
 GFXDECODE_END
 
 
-
-/*************************************
- *
- *  TMS9927 interface
- *
- *************************************/
-
-static const tms9927_interface tms9927_intf =
-{
-	8,
-	NULL
-};
-
-
-
 /*************************************
  *
  *  Machine drivers
@@ -611,19 +580,27 @@ static MACHINE_CONFIG_START( statriv2, statriv2_state )
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	/* 1x 8255 */
-	MCFG_I8255A_ADD( "ppi8255", ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	/* PPI 8255 group A & B set to Mode 0.
+	 Port A, B and lower 4 bits of C set as Input.
+	 High 4 bits of C set as Output */
+	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(statriv2_state, ppi_portc_hi_w))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/2, 384, 0, 320, 270, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(statriv2_state, screen_update_statriv2)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_TMS9927_ADD("tms", MASTER_CLOCK/2, tms9927_intf)
+	MCFG_DEVICE_ADD("tms", TMS9927, MASTER_CLOCK/2)
+	MCFG_TMS9927_CHAR_WIDTH(8)
 
-	MCFG_GFXDECODE(horizontal)
-	MCFG_PALETTE_LENGTH(2*64)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", horizontal)
+	MCFG_PALETTE_ADD("palette", 2*64)
+	MCFG_PALETTE_INIT_OWNER(statriv2_state, statriv2)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -640,7 +617,7 @@ static MACHINE_CONFIG_DERIVED( statriv2v, statriv2 )
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/2, 392, 0, 256, 262, 0, 256)
 
 	MCFG_VIDEO_START_OVERRIDE(statriv2_state,vertical)
-	MCFG_GFXDECODE(vertical)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", vertical)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( funcsino, statriv2 )
@@ -1122,13 +1099,13 @@ READ8_MEMBER(statriv2_state::laserdisc_io_r)
 	UINT8 result = 0x00;
 	if (offset == 1)
 		result = 0x18;
-	mame_printf_debug("%s:ld read ($%02X) = %02X\n", machine().describe_context(), 0x28 + offset, result);
+	osd_printf_debug("%s:ld read ($%02X) = %02X\n", machine().describe_context(), 0x28 + offset, result);
 	return result;
 }
 
 WRITE8_MEMBER(statriv2_state::laserdisc_io_w)
 {
-	mame_printf_debug("%s:ld write ($%02X) = %02X\n", machine().describe_context(), 0x28 + offset, data);
+	osd_printf_debug("%s:ld write ($%02X) = %02X\n", machine().describe_context(), 0x28 + offset, data);
 }
 
 DRIVER_INIT_MEMBER(statriv2_state,laserdisc)

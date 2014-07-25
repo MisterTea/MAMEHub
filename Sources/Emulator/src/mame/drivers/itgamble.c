@@ -55,7 +55,7 @@
 
 
 #include "emu.h"
-#include "cpu/h83002/h8.h"
+#include "cpu/h8/h83048.h"
 #include "sound/okim6295.h"
 
 
@@ -64,7 +64,8 @@ class itgamble_state : public driver_device
 public:
 	itgamble_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu")
+			m_maincpu(*this, "maincpu"),
+			m_palette(*this, "palette")
 	{ }
 
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -73,6 +74,7 @@ protected:
 
 	// devices
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
 
 	// driver_device overrides
 	virtual void machine_reset();
@@ -90,7 +92,7 @@ void itgamble_state::video_start()
 
 UINT32 itgamble_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()));
+	bitmap.fill(m_palette->black_pen());
 	return 0;
 }
 
@@ -205,7 +207,7 @@ void itgamble_state::machine_reset()
 static MACHINE_CONFIG_START( itgamble, itgamble_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", H83044, MAIN_CLOCK/2)   /* probably the wrong CPU */
+	MCFG_CPU_ADD("maincpu", H83048, MAIN_CLOCK/2)
 	MCFG_CPU_PROGRAM_MAP(itgamble_map)
 
 	/* video hardware */
@@ -215,9 +217,10 @@ static MACHINE_CONFIG_START( itgamble, itgamble_state )
 	MCFG_SCREEN_UPDATE_DRIVER(itgamble_state, screen_update)
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(itgamble)
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", itgamble)
+	MCFG_PALETTE_ADD("palette", 0x200)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

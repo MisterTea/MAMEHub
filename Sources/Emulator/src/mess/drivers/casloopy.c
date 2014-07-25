@@ -159,9 +159,10 @@ public:
 	casloopy_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_bios_rom(*this, "bios_rom"),
-		m_vregs(*this, "vregs")
-		,
-		m_maincpu(*this, "maincpu") { }
+		m_vregs(*this, "vregs"),
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT32> m_bios_rom;
 	required_shared_ptr<UINT32> m_vregs;
@@ -186,6 +187,8 @@ public:
 	DECLARE_READ8_MEMBER(casloopy_bitmap_r);
 	DECLARE_WRITE8_MEMBER(casloopy_bitmap_w);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -219,19 +222,19 @@ void casloopy_state::video_start()
 	m_bitmap_vram = auto_alloc_array_clear(machine(), UINT8, 0x20000);
 
 	for (m_gfx_index = 0; m_gfx_index < MAX_GFX_ELEMENTS; m_gfx_index++)
-		if (machine().gfx[m_gfx_index] == 0)
+		if (m_gfxdecode->gfx(m_gfx_index) == 0)
 			break;
 
 	for(int i=0;i<0x10000;i++)
 		m_vram[i] = i & 0xff;
 
-	machine().gfx[m_gfx_index] = auto_alloc(machine(), gfx_element(machine(), casloopy_4bpp_layout, m_vram, 0x10, 0));
-	machine().gfx[m_gfx_index+1] = auto_alloc(machine(), gfx_element(machine(), casloopy_8bpp_layout, m_vram, 1, 0));
+	m_gfxdecode->set_gfx(m_gfx_index, global_alloc(gfx_element(m_palette, casloopy_4bpp_layout, m_vram, 0, 0x10, 0)));
+	m_gfxdecode->set_gfx(m_gfx_index+1, global_alloc(gfx_element(m_palette, casloopy_8bpp_layout, m_vram, 0, 1, 0)));
 }
 
 UINT32 casloopy_state::screen_update_casloopy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = machine().gfx[m_gfx_index];
+	gfx_element *gfx = m_gfxdecode->gfx(m_gfx_index);
 	int x,y;
 	int count;
 
@@ -251,7 +254,7 @@ UINT32 casloopy_state::screen_update_casloopy(screen_device &screen, bitmap_ind1
 	r = pal5bit((m_vregs[0x4/4] >> 10) & 0x1f);
 	g = pal5bit((m_vregs[0x4/4] >> 5) & 0x1f);
 	b = pal5bit((m_vregs[0x4/4] >> 0) & 0x1f);
-	palette_set_color(machine(),0x100,MAKE_RGB(r^0xff,g^0xff,b^0xff));
+	m_palette->set_pen_color(0x100,rgb_t(r^0xff,g^0xff,b^0xff));
 	bitmap.fill( 0x100 ,cliprect);
 	#endif
 
@@ -264,7 +267,7 @@ UINT32 casloopy_state::screen_update_casloopy(screen_device &screen, bitmap_ind1
 
 			tile &= 0x7ff; //???
 
-			drawgfx_transpen(bitmap,cliprect,gfx,tile,7,0,0,x*8,y*8,0xffffffff);
+			gfx->transpen(bitmap,cliprect,tile,7,0,0,x*8,y*8,0xffffffff);
 
 			count+=2;
 		}
@@ -293,11 +296,11 @@ READ16_MEMBER(casloopy_state::casloopy_vregs_r)
 {
 	if(offset == 4/2)
 	{
-		return (machine().primary_screen->vblank() << 8) | (machine().rand() & 0xff); // vblank + vpos?
+		return (machine().first_screen()->vblank() << 8) | (machine().rand() & 0xff); // vblank + vpos?
 	}
 
 	if(offset == 2/2)
-		return machine().rand();/*(machine().primary_screen->hblank() << 8) | (machine().primary_screen->hpos() & 0xff);*/ // hblank + hpos?
+		return machine().rand();/*(machine().first_screen()->hblank() << 8) | (machine().first_screen()->hpos() & 0xff);*/ // hblank + hpos?
 
 	if(offset == 0/2)
 		return machine().rand(); // pccllect
@@ -327,7 +330,7 @@ WRITE16_MEMBER(casloopy_state::casloopy_pal_w)
 	g = ((m_paletteram[offset])&0x03e0)>>5;
 	r = ((m_paletteram[offset])&0x7c00)>>10;
 
-	palette_set_color_rgb(machine(), offset, pal5bit(r), pal5bit(g), pal5bit(b));
+	m_palette->set_pen_color(offset, pal5bit(r), pal5bit(g), pal5bit(b));
 }
 
 READ8_MEMBER(casloopy_state::casloopy_vram_r)
@@ -339,8 +342,8 @@ WRITE8_MEMBER(casloopy_state::casloopy_vram_w)
 {
 	m_vram[offset] = data;
 
-	machine().gfx[m_gfx_index]->mark_dirty(offset/32);
-	machine().gfx[m_gfx_index+1]->mark_dirty(offset/64);
+	m_gfxdecode->gfx(m_gfx_index)->mark_dirty(offset/32);
+	m_gfxdecode->gfx(m_gfx_index+1)->mark_dirty(offset/64);
 }
 
 /* TODO: all of this should be internal to the SH core, this is just to check what it enables. */
@@ -445,7 +448,7 @@ void casloopy_state::machine_reset()
 
 }
 
-
+#if 0
 static const gfx_layout casloopy_4bpp_layoutROM =
 {
 	8,8,
@@ -457,6 +460,7 @@ static const gfx_layout casloopy_4bpp_layoutROM =
 	4*8*8
 };
 
+
 static const gfx_layout casloopy_8bpp_layoutROM =
 {
 	8,8,
@@ -467,6 +471,7 @@ static const gfx_layout casloopy_8bpp_layoutROM =
 	{ STEP8(0, 8*8) },
 	8*8*8
 };
+#endif
 
 
 
@@ -489,8 +494,11 @@ static MACHINE_CONFIG_START( casloopy, casloopy_state )
 //  MCFG_SCREEN_SIZE(444, 263)
 //  MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(casloopy_state, screen_update_casloopy)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_PALETTE_ADD("palette", 512)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
 
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("ic1,bin")
@@ -533,4 +541,4 @@ DRIVER_INIT_MEMBER(casloopy_state,casloopy)
 		m_bios_rom[i] = 0x000b0009; // RTS + NOP
 }
 
-GAME( 1995, casloopy,  0,   casloopy,  casloopy, casloopy_state,  casloopy, ROT0, "Casio", "Loopy", GAME_NOT_WORKING | GAME_NO_SOUND )
+CONS( 1995, casloopy,  0,   0,   casloopy,  casloopy, casloopy_state,  casloopy,  "Casio", "Loopy", GAME_NOT_WORKING | GAME_NO_SOUND )

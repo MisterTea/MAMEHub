@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Jaleco Exerion
@@ -34,7 +36,7 @@
 
 ***************************************************************************/
 
-void exerion_state::palette_init()
+PALETTE_INIT_MEMBER(exerion_state, exerion)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances_rg[3] = { 1000, 470, 220 };
@@ -47,9 +49,6 @@ void exerion_state::palette_init()
 			3, &resistances_rg[0], rweights, 0, 0,
 			3, &resistances_rg[0], gweights, 0, 0,
 			2, &resistances_b[0],  bweights, 0, 0);
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x20);
 
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x20; i++)
@@ -74,7 +73,7 @@ void exerion_state::palette_init()
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		b = combine_2_weights(bweights, bit0, bit1);
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -84,7 +83,7 @@ void exerion_state::palette_init()
 	for (i = 0; i < 0x200; i++)
 	{
 		UINT8 ctabentry = 0x10 | (color_prom[(i & 0x1c0) | ((i & 3) << 4) | ((i >> 2) & 0x0f)] & 0x0f);
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 
 	/* bg chars (this is not the full story... there are four layers mixed */
@@ -92,7 +91,7 @@ void exerion_state::palette_init()
 	for (i = 0x200; i < 0x300; i++)
 	{
 		UINT8 ctabentry = color_prom[i] & 0x0f;
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 }
 
@@ -368,7 +367,7 @@ UINT32 exerion_state::screen_update_exerion(screen_device &screen, bitmap_ind16 
 		int code2 = code;
 
 		int color = ((flags >> 1) & 0x03) | ((code >> 5) & 0x04) | (code & 0x08) | (m_sprite_palette * 16);
-		gfx_element *gfx = doubled ? machine().gfx[2] : machine().gfx[1];
+		gfx_element *gfx = doubled ? m_gfxdecode->gfx(2) : m_gfxdecode->gfx(1);
 
 		if (m_cocktail_flip)
 		{
@@ -386,12 +385,12 @@ UINT32 exerion_state::screen_update_exerion(screen_device &screen, bitmap_ind16 
 			else
 				code &= ~0x10, code2 |= 0x10;
 
-			drawgfx_transmask(bitmap, cliprect, gfx, code2, color, xflip, yflip, x, y + gfx->height(),
-					colortable_get_transpen_mask(machine().colortable, gfx, color, 0x10));
+				gfx->transmask(bitmap,cliprect, code2, color, xflip, yflip, x, y + gfx->height(),
+					m_palette->transpen_mask(*gfx, color, 0x10));
 		}
 
-		drawgfx_transmask(bitmap, cliprect, gfx, code, color, xflip, yflip, x, y,
-				colortable_get_transpen_mask(machine().colortable, gfx, color, 0x10));
+			gfx->transmask(bitmap,cliprect, code, color, xflip, yflip, x, y,
+				m_palette->transpen_mask(*gfx, color, 0x10));
 
 		if (doubled) i += 4;
 	}
@@ -404,7 +403,7 @@ UINT32 exerion_state::screen_update_exerion(screen_device &screen, bitmap_ind16 
 			int y = m_cocktail_flip ? (31*8 - 8*sy) : 8*sy;
 
 			offs = sx + sy * 64;
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[0],
+			m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 				m_videoram[offs] + 256 * m_char_bank,
 				((m_videoram[offs] & 0xf0) >> 4) + m_char_palette * 16,
 				m_cocktail_flip, m_cocktail_flip, x, y, 0);

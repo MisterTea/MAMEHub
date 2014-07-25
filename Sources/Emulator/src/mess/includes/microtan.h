@@ -32,7 +32,11 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_maincpu(*this, "maincpu"),
-		m_cassette(*this, "cassette") { }
+		m_cassette(*this, "cassette"),
+		m_via6522_0(*this, "via6522_0"),
+		m_via6522_1(*this, "via6522_1"),
+		m_gfxdecode(*this, "gfxdecode")
+	{ }
 
 	required_shared_ptr<UINT8> m_videoram;
 	UINT8 m_chunky_graphics;
@@ -64,29 +68,21 @@ public:
 	TIMER_CALLBACK_MEMBER(microtan_read_cassette);
 	TIMER_CALLBACK_MEMBER(microtan_pulse_nmi);
 	DECLARE_READ8_MEMBER(via_0_in_a);
-	DECLARE_READ8_MEMBER(via_0_in_b);
-	DECLARE_READ8_MEMBER(via_0_in_ca1);
-	DECLARE_READ8_MEMBER(via_0_in_cb1);
-	DECLARE_READ8_MEMBER(via_0_in_ca2);
-	DECLARE_READ8_MEMBER(via_0_in_cb2);
 	DECLARE_WRITE8_MEMBER(via_0_out_a);
 	DECLARE_WRITE8_MEMBER(via_0_out_b);
-	DECLARE_WRITE8_MEMBER(via_0_out_ca2);
-	DECLARE_WRITE8_MEMBER(via_0_out_cb2);
-	DECLARE_READ8_MEMBER(via_1_in_a);
-	DECLARE_READ8_MEMBER(via_1_in_b);
-	DECLARE_READ8_MEMBER(via_1_in_ca1);
-	DECLARE_READ8_MEMBER(via_1_in_cb1);
-	DECLARE_READ8_MEMBER(via_1_in_ca2);
-	DECLARE_READ8_MEMBER(via_1_in_cb2);
+	DECLARE_WRITE_LINE_MEMBER(via_0_out_ca2);
+	DECLARE_WRITE_LINE_MEMBER(via_0_out_cb2);
 	DECLARE_WRITE8_MEMBER(via_1_out_a);
 	DECLARE_WRITE8_MEMBER(via_1_out_b);
-	DECLARE_WRITE8_MEMBER(via_1_out_ca2);
-	DECLARE_WRITE8_MEMBER(via_1_out_cb2);
+	DECLARE_WRITE_LINE_MEMBER(via_1_out_ca2);
+	DECLARE_WRITE_LINE_MEMBER(via_1_out_cb2);
 	DECLARE_WRITE_LINE_MEMBER(via_0_irq);
 	DECLARE_WRITE_LINE_MEMBER(via_1_irq);
 	required_device<cpu_device> m_maincpu;
 	required_device<cassette_image_device> m_cassette;
+	required_device<via6522_device> m_via6522_0;
+	required_device<via6522_device> m_via6522_1;
+	required_device<gfxdecode_device> m_gfxdecode;
 	UINT8 read_dsw();
 	void microtan_set_irq_line();
 	void store_key(int key);
@@ -102,9 +98,4 @@ protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
-
-/*----------- defined in machine/microtan.c -----------*/
-
-extern const via6522_interface microtan_via6522_0;
-extern const via6522_interface microtan_via6522_1;
 #endif /* MICROTAN_H_ */

@@ -40,7 +40,8 @@ public:
 			m_riot(*this, "riot"),
 			m_via_0(*this, "via6522_0"),
 			m_via_1(*this, "via6522_1"),
-			m_via_2(*this, "via6522_2") { }
+			m_via_2(*this, "via6522_2"),
+			m_screen(*this, "screen") { }
 
 	/* machine state */
 	UINT8   m_current_port;
@@ -62,12 +63,13 @@ public:
 	required_device<via6522_device> m_via_0;
 	required_device<via6522_device> m_via_1;
 	required_device<via6522_device> m_via_2;
+	required_device<screen_device> m_screen;
 	DECLARE_WRITE8_MEMBER(io_select_w);
 	DECLARE_READ8_MEMBER(io_port_r);
-	DECLARE_WRITE8_MEMBER(coin_w);
-	DECLARE_WRITE8_MEMBER(audio_reset_w);
+	DECLARE_WRITE_LINE_MEMBER(coin_w);
+	DECLARE_WRITE_LINE_MEMBER(audio_reset_w);
 	DECLARE_WRITE8_MEMBER(audio_cmd_w);
-	DECLARE_WRITE8_MEMBER(audio_trigger_w);
+	DECLARE_WRITE_LINE_MEMBER(audio_trigger_w);
 	DECLARE_WRITE_LINE_MEMBER(r6532_irq);
 	DECLARE_WRITE8_MEMBER(r6532_soundlatch_w);
 	DECLARE_MACHINE_START(gameplan);
@@ -89,23 +91,18 @@ public:
 	DECLARE_WRITE8_MEMBER(gameplan_video_command_w);
 	DECLARE_WRITE8_MEMBER(leprechn_video_command_w);
 	DECLARE_WRITE_LINE_MEMBER(video_command_trigger_w);
-	DECLARE_READ8_MEMBER(vblank_r);
 	void gameplan_get_pens( pen_t *pens );
 	void leprechn_get_pens( pen_t *pens );
 	DECLARE_WRITE_LINE_MEMBER(via_irq);
 	DECLARE_READ8_MEMBER(trvquest_question_r);
-	DECLARE_WRITE8_MEMBER(trvquest_coin_w);
-	DECLARE_WRITE8_MEMBER(trvquest_misc_w);
+	DECLARE_WRITE_LINE_MEMBER(trvquest_coin_w);
+	DECLARE_WRITE_LINE_MEMBER(trvquest_misc_w);
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 /*----------- defined in video/gameplan.c -----------*/
-
-extern const via6522_interface gameplan_via_0_interface;
-extern const via6522_interface leprechn_via_0_interface;
-extern const via6522_interface trvquest_via_0_interface;
 
 MACHINE_CONFIG_EXTERN( gameplan_video );
 MACHINE_CONFIG_EXTERN( leprechn_video );

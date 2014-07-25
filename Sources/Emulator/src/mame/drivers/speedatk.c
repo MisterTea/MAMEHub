@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Pierpaolo Prazzoli
 /*****************************************************************************************
 
 Speed Attack! (c) 1984 Seta Kikaku Corp.
@@ -283,20 +285,6 @@ static GFXDECODE_START( speedatk )
 	GFXDECODE_ENTRY( "gfx2", 0, charlayout_3bpp,   0, 32 )
 GFXDECODE_END
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
 WRITE8_MEMBER(speedatk_state::speedatk_output_w)
 {
 	m_flip_scr = data & 0x80;
@@ -304,16 +292,6 @@ WRITE8_MEMBER(speedatk_state::speedatk_output_w)
 	if((data & 0x7f) != 0x7f)
 		logerror("%02x\n",data);
 }
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_INPUT_PORT("DSW"),
-	DEVCB_DRIVER_MEMBER(speedatk_state,speedatk_output_w),
-	DEVCB_NULL
-};
 
 static MACHINE_CONFIG_START( speedatk, speedatk_state )
 
@@ -331,18 +309,23 @@ static MACHINE_CONFIG_START( speedatk, speedatk_state )
 	MCFG_SCREEN_SIZE(320, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(speedatk_state, screen_update_speedatk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_MC6845_ADD("crtc", H46505, "screen", MASTER_CLOCK/16, mc6845_intf)   /* hand tuned to get ~60 fps */
+	MCFG_MC6845_ADD("crtc", H46505, "screen", MASTER_CLOCK/16)   /* hand tuned to get ~60 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
-	MCFG_GFXDECODE(speedatk)
-	MCFG_PALETTE_LENGTH(0x100)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", speedatk)
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_INDIRECT_ENTRIES(16)
+	MCFG_PALETTE_INIT_OWNER(speedatk_state, speedatk)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, MASTER_CLOCK/4) //divider is unknown
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW"))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(speedatk_state, speedatk_output_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 MACHINE_CONFIG_END
 

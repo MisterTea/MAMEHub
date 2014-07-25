@@ -427,17 +427,6 @@ static GFXDECODE_START( quizdna )
 GFXDECODE_END
 
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW3"),
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( quizdna, quizdna_state )
 
 	/* basic machine hardware */
@@ -453,16 +442,18 @@ static MACHINE_CONFIG_START( quizdna, quizdna_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8*8, 56*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(quizdna_state, screen_update_quizdna)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(quizdna)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", quizdna)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, MCLK/4)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW3"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(0, "mono", 0.10)
 	MCFG_SOUND_ROUTE(1, "mono", 0.10)
 	MCFG_SOUND_ROUTE(2, "mono", 0.10)

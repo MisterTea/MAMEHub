@@ -44,13 +44,14 @@
 
 static ADDRESS_MAP_START( nitedrvr_map, AS_PROGRAM, 8, nitedrvr_state )
 	AM_RANGE(0x0000, 0x00ff) AM_RAM AM_MIRROR(0x100) // SCRAM
-	AM_RANGE(0x0200, 0x027f) AM_RAM_WRITE(nitedrvr_videoram_w) AM_MIRROR(0x180) AM_SHARE("videoram") // PFW
-	AM_RANGE(0x0400, 0x05ff) AM_WRITE(nitedrvr_hvc_w) AM_SHARE("hvc") // POSH, POSV, CHAR, Watchdog
+	AM_RANGE(0x0200, 0x027f) AM_READNOP AM_WRITE(nitedrvr_videoram_w) AM_MIRROR(0x180) AM_SHARE("videoram") // PFW
+	AM_RANGE(0x0400, 0x042f) AM_READNOP AM_WRITEONLY AM_MIRROR(0x1c0) AM_SHARE("hvc") // POSH, POSV, CHAR
+	AM_RANGE(0x0430, 0x043f) AM_WRITE(watchdog_reset_w) AM_MIRROR(0x1c0)
 	AM_RANGE(0x0600, 0x07ff) AM_READ(nitedrvr_in0_r)
 	AM_RANGE(0x0800, 0x09ff) AM_READ(nitedrvr_in1_r)
 	AM_RANGE(0x0a00, 0x0bff) AM_WRITE(nitedrvr_out0_w)
 	AM_RANGE(0x0c00, 0x0dff) AM_WRITE(nitedrvr_out1_w)
-	AM_RANGE(0x8000, 0x807f) AM_RAM AM_MIRROR(0x380) AM_SHARE("videoram") // PFR
+	AM_RANGE(0x8000, 0x807f) AM_READONLY AM_MIRROR(0x380) AM_SHARE("videoram") // PFR
 	AM_RANGE(0x8400, 0x87ff) AM_READWRITE(nitedrvr_steering_reset_r, nitedrvr_steering_reset_w)
 	AM_RANGE(0x9000, 0x9fff) AM_ROM // ROM1-ROM2
 	AM_RANGE(0xfff0, 0xffff) AM_ROM // ROM2 for 6502 vectors
@@ -130,8 +131,6 @@ static GFXDECODE_START( nitedrvr )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout, 0, 1 )
 GFXDECODE_END
 
-/* Machine Initialization */
-
 /* Machine Driver */
 
 static MACHINE_CONFIG_START( nitedrvr, nitedrvr_state )
@@ -139,9 +138,8 @@ static MACHINE_CONFIG_START( nitedrvr, nitedrvr_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6502, XTAL_12_096MHz/12) // 1 MHz
 	MCFG_CPU_PROGRAM_MAP(nitedrvr_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", nitedrvr_state,  irq0_line_hold)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", nitedrvr_state, irq0_line_hold)
 	MCFG_WATCHDOG_VBLANK_INIT(3)
-
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("crash_timer", nitedrvr_state, nitedrvr_crash_toggle_callback, PERIOD_OF_555_ASTABLE(RES_K(180), 330, CAP_U(1)))
 
@@ -152,11 +150,11 @@ static MACHINE_CONFIG_START( nitedrvr, nitedrvr_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nitedrvr_state, screen_update_nitedrvr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nitedrvr)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nitedrvr)
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

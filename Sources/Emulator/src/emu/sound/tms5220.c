@@ -326,7 +326,7 @@ static INT16 clip_analog(INT16 cliptemp);
 static const UINT8 reload_table[4] = { 0, 2, 4, 6 }; //sample count reload for 5220c and cd2501ecd only; 5200 and 5220 always reload with 0; keep in mind this is loaded on IP=0 PC=12 subcycle=1 so it immediately will increment after one sample, effectively being 1,3,5,7 as in the comments above.
 
 // Pull in the ROM tables
-#include "tms5110r.c"
+#include "tms5110r.inc"
 
 
 void tms5220_device::set_variant(int variant)
@@ -1491,7 +1491,7 @@ void tms5220_device::device_reset()
 	m_old_frame_energy_idx = m_old_frame_pitch_idx = 0;
 	memset(m_old_frame_k_idx, 0, sizeof(m_old_frame_k_idx));
 #endif
-	m_new_frame_energy_idx = m_current_energy = m_target_energy = 0;
+	m_new_frame_energy_idx = m_current_energy = m_target_energy = m_previous_energy = 0;
 	m_new_frame_pitch_idx = m_current_pitch = m_target_pitch = 0;
 	memset(m_new_frame_k_idx, 0, sizeof(m_new_frame_k_idx));
 	memset(m_current_k, 0, sizeof(m_current_k));
@@ -1506,6 +1506,7 @@ void tms5220_device::device_reset()
 	m_RNG = 0x1FFF;
 	memset(m_u, 0, sizeof(m_u));
 	memset(m_x, 0, sizeof(m_x));
+	m_schedule_dummy_read = 0;
 
 	if (m_speechrom)
 	{

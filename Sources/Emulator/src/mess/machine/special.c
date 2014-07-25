@@ -37,28 +37,59 @@ READ8_MEMBER( special_state::specialist_8255_porta_r )
 
 READ8_MEMBER( special_state::specialist_8255_portb_r )
 {
-	UINT8 dat = 0;
-	double level;
+	UINT8 dat = 0xff;
 
-	if ((m_specialist_8255_porta & 0x01)==0) dat ^= (m_io_line0->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x02)==0) dat ^= (m_io_line1->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x04)==0) dat ^= (m_io_line2->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x08)==0) dat ^= (m_io_line3->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x10)==0) dat ^= (m_io_line4->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x20)==0) dat ^= (m_io_line5->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x40)==0) dat ^= (m_io_line6->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x80)==0) dat ^= (m_io_line7->read() ^ 0xff);
-	if ((m_specialist_8255_portc & 0x01)==0) dat ^= (m_io_line8->read() ^ 0xff);
-	if ((m_specialist_8255_portc & 0x02)==0) dat ^= (m_io_line9->read() ^ 0xff);
-	if ((m_specialist_8255_portc & 0x04)==0) dat ^= (m_io_line10->read() ^ 0xff);
-	if ((m_specialist_8255_portc & 0x08)==0) dat ^= (m_io_line11->read() ^ 0xff);
+	if ((m_specialist_8255_porta & 0x01)==0) dat &= m_io_line0->read();
+	if ((m_specialist_8255_porta & 0x02)==0) dat &= m_io_line1->read();
+	if ((m_specialist_8255_porta & 0x04)==0) dat &= m_io_line2->read();
+	if ((m_specialist_8255_porta & 0x08)==0) dat &= m_io_line3->read();
+	if ((m_specialist_8255_porta & 0x10)==0) dat &= m_io_line4->read();
+	if ((m_specialist_8255_porta & 0x20)==0) dat &= m_io_line5->read();
+	if ((m_specialist_8255_porta & 0x40)==0) dat &= m_io_line6->read();
+	if ((m_specialist_8255_porta & 0x80)==0) dat &= m_io_line7->read();
+	if ((m_specialist_8255_portc & 0x01)==0) dat &= m_io_line8->read();
+	if ((m_specialist_8255_portc & 0x02)==0) dat &= m_io_line9->read();
+	if ((m_specialist_8255_portc & 0x04)==0) dat &= m_io_line10->read();
+	if ((m_specialist_8255_portc & 0x08)==0) dat &= m_io_line11->read();
 
-	dat = (dat  << 2) ^0xff;
-	if (m_io_line12->read()!=0xff) dat ^= 0x02;
+	// shift key
+	if BIT(~m_io_line12->read(), 0)
+		dat &= 0xfd;
 
-	level = m_cassette->input();
-	if (level >=  0)
-			dat ^= 0x01;
+	// cassette
+	if (m_cassette->input() > 0.01)
+		dat &= 0xfe;
+
+	// strobe if a key is pressed
+	if (dat < 0xfc) dat &= 0x7f;
+
+	return dat;
+}
+
+READ8_MEMBER( special_state::specimx_8255_portb_r )
+{
+	UINT8 dat = 0xff;
+
+	if ((m_specialist_8255_porta & 0x01)==0) dat &= m_io_line0->read();
+	if ((m_specialist_8255_porta & 0x02)==0) dat &= m_io_line1->read();
+	if ((m_specialist_8255_porta & 0x04)==0) dat &= m_io_line2->read();
+	if ((m_specialist_8255_porta & 0x08)==0) dat &= m_io_line3->read();
+	if ((m_specialist_8255_porta & 0x10)==0) dat &= m_io_line4->read();
+	if ((m_specialist_8255_porta & 0x20)==0) dat &= m_io_line5->read();
+	if ((m_specialist_8255_porta & 0x40)==0) dat &= m_io_line6->read();
+	if ((m_specialist_8255_porta & 0x80)==0) dat &= m_io_line7->read();
+	if ((m_specialist_8255_portc & 0x01)==0) dat &= m_io_line8->read();
+	if ((m_specialist_8255_portc & 0x02)==0) dat &= m_io_line9->read();
+	if ((m_specialist_8255_portc & 0x04)==0) dat &= m_io_line10->read();
+	if ((m_specialist_8255_portc & 0x08)==0) dat &= m_io_line11->read();
+
+	// shift key
+	if BIT(~m_io_line12->read(), 0)
+		dat &= 0xfd;
+
+	// cassette
+	if (m_cassette->input() > 0.01)
+		dat &= 0xfe;
 
 	return dat;
 }
@@ -91,16 +122,6 @@ WRITE8_MEMBER( special_state::specialist_8255_portc_w )
 	m_dac->write_unsigned8(BIT(data, 5)); //beeper
 }
 
-I8255_INTERFACE( specialist_ppi8255_interface )
-{
-	DEVCB_DRIVER_MEMBER(special_state, specialist_8255_porta_r),
-	DEVCB_DRIVER_MEMBER(special_state, specialist_8255_porta_w),
-	DEVCB_DRIVER_MEMBER(special_state, specialist_8255_portb_r),
-	DEVCB_DRIVER_MEMBER(special_state, specialist_8255_portb_w),
-	DEVCB_DRIVER_MEMBER(special_state, specialist_8255_portc_r),
-	DEVCB_DRIVER_MEMBER(special_state, specialist_8255_portc_w)
-};
-
 void special_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
 	switch (id)
@@ -110,9 +131,9 @@ void special_state::device_timer(emu_timer &timer, device_timer_id id, int param
 		break;
 	case TIMER_PIT8253_GATES:
 	{
-		m_pit->gate0_w(0);
-		m_pit->gate1_w(0);
-		m_pit->gate2_w(0);
+		m_pit->write_gate0(0);
+		m_pit->write_gate1(0);
+		m_pit->write_gate2(0);
 		break;
 	}
 	default:
@@ -194,49 +215,9 @@ WRITE8_MEMBER( special_state::specimx_select_bank )
 	specimx_set_bank(offset, data);
 }
 
-WRITE_LINE_MEMBER( special_state::specimx_pit8253_out0_changed )
-{
-	m_specimx_audio->set_input( 0, state );
-}
-
-WRITE_LINE_MEMBER( special_state::specimx_pit8253_out1_changed )
-{
-	m_specimx_audio->set_input( 1, state );
-}
-
-WRITE_LINE_MEMBER( special_state::specimx_pit8253_out2_changed )
-{
-	m_specimx_audio->set_input( 2, state );
-}
-
-
-
-const struct pit8253_interface specimx_pit8253_intf =
-{
-	{
-		{
-			2000000,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(special_state, specimx_pit8253_out0_changed)
-		},
-		{
-			2000000,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(special_state, specimx_pit8253_out1_changed)
-		},
-		{
-			2000000,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(special_state, specimx_pit8253_out2_changed)
-		}
-	}
-};
-
 MACHINE_START_MEMBER(special_state,specimx)
 {
-	m_specimx_audio = machine().device<specimx_sound_device>("custom");
 	m_drive = 0;
-	m_fdc->setup_drq_cb(fd1793_t::line_cb(FUNC(special_state::fdc_drq), this));
 }
 
 MACHINE_RESET_MEMBER(special_state,specimx)
@@ -250,7 +231,7 @@ READ8_MEMBER( special_state::specimx_disk_ctrl_r )
 	return 0xff;
 }
 
-void special_state::fdc_drq(bool state)
+WRITE_LINE_MEMBER( special_state::fdc_drq )
 {
 	/* Clears HALT state of CPU when data is ready to read */
 	if(state) {

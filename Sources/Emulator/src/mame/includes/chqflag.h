@@ -20,11 +20,12 @@ public:
 		m_k007232_2(*this, "k007232_2"),
 		m_k051960(*this, "k051960"),
 		m_k051316_1(*this, "k051316_1"),
-		m_k051316_2(*this, "k051316_2") { }
+		m_k051316_2(*this, "k051316_2"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	UINT8 *    m_ram;
-//  UINT8 *    m_paletteram;    // currently this uses generic palette handling
+	dynamic_array<UINT8> m_paletteram;
 
 	/* video-related */
 	int        m_zoom_colorbase[2];
@@ -45,6 +46,8 @@ public:
 	required_device<k051960_device> m_k051960;
 	required_device<k051316_device> m_k051316_1;
 	required_device<k051316_device> m_k051316_2;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(chqflag_bankswitch_w);
 	DECLARE_WRITE8_MEMBER(chqflag_vreg_w);
 	DECLARE_WRITE8_MEMBER(select_analog_ctrl_w);
@@ -59,10 +62,7 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(chqflag_scanline);
 	DECLARE_WRITE8_MEMBER(volume_callback0);
 	DECLARE_WRITE8_MEMBER(volume_callback1);
+	K051316_CB_MEMBER(zoom_callback_1);
+	K051316_CB_MEMBER(zoom_callback_2);
+	K051960_CB_MEMBER(sprite_callback);
 };
-
-/*----------- defined in video/chqflag.c -----------*/
-
-extern void chqflag_sprite_callback(running_machine &machine, int *code,int *color,int *priority,int *shadow);
-extern void chqflag_zoom_callback_0(running_machine &machine, int *code,int *color,int *flags);
-extern void chqflag_zoom_callback_1(running_machine &machine, int *code,int *color,int *flags);

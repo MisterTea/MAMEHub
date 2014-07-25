@@ -69,9 +69,6 @@ PALETTE_INIT_MEMBER(rallyx_state,rallyx)
 			3, &resistances_rg[0], gweights,    0, 0,
 			2, &resistances_b[0],  bweights, 1000, 0);
 
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x20);
-
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x20; i++)
 	{
@@ -95,7 +92,7 @@ PALETTE_INIT_MEMBER(rallyx_state,rallyx)
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		b = combine_2_weights(bweights, bit0, bit1);
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -105,12 +102,12 @@ PALETTE_INIT_MEMBER(rallyx_state,rallyx)
 	for (i = 0x000; i < 0x100; i++)
 	{
 		UINT8 ctabentry = color_prom[i] & 0x0f;
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 
 	/* bullets use colors 0x10-0x13 */
 	for (i = 0x100; i < 0x104; i++)
-		colortable_entry_set_value(machine().colortable, i, (i - 0x100) | 0x10);
+		palette.set_pen_indirect(i, (i - 0x100) | 0x10);
 }
 
 
@@ -135,9 +132,6 @@ PALETTE_INIT_MEMBER(rallyx_state,jungler)
 						3, resistances_rg, gweights, 1000, 0,
 						2, resistances_b,  bweights, 1000, 0);
 
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x60);
-
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x20; i++)
 	{
@@ -161,7 +155,7 @@ PALETTE_INIT_MEMBER(rallyx_state,jungler)
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		b = combine_2_weights(bweights, bit0, bit1);
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* star pens */
@@ -185,7 +179,7 @@ PALETTE_INIT_MEMBER(rallyx_state,jungler)
 		bit1 = ((i - 0x20) >> 5) & 0x01;
 		b = combine_2_weights(bweights_star, bit0, bit1);
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -195,16 +189,16 @@ PALETTE_INIT_MEMBER(rallyx_state,jungler)
 	for (i = 0x000; i < 0x100; i++)
 	{
 		UINT8 ctabentry = color_prom[i] & 0x0f;
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 
 	/* bullets use colors 0x10-0x13 */
 	for (i = 0x100; i < 0x104; i++)
-		colortable_entry_set_value(machine().colortable, i, (i - 0x100) | 0x10);
+		palette.set_pen_indirect(i, (i - 0x100) | 0x10);
 
 	/* stars */
 	for (i = 0x104; i < 0x144; i++)
-		colortable_entry_set_value(machine().colortable, i, (i - 0x104) + 0x20);
+		palette.set_pen_indirect(i, (i - 0x104) + 0x20);
 }
 
 
@@ -226,8 +220,7 @@ inline void rallyx_state::rallyx_get_tile_info( tile_data &tileinfo, int tile_in
 {
 	UINT8 attr = m_videoram[ram_offs + tile_index + 0x800];
 	tileinfo.category = (attr & 0x20) >> 5;
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			m_videoram[ram_offs + tile_index],
 			attr & 0x3f,
 			TILE_FLIPYX(attr >> 6) ^ TILE_FLIPX);
@@ -250,8 +243,7 @@ inline void rallyx_state::locomotn_get_tile_info(tile_data &tileinfo,int tile_in
 	int code = m_videoram[ram_offs + tile_index];
 	code = (code & 0x7f) + 2 * (attr & 0x40) + 2 * (code & 0x80);
 	tileinfo.category = (attr & 0x20) >> 5;
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			attr & 0x3f,
 			(attr & 0x80) ? (TILE_FLIPX | TILE_FLIPY) : 0);
@@ -324,10 +316,10 @@ void rallyx_state::rallyx_video_start_common(  )
 	m_radary = m_radarx + 0x800;
 
 	for (i = 0; i < 16; i++)
-		machine().shadow_table[i] = i + 16;
+		m_palette->shadow_table()[i] = i + 16;
 
 	for (i = 16; i < 32; i++)
-		machine().shadow_table[i] = i;
+		m_palette->shadow_table()[i] = i;
 
 	for (i = 0; i < 3; i++)
 		m_drawmode_table[i] = DRAWMODE_SHADOW;
@@ -337,8 +329,8 @@ void rallyx_state::rallyx_video_start_common(  )
 
 VIDEO_START_MEMBER(rallyx_state,rallyx)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rallyx_state::rallyx_bg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rallyx_state::rallyx_fg_get_tile_info),this), tilemap_mapper_delegate(FUNC(rallyx_state::fg_tilemap_scan),this), 8, 8, 8, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rallyx_state::rallyx_bg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rallyx_state::rallyx_fg_get_tile_info),this), tilemap_mapper_delegate(FUNC(rallyx_state::fg_tilemap_scan),this), 8, 8, 8, 32);
 
 	/* the scrolling tilemap is slightly misplaced in Rally X */
 	m_bg_tilemap->set_scrolldx(3, 3);
@@ -351,8 +343,8 @@ VIDEO_START_MEMBER(rallyx_state,rallyx)
 
 VIDEO_START_MEMBER(rallyx_state,jungler)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rallyx_state::rallyx_bg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rallyx_state::rallyx_fg_get_tile_info),this), tilemap_mapper_delegate(FUNC(rallyx_state::fg_tilemap_scan),this), 8, 8, 8, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rallyx_state::rallyx_bg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rallyx_state::rallyx_fg_get_tile_info),this), tilemap_mapper_delegate(FUNC(rallyx_state::fg_tilemap_scan),this), 8, 8, 8, 32);
 
 	m_spriteram_base = 0x14;
 
@@ -363,15 +355,8 @@ VIDEO_START_MEMBER(rallyx_state,jungler)
 
 VIDEO_START_MEMBER(rallyx_state,locomotn)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rallyx_state::locomotn_bg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rallyx_state::locomotn_fg_get_tile_info),this), tilemap_mapper_delegate(FUNC(rallyx_state::fg_tilemap_scan),this), 8, 8, 8, 32);
-
-	/* handle reduced visible area in some games */
-	if (m_screen->visible_area().max_x == 32 * 8 - 1)
-	{
-		m_bg_tilemap->set_scrolldx(0, 32);
-		m_fg_tilemap->set_scrolldx(0, 32);
-	}
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rallyx_state::locomotn_bg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rallyx_state::locomotn_fg_get_tile_info),this), tilemap_mapper_delegate(FUNC(rallyx_state::fg_tilemap_scan),this), 8, 8, 8, 32);
 
 	m_spriteram_base = 0x14;
 
@@ -382,15 +367,8 @@ VIDEO_START_MEMBER(rallyx_state,locomotn)
 
 VIDEO_START_MEMBER(rallyx_state,commsega)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rallyx_state::locomotn_bg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rallyx_state::locomotn_fg_get_tile_info),this), tilemap_mapper_delegate(FUNC(rallyx_state::fg_tilemap_scan),this), 8, 8, 8, 32);
-
-	/* handle reduced visible area in some games */
-	if (m_screen->visible_area().max_x == 32 * 8 - 1)
-	{
-		m_bg_tilemap->set_scrolldx(0, 32);
-		m_fg_tilemap->set_scrolldx(0, 32);
-	}
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rallyx_state::locomotn_bg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rallyx_state::locomotn_fg_get_tile_info),this), tilemap_mapper_delegate(FUNC(rallyx_state::fg_tilemap_scan),this), 8, 8, 8, 32);
 
 	/* commsega has more sprites and bullets than the other games */
 	m_spriteram_base = 0x00;
@@ -442,7 +420,7 @@ void rallyx_state::plot_star( bitmap_ind16 &bitmap, const rectangle &cliprect, i
 	if (flip_screen_y())
 		y = 255 - y;
 
-	if (colortable_entry_get_value(machine().colortable, bitmap.pix16(y, x) % 0x144) == 0)
+	if (m_palette->pen_indirect(bitmap.pix16(y, x) % 0x144) == 0)
 		bitmap.pix16(y, x) = STARS_COLOR_BASE + color;
 }
 
@@ -477,13 +455,13 @@ void rallyx_state::rallyx_draw_sprites( screen_device &screen, bitmap_ind16 &bit
 		if (flip_screen())
 			sx -= 2 * displacement;
 
-		pdrawgfx_transmask(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->prio_transmask(bitmap,cliprect,
 				(spriteram[offs] & 0xfc) >> 2,
 				color,
 				flipx,flipy,
 				sx,sy,
 				screen.priority(),0x02,
-				colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color, 0));
+				m_palette->transpen_mask(*m_gfxdecode->gfx(1), color, 0));
 	}
 }
 
@@ -500,13 +478,13 @@ void rallyx_state::locomotn_draw_sprites( screen_device &screen, bitmap_ind16 &b
 		int color = spriteram_2[offs + 1] & 0x3f;
 		int flip = spriteram[offs] & 2;
 
-		pdrawgfx_transmask(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->prio_transmask(bitmap,cliprect,
 				((spriteram[offs] & 0x7c) >> 2) + 0x20*(spriteram[offs] & 0x01) + ((spriteram[offs] & 0x80) >> 1),
 				color,
 				flip,flip,
 				sx,sy,
 				screen.priority(),0x02,
-				colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color, 0));
+				m_palette->transpen_mask(*m_gfxdecode->gfx(1), color, 0));
 	}
 }
 
@@ -524,19 +502,19 @@ void rallyx_state::rallyx_draw_bullets( bitmap_ind16 &bitmap, const rectangle &c
 			x -= 3;
 
 		if (transpen)
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
+			m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 					((m_radarattr[offs & 0x0f] & 0x0e) >> 1) ^ 0x07,
 					0,
 					0,0,
 					x,y,
 					3);
 		else
-			drawgfx_transtable(bitmap,cliprect,machine().gfx[2],
+			m_gfxdecode->gfx(2)->transtable(bitmap,cliprect,
 					((m_radarattr[offs & 0x0f] & 0x0e) >> 1) ^ 0x07,
 					0,
 					0,0,
 					x,y,
-					m_drawmode_table,machine().shadow_table);
+					m_drawmode_table);
 	}
 }
 
@@ -552,19 +530,19 @@ void rallyx_state::jungler_draw_bullets( bitmap_ind16 &bitmap, const rectangle &
 		y = 253 - m_radary[offs];
 
 		if (transpen)
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
+			m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 					(m_radarattr[offs & 0x0f] & 0x07) ^ 0x07,
 					0,
 					0,0,
 					x,y,
 					3);
 		else
-			drawgfx_transtable(bitmap,cliprect,machine().gfx[2],
+			m_gfxdecode->gfx(2)->transtable(bitmap,cliprect,
 					(m_radarattr[offs & 0x0f] & 0x07) ^ 0x07,
 					0,
 					0,0,
 					x,y,
-					m_drawmode_table,machine().shadow_table);
+					m_drawmode_table);
 	}
 }
 
@@ -588,19 +566,19 @@ void rallyx_state::locomotn_draw_bullets( bitmap_ind16 &bitmap, const rectangle 
 		y = 252 - m_radary[offs];
 
 		if (transpen)
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
+			m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 					(m_radarattr[offs & 0x0f] & 0x07) ^ 0x07,
 					0,
 					0,0,
 					x,y,
 					3);
 		else
-			drawgfx_transtable(bitmap,cliprect,machine().gfx[2],
+			m_gfxdecode->gfx(2)->transtable(bitmap,cliprect,
 					(m_radarattr[offs & 0x0f] & 0x07) ^ 0x07,
 					0,
 					0,0,
 					x,y,
-					m_drawmode_table,machine().shadow_table);
+					m_drawmode_table);
 	}
 }
 

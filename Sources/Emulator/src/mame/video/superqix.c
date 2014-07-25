@@ -49,14 +49,14 @@ TILE_GET_INFO_MEMBER(superqix_state::sqix_get_bg_tile_info)
 
 VIDEO_START_MEMBER(superqix_state,pbillian)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(superqix_state::pb_get_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8,32,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(superqix_state::pb_get_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8,32,32);
 }
 
 VIDEO_START_MEMBER(superqix_state,superqix)
 {
 	m_fg_bitmap[0] = auto_bitmap_ind16_alloc(machine(), 256, 256);
 	m_fg_bitmap[1] = auto_bitmap_ind16_alloc(machine(), 256, 256);
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(superqix_state::sqix_get_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(superqix_state::sqix_get_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 32);
 
 	m_bg_tilemap->set_transmask(0,0xffff,0x0000); /* split type 0 is totally transparent in front half */
 	m_bg_tilemap->set_transmask(1,0x0001,0xfffe); /* split type 1 has pen 0 transparent in front half */
@@ -175,7 +175,7 @@ void superqix_state::pbillian_draw_sprites(bitmap_ind16 &bitmap, const rectangle
 			sy = 240 - sy;
 		}
 
-		drawgfx_transpen(bitmap,cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				code,
 				color,
 				flip_screen(), flip_screen(),
@@ -206,7 +206,7 @@ void superqix_state::superqix_draw_sprites(bitmap_ind16 &bitmap,const rectangle 
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap,cliprect, machine().gfx[2],
+		m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx, flipy,

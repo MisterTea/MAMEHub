@@ -55,8 +55,8 @@ UINT32 suprslam_state::suprslam_tile_callback( UINT32 code )
 
 void suprslam_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(suprslam_state::get_suprslam_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
-	m_screen_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(suprslam_state::get_suprslam_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(suprslam_state::get_suprslam_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
+	m_screen_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(suprslam_state::get_suprslam_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_screen_tilemap->set_transparent_pen(15);
 }
@@ -65,7 +65,7 @@ UINT32 suprslam_state::screen_update_suprslam(screen_device &screen, bitmap_ind1
 {
 	m_screen_tilemap->set_scrollx(0, m_screen_vregs[0x04/2] );
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 	m_k053936->zoom_draw(screen, bitmap, cliprect, m_bg_tilemap, 0, 0, 1);
 	if(!(m_spr_ctrl[0] & 8))
 		m_spr->draw_sprites(m_spriteram, m_spriteram.bytes(), screen, bitmap, cliprect);

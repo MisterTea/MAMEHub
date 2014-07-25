@@ -23,7 +23,10 @@ public:
 		m_sharedram1(*this, "sharedram1"),
 		m_sharedram3(*this, "sharedram3"),
 		m_maincpu(*this, "maincpu"),
-		m_subcpu(*this, "sub"){ }
+		m_subcpu(*this, "sub"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_vram_0;
@@ -63,6 +66,10 @@ public:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	DECLARE_READ16_MEMBER(hyprduel_irq_cause_r);
 	DECLARE_WRITE16_MEMBER(hyprduel_irq_cause_w);
 	DECLARE_WRITE16_MEMBER(hyprduel_subcpu_control_w);

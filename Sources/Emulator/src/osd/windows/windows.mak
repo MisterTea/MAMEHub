@@ -51,6 +51,9 @@
 # uncomment next line to enable a build using Microsoft tools
 # MSVC_BUILD = 1
 
+# uncomment next line to use ICL with MSVC
+# USE_ICL = 1
+
 # uncomment next line to enable code analysis using Microsoft tools
 # MSVC_ANALYSIS = 1
 
@@ -60,6 +63,11 @@
 # set this to the minimum DirectInput version to support (7 or 8)
 # DIRECTINPUT = 8
 
+# uncomment next line to use SDL library for sound and video output
+# USE_SDL = 1
+
+# uncomment next line to use QT debugger
+# USE_QTDEBUG = 1
 
 ###########################################################################
 ##################   END USER-CONFIGURABLE OPTIONS   ######################
@@ -73,12 +81,26 @@
 WINSRC = $(SRC)/osd/$(OSD)
 WINOBJ = $(OBJ)/osd/$(OSD)
 
+OSDSRC = $(SRC)/osd
+OSDOBJ = $(OBJ)/osd
+
 OBJDIRS += $(WINOBJ)
+
 ifdef USE_QTDEBUG
-OBJDIRS += $(WINOBJ)/../sdl
+OBJDIRS += $(OSDOBJ)/modules/debugger/qt
+DEFS += -DUSE_QTDEBUG=1
+else
+DEFS += -DUSE_QTDEBUG=0
 endif
 
-
+ifdef USE_SDL
+DEFS += -DSDLMAME_SDL2=0
+DEFS += -DUSE_XINPUT=0
+DEFS += -DUSE_OPENGL=0
+DEFS += -DUSE_SDL=1
+else
+DEFS += -DUSE_SDL=0
+endif
 
 #-------------------------------------------------
 # configure the resource compiler
@@ -113,13 +135,23 @@ OSPREBUILD = $(VCONV_TARGET)
 
 # append a 'v' prefix if nothing specified
 ifndef PREFIX
+ifdef USE_ICL
+PREFIX = vi
+else
 PREFIX = v
+endif
 endif
 
 # replace the various compilers with vconv.exe prefixes
+ifdef USE_ICL
+CC = @$(VCONV) gcc -icl -I.
+LD = @$(VCONV) ld -icl /profile
+AR = @$(VCONV) ar -icl
+else
 CC = @$(VCONV) gcc -I.
 LD = @$(VCONV) ld /profile
 AR = @$(VCONV) ar
+endif
 RC = @$(VCONV) windres
 
 # make sure we use the multithreaded runtime
@@ -153,7 +185,7 @@ endif
 endif
 
 ifdef MSVC_ANALYSIS
-CCOMFLAGS += /analyze /wd6011 /wd6328 /wd6204 /wd6244 /wd6385 /wd6308 /wd6246 /wd6031 /wd6326 /analyze:stacksize384112
+CCOMFLAGS += /analyze /wd6011 /wd6328 /wd6204 /wd6244 /wd6385 /wd6308 /wd6246 /wd6031 /wd6326 /wd6255 /wd6330 /wd28251 /wd6054 /wd6340 /wd28125 /wd6053 /wd6001 /wd6386 /wd28278 /wd6297 /wd28183 /wd28159 /wd28182 /wd6237 /wd6239 /wd6240 /wd6323 /wd28199 /wd6235 /wd6285 /wd6286 /wd6384 /wd6293 /analyze:stacksize384112
 endif
 
 # enable exception handling for C++
@@ -261,19 +293,24 @@ endif
 # add our prefix files to the mix
 CCOMFLAGS += -include $(WINSRC)/winprefix.h
 
+include $(SRC)/build/cc_detection.mak
+
 # ensure we statically link the gcc runtime lib
 LDFLAGS += -static-libgcc
+
 # TODO: needs to use $(CC)
 TEST_GCC := $(shell gcc --version)
 ifeq ($(findstring 4.4.,$(TEST_GCC)),)
 	#if we use new tools
 	LDFLAGS += -static-libstdc++
 endif
-ifeq ($(findstring 4.7.,$(TEST_GCC)),4.7.)
-	CCOMFLAGS += -Wno-narrowing -Wno-attributes
-endif
+
 # add the windows libraries
 LIBS += -luser32 -lgdi32 -ldsound -ldxguid -lwinmm -ladvapi32 -lcomctl32 -lshlwapi -lwsock32
+
+ifdef USE_SDL
+LIBS += -lSDL.dll
+endif
 
 ifeq ($(DIRECTINPUT),8)
 LIBS += -ldinput8
@@ -303,7 +340,6 @@ OSDCOREOBJS = \
 	$(WINOBJ)/winsocket.o \
 	$(WINOBJ)/winwork.o \
 	$(WINOBJ)/winptty.o \
-	$(WINOBJ)/winmidi.o
 
 
 #-------------------------------------------------
@@ -319,12 +355,16 @@ OSDOBJS = \
 	$(WINOBJ)/drawnone.o \
 	$(WINOBJ)/input.o \
 	$(WINOBJ)/output.o \
-	$(WINOBJ)/sound.o \
+	$(OSDOBJ)/modules/sound/direct_sound.o \
 	$(WINOBJ)/video.o \
 	$(WINOBJ)/window.o \
 	$(WINOBJ)/winmenu.o \
 	$(WINOBJ)/winmain.o
 
+ifdef USE_SDL
+OSDOBJS += \
+	$(OSDOBJ)/modules/sound/sdl_sound.o
+endif
 
 ifdef USE_NETWORK
 OSDOBJS += \
@@ -335,15 +375,12 @@ endif
 CCOMFLAGS += -DDIRECT3D_VERSION=0x0900
 
 # extra dependencies
-$(WINOBJ)/drawdd.o :    $(SRC)/emu/rendersw.c
-$(WINOBJ)/drawgdi.o :   $(SRC)/emu/rendersw.c
-$(WINOBJ)/winmidi.o:    $(SRC)/osd/portmedia/pmmidi.c
+$(WINOBJ)/drawdd.o :    $(SRC)/emu/rendersw.inc
+$(WINOBJ)/drawgdi.o :   $(SRC)/emu/rendersw.inc
 
-ifndef USE_QTDEBUG
 # add debug-specific files
 OSDOBJS += \
-	$(WINOBJ)/debugwin.o
-endif
+	$(OSDOBJ)/modules/debugger/debugwin.o
 
 # add a stub resource file
 RESFILE = $(WINOBJ)/mame.res
@@ -356,30 +393,28 @@ QT_INSTALL_HEADERS := $(shell qmake -query QT_INSTALL_HEADERS)
 QT_LIBS := -L$(shell qmake -query QT_INSTALL_LIBS)
 LIBS += $(QT_LIBS) -lqtmain -lQtGui4 -lQtCore4
 INCPATH += -I$(QT_INSTALL_HEADERS)/QtCore -I$(QT_INSTALL_HEADERS)/QtGui -I$(QT_INSTALL_HEADERS)
-SDLOBJ := $(WINOBJ)/../sdl
-SDLSRC := $(WINSRC)/../sdl
 CFLAGS += -DUSE_QTDEBUG
 
 MOC = @moc
-$(SDLOBJ)/%.moc.c: $(SDLSRC)/%.h
+$(OSDOBJ)/%.moc.c: $(OSDSRC)/%.h
 	$(MOC) $(INCPATH) $(DEFS) $< -o $@
 
 OSDOBJS += \
-	$(SDLOBJ)/debugqt.o \
-	$(SDLOBJ)/debugqtview.o \
-	$(SDLOBJ)/debugqtwindow.o \
-	$(SDLOBJ)/debugqtlogwindow.o \
-	$(SDLOBJ)/debugqtdasmwindow.o \
-	$(SDLOBJ)/debugqtmainwindow.o \
-	$(SDLOBJ)/debugqtmemorywindow.o \
-	$(SDLOBJ)/debugqtbreakpointswindow.o \
-	$(SDLOBJ)/debugqtview.moc.o \
-	$(SDLOBJ)/debugqtwindow.moc.o \
-	$(SDLOBJ)/debugqtlogwindow.moc.o \
-	$(SDLOBJ)/debugqtdasmwindow.moc.o \
-	$(SDLOBJ)/debugqtmainwindow.moc.o \
-	$(SDLOBJ)/debugqtmemorywindow.moc.o \
-	$(SDLOBJ)/debugqtbreakpointswindow.moc.o
+	$(OSDOBJ)/modules/debugger/debugqt.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtview.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtwindow.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtlogwindow.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtdasmwindow.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtmainwindow.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtmemorywindow.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtbreakpointswindow.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtview.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtwindow.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtlogwindow.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtdasmwindow.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtmainwindow.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtmemorywindow.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/debugqtbreakpointswindow.moc.o
 endif
 
 #-------------------------------------------------

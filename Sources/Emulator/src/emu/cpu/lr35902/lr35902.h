@@ -5,12 +5,20 @@
 
 
 #define MCFG_LR35902_TIMER_CB(_devcb) \
-	lr35902_cpu_device::set_timer_cb(*device, DEVCB2_##_devcb);
+	lr35902_cpu_device::set_timer_cb(*device, DEVCB_##_devcb);
+
+// The first release of this CPU has a bug where the programcounter
+// is not incremented properly after an interrupt after the halt opcode.
+// This was fixed in a newer revision.
 #define MCFG_LR35902_HALT_BUG \
 	lr35902_cpu_device::set_halt_bug(*device);
-// This should be removed/improved once all gameboy boot roms have been dumped
-#define MCFG_LR35902_RESET_VALUES(_regs) \
-	lr35902_cpu_device::set_reset_values(*device, _regs);
+
+// The GameBoy has a bug where OAM data gets corrupted if you inc/dec
+// a 16-bit register in the $fe** region.
+// note: oldval is in hiword, newval is in loword
+#define MCFG_LR35902_INCDEC16_CB(_devcb) \
+	lr35902_cpu_device::set_incdec16_cb(*device, DEVCB_##_devcb);
+
 
 enum
 {
@@ -30,9 +38,9 @@ public:
 	lr35902_cpu_device(const machine_config &mconfig, const char *_tag, device_t *_owner, UINT32 _clock);
 
 	// static configuration helpers
-	template<class _Object> static devcb2_base &set_timer_cb(device_t &device, _Object object) { return downcast<lr35902_cpu_device &>(device).m_timer_func.set_callback(object); }
-	static void set_halt_bug(device_t &device) { downcast<lr35902_cpu_device &>(device).m_features |= LR35902_FEATURE_HALT_BUG; }
-	static void set_reset_values(device_t &device, const UINT16 *regs) { downcast<lr35902_cpu_device &>(device).c_regs = regs; }
+	template<class _Object> static devcb_base &set_timer_cb(device_t &device, _Object object) { return downcast<lr35902_cpu_device &>(device).m_timer_func.set_callback(object); }
+	template<class _Object> static devcb_base &set_incdec16_cb(device_t &device, _Object object) { return downcast<lr35902_cpu_device &>(device).m_incdec16_func.set_callback(object); }
+	static void set_halt_bug(device_t &device) { downcast<lr35902_cpu_device &>(device).m_has_halt_bug = true; }
 
 	UINT8 get_speed();
 	void set_speed( UINT8 speed_request );
@@ -44,7 +52,6 @@ public:
 	void set_if( UINT8 data ) { m_IF = data; }
 
 protected:
-	static const UINT8 LR35902_FEATURE_HALT_BUG = 0x01;
 
 	// device-level overrides
 	virtual void device_start();
@@ -75,7 +82,6 @@ protected:
 	inline void mem_write_word(UINT16 addr, UINT16 data);
 	inline void check_interrupts();
 
-protected:
 	address_space_config m_program_config;
 
 	UINT8 m_A;
@@ -89,33 +95,30 @@ protected:
 
 	UINT16 m_SP;
 	UINT16 m_PC;
+
 	/* Interrupt related */
-	UINT8   m_IE;
-	UINT8   m_IF;
+	UINT8 m_IE;
+	UINT8 m_IF;
 	int m_irq_state;
-	int m_ei_delay;
+	bool m_handle_ei_delay;
 	lr35902_cpu_device *m_device;
 	address_space *m_program;
 	int m_icount;
-	/* Timer callback */
-	devcb2_write8 m_timer_func;
+
 	/* Fetch & execute related */
-	int     m_execution_state;
-	UINT8   m_op;
+	int m_execution_state;
+	UINT8 m_op;
+
 	/* Others */
 	int m_gb_speed;
 	int m_gb_speed_change_pending;
 	int m_enable;
-	int m_doHALTbug;
-	UINT8   m_features;
-	const UINT16 *c_regs;
-	const struct lr35902_config *m_config;
+	bool m_handle_halt_bug;
+	bool m_has_halt_bug;
 
-	/* Flag bit definitions */
-	static const UINT8 LR35902_FLAG_Z = 0x80;
-	static const UINT8 LR35902_FLAG_N = 0x40;
-	static const UINT8 LR35902_FLAG_H = 0x20;
-	static const UINT8 LR35902_FLAG_C = 0x10;
+	/* Callbacks */
+	devcb_write8 m_timer_func;
+	devcb_write32 m_incdec16_func;
 };
 
 extern const device_type LR35902;

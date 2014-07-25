@@ -6,7 +6,93 @@
 
 ****************************************************************************/
 
-#include "includes/jtc.h"
+#include "emu.h"
+#include "cpu/z8/z8.h"
+#include "imagedev/cassette.h"
+#include "bus/centronics/ctronics.h"
+#include "machine/ram.h"
+#include "sound/speaker.h"
+#include "sound/wave.h"
+
+#define SCREEN_TAG      "screen"
+#define UB8830D_TAG     "ub8830d"
+#define CENTRONICS_TAG  "centronics"
+
+#define JTC_ES40_VIDEORAM_SIZE  0x2000
+
+class jtc_state : public driver_device
+{
+public:
+	jtc_state(const machine_config &mconfig, device_type type, const char *tag)
+		: driver_device(mconfig, type, tag),
+			m_maincpu(*this, UB8830D_TAG),
+			m_cassette(*this, "cassette"),
+			m_speaker(*this, "speaker"),
+			m_centronics(*this, CENTRONICS_TAG),
+		m_video_ram(*this, "video_ram"){ }
+
+	required_device<cpu_device> m_maincpu;
+	required_device<cassette_image_device> m_cassette;
+	required_device<speaker_sound_device> m_speaker;
+	required_device<centronics_device> m_centronics;
+
+	virtual void machine_start();
+
+	virtual void video_start();
+	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+	DECLARE_WRITE8_MEMBER( p2_w );
+	DECLARE_READ8_MEMBER( p3_r );
+	DECLARE_WRITE8_MEMBER( p3_w );
+	DECLARE_PALETTE_INIT(jtc_es40);
+	optional_shared_ptr<UINT8> m_video_ram;
+
+	int m_centronics_busy;
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
+};
+
+
+class jtces88_state : public jtc_state
+{
+public:
+	jtces88_state(const machine_config &mconfig, device_type type, const char *tag)
+		: jtc_state(mconfig, type, tag)
+	{ }
+};
+
+
+class jtces23_state : public jtc_state
+{
+public:
+	jtces23_state(const machine_config &mconfig, device_type type, const char *tag)
+		: jtc_state(mconfig, type, tag)
+	{ }
+
+	virtual void video_start();
+	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+};
+
+
+class jtces40_state : public jtc_state
+{
+public:
+	jtces40_state(const machine_config &mconfig, device_type type, const char *tag)
+		: jtc_state(mconfig, type, tag)
+	{ }
+
+	virtual void video_start();
+	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+	DECLARE_READ8_MEMBER( videoram_r );
+	DECLARE_WRITE8_MEMBER( videoram_w );
+	DECLARE_WRITE8_MEMBER( banksel_w );
+
+	UINT8 m_video_bank;
+	UINT8 *m_color_ram_r;
+	UINT8 *m_color_ram_g;
+	UINT8 *m_color_ram_b;
+};
+
 
 /* Read/Write Handlers */
 
@@ -27,7 +113,12 @@ WRITE8_MEMBER( jtc_state::p2_w )
 
 	*/
 
-	m_centronics->strobe_w(BIT(data, 5));
+	m_centronics->write_strobe(BIT(data, 5));
+}
+
+DECLARE_WRITE_LINE_MEMBER( jtc_state::write_centronics_busy )
+{
+	m_centronics_busy = state;
 }
 
 READ8_MEMBER( jtc_state::p3_r )
@@ -50,7 +141,7 @@ READ8_MEMBER( jtc_state::p3_r )
 	UINT8 data = 0;
 
 	data |= ((m_cassette)->input() < 0.0) ? 1 : 0;
-	data |= m_centronics->busy_r() << 3;
+	data |= m_centronics_busy << 3;
 
 	return data;
 }
@@ -553,6 +644,7 @@ void jtces40_state::video_start()
 	save_pointer(NAME(m_color_ram_r), JTC_ES40_VIDEORAM_SIZE);
 	save_pointer(NAME(m_color_ram_g), JTC_ES40_VIDEORAM_SIZE);
 	save_pointer(NAME(m_color_ram_b), JTC_ES40_VIDEORAM_SIZE);
+	save_item(NAME(m_centronics_busy));
 }
 
 UINT32 jtces40_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -588,15 +680,6 @@ void jtc_state::machine_start()
 }
 
 /* Machine Driver */
-
-static const cassette_interface jtc_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
 
 /* F4 Character Displayer */
 static const gfx_layout jtces23_charlayout =
@@ -648,10 +731,12 @@ static MACHINE_CONFIG_START( basic, jtc_state )
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 
 	/* cassette */
-	MCFG_CASSETTE_ADD("cassette", jtc_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
 
 	/* printer */
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(jtc_state, write_centronics_busy))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( jtc, basic )
@@ -662,9 +747,9 @@ static MACHINE_CONFIG_DERIVED( jtc, basic )
 	MCFG_SCREEN_UPDATE_DRIVER(jtc_state, screen_update)
 	MCFG_SCREEN_SIZE(64, 64)
 	MCFG_SCREEN_VISIBLE_AREA(0, 64-1, 0, 64-1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -693,10 +778,10 @@ static MACHINE_CONFIG_DERIVED_CLASS( jtces23, basic, jtces23_state )
 	MCFG_SCREEN_UPDATE_DRIVER(jtc_state, screen_update)
 	MCFG_SCREEN_SIZE(128, 128)
 	MCFG_SCREEN_VISIBLE_AREA(0, 128-1, 0, 128-1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(jtces23)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jtces23)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -715,10 +800,11 @@ static MACHINE_CONFIG_DERIVED_CLASS( jtces40, basic, jtces40_state )
 	MCFG_SCREEN_UPDATE_DRIVER(jtc_state, screen_update)
 	MCFG_SCREEN_SIZE(320, 192)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 192-1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(jtces40)
-	MCFG_PALETTE_LENGTH(16)
-	MCFG_PALETTE_INIT_OVERRIDE(jtc_state,jtc_es40)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jtces40)
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(jtc_state,jtc_es40)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

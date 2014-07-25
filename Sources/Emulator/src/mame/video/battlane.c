@@ -41,7 +41,7 @@ WRITE8_MEMBER(battlane_state::battlane_palette_w)
 	bit2 = (~data >> 7) & 0x01;
 	b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-	palette_set_color(machine(), offset, MAKE_RGB(r, g, b));
+	m_palette->set_pen_color(offset, rgb_t(r, g, b));
 }
 
 WRITE8_MEMBER(battlane_state::battlane_scrollx_w)
@@ -135,8 +135,9 @@ TILEMAP_MAPPER_MEMBER(battlane_state::battlane_tilemap_scan_rows_2x2)
 
 void battlane_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(battlane_state::get_tile_info_bg),this), tilemap_mapper_delegate(FUNC(battlane_state::battlane_tilemap_scan_rows_2x2),this), 16, 16, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(battlane_state::get_tile_info_bg),this), tilemap_mapper_delegate(FUNC(battlane_state::battlane_tilemap_scan_rows_2x2),this), 16, 16, 32, 32);
 	m_screen_bitmap.allocate(32 * 8, 32 * 8);
+	save_item(NAME(m_screen_bitmap));
 }
 
 void battlane_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
@@ -180,8 +181,8 @@ void battlane_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &clipre
 				flipy = !flipy;
 			}
 
-			drawgfx_transpen(bitmap,cliprect,
-				machine().gfx[0],
+
+				m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx, flipy,
@@ -191,8 +192,8 @@ void battlane_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &clipre
 			{
 				dy = flipy ? 16 : -16;
 
-				drawgfx_transpen(bitmap,cliprect,
-					machine().gfx[0],
+
+					m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 					code + 1,
 					color,
 					flipx, flipy,

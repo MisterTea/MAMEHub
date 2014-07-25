@@ -30,7 +30,8 @@ public:
 		m_shared_ram(*this, "shared_ram"),
 		m_ram2(*this, "ram2"),
 		m_sprgen1(*this, "spritegen1"),
-		m_sprgen2(*this, "spritegen2")
+		m_sprgen2(*this, "spritegen2"),
+		m_palette(*this, "palette")
 	{ }
 
 	/* devices */
@@ -53,6 +54,7 @@ public:
 
 	optional_device<decospr_device> m_sprgen1;
 	optional_device<decospr_device> m_sprgen2;
+	required_device<palette_device> m_palette;
 
 	DECLARE_READ16_MEMBER(dassault_control_r);
 	DECLARE_WRITE16_MEMBER(dassault_control_w);
@@ -68,4 +70,5 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_dassault(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void mixdassaultlayer(bitmap_rgb32 &bitmap, bitmap_ind16* sprite_bitmap, const rectangle &cliprect, UINT16 pri, UINT16 primask, UINT16 penbase, UINT8 alpha);
+	DECO16IC_BANK_CB_MEMBER(bank_callback);
 };

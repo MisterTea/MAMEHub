@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Jonathan Gevaryahu
 #pragma once
 
 #ifndef __SOCR_SND_H__

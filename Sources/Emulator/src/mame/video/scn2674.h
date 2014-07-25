@@ -5,7 +5,13 @@
 
 #define MCFG_SCN2674_VIDEO_ADD(_tag, _clock, _irq) \
 	MCFG_DEVICE_ADD(_tag, SCN2674_VIDEO, _clock) \
-	downcast<scn2674_device *>(device)->set_callbacks(DEVCB2_##_irq);
+	downcast<scn2674_device *>(device)->set_callbacks(DEVCB_##_irq);
+
+#define MCFG_SCN2674_GFXDECODE(_gfxtag) \
+	scn2674_device::static_set_gfxdecode_tag(*device, "^" _gfxtag);
+
+#define MCFG_SCN2674_PALETTE(_palette_tag) \
+	scn2674_device::static_set_palette_tag(*device, "^" _palette_tag);
 
 typedef void (*s2574_interrupt_callback_func)(running_machine &machine);
 
@@ -16,13 +22,17 @@ class scn2674_device : public device_t
 public:
 	scn2674_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
+	// static configuration
+	static void static_set_gfxdecode_tag(device_t &device, const char *tag);
+	static void static_set_palette_tag(device_t &device, const char *tag);
+
 	template<class _irq> void set_callbacks(_irq irq) {
 		m_interrupt_callback.set_callback(irq);
 	}
 //  int m_gfx_index;
 
-	DECLARE_READ16_MEMBER( mpu4_vid_scn2674_r );
-	DECLARE_WRITE16_MEMBER( mpu4_vid_scn2674_w );
+	DECLARE_READ8_MEMBER( mpu4_vid_scn2674_r );
+	DECLARE_WRITE8_MEMBER( mpu4_vid_scn2674_w );
 
 	UINT8 get_irq_state( void )
 	{
@@ -41,7 +51,7 @@ protected:
 	virtual void device_start();
 	virtual void device_reset();
 
-	devcb2_write_line m_interrupt_callback;
+	devcb_write_line m_interrupt_callback;
 
 	UINT8 m_scn2674_IR_pointer;
 	UINT8 m_scn2674_screen1_l;
@@ -109,7 +119,8 @@ protected:
 	void scn2574_draw_common( running_machine &machine, _BitmapClass &bitmap, const rectangle &cliprect, UINT16* vid_mainram );
 
 private:
-
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 

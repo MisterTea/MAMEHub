@@ -393,7 +393,7 @@ static ADDRESS_MAP_START( main_program_map, AS_PROGRAM, 16, twincobr_state )
 	AM_RANGE(0x000000, 0x02ffff) AM_ROM
 	AM_RANGE(0x030000, 0x033fff) AM_RAM     /* 68K and DSP shared RAM */
 	AM_RANGE(0x040000, 0x040fff) AM_RAM AM_SHARE("spriteram16")
-	AM_RANGE(0x050000, 0x050dff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x050000, 0x050dff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x060000, 0x060001) AM_DEVWRITE8("crtc", mc6845_device, address_w, 0x00ff)
 	AM_RANGE(0x060002, 0x060003) AM_DEVWRITE8("crtc", mc6845_device, register_w, 0x00ff)
 	AM_RANGE(0x070000, 0x070003) AM_WRITE(twincobr_txscroll_w)  /* text layer scroll */
@@ -639,23 +639,10 @@ static const gfx_layout tilelayout =
 	8*8             /* every tile takes 8 consecutive bytes */
 };
 
-static const gfx_layout spritelayout =
-{
-	16,16,          /* 16*16 sprites */
-	RGN_FRAC(1,4),  /* 2048 sprites */
-	4,              /* 4 bits per pixel */
-	{ RGN_FRAC(0,4), RGN_FRAC(1,4), RGN_FRAC(2,4), RGN_FRAC(3,4) },
-	{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
-	{ 0*16, 1*16, 2*16, 3*16, 4*16, 5*16, 6*16, 7*16,
-			8*16, 9*16, 10*16, 11*16, 12*16, 13*16, 14*16, 15*16 },
-	32*8            /* every sprite takes 32 consecutive bytes */
-};
-
 static GFXDECODE_START( twincobr )
 	GFXDECODE_ENTRY( "gfx1", 0x00000, charlayout,   1536, 32 )  /* colors 1536-1791 */
 	GFXDECODE_ENTRY( "gfx2", 0x00000, tilelayout,   1280, 16 )  /* colors 1280-1535 */
 	GFXDECODE_ENTRY( "gfx3", 0x00000, tilelayout,   1024, 16 )  /* colors 1024-1079 */
-	GFXDECODE_ENTRY( "gfx4", 0x00000, spritelayout,    0, 64 )  /* colors    0-1023 */
 GFXDECODE_END
 
 
@@ -690,20 +677,24 @@ static MACHINE_CONFIG_START( twincobr, twincobr_state )
 	MCFG_MACHINE_RESET_OVERRIDE(twincobr_state,twincobr)
 
 	/* video hardware */
-	MCFG_MC6845_ADD("crtc", HD6845, "screen", XTAL_28MHz/8, twincobr_mc6845_intf) /* 3.5MHz measured on CLKin */
+	MCFG_MC6845_ADD("crtc", HD6845, "screen", XTAL_28MHz/8) /* 3.5MHz measured on CLKin */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(2)
 
-	MCFG_TOAPLAN_SCU_ADD("toaplan_scu")
+	MCFG_TOAPLAN_SCU_ADD("scu", "palette", 31, 15)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram16")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_28MHz/4, 446, 0, 320, 286, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(twincobr_state, screen_update_toaplan0)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram16", buffered_spriteram16_device, vblank_copy_rising)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(twincobr)
-	MCFG_PALETTE_LENGTH(1792)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", twincobr)
+	MCFG_PALETTE_ADD("palette", 1792)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(twincobr_state,toaplan0)
 
@@ -716,7 +707,13 @@ static MACHINE_CONFIG_START( twincobr, twincobr_state )
 MACHINE_CONFIG_END
 
 
-static MACHINE_CONFIG_DERIVED( fsharkbt, twincobr )
+static MACHINE_CONFIG_DERIVED( fshark, twincobr )
+	MCFG_DEVICE_MODIFY("scu")
+	toaplan_scu_device::static_set_xoffsets(*device, 32, 14);
+MACHINE_CONFIG_END
+
+
+static MACHINE_CONFIG_DERIVED( fsharkbt, fshark )
 
 	MCFG_CPU_ADD("mcu", I8741, XTAL_28MHz/16)
 	/* Program Map is internal to the CPU */
@@ -769,7 +766,7 @@ ROM_START( twincobr )
 	ROM_LOAD( "b30_10.12c", 0x10000, 0x08000, CRC(170c01db) SHA1(f4c5a1600f6cbb48abbace66c6f7514f79138e8b) )
 	ROM_LOAD( "b30_09.10c", 0x18000, 0x08000, CRC(44f5accd) SHA1(2f9bdebe71c8be195332356df68992fd38d86994) )
 
-	ROM_REGION( 0x40000, "gfx4", 0 )    /* sprites */
+	ROM_REGION( 0x40000, "scu", 0 )    /* sprites */
 	ROM_LOAD( "b30_20.12d", 0x00000, 0x10000, CRC(cb4092b8) SHA1(35b1d1e04af760fa106124bd5a94174d63ff9705) )
 	ROM_LOAD( "b30_19.14d", 0x10000, 0x10000, CRC(9cb8675e) SHA1(559c21d505c60401f7368d4ab2b686b15075c5c5) )
 	ROM_LOAD( "b30_18.15d", 0x20000, 0x10000, CRC(806fb374) SHA1(3eebefadcbdf713bf2a65b438092746b07edd3f0) )
@@ -814,7 +811,7 @@ ROM_START( twincobru )
 	ROM_LOAD( "b30_10.12c", 0x10000, 0x08000, CRC(170c01db) SHA1(f4c5a1600f6cbb48abbace66c6f7514f79138e8b) )
 	ROM_LOAD( "b30_09.10c", 0x18000, 0x08000, CRC(44f5accd) SHA1(2f9bdebe71c8be195332356df68992fd38d86994) )
 
-	ROM_REGION( 0x40000, "gfx4", 0 )    /* sprites */
+	ROM_REGION( 0x40000, "scu", 0 )    /* sprites */
 	ROM_LOAD( "b30_20.12d", 0x00000, 0x10000, CRC(cb4092b8) SHA1(35b1d1e04af760fa106124bd5a94174d63ff9705) )
 	ROM_LOAD( "b30_19.14d", 0x10000, 0x10000, CRC(9cb8675e) SHA1(559c21d505c60401f7368d4ab2b686b15075c5c5) )
 	ROM_LOAD( "b30_18.15d", 0x20000, 0x10000, CRC(806fb374) SHA1(3eebefadcbdf713bf2a65b438092746b07edd3f0) )
@@ -859,7 +856,7 @@ ROM_START( ktiger )
 	ROM_LOAD( "b30_10.12c", 0x10000, 0x08000, CRC(170c01db) SHA1(f4c5a1600f6cbb48abbace66c6f7514f79138e8b) )
 	ROM_LOAD( "b30_09.10c", 0x18000, 0x08000, CRC(44f5accd) SHA1(2f9bdebe71c8be195332356df68992fd38d86994) )
 
-	ROM_REGION( 0x40000, "gfx4", 0 )    /* sprites */
+	ROM_REGION( 0x40000, "scu", 0 )    /* sprites */
 	ROM_LOAD( "b30_20.12d", 0x00000, 0x10000, CRC(cb4092b8) SHA1(35b1d1e04af760fa106124bd5a94174d63ff9705) )
 	ROM_LOAD( "b30_19.14d", 0x10000, 0x10000, CRC(9cb8675e) SHA1(559c21d505c60401f7368d4ab2b686b15075c5c5) )
 	ROM_LOAD( "b30_18.15d", 0x20000, 0x10000, CRC(806fb374) SHA1(3eebefadcbdf713bf2a65b438092746b07edd3f0) )
@@ -908,7 +905,7 @@ ROM_START( fshark )
 	ROM_LOAD( "b02_10.h16", 0x10000, 0x08000, CRC(4bd099ff) SHA1(9326075f83549b0a9656f69bd4436fb1be2ac805) )
 	ROM_LOAD( "b02_09.h15", 0x18000, 0x08000, CRC(230f1582) SHA1(0fd4156a46ed64cb6e5c59b8836382dd86c229cf) )
 
-	ROM_REGION( 0x40000, "gfx4", 0 )    /* sprites */
+	ROM_REGION( 0x40000, "scu", 0 )    /* sprites */
 	ROM_LOAD( "b02_01.d15", 0x00000, 0x10000, CRC(2234b424) SHA1(bd6242b9dcdb0f582565df588106cd1ce2aad53b) )
 	ROM_LOAD( "b02_02.d16", 0x10000, 0x10000, CRC(30d4c9a8) SHA1(96ce4f41207c5487e801a8444030ec4dc7b58b23) )
 	ROM_LOAD( "b02_03.d17", 0x20000, 0x10000, CRC(64f3d88f) SHA1(d0155cfb0a8885d58e34141f9696b9aa208440ca) )
@@ -957,7 +954,7 @@ ROM_START( skyshark )
 	ROM_LOAD( "b02_10.h16", 0x10000, 0x08000, CRC(4bd099ff) SHA1(9326075f83549b0a9656f69bd4436fb1be2ac805) )
 	ROM_LOAD( "b02_09.h15", 0x18000, 0x08000, CRC(230f1582) SHA1(0fd4156a46ed64cb6e5c59b8836382dd86c229cf) )
 
-	ROM_REGION( 0x40000, "gfx4", 0 )    /* sprites */
+	ROM_REGION( 0x40000, "scu", 0 )    /* sprites */
 	ROM_LOAD( "b02_01.d15", 0x00000, 0x10000, CRC(2234b424) SHA1(bd6242b9dcdb0f582565df588106cd1ce2aad53b) )
 	ROM_LOAD( "b02_02.d16", 0x10000, 0x10000, CRC(30d4c9a8) SHA1(96ce4f41207c5487e801a8444030ec4dc7b58b23) )
 	ROM_LOAD( "b02_03.d17", 0x20000, 0x10000, CRC(64f3d88f) SHA1(d0155cfb0a8885d58e34141f9696b9aa208440ca) )
@@ -1006,7 +1003,7 @@ ROM_START( hishouza )
 	ROM_LOAD( "b02_10.h16", 0x10000, 0x08000, CRC(4bd099ff) SHA1(9326075f83549b0a9656f69bd4436fb1be2ac805) )
 	ROM_LOAD( "b02_09.h15", 0x18000, 0x08000, CRC(230f1582) SHA1(0fd4156a46ed64cb6e5c59b8836382dd86c229cf) )
 
-	ROM_REGION( 0x40000, "gfx4", 0 )    /* sprites */
+	ROM_REGION( 0x40000, "scu", 0 )    /* sprites */
 	ROM_LOAD( "b02_01.d15", 0x00000, 0x10000, CRC(2234b424) SHA1(bd6242b9dcdb0f582565df588106cd1ce2aad53b) )
 	ROM_LOAD( "b02_02.d16", 0x10000, 0x10000, CRC(30d4c9a8) SHA1(96ce4f41207c5487e801a8444030ec4dc7b58b23) )
 	ROM_LOAD( "b02_03.d17", 0x20000, 0x10000, CRC(64f3d88f) SHA1(d0155cfb0a8885d58e34141f9696b9aa208440ca) )
@@ -1058,7 +1055,7 @@ ROM_START( fsharkbt )
 	ROM_LOAD( "b02_10.h16", 0x10000, 0x08000, CRC(4bd099ff) SHA1(9326075f83549b0a9656f69bd4436fb1be2ac805) )
 	ROM_LOAD( "b02_09.h15", 0x18000, 0x08000, CRC(230f1582) SHA1(0fd4156a46ed64cb6e5c59b8836382dd86c229cf) )
 
-	ROM_REGION( 0x40000, "gfx4", 0 )    /* sprites */
+	ROM_REGION( 0x40000, "scu", 0 )    /* sprites */
 	ROM_LOAD( "b02_01.d15", 0x00000, 0x10000, CRC(2234b424) SHA1(bd6242b9dcdb0f582565df588106cd1ce2aad53b) )
 	ROM_LOAD( "b02_02.d16", 0x10000, 0x10000, CRC(30d4c9a8) SHA1(96ce4f41207c5487e801a8444030ec4dc7b58b23) )
 	ROM_LOAD( "b02_03.d17", 0x20000, 0x10000, CRC(64f3d88f) SHA1(d0155cfb0a8885d58e34141f9696b9aa208440ca) )
@@ -1120,7 +1117,7 @@ ROM_START( fnshark ) // based on a different version of the game code? (only a ~
 	ROM_LOAD( "10.ic116", 0x10000, 0x08000, CRC(4bd099ff) SHA1(9326075f83549b0a9656f69bd4436fb1be2ac805) )
 	ROM_LOAD( "9.ic117",  0x18000, 0x08000, CRC(230f1582) SHA1(0fd4156a46ed64cb6e5c59b8836382dd86c229cf) )
 
-	ROM_REGION( 0x40000, "gfx4", 0 )    /* sprites */
+	ROM_REGION( 0x40000, "scu", 0 )    /* sprites */
 	ROM_LOAD( "1.ic54", 0x00000, 0x10000, CRC(2234b424) SHA1(bd6242b9dcdb0f582565df588106cd1ce2aad53b) )
 	ROM_LOAD( "2.ic53", 0x10000, 0x10000, CRC(30d4c9a8) SHA1(96ce4f41207c5487e801a8444030ec4dc7b58b23) )
 	ROM_LOAD( "3.ic52", 0x20000, 0x10000, CRC(64f3d88f) SHA1(d0155cfb0a8885d58e34141f9696b9aa208440ca) )
@@ -1174,7 +1171,7 @@ ROM_START( gulfwar2 )
 	ROM_LOAD( "11-u197.bin", 0x10000, 0x08000, CRC(7b721ed3) SHA1(afd10229414c65a56e184d56a69460ca3a502a27) )
 	ROM_LOAD( "10-u196.rom", 0x18000, 0x08000, CRC(160f38ab) SHA1(da310ec387d439b26c8b6b881e5dcc07c2b9bb00) )
 
-	ROM_REGION( 0x40000, "gfx4", 0 )    /* sprites */
+	ROM_REGION( 0x40000, "scu", 0 )    /* sprites */
 	ROM_LOAD( "20-u262.bin", 0x00000, 0x10000, CRC(10665ca0) SHA1(0c552c3807e00a7ef4f9fd28c7988a232628a1f5) )
 	ROM_LOAD( "19-u261.bin", 0x10000, 0x10000, CRC(cfa6d417) SHA1(f6c17d938b58dc5756ecf617f00fbfaf701602a7) )
 	ROM_LOAD( "18-u260.bin", 0x20000, 0x10000, CRC(2e6a0c49) SHA1(0b7ddad8775dcebe240a8246ef7816113f517f87) )
@@ -1189,6 +1186,50 @@ ROM_START( gulfwar2 )
 ROM_END
 
 
+ROM_START( gulfwar2a )
+	ROM_REGION( 0x40000, "maincpu", 0 ) /* Main 68K code */
+	ROM_LOAD16_BYTE( "gw2_28.u119", 0x00000, 0x20000, CRC(b9118660) SHA1(2b32e2e8d4efa024346d6603f005880f0ffd2c37) )
+	ROM_LOAD16_BYTE( "gw2_27.u92",  0x00001, 0x20000, CRC(3494f1aa) SHA1(4097eae7d22604fe1c996c37715018b2df6b8b39) )
+
+	ROM_REGION( 0x8000, "audiocpu", 0 )    /* Sound Z80 code */
+	ROM_LOAD( "06-u51.bin", 0x0000, 0x8000, CRC(75504f95) SHA1(5bd23e700e1bd4f0fac622dfb7c8cc69ba764956) )
+
+	ROM_REGION( 0x2000, "dsp", 0 )  /* Co-Processor TMS320C10 MCU code */
+	ROM_LOAD16_BYTE( "gw2_21.udsp2", 0x000, 0x800, CRC(87a473af) SHA1(3833ad01e9df6dc3e59ec4f910dc09a0318d865d) ) // Same code as Twin Cobra
+	ROM_IGNORE( 0x800 ) // 2nd half duplicates 1st
+	ROM_LOAD16_BYTE( "gw2_22.udsp1", 0x001, 0x800, CRC(3a97b0db) SHA1(4f4e2e432aa05fddce8bb7c8a6c7e222bdd50c16) ) // Same code as Twin Cobra
+	ROM_IGNORE( 0x800 ) // 2nd half is no good (1 bit error)
+
+	ROM_REGION( 0x18000, "gfx1", 0 )    /* chars */
+	ROM_LOAD( "gw2_23.u9",  0x00000, 0x08000, CRC(a2aee4c8) SHA1(dd6267f6ffbca0621790b76114d7c303a93b18e1) )
+	ROM_LOAD( "gw2_24.u10", 0x08000, 0x08000, CRC(fb3f71cd) SHA1(1594ab7a2700617dfcd73b091d4b94fb21e06c0d) )
+	ROM_LOAD( "gw2_25.u11", 0x10000, 0x08000, CRC(90eeb0a0) SHA1(126877900ce6bb9b2bf6420f588174f010f9bb6c) )
+
+	ROM_REGION( 0x40000, "gfx2", 0 )    /* fg tiles */
+	ROM_LOAD( "16-u202.bin", 0x00000, 0x10000, CRC(d815d175) SHA1(917043d0731226d18bcc22dfe27e5a5a18b03c06) )
+	ROM_LOAD( "13-u199.bin", 0x10000, 0x10000, CRC(d949b0d9) SHA1(1974d3b54e082baa9084dd619c8a879d954644cd) )
+	ROM_LOAD( "14-u200.bin", 0x20000, 0x10000, CRC(c109a6ac) SHA1(3a13ec802e5bafcf599c273a0bb0fd078e01e171) )
+	ROM_LOAD( "15-u201.bin", 0x30000, 0x10000, CRC(ad21f2ab) SHA1(0ab6eeb4dc9c2531c6f19479e7f9bc54fc1c1fdf) )
+
+	ROM_REGION( 0x20000, "gfx3", 0 )    /* bg tiles */
+	ROM_LOAD( "09-u195.bin", 0x00000, 0x08000, CRC(b7be3a6d) SHA1(68b9223fd07e81d443a1ae3ff04b2af105b27548) )
+	ROM_LOAD( "12-u198.bin", 0x08000, 0x08000, CRC(fd7032a6) SHA1(8be6315d732b154163a3573e2017fdfc77c92e54) )
+	ROM_LOAD( "11-u197.bin", 0x10000, 0x08000, CRC(7b721ed3) SHA1(afd10229414c65a56e184d56a69460ca3a502a27) )
+	ROM_LOAD( "10-u196.rom", 0x18000, 0x08000, CRC(160f38ab) SHA1(da310ec387d439b26c8b6b881e5dcc07c2b9bb00) )
+
+	ROM_REGION( 0x40000, "scu", 0 )    /* sprites */
+	ROM_LOAD( "20-u262.bin", 0x00000, 0x10000, CRC(10665ca0) SHA1(0c552c3807e00a7ef4f9fd28c7988a232628a1f5) )
+	ROM_LOAD( "19-u261.bin", 0x10000, 0x10000, CRC(cfa6d417) SHA1(f6c17d938b58dc5756ecf617f00fbfaf701602a7) )
+	ROM_LOAD( "18-u260.bin", 0x20000, 0x10000, CRC(2e6a0c49) SHA1(0b7ddad8775dcebe240a8246ef7816113f517f87) )
+	ROM_LOAD( "17-u259.bin", 0x30000, 0x10000, CRC(66c1b0e6) SHA1(82f3659245913f835c4434131c179b49ee195961) )
+
+	ROM_REGION( 0x260, "proms", 0 )
+	ROM_LOAD( "82s129.d3",  0x000, 0x100, CRC(24e7d62f) SHA1(1c06a1ef1b6a722794ca1d5ee2c476ecaa5178a3) )    /* sprite priority control ?? */
+	ROM_LOAD( "82s129.d4",  0x100, 0x100, CRC(a50cef09) SHA1(55cafb5b2551b80ae708e9b966cf37c70a16d310) )    /* sprite priority control ?? */
+	ROM_LOAD( "82s123.d2",  0x200, 0x020, CRC(f72482db) SHA1(b0cb911f9c81f6088a5aa8760916ddae1f8534d7) )    /* sprite control ?? */
+	ROM_LOAD( "82s123.e18", 0x220, 0x020, CRC(bc88cced) SHA1(5055362710c0f58823c05fb4c0e0eec638b91e3d) )    /* sprite attribute (flip/position) ?? */
+	ROM_LOAD( "82s123.b24", 0x240, 0x020, CRC(4fb5df2a) SHA1(506ef2c8e4cf45c256d6831a0a5760732f2de422) )    /* tile to sprite priority ?? */
+ROM_END
 
 DRIVER_INIT_MEMBER(twincobr_state,twincobr)
 {
@@ -1196,12 +1237,13 @@ DRIVER_INIT_MEMBER(twincobr_state,twincobr)
 }
 
 
-GAME( 1987, fshark,    0,        twincobr, fshark, twincobr_state,    twincobr, ROT270, "Toaplan / Taito Corporation", "Flying Shark (World)", 0 )
-GAME( 1987, skyshark,  fshark,   twincobr, skyshark, twincobr_state,  twincobr, ROT270, "Toaplan / Taito America Corporation (Romstar license)", "Sky Shark (US)", 0 )
-GAME( 1987, hishouza,  fshark,   twincobr, hishouza, twincobr_state,  twincobr, ROT270, "Toaplan / Taito Corporation", "Hishou Zame (Japan)", 0 )
+GAME( 1987, fshark,    0,        fshark,   fshark, twincobr_state,    twincobr, ROT270, "Toaplan / Taito Corporation", "Flying Shark (World)", 0 )
+GAME( 1987, skyshark,  fshark,   fshark,   skyshark, twincobr_state,  twincobr, ROT270, "Toaplan / Taito America Corporation (Romstar license)", "Sky Shark (US)", 0 )
+GAME( 1987, hishouza,  fshark,   fshark,   hishouza, twincobr_state,  twincobr, ROT270, "Toaplan / Taito Corporation", "Hishou Zame (Japan)", 0 )
 GAME( 1987, fsharkbt,  fshark,   fsharkbt, skyshark, twincobr_state,  twincobr, ROT270, "bootleg", "Flying Shark (bootleg with 8741)", 0 )
-GAME( 1987, fnshark,   fshark,   twincobr, hishouza, twincobr_state,  twincobr, ROT270, "bootleg", "Flyin' Shark (bootleg of Hishou Zame)", 0 )
+GAME( 1987, fnshark,   fshark,   fshark,   hishouza, twincobr_state,  twincobr, ROT270, "bootleg", "Flyin' Shark (bootleg of Hishou Zame)", 0 )
 GAME( 1987, twincobr,  0,        twincobr, twincobr, twincobr_state,  twincobr, ROT270, "Toaplan / Taito Corporation", "Twin Cobra (World)", 0 )
 GAME( 1987, twincobru, twincobr, twincobr, twincobru, twincobr_state, twincobr, ROT270, "Toaplan / Taito America Corporation (Romstar license)", "Twin Cobra (US)", 0 )
 GAME( 1987, ktiger,    twincobr, twincobr, ktiger, twincobr_state,    twincobr, ROT270, "Toaplan / Taito Corporation", "Kyukyoku Tiger (Japan)", 0 )
-GAME( 1991, gulfwar2,  0,        twincobr, gulfwar2, twincobr_state,  twincobr, ROT270, "Comad", "Gulf War II", 0 )
+GAME( 1991, gulfwar2,  0,        twincobr, gulfwar2, twincobr_state,  twincobr, ROT270, "Comad", "Gulf War II (set 1)", 0 )
+GAME( 1991, gulfwar2a, gulfwar2, twincobr, gulfwar2, twincobr_state,  twincobr, ROT270, "Comad", "Gulf War II (set 2)", 0 )

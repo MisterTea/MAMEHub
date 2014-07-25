@@ -11,7 +11,6 @@
 #include "formats/thom_dsk.h"
 #include "includes/thomson.h"
 #include "machine/6821pia.h"
-#include "machine/ctronics.h"
 #include "machine/ram.h"
 
 #define VERBOSE       0
@@ -19,10 +18,10 @@
 #define VERBOSE_KBD   0  /* TO8 / TO9 / TO9+ keyboard */
 #define VERBOSE_BANK  0
 #define VERBOSE_VIDEO 0  /* video & lightpen */
-#define VERBOSE_IO    1  /* serial & parallel I/O */
+#define VERBOSE_IO    0  /* serial & parallel I/O */
 #define VERBOSE_MIDI  0
 
-#define PRINT(x) mame_printf_info x
+#define PRINT(x) osd_printf_info x
 
 #define LOG(x)  do { if (VERBOSE) logerror x; } while (0)
 #define VLOG(x) do { if (VERBOSE > 1) logerror x; } while (0)
@@ -126,22 +125,22 @@ void thomson_state::to7_set_cassette( int data )
 
 
 
-WRITE8_MEMBER( thomson_state::to7_set_cassette_motor )
+WRITE_LINE_MEMBER( thomson_state::to7_set_cassette_motor )
 {
-	cassette_state state =  m_cassette->get_state();
+	cassette_state cassstate =  m_cassette->get_state();
 	double pos = m_cassette->get_position();
 
 	LOG (( "$%04x %f to7_set_cassette_motor: cassette motor %s bitpos=%i\n",
-			m_maincpu->pc(), machine().time().as_double(), data ? "off" : "on",
+			m_maincpu->pc(), machine().time().as_double(), state ? "off" : "on",
 			(int) (pos / TO7_BIT_LENGTH) ));
 
-	if ( (state & CASSETTE_MASK_MOTOR) == CASSETTE_MOTOR_DISABLED && !data && pos > 0.3 )
+	if ( (cassstate & CASSETTE_MASK_MOTOR) == CASSETTE_MOTOR_DISABLED && !state && pos > 0.3 )
 	{
 		/* rewind a little before starting the motor */
 		m_cassette->seek(-0.3, SEEK_CUR );
 	}
 
-	m_cassette->change_state(data ? CASSETTE_MOTOR_DISABLED : CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR );
+	m_cassette->change_state(state ? CASSETTE_MOTOR_DISABLED : CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR );
 }
 
 
@@ -197,22 +196,22 @@ void thomson_state::mo5_set_cassette( int data )
 
 
 
-WRITE8_MEMBER( thomson_state::mo5_set_cassette_motor )
+WRITE_LINE_MEMBER( thomson_state::mo5_set_cassette_motor )
 {
-	cassette_state state = m_cassette->get_state();
+	cassette_state cassstate = m_cassette->get_state();
 	double pos = m_cassette->get_position();
 
 	LOG (( "$%04x %f mo5_set_cassette_motor: cassette motor %s hbitpos=%i\n",
-			m_maincpu->pc(), machine().time().as_double(), data ? "off" : "on",
+			m_maincpu->pc(), machine().time().as_double(), state ? "off" : "on",
 			(int) (pos / MO5_HBIT_LENGTH) ));
 
-	if ( (state & CASSETTE_MASK_MOTOR) == CASSETTE_MOTOR_DISABLED &&  !data && pos > 0.3 )
+	if ( (cassstate & CASSETTE_MASK_MOTOR) == CASSETTE_MOTOR_DISABLED &&  !state && pos > 0.3 )
 	{
 		/* rewind a little before starting the motor */
 		m_cassette->seek(-0.3, SEEK_CUR );
 	}
 
-	m_cassette->change_state(data ? CASSETTE_MOTOR_DISABLED : CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR );
+	m_cassette->change_state(state ? CASSETTE_MOTOR_DISABLED : CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR );
 }
 
 
@@ -509,19 +508,6 @@ WRITE8_MEMBER( thomson_state::to7_timer_tco_out )
 }
 
 
-
-const mc6846_interface to7_timer =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_timer_port_out),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_timer_cp2_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_timer_port_in),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_timer_tco_out),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_dev_irq_0)
-};
-
-
-
 /* ------------ lightpen automaton ------------ */
 
 
@@ -556,9 +542,9 @@ void thomson_state::to7_set_init( int init )
 
 
 
-WRITE8_MEMBER( thomson_state::to7_sys_cb2_out )
+WRITE_LINE_MEMBER( thomson_state::to7_sys_cb2_out )
 {
-	m_to7_lightpen = !data;
+	m_to7_lightpen = !state;
 }
 
 
@@ -611,24 +597,6 @@ READ8_MEMBER( thomson_state::to7_sys_portb_in )
 
 
 
-const pia6821_interface to7_pia6821_sys =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_sys_porta_in),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_sys_portb_in),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_sys_portb_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_set_cassette_motor),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_sys_cb2_out),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_firq_1),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_firq_1)
-};
-
-
-
 /* ------------ CC 90-232 I/O extension ------------ */
 
 /* Features:
@@ -641,28 +609,6 @@ const pia6821_interface to7_pia6821_sys =
    because the Data Transmit Ready bit is shared in an incompatible way!
 */
 
-
-
-/* test whether a parallel or a serial device is connected: both cannot
-   be exploited at the same time!
-*/
-to7_io_dev thomson_state::to7_io_mode()
-{
-	if (m_centronics->pe_r() == TRUE)
-		return TO7_IO_CENTRONICS;
-	else if ( m_serial->exists())
-		return TO7_IO_RS232;
-	return TO7_IO_NONE;
-}
-
-
-
-WRITE_LINE_MEMBER( thomson_state::to7_io_ack )
-{
-	m_pia_io->cb1_w( state);
-	//LOG_IO (( "%f to7_io_ack: CENTRONICS new state $%02X (ack=%i)\n", machine().time().as_double(), data, ack ));
-}
-
 const device_type TO7_IO_LINE = &device_creator<to7_io_line_device>;
 
 //-------------------------------------------------
@@ -671,116 +617,100 @@ const device_type TO7_IO_LINE = &device_creator<to7_io_line_device>;
 
 to7_io_line_device::to7_io_line_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, TO7_IO_LINE, "T07 Serial source", tag, owner, clock, "to7_io_line", __FILE__),
-		device_serial_interface(mconfig, *this)
+	m_pia_io(*this, THOM_PIA_IO),
+	m_rs232(*this, "rs232"),
+	m_last_low(0)
 {
+}
+
+static MACHINE_CONFIG_FRAGMENT( to7_io_line )
+	/// THIS PIO is part of CC 90-232 expansion
+	MCFG_DEVICE_ADD(THOM_PIA_IO, PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(to7_io_line_device, porta_in))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(to7_io_line_device, porta_out))
+	MCFG_PIA_WRITEPB_HANDLER(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_PIA_CB2_HANDLER(DEVWRITELINE("centronics", centronics_device, write_strobe))
+	MCFG_PIA_IRQA_HANDLER(DEVWRITELINE("^", thomson_state, thom_firq_1))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("^", thomson_state, thom_firq_1))
+
+	MCFG_RS232_PORT_ADD("rs232", default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(WRITELINE(to7_io_line_device, write_rxd))
+	MCFG_RS232_CTS_HANDLER(WRITELINE(to7_io_line_device, write_cts))
+	MCFG_RS232_DSR_HANDLER(WRITELINE(to7_io_line_device, write_dsr))
+
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_ACK_HANDLER(DEVWRITELINE(THOM_PIA_IO, pia6821_device, cb1_w))
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(to7_io_line_device, write_centronics_busy))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+
+MACHINE_CONFIG_END
+
+machine_config_constructor to7_io_line_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( to7_io_line );
 }
 
 void to7_io_line_device::device_start()
 {
+	m_rs232->write_dtr(0);
 }
 
 WRITE8_MEMBER( to7_io_line_device::porta_out )
 {
-	int tx  = data & 1;
-	int dtr = ( data & 2 ) ? 1 : 0;
+	int txd = (data >> 0) & 1;
+	int rts = (data >> 1) & 1;
 
-	LOG_IO(( "%s %f to7_io_porta_out: tx=%i, dtr=%i\n",  machine().describe_context(), machine().time().as_double(), tx, dtr ));
-	if ( dtr )
-		m_connection_state |=  SERIAL_STATE_DTR;
-	else
-		m_connection_state &= ~SERIAL_STATE_DTR;
+	LOG_IO(( "%s %f to7_io_porta_out: txd=%i, rts=%i\n",  machine().describe_context(), machine().time().as_double(), txd, rts ));
 
-	set_out_data_bit(tx);
-	serial_connection_out();
+	m_rs232->write_txd(txd);
+	m_rs232->write_rts(rts);
 }
 
+
+
+WRITE_LINE_MEMBER(to7_io_line_device::write_rxd )
+{
+	m_rxd = state;
+}
+
+WRITE_LINE_MEMBER(to7_io_line_device::write_dsr )
+{
+	if (!state) m_last_low = 0;
+
+	m_dsr = state;
+}
+
+WRITE_LINE_MEMBER(to7_io_line_device::write_cts )
+{
+	m_pia_io->ca1_w(state);
+	m_cts = state;
+}
+
+WRITE_LINE_MEMBER(to7_io_line_device::write_centronics_busy )
+{
+	if (!state) m_last_low = 1;
+
+	m_centronics_busy = state;
+}
 
 
 READ8_MEMBER( to7_io_line_device::porta_in )
 {
-	centronics_device *printer = machine().device<centronics_device>("centronics");
-	int cts = 1;
-	int dsr = ( m_input_state & SERIAL_STATE_DSR ) ? 0 : 1;
-	int rd  = get_in_data_bit();
+	LOG_IO(( "%s %f to7_io_porta_in: select=%i cts=%i, dsr=%i, rd=%i\n", machine().describe_context(), machine().time().as_double(), m_centronics_busy, m_cts, m_dsr, m_rxd ));
 
-	if ( machine().driver_data<thomson_state>()->to7_io_mode() == TO7_IO_RS232 )
-		cts = m_input_state & SERIAL_STATE_CTS ? 0 : 1;
+	/// HACK: without high impedance we can't tell whether a device is driving a line high or if it's being pulled up.
+	/// so assume the last device to drive it low is active.
+	int dsr;
+	if (m_last_low == 0)
+		dsr = m_dsr;
 	else
-		cts = !printer->busy_r();
+		dsr = !m_centronics_busy;
 
-	LOG_IO(( "%s %f to7_io_porta_in: mode=%i cts=%i, dsr=%i, rd=%i\n", machine().describe_context(), machine().time().as_double(), machine().driver_data<thomson_state>()->to7_io_mode(), cts, dsr, rd ));
-
-	return (dsr ? 0x20 : 0) | (cts ? 0x40 : 0) | (rd ? 0x80: 0);
+	return (0x1f /* not required when converted to write_pa */) | (m_cts << 5) | (dsr << 6) | (m_rxd << 7);
 }
 
 
-
-WRITE8_MEMBER( thomson_state::to7_io_portb_out )
-{
-	LOG_IO(( "$%04x %f to7_io_portb_out: CENTRONICS set data=$%02X\n", m_maincpu->pc(), machine().time().as_double(), data ));
-
-	/* set 8-bit data */
-	m_centronics->write( space, 0, data);
-}
-
-
-
-WRITE8_MEMBER( thomson_state::to7_io_cb2_out )
-{
-	LOG_IO(( "$%04x %f to7_io_cb2_out: CENTRONICS set strobe=%i\n", m_maincpu->pc(), machine().time().as_double(), data ));
-
-	/* send STROBE to printer */
-	m_centronics->strobe_w(data);
-}
-
-
-void to7_io_line_device::input_callback(UINT8 state)
-{
-	m_input_state = state;
-
-	LOG_IO(( "%f to7_io_in_callback:  cts=%i dsr=%i rd=%i\n", machine().time().as_double(), (state & SERIAL_STATE_CTS) ? 1 : 0, (state & SERIAL_STATE_DSR) ? 1 : 0, (int)get_in_data_bit() ));
-}
-
-
-
-const pia6821_interface to7_pia6821_io =
-{
-	DEVCB_DEVICE_MEMBER("to7_io", to7_io_line_device, porta_in),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER("to7_io", to7_io_line_device, porta_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_io_portb_out),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_io_cb2_out),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_firq_1),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_firq_1)
-};
-
-
-const centronics_interface to7_centronics_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, to7_io_ack),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-void to7_io_line_device::device_reset()
-{
-	pia6821_device *io_pia = machine().device<pia6821_device>(THOM_PIA_IO);
-
-	LOG (( "to7_io_reset called\n" ));
-
-	if (io_pia) io_pia->set_port_a_z_mask(0x03 );
-	m_input_state = SERIAL_STATE_CTS;
-	m_connection_state &= ~SERIAL_STATE_DTR;
-	m_connection_state |=  SERIAL_STATE_RTS;  /* always ready to send */
-	set_out_data_bit(1);
-	serial_connection_out();
-}
 
 /* ------------ RF 57-932 RS232 extension ------------ */
 
@@ -810,50 +740,22 @@ WRITE_LINE_MEMBER( thomson_state::to7_modem_cb )
 
 
 
-const pia6821_interface to7_pia6821_modem =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-READ_LINE_MEMBER( thomson_state::to7_modem_rx_r )
-{
-	return m_to7_modem_rx;
-}
-
 WRITE_LINE_MEMBER( thomson_state::to7_modem_tx_w )
 {
 	m_to7_modem_tx = state;
 }
 
-ACIA6850_INTERFACE( to7_modem )
+
+WRITE_LINE_MEMBER( thomson_state::write_acia_clock )
 {
-	1200,
-	1200, /* 1200 bauds, might be divided by 16 */
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, to7_modem_rx_r), /*&to7_modem_rx,*/
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, to7_modem_tx_w), /*&to7_modem_tx,*/
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, to7_modem_cb)
-};
-
-
+	m_acia6850->write_txc(state);
+	m_acia6850->write_rxc(state);
+}
 
 void thomson_state::to7_modem_reset()
 {
 	LOG (( "to7_modem_reset called\n" ));
-	m_to7_modem_rx = 0;
+	m_acia->write_rxd(0);
 	m_to7_modem_tx = 0;
 	/* pia_reset() is called in machine_reset */
 	/* acia_6850 has no reset (?) */
@@ -864,7 +766,6 @@ void thomson_state::to7_modem_reset()
 void thomson_state::to7_modem_init()
 {
 	LOG (( "to7_modem_init: MODEM not implemented!\n" ));
-	save_item(NAME(m_to7_modem_rx));
 	save_item(NAME(m_to7_modem_tx));
 }
 
@@ -872,16 +773,12 @@ void thomson_state::to7_modem_init()
 
 /* ------------  dispatch MODEM / speech extension ------------ */
 
-
-const mea8000_interface to7_speech = { "speech", DEVCB_NULL };
-
-
 READ8_MEMBER( thomson_state::to7_modem_mea8000_r )
 {
 	if ( space.debugger_access() )
-		{
+	{
 		return 0;
-		}
+	}
 
 	if ( ioport("mconfig")->read() & 1 )
 	{
@@ -889,10 +786,16 @@ READ8_MEMBER( thomson_state::to7_modem_mea8000_r )
 	}
 	else
 	{
-		switch (offset) {
-		case 0: return m_acia->status_read(space, offset );
-		case 1: return m_acia->data_read(space, offset );
-		default: return 0;
+		switch (offset)
+		{
+		case 0:
+			return m_acia->status_r(space, offset );
+
+		case 1:
+			return m_acia->data_r(space, offset );
+
+		default:
+			return 0;
 		}
 	}
 }
@@ -907,9 +810,15 @@ WRITE8_MEMBER( thomson_state::to7_modem_mea8000_w )
 	}
 	else
 	{
-		switch (offset) {
-		case 0: m_acia->control_write( space, offset, data );
-		case 1: m_acia->data_write( space, offset, data );
+		switch (offset)
+		{
+		case 0:
+			m_acia->control_w( space, offset, data );
+			break;
+
+		case 1:
+			m_acia->data_w( space, offset, data );
+			break;
 		}
 	}
 }
@@ -1038,29 +947,11 @@ WRITE8_MEMBER( thomson_state::to7_game_portb_out )
 
 
 
-WRITE8_MEMBER( thomson_state::to7_game_cb2_out )
+WRITE_LINE_MEMBER( thomson_state::to7_game_cb2_out )
 {
 	/* undocumented */
 	/* some TO8 games (e.g.: F15) seem to write here a lot */
 }
-
-
-
-const pia6821_interface to7_pia6821_game =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_game_porta_in),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_game_portb_in),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_game_portb_out),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_game_cb2_out),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_irq_1),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_irq_1)
-};
 
 
 
@@ -1463,10 +1354,10 @@ MACHINE_START_MEMBER( thomson_state, to7 )
 
 
 
-WRITE8_MEMBER( thomson_state::to770_sys_cb2_out )
+WRITE_LINE_MEMBER( thomson_state::to770_sys_cb2_out )
 {
 	/* video overlay: black pixels are transparent and show TV image underneath */
-	LOG(( "$%04x to770_sys_cb2_out: video overlay %i\n", m_maincpu->pc(), data ));
+	LOG(( "$%04x to770_sys_cb2_out: video overlay %i\n", m_maincpu->pc(), state ));
 }
 
 
@@ -1544,24 +1435,6 @@ WRITE8_MEMBER( thomson_state::to770_sys_portb_out )
 
 
 
-const pia6821_interface to770_pia6821_sys =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, to770_sys_porta_in),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, to770_sys_portb_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_set_cassette_motor),
-	DEVCB_DRIVER_MEMBER(thomson_state, to770_sys_cb2_out),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_firq_1),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_firq_1)
-};
-
-
-
 /* ------------ 6846 (timer, I/O) ------------ */
 
 
@@ -1575,19 +1448,6 @@ WRITE8_MEMBER( thomson_state::to770_timer_port_out )
 							((data & 0x40) ? 4 : 0) |
 							((data & 0x04) ? 0 : 8) );
 }
-
-
-
-const mc6846_interface to770_timer =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, to770_timer_port_out),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_timer_cp2_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_timer_port_in),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_timer_tco_out),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_dev_irq_0)
-};
-
 
 
 /* ------------ gate-array ------------ */
@@ -1790,24 +1650,6 @@ READ8_MEMBER( thomson_state::mo5_sys_portb_in )
 
 
 
-const pia6821_interface mo5_pia6821_sys =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, mo5_sys_porta_in),
-	DEVCB_DRIVER_MEMBER(thomson_state, mo5_sys_portb_in),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, mo5_sys_porta_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, mo5_sys_portb_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, mo5_set_cassette_motor),
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_firq_1),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_irq_1) /* WARNING: differs from TO7 ! */
-};
-
-
-
 /* ------------ gate-array ------------ */
 
 
@@ -1873,7 +1715,7 @@ DEVICE_IMAGE_LOAD_MEMBER( thomson_state, mo5_cartridge )
 	else
 	{
 		astring errmsg;
-		errmsg.printf("Invalid cartridge size "I64FMT, size);
+		errmsg.printf("Invalid cartridge size %"I64FMT"d", size);
 		image.seterror(IMAGE_ERROR_UNSUPPORTED, errmsg.cstr());
 		return IMAGE_INIT_FAIL;
 	}
@@ -2309,7 +2151,7 @@ void thomson_state::to9_update_cart_bank()
 {
 	address_space& space = m_maincpu->space(AS_PROGRAM);
 	int bank = 0;
-	int slot = ( mc6846_get_output_port(m_mc6846) >> 4 ) & 3; /* bits 4-5: ROM bank */
+	int slot = ( m_mc6846->get_output_port() >> 4 ) & 3; /* bits 4-5: ROM bank */
 
 	switch ( slot )
 	{
@@ -2394,7 +2236,7 @@ void thomson_state::to9_update_cart_bank_postload()
 /* write signal to 0000-1fff generates a bank switch */
 WRITE8_MEMBER( thomson_state::to9_cartridge_w )
 {
-	int slot = ( mc6846_get_output_port(m_mc6846) >> 4 ) & 3; /* bits 4-5: ROM bank */
+	int slot = ( m_mc6846->get_output_port() >> 4 ) & 3; /* bits 4-5: ROM bank */
 
 	if ( offset >= 0x2000 )
 		return;
@@ -2426,7 +2268,7 @@ READ8_MEMBER( thomson_state::to9_cartridge_r )
 void thomson_state::to9_update_ram_bank()
 {
 	address_space& space = m_maincpu->space(AS_PROGRAM);
-	UINT8 port = mc6846_get_output_port(m_mc6846);
+	UINT8 port = m_mc6846->get_output_port();
 	UINT8 portb = m_pia_sys->port_b_z_mask();
 	UINT8 disk = ((port >> 2) & 1) | ((port >> 5) & 2); /* bits 6,2: RAM bank */
 	int bank;
@@ -2941,41 +2783,27 @@ READ8_MEMBER( thomson_state::to9_sys_porta_in )
 
 WRITE8_MEMBER( thomson_state::to9_sys_porta_out )
 {
-	m_centronics->write(space, 0, data & 0xfe);
+	m_centronics->write_data1(BIT(data, 1));
+	m_centronics->write_data2(BIT(data, 2));
+	m_centronics->write_data3(BIT(data, 3));
+	m_centronics->write_data4(BIT(data, 4));
+	m_centronics->write_data5(BIT(data, 5));
+	m_centronics->write_data6(BIT(data, 6));
+	m_centronics->write_data7(BIT(data, 7));
 }
 
 
 
 WRITE8_MEMBER( thomson_state::to9_sys_portb_out )
 {
-	m_centronics->d0_w(BIT(data, 0));
-	m_centronics->strobe_w(BIT(data, 1));
+	m_centronics->write_data0(BIT(data, 0));
+	m_centronics->write_strobe(BIT(data, 1));
 
 	to9_update_ram_bank();
 
 	if ( data & 4 ) /* bit 2: video overlay (TODO) */
 		LOG(( "to9_sys_portb_out: video overlay not handled\n" ));
 }
-
-
-
-const pia6821_interface to9_pia6821_sys =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, to9_sys_porta_in),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, to9_sys_porta_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to9_sys_portb_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_set_cassette_motor),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_firq_1)
-};
-
-
 
 
 
@@ -2989,19 +2817,6 @@ WRITE8_MEMBER( thomson_state::to9_timer_port_out )
 	to9_update_ram_bank();
 	to9_update_cart_bank();
 }
-
-
-
-const mc6846_interface to9_timer =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, to9_timer_port_out),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_timer_cp2_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_timer_port_in),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_timer_tco_out),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_dev_irq_0)
-};
-
 
 
 /* ------------ init / reset ------------ */
@@ -3242,8 +3057,8 @@ void thomson_state::to8_kbd_timer_func()
 		   (helps avoiding CPU lock)
 		*/
 		if ( ! m_to8_kbd_ack )
-			mc6846_set_input_cp1( m_mc6846, 0 );
-		mc6846_set_input_cp1( m_mc6846, 1 );
+			m_mc6846->set_input_cp1(0);
+		m_mc6846->set_input_cp1(1);
 
 		if ( k == -1 )
 			d = TO8_KBD_POLL_PERIOD;
@@ -3262,27 +3077,27 @@ void thomson_state::to8_kbd_timer_func()
 		m_to8_kbd_last_key = 0xff;
 		m_to8_kbd_key_count = 0;
 		m_to8_kbd_step = 0;
-		mc6846_set_input_cp1( m_mc6846, 1 );
+		m_mc6846->set_input_cp1(1);
 		d = TO8_KBD_POLL_PERIOD;
 	}
 	else if ( m_to8_kbd_step == 1 )
 	{
 		/* schedule timeout waiting for ack to go down */
-		mc6846_set_input_cp1( m_mc6846, 0 );
+		m_mc6846->set_input_cp1(0);
 		m_to8_kbd_step = 255;
 		d = TO8_KBD_TIMEOUT;
 	}
 	else if ( m_to8_kbd_step == 117 )
 	{
 		/* schedule timeout  waiting for ack to go up */
-		mc6846_set_input_cp1( m_mc6846, 0 );
+		m_mc6846->set_input_cp1(0);
 		m_to8_kbd_step = 255;
 		d = TO8_KBD_TIMEOUT;
 	}
 	else if ( m_to8_kbd_step & 1 )
 	{
 		/* send silence between bits */
-		mc6846_set_input_cp1( m_mc6846, 0 );
+		m_mc6846->set_input_cp1(0);
 		d = attotime::from_usec( 100 );
 		m_to8_kbd_step++;
 	}
@@ -3291,7 +3106,7 @@ void thomson_state::to8_kbd_timer_func()
 		/* send bit */
 		int bpos = 8 - ( (m_to8_kbd_step - 100) / 2);
 		int bit = (m_to8_kbd_data >> bpos) & 1;
-		mc6846_set_input_cp1( m_mc6846, 1 );
+		m_mc6846->set_input_cp1(1);
 		d = attotime::from_usec( bit ? 56 : 38 );
 		m_to8_kbd_step++;
 	}
@@ -3942,8 +3757,8 @@ READ8_MEMBER( thomson_state::to8_sys_porta_in )
 
 WRITE8_MEMBER( thomson_state::to8_sys_portb_out )
 {
-	m_centronics->d0_w(BIT(data, 0));
-	m_centronics->strobe_w(BIT(data, 1));
+	m_centronics->write_data0(BIT(data, 0));
+	m_centronics->write_strobe(BIT(data, 1));
 
 	to8_update_ram_bank();
 
@@ -3953,33 +3768,19 @@ WRITE8_MEMBER( thomson_state::to8_sys_portb_out )
 
 
 
-const pia6821_interface to8_pia6821_sys =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, to8_sys_porta_in),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, to9_sys_porta_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to8_sys_portb_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_set_cassette_motor),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_firq_1)
-};
-
-
-
 /* ------------ 6846 (timer, I/O) ------------ */
 
 
+WRITE_LINE_MEMBER(thomson_state::write_centronics_busy )
+{
+	m_centronics_busy = state;
+}
 
 READ8_MEMBER( thomson_state::to8_timer_port_in )
 {
 	int lightpen = (ioport("lightpen_button")->read() & 1) ? 2 : 0;
 	int cass = to7_get_cassette() ? 0x80 : 0;
-	int dtr = m_centronics->busy_r() << 6;
+	int dtr = m_centronics_busy << 6;
 	int lock = m_to8_kbd_caps ? 0 : 8; /* undocumented! */
 	return lightpen | cass | dtr | lock;
 }
@@ -4006,20 +3807,6 @@ WRITE8_MEMBER( thomson_state::to8_timer_cp2_out )
 	m_to7_game_mute = data;
 	to7_game_sound_update();
 }
-
-
-
-const mc6846_interface to8_timer =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, to8_timer_port_out),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, to8_timer_cp2_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to8_timer_port_in),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_timer_tco_out),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_dev_irq_0)
-};
-
-
 
 /* ------------ lightpen ------------ */
 
@@ -4168,24 +3955,6 @@ MACHINE_START_MEMBER( thomson_state, to8 )
 
 
 
-const pia6821_interface to9p_pia6821_sys =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, to9_sys_porta_in),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, to9_sys_porta_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to8_sys_portb_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_set_cassette_motor),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_firq_1)
-};
-
-
-
 /* ------------ 6846 (timer, I/O) ------------ */
 
 
@@ -4194,7 +3963,7 @@ READ8_MEMBER( thomson_state::to9p_timer_port_in )
 {
 	int lightpen = (ioport("lightpen_button")->read() & 1) ? 2 : 0;
 	int cass = to7_get_cassette() ? 0x80 : 0;
-	int dtr = m_centronics->busy_r() << 6;
+	int dtr = m_centronics_busy << 6;
 	return lightpen | cass | dtr;
 }
 
@@ -4210,23 +3979,7 @@ WRITE8_MEMBER( thomson_state::to9p_timer_port_out )
 	to8_update_cart_bank();
 }
 
-
-
-const mc6846_interface to9p_timer =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, to9p_timer_port_out),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, to8_timer_cp2_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to9p_timer_port_in),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_timer_tco_out),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_dev_irq_0)
-};
-
-
-
 /* ------------ init / reset ------------ */
-
-
 
 MACHINE_RESET_MEMBER( thomson_state, to9p )
 {
@@ -4297,8 +4050,8 @@ MACHINE_START_MEMBER( thomson_state, to9p )
 	membank( THOM_CART_BANK )->configure_entries( 0,  8, mem + 0x10000, 0x4000 );
 	membank( THOM_CART_BANK )->configure_entries( 8, 32, ram, 0x4000 );
 	membank( THOM_VRAM_BANK )->configure_entries( 0,  2, ram, 0x2000 );
-	membank( TO8_SYS_LO )->configure_entry( 0,  ram + 0x6000);
-	membank( TO8_SYS_HI )->configure_entry( 0,  ram + 0x4000);
+	membank( TO8_SYS_LO )->configure_entry( 0,  ram + 0x6000 );
+	membank( TO8_SYS_HI )->configure_entry( 0,  ram + 0x4000 );
 	membank( TO8_DATA_LO )->configure_entries( 0, 32, ram + 0x2000, 0x4000 );
 	membank( TO8_DATA_HI )->configure_entries( 0, 32, ram + 0x0000, 0x4000 );
 	membank( TO8_BIOS_BANK )->configure_entries( 0,  2, mem + 0x30800, 0x2000 );
@@ -4374,8 +4127,6 @@ void thomson_state::mo6_update_cart_bank()
 	int bank = 0;
 	int bank_is_read_only = 0;
 
-	// space.install_read_bank( 0xb000, 0xefff, THOM_CART_BANK );
-
 	if ( ( ( m_to8_reg_sys1 & 0x40 ) && ( m_to8_reg_cart & 0x20 ) ) || ( ! ( m_to8_reg_sys1 & 0x40 ) && ( m_mo5_reg_cart & 4 ) ) )
 	{
 		/* RAM space */
@@ -4391,14 +4142,16 @@ void thomson_state::mo6_update_cart_bank()
 				{
 					if (m_old_cart_bank < 8 || m_old_cart_bank > 11)
 					{
-						space.install_read_bank( 0xb000, 0xefff, THOM_CART_BANK );
+						space.install_read_bank( 0xb000, 0xbfff, MO6_CART_LO );
+						space.install_read_bank( 0xc000, 0xefff, MO6_CART_HI );
 						if ( bank_is_read_only )
 						{
 							space.nop_write( 0xb000, 0xefff);
 						}
 						else
 						{
-							space.install_write_handler( 0xb000, 0xefff, write8_delegate(FUNC(thomson_state::to8_vcart_w),this));
+							space.install_write_handler( 0xb000, 0xbfff, write8_delegate(FUNC(thomson_state::mo6_vcart_lo_w),this));
+							space.install_write_handler( 0xc000, 0xefff, write8_delegate(FUNC(thomson_state::mo6_vcart_hi_w),this));
 						}
 					}
 				}
@@ -4408,12 +4161,14 @@ void thomson_state::mo6_update_cart_bank()
 					{
 						if ( bank_is_read_only )
 						{
-							space.install_read_bank( 0xb000, 0xefff, THOM_CART_BANK );
-							space.nop_write( 0xb000, 0xefff);
+														space.install_read_bank( 0xb000, 0xbfff, MO6_CART_LO );
+														space.install_read_bank( 0xc000, 0xefff, MO6_CART_HI );
+														space.nop_write( 0xb000, 0xefff);
 						}
 						else
 						{
-							space.install_readwrite_bank( 0xb000, 0xefff,THOM_CART_BANK);
+							space.install_readwrite_bank( 0xb000, 0xbfff, MO6_CART_LO );
+														space.install_readwrite_bank( 0xc000, 0xefff, MO6_CART_HI );
 						}
 					}
 				}
@@ -4431,11 +4186,14 @@ void thomson_state::mo6_update_cart_bank()
 				{
 					if (m_to8_cart_vpage < 4)
 					{
-						space.install_write_handler( 0xb000, 0xefff, write8_delegate(FUNC(thomson_state::to8_vcart_w),this));
+												space.install_write_handler( 0xb000, 0xbfff, write8_delegate(FUNC(thomson_state::mo6_vcart_lo_w),this));
+												space.install_write_handler( 0xc000, 0xefff, write8_delegate(FUNC(thomson_state::mo6_vcart_hi_w),this));
+
 					}
 					else
 					{
-						space.install_readwrite_bank( 0xb000, 0xefff, THOM_CART_BANK );
+												space.install_readwrite_bank( 0xb000, 0xbfff, MO6_CART_LO );
+												space.install_readwrite_bank( 0xc000, 0xefff, MO6_CART_HI );
 					}
 				}
 				LOG_BANK(( "mo6_update_cart_bank: update CART bank %i write status to %s\n",
@@ -4452,7 +4210,8 @@ void thomson_state::mo6_update_cart_bank()
 			{
 				if ( m_old_cart_bank < 0 || m_old_cart_bank > 3 )
 				{
-					space.install_read_bank( 0xb000, 0xefff, THOM_CART_BANK );
+										space.install_read_bank( 0xb000, 0xbfff, MO6_CART_LO );
+										space.install_read_bank( 0xc000, 0xefff, MO6_CART_HI );
 					space.nop_write( 0xb000, 0xefff);
 				}
 				LOG_BANK(( "mo6_update_cart_bank: CART is external cartridge bank %i (A7CB style)\n", bank ));
@@ -4470,12 +4229,14 @@ void thomson_state::mo6_update_cart_bank()
 				{
 					if ( bank_is_read_only )
 					{
-						space.install_read_bank( 0xb000, 0xefff, THOM_CART_BANK);
+												space.install_read_bank( 0xb000, 0xbfff, MO6_CART_LO );
+												space.install_read_bank( 0xc000, 0xefff, MO6_CART_HI );
 						space.nop_write( 0xb000, 0xefff);
 					}
 					else
 					{
-						space.install_readwrite_bank( 0xb000, 0xefff, THOM_CART_BANK);
+												space.install_readwrite_bank( 0xb000, 0xbfff, MO6_CART_LO );
+												space.install_readwrite_bank( 0xc000, 0xefff, MO6_CART_HI );
 					}
 				}
 				LOG_BANK(( "mo6_update_cart_bank: CART is RAM bank %i (MO5 compat.) (%s)\n",
@@ -4486,12 +4247,14 @@ void thomson_state::mo6_update_cart_bank()
 			{
 				if ( bank_is_read_only )
 				{
-					space.install_read_bank( 0xb000, 0xefff, THOM_CART_BANK);
+										space.install_read_bank( 0xb000, 0xbfff, MO6_CART_LO );
+										space.install_read_bank( 0xc000, 0xefff, MO6_CART_HI );
 					space.nop_write( 0xb000, 0xefff);
 				}
 				else
 				{
-					space.install_readwrite_bank( 0xb000, 0xefff, THOM_CART_BANK);
+										space.install_readwrite_bank( 0xb000, 0xbfff, MO6_CART_LO );
+										space.install_readwrite_bank( 0xc000, 0xefff, MO6_CART_HI );
 				}
 				LOG_BANK(( "mo5_update_cart_bank: update CART bank %i write status to %s\n",
 											m_to8_cart_vpage,
@@ -4518,7 +4281,8 @@ void thomson_state::mo6_update_cart_bank()
 			{
 				if ( m_old_cart_bank < 4 || m_old_cart_bank > 7 )
 				{
-					space.install_read_bank( 0xb000, 0xefff, THOM_CART_BANK);
+										space.install_read_bank( 0xb000, 0xbfff, MO6_CART_LO );
+										space.install_read_bank( 0xc000, 0xefff, MO6_CART_HI );
 					space.install_write_handler( 0xb000, 0xefff, write8_delegate(FUNC(thomson_state::mo6_cartridge_w),this) );
 				}
 				LOG_BANK(( "mo6_update_cart_bank: CART is internal ROM bank %i\n", b ));
@@ -4532,9 +4296,10 @@ void thomson_state::mo6_update_cart_bank()
 				bank = m_thom_cart_bank % m_thom_cart_nb_banks;
 				if ( bank != m_old_cart_bank )
 				{
-					if ( m_old_cart_bank < 0 || m_old_cart_bank > 3 )
+									if ( m_old_cart_bank < 0 || m_old_cart_bank > 3 )
 					{
-						space.install_read_bank( 0xb000, 0xefff, THOM_CART_BANK );
+												space.install_read_bank( 0xb000, 0xbfff, MO6_CART_LO );
+												space.install_read_bank( 0xc000, 0xefff, MO6_CART_HI );
 						space.install_write_handler( 0xb000, 0xefff, write8_delegate(FUNC(thomson_state::mo6_cartridge_w),this) );
 						space.install_read_handler( 0xbffc, 0xbfff, read8_delegate(FUNC(thomson_state::mo6_cartridge_r),this) );
 					}
@@ -4553,7 +4318,8 @@ void thomson_state::mo6_update_cart_bank()
 	}
 	if ( bank != m_old_cart_bank )
 		{
-		membank( THOM_CART_BANK )->set_entry( bank );
+		membank( MO6_CART_LO )->set_entry( bank );
+		membank( MO6_CART_HI )->set_entry( bank );
 		membank( TO8_BIOS_BANK )->set_entry( b );
 		m_old_cart_bank = bank;
 	}
@@ -4615,49 +4381,23 @@ WRITE_LINE_MEMBER( thomson_state::mo6_centronics_busy )
 }
 
 
-const centronics_interface mo6_centronics_config =
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, mo6_centronics_busy),
-	DEVCB_NULL
-};
-
-
 WRITE8_MEMBER( thomson_state::mo6_game_porta_out )
 {
 	LOG (( "$%04x %f mo6_game_porta_out: CENTRONICS set data=$%02X\n", m_maincpu->pc(), machine().time().as_double(), data ));
 
 	/* centronics data */
-	m_centronics->write( space, 0, data);
+	m_cent_data_out->write(data);
 }
 
 
 
-WRITE8_MEMBER( thomson_state::mo6_game_cb2_out )
+WRITE_LINE_MEMBER( thomson_state::mo6_game_cb2_out )
 {
-	LOG (( "$%04x %f mo6_game_cb2_out: CENTRONICS set strobe=%i\n", m_maincpu->pc(), machine().time().as_double(), data ));
+	LOG (( "$%04x %f mo6_game_cb2_out: CENTRONICS set strobe=%i\n", m_maincpu->pc(), machine().time().as_double(), state ));
 
 	/* centronics strobe */
-	m_centronics->strobe_w(data);
+	m_centronics->write_strobe(state);
 }
-
-
-
-const pia6821_interface mo6_pia6821_game =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_game_porta_in),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_game_portb_in),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, mo6_game_porta_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_game_portb_out),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, mo6_game_cb2_out),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_irq_1),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_irq_1)
-};
 
 
 
@@ -4759,29 +4499,11 @@ WRITE8_MEMBER( thomson_state::mo6_sys_portb_out )
 
 
 
-WRITE8_MEMBER( thomson_state::mo6_sys_cb2_out )
+WRITE_LINE_MEMBER( thomson_state::mo6_sys_cb2_out )
 {
 	/* SCART pin 8 = slow switch (?) */
-	LOG(( "mo6_sys_cb2_out: SCART slow switch set to %i\n", data ));
+	LOG(( "mo6_sys_cb2_out: SCART slow switch set to %i\n", state ));
 }
-
-
-
-const pia6821_interface mo6_pia6821_sys =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, mo6_sys_porta_in),
-	DEVCB_DRIVER_MEMBER(thomson_state, mo6_sys_portb_in),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, mo6_sys_porta_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, mo6_sys_portb_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, mo5_set_cassette_motor),
-	DEVCB_DRIVER_MEMBER(thomson_state, mo6_sys_cb2_out),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_firq_1),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_irq_1) /* differs from TO */
-};
 
 
 
@@ -5024,17 +4746,22 @@ MACHINE_START_MEMBER( thomson_state, mo6 )
 	m_thom_cart_bank = 0;
 	m_mo5_reg_cart = 0;
 	m_thom_vram = ram;
-	membank( THOM_CART_BANK )->configure_entries( 0, 4, mem + 0x10000, 0x4000 );
-	membank( THOM_CART_BANK )->configure_entries( 4, 2, mem + 0x1f000, 0x4000 );
-	membank( THOM_CART_BANK )->configure_entries( 6, 2, mem + 0x28000, 0x4000 );
-	membank( THOM_CART_BANK )->configure_entries( 8, 8, ram, 0x4000 );
+	membank( MO6_CART_LO )->configure_entries( 0, 4, mem + 0x10000, 0x4000 );
+	membank( MO6_CART_LO )->configure_entries( 4, 2, mem + 0x1f000, 0x4000 );
+	membank( MO6_CART_LO )->configure_entries( 6, 2, mem + 0x28000, 0x4000 );
+	membank( MO6_CART_LO )->configure_entries( 8, 8, ram + 0x3000, 0x4000 );
+	membank( MO6_CART_HI )->configure_entries( 0, 4, mem + 0x10000 + 0x1000, 0x4000 );
+	membank( MO6_CART_HI )->configure_entries( 4, 2, mem + 0x1f000 + 0x1000, 0x4000 );
+	membank( MO6_CART_HI )->configure_entries( 6, 2, mem + 0x28000 + 0x1000, 0x4000 );
+	membank( MO6_CART_HI )->configure_entries( 8, 8, ram, 0x4000 );
 	membank( THOM_VRAM_BANK )->configure_entries( 0, 2, ram, 0x2000 );
 	membank( TO8_SYS_LO )->configure_entry( 0, ram + 0x6000);
 	membank( TO8_SYS_HI )->configure_entry( 0, ram + 0x4000);
 	membank( TO8_DATA_LO )->configure_entries( 0, 8, ram + 0x2000, 0x4000 );
 	membank( TO8_DATA_HI )->configure_entries( 0, 8, ram + 0x0000, 0x4000 );
 	membank( TO8_BIOS_BANK )->configure_entries( 0, 2, mem + 0x23000, 0x4000 );
-	membank( THOM_CART_BANK )->set_entry( 0 );
+	membank( MO6_CART_LO )->set_entry( 0 );
+	membank( MO6_CART_HI )->set_entry( 0 );
 	membank( THOM_VRAM_BANK )->set_entry( 0 );
 	membank( TO8_SYS_LO )->set_entry( 0 );
 	membank( TO8_SYS_HI )->set_entry( 0 );
@@ -5106,7 +4833,7 @@ READ8_MEMBER( thomson_state::mo5nr_prn_r )
 {
 	UINT8 result = 0;
 
-	result |= !m_centronics->busy_r() << 7;
+	result |= m_centronics_busy << 7;
 
 	return result;
 }
@@ -5115,7 +4842,7 @@ READ8_MEMBER( thomson_state::mo5nr_prn_r )
 WRITE8_MEMBER( thomson_state::mo5nr_prn_w )
 {
 	/* TODO: understand other bits */
-	m_centronics->strobe_w(BIT(data, 3));
+	m_centronics->write_strobe(BIT(data, 3));
 }
 
 
@@ -5153,46 +4880,9 @@ WRITE8_MEMBER( thomson_state::mo5nr_sys_porta_out )
 
 
 
-const pia6821_interface mo5nr_pia6821_sys =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, mo6_sys_porta_in),
-	DEVCB_DRIVER_MEMBER(thomson_state, mo5nr_sys_portb_in),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, mo5nr_sys_porta_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, mo6_sys_portb_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, mo5_set_cassette_motor),
-	DEVCB_DRIVER_MEMBER(thomson_state, mo6_sys_cb2_out),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_firq_1),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_irq_1) /* differs from TO */
-};
-
-
-
-
 /* ------------ game 6821 PIA ------------ */
 
 /* similar to the MO6, without the printer */
-
-
-
-const pia6821_interface mo5nr_pia6821_game =
-{
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_game_porta_in),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_game_portb_in),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(thomson_state, mo6_game_porta_out),
-	DEVCB_DRIVER_MEMBER(thomson_state, to7_game_portb_out),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_irq_1),
-	DEVCB_DRIVER_LINE_MEMBER(thomson_state, thom_irq_1)
-};
 
 
 
@@ -5284,17 +4974,23 @@ MACHINE_START_MEMBER( thomson_state, mo5nr )
 	m_thom_cart_bank = 0;
 	m_mo5_reg_cart = 0;
 	m_thom_vram = ram;
-	membank( THOM_CART_BANK )->configure_entries( 0, 4, mem + 0x10000, 0x4000 );
-	membank( THOM_CART_BANK )->configure_entries( 4, 2, mem + 0x1f000, 0x4000 );
-	membank( THOM_CART_BANK )->configure_entries( 6, 2, mem + 0x28000, 0x4000 );
-	membank( THOM_CART_BANK )->configure_entries( 8, 8, ram, 0x4000 );
+
+	membank( MO6_CART_LO )->configure_entries( 0, 4, mem + 0x10000, 0x4000 );
+	membank( MO6_CART_LO )->configure_entries( 4, 2, mem + 0x1f000, 0x4000 );
+	membank( MO6_CART_LO )->configure_entries( 6, 2, mem + 0x28000, 0x4000 );
+	membank( MO6_CART_LO )->configure_entries( 8, 8, ram + 0x3000, 0x4000 );
+	membank( MO6_CART_HI )->configure_entries( 0, 4, mem + 0x10000 + 0x1000, 0x4000 );
+	membank( MO6_CART_HI )->configure_entries( 4, 2, mem + 0x1f000 + 0x1000, 0x4000 );
+	membank( MO6_CART_HI )->configure_entries( 6, 2, mem + 0x28000 + 0x1000, 0x4000 );
+	membank( MO6_CART_HI )->configure_entries( 8, 8, ram, 0x4000 );
 	membank( THOM_VRAM_BANK )->configure_entries( 0, 2, ram, 0x2000 );
 	membank( TO8_SYS_LO )->configure_entry( 0, ram + 0x6000);
 	membank( TO8_SYS_HI )->configure_entry( 0, ram + 0x4000);
 	membank( TO8_DATA_LO )->configure_entries( 0, 8, ram + 0x2000, 0x4000 );
 	membank( TO8_DATA_HI )->configure_entries( 0, 8, ram + 0x0000, 0x4000 );
 	membank( TO8_BIOS_BANK )->configure_entries( 0, 2, mem + 0x23000, 0x4000 );
-	membank( THOM_CART_BANK )->set_entry( 0 );
+	membank( MO6_CART_LO )->set_entry( 0 );
+	membank( MO6_CART_HI )->set_entry( 0 );
 	membank( THOM_VRAM_BANK )->set_entry( 0 );
 	membank( TO8_SYS_LO )->set_entry( 0 );
 	membank( TO8_SYS_HI )->set_entry( 0 );

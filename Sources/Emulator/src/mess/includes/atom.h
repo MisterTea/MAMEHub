@@ -14,7 +14,7 @@
 #include "formats/atom_tap.h"
 #include "formats/basicdsk.h"
 #include "formats/uef_cas.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/6522via.h"
 #include "machine/i8255.h"
 #include "machine/i8271.h"
@@ -93,10 +93,9 @@ public:
 	DECLARE_READ8_MEMBER( ppi_pb_r );
 	DECLARE_READ8_MEMBER( ppi_pc_r );
 	DECLARE_WRITE8_MEMBER( ppi_pc_w );
-	DECLARE_READ8_MEMBER( printer_busy );
-	DECLARE_WRITE8_MEMBER( printer_data );
 	DECLARE_READ8_MEMBER( vdg_videoram_r );
 	DECLARE_INPUT_CHANGED_MEMBER( trigger_reset );
+	DECLARE_WRITE_LINE_MEMBER( atom_8271_interrupt_callback );
 
 	/* eprom state */
 	int m_eprom;

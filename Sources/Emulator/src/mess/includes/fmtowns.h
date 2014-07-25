@@ -11,9 +11,9 @@
 #include "imagedev/chd_cd.h"
 #include "machine/pit8253.h"
 #include "machine/pic8259.h"
-#include "formats/basicdsk.h"
-#include "machine/wd17xx.h"
-#include "imagedev/flopdrv.h"
+#include "machine/wd_fdc.h"
+#include "imagedev/floppy.h"
+#include "formats/fmtowns_dsk.h"
 #include "machine/upd71071.h"
 #include "machine/ram.h"
 #include "machine/nvram.h"
@@ -85,9 +85,31 @@ class towns_state : public driver_device
 			m_pit(*this, "pit"),
 			m_dma_1(*this, "dma_1"),
 			m_dma_2(*this, "dma_2"),
+			m_palette(*this, "palette"),
 			m_ram(*this, RAM_TAG),
+			m_fdc(*this, "fdc"),
+			m_flop0(*this, "fdc:0"),
+			m_flop1(*this, "fdc:1"),
 			m_nvram(*this, "nvram"),
-			m_nvram16(*this, "nvram16")
+			m_nvram16(*this, "nvram16"),
+			m_ctrltype(*this, "ctrltype"),
+			m_key1(*this, "key1"),
+			m_key2(*this, "key2"),
+			m_key3(*this, "key3"),
+			m_key4(*this, "key4"),
+			m_joy1(*this, "joy1"),
+			m_joy2(*this, "joy2"),
+			m_joy1_ex(*this, "joy1_ex"),
+			m_joy2_ex(*this, "joy2_ex"),
+			m_6b_joy1(*this, "6b_joy1"),
+			m_6b_joy2(*this, "6b_joy2"),
+			m_6b_joy1_ex(*this, "6b_joy1_ex"),
+			m_6b_joy2_ex(*this, "6b_joy2_ex"),
+			m_mouse1(*this, "mouse1"),
+			m_mouse2(*this, "mouse2"),
+			m_mouse3(*this, "mouse3"),
+			m_user(*this,"user"),
+			m_serial(*this,"serial")
 	{ }
 
 	/* devices */
@@ -98,8 +120,11 @@ class towns_state : public driver_device
 	required_device<pit8253_device> m_pit;
 	required_device<upd71071_device> m_dma_1;
 	required_device<upd71071_device> m_dma_2;
+	required_device<palette_device> m_palette;
 	required_device<ram_device> m_ram;
-	device_t* m_fdc;
+	required_device<mb8877_t> m_fdc;
+	required_device<floppy_connector> m_flop0;
+	required_device<floppy_connector> m_flop1;
 	ram_device* m_messram;
 	cdrom_image_device* m_cdrom;
 	cdda_device* m_cdda;
@@ -153,7 +178,9 @@ class towns_state : public driver_device
 	UINT8 m_towns_scsi_control;
 	UINT8 m_towns_scsi_status;
 	UINT8 m_towns_spkrdata;
-	UINT8 m_towns_speaker_input;
+	UINT8 m_pit_out0;
+	UINT8 m_pit_out1;
+	UINT8 m_pit_out2;
 	UINT8 m_timer0;
 	UINT8 m_timer1;
 
@@ -172,6 +199,7 @@ class towns_state : public driver_device
 	optional_shared_ptr<UINT16> m_nvram16;
 
 	virtual void driver_start();
+	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
@@ -244,14 +272,35 @@ class towns_state : public driver_device
 	DECLARE_WRITE_LINE_MEMBER(mb8877a_drq_w);
 	DECLARE_WRITE_LINE_MEMBER(pit_out2_changed);
 
+	RF5C68_SAMPLE_END_CB_MEMBER(towns_pcm_irq);
+
 	void towns_update_video_banks(address_space&);
-	void init_serial_rom(running_machine&);
-	void init_rtc(running_machine&);
+	void init_serial_rom();
+	void init_rtc();
 	void kb_sendcode(UINT8 scancode, int release);
 	UINT8 speaker_get_spk();
 	void speaker_set_spkrdata(UINT8 data);
 	void speaker_set_input(UINT8 data);
 	UINT8 towns_cdrom_read_byte_software();
+
+	required_ioport m_ctrltype;
+	required_ioport m_key1;
+	required_ioport m_key2;
+	required_ioport m_key3;
+	required_ioport m_key4;
+	required_ioport m_joy1;
+	required_ioport m_joy2;
+	required_ioport m_joy1_ex;
+	required_ioport m_joy2_ex;
+	required_ioport m_6b_joy1;
+	required_ioport m_6b_joy2;
+	required_ioport m_6b_joy1_ex;
+	required_ioport m_6b_joy2_ex;
+	required_ioport m_mouse1;
+	required_ioport m_mouse2;
+	required_ioport m_mouse3;
+	required_memory_region m_user;
+	optional_memory_region m_serial;
 
 private:
 	static const device_timer_id TIMER_RTC = 0;
@@ -281,14 +330,14 @@ public:
 	TIMER_CALLBACK_MEMBER(towns_vblank_end);
 	DECLARE_WRITE_LINE_MEMBER(towns_scsi_irq);
 	DECLARE_WRITE_LINE_MEMBER(towns_scsi_drq);
-	DECLARE_WRITE_LINE_MEMBER(towns_pic_irq);
 	DECLARE_WRITE_LINE_MEMBER(towns_pit_out0_changed);
 	DECLARE_WRITE_LINE_MEMBER(towns_pit_out1_changed);
 	DECLARE_READ8_MEMBER(get_slave_ack);
-	IRQ_CALLBACK_MEMBER(towns_irq_callback);
 	DECLARE_WRITE_LINE_MEMBER(towns_fm_irq);
+	DECLARE_FLOPPY_FORMATS(floppy_formats);
 	void towns_crtc_refresh_mode();
 	void towns_update_kanji_offset();
+	void towns_update_palette();
 	void render_sprite_4(UINT32 poffset, UINT32 coffset, UINT16 x, UINT16 y, UINT16 xflip, UINT16 yflip, const rectangle* rect);
 	void render_sprite_16(UINT32 poffset, UINT16 x, UINT16 y, UINT16 xflip, UINT16 yflip, const rectangle* rect);
 	void draw_sprites(const rectangle* rect);

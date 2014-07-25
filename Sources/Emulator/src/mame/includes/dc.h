@@ -10,6 +10,7 @@
 #include "video/powervr2.h"
 #include "machine/naomig1.h"
 #include "machine/maple-dc.h"
+#include "sound/aica.h"
 
 class dc_state : public driver_device
 {
@@ -24,7 +25,8 @@ class dc_state : public driver_device
 		m_soundcpu(*this, "soundcpu"),
 		m_powervr2(*this, "powervr2"),
 		m_maple(*this, "maple_dc"),
-		m_naomig1(*this, "rom_board") { }
+		m_naomig1(*this, "rom_board"),
+		m_aica(*this, "aica") { }
 
 	required_shared_ptr<UINT64> dc_framebuffer_ram; // '32-bit access area'
 	required_shared_ptr<UINT64> dc_texture_ram; // '64-bit access area'
@@ -75,11 +77,12 @@ class dc_state : public driver_device
 	DECLARE_WRITE8_MEMBER( g1_irq );
 	DECLARE_WRITE8_MEMBER( pvr_irq );
 
-	required_device<cpu_device> m_maincpu;
+	required_device<sh4_base_device> m_maincpu;
 	required_device<cpu_device> m_soundcpu;
 	required_device<powervr2_device> m_powervr2;
 	required_device<maple_dc_device> m_maple;
 	optional_device<naomi_g1_device> m_naomig1;
+	required_device<aica_device> m_aica;
 
 	void generic_dma(UINT32 main_adr, void *dma_ptr, UINT32 length, UINT32 size, bool to_mainram);
 	TIMER_DEVICE_CALLBACK_MEMBER(dc_scanline);

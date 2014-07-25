@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:smf
 /***************************************************************************
 
     ataintf.h
@@ -34,6 +36,7 @@ protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_config_complete();
+
 private:
 	ata_device_interface *m_dev;
 };
@@ -46,13 +49,13 @@ extern const device_type ATA_SLOT;
 ***************************************************************************/
 
 #define MCFG_ATA_INTERFACE_IRQ_HANDLER(_devcb) \
-	devcb = &ata_interface_device::set_irq_handler(*device, DEVCB2_##_devcb);
+	devcb = &ata_interface_device::set_irq_handler(*device, DEVCB_##_devcb);
 
 #define MCFG_ATA_INTERFACE_DMARQ_HANDLER(_devcb) \
-	devcb = &ata_interface_device::set_dmarq_handler(*device, DEVCB2_##_devcb);
+	devcb = &ata_interface_device::set_dmarq_handler(*device, DEVCB_##_devcb);
 
 #define MCFG_ATA_INTERFACE_DASP_HANDLER(_devcb) \
-	devcb = &ata_interface_device::set_dasp_handler(*device, DEVCB2_##_devcb);
+	devcb = &ata_interface_device::set_dasp_handler(*device, DEVCB_##_devcb);
 
 SLOT_INTERFACE_EXTERN(ata_devices);
 
@@ -60,15 +63,13 @@ SLOT_INTERFACE_EXTERN(ata_devices);
     DEVICE CONFIGURATION MACROS
 ***************************************************************************/
 
-#define MCFG_ATA_INTERFACE_ADD(_tag, _slotintf, _master, _slave, _fixed) \
+#define MCFG_ATA_INTERFACE_ADD(_tag, _slot_intf, _master, _slave, _fixed) \
 	MCFG_DEVICE_ADD(_tag, ATA_INTERFACE, 0) \
-	MCFG_ATA_SLOT_ADD(_tag ":0", _slotintf, _master, _fixed) \
-	MCFG_ATA_SLOT_ADD(_tag ":1", _slotintf, _slave, _fixed) \
+	MCFG_DEVICE_MODIFY(_tag ":0") \
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _master, _fixed) \
+	MCFG_DEVICE_MODIFY(_tag ":1") \
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _slave, _fixed) \
 	MCFG_DEVICE_MODIFY(_tag)
-
-#define MCFG_ATA_SLOT_ADD(_tag, _slot_intf, _def_slot, _fixed) \
-	MCFG_DEVICE_ADD(_tag, ATA_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _fixed)
 
 /***************************************************************************
     TYPE DEFINITIONS
@@ -83,9 +84,9 @@ public:
 	ata_interface_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 	// static configuration helpers
-	template<class _Object> static devcb2_base &set_irq_handler(device_t &device, _Object object) { return downcast<ata_interface_device &>(device).m_irq_handler.set_callback(object); }
-	template<class _Object> static devcb2_base &set_dmarq_handler(device_t &device, _Object object) { return downcast<ata_interface_device &>(device).m_dmarq_handler.set_callback(object); }
-	template<class _Object> static devcb2_base &set_dasp_handler(device_t &device, _Object object) { return downcast<ata_interface_device &>(device).m_dasp_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_irq_handler(device_t &device, _Object object) { return downcast<ata_interface_device &>(device).m_irq_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_dmarq_handler(device_t &device, _Object object) { return downcast<ata_interface_device &>(device).m_dmarq_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_dasp_handler(device_t &device, _Object object) { return downcast<ata_interface_device &>(device).m_dasp_handler.set_callback(object); }
 	UINT16 read_dma();
 	virtual DECLARE_READ16_MEMBER(read_cs0);
 	virtual DECLARE_READ16_MEMBER(read_cs1);
@@ -98,6 +99,7 @@ public:
 protected:
 	// device-level overrides
 	virtual void device_start();
+	virtual machine_config_constructor device_mconfig_additions() const;
 
 	virtual void set_irq(int state);
 	virtual void set_dmarq(int state);
@@ -120,9 +122,9 @@ private:
 	int m_dasp[2];
 	int m_pdiag[2];
 
-	devcb2_write_line m_irq_handler;
-	devcb2_write_line m_dmarq_handler;
-	devcb2_write_line m_dasp_handler;
+	devcb_write_line m_irq_handler;
+	devcb_write_line m_dmarq_handler;
+	devcb_write_line m_dasp_handler;
 };
 
 extern const device_type ATA_INTERFACE;

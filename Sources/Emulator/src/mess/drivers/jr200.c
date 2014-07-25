@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Roberto Zandona'
 /***************************************************************************
 
     JR-200 (c) 1982 National / Panasonic
@@ -42,7 +44,9 @@ public:
 		m_row6(*this, "ROW6"),
 		m_row7(*this, "ROW7"),
 		m_row8(*this, "ROW8"),
-		m_row9(*this, "ROW9") { }
+		m_row9(*this, "ROW9"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT8> m_vram;
 	required_shared_ptr<UINT8> m_cram;
@@ -66,7 +70,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(jr200);
 	UINT32 screen_update_jr200(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(timer_d_callback);
 
@@ -86,6 +90,8 @@ protected:
 	required_ioport m_row7;
 	required_ioport m_row8;
 	required_ioport m_row9;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -196,7 +202,7 @@ UINT32 jr200_state::screen_update_jr200(screen_device &screen, bitmap_ind16 &bit
 						pen = (gfx_data[(tile*8)+yi]>>(7-xi) & 1) ? (attr & 0x7) : ((attr & 0x38) >> 3);
 					}
 
-					bitmap.pix16(y*8+yi+16, x*8+xi+16) = machine().pens[pen];
+					bitmap.pix16(y*8+yi+16, x*8+xi+16) = m_palette->pen(pen);
 				}
 			}
 		}
@@ -218,13 +224,13 @@ READ8_MEMBER(jr200_state::jr200_pcg_2_r)
 WRITE8_MEMBER(jr200_state::jr200_pcg_1_w)
 {
 	m_pcg->base()[offset+0x000] = data;
-	machine().gfx[1]->mark_dirty((offset+0x000) >> 3);
+	m_gfxdecode->gfx(1)->mark_dirty((offset+0x000) >> 3);
 }
 
 WRITE8_MEMBER(jr200_state::jr200_pcg_2_w)
 {
 	m_pcg->base()[offset+0x400] = data;
-	machine().gfx[1]->mark_dirty((offset+0x400) >> 3);
+	m_gfxdecode->gfx(1)->mark_dirty((offset+0x400) >> 3);
 }
 
 READ8_MEMBER(jr200_state::jr200_bios_char_r)
@@ -237,7 +243,7 @@ WRITE8_MEMBER(jr200_state::jr200_bios_char_w)
 {
 	/* TODO: writing is presumably controlled by an I/O bit */
 //  m_gfx_ram->base()[offset] = data;
-//  machine().gfx[0]->mark_dirty(offset >> 3);
+//  m_gfxdecode->gfx(0)->mark_dirty(offset >> 3);
 }
 
 /*
@@ -489,12 +495,12 @@ static INPUT_PORTS_START( jr200 )
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("RIGHT CTRL") PORT_CODE(KEYCODE_RCONTROL) PORT_CHAR(UCHAR_MAMEKEY(RCONTROL))
 INPUT_PORTS_END
 
-void jr200_state::palette_init()
+PALETTE_INIT_MEMBER(jr200_state, jr200)
 {
 	int i;
 
 	for (i = 0; i < 8; i++)
-		palette_set_color_rgb(machine(), i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
+		palette.set_pen_color(i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
 }
 
 static const gfx_layout tiles8x8_layout =
@@ -531,7 +537,7 @@ void jr200_state::machine_reset()
 		gfx_ram[i] = gfx_rom[i];
 
 	for(i=0;i<0x800;i+=8)
-		machine().gfx[0]->mark_dirty(i >> 3);
+		m_gfxdecode->gfx(0)->mark_dirty(i >> 3);
 }
 
 
@@ -550,9 +556,11 @@ static MACHINE_CONFIG_START( jr200, jr200_state )
 	MCFG_SCREEN_SIZE(16 + 256 + 16, 16 + 192 + 16) /* border size not accurate */
 	MCFG_SCREEN_VISIBLE_AREA(0, 16 + 256 + 16 - 1, 0, 16 + 192 + 16 - 1)
 	MCFG_SCREEN_UPDATE_DRIVER(jr200_state, screen_update_jr200)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(jr200)
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jr200)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(jr200_state, jr200)
 
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")

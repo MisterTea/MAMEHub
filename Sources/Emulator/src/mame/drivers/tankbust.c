@@ -110,7 +110,7 @@ READ8_MEMBER(tankbust_state::debug_output_area_r)
 
 
 
-void tankbust_state::palette_init()
+PALETTE_INIT_MEMBER(tankbust_state, tankbust)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -155,7 +155,7 @@ void tankbust_state::palette_init()
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		r = 0x55 * bit0 + 0xaa * bit1;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
@@ -301,16 +301,6 @@ static GFXDECODE_START( tankbust )
 	GFXDECODE_ENTRY( "gfx3", 0, charlayout2,        0x60, 16  ) /* txt tilemap characters*/
 GFXDECODE_END
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(tankbust_state,tankbust_soundlatch_r),
-	DEVCB_DRIVER_MEMBER(tankbust_state,tankbust_soundtimer_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 void tankbust_state::machine_reset()
 {
 	m_variable_data = 0x11;
@@ -345,17 +335,19 @@ static MACHINE_CONFIG_START( tankbust, tankbust_state )
 	MCFG_SCREEN_VISIBLE_AREA  ( 16*8, 56*8-1, 1*8, 31*8-1 )
 //  MCFG_SCREEN_VISIBLE_AREA  (  0*8, 64*8-1, 1*8, 31*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(tankbust_state, screen_update_tankbust)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE( tankbust )
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tankbust )
 
-	MCFG_PALETTE_LENGTH( 128 )
-
+	MCFG_PALETTE_ADD( "palette", 128 )
+	MCFG_PALETTE_INIT_OWNER(tankbust_state, tankbust)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, XTAL_14_31818MHz/16)  /* Verified on PCB */
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(tankbust_state, tankbust_soundlatch_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(tankbust_state, tankbust_soundtimer_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_SOUND_ADD("ay2", AY8910, XTAL_14_31818MHz/16)  /* Verified on PCB */

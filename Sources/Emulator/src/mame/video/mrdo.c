@@ -42,7 +42,7 @@
 
 ***************************************************************************/
 
-void mrdo_state::palette_init()
+PALETTE_INIT_MEMBER(mrdo_state, mrdo)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -75,9 +75,6 @@ void mrdo_state::palette_init()
 		if (weight[i] < 0) weight[i] = 0;
 	}
 
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x100);
-
 	for (i = 0; i < 0x100; i++)
 	{
 		int a1,a2;
@@ -102,7 +99,7 @@ void mrdo_state::palette_init()
 		bits2 = (color_prom[a2] >> 4) & 0x03;
 		b = weight[bits0 + (bits2 << 2)];
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -110,7 +107,7 @@ void mrdo_state::palette_init()
 
 	/* characters */
 	for (i = 0; i < 0x100; i++)
-		colortable_entry_set_value(machine().colortable, i, i);
+		palette.set_pen_indirect(i, i);
 
 	/* sprites */
 	for (i = 0x100; i < 0x140; i++)
@@ -122,7 +119,7 @@ void mrdo_state::palette_init()
 		else
 			ctabentry &= 0x0f;  /* low 4 bits are for sprite color n */
 
-		colortable_entry_set_value(machine().colortable, i, ctabentry + ((ctabentry & 0x0c) << 3));
+		palette.set_pen_indirect(i, ctabentry + ((ctabentry & 0x0c) << 3));
 	}
 }
 
@@ -137,8 +134,7 @@ void mrdo_state::palette_init()
 TILE_GET_INFO_MEMBER(mrdo_state::get_bg_tile_info)
 {
 	UINT8 attr = m_bgvideoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			m_bgvideoram[tile_index + 0x400] + ((attr & 0x80) << 1),
 			attr & 0x3f,
 			(attr & 0x40) ? TILE_FORCE_LAYER0 : 0);
@@ -147,8 +143,7 @@ TILE_GET_INFO_MEMBER(mrdo_state::get_bg_tile_info)
 TILE_GET_INFO_MEMBER(mrdo_state::get_fg_tile_info)
 {
 	UINT8 attr = m_fgvideoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			m_fgvideoram[tile_index+0x400] + ((attr & 0x80) << 1),
 			attr & 0x3f,
 			(attr & 0x40) ? TILE_FORCE_LAYER0 : 0);
@@ -164,8 +159,8 @@ TILE_GET_INFO_MEMBER(mrdo_state::get_fg_tile_info)
 
 void mrdo_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mrdo_state::get_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mrdo_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mrdo_state::get_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mrdo_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
 
 	m_bg_tilemap->set_transparent_pen(0);
 	m_fg_tilemap->set_transparent_pen(0);
@@ -242,7 +237,7 @@ void mrdo_state::draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect )
 	{
 		if (spriteram[offs + 1] != 0)
 		{
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[2],
+			m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 					spriteram[offs], spriteram[offs + 2] & 0x0f,
 					spriteram[offs + 2] & 0x10, spriteram[offs + 2] & 0x20,
 					spriteram[offs + 3], 256 - spriteram[offs + 1], 0);

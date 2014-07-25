@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
 RCA Studio II
@@ -362,10 +364,10 @@ INPUT_PORTS_END
 
 static const rgb_t VISICOM_PALETTE[] =
 {
-	MAKE_RGB(0x00, 0x40, 0x00),
-	MAKE_RGB(0xaf, 0xdf, 0xe4),
-	MAKE_RGB(0xb9, 0xc4, 0x2f),
-	MAKE_RGB(0xef, 0x45, 0x4a)
+	rgb_t(0x00, 0x40, 0x00),
+	rgb_t(0xaf, 0xdf, 0xe4),
+	rgb_t(0xb9, 0xc4, 0x2f),
+	rgb_t(0xef, 0x45, 0x4a)
 };
 
 UINT32 visicom_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -414,22 +416,6 @@ WRITE_LINE_MEMBER( studio2_state::q_w )
 	m_beeper->set_state(state);
 }
 
-static COSMAC_INTERFACE( studio2_cosmac_intf )
-{
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_LINE_MEMBER(studio2_state, clear_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(studio2_state, ef3_r),
-	DEVCB_DRIVER_LINE_MEMBER(studio2_state, ef4_r),
-	DEVCB_DRIVER_LINE_MEMBER(studio2_state, q_w),
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER(CDP1861_TAG, cdp1861_device, dma_w),
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 WRITE8_MEMBER( visicom_state::dma_w )
 {
 	int sx = m_screen->hpos() + 4;
@@ -448,22 +434,6 @@ WRITE8_MEMBER( visicom_state::dma_w )
 	}
 }
 
-static COSMAC_INTERFACE( visicom_cosmac_intf )
-{
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_LINE_MEMBER(studio2_state, clear_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(studio2_state, ef3_r),
-	DEVCB_DRIVER_LINE_MEMBER(studio2_state, ef4_r),
-	DEVCB_DRIVER_LINE_MEMBER(studio2_state, q_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(visicom_state, dma_w),
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 WRITE8_MEMBER( mpt02_state::dma_w )
 {
 	UINT8 addr = ((offset & 0xe0) >> 2) | (offset & 0x07);
@@ -473,22 +443,6 @@ WRITE8_MEMBER( mpt02_state::dma_w )
 	m_cti->con_w(0); // HACK
 	m_cti->dma_w(space, offset, data);
 }
-
-static COSMAC_INTERFACE( mpt02_cosmac_intf )
-{
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_LINE_MEMBER(studio2_state, clear_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(studio2_state, ef3_r),
-	DEVCB_DRIVER_LINE_MEMBER(studio2_state, ef4_r),
-	DEVCB_DRIVER_LINE_MEMBER(studio2_state, q_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(mpt02_state, dma_w),
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 /* Machine Initialization */
 
@@ -576,11 +530,19 @@ static MACHINE_CONFIG_START( studio2, studio2_state )
 	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, 1760000) /* the real clock is derived from an oscillator circuit */
 	MCFG_CPU_PROGRAM_MAP(studio2_map)
 	MCFG_CPU_IO_MAP(studio2_io_map)
-	MCFG_CPU_CONFIG(studio2_cosmac_intf)
+	MCFG_COSMAC_WAIT_CALLBACK(VCC)
+	MCFG_COSMAC_CLEAR_CALLBACK(READLINE(studio2_state, clear_r))
+	MCFG_COSMAC_EF3_CALLBACK(READLINE(studio2_state, ef3_r))
+	MCFG_COSMAC_EF4_CALLBACK(READLINE(studio2_state, ef4_r))
+	MCFG_COSMAC_Q_CALLBACK(WRITELINE(studio2_state, q_w))
+	MCFG_COSMAC_DMAW_CALLBACK(DEVWRITE8(CDP1861_TAG, cdp1861_device, dma_w))
 
 	/* video hardware */
+	MCFG_DEVICE_ADD(CDP1861_TAG, CDP1861, 1760000)
+	MCFG_CDP1861_IRQ_CALLBACK(INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT))
+	MCFG_CDP1861_DMA_OUT_CALLBACK(INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT))
+	MCFG_CDP1861_EFX_CALLBACK(INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1))
 	MCFG_CDP1861_SCREEN_ADD(CDP1861_TAG, SCREEN_TAG, 1760000)
-	MCFG_CDP1861_ADD(CDP1861_TAG, SCREEN_TAG, 1760000, INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -595,12 +557,20 @@ static MACHINE_CONFIG_START( visicom, visicom_state )
 	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, XTAL_3_579545MHz/2)
 	MCFG_CPU_PROGRAM_MAP(visicom_map)
 	MCFG_CPU_IO_MAP(visicom_io_map)
-	MCFG_CPU_CONFIG(visicom_cosmac_intf)
+	MCFG_COSMAC_WAIT_CALLBACK(VCC)
+	MCFG_COSMAC_CLEAR_CALLBACK(READLINE(visicom_state, clear_r))
+	MCFG_COSMAC_EF3_CALLBACK(READLINE(visicom_state, ef3_r))
+	MCFG_COSMAC_EF4_CALLBACK(READLINE(visicom_state, ef4_r))
+	MCFG_COSMAC_Q_CALLBACK(WRITELINE(visicom_state, q_w))
+	MCFG_COSMAC_DMAW_CALLBACK(WRITE8(visicom_state, dma_w))
 
 	/* video hardware */
+	MCFG_DEVICE_ADD(CDP1861_TAG, CDP1861, XTAL_3_579545MHz/2)
+	MCFG_CDP1861_IRQ_CALLBACK(INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT))
+	MCFG_CDP1861_DMA_OUT_CALLBACK(INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT))
+	MCFG_CDP1861_EFX_CALLBACK(INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1))
 	MCFG_CDP1861_SCREEN_ADD(CDP1861_TAG, SCREEN_TAG, XTAL_3_579545MHz/2)
 	MCFG_SCREEN_UPDATE_DRIVER(visicom_state, screen_update)
-	MCFG_CDP1861_ADD(CDP1861_TAG, SCREEN_TAG, XTAL_3_579545MHz/2, INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -622,7 +592,12 @@ static MACHINE_CONFIG_START( mpt02, mpt02_state )
 	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, CDP1864_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(mpt02_map)
 	MCFG_CPU_IO_MAP(mpt02_io_map)
-	MCFG_CPU_CONFIG(mpt02_cosmac_intf)
+	MCFG_COSMAC_WAIT_CALLBACK(VCC)
+	MCFG_COSMAC_CLEAR_CALLBACK(READLINE(mpt02_state, clear_r))
+	MCFG_COSMAC_EF3_CALLBACK(READLINE(mpt02_state, ef3_r))
+	MCFG_COSMAC_EF4_CALLBACK(READLINE(mpt02_state, ef4_r))
+	MCFG_COSMAC_Q_CALLBACK(WRITELINE(mpt02_state, q_w))
+	MCFG_COSMAC_DMAW_CALLBACK(WRITE8(mpt02_state, dma_w))
 
 	/* video hardware */
 	MCFG_CDP1864_SCREEN_ADD(SCREEN_TAG, CDP1864_CLOCK)
@@ -701,6 +676,6 @@ CONS( 1978, visicom,    studio2,0,      visicom,    studio2, studio2_state, stud
 CONS( 1978, mpt02,      studio2,0,      mpt02,      studio2, studio2_state, studio2,    "Soundic",  "Victory MPT-02 Home TV Programmer (Austria)",  GAME_SUPPORTS_SAVE )
 CONS( 1978, mpt02h,     studio2,0,      mpt02,      studio2, studio2_state, studio2,    "Hanimex",  "MPT-02 Jeu TV Programmable (France)",          GAME_SUPPORTS_SAVE )
 CONS( 1978, mtc9016,    studio2,0,      mpt02,      studio2, studio2_state, studio2,    "Mustang",  "9016 Telespiel Computer (Germany)",            GAME_SUPPORTS_SAVE )
-CONS( 1978, shmc1200,   studio2,0,      mpt02,      studio2, studio2_state, studio2,    "Sheen",    "1200 Micro Computer (Australia)",              GAME_SUPPORTS_SAVE )
+CONS( 1978, shmc1200,   studio2,0,      mpt02,      studio2, studio2_state, studio2,    "Sheen",    "M1200 Micro Computer (Australia)",             GAME_SUPPORTS_SAVE )
 CONS( 1978, cm1200,     studio2,0,      mpt02,      studio2, studio2_state, studio2,    "Conic",    "M-1200 (?)",                                   GAME_SUPPORTS_SAVE )
 CONS( 1978, apollo80,   studio2,0,      mpt02,      studio2, studio2_state, studio2,    "Academy",  "Apollo 80 (Germany)",                          GAME_SUPPORTS_SAVE )

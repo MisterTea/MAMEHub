@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /***************************************************************************
 
     Epson HX-20
@@ -211,7 +213,7 @@ READ8_MEMBER( hx20_state::main_p1_r )
 	data |= m_kbrequest << 5;
 
 	// serial
-	data |= m_sio->pin_r() << 6;
+	data |= m_sio_pin << 6;
 
 	return data;
 }
@@ -269,7 +271,7 @@ READ8_MEMBER( hx20_state::main_p2_r )
 	if (m_slave_sio)
 		data |= m_slave_rx << 3;
 	else
-		data |= m_sio->rx_r() << 3;
+		data |= m_sio_rx << 3;
 
 	return data;
 }
@@ -297,7 +299,7 @@ WRITE8_MEMBER( hx20_state::main_p2_w )
 	*/
 
 	// RS-232
-	m_rs232->tx(BIT(data, 1));
+	m_rs232->write_txd(BIT(data, 1));
 
 	// serial
 	m_slave_sio = BIT(data, 2);
@@ -467,7 +469,7 @@ WRITE8_MEMBER( hx20_state::slave_p3_w )
 	*/
 
 	// RS-232
-	m_rs232->rts_w(BIT(data, 1));
+	m_rs232->write_rts(BIT(data, 1));
 
 	// main
 	m_slave_flag = BIT(data, 4);
@@ -753,29 +755,15 @@ WRITE_LINE_MEMBER( hx20_state::rtc_irq_w )
 }
 
 
-//-------------------------------------------------
-//  rs232_port_interface rs232_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 
 //**************************************************************************
 //  VIDEO
 //**************************************************************************
 
-void hx20_state::palette_init()
+PALETTE_INIT_MEMBER(hx20_state, hx20)
 {
-	palette_set_color_rgb(machine(), 0, 0xa5, 0xad, 0xa5);
-	palette_set_color_rgb(machine(), 1, 0x31, 0x39, 0x10);
+	palette.set_pen_color(0, 0xa5, 0xad, 0xa5);
+	palette.set_pen_color(1, 0x31, 0x39, 0x10);
 }
 
 
@@ -844,7 +832,11 @@ static MACHINE_CONFIG_START( hx20, hx20_state )
 	MCFG_SCREEN_SIZE(120, 32)
 	MCFG_SCREEN_VISIBLE_AREA(0, 120-1, 0, 32-1)
 	MCFG_SCREEN_UPDATE_DRIVER(hx20_state, screen_update)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD("palette", 2)
+	MCFG_PALETTE_INIT_OWNER(hx20_state, hx20)
+
 	MCFG_UPD7227_ADD(UPD7227_0_TAG, 0, 0)
 	MCFG_UPD7227_ADD(UPD7227_1_TAG, 40, 0)
 	MCFG_UPD7227_ADD(UPD7227_2_TAG, 80, 0)
@@ -858,10 +850,13 @@ static MACHINE_CONFIG_START( hx20, hx20_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// devices
-	MCFG_MC146818_IRQ_ADD(MC146818_TAG, MC146818_STANDARD, WRITELINE(hx20_state, rtc_irq_w))
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, default_cassette_interface)
+	MCFG_MC146818_ADD(MC146818_TAG, XTAL_4_194304Mhz)
+	MCFG_MC146818_IRQ_HANDLER(WRITELINE(hx20_state, rtc_irq_w))
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_CASSETTE_ADD(CASSETTE_TAG)
 	MCFG_EPSON_SIO_ADD("sio", "tf20")
+	MCFG_EPSON_SIO_RX(WRITELINE(hx20_state, sio_rx_w))
+	MCFG_EPSON_SIO_PIN(WRITELINE(hx20_state, sio_pin_w))
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)

@@ -1,9 +1,8 @@
 /******************************************************************************
  *  Sharp MZ700
  *
- *  machine driver
- *
- *  Juergen Buchmueller <pullmoll@t-online.de>, Jul 2000
+ *  license: MAME
+ *  copyright-holders: Juergen Buchmueller, Dirk Best
  *
  *  Reference: http://sharpmz.computingmuseum.com
  *
@@ -16,7 +15,6 @@
 #include "machine/i8255.h"
 #include "machine/z80pio.h"
 #include "machine/74145.h"
-#include "machine/ctronics.h"
 #include "sound/speaker.h"
 #include "imagedev/cassette.h"
 #include "machine/ram.h"
@@ -36,43 +34,8 @@
 	} while (0)
 
 
-I8255_INTERFACE( mz700_ppi8255_interface )
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(mz_state,pio_port_a_w),
-	DEVCB_DRIVER_MEMBER(mz_state,pio_port_b_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(mz_state,pio_port_c_r),
-	DEVCB_DRIVER_MEMBER(mz_state,pio_port_c_w)
-};
-
-
-
-
-
-const struct pit8253_interface mz700_pit8253_config =
-{
-	{
-		/* clockin             gate            callback */
-		{ XTAL_17_73447MHz/20, DEVCB_NULL,     DEVCB_DRIVER_LINE_MEMBER(mz_state,pit_out0_changed) },
-		{             15611.0, DEVCB_LINE_VCC, DEVCB_DEVICE_LINE_MEMBER("pit8253", pit8253_device, clk2_w)   },
-		{                   0, DEVCB_LINE_VCC, DEVCB_DRIVER_LINE_MEMBER(mz_state,pit_irq_2)        },
-	}
-};
-
-const struct pit8253_interface mz800_pit8253_config =
-{
-	{
-		/* clockin             gate            callback */
-		{ XTAL_17_73447MHz/16, DEVCB_NULL,     DEVCB_DRIVER_LINE_MEMBER(mz_state,pit_out0_changed) },
-		{             15611.0, DEVCB_LINE_VCC, DEVCB_DEVICE_LINE_MEMBER("pit8253", pit8253_device, clk2_w)   },
-		{                   0, DEVCB_LINE_VCC, DEVCB_DRIVER_LINE_MEMBER(mz_state,pit_irq_2)        },
-	}
-};
-
-
 /***************************************************************************
-    INITIALIZATIoN
+    INITIALIZATION
 ***************************************************************************/
 
 DRIVER_INIT_MEMBER(mz_state,mz700)
@@ -118,7 +81,7 @@ READ8_MEMBER(mz_state::mz700_e008_r)
 
 	data |= m_other_timer;
 	data |= ioport("JOY")->read();
-	data |= machine().primary_screen->hblank() << 7;
+	data |= machine().first_screen()->hblank() << 7;
 
 	LOG(1, "mz700_e008_r", ("%02X\n", data), machine());
 
@@ -127,7 +90,7 @@ READ8_MEMBER(mz_state::mz700_e008_r)
 
 WRITE8_MEMBER(mz_state::mz700_e008_w)
 {
-	m_pit->gate0_w(BIT(data, 0));
+	m_pit->write_gate0(BIT(data, 0));
 }
 
 
@@ -457,7 +420,7 @@ READ8_MEMBER(mz_state::pio_port_c_r)
 		data |= 0x20;       /* set the RDATA status */
 
 	data |= m_cursor_timer << 6;
-	data |= machine().primary_screen->vblank() << 7;
+	data |= machine().first_screen()->vblank() << 7;
 
 	LOG(2,"mz700_pio_port_c_r",("%02X\n", data),machine());
 
@@ -528,45 +491,37 @@ WRITE8_MEMBER(mz_state::pio_port_c_w)
     Z80 PIO
 ***************************************************************************/
 
-static void mz800_z80pio_irq(device_t *device, int which)
+WRITE_LINE_MEMBER(mz_state::mz800_z80pio_irq)
 {
-	mz_state *state = device->machine().driver_data<mz_state>();
-	state->m_maincpu->set_input_line(0, which);
+	m_maincpu->set_input_line(0, state);
+}
+
+WRITE_LINE_MEMBER(mz_state::write_centronics_busy)
+{
+	m_centronics_busy = state;
+}
+
+WRITE_LINE_MEMBER(mz_state::write_centronics_perror)
+{
+	m_centronics_perror = state;
 }
 
 READ8_MEMBER(mz_state::mz800_z80pio_port_a_r)
 {
-	centronics_device *centronics = machine().device<centronics_device>("centronics");
 	UINT8 result = 0;
 
-	result |= centronics->busy_r();
-	result |= centronics->pe_r() << 1;
-	result |= machine().primary_screen->hblank() << 5;
+	result |= m_centronics_busy;
+	result |= m_centronics_perror << 1;
+	result |= machine().first_screen()->hblank() << 5;
 
 	return result;
 }
 
 WRITE8_MEMBER(mz_state::mz800_z80pio_port_a_w)
 {
-	centronics_device *centronics = machine().device<centronics_device>("centronics");
-
-	centronics->init_prime_w(BIT(data, 6));
-	centronics->strobe_w(BIT(data, 7));
+	m_centronics->write_init(BIT(data, 6));
+	m_centronics->write_strobe(BIT(data, 7));
 }
-
-const z80pio_interface mz800_z80pio_config =
-{
-	DEVCB_DEVICE_LINE("z80pio", mz800_z80pio_irq),
-	DEVCB_DRIVER_MEMBER(mz_state,mz800_z80pio_port_a_r),
-	DEVCB_DRIVER_MEMBER(mz_state,mz800_z80pio_port_a_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER("centronics", centronics_device, write),
-	DEVCB_NULL,
-};
-
-
-
 
 /* port CE */
 READ8_MEMBER(mz_state::mz800_crtc_r)

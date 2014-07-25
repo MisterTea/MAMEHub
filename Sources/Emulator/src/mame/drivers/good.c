@@ -42,7 +42,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_fg_tilemapram(*this, "fg_tilemapram"),
 		m_bg_tilemapram(*this, "bg_tilemapram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_fg_tilemapram;
@@ -60,6 +61,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_good(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -93,8 +95,8 @@ TILE_GET_INFO_MEMBER(good_state::get_bg_tile_info)
 
 void good_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(good_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(good_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(good_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(good_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 	m_fg_tilemap->set_transparent_pen(0xf);
 }
 
@@ -115,7 +117,7 @@ static ADDRESS_MAP_START( good_map, AS_PROGRAM, 16, good_state )
 	AM_RANGE(0x280002, 0x280003) AM_READ_PORT("IN1")
 	AM_RANGE(0x280004, 0x280005) AM_READ_PORT("IN2")
 
-	AM_RANGE(0x800000, 0x8007ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x800000, 0x8007ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 
 	AM_RANGE(0x820000, 0x820fff) AM_RAM_WRITE(fg_tilemapram_w) AM_SHARE("fg_tilemapram")
 	AM_RANGE(0x822000, 0x822fff) AM_RAM_WRITE(bg_tilemapram_w) AM_SHARE("bg_tilemapram")
@@ -283,7 +285,7 @@ static MACHINE_CONFIG_START( good, good_state )
 	MCFG_CPU_PROGRAM_MAP(good_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", good_state,  irq2_line_hold)
 
-	MCFG_GFXDECODE(good)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", good)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -291,8 +293,10 @@ static MACHINE_CONFIG_START( good, good_state )
 	MCFG_SCREEN_SIZE(32*16, 32*16)
 	MCFG_SCREEN_VISIBLE_AREA(1*16, 23*16-1, 0*16, 14*16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(good_state, screen_update_good)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x400)
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

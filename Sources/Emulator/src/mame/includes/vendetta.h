@@ -28,11 +28,12 @@ public:
 		m_k053246(*this, "k053246"),
 		m_k053251(*this, "k053251"),
 		m_k053252(*this, "k053252"),
-		m_k054000(*this, "k054000") { }
+		m_k054000(*this, "k054000"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	UINT8 *    m_ram;
-//  UINT8 *    m_paletteram;    // currently this uses generic palette handling
+	dynamic_array<UINT8> m_paletteram;
 
 	/* video-related */
 	int        m_layer_colorbase[3];
@@ -52,6 +53,7 @@ public:
 	required_device<k053251_device> m_k053251;
 	optional_device<k053252_device> m_k053252;
 	optional_device<k054000_device> m_k054000;
+	required_device<palette_device> m_palette;
 	DECLARE_WRITE8_MEMBER(vendetta_eeprom_w);
 	DECLARE_READ8_MEMBER(vendetta_K052109_r);
 	DECLARE_WRITE8_MEMBER(vendetta_K052109_w);
@@ -67,13 +69,11 @@ public:
 	UINT32 screen_update_vendetta(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vendetta_irq);
 	void vendetta_video_banking( int select );
+	K052109_CB_MEMBER(vendetta_tile_callback);
+	K052109_CB_MEMBER(esckids_tile_callback);
+	DECLARE_WRITE8_MEMBER(banking_callback);
+	K053246_CB_MEMBER(sprite_callback);
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
-
-/*----------- defined in video/vendetta.c -----------*/
-
-extern void vendetta_tile_callback(running_machine &machine, int layer,int bank,int *code,int *color,int *flags,int *priority);
-extern void esckids_tile_callback(running_machine &machine, int layer,int bank,int *code,int *color,int *flags,int *priority);
-extern void vendetta_sprite_callback(running_machine &machine, int *code,int *color,int *priority_mask);

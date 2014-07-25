@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 
     Belogic Uzebox
@@ -61,7 +63,7 @@ private:
 
 void uzebox_state::machine_start()
 {
-	machine().primary_screen->register_screen_bitmap(m_bitmap);
+	machine().first_screen()->register_screen_bitmap(m_bitmap);
 }
 
 void uzebox_state::machine_reset()
@@ -243,7 +245,7 @@ INPUT_PORTS_END
 void uzebox_state::line_update()
 {
 	UINT32 cycles = (UINT32)(m_maincpu->get_elapsed_cycles() - m_line_start_cycles) / 2;
-	rgb_t color = MAKE_RGB(pal3bit(m_port_c >> 0), pal3bit(m_port_c >> 3), pal2bit(m_port_c >> 6));
+	rgb_t color = rgb_t(pal3bit(m_port_c >> 0), pal3bit(m_port_c >> 3), pal2bit(m_port_c >> 6));
 
 	for (UINT32 x = m_line_pos_cycles; x < cycles; x++)
 	{
@@ -272,16 +274,14 @@ DEVICE_IMAGE_LOAD_MEMBER(uzebox_state,uzebox_cart)
 	if (image.software_entry() == NULL)
 	{
 		UINT32 size = image.length();
-		UINT8* data = (UINT8*)auto_alloc_array(machine(), UINT8, size);
+		dynamic_buffer data(size);
 
 		image.fread(data, size);
 
-		if (!strncmp((const char*)data, "UZEBOX", 6))
+		if (!strncmp((const char*)&data[0], "UZEBOX", 6))
 			memcpy(rom, data + 0x200, size - 0x200);
 		else
 			memcpy(rom, data, size);
-
-		auto_free(machine(), data);
 	}
 	else
 	{

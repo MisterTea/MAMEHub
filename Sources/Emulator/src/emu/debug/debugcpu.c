@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*********************************************************************
 
     debugcpu.c
 
     Debugger CPU/memory interface engine.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -46,7 +17,6 @@
 #include "express.h"
 #include "debugvw.h"
 #include "debugger.h"
-#include "debugint/debugint.h"
 #include "uiinput.h"
 #include "xmlfile.h"
 #include <ctype.h>
@@ -179,8 +149,8 @@ void debug_cpu_init(running_machine &machine)
 	global->visiblecpu = machine.firstcpu;
 
 	/* add callback for breaking on VBLANK */
-	if (machine.primary_screen != NULL)
-		machine.primary_screen->register_vblank_callback(vblank_state_delegate(FUNC(on_vblank), &machine));
+	if (machine.first_screen() != NULL)
+		machine.first_screen()->register_vblank_callback(vblank_state_delegate(FUNC(on_vblank), &machine));
 
 	machine.add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(debug_cpu_exit), &machine));
 }
@@ -1657,8 +1627,6 @@ device_debug::device_debug(device_t &device)
 		m_bplist(NULL),
 		m_rplist(NULL),
 		m_trace(NULL),
-		m_hotspots(NULL),
-		m_hotspot_count(0),
 		m_hotspot_threshhold(0),
 		m_track_pc_set(),
 		m_track_pc(false),
@@ -1737,7 +1705,7 @@ device_debug::~device_debug()
 //  before beginning execution for the given device
 //-------------------------------------------------
 
-void device_debug::start_hook(attotime endtime)
+void device_debug::start_hook(const attotime &endtime)
 {
 	debugcpu_private *global = m_device.machine().debugcpu_data;
 
@@ -1967,8 +1935,6 @@ void device_debug::instruction_hook(offs_t curpc)
 			global->memory_modified = false;
 			if (machine.debug_flags & DEBUG_FLAG_OSD_ENABLED)
 				machine.osd().wait_for_debugger(m_device, firststop);
-			else if (machine.debug_flags & DEBUG_FLAG_ENABLED)
-				debugint_wait_for_debugger(m_device, firststop);
 			firststop = false;
 
 			// if something modified memory, update the screen
@@ -2012,7 +1978,7 @@ void device_debug::memory_read_hook(address_space &space, offs_t address, UINT64
 	watchpoint_check(space, WATCHPOINT_READ, address, 0, mem_mask);
 
 	// check hotspots
-	if (m_hotspots != NULL)
+	if (m_hotspots.count() > 0)
 		hotspot_check(space, address);
 }
 
@@ -2577,18 +2543,15 @@ void device_debug::registerpoint_enable_all(bool enable)
 void device_debug::hotspot_track(int numspots, int threshhold)
 {
 	// if we already have tracking enabled, kill it
-	auto_free(m_device.machine(), m_hotspots);
-	m_hotspots = NULL;
+	m_hotspots.reset();
 
 	// only start tracking if we have a non-zero count
 	if (numspots > 0)
 	{
 		// allocate memory for hotspots
-		m_hotspots = auto_alloc_array(m_device.machine(), hotspot_entry, numspots);
-		memset(m_hotspots, 0xff, sizeof(*m_hotspots) * numspots);
+		m_hotspots.resize_and_clear(numspots, 0xff);
 
 		// fill in the info
-		m_hotspot_count = numspots;
 		m_hotspot_threshhold = threshhold;
 	}
 
@@ -2989,7 +2952,7 @@ void device_debug::watchpoint_update_flags(address_space &space)
 {
 	// if hotspots are enabled, turn on all reads
 	bool enableread = false;
-	if (m_hotspots != NULL)
+	if (m_hotspots.count() > 0)
 		enableread = true;
 
 	// see if there are any enabled breakpoints
@@ -3042,6 +3005,18 @@ void device_debug::watchpoint_check(address_space &space, int type, offs_t addre
 			size++;
 			mem_mask >>= 8;
 		}
+
+		// (1<<(size*8))-1 won't work when size is 8; let's just use a lut
+		static const UINT64 masks[] = {0,
+										0xff,
+										0xffff,
+										0xffffff,
+										0xffffffff,
+									U64(0xffffffffff),
+									U64(0xffffffffffff),
+									U64(0xffffffffffffff),
+									U64(0xffffffffffffffff)};
+		value_to_write &= masks[size];
 
 		if (space.endianness() == ENDIANNESS_LITTLE)
 			address += address_offset;
@@ -3106,20 +3081,20 @@ void device_debug::hotspot_check(address_space &space, offs_t address)
 
 	// see if we have a match in our list
 	int hotindex;
-	for (hotindex = 0; hotindex < m_hotspot_count; hotindex++)
+	for (hotindex = 0; hotindex < m_hotspots.count(); hotindex++)
 		if (m_hotspots[hotindex].m_access == address && m_hotspots[hotindex].m_pc == curpc && m_hotspots[hotindex].m_space == &space)
 			break;
 
 	// if we didn't find any, make a new entry
-	if (hotindex == m_hotspot_count)
+	if (hotindex == m_hotspots.count())
 	{
 		// if the bottom of the list is over the threshhold, print it
-		hotspot_entry &spot = m_hotspots[m_hotspot_count - 1];
+		hotspot_entry &spot = m_hotspots[m_hotspots.count() - 1];
 		if (spot.m_count > m_hotspot_threshhold)
 			debug_console_printf(space.machine(), "Hotspot @ %s %08X (PC=%08X) hit %d times (fell off bottom)\n", space.name(), spot.m_access, spot.m_pc, spot.m_count);
 
 		// move everything else down and insert this one at the top
-		memmove(&m_hotspots[1], &m_hotspots[0], sizeof(m_hotspots[0]) * (m_hotspot_count - 1));
+		memmove(&m_hotspots[1], &m_hotspots[0], sizeof(m_hotspots[0]) * (m_hotspots.count() - 1));
 		m_hotspots[0].m_access = address;
 		m_hotspots[0].m_pc = curpc;
 		m_hotspots[0].m_space = &space;

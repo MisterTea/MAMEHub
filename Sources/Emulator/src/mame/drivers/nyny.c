@@ -95,7 +95,11 @@ public:
 		m_colorram2(*this, "colorram2"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_audiocpu2(*this, "audio2"){ }
+		m_audiocpu2(*this, "audio2"),
+		m_ic48_1(*this, "ic48_1"),
+		m_mc6845(*this, "crtc"),
+		m_pia1(*this, "pia1"),
+		m_pia2(*this, "pia2") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram1;
@@ -113,10 +117,11 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_audiocpu2;
-	device_t *m_ic48_1;
-	mc6845_device *m_mc6845;
-	pia6821_device *m_pia1;
-	pia6821_device *m_pia2;
+	required_device<ttl74123_device> m_ic48_1;
+	required_device<mc6845_device> m_mc6845;
+	required_device<pia6821_device> m_pia1;
+	required_device<pia6821_device> m_pia2;
+
 	pen_t m_pens[NUM_PENS];
 	DECLARE_WRITE8_MEMBER(audio_1_command_w);
 	DECLARE_WRITE8_MEMBER(audio_1_answer_w);
@@ -135,17 +140,11 @@ public:
 	INTERRUPT_GEN_MEMBER(update_pia_1);
 	DECLARE_WRITE8_MEMBER(ic48_1_74123_output_changed);
 	inline void shift_star_generator(  );
+
+	MC6845_BEGIN_UPDATE(crtc_begin_update);
+	MC6845_UPDATE_ROW(crtc_update_row);
+	MC6845_END_UPDATE(crtc_end_update);
 };
-
-
-/*************************************
- *
- *  Prototypes
- *
- *************************************/
-
-
-
 
 
 /*************************************
@@ -192,24 +191,6 @@ INTERRUPT_GEN_MEMBER(nyny_state::update_pia_1)
 }
 
 
-static const pia6821_interface pia_1_intf =
-{
-	DEVCB_INPUT_PORT("IN0"),        /* port A in */
-	DEVCB_INPUT_PORT("IN1"),        /* port B in */
-	DEVCB_NULL,                     /* line CA1 in */
-	DEVCB_NULL,                     /* line CB1 in */
-	DEVCB_NULL,                     /* line CA2 in */
-	DEVCB_NULL,                     /* line CB2 in */
-	DEVCB_NULL,                     /* port A out */
-	DEVCB_NULL,                     /* port B out */
-	DEVCB_NULL,                     /* line CA2 out */
-	DEVCB_NULL,                     /* port CB2 out */
-	DEVCB_DRIVER_LINE_MEMBER(nyny_state,main_cpu_irq),      /* IRQA */
-	DEVCB_DRIVER_LINE_MEMBER(nyny_state,main_cpu_irq)       /* IRQB */
-};
-
-
-
 /*************************************
  *
  *  PIA2
@@ -235,24 +216,6 @@ WRITE8_MEMBER(nyny_state::pia_2_port_b_w)
 }
 
 
-static const pia6821_interface pia_2_intf =
-{
-	DEVCB_NULL,                     /* port A in */
-	DEVCB_NULL,                     /* port B in */
-	DEVCB_NULL,                     /* line CA1 in */
-	DEVCB_NULL,                     /* line CB1 in */
-	DEVCB_NULL,                     /* line CA2 in */
-	DEVCB_NULL,                     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(nyny_state,pia_2_port_a_w), /* port A out */
-	DEVCB_DRIVER_MEMBER(nyny_state,pia_2_port_b_w), /* port B out */
-	DEVCB_DRIVER_LINE_MEMBER(nyny_state,flipscreen_w),      /* line CA2 out */
-	DEVCB_NULL,                     /* port CB2 out */
-	DEVCB_DRIVER_LINE_MEMBER(nyny_state,main_cpu_firq),     /* IRQA */
-	DEVCB_DRIVER_LINE_MEMBER(nyny_state,main_cpu_irq)       /* IRQB */
-};
-
-
-
 /*************************************
  *
  *  IC48 #1 - 74123
@@ -270,20 +233,6 @@ WRITE8_MEMBER(nyny_state::ic48_1_74123_output_changed)
 	m_pia2->ca1_w(data);
 }
 
-
-static const ttl74123_interface ic48_1_config =
-{
-	TTL74123_GROUNDED,  /* the hook up type */
-	RES_K(22),          /* resistor connected to RCext */
-	CAP_U(0.01),        /* capacitor connected to Cext and RCext */
-	1,                  /* A pin - driven by the CRTC */
-	1,                  /* B pin - pulled high */
-	1,                  /* Clear pin - pulled high */
-	DEVCB_DRIVER_MEMBER(nyny_state,ic48_1_74123_output_changed)
-};
-
-
-
 /*************************************
  *
  *  Video system
@@ -297,31 +246,22 @@ WRITE_LINE_MEMBER(nyny_state::flipscreen_w)
 }
 
 
-static MC6845_BEGIN_UPDATE( begin_update )
+MC6845_BEGIN_UPDATE( nyny_state::crtc_begin_update )
 {
-	nyny_state *state = device->machine().driver_data<nyny_state>();
 	/* create the pens */
-	offs_t i;
-
-	for (i = 0; i < NUM_PENS; i++)
+	for (offs_t i = 0; i < NUM_PENS; i++)
 	{
-		state->m_pens[i] = MAKE_RGB(pal1bit(i >> 0), pal1bit(i >> 1), pal1bit(i >> 2));
+		m_pens[i] = rgb_t(pal1bit(i >> 0), pal1bit(i >> 1), pal1bit(i >> 2));
 	}
-
-	return state->m_pens;
 }
 
 
-static MC6845_UPDATE_ROW( update_row )
+MC6845_UPDATE_ROW( nyny_state::crtc_update_row )
 {
-	nyny_state *state = device->machine().driver_data<nyny_state>();
-	UINT8 cx;
-	pen_t *pens = (pen_t *)param;
 	UINT8 x = 0;
 
-	for (cx = 0; cx < x_count; cx++)
+	for (UINT8 cx = 0; cx < x_count; cx++)
 	{
-		int i;
 		UINT8 data1, data2, color1, color2;
 
 		/* the memory is hooked up to the MA, RA lines this way */
@@ -330,19 +270,19 @@ static MC6845_UPDATE_ROW( update_row )
 						((ra << 5) & 0x00e0) |
 						((ma << 0) & 0x001f);
 
-		if (state->m_flipscreen)
+		if (m_flipscreen)
 			offs = offs ^ 0x9fff;
 
-		data1 = state->m_videoram1[offs];
-		data2 = state->m_videoram2[offs];
-		color1 = state->m_colorram1[offs] & 0x07;
-		color2 = state->m_colorram2[offs] & 0x07;
+		data1 = m_videoram1[offs];
+		data2 = m_videoram2[offs];
+		color1 = m_colorram1[offs] & 0x07;
+		color2 = m_colorram2[offs] & 0x07;
 
-		for (i = 0; i < 8; i++)
+		for (int i = 0; i < 8; i++)
 		{
 			UINT8 bit1, bit2, color;
 
-			if (state->m_flipscreen)
+			if (m_flipscreen)
 			{
 				bit1 = BIT(data1, 7);
 				bit2 = BIT(data2, 7);
@@ -365,7 +305,7 @@ static MC6845_UPDATE_ROW( update_row )
 			else
 				color = bit2 ? color2 : 0;
 
-			bitmap.pix32(y, x) = pens[color];
+			bitmap.pix32(y, x) = m_pens[color];
 
 			x += 1;
 		}
@@ -381,37 +321,29 @@ void nyny_state::shift_star_generator(  )
 }
 
 
-static MC6845_END_UPDATE( end_update )
+MC6845_END_UPDATE( nyny_state::crtc_end_update )
 {
-	nyny_state *state = device->machine().driver_data<nyny_state>();
-
 	/* draw the star field into the bitmap */
-	int y;
+	UINT16 delay_counter = m_star_delay_counter;
 
-	pen_t *pens = (pen_t *)param;
-	UINT16 delay_counter = state->m_star_delay_counter;
-
-	for (y = cliprect.min_y; y <= cliprect.max_y; y++)
+	for (int y = cliprect.min_y; y <= cliprect.max_y; y++)
 	{
-		int x;
-
-		for (x = cliprect.min_x; x <= cliprect.max_x; x++)
+		for (int x = cliprect.min_x; x <= cliprect.max_x; x++)
 		{
 			/* check if the star status */
-			if (state->m_star_enable &&
-				(bitmap.pix32(y, x) == pens[0]) &&
-				((state->m_star_shift_reg & 0x80ff) == 0x00ff) &&
-				(((y & 0x01) ^ state->m_flipscreen) ^ (((x & 0x08) >> 3) ^ state->m_flipscreen)))
+			if (m_star_enable && (bitmap.pix32(y, x) == m_pens[0]) &&
+				((m_star_shift_reg & 0x80ff) == 0x00ff) &&
+				(((y & 0x01) ^ m_flipscreen) ^ (((x & 0x08) >> 3) ^ m_flipscreen)))
 			{
-				UINT8 color = ((state->m_star_shift_reg & 0x0100) >>  8) |  /* R */
-								((state->m_star_shift_reg & 0x0400) >>  9) |    /* G */
-								((state->m_star_shift_reg & 0x1000) >> 10);     /* B */
+				UINT8 color = ((m_star_shift_reg & 0x0100) >>  8) |  /* R */
+								((m_star_shift_reg & 0x0400) >>  9) |    /* G */
+								((m_star_shift_reg & 0x1000) >> 10);     /* B */
 
-				bitmap.pix32(y, x) = pens[color];
+				bitmap.pix32(y, x) = m_pens[color];
 			}
 
 			if (delay_counter == 0)
-				state->shift_star_generator();
+				shift_star_generator();
 			else
 				delay_counter = delay_counter - 1;
 		}
@@ -421,24 +353,8 @@ static MC6845_END_UPDATE( end_update )
 
 WRITE_LINE_MEMBER(nyny_state::display_enable_changed)
 {
-	ttl74123_a_w(m_ic48_1, generic_space(), 0, state);
+	m_ic48_1->a_w(generic_space(), 0, state);
 }
-
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,                  /* show border area */
-	8,                      /* number of pixels per video memory address */
-	begin_update,           /* before pixel update callback */
-	update_row,             /* row update callback */
-	end_update,             /* after pixel update callback */
-	DEVCB_DRIVER_LINE_MEMBER(nyny_state,display_enable_changed),    /* callback for display state changes */
-	DEVCB_NULL,             /* callback for cursor state changes */
-	DEVCB_NULL,             /* HSYNC callback */
-	DEVCB_NULL,             /* VSYNC callback */
-	NULL                    /* update address callback */
-};
-
 
 
 /*************************************
@@ -467,30 +383,6 @@ WRITE8_MEMBER(nyny_state::nyny_ay8910_37_port_a_w)
 
 	/*logerror("%x PORT A write %x at  Y=%x X=%x\n", space.device().safe_pc(), data, m_screen->vpos(), m_screen->hpos());*/
 }
-
-
-static const ay8910_interface ay8910_37_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(nyny_state,nyny_ay8910_37_port_a_w),
-	DEVCB_DEVICE_MEMBER("dac", dac_device, write_unsigned8)
-};
-
-
-static const ay8910_interface ay8910_64_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("SW2"),
-	DEVCB_INPUT_PORT("SW1"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 
 /*************************************
  *
@@ -674,11 +566,6 @@ INPUT_PORTS_END
 
 void nyny_state::machine_start()
 {
-	m_ic48_1 = machine().device("ic48_1");
-	m_mc6845 = machine().device<mc6845_device>("crtc");
-	m_pia1 = machine().device<pia6821_device>("pia1");
-	m_pia2 = machine().device<pia6821_device>("pia2");
-
 	/* setup for save states */
 	save_item(NAME(m_flipscreen));
 	save_item(NAME(m_star_enable));
@@ -720,23 +607,48 @@ static MACHINE_CONFIG_START( nyny, nyny_state )
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 256, 0, 256, 256, 0, 256)   /* temporary, CRTC will configure screen */
 	MCFG_SCREEN_UPDATE_DEVICE("crtc", mc6845_device, screen_update)
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", CRTC_CLOCK, mc6845_intf)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", CRTC_CLOCK)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_BEGIN_UPDATE_CB(nyny_state, crtc_begin_update)
+	MCFG_MC6845_UPDATE_ROW_CB(nyny_state, crtc_update_row)
+	MCFG_MC6845_END_UPDATE_CB(nyny_state, crtc_end_update)
+	MCFG_MC6845_OUT_DE_CB(WRITELINE(nyny_state, display_enable_changed))
 
 	/* 74LS123 */
-	MCFG_TTL74123_ADD("ic48_1", ic48_1_config)
+	MCFG_DEVICE_ADD("ic48_1", TTL74123, 0)
+	MCFG_TTL74123_CONNECTION_TYPE(TTL74123_GROUNDED)    /* the hook up type */
+	MCFG_TTL74123_RESISTOR_VALUE(RES_K(22))               /* resistor connected to RCext */
+	MCFG_TTL74123_CAPACITOR_VALUE(CAP_U(0.01))               /* capacitor connected to Cext and RCext */
+	MCFG_TTL74123_A_PIN_VALUE(1)                  /* A pin - driven by the CRTC */
+	MCFG_TTL74123_B_PIN_VALUE(1)                  /* B pin - pulled high */
+	MCFG_TTL74123_CLEAR_PIN_VALUE(1)                  /* Clear pin - pulled high */
+	MCFG_TTL74123_OUTPUT_CHANGED_CB(WRITE8(nyny_state, ic48_1_74123_output_changed))
 
-	MCFG_PIA6821_ADD("pia1", pia_1_intf)
-	MCFG_PIA6821_ADD("pia2", pia_2_intf)
+	MCFG_DEVICE_ADD("pia1", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(IOPORT("IN0"))
+	MCFG_PIA_READPB_HANDLER(IOPORT("IN1"))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(nyny_state, main_cpu_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(nyny_state, main_cpu_irq))
+
+	MCFG_DEVICE_ADD("pia2", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(nyny_state,pia_2_port_a_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(nyny_state,pia_2_port_b_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(nyny_state,flipscreen_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(nyny_state,main_cpu_firq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(nyny_state,main_cpu_irq))
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, AUDIO_CPU_1_CLOCK)
-	MCFG_SOUND_CONFIG(ay8910_37_interface)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(nyny_state, nyny_ay8910_37_port_a_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("dac", dac_device, write_unsigned8))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, AUDIO_CPU_1_CLOCK)
-	MCFG_SOUND_CONFIG(ay8910_64_interface)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("SW2"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("SW1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay3", AY8910, AUDIO_CPU_2_CLOCK)

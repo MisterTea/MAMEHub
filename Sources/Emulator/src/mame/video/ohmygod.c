@@ -11,8 +11,7 @@ TILE_GET_INFO_MEMBER(ohmygod_state::get_tile_info)
 {
 	UINT16 code = m_videoram[2 * tile_index + 1];
 	UINT16 attr = m_videoram[2 * tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			(attr & 0x0f00) >> 8,
 			0);
@@ -28,7 +27,7 @@ TILE_GET_INFO_MEMBER(ohmygod_state::get_tile_info)
 
 void ohmygod_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ohmygod_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ohmygod_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 }
 
 
@@ -90,7 +89,7 @@ void ohmygod_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 			sy -= 65536;
 		flipx = sr[offs + 3] & 0x8000;
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx,0,

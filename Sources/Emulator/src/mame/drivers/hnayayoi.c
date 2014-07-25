@@ -504,25 +504,6 @@ WRITE_LINE_MEMBER(hnayayoi_state::irqhandler)
 //  m_maincpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL,
-};
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_NULL,                  /* IRQ handler */
-	MSM5205_SEX_4B
-};
-
-
-
 void hnayayoi_state::machine_start()
 {
 	save_item(NAME(m_palbank));
@@ -564,24 +545,24 @@ static MACHINE_CONFIG_START( hnayayoi, hnayayoi_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(hnayayoi_state, screen_update_hnayayoi)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(256)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 256)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 20000000/8)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(hnayayoi_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 	MCFG_SOUND_ROUTE(2, "mono", 0.25)
 	MCFG_SOUND_ROUTE(3, "mono", 0.80)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_SEX_4B)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

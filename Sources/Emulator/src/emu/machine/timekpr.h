@@ -46,14 +46,6 @@
 //**************************************************************************
 
 
-// ======================> timekeeper_config
-
-struct timekeeper_config
-{
-	const UINT8 *m_data;
-};
-
-
 // ======================> timekeeper_device
 
 class timekeeper_device :   public device_t,
@@ -93,7 +85,7 @@ private:
 	UINT8 m_year;
 	UINT8 m_century;
 
-	UINT8 *m_data;
+	dynamic_buffer m_data;
 	UINT8 *m_default_data;
 
 protected:

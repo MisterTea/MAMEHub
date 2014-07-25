@@ -30,10 +30,8 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_seta001(*this, "spritegen"),
 		m_dac(*this, "dac"),
-		m_samples(*this, "samples") { }
-
-	/* memory pointers */
-//  UINT8 *  m_paletteram;    // currently this uses generic palette handling
+		m_samples(*this, "samples"),
+		m_palette(*this, "palette") { }
 
 	/* video-related */
 	int      m_screenflip;
@@ -67,7 +65,6 @@ public:
 	optional_device<cpu_device> m_subcpu;
 	optional_device<upi41_cpu_device> m_mcu;
 	DECLARE_WRITE8_MEMBER(tnzsb_sound_command_w);
-	DECLARE_WRITE8_MEMBER(jpopnics_palette_w);
 	DECLARE_WRITE8_MEMBER(jpopnics_subbankswitch_w);
 	DECLARE_READ8_MEMBER(tnzs_port1_r);
 	DECLARE_READ8_MEMBER(tnzs_port2_r);
@@ -119,4 +116,5 @@ public:
 	optional_device<seta001_device> m_seta001;
 	optional_device<dac_device> m_dac;
 	optional_device<samples_device> m_samples;
+	required_device<palette_device> m_palette;
 };

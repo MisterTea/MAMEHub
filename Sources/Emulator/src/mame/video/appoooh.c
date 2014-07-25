@@ -25,7 +25,7 @@ PALETTE_INIT_MEMBER(appoooh_state,appoooh)
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		UINT8 pen;
 		int bit0, bit1, bit2, r, g, b;
@@ -55,7 +55,7 @@ PALETTE_INIT_MEMBER(appoooh_state,appoooh)
 		bit2 = (color_prom[pen] >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -64,7 +64,7 @@ PALETTE_INIT_MEMBER(appoooh_state,robowres)
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -88,7 +88,7 @@ PALETTE_INIT_MEMBER(appoooh_state,robowres)
 		bit2 = (color_prom[pen] >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -104,8 +104,7 @@ TILE_GET_INFO_MEMBER(appoooh_state::get_fg_tile_info)
 {
 	int code = m_fg_videoram[tile_index] + 256 * ((m_fg_colorram[tile_index] >> 5) & 7);
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			m_fg_colorram[tile_index] & 0x0f,
 			(m_fg_colorram[tile_index] & 0x10 ) ? TILEMAP_FLIPX : 0
@@ -116,8 +115,7 @@ TILE_GET_INFO_MEMBER(appoooh_state::get_bg_tile_info)
 {
 	int code = m_bg_videoram[tile_index] + 256 * ((m_bg_colorram[tile_index] >> 5) & 7);
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code,
 			m_bg_colorram[tile_index] & 0x0f,
 			(m_bg_colorram[tile_index] & 0x10 ) ? TILEMAP_FLIPX : 0
@@ -132,8 +130,8 @@ TILE_GET_INFO_MEMBER(appoooh_state::get_bg_tile_info)
 
 VIDEO_START_MEMBER(appoooh_state,appoooh)
 {
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(appoooh_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(appoooh_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(appoooh_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(appoooh_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 	m_fg_tilemap->set_scrolldy(8, 8);
@@ -221,8 +219,8 @@ void appoooh_state::appoooh_draw_sprites( bitmap_ind16 &dest_bmp, const rectangl
 			sy = 239 - sy;
 			flipx = !flipx;
 		}
-		drawgfx_transpen( dest_bmp, cliprect,
-				gfx,
+
+				gfx->transpen(dest_bmp,cliprect,
 				code,
 				color,
 				flipx,flipy,
@@ -252,8 +250,8 @@ void appoooh_state::robowres_draw_sprites( bitmap_ind16 &dest_bmp, const rectang
 			sy = 239 - sy;
 			flipx = !flipx;
 		}
-		drawgfx_transpen( dest_bmp, cliprect,
-				gfx,
+
+				gfx->transpen(dest_bmp,cliprect,
 				code,
 				color,
 				flipx,flipy,
@@ -273,16 +271,16 @@ UINT32 appoooh_state::screen_update_appoooh(screen_device &screen, bitmap_ind16 
 	if (m_priority == 1)
 	{
 		/* sprite set #1 */
-		appoooh_draw_sprites(bitmap, cliprect, machine().gfx[2], m_spriteram);
+		appoooh_draw_sprites(bitmap, cliprect, m_gfxdecode->gfx(2), m_spriteram);
 		/* sprite set #2 */
-		appoooh_draw_sprites(bitmap, cliprect, machine().gfx[3], m_spriteram_2);
+		appoooh_draw_sprites(bitmap, cliprect, m_gfxdecode->gfx(3), m_spriteram_2);
 	}
 	else
 	{
 		/* sprite set #2 */
-		appoooh_draw_sprites(bitmap, cliprect, machine().gfx[3], m_spriteram_2);
+		appoooh_draw_sprites(bitmap, cliprect, m_gfxdecode->gfx(3), m_spriteram_2);
 		/* sprite set #1 */
-		appoooh_draw_sprites(bitmap, cliprect, machine().gfx[2], m_spriteram);
+		appoooh_draw_sprites(bitmap, cliprect, m_gfxdecode->gfx(2), m_spriteram);
 	}
 
 	if (m_priority != 0)    /* fg in front of sprites */
@@ -302,16 +300,16 @@ UINT32 appoooh_state::screen_update_robowres(screen_device &screen, bitmap_ind16
 	if (m_priority == 1)
 	{
 		/* sprite set #1 */
-		robowres_draw_sprites(bitmap, cliprect, machine().gfx[2], m_spriteram);
+		robowres_draw_sprites(bitmap, cliprect, m_gfxdecode->gfx(2), m_spriteram);
 		/* sprite set #2 */
-		robowres_draw_sprites(bitmap, cliprect, machine().gfx[3], m_spriteram_2);
+		robowres_draw_sprites(bitmap, cliprect, m_gfxdecode->gfx(3), m_spriteram_2);
 	}
 	else
 	{
 		/* sprite set #2 */
-		robowres_draw_sprites(bitmap, cliprect, machine().gfx[3], m_spriteram_2);
+		robowres_draw_sprites(bitmap, cliprect, m_gfxdecode->gfx(3), m_spriteram_2);
 		/* sprite set #1 */
-		robowres_draw_sprites(bitmap, cliprect, machine().gfx[2], m_spriteram);
+		robowres_draw_sprites(bitmap, cliprect, m_gfxdecode->gfx(2), m_spriteram);
 	}
 
 	if (m_priority != 0)    /* fg in front of sprites */

@@ -1,3 +1,5 @@
+//license:MAME|LGPL-2.1+
+//copyright-holders:Jonathan Gevaryahu
 /***************************************************************************
 
         DEC VK100 'GIGI'
@@ -144,13 +146,12 @@ state machine and sees if the GO bit ever finishes and goes back to 0
 // debug state dump for the vector generator
 #undef DEBUG_VG_STATE
 
-#include "emu.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/i8085/i8085.h"
 #include "sound/beep.h"
 #include "video/mc6845.h"
 #include "machine/com8116.h"
 #include "machine/i8251.h"
-#include "machine/serial.h"
 #include "vk100.lh"
 
 #define RS232_TAG       "rs232"
@@ -164,8 +165,8 @@ public:
 		TIMER_EXECUTE_VG
 	};
 
-	vk100_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	vk100_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_crtc(*this, "crtc"),
 		m_speaker(*this, "beeper"),
@@ -177,7 +178,9 @@ public:
 
 		m_capsshift(*this, "CAPSSHIFT"),
 		m_dipsw(*this, "SWITCHES")
-		{ }
+	{
+	}
+
 	required_device<cpu_device> m_maincpu;
 	required_device<mc6845_device> m_crtc;
 	required_device<beep_device> m_speaker;
@@ -200,8 +203,8 @@ public:
 	UINT8 m_dir_a6; // latched a6 of dir rom
 	UINT8 m_cout; // carry out from vgERR adder
 	UINT8 m_vsync; // vsync pin of crtc
-	UINT16 m_vgX;
-	UINT16 m_vgY;
+	UINT16 m_vgX; // 12 bit X value for vector draw position
+	UINT16 m_vgY; // 12 bit Y value for vector draw position
 	UINT16 m_vgERR; // error register can cause carries which need to be caught
 	UINT8 m_vgSOPS;
 	UINT8 m_vgPAT;
@@ -241,6 +244,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(i8251_txrdy_int);
 	DECLARE_WRITE_LINE_MEMBER(i8251_rts);
 	UINT8 vram_read();
+	MC6845_UPDATE_ROW(crtc_update_row);
 	void vram_write(UINT8 data);
 
 protected:
@@ -360,7 +364,7 @@ TIMER_CALLBACK_MEMBER(vk100_state::execute_vg)
 	UINT8 thisNyb = vram_read(); // read in the nybble
 	// pattern rom addressing is a complex mess. see the pattern rom def later in this file.
 	UINT8 newNyb = m_pattern[((m_vgPAT&m_vgPAT_Mask)?0x200:0)|((VG_WOPS&7)<<6)|((m_vgX&3)<<4)|thisNyb]; // calculate new nybble based on pattern rom
-	// finally write the block back to ram depending on the VG_MODE (sort of a hack until we get the vector and synd and dir roms all hooked up)
+	// finally write the block back to ram depending on the VG_MODE (sort of a hack until we get the vector and sync and dir roms all hooked up)
 	// but only do it if the direction rom said so!
 	switch (m_VG_MODE)
 	{
@@ -961,7 +965,7 @@ void vk100_state::video_start()
 	m_ras_erase = memregion("ras_erase")->base();
 }
 
-static MC6845_UPDATE_ROW( vk100_update_row )
+MC6845_UPDATE_ROW( vk100_state::crtc_update_row )
 {
 	static const UINT32 colorTable[16] = {
 	0x000000, 0x0000FF, 0xFF0000, 0xFF00FF, 0x00FF00, 0x00FFFF, 0xFFFF00, 0xFFFFFF,
@@ -974,59 +978,21 @@ static MC6845_UPDATE_ROW( vk100_update_row )
 	 * real address to 16-bit chunk a13  a12  a11 a10 a9  a8  a7  a6  a5  a4  a3  a2  a1  a0
 	 * crtc input                  MA11 MA10 MA9 MA8 MA7 MA6 RA1 RA0 MA5 MA4 MA3 MA2 MA1 MA0
 	 */
-	vk100_state *state = device->machine().driver_data<vk100_state>();
 	UINT16 EA = ((ma&0xfc0)<<2)|((ra&0x3)<<6)|(ma&0x3F);
 	// display the 64 different 12-bit-wide chunks
 	for (int i = 0; i < 64; i++)
 	{
-		UINT16 block = state->m_vram[(EA<<1)+(2*i)+1] | (state->m_vram[(EA<<1)+(2*i)]<<8);
-		UINT32 fgColor = (state->m_vgSOPS&0x08)?colorTable[(block&0xF000)>>12]:colorTable2[(block&0xF000)>>12];
-		UINT32 bgColor = (state->m_vgSOPS&0x08)?colorTable[(state->m_vgSOPS&0xF0)>>4]:colorTable2[(state->m_vgSOPS&0xF0)>>4];
+		UINT16 block = m_vram[(EA<<1)+(2*i)+1] | (m_vram[(EA<<1)+(2*i)]<<8);
+		UINT32 fgColor = (m_vgSOPS&0x08)?colorTable[(block&0xF000)>>12]:colorTable2[(block&0xF000)>>12];
+		UINT32 bgColor = (m_vgSOPS&0x08)?colorTable[(m_vgSOPS&0xF0)>>4]:colorTable2[(m_vgSOPS&0xF0)>>4];
 		// display a 12-bit wide chunk
 		for (int j = 0; j < 12; j++)
 		{
-			bitmap.pix32(y, (12*i)+j) = (((block&(0x0001<<j))?1:0)^(state->m_vgSOPS&1))?fgColor:bgColor;
+			bitmap.pix32(y, (12*i)+j) = (((block&(0x0001<<j))?1:0)^(m_vgSOPS&1))?fgColor:bgColor;
 		}
 	}
 }
 
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,
-	12,
-	NULL,
-	vk100_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(vk100_state, crtc_vsync),
-	NULL
-};
-
-static const i8251_interface i8251_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dsr_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
-	//DEVCB_DRIVER_LINE_MEMBER(vk100_state, i8251_rts), // out_rts_cb
-	DEVCB_DRIVER_LINE_MEMBER(vk100_state, i8251_rxrdy_int), // out_rxrdy_cb
-	DEVCB_DRIVER_LINE_MEMBER(vk100_state, i8251_txrdy_int), // out_txrdy_cb
-	DEVCB_NULL, // out_txempty_cb
-	DEVCB_NULL // out_syndet_cb
-};
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 static MACHINE_CONFIG_START( vk100, vk100_state )
 	/* basic machine hardware */
@@ -1034,17 +1000,32 @@ static MACHINE_CONFIG_START( vk100, vk100_state )
 	MCFG_CPU_PROGRAM_MAP(vk100_mem)
 	MCFG_CPU_IO_MAP(vk100_io)
 
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_45_6192Mhz/3, 882, 0, 720, 370, 0, 350 ) // fake screen timings for startup until 6845 sets real ones
 	MCFG_SCREEN_UPDATE_DEVICE( "crtc", mc6845_device, screen_update )
-	MCFG_MC6845_ADD( "crtc", H46505, "screen", XTAL_45_6192Mhz/3/12, mc6845_intf)
+
+	MCFG_MC6845_ADD( "crtc", H46505, "screen", XTAL_45_6192Mhz/3/12)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(12)
+	MCFG_MC6845_UPDATE_ROW_CB(vk100_state, crtc_update_row)
+	MCFG_MC6845_OUT_VSYNC_CB(WRITELINE(vk100_state, crtc_vsync))
 
 	/* i8251 uart */
-	MCFG_I8251_ADD("i8251", i8251_intf)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
-	MCFG_COM8116_ADD(COM5016T_TAG, XTAL_5_0688MHz, NULL, DEVWRITELINE("i8251", i8251_device, rxc_w), DEVWRITELINE("i8251", i8251_device, txc_w))
+	MCFG_DEVICE_ADD("i8251", I8251, 0)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_I8251_DTR_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_dtr))
+	MCFG_I8251_RTS_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_rts))
+	MCFG_I8251_RXRDY_HANDLER(WRITELINE(vk100_state, i8251_rxrdy_int))
+	MCFG_I8251_TXRDY_HANDLER(WRITELINE(vk100_state, i8251_txrdy_int))
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("i8251", i8251_device, write_rxd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE("i8251", i8251_device, write_dsr))
+
+	MCFG_DEVICE_ADD(COM5016T_TAG, COM8116, XTAL_5_0688MHz)
+	MCFG_COM8116_FR_HANDLER(DEVWRITELINE("i8251", i8251_device, write_rxc))
+	MCFG_COM8116_FT_HANDLER(DEVWRITELINE("i8251", i8251_device, write_txc))
 
 	MCFG_DEFAULT_LAYOUT( layout_vk100 )
 

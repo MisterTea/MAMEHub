@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 
         Heathkit H89
@@ -17,25 +19,22 @@
 
 ****************************************************************************/
 
-#include "emu.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/z80/z80.h"
 #include "machine/ins8250.h"
-#include "machine/terminal.h"
 
+#define RS232_TAG "rs232"
 
 class h89_state : public driver_device
 {
 public:
 	h89_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu"),
-			m_uart(*this, "ins8250"),
-			m_terminal(*this, TERMINAL_TAG)
-	{ }
+		m_maincpu(*this, "maincpu")
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
-	required_device<ins8250_device> m_uart;
-	required_device<serial_terminal_device> m_terminal;
 
 	DECLARE_WRITE8_MEMBER( port_f2_w );
 
@@ -109,20 +108,15 @@ WRITE8_MEMBER( h89_state::port_f2_w )
 	m_port_f2 = data;
 }
 
-static const serial_terminal_interface terminal_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER("ins8250", ins8250_uart_device, rx_w)
-};
+static DEVICE_INPUT_DEFAULTS_START( terminal )
+	DEVICE_INPUT_DEFAULTS( "RS232_TXBAUD", 0xff, RS232_BAUD_9600 )
+	DEVICE_INPUT_DEFAULTS( "RS232_RXBAUD", 0xff, RS232_BAUD_9600 )
+	DEVICE_INPUT_DEFAULTS( "RS232_STARTBITS", 0xff, RS232_STARTBITS_1 )
+	DEVICE_INPUT_DEFAULTS( "RS232_DATABITS", 0xff, RS232_DATABITS_8 )
+	DEVICE_INPUT_DEFAULTS( "RS232_PARITY", 0xff, RS232_PARITY_NONE )
+	DEVICE_INPUT_DEFAULTS( "RS232_STOPBITS", 0xff, RS232_STOPBITS_1 )
+DEVICE_INPUT_DEFAULTS_END
 
-static const ins8250_interface h89_ins8250_interface =
-{
-	DEVCB_DEVICE_LINE_MEMBER(TERMINAL_TAG, serial_terminal_device, rx_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 static MACHINE_CONFIG_START( h89, h89_state )
 	/* basic machine hardware */
@@ -130,23 +124,12 @@ static MACHINE_CONFIG_START( h89, h89_state )
 	MCFG_CPU_PROGRAM_MAP(h89_mem)
 	MCFG_CPU_IO_MAP(h89_io)
 
+	MCFG_DEVICE_ADD( "ins8250", INS8250, XTAL_1_8432MHz )
+	MCFG_INS8250_OUT_TX_CB(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
 
-#if 0
-	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_SIZE(640, 480)
-	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
-	MCFG_SCREEN_UPDATE_STATIC(h89)
-
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
-#endif
-
-	MCFG_INS8250_ADD( "ins8250", h89_ins8250_interface, XTAL_1_8432MHz )
-
-	MCFG_SERIAL_TERMINAL_ADD(TERMINAL_TAG, terminal_intf, 9600)
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, "terminal")
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("ins8250", ins8250_uart_device, rx_w))
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("terminal", terminal)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("irq_timer", h89_state, h89_irq_timer, attotime::from_hz(100))
 MACHINE_CONFIG_END

@@ -33,7 +33,10 @@ public:
 		m_code_ram(*this, "code_ram"),
 		m_maincpu(*this, "maincpu"),
 		m_discrete(*this, "discrete"),
-		m_samples(*this, "samples") { }
+		m_samples(*this, "samples"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	UINT8 m_cmos[16];
 	UINT8 m_da_latch;
@@ -57,7 +60,7 @@ public:
 	DECLARE_DRIVER_INIT(triplhnt);
 	TILE_GET_INFO_MEMBER(get_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(triplhnt);
 	UINT32 screen_update_triplhnt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void triplhnt_set_collision(int code);
@@ -65,17 +68,13 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<discrete_device> m_discrete;
 	required_device<samples_device> m_samples;
-
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
-
-/*----------- defined in drivers/triplhnt.c -----------*/
-
-void triplhnt_set_collision(running_machine &machine, int data);
-
 /*----------- defined in audio/triplhnt.c -----------*/
-
 DISCRETE_SOUND_EXTERN( triplhnt );
 extern const samples_interface triplhnt_samples_interface;

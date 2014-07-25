@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari Food Fight hardware
@@ -96,7 +98,7 @@ WRITE16_MEMBER(foodf_state::foodf_paletteram_w)
 	bit1 = (newword >> 7) & 0x01;
 	b = combine_2_weights(m_bweights, bit0, bit1);
 
-	palette_set_color(machine(), offset, MAKE_RGB(r, g, b));
+	m_palette->set_pen_color(offset, rgb_t(r, g, b));
 }
 
 
@@ -110,7 +112,7 @@ WRITE16_MEMBER(foodf_state::foodf_paletteram_w)
 UINT32 foodf_state::screen_update_foodf(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	int offs;
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 	bitmap_ind8 &priority_bitmap = screen.priority();
 	UINT16 *spriteram16 = m_spriteram;
 
@@ -135,11 +137,11 @@ UINT32 foodf_state::screen_update_foodf(screen_device &screen, bitmap_ind16 &bit
 		int vflip = (data1 >> 14) & 1;
 		int pri = (data1 >> 13) & 1;
 
-		pdrawgfx_transpen(bitmap, cliprect, gfx, pict, color, hflip, vflip,
+		gfx->prio_transpen(bitmap,cliprect, pict, color, hflip, vflip,
 				xpos, ypos, priority_bitmap, pri * 2, 0);
 
 		/* draw again with wraparound (needed to get the end of level animation right) */
-		pdrawgfx_transpen(bitmap, cliprect, gfx, pict, color, hflip, vflip,
+		gfx->prio_transpen(bitmap,cliprect, pict, color, hflip, vflip,
 				xpos - 256, ypos, priority_bitmap, pri * 2, 0);
 	}
 

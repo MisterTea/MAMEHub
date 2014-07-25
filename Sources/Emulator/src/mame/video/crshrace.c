@@ -39,8 +39,8 @@ UINT32 crshrace_state::crshrace_tile_callback( UINT32 code )
 
 void crshrace_state::video_start()
 {
-	m_tilemap1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(crshrace_state::get_tile_info1),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
-	m_tilemap2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(crshrace_state::get_tile_info2),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	m_tilemap1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(crshrace_state::get_tile_info1),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
+	m_tilemap2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(crshrace_state::get_tile_info2),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 
 	m_tilemap1->set_transparent_pen(0x0f);
 	m_tilemap2->set_transparent_pen(0xff);
@@ -111,7 +111,7 @@ UINT32 crshrace_state::screen_update_crshrace(screen_device &screen, bitmap_ind1
 {
 	if (m_gfxctrl & 0x04)   /* display disable? */
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 		return 0;
 	}
 

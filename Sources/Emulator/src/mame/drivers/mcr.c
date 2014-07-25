@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Midway MCR systems
@@ -295,14 +297,6 @@ static UINT8 last_op4;
 
 static UINT8 dpoker_coin_status;
 static UINT8 dpoker_output;
-
-static UINT8 nflfoot_serial_out_active;
-static UINT8 nflfoot_serial_out_bits;
-static UINT8 nflfoot_serial_out_numbits;
-
-static UINT8 nflfoot_serial_in_active;
-static UINT16 nflfoot_serial_in_bits;
-static UINT8 nflfoot_serial_in_numbits;
 
 
 
@@ -645,30 +639,10 @@ WRITE8_MEMBER(mcr_state::dotron_op4_w)
  *
  *************************************/
 
-WRITE16_MEMBER(mcr_state::mcr_ipu_sio_transmit)
-{
-	logerror("ipu_sio_transmit: %02X\n", data);
-
-	/* create a 10-bit value with a '1','0' sequence for the start bit */
-	nflfoot_serial_in_active = TRUE;
-	nflfoot_serial_in_bits = (data << 2) | 1;
-	nflfoot_serial_in_numbits = 10;
-}
-
-
 READ8_MEMBER(mcr_state::nflfoot_ip2_r)
 {
 	/* bit 7 = J3-2 on IPU board = TXDA on SIO */
-	UINT8 val = 0x80;
-
-	/* we only do this if we have active data */
-	if (nflfoot_serial_in_active)
-	{
-		val = (nflfoot_serial_in_bits & 1) ? 0x00 : 0x80;
-		nflfoot_serial_in_bits >>= 1;
-		if (--nflfoot_serial_in_numbits == 0)
-			nflfoot_serial_in_active = FALSE;
-	}
+	UINT8 val = m_sio_txda << 7;
 
 	if (space.device().safe_pc() != 0x107)
 		logerror("%04X:ip2_r = %02X\n", space.device().safe_pc(), val);
@@ -678,42 +652,13 @@ READ8_MEMBER(mcr_state::nflfoot_ip2_r)
 
 WRITE8_MEMBER(mcr_state::nflfoot_op4_w)
 {
-	z80sio_device *sio = machine().device<z80sio_device>("ipu_sio");
-
-	/* bit 7 = J3-7 on IPU board = /RXDA on SIO */
 	logerror("%04X:op4_w(%d%d%d)\n", space.device().safe_pc(), (data >> 7) & 1, (data >> 6) & 1, (data >> 5) & 1);
 
-	/* look for a non-zero start bit to go active */
-	if (!nflfoot_serial_out_active && (data & 0x80))
-	{
-		nflfoot_serial_out_active = TRUE;
-		nflfoot_serial_out_bits = 0;
-		nflfoot_serial_out_numbits = 0;
-		logerror(" -- serial active\n");
-	}
-
-	/* accumulate bits as they are written */
-	else if (nflfoot_serial_out_active)
-	{
-		/* if we've accumulated less than 8, just add to the pile */
-		if (nflfoot_serial_out_numbits < 8)
-		{
-			nflfoot_serial_out_bits = (nflfoot_serial_out_bits >> 1) | (~data & 0x80);
-			nflfoot_serial_out_numbits++;
-			logerror(" -- accumulated %d bits\n", nflfoot_serial_out_numbits);
-		}
-
-		/* once we have 8, the final bit is a stop bit, feed it to the SIO */
-		else
-		{
-			logerror(" -- stop bit = %d; final value = %02X\n", (data >> 7) & 1, nflfoot_serial_out_bits);
-			nflfoot_serial_out_active = FALSE;
-			sio->receive_data(0, nflfoot_serial_out_bits);
-		}
-	}
+	/* bit 7 = J3-7 on IPU board = /RXDA on SIO */
+	m_sio->rxa_w(!((data >> 7) & 1));
 
 	/* bit 6 = J3-3 on IPU board = CTSA on SIO */
-	sio->set_cts(0, (data >> 6) & 1);
+	m_sio->ctsa_w((data >> 6) & 1);
 
 	/* bit 4 = SEL0 (J1-8) on squawk n talk board */
 	/* bits 3-0 = MD3-0 connected to squawk n talk (J1-4,3,2,1) */
@@ -763,8 +708,8 @@ static ADDRESS_MAP_START( cpu_90009_map, AS_PROGRAM, 8, mcr_state )
 	AM_RANGE(0x0000, 0x6fff) AM_ROM
 	AM_RANGE(0x7000, 0x77ff) AM_MIRROR(0x0800) AM_RAM AM_SHARE("nvram")
 	AM_RANGE(0xf000, 0xf1ff) AM_MIRROR(0x0200) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xf400, 0xf41f) AM_MIRROR(0x03e0) AM_WRITE(paletteram_xxxxRRRRBBBBGGGG_byte_split_lo_w) AM_SHARE("paletteram")
-	AM_RANGE(0xf800, 0xf81f) AM_MIRROR(0x03e0) AM_WRITE(paletteram_xxxxRRRRBBBBGGGG_byte_split_hi_w) AM_SHARE("paletteram2")
+	AM_RANGE(0xf400, 0xf41f) AM_MIRROR(0x03e0) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0xf800, 0xf81f) AM_MIRROR(0x03e0) AM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0xfc00, 0xffff) AM_RAM_WRITE(mcr_90009_videoram_w) AM_SHARE("videoram")
 ADDRESS_MAP_END
 
@@ -820,7 +765,7 @@ static ADDRESS_MAP_START( cpu_91490_map, AS_PROGRAM, 8, mcr_state )
 	AM_RANGE(0xe000, 0xe7ff) AM_RAM AM_SHARE("nvram")
 	AM_RANGE(0xe800, 0xe9ff) AM_MIRROR(0x0200) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM_WRITE(mcr_91490_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0xf800, 0xf87f) AM_MIRROR(0x0780) AM_WRITE(mcr_91490_paletteram_w) AM_SHARE("paletteram")
+	AM_RANGE(0xf800, 0xf87f) AM_MIRROR(0x0780) AM_WRITE(mcr_paletteram9_w) AM_SHARE("paletteram")
 ADDRESS_MAP_END
 
 /* upper I/O map determined by PAL; only SSIO ports are verified from schematics */
@@ -853,7 +798,7 @@ static ADDRESS_MAP_START( ipu_91695_portmap, AS_IO, 8, mcr_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x03) AM_MIRROR(0xe0) AM_DEVREADWRITE("ipu_pio0", z80pio_device, read, write)
-	AM_RANGE(0x04, 0x07) AM_MIRROR(0xe0) AM_DEVREADWRITE("ipu_sio", z80sio_device, read, write)
+	AM_RANGE(0x04, 0x07) AM_MIRROR(0xe0) AM_DEVREADWRITE("ipu_sio", z80dart_device, cd_ba_r, cd_ba_w)
 	AM_RANGE(0x08, 0x0b) AM_MIRROR(0xe0) AM_DEVREADWRITE("ipu_ctc", z80ctc_device, read, write)
 	AM_RANGE(0x0c, 0x0f) AM_MIRROR(0xe0) AM_DEVREADWRITE("ipu_pio1", z80pio_device, read, write)
 	AM_RANGE(0x10, 0x13) AM_MIRROR(0xe0) AM_WRITE(mcr_ipu_laserdisk_w)
@@ -1601,7 +1546,7 @@ static INPUT_PORTS_START( dotron )
 	PORT_SERVICE( 0x80, IP_ACTIVE_LOW )
 
 	PORT_START("ssio:IP1")  /* J4 10-13,15-18 */
-	PORT_BIT( 0x7f, 0x00, IPT_DIAL ) PORT_SENSITIVITY(50) PORT_KEYDELTA(10) PORT_CODE_DEC(KEYCODE_Z) PORT_CODE_INC(KEYCODE_X) PORT_REVERSE
+	PORT_BIT( 0x7f, 0x00, IPT_DIAL ) PORT_SENSITIVITY(50) PORT_KEYDELTA(10) PORT_REVERSE
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("ssio:IP2")  /* J5 1-8 */
@@ -1832,7 +1777,9 @@ static MACHINE_CONFIG_START( mcr_90009, mcr_state )
 	MCFG_CPU_IO_MAP(cpu_90009_portmap)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", mcr_state, mcr_interrupt, "screen", 0, 1)
 
-	MCFG_Z80CTC_ADD("ctc", MAIN_OSC_MCR_I/8 /* same as "maincpu" */, mcr_ctc_intf)
+	MCFG_DEVICE_ADD("ctc", Z80CTC, MAIN_OSC_MCR_I/8 /* same as "maincpu" */)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(DEVWRITELINE("ctc", z80ctc_device, trg1))
 
 	MCFG_WATCHDOG_VBLANK_INIT(16)
 	MCFG_MACHINE_START_OVERRIDE(mcr_state,mcr)
@@ -1840,17 +1787,18 @@ static MACHINE_CONFIG_START( mcr_90009, mcr_state )
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(30)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(32*16, 30*16)
 	MCFG_SCREEN_VISIBLE_AREA(0*16, 32*16-1, 0*16, 30*16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mcr_state, screen_update_mcr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mcr)
-	MCFG_PALETTE_LENGTH(32)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mcr)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_FORMAT(xxxxRRRRBBBBGGGG)
 
 	MCFG_VIDEO_START_OVERRIDE(mcr_state,mcr)
 
@@ -1880,7 +1828,9 @@ static MACHINE_CONFIG_DERIVED( mcr_90010, mcr_90009 )
 	MCFG_CPU_IO_MAP(cpu_90010_portmap)
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(64)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(64)
+	MCFG_PALETTE_FORMAT(xxxxRRRRBBBBGGGG)
 MACHINE_CONFIG_END
 
 
@@ -1898,7 +1848,9 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( mcr_91475, mcr_90010 )
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(128)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(128)
+	MCFG_PALETTE_FORMAT(xxxxRRRRBBBBGGGG)
 
 	/* sound hardware */
 	MCFG_SAMPLES_ADD("samples", journey_samples_interface)
@@ -1944,10 +1896,19 @@ static MACHINE_CONFIG_DERIVED( mcr_91490_ipu, mcr_91490_snt )
 	MCFG_TIMER_MODIFY("scantimer")
 	MCFG_TIMER_DRIVER_CALLBACK(mcr_state, mcr_ipu_interrupt)
 
-	MCFG_Z80CTC_ADD("ipu_ctc", 7372800/2 /* same as "ipu" */, nflfoot_ctc_intf)
-	MCFG_Z80PIO_ADD("ipu_pio0", 7372800/2, nflfoot_pio_intf)
-	MCFG_Z80PIO_ADD("ipu_pio1", 7372800/2, nflfoot_pio_intf)
-	MCFG_Z80SIO_ADD("ipu_sio", 7372800/2 /* same as "ipu" */, nflfoot_sio_intf)
+	MCFG_DEVICE_ADD("ipu_ctc", Z80CTC, 7372800/2 /* same as "ipu" */)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("ipu", INPUT_LINE_IRQ0))
+
+	MCFG_DEVICE_ADD("ipu_pio0", Z80PIO, 7372800/2)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("ipu", INPUT_LINE_IRQ0))
+
+	MCFG_DEVICE_ADD("ipu_pio1", Z80PIO, 7372800/2)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("ipu", INPUT_LINE_IRQ0))
+
+	MCFG_Z80SIO0_ADD("ipu_sio", 7372800/2, 0, 0, 0, 0)
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE("ipu", INPUT_LINE_IRQ0))
+	MCFG_Z80DART_OUT_TXDA_CB(WRITELINE(mcr_state, sio_txda_w))
+	MCFG_Z80DART_OUT_TXDB_CB(WRITELINE(mcr_state, sio_txdb_w))
 MACHINE_CONFIG_END
 
 
@@ -2914,15 +2875,8 @@ DRIVER_INIT_MEMBER(mcr_state,nflfoot)
 	machine().device<midway_ssio_device>("ssio")->set_custom_input(2, 0x80, read8_delegate(FUNC(mcr_state::nflfoot_ip2_r),this));
 	machine().device<midway_ssio_device>("ssio")->set_custom_output(4, 0xff, write8_delegate(FUNC(mcr_state::nflfoot_op4_w),this));
 
-	nflfoot_serial_out_active = FALSE;
-	nflfoot_serial_in_active = FALSE;
-
-	save_item(NAME(nflfoot_serial_out_active));
-	save_item(NAME(nflfoot_serial_out_bits));
-	save_item(NAME(nflfoot_serial_out_numbits));
-	save_item(NAME(nflfoot_serial_in_active));
-	save_item(NAME(nflfoot_serial_in_bits));
-	save_item(NAME(nflfoot_serial_in_numbits));
+	save_item(NAME(m_sio_txda));
+	save_item(NAME(m_sio_txdb));
 }
 
 

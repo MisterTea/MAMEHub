@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     ADSP2100.c
 
     ADSP-21xx series emulator.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************
 
@@ -183,7 +154,10 @@ adsp21xx_device::adsp21xx_device(const machine_config &mconfig, device_type type
 		m_icount(0),
 		m_mstat_mask((m_chip_type >= CHIP_TYPE_ADSP2101) ? 0x7f : 0x0f),
 		m_imask_mask((m_chip_type >= CHIP_TYPE_ADSP2181) ? 0x3ff :
-					(m_chip_type >= CHIP_TYPE_ADSP2101) ? 0x3f : 0x0f)
+					(m_chip_type >= CHIP_TYPE_ADSP2101) ? 0x3f : 0x0f),
+		m_sport_rx_cb(*this),
+		m_sport_tx_cb(*this),
+		m_timer_fired_cb(*this)
 {
 	// initialize remaining state
 	memset(&m_core, 0, sizeof(m_core));
@@ -199,10 +173,6 @@ adsp21xx_device::adsp21xx_device(const machine_config &mconfig, device_type type
 	memset(&m_stat_stack, 0, sizeof(m_stat_stack));
 	memset(&m_irq_state, 0, sizeof(m_irq_state));
 	memset(&m_irq_latch, 0, sizeof(m_irq_latch));
-
-	m_sport_rx_callback = NULL;
-	m_sport_tx_callback = NULL;
-	m_timer_fired = NULL;
 
 	// create the tables
 	create_tables();
@@ -325,18 +295,6 @@ adsp21xx_device::~adsp21xx_device()
 
 
 //-------------------------------------------------
-//  static_set_config - set the configuration
-//  structure
-//-------------------------------------------------
-
-void adsp21xx_device::static_set_config(device_t &device, const adsp21xx_config &config)
-{
-	adsp21xx_device &adsp = downcast<adsp21xx_device &>(device);
-	static_cast<adsp21xx_config &>(adsp) = config;
-}
-
-
-//-------------------------------------------------
 //  load_boot_data - load the boot data from an
 //  8-bit ROM
 //-------------------------------------------------
@@ -444,6 +402,10 @@ UINT16 adsp2181_device::idma_data_r()
 
 void adsp21xx_device::device_start()
 {
+	m_sport_rx_cb.resolve();
+	m_sport_tx_cb.resolve();
+	m_timer_fired_cb.resolve();
+
 	// get our address spaces
 	m_program = &space(AS_PROGRAM);
 	m_direct = &m_program->direct();
@@ -858,7 +820,7 @@ inline UINT32 adsp21xx_device::opcode_read()
     IMPORT CORE UTILITIES
 ***************************************************************************/
 
-#include "2100ops.c"
+#include "2100ops.inc"
 
 
 

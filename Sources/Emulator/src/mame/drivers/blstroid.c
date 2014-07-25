@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari Blasteroids hardware
@@ -75,7 +77,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, blstroid_state )
 	AM_RANGE(0xff9804, 0xff9805) AM_MIRROR(0x7f83f8) AM_READ_PORT("DIAL1")
 	AM_RANGE(0xff9c00, 0xff9c01) AM_MIRROR(0x7f83fc) AM_READ_PORT("IN0")
 	AM_RANGE(0xff9c02, 0xff9c03) AM_MIRROR(0x7f83fc) AM_READ_PORT("IN1")
-	AM_RANGE(0xffa000, 0xffa3ff) AM_MIRROR(0x7f8c00) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xffa000, 0xffa3ff) AM_MIRROR(0x7f8c00) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xffb000, 0xffb3ff) AM_MIRROR(0x7f8c00) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
 	AM_RANGE(0xffc000, 0xffcfff) AM_MIRROR(0x7f8000) AM_RAM_DEVWRITE("playfield", tilemap_device, write) AM_SHARE("playfield")
 	AM_RANGE(0xffd000, 0xffdfff) AM_MIRROR(0x7f8000) AM_RAM AM_SHARE("mob")
@@ -180,18 +182,22 @@ static MACHINE_CONFIG_START( blstroid, blstroid_state )
 	MCFG_ATARI_EEPROM_2804_ADD("eeprom")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_GFXDECODE(blstroid)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", blstroid)
 
-	MCFG_TILEMAP_ADD_STANDARD("playfield", 2, blstroid_state, get_playfield_tile_info, 16,8, SCAN_ROWS, 64,64)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+
+	MCFG_TILEMAP_ADD_STANDARD("playfield", "gfxdecode", 2, blstroid_state, get_playfield_tile_info, 16,8, SCAN_ROWS, 64,64)
 	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", blstroid_state::s_mob_config)
+	MCFG_ATARI_MOTION_OBJECTS_GFXDECODE("gfxdecode")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	/* note: these parameters are from published specs, not derived */
 	/* the board uses an SOS-2 chip to generate video signals */
 	MCFG_SCREEN_RAW_PARAMS(ATARI_CLOCK_14MHz, 456*2, 0, 320*2, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(blstroid_state, screen_update_blstroid)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(blstroid_state,blstroid)
 

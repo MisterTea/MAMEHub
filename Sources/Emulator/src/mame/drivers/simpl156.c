@@ -23,8 +23,8 @@
 
 
   The DECO 156 is a 32-bit custom encrypted ARM5 chip connected to
-  16-bit hardware only ROM and System Work Ram is accessed via all
-  32 data lines we should throw away the MSB for other accesses
+  16-bit hardware. Only ROM and System Work RAM is accessed via all
+  32 data lines.
 
   Info from Charles MacDonald:
 
@@ -52,7 +52,7 @@
     000000-00FFFF : Main RAM (16K)
     010000-01FFFF : Sprite RAM (8K)
     020000-02FFFF : Palette RAM (4K)
-    030000-03FFFF : simpl156_system_r / simpl156_eeprom_w
+    030000-03FFFF : Read player inputs, write EEPROM and OKI banking
     040000-04FFFF : PF1,2 control registers
     050000-05FFFF : PF1,2 name tables
     060000-06FFFF : PF1,2 row scroll
@@ -102,8 +102,8 @@ static INPUT_PORTS_START( simpl156 )
 	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_SERVICE_NO_TOGGLE( 0x0008, IP_ACTIVE_LOW )
 	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen") // all bits? check..
-	PORT_BIT( 0x0100, IP_ACTIVE_HIGH, IPT_SPECIAL ) // eeprom?..
-
+	PORT_BIT( 0x0100, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
+	PORT_BIT( 0xffff0000, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("IN1")
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(1)
@@ -122,47 +122,9 @@ static INPUT_PORTS_START( simpl156 )
 	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2)
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(2)
 	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_START2 )
+	PORT_BIT( 0xffff0000, IP_ACTIVE_LOW, IPT_UNUSED )
 INPUT_PORTS_END
 
-
-READ32_MEMBER(simpl156_state::simpl156_inputs_read)
-{
-	int eep = m_eeprom->do_read();
-	UINT32 returndata = ioport("IN0")->read() ^ 0xffff0000;
-
-	returndata ^= ((eep << 8));
-	return returndata;
-}
-
-READ32_MEMBER(simpl156_state::simpl156_palette_r)
-{
-	return m_generic_paletteram_16[offset]^0xffff0000;
-}
-
-WRITE32_MEMBER(simpl156_state::simpl156_palette_w)
-{
-	UINT16 dat;
-	int color;
-
-	data &= 0x0000ffff;
-	mem_mask &= 0x0000ffff;
-
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-	color = offset;
-
-	dat = m_generic_paletteram_16[offset] & 0xffff;
-	palette_set_color_rgb(machine(),color,pal5bit(dat >> 0),pal5bit(dat >> 5),pal5bit(dat >> 10));
-}
-
-
-READ32_MEMBER(simpl156_state::simpl156_system_r)
-{
-	UINT32 returndata;
-
-	returndata = ioport("IN1")->read();
-
-	return returndata;
-}
 
 WRITE32_MEMBER(simpl156_state::simpl156_eeprom_w)
 {
@@ -237,11 +199,12 @@ WRITE32_MEMBER(simpl156_state::simpl156_pf2_rowscroll_w)
 
 /* Joe and Mac Returns */
 static ADDRESS_MAP_START( joemacr_map, AS_PROGRAM, 32, simpl156_state )
+	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x107fff) AM_READWRITE(simpl156_mainram_r, simpl156_mainram_w) AM_SHARE("mainram") // main ram
 	AM_RANGE(0x110000, 0x111fff) AM_READWRITE(simpl156_spriteram_r, simpl156_spriteram_w)
-	AM_RANGE(0x120000, 0x120fff) AM_READWRITE(simpl156_palette_r, simpl156_palette_w)
-	AM_RANGE(0x130000, 0x130003) AM_READWRITE(simpl156_system_r, simpl156_eeprom_w)
+	AM_RANGE(0x120000, 0x120fff) AM_DEVREADWRITE16("palette", palette_device, read, write, 0x0000ffff) AM_SHARE("palette")
+	AM_RANGE(0x130000, 0x130003) AM_READ_PORT("IN1") AM_WRITE(simpl156_eeprom_w)
 	AM_RANGE(0x140000, 0x14001f) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf_control_dword_r, pf_control_dword_w)
 	AM_RANGE(0x150000, 0x151fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
 	AM_RANGE(0x152000, 0x153fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
@@ -251,21 +214,22 @@ static ADDRESS_MAP_START( joemacr_map, AS_PROGRAM, 32, simpl156_state )
 	AM_RANGE(0x170000, 0x170003) AM_READONLY AM_WRITENOP // ?
 	AM_RANGE(0x180000, 0x180003) AM_DEVREADWRITE8("okisfx", okim6295_device, read, write, 0x000000ff)
 	AM_RANGE(0x1c0000, 0x1c0003) AM_DEVREADWRITE8("okimusic", okim6295_device, read, write, 0x000000ff)
-	AM_RANGE(0x200000, 0x200003) AM_READ(simpl156_inputs_read)
+	AM_RANGE(0x200000, 0x200003) AM_READ_PORT("IN0")
 	AM_RANGE(0x201000, 0x201fff) AM_RAM AM_SHARE("systemram") // work ram (32-bit)
 ADDRESS_MAP_END
 
 
 /* Chain Reaction */
 static ADDRESS_MAP_START( chainrec_map, AS_PROGRAM, 32, simpl156_state )
+	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM // rom (32-bit)
-	AM_RANGE(0x200000, 0x200003) AM_READ(simpl156_inputs_read)
+	AM_RANGE(0x200000, 0x200003) AM_READ_PORT("IN0")
 	AM_RANGE(0x201000, 0x201fff) AM_RAM AM_SHARE("systemram") // work ram (32-bit)
 	AM_RANGE(0x3c0000, 0x3c0003) AM_DEVREADWRITE8("okimusic", okim6295_device, read, write, 0x000000ff)
 	AM_RANGE(0x400000, 0x407fff) AM_READWRITE(simpl156_mainram_r, simpl156_mainram_w) AM_SHARE("mainram") // main ram?
 	AM_RANGE(0x410000, 0x411fff) AM_READWRITE(simpl156_spriteram_r, simpl156_spriteram_w)
-	AM_RANGE(0x420000, 0x420fff) AM_READWRITE(simpl156_palette_r,simpl156_palette_w)
-	AM_RANGE(0x430000, 0x430003) AM_READWRITE(simpl156_system_r,simpl156_eeprom_w)
+	AM_RANGE(0x420000, 0x420fff) AM_DEVREADWRITE16("palette", palette_device, read, write, 0x0000ffff) AM_SHARE("palette")
+	AM_RANGE(0x430000, 0x430003) AM_READ_PORT("IN1") AM_WRITE(simpl156_eeprom_w)
 	AM_RANGE(0x440000, 0x44001f) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf_control_dword_r, pf_control_dword_w)
 	AM_RANGE(0x450000, 0x451fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
 	AM_RANGE(0x452000, 0x453fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
@@ -279,14 +243,15 @@ ADDRESS_MAP_END
 
 /* Magical Drop */
 static ADDRESS_MAP_START( magdrop_map, AS_PROGRAM, 32, simpl156_state )
+	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x200000, 0x200003) AM_READ(simpl156_inputs_read)
+	AM_RANGE(0x200000, 0x200003) AM_READ_PORT("IN0")
 	AM_RANGE(0x201000, 0x201fff) AM_RAM AM_SHARE("systemram") // work ram (32-bit)
 	AM_RANGE(0x340000, 0x340003) AM_DEVREADWRITE8("okimusic", okim6295_device, read, write, 0x000000ff)
 	AM_RANGE(0x380000, 0x387fff) AM_READWRITE(simpl156_mainram_r, simpl156_mainram_w) AM_SHARE("mainram") // main ram?
 	AM_RANGE(0x390000, 0x391fff) AM_READWRITE(simpl156_spriteram_r, simpl156_spriteram_w)
-	AM_RANGE(0x3a0000, 0x3a0fff) AM_READWRITE(simpl156_palette_r,simpl156_palette_w)
-	AM_RANGE(0x3b0000, 0x3b0003) AM_READWRITE(simpl156_system_r,simpl156_eeprom_w)
+	AM_RANGE(0x3a0000, 0x3a0fff) AM_DEVREADWRITE16("palette", palette_device, read, write, 0x0000ffff) AM_SHARE("palette")
+	AM_RANGE(0x3b0000, 0x3b0003) AM_READ_PORT("IN1") AM_WRITE(simpl156_eeprom_w)
 	AM_RANGE(0x3c0000, 0x3c001f) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf_control_dword_r, pf_control_dword_w)
 	AM_RANGE(0x3d0000, 0x3d1fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
 	AM_RANGE(0x3d2000, 0x3d3fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
@@ -300,14 +265,15 @@ ADDRESS_MAP_END
 
 /* Magical Drop Plus 1 */
 static ADDRESS_MAP_START( magdropp_map, AS_PROGRAM, 32, simpl156_state )
+	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x200000, 0x200003) AM_READ(simpl156_inputs_read)
+	AM_RANGE(0x200000, 0x200003) AM_READ_PORT("IN0")
 	AM_RANGE(0x201000, 0x201fff) AM_RAM AM_SHARE("systemram") // work ram (32-bit)
 	AM_RANGE(0x4c0000, 0x4c0003) AM_DEVREADWRITE8("okimusic", okim6295_device, read, write, 0x000000ff)
 	AM_RANGE(0x680000, 0x687fff) AM_READWRITE(simpl156_mainram_r, simpl156_mainram_w) AM_SHARE("mainram") // main ram?
 	AM_RANGE(0x690000, 0x691fff) AM_READWRITE(simpl156_spriteram_r, simpl156_spriteram_w)
-	AM_RANGE(0x6a0000, 0x6a0fff) AM_READWRITE(simpl156_palette_r,simpl156_palette_w)
-	AM_RANGE(0x6b0000, 0x6b0003) AM_READWRITE(simpl156_system_r,simpl156_eeprom_w)
+	AM_RANGE(0x6a0000, 0x6a0fff) AM_DEVREADWRITE16("palette", palette_device, read, write, 0x0000ffff) AM_SHARE("palette")
+	AM_RANGE(0x6b0000, 0x6b0003) AM_READ_PORT("IN1") AM_WRITE(simpl156_eeprom_w)
 	AM_RANGE(0x6c0000, 0x6c001f) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf_control_dword_r, pf_control_dword_w)
 	AM_RANGE(0x6d0000, 0x6d1fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
 	AM_RANGE(0x6d2000, 0x6d3fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
@@ -321,13 +287,14 @@ ADDRESS_MAP_END
 
 /* Mitchell MT5601-0 PCB (prtytime, charlien, osman) */
 static ADDRESS_MAP_START( mitchell156_map, AS_PROGRAM, 32, simpl156_state )
+	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x100003) AM_DEVREADWRITE8("okisfx", okim6295_device, read, write, 0x000000ff)
 	AM_RANGE(0x140000, 0x140003) AM_DEVREADWRITE8("okimusic", okim6295_device, read, write, 0x000000ff)
 	AM_RANGE(0x180000, 0x187fff) AM_READWRITE(simpl156_mainram_r, simpl156_mainram_w) AM_SHARE("mainram") // main ram
 	AM_RANGE(0x190000, 0x191fff) AM_READWRITE(simpl156_spriteram_r, simpl156_spriteram_w)
-	AM_RANGE(0x1a0000, 0x1a0fff) AM_READWRITE(simpl156_palette_r,simpl156_palette_w)
-	AM_RANGE(0x1b0000, 0x1b0003) AM_READWRITE(simpl156_system_r,simpl156_eeprom_w)
+	AM_RANGE(0x1a0000, 0x1a0fff) AM_DEVREADWRITE16("palette", palette_device, read, write, 0x0000ffff) AM_SHARE("palette")
+	AM_RANGE(0x1b0000, 0x1b0003) AM_READ_PORT("IN1") AM_WRITE(simpl156_eeprom_w)
 	AM_RANGE(0x1c0000, 0x1c001f) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf_control_dword_r, pf_control_dword_w)
 	AM_RANGE(0x1d0000, 0x1d1fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
 	AM_RANGE(0x1d2000, 0x1d3fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
@@ -335,7 +302,7 @@ static ADDRESS_MAP_START( mitchell156_map, AS_PROGRAM, 32, simpl156_state )
 	AM_RANGE(0x1e0000, 0x1e1fff) AM_READWRITE(simpl156_pf1_rowscroll_r, simpl156_pf1_rowscroll_w)
 	AM_RANGE(0x1e4000, 0x1e5fff) AM_READWRITE(simpl156_pf2_rowscroll_r, simpl156_pf2_rowscroll_w)
 	AM_RANGE(0x1f0000, 0x1f0003) AM_READONLY AM_WRITENOP // ?
-	AM_RANGE(0x200000, 0x200003) AM_READ(simpl156_inputs_read)
+	AM_RANGE(0x200000, 0x200003) AM_READ_PORT("IN0")
 	AM_RANGE(0x201000, 0x201fff) AM_RAM AM_SHARE("systemram") // work ram (32-bit)
 ADDRESS_MAP_END
 
@@ -387,25 +354,14 @@ INTERRUPT_GEN_MEMBER(simpl156_state::simpl156_vbl_interrupt)
 }
 
 
-static int simpl156_bank_callback(const int bank)
+DECO16IC_BANK_CB_MEMBER(simpl156_state::bank_callback)
 {
 	return ((bank >> 4) & 0x7) * 0x1000;
 }
 
-static const deco16ic_interface simpl156_deco16ic_tilegen1_intf =
+DECOSPR_PRIORITY_CB_MEMBER(simpl156_state::pri_callback)
 {
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0, 16,/* color base (default values) */
-	0x0f, 0x0f, /* color masks (default values) */
-	simpl156_bank_callback,
-	simpl156_bank_callback,
-	0,1,
-};
-
-UINT16 simpl156_pri_callback(UINT16 x)
-{
-	switch (x & 0xc000)
+	switch (pri & 0xc000)
 	{
 		case 0x0000: return 0;
 		case 0x4000: return 0xf0;
@@ -433,14 +389,35 @@ static MACHINE_CONFIG_START( chainrec, simpl156_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(simpl156_state, screen_update_simpl156)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(4096)
-	MCFG_GFXDECODE(simpl156)
+	MCFG_PALETTE_ADD("palette", 4096)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	MCFG_PALETTE_MEMBITS(16)
 
-	MCFG_DECO16IC_ADD("tilegen1", simpl156_deco16ic_tilegen1_intf)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", simpl156)
+
+	MCFG_DEVICE_ADD("tilegen1", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x10)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(simpl156_state, bank_callback)
+	MCFG_DECO16IC_BANK2_CB(simpl156_state, bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(1)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
+
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 2);
-	decospr_device::set_pri_callback(*device, simpl156_pri_callback);
+	MCFG_DECO_SPRITE_GFX_REGION(2)
+	MCFG_DECO_SPRITE_PRIORITY_CB(simpl156_state, pri_callback)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
@@ -1020,7 +997,7 @@ DRIVER_INIT_MEMBER(simpl156_state,simpl156)
 {
 	UINT8 *rom = memregion("okimusic")->base();
 	int length = memregion("okimusic")->bytes();
-	UINT8 *buf1 = auto_alloc_array(machine(), UINT8, length);
+	dynamic_buffer buf1(length);
 
 	UINT32 x;
 
@@ -1040,8 +1017,6 @@ DRIVER_INIT_MEMBER(simpl156_state,simpl156)
 	}
 
 	memcpy(rom, buf1, length);
-
-	auto_free(machine(), buf1);
 
 	deco56_decrypt_gfx(machine(), "gfx1");
 	deco156_decrypt(machine());

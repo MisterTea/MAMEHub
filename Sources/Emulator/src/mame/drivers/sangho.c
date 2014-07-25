@@ -37,8 +37,9 @@ is a YM2413 compatible chip.
 Sexy Boom's DSW setting verified via Z80 code by stephh
 
 TODO:
-- both games almost likely uses unemulated V9958 YJK mode(s)
-  http://www.msx-plaza.eu/home.php?page=mccm/mccm72/schermen_eng
+- pzlestar hangs at snippet 0x2ca0-0x2ca9, patching 0x2ca7 branch makes it to be fully playable (patched for now);
+- pzlestar title screen uses sprites with screen 12, has wrong colors due of it;
+- sexyboom slows down dramatically, presumably bankswitch related;
 
 */
 
@@ -65,7 +66,8 @@ public:
 	DECLARE_WRITE8_MEMBER(pzlestar_mem_bank_w);
 	DECLARE_READ8_MEMBER(pzlestar_mem_bank_r);
 	DECLARE_WRITE8_MEMBER(sexyboom_bank_w);
-	DECLARE_DRIVER_INIT(sangho);
+	DECLARE_DRIVER_INIT(pzlestar);
+	virtual void machine_start();
 	DECLARE_MACHINE_RESET(pzlestar);
 	DECLARE_MACHINE_RESET(sexyboom);
 	TIMER_DEVICE_CALLBACK_MEMBER(sangho_interrupt);
@@ -73,9 +75,17 @@ public:
 	void sexyboom_map_bank(int bank);
 	DECLARE_WRITE_LINE_MEMBER(msx_vdp_interrupt);
 	required_device<cpu_device> m_maincpu;
+	UINT8 m_sec_slot[4];
+	DECLARE_READ8_MEMBER(sec_slot_r);
+	DECLARE_WRITE8_MEMBER(sec_slot_w);
 };
 
-
+/*
+    slot 0 selects RAM
+    slot 1 selects ?
+    slot 2 selects code ROMs
+    slot 3 selects data ROMs
+*/
 void sangho_state::pzlestar_map_banks()
 {
 	int slot_select;
@@ -168,6 +178,7 @@ void sangho_state::pzlestar_map_banks()
 			break;
 	}
 
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xffff, 0xffff, read8_delegate(FUNC(sangho_state::sec_slot_r),this), write8_delegate(FUNC(sangho_state::sec_slot_w),this));
 }
 
 WRITE8_MEMBER(sangho_state::pzlestar_bank_w)
@@ -236,6 +247,18 @@ WRITE8_MEMBER(sangho_state::sexyboom_bank_w)
 	m_sexyboom_bank[offset] = data;
 	sexyboom_map_bank(offset>>1);
 }
+
+/* secondary slot R/Ws from current primary slot number (see also mess/machine/msx.c) */
+READ8_MEMBER(sangho_state::sec_slot_r)
+{
+	return m_sec_slot[m_pzlestar_mem_bank >> 6] ^ 0xff;
+}
+
+WRITE8_MEMBER(sangho_state::sec_slot_w)
+{
+	m_sec_slot[m_pzlestar_mem_bank >> 6] = data;
+}
+
 
 static ADDRESS_MAP_START( sangho_map, AS_PROGRAM, 8, sangho_state )
 	AM_RANGE(0x0000, 0x3fff) AM_READ_BANK("bank1") AM_WRITE_BANK("bank5")
@@ -381,6 +404,10 @@ static INPUT_PORTS_START( pzlestar )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN1 )      /* Dipswitch 1:1 Not shown in manual */
 INPUT_PORTS_END
 
+void sangho_state::machine_start()
+{
+	m_ram = auto_alloc_array(machine(), UINT8, 0x20000); // TODO: define how much RAM these ones have (MSX2+ can potentially go up to 4MB)
+}
 
 MACHINE_RESET_MEMBER(sangho_state,pzlestar)
 {
@@ -428,21 +455,19 @@ static MACHINE_CONFIG_START( pzlestar, sangho_state )
 	MCFG_CPU_IO_MAP(pzlestar_io_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", sangho_state, sangho_interrupt, "screen", 0, 1)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_V9958_ADD("v9958", "screen", 0x20000)
 	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(sangho_state,msx_vdp_interrupt))
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_UPDATE_DEVICE("v9958", v9958_device, screen_update)
 	MCFG_SCREEN_SIZE(512 + 32, (212 + 28) * 2)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512 + 32 - 1, 0, (212 + 28) * 2 - 1)
+	MCFG_SCREEN_PALETTE("v9958:palette")
 
 	MCFG_MACHINE_RESET_OVERRIDE(sangho_state,pzlestar)
-
-	MCFG_PALETTE_LENGTH(19268)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ymsnd", YM2413, 3580000)
@@ -458,21 +483,21 @@ static MACHINE_CONFIG_START( sexyboom, sangho_state )
 	MCFG_CPU_IO_MAP(sexyboom_io_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", sangho_state, sangho_interrupt, "screen", 0, 1)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_V9958_ADD("v9958", "screen", 0x20000)
 	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(sangho_state,msx_vdp_interrupt))
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_UPDATE_DEVICE("v9958", v9958_device, screen_update)
 	MCFG_SCREEN_SIZE(512 + 32, (212 + 28) * 2)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512 + 32 - 1, 0, (212 + 28) * 2 - 1)
+	MCFG_SCREEN_PALETTE("v9958:palette")
 
 	MCFG_MACHINE_RESET_OVERRIDE(sangho_state,sexyboom)
 
-	MCFG_PALETTE_LENGTH(19268)
+	MCFG_PALETTE_ADD("palette", 19780)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ymsnd", YM2413, 3580000)
@@ -518,10 +543,14 @@ ROM_START( sexyboom )
 	/* 15 empty */
 ROM_END
 
-DRIVER_INIT_MEMBER(sangho_state,sangho)
+DRIVER_INIT_MEMBER(sangho_state,pzlestar)
 {
-	m_ram = auto_alloc_array(machine(), UINT8, 0x20000);
+	UINT8 *ROM = memregion("user1")->base();
+
+	/* patch nasty looping check, related to sound? */
+	ROM[0x12ca7] = 0x00;
+	ROM[0x12ca8] = 0x00;
 }
 
-GAME( 1991, pzlestar,  0,    pzlestar, pzlestar, sangho_state, sangho, ROT270, "Sang Ho Soft", "Puzzle Star (Sang Ho Soft)", GAME_NOT_WORKING )
-GAME( 1992, sexyboom,  0,    sexyboom, sexyboom, sangho_state, sangho, ROT270, "Sang Ho Soft", "Sexy Boom", GAME_IMPERFECT_GRAPHICS | GAME_WRONG_COLORS )
+GAME( 1991, pzlestar,  0,    pzlestar, pzlestar, sangho_state,  pzlestar,   ROT270, "Sang Ho Soft", "Puzzle Star (Sang Ho Soft)", GAME_IMPERFECT_COLORS | GAME_IMPERFECT_SOUND )
+GAME( 1992, sexyboom,  0,    sexyboom, sexyboom, driver_device, 0,          ROT270, "Sang Ho Soft", "Sexy Boom", 0 )

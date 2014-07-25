@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Roberto Zandona'
 /****************************************************************************************
 
 18 Holes Pro Golf (c) 1981 Data East
@@ -64,7 +66,9 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_fbram(*this, "fbram"),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu")  { }
+		m_audiocpu(*this, "audiocpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	UINT8 *m_videoram;
 	UINT8 m_char_pen;
@@ -86,10 +90,12 @@ public:
 	DECLARE_WRITE8_MEMBER(progolf_videoram_w);
 	DECLARE_INPUT_CHANGED_MEMBER(coin_inserted);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(progolf);
 	UINT32 screen_update_progolf(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -121,9 +127,9 @@ UINT32 progolf_state::screen_update_progolf(screen_device &screen, bitmap_ind16 
 			{
 				int tile = videoram[count];
 
-				drawgfx_opaque(bitmap,cliprect,machine().gfx[0],tile,1,0,0,(256-x*8)+scroll,y*8);
+				m_gfxdecode->gfx(0)->opaque(bitmap,cliprect,tile,1,0,0,(256-x*8)+scroll,y*8);
 				/* wrap-around */
-				drawgfx_opaque(bitmap,cliprect,machine().gfx[0],tile,1,0,0,(256-x*8)+scroll-1024,y*8);
+				m_gfxdecode->gfx(0)->opaque(bitmap,cliprect,tile,1,0,0,(256-x*8)+scroll-1024,y*8);
 
 				count++;
 			}
@@ -145,7 +151,7 @@ UINT32 progolf_state::screen_update_progolf(screen_device &screen, bitmap_ind16 
 						color = m_fg_fb[(xi+yi*8)+count*0x40];
 
 						if(color != 0 && cliprect.contains(x+yi, 256-y+xi))
-							bitmap.pix16(x+yi, 256-y+xi) = machine().pens[(color & 0x7)];
+							bitmap.pix16(x+yi, 256-y+xi) = m_palette->pen((color & 0x7));
 					}
 				}
 
@@ -372,27 +378,12 @@ static GFXDECODE_START( progolf )
 GFXDECODE_END
 
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-
-};
-
-void progolf_state::palette_init()
+PALETTE_INIT_MEMBER(progolf_state, progolf)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < m_palette->entries();i++)
 	{
 		int bit0,bit1,bit2,r,g,b;
 
@@ -412,7 +403,7 @@ void progolf_state::palette_init()
 		bit2 = (color_prom[i] >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		m_palette->set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
@@ -433,11 +424,15 @@ static MACHINE_CONFIG_START( progolf, progolf_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(progolf_state, screen_update_progolf)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(progolf)
-	MCFG_PALETTE_LENGTH(32*3)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", progolf)
+	MCFG_PALETTE_ADD("palette", 32*3)
+	MCFG_PALETTE_INIT_OWNER(progolf_state, progolf)
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", 3000000/4, mc6845_intf) /* hand tuned to get ~57 fps */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", 3000000/4) /* hand tuned to get ~57 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

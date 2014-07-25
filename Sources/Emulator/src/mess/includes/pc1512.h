@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __PC1512__
@@ -8,20 +10,20 @@
 #include "cpu/mcs48/mcs48.h"
 #include "formats/pc_dsk.h"
 #include "machine/am9517a.h"
-#include "machine/ctronics.h"
+#include "machine/buffer.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/ins8250.h"
-#include "machine/isa.h"
-#include "machine/isa_cards.h"
+#include "bus/isa/isa.h"
+#include "bus/isa/isa_cards.h"
 #include "machine/mc146818.h"
 #include "machine/pic8259.h"
 #include "machine/pit8253.h"
 #include "machine/pc1512kb.h"
 #include "machine/pc_fdc.h"
 #include "machine/ram.h"
-#include "machine/serial.h"
 #include "sound/speaker.h"
 #include "video/mc6845.h"
-#include "video/isa_pc1640_iga.h"
+#include "bus/isa/pc1640_iga.h"
 
 #define I8086_TAG       "ic120"
 #define I8087_TAG       "ic119"
@@ -53,6 +55,7 @@ public:
 			m_uart(*this, INS8250_TAG),
 			m_vdu(*this, AMS40041_TAG),
 			m_centronics(*this, CENTRONICS_TAG),
+			m_cent_data_out(*this, "cent_data_out"),
 			m_speaker(*this, SPEAKER_TAG),
 			m_kb(*this, PC1512_KEYBOARD_TAG),
 			m_ram(*this, RAM_TAG),
@@ -78,7 +81,7 @@ public:
 			m_fdc_dsr(0),
 			m_neop(0),
 			m_ack_int_enable(1),
-			m_ack(0),
+			m_centronics_ack(0),
 			m_speaker_drive(0)
 	{ }
 
@@ -91,6 +94,7 @@ public:
 	required_device<ins8250_device> m_uart;
 	optional_device<ams40041_device> m_vdu;
 	required_device<centronics_device> m_centronics;
+	required_device<output_latch_device> m_cent_data_out;
 	required_device<speaker_sound_device> m_speaker;
 	required_device<pc1512_keyboard_device> m_kb;
 	required_device<ram_device> m_ram;
@@ -117,9 +121,9 @@ public:
 	int get_display_mode(UINT8 mode);
 	offs_t get_char_rom_offset();
 	int get_color(UINT8 data);
-	void draw_alpha(bitmap_rgb32 &bitmap, const rectangle &cliprect, UINT16 ma, UINT8 ra, UINT16 y, UINT8 x_count, INT8 cursor_x, void *param);
-	void draw_graphics_1(bitmap_rgb32 &bitmap, const rectangle &cliprect, UINT16 ma, UINT8 ra, UINT16 y, UINT8 x_count, INT8 cursor_x, void *param);
-	void draw_graphics_2(bitmap_rgb32 &bitmap, const rectangle &cliprect, UINT16 ma, UINT8 ra, UINT16 y, UINT8 x_count, INT8 cursor_x, void *param);
+	MC6845_UPDATE_ROW(draw_alpha);
+	MC6845_UPDATE_ROW(draw_graphics_1);
+	MC6845_UPDATE_ROW(draw_graphics_2);
 
 	DECLARE_READ8_MEMBER( video_ram_r );
 	DECLARE_WRITE8_MEMBER( video_ram_w );
@@ -160,9 +164,14 @@ public:
 	DECLARE_INPUT_CHANGED_MEMBER( mouse_x_changed );
 	DECLARE_INPUT_CHANGED_MEMBER( mouse_y_changed );
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
-	IRQ_CALLBACK_MEMBER(pc1512_irq_callback);
-	void fdc_int_w(bool state);
-	void fdc_drq_w(bool state);
+	DECLARE_WRITE_LINE_MEMBER( fdc_int_w );
+	DECLARE_WRITE_LINE_MEMBER( fdc_drq_w );
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_ack);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_perror);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_select);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_fault);
+	MC6845_UPDATE_ROW(crtc_update_row);
 
 	// system status register
 	int m_pit1;
@@ -198,7 +207,11 @@ public:
 
 	// printer state
 	int m_ack_int_enable;
-	int m_ack;
+	int m_centronics_ack;
+	int m_centronics_busy;
+	int m_centronics_perror;
+	int m_centronics_select;
+	int m_centronics_fault;
 	UINT8 m_printer_data;
 	UINT8 m_printer_control;
 

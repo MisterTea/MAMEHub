@@ -1,3 +1,10 @@
+/******************************************************************************
+
+    nbmj9195 - Nichibutsu Mahjong games for years 1991-1995
+
+******************************************************************************/
+
+#include "cpu/z80/tmpz84c011.h"
 #include "sound/dac.h"
 
 #define VRAM_MAX    2
@@ -18,7 +25,16 @@ public:
 		: driver_device(mconfig, type, tag) ,
 		m_maincpu(*this, "maincpu"),
 		m_dac1(*this, "dac1"),
-		m_dac2(*this, "dac2") { }
+		m_dac2(*this, "dac2"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")
+	{ }
+
+	required_device<tmpz84c011_device> m_maincpu;
+	required_device<dac_device> m_dac1;
+	required_device<dac_device> m_dac2;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	int m_inputport;
 	int m_dipswbitsel;
@@ -26,8 +42,7 @@ public:
 	int m_mscoutm_inputport;
 	UINT8 *m_nvram;
 	size_t m_nvram_size;
-	UINT8 m_pio_dir[5 * 2];
-	UINT8 m_pio_latch[5 * 2];
+
 	int m_scrollx[VRAM_MAX];
 	int m_scrolly[VRAM_MAX];
 	int m_scrollx_raster[VRAM_MAX][SCANLINE_MAX];
@@ -52,7 +67,7 @@ public:
 	bitmap_ind16 m_tmpbitmap[VRAM_MAX];
 	UINT16 *m_videoram[VRAM_MAX];
 	UINT16 *m_videoworkram[VRAM_MAX];
-	UINT8 *m_palette;
+	UINT8 *m_palette_ptr;
 	UINT8 *m_nb22090_palette;
 	UINT8 *m_clut[VRAM_MAX];
 	int m_flipscreen_old[VRAM_MAX];
@@ -63,48 +78,27 @@ public:
 	DECLARE_WRITE8_MEMBER(nbmj9195_inputportsel_w);
 	DECLARE_READ8_MEMBER(mscoutm_dipsw_0_r);
 	DECLARE_READ8_MEMBER(mscoutm_dipsw_1_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_pio_r);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_pio_w);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_pa_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_pb_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_pc_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_pd_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_pe_r);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_pa_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_pb_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_pc_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_pd_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_pe_w);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_dir_pa_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_dir_pb_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_dir_pc_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_dir_pd_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_dir_pe_r);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_dir_pa_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_dir_pb_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_dir_pc_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_dir_pd_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_dir_pe_w);
-	DECLARE_READ8_MEMBER(tmpz84c011_1_pa_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_1_pb_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_1_pc_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_1_pd_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_1_pe_r);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_1_pa_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_1_pb_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_1_pc_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_1_pd_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_1_pe_w);
-	DECLARE_READ8_MEMBER(tmpz84c011_1_dir_pa_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_1_dir_pb_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_1_dir_pc_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_1_dir_pd_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_1_dir_pe_r);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_1_dir_pa_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_1_dir_pb_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_1_dir_pc_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_1_dir_pd_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_1_dir_pe_w);
+
+	DECLARE_READ8_MEMBER(mscoutm_cpu_porta_r);
+	DECLARE_READ8_MEMBER(mscoutm_cpu_portb_r);
+	DECLARE_READ8_MEMBER(mscoutm_cpu_portc_r);
+	DECLARE_WRITE8_MEMBER(mscoutm_cpu_porta_w);
+	DECLARE_WRITE8_MEMBER(mscoutm_cpu_portd_w);
+	DECLARE_WRITE8_MEMBER(mscoutm_cpu_porte_w);
+	DECLARE_READ8_MEMBER(others_cpu_porta_r);
+	DECLARE_READ8_MEMBER(others_cpu_portb_r);
+	DECLARE_READ8_MEMBER(others_cpu_portc_r);
+	DECLARE_WRITE8_MEMBER(others_cpu_portc_w);
+	DECLARE_WRITE8_MEMBER(others_cpu_portd_w);
+	DECLARE_WRITE8_MEMBER(others_cpu_porte_w);
+	DECLARE_READ8_MEMBER(soundcpu_portd_r);
+	DECLARE_WRITE8_MEMBER(soundcpu_porta_w);
+	DECLARE_WRITE8_MEMBER(soundcpu_dac1_w);
+	DECLARE_WRITE8_MEMBER(soundcpu_dac2_w);
+	DECLARE_WRITE8_MEMBER(mscoutm_soundcpu_portb_w);
+	DECLARE_WRITE8_MEMBER(mscoutm_soundcpu_portc_w);
+	DECLARE_WRITE8_MEMBER(soundcpu_porte_w);
+
 	DECLARE_READ8_MEMBER(nbmj9195_palette_r);
 	DECLARE_WRITE8_MEMBER(nbmj9195_palette_w);
 	DECLARE_READ8_MEMBER(nbmj9195_nb22090_palette_r);
@@ -134,9 +128,6 @@ public:
 	int nbmj9195_dipsw_r();
 	void nbmj9195_dipswbitsel_w(int data);
 	void mscoutm_inputportsel_w(int data);
-	required_device<cpu_device> m_maincpu;
-	required_device<dac_device> m_dac1;
-	required_device<dac_device> m_dac2;
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*****************************************************************************
  *
  * video/abc802.c
@@ -8,18 +10,11 @@
 
 
 
-// these are needed because the MC6845 emulation does
-// not position the active display area correctly
-#define HORIZONTAL_PORCH_HACK   121
-#define VERTICAL_PORCH_HACK     29
-
-
-
 //-------------------------------------------------
 //  MC6845_UPDATE_ROW( abc802_update_row )
 //-------------------------------------------------
 
-static MC6845_UPDATE_ROW( abc802_update_row )
+MC6845_UPDATE_ROW( abc802_state::abc802_update_row )
 {
 	/*
 
@@ -60,18 +55,15 @@ static MC6845_UPDATE_ROW( abc802_update_row )
 
 	*/
 
-	abc802_state *state =  device->machine().driver_data<abc802_state>();
+	const pen_t *pen = m_palette->pens();
 
 	int rf = 0, rc = 0, rg = 0;
 
-	// prevent wraparound
-	if (y >= 240) return;
-
-	y += VERTICAL_PORCH_HACK;
+	y += vbp;
 
 	for (int column = 0; column < x_count; column++)
 	{
-		UINT8 code = state->m_char_ram[(ma + column) & 0x7ff];
+		UINT8 code = m_char_ram[(ma + column) & 0x7ff];
 		UINT16 address = code << 4;
 		UINT8 ra_latch = ra;
 		UINT8 data;
@@ -83,7 +75,7 @@ static MC6845_UPDATE_ROW( abc802_update_row )
 			ra_latch = 0x0f;
 		}
 
-		if ((state->m_flshclk && rf) || rc)
+		if ((m_flshclk && rf) || rc)
 		{
 			ra_latch = 0x0e;
 		}
@@ -93,7 +85,7 @@ static MC6845_UPDATE_ROW( abc802_update_row )
 			address |= 0x800;
 		}
 
-		data = state->m_char_rom->base()[(address + ra_latch) & 0xfff];
+		data = m_char_rom->base()[(address + ra_latch) & 0xfff];
 
 		if (data & ABC802_ATE)
 		{
@@ -126,14 +118,14 @@ static MC6845_UPDATE_ROW( abc802_update_row )
 		{
 			data <<= 2;
 
-			if (state->m_80_40_mux)
+			if (m_80_40_mux)
 			{
 				for (int bit = 0; bit < ABC800_CHAR_WIDTH; bit++)
 				{
-					int x = HORIZONTAL_PORCH_HACK + ((column + 3) * ABC800_CHAR_WIDTH) + bit;
-					int color = BIT(data, 7) ^ ri;
+					int x = hbp + ((column + 3) * ABC800_CHAR_WIDTH) + bit;
+					int color = (BIT(data, 7) ^ ri) && de;
 
-					bitmap.pix32(y, x) = RGB_MONOCHROME_AMBER[color];
+					bitmap.pix32(y, x) = pen[color];
 
 					data <<= 1;
 				}
@@ -142,11 +134,11 @@ static MC6845_UPDATE_ROW( abc802_update_row )
 			{
 				for (int bit = 0; bit < ABC800_CHAR_WIDTH; bit++)
 				{
-					int x = HORIZONTAL_PORCH_HACK + ((column + 3) * ABC800_CHAR_WIDTH) + (bit << 1);
-					int color = BIT(data, 7) ^ ri;
+					int x = hbp + ((column + 3) * ABC800_CHAR_WIDTH) + (bit << 1);
+					int color = (BIT(data, 7) ^ ri) && de;
 
-					bitmap.pix32(y, x) = RGB_MONOCHROME_AMBER[color];
-					bitmap.pix32(y, x + 1) = RGB_MONOCHROME_AMBER[color];
+					bitmap.pix32(y, x) = pen[color];
+					bitmap.pix32(y, x + 1) = pen[color];
 
 					data <<= 1;
 				}
@@ -183,25 +175,6 @@ WRITE_LINE_MEMBER( abc802_state::vs_w )
 }
 
 
-//-------------------------------------------------
-//  mc6845_interface crtc_intf
-//-------------------------------------------------
-
-static MC6845_INTERFACE( crtc_intf )
-{
-	false,
-	ABC800_CHAR_WIDTH,
-	NULL,
-	abc802_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(abc802_state, vs_w),
-	NULL
-};
-
-
 void abc802_state::video_start()
 {
 	// register for state saving
@@ -217,9 +190,6 @@ void abc802_state::video_start()
 
 UINT32 abc802_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	// HACK expand visible area to workaround MC6845
-	screen.set_visible_area(0, 767, 0, 311);
-
 	// draw text
 	m_crtc->screen_update(screen, bitmap, cliprect);
 
@@ -232,7 +202,11 @@ UINT32 abc802_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, 
 //-------------------------------------------------
 
 MACHINE_CONFIG_FRAGMENT( abc802_video )
-	MCFG_MC6845_ADD(MC6845_TAG, MC6845, SCREEN_TAG, ABC800_CCLK, crtc_intf)
+	MCFG_MC6845_ADD(MC6845_TAG, MC6845, SCREEN_TAG, ABC800_CCLK)
+	MCFG_MC6845_SHOW_BORDER_AREA(true)
+	MCFG_MC6845_CHAR_WIDTH(ABC800_CHAR_WIDTH)
+	MCFG_MC6845_UPDATE_ROW_CB(abc802_state, abc802_update_row)
+	MCFG_MC6845_OUT_VSYNC_CB(WRITELINE(abc802_state, vs_w))
 
 	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
 	MCFG_SCREEN_UPDATE_DRIVER(abc802_state, screen_update)
@@ -241,4 +215,6 @@ MACHINE_CONFIG_FRAGMENT( abc802_video )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_SIZE(768, 312)
 	MCFG_SCREEN_VISIBLE_AREA(0,768-1, 0, 312-1)
+
+	MCFG_PALETTE_ADD_MONOCHROME_AMBER("palette")
 MACHINE_CONFIG_END

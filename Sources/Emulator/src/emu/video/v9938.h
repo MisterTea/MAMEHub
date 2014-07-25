@@ -25,7 +25,7 @@
 	v9938_device::static_set_vram_size(*device, _vramsize);
 
 #define MCFG_V99X8_INTERRUPT_CALLBACK(_irq) \
-	downcast<v99x8_device *>(device)->set_interrupt_callback(DEVCB2_##_irq);
+	downcast<v99x8_device *>(device)->set_interrupt_callback(DEVCB_##_irq);
 
 // init functions
 
@@ -77,8 +77,6 @@ public:
 
 	DECLARE_READ8_MEMBER( read );
 	DECLARE_WRITE8_MEMBER( write );
-
-	DECLARE_PALETTE_INIT(v9938);
 
 	UINT8 vram_r();
 	UINT8 status_r();
@@ -185,6 +183,7 @@ private:
 	int m_pal_write_first, m_cmd_write_first;
 	UINT8 m_pal_write, m_cmd_write;
 	UINT8 m_pal_reg[32], m_stat_reg[10], m_cont_reg[48], m_read_ahead;
+	UINT8 m_v9958_sp_mode;
 
 	// memory
 	UINT16 m_address_latch;
@@ -192,7 +191,7 @@ private:
 
 	// interrupt
 	UINT8 m_int_state;
-	devcb2_write_line   m_int_callback;
+	devcb_write_line   m_int_callback;
 	int m_scanline;
 	// blinking
 	int m_blink, m_blink_count;
@@ -235,9 +234,9 @@ private:
 		void (v99x8_device::*draw_sprite_16s)(const pen_t *, UINT16*, UINT8*);
 	} ;
 	static const v99x8_mode s_modes[];
-
+	required_device<palette_device> m_palette;
 protected:
-	static UINT16 *s_pal_indYJK;
+	static UINT16 s_pal_indYJK[0x20000];
 };
 
 
@@ -246,6 +245,7 @@ class v9938_device : public v99x8_device
 public:
 	v9938_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
+	DECLARE_PALETTE_INIT(v9938);
 protected:
 	virtual machine_config_constructor device_mconfig_additions() const;
 };

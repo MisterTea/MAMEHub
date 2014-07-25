@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #include "includes/newbrain.h"
 #include "formats/mfi_dsk.h"
 
@@ -952,29 +954,20 @@ WRITE_LINE_MEMBER( newbrain_eim_state::adc_eoc_w )
 	m_anint = state;
 }
 
-static ADC0808_ANALOG_READ( newbrain_adc_vref_pos_r )
+ADC0808_ANALOG_READ_CB( newbrain_eim_state::adc_vref_pos_r )
 {
 	return 5.0;
 }
 
-static ADC0808_ANALOG_READ( newbrain_adc_vref_neg_r )
+ADC0808_ANALOG_READ_CB( newbrain_eim_state::adc_vref_neg_r )
 {
 	return 0.0;
 }
 
-static ADC0808_ANALOG_READ( newbrain_adc_input_r )
+ADC0808_ANALOG_READ_CB( newbrain_eim_state::adc_input_r )
 {
 	return 0.0;
 }
-
-static ADC0808_INTERFACE( adc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(newbrain_eim_state, adc_eoc_w),
-	newbrain_adc_vref_pos_r,
-	newbrain_adc_vref_neg_r,
-	{ newbrain_adc_input_r, newbrain_adc_input_r, newbrain_adc_input_r, newbrain_adc_input_r,
-		newbrain_adc_input_r, newbrain_adc_input_r, newbrain_adc_input_r, newbrain_adc_input_r }
-};
 
 /* Memory Maps */
 
@@ -1007,8 +1000,8 @@ static ADDRESS_MAP_START( newbrain_ei_io_map, AS_IO, 8, newbrain_eim_state )
 	AM_RANGE(0x15, 0x15) AM_MIRROR(0xff00) AM_READ(st1_r)
 	AM_RANGE(0x16, 0x16) AM_MIRROR(0xff00) AM_READ(st2_r)
 	AM_RANGE(0x17, 0x17) AM_MIRROR(0xff00) AM_READWRITE(usbs_r, usbs_w)
-	AM_RANGE(0x18, 0x18) AM_MIRROR(0xff00) AM_DEVREADWRITE(MC6850_TAG, acia6850_device, status_read, control_write)
-	AM_RANGE(0x19, 0x19) AM_MIRROR(0xff00) AM_DEVREADWRITE(MC6850_TAG, acia6850_device, data_read, data_write)
+	AM_RANGE(0x18, 0x18) AM_MIRROR(0xff00) AM_DEVREADWRITE(MC6850_TAG, acia6850_device, status_r, control_w)
+	AM_RANGE(0x19, 0x19) AM_MIRROR(0xff00) AM_DEVREADWRITE(MC6850_TAG, acia6850_device, data_r, data_w)
 	AM_RANGE(0x1c, 0x1f) AM_MIRROR(0xff00) AM_DEVREADWRITE(Z80CTC_TAG, z80ctc_device, read, write)
 	AM_RANGE(0xff, 0xff) AM_MIRROR(0xff00) AM_MASK(0xff00) AM_WRITE(paging_w)
 ADDRESS_MAP_END
@@ -1151,11 +1144,6 @@ INPUT_PORTS_END
 
 /* Machine Initialization */
 
-READ_LINE_MEMBER( newbrain_eim_state::acia_rx )
-{
-	return m_acia_rxd;
-}
-
 WRITE_LINE_MEMBER( newbrain_eim_state::acia_tx )
 {
 	m_acia_txd = state;
@@ -1166,33 +1154,9 @@ WRITE_LINE_MEMBER( newbrain_eim_state::acia_interrupt )
 	m_aciaint = state;
 }
 
-static ACIA6850_INTERFACE( acia_intf )
-{
-	0,
-	0,
-	DEVCB_DRIVER_LINE_MEMBER(newbrain_eim_state, acia_rx),
-	DEVCB_DRIVER_LINE_MEMBER(newbrain_eim_state, acia_tx),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(newbrain_eim_state, acia_interrupt)
-};
-
 WRITE_LINE_MEMBER( newbrain_eim_state::fdc_interrupt )
 {
 	m_fdc_int = state;
-}
-
-WRITE_LINE_MEMBER( newbrain_eim_state::ctc_z0_w )
-{
-	/* connected to the ACIA receive clock */
-	if (state) m_acia->rx_clock_in();
-}
-
-WRITE_LINE_MEMBER( newbrain_eim_state::ctc_z1_w )
-{
-	/* connected to the ACIA transmit clock */
-	if (state) m_acia->tx_clock_in();
 }
 
 WRITE_LINE_MEMBER( newbrain_eim_state::ctc_z2_w )
@@ -1201,14 +1165,6 @@ WRITE_LINE_MEMBER( newbrain_eim_state::ctc_z2_w )
 	m_ctc->trg0(state);
 	m_ctc->trg1(state);
 }
-
-static Z80CTC_INTERFACE( newbrain_ctc_intf )
-{
-	DEVCB_NULL,             /* interrupt handler */
-	DEVCB_DRIVER_LINE_MEMBER(newbrain_eim_state, ctc_z0_w), /* ZC/TO0 callback */
-	DEVCB_DRIVER_LINE_MEMBER(newbrain_eim_state, ctc_z1_w), /* ZC/TO1 callback */
-	DEVCB_DRIVER_LINE_MEMBER(newbrain_eim_state, ctc_z2_w)  /* ZC/TO2 callback */
-};
 
 TIMER_DEVICE_CALLBACK_MEMBER(newbrain_eim_state::ctc_c2_tick)
 {
@@ -1339,15 +1295,6 @@ INTERRUPT_GEN_MEMBER(newbrain_state::newbrain_interrupt)
 
 /* Machine Drivers */
 
-static const cassette_interface newbrain_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED),
-	NULL,
-	NULL
-};
-
 /* F4 Character Displayer */
 static const gfx_layout newbrain_charlayout =
 {
@@ -1377,7 +1324,7 @@ static MACHINE_CONFIG_START( newbrain_a, newbrain_state )
 	MCFG_CPU_IO_MAP(newbrain_cop_io_map)
 	MCFG_COP400_CONFIG( COP400_CKI_DIVISOR_16, COP400_CKO_OSCILLATOR_OUTPUT, COP400_MICROBUS_ENABLED )
 
-	MCFG_GFXDECODE(newbrain)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", newbrain)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("cop_regint", newbrain_state, cop_regint_tick, attotime::from_usec(12500))
 
@@ -1385,8 +1332,11 @@ static MACHINE_CONFIG_START( newbrain_a, newbrain_state )
 	MCFG_FRAGMENT_ADD(newbrain_video)
 
 	// devices
-	MCFG_CASSETTE_ADD("cassette", newbrain_cassette_interface)
-	MCFG_CASSETTE_ADD("cassette2", newbrain_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
+
+	MCFG_CASSETTE_ADD("cassette2")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1407,10 +1357,29 @@ static MACHINE_CONFIG_DERIVED_CLASS( newbrain_eim, newbrain_a, newbrain_eim_stat
 	MCFG_CPU_IO_MAP(newbrain_fdc_io_map)
 
 	// devices
-	MCFG_Z80CTC_ADD(Z80CTC_TAG, XTAL_16MHz/8, newbrain_ctc_intf)
+	MCFG_DEVICE_ADD(Z80CTC_TAG, Z80CTC, XTAL_16MHz/8)
+	MCFG_Z80CTC_ZC0_CB(DEVWRITELINE(MC6850_TAG, acia6850_device, write_rxc))
+	MCFG_Z80CTC_ZC1_CB(DEVWRITELINE(MC6850_TAG, acia6850_device, write_txc))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(newbrain_eim_state, ctc_z2_w))
+
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("z80ctc_c2", newbrain_eim_state, ctc_c2_tick, attotime::from_hz(XTAL_16MHz/4/13))
-	MCFG_ADC0808_ADD(ADC0809_TAG, 500000, adc_intf)
-	MCFG_ACIA6850_ADD(MC6850_TAG, acia_intf)
+	MCFG_DEVICE_ADD(ADC0809_TAG, ADC0808, 500000)
+	MCFG_ADC0808_OUT_EOC_CB(WRITELINE(newbrain_eim_state, adc_eoc_w))
+	MCFG_ADC0808_IN_VREF_POS_CB(newbrain_eim_state, adc_vref_pos_r)
+	MCFG_ADC0808_IN_VREF_NEG_CB(newbrain_eim_state, adc_vref_neg_r)
+	MCFG_ADC0808_IN_IN_0_CB(newbrain_eim_state, adc_input_r)
+	MCFG_ADC0808_IN_IN_1_CB(newbrain_eim_state, adc_input_r)
+	MCFG_ADC0808_IN_IN_2_CB(newbrain_eim_state, adc_input_r)
+	MCFG_ADC0808_IN_IN_3_CB(newbrain_eim_state, adc_input_r)
+	MCFG_ADC0808_IN_IN_4_CB(newbrain_eim_state, adc_input_r)
+	MCFG_ADC0808_IN_IN_5_CB(newbrain_eim_state, adc_input_r)
+	MCFG_ADC0808_IN_IN_6_CB(newbrain_eim_state, adc_input_r)
+	MCFG_ADC0808_IN_IN_7_CB(newbrain_eim_state, adc_input_r)
+
+	MCFG_DEVICE_ADD(MC6850_TAG, ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(newbrain_eim_state, acia_tx))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(newbrain_eim_state, acia_interrupt))
+
 	MCFG_UPD765A_ADD(UPD765_TAG, false, true)
 	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":0", newbrain_floppies, "525dd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":1", newbrain_floppies, "525dd", floppy_image_device::default_floppy_formats)

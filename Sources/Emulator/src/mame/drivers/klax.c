@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari Klax hardware
@@ -81,7 +83,7 @@ static ADDRESS_MAP_START( klax_map, AS_PROGRAM, 16, klax_state )
 	AM_RANGE(0x270000, 0x270001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
 	AM_RANGE(0x2e0000, 0x2e0001) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x360000, 0x360001) AM_WRITE(interrupt_ack_w)
-	AM_RANGE(0x3e0000, 0x3e07ff) AM_RAM_WRITE(expanded_paletteram_666_w) AM_SHARE("paletteram")
+	AM_RANGE(0x3e0000, 0x3e07ff) AM_DEVREADWRITE8("palette", palette_device, read, write, 0xff00) AM_SHARE("palette")
 	AM_RANGE(0x3f0000, 0x3f0f7f) AM_RAM_DEVWRITE("playfield", tilemap_device, write) AM_SHARE("playfield")
 	AM_RANGE(0x3f0f80, 0x3f0fff) AM_RAM AM_SHARE("mob:slip")
 	AM_RANGE(0x3f1000, 0x3f1fff) AM_RAM_DEVWRITE("playfield", tilemap_device, write_ext) AM_SHARE("playfield_ext")
@@ -166,18 +168,22 @@ static MACHINE_CONFIG_START( klax, klax_state )
 	MCFG_ATARI_EEPROM_2816_ADD("eeprom")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_GFXDECODE(klax)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", klax)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(IRRRRRGGGGGBBBBB)
+	MCFG_PALETTE_MEMBITS(8)
 
-	MCFG_TILEMAP_ADD_STANDARD("playfield", 2, klax_state, get_playfield_tile_info, 8,8, SCAN_COLS, 64,32)
+	MCFG_TILEMAP_ADD_STANDARD("playfield", "gfxdecode", 2, klax_state, get_playfield_tile_info, 8,8, SCAN_COLS, 64,32)
 	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", klax_state::s_mob_config)
+	MCFG_ATARI_MOTION_OBJECTS_GFXDECODE("gfxdecode")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	/* note: these parameters are from published specs, not derived */
 	/* the board uses an SOS-2 chip to generate video signals */
 	MCFG_SCREEN_RAW_PARAMS(ATARI_CLOCK_14MHz/2, 456, 0, 336, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(klax_state, screen_update_klax)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(klax_state,klax)
 

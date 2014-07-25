@@ -111,24 +111,9 @@ enum
 	M68K_GENPCBASE = STATE_GENPCBASE
 };
 
-typedef void (*m68k_bkpt_ack_func)(device_t *device, UINT32 data);
-typedef void (*m68k_reset_func)(device_t *device);
-typedef void (*m68k_cmpild_func)(device_t *device, UINT32 data, UINT8 reg);
-typedef void (*m68k_rte_func)(device_t *device);
-typedef int (*m68k_tas_func)(device_t *device);
-
-
-
-
-
 unsigned int m68k_disassemble_raw(char* str_buff, unsigned int pc, const unsigned char* opdata, const unsigned char* argdata, unsigned int cpu_type);
 
 class m68000_base_device;
-
-
-
-typedef int (*instruction_hook_t)(m68000_base_device *device, offs_t curpc);
-
 
 
 extern const device_type M68K;
@@ -145,6 +130,14 @@ public:
 						const device_type type, UINT32 prg_data_width, UINT32 prg_address_bits, address_map_constructor internal_map, const char *shortname, const char *source);
 
 	m68000_base_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	DECLARE_WRITE_LINE_MEMBER( write_irq1 );
+	DECLARE_WRITE_LINE_MEMBER( write_irq2 );
+	DECLARE_WRITE_LINE_MEMBER( write_irq3 );
+	DECLARE_WRITE_LINE_MEMBER( write_irq4 );
+	DECLARE_WRITE_LINE_MEMBER( write_irq5 );
+	DECLARE_WRITE_LINE_MEMBER( write_irq6 );
+	DECLARE_WRITE_LINE_MEMBER( write_irq7 );
 
 	void clear_all(void);
 
@@ -175,8 +168,15 @@ public:
 
 	void define_state(void);
 
-
-
+	void set_reset_callback(write_line_delegate callback);
+	void set_cmpild_callback(write32_delegate callback);
+	void set_rte_callback(write_line_delegate callback);
+	void set_tas_write_callback(write8_delegate callback);
+	UINT16 get_fc();
+	void set_encrypted_opcode_range(offs_t start, offs_t end);
+	void set_hmmu_enable(int enable);
+	void set_instruction_hook(read32_delegate ihook);
+	void set_buserror_details(UINT32 fault_addr, UINT8 rw, UINT8 fc);
 
 public:
 
@@ -252,15 +252,16 @@ public:
 	const UINT8* cyc_exception;
 
 	/* Callbacks to host */
-	device_irq_acknowledge_callback int_ack_callback;             /* Interrupt Acknowledge */
-	m68k_bkpt_ack_func bkpt_ack_callback;         /* Breakpoint Acknowledge */
-	m68k_reset_func reset_instr_callback;         /* Called when a RESET instruction is encountered */
-	m68k_cmpild_func cmpild_instr_callback;       /* Called when a CMPI.L #v, Dn instruction is encountered */
-	m68k_rte_func rte_instr_callback;             /* Called when a RTE instruction is encountered */
-	m68k_tas_func tas_instr_callback;             /* Called when a TAS instruction is encountered, allows / disallows writeback */
+	device_irq_acknowledge_delegate int_ack_callback;   /* Interrupt Acknowledge */
+	write32_delegate bkpt_ack_callback;                 /* Breakpoint Acknowledge */
+	write_line_delegate reset_instr_callback;           /* Called when a RESET instruction is encountered */
+	write32_delegate cmpild_instr_callback;             /* Called when a CMPI.L #v, Dn instruction is encountered */
+	write_line_delegate rte_instr_callback;             /* Called when a RTE instruction is encountered */
+	write8_delegate tas_write_callback;                 /* Called instead of normal write8 by the TAS instruction,
+                                                            allowing writeback to be disabled globally or selectively
+                                                            or other side effects to be implemented */
 
 	address_space *program;
-
 
 	/* Redirect memory calls */
 
@@ -295,6 +296,7 @@ public:
 		UINT16 read_immediate_16(offs_t address);
 		UINT16 simple_read_immediate_16(offs_t address);
 
+		void m68000_write_byte(offs_t address, UINT8 data);
 
 		UINT8 read_byte_32_mmu(offs_t address);
 		void write_byte_32_mmu(offs_t address, UINT8 data);
@@ -343,6 +345,7 @@ public:
 	UINT32 mmu_tt0, mmu_tt1;
 	UINT32 mmu_itt0, mmu_itt1, mmu_dtt0, mmu_dtt1;
 	UINT32 mmu_acr0, mmu_acr1, mmu_acr2, mmu_acr3;
+	UINT32 mmu_last_page_entry, mmu_last_page_entry_addr;
 
 	UINT16 mmu_tmp_sr;      /* temporary hack: status code for ptest and to handle write protection */
 	UINT16 mmu_tmp_fc;      /* temporary hack: function code for the mmu (moves) */
@@ -364,7 +367,7 @@ public:
 
 
 	/* external instruction hook (does not depend on debug mode) */
-	instruction_hook_t instruction_hook;
+	read32_delegate instruction_hook;
 
 
 
@@ -781,13 +784,5 @@ extern const device_type SCC68070;
 extern const device_type FSCPU32;
 extern const device_type MCF5206E;
 
-extern void m68k_set_reset_callback(m68000_base_device *device, m68k_reset_func callback);
-extern void m68k_set_cmpild_callback(m68000_base_device *device, m68k_cmpild_func callback);
-extern void m68k_set_rte_callback(m68000_base_device *device, m68k_rte_func callback);
-extern void m68k_set_tas_callback(m68000_base_device *device, m68k_tas_func callback);
-extern UINT16 m68k_get_fc(m68000_base_device *device);
-extern void m68k_set_encrypted_opcode_range(m68000_base_device *device, offs_t start, offs_t end);
-extern void m68k_set_hmmu_enable(m68000_base_device *device, int enable);
-extern void m68k_set_instruction_hook(m68000_base_device *device, instruction_hook_t ihook);
 
 #endif /* __M68000_H__ */

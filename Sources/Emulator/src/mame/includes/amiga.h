@@ -10,9 +10,16 @@ Ernesto Corvi & Mariusz Wojcieszek
 #ifndef __AMIGA_H__
 #define __AMIGA_H__
 
-#include "machine/6526cia.h"
-#include "machine/amigafdc.h"
 #include "cpu/m68000/m68000.h"
+#include "machine/bankdev.h"
+#include "bus/rs232/rs232.h"
+#include "bus/centronics/ctronics.h"
+#include "machine/mos6526.h"
+#include "machine/amigafdc.h"
+#include "machine/msm6242.h"
+#include "machine/akiko.h"
+#include "machine/i2cmem.h"
+#include "sound/amiga.h"
 
 
 /*************************************
@@ -247,6 +254,7 @@ Ernesto Corvi & Mariusz Wojcieszek
 #define REG_COLOR29     (0x1BA/2)   /* W    D    Color table 29 */
 #define REG_COLOR30     (0x1BC/2)   /* W    D    Color table 30 */
 #define REG_COLOR31     (0x1BE/2)   /* W    D    Color table 31 */
+#define REG_BEAMCON0    (0x1dc/2)   // W  A      Programmable signal generator (ECS Agnus)
 #define REG_DIWHIGH     (0x1E4/2)   /* W  A D    Display window upper bits for start/stop */
 #define REG_FMODE       (0x1FC/2)   /* W  A D    Fetch mode */
 
@@ -306,129 +314,70 @@ Ernesto Corvi & Mariusz Wojcieszek
 
 #define MAX_PLANES 6 /* 0 to 6, inclusive ( but we count from 0 to 5 ) */
 
-/* Clock speeds */
-#define AMIGA_68000_NTSC_CLOCK      XTAL_28_63636MHz/4
-#define AMIGA_68000_PAL_CLOCK       XTAL_28_37516MHz/4
-#define AMIGA_68EC020_NTSC_CLOCK    XTAL_28_63636MHz/2
-#define AMIGA_68EC020_PAL_CLOCK     XTAL_28_37516MHz/2
-#define CDTV_CLOCK_X1               XTAL_28_63636MHz
-#define CDTV_CLOCK_X5               XTAL_28_37516MHz
 
+// chipset
+#define IS_OCS(state)   (state->m_denise_id == 0xff)
+#define IS_ECS(state)   (state->m_denise_id == 0xfc)
+#define IS_AGA(state)   (state->m_denise_id == 0xf8)
 
-#define ANGUS_CHIP_RAM_MASK     0x07fffe
-#define FAT_ANGUS_CHIP_RAM_MASK 0x0ffffe
-#define ECS_CHIP_RAM_MASK       0x1ffffe
-#define AGA_CHIP_RAM_MASK       0x1ffffe
-
-#define FLAGS_AGA_CHIPSET   (1 << 0)
-#define FLAGS_IS_32BIT      (1 << 1)
-
-struct amiga_machine_interface
-{
-	UINT32 chip_ram_mask;
-
-	UINT16 (*joy0dat_r)(running_machine &machine);
-	UINT16 (*joy1dat_r)(running_machine &machine);
-	void (*potgo_w)(running_machine &machine, UINT16 data);
-
-	void (*serdat_w)(running_machine &machine, UINT16 data);
-
-	void (*scanline0_callback)(running_machine &machine);
-	void (*reset_callback)(running_machine &machine);
-	void (*nmi_callback)(running_machine &machine);
-
-	UINT32 flags;
-};
-
-#define IS_AGA(intf) ( intf->chip_ram_mask == AGA_CHIP_RAM_MASK && (( intf->flags & FLAGS_AGA_CHIPSET) != 0))
-#define IS_ECS(intf) ( intf->chip_ram_mask == ECS_CHIP_RAM_MASK && (( intf->flags & FLAGS_AGA_CHIPSET) == 0))
-#define IS_ECS_OR_AGA(intf) ( intf->chip_ram_mask == ECS_CHIP_RAM_MASK)
-#define IS_32BIT(intf) (( intf->flags & FLAGS_IS_32BIT) != 0)
-
-struct amiga_autoconfig_device
-{
-	UINT8       link_memory;        /* link into free memory list */
-	UINT8       rom_vector_valid;   /* ROM vector offset valid */
-	UINT8       multi_device;       /* multiple devices on card */
-	UINT8       size;               /* number of 64k pages */
-	UINT16      product_number;     /* product number */
-	UINT8       prefer_8meg;        /* prefer 8MB address space */
-	UINT8       can_shutup;         /* can be shut up */
-	UINT16      mfr_number;         /* manufacturers number */
-	UINT32      serial_number;      /* serial number */
-	UINT16      rom_vector;         /* ROM vector offset */
-	UINT8       (*int_control_r)(running_machine &machine); /* interrupt control read */
-	void        (*int_control_w)(running_machine &machine, UINT8 data); /* interrupt control write */
-	void        (*install)(running_machine &machine, offs_t base); /* memory installation */
-	void        (*uninstall)(running_machine &machine, offs_t base); /* memory uninstallation */
-};
-
-struct autoconfig_device
-{
-	autoconfig_device *     next;
-	amiga_autoconfig_device device;
-	offs_t                  base;
-};
-
-class amiga_sound_device;
 
 class amiga_state : public driver_device
 {
 public:
-	enum
-	{
-		TIMER_SCANLINE,
-		TIMER_AMIGA_IRQ,
-		TIMER_AMIGA_BLITTER,
-		TIMER_FINISH_SERIAL_WRITE
-	};
-
-	amiga_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu"), /* accelerator cards may present an interesting challenge because the maincpu will be the one on the card instead */
-			m_cia_0(*this, "cia_0"),
-			m_cia_1(*this, "cia_1"),
-			m_sound(*this, "amiga"),
-			m_fdc(*this, "fdc"),
-			m_chip_ram(*this, "chip_ram", 0),
-			m_custom_regs(*this, "custom_regs", 0),
-			m_joy0dat_port(*this, "JOY0DAT"),
-			m_joy1dat_port(*this, "JOY1DAT"),
-			m_potgo_port(*this, "POTGO"),
-			m_pot0dat_port(*this, "POT0DAT"),
-			m_pot1dat_port(*this, "POT1DAT"),
-			m_p1joy_port(*this, "P1JOY"),
-			m_p2joy_port(*this, "P2JOY"),
-			m_bank1(*this, "bank1")
-
+	amiga_state(const machine_config &mconfig, device_type type, const char *tag) :
+	driver_device(mconfig, type, tag),
+	m_chip_ram(*this, "chip_ram", 0),
+	m_custom_regs(*this, "custom_regs", 0),
+	m_agnus_id(AGNUS_NTSC),
+	m_denise_id(DENISE),
+	m_maincpu(*this, "maincpu"),
+	m_cia_0(*this, "cia_0"),
+	m_cia_1(*this, "cia_1"),
+	m_rs232(*this, "rs232"),
+	m_centronics(*this, "centronics"),
+	m_sound(*this, "amiga"),
+	m_fdc(*this, "fdc"),
+	m_screen(*this, "screen"),
+	m_palette(*this, "palette"),
+	m_overlay(*this, "overlay"),
+	m_kickstart(*this, "kickstart"),
+	m_input_device(*this, "input"),
+	m_joy0dat_port(*this, "joy_0_dat"),
+	m_joy1dat_port(*this, "joy_1_dat"),
+	m_potgo_port(*this, "potgo"),
+	m_pot0dat_port(*this, "POT0DAT"),
+	m_pot1dat_port(*this, "POT1DAT"),
+	m_p1joy_port(*this, "p1_joy"),
+	m_p2joy_port(*this, "p2_joy"),
+	m_p1_mouse_x(*this, "p1_mouse_x"),
+	m_p1_mouse_y(*this, "p1_mouse_y"),
+	m_p2_mouse_x(*this, "p2_mouse_x"),
+	m_p2_mouse_y(*this, "p2_mouse_y"),
+	m_chip_ram_mask(0),
+	m_chip_ram_mirror(0),
+	m_cia_0_irq(0),
+	m_cia_1_irq(0),
+	m_pot0x(0), m_pot1x(0), m_pot0y(0), m_pot1y(0),
+	m_pot0dat(0x0000),
+	m_pot1dat(0x0000),
+	m_centronics_busy(0),
+	m_centronics_perror(0),
+	m_centronics_select(0),
+	m_gayle_reset(false),
+	m_diw(),
+	m_diwhigh_valid(false),
+	m_previous_lof(true),
+	m_rx_shift(0),
+	m_tx_shift(0),
+	m_rx_state(0),
+	m_tx_state(0),
+	m_rx_previous(1)
 	{ }
 
-	required_device<m68000_base_device> m_maincpu;
-	required_device<legacy_mos6526_device> m_cia_0;
-	required_device<legacy_mos6526_device> m_cia_1;
-	required_device<amiga_sound_device> m_sound;
-	optional_device<amiga_fdc> m_fdc;
-	required_shared_ptr<UINT16> m_chip_ram;
+
 	UINT16 (*m_chip_ram_r)(amiga_state *state, offs_t offset);
 	void (*m_chip_ram_w)(amiga_state *state, offs_t offset, UINT16 data);
-	required_shared_ptr<UINT16> m_custom_regs;
 
-	optional_ioport m_joy0dat_port;
-	optional_ioport m_joy1dat_port;
-	optional_ioport m_potgo_port;
-	optional_ioport m_pot0dat_port;
-	optional_ioport m_pot1dat_port;
-	optional_ioport m_p1joy_port;
-	optional_ioport m_p2joy_port;
-	optional_memory_bank m_bank1;
-
-	address_space* m_maincpu_program_space;
-
-	const amiga_machine_interface *m_intf;
-	autoconfig_device *m_autoconfig_list;
-	autoconfig_device *m_cur_autoconfig;
-	emu_timer * m_irq_timer;
-	emu_timer * m_blitter_timer;
 
 	/* sprite states */
 	UINT8 m_sprite_comparitor_enable_mask;
@@ -452,7 +401,7 @@ public:
 
 	/* playfield states */
 	int m_last_scanline;
-	int m_ham_color;
+	rgb_t m_ham_color;
 
 	/* misc states */
 	UINT16 m_genlock_color;
@@ -462,49 +411,250 @@ public:
 
 	/* aga */
 	int m_aga_diwhigh_written;
-	pen_t m_aga_palette[256];
+	rgb_t m_aga_palette[256];
 	UINT64 m_aga_bpldat[8];
 	UINT16 m_aga_sprdata[8][4];
 	UINT16 m_aga_sprdatb[8][4];
 	int m_aga_sprite_fetched_words;
 	int m_aga_sprite_dma_used_words[8];
 
-	DECLARE_CUSTOM_INPUT_MEMBER( amiga_joystick_convert );
-	DECLARE_DRIVER_INIT(amiga);
-	DECLARE_DRIVER_INIT(cdtv);
-	DECLARE_DRIVER_INIT(a3000);
-	DECLARE_MACHINE_START(amiga);
-	DECLARE_MACHINE_RESET(amiga);
-	DECLARE_VIDEO_START(amiga);
-	DECLARE_PALETTE_INIT(amiga);
-	DECLARE_VIDEO_START(amiga_aga);
+	DECLARE_VIDEO_START( amiga );
+	DECLARE_VIDEO_START( amiga_aga );
+	DECLARE_PALETTE_INIT( amiga );
+
+	void render_scanline(bitmap_ind16 &bitmap, int scanline);
+	void aga_render_scanline(bitmap_rgb32 &bitmap, int scanline);
 	UINT32 screen_update_amiga(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_amiga_aga(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	TIMER_CALLBACK_MEMBER(scanline_callback);
-	TIMER_CALLBACK_MEMBER(amiga_irq_proc);
-	TIMER_CALLBACK_MEMBER(amiga_blitter_proc);
-	TIMER_CALLBACK_MEMBER(finish_serial_write);
-	DECLARE_WRITE_LINE_MEMBER(amiga_cia_0_irq);
-	DECLARE_WRITE_LINE_MEMBER(amiga_cia_1_irq);
+	void update_screenmode();
 
+	TIMER_CALLBACK_MEMBER( scanline_callback );
+	TIMER_CALLBACK_MEMBER (amiga_irq_proc );
+	TIMER_CALLBACK_MEMBER( amiga_blitter_proc );
+	void update_irqs();
 
+	DECLARE_CUSTOM_INPUT_MEMBER( amiga_joystick_convert );
+	DECLARE_CUSTOM_INPUT_MEMBER( floppy_drive_status );
 
-	DECLARE_READ16_MEMBER( amiga_custom_r );
-	DECLARE_WRITE16_MEMBER( amiga_custom_w );
+	DECLARE_WRITE_LINE_MEMBER( m68k_reset );
 
-	DECLARE_READ16_MEMBER( amiga_autoconfig_r );
-	DECLARE_WRITE16_MEMBER( amiga_autoconfig_w );
+	DECLARE_READ16_MEMBER( cia_r );
+	DECLARE_WRITE16_MEMBER( cia_w );
+	DECLARE_WRITE16_MEMBER( gayle_cia_w );
+	DECLARE_WRITE8_MEMBER( cia_0_port_a_write );
+	DECLARE_WRITE_LINE_MEMBER( cia_0_irq );
+	DECLARE_READ8_MEMBER( cia_1_port_a_read );
+	DECLARE_WRITE8_MEMBER( cia_1_port_a_write );
+	DECLARE_WRITE_LINE_MEMBER( cia_1_irq );
 
-	DECLARE_READ16_MEMBER( amiga_cia_r );
-	DECLARE_WRITE16_MEMBER( amiga_cia_w );
-	// action replay
-	DECLARE_READ16_MEMBER( amiga_ar23_cia_r );
-	DECLARE_READ16_MEMBER( amiga_ar23_mode_r );
-	DECLARE_WRITE16_MEMBER( amiga_ar23_mode_w );
-	void amiga_ar23_init( running_machine &machine, int ar3 );
+	DECLARE_WRITE_LINE_MEMBER( rs232_rx_w );
+	DECLARE_WRITE_LINE_MEMBER( rs232_dcd_w );
+	DECLARE_WRITE_LINE_MEMBER( rs232_dsr_w );
+	DECLARE_WRITE_LINE_MEMBER( rs232_ri_w );
+	DECLARE_WRITE_LINE_MEMBER( rs232_cts_w );
+
+	DECLARE_WRITE_LINE_MEMBER( centronics_ack_w );
+	DECLARE_WRITE_LINE_MEMBER( centronics_busy_w );
+	DECLARE_WRITE_LINE_MEMBER( centronics_perror_w );
+	DECLARE_WRITE_LINE_MEMBER( centronics_select_w );
+
+	DECLARE_READ16_MEMBER( custom_chip_r );
+	DECLARE_WRITE16_MEMBER( custom_chip_w );
+
+	DECLARE_READ16_MEMBER( rom_mirror_r );
+	DECLARE_READ32_MEMBER( rom_mirror32_r );
+
+	// standard clocks
+	static const int CLK_28M_PAL = XTAL_28_37516MHz;
+	static const int CLK_7M_PAL = CLK_28M_PAL / 4;
+	static const int CLK_C1_PAL = CLK_28M_PAL / 8;
+	static const int CLK_E_PAL = CLK_7M_PAL / 10;
+
+	static const int CLK_28M_NTSC = XTAL_28_63636MHz;
+	static const int CLK_7M_NTSC = CLK_28M_NTSC / 4;
+	static const int CLK_C1_NTSC = CLK_28M_NTSC / 8;
+	static const int CLK_E_NTSC = CLK_7M_NTSC / 10;
+
+	// screen layout
+	enum
+	{
+		SCREEN_WIDTH = 910,
+		SCREEN_HEIGHT_PAL = 625,
+		SCREEN_HEIGHT_NTSC = 525,
+		VBLANK_PAL = 58, // 52
+		VBLANK_NTSC = 42,
+		HBLANK = 186
+	};
+
+	required_shared_ptr<UINT16> m_chip_ram;
+	required_shared_ptr<UINT16> m_custom_regs;
+
+	emu_timer *m_blitter_timer;
+
+	UINT16 m_agnus_id;
+	UINT16 m_denise_id;
+
+	void custom_chip_w(UINT16 offset, UINT16 data, UINT16 mem_mask = 0xffff)
+	{
+		custom_chip_w(m_maincpu->space(AS_PROGRAM), offset, data, mem_mask);
+	}
 
 protected:
+	// agnus/alice chip id
+	enum
+	{
+		AGNUS_PAL         = 0x00,
+		AGNUS_NTSC        = 0x10,
+		AGNUS_HR_PAL      = 0x20,
+		AGNUS_HR_PAL_NEW  = 0x21,
+		AGNUS_HR_NTSC     = 0x30,
+		AGNUS_HR_NTSC_NEW = 0x31,
+		ALICE_PAL         = 0x22,
+		ALICE_PAL_NEW     = 0x23,
+		ALICE_NTSC        = 0x32,
+		ALICE_NTSC_NEW    = 0x33
+	};
+
+	// denise/lisa chip id
+	enum
+	{
+		DENISE    = 0xffff, // actually this register doesn't exist on ocs
+		DENISE_HR = 0x00fc,
+		LISA      = 0x00f8
+	};
+
+	// driver_device overrides
+	virtual void machine_start();
+	virtual void machine_reset();
+
+	// device_t overrides
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+
+	void custom_chip_reset();
+
+	// interrupts
+	void set_interrupt(int interrupt);
+	virtual void update_int2();
+	virtual void update_int6();
+
+	virtual void vblank();
+
+	virtual void potgo_w(UINT16 data) {};
+
+	// joystick/mouse
+	virtual UINT16 joy0dat_r();
+	virtual UINT16 joy1dat_r();
+
+	// serial
+	virtual void rs232_tx(int state);
+
+	// devices
+	required_device<m68000_base_device> m_maincpu;
+	required_device<mos8520_device> m_cia_0;
+	required_device<mos8520_device> m_cia_1;
+	optional_device<rs232_port_device> m_rs232;
+	optional_device<centronics_device> m_centronics;
+	required_device<amiga_sound_device> m_sound;
+	optional_device<amiga_fdc> m_fdc;
+	required_device<screen_device> m_screen;
+	optional_device<palette_device> m_palette;
+	required_device<address_map_bank_device> m_overlay;
+
+	optional_memory_region m_kickstart;
+
+	// i/o ports
+	optional_ioport m_input_device;
+	optional_ioport m_joy0dat_port;
+	optional_ioport m_joy1dat_port;
+	optional_ioport m_potgo_port;
+	optional_ioport m_pot0dat_port;
+	optional_ioport m_pot1dat_port;
+	optional_ioport m_p1joy_port;
+	optional_ioport m_p2joy_port;
+	optional_ioport m_p1_mouse_x;
+	optional_ioport m_p1_mouse_y;
+	optional_ioport m_p2_mouse_x;
+	optional_ioport m_p2_mouse_y;
+
+	UINT32 m_chip_ram_mask;
+	UINT32 m_chip_ram_mirror;
+
+	int m_cia_0_irq;
+	int m_cia_1_irq;
+
+private:
+	enum
+	{
+		TIMER_SCANLINE,
+		TIMER_AMIGA_IRQ,
+		TIMER_AMIGA_BLITTER,
+		TIMER_SERIAL
+	};
+
+	enum
+	{
+		VPOSR_LOF = 0x8000  // long frame
+	};
+
+	enum
+	{
+		ADKCON_UARTBRK = 0x800  // send break
+	};
+
+	// serial port flags
+	enum
+	{
+		SERDATR_RXD   = 0x0800, // serial data
+		SERDATR_TSRE  = 0x1000, // transmit ready
+		SERDATR_TBE   = 0x2000, // transmit buffer empty
+		SERDATR_RBF   = 0x4000, // receive buffer full
+		SERDATR_OVRUN = 0x8000  // receive buffer overrun
+	};
+
+	enum
+	{
+		SERPER_LONG = 0x8000    // 9-bit mode
+	};
+
+	// pot counters
+	int m_pot0x, m_pot1x, m_pot0y, m_pot1y;
+
+	UINT16 m_pot0dat;
+	UINT16 m_pot1dat;
+
+	int m_centronics_busy;
+	int m_centronics_perror;
+	int m_centronics_select;
+
+	emu_timer *m_irq_timer;
+	emu_timer *m_serial_timer;
+
+	bool m_gayle_reset;
+
+	// display window
+	rectangle m_diw;
+	bool m_diwhigh_valid;
+	void update_display_window();
+
+	bool m_previous_lof;
+	bitmap_ind16 m_flickerfixer;
+	bitmap_ind32 m_flickerfixer32;
+
+	UINT16 m_rx_shift;
+	UINT16 m_tx_shift;
+
+	int m_rx_state;
+	int m_tx_state;
+	int m_rx_previous;
+
+	int m_rs232_dcd;
+	int m_rs232_dsr;
+	int m_rs232_ri;
+	int m_rs232_cts;
+
+	void serial_adjust();
+	void serial_shift();
+	void rx_write(amiga_state *state, int level);
 };
 
 
@@ -514,61 +664,6 @@ extern const char *const amiga_custom_names[0x100];
 
 void amiga_chip_ram_w8(amiga_state *state, offs_t offset, UINT8 data);
 
-void amiga_machine_config(running_machine &machine, const amiga_machine_interface *intf);
-
-
-
-
-
-
-void amiga_serial_in_w(running_machine &machine, UINT16 data);
-attotime amiga_get_serial_char_period(running_machine &machine);
-
-void amiga_add_autoconfig(running_machine &machine, const amiga_autoconfig_device *device);
-
-const amiga_machine_interface *amiga_get_interface(running_machine &machine);
-
-
-/*----------- defined in audio/amiga.c -----------*/
-
-struct audio_channel
-{
-	emu_timer * irq_timer;
-	UINT32          curlocation;
-	UINT16          curlength;
-	UINT16          curticks;
-	UINT8           index;
-	UINT8           dmaenabled;
-	UINT8           manualmode;
-	INT8            latched;
-};
-
-class amiga_sound_device : public device_t,
-									public device_sound_interface
-{
-public:
-	amiga_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	~amiga_sound_device() {}
-
-	void update();
-	void data_w(int which, UINT16 data);
-
-protected:
-	// device-level overrides
-	virtual void device_config_complete();
-	virtual void device_start();
-
-	// sound stream update overrides
-	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
-private:
-	// internal state
-	audio_channel   m_channel[4];
-	sound_stream *  m_stream;
-
-	TIMER_CALLBACK_MEMBER( signal_irq );
-};
-
-extern const device_type AMIGA;
 
 /*----------- defined in video/amiga.c -----------*/
 
@@ -579,14 +674,14 @@ int amiga_copper_execute_next(running_machine &machine, int xpos);
 
 UINT32 amiga_gethvpos(screen_device &screen);
 void amiga_set_genlock_color(running_machine &machine, UINT16 color);
-void amiga_render_scanline(running_machine &machine, bitmap_ind16 &bitmap, int scanline);
 void amiga_sprite_dma_reset(running_machine &machine, int which);
 void amiga_sprite_enable_comparitor(running_machine &machine, int which, int enable);
 
+MACHINE_CONFIG_EXTERN( pal_video );
+MACHINE_CONFIG_EXTERN( ntsc_video );
+
 /*----------- defined in video/amigaaga.c -----------*/
 
-void amiga_aga_render_scanline(running_machine &machine, bitmap_rgb32 &bitmap, int scanline);
 void amiga_aga_palette_write(running_machine &machine, int color_reg, UINT16 data);
-void amiga_aga_diwhigh_written(running_machine &machine, int written);
 
 #endif /* __AMIGA_H__ */

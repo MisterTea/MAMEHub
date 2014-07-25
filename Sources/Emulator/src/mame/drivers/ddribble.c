@@ -12,7 +12,6 @@
 #include "emu.h"
 #include "cpu/m6809/m6809.h"
 #include "sound/2203intf.h"
-#include "sound/flt_rc.h"
 #include "includes/konamipt.h"
 #include "includes/ddribble.h"
 
@@ -32,7 +31,7 @@ INTERRUPT_GEN_MEMBER(ddribble_state::ddribble_interrupt_1)
 
 WRITE8_MEMBER(ddribble_state::ddribble_bankswitch_w)
 {
-	membank("bank1")->set_entry(data & 0x0f);
+	membank("bank1")->set_entry(data & 0x07);
 }
 
 
@@ -95,20 +94,20 @@ WRITE8_MEMBER(ddribble_state::ddribble_vlm5030_ctrl_w)
 	m_vlm->set_rom(&SPEECH_ROM[data & 0x08 ? 0x10000 : 0]);
 
 	/* b2 : SSG-C rc filter enable */
-	dynamic_cast<filter_rc_device*>(m_filter3)->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x04 ? CAP_N(150) : 0); /* YM2203-SSG-C */
+	m_filter3->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x04 ? CAP_N(150) : 0); /* YM2203-SSG-C */
 
 	/* b1 : SSG-B rc filter enable */
-	dynamic_cast<filter_rc_device*>(m_filter2)->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x02 ? CAP_N(150) : 0); /* YM2203-SSG-B */
+	m_filter2->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x02 ? CAP_N(150) : 0); /* YM2203-SSG-B */
 
 	/* b0 : SSG-A rc filter enable */
-	dynamic_cast<filter_rc_device*>(m_filter1)->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x01 ? CAP_N(150) : 0); /* YM2203-SSG-A */
+	m_filter1->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x01 ? CAP_N(150) : 0); /* YM2203-SSG-A */
 }
 
 
 static ADDRESS_MAP_START( cpu0_map, AS_PROGRAM, 8, ddribble_state )
 	AM_RANGE(0x0000, 0x0004) AM_WRITE(K005885_0_w)                                              /* video registers (005885 #1) */
 	AM_RANGE(0x0800, 0x0804) AM_WRITE(K005885_1_w)                                              /* video registers (005885 #2) */
-	AM_RANGE(0x1800, 0x187f) AM_RAM AM_SHARE("paletteram")                                      /* palette */
+	AM_RANGE(0x1800, 0x187f) AM_RAM_DEVWRITE("palette", palette_device, write_indirect) AM_SHARE("palette")  /* palette */
 	AM_RANGE(0x2000, 0x2fff) AM_RAM_WRITE(ddribble_fg_videoram_w) AM_SHARE("fg_videoram")   /* Video RAM 1 */
 	AM_RANGE(0x3000, 0x3fff) AM_RAM AM_SHARE("spriteram_1")                             /* Object RAM 1 */
 	AM_RANGE(0x4000, 0x5fff) AM_RAM AM_SHARE("sharedram")                                   /* shared RAM with CPU #1 */
@@ -220,31 +219,10 @@ static GFXDECODE_START( ddribble )
 	GFXDECODE_ENTRY( "gfx2", 0x40000, spritelayout,  64, 16 )   /* colors  0-15 but using lookup table */
 GFXDECODE_END
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(ddribble_state,ddribble_vlm5030_busy_r),
-	DEVCB_DRIVER_MEMBER(ddribble_state,ddribble_vlm5030_ctrl_w),
-	DEVCB_NULL
-};
-
-static const vlm5030_interface vlm5030_config =
-{
-	0x10000     /* memory size 64Kbyte * 2 bank */
-};
-
-
 
 void ddribble_state::machine_start()
 {
-	UINT8 *ROM = memregion("maincpu")->base();
-	membank("bank1")->configure_entries(0, 5, &ROM[0x10000], 0x2000);
-
-	m_filter1 = machine().device("filter1");
-	m_filter2 = machine().device("filter2");
-	m_filter3 = machine().device("filter3");
+	membank("bank1")->configure_entries(0, 8, memregion("maincpu")->base(), 0x2000);
 
 	save_item(NAME(m_int_enable_0));
 	save_item(NAME(m_int_enable_1));
@@ -295,23 +273,26 @@ static MACHINE_CONFIG_START( ddribble, ddribble_state )
 /*  MCFG_SCREEN_SIZE(64*8, 32*8)
     MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 2*8, 30*8-1) */
 	MCFG_SCREEN_UPDATE_DRIVER(ddribble_state, screen_update_ddribble)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ddribble)
-	MCFG_PALETTE_LENGTH(64 + 256)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ddribble)
+	MCFG_PALETTE_ADD("palette", 64 + 256)
+	MCFG_PALETTE_INDIRECT_ENTRIES(64)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	MCFG_PALETTE_INIT_OWNER(ddribble_state, ddribble)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_3_579545MHz) /* verified on pcb */
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_B_READ_CB(READ8(ddribble_state, ddribble_vlm5030_busy_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(ddribble_state, ddribble_vlm5030_ctrl_w))
 	MCFG_SOUND_ROUTE(0, "filter1", 0.25)
 	MCFG_SOUND_ROUTE(1, "filter2", 0.25)
 	MCFG_SOUND_ROUTE(2, "filter3", 0.25)
 	MCFG_SOUND_ROUTE(3, "mono", 0.25)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, XTAL_3_579545MHz) /* verified on pcb */
-	MCFG_SOUND_CONFIG(vlm5030_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_FILTER_RC_ADD("filter1", 0)
@@ -324,9 +305,8 @@ MACHINE_CONFIG_END
 
 
 ROM_START( ddribble )
-	ROM_REGION( 0x1a000, "maincpu", 0 ) /* 64K CPU #0 + 40K for Banked ROMS */
-	ROM_LOAD( "690c03.bin", 0x10000, 0x0a000, CRC(07975a58) SHA1(96fd1b2348bbdf560067d8ee3cd4c0514e263d7a) )
-	ROM_CONTINUE(           0x0a000, 0x06000 )
+	ROM_REGION( 0x10000, "maincpu", 0 ) /* 64K for the CPU #0 */
+	ROM_LOAD( "690c03.bin", 0x00000, 0x10000, CRC(07975a58) SHA1(96fd1b2348bbdf560067d8ee3cd4c0514e263d7a) )
 
 	ROM_REGION( 0x10000, "cpu1", 0 ) /* 64 for the CPU #1 */
 	ROM_LOAD( "690c02.bin", 0x08000, 0x08000, CRC(f07c030a) SHA1(db96a10f8bb657bf285266db9e775fa6af82f38c) )
@@ -355,9 +335,8 @@ ROM_START( ddribble )
 ROM_END
 
 ROM_START( ddribblep )
-	ROM_REGION( 0x1a000, "maincpu", 0 ) /* 64K CPU #0 + 40K for Banked ROMS */
-	ROM_LOAD( "ebs_11-19.c19",  0x10000, 0x0a000, CRC(0a81c926) SHA1(1ecd30f0d352cf6c96d246bb443b5a6738624b9b) )
-	ROM_CONTINUE(           0x0a000, 0x06000 )
+	ROM_REGION( 0x10000, "maincpu", 0 ) /* 64K for the CPU #0 */
+	ROM_LOAD( "ebs_11-19.c19",  0x00000, 0x10000, CRC(0a81c926) SHA1(1ecd30f0d352cf6c96d246bb443b5a6738624b9b) )
 
 	ROM_REGION( 0x10000, "cpu1", 0 ) /* 64 for the CPU #1 */
 	ROM_LOAD( "eb_11-19.c12", 0x08000, 0x08000, CRC(22130292) SHA1(a5f9bf3f63ff85d171f096867433513419458b0e) )

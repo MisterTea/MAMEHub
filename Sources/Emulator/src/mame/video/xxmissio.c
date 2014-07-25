@@ -41,11 +41,6 @@ READ8_MEMBER(xxmissio_state::xxmissio_bgram_r)
 	return m_bgram[offset];
 }
 
-WRITE8_MEMBER(xxmissio_state::xxmissio_paletteram_w)
-{
-	paletteram_BBGGRRII_byte_w(space,offset,data);
-}
-
 /****************************************************************************/
 
 TILE_GET_INFO_MEMBER(xxmissio_state::get_bg_tile_info)
@@ -66,8 +61,8 @@ TILE_GET_INFO_MEMBER(xxmissio_state::get_fg_tile_info)
 
 void xxmissio_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(xxmissio_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 8, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(xxmissio_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(xxmissio_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(xxmissio_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 8, 32, 32);
 
 	m_bg_tilemap->set_scroll_cols(1);
 	m_bg_tilemap->set_scroll_rows(1);
@@ -110,14 +105,14 @@ void xxmissio_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 
 		px &= 0x1ff;
 
-		drawgfx_transpen(bitmap,cliprect,gfx,
+		gfx->transpen(bitmap,cliprect,
 			chr,
 			col,
 			fx,fy,
 			px,py,0);
 
 		if (px>0x1e0)
-			drawgfx_transpen(bitmap,cliprect,gfx,
+			gfx->transpen(bitmap,cliprect,
 				chr,
 				col,
 				fx,fy,
@@ -136,7 +131,7 @@ UINT32 xxmissio_state::screen_update_xxmissio(screen_device &screen, bitmap_ind1
 	m_bg_tilemap->set_scrolly(0, m_yscroll);
 
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
-	draw_sprites(bitmap, cliprect, machine().gfx[1]);
+	draw_sprites(bitmap, cliprect, m_gfxdecode->gfx(1));
 	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	return 0;

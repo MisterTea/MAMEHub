@@ -73,7 +73,7 @@ static ADDRESS_MAP_START( contra_map, AS_PROGRAM, 8, contra_state )
 	AM_RANGE(0x001e, 0x001e) AM_WRITENOP    /* ? */
 	AM_RANGE(0x0060, 0x0067) AM_WRITE(contra_K007121_ctrl_1_w)
 
-	AM_RANGE(0x0c00, 0x0cff) AM_RAM AM_SHARE("paletteram")
+	AM_RANGE(0x0c00, 0x0cff) AM_RAM_DEVWRITE("palette", palette_device, write_indirect) AM_SHARE("palette")
 
 	AM_RANGE(0x1000, 0x1fff) AM_RAM
 
@@ -201,13 +201,20 @@ static MACHINE_CONFIG_START( contra, contra_state )
 	MCFG_SCREEN_SIZE(37*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 35*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(contra_state, screen_update_contra)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(contra)
-	MCFG_PALETTE_LENGTH(2*8*16*16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", contra)
 
+	MCFG_PALETTE_ADD("palette", 2*8*16*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(128)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_LITTLE)
+	MCFG_PALETTE_INIT_OWNER(contra_state, contra)
 
 	MCFG_K007121_ADD("k007121_1")
+	MCFG_K007121_PALETTE("palette")
 	MCFG_K007121_ADD("k007121_2")
+	MCFG_K007121_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

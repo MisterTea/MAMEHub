@@ -286,6 +286,10 @@ public:
 	// construction/destruction
 	ygv608_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
+	// static configuration
+	static void static_set_gfxdecode_tag(device_t &device, const char *tag);
+	static void static_set_palette_tag(device_t &device, const char *tag);
+
 	DECLARE_WRITE16_MEMBER( write );
 	DECLARE_READ16_MEMBER( read );
 
@@ -319,7 +323,7 @@ private:
 	tilemap_t *m_tilemap_B_cache_16[3];
 	tilemap_t *m_tilemap_A;
 	tilemap_t *m_tilemap_B;
-	bitmap_ind16 *m_work_bitmap;
+	bitmap_ind16 m_work_bitmap;
 
 	void HandleYGV608Reset();
 	void HandleRomTransfers();
@@ -370,6 +374,8 @@ private:
 
 	UINT8 m_screen_resize;  // screen requires resize
 	UINT8 m_tilemap_resize; // tilemap requires resize
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 // device type definition
@@ -383,5 +389,10 @@ extern const device_type YGV608;
 #define MCFG_YGV608_ADD(_tag) \
 	MCFG_DEVICE_ADD(_tag, YGV608, 0)
 
+#define MCFG_YGV608_GFXDECODE(_gfxtag) \
+	ygv608_device::static_set_gfxdecode_tag(*device, "^" _gfxtag);
+
+#define MCFG_YGV608_PALETTE(_palette_tag) \
+	ygv608_device::static_set_palette_tag(*device, "^" _palette_tag);
 
 #endif

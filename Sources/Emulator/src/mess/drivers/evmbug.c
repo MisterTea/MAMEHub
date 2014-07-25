@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
         Stuart's Breadboard Project. TMS9995 evaluation kit TMAM6095.
@@ -10,20 +12,23 @@
 ****************************************************************************/
 
 #include "emu.h"
-#include "cpu/tms9900/tms9900l.h"
+#include "cpu/tms9900/tms9995.h"
 #include "machine/terminal.h"
+
+#define TERMINAL_TAG "terminal"
 
 class evmbug_state : public driver_device
 {
 public:
 	evmbug_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_maincpu(*this, "maincpu")
-		, m_terminal(*this, TERMINAL_TAG)
-		{ }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
-	DECLARE_READ8_HANDLER(rs232_r);
-	DECLARE_WRITE8_HANDLER(rs232_w);
+	DECLARE_READ8_MEMBER(rs232_r);
+	DECLARE_WRITE8_MEMBER(rs232_w);
 	DECLARE_WRITE8_MEMBER(kbd_put);
 	virtual void machine_reset();
 	UINT8 m_term_data;
@@ -80,34 +85,22 @@ WRITE8_MEMBER( evmbug_state::kbd_put )
 	m_term_data = data;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(evmbug_state, kbd_put)
-};
-
-
 void evmbug_state::machine_reset()
 {
 	m_term_data = 0;
+	// Disable auto wait state generation by raising the READY line on reset
+	static_cast<tms9995_device*>(machine().device("maincpu"))->set_ready(ASSERT_LINE);
 }
 
-static const struct tms9995reset_param evmbug_processor_config =
-{
-	0,  /* disable automatic wait state generation */
-	0,  /* no IDLE callback */
-	0   /* no MP9537 mask */
-};
-
 static MACHINE_CONFIG_START( evmbug, evmbug_state )
-	/* basic machine hardware */
-	/* TMS9995 CPU @ 12.0 MHz */
-	MCFG_CPU_ADD("maincpu", TMS9995L, 12000000)
-	MCFG_CPU_CONFIG(evmbug_processor_config)
-	MCFG_CPU_PROGRAM_MAP(evmbug_mem)
-	MCFG_CPU_IO_MAP(evmbug_io)
+	// basic machine hardware
+	// TMS9995 CPU @ 12.0 MHz
+	// We have no lines connected yet
+	MCFG_TMS99xx_ADD("maincpu", TMS9995, 12000000, evmbug_mem, evmbug_io )
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(evmbug_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

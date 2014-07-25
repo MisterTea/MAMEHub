@@ -51,7 +51,14 @@ const device_type PC080SN = &device_creator<pc080sn_device>;
 
 pc080sn_device::pc080sn_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, PC080SN, "Taito PC080SN", tag, owner, clock, "pc080sn", __FILE__),
-	m_ram(NULL)
+	m_ram(NULL),
+	m_gfxnum(0),
+	m_x_offset(0),
+	m_y_offset(0),
+	m_y_invert(0),
+	m_dblwidth(0),
+	m_gfxdecode(*this),
+	m_palette(*this)
 	//m_bg_ram[0](NULL),
 	//m_bg_ram[1](NULL),
 	//m_bgscroll_ram[0](NULL),
@@ -60,22 +67,23 @@ pc080sn_device::pc080sn_device(const machine_config &mconfig, const char *tag, d
 }
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
 //-------------------------------------------------
 
-void pc080sn_device::device_config_complete()
+void pc080sn_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
 {
-	// inherit a copy of the static data
-	const pc080sn_interface *intf = reinterpret_cast<const pc080sn_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<pc080sn_interface *>(this) = *intf;
+	downcast<pc080sn_device &>(device).m_gfxdecode.set_tag(tag);
+}
 
-	// or initialize to defaults if none provided
-	else
-	{
-	}
+//-------------------------------------------------
+//  static_set_palette_tag: Set the tag of the
+//  palette device
+//-------------------------------------------------
+
+void pc080sn_device::static_set_palette_tag(device_t &device, const char *tag)
+{
+	downcast<pc080sn_device &>(device).m_palette.set_tag(tag);
 }
 
 //-------------------------------------------------
@@ -84,16 +92,19 @@ void pc080sn_device::device_config_complete()
 
 void pc080sn_device::device_start()
 {
+	if(!m_gfxdecode->started())
+		throw device_missing_dependencies();
+
 	/* use the given gfx set for bg tiles */
 	if (!m_dblwidth) /* standard tilemaps */
 	{
-		m_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pc080sn_device::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
-		m_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pc080sn_device::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+		m_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pc080sn_device::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+		m_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pc080sn_device::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 	}
 	else    /* double width tilemaps */
 	{
-		m_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pc080sn_device::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
-		m_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pc080sn_device::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
+		m_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pc080sn_device::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
+		m_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pc080sn_device::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
 	}
 
 	m_tilemap[0]->set_transparent_pen(0);
@@ -142,8 +153,7 @@ void pc080sn_device::common_get_pc080sn_bg_tile_info( tile_data &tileinfo, int t
 		attr = ram[tile_index];
 	}
 
-	SET_TILE_INFO_MEMBER(
-			gfxnum,
+	SET_TILE_INFO_MEMBER(gfxnum,
 			code,
 			(attr & 0x1ff),
 			TILE_FLIPYX((attr & 0xc000) >> 14));
@@ -169,8 +179,7 @@ void pc080sn_device::common_get_pc080sn_fg_tile_info( tile_data &tileinfo, int t
 		attr = ram[tile_index];
 	}
 
-	SET_TILE_INFO_MEMBER(
-			gfxnum,
+	SET_TILE_INFO_MEMBER(gfxnum,
 			code,
 			(attr & 0x1ff),
 			TILE_FLIPYX((attr & 0xc000) >> 14));

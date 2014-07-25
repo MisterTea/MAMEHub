@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Grull Osgo
 /************************************************************************************
 
 California Chase (c) 1999 The Game Room
@@ -162,7 +164,7 @@ public:
 static UINT8 mxtc_config_r(device_t *busdevice, device_t *device, int function, int reg)
 {
 	calchase_state *state = busdevice->machine().driver_data<calchase_state>();
-//  mame_printf_debug("MXTC: read %d, %02X\n", function, reg);
+//  osd_printf_debug("MXTC: read %d, %02X\n", function, reg);
 
 	return state->m_mxtc_config_reg[reg];
 }
@@ -170,7 +172,7 @@ static UINT8 mxtc_config_r(device_t *busdevice, device_t *device, int function, 
 static void mxtc_config_w(device_t *busdevice, device_t *device, int function, int reg, UINT8 data)
 {
 	calchase_state *state = busdevice->machine().driver_data<calchase_state>();
-//  mame_printf_debug("%s:MXTC: write %d, %02X, %02X\n", machine.describe_context(), function, reg, data);
+//  osd_printf_debug("%s:MXTC: write %d, %02X, %02X\n", machine.describe_context(), function, reg, data);
 
 	/*
 	memory banking with North Bridge:
@@ -259,14 +261,14 @@ static void intel82439tx_pci_w(device_t *busdevice, device_t *device, int functi
 static UINT8 piix4_config_r(device_t *busdevice, device_t *device, int function, int reg)
 {
 	calchase_state *state = busdevice->machine().driver_data<calchase_state>();
-//  mame_printf_debug("PIIX4: read %d, %02X\n", function, reg);
+//  osd_printf_debug("PIIX4: read %d, %02X\n", function, reg);
 	return state->m_piix4_config_reg[function][reg];
 }
 
 static void piix4_config_w(device_t *busdevice, device_t *device, int function, int reg, UINT8 data)
 {
 	calchase_state *state = busdevice->machine().driver_data<calchase_state>();
-//  mame_printf_debug("%s:PIIX4: write %d, %02X, %02X\n", machine.describe_context(), function, reg, data);
+//  osd_printf_debug("%s:PIIX4: write %d, %02X, %02X\n", machine.describe_context(), function, reg, data);
 	state->m_piix4_config_reg[function][reg] = data;
 }
 
@@ -626,8 +628,6 @@ void calchase_state::machine_start()
 {
 	m_bios_ram = auto_alloc_array(machine(), UINT32, 0x10000/4);
 	m_bios_ext_ram = auto_alloc_array(machine(), UINT32, 0x10000/4);
-
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(calchase_state::irq_callback),this));
 }
 
 void calchase_state::machine_reset()
@@ -641,6 +641,7 @@ static MACHINE_CONFIG_START( calchase, calchase_state )
 	MCFG_CPU_ADD("maincpu", PENTIUM, 133000000) // Cyrix 686MX-PR200 CPU
 	MCFG_CPU_PROGRAM_MAP(calchase_map)
 	MCFG_CPU_IO_MAP(calchase_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_1", pic8259_device, inta_cb)
 
 	MCFG_FRAGMENT_ADD( pcat_common )
 

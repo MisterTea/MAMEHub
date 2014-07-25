@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:hap, Mariusz Wojcieszek
 /* Brazilian bootleg board from 1989. Forte II Games, Industria Brasileira.
 MAME driver by Mariusz Wojcieszek & hap, based on information from Alexandre.
 
@@ -57,11 +59,8 @@ static ADDRESS_MAP_START( io_mem, AS_IO, 8, forte2_state )
 	AM_RANGE(0x99, 0x99) AM_DEVREADWRITE( "tms9928a", tms9928a_device, register_read, register_write )
 	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0xa2, 0xa2) AM_DEVREAD("aysnd", ay8910_device, data_r)
-
-/* Ports a8-ab are originally for communicating with the i8255 PPI on MSX.
-Since this arcade board doesn't have one, those ports should be unmapped. */
-//  AM_RANGE(0xa8, 0xa8) AM_RAM
-//  AM_RANGE(0xa9, 0xab) AM_NOP
+//  AM_RANGE(0xa8, 0xa8) AM_RAM // Ports a8-ab are originally for communicating with the i8255 PPI on MSX.
+//  AM_RANGE(0xa9, 0xab) AM_NOP // Since this arcade board doesn't have one, those ports should be unmapped.
 ADDRESS_MAP_END
 
 static INPUT_PORTS_START( pesadelo )
@@ -88,27 +87,10 @@ WRITE8_MEMBER(forte2_state::forte2_ay8910_set_input_mask)
 	m_input_mask = data;
 }
 
-static const ay8910_interface forte2_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(forte2_state,forte2_ay8910_read_input),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(forte2_state,forte2_ay8910_set_input_mask)
-};
-
-
 WRITE_LINE_MEMBER(forte2_state::vdp_interrupt)
 {
 	m_maincpu->set_input_line(0, (state ? HOLD_LINE : CLEAR_LINE));
 }
-
-static TMS9928A_INTERFACE(forte2_tms9928a_interface)
-{
-	0x4000,
-	DEVCB_DRIVER_LINE_MEMBER(forte2_state,vdp_interrupt)
-};
 
 void forte2_state::machine_reset()
 {
@@ -124,20 +106,23 @@ void forte2_state::machine_start()
 
 static MACHINE_CONFIG_START( pesadelo, forte2_state )
 
+	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_3_579545MHz)
 	MCFG_CPU_PROGRAM_MAP(program_mem)
 	MCFG_CPU_IO_MAP(io_mem)
 
-
 	/* video hardware */
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9928A, forte2_tms9928a_interface )
+	MCFG_DEVICE_ADD( "tms9928a", TMS9928A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(forte2_state, vdp_interrupt))
 	MCFG_TMS9928A_SCREEN_ADD_NTSC( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9928a_device, screen_update )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("aysnd", AY8910, (float)XTAL_3_579545MHz/2)
-	MCFG_SOUND_CONFIG(forte2_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(forte2_state, forte2_ay8910_read_input))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(forte2_state, forte2_ay8910_set_input_mask))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -146,7 +131,6 @@ DRIVER_INIT_MEMBER(forte2_state,pesadelo)
 	int i;
 	UINT8 *mem = memregion("maincpu")->base();
 	int memsize = memregion("maincpu")->bytes();
-	UINT8 *buf;
 
 	// data swap
 	for ( i = 0; i < memsize; i++ )
@@ -155,13 +139,12 @@ DRIVER_INIT_MEMBER(forte2_state,pesadelo)
 	}
 
 	// address line swap
-	buf = auto_alloc_array(machine(), UINT8, memsize);
+	dynamic_buffer buf(memsize);
 	memcpy(buf, mem, memsize);
 	for ( i = 0; i < memsize; i++ )
 	{
 		mem[BITSWAP16(i,11,9,8,13,14,15,12,7,6,5,4,3,2,1,0,10)] = buf[i];
 	}
-	auto_free(machine(), buf);
 
 }
 

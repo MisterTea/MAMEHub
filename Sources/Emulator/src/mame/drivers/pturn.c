@@ -86,7 +86,9 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_spriteram(*this, "spriteram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	tilemap_t *m_fgmap;
@@ -122,6 +124,8 @@ public:
 	INTERRUPT_GEN_MEMBER(pturn_sub_intgen);
 	INTERRUPT_GEN_MEMBER(pturn_main_intgen);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -162,9 +166,9 @@ TILE_GET_INFO_MEMBER(pturn_state::get_pturn_bg_tile_info)
 
 void pturn_state::video_start()
 {
-	m_fgmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pturn_state::get_pturn_tile_info),this),TILEMAP_SCAN_ROWS,8, 8,32,32);
+	m_fgmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pturn_state::get_pturn_tile_info),this),TILEMAP_SCAN_ROWS,8, 8,32,32);
 	m_fgmap->set_transparent_pen(0);
-	m_bgmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pturn_state::get_pturn_bg_tile_info),this),TILEMAP_SCAN_ROWS,8, 8,32,32*8);
+	m_bgmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pturn_state::get_pturn_bg_tile_info),this),TILEMAP_SCAN_ROWS,8, 8,32,32*8);
 	m_bgmap->set_transparent_pen(0);
 }
 
@@ -200,7 +204,7 @@ UINT32 pturn_state::screen_update_pturn(screen_device &screen, bitmap_ind16 &bit
 
 		if(sx|sy)
 		{
-			drawgfx_transpen(bitmap, cliprect,machine().gfx[2],
+			m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 			spriteram[offs+1] & 0x3f ,
 			(spriteram[offs+2] & 0x1f),
 			flipx, flipy,
@@ -501,11 +505,11 @@ static MACHINE_CONFIG_START( pturn, pturn_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pturn_state, screen_update_pturn)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x100)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 0x100)
 
-	MCFG_GFXDECODE(pturn)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pturn)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -557,8 +561,8 @@ ROM_END
 DRIVER_INIT_MEMBER(pturn_state,pturn)
 {
 	/*
-	m_maincpu->space(AS_PROGRAM).install_legacy_read_handler(0xc0dd, 0xc0dd, FUNC(pturn_protection_r));
-	m_maincpu->space(AS_PROGRAM).install_legacy_read_handler(0xc0db, 0xc0db, FUNC(pturn_protection2_r));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xc0dd, 0xc0dd, read8_delegate(FUNC(pturn_state::pturn_protection_r), this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xc0db, 0xc0db, read8_delegate(FUNC(pturn_state::pturn_protection2_r), this));
 	*/
 }
 

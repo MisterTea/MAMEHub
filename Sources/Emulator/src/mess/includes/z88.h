@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Kevin Thacker,Sandro Ronco
 /*****************************************************************************
  *
  * includes/z88.h
@@ -11,10 +13,10 @@
 #include "cpu/z80/z80.h"
 #include "machine/upd65031.h"
 #include "machine/ram.h"
-#include "machine/z88cart.h"
-#include "machine/z88_flash.h"
-#include "machine/z88_ram.h"
-#include "machine/z88_rom.h"
+#include "bus/z88/z88.h"
+#include "bus/z88/flash.h"
+#include "bus/z88/ram.h"
+#include "bus/z88/rom.h"
 #include "sound/speaker.h"
 #include "rendlay.h"
 
@@ -46,16 +48,19 @@ public:
 	z88_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
-			m_ram(*this, RAM_TAG)
+			m_ram(*this, RAM_TAG),
+			m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<ram_device> m_ram;
+	required_device<palette_device> m_palette;
 
 	virtual void machine_start();
 	virtual void machine_reset();
-	void bankswitch_update(int bank, UINT16 page, int rams);
 	DECLARE_READ8_MEMBER(kb_r);
+	UPD65031_MEMORY_UPDATE(bankswitch_update);
+	UPD65031_SCREEN_UPDATE(lcd_update);
 
 	// cartridges read/write
 	DECLARE_READ8_MEMBER(bank0_cart_r);
@@ -73,7 +78,6 @@ public:
 	void vh_render_8x8(bitmap_ind16 &bitmap, int x, int y, UINT16 pen0, UINT16 pen1, UINT8 *gfx);
 	void vh_render_6x8(bitmap_ind16 &bitmap, int x, int y, UINT16 pen0, UINT16 pen1, UINT8 *gfx);
 	void vh_render_line(bitmap_ind16 &bitmap, int x, int y, UINT16 pen);
-	void lcd_update(bitmap_ind16 &bitmap, UINT16 sbf, UINT16 hires0, UINT16 hires1, UINT16 lores0, UINT16 lores1, int flash);
 
 	struct
 	{
@@ -85,7 +89,7 @@ public:
 	UINT8 *               m_bios;
 	UINT8 *               m_ram_base;
 	z88cart_slot_device * m_carts[4];
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(z88);
 };
 
 #endif /* Z88_H_ */

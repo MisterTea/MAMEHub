@@ -68,14 +68,17 @@
 #include "machine/terminal.h"
 #include "machine/rx01.h"
 
+#define TERMINAL_TAG "terminal"
+
 class vax11_state : public driver_device
 {
 public:
 	vax11_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_terminal(*this, TERMINAL_TAG)
-	{ }
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<generic_terminal_device> m_terminal;
@@ -126,30 +129,21 @@ ADDRESS_MAP_END
 static INPUT_PORTS_START( vax11 )
 INPUT_PORTS_END
 
-static const struct t11_setup vax11_data =
-{
-	0 << 13
-};
-
 WRITE8_MEMBER( vax11_state::kbd_put )
 {
 	m_term_data = data;
 	m_term_status = 0xffff;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(vax11_state, kbd_put)
-};
-
 static MACHINE_CONFIG_START( vax11, vax11_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",T11, XTAL_4MHz) // Need proper CPU here
-	MCFG_CPU_CONFIG(vax11_data)
+	MCFG_T11_INITIAL_MODE(0 << 13)
 	MCFG_CPU_PROGRAM_MAP(vax11_mem)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(vax11_state, kbd_put))
 
 	MCFG_RX01_ADD("rx01")
 MACHINE_CONFIG_END

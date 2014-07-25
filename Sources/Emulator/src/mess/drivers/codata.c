@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
         Contel Codata Corporation Codata
@@ -13,16 +15,18 @@
 #include "cpu/m68000/m68000.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class codata_state : public driver_device
 {
 public:
 	codata_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_p_base(*this, "rambase")
-		, m_terminal(*this, TERMINAL_TAG)
-		, m_maincpu(*this, "maincpu")
-	{ }
+		: driver_device(mconfig, type, tag),
+		m_p_base(*this, "rambase"),
+		m_terminal(*this, TERMINAL_TAG),
+		m_maincpu(*this, "maincpu")
+	{
+	}
 
 	DECLARE_READ16_MEMBER(keyin_r);
 	DECLARE_READ16_MEMBER(status_r);
@@ -71,11 +75,6 @@ WRITE8_MEMBER( codata_state::kbd_put )
 	m_term_data = data;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(codata_state, kbd_put)
-};
-
 void codata_state::machine_reset()
 {
 	UINT8* RAM = memregion("user1")->base();
@@ -90,7 +89,8 @@ static MACHINE_CONFIG_START( codata, codata_state )
 	MCFG_CPU_PROGRAM_MAP(codata_mem)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(codata_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

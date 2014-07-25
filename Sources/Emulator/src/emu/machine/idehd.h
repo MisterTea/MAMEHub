@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:smf
 /***************************************************************************
 
     idehd.h
@@ -60,8 +62,9 @@ protected:
 	UINT8           m_num_sectors;
 	UINT8           m_num_heads;
 
+	virtual UINT32 lba_address();
+
 private:
-	UINT32 lba_address();
 	void set_geometry(UINT8 sectors, UINT8 heads) { m_num_sectors = sectors; m_num_heads = heads; }
 	void finished_read();
 	void finished_write();
@@ -69,6 +72,7 @@ private:
 	void security_error();
 	void read_first_sector();
 	void soft_reset();
+	attotime seek_time();
 
 	UINT32          m_cur_lba;
 	UINT16          m_block_count;

@@ -56,21 +56,27 @@ class safarir_state : public driver_device
 public:
 	safarir_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_bg_scroll(*this, "bg_scroll"),
-		m_ram(*this, "ram"),
+		m_maincpu(*this, "maincpu"),
 		m_samples(*this, "samples"),
-		m_maincpu(*this, "maincpu") { }
+		m_ram(*this, "ram"),
+		m_bg_scroll(*this, "bg_scroll"),
+		m_gfxdecode(*this, "gfxdecode")
+	{ }
+
+	required_device<cpu_device> m_maincpu;
+	required_device<samples_device> m_samples;
+	required_shared_ptr<UINT8> m_ram;
+	required_shared_ptr<UINT8> m_bg_scroll;
+	required_device<gfxdecode_device> m_gfxdecode;
 
 	UINT8 *m_ram_1;
 	UINT8 *m_ram_2;
 	UINT8 m_ram_bank;
 	tilemap_t *m_bg_tilemap;
 	tilemap_t *m_fg_tilemap;
-	required_shared_ptr<UINT8> m_bg_scroll;
-	required_shared_ptr<UINT8> m_ram;
 	UINT8 m_port_last;
 	UINT8 m_port_last2;
-	required_device<samples_device> m_samples;
+
 	DECLARE_WRITE8_MEMBER(ram_w);
 	DECLARE_READ8_MEMBER(ram_r);
 	DECLARE_WRITE8_MEMBER(ram_bank_w);
@@ -79,9 +85,8 @@ public:
 	TILE_GET_INFO_MEMBER(get_fg_tile_info);
 	virtual void machine_start();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(safarir);
 	UINT32 screen_update_safarir(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -141,14 +146,14 @@ static GFXDECODE_START( safarir )
 GFXDECODE_END
 
 
-void safarir_state::palette_init()
+PALETTE_INIT_MEMBER(safarir_state, safarir)
 {
 	int i;
 
-	for (i = 0; i < machine().total_colors() / 2; i++)
+	for (i = 0; i < palette.entries() / 2; i++)
 	{
-		palette_set_color(machine(), (i * 2) + 0, RGB_BLACK);
-		palette_set_color(machine(), (i * 2) + 1, MAKE_RGB(pal1bit(i >> 2), pal1bit(i >> 1), pal1bit(i >> 0)));
+		palette.set_pen_color((i * 2) + 0, rgb_t::black);
+		palette.set_pen_color((i * 2) + 1, rgb_t(pal1bit(i >> 2), pal1bit(i >> 1), pal1bit(i >> 0)));
 	}
 }
 
@@ -193,8 +198,8 @@ TILE_GET_INFO_MEMBER(safarir_state::get_fg_tile_info)
 
 void safarir_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(safarir_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(safarir_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(safarir_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(safarir_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 }
@@ -402,16 +407,18 @@ static MACHINE_CONFIG_START( safarir, safarir_state )
 	MCFG_CPU_ADD("maincpu", I8080A, XTAL_18MHz/12)  /* 1.5 MHz ? */
 	MCFG_CPU_PROGRAM_MAP(main_map)
 
-
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(2*8)
-	MCFG_GFXDECODE(safarir)
+	MCFG_PALETTE_ADD("palette", 2*8)
+	MCFG_PALETTE_INIT_OWNER(safarir_state, safarir)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", safarir)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 26*8-1)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_UPDATE_DRIVER(safarir_state, screen_update_safarir)
+	MCFG_SCREEN_PALETTE("palette")
 
 	/* audio hardware */
 	MCFG_FRAGMENT_ADD(safarir_audio)
@@ -455,7 +462,7 @@ RL-08.43     [d6a50aac]
 --- Team Japump!!! ---
 */
 
-ROM_START( safarir )
+ROM_START( safarirj )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "rl-01.9",  0x0000, 0x0400, CRC(cf7703c9) SHA1(b4182df9332b355edaa518462217a6e31e1c07b2) )
 	ROM_LOAD( "rl-02.1",  0x0400, 0x0400, CRC(1013ecd3) SHA1(2fe367db8ca367b36c5378cb7d5ff918db243c78) )
@@ -471,6 +478,22 @@ ROM_START( safarir )
 	ROM_LOAD( "rl-07.40", 0x0000, 0x0400, CRC(ba525203) SHA1(1c261cc1259787a7a248766264fefe140226e465) )
 ROM_END
 
+ROM_START( safarir ) // Taito PCB, labels are the same as Japan ver.
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "rl-01.9",  0x0000, 0x0400, CRC(cf7703c9) SHA1(b4182df9332b355edaa518462217a6e31e1c07b2) )
+	ROM_LOAD( "rl-02.1",  0x0400, 0x0400, CRC(1013ecd3) SHA1(2fe367db8ca367b36c5378cb7d5ff918db243c78) )
+	ROM_LOAD( "rl-03.10", 0x0800, 0x0400, CRC(84545894) SHA1(377494ceeac5ad58b70f77b2b27b609491cb7ffd) )
+	ROM_LOAD( "rl-04.2",  0x0c00, 0x0400, CRC(5dd12f96) SHA1(a80ac0705648f0807ea33e444fdbea450bf23f85) )
+	ROM_LOAD( "rl-09.11", 0x1000, 0x0400, CRC(d066b382) SHA1(c82ec668f1ed2246c12a1371ee4a2c070f57a9c2) )
+	ROM_LOAD( "rl-06.3",  0x1400, 0x0400, CRC(24c1cd42) SHA1(fe32ecea77a3777f8137ca248b8f371db37b8b85) )
+
+	ROM_REGION( 0x0400, "gfx1", 0 )
+	ROM_LOAD( "rl-10.43", 0x0000, 0x0400, CRC(c04466c6) SHA1(da76afdfd22a7810de47376a9b23d3d538d77fdc) )
+
+	ROM_REGION( 0x0400, "gfx2", 0 )
+	ROM_LOAD( "rl-07.40", 0x0000, 0x0400, CRC(ba525203) SHA1(1c261cc1259787a7a248766264fefe140226e465) )
+ROM_END
+
 
 
 /*************************************
@@ -479,4 +502,5 @@ ROM_END
  *
  *************************************/
 
-GAME( 1979, safarir, 0, safarir, safarir, driver_device, 0, ROT90, "SNK", "Safari Rally (Japan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_SOUND )
+GAME( 1979, safarir, 0,        safarir, safarir, driver_device, 0, ROT90, "SNK (Taito license)", "Safari Rally (World)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_SOUND )
+GAME( 1979, safarirj, safarir, safarir, safarir, driver_device, 0, ROT90, "SNK", "Safari Rally (Japan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_SOUND )

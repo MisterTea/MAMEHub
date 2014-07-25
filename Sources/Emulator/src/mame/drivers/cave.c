@@ -27,7 +27,7 @@ Year + Game           License       PCB         Tilemaps        Sprites         
 96 Air Gallet         Banpresto     BP962A      038 9437WX711   013 9346E7002   Z80
 96 Hotdog Storm       Marble        ASTC9501    038 9341EX702   013             Z80
 96 Pac-Slot           Namco         A0442       038 9444WX010   013 9345E7006
-96 Poka Poka Satan    <unknown>     PPS-MAIN    038 9444WX010   013 9607EX013
+96 Poka Poka Satan    Kato's        PPS-MAIN    038 9444WX010   013 9607EX013
 97 Dodonpachi         Atlus         ATC03D2     038             013
 98 Dangun Feveron     Nihon System  CV01        038 9808WX003   013 9807EX004
 98 ESP Ra.De.         Atlus         ATC04       038 9841WX002   013 9838EX002
@@ -518,7 +518,7 @@ static ADDRESS_MAP_START( donpachi_map, AS_PROGRAM, 16, cave_state )
 /**/AM_RANGE(0xa08000, 0xa08fff) AM_RAM AM_SHARE("paletteram.0")      // Palette
 	AM_RANGE(0xb00000, 0xb00003) AM_DEVREADWRITE8("oki1", okim6295_device, read, write, 0x00ff)                 // M6295
 	AM_RANGE(0xb00010, 0xb00013) AM_DEVREADWRITE8("oki2", okim6295_device, read, write, 0x00ff)                 //
-	AM_RANGE(0xb00020, 0xb0002f) AM_DEVWRITE("nmk112", nmk112_device, okibank_lsb_w)                             //
+	AM_RANGE(0xb00020, 0xb0002f) AM_DEVWRITE8("nmk112", nmk112_device, okibank_w, 0x00ff)                       //
 	AM_RANGE(0xc00000, 0xc00001) AM_READ_PORT("IN0")                                                        // Inputs
 	AM_RANGE(0xc00002, 0xc00003) AM_READ_PORT("IN1")                                                        // Inputs + EEPROM
 	AM_RANGE(0xd00000, 0xd00001) AM_WRITE(cave_eeprom_msb_w)                                    // EEPROM
@@ -1973,13 +1973,6 @@ WRITE_LINE_MEMBER(cave_state::irqhandler)
 	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
 /***************************************************************************
                                 Dangun Feveron
 ***************************************************************************/
@@ -2005,9 +1998,9 @@ static MACHINE_CONFIG_START( dfeveron, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(dfeveron)
-	MCFG_PALETTE_LENGTH(0x8000) /* $8000 palette entries for consistency with the other games */
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,dfeveron)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dfeveron)
+	MCFG_PALETTE_ADD("palette", 0x8000) /* $8000 palette entries for consistency with the other games */
+	MCFG_PALETTE_INIT_OWNER(cave_state,dfeveron)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_2_layers)
 
@@ -2047,9 +2040,9 @@ static MACHINE_CONFIG_START( ddonpach, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(ddonpach)
-	MCFG_PALETTE_LENGTH(0x8000 + 0x40*16)   // $400 extra entries for layers 1&2
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,ddonpach)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ddonpach)
+	MCFG_PALETTE_ADD("palette", 0x8000 + 0x40*16)   // $400 extra entries for layers 1&2
+	MCFG_PALETTE_INIT_OWNER(cave_state,ddonpach)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_3_layers)
 
@@ -2066,11 +2059,6 @@ MACHINE_CONFIG_END
 /***************************************************************************
                                     Donpachi
 ***************************************************************************/
-
-static const nmk112_interface donpachi_nmk112_intf =
-{
-	"oki1", "oki2", 1 << 0  // chip #0 (music) is not paged
-};
 
 static MACHINE_CONFIG_START( donpachi, cave_state )
 
@@ -2093,9 +2081,9 @@ static MACHINE_CONFIG_START( donpachi, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(donpachi)
-	MCFG_PALETTE_LENGTH(0x8000) /* $8000 palette entries for consistency with the other games */
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,dfeveron)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", donpachi)
+	MCFG_PALETTE_ADD("palette", 0x8000) /* $8000 palette entries for consistency with the other games */
+	MCFG_PALETTE_INIT_OWNER(cave_state,dfeveron)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_3_layers)
 
@@ -2110,7 +2098,10 @@ static MACHINE_CONFIG_START( donpachi, cave_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
-	MCFG_NMK112_ADD("nmk112", donpachi_nmk112_intf)
+	MCFG_DEVICE_ADD("nmk112", NMK112, 0)
+	MCFG_NMK112_ROM0("oki1")
+	MCFG_NMK112_ROM1("oki2")
+	MCFG_NMK112_DISABLE_PAGEMASK(1 << 0)    // chip #0 (music) is not paged
 MACHINE_CONFIG_END
 
 
@@ -2139,9 +2130,9 @@ static MACHINE_CONFIG_START( esprade, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(esprade)
-	MCFG_PALETTE_LENGTH(0x8000)
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,cave)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", esprade)
+	MCFG_PALETTE_ADD("palette", 0x8000)
+	MCFG_PALETTE_INIT_OWNER(cave_state,cave)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_3_layers)
 
@@ -2179,9 +2170,9 @@ static MACHINE_CONFIG_START( gaia, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(esprade)
-	MCFG_PALETTE_LENGTH(0x8000)
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,cave)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", esprade)
+	MCFG_PALETTE_ADD("palette", 0x8000)
+	MCFG_PALETTE_INIT_OWNER(cave_state,cave)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_3_layers)
 
@@ -2220,9 +2211,9 @@ static MACHINE_CONFIG_START( guwange, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(esprade)
-	MCFG_PALETTE_LENGTH(0x8000)
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,cave)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", esprade)
+	MCFG_PALETTE_ADD("palette", 0x8000)
+	MCFG_PALETTE_INIT_OWNER(cave_state,cave)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_3_layers)
 
@@ -2264,9 +2255,9 @@ static MACHINE_CONFIG_START( hotdogst, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 384-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(hotdogst)
-	MCFG_PALETTE_LENGTH(0x8000) /* $8000 palette entries for consistency with the other games */
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,dfeveron)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", hotdogst)
+	MCFG_PALETTE_ADD("palette", 0x8000) /* $8000 palette entries for consistency with the other games */
+	MCFG_PALETTE_INIT_OWNER(cave_state,dfeveron)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_3_layers)
 
@@ -2275,7 +2266,6 @@ static MACHINE_CONFIG_START( hotdogst, cave_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_32MHz/8)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(cave_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.20)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.20)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  0.20)
@@ -2317,9 +2307,9 @@ static MACHINE_CONFIG_START( korokoro, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1-2, 0, 240-1-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(korokoro)
-	MCFG_PALETTE_LENGTH(0x8000) /* $8000 palette entries for consistency with the other games */
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,korokoro)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", korokoro)
+	MCFG_PALETTE_ADD("palette", 0x8000) /* $8000 palette entries for consistency with the other games */
+	MCFG_PALETTE_INIT_OWNER(cave_state,korokoro)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_1_layer)
 
@@ -2371,9 +2361,9 @@ static MACHINE_CONFIG_START( mazinger, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 384-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(mazinger)
-	MCFG_PALETTE_LENGTH(0x8000) /* $8000 palette entries for consistency with the other games */
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,mazinger)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mazinger)
+	MCFG_PALETTE_ADD("palette", 0x8000) /* $8000 palette entries for consistency with the other games */
+	MCFG_PALETTE_INIT_OWNER(cave_state,mazinger)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_2_layers)
 
@@ -2382,7 +2372,6 @@ static MACHINE_CONFIG_START( mazinger, cave_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_4MHz)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(cave_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.20)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.20)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  0.20)
@@ -2430,9 +2419,9 @@ static MACHINE_CONFIG_START( metmqstr, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0x7d, 0x7d + 0x180-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(donpachi)
-	MCFG_PALETTE_LENGTH(0x8000) /* $8000 palette entries for consistency with the other games */
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,dfeveron)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", donpachi)
+	MCFG_PALETTE_ADD("palette", 0x8000) /* $8000 palette entries for consistency with the other games */
+	MCFG_PALETTE_INIT_OWNER(cave_state,dfeveron)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_3_layers)
 
@@ -2487,9 +2476,9 @@ static MACHINE_CONFIG_START( pacslot, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0x80, 0x80 + 0x140-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(tjumpman)
-	MCFG_PALETTE_LENGTH(0x8000)
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,cave)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tjumpman)
+	MCFG_PALETTE_ADD("palette", 0x8000)
+	MCFG_PALETTE_INIT_OWNER(cave_state,cave)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_1_layer)
 
@@ -2556,9 +2545,9 @@ static MACHINE_CONFIG_START( ppsatan, cave_state )
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_ppsatan_right)
 	MCFG_TIMER_DRIVER_ADD("int_timer_right", cave_state, cave_vblank_start_right)
 
-	MCFG_GFXDECODE(ppsatan)
-	MCFG_PALETTE_LENGTH(0x8000)
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,ppsatan)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ppsatan)
+	MCFG_PALETTE_ADD("palette", 0x8000)
+	MCFG_PALETTE_INIT_OWNER(cave_state,ppsatan)
 	MCFG_DEFAULT_LAYOUT(layout_ppsatan)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_3_layers)
@@ -2577,11 +2566,6 @@ MACHINE_CONFIG_END
 ***************************************************************************/
 
 /*  X1 = 12 MHz, X2 = 28 MHz, X3 = 16 MHz. OKI: / 165 mode A ; / 132 mode B */
-
-static const nmk112_interface pwrinst2_nmk112_intf =
-{
-	"oki1", "oki2", 0
-};
 
 static MACHINE_CONFIG_START( pwrinst2, cave_state )
 
@@ -2608,9 +2592,9 @@ static MACHINE_CONFIG_START( pwrinst2, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0x70, 0x70 + 0x140-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(pwrinst2)
-	MCFG_PALETTE_LENGTH(0x8000+0x2800)
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,pwrinst2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pwrinst2)
+	MCFG_PALETTE_ADD("palette", 0x8000+0x2800)
+	MCFG_PALETTE_INIT_OWNER(cave_state,pwrinst2)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_4_layers)
 
@@ -2619,7 +2603,6 @@ static MACHINE_CONFIG_START( pwrinst2, cave_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_16MHz / 4)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(cave_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.40)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.40)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  0.40)
@@ -2637,7 +2620,9 @@ static MACHINE_CONFIG_START( pwrinst2, cave_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.00)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.00)
 
-	MCFG_NMK112_ADD("nmk112", pwrinst2_nmk112_intf)
+	MCFG_DEVICE_ADD("nmk112", NMK112, 0)
+	MCFG_NMK112_ROM0("oki1")
+	MCFG_NMK112_ROM1("oki2")
 MACHINE_CONFIG_END
 
 
@@ -2672,9 +2657,9 @@ static MACHINE_CONFIG_START( sailormn, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0+1, 320+1-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(sailormn)
-	MCFG_PALETTE_LENGTH(0x8000) /* $8000 palette entries for consistency with the other games */
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,sailormn) // 4 bit sprites, 6 bit tiles
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sailormn)
+	MCFG_PALETTE_ADD("palette", 0x8000) /* $8000 palette entries for consistency with the other games */
+	MCFG_PALETTE_INIT_OWNER(cave_state,sailormn) // 4 bit sprites, 6 bit tiles
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,sailormn_3_layers) /* Layer 2 has 1 banked ROM */
 
@@ -2728,9 +2713,9 @@ static MACHINE_CONFIG_START( tjumpman, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0x80, 0x80 + 0x140-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(tjumpman)
-	MCFG_PALETTE_LENGTH(0x8000)
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,cave)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tjumpman)
+	MCFG_PALETTE_ADD("palette", 0x8000)
+	MCFG_PALETTE_INIT_OWNER(cave_state,cave)
 
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_1_layer)
 
@@ -2769,10 +2754,10 @@ static MACHINE_CONFIG_START( uopoko, cave_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cave_state, screen_update_cave)
 
-	MCFG_GFXDECODE(uopoko)
-	MCFG_PALETTE_LENGTH(0x8000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", uopoko)
+	MCFG_PALETTE_ADD("palette", 0x8000)
 
-	MCFG_PALETTE_INIT_OVERRIDE(cave_state,cave)
+	MCFG_PALETTE_INIT_OWNER(cave_state,cave)
 	MCFG_VIDEO_START_OVERRIDE(cave_state,cave_1_layer)
 
 	/* sound hardware */
@@ -4617,6 +4602,16 @@ ROM_END
 Board: CV02
 OSC:    28.0, 16.0, 16.9 MHz
 
+PCB found with hand written labels in Japanese (translated):
+
+Program (O)        Program (E)
+Eigo  U25          Eigo  U26
+C553  AOU          ECB7  AOU
+
+Eigo means English and AOU is Amusement Operators Union.  This board looks
+to be an AOU show board.  The data contents remained the same for the
+actual International production release.
+
 ***************************************************************************/
 
 ROM_START( uopoko )
@@ -4625,13 +4620,13 @@ ROM_START( uopoko )
 	ROM_LOAD16_BYTE( "u25.int", 0x000001, 0x080000, CRC(a1258482) SHA1(7f4adc4a6d069032aaf3d93eb60fde16b59483f8) )
 
 	ROM_REGION( 0x400000 * 2, "sprites0", 0 )        /* Sprites: * 2 */
-	ROM_LOAD( "u33.bin", 0x000000, 0x400000, CRC(5d142ad2) SHA1(f26abcf7a625a322b83df44fbd6e852bfb03663c) )
+	ROM_LOAD( "cave_cv-02_u33.u33", 0x000000, 0x400000, CRC(5d142ad2) SHA1(f26abcf7a625a322b83df44fbd6e852bfb03663c) ) /* MASK ROM */
 
 	ROM_REGION( 0x400000, "layer0", 0 ) /* Layer 0 */
-	ROM_LOAD( "u49.bin", 0x000000, 0x400000, CRC(12fb11bb) SHA1(953df1b16b5c9a6c3eb2fdebec4669a879270e73) )
+	ROM_LOAD( "cave_cv-02_u49.u49", 0x000000, 0x400000, CRC(12fb11bb) SHA1(953df1b16b5c9a6c3eb2fdebec4669a879270e73) ) /* MASK ROM */
 
 	ROM_REGION( 0x200000, "ymz", 0 )    /* Samples */
-	ROM_LOAD( "u4.bin", 0x000000, 0x200000, CRC(a2d0d755) SHA1(f8493ef7f367f3dc2a229ba785ac67bc5c2c54c0) )
+	ROM_LOAD( "came_cv-02_u4.u4", 0x000000, 0x200000, CRC(a2d0d755) SHA1(f8493ef7f367f3dc2a229ba785ac67bc5c2c54c0) ) /* MASK ROM */
 
 	ROM_REGION16_BE( 0x80, "eeprom", 0 )
 	ROM_LOAD16_WORD( "eeprom-uopoko.bin", 0x0000, 0x0080, CRC(f4a24b95) SHA1(4043f0ffed24e38b4f7dbe1a5a4a9e79bdde7dfd) )
@@ -4643,13 +4638,13 @@ ROM_START( uopokoj )
 	ROM_LOAD16_BYTE( "u25.bin", 0x000001, 0x080000, CRC(68cb6211) SHA1(a6db0bc2e3e54b6992a44b7d52395917e66db49b) )
 
 	ROM_REGION( 0x400000 * 2, "sprites0", 0 )        /* Sprites: * 2 */
-	ROM_LOAD( "u33.bin", 0x000000, 0x400000, CRC(5d142ad2) SHA1(f26abcf7a625a322b83df44fbd6e852bfb03663c) )
+	ROM_LOAD( "cave_cv-02_u33.u33", 0x000000, 0x400000, CRC(5d142ad2) SHA1(f26abcf7a625a322b83df44fbd6e852bfb03663c) ) /* MASK ROM */
 
 	ROM_REGION( 0x400000, "layer0", 0 ) /* Layer 0 */
-	ROM_LOAD( "u49.bin", 0x000000, 0x400000, CRC(12fb11bb) SHA1(953df1b16b5c9a6c3eb2fdebec4669a879270e73) )
+	ROM_LOAD( "cave_cv-02_u49.u49", 0x000000, 0x400000, CRC(12fb11bb) SHA1(953df1b16b5c9a6c3eb2fdebec4669a879270e73) ) /* MASK ROM */
 
 	ROM_REGION( 0x200000, "ymz", 0 )    /* Samples */
-	ROM_LOAD( "u4.bin", 0x000000, 0x200000, CRC(a2d0d755) SHA1(f8493ef7f367f3dc2a229ba785ac67bc5c2c54c0) )
+	ROM_LOAD( "came_cv-02_u4.u4", 0x000000, 0x200000, CRC(a2d0d755) SHA1(f8493ef7f367f3dc2a229ba785ac67bc5c2c54c0) ) /* MASK ROM */
 
 	ROM_REGION16_BE( 0x80, "eeprom", 0 )
 	ROM_LOAD16_WORD( "eeprom-uopoko.bin", 0x0000, 0x0080, CRC(f4a24b95) SHA1(4043f0ffed24e38b4f7dbe1a5a4a9e79bdde7dfd) )
@@ -4810,7 +4805,6 @@ DRIVER_INIT_MEMBER(cave_state,hotdogst)
 DRIVER_INIT_MEMBER(cave_state,mazinger)
 {
 	UINT8 *ROM = memregion("audiocpu")->base();
-	UINT8 *buffer;
 	UINT8 *src = memregion("sprites0")->base();
 	int len = memregion("sprites0")->bytes();
 
@@ -4823,13 +4817,12 @@ DRIVER_INIT_MEMBER(cave_state,mazinger)
 	membank("okibank2")->configure_entries(0, 4, &ROM[0x00000], 0x20000);
 
 	/* decrypt sprites */
-	buffer = auto_alloc_array(machine(), UINT8, len);
+	dynamic_buffer buffer(len);
 	{
 		int i;
 		for (i = 0; i < len; i++)
 			buffer[i ^ 0xdf88] = src[BITSWAP24(i,23,22,21,20,19,9,7,3,15,4,17,14,18,2,16,5,11,8,6,13,1,10,12,0)];
 		memcpy(src, buffer, len);
-		auto_free(machine(), buffer);
 	}
 
 	unpack_sprites("sprites0");
@@ -4878,7 +4871,6 @@ DRIVER_INIT_MEMBER(cave_state,ppsatan)
 DRIVER_INIT_MEMBER(cave_state,pwrinst2j)
 {
 	UINT8 *ROM = memregion("audiocpu")->base();
-	UINT8 *buffer;
 	UINT8 *src = memregion("sprites0")->base();
 	int len = memregion("sprites0")->bytes();
 	int i, j;
@@ -4887,7 +4879,7 @@ DRIVER_INIT_MEMBER(cave_state,pwrinst2j)
 
 	membank("z80bank")->configure_entries(0, 8, &ROM[0x00000], 0x4000);
 
-	buffer = auto_alloc_array(machine(), UINT8, len);
+	dynamic_buffer buffer(len);
 	{
 		for(i = 0; i < len/2; i++)
 		{
@@ -4898,7 +4890,6 @@ DRIVER_INIT_MEMBER(cave_state,pwrinst2j)
 		}
 
 		memcpy(src,buffer,len);
-		auto_free(machine(), buffer);
 	}
 
 	unpack_sprites("sprites0");
@@ -4925,7 +4916,6 @@ DRIVER_INIT_MEMBER(cave_state,pwrinst2)
 DRIVER_INIT_MEMBER(cave_state,sailormn)
 {
 	UINT8 *ROM = memregion("audiocpu")->base();
-	UINT8 *buffer;
 	UINT8 *src = memregion("sprites0")->base();
 	int len = memregion("sprites0")->bytes();
 
@@ -4942,13 +4932,12 @@ DRIVER_INIT_MEMBER(cave_state,sailormn)
 	membank("oki2bank2")->configure_entries(0, 0x10, &ROM[0x00000], 0x20000);
 
 	/* decrypt sprites */
-	buffer = auto_alloc_array(machine(), UINT8, len);
+	dynamic_buffer buffer(len);
 	{
 		int i;
 		for (i = 0; i < len; i++)
 			buffer[i ^ 0x950c4] = src[BITSWAP24(i,23,22,21,20,15,10,12,6,11,1,13,3,16,17,2,5,14,7,18,8,4,19,9,0)];
 		memcpy(src, buffer, len);
-		auto_free(machine(), buffer);
 	}
 
 	sailormn_unpack_tiles( machine(), "layer2" );
@@ -5027,32 +5016,32 @@ GAME( 1995, plegends,   0,        pwrinst2, metmqstr, cave_state, pwrinst2j,ROT0
 GAME( 1995, plegendsj,  plegends, pwrinst2, metmqstr, cave_state, pwrinst2j,ROT0,   "Atlus",                                  "Gouketsuji Gaiden - Saikyou Densetsu (Japan, Ver. 95/06/20)", GAME_SUPPORTS_SAVE )
 
 // The EEPROM determines the region, program roms are the same between sets
-GAME( 1995, sailormn,   0,        sailormn, cave, cave_state,     sailormn, ROT0,   "Banpresto",                              "Pretty Soldier Sailor Moon (Ver. 95/03/22B, Europe)",    GAME_SUPPORTS_SAVE )
-GAME( 1995, sailormnu,  sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Banpresto",                              "Pretty Soldier Sailor Moon (Ver. 95/03/22B, USA)",       GAME_SUPPORTS_SAVE )
-GAME( 1995, sailormnj,  sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Banpresto",                              "Pretty Soldier Sailor Moon (Ver. 95/03/22B, Japan)",     GAME_SUPPORTS_SAVE )
-GAME( 1995, sailormnk,  sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Banpresto",                              "Pretty Soldier Sailor Moon (Ver. 95/03/22B, Korea)",     GAME_SUPPORTS_SAVE )
-GAME( 1995, sailormnt,  sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Banpresto",                              "Pretty Soldier Sailor Moon (Ver. 95/03/22B, Taiwan)",    GAME_SUPPORTS_SAVE )
-GAME( 1995, sailormnh,  sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Banpresto",                              "Pretty Soldier Sailor Moon (Ver. 95/03/22B, Hong Kong)", GAME_SUPPORTS_SAVE )
-GAME( 1995, sailormno,  sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Banpresto",                              "Pretty Soldier Sailor Moon (Ver. 95/03/22, Europe)",     GAME_SUPPORTS_SAVE )
-GAME( 1995, sailormnou, sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Banpresto",                              "Pretty Soldier Sailor Moon (Ver. 95/03/22, USA)",        GAME_SUPPORTS_SAVE )
-GAME( 1995, sailormnoj, sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Banpresto",                              "Pretty Soldier Sailor Moon (Ver. 95/03/22, Japan)",      GAME_SUPPORTS_SAVE )
-GAME( 1995, sailormnok, sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Banpresto",                              "Pretty Soldier Sailor Moon (Ver. 95/03/22, Korea)",      GAME_SUPPORTS_SAVE )
-GAME( 1995, sailormnot, sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Banpresto",                              "Pretty Soldier Sailor Moon (Ver. 95/03/22, Taiwan)",     GAME_SUPPORTS_SAVE )
-GAME( 1995, sailormnoh, sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Banpresto",                              "Pretty Soldier Sailor Moon (Ver. 95/03/22, Hong Kong)",  GAME_SUPPORTS_SAVE )
+GAME( 1995, sailormn,   0,        sailormn, cave, cave_state,     sailormn, ROT0,   "Gazelle (Banpresto license)",            "Pretty Soldier Sailor Moon (Ver. 95/03/22B, Europe)",    GAME_SUPPORTS_SAVE )
+GAME( 1995, sailormnu,  sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Gazelle (Banpresto license)",            "Pretty Soldier Sailor Moon (Ver. 95/03/22B, USA)",       GAME_SUPPORTS_SAVE )
+GAME( 1995, sailormnj,  sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Gazelle (Banpresto license)",            "Pretty Soldier Sailor Moon (Ver. 95/03/22B, Japan)",     GAME_SUPPORTS_SAVE )
+GAME( 1995, sailormnk,  sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Gazelle (Banpresto license)",            "Pretty Soldier Sailor Moon (Ver. 95/03/22B, Korea)",     GAME_SUPPORTS_SAVE )
+GAME( 1995, sailormnt,  sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Gazelle (Banpresto license)",            "Pretty Soldier Sailor Moon (Ver. 95/03/22B, Taiwan)",    GAME_SUPPORTS_SAVE )
+GAME( 1995, sailormnh,  sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Gazelle (Banpresto license)",            "Pretty Soldier Sailor Moon (Ver. 95/03/22B, Hong Kong)", GAME_SUPPORTS_SAVE )
+GAME( 1995, sailormno,  sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Gazelle (Banpresto license)",            "Pretty Soldier Sailor Moon (Ver. 95/03/22, Europe)",     GAME_SUPPORTS_SAVE )
+GAME( 1995, sailormnou, sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Gazelle (Banpresto license)",            "Pretty Soldier Sailor Moon (Ver. 95/03/22, USA)",        GAME_SUPPORTS_SAVE )
+GAME( 1995, sailormnoj, sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Gazelle (Banpresto license)",            "Pretty Soldier Sailor Moon (Ver. 95/03/22, Japan)",      GAME_SUPPORTS_SAVE )
+GAME( 1995, sailormnok, sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Gazelle (Banpresto license)",            "Pretty Soldier Sailor Moon (Ver. 95/03/22, Korea)",      GAME_SUPPORTS_SAVE )
+GAME( 1995, sailormnot, sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Gazelle (Banpresto license)",            "Pretty Soldier Sailor Moon (Ver. 95/03/22, Taiwan)",     GAME_SUPPORTS_SAVE )
+GAME( 1995, sailormnoh, sailormn, sailormn, cave, cave_state,     sailormn, ROT0,   "Gazelle (Banpresto license)",            "Pretty Soldier Sailor Moon (Ver. 95/03/22, Hong Kong)",  GAME_SUPPORTS_SAVE )
 
 // The EEPROM determines the region, program roms are the same between sets
-GAME( 1996, agallet,    0,        sailormn, cave, cave_state,     agallet,  ROT270, "Banpresto / Gazelle",                    "Air Gallet (Europe)",    GAME_SUPPORTS_SAVE )
-GAME( 1996, agalletu,   agallet,  sailormn, cave, cave_state,     agallet,  ROT270, "Banpresto / Gazelle",                    "Air Gallet (USA)",       GAME_SUPPORTS_SAVE )
-GAME( 1996, agalletj,   agallet,  sailormn, cave, cave_state,     agallet,  ROT270, "Banpresto / Gazelle",                    "Akuu Gallet (Japan)",    GAME_SUPPORTS_SAVE )
-GAME( 1996, agalletk,   agallet,  sailormn, cave, cave_state,     agallet,  ROT270, "Banpresto / Gazelle",                    "Air Gallet (Korea)",     GAME_SUPPORTS_SAVE )
-GAME( 1996, agallett,   agallet,  sailormn, cave, cave_state,     agallet,  ROT270, "Banpresto / Gazelle",                    "Air Gallet (Taiwan)",    GAME_SUPPORTS_SAVE )
-GAME( 1996, agalleth,   agallet,  sailormn, cave, cave_state,     agallet,  ROT270, "Banpresto / Gazelle",                    "Air Gallet (Hong Kong)", GAME_SUPPORTS_SAVE )
+GAME( 1996, agallet,    0,        sailormn, cave, cave_state,     agallet,  ROT270, "Gazelle (Banpresto license)",            "Air Gallet (Europe)",    GAME_SUPPORTS_SAVE )
+GAME( 1996, agalletu,   agallet,  sailormn, cave, cave_state,     agallet,  ROT270, "Gazelle (Banpresto license)",            "Air Gallet (USA)",       GAME_SUPPORTS_SAVE )
+GAME( 1996, agalletj,   agallet,  sailormn, cave, cave_state,     agallet,  ROT270, "Gazelle (Banpresto license)",            "Akuu Gallet (Japan)",    GAME_SUPPORTS_SAVE )
+GAME( 1996, agalletk,   agallet,  sailormn, cave, cave_state,     agallet,  ROT270, "Gazelle (Banpresto license)",            "Air Gallet (Korea)",     GAME_SUPPORTS_SAVE )
+GAME( 1996, agallett,   agallet,  sailormn, cave, cave_state,     agallet,  ROT270, "Gazelle (Banpresto license)",            "Air Gallet (Taiwan)",    GAME_SUPPORTS_SAVE )
+GAME( 1996, agalleth,   agallet,  sailormn, cave, cave_state,     agallet,  ROT270, "Gazelle (Banpresto license)",            "Air Gallet (Hong Kong)", GAME_SUPPORTS_SAVE )
 
 GAME( 1996, hotdogst,   0,        hotdogst, cave, cave_state,     hotdogst, ROT90,  "Marble",                                 "Hotdog Storm (International)", GAME_SUPPORTS_SAVE )
 
 GAME( 1996, pacslot,    0,        pacslot,  pacslot, cave_state,  tjumpman, ROT0,   "Namco",                                  "Pac-Slot", GAME_SUPPORTS_SAVE )
 
-GAME( 1996, ppsatan,    0,        ppsatan,  ppsatan, cave_state,  ppsatan,  ROT0,   "<unknown>",                              "Poka Poka Satan", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS )
+GAME( 1996, ppsatan,    0,        ppsatan,  ppsatan, cave_state,  ppsatan,  ROT0,   "Kato Seisakujo Co., Ltd.",               "Poka Poka Satan (Japan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS )
 
 GAME( 1997, ddonpach,   0,        ddonpach, cave, cave_state,     ddonpach, ROT270, "Cave (Atlus license)",                   "DoDonPachi (International, Master Ver. 97/02/05)", GAME_SUPPORTS_SAVE )
 GAME( 1997, ddonpachj,  ddonpach, ddonpach, cave, cave_state,     ddonpach, ROT270, "Cave (Atlus license)",                   "DoDonPachi (Japan, Master Ver. 97/02/05)",         GAME_SUPPORTS_SAVE )

@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Michael Zapf
 /****************************************************************************
 
     Common definitions for TI family
@@ -29,14 +31,20 @@
 #define HANDSET_TAG     "handset"
 #define JOYPORT_TAG     "joyport"
 #define VDP_TAG         "vdp"
+#define DSRROM          "dsrrom"
 
-#define GROMFREQ 10700000.0/24
+#define VDPFREQ XTAL_10_738635MHz
+#define GROMFREQ VDPFREQ/24
 
 // TI-99/8
 #define SRAM_TAG        "sram8"
 #define DRAM_TAG        "dram8"
 #define MAPPER_TAG      "mapper"
+#define MAINBOARD8_TAG  "mainboard8"
 #define SPEECH_TAG      "speech"
+#define ROM0_TAG        "rom0"
+#define ROM1_TAG        "rom1"
+#define PCODEROM_TAG    "pcode"
 
 // Geneve
 #define GKEYBOARD_TAG   "gkeyboard"
@@ -48,6 +56,15 @@
 #define DECLARE_READ16Z_MEMBER(name)    void name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT16 *value, ATTR_UNUSED UINT16 mem_mask = 0xffff)
 #define READ8Z_MEMBER(name)             void name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 *value, ATTR_UNUSED UINT8 mem_mask)
 #define DECLARE_READ8Z_MEMBER(name)     void name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 *value, ATTR_UNUSED UINT8 mem_mask = 0xff)
+
+/*
+    For almost all applications of setoffset, we also need the data bus
+    direction. This line is called DBIN on the TI CPUs, but as we do not assume
+    that this is a general rule, we use new macros here which contain the
+    DBIN setting.
+*/
+#define SETADDRESS_DBIN_MEMBER(name)          void  name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED int state)
+#define DECLARE_SETADDRESS_DBIN_MEMBER(name)  void  name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED int state)
 
 #define GENMOD 0x01
 
@@ -65,6 +82,7 @@ public:
 	: device_t(mconfig, type, name, tag, owner, clock, shortname, source) { }
 	virtual DECLARE_READ8Z_MEMBER(readz) =0;
 	virtual DECLARE_WRITE8_MEMBER(write) =0;
+	virtual DECLARE_SETADDRESS_DBIN_MEMBER( setaddress_dbin ) { };
 };
 
 class bus16z_device : device_t
@@ -72,6 +90,7 @@ class bus16z_device : device_t
 public:
 	virtual DECLARE_READ16Z_MEMBER(read16z) =0;
 	virtual DECLARE_WRITE16_MEMBER(write16) =0;
+	virtual DECLARE_SETADDRESS_DBIN_MEMBER( setaddress_dbin ) { };
 };
 
 /****************************************************************************

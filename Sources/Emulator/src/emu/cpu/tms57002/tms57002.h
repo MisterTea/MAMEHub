@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Olivier Galibert
 /***************************************************************************
 
     tms57002.h
 
     TMS57002 "DASP" emulator.
-
-****************************************************************************
-
-    Copyright Olivier Galibert
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 #pragma once
@@ -41,23 +12,24 @@
 #ifndef __TMS57002_H__
 #define __TMS57002_H__
 
-class tms57002_device : public cpu_device {
+class tms57002_device : public cpu_device, public device_sound_interface {
 public:
 	tms57002_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 	DECLARE_READ8_MEMBER(data_r);
 	DECLARE_WRITE8_MEMBER(data_w);
 
-	DECLARE_WRITE8_MEMBER(pload_w);
-	DECLARE_WRITE8_MEMBER(cload_w);
-	DECLARE_READ8_MEMBER(empty_r);
-	DECLARE_READ8_MEMBER(dready_r);
-
-	void sync();
+	DECLARE_WRITE_LINE_MEMBER(pload_w);
+	DECLARE_WRITE_LINE_MEMBER(cload_w);
+	DECLARE_READ_LINE_MEMBER(empty_r);
+	DECLARE_READ_LINE_MEMBER(dready_r);
+	DECLARE_READ_LINE_MEMBER(pc0_r);
+	DECLARE_WRITE_LINE_MEMBER(sync_w);
 
 protected:
 	virtual void device_start();
 	virtual void device_reset();
+	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
 	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const;
 	virtual UINT32 execute_min_cycles() const;
 	virtual UINT32 execute_max_cycles() const;
@@ -118,6 +90,8 @@ private:
 
 	enum { IBS = 8192, HBS = 4096 };
 
+	enum { INC_CA = 1, INC_ID = 2 };
+
 	struct icd {
 		unsigned short op;
 		short next;
@@ -139,6 +113,7 @@ private:
 
 	struct cstate {
 		int branch;
+		int inc;
 		short hnode;
 		short ipc;
 	};
@@ -152,9 +127,9 @@ private:
 	UINT32 si[4], so[4];
 
 	UINT32 st0, st1, sti;
-	UINT32 aacc, xoa, xba, xwr, xrd, creg;
+	UINT32 aacc, xoa, xba, xwr, xrd, txrd, creg;
 
-	UINT8 pc, ca, id, ba0, ba1, rptc, rptc_next, sa;
+	UINT8 pc, hpc, ca, id, ba0, ba1, rptc, rptc_next, sa;
 
 	UINT32 xm_adr;
 
@@ -174,7 +149,7 @@ private:
 	void decode_cat3(UINT32 opcode, unsigned short *op, cstate *cs);
 	void decode_cat2_post(UINT32 opcode, unsigned short *op, cstate *cs);
 
-	inline int xmode(UINT32 opcode, char type);
+	inline int xmode(UINT32 opcode, char type, cstate *cs);
 	inline int sfao(UINT32 st1);
 	inline int dbp(UINT32 st1);
 	inline int crm(UINT32 st1);
@@ -214,7 +189,29 @@ private:
 };
 
 enum {
-	TMS57002_PC=1
+	TMS57002_PC=1,
+	TMS57002_AACC,
+	TMS57002_BA0,
+	TMS57002_BA1,
+	TMS57002_CREG,
+	TMS57002_CA,
+	TMS57002_DREG,
+	TMS57002_ID,
+	TMS57002_MACC,
+	TMS57002_HIDX,
+	TMS57002_HOST0,
+	TMS57002_HOST1,
+	TMS57002_HOST2,
+	TMS57002_HOST3,
+	TMS57002_RPTC,
+	TMS57002_SA,
+	TMS57002_ST0,
+	TMS57002_ST1,
+	TMS57002_TREG,
+	TMS57002_XBA,
+	TMS57002_XOA,
+	TMS57002_XRD,
+	TMS57002_XWR,
 };
 
 extern const device_type TMS57002;

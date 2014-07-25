@@ -10,7 +10,6 @@
 #include "emu.h"
 #include "video/resnet.h"
 #include "includes/dkong.h"
-#include "machine/latch8.h"
 
 #define RADARSCP_BCK_COL_OFFSET         256
 #define RADARSCP_GRID_COL_OFFSET        (RADARSCP_BCK_COL_OFFSET + 256)
@@ -200,11 +199,11 @@ static const res_net_info radarscp_grid_net_info =
 PALETTE_INIT_MEMBER(dkong_state,dkong2b)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
-	rgb_t   *rgb;
+	dynamic_array<rgb_t> rgb;
 	int i;
 
-	rgb = compute_res_net_all(machine(), color_prom, &dkong_decode_info, &dkong_net_info);
-	palette_set_colors(machine(), 0, rgb, 256);
+	compute_res_net_all(rgb, color_prom, dkong_decode_info, dkong_net_info);
+	palette.set_pen_colors(0, rgb, 256);
 
 	/* Now treat tri-state black background generation */
 
@@ -212,18 +211,17 @@ PALETTE_INIT_MEMBER(dkong_state,dkong2b)
 		if ( (i & 0x03) == 0x00 )  /*  NOR => CS=1 => Tristate => real black */
 		{
 			int r,g,b;
-			r = compute_res_net( 1, 0, &dkong_net_bck_info );
-			g = compute_res_net( 1, 1, &dkong_net_bck_info );
-			b = compute_res_net( 1, 2, &dkong_net_bck_info );
-			palette_set_color_rgb(machine(),i,r,g,b);
+			r = compute_res_net( 1, 0, dkong_net_bck_info );
+			g = compute_res_net( 1, 1, dkong_net_bck_info );
+			b = compute_res_net( 1, 2, dkong_net_bck_info );
+			palette.set_pen_color(i,r,g,b);
 		}
 
-	palette_normalize_range(machine().palette, 0, 255, 0, 255);
+	palette.palette()->normalize_range(0, 255);
 
 	color_prom += 512;
 	/* color_prom now points to the beginning of the character color codes */
 	m_color_codes = color_prom; /* we'll need it later */
-	auto_free(machine(), rgb);
 }
 
 #ifdef UNUSED_FUNCTION
@@ -236,13 +234,13 @@ PALETTE_INIT_MEMBER(dkong_state,dkong4b)
 	for (i = 0;i < 256;i++)
 	{
 		/* red component */
-		r = compute_res_net( (color_prom[256]>>1) & 0x07, 0, &radarscp_net_info );
+		r = compute_res_net( (color_prom[256]>>1) & 0x07, 0, radarscp_net_info );
 		/* green component */
-		g = compute_res_net( ((color_prom[256]<<2) & 0x04) | ((color_prom[0]>>2) & 0x03), 1, &radarscp_net_info );
+		g = compute_res_net( ((color_prom[256]<<2) & 0x04) | ((color_prom[0]>>2) & 0x03), 1, radarscp_net_info );
 		/* blue component */
-		b = compute_res_net( (color_prom[0]>>0) & 0x03, 2, &radarscp_net_info );
+		b = compute_res_net( (color_prom[0]>>0) & 0x03, 2, radarscp_net_info );
 
-		palette_set_color_rgb(machine(),i,r,g,b);
+		palette.set_pen_color(i,r,g,b);
 		color_prom++;
 	}
 
@@ -251,13 +249,13 @@ PALETTE_INIT_MEMBER(dkong_state,dkong4b)
 	for (i=0;i<256;i++)
 		if ( (i & 0x03) == 0x00 )  /*  NOR => CS=1 => Tristate => real black */
 		{
-			r = compute_res_net( 1, 0, &radarscp_net_bck_info );
-			g = compute_res_net( 1, 1, &radarscp_net_bck_info );
-			b = compute_res_net( 1, 2, &radarscp_net_bck_info );
-			palette_set_color_rgb(machine(),i,r,g,b);
+			r = compute_res_net( 1, 0, radarscp_net_bck_info );
+			g = compute_res_net( 1, 1, radarscp_net_bck_info );
+			b = compute_res_net( 1, 2, radarscp_net_bck_info );
+			palette.set_pen_color(i,r,g,b);
 		}
 
-	palette_normalize_range(machine().palette, 0, 255, 0, 255);
+	palette.palette()->normalize_range(0, 255);
 
 	color_prom += 256;
 	/* color_prom now points to the beginning of the character color codes */
@@ -274,13 +272,13 @@ PALETTE_INIT_MEMBER(dkong_state,radarscp)
 	for (i = 0;i < 256;i++)
 	{
 		/* red component */
-		r = compute_res_net( (color_prom[256]>>1) & 0x07, 0, &radarscp_net_info );
+		r = compute_res_net( (color_prom[256]>>1) & 0x07, 0, radarscp_net_info );
 		/* green component */
-		g = compute_res_net( ((color_prom[256]<<2) & 0x04) | ((color_prom[0]>>2) & 0x03), 1, &radarscp_net_info );
+		g = compute_res_net( ((color_prom[256]<<2) & 0x04) | ((color_prom[0]>>2) & 0x03), 1, radarscp_net_info );
 		/* blue component */
-		b = compute_res_net( (color_prom[0]>>0) & 0x03, 2, &radarscp_net_info );
+		b = compute_res_net( (color_prom[0]>>0) & 0x03, 2, radarscp_net_info );
 
-		palette_set_color_rgb(machine(),i,r,g,b);
+		palette.set_pen_color(i,r,g,b);
 		color_prom++;
 	}
 
@@ -289,39 +287,39 @@ PALETTE_INIT_MEMBER(dkong_state,radarscp)
 	for (i=0;i<256;i++)
 		if ( (m_vidhw != DKONG_RADARSCP_CONVERSION) && ( (i & 0x03) == 0x00 ))  /*  NOR => CS=1 => Tristate => real black */
 		{
-			r = compute_res_net( 1, 0, &radarscp_net_bck_info );
-			g = compute_res_net( 1, 1, &radarscp_net_bck_info );
-			b = compute_res_net( 1, 2, &radarscp_net_bck_info );
-			palette_set_color_rgb(machine(),i,r,g,b);
+			r = compute_res_net( 1, 0, radarscp_net_bck_info );
+			g = compute_res_net( 1, 1, radarscp_net_bck_info );
+			b = compute_res_net( 1, 2, radarscp_net_bck_info );
+			palette.set_pen_color(i,r,g,b);
 		}
 
 	/* Star color */
-	r = compute_res_net( 1, 0, &radarscp_stars_net_info );
-	g = compute_res_net( 0, 1, &radarscp_stars_net_info );
-	b = compute_res_net( 0, 2, &radarscp_stars_net_info );
-	palette_set_color_rgb(machine(),RADARSCP_STAR_COL,r,g,b);
+	r = compute_res_net( 1, 0, radarscp_stars_net_info );
+	g = compute_res_net( 0, 1, radarscp_stars_net_info );
+	b = compute_res_net( 0, 2, radarscp_stars_net_info );
+	palette.set_pen_color(RADARSCP_STAR_COL,r,g,b);
 
 	/* Oscillating background */
 	for (i = 0;i < 256;i++)
 	{
-		r = compute_res_net( 0, 0, &radarscp_blue_net_info );
-		g = compute_res_net( 0, 1, &radarscp_blue_net_info );
-		b = compute_res_net( i, 2, &radarscp_blue_net_info );
+		r = compute_res_net( 0, 0, radarscp_blue_net_info );
+		g = compute_res_net( 0, 1, radarscp_blue_net_info );
+		b = compute_res_net( i, 2, radarscp_blue_net_info );
 
-		palette_set_color_rgb(machine(),RADARSCP_BCK_COL_OFFSET + i,r,g,b);
+		palette.set_pen_color(RADARSCP_BCK_COL_OFFSET + i,r,g,b);
 	}
 
 	/* Grid */
 	for (i = 0;i < 8;i++)
 	{
-		r = compute_res_net( i & 1, 0, &radarscp_grid_net_info );
-		g = compute_res_net( (i>>1) & 1, 1, &radarscp_grid_net_info );
-		b = compute_res_net( (i>>2) & 1, 2, &radarscp_grid_net_info );
+		r = compute_res_net( i & 1, 0, radarscp_grid_net_info );
+		g = compute_res_net( (i>>1) & 1, 1, radarscp_grid_net_info );
+		b = compute_res_net( (i>>2) & 1, 2, radarscp_grid_net_info );
 
-		palette_set_color_rgb(machine(),RADARSCP_GRID_COL_OFFSET + i,r,g,b);
+		palette.set_pen_color(RADARSCP_GRID_COL_OFFSET + i,r,g,b);
 	}
 
-	palette_normalize_range(machine().palette, 0, RADARSCP_GRID_COL_OFFSET+7, 0, 255);
+	palette.palette()->normalize_range(0, RADARSCP_GRID_COL_OFFSET+7);
 
 	color_prom += 256;
 	/* color_prom now points to the beginning of the character color codes */
@@ -337,13 +335,13 @@ PALETTE_INIT_MEMBER(dkong_state,radarscp1)
 	for (i = 0;i < 256;i++)
 	{
 		/* red component */
-		r = compute_res_net( color_prom[512], 0, &radarscp1_net_info );
+		r = compute_res_net( color_prom[512], 0, radarscp1_net_info );
 		/* green component */
-		g = compute_res_net( color_prom[256], 1, &radarscp1_net_info );
+		g = compute_res_net( color_prom[256], 1, radarscp1_net_info );
 		/* blue component */
-		b = compute_res_net( color_prom[0], 2, &radarscp1_net_info );
+		b = compute_res_net( color_prom[0], 2, radarscp1_net_info );
 
-		palette_set_color_rgb(machine(),i,r,g,b);
+		palette.set_pen_color(i,r,g,b);
 		color_prom++;
 	}
 
@@ -352,38 +350,38 @@ PALETTE_INIT_MEMBER(dkong_state,radarscp1)
 	for (i=0;i<256;i++)
 		if ( (i & 0x03) == 0x00 )  /*  NOR => CS=1 => Tristate => real black */
 		{
-			r = compute_res_net( 0, 0, &radarscp1_net_info );
-			g = compute_res_net( 0, 1, &radarscp1_net_info );
-			b = compute_res_net( 0, 2, &radarscp1_net_info );
-			palette_set_color_rgb(machine(),i,r,g,b);
+			r = compute_res_net( 0, 0, radarscp1_net_info );
+			g = compute_res_net( 0, 1, radarscp1_net_info );
+			b = compute_res_net( 0, 2, radarscp1_net_info );
+			palette.set_pen_color(i,r,g,b);
 		}
 
 	/* Star color */
-	r = compute_res_net( 1, 0, &radarscp_stars_net_info );
-	g = compute_res_net( 0, 1, &radarscp_stars_net_info );
-	b = compute_res_net( 0, 2, &radarscp_stars_net_info );
-	palette_set_color_rgb(machine(),RADARSCP_STAR_COL,r,g,b);
+	r = compute_res_net( 1, 0, radarscp_stars_net_info );
+	g = compute_res_net( 0, 1, radarscp_stars_net_info );
+	b = compute_res_net( 0, 2, radarscp_stars_net_info );
+	palette.set_pen_color(RADARSCP_STAR_COL,r,g,b);
 
 	/* Oscillating background */
 	for (i = 0;i < 256;i++)
 	{
-		r = compute_res_net( 0, 0, &radarscp_blue_net_info );
-		g = compute_res_net( 0, 1, &radarscp_blue_net_info );
-		b = compute_res_net( i, 2, &radarscp_blue_net_info );
+		r = compute_res_net( 0, 0, radarscp_blue_net_info );
+		g = compute_res_net( 0, 1, radarscp_blue_net_info );
+		b = compute_res_net( i, 2, radarscp_blue_net_info );
 
-		palette_set_color_rgb(machine(),RADARSCP_BCK_COL_OFFSET + i,r,g,b);
+		palette.set_pen_color(RADARSCP_BCK_COL_OFFSET + i,r,g,b);
 	}
 
 	/* Grid */
 	for (i = 0;i < 8;i++)
 	{
-		r = compute_res_net( i & 1, 0, &radarscp_grid_net_info );
-		g = compute_res_net( (i>>1) & 1, 1, &radarscp_grid_net_info );
-		b = compute_res_net( (i>>2) & 1, 2, &radarscp_grid_net_info );
+		r = compute_res_net( i & 1, 0, radarscp_grid_net_info );
+		g = compute_res_net( (i>>1) & 1, 1, radarscp_grid_net_info );
+		b = compute_res_net( (i>>2) & 1, 2, radarscp_grid_net_info );
 
-		palette_set_color_rgb(machine(),RADARSCP_GRID_COL_OFFSET + i,r,g,b);
+		palette.set_pen_color(RADARSCP_GRID_COL_OFFSET + i,r,g,b);
 	}
-	palette_normalize_range(machine().palette, 0, RADARSCP_GRID_COL_OFFSET+7, 0, 255);
+	palette.palette()->normalize_range(0, RADARSCP_GRID_COL_OFFSET+7);
 
 	color_prom += 512;
 	/* color_prom now points to the beginning of the character color codes */
@@ -430,12 +428,11 @@ PALETTE_INIT_MEMBER(dkong_state,radarscp1)
 PALETTE_INIT_MEMBER(dkong_state,dkong3)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
-	rgb_t   *rgb;
+	dynamic_array<rgb_t> rgb;
 
-	rgb = compute_res_net_all(machine(), color_prom, &dkong3_decode_info, &dkong3_net_info);
-	palette_set_colors(machine(), 0, rgb, 256);
-	palette_normalize_range(machine().palette, 0, 255, 0, 255);
-	auto_free(machine(), rgb);
+	compute_res_net_all(rgb, color_prom, dkong3_decode_info, dkong3_net_info);
+	palette.set_pen_colors(0, rgb, 256);
+	palette.palette()->normalize_range(0, 255);
 
 	color_prom += 1024;
 	/* color_prom now points to the beginning of the character color codes */
@@ -632,11 +629,11 @@ void dkong_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, 
 			}
 			y = scanline - ((y + add_y + 1 + scanline_vfc) & 0x0F);
 
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code, color, flipx, flipy, x, y, 0);
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, code, color, flipx, flipy, x, y, 0);
 
 			// wraparound
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code, color, flipx, flipy, m_flip ? x + 256 : x - 256, y, 0);
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code, color, flipx, flipy, x, y - 256, 0);
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, code, color, flipx, flipy, m_flip ? x + 256 : x - 256, y, 0);
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, code, color, flipx, flipy, x, y - 256, 0);
 
 			num_sprt++;
 		}
@@ -710,7 +707,7 @@ void dkong_state::radarscp_step(int line_cnt)
 
 	/* Now mix with SND02 (sound 2) line - on 74ls259, bit2 */
 	address_space &space = machine().driver_data()->generic_space();
-	m_rflip_sig = latch8_bit2_r(m_dev_6h, space, 0) & m_lfsr_5I;
+	m_rflip_sig = m_dev_6h->bit2_r(space, 0) & m_lfsr_5I;
 
 	/* blue background generation */
 
@@ -775,7 +772,7 @@ void dkong_state::radarscp_step(int line_cnt)
 	 *
 	 * Mixed with ANS line (bit 5) from Port B of 8039
 	 */
-	if (m_grid_on && latch8_bit5_r(m_dev_vp2, space, 0))
+	if (m_grid_on && m_dev_vp2->bit5_r(space, 0))
 	{
 		diff = (0.0 - m_cv3);
 		diff = diff - diff*exp(0.0 - (1.0/RC32 * dt) );
@@ -806,7 +803,7 @@ void dkong_state::radarscp_step(int line_cnt)
 
 }
 
-void dkong_state::radarscp_draw_background(dkong_state *state, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void dkong_state::radarscp_draw_background(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	const UINT8     *htable = NULL;
 	int             x,y;
@@ -853,9 +850,9 @@ void dkong_state::radarscp_scanline(int scanline)
 		pixel = &m_bg_bits.pix16(y, x);
 		if ((m_counter < table_len) && (x == 4 * (table[m_counter|offset] & 0x7f)))
 		{
-			if ( m_star_ff && (table[m_counter|offset] & 0x80) )  /* star */
+			if ( m_star_ff && (table[m_counter|offset] & 0x80) )    /* star */
 				*pixel = RADARSCP_STAR_COL;
-			else if (m_grid_sig && !(table[m_counter|offset] & 0x80))         /* radar */
+			else if (m_grid_sig && !(table[m_counter|offset] & 0x80))           /* radar */
 				*pixel = RADARSCP_GRID_COL_OFFSET+m_grid_col;
 			else
 				*pixel = RADARSCP_BCK_COL_OFFSET + m_blue_level;
@@ -899,10 +896,10 @@ void dkong_state::check_palette()
 			switch (newset)
 			{
 				case DKONG_RADARSCP_CONVERSION:
-					PALETTE_INIT_CALL_MEMBER(radarscp);
+					PALETTE_INIT_NAME(radarscp)(m_palette);
 					break;
 				case DKONG_BOARD:
-					PALETTE_INIT_CALL_MEMBER(dkong2b);
+					PALETTE_INIT_NAME(dkong2b)(m_palette);
 					break;
 			}
 		}
@@ -919,6 +916,7 @@ VIDEO_START_MEMBER(dkong_state,dkong_base)
 	m_sprite_bank = 0;
 	m_vidhw = -1;
 
+	save_item(NAME(m_vidhw));
 	save_item(NAME(m_gfx_bank));
 	save_item(NAME(m_palette_bank));
 	save_item(NAME(m_sprite_bank));
@@ -926,6 +924,26 @@ VIDEO_START_MEMBER(dkong_state,dkong_base)
 
 	save_item(NAME(m_grid_col));
 	save_item(NAME(m_flip));
+
+	// TRS01 TRS02
+	save_item(NAME(m_sig30Hz));
+	save_item(NAME(m_blue_level));
+	save_item(NAME(m_cv1));
+	save_item(NAME(m_cv2));
+	save_item(NAME(m_vg1));
+	save_item(NAME(m_vg2));
+	save_item(NAME(m_vg3));
+	save_item(NAME(m_cv3));
+	save_item(NAME(m_cv4));
+
+	save_item(NAME(m_lfsr_5I));
+	save_item(NAME(m_grid_sig));
+	save_item(NAME(m_rflip_sig));
+	save_item(NAME(m_star_ff));
+	save_item(NAME(m_counter));
+	save_item(NAME(m_pixelcnt));
+	save_item(NAME(m_bg_bits));
+
 }
 
 VIDEO_START_MEMBER(dkong_state,dkong)
@@ -944,12 +962,10 @@ VIDEO_START_MEMBER(dkong_state,dkong)
 			/* fall through */
 		case HARDWARE_TKG04:
 		case HARDWARE_TKG02:
-			m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dkong_state::dkong_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 32);
-			m_bg_tilemap->set_scrolldx(0, 128);
+			m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dkong_state::dkong_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 32);
 			break;
 		case HARDWARE_TRS01:
-			m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dkong_state::radarscp1_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 32);
-			m_bg_tilemap->set_scrolldx(0, 128);
+			m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dkong_state::radarscp1_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 32);
 
 			m_screen->register_screen_bitmap(m_bg_bits);
 			m_gfx4 = memregion("gfx4")->base();
@@ -965,8 +981,6 @@ VIDEO_START_MEMBER(dkong_state,dkong)
 UINT32 dkong_state::screen_update_dkong(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	machine().tilemap().set_flip_all(m_flip ? TILEMAP_FLIPX | TILEMAP_FLIPY : 0);
-	m_bg_tilemap->set_scrollx(0, m_flip ?  0 : 0);
-	m_bg_tilemap->set_scrolly(0, m_flip ? -8 : 0);
 
 	switch (m_hardware_type)
 	{
@@ -980,7 +994,7 @@ UINT32 dkong_state::screen_update_dkong(screen_device &screen, bitmap_ind16 &bit
 		case HARDWARE_TRS02:
 			m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 			draw_sprites(bitmap, cliprect, 0x40, 1);
-			radarscp_draw_background(this, bitmap, cliprect);
+			radarscp_draw_background(bitmap, cliprect);
 			break;
 		default:
 			fatalerror("Invalid hardware type in dkong_video_update\n");
@@ -999,7 +1013,7 @@ UINT32 dkong_state::screen_update_pestplce(screen_device &screen, bitmap_ind16 &
 	{
 		if (m_sprite_ram[offs])
 		{
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 					m_sprite_ram[offs + 2],
 					(m_sprite_ram[offs + 1] & 0x0f) + 16 * m_palette_bank,
 					m_sprite_ram[offs + 1] & 0x80,m_sprite_ram[offs + 1] & 0x40,

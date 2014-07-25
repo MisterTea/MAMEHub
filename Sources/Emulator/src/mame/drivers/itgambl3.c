@@ -41,7 +41,7 @@
 #define MAIN_CLOCK  XTAL_16MHz
 
 #include "emu.h"
-#include "cpu/h83002/h8.h"
+#include "cpu/h8/h83048.h"
 #include "sound/okim6295.h"
 
 
@@ -50,16 +50,18 @@ class itgambl3_state : public driver_device
 public:
 	itgambl3_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_palette(*this, "palette")  { }
 
 	int m_test_x;
 	int m_test_y;
 	int m_start_offs;
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(itgambl3);
 	UINT32 screen_update_itgambl3(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -106,7 +108,7 @@ UINT32 itgambl3_state::screen_update_itgambl3(screen_device &screen, bitmap_rgb3
 
 	popmessage("%d %d %04x",m_test_x,m_test_y,m_start_offs);
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	count = (m_start_offs);
 
@@ -119,7 +121,7 @@ UINT32 itgambl3_state::screen_update_itgambl3(screen_device &screen, bitmap_rgb3
 			color = (blit_ram[count] & 0xff)>>0;
 
 			if(cliprect.contains(x, y))
-				bitmap.pix32(y, x) = machine().pens[color];
+				bitmap.pix32(y, x) = m_palette->pen(color);
 
 			count++;
 		}
@@ -234,7 +236,7 @@ void itgambl3_state::machine_reset()
 }
 
 /* default 444 palette for debug purpose*/
-void itgambl3_state::palette_init()
+PALETTE_INIT_MEMBER(itgambl3_state, itgambl3)
 {
 	int x,r,g,b;
 
@@ -243,7 +245,7 @@ void itgambl3_state::palette_init()
 		r = (x & 0xf)*0x11;
 		g = ((x & 0x3c)>>2)*0x11;
 		b = ((x & 0xf0)>>4)*0x11;
-		palette_set_color(machine(),x,MAKE_RGB(r,g,b));
+		palette.set_pen_color(x,rgb_t(r,g,b));
 	}
 }
 
@@ -267,8 +269,9 @@ static MACHINE_CONFIG_START( itgambl3, itgambl3_state )
 	MCFG_SCREEN_UPDATE_DRIVER(itgambl3_state, screen_update_itgambl3)
 
 
-	MCFG_GFXDECODE(itgambl3)
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", itgambl3)
+	MCFG_PALETTE_ADD("palette", 0x200)
+	MCFG_PALETTE_INIT_OWNER(itgambl3_state, itgambl3)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -480,6 +483,28 @@ ROM_START( x5jokers )   /* CPU and clock should be changed for this game */
 	ROM_LOAD( "xfivejs.u29", 0x00000, 0x80000, CRC(67d51cb4) SHA1(9182a63473a32a9ad91a7a6a47d5a5d965e3cb03) )
 ROM_END
 
+ROM_START( queenotg )
+	ROM_REGION( 0x1000000, "maincpu", 0 )   /* all the program code is in here */
+	ROM_LOAD( "queenotg_m30624fgafp.mcu", 0x00000, 0x4000, NO_DUMP )
+
+	ROM_REGION( 0x200000, "gfx1", 0 )
+	ROM_LOAD( "u22.bin", 0x000000, 0x200000, CRC(b9bd0fac) SHA1(ce6a6d85e9ae47860cc6d270d8d563df58146b74) )
+
+	ROM_REGION( 0x80000, "oki", 0 )
+	ROM_LOAD( "u3.bin", 0x00000, 0x20000, CRC(f318927e) SHA1(f47ec9eb995b28403066fb2b66aad98c044676bc) )
+ROM_END
+
+
+ROM_START( ejollyx9 )
+	ROM_REGION( 0x1000000, "maincpu", 0 )   /* all the program code is in here */
+	ROM_LOAD( "ejollyx9_m30624fgafp.mcu", 0x00000, 0x4000, NO_DUMP )
+
+	ROM_REGION( 0x200000, "gfx1", 0 )
+	ROM_LOAD( "nm.u22", 0x000000, 0x200000, CRC(86b86a98) SHA1(cff4e79aaacad79e17e4dc52f2c14755424a2567) )
+
+	ROM_REGION( 0x80000, "oki", 0 )
+	ROM_LOAD( "nm.u3", 0x00000, 0x80000, CRC(0529696b) SHA1(7e182051baae0b7de1f5a2c18f1b68b695f339d8) )
+ROM_END
 
 
 /*************************
@@ -491,3 +516,5 @@ GAME( 200?, ejollyx5, 0,      itgambl3, itgambl3, driver_device, 0,   ROT0, "Sol
 GAME( 200?, grandprx, 0,      itgambl3, itgambl3, driver_device, 0,   ROT0, "4fun",                  "Grand Prix",                     GAME_IS_SKELETON )
 GAME( 200?, supjolly, 0,      itgambl3, itgambl3, driver_device, 0,   ROT0, "<unknown>",             "Super Jolly",                    GAME_IS_SKELETON )
 GAME( 200?, x5jokers, 0,      itgambl3, itgambl3, driver_device, 0,   ROT0, "Electronic Projects",   "X Five Jokers (Version 1.12)",   GAME_IS_SKELETON )
+GAME( 200?, queenotg, 0,      itgambl3, itgambl3, driver_device, 0,   ROT0, "<unknown>",             "Queen of the Games",             GAME_IS_SKELETON )
+GAME( 200?, ejollyx9, 0,      itgambl3, itgambl3, driver_device, 0,   ROT0, "Solar Games",           "Euro Jolly X9",                  GAME_IS_SKELETON )

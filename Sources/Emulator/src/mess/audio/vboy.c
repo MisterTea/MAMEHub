@@ -208,7 +208,7 @@ void vboysnd_device::device_start()
 	int i;
 
 	// create the stream
-	m_stream = machine().sound().stream_alloc(*this, 0, 2, AUDIO_FREQ, this);
+	m_stream = machine().sound().stream_alloc(*this, 0, 2, AUDIO_FREQ);
 
 	for (i=0; i<2048; i++)
 		waveFreq2LenTbl[i] = AUDIO_FREQ / (5000000.0/(float)((2048-i) * 32));
@@ -481,8 +481,9 @@ WRITE8_MEMBER( vboysnd_device::write )
 			break;
 
 		case SxEV0:
-			if (snd_channel[channel].playing)
-				snd_channel[channel].envelope = ((UINT8)mgetb(m_aram+SxEV0b+i)) >> 4;
+			if (channel < 5)
+				if (snd_channel[channel].playing)
+					snd_channel[channel].envelope = ((UINT8)mgetb(m_aram+SxEV0b+i)) >> 4;
 			break;
 	}
 }

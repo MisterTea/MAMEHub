@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Tomasz Slanina, Olivier Galibert
 /*
 ****************************************************
 Mirax (C)1985 Current Technologies
@@ -101,7 +103,6 @@ Stephh's notes (based on the games Z80 code and some tests) :
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "sound/ay8910.h"
-#include "drivlgcy.h"
 
 
 class mirax_state : public driver_device
@@ -113,7 +114,9 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_colorram(*this, "colorram"),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu") { }
+		m_audiocpu(*this, "audiocpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_spriteram;
@@ -131,22 +134,25 @@ public:
 	DECLARE_WRITE8_MEMBER(ay1_sel);
 	DECLARE_WRITE8_MEMBER(ay2_sel);
 	DECLARE_DRIVER_INIT(mirax);
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(mirax);
+	virtual void sound_start();
 	UINT32 screen_update_mirax(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(mirax_vblank_irq);
 	void draw_tilemap(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 draw_flag);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
-void mirax_state::palette_init()
+PALETTE_INIT_MEMBER(mirax_state, mirax)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < palette.entries();i++)
 	{
 		int bit0,bit1,bit2,r,g,b;
 
@@ -165,14 +171,14 @@ void mirax_state::palette_init()
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		b = 0x4f * bit0 + 0xa8 * bit1;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
 
 void mirax_state::draw_tilemap(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 draw_flag)
 {
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	int y,x;
 	int res_x,res_y,wrapy;
 
@@ -191,9 +197,9 @@ void mirax_state::draw_tilemap(bitmap_ind16 &bitmap, const rectangle &cliprect, 
 
 			if((x <= 1 || x >= 30) ^ draw_flag)
 			{
-				drawgfx_opaque(bitmap,cliprect,gfx,tile,color & 7,(m_flipscreen_x),(m_flipscreen_y),res_x,res_y);
+				gfx->opaque(bitmap,cliprect,tile,color & 7,(m_flipscreen_x),(m_flipscreen_y),res_x,res_y);
 				/* wrap-around */
-				drawgfx_opaque(bitmap,cliprect,gfx,tile,color & 7,(m_flipscreen_x),(m_flipscreen_y),res_x,res_y+wrapy);
+				gfx->opaque(bitmap,cliprect,tile,color & 7,(m_flipscreen_x),(m_flipscreen_y),res_x,res_y+wrapy);
 			}
 		}
 	}
@@ -222,7 +228,7 @@ void mirax_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 		y = (m_flipscreen_y) ? spriteram[count] : 0x100 - spriteram[count] - 16;
 		x = (m_flipscreen_x) ? 240 - spriteram[count+3] : spriteram[count+3];
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[1],spr_offs,color,fx,fy,x,y,0);
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,spr_offs,color,fx,fy,x,y,0);
 	}
 }
 
@@ -235,10 +241,9 @@ UINT32 mirax_state::screen_update_mirax(screen_device &screen, bitmap_ind16 &bit
 }
 
 
-static SOUND_START(mirax)
+void mirax_state::sound_start()
 {
-	mirax_state *state = machine.driver_data<mirax_state>();
-	state->m_nAyCtrl = 0x00;
+	m_nAyCtrl = 0x00;
 }
 
 WRITE8_MEMBER(mirax_state::audio_w)
@@ -472,11 +477,11 @@ static MACHINE_CONFIG_START( mirax, mirax_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mirax_state, screen_update_mirax)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x40)
-	MCFG_GFXDECODE(mirax)
-
-	MCFG_SOUND_START(mirax)
+	MCFG_PALETTE_ADD("palette", 0x40)
+	MCFG_PALETTE_INIT_OWNER(mirax_state, mirax)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mirax)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ay1", AY8910, 12000000/4)

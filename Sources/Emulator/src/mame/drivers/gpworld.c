@@ -58,7 +58,9 @@ public:
 		m_sprite_ram(*this, "sprite_ram"),
 		m_palette_ram(*this, "palette_ram"),
 		m_tile_ram(*this, "tile_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	UINT8 m_nmi_enable;
 	UINT8 m_start_lamp;
@@ -83,6 +85,8 @@ public:
 	inline void draw_pixel(bitmap_rgb32 &bitmap,const rectangle &cliprect,int x,int y,int color,int flip);
 	void gpworld_draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -108,7 +112,7 @@ void gpworld_state::gpworld_draw_tiles(bitmap_rgb32 &bitmap,const rectangle &cli
 		{
 			int current_screen_character = (characterY*64) + characterX;
 
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[0], m_tile_ram[current_screen_character],
+			m_gfxdecode->gfx(0)->transpen(bitmap,cliprect, m_tile_ram[current_screen_character],
 					characterY, 0, 0, characterX*8, characterY*8, 0);
 		}
 	}
@@ -123,7 +127,7 @@ void gpworld_state::draw_pixel(bitmap_rgb32 &bitmap,const rectangle &cliprect,in
 	}
 
 	if (cliprect.contains(x, y))
-		bitmap.pix32(y, x) = machine().pens[color];
+		bitmap.pix32(y, x) = m_palette->pen(color);
 }
 
 void gpworld_state::gpworld_draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -213,10 +217,10 @@ void gpworld_state::gpworld_draw_sprites(bitmap_rgb32 &bitmap, const rectangle &
 					}
 
 					/* Daphne says "don't draw the pixel if it's black". */
-					draw_pixel(bitmap,cliprect,x+0,y,palette_get_color(machine(), pixel1 + (sprite_color*0x10 + 0x200)),flip);
-					draw_pixel(bitmap,cliprect,x+1,y,palette_get_color(machine(), pixel2 + (sprite_color*0x10 + 0x200)),flip);
-					draw_pixel(bitmap,cliprect,x+2,y,palette_get_color(machine(), pixel3 + (sprite_color*0x10 + 0x200)),flip);
-					draw_pixel(bitmap,cliprect,x+3,y,palette_get_color(machine(), pixel4 + (sprite_color*0x10 + 0x200)),flip);
+					draw_pixel(bitmap,cliprect,x+0,y,m_palette->pen_color(pixel1 + (sprite_color*0x10 + 0x200)),flip);
+					draw_pixel(bitmap,cliprect,x+1,y,m_palette->pen_color(pixel2 + (sprite_color*0x10 + 0x200)),flip);
+					draw_pixel(bitmap,cliprect,x+2,y,m_palette->pen_color(pixel3 + (sprite_color*0x10 + 0x200)),flip);
+					draw_pixel(bitmap,cliprect,x+3,y,m_palette->pen_color(pixel4 + (sprite_color*0x10 + 0x200)),flip);
 
 					x += 4;
 
@@ -305,7 +309,7 @@ WRITE8_MEMBER(gpworld_state::palette_write)
 
 	/* logerror("PAL WRITE index : %x  rgb : %d %d %d (real %x) at %x\n", pal_index, r,g,b, data, offset); */
 
-	palette_set_color(machine(), (pal_index & 0xffe) >> 1, MAKE_ARGB(a, r, g, b));
+	m_palette->set_pen_color((pal_index & 0xffe) >> 1, rgb_t(a, r, g, b));
 }
 
 /* PROGRAM MAP */
@@ -490,12 +494,13 @@ static MACHINE_CONFIG_START( gpworld, gpworld_state )
 
 	MCFG_LASERDISC_LDV1000_ADD("laserdisc")
 	MCFG_LASERDISC_OVERLAY_DRIVER(512, 256, gpworld_state, screen_update_gpworld)
+	MCFG_LASERDISC_OVERLAY_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_LASERDISC_SCREEN_ADD_NTSC("screen", "laserdisc")
 
-	MCFG_GFXDECODE(gpworld)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", gpworld)
+	MCFG_PALETTE_ADD("palette", 1024)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

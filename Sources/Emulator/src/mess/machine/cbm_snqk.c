@@ -23,23 +23,22 @@
 
 
 int general_cbm_loadsnap( device_image_interface &image, const char *file_type, int snapshot_size,
-								offs_t offset, void (*cbm_sethiaddress)(running_machine &machine, UINT16 hiaddress) )
+	address_space &space, offs_t offset, void (*cbm_sethiaddress)(address_space &space, UINT16 hiaddress) )
 {
 	char buffer[7];
-	UINT8 *data = NULL;
+	dynamic_buffer data;
 	UINT32 bytesread;
 	UINT16 address = 0;
 	int i;
-	address_space &space = image.device().machine().firstcpu->space(AS_PROGRAM);
 
 	if (!file_type)
 		goto error;
 
-	if (!mame_stricmp(file_type, "prg"))
+	if (!core_stricmp(file_type, "prg"))
 	{
 		/* prg files */
 	}
-	else if (!mame_stricmp(file_type, "p00"))
+	else if (!core_stricmp(file_type, "p00"))
 	{
 		/* p00 files */
 		if (image.fread( buffer, sizeof(buffer)) != sizeof(buffer))
@@ -49,7 +48,7 @@ int general_cbm_loadsnap( device_image_interface &image, const char *file_type, 
 		image.fseek(26, SEEK_SET);
 		snapshot_size -= 26;
 	}
-	else if (!mame_stricmp(file_type, "t64"))
+	else if (!core_stricmp(file_type, "t64"))
 	{
 		/* t64 files - for GB64 Single T64s loading to x0801 - header is always the same size */
 		if (image.fread( buffer, sizeof(buffer)) != sizeof(buffer))
@@ -66,13 +65,11 @@ int general_cbm_loadsnap( device_image_interface &image, const char *file_type, 
 
 	image.fread( &address, 2);
 	address = LITTLE_ENDIANIZE_INT16(address);
-	if (!mame_stricmp(file_type, "t64"))
+	if (!core_stricmp(file_type, "t64"))
 		address = 2049;
 	snapshot_size -= 2;
 
-	data = (UINT8*)malloc(snapshot_size);
-	if (!data)
-		goto error;
+	data.resize(snapshot_size);
 
 	bytesread = image.fread( data, snapshot_size);
 	if (bytesread != snapshot_size)
@@ -81,23 +78,20 @@ int general_cbm_loadsnap( device_image_interface &image, const char *file_type, 
 	for (i = 0; i < snapshot_size; i++)
 		space.write_byte(address + i + offset, data[i]);
 
-	cbm_sethiaddress(image.device().machine(), address + snapshot_size);
-	free(data);
+	cbm_sethiaddress(space, address + snapshot_size);
 	return IMAGE_INIT_PASS;
 
 error:
-	if (data)
-		free(data);
 	return IMAGE_INIT_FAIL;
 }
 
-void cbm_quick_sethiaddress( running_machine &machine, UINT16 hiaddress )
+void cbm_quick_sethiaddress( address_space &space, UINT16 hiaddress )
 {
-	address_space &space = machine.firstcpu->space(AS_PROGRAM);
-
+	space.write_byte(0xae, hiaddress & 0xff);
 	space.write_byte(0x31, hiaddress & 0xff);
 	space.write_byte(0x2f, hiaddress & 0xff);
 	space.write_byte(0x2d, hiaddress & 0xff);
+	space.write_byte(0xaf, hiaddress >> 8);
 	space.write_byte(0x32, hiaddress >> 8);
 	space.write_byte(0x30, hiaddress >> 8);
 	space.write_byte(0x2e, hiaddress >> 8);

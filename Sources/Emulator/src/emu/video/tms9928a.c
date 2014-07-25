@@ -34,6 +34,16 @@ const device_type TMS9929  = &device_creator<tms9929_device>;
 const device_type TMS9929A = &device_creator<tms9929a_device>;
 const device_type TMS9129  = &device_creator<tms9129_device>;
 
+// ======= Debugging =========
+
+// Log register accesses
+#define TRACE_REG 0
+
+// Log mode settings
+#define TRACE_MODE 0
+
+// ===========================
+
 /*
     The TMS9928 has an own address space.
 */
@@ -42,58 +52,11 @@ static ADDRESS_MAP_START(memmap, AS_DATA, 8, tms9928a_device)
 	AM_RANGE(0x0000, 0x3fff) AM_RAM
 ADDRESS_MAP_END
 
-/*
-    New palette (R. Nabet).
-
-    First 3 columns from TI datasheet (in volts).
-    Next 3 columns based on formula :
-        Y = .299*R + .587*G + .114*B (NTSC)
-    (the coefficients are likely to be slightly different with PAL, but who cares ?)
-    I assumed the "zero" for R-Y and B-Y was 0.47V.
-    Last 3 coeffs are the 8-bit values.
-
-    Color            Y      R-Y     B-Y     R       G       B       R   G   B
-    0 Transparent
-    1 Black         0.00    0.47    0.47    0.00    0.00    0.00      0   0   0
-    2 Medium green  0.53    0.07    0.20    0.13    0.79    0.26     33 200  66
-    3 Light green   0.67    0.17    0.27    0.37    0.86    0.47     94 220 120
-    4 Dark blue     0.40    0.40    1.00    0.33    0.33    0.93     84  85 237
-    5 Light blue    0.53    0.43    0.93    0.49    0.46    0.99    125 118 252
-    6 Dark red      0.47    0.83    0.30    0.83    0.32    0.30    212  82  77
-    7 Cyan          0.73    0.00    0.70    0.26    0.92    0.96     66 235 245
-    8 Medium red    0.53    0.93    0.27    0.99    0.33    0.33    252  85  84
-    9 Light red     0.67    0.93    0.27    1.13(!) 0.47    0.47    255 121 120
-    A Dark yellow   0.73    0.57    0.07    0.83    0.76    0.33    212 193  84
-    B Light yellow  0.80    0.57    0.17    0.90    0.81    0.50    230 206 128
-    C Dark green    0.47    0.13    0.23    0.13    0.69    0.23     33 176  59
-    D Magenta       0.53    0.73    0.67    0.79    0.36    0.73    201  91 186
-    E Gray          0.80    0.47    0.47    0.80    0.80    0.80    204 204 204
-    F White         1.00    0.47    0.47    1.00    1.00    1.00    255 255 255
-*/
-static const rgb_t tms9928a_palette[TMS9928A_PALETTE_SIZE] =
-{
-	RGB_BLACK,
-	RGB_BLACK,
-	MAKE_RGB(33, 200, 66),
-	MAKE_RGB(94, 220, 120),
-	MAKE_RGB(84, 85, 237),
-	MAKE_RGB(125, 118, 252),
-	MAKE_RGB(212, 82, 77),
-	MAKE_RGB(66, 235, 245),
-	MAKE_RGB(252, 85, 84),
-	MAKE_RGB(255, 121, 120),
-	MAKE_RGB(212, 193, 84),
-	MAKE_RGB(230, 206, 128),
-	MAKE_RGB(33, 176, 59),
-	MAKE_RGB(201, 91, 186),
-	MAKE_RGB(204, 204, 204),
-	RGB_WHITE
-};
-
 tms9928a_device::tms9928a_device( const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, bool is_50hz, bool is_reva, bool is_99, const char *shortname, const char *source)
 	: device_t( mconfig, type, name, tag, owner, clock, shortname, source),
 		device_memory_interface(mconfig, *this),
 		device_video_interface(mconfig, *this),
+		m_out_int_line_cb(*this),
 		m_space_config("vram",ENDIANNESS_BIG, 8, 14, 0, NULL, *ADDRESS_MAP_NAME(memmap))
 {
 	m_50hz = is_50hz;
@@ -104,10 +67,12 @@ tms9928a_device::tms9928a_device( const machine_config &mconfig, device_type typ
 
 
 tms9928a_device::tms9928a_device( const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock )
-	: device_t( mconfig, TMS9928A, "TMS9928A", tag, owner, clock, "tms9928a", __FILE__),
+	: device_t( mconfig, TMS9928A, "TMS9928A VDP", tag, owner, clock, "tms9928a", __FILE__),
 		device_memory_interface(mconfig, *this),
 		device_video_interface(mconfig, *this),
-	m_space_config("vram",ENDIANNESS_BIG, 8, 14, 0, NULL, *ADDRESS_MAP_NAME(memmap))
+		m_vram_size(0),
+		m_out_int_line_cb(*this),
+		m_space_config("vram",ENDIANNESS_BIG, 8, 14, 0, NULL, *ADDRESS_MAP_NAME(memmap))
 {
 	m_50hz = false;
 	m_reva = true;
@@ -166,8 +131,8 @@ void tms9928a_device::check_interrupt()
 	if (b != m_INT)
 	{
 		m_INT = b;
-		if ( !m_irq_changed.isnull() )
-			m_irq_changed( m_INT );
+		if ( !m_out_int_line_cb.isnull() )
+			m_out_int_line_cb( m_INT );
 	}
 }
 
@@ -176,7 +141,7 @@ void tms9928a_device::update_backdrop()
 {
 	// update backdrop colour to transparent if EXTVID bit is set
 	if ((m_Regs[7] & 15) == 0)
-		m_palette[0] = MAKE_ARGB(m_Regs[0] & 1 ? 0 : 255,0,0,0);
+		m_palette[0] = rgb_t(m_Regs[0] & 1 ? 0 : 255,0,0,0);
 }
 
 
@@ -205,7 +170,7 @@ void tms9928a_device::change_register(UINT8 reg, UINT8 val)
 	val &= Mask[reg];
 	m_Regs[reg] = val;
 
-	logerror("TMS9928A('%s'): Reg %d = %02xh\n", tag(), reg, (int)val);
+	if (TRACE_REG) logerror("TMS9928A('%s'): Reg %d = %02xh\n", tag(), reg, (int)val);
 
 	switch (reg)
 	{
@@ -225,12 +190,12 @@ void tms9928a_device::change_register(UINT8 reg, UINT8 val)
 		m_mode = ( (m_reva ? (m_Regs[0] & 2) : 0) | ((m_Regs[1] & 0x10)>>4) | ((m_Regs[1] & 8)>>1));
 		if ((val ^ prev) & 1)
 			update_backdrop();
-		logerror("TMS9928A('%s'): %s\n", tag(), modes[m_mode]);
+		if (TRACE_MODE) logerror("TMS9928A('%s'): %s\n", tag(), modes[m_mode]);
 		break;
 	case 1:
 		check_interrupt();
 		m_mode = ( (m_reva ? (m_Regs[0] & 2) : 0) | ((m_Regs[1] & 0x10)>>4) | ((m_Regs[1] & 8)>>1));
-		logerror("TMS9928A('%s'): %s\n", tag(), modes[m_mode]);
+		if (TRACE_MODE) logerror("TMS9928A('%s'): %s\n", tag(), modes[m_mode]);
 		break;
 	case 2:
 		m_nametbl = (val * 1024) & (m_vram_size - 1);
@@ -611,22 +576,62 @@ UINT32 tms9928a_device::screen_update( screen_device &screen, bitmap_rgb32 &bitm
 	return 0;
 }
 
-
-void tms9928a_device::device_config_complete()
+void tms9928a_device::set_palette()
 {
-	const tms9928a_interface *intf = reinterpret_cast<const tms9928a_interface *>(static_config());
+	/*
+	New palette (R. Nabet).
 
-	if ( intf != NULL )
+	First 3 columns from TI datasheet (in volts).
+	Next 3 columns based on formula :
+	Y = .299*R + .587*G + .114*B (NTSC)
+	(the coefficients are likely to be slightly different with PAL, but who cares ?)
+	I assumed the "zero" for R-Y and B-Y was 0.47V.
+	Last 3 coeffs are the 8-bit values.
+
+	Color            Y      R-Y     B-Y     R       G       B       R   G   B
+	0 Transparent
+	1 Black         0.00    0.47    0.47    0.00    0.00    0.00      0   0   0
+	2 Medium green  0.53    0.07    0.20    0.13    0.79    0.26     33 200  66
+	3 Light green   0.67    0.17    0.27    0.37    0.86    0.47     94 220 120
+	4 Dark blue     0.40    0.40    1.00    0.33    0.33    0.93     84  85 237
+	5 Light blue    0.53    0.43    0.93    0.49    0.46    0.99    125 118 252
+	6 Dark red      0.47    0.83    0.30    0.83    0.32    0.30    212  82  77
+	7 Cyan          0.73    0.00    0.70    0.26    0.92    0.96     66 235 245
+	8 Medium red    0.53    0.93    0.27    0.99    0.33    0.33    252  85  84
+	9 Light red     0.67    0.93    0.27    1.13(!) 0.47    0.47    255 121 120
+	A Dark yellow   0.73    0.57    0.07    0.83    0.76    0.33    212 193  84
+	B Light yellow  0.80    0.57    0.17    0.90    0.81    0.50    230 206 128
+	C Dark green    0.47    0.13    0.23    0.13    0.69    0.23     33 176  59
+	D Magenta       0.53    0.73    0.67    0.79    0.36    0.73    201  91 186
+	E Gray          0.80    0.47    0.47    0.80    0.80    0.80    204 204 204
+	F White         1.00    0.47    0.47    1.00    1.00    1.00    255 255 255
+	*/
+	static const rgb_t tms9928a_palette[TMS9928A_PALETTE_SIZE] =
 	{
-		*static_cast<tms9928a_interface *>(this) = *intf;
-	}
-	else
+		rgb_t::black,
+		rgb_t::black,
+		rgb_t(33, 200, 66),
+		rgb_t(94, 220, 120),
+		rgb_t(84, 85, 237),
+		rgb_t(125, 118, 252),
+		rgb_t(212, 82, 77),
+		rgb_t(66, 235, 245),
+		rgb_t(252, 85, 84),
+		rgb_t(255, 121, 120),
+		rgb_t(212, 193, 84),
+		rgb_t(230, 206, 128),
+		rgb_t(33, 176, 59),
+		rgb_t(201, 91, 186),
+		rgb_t(204, 204, 204),
+		rgb_t::white
+	};
+
+	/* copy default palette into working palette */
+	for (int i = 0; i < TMS9928A_PALETTE_SIZE; i++)
 	{
-		m_vram_size = 0;
-		memset(&m_out_int_line, 0, sizeof(m_out_int_line));
+		m_palette[i] = tms9928a_palette[i];
 	}
 }
-
 
 void tms9928a_device::device_start()
 {
@@ -635,7 +640,7 @@ void tms9928a_device::device_start()
 	m_top_border = m_50hz ? TMS9928A_VERT_DISPLAY_START_PAL : TMS9928A_VERT_DISPLAY_START_NTSC;
 	m_vertical_size = m_50hz ? TMS9928A_TOTAL_VERT_PAL : TMS9928A_TOTAL_VERT_NTSC;
 
-	m_irq_changed.resolve( m_out_int_line, *this );
+	m_out_int_line_cb.resolve();
 
 	// Video RAM is allocated as an own address space
 	m_vram_space = &space(AS_DATA);
@@ -645,11 +650,7 @@ void tms9928a_device::device_start()
 
 	m_line_timer = timer_alloc(TIMER_LINE);
 
-	/* copy default palette into working palette */
-	for (int i = 0; i < TMS9928A_PALETTE_SIZE; i++)
-	{
-		m_palette[i] = tms9928a_palette[i];
-	}
+	set_palette();
 
 	save_item(NAME(m_Regs[0]));
 	save_item(NAME(m_Regs[1]));

@@ -148,10 +148,11 @@ static MACHINE_CONFIG_START( trucocl, trucocl_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(trucocl_state, screen_update_trucocl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(trucocl)
-	MCFG_PALETTE_LENGTH(32)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", trucocl)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(trucocl_state, trucocl)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

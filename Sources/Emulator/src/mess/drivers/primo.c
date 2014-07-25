@@ -113,8 +113,7 @@ Interrupts:
 #include "imagedev/snapquik.h"
 #include "imagedev/cartslot.h"
 #include "formats/primoptp.h"
-#include "machine/cbmiec.h"
-#include "machine/cbmipt.h"
+#include "bus/cbmiec/cbmiec.h"
 
 static ADDRESS_MAP_START( primoa_port, AS_IO, 8, primo_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
@@ -239,15 +238,6 @@ static const struct CassetteOptions primo_cassette_options = {
 	22050   /* sample frequency */
 };
 
-static const cassette_interface primo_cassette_interface =
-{
-	primo_ptp_format,
-	&primo_cassette_options,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
-
 static MACHINE_CONFIG_START( primoa32, primo_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD( "maincpu", Z80, 2500000 )
@@ -263,9 +253,9 @@ static MACHINE_CONFIG_START( primoa32, primo_state )
 	MCFG_SCREEN_SIZE( 256, 192 )
 	MCFG_SCREEN_VISIBLE_AREA( 0, 256-1, 0, 192-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(primo_state, screen_update_primo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -278,7 +268,10 @@ static MACHINE_CONFIG_START( primoa32, primo_state )
 	MCFG_SNAPSHOT_ADD("snapshot", primo_state, primo, "pss", 0)
 	MCFG_QUICKLOAD_ADD("quickload", primo_state, primo, "pp", 0)
 
-	MCFG_CASSETTE_ADD( "cassette", primo_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(primo_ptp_format)
+	MCFG_CASSETTE_CREATE_OPTS(&primo_cassette_options)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED)
 
 	/* floppy from serial bus */
 	MCFG_CBM_IEC_ADD(NULL)

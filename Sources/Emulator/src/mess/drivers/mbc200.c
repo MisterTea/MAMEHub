@@ -2,12 +2,14 @@
 
         Sanyo MBC-200
 
-        Machine MBC-1200 is identicaly but sold outside of Japan
+        Machine MBC-1200 is identical but sold outside of Japan
 
         16 x HM6116P-3 2K x 8 SRAM soldered onboard (so 32k ram)
         4 x HM6116P-3 2K x 8 SRAM socketed (so 8k ram)
         4 x MB83256 32K x 8 socketed (128k ram)
-        Dual 5.25" floppies.
+        Floppy = 5.25"
+        MBC1200 has one floppy while MBC1250 has 2. The systems
+        are otherwise identical.
 
         On back side:
             - keyboard DIN connector
@@ -15,11 +17,20 @@
             - RS-232C 25pin connector
 
         TODO:
-        - Master-Slave hand-shaking thru PPI8255 doesn't work properly
-          (checks if bit 7 is high on master side, you appaently can't do
-           that with current core(s)), kludged to work for now.
+        - Keyboard
+        - Sound
+        - CP/M display (it runs into the weeds internally)
+        - Other connections to the various PPI's
+        - UART connections
+        - Any other devices?
 
-        31/10/2011 Skeleton driver.
+        2011-10-31 Skeleton driver.
+        2014-05-18 Made rom get copied into ram, boot code from disk
+                   requires that ram is there otherwise you get
+                   a MEMORY ERROR. Now, CP/M loads and is executed, but
+                   nothing shows on the screen.
+                   Tried new wdc code, but the disk couldn't be read at all.
+
 
 ****************************************************************************/
 
@@ -28,55 +39,60 @@
 #include "machine/i8255.h"
 #include "machine/i8251.h"
 #include "video/mc6845.h"
+//#include "machine/wd_fdc.h"
 #include "machine/wd17xx.h"
-#include "formats/basicdsk.h"
-#include "imagedev/flopdrv.h"
+
 
 class mbc200_state : public driver_device
 {
 public:
 	mbc200_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_6845(*this, "crtc"),
-		m_fdc(*this, "fdc"),
-		m_ppi(*this, "ppi8255_2"),
-		m_floppy0(*this, FLOPPY_0),
-		m_floppy1(*this, FLOPPY_1),
-		m_vram(*this, "vram")
-	,
-		m_maincpu(*this, "maincpu") { }
+		: driver_device(mconfig, type, tag)
+		, m_palette(*this, "palette")
+		, m_crtc(*this, "crtc")
+		, m_ppi_m(*this, "ppi_m")
+		, m_vram(*this, "vram")
+		, m_maincpu(*this, "maincpu")
+		, m_fdc(*this, "fdc")
+		//, m_floppy0(*this, "fdc:0")
+		//, m_floppy1(*this, "fdc:1")
+		, m_floppy0(*this, FLOPPY_0)
+		, m_floppy1(*this, FLOPPY_1)
+	{ }
 
+	DECLARE_READ8_MEMBER(p2_porta_r);
+	DECLARE_WRITE8_MEMBER(pm_porta_w);
+	MC6845_UPDATE_ROW(update_row);
+	required_device<palette_device> m_palette;
+
+private:
 	virtual void machine_start();
-
-	required_device<mc6845_device> m_6845;
+	virtual void machine_reset();
+	UINT8 m_comm_latch;
+	required_device<mc6845_device> m_crtc;
+	required_device<i8255_device> m_ppi_m;
+	required_shared_ptr<UINT8> m_vram;
+	required_device<cpu_device> m_maincpu;
+	//required_device<mb8876_t> m_fdc;
+	//required_device<floppy_connector> m_floppy0;
+	//required_device<floppy_connector> m_floppy1;
 	required_device<mb8876_device> m_fdc;
-	required_device<i8255_device> m_ppi;
 	required_device<legacy_floppy_image_device> m_floppy0;
 	required_device<legacy_floppy_image_device> m_floppy1;
-
-	DECLARE_READ8_MEMBER(from_master_r);
-	DECLARE_WRITE8_MEMBER(porta_w);
-	DECLARE_READ8_MEMBER(ppi_hs_r);
-
-	UINT8 m_hs_bit;
-	UINT8 m_comm_latch;
-	required_shared_ptr<UINT8> m_vram;
-
-	virtual void video_start();
-	UINT32 screen_update_mbc200(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	required_device<cpu_device> m_maincpu;
 };
 
 
 static ADDRESS_MAP_START(mbc200_mem, AS_PROGRAM, 8, mbc200_state)
 	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE( 0x0000, 0x0fff ) AM_ROM
+	AM_RANGE( 0x0000, 0x0fff ) AM_RAM AM_REGION("maincpu", 0)
 	AM_RANGE( 0x1000, 0xffff ) AM_RAM
 ADDRESS_MAP_END
 
-READ8_MEMBER( mbc200_state::ppi_hs_r )
+WRITE8_MEMBER( mbc200_state::pm_porta_w )
 {
-	return (m_ppi->read(space, 2) & 0x7f) | m_hs_bit;
+	machine().scheduler().synchronize(); // force resync
+	printf("A %02x %c\n",data,data);
+	m_comm_latch = data; // to slave CPU
 }
 
 static ADDRESS_MAP_START( mbc200_io , AS_IO, 8, mbc200_state)
@@ -84,9 +100,9 @@ static ADDRESS_MAP_START( mbc200_io , AS_IO, 8, mbc200_state)
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0xe0, 0xe0) AM_DEVREADWRITE("i8251_1", i8251_device, data_r, data_w)
 	AM_RANGE(0xe1, 0xe1) AM_DEVREADWRITE("i8251_1", i8251_device, status_r, control_w)
-	AM_RANGE(0xe4, 0xe7) AM_DEVREADWRITE_LEGACY("fdc", wd17xx_r, wd17xx_w)
-	AM_RANGE(0xea, 0xea) AM_READ(ppi_hs_r)
-	AM_RANGE(0xe8, 0xeb) AM_DEVREADWRITE("ppi8255_2", i8255_device, read, write)
+	//AM_RANGE(0xe4, 0xe7) AM_DEVREADWRITE("fdc", mb8876_t, read, write)
+	AM_RANGE(0xe4, 0xe7) AM_DEVREADWRITE("fdc", mb8876_device, read, write)
+	AM_RANGE(0xe8, 0xeb) AM_DEVREADWRITE("ppi_m", i8255_device, read, write)
 	AM_RANGE(0xec, 0xec) AM_DEVREADWRITE("i8251_2", i8251_device, data_r, data_w)
 	AM_RANGE(0xed, 0xed) AM_DEVREADWRITE("i8251_2", i8251_device, status_r, control_w)
 ADDRESS_MAP_END
@@ -100,145 +116,88 @@ static ADDRESS_MAP_START(mbc200_sub_mem, AS_PROGRAM, 8, mbc200_state)
 	AM_RANGE( 0x8000, 0xffff ) AM_RAM AM_SHARE("vram")
 ADDRESS_MAP_END
 
-READ8_MEMBER(mbc200_state::from_master_r)
+READ8_MEMBER(mbc200_state::p2_porta_r)
 {
-	UINT8 tmp;
 	machine().scheduler().synchronize(); // force resync
-	tmp = m_comm_latch;
+	UINT8 tmp = m_comm_latch;
 	m_comm_latch = 0;
-	m_hs_bit |= 0x80;
+	m_ppi_m->pc6_w(0); // ppi_ack
 	return tmp;
 }
 
 static ADDRESS_MAP_START( mbc200_sub_io , AS_IO, 8, mbc200_state)
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x70, 0x73) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write)
-	AM_RANGE(0xb0, 0xb0) AM_DEVWRITE("crtc", mc6845_device, address_w)
+	AM_RANGE(0x70, 0x73) AM_DEVREADWRITE("ppi_1", i8255_device, read, write)
+	AM_RANGE(0xb0, 0xb0) AM_DEVREADWRITE("crtc", mc6845_device, status_r, address_w)
 	AM_RANGE(0xb1, 0xb1) AM_DEVREADWRITE("crtc", mc6845_device, register_r, register_w)
-//  AM_RANGE(0xd0, 0xd3) AM_DEVREADWRITE("ppi8255_2", i8255_device, read, write)
-	AM_RANGE(0xd0, 0xd0) AM_READ(from_master_r)
+	AM_RANGE(0xd0, 0xd3) AM_DEVREADWRITE("ppi_2", i8255_device, read, write)
 ADDRESS_MAP_END
 
 /* Input ports */
-INPUT_PORTS_START( mbc200 )
+static INPUT_PORTS_START( mbc200 )
 INPUT_PORTS_END
 
 void mbc200_state::machine_start()
 {
-	floppy_mon_w(m_floppy0, CLEAR_LINE);
-	floppy_mon_w(m_floppy1, CLEAR_LINE);
-	floppy_drive_set_ready_state(m_floppy0, 1, 1);
-	floppy_drive_set_ready_state(m_floppy1, 1, 1);
+//  floppy_image_device *floppy = NULL;
+//  floppy = m_floppy0->get_device();
+// floppy1 not supported currently
+//  m_fdc->set_floppy(floppy);
+
+//  if (floppy)
+//      floppy->mon_w(0);
+
+	m_floppy0->floppy_mon_w(0);
+	m_floppy1->floppy_mon_w(0);
+	m_floppy0->floppy_drive_set_ready_state(1, 1);
+	m_floppy1->floppy_drive_set_ready_state(1, 1);
 }
 
-MC6845_UPDATE_ROW( mbc200_update_row )
+void mbc200_state::machine_reset()
 {
+	UINT8* roms = memregion("roms")->base();
+	UINT8* main = memregion("maincpu")->base();
+	memcpy(main, roms, 0x1000);
 }
 
-
-static MC6845_INTERFACE( mbc200_crtc )
-{
-	false,
-	8,          /* number of dots per character */
-	NULL,
-	mbc200_update_row,      /* handler to display a scanline */
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
-
-void mbc200_state::video_start()
-{
-}
-
-UINT32 mbc200_state::screen_update_mbc200(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
-{
-	int x,y,xi,yi;
-	int count;
-
-	count = 0;
-
-	for(y=0;y<100;y++)
-	{
-		for(x=0;x<80;x++)
-		{
-			for(yi=0;yi<4;yi++)
-			{
-				for(xi=0;xi<8;xi++)
-				{
-					UINT8 dot;
-					dot = (m_vram[count] >> (7-xi)) & 1;
-
-					if(y*4+yi < 400 && x*8+xi < 640) /* TODO: safety check */
-						bitmap.pix16(y*4+yi, x*8+xi) = machine().pens[dot];
-				}
-
-				count++;
-			}
-		}
-	}
-
-	return 0;
-}
-
-static I8255_INTERFACE( mbc200_ppi8255_interface_1 )
-{
-	DEVCB_NULL, /* port A read */
-	DEVCB_NULL, /* port A write */
-	DEVCB_NULL, /* port B read */
-	DEVCB_NULL, /* port B write */
-	DEVCB_NULL, /* port C read */
-	DEVCB_NULL  /* port C write */
-};
-
-
-WRITE8_MEMBER( mbc200_state::porta_w )
-{
-	machine().scheduler().synchronize(); // force resync
-	printf("A %02x %c\n",data,data);
-	m_comm_latch = data; // to slave CPU
-	m_hs_bit &= ~0x80;
-}
-
-static I8255_INTERFACE( mbc200_ppi8255_interface_2 )
-{
-	DEVCB_NULL, /* port A read */
-	DEVCB_DRIVER_MEMBER(mbc200_state,porta_w),  /* port A write */
-	DEVCB_NULL, /* port B read */
-	DEVCB_NULL, /* port B write */
-	DEVCB_NULL, /* port C read */
-	DEVCB_NULL  /* port C write */
-};
-
-
-static const wd17xx_interface mbc200_mb8876_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	{FLOPPY_0, FLOPPY_1, NULL, NULL}
-};
 static const floppy_interface mbc200_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_SSDD_40,
 	LEGACY_FLOPPY_OPTIONS_NAME(default),
-	"floppy_5_25",
-	NULL
+	"floppy_5_25"
 };
+
+//static SLOT_INTERFACE_START( mbc200_floppies )
+//  SLOT_INTERFACE( "525dd", FLOPPY_525_SSDD )
+//SLOT_INTERFACE_END
+
+MC6845_UPDATE_ROW( mbc200_state::update_row )
+{
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
+	UINT8 gfx;
+	UINT16 mem,x;
+	UINT32 *p = &bitmap.pix32(y);
+
+	for (x = 0; x < x_count; x++)
+	{
+		mem = (ma+x)*4+ra;
+		gfx = m_vram[mem];
+		*p++ = palette[BIT(gfx, 7)];
+		*p++ = palette[BIT(gfx, 6)];
+		*p++ = palette[BIT(gfx, 5)];
+		*p++ = palette[BIT(gfx, 4)];
+		*p++ = palette[BIT(gfx, 3)];
+		*p++ = palette[BIT(gfx, 2)];
+		*p++ = palette[BIT(gfx, 1)];
+		*p++ = palette[BIT(gfx, 0)];
+	}
+}
 
 static const gfx_layout mbc200_chars_8x8 =
 {
 	8,8,
-	RGN_FRAC(1,1),
+	256,
 	1,
 	{ 0 },
 	{ 0, 1, 2, 3, 4, 5, 6, 7 },
@@ -247,7 +206,7 @@ static const gfx_layout mbc200_chars_8x8 =
 };
 
 static GFXDECODE_START( mbc200 )
-	GFXDECODE_ENTRY( "subcpu", 0x0000, mbc200_chars_8x8, 0, 4 )
+	GFXDECODE_ENTRY( "subcpu", 0x1800, mbc200_chars_8x8, 0, 1 )
 GFXDECODE_END
 
 
@@ -267,24 +226,41 @@ static MACHINE_CONFIG_START( mbc200, mbc200_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_SIZE(640, 400)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 400-1)
-	MCFG_SCREEN_UPDATE_DRIVER(mbc200_state, screen_update_mbc200)
-	MCFG_GFXDECODE(mbc200)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_UPDATE_DEVICE("crtc", h46505_device, screen_update)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mbc200)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
+	MCFG_MC6845_ADD("crtc", H46505, "screen", XTAL_8MHz / 4) // HD46505SP
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(mbc200_state, update_row)
 
-	MCFG_MC6845_ADD("crtc", H46505, "screen", XTAL_8MHz / 4, mbc200_crtc) // HD46505SP
-	MCFG_I8255_ADD("ppi8255_1", mbc200_ppi8255_interface_1) // i8255AC-5
-	MCFG_I8255_ADD("ppi8255_2", mbc200_ppi8255_interface_2) // i8255AC-5
-	MCFG_I8251_ADD("i8251_1", default_i8251_interface) // INS8251N
-	MCFG_I8251_ADD("i8251_2", default_i8251_interface) // INS8251A
-	MCFG_MB8876_ADD("fdc",mbc200_mb8876_interface) // MB8876A
+	MCFG_DEVICE_ADD("ppi_1", I8255, 0)
+
+	MCFG_DEVICE_ADD("ppi_2", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(mbc200_state, p2_porta_r))
+
+	MCFG_DEVICE_ADD("ppi_m", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(mbc200_state, pm_porta_w))
+
+	MCFG_DEVICE_ADD("i8251_1", I8251, 0) // INS8251N
+	MCFG_DEVICE_ADD("i8251_2", I8251, 0) // INS8251A
+
+	//MCFG_MB8876x_ADD("fdc", 1000000) // guess
+	//MCFG_FLOPPY_DRIVE_ADD("fdc:0", mbc200_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	//MCFG_FLOPPY_DRIVE_ADD("fdc:1", mbc200_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_DEVICE_ADD("fdc", MB8876, 0) // MB8876A
+	MCFG_WD17XX_DEFAULT_DRIVE2_TAGS
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(mbc200_floppy_interface)
+
+	/* software lists */
+	MCFG_SOFTWARE_LIST_ADD("flop_list", "mbc200")
 MACHINE_CONFIG_END
 
 /* ROM definition */
 ROM_START( mbc200 )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
+	ROM_REGION( 0x1000, "roms", 0 )
 	ROM_LOAD( "d2732a.bin",  0x0000, 0x1000, CRC(bf364ce8) SHA1(baa3a20a5b01745a390ef16628dc18f8d682d63b))
 	ROM_REGION( 0x10000, "subcpu", ROMREGION_ERASEFF )
 	ROM_LOAD( "m5l2764.bin", 0x0000, 0x2000, CRC(377300a2) SHA1(8563172f9e7f84330378a8d179f4138be5fda099))
@@ -292,5 +268,5 @@ ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME    PARENT  COMPAT   MACHINE    INPUT    INIT    COMPANY   FULLNAME       FLAGS */
-COMP( 1982, mbc200,  0,       0,    mbc200,     mbc200, driver_device,   0,  "Sanyo",   "MBC-200",      GAME_NOT_WORKING | GAME_NO_SOUND)
+/*    YEAR  NAME     PARENT   COMPAT   MACHINE    INPUT   CLASS          INIT   COMPANY   FULLNAME       FLAGS */
+COMP( 1982, mbc200,  0,       0,       mbc200,    mbc200, driver_device,   0,  "Sanyo",   "MBC-200", GAME_NOT_WORKING | GAME_NO_SOUND)

@@ -12,7 +12,9 @@ public:
 	norautp_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag) ,
 		m_maincpu(*this, "maincpu"),
-		m_discrete(*this, "discrete") { }
+		m_discrete(*this, "discrete"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	UINT16 *m_np_vram;
 	UINT16 m_np_addr;
@@ -28,10 +30,12 @@ public:
 	DECLARE_DRIVER_INIT(enc);
 	DECLARE_DRIVER_INIT(deb);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(norautp);
 	UINT32 screen_update_norautp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<discrete_device> m_discrete;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 /*----------- defined in audio/norautp.c -----------*/

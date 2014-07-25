@@ -81,8 +81,9 @@ public:
 		m_maincpu(*this,"maincpu"),
 		m_grap2_0(*this,"grap2_0"),
 		m_grap2_1(*this,"grap2_1"),
-		m_grap2_2(*this,"grap2_2")
-
+		m_grap2_2(*this,"grap2_2"),
+		m_palette(*this, "palette"),
+		m_paletteram(*this, "palette")
 	{ }
 
 	optional_shared_ptr<UINT16> m_spriteram;
@@ -93,6 +94,8 @@ public:
 	required_device<kaneko_grap2_device> m_grap2_0;
 	required_device<kaneko_grap2_device> m_grap2_1;
 	required_device<kaneko_grap2_device> m_grap2_2;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT16> m_paletteram;
 
 	UINT16 m_priority_buffer_scrollx;
 	UINT16 m_priority_buffer_scrolly;
@@ -157,7 +160,7 @@ int galpani3_state::gp3_is_alpha_pen(int pen)
 
 	if (pen<0x4000)
 	{
-		dat = m_generic_paletteram_16[pen];
+		dat = m_paletteram[pen];
 	}
 	else if (pen<0x4100)
 	{
@@ -195,7 +198,7 @@ UINT32 galpani3_state::screen_update_galpani3(screen_device &screen, bitmap_rgb3
 	UINT16* src1;
 	UINT32* dst;
 	UINT16 pixdata1;
-	const pen_t *paldata = machine().pens;
+	const pen_t *paldata = m_palette->pens();
 
 	bitmap.fill(0x0000, cliprect);
 
@@ -457,7 +460,7 @@ static ADDRESS_MAP_START( galpani3_map, AS_PROGRAM, 16, galpani3_state )
 	AM_RANGE(0x000000, 0x17ffff) AM_ROM
 
 	AM_RANGE(0x200000, 0x20ffff) AM_RAM // area [B] - Work RAM
-	AM_RANGE(0x280000, 0x287fff) AM_RAM_WRITE(paletteram_xGGGGGRRRRRBBBBB_word_w)   AM_SHARE("paletteram") // area [A] - palette for sprites
+	AM_RANGE(0x280000, 0x287fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // area [A] - palette for sprites
 
 	AM_RANGE(0x300000, 0x303fff) AM_RAM_WRITE(galpani3_suprnova_sprite32_w) AM_SHARE("spriteram")
 	AM_RANGE(0x380000, 0x38003f) AM_RAM_WRITE(galpani3_suprnova_sprite32regs_w) AM_SHARE("sprregs")
@@ -508,19 +511,22 @@ static MACHINE_CONFIG_START( galpani3, galpani3_state )
 
 	MCFG_DEVICE_ADD("toybox", KANEKO_TOYBOX, 0)
 
-	MCFG_PALETTE_LENGTH(0x4303)
-
+	MCFG_PALETTE_ADD("palette", 0x4303)
+	MCFG_PALETTE_FORMAT(xGGGGGRRRRRBBBBB)
 
 	MCFG_DEVICE_ADD("spritegen", SKNS_SPRITE, 0)
 
 	MCFG_DEVICE_ADD("grap2_0", KANEKO_GRAP2, 0)
 	kaneko_grap2_device::set_chipnum(*device, 0);
+	MCFG_KANEKO_GRAP2_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("grap2_1", KANEKO_GRAP2, 0)
 	kaneko_grap2_device::set_chipnum(*device, 1);
+	MCFG_KANEKO_GRAP2_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("grap2_2", KANEKO_GRAP2, 0)
 	kaneko_grap2_device::set_chipnum(*device, 2);
+	MCFG_KANEKO_GRAP2_PALETTE("palette")
 
 
 	/* sound hardware */
@@ -547,6 +553,31 @@ ROM_START( galpani3 ) /* All game text in English */
 	ROM_LOAD( "gp340300.120", 0x600000, 0x200000, CRC(59062eef) SHA1(936977c20d83540c1e0f65d429c7ebea201ef991) )        // 19950414GROMDCap
 	ROM_LOAD16_BYTE( "g3g0j0.101", 0xe00000, 0x040000, CRC(fbb1e0dc) SHA1(14f6377afd93054aa5dc38af235ae12b932e847f) )   // 19950523GROMECap
 	ROM_LOAD16_BYTE( "g3g1j0.100", 0xe00001, 0x040000, CRC(18edb5f0) SHA1(5e2ed0105b3e6037f6116494d3b186a368824171) )   //
+
+	ROM_REGION( 0x300000, "ymz", 0 ) /* Samples */
+	ROM_LOAD( "gp310100.40", 0x000000, 0x200000, CRC(6a0b1d12) SHA1(11fed80b96d07fddb27599743991c58c12c048e0) )
+	ROM_LOAD( "gp310000.41", 0x200000, 0x100000, CRC(641062ef) SHA1(c8902fc46319eac94b3f95d18afa24bd895078d6) )
+
+	ROM_REGION( 0x20000, "mcudata", 0 ) /* MCU Code? */
+	ROM_LOAD16_WORD_SWAP( "g3d0x0.134", 0x000000, 0x020000, CRC(4ace10f9) SHA1(d19e4540d535ce10d23cb0844be03a3239b3402e) )
+ROM_END
+
+ROM_START( galpani3hk )
+	ROM_REGION( 0x180000, "maincpu", 0 ) /* 68000 Code */
+	ROM_LOAD16_BYTE( "gp3_hk.u71",  0x000000, 0x080000, CRC(b8fc7826) SHA1(9ce97f2bb6af6a3aa19d2a7d4c159e3c33f43f63) )
+	ROM_LOAD16_BYTE( "gp3_hk.u102", 0x000001, 0x080000, CRC(658f5fe8) SHA1(09c52d7676ccf31a7696596279cb07564ae018b3) )
+
+	ROM_REGION( 0x200000, "gfx1", 0 ) /* Sprites - RLE encoded */
+	ROM_LOAD( "gp320000.1", 0x000000, 0x200000, CRC(a0112827) SHA1(0a6c78d71b75a1d78215aab3104176aa1769b14f) )
+
+	ROM_REGION( 0x1000000, "gfx2", 0 ) /* Backgrounds - RLE encoded */
+	ROM_LOAD( "gp340000.123", 0x000000, 0x200000, CRC(a58a26b1) SHA1(832d70cce1b4f04fa50fc221962ff6cc4287cb92) )        // 19950414GROMACap
+	ROM_LOAD( "gp340100.122", 0x200000, 0x200000, CRC(746fe4a8) SHA1(a5126ae9e83d556277d31b166296a708c311a902) )        // 19950414GROMBCap
+	ROM_LOAD( "gp340200.121", 0x400000, 0x200000, CRC(e9bc15c8) SHA1(2c6a10e768709d1937d9206970553f4101ce9016) )        // 19950414GROMCCap
+	ROM_LOAD( "gp340300.120", 0x600000, 0x200000, CRC(59062eef) SHA1(936977c20d83540c1e0f65d429c7ebea201ef991) )        // 19950414GROMDCap
+	// I'm guessing these are the same as the Korea set, because the regular ones don't give correct gfx, but it should be checked
+	ROM_LOAD16_BYTE( "g3g0k0.101", 0xe00000, 0x080000, CRC(23d895b0) SHA1(621cc1500e26c3fe4410eefadd325891e7806f85) )   // 19950523GROMECap
+	ROM_LOAD16_BYTE( "g3g1k0.100", 0xe00001, 0x080000, CRC(9b1eac6d) SHA1(1393d42a7ad70af90fa0f48fb8da7e2f9085f98f) )   //
 
 	ROM_REGION( 0x300000, "ymz", 0 ) /* Samples */
 	ROM_LOAD( "gp310100.40", 0x000000, 0x200000, CRC(6a0b1d12) SHA1(11fed80b96d07fddb27599743991c58c12c048e0) )
@@ -610,3 +641,4 @@ ROM_END
 GAME( 1995, galpani3,  0,        galpani3, galpani3, galpani3_state, galpani3, ROT90, "Kaneko", "Gals Panic 3 (Euro)",  GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL )
 GAME( 1995, galpani3j, galpani3, galpani3, galpani3, galpani3_state, galpani3, ROT90, "Kaneko", "Gals Panic 3 (Japan)", GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL )
 GAME( 1995, galpani3k, galpani3, galpani3, galpani3, galpani3_state, galpani3, ROT90, "Kaneko", "Gals Panic 3 (Korea)", GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL )
+GAME( 1995, galpani3hk,galpani3, galpani3, galpani3, galpani3_state, galpani3, ROT90, "Kaneko", "Gals Panic 3 (Hong Kong)", GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL )

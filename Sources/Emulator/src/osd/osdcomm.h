@@ -1,40 +1,11 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     osdcomm.h
 
     Common definitions shared by the OSD layer. This includes the most
     fundamental integral types as well as compiler-specific tweaks.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -91,7 +62,7 @@
 #define ATTR_MALLOC
 #define ATTR_PURE
 #define ATTR_CONST
-#define ATTR_FORCE_INLINE
+#define ATTR_FORCE_INLINE       __forceinline
 #define ATTR_NONNULL(...)
 #define ATTR_DEPRECATED         __declspec(deprecated)
 #define ATTR_HOT
@@ -138,6 +109,13 @@ __extension__ typedef signed long long      INT64;
 #endif
 #endif
 
+#endif
+
+/* pointer-sized values */
+#ifdef PTR64
+typedef UINT64                              FPTR;
+#else
+typedef UINT32                              FPTR;
 #endif
 
 
@@ -187,10 +165,20 @@ __extension__ typedef signed long long      INT64;
 
 
 /* MINGW has adopted the MSVC formatting for 64-bit ints as of gcc 4.4 */
-#if (defined(__MINGW32__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4))) || defined(_MSVC_VER)
+#if (defined(__MINGW32__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4))) || defined(_MSC_VER)
 #define I64FMT   "I64"
 #else
 #define I64FMT   "ll"
+#endif
+
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#ifdef PTR64
+#define SIZETFMT   "I64u"
+#else
+#define SIZETFMT   "u"
+#endif
+#else
+#define SIZETFMT   "zu"
 #endif
 
 

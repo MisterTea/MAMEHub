@@ -6,6 +6,7 @@
 
 #include "sound/okim6295.h"
 #include "sound/2151intf.h"
+#include "sound/es8712.h"
 #include "video/k053936.h"
 #include "machine/eepromser.h"
 
@@ -25,6 +26,7 @@ public:
 		m_audiocpu(*this, "audiocpu"),
 		m_oki(*this, "oki"),
 		m_ymsnd(*this, "ymsnd"),
+		m_essnd(*this, "essnd"),
 		m_k053936(*this, "k053936") ,
 		m_vram_0(*this, "vram_0"),
 		m_vram_1(*this, "vram_1"),
@@ -42,7 +44,10 @@ public:
 		m_screenctrl(*this, "screenctrl"),
 		m_input_sel(*this, "input_sel"),
 		m_k053936_ram(*this, "k053936_ram"),
-		m_eeprom(*this, "eeprom")
+		m_eeprom(*this, "eeprom"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")
 	{ }
 
 	/* devices */
@@ -50,6 +55,7 @@ public:
 	optional_device<cpu_device> m_audiocpu;
 	optional_device<okim6295_device> m_oki;
 	optional_device<device_t> m_ymsnd; // TODO set correct type
+	optional_device<es8712_device> m_essnd;
 	optional_device<k053936_device> m_k053936;
 	/* memory pointers */
 	optional_shared_ptr<UINT16> m_vram_0;
@@ -71,7 +77,9 @@ public:
 	optional_shared_ptr<UINT16> m_k053936_ram;
 
 	optional_device<eeprom_serial_93cxx_device> m_eeprom;
-
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	int         m_flip_screen;
 
@@ -136,7 +144,7 @@ public:
 	DECLARE_WRITE16_MEMBER(vram_0_clr_w);
 	DECLARE_WRITE16_MEMBER(vram_1_clr_w);
 	DECLARE_WRITE16_MEMBER(vram_2_clr_w);
-	DECLARE_WRITE8_MEMBER(puzzlet_portb_w);
+	DECLARE_WRITE16_MEMBER(puzzlet_portb_w);
 	DECLARE_WRITE16_MEMBER(metro_k053936_w);
 	DECLARE_WRITE16_MEMBER(metro_vram_0_w);
 	DECLARE_WRITE16_MEMBER(metro_vram_1_w);
@@ -152,6 +160,7 @@ public:
 	DECLARE_WRITE16_MEMBER(dokyusp_eeprom_bit_w);
 	DECLARE_WRITE16_MEMBER(dokyusp_eeprom_reset_w);
 	DECLARE_WRITE16_MEMBER(mouja_sound_rombank_w);
+	void gakusai_oki_bank_set();
 
 	// vmetal
 	DECLARE_WRITE8_MEMBER(vmetal_control_w);
@@ -199,6 +208,7 @@ public:
 					int sx, int sy, int wx, int wy, int big, UINT16 *tilemapram, int layer );
 	DECLARE_WRITE_LINE_MEMBER(blzntrnd_irqhandler);
 	DECLARE_WRITE_LINE_MEMBER(ymf278b_interrupt);
+	DECLARE_READ_LINE_MEMBER(metro_rxd_r);
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);

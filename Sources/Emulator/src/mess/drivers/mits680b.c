@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic, Robbbert
 /***************************************************************************
 
         MITS Altair 680b
@@ -25,15 +27,17 @@ ToDo:
 #include "machine/mos6551.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class mits680b_state : public driver_device
 {
 public:
 	mits680b_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_terminal(*this, TERMINAL_TAG)
-	{ }
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<generic_terminal_device> m_terminal;
@@ -88,18 +92,14 @@ WRITE8_MEMBER( mits680b_state::kbd_put )
 	m_term_data = data;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(mits680b_state, kbd_put)
-};
-
 static MACHINE_CONFIG_START( mits680b, mits680b_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",M6800, XTAL_1MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(mits680b_mem)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(mits680b_state, kbd_put))
 
 	/* acia */
 	//MCFG_ACIA6551_ADD("acia")

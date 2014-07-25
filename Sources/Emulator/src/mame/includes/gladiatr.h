@@ -13,7 +13,10 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_subcpu(*this, "sub"),
-		m_msm(*this, "msm") { }
+		m_msm(*this, "msm"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_8(*this, "paletteram") { }
 
 	required_shared_ptr<UINT8>  m_nvram;
 	required_shared_ptr<UINT8> m_spriteram;
@@ -37,6 +40,11 @@ public:
 	int m_fg_tile_bank;
 	int m_bg_tile_bank;
 
+
+	DECLARE_READ8_MEMBER( gladiator_dsw1_r );
+	DECLARE_READ8_MEMBER( gladiator_dsw2_r );
+	DECLARE_READ8_MEMBER( gladiator_controls_r );
+	DECLARE_READ8_MEMBER( gladiator_button3_r );
 	DECLARE_WRITE8_MEMBER(gladiatr_videoram_w);
 	DECLARE_WRITE8_MEMBER(gladiatr_colorram_w);
 	DECLARE_WRITE8_MEMBER(gladiatr_textram_w);
@@ -79,4 +87,7 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_subcpu;
 	required_device<msm5205_device> m_msm;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT8> m_generic_paletteram_8;
 };

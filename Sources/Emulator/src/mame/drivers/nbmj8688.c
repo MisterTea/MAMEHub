@@ -309,10 +309,10 @@ static ADDRESS_MAP_START( p16bit_LCD_io_map, AS_IO, 8, nbmj8688_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x7f) AM_DEVREAD("nb1413m3", nb1413m3_device, sndrom_r)
 	AM_RANGE(0x00, 0x00) AM_DEVWRITE("nb1413m3", nb1413m3_device, nmi_clock_w)
-	AM_RANGE(0x42, 0x42) AM_WRITE(nbmj8688_HD61830B_0_data_w)
-	AM_RANGE(0x43, 0x43) AM_WRITE(nbmj8688_HD61830B_0_instr_w)
-	AM_RANGE(0x44, 0x44) AM_WRITE(nbmj8688_HD61830B_1_data_w)
-	AM_RANGE(0x45, 0x45) AM_WRITE(nbmj8688_HD61830B_1_instr_w)
+	AM_RANGE(0x42, 0x42) AM_DEVREADWRITE("lcdc0", hd61830_device, data_r, data_w)
+	AM_RANGE(0x43, 0x43) AM_DEVREADWRITE("lcdc0", hd61830_device, status_r, control_w)
+	AM_RANGE(0x44, 0x44) AM_DEVREADWRITE("lcdc1", hd61830_device, data_r, data_w)
+	AM_RANGE(0x45, 0x45) AM_DEVREADWRITE("lcdc1", hd61830_device, status_r, control_w)
 	AM_RANGE(0x46, 0x46) AM_WRITE(nbmj8688_HD61830B_both_data_w)
 	AM_RANGE(0x47, 0x47) AM_WRITE(nbmj8688_HD61830B_both_instr_w)
 	AM_RANGE(0x81, 0x81) AM_DEVREAD("psg", ay8910_device, data_r)
@@ -2753,17 +2753,6 @@ READ8_MEMBER(nbmj8688_state::dipsw2_r)
 	return m_nb1413m3->dipsw2_r(space,offset);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(nbmj8688_state, dipsw1_r),     // DIPSW-A read
-	DEVCB_DRIVER_MEMBER(nbmj8688_state, dipsw2_r),     // DIPSW-B read
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( NBMJDRV_4096, nbmj8688_state )
 
 	/* basic machine hardware */
@@ -2780,17 +2769,19 @@ static MACHINE_CONFIG_START( NBMJDRV_4096, nbmj8688_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 16, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nbmj8688_state, screen_update_mbmj8688)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_PALETTE_ADD("palette", 4096)
 
-	MCFG_PALETTE_INIT_OVERRIDE(nbmj8688_state,mbmj8688_12bit)
+	MCFG_PALETTE_INIT_OWNER(nbmj8688_state,mbmj8688_12bit)
 	MCFG_VIDEO_START_OVERRIDE(nbmj8688_state,mbmj8688_pure_12bit)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("psg", AY8910, 1250000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(nbmj8688_state, dipsw1_r))     // DIPSW-A read
+	MCFG_AY8910_PORT_B_READ_CB(READ8(nbmj8688_state, dipsw2_r))     // DIPSW-B read
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35)
 
 	MCFG_DAC_ADD("dac")
@@ -2802,9 +2793,10 @@ static MACHINE_CONFIG_DERIVED( NBMJDRV_256, NBMJDRV_4096 )
 	/* basic machine hardware */
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(256)
 
-	MCFG_PALETTE_INIT_OVERRIDE(nbmj8688_state,mbmj8688_8bit)
+	MCFG_PALETTE_INIT_OWNER(nbmj8688_state,mbmj8688_8bit)
 	MCFG_VIDEO_START_OVERRIDE(nbmj8688_state,mbmj8688_8bit)
 MACHINE_CONFIG_END
 
@@ -2814,9 +2806,10 @@ static MACHINE_CONFIG_DERIVED( NBMJDRV_65536, NBMJDRV_4096 )
 
 	/* video hardware */
 	MCFG_SCREEN_MODIFY("screen")
-	MCFG_PALETTE_LENGTH(65536)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(65536)
 
-	MCFG_PALETTE_INIT_OVERRIDE(nbmj8688_state,mbmj8688_16bit)
+	MCFG_PALETTE_INIT_OWNER(nbmj8688_state,mbmj8688_16bit)
 	MCFG_VIDEO_START_OVERRIDE(nbmj8688_state,mbmj8688_hybrid_16bit)
 MACHINE_CONFIG_END
 
@@ -2925,8 +2918,8 @@ static MACHINE_CONFIG_START( mbmj_p16bit_LCD, nbmj8688_state )
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(65536)
-	MCFG_PALETTE_INIT_OVERRIDE(nbmj8688_state,mbmj8688_16bit)
+	MCFG_PALETTE_ADD("palette", 65536)
+	MCFG_PALETTE_INIT_OWNER(nbmj8688_state,mbmj8688_16bit)
 	MCFG_DEFAULT_LAYOUT(layout_nbmj8688)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -2935,20 +2928,30 @@ static MACHINE_CONFIG_START( mbmj_p16bit_LCD, nbmj8688_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 16, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nbmj8688_state, screen_update_mbmj8688)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD("palette_lcd", 2)
+	MCFG_PALETTE_INIT_OWNER(nbmj8688_state,mbmj8688_lcd)
 
 	MCFG_SCREEN_ADD("lcd0", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(480, 64)
 	MCFG_SCREEN_VISIBLE_AREA(0, 480-1, 0, 64-1)
-	MCFG_SCREEN_UPDATE_DRIVER(nbmj8688_state, screen_update_mbmj8688_lcd0)
+	MCFG_SCREEN_UPDATE_DEVICE("lcdc0", hd61830_device, screen_update)
+	MCFG_SCREEN_PALETTE("palette_lcd")
+	MCFG_DEVICE_ADD("lcdc0", HD61830B, 5000000/2) // ???
+	MCFG_VIDEO_SET_SCREEN("lcd0")
 
 	MCFG_SCREEN_ADD("lcd1", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(480, 64)
 	MCFG_SCREEN_VISIBLE_AREA(0, 480-1, 0, 64-1)
-	MCFG_SCREEN_UPDATE_DRIVER(nbmj8688_state, screen_update_mbmj8688_lcd1)
+	MCFG_SCREEN_UPDATE_DEVICE("lcdc1", hd61830_device, screen_update)
+	MCFG_SCREEN_PALETTE("palette_lcd")
+	MCFG_DEVICE_ADD("lcdc1", HD61830B, 5000000/2) // ???
+	MCFG_VIDEO_SET_SCREEN("lcd1")
 
 	MCFG_VIDEO_START_OVERRIDE(nbmj8688_state,mbmj8688_pure_16bit_LCD)
 
@@ -2956,7 +2959,8 @@ static MACHINE_CONFIG_START( mbmj_p16bit_LCD, nbmj8688_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("psg", AY8910, 1250000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(nbmj8688_state, dipsw1_r))     // DIPSW-A read
+	MCFG_AY8910_PORT_B_READ_CB(READ8(nbmj8688_state, dipsw2_r))     // DIPSW-B read
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35)
 
 	MCFG_DAC_ADD("dac")

@@ -19,17 +19,13 @@
 #ifndef FLAC__SHARE__ALLOC_H
 #define FLAC__SHARE__ALLOC_H
 
-#if HAVE_CONFIG_H
+#ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
 
 /* WATCHOUT: for c++ you may have to #define __STDC_LIMIT_MACROS 1 real early
  * before #including this file,  otherwise SIZE_MAX might not be defined
  */
-
-#ifndef SIZE_MAX
-#define SIZE_MAX (4294967295U)
-#endif
 
 #include <limits.h> /* for SIZE_MAX */
 #if !defined _MSC_VER && !defined __MINGW32__ && !defined __EMX__

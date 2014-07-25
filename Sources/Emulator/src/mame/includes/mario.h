@@ -2,6 +2,7 @@
 #define MARIO_H_
 
 #include "sound/discrete.h"
+#include "machine/z80dma.h"
 
 /*
  * From the schematics:
@@ -41,7 +42,10 @@ public:
 		m_videoram(*this, "videoram"),
 		m_discrete(*this, "discrete"),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu") { }
+		m_audiocpu(*this, "audiocpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"),
+		m_z80dma(*this, "z80dma") { }
 
 	/* memory pointers */
 
@@ -86,7 +90,9 @@ public:
 	DECLARE_WRITE8_MEMBER(mario_z80dma_rdy_w);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	virtual void sound_start();
+	virtual void sound_reset();
+	DECLARE_PALETTE_INIT(mario);
 	UINT32 screen_update_mario(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
 	DECLARE_WRITE8_MEMBER(mario_sh_sound_w);
@@ -97,6 +103,9 @@ public:
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	required_device<z80dma_device> m_z80dma;
 };
 
 /*----------- defined in audio/mario.c -----------*/

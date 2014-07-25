@@ -55,10 +55,9 @@
 #define CAR_BORDER_EXTRA_BITS       0x50
 
 
-void carpolo_74148_3s_cb(device_t *device)
+TTL74148_OUTPUT_CB(carpolo_state::ttl74148_3s_cb)
 {
-	carpolo_state *state = device->machine().driver_data<carpolo_state>();
-	state->m_maincpu->set_input_line(M6502_IRQ_LINE, state->m_ttl74148_3s->output_valid_r() ? CLEAR_LINE : ASSERT_LINE);
+	m_maincpu->set_input_line(M6502_IRQ_LINE, m_ttl74148_3s->output_valid_r() ? CLEAR_LINE : ASSERT_LINE);
 }
 
 
@@ -428,40 +427,6 @@ READ8_MEMBER(carpolo_state::pia_1_port_b_r)
 
 	return ret;
 }
-
-
-const pia6821_interface carpolo_pia0_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_DRIVER_MEMBER(carpolo_state,pia_0_port_b_r),  /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(carpolo_state,pia_0_port_a_w),      /* port A out */
-	DEVCB_DRIVER_MEMBER(carpolo_state,pia_0_port_b_w),      /* port B out */
-	DEVCB_DRIVER_LINE_MEMBER(carpolo_state,coin1_interrupt_clear_w),        /* line CA2 out */
-	DEVCB_DRIVER_LINE_MEMBER(carpolo_state,coin2_interrupt_clear_w),        /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-
-const pia6821_interface carpolo_pia1_intf =
-{
-	DEVCB_DRIVER_MEMBER(carpolo_state,pia_1_port_a_r),      /* port A in */
-	DEVCB_DRIVER_MEMBER(carpolo_state,pia_1_port_b_r),      /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_NULL,     /* port A out */
-	DEVCB_NULL,     /* port B out */
-	DEVCB_DRIVER_LINE_MEMBER(carpolo_state,coin3_interrupt_clear_w),        /* line CA2 out */
-	DEVCB_DRIVER_LINE_MEMBER(carpolo_state,coin4_interrupt_clear_w),        /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
 
 void carpolo_state::machine_start()
 {

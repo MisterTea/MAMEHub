@@ -1040,9 +1040,11 @@ static MACHINE_CONFIG_START( snookr10, snookr10_state )
 	MCFG_SCREEN_SIZE(96*4, 30*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*4, 96*4-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(snookr10_state, screen_update_snookr10)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(snookr10)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", snookr10)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(snookr10_state, snookr10)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1057,7 +1059,8 @@ static MACHINE_CONFIG_DERIVED( apple10, snookr10 )
 	MCFG_CPU_MODIFY("maincpu")
 
 	/* video hardware */
-	MCFG_PALETTE_INIT_OVERRIDE(snookr10_state, apple10)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(snookr10_state, apple10)
 	MCFG_VIDEO_START_OVERRIDE(snookr10_state, apple10)
 
 MACHINE_CONFIG_END
@@ -1076,7 +1079,8 @@ static MACHINE_CONFIG_DERIVED( crystalc, snookr10 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(crystalc_map)
 
-	MCFG_PALETTE_INIT_OVERRIDE(snookr10_state, crystalc)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(snookr10_state, crystalc)
 	MCFG_VIDEO_START_OVERRIDE(snookr10_state, crystalc)
 
 MACHINE_CONFIG_END

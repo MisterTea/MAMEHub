@@ -212,19 +212,6 @@ GFXDECODE_END
 
 /******************************************************************************/
 
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(battlera_state,battlera_adpcm_int),/* interrupt function */
-	MSM5205_S48_4B      /* 8KHz            */
-};
-
-/******************************************************************************/
-
-static const c6280_interface c6280_config =
-{
-	"audiocpu"
-};
-
 static MACHINE_CONFIG_START( battlera, battlera_state )
 
 	/* basic machine hardware */
@@ -243,9 +230,10 @@ static MACHINE_CONFIG_START( battlera, battlera_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(battlera_state, screen_update_battlera)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(battlera)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", battlera)
+	MCFG_PALETTE_ADD("palette", 512)
 
 
 	/* sound hardware */
@@ -256,12 +244,13 @@ static MACHINE_CONFIG_START( battlera, battlera_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.40)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(battlera_state, battlera_adpcm_int)) /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8KHz            */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.85)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.85)
 
 	MCFG_SOUND_ADD("c6280", C6280, 21477270/6)
-	MCFG_SOUND_CONFIG(c6280_config)
+	MCFG_C6280_CPU("audiocpu")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.60)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.60)
 MACHINE_CONFIG_END

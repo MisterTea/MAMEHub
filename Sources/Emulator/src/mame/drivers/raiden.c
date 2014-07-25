@@ -76,7 +76,7 @@ static ADDRESS_MAP_START( sub_map, AS_PROGRAM, 16, raiden_state )
 	AM_RANGE(0x00000, 0x01fff) AM_RAM
 	AM_RANGE(0x02000, 0x027ff) AM_RAM_WRITE(raiden_background_w) AM_SHARE("back_data")
 	AM_RANGE(0x02800, 0x02fff) AM_RAM_WRITE(raiden_foreground_w) AM_SHARE("fore_data")
-	AM_RANGE(0x03000, 0x03fff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x03000, 0x03fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x04000, 0x04fff) AM_RAM AM_SHARE("shared_ram")
 	AM_RANGE(0x07ffe, 0x07fff) AM_WRITENOP // ?
 	AM_RANGE(0x08000, 0x08001) AM_WRITENOP // watchdog?
@@ -105,7 +105,7 @@ static ADDRESS_MAP_START( raidenu_sub_map, AS_PROGRAM, 16, raiden_state )
 	AM_RANGE(0x00000, 0x05fff) AM_RAM
 	AM_RANGE(0x06000, 0x067ff) AM_RAM_WRITE(raiden_background_w) AM_SHARE("back_data")
 	AM_RANGE(0x06800, 0x06fff) AM_RAM_WRITE(raiden_foreground_w) AM_SHARE("fore_data")
-	AM_RANGE(0x07000, 0x07fff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x07000, 0x07fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x08000, 0x08fff) AM_RAM AM_SHARE("shared_ram")
 	AM_RANGE(0x0a000, 0x0a001) AM_WRITENOP // ?
 	AM_RANGE(0x0c000, 0x0c001) AM_WRITENOP // watchdog?
@@ -289,9 +289,11 @@ static MACHINE_CONFIG_START( raiden, raiden_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(raiden_state, screen_update_raiden)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram16_device, vblank_copy_rising)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(raiden)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", raiden)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	/* sound hardware */
 	SEIBU_SOUND_SYSTEM_YM3812_RAIDEN_INTERFACE(XTAL_14_31818MHz/4,XTAL_12MHz/12) // frequency and pin 7 verified (pin set in audio\seibu.h)
@@ -312,12 +314,6 @@ WRITE16_MEMBER( raiden_state::raidenb_layer_scroll_w )
 	COMBINE_DATA(&m_raidenb_scroll_ram[offset]);
 }
 
-SEIBU_CRTC_INTERFACE(crtc_intf)
-{
-	DEVCB_DRIVER_MEMBER16(raiden_state, raidenb_layer_enable_w),
-	DEVCB_DRIVER_MEMBER16(raiden_state, raidenb_layer_scroll_w),
-};
-
 static MACHINE_CONFIG_DERIVED( raidenb, raiden )
 
 	/* basic machine hardware */
@@ -327,7 +323,9 @@ static MACHINE_CONFIG_DERIVED( raidenb, raiden )
 	/* video hardware */
 	MCFG_VIDEO_START_OVERRIDE(raiden_state,raidenb)
 
-	MCFG_SEIBU_CRTC_ADD("crtc",crtc_intf,0)
+	MCFG_DEVICE_ADD("crtc", SEIBU_CRTC, 0)
+	MCFG_SEIBU_CRTC_LAYER_EN_CB(WRITE16(raiden_state, raidenb_layer_enable_w))
+	MCFG_SEIBU_CRTC_LAYER_SCROLL_CB(WRITE16(raiden_state, raidenb_layer_scroll_w))
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(raiden_state, screen_update_raidenb)

@@ -61,6 +61,7 @@ SOUNDS += OKIM6295
 SOUNDS += HC55516
 SOUNDS += YM3812
 SOUNDS += CEM3394
+SOUNDS += VOTRAX
 
 
 #-------------------------------------------------
@@ -79,6 +80,13 @@ MACHINES += RIOT6532
 MACHINES += PIT8253
 MACHINES += Z80CTC
 MACHINES += 68681
+MACHINES += BANKDEV
+
+#-------------------------------------------------
+# specify available bus cores
+#-------------------------------------------------
+BUSES += CENTRONICS
+
 
 #-------------------------------------------------
 # This is the list of files that are necessary

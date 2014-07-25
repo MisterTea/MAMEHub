@@ -16,7 +16,9 @@ public:
 		m_spriteram_2(*this, "spriteram_2"),
 		m_shared_ram(*this, "shared_ram"),
 		m_maincpu(*this, "maincpu"),
-		m_subcpu(*this, "sub"){ }
+		m_subcpu(*this, "sub"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_fgvideoram;
@@ -34,12 +36,13 @@ public:
 	UINT8       m_scroll_y;
 	int         m_bgpalbank;
 	int         m_fgcolor;
-	int         m_flipscreen;
 	const UINT8 *m_color_codes;
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	UINT8       m_nmi_mask;
 	DECLARE_WRITE8_MEMBER(kyugo_nmi_mask_w);

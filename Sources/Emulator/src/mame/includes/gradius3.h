@@ -13,7 +13,7 @@ class gradius3_state : public driver_device
 public:
 	gradius3_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_gfxram(*this, "gfxram"),
+		m_gfxram(*this, "k052109"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_subcpu(*this, "sub"),
@@ -23,7 +23,6 @@ public:
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_gfxram;
-//  UINT16 *    m_paletteram;    // currently this uses generic palette handling
 
 	/* video-related */
 	int         m_layer_colorbase[3];
@@ -41,6 +40,7 @@ public:
 	required_device<k007232_device> m_k007232;
 	required_device<k052109_device> m_k052109;
 	required_device<k051960_device> m_k051960;
+
 	DECLARE_READ16_MEMBER(k052109_halfword_r);
 	DECLARE_WRITE16_MEMBER(k052109_halfword_w);
 	DECLARE_READ16_MEMBER(k051937_halfword_r);
@@ -50,7 +50,6 @@ public:
 	DECLARE_WRITE16_MEMBER(cpuA_ctrl_w);
 	DECLARE_WRITE16_MEMBER(cpuB_irqenable_w);
 	DECLARE_WRITE16_MEMBER(cpuB_irqtrigger_w);
-	DECLARE_WRITE16_MEMBER(sound_command_w);
 	DECLARE_WRITE16_MEMBER(sound_irq_w);
 	DECLARE_READ16_MEMBER(gradius3_gfxrom_r);
 	DECLARE_WRITE16_MEMBER(gradius3_gfxram_w);
@@ -63,8 +62,6 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(gradius3_sub_scanline);
 	void gradius3_postload();
 	DECLARE_WRITE8_MEMBER(volume_callback);
+	K052109_CB_MEMBER(tile_callback);
+	K051960_CB_MEMBER(sprite_callback);
 };
-
-/*----------- defined in video/gradius3.c -----------*/
-extern void gradius3_sprite_callback(running_machine &machine, int *code,int *color,int *priority_mask,int *shadow);
-extern void gradius3_tile_callback(running_machine &machine, int layer,int bank,int *code,int *color,int *flags,int *priority);

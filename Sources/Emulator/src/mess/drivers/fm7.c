@@ -46,9 +46,8 @@
 
 #include "imagedev/cassette.h"
 #include "formats/fm7_cas.h"
-#include "machine/wd17xx.h"
 #include "imagedev/flopdrv.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/dsjoy.h"
 
 #include "includes/fm7.h"
 
@@ -432,19 +431,18 @@ WRITE_LINE_MEMBER(fm7_state::fm7_fdc_drq_w)
 
 READ8_MEMBER(fm7_state::fm7_fdc_r)
 {
-	device_t* dev = machine().device("fdc");
 	UINT8 ret = 0;
 
 	switch(offset)
 	{
 		case 0:
-			return wd17xx_status_r(dev,space, offset);
+			return m_fdc->status_r(space, offset);
 		case 1:
-			return wd17xx_track_r(dev,space, offset);
+			return m_fdc->track_r(space, offset);
 		case 2:
-			return wd17xx_sector_r(dev,space, offset);
+			return m_fdc->sector_r(space, offset);
 		case 3:
-			return wd17xx_data_r(dev,space, offset);
+			return m_fdc->data_r(space, offset);
 		case 4:
 			return m_fdc_side | 0xfe;
 		case 5:
@@ -466,24 +464,23 @@ READ8_MEMBER(fm7_state::fm7_fdc_r)
 
 WRITE8_MEMBER(fm7_state::fm7_fdc_w)
 {
-	device_t* dev = machine().device("fdc");
 	switch(offset)
 	{
 		case 0:
-			wd17xx_command_w(dev,space, offset,data);
+			m_fdc->command_w(space, offset,data);
 			break;
 		case 1:
-			wd17xx_track_w(dev,space, offset,data);
+			m_fdc->track_w(space, offset,data);
 			break;
 		case 2:
-			wd17xx_sector_w(dev,space, offset,data);
+			m_fdc->sector_w(space, offset,data);
 			break;
 		case 3:
-			wd17xx_data_w(dev,space, offset,data);
+			m_fdc->data_w(space, offset,data);
 			break;
 		case 4:
 			m_fdc_side = data & 0x01;
-			wd17xx_set_side(dev,data & 0x01);
+			m_fdc->set_side(data & 0x01);
 			logerror("FDC: wrote %02x to 0x%04x (side)\n",data,offset+0xfd18);
 			break;
 		case 5:
@@ -494,9 +491,9 @@ WRITE8_MEMBER(fm7_state::fm7_fdc_w)
 			}
 			else
 			{
-				wd17xx_set_drive(dev,data & 0x03);
-				floppy_mon_w(floppy_get_device(machine(), data & 0x03), !BIT(data, 7));
-				floppy_drive_set_ready_state(floppy_get_device(machine(), data & 0x03), data & 0x80,0);
+				m_fdc->set_drive(data & 0x03);
+				floppy_get_device(machine(), data & 0x03)->floppy_mon_w(!BIT(data, 7));
+				floppy_get_device(machine(), data & 0x03)->floppy_drive_set_ready_state(data & 0x80,0);
 				logerror("FDC: wrote %02x to 0x%04x (drive)\n",data,offset+0xfd18);
 			}
 			break;
@@ -743,6 +740,26 @@ WRITE8_MEMBER(fm7_state::fm77av_key_encoder_w)
 	}
 }
 
+WRITE_LINE_MEMBER(fm7_state::write_centronics_busy)
+{
+	m_centronics_busy = state;
+}
+
+WRITE_LINE_MEMBER(fm7_state::write_centronics_fault)
+{
+	m_centronics_fault = state;
+}
+
+WRITE_LINE_MEMBER(fm7_state::write_centronics_ack)
+{
+	m_centronics_ack = state;
+}
+
+WRITE_LINE_MEMBER(fm7_state::write_centronics_perror)
+{
+	m_centronics_perror = state;
+}
+
 READ8_MEMBER(fm7_state::fm7_cassette_printer_r)
 {
 	// bit 7: cassette input
@@ -752,54 +769,25 @@ READ8_MEMBER(fm7_state::fm7_cassette_printer_r)
 	// bit 2: printer acknowledge
 	// bit 1: printer error
 	// bit 0: printer busy
-	UINT8 ret = 0x00;
-	double data = m_cassette->input();
-	centronics_device* centronics = machine().device<centronics_device>("lpt");
-	UINT8 pdata;
-	int x;
+	UINT8 ret = 0;
 
-	if(data > 0.03)
+	if(m_cassette->input() > 0.03)
 		ret |= 0x80;
 
 	if(m_cassette->get_state() & CASSETTE_MOTOR_DISABLED)
 		ret |= 0x80;  // cassette input is high when not in use.
 
 	ret |= 0x70;
+	ret |= m_centronics_perror << 3;
+	ret |= m_centronics_ack << 2;
+	ret |= m_centronics_fault << 1;
+	ret |= m_centronics_busy;
 
-	if(ioport("config")->read() & 0x01)
-	{
-		ret |= 0x0f;
-		pdata = centronics->read(space, 0);
-		for(x=0;x<6;x++)
-		{
-			if(~pdata & (1<<x))
-				if(ioport("lptjoy")->read() & (1 << x))
-					ret &= ~0x08;
-		}
-	}
-	else
-	{
-		device_image_interface *image = dynamic_cast<device_image_interface *>(machine().device("lpt:printer:printer"));
-		if(image->exists())
-		{
-			if(centronics->pe_r())
-				ret |= 0x08;
-			if(centronics->ack_r())
-				ret |= 0x04;
-			if(centronics->fault_r())
-				ret |= 0x02;
-			if(centronics->busy_r())
-				ret |= 0x01;
-		}
-		else
-			ret |= 0x0f;
-	}
 	return ret;
 }
 
 WRITE8_MEMBER(fm7_state::fm7_cassette_printer_w)
 {
-	centronics_device* centronics = machine().device<centronics_device>("lpt");
 	switch(offset)
 	{
 		case 0:
@@ -811,12 +799,14 @@ WRITE8_MEMBER(fm7_state::fm7_cassette_printer_w)
 				m_cassette->output((data & 0x01) ? +1.0 : -1.0);
 			if((data & 0x02) != (m_cp_prev & 0x02))
 				m_cassette->change_state((data & 0x02) ? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
-			centronics->strobe_w(!(data & 0x40));
+
+			m_centronics->write_strobe(!BIT(data,6));
+			m_centronics->write_select_in(!BIT(data,7));
 			m_cp_prev = data;
 			break;
 		case 1:
 		// Printer data
-			centronics->write(space,0,data);
+			m_cent_data_out->write(space, 0, data);
 			break;
 	}
 }
@@ -829,7 +819,7 @@ READ8_MEMBER(fm7_state::fm77av_boot_mode_r)
 {
 	UINT8 ret = 0xff;
 
-	if(ioport("DSW")->read() & 0x02)
+	if(m_dsw->read() & 0x02)
 		ret &= ~0x01;
 
 	return ret;
@@ -894,7 +884,7 @@ void fm7_state::fm7_update_psg()
 				break;
 			case 0x09:
 				// Joystick port read
-				m_psg_data = ioport("joy1")->read();
+				m_psg_data = m_joy1->read();
 				break;
 		}
 	}
@@ -963,12 +953,12 @@ READ8_MEMBER(fm7_state::fm7_fmirq_r)
 
 READ8_MEMBER(fm7_state::fm77av_joy_1_r)
 {
-	return ioport("joy1")->read();
+	return m_joy1->read();
 }
 
 READ8_MEMBER(fm7_state::fm77av_joy_2_r)
 {
-	return ioport("joy2")->read();
+	return m_joy2->read();
 }
 
 READ8_MEMBER(fm7_state::fm7_unknown_r)
@@ -1007,7 +997,6 @@ READ8_MEMBER(fm7_state::fm7_mmr_r)
 
 void fm7_state::fm7_update_bank(address_space & space, int bank, UINT8 physical)
 {
-	fm7_state *state = space.machine().driver_data<fm7_state>();
 	UINT8* RAM = memregion("maincpu")->base();
 	UINT16 size = 0xfff;
 	char bank_name[10];
@@ -1022,40 +1011,40 @@ void fm7_state::fm7_update_bank(address_space & space, int bank, UINT8 physical)
 		switch(physical)
 		{
 			case 0x10:
-				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram0_r),state),write8_delegate(FUNC(fm7_state::fm7_vram0_w),state));
+				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram0_r),this),write8_delegate(FUNC(fm7_state::fm7_vram0_w),this));
 				break;
 			case 0x11:
-				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram1_r),state),write8_delegate(FUNC(fm7_state::fm7_vram1_w),state));
+				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram1_r),this),write8_delegate(FUNC(fm7_state::fm7_vram1_w),this));
 				break;
 			case 0x12:
-				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram2_r),state),write8_delegate(FUNC(fm7_state::fm7_vram2_w),state));
+				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram2_r),this),write8_delegate(FUNC(fm7_state::fm7_vram2_w),this));
 				break;
 			case 0x13:
-				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram3_r),state),write8_delegate(FUNC(fm7_state::fm7_vram3_w),state));
+				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram3_r),this),write8_delegate(FUNC(fm7_state::fm7_vram3_w),this));
 				break;
 			case 0x14:
-				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram4_r),state),write8_delegate(FUNC(fm7_state::fm7_vram4_w),state));
+				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram4_r),this),write8_delegate(FUNC(fm7_state::fm7_vram4_w),this));
 				break;
 			case 0x15:
-				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram5_r),state),write8_delegate(FUNC(fm7_state::fm7_vram5_w),state));
+				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram5_r),this),write8_delegate(FUNC(fm7_state::fm7_vram5_w),this));
 				break;
 			case 0x16:
-				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram6_r),state),write8_delegate(FUNC(fm7_state::fm7_vram6_w),state));
+				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram6_r),this),write8_delegate(FUNC(fm7_state::fm7_vram6_w),this));
 				break;
 			case 0x17:
-				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram7_r),state),write8_delegate(FUNC(fm7_state::fm7_vram7_w),state));
+				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram7_r),this),write8_delegate(FUNC(fm7_state::fm7_vram7_w),this));
 				break;
 			case 0x18:
-				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram8_r),state),write8_delegate(FUNC(fm7_state::fm7_vram8_w),state));
+				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram8_r),this),write8_delegate(FUNC(fm7_state::fm7_vram8_w),this));
 				break;
 			case 0x19:
-				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram9_r),state),write8_delegate(FUNC(fm7_state::fm7_vram9_w),state));
+				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vram9_r),this),write8_delegate(FUNC(fm7_state::fm7_vram9_w),this));
 				break;
 			case 0x1a:
-				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vramA_r),state),write8_delegate(FUNC(fm7_state::fm7_vramA_w),state));
+				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vramA_r),this),write8_delegate(FUNC(fm7_state::fm7_vramA_w),this));
 				break;
 			case 0x1b:
-				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vramB_r),state),write8_delegate(FUNC(fm7_state::fm7_vramB_w),state));
+				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vramB_r),this),write8_delegate(FUNC(fm7_state::fm7_vramB_w),this));
 				break;
 		}
 //      membank(bank+1)->set_base(RAM+(physical<<12)-0x10000);
@@ -1063,12 +1052,12 @@ void fm7_state::fm7_update_bank(address_space & space, int bank, UINT8 physical)
 	}
 	if(physical == 0x1c)
 	{
-		space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_console_ram_banked_r),state),write8_delegate(FUNC(fm7_state::fm7_console_ram_banked_w),state));
+		space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_console_ram_banked_r),this),write8_delegate(FUNC(fm7_state::fm7_console_ram_banked_w),this));
 		return;
 	}
 	if(physical == 0x1d)
 	{
-		space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_sub_ram_ports_banked_r),state),write8_delegate(FUNC(fm7_state::fm7_sub_ram_ports_banked_w),state));
+		space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_sub_ram_ports_banked_r),this),write8_delegate(FUNC(fm7_state::fm7_sub_ram_ports_banked_w),this));
 		return;
 	}
 	if(physical == 0x35)
@@ -1183,7 +1172,7 @@ WRITE8_MEMBER(fm7_state::fm7_mmr_w)
  */
 READ8_MEMBER(fm7_state::fm7_kanji_r)
 {
-	UINT8* KROM = memregion("kanji1")->base();
+	UINT8* KROM = m_kanji->base();
 	UINT32 addr = m_kanji_address << 1;
 
 	switch(offset)
@@ -1260,16 +1249,16 @@ void fm7_state::key_press(UINT16 scancode)
 
 void fm7_state::fm7_keyboard_poll_scan()
 {
-	static const char *const portnames[3] = { "key1","key2","key3" };
+	ioport_port* portnames[3] = { m_key1, m_key2, m_key3 };
 	int bit = 0;
 	int x,y;
 	UINT32 keys;
-	UINT32 modifiers = ioport("key_modifiers")->read();
+	UINT32 modifiers = m_keymod->read();
 	static const UINT16 modscancodes[6] = { 0x52, 0x53, 0x54, 0x55, 0x56, 0x5a };
 
 	for(x=0;x<3;x++)
 	{
-		keys = ioport(portnames[x])->read();
+		keys = portnames[x]->read();
 
 		for(y=0;y<32;y++)  // loop through each bit in the port
 		{
@@ -1305,14 +1294,14 @@ void fm7_state::fm7_keyboard_poll_scan()
 
 TIMER_CALLBACK_MEMBER(fm7_state::fm7_keyboard_poll)
 {
-	static const char *const portnames[3] = { "key1","key2","key3" };
+	ioport_port* portnames[3] = { m_key1, m_key2, m_key3 };
 	int x,y;
 	int bit = 0;
 	int mod = 0;
 	UINT32 keys;
-	UINT32 modifiers = ioport("key_modifiers")->read();
+	UINT32 modifiers = m_keymod->read();
 
-	if(ioport("key3")->read() & 0x40000)
+	if(m_key3->read() & 0x40000)
 	{
 		m_break_flag = 1;
 		m_maincpu->set_input_line(M6809_FIRQ_LINE,ASSERT_LINE);
@@ -1341,7 +1330,7 @@ TIMER_CALLBACK_MEMBER(fm7_state::fm7_keyboard_poll)
 
 	for(x=0;x<3;x++)
 	{
-		keys = ioport(portnames[x])->read();
+		keys = portnames[x]->read();
 
 		for(y=0;y<32;y++)  // loop through each bit in the port
 		{
@@ -1777,14 +1766,6 @@ INPUT_PORTS_START( fm7_keyboard )
 	PORT_BIT(0x00000010,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("GRAPH") PORT_CODE(KEYCODE_RALT)
 	PORT_BIT(0x00000020,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("Kana") PORT_CODE(KEYCODE_RCONTROL) PORT_TOGGLE
 
-	PORT_START("lptjoy")
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_JOYSTICK_RIGHT) PORT_NAME("LPT Joystick Right") PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_JOYSTICK_LEFT) PORT_NAME("LPT Joystick Left") PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_JOYSTICK_UP) PORT_NAME("LPT Joystick Up") PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_JOYSTICK_DOWN) PORT_NAME("LPT Joystick Down") PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_BUTTON2) PORT_NAME("LPT Joystick Button 2") PORT_PLAYER(1)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_BUTTON1) PORT_NAME("LPT Joystick Button 1") PORT_PLAYER(1)
-
 	PORT_START("joy1")
 	PORT_BIT(0x01,IP_ACTIVE_LOW,IPT_JOYSTICK_UP) PORT_NAME("1P Joystick Up") PORT_8WAY PORT_PLAYER(1)
 	PORT_BIT(0x02,IP_ACTIVE_LOW,IPT_JOYSTICK_DOWN) PORT_NAME("1P Joystick Down") PORT_8WAY PORT_PLAYER(1)
@@ -1822,11 +1803,6 @@ static INPUT_PORTS_START( fm7 )
 	PORT_DIPNAME(0x08,0x00,"FM-8 Compatibility mode") PORT_DIPLOCATION("SWA:4")
 	PORT_DIPSETTING(0x00,DEF_STR( Off ))
 	PORT_DIPSETTING(0x08,DEF_STR( On ))
-
-	PORT_START("config")
-	PORT_CONFNAME(0x01,0x00,"Printer port device")
-	PORT_CONFSETTING(0x00,"Printer")
-	PORT_CONFSETTING(0x01,"Dempa Shinbunsha Joystick")
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( fm8 )
@@ -1836,11 +1812,6 @@ static INPUT_PORTS_START( fm8 )
 	PORT_DIPNAME(0x02,0x02,"Boot mode") PORT_DIPLOCATION("SWA:2")
 	PORT_DIPSETTING(0x00,"DOS")
 	PORT_DIPSETTING(0x02,"BASIC")
-
-	PORT_START("config")
-	PORT_CONFNAME(0x01,0x00,"Printer port device")
-	PORT_CONFSETTING(0x00,"Printer")
-	PORT_CONFSETTING(0x01,"Dempa Shinbunsha Joystick")
 INPUT_PORTS_END
 
 DRIVER_INIT_MEMBER(fm7_state,fm7)
@@ -1851,8 +1822,6 @@ DRIVER_INIT_MEMBER(fm7_state,fm7)
 	m_subtimer = timer_alloc(TIMER_FM7_SUBTIMER_IRQ);
 	m_keyboard_timer = timer_alloc(TIMER_FM7_KEYBOARD_POLL);
 	m_fm77av_vsync_timer = timer_alloc(TIMER_FM77AV_VSYNC);
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(fm7_state::fm7_irq_ack),this));
-	m_sub->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(fm7_state::fm7_sub_irq_ack),this));
 }
 
 MACHINE_START_MEMBER(fm7_state,fm7)
@@ -1921,7 +1890,7 @@ void fm7_state::machine_reset()
 	m_subtimer->adjust(attotime::from_msec(20),0,attotime::from_msec(20));
 	m_keyboard_timer->adjust(attotime::zero,0,attotime::from_msec(10));
 	if(m_type == SYS_FM77AV || m_type == SYS_FM77AV40EX || m_type == SYS_FM11)
-		m_fm77av_vsync_timer->adjust(machine().primary_screen->time_until_vblank_end());
+		m_fm77av_vsync_timer->adjust(machine().first_screen()->time_until_vblank_end());
 
 	m_irq_mask = 0x00;
 	m_irq_flags = 0x00;
@@ -1946,7 +1915,7 @@ void fm7_state::machine_reset()
 		m_init_rom_en = 0;
 	if(m_type == SYS_FM7)
 	{
-		if(!(ioport("DSW")->read() & 0x02))
+		if(!(m_dsw->read() & 0x02))
 		{
 			m_basic_rom_en = 0;  // disabled for DOS mode
 			membank("bank1")->set_base(RAM+0x08000);
@@ -1972,7 +1941,7 @@ void fm7_state::machine_reset()
 	// set boot mode (FM-7 only, AV and later has boot RAM instead)
 	if(m_type == SYS_FM7)
 	{
-		if(!(ioport("DSW")->read() & 0x02))
+		if(!(m_dsw->read() & 0x02))
 		{  // DOS mode
 			membank("bank17")->set_base(memregion("dos")->base());
 		}
@@ -1994,69 +1963,27 @@ void fm7_state::machine_reset()
 	memset(m_video_ram, 0, sizeof(UINT8) * 0x18000);
 }
 
-static const wd17xx_interface fm7_mb8877a_interface =
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(fm7_state,fm7_fdc_intrq_w),
-	DEVCB_DRIVER_LINE_MEMBER(fm7_state,fm7_fdc_drq_w),
-	{FLOPPY_0, FLOPPY_1, FLOPPY_2, FLOPPY_3}
-};
-
-static const ay8910_interface fm7_psg_intf =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, /* portA read */
-	DEVCB_NULL, /* portB read */
-	DEVCB_NULL,                 /* portA write */
-	DEVCB_NULL                  /* portB write */
-};
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(fm7_state,fm77av_joy_1_r),
-	DEVCB_DRIVER_MEMBER(fm7_state,fm77av_joy_2_r),
-	DEVCB_NULL,                 /* portA write */
-	DEVCB_NULL                  /* portB write */
-};
-
-static const cassette_interface fm7_cassette_interface =
-{
-	fm7_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED),
-	"fm7_cass",
-	NULL
-};
-
 static const floppy_interface fm7_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSHD,
 	LEGACY_FLOPPY_OPTIONS_NAME(default),
-	"floppy_5_25",
-	NULL
+	"floppy_5_25"
 };
 
 static MACHINE_CONFIG_START( fm7, fm7_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6809, XTAL_2MHz)
 	MCFG_CPU_PROGRAM_MAP(fm7_mem)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(fm7_state,fm7_irq_ack)
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
 	MCFG_CPU_ADD("sub", M6809, XTAL_2MHz)
 	MCFG_CPU_PROGRAM_MAP(fm7_sub_mem)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(fm7_state,fm7_sub_irq_ack)
 	MCFG_QUANTUM_PERFECT_CPU("sub")
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("psg", AY8910, XTAL_4_9152MHz / 4)
-	MCFG_SOUND_CONFIG(fm7_psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono", 1.00)
 	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono", 0.50)
@@ -2067,21 +1994,34 @@ static MACHINE_CONFIG_START( fm7, fm7_state )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_SIZE(640, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
 	MCFG_SCREEN_UPDATE_DRIVER(fm7_state, screen_update_fm7)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(fm7_state, fm7)
 
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_FORMATS(fm7_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("fm7_cass")
 
-	MCFG_CASSETTE_ADD("cassette", fm7_cassette_interface)
+	MCFG_DEVICE_ADD("fdc", MB8877, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE2_TAGS
+	MCFG_WD17XX_INTRQ_CALLBACK(WRITELINE(fm7_state, fm7_fdc_intrq_w))
+	MCFG_WD17XX_DRQ_CALLBACK(WRITELINE(fm7_state, fm7_fdc_drq_w))
 
-	MCFG_MB8877_ADD("fdc",fm7_mb8877a_interface)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_SLOT_OPTION_ADD( "dsjoy", DEMPA_SHINBUNSHA_JOYSTICK )
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(fm7_state, write_centronics_busy))
+	MCFG_CENTRONICS_FAULT_HANDLER(WRITELINE(fm7_state, write_centronics_fault))
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(fm7_state, write_centronics_ack))
+	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(fm7_state, write_centronics_perror))
 
-	MCFG_CENTRONICS_PRINTER_ADD("lpt",standard_centronics)
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(fm7_floppy_interface)
 
@@ -2093,10 +2033,12 @@ static MACHINE_CONFIG_START( fm8, fm7_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6809, 1200000)  // 1.2MHz 68A09
 	MCFG_CPU_PROGRAM_MAP(fm8_mem)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(fm7_state,fm7_irq_ack)
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
 	MCFG_CPU_ADD("sub", M6809, XTAL_1MHz)
 	MCFG_CPU_PROGRAM_MAP(fm7_sub_mem)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(fm7_state,fm7_sub_irq_ack)
 	MCFG_QUANTUM_PERFECT_CPU("sub")
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -2109,21 +2051,33 @@ static MACHINE_CONFIG_START( fm8, fm7_state )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_SIZE(640, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
 	MCFG_SCREEN_UPDATE_DRIVER(fm7_state, screen_update_fm7)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(fm7_state, fm7)
 
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_FORMATS(fm7_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("fm7_cass")
 
-	MCFG_CASSETTE_ADD("cassette", fm7_cassette_interface)
+	MCFG_DEVICE_ADD("fdc", MB8877, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE2_TAGS
+	MCFG_WD17XX_INTRQ_CALLBACK(WRITELINE(fm7_state, fm7_fdc_intrq_w))
+	MCFG_WD17XX_DRQ_CALLBACK(WRITELINE(fm7_state, fm7_fdc_drq_w))
 
-	MCFG_MB8877_ADD("fdc",fm7_mb8877a_interface)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(fm7_state, write_centronics_busy))
+	MCFG_CENTRONICS_FAULT_HANDLER(WRITELINE(fm7_state, write_centronics_fault))
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(fm7_state, write_centronics_ack))
+	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(fm7_state, write_centronics_perror))
 
-	MCFG_CENTRONICS_PRINTER_ADD("lpt",standard_centronics)
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(fm7_floppy_interface)
 
@@ -2133,16 +2087,19 @@ static MACHINE_CONFIG_START( fm77av, fm7_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6809, XTAL_2MHz)  // actually MB68B09E, but the 6809E core runs too slowly
 	MCFG_CPU_PROGRAM_MAP(fm77av_mem)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(fm7_state,fm7_irq_ack)
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
 	MCFG_CPU_ADD("sub", M6809, XTAL_2MHz)
 	MCFG_CPU_PROGRAM_MAP(fm77av_sub_mem)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(fm7_state,fm7_sub_irq_ack)
 	MCFG_QUANTUM_PERFECT_CPU("sub")
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ym", YM2203, XTAL_4_9152MHz / 4)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(fm7_state, fm77av_fmirq))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(fm7_state, fm77av_joy_1_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(fm7_state, fm77av_joy_2_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",1.0)
 	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.50)
@@ -2158,15 +2115,28 @@ static MACHINE_CONFIG_START( fm77av, fm7_state )
 	MCFG_SCREEN_SIZE(640, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
 	MCFG_SCREEN_UPDATE_DRIVER(fm7_state, screen_update_fm7)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(8 + 4096)
+	MCFG_PALETTE_ADD("palette", 8 + 4096)
+	MCFG_PALETTE_INIT_OWNER(fm7_state, fm7)
 
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_FORMATS(fm7_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("fm7_cass")
 
-	MCFG_CASSETTE_ADD("cassette", fm7_cassette_interface)
+	MCFG_DEVICE_ADD("fdc", MB8877, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE2_TAGS
+	MCFG_WD17XX_INTRQ_CALLBACK(WRITELINE(fm7_state, fm7_fdc_intrq_w))
+	MCFG_WD17XX_DRQ_CALLBACK(WRITELINE(fm7_state, fm7_fdc_drq_w))
 
-	MCFG_MB8877_ADD("fdc",fm7_mb8877a_interface)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(fm7_state, write_centronics_busy))
+	MCFG_CENTRONICS_FAULT_HANDLER(WRITELINE(fm7_state, write_centronics_fault))
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(fm7_state, write_centronics_ack))
+	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(fm7_state, write_centronics_perror))
 
-	MCFG_CENTRONICS_PRINTER_ADD("lpt",standard_centronics)
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(fm7_floppy_interface)
 
@@ -2179,10 +2149,12 @@ static MACHINE_CONFIG_START( fm11, fm7_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6809, XTAL_2MHz)  // 2MHz 68B09E
 	MCFG_CPU_PROGRAM_MAP(fm11_mem)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(fm7_state,fm7_irq_ack)
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
 	MCFG_CPU_ADD("sub", M6809, XTAL_2MHz)  // 2MHz 68B09
 	MCFG_CPU_PROGRAM_MAP(fm11_sub_mem)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(fm7_state,fm7_sub_irq_ack)
 	MCFG_QUANTUM_PERFECT_CPU("sub")
 
 	MCFG_CPU_ADD("x86", I8088, XTAL_8MHz)  // 8MHz i8088
@@ -2199,21 +2171,33 @@ static MACHINE_CONFIG_START( fm11, fm7_state )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_SIZE(640, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
 	MCFG_SCREEN_UPDATE_DRIVER(fm7_state, screen_update_fm7)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(fm7_state, fm7)
 
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_FORMATS(fm7_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("fm7_cass")
 
-	MCFG_CASSETTE_ADD("cassette", fm7_cassette_interface)
+	MCFG_DEVICE_ADD("fdc", MB8877, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE2_TAGS
+	MCFG_WD17XX_INTRQ_CALLBACK(WRITELINE(fm7_state, fm7_fdc_intrq_w))
+	MCFG_WD17XX_DRQ_CALLBACK(WRITELINE(fm7_state, fm7_fdc_drq_w))
 
-	MCFG_MB8877_ADD("fdc",fm7_mb8877a_interface)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(fm7_state, write_centronics_busy))
+	MCFG_CENTRONICS_FAULT_HANDLER(WRITELINE(fm7_state, write_centronics_fault))
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(fm7_state, write_centronics_ack))
+	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(fm7_state, write_centronics_perror))
 
-	MCFG_CENTRONICS_PRINTER_ADD("lpt",standard_centronics)
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(fm7_floppy_interface)
 
@@ -2227,6 +2211,7 @@ static MACHINE_CONFIG_START( fm16beta, fm7_state )
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
 	MCFG_CPU_ADD("sub", M6809, XTAL_2MHz)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(fm7_state,fm7_sub_irq_ack)
 	MCFG_CPU_PROGRAM_MAP(fm16_sub_mem)
 	MCFG_QUANTUM_PERFECT_CPU("sub")
 
@@ -2240,21 +2225,33 @@ static MACHINE_CONFIG_START( fm16beta, fm7_state )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_SIZE(640, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
 	MCFG_SCREEN_UPDATE_DRIVER(fm7_state, screen_update_fm7)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(fm7_state, fm7)
 
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_FORMATS(fm7_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("fm7_cass")
 
-	MCFG_CASSETTE_ADD("cassette", fm7_cassette_interface)
+	MCFG_DEVICE_ADD("fdc", MB8877, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE2_TAGS
+	MCFG_WD17XX_INTRQ_CALLBACK(WRITELINE(fm7_state, fm7_fdc_intrq_w))
+	MCFG_WD17XX_DRQ_CALLBACK(WRITELINE(fm7_state, fm7_fdc_drq_w))
 
-	MCFG_MB8877_ADD("fdc",fm7_mb8877a_interface)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(fm7_state, write_centronics_busy))
+	MCFG_CENTRONICS_FAULT_HANDLER(WRITELINE(fm7_state, write_centronics_fault))
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(fm7_state, write_centronics_ack))
+	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(fm7_state, write_centronics_perror))
 
-	MCFG_CENTRONICS_PRINTER_ADD("lpt",standard_centronics)
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(fm7_floppy_interface)
 

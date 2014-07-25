@@ -60,7 +60,10 @@ public:
 		m_reel2_ram(*this, "reel2_ram"),
 		m_reel3_ram(*this, "reel3_ram"),
 		m_fg_tile_ram(*this, "fg_tile_ram"),
-		m_fg_color_ram(*this, "fg_color_ram"){ }
+		m_fg_color_ram(*this, "fg_color_ram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT8> m_bg_scroll2;
@@ -70,6 +73,10 @@ public:
 	required_shared_ptr<UINT8> m_reel3_ram;
 	required_shared_ptr<UINT8> m_fg_tile_ram;
 	required_shared_ptr<UINT8> m_fg_color_ram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	int m_exp_bank;
 	tilemap_t *m_fg_tilemap;
 	tilemap_t *m_reel1_tilemap;
@@ -186,15 +193,15 @@ TILE_GET_INFO_MEMBER(jackie_state::get_jackie_reel3_tile_info)
 
 void jackie_state::video_start()
 {
-	m_reel1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jackie_state::get_jackie_reel1_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 8);
-	m_reel2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jackie_state::get_jackie_reel2_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 8);
-	m_reel3_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jackie_state::get_jackie_reel3_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 8);
+	m_reel1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jackie_state::get_jackie_reel1_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 8);
+	m_reel2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jackie_state::get_jackie_reel2_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 8);
+	m_reel3_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jackie_state::get_jackie_reel3_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 8);
 
 	m_reel1_tilemap->set_scroll_cols(64);
 	m_reel2_tilemap->set_scroll_cols(64);
 	m_reel3_tilemap->set_scroll_cols(64);
 
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jackie_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8,  8,  64, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jackie_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8,  8,  64, 32);
 	m_fg_tilemap->set_transparent_pen(0);
 }
 
@@ -205,7 +212,7 @@ UINT32 jackie_state::screen_update_jackie(screen_device &screen, bitmap_ind16 &b
 	int startclipmin = 0;
 	const rectangle &visarea = screen.visible_area();
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	for (i=0;i < 0x40;i++)
 	{
@@ -369,8 +376,8 @@ static ADDRESS_MAP_START( jackie_io_map, AS_IO, 8, jackie_state )
 	AM_RANGE(0x05a0, 0x05a4) AM_WRITE(jackie_unk_reg3_lo_w)
 	AM_RANGE(0x0da0, 0x0da4) AM_WRITE(jackie_unk_reg3_hi_w)
 	AM_RANGE(0x1000, 0x1107) AM_RAM AM_SHARE("bg_scroll2")
-	AM_RANGE(0x2000, 0x27ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_lo_w ) AM_SHARE("paletteram")
-	AM_RANGE(0x2800, 0x2fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_hi_w ) AM_SHARE("paletteram2")
+	AM_RANGE(0x2000, 0x27ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0x2800, 0x2fff) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0x4000, 0x4000) AM_READ_PORT("DSW1")           /* DSW1 */
 	AM_RANGE(0x4001, 0x4001) AM_READ_PORT("DSW2")           /* DSW2 */
 	AM_RANGE(0x4002, 0x4002) AM_READ_PORT("DSW3")           /* DSW3 */
@@ -586,10 +593,11 @@ static MACHINE_CONFIG_START( jackie, jackie_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 0, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(jackie_state, screen_update_jackie)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(jackie)
-	MCFG_PALETTE_LENGTH(2048)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jackie)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

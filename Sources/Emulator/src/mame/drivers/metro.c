@@ -95,14 +95,13 @@ driver modified by Eisuke Watanabe
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "cpu/m68000/m68000.h"
-#include "cpu/h83002/h8.h"
 #include "cpu/upd7810/upd7810.h"
+#include "cpu/h8/h83006.h"
 #include "includes/metro.h"
 #include "machine/eepromser.h"
 #include "sound/2151intf.h"
 #include "sound/2413intf.h"
 #include "sound/2610intf.h"
-#include "sound/es8712.h"
 #include "sound/okim6295.h"
 #include "sound/ymf278b.h"
 
@@ -247,9 +246,9 @@ WRITE16_MEMBER(metro_state::mouja_irq_timer_ctrl_w)
 INTERRUPT_GEN_MEMBER(metro_state::puzzlet_interrupt)
 {
 	m_requested_int[m_vblank_bit] = 1;
-	update_irq_state();
+	m_requested_int[5] = 1;
 
-	m_maincpu->set_input_line(H8_METRO_TIMER_HACK, HOLD_LINE);
+	update_irq_state();
 }
 
 WRITE_LINE_MEMBER(metro_state::ymf278b_interrupt)
@@ -266,24 +265,15 @@ WRITE_LINE_MEMBER(metro_state::ymf278b_interrupt)
 
 ***************************************************************************/
 
-static int metro_io_callback( device_t *device, int ioline, int state )
+READ_LINE_MEMBER(metro_state::metro_rxd_r)
 {
-	metro_state *driver_state = device->machine().driver_data<metro_state>();
-	address_space &space = driver_state->m_maincpu->space(AS_PROGRAM);
-	UINT8 data = 0;
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	UINT8 data = soundlatch_byte_r(space, 0);
 
-	switch (ioline)
-	{
-		case UPD7810_RXD:   /* read the RxD line */
-			data = driver_state->soundlatch_byte_r(space, 0);
-			state = data & 1;
-			driver_state->soundlatch_byte_w(space, 0, data >> 1);
-			break;
-		default:
-			logerror("upd7810 ioline %d not handled\n", ioline);
-	}
+	soundlatch_byte_w(space, 0, data >> 1);
 
-	return state;
+	return data & 1;
+
 }
 
 WRITE16_MEMBER(metro_state::metro_soundlatch_w)
@@ -785,7 +775,7 @@ static ADDRESS_MAP_START( balcube_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x640000, 0x65ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x660000, 0x66ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x670000, 0x671fff) AM_RAM                                             // ???
-	AM_RANGE(0x672000, 0x673fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x672000, 0x673fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x674000, 0x674fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x678000, 0x6787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x678840, 0x67884d) AM_WRITE(metro_blitter_w) AM_SHARE("blitter_regs") // Tiles Blitter
@@ -814,7 +804,7 @@ static ADDRESS_MAP_START( daitoa_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x140000, 0x15ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x160000, 0x16ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x170000, 0x171fff) AM_RAM                                             // ???
-	AM_RANGE(0x172000, 0x173fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x172000, 0x173fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x174000, 0x174fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x178000, 0x1787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x178840, 0x17884d) AM_WRITE(metro_blitter_w) AM_SHARE("blitter_regs") // Tiles Blitter
@@ -856,7 +846,7 @@ static ADDRESS_MAP_START( bangball_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0xe40000, 0xe5ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0xe60000, 0xe6ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0xe70000, 0xe71fff) AM_RAM                                             // ???
-	AM_RANGE(0xe72000, 0xe73fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0xe72000, 0xe73fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0xe74000, 0xe74fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0xe78000, 0xe787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0xe78840, 0xe7884d) AM_WRITE(metro_blitter_w) AM_SHARE("blitter_regs") // Tiles Blitter
@@ -884,7 +874,7 @@ static ADDRESS_MAP_START( batlbubl_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x140000, 0x15ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x160000, 0x16ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x170000, 0x171fff) AM_RAM                                             // ???
-	AM_RANGE(0x172000, 0x173fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x172000, 0x173fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x174000, 0x174fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x178000, 0x1787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x178840, 0x17884d) AM_WRITE(metro_blitter_w) AM_SHARE("blitter_regs") // Tiles Blitter
@@ -920,7 +910,7 @@ static ADDRESS_MAP_START( msgogo_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x140000, 0x15ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x160000, 0x16ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x170000, 0x171fff) AM_RAM                                             // ???
-	AM_RANGE(0x172000, 0x173fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x172000, 0x173fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x174000, 0x174fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x178000, 0x1787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x178840, 0x17884d) AM_WRITE(metro_blitter_w) AM_SHARE("blitter_regs") // Tiles Blitter
@@ -954,7 +944,7 @@ static ADDRESS_MAP_START( daitorid_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x440000, 0x45ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x460000, 0x46ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x470000, 0x471fff) AM_RAM                                             // ???
-	AM_RANGE(0x472000, 0x473fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x472000, 0x473fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x474000, 0x474fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x478000, 0x4787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x478840, 0x47884d) AM_WRITE(metro_blitter_w) AM_SHARE("blitter_regs") // Tiles Blitter
@@ -989,7 +979,7 @@ static ADDRESS_MAP_START( dharma_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x840000, 0x85ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x860000, 0x86ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x870000, 0x871fff) AM_RAM                                             // ???
-	AM_RANGE(0x872000, 0x873fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x872000, 0x873fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x874000, 0x874fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x878000, 0x8787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x878840, 0x87884d) AM_WRITE(metro_blitter_w) AM_SHARE("blitter_regs") // Tiles Blitter
@@ -1040,7 +1030,7 @@ static ADDRESS_MAP_START( karatour_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x40000c, 0x40000d) AM_READ_PORT("IN2")                                //
 	AM_RANGE(0x860000, 0x86ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x870000, 0x871fff) AM_RAM                                             // ???
-	AM_RANGE(0x872000, 0x873fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x872000, 0x873fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x874000, 0x874fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x875000, 0x875fff) AM_READWRITE(karatour_vram_0_r, karatour_vram_0_w) // Layer 0 (Part of)
 	AM_RANGE(0x876000, 0x876fff) AM_READWRITE(karatour_vram_1_r, karatour_vram_1_w) // Layer 1 (Part of)
@@ -1072,7 +1062,7 @@ static ADDRESS_MAP_START( kokushi_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x700000, 0x70ffff) AM_RAM AM_MIRROR(0x0f0000)                         // RAM (mirrored)
 	AM_RANGE(0x860000, 0x86ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x870000, 0x871fff) AM_RAM                                             // ???
-	AM_RANGE(0x872000, 0x873fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x872000, 0x873fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x874000, 0x874fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x875000, 0x875fff) AM_READWRITE(karatour_vram_0_r, karatour_vram_0_w) // Layer 0 (Part of)
 	AM_RANGE(0x876000, 0x876fff) AM_READWRITE(karatour_vram_1_r, karatour_vram_1_w) // Layer 1 (Part of)
@@ -1108,7 +1098,7 @@ static ADDRESS_MAP_START( lastfort_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x840000, 0x85ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x860000, 0x86ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x870000, 0x871fff) AM_RAM                                             // ???
-	AM_RANGE(0x872000, 0x873fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x872000, 0x873fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x874000, 0x874fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x878000, 0x8787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x878800, 0x878813) AM_WRITEONLY AM_SHARE("videoregs")                 // Video Registers
@@ -1149,7 +1139,7 @@ static ADDRESS_MAP_START( lastforg_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x8c0000, 0x8dffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x8e0000, 0x8effff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x8f0000, 0x8f1fff) AM_RAM                                             // ???
-	AM_RANGE(0x8f2000, 0x8f3fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x8f2000, 0x8f3fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x8f4000, 0x8f4fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x8f8000, 0x8f87ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x8f8800, 0x8f8813) AM_WRITEONLY AM_SHARE("videoregs")                 // Video Registers
@@ -1171,11 +1161,10 @@ ADDRESS_MAP_END
                                 Mahjong Gakuensai
 ***************************************************************************/
 
-static void gakusai_oki_bank_set(device_t *device)
+void metro_state::gakusai_oki_bank_set()
 {
-	metro_state *state = device->machine().driver_data<metro_state>();
-	int bank = (state->m_gakusai_oki_bank_lo & 7) + (state->m_gakusai_oki_bank_hi & 1) * 8;
-	downcast<okim6295_device *>(device)->set_bank_base(bank * 0x40000);
+	int bank = (m_gakusai_oki_bank_lo & 7) + (m_gakusai_oki_bank_hi & 1) * 8;
+	m_oki->set_bank_base(bank * 0x40000);
 }
 
 WRITE16_MEMBER(metro_state::gakusai_oki_bank_hi_w)
@@ -1183,7 +1172,7 @@ WRITE16_MEMBER(metro_state::gakusai_oki_bank_hi_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		m_gakusai_oki_bank_hi = data & 0xff;
-		gakusai_oki_bank_set(m_oki);
+		gakusai_oki_bank_set();
 	}
 }
 
@@ -1192,7 +1181,7 @@ WRITE16_MEMBER(metro_state::gakusai_oki_bank_lo_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		m_gakusai_oki_bank_lo = data & 0xff;
-		gakusai_oki_bank_set(m_oki);
+		gakusai_oki_bank_set();
 	}
 }
 
@@ -1236,7 +1225,7 @@ static ADDRESS_MAP_START( gakusai_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x240000, 0x25ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x260000, 0x26ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x270000, 0x271fff) AM_RAM                                             // ???
-	AM_RANGE(0x272000, 0x273fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x272000, 0x273fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x274000, 0x274fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x278000, 0x2787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x27880e, 0x27880f) AM_RAM AM_SHARE("screenctrl")                      // Screen Control
@@ -1274,7 +1263,7 @@ static ADDRESS_MAP_START( gakusai2_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x640000, 0x65ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x660000, 0x66ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x670000, 0x671fff) AM_RAM                                             // ???
-	AM_RANGE(0x672000, 0x673fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x672000, 0x673fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x674000, 0x674fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x675000, 0x675fff) AM_RAM                                             // Sprites?
 	AM_RANGE(0x678000, 0x6787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
@@ -1344,7 +1333,7 @@ static ADDRESS_MAP_START( dokyusp_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x240000, 0x25ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x260000, 0x26ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x270000, 0x271fff) AM_RAM                                             // ???
-	AM_RANGE(0x272000, 0x273fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x272000, 0x273fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x274000, 0x274fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x278000, 0x2787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x278810, 0x27881f) AM_WRITEONLY AM_SHARE("irq_levels")                // IRQ Levels
@@ -1383,7 +1372,7 @@ static ADDRESS_MAP_START( dokyusei_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x460000, 0x46ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x460000, 0x46ffff) AM_WRITENOP                                        // DSW Selection
 	AM_RANGE(0x470000, 0x471fff) AM_RAM                                             // ???
-	AM_RANGE(0x472000, 0x473fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x472000, 0x473fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x474000, 0x474fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x478000, 0x4787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x47880e, 0x47880f) AM_WRITEONLY AM_SHARE("screenctrl")                // Screen Control
@@ -1423,7 +1412,7 @@ static ADDRESS_MAP_START( pangpoms_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x440000, 0x45ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x460000, 0x46ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x470000, 0x471fff) AM_RAM                                             // ???
-	AM_RANGE(0x472000, 0x473fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x472000, 0x473fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x474000, 0x474fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x478000, 0x4787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x478800, 0x478813) AM_RAM AM_SHARE("videoregs")                       // Video Registers
@@ -1466,7 +1455,7 @@ static ADDRESS_MAP_START( poitto_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0xc40000, 0xc5ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0xc60000, 0xc6ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0xc70000, 0xc71fff) AM_RAM                                             // ???
-	AM_RANGE(0xc72000, 0xc73fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0xc72000, 0xc73fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0xc74000, 0xc74fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0xc78000, 0xc787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0xc78800, 0xc78813) AM_WRITEONLY AM_SHARE("videoregs")                 // Video Registers
@@ -1502,7 +1491,7 @@ static ADDRESS_MAP_START( skyalert_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x840000, 0x85ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x860000, 0x86ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x870000, 0x871fff) AM_RAM                                             // ???
-	AM_RANGE(0x872000, 0x873fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x872000, 0x873fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x874000, 0x874fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x878000, 0x8787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x878800, 0x878813) AM_WRITEONLY AM_SHARE("videoregs")                 // Video Registers
@@ -1537,7 +1526,7 @@ static ADDRESS_MAP_START( pururun_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0xc40000, 0xc5ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0xc60000, 0xc6ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0xc70000, 0xc71fff) AM_RAM                                             // ???
-	AM_RANGE(0xc72000, 0xc73fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0xc72000, 0xc73fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0xc74000, 0xc74fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0xc78000, 0xc787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0xc78840, 0xc7884d) AM_WRITE(metro_blitter_w) AM_SHARE("blitter_regs") // Tiles Blitter
@@ -1571,7 +1560,7 @@ static ADDRESS_MAP_START( toride2g_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0xc40000, 0xc5ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0xc60000, 0xc6ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0xc70000, 0xc71fff) AM_RAM                                             // ???
-	AM_RANGE(0xc72000, 0xc73fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0xc72000, 0xc73fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0xc74000, 0xc74fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0xc78000, 0xc787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0xc78840, 0xc7884d) AM_WRITE(metro_blitter_w) AM_SHARE("blitter_regs") // Tiles Blitter
@@ -1633,7 +1622,7 @@ static ADDRESS_MAP_START( blzntrnd_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x260000, 0x26ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x260000, 0x26ffff) AM_WRITENOP                                        // ??????
 	AM_RANGE(0x270000, 0x271fff) AM_RAM                                             // ???
-	AM_RANGE(0x272000, 0x273fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x272000, 0x273fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x274000, 0x274fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x278000, 0x2787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x278860, 0x27886b) AM_WRITE(metro_window_w) AM_SHARE("window")        // Tilemap Window
@@ -1675,7 +1664,7 @@ static ADDRESS_MAP_START( mouja_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x420000, 0x43ffff) AM_RAM_WRITE(metro_vram_1_w) AM_SHARE("vram_1")    // Layer 1
 	AM_RANGE(0x440000, 0x45ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x470000, 0x471fff) AM_RAM                                             // ???
-	AM_RANGE(0x472000, 0x473fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x472000, 0x473fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x474000, 0x474fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x478000, 0x4787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x47880e, 0x47880f) AM_WRITEONLY AM_SHARE("screenctrl")                // Screen Control
@@ -1710,13 +1699,92 @@ ADDRESS_MAP_END
                                 Puzzlet
 ***************************************************************************/
 
+#define MCFG_PUZZLET_IO_ADD(_tag) \
+	MCFG_DEVICE_ADD(_tag, PUZZLET_IO, 0)
+
+#define MCFG_PUZZLET_IO_DATA_CALLBACK(_devcb) \
+	devcb = &puzzlet_io_device::set_data_cb(*device, DEVCB_##_devcb);
+
+class puzzlet_io_device : public device_t {
+public:
+	puzzlet_io_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	DECLARE_WRITE_LINE_MEMBER( ce_w );
+	DECLARE_WRITE_LINE_MEMBER( clk_w );
+
+	template<class _Object> static devcb_base &set_data_cb(device_t &device, _Object object) { return downcast<puzzlet_io_device &>(device).data_cb.set_callback(object); }
+
+protected:
+	virtual void device_start();
+	virtual void device_reset();
+
+private:
+	devcb_write_line data_cb;
+	required_ioport port;
+	int ce, clk;
+	int cur_bit;
+	UINT8 value;
+};
+
+const device_type PUZZLET_IO = &device_creator<puzzlet_io_device>;
+
+
+puzzlet_io_device::puzzlet_io_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: device_t(mconfig, PUZZLET_IO, "Puzzlet Coin/Start I/O", tag, owner, clock, "puzzlet_io", __FILE__),
+		data_cb(*this),
+		port(*this, ":IN0")
+{
+}
+
+void puzzlet_io_device::device_start()
+{
+	data_cb.resolve_safe();
+	save_item(NAME(ce));
+	save_item(NAME(clk));
+	save_item(NAME(cur_bit));
+	save_item(NAME(value));
+	ce = 1;
+	clk = 1;
+}
+
+void puzzlet_io_device::device_reset()
+{
+	cur_bit = 0;
+	value = 0xff;
+}
+
+WRITE_LINE_MEMBER(puzzlet_io_device::ce_w)
+{
+	if(ce && !state) {
+		value = port->read();
+		cur_bit = 0;
+	} else if(!ce && state)
+		data_cb(1);
+
+	ce = state;
+}
+
+WRITE_LINE_MEMBER(puzzlet_io_device::clk_w)
+{
+	if(clk && !state) {
+		if(cur_bit == 8)
+			data_cb(1);
+		else {
+			data_cb((value >> cur_bit) & 1);
+			cur_bit++;
+		}
+	}
+	clk = state;
+}
+
+
 WRITE16_MEMBER(metro_state::puzzlet_irq_enable_w)
 {
 	if (ACCESSING_BITS_0_7)
 		*m_irq_enable = data ^ 0xffff;
 }
 
-	/* FIXME: algorithm not yet understood. */
+/* FIXME: algorithm not yet understood. */
 WRITE16_MEMBER(metro_state::vram_0_clr_w)
 {
 	static int i;
@@ -1763,7 +1831,7 @@ static ADDRESS_MAP_START( puzzlet_map, AS_PROGRAM, 16, metro_state )
 
 	AM_RANGE(0x770000, 0x771fff) AM_RAM                                             // ???
 //  AM_RANGE(0x772000, 0x773fff) AM_RAM
-	AM_RANGE(0x772000, 0x773fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x772000, 0x773fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 
 	AM_RANGE(0x775000, 0x775fff) AM_RAM_WRITE(vram_0_clr_w)
 	AM_RANGE(0x776000, 0x776fff) AM_RAM_WRITE(vram_1_clr_w)
@@ -1791,15 +1859,14 @@ static ADDRESS_MAP_START( puzzlet_map, AS_PROGRAM, 16, metro_state )
 ADDRESS_MAP_END
 
 
-WRITE8_MEMBER(metro_state::puzzlet_portb_w)
+WRITE16_MEMBER(metro_state::puzzlet_portb_w)
 {
 //  popmessage("PORTB %02x", data);
 }
 
-static ADDRESS_MAP_START( puzzlet_io_map, AS_IO, 8, metro_state )
-	AM_RANGE(H8_PORT_7,   H8_PORT_7) AM_READ_PORT("IN2")
-	AM_RANGE(H8_SERIAL_1, H8_SERIAL_1) AM_READ_PORT("IN0")      // coin
-	AM_RANGE(H8_PORT_B,   H8_PORT_B) AM_READ_PORT("DSW0") AM_WRITE(puzzlet_portb_w)
+static ADDRESS_MAP_START( puzzlet_io_map, AS_IO, 16, metro_state )
+	AM_RANGE(h8_device::PORT_7,   h8_device::PORT_7) AM_READ_PORT("IN2")
+	AM_RANGE(h8_device::PORT_B,   h8_device::PORT_B) AM_READ_PORT("DSW0") AM_WRITE(puzzlet_portb_w)
 ADDRESS_MAP_END
 
 
@@ -1809,7 +1876,6 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(metro_state::vmetal_control_w)
 {
-	es8712_device *device = machine().device<es8712_device>("essnd");
 	/* Lower nibble is the coin control bits shown in
 	   service mode, but in game mode they're different */
 	coin_counter_w(machine(), 0, data & 0x04);
@@ -1818,14 +1884,14 @@ WRITE8_MEMBER(metro_state::vmetal_control_w)
 	coin_lockout_w(machine(), 1, data & 0x02);  /* never activated in game mode?? */
 
 	if ((data & 0x40) == 0)
-		device->reset();
+		m_essnd->reset();
 	else
-		device->play();
+		m_essnd->play();
 
 	if (data & 0x10)
-		device->set_bank_base(0x100000);
+		m_essnd->set_bank_base(0x100000);
 	else
-		device->set_bank_base(0x000000);
+		m_essnd->set_bank_base(0x000000);
 
 	if (data & 0xa0)
 		logerror("%s: Writing unknown bits %04x to $200000\n",machine().describe_context(),data);
@@ -1863,8 +1929,7 @@ WRITE8_MEMBER(metro_state::vmetal_es8712_w)
 	16   002a 000e 0083 00ee 000f 0069 0069   0e832a-0f69ee
 	*/
 
-	es8712_device *device = machine().device<es8712_device>("essnd");
-	device->es8712_w(space, offset, data);
+	m_essnd->es8712_w(space, offset, data);
 	logerror("%s: Writing %04x to ES8712 offset %02x\n", machine().describe_context(), data, offset);
 }
 
@@ -1875,7 +1940,7 @@ static ADDRESS_MAP_START( vmetal_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x140000, 0x15ffff) AM_RAM_WRITE(metro_vram_2_w) AM_SHARE("vram_2")    // Layer 2
 	AM_RANGE(0x160000, 0x16ffff) AM_READ(metro_bankedrom_r)                         // Banked ROM
 	AM_RANGE(0x170000, 0x171fff) AM_RAM                                             // ???
-	AM_RANGE(0x172000, 0x173fff) AM_RAM_WRITE(paletteram_GGGGGRRRRRBBBBBx_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x172000, 0x173fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x174000, 0x174fff) AM_RAM AM_SHARE("spriteram")                       // Sprites
 	AM_RANGE(0x178000, 0x1787ff) AM_RAM AM_SHARE("tiletable")                       // Tiles Set
 	AM_RANGE(0x178840, 0x17884d) AM_WRITE(metro_blitter_w) AM_SHARE("blitter_regs") // Tiles Blitter
@@ -3558,16 +3623,8 @@ MACHINE_START_MEMBER(metro_state,metro)
 
 MACHINE_RESET_MEMBER(metro_state,metro)
 {
-	if (m_irq_line == -1)
-		m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(metro_state::metro_irq_callback),this));
 }
 
-
-static const UPD7810_CONFIG metro_cpu_config =
-{
-	TYPE_7810,
-	metro_io_callback
-};
 
 static MACHINE_CONFIG_START( balcube, metro_state )
 
@@ -3587,10 +3644,12 @@ static MACHINE_CONFIG_START( balcube, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4220)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4220)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4220_dx_tmap)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -3620,10 +3679,12 @@ static MACHINE_CONFIG_START( daitoa, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4220)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4220)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4220_dx_tmap)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -3653,10 +3714,12 @@ static MACHINE_CONFIG_START( msgogo, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4220)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4220)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4220_dx_tmap)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -3686,10 +3749,12 @@ static MACHINE_CONFIG_START( bangball, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4220)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4220)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4220_dx_tmap)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -3719,10 +3784,12 @@ static MACHINE_CONFIG_START( batlbubl, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4220)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4220)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4220_dx_tmap)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -3742,7 +3809,7 @@ static MACHINE_CONFIG_START( daitorid, metro_state )
 	MCFG_CPU_PERIODIC_INT_DRIVER(metro_state, metro_periodic_interrupt,  8*60) // ?
 
 	MCFG_CPU_ADD("audiocpu", UPD7810, XTAL_12MHz)
-	MCFG_CPU_CONFIG(metro_cpu_config)
+	MCFG_UPD7810_RXD(READLINE(metro_state,metro_rxd_r))
 	MCFG_CPU_PROGRAM_MAP(metro_sound_map)
 	MCFG_CPU_IO_MAP(daitorid_sound_io_map)
 
@@ -3756,10 +3823,12 @@ static MACHINE_CONFIG_START( daitorid, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4220)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4220)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4220_dx_tmap)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -3784,7 +3853,7 @@ static MACHINE_CONFIG_START( dharma, metro_state )
 	MCFG_CPU_PERIODIC_INT_DRIVER(metro_state, metro_periodic_interrupt,  8*60) // ?
 
 	MCFG_CPU_ADD("audiocpu", UPD7810, XTAL_24MHz/2)
-	MCFG_CPU_CONFIG(metro_cpu_config)
+	MCFG_UPD7810_RXD(READLINE(metro_state,metro_rxd_r))
 	MCFG_CPU_PROGRAM_MAP(metro_sound_map)
 	MCFG_CPU_IO_MAP(metro_sound_io_map)
 
@@ -3798,10 +3867,12 @@ static MACHINE_CONFIG_START( dharma, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4220)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4220)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4220)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -3825,7 +3896,7 @@ static MACHINE_CONFIG_START( karatour, metro_state )
 	MCFG_CPU_PERIODIC_INT_DRIVER(metro_state, metro_periodic_interrupt,  8*60) // ?
 
 	MCFG_CPU_ADD("audiocpu", UPD7810, XTAL_24MHz/2)
-	MCFG_CPU_CONFIG(metro_cpu_config)
+	MCFG_UPD7810_RXD(READLINE(metro_state,metro_rxd_r))
 	MCFG_CPU_PROGRAM_MAP(metro_sound_map)
 	MCFG_CPU_IO_MAP(metro_sound_io_map)
 
@@ -3839,10 +3910,12 @@ static MACHINE_CONFIG_START( karatour, metro_state )
 	MCFG_SCREEN_SIZE(320, 240)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4100)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4100)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -3866,7 +3939,7 @@ static MACHINE_CONFIG_START( 3kokushi, metro_state )
 	MCFG_CPU_PERIODIC_INT_DRIVER(metro_state, metro_periodic_interrupt,  8*60) // ?
 
 	MCFG_CPU_ADD("audiocpu", UPD7810, XTAL_24MHz/2)
-	MCFG_CPU_CONFIG(metro_cpu_config)
+	MCFG_UPD7810_RXD(READLINE(metro_state,metro_rxd_r))
 	MCFG_CPU_PROGRAM_MAP(metro_sound_map)
 	MCFG_CPU_IO_MAP(metro_sound_io_map)
 
@@ -3880,10 +3953,12 @@ static MACHINE_CONFIG_START( 3kokushi, metro_state )
 	MCFG_SCREEN_SIZE(320, 240)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4220)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4220)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4220)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -3907,7 +3982,7 @@ static MACHINE_CONFIG_START( lastfort, metro_state )
 	MCFG_CPU_PERIODIC_INT_DRIVER(metro_state, metro_periodic_interrupt,  8*60) // ?
 
 	MCFG_CPU_ADD("audiocpu", UPD7810, XTAL_24MHz/2)
-	MCFG_CPU_CONFIG(metro_cpu_config)
+	MCFG_UPD7810_RXD(READLINE(metro_state,metro_rxd_r))
 	MCFG_CPU_PROGRAM_MAP(metro_sound_map)
 	MCFG_CPU_IO_MAP(metro_sound_io_map)
 
@@ -3921,10 +3996,12 @@ static MACHINE_CONFIG_START( lastfort, metro_state )
 	MCFG_SCREEN_SIZE(360, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 360-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4100)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4100)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -3947,7 +4024,7 @@ static MACHINE_CONFIG_START( lastforg, metro_state )
 	MCFG_CPU_PERIODIC_INT_DRIVER(metro_state, metro_periodic_interrupt,  8*60) // ?
 
 	MCFG_CPU_ADD("audiocpu", UPD7810, XTAL_24MHz/2)
-	MCFG_CPU_CONFIG(metro_cpu_config)
+	MCFG_UPD7810_RXD(READLINE(metro_state,metro_rxd_r))
 	MCFG_CPU_PROGRAM_MAP(metro_sound_map)
 	MCFG_CPU_IO_MAP(metro_sound_io_map)
 
@@ -3961,10 +4038,12 @@ static MACHINE_CONFIG_START( lastforg, metro_state )
 	MCFG_SCREEN_SIZE(360, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 360-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4100)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4100)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -3984,6 +4063,7 @@ static MACHINE_CONFIG_START( dokyusei, metro_state )
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_16MHz)
 	MCFG_CPU_PROGRAM_MAP(dokyusei_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", metro_state,  metro_vblank_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(metro_state,metro_irq_callback)
 
 	MCFG_MACHINE_START_OVERRIDE(metro_state,metro)
 	MCFG_MACHINE_RESET_OVERRIDE(metro_state,metro)
@@ -3995,10 +4075,12 @@ static MACHINE_CONFIG_START( dokyusei, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4300)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4300)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4300)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -4018,6 +4100,7 @@ static MACHINE_CONFIG_START( dokyusp, metro_state )
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_32MHz/2)
 	MCFG_CPU_PROGRAM_MAP(dokyusp_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", metro_state,  metro_vblank_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(metro_state,metro_irq_callback)
 
 	MCFG_MACHINE_START_OVERRIDE(metro_state,metro)
 	MCFG_MACHINE_RESET_OVERRIDE(metro_state,metro)
@@ -4030,10 +4113,12 @@ static MACHINE_CONFIG_START( dokyusp, metro_state )
 	MCFG_SCREEN_SIZE(384, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 384-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4300)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4300)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4300)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -4054,6 +4139,7 @@ static MACHINE_CONFIG_START( gakusai, metro_state )
 	MCFG_CPU_ADD("maincpu", M68000, 16000000) /* 26.6660MHz/2?, OSCs listed are 26.6660MHz & 3.579545MHz */
 	MCFG_CPU_PROGRAM_MAP(gakusai_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", metro_state,  metro_vblank_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(metro_state,metro_irq_callback)
 
 	MCFG_MACHINE_START_OVERRIDE(metro_state,metro)
 	MCFG_MACHINE_RESET_OVERRIDE(metro_state,metro)
@@ -4066,10 +4152,12 @@ static MACHINE_CONFIG_START( gakusai, metro_state )
 	MCFG_SCREEN_SIZE(320, 240)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4300)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4300)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4300)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -4090,6 +4178,7 @@ static MACHINE_CONFIG_START( gakusai2, metro_state )
 	MCFG_CPU_ADD("maincpu", M68000, 16000000) /* 26.6660MHz/2?, OSCs listed are 26.6660MHz & 3.579545MHz */
 	MCFG_CPU_PROGRAM_MAP(gakusai2_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", metro_state,  metro_vblank_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(metro_state,metro_irq_callback)
 
 	MCFG_MACHINE_START_OVERRIDE(metro_state,metro)
 	MCFG_MACHINE_RESET_OVERRIDE(metro_state,metro)
@@ -4102,10 +4191,12 @@ static MACHINE_CONFIG_START( gakusai2, metro_state )
 	MCFG_SCREEN_SIZE(320, 240)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4300)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4300)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4300)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -4129,7 +4220,7 @@ static MACHINE_CONFIG_START( pangpoms, metro_state )
 	MCFG_CPU_PERIODIC_INT_DRIVER(metro_state, metro_periodic_interrupt,  8*60) // ?
 
 	MCFG_CPU_ADD("audiocpu", UPD7810, XTAL_24MHz/2)
-	MCFG_CPU_CONFIG(metro_cpu_config)
+	MCFG_UPD7810_RXD(READLINE(metro_state,metro_rxd_r))
 	MCFG_CPU_PROGRAM_MAP(metro_sound_map)
 	MCFG_CPU_IO_MAP(metro_sound_io_map)
 
@@ -4143,10 +4234,12 @@ static MACHINE_CONFIG_START( pangpoms, metro_state )
 	MCFG_SCREEN_SIZE(360, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 360-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4100)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4100)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -4170,7 +4263,7 @@ static MACHINE_CONFIG_START( poitto, metro_state )
 	MCFG_CPU_PERIODIC_INT_DRIVER(metro_state, metro_periodic_interrupt,  8*60) // ?
 
 	MCFG_CPU_ADD("audiocpu", UPD7810, XTAL_24MHz/2)
-	MCFG_CPU_CONFIG(metro_cpu_config)
+	MCFG_UPD7810_RXD(READLINE(metro_state,metro_rxd_r))
 	MCFG_CPU_PROGRAM_MAP(metro_sound_map)
 	MCFG_CPU_IO_MAP(metro_sound_io_map)
 
@@ -4184,10 +4277,12 @@ static MACHINE_CONFIG_START( poitto, metro_state )
 	MCFG_SCREEN_SIZE(360, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 360-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4100)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4100)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -4211,7 +4306,7 @@ static MACHINE_CONFIG_START( pururun, metro_state )
 	MCFG_CPU_PERIODIC_INT_DRIVER(metro_state, metro_periodic_interrupt,  8*60) // ?
 
 	MCFG_CPU_ADD("audiocpu", UPD7810, XTAL_24MHz/2)     /* Not confiremd */
-	MCFG_CPU_CONFIG(metro_cpu_config)
+	MCFG_UPD7810_RXD(READLINE(metro_state,metro_rxd_r))
 	MCFG_CPU_PROGRAM_MAP(metro_sound_map)
 	MCFG_CPU_IO_MAP(daitorid_sound_io_map)
 
@@ -4225,10 +4320,12 @@ static MACHINE_CONFIG_START( pururun, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4220)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4220)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4220)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -4253,7 +4350,7 @@ static MACHINE_CONFIG_START( skyalert, metro_state )
 	MCFG_CPU_PERIODIC_INT_DRIVER(metro_state, metro_periodic_interrupt,  8*60) // ?
 
 	MCFG_CPU_ADD("audiocpu", UPD7810, XTAL_24MHz/2)
-	MCFG_CPU_CONFIG(metro_cpu_config)
+	MCFG_UPD7810_RXD(READLINE(metro_state,metro_rxd_r))
 	MCFG_CPU_PROGRAM_MAP(metro_sound_map)
 	MCFG_CPU_IO_MAP(metro_sound_io_map)
 
@@ -4267,10 +4364,12 @@ static MACHINE_CONFIG_START( skyalert, metro_state )
 	MCFG_SCREEN_SIZE(360, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 360-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4100)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4100)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -4294,7 +4393,7 @@ static MACHINE_CONFIG_START( toride2g, metro_state )
 	MCFG_CPU_PERIODIC_INT_DRIVER(metro_state, metro_periodic_interrupt,  8*60) // ?
 
 	MCFG_CPU_ADD("audiocpu", UPD7810, XTAL_24MHz/2)
-	MCFG_CPU_CONFIG(metro_cpu_config)
+	MCFG_UPD7810_RXD(READLINE(metro_state,metro_rxd_r))
 	MCFG_CPU_PROGRAM_MAP(metro_sound_map)
 	MCFG_CPU_IO_MAP(metro_sound_io_map)
 
@@ -4308,10 +4407,12 @@ static MACHINE_CONFIG_START( toride2g, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4220)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4220)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4220)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -4332,6 +4433,7 @@ static MACHINE_CONFIG_START( mouja, metro_state )
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_16MHz)
 	MCFG_CPU_PROGRAM_MAP(mouja_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", metro_state,  metro_vblank_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(metro_state,metro_irq_callback)
 
 	MCFG_MACHINE_START_OVERRIDE(metro_state,metro)
 	MCFG_MACHINE_RESET_OVERRIDE(metro_state,metro)
@@ -4343,10 +4445,12 @@ static MACHINE_CONFIG_START( mouja, metro_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4300)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4300)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4300)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -4378,10 +4482,12 @@ static MACHINE_CONFIG_START( vmetal, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4220)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4220)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4220_dx_sprite)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -4397,11 +4503,6 @@ static MACHINE_CONFIG_START( vmetal, metro_state )
 	// OKI M6585 not hooked up...
 MACHINE_CONFIG_END
 
-
-static const k053936_interface blzntrnd_k053936_intf =
-{
-	0, -69, -21
-};
 
 static MACHINE_CONFIG_START( blzntrnd, metro_state )
 
@@ -4425,12 +4526,15 @@ static MACHINE_CONFIG_START( blzntrnd, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(8, 320-8-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(blzntrnd)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", blzntrnd)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,blzntrnd)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
-	MCFG_K053936_ADD("k053936", blzntrnd_k053936_intf)
+	MCFG_DEVICE_ADD("k053936", K053936, 0)
+	MCFG_K053936_OFFSETS(-69, -21)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -4444,11 +4548,6 @@ static MACHINE_CONFIG_START( blzntrnd, metro_state )
 MACHINE_CONFIG_END
 
 /* like blzntrnd but new vidstart / gfxdecode for the different bg tilemap */
-
-static const k053936_interface gstrik2_k053936_intf =
-{
-	0, -69, -19
-};
 
 static MACHINE_CONFIG_START( gstrik2, metro_state )
 
@@ -4472,12 +4571,15 @@ static MACHINE_CONFIG_START( gstrik2, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(8, 320-8-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(gstrik2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", gstrik2)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,gstrik2)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
-	MCFG_K053936_ADD("k053936", gstrik2_k053936_intf)
+	MCFG_DEVICE_ADD("k053936", K053936, 0)
+	MCFG_K053936_OFFSETS(-69, -19)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -4502,6 +4604,13 @@ static MACHINE_CONFIG_START( puzzlet, metro_state )
 	MCFG_MACHINE_START_OVERRIDE(metro_state,metro)
 	MCFG_MACHINE_RESET_OVERRIDE(metro_state,metro)
 
+	/* Coins/service */
+	MCFG_PUZZLET_IO_ADD("coins")
+	MCFG_PUZZLET_IO_DATA_CALLBACK(DEVWRITELINE("maincpu:sci1", h8_sci_device, rx_w))
+	MCFG_DEVICE_MODIFY("maincpu:sci1")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE(":coins", puzzlet_io_device, ce_w))
+	MCFG_H8_SCI_CLK_CALLBACK(DEVWRITELINE(":coins", puzzlet_io_device, clk_w))
+
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(58)
@@ -4509,10 +4618,12 @@ static MACHINE_CONFIG_START( puzzlet, metro_state )
 	MCFG_SCREEN_SIZE(320, 224)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(metro_state, screen_update_metro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(i4300)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", i4300)
 	MCFG_VIDEO_START_OVERRIDE(metro_state,metro_i4300)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(GGGGGRRRRRBBBBBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -5196,6 +5307,14 @@ ROM_START( ladykill )
 	ROM_REGION( 0x040000, "oki", 0 )    /* Samples */
 	ROM_LOAD( "e8.1d", 0x000000, 0x040000, CRC(da88244d) SHA1(90c0cc275b69afffd9a0126985fd3fe16d44dced) )
 ROM_END
+
+/* an 'Electronic Devices' manufactured board has been seen with the following roms. The data is 100% identical to the above set
+   but due to lazy manufacturing larger ROMs were used and the first half filled with 0xff
+
+    ROM_LOAD16_BYTE( "ladyki_3.h9",   0x000000, 0x080000, CRC(c658f954) SHA1(d50043457e67a94feff1328fe9bf522aa3c124b6) ) // == e2.8g
+    ROM_LOAD16_BYTE( "ladyki_2.h10",  0x000001, 0x080000, CRC(bf58e4db) SHA1(9d7f74dc348b0ccb3bcf1b618d6092292b6945b8) ) // == e3.10g
+    ROM_LOAD( "ladyki_1.d1", 0x000000, 0x080000, CRC(3dca957c) SHA1(4b815b7cb124a38c639a4b425ed6e8b1f0946451) ) // == e8.1d
+*/
 
 ROM_START( moegonta )
 	ROM_REGION( 0x080000, "maincpu", 0 )        /* 68000 Code */
@@ -6364,7 +6483,7 @@ DRIVER_INIT_MEMBER(metro_state,puzzlet)
 	metro_common();
 	m_irq_line = 0;
 	m_vblank_bit = 1;
-	m_blitter_bit = 0;
+	m_blitter_bit = 3;
 }
 
 /***************************************************************************

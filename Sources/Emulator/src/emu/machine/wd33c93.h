@@ -6,12 +6,7 @@
 #ifndef _WD33C93_H_
 #define _WD33C93_H_
 
-#include "machine/scsihle.h"
-
-struct WD33C93interface
-{
-	devcb_write_line m_irq_cb; /* irq callback */
-};
+#include "legscsi.h"
 
 /* wd register names */
 
@@ -50,28 +45,27 @@ enum
 #define TEMP_INPUT_LEN  262144
 #define FIFO_SIZE       12
 
-#define MCFG_WD33C93_ADD( _tag, _config ) \
-	MCFG_DEVICE_ADD( _tag, WD33C93, 0 ) \
-	MCFG_DEVICE_CONFIG(_config)
+#define MCFG_WD33C93_IRQ_CB(_devcb) \
+	devcb = &wd33c93_device::set_irq_callback(*device, DEVCB_##_devcb);
 
-class wd33c93_device : public device_t,
-						public WD33C93interface
+class wd33c93_device : public legacy_scsi_host_adapter
 {
 public:
 	// construction/destruction
 	wd33c93_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
+	template<class _Object> static devcb_base &set_irq_callback(device_t &device, _Object object) { return downcast<wd33c93_device &>(device).m_irq_cb.set_callback(object); }
+
 	DECLARE_READ8_MEMBER(read);
 	DECLARE_WRITE8_MEMBER(write);
 
-	void get_dma_data( int bytes, UINT8 *pData );
-	void write_data(int bytes, UINT8 *pData);
+	void dma_read_data( int bytes, UINT8 *pData );
+	void dma_write_data(int bytes, UINT8 *pData);
 	void clear_dma();
 	int get_dma_count();
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
@@ -79,7 +73,6 @@ private:
 	UINT8 getunit( void );
 	void set_xfer_count( int count );
 	int get_xfer_count( void );
-	void read_data(int bytes, UINT8 *pData);
 	void complete_immediate( int status );
 	void complete_cmd( UINT8 status );
 	void unimplemented_cmd();
@@ -93,8 +86,6 @@ private:
 	void xferinfo_cmd();
 	void dispatch_command();
 
-	scsihle_device *devices[8]; // SCSI IDs 0-7
-
 	UINT8       sasr;
 	UINT8       regs[WD_AUXILIARY_STATUS+1];
 	UINT8       fifo[FIFO_SIZE];
@@ -107,7 +98,7 @@ private:
 	emu_timer   *cmd_timer;
 	emu_timer   *service_req_timer;
 	emu_timer   *deassert_cip_timer;
-	devcb_resolved_write_line m_irq_func;
+	devcb_write_line m_irq_cb; /* irq callback */
 };
 
 // device type definition

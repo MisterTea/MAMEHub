@@ -405,8 +405,8 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, xain_state )
 	AM_RANGE(0x3a0d, 0x3a0d) AM_WRITE(xain_flipscreen_w)
 	AM_RANGE(0x3a0e, 0x3a0e) AM_WRITE(xain_68705_w)
 	AM_RANGE(0x3a0f, 0x3a0f) AM_WRITE(xainCPUA_bankswitch_w)
-	AM_RANGE(0x3c00, 0x3dff) AM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_split_lo_w) AM_SHARE("paletteram")
-	AM_RANGE(0x3e00, 0x3fff) AM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_split_hi_w) AM_SHARE("paletteram2")
+	AM_RANGE(0x3c00, 0x3dff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0x3e00, 0x3fff) AM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -555,13 +555,6 @@ WRITE_LINE_MEMBER(xain_state::irqhandler)
 	m_audiocpu->set_input_line(M6809_FIRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
 void xain_state::machine_start()
 {
 	membank("bank1")->configure_entries(0, 2, memregion("maincpu")->base() + 0x4000, 0xc000);
@@ -593,17 +586,17 @@ static MACHINE_CONFIG_START( xsleena, xain_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 384, 0, 256, 272, 8, 248)   /* based on ddragon driver */
 	MCFG_SCREEN_UPDATE_DRIVER(xain_state, screen_update_xain)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(xain)
-	MCFG_PALETTE_LENGTH(512)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", xain)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, MCU_CLOCK)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(xain_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -684,7 +677,7 @@ ROM_END
 
 ROM_START( xsleenaj )
 	ROM_REGION( 0x14000, "maincpu", 0 )
-	ROM_LOAD( "p9-0.ic66",    0x08000, 0x8000, CRC(370164be) SHA1(65c9951cac7dc3943fa4d5f9919ebb4c4f29b3ae) ) /* Need to verify proper rom label */
+	ROM_LOAD( "p9-01.ic66",   0x08000, 0x8000, CRC(370164be) SHA1(65c9951cac7dc3943fa4d5f9919ebb4c4f29b3ae) ) /* the '1' on the label was ink stamped */
 	ROM_LOAD( "pa-0.ic65",    0x04000, 0x4000, CRC(d22bf859) SHA1(9edb159bef2eba2c5d93c03c15fbcb87eea52236) ) /* Need to verify proper rom label */
 	ROM_CONTINUE(             0x10000, 0x4000 )
 

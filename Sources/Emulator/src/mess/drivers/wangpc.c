@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
     Wang Professional Computer
@@ -18,6 +20,7 @@
 */
 
 #include "includes/wangpc.h"
+#include "bus/rs232/rs232.h"
 
 
 //**************************************************************************
@@ -418,7 +421,7 @@ READ8_MEMBER( wangpc_state::centronics_r )
 	m_dav = 1;
 	check_level1_interrupts();
 
-	return m_centronics->read(space, 0);
+	return m_cent_data_in->read();
 }
 
 
@@ -428,13 +431,13 @@ READ8_MEMBER( wangpc_state::centronics_r )
 
 WRITE8_MEMBER( wangpc_state::centronics_w )
 {
-	m_acknlg = 1;
+	m_centronics_ack = 1;
 	check_level1_interrupts();
 
-	m_centronics->write(space, 0, data);
+	m_cent_data_out->write(data);
 
-	m_centronics->strobe_w(0);
-	m_centronics->strobe_w(1);
+	m_centronics->write_strobe(0);
+	m_centronics->write_strobe(1);
 }
 
 
@@ -446,7 +449,7 @@ READ8_MEMBER( wangpc_state::busy_clr_r )
 {
 	if (LOG) logerror("%s: BUSY clear\n", machine().describe_context());
 
-	m_busy = 1;
+	m_centronics_busy = 1;
 	check_level1_interrupts();
 
 	return 0xff;
@@ -461,7 +464,7 @@ WRITE8_MEMBER( wangpc_state::acknlg_clr_w )
 {
 	if (LOG) logerror("%s: ACKNLG clear\n", machine().describe_context());
 
-	m_acknlg = 1;
+	m_centronics_ack = 1;
 	check_level1_interrupts();
 }
 
@@ -615,7 +618,7 @@ INPUT_PORTS_END
 //**************************************************************************
 
 //-------------------------------------------------
-//  I8237_INTERFACE( dmac_intf )
+//  I8237
 //-------------------------------------------------
 
 void wangpc_state::update_fdc_tc()
@@ -704,34 +707,13 @@ WRITE_LINE_MEMBER( wangpc_state::dack3_w )
 	if (!state) m_dack = 3;
 }
 
-static AM9517A_INTERFACE( dmac_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(wangpc_state, hrq_w),
-	DEVCB_DRIVER_LINE_MEMBER(wangpc_state, eop_w),
-	DEVCB_DRIVER_MEMBER(wangpc_state, memr_r),
-	DEVCB_DRIVER_MEMBER(wangpc_state, memw_w),
-	{ DEVCB_NULL,
-		DEVCB_DEVICE_MEMBER(WANGPC_BUS_TAG, wangpcbus_device, dack1_r),
-		DEVCB_DRIVER_MEMBER(wangpc_state, ior2_r),
-		DEVCB_DEVICE_MEMBER(WANGPC_BUS_TAG, wangpcbus_device, dack3_r) },
-	{ DEVCB_NULL,
-		DEVCB_DEVICE_MEMBER(WANGPC_BUS_TAG, wangpcbus_device, dack1_w),
-		DEVCB_DRIVER_MEMBER(wangpc_state, iow2_w),
-		DEVCB_DEVICE_MEMBER(WANGPC_BUS_TAG, wangpcbus_device, dack3_w) },
-	{ DEVCB_DRIVER_LINE_MEMBER(wangpc_state, dack0_w),
-		DEVCB_DRIVER_LINE_MEMBER(wangpc_state, dack1_w),
-		DEVCB_DRIVER_LINE_MEMBER(wangpc_state, dack2_w),
-		DEVCB_DRIVER_LINE_MEMBER(wangpc_state, dack3_w) }
-};
-
-
 //-------------------------------------------------
 //  pic8259_interface pic_intf
 //-------------------------------------------------
 
 void wangpc_state::check_level1_interrupts()
 {
-	int state = !m_timer2_irq || m_epci->rxrdy_r() || m_epci->txemt_r() || !m_acknlg || !m_dav || !m_busy;
+	int state = !m_timer2_irq || m_epci->rxrdy_r() || m_epci->txemt_r() || !m_centronics_ack || !m_dav || !m_centronics_busy;
 
 	m_pic->ir1_w(state);
 }
@@ -743,14 +725,8 @@ void wangpc_state::check_level2_interrupts()
 	m_pic->ir2_w(state);
 }
 
-IRQ_CALLBACK_MEMBER( wangpc_state::wangpc_irq_callback )
-{
-	return m_pic->inta_r();
-}
-
-
 //-------------------------------------------------
-//  I8255A_INTERFACE( ppi_intf )
+//  I8255A INTERFACE
 //-------------------------------------------------
 
 READ8_MEMBER( wangpc_state::ppi_pa_r )
@@ -773,10 +749,10 @@ READ8_MEMBER( wangpc_state::ppi_pa_r )
 	UINT8 data = 0x08 | 0x02 | 0x01;
 
 	data |= m_dav << 2;
-	data |= m_centronics->busy_r() << 4;
-	data |= m_centronics->fault_r() << 5;
-	data |= m_centronics->pe_r() << 6;
-	data |= m_acknlg << 7;
+	data |= m_centronics_busy << 4;
+	data |= m_centronics_fault << 5;
+	data |= m_centronics_perror << 6;
+	data |= m_centronics_ack << 7;
 
 	return data;
 }
@@ -807,7 +783,7 @@ READ8_MEMBER( wangpc_state::ppi_pb_r )
 	data |= !(m_epci->rxrdy_r() | m_epci->txemt_r()) << 1;
 
 	// parallel port interrupt
-	data |= m_acknlg << 2;
+	data |= m_centronics_ack << 2;
 
 	// DMA interrupt
 	data |= m_dma_eop << 3;
@@ -862,24 +838,10 @@ WRITE8_MEMBER( wangpc_state::ppi_pc_w )
 
 	*/
 
-	m_centronics->autofeed_w(BIT(data, 0));
-	m_centronics->init_prime_w(BIT(data, 2));
+	m_centronics->write_autofd(BIT(data, 0));
+	m_centronics->write_select_in(BIT(data, 1));
+	m_centronics->write_init(BIT(data, 2));
 }
-
-static I8255A_INTERFACE( ppi_intf )
-{
-	DEVCB_DRIVER_MEMBER(wangpc_state, ppi_pa_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(wangpc_state, ppi_pb_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(wangpc_state, ppi_pc_r),
-	DEVCB_DRIVER_MEMBER(wangpc_state, ppi_pc_w)
-};
-
-
-//-------------------------------------------------
-//  pit8253_config pit_intf
-//-------------------------------------------------
 
 WRITE_LINE_MEMBER( wangpc_state::pit2_w )
 {
@@ -889,26 +851,6 @@ WRITE_LINE_MEMBER( wangpc_state::pit2_w )
 		check_level1_interrupts();
 	}
 }
-
-static const struct pit8253_interface pit_intf =
-{
-	{
-		{
-			500000,
-			DEVCB_LINE_VCC,
-			DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir0_w)
-		}, {
-			2000000,
-			DEVCB_LINE_VCC,
-			DEVCB_NULL
-		}, {
-			500000,
-			DEVCB_LINE_VCC,
-			DEVCB_DRIVER_LINE_MEMBER(wangpc_state, pit2_w)
-		}
-	}
-};
-
 
 //-------------------------------------------------
 //  IM6402_INTERFACE( uart_intf )
@@ -936,17 +878,6 @@ WRITE_LINE_MEMBER( wangpc_state::uart_tbre_w )
 	}
 }
 
-static IM6402_INTERFACE( uart_intf )
-{
-	0, // HACK should be 62500*16
-	62500*16,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(wangpc_state, uart_dr_w),
-	DEVCB_DRIVER_LINE_MEMBER(wangpc_state, uart_tbre_w),
-	DEVCB_NULL
-};
-
 
 //-------------------------------------------------
 //  SCN2661_INTERFACE( epci_intf )
@@ -956,21 +887,6 @@ WRITE_LINE_MEMBER( wangpc_state::epci_irq_w )
 {
 	check_level1_interrupts();
 }
-
-static MC2661_INTERFACE( epci_intf )
-{
-	0,
-	0,
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
-	DEVCB_DRIVER_LINE_MEMBER(wangpc_state, epci_irq_w),
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
-	DEVCB_DRIVER_LINE_MEMBER(wangpc_state, epci_irq_w),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 
 //-------------------------------------------------
@@ -985,14 +901,14 @@ FLOPPY_FORMATS_MEMBER( wangpc_state::floppy_formats )
 	FLOPPY_PC_FORMAT
 FLOPPY_FORMATS_END
 
-void wangpc_state::fdc_irq(bool state)
+WRITE_LINE_MEMBER( wangpc_state::fdc_irq )
 {
 	if (LOG) logerror("FDC INT %u\n", state);
 
 	check_level2_interrupts();
 }
 
-void wangpc_state::fdc_drq(bool state)
+WRITE_LINE_MEMBER( wangpc_state::fdc_drq )
 {
 	if (LOG) logerror("FDC DRQ %u\n", state);
 
@@ -1013,45 +929,33 @@ void wangpc_state::update_fdc_drq()
 //  centronics_interface centronics_intf
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( wangpc_state::ack_w )
+WRITE_LINE_MEMBER( wangpc_state::write_centronics_ack )
 {
 	if (LOG) logerror("ACKNLG %u\n", state);
 
-	m_acknlg = state;
+	m_centronics_ack = state;
 
 	check_level1_interrupts();
 }
 
-WRITE_LINE_MEMBER( wangpc_state::busy_w )
+WRITE_LINE_MEMBER( wangpc_state::write_centronics_busy )
 {
 	if (LOG) logerror("BUSY %u\n", state);
 
-	m_busy = state;
+	m_centronics_busy = state;
 
 	check_level1_interrupts();
 }
 
-static const centronics_interface centronics_intf =
+WRITE_LINE_MEMBER( wangpc_state::write_centronics_fault )
 {
-	DEVCB_DRIVER_LINE_MEMBER(wangpc_state, ack_w),
-	DEVCB_DRIVER_LINE_MEMBER(wangpc_state, busy_w),
-	DEVCB_NULL
-};
+	m_centronics_fault = state;
+}
 
-
-//-------------------------------------------------
-//  rs232_port_interface rs232_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232_intf =
+WRITE_LINE_MEMBER( wangpc_state::write_centronics_perror )
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
+	m_centronics_perror = state;
+}
 
 //-------------------------------------------------
 //  WANGPC_BUS_INTERFACE( kb_intf )
@@ -1066,31 +970,6 @@ WRITE_LINE_MEMBER( wangpc_state::bus_irq2_w )
 	check_level2_interrupts();
 }
 
-static WANGPC_BUS_INTERFACE( bus_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(wangpc_state, bus_irq2_w),
-	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir3_w),
-	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir4_w),
-	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir5_w),
-	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir6_w),
-	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir7_w),
-	DEVCB_DEVICE_LINE_MEMBER(AM9517A_TAG, am9517a_device, dreq1_w),
-	DEVCB_DEVICE_LINE_MEMBER(AM9517A_TAG, am9517a_device, dreq2_w),
-	DEVCB_DEVICE_LINE_MEMBER(AM9517A_TAG, am9517a_device, dreq3_w),
-	DEVCB_CPU_INPUT_LINE(I8086_TAG, INPUT_LINE_NMI)
-};
-
-static SLOT_INTERFACE_START( wangpc_cards )
-	SLOT_INTERFACE("emb", WANGPC_EMB) // extended memory board
-	SLOT_INTERFACE("lic", WANGPC_LIC) // local interconnect option card
-	SLOT_INTERFACE("lvc", WANGPC_LVC) // low-resolution video controller
-	SLOT_INTERFACE("mcc", WANGPC_MCC) // multiport communications controller
-	SLOT_INTERFACE("mvc", WANGPC_MVC) // medium-resolution video controller
-	SLOT_INTERFACE("rtc", WANGPC_RTC) // remote telecommunications controller
-	SLOT_INTERFACE("tig", WANGPC_TIG) // text/image/graphics controller
-	SLOT_INTERFACE("wdc", WANGPC_WDC) // Winchester disk controller
-SLOT_INTERFACE_END
-
 
 
 //**************************************************************************
@@ -1103,28 +982,21 @@ SLOT_INTERFACE_END
 
 void wangpc_state::machine_start()
 {
-	// register CPU IRQ callback
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(wangpc_state::wangpc_irq_callback),this));
-
-	// connect serial keyboard
-	m_uart->connect(m_kb);
-
 	// connect floppy callbacks
 	m_floppy0->setup_load_cb(floppy_image_device::load_cb(FUNC(wangpc_state::on_disk0_load), this));
 	m_floppy0->setup_unload_cb(floppy_image_device::unload_cb(FUNC(wangpc_state::on_disk0_unload), this));
 	m_floppy1->setup_load_cb(floppy_image_device::load_cb(FUNC(wangpc_state::on_disk1_load), this));
 	m_floppy1->setup_unload_cb(floppy_image_device::unload_cb(FUNC(wangpc_state::on_disk1_unload), this));
 
-	m_fdc->setup_intrq_cb(upd765a_device::line_cb(FUNC(wangpc_state::fdc_irq), this));
-	m_fdc->setup_drq_cb(upd765a_device::line_cb(FUNC(wangpc_state::fdc_drq), this));
-
 	// state saving
 	save_item(NAME(m_dma_page));
 	save_item(NAME(m_dack));
 	save_item(NAME(m_timer2_irq));
-	save_item(NAME(m_acknlg));
+	save_item(NAME(m_centronics_ack));
+	save_item(NAME(m_centronics_busy));
+	save_item(NAME(m_centronics_fault));
+	save_item(NAME(m_centronics_perror));
 	save_item(NAME(m_dav));
-	save_item(NAME(m_busy));
 	save_item(NAME(m_dma_eop));
 	save_item(NAME(m_uart_dr));
 	save_item(NAME(m_uart_tbre));
@@ -1202,24 +1074,87 @@ static MACHINE_CONFIG_START( wangpc, wangpc_state )
 	MCFG_CPU_ADD(I8086_TAG, I8086, 8000000)
 	MCFG_CPU_PROGRAM_MAP(wangpc_mem)
 	MCFG_CPU_IO_MAP(wangpc_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE(I8259A_TAG, pic8259_device, inta_cb)
 	//MCFG_QUANTUM_PERFECT_CPU(I8086_TAG)
 
 	// devices
-	MCFG_AM9517A_ADD(AM9517A_TAG, 4000000, dmac_intf)
+	MCFG_DEVICE_ADD(AM9517A_TAG, AM9517A, 4000000)
+	MCFG_AM9517A_OUT_HREQ_CB(WRITELINE(wangpc_state, hrq_w))
+	MCFG_AM9517A_OUT_EOP_CB(WRITELINE(wangpc_state, eop_w))
+	MCFG_AM9517A_IN_MEMR_CB(READ8(wangpc_state, memr_r))
+	MCFG_AM9517A_OUT_MEMW_CB(WRITE8(wangpc_state, memw_w))
+	MCFG_AM9517A_IN_IOR_1_CB(DEVREAD8(WANGPC_BUS_TAG, wangpcbus_device, dack1_r))
+	MCFG_AM9517A_IN_IOR_2_CB(READ8(wangpc_state, ior2_r))
+	MCFG_AM9517A_IN_IOR_3_CB(DEVREAD8(WANGPC_BUS_TAG, wangpcbus_device, dack3_r))
+	MCFG_AM9517A_OUT_IOW_1_CB(DEVWRITE8(WANGPC_BUS_TAG, wangpcbus_device, dack1_w))
+	MCFG_AM9517A_OUT_IOW_2_CB(WRITE8(wangpc_state, iow2_w))
+	MCFG_AM9517A_OUT_IOW_3_CB(DEVWRITE8(WANGPC_BUS_TAG, wangpcbus_device, dack3_w))
+	MCFG_AM9517A_OUT_DACK_0_CB(WRITELINE(wangpc_state, dack0_w))
+	MCFG_AM9517A_OUT_DACK_1_CB(WRITELINE(wangpc_state, dack1_w))
+	MCFG_AM9517A_OUT_DACK_2_CB(WRITELINE(wangpc_state, dack2_w))
+	MCFG_AM9517A_OUT_DACK_3_CB(WRITELINE(wangpc_state, dack3_w))
+
 	MCFG_PIC8259_ADD(I8259A_TAG, INPUTLINE(I8086_TAG, INPUT_LINE_IRQ0), VCC, NULL)
-	MCFG_I8255A_ADD(I8255A_TAG, ppi_intf)
-	MCFG_PIT8253_ADD(I8253_TAG, pit_intf)
-	MCFG_IM6402_ADD(IM6402_TAG, uart_intf)
-	MCFG_MC2661_ADD(SCN2661_TAG, 0, epci_intf)
+
+	MCFG_DEVICE_ADD(I8255A_TAG, I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(wangpc_state, ppi_pa_r))
+	MCFG_I8255_IN_PORTB_CB(READ8(wangpc_state, ppi_pb_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(wangpc_state, ppi_pc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(wangpc_state, ppi_pc_w))
+
+	MCFG_DEVICE_ADD(I8253_TAG, PIT8253, 0)
+	MCFG_PIT8253_CLK0(500000)
+	MCFG_PIT8253_OUT0_HANDLER(DEVWRITELINE(I8259A_TAG, pic8259_device, ir0_w))
+	MCFG_PIT8253_CLK1(2000000)
+	MCFG_PIT8253_CLK2(500000)
+	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(wangpc_state, pit2_w))
+
+	MCFG_IM6402_ADD(IM6402_TAG, 0, 62500*16) // HACK for wangpckb in IM6402 derives clocks from data line
+	MCFG_IM6402_TRO_CALLBACK(DEVWRITELINE(WANGPC_KEYBOARD_TAG, wangpc_keyboard_device, write_rxd))
+	MCFG_IM6402_DR_CALLBACK(WRITELINE(wangpc_state, uart_dr_w))
+	MCFG_IM6402_TBRE_CALLBACK(WRITELINE(wangpc_state, uart_tbre_w))
+
+	MCFG_DEVICE_ADD(SCN2661_TAG, MC2661, 0)
+	MCFG_MC2661_TXD_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_MC2661_RXRDY_HANDLER(WRITELINE(wangpc_state, epci_irq_w))
+	MCFG_MC2661_RTS_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_rts))
+	MCFG_MC2661_DTR_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_dtr))
+	MCFG_MC2661_TXEMT_DSCHG_HANDLER(WRITELINE(wangpc_state, epci_irq_w))
+
 	MCFG_UPD765A_ADD(UPD765_TAG, false, false)
+	MCFG_UPD765_INTRQ_CALLBACK(WRITELINE(wangpc_state, fdc_irq))
+	MCFG_UPD765_DRQ_CALLBACK(WRITELINE(wangpc_state, fdc_drq))
 	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":0", wangpc_floppies, "525dd", wangpc_state::floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":1", wangpc_floppies, "525dd", wangpc_state::floppy_formats)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
-	MCFG_WANGPC_KEYBOARD_ADD()
+
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_DATA_INPUT_BUFFER("cent_data_in")
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(wangpc_state, write_centronics_ack))
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(wangpc_state, write_centronics_busy))
+	MCFG_CENTRONICS_FAULT_HANDLER(WRITELINE(wangpc_state, write_centronics_fault))
+	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(wangpc_state, write_centronics_perror))
+
+	MCFG_DEVICE_ADD("cent_data_in", INPUT_BUFFER, 0)
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(SCN2661_TAG, mc2661_device, rx_w))
+
+	MCFG_DEVICE_ADD(WANGPC_KEYBOARD_TAG, WANGPC_KEYBOARD, 0)
+	MCFG_WANGPCKB_TXD_HANDLER(DEVWRITELINE(IM6402_TAG, im6402_device, write_rri))
 
 	// bus
-	MCFG_WANGPC_BUS_ADD(bus_intf)
+	MCFG_WANGPC_BUS_ADD()
+	MCFG_WANGPC_BUS_IRQ2_CALLBACK(WRITELINE(wangpc_state, bus_irq2_w))
+	MCFG_WANGPC_BUS_IRQ3_CALLBACK(DEVWRITELINE(I8259A_TAG, pic8259_device, ir3_w))
+	MCFG_WANGPC_BUS_IRQ4_CALLBACK(DEVWRITELINE(I8259A_TAG, pic8259_device, ir4_w))
+	MCFG_WANGPC_BUS_IRQ5_CALLBACK(DEVWRITELINE(I8259A_TAG, pic8259_device, ir5_w))
+	MCFG_WANGPC_BUS_IRQ6_CALLBACK(DEVWRITELINE(I8259A_TAG, pic8259_device, ir6_w))
+	MCFG_WANGPC_BUS_IRQ7_CALLBACK(DEVWRITELINE(I8259A_TAG, pic8259_device, ir7_w))
+	MCFG_WANGPC_BUS_DRQ1_CALLBACK(DEVWRITELINE(AM9517A_TAG, am9517a_device, dreq1_w))
+	MCFG_WANGPC_BUS_DRQ2_CALLBACK(DEVWRITELINE(AM9517A_TAG, am9517a_device, dreq2_w))
+	MCFG_WANGPC_BUS_DRQ3_CALLBACK(DEVWRITELINE(AM9517A_TAG, am9517a_device, dreq3_w))
+	MCFG_WANGPC_BUS_IOERROR_CALLBACK(INPUTLINE(I8086_TAG, INPUT_LINE_NMI))
 	MCFG_WANGPC_BUS_SLOT_ADD("slot1", 1, wangpc_cards, NULL)
 	MCFG_WANGPC_BUS_SLOT_ADD("slot2", 2, wangpc_cards, "mvc")
 	MCFG_WANGPC_BUS_SLOT_ADD("slot3", 3, wangpc_cards, NULL)
@@ -1256,4 +1191,4 @@ ROM_END
 //  GAME DRIVERS
 //**************************************************************************
 
-COMP( 1985, wangpc, 0, 0, wangpc, wangpc, driver_device, 0, "Wang Laboratories", "Wang Professional Computer", GAME_SUPPORTS_SAVE )
+COMP( 1985, wangpc, 0, 0, wangpc, wangpc, driver_device, 0, "Wang Laboratories", "Wang Professional Computer", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )

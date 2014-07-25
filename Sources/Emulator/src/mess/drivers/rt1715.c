@@ -40,7 +40,8 @@ public:
 	DECLARE_WRITE8_MEMBER(rt1715_rom_disable);
 	virtual void machine_start();
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(rt1715);
+	I8275_DRAW_CHARACTER_MEMBER( crtc_display_pixels );
 	required_device<cpu_device> m_maincpu;
 	required_device<ram_device> m_ram;
 };
@@ -133,7 +134,7 @@ WRITE8_MEMBER(rt1715_state::rt1715_rom_disable)
     VIDEO EMULATION
 ***************************************************************************/
 
-static I8275_DISPLAY_PIXELS( rt1715_display_pixels )
+I8275_DRAW_CHARACTER_MEMBER( rt1715_state::crtc_display_pixels )
 {
 }
 
@@ -156,27 +157,16 @@ static GFXDECODE_START( rt1715 )
 	GFXDECODE_ENTRY("gfx", 0x0800, rt1715_charlayout, 0, 1)
 GFXDECODE_END
 
-static const i8275_interface rt1715_i8275_intf =
-{
-	8,
-	0,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	rt1715_display_pixels
-};
-
 
 /***************************************************************************
     PALETTE
 ***************************************************************************/
 
-void rt1715_state::palette_init()
+PALETTE_INIT_MEMBER(rt1715_state, rt1715)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(0x00, 0x00, 0x00)); /* black */
-	palette_set_color(machine(), 1, MAKE_RGB(0x00, 0x7f, 0x00)); /* low intensity */
-	palette_set_color(machine(), 2, MAKE_RGB(0x00, 0xff, 0x00)); /* high intensitiy */
+	palette.set_pen_color(0, rgb_t(0x00, 0x00, 0x00)); /* black */
+	palette.set_pen_color(1, rgb_t(0x00, 0x7f, 0x00)); /* low intensity */
+	palette.set_pen_color(2, rgb_t(0x00, 0xff, 0x00)); /* high intensitiy */
 }
 
 
@@ -263,57 +253,6 @@ INPUT_PORTS_END
     MACHINE DRIVERS
 ***************************************************************************/
 
-static const z80ctc_interface rt1715_ctc_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static Z80SIO_INTERFACE( rt1715_sio_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_NULL
-};
-
-static const z80pio_interface rt1715_pio_data_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const z80pio_interface rt1715_pio_control_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 /* priority unknown */
 static const z80_daisy_config rt1715_daisy_chain[] =
 {
@@ -345,16 +284,21 @@ static MACHINE_CONFIG_START( rt1715, rt1715_state )
 	MCFG_SCREEN_SIZE(78*6, 30*10)
 	MCFG_SCREEN_VISIBLE_AREA(0, 78*6-1, 0, 30*10-1)
 
-	MCFG_GFXDECODE(rt1715)
-	MCFG_PALETTE_LENGTH(3)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rt1715)
+	MCFG_PALETTE_ADD("palette", 3)
+	MCFG_PALETTE_INIT_OWNER(rt1715_state, rt1715)
 
-	MCFG_I8275_ADD("a26", rt1715_i8275_intf)
-	MCFG_Z80CTC_ADD("a30", XTAL_10MHz/4 /* ? */, rt1715_ctc_intf)
-	MCFG_Z80SIO0_ADD("a29", XTAL_10MHz/4 /* ? */, rt1715_sio_intf)
+	MCFG_DEVICE_ADD("a26", I8275, XTAL_2_4576MHz)
+	MCFG_I8275_CHARACTER_WIDTH(8)
+	MCFG_I8275_DRAW_CHARACTER_CALLBACK_OWNER(rt1715_state, crtc_display_pixels)
+
+	MCFG_DEVICE_ADD("a30", Z80CTC, XTAL_10MHz/4 /* ? */)
+
+	MCFG_Z80SIO0_ADD("a29", XTAL_10MHz/4 /* ? */, 0, 0, 0, 0)
 
 	/* floppy */
-	MCFG_Z80PIO_ADD("a71", XTAL_10MHz/4 /* ? */, rt1715_pio_data_intf)
-	MCFG_Z80PIO_ADD("a72", XTAL_10MHz/4 /* ? */, rt1715_pio_control_intf)
+	MCFG_DEVICE_ADD("a71", Z80PIO, XTAL_10MHz/4 /* ? */)
+	MCFG_DEVICE_ADD("a72", Z80PIO, XTAL_10MHz/4 /* ? */)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

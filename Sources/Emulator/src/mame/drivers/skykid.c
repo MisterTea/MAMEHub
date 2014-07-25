@@ -415,13 +415,6 @@ static GFXDECODE_START( skykid )
 GFXDECODE_END
 
 
-
-static const namco_interface namco_config =
-{
-	8,                  /* number of voices */
-	0                   /* stereo */
-};
-
 INTERRUPT_GEN_MEMBER(skykid_state::main_vblank_irq)
 {
 	if(m_main_irq_mask)
@@ -458,16 +451,18 @@ static MACHINE_CONFIG_START( skykid, skykid_state )
 	MCFG_SCREEN_SIZE(36*8, 28*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(skykid_state, screen_update_skykid)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(skykid)
-	MCFG_PALETTE_LENGTH(64*4+128*4+64*8)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", skykid)
+	MCFG_PALETTE_ADD("palette", 64*4+128*4+64*8)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(skykid_state, skykid)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("namco", NAMCO_CUS30, 49152000/2048)
-	MCFG_SOUND_CONFIG(namco_config)
+	MCFG_NAMCO_AUDIO_VOICES(8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

@@ -14,6 +14,15 @@
  *  PUBLIC FUNCTIONS
  ***************************************************************************************************/
 
+enum
+{
+	ARM_COPRO_TYPE_UNKNOWN_CP15 = 0,
+	ARM_COPRO_TYPE_VL86C020
+};
+
+#define MCFG_ARM_COPRO(_type) \
+	arm_cpu_device::set_copro_type(*device, _type);
+
 
 enum
 {
@@ -31,6 +40,8 @@ public:
 	// construction/destruction
 	arm_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	arm_cpu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source, endianness_t endianness);
+
+	static void set_copro_type(device_t &device, int type) { downcast<arm_cpu_device &>(device).m_copro_type = type; }
 
 protected:
 	// device-level overrides
@@ -65,6 +76,7 @@ protected:
 	address_space *m_program;
 	direct_read_data *m_direct;
 	endianness_t m_endian;
+	UINT8 m_copro_type;
 
 	void cpu_write32( int addr, UINT32 data );
 	void cpu_write8( int addr, UINT8 data );
@@ -80,6 +92,7 @@ protected:
 	void HandleMemSingle(UINT32 insn);
 	void HandleMemBlock(UINT32 insn);
 	void HandleCoPro(UINT32 insn);
+	void HandleCoProVL86C020(UINT32 insn);
 	UINT32 decodeShift(UINT32 insn, UINT32 *pCarry);
 	void arm_check_irq_state();
 	int loadInc(UINT32 pat, UINT32 rbv, UINT32 s);
@@ -88,7 +101,6 @@ protected:
 	int storeDec(UINT32 pat, UINT32 rbv);
 	static UINT32 BCDToDecimal(UINT32 value);
 	static UINT32 DecimalToBCD(UINT32 value);
-
 };
 
 

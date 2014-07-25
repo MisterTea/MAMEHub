@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 
     Axel AX-20
@@ -24,9 +26,10 @@ class ax20_state : public driver_device
 public:
 	ax20_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu")
-	,
-		m_p_vram(*this, "p_vram"){ }
+		m_maincpu(*this, "maincpu"),
+		m_p_vram(*this, "p_vram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_device<cpu_device> m_maincpu;
 
@@ -34,6 +37,8 @@ public:
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 	required_shared_ptr<UINT8> m_p_vram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -45,7 +50,7 @@ UINT32 ax20_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, co
 		{
 			UINT16 tile = m_p_vram[24 +  y * 128 + x ] & 0x7f;
 
-			drawgfx_opaque(bitmap, cliprect, machine().gfx[0], tile, 0, 0, 0, x*8, y*12);
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect, tile, 0, 0, 0, x*8, y*12);
 		}
 	}
 
@@ -91,14 +96,8 @@ GFXDECODE_END
 
 static const floppy_interface ax20_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSDD_40, // TODO
 	LEGACY_FLOPPY_OPTIONS_NAME(default),
-	NULL,
 	NULL
 };
 
@@ -115,9 +114,9 @@ static MACHINE_CONFIG_START( ax20, ax20_state )
 	MCFG_SCREEN_UPDATE_DRIVER(ax20_state, screen_update)
 	MCFG_SCREEN_SIZE(80*8, 24*12)
 	MCFG_SCREEN_VISIBLE_AREA(0, 80*8-1, 0, 24*12-1)
-	MCFG_GFXDECODE(ax20)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_green)
+	MCFG_SCREEN_PALETTE("palette")
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ax20)
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN("palette")
 
 	/* Devices */
 	MCFG_LEGACY_FLOPPY_DRIVE_ADD(FLOPPY_0, ax20_floppy_interface)

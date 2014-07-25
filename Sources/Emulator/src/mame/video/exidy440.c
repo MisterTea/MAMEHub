@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Exidy 440 video system
@@ -113,7 +115,7 @@ WRITE8_MEMBER(exidy440_state::exidy440_paletteram_w)
 		word = (m_local_paletteram[offset] << 8) + m_local_paletteram[offset + 1];
 
 		/* extract the 5-5-5 RGB colors */
-		palette_set_color_rgb(machine(), offset / 2, pal5bit(word >> 10), pal5bit(word >> 5), pal5bit(word >> 0));
+		m_palette->set_pen_color(offset / 2, pal5bit(word >> 10), pal5bit(word >> 5), pal5bit(word >> 0));
 	}
 }
 
@@ -196,7 +198,7 @@ WRITE8_MEMBER(exidy440_state::exidy440_control_w)
 		{
 			/* extract a word and the 5-5-5 RGB components */
 			int word = (m_local_paletteram[offset] << 8) + m_local_paletteram[offset + 1];
-			palette_set_color_rgb(machine(), i, pal5bit(word >> 10), pal5bit(word >> 5), pal5bit(word >> 0));
+			m_palette->set_pen_color(i, pal5bit(word >> 10), pal5bit(word >> 5), pal5bit(word >> 0));
 		}
 	}
 }
@@ -462,21 +464,22 @@ UINT32 exidy440_state::screen_update_topsecex(screen_device &screen, bitmap_ind1
  *************************************/
 
 MACHINE_CONFIG_FRAGMENT( exidy440_video )
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(exidy440_state,exidy440)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_ADD("palette", 256)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(exidy440_state, screen_update_exidy440)
+	MCFG_SCREEN_PALETTE("palette")
 MACHINE_CONFIG_END
 
 
 MACHINE_CONFIG_FRAGMENT( topsecex_video )
-	MCFG_VIDEO_ATTRIBUTES(0)
 	MCFG_VIDEO_START_OVERRIDE(exidy440_state,topsecex)
 
 	MCFG_SCREEN_MODIFY("screen")
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(0)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, TOPSECEX_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(exidy440_state, screen_update_topsecex)
 MACHINE_CONFIG_END

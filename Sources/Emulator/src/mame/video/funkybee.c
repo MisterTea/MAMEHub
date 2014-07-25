@@ -9,7 +9,7 @@
 #include "emu.h"
 #include "includes/funkybee.h"
 
-void funkybee_state::palette_init()
+PALETTE_INIT_MEMBER(funkybee_state, funkybee)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -35,7 +35,7 @@ void funkybee_state::palette_init()
 		bit2 = (*color_prom >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r,g,b));
+		palette.set_pen_color(i, rgb_t(r,g,b));
 		color_prom++;
 	}
 }
@@ -87,7 +87,7 @@ TILEMAP_MAPPER_MEMBER(funkybee_state::funkybee_tilemap_scan)
 
 void funkybee_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(funkybee_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(funkybee_state::funkybee_tilemap_scan),this), 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(funkybee_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(funkybee_state::funkybee_tilemap_scan),this), 8, 8, 32, 32);
 }
 
 void funkybee_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
@@ -111,7 +111,7 @@ void funkybee_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &clipre
 			flipx = !flipx;
 		}
 
-		drawgfx_transpen(bitmap,cliprect, machine().gfx[2 + m_gfx_bank],
+		m_gfxdecode->gfx(2 + m_gfx_bank)->transpen(bitmap,cliprect,
 			code, color,
 			flipx, flipy,
 			sx, sy, 0);
@@ -133,7 +133,7 @@ void funkybee_state::draw_columns( bitmap_ind16 &bitmap, const rectangle &clipre
 		if (flip)
 			sy = 248 - sy;
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[m_gfx_bank],
+		m_gfxdecode->gfx(m_gfx_bank)->transpen(bitmap,cliprect,
 				code, color,
 				flip, flip,
 				sx, sy,0);
@@ -146,7 +146,7 @@ void funkybee_state::draw_columns( bitmap_ind16 &bitmap, const rectangle &clipre
 		if (flip)
 			sy = 248 - sy;
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[m_gfx_bank],
+		m_gfxdecode->gfx(m_gfx_bank)->transpen(bitmap,cliprect,
 				code, color,
 				flip, flip,
 				sx, sy,0);

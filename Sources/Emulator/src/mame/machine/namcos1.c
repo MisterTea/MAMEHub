@@ -1,5 +1,4 @@
 #include "emu.h"
-#include "sound/ym2151.h"
 #include "includes/namcos1.h"
 
 
@@ -9,89 +8,20 @@
 *                                                                              *
 *******************************************************************************/
 
-/* hardware elements of 1Mbytes physical memory space */
-
-INLINE UINT8 bank_r(address_space &space, offs_t offset, int bank)
-{
-	namcos1_state *state = space.machine().driver_data<namcos1_state>();
-	return (*state->m_active_bank[bank].bank_handler_r )(space, offset + state->m_active_bank[bank].bank_offset, 0xff);
-}
-
-static READ8_HANDLER( bank1_r )  { return bank_r(space, offset, 0); }
-static READ8_HANDLER( bank2_r )  { return bank_r(space, offset, 1); }
-static READ8_HANDLER( bank3_r )  { return bank_r(space, offset, 2); }
-static READ8_HANDLER( bank4_r )  { return bank_r(space, offset, 3); }
-static READ8_HANDLER( bank5_r )  { return bank_r(space, offset, 4); }
-static READ8_HANDLER( bank6_r )  { return bank_r(space, offset, 5); }
-static READ8_HANDLER( bank7_r )  { return bank_r(space, offset, 6); }
-static READ8_HANDLER( bank8_r )  { return bank_r(space, offset, 7); }
-static READ8_HANDLER( bank9_r )  { return bank_r(space, offset, 8); }
-static READ8_HANDLER( bank10_r ) { return bank_r(space, offset, 9); }
-static READ8_HANDLER( bank11_r ) { return bank_r(space, offset, 10); }
-static READ8_HANDLER( bank12_r ) { return bank_r(space, offset, 11); }
-static READ8_HANDLER( bank13_r ) { return bank_r(space, offset, 12); }
-static READ8_HANDLER( bank14_r ) { return bank_r(space, offset, 13); }
-static READ8_HANDLER( bank15_r ) { return bank_r(space, offset, 14); }
-static READ8_HANDLER( bank16_r ) { return bank_r(space, offset, 15); }
-
-INLINE void bank_w(address_space &space, offs_t offset, UINT8 data, int bank)
-{
-	namcos1_state *state = space.machine().driver_data<namcos1_state>();
-	(*state->m_active_bank[bank].bank_handler_w )(space, offset + state->m_active_bank[bank].bank_offset, data, 0xff);
-}
-
-static WRITE8_HANDLER( bank1_w )  { bank_w(space, offset, data, 0); }
-static WRITE8_HANDLER( bank2_w )  { bank_w(space, offset, data, 1); }
-static WRITE8_HANDLER( bank3_w )  { bank_w(space, offset, data, 2); }
-static WRITE8_HANDLER( bank4_w )  { bank_w(space, offset, data, 3); }
-static WRITE8_HANDLER( bank5_w )  { bank_w(space, offset, data, 4); }
-static WRITE8_HANDLER( bank6_w )  { bank_w(space, offset, data, 5); }
-static WRITE8_HANDLER( bank7_w )  { bank_w(space, offset, data, 6); }
-static WRITE8_HANDLER( bank8_w )  { bank_w(space, offset, data, 7); }
-static WRITE8_HANDLER( bank9_w )  { bank_w(space, offset, data, 8); }
-static WRITE8_HANDLER( bank10_w ) { bank_w(space, offset, data, 9); }
-static WRITE8_HANDLER( bank11_w ) { bank_w(space, offset, data, 10); }
-static WRITE8_HANDLER( bank12_w ) { bank_w(space, offset, data, 11); }
-static WRITE8_HANDLER( bank13_w ) { bank_w(space, offset, data, 12); }
-static WRITE8_HANDLER( bank14_w ) { bank_w(space, offset, data, 13); }
-static WRITE8_HANDLER( bank15_w ) { bank_w(space, offset, data, 14); }
-static WRITE8_HANDLER( bank16_w ) { bank_w(space, offset, data, 15); }
-
-static const struct { read8_space_func func; const char *name; } io_bank_handler_r[16] =
-{
-	{ FUNC(bank1_r) }, { FUNC(bank2_r) }, { FUNC(bank3_r) }, { FUNC(bank4_r) },
-	{ FUNC(bank5_r) }, { FUNC(bank6_r) }, { FUNC(bank7_r) }, { FUNC(bank8_r) },
-	{ FUNC(bank9_r) }, { FUNC(bank10_r) }, { FUNC(bank11_r) }, { FUNC(bank12_r) },
-	{ FUNC(bank13_r) }, { FUNC(bank14_r) }, { FUNC(bank15_r) }, { FUNC(bank16_r) }
-};
-
-static const struct { write8_space_func func; const char *name; } io_bank_handler_w[16] =
-{
-	{ FUNC(bank1_w) }, { FUNC(bank2_w) }, { FUNC(bank3_w) }, { FUNC(bank4_w) },
-	{ FUNC(bank5_w) }, { FUNC(bank6_w) }, { FUNC(bank7_w) }, { FUNC(bank8_w) },
-	{ FUNC(bank9_w) }, { FUNC(bank10_w) }, { FUNC(bank11_w) }, { FUNC(bank12_w) },
-	{ FUNC(bank13_w) }, { FUNC(bank14_w) }, { FUNC(bank15_w) }, { FUNC(bank16_w) }
-};
-
-
-
-static WRITE8_HANDLER( namcos1_3dcs_w )
+WRITE8_MEMBER( namcos1_state::namcos1_3dcs_w )
 {
 	if (offset & 1) popmessage("LEFT");
 	else            popmessage("RIGHT");
 }
 
 
-// used by faceoff and tankforce 4 player (input multiplex)
-static DECLARE_READ8_HANDLER( faceoff_inputs_r );
-
-static READ8_HANDLER( no_key_r )
+READ8_MEMBER( namcos1_state::no_key_r )
 {
 	popmessage("CPU %s PC %08x: keychip read %04x\n", space.device().tag(), space.device().safe_pc(), offset);
 	return 0;
 }
 
-static WRITE8_HANDLER( no_key_w )
+WRITE8_MEMBER( namcos1_state::no_key_w )
 {
 	popmessage("CPU %s PC %08x: keychip write %04x=%02x\n", space.device().tag(), space.device().safe_pc(), offset, data);
 }
@@ -196,15 +126,14 @@ puzlclub:
 CPU #0 PC e017: keychip write 0003=35 [they probably used RAM instead of a key chip for this prototype]
 CPU #0 PC e3d4: keychip read 0003     [AND #$37 = key no.]
 */
-static READ8_HANDLER( key_type1_r )
+READ8_MEMBER( namcos1_state::key_type1_r )
 {
-	namcos1_state *state = space.machine().driver_data<namcos1_state>();
 //  logerror("CPU %s PC %04x: keychip read %04x\n", space.device().tag(), space.device().safe_pc(), offset);
 
 	if (offset < 3)
 	{
-		int d = state->m_key[0];
-		int n = (state->m_key[1] << 8) | state->m_key[2];
+		int d = m_key[0];
+		int n = (m_key[1] << 8) | m_key[2];
 		int q,r;
 
 		if (d)
@@ -223,18 +152,17 @@ static READ8_HANDLER( key_type1_r )
 		if (offset == 2) return q & 0xff;
 	}
 	else if (offset == 3)
-		return state->m_key_id;
+		return m_key_id;
 
 	return 0;
 }
 
-static WRITE8_HANDLER( key_type1_w )
+WRITE8_MEMBER( namcos1_state::key_type1_w )
 {
-	namcos1_state *state = space.machine().driver_data<namcos1_state>();
 //  logerror("CPU %s PC %04x: keychip write %04x=%02x\n", space.device().tag(), space.device().safe_pc(), offset, data);
 
 	if (offset < 4)
-		state->m_key[offset] = data;
+		m_key[offset] = data;
 }
 
 
@@ -381,54 +309,52 @@ CPU #0 PC e574: keychip read 0001
 
 */
 
-static READ8_HANDLER( key_type2_r )
+READ8_MEMBER( namcos1_state::key_type2_r )
 {
-	namcos1_state *state = space.machine().driver_data<namcos1_state>();
 //  logerror("CPU %s PC %04x: keychip read %04x\n", space.device().tag(), space.device().safe_pc(), offset);
 
-	state->m_key_numerator_high_word = 0;
+	m_key_numerator_high_word = 0;
 
 	if (offset < 4)
 	{
-		if (offset == 0) return state->m_key_reminder >> 8;
-		if (offset == 1) return state->m_key_reminder & 0xff;
-		if (offset == 2) return state->m_key_quotient >> 8;
-		if (offset == 3) return state->m_key_quotient & 0xff;
+		if (offset == 0) return m_key_reminder >> 8;
+		if (offset == 1) return m_key_reminder & 0xff;
+		if (offset == 2) return m_key_quotient >> 8;
+		if (offset == 3) return m_key_quotient & 0xff;
 	}
 	else if (offset == 4)
-		return state->m_key_id;
+		return m_key_id;
 
 	return 0;
 }
 
-static WRITE8_HANDLER( key_type2_w )
+WRITE8_MEMBER( namcos1_state::key_type2_w )
 {
-	namcos1_state *state = space.machine().driver_data<namcos1_state>();
 //  logerror("CPU %s PC %04x: keychip write %04x=%02x\n", space.device().tag(), space.device().safe_pc(), offset, data);
 
 	if (offset < 5)
 	{
-		state->m_key[offset] = data;
+		m_key[offset] = data;
 
 		if (offset == 3)
 		{
-			unsigned int d = (state->m_key[0] << 8) | state->m_key[1];
-			unsigned int n = (state->m_key_numerator_high_word << 16) | (state->m_key[2] << 8) | state->m_key[3];
+			unsigned int d = (m_key[0] << 8) | m_key[1];
+			unsigned int n = (m_key_numerator_high_word << 16) | (m_key[2] << 8) | m_key[3];
 
 			if (d)
 			{
-				state->m_key_quotient = n / d;
-				state->m_key_reminder = n % d;
+				m_key_quotient = n / d;
+				m_key_reminder = n % d;
 			}
 			else
 			{
-				state->m_key_quotient = 0xffff;
-				state->m_key_reminder = 0x0000;
+				m_key_quotient = 0xffff;
+				m_key_reminder = 0x0000;
 			}
 
-//  logerror("calculating division: %08x / %04x = %04x, %04x\n", n, d, key_quotient, state->m_key_reminder);
+//  logerror("calculating division: %08x / %04x = %04x, %04x\n", n, d, key_quotient, m_key_reminder);
 
-			state->m_key_numerator_high_word = (state->m_key[2] << 8) | state->m_key[3];
+			m_key_numerator_high_word = (m_key[2] << 8) | m_key[3];
 		}
 	}
 }
@@ -509,11 +435,8 @@ CPU #0 PC ca96: keychip read 0043     [0x30 | (ARG & 0x0f)]
 CPU #0 PC e45a: keychip read 0030     [discarded]
 */
 
-static READ8_HANDLER( key_type3_r )
+READ8_MEMBER( namcos1_state::key_type3_r )
 {
-	namcos1_state *state = space.machine().driver_data<namcos1_state>();
-	int op;
-
 //  logerror("CPU %s PC %04x: keychip read %04x\n", space.device().tag(), space.device().safe_pc(), offset);
 
 	/* I need to handle blastoff's read from 0858. The game previously writes to 0858,
@@ -522,25 +445,24 @@ static READ8_HANDLER( key_type3_r )
 	   The schematics don't show A11 being used, so I go for this handling.
 	  */
 
-	op = (offset & 0x70) >> 4;
+	int op = (offset & 0x70) >> 4;
 
-	if (op == state->m_key_reg)     return state->m_key_id;
-	if (op == state->m_key_rng)     return space.machine().rand();
-	if (op == state->m_key_swap4)   return (state->m_key[state->m_key_swap4_arg] << 4) | (state->m_key[state->m_key_swap4_arg] >> 4);
-	if (op == state->m_key_bottom4) return (offset << 4) | (state->m_key[state->m_key_swap4_arg] & 0x0f);
-	if (op == state->m_key_top4)        return (offset << 4) | (state->m_key[state->m_key_swap4_arg] >> 4);
+	if (op == m_key_reg)     return m_key_id;
+	if (op == m_key_rng)     return machine().rand();
+	if (op == m_key_swap4)   return (m_key[m_key_swap4_arg] << 4) | (m_key[m_key_swap4_arg] >> 4);
+	if (op == m_key_bottom4) return (offset << 4) | (m_key[m_key_swap4_arg] & 0x0f);
+	if (op == m_key_top4)    return (offset << 4) | (m_key[m_key_swap4_arg] >> 4);
 
 	popmessage("CPU %s PC %08x: keychip read %04x", space.device().tag(), space.device().safe_pc(), offset);
 
 	return 0;
 }
 
-static WRITE8_HANDLER( key_type3_w )
+WRITE8_MEMBER( namcos1_state::key_type3_w )
 {
-	namcos1_state *state = space.machine().driver_data<namcos1_state>();
 //  logerror("CPU %s PC %04x: keychip write %04x=%02x\n", space.device().tag(), space.device().safe_pc(), offset, data);
 
-	state->m_key[(offset & 0x70) >> 4] = data;
+	m_key[(offset & 0x70) >> 4] = data;
 }
 
 
@@ -556,7 +478,7 @@ WRITE8_MEMBER(namcos1_state::namcos1_sound_bankswitch_w)
 	UINT8 *rom = memregion("audiocpu")->base() + 0xc000;
 
 	int bank = (data & 0x70) >> 4;
-	membank("bank17")->set_base(rom + 0x4000 * bank);
+	membank("soundbank")->set_base(rom + 0x4000 * bank);
 }
 
 
@@ -567,194 +489,46 @@ WRITE8_MEMBER(namcos1_state::namcos1_sound_bankswitch_w)
 *                                                                              *
 *******************************************************************************/
 
+// These direct handlers are merely for speed - taking two trips
+// through the memory system for every opcode fetch is rather slow
 
-WRITE8_MEMBER(namcos1_state::namcos1_cpu_control_w)
+DIRECT_UPDATE_MEMBER(namcos1_state::direct_handler_main)
+{
+	return direct_handler(0, direct, address);
+}
+
+DIRECT_UPDATE_MEMBER(namcos1_state::direct_handler_sub)
+{
+	return direct_handler(1, direct, address);
+}
+
+inline offs_t namcos1_state::direct_handler(int whichcpu, direct_read_data &direct, offs_t address)
+{
+	offs_t remapped_address = m_c117->remap(whichcpu, address);
+
+	// if not in ROM, return
+	if (remapped_address < 0x400000) return address;
+
+	// calculate the base of the 8KB ROM page
+	remapped_address &= 0x3fe000;
+
+	direct.explicit_configure(address & 0xe000, address | 0x1fff, 0x1fff, &m_rom->base()[remapped_address]);
+	return ~0;
+}
+
+
+WRITE_LINE_MEMBER(namcos1_state::subres_w)
 {
 //  logerror("reset control pc=%04x %02x\n",space.device().safe_pc(),data);
-	if ((data & 1) ^ m_reset)
+	if (state != m_reset)
 	{
 		m_mcu_patch_data = 0;
-		m_reset = data & 1;
+		m_reset = state;
 	}
 
-	m_subcpu->set_input_line(INPUT_LINE_RESET, (data & 1) ? CLEAR_LINE : ASSERT_LINE);
-	m_audiocpu->set_input_line(INPUT_LINE_RESET, (data & 1) ? CLEAR_LINE : ASSERT_LINE);
-	m_mcu->set_input_line(INPUT_LINE_RESET, (data & 1) ? CLEAR_LINE : ASSERT_LINE);
-}
-
-
-
-WRITE8_MEMBER(namcos1_state::namcos1_watchdog_w)
-{
-	if (&space.device() == m_maincpu)
-		m_wdog |= 1;
-	else if (&space.device() == m_subcpu)
-		m_wdog |= 2;
-	else if (&space.device() == m_audiocpu)
-		m_wdog |= 4;
-
-	if (m_wdog == 7 || !m_reset)
-	{
-		m_wdog = 0;
-		watchdog_reset_w(space,0,0);
-	}
-}
-
-
-
-static READ8_HANDLER( soundram_r )
-{
-	namcos1_state *state = space.machine().driver_data<namcos1_state>();
-	if (offset < 0x1000)
-	{
-		offset &= 0x3ff;
-
-		/* CUS 30 */
-
-		return space.machine().device<namco_cus30_device>("namco")->namcos1_cus30_r(space,offset);
-	}
-	else
-	{
-		offset &= 0x7ff;
-
-		/* shared ram */
-		return state->m_triram[offset];
-	}
-}
-
-static WRITE8_HANDLER( soundram_w )
-{
-	namcos1_state *state = space.machine().driver_data<namcos1_state>();
-	if (offset < 0x1000)
-	{
-		offset &= 0x3ff;
-
-		/* CUS 30 */
-
-		space.machine().device<namco_cus30_device>("namco")->namcos1_cus30_w(space,offset,data);
-	}
-	else
-	{
-		offset &= 0x7ff;
-
-		/* shared ram */
-		state->m_triram[offset] = data;
-		return;
-	}
-}
-
-/* ROM handlers */
-
-static WRITE8_HANDLER( rom_w )
-{
-	logerror("CPU %s PC %04x: warning - write %02x to rom address %04x\n", space.device().tag(), space.device().safe_pc(), data, offset);
-}
-
-/* error handlers */
-static READ8_HANDLER( unknown_r )
-{
-	logerror("CPU %s PC %04x: warning - read from unknown chip\n", space.device().tag(), space.device().safe_pc() );
-//  popmessage("CPU %s PC %04x: read from unknown chip", space.device().tag(), space.device().safe_pc() );
-	return 0;
-}
-
-static WRITE8_HANDLER( unknown_w )
-{
-	logerror("CPU %s PC %04x: warning - wrote to unknown chip\n", space.device().tag(), space.device().safe_pc() );
-//  popmessage("CPU %s PC %04x: wrote to unknown chip", space.device().tag(), space.device().safe_pc() );
-}
-
-/* Main bankswitching routine */
-static void set_bank(running_machine &machine, int banknum, const bankhandler *handler)
-{
-	namcos1_state *state = machine.driver_data<namcos1_state>();
-	static const char *const banktags[] = {
-		"bank1", "bank2", "bank3", "bank4", "bank5", "bank6", "bank7", "bank8",
-		"bank9", "bank10", "bank11", "bank12", "bank13", "bank14", "bank15", "bank16"
-	};
-	static const char *const cputags[] = { "maincpu", "sub" };
-	address_space &space = machine.device(cputags[(banknum >> 3) & 1])->memory().space(AS_PROGRAM);
-	int bankstart = (banknum & 7) * 0x2000;
-
-	/* for BANK handlers , memory direct and OP-code base */
-	if (handler->bank_pointer)
-		state->membank(banktags[banknum])->set_base(handler->bank_pointer);
-
-	/* read handlers */
-	if (!handler->bank_handler_r)
-	{
-		if (state->m_active_bank[banknum].bank_handler_r)
-			space.install_read_bank(bankstart, bankstart + 0x1fff, banktags[banknum]);
-	}
-	else
-	{
-		if (!state->m_active_bank[banknum].bank_handler_r)
-			space.install_legacy_read_handler(bankstart, bankstart + 0x1fff, io_bank_handler_r[banknum].func, io_bank_handler_r[banknum].name);
-	}
-
-	/* write handlers (except for the 0xe000-0xffff range) */
-	if (bankstart != 0xe000)
-	{
-		if (!handler->bank_handler_w)
-		{
-			if (state->m_active_bank[banknum].bank_handler_w)
-				space.install_write_bank(bankstart, bankstart + 0x1fff, banktags[banknum]);
-		}
-		else
-		{
-			if (!state->m_active_bank[banknum].bank_handler_r)
-				space.install_legacy_write_handler(bankstart, bankstart + 0x1fff, io_bank_handler_w[banknum].func, io_bank_handler_w[banknum].name);
-		}
-	}
-
-	/* Remember this bank handler */
-	state->m_active_bank[banknum] = *handler;
-}
-
-static void namcos1_bankswitch(running_machine &machine, int cpu, offs_t offset, UINT8 data)
-{
-	namcos1_state *state = machine.driver_data<namcos1_state>();
-	int bank = (cpu*8) + (( offset >> 9) & 0x07);
-	int old = state->m_chip[bank];
-
-	if (offset & 1)
-	{
-		state->m_chip[bank] &= 0x0300;
-		state->m_chip[bank] |= (data & 0xff);
-	}
-	else
-	{
-		state->m_chip[bank] &= 0x00ff;
-		state->m_chip[bank] |= (data & 0x03) << 8;
-	}
-
-	/* set_bank is slow, so only call it if uninitialized(unmapped) or changed */
-	if (state->m_active_bank[bank].bank_handler_r == unknown_r || state->m_chip[bank] != old)
-		set_bank(machine, bank, &state->m_bank_element[state->m_chip[bank]]);
-
-	/* unmapped bank warning */
-	if( state->m_active_bank[bank].bank_handler_r == unknown_r)
-	{
-		logerror("%s:warning unknown chip selected bank %x=$%04x\n", machine.describe_context(), bank , state->m_chip[bank] );
-//      if (state->m_chip) popmessage("%s:unknown chip selected bank %x=$%04x", cpu , machine.describe_context(), bank , state->m_chip[bank] );
-	}
-}
-
-WRITE8_MEMBER(namcos1_state::namcos1_bankswitch_w)
-{
-//  logerror("cpu %s: namcos1_bankswitch_w offset %04x data %02x\n", device().tag(), offset, data);
-
-	namcos1_bankswitch(machine(), (&space.device() == m_maincpu) ? 0 : 1, offset, data);
-}
-
-/* Sub cpu set start bank port */
-WRITE8_MEMBER(namcos1_state::namcos1_subcpu_bank_w)
-{
-//  logerror("namcos1_subcpu_bank_w offset %04x data %02x\n",offset,data);
-
-	/* Prepare code for CPU 1 */
-	namcos1_bankswitch( machine(), 1, 0x0e00, 0x03 );
-	namcos1_bankswitch( machine(), 1, 0x0e01, data );
+	m_subcpu->set_input_line(INPUT_LINE_RESET, state);
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, state);
+	m_mcu->set_input_line(INPUT_LINE_RESET, state);
 }
 
 /*******************************************************************************
@@ -763,127 +537,16 @@ WRITE8_MEMBER(namcos1_state::namcos1_subcpu_bank_w)
 *                                                                              *
 *******************************************************************************/
 
-static void namcos1_install_bank(namcos1_state *state, int start,int end,read8_space_func hr,write8_space_func hw,
-				int offset,UINT8 *pointer)
-{
-	int i;
-	for(i=start;i<=end;i++)
-	{
-		state->m_bank_element[i].bank_handler_r = hr;
-		state->m_bank_element[i].bank_handler_w = hw;
-		state->m_bank_element[i].bank_offset    = offset;
-		state->m_bank_element[i].bank_pointer   = pointer;
-		offset  += 0x2000;
-		if(pointer) pointer += 0x2000;
-	}
-}
-
-
-
-static void namcos1_build_banks(running_machine &machine,read8_space_func key_r,write8_space_func key_w)
-{
-	namcos1_state *state = machine.driver_data<namcos1_state>();
-	int i;
-
-	/**** kludge alert ****/
-	UINT8 *dummyrom = auto_alloc_array(machine, UINT8, 0x2000);
-
-	/* when the games want to reset because the test switch has been flipped (or
-	   because the protection checks failed!) they just set the top bits of bank #7
-	   to 0, effectively crashing and waiting for the watchdog to kick in.
-	   To avoid crashes in MAME, I prepare a dummy ROM containing just BRA -2 so
-	   the program doesn't start executing code in unmapped areas.
-	   Conveniently, the opcode for BRA -2 is 20 FE, and FE 20 FE is LDU $20FE,
-	   so misaligned entry points get immediatly corrected. */
-	for (i = 0;i < 0x2000;i+=2)
-	{
-		dummyrom[i]   = 0x20;
-		dummyrom[i+1] = 0xfe;
-	}
-	/* also provide a valid IRQ vector */
-	dummyrom[0x1ff8] = 0xff;
-	dummyrom[0x1ff9] = 0x00;
-
-	/* clear all banks to unknown area */
-	for(i = 0;i < NAMCOS1_MAX_BANK;i++)
-		namcos1_install_bank(state,i,i,0,unknown_w,0,dummyrom);
-	/**** end of kludge alert ****/
-
-
-	/* 3D glasses */
-	namcos1_install_bank(state,0x160,0x160,0,namcos1_3dcs_w,0,0);
-	/* RAM 6 banks - palette */
-	namcos1_install_bank(state,0x170,0x173,0,namcos1_paletteram_w,0,state->m_paletteram);
-	/* RAM 5 banks - videoram */
-	namcos1_install_bank(state,0x178,0x17b,namcos1_videoram_r,namcos1_videoram_w,0,0);
-	/* key chip bank */
-	namcos1_install_bank(state,0x17c,0x17c,key_r,key_w,0,0);
-	/* RAM 7 banks - display control, playfields, sprites */
-	namcos1_install_bank(state,0x17e,0x17e,namcos1_spriteram_r,namcos1_spriteram_w,0,0);
-	/* RAM 1 shared ram, PSG device */
-	namcos1_install_bank(state,0x17f,0x17f,soundram_r,soundram_w,0,0);
-	/* RAM 3 banks */
-	namcos1_install_bank(state,0x180,0x183,0,0,0,state->m_s1ram);
-
-	/* PRG0-PRG7 */
-	{
-		UINT8 *rom = machine.root_device().memregion("user1")->base();
-
-		namcos1_install_bank(state,0x200,0x3ff,0,rom_w,0,rom);
-
-		/* bit 16 of the address is inverted for PRG7 (and bits 17,18 just not connected) */
-		for (i = 0x380000;i < 0x400000;i++)
-		{
-			if ((i & 0x010000) == 0)
-			{
-				UINT8 t = rom[i];
-				rom[i] = rom[i + 0x010000];
-				rom[i + 0x010000] = t;
-			}
-		}
-	}
-}
-
 void namcos1_state::machine_reset()
 {
-	static const bankhandler unknown_handler = { unknown_r, unknown_w, 0, NULL };
-	int bank;
-
-	/* Point all of our bankhandlers to the error handlers */
-	for (bank = 0; bank < 2*8 ; bank++)
-		set_bank(machine(), bank, &unknown_handler);
-
-	memset(m_chip, 0, sizeof(m_chip));
-
-	/* Default MMU setup for Cpu 0 */
-	namcos1_bankswitch(machine(), 0, 0x0000, 0x01 ); /* bank0 = 0x180(RAM) - evidence: wldcourt */
-	namcos1_bankswitch(machine(), 0, 0x0001, 0x80 );
-	namcos1_bankswitch(machine(), 0, 0x0200, 0x01 ); /* bank1 = 0x180(RAM) - evidence: berabohm */
-	namcos1_bankswitch(machine(), 0, 0x0201, 0x80 );
-
-	namcos1_bankswitch(machine(), 0, 0x0e00, 0x03 ); /* bank7 = 0x3ff(PRG7) */
-	namcos1_bankswitch(machine(), 0, 0x0e01, 0xff );
-
-	/* Default MMU setup for Cpu 1 */
-	namcos1_bankswitch(machine(), 1, 0x0000, 0x01 ); /* bank0 = 0x180(RAM) - evidence: wldcourt */
-	namcos1_bankswitch(machine(), 1, 0x0001, 0x80 );
-
-	namcos1_bankswitch(machine(), 1, 0x0e00, 0x03); /* bank7 = 0x3ff(PRG7) */
-	namcos1_bankswitch(machine(), 1, 0x0e01, 0xff);
-
-	/* reset Cpu 0 and stop all other CPUs */
-	m_maincpu->reset();
-	m_subcpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
-	m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
-	m_mcu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
-
 	/* mcu patch data clear */
 	m_mcu_patch_data = 0;
-	m_reset = 0;
 
-	namcos1_init_DACs(machine());
+	namcos1_init_DACs();
 	memset(m_key, 0, sizeof(m_key));
-	m_wdog = 0;
+	m_key_quotient = 0;
+	m_key_reminder = 0;
+	m_key_numerator_high_word = 0;
 }
 
 
@@ -920,7 +583,7 @@ WRITE8_MEMBER(namcos1_state::namcos1_mcu_bankswitch_w)
 	/* bit 0-1 : address line A15-A16 */
 	addr += (data & 3) * 0x8000;
 
-	membank("bank20")->set_base(memregion("mcu")->base() + addr);
+	membank("mcubank")->set_base(memregion("mcu")->base() + addr);
 }
 
 
@@ -952,56 +615,35 @@ WRITE8_MEMBER(namcos1_state::namcos1_mcu_patch_w)
 *   driver specific initialize routine                                         *
 *                                                                              *
 *******************************************************************************/
-struct namcos1_specific
+void namcos1_state::namcos1_driver_init()
 {
-	/* keychip */
-	read8_space_func key_r;
-	write8_space_func key_w;
-	int key_id;
-	int key_reg1;
-	int key_reg2;
-	int key_reg3;
-	int key_reg4;
-	int key_reg5;
-	int key_reg6;
-};
+	UINT8 *rom = m_rom->base();
 
-static void namcos1_driver_init( running_machine &machine, const struct namcos1_specific *specific )
-{
-	namcos1_state *state = machine.driver_data<namcos1_state>();
-	static const struct namcos1_specific no_key =
+	// bit 16 of the address is inverted for PRG7 (and bits 17,18 just not connected)
+	for (int i = 0x380000;i < 0x400000;i++)
 	{
-		no_key_r,no_key_w
-	};
+		if ((i & 0x010000) == 0)
+		{
+			UINT8 t = rom[i];
+			rom[i] = rom[i + 0x010000];
+			rom[i + 0x010000] = t;
+		}
+	}
 
-	if (!specific) specific = &no_key;
+	m_maincpu->space(AS_PROGRAM).set_direct_update_handler(direct_update_delegate(FUNC(namcos1_state::direct_handler_main), this));
+	m_subcpu->space(AS_PROGRAM).set_direct_update_handler(direct_update_delegate(FUNC(namcos1_state::direct_handler_sub), this));
 
-	/* keychip id */
-	state->m_key_id        = specific->key_id;
-	/* for key type 3 */
-	state->m_key_reg       = specific->key_reg1;
-	state->m_key_rng       = specific->key_reg2;
-	state->m_key_swap4_arg = specific->key_reg3;
-	state->m_key_swap4     = specific->key_reg4;
-	state->m_key_bottom4   = specific->key_reg5;
-	state->m_key_top4      = specific->key_reg6;
+	// kludge! see notes
+	m_mcu->space(AS_PROGRAM).install_write_handler(0xc000, 0xc000, write8_delegate(FUNC(namcos1_state::namcos1_mcu_patch_w), this));
 
-	/* S1 RAM pointer set */
-	state->m_s1ram = auto_alloc_array(machine, UINT8, 0x8000);
-	state->m_triram = auto_alloc_array(machine, UINT8, 0x800);
-	state->m_paletteram = auto_alloc_array(machine, UINT8, 0x8000);
-
-	/* Register volatile user memory for save state */
-	state->save_pointer(NAME(state->m_s1ram), 0x8000);
-	state->save_pointer(NAME(state->m_triram), 0x800);
-	state->save_pointer(NAME(state->m_paletteram), 0x8000);
-
-	/* Point mcu & sound shared RAM to destination */
-	state->membank("bank18")->set_base(state->m_triram );
-	state->membank("bank19")->set_base(state->m_triram );
-
-	/* build bank elements */
-	namcos1_build_banks(machine,specific->key_r,specific->key_w);
+	// these are overridden as needed in the specific DRIVER_INIT_MEMBERs
+	m_key_id        = 0;
+	m_key_reg       = 0;
+	m_key_rng       = 0;
+	m_key_swap4_arg = 0;
+	m_key_swap4     = 0;
+	m_key_bottom4   = 0;
+	m_key_top4      = 0;
 }
 
 
@@ -1010,7 +652,7 @@ static void namcos1_driver_init( running_machine &machine, const struct namcos1_
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,shadowld)
 {
-	namcos1_driver_init(machine(), NULL);
+	namcos1_driver_init();
 }
 
 /*******************************************************************************
@@ -1018,11 +660,11 @@ DRIVER_INIT_MEMBER(namcos1_state,shadowld)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,dspirit)
 {
-	static const struct namcos1_specific dspirit_specific=
-	{
-		key_type1_r,key_type1_w, 0x36
-	};
-	namcos1_driver_init(machine(), &dspirit_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type1_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type1_w),this));
+	m_key_id = 0x36;
 }
 
 /*******************************************************************************
@@ -1030,11 +672,11 @@ DRIVER_INIT_MEMBER(namcos1_state,dspirit)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,wldcourt)
 {
-	static const struct namcos1_specific worldcourt_specific=
-	{
-		key_type1_r,key_type1_w, 0x35
-	};
-	namcos1_driver_init(machine(), &worldcourt_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type1_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type1_w),this));
+	m_key_id = 0x35;
 }
 
 /*******************************************************************************
@@ -1042,11 +684,11 @@ DRIVER_INIT_MEMBER(namcos1_state,wldcourt)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,blazer)
 {
-	static const struct namcos1_specific blazer_specific=
-	{
-		key_type1_r,key_type1_w, 0x13
-	};
-	namcos1_driver_init(machine(), &blazer_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type1_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type1_w),this));
+	m_key_id = 0x13;
 }
 
 /*******************************************************************************
@@ -1054,11 +696,11 @@ DRIVER_INIT_MEMBER(namcos1_state,blazer)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,puzlclub)
 {
-	static const struct namcos1_specific puzlclub_specific=
-	{
-		key_type1_r,key_type1_w, 0x35
-	};
-	namcos1_driver_init(machine(), &puzlclub_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type1_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type1_w),this));
+	m_key_id = 0x35;
 }
 
 /*******************************************************************************
@@ -1066,11 +708,11 @@ DRIVER_INIT_MEMBER(namcos1_state,puzlclub)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,pacmania)
 {
-	static const struct namcos1_specific pacmania_specific=
-	{
-		key_type2_r,key_type2_w, 0x12
-	};
-	namcos1_driver_init(machine(), &pacmania_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type2_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type2_w),this));
+	m_key_id = 0x12;
 }
 
 /*******************************************************************************
@@ -1078,11 +720,11 @@ DRIVER_INIT_MEMBER(namcos1_state,pacmania)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,alice)
 {
-	static const struct namcos1_specific alice_specific=
-	{
-		key_type2_r,key_type2_w, 0x25
-	};
-	namcos1_driver_init(machine(), &alice_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type2_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type2_w),this));
+	m_key_id = 0x25;
 }
 
 /*******************************************************************************
@@ -1090,11 +732,11 @@ DRIVER_INIT_MEMBER(namcos1_state,alice)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,galaga88)
 {
-	static const struct namcos1_specific galaga88_specific=
-	{
-		key_type2_r,key_type2_w, 0x31
-	};
-	namcos1_driver_init(machine(), &galaga88_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type2_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type2_w),this));
+	m_key_id = 0x31;
 }
 
 /*******************************************************************************
@@ -1102,11 +744,11 @@ DRIVER_INIT_MEMBER(namcos1_state,galaga88)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,ws)
 {
-	static const struct namcos1_specific ws_specific=
-	{
-		key_type2_r,key_type2_w, 0x07
-	};
-	namcos1_driver_init(machine(), &ws_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type2_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type2_w),this));
+	m_key_id = 0x07;
 }
 
 /*******************************************************************************
@@ -1114,36 +756,11 @@ DRIVER_INIT_MEMBER(namcos1_state,ws)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,bakutotu)
 {
-	static const struct namcos1_specific bakutotu_specific=
-	{
-		key_type2_r,key_type2_w, 0x22
-	};
-	namcos1_driver_init(machine(), &bakutotu_specific);
-
-#if 0
-	// resolves CPU deadlocks caused by sloppy coding(see driver\namcos1.c)
-	{
-		static const UINT8 target[8] = {0x34,0x37,0x35,0x37,0x96,0x00,0x2e,0xed};
-		UINT8 *rombase, *srcptr, *endptr, *scanptr;
-
-		rombase = memregion("user1")->base();
-		srcptr = rombase + 0x1e000;
-		endptr = srcptr + 0xa000;
-
-		while ( (scanptr = memchr(srcptr, 0x34, endptr-srcptr)) )
-		{
-			if (!memcmp(scanptr, target, 8))
-			{
-				scanptr[7] = 0xfc;
-				srcptr = scanptr + 8;
-
-				logerror ("faulty loop patched at %06x\n", scanptr-rombase+7);
-			}
-			else
-				srcptr = scanptr + 1;
-		}
-	}
-#endif
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type2_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type2_w),this));
+	m_key_id = 0x22;
 }
 
 /*******************************************************************************
@@ -1151,12 +768,17 @@ DRIVER_INIT_MEMBER(namcos1_state,bakutotu)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,splatter)
 {
-	static const struct namcos1_specific splatter_specific=
-	{
-		key_type3_r,key_type3_w, 181, 3, 4,-1,-1,-1,-1
-	};
-
-	namcos1_driver_init(machine(), &splatter_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type3_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type3_w),this));
+	m_key_id        = 181;
+	m_key_reg       = 3;
+	m_key_rng       = 4;
+	m_key_swap4_arg = -1;
+	m_key_swap4     = -1;
+	m_key_bottom4   = -1;
+	m_key_top4      = -1;
 }
 
 /*******************************************************************************
@@ -1164,11 +786,17 @@ DRIVER_INIT_MEMBER(namcos1_state,splatter)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,rompers)
 {
-	static const struct namcos1_specific rompers_specific=
-	{
-		key_type3_r,key_type3_w, 182, 7,-1,-1,-1,-1,-1
-	};
-	namcos1_driver_init(machine(), &rompers_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type3_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type3_w),this));
+	m_key_id        = 182;
+	m_key_reg       = 7;
+	m_key_rng       = -1;
+	m_key_swap4_arg = -1;
+	m_key_swap4     = -1;
+	m_key_bottom4   = -1;
+	m_key_top4      = -1;
 }
 
 /*******************************************************************************
@@ -1176,11 +804,17 @@ DRIVER_INIT_MEMBER(namcos1_state,rompers)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,blastoff)
 {
-	static const struct namcos1_specific blastoff_specific=
-	{
-		key_type3_r,key_type3_w, 183, 0, 7, 3, 5,-1,-1
-	};
-	namcos1_driver_init(machine(), &blastoff_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type3_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type3_w),this));
+	m_key_id        = 183;
+	m_key_reg       = 0;
+	m_key_rng       = 7;
+	m_key_swap4_arg = 3;
+	m_key_swap4     = 5;
+	m_key_bottom4   = -1;
+	m_key_top4      = -1;
 }
 
 /*******************************************************************************
@@ -1188,11 +822,17 @@ DRIVER_INIT_MEMBER(namcos1_state,blastoff)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,ws89)
 {
-	static const struct namcos1_specific ws89_specific=
-	{
-		key_type3_r,key_type3_w, 184, 2,-1,-1,-1,-1,-1
-	};
-	namcos1_driver_init(machine(), &ws89_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type3_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type3_w),this));
+	m_key_id        = 184;
+	m_key_reg       = 2;
+	m_key_rng       = -1;
+	m_key_swap4_arg = -1;
+	m_key_swap4     = -1;
+	m_key_bottom4   = -1;
+	m_key_top4      = -1;
 }
 
 /*******************************************************************************
@@ -1200,24 +840,29 @@ DRIVER_INIT_MEMBER(namcos1_state,ws89)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,tankfrce)
 {
-	static const struct namcos1_specific tankfrce_specific=
-	{
-		key_type3_r,key_type3_w, 185, 5,-1, 1,-1, 2,-1
-	};
-	namcos1_driver_init(machine(), &tankfrce_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type3_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type3_w),this));
+	m_key_id        = 185;
+	m_key_reg       = 5;
+	m_key_rng       = -1;
+	m_key_swap4_arg = 1;
+	m_key_swap4     = -1;
+	m_key_bottom4   = 2;
+	m_key_top4      = -1;
 }
-
-
 
 DRIVER_INIT_MEMBER(namcos1_state,tankfrc4)
 {
-	static const struct namcos1_specific tankfrce_specific=
-	{
-		key_type3_r,key_type3_w, 185, 5,-1, 1,-1, 2,-1
-	};
-	namcos1_driver_init(machine(), &tankfrce_specific);
+	DRIVER_INIT_CALL(tankfrce);
 
-	m_mcu->space(AS_PROGRAM).install_legacy_read_handler(0x1400, 0x1401, FUNC(faceoff_inputs_r));
+	m_input_count = 0;
+	m_strobe_count = 0;
+	m_stored_input[0] = 0;
+	m_stored_input[1] = 0;
+
+	m_mcu->space(AS_PROGRAM).install_read_handler(0x1400, 0x1401, read8_delegate(FUNC(namcos1_state::faceoff_inputs_r), this));
 }
 
 /*******************************************************************************
@@ -1225,11 +870,17 @@ DRIVER_INIT_MEMBER(namcos1_state,tankfrc4)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,dangseed)
 {
-	static const struct namcos1_specific dangseed_specific=
-	{
-		key_type3_r,key_type3_w, 308, 6,-1, 5,-1, 0, 4
-	};
-	namcos1_driver_init(machine(), &dangseed_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type3_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type3_w),this));
+	m_key_id        = 308;
+	m_key_reg       = 6;
+	m_key_rng       = -1;
+	m_key_swap4_arg = 5;
+	m_key_swap4     = -1;
+	m_key_bottom4   = 0;
+	m_key_top4      = 4;
 }
 
 /*******************************************************************************
@@ -1237,11 +888,17 @@ DRIVER_INIT_MEMBER(namcos1_state,dangseed)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,pistoldm)
 {
-	static const struct namcos1_specific pistoldm_specific=
-	{
-		key_type3_r,key_type3_w, 309, 1, 2, 0,-1, 4,-1
-	};
-	namcos1_driver_init(machine(), &pistoldm_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type3_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type3_w),this));
+	m_key_id        = 309;
+	m_key_reg       = 1;
+	m_key_rng       = 2;
+	m_key_swap4_arg = 0;
+	m_key_swap4     = -1;
+	m_key_bottom4   = 4;
+	m_key_top4      = -1;
 }
 
 /*******************************************************************************
@@ -1249,11 +906,17 @@ DRIVER_INIT_MEMBER(namcos1_state,pistoldm)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,ws90)
 {
-	static const struct namcos1_specific ws90_specific=
-	{
-		key_type3_r,key_type3_w, 310, 4,-1, 7,-1, 3,-1
-	};
-	namcos1_driver_init(machine(), &ws90_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type3_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type3_w),this));
+	m_key_id        = 310;
+	m_key_reg       = 4;
+	m_key_rng       = -1;
+	m_key_swap4_arg = 7;
+	m_key_swap4     = -1;
+	m_key_bottom4   = 3;
+	m_key_top4      = -1;
 }
 
 /*******************************************************************************
@@ -1261,11 +924,17 @@ DRIVER_INIT_MEMBER(namcos1_state,ws90)
 *******************************************************************************/
 DRIVER_INIT_MEMBER(namcos1_state,soukobdx)
 {
-	static const struct namcos1_specific soukobdx_specific=
-	{
-		key_type3_r,key_type3_w, 311, 2, 3/*?*/, 0,-1, 4,-1
-	};
-	namcos1_driver_init(machine(), &soukobdx_specific);
+	namcos1_driver_init();
+	m_c117->space(AS_PROGRAM).install_readwrite_handler(0x2f8000, 0x2f9fff,
+		read8_delegate(FUNC(namcos1_state::key_type3_r),this),
+		write8_delegate(FUNC(namcos1_state::key_type3_w),this));
+	m_key_id        = 311;
+	m_key_reg       = 2;
+	m_key_rng       = 3; /*?*/
+	m_key_swap4_arg = 0;
+	m_key_swap4     = -1;
+	m_key_bottom4   = 4;
+	m_key_top4      = -1;
 }
 
 
@@ -1273,20 +942,18 @@ DRIVER_INIT_MEMBER(namcos1_state,soukobdx)
 /*******************************************************************************
 *   Quester specific                                                           *
 *******************************************************************************/
-static READ8_HANDLER( quester_paddle_r )
+READ8_MEMBER( namcos1_state::quester_paddle_r )
 {
-	static int qnum=0, qstrobe=0;
-
 	if (offset == 0)
 	{
 		int ret;
 
-		if (!qnum)
-			ret = (space.machine().root_device().ioport("CONTROL0")->read()&0x90) | qstrobe | (space.machine().root_device().ioport("PADDLE0")->read()&0x0f);
+		if (!(m_strobe & 0x20))
+			ret = (ioport("CONTROL0")->read()&0x90) | (m_strobe & 0x40) | (ioport("PADDLE0")->read()&0x0f);
 		else
-			ret = (space.machine().root_device().ioport("CONTROL0")->read()&0x90) | qstrobe | (space.machine().root_device().ioport("PADDLE1")->read()&0x0f);
+			ret = (ioport("CONTROL0")->read()&0x90) | (m_strobe & 0x40) | (ioport("PADDLE1")->read()&0x0f);
 
-		qstrobe ^= 0x40;
+		m_strobe ^= 0x40;
 
 		return ret;
 	}
@@ -1294,12 +961,12 @@ static READ8_HANDLER( quester_paddle_r )
 	{
 		int ret;
 
-		if (!qnum)
-			ret = (space.machine().root_device().ioport("CONTROL1")->read()&0x90) | qnum | (space.machine().root_device().ioport("PADDLE0")->read()>>4);
+		if (!(m_strobe & 0x20))
+			ret = (ioport("CONTROL1")->read()&0x90) | 0x00 | (ioport("PADDLE0")->read()>>4);
 		else
-			ret = (space.machine().root_device().ioport("CONTROL1")->read()&0x90) | qnum | (space.machine().root_device().ioport("PADDLE1")->read()>>4);
+			ret = (ioport("CONTROL1")->read()&0x90) | 0x20 | (ioport("PADDLE1")->read()>>4);
 
-		if (!qstrobe) qnum ^= 0x20;
+		if (!(m_strobe & 0x40)) m_strobe ^= 0x20;
 
 		return ret;
 	}
@@ -1307,8 +974,9 @@ static READ8_HANDLER( quester_paddle_r )
 
 DRIVER_INIT_MEMBER(namcos1_state,quester)
 {
-	namcos1_driver_init(machine(), NULL);
-	m_mcu->space(AS_PROGRAM).install_legacy_read_handler(0x1400, 0x1401, FUNC(quester_paddle_r));
+	m_strobe = 0;
+	namcos1_driver_init();
+	m_mcu->space(AS_PROGRAM).install_read_handler(0x1400, 0x1401, read8_delegate(FUNC(namcos1_state::quester_paddle_r), this));
 }
 
 
@@ -1317,17 +985,15 @@ DRIVER_INIT_MEMBER(namcos1_state,quester)
 *   Beraboh Man specific                                                       *
 *******************************************************************************/
 
-static READ8_HANDLER( berabohm_buttons_r )
+READ8_MEMBER( namcos1_state::berabohm_buttons_r )
 {
 	int res;
-	static int input_count, strobe, strobe_count;
-
 
 	if (offset == 0)
 	{
-		int inp = input_count;
+		int inp = m_input_count;
 
-		if (inp == 4) res = space.machine().root_device().ioport("CONTROL0")->read();
+		if (inp == 4) res = ioport("CONTROL0")->read();
 		else
 		{
 			char portname[40];
@@ -1336,7 +1002,7 @@ static READ8_HANDLER( berabohm_buttons_r )
 			static int counter[4];
 
 			sprintf(portname,"IN%d",inp);   /* IN0-IN3 */
-			res = space.machine().root_device().ioport(portname)->read();
+			res = ioport(portname)->read();
 			if (res & 0x80)
 			{
 				if (counter[inp] >= 0)
@@ -1360,7 +1026,7 @@ static READ8_HANDLER( berabohm_buttons_r )
 				counter[inp] = -1;
 #else
 			sprintf(portname,"IN%d",inp);   /* IN0-IN3 */
-			res = space.machine().root_device().ioport(portname)->read();
+			res = ioport(portname)->read();
 			if (res & 1) res = 0x7f;        /* weak */
 			else if (res & 2) res = 0x48;   /* medium */
 			else if (res & 4) res = 0x40;   /* strong */
@@ -1371,24 +1037,24 @@ static READ8_HANDLER( berabohm_buttons_r )
 	}
 	else
 	{
-		res = space.machine().root_device().ioport("CONTROL1")->read() & 0x8f;
+		res = ioport("CONTROL1")->read() & 0x8f;
 
 		/* the strobe cannot happen too often, otherwise the MCU will waste too
 		   much time reading the inputs and won't have enough cycles to play two
 		   digital sounds at once. This value is enough to read all inputs at least
 		   once per frame */
-		if (++strobe_count > 4)
+		if (++m_strobe_count > 4)
 		{
-			strobe_count = 0;
-			strobe ^= 0x40;
-			if (strobe == 0)
+			m_strobe_count = 0;
+			m_strobe ^= 0x40;
+			if (m_strobe == 0)
 			{
-				input_count = (input_count + 1) % 5;
-				if (input_count == 3) res |= 0x10;
+				m_input_count = (m_input_count + 1) % 5;
+				if (m_input_count == 3) res |= 0x10;
 			}
 		}
 
-		res |= strobe;
+		res |= m_strobe;
 
 		return res;
 	}
@@ -1396,8 +1062,11 @@ static READ8_HANDLER( berabohm_buttons_r )
 
 DRIVER_INIT_MEMBER(namcos1_state,berabohm)
 {
-	namcos1_driver_init(machine(), NULL);
-	m_mcu->space(AS_PROGRAM).install_legacy_read_handler(0x1400, 0x1401, FUNC(berabohm_buttons_r));
+	m_input_count = 0;
+	m_strobe = 0;
+	m_strobe_count = 0;
+	namcos1_driver_init();
+	m_mcu->space(AS_PROGRAM).install_read_handler(0x1400, 0x1401, read8_delegate(FUNC(namcos1_state::berabohm_buttons_r), this));
 }
 
 
@@ -1406,58 +1075,59 @@ DRIVER_INIT_MEMBER(namcos1_state,berabohm)
 *   Face Off specific                                                          *
 *******************************************************************************/
 
-static READ8_HANDLER( faceoff_inputs_r )
+// used by faceoff and tankforce 4 player (input multiplex)
+
+READ8_MEMBER( namcos1_state::faceoff_inputs_r )
 {
 	int res;
-	static int input_count, strobe_count, stored_input[2];
 
 	if (offset == 0)
 	{
-		res = (space.machine().root_device().ioport("CONTROL0")->read() & 0x80) | stored_input[0];
+		res = (ioport("CONTROL0")->read() & 0x80) | m_stored_input[0];
 
 		return res;
 	}
 	else
 	{
-		res = space.machine().root_device().ioport("CONTROL1")->read() & 0x80;
+		res = ioport("CONTROL1")->read() & 0x80;
 
 		/* the strobe cannot happen too often, otherwise the MCU will waste too
 		   much time reading the inputs and won't have enough cycles to play two
 		   digital sounds at once. This value is enough to read all inputs at least
 		   once per frame */
-		if (++strobe_count > 8)
+		if (++m_strobe_count > 8)
 		{
-			strobe_count = 0;
+			m_strobe_count = 0;
 
-			res |= input_count;
+			res |= m_input_count;
 
-			switch (input_count)
+			switch (m_input_count)
 			{
 				case 0:
-					stored_input[0] = space.machine().root_device().ioport("IN0")->read() & 0x1f;
-					stored_input[1] = (space.machine().root_device().ioport("IN3")->read() & 0x07) << 3;
+					m_stored_input[0] = ioport("IN0")->read() & 0x1f;
+					m_stored_input[1] = (ioport("IN3")->read() & 0x07) << 3;
 					break;
 
 				case 3:
-					stored_input[0] = space.machine().root_device().ioport("IN2")->read() & 0x1f;
+					m_stored_input[0] = ioport("IN2")->read() & 0x1f;
 					break;
 
 				case 4:
-					stored_input[0] = space.machine().root_device().ioport("IN1")->read() & 0x1f;
-					stored_input[1] = space.machine().root_device().ioport("IN3")->read() & 0x18;
+					m_stored_input[0] = ioport("IN1")->read() & 0x1f;
+					m_stored_input[1] = ioport("IN3")->read() & 0x18;
 					break;
 
 				default:
-					stored_input[0] = 0x1f;
-					stored_input[1] = 0x1f;
+					m_stored_input[0] = 0x1f;
+					m_stored_input[1] = 0x1f;
 					break;
 			}
 
-			input_count = (input_count + 1) & 7;
+			m_input_count = (m_input_count + 1) & 7;
 		}
 		else
 		{
-			res |= 0x40 | stored_input[1];
+			res |= 0x40 | m_stored_input[1];
 		}
 
 		return res;
@@ -1466,6 +1136,11 @@ static READ8_HANDLER( faceoff_inputs_r )
 
 DRIVER_INIT_MEMBER(namcos1_state,faceoff)
 {
-	namcos1_driver_init(machine(), NULL);
-	m_mcu->space(AS_PROGRAM).install_legacy_read_handler(0x1400, 0x1401, FUNC(faceoff_inputs_r));
+	m_input_count = 0;
+	m_strobe_count = 0;
+	m_stored_input[0] = 0;
+	m_stored_input[1] = 0;
+
+	namcos1_driver_init();
+	m_mcu->space(AS_PROGRAM).install_read_handler(0x1400, 0x1401, read8_delegate(FUNC(namcos1_state::faceoff_inputs_r), this));
 }

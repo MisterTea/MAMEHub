@@ -238,7 +238,7 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "cpu/h83002/h8.h"
+#include "cpu/h8/h83002.h"
 
 
 class bingoman_state : public driver_device
@@ -254,14 +254,13 @@ public:
 
 	// screen updates
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-
+	DECLARE_PALETTE_INIT(bingoman);
 protected:
 	// driver_device overrides
 	virtual void machine_start();
 	virtual void machine_reset();
 
 	virtual void video_start();
-	virtual void palette_init();
 };
 
 void bingoman_state::video_start()
@@ -364,14 +363,14 @@ void bingoman_state::machine_reset()
 }
 
 
-void bingoman_state::palette_init()
+PALETTE_INIT_MEMBER(bingoman_state, bingoman)
 {
 }
 
 static MACHINE_CONFIG_START( bingoman, bingoman_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", H8S2394, XTAL_20MHz) /* TODO: correct CPU type */
+	MCFG_CPU_ADD("maincpu", H83002, XTAL_20MHz) /* TODO: correct CPU type */
 	MCFG_CPU_PROGRAM_MAP(bingoman_prg_map)
 	MCFG_CPU_IO_MAP(bingoman_io_map)
 
@@ -382,10 +381,12 @@ static MACHINE_CONFIG_START( bingoman, bingoman_state )
 	MCFG_SCREEN_UPDATE_DRIVER(bingoman_state, screen_update)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bingoman)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bingoman)
 
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(bingoman_state, bingoman)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

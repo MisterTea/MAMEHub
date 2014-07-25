@@ -260,15 +260,6 @@ static GFXDECODE_START( mz80kj )
 	GFXDECODE_ENTRY( "chargen", 0x0000, mz80kj_charlayout, 0, 1 )
 GFXDECODE_END
 
-static const cassette_interface mz80k_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
-
 TIMER_DEVICE_CALLBACK_MEMBER(mz80_state::ne555_tempo_callback)
 {
 	m_mz80k_tempo_strobe ^= 1;
@@ -289,9 +280,10 @@ static MACHINE_CONFIG_START( mz80k, mz80_state )
 	MCFG_SCREEN_SIZE(320, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 319, 0, 199)
 	MCFG_SCREEN_UPDATE_DRIVER(mz80_state, screen_update_mz80k)
-	MCFG_GFXDECODE(mz80k)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mz80k)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* Audio */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -301,16 +293,29 @@ static MACHINE_CONFIG_START( mz80k, mz80_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Devices */
-	MCFG_I8255_ADD( "ppi8255", mz80k_8255_int )
-	MCFG_PIT8253_ADD( "pit8253", mz80k_pit8253_config )
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(mz80_state, mz80k_8255_porta_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(mz80_state, mz80k_8255_portb_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(mz80_state, mz80k_8255_portc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(mz80_state, mz80k_8255_portc_w))
+
+	MCFG_DEVICE_ADD("pit8253", PIT8253, 0)
+	MCFG_PIT8253_CLK0(XTAL_8MHz/4)
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(mz80_state, pit_out0_changed))
+	MCFG_PIT8253_CLK1(XTAL_8MHz/256)
+	MCFG_PIT8253_OUT1_HANDLER(DEVWRITELINE("pit8253", pit8253_device, write_clk2))
+	MCFG_PIT8253_CLK2(0)
+	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(mz80_state, pit_out2_changed))
+
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("tempo", mz80_state, ne555_tempo_callback, attotime::from_hz(34))
-	MCFG_CASSETTE_ADD( "cassette", mz80k_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mz80kj, mz80k )
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(mz80_state, screen_update_mz80kj)
-	MCFG_GFXDECODE(mz80kj)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", mz80kj)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mz80a, mz80k )

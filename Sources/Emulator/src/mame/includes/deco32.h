@@ -6,6 +6,7 @@
 #include "sound/okim6295.h"
 #include "machine/deco146.h"
 #include "machine/deco104.h"
+#include "video/deco_zoomspr.h"
 
 class deco32_state : public driver_device
 {
@@ -27,11 +28,16 @@ public:
 		m_sprgen(*this, "spritegen"),
 		m_sprgen1(*this, "spritegen1"),
 		m_sprgen2(*this, "spritegen2"),
+		m_sprgenzoom(*this, "spritegen_zoom"),
 		m_eeprom(*this, "eeprom"),
 		m_oki1(*this, "oki1"),
 		m_oki2(*this, "oki2"),
 		m_deco_tilegen1(*this, "tilegen1"),
-		m_deco_tilegen2(*this, "tilegen2")
+		m_deco_tilegen2(*this, "tilegen2"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_32(*this, "paletteram")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -51,6 +57,7 @@ public:
 	optional_device<decospr_device> m_sprgen;
 	optional_device<decospr_device> m_sprgen1;
 	optional_device<decospr_device> m_sprgen2;
+	optional_device<deco_zoomspr_device> m_sprgenzoom;
 
 	optional_device<eeprom_serial_93cxx_device> m_eeprom;
 	optional_device<okim6295_device> m_oki1;
@@ -88,6 +95,12 @@ public:
 
 	required_device<deco16ic_device> m_deco_tilegen1;
 	required_device<deco16ic_device> m_deco_tilegen2;
+
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT32> m_generic_paletteram_32;
+
 	UINT8 m_irq_source;
 	DECLARE_WRITE_LINE_MEMBER(sound_irq_nslasher);
 	DECLARE_READ32_MEMBER(deco32_irq_controller_r);
@@ -160,6 +173,10 @@ public:
 	UINT16 port_b_tattass(int unused);
 	void tattass_sound_cb( address_space &space, UINT16 data, UINT16 mem_mask );
 
+	DECO16IC_BANK_CB_MEMBER(fghthist_bank_callback);
+	DECO16IC_BANK_CB_MEMBER(captaven_bank_callback);
+	DECO16IC_BANK_CB_MEMBER(tattass_bank_callback);
+	DECOSPR_PRIORITY_CB_MEMBER(captaven_pri_callback);
 };
 
 class dragngun_state : public deco32_state
@@ -194,4 +211,10 @@ public:
 	void screen_eof_dragngun(screen_device &screen, bool state);
 	void dragngun_draw_sprites( bitmap_rgb32 &bitmap, const rectangle &cliprect, const UINT32 *spritedata);
 	READ32_MEMBER( dragngun_unk_video_r );
+
+	DECO16IC_BANK_CB_MEMBER(bank_1_callback);
+	DECO16IC_BANK_CB_MEMBER(bank_2_callback);
+
+	bitmap_rgb32 m_temp_render_bitmap;
+
 };

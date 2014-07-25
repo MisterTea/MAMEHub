@@ -90,7 +90,9 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_fg_ram(*this, "fg_ram"),
 		m_sprites(*this, "sprites"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_fg_ram;
@@ -115,6 +117,8 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_calorie(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -146,8 +150,8 @@ TILE_GET_INFO_MEMBER(calorie_state::get_fg_tile_info)
 
 void calorie_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(calorie_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 16, 16);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(calorie_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(calorie_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 16, 16);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(calorie_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 }
@@ -193,12 +197,12 @@ UINT32 calorie_state::screen_update_calorie(screen_device &screen, bitmap_ind16 
 		if (m_sprites[x + 1] & 0x10)
 		{
 				/* 32x32 sprites */
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[3], tileno | 0x40, color, flipx, flipy, xpos, ypos - 31, 0);
+			m_gfxdecode->gfx(3)->transpen(bitmap,cliprect, tileno | 0x40, color, flipx, flipy, xpos, ypos - 31, 0);
 		}
 		else
 		{
 			/* 16x16 sprites */
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[2], tileno, color, flipx, flipy, xpos, ypos - 15, 0);
+			m_gfxdecode->gfx(2)->transpen(bitmap,cliprect, tileno, color, flipx, flipy, xpos, ypos - 15, 0);
 		}
 	}
 	return 0;
@@ -253,7 +257,7 @@ static ADDRESS_MAP_START( calorie_map, AS_PROGRAM, 8, calorie_state )
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
 	AM_RANGE(0xd000, 0xd7ff) AM_RAM_WRITE(fg_ram_w) AM_SHARE("fg_ram")
 	AM_RANGE(0xd800, 0xdbff) AM_RAM AM_SHARE("sprites")
-	AM_RANGE(0xdc00, 0xdcff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xdc00, 0xdcff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xde00, 0xde00) AM_WRITE(bg_bank_w)
 	AM_RANGE(0xf000, 0xf000) AM_READ_PORT("P1")
 	AM_RANGE(0xf001, 0xf001) AM_READ_PORT("P2")
@@ -456,10 +460,11 @@ static MACHINE_CONFIG_START( calorie, calorie_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(calorie_state, screen_update_calorie)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(calorie)
-	MCFG_PALETTE_LENGTH(0x100)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", calorie)
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

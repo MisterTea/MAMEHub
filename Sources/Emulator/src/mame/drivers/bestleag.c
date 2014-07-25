@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, David Haywood
 /*******************************************************************************************
 
 Best League (c) 1993
@@ -34,7 +36,9 @@ public:
 		m_vregs(*this, "vregs"),
 		m_spriteram(*this, "spriteram"),
 		m_maincpu(*this, "maincpu"),
-		m_oki(*this, "oki") { }
+		m_oki(*this, "oki"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT16> m_bgram;
 	required_shared_ptr<UINT16> m_fgram;
@@ -58,6 +62,8 @@ public:
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<okim6295_device> m_oki;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -68,8 +74,7 @@ TILE_GET_INFO_MEMBER(bestleag_state::get_tx_tile_info)
 {
 	int code = m_txram[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code & 0x0fff)|0x8000,
 			(code & 0xf000) >> 12,
 			0);
@@ -79,8 +84,7 @@ TILE_GET_INFO_MEMBER(bestleag_state::get_bg_tile_info)
 {
 	int code = m_bgram[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			(code & 0x0fff),
 			(code & 0xf000) >> 12,
 			0);
@@ -90,8 +94,7 @@ TILE_GET_INFO_MEMBER(bestleag_state::get_fg_tile_info)
 {
 	int code = m_fgram[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			(code & 0x0fff)|0x1000,
 			((code & 0xf000) >> 12)|0x10,
 			0);
@@ -110,9 +113,9 @@ TILEMAP_MAPPER_MEMBER(bestleag_state::bsb_bg_scan)
 
 void bestleag_state::video_start()
 {
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bestleag_state::get_tx_tile_info),this),TILEMAP_SCAN_COLS,8,8,256, 32);
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bestleag_state::get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(bestleag_state::bsb_bg_scan),this),16,16,128, 64);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bestleag_state::get_fg_tile_info),this),tilemap_mapper_delegate(FUNC(bestleag_state::bsb_bg_scan),this),16,16,128, 64);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bestleag_state::get_tx_tile_info),this),TILEMAP_SCAN_COLS,8,8,256, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bestleag_state::get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(bestleag_state::bsb_bg_scan),this),16,16,128, 64);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bestleag_state::get_fg_tile_info),this),tilemap_mapper_delegate(FUNC(bestleag_state::bsb_bg_scan),this),16,16,128, 64);
 
 	m_tx_tilemap->set_transparent_pen(15);
 	m_fg_tilemap->set_transparent_pen(15);
@@ -151,26 +154,26 @@ void bestleag_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 		if(m_vregs[0x00/2] & 0x1000)
 			color &= 7;
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
+		m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 					code,
 					color,
 					flipx, 0,
 					flipx ? (sx+16) : (sx),sy,15);
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
+		m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 					code+1,
 					color,
 					flipx, 0,
 					flipx ? (sx) : (sx+16),sy,15);
 
 		/* wraparound x */
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
+		m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 					code,
 					color,
 					flipx, 0,
 					flipx ? (sx+16 - 512) : (sx - 512),sy,15);
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
+		m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 					code+1,
 					color,
 					flipx, 0,
@@ -243,7 +246,7 @@ static ADDRESS_MAP_START( bestleag_map, AS_PROGRAM, 16, bestleag_state )
 	AM_RANGE(0x0e8000, 0x0ebfff) AM_RAM_WRITE(bestleag_fgram_w) AM_SHARE("fgram")
 	AM_RANGE(0x0f0000, 0x0f3fff) AM_RAM_WRITE(bestleag_txram_w) AM_SHARE("txram")
 	AM_RANGE(0x0f8000, 0x0f800b) AM_RAM AM_SHARE("vregs")
-	AM_RANGE(0x100000, 0x100fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x100000, 0x100fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x200000, 0x200fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x300010, 0x300011) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x300012, 0x300013) AM_READ_PORT("P1")
@@ -375,10 +378,11 @@ static MACHINE_CONFIG_START( bestleag, bestleag_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(bestleag_state, screen_update_bestleag)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bestleag)
-	MCFG_PALETTE_LENGTH(0x800)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bestleag)
+	MCFG_PALETTE_ADD("palette", 0x800)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 

@@ -7,10 +7,8 @@
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "cpu/z80/z80daisy.h"
-#include "imagedev/flopdrv.h"
-#include "formats/basicdsk.h"
 #include "sound/speaker.h"
-#include "machine/wd17xx.h"
+#include "machine/wd_fdc.h"
 #include "machine/6821pia.h"
 #include "machine/z80dart.h"
 #include "machine/pit8253.h"
@@ -31,16 +29,20 @@ public:
 			m_pia_0( *this, "pia_0" ),
 			m_pia_1( *this, "pia_1" ),
 			m_sio( *this, "sio" ),
-			m_speaker( *this, "speaker" )
+			m_speaker( *this, "speaker" ),
+			m_floppy0( *this, "mb8877:0:525ssdd" ),
+			m_floppy1( *this, "mb8877:1:525ssdd" )
 	{ }
 
 	required_device<cpu_device> m_maincpu;
-	required_device<mb8877_device>  m_mb8877;
+	required_device<mb8877_t>  m_mb8877;
 	required_device<ram_device> m_messram;
 	required_device<pia6821_device> m_pia_0;
 	required_device<pia6821_device> m_pia_1;
 	required_device<z80dart_device> m_sio;
 	required_device<speaker_sound_device>   m_speaker;
+	required_device<floppy_image_device> m_floppy0;
+	required_device<floppy_image_device> m_floppy1;
 
 	virtual void video_start();
 
@@ -69,7 +71,7 @@ public:
 	/* Vblank counter ("RTC") */
 	UINT8   m_rtc;
 
-	void set_banks(running_machine &machine)
+	void set_banks()
 	{
 		UINT8 *ram_ptr = m_messram->pointer();
 
@@ -95,7 +97,7 @@ public:
 			m_ram_c000 = m_vram_region->base();
 	}
 
-	void update_irq_state(running_machine &machine)
+	void update_irq_state()
 	{
 		if ( m_pia0_irq_state || m_pia1_irq_state )
 			m_maincpu->set_input_line(0, ASSERT_LINE );
@@ -109,7 +111,7 @@ public:
 	DECLARE_READ8_MEMBER(osbexec_rtc_r);
 	DECLARE_DRIVER_INIT(osbexec);
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(osbexec);
 	TIMER_CALLBACK_MEMBER(osbexec_video_callback);
 	DECLARE_READ8_MEMBER(osbexec_pia0_a_r);
 	DECLARE_WRITE8_MEMBER(osbexec_pia0_a_w);
@@ -213,7 +215,7 @@ static ADDRESS_MAP_START( osbexec_io, AS_IO, 8, osbexec_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE( 0x00, 0x03 ) AM_MIRROR( 0xff00 ) AM_DEVREADWRITE( "pia_0", pia6821_device, read, write)               /* 6821 PIA @ UD12 */
 	/* 0x04 - 0x07 - 8253 @UD1 */
-	AM_RANGE( 0x08, 0x0B ) AM_MIRROR( 0xff00 ) AM_DEVREADWRITE_LEGACY("mb8877", wd17xx_r, wd17xx_w )                /* MB8877 @ UB17 input clock = 1MHz */
+	AM_RANGE( 0x08, 0x0B ) AM_MIRROR( 0xff00 ) AM_DEVREADWRITE("mb8877", wd_fdc_t, read, write )                /* MB8877 @ UB17 input clock = 1MHz */
 	AM_RANGE( 0x0C, 0x0F ) AM_MIRROR( 0xff00 ) AM_DEVREADWRITE("sio", z80sio2_device, ba_cd_r, ba_cd_w ) /* SIO @ UD4 */
 	AM_RANGE( 0x10, 0x13 ) AM_MIRROR( 0xff00 ) AM_DEVREADWRITE( "pia_1", pia6821_device, read, write)               /* 6821 PIA @ UD8 */
 	AM_RANGE( 0x14, 0x17 ) AM_MIRROR( 0xff00 ) AM_MASK( 0xff00 ) AM_READ(osbexec_kbd_r )                    /* KBD */
@@ -307,16 +309,16 @@ static INPUT_PORTS_START( osbexec )
 INPUT_PORTS_END
 
 
-void osbexec_state::palette_init()
+PALETTE_INIT_MEMBER(osbexec_state, osbexec)
 {
-	palette_set_color_rgb( machine(), 0, 0, 0, 0 ); /* Black */
-	palette_set_color_rgb( machine(), 1, 0, 255, 0 );   /* Full */
-	palette_set_color_rgb( machine(), 2, 0, 128, 0 );   /* Dimmed */
+	palette.set_pen_color( 0, 0, 0, 0 ); /* Black */
+	palette.set_pen_color( 1, 0, 255, 0 );   /* Full */
+	palette.set_pen_color( 2, 0, 128, 0 );   /* Dimmed */
 }
 
 void osbexec_state::video_start()
 {
-	machine().primary_screen->register_screen_bitmap(m_bitmap);
+	machine().first_screen()->register_screen_bitmap(m_bitmap);
 }
 
 UINT32 osbexec_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -365,7 +367,7 @@ WRITE8_MEMBER(osbexec_state::osbexec_pia0_a_w)
 
 	m_pia0_porta = data;
 
-	set_banks(machine());
+	set_banks();
 }
 
 
@@ -384,14 +386,19 @@ WRITE8_MEMBER(osbexec_state::osbexec_pia0_b_w)
 	switch ( data & 0x06 )
 	{
 	case 0x02:
-		wd17xx_set_drive( m_mb8877, 1 );
+		m_mb8877->set_floppy(m_floppy1);
+		m_floppy1->mon_w(0);
 		break;
 	case 0x04:
-		wd17xx_set_drive( m_mb8877, 0 );
+		m_mb8877->set_floppy(m_floppy0);
+		m_floppy0->mon_w(0);
+		break;
+	default:
+		m_mb8877->set_floppy(NULL);
 		break;
 	}
 
-	wd17xx_dden_w( m_mb8877, ( data & 0x01 ) ? 1 : 0 );
+	m_mb8877->dden_w(( data & 0x01 ) ? 1 : 0 );
 }
 
 
@@ -410,80 +417,15 @@ WRITE_LINE_MEMBER(osbexec_state::osbexec_pia0_cb2_w)
 WRITE_LINE_MEMBER(osbexec_state::osbexec_pia0_irq)
 {
 	m_pia0_irq_state = state;
-	update_irq_state(machine());
+	update_irq_state();
 }
-
-
-static const pia6821_interface osbexec_pia0_config =
-{
-	DEVCB_DRIVER_MEMBER(osbexec_state, osbexec_pia0_a_r ),  /* in_a_func */         /* port A - banking */
-	DEVCB_DRIVER_MEMBER(osbexec_state, osbexec_pia0_b_r),   /* in_b_func */         /* modem / speaker */
-	DEVCB_NULL,                         /* in_ca1_func */       /* DMA IRQ */
-	DEVCB_NULL,                         /* in_cb1_func */       /* Vblank (rtc irq) */
-	DEVCB_NULL,                         /* in_ca2_func */
-	DEVCB_NULL,                         /* in_cb2_func */
-	DEVCB_DRIVER_MEMBER(osbexec_state, osbexec_pia0_a_w ),  /* out_a_func */        /* port A - banking */
-	DEVCB_DRIVER_MEMBER(osbexec_state, osbexec_pia0_b_w ),  /* out_b_func */        /* modem / speaker */
-	DEVCB_DRIVER_LINE_MEMBER(osbexec_state, osbexec_pia0_ca2_w ),   /* out_ca2_func */      /* Keyboard strobe */
-	DEVCB_DRIVER_LINE_MEMBER(osbexec_state, osbexec_pia0_cb2_w ),   /* out_cb2_func */      /* 60/50 */
-	DEVCB_DRIVER_LINE_MEMBER(osbexec_state, osbexec_pia0_irq ),     /* irq_a_func */        /* IRQ */
-	DEVCB_DRIVER_LINE_MEMBER(osbexec_state, osbexec_pia0_irq )      /* irq_b_func */        /* IRQ */
-};
 
 
 WRITE_LINE_MEMBER(osbexec_state::osbexec_pia1_irq)
 {
 	m_pia1_irq_state = state;
-	update_irq_state(machine());
+	update_irq_state();
 }
-
-
-static const pia6821_interface osbexec_pia1_config =
-{
-	DEVCB_NULL,                         /* in_a_func */
-	DEVCB_NULL,                         /* in_b_func */
-	DEVCB_NULL,                         /* in_ca1_func */
-	DEVCB_NULL,                         /* in_cb1_func */
-	DEVCB_NULL,                         /* in_ca2_func */
-	DEVCB_NULL,                         /* in_cb2_func */
-	DEVCB_NULL,                         /* out_a_func */
-	DEVCB_NULL,                         /* out_b_func */
-	DEVCB_NULL,                         /* out_ca2_func */
-	DEVCB_NULL,                         /* out_cb2_func */
-	DEVCB_DRIVER_LINE_MEMBER(osbexec_state, osbexec_pia1_irq ),     /* irq_a_func */
-	DEVCB_DRIVER_LINE_MEMBER(osbexec_state, osbexec_pia1_irq )      /* irq_b_func */
-};
-
-
-static Z80SIO_INTERFACE( osbexec_sio_config )
-{
-	0, 0, 0, 0,
-
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_NULL  //DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0)
-};
-
-
-static const wd17xx_interface osbexec_wd17xx_interface =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER( "pia1", pia6821_device, cb1_w ),
-	DEVCB_NULL,
-	{ FLOPPY_0, FLOPPY_1, NULL, NULL}
-};
 
 
 /*
@@ -495,57 +437,48 @@ static const wd17xx_interface osbexec_wd17xx_interface =
  * - DEC 1820 double density: 40 tracks, 9 sectors per track, 512-byte sectors (180 KByte)
  *
  */
+	/*
 static LEGACY_FLOPPY_OPTIONS_START(osbexec )
 	LEGACY_FLOPPY_OPTION( osd, "img", "Osborne single density", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([1])
-		TRACKS([40])
-		SECTORS([10])
-		SECTOR_LENGTH([256])
-		FIRST_SECTOR_ID([1]))
+	    HEADS([1])
+	    TRACKS([40])
+	    SECTORS([10])
+	    SECTOR_LENGTH([256])
+	    FIRST_SECTOR_ID([1]))
 	LEGACY_FLOPPY_OPTION( odd, "img", "Osborne double density", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([1])
-		TRACKS([40])
-		SECTORS([5])
-		SECTOR_LENGTH([1024])
-		FIRST_SECTOR_ID([1]))
+	    HEADS([1])
+	    TRACKS([40])
+	    SECTORS([5])
+	    SECTOR_LENGTH([1024])
+	    FIRST_SECTOR_ID([1]))
 	LEGACY_FLOPPY_OPTION( ibm, "img", "IBM Personal Computer", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([1])
-		TRACKS([40])
-		SECTORS([8])
-		SECTOR_LENGTH([512])
-		FIRST_SECTOR_ID([1]))
+	    HEADS([1])
+	    TRACKS([40])
+	    SECTORS([8])
+	    SECTOR_LENGTH([512])
+	    FIRST_SECTOR_ID([1]))
 	LEGACY_FLOPPY_OPTION( xerox, "img", "Xerox 820 Computer", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([1])
-		TRACKS([40])
-		SECTORS([18])
-		SECTOR_LENGTH([128])
-		FIRST_SECTOR_ID([1]))
+	    HEADS([1])
+	    TRACKS([40])
+	    SECTORS([18])
+	    SECTOR_LENGTH([128])
+	    FIRST_SECTOR_ID([1]))
 	LEGACY_FLOPPY_OPTION( dec, "img", "DEC 1820 double density", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([1])
-		TRACKS([40])
-		SECTORS([9])
-		SECTOR_LENGTH([512])
-		FIRST_SECTOR_ID([1]))
+	    HEADS([1])
+	    TRACKS([40])
+	    SECTORS([9])
+	    SECTOR_LENGTH([512])
+	    FIRST_SECTOR_ID([1]))
 LEGACY_FLOPPY_OPTIONS_END
+*/
 
-
-static const floppy_interface osbexec_floppy_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	FLOPPY_STANDARD_5_25_SSDD_40,
-	LEGACY_FLOPPY_OPTIONS_NAME(osbexec),
-	NULL,
-	NULL
-};
-
+static SLOT_INTERFACE_START( osborne2_floppies )
+	SLOT_INTERFACE( "525ssdd", FLOPPY_525_SSDD )
+SLOT_INTERFACE_END
 
 TIMER_CALLBACK_MEMBER(osbexec_state::osbexec_video_callback)
 {
-	int y = machine().primary_screen->vpos();
+	int y = machine().first_screen()->vpos();
 
 	/* Start of frame */
 	if ( y == 0 )
@@ -592,7 +525,7 @@ TIMER_CALLBACK_MEMBER(osbexec_state::osbexec_video_callback)
 		}
 	}
 
-	m_video_timer->adjust( machine().primary_screen->time_until_pos( y + 1, 0 ) );
+	m_video_timer->adjust( machine().first_screen()->time_until_pos( y + 1, 0 ) );
 }
 
 
@@ -615,9 +548,9 @@ void osbexec_state::machine_reset()
 {
 	m_pia0_porta = 0xC0;        /* Enable ROM and VRAM on reset */
 
-	set_banks( machine() );
+	set_banks();
 
-	m_video_timer->adjust( machine().primary_screen->time_until_pos( 0, 0 ) );
+	m_video_timer->adjust( machine().first_screen()->time_until_pos( 0, 0 ) );
 
 	m_rtc = 0;
 }
@@ -636,31 +569,47 @@ static MACHINE_CONFIG_START( osbexec, osbexec_state )
 	MCFG_CPU_IO_MAP( osbexec_io)
 	MCFG_CPU_CONFIG( osbexec_daisy_config )
 
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_UPDATE_DRIVER(osbexec_state, screen_update)
 	MCFG_SCREEN_RAW_PARAMS( MAIN_CLOCK/2, 768, 0, 640, 260, 0, 240 )    /* May not be correct */
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH( 3 )
+	MCFG_PALETTE_ADD( "palette", 3 )
+	MCFG_PALETTE_INIT_OWNER(osbexec_state, osbexec)
 
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
 	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 
-//  MCFG_PIT8253_ADD( "pit", osbexec_pit_config )
+//  MCFG_PIT8253_ADD("pit", osbexec_pit_config)
 
-	MCFG_PIA6821_ADD( "pia_0", osbexec_pia0_config )
-	MCFG_PIA6821_ADD( "pia_1", osbexec_pia1_config )
+	MCFG_DEVICE_ADD("pia_0", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(osbexec_state, osbexec_pia0_a_r))
+	MCFG_PIA_READPB_HANDLER(READ8(osbexec_state, osbexec_pia0_b_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(osbexec_state, osbexec_pia0_a_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(osbexec_state, osbexec_pia0_b_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(osbexec_state, osbexec_pia0_ca2_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(osbexec_state, osbexec_pia0_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(osbexec_state, osbexec_pia0_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(osbexec_state, osbexec_pia0_irq))
 
-	MCFG_Z80SIO2_ADD( "sio", MAIN_CLOCK/6, osbexec_sio_config )
+	MCFG_DEVICE_ADD("pia_1", PIA6821, 0)
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(osbexec_state, osbexec_pia1_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(osbexec_state, osbexec_pia1_irq))
 
-	MCFG_MB8877_ADD("mb8877", default_wd17xx_interface_2_drives )
+	MCFG_Z80SIO2_ADD("sio", MAIN_CLOCK/6, 0, 0, 0, 0)
 
-	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(osbexec_floppy_interface)
+	MCFG_DEVICE_ADD("mb8877", MB8877x, MAIN_CLOCK/24)
+	MCFG_WD_FDC_INTRQ_CALLBACK(DEVWRITELINE("pia_1", pia6821_device, cb1_w))
+	MCFG_FLOPPY_DRIVE_ADD("mb8877:0", osborne2_floppies, "525ssdd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("mb8877:1", osborne2_floppies, "525ssdd", floppy_image_device::default_floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("136K")   /* 128KB Main RAM + RAM in ROM bank (8) */
+
+	/* software lists */
+	MCFG_SOFTWARE_LIST_ADD("flop_list", "osborne2")
 MACHINE_CONFIG_END
 
 

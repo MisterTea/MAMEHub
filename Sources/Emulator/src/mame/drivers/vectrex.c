@@ -84,24 +84,13 @@ static INPUT_PORTS_START(vectrex)
 
 INPUT_PORTS_END
 
-
-
-static const ay8910_interface vectrex_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("BUTTONS"),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(vectrex_state, vectrex_psg_port_w),
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( vectrex, vectrex_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6809, XTAL_6MHz / 4)
 	MCFG_CPU_PROGRAM_MAP(vectrex_map)
 
 	/* video hardware */
+	MCFG_VECTOR_ADD("vector")
 	MCFG_SCREEN_ADD("screen", VECTOR)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(400, 300)
@@ -114,11 +103,19 @@ static MACHINE_CONFIG_START( vectrex, vectrex_state )
 	MCFG_DAC_ADD("dac")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 	MCFG_SOUND_ADD("ay8912", AY8912, 1500000)
-	MCFG_SOUND_CONFIG(vectrex_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("BUTTONS"))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(vectrex_state, vectrex_psg_port_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	/* via */
-	MCFG_VIA6522_ADD("via6522_0", 0, vectrex_via6522_interface)
+	MCFG_DEVICE_ADD("via6522_0", VIA6522, 0)
+	MCFG_VIA6522_READPA_HANDLER(READ8(vectrex_state, vectrex_via_pa_r))
+	MCFG_VIA6522_READPB_HANDLER(READ8(vectrex_state, vectrex_via_pb_r))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(vectrex_state, v_via_pa_w))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(vectrex_state, v_via_pb_w))
+	MCFG_VIA6522_CA2_HANDLER(WRITELINE(vectrex_state, v_via_ca2_w))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(vectrex_state, v_via_cb2_w))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(vectrex_state, vectrex_via_irq))
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")
@@ -133,7 +130,17 @@ MACHINE_CONFIG_END
 
 ROM_START(vectrex)
 	ROM_REGION(0x18000,"maincpu", 0)
-	ROM_LOAD("system.img", 0xe000, 0x2000, CRC(ba13fb57) SHA1(65d07426b520ddd3115d40f255511e0fd2e20ae7))
+	ROM_SYSTEM_BIOS(0, "bios0", "exec rom")
+	ROMX_LOAD("exec_rom.bin", 0xe000, 0x2000, CRC(ba13fb57) SHA1(65d07426b520ddd3115d40f255511e0fd2e20ae7), ROM_BIOS(1) )
+	ROM_SYSTEM_BIOS(1, "bios1", "exec rom intl 284001-1")
+	ROMX_LOAD("exec_rom_intl_284001-1.bin", 0xe000, 0x2000, CRC(6d2bd167) SHA1(77a220d5d98846b606dff608f7b5d00183ec3bab), ROM_BIOS(2) )
+
+//  The following fastboots are listed here for reference and documentation
+//  ROM_SYSTEM_BIOS(2, "bios2", "us-fastboot hack")
+//  ROMX_LOAD("us-fastboot.bin", 0xe000, 0x2000, CRa6e4dac4) SHA1(e0900be6d6858b985fd7f0999d864b2fceaf01a1), ROM_BIOS(3) )
+//  ROM_SYSTEM_BIOS(3, "bios3", "intl-fastboot hack")
+//  ROMX_LOAD("intl-fastboot.bin", 0xe000, 0x2000, CRC(71dcf0f4) SHA1(2a257c5111f5cee841bd14acaa9df6496aaf3d8b), ROM_BIOS(4) )
+
 ROM_END
 
 
@@ -208,8 +215,8 @@ static MACHINE_CONFIG_DERIVED( raaspec, vectrex )
 	MCFG_VIDEO_START_OVERRIDE(vectrex_state,raaspec)
 
 	/* via */
-	MCFG_DEVICE_REMOVE("via6522_0")
-	MCFG_VIA6522_ADD("via6522_0", 0, spectrum1_via6522_interface)
+	MCFG_DEVICE_MODIFY("via6522_0")
+	MCFG_VIA6522_READPB_HANDLER(READ8(vectrex_state, vectrex_s1_via_pb_r))
 
 	MCFG_DEVICE_REMOVE("cart")
 MACHINE_CONFIG_END
@@ -217,7 +224,7 @@ MACHINE_CONFIG_END
 ROM_START(raaspec)
 	ROM_REGION(0x10000,"maincpu", 0)
 	ROM_LOAD("spectrum.bin", 0x0000, 0x8000, CRC(20af7f3f) SHA1(7ce85db8dd32687ad7629631ae113820371faf7c))
-	ROM_LOAD("system.img", 0xe000, 0x2000, CRC(ba13fb57) SHA1(65d07426b520ddd3115d40f255511e0fd2e20ae7))
+	ROM_LOAD("exec_rom.bin", 0xe000, 0x2000, CRC(ba13fb57) SHA1(65d07426b520ddd3115d40f255511e0fd2e20ae7))
 ROM_END
 
 /***************************************************************************

@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic, Robbbert
 /***************************************************************************
 
         CM-1800
@@ -35,13 +37,17 @@ to be a save command.
 #include "cpu/i8085/i8085.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
+
 class cm1800_state : public driver_device
 {
 public:
 	cm1800_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_terminal(*this, TERMINAL_TAG) ,
-		m_maincpu(*this, "maincpu") { }
+		m_terminal(*this, TERMINAL_TAG) ,
+		m_maincpu(*this, "maincpu")
+	{
+	}
 
 	DECLARE_READ8_MEMBER( term_status_r );
 	DECLARE_READ8_MEMBER( term_r );
@@ -91,11 +97,6 @@ void cm1800_state::machine_reset()
 {
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(cm1800_state, kbd_put)
-};
-
 static MACHINE_CONFIG_START( cm1800, cm1800_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",I8080, XTAL_2MHz)
@@ -104,7 +105,8 @@ static MACHINE_CONFIG_START( cm1800, cm1800_state )
 
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(cm1800_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

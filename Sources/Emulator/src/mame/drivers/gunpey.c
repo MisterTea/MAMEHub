@@ -1,7 +1,14 @@
+// license:MAME
+// copyright-holders:Angelo Salese, Tomasz Slanina, David Haywood, Luca Elia
 /********************************************************************************************
 
     Gunpey (c) 2000 Banpresto
 
+    TODO:
+    - compression scheme used by the Axell video chip, game is playable but several gfxs are
+      still broken.
+
+=============================================================================================
 ASM code study:
 0x84718 main code
 0x8472c call 0x81f34 reading of dip-switches
@@ -194,12 +201,14 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_oki(*this, "oki"),
-		m_wram(*this, "wram")
+		m_wram(*this, "wram"),
+		m_palette(*this, "palette")
 		{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<okim6295_device> m_oki;
 	required_shared_ptr<UINT16> m_wram;
+	required_device<palette_device> m_palette;
 
 	UINT16 *m_blit_buffer;
 	UINT16 m_blit_ram[0x10];
@@ -215,12 +224,11 @@ public:
 	DECLARE_WRITE16_MEMBER(gunpey_vregs_addr_w);
 	DECLARE_DRIVER_INIT(gunpey);
 	virtual void video_start();
-	virtual void palette_init();
 	UINT32 screen_update_gunpey(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(gunpey_scanline);
 	TIMER_CALLBACK_MEMBER(blitter_end);
 	void gunpey_irq_check(UINT8 irq_type);
-	UINT8 draw_gfx(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect,int count,UINT8 scene_gradient);
+	UINT8 draw_gfx(bitmap_ind16 &bitmap,const rectangle &cliprect,int count,UINT8 scene_gradient);
 	UINT16 m_vram_bank;
 	UINT16 m_vreg_addr;
 
@@ -265,7 +273,7 @@ void gunpey_state::video_start()
 	m_blit_buffer = auto_alloc_array(machine(), UINT16, 512*512);
 }
 
-UINT8 gunpey_state::draw_gfx(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect,int count,UINT8 scene_gradient)
+UINT8 gunpey_state::draw_gfx(bitmap_ind16 &bitmap,const rectangle &cliprect,int count,UINT8 scene_gradient)
 {
 	int x,y;
 	int bpp_sel;
@@ -548,7 +556,7 @@ UINT32 gunpey_state::screen_update_gunpey(screen_device &screen, bitmap_ind16 &b
 	int count;
 	int scene_index;
 
-	bitmap.fill(machine().pens[0], cliprect); //black pen
+	bitmap.fill(m_palette->pen(0), cliprect); //black pen
 
 	if((!(m_vreg_addr & 0x8000)) || (!(m_vram_bank & 0x8000)))
 		return 0;
@@ -574,7 +582,7 @@ UINT32 gunpey_state::screen_update_gunpey(screen_device &screen, bitmap_ind16 &b
 		{
 			for(count = start_offs;count<end_offs;count+=0x10/2)
 			{
-				end_mark = draw_gfx(screen.machine(), bitmap,cliprect,count,scene_gradient);
+				end_mark = draw_gfx(bitmap,cliprect,count,scene_gradient);
 
 				if(end_mark == 0x80)
 					break;
@@ -1400,15 +1408,6 @@ INPUT_PORTS_END
 
 /***************************************************************************************/
 
-void gunpey_state::palette_init()
-{
-	int i;
-
-	for (i = 0; i < 0x8000; i++)
-		palette_set_color(machine(), i, MAKE_RGB( pal5bit((i >> 10)&0x1f), pal5bit(((i >> 5))&0x1f), pal5bit((i >> 0)&0x1f)));
-}
-
-
 /*:
 0x01
 0x04 blitter ready
@@ -1456,9 +1455,10 @@ static MACHINE_CONFIG_START( gunpey, gunpey_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(57242400/8, 442, 0, 320, 264, 0, 240) /* just to get ~60 Hz */
 	MCFG_SCREEN_UPDATE_DRIVER(gunpey_state, screen_update_gunpey)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x10000)
-	MCFG_GFXDECODE(gunpey)
+	MCFG_PALETTE_ADD_RRRRRGGGGGBBBBB("palette")
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", gunpey)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker","rspeaker")
 
@@ -1506,4 +1506,4 @@ DRIVER_INIT_MEMBER(gunpey_state,gunpey)
 	// ...
 }
 
-GAME( 2000, gunpey, 0, gunpey, gunpey, gunpey_state, gunpey,    ROT0, "Banpresto", "Gunpey (Japan)",GAME_NOT_WORKING)
+GAME( 2000, gunpey, 0, gunpey, gunpey, gunpey_state, gunpey,    ROT0, "Banpresto", "Gunpey (Japan)",GAME_NOT_WORKING|GAME_IMPERFECT_GRAPHICS)

@@ -38,9 +38,14 @@ void midiout_device::device_start()
 void midiout_device::device_reset()
 {
 	// we don't Tx, we Rx at 31250 8-N-1
+	set_data_frame(1, 8, PARITY_NONE, STOP_BITS_1);
 	set_rcv_rate(31250);
 	set_tra_rate(0);
-	set_data_frame(8, 1, SERIAL_PARITY_NONE);
+}
+
+void midiout_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	device_serial_interface::device_timer(timer, id, param, ptr);
 }
 
 /*-------------------------------------------------
@@ -89,8 +94,4 @@ void midiout_device::rcv_complete()    // Rx completed receiving byte
 	{
 		osd_write_midi_channel(m_midi, data);
 	}
-}
-
-void midiout_device::input_callback(UINT8 state)
-{
 }

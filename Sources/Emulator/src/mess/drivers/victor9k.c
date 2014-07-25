@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /**********************************************************************
 
     Victor 9000 / ACT Sirius 1 emulation
@@ -254,7 +256,7 @@ INPUT_PORTS_END
 //**************************************************************************
 
 //-------------------------------------------------
-//  MC6845_INTERFACE( hd46505s_intf )
+//  MC6845
 //-------------------------------------------------
 
 #define CODE_NON_DISPLAY    0x1000
@@ -262,11 +264,10 @@ INPUT_PORTS_END
 #define CODE_LOW_INTENSITY  0x4000
 #define CODE_REVERSE_VIDEO  0x8000
 
-static MC6845_UPDATE_ROW( victor9k_update_row )
+MC6845_UPDATE_ROW( victor9k_state::crtc_update_row )
 {
-	victor9k_state *state = device->machine().driver_data<victor9k_state>();
-	address_space &program = state->m_maincpu->space(AS_PROGRAM);
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	address_space &program = m_maincpu->space(AS_PROGRAM);
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 
 	if (BIT(ma, 13))
 	{
@@ -278,7 +279,7 @@ static MC6845_UPDATE_ROW( victor9k_update_row )
 
 		for (int sx = 0; sx < x_count; sx++)
 		{
-			UINT16 code = (state->m_video_ram[video_ram_addr + 1] << 8) | state->m_video_ram[video_ram_addr];
+			UINT16 code = (m_video_ram[video_ram_addr + 1] << 8) | m_video_ram[video_ram_addr];
 			UINT32 char_ram_addr = (BIT(ma, 12) << 16) | ((code & 0xff) << 5) | (ra << 1);
 			UINT16 data = program.read_word(char_ram_addr);
 
@@ -288,7 +289,7 @@ static MC6845_UPDATE_ROW( victor9k_update_row )
 
 				if (sx == cursor_x) color = 1;
 
-				bitmap.pix32(y, x + sx*10) = palette[color];
+				bitmap.pix32(vbp + y, hbp + x + sx*10) = palette[color && de];
 			}
 
 			video_ram_addr += 2;
@@ -297,24 +298,13 @@ static MC6845_UPDATE_ROW( victor9k_update_row )
 	}
 }
 
-static MC6845_INTERFACE( hd46505s_intf )
+WRITE_LINE_MEMBER(victor9k_state::vert_w)
 {
-	false,
-	10,
-	NULL,
-	victor9k_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir7_w),
-	NULL
-};
+	m_via2->write_pa7(state);
+	m_pic->ir7_w(state);
+}
 
 
-//-------------------------------------------------
-//  pit8253_interface pit_intf
-//-------------------------------------------------
 
 WRITE_LINE_MEMBER(victor9k_state::mux_serial_b_w)
 {
@@ -323,27 +313,6 @@ WRITE_LINE_MEMBER(victor9k_state::mux_serial_b_w)
 WRITE_LINE_MEMBER(victor9k_state::mux_serial_a_w)
 {
 }
-
-static const struct pit8253_interface pit_intf =
-{
-	{
-		{
-			2500000,
-			DEVCB_LINE_VCC,
-			DEVCB_DRIVER_LINE_MEMBER(victor9k_state, mux_serial_b_w)
-		}, {
-			2500000,
-			DEVCB_LINE_VCC,
-			DEVCB_DRIVER_LINE_MEMBER(victor9k_state, mux_serial_a_w)
-		}, {
-			100000,
-			DEVCB_LINE_VCC,
-			DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir2_w)
-		}
-	}
-};
-
-
 
 //-------------------------------------------------
 //  PIC8259
@@ -364,42 +333,6 @@ static const struct pit8253_interface pit_intf =
 
 */
 
-IRQ_CALLBACK_MEMBER( victor9k_state::victor9k_irq_callback )
-{
-	return m_pic->inta_r();
-}
-
-
-//-------------------------------------------------
-//  UPD7201_INTERFACE( mpsc_intf )
-//-------------------------------------------------
-
-static UPD7201_INTERFACE( mpsc_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir1_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 //-------------------------------------------------
 //  MC6852_INTERFACE( ssda_intf )
 //-------------------------------------------------
@@ -411,23 +344,6 @@ WRITE_LINE_MEMBER( victor9k_state::ssda_irq_w )
 	m_pic->ir3_w(m_ssda_irq || m_via1_irq || m_via2_irq || m_via3_irq || m_via4_irq || m_via5_irq || m_via6_irq);
 }
 
-static MC6852_INTERFACE( ssda_intf )
-{
-	0,
-	0,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(HC55516_TAG, hc55516_device, digit_w),
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, ssda_irq_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  via6522_interface via1_intf
-//-------------------------------------------------
 
 WRITE8_MEMBER( victor9k_state::via1_pa_w )
 {
@@ -449,36 +365,16 @@ WRITE8_MEMBER( victor9k_state::via1_pa_w )
 	m_ieee488->dio_w(data);
 }
 
-READ8_MEMBER( victor9k_state::via1_pb_r )
+DECLARE_WRITE_LINE_MEMBER( victor9k_state::write_nfrd )
 {
-	/*
+	m_via1->write_pb6(state);
+	m_via1->write_ca1(state);
+}
 
-	    bit     description
-
-	    PB0     DAV
-	    PB1     EOI
-	    PB2     REN
-	    PB3     ATN
-	    PB4     IFC
-	    PB5     SRQ
-	    PB6     NRFD
-	    PB7     NDAC
-
-	*/
-
-	UINT8 data = 0;
-
-	// IEEE-488
-	data |= m_ieee488->dav_r();
-	data |= m_ieee488->eoi_r() << 1;
-	data |= m_ieee488->ren_r() << 2;
-	data |= m_ieee488->atn_r() << 3;
-	data |= m_ieee488->ifc_r() << 4;
-	data |= m_ieee488->srq_r() << 5;
-	data |= m_ieee488->nrfd_r() << 6;
-	data |= m_ieee488->ndac_r() << 7;
-
-	return data;
+DECLARE_WRITE_LINE_MEMBER( victor9k_state::write_ndac )
+{
+	m_via1->write_pb7(state);
+	m_via1->write_ca2(state);
 }
 
 WRITE8_MEMBER( victor9k_state::via1_pb_w )
@@ -518,64 +414,6 @@ WRITE_LINE_MEMBER( victor9k_state::via1_irq_w )
 	m_via1_irq = state;
 
 	m_pic->ir3_w(m_ssda_irq || m_via1_irq || m_via2_irq || m_via3_irq || m_via4_irq || m_via5_irq || m_via6_irq);
-}
-
-static const via6522_interface via1_intf =
-{
-	DEVCB_DEVICE_MEMBER(IEEE488_TAG, ieee488_device, dio_r),
-	DEVCB_DRIVER_MEMBER(victor9k_state, via1_pb_r),
-	DEVCB_DEVICE_LINE_MEMBER(IEEE488_TAG, ieee488_device, nrfd_r),
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(IEEE488_TAG, ieee488_device, ndac_r),
-	DEVCB_NULL,
-
-	DEVCB_DRIVER_MEMBER(victor9k_state, via1_pa_w),
-	DEVCB_DRIVER_MEMBER(victor9k_state, via1_pb_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, codec_vol_w),
-
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, via1_irq_w)
-};
-
-
-//-------------------------------------------------
-//  via6522_interface via2_intf
-//-------------------------------------------------
-
-READ8_MEMBER( victor9k_state::via2_pa_r )
-{
-	/*
-
-	    bit     description
-
-	    PA0
-	    PA1
-	    PA2     RIA
-	    PA3     DSRA
-	    PA4     RIB
-	    PA5     DSRB
-	    PA6     KBDATA
-	    PA7     VERT
-
-	*/
-
-	UINT8 data = 0;
-
-	// serial
-	data |= m_rs232a->ri_r() << 2;
-	data |= m_rs232a->dsr_r() << 3;
-	data |= m_rs232b->ri_r() << 4;
-	data |= m_rs232b->dsr_r() << 5;
-
-	// keyboard data
-	data |= m_kb->kbdata_r() << 6;
-
-	// vertical sync
-	data |= m_crtc->vsync_r() << 7;
-
-	return data;
 }
 
 WRITE8_MEMBER( victor9k_state::via2_pa_w )
@@ -623,6 +461,21 @@ WRITE8_MEMBER( victor9k_state::via2_pb_w )
 	m_cont = data >> 5;
 }
 
+
+WRITE_LINE_MEMBER( victor9k_state::write_ria )
+{
+	m_upd7201->ria_w(state);
+	m_via2->write_pa2(state);
+}
+
+
+WRITE_LINE_MEMBER( victor9k_state::write_rib )
+{
+	m_upd7201->rib_w(state);
+	m_via2->write_pa4(state);
+}
+
+
 WRITE_LINE_MEMBER( victor9k_state::via2_irq_w )
 {
 	m_via2_irq = state;
@@ -630,105 +483,34 @@ WRITE_LINE_MEMBER( victor9k_state::via2_irq_w )
 	m_pic->ir3_w(m_ssda_irq || m_via1_irq || m_via2_irq || m_via3_irq || m_via4_irq || m_via5_irq || m_via6_irq);
 }
 
-static const via6522_interface via2_intf =
-{
-	DEVCB_DRIVER_MEMBER(victor9k_state, via2_pa_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(VICTOR9K_KEYBOARD_TAG, victor9k_keyboard_device, kbrdy_r),
-	DEVCB_NULL, // SRQ/BUSY
-	DEVCB_DEVICE_LINE_MEMBER(VICTOR9K_KEYBOARD_TAG, victor9k_keyboard_device, kbdata_r),
 
-	DEVCB_DRIVER_MEMBER(victor9k_state, via2_pa_w),
-	DEVCB_DRIVER_MEMBER(victor9k_state, via2_pb_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
+/*
+    bit    description
 
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, via2_irq_w)
-};
-
-
-//-------------------------------------------------
-//  via6522_interface via3_intf
-//-------------------------------------------------
-
-READ8_MEMBER( victor9k_state::via3_pa_r )
-{
-	/*
-
-	    bit     description
-
-	    PA0     J5-16
-	    PA1     J5-18
-	    PA2     J5-20
-	    PA3     J5-22
-	    PA4     J5-24
-	    PA5     J5-26
-	    PA6     J5-28
-	    PA7     J5-30
-
-	*/
-
-	return 0;
-}
-
-WRITE8_MEMBER( victor9k_state::via3_pa_w )
-{
-	/*
-
-	    bit     description
-
-	    PA0     J5-16
-	    PA1     J5-18
-	    PA2     J5-20
-	    PA3     J5-22
-	    PA4     J5-24
-	    PA5     J5-26
-	    PA6     J5-28
-	    PA7     J5-30
-
-	*/
-}
-
-READ8_MEMBER( victor9k_state::via3_pb_r )
-{
-	/*
-
-	    bit     description
-
-	    PB0     J5-32
-	    PB1     J5-34
-	    PB2     J5-36
-	    PB3     J5-38
-	    PB4     J5-40
-	    PB5     J5-42
-	    PB6     J5-44
-	    PB7     J5-46
-
-	*/
-
-	return 0;
-}
+    PA0    J5-16
+    PA1    J5-18
+    PA2    J5-20
+    PA3    J5-22
+    PA4    J5-24
+    PA5    J5-26
+    PA6    J5-28
+    PA7    J5-30
+    PB0    J5-32
+    PB1    J5-34
+    PB2    J5-36
+    PB3    J5-38
+    PB4    J5-40
+    PB5    J5-42
+    PB6    J5-44
+    PB7    J5-46
+    CA1    J5-12
+    CB1    J5-48
+    CA2    J5-14
+    CB2    J5-50
+*/
 
 WRITE8_MEMBER( victor9k_state::via3_pb_w )
 {
-	/*
-
-	    bit     description
-
-	    PB0     J5-32
-	    PB1     J5-34
-	    PB2     J5-36
-	    PB3     J5-38
-	    PB4     J5-40
-	    PB5     J5-42
-	    PB6     J5-44
-	    PB7     J5-46
-
-	*/
-
 	// codec clock output
 	m_ssda->rx_clk_w(BIT(data, 7));
 	m_ssda->tx_clk_w(BIT(data, 7));
@@ -741,29 +523,6 @@ WRITE_LINE_MEMBER( victor9k_state::via3_irq_w )
 	m_pic->ir3_w(m_ssda_irq || m_via1_irq || m_via2_irq || m_via3_irq || m_via4_irq || m_via5_irq || m_via6_irq);
 }
 
-static const via6522_interface via3_intf =
-{
-	DEVCB_DRIVER_MEMBER(victor9k_state, via3_pa_r),
-	DEVCB_DRIVER_MEMBER(victor9k_state, via3_pb_r),
-	DEVCB_NULL, // J5-12
-	DEVCB_NULL, // J5-48
-	DEVCB_NULL, // J5-14
-	DEVCB_NULL, // J5-50
-
-	DEVCB_DRIVER_MEMBER(victor9k_state, via3_pa_w),
-	DEVCB_DRIVER_MEMBER(victor9k_state, via3_pb_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, via3_irq_w)
-};
-
-
-//-------------------------------------------------
-//  via6522_interface via4_intf
-//-------------------------------------------------
 
 WRITE8_MEMBER( victor9k_state::via4_pa_w )
 {
@@ -807,16 +566,6 @@ WRITE8_MEMBER( victor9k_state::via4_pb_w )
 	m_st[1] = data >> 4;
 }
 
-READ_LINE_MEMBER( victor9k_state::ds0_r )
-{
-	return m_ds0;
-}
-
-READ_LINE_MEMBER( victor9k_state::ds1_r )
-{
-	return m_ds1;
-}
-
 WRITE_LINE_MEMBER( victor9k_state::mode_w )
 {
 }
@@ -828,49 +577,21 @@ WRITE_LINE_MEMBER( victor9k_state::via4_irq_w )
 	m_pic->ir3_w(m_ssda_irq || m_via1_irq || m_via2_irq || m_via3_irq || m_via4_irq || m_via5_irq || m_via6_irq);
 }
 
-static const via6522_interface via4_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, ds0_r),
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, ds1_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
 
-	DEVCB_DRIVER_MEMBER(victor9k_state, via4_pa_w),
-	DEVCB_DRIVER_MEMBER(victor9k_state, via4_pb_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, mode_w),
-	DEVCB_NULL,
+/*
 
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, via4_irq_w)
-};
+    bit     description
 
+    PA0     E0
+    PA1     E1
+    PA2     I1
+    PA3     E2
+    PA4     E4
+    PA5     E5
+    PA6     I7
+    PA7     E6
 
-//-------------------------------------------------
-//  via6522_interface via5_intf
-//-------------------------------------------------
-
-READ8_MEMBER( victor9k_state::via5_pa_r )
-{
-	/*
-
-	    bit     description
-
-	    PA0     E0
-	    PA1     E1
-	    PA2     I1
-	    PA3     E2
-	    PA4     E4
-	    PA5     E5
-	    PA6     I7
-	    PA7     E6
-
-	*/
-
-	return 0;
-}
+*/
 
 WRITE8_MEMBER( victor9k_state::via5_pb_w )
 {
@@ -890,21 +611,6 @@ WRITE8_MEMBER( victor9k_state::via5_pb_w )
 	*/
 }
 
-READ_LINE_MEMBER( victor9k_state::brdy_r )
-{
-	return m_brdy;
-}
-
-READ_LINE_MEMBER( victor9k_state::rdy0_r )
-{
-	return m_rdy0;
-}
-
-READ_LINE_MEMBER( victor9k_state::rdy1_r )
-{
-	return m_rdy1;
-}
-
 WRITE_LINE_MEMBER( victor9k_state::via5_irq_w )
 {
 	m_via5_irq = state;
@@ -912,29 +618,6 @@ WRITE_LINE_MEMBER( victor9k_state::via5_irq_w )
 	m_pic->ir3_w(m_ssda_irq || m_via1_irq || m_via2_irq || m_via3_irq || m_via4_irq || m_via5_irq || m_via6_irq);
 }
 
-static const via6522_interface via5_intf =
-{
-	DEVCB_DRIVER_MEMBER(victor9k_state, via5_pa_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, brdy_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, rdy0_r),
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, rdy1_r),
-
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(victor9k_state, via5_pb_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, via5_irq_w)
-};
-
-
-//-------------------------------------------------
-//  via6522_interface via1_intf
-//-------------------------------------------------
 
 READ8_MEMBER( victor9k_state::via6_pa_r )
 {
@@ -1065,11 +748,6 @@ WRITE8_MEMBER( victor9k_state::via6_pb_w )
 	m_stp[1] = BIT(data, 7);
 }
 
-READ_LINE_MEMBER( victor9k_state::gcrerr_r )
-{
-	return m_gcrerr;
-}
-
 WRITE_LINE_MEMBER( victor9k_state::drw_w )
 {
 }
@@ -1085,25 +763,6 @@ WRITE_LINE_MEMBER( victor9k_state::via6_irq_w )
 	m_pic->ir3_w(m_ssda_irq || m_via1_irq || m_via2_irq || m_via3_irq || m_via4_irq || m_via5_irq || m_via6_irq);
 }
 
-static const via6522_interface via6_intf =
-{
-	DEVCB_DRIVER_MEMBER(victor9k_state, via6_pa_r),
-	DEVCB_DRIVER_MEMBER(victor9k_state, via6_pb_r),
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, gcrerr_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DRIVER_MEMBER(victor9k_state, via6_pa_w),
-	DEVCB_DRIVER_MEMBER(victor9k_state, via6_pb_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, drw_w),
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, erase_w),
-
-	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, via6_irq_w)
-};
-
 
 //-------------------------------------------------
 //  VICTOR9K_KEYBOARD_INTERFACE( kb_intf )
@@ -1116,6 +775,11 @@ WRITE_LINE_MEMBER( victor9k_state::kbrdy_w )
 	m_pic->ir6_w(state ? CLEAR_LINE : ASSERT_LINE);
 }
 
+WRITE_LINE_MEMBER( victor9k_state::kbdata_w )
+{
+	m_via2->write_cb2(state);
+	m_via2->write_pa6(state);
+}
 
 //-------------------------------------------------
 //  SLOT_INTERFACE( victor9k_floppies )
@@ -1172,35 +836,6 @@ static SLOT_INTERFACE_START( victor9k_floppies )
 SLOT_INTERFACE_END
 
 
-//-------------------------------------------------
-//  rs232_port_interface rs232a_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232a_intf =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(UPD7201_TAG, z80dart_device, dcda_w),
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(UPD7201_TAG, z80dart_device, ria_w),
-	DEVCB_DEVICE_LINE_MEMBER(UPD7201_TAG, z80dart_device, ctsa_w)
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232b_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232b_intf =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(UPD7201_TAG, z80dart_device, dcdb_w),
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(UPD7201_TAG, z80dart_device, rib_w),
-	DEVCB_DEVICE_LINE_MEMBER(UPD7201_TAG, z80dart_device, ctsb_w)
-};
-
-
-
 //**************************************************************************
 //  MACHINE INITIALIZATION
 //**************************************************************************
@@ -1211,9 +846,6 @@ static const rs232_port_interface rs232b_intf =
 
 void victor9k_state::machine_start()
 {
-	// set interrupt callback
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(victor9k_state::victor9k_irq_callback),this));
-
 	// set floppy callbacks
 	m_floppy0->setup_ready_cb(floppy_image_device::ready_cb(FUNC(victor9k_state::ready0_cb), this));
 	m_floppy0->setup_load_cb(floppy_image_device::load_cb(FUNC(victor9k_state::load0_cb), this));
@@ -1225,6 +857,9 @@ void victor9k_state::machine_start()
 	// memory banking
 	address_space &program = m_maincpu->space(AS_PROGRAM);
 	program.install_ram(0x00000, m_ram->size() - 1, m_ram->pointer());
+
+	m_via5->write_ca1(m_brdy);
+	m_via6->write_ca1(m_gcrerr);
 }
 
 
@@ -1241,6 +876,7 @@ static MACHINE_CONFIG_START( victor9k, victor9k_state )
 	// basic machine hardware
 	MCFG_CPU_ADD(I8088_TAG, I8088, XTAL_30MHz/6)
 	MCFG_CPU_PROGRAM_MAP(victor9k_mem)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE(I8259A_TAG, pic8259_device, inta_cb)
 
 	MCFG_CPU_ADD(I8048_TAG, I8048, XTAL_30MHz/6)
 	MCFG_CPU_IO_MAP(floppy_io)
@@ -1253,10 +889,13 @@ static MACHINE_CONFIG_START( victor9k, victor9k_state )
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_green)
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN("palette")
 
-	MCFG_MC6845_ADD(HD46505S_TAG, HD6845, SCREEN_TAG, 1000000, hd46505s_intf) // HD6845 == HD46505S
+	MCFG_MC6845_ADD(HD46505S_TAG, HD6845, SCREEN_TAG, 1000000) // HD6845 == HD46505S
+	MCFG_MC6845_SHOW_BORDER_AREA(true)
+	MCFG_MC6845_CHAR_WIDTH(10)
+	MCFG_MC6845_UPDATE_ROW_CB(victor9k_state, crtc_update_row)
+	MCFG_MC6845_OUT_VSYNC_CB(WRITELINE(victor9k_state, vert_w))
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1265,23 +904,92 @@ static MACHINE_CONFIG_START( victor9k, victor9k_state )
 
 	// devices
 	MCFG_IEEE488_BUS_ADD()
-	MCFG_IEEE488_NRFD_CALLBACK(DEVWRITELINE(M6522_1_TAG, via6522_device, write_ca1))
-	MCFG_IEEE488_NDAC_CALLBACK(DEVWRITELINE(M6522_1_TAG, via6522_device, write_ca2))
+	MCFG_IEEE488_DAV_CALLBACK(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb0))
+	MCFG_IEEE488_EOI_CALLBACK(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb1))
+	MCFG_IEEE488_REN_CALLBACK(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb2))
+	MCFG_IEEE488_ATN_CALLBACK(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb3))
+	MCFG_IEEE488_IFC_CALLBACK(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb4))
+	MCFG_IEEE488_SRQ_CALLBACK(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb5))
+	MCFG_IEEE488_NRFD_CALLBACK(WRITELINE(victor9k_state, write_nfrd))
+	MCFG_IEEE488_NDAC_CALLBACK(WRITELINE(victor9k_state, write_ndac))
+
 	MCFG_PIC8259_ADD(I8259A_TAG, INPUTLINE(I8088_TAG, INPUT_LINE_IRQ0), VCC, NULL)
-	MCFG_PIT8253_ADD(I8253_TAG, pit_intf)
-	MCFG_UPD7201_ADD(UPD7201_TAG, XTAL_30MHz/30, mpsc_intf)
-	MCFG_MC6852_ADD(MC6852_TAG, XTAL_30MHz/30, ssda_intf)
-	MCFG_VIA6522_ADD(M6522_1_TAG, XTAL_30MHz/30, via1_intf)
-	MCFG_VIA6522_ADD(M6522_2_TAG, XTAL_30MHz/30, via2_intf)
-	MCFG_VIA6522_ADD(M6522_3_TAG, XTAL_30MHz/30, via3_intf)
-	MCFG_VIA6522_ADD(M6522_4_TAG, XTAL_30MHz/30, via4_intf)
-	MCFG_VIA6522_ADD(M6522_5_TAG, XTAL_30MHz/30, via5_intf)
-	MCFG_VIA6522_ADD(M6522_6_TAG, XTAL_30MHz/30, via6_intf)
+
+	MCFG_DEVICE_ADD(I8253_TAG, PIT8253, 0)
+	MCFG_PIT8253_CLK0(2500000)
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(victor9k_state, mux_serial_b_w))
+	MCFG_PIT8253_CLK1(2500000)
+	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(victor9k_state, mux_serial_a_w))
+	MCFG_PIT8253_CLK2(100000)
+	MCFG_PIT8253_OUT2_HANDLER(DEVWRITELINE(I8259A_TAG, pic8259_device, ir2_w))
+
+	MCFG_UPD7201_ADD(UPD7201_TAG, XTAL_30MHz/30, 0, 0, 0, 0)
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_INT_CB(DEVWRITELINE(I8259A_TAG, pic8259_device, ir1_w))
+
+	MCFG_DEVICE_ADD(MC6852_TAG, MC6852, XTAL_30MHz/30)
+	MCFG_MC6852_TX_DATA_CALLBACK(DEVWRITELINE(HC55516_TAG, hc55516_device, digit_w))
+	MCFG_MC6852_IRQ_CALLBACK(WRITELINE(victor9k_state, ssda_irq_w))
+
+	MCFG_DEVICE_ADD(M6522_1_TAG, VIA6522, XTAL_30MHz/30)
+	MCFG_VIA6522_READPA_HANDLER(DEVREAD8(IEEE488_TAG, ieee488_device, dio_r))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(victor9k_state, via1_pa_w))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(victor9k_state, via1_pb_w))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(victor9k_state, codec_vol_w))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(victor9k_state, via1_irq_w))
+
+	MCFG_DEVICE_ADD(M6522_2_TAG, VIA6522, XTAL_30MHz/30)
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(victor9k_state, via2_pa_w))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(victor9k_state, via2_pb_w))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(victor9k_state, via2_irq_w))
+
+	MCFG_DEVICE_ADD(M6522_3_TAG, VIA6522, XTAL_30MHz/30)
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(victor9k_state, via3_pb_w))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(victor9k_state, via3_irq_w))
+
+	MCFG_DEVICE_ADD(M6522_4_TAG, VIA6522, XTAL_30MHz/30)
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(victor9k_state, via4_pa_w))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(victor9k_state, via4_pb_w))
+	MCFG_VIA6522_CA2_HANDLER(WRITELINE(victor9k_state, mode_w))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(victor9k_state, via4_irq_w))
+
+	MCFG_DEVICE_ADD(M6522_5_TAG, VIA6522, XTAL_30MHz/30)
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(victor9k_state, via5_irq_w))
+
+	MCFG_DEVICE_ADD(M6522_6_TAG, VIA6522, XTAL_30MHz/30)
+	MCFG_VIA6522_READPA_HANDLER(READ8(victor9k_state, via6_pa_r))
+	MCFG_VIA6522_READPB_HANDLER(READ8(victor9k_state, via6_pb_r))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(victor9k_state, via6_pa_w))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(victor9k_state, via6_pb_w))
+	MCFG_VIA6522_CA2_HANDLER(WRITELINE(victor9k_state, drw_w))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(victor9k_state, erase_w))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(victor9k_state, via6_irq_w))
+
 	MCFG_FLOPPY_DRIVE_ADD(I8048_TAG":0", victor9k_floppies, "525qd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(I8048_TAG":1", victor9k_floppies, "525qd", floppy_image_device::default_floppy_formats)
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, NULL)
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
-	MCFG_VICTOR9K_KEYBOARD_ADD(WRITELINE(victor9k_state, kbrdy_w))
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(UPD7201_TAG, z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(UPD7201_TAG, z80dart_device, dcda_w))
+	MCFG_RS232_RI_HANDLER(WRITELINE(victor9k_state, write_ria))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(UPD7201_TAG, z80dart_device, ctsa_w))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(M6522_2_TAG, via6522_device, write_pa3))
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(UPD7201_TAG, z80dart_device, rxb_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(UPD7201_TAG, z80dart_device, dcdb_w))
+	MCFG_RS232_RI_HANDLER(WRITELINE(victor9k_state, write_ria))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(UPD7201_TAG, z80dart_device, ctsb_w))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(M6522_2_TAG, via6522_device, write_pa5))
+
+	MCFG_DEVICE_ADD(VICTOR9K_KEYBOARD_TAG, VICTOR9K_KEYBOARD, 0)
+	MCFG_VICTOR9K_KBRDY_HANDLER(WRITELINE(victor9k_state, kbrdy_w))
+	MCFG_VICTOR9K_KBDATA_HANDLER(WRITELINE(victor9k_state, kbdata_w))
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)

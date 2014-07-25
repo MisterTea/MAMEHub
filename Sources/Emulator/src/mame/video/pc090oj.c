@@ -71,7 +71,6 @@ Taito pc090oj
 *****************************************************************************/
 
 
-
 const device_type PC090OJ = &device_creator<pc090oj_device>;
 
 pc090oj_device::pc090oj_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
@@ -79,27 +78,34 @@ pc090oj_device::pc090oj_device(const machine_config &mconfig, const char *tag, d
 	m_ctrl(0),
 	m_sprite_ctrl(0),
 	m_ram(NULL),
-	m_ram_buffered(0)
+	m_ram_buffered(0),
+	m_gfxnum(0),
+	m_x_offset(0),
+	m_y_offset(0),
+	m_use_buffer(0),
+	m_gfxdecode(*this),
+	m_palette(*this)
 {
 }
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
 //-------------------------------------------------
 
-void pc090oj_device::device_config_complete()
+void pc090oj_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
 {
-	// inherit a copy of the static data
-	const pc090oj_interface *intf = reinterpret_cast<const pc090oj_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<pc090oj_interface *>(this) = *intf;
+	downcast<pc090oj_device &>(device).m_gfxdecode.set_tag(tag);
+}
 
-	// or initialize to defaults if none provided
-	else
-	{
-	}
+//-------------------------------------------------
+//  static_set_palette_tag: Set the tag of the
+//  palette device
+//-------------------------------------------------
+
+void pc090oj_device::static_set_palette_tag(device_t &device, const char *tag)
+{
+	downcast<pc090oj_device &>(device).m_palette.set_tag(tag);
 }
 
 //-------------------------------------------------
@@ -219,7 +225,7 @@ void pc090oj_device::draw_sprites( bitmap_ind16 &bitmap, const rectangle &clipre
 		x += m_x_offset;
 		y += m_y_offset;
 
-		pdrawgfx_transpen(bitmap,cliprect,machine().gfx[m_gfxnum],
+		m_gfxdecode->gfx(m_gfxnum)->prio_transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,

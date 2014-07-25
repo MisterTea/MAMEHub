@@ -74,13 +74,13 @@ UINT32 bublbobl_state::screen_update_bublbobl(screen_device &screen, bitmap_ind1
 
 				if (flip_screen())
 				{
-					x = 376 - x;
-					y = 256 - y;
+					x = 248 - x;
+					y = 248 - y;
 					flipx = !flipx;
 					flipy = !flipy;
 				}
 
-				drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+				m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 						code,
 						color,
 						flipx,flipy,

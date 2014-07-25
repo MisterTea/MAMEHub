@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     devcpu.h
 
     CPU device definitions.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -193,27 +164,17 @@ enum
 
 #define MCFG_CPU_VBLANK_INT_DRIVER MCFG_DEVICE_VBLANK_INT_DRIVER
 #define MCFG_CPU_PERIODIC_INT_DRIVER MCFG_DEVICE_PERIODIC_INT_DRIVER
+#define MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER MCFG_DEVICE_IRQ_ACKNOWLEDGE_DRIVER
+#define MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE MCFG_DEVICE_IRQ_ACKNOWLEDGE_DEVICE
 
 #define MCFG_CPU_VBLANK_INT_REMOVE MCFG_DEVICE_VBLANK_INT_REMOVE
 #define MCFG_CPU_PERIODIC_INT_REMOVE MCFG_DEVICE_PERIODIC_INT_REMOVE
+#define MCFG_CPU_IRQ_ACKNOWLEDGE_REMOVE MCFG_DEVICE_IRQ_ACKNOWLEDGE_REMOVE
 
 
 //**************************************************************************
 //  MACROS
 //**************************************************************************
-
-// macro for declaring the configuration and device classes of a legacy CPU device
-#define DECLARE_LEGACY_CPU_DEVICE(name, basename)                                           \
-																							\
-CPU_GET_INFO( basename );                                                                   \
-																							\
-class basename##_device : public legacy_cpu_device                                          \
-{                                                                                           \
-public:                                                                                     \
-	basename##_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock); \
-};                                                                                          \
-																							\
-extern const device_type name;
 
 // macro for defining the implementation needed for configuration and device classes
 #define DEFINE_LEGACY_CPU_DEVICE(name, basename)                                            \
@@ -237,7 +198,7 @@ const device_type name = &legacy_device_creator<basename##_device>
 #define CPU_SET_INFO_CALL(name)         CPU_SET_INFO_NAME(name)(device, state, info)
 
 #define CPU_INIT_NAME(name)             cpu_init_##name
-#define CPU_INIT(name)                  void CPU_INIT_NAME(name)(legacy_cpu_device *device, device_irq_acknowledge_callback irqcallback)
+#define CPU_INIT(name)                  void CPU_INIT_NAME(name)(legacy_cpu_device *device, device_irq_acknowledge_delegate irqcallback)
 #define CPU_INIT_CALL(name)             CPU_INIT_NAME(name)(device, irqcallback)
 
 #define CPU_RESET_NAME(name)            cpu_reset_##name
@@ -323,7 +284,7 @@ class legacy_cpu_device;
 // CPU interface functions
 typedef void (*cpu_get_info_func)(legacy_cpu_device *device, UINT32 state, cpuinfo *info);
 typedef void (*cpu_set_info_func)(legacy_cpu_device *device, UINT32 state, cpuinfo *info);
-typedef void (*cpu_init_func)(legacy_cpu_device *device, device_irq_acknowledge_callback irqcallback);
+typedef void (*cpu_init_func)(legacy_cpu_device *device, device_irq_acknowledge_delegate irqcallback);
 typedef void (*cpu_reset_func)(legacy_cpu_device *device);
 typedef void (*cpu_exit_func)(legacy_cpu_device *device);
 typedef void (*cpu_execute_func)(legacy_cpu_device *device);

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
 RCA COSMAC VIP
@@ -472,17 +474,10 @@ READ_LINE_MEMBER( vip_state::ef4_r )
 	return m_byteio_ef4 || m_exp_ef4;
 }
 
-static COSMAC_SC_WRITE( vip_sc_w )
-{
-	vip_state *state = device->machine().driver_data<vip_state>();
-
-	state->m_exp->sc_w(sc);
-}
-
 WRITE_LINE_MEMBER( vip_state::q_w )
 {
 	// sound output
-	discrete_sound_w(m_beeper, machine().driver_data()->generic_space(), NODE_01, state);
+	m_beeper->write(machine().driver_data()->generic_space(), NODE_01, state);
 
 	// Q led
 	set_led_status(machine(), LED_Q, state);
@@ -506,21 +501,10 @@ WRITE8_MEMBER( vip_state::dma_w )
 	m_exp->dma_w(space, offset, data);
 }
 
-static COSMAC_INTERFACE( cosmac_intf )
+WRITE8_MEMBER( vip_state::sc_w )
 {
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_LINE_MEMBER(vip_state, clear_r),
-	DEVCB_DRIVER_LINE_MEMBER(vip_state, ef1_r),
-	DEVCB_DRIVER_LINE_MEMBER(vip_state, ef2_r),
-	DEVCB_DRIVER_LINE_MEMBER(vip_state, ef3_r),
-	DEVCB_DRIVER_LINE_MEMBER(vip_state, ef4_r),
-	DEVCB_DRIVER_LINE_MEMBER(vip_state, q_w),
-	DEVCB_DRIVER_MEMBER(vip_state, dma_r),
-	DEVCB_DRIVER_MEMBER(vip_state, dma_w),
-	vip_sc_w,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
+	m_exp->sc_w(data);
+}
 
 
 //-------------------------------------------------
@@ -572,20 +556,6 @@ static DISCRETE_SOUND_START( vip )
 	DISCRETE_555_ASTABLE_CV(NODE_02, NODE_01, 470, RES_M(1), CAP_P(470), NODE_01, &vip_ca555_a)
 	DISCRETE_OUTPUT(NODE_02, 5000)
 DISCRETE_SOUND_END
-
-
-//-------------------------------------------------
-//  cassette_interface vip_cassette_interface
-//-------------------------------------------------
-
-static const cassette_interface vip_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED),
-	"vip_cass",
-	NULL
-};
 
 
 //-------------------------------------------------
@@ -650,7 +620,7 @@ void vip_state::machine_start()
 	set_led_status(machine(), LED_POWER, 1);
 
 	// reset sound
-	discrete_sound_w(m_beeper, machine().driver_data()->generic_space(), NODE_01, 0);
+	m_beeper->write(machine().driver_data()->generic_space(), NODE_01, 0);
 
 	// state saving
 	save_item(NAME(m_8000));
@@ -742,12 +712,24 @@ static MACHINE_CONFIG_START( vip, vip_state )
 	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, XTAL_3_52128MHz/2)
 	MCFG_CPU_PROGRAM_MAP(vip_mem)
 	MCFG_CPU_IO_MAP(vip_io)
-	MCFG_CPU_CONFIG(cosmac_intf)
+	MCFG_COSMAC_WAIT_CALLBACK(VCC)
+	MCFG_COSMAC_CLEAR_CALLBACK(READLINE(vip_state, clear_r))
+	MCFG_COSMAC_EF1_CALLBACK(READLINE(vip_state, ef1_r))
+	MCFG_COSMAC_EF2_CALLBACK(READLINE(vip_state, ef2_r))
+	MCFG_COSMAC_EF3_CALLBACK(READLINE(vip_state, ef3_r))
+	MCFG_COSMAC_EF4_CALLBACK(READLINE(vip_state, ef4_r))
+	MCFG_COSMAC_Q_CALLBACK(WRITELINE(vip_state, q_w))
+	MCFG_COSMAC_DMAR_CALLBACK(READ8(vip_state, dma_r))
+	MCFG_COSMAC_DMAW_CALLBACK(WRITE8(vip_state, dma_w))
+	MCFG_COSMAC_SC_CALLBACK(WRITE8(vip_state, sc_w))
 
 	// video hardware
+	MCFG_DEVICE_ADD(CDP1861_TAG, CDP1861, XTAL_3_52128MHz/2)
+	MCFG_CDP1861_IRQ_CALLBACK(WRITELINE(vip_state, vdc_int_w))
+	MCFG_CDP1861_DMA_OUT_CALLBACK(WRITELINE(vip_state, vdc_dma_out_w))
+	MCFG_CDP1861_EFX_CALLBACK(WRITELINE(vip_state, vdc_ef1_w))
 	MCFG_CDP1861_SCREEN_ADD(CDP1861_TAG, SCREEN_TAG, XTAL_3_52128MHz/2)
 	MCFG_SCREEN_UPDATE_DRIVER(vip_state, screen_update)
-	MCFG_CDP1861_ADD(CDP1861_TAG, SCREEN_TAG, XTAL_3_52128MHz/2, WRITELINE(vip_state, vdc_int_w), WRITELINE(vip_state, vdc_dma_out_w), WRITELINE(vip_state, vdc_ef1_w))
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -758,11 +740,15 @@ static MACHINE_CONFIG_START( vip, vip_state )
 
 	MCFG_VIP_BYTEIO_PORT_ADD(VIP_BYTEIO_PORT_TAG, vip_byteio_cards, NULL, WRITELINE(vip_state, byteio_inst_w))
 	MCFG_VIP_EXPANSION_SLOT_ADD(VIP_EXPANSION_SLOT_TAG, XTAL_3_52128MHz/2, vip_expansion_cards, NULL)
-	MCFG_VIP_EXPANSION_SLOT_CALLBACKS(WRITELINE(vip_state, exp_int_w), WRITELINE(vip_state, exp_dma_out_w), WRITELINE(vip_state, exp_dma_in_w))
+	MCFG_VIP_EXPANSION_SLOT_INT_CALLBACK(WRITELINE(vip_state, exp_int_w))
+	MCFG_VIP_EXPANSION_SLOT_DMA_OUT_CALLBACK(WRITELINE(vip_state, exp_dma_out_w))
+	MCFG_VIP_EXPANSION_SLOT_DMA_IN_CALLBACK(WRITELINE(vip_state, exp_dma_in_w))
 
 	// devices
 	MCFG_QUICKLOAD_ADD("quickload", vip_state, vip, "bin,c8,c8x", 0)
-	MCFG_CASSETTE_ADD("cassette", vip_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
+	MCFG_CASSETTE_INTERFACE("vip_cass")
 
 	// software lists
 	MCFG_SOFTWARE_LIST_ADD("cass_list", "vip")

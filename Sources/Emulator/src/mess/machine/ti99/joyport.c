@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Michael Zapf
 /****************************************************************************
 
     Joystick port
@@ -39,7 +41,8 @@
 
 joyport_device::joyport_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	:   device_t(mconfig, JOYPORT, "Joystick port", tag, owner, clock, "ti99_joyport", __FILE__),
-		device_slot_interface(mconfig, *this)
+		device_slot_interface(mconfig, *this),
+		m_interrupt(*this)
 {
 }
 
@@ -61,6 +64,14 @@ void joyport_device::write_port(int data)
 }
 
 /*
+    This is only used for the handset device of the TI-99/4. It is driven by the VDP interrupt.
+*/
+void joyport_device::pulse_clock()
+{
+	m_connected->pulse_clock();
+}
+
+/*
     Propagate the interrupt to the defined target. Only used for the handset
     at the prototype 99/4.
 */
@@ -69,13 +80,14 @@ WRITE_LINE_MEMBER( joyport_device::set_interrupt )
 	m_interrupt(state);
 }
 
+void joyport_device::device_start()
+{
+	m_interrupt.resolve();
+}
+
 void joyport_device::device_config_complete()
 {
 	m_connected = static_cast<joyport_attached_device*>(first_subdevice());
-	const joyport_config *conf = reinterpret_cast<const joyport_config *>(static_config());
-
-	m_interrupt.resolve(conf->interrupt, *this);
-	m_clock = conf->vdp_clock;
 }
 
 /*****************************************************************************/

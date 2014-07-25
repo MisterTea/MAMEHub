@@ -128,17 +128,6 @@ static GFXDECODE_START( ssrj )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout,     0, 0x10 )
 GFXDECODE_END
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, /* not used ? */
-	DEVCB_INPUT_PORT("IN3"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( ssrj, ssrj_state )
 
 	/* basic machine hardware */
@@ -154,17 +143,18 @@ static MACHINE_CONFIG_START( ssrj, ssrj_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 34*8-1, 1*8, 31*8-1) // unknown res
 	MCFG_SCREEN_UPDATE_DRIVER(ssrj_state, screen_update_ssrj)
 	MCFG_SCREEN_VBLANK_DRIVER(ssrj_state, screen_eof_ssrj)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ssrj)
-	MCFG_PALETTE_LENGTH(128)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ssrj)
+	MCFG_PALETTE_ADD("palette", 128)
+	MCFG_PALETTE_INIT_OWNER(ssrj_state, ssrj)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 8000000/5)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("IN3"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 

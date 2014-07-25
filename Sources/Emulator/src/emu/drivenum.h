@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     drivenum.h
 
     Driver enumeration helpers.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -79,11 +50,11 @@ public:
 
 	// static helpers
 	static bool matches(const char *wildstring, const char *string);
+	static int penalty_compare(const char *source, const char *target);
 
 protected:
 	// internal helpers
 	static int driver_sort_callback(const void *elem1, const void *elem2);
-	static int penalty_compare(const char *source, const char *target);
 
 	// internal state
 	static int                          s_driver_count;
@@ -145,6 +116,9 @@ public:
 	void find_approximate_matches(const char *string, int count, int *results);
 
 private:
+	// internal helpers
+	void release_current();
+
 	// entry in the config cache
 	struct config_entry
 	{
@@ -152,8 +126,7 @@ private:
 
 	public:
 		// construction/destruction
-		config_entry(machine_config &config, int index);
-		~config_entry();
+		config_entry(machine_config &config, int index) : m_next(NULL), m_config(&config), m_index(index) { }
 
 		// getters
 		config_entry *next() const { return m_next; }
@@ -163,7 +136,7 @@ private:
 	private:
 		// internal state
 		config_entry *      m_next;
-		machine_config *    m_config;
+		auto_pointer<machine_config> m_config;
 		int                 m_index;
 	};
 
@@ -173,8 +146,8 @@ private:
 	int                 m_current;
 	int                 m_filtered_count;
 	emu_options &       m_options;
-	UINT8 *             m_included;
-	machine_config **   m_config;
+	dynamic_array<UINT8> m_included;
+	mutable dynamic_array<machine_config *> m_config;
 	mutable simple_list<config_entry> m_config_cache;
 };
 

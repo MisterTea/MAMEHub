@@ -83,7 +83,14 @@ public:
 	gei_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
-		m_dac(*this, "dac") { }
+		m_dac(*this, "dac"),
+		m_ticket(*this, "ticket"),
+		m_screen(*this, "screen") { }
+
+	required_device<cpu_device> m_maincpu;
+	required_device<dac_device> m_dac;
+	optional_device<ticket_dispenser_device> m_ticket;
+	required_device<screen_device> m_screen;
 
 	virtual void video_start();
 
@@ -134,11 +141,9 @@ public:
 	DECLARE_READ8_MEMBER(portC_r);
 	DECLARE_DRIVER_INIT(geimulti);
 	DECLARE_DRIVER_INIT(setbank);
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(gei);
 	DECLARE_PALETTE_INIT(quizvid);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
-	required_device<cpu_device> m_maincpu;
-	required_device<dac_device> m_dac;
 };
 
 
@@ -170,13 +175,13 @@ WRITE8_MEMBER(gei_state::gei_bitmap_w)
 		m_bitmap.pix16(sy, sx+i) = m_color[8-i-1];
 }
 
-void gei_state::palette_init()
+PALETTE_INIT_MEMBER(gei_state, gei)
 {
 	int i;
 
 	for (i = 0; i < 8; i++ )
 	{
-		palette_set_color(machine(), i, MAKE_RGB(pal1bit(i >> 2), pal1bit(i), pal1bit(i >> 1)));
+		palette.set_pen_color(i, rgb_t(pal1bit(i >> 2), pal1bit(i), pal1bit(i >> 1)));
 	}
 }
 
@@ -186,7 +191,7 @@ PALETTE_INIT_MEMBER(gei_state,quizvid)
 
 	for (i = 0; i < 8; i++ )
 	{
-		palette_set_color(machine(), i, MAKE_RGB(pal1bit(i >> 1), pal1bit(i), pal1bit(i >> 2)));
+		palette.set_pen_color(i, rgb_t(pal1bit(i >> 1), pal1bit(i), pal1bit(i >> 2)));
 	}
 }
 
@@ -224,7 +229,8 @@ WRITE8_MEMBER(gei_state::sound_w)
 	set_led_status(machine(), 9,data & 0x08);
 
 	/* bit 5 - ticket out in trivia games */
-	machine().device<ticket_dispenser_device>("ticket")->write(machine().driver_data()->generic_space(), 0, (data & 0x20)<< 2);
+	if (m_ticket != NULL)
+		m_ticket->write(machine().driver_data()->generic_space(), 0, (data & 0x20)<< 2);
 
 	/* bit 6 enables NMI */
 	m_nmi_mask = data & 0x40;
@@ -1089,56 +1095,6 @@ static INPUT_PORTS_START(sprtauth)
 
 INPUT_PORTS_END
 
-static I8255A_INTERFACE( getrivia_ppi8255_0_intf )
-{
-	DEVCB_INPUT_PORT("DSWA"),       /* Port A read */
-	DEVCB_NULL,                     /* Port A write */
-	DEVCB_INPUT_PORT("IN0"),        /* Port B read */
-	DEVCB_NULL,                     /* Port B write */
-	DEVCB_NULL,                     /* Port C read */
-	DEVCB_DRIVER_MEMBER(gei_state,sound_w)          /* Port C write */
-};
-
-static I8255A_INTERFACE( getrivia_ppi8255_1_intf )
-{
-	DEVCB_INPUT_PORT("IN1"),        /* Port A read */
-	DEVCB_NULL,                     /* Port A write */
-	DEVCB_NULL,                     /* Port B read */
-	DEVCB_DRIVER_MEMBER(gei_state,lamps_w),         /* Port B write */
-	DEVCB_NULL,                     /* Port C read */
-	DEVCB_DRIVER_MEMBER(gei_state,lamps2_w)         /* Port C write */
-};
-
-static I8255A_INTERFACE( gselect_ppi8255_0_intf )
-{
-	DEVCB_INPUT_PORT("DSWA"),       /* Port A read */
-	DEVCB_NULL,                     /* Port A write */
-	DEVCB_INPUT_PORT("IN0"),        /* Port B read */
-	DEVCB_NULL,                     /* Port B write */
-	DEVCB_NULL,                     /* Port C read */
-	DEVCB_DRIVER_MEMBER(gei_state,sound2_w)         /* Port C write */
-};
-
-static I8255A_INTERFACE( gselect_ppi8255_1_intf )
-{
-	DEVCB_INPUT_PORT("IN1"),        /* Port A read */
-	DEVCB_NULL,                     /* Port A write */
-	DEVCB_NULL,                     /* Port B read */
-	DEVCB_DRIVER_MEMBER(gei_state,lamps_w),         /* Port B write */
-	DEVCB_INPUT_PORT("IN2"),        /* Port C read */
-	DEVCB_DRIVER_MEMBER(gei_state,nmi_w)            /* Port C write */
-};
-
-static I8255A_INTERFACE( findout_ppi8255_1_intf )
-{
-	DEVCB_INPUT_PORT("IN1"),        /* Port A read */
-	DEVCB_NULL,                     /* Port A write */
-	DEVCB_NULL,                     /* Port B read */
-	DEVCB_DRIVER_MEMBER(gei_state,lamps_w),         /* Port B write */
-	DEVCB_DRIVER_MEMBER(gei_state,portC_r),         /* Port C read */
-	DEVCB_NULL                      /* Port C write */
-};
-
 
 INTERRUPT_GEN_MEMBER(gei_state::vblank_irq)
 {
@@ -1159,13 +1115,23 @@ static MACHINE_CONFIG_START( getrivia, gei_state )
 	MCFG_SCREEN_UPDATE_DRIVER(gei_state, screen_update)
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(48, 511-48, 16, 255-16)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(gei_state, gei)
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_I8255A_ADD( "ppi8255_0", getrivia_ppi8255_0_intf )
-	MCFG_I8255A_ADD( "ppi8255_1", getrivia_ppi8255_1_intf )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("DSWA"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN0"))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(gei_state, sound_w))
+
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("IN1"))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(gei_state, lamps_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(gei_state, lamps2_w))
+
 	MCFG_TICKET_DISPENSER_ADD("ticket", attotime::from_msec(100), TICKET_MOTOR_ACTIVE_HIGH, TICKET_STATUS_ACTIVE_HIGH)
 
 	/* sound hardware */
@@ -1181,7 +1147,10 @@ static MACHINE_CONFIG_DERIVED( findout, getrivia )
 	MCFG_CPU_PROGRAM_MAP(findout_map)
 
 	MCFG_DEVICE_REMOVE("ppi8255_1")
-	MCFG_I8255A_ADD( "ppi8255_1", findout_ppi8255_1_intf )
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("IN1"))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(gei_state, lamps_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(gei_state, portC_r))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( quizvid, findout )
@@ -1189,7 +1158,8 @@ static MACHINE_CONFIG_DERIVED( quizvid, findout )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(quizvid_map)
 
-	MCFG_PALETTE_INIT_OVERRIDE(gei_state,quizvid)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(gei_state,quizvid)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( gselect, getrivia )
@@ -1203,8 +1173,17 @@ static MACHINE_CONFIG_DERIVED( gselect, getrivia )
 
 	MCFG_DEVICE_REMOVE("ppi8255_0")
 	MCFG_DEVICE_REMOVE("ppi8255_1")
-	MCFG_I8255A_ADD( "ppi8255_0", gselect_ppi8255_0_intf )
-	MCFG_I8255A_ADD( "ppi8255_1", gselect_ppi8255_1_intf )
+
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("DSWA"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN0"))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(gei_state, sound2_w))
+
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("IN1"))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(gei_state, lamps_w))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(gei_state, nmi_w))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( jokpokera, getrivia )
@@ -1215,9 +1194,6 @@ static MACHINE_CONFIG_DERIVED( jokpokera, getrivia )
 
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(gselect_map)
-
-	MCFG_DEVICE_REMOVE("ppi8255_0")
-	MCFG_I8255A_ADD( "ppi8255_0", gselect_ppi8255_0_intf )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( amuse, getrivia )
@@ -1991,7 +1967,7 @@ GAME( 1985, sextriv2, sextriv1, getrivia, sextriv1, driver_device, 0,       ROT0
 
 GAME( 1986, gt507uk,  0,        findout,  gt507uk, driver_device,  0,       ROT0, "Grayhound Electronics", "Trivia (UK Version 5.07)",                GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 
-GAME( 1986, quiz,     0,        findout,  quiz, driver_device,     0,       ROT0, "bootleg",               "Quiz (Revision 2)",                       GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1986, quiz,     0,        findout,  quiz, driver_device,     0,       ROT0, "Elettronolo",           "Quiz (Revision 2)",                       GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 
 GAME( 1986, quizvid,  0,        quizvid,  quiz, driver_device,     0,       ROT0, "bootleg",               "Video Quiz",                              GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 

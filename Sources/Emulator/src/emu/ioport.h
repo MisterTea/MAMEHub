@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     ioport.h
 
     Input/output port handling.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -752,9 +723,8 @@ public:
 	const char *token() const { return m_token; }
 	const char *name() const { return m_name; }
 	input_seq &defseq(input_seq_type seqtype = SEQ_TYPE_STANDARD) { return m_defseq[seqtype]; }
-  const input_seq &seq(input_seq_type seqtype) const {
-    return m_seq[seqtype];
-  }
+	const input_seq &seq(input_seq_type seqtype) const { return m_seq[seqtype]; }
+	void restore_default_seq();
 
 	// setters
 	void configure_osd(const char *token, const char *name);
@@ -851,9 +821,9 @@ public:
 
 	// posting
 	void post(unicode_char ch);
-	void post(const unicode_char *text, size_t length = 0, attotime rate = attotime::zero);
-	void post_utf8(const char *text, size_t length = 0, attotime rate = attotime::zero);
-	void post_coded(const char *text, size_t length = 0, attotime rate = attotime::zero);
+	void post(const unicode_char *text, size_t length = 0, const attotime &rate = attotime::zero);
+	void post_utf8(const char *text, size_t length = 0, const attotime &rate = attotime::zero);
+	void post_coded(const char *text, size_t length = 0, const attotime &rate = attotime::zero);
 
 	void frame_update(ioport_port &port, ioport_value &digital);
 	const char *key_name(astring &string, unicode_char ch);
@@ -1047,6 +1017,7 @@ public:
 	ioport_condition &condition() { return m_condition; }
 	ioport_type type() const { return m_type; }
 	UINT8 player() const { return m_player; }
+	void set_value(ioport_value value);
 
 	bool unused() const { return ((m_flags & FIELD_FLAG_UNUSED) != 0); }
 	bool cocktail() const { return ((m_flags & FIELD_FLAG_COCKTAIL) != 0); }
@@ -1112,6 +1083,7 @@ public:
 		INT32           delta;                  // for analog controls
 		INT32           centerdelta;            // for analog controls
 		bool            reverse;                // for analog controls
+		bool            toggle;                 // for non-analog controls
 	};
 	void get_user_settings(user_settings &settings);
 	void set_user_settings(const user_settings &settings);
@@ -1122,7 +1094,7 @@ private:
 	// internal state
 	ioport_field *              m_next;             // pointer to next field in sequence
 	ioport_port &               m_port;             // reference to the port that owns us
-	ioport_field_live *         m_live;             // live state of field (NULL if not live)
+	auto_pointer<ioport_field_live> m_live;         // live state of field (NULL if not live)
 	int                         m_modcount;         // modification count
 	simple_list<ioport_setting> m_settinglist;      // list of input_setting_configs
 	simple_list<ioport_diplocation> m_diploclist;   // list of locations for various bits
@@ -1141,6 +1113,9 @@ private:
 	void *                      m_read_param;       // parameter for read callback routine
 	ioport_field_write_delegate m_write;            // write callback routine
 	void *                      m_write_param;      // parameter for write callback routine
+
+	// data relevant to digital control types
+	bool                        m_digital_value;    // externally set value
 
 	// data relevant to analog control types
 	ioport_value                m_min;              // minimum value for absolute axes
@@ -1162,6 +1137,27 @@ private:
 };
 
 
+// ======================> ioport_field_live
+
+// internal live state of an input field
+struct ioport_field_live
+{
+	// construction/destruction
+	ioport_field_live(ioport_field &field, analog_field *analog);
+
+	// public state
+	analog_field *          analog;             // pointer to live analog data if this is an analog field
+	digital_joystick *      joystick;           // pointer to digital joystick information
+	input_seq               seq[SEQ_TYPE_TOTAL];// currently configured input sequences
+	ioport_value            value;              // current value of this port
+	UINT8                   impulse;            // counter for impulse controls
+	bool                    last;               // were we pressed last time?
+	bool                    toggle;             // current toggle setting
+	digital_joystick::direction_t joydir;       // digital joystick direction index
+	astring                 name;               // overridden name
+};
+
+
 // ======================> ioport_list
 
 // class that holds a list of I/O ports
@@ -1170,9 +1166,7 @@ class ioport_list : public tagged_list<ioport_port>
 	DISABLE_COPYING(ioport_list);
 
 public:
-	// construction/destruction
-	ioport_list(resource_pool &pool = global_resource_pool())
-		: tagged_list<ioport_port>(pool) { }
+	ioport_list() { }
 
 	using tagged_list<ioport_port>::append;
 	void append(device_t &device, astring &errorbuf);
@@ -1227,7 +1221,132 @@ private:
 	astring                     m_tag;          // copy of this port's tag
 	int                         m_modcount;     // modification count
 	ioport_value                m_active;       // mask of active bits in the port
-	ioport_port_live *          m_live;         // live state of port (NULL if not live)
+	auto_pointer<ioport_port_live> m_live;      // live state of port (NULL if not live)
+};
+
+
+// ======================> analog_field
+
+// live analog field information
+class analog_field
+{
+	friend class simple_list<analog_field>;
+	friend class ioport_manager;
+	friend void ioport_field::set_user_settings(const ioport_field::user_settings &settings);
+
+public:
+	// construction/destruction
+	analog_field(ioport_field &field);
+
+	// getters
+	analog_field *next() const { return m_next; }
+	ioport_manager &manager() const { return m_field.manager(); }
+	ioport_field &field() const { return m_field; }
+	INT32 sensitivity() const { return m_sensitivity; }
+	bool reverse() const { return m_reverse; }
+	INT32 delta() const { return m_delta; }
+	INT32 centerdelta() const { return m_centerdelta; }
+
+	// readers
+	void read(ioport_value &value);
+	float crosshair_read();
+	void frame_update(running_machine &machine);
+
+private:
+	// helpers
+	INT32 apply_min_max(INT32 value) const;
+	INT32 apply_settings(INT32 value) const;
+	INT32 apply_sensitivity(INT32 value) const;
+	INT32 apply_inverse_sensitivity(INT32 value) const;
+
+	// internal state
+	analog_field *      m_next;                 // link to the next analog state for this port
+	ioport_field &      m_field;                // pointer to the input field referenced
+
+	// adjusted values (right-justified and tweaked)
+	UINT8               m_shift;                // shift to align final value in the port
+	INT32               m_adjdefvalue;          // adjusted default value from the config
+	INT32               m_adjmin;               // adjusted minimum value from the config
+	INT32               m_adjmax;               // adjusted maximum value from the config
+
+	// live values of configurable parameters
+	INT32               m_sensitivity;          // current live sensitivity (100=normal)
+	bool                m_reverse;              // current live reverse flag
+	INT32               m_delta;                // current live delta to apply each frame a digital inc/dec key is pressed
+	INT32               m_centerdelta;          // current live delta to apply each frame no digital inputs are pressed
+
+	// live analog value tracking
+	INT32               m_accum;                // accumulated value (including relative adjustments)
+    INT32               m_local_accum;          // The local value (for handling relative analog in netplay)
+	INT32               m_previous;             // previous adjusted value
+	INT32               m_previousanalog;       // previous analog value
+
+	// parameters for modifying live values
+	INT32               m_minimum;              // minimum adjusted value
+	INT32               m_maximum;              // maximum adjusted value
+	INT32               m_center;               // center adjusted value for autocentering
+	INT32               m_reverse_val;          // value where we subtract from to reverse directions
+
+	// scaling factors
+	INT64               m_scalepos;             // scale factor to apply to positive adjusted values
+	INT64               m_scaleneg;             // scale factor to apply to negative adjusted values
+	INT64               m_keyscalepos;          // scale factor to apply to the key delta field when pos
+	INT64               m_keyscaleneg;          // scale factor to apply to the key delta field when neg
+	INT64               m_positionalscale;      // scale factor to divide a joystick into positions
+
+	// misc flags
+	bool                m_absolute;             // is this an absolute or relative input?
+	bool                m_wraps;                // does the control wrap around?
+	bool                m_autocenter;           // autocenter this input?
+	bool                m_single_scale;         // scale joystick differently if default is between min/max
+	bool                m_interpolate;          // should we do linear interpolation for mid-frame reads?
+	bool                m_lastdigital;          // was the last modification caused by a digital form?
+};
+
+
+// ======================> dynamic_field
+
+// live device field information
+class dynamic_field
+{
+	friend class simple_list<dynamic_field>;
+
+public:
+	// construction/destruction
+	dynamic_field(ioport_field &field);
+
+	// getters
+	dynamic_field *next() const { return m_next; }
+	ioport_field &field() const { return m_field; }
+
+	// read/write
+	void read(ioport_value &result);
+	void write(ioport_value newval);
+
+private:
+	// internal state
+	dynamic_field *         m_next;             // linked list of info for this port
+	ioport_field &          m_field;            // reference to the input field
+	UINT8                   m_shift;            // shift to apply to the final result
+	ioport_value            m_oldval;           // last value
+};
+
+
+// ======================> ioport_port_live
+
+// internal live state of an input port
+struct ioport_port_live
+{
+	// construction/destruction
+	ioport_port_live(ioport_port &port);
+
+	// public state
+	simple_list<analog_field> analoglist;       // list of analog port info
+	simple_list<dynamic_field> readlist;        // list of dynamic read fields
+	simple_list<dynamic_field> writelist;       // list of dynamic write fields
+	ioport_value            defvalue;           // combined default value across the port
+	ioport_value            digital;            // current value from all digital inputs
+	ioport_value            outputvalue;        // current value for outputs
 };
 
 
@@ -1250,6 +1369,12 @@ public:
 	ioport_port *first_port() const { return m_portlist.first(); }
 	bool safe_to_read() const { return m_safe_to_read; }
 	natural_keyboard &natkeyboard() { return m_natkeyboard; }
+
+	// has... getters
+	bool has_configs() const { return m_has_configs; }
+	bool has_analog() const { return m_has_analog; }
+	bool has_dips() const { return m_has_dips; }
+	bool has_bioses() const { return m_has_bioses; }
 
 	// type helpers
 	input_type_entry *first_type() const { return m_typelist.first(); }
@@ -1305,13 +1430,13 @@ private:
 	template<typename _Type> _Type playback_read(_Type &result);
 	time_t playback_init();
 	void playback_end(const char *message = NULL);
-	void playback_frame(attotime curtime);
+	void playback_frame(const attotime &curtime);
 	void playback_port(ioport_port &port);
 
 	template<typename _Type> void record_write(_Type value);
 	void record_init();
 	void record_end(const char *message = NULL);
-	void record_frame(attotime curtime);
+	void record_frame(const attotime &curtime);
 	void record_port(ioport_port &port);
 
 	// internal state
@@ -1336,6 +1461,12 @@ private:
 	emu_file                m_playback_file;        // playback file (NULL if not recording)
 	UINT64                  m_playback_accumulated_speed; // accumulated speed during playback
 	UINT32                  m_playback_accumulated_frames; // accumulated frames during playback
+
+	// has...
+	bool                    m_has_configs;
+	bool                    m_has_analog;
+	bool                    m_has_dips;
+	bool                    m_has_bioses;
 };
 
 
@@ -1410,7 +1541,6 @@ private:
 #define UCHAR_MAMEKEY(code) (UCHAR_MAMEKEY_BEGIN + ITEM_ID_##code)
 
 // macro for a read callback function (PORT_CUSTOM)
-#define CUSTOM_INPUT(name)  ioport_value name(device_t &device, ioport_field &field, void *param)
 #define CUSTOM_INPUT_MEMBER(name)   ioport_value name(ioport_field &field, void *param)
 #define DECLARE_CUSTOM_INPUT_MEMBER(name)   ioport_value name(ioport_field &field, void *param)
 
@@ -1621,6 +1751,7 @@ ATTR_COLD void INPUT_PORTS_NAME(_name)(device_t &owner, ioport_list &portlist, a
 #define DEVICE_INPUT_DEFAULTS_NAME(_name) device_iptdef_##_name
 
 #define device_iptdef_0 NULL
+#define device_iptdef_0L NULL
 #define device_iptdef_0LL NULL
 #define device_iptdef___null NULL
 

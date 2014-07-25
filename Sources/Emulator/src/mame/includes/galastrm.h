@@ -1,5 +1,5 @@
 #include "machine/eepromser.h"
-#include "video/poly.h"
+#include "video/polylgcy.h"
 #include "video/tc0100scn.h"
 #include "video/tc0480scp.h"
 
@@ -28,7 +28,10 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_eeprom(*this, "eeprom"),
 		m_tc0100scn(*this, "tc0100scn"),
-		m_tc0480scp(*this, "tc0480scp") { }
+		m_tc0480scp(*this, "tc0480scp"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT32> m_ram;
 	required_shared_ptr<UINT32> m_spriteram;
@@ -37,6 +40,10 @@ public:
 	required_device<eeprom_serial_93cxx_device> m_eeprom;
 	required_device<tc0100scn_device> m_tc0100scn;
 	required_device<tc0480scp_device> m_tc0480scp;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	UINT16 m_coin_word;
 	UINT16 m_frame_counter;
 	int m_tc0110pcr_addr;
@@ -48,7 +55,7 @@ public:
 	struct tempsprite *m_sprite_ptr_pre;
 	bitmap_ind16 m_tmpbitmaps;
 	bitmap_ind16 m_polybitmap;
-	poly_manager *m_poly;
+	legacy_poly_manager *m_poly;
 	int m_rsxb;
 	int m_rsyb;
 	int m_rsxoffs;

@@ -122,7 +122,8 @@ public:
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
 	//m_terminal(*this, TERMINAL_TAG),
-	m_6845(*this, "mc6845")
+	m_6845(*this, "mc6845"),
+	m_gfxdecode(*this, "gfxdecode")
 	{
 		kbdBit=0;
 		crtc_curreg=0;
@@ -160,6 +161,8 @@ public:
 	DECLARE_WRITE8_MEMBER(kbd_put);
 
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 //
@@ -333,9 +336,9 @@ static const gfx_layout hp9k_charlayout =
 	1,                  /* 1 bits per pixel */
 	{ 0 },                  /* no bitplanes */
 	/* x offsets */
-	{ 0, 1, 2, 3, 4, 5, 6, 7 },
+	{ STEP8(0,1) },
 	/* y offsets */
-	{ 1*8, 0*8, 3*8, 2*8, 5*8, 4*8, 7*8, 6*8, 9*8, 8*8, 11*8, 10*8, 13*8, 12*8, 15*8, 14*8 },
+	{ STEP16(0,8) },
 	8*16                    /* every char takes 16 bytes */
 };
 
@@ -345,7 +348,7 @@ GFXDECODE_END
 
 void hp9k_state::putChar(UINT8 thec,int x,int y,bitmap_ind16 &bitmap)
 {
-	const UINT8* pchar=machine().gfx[0]->get_data(thec);
+	const UINT8* pchar=m_gfxdecode->gfx(0)->get_data(thec);
 
 	for (int py=0;py<HP9816_CHDIMY;py++)
 	{
@@ -386,20 +389,6 @@ WRITE8_MEMBER( hp9k_state::kbd_put )
 }
 
 
-static MC6845_INTERFACE( hp9k_mc6845_intf )
-{
-	false,
-	8,          /* number of dots per character */
-	NULL,
-	NULL,       /* handler to display a scanline */
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
-
 static MACHINE_CONFIG_START( hp9k, hp9k_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",M68000, XTAL_8MHz)
@@ -412,14 +401,15 @@ static MACHINE_CONFIG_START( hp9k, hp9k_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(HP9816_ROWX*HP9816_CHDIMX, HP9816_ROWY*HP9816_CHDIMY)
 	MCFG_SCREEN_VISIBLE_AREA(0, (HP9816_ROWX*HP9816_CHDIMX)-1, 0, (HP9816_ROWY*HP9816_CHDIMY)-1)
-
 	MCFG_SCREEN_UPDATE_DRIVER(hp9k_state, screen_update)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(hp9k)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", hp9k)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
-	MCFG_MC6845_ADD( "mc6845", MC6845, "screen", XTAL_16MHz / 16, hp9k_mc6845_intf )
+	MCFG_MC6845_ADD("mc6845", MC6845, "screen", XTAL_16MHz / 16)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 MACHINE_CONFIG_END
 
 /* ROM definition */

@@ -30,13 +30,10 @@
 
 */
 
-#include "emu.h"
+#include "bus/rs232/rs232.h"
+#include "bus/s100/s100.h"
 #include "cpu/z80/z80.h"
 #include "machine/i8251.h"
-#include "machine/serial.h"
-#include "machine/s100.h"
-#include "machine/s100_nsmdsa.h"
-#include "machine/s100_nsmdsad.h"
 
 #define Z80_TAG         "z80"
 #define I8251_L_TAG     "3a"
@@ -99,78 +96,27 @@ INPUT_PORTS_END
 //  DEVICE CONFIGURATION
 //**************************************************************************
 
-//-------------------------------------------------
-//  i8251_interface usart_l_intf
-//-------------------------------------------------
-
-static const i8251_interface usart_l_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dsr_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  i8251_interface usart_r_intf
-//-------------------------------------------------
-
-static const i8251_interface usart_r_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dsr_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232a_intf
-//-------------------------------------------------
-
 static DEVICE_INPUT_DEFAULTS_START( terminal )
-	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x0f, 0x06 ) // 9600
-	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x30, 0x00 ) // 8N1
+	DEVICE_INPUT_DEFAULTS( "RS232_TXBAUD", 0xff, RS232_BAUD_9600 )
+	DEVICE_INPUT_DEFAULTS( "RS232_RXBAUD", 0xff, RS232_BAUD_9600 )
+	DEVICE_INPUT_DEFAULTS( "RS232_STARTBITS", 0xff, RS232_STARTBITS_1 )
+	DEVICE_INPUT_DEFAULTS( "RS232_DATABITS", 0xff, RS232_DATABITS_8 )
+	DEVICE_INPUT_DEFAULTS( "RS232_PARITY", 0xff, RS232_PARITY_NONE )
+	DEVICE_INPUT_DEFAULTS( "RS232_STOPBITS", 0xff, RS232_STOPBITS_1 )
 DEVICE_INPUT_DEFAULTS_END
-
-static const rs232_port_interface rs232a_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232b_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232b_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 
 //-------------------------------------------------
 //  S100_INTERFACE( s100_intf )
 //-------------------------------------------------
+
+// slot devices
+//#include "bus/s100/dj2db.h"
+//#include "bus/s100/djdma.h"
+//#include "bus/s100/mm65k16s.h"
+#include "bus/s100/nsmdsa.h"
+#include "bus/s100/nsmdsad.h"
+//#include "bus/s100/wunderbus.h"
 
 static SLOT_INTERFACE_START( horizon_s100_cards )
 	SLOT_INTERFACE("mdsa", S100_MDS_A)
@@ -180,27 +126,6 @@ static SLOT_INTERFACE_START( horizon_s100_cards )
 	//SLOT_INTERFACE("ram16a", S100_RAM16A)
 	//SLOT_INTERFACE("fpb", S100_FPB)
 SLOT_INTERFACE_END
-
-static S100_INTERFACE( s100_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, Z80_INPUT_LINE_WAIT),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 
 
@@ -219,14 +144,28 @@ static MACHINE_CONFIG_START( horizon, horizon_state )
 	MCFG_CPU_IO_MAP(horizon_io)
 
 	// devices
-	MCFG_I8251_ADD(I8251_L_TAG, usart_l_intf)
-	MCFG_I8251_ADD(I8251_R_TAG, usart_r_intf)
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, "serial_terminal")
-	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("serial_terminal", terminal)
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
+	MCFG_DEVICE_ADD(I8251_L_TAG, I8251, 0)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_I8251_DTR_HANDLER(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_I8251_RTS_HANDLER(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, "terminal")
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(I8251_L_TAG, i8251_device, write_rxd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(I8251_L_TAG, i8251_device, write_dsr))
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("terminal", terminal)
+
+	MCFG_DEVICE_ADD(I8251_R_TAG, I8251, 0)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_I8251_DTR_HANDLER(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_I8251_RTS_HANDLER(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(I8251_R_TAG, i8251_device, write_rxd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(I8251_R_TAG, i8251_device, write_dsr))
 
 	// S-100
-	MCFG_S100_BUS_ADD(s100_intf)
+	MCFG_S100_BUS_ADD()
+	MCFG_S100_RDY_CALLBACK(INPUTLINE(Z80_TAG, Z80_INPUT_LINE_WAIT))
 	//MCFG_S100_SLOT_ADD("s100_1", horizon_s100_cards, NULL, NULL) // CPU
 	MCFG_S100_SLOT_ADD("s100_2", horizon_s100_cards, NULL) // RAM
 	MCFG_S100_SLOT_ADD("s100_3", horizon_s100_cards, "mdsad") // MDS

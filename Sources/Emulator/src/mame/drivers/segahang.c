@@ -1,37 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Sega Hang On hardware
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************
 
@@ -43,8 +14,6 @@
         * verify protection
 
 ***************************************************************************/
-
-#define MODERN_DRIVER_INIT
 
 #include "emu.h"
 #include "includes/segahang.h"
@@ -65,34 +34,6 @@
 const UINT32 MASTER_CLOCK_25MHz = 25174800;
 const UINT32 MASTER_CLOCK_10MHz = 10000000;
 const UINT32 MASTER_CLOCK_8MHz = 8000000;
-
-
-
-//**************************************************************************
-//  PPI INTERFACES
-//**************************************************************************
-
-static I8255_INTERFACE(hangon_ppi_intf_0)
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(segahang_state, video_lamps_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(segahang_state, tilemap_sound_w)
-};
-
-static I8255_INTERFACE(hangon_ppi_intf_1)
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(segahang_state, sub_control_adc_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(segahang_state, adc_status_r),
-	DEVCB_NULL
-};
-
-
 
 //**************************************************************************
 //  PPI READ/WRITE CALLBACKS
@@ -749,7 +690,7 @@ static INPUT_PORTS_START( sharrier )
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_MINMAX(0x20,0xe0) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_REVERSE
 
 	PORT_START("ADC1")  // Y axis
-	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_MINMAX(0x60,0xa0) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_REVERSE
+	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_MINMAX(0x20,0xe0) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_REVERSE
 INPUT_PORTS_END
 
 
@@ -797,25 +738,6 @@ static INPUT_PORTS_START( enduror )
 INPUT_PORTS_END
 
 
-
-//**************************************************************************
-//  SOUND CONFIGURATIONS
-//**************************************************************************
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
-static const sega_pcm_interface segapcm_interface =
-{
-	BANK_512
-};
-
-
-
 //**************************************************************************
 //  GRAPHICS DECODING
 //**************************************************************************
@@ -842,19 +764,27 @@ static MACHINE_CONFIG_START( shared_base, segahang_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 
-	MCFG_I8255_ADD( "i8255_1", hangon_ppi_intf_0 )
-	MCFG_I8255_ADD( "i8255_2", hangon_ppi_intf_1 )
+	MCFG_DEVICE_ADD("i8255_1", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(driver_device, soundlatch_byte_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(segahang_state, video_lamps_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(segahang_state, tilemap_sound_w))
+
+	MCFG_DEVICE_ADD("i8255_2", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(segahang_state, sub_control_adc_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(segahang_state, adc_status_r))
 
 	MCFG_SEGAIC16VID_ADD("segaic16vid")
+	MCFG_SEGAIC16VID_GFXDECODE("gfxdecode")
 	MCFG_SEGAIC16_ROAD_ADD("segaic16road")
 
 	// video hardware
-	MCFG_GFXDECODE(segahang)
-	MCFG_PALETTE_LENGTH(2048*3)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", segahang)
+	MCFG_PALETTE_ADD("palette", 2048*3)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK_25MHz/4, 400, 0, 320, 262, 0, 224)
 	MCFG_SCREEN_UPDATE_DRIVER(segahang_state, screen_update)
+	MCFG_SCREEN_PALETTE("palette")
 MACHINE_CONFIG_END
 
 
@@ -900,7 +830,6 @@ static MACHINE_CONFIG_FRAGMENT( sound_board_2203 )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, MASTER_CLOCK_8MHz/2)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(segahang_state, sound_irq))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.13)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.13)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  0.13)
@@ -911,7 +840,7 @@ static MACHINE_CONFIG_FRAGMENT( sound_board_2203 )
 	MCFG_SOUND_ROUTE(3, "rspeaker", 0.37)
 
 	MCFG_SEGAPCM_ADD("pcm", MASTER_CLOCK_8MHz)
-	MCFG_SOUND_CONFIG(segapcm_interface)
+	MCFG_SEGAPCM_BANK(BANK_512)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -929,7 +858,6 @@ static MACHINE_CONFIG_FRAGMENT( sound_board_2203x2 )
 
 	MCFG_SOUND_ADD("ym1", YM2203, MASTER_CLOCK_8MHz/2)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(segahang_state, sound_irq))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.13)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.13)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  0.13)
@@ -950,7 +878,7 @@ static MACHINE_CONFIG_FRAGMENT( sound_board_2203x2 )
 	MCFG_SOUND_ROUTE(3, "rspeaker", 0.37)
 
 	MCFG_SEGAPCM_ADD("pcm", MASTER_CLOCK_8MHz/2)
-	MCFG_SOUND_CONFIG(segapcm_interface)
+	MCFG_SEGAPCM_BANK(BANK_512)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -972,7 +900,7 @@ static MACHINE_CONFIG_FRAGMENT( sound_board_2151 )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.43)
 
 	MCFG_SEGAPCM_ADD("pcm", MASTER_CLOCK_8MHz/2)
-	MCFG_SOUND_CONFIG(segapcm_interface)
+	MCFG_SEGAPCM_BANK(BANK_512)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END

@@ -1,29 +1,37 @@
-/***************************************************************************
+// license:MAME
+// copyright-holders:Angelo Salese
+/***********************************************************************************************************
 
     'High Rate DVD' HW (c) 1998 Nichibutsu
 
     preliminary driver by Angelo Salese
 
     TODO:
-    - rewrite v9938/v9958 video chip;
     - fix h8 CPU core bugs, it trips various unhandled opcodes
     - Implement DVD routing and YUV decoding;
     - game timings seem busted, could be due of missing DVD hook-up
     - csplayh1: inputs doesn't work at all, slower than the others too
+    - h8 type is almost likely to be wrong;
 
-***************************************************************************/
+    DVD Notes:
+    - TMP68301 communicates with h8 via their respective internal serial comms
+    - First command is a "?P<CR>", which, according to the Pioneer V5000 protocol manual
+      is an Active Mode request. Manual is at:
+      http://www.pioneerelectronics.com/ephox/StaticFiles/Manuals/Business/Pio%20V5000-RS232%20-%20CPM.pdf
+      After returning a correct status code, tmp68301 sends "FSDVD04.MPG00001<CR>" to serial, probably tries
+      to playback the file ...
+
+***********************************************************************************************************/
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
 #include "machine/tmp68301.h"
 #include "video/v9938.h"
-#include "cpu/z80/z80.h"
-#include "machine/z80ctc.h"
+#include "cpu/z80/tmpz84c011.h"
 #include "sound/dac.h"
 #include "sound/3812intf.h"
-#include "cpu/z80/z80daisy.h"
 #include "machine/nvram.h"
-#include "cpu/h83002/h8.h"
+#include "cpu/h8/h83002.h"
 
 
 class csplayh5_state : public driver_device
@@ -36,43 +44,29 @@ public:
 		m_v9958(*this, "v9958"),
 		m_dac1(*this, "dac1"),
 		m_dac2(*this, "dac2")
-		{ }
-
-	UINT16 m_mux_data;
-	UINT8 m_pio_dir[5];
-	UINT8 m_pio_latch[5];
+	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<tmp68301_device> m_tmp68301;
 	required_device<v9958_device> m_v9958;
+	required_device<dac_device> m_dac1;
+	required_device<dac_device> m_dac2;
+
+	UINT16 m_mux_data;
+
 	DECLARE_READ16_MEMBER(csplayh5_mux_r);
 	DECLARE_WRITE16_MEMBER(csplayh5_mux_w);
 	DECLARE_WRITE16_MEMBER(csplayh5_sound_w);
 	DECLARE_READ16_MEMBER(test_r);
 	DECLARE_READ8_MEMBER(csplayh5_sound_r);
 	DECLARE_WRITE8_MEMBER(csplayh5_soundclr_w);
-	DECLARE_READ8_MEMBER(tmpz84c011_pio_r);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_pio_w);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_pa_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_pb_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_pc_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_pd_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_pe_r);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_pa_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_pb_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_pc_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_pd_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_pe_w);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_dir_pa_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_dir_pb_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_dir_pc_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_dir_pd_r);
-	DECLARE_READ8_MEMBER(tmpz84c011_0_dir_pe_r);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_dir_pa_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_dir_pb_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_dir_pc_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_dir_pd_w);
-	DECLARE_WRITE8_MEMBER(tmpz84c011_0_dir_pe_w);
+
+	DECLARE_READ8_MEMBER(soundcpu_portd_r);
+	DECLARE_WRITE8_MEMBER(soundcpu_porta_w);
+	DECLARE_WRITE8_MEMBER(soundcpu_dac2_w);
+	DECLARE_WRITE8_MEMBER(soundcpu_dac1_w);
+	DECLARE_WRITE8_MEMBER(soundcpu_porte_w);
+
 	DECLARE_DRIVER_INIT(mjmania);
 	DECLARE_DRIVER_INIT(csplayh5);
 	DECLARE_DRIVER_INIT(fuudol);
@@ -86,8 +80,6 @@ public:
 	virtual void machine_reset();
 	TIMER_DEVICE_CALLBACK_MEMBER(csplayh5_irq);
 	DECLARE_WRITE_LINE_MEMBER(csplayh5_vdp0_interrupt);
-	required_device<dac_device> m_dac1;
-	required_device<dac_device> m_dac2;
 };
 
 
@@ -144,9 +136,9 @@ static ADDRESS_MAP_START( csplayh5_map, AS_PROGRAM, 16, csplayh5_state )
 
 	AM_RANGE(0x800000, 0xbfffff) AM_ROM AM_REGION("blit_gfx",0) // GFX ROM routes here
 
-	AM_RANGE(0xc00000, 0xc7ffff) AM_RAM AM_SHARE("nvram") AM_MIRROR(0x380000) // work RAM
-
 	AM_RANGE(0xfffc00, 0xffffff) AM_DEVREADWRITE("tmp68301", tmp68301_device, regs_r, regs_w)  // TMP68301 Registers
+
+	AM_RANGE(0xc00000, 0xc7ffff) AM_RAM AM_SHARE("nvram") AM_MIRROR(0x380000) // work RAM
 ADDRESS_MAP_END
 
 #if USE_H8
@@ -202,170 +194,35 @@ WRITE8_MEMBER(csplayh5_state::csplayh5_soundclr_w)
 	soundlatch_clear_byte_w(space, 0, 0);
 }
 
-READ8_MEMBER(csplayh5_state::tmpz84c011_pio_r)
+
+READ8_MEMBER(csplayh5_state::soundcpu_portd_r)
 {
-	int portdata;
-
-	switch (offset)
-	{
-		case 0:         /* PA_0 */
-			portdata = 0xff;
-			break;
-		case 1:         /* PB_0 */
-			portdata = 0xff;
-			break;
-		case 2:         /* PC_0 */
-			portdata = 0xff;
-			break;
-		case 3:         /* PD_0 */
-			portdata = csplayh5_sound_r(space, 0);
-			break;
-		case 4:         /* PE_0 */
-			portdata = 0xff;
-			break;
-
-		default:
-			logerror("%s: TMPZ84C011_PIO Unknown Port Read %02X\n", machine().describe_context(), offset);
-			portdata = 0xff;
-			break;
-	}
-
-	return portdata;
+	return csplayh5_sound_r(space, 0);
 }
 
-WRITE8_MEMBER(csplayh5_state::tmpz84c011_pio_w)
+WRITE8_MEMBER(csplayh5_state::soundcpu_porta_w)
 {
-	switch (offset)
-	{
-		case 0:         /* PA_0 */
-			csplayh5_soundbank_w(machine(), data & 0x03);
-			break;
-		case 1:         /* PB_0 */
-			m_dac2->DAC_WRITE(data);
-			break;
-		case 2:         /* PC_0 */
-			m_dac1->DAC_WRITE(data);
-			break;
-		case 3:         /* PD_0 */
-			break;
-		case 4:         /* PE_0 */
-			if (!(data & 0x01)) csplayh5_soundclr_w(space, 0, 0);
-			break;
+	csplayh5_soundbank_w(machine(), data & 0x03);
+}
 
-		default:
-			logerror("%s: TMPZ84C011_PIO Unknown Port Write %02X, %02X\n", machine().describe_context(), offset, data);
-			break;
-	}
+WRITE8_MEMBER(csplayh5_state::soundcpu_dac2_w)
+{
+	m_dac2->DAC_WRITE(data);
+}
+
+WRITE8_MEMBER(csplayh5_state::soundcpu_dac1_w)
+{
+	m_dac1->DAC_WRITE(data);
+}
+
+WRITE8_MEMBER(csplayh5_state::soundcpu_porte_w)
+{
+	if (!(data & 0x01)) csplayh5_soundclr_w(space, 0, 0);
 }
 
 
-/* CPU interface */
-READ8_MEMBER(csplayh5_state::tmpz84c011_0_pa_r)
-{
-	return (tmpz84c011_pio_r(space,0) & ~m_pio_dir[0]) | (m_pio_latch[0] & m_pio_dir[0]);
-}
-
-READ8_MEMBER(csplayh5_state::tmpz84c011_0_pb_r)
-{
-	return (tmpz84c011_pio_r(space,1) & ~m_pio_dir[1]) | (m_pio_latch[1] & m_pio_dir[1]);
-}
-
-READ8_MEMBER(csplayh5_state::tmpz84c011_0_pc_r)
-{
-	return (tmpz84c011_pio_r(space,2) & ~m_pio_dir[2]) | (m_pio_latch[2] & m_pio_dir[2]);
-}
-
-READ8_MEMBER(csplayh5_state::tmpz84c011_0_pd_r)
-{
-	return (tmpz84c011_pio_r(space,3) & ~m_pio_dir[3]) | (m_pio_latch[3] & m_pio_dir[3]);
-}
-
-READ8_MEMBER(csplayh5_state::tmpz84c011_0_pe_r)
-{
-	return (tmpz84c011_pio_r(space,4) & ~m_pio_dir[4]) | (m_pio_latch[4] & m_pio_dir[4]);
-}
-
-WRITE8_MEMBER(csplayh5_state::tmpz84c011_0_pa_w)
-{
-	m_pio_latch[0] = data;
-	tmpz84c011_pio_w(space, 0, data);
-}
-
-WRITE8_MEMBER(csplayh5_state::tmpz84c011_0_pb_w)
-{
-	m_pio_latch[1] = data;
-	tmpz84c011_pio_w(space, 1, data);
-}
-
-WRITE8_MEMBER(csplayh5_state::tmpz84c011_0_pc_w)
-{
-	m_pio_latch[2] = data;
-	tmpz84c011_pio_w(space, 2, data);
-}
-
-WRITE8_MEMBER(csplayh5_state::tmpz84c011_0_pd_w)
-{
-	m_pio_latch[3] = data;
-	tmpz84c011_pio_w(space, 3, data);
-}
-
-WRITE8_MEMBER(csplayh5_state::tmpz84c011_0_pe_w)
-{
-	m_pio_latch[4] = data;
-	tmpz84c011_pio_w(space, 4, data);
-}
 
 
-READ8_MEMBER(csplayh5_state::tmpz84c011_0_dir_pa_r)
-{
-	return m_pio_dir[0];
-}
-
-READ8_MEMBER(csplayh5_state::tmpz84c011_0_dir_pb_r)
-{
-	return m_pio_dir[1];
-}
-
-READ8_MEMBER(csplayh5_state::tmpz84c011_0_dir_pc_r)
-{
-	return m_pio_dir[2];
-}
-
-READ8_MEMBER(csplayh5_state::tmpz84c011_0_dir_pd_r)
-{
-	return m_pio_dir[3];
-}
-
-READ8_MEMBER(csplayh5_state::tmpz84c011_0_dir_pe_r)
-{
-	return m_pio_dir[4];
-}
-
-
-WRITE8_MEMBER(csplayh5_state::tmpz84c011_0_dir_pa_w)
-{
-	m_pio_dir[0] = data;
-}
-
-WRITE8_MEMBER(csplayh5_state::tmpz84c011_0_dir_pb_w)
-{
-	m_pio_dir[1] = data;
-}
-
-WRITE8_MEMBER(csplayh5_state::tmpz84c011_0_dir_pc_w)
-{
-	m_pio_dir[2] = data;
-}
-
-WRITE8_MEMBER(csplayh5_state::tmpz84c011_0_dir_pd_w)
-{
-	m_pio_dir[3] = data;
-}
-
-WRITE8_MEMBER(csplayh5_state::tmpz84c011_0_dir_pe_w)
-{
-	m_pio_dir[4] = data;
-}
 
 
 static ADDRESS_MAP_START( csplayh5_sound_map, AS_PROGRAM, 8, csplayh5_state )
@@ -376,17 +233,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( csplayh5_sound_io_map, AS_IO, 8, csplayh5_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE("ctc", z80ctc_device, read, write)
-	AM_RANGE(0x50, 0x50) AM_READWRITE(tmpz84c011_0_pa_r, tmpz84c011_0_pa_w)
-	AM_RANGE(0x51, 0x51) AM_READWRITE(tmpz84c011_0_pb_r, tmpz84c011_0_pb_w)
-	AM_RANGE(0x52, 0x52) AM_READWRITE(tmpz84c011_0_pc_r, tmpz84c011_0_pc_w)
-	AM_RANGE(0x30, 0x30) AM_READWRITE(tmpz84c011_0_pd_r, tmpz84c011_0_pd_w)
-	AM_RANGE(0x40, 0x40) AM_READWRITE(tmpz84c011_0_pe_r, tmpz84c011_0_pe_w)
-	AM_RANGE(0x54, 0x54) AM_READWRITE(tmpz84c011_0_dir_pa_r, tmpz84c011_0_dir_pa_w)
-	AM_RANGE(0x55, 0x55) AM_READWRITE(tmpz84c011_0_dir_pb_r, tmpz84c011_0_dir_pb_w)
-	AM_RANGE(0x56, 0x56) AM_READWRITE(tmpz84c011_0_dir_pc_r, tmpz84c011_0_dir_pc_w)
-	AM_RANGE(0x34, 0x34) AM_READWRITE(tmpz84c011_0_dir_pd_r, tmpz84c011_0_dir_pd_w)
-	AM_RANGE(0x44, 0x44) AM_READWRITE(tmpz84c011_0_dir_pe_r, tmpz84c011_0_dir_pe_w)
 	AM_RANGE(0x80, 0x81) AM_DEVWRITE("ymsnd", ym3812_device, write)
 ADDRESS_MAP_END
 
@@ -579,29 +425,13 @@ static INPUT_PORTS_START( csplayh5 )
 	PORT_DIPSETTING(      0x8000, DEF_STR( On ) )
 INPUT_PORTS_END
 
+#if 0
 static GFXDECODE_START( csplayh5 )
 GFXDECODE_END
-
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("audiocpu", INPUT_LINE_IRQ0),/* interrupt handler */
-	DEVCB_DEVICE_LINE_MEMBER("ctc", z80ctc_device, trg3),   /* ZC/TO0 callback ctc1.zc0 -> ctc1.trg3 */
-	DEVCB_NULL,                 /* ZC/TO1 callback */
-	DEVCB_NULL                  /* ZC/TO2 callback */
-};
-
+#endif
 
 void csplayh5_state::machine_reset()
 {
-	address_space &space = m_maincpu->space(AS_PROGRAM);
-	int i;
-
-	// initialize TMPZ84C011 PIO
-	for (i = 0; i < 5; i++)
-	{
-		m_pio_dir[i] = m_pio_latch[i] = 0;
-		tmpz84c011_pio_w(space, i, 0);
-	}
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(csplayh5_state::csplayh5_irq)
@@ -609,7 +439,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(csplayh5_state::csplayh5_irq)
 	int scanline = param;
 
 	if(scanline == 212*2)
-		m_maincpu->set_input_line_and_vector(1, HOLD_LINE,0x100/4);
+		m_tmp68301->external_interrupt_0();
 
 	if((scanline % 2) == 0)
 	{
@@ -620,19 +450,20 @@ TIMER_DEVICE_CALLBACK_MEMBER(csplayh5_state::csplayh5_irq)
 
 static const z80_daisy_config daisy_chain_sound[] =
 {
-	{ "ctc" },
+	TMPZ84C011_DAISY_INTERNAL,
 	{ NULL }
 };
-
 
 static MACHINE_CONFIG_START( csplayh5, csplayh5_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",M68000,16000000) /* TMP68301-16 */
 	MCFG_CPU_PROGRAM_MAP(csplayh5_map)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("tmp68301",tmp68301_device,irq_callback)
+
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", csplayh5_state, csplayh5_irq, "screen", 0, 1)
 
-	MCFG_TMP68301_ADD("tmp68301")
+	MCFG_DEVICE_ADD("tmp68301", TMP68301, 0)
 
 #if USE_H8
 	MCFG_CPU_ADD("subcpu", H83002, 16000000)    /* unknown clock */
@@ -640,30 +471,31 @@ static MACHINE_CONFIG_START( csplayh5, csplayh5_state )
 	MCFG_CPU_IO_MAP(csplayh5_sub_io_map)
 #endif
 
-	MCFG_CPU_ADD("audiocpu", Z80, 8000000)  /* TMPZ84C011, unknown clock */
+	MCFG_CPU_ADD("audiocpu", TMPZ84C011, 8000000)  /* TMPZ84C011, unknown clock */
 	MCFG_CPU_CONFIG(daisy_chain_sound)
 	MCFG_CPU_PROGRAM_MAP(csplayh5_sound_map)
 	MCFG_CPU_IO_MAP(csplayh5_sound_io_map)
-
-	MCFG_Z80CTC_ADD("ctc", 8000000, ctc_intf)
-
+	MCFG_TMPZ84C011_PORTA_WRITE_CB(WRITE8(csplayh5_state, soundcpu_porta_w))
+	MCFG_TMPZ84C011_PORTB_WRITE_CB(WRITE8(csplayh5_state, soundcpu_dac2_w))
+	MCFG_TMPZ84C011_PORTC_WRITE_CB(WRITE8(csplayh5_state, soundcpu_dac1_w))
+	MCFG_TMPZ84C011_PORTD_READ_CB(READ8(csplayh5_state, soundcpu_portd_r))
+	MCFG_TMPZ84C011_PORTE_WRITE_CB(WRITE8(csplayh5_state, soundcpu_porte_w))
+	MCFG_TMPZ84C011_ZC0_CB(DEVWRITELINE("audiocpu", tmpz84c011_device, trg3))
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_V9958_ADD("v9958", "screen", 0x20000)
 	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(csplayh5_state, csplayh5_vdp0_interrupt))
 
 	MCFG_SCREEN_ADD("screen",RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_SIZE(MSX2_TOTAL_XRES_PIXELS, 262*2)
 	MCFG_SCREEN_VISIBLE_AREA(MSX2_XBORDER_PIXELS - MSX2_VISIBLE_XBORDER_PIXELS, MSX2_TOTAL_XRES_PIXELS - MSX2_XBORDER_PIXELS + MSX2_VISIBLE_XBORDER_PIXELS - 1, MSX2_YBORDER_PIXELS - MSX2_VISIBLE_YBORDER_PIXELS, MSX2_TOTAL_YRES_PIXELS - MSX2_YBORDER_PIXELS + MSX2_VISIBLE_YBORDER_PIXELS - 1)
 	MCFG_SCREEN_UPDATE_DEVICE("v9958", v9958_device, screen_update)
-
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_SCREEN_PALETTE("v9958:palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -920,11 +752,11 @@ GAME( 1995, csplayh1,   0,   csplayh5,  csplayh5, csplayh5_state,  csplayh1,    
 
 // 1999
 /* 07 */ GAME( 1999, mjmania,   0,   csplayh5,  csplayh5, csplayh5_state,  mjmania,         ROT0, "Sphinx/Just&Just", "Mahjong Mania - Kairakukan e Youkoso (Japan)", GAME_NOT_WORKING )
-///* 08 */ GAME( 1995, renaimj,   0,   csplayh5,  csplayh5, csplayh5_state,  renaimj,         ROT0, "Nichibutsu/eic",   "Renai Mahjong Idol Gakuen (Japan)", GAME_NOT_WORKING )
+/* 08 */ //GAME( 1995, renaimj,   0,   csplayh5,  csplayh5, csplayh5_state,  renaimj,         ROT0, "Nichibutsu/eic",   "Renai Mahjong Idol Gakuen (Japan)", GAME_NOT_WORKING )
 /* 09 */ GAME( 1999, bikiniko,  0,   csplayh5,  csplayh5, csplayh5_state,  bikiniko,        ROT0, "Nichibutsu/eic",   "BiKiNikko - Okinawa de Ippai Shichaimashita (Japan)", GAME_NOT_WORKING )
 // 10 : Mahjong Hanafuda Cosplay Tengoku 6 - Junai hen : Nichibutsu/eic
 /* 11 */ GAME( 1999, thenanpa,  0,   csplayh5,  csplayh5, csplayh5_state,  thenanpa,        ROT0, "Nichibutsu/Love Factory/eic", "The Nanpa (Japan)", GAME_NOT_WORKING )
-// 12 GAME( 1999, pokoachu,  0,   csplayh5,  csplayh5, driver_device,  0,        ROT0, "Nichibutsu/eic", "PokoaPoka Onsen de CHU - Bijin 3 Shimai ni Kiotsukete! (Japan)", GAME_NOT_WORKING )
+/* 12 */ //GAME( 1999, pokoachu,  0,   csplayh5,  csplayh5, driver_device,  0,        ROT0, "Nichibutsu/eic", "PokoaPoka Onsen de CHU - Bijin 3 Shimai ni Kiotsukete! (Japan)", GAME_NOT_WORKING )
 /* 13 */ GAME( 1999, csplayh7,  0,   csplayh5,  csplayh5, csplayh5_state,  csplayh7,        ROT0, "Nichibutsu/eic", "Cosplay Tengoku 7 - Super Kogal Grandprix (Japan)", GAME_NOT_WORKING )
 // 14 : Ai-mode - Pet Shiiku : Nichibutsu/eic
 

@@ -202,7 +202,7 @@ WRITE8_MEMBER(rastan_state::rastan_msm5205_stop_w)
 static ADDRESS_MAP_START( rastan_map, AS_PROGRAM, 16, rastan_state )
 	AM_RANGE(0x000000, 0x05ffff) AM_ROM
 	AM_RANGE(0x10c000, 0x10ffff) AM_RAM
-	AM_RANGE(0x200000, 0x200fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x200000, 0x200fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x350008, 0x350009) AM_WRITENOP    /* 0 only (often) ? */
 	AM_RANGE(0x380000, 0x380001) AM_WRITE(rastan_spritectrl_w)  /* sprite palette bank, coin counters & lockout */
 	AM_RANGE(0x390000, 0x390001) AM_READ_PORT("P1")
@@ -212,8 +212,8 @@ static ADDRESS_MAP_START( rastan_map, AS_PROGRAM, 16, rastan_state )
 	AM_RANGE(0x390008, 0x390009) AM_READ_PORT("DSWA")
 	AM_RANGE(0x39000a, 0x39000b) AM_READ_PORT("DSWB")
 	AM_RANGE(0x3c0000, 0x3c0001) AM_WRITE(watchdog_reset16_w)
-	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, master_port_w, 0x00ff)
+	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, master_comm_r, master_comm_w, 0x00ff)
 	AM_RANGE(0xc00000, 0xc0ffff) AM_DEVREADWRITE("pc080sn", pc080sn_device, word_r, word_w)
 	AM_RANGE(0xc20000, 0xc20003) AM_DEVWRITE("pc080sn", pc080sn_device, yscroll_word_w)
 	AM_RANGE(0xc40000, 0xc40003) AM_DEVWRITE("pc080sn", pc080sn_device, xscroll_word_w)
@@ -227,8 +227,8 @@ static ADDRESS_MAP_START( rastan_s_map, AS_PROGRAM, 8, rastan_state )
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
 	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
-	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("tc0140syt", tc0140syt_device, slave_port_w)
+	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, slave_comm_r, slave_comm_w)
 	AM_RANGE(0xb000, 0xb000) AM_WRITE(rastan_msm5205_address_w)
 	AM_RANGE(0xc000, 0xc000) AM_WRITE(rastan_msm5205_start_w)
 	AM_RANGE(0xd000, 0xd000) AM_WRITE(rastan_msm5205_stop_w)
@@ -333,13 +333,6 @@ static GFXDECODE_START( rastan )
 GFXDECODE_END
 
 
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(rastan_state,rastan_msm5205_vck), /* VCK function */
-	MSM5205_S48_4B      /* 8 kHz */
-};
-
 void rastan_state::machine_start()
 {
 	UINT8 *ROM = memregion("audiocpu")->base();
@@ -363,22 +356,6 @@ void rastan_state::machine_reset()
 }
 
 
-static const pc080sn_interface rastan_pc080sn_intf =
-{
-	0,   /* gfxnum */
-	0, 0, 0, 0  /* x_offset, y_offset, y_invert, dblwidth */
-};
-
-static const pc090oj_interface rastan_pc090oj_intf =
-{
-	1, 0, 0, 0
-};
-
-static const tc0140syt_interface rastan_tc0140syt_intf =
-{
-	"maincpu", "audiocpu"
-};
-
 static MACHINE_CONFIG_START( rastan, rastan_state )
 
 	/* basic machine hardware */
@@ -399,12 +376,20 @@ static MACHINE_CONFIG_START( rastan, rastan_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(rastan_state, screen_update_rastan)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(rastan)
-	MCFG_PALETTE_LENGTH(8192)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rastan)
+	MCFG_PALETTE_ADD("palette", 8192)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
-	MCFG_PC080SN_ADD("pc080sn", rastan_pc080sn_intf)
-	MCFG_PC090OJ_ADD("pc090oj", rastan_pc090oj_intf)
+	MCFG_DEVICE_ADD("pc080sn", PC080SN, 0)
+	MCFG_PC080SN_GFXDECODE("gfxdecode")
+	MCFG_PC080SN_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("pc090oj", PC090OJ, 0)
+	MCFG_PC090OJ_GFX_REGION(1)
+	MCFG_PC090OJ_GFXDECODE("gfxdecode")
+	MCFG_PC090OJ_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -416,10 +401,13 @@ static MACHINE_CONFIG_START( rastan, rastan_state )
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 
 	MCFG_SOUND_ADD("msm", MSM5205, XTAL_384kHz) /* verified on pcb */
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(rastan_state, rastan_msm5205_vck)) /* VCK function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8 kHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 
-	MCFG_TC0140SYT_ADD("tc0140syt", rastan_tc0140syt_intf)
+	MCFG_DEVICE_ADD("tc0140syt", TC0140SYT, 0)
+	MCFG_TC0140SYT_MASTER_CPU("maincpu")
+	MCFG_TC0140SYT_SLAVE_CPU("audiocpu")
 MACHINE_CONFIG_END
 
 

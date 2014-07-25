@@ -79,8 +79,7 @@ would just have taken three extra tracks on the main board and a OR gate in an A
 
 #include "emu.h"
 #include "machine/tms9901.h"
-#include "cpu/tms9900/tms9900l.h"
-
+#include "cpu/tms9900/tms9995.h"
 
 class ti99_2_state : public driver_device
 {
@@ -88,7 +87,9 @@ public:
 	ti99_2_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	int m_ROM_paged;
@@ -101,10 +102,11 @@ public:
 	DECLARE_DRIVER_INIT(ti99_2_24);
 	DECLARE_DRIVER_INIT(ti99_2_32);
 	virtual void machine_reset();
-	virtual void palette_init();
 	UINT32 screen_update_ti99_2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(ti99_2_vblank_interrupt);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -131,11 +133,16 @@ void ti99_2_state::machine_reset()
 		membank("bank1")->set_base(memregion("maincpu")->base()+0x4000);
 	else
 		membank("bank1")->set_base((memregion("maincpu")->base()+0x4000));
+
+	// Configure CPU to insert 1 wait state for each external memory access
+	// by lowering the READY line on reset
+	// TODO: Check with specs
+	static_cast<tms9995_device*>(machine().device("maincpu"))->set_ready(CLEAR_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(ti99_2_state::ti99_2_vblank_interrupt)
 {
-	device.execute().set_input_line(1, m_irq_state);
+	m_maincpu->set_input_line(INT_9995_INT1, m_irq_state);
 	m_irq_state = (m_irq_state == ASSERT_LINE) ? CLEAR_LINE : ASSERT_LINE;
 }
 
@@ -153,12 +160,6 @@ INTERRUPT_GEN_MEMBER(ti99_2_state::ti99_2_vblank_interrupt)
 */
 
 
-void ti99_2_state::palette_init()
-{
-	palette_set_color(machine(),0,RGB_WHITE); /* white */
-	palette_set_color(machine(),1,RGB_BLACK); /* black */
-}
-
 
 UINT32 ti99_2_state::screen_update_ti99_2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
@@ -171,7 +172,7 @@ UINT32 ti99_2_state::screen_update_ti99_2(screen_device &screen, bitmap_ind16 &b
 	for (i = 0; i < 768; i++)
 	{
 		/* Is the char code masked or not ??? */
-		drawgfx_opaque(bitmap, cliprect, machine().gfx[0], videoram[i] & 0x7F, 0,
+		m_gfxdecode->gfx(0)->opaque(bitmap,cliprect, videoram[i] & 0x7F, 0,
 			0, 0, sx, sy);
 
 		sx += 8;
@@ -363,27 +364,13 @@ static INPUT_PORTS_START(ti99_2)
 
 INPUT_PORTS_END
 
-
-static const struct tms9995reset_param ti99_2_processor_config =
-{
-#if 0
-	"maincpu",/* region for processor RAM */
-	0xf000,     /* offset : this area is unused in our region, and matches the processor address */
-	0xf0fc,     /* offset for the LOAD vector */
-	NULL,       /* no IDLE callback */
-	1,          /* use fast IDLE */
-#endif
-	1           /* enable automatic wait state generation */
-};
-
 static MACHINE_CONFIG_START( ti99_2, ti99_2_state )
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", TMS9995L, 10700000)
-	MCFG_CPU_CONFIG(ti99_2_processor_config)
-	MCFG_CPU_PROGRAM_MAP(ti99_2_memmap)
-	MCFG_CPU_IO_MAP(ti99_2_io)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", ti99_2_state,  ti99_2_vblank_interrupt)
+	// basic machine hardware
+	// TMS9995, standard variant
+	// We have no lines connected yet
+	MCFG_TMS99xx_ADD("maincpu", TMS9995, 10700000, ti99_2_memmap, ti99_2_io)
 
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ti99_2_state,  ti99_2_vblank_interrupt)
 
 	/* video hardware */
 	/*MCFG_TMS9928A( &tms9918_interface )*/
@@ -393,9 +380,10 @@ static MACHINE_CONFIG_START( ti99_2, ti99_2_state )
 	MCFG_SCREEN_SIZE(256, 192)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0, 192-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ti99_2_state, screen_update_ti99_2)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ti99_2)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ti99_2)
+	MCFG_PALETTE_ADD_WHITE_AND_BLACK("palette")
 MACHINE_CONFIG_END
 
 

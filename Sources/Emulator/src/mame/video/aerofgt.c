@@ -11,8 +11,7 @@ TILE_GET_INFO_MEMBER(aerofgt_state::get_pspikes_tile_info)
 {
 	UINT16 code = m_bg1videoram[tile_index];
 	int bank = (code & 0x1000) >> 12;
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code & 0x0fff) + (m_gfxbank[bank] << 12),
 			((code & 0xe000) >> 13) + 8 * m_charpalettebank,
 			0);
@@ -21,8 +20,7 @@ TILE_GET_INFO_MEMBER(aerofgt_state::get_pspikes_tile_info)
 TILE_GET_INFO_MEMBER(aerofgt_state::karatblz_bg1_tile_info)
 {
 	UINT16 code = m_bg1videoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code & 0x1fff) + (m_gfxbank[0] << 13),
 			(code & 0xe000) >> 13,
 			0);
@@ -32,8 +30,7 @@ TILE_GET_INFO_MEMBER(aerofgt_state::karatblz_bg1_tile_info)
 TILE_GET_INFO_MEMBER(aerofgt_state::karatblz_bg2_tile_info)
 {
 	UINT16 code = m_bg2videoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			(code & 0x1fff) + (m_gfxbank[1] << 13),
 			(code & 0xe000) >> 13,
 			0);
@@ -42,8 +39,7 @@ TILE_GET_INFO_MEMBER(aerofgt_state::karatblz_bg2_tile_info)
 TILE_GET_INFO_MEMBER(aerofgt_state::spinlbrk_bg1_tile_info)
 {
 	UINT16 code = m_bg1videoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code & 0x0fff) + (m_gfxbank[0] << 12),
 			(code & 0xf000) >> 12,
 			0);
@@ -53,8 +49,7 @@ TILE_GET_INFO_MEMBER(aerofgt_state::get_bg1_tile_info)
 {
 	UINT16 code = m_bg1videoram[tile_index];
 	int bank = (code & 0x1800) >> 11;
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code & 0x07ff) + (m_gfxbank[bank] << 11),
 			(code & 0xe000) >> 13,
 			0);
@@ -64,8 +59,7 @@ TILE_GET_INFO_MEMBER(aerofgt_state::get_bg2_tile_info)
 {
 	UINT16 code = m_bg2videoram[tile_index];
 	int bank = 4 + ((code & 0x1800) >> 11);
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			(code & 0x07ff) + (m_gfxbank[bank] << 11),
 			(code & 0xe000) >> 13,
 			0);
@@ -94,7 +88,7 @@ void aerofgt_state::aerofgt_register_state_globals(  )
 
 VIDEO_START_MEMBER(aerofgt_state,pspikes)
 {
-	m_bg1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(aerofgt_state::get_pspikes_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_bg1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(aerofgt_state::get_pspikes_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
 	/* no bg2 in this game */
 
 	m_sprite_gfx = 1;
@@ -106,8 +100,8 @@ VIDEO_START_MEMBER(aerofgt_state,pspikes)
 
 VIDEO_START_MEMBER(aerofgt_state,karatblz)
 {
-	m_bg1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(aerofgt_state::karatblz_bg1_tile_info),this),TILEMAP_SCAN_ROWS,     8,8,64,64);
-	m_bg2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(aerofgt_state::karatblz_bg2_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
+	m_bg1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(aerofgt_state::karatblz_bg1_tile_info),this),TILEMAP_SCAN_ROWS,     8,8,64,64);
+	m_bg2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(aerofgt_state::karatblz_bg2_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
 
 	m_bg2_tilemap->set_transparent_pen(15);
 	m_spritepalettebank = 0;
@@ -118,8 +112,8 @@ VIDEO_START_MEMBER(aerofgt_state,karatblz)
 
 VIDEO_START_MEMBER(aerofgt_state,spinlbrk)
 {
-	m_bg1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(aerofgt_state::spinlbrk_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
-	m_bg2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(aerofgt_state::karatblz_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	m_bg1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(aerofgt_state::spinlbrk_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	m_bg2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(aerofgt_state::karatblz_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 
 	m_bg2_tilemap->set_transparent_pen(15);
 
@@ -136,8 +130,8 @@ VIDEO_START_MEMBER(aerofgt_state,spinlbrk)
 
 VIDEO_START_MEMBER(aerofgt_state,turbofrc)
 {
-	m_bg1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(aerofgt_state::get_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
-	m_bg2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(aerofgt_state::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	m_bg1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(aerofgt_state::get_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	m_bg2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(aerofgt_state::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 
 	m_bg2_tilemap->set_transparent_pen(15);
 
@@ -413,7 +407,7 @@ UINT32 aerofgt_state::screen_update_aerofgt(screen_device &screen, bitmap_ind16 
 // BOOTLEG
 VIDEO_START_MEMBER(aerofgt_state,wbbc97)
 {
-	m_bg1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(aerofgt_state::get_pspikes_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_bg1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(aerofgt_state::get_pspikes_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 	/* no bg2 in this game */
 
 	m_bg1_tilemap->set_transparent_pen(15);
@@ -513,7 +507,7 @@ void aerofgt_state::aerfboo2_draw_sprites( screen_device &screen, bitmap_ind16 &
 				else
 					code = m_spriteram2[map_start % (m_spriteram2.bytes()/2)];
 
-				pdrawgfxzoom_transpen(bitmap,cliprect,machine().gfx[m_sprite_gfx + chip],
+				m_gfxdecode->gfx(m_sprite_gfx + chip)->prio_zoom_transpen(bitmap,cliprect,
 								code,
 								color,
 								flipx,flipy,
@@ -550,14 +544,14 @@ void aerofgt_state::pspikesb_draw_sprites( screen_device &screen, bitmap_ind16 &
 		flipx = m_spriteram3[i + 1] & 0x0800;
 		color = m_spriteram3[i + 1] & 0x000f;
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[m_sprite_gfx],
+		m_gfxdecode->gfx(m_sprite_gfx)->transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,
 				xpos,ypos,15);
 
 		/* wrap around y */
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[m_sprite_gfx],
+		m_gfxdecode->gfx(m_sprite_gfx)->transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,
@@ -593,14 +587,14 @@ void aerofgt_state::spikes91_draw_sprites( screen_device &screen, bitmap_ind16 &
 
 		realcode = (lookup[code] << 8) + lookup[0x10000 + code];
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[m_sprite_gfx],
+		m_gfxdecode->gfx(m_sprite_gfx)->transpen(bitmap,cliprect,
 				realcode,
 				color,
 				flipx,flipy,
 				xpos,ypos,15);
 
 		/* wrap around y */
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[m_sprite_gfx],
+		m_gfxdecode->gfx(m_sprite_gfx)->transpen(bitmap,cliprect,
 				realcode,
 				color,
 				flipx,flipy,
@@ -641,7 +635,7 @@ void aerofgt_state::aerfboot_draw_sprites( screen_device &screen, bitmap_ind16 &
 
 		sx = ((ox + 16 + 3) & 0x1ff) - 16;
 
-		pdrawgfxzoom_transpen(bitmap,cliprect,machine().gfx[m_sprite_gfx + (code >= 0x1000 ? 0 : 1)],
+		m_gfxdecode->gfx(m_sprite_gfx + (code >= 0x1000 ? 0 : 1))->prio_zoom_transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,
@@ -679,7 +673,7 @@ void aerofgt_state::aerfboot_draw_sprites( screen_device &screen, bitmap_ind16 &
 
 		sx = ((ox + 16 + 3) & 0x1ff) - 16;
 
-		pdrawgfxzoom_transpen(bitmap,cliprect,machine().gfx[m_sprite_gfx + (code >= 0x1000 ? 0 : 1)],
+		m_gfxdecode->gfx(m_sprite_gfx + (code >= 0x1000 ? 0 : 1))->prio_zoom_transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,
@@ -702,7 +696,7 @@ void aerofgt_state::wbbc97_draw_bitmap( bitmap_rgb32 &bitmap )
 			int color = m_bitmapram[count] >> 1;
 
 			/* data is GRB; convert to RGB */
-			rgb_t pen = MAKE_RGB(pal5bit((color & 0x3e0) >> 5), pal5bit((color & 0x7c00) >> 10), pal5bit(color & 0x1f));
+			rgb_t pen = rgb_t(pal5bit((color & 0x3e0) >> 5), pal5bit((color & 0x7c00) >> 10), pal5bit(color & 0x1f));
 			bitmap.pix32(y, (10 + x - m_rasterram[(y & 0x7f)]) & 0x1ff) = pen;
 
 			count++;
@@ -732,7 +726,7 @@ UINT32 aerofgt_state::screen_update_spikes91(screen_device &screen, bitmap_ind16
 	int i, scrolly;
 	int y, x;
 	int count;
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 
 	m_bg1_tilemap->set_scroll_rows(256);
 	scrolly = m_bg1scrolly;
@@ -752,7 +746,7 @@ UINT32 aerofgt_state::screen_update_spikes91(screen_device &screen, bitmap_ind16
 		{
 			UINT16 tileno = m_tx_tilemap_ram[count] & 0x1fff;
 			UINT16 colour = m_tx_tilemap_ram[count] & 0xe000;
-			drawgfx_transpen(bitmap,cliprect,gfx,
+			gfx->transpen(bitmap,cliprect,
 					tileno,
 					colour>>13,
 					0,0,

@@ -1,5 +1,4 @@
 #include "emu.h"
-
 #include "includes/thunderx.h"
 
 /***************************************************************************
@@ -8,11 +7,10 @@
 
 ***************************************************************************/
 
-void thunderx_tile_callback( running_machine &machine, int layer, int bank, int *code, int *color, int *flags, int *priority )
+K052109_CB_MEMBER(thunderx_state::tile_callback)
 {
-	thunderx_state *state = machine.driver_data<thunderx_state>();
 	*code |= ((*color & 0x1f) << 8) | (bank << 13);
-	*color = state->m_layer_colorbase[layer] + ((*color & 0xe0) >> 5);
+	*color = m_layer_colorbase[layer] + ((*color & 0xe0) >> 5);
 }
 
 
@@ -22,22 +20,20 @@ void thunderx_tile_callback( running_machine &machine, int layer, int bank, int 
 
 ***************************************************************************/
 
-void thunderx_sprite_callback( running_machine &machine, int *code,int *color, int *priority_mask, int *shadow )
+K051960_CB_MEMBER(thunderx_state::sprite_callback)
 {
-	thunderx_state *state = machine.driver_data<thunderx_state>();
-
 	/* Sprite priority 1 means appear behind background, used only to mask sprites */
 	/* in the foreground */
 	/* Sprite priority 3 means don't draw (not used) */
 	switch (*color & 0x30)
 	{
-		case 0x00: *priority_mask = 0xf0; break;
-		case 0x10: *priority_mask = 0xf0 | 0xcc | 0xaa; break;
-		case 0x20: *priority_mask = 0xf0 | 0xcc; break;
-		case 0x30: *priority_mask = 0xffff; break;
+		case 0x00: *priority = 0xf0; break;
+		case 0x10: *priority = 0xf0 | 0xcc | 0xaa; break;
+		case 0x20: *priority = 0xf0 | 0xcc; break;
+		case 0x30: *priority = 0xffff; break;
 	}
 
-	*color = state->m_sprite_colorbase + (*color & 0x0f);
+	*color = m_sprite_colorbase + (*color & 0x0f);
 }
 
 
@@ -55,7 +51,7 @@ void thunderx_state::video_start()
 	m_layer_colorbase[2] = 16;
 	m_sprite_colorbase = 32;
 
-	palette_set_shadow_factor(machine(),7.0/8.0);
+	m_palette->set_shadow_factor(7.0/8.0);
 }
 
 

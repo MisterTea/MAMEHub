@@ -21,7 +21,7 @@
 #include "machine/i8255.h"
 #include "sound/speaker.h"
 #include "sound/wave.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/i8251.h"
 
 /* Devices */
@@ -34,14 +34,15 @@ class elwro800_state : public spectrum_state
 {
 public:
 	elwro800_state(const machine_config &mconfig, device_type type, const char *tag)
-		: spectrum_state(mconfig, type, tag)
-		, m_i8251(*this, "i8251")
-		, m_i8255(*this, "ppi8255")
-		, m_centronics(*this, "centronics")
-		, m_io_line8(*this, "LINE8")
-		, m_io_line9(*this, "LINE9")
-		, m_io_network_id(*this, "NETWORK ID")
-	{ }
+		: spectrum_state(mconfig, type, tag),
+		m_i8251(*this, "i8251"),
+		m_i8255(*this, "ppi8255"),
+		m_centronics(*this, "centronics"),
+		m_io_line8(*this, "LINE8"),
+		m_io_line9(*this, "LINE9"),
+		m_io_network_id(*this, "NETWORK ID")
+	{
+	}
 
 	/* for elwro800 */
 	/* RAM mapped at 0 */
@@ -59,6 +60,7 @@ public:
 	INTERRUPT_GEN_MEMBER(elwro800jr_interrupt);
 	DECLARE_READ8_MEMBER(i8255_port_c_r);
 	DECLARE_WRITE8_MEMBER(i8255_port_c_w);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_ack);
 
 protected:
 	required_device<i8251_device> m_i8251;
@@ -69,6 +71,8 @@ protected:
 	required_ioport m_io_network_id;
 
 	void elwro800jr_mmu_w(UINT8 data);
+
+	int m_centronics_ack;
 };
 
 
@@ -179,32 +183,21 @@ void elwro800_state::elwro800jr_mmu_w(UINT8 data)
  *
  *************************************/
 
+WRITE_LINE_MEMBER(elwro800_state::write_centronics_ack)
+{
+	m_centronics_ack = state;
+	m_i8255->pc2_w(state);
+}
+
 READ8_MEMBER(elwro800_state::i8255_port_c_r)
 {
-	return (m_centronics->ack_r() << 2);
+	return m_centronics_ack << 2;
 }
 
 WRITE8_MEMBER(elwro800_state::i8255_port_c_w)
 {
-	m_centronics->strobe_w((data >> 7) & 0x01);
+	m_centronics->write_strobe((data >> 7) & 0x01);
 }
-
-static I8255_INTERFACE(elwro800jr_ppi8255_interface)
-{
-	DEVCB_INPUT_PORT("JOY"),
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER("centronics", centronics_device, read),
-	DEVCB_DEVICE_MEMBER("centronics", centronics_device, write),
-	DEVCB_DRIVER_MEMBER(elwro800_state,i8255_port_c_r),
-	DEVCB_DRIVER_MEMBER(elwro800_state,i8255_port_c_w)
-};
-
-static const centronics_interface elwro800jr_centronics_interface =
-{
-	DEVCB_DEVICE_LINE_MEMBER("ppi8255", i8255_device, pc2_w),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 /*************************************
  *
@@ -516,15 +509,6 @@ MACHINE_RESET_MEMBER(elwro800_state,elwro800)
 	m_maincpu->space(AS_PROGRAM).set_direct_update_handler(direct_update_delegate(FUNC(elwro800_state::elwro800_direct_handler), this));
 }
 
-static const cassette_interface elwro800jr_cassette_interface =
-{
-	tzx_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED),
-	NULL,
-	NULL
-};
-
 INTERRUPT_GEN_MEMBER(elwro800_state::elwro800jr_interrupt)
 {
 	device.execute().set_input_line(0, HOLD_LINE);
@@ -571,20 +555,32 @@ static MACHINE_CONFIG_START( elwro800, elwro800_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, SPEC_SCREEN_WIDTH-1, 0, SPEC_SCREEN_HEIGHT-1)
 	MCFG_SCREEN_UPDATE_DRIVER(elwro800_state, screen_update_spectrum )
 	MCFG_SCREEN_VBLANK_DRIVER(elwro800_state, screen_eof_spectrum)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
-	MCFG_PALETTE_INIT_OVERRIDE(elwro800_state, spectrum )
-	MCFG_GFXDECODE(elwro800)
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(elwro800_state, spectrum )
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", elwro800)
 
 	MCFG_VIDEO_START_OVERRIDE(elwro800_state, spectrum )
 
 	MCFG_UPD765A_ADD("upd765", true, true)
-	MCFG_I8255A_ADD( "ppi8255", elwro800jr_ppi8255_interface)
+
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("JOY"))
+	MCFG_I8255_IN_PORTB_CB(DEVREAD8("cent_data_in", input_buffer_device, read))
+	MCFG_I8255_OUT_PORTB_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_I8255_IN_PORTC_CB(READ8(elwro800_state, i8255_port_c_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(elwro800_state, i8255_port_c_w))
 
 	/* printer */
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", elwro800jr_centronics_interface)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_DATA_INPUT_BUFFER("cent_data_in")
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(elwro800_state, write_centronics_ack))
 
-	MCFG_I8251_ADD("i8251", default_i8251_interface)
+	MCFG_DEVICE_ADD("cent_data_in", INPUT_BUFFER, 0)
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+
+	MCFG_DEVICE_ADD("i8251", I8251, 0)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -593,7 +589,9 @@ static MACHINE_CONFIG_START( elwro800, elwro800_state )
 	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
-	MCFG_CASSETTE_ADD( "cassette", elwro800jr_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(tzx_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
 
 	MCFG_FLOPPY_DRIVE_ADD("upd765:0", elwro800jr_floppies, "525hd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("upd765:1", elwro800jr_floppies, "525hd", floppy_image_device::default_floppy_formats)

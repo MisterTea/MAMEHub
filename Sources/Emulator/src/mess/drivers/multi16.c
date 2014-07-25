@@ -17,23 +17,23 @@ public:
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
 	m_pic(*this, "pic8259"),
-	m_crtc(*this, "crtc")
+	m_crtc(*this, "crtc"),
+		m_palette(*this, "palette")
 	,
 		m_p_vram(*this, "p_vram"){ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<pic8259_device> m_pic;
 	required_device<mc6845_device> m_crtc;
+	required_device<palette_device> m_palette;
 	DECLARE_WRITE8_MEMBER(multi16_6845_address_w);
 	DECLARE_WRITE8_MEMBER(multi16_6845_data_w);
-	DECLARE_WRITE_LINE_MEMBER(multi16_set_int_line);
 	required_shared_ptr<UINT16> m_p_vram;
 	UINT8 m_crtc_vreg[0x100],m_crtc_index;
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_multi16(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	IRQ_CALLBACK_MEMBER(multi16_irq_callback);
 };
 
 
@@ -76,7 +76,7 @@ UINT32 multi16_state::screen_update_multi16(screen_device &screen, bitmap_ind16 
 				int dot = (BITSWAP16(m_p_vram[count],7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8) >> (15-xi)) & 0x1;
 
 				if(screen.visible_area().contains(x*16+xi, y))
-					bitmap.pix16(y, x*16+xi) = machine().pens[dot];
+					bitmap.pix16(y, x*16+xi) = m_palette->pen(dot);
 			}
 
 			count++;
@@ -117,20 +117,8 @@ ADDRESS_MAP_END
 static INPUT_PORTS_START( multi16 )
 INPUT_PORTS_END
 
-IRQ_CALLBACK_MEMBER(multi16_state::multi16_irq_callback)
-{
-	return machine().device<pic8259_device>("pic8259")->acknowledge();
-}
-
-WRITE_LINE_MEMBER( multi16_state::multi16_set_int_line )
-{
-	//printf("%02x\n",interrupt);
-	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
-}
-
 void multi16_state::machine_start()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(multi16_state::multi16_irq_callback),this));
 }
 
 
@@ -139,26 +127,12 @@ void multi16_state::machine_reset()
 }
 
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
 static MACHINE_CONFIG_START( multi16, multi16_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", I8086, 8000000)
 	MCFG_CPU_PROGRAM_MAP(multi16_map)
 	MCFG_CPU_IO_MAP(multi16_io)
-
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259", pic8259_device, inta_cb)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -167,11 +141,16 @@ static MACHINE_CONFIG_START( multi16, multi16_state )
 	MCFG_SCREEN_SIZE(640, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
 	MCFG_SCREEN_UPDATE_DRIVER(multi16_state, screen_update_multi16)
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_SCREEN_PALETTE("palette")
 
-	/* Devices */
-	MCFG_MC6845_ADD("crtc", H46505, "screen", 16000000/5, mc6845_intf)    /* unknown clock, hand tuned to get ~60 fps */
-	MCFG_PIC8259_ADD( "pic8259", WRITELINE(multi16_state, multi16_set_int_line), GND, NULL )
+	MCFG_PALETTE_ADD("palette", 8)
+
+	/* devices */
+	MCFG_MC6845_ADD("crtc", H46505, "screen", 16000000/5)    /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), GND, NULL )
 MACHINE_CONFIG_END
 
 /* ROM definition */

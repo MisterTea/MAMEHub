@@ -26,15 +26,19 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_attr(*this, "attr"),
 		m_vram(*this, "vram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT8> m_attr;
 	required_shared_ptr<UINT8> m_vram;
 	DECLARE_WRITE8_MEMBER(out_w);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(summit);
 	UINT32 screen_update_summit(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -44,7 +48,7 @@ void summit_state::video_start()
 
 UINT32 summit_state::screen_update_summit(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	int count = 0x0000;
 
 	int y,x;
@@ -55,7 +59,7 @@ UINT32 summit_state::screen_update_summit(screen_device &screen, bitmap_ind16 &b
 		for (x=0;x<32;x++)
 		{
 			int tile = (m_vram[count] | ((m_attr[count]&1)<<8) );
-			drawgfx_opaque(bitmap,cliprect,gfx,tile,0,0,0,x*8,y*8);
+			gfx->opaque(bitmap,cliprect,tile,0,0,0,x*8,y*8);
 
 			count++;
 		}
@@ -293,7 +297,7 @@ static GFXDECODE_START( summit )
 	GFXDECODE_ENTRY( "gfx1", 0, tiles8x8_layout, 0, 1 )
 GFXDECODE_END
 
-void summit_state::palette_init()
+PALETTE_INIT_MEMBER(summit_state, summit)
 {
 }
 
@@ -310,11 +314,12 @@ static MACHINE_CONFIG_START( summit, summit_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(summit_state, screen_update_summit)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(summit)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", summit)
 
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(summit_state, summit)
 MACHINE_CONFIG_END
 
 

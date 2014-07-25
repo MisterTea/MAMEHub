@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     ppcfe.c
 
     Front-end for PowerPC recompiler
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -85,9 +56,9 @@
 //  ppc_frontend - constructor
 //-------------------------------------------------
 
-ppc_frontend::ppc_frontend(powerpc_state &state, UINT32 window_start, UINT32 window_end, UINT32 max_sequence)
-	: drc_frontend(*state.device, window_start, window_end, max_sequence),
-		m_context(state)
+ppc_frontend::ppc_frontend(ppc_device *ppc, UINT32 window_start, UINT32 window_end, UINT32 max_sequence)
+	: drc_frontend(*ppc, window_start, window_end, max_sequence),
+	m_ppc(ppc)
 {
 }
 
@@ -103,7 +74,7 @@ bool ppc_frontend::describe(opcode_desc &desc, const opcode_desc *prev)
 	int regnum;
 
 	// compute the physical PC
-	if (!ppccom_translate_address(&m_context, AS_PROGRAM, TRANSLATE_FETCH, &desc.physpc))
+	if (!m_ppc->memory_translate(AS_PROGRAM, TRANSLATE_FETCH, desc.physpc))
 	{
 		// uh-oh: a page fault; leave the description empty and just if this is the first instruction, leave it empty and
 		// mark as needing to validate; otherwise, just end the sequence here
@@ -112,7 +83,7 @@ bool ppc_frontend::describe(opcode_desc &desc, const opcode_desc *prev)
 	}
 
 	// fetch the opcode
-	op = desc.opptr.l[0] = m_context.direct->read_decrypted_dword(desc.physpc, m_context.codexor);
+	op = desc.opptr.l[0] = m_ppc->m_direct->read_decrypted_dword(desc.physpc, m_ppc->m_codexor);
 
 	// all instructions are 4 bytes and default to a single cycle each
 	desc.length = 4;
@@ -201,7 +172,7 @@ bool ppc_frontend::describe(opcode_desc &desc, const opcode_desc *prev)
 			return true;
 
 		case 0x11:  // SC
-			if (!(m_context.cap & (PPCCAP_OEA | PPCCAP_4XX)))
+			if (!(m_ppc->m_cap & (PPCCAP_OEA | PPCCAP_4XX)))
 				return false;
 			desc.flags |= OPFLAG_WILL_CAUSE_EXCEPTION;
 			if (is_601_class())
@@ -334,7 +305,7 @@ bool ppc_frontend::describe(opcode_desc &desc, const opcode_desc *prev)
 
 		case 0x30:  // LFS
 		case 0x32:  // LFD
-			if (!(m_context.cap & PPCCAP_FPU))
+			if (!(m_ppc->m_cap & PPCCAP_FPU))
 				return false;
 			GPR_USED_OR_ZERO(desc, G_RA(op));
 			FPR_MODIFIED(desc, G_RD(op));
@@ -343,7 +314,7 @@ bool ppc_frontend::describe(opcode_desc &desc, const opcode_desc *prev)
 
 		case 0x31:  // LFSU
 		case 0x33:  // LFDU
-			if (!(m_context.cap & PPCCAP_FPU))
+			if (!(m_ppc->m_cap & PPCCAP_FPU))
 				return false;
 			if (G_RA(op) == 0)
 				return false;
@@ -355,7 +326,7 @@ bool ppc_frontend::describe(opcode_desc &desc, const opcode_desc *prev)
 
 		case 0x34:  // STFS
 		case 0x36:  // STFD
-			if (!(m_context.cap & PPCCAP_FPU))
+			if (!(m_ppc->m_cap & PPCCAP_FPU))
 				return false;
 			GPR_USED_OR_ZERO(desc, G_RA(op));
 			FPR_USED(desc, G_RS(op));
@@ -364,7 +335,7 @@ bool ppc_frontend::describe(opcode_desc &desc, const opcode_desc *prev)
 
 		case 0x35:  // STFSU
 		case 0x37:  // STFDU
-			if (!(m_context.cap & PPCCAP_FPU))
+			if (!(m_ppc->m_cap & PPCCAP_FPU))
 				return false;
 			if (G_RA(op) == 0)
 				return false;
@@ -440,7 +411,7 @@ bool ppc_frontend::describe_13(UINT32 op, opcode_desc &desc, const opcode_desc *
 			return true;
 
 		case 0x032: // RFI
-			if (!(m_context.cap & (PPCCAP_OEA | PPCCAP_4XX)))
+			if (!(m_ppc->m_cap & (PPCCAP_OEA | PPCCAP_4XX)))
 				return false;
 			desc.flags |= OPFLAG_PRIVILEGED | OPFLAG_CAN_CHANGE_MODES | OPFLAG_IS_UNCONDITIONAL_BRANCH | OPFLAG_END_SEQUENCE | OPFLAG_CAN_CAUSE_EXCEPTION;
 			desc.targetpc = BRANCH_TARGET_DYNAMIC;
@@ -453,14 +424,14 @@ bool ppc_frontend::describe_13(UINT32 op, opcode_desc &desc, const opcode_desc *
 			return true;
 
 		case 0x033: // RFCI
-			if (!(m_context.cap & PPCCAP_4XX))
+			if (!(m_ppc->m_cap & PPCCAP_4XX))
 				return false;
 			desc.flags |= OPFLAG_PRIVILEGED | OPFLAG_CAN_CHANGE_MODES | OPFLAG_IS_UNCONDITIONAL_BRANCH | OPFLAG_END_SEQUENCE | OPFLAG_CAN_CAUSE_EXCEPTION;
 			desc.targetpc = BRANCH_TARGET_DYNAMIC;
 			return true;
 
 		case 0x096: // ISYNC
-			if (!(m_context.cap & (PPCCAP_VEA | PPCCAP_4XX)))
+			if (!(m_ppc->m_cap & (PPCCAP_VEA | PPCCAP_4XX)))
 				return false;
 			if (is_601_class())
 				desc.cycles = 6;    // 601
@@ -738,7 +709,7 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 			return true;
 
 		case 0x136: // ECIWX
-			if (!(m_context.cap & PPCCAP_VEA))
+			if (!(m_ppc->m_cap & PPCCAP_VEA))
 				return false;
 		case 0x014: // LWARX
 		case 0x017: // LWZX
@@ -803,14 +774,14 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 		case 0x116: // DCBT
 		case 0x2f6: // DCBA
 		case 0x3d6: // ICBI
-			if (!(m_context.cap & (PPCCAP_VEA | PPCCAP_4XX)))
+			if (!(m_ppc->m_cap & (PPCCAP_VEA | PPCCAP_4XX)))
 				return false;
 			GPR_USED_OR_ZERO(desc, G_RA(op));
 			GPR_USED(desc, G_RB(op));
 			return true;
 
 		case 0x1d6: // DCBI
-			if (!(m_context.cap & (PPCCAP_OEA | PPCCAP_4XX)))
+			if (!(m_ppc->m_cap & (PPCCAP_OEA | PPCCAP_4XX)))
 				return false;
 			GPR_USED_OR_ZERO(desc, G_RA(op));
 			GPR_USED(desc, G_RB(op));
@@ -846,11 +817,11 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 			}
 			if (spr & 0x010)
 				desc.flags |= OPFLAG_PRIVILEGED | OPFLAG_CAN_CAUSE_EXCEPTION;
-			if ((m_context.cap & PPCCAP_4XX) && spr == SPR4XX_TBLU)
+			if ((m_ppc->m_cap & PPCCAP_4XX) && spr == SPR4XX_TBLU)
 				desc.cycles = POWERPC_COUNT_READ_TBL;
-			else if ((m_context.cap & PPCCAP_VEA) && spr == SPRVEA_TBL_R)
+			else if ((m_ppc->m_cap & PPCCAP_VEA) && spr == SPRVEA_TBL_R)
 				desc.cycles = POWERPC_COUNT_READ_TBL;
-			else if ((m_context.cap & PPCCAP_OEA) && spr == SPROEA_DEC)
+			else if ((m_ppc->m_cap & PPCCAP_OEA) && spr == SPROEA_DEC)
 				desc.cycles = POWERPC_COUNT_READ_DEC;
 			return true;
 
@@ -873,7 +844,7 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 			return true;
 
 		case 0x173: // MFTB
-			if (!(m_context.cap & PPCCAP_VEA))
+			if (!(m_ppc->m_cap & PPCCAP_VEA))
 				return false;
 			GPR_MODIFIED(desc, G_RD(op));
 			spr = compute_spr(G_SPR(op));
@@ -922,7 +893,7 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 			return true;
 
 		case 0x0d2: // MTSR
-			if (!(m_context.cap & PPCCAP_OEA))
+			if (!(m_ppc->m_cap & PPCCAP_OEA))
 				return false;
 			GPR_USED(desc, G_RS(op));
 			desc.flags |= OPFLAG_PRIVILEGED | OPFLAG_CAN_CAUSE_EXCEPTION;
@@ -947,7 +918,7 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 			return true;
 
 		case 0x1b6: // ECOWX
-			if (!(m_context.cap & PPCCAP_VEA))
+			if (!(m_ppc->m_cap & PPCCAP_VEA))
 				return false;
 		case 0x096: // STWCX.
 		case 0x097: // STWX
@@ -974,7 +945,7 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 			return true;
 
 		case 0x0f2: // MTSRIN
-			if (!(m_context.cap & PPCCAP_OEA))
+			if (!(m_ppc->m_cap & PPCCAP_OEA))
 				return false;
 			GPR_USED(desc, G_RS(op));
 			GPR_USED(desc, G_RB(op));
@@ -982,21 +953,21 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 			return true;
 
 		case 0x132: // TLBIE
-			if (!(m_context.cap & PPCCAP_OEA))
+			if (!(m_ppc->m_cap & PPCCAP_OEA))
 				return false;
 			GPR_USED(desc, G_RB(op));
 			desc.flags |= OPFLAG_PRIVILEGED | OPFLAG_CAN_CAUSE_EXCEPTION;
 			return true;
 
 		case 0x172: // TLBIA
-			if (!(m_context.cap & PPCCAP_OEA) || (m_context.cap & PPCCAP_603_MMU))
+			if (!(m_ppc->m_cap & PPCCAP_OEA) || (m_ppc->m_cap & PPCCAP_603_MMU))
 				return false;
 			desc.flags |= OPFLAG_PRIVILEGED | OPFLAG_CAN_CAUSE_EXCEPTION;
 			return true;
 
 		case 0x3d2: // TLBLD
 		case 0x3f2: // TLBLI
-			if (!(m_context.cap & PPCCAP_603_MMU) && !is_602_class())
+			if (!(m_ppc->m_cap & PPCCAP_603_MMU) && !is_602_class())
 				return false;
 			desc.flags |= OPFLAG_PRIVILEGED | OPFLAG_CAN_CAUSE_EXCEPTION;
 			return true;
@@ -1022,7 +993,7 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 
 		case 0x217: // LFSX
 		case 0x257: // LFDX
-			if (!(m_context.cap & PPCCAP_FPU))
+			if (!(m_ppc->m_cap & PPCCAP_FPU))
 				return false;
 			GPR_USED_OR_ZERO(desc, G_RA(op));
 			GPR_USED(desc, G_RB(op));
@@ -1031,7 +1002,7 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 			return true;
 
 		case 0x236: // TLBSYNC
-			if (!(m_context.cap & PPCCAP_OEA))
+			if (!(m_ppc->m_cap & PPCCAP_OEA))
 				return false;
 			desc.flags |= OPFLAG_PRIVILEGED | OPFLAG_CAN_CAUSE_EXCEPTION;
 			return true;
@@ -1040,13 +1011,13 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 			return true;
 
 		case 0x356: // EIEIO
-			if (!(m_context.cap & (PPCCAP_VEA | PPCCAP_4XX)))
+			if (!(m_ppc->m_cap & (PPCCAP_VEA | PPCCAP_4XX)))
 				return false;
 			return true;
 
 		case 0x237: // LFSUX
 		case 0x277: // LFDUX
-			if (!(m_context.cap & PPCCAP_FPU))
+			if (!(m_ppc->m_cap & PPCCAP_FPU))
 				return false;
 			if (G_RA(op) == 0)
 				return false;
@@ -1085,7 +1056,7 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 		case 0x297: // STFSX
 		case 0x2d7: // STFDX
 		case 0x3d7: // STFIWX
-			if (!(m_context.cap & PPCCAP_FPU))
+			if (!(m_ppc->m_cap & PPCCAP_FPU))
 				return false;
 			GPR_USED_OR_ZERO(desc, G_RA(op));
 			GPR_USED(desc, G_RB(op));
@@ -1095,7 +1066,7 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 
 		case 0x2b7: // STFSUX
 		case 0x2f7: // STFDUX
-			if (!(m_context.cap & PPCCAP_FPU))
+			if (!(m_ppc->m_cap & PPCCAP_FPU))
 				return false;
 			if (G_RA(op) == 0)
 				return false;
@@ -1118,7 +1089,7 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 			return true;
 
 		case 0x3f6: // DCBZ
-			if (!(m_context.cap & (PPCCAP_VEA | PPCCAP_4XX)))
+			if (!(m_ppc->m_cap & (PPCCAP_VEA | PPCCAP_4XX)))
 				return false;
 			GPR_USED_OR_ZERO(desc, G_RA(op));
 			GPR_USED(desc, G_RB(op));
@@ -1128,7 +1099,7 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 		case 0x106: // ICBT
 		case 0x1c6: // DCCCI
 		case 0x3c6: // ICCCI
-			if (!(m_context.cap & PPCCAP_4XX))
+			if (!(m_ppc->m_cap & PPCCAP_4XX))
 				return false;
 			GPR_USED_OR_ZERO(desc, G_RA(op));
 			GPR_USED(desc, G_RB(op));
@@ -1137,7 +1108,7 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 
 		case 0x1e6: // DCREAD
 		case 0x3e6: // ICREAD
-			if (!(m_context.cap & PPCCAP_4XX))
+			if (!(m_ppc->m_cap & PPCCAP_4XX))
 				return false;
 			GPR_USED_OR_ZERO(desc, G_RA(op));
 			GPR_USED(desc, G_RB(op));
@@ -1146,28 +1117,28 @@ bool ppc_frontend::describe_1f(UINT32 op, opcode_desc &desc, const opcode_desc *
 			return true;
 
 		case 0x143: // MFDCR
-			if (!(m_context.cap & PPCCAP_4XX))
+			if (!(m_ppc->m_cap & PPCCAP_4XX))
 				return false;
 			GPR_MODIFIED(desc, G_RD(op));
 			desc.flags |= OPFLAG_PRIVILEGED | OPFLAG_CAN_CAUSE_EXCEPTION;
 			return true;
 
 		case 0x1c3: // MTDCR
-			if (!(m_context.cap & PPCCAP_4XX))
+			if (!(m_ppc->m_cap & PPCCAP_4XX))
 				return false;
 			GPR_USED(desc, G_RS(op));
 			desc.flags |= OPFLAG_PRIVILEGED | OPFLAG_CAN_CAUSE_EXCEPTION | OPFLAG_CAN_EXPOSE_EXTERNAL_INT;
 			return true;
 
 		case 0x083: // WRTEE
-			if (!(m_context.cap & PPCCAP_4XX))
+			if (!(m_ppc->m_cap & PPCCAP_4XX))
 				return false;
 			GPR_USED(desc, G_RS(op));
 			desc.flags |= OPFLAG_CAN_EXPOSE_EXTERNAL_INT;
 			return true;
 
 		case 0x0a3: // WRTEEI
-			if (!(m_context.cap & PPCCAP_4XX))
+			if (!(m_ppc->m_cap & PPCCAP_4XX))
 				return false;
 			if (op & MSR_EE)
 				desc.flags |= OPFLAG_CAN_EXPOSE_EXTERNAL_INT;
@@ -1195,7 +1166,7 @@ bool ppc_frontend::describe_3b(UINT32 op, opcode_desc &desc, const opcode_desc *
 {
 	UINT32 opswitch = (op >> 1) & 0x1f;
 
-	if (!(m_context.cap & PPCCAP_FPU))
+	if (!(m_ppc->m_cap & PPCCAP_FPU))
 		return false;
 
 	switch (opswitch)
@@ -1271,7 +1242,7 @@ bool ppc_frontend::describe_3f(UINT32 op, opcode_desc &desc, const opcode_desc *
 {
 	UINT32 opswitch = (op >> 1) & 0x3ff;
 
-	if (!(m_context.cap & PPCCAP_FPU))
+	if (!(m_ppc->m_cap & PPCCAP_FPU))
 		return false;
 
 	if (opswitch & 0x10)

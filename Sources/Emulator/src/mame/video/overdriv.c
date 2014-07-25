@@ -7,16 +7,15 @@
 
 ***************************************************************************/
 
-void overdriv_sprite_callback( running_machine &machine, int *code, int *color, int *priority_mask )
+K053246_CB_MEMBER(overdriv_state::sprite_callback)
 {
-	overdriv_state *state = machine.driver_data<overdriv_state>();
 	int pri = (*color & 0xffe0) >> 5;   /* ??????? */
 	if (pri)
 		*priority_mask = 0x02;
 	else
 		*priority_mask = 0x00;
 
-	*color = state->m_sprite_colorbase + (*color & 0x001f);
+	*color = m_sprite_colorbase + (*color & 0x001f);
 }
 
 
@@ -26,20 +25,18 @@ void overdriv_sprite_callback( running_machine &machine, int *code, int *color, 
 
 ***************************************************************************/
 
-void overdriv_zoom_callback_0( running_machine &machine, int *code, int *color, int *flags )
+K051316_CB_MEMBER(overdriv_state::zoom_callback_1)
 {
-	overdriv_state *state = machine.driver_data<overdriv_state>();
 	*flags = (*color & 0x40) ? TILE_FLIPX : 0;
 	*code |= ((*color & 0x03) << 8);
-	*color = state->m_zoom_colorbase[0] + ((*color & 0x3c) >> 2);
+	*color = m_zoom_colorbase[0] + ((*color & 0x3c) >> 2);
 }
 
-void overdriv_zoom_callback_1( running_machine &machine, int *code, int *color, int *flags )
+K051316_CB_MEMBER(overdriv_state::zoom_callback_2)
 {
-	overdriv_state *state = machine.driver_data<overdriv_state>();
 	*flags = (*color & 0x40) ? TILE_FLIPX : 0;
 	*code |= ((*color & 0x03) << 8);
-	*color = state->m_zoom_colorbase[1] + ((*color & 0x3c) >> 2);
+	*color = m_zoom_colorbase[1] + ((*color & 0x3c) >> 2);
 }
 
 
@@ -59,7 +56,7 @@ UINT32 overdriv_state::screen_update_overdriv(screen_device &screen, bitmap_ind1
 
 	screen.priority().fill(0, cliprect);
 
-	m_k051316_1->zoom_draw(screen, bitmap, cliprect, 0, 0);
+	m_k051316_1->zoom_draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 	m_k051316_2->zoom_draw(screen, bitmap, cliprect, 0, 1);
 
 	m_k053246->k053247_sprites_draw( bitmap,cliprect);

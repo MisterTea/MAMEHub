@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic, Robbbert
 /***************************************************************************
 
 Microtek International Inc MICE
@@ -18,15 +20,17 @@ The connection to the outside world is via RS232 to a terminal.
 #include "cpu/i8085/i8085.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class mice_state : public driver_device
 {
 public:
 	mice_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu"),
-			m_terminal(*this, TERMINAL_TAG)
-	{ }
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<generic_terminal_device> m_terminal;
@@ -77,12 +81,6 @@ WRITE8_MEMBER( mice_state::kbd_put )
 	m_term_data = data;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(mice_state, kbd_put)
-};
-
-
 static MACHINE_CONFIG_START( mice, mice_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", I8085A, XTAL_6_144MHz)
@@ -90,7 +88,8 @@ static MACHINE_CONFIG_START( mice, mice_state )
 	MCFG_CPU_IO_MAP(mice_io)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(mice_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

@@ -1,3 +1,9 @@
+/***************************************************************************
+
+   Capcom CPS1/2 hardware
+
+***************************************************************************/
+
 #ifndef _CPS1_H_
 #define _CPS1_H_
 
@@ -6,6 +12,21 @@
 #include "sound/okim6295.h"
 #include "machine/timekpr.h"
 #include "cpu/m68000/m68000.h"
+
+// Video raw params
+// measured clocks:
+// CPS2(Guru): V = 59.6376Hz, H = 15,4445kHz *H is probably measured too low!
+// CPS1 GNG: V = 59.61Hz
+#define CPS_PIXEL_CLOCK  (XTAL_16MHz/2)
+
+#define CPS_HTOTAL       (512)
+#define CPS_HBEND        (64)
+#define CPS_HBSTART      (448)
+
+#define CPS_VTOTAL       (262)
+#define CPS_VBEND        (16)
+#define CPS_VBSTART      (240)
+
 
 struct gfx_range
 {
@@ -80,8 +101,12 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_oki(*this, "oki"),
-		m_m48t35(*this,"m48t35")
-	{ }
+		m_m48t35(*this,"m48t35"),
+		m_msm_1(*this, "msm1"),
+		m_msm_2(*this, "msm2"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	// cps1
@@ -104,6 +129,7 @@ public:
 	UINT16 *     m_cps2_buffered_obj;
 	// game-specific
 	UINT16 *     m_gigaman2_dummyqsound_ram;
+	UINT16  sf2ceblp_prot;
 
 	/* video-related */
 	tilemap_t      *m_bg_tilemap[3];
@@ -171,8 +197,12 @@ public:
 	optional_device<cpu_device> m_audiocpu;
 	optional_device<okim6295_device> m_oki;
 	optional_device<m48t35_device> m_m48t35;
-	msm5205_device *m_msm_1;    // fcrash
-	msm5205_device *m_msm_2;    // fcrash
+	optional_device<msm5205_device> m_msm_1;    // fcrash
+	optional_device<msm5205_device> m_msm_2;    // fcrash
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	DECLARE_READ16_MEMBER(cps1_hack_dsw_r);
 	DECLARE_READ16_MEMBER(cps1_in1_r);
 	DECLARE_READ16_MEMBER(cps1_in2_r);
@@ -192,6 +222,8 @@ public:
 	DECLARE_READ16_MEMBER(sf2rb_prot_r);
 	DECLARE_READ16_MEMBER(sf2rb2_prot_r);
 	DECLARE_READ16_MEMBER(sf2dongb_prot_r);
+	DECLARE_READ16_MEMBER(sf2ceblp_prot_r);
+	DECLARE_WRITE16_MEMBER(sf2ceblp_prot_w);
 	DECLARE_READ16_MEMBER(cps1_dsw_r);
 	DECLARE_WRITE16_MEMBER(cps1_coinctrl_w);
 	DECLARE_READ16_MEMBER(qsound_sharedram1_r);
@@ -234,6 +266,7 @@ public:
 	DECLARE_DRIVER_INIT(singbrd);
 	DECLARE_DRIVER_INIT(gigaman2);
 	DECLARE_DRIVER_INIT(sf2dongb);
+	DECLARE_DRIVER_INIT(sf2ceblp);
 	TILEMAP_MAPPER_MEMBER(tilemap0_scan);
 	TILEMAP_MAPPER_MEMBER(tilemap1_scan);
 	TILEMAP_MAPPER_MEMBER(tilemap2_scan);
@@ -268,6 +301,7 @@ public:
 	DECLARE_DRIVER_INIT(sf2m1);
 	DECLARE_DRIVER_INIT(sf2mdt);
 	DECLARE_DRIVER_INIT(sf2mdta);
+	DECLARE_DRIVER_INIT(sf2mdtb);
 	DECLARE_DRIVER_INIT(slampic);
 	DECLARE_MACHINE_START(fcrash);
 	DECLARE_MACHINE_RESET(fcrash);
@@ -304,7 +338,6 @@ public:
 
 	/* cps video */
 	void cps1_get_video_base();
-	void cps1_gfx_decode();
 	void unshuffle(UINT64 *buf, int len);
 	void cps2_gfx_decode();
 	int gfxrom_bank_mapper(int type, int code);
@@ -336,6 +369,8 @@ public:
 };
 
 /*----------- defined in drivers/cps1.c -----------*/
+
+MACHINE_CONFIG_EXTERN(cps1_12MHz);
 
 ADDRESS_MAP_EXTERN( qsound_sub_map, 8 );
 

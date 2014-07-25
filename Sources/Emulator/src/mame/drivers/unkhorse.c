@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:hap, Tomasz Slanina
 /***************************************************************************
 
   unknown Japanese horse gambling game
@@ -39,7 +41,7 @@ public:
 	DECLARE_READ8_MEMBER(horse_input_r);
 	DECLARE_WRITE8_MEMBER(horse_output_w);
 	DECLARE_WRITE_LINE_MEMBER(horse_timer_out);
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(horse);
 	UINT32 screen_update_horse(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(horse_interrupt);
 	required_device<cpu_device> m_maincpu;
@@ -53,11 +55,11 @@ public:
 
 ***************************************************************************/
 
-void horse_state::palette_init()
+PALETTE_INIT_MEMBER(horse_state, horse)
 {
 	// palette is simply 3bpp
 	for (int i = 0; i < 8; i++)
-		palette_set_color_rgb(machine(), i, pal1bit(i >> 2), pal1bit(i >> 1), pal1bit(i >> 0));
+		palette.set_pen_color(i, pal1bit(i >> 2), pal1bit(i >> 1), pal1bit(i >> 0));
 }
 
 UINT32 horse_state::screen_update_horse(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -89,7 +91,6 @@ static ADDRESS_MAP_START( horse_map, AS_PROGRAM, 8, horse_state )
 	AM_RANGE(0x4000, 0x40ff) AM_DEVREADWRITE("i8155", i8155_device, memory_r, memory_w)
 	AM_RANGE(0x6000, 0x7fff) AM_RAM AM_SHARE("video_ram")
 	AM_RANGE(0x8000, 0x879f) AM_RAM AM_SHARE("color_ram") AM_MIRROR(0x0860)
-
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( horse_io_map, AS_IO, 8, horse_state )
@@ -123,19 +124,6 @@ WRITE_LINE_MEMBER(horse_state::horse_timer_out)
 {
 	m_dac->write_signed8(state ? 0x7f : 0);
 }
-
-static I8155_INTERFACE(i8155_intf)
-{
-	// port A input, port B output, port C output (but unused)
-	DEVCB_DRIVER_MEMBER(horse_state,horse_input_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(horse_state,horse_output_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(horse_state,horse_timer_out)
-};
-
 
 /***************************************************************************
 
@@ -208,7 +196,11 @@ static MACHINE_CONFIG_START( horse, horse_state )
 	MCFG_CPU_IO_MAP(horse_io_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", horse_state,  horse_interrupt)
 
-	MCFG_I8155_ADD("i8155", XTAL_12MHz / 2, i8155_intf)
+	MCFG_DEVICE_ADD("i8155", I8155, XTAL_12MHz / 2)
+	MCFG_I8155_IN_PORTA_CB(READ8(horse_state, horse_input_r))
+	MCFG_I8155_OUT_PORTB_CB(WRITE8(horse_state, horse_output_w))
+	//port C output (but unused)
+	MCFG_I8155_OUT_TIMEROUT_CB(WRITELINE(horse_state, horse_timer_out))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -216,10 +208,11 @@ static MACHINE_CONFIG_START( horse, horse_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
-
 	MCFG_SCREEN_UPDATE_DRIVER(horse_state, screen_update_horse)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(horse_state, horse)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

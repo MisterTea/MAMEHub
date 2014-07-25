@@ -6,6 +6,7 @@ TODO:
 - discrete sound
 - accurate implementation of scanline counter as documented in schematics,
   generate irqs from there, and refresh rate 15750/262 (~60.1) instead of 60
+- missing language roms means DIP switches related to these do not function
 
 ***************************************************************************/
 
@@ -29,7 +30,10 @@ public:
 		m_alpha_num_ram(*this, "alpha_nuram"),
 		m_major_obj_ram(*this, "major_obj_ram"),
 		m_minor_obj_ram(*this, "minor_obj_ram"),
-		m_maincpu(*this, "maincpu"){ }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_alpha_num_ram;
@@ -49,6 +53,10 @@ public:
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(destroyr_misc_w);
 	DECLARE_WRITE8_MEMBER(destroyr_cursor_load_w);
 	DECLARE_WRITE8_MEMBER(destroyr_interrupt_ack_w);
@@ -57,7 +65,7 @@ public:
 	DECLARE_READ8_MEMBER(destroyr_scanline_r);
 	virtual void machine_start();
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(destroyr);
 	UINT32 screen_update_destroyr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(destroyr_dial_callback);
 	TIMER_CALLBACK_MEMBER(destroyr_frame_callback);
@@ -94,7 +102,7 @@ UINT32 destroyr_state::screen_update_destroyr(screen_device &screen, bitmap_ind1
 				continue;
 		}
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[2], num, 0, flipx, 0, horz, 16 * i, 0);
+		m_gfxdecode->gfx(2)->transpen(bitmap,cliprect, num, 0, flipx, 0, horz, 16 * i, 0);
 	}
 
 	/* draw alpha numerics */
@@ -104,7 +112,7 @@ UINT32 destroyr_state::screen_update_destroyr(screen_device &screen, bitmap_ind1
 		{
 			int num = m_alpha_num_ram[32 * i + j];
 
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[0], num, 0, 0, 0, 8 * j, 8 * i, 0);
+			m_gfxdecode->gfx(0)->transpen(bitmap,cliprect, num, 0, 0, 0, 8 * j, 8 * i, 0);
 		}
 	}
 
@@ -115,13 +123,13 @@ UINT32 destroyr_state::screen_update_destroyr(screen_device &screen, bitmap_ind1
 		int horz = 256 - m_minor_obj_ram[i + 2];
 		int vert = 256 - m_minor_obj_ram[i + 4];
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1], num, 0, 0, 0, horz, vert, 0);
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, num, 0, 0, 0, horz, vert, 0);
 	}
 
 	/* draw waves */
 	for (i = 0; i < 4; i++)
 	{
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[3], m_wavemod ? 1 : 0, 0, 0, 0, 64 * i, 0x4e, 0);
+		m_gfxdecode->gfx(3)->transpen(bitmap,cliprect, m_wavemod ? 1 : 0, 0, 0, 0, 64 * i, 0x4e, 0);
 	}
 
 	/* draw cursor */
@@ -444,16 +452,16 @@ static GFXDECODE_START( destroyr )
 GFXDECODE_END
 
 
-void destroyr_state::palette_init()
+PALETTE_INIT_MEMBER(destroyr_state, destroyr)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(0x00, 0x00, 0x00));   /* major objects */
-	palette_set_color(machine(), 1, MAKE_RGB(0x50, 0x50, 0x50));
-	palette_set_color(machine(), 2, MAKE_RGB(0xAF, 0xAF, 0xAF));
-	palette_set_color(machine(), 3, MAKE_RGB(0xFF ,0xFF, 0xFF));
-	palette_set_color(machine(), 4, MAKE_RGB(0x00, 0x00, 0x00));   /* alpha numerics, waves, minor objects */
-	palette_set_color(machine(), 5, MAKE_RGB(0xFF, 0xFF, 0xFF));
-	palette_set_color(machine(), 6, MAKE_RGB(0x00, 0x00, 0x00));   /* cursor */
-	palette_set_color(machine(), 7, MAKE_RGB(0x78, 0x78, 0x78));
+	palette.set_pen_color(0, rgb_t(0x00, 0x00, 0x00));   /* major objects */
+	palette.set_pen_color(1, rgb_t(0x50, 0x50, 0x50));
+	palette.set_pen_color(2, rgb_t(0xAF, 0xAF, 0xAF));
+	palette.set_pen_color(3, rgb_t(0xFF ,0xFF, 0xFF));
+	palette.set_pen_color(4, rgb_t(0x00, 0x00, 0x00));   /* alpha numerics, waves, minor objects */
+	palette.set_pen_color(5, rgb_t(0xFF, 0xFF, 0xFF));
+	palette.set_pen_color(6, rgb_t(0x00, 0x00, 0x00));   /* cursor */
+	palette.set_pen_color(7, rgb_t(0x78, 0x78, 0x78));
 }
 
 
@@ -482,9 +490,11 @@ static MACHINE_CONFIG_START( destroyr, destroyr_state )
 	MCFG_SCREEN_SIZE(256, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(destroyr_state, screen_update_destroyr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(destroyr)
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", destroyr)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(destroyr_state, destroyr)
 
 	/* sound hardware */
 MACHINE_CONFIG_END

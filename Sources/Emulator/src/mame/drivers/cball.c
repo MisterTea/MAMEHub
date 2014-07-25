@@ -19,7 +19,10 @@ public:
 	cball_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_video_ram(*this, "video_ram"),
-		m_maincpu(*this, "maincpu")
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")
 	{ }
 
 	/* memory pointers */
@@ -30,6 +33,10 @@ public:
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(cball_vram_w);
 	DECLARE_READ8_MEMBER(cball_wram_r);
 	DECLARE_WRITE8_MEMBER(cball_wram_w);
@@ -37,7 +44,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(cball);
 	UINT32 screen_update_cball(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(interrupt_callback);
 
@@ -63,7 +70,7 @@ WRITE8_MEMBER(cball_state::cball_vram_w)
 
 void cball_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cball_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cball_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 
@@ -73,7 +80,7 @@ UINT32 cball_state::screen_update_cball(screen_device &screen, bitmap_ind16 &bit
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* draw sprite */
-	drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+	m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 		m_video_ram[0x399] >> 4,
 		0,
 		0, 0,
@@ -121,14 +128,14 @@ void cball_state::machine_reset()
 }
 
 
-void cball_state::palette_init()
+PALETTE_INIT_MEMBER(cball_state, cball)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(0x80, 0x80, 0x80));
-	palette_set_color(machine(), 1, MAKE_RGB(0x00, 0x00, 0x00));
-	palette_set_color(machine(), 2, MAKE_RGB(0x80, 0x80, 0x80));
-	palette_set_color(machine(), 3, MAKE_RGB(0xff, 0xff, 0xff));
-	palette_set_color(machine(), 4, MAKE_RGB(0x80, 0x80, 0x80));
-	palette_set_color(machine(), 5, MAKE_RGB(0xc0, 0xc0, 0xc0));
+	palette.set_pen_color(0, rgb_t(0x80, 0x80, 0x80));
+	palette.set_pen_color(1, rgb_t(0x00, 0x00, 0x00));
+	palette.set_pen_color(2, rgb_t(0x80, 0x80, 0x80));
+	palette.set_pen_color(3, rgb_t(0xff, 0xff, 0xff));
+	palette.set_pen_color(4, rgb_t(0x80, 0x80, 0x80));
+	palette.set_pen_color(5, rgb_t(0xc0, 0xc0, 0xc0));
 }
 
 
@@ -257,10 +264,11 @@ static MACHINE_CONFIG_START( cball, cball_state )
 	MCFG_SCREEN_SIZE(256, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 223)
 	MCFG_SCREEN_UPDATE_DRIVER(cball_state, screen_update_cball)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cball)
-	MCFG_PALETTE_LENGTH(6)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cball)
+	MCFG_PALETTE_ADD("palette", 6)
+	MCFG_PALETTE_INIT_OWNER(cball_state, cball)
 
 	/* sound hardware */
 MACHINE_CONFIG_END

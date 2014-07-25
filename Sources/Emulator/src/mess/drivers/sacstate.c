@@ -36,15 +36,17 @@ Other input will either result in '!' message, or halt.
 #include "cpu/i8008/i8008.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class sacstate_state : public driver_device
 {
 public:
 	sacstate_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_terminal(*this, TERMINAL_TAG)
-	{ }
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<generic_terminal_device> m_terminal;
@@ -118,11 +120,6 @@ WRITE8_MEMBER( sacstate_state::kbd_put )
 	m_term_data = data;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(sacstate_state, kbd_put)
-};
-
 void sacstate_state::machine_reset()
 {
 	m_term_data = 0;
@@ -136,7 +133,8 @@ static MACHINE_CONFIG_START( sacstate, sacstate_state )
 	MCFG_CPU_IO_MAP(sacstate_io)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(sacstate_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

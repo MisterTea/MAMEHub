@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:David Graves, Angelo Salese, David Haywood, Tomasz Slanina
 /***************************************************************************
 
 Legionnaire (c) Tad 1992
@@ -82,12 +84,12 @@ Preliminary COP MCU memory map
 static ADDRESS_MAP_START( legionna_map, AS_PROGRAM, 16, legionna_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x1003ff) AM_RAM
-	AM_RANGE(0x100400, 0x1007ff) AM_READWRITE_LEGACY(legionna_mcu_r, legionna_mcu_w) AM_SHARE("cop_mcu_ram")    /* COP mcu */
+	AM_RANGE(0x100400, 0x1007ff) AM_DEVREADWRITE("seibucop", seibu_cop_legacy_device, legionna_mcu_r, legionna_mcu_w) AM_SHARE("cop_mcu_ram")    /* COP mcu */
 	AM_RANGE(0x101000, 0x1017ff) AM_RAM_WRITE(legionna_background_w) AM_SHARE("back_data")
 	AM_RANGE(0x101800, 0x101fff) AM_RAM_WRITE(legionna_foreground_w) AM_SHARE("fore_data")
 	AM_RANGE(0x102000, 0x1027ff) AM_RAM_WRITE(legionna_midground_w) AM_SHARE("mid_data")
 	AM_RANGE(0x102800, 0x1037ff) AM_RAM_WRITE(legionna_text_w) AM_SHARE("textram")
-	AM_RANGE(0x104000, 0x104fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")    /* palette xRRRRxGGGGxBBBBx ? */
+	AM_RANGE(0x104000, 0x104fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    /* palette xRRRRxGGGGxBBBBx ? */
 	AM_RANGE(0x105000, 0x105fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x106000, 0x107fff) AM_RAM
 	AM_RANGE(0x108000, 0x11ffff) AM_RAM /* main ram */
@@ -97,26 +99,26 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( heatbrl_map, AS_PROGRAM, 16, legionna_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x1003ff) AM_RAM
-	AM_RANGE(0x100400, 0x1007ff) AM_READWRITE_LEGACY(heatbrl_mcu_r, heatbrl_mcu_w) AM_SHARE("cop_mcu_ram")  /* COP mcu */
+	AM_RANGE(0x100400, 0x1007ff) AM_DEVREADWRITE("seibucop", seibu_cop_legacy_device, heatbrl_mcu_r, heatbrl_mcu_w) AM_SHARE("cop_mcu_ram")  /* COP mcu */
 	AM_RANGE(0x100800, 0x100fff) AM_RAM_WRITE(legionna_background_w) AM_SHARE("back_data")
 	AM_RANGE(0x101000, 0x1017ff) AM_RAM_WRITE(legionna_foreground_w) AM_SHARE("fore_data")
 	AM_RANGE(0x101800, 0x101fff) AM_RAM_WRITE(legionna_midground_w) AM_SHARE("mid_data")
 	AM_RANGE(0x102000, 0x102fff) AM_RAM_WRITE(legionna_text_w) AM_SHARE("textram")
 	AM_RANGE(0x103000, 0x103fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x104000, 0x104fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x104000, 0x104fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x108000, 0x11ffff) AM_RAM
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( godzilla_map, AS_PROGRAM, 16, legionna_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x1003ff) AM_RAM
-	AM_RANGE(0x100400, 0x1007ff) AM_READWRITE_LEGACY(godzilla_mcu_r, godzilla_mcu_w) AM_SHARE("cop_mcu_ram")    /* COP mcu */
+	AM_RANGE(0x100400, 0x1007ff) AM_DEVREADWRITE("seibucop", seibu_cop_legacy_device, godzilla_mcu_r, godzilla_mcu_w) AM_SHARE("cop_mcu_ram")    /* COP mcu */
 	AM_RANGE(0x100800, 0x100fff) AM_RAM
 	AM_RANGE(0x101000, 0x101fff) AM_RAM_WRITE(legionna_background_w) AM_SHARE("back_data")
 	AM_RANGE(0x102000, 0x1027ff) AM_RAM_WRITE(legionna_midground_w) AM_SHARE("mid_data")
 	AM_RANGE(0x102800, 0x1037ff) AM_RAM_WRITE(legionna_text_w) AM_SHARE("textram")
 	AM_RANGE(0x103800, 0x103fff) AM_RAM_WRITE(legionna_foreground_w) AM_SHARE("fore_data")
-	AM_RANGE(0x104000, 0x104fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x104000, 0x104fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x105000, 0x105fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x106000, 0x1067ff) AM_RAM
 	AM_RANGE(0x106800, 0x106fff) AM_RAM
@@ -128,20 +130,19 @@ ADDRESS_MAP_END
 WRITE16_MEMBER(legionna_state::denjin_paletteram16_xBBBBBGGGGGRRRRR_word_w)
 {
 	offset^=1;
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-	paletteram_xBBBBBGGGGGRRRRR_word_w(space,offset,data,mem_mask);
+	m_palette->write(space,offset,data,mem_mask);
 }
 
 static ADDRESS_MAP_START( denjinmk_map, AS_PROGRAM, 16, legionna_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	AM_RANGE(0x100000, 0x1003ff) AM_RAM
-	AM_RANGE(0x100400, 0x1007ff) AM_READWRITE_LEGACY(denjinmk_mcu_r, denjinmk_mcu_w) AM_SHARE("cop_mcu_ram")    /* COP mcu */
+	AM_RANGE(0x100400, 0x1007ff) AM_DEVREADWRITE("seibucop", seibu_cop_legacy_device, denjinmk_mcu_r, denjinmk_mcu_w) AM_SHARE("cop_mcu_ram")    /* COP mcu */
 	AM_RANGE(0x100800, 0x100fff) AM_RAM
 	AM_RANGE(0x101000, 0x1017ff) AM_RAM_WRITE(legionna_background_w) AM_SHARE("back_data")
 	AM_RANGE(0x101800, 0x101fff) AM_RAM_WRITE(legionna_foreground_w) AM_SHARE("fore_data")
 	AM_RANGE(0x102000, 0x1027ff) AM_RAM_WRITE(legionna_midground_w) AM_SHARE("mid_data")
 	AM_RANGE(0x102800, 0x103fff) AM_RAM_WRITE(legionna_text_w) AM_SHARE("textram")
-	AM_RANGE(0x104000, 0x104fff) AM_RAM_WRITE(denjin_paletteram16_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x104000, 0x104fff) AM_RAM_WRITE(denjin_paletteram16_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("palette")
 	AM_RANGE(0x105000, 0x105fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x106000, 0x107fff) AM_RAM
 	AM_RANGE(0x108000, 0x11dfff) AM_RAM
@@ -152,12 +153,12 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( grainbow_map, AS_PROGRAM, 16, legionna_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	AM_RANGE(0x100000, 0x1003ff) AM_RAM
-	AM_RANGE(0x100400, 0x1007ff) AM_READWRITE_LEGACY(grainbow_mcu_r, grainbow_mcu_w) AM_SHARE("cop_mcu_ram")    /* COP mcu */
+	AM_RANGE(0x100400, 0x1007ff) AM_DEVREADWRITE("seibucop", seibu_cop_legacy_device, grainbow_mcu_r, grainbow_mcu_w) AM_SHARE("cop_mcu_ram")    /* COP mcu */
 	AM_RANGE(0x100800, 0x100fff) AM_RAM_WRITE(legionna_background_w) AM_SHARE("back_data")
 	AM_RANGE(0x101000, 0x1017ff) AM_RAM_WRITE(legionna_foreground_w) AM_SHARE("fore_data")
 	AM_RANGE(0x101800, 0x101fff) AM_RAM_WRITE(legionna_midground_w) AM_SHARE("mid_data")
 	AM_RANGE(0x102000, 0x102fff) AM_RAM_WRITE(legionna_text_w) AM_SHARE("textram")
-	AM_RANGE(0x103000, 0x103fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x103000, 0x103fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x104000, 0x104fff) AM_RAM//_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x105000, 0x105fff) AM_RAM
 	AM_RANGE(0x106000, 0x106fff) AM_RAM
@@ -168,12 +169,12 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( cupsoc_mem, AS_PROGRAM, 16, legionna_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	AM_RANGE(0x100000, 0x1003ff) AM_RAM
-	AM_RANGE(0x100400, 0x1007ff) AM_READWRITE_LEGACY(cupsoc_mcu_r,cupsoc_mcu_w) AM_SHARE("cop_mcu_ram")
+	AM_RANGE(0x100400, 0x1007ff) AM_DEVREADWRITE("seibucop", seibu_cop_legacy_device, cupsoc_mcu_r,cupsoc_mcu_w) AM_SHARE("cop_mcu_ram")
 	AM_RANGE(0x100800, 0x100fff) AM_RAM_WRITE(legionna_background_w) AM_SHARE("back_data")
 	AM_RANGE(0x101000, 0x1017ff) AM_RAM_WRITE(legionna_foreground_w) AM_SHARE("fore_data")
 	AM_RANGE(0x101800, 0x101fff) AM_RAM_WRITE(legionna_midground_w) AM_SHARE("mid_data")
 	AM_RANGE(0x102000, 0x102fff) AM_RAM_WRITE(legionna_text_w) AM_SHARE("textram")
-	AM_RANGE(0x103000, 0x103fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x103000, 0x103fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x104000, 0x104fff) AM_RAM
 	AM_RANGE(0x105000, 0x106fff) AM_RAM
 	AM_RANGE(0x107000, 0x1077ff) AM_RAM AM_SHARE("spriteram")
@@ -187,12 +188,12 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( cupsocs_mem, AS_PROGRAM, 16, legionna_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	AM_RANGE(0x100000, 0x1003ff) AM_RAM
-	AM_RANGE(0x100400, 0x1007ff) AM_READWRITE_LEGACY(cupsocs_mcu_r,cupsocs_mcu_w) AM_SHARE("cop_mcu_ram")
+	AM_RANGE(0x100400, 0x1007ff) AM_DEVREADWRITE("seibucop", seibu_cop_legacy_device, cupsocs_mcu_r,cupsocs_mcu_w) AM_SHARE("cop_mcu_ram")
 	AM_RANGE(0x100800, 0x100fff) AM_RAM_WRITE(legionna_background_w) AM_SHARE("back_data")
 	AM_RANGE(0x101000, 0x1017ff) AM_RAM_WRITE(legionna_foreground_w) AM_SHARE("fore_data")
 	AM_RANGE(0x101800, 0x101fff) AM_RAM_WRITE(legionna_midground_w) AM_SHARE("mid_data")
 	AM_RANGE(0x102000, 0x102fff) AM_RAM_WRITE(legionna_text_w) AM_SHARE("textram")
-	AM_RANGE(0x103000, 0x103fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x103000, 0x103fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x104000, 0x104fff) AM_RAM
 	AM_RANGE(0x105000, 0x106fff) AM_RAM
 	AM_RANGE(0x107000, 0x1077ff) AM_RAM AM_SHARE("spriteram")
@@ -206,12 +207,12 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( cupsocbl_mem, AS_PROGRAM, 16, legionna_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	//AM_RANGE(0x100000, 0x1003ff) AM_RAM
-	AM_RANGE(0x100000, 0x1007ff) AM_READWRITE_LEGACY(copdxbl_0_r,copdxbl_0_w) AM_SHARE("cop_mcu_ram")
+	AM_RANGE(0x100000, 0x1007ff) AM_DEVREADWRITE("seibucop", seibu_cop_legacy_device, copdxbl_0_r,copdxbl_0_w) AM_SHARE("cop_mcu_ram")
 	AM_RANGE(0x100800, 0x100fff) AM_RAM_WRITE(legionna_background_w) AM_SHARE("back_data")
 	AM_RANGE(0x101000, 0x1017ff) AM_RAM_WRITE(legionna_foreground_w) AM_SHARE("fore_data")
 	AM_RANGE(0x101800, 0x101fff) AM_RAM_WRITE(legionna_midground_w) AM_SHARE("mid_data")
 	AM_RANGE(0x102000, 0x102fff) AM_RAM_WRITE(legionna_text_w) AM_SHARE("textram")
-	AM_RANGE(0x103000, 0x103fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x103000, 0x103fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x104000, 0x104fff) AM_RAM
 	AM_RANGE(0x105000, 0x106fff) AM_RAM
 	AM_RANGE(0x107000, 0x1077ff) AM_RAM AM_SHARE("spriteram")
@@ -909,11 +910,10 @@ static const gfx_layout legionna_new_charlayout =
 
 void legionna_state::descramble_legionnaire_gfx(UINT8* src)
 {
-	UINT8 *buffer;
 	int len = 0x10000;
 
 	/*  rearrange gfx */
-	buffer = auto_alloc_array(machine(), UINT8, len);
+	dynamic_buffer buffer(len);
 	{
 		int i;
 		for (i = 0;i < len; i++)
@@ -927,7 +927,6 @@ void legionna_state::descramble_legionnaire_gfx(UINT8* src)
 			3,2,1,0)];
 		}
 		memcpy(src,buffer,len);
-		auto_free(machine(), buffer);
 	}
 
 }
@@ -1065,6 +1064,8 @@ static MACHINE_CONFIG_START( legionna, legionna_state )
 
 	SEIBU_SOUND_SYSTEM_CPU(14318180/4)
 
+	MCFG_SEIBU_COP_ADD("seibucop")
+
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -1072,10 +1073,11 @@ static MACHINE_CONFIG_START( legionna, legionna_state )
 	MCFG_SCREEN_SIZE(36*8, 36*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(legionna_state, screen_update_legionna)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(legionna)
-	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", legionna)
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 128*16)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,legionna)
 
@@ -1093,6 +1095,8 @@ static MACHINE_CONFIG_START( heatbrl, legionna_state )
 
 	SEIBU_SOUND_SYSTEM_CPU(14318180/4)
 
+	MCFG_SEIBU_COP_ADD("seibucop")
+
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -1100,10 +1104,12 @@ static MACHINE_CONFIG_START( heatbrl, legionna_state )
 	MCFG_SCREEN_SIZE(36*8, 36*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(legionna_state, screen_update_legionna)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(heatbrl)
-	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", heatbrl)
+
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 128*16)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,legionna)
 
@@ -1120,6 +1126,8 @@ static MACHINE_CONFIG_START( godzilla, legionna_state )
 
 	SEIBU2_SOUND_SYSTEM_CPU(14318180/4)
 
+	MCFG_SEIBU_COP_ADD("seibucop")
+
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 //  MCFG_SCREEN_REFRESH_RATE(61)
@@ -1128,10 +1136,12 @@ static MACHINE_CONFIG_START( godzilla, legionna_state )
 //  MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_RAW_PARAMS(14318180/2,442,0,320,262,0,224) // ~61 Hz
 	MCFG_SCREEN_UPDATE_DRIVER(legionna_state, screen_update_godzilla)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(heatbrl)
-	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", heatbrl)
+
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 128*16)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,godzilla)
 
@@ -1148,6 +1158,8 @@ static MACHINE_CONFIG_START( denjinmk, legionna_state )
 
 	SEIBU2_SOUND_SYSTEM_CPU(14318180/4)
 
+	MCFG_SEIBU_COP_ADD("seibucop")
+
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_SIZE(42*8, 36*8)
@@ -1155,10 +1167,12 @@ static MACHINE_CONFIG_START( denjinmk, legionna_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(legionna_state, screen_update_godzilla)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(heatbrl)
-	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", heatbrl)
+
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 128*16)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,denjinmk)
 
@@ -1175,6 +1189,8 @@ static MACHINE_CONFIG_START( grainbow, legionna_state )
 
 	SEIBU2_SOUND_SYSTEM_CPU(14318180/4)
 
+	MCFG_SEIBU_COP_ADD("seibucop")
+
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -1182,10 +1198,12 @@ static MACHINE_CONFIG_START( grainbow, legionna_state )
 	MCFG_SCREEN_SIZE(64*8, 36*8)
 	MCFG_SCREEN_VISIBLE_AREA(2*8, 42*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(legionna_state, screen_update_grainbow)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(grainbow)
-	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", grainbow)
+
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 128*16)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,grainbow)
 
@@ -1203,6 +1221,8 @@ static MACHINE_CONFIG_START( cupsoc, legionna_state )
 
 	SEIBU_SOUND_SYSTEM_CPU(14318180/4)
 
+	MCFG_SEIBU_COP_ADD("seibucop")
+
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -1210,10 +1230,12 @@ static MACHINE_CONFIG_START( cupsoc, legionna_state )
 	MCFG_SCREEN_SIZE(42*8, 36*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(legionna_state, screen_update_grainbow)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cupsoc)
-	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cupsoc)
+
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 128*16)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,cupsoc)
 
@@ -1233,6 +1255,8 @@ static MACHINE_CONFIG_START( cupsocbl, legionna_state )
 	MCFG_CPU_PROGRAM_MAP(cupsocbl_mem)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", legionna_state,  irq4_line_hold) /* VBL */
 
+	MCFG_SEIBU_COP_ADD("seibucop")
+
 	/*Different Sound hardware*/
 	//SEIBU_SOUND_SYSTEM_CPU(14318180/4)
 	MCFG_CPU_ADD("audiocpu", Z80,14318180/4)
@@ -1246,10 +1270,12 @@ static MACHINE_CONFIG_START( cupsocbl, legionna_state )
 	MCFG_SCREEN_SIZE(42*8, 36*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(legionna_state, screen_update_grainbow)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(heatbrl_csb)
-	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", heatbrl_csb)
+
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 128*16)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,cupsoc)
 

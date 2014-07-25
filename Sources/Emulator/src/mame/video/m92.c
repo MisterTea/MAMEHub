@@ -133,12 +133,12 @@ WRITE16_MEMBER(m92_state::m92_videocontrol_w)
 
 READ16_MEMBER(m92_state::m92_paletteram_r)
 {
-	return m_generic_paletteram_16[offset + 0x400 * m_palette_bank];
+	return m_paletteram[offset + 0x400 * m_palette_bank];
 }
 
 WRITE16_MEMBER(m92_state::m92_paletteram_w)
 {
-	paletteram_xBBBBBGGGGGRRRRR_word_w(space, offset + 0x400 * m_palette_bank, data, mem_mask);
+	m_palette->write(space, offset + 0x400 * m_palette_bank, data, mem_mask);
 }
 
 /*****************************************************************************/
@@ -152,8 +152,7 @@ TILE_GET_INFO_MEMBER(m92_state::get_pf_tile_info)
 	attrib = m_vram_data[tile_index + 1];
 	tile = m_vram_data[tile_index] + ((attrib & 0x8000) << 1);
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile,
 			attrib & 0x7f,
 			TILE_FLIPYX(attrib >> 9));
@@ -254,8 +253,8 @@ VIDEO_START_MEMBER(m92_state,m92)
 		pf_layer_info *layer = &m_pf_layer[laynum];
 
 		/* allocate two tilemaps per layer, one normal, one wide */
-		layer->tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(m92_state::get_pf_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 64,64);
-		layer->wide_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(m92_state::get_pf_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 128,64);
+		layer->tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(m92_state::get_pf_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 64,64);
+		layer->wide_tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(m92_state::get_pf_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 128,64);
 
 		/* set the user data for each one to point to the layer */
 		layer->tmap->set_user_data(&m_pf_layer[laynum]);
@@ -283,7 +282,8 @@ VIDEO_START_MEMBER(m92_state,m92)
 		state_save_register_item_array(machine(), "layer", NULL, laynum, layer->control);
 	}
 
-	m_generic_paletteram_16.allocate(0x1000/2);
+	m_paletteram.resize(m_palette->entries());
+	m_palette->basemem().set(m_paletteram, ENDIANNESS_LITTLE, 2);
 
 	memset(m_spriteram->live(),0,0x800);
 	memset(m_spriteram->buffer(),0,0x800);
@@ -294,6 +294,7 @@ VIDEO_START_MEMBER(m92_state,m92)
 	save_item(NAME(m_raster_irq_position));
 	save_item(NAME(m_sprite_buffer_busy));
 	save_item(NAME(m_palette_bank));
+	save_item(NAME(m_paletteram));
 }
 
 VIDEO_START_MEMBER(m92_state,ppan)
@@ -354,26 +355,26 @@ void m92_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const 
 				{
 					if (flip_screen())
 					{
-						pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+						m_gfxdecode->gfx(1)->prio_transpen(bitmap,cliprect,
 								code + s_ptr, color, !flipx, !flipy,
 								464 - x, 240 - (y - row * 16),
 								screen.priority(), pri, 0);
 
 						// wrap around x
-						pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+						m_gfxdecode->gfx(1)->prio_transpen(bitmap,cliprect,
 								code + s_ptr, color, !flipx, !flipy,
 								464 - x + 512, 240 - (y - row * 16),
 								screen.priority(), pri, 0);
 					}
 					else
 					{
-						pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+						m_gfxdecode->gfx(1)->prio_transpen(bitmap,cliprect,
 								code + s_ptr, color, flipx, flipy,
 								x, y - row * 16,
 								screen.priority(), pri, 0);
 
 						// wrap around x
-						pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+						m_gfxdecode->gfx(1)->prio_transpen(bitmap,cliprect,
 								code + s_ptr, color, flipx, flipy,
 								x - 512, y - row * 16,
 								screen.priority(), pri, 0);
@@ -428,26 +429,26 @@ void m92_state::ppan_draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, c
 				{
 					if (flip_screen())
 					{
-						pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+						m_gfxdecode->gfx(1)->prio_transpen(bitmap,cliprect,
 								code + s_ptr, color, !flipx, !flipy,
 								464 - x, 240 - (y - row * 16),
 								screen.priority(), pri, 0);
 
 						// wrap around x
-						pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+						m_gfxdecode->gfx(1)->prio_transpen(bitmap,cliprect,
 								code + s_ptr, color, !flipx, !flipy,
 								464 - x + 512, 240 - (y - row * 16),
 								screen.priority(), pri, 0);
 					}
 					else
 					{
-						pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+						m_gfxdecode->gfx(1)->prio_transpen(bitmap,cliprect,
 								code + s_ptr, color, flipx, flipy,
 								x, y - row * 16,
 								screen.priority(), pri, 0);
 
 						// wrap around x
-						pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+						m_gfxdecode->gfx(1)->prio_transpen(bitmap,cliprect,
 								code + s_ptr, color, flipx, flipy,
 								x - 512, y - row * 16,
 								screen.priority(), pri, 0);

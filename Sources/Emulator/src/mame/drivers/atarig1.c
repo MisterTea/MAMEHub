@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari G1 hardware
@@ -201,7 +203,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, atarig1_state )
 	AM_RANGE(0xfd0000, 0xfd0001) AM_DEVREAD8("jsa", atari_jsa_ii_device, main_response_r, 0xff00)
 	AM_RANGE(0xfd8000, 0xfdffff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
 /*  AM_RANGE(0xfe0000, 0xfe7fff) AM_READ(from_r)*/
-	AM_RANGE(0xfe8000, 0xfe89ff) AM_RAM_WRITE(paletteram_666_w) AM_SHARE("paletteram")
+	AM_RANGE(0xfe8000, 0xfe89ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xff0000, 0xff0fff) AM_RAM AM_SHARE("rle")
 	AM_RANGE(0xff2000, 0xff2001) AM_WRITE(mo_command_w) AM_SHARE("mo_command")
 	AM_RANGE(0xff4000, 0xff5fff) AM_DEVWRITE("playfield", tilemap_device, write) AM_SHARE("playfield")
@@ -432,18 +434,20 @@ static MACHINE_CONFIG_START( atarig1, atarig1_state )
 	MCFG_ATARI_EEPROM_2816_ADD("eeprom")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_GFXDECODE(atarig1)
-	MCFG_PALETTE_LENGTH(1280)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", atarig1)
+	MCFG_PALETTE_ADD("palette", 1280)
+	MCFG_PALETTE_FORMAT(IRRRRRGGGGGBBBBB)
 
 	/* initialize the playfield */
-	MCFG_TILEMAP_ADD_STANDARD("playfield", 2, atarig1_state, get_playfield_tile_info, 8,8, SCAN_ROWS, 64,64)
-	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", 2, atarig1_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,32, 0)
+	MCFG_TILEMAP_ADD_STANDARD("playfield", "gfxdecode", 2, atarig1_state, get_playfield_tile_info, 8,8, SCAN_ROWS, 64,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", "gfxdecode", 2, atarig1_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,32, 0)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	/* note: these parameters are from published specs, not derived */
 	MCFG_SCREEN_RAW_PARAMS(ATARI_CLOCK_14MHz/2, 456, 0, 336, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(atarig1_state, screen_update_atarig1)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(atarig1_state,atarig1)
 

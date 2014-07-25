@@ -20,7 +20,6 @@ IRQ_CALLBACK_MEMBER(mc80_state::mc8020_irq_callback)
 
 MACHINE_RESET_MEMBER(mc80_state,mc8020)
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(mc80_state::mc8020_irq_callback),this));
 }
 
 WRITE_LINE_MEMBER( mc80_state::ctc_z0_w )
@@ -36,15 +35,6 @@ WRITE_LINE_MEMBER(mc80_state::ctc_z2_w)
 	downcast<z80ctc_device *>(machine().device("z80ctc"))->trg0(state);
 	downcast<z80ctc_device *>(machine().device("z80ctc"))->trg1(state);
 }
-
-Z80CTC_INTERFACE( mc8020_ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),
-	DEVCB_DRIVER_LINE_MEMBER(mc80_state, ctc_z0_w),
-	DEVCB_DRIVER_LINE_MEMBER(mc80_state, ctc_z1_w),
-	DEVCB_DRIVER_LINE_MEMBER(mc80_state,ctc_z2_w)
-};
-
 
 READ8_MEMBER( mc80_state::mc80_port_b_r )
 {
@@ -63,17 +53,6 @@ WRITE8_MEMBER( mc80_state::mc80_port_a_w )
 WRITE8_MEMBER( mc80_state::mc80_port_b_w )
 {
 }
-
-Z80PIO_INTERFACE( mc8020_z80pio_intf )
-{
-	DEVCB_NULL, /* callback when change interrupt status */
-	DEVCB_DRIVER_MEMBER(mc80_state, mc80_port_a_r),
-	DEVCB_DRIVER_MEMBER(mc80_state, mc80_port_a_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(mc80_state, mc80_port_b_r),
-	DEVCB_DRIVER_MEMBER(mc80_state, mc80_port_b_w),
-	DEVCB_NULL
-};
 
 /*****************************************************************************/
 /*                            Implementation for MC80.3x                     */
@@ -114,7 +93,6 @@ IRQ_CALLBACK_MEMBER(mc80_state::mc8030_irq_callback )
 
 MACHINE_RESET_MEMBER(mc80_state,mc8030)
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(mc80_state::mc8030_irq_callback),this));
 }
 
 READ8_MEMBER( mc80_state::zve_port_a_r )
@@ -135,17 +113,6 @@ WRITE8_MEMBER( mc80_state::zve_port_b_w )
 {
 }
 
-Z80PIO_INTERFACE( mc8030_zve_z80pio_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),   /* callback when change interrupt status */
-	DEVCB_DRIVER_MEMBER(mc80_state, zve_port_a_r),
-	DEVCB_DRIVER_MEMBER(mc80_state, zve_port_a_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(mc80_state, zve_port_b_r),
-	DEVCB_DRIVER_MEMBER(mc80_state, zve_port_b_w),
-	DEVCB_NULL
-};
-
 READ8_MEMBER( mc80_state::asp_port_a_r )
 {
 	return 0xff;
@@ -163,52 +130,3 @@ WRITE8_MEMBER( mc80_state::asp_port_a_w )
 WRITE8_MEMBER( mc80_state::asp_port_b_w )
 {
 }
-
-Z80PIO_INTERFACE( mc8030_asp_z80pio_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),   /* callback when change interrupt status */
-	DEVCB_DRIVER_MEMBER(mc80_state, asp_port_a_r),
-	DEVCB_DRIVER_MEMBER(mc80_state, asp_port_a_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(mc80_state, asp_port_b_r),
-	DEVCB_DRIVER_MEMBER(mc80_state, asp_port_b_w),
-	DEVCB_NULL
-};
-
-Z80CTC_INTERFACE( mc8030_zve_z80ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),
-	DEVCB_NULL, // for user
-	DEVCB_NULL, // for user
-	DEVCB_NULL  // for user
-};
-
-Z80CTC_INTERFACE( mc8030_asp_z80ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),
-	DEVCB_NULL, // to SIO CLK CH A
-	DEVCB_NULL, // to SIO CLK CH B
-	DEVCB_NULL  // KMBG (??)
-};
-
-// SIO CH A in = keyboard; out = beeper; CH B = IFSS (??)
-Z80SIO_INTERFACE( mc8030_asp_z80sio_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_NULL
-};

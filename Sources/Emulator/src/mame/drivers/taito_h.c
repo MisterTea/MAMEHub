@@ -243,10 +243,10 @@ static ADDRESS_MAP_START( syvalion_map, AS_PROGRAM, 16, taitoh_state )
 	AM_RANGE(0x100000, 0x10ffff) AM_MIRROR(0x010000) AM_RAM AM_SHARE("m68000_mainram")
 	AM_RANGE(0x200000, 0x200001) AM_READ8(syvalion_input_bypass_r, 0x00ff) AM_DEVWRITE8("tc0220ioc", tc0220ioc_device, portreg_w, 0x00ff)
 	AM_RANGE(0x200002, 0x200003) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, port_r, port_w, 0x00ff)
-	AM_RANGE(0x300000, 0x300001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x300002, 0x300003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x300000, 0x300001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, master_port_w, 0x00ff)
+	AM_RANGE(0x300002, 0x300003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, master_comm_r, master_comm_w, 0x00ff)
 	AM_RANGE(0x400000, 0x420fff) AM_DEVREADWRITE("tc0080vco", tc0080vco_device, word_r, word_w)
-	AM_RANGE(0x500800, 0x500fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x500800, 0x500fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( recordbr_map, AS_PROGRAM, 16, taitoh_state )
@@ -254,31 +254,31 @@ static ADDRESS_MAP_START( recordbr_map, AS_PROGRAM, 16, taitoh_state )
 	AM_RANGE(0x100000, 0x10ffff) AM_MIRROR(0x010000) AM_RAM AM_SHARE("m68000_mainram")
 	AM_RANGE(0x200000, 0x200001) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, portreg_r, portreg_w, 0x00ff)
 	AM_RANGE(0x200002, 0x200003) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, port_r, port_w, 0x00ff)
-	AM_RANGE(0x300000, 0x300001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x300002, 0x300003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x300000, 0x300001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, master_port_w, 0x00ff)
+	AM_RANGE(0x300002, 0x300003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, master_comm_r, master_comm_w, 0x00ff)
 	AM_RANGE(0x400000, 0x420fff) AM_DEVREADWRITE("tc0080vco", tc0080vco_device, word_r, word_w)
-	AM_RANGE(0x500800, 0x500fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x500800, 0x500fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( tetristh_map, AS_PROGRAM, 16, taitoh_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_MIRROR(0x010000) AM_RAM AM_SHARE("m68000_mainram")
-	AM_RANGE(0x200000, 0x200001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x200002, 0x200003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x200000, 0x200001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, master_port_w, 0x00ff)
+	AM_RANGE(0x200002, 0x200003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, master_comm_r, master_comm_w, 0x00ff)
 	AM_RANGE(0x300000, 0x300001) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, portreg_r, portreg_w, 0x00ff)
 	AM_RANGE(0x300002, 0x300003) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, port_r, port_w, 0x00ff)
 	AM_RANGE(0x400000, 0x420fff) AM_DEVREADWRITE("tc0080vco", tc0080vco_device, word_r, word_w)
-	AM_RANGE(0x500800, 0x500fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x500800, 0x500fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( dleague_map, AS_PROGRAM, 16, taitoh_state )
 	AM_RANGE(0x000000, 0x05ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_MIRROR(0x010000) AM_RAM AM_SHARE("m68000_mainram")
 	AM_RANGE(0x200000, 0x20000f) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, read, write, 0x00ff)
-	AM_RANGE(0x300000, 0x300001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x300002, 0x300003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x300000, 0x300001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, master_port_w, 0x00ff)
+	AM_RANGE(0x300002, 0x300003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, master_comm_r, master_comm_w, 0x00ff)
 	AM_RANGE(0x400000, 0x420fff) AM_DEVREADWRITE("tc0080vco", tc0080vco_device, word_r, word_w)
-	AM_RANGE(0x500800, 0x500fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x500800, 0x500fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x600000, 0x600001) AM_WRITENOP    /* ?? writes zero once per frame */
 ADDRESS_MAP_END
 
@@ -288,8 +288,8 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, taitoh_state )
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")
 	AM_RANGE(0xc000, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xe003) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
-	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
-	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, slave_port_w)
+	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, slave_comm_r, slave_comm_w)
 	AM_RANGE(0xe400, 0xe403) AM_WRITENOP        /* pan control */
 	AM_RANGE(0xea00, 0xea00) AM_READNOP
 	AM_RANGE(0xee00, 0xee00) AM_WRITENOP        /* ? */
@@ -363,6 +363,69 @@ static INPUT_PORTS_START( syvalion )
 	PORT_START(P2TRACKY_PORT_TAG)
 	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_Y ) PORT_SENSITIVITY(30) PORT_KEYDELTA(30) PORT_RESET PORT_REVERSE PORT_PLAYER(2)
 INPUT_PORTS_END
+
+
+static INPUT_PORTS_START( syvalionp )
+	/* 0x200000 (port 0) -> 0x102842.b (-$57be,A5) */
+	PORT_START("DSWA")
+	TAITO_MACHINE_COCKTAIL_LOC(SW1)
+	TAITO_COINAGE_JAPAN_OLD_LOC(SW1)
+
+	/* 0x200000 (port 1) -> 0x102843.b (-$57bd,A5) */
+	PORT_START("DSWB")
+	TAITO_DIFFICULTY_LOC(SW2)
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Bonus_Life ) )   PORT_DIPLOCATION("SW2:3,4")
+	PORT_DIPSETTING(    0x08, "1000k" )
+	PORT_DIPSETTING(    0x0c, "1500k" )
+	PORT_DIPSETTING(    0x04, "2000k" )
+	PORT_DIPSETTING(    0x00, DEF_STR( None ) )
+	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Lives ) )        PORT_DIPLOCATION("SW2:5,6")
+	PORT_DIPSETTING(    0x00, "2" )
+	PORT_DIPSETTING(    0x30, "3" )
+	PORT_DIPSETTING(    0x20, "4" )
+	PORT_DIPSETTING(    0x10, "5" )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SW2:7") /* code at 0x002af8 - see notes */
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPUNUSED_DIPLOC( 0x80, 0x80, "SW2:8" )        /* Listed as "Unused" */
+
+	PORT_START("IN0")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW,  IPT_UNKNOWN )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW,  IPT_UNKNOWN )
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_COIN1 )
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_COIN2 )
+	PORT_BIT( 0x10, IP_ACTIVE_LOW,  IPT_SERVICE1 )
+	PORT_BIT( 0x20, IP_ACTIVE_LOW,  IPT_TILT )
+	PORT_BIT( 0x40, IP_ACTIVE_LOW,  IPT_START1 )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW,  IPT_START2 )
+
+	PORT_START("IN1")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1)
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("IN2")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	// x and y are swapped on the proto, x also isn't reversed
+	PORT_START(P1TRACKX_PORT_TAG)
+	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_Y ) PORT_SENSITIVITY(30) PORT_KEYDELTA(30) PORT_RESET PORT_PLAYER(1)
+
+	PORT_START(P1TRACKY_PORT_TAG)
+	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_X ) PORT_SENSITIVITY(30) PORT_KEYDELTA(30) PORT_RESET PORT_PLAYER(1)
+
+	PORT_START(P2TRACKX_PORT_TAG)
+	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_Y ) PORT_SENSITIVITY(30) PORT_KEYDELTA(30) PORT_RESET PORT_PLAYER(2)
+
+	PORT_START(P2TRACKY_PORT_TAG)
+	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_X ) PORT_SENSITIVITY(30) PORT_KEYDELTA(30) PORT_RESET PORT_PLAYER(2)
+INPUT_PORTS_END
+
 
 static INPUT_PORTS_START( recordbr )
 	/* 0x200000 (port 0) -> 0x1022e6.b (-$5d1a,A5) */
@@ -540,6 +603,7 @@ static const gfx_layout tilelayout =
 	16*16
 };
 
+#if 0
 static const gfx_layout charlayout =
 {
 	8, 8,   /* 8x8 pixels */
@@ -550,6 +614,7 @@ static const gfx_layout charlayout =
 	{ 16*0, 16*1, 16*2, 16*3, 16*4, 16*5, 16*6, 16*7 },
 	16*8
 };
+#endif
 
 
 static GFXDECODE_START( syvalion )
@@ -581,31 +646,6 @@ void taitoh_state::machine_start()
 }
 
 
-static const tc0080vco_interface syvalion_tc0080vco_intf =
-{
-	0, 1,   /* gfxnum, txnum */
-	1, 1, -2,
-	1
-};
-
-static const tc0080vco_interface recordbr_tc0080vco_intf =
-{
-	0, 1,   /* gfxnum, txnum */
-	1, 1, -2,
-	0
-};
-
-static const tc0220ioc_interface taitoh_io_intf =
-{
-	DEVCB_INPUT_PORT("DSWA"), DEVCB_INPUT_PORT("DSWB"),
-	DEVCB_INPUT_PORT("IN0"), DEVCB_INPUT_PORT("IN1"), DEVCB_INPUT_PORT("IN2")   /* port read handlers */
-};
-
-static const tc0140syt_interface taitoh_tc0140syt_intf =
-{
-	"maincpu", "audiocpu"
-};
-
 static MACHINE_CONFIG_START( syvalion, taitoh_state )
 
 	/* basic machine hardware */
@@ -619,7 +659,12 @@ static MACHINE_CONFIG_START( syvalion, taitoh_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(600))
 
-	MCFG_TC0220IOC_ADD("tc0220ioc", taitoh_io_intf)
+	MCFG_DEVICE_ADD("tc0220ioc", TC0220IOC, 0)
+	MCFG_TC0220IOC_READ_0_CB(IOPORT("DSWA"))
+	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
+	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
+	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -628,11 +673,19 @@ static MACHINE_CONFIG_START( syvalion, taitoh_state )
 	MCFG_SCREEN_SIZE(64*16, 64*16)
 	MCFG_SCREEN_VISIBLE_AREA(0*16, 32*16-1, 3*16, 28*16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(taitoh_state, screen_update_syvalion)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(syvalion)
-	MCFG_PALETTE_LENGTH(33*16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", syvalion)
+	MCFG_PALETTE_ADD("palette", 33*16)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
-	MCFG_TC0080VCO_ADD("tc0080vco", syvalion_tc0080vco_intf)
+	MCFG_DEVICE_ADD("tc0080vco", TC0080VCO, 0)
+	MCFG_TC0080VCO_GFX_REGION(0)
+	MCFG_TC0080VCO_TX_REGION(1)
+	MCFG_TC0080VCO_OFFSETS(1, 1)
+	MCFG_TC0080VCO_BGFLIP_OFFS(-2)
+	MCFG_TC0080VCO_GFXDECODE("gfxdecode")
+	MCFG_TC0080VCO_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -643,7 +696,9 @@ static MACHINE_CONFIG_START( syvalion, taitoh_state )
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
 
-	MCFG_TC0140SYT_ADD("tc0140syt", taitoh_tc0140syt_intf)
+	MCFG_DEVICE_ADD("tc0140syt", TC0140SYT, 0)
+	MCFG_TC0140SYT_MASTER_CPU("maincpu")
+	MCFG_TC0140SYT_SLAVE_CPU("audiocpu")
 MACHINE_CONFIG_END
 
 
@@ -660,7 +715,12 @@ static MACHINE_CONFIG_START( recordbr, taitoh_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(600))
 
-	MCFG_TC0220IOC_ADD("tc0220ioc", taitoh_io_intf)
+	MCFG_DEVICE_ADD("tc0220ioc", TC0220IOC, 0)
+	MCFG_TC0220IOC_READ_0_CB(IOPORT("DSWA"))
+	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
+	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
+	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -669,11 +729,19 @@ static MACHINE_CONFIG_START( recordbr, taitoh_state )
 	MCFG_SCREEN_SIZE(64*16, 64*16)
 	MCFG_SCREEN_VISIBLE_AREA(1*16, 21*16-1, 2*16, 17*16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(taitoh_state, screen_update_recordbr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(recordbr)
-	MCFG_PALETTE_LENGTH(32*16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", recordbr)
+	MCFG_PALETTE_ADD("palette", 32*16)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
-	MCFG_TC0080VCO_ADD("tc0080vco", recordbr_tc0080vco_intf)
+	MCFG_DEVICE_ADD("tc0080vco", TC0080VCO, 0)
+	MCFG_TC0080VCO_GFX_REGION(0)
+	MCFG_TC0080VCO_TX_REGION(1)
+	MCFG_TC0080VCO_OFFSETS(1, 1)
+	MCFG_TC0080VCO_BGFLIP_OFFS(-2)
+	MCFG_TC0080VCO_GFXDECODE("gfxdecode")
+	MCFG_TC0080VCO_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -684,7 +752,9 @@ static MACHINE_CONFIG_START( recordbr, taitoh_state )
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
 
-	MCFG_TC0140SYT_ADD("tc0140syt", taitoh_tc0140syt_intf)
+	MCFG_DEVICE_ADD("tc0140syt", TC0140SYT, 0)
+	MCFG_TC0140SYT_MASTER_CPU("maincpu")
+	MCFG_TC0140SYT_SLAVE_CPU("audiocpu")
 MACHINE_CONFIG_END
 
 
@@ -709,7 +779,12 @@ static MACHINE_CONFIG_START( dleague, taitoh_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(600))
 
-	MCFG_TC0220IOC_ADD("tc0220ioc", taitoh_io_intf)
+	MCFG_DEVICE_ADD("tc0220ioc", TC0220IOC, 0)
+	MCFG_TC0220IOC_READ_0_CB(IOPORT("DSWA"))
+	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
+	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
+	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -718,11 +793,19 @@ static MACHINE_CONFIG_START( dleague, taitoh_state )
 	MCFG_SCREEN_SIZE(64*16, 64*16)
 	MCFG_SCREEN_VISIBLE_AREA(1*16, 21*16-1, 2*16, 17*16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(taitoh_state, screen_update_dleague)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(dleague)
-	MCFG_PALETTE_LENGTH(33*16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dleague)
+	MCFG_PALETTE_ADD("palette", 33*16)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
-	MCFG_TC0080VCO_ADD("tc0080vco", recordbr_tc0080vco_intf)
+	MCFG_DEVICE_ADD("tc0080vco", TC0080VCO, 0)
+	MCFG_TC0080VCO_GFX_REGION(0)
+	MCFG_TC0080VCO_TX_REGION(1)
+	MCFG_TC0080VCO_OFFSETS(1, 1)
+	MCFG_TC0080VCO_BGFLIP_OFFS(-2)
+	MCFG_TC0080VCO_GFXDECODE("gfxdecode")
+	MCFG_TC0080VCO_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -733,7 +816,9 @@ static MACHINE_CONFIG_START( dleague, taitoh_state )
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
 
-	MCFG_TC0140SYT_ADD("tc0140syt", taitoh_tc0140syt_intf)
+	MCFG_DEVICE_ADD("tc0140syt", TC0140SYT, 0)
+	MCFG_TC0140SYT_MASTER_CPU("maincpu")
+	MCFG_TC0140SYT_SLAVE_CPU("audiocpu")
 MACHINE_CONFIG_END
 
 
@@ -778,6 +863,56 @@ ROM_START( syvalion )
 	ROM_REGION( 0x80000, "ymsnd", 0 )   /* samples */
 	ROM_LOAD( "b51-17.bin", 0x00000, 0x80000, CRC(d85096aa) SHA1(dac39ed182e9eda06575f1667c4c1ff9a4a56599) )
 ROM_END
+
+
+
+ROM_START( syvalionp )
+	ROM_REGION( 0x80000, "maincpu", 0 )     /* main cpu */
+	ROM_LOAD16_BYTE( "prg-1e.ic28", 0x00000, 0x20000, CRC(c778005b) SHA1(db918c8a0f05e3ea8db6cfd40026b580e937d626) )
+	ROM_LOAD16_BYTE( "prg-0e.ic31", 0x00001, 0x20000, CRC(5a484040) SHA1(ecff75e420299da85ee50d17a079804b67ae1d4e) )
+	ROM_LOAD16_BYTE( "prg-3e.ic27", 0x40000, 0x20000, CRC(0babb15b) SHA1(8673b0eed34af58e0b0253fdbd5c081bebe4dc10) )
+	ROM_LOAD16_BYTE( "prg-2e.ic30", 0x40001, 0x20000, CRC(f4aacaa9) SHA1(6145afe0f4aad48f14dabdd3c29f76dfa746d863) )
+
+	ROM_REGION( 0x1c000, "audiocpu", 0 )        /* sound cpu */
+	ROM_LOAD( "c69b.ic58", 0x00000, 0x04000, CRC(07d3d789) SHA1(dbbe308f74637bb5a2651654bbada6a07f99ae14) )
+	ROM_CONTINUE(           0x10000, 0x0c000 )
+
+	ROM_REGION( 0x400000, "gfx1", 0 )
+	ROM_LOAD16_BYTE( "chr-00.ic16", 0x000000, 0x20000, CRC(b0c66db7) SHA1(e3a1e9b0d6157e5085a55fdac1daa61f5a03b048) )
+	ROM_LOAD16_BYTE( "chr-01.ic12", 0x000001, 0x20000, CRC(dd07db12) SHA1(76317c27b1e649d73f639b565b67f42af0233118) )
+	ROM_LOAD16_BYTE( "chr-10.ic15", 0x040000, 0x20000, CRC(c8942dde) SHA1(811d77359c6445f721d70d9c37c51d76d5f82a83) )
+	ROM_LOAD16_BYTE( "chr-11.ic11", 0x040001, 0x20000, CRC(fdaa72f5) SHA1(2a351b525cdb4bf421b874478b0489f793129f62) )
+	ROM_LOAD16_BYTE( "chr-02.ic8",  0x100000, 0x20000, CRC(323a9ad9) SHA1(7ae6fa2dcc2078ae64d6d28cadacb52c6a069575) )
+	ROM_LOAD16_BYTE( "chr-03.ic4",  0x100001, 0x20000, CRC(5ab28400) SHA1(c2ba0419cfa69a2bff8a1241162bc7ca6ae73b1d) )
+	ROM_LOAD16_BYTE( "chr-12.ic7",  0x140000, 0x20000, CRC(094a5e0b) SHA1(864e26ddd41e2e8e53de0fd2e18ffac6263cfee2) )
+	ROM_LOAD16_BYTE( "chr-13.ic3",  0x140001, 0x20000, CRC(cf39cf1d) SHA1(bd757206bad792befffd0cae8704cb746493fb7f) )
+	ROM_LOAD16_BYTE( "chr-04.ic14", 0x200000, 0x20000, CRC(dd2ea978) SHA1(8b772e2658265eb0eeb4bb4db8c260df43231f02) )
+	ROM_LOAD16_BYTE( "chr-05.ic10", 0x200001, 0x20000, CRC(1c305d4e) SHA1(7057cc74b390959f0ff5fa59e60d66e9b7d60f2b) )
+	ROM_LOAD16_BYTE( "chr-14.ic13", 0x240000, 0x20000, CRC(083806c3) SHA1(443b2cfb10c34b260e339f6b5e8fc005118a70f5) )
+	ROM_LOAD16_BYTE( "chr-15.ic9",  0x240001, 0x20000, CRC(6afb076e) SHA1(d806602164f9bc9ffd1787d9dfba9719a190833f) )
+	ROM_LOAD16_BYTE( "chr-06.ic6",  0x300000, 0x20000, CRC(00cd0493) SHA1(151d9176ebe5385d26a6f3fc4a409ecdb87acaf0) )
+	ROM_LOAD16_BYTE( "chr-07.ic2",  0x300001, 0x20000, CRC(58fb0f65) SHA1(4a11c99239749d3c8ea3709788b8b648a9e9c51a) )
+	ROM_LOAD16_BYTE( "chr-16.ic5",  0x340000, 0x20000, CRC(a169194e) SHA1(1399c95fd32f93808b8f2cf95809c3bf15521729) )
+	ROM_LOAD16_BYTE( "chr-17.ic7",  0x340001, 0x20000, CRC(c259bd61) SHA1(cb17be30e2f330d979b3f2a4b691a3a0bb336a44) )
+
+	ROM_REGION( 0x80000, "ymsnd.deltat", 0 )    /* samples */
+	ROM_LOAD( "sb-00.ic6",      0x00000, 0x20000, CRC(5188f459) SHA1(261bdfe9f4200f0296f78c086934700df997875d) )
+	ROM_LOAD( "sb01.ic8",       0x20000, 0x20000, CRC(4dab7a6b) SHA1(7991313e10ee504454e391a4e6cf603ad2cfc0e4) )
+	ROM_LOAD( "sb-02.ic7",      0x40000, 0x20000, CRC(8f5cc936) SHA1(df76ab9a38eef0726d74fcb0d951b0b5065345a7) )
+	ROM_LOAD( "sb-03-e66a.ic9", 0x60000, 0x20000, CRC(9013b407) SHA1(eea010fa32fb3e5270246248083d4aa9449cf6b1) )
+
+	ROM_REGION( 0x80000, "ymsnd", 0 )   /* samples */
+	ROM_LOAD( "sa-00.ic1", 0x00000, 0x20000, CRC(27a97abc) SHA1(891cfafe9a460dbaa83711dcd7ab1bf6d8922b4d) )
+	ROM_LOAD( "sa-01.ic2", 0x20000, 0x20000, CRC(0140452b) SHA1(aa2e664ffc501b5c53fb3fe75b205f18cfe0f67e) )
+	ROM_LOAD( "sa-02.ic3", 0x40000, 0x20000, CRC(970cd4ee) SHA1(674ee5ec0c51e6303baef62c1c4582ef6d7a9590) )
+	ROM_LOAD( "sa-03.ic4", 0x60000, 0x20000, CRC(936cd1b5) SHA1(e8b9e8e867a2d08b0004850359872c174ed687af) )
+
+	ROM_REGION( 0x144, "pals", 0 )
+	ROM_LOAD( "cpu1-pal20l10a.ic38.bin", 0x00000, 0xcc, CRC(2e7b5e3f) SHA1(79bd46842ee9330e8545980b94d49f8f728279c1) )
+	ROM_LOAD( "cpu2-pal20l8a.ic39.bin",  0x00000, 0x144, CRC(c0abf131) SHA1(58de646f26652f0e2abc3470612c230f4a365699) )
+ROM_END
+
+
 
 ROM_START( recordbr )
 	ROM_REGION( 0x80000, "maincpu", 0 )     /* main cpu */
@@ -938,6 +1073,7 @@ ROM_END
 
 /*  ( YEAR  NAME      PARENT    MACHINE   INPUT     INIT              MONITOR  COMPANY                      FULLNAME */
 GAME( 1988, syvalion, 0,        syvalion, syvalion, driver_device, 0, ROT0,    "Taito Corporation",         "Syvalion (Japan)",         GAME_SUPPORTS_SAVE )
+GAME( 1988, syvalionp, syvalion,syvalion, syvalionp,driver_device, 0, ROT0,    "Taito Corporation",         "Syvalion (World, prototype)",         GAME_SUPPORTS_SAVE )
 GAME( 1988, recordbr, 0,        recordbr, recordbr, driver_device, 0, ROT0,    "Taito Corporation Japan",   "Recordbreaker (World)",    GAME_SUPPORTS_SAVE )
 GAME( 1988, gogold,   recordbr, recordbr, gogold,   driver_device, 0, ROT0,    "Taito Corporation",         "Go For The Gold (Japan)",  GAME_SUPPORTS_SAVE )
 GAME( 1988, tetristh, tetris,   tetristh, tetristh, driver_device, 0, ROT0,    "Sega",                      "Tetris (Japan, Taito H-System)", GAME_SUPPORTS_SAVE )

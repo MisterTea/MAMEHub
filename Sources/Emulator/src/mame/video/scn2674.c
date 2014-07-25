@@ -34,13 +34,32 @@ const device_type SCN2674_VIDEO = &device_creator<scn2674_device>;
 
 
 scn2674_device::scn2674_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, SCN2674_VIDEO, "scn2674_device", tag, owner, clock, "scn2674_device", __FILE__),
-		m_interrupt_callback(*this)
+	: device_t(mconfig, SCN2674_VIDEO, "SCN2674 VDC", tag, owner, clock, "scn2674_device", __FILE__),
+		m_interrupt_callback(*this),
+		m_gfxdecode(*this),
+		m_palette(*this)
 {
 }
 
+//-------------------------------------------------
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
+//-------------------------------------------------
 
+void scn2674_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
+{
+	downcast<scn2674_device &>(device).m_gfxdecode.set_tag(tag);
+}
 
+//-------------------------------------------------
+//  static_set_palette_tag: Set the tag of the
+//  palette device
+//-------------------------------------------------
+
+void scn2674_device::static_set_palette_tag(device_t &device, const char *tag)
+{
+	downcast<scn2674_device &>(device).m_palette.set_tag(tag);
+}
 
 void scn2674_device::device_start()
 {
@@ -477,7 +496,7 @@ void scn2674_device::scn2674_write_command(running_machine &machine, UINT8 data)
 }
 
 
-READ16_MEMBER( scn2674_device::mpu4_vid_scn2674_r )
+READ8_MEMBER( scn2674_device::mpu4_vid_scn2674_r )
 {
 	/*
 	Offset:  Purpose
@@ -522,11 +541,11 @@ READ16_MEMBER( scn2674_device::mpu4_vid_scn2674_r )
 		case 7: LOG2674(("Read Screen2_h Register %06x\n",space.device().safe_pc()));return m_scn2674_screen2_h;
 	}
 
-	return 0xffff;
+	return 0xff;
 }
 
 
-WRITE16_MEMBER( scn2674_device::mpu4_vid_scn2674_w )
+WRITE8_MEMBER( scn2674_device::mpu4_vid_scn2674_w )
 {
 	/*
 	Offset:  Purpose
@@ -539,8 +558,6 @@ WRITE16_MEMBER( scn2674_device::mpu4_vid_scn2674_w )
 	 6       Screen Start 2 Lower Register
 	 7       Screen Start 2 Upper Register
 	*/
-
-	data &=0x00ff; /* it's an 8-bit chip on a 16-bit board, feel the cheapness. */
 
 	switch (offset)
 	{
@@ -617,12 +634,12 @@ void scn2674_device::scn2674_line(running_machine &machine)
 		m_scn2674_status_register |= 0x04;
 		if (m_scn2674_irq_mask&0x04)
 		{
-			machine.primary_screen->update_partial(m_linecounter);
+			machine.first_screen()->update_partial(m_linecounter);
 			m_scn2674_irq_register |= 0x04;
 			LOG2674(("SCN2674 Split Screen 1\n"));
 			m_scn2674_irq_state = 1;
 			m_interrupt_callback(1);
-//          machine.primary_screen->update_partial(m_linecounter);
+//          machine.first_screen()->update_partial(m_linecounter);
 		}
 	}
 
@@ -637,12 +654,12 @@ void scn2674_device::scn2674_line(running_machine &machine)
 		m_scn2674_status_register |= 0x01;
 		if (m_scn2674_irq_mask&0x01)
 		{
-			machine.primary_screen->update_partial(m_linecounter);
+			machine.first_screen()->update_partial(m_linecounter);
 			LOG2674(("SCN2674 Split Screen 2 irq\n"));
 			m_scn2674_irq_state = 1;
 			m_scn2674_irq_register |= 0x01;
 			m_interrupt_callback(1);
-			//machine.primary_screen->update_partial(m_linecounter);
+			//machine.first_screen()->update_partial(m_linecounter);
 		}
 	}
 
@@ -721,7 +738,7 @@ void scn2674_device::scn2574_draw_common( running_machine &machine, _BitmapClass
 			attr = tiledat >>12;
 
 			if (attr)
-				drawgfx_opaque(bitmap,cliprect,machine.gfx[gfxregion],tiledat,0,0,0,(x*8),(y*8));
+				m_gfxdecode->gfx(gfxregion)->opaque(bitmap,cliprect,tiledat,0,0,0,(x*8),(y*8));
 
 		}
 		if (dbl_size&2)

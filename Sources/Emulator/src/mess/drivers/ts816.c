@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
     2013-09-10 Skeleton driver for Televideo ts816
@@ -12,15 +14,17 @@
 #include "cpu/z80/z80.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class ts816_state : public driver_device
 {
 public:
 	ts816_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_maincpu(*this, "maincpu")
-		, m_terminal(*this, TERMINAL_TAG)
-	{ }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
 	DECLARE_WRITE8_MEMBER(kbd_put);
 	DECLARE_READ8_MEMBER(keyin_r);
@@ -76,11 +80,6 @@ WRITE8_MEMBER( ts816_state::kbd_put )
 	m_status = 3;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(ts816_state, kbd_put)
-};
-
 void ts816_state::machine_reset()
 {
 	m_term_data = 0;
@@ -94,7 +93,8 @@ static MACHINE_CONFIG_START( ts816, ts816_state )
 	MCFG_CPU_IO_MAP(ts816_io)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(ts816_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

@@ -97,8 +97,6 @@
 #include "emuopts.h"
 #include "cpu/z80/z80.h"
 #include "includes/nc.h"
-#include "machine/ctronics.h"
-#include "machine/i8251.h"  /* for NC100 uart */
 #include "machine/mc146818.h"   /* for NC200 real time clock */
 #include "machine/rp5c01.h" /* for NC100 real time clock */
 #include "machine/upd765.h"     /* for NC200 disk drive interface */
@@ -107,6 +105,7 @@
 #include "sound/beep.h"
 #include "machine/ram.h"
 #include "rendlay.h"
+
 
 #define VERBOSE 0
 #define LOG(x) do { if (VERBOSE) logerror x; } while (0)
@@ -405,77 +404,6 @@ void nc_state::nc_refresh_memory_config()
 }
 
 
-
-/* restore a block of memory from the nvram file */
-void nc_state::nc_common_restore_memory_from_stream()
-{
-	UINT32 stored_size;
-	UINT32 restore_size;
-
-	if (!m_file)
-		return;
-
-	LOG(("restoring nc memory\n"));
-	/* get size of memory data stored */
-	if (m_file->read(&stored_size, sizeof(UINT32)) != sizeof(UINT32))
-		stored_size = 0;
-
-	if (stored_size > m_ram->size())
-		restore_size = m_ram->size();
-	else
-		restore_size = stored_size;
-
-	/* read as much as will fit into memory */
-	m_file->read(m_ram->pointer(), restore_size);
-	/* seek over remaining data */
-	m_file->seek(SEEK_CUR,stored_size - restore_size);
-}
-
-/* store a block of memory to the nvram file */
-void nc_state::nc_common_store_memory_to_stream()
-{
-	UINT32 size = m_ram->size();
-	if (!m_file)
-		return;
-
-	LOG(("storing nc memory\n"));
-	/* write size of memory data */
-	m_file->write(&size, sizeof(UINT32));
-
-	/* write data block */
-	m_file->write(m_ram->pointer(), size);
-}
-
-void nc_state::nc_common_open_stream_for_reading()
-{
-	char filename[MAX_DRIVER_NAME_CHARS + 5];
-
-	sprintf(filename,"%s.hack", machine().system().name);
-
-	m_file = global_alloc(emu_file(machine().options().memcard_directory(), OPEN_FLAG_WRITE));
-	m_file->open(filename);
-}
-
-void nc_state::nc_common_open_stream_for_writing()
-{
-	char filename[MAX_DRIVER_NAME_CHARS + 5];
-
-	sprintf(filename,"%s.hack", machine().system().name);
-
-	m_file = global_alloc(emu_file(machine().options().memcard_directory(), OPEN_FLAG_WRITE));
-	m_file->open(filename);
-}
-
-
-void nc_state::nc_common_close_stream()
-{
-	if (m_file)
-		global_free(m_file);
-}
-
-
-
-
 TIMER_DEVICE_CALLBACK_MEMBER(nc_state::dummy_timer_callback)
 {
 	int inputport_10_state;
@@ -735,30 +663,28 @@ WRITE8_MEMBER(nc_state::nc_sound_w)
 	}
 }
 
-static const unsigned long baud_rate_table[]=
+static const int baud_rate_table[]=
 {
-	150,
-	300,
-	600,
-	1200,
-	2400,
-	4800,
-	9600,
-	19200
+	128, //150
+	64, //300
+	32, //600
+	16, //1200
+	8, //2400
+	4, //4800
+	2, //9600
+	1, //19200
 };
 
-TIMER_CALLBACK_MEMBER(nc_state::nc_serial_timer_callback)
+WRITE_LINE_MEMBER(nc_state::write_uart_clock)
 {
-	i8251_device *uart = machine().device<i8251_device>("uart");
-
-	uart->transmit_clock();
-	uart->receive_clock();
+	m_uart->write_txc(state);
+	m_uart->write_rxc(state);
 }
 
 WRITE8_MEMBER(nc_state::nc_uart_control_w)
 {
-	/* update printer state */
-	nc_printer_update(data);
+	/* same for nc100 and nc200 */
+	m_centronics->write_strobe(BIT(data, 6));
 
 	/* on/off changed state? */
 	if (((m_uart_control ^ data) & (1<<3))!=0)
@@ -770,7 +696,7 @@ WRITE8_MEMBER(nc_state::nc_uart_control_w)
 		}
 	}
 
-	m_serial_timer->adjust(attotime::zero, 0, attotime::from_hz(baud_rate_table[(data & 0x07)]));
+	m_uart_clock->set_clock_scale((double)1 / baud_rate_table[(data & 0x07)]);
 
 	m_uart_control = data;
 }
@@ -780,12 +706,6 @@ WRITE8_MEMBER(nc_state::nc_uart_control_w)
 /* port 0x030 bit 6 = printer strobe */
 
 
-/* same for nc100 and nc200 */
-void nc_state::nc_printer_update(UINT8 data)
-{
-	centronics_device *printer = machine().device<centronics_device>("centronics");
-	printer->strobe_w(BIT(data, 6));
-}
 
 /********************************************************************************************************/
 /* NC100 hardware */
@@ -857,28 +777,10 @@ WRITE_LINE_MEMBER(nc_state::nc100_rxrdy_callback)
 	nc_update_interrupts();
 }
 
-
-static RP5C01_INTERFACE( rtc_intf )
+WRITE_LINE_MEMBER(nc_state::write_nc100_centronics_ack)
 {
-	DEVCB_DRIVER_LINE_MEMBER(nc_state,nc100_tc8521_alarm_callback)
-};
+	m_centronics_ack = state;
 
-static const i8251_interface nc100_uart_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(nc_state,nc100_rxrdy_callback),
-	DEVCB_DRIVER_LINE_MEMBER(nc_state,nc100_txrdy_callback),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-WRITE_LINE_MEMBER(nc_state::nc100_centronics_ack_w)
-{
 	if (state)
 		m_irq_status |= 0x04;
 	else
@@ -888,13 +790,10 @@ WRITE_LINE_MEMBER(nc_state::nc100_centronics_ack_w)
 	nc_update_interrupts();
 }
 
-static const centronics_interface nc100_centronics_config =
+WRITE_LINE_MEMBER(nc_state::write_centronics_busy)
 {
-	DEVCB_DRIVER_LINE_MEMBER(nc_state,nc100_centronics_ack_w),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
+	m_centronics_busy = state;
+}
 
 void nc_state::machine_reset()
 {
@@ -907,33 +806,19 @@ void nc_state::machine_reset()
 
 	nc_common_init_machine();
 
-	nc_common_open_stream_for_reading();
-	nc_common_restore_memory_from_stream();
-	nc_common_close_stream();
-
 	/* serial */
 	m_irq_latch_mask = (1<<0) | (1<<1);
-}
-
-void nc_state::nc100_machine_stop()
-{
-	nc_common_open_stream_for_writing();
-	nc_common_store_memory_to_stream();
-	nc_common_close_stream();
 }
 
 void nc_state::machine_start()
 {
 	m_type = NC_TYPE_1xx;
 
-	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(nc_state::nc100_machine_stop),this));
-
 	/* keyboard timer */
 	m_keyboard_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(nc_state::nc_keyboard_timer_callback),this));
 	m_keyboard_timer->adjust(attotime::from_msec(10));
 
-	/* serial timer */
-	m_serial_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(nc_state::nc_serial_timer_callback),this));
+	m_nvram->set_base(m_ram->pointer(), m_ram->size());
 }
 
 
@@ -949,12 +834,11 @@ WRITE8_MEMBER(nc_state::nc100_poweroff_control_w)
 /* nc100 version of card/battery status */
 READ8_MEMBER(nc_state::nc100_card_battery_status_r)
 {
-	centronics_device *printer = machine().device<centronics_device>("centronics");
 	int nc_card_battery_status = 0x0fc;
 
 	/* printer */
-	nc_card_battery_status |= printer->ack_r();
-	nc_card_battery_status |= printer->busy_r() << 1;
+	nc_card_battery_status |= m_centronics_ack;
+	nc_card_battery_status |= m_centronics_busy << 1;
 
 	if (m_card_status)
 	{
@@ -990,7 +874,7 @@ static ADDRESS_MAP_START(nc100_io, AS_IO, 8, nc_state )
 	AM_RANGE(0x10, 0x13) AM_READWRITE(nc_memory_management_r, nc_memory_management_w)
 	AM_RANGE(0x20, 0x20) AM_WRITE(nc100_memory_card_wait_state_w)
 	AM_RANGE(0x30, 0x30) AM_WRITE(nc100_uart_control_w)
-	AM_RANGE(0x40, 0x40) AM_DEVWRITE("centronics", centronics_device, write)
+	AM_RANGE(0x40, 0x40) AM_DEVWRITE("cent_data_out", output_latch_device, write)
 	AM_RANGE(0x50, 0x53) AM_WRITE(nc_sound_w)
 	AM_RANGE(0x60, 0x60) AM_WRITE(nc_irq_mask_w)
 	AM_RANGE(0x70, 0x70) AM_WRITE(nc100_poweroff_control_w)
@@ -1161,7 +1045,7 @@ WRITE8_MEMBER(nc_state::nc200_display_memory_start_w)
 #endif
 
 
-WRITE_LINE_MEMBER(nc_state::nc200_centronics_ack_w)
+WRITE_LINE_MEMBER(nc_state::write_nc200_centronics_ack)
 {
 	if (state)
 		m_irq_status |= 0x01;
@@ -1171,14 +1055,6 @@ WRITE_LINE_MEMBER(nc_state::nc200_centronics_ack_w)
 	/* trigger an int if the irq is set */
 	nc_update_interrupts();
 }
-
-static const centronics_interface nc200_centronics_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(nc_state,nc200_centronics_ack_w),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 
 /* assumption. nc200 uses the same uart chip. The rxrdy and txrdy are combined
 together with a or to generate a single interrupt */
@@ -1200,7 +1076,6 @@ void nc_state::nc200_refresh_uart_interrupt()
 
 WRITE_LINE_MEMBER(nc_state::nc200_txrdy_callback)
 {
-	//nc_state *drvstate = machine().driver_data<nc_state>();
 //  m_nc200_uart_interrupt_irq &=~(1<<0);
 //
 //  if (state)
@@ -1208,7 +1083,7 @@ WRITE_LINE_MEMBER(nc_state::nc200_txrdy_callback)
 //      m_nc200_uart_interrupt_irq |=(1<<0);
 //  }
 //
-//  nc200_refresh_uart_interrupt(machine());
+//  nc200_refresh_uart_interrupt();
 }
 
 WRITE_LINE_MEMBER(nc_state::nc200_rxrdy_callback)
@@ -1223,21 +1098,7 @@ WRITE_LINE_MEMBER(nc_state::nc200_rxrdy_callback)
 	nc200_refresh_uart_interrupt();
 }
 
-static const i8251_interface nc200_uart_interface=
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(nc_state,nc200_rxrdy_callback),
-	DEVCB_DRIVER_LINE_MEMBER(nc_state,nc200_txrdy_callback),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-void nc_state::nc200_fdc_interrupt(bool state)
+WRITE_LINE_MEMBER( nc_state::nc200_fdc_interrupt )
 {
 #if 0
 	m_irq_latch &=~(1<<5);
@@ -1280,36 +1141,21 @@ MACHINE_RESET_MEMBER(nc_state,nc200)
 
 	m_nc200_uart_interrupt_irq = 0;
 
-	nc_common_open_stream_for_reading();
-	nc_common_restore_memory_from_stream();
-	nc_common_close_stream();
-
 	/* fdc, serial */
 	m_irq_latch_mask = /*(1<<5) |*/ (1<<2);
 
 	nc200_video_set_backlight(0);
 }
 
-void nc_state::nc200_machine_stop()
-{
-	nc_common_open_stream_for_writing();
-	nc_common_store_memory_to_stream();
-	nc_common_close_stream();
-}
-
 MACHINE_START_MEMBER(nc_state,nc200)
 {
 	m_type = NC_TYPE_200;
-
-	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(nc_state::nc200_machine_stop),this));
 
 	/* keyboard timer */
 	m_keyboard_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(nc_state::nc_keyboard_timer_callback),this));
 	m_keyboard_timer->adjust(attotime::from_msec(10));
 
-	/* serial timer */
-	m_serial_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(nc_state::nc_serial_timer_callback),this));
-	machine().device<upd765a_device>("upd765")->setup_intrq_cb(upd765a_device::line_cb(FUNC(nc_state::nc200_fdc_interrupt), this));
+	m_nvram->set_base(m_ram->pointer(), m_ram->size());
 }
 
 /*
@@ -1362,10 +1208,9 @@ READ8_MEMBER(nc_state::nc200_card_battery_status_r)
 
 READ8_MEMBER(nc_state::nc200_printer_status_r)
 {
-	centronics_device *printer = machine().device<centronics_device>("centronics");
 	UINT8 result = 0;
 
-	result |= printer->busy_r();
+	result |= m_centronics_busy;
 
 	return result;
 }
@@ -1428,7 +1273,7 @@ static ADDRESS_MAP_START(nc200_io, AS_IO, 8, nc_state )
 	AM_RANGE(0x10, 0x13) AM_READWRITE(nc_memory_management_r, nc_memory_management_w)
 	AM_RANGE(0x20, 0x20) AM_WRITE(nc200_memory_card_wait_state_w)
 	AM_RANGE(0x30, 0x30) AM_WRITE(nc200_uart_control_w)
-	AM_RANGE(0x40, 0x40) AM_DEVWRITE("centronics", centronics_device, write)
+	AM_RANGE(0x40, 0x40) AM_DEVWRITE("cent_data_out", output_latch_device, write)
 	AM_RANGE(0x50, 0x53) AM_WRITE(nc_sound_w)
 	AM_RANGE(0x60, 0x60) AM_WRITE(nc_irq_mask_w)
 	AM_RANGE(0x70, 0x70) AM_WRITE(nc200_poweroff_control_w)
@@ -1561,7 +1406,6 @@ static MACHINE_CONFIG_START( nc100, nc_state )
 	MCFG_CPU_IO_MAP(nc100_io)
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", LCD)
 	MCFG_SCREEN_REFRESH_RATE(50)
@@ -1569,10 +1413,12 @@ static MACHINE_CONFIG_START( nc100, nc_state )
 	MCFG_SCREEN_SIZE(480, 64)
 	MCFG_SCREEN_VISIBLE_AREA(0, 480-1, 0, 64-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nc_state, screen_update_nc)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(NC_NUM_COLOURS)
+	MCFG_PALETTE_ADD("palette", NC_NUM_COLOURS)
+	MCFG_PALETTE_INIT_OWNER(nc_state, nc)
+
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
-
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1582,13 +1428,23 @@ static MACHINE_CONFIG_START( nc100, nc_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* printer */
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", nc100_centronics_config)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(nc_state, write_nc100_centronics_ack))
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(nc_state, write_centronics_busy))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	/* uart */
-	MCFG_I8251_ADD("uart", nc100_uart_interface)
+	MCFG_DEVICE_ADD("uart", I8251, 0)
+	MCFG_I8251_RXRDY_HANDLER(WRITELINE(nc_state,nc100_rxrdy_callback))
+	MCFG_I8251_TXRDY_HANDLER(WRITELINE(nc_state,nc100_txrdy_callback))
+
+	MCFG_DEVICE_ADD("uart_clock", CLOCK, 19200)
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(nc_state, write_uart_clock))
 
 	/* rtc */
-	MCFG_RP5C01_ADD("rtc", XTAL_32_768kHz, rtc_intf)
+	MCFG_DEVICE_ADD("rtc", RP5C01, XTAL_32_768kHz)
+	MCFG_RP5C01_OUT_ALARM_CB(WRITELINE(nc_state, nc100_tc8521_alarm_callback))
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")
@@ -1600,6 +1456,7 @@ static MACHINE_CONFIG_START( nc100, nc_state )
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("64K")
+	MCFG_NVRAM_ADD_NO_FILL("nvram")
 
 	/* dummy timer */
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("dummy_timer", nc_state, dummy_timer_callback, attotime::from_hz(50))
@@ -1627,24 +1484,29 @@ static MACHINE_CONFIG_DERIVED( nc200, nc100 )
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_SIZE(NC200_SCREEN_WIDTH, NC200_SCREEN_HEIGHT)
 	MCFG_SCREEN_VISIBLE_AREA(0, NC200_SCREEN_WIDTH-1, 0, NC200_SCREEN_HEIGHT-1)
-	MCFG_PALETTE_LENGTH(NC200_NUM_COLOURS)
+
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(NC200_NUM_COLOURS)
+	MCFG_PALETTE_INIT_OWNER(nc_state, nc)
 
 	/* printer */
-	MCFG_DEVICE_REMOVE("centronics")
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", nc200_centronics_config)
+	MCFG_DEVICE_MODIFY("centronics")
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(nc_state, write_nc200_centronics_ack))
 
 	/* uart */
-	MCFG_DEVICE_REMOVE("uart")
-	MCFG_I8251_ADD("uart", nc200_uart_interface)
+	MCFG_DEVICE_MODIFY("uart")
+	MCFG_I8251_RXRDY_HANDLER(WRITELINE(nc_state,nc200_rxrdy_callback))
+	MCFG_I8251_TXRDY_HANDLER(WRITELINE(nc_state,nc200_txrdy_callback))
 
 	/* no rtc */
 	MCFG_DEVICE_REMOVE("rtc")
 
 	MCFG_UPD765A_ADD("upd765", true, true)
+	MCFG_UPD765_INTRQ_CALLBACK(WRITELINE(nc_state, nc200_fdc_interrupt))
 	MCFG_FLOPPY_DRIVE_ADD("upd765:0", ibmpc_floppies, "525dd", ibmpc_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("upd765:1", ibmpc_floppies, "525dd", ibmpc_floppy_formats)
 
-	MCFG_MC146818_ADD( "mc", MC146818_STANDARD )
+	MCFG_MC146818_ADD( "mc", XTAL_4_194304Mhz )
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)
@@ -1672,6 +1534,12 @@ ROM_START(nc100)
 ROM_END
 
 
+ROM_START(dw225)
+	ROM_REGION(((64*1024)+(512*1024)), "maincpu",0)
+	ROM_LOAD("dr (1.06).ic303",  0x010000, 0x080000, CRC(fcf2f7bd) SHA1(a69951618b24e97154cb4284d215cbf4aa9fb34f))
+ROM_END
+
+
 ROM_START(nc150)
 	ROM_REGION(((64*1024)+(512*1024)), "maincpu",0)
 	ROM_SYSTEM_BIOS(0, "b2", "French B2")
@@ -1688,5 +1556,6 @@ ROM_END
 
 /*    YEAR  NAME    PARENT  COMPAT  MACHINE INPUT   INIT    COMPANY         FULLNAME    FLAGS */
 COMP( 1992, nc100,  0,      0,      nc100,  nc100, nc_state,  nc,      "Amstrad plc",  "NC100",    0 )
+COMP( 1992, dw225,  nc100,  0,      nc100,  nc100, nc_state,  nc,      "NTS Computer Systems", "DreamWriter 225",    0 )
 COMP( 1992, nc150,  nc100,  0,      nc100,  nc100, nc_state,  nc,      "Amstrad plc",  "NC150",    0 )
 COMP( 1993, nc200,  0,      0,      nc200,  nc200, nc_state,  nc,      "Amstrad plc",  "NC200",    GAME_NOT_WORKING ) // boot hangs while checking the MC146818 UIP (update in progress) bit

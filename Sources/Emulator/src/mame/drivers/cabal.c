@@ -126,7 +126,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, cabal_state )
 	AM_RANGE(0xc0000, 0xc0001) AM_WRITE(track_reset_w)
 	AM_RANGE(0xc0040, 0xc0041) AM_WRITENOP /* ??? */
 	AM_RANGE(0xc0080, 0xc0081) AM_WRITE(cabal_flipscreen_w)
-	AM_RANGE(0xe0000, 0xe07ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe0000, 0xe07ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xe8008, 0xe8009) AM_WRITE(cabal_sound_irq_trigger_word_w) // fix coin insertion
 	AM_RANGE(0xe8000, 0xe800d) AM_DEVREADWRITE("seibu_sound", seibu_sound_device, main_word_r, main_word_w)
 ADDRESS_MAP_END
@@ -144,7 +144,7 @@ static ADDRESS_MAP_START( cabalbl_main_map, AS_PROGRAM, 16, cabal_state )
 	AM_RANGE(0xa0010, 0xa0011) AM_READ_PORT("INPUTS")
 	AM_RANGE(0xc0040, 0xc0041) AM_WRITENOP /* ??? */
 	AM_RANGE(0xc0080, 0xc0081) AM_WRITE(cabal_flipscreen_w)
-	AM_RANGE(0xe0000, 0xe07ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe0000, 0xe07ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xe8000, 0xe8003) AM_WRITE(cabalbl_sndcmd_w)
 	AM_RANGE(0xe8004, 0xe8005) AM_READ(soundlatch2_word_r)
 	AM_RANGE(0xe8008, 0xe8009) AM_WRITE(cabalbl_sound_irq_trigger_word_w)
@@ -458,18 +458,6 @@ static GFXDECODE_START( cabal )
 GFXDECODE_END
 
 
-static const msm5205_interface msm5205_interface_1 =
-{
-	DEVCB_NULL,
-	MSM5205_SEX_4B
-};
-
-static const msm5205_interface msm5205_interface_2 =
-{
-	DEVCB_NULL,
-	MSM5205_SEX_4B
-};
-
 static MACHINE_CONFIG_START( cabal, cabal_state )
 
 	/* basic machine hardware */
@@ -487,13 +475,14 @@ static MACHINE_CONFIG_START( cabal, cabal_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cabal_state, screen_update_cabal)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cabal)
-	MCFG_PALETTE_LENGTH(1024)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cabal)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	/* sound hardware */
-	MCFG_SEIBU_SOUND_ADD("seibu_sound")
+	MCFG_DEVICE_ADD("seibu_sound", SEIBU_SOUND, 0)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
@@ -502,11 +491,11 @@ static MACHINE_CONFIG_START( cabal, cabal_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono", 0.80)
 
 	MCFG_SOUND_ADD("adpcm1", SEIBU_ADPCM, 8000) /* it should use the msm5205 */
-	MCFG_SOUND_CONFIG(seibu_adpcm1_intf)
+	MCFG_SEIBU_ADPCM_ROMREGION("adpcm1")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono", 0.40)
 
 	MCFG_SOUND_ADD("adpcm2", SEIBU_ADPCM, 8000) /* it should use the msm5205 */
-	MCFG_SOUND_CONFIG(seibu_adpcm2_intf)
+	MCFG_SEIBU_ADPCM_ROMREGION("adpcm2")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono", 0.40)
 MACHINE_CONFIG_END
 
@@ -544,10 +533,11 @@ static MACHINE_CONFIG_START( cabalbl, cabal_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cabal_state, screen_update_cabal)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cabal)
-	MCFG_PALETTE_LENGTH(1024)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cabal)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -557,11 +547,11 @@ static MACHINE_CONFIG_START( cabalbl, cabal_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono", 0.80)
 
 	MCFG_SOUND_ADD("msm1", MSM5205, XTAL_12MHz/32) /* verified on pcb (no resonator) */
-	MCFG_SOUND_CONFIG(msm5205_interface_1)
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_SEX_4B)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 
 	MCFG_SOUND_ADD("msm2", MSM5205, XTAL_12MHz/32) /* verified on pcb (no resonator)*/
-	MCFG_SOUND_CONFIG(msm5205_interface_2)
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_SEX_4B)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 MACHINE_CONFIG_END
 

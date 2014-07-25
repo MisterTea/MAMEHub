@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     Mitsubishi M50458 OSD chip
@@ -171,7 +173,7 @@ inline void m50458_device::write_word(offs_t address, UINT16 data)
 //-------------------------------------------------
 
 m50458_device::m50458_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, M50458, "m50458", tag, owner, clock, "m50458", __FILE__),
+	: device_t(mconfig, M50458, "M50458 OSD", tag, owner, clock, "m50458", __FILE__),
 		device_memory_interface(mconfig, *this),
 		device_video_interface(mconfig, *this),
 		m_space_config("videoram", ENDIANNESS_LITTLE, 16, 16, 0, NULL, *ADDRESS_MAP_NAME(m50458_vram))
@@ -328,7 +330,7 @@ UINT32 m50458_device::screen_update(screen_device &screen, bitmap_rgb32 &bitmap,
 	bg_r = m_phase & 1 ? 0xdf : 0;
 	bg_g = m_phase & 2 ? 0xdf : 0;
 	bg_b = m_phase & 4 ? 0xdf : 0;
-	bitmap.fill(MAKE_ARGB(0xff,bg_r,bg_g,bg_b),cliprect);
+	bitmap.fill(rgb_t(0xff,bg_r,bg_g,bg_b),cliprect);
 
 	for(y=0;y<12;y++)
 	{

@@ -1,28 +1,26 @@
 #include "emu.h"
 #include "includes/gijoe.h"
 
-void gijoe_sprite_callback( running_machine &machine, int *code, int *color, int *priority_mask )
+K053246_CB_MEMBER(gijoe_state::sprite_callback)
 {
-	gijoe_state *state = machine.driver_data<gijoe_state>();
 	int pri = (*color & 0x03e0) >> 4;
 
-	if (pri <= state->m_layer_pri[3])
+	if (pri <= m_layer_pri[3])
 		*priority_mask = 0;
-	else if (pri >  state->m_layer_pri[3] && pri <= state->m_layer_pri[2])
+	else if (pri >  m_layer_pri[3] && pri <= m_layer_pri[2])
 		*priority_mask = 0xff00;
-	else if (pri >  state->m_layer_pri[2] && pri <= state->m_layer_pri[1])
+	else if (pri >  m_layer_pri[2] && pri <= m_layer_pri[1])
 		*priority_mask = 0xff00 | 0xf0f0;
-	else if (pri >  state->m_layer_pri[1] && pri <= state->m_layer_pri[0])
+	else if (pri >  m_layer_pri[1] && pri <= m_layer_pri[0])
 		*priority_mask = 0xff00 | 0xf0f0 | 0xcccc;
 	else
 		*priority_mask = 0xff00 | 0xf0f0 | 0xcccc | 0xaaaa;
 
-	*color = state->m_sprite_colorbase | (*color & 0x001f);
+	*color = m_sprite_colorbase | (*color & 0x001f);
 }
 
-void gijoe_tile_callback( running_machine &machine, int layer, int *code, int *color, int *flags )
+K056832_CB_MEMBER(gijoe_state::tile_callback)
 {
-	gijoe_state *state = machine.driver_data<gijoe_state>();
 	int tile = *code;
 
 	if (tile >= 0xf000 && tile <= 0xf4ff)
@@ -30,23 +28,23 @@ void gijoe_tile_callback( running_machine &machine, int layer, int *code, int *c
 		tile &= 0x0fff;
 		if (tile < 0x0310)
 		{
-			state->m_avac_occupancy[layer] |= 0x0f00;
-			tile |= state->m_avac_bits[0];
+			m_avac_occupancy[layer] |= 0x0f00;
+			tile |= m_avac_bits[0];
 		}
 		else if (tile < 0x0470)
 		{
-			state->m_avac_occupancy[layer] |= 0xf000;
-			tile |= state->m_avac_bits[1];
+			m_avac_occupancy[layer] |= 0xf000;
+			tile |= m_avac_bits[1];
 		}
 		else
 		{
-			state->m_avac_occupancy[layer] |= 0x00f0;
-			tile |= state->m_avac_bits[2];
+			m_avac_occupancy[layer] |= 0x00f0;
+			tile |= m_avac_bits[2];
 		}
 		*code = tile;
 	}
 
-	*color = (*color >> 2 & 0x0f) | state->m_layer_colorbase[layer];
+	*color = (*color >> 2 & 0x0f) | m_layer_colorbase[layer];
 }
 
 void gijoe_state::video_start()
@@ -155,7 +153,7 @@ UINT32 gijoe_state::screen_update_gijoe(screen_device &screen, bitmap_ind16 &bit
 
 	konami_sortlayers4(layer, m_layer_pri);
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 	screen.priority().fill(0, cliprect);
 
 	m_k056832->tilemap_draw(screen, bitmap, cliprect, layer[0], 0, 1);

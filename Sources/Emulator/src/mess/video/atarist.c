@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder, Olivier Galibert
 /*
 
     TODO:
@@ -11,7 +13,6 @@
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/mc68901.h"
 #include "machine/ram.h"
 #include "video/atarist.h"
 #include "includes/atarist.h"
@@ -62,7 +63,7 @@ inline pen_t st_state::shift_mode_0()
 	m_shifter_rr[2] <<= 1;
 	m_shifter_rr[3] <<= 1;
 
-	return machine().pens[color];
+	return m_palette->pen(color);
 }
 
 
@@ -86,7 +87,7 @@ inline pen_t st_state::shift_mode_1()
 		m_shifter_shift = 0;
 	}
 
-	return machine().pens[color];
+	return m_palette->pen(color);
 }
 
 
@@ -123,7 +124,7 @@ inline pen_t st_state::shift_mode_2()
 		break;
 	}
 
-	return machine().pens[color];
+	return m_palette->pen(color);
 }
 
 
@@ -133,8 +134,8 @@ inline pen_t st_state::shift_mode_2()
 
 void st_state::shifter_tick()
 {
-	int y = machine().primary_screen->vpos();
-	int x = machine().primary_screen->hpos();
+	int y = machine().first_screen()->vpos();
+	int x = machine().first_screen()->hpos();
 
 	pen_t pen;
 
@@ -153,7 +154,7 @@ void st_state::shifter_tick()
 		break;
 
 	default:
-		pen = get_black_pen(machine());
+		pen = m_palette->black_pen();
 		break;
 	}
 
@@ -192,8 +193,8 @@ inline void st_state::shifter_load()
 
 void st_state::glue_tick()
 {
-	int y = machine().primary_screen->vpos();
-	int x = machine().primary_screen->hpos();
+	int y = machine().first_screen()->vpos();
+	int x = machine().first_screen()->hpos();
 
 	int v = (y >= m_shifter_y_start) && (y < m_shifter_y_end);
 	int h = (x >= m_shifter_x_start) && (x < m_shifter_x_end);
@@ -275,7 +276,7 @@ void st_state::glue_tick()
 		break;
 
 	default:
-		pen = get_black_pen(machine());
+		pen = m_palette->black_pen();
 		break;
 	}
 }
@@ -441,7 +442,7 @@ WRITE16_MEMBER( st_state::shifter_palette_w )
 	m_shifter_palette[offset] = data;
 	//  logerror("SHIFTER Palette[%x] = %x\n", offset, data);
 
-	palette_set_color_rgb(machine(), offset, pal3bit(data >> 8), pal3bit(data >> 4), pal3bit(data));
+	m_palette->set_pen_color(offset, pal3bit(data >> 8), pal3bit(data >> 4), pal3bit(data));
 }
 
 
@@ -537,7 +538,7 @@ WRITE16_MEMBER( ste_state::shifter_palette_w )
 	m_shifter_palette[offset] = data;
 	logerror("SHIFTER palette %x = %x\n", offset, data);
 
-	palette_set_color_rgb(machine(), offset, r, g, b);
+	m_palette->set_pen_color(offset, r, g, b);
 }
 
 
@@ -718,8 +719,7 @@ void st_state::blitter_tick()
 
 	m_blitter_ctrl &= 0x7f;
 
-	m_blitter_done = 0;
-	m_mfp->i3_w(m_blitter_done);
+	m_mfp->i3_w(0);
 }
 
 
@@ -1045,8 +1045,7 @@ WRITE16_MEMBER( st_state::blitter_ctrl_w )
 		{
 			if ((data >> 8) & ATARIST_BLITTER_CTRL_BUSY)
 			{
-				m_blitter_done = 1;
-				m_mfp->i3_w(m_blitter_done);
+				m_mfp->i3_w(1);
 
 				int nops = BLITTER_NOPS[m_blitter_op][m_blitter_hop]; // each NOP takes 4 cycles
 				timer_set(attotime::from_hz((Y2/4)/(4*nops)), TIMER_BLITTER_TICK);
@@ -1070,10 +1069,10 @@ void st_state::video_start()
 	m_shifter_timer = timer_alloc(TIMER_SHIFTER_TICK);
 	m_glue_timer = timer_alloc(TIMER_GLUE_TICK);
 
-//  m_shifter_timer->adjust(machine().primary_screen->time_until_pos(0), 0, attotime::from_hz(Y2/4)); // 125 ns
-	m_glue_timer->adjust(machine().primary_screen->time_until_pos(0), 0, attotime::from_hz(Y2/16)); // 500 ns
+//  m_shifter_timer->adjust(machine().first_screen()->time_until_pos(0), 0, attotime::from_hz(Y2/4)); // 125 ns
+	m_glue_timer->adjust(machine().first_screen()->time_until_pos(0), 0, attotime::from_hz(Y2/16)); // 500 ns
 
-	machine().primary_screen->register_screen_bitmap(m_bitmap);
+	machine().first_screen()->register_screen_bitmap(m_bitmap);
 
 	/* register for state saving */
 	save_item(NAME(m_shifter_base));

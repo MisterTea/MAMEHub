@@ -12,12 +12,9 @@
 #include "emu.h"
 #include "cpu/m6805/m6805.h"
 #include "cpu/m68000/m68000.h"
-#include "video/vector.h"
 #include "machine/pit8253.h"
 #include "machine/nvram.h"
 #include "includes/vertigo.h"
-#include "drivlgcy.h"
-#include "scrlegcy.h"
 
 
 
@@ -106,10 +103,6 @@ static INPUT_PORTS_START( vertigo )
 INPUT_PORTS_END
 
 
-static const ttl74148_config vertigo_ttl74148_intf =
-{
-	vertigo_update_irq
-};
 /*************************************
  *
  *  Machine driver
@@ -125,9 +118,15 @@ static MACHINE_CONFIG_START( vertigo, vertigo_state )
 
 	MCFG_FRAGMENT_ADD(exidy440_audio)
 
-	MCFG_PIT8254_ADD( "pit8254", vertigo_pit8254_config )
+	MCFG_DEVICE_ADD("pit8254", PIT8254, 0)
+	MCFG_PIT8253_CLK0(240000)
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(vertigo_state, v_irq4_w))
+	MCFG_PIT8253_CLK1(240000)
+	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(vertigo_state, v_irq3_w))
+	MCFG_PIT8253_CLK2(240000)
 
-	MCFG_74148_ADD( "74148", vertigo_ttl74148_intf )
+	MCFG_DEVICE_ADD("74148", TTL74148, 0)
+	MCFG_74148_OUTPUT_CB(vertigo_state, update_irq)
 
 	/* motor controller */
 	/*
@@ -137,13 +136,12 @@ static MACHINE_CONFIG_START( vertigo, vertigo_state )
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	/* video hardware */
+	MCFG_VECTOR_ADD("vector")
 	MCFG_SCREEN_ADD("screen", VECTOR)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(400, 300)
 	MCFG_SCREEN_VISIBLE_AREA(0, 510, 0, 400)
-	MCFG_SCREEN_UPDATE_STATIC(vector)
-
-	MCFG_VIDEO_START(vector)
+	MCFG_SCREEN_UPDATE_DEVICE("vector", vector_device, screen_update)
 MACHINE_CONFIG_END
 
 

@@ -11,7 +11,9 @@ public:
 		m_videoram(*this, "videoram"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_custom(*this, "custom") { }
+		m_custom(*this, "custom"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	int m_pbus;
@@ -20,6 +22,8 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<beezer_sound_device> m_custom;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	DECLARE_WRITE8_MEMBER(beezer_bankswitch_w);
 	DECLARE_WRITE8_MEMBER(beezer_map_w);
@@ -28,7 +32,6 @@ public:
 	virtual void machine_start();
 	UINT32 screen_update_beezer(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(beezer_interrupt);
-	DECLARE_READ_LINE_MEMBER(b_via_0_ca2_r);
 	DECLARE_READ8_MEMBER(b_via_0_pa_r);
 	DECLARE_READ8_MEMBER(b_via_0_pb_r);
 	DECLARE_WRITE8_MEMBER(b_via_0_pa_w);
@@ -113,9 +116,3 @@ private:
 };
 
 extern const device_type BEEZER;
-
-
-/*----------- defined in machine/beezer.c -----------*/
-
-extern const via6522_interface b_via_0_interface;
-extern const via6522_interface b_via_1_interface;

@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     devfind.h
 
     Device finding template helpers.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -46,6 +17,7 @@
 #ifndef __DEVFIND_H__
 #define __DEVFIND_H__
 
+#define FINDER_DUMMY_TAG "finder_dummy_tag"
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -65,6 +37,9 @@ public:
 
 	// getters
 	virtual bool findit(bool isvalidation = false) = 0;
+
+	// setter for setting the object
+	void set_tag(const char *tag) { m_tag = tag; }
 
 protected:
 	// helpers
@@ -127,8 +102,8 @@ public:
 		this->m_target = dynamic_cast<_DeviceClass *>(device);
 		if (device != NULL && this->m_target == NULL)
 		{
-			void mame_printf_warning(const char *format, ...) ATTR_PRINTF(1,2);
-			mame_printf_warning("Device '%s' found but is of incorrect type (actual type is %s)\n", this->m_tag, device->name());
+			void osd_printf_warning(const char *format, ...) ATTR_PRINTF(1,2);
+			osd_printf_warning("Device '%s' found but is of incorrect type (actual type is %s)\n", this->m_tag, device->name());
 		}
 		return this->report_missing(this->m_target != NULL, "device", _Required);
 	}
@@ -139,7 +114,7 @@ template<class _DeviceClass>
 class optional_device : public device_finder<_DeviceClass, false>
 {
 public:
-	optional_device(device_t &base, const char *tag) : device_finder<_DeviceClass, false>(base, tag) { }
+	optional_device(device_t &base, const char *tag = FINDER_DUMMY_TAG) : device_finder<_DeviceClass, false>(base, tag) { }
 };
 
 // required devices are similar but throw an error if they are not found
@@ -147,7 +122,7 @@ template<class _DeviceClass>
 class required_device : public device_finder<_DeviceClass, true>
 {
 public:
-	required_device(device_t &base, const char *tag) : device_finder<_DeviceClass, true>(base, tag) { }
+	required_device(device_t &base, const char *tag = FINDER_DUMMY_TAG) : device_finder<_DeviceClass, true>(base, tag) { }
 };
 
 
@@ -178,14 +153,14 @@ public:
 class optional_memory_region : public memory_region_finder<false>
 {
 public:
-	optional_memory_region(device_t &base, const char *tag) : memory_region_finder<false>(base, tag) { }
+	optional_memory_region(device_t &base, const char *tag = FINDER_DUMMY_TAG) : memory_region_finder<false>(base, tag) { }
 };
 
 // required devices are similar but throw an error if they are not found
 class required_memory_region : public memory_region_finder<true>
 {
 public:
-	required_memory_region(device_t &base, const char *tag) : memory_region_finder<true>(base, tag) { }
+	required_memory_region(device_t &base, const char *tag = FINDER_DUMMY_TAG) : memory_region_finder<true>(base, tag) { }
 };
 
 
@@ -216,14 +191,14 @@ public:
 class optional_memory_bank : public memory_bank_finder<false>
 {
 public:
-	optional_memory_bank(device_t &base, const char *tag) : memory_bank_finder<false>(base, tag) { }
+	optional_memory_bank(device_t &base, const char *tag = FINDER_DUMMY_TAG) : memory_bank_finder<false>(base, tag) { }
 };
 
 // required devices are similar but throw an error if they are not found
 class required_memory_bank : public memory_bank_finder<true>
 {
 public:
-	required_memory_bank(device_t &base, const char *tag) : memory_bank_finder<true>(base, tag) { }
+	required_memory_bank(device_t &base, const char *tag = FINDER_DUMMY_TAG) : memory_bank_finder<true>(base, tag) { }
 };
 
 
@@ -254,14 +229,65 @@ public:
 class optional_ioport : public ioport_finder<false>
 {
 public:
-	optional_ioport(device_t &base, const char *tag) : ioport_finder<false>(base, tag) { }
+	optional_ioport(device_t &base, const char *tag = FINDER_DUMMY_TAG) : ioport_finder<false>(base, tag) { }
 };
 
 // required devices are similar but throw an error if they are not found
 class required_ioport : public ioport_finder<true>
 {
 public:
-	required_ioport(device_t &base, const char *tag) : ioport_finder<true>(base, tag) { }
+	required_ioport(device_t &base, const char *tag = FINDER_DUMMY_TAG) : ioport_finder<true>(base, tag) { }
+};
+
+
+// ======================> ioport_array_finder
+
+// ioport array finder template
+template<int _Count, bool _Required>
+class ioport_array_finder
+{
+	typedef ioport_finder<_Required> ioport_finder_type;
+
+public:
+	// construction/destruction
+	ioport_array_finder(device_t &base, const char *basetag)
+	{
+		for (int index = 0; index < _Count; index++)
+			m_array[index].reset(global_alloc(ioport_finder_type(base, m_tag[index].format("%s.%d", basetag, index))));
+	}
+
+	ioport_array_finder(device_t &base, const char * const *tags)
+	{
+		for (int index = 0; index < _Count; index++)
+			m_array[index].reset(global_alloc(ioport_finder_type(base, tags[index])));
+	}
+
+	// array accessors
+	const ioport_finder_type &operator[](int index) const { assert(index < _Count); return *m_array[index]; }
+	ioport_finder_type &operator[](int index) { assert(index < _Count); return *m_array[index]; }
+
+protected:
+	// internal state
+	auto_pointer<ioport_finder_type> m_array[_Count];
+	astring m_tag[_Count];
+};
+
+// optional ioport array finder
+template<int _Count>
+class optional_ioport_array: public ioport_array_finder<_Count, false>
+{
+public:
+	optional_ioport_array(device_t &base, const char *basetag) : ioport_array_finder<_Count, false>(base, basetag) { }
+	optional_ioport_array(device_t &base, const char * const *tags) : ioport_array_finder<_Count, false>(base, tags) { }
+};
+
+// required ioport array finder
+template<int _Count>
+class required_ioport_array: public ioport_array_finder<_Count, true>
+{
+public:
+	required_ioport_array(device_t &base, const char *basetag) : ioport_array_finder<_Count, true>(base, basetag) { }
+	required_ioport_array(device_t &base, const char * const *tags) : ioport_array_finder<_Count, true>(base, tags) { }
 };
 
 
@@ -276,10 +302,7 @@ public:
 	shared_ptr_finder(device_t &base, const char *tag, UINT8 width = sizeof(_PointerType) * 8)
 		: object_finder_base<_PointerType>(base, tag),
 			m_bytes(0),
-			m_allocated(false),
 			m_width(width) { }
-
-	virtual ~shared_ptr_finder() { if (m_allocated) global_free(this->m_target); }
 
 	// operators to make use transparent
 	_PointerType operator[](int index) const { return this->m_target[index]; }
@@ -287,6 +310,7 @@ public:
 
 	// getter for explicit fetching
 	UINT32 bytes() const { return m_bytes; }
+	UINT32 mask() const { return m_bytes - 1; }
 
 	// setter for setting the object
 	void set_target(_PointerType *target, size_t bytes) { this->m_target = target; m_bytes = bytes; }
@@ -294,11 +318,11 @@ public:
 	// dynamic allocation of a shared pointer
 	void allocate(UINT32 entries)
 	{
-		assert(!m_allocated);
-		m_allocated = true;
-		this->m_target = global_alloc_array_clear(_PointerType, entries);
+		assert(m_allocated.count() == 0);
+		m_allocated.resize(entries);
+		this->m_target = m_allocated;
 		m_bytes = entries * sizeof(_PointerType);
-		this->m_base.save_pointer(this->m_target, this->m_tag, entries);
+		this->m_base.save_item(this->m_allocated, this->m_tag);
 	}
 
 	// finder
@@ -312,8 +336,8 @@ public:
 protected:
 	// internal state
 	size_t m_bytes;
-	bool m_allocated;
 	UINT8 m_width;
+	dynamic_array<_PointerType> m_allocated;
 };
 
 // optional shared pointer finder
@@ -321,7 +345,7 @@ template<class _PointerType>
 class optional_shared_ptr : public shared_ptr_finder<_PointerType, false>
 {
 public:
-	optional_shared_ptr(device_t &base, const char *tag, UINT8 width = sizeof(_PointerType) * 8) : shared_ptr_finder<_PointerType, false>(base, tag, width) { }
+	optional_shared_ptr(device_t &base, const char *tag = FINDER_DUMMY_TAG, UINT8 width = sizeof(_PointerType) * 8) : shared_ptr_finder<_PointerType, false>(base, tag, width) { }
 };
 
 // required shared pointer finder
@@ -329,7 +353,7 @@ template<class _PointerType>
 class required_shared_ptr : public shared_ptr_finder<_PointerType, true>
 {
 public:
-	required_shared_ptr(device_t &base, const char *tag, UINT8 width = sizeof(_PointerType) * 8) : shared_ptr_finder<_PointerType, true>(base, tag, width) { }
+	required_shared_ptr(device_t &base, const char *tag = FINDER_DUMMY_TAG, UINT8 width = sizeof(_PointerType) * 8) : shared_ptr_finder<_PointerType, true>(base, tag, width) { }
 };
 
 
@@ -346,13 +370,7 @@ public:
 	shared_ptr_array_finder(device_t &base, const char *basetag, UINT8 width = sizeof(_PointerType) * 8)
 	{
 		for (int index = 0; index < _Count; index++)
-			m_array[index] = global_alloc(shared_ptr_type(base, m_tag[index].format("%s.%d", basetag, index), width));
-	}
-
-	virtual ~shared_ptr_array_finder()
-	{
-		for (int index = 0; index < _Count; index++)
-			global_free(m_array[index]);
+			m_array[index].reset(global_alloc(shared_ptr_type(base, m_tag[index].format("%s.%d", basetag, index), width)));
 	}
 
 	// array accessors
@@ -361,8 +379,8 @@ public:
 
 protected:
 	// internal state
-	shared_ptr_type *m_array[_Count+1];
-	astring m_tag[_Count+1];
+	auto_pointer<shared_ptr_type> m_array[_Count];
+	astring m_tag[_Count];
 };
 
 // optional shared pointer array finder

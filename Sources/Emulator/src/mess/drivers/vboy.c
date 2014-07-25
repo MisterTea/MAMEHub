@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, Miodrag Milanovic
 /***************************************************************************
 
     Nintendo Virtual Boy
@@ -103,7 +105,8 @@ public:
 	vboy_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_maintimer(*this, "timer_main"),
-			m_maincpu(*this, "maincpu")
+			m_maincpu(*this, "maincpu"),
+		m_palette(*this, "palette")
 	{
 		m_vip_regs.INTPND = 0;
 		m_vip_regs.INTENB = 0;
@@ -150,6 +153,7 @@ public:
 
 	required_device<timer_device> m_maintimer;
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
 
 	DECLARE_READ32_MEMBER(io_r);
 	DECLARE_WRITE32_MEMBER(io_w);
@@ -209,7 +213,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(vboy);
 	UINT32 screen_update_vboy_left(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_vboy_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(timer_main_tick);
@@ -262,7 +266,7 @@ void vboy_state::put_obj(bitmap_ind16 &bitmap, const rectangle &cliprect, int x,
 			if (dat)
 			{
 				if (cliprect.contains(res_x, res_y))
-					bitmap.pix16((res_y), (res_x)) = machine().pens[col];
+					bitmap.pix16((res_y), (res_x)) = m_palette->pen(col);
 			}
 		}
 	}
@@ -377,7 +381,7 @@ void vboy_state::draw_bg_map(bitmap_ind16 &bitmap, const rectangle &cliprect, UI
 			}
 
 			if(pix != -1)
-				bitmap.pix16(y1, x1) = machine().pens[pix & 3];
+				bitmap.pix16(y1, x1) = m_palette->pen(pix & 3);
 		}
 	}
 //  g_profiler.stop();
@@ -422,7 +426,7 @@ void vboy_state::draw_affine_map(bitmap_ind16 &bitmap, const rectangle &cliprect
 
 			if(pix != -1)
 				if (cliprect.contains(x1, y1))
-					bitmap.pix16(y1, x1) = machine().pens[pix & 3];
+					bitmap.pix16(y1, x1) = m_palette->pen(pix & 3);
 		}
 	}
 //  g_profiler.stop();
@@ -543,7 +547,7 @@ UINT8 vboy_state::display_world(int num, bitmap_ind16 &bitmap, const rectangle &
 
 UINT32 vboy_state::screen_update_vboy_left(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(machine().pens[m_vip_regs.BKCOL], cliprect);
+	bitmap.fill(m_palette->pen(m_vip_regs.BKCOL), cliprect);
 	int cur_spt;
 
 	if(!(m_vip_regs.DPCTRL & 2)) /* Don't bother if screen is off */
@@ -569,7 +573,7 @@ UINT32 vboy_state::screen_update_vboy_left(screen_device &screen, bitmap_ind16 &
 				yi = ((y & 0x3)*2);
 				pix = (pen >> yi) & 3;
 
-				bitmap.pix16(y, x) = machine().pens[pix & 3];
+				bitmap.pix16(y, x) = m_palette->pen(pix & 3);
 			}
 		}
 	}
@@ -579,7 +583,7 @@ UINT32 vboy_state::screen_update_vboy_left(screen_device &screen, bitmap_ind16 &
 
 UINT32 vboy_state::screen_update_vboy_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(machine().pens[m_vip_regs.BKCOL], cliprect);
+	bitmap.fill(m_palette->pen(m_vip_regs.BKCOL), cliprect);
 	int cur_spt;
 
 	if(!(m_vip_regs.DPCTRL & 2)) /* Don't bother if screen is off */
@@ -755,9 +759,9 @@ void vboy_state::m_set_brightness(void)
 	if(c > 0xff) { c = 0xff; }
 
 //  popmessage("%02x %02x %02x %02x",m_vip_regs.BRTA,m_vip_regs.BRTB,m_vip_regs.BRTC,m_vip_regs.REST);
-	palette_set_color_rgb(machine(), 1, a,0,0);
-	palette_set_color_rgb(machine(), 2, b,0,0);
-	palette_set_color_rgb(machine(), 3, c,0,0);
+	m_palette->set_pen_color(1, a,0,0);
+	m_palette->set_pen_color(2, b,0,0);
+	m_palette->set_pen_color(3, c,0,0);
 }
 
 READ16_MEMBER( vboy_state::vip_r )
@@ -1247,12 +1251,12 @@ TIMER_DEVICE_CALLBACK_MEMBER(vboy_state::timer_pad_tick)
 		m_maincpu->set_input_line(0, HOLD_LINE);
 }
 
-void vboy_state::palette_init()
+PALETTE_INIT_MEMBER(vboy_state, vboy)
 {
-	palette_set_color(machine(), 0, RGB_BLACK);
-	palette_set_color(machine(), 1, RGB_BLACK);
-	palette_set_color(machine(), 2, RGB_BLACK);
-	palette_set_color(machine(), 3, RGB_BLACK);
+	palette.set_pen_color(0, rgb_t::black);
+	palette.set_pen_color(1, rgb_t::black);
+	palette.set_pen_color(2, rgb_t::black);
+	palette.set_pen_color(3, rgb_t::black);
 }
 
 void vboy_state::m_set_irq(UINT16 irq_vector)
@@ -1269,7 +1273,7 @@ void vboy_state::m_set_irq(UINT16 irq_vector)
 /* TODO: obviously all of this needs clean-ups and better implementation ... */
 void vboy_state::m_scanline_tick(int scanline, UINT8 screen_type)
 {
-	//int frame_num = machine().primary_screen->frame_number();
+	//int frame_num = machine().first_screen()->frame_number();
 
 	if(screen_type == 0)
 		m_row_num = (scanline / 8) & 0x1f;
@@ -1358,6 +1362,29 @@ DEVICE_IMAGE_LOAD_MEMBER( vboy_state, vboy_cart )
 	{
 		cart_size = image.length();
 		image.fread(ROM, cart_size);
+		switch (cart_size)
+		{
+			case 0x001000:
+				memcpy(ROM + 0x001000, ROM, 0x001000);
+			case 0x002000:
+				memcpy(ROM + 0x002000, ROM, 0x002000);
+			case 0x004000:
+				memcpy(ROM + 0x004000, ROM, 0x004000);
+			case 0x008000:
+				memcpy(ROM + 0x008000, ROM, 0x008000);
+			case 0x010000:
+				memcpy(ROM + 0x010000, ROM, 0x010000);
+			case 0x020000:
+				memcpy(ROM + 0x020000, ROM, 0x020000);
+			case 0x040000:
+				memcpy(ROM + 0x040000, ROM, 0x040000);
+			case 0x080000:
+				memcpy(ROM + 0x080000, ROM, 0x080000);
+			case 0x100000:
+				memcpy(ROM + 0x100000, ROM, 0x100000);
+			default:
+				break;
+		}
 	}
 	else
 	{
@@ -1405,17 +1432,20 @@ static MACHINE_CONFIG_START( vboy, vboy_state )
 
 	/* video hardware */
 	MCFG_DEFAULT_LAYOUT(layout_vboy)
-	MCFG_PALETTE_LENGTH(4)
+	MCFG_PALETTE_ADD("palette", 4)
+	MCFG_PALETTE_INIT_OWNER(vboy_state, vboy)
 
 	/* Left screen */
 	MCFG_SCREEN_ADD("3dleft", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_20MHz/2,757,0,384,264,0,224)
 	MCFG_SCREEN_UPDATE_DRIVER(vboy_state, screen_update_vboy_left)
+	MCFG_SCREEN_PALETTE("palette")
 
 	/* Right screen */
 	MCFG_SCREEN_ADD("3dright", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_20MHz/2,757,0,384,264,0,224)
 	MCFG_SCREEN_UPDATE_DRIVER(vboy_state, screen_update_vboy_right)
+	MCFG_SCREEN_PALETTE("palette")
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")

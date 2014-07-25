@@ -29,8 +29,7 @@ TILE_GET_INFO_MEMBER(vball_state::get_bg_tile_info)
 {
 	UINT8 code = m_vb_videoram[tile_index];
 	UINT8 attr = m_vb_attribram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code + ((attr & 0x1f) << 8) + (m_gfxset<<8),
 			(attr >> 5) & 0x7,
 			0);
@@ -39,7 +38,7 @@ TILE_GET_INFO_MEMBER(vball_state::get_bg_tile_info)
 
 void vball_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(vball_state::get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(vball_state::background_scan),this), 8, 8,64,64);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(vball_state::get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(vball_state::background_scan),this), 8, 8,64,64);
 
 	m_bg_tilemap->set_scroll_rows(32);
 	m_gfxset=0;
@@ -75,7 +74,7 @@ void vball_state::vb_bgprombank_w( int bank )
 
 	color_prom = memregion("proms")->base() + bank*0x80;
 	for (i=0;i<128;i++, color_prom++) {
-		palette_set_color_rgb(machine(),i,pal4bit(color_prom[0] >> 0),pal4bit(color_prom[0] >> 4),
+		m_palette->set_pen_color(i,pal4bit(color_prom[0] >> 0),pal4bit(color_prom[0] >> 4),
 						pal4bit(color_prom[0x800] >> 0));
 	}
 	m_vb_bgprombank=bank;
@@ -90,7 +89,7 @@ void vball_state::vb_spprombank_w( int bank )
 
 	color_prom = memregion("proms")->base()+0x400 + bank*0x80;
 	for (i=128;i<256;i++,color_prom++)  {
-		palette_set_color_rgb(machine(),i,pal4bit(color_prom[0] >> 0),pal4bit(color_prom[0] >> 4),
+		m_palette->set_pen_color(i,pal4bit(color_prom[0] >> 0),pal4bit(color_prom[0] >> 4),
 						pal4bit(color_prom[0x800] >> 0));
 	}
 	m_vb_spprombank=bank;
@@ -101,13 +100,13 @@ void vball_state::vb_mark_all_dirty(  )
 	m_bg_tilemap->mark_all_dirty();
 }
 
-#define DRAW_SPRITE( order, sx, sy ) drawgfx_transpen( bitmap, \
-					cliprect,gfx, \
+#define DRAW_SPRITE( order, sx, sy ) gfx->transpen(bitmap,\
+					cliprect, \
 					(which+order),color,flipx,flipy,sx,sy,0);
 
 void vball_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 	UINT8 *src = m_spriteram;
 	int i;
 

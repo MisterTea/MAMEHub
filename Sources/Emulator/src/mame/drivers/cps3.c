@@ -11,15 +11,15 @@ Sound emulation by Philip Bennett
 
 SCSI code by ElSemi
 
-ToDo: (in order or priority?)
+To-Do/Issues:
 
 Street Fighter 3 2nd Impact uses flipped tilemaps during flashing, emulate this.
 
 Figure out proper IRQ10 generation:
- If we generate on DMA operations only then Warzard is OK, otherwise it hangs during attract
- HOWEVER, SFIII2 sometimes has messed up character profiles unless we also generate it periodicly.
- I think the corrupt background on some of the lighning effects may be realted to this + the DMA
- status flags.
+    If we generate on DMA operations only then Warzard is OK, otherwise it hangs during attract
+    HOWEVER, SFIII2 sometimes has messed up character profiles unless we also generate it periodically.
+    I think the corrupt background on some of the lighting effects may be related to this + the DMA
+    status flags.
 
 Alpha Blending Effects
     These are actually palette manipulation effects, not true blending.  How the values are used is
@@ -32,19 +32,19 @@ Palette DMA effects
     Verify them, they might not be 100% accurate at the moment
 
 Verify Full Screen Zoom on real hardware
- Which is which, x & y registers, how far can it zoom etc.
+    Which is which, x & y registers, how far can it zoom etc.
 
 Verify CRT registers
- Only SFIII2 changes them, for widescreen mode.  What other modes are possible?
+    Only SFIII2 changes them, for widescreen mode.  What other modes are possible?
 
 Sprite positioning glitches
- Some sprites are still in the wrong places, seems the placement of zooming sprites is imperfect
- eg. warzard intro + cutscenes leave the left most 16 pixels uncovered because the sprite is positioned incorrectly,
-     the same occurs in the sf games.  doesn't look like the origin is correct when zooming in all cases.
+    Some sprites are still in the wrong places, seems the placement of zooming sprites is imperfect
+    eg. warzard intro + cutscenes leave the left most 16 pixels uncovered because the sprite is positioned incorrectly,
+    the same occurs in the sf games.  doesn't look like the origin is correct when zooming in all cases.
 
 Gaps in Sprite Zooming
- probably cause by use of drawgfx instead of processing as a single large sprite, but could also be due to the
- positioning of each part of the sprite.  Warzard is confirmed to have gaps during some cutscenes on real hardware.
+    probably caused by use of drawgfx instead of processing as a single large sprite, but could also be due to the
+    positioning of each part of the sprite.  Warzard is confirmed to have gaps during some cut-scenes on real hardware.
 
 ---
 
@@ -69,6 +69,9 @@ Red Earth                                                  WZD96aA0F  CP3000U0G 
 Street Fighter III: New Generation                   1997  SF397200F  CP300000G  JAPAN   X          CAP-SF3000  CAP-SF3-3   CAP-SF3-3    970204
 Street Fighter III: New Generation                         SF397200F  CP300000G  JAPAN   X          CAP-SF3000  ?           ?            970312*
 Street Fighter III: New Generation                         SF397200F  CP300000G  JAPAN   X          CAP-SF3000  ?           ?            970403*
+Street Fighter III: New Generation                         SF3972A0F  CP3000B0G  EUROPE  X          CAP-SF30A0  CAP-SF3-3   CAP-SF3-3    970204
+Street Fighter III: New Generation                         SF3972A0F  CP3000B0G  EUROPE  X          CAP-SF30A0  ?           ?            970312*
+Street Fighter III: New Generation                         SF3972A0F  CP3000B0G  EUROPE  X          CAP-SF30A0  ?           ?            970403*
 Street Fighter III: New Generation                         SF3972A0F  CP3000C0G  ASIA        X                                           970204
 Street Fighter III: New Generation                         SF3972A0F  CP3000C0G  ASIA        X                                           970312*
 Street Fighter III: New Generation                         SF3972A0F  CP3000C0G  ASIA        X                                           970403*
@@ -120,70 +123,75 @@ JoJo's Bizarre Adventure                                   JJM999A0F  CP3000B0G 
 
 * NOT DUMPED but known to exist
 
-Each game consists of a Cart and a CD having various codes needed to identify them. Carts and CDs have
-both a different Part # printed on their front/top side that includes the game Cart/CD code and ends
+Each game consists of a cart and a CD having various codes needed to identify them. Carts and CDs have
+both a different Part # printed on their front/top side that includes the game cart/CD code and ends
 respectively with 00F/000 for all Japan releases and with A0F/0A0 for all the other ones. Therefore,
-the Part # can be used only to identify Japan releases and further parameters need to be introduced.
-The Cart is responsible for the game Region that can be identified by a Label with coloured characters
-and a code printed on back side. The antepenultimate character of the Label code and the colour of the
-sticker vary by Region, exactly as happens on the boot screen when the board is powered on. There are two
-types of Carts. Some require the CD to boot, some don't since the game is already loaded into the SIMMs.
-Both types are externally identical and use the same codes, so the only way to distinguish them is dump
-the BIOSes. The game Region and CD/NO CD flags are controlled by two different bytes in the BIOS rom.
-The CD (and SIMMs too if the Cart is of type NO CD) contains the game Revision that can be identified
-by two codes, the Catalog # and the Label. The Catalog # is the identifying code printed in the mirror
-ring on top side close to the CD's center while the Label is the code appearing on the CD icon when
-it's inserted into a PC CD reader. It has been verified that the Catalog # and Label are the same for
+the part # can be used only to identify Japan releases and further parameters need to be introduced.
+The cart is responsible for the game region that can be identified by a label with colored characters
+and a code printed on the back side. The antepenultimate character of the label code and the colour of the
+sticker vary by region, exactly as happens on the boot screen when the board is powered on. There are two
+types of carts. Some require the CD to boot, some don't since the game is already loaded into the SIMMs.
+Both types are externally identical and use the same codes, so the only way to distinguish them is to dump
+the flashROMs. The game region and CD/NO CD flags are controlled by two different bytes in the flashROM.
+The CD (and SIMMs too if the cart is of type NO CD) contains the game revision that can be identified
+by two codes, the catalog # and the label. The catalog # is the identifying code printed in the mirror
+ring on the top side close to the CD's center while the label is the code appearing on the CD icon when
+it's inserted into a PC CD drive. It has been verified that the catalog # and label are the same for
 some games but quite different for some others, so it's better to check both to avoid confusion. It
-has also been verified that the Catalog # and Label (and the data on CDs) don't change between Regions,
-only between Revisions. However, knowing one of them and comparing it with the table above will help
-to understand if a new game Revision has been discovered. Current CD dumps have been documented using
-the Catalog # as name, since the Label is already included into the images used to generate CHDs.
+has also been verified that the catalog # and label (and the data on CDs) don't change between regions,
+only between revisions. However, knowing one of them and comparing it with the table above will help
+to understand if a new game revision has been discovered. Current CD dumps have been documented using
+the catalog # as name, since the label is already included into the images used to generate CHDs.
 
 The CP SYSTEM III comprises a main board with several custom ASICs, custom 72-pin SIMMs for program
 and graphics storage (the same SIMMs are also used in some CPS2 titles), SCSI CDROM and CDROM disc,
-and a plug-in security cart containing a boot ROM, an NVRAM and another custom ASIC containing vital
-decryption information held by a [suicide] battery.
+and a plug-in security cart containing a boot flashROM, an NVRAM and a custom Capcom CPU containing
+battery-backed decryption keys.
 
-Not much is known about the actual CPU used in this system due to the extensive use of encryption,
-and the volatile nature of the security information. There appears to be a custom Hitachi SH-2 CPU on
-the mainboard and there has been confirmed to be one in the cart. Tests were done by decrypting the
-BIOS and code and running it on the PCB. It is known that neither of these CPU's will run standard
-(i.e. unencrypted) SH2 code.
+Not much is known about the actual CPU used in this system due to the extensive use of encryption and the volatile
+nature of the security information. It is known that the CPU inside the security cart is the main CPU. It is known to
+be a Hitachi SH-2 derivative thought to be based on a Hitachi HD6417099 SH2 variant with built-in encryption.
+Tests were done by decrypting the security cart flashROM code and running it on the PCB with a dead cart with a zero
+key and it didn't run so it is known that the custom CPU will not run standard (i.e. unencrypted) SH2 code.
 
-The security cart is thought to work like this: the flashROM in the cart contains a program BIOS which is
-decrypted by the CPU in the cart (the CPU has built-in decryption) then executed by that CPU to boot the
-BIOS code. Even though the code in the flashROM is encrypted, the cart can run it even if it is dead/suicided
-because it has been discovered that the BIOS contains a hidden security menu allowing the cart to be loaded
-with the security data. This proves the cart runs the BIOS even if it is dead. The special security menu is
-not normally available but is likely accessed with a special key/button combination which is unknown ATM.
-The cart contains a FM1208S NVRAM which appears to either be unused or holds game settings. Because the CPU
-in the cart is always powered by a battery, it has stealth capability that allows it to continually monitor
-the situation. If the custom CPU detects any tampering (generally things such as voltage fluctuation or
-voltage dropping or even removal of the cart with the power on), it immediately erases the SRAM inside the
-CPU (and thus the key) which effectively kills the security cart dead. This also suggests that the custom
-Capcom CPU contains some additional internal code to initiate the boot process which is battery-backed as
-well. It is known (from decapping it) that the CPU in the security cart does contain an amount of static
-RAM for data storage and a SH2 core.
+The flashROM in the cart contains an encrypted program which is decrypted by the CPU in the cart. The CPU has built-in
+decryption and the key is held in some static RAM on the CPU die and kept there by a battery. The code is executed by
+the CPU to boot the system. Even though the code in the flashROM is encrypted, the cart can run it even if it is
+dead/suicided because it has been discovered that the program contains a hidden security menu allowing the cart to be
+loaded with the security data. This proves the cart runs the code even if the battery is dead. The special security
+menu is not normally available but is likely accessed with a special key/button combination which is currently unknown.
 
-The main board uses the familiar Capcom SIMM modules to hold the data from the CDROM so that the life of
-the CD drive is maximized. The SIMMs don't contain RAM, but instead TSOP48 surface mounted flashROMs that
-can be updated with different games on bootup using a built-in software updating system.
+Because the CPU in the cart is always powered by the battery, it has stealth capability that allows it to continually
+monitor the situation. If the custom CPU detects any tampering (generally things such as voltage fluctuation or voltage
+dropping or even removal of the cart with the power on), it immediately erases the SRAM (i.e. the decryption key)
+inside the CPU which effectively kills the security cart. This also suggests that the custom Capcom CPU contains some
+additional internal code to initiate the boot process because in order to re-program a cart using the hidden security
+menu the CPU must execute some working code. It is known (from decapping it) that the CPU in the security cart contains
+an amount of static RAM for data storage and a SH2 core based on the Hitachi SH7010-series (SH7014) SuperH RISC engine
+family of Microprocessors.
+
+It is thought that when a cartridge dies it will set the decryption keys identical to the ones of SFIII-2nd Impact, so
+removing the battery and changing the content of the flashROM (if it's not a 2nd Impact) will make it run as a normal
+SFIII-2nd Impact cartridge (is this verified on real hardware?)
+
+The main board uses the familiar Capcom SIMM modules to hold the data from the CDROM so that the life of the CD drive
+is maximized. The SIMMs don't contain RAM, but instead TSOP48 surface mounted flashROMs that can be updated with
+different games on bootup using a built-in software updating system.
 The SIMMs that hold the program code are located in positions 1 & 2 and are 64MBit.
-The SIMMs that hold the graphics are located in positions 3, 4, 5, 6 & 7 and are 128MBit.
-The data in the SIMMs is not decrypted, it is merely taken directly from the CDROM and shuffled slightly
-then programmed to the flashROMs. The SIMMs hold the entire contents of the CDROM.
+The SIMMs that hold the graphics and sound data are located in positions 3, 4, 5, 6 & 7 and are 128MBit.
+The data in the SIMMs is not decrypted, it is merely taken directly from the CDROM and shuffled slightly then
+programmed to the flashROMs. The SIMMs hold the entire contents of the CDROM.
 
-To swap games requires the security cart for the game, it's CDROM disc and the correctly populated type
-and number of SIMMs on the main board.
-On first power-up after switching the cart and CD, you're presented with a screen asking if you want to
-re-program the SIMMs with the new game. Pressing player 1 button 2 cancels it. Pressing player 1 button 1
-allows it to proceed whereby you wait about 25 minutes then the game boots up almost immediately. On
-subsequent power-ups, the game boots immediately.
+To swap games requires the security cart for the game, it's CDROM disc and the correctly populated type and number of
+SIMMs on the main board.
+On first power-up after switching the cart and CD, you're presented with a screen asking if you want to re-program the
+SIMMs with the new game. Pressing player 1 button 2 cancels it. Pressing player 1 button 1 allows it to proceed whereby
+you wait about 25-30 minutes then the game boots up almost immediately. On subsequent power-ups, the game boots
+immediately.
 If the CDROM is not present in the drive on a normal bootup, a message tells you to insert the CDROM.
 Then you press button 1 to continue and the game boots immediately.
-Note that not all of the SIMMs are populated on the PCB for each game. Some games have more, some less,
-depending on game requirements, so flash times can vary per game. See the table below for details.
+Note that not all of the SIMMs are populated on the PCB for each game. Some games have more, some less, depending on
+game requirements, so flash times can vary per game. See the table below for details.
 
                                                      |----------- Required SIMM Locations & Types -----------|
 Game                                                 1       2       3        4        5         6         7
@@ -202,22 +210,21 @@ JoJo's Bizarre Adventure                             64MBit  64MBit  128MBit  12
                                                            No game uses a SIMM at 7
                                                            See main board diagram below for SIMM locations.
 
-Due to the built-in upgradability of the hardware, and the higher frame-rates the hardware seems to have,
-it appears Capcom had big plans for this system and possibly intended to create many games on it, as they
-did with CPS2. Unfortunately for Capcom, CP SYSTEM III was an absolute flop in the arcades so those plans
-were cancelled. Possible reasons include:
-- the games were essentially just 2D, and already there were many 3D games coming out onto the market that
-  interested operators more than this,
-- the cost of the system was quite expensive when compared to other games on the market,
-- it is rumoured that the system was difficult to program for developers,
-- these PCBs were not popular with operators because the security carts are extremely static-sensitive and most
-  of them failed due to the decryption information being zapped by simple handling of the PCBs or by touching
-  the security cart edge connector underneath the PCB while the security cart was plugged in, or by power
-  fluctuations while flashing the SIMMs. You will know if your cart has been zapped because on bootup, you get
-  a screen full of garbage coloured pixels instead of the game booting up, or just a black or single-coloured
-  screen. You should also not touch the inside of the security cart because it will be immediately zapped
-  when you touch it! The PCB can detect the presence of the security cart and if it is removed on a working game,
-  the game will freeze immediately and it will also erase the security cart battery-backed data.
+Due to the built-in upgradability of the hardware, and the higher frame-rates the hardware seems to have, it appears
+Capcom had big plans for this system and possibly intended to create many games on it, as they did with CPS2.
+Unfortunately for Capcom, CP SYSTEM III was an absolute flop in the arcades so those plans were cancelled. Possible
+reasons include:
+- the games were essentially just 2D, and already there were many 3D games coming out onto the market that interested
+  operators more than this.
+- the cost of the system was quite expensive when compared to other games on the market.
+- it is rumoured that the system was difficult to program for developers.
+- these PCBs were not popular with operators because the security carts are extremely static-sensitive and most of them
+  failed due to the decryption information being zapped by simple handling of the PCBs or by touching the security cart
+  edge connector underneath the PCB while the security cart was plugged in, or by power fluctuations while flashing the
+  SIMMs. You will know if your cart has been zapped because on bootup, you get a screen full of garbage coloured pixels
+  instead of the game booting up, or just a black or single-colored screen. You should also not touch the inside of the
+  security cart. The PCB can detect the presence of the security cart and if it is removed on a working game, the game
+  will freeze immediately and it will also erase the security cart battery-backed decryption data.
 
 
 PCB Layouts
@@ -227,7 +234,7 @@ CAPCOM
 CP SYSTEM III
 95682A-4 (older rev 95682A-3)
    |----------------------------------------------------------------------|
-  |= J1             HM514260     |------------|      |  |  |  |  |        |
+  |= J1             HM514260(2)  |------------|      |  |  |  |  |        |
    |                             |CAPCOM      |      |  |  |  |  |        |
   |= J2     TA8201  TC5118160    |DL-2729 PPU |      |  |  |  |  |        |
    |                             |(QFP304)    |      |  |  |  |  |        |
@@ -274,10 +281,15 @@ Notes:
                    (unsecured) EEPROM so why it was covered is not known.
       LM385      - National Semiconductor LM385 Adjustable Micropower Voltage Reference Diode (SOIC8)
       33C93      - AMD 33C93A-16 SCSI Controller (PLCC44)
-      KM681002   - Samsung Electronics KM681002 128k x8 SRAM (SOJ32)
-      62256      - 8k x8 SRAM (SOJ28)
-      HM514260   - Hitachi HM514260CJ7 1M x16 DRAM (SOJ42)
-      TC5118160  - Toshiba TC5118160BJ-60 256k x16 DRAM (SOJ42)
+      KM681002   - Samsung Electronics KM681002 128k x8 SRAM (SOJ32). This is the 'Color RAM' in the test mode memory
+                   test
+      62256      - 8k x8 SRAM (SOJ28). This is the 'SS RAM' in the test mode memory test and is connected to the custom
+                   SSU chip.
+      HM514260(1)- Hitachi HM514260CJ7 1M x16 DRAM (SOJ40). This is the 'Work RAM' in the test mode memory test and is
+                   connected to the custom CCU chip.
+      HM514260(2)- Hitachi HM514260CJ7 1M x16 DRAM (SOJ40). This is the 'Sprite RAM' in the test mode memory test
+      TC5118160  - Toshiba TC5118160BJ-60 or NEC 4218160-60 256k x16 DRAM (SOJ42). This is the 'Character RAM' in the
+                   test mode memory test
       SW1        - Push-button Test Switch
       VOL        - Master Volume Potentiometer
       J1/J2      - Optional RCA Left/Right Audio Out Connectors
@@ -306,14 +318,15 @@ Notes:
                                   For SIMMs 3-7, the 8 FlashROMs are populated on both sides using a similar layout.
 
       Capcom Custom ASICs -
-                           DL-2729 PPU SD10-505   (QFP304). Decapping reveals this is the main graphics chip.
-                           DL-2829 CCU SD07-1514  (QFP208). Decapping reveals this to be a custom Toshiba ASIC.
-                           DL-2929 IOU SD08-1513  (QFP208). This is the I/O controller.
-                           DL-3329 SSU SD04-1536  (QFP144). This is might be the main CPU. It appears to be a SH2
-                                                            variant with built-in encryption. It is clocked at
-                                                            21.47725MHz (42.9545/2)
-                           DL-3429 GLL1 SD06-1537 (QFP144). Unknown, possibly a DMA or bus controller.
-                           DL-3529 GLL2 SD11-1755 (QFP80).  This might be the sound chip (it has 32k SRAM connected to it).
+                           DL-2729 PPU SD10-505   (QFP304) - Graphics chip.
+                           DL-2829 CCU SD07-1514  (QFP208) - Probably a companion CPU or co-processor. Decapping
+                                                             reveals it is manufactured by Toshiba. The 'Work RAM' is
+                                                             connected to it.
+                           DL-2929 IOU SD08-1513  (QFP208) - I/O controller.
+                           DL-3329 SSU SD04-1536  (QFP144) - Sound chip, clocked at 21.47725MHz (42.9545/2). It has 32k
+                                                             SRAM connected to it.
+                           DL-3429 GLL1 SD06-1537 (QFP144) - DMA memory/bus controller.
+                           DL-3529 GLL2 SD11-1755 (QFP80)  - ROM/SIMM bank selection chip (via 3x FCT162244 logic ICs).
 
 
 Connector Pinouts
@@ -356,6 +369,22 @@ Connector Pinouts
 Security Cartridge PCB Layout
 -----------------------------
 
+There are 4 types of CPS3 security carts. They have a label on the custom CPU that can be either A, B, C or D.
+Cartridge types A/B are identical and cartridge types C/D are identical.
+Type A/B have extra space on the back side to solder a 28F400 SOP44 flashROM which shares all electrical connections
+with the 29F400 TSOP48 flashROM on the front side of the PCB. Either chip can be used to store the 512k cart program,
+but no cart has been seen with a SOP44 flashROM populated, nor with both SOP44 and TSOP48 populated on one cart.
+A and B cartridges also contain a FM1208S NVRAM which holds game settings or other per-game data. It is definitely
+used. If the NVRAM data is not present when the game boots or the NVRAM is not working or inaccessible a message is
+displayed 'EEPROM ERROR' and the game halts. This error can also occur if the security cart edge connector is dirty
+and not contacting properly.
+C and D cartridges lack the extra space to solder a SOP44 flashROM. A space is available on the back side for a FM1208S
+NVRAM but it is not populated. A MACH111 CPLD is present on the back side and stamped 'CP3B1A'
+
+
+Type A and Type B
+-----------------
+
 CAPCOM 95682B-3 TORNADE
 |------------------------------------------------|
 |      BATTERY                                   |
@@ -377,8 +406,53 @@ Notes:
       FM1208S      - RAMTRON FM1208S 4k (512bytes x8) Nonvolatile Ferroelectric RAM (SOIC24)
       28F400       - 28F400 SOP44 FlashROM (not populated)
       *            - These components located on the other side of the PCB
-      The battery powers the CPU only. A small board containing some transistors is wired to the 74HC00
+
+      Note: The battery powers the CPU only. A small board containing some transistors/resistors is wired to the 74HC00
       to switch the CPU from battery power to main power to increase the life of the battery.
+
+
+Type C and Type D
+-----------------
+
+CAPCOM 95682B-4 CP SYSTEM III
+|------------------------------------------------|
+|      BATTERY                                   |
+|                          |-------|             |
+|                          |CAPCOM |   29F400    |
+|                          |DL-3229|   *MACH111  |
+|                          |SCU    |     *FM1208S|
+| 74HC00                   |-------|             |
+|               6.25MHz                    74F00 |
+|---|     |-|                             |------|
+    |     | |                             |
+    |-----| |-----------------------------|
+Notes:
+      74F00        - 74F00 Quad 2-Input NAND Gate (SOIC14)
+      74HC00       - Philips 74HC00N Quad 2-Input NAND Gate (DIP14)
+      29F400       - Fujitsu 29F400TA-90PFTN 512k x8 FlashROM (TSOP48)
+      Custom ASIC  - CAPCOM DL-3229 SCU (QFP144). Decapping reveals this is a Hitachi HD6417099 SH2 variant
+                     with built-in encryption, clocked at 6.250MHz
+      FM1208S      - RAMTRON FM1208S 4k (512bytes x8) Nonvolatile Ferroelectric RAM (not populated)
+      MACH111      - AMD MACH111 CPLD stamped 'CP3B1A' (PLCC44)
+      *            - These components located on the other side of the PCB
+
+      Note: The battery powers the CPU only. Some transistors/resistors present on the PCB and wired to the 74HC00
+      switch the CPU from battery power to main power to increase the life of the battery.
+
+
+Security cart resurrection info
+-------------------------------
+
+When the security cart dies the game no longer functions. The PCB can be brought back to life by doing the following
+hardware modification to the security cart.....
+
+1. Remove the custom QFP144 CPU and replace it with a standard Hitachi HD6417095 SH-2 CPU
+2. Remove the 29F400 TSOP48 flashROM and re-program it with the decrypted and modified main program ROM from set
+   'cps3boot' in MAME. A 28F400 SOP44 flashROM can be used instead and mounted to the back side of the security cart
+   PCB. Do not mount both SOP44 and TSOP48 flashROMs, use only one TSOP48 flashROM or one SOP44 flashROM.
+3. Power on the PCB and using the built-in cart flashROM menu re-program the SIMMs for your chosen game using the CD
+   from set 'cps3boot' in MAME.
+4. That is all. Enjoy your working PCB.
 
 */
 
@@ -388,8 +462,8 @@ Notes:
 #include "machine/intelfsh.h"
 #include "machine/nvram.h"
 #include "includes/cps3.h"
-#include "machine/scsibus.h"
-#include "machine/scsicd.h"
+#include "bus/scsi/scsi.h"
+#include "bus/scsi/scsicd.h"
 #include "machine/wd33c93.h"
 
 #define MASTER_CLOCK    42954500
@@ -593,7 +667,7 @@ inline void cps3_state::cps3_drawgfxzoom(bitmap_rgb32 &dest_bmp,const rectangle 
 											if (c&0x02) dest[x] |= 0x4000;
 											if (c&0x04) dest[x] |= 0x8000;
 											if (c&0x08) dest[x] |= 0x10000;
-											if (c&0xf0) dest[x] |= gfx->machine().rand(); // ?? not used?
+											if (c&0xf0) dest[x] |= machine().rand(); // ?? not used?
 										}
 										else
 										{
@@ -641,6 +715,10 @@ UINT16 cps3_state::rotxor(UINT16 val, UINT16 xorval)
 
 UINT32 cps3_state::cps3_mask(UINT32 address, UINT32 key1, UINT32 key2)
 {
+	// ignore all encryption
+	if (m_altEncryption == 2)
+		return 0;
+
 	UINT16 val;
 
 	address ^= key1;
@@ -689,36 +767,12 @@ void cps3_state::cps3_decrypt_bios()
 #endif
 }
 
-
-void cps3_state::init_common(UINT32 key1, UINT32 key2, int altEncryption)
+void cps3_state::init_common(void)
 {
-	m_key1 = key1;
-	m_key2 = key2;
-	m_altEncryption = altEncryption;
-
-	// cache pointers to regions
-	m_user4region = memregion("user4")->base();
-	m_user5region = memregion("user5")->base();
-
-	if (!m_user4region) m_user4region = auto_alloc_array(machine(), UINT8, USER4REGION_LENGTH);
-	if (!m_user5region) m_user5region = auto_alloc_array(machine(), UINT8, USER5REGION_LENGTH);
-
-	// set strict verify
-	sh2drc_set_options(m_maincpu, SH2DRC_STRICT_VERIFY);
-
-	cps3_decrypt_bios();
-	m_decrypted_gamerom = auto_alloc_array(machine(), UINT32, 0x1000000/4);
-
 	/* just some NOPs for the game to execute if it crashes and starts executing unmapped addresses
 	 - this prevents MAME from crashing */
 	m_nops = auto_alloc(machine(), UINT32);
 	m_nops[0] = 0x00090009;
-
-
-	m_0xc0000000_ram_decrypted = auto_alloc_array(machine(), UINT32, 0x400/4);
-
-	address_space &main = m_maincpu->space(AS_PROGRAM);
-	main.set_direct_update_handler(direct_update_delegate(FUNC(cps3_state::cps3_direct_handler), this));
 
 	// flash roms
 	astring tempstr;
@@ -730,12 +784,47 @@ void cps3_state::init_common(UINT32 key1, UINT32 key2, int altEncryption)
 	machine().device<nvram_device>("eeprom")->set_base(m_eeprom, 0x400);
 }
 
-DRIVER_INIT_MEMBER(cps3_state,redearth)  { init_common(0x9e300ab1, 0xa175b82c, 0); }
-DRIVER_INIT_MEMBER(cps3_state,sfiii)     { init_common(0xb5fe053e, 0xfc03925a, 0); }
-DRIVER_INIT_MEMBER(cps3_state,sfiii2)    { init_common(0x00000000, 0x00000000, 1); }
-DRIVER_INIT_MEMBER(cps3_state,jojo)      { init_common(0x02203ee3, 0x01301972, 0); }
-DRIVER_INIT_MEMBER(cps3_state,sfiii3)    { init_common(0xa55432b4, 0x0c129981, 0); }
-DRIVER_INIT_MEMBER(cps3_state,jojoba)    { init_common(0x23323ee3, 0x03021972, 0); }
+
+void cps3_state::init_crypt(UINT32 key1, UINT32 key2, int altEncryption)
+{
+	m_key1 = key1;
+	m_key2 = key2;
+	m_altEncryption = altEncryption;
+
+	// cache pointers to regions
+	m_user4region = memregion("user4")->base();
+	m_user5region = memregion("user5")->base();
+
+	if (!m_user4region) m_user4region = auto_alloc_array(machine(), UINT8, USER4REGION_LENGTH);
+	if (!m_user5region) m_user5region = auto_alloc_array(machine(), UINT8, USER5REGION_LENGTH);
+	m_cps3sound->set_base((INT8*)m_user5region);
+
+	// set strict verify
+	m_maincpu->sh2drc_set_options(SH2DRC_STRICT_VERIFY);
+	m_maincpu->sh2drc_add_fastram(0x02000000, 0x0207ffff, 0, &m_mainram[0]);
+	m_maincpu->sh2drc_add_fastram(0x04000000, 0x0407ffff, 0, &m_spriteram[0]);
+	m_maincpu->sh2drc_add_fastram(0x040C0020, 0x040C002b, 0, &m_tilemap20_regs_base[0]);
+	m_maincpu->sh2drc_add_fastram(0x040C0030, 0x040C003b, 0, &m_tilemap30_regs_base[0]);
+
+	cps3_decrypt_bios();
+	m_decrypted_gamerom = auto_alloc_array(machine(), UINT32, 0x1000000/4);
+
+
+	m_0xc0000000_ram_decrypted = auto_alloc_array(machine(), UINT32, 0x400/4);
+
+	address_space &main = m_maincpu->space(AS_PROGRAM);
+	main.set_direct_update_handler(direct_update_delegate(FUNC(cps3_state::cps3_direct_handler), this));
+
+	init_common();
+}
+
+DRIVER_INIT_MEMBER(cps3_state,redearth)  { init_crypt(0x9e300ab1, 0xa175b82c, 0); }
+DRIVER_INIT_MEMBER(cps3_state,sfiii)     { init_crypt(0xb5fe053e, 0xfc03925a, 0); }
+DRIVER_INIT_MEMBER(cps3_state,sfiii2)    { init_crypt(0x00000000, 0x00000000, 1); } // sfiii2 runs off a 'dead' cart
+DRIVER_INIT_MEMBER(cps3_state,jojo)      { init_crypt(0x02203ee3, 0x01301972, 0); }
+DRIVER_INIT_MEMBER(cps3_state,sfiii3)    { init_crypt(0xa55432b4, 0x0c129981, 0); }
+DRIVER_INIT_MEMBER(cps3_state,jojoba)    { init_crypt(0x23323ee3, 0x03021972, 0); }
+DRIVER_INIT_MEMBER(cps3_state,cps3boot)  { init_crypt((UINT32)-1,(UINT32)-1,2); }
 
 
 
@@ -804,7 +893,7 @@ void cps3_state::cps3_set_mame_colours(int colournum, UINT16 data, UINT32 fadeva
 
 	m_mame_colours[colournum] = (r << (16+3)) | (g << (8+3)) | (b << (0+3));
 
-	if (colournum<0x10000) palette_set_color(machine(),colournum,m_mame_colours[colournum]/* MAKE_RGB(r<<3,g<<3,b<<3)*/);//m_mame_colours[colournum]);
+	if (colournum<0x10000) m_palette->set_pen_color(colournum,m_mame_colours[colournum]/* rgb_t(r<<3,g<<3,b<<3)*/);//m_mame_colours[colournum]);
 }
 
 
@@ -819,13 +908,13 @@ void cps3_state::video_start()
 	save_pointer(NAME(m_char_ram), 0x800000 /4);
 
 	/* create the char set (gfx will then be updated dynamically from RAM) */
-	machine().gfx[0] = auto_alloc(machine(), gfx_element(machine(), cps3_tiles8x8_layout, (UINT8 *)m_ss_ram, machine().total_colors() / 16, 0));
+	m_gfxdecode->set_gfx(0, global_alloc(gfx_element(m_palette, cps3_tiles8x8_layout, (UINT8 *)m_ss_ram, 0, m_palette->entries() / 16, 0)));
 
 	//decode_ssram();
 
 	/* create the char set (gfx will then be updated dynamically from RAM) */
-	machine().gfx[1] = auto_alloc(machine(), gfx_element(machine(), cps3_tiles16x16_layout, (UINT8 *)m_char_ram, machine().total_colors() / 64, 0));
-	machine().gfx[1]->set_granularity(64);
+	m_gfxdecode->set_gfx(1, global_alloc(gfx_element(m_palette, cps3_tiles16x16_layout, (UINT8 *)m_char_ram, 0, m_palette->entries() / 64, 0)));
+	m_gfxdecode->gfx(1)->set_granularity(64);
 
 	//decode_charram();
 
@@ -916,10 +1005,10 @@ void cps3_state::cps3_draw_tilemapsprite_line(int tmnum, int drawline, bitmap_rg
 			yflip  = (dat & 0x00000800)>>11;
 			xflip  = (dat & 0x00001000)>>12;
 
-			if (!bpp) machine().gfx[1]->set_granularity(256);
-			else machine().gfx[1]->set_granularity(64);
+			if (!bpp) m_gfxdecode->gfx(1)->set_granularity(256);
+			else m_gfxdecode->gfx(1)->set_granularity(64);
 
-			cps3_drawgfxzoom(bitmap,clip,machine().gfx[1],tileno,colour,xflip,yflip,(x*16)-scrollx%16,drawline-tilesubline,CPS3_TRANSPARENCY_PEN_INDEX,0, 0x10000, 0x10000, NULL, 0);
+			cps3_drawgfxzoom(bitmap,clip,m_gfxdecode->gfx(1),tileno,colour,xflip,yflip,(x*16)-scrollx%16,drawline-tilesubline,CPS3_TRANSPARENCY_PEN_INDEX,0, 0x10000, 0x10000, NULL, 0);
 		}
 	}
 }
@@ -1145,13 +1234,13 @@ UINT32 cps3_state::screen_update_cps3(screen_device &screen, bitmap_rgb32 &bitma
 								/* use the bpp value from the main list or the sublists? */
 								if (whichbpp)
 								{
-									if (!global_bpp) machine().gfx[1]->set_granularity(256);
-									else machine().gfx[1]->set_granularity(64);
+									if (!global_bpp) m_gfxdecode->gfx(1)->set_granularity(256);
+									else m_gfxdecode->gfx(1)->set_granularity(64);
 								}
 								else
 								{
-									if (!bpp) machine().gfx[1]->set_granularity(256);
-									else machine().gfx[1]->set_granularity(64);
+									if (!bpp) m_gfxdecode->gfx(1)->set_granularity(256);
+									else m_gfxdecode->gfx(1)->set_granularity(64);
 								}
 
 								{
@@ -1159,11 +1248,11 @@ UINT32 cps3_state::screen_update_cps3(screen_device &screen, bitmap_rgb32 &bitma
 
 									if (global_alpha || alpha)
 									{
-										cps3_drawgfxzoom(m_renderbuffer_bitmap,m_renderbuffer_clip,machine().gfx[1],realtileno,actualpal,0^flipx,0^flipy,current_xpos,current_ypos,CPS3_TRANSPARENCY_PEN_INDEX_BLEND,0,xinc,yinc, NULL, 0);
+										cps3_drawgfxzoom(m_renderbuffer_bitmap,m_renderbuffer_clip,m_gfxdecode->gfx(1),realtileno,actualpal,0^flipx,0^flipy,current_xpos,current_ypos,CPS3_TRANSPARENCY_PEN_INDEX_BLEND,0,xinc,yinc, NULL, 0);
 									}
 									else
 									{
-										cps3_drawgfxzoom(m_renderbuffer_bitmap,m_renderbuffer_clip,machine().gfx[1],realtileno,actualpal,0^flipx,0^flipy,current_xpos,current_ypos,CPS3_TRANSPARENCY_PEN_INDEX,0,xinc,yinc, NULL, 0);
+										cps3_drawgfxzoom(m_renderbuffer_bitmap,m_renderbuffer_clip,m_gfxdecode->gfx(1),realtileno,actualpal,0^flipx,0^flipy,current_xpos,current_ypos,CPS3_TRANSPARENCY_PEN_INDEX,0,xinc,yinc, NULL, 0);
 									}
 									count++;
 								}
@@ -1208,7 +1297,7 @@ UINT32 cps3_state::screen_update_cps3(screen_device &screen, bitmap_rgb32 &bitma
 //  for (offset=0;offset<0x200;offset++)
 //  {
 //      int palreadbase = (m_ss_pal_base << 9);
-//      palette_set_color(machine(),offset,m_mame_colours[palreadbase+offset]);
+//      m_palette->set_pen_color(offset,m_mame_colours[palreadbase+offset]);
 //  }
 
 	// fg layer
@@ -1229,7 +1318,7 @@ UINT32 cps3_state::screen_update_cps3(screen_device &screen, bitmap_rgb32 &bitma
 				pal += m_ss_pal_base << 5;
 				tile+=0x200;
 
-				cps3_drawgfxzoom(bitmap, cliprect, machine().gfx[0],tile,pal,flipx,flipy,x*8,y*8,CPS3_TRANSPARENCY_PEN,0,0x10000,0x10000,NULL,0);
+				cps3_drawgfxzoom(bitmap, cliprect, m_gfxdecode->gfx(0),tile,pal,flipx,flipy,x*8,y*8,CPS3_TRANSPARENCY_PEN,0,0x10000,0x10000,NULL,0);
 				count++;
 			}
 		}
@@ -1252,7 +1341,7 @@ WRITE32_MEMBER(cps3_state::cps3_ssram_w)
 		// we only want to endian-flip the character data, the tilemap info is fine
 		data = LITTLE_ENDIANIZE_INT32(data);
 		mem_mask = LITTLE_ENDIANIZE_INT32(mem_mask);
-		machine().gfx[0]->mark_dirty(offset/16);
+		m_gfxdecode->gfx(0)->mark_dirty(offset/16);
 	}
 
 	COMBINE_DATA(&m_ss_ram[offset]);
@@ -1344,7 +1433,7 @@ WRITE32_MEMBER(cps3_state::cram_data_w)
 	mem_mask = LITTLE_ENDIANIZE_INT32(mem_mask);
 	data = LITTLE_ENDIANIZE_INT32(data);
 	COMBINE_DATA(&m_char_ram[fulloffset]);
-	machine().gfx[1]->mark_dirty(fulloffset/0x40);
+	m_gfxdecode->gfx(1)->mark_dirty(fulloffset/0x40);
 }
 
 /* FLASH ROM ACCESS */
@@ -1807,7 +1896,7 @@ UINT32 cps3_state::process_byte( UINT8 real_byte, UINT32 destination, int max_le
 		while (m_rle_length)
 		{
 			dest[((destination+tranfercount)&0x7fffff)^3] = (m_last_normal_byte&0x3f);
-			machine().gfx[1]->mark_dirty(((destination+tranfercount)&0x7fffff)/0x100);
+			m_gfxdecode->gfx(1)->mark_dirty(((destination+tranfercount)&0x7fffff)/0x100);
 			//printf("RLE WRite Byte %08x, %02x\n", destination+tranfercount, real_byte);
 
 			tranfercount++;
@@ -1826,7 +1915,7 @@ UINT32 cps3_state::process_byte( UINT8 real_byte, UINT32 destination, int max_le
 		//printf("Write Normal Data\n");
 		dest[(destination&0x7fffff)^3] = real_byte;
 		m_last_normal_byte = real_byte;
-		machine().gfx[1]->mark_dirty((destination&0x7fffff)/0x100);
+		m_gfxdecode->gfx(1)->mark_dirty((destination&0x7fffff)/0x100);
 		return 1;
 	}
 }
@@ -1895,7 +1984,7 @@ UINT32 cps3_state::ProcessByte8(UINT8 b,UINT32 dst_offset)
 		for(i=0;i<rle;++i)
 		{
 			destRAM[(dst_offset&0x7fffff)^3] = m_lastb;
-			machine().gfx[1]->mark_dirty((dst_offset&0x7fffff)/0x100);
+			m_gfxdecode->gfx(1)->mark_dirty((dst_offset&0x7fffff)/0x100);
 
 			dst_offset++;
 			++l;
@@ -1909,7 +1998,7 @@ UINT32 cps3_state::ProcessByte8(UINT8 b,UINT32 dst_offset)
 		m_lastb2=m_lastb;
 		m_lastb=b;
 		destRAM[(dst_offset&0x7fffff)^3] = b;
-		machine().gfx[1]->mark_dirty((dst_offset&0x7fffff)/0x100);
+		m_gfxdecode->gfx(1)->mark_dirty((dst_offset&0x7fffff)/0x100);
 		return 1;
 	}
 }
@@ -2127,7 +2216,7 @@ static ADDRESS_MAP_START( cps3_map, AS_PROGRAM, 32, cps3_state )
 	AM_RANGE(0x040C0084, 0x040C0087) AM_WRITE(cram_bank_w)
 	AM_RANGE(0x040C0088, 0x040C008b) AM_WRITE(cram_gfxflash_bank_w)
 
-	AM_RANGE(0x040e0000, 0x040e02ff) AM_DEVREADWRITE("cps3", cps3_sound_device, cps3_sound_r, cps3_sound_w)
+	AM_RANGE(0x040e0000, 0x040e02ff) AM_DEVREADWRITE("cps3sound", cps3_sound_device, cps3_sound_r, cps3_sound_w)
 
 	AM_RANGE(0x04100000, 0x041fffff) AM_READWRITE(cram_data_r, cram_data_w)
 	AM_RANGE(0x04200000, 0x043fffff) AM_READWRITE(cps3_gfxflash_r, cps3_gfxflash_w) // GFX Flash ROMS
@@ -2149,7 +2238,7 @@ static ADDRESS_MAP_START( cps3_map, AS_PROGRAM, 32, cps3_state )
 	AM_RANGE(0x05100000, 0x05100003) AM_WRITE(cps3_irq12_ack_w )
 	AM_RANGE(0x05110000, 0x05110003) AM_WRITE(cps3_irq10_ack_w )
 
-	AM_RANGE(0x05140000, 0x05140003) AM_DEVREADWRITE8("scsi:wd33c93", wd33c93_device, read, write, 0x00ff00ff )
+	AM_RANGE(0x05140000, 0x05140003) AM_DEVREADWRITE8("wd33c93", wd33c93_device, read, write, 0x00ff00ff )
 
 	AM_RANGE(0x06000000, 0x067fffff) AM_READWRITE(cps3_flash1_r, cps3_flash1_w ) /* Flash ROMs simm 1 */
 	AM_RANGE(0x06800000, 0x06ffffff) AM_READWRITE(cps3_flash2_r, cps3_flash2_w ) /* Flash ROMs simm 2 */
@@ -2239,14 +2328,6 @@ INTERRUPT_GEN_MEMBER(cps3_state::cps3_other_interrupt)
 	device.execute().set_input_line(10, ASSERT_LINE);
 }
 
-
-//static sh2_cpu_core sh2cp_conf_slave  = { 1, NULL };
-
-
-static const struct WD33C93interface wd33c93_intf =
-{
-	DEVCB_NULL            /* command completion IRQ */
-};
 
 void cps3_state::machine_reset()
 {
@@ -2346,9 +2427,8 @@ void cps3_state::copy_from_nvram()
 }
 
 
-static int cps3_dma_callback(device_t *device, UINT32 src, UINT32 dst, UINT32 data, int size)
+SH2_DMA_KLUDGE_CB(cps3_state::dma_callback)
 {
-	cps3_state *state = device->machine().driver_data<cps3_state>();
 	/*
 	  on the actual CPS3 hardware the SH2 DMA bypasses the encryption.
 
@@ -2370,22 +2450,22 @@ static int cps3_dma_callback(device_t *device, UINT32 src, UINT32 dst, UINT32 da
 
 	if (src<0x80000)
 	{
-		int offs = (src&0x07ffff)>>2;
-		data = data ^ state->cps3_mask(offs*4, state->m_key1, state->m_key2);
+		int offs = (src & 0x07ffff) >> 2;
+		data = data ^ cps3_mask(offs * 4, m_key1, m_key2);
 	}
 	else if (src>=0x6000000 && src<0x6800000)
 	{
-		int offs = (src&0x07fffff)>>2;
-		if (!state->m_altEncryption) data = data ^ state->cps3_mask(0x6000000+offs*4, state->m_key1, state->m_key2);
+		int offs = (src & 0x07fffff) >> 2;
+		if (!m_altEncryption) data = data ^ cps3_mask(0x6000000 + offs * 4, m_key1, m_key2);
 	}
 	else if (src>=0x6800000 && src<0x7000000)
 	{
-		int offs = (src&0x07fffff)>>2;
-		if (!state->m_altEncryption) data = data ^ state->cps3_mask(0x6800000+offs*4, state->m_key1, state->m_key2);
+		int offs = (src & 0x07fffff) >> 2;
+		if (!m_altEncryption) data = data ^ cps3_mask(0x6800000 + offs * 4, m_key1, m_key2);
 	}
 	else
 	{
-		//printf("%s :src %08x, dst %08x, returning %08x\n", machine.describe_context(), src, dst, data);
+		//printf("%s :src %08x, dst %08x, returning %08x\n", machine().describe_context(), src, dst, data);
 	}
 
 	/* I doubt this is endian safe.. needs checking / fixing */
@@ -2402,12 +2482,6 @@ static int cps3_dma_callback(device_t *device, UINT32 src, UINT32 dst, UINT32 da
 	return data;
 }
 
-
-
-static const sh2_cpu_core sh2_conf_cps3 = {
-	0, // master
-	cps3_dma_callback
-};
 
 static MACHINE_CONFIG_FRAGMENT( simm1_64mbit )
 	MCFG_FUJITSU_29F016A_ADD("simm1.0")
@@ -2478,11 +2552,13 @@ static MACHINE_CONFIG_START( cps3, cps3_state )
 	MCFG_CPU_PROGRAM_MAP(cps3_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", cps3_state,  cps3_vbl_interrupt)
 	MCFG_CPU_PERIODIC_INT_DRIVER(cps3_state, cps3_other_interrupt, 80) /* ?source? */
-	MCFG_CPU_CONFIG(sh2_conf_cps3)
+	MCFG_SH2_DMA_KLUDGE_CB(cps3_state, dma_callback)
 
-	MCFG_SCSIBUS_ADD("scsi")
-	MCFG_SCSIDEV_ADD("scsi:cdrom", SCSICD, SCSI_ID_1)
-	MCFG_WD33C93_ADD("scsi:wd33c93", wd33c93_intf)
+	MCFG_DEVICE_ADD("scsi", SCSI_PORT, 0)
+	MCFG_SCSIDEV_ADD("scsi:" SCSI_PORT_DEVICE1, "cdrom", SCSICD, SCSI_ID_1)
+
+	MCFG_DEVICE_ADD("wd33c93", WD33C93, 0)
+	MCFG_LEGACY_SCSI_PORT("scsi")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -2500,13 +2576,14 @@ static MACHINE_CONFIG_START( cps3, cps3_state )
 */
 
 	MCFG_NVRAM_ADD_0FILL("eeprom")
-	MCFG_PALETTE_LENGTH(0x10000) // actually 0x20000 ...
+	MCFG_PALETTE_ADD("palette", 0x10000) // actually 0x20000 ...
 
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("cps3", CPS3, MASTER_CLOCK / 3)
+	MCFG_SOUND_ADD("cps3sound", CPS3, MASTER_CLOCK / 3)
 	MCFG_SOUND_ROUTE(1, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -2567,7 +2644,7 @@ ROM_START( redearth )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "redearth_euro.29f400.u2", 0x000000, 0x080000, CRC(02e0f336) SHA1(acc37e830dfeb9674f5a0fb24f4cc23217ae4ff5) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-wzd-5", 0, BAD_DUMP SHA1(e5676752b08283dc4a98c3d7b759e8aa6dcd0679) )
 ROM_END
 
@@ -2575,7 +2652,7 @@ ROM_START( redearthr1 )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "redearth_euro.29f400.u2", 0x000000, 0x080000, CRC(02e0f336) SHA1(acc37e830dfeb9674f5a0fb24f4cc23217ae4ff5) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-wzd-3", 0, SHA1(a6ff67093db6bc80ee5fc46e4300e0177b213a52) )
 ROM_END
 
@@ -2583,7 +2660,7 @@ ROM_START( warzard )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "warzard_japan.29f400.u2", 0x000000, 0x080000, CRC(f8e2f0c6) SHA1(93d6a986f44c211fff014e55681eca4d2a2774d6) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-wzd-5", 0, BAD_DUMP SHA1(e5676752b08283dc4a98c3d7b759e8aa6dcd0679) )
 ROM_END
 
@@ -2591,16 +2668,32 @@ ROM_START( warzardr1 )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "warzard_japan.29f400.u2", 0x000000, 0x080000, CRC(f8e2f0c6) SHA1(93d6a986f44c211fff014e55681eca4d2a2774d6) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-wzd-3", 0, SHA1(a6ff67093db6bc80ee5fc46e4300e0177b213a52) )
 ROM_END
 
 
 ROM_START( sfiii )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
-	ROM_LOAD( "sfiii_usa.29f400.u2", 0x000000, 0x080000, CRC(fb172a8e) SHA1(48ebf59910f246835f7dc0c588da30f7a908072f) )
+	ROM_LOAD( "sfiii_euro.29f400.u2", 0x000000, 0x080000, CRC(27699ddc) SHA1(d8b525cd27e584560b129598df31fd2c5b2a682a) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
+	DISK_IMAGE_READONLY( "cap-sf3-3", 0, BAD_DUMP SHA1(606e62cc5f46275e366e7dbb412dbaeb7e54cd0c) )
+ROM_END
+
+ROM_START( sfiiiu )
+	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_LOAD( "sfiii_usa_region_b1.29f400.u2", 0x000000, 0x080000, CRC(fb172a8e) SHA1(48ebf59910f246835f7dc0c588da30f7a908072f) )
+
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
+	DISK_IMAGE_READONLY( "cap-sf3-3", 0, BAD_DUMP SHA1(606e62cc5f46275e366e7dbb412dbaeb7e54cd0c) )
+ROM_END
+
+ROM_START( sfiiia )
+	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_LOAD( "sfiii_asia_region_bd.29f400.u2", 0x000000, 0x080000,  CRC(cbd28de7) SHA1(9c15ecb73b9587d20850e62e8683930a45caa01b) )
+
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-sf3-3", 0, BAD_DUMP SHA1(606e62cc5f46275e366e7dbb412dbaeb7e54cd0c) )
 ROM_END
 
@@ -2608,7 +2701,7 @@ ROM_START( sfiiij )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "sfiii_japan.29f400.u2", 0x000000, 0x080000, CRC(74205250) SHA1(c3e83ace7121d32da729162662ec6b5285a31211) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-sf3-3", 0, BAD_DUMP SHA1(606e62cc5f46275e366e7dbb412dbaeb7e54cd0c) )
 ROM_END
 
@@ -2616,7 +2709,7 @@ ROM_START( sfiiih )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "sfiii_hispanic.29f400.u2", 0x000000, 0x080000, CRC(d2b3cd48) SHA1(00ebb270c24a66515c97e35331de54ff5358000e) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-sf3-3", 0, BAD_DUMP SHA1(606e62cc5f46275e366e7dbb412dbaeb7e54cd0c) )
 ROM_END
 
@@ -2625,7 +2718,7 @@ ROM_START( sfiii2 )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "sfiii2_usa.29f400.u2", 0x000000, 0x080000, CRC(75dd72e0) SHA1(5a12d6ea6734df5de00ecee6f9ef470749d2f242) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-3ga000", 0, BAD_DUMP SHA1(4e162885b0b3265a56e0265037bcf247e820f027) )
 ROM_END
 
@@ -2633,7 +2726,7 @@ ROM_START( sfiii2j )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "sfiii2_japan.29f400.u2", 0x000000, 0x080000, CRC(faea0a3e) SHA1(a03cd63bcf52e4d57f7a598c8bc8e243694624ec) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-3ga000", 0, BAD_DUMP SHA1(4e162885b0b3265a56e0265037bcf247e820f027) )
 ROM_END
 
@@ -2642,7 +2735,7 @@ ROM_START( jojo )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "jojo_usa.29f400.u2", 0x000000, 0x080000, CRC(8d40f7be) SHA1(2a4bd83db2f959c33b071e517941aa55a0f919c0) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-jjk-3", 0, SHA1(dc6e74b5e02e13f62cb8c4e234dd6061501e49c1) )
 ROM_END
 
@@ -2650,7 +2743,7 @@ ROM_START( jojor1 )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "jojo_usa.29f400.u2", 0x000000, 0x080000, CRC(8d40f7be) SHA1(2a4bd83db2f959c33b071e517941aa55a0f919c0) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-jjk-2", 0, BAD_DUMP SHA1(0f5c09171409213e191a607ee89ca3a91fe9c96a) )
 ROM_END
 
@@ -2658,7 +2751,7 @@ ROM_START( jojor2 )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "jojo_usa.29f400.u2", 0x000000, 0x080000, CRC(8d40f7be) SHA1(2a4bd83db2f959c33b071e517941aa55a0f919c0) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-jjk000", 0, BAD_DUMP SHA1(09869f6d8c032b527e02d815749dc8fab1289e86) )
 ROM_END
 
@@ -2666,7 +2759,7 @@ ROM_START( jojoj )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "jojo_japan.29f400.u2", 0x000000, 0x080000, CRC(02778f60) SHA1(a167f9ebe030592a0cdb0c6a3c75835c6a43be4c) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-jjk-3", 0, SHA1(dc6e74b5e02e13f62cb8c4e234dd6061501e49c1) )
 ROM_END
 
@@ -2674,7 +2767,7 @@ ROM_START( jojojr1 )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "jojo_japan.29f400.u2", 0x000000, 0x080000, CRC(02778f60) SHA1(a167f9ebe030592a0cdb0c6a3c75835c6a43be4c) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-jjk-2", 0, BAD_DUMP SHA1(0f5c09171409213e191a607ee89ca3a91fe9c96a) )
 ROM_END
 
@@ -2682,7 +2775,7 @@ ROM_START( jojojr2 )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "jojo_japan.29f400.u2", 0x000000, 0x080000, CRC(02778f60) SHA1(a167f9ebe030592a0cdb0c6a3c75835c6a43be4c) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-jjk000", 0, BAD_DUMP SHA1(09869f6d8c032b527e02d815749dc8fab1289e86) )
 ROM_END
 
@@ -2691,7 +2784,7 @@ ROM_START( sfiii3 )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "sfiii3_euro.29f400.u2", 0x000000, 0x080000, CRC(30bbf293) SHA1(f094c2eeaf4f6709060197aca371a4532346bf78) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-33s-2", 0, BAD_DUMP SHA1(41b0e246db91cbfc3f8f0f62d981734feb4b4ab5) )
 ROM_END
 
@@ -2699,7 +2792,7 @@ ROM_START( sfiii3r1 )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "sfiii3_euro.29f400.u2", 0x000000, 0x080000, CRC(30bbf293) SHA1(f094c2eeaf4f6709060197aca371a4532346bf78) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-33s-1", 0, BAD_DUMP SHA1(2f4a9006a31903114f9f9dc09465ae253e565c51) )
 ROM_END
 
@@ -2707,7 +2800,7 @@ ROM_START( sfiii3u )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "sfiii3_usa.29f400.u2", 0x000000, 0x080000, CRC(ecc545c1) SHA1(e39083820aae914fd8b80c9765129bedb745ceba) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-33s-2", 0, BAD_DUMP SHA1(41b0e246db91cbfc3f8f0f62d981734feb4b4ab5) )
 ROM_END
 
@@ -2715,7 +2808,7 @@ ROM_START( sfiii3ur1 )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "sfiii3_usa.29f400.u2", 0x000000, 0x080000, CRC(ecc545c1) SHA1(e39083820aae914fd8b80c9765129bedb745ceba) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-33s-1", 0, BAD_DUMP SHA1(2f4a9006a31903114f9f9dc09465ae253e565c51) )
 ROM_END
 
@@ -2724,7 +2817,7 @@ ROM_START( jojoba )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "jojoba_japan.29f400.u2", 0x000000, 0x080000, CRC(3085478c) SHA1(055eab1fc42816f370a44b17fd7e87ffcb10e8b7) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-jjm-1", 0, SHA1(8628d3fa555fbd5f4121082e925c1834b76c5e65) )
 ROM_END
 
@@ -2732,16 +2825,73 @@ ROM_START( jojobar1 )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
 	ROM_LOAD( "jojoba_japan.29f400.u2", 0x000000, 0x080000, CRC(3085478c) SHA1(055eab1fc42816f370a44b17fd7e87ffcb10e8b7) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "cap-jjm-0", 0, BAD_DUMP SHA1(0678a0baeb853dcff1d230c14f0873cc9f143d7b) )
 ROM_END
+
+
+
 
 
 /* NO CD sets - use NO CD BIOS roms - don't require the CD image to boot */
 
 ROM_START( sfiiin )
 	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
-	ROM_LOAD( "sfiii_asia_nocd.29f400.u2", 0x000000, 0x080000, CRC(73e32463) SHA1(45d144e533e4b20cc5a744ca4f618e288430c601) )
+	ROM_LOAD( "(__sfiiin)sfiii_asia_nocd.29f400.u2", 0x000000, 0x080000, CRC(ca2b715f) SHA1(86319987f9af4afd272a2488e73de8382743cb37) ) // this is a different VERSION of the bios compared to all other sets, not just an alt region code
+
+	ROM_REGION( 0x200000, "simm1.0", 0 )
+	ROM_LOAD( "sfiii-simm1.0", 0x00000, 0x200000, CRC(cfc9e45a) SHA1(5d9061f76680642e730373e3ac29b24926dc5c0c) )
+	ROM_REGION( 0x200000, "simm1.1", 0 )
+	ROM_LOAD( "sfiii-simm1.1", 0x00000, 0x200000, CRC(57920546) SHA1(c8452e7e101b8888fb806d1c9874c6be49fc7dbd) )
+	ROM_REGION( 0x200000, "simm1.2", 0 )
+	ROM_LOAD( "sfiii-simm1.2", 0x00000, 0x200000, CRC(0d8f2680) SHA1(ade7b28acd11023696c4b20136f3d2f34da6b1be) )
+	ROM_REGION( 0x200000, "simm1.3", 0 )
+	ROM_LOAD( "sfiii-simm1.3", 0x00000, 0x200000, CRC(ea4ca054) SHA1(f91c55c4e4fc428ce15d27be38aeed3a483d028c) )
+
+	ROM_REGION( 0x200000, "simm3.0", 0 )
+	ROM_LOAD( "sfiii-simm3.0", 0x00000, 0x200000, CRC(080b3bd3) SHA1(f51bc5de95ab22b87ba09ea721285b308afd0bda) )
+	ROM_REGION( 0x200000, "simm3.1", 0 )
+	ROM_LOAD( "sfiii-simm3.1", 0x00000, 0x200000, CRC(5c356f2f) SHA1(e969ce388f6e565d9612e65b0895560c7bb472e6) )
+	ROM_REGION( 0x200000, "simm3.2", 0 )
+	ROM_LOAD( "sfiii-simm3.2", 0x00000, 0x200000, CRC(f9c97a45) SHA1(58a9691696c3f26a1150a451567c501f55cf1874) )
+	ROM_REGION( 0x200000, "simm3.3", 0 )
+	ROM_LOAD( "sfiii-simm3.3", 0x00000, 0x200000, CRC(09de3ead) SHA1(2f41d84a96cb5e0d169200a4e9358ad5f407a2b7) )
+	ROM_REGION( 0x200000, "simm3.4", 0 )
+	ROM_LOAD( "sfiii-simm3.4", 0x00000, 0x200000, CRC(7dd7e1f3) SHA1(bcf1023287457d97f09d9f6e9c93fdf24cc24a07) )
+	ROM_REGION( 0x200000, "simm3.5", 0 )
+	ROM_LOAD( "sfiii-simm3.5", 0x00000, 0x200000, CRC(47a03a3a) SHA1(2509e5737059251888e4e1efbcdfac86a89ff1a1) )
+	ROM_REGION( 0x200000, "simm3.6", 0 )
+	ROM_LOAD( "sfiii-simm3.6", 0x00000, 0x200000, CRC(e9eb7a26) SHA1(b8547edb7085e9149aa59d5226ad2d1976cab2bd) )
+	ROM_REGION( 0x200000, "simm3.7", 0 )
+	ROM_LOAD( "sfiii-simm3.7", 0x00000, 0x200000, CRC(7f44395c) SHA1(f4d2e283cb3a4aad4eae4e13963a74e20be7c181) )
+
+	ROM_REGION( 0x200000, "simm4.0", 0 )
+	ROM_LOAD( "sfiii-simm4.0", 0x00000, 0x200000, CRC(9ac080fc) SHA1(2e5024b35b147513ee42eda8748df9d669410377) )
+	ROM_REGION( 0x200000, "simm4.1", 0 )
+	ROM_LOAD( "sfiii-simm4.1", 0x00000, 0x200000, CRC(6e2c4c94) SHA1(5a185cb76b5999bd826bc9b5ea584a5c3498f69d) )
+	ROM_REGION( 0x200000, "simm4.2", 0 )
+	ROM_LOAD( "sfiii-simm4.2", 0x00000, 0x200000, CRC(8afc22d4) SHA1(04a419a3092c98fc4a7693e6acf30ae5a849e5c1) )
+	ROM_REGION( 0x200000, "simm4.3", 0 )
+	ROM_LOAD( "sfiii-simm4.3", 0x00000, 0x200000, CRC(9f3873b8) SHA1(33499d6f02bc84c80acb56be078aaed7f8d1300d) )
+	ROM_REGION( 0x200000, "simm4.4", 0 )
+	ROM_LOAD( "sfiii-simm4.4", 0x00000, 0x200000, CRC(166b3c97) SHA1(40e6e9d43cbbd8496b430931b8ab7db01dc1c6d5) )
+	ROM_REGION( 0x200000, "simm4.5", 0 )
+	ROM_LOAD( "sfiii-simm4.5", 0x00000, 0x200000, CRC(e5ea2547) SHA1(a823c689098f37a3054d728bddb0033a4b8396f1) )
+	ROM_REGION( 0x200000, "simm4.6", 0 )
+	ROM_LOAD( "sfiii-simm4.6", 0x00000, 0x200000, CRC(e85b9fdd) SHA1(264cb10fe9b3ede384c7db42bfc58ed5c21ea8f8) )
+	ROM_REGION( 0x200000, "simm4.7", 0 )
+	ROM_LOAD( "sfiii-simm4.7", 0x00000, 0x200000, CRC(362c01b7) SHA1(9c404312a6aabe8e91e68dde193e3972bc1636cd) )
+
+	ROM_REGION( 0x200000, "simm5.0", 0 )
+	ROM_LOAD( "sfiii-simm5.0", 0x00000, 0x200000, CRC(9bc108b2) SHA1(894dadab7957044bf877029c7f8e556d5d6e85d3) )
+	ROM_REGION( 0x200000, "simm5.1", 0 )
+	ROM_LOAD( "sfiii-simm5.1", 0x00000, 0x200000, CRC(c6f1c066) SHA1(00de492dd1ef7aef05027a8c501c296b6602e917) )
+ROM_END
+
+
+ROM_START( sfiiina )
+	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_LOAD( "(__sfiiina)sfiii_asia_nocd.29f400.u2", 0x000000, 0x080000, CRC(73e32463) SHA1(45d144e533e4b20cc5a744ca4f618e288430c601) )
 
 	ROM_REGION( 0x200000, "simm1.0", 0 )
 	ROM_LOAD( "sfiii-simm1.0", 0x00000, 0x200000, CRC(cfc9e45a) SHA1(5d9061f76680642e730373e3ac29b24926dc5c0c) )
@@ -3530,6 +3680,57 @@ ROM_START( jojobaner1 )
 	ROM_LOAD( "jojoba-simm5.7",  0x00000, 0x200000, CRC(8c8be520) SHA1(c461f3f76a83592b36b29afb316679a7c8972404) )
 ROM_END
 
+/* Bootlegs for use with modified security carts */
+
+ROM_START( cps3boot ) // for cart with standard SH2
+	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_LOAD( "no-battery_bios_29f400_for_hd6417095_sh2.u2", 0x000000, 0x080000, CRC(cb9bd5b0) SHA1(ea7ecb3deb69f5307a62d8f0d7d8e68d49013d07))
+
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
+	DISK_IMAGE_READONLY( "no-battery_multi-game_bootleg_cd_for_hd6417095_sh2", 0, SHA1(6057cc3ec7991c0c00a7ab9da6ac2f92c9fb1aed) )
+ROM_END
+
+ROM_START( cps3booto ) // for cart with standard SH2
+	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_LOAD( "no-battery_bios_29f400_for_hd6417095_sh2.u2", 0x000000, 0x080000, CRC(cb9bd5b0) SHA1(ea7ecb3deb69f5307a62d8f0d7d8e68d49013d07))
+
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
+	DISK_IMAGE_READONLY( "no-battery_multi-game_bootleg_cd_for_hd6417095_sh2_older", 0, SHA1(123f2fcb0f3dd3d6b859e82a51d0127e46763776) )
+ROM_END
+
+ROM_START( cps3bs32 ) // for cart with standard SH2
+	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_LOAD( "no-battery_bios_29f400_for_hd6417095_sh2.u2", 0x000000, 0x080000, CRC(cb9bd5b0) SHA1(ea7ecb3deb69f5307a62d8f0d7d8e68d49013d07))
+
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
+	DISK_IMAGE_READONLY( "sfiii_2nd_impact_converted_for_standard_sh2_v3", 0, SHA1(8f180d159e88042a1e819cefd39eef67f5e86e3d) )
+ROM_END
+
+ROM_START( cps3bs32a ) // for cart with standard SH2
+	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_LOAD( "no-battery_bios_29f400_for_hd6417095_sh2.u2", 0x000000, 0x080000, CRC(cb9bd5b0) SHA1(ea7ecb3deb69f5307a62d8f0d7d8e68d49013d07))
+
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
+	DISK_IMAGE_READONLY( "sfiii_2nd_impact_converted_for_standard_sh2_older", 0, SHA1(8a8e4138c3bf12435933ab9d9ace510513200843) ) // v1 or v2?
+ROM_END
+
+ROM_START( cps3boota ) // for cart with dead custom SH2 (or 2nd Impact CPU which is the same as a dead one)
+	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_LOAD( "no-battery_bios_29f400_for_dead_security_cart.u2", 0x000000, 0x080000, CRC(0fd56fb3) SHA1(5a8bffc07eb7da73cf4bca6718df72e471296bfd) )
+
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
+	DISK_IMAGE_READONLY( "no-battery_multi-game_bootleg_cd_for_dead_security_cart", 0, SHA1(1ede2f1ba197ee787208358a13eae7185a5ae3b2) )
+ROM_END
+
+
+ROM_START( cps3bootoa ) // for cart with dead custom SH2 (or 2nd Impact CPU which is the same as a dead one)
+	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_LOAD( "no-battery_bios_29f400_for_dead_security_cart.u2", 0x000000, 0x080000, CRC(0fd56fb3) SHA1(5a8bffc07eb7da73cf4bca6718df72e471296bfd) )
+
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
+	DISK_IMAGE_READONLY( "no-battery_multi-game_bootleg_cd_for_dead_security_cart_older", 0, SHA1(4b0b673b45dac94da018576c0a7f8644653fc564) )
+ROM_END
+
 
 /*****************************************************************************************
   CPS3 game region / special flag information
@@ -3689,10 +3890,13 @@ GAME( 1996, warzardr1, redearth, redearth, cps3_re, cps3_state,   redearth, ROT0
 // not dumped
 
 // 970204
-GAME( 1997, sfiii,     0,        sfiii,    cps3, cps3_state,      sfiii,    ROT0, "Capcom", "Street Fighter III: New Generation (USA 970204)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1997, sfiii,     0,        sfiii,    cps3, cps3_state,      sfiii,    ROT0, "Capcom", "Street Fighter III: New Generation (Euro 970204)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1997, sfiiiu,    sfiii,    sfiii,    cps3, cps3_state,      sfiii,    ROT0, "Capcom", "Street Fighter III: New Generation (USA 970204)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1997, sfiiia,    sfiii,    sfiii,    cps3, cps3_state,      sfiii,    ROT0, "Capcom", "Street Fighter III: New Generation (Asia 970204)", GAME_IMPERFECT_GRAPHICS )
 GAME( 1997, sfiiij,    sfiii,    sfiii,    cps3, cps3_state,      sfiii,    ROT0, "Capcom", "Street Fighter III: New Generation (Japan 970204)", GAME_IMPERFECT_GRAPHICS )
 GAME( 1997, sfiiih,    sfiii,    sfiii,    cps3, cps3_state,      sfiii,    ROT0, "Capcom", "Street Fighter III: New Generation (Hispanic 970204)", GAME_IMPERFECT_GRAPHICS )
-GAME( 1997, sfiiin,    sfiii,    sfiii,    cps3, cps3_state,      sfiii,    ROT0, "Capcom", "Street Fighter III: New Generation (Asia 970204, NO CD)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1997, sfiiin,    sfiii,    sfiii,    cps3, cps3_state,      sfiii,    ROT0, "Capcom", "Street Fighter III: New Generation (Asia 970204, NO CD, bios set 1)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1997, sfiiina,   sfiii,    sfiii,    cps3, cps3_state,      sfiii,    ROT0, "Capcom", "Street Fighter III: New Generation (Asia 970204, NO CD, bios set 2)", GAME_IMPERFECT_GRAPHICS )
 
 /* Street Fighter III 2nd Impact: Giant Attack */
 
@@ -3744,3 +3948,14 @@ GAME( 1999, jojobane,  jojoba,   jojoba,   cps3_jojo, cps3_state, jojoba,   ROT0
 GAME( 1999, jojobar1,  jojoba,   jojoba,   cps3_jojo, cps3_state, jojoba,   ROT0, "Capcom", "JoJo no Kimyou na Bouken: Mirai e no Isan (Japan 990913)", GAME_IMPERFECT_GRAPHICS )
 GAME( 1999, jojobanr1, jojoba,   jojoba,   cps3_jojo, cps3_state, jojoba,   ROT0, "Capcom", "JoJo no Kimyou na Bouken: Mirai e no Isan (Japan 990913, NO CD)", GAME_IMPERFECT_GRAPHICS )
 GAME( 1999, jojobaner1,jojoba,   jojoba,   cps3_jojo, cps3_state, jojoba,   ROT0, "Capcom", "JoJo's Bizarre Adventure (Euro 990913, NO CD)", GAME_IMPERFECT_GRAPHICS )
+
+// bootlegs, hold START1 during bootup to change games
+GAME( 1999, cps3boot,  0,        sfiii3,   cps3_jojo, cps3_state, cps3boot,   ROT0, "bootleg", "CPS3 Multi-game bootleg for HD6417095 type SH2", GAME_IMPERFECT_GRAPHICS )
+GAME( 1999, cps3boota, cps3boot, sfiii3,   cps3_jojo, cps3_state, sfiii2,     ROT0, "bootleg", "CPS3 Multi-game bootleg for dead security cart", GAME_IMPERFECT_GRAPHICS )
+// this doesn't play 2nd Impact despite it being listed.  2nd Impact uses separate data/code encryption and can't be decrypted cleanly for a standard SH2.  Selecting it just flashes in a copy of 3rd Strike with the 2nd Impact loading screen
+GAME( 1999, cps3booto,  cps3boot, sfiii3,   cps3_jojo, cps3_state, cps3boot,   ROT0, "bootleg", "CPS3 Multi-game bootleg for HD6417095 type SH2 (older) (New Generation, 3rd Strike, JoJo's Venture, JoJo's Bizarre Adventure and Red Earth only)", GAME_IMPERFECT_GRAPHICS )
+// this does not play Red Earth or the 2 Jojo games.  New Generation and 3rd Strike have been heavily modified to work with the separate code/data encryption a dead cart / 2nd Impact cart has.  Selecting the other games will give an 'invalid CD' message.
+GAME( 1999, cps3bootoa, cps3boot, sfiii3,   cps3_jojo, cps3_state, sfiii2,     ROT0, "bootleg", "CPS3 Multi-game bootleg for dead security cart (older) (New Generation, 2nd Impact and 3rd Strike only)", GAME_IMPERFECT_GRAPHICS )
+// these are test bootleg CDs for running 2nd Impact on a standard SH2
+GAME( 1999, cps3bs32,  cps3boot, sfiii3,   cps3_jojo, cps3_state, cps3boot,   ROT0, "bootleg", "Street Fighter III 2nd Impact: Giant Attack (USA 970930, bootleg for HD6417095 type SH2, V3)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1999, cps3bs32a, cps3boot, sfiii3,   cps3_jojo, cps3_state, cps3boot,   ROT0, "bootleg", "Street Fighter III 2nd Impact: Giant Attack (USA 970930, bootleg for HD6417095 type SH2, older)", GAME_IMPERFECT_GRAPHICS ) // older / buggier hack

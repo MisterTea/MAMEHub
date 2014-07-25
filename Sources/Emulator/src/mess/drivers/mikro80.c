@@ -138,17 +138,6 @@ static INPUT_PORTS_START( mikro80 )
 	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_UNUSED)
 INPUT_PORTS_END
 
-/* Machine driver */
-static const cassette_interface mikro80_cassette_interface =
-{
-	rk8_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED),
-	NULL,
-	NULL
-};
-
-
 /* F4 Character Displayer */
 static const gfx_layout mikro80_charlayout =
 {
@@ -173,7 +162,10 @@ static MACHINE_CONFIG_START( mikro80, mikro80_state )
 	MCFG_CPU_PROGRAM_MAP(mikro80_mem)
 	MCFG_CPU_IO_MAP(mikro80_io)
 
-	MCFG_I8255_ADD( "ppi8255", mikro80_ppi8255_interface )
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(mikro80_state, mikro80_8255_porta_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(mikro80_state, mikro80_8255_portb_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(mikro80_state, mikro80_8255_portc_r))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -182,17 +174,19 @@ static MACHINE_CONFIG_START( mikro80, mikro80_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 64*8-1, 0, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mikro80_state, screen_update_mikro80)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mikro80)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mikro80)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( "cassette", mikro80_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(rk8_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( radio99, mikro80 )

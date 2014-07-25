@@ -43,7 +43,10 @@ public:
 		m_bg_scroll2(*this, "bg_scroll2"),
 		m_fg_tile_ram(*this, "fg_tile_ram"),
 		m_fg_color_ram(*this, "fg_color_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_bg_scroll;
 	required_shared_ptr<UINT8> m_gp98_reel1_ram;
@@ -93,6 +96,9 @@ public:
 	UINT32 screen_update_jingbell(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(jingbell_interrupt);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -112,8 +118,7 @@ TILE_GET_INFO_MEMBER(igs009_state::get_jingbell_reel1_tile_info)
 {
 	int code = m_gp98_reel1_ram[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code)+(((tile_index+1)&0x3)*0x100),
 			(code & 0x80) ? 0xc : 0,
 			0);
@@ -124,8 +129,7 @@ TILE_GET_INFO_MEMBER(igs009_state::get_gp98_reel1_tile_info)
 {
 	int code = m_gp98_reel1_ram[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code*4)+(tile_index&0x3),
 			0,
 			0);
@@ -142,8 +146,7 @@ TILE_GET_INFO_MEMBER(igs009_state::get_jingbell_reel2_tile_info)
 {
 	int code = m_gp98_reel2_ram[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code)+(((tile_index+1)&0x3)*0x100),
 			(code & 0x80) ? 0xc : 0,
 			0);
@@ -153,8 +156,7 @@ TILE_GET_INFO_MEMBER(igs009_state::get_gp98_reel2_tile_info)
 {
 	int code = m_gp98_reel2_ram[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code*4)+(tile_index&0x3),
 			0,
 			0);
@@ -172,8 +174,7 @@ TILE_GET_INFO_MEMBER(igs009_state::get_jingbell_reel3_tile_info)
 {
 	int code = m_gp98_reel3_ram[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code)+(((tile_index+1)&0x3)*0x100),
 			(code & 0x80) ? 0xc : 0,
 			0);
@@ -183,8 +184,7 @@ TILE_GET_INFO_MEMBER(igs009_state::get_gp98_reel3_tile_info)
 {
 	int code = m_gp98_reel3_ram[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code*4)+(tile_index&0x3),
 			0,
 			0);
@@ -202,8 +202,7 @@ TILE_GET_INFO_MEMBER(igs009_state::get_jingbell_reel4_tile_info)
 {
 	int code = m_gp98_reel4_ram[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code)+(((tile_index+1)&0x3)*0x100),
 			(code & 0x80) ? 0xc : 0,
 			0);
@@ -213,8 +212,7 @@ TILE_GET_INFO_MEMBER(igs009_state::get_gp98_reel4_tile_info)
 {
 	int code = m_gp98_reel4_ram[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code*4)+(tile_index&0x3),
 			0,
 			0);
@@ -253,13 +251,13 @@ WRITE8_MEMBER(igs009_state::fg_color_w)
 
 void igs009_state::video_start()
 {
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igs009_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8,  8,  0x80,0x20);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igs009_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8,  8,  0x80,0x20);
 	m_fg_tilemap->set_transparent_pen(0);
 
-	m_gp98_reel1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igs009_state::get_jingbell_reel1_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
-	m_gp98_reel2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igs009_state::get_jingbell_reel2_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
-	m_gp98_reel3_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igs009_state::get_jingbell_reel3_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
-	m_gp98_reel4_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igs009_state::get_jingbell_reel4_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
+	m_gp98_reel1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igs009_state::get_jingbell_reel1_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
+	m_gp98_reel2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igs009_state::get_jingbell_reel2_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
+	m_gp98_reel3_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igs009_state::get_jingbell_reel3_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
+	m_gp98_reel4_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igs009_state::get_jingbell_reel4_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
 
 	m_gp98_reel1_tilemap->set_scroll_cols(128);
 	m_gp98_reel2_tilemap->set_scroll_cols(128);
@@ -270,13 +268,13 @@ void igs009_state::video_start()
 
 VIDEO_START_MEMBER(igs009_state,gp98)
 {
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igs009_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8,  8,  0x80,0x20);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igs009_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8,  8,  0x80,0x20);
 	m_fg_tilemap->set_transparent_pen(0);
 
-	m_gp98_reel1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igs009_state::get_gp98_reel1_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
-	m_gp98_reel2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igs009_state::get_gp98_reel2_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
-	m_gp98_reel3_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igs009_state::get_gp98_reel3_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
-	m_gp98_reel4_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igs009_state::get_gp98_reel4_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
+	m_gp98_reel1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igs009_state::get_gp98_reel1_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
+	m_gp98_reel2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igs009_state::get_gp98_reel2_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
+	m_gp98_reel3_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igs009_state::get_gp98_reel3_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
+	m_gp98_reel4_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igs009_state::get_gp98_reel4_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 128, 8);
 
 	m_gp98_reel1_tilemap->set_scroll_cols(128);
 	m_gp98_reel2_tilemap->set_scroll_cols(128);
@@ -326,7 +324,7 @@ UINT32 igs009_state::screen_update_jingbell(screen_device &screen, bitmap_ind16 
 			/* draw top of screen */
 			clip.set(visarea.min_x, visarea.max_x, startclipmin, startclipmin+2);
 
-			bitmap.fill(machine().pens[rowenable], clip);
+			bitmap.fill(m_palette->pen(rowenable), clip);
 
 			if (rowenable==0)
 			{ // 0 and 1 are the same? or is there a global switchoff?
@@ -350,7 +348,7 @@ UINT32 igs009_state::screen_update_jingbell(screen_device &screen, bitmap_ind16 
 		}
 
 	}
-	else                    bitmap.fill(get_black_pen(machine()), cliprect);
+	else                    bitmap.fill(m_palette->black_pen(), cliprect);
 
 
 	if (layers_ctrl & 2)    m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
@@ -473,8 +471,8 @@ static ADDRESS_MAP_START( jingbell_portmap, AS_IO, 8, igs009_state )
 
 	AM_RANGE( 0x1000, 0x11ff ) AM_RAM_WRITE(bg_scroll_w ) AM_SHARE("bg_scroll")
 
-	AM_RANGE( 0x2000, 0x23ff ) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_lo_w ) AM_SHARE("paletteram")
-	AM_RANGE( 0x2400, 0x27ff ) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_hi_w ) AM_SHARE("paletteram2")
+	AM_RANGE( 0x2000, 0x23ff ) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE( 0x2400, 0x27ff ) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 
 	AM_RANGE( 0x3000, 0x33ff ) AM_RAM_WRITE(gp98_reel1_ram_w )  AM_SHARE("gp98_reel1_ram")
 	AM_RANGE( 0x3400, 0x37ff ) AM_RAM_WRITE(gp98_reel2_ram_w )  AM_SHARE("gp98_reel2_ram")
@@ -759,9 +757,11 @@ static MACHINE_CONFIG_START( jingbell, igs009_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(igs009_state, screen_update_jingbell)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(jingbell)
-	MCFG_PALETTE_LENGTH(0x400)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jingbell)
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 
 	/* sound hardware */
@@ -774,7 +774,7 @@ static MACHINE_CONFIG_START( jingbell, igs009_state )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( gp98, jingbell )
-	MCFG_GFXDECODE(gp98)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", gp98)
 
 	MCFG_VIDEO_START_OVERRIDE(igs009_state,gp98)
 MACHINE_CONFIG_END

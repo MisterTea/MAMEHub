@@ -122,9 +122,9 @@ static MACHINE_CONFIG_START( m79152pc, m79152pc_state )
 	MCFG_SCREEN_SIZE(640, 300)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 300-1)
 	MCFG_SCREEN_UPDATE_DRIVER(m79152pc_state, screen_update_m79152pc)
-	MCFG_GFXDECODE(m79152pc)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_PALETTE("palette")
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", m79152pc)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 MACHINE_CONFIG_END
 
 /* ROM definition */
@@ -140,4 +140,4 @@ ROM_END
 /* Driver */
 
 /*    YEAR  NAME       PARENT   COMPAT   MACHINE    INPUT     INIT    COMPANY     FULLNAME       FLAGS */
-COMP( ????, m79152pc,  0,       0,       m79152pc,  m79152pc, driver_device, 0,   "Mera-Elzab", "79152pc", GAME_NOT_WORKING | GAME_NO_SOUND)
+COMP( ????, m79152pc,  0,       0,       m79152pc,  m79152pc, driver_device, 0,   "Mera-Elzab", "MERA 79152 PC", GAME_NOT_WORKING | GAME_NO_SOUND)

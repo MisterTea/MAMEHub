@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     The Game Room Lethal Justice hardware
@@ -219,7 +221,7 @@ static ADDRESS_MAP_START( lethalj_map, AS_PROGRAM, 16, lethalj_state )
 	AM_RANGE(0x04500010, 0x0450001f) AM_READ_PORT("IN0")
 	AM_RANGE(0x04600000, 0x0460000f) AM_READ_PORT("IN1")
 	AM_RANGE(0x04700000, 0x0470007f) AM_WRITE(lethalj_blitter_w)
-	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00001ff) AM_DEVREADWRITE("maincpu", tms34010_device, io_register_r, io_register_w)
 	AM_RANGE(0xc0000240, 0xc000025f) AM_WRITENOP    /* seems to be a bug in their code, one of many. */
 	AM_RANGE(0xff800000, 0xffffffff) AM_ROM AM_REGION("user1", 0)
 ADDRESS_MAP_END
@@ -522,6 +524,104 @@ static INPUT_PORTS_START( cclownz )
 INPUT_PORTS_END
 
 
+static INPUT_PORTS_START( franticf ) // how do the directional inputs work?
+	PORT_START("IN0")
+	PORT_DIPNAME( 0x0001, 0x0001, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0001, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0002, 0x0002, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0002, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0004, 0x0004, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0004, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0008, 0x0008, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0008, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0010, 0x0010, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0010, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0020, 0x0020, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0020, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0040, 0x0040, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0040, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0080, 0x0080, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0080, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0100, 0x0100, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0100, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0200, 0x0200, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0200, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0400, 0x0400, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0400, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0800, 0x0800, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0800, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x1000, 0x1000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x1000, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x2000, 0x2000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x2000, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x4000, 0x4000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x4000, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x8000, 0x8000, "x" )
+	PORT_DIPSETTING(      0x8000, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+
+	PORT_START("IN1")
+	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_SERVICE1 )
+	PORT_DIPNAME( 0x0002, 0x0002, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0002, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_COIN1 )
+	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_COIN2 )
+	PORT_DIPNAME( 0x0010, 0x0010, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0010, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0020, 0x0020, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0020, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0040, 0x0040, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0040, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0080, 0x0080, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0080, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0100, 0x0100, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0100, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0200, 0x0200, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(      0x0200, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x1c00, 0x0400, "Number of Fruit" )
+	PORT_DIPSETTING(      0x0000, "3" )
+	PORT_DIPSETTING(      0x0400, "5" )
+	PORT_DIPSETTING(      0x0800, "7" )
+	PORT_DIPSETTING(      0x0c00, "9" )
+	PORT_DIPSETTING(      0x1000, "9 (duplicate 1)" ) // appear to be duplicates but could affect something else too
+	PORT_DIPSETTING(      0x1400, "9 (duplicate 2)" )
+	PORT_DIPSETTING(      0x1800, "9 (duplicate 3)" )
+	PORT_DIPSETTING(      0x1c00, "9 (duplicate 4)" )
+	PORT_DIPNAME( 0x6000, 0x2000, "Initial Fruit Values" )
+	PORT_DIPSETTING(      0x0000, "Lowest" )
+	PORT_DIPSETTING(      0x2000, "Low" )
+	PORT_DIPSETTING(      0x4000, "Medium" )
+	PORT_DIPSETTING(      0x6000, "High" )
+	PORT_DIPNAME( 0x8000, 0x0000, DEF_STR( Demo_Sounds ) )
+	PORT_DIPSETTING(      0x8000, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+
+//  PORT_START("PADDLE")
+//  PORT_BIT( 0x00ff, 0x0000, IPT_PADDLE ) PORT_PLAYER(1) PORT_SENSITIVITY(50) PORT_KEYDELTA(8) PORT_CENTERDELTA(0) PORT_REVERSE
+INPUT_PORTS_END
+
 
 /*************************************
  *
@@ -529,7 +629,7 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static const tms34010_config tms_config =
+static const tms340x0_config tms_config =
 {
 	FALSE,                          /* halt on reset */
 	"screen",                       /* the screen operated on */
@@ -541,7 +641,7 @@ static const tms34010_config tms_config =
 	NULL                            /* read from shiftreg function */
 };
 
-static const tms34010_config tms_config_lethalj =
+static const tms340x0_config tms_config_lethalj =
 {
 	FALSE,                          /* halt on reset */
 	"screen",                       /* the screen operated on */
@@ -565,7 +665,7 @@ static MACHINE_CONFIG_START( gameroom, lethalj_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", TMS34010, MASTER_CLOCK)
-	MCFG_CPU_CONFIG(tms_config)
+	MCFG_TMS340X0_CONFIG(tms_config)
 	MCFG_CPU_PROGRAM_MAP(lethalj_map)
 
 	MCFG_TICKET_DISPENSER_ADD("ticket", attotime::from_msec(200), TICKET_MOTOR_ACTIVE_HIGH, TICKET_STATUS_ACTIVE_HIGH)
@@ -574,10 +674,9 @@ static MACHINE_CONFIG_START( gameroom, lethalj_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(VIDEO_CLOCK, 701, 0, 512, 263, 0, 236)
 	MCFG_SCREEN_UPDATE_DEVICE("maincpu", tms34010_device, tms340x0_ind16)
+	MCFG_SCREEN_PALETTE("palette")
 
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRRR_GGGGG_BBBBB)
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD_RRRRRGGGGGBBBBB("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -596,7 +695,7 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( lethalj, gameroom )
 
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CONFIG(tms_config_lethalj)
+	MCFG_TMS340X0_CONFIG(tms_config_lethalj)
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_RAW_PARAMS(VIDEO_CLOCK_LETHALJ, 689, 0, 512, 259, 0, 236)
@@ -762,8 +861,10 @@ ROM_END
 
 ROM_START( eggventrd )
 	ROM_REGION16_LE( 0x100000, "user1", 0 )     /* 34010 code */
-	ROM_LOAD16_BYTE( "eggdlx.vc8", 0x000000, 0x080000, CRC(d7f56141) SHA1(3c16b509fd1c763e452c27084fb0e90cde3947f7) )
-	ROM_LOAD16_BYTE( "eggdlx.vc9", 0x000001, 0x080000, CRC(cc5f122e) SHA1(e719a3937378df605cdb86c59a534808473c8f90) )
+	ROM_LOAD16_BYTE( "eggdlx.vc8", 0x000000, 0x020000, CRC(8d678842) SHA1(92b18ec903ec8579e7dffb40284987f1d44255b8) )
+	ROM_LOAD16_BYTE( "eggdlx.vc9", 0x000001, 0x020000, CRC(9db3fd23) SHA1(165a12a2d107c93cf216e755596e7457010a8f17) )
+	ROM_COPY( "user1", 0x000000, 0x040000, 0x040000 ) // Program roms found as 27C010 & 27C040 with data repeated 4 times
+	ROM_COPY( "user1", 0x000000, 0x080000, 0x080000 ) // Program roms found as 27C010 & 27C040 with data repeated 4 times
 
 	ROM_REGION16_LE( 0x600000, "gfx1", 0 )          /* graphics data */
 	ROM_LOAD16_BYTE( "egr1.gr1",   0x000000, 0x100000, CRC(f73f80d9) SHA1(6278b45579a256b9576ba6d4f5a15fab26797c3d) )
@@ -781,6 +882,30 @@ ROM_START( eggventrd )
 
 	ROM_REGION( 0x80000, "oki3", 0 )                /* sound data */
 	ROM_LOAD( "eu18.u18", 0x00000, 0x80000, CRC(cca5dba0) SHA1(9c750256f0cc0ed8847db85df061be3b000b0b25) )
+ROM_END
+
+
+ROM_START( franticf )
+	ROM_REGION16_LE( 0x100000, "user1", 0 )     /* 34010 code */
+	ROM_LOAD16_BYTE( "fred_vc-8.vc8", 0x000000, 0x080000, CRC(f7eb92a2) SHA1(c56a0432b8c4fe8522f6dd1e0b60eded3dfc25d2) )
+	ROM_LOAD16_BYTE( "fred_vc-9.vc9", 0x000001, 0x080000, CRC(b657b800) SHA1(12649becab0019ea7150b5d797b72b07121c6a3e) )
+
+	ROM_REGION16_LE( 0x600000, "gfx1", 0 )          /* graphics data */
+	ROM_LOAD16_BYTE( "fred_gr1.gr1", 0x000000, 0x080000, CRC(acb75e63) SHA1(637ec6b7101f34a2bb93be8d0d5eaa800aafd332) )
+	ROM_LOAD16_BYTE( "fred_gr2.gr2", 0x000001, 0x080000, CRC(b47c6363) SHA1(0acfd7dc45d21e6e73b5abbc544e7c0fa192c462) )
+	ROM_LOAD16_BYTE( "fred_gr4.gr4", 0x200000, 0x080000, CRC(ac63729f) SHA1(dd856d983d85c38a784666105cb2d421bee8e76a) )
+	ROM_LOAD16_BYTE( "fred_gr3.gr3", 0x200001, 0x080000, CRC(d7444ecc) SHA1(47b9369fec845e844ffccd121fdde12cb4842ec6) )
+	ROM_LOAD16_BYTE( "fred_gr6.gr6", 0x400000, 0x080000, CRC(a0f1c918) SHA1(2004c2081a90ecc940d56f120f6e63190c8897a2) )
+	ROM_LOAD16_BYTE( "fred_gr5.gr5", 0x400001, 0x080000, CRC(fcdf73a6) SHA1(081daa1dc6af59ce63b976e059533b23097cedd9) )
+
+	ROM_REGION( 0x80000, "oki1", 0 )                /* sound data */
+	ROM_LOAD( "fred_u20.u20", 0x00000, 0x80000, CRC(2fb2e5a6) SHA1(8599ec10500016c3486f9078b72cb3bda3381208) )
+
+	ROM_REGION( 0x80000, "oki2", ROMREGION_ERASE00 )                /* sound data */
+	/* Not populated */
+
+	ROM_REGION( 0x80000, "oki3", 0 )                /* sound data */
+	ROM_LOAD( "fred_u18.u18", 0x00000, 0x80000, CRC(2fb2e5a6) SHA1(8599ec10500016c3486f9078b72cb3bda3381208) )
 ROM_END
 
 
@@ -913,6 +1038,7 @@ DRIVER_INIT_MEMBER(lethalj_state,cclownz)
  *************************************/
 
 GAME( 1996, lethalj,   0,        lethalj,  lethalj,   driver_device, 0,        ROT0,  "The Game Room", "Lethal Justice", 0 )
+GAME( 1996, franticf,  0,        gameroom, franticf,  driver_device, 0,        ROT0,  "The Game Room", "Frantic Fred", GAME_NOT_WORKING )
 GAME( 1997, eggventr,  0,        gameroom, eggventr,  driver_device, 0,        ROT0,  "The Game Room", "Egg Venture (Release 10)", 0 )
 GAME( 1997, eggventr8, eggventr, gameroom, eggventr,  driver_device, 0,        ROT0,  "The Game Room", "Egg Venture (Release 8)", 0 )
 GAME( 1997, eggventr7, eggventr, gameroom, eggventr,  driver_device, 0,        ROT0,  "The Game Room", "Egg Venture (Release 7)", 0 )

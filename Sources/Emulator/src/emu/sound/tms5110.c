@@ -84,7 +84,7 @@
 #define CTL_STATE_NEXT_OUTPUT   (2)
 
 /* Pull in the ROM tables */
-#include "tms5110r.c"
+#include "tms5110r.inc"
 
 #define DEBUG_5110  0
 
@@ -110,16 +110,16 @@ void tms5110_device::set_variant(int variant)
 
 void tms5110_device::new_int_write(UINT8 rc, UINT8 m0, UINT8 m1, UINT8 addr)
 {
-	if (!m_m0_func.isnull())
-		m_m0_func(m0);
-	if (!m_m1_func.isnull())
-		m_m1_func(m1);
-	if (!m_addr_func.isnull())
-		m_addr_func(0, addr);
-	if (!m_romclk_func.isnull())
+	if (!m_m0_cb.isnull())
+		m_m0_cb(m0);
+	if (!m_m1_cb.isnull())
+		m_m1_cb(m1);
+	if (!m_addr_cb.isnull())
+		m_addr_cb((offs_t)0, addr);
+	if (!m_romclk_cb.isnull())
 	{
 		//printf("rc %d\n", rc);
-		m_romclk_func(rc);
+		m_romclk_cb(rc);
 	}
 }
 
@@ -137,8 +137,8 @@ UINT8 tms5110_device::new_int_read()
 	new_int_write(0, 1, 0, 0);
 	new_int_write(1, 0, 0, 0);
 	new_int_write(0, 0, 0, 0);
-	if (!m_data_func.isnull())
-		return m_data_func();
+	if (!m_data_cb.isnull())
+		return m_data_cb();
 	return 0;
 }
 
@@ -232,19 +232,10 @@ int tms5110_device::extract_bits(int count)
 
 void tms5110_device::request_bits(int no)
 {
-	for (int i=0; i<no; i++)
+	for (int i = 0; i < no; i++)
 	{
-		if (m_M0_callback)
-		{
-			int data = (*m_M0_callback)(this);
-			FIFO_data_write(data);
-		}
-		else
-		{
-			//if (DEBUG_5110) logerror("-->ERROR: TMS5110 missing M0 callback function\n");
-			UINT8 data = new_int_read();
-			FIFO_data_write(data);
-		}
+		UINT8 data = new_int_read();
+		FIFO_data_write(data);
 	}
 }
 
@@ -252,19 +243,8 @@ void tms5110_device::perform_dummy_read()
 {
 	if (m_schedule_dummy_read)
 	{
-		if (m_M0_callback)
-		{
-			int data = (*m_M0_callback)(this);
-
-			if (DEBUG_5110) logerror("TMS5110 performing dummy read; value read = %1i\n", data&1);
-		}
-		else
-		{
-			int data = new_int_read();
-
-			if (DEBUG_5110) logerror("TMS5110 performing dummy read; value read = %1i\n", data&1);
-			//if (DEBUG_5110) logerror("-->ERROR: TMS5110 missing M0 callback function\n");
-		}
+		int data = new_int_read();
+		if (DEBUG_5110) logerror("TMS5110 performing dummy read; value read = %1i\n", data & 1);
 		m_schedule_dummy_read = FALSE;
 	}
 }
@@ -621,8 +601,6 @@ void tms5110_device::PDC_set(int data)
 				m_address = m_address | ((m_CTL_pins & 0x0F)<<m_addr_bit);
 				m_addr_bit = (m_addr_bit + 4) % 12;
 				m_schedule_dummy_read = TRUE;
-				if (m_set_load_address)
-					m_set_load_address(this, m_address);
 				new_int_write_addr(m_CTL_pins & 0x0F);
 			}
 			else
@@ -838,75 +816,25 @@ static const unsigned int example_word_TEN[619]={
 #endif
 
 
-static int speech_rom_read_bit(device_t *device)
-{
-	tms5110_device *tms5110 = (tms5110_device *) device;
-	return tms5110->_speech_rom_read_bit();
-}
-
-int tms5110_device::_speech_rom_read_bit()
-{
-	int r;
-
-	if (m_speech_rom_bitnum<0)
-		r = 0;
-	else
-		r = (m_table[m_speech_rom_bitnum >> 3] >> (0x07 - (m_speech_rom_bitnum & 0x07))) & 1;
-
-	m_speech_rom_bitnum++;
-
-	return r;
-}
-
-static void speech_rom_set_addr(device_t *device, int addr)
-{
-	tms5110_device *tms5110 = (tms5110_device *) device;
-	tms5110->_speech_rom_set_addr(addr);
-}
-
-void tms5110_device::_speech_rom_set_addr(int addr)
-{
-	m_speech_rom_bitnum = addr * 8 - 1;
-}
-
 //-------------------------------------------------
 //  device_start - device-specific startup
 //-------------------------------------------------
 
 void tms5110_device::device_start()
 {
-	static const tms5110_interface dummy = { NULL, NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL};
-
-	assert_always(static_config() != NULL, "No config");
-
-	m_intf = static_config() ? (const tms5110_interface *)static_config() : &dummy;
 	m_table = *region();
 
 	set_variant(TMS5110_IS_5110A);
 
 	/* resolve lines */
-	m_m0_func.resolve(m_intf->m0_func, *this);
-	m_m1_func.resolve(m_intf->m1_func, *this);
-	m_romclk_func.resolve(m_intf->romclk_func, *this);
-	m_addr_func.resolve(m_intf->addr_func, *this);
-	m_data_func.resolve(m_intf->data_func, *this);
+	m_m0_cb.resolve();
+	m_m1_cb.resolve();
+	m_romclk_cb.resolve();
+	m_addr_cb.resolve();
+	m_data_cb.resolve();
 
 	/* initialize a stream */
 	m_stream = machine().sound().stream_alloc(*this, 0, 1, clock() / 80);
-
-	if (m_table == NULL)
-	{
-#if 0
-		assert_always(m_intf->M0_callback != NULL, "Missing _mandatory_ 'M0_callback' function pointer in the TMS5110 interface\n  This function is used by TMS5110 to call for a single bits\n  needed to generate the speech\n  Aborting startup...\n");
-#endif
-		m_M0_callback = m_intf->M0_callback;
-		m_set_load_address = m_intf->load_address;
-	}
-	else
-	{
-		m_M0_callback = speech_rom_read_bit;
-		m_set_load_address = speech_rom_set_addr;
-	}
 
 	m_state = CTL_STATE_INPUT; /* most probably not defined */
 	m_romclk_hack_timer = timer_alloc(0);
@@ -1003,7 +931,7 @@ void tms5110_device::device_reset()
 	memset(m_x, 0, sizeof(m_x));
 	m_next_is_address = FALSE;
 	m_address = 0;
-	if (m_table != NULL || m_M0_callback != NULL)
+	if (m_table != NULL)
 	{
 		/* legacy interface */
 		m_schedule_dummy_read = TRUE;
@@ -1215,7 +1143,7 @@ void tms5110_device::set_frequency(int frequency)
 
 /******************************************************************************
 
-     DEVICE_START( tmsprom ) -- allocate buffers initialize
+     device_start( tmsprom ) -- allocate buffers initialize
 
 ******************************************************************************/
 
@@ -1232,7 +1160,7 @@ void tmsprom_device::register_for_save_states()
 void tmsprom_device::update_prom_cnt()
 {
 	UINT8 prev_val = m_prom[m_prom_cnt] | 0x0200;
-	if (m_enable && (prev_val & (1<<m_intf->stop_bit)))
+	if (m_enable && (prev_val & (1<<m_stop_bit)))
 		m_prom_cnt |= 0x10;
 	else
 		m_prom_cnt &= 0x0f;
@@ -1256,13 +1184,13 @@ void tmsprom_device::device_timer(emu_timer &timer, device_timer_id id, int para
 	//if (m_enable && m_prom_cnt < 0x10) printf("ctrl %04x, enable %d cnt %d\n", ctrl, m_enable, m_prom_cnt);
 	m_prom_cnt = ((m_prom_cnt + 1) & 0x0f) | (m_prom_cnt & 0x10);
 
-	if (ctrl & (1 << m_intf->reset_bit))
+	if (ctrl & (1 << m_reset_bit))
 		m_address = 0;
 
-	m_ctl_func(0, BITSWAP8(ctrl,0,0,0,0,m_intf->ctl8_bit,
-			m_intf->ctl4_bit,m_intf->ctl2_bit,m_intf->ctl1_bit));
+	m_ctl_cb((offs_t)0, BITSWAP8(ctrl,0,0,0,0,m_ctl8_bit,
+			m_ctl4_bit,m_ctl2_bit,m_ctl1_bit));
 
-	m_pdc_func((ctrl >> m_intf->pdc_bit) & 0x01);
+	m_pdc_cb((ctrl >> m_pdc_bit) & 0x01);
 }
 
 //-------------------------------------------------
@@ -1271,22 +1199,17 @@ void tmsprom_device::device_timer(emu_timer &timer, device_timer_id id, int para
 
 void tmsprom_device::device_start()
 {
-	m_intf = (const tmsprom_interface *) static_config();
-	assert_always(m_intf != NULL, "Error creating TMSPROM chip: No configuration");
-
 	/* resolve lines */
-	m_pdc_func.resolve(m_intf->pdc_func, *this);
-	m_ctl_func.resolve(m_intf->ctl_func, *this);
+	m_pdc_cb.resolve_safe();
+	m_ctl_cb.resolve_safe();
 
 	m_rom = *region();
 	assert_always(m_rom != NULL, "Error creating TMSPROM chip: No rom region found");
-	m_prom = machine().root_device().memregion(m_intf->prom_region)->base();
-	assert_always(m_rom != NULL, "Error creating TMSPROM chip: No prom region found");
-
-	m_clock = clock();
+	m_prom = machine().root_device().memregion(m_prom_region)->base();
+	assert_always(m_prom != NULL, "Error creating TMSPROM chip: No prom region found");
 
 	m_romclk_timer = timer_alloc(0);
-	m_romclk_timer->adjust(attotime::zero, 0, attotime::from_hz(m_clock));
+	m_romclk_timer->adjust(attotime::zero, 0, attotime::from_hz(clock()));
 
 	m_bit = 0;
 	m_base_address = 0;
@@ -1304,7 +1227,7 @@ WRITE_LINE_MEMBER( tmsprom_device::m0_w )
 	if (m_m0 && !state)
 	{
 		m_address += 1;
-		m_address &= (m_intf->rom_size-1);
+		m_address &= (m_rom_size-1);
 	}
 	m_m0 = state;
 }
@@ -1318,7 +1241,7 @@ READ_LINE_MEMBER( tmsprom_device::data_r )
 WRITE8_MEMBER( tmsprom_device::rom_csq_w )
 {
 	if (!data)
-		m_base_address = offset * m_intf->rom_size;
+		m_base_address = offset * m_rom_size;
 }
 
 WRITE8_MEMBER( tmsprom_device::bit_w )
@@ -1356,25 +1279,26 @@ const device_type TMS5110 = &device_creator<tms5110_device>;
 
 tms5110_device::tms5110_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, TMS5110, "TMS5110", tag, owner, clock, "tms5110", __FILE__),
-		device_sound_interface(mconfig, *this)
+		device_sound_interface(mconfig, *this),
+		m_m0_cb(*this),
+		m_m1_cb(*this),
+		m_addr_cb(*this),
+		m_data_cb(*this),
+		m_romclk_cb(*this)
 {
 }
 
 tms5110_device::tms5110_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
 	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-		device_sound_interface(mconfig, *this)
+		device_sound_interface(mconfig, *this),
+		m_m0_cb(*this),
+		m_m1_cb(*this),
+		m_addr_cb(*this),
+		m_data_cb(*this),
+		m_romclk_cb(*this)
 {
 }
 
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void tms5110_device::device_config_complete()
-{
-}
 
 const device_type TMS5100 = &device_creator<tms5100_device>;
 
@@ -1428,16 +1352,17 @@ m58817_device::m58817_device(const machine_config &mconfig, const char *tag, dev
 const device_type TMSPROM = &device_creator<tmsprom_device>;
 
 tmsprom_device::tmsprom_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, TMSPROM, "TMSPROM", tag, owner, clock, "tmsprom", __FILE__)
-{
-}
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void tmsprom_device::device_config_complete()
+	: device_t(mconfig, TMSPROM, "TMSPROM", tag, owner, clock, "tmsprom", __FILE__),
+		m_prom_region(""),
+		m_rom_size(0),
+		m_pdc_bit(0),
+		m_ctl1_bit(0),
+		m_ctl2_bit(0),
+		m_ctl4_bit(0),
+		m_ctl8_bit(0),
+		m_reset_bit(0),
+		m_stop_bit(0),
+		m_pdc_cb(*this),
+		m_ctl_cb(*this)
 {
 }

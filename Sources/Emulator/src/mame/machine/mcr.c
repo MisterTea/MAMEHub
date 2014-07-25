@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Midway MCR system
@@ -90,52 +92,6 @@ const z80_daisy_config mcr_ipu_daisy_chain[] =
 };
 
 
-Z80CTC_INTERFACE( mcr_ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),   /* interrupt handler */
-	DEVCB_DEVICE_LINE_MEMBER("ctc", z80ctc_device, trg1),   /* ZC/TO0 callback */
-	DEVCB_NULL,                 /* ZC/TO1 callback */
-	DEVCB_NULL                  /* ZC/TO2 callback */
-};
-
-
-Z80CTC_INTERFACE( nflfoot_ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("ipu", INPUT_LINE_IRQ0),  /* interrupt handler */
-	DEVCB_NULL,         /* ZC/TO0 callback */
-	DEVCB_NULL,         /* ZC/TO1 callback */
-	DEVCB_NULL          /* ZC/TO2 callback */
-};
-
-
-Z80PIO_INTERFACE( nflfoot_pio_intf )
-{
-	DEVCB_CPU_INPUT_LINE("ipu", INPUT_LINE_IRQ0),  /* interrupt handler */
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-WRITE_LINE_MEMBER(mcr_state::ipu_ctc_interrupt)
-{
-	m_ipu->set_input_line(0, state);
-}
-
-
-const z80sio_interface nflfoot_sio_intf =
-{
-	DEVCB_DRIVER_LINE_MEMBER(mcr_state,ipu_ctc_interrupt),  /* interrupt handler */
-	DEVCB_NULL,                 /* DTR changed handler */
-	DEVCB_NULL,                 /* RTS changed handler */
-	DEVCB_DRIVER_MEMBER(mcr_state,ipu_break_changed),   /* BREAK changed handler */
-	DEVCB_DRIVER_MEMBER16(mcr_state,mcr_ipu_sio_transmit)/* transmit handler */
-};
-
-
 
 /*************************************
  *
@@ -213,17 +169,18 @@ TIMER_DEVICE_CALLBACK_MEMBER(mcr_state::mcr_ipu_interrupt)
  *
  *************************************/
 
-WRITE8_MEMBER(mcr_state::ipu_break_changed)
+WRITE_LINE_MEMBER(mcr_state::sio_txda_w)
 {
-	/* channel B is connected to the CED player */
-	if (offset == 1)
-	{
-		logerror("DTR changed -> %d\n", data);
-		if (data == 1)
-			downcast<z80sio_device *>(machine().device("ipu_sio"))->receive_data(1, 0);
-	}
+	m_sio_txda = !state;
 }
 
+WRITE_LINE_MEMBER(mcr_state::sio_txdb_w)
+{
+	// disc player
+	m_sio_txdb = !state;
+
+	m_sio->rxb_w(state);
+}
 
 WRITE8_MEMBER(mcr_state::mcr_ipu_laserdisk_w)
 {

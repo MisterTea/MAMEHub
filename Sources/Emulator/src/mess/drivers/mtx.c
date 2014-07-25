@@ -1,8 +1,9 @@
 /*************************************************************************
 
-    driver/mtx.c
-
     Memotech MTX 500, MTX 512 and RS 128
+
+    license: MAME
+    copyright-holders: (Original Author?), Dirk Best, Curt Coder
 
 **************************************************************************/
 
@@ -28,7 +29,7 @@
 #include "imagedev/cassette.h"
 #include "machine/ram.h"
 #include "imagedev/snapquik.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/z80ctc.h"
 #include "machine/z80dart.h"
 #include "video/tms9928a.h"
@@ -60,8 +61,7 @@ static ADDRESS_MAP_START( mtx_io, AS_IO, 8, mtx_state )
 	AM_RANGE(0x01, 0x01) AM_DEVREADWRITE("tms9929a", tms9929a_device, vram_read, vram_write)
 	AM_RANGE(0x02, 0x02) AM_DEVREADWRITE("tms9929a", tms9929a_device, register_read, register_write)
 	AM_RANGE(0x03, 0x03) AM_READWRITE(mtx_sound_strobe_r, mtx_cst_w)
-	AM_RANGE(0x04, 0x04) AM_READ(mtx_prt_r)
-	AM_RANGE(0x04, 0x04) AM_DEVWRITE(CENTRONICS_TAG, centronics_device, write)
+	AM_RANGE(0x04, 0x04) AM_READ(mtx_prt_r) AM_DEVWRITE("cent_data_out", output_latch_device, write)
 	AM_RANGE(0x05, 0x05) AM_READWRITE(mtx_key_lo_r, mtx_sense_w)
 	AM_RANGE(0x06, 0x06) AM_READWRITE(mtx_key_hi_r, mtx_sound_latch_w)
 //  AM_RANGE(0x07, 0x07) PIO
@@ -207,7 +207,7 @@ INPUT_PORTS_END
 ***************************************************************************/
 
 /*-------------------------------------------------
-    Z80CTC_INTERFACE( ctc_intf )
+    Z80CTC
 -------------------------------------------------*/
 
 TIMER_DEVICE_CALLBACK_MEMBER(mtx_state::ctc_tick)
@@ -235,42 +235,6 @@ WRITE_LINE_MEMBER(mtx_state::ctc_trg2_w)
 	}
 }
 
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0),
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(mtx_state,ctc_trg1_w),
-	DEVCB_DRIVER_LINE_MEMBER(mtx_state,ctc_trg2_w)
-};
-
-/*-------------------------------------------------
-    Z80DART_INTERFACE( dart_intf )
--------------------------------------------------*/
-
-static Z80DART_INTERFACE( dart_intf )
-{
-	0,
-	0,
-	0,
-	0,
-
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0)
-};
-
 /*-------------------------------------------------
     z80_daisy_config mtx_daisy_chain
 -------------------------------------------------*/
@@ -292,9 +256,6 @@ static const z80_daisy_config rs128_daisy_chain[] =
 	{ NULL }
 };
 
-/*-------------------------------------------------
-    cassette_interface mtx_cassette_interface
--------------------------------------------------*/
 
 TIMER_DEVICE_CALLBACK_MEMBER(mtx_state::cassette_tick)
 {
@@ -302,15 +263,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(mtx_state::cassette_tick)
 
 	m_z80ctc->trg3(data);
 }
-
-static const cassette_interface mtx_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED),
-	NULL,
-	NULL
-};
 
 /*-------------------------------------------------
     mtx_tms9928a_interface
@@ -320,22 +272,6 @@ WRITE_LINE_MEMBER(mtx_state::mtx_tms9929a_interrupt)
 {
 	m_z80ctc->trg0(state ? 0 : 1);
 }
-
-static TMS9928A_INTERFACE(mtx_tms9928a_interface)
-{
-	0x4000,
-	DEVCB_DRIVER_LINE_MEMBER(mtx_state,mtx_tms9929a_interrupt)
-};
-
-/*-------------------------------------------------
-    sn76496_config psg_intf
--------------------------------------------------*/
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
 
 /***************************************************************************
     MACHINE DRIVERS
@@ -357,22 +293,37 @@ static MACHINE_CONFIG_START( mtx512, mtx_state )
 	MCFG_MACHINE_RESET_OVERRIDE(mtx_state,mtx512)
 
 	/* video hardware */
-	MCFG_TMS9928A_ADD( "tms9929a", TMS9929A, mtx_tms9928a_interface )
+	MCFG_DEVICE_ADD( "tms9929a", TMS9929A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(mtx_state, mtx_tms9929a_interrupt))
 	MCFG_TMS9928A_SCREEN_ADD_PAL( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9929a", tms9929a_device, screen_update )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD(SN76489A_TAG, SN76489A, XTAL_4MHz)
-	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	/* devices */
-	MCFG_Z80CTC_ADD(Z80CTC_TAG, XTAL_4MHz, ctc_intf )
+	MCFG_DEVICE_ADD(Z80CTC_TAG, Z80CTC, XTAL_4MHz)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC1_CB(WRITELINE(mtx_state, ctc_trg1_w))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(mtx_state, ctc_trg2_w))
+
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("z80ctc_timer", mtx_state, ctc_tick, attotime::from_hz(XTAL_4MHz/13))
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(mtx_state, write_centronics_busy))
+	MCFG_CENTRONICS_FAULT_HANDLER(WRITELINE(mtx_state, write_centronics_fault))
+	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(mtx_state, write_centronics_perror))
+	MCFG_CENTRONICS_SELECT_HANDLER(WRITELINE(mtx_state, write_centronics_select))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+
 	MCFG_SNAPSHOT_ADD("snapshot", mtx_state, mtx, "mtx", 1)
-	MCFG_CASSETTE_ADD("cassette", mtx_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
+
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("cassette_timer", mtx_state, cassette_tick, attotime::from_hz(44100))
 
 	/* internal ram */
@@ -405,7 +356,8 @@ static MACHINE_CONFIG_DERIVED( rs128, mtx512 )
 	MCFG_CPU_CONFIG(rs128_daisy_chain)
 
 	/* devices */
-	MCFG_Z80DART_ADD(Z80DART_TAG, XTAL_4MHz, dart_intf)
+	MCFG_Z80DART_ADD(Z80DART_TAG,  XTAL_4MHz, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)
@@ -437,6 +389,10 @@ ROM_START( mtx512 )
 
 	ROM_REGION( 0x1000, MC6845_TAG, 0 )
 	ROM_LOAD( "80z.bin", 0x0000, 0x1000, CRC(ea6fe865) SHA1(f84883f79bed34501e5828336894fad929bddbb5) )
+
+	/* Device GAL16V8 converted from PAL14L4 JEDEC map */
+	ROM_REGION( 0x117, "plds", 0 )
+	ROM_LOAD( "memotech-mtx512.bin", 0x0000, 0x0117, CRC(31f88133) SHA1(5bef3ce764121b3510b538824b2768f082b422bb) )
 ROM_END
 
 #define rom_mtx500  rom_mtx512

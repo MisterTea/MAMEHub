@@ -128,8 +128,9 @@ Find lamps/reels after UPD changes.
 #include "cpu/m68000/m68000.h"
 #include "video/awpvid.h"
 #include "cpu/mcs51/mcs51.h"
+#include "machine/i8279.h"
 #include "machine/6821pia.h"
-#include "machine/68681.h"
+#include "machine/mc68681.h"
 #include "sound/2413intf.h"
 #include "sound/upd7759.h"
 #include "machine/nvram.h"
@@ -202,17 +203,6 @@ struct i82716_t
 };
 
 
-struct i8279_t
-{
-	UINT8   command;
-	UINT8   mode;
-	UINT8   prescale;
-	UINT8   inhibit;
-	UINT8   clear;
-	UINT8   fifo[8];
-	UINT8   ram[16];
-};
-
 class maygayv1_state : public driver_device
 {
 public:
@@ -220,26 +210,35 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_soundcpu(*this, "soundcpu"),
-		m_upd7759(*this, "upd") { }
+		m_upd7759(*this, "upd"),
+		m_duart68681(*this, "duart68681"),
+		m_palette(*this, "palette") { }
 
+	required_device<cpu_device> m_maincpu;
+	required_device<i8052_device> m_soundcpu;
+	required_device<upd7759_device> m_upd7759;
+	required_device<mc68681_device> m_duart68681;
+	required_device<palette_device> m_palette;
+
+	int m_lamp_strobe;
+	int m_old_lamp_strobe;
 	int m_vsync_latch_preset;
 	UINT8 m_p1;
 	UINT8 m_p3;
 	int m_d68681_val;
-	device_t *m_duart68681;
 	i82716_t m_i82716;
-	i8279_t m_i8279;
 	DECLARE_WRITE16_MEMBER(i82716_w);
 	DECLARE_READ16_MEMBER(i82716_r);
 	DECLARE_WRITE16_MEMBER(write_odd);
 	DECLARE_READ16_MEMBER(read_odd);
-	DECLARE_READ16_MEMBER(maygay_8279_r);
-	DECLARE_WRITE16_MEMBER(maygay_8279_w);
 	DECLARE_WRITE16_MEMBER(vsync_int_ctrl);
 	DECLARE_READ8_MEMBER(mcu_r);
 	DECLARE_WRITE8_MEMBER(mcu_w);
 	DECLARE_READ8_MEMBER(b_read);
 	DECLARE_WRITE8_MEMBER(b_writ);
+	DECLARE_WRITE8_MEMBER(strobe_w);
+	DECLARE_WRITE8_MEMBER(lamp_data_w);
+	DECLARE_READ8_MEMBER(kbd_r);
 	DECLARE_DRIVER_INIT(screenpl);
 	virtual void machine_start();
 	virtual void machine_reset();
@@ -249,9 +248,8 @@ public:
 	INTERRUPT_GEN_MEMBER(vsync_interrupt);
 	DECLARE_WRITE8_MEMBER(data_from_i8031);
 	DECLARE_READ8_MEMBER(data_to_i8031);
-	required_device<cpu_device> m_maincpu;
-	required_device<i8052_device> m_soundcpu;
-	required_device<upd7759_device> m_upd7759;
+	DECLARE_WRITE_LINE_MEMBER(duart_irq_handler);
+	DECLARE_WRITE_LINE_MEMBER(duart_txa);
 };
 
 
@@ -319,7 +317,7 @@ UINT32 maygayv1_state::screen_update_maygayv1(screen_device &screen, bitmap_ind1
 	/* If screen output is disabled, fill with black */
 	if (!(VREG(VCR0) & VCR0_DEN))
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 		return 0;
 	}
 
@@ -461,7 +459,7 @@ void maygayv1_state::screen_eof_maygayv1(screen_device &screen, bool state)
 			for (i = 0; i < 16; ++i)
 			{
 				UINT16 entry = *palbase++;
-				palette_set_color_rgb(machine(), entry & 0xf, pal4bit(entry >> 12), pal4bit(entry >> 8), pal4bit(entry >> 4));
+				m_palette->set_pen_color(entry & 0xf, pal4bit(entry >> 12), pal4bit(entry >> 8), pal4bit(entry >> 4));
 			}
 		}
 	}
@@ -500,184 +498,42 @@ READ16_MEMBER(maygayv1_state::read_odd)
 	return 0;
 }
 
+/*************************************
+ *
+ *  8279 display/keyboard driver
+ *
+ *************************************/
 
-/* TODO */
-static void update_outputs(i8279_t &i8279, UINT16 which)
+WRITE8_MEMBER( maygayv1_state::strobe_w )
 {
-	int i;
-
-	/* update the items in the bitmask */
-	for (i = 0; i < 16; i++)
-		if (which & (1 << i))
-		{
-/*
-            int val;
-
-            val = i8279.ram[i] & 0xff;
-
-            val = i8279.ram[i] & 0x0f;
-            if (i8279.inhibit & 0x01)
-                val = i8279.clear & 0x0f;
-
-                if(val) printf("%x\n", val);
-
-            val = i8279.ram[i] >> 4;
-            if (i8279.inhibit & 0x02)
-                val = i8279.clear >> 4;
-
-                if(val) printf("%x\n", val);
-*/
-		}
+	m_lamp_strobe = data;
 }
 
-READ16_MEMBER(maygayv1_state::maygay_8279_r)
+WRITE8_MEMBER( maygayv1_state::lamp_data_w )
 {
-	i8279_t &i8279 = m_i8279;
+	//The two A/B ports are merged back into one, to make one row of 8 lamps.
+
+	if (m_old_lamp_strobe != m_lamp_strobe)
+	{
+		// Because of the nature of the lamping circuit, there is an element of persistance
+		// As a consequence, the lamp column data can change before the input strobe without
+		// causing the relevant lamps to black out.
+
+		for (int i = 0; i < 8; i++)
+		{
+			output_set_lamp_value((8*m_lamp_strobe)+i, ((data  & (1 << i)) !=0));
+		}
+		m_old_lamp_strobe = m_lamp_strobe;
+	}
+
+}
+
+READ8_MEMBER( maygayv1_state::kbd_r )
+{
 	static const char *const portnames[] = { "STROBE1","STROBE2","STROBE3","STROBE4","STROBE5","STROBE6","STROBE7","STROBE8" };
-	UINT8 result = 0xff;
-	UINT8 addr;
 
-	/* read data */
-	if ((offset & 1) == 0)
-	{
-		switch (i8279.command & 0xe0)
-		{
-			/* read sensor RAM */
-			case 0x40:
-				addr = i8279.command & 0x07;
-
-				result = ioport(portnames[addr])->read();
-
-				/* handle autoincrement */
-				if (i8279.command & 0x10)
-					i8279.command = (i8279.command & 0xf0) | ((addr + 1) & 0x0f);
-
-				break;
-
-			/* read display RAM */
-			case 0x60:
-
-				/* set the value of the corresponding outputs */
-				addr = i8279.command & 0x0f;
-				result = i8279.ram[addr];
-
-				/* handle autoincrement */
-				if (i8279.command & 0x10)
-					i8279.command = (i8279.command & 0xf0) | ((addr + 1) & 0x0f);
-				break;
-		}
-	}
-	/* read status word */
-	else
-	{
-		printf("read 0xfc%02x\n", offset);
-		result = 0x10;
-	}
-	return result;
+	return ioport(portnames[m_lamp_strobe&0x07])->read();
 }
-
-
-WRITE16_MEMBER(maygayv1_state::maygay_8279_w)
-{
-	i8279_t &i8279 = m_i8279;
-	UINT8 addr;
-
-	data >>= 8;
-
-	/* write data */
-	if ((offset & 1) == 0)
-	{
-		switch (i8279.command & 0xe0)
-		{
-			/* write display RAM */
-			case 0x80:
-
-				/* set the value of the corresponding outputs */
-				addr = i8279.command & 0x0f;
-				if (!(i8279.inhibit & 0x04))
-					i8279.ram[addr] = (i8279.ram[addr] & 0xf0) | (data & 0x0f);
-				if (!(i8279.inhibit & 0x08))
-					i8279.ram[addr] = (i8279.ram[addr] & 0x0f) | (data & 0xf0);
-				update_outputs(i8279, 1 << addr);
-
-				/* handle autoincrement */
-				if (i8279.command & 0x10)
-					i8279.command = (i8279.command & 0xf0) | ((addr + 1) & 0x0f);
-				break;
-		}
-	}
-
-	/* write command */
-	else
-	{
-		i8279.command = data;
-
-		switch (data & 0xe0)
-		{
-			/* command 0: set mode */
-			/*
-			    Display modes:
-
-			    00 = 8 x 8-bit character display -- left entry
-			    01 = 16 x 8-bit character display -- left entry
-			    10 = 8 x 8-bit character display -- right entry
-			    11 = 16 x 8-bit character display -- right entry
-
-			    Keyboard modes:
-
-			    000 = Encoded scan keyboard -- 2 key lockout
-			    001 = Decoded scan keyboard -- 2 key lockout
-			    010 = Encoded scan keyboard -- N-key rollover
-			    011 = Decoded scan keyboard -- N-key rollover
-			    100 = Encoded scan sensor matrix
-			    101 = Decoded scan sensor matrix
-			    110 = Strobed input, encoded display scan
-			    111 = Strobed input, decoded display scan
-			*/
-			case 0x00:
-				logerror("8279: display mode = %d, keyboard mode = %d\n", (data >> 3) & 3, data & 7);
-				i8279.mode = data & 0x1f;
-				break;
-
-			/* command 1: program clock */
-			case 0x20:
-				logerror("8279: clock prescaler set to %02X\n", data & 0x1f);
-				i8279.prescale = data & 0x1f;
-				break;
-
-			/* command 2: read FIFO/sensor RAM */
-			/* command 3: read display RAM */
-			/* command 4: write display RAM */
-			case 0x40:
-			case 0x60:
-			case 0x80:
-				break;
-
-			/* command 5: display write inhibit/blanking */
-			case 0xa0:
-				i8279.inhibit = data & 0x0f;
-				update_outputs(i8279, ~0);
-				logerror("8279: clock prescaler set to %02X\n", data & 0x1f);
-				break;
-
-			/* command 6: clear */
-			case 0xc0:
-				i8279.clear = (data & 0x08) ? ((data & 0x04) ? 0xff : 0x20) : 0x00;
-				if (data & 0x11)
-					memset(i8279.ram, i8279.clear, sizeof(i8279.ram));
-				break;
-
-			/* command 7: end interrupt/error mode set */
-			case 0xe0:
-				break;
-		}
-	}
-}
-
-
-
-
-
 
 WRITE16_MEMBER(maygayv1_state::vsync_int_ctrl)
 {
@@ -692,13 +548,15 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, maygayv1_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x080000, 0x083fff) AM_RAM AM_SHARE("nvram")
 	AM_RANGE(0x100000, 0x17ffff) AM_ROM AM_REGION("maincpu", 0x80000)
-	AM_RANGE(0x820000, 0x820003) AM_READWRITE(maygay_8279_r, maygay_8279_w)
+	AM_RANGE(0x820000, 0x820001) AM_DEVREADWRITE8("i8279", i8279_device, data_r, data_w ,0xff)
+	AM_RANGE(0x820002, 0x820003) AM_DEVREADWRITE8("i8279", i8279_device, status_r, cmd_w,0xff)
 	AM_RANGE(0x800000, 0x800003) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0xff00)
 	AM_RANGE(0x860000, 0x86000d) AM_READWRITE(read_odd, write_odd)
 	AM_RANGE(0x86000e, 0x86000f) AM_WRITE(vsync_int_ctrl)
 	AM_RANGE(0x880000, 0x89ffff) AM_READWRITE(i82716_r, i82716_w)
-	AM_RANGE(0x8a0000, 0x8a001f) AM_DEVREADWRITE8_LEGACY("duart68681", duart68681_r, duart68681_w, 0xff)
-	AM_RANGE(0x8c0000, 0x8c000f) AM_DEVREADWRITE8("pia", pia6821_device, read, write, 0xff)
+	AM_RANGE(0x8a0000, 0x8a001f) AM_DEVREADWRITE8("duart68681", mc68681_device, read, write, 0xff)
+	AM_RANGE(0x8c0000, 0x8c000f) AM_DEVREAD8("pia", pia6821_device, read, 0x00ff)
+	AM_RANGE(0x8c0000, 0x8c000f) AM_DEVWRITE8("pia", pia6821_device, write, 0xff00)
 ADDRESS_MAP_END
 
 
@@ -940,33 +798,18 @@ INPUT_PORTS_END
 
 ***************************************************************************/
 
-static void duart_irq_handler(device_t *device, int state, UINT8 vector)
+WRITE_LINE_MEMBER(maygayv1_state::duart_irq_handler)
 {
-	maygayv1_state *drvstate = device->machine().driver_data<maygayv1_state>();
-	drvstate->m_maincpu->set_input_line_and_vector(5, state, vector);
-//  drvstate->m_maincpu->set_input_line(5, state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line_and_vector(5, state, m_duart68681->get_irq_vector());
+//  m_maincpu->set_input_line(5, state ? ASSERT_LINE : CLEAR_LINE);
 };
 
 
-static void duart_tx(device_t *device, int channel, UINT8 data)
+WRITE_LINE_MEMBER(maygayv1_state::duart_txa)
 {
-	maygayv1_state *state = device->machine().driver_data<maygayv1_state>();
-	if (channel == 0)
-	{
-		state->m_d68681_val = data;
-		state->m_soundcpu->set_input_line(MCS51_RX_LINE, ASSERT_LINE);  // ?
-	}
-
+	m_d68681_val = state;
+	m_soundcpu->set_input_line(MCS51_RX_LINE, ASSERT_LINE);  // ?
 };
-
-static const duart68681_config maygayv1_duart68681_config =
-{
-	duart_irq_handler,
-	duart_tx,
-	NULL,
-	NULL
-};
-
 
 READ8_MEMBER(maygayv1_state::data_to_i8031)
 {
@@ -975,7 +818,7 @@ READ8_MEMBER(maygayv1_state::data_to_i8031)
 
 WRITE8_MEMBER(maygayv1_state::data_from_i8031)
 {
-	duart68681_rx_data(m_duart68681, 0, data);
+	m_duart68681->rx_a_w(data);
 }
 
 READ8_MEMBER(maygayv1_state::b_read)
@@ -990,24 +833,6 @@ WRITE8_MEMBER(maygayv1_state::b_writ)
 }
 
 
-/* U25 ST 2 9148 EF68B21P */
-static const pia6821_interface pia_intf =
-{
-	DEVCB_DRIVER_MEMBER(maygayv1_state,b_read),     /* port A in */
-	DEVCB_DRIVER_MEMBER(maygayv1_state,b_read),     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(maygayv1_state,b_writ),     /* port A out */
-	DEVCB_DRIVER_MEMBER(maygayv1_state,b_writ),     /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-
 void maygayv1_state::machine_start()
 {
 	i82716_t &i82716 = m_i82716;
@@ -1015,8 +840,6 @@ void maygayv1_state::machine_start()
 	i82716.line_buf = auto_alloc_array(machine(), UINT8, 512);
 
 	save_pointer(NAME(i82716.dram), 0x40000);
-
-//  duart_68681_init(DUART_CLOCK, duart_irq_handler, duart_tx);
 
 	m_soundcpu->i8051_set_serial_tx_callback(write8_delegate(FUNC(maygayv1_state::data_from_i8031),this));
 	m_soundcpu->i8051_set_serial_rx_callback(read8_delegate(FUNC(maygayv1_state::data_to_i8031),this));
@@ -1026,7 +849,6 @@ void maygayv1_state::machine_reset()
 {
 	i82716_t &i82716 = m_i82716;
 	// ?
-	m_duart68681 = machine().device( "duart68681" );
 	memset(i82716.dram, 0, 0x40000);
 	i82716.r[RWBA] = 0x0200;
 }
@@ -1049,8 +871,12 @@ static MACHINE_CONFIG_START( maygayv1, maygayv1_state )
 	MCFG_CPU_DATA_MAP(sound_data)
 	MCFG_CPU_IO_MAP(sound_io)
 
-	MCFG_PIA6821_ADD("pia", pia_intf)
-
+	/* U25 ST 2 9148 EF68B21P */
+	MCFG_DEVICE_ADD("pia", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(maygayv1_state, b_read))
+	MCFG_PIA_READPB_HANDLER(READ8(maygayv1_state, b_read))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(maygayv1_state, b_writ))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(maygayv1_state, b_writ))
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
@@ -1062,11 +888,18 @@ static MACHINE_CONFIG_START( maygayv1, maygayv1_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640 - 1, 0, 300 - 1)
 	MCFG_SCREEN_UPDATE_DRIVER(maygayv1_state, screen_update_maygayv1)
 	MCFG_SCREEN_VBLANK_DRIVER(maygayv1_state, screen_eof_maygayv1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
 
-	MCFG_DUART68681_ADD("duart68681", DUART_CLOCK, maygayv1_duart68681_config)
+	MCFG_MC68681_ADD("duart68681", DUART_CLOCK)
+	MCFG_MC68681_IRQ_CALLBACK(WRITELINE(maygayv1_state, duart_irq_handler))
+	MCFG_MC68681_A_TX_CALLBACK(WRITELINE(maygayv1_state, duart_txa))
 
+	MCFG_DEVICE_ADD("i8279", I8279, MASTER_CLOCK/4)    // unknown clock
+	MCFG_I8279_OUT_SL_CB(WRITE8(maygayv1_state, strobe_w))      // scan SL lines
+	MCFG_I8279_OUT_DISP_CB(WRITE8(maygayv1_state, lamp_data_w)) // display A&B
+	MCFG_I8279_IN_RL_CB(READ8(maygayv1_state, kbd_r))                   // kbd RL lines
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 

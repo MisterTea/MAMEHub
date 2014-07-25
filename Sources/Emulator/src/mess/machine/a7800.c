@@ -18,6 +18,9 @@
                             added F18 Hornet bank select type
                             added Activision bank select type
     19-Feb-2010 DanB        Added return values for TIA collision registers
+
+    04-Apr-2014 Mike Saarna Fix to controller button RIOT behavior and
+                expanded cart handling (bit 05).
 ***************************************************************************/
 
 #include "emu.h"
@@ -46,19 +49,11 @@ READ8_MEMBER(a7800_state::riot_console_button_r)
 
 WRITE8_MEMBER(a7800_state::riot_button_pullup_w)
 {
-	m_p1_one_button = data & 0x04; // pin 6 of the controller port is held high by the riot chip when reading two-button controllers (from schematic)
-	m_p2_one_button = data & 0x10;
+	if(m_maincpu->space(AS_PROGRAM).read_byte(0x283) & 0x04)
+		m_p1_one_button = data & 0x04; // pin 6 of the controller port is held high by the riot chip when reading two-button controllers (from schematic)
+	if(m_maincpu->space(AS_PROGRAM).read_byte(0x283) & 0x10)
+		m_p2_one_button = data & 0x10;
 }
-
-const riot6532_interface a7800_r6532_interface =
-{
-	DEVCB_DRIVER_MEMBER(a7800_state,riot_joystick_r),
-	DEVCB_DRIVER_MEMBER(a7800_state,riot_console_button_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(a7800_state,riot_button_pullup_w),
-	DEVCB_NULL
-};
-
 
 /***************************************************************************
     DRIVER INIT
@@ -107,13 +102,13 @@ void a7800_state::a7800_driver_init(int ispal, int lines)
 
 DRIVER_INIT_MEMBER(a7800_state,a7800_ntsc)
 {
-	a7800_driver_init(FALSE, 262);
+	a7800_driver_init(FALSE, 263);
 }
 
 
 DRIVER_INIT_MEMBER(a7800_state,a7800_pal)
 {
-	a7800_driver_init(TRUE, 312);
+	a7800_driver_init(TRUE, 313);
 }
 
 
@@ -128,6 +123,9 @@ void a7800_state::machine_reset()
 
 	/* set banks to default states */
 	memory = m_region_maincpu->base();
+	if(m_cart_type & 0x20)  //supercart bankram
+	m_bank1->set_base(memory + 0xf0000 );
+	else
 	m_bank1->set_base(memory + 0x4000 );
 	m_bank2->set_base(memory + 0x8000 );
 	m_bank3->set_base(memory + 0xA000 );
@@ -159,6 +157,8 @@ void a7800_state::machine_reset()
     bit 1 0x02 - supercart bank switched
     bit 2 0x04 - supercart RAM at $4000
     bit 3 0x08 - additional state->m_ROM at $4000
+    bit 4 0x10 - bank 6 at $4000
+    bit 5 0x20 - supercart banked RAM
 
     bit 8-15 - Special
         0 = Normal cart
@@ -223,6 +223,7 @@ static const a7800_pcb pcb_list[] =
 	{ "TYPE-3", 0x3 },
 	{ "TYPE-6", 0x6 },
 	{ "TYPE-A", 0xa },
+	{ "TYPE-XM", 0xb }, /* XM cart? (dkongxm) */
 	{ 0 }
 };
 
@@ -232,7 +233,7 @@ UINT16 a7800_state::a7800_get_pcb_id(const char *pcb)
 
 	for (i = 0; i < ARRAY_LENGTH(pcb_list); i++)
 	{
-		if (!mame_stricmp(pcb_list[i].pcb_name, pcb))
+		if (!core_stricmp(pcb_list[i].pcb_name, pcb))
 			return pcb_list[i].type;
 	}
 
@@ -394,6 +395,13 @@ WRITE8_MEMBER(a7800_state::a7800_cart_w)
 	{
 		if(m_cart_type & 0x04)
 		{
+			//adjust write location if supercart bankram is in use
+			if(m_cart_type & 0x20)
+		{
+			UINT8 *currentbank1 = (UINT8 *)m_bank1->base();
+			currentbank1[offset] = data;
+		}
+		else
 			m_ROM[0x4000 + offset] = data;
 		}
 		else if(m_cart_type & 0x01)
@@ -408,10 +416,23 @@ WRITE8_MEMBER(a7800_state::a7800_cart_w)
 
 	if(( m_cart_type & 0x02 ) &&( offset >= 0x4000 ) )
 	{
+			/* check if bankram is used */
+		if( m_cart_type & 0x20 )
+		{
+			m_bank1->set_base(memory + 0xf0000+((data & 0x20)<<9));
+		}
 		/* fix for 64kb supercart */
 		if( m_cart_size == 0x10000 )
 		{
 			data &= 0x03;
+				}
+		else if( m_cart_size == 0x40000 )
+		{
+			data &= 0x0f;
+		}
+		else if( m_cart_size == 0x80000 )
+		{
+			data &= 0x1f;
 		}
 		else
 		{
@@ -494,11 +515,13 @@ READ8_MEMBER(a7800_state::a7800_TIA_r)
 
 WRITE8_MEMBER(a7800_state::a7800_TIA_w)
 {
-	switch(offset) {
-	case 0x01:
+	if (offset<0x20) { //INPTCTRL covers TIA registers 0x00-0x1F until locked
 		if(data & 0x01)
 		{
-			m_maria_flag=1;
+			if ((m_ctrl_lock)&&(offset==0x01))
+				m_maria_flag=1;
+			else if (!m_ctrl_lock)
+				m_maria_flag=1;
 		}
 		if(!m_ctrl_lock)
 		{
@@ -510,7 +533,6 @@ WRITE8_MEMBER(a7800_state::a7800_TIA_w)
 			else
 				memcpy( m_ROM + 0xC000, m_bios_bkup, 0x4000 );
 		}
-		break;
 	}
 	m_tia->tia_sound_w(space, offset, data);
 	m_ROM[offset] = data;

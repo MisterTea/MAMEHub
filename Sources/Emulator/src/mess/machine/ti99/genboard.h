@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Michael Zapf
 /****************************************************************************
 
     Geneve main board components.
@@ -15,6 +17,7 @@
 #include "ti99defs.h"
 #include "machine/mm58274c.h"
 #include "video/v9938.h"
+#include "cpu/tms9900/tms9995.h"
 
 extern const device_type GENEVE_MOUSE;
 extern const device_type GENEVE_KEYBOARD;
@@ -45,15 +48,6 @@ private:
 
 /*****************************************************************************/
 
-struct geneve_keyboard_config
-{
-	devcb_write_line    interrupt;
-};
-
-#define GENEVE_KEYBOARD_CONFIG(name) \
-	const geneve_keyboard_config(name) =
-
-
 #define KEYQUEUESIZE 256
 #define MAXKEYMSGLENGTH 10
 #define KEYAUTOREPEATDELAY 30
@@ -68,13 +62,14 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( clock_control );
 	UINT8 get_recent_key();
 
+	template<class _Object> static devcb_base &static_set_int_callback(device_t &device, _Object object) { return downcast<geneve_keyboard_device &>(device).m_interrupt.set_callback(object); }
+
 protected:
-	virtual void                        device_start();
-	virtual void                        device_reset();
-	virtual void                        device_config_complete();
-	virtual ioport_constructor          device_input_ports() const;
-	devcb_resolved_write_line   m_interrupt;    // Keyboard interrupt to console
-	virtual void                        device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+	void               device_start();
+	void               device_reset();
+	ioport_constructor device_input_ports() const;
+	devcb_write_line  m_interrupt;    // Keyboard interrupt to console
+	void               device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
 private:
 	void    post_in_key_queue(int keycode);
@@ -105,16 +100,10 @@ private:
 	emu_timer*      m_timer;
 };
 
-#define MCFG_GENEVE_KEYBOARD_ADD(_tag, _intf )  \
-	MCFG_DEVICE_ADD(_tag, GENEVE_KEYBOARD, 0)   \
-	MCFG_DEVICE_CONFIG(_intf)
+#define MCFG_GENEVE_KBINT_HANDLER( _intcallb ) \
+	devcb = &geneve_keyboard_device::static_set_int_callback( *device, DEVCB_##_intcallb );
 
 /*****************************************************************************/
-
-struct geneve_mapper_config
-{
-	devcb_write_line    ready;
-};
 
 class geneve_mapper_device : public device_t
 {
@@ -131,18 +120,19 @@ public:
 	inline void set_video_waitstates(bool wait) { m_video_waitstates = wait; }
 	inline void set_extra_waitstates(bool wait) { m_extra_waitstates = wait; }
 
-	void do_wait(int min);
-
 	DECLARE_READ8_MEMBER( readm );
 	DECLARE_WRITE8_MEMBER( writem );
+	DECLARE_SETOFFSET_MEMBER( setoffset );
 
 	DECLARE_INPUT_CHANGED_MEMBER( gm_changed );
 
-	void clock_in(int state);
+	DECLARE_WRITE_LINE_MEMBER( clock_in );
+	DECLARE_WRITE_LINE_MEMBER( dbin_in );
+	template<class _Object> static devcb_base &static_set_ready_callback(device_t &device, _Object object) {  return downcast<geneve_mapper_device &>(device).m_ready.set_callback(object); }
 
 protected:
-	virtual void    device_start();
-	virtual void    device_reset();
+	void    device_start();
+	void    device_reset();
 
 private:
 	// GROM simulation
@@ -153,11 +143,24 @@ private:
 	DECLARE_WRITE8_MEMBER( write_grom );
 
 	// wait states
-	bool        m_video_waiting;
+	void        set_wait(int min);
+	void        set_ext_wait(int min);
 	bool        m_video_waitstates;
 	bool        m_extra_waitstates;
+	bool        m_ready_asserted;
+
+	bool        m_read_mode;
+
+	bool        m_debug_no_ws;
 
 	// Mapper function
+	typedef struct
+	{
+		int     function;
+		offs_t  offset;
+		offs_t  physaddr;
+	} decdata;
+
 	bool    m_geneve_mode;
 	bool    m_direct_mode;
 	int     m_cartridge_size;
@@ -165,6 +168,9 @@ private:
 	bool    m_cartridge6_writable;
 	bool    m_cartridge7_writable;
 	int     m_map[8];
+
+	void    decode(address_space& space, offs_t offset, bool read_mode, decdata* dec);
+	decdata m_decoded;
 
 	// Genmod modifications
 	bool    m_turbo;
@@ -175,13 +181,16 @@ private:
 	int     m_sram_val;
 
 	// Ready line to the CPU
-	devcb_resolved_write_line m_ready;
+	devcb_write_line m_ready;
 
 	// Counter for the wait states.
-	int   m_waitcount;
+	int     m_waitcount;
+	int     m_ext_waitcount;
 
 	// Devices
 	mm58274c_device*        m_clock;
+	tms9995_device*         m_cpu;
+
 	geneve_keyboard_device* m_keyboard;
 	bus8z_device*           m_video;
 	bus8z_device*           m_peribox;
@@ -191,11 +200,7 @@ private:
 	UINT8*                  m_dram;
 };
 
-#define GENEVE_MAPPER_CONFIG(name) \
-	const geneve_mapper_config(name) =
-
-#define MCFG_GENEVE_MAPPER_ADD(_tag, _conf )    \
-	MCFG_DEVICE_ADD(_tag, GENEVE_MAPPER, 0) \
-	MCFG_DEVICE_CONFIG( _conf )
+#define MCFG_GENEVE_READY_HANDLER( _intcallb ) \
+	devcb = &geneve_mapper_device::static_set_ready_callback( *device, DEVCB_##_intcallb );
 
 #endif

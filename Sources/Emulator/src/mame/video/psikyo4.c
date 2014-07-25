@@ -26,12 +26,11 @@ HotGmck:  86010000 1f201918 a0000000 Large Screen
 HgKairak: 86010000 1f201918 a0000000 Large Screen
 */
 
-#include "emu.h"
 #include "includes/psikyo4.h"
 
 
 /* --- SPRITES --- */
-void psikyo4_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, UINT32 scr )
+void psikyo4_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, UINT32 scr)
 {
 	/*- Sprite Format 0x0000 - 0x2bff -**
 
@@ -52,7 +51,7 @@ void psikyo4_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 
 	**- End Sprite Format -*/
 
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	UINT32 *source = m_spriteram;
 	UINT16 *list = (UINT16 *)m_spriteram.target() + 0x2c00/2 + 0x04/2; /* 0x2c00/0x2c02 what are these for, pointers? one for each screen */
 	UINT16 listlen = (0xc00/2 - 0x04/2), listcntr = 0;
@@ -87,8 +86,6 @@ void psikyo4_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 			tnum = (source[sprnum + 1] & 0x0007ffff) >> 00;
 
 			colr = (source[sprnum + 1] & 0x3f000000) >> 24;
-			if (scr)
-				colr += 0x40; /* Use second copy of palette which is dimmed appropriately */
 
 			flipx = (source[sprnum + 1] & 0x40000000);
 			flipy = (source[sprnum + 1] & 0x80000000); /* Guess */
@@ -114,7 +111,7 @@ void psikyo4_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 			{
 				for (i = xstart; i != xend; i += xinc)
 				{
-					drawgfx_transpen(bitmap, cliprect, gfx, tnum + loopnum, colr, flipx, flipy, xpos + 16 * i, ypos + 16 * j, 0);
+						gfx->transpen(bitmap,cliprect, tnum + loopnum, colr, flipx, flipy, xpos + 16 * i, ypos + 16 * j, 0);
 					loopnum++;
 				}
 			}
@@ -128,19 +125,21 @@ void psikyo4_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 
 UINT32 psikyo4_state::screen_update_psikyo4_left(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(0x1000, cliprect);
+	bitmap.fill(0x800, cliprect);
+	m_gfxdecode->gfx(0)->set_palette(m_palette);
 	draw_sprites(bitmap, cliprect, 0x0000);
 	return 0;
 }
 
 UINT32 psikyo4_state::screen_update_psikyo4_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(0x1001, cliprect);
+	bitmap.fill(0x800, cliprect);
+	m_gfxdecode->gfx(0)->set_palette(m_palette2);
 	draw_sprites(bitmap, cliprect, 0x2000);
 	return 0;
 }
 
 void psikyo4_state::video_start()
 {
-	machine().gfx[0]->set_granularity(32); /* 256 colour sprites with palette selectable on 32 colour boundaries */
+	m_gfxdecode->gfx(0)->set_granularity(32); /* 256 colour sprites with palette selectable on 32 colour boundaries */
 }

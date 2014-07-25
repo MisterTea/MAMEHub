@@ -15,24 +15,55 @@
 #include "machine/6821pia.h"
 #include "sound/pokey.h"
 
-/*----------- defined in machine/atari.c -----------*/
 
-extern const pia6821_interface atarixl_pia_interface;
+class atari_common_state : public driver_device
+{
+public:
+	atari_common_state(const machine_config &mconfig, device_type type, const char *tag)
+		: driver_device(mconfig, type, tag),
+		tv_artifacts(0) { }
 
-/* These handlers are needed by MESS Atari 8bit drivers (for their custom pia_interface) */
-DECLARE_READ8_DEVICE_HANDLER(atari_pia_pa_r);
-DECLARE_READ8_DEVICE_HANDLER(atari_pia_pb_r);
-DECLARE_WRITE8_DEVICE_HANDLER(a600xl_pia_pb_w);
-WRITE_LINE_DEVICE_HANDLER(atari_pia_cb2_w);
+	void a600xl_mmu(UINT8 new_mmu);
 
+	/* This is needed in MESS as well for Atari 8bit drivers */
+	void atari_machine_start();
 
-/* This is needed in MESS as well for Atari 8bit drivers */
-void atari_machine_start(running_machine &machine);
+	virtual void video_start();
+	UINT32 screen_update_atari(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
-MACHINE_START( atarixl );
+	TIMER_DEVICE_CALLBACK_MEMBER( a400_interrupt );
+	TIMER_DEVICE_CALLBACK_MEMBER( a800_interrupt );
+	TIMER_DEVICE_CALLBACK_MEMBER( a800xl_interrupt );
+	TIMER_DEVICE_CALLBACK_MEMBER( a5200_interrupt );
+
+	DECLARE_PALETTE_INIT(atari);
+
+	DECLARE_READ8_MEMBER( atari_gtia_r );
+	DECLARE_WRITE8_MEMBER( atari_gtia_w );
+
+	DECLARE_READ8_MEMBER ( atari_antic_r );
+	DECLARE_WRITE8_MEMBER ( atari_antic_w );
+
+private:
+	UINT32 tv_artifacts ;
+	void prio_init();
+	void cclk_init();
+	void artifacts_gfx(UINT8 *src, UINT8 *dst, int width);
+	void artifacts_txt(UINT8 * src, UINT8 * dst, int width);
+	void antic_linerefresh();
+	int cycle();
+	void after(int cycles, timer_expired_delegate function);
+	TIMER_CALLBACK_MEMBER( antic_issue_dli );
+	TIMER_CALLBACK_MEMBER( antic_line_done );
+	TIMER_CALLBACK_MEMBER( antic_steal_cycles );
+	TIMER_CALLBACK_MEMBER( antic_scanline_render );
+	inline void LMS(int new_cmd);
+	void antic_scanline_dma(int param);
+	void generic_atari_interrupt(int button_count);
+
+};
 
 void atari_interrupt_cb(pokey_device *device, int mask);
-
 POKEY_KEYBOARD_HANDLER(atari_a800_keyboard);
 POKEY_KEYBOARD_HANDLER(atari_a5200_keypads);
 
@@ -535,8 +566,6 @@ extern ANTIC antic;
 
 void antic_reset(void);
 
-	DECLARE_READ8_HANDLER ( atari_antic_r );
-DECLARE_WRITE8_HANDLER ( atari_antic_w );
 
 #define ANTIC_RENDERER(name) void name(address_space &space, VIDEO *video)
 
@@ -583,20 +612,5 @@ ANTIC_RENDERER( antic_mode_e_48 );
 ANTIC_RENDERER( antic_mode_f_32 );
 ANTIC_RENDERER( antic_mode_f_40 );
 ANTIC_RENDERER( antic_mode_f_48 );
-
-/*----------- defined in video/atari.c -----------*/
-
-extern char atari_frame_message[64+1];
-extern int atari_frame_counter;
-
-extern VIDEO_START( atari );
-extern SCREEN_UPDATE_IND16( atari );
-
-TIMER_DEVICE_CALLBACK( a400_interrupt );
-TIMER_DEVICE_CALLBACK( a800_interrupt );
-TIMER_DEVICE_CALLBACK( a800xl_interrupt );
-TIMER_DEVICE_CALLBACK( a5200_interrupt );
-
-extern PALETTE_INIT( atari );
 
 #endif /* ATARI_H */

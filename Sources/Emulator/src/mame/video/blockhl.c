@@ -1,5 +1,4 @@
 #include "emu.h"
-
 #include "includes/blockhl.h"
 
 
@@ -9,11 +8,10 @@
 
 ***************************************************************************/
 
-void blockhl_tile_callback( running_machine &machine, int layer, int bank, int *code, int *color, int *flags, int *priority )
+K052109_CB_MEMBER(blockhl_state::tile_callback)
 {
-	blockhl_state *state = machine.driver_data<blockhl_state>();
 	*code |= ((*color & 0x0f) << 8);
-	*color = state->m_layer_colorbase[layer] + ((*color & 0xe0) >> 5);
+	*color = m_layer_colorbase[layer] + ((*color & 0xe0) >> 5);
 }
 
 /***************************************************************************
@@ -22,16 +20,14 @@ void blockhl_tile_callback( running_machine &machine, int layer, int bank, int *
 
 ***************************************************************************/
 
-void blockhl_sprite_callback( running_machine &machine, int *code, int *color, int *priority, int *shadow )
+K051960_CB_MEMBER(blockhl_state::sprite_callback)
 {
-	blockhl_state *state = machine.driver_data<blockhl_state>();
-
 	if(*color & 0x10)
 		*priority = 0xfe; // under K052109_tilemap[0]
 	else
 		*priority = 0xfc; // under K052109_tilemap[1]
 
-	*color = state->m_sprite_colorbase + (*color & 0x0f);
+	*color = m_sprite_colorbase + (*color & 0x0f);
 }
 
 
@@ -43,8 +39,6 @@ void blockhl_sprite_callback( running_machine &machine, int *code, int *color, i
 
 void blockhl_state::video_start()
 {
-	m_generic_paletteram_8.allocate(0x800);
-
 	m_layer_colorbase[0] = 0;
 	m_layer_colorbase[1] = 16;
 	m_layer_colorbase[2] = 32;

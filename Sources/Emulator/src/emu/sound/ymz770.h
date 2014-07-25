@@ -45,9 +45,10 @@ class ymz770_device : public device_t, public device_sound_interface
 
 		mpeg_audio *decoder;
 
-		INT16 output_data[1152];
+		INT16 output_data[0x1000];
 		int output_remaining;
 		int output_ptr;
+		int atbl;
 		int pptr;
 
 		UINT8 sequence;
@@ -55,7 +56,6 @@ class ymz770_device : public device_t, public device_sound_interface
 		UINT8 seqdelay;
 		UINT8 *seqdata;
 		bool is_seq_playing;
-
 	};
 
 
@@ -63,7 +63,6 @@ public:
 	// construction/destruction
 	ymz770_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
-	DECLARE_READ8_MEMBER(read);
 	DECLARE_WRITE8_MEMBER(write);
 
 	sound_stream *m_stream;
@@ -76,14 +75,19 @@ protected:
 
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
 
-	void internal_reg_write(int offset, UINT8 data);
+	void internal_reg_write(UINT8 reg, UINT8 data);
 
 	// data
-	UINT8 cur_reg;
-	UINT8 *rom_base;
-	int rom_size;
+	UINT8 m_cur_reg;
+	UINT8 m_mute;         // mute chip
+	UINT8 m_doen;         // digital output enable
+	UINT8 m_vlma;         // overall AAM volume
+	UINT8 m_bsl;          // boost level
+	UINT8 m_cpl;          // clip limiter
+	UINT8 *m_rom_base;
+	int m_rom_limit;
 
-	ymz_channel channels[8];
+	ymz_channel m_channels[8];
 };
 
 

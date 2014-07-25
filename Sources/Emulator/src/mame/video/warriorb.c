@@ -61,7 +61,7 @@ void warriorb_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, 
 		if (x > 0x3c0) x -= 0x400;
 		if (y > 0x180) y -= 0x200;
 
-		pdrawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+		m_gfxdecode->gfx(0)->prio_transpen(bitmap,cliprect,
 					tilenum,
 					color,
 					flipx,flipy,
@@ -99,7 +99,7 @@ UINT32 warriorb_state::update_screen(screen_device &screen, bitmap_ind16 &bitmap
 
 	/* Ensure screen blanked even when bottom layers not drawn due to disable bit */
 	if (nodraw)
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 
 	// draw middle layer
 	tc0100scn->tilemap_draw(screen, bitmap, cliprect, layer[1], 0, 1);
@@ -112,5 +112,5 @@ UINT32 warriorb_state::update_screen(screen_device &screen, bitmap_ind16 &bitmap
 	return 0;
 }
 
-UINT32 warriorb_state::screen_update_warriorb_left(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect){ return update_screen(screen, bitmap, cliprect, 40 * 8 * 0, machine().driver_data<warriorb_state>()->m_tc0100scn_1); }
-UINT32 warriorb_state::screen_update_warriorb_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect){ return update_screen(screen, bitmap, cliprect, 40 * 8 * 1, machine().driver_data<warriorb_state>()->m_tc0100scn_2); }
+UINT32 warriorb_state::screen_update_warriorb_left(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect){ return update_screen(screen, bitmap, cliprect, 40 * 8 * 0, m_tc0100scn_1); }
+UINT32 warriorb_state::screen_update_warriorb_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect){ return update_screen(screen, bitmap, cliprect, 40 * 8 * 1, m_tc0100scn_2); }

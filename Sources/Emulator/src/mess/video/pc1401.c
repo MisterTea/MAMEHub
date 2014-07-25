@@ -92,37 +92,37 @@ static const POCKETC_FIGURE busy={
 	"111",
 	"1",
 	"111e"
-}, run={
-	"11  1 1 1  1",
-	"1 1 1 1 11 1",
-	"11  1 1 1 11",
-	"1 1 1 1 1  1",
-	"1 1  1  1  1e"
+}/*, run={
+    "11  1 1 1  1",
+    "1 1 1 1 11 1",
+    "11  1 1 1 11",
+    "1 1 1 1 1  1",
+    "1 1  1  1  1e"
 }, pro={
-	"11  11   1  ",
-	"1 1 1 1 1 1",
-	"11  11  1 1",
-	"1   1 1 1 1",
-	"1   1 1  1e"
+    "11  11   1  ",
+    "1 1 1 1 1 1",
+    "11  11  1 1",
+    "1   1 1 1 1",
+    "1   1 1  1e"
 }, japan={
-	"  1  1  11   1  1  1",
-	"  1 1 1 1 1 1 1 11 1",
-	"  1 111 11  111 1 11",
-	"1 1 1 1 1   1 1 1  1",
-	" 1  1 1 1   1 1 1  1e"
+    "  1  1  11   1  1  1",
+    "  1 1 1 1 1 1 1 11 1",
+    "  1 111 11  111 1 11",
+    "1 1 1 1 1   1 1 1  1",
+    " 1  1 1 1   1 1 1  1e"
 }, sml={
-	" 11 1 1 1",
-	"1   111 1",
-	" 1  1 1 1",
-	"  1 1 1 1",
-	"11  1 1 111e"
+    " 11 1 1 1",
+    "1   111 1",
+    " 1  1 1 1",
+    "  1 1 1 1",
+    "11  1 1 111e"
 }, rsv={
-	"11   11 1   1",
-	"1 1 1   1   1",
-	"11   1   1 1",
-	"1 1   1  1 1",
-	"1 1 11    1e"
-};
+    "11   11 1   1",
+    "1 1 1   1   1",
+    "11   1   1 1",
+    "1 1   1  1 1",
+    "1 1 11    1e"
+}*/;
 
 #define DOWN 57
 #define RIGHT 114
@@ -148,12 +148,12 @@ UINT32 pc1401_state::screen_update_pc1401(screen_device &screen, bitmap_ind16 &b
 		for (x=RIGHT,y=DOWN,i=0; i<0x28;x+=2)
 		{
 			for (j=0; j<5;j++,i++,x+=2)
-			drawgfx_opaque(bitmap, cliprect, screen.machine().gfx[0], m_reg[i],CONTRAST,0,0,x,y);
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect, m_reg[i],CONTRAST,0,0,x,y);
 		}
 		for (i=0x67; i>=0x40;x+=2)
 		{
 			for (j=0; j<5;j++,i--,x+=2)
-			drawgfx_opaque(bitmap, cliprect, screen.machine().gfx[0], m_reg[i],CONTRAST,0,0,x,y);
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect, m_reg[i],CONTRAST,0,0,x,y);
 		}
 	}
 

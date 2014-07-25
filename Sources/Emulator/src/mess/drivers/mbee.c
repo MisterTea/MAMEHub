@@ -1,8 +1,10 @@
+// license:MAME
+// copyright-holders:Juergen Buchmueller, Robbbert
 /***************************************************************************
     microbee.c
 
     system driver
-    Juergen Buchmueller <pullmoll@t-online.de>, Jan 2000
+    Juergen Buchmueller, Jan 2000
 
     Brett Selwood, Andrew Davies (technical assistance)
 
@@ -123,6 +125,7 @@
 #include "includes/mbee.h"
 #include "formats/dsk_dsk.h"
 #include "formats/mbee_dsk.h"
+#include "formats/mbee_cas.h"
 
 
 #define XTAL_13_5MHz 13500000
@@ -635,14 +638,8 @@ LEGACY_FLOPPY_OPTIONS_END
 
 static const floppy_interface mbee_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSHD,
 	LEGACY_FLOPPY_OPTIONS_NAME(mbee),
-	NULL,
 	NULL
 };
 #endif
@@ -657,63 +654,6 @@ static SLOT_INTERFACE_START( mbee_floppies )
 SLOT_INTERFACE_END
 
 
-static MC6845_INTERFACE( mbee_crtc )
-{
-	false,
-	8,          /* number of dots per character */
-	NULL,
-	mbee_update_row,        /* handler to display a scanline */
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	mbee_update_addr        /* handler to process transparent mode */
-};
-
-
-static MC6845_INTERFACE( mbeeic_crtc )
-{
-	false,
-	8,          /* number of dots per character */
-	NULL,
-	mbeeic_update_row,      /* handler to display a scanline */
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	mbee_update_addr        /* handler to process transparent mode */
-};
-
-static MC6845_INTERFACE( mbeeppc_crtc )
-{
-	false,
-	8,          /* number of dots per character */
-	NULL,
-	mbeeppc_update_row,     /* handler to display a scanline */
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	mbee_update_addr        /* handler to process transparent mode */
-};
-
-static MC6845_INTERFACE( mbee256_crtc )
-{
-	false,
-	8,          /* number of dots per character */
-	NULL,
-	mbeeppc_update_row,     /* handler to display a scanline */
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	mbee256_update_addr     /* handler to process transparent mode */
-};
-
 static MACHINE_CONFIG_START( mbee, mbee_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_12MHz / 6)         /* 2 MHz */
@@ -723,7 +663,12 @@ static MACHINE_CONFIG_START( mbee, mbee_state )
 
 	MCFG_MACHINE_RESET_OVERRIDE(mbee_state, mbee )
 
-	MCFG_Z80PIO_ADD( "z80pio", XTAL_12MHz / 6, mbee_z80pio_intf )
+	MCFG_DEVICE_ADD("z80pio", Z80PIO, XTAL_12MHz / 6)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(mbee_state, pio_port_a_w))
+	MCFG_Z80PIO_OUT_ARDY_CB(WRITELINE(mbee_state, pio_ardy))
+	MCFG_Z80PIO_IN_PB_CB(READ8(mbee_state, pio_port_b_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(mbee_state, pio_port_b_w))
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(50)
@@ -732,9 +677,8 @@ static MACHINE_CONFIG_START( mbee, mbee_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 0, 19*16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mbee_state, screen_update_mbee)
 
-	MCFG_GFXDECODE(mbee)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_amber) // usually sold with amber or green monitor
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mbee)
+	MCFG_PALETTE_ADD_MONOCHROME_AMBER("palette") // usually sold with amber or green monitor
 
 	MCFG_VIDEO_START_OVERRIDE(mbee_state,mbee)
 
@@ -746,11 +690,22 @@ static MACHINE_CONFIG_START( mbee, mbee_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* devices */
-	MCFG_MC6845_ADD("crtc", SY6545_1, "screen", XTAL_12MHz / 8, mbee_crtc)
-	MCFG_QUICKLOAD_ADD("quickload", mbee_state, mbee, "mwb,com", 2)
+	MCFG_MC6845_ADD("crtc", SY6545_1, "screen", XTAL_12MHz / 8)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(mbee_state, mbee_update_row)
+	MCFG_MC6845_ADDR_CHANGED_CB(mbee_state, mbee_update_addr)
+
+	MCFG_QUICKLOAD_ADD("quickload", mbee_state, mbee, "mwb,com,bee", 2)
 	MCFG_QUICKLOAD_ADD("quickload2", mbee_state, mbee_z80bin, "bin", 2)
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(mbee_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
 MACHINE_CONFIG_END
 
 
@@ -764,7 +719,12 @@ static MACHINE_CONFIG_START( mbeeic, mbee_state )
 
 	MCFG_MACHINE_RESET_OVERRIDE(mbee_state, mbee )
 
-	MCFG_Z80PIO_ADD( "z80pio", 3375000, mbee_z80pio_intf )
+	MCFG_DEVICE_ADD("z80pio", Z80PIO, 3375000)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(mbee_state, pio_port_a_w))
+	MCFG_Z80PIO_OUT_ARDY_CB(WRITELINE(mbee_state, pio_ardy))
+	MCFG_Z80PIO_IN_PB_CB(READ8(mbee_state, pio_port_b_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(mbee_state, pio_port_b_w))
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(50)
@@ -773,9 +733,10 @@ static MACHINE_CONFIG_START( mbeeic, mbee_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 80*8-1, 0, 19*16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mbee_state, screen_update_mbee)
 
-	MCFG_GFXDECODE(mbeeic)
-	MCFG_PALETTE_LENGTH(96)
-	MCFG_PALETTE_INIT_OVERRIDE(mbee_state,mbeeic)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mbeeic)
+
+	MCFG_PALETTE_ADD("palette", 96)
+	MCFG_PALETTE_INIT_OWNER(mbee_state,mbeeic)
 
 	MCFG_VIDEO_START_OVERRIDE(mbee_state,mbeeic)
 
@@ -787,11 +748,22 @@ static MACHINE_CONFIG_START( mbeeic, mbee_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* devices */
-	MCFG_MC6845_ADD("crtc", SY6545_1, "screen", XTAL_13_5MHz / 8, mbeeic_crtc)
-	MCFG_QUICKLOAD_ADD("quickload", mbee_state, mbee, "mwb,com", 2)
+	MCFG_MC6845_ADD("crtc", SY6545_1, "screen", XTAL_13_5MHz / 8)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(mbee_state, mbeeic_update_row)
+	MCFG_MC6845_ADDR_CHANGED_CB(mbee_state, mbee_update_addr)
+
+	MCFG_QUICKLOAD_ADD("quickload", mbee_state, mbee, "mwb,com,bee", 2)
 	MCFG_QUICKLOAD_ADD("quickload2", mbee_state, mbee_z80bin, "bin", 2)
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(mbee_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mbeepc, mbeeic )
@@ -807,7 +779,8 @@ static MACHINE_CONFIG_DERIVED( mbeepc85, mbeeic )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mbeepc85b, mbeepc85 )
-	MCFG_PALETTE_INIT_OVERRIDE(mbee_state,mbeepc85b)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(mbee_state,mbeepc85b)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mbeeppc, mbeeic )
@@ -815,11 +788,17 @@ static MACHINE_CONFIG_DERIVED( mbeeppc, mbeeic )
 	MCFG_CPU_PROGRAM_MAP(mbeeppc_mem)
 	MCFG_CPU_IO_MAP(mbeeppc_io)
 	MCFG_VIDEO_START_OVERRIDE(mbee_state,mbeeppc)
-	MCFG_GFXDECODE(mbeeppc)
-	MCFG_PALETTE_LENGTH(16)
-	MCFG_PALETTE_INIT_OVERRIDE(mbee_state,mbeeppc)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", mbeeppc)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(16)
+	MCFG_PALETTE_INIT_OWNER(mbee_state,mbeeppc)
+
 	MCFG_DEVICE_REMOVE("crtc")
-	MCFG_MC6845_ADD("crtc", SY6545_1, "screen", XTAL_13_5MHz / 8, mbeeppc_crtc)
+	MCFG_MC6845_ADD("crtc", SY6545_1, "screen", XTAL_13_5MHz / 8)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(mbee_state, mbeeppc_update_row)
+	MCFG_MC6845_ADDR_CHANGED_CB(mbee_state, mbee_update_addr)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mbee56, mbeeic )
@@ -853,9 +832,14 @@ static MACHINE_CONFIG_DERIVED( mbee256, mbee128 )
 	MCFG_CPU_MODIFY( "maincpu" )
 	MCFG_CPU_IO_MAP(mbee256_io)
 	MCFG_MACHINE_RESET_OVERRIDE(mbee_state, mbee256 )
-	MCFG_MC146818_ADD( "rtc", MC146818_STANDARD )
+	MCFG_MC146818_ADD( "rtc", XTAL_32_768kHz )
+
 	MCFG_DEVICE_REMOVE("crtc")
-	MCFG_MC6845_ADD("crtc", SY6545_1, "screen", XTAL_13_5MHz / 8, mbee256_crtc)
+	MCFG_MC6845_ADD("crtc", SY6545_1, "screen", XTAL_13_5MHz / 8)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(mbee_state, mbeeppc_update_row)
+	MCFG_MC6845_ADDR_CHANGED_CB(mbee_state, mbee256_update_addr)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mbeett, mbeeppc )
@@ -863,9 +847,14 @@ static MACHINE_CONFIG_DERIVED( mbeett, mbeeppc )
 	MCFG_CPU_PROGRAM_MAP(mbeett_mem)
 	MCFG_CPU_IO_MAP(mbeett_io)
 	MCFG_MACHINE_RESET_OVERRIDE(mbee_state, mbeett )
-	MCFG_MC146818_ADD( "rtc", MC146818_STANDARD )
+	MCFG_MC146818_ADD( "rtc", XTAL_32_768kHz )
+
 	MCFG_DEVICE_REMOVE("crtc")
-	MCFG_MC6845_ADD("crtc", SY6545_1, "screen", XTAL_13_5MHz / 8, mbee256_crtc)
+	MCFG_MC6845_ADD("crtc", SY6545_1, "screen", XTAL_13_5MHz / 8)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(mbee_state, mbeeppc_update_row)
+	MCFG_MC6845_ADDR_CHANGED_CB(mbee_state, mbee256_update_addr)
 MACHINE_CONFIG_END
 
 /* Unused roms:
@@ -877,12 +866,6 @@ MACHINE_CONFIG_END
 
     ROM_LOAD_OPTIONAL("telcom11.rom", 0xe000,  0x1000, CRC(15516499) SHA1(2d4953f994b66c5d3b1d457b8c92d9a0a69eb8b8) )
     Telcom 1.1 for the mbeeic (It could have 1.0, 1.1 or 1.2)
-
-    ROM_LOAD("bn54.bin",              0x0000,  0x2000, CRC(995c53db) SHA1(46e1a5cfd5795b8cf528bacf9dc79398ff7d64af) )
-    ROM_LOAD("bn55.bin",              0x0000,  0x2000, CRC(ca2c1073) SHA1(355d90d181de899cc7af892df96305fead9c81b4) )
-    ROM_LOAD("bn56.bin",              0x0000,  0x2000, CRC(3f76769d) SHA1(cfae2069d739c26fe39f734d9f705a3c965d1e6f) )
-    These are alternate boot roms for the 128k. They have no menu, and look just like the 64k/56k bootup.
-
 
 */
 
@@ -1148,7 +1131,18 @@ ROM_START( mbee128 ) // 128K
 	ROM_REGION(0x20000,"maincpu", ROMREGION_ERASEFF)
 
 	ROM_REGION(0x7000,"bootrom", ROMREGION_ERASEFF)
-	ROM_LOAD("bn60.bin",              0x0000,  0x2000, CRC(ed15d4ee) SHA1(3ea42b63d42b9a4c5402676dee8912ad1f906bda) )
+	ROM_SYSTEM_BIOS( 0, "bn60", "Version 2.03" )
+	ROMX_LOAD("bn60.rom",     0x0000, 0x2000, CRC(ed15d4ee) SHA1(3ea42b63d42b9a4c5402676dee8912ad1f906bda), ROM_BIOS(1) )
+	ROM_SYSTEM_BIOS( 1, "bn59", "Version 2.02" )
+	ROMX_LOAD("bn59.rom",     0x0000, 0x2000, CRC(97384116) SHA1(87f2c4ab1a1f2964ba4f2bb60e62dc9c163831ba), ROM_BIOS(2) )
+	ROM_SYSTEM_BIOS( 2, "bn56", "bn56" )
+	ROMX_LOAD("bn56.rom",     0x0000, 0x2000, CRC(3f76769d) SHA1(cfae2069d739c26fe39f734d9f705a3c965d1e6f), ROM_BIOS(3) )
+	ROM_SYSTEM_BIOS( 3, "bn55", "bn55" )
+	ROMX_LOAD("bn55.rom",     0x0000, 0x2000, CRC(ca2c1073) SHA1(355d90d181de899cc7af892df96305fead9c81b4), ROM_BIOS(4) )
+	ROM_SYSTEM_BIOS( 4, "bn54", "bn54" )
+	ROMX_LOAD("bn54.rom",     0x0000, 0x2000, CRC(995c53db) SHA1(46e1a5cfd5795b8cf528bacf9dc79398ff7d64af), ROM_BIOS(5) )
+	ROM_SYSTEM_BIOS( 5, "hd18", "Hard Disk System" )
+	ROMX_LOAD("hd18.rom",     0x0000, 0x2000, CRC(ed53ace7) SHA1(534e2e00cc527197c76b3c106b3c9ff7f1328487), ROM_BIOS(6) )
 
 	ROM_REGION(0x9800, "gfx", 0)
 	ROM_LOAD("charrom.bin",           0x1000,  0x1000, CRC(1f9fcee4) SHA1(e57ac94e03638075dde68a0a8c834a4f84ba47b0) )
@@ -1163,8 +1157,12 @@ ROM_START( mbee256 ) // 256tc
 	ROM_REGION(0x40000,"maincpu", ROMREGION_ERASEFF)
 
 	ROM_REGION(0x7000,"bootrom", ROMREGION_ERASEFF)
-	ROM_LOAD("256tc_boot_1.20.rom", 0x0000,  0x4000, CRC(fe8d6a84) SHA1(a037a1b90b18a2180e9f5f216b829fcd480449a4) )
-	//ROM_LOAD("256tc_boot_1.15.rom", 0x0000,  0x4000, CRC(1902062d) SHA1(e4a1c0b3f4996e313da0bac0edb6d34e3270723e) )
+	ROM_SYSTEM_BIOS( 0, "1.31", "Version 1.31" )
+	ROMX_LOAD("256tc_boot_1.31.rom", 0x0000,  0x4000, CRC(923baef9) SHA1(3d30d18e765439fb913fbd3e03dd5127fd6b9167), ROM_BIOS(1) )
+	ROM_SYSTEM_BIOS( 1, "1.20", "Version 1.20" )
+	ROMX_LOAD("256tc_boot_1.20.rom", 0x0000,  0x4000, CRC(fe8d6a84) SHA1(a037a1b90b18a2180e9f5f216b829fcd480449a4), ROM_BIOS(2) )
+	ROM_SYSTEM_BIOS( 2, "1.15", "Version 1.15" )
+	ROMX_LOAD("256tc_boot_1.15.rom", 0x0000,  0x4000, CRC(1902062d) SHA1(e4a1c0b3f4996e313da0bac0edb6d34e3270723e), ROM_BIOS(3) )
 
 	ROM_REGION(0x9800, "gfx", 0)
 	ROM_LOAD("char256.bin",           0x1000,  0x1000, CRC(9372af3c) SHA1(a63591822c0504de2fed52e88d64e1dbd6124b74) )

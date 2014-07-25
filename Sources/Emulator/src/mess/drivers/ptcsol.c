@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
     Processor Technology Corp. SOL-20
@@ -69,9 +71,8 @@
         correct version of BASIC be loaded first. Paste works, but it is very
         very slow. Perhaps we need something faster such as what Solace has.
       - SVT (Solace Virtual Tape) files are a representation of a cassette,
-        usually holding about 4 games, just like a multifile tape. It will
-        need a 'format' program to be written to convert it to be loadable
-        via the cassette device.
+        usually holding about 4 games, just like a multifile tape. This format
+        is partially supported.
       - HEX files appear to be the standard Intel format, and can be loaded
         by Solace.
       - The remaining formats (OPN, PL, PRN, SMU, SOL, ASM and LIB) appear
@@ -105,6 +106,7 @@
 #include "sound/wave.h"
 #include "imagedev/cassette.h"
 #include "machine/ay31015.h"
+#include "formats/sol_cas.h"
 
 
 struct cass_data_t {
@@ -120,6 +122,8 @@ struct cass_data_t {
 	} output;
 };
 
+#define KEYBOARD_TAG "keyboard"
+
 class sol20_state : public driver_device
 {
 public:
@@ -130,21 +134,21 @@ public:
 	};
 
 	sol20_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_cass1(*this, "cassette"),
-	m_cass2(*this, "cassette2"),
-	m_uart(*this, "uart"),
-	m_uart_s(*this, "uart_s"),
-	m_p_videoram(*this, "videoram"),
-	m_iop_arrows(*this, "ARROWS"),
-	m_iop_config(*this, "CONFIG"),
-	m_iop_s1(*this, "S1"),
-	m_iop_s2(*this, "S2"),
-	m_iop_s3(*this, "S3"),
-	m_iop_s4(*this, "S4"),
-	m_cassette1(*this, "cassette"),
-	m_cassette2(*this, "cassette2")
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_cass1(*this, "cassette")
+		, m_cass2(*this, "cassette2")
+		, m_uart(*this, "uart")
+		, m_uart_s(*this, "uart_s")
+		, m_p_videoram(*this, "videoram")
+		, m_iop_arrows(*this, "ARROWS")
+		, m_iop_config(*this, "CONFIG")
+		, m_iop_s1(*this, "S1")
+		, m_iop_s2(*this, "S2")
+		, m_iop_s3(*this, "S3")
+		, m_iop_s4(*this, "S4")
+		, m_cassette1(*this, "cassette")
+		, m_cassette2(*this, "cassette2")
 	{ }
 
 	DECLARE_READ8_MEMBER( sol20_f8_r );
@@ -160,42 +164,38 @@ public:
 	DECLARE_WRITE8_MEMBER( sol20_fd_w );
 	DECLARE_WRITE8_MEMBER( sol20_fe_w );
 	DECLARE_WRITE8_MEMBER( kbd_put );
+	DECLARE_DRIVER_INIT(sol20);
+	TIMER_CALLBACK_MEMBER(sol20_cassette_tc);
+	TIMER_CALLBACK_MEMBER(sol20_boot);
+	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+private:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 	UINT8 m_sol20_fa;
-	cass_data_t m_cass_data;
 	virtual void machine_reset();
 	virtual void machine_start();
 	virtual void video_start();
-	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	UINT8 m_sol20_fc;
+	UINT8 m_sol20_fe;
+	const UINT8 *m_p_chargen;
+	UINT8 m_framecnt;
+	cass_data_t m_cass_data;
+	emu_timer *m_cassette_timer;
+	cassette_image_device *cassette_device_image();
 	required_device<cpu_device> m_maincpu;
 	required_device<cassette_image_device> m_cass1;
 	required_device<cassette_image_device> m_cass2;
 	required_device<ay31015_device> m_uart;
 	required_device<ay31015_device> m_uart_s;
-	required_shared_ptr<const UINT8> m_p_videoram;
+	required_shared_ptr<UINT8> m_p_videoram;
 	required_ioport m_iop_arrows;
 	required_ioport m_iop_config;
 	required_ioport m_iop_s1;
 	required_ioport m_iop_s2;
 	required_ioport m_iop_s3;
 	required_ioport m_iop_s4;
-
-private:
-	UINT8 m_sol20_fc;
-	UINT8 m_sol20_fe;
-	const UINT8 *m_p_chargen;
-	UINT8 m_framecnt;
-	emu_timer *m_cassette_timer;
 	required_device<cassette_image_device> m_cassette1;
 	required_device<cassette_image_device> m_cassette2;
-
-public:
-	DECLARE_DRIVER_INIT(sol20);
-	TIMER_CALLBACK_MEMBER(sol20_cassette_tc);
-	TIMER_CALLBACK_MEMBER(sol20_boot);
-	cassette_image_device *cassette_device_image();
-
-protected:
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -547,24 +547,6 @@ static INPUT_PORTS_START( sol20 )
 	PORT_CONFSETTING(    0x02, "6575")
 INPUT_PORTS_END
 
-static const ay31015_config sol20_ay31015_config =
-{
-	4800.0,
-	4800.0,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-static const cassette_interface sol20_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
 
 /* after the first 4 bytes have been read from ROM, switch the ram back in */
 TIMER_CALLBACK_MEMBER(sol20_state::sol20_boot)
@@ -739,11 +721,6 @@ WRITE8_MEMBER( sol20_state::kbd_put )
 	}
 }
 
-static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
-{
-	DEVCB_DRIVER_MEMBER(sol20_state, kbd_put)
-};
-
 static MACHINE_CONFIG_START( sol20, sol20_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",I8080, XTAL_14_31818MHz/7)
@@ -757,9 +734,10 @@ static MACHINE_CONFIG_START( sol20, sol20_state )
 	MCFG_SCREEN_UPDATE_DRIVER(sol20_state, screen_update)
 	MCFG_SCREEN_SIZE(576, 208)
 	MCFG_SCREEN_VISIBLE_AREA(0, 575, 0, 207)
-	MCFG_GFXDECODE(sol20)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sol20)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -769,11 +747,22 @@ static MACHINE_CONFIG_START( sol20, sol20_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25) // cass2 speaker
 
 	// devices
-	MCFG_CASSETTE_ADD( "cassette", sol20_cassette_interface )
-	MCFG_CASSETTE_ADD( "cassette2", sol20_cassette_interface )
-	MCFG_AY31015_ADD( "uart", sol20_ay31015_config )
-	MCFG_AY31015_ADD( "uart_s", sol20_ay31015_config )
-	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(sol20_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
+
+	MCFG_CASSETTE_ADD( "cassette2" )
+	MCFG_CASSETTE_FORMATS(sol20_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
+
+	MCFG_DEVICE_ADD( "uart", AY31015, 0 )
+	MCFG_AY31015_TX_CLOCK(4800.0)
+	MCFG_AY31015_RX_CLOCK(4800.0)
+	MCFG_DEVICE_ADD( "uart_s", AY31015, 0 )
+	MCFG_AY31015_TX_CLOCK(4800.0)
+	MCFG_AY31015_RX_CLOCK(4800.0)
+	MCFG_DEVICE_ADD(KEYBOARD_TAG, GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(sol20_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

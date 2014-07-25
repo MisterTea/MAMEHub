@@ -19,9 +19,9 @@
 #define CONTROL1_TAG   "ctrl1"
 #define CONTROL2_TAG   "ctrl2"
 
-#include "machine/smsctrl.h"
-#include "machine/smsexp.h"
-#include "machine/sega8_slot.h"
+#include "bus/sms_ctrl/smsctrl.h"
+#include "bus/sms_exp/smsexp.h"
+#include "bus/sega8/sega8_slot.h"
 
 
 class sms_state : public driver_device
@@ -33,10 +33,6 @@ public:
 		m_vdp(*this, "sms_vdp"),
 		m_ym(*this, "ym2413"),
 		m_main_scr(*this, "screen"),
-		m_mainram(*this, "mainram"),
-		m_cartslot(*this, "slot"),
-		m_cardslot(*this, "mycard"),
-		m_expslot(*this, "exp"),
 		m_region_maincpu(*this, "maincpu"),
 		m_port_ctrl1(*this, CONTROL1_TAG),
 		m_port_ctrl2(*this, CONTROL2_TAG),
@@ -46,24 +42,24 @@ public:
 		m_port_scope(*this, "SEGASCOPE"),
 		m_port_scope_binocular(*this, "SSCOPE_BINOCULAR"),
 		m_port_persist(*this, "PERSISTENCE"),
+		m_mainram(NULL),
 		m_is_gamegear(0),
-		m_is_region_japan(0),
-		m_is_korean(0),
+		m_is_gg_region_japan(0),
+		m_is_smsj(0),
+		m_is_mark_iii(0),
 		m_is_sdisp(0),
 		m_has_bios_0400(0),
 		m_has_bios_2000(0),
 		m_has_bios_full(0),
-		m_has_fm(0) { }
+		m_has_fm(0),
+		m_has_jpn_sms_cart_slot(0),
+		m_store_cart_selection_data(0) { }
 
 	// devices
 	required_device<cpu_device> m_maincpu;
 	required_device<sega315_5124_device> m_vdp;
 	optional_device<ym2413_device> m_ym;
 	required_device<screen_device> m_main_scr;
-	required_shared_ptr<UINT8> m_mainram;
-	required_device<sega8_cart_slot_device> m_cartslot;
-	optional_device<sega8_card_slot_device> m_cardslot;
-	optional_device<sms_expansion_slot_device> m_expslot;
 	required_memory_region m_region_maincpu;
 	optional_device<sms_control_port_device> m_port_ctrl1;
 	optional_device<sms_control_port_device> m_port_ctrl2;
@@ -82,7 +78,9 @@ public:
 	UINT8 m_fm_detect;
 	UINT8 m_io_ctrl_reg;
 	int m_paused;
-	UINT8 m_bios_port;
+	UINT8 m_mem_ctrl_reg;
+	UINT8 m_mem_device_enabled;
+	UINT8 *m_mainram;
 	UINT8 *m_BIOS;
 	UINT8 m_mapper[4];
 	UINT8 m_port_dc_reg;
@@ -90,7 +88,6 @@ public:
 	UINT8 m_gg_sio[5];
 
 	// [0] for 0x400-0x3fff, [1] for 0x4000-0x7fff, [2] for 0x8000-0xffff, [3] for 0x0000-0x0400
-	int m_bank_enabled[4];
 	UINT8 m_bios_page[4];
 
 	// for gamegear LCD persistence hack
@@ -102,13 +99,15 @@ public:
 
 	// model identifiers
 	UINT8 m_is_gamegear;
-	UINT8 m_is_region_japan;
-	UINT8 m_is_korean;
+	UINT8 m_is_gg_region_japan;
+	UINT8 m_is_smsj;
+	UINT8 m_is_mark_iii;
 	UINT8 m_is_sdisp;
 	UINT8 m_has_bios_0400;
 	UINT8 m_has_bios_2000;
 	UINT8 m_has_bios_full;
 	UINT8 m_has_fm;
+	UINT8 m_has_jpn_sms_cart_slot;
 
 	// Data needed for Light Phaser
 	UINT8 m_ctrl1_th_state;
@@ -121,11 +120,16 @@ public:
 	UINT8 m_sscope_state;
 	UINT8 m_frame_sscope_state;
 
+	sega8_cart_slot_device *m_cartslot;
+	sega8_card_slot_device *m_cardslot;
+	sms_expansion_slot_device *m_expslot;
+
 	// these are only used by the Store Display unit, but we keep them here temporarily to avoid the need of separate start/reset
 	UINT8 m_store_control;
-	int m_current_cartridge;
+	UINT8 m_store_cart_selection_data;
 	sega8_cart_slot_device *m_slots[16];
 	sega8_card_slot_device *m_cards[16];
+	void store_select_cart(UINT8 data);
 
 	/* Cartridge slot info */
 	DECLARE_WRITE8_MEMBER(sms_fm_detect_w);
@@ -144,16 +148,20 @@ public:
 	DECLARE_READ8_MEMBER(read_0000);
 	DECLARE_READ8_MEMBER(read_4000);
 	DECLARE_READ8_MEMBER(read_8000);
+	DECLARE_READ8_MEMBER(read_ram);
+	DECLARE_WRITE8_MEMBER(write_ram);
 	DECLARE_WRITE8_MEMBER(write_cart);
 
 	DECLARE_WRITE8_MEMBER(sms_mapper_w);
-	DECLARE_WRITE8_MEMBER(sms_bios_w);
+	DECLARE_WRITE8_MEMBER(sms_mem_control_w);
 	DECLARE_WRITE8_MEMBER(gg_sio_w);
 	DECLARE_READ8_MEMBER(gg_sio_r);
 	DECLARE_DRIVER_INIT(sg1000m3);
 	DECLARE_DRIVER_INIT(gamegear);
 	DECLARE_DRIVER_INIT(gamegeaj);
-	DECLARE_DRIVER_INIT(sms2kr);
+	DECLARE_DRIVER_INIT(sms1krfm);
+	DECLARE_DRIVER_INIT(sms1kr);
+	DECLARE_DRIVER_INIT(smskr);
 	DECLARE_DRIVER_INIT(smsj);
 	DECLARE_DRIVER_INIT(sms1);
 	DECLARE_MACHINE_START(sms);
@@ -172,9 +180,10 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(sms_ctrl2_th_input);
 
 protected:
+	UINT8 read_bus(address_space &space, unsigned int bank, UINT16 base_addr, UINT16 offset);
 	void setup_bios();
-	void setup_rom();
-	void setup_sms_cart();
+	void setup_media_slots();
+	void setup_enabled_slots();
 	void lphaser_hcount_latch();
 	void sms_get_inputs(address_space &space);
 };
@@ -191,17 +200,10 @@ public:
 
 	DECLARE_READ8_MEMBER(sms_store_cart_select_r);
 	DECLARE_WRITE8_MEMBER(sms_store_cart_select_w);
-	DECLARE_READ8_MEMBER(sms_store_select1);
-	DECLARE_READ8_MEMBER(sms_store_select2);
-	DECLARE_READ8_MEMBER(sms_store_control_r);
 	DECLARE_WRITE8_MEMBER(sms_store_control_w);
 	DECLARE_DRIVER_INIT(smssdisp);
 
-	DECLARE_READ8_MEMBER(store_read_0000);
-	DECLARE_READ8_MEMBER(store_read_4000);
-	DECLARE_READ8_MEMBER(store_read_8000);
 	DECLARE_READ8_MEMBER(store_cart_peek);
-	DECLARE_WRITE8_MEMBER(store_write_cart);
 
 	DECLARE_WRITE_LINE_MEMBER(sms_store_int_callback);
 };

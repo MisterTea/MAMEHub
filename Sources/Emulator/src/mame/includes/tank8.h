@@ -39,7 +39,10 @@ public:
 		m_pos_d_ram(*this, "pos_d_ram"),
 		m_team(*this, "team"),
 		m_maincpu(*this, "maincpu"),
-		m_discrete(*this, "discrete") { }
+		m_discrete(*this, "discrete"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	int m_collision_index;
 	required_shared_ptr<UINT8> m_video_ram;
@@ -65,10 +68,10 @@ public:
 	TILE_GET_INFO_MEMBER(tank8_get_tile_info);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(tank8);
 	UINT32 screen_update_tank8(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_tank8(screen_device &screen, bool state);
-	void set_pens(colortable_t *colortable);
+	void set_pens();
 	inline int get_x_pos(int n);
 	inline int get_y_pos(int n);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -76,6 +79,9 @@ public:
 	void tank8_set_collision(int index);
 	required_device<cpu_device> m_maincpu;
 	required_device<discrete_device> m_discrete;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);

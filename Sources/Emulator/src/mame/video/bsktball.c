@@ -26,7 +26,7 @@ TILE_GET_INFO_MEMBER(bsktball_state::get_bg_tile_info)
 
 void bsktball_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bsktball_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bsktball_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 void bsktball_state::draw_sprites(  bitmap_ind16 &bitmap, const rectangle &cliprect )
@@ -44,7 +44,7 @@ void bsktball_state::draw_sprites(  bitmap_ind16 &bitmap, const rectangle &clipr
 		pic = (pic & 0x3f);
 		color = (color & 0x3f);
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1], pic, color, flipx, 0, sx, sy, 0);
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, pic, color, flipx, 0, sx, sy, 0);
 	}
 }
 

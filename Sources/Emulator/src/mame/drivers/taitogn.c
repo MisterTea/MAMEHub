@@ -23,6 +23,9 @@ which I suspect is one of the flashROMs that is acting like a standard ROM and i
 Upon inspecting the GNET top board, it appears flash.u30 is the sub-BIOS and perhaps U27 is something sound related.
 The flashROMs at U55, U56 & U29 appear to be the ones that are re-flashed when swapping game carts.
 
+Not every game uses the Taito Zoom sound hardware, these are: Otenami Haiken, Otenami Haiken Final,
+Zoku Otenamihaiken, Zooo, and possibly Space Invaders Anniversary.
+
 PCB Layouts
 -----------
 (Standard ZN2 Motherboard)
@@ -77,6 +80,9 @@ Notes:
       EPM7064        - Altera EPM7064QC100 CPLD (QFP100)
       CAT702         - Protection chip labelled 'TT10' (DIP20)
       *              - Unpopulated position for additional KM416V1204BT-L5 RAMs
+      NEC_78081G503  - NEC uPD78081 MCU, 5MHz
+
+      Video syncs are 59.8260Hz and 15.4333kHz
 
 
 FC PCB  K91X0721B  M43X0337B
@@ -137,6 +143,10 @@ Some of the cards are made in separate pieces and can be opened. However some
 are encased in a single-piece steel shell and opening it up destroys the card.
 Some of the later games came packaged as a Compact Flash card and a PCMCIA to CF
 adapter, however these cards were also locked the same as the older type.
+
+RC De Go! Controller Info
+-------------------------
+
 The game uses an analog wheel (5k potentiometer) in the shape of a hand-held
 control unit and a trigger (another 5k potentiometer) used for acceleration
 and brake. The trigger and wheel are self centering. If the trigger is pulled back
@@ -342,7 +352,13 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_mn10200(*this, "mn10200"),
 		m_flashbank(*this, "flashbank"),
-		m_mb3773(*this, "mb3773")
+		m_mb3773(*this, "mb3773"),
+		m_zoom(*this, "taito_zoom"),
+		m_pgmflash(*this, "pgmflash"),
+		m_sndflash0(*this, "sndflash0"),
+		m_sndflash1(*this, "sndflash1"),
+		m_sndflash2(*this, "sndflash2"),
+		m_has_zoom(true)
 	{
 	}
 
@@ -360,12 +376,28 @@ public:
 	DECLARE_WRITE8_MEMBER(coin_w);
 	DECLARE_READ8_MEMBER(coin_r);
 	DECLARE_READ8_MEMBER(gnet_mahjong_panel_r);
-	DECLARE_MACHINE_RESET(coh3002t);
+	DECLARE_READ32_MEMBER(zsg2_ext_r);
+	DECLARE_DRIVER_INIT(coh3002t_nz);
 
 protected:
 	virtual void driver_start();
+	virtual void machine_reset();
 
 private:
+	required_device<znsec_device> m_znsec0;
+	required_device<znsec_device> m_znsec1;
+	required_device<zndip_device> m_zndip;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_mn10200;
+	required_device<address_map_bank_device> m_flashbank;
+	required_device<mb3773_device> m_mb3773;
+	required_device<taito_zoom_device> m_zoom;
+	required_device<intelfsh16_device> m_pgmflash;
+	required_device<intelfsh16_device> m_sndflash0;
+	required_device<intelfsh16_device> m_sndflash1;
+	required_device<intelfsh16_device> m_sndflash2;
+
+	bool m_has_zoom;
 	UINT8 m_control;
 	UINT16 m_control2;
 	UINT8 m_control3;
@@ -374,14 +406,6 @@ private:
 	UINT8 m_n_znsecsel;
 
 	UINT8 m_coin_info;
-
-	required_device<znsec_device> m_znsec0;
-	required_device<znsec_device> m_znsec1;
-	required_device<zndip_device> m_zndip;
-	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_mn10200;
-	required_device<address_map_bank_device> m_flashbank;
-	required_device<mb3773_device> m_mb3773;
 };
 
 
@@ -389,40 +413,44 @@ private:
 
 READ8_MEMBER(taitogn_state::control_r)
 {
-	//      fprintf(stderr, "gn_r %08x @ %08x (%s)\n", 0x1fb00000+4*offset, mem_mask, machine().describe_context());
 	return m_control;
 }
 
 WRITE8_MEMBER(taitogn_state::control_w)
 {
 	// 20 = watchdog
-	// 04 = select bank
-
-	COMBINE_DATA(&m_control);
-
 	m_mb3773->write_line_ck((data & 0x20) >> 5);
 
-#if 0
-	if((p ^ control) & ~0x20)
-		fprintf(stderr, "control = %c%c.%c %c%c%c%c (%s)\n",
-				control & 0x80 ? '1' : '0',
-				control & 0x40 ? '1' : '0',
-				control & 0x10 ? '1' : '0',
-				control & 0x08 ? '1' : '0',
-				control & 0x04 ? 'f' : '-',
-				control & 0x02 ? '1' : '0',
-				control & 0x01 ? '1' : '0',
-				machine().describe_context());
-#endif
+	// 10 = sound hw reset, but make sure it's only booted on games that use it
+	if (m_has_zoom)
+	{
+		m_mn10200->set_input_line(INPUT_LINE_RESET, (data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
 
+		if (~data & m_control & 0x10)
+		{
+			logerror("control_w Zoom reset\n");
+
+			m_zoom->reset();
+
+			// assume that this also readys the sound flash chips
+			m_pgmflash->write(0, 0xff);
+			m_sndflash0->write(0, 0xff);
+			m_sndflash1->write(0, 0xff);
+			m_sndflash2->write(0, 0xff);
+		}
+	}
+
+	// 04 = select bank
 	// According to the rom code, bits 1-0 may be part of the bank
 	// selection too, but they're always 0.
-	m_flashbank->set_bank(m_control & 4);
+	m_flashbank->set_bank(data & 4);
+
+	m_control = data;
 }
 
 WRITE16_MEMBER(taitogn_state::control2_w)
 {
-	COMBINE_DATA(&m_control2);
+	m_control2 = data;
 }
 
 READ8_MEMBER(taitogn_state::control3_r)
@@ -432,7 +460,7 @@ READ8_MEMBER(taitogn_state::control3_r)
 
 WRITE8_MEMBER(taitogn_state::control3_w)
 {
-	COMBINE_DATA(&m_control3);
+	m_control3 = data;
 }
 
 READ16_MEMBER(taitogn_state::gn_1fb70000_r)
@@ -455,12 +483,15 @@ WRITE16_MEMBER(taitogn_state::gn_1fb70000_w)
 
 READ16_MEMBER(taitogn_state::hack1_r)
 {
-	switch(offset)
+	switch (offset)
 	{
-	case 0:
-		m_v = m_v ^ 8;
-		// Probably something to do with sound
-		return m_v;
+		case 0:
+			m_v = m_v ^ 8;
+			// Probably something to do with MCU
+			return m_v;
+
+		default:
+			break;
 	}
 
 	return 0;
@@ -480,34 +511,16 @@ READ8_MEMBER(taitogn_state::znsecsel_r)
 
 WRITE8_MEMBER(taitogn_state::znsecsel_w)
 {
-	COMBINE_DATA( &m_n_znsecsel );
+	m_znsec0->select( ( data >> 2 ) & 1 );
+	m_znsec1->select( ( data >> 3 ) & 1 );
+	m_zndip->select( ( data & 0x8c ) != 0x8c );
 
-	m_znsec0->select( ( m_n_znsecsel >> 2 ) & 1 );
-	m_znsec1->select( ( m_n_znsecsel >> 3 ) & 1 );
-	m_zndip->select( ( m_n_znsecsel & 0x8c ) != 0x8c );
+	m_n_znsecsel = data;
 }
 
 READ8_MEMBER(taitogn_state::boardconfig_r)
 {
-	/*
-	------00 mem=4M
-	------01 mem=4M
-	------10 mem=8M
-	------11 mem=16M
-	-----0-- smem=hM
-	-----1-- smem=2M
-	----0--- vmem=1M
-	----1--- vmem=2M
-	000----- rev=-2
-	001----- rev=-1
-	010----- rev=0
-	011----- rev=1
-	100----- rev=2
-	101----- rev=3
-	110----- rev=4
-	111----- rev=5
-	*/
-
+	// see zn.c
 	return 64|32|8;
 }
 
@@ -531,16 +544,35 @@ READ8_MEMBER(taitogn_state::coin_r)
 /* mahjong panel handler (for Usagi & Mahjong Oh) */
 READ8_MEMBER(taitogn_state::gnet_mahjong_panel_r)
 {
-	switch(m_coin_info & 0xcc)
+	switch (m_coin_info & 0xcc)
 	{
 		case 0x04: return ioport("KEY0")->read();
 		case 0x08: return ioport("KEY1")->read();
 		case 0x40: return ioport("KEY2")->read();
 		case 0x80: return ioport("KEY3")->read();
+
+		default:
+			break;
 	}
 
 	/* mux disabled */
 	return ioport("P4")->read();
+}
+
+READ32_MEMBER(taitogn_state::zsg2_ext_r)
+{
+	offset *= 2;
+
+	switch (offset & 0x300000)
+	{
+		case 0x000000: return m_sndflash0->read(offset) | m_sndflash0->read(offset | 1) << 16;
+		case 0x100000: return m_sndflash1->read(offset & 0xfffff) | m_sndflash1->read((offset & 0xfffff) | 1) << 16;
+		case 0x200000: return m_sndflash2->read(offset & 0xfffff) | m_sndflash2->read((offset & 0xfffff) | 1) << 16;
+
+		default:
+			break;
+	}
+	return 0;
 }
 
 // Init and reset
@@ -551,12 +583,17 @@ void taitogn_state::driver_start()
 	m_znsec1->init(tt16);
 }
 
-MACHINE_RESET_MEMBER(taitogn_state,coh3002t)
+void taitogn_state::machine_reset()
 {
-	m_control = 0;
-
 	// halt sound CPU since it has no valid program at start
-	m_mn10200->set_input_line(INPUT_LINE_RESET,ASSERT_LINE); /* MCU */
+	m_mn10200->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+
+	m_control = 0x10;
+}
+
+DRIVER_INIT_MEMBER(taitogn_state,coh3002t_nz)
+{
+	m_has_zoom = false;
 }
 
 static ADDRESS_MAP_START( taitogn_map, AS_PROGRAM, 32, taitogn_state )
@@ -578,7 +615,11 @@ static ADDRESS_MAP_START( taitogn_map, AS_PROGRAM, 32, taitogn_state )
 	AM_RANGE(0x1fb40000, 0x1fb40003) AM_READWRITE8(control_r, control_w, 0x000000ff)
 	AM_RANGE(0x1fb60000, 0x1fb60003) AM_WRITE16(control2_w, 0x0000ffff)
 	AM_RANGE(0x1fb70000, 0x1fb70003) AM_READWRITE16(gn_1fb70000_r, gn_1fb70000_w, 0x0000ffff)
-	AM_RANGE(0x1fbe0000, 0x1fbe01ff) AM_RAM // 256 bytes com zone with the mn102, low bytes of words only, with additional comm at 1fb80000
+	AM_RANGE(0x1fb80000, 0x1fb80003) AM_DEVWRITE16("taito_zoom", taito_zoom_device, reg_data_w, 0x0000ffff)
+	AM_RANGE(0x1fb80000, 0x1fb80003) AM_DEVWRITE16("taito_zoom", taito_zoom_device, reg_address_w, 0xffff0000)
+	AM_RANGE(0x1fba0000, 0x1fba0003) AM_DEVWRITE16("taito_zoom", taito_zoom_device, sound_irq_w, 0x0000ffff)
+	AM_RANGE(0x1fbc0000, 0x1fbc0003) AM_DEVREAD16("taito_zoom", taito_zoom_device, sound_irq_r, 0x0000ffff)
+	AM_RANGE(0x1fbe0000, 0x1fbe01ff) AM_DEVREADWRITE8("taito_zoom", taito_zoom_device, shared_ram_r, shared_ram_w, 0x00ff00ff) // M66220FP for comms with the MN10200
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( flashbank_map, AS_PROGRAM, 16, taitogn_state )
@@ -598,11 +639,17 @@ static ADDRESS_MAP_START( taitogn_mp_map, AS_PROGRAM, 32, taitogn_state )
 	AM_IMPORT_FROM(taitogn_map)
 ADDRESS_MAP_END
 
+static ADDRESS_MAP_START( taitogn_mn_map, AS_PROGRAM, 16, taitogn_state )
+	AM_RANGE(0x080000, 0x0fffff) AM_DEVREAD("pgmflash", intelfsh16_device, read)
+	AM_IMPORT_FROM( taitozoom_mn_map )
+ADDRESS_MAP_END
+
 SLOT_INTERFACE_START(slot_ataflash)
 	SLOT_INTERFACE("ataflash", ATA_FLASH_PCCARD)
 SLOT_INTERFACE_END
 
 static MACHINE_CONFIG_START( coh3002t, taitogn_state )
+
 	/* basic machine hardware */
 	MCFG_CPU_ADD( "maincpu", CXD8661R, XTAL_100MHz )
 	MCFG_CPU_PROGRAM_MAP(taitogn_map)
@@ -615,18 +662,6 @@ static MACHINE_CONFIG_START( coh3002t, taitogn_state )
 	MCFG_DEVICE_ADD("maincpu:sio0:zndip", ZNDIP, 0)
 	MCFG_ZNDIP_DATA_HANDLER(IOPORT(":DSW"))
 
-	/* video hardware */
-	MCFG_PSXGPU_ADD( "maincpu", "gpu", CXD8654Q, 0x200000, XTAL_53_693175MHz )
-
-	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
-
-	MCFG_SPU_ADD( "spu", XTAL_67_7376MHz/2 )
-	MCFG_SOUND_ROUTE(0, "lspeaker", 0.35)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 0.35)
-
-	MCFG_MACHINE_RESET_OVERRIDE(taitogn_state, coh3002t )
-
 	MCFG_AT28C16_ADD( "at28c16", 0 )
 	MCFG_DEVICE_ADD("rf5c296", RF5C296, 0)
 	MCFG_RF5C296_SLOT(":pccard")
@@ -637,7 +672,7 @@ static MACHINE_CONFIG_START( coh3002t, taitogn_state )
 	MCFG_MB3773_ADD("mb3773")
 
 	MCFG_INTEL_TE28F160_ADD("biosflash")
-	MCFG_INTEL_E28F400_ADD("pgmflash")
+	MCFG_INTEL_E28F400B_ADD("pgmflash")
 	MCFG_INTEL_TE28F160_ADD("sndflash0")
 	MCFG_INTEL_TE28F160_ADD("sndflash1")
 	MCFG_INTEL_TE28F160_ADD("sndflash2")
@@ -648,10 +683,33 @@ static MACHINE_CONFIG_START( coh3002t, taitogn_state )
 	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(16)
 	MCFG_ADDRESS_MAP_BANK_STRIDE(0x2000000)
 
+	// 5MHz NEC uPD78081 MCU:
+	// we don't have a 78K0 emulation core yet..
+
+	/* video hardware */
+	MCFG_PSXGPU_ADD( "maincpu", "gpu", CXD8654Q, 0x200000, XTAL_53_693175MHz )
+
+	/* sound hardware */
+	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+
+	MCFG_SPU_ADD("spu", XTAL_67_7376MHz/2)
+	MCFG_SOUND_ROUTE(0, "lspeaker", 0.45)
+	MCFG_SOUND_ROUTE(1, "rspeaker", 0.45)
+
 	MCFG_FRAGMENT_ADD( taito_zoom_sound )
+	MCFG_CPU_MODIFY("mn10200")
+	MCFG_CPU_PROGRAM_MAP(taitogn_mn_map)
+
+	MCFG_SOUND_REPLACE("zsg2", ZSG2, XTAL_25MHz)
+	MCFG_ZSG2_EXT_READ_HANDLER(READ32(taitogn_state, zsg2_ext_r))
+
+	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
+	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( coh3002t_mp, coh3002t )
+
+	/* basic machine hardware */
 	MCFG_CPU_MODIFY( "maincpu" )
 	MCFG_CPU_PROGRAM_MAP(taitogn_mp_map)
 MACHINE_CONFIG_END
@@ -714,16 +772,12 @@ static INPUT_PORTS_START( coh3002t )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("DSW")
-	PORT_DIPNAME( 0x01, 0x01, "Freeze" )
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Service_Mode ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x01, 0x01, "S551:1" )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Service_Mode ) ) PORT_DIPLOCATION("S551:2") // bios testmode
 	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x04, 0x04, "S551:3" )
+	PORT_DIPNAME( 0x08, 0x08, "Test Mode" )             PORT_DIPLOCATION("S551:4") // game testmode
 	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
@@ -776,14 +830,16 @@ INPUT_PORTS_END
 #define TAITOGNET_BIOS \
 	ROM_REGION32_LE( 0x080000, "maincpu:rom", 0 ) \
 	ROM_LOAD( "coh-3002t.353", 0x000000, 0x080000, CRC(03967fa7) SHA1(0e17fec2286e4e25deb23d40e41ce0986f373d49) ) \
+	ROM_REGION( 0x2000, "mcu", 0 ) \
+	ROM_LOAD( "upd78081.655", 0x0000, 0x2000, NO_DUMP ) /* internal rom :( */ \
 	ROM_REGION( 0x200000, "biosflash", 0 ) \
 	ROM_SYSTEM_BIOS( 0, "v1",   "G-NET Bios v1" ) \
 		ROM_LOAD16_WORD_BIOS(0, "flash.u30", 0x000000, 0x200000, CRC(c48c8236) SHA1(c6dad60266ce2ff635696bc0d91903c543273559) ) \
 	ROM_SYSTEM_BIOS( 1, "v2",   "G-NET Bios v2" ) \
 		ROM_LOAD16_WORD_BIOS(1, "flashv2.u30", 0x000000, 0x200000, CRC(CAE462D3) SHA1(f1b10846a8423d9fe021191c5876190857c3d2a4) ) \
-	ROM_REGION32_LE( 0x80000,  "mn10200", 0) \
+	ROM_REGION( 0x80000, "mn10200", 0) \
 	ROM_FILL( 0, 0x80000, 0xff) \
-	ROM_REGION32_LE( 0x600000, "zsg1", 0) \
+	ROM_REGION32_LE( 0x600000, "zsg2", 0) \
 	ROM_FILL( 0, 0x600000, 0xff)
 
 ROM_START( taitogn )
@@ -997,35 +1053,35 @@ ROM_END
 /* A dummy driver, so that the bios can be debugged, and to serve as */
 /* parent for the coh-3002t.353 file, so that we do not have to include */
 /* it in every zip file */
-GAME( 1997, taitogn,  0,        coh3002t, coh3002t, driver_device, 0, ROT0,   "Taito", "Taito GNET", GAME_IS_BIOS_ROOT )
+GAME( 1997, taitogn,  0,        coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Taito", "Taito GNET", GAME_IS_BIOS_ROOT )
 
-GAME( 1998, chaoshea, taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Taito", "Chaos Heat (V2.09O)", GAME_IMPERFECT_SOUND )
-GAME( 1998, chaosheaj,chaoshea, coh3002t, coh3002t, driver_device, 0, ROT0,   "Taito", "Chaos Heat (V2.08J)", GAME_IMPERFECT_SOUND )
-GAME( 1998, raycris,  taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Taito", "Ray Crisis (V2.03J)", GAME_IMPERFECT_SOUND )
-GAME( 1999, spuzbobl, taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Taito", "Super Puzzle Bobble (V2.05O)", GAME_IMPERFECT_SOUND )
-GAME( 1999, spuzboblj,spuzbobl, coh3002t, coh3002t, driver_device, 0, ROT0,   "Taito", "Super Puzzle Bobble (V2.04J)", GAME_IMPERFECT_SOUND )
-GAME( 1999, gobyrc,   taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Taito", "Go By RC (V2.03O)", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND ) // custom inputs need calibrating
-GAME( 1999, rcdego,   gobyrc,   coh3002t, coh3002t, driver_device, 0, ROT0,   "Taito", "RC De Go (V2.03J)", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND ) // custom inputs need calibrating
-GAME( 1999, flipmaze, taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Taito / Moss", "Flip Maze (V2.04J)", GAME_IMPERFECT_SOUND )
-GAME( 2001, shikigam, taitogn,  coh3002t, coh3002t, driver_device, 0, ROT270, "Alfa System / Taito", "Shikigami no Shiro (V2.03J)", GAME_IMPERFECT_SOUND )
-GAME( 2003, sianniv,  taitogn,  coh3002t, coh3002t, driver_device, 0, ROT270, "Taito", "Space Invaders Anniversary (V2.02J)", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND ) // IRQ at the wrong time
-GAME( 2003, kollon,   taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Taito", "Kollon (V2.04J)", GAME_IMPERFECT_SOUND )
-GAME( 2003, kollonc,  kollon,   coh3002t, coh3002t, driver_device, 0, ROT0,   "Taito", "Kollon (V2.04JC)", GAME_IMPERFECT_SOUND )
+GAME( 1998, chaoshea, taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Taito", "Chaos Heat (V2.09O)", GAME_IMPERFECT_SOUND )
+GAME( 1998, chaosheaj,chaoshea, coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Taito", "Chaos Heat (V2.08J)", GAME_IMPERFECT_SOUND )
+GAME( 1998, raycris,  taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Taito", "Ray Crisis (V2.03J)", GAME_IMPERFECT_SOUND )
+GAME( 1999, spuzbobl, taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Taito", "Super Puzzle Bobble (V2.05O)", GAME_IMPERFECT_SOUND )
+GAME( 1999, spuzboblj,spuzbobl, coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Taito", "Super Puzzle Bobble (V2.04J)", GAME_IMPERFECT_SOUND )
+GAME( 1999, gobyrc,   taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Taito", "Go By RC (V2.03O)", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND ) // analog controls, needs mcu emulation
+GAME( 1999, rcdego,   gobyrc,   coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Taito", "RC De Go (V2.03J)", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND ) // "
+GAME( 1999, flipmaze, taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "MOSS / Taito", "Flip Maze (V2.04J)", GAME_IMPERFECT_SOUND )
+GAME( 2001, shikigam, taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT270, "Alfa System / Taito", "Shikigami no Shiro (V2.03J)", GAME_IMPERFECT_SOUND )
+GAME( 2003, sianniv,  taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT270, "Taito", "Space Invaders Anniversary (V2.02J)", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND ) // IRQ at the wrong time
+GAME( 2003, kollon,   taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Taito", "Kollon (V2.04J)", GAME_IMPERFECT_SOUND )
+GAME( 2003, kollonc,  kollon,   coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Taito", "Kollon (V2.04JC)", GAME_IMPERFECT_SOUND )
 
-GAME( 1999, otenamih, taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Success", "Otenami Haiken (V2.04J)", GAME_IMPERFECT_SOUND )
-GAME( 2005, otenamhf, taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Success / Warashi", "Otenami Haiken Final (V2.07JC)", GAME_IMPERFECT_SOUND )
-GAME( 2000, psyvaria, taitogn,  coh3002t, coh3002t, driver_device, 0, ROT270, "Success", "Psyvariar -Medium Unit- (V2.04J)", GAME_IMPERFECT_SOUND )
-GAME( 2000, psyvarrv, taitogn,  coh3002t, coh3002t, driver_device, 0, ROT270, "Success", "Psyvariar -Revision- (V2.04J)", GAME_IMPERFECT_SOUND )
-GAME( 2000, zokuoten, taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Success", "Zoku Otenamihaiken (V2.03J)", GAME_IMPERFECT_SOUND )
-GAME( 2004, zooo,     taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Success", "Zooo (V2.01J)", GAME_IMPERFECT_SOUND )
+GAME( 1999, otenamih, taitogn,  coh3002t,    coh3002t,    taitogn_state, coh3002t_nz, ROT0,   "Success", "Otenami Haiken (V2.04J)", 0 )
+GAME( 2005, otenamhf, taitogn,  coh3002t,    coh3002t,    taitogn_state, coh3002t_nz, ROT0,   "Success / Warashi", "Otenami Haiken Final (V2.07JC)", 0 )
+GAME( 2000, psyvaria, taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT270, "Success", "Psyvariar -Medium Unit- (V2.04J)", GAME_IMPERFECT_SOUND )
+GAME( 2000, psyvarrv, taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT270, "Success", "Psyvariar -Revision- (V2.04J)", GAME_IMPERFECT_SOUND )
+GAME( 2000, zokuoten, taitogn,  coh3002t,    coh3002t,    taitogn_state, coh3002t_nz, ROT0,   "Success", "Zoku Otenamihaiken (V2.03J)", 0 ) // boots the soundcpu without any valid code, causing an infinite NMI loop (currently circumvented)
+GAME( 2004, zooo,     taitogn,  coh3002t,    coh3002t,    taitogn_state, coh3002t_nz, ROT0,   "Success", "Zooo (V2.01J)", 0 )
 
-GAME( 1999, mahjngoh, taitogn,  coh3002t_mp, coh3002t_mp, driver_device, 0, ROT0, "Warashi / Mahjong Kobo / Taito", "Mahjong Oh (V2.06J)", GAME_IMPERFECT_SOUND )
-GAME( 2001, usagi,    taitogn,  coh3002t_mp, coh3002t_mp, driver_device, 0, ROT0, "Warashi / Mahjong Kobo / Taito", "Usagi (V2.02J)", GAME_IMPERFECT_SOUND )
-GAME( 2000, soutenry, taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Warashi", "Soutenryu (V2.07J)", GAME_IMPERFECT_SOUND )
-GAME( 2000, shanghss, taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Warashi", "Shanghai Shoryu Sairin (V2.03J)", GAME_IMPERFECT_SOUND )
-GAME( 2002, shangtou, taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Warashi / Sunsoft / Taito", "Shanghai Sangokuhai Tougi (Ver 2.01J)", GAME_IMPERFECT_SOUND )
+GAME( 1999, mahjngoh, taitogn,  coh3002t_mp, coh3002t_mp, driver_device, 0,           ROT0,   "Warashi / Mahjong Kobo / Taito", "Mahjong Oh (V2.06J)", GAME_IMPERFECT_SOUND )
+GAME( 2001, usagi,    taitogn,  coh3002t_mp, coh3002t_mp, driver_device, 0,           ROT0,   "Warashi / Mahjong Kobo / Taito", "Usagi (V2.02J)", GAME_IMPERFECT_SOUND )
+GAME( 2000, soutenry, taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Warashi", "Soutenryu (V2.07J)", GAME_IMPERFECT_SOUND )
+GAME( 2000, shanghss, taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Warashi", "Shanghai Shoryu Sairin (V2.03J)", GAME_IMPERFECT_SOUND )
+GAME( 2002, shangtou, taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Warashi / Sunsoft / Taito", "Shanghai Sangokuhai Tougi (Ver 2.01J)", GAME_IMPERFECT_SOUND )
 
-GAME( 2001, nightrai, taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Takumi", "Night Raid (V2.03J)", GAME_IMPERFECT_SOUND )
-GAME( 2001, otenki,   taitogn,  coh3002t, coh3002t, driver_device, 0, ROT0,   "Takumi", "Otenki Kororin (V2.01J)", GAME_IMPERFECT_SOUND )
+GAME( 2001, nightrai, taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Takumi", "Night Raid (V2.03J)", GAME_IMPERFECT_SOUND )
+GAME( 2001, otenki,   taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT0,   "Takumi", "Otenki Kororin (V2.01J)", GAME_IMPERFECT_SOUND )
 
-GAME( 2002, xiistag,  taitogn,  coh3002t, coh3002t, driver_device, 0, ROT270, "Triangle Service", "XII Stag (V2.01J)", GAME_IMPERFECT_SOUND )
+GAME( 2002, xiistag,  taitogn,  coh3002t,    coh3002t,    driver_device, 0,           ROT270, "Triangle Service", "XII Stag (V2.01J)", GAME_IMPERFECT_SOUND )

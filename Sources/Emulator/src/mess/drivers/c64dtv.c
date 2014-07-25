@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #include "emu.h"
 
 
@@ -14,7 +16,7 @@ public:
 
 	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 	{
-		bitmap.fill(RGB_BLACK);
+		bitmap.fill(rgb_t::black);
 		return 0;
 	}
 };

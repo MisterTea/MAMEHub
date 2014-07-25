@@ -1811,13 +1811,6 @@ GFXDECODE_END
 
 /******************************************************************************/
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r)
-};
-
 WRITE8_MEMBER(alpha68k_state::porta_w)
 {
 	if(data == 0xff)
@@ -1832,16 +1825,6 @@ WRITE8_MEMBER(alpha68k_state::porta_w)
 
 	m_sound_pa_latch = data & 1;
 }
-
-static const ay8910_interface ym2203_ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(alpha68k_state, porta_w),
-	DEVCB_NULL
-};
 
 WRITE_LINE_MEMBER(alpha68k_state::ym3812_irq)
 {
@@ -1962,10 +1945,13 @@ static MACHINE_CONFIG_START( sstingry, alpha68k_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(alpha68k_state, screen_update_sstingry)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sstingry)
-	MCFG_PALETTE_LENGTH(256 + 1)
-	MCFG_PALETTE_INIT_OVERRIDE(alpha68k_state,kyros)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sstingry)
+
+	MCFG_PALETTE_ADD("palette", 256 + 1)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(alpha68k_state,kyros)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -2007,11 +1993,13 @@ static MACHINE_CONFIG_START( kyros, alpha68k_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(alpha68k_state, screen_update_kyros)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(kyros)
-	MCFG_PALETTE_LENGTH(256 + 1)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", kyros)
 
-	MCFG_PALETTE_INIT_OVERRIDE(alpha68k_state,kyros)
+	MCFG_PALETTE_ADD("palette", 256 + 1)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(alpha68k_state,kyros)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -2052,17 +2040,19 @@ static MACHINE_CONFIG_START( jongbou, alpha68k_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(alpha68k_state, screen_update_kyros)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(jongbou)
-	MCFG_PALETTE_LENGTH(256 + 1)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jongbou)
 
-	MCFG_PALETTE_INIT_OVERRIDE(alpha68k_state,kyros)
+	MCFG_PALETTE_ADD("palette", 256 + 1)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(alpha68k_state,kyros)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 2000000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.65)
 MACHINE_CONFIG_END
 
@@ -2086,11 +2076,13 @@ static MACHINE_CONFIG_START( alpha68k_I, alpha68k_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(alpha68k_state, screen_update_alpha68k_I)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(paddle)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", paddle)
 
-	MCFG_PALETTE_LENGTH(1024)
-	MCFG_PALETTE_INIT_OVERRIDE(alpha68k_state,paddlem)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(alpha68k_state,paddlem)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -2128,9 +2120,10 @@ static MACHINE_CONFIG_START( alpha68k_II, alpha68k_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(alpha68k_state, screen_update_alpha68k_II)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(alpha68k_II)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", alpha68k_II)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 	MCFG_VIDEO_START_OVERRIDE(alpha68k_state,alpha68k)
 
@@ -2138,7 +2131,8 @@ static MACHINE_CONFIG_START( alpha68k_II, alpha68k_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 3000000)
-	MCFG_YM2203_AY8910_INTF(&ym2203_ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(alpha68k_state, porta_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.65)
 
 	MCFG_SOUND_ADD("ym2", YM2413, 3579545)
@@ -2177,9 +2171,10 @@ static MACHINE_CONFIG_START( alpha68k_II_gm, alpha68k_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(alpha68k_state, screen_update_alpha68k_II)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(alpha68k_II)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", alpha68k_II)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 	MCFG_VIDEO_START_OVERRIDE(alpha68k_state,alpha68k)
 
@@ -2187,7 +2182,8 @@ static MACHINE_CONFIG_START( alpha68k_II_gm, alpha68k_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 3000000)
-	MCFG_YM2203_AY8910_INTF(&ym2203_ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(alpha68k_state, porta_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.65)
 
 	MCFG_SOUND_ADD("ym2", YM2413, 3579545)
@@ -2220,9 +2216,10 @@ static MACHINE_CONFIG_START( alpha68k_V, alpha68k_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(alpha68k_state, screen_update_alpha68k_V)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(alpha68k_V)
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", alpha68k_V)
+	MCFG_PALETTE_ADD("palette", 4096)
 
 	MCFG_VIDEO_START_OVERRIDE(alpha68k_state,alpha68k)
 
@@ -2230,7 +2227,8 @@ static MACHINE_CONFIG_START( alpha68k_V, alpha68k_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 3000000)
-	MCFG_YM2203_AY8910_INTF(&ym2203_ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(alpha68k_state, porta_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.65)
 
 	MCFG_SOUND_ADD("ym2", YM2413, 3579545)
@@ -2262,9 +2260,10 @@ static MACHINE_CONFIG_START( alpha68k_V_sb, alpha68k_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(alpha68k_state, screen_update_alpha68k_V_sb)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(alpha68k_V)
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", alpha68k_V)
+	MCFG_PALETTE_ADD("palette", 4096)
 
 	MCFG_VIDEO_START_OVERRIDE(alpha68k_state,alpha68k)
 
@@ -2272,7 +2271,8 @@ static MACHINE_CONFIG_START( alpha68k_V_sb, alpha68k_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 3000000)
-	MCFG_YM2203_AY8910_INTF(&ym2203_ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(alpha68k_state, porta_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.65)
 
 	MCFG_SOUND_ADD("ym2", YM2413, 3579545)
@@ -2303,11 +2303,13 @@ static MACHINE_CONFIG_START( tnextspc, alpha68k_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(alpha68k_state, screen_update_alpha68k_I)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tnextspc)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tnextspc)
 
-	MCFG_PALETTE_LENGTH(1024)
-	MCFG_PALETTE_INIT_OVERRIDE(alpha68k_state,paddlem)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(alpha68k_state,paddlem)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -3013,13 +3015,37 @@ ROM_START( gangwars )
 	ROM_LOAD( "gw-5.21f",            0x080000, 0x20000, CRC(9ef36031) SHA1(2faeb6a769991ab11403c6c37507b706a61bad69) )
 	ROM_LOAD( "guernica-c2.18h",     0x100000, 0x80000, CRC(2fcbea97) SHA1(eb60bf374ef771e379030d2b660a813be76bed5e) )
 	ROM_LOAD( "gw-6.20f",            0x180000, 0x20000, CRC(ddbbcda7) SHA1(1c368ad2a4ed31748c94545fc7c808aa53d76f64) )
-	ROM_LOAD( "guernica-c1.20h",     0x200000, 0x80000, CRC(5d384c3b) SHA1(9bc581501d52cc3280667a9ea34f2ba9c4b6ebb1) )
+	ROM_LOAD( "guernica-c1.20h",     0x200000, 0x80000, CRC(b0fd1c23) SHA1(a6dbed81b751c1f662f63a7426d8333aca866d79) ) // rom with CRC 5d384c3b has a fixed bits problem on bit 0x80 in the first 0x200 bytes
 	ROM_LOAD( "gw-7.18f",            0x280000, 0x20000, CRC(4656d377) SHA1(67d6f714cca3891be0173c543ece5e8ab699f645) )
 	ROM_LOAD( "guernica-c0.21h",     0x300000, 0x80000, CRC(e60c9882) SHA1(8cf1d9cf0db72977b303fd6b469611600631ab9a) )
 	ROM_LOAD( "gw-8.17f",            0x380000, 0x20000, CRC(798ed82a) SHA1(1932131e05aae0a77ba8d8ef947c1a3b0b5e3d43) )
+ROM_END
 
-	/* there is a bootleg which is otherwise identical but has the following graphic ROM arrangement */
-#if 0
+
+
+
+ROM_START( gangwarsb ) // this is a common bootleg, main code etc. matches the original, has a 68705 MCU (undumped) duplicating the functionality of the Alpha one, GFX roms are split (content identical)
+	ROM_REGION( 0x40000, "maincpu", 0 )
+	ROM_LOAD16_BYTE( "gwb_ic.m15", 0x00000, 0x20000, CRC(7752478e) SHA1(7266dd0d2c57433191ae4d1d4e17b32c8c3c8c73) )
+	ROM_LOAD16_BYTE( "gwb_ic.m16", 0x00001, 0x20000, CRC(c2f3b85e) SHA1(79c215d8b43ec7728e3745b359e64f6bb8240881) )
+	ROM_REGION16_BE( 0x40000, "user1", 0 ) /* Extra code bank */
+	ROM_LOAD16_BYTE( "gwb_ic.m17", 0x00000, 0x20000, CRC(2a5fe86e) SHA1(0e668f51430983a17e1965143a0bf3aa4d3156ee) )
+	ROM_LOAD16_BYTE( "gwb_ic.m18", 0x00001, 0x20000, CRC(c8b60c53) SHA1(352c3bcc18cf63bcb757d774c2c2247ce0c4e736) )
+
+	ROM_REGION( 0x90000, "audiocpu", 0 )   /* Sound CPU */
+	ROM_LOAD( "gwb_ic.380",     0x00000, 0x08000, CRC(e6d6c9cf) SHA1(c35a7a385592e55bdfe232d042f2228f4f7e9ffa) )
+	ROM_CONTINUE(               0x18000, 0x08000 )
+	ROM_LOAD( "gwb_ic.421",     0x30000, 0x10000, CRC(7b9f2608) SHA1(8d61dfa32369450e396cc8a5d67c58eedb2167e6) )
+	ROM_LOAD( "gwb_ic.420",     0x50000, 0x10000, CRC(eb305d42) SHA1(93910cf60c1b8a87969888d8693c7d6782f1e799) )
+	ROM_LOAD( "gwb_ic.419",     0x70000, 0x10000, CRC(84e5c946) SHA1(0b071d15b664a9c529713b1b896bdb5ebfa16c25) )
+
+	ROM_REGION( 0x10000, "mcu", 0 )
+	ROM_LOAD( "68705.mcu", 0x000, 0x1000, NO_DUMP )
+
+	ROM_REGION( 0x020000, "gfx1", 0 )  /* chars */
+	ROM_LOAD( "gwb_ic.m19",     0x000000, 0x10000, CRC(b75bf1d0) SHA1(c22c0049274c45701be0a7be2afc0517620a3a10) )
+
+	ROM_REGION( 0x400000, "gfx2", 0 )  /* sprites */
 	ROM_LOAD( "gwb_ic.308",     0x000000, 0x10000, CRC(321a2fdd) SHA1(b2f37f14a13bc2c2f78b2b0e27fde18a23146e22) )
 	ROM_LOAD( "gwb_ic.309",     0x010000, 0x10000, CRC(4d908f65) SHA1(6095a34ef4a6905d57c47af4a507dff3a04e5c07) )
 	ROM_LOAD( "gwb_ic.310",     0x020000, 0x10000, CRC(fc888541) SHA1(e732a03209a88fc7a23b4e4ff69a437d6fbfc2d1) )
@@ -3063,8 +3089,41 @@ ROM_START( gangwars )
 	ROM_LOAD( "gwb_ic.283",     0x370000, 0x10000, CRC(b46e5761) SHA1(3c4c13c5896186fe36ace8704afeef84b0a0cb78) )
 	ROM_LOAD( "gwb_ic.316",     0x380000, 0x10000, CRC(655b1518) SHA1(d97fd911901f92786bc22dac8e085cf4fa0cb1e9) )
 	ROM_LOAD( "gwb_ic.315",     0x390000, 0x10000, CRC(e7c9b103) SHA1(6f70ca9b6a7439f9250145477f682f7487e11710) )
-#endif
 ROM_END
+
+
+ROM_START( gangwarsj )
+	ROM_REGION( 0x40000, "maincpu", 0 )
+	ROM_LOAD16_BYTE( "gw-ver1-j1.19c", 0x00000, 0x20000, CRC(98bf9668) SHA1(5572b866c591b117e606b30554f12e15dd8a1c76) )
+	ROM_LOAD16_BYTE( "gw-ver1-j2.19d", 0x00001, 0x20000, CRC(41868606) SHA1(a7239a0e740ce3b9d091eb864f699d72d8031618) )
+	ROM_REGION16_BE( 0x40000, "user1", 0 ) /* Extra code bank */
+	ROM_LOAD16_BYTE( "gw-ver1-j3.18c", 0x00000, 0x20000, CRC(6e6b7e1f) SHA1(300c9c87ec471c8f9c6f19ad43e1ce0bef63b67b) )
+	ROM_LOAD16_BYTE( "gw-ver1-j4.18d", 0x00001, 0x20000, CRC(1f13eb20) SHA1(f8c76ac9271ce158d9cb79d7b3be92750806e7d6) )
+
+	ROM_REGION( 0x90000, "audiocpu", 0 )   /* Sound CPU */
+	ROM_LOAD( "gw-12.10f",      0x00000, 0x08000, CRC(e6d6c9cf) SHA1(c35a7a385592e55bdfe232d042f2228f4f7e9ffa) )
+	ROM_CONTINUE(               0x18000, 0x08000 )
+	ROM_LOAD( "gw-11.11f",      0x30000, 0x10000, CRC(7b9f2608) SHA1(8d61dfa32369450e396cc8a5d67c58eedb2167e6) )
+	ROM_LOAD( "gw-10.13f",      0x50000, 0x10000, CRC(eb305d42) SHA1(93910cf60c1b8a87969888d8693c7d6782f1e799) )
+	ROM_LOAD( "gw-9.15f",       0x70000, 0x10000, CRC(84e5c946) SHA1(0b071d15b664a9c529713b1b896bdb5ebfa16c25) )
+
+	ROM_REGION( 0x10000, "mcu", 0 )
+	ROM_LOAD( "alpha.mcu", 0x000, 0x1000, NO_DUMP )
+
+	ROM_REGION( 0x020000, "gfx1", 0 )  /* chars */
+	ROM_LOAD( "gw-13.4l",     0x000000, 0x10000, CRC(b75bf1d0) SHA1(c22c0049274c45701be0a7be2afc0517620a3a10) )
+
+	ROM_REGION( 0x400000, "gfx2", 0 )  /* sprites */
+	ROM_LOAD( "guernica-c3.17h",     0x000000, 0x80000, CRC(281a4138) SHA1(47fc0d91873996e05db87323c3b08a85863f90d9) )
+	ROM_LOAD( "gw-5.21f",            0x080000, 0x20000, CRC(9ef36031) SHA1(2faeb6a769991ab11403c6c37507b706a61bad69) )
+	ROM_LOAD( "guernica-c2.18h",     0x100000, 0x80000, CRC(2fcbea97) SHA1(eb60bf374ef771e379030d2b660a813be76bed5e) )
+	ROM_LOAD( "gw-6.20f",            0x180000, 0x20000, CRC(ddbbcda7) SHA1(1c368ad2a4ed31748c94545fc7c808aa53d76f64) )
+	ROM_LOAD( "guernica-c1.20h",     0x200000, 0x80000, CRC(b0fd1c23) SHA1(a6dbed81b751c1f662f63a7426d8333aca866d79) )
+	ROM_LOAD( "gw-7.18f",            0x280000, 0x20000, CRC(4656d377) SHA1(67d6f714cca3891be0173c543ece5e8ab699f645) )
+	ROM_LOAD( "guernica-c0.21h",     0x300000, 0x80000, CRC(e60c9882) SHA1(8cf1d9cf0db72977b303fd6b469611600631ab9a) )
+	ROM_LOAD( "gw-8.17f",            0x380000, 0x20000, CRC(798ed82a) SHA1(1932131e05aae0a77ba8d8ef947c1a3b0b5e3d43) )
+ROM_END
+
 
 ROM_START( gangwarsu )
 	ROM_REGION( 0x40000, "maincpu", 0 )
@@ -3085,17 +3144,17 @@ ROM_START( gangwarsu )
 	ROM_LOAD( "alpha.mcu", 0x000, 0x1000, NO_DUMP )
 
 	ROM_REGION( 0x020000, "gfx1", 0 )  /* chars */
-	ROM_LOAD( "gwb_ic.m19",     0x000000, 0x10000, CRC(b75bf1d0) SHA1(c22c0049274c45701be0a7be2afc0517620a3a10) )
+	ROM_LOAD( "gw-13.4l",     0x000000, 0x10000, CRC(b75bf1d0) SHA1(c22c0049274c45701be0a7be2afc0517620a3a10) )
 
 	ROM_REGION( 0x400000, "gfx2", 0 )  /* sprites */
 	ROM_LOAD( "guernica-c3.17h",     0x000000, 0x80000, CRC(281a4138) SHA1(47fc0d91873996e05db87323c3b08a85863f90d9) )
-	ROM_LOAD( "gw-5.21f",            0x080000, 0x20000, CRC(9ef36031) SHA1(2faeb6a769991ab11403c6c37507b706a61bad69) )
+	ROM_LOAD( "u5",                  0x080000, 0x20000, CRC(94612190) SHA1(dd7818744b1b6738d268044f13e0647e7a3b2d1e) ) // this set of u5,u6,u7,u8 have a one-way sign, used on stage 3
 	ROM_LOAD( "guernica-c2.18h",     0x100000, 0x80000, CRC(2fcbea97) SHA1(eb60bf374ef771e379030d2b660a813be76bed5e) )
-	ROM_LOAD( "gw-6.20f",            0x180000, 0x20000, CRC(ddbbcda7) SHA1(1c368ad2a4ed31748c94545fc7c808aa53d76f64) )
-	ROM_LOAD( "guernica-c1.20h",     0x200000, 0x80000, CRC(5d384c3b) SHA1(9bc581501d52cc3280667a9ea34f2ba9c4b6ebb1) )
-	ROM_LOAD( "gw-7.18f",            0x280000, 0x20000, CRC(4656d377) SHA1(67d6f714cca3891be0173c543ece5e8ab699f645) )
+	ROM_LOAD( "u6",                  0x180000, 0x20000, CRC(5a4ea0f0) SHA1(7ea8b3f66f32ab9b33a522edca6d5c6416fd7a9b) )
+	ROM_LOAD( "guernica-c1.20h",     0x200000, 0x80000, CRC(b0fd1c23) SHA1(a6dbed81b751c1f662f63a7426d8333aca866d79) )
+	ROM_LOAD( "u7",                  0x280000, 0x20000, CRC(33f324cb) SHA1(c00f55ce85749cbbb9569a22cc6c9c886ed9ab78) )
 	ROM_LOAD( "guernica-c0.21h",     0x300000, 0x80000, CRC(e60c9882) SHA1(8cf1d9cf0db72977b303fd6b469611600631ab9a) )
-	ROM_LOAD( "gw-8.17f",            0x380000, 0x20000, CRC(798ed82a) SHA1(1932131e05aae0a77ba8d8ef947c1a3b0b5e3d43) )
+	ROM_LOAD( "u8",                  0x380000, 0x20000, CRC(c1995c2c) SHA1(909e1070b4ec28a1f4a2cd9fbc3bde781ffbdda8) )
 ROM_END
 
 ROM_START( sbasebal )
@@ -3389,7 +3448,9 @@ GAME( 1989, skyadvntu, skyadvnt, alpha68k_V,     skyadvntu, alpha68k_state,skyad
 GAME( 1989, skyadvntj, skyadvnt, alpha68k_V,     skyadvnt, alpha68k_state, skyadvnt, ROT90, "Alpha Denshi Co.",                                  "Sky Adventure (Japan)", GAME_SUPPORTS_SAVE )
 
 GAME( 1989, gangwars,  0,        alpha68k_V,     gangwars, alpha68k_state, gangwars, ROT0,  "Alpha Denshi Co.",                                  "Gang Wars", GAME_SUPPORTS_SAVE )
+GAME( 1989, gangwarsj, gangwars, alpha68k_V,     gangwars, alpha68k_state, gangwars, ROT0,  "Alpha Denshi Co.",                                  "Gang Wars (Japan)", GAME_SUPPORTS_SAVE )
 GAME( 1989, gangwarsu, gangwars, alpha68k_V,     gangwarsu, alpha68k_state,gangwarsu,ROT0,  "Alpha Denshi Co.",                                  "Gang Wars (US)", GAME_SUPPORTS_SAVE )
+GAME( 1989, gangwarsb, gangwars, alpha68k_V,     gangwars, alpha68k_state, gangwars, ROT0,  "bootleg",                                           "Gang Wars (bootleg)", GAME_SUPPORTS_SAVE ) // has (undumped) 68705 MCU in place of Alpha MCU, otherwise the same as 'gangwars'
 
 GAME( 1989, sbasebal,  0,        alpha68k_V_sb,  sbasebal, alpha68k_state, sbasebal, ROT0,  "Alpha Denshi Co. (SNK of America license)",         "Super Champion Baseball (US)", GAME_SUPPORTS_SAVE | GAME_UNEMULATED_PROTECTION )
 

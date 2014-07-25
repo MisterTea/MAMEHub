@@ -18,7 +18,6 @@ ToDo:
 
 #include "includes/cybiko.h"
 #include "rendlay.h"
-#include "mcfglgcy.h"
 
 //  +------------------------------------------------------+
 //  | Cybiko Classic (CY6411)                         | V2 |
@@ -95,20 +94,66 @@ static ADDRESS_MAP_START( cybikoxt_mem, AS_PROGRAM, 16, cybiko_state )
 	AM_RANGE( 0xe00000, 0xefffff ) AM_READ( cybikoxt_key_r )
 ADDRESS_MAP_END
 
+WRITE16_MEMBER(cybiko_state::serflash_w)
+{
+	m_flash1->cs_w ((data & 0x10) ? 0 : 1);
+}
+
+READ16_MEMBER(cybiko_state::clock_r)
+{
+	if (m_rtc->sda_r())
+	{
+		return (0x01|0x04);
+	}
+
+	return 0x04;
+}
+
+WRITE16_MEMBER(cybiko_state::clock_w)
+{
+	m_rtc->scl_w((data & 0x02) ? 1 : 0);
+	m_rtc->sda_w((data & 0x01) ? 0 : 1);
+}
+
+READ16_MEMBER(cybiko_state::xtclock_r)
+{
+	if (m_rtc->sda_r())
+	{
+		return 0x40;
+	}
+
+	return 0;
+}
+
+WRITE16_MEMBER(cybiko_state::xtclock_w)
+{
+	m_rtc->scl_w((data & 0x02) ? 1 : 0);
+	m_rtc->sda_w((data & 0x40) ? 0 : 1);
+}
+
+READ16_MEMBER(cybiko_state::xtpower_r)
+{
+	// bit 7 = on/off button
+	// bit 6 = battery charged if "1"
+	return 0xc0c0;
+}
+
 //////////////////////
 // ADDRESS MAP - IO //
 //////////////////////
 
-static ADDRESS_MAP_START( cybikov1_io, AS_IO, 8, cybiko_state )
-	AM_RANGE( 0xfffe40, 0xffffff ) AM_READWRITE( cybikov1_io_reg_r, cybikov1_io_reg_w )
+static ADDRESS_MAP_START( cybikov1_io, AS_IO, 16, cybiko_state )
+	AM_RANGE(h8_device::PORT_3, h8_device::PORT_3) AM_WRITE(serflash_w)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( cybikov2_io, AS_IO, 8, cybiko_state )
-	AM_RANGE( 0xfffe40, 0xffffff ) AM_READWRITE( cybikov2_io_reg_r, cybikov2_io_reg_w )
+static ADDRESS_MAP_START( cybikov2_io, AS_IO, 16, cybiko_state )
+	AM_RANGE(h8_device::PORT_3, h8_device::PORT_3) AM_WRITE(serflash_w)
+	AM_RANGE(h8_device::PORT_F, h8_device::PORT_F) AM_READWRITE(clock_r, clock_w)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( cybikoxt_io, AS_IO, 8, cybiko_state )
-	AM_RANGE( 0xfffe40, 0xffffff ) AM_READWRITE( cybikoxt_io_reg_r, cybikoxt_io_reg_w )
+static ADDRESS_MAP_START( cybikoxt_io, AS_IO, 16, cybiko_state )
+	AM_RANGE(h8_device::PORT_A, h8_device::PORT_A) AM_READ(xtpower_r)
+	AM_RANGE(h8_device::PORT_F, h8_device::PORT_F) AM_READWRITE(xtclock_r, xtclock_w)
 ADDRESS_MAP_END
 
 /////////////////
@@ -281,22 +326,6 @@ static INPUT_PORTS_START( cybikoxt )
 INPUT_PORTS_END
 
 ////////////////////
-// PALETTE INIT   //
-////////////////////
-
-void cybiko_state::palette_init()
-{
-	// init palette
-	for (int i = 0; i < 4; i++)
-	{
-		palette_set_color(machine(), i, RGB_WHITE);
-#ifndef HD66421_BRIGHTNESS_DOES_NOT_WORK
-		palette_set_pen_contrast(machine(), i, 1.0 * i / (4 - 1));
-#endif
-	}
-}
-
-////////////////////
 // MACHINE DRIVER //
 ////////////////////
 
@@ -305,16 +334,20 @@ static MACHINE_CONFIG_START( cybikov1, cybiko_state )
 	MCFG_CPU_ADD( "maincpu", H8S2241, XTAL_11_0592MHz )
 	MCFG_CPU_PROGRAM_MAP( cybikov1_mem )
 	MCFG_CPU_IO_MAP( cybikov1_io )
+
+	MCFG_DEVICE_MODIFY("maincpu:sci1")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE("^flash1", at45db041_device, si_w))
+	MCFG_H8_SCI_CLK_CALLBACK(DEVWRITELINE("^flash1", at45db041_device, sck_w))
+
 	// screen
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE( 60 )
 	MCFG_SCREEN_SIZE( HD66421_WIDTH, HD66421_HEIGHT )
 	MCFG_SCREEN_VISIBLE_AREA( 0, HD66421_WIDTH - 1, 0, HD66421_HEIGHT - 1 )
 	MCFG_SCREEN_UPDATE_DEVICE("hd66421", hd66421_device, update_screen)
-
+	MCFG_SCREEN_PALETTE("hd66421:palette")
 	// video
 	MCFG_HD66421_ADD("hd66421")
-	MCFG_PALETTE_LENGTH(4)
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 	// sound
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -324,6 +357,9 @@ static MACHINE_CONFIG_START( cybikov1, cybiko_state )
 	/* rtc */
 	MCFG_PCF8593_ADD("rtc")
 	MCFG_AT45DB041_ADD("flash1")
+	MCFG_AT45DBXXX_SO_CALLBACK(DEVWRITELINE("maincpu:sci1", h8_sci_device, rx_w))
+
+	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -337,8 +373,13 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( cybikov2, cybikov1)
 	// cpu
 	MCFG_CPU_REPLACE("maincpu", H8S2246, XTAL_11_0592MHz)
-	MCFG_CPU_PROGRAM_MAP(cybikov2_mem )
-	MCFG_CPU_IO_MAP(cybikov2_io )
+	MCFG_CPU_PROGRAM_MAP(cybikov2_mem)
+	MCFG_CPU_IO_MAP(cybikov2_io)
+
+	MCFG_DEVICE_MODIFY("maincpu:sci1")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE("^flash1", at45db041_device, si_w))
+	MCFG_H8_SCI_CLK_CALLBACK(DEVWRITELINE("^flash1", at45db041_device, sck_w))
+
 	// machine
 	MCFG_SST_39VF020_ADD("flash2")
 
@@ -353,11 +394,10 @@ static MACHINE_CONFIG_DERIVED( cybikoxt, cybikov1)
 	MCFG_CPU_REPLACE("maincpu", H8S2323, XTAL_18_432MHz)
 	MCFG_CPU_PROGRAM_MAP(cybikoxt_mem )
 	MCFG_CPU_IO_MAP(cybikoxt_io )
+
 	// machine
 	MCFG_DEVICE_REMOVE("flash1")
 	MCFG_SST_39VF400A_ADD("flashxt")
-
-	MCFG_NVRAM_HANDLER( cybikoxt )
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)
@@ -367,7 +407,6 @@ static MACHINE_CONFIG_DERIVED( cybikoxt, cybikov1)
 	MCFG_DEVICE_REMOVE("quickload")
 	MCFG_QUICKLOAD_ADD("quickload", cybiko_state, cybikoxt, "bin,nv", 0)
 MACHINE_CONFIG_END
-
 
 /////////
 // ROM //

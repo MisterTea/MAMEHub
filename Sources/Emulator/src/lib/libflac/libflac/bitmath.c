@@ -29,12 +29,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if HAVE_CONFIG_H
+#ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
 
 #include "private/bitmath.h"
-#include "flac/assert.h"
+#include "FLAC/assert.h"
 
 /* An example of what FLAC__bitmath_ilog2() computes:
  *

@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
         Okeah-240 (Ocean-240)
@@ -52,6 +54,8 @@ Usage of terminal:
 #include "machine/keyboard.h"
 #include "machine/terminal.h"
 
+#define KEYBOARD_TAG "keyboard"
+#define TERMINAL_TAG "terminal"
 
 class okean240_state : public driver_device
 {
@@ -63,12 +67,14 @@ public:
 
 	okean240_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_term_data(0),
-	m_j(0),
-	m_scroll(0),
-	m_p_videoram(*this, "p_videoram"),
-	m_io_modifiers(*this, "MODIFIERS"),
-	m_maincpu(*this, "maincpu") { }
+		m_term_data(0),
+		m_j(0),
+		m_scroll(0),
+		m_p_videoram(*this, "p_videoram"),
+		m_io_modifiers(*this, "MODIFIERS"),
+		m_maincpu(*this, "maincpu")
+	{
+	}
 
 	DECLARE_READ8_MEMBER(okean240_kbd_status_r);
 	DECLARE_READ8_MEMBER(okean240a_kbd_status_r);
@@ -405,11 +411,6 @@ WRITE8_MEMBER( okean240_state::kbd_put )
 	m_term_data = data;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(okean240_state, kbd_put)
-};
-
 DRIVER_INIT_MEMBER(okean240_state,okean240)
 {
 	UINT8 *RAM = memregion("maincpu")->base();
@@ -484,27 +485,31 @@ static MACHINE_CONFIG_START( okean240t, okean240_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 255)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
 	MCFG_SCREEN_UPDATE_DRIVER(okean240_state, screen_update_okean240)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
+
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(okean240_state, kbd_put))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( okean240a, okean240t )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_IO_MAP(okean240a_io)
-	MCFG_GFXDECODE(okean240a)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", okean240a)
 	MCFG_DEVICE_REMOVE(TERMINAL_TAG)
-	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(KEYBOARD_TAG, GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(okean240_state, kbd_put))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( okean240, okean240t )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_IO_MAP(okean240_io)
-	MCFG_GFXDECODE(okean240)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", okean240)
 	MCFG_DEVICE_REMOVE(TERMINAL_TAG)
-	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(KEYBOARD_TAG, GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(okean240_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

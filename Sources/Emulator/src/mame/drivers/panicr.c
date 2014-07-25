@@ -74,7 +74,10 @@ public:
 		m_textram(*this, "textram"),
 		m_spritebank(*this, "spritebank"),
 		m_maincpu(*this, "maincpu"),
-		m_t5182(*this, "t5182") { }
+		m_t5182(*this, "t5182"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_mainram;
 	required_shared_ptr<UINT8> m_spriteram;
@@ -83,6 +86,9 @@ public:
 
 	required_device<cpu_device> m_maincpu;
 	required_device<t5182_device> m_t5182;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	tilemap_t *m_bgtilemap;
 	tilemap_t *m_infotilemap_2;
@@ -106,7 +112,7 @@ public:
 
 	TILE_GET_INFO_MEMBER(get_txttile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(panicr);
 	UINT32 screen_update_panicr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(panicr_scanline);
 	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect );
@@ -129,13 +135,10 @@ public:
 
 ***************************************************************************/
 
-void panicr_state::palette_init()
+PALETTE_INIT_MEMBER(panicr_state, panicr)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x100);
 
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x100; i++)
@@ -144,7 +147,7 @@ void panicr_state::palette_init()
 		int g = pal4bit(color_prom[i + 0x100]);
 		int b = pal4bit(color_prom[i + 0x200]);
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -160,7 +163,7 @@ void panicr_state::palette_init()
 		else
 			ctabentry = (color_prom[i] & 0x3f) | 0x80;
 
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 
 	// tile lookup table
@@ -168,9 +171,8 @@ void panicr_state::palette_init()
 	{
 		UINT8 ctabentry = (color_prom[i+0x100] & 0x3f) | 0x00;
 
-		colortable_entry_set_value(machine().colortable, ((i&0x0f) + ((i&0xf0)<<1))  +0x200, ctabentry);
-		colortable_entry_set_value(machine().colortable, ((i&0x0f) + ((i&0xf0)<<1))  +0x210, ctabentry);
-
+		palette.set_pen_indirect(((i&0x0f) + ((i&0xf0)<<1))  +0x200, ctabentry);
+		palette.set_pen_indirect(((i&0x0f) + ((i&0xf0)<<1))  +0x210, ctabentry);
 	}
 
 	// sprite lookup table
@@ -183,8 +185,7 @@ void panicr_state::palette_init()
 		else
 			ctabentry = (color_prom[i+0x200] & 0x3f) | 0x40;
 
-		colortable_entry_set_value(machine().colortable, i+0x100, ctabentry);
-
+		palette.set_pen_indirect(i+0x100, ctabentry);
 	}
 }
 
@@ -196,8 +197,7 @@ TILE_GET_INFO_MEMBER(panicr_state::get_bgtile_info)
 	code=memregion("user1")->base()[tile_index];
 	attr=memregion("user2")->base()[tile_index];
 	code+=((attr&7)<<8);
-	SET_TILE_INFO_MEMBER(
-		1,
+	SET_TILE_INFO_MEMBER(1,
 		code,
 		(attr & 0xf0) >> 4,
 		0);
@@ -212,8 +212,7 @@ TILE_GET_INFO_MEMBER(panicr_state::get_infotile_info_2)
 	code=memregion("user1")->base()[tile_index];
 	attr=memregion("user2")->base()[tile_index];
 	code+=((attr&7)<<8);
-	SET_TILE_INFO_MEMBER(
-		3,
+	SET_TILE_INFO_MEMBER(3,
 		code,
 		0,
 		0);
@@ -230,8 +229,7 @@ TILE_GET_INFO_MEMBER(panicr_state::get_txttile_info)
 
 	tileinfo.group = color;
 
-	SET_TILE_INFO_MEMBER(
-		0,
+	SET_TILE_INFO_MEMBER(0,
 		code + ((attr & 8) << 5),
 		color,
 		0);
@@ -240,11 +238,11 @@ TILE_GET_INFO_MEMBER(panicr_state::get_txttile_info)
 
 void panicr_state::video_start()
 {
-	m_bgtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(panicr_state::get_bgtile_info),this),TILEMAP_SCAN_ROWS,16,16,1024,16 );
-	m_infotilemap_2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(panicr_state::get_infotile_info_2),this),TILEMAP_SCAN_ROWS,16,16,1024,16 );
+	m_bgtilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(panicr_state::get_bgtile_info),this),TILEMAP_SCAN_ROWS,16,16,1024,16 );
+	m_infotilemap_2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(panicr_state::get_infotile_info_2),this),TILEMAP_SCAN_ROWS,16,16,1024,16 );
 
-	m_txttilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(panicr_state::get_txttile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32 );
-	colortable_configure_tilemap_groups(machine().colortable, m_txttilemap, machine().gfx[0], 0);
+	m_txttilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(panicr_state::get_txttile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32 );
+	m_txttilemap->configure_groups(*m_gfxdecode->gfx(0), 0);
 }
 
 void panicr_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect )
@@ -277,10 +275,10 @@ void panicr_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect )
 		color = spriteram[offs+1] & 0x0f;
 		sprite = spriteram[offs+0] | (*m_spritebank << 8);
 
-		drawgfx_transmask(bitmap,cliprect,machine().gfx[2],
+		m_gfxdecode->gfx(2)->transmask(bitmap,cliprect,
 				sprite,
 				color,flipx,flipy,x,y,
-				colortable_get_transpen_mask(machine().colortable, machine().gfx[2], color, 0));
+				m_palette->transpen_mask(*m_gfxdecode->gfx(2), color, 0));
 	}
 }
 
@@ -293,7 +291,7 @@ UINT32 panicr_state::screen_update_panicr(screen_device &screen, bitmap_ind16 &b
 //  m_infotilemap_2->draw(screen, *m_temprender, m_tempbitmap_clip, 0,0);
 
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 	m_txttilemap->mark_all_dirty();
 
 
@@ -621,12 +619,13 @@ static MACHINE_CONFIG_START( panicr, panicr_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 //  MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-
 	MCFG_SCREEN_UPDATE_DRIVER(panicr_state, screen_update_panicr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(panicr)
-	MCFG_PALETTE_LENGTH(256*4)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", panicr)
+	MCFG_PALETTE_ADD("palette", 256*4)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(panicr_state, panicr)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -720,7 +719,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(panicr_state,panicr)
 {
-	UINT8 *buf = auto_alloc_array(machine(), UINT8, 0x80000);
+	dynamic_buffer buf(0x80000);
 	UINT8 *rom;
 	int size;
 	int i,j;
@@ -823,8 +822,6 @@ DRIVER_INIT_MEMBER(panicr_state,panicr)
 			memcpy(&rom[i+(size/16)*j],&buf[i*16+8*j],8);
 		}
 	}
-
-	auto_free(machine(), buf);
 
 	m_tempbitmap_1 = auto_bitmap_ind16_alloc(machine(),256,256);
 	m_temprender = auto_bitmap_ind16_alloc(machine(),256,256);

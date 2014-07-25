@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
 Luxor ABC 800C/800M
@@ -161,7 +163,7 @@ READ8_MEMBER( abc800_state::pling_r )
 {
 	m_pling = !m_pling;
 
-	discrete_sound_w(m_discrete, space, NODE_01, m_pling);
+	m_discrete->write(space, NODE_01, m_pling);
 
 	return 0xff;
 }
@@ -175,7 +177,7 @@ READ8_MEMBER( abc802_state::pling_r )
 {
 	m_pling = !m_pling;
 
-	discrete_sound_w(m_discrete, space, NODE_01, m_pling);
+	m_discrete->write(space, NODE_01, m_pling);
 
 	return 0xff;
 }
@@ -430,7 +432,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( abc800c_io, AS_IO, 8, abc800_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_MIRROR(0x18) AM_DEVREADWRITE(ABCBUS_TAG, abcbus_slot_device, inp_r, utp_w)
+	AM_RANGE(0x00, 0x00) AM_MIRROR(0x18) AM_DEVREADWRITE(ABCBUS_TAG, abcbus_slot_device, inp_r, out_w)
 	AM_RANGE(0x01, 0x01) AM_MIRROR(0x18) AM_DEVREADWRITE(ABCBUS_TAG, abcbus_slot_device, stat_r, cs_w)
 	AM_RANGE(0x02, 0x02) AM_MIRROR(0x18) AM_DEVWRITE(ABCBUS_TAG, abcbus_slot_device, c1_w)
 	AM_RANGE(0x03, 0x03) AM_MIRROR(0x18) AM_DEVWRITE(ABCBUS_TAG, abcbus_slot_device, c2_w)
@@ -489,7 +491,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( abc802_io, AS_IO, 8, abc802_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_MIRROR(0x18) AM_DEVREADWRITE(ABCBUS_TAG, abcbus_slot_device, inp_r, utp_w)
+	AM_RANGE(0x00, 0x00) AM_MIRROR(0x18) AM_DEVREADWRITE(ABCBUS_TAG, abcbus_slot_device, inp_r, out_w)
 	AM_RANGE(0x01, 0x01) AM_MIRROR(0x18) AM_DEVREADWRITE(ABCBUS_TAG, abcbus_slot_device, stat_r, cs_w)
 	AM_RANGE(0x02, 0x02) AM_MIRROR(0x18) AM_DEVWRITE(ABCBUS_TAG, abcbus_slot_device, c1_w)
 	AM_RANGE(0x03, 0x03) AM_MIRROR(0x18) AM_DEVWRITE(ABCBUS_TAG, abcbus_slot_device, c2_w)
@@ -537,7 +539,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( abc806_io, AS_IO, 8, abc806_state )
 	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x00, 0x00) AM_MIRROR(0xff18) AM_DEVREADWRITE(ABCBUS_TAG, abcbus_slot_device, inp_r, utp_w)
+	AM_RANGE(0x00, 0x00) AM_MIRROR(0xff18) AM_DEVREADWRITE(ABCBUS_TAG, abcbus_slot_device, inp_r, out_w)
 	AM_RANGE(0x01, 0x01) AM_MIRROR(0xff18) AM_DEVREADWRITE(ABCBUS_TAG, abcbus_slot_device, stat_r, cs_w)
 	AM_RANGE(0x02, 0x02) AM_MIRROR(0xff18) AM_DEVWRITE(ABCBUS_TAG, abcbus_slot_device, c1_w)
 	AM_RANGE(0x03, 0x03) AM_MIRROR(0xff18) AM_DEVWRITE(ABCBUS_TAG, abcbus_slot_device, c2_w)
@@ -625,7 +627,7 @@ INPUT_PORTS_END
 //**************************************************************************
 
 //-------------------------------------------------
-//  Z80CTC_INTERFACE( ctc_intf )
+//  Z80CTC
 //-------------------------------------------------
 
 WRITE_LINE_MEMBER( abc800_state::ctc_z0_w )
@@ -659,17 +661,8 @@ WRITE_LINE_MEMBER( abc800_state::ctc_z2_w )
 	m_dart->txca_w(state);
 }
 
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0),     // interrupt handler
-	DEVCB_DRIVER_LINE_MEMBER(abc800_state, ctc_z0_w),   // ZC/TO0 callback
-	DEVCB_DRIVER_LINE_MEMBER(abc800_state, ctc_z1_w),   // ZC/TO1 callback
-	DEVCB_DRIVER_LINE_MEMBER(abc800_state, ctc_z2_w),   // ZC/TO2 callback
-};
-
-
 //-------------------------------------------------
-//  Z80SIO_INTERFACE( sio_intf )
+//  Z80SIO
 //-------------------------------------------------
 
 void abc800_state::clock_cassette(int state)
@@ -696,11 +689,6 @@ void abc800_state::clock_cassette(int state)
 	}
 
 	m_ctc_z0 = state;
-}
-
-READ_LINE_MEMBER( abc800_state::sio_rxdb_r )
-{
-	return m_sio_rxdb;
 }
 
 WRITE_LINE_MEMBER( abc800_state::sio_txdb_w )
@@ -736,56 +724,8 @@ WRITE_LINE_MEMBER( abc800_state::sio_rtsb_w )
 	}
 }
 
-static Z80SIO_INTERFACE( sio_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DRIVER_LINE_MEMBER(abc800_state, sio_rxdb_r),
-	DEVCB_DRIVER_LINE_MEMBER(abc800_state, sio_txdb_w),
-	DEVCB_DRIVER_LINE_MEMBER(abc800_state, sio_dtrb_w),
-	DEVCB_DRIVER_LINE_MEMBER(abc800_state, sio_rtsb_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0)
-};
-
-
 //-------------------------------------------------
-//  Z80DART_INTERFACE( abc800_dart_intf )
-//-------------------------------------------------
-
-static Z80DART_INTERFACE( abc800_dart_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DEVICE_LINE_MEMBER(ABC_KEYBOARD_PORT_TAG, abc_keyboard_port_device, rxd_r),
-	DEVCB_DEVICE_LINE_MEMBER(ABC_KEYBOARD_PORT_TAG, abc_keyboard_port_device, txd_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0)
-};
-
-
-//-------------------------------------------------
-//  Z80DART_INTERFACE( abc802_dart_intf )
+//  Z80DART abc802
 //-------------------------------------------------
 
 WRITE_LINE_MEMBER( abc802_state::lrs_w )
@@ -800,30 +740,8 @@ WRITE_LINE_MEMBER( abc802_state::mux80_40_w )
 	m_80_40_mux = state;
 }
 
-static Z80DART_INTERFACE( abc802_dart_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DEVICE_LINE_MEMBER(ABC_KEYBOARD_PORT_TAG, abc_keyboard_port_device, rxd_r),
-	DEVCB_DEVICE_LINE_MEMBER(ABC_KEYBOARD_PORT_TAG, abc_keyboard_port_device, txd_w),
-	DEVCB_DRIVER_LINE_MEMBER(abc802_state, lrs_w),
-	DEVCB_DRIVER_LINE_MEMBER(abc802_state, mux80_40_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0)
-};
-
-
 //-------------------------------------------------
-//  Z80DART_INTERFACE( abc806_dart_intf )
+//  Z80DART abc806
 //-------------------------------------------------
 
 WRITE_LINE_MEMBER( abc806_state::keydtr_w )
@@ -832,28 +750,6 @@ WRITE_LINE_MEMBER( abc806_state::keydtr_w )
 
 	bankswitch();
 }
-
-static Z80DART_INTERFACE( abc806_dart_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DEVICE_LINE_MEMBER(ABC_KEYBOARD_PORT_TAG, abc_keyboard_port_device, rxd_r),
-	DEVCB_DEVICE_LINE_MEMBER(ABC_KEYBOARD_PORT_TAG, abc_keyboard_port_device, txd_w),
-	DEVCB_DRIVER_LINE_MEMBER(abc806_state, keydtr_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0)
-};
-
 
 //-------------------------------------------------
 //  z80_daisy_config abc800_daisy_chain
@@ -866,49 +762,6 @@ static const z80_daisy_config abc800_daisy_chain[] =
 	{ Z80DART_TAG },
 	{ NULL }
 };
-
-
-//-------------------------------------------------
-//  cassette_interface cass_intf
-//-------------------------------------------------
-
-static const cassette_interface cass_intf =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED),
-	NULL,
-	NULL
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232a_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232a_intf =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80DART_TAG, z80dart_device, dcda_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80DART_TAG, z80dart_device, ctsa_w)
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232b_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232b_intf =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80SIO_TAG, z80dart_device, dcda_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80SIO_TAG, z80dart_device, ctsa_w)
-};
-
 
 
 //**************************************************************************
@@ -940,7 +793,7 @@ void abc800_state::device_timer(emu_timer &timer, device_timer_id id, int param,
 
 			if (m_dfd_in && !dfd_in)
 			{
-				m_sio_rxdb = !(m_tape_ctr == 15);
+				m_sio->rxb_w(!(m_tape_ctr == 15));
 			}
 
 			if (!dfd_in && (m_tape_ctr == 15))
@@ -974,8 +827,6 @@ void abc800_state::machine_start()
 	save_item(NAME(m_pling));
 	save_item(NAME(m_sb));
 	save_item(NAME(m_ctc_z0));
-	save_item(NAME(m_sio_rxdb));
-	save_item(NAME(m_sio_rxcb));
 	save_item(NAME(m_sio_txcb));
 	save_item(NAME(m_sio_txdb));
 	save_item(NAME(m_sio_rtsb));
@@ -1019,18 +870,16 @@ void abc802_state::machine_start()
 	m_cassette_timer->adjust(attotime::from_hz(44100), 0, attotime::from_hz(44100));
 
 	// register for state saving
-	save_item(NAME(m_lrs));
 	save_item(NAME(m_pling));
 	save_item(NAME(m_sb));
 	save_item(NAME(m_ctc_z0));
-	save_item(NAME(m_sio_rxdb));
-	save_item(NAME(m_sio_rxcb));
 	save_item(NAME(m_sio_txcb));
 	save_item(NAME(m_sio_txdb));
 	save_item(NAME(m_sio_rtsb));
 	save_item(NAME(m_dfd_out));
 	save_item(NAME(m_dfd_in));
 	save_item(NAME(m_tape_ctr));
+	save_item(NAME(m_lrs));
 }
 
 
@@ -1090,19 +939,19 @@ void abc806_state::machine_start()
 	}
 
 	// register for state saving
-	save_item(NAME(m_keydtr));
-	save_item(NAME(m_eme));
 	save_item(NAME(m_fetch_charram));
-	save_item(NAME(m_map));
+	save_item(NAME(m_pling));
+	save_item(NAME(m_sb));
 	save_item(NAME(m_ctc_z0));
-	save_item(NAME(m_sio_rxdb));
-	save_item(NAME(m_sio_rxcb));
 	save_item(NAME(m_sio_txcb));
 	save_item(NAME(m_sio_txdb));
 	save_item(NAME(m_sio_rtsb));
 	save_item(NAME(m_dfd_out));
 	save_item(NAME(m_dfd_in));
 	save_item(NAME(m_tape_ctr));
+	save_item(NAME(m_keydtr));
+	save_item(NAME(m_eme));
+	save_item(NAME(m_map));
 }
 
 
@@ -1170,17 +1019,48 @@ static MACHINE_CONFIG_START( abc800c, abc800c_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	// peripheral hardware
-	MCFG_Z80CTC_ADD(Z80CTC_TAG, ABC800_X01/2/2, ctc_intf)
-	MCFG_Z80SIO2_ADD(Z80SIO_TAG, ABC800_X01/2/2, sio_intf)
-	MCFG_Z80DART_ADD(Z80DART_TAG, ABC800_X01/2/2, abc800_dart_intf)
-	MCFG_CASSETTE_ADD("cassette", cass_intf)
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, NULL)
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
-	MCFG_ABC_KEYBOARD_PORT_ADD("abc800", DEVWRITELINE(Z80DART_TAG, z80dart_device, rxtxcb_w), DEVWRITELINE(Z80DART_TAG, z80dart_device, dcdb_w))
+	MCFG_DEVICE_ADD(Z80CTC_TAG, Z80CTC, ABC800_X01/2/2)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(WRITELINE(abc800_state, ctc_z0_w))
+	MCFG_Z80CTC_ZC1_CB(WRITELINE(abc800_state, ctc_z1_w))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(abc800_state, ctc_z2_w))
+
+	MCFG_Z80SIO2_ADD(Z80SIO_TAG, ABC800_X01/2/2, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(WRITELINE(abc800_state, sio_txdb_w))
+	MCFG_Z80DART_OUT_DTRB_CB(WRITELINE(abc800_state, sio_txdb_w))
+	MCFG_Z80DART_OUT_RTSB_CB(WRITELINE(abc800_state, sio_txdb_w))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_Z80DART_ADD(Z80DART_TAG, ABC800_X01/2/2, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(ABC_KEYBOARD_PORT_TAG, abc_keyboard_port_device, txd_w))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED)
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, dcda_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, ctsa_w))
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, dcda_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, ctsa_w))
+
+	MCFG_ABC_KEYBOARD_PORT_ADD(ABC_KEYBOARD_PORT_TAG, "abc800")
+	MCFG_ABC_KEYBOARD_OUT_RX_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxb_w))
+	MCFG_ABC_KEYBOARD_OUT_TRXC_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxtxcb_w))
+	MCFG_ABC_KEYBOARD_OUT_KEYDOWN_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, dcdb_w))
 
 	// ABC bus
-	MCFG_ABCBUS_SLOT_ADD(ABCBUS_TAG, abcbus_cards, "fast")
-	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("fast", abc830_fast)
+	MCFG_ABCBUS_SLOT_ADD(ABCBUS_TAG, abcbus_cards, "abc830")
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1189,6 +1069,7 @@ static MACHINE_CONFIG_START( abc800c, abc800c_state )
 
 	// software list
 	MCFG_SOFTWARE_LIST_ADD("flop_list", "abc800")
+	MCFG_SOFTWARE_LIST_ADD("hdd_list", "abc800_hdd")
 MACHINE_CONFIG_END
 
 
@@ -1213,17 +1094,48 @@ static MACHINE_CONFIG_START( abc800m, abc800m_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	// peripheral hardware
-	MCFG_Z80CTC_ADD(Z80CTC_TAG, ABC800_X01/2/2, ctc_intf)
-	MCFG_Z80SIO2_ADD(Z80SIO_TAG, ABC800_X01/2/2, sio_intf)
-	MCFG_Z80DART_ADD(Z80DART_TAG, ABC800_X01/2/2, abc800_dart_intf)
-	MCFG_CASSETTE_ADD("cassette", cass_intf)
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, NULL)
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
-	MCFG_ABC_KEYBOARD_PORT_ADD("abc800", DEVWRITELINE(Z80DART_TAG, z80dart_device, rxtxcb_w), DEVWRITELINE(Z80DART_TAG, z80dart_device, dcdb_w))
+	MCFG_DEVICE_ADD(Z80CTC_TAG, Z80CTC, ABC800_X01/2/2)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(WRITELINE(abc800_state, ctc_z0_w))
+	MCFG_Z80CTC_ZC1_CB(WRITELINE(abc800_state, ctc_z1_w))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(abc800_state, ctc_z2_w))
+
+	MCFG_Z80SIO2_ADD(Z80SIO_TAG, ABC800_X01/2/2, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(WRITELINE(abc800_state, sio_txdb_w))
+	MCFG_Z80DART_OUT_DTRB_CB(WRITELINE(abc800_state, sio_txdb_w))
+	MCFG_Z80DART_OUT_RTSB_CB(WRITELINE(abc800_state, sio_txdb_w))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_Z80DART_ADD(Z80DART_TAG, ABC800_X01/2/2, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(ABC_KEYBOARD_PORT_TAG, abc_keyboard_port_device, txd_w))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED)
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, dcda_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, ctsa_w))
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, dcda_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, ctsa_w))
+
+	MCFG_ABC_KEYBOARD_PORT_ADD(ABC_KEYBOARD_PORT_TAG, "abc800")
+	MCFG_ABC_KEYBOARD_OUT_RX_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxb_w))
+	MCFG_ABC_KEYBOARD_OUT_TRXC_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxtxcb_w))
+	MCFG_ABC_KEYBOARD_OUT_KEYDOWN_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, dcdb_w))
 
 	// ABC bus
-	MCFG_ABCBUS_SLOT_ADD(ABCBUS_TAG, abcbus_cards, "fast")
-	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("fast", abc830_fast)
+	MCFG_ABCBUS_SLOT_ADD(ABCBUS_TAG, abcbus_cards, "abc830")
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1232,6 +1144,7 @@ static MACHINE_CONFIG_START( abc800m, abc800m_state )
 
 	// software list
 	MCFG_SOFTWARE_LIST_ADD("flop_list", "abc800")
+	MCFG_SOFTWARE_LIST_ADD("hdd_list", "abc800_hdd")
 MACHINE_CONFIG_END
 
 
@@ -1256,21 +1169,58 @@ static MACHINE_CONFIG_START( abc802, abc802_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	// peripheral hardware
-	MCFG_Z80CTC_ADD(Z80CTC_TAG, ABC800_X01/2/2, ctc_intf)
-	MCFG_Z80SIO2_ADD(Z80SIO_TAG, ABC800_X01/2/2, sio_intf)
-	MCFG_Z80DART_ADD(Z80DART_TAG, ABC800_X01/2/2, abc802_dart_intf)
-	MCFG_CASSETTE_ADD("cassette", cass_intf)
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, NULL)
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
-	MCFG_ABC_KEYBOARD_PORT_ADD("abc55", DEVWRITELINE(Z80DART_TAG, z80dart_device, rxtxcb_w), DEVWRITELINE(Z80DART_TAG, z80dart_device, dcdb_w))
+	MCFG_DEVICE_ADD(Z80CTC_TAG, Z80CTC, ABC800_X01/2/2)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(WRITELINE(abc800_state, ctc_z0_w))
+	MCFG_Z80CTC_ZC1_CB(WRITELINE(abc800_state, ctc_z1_w))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(abc800_state, ctc_z2_w))
+
+	MCFG_Z80SIO2_ADD(Z80SIO_TAG, ABC800_X01/2/2, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(WRITELINE(abc800_state, sio_txdb_w))
+	MCFG_Z80DART_OUT_DTRB_CB(WRITELINE(abc800_state, sio_txdb_w))
+	MCFG_Z80DART_OUT_RTSB_CB(WRITELINE(abc800_state, sio_txdb_w))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_Z80DART_ADD(Z80DART_TAG, ABC800_X01/2/2, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(ABC_KEYBOARD_PORT_TAG, abc_keyboard_port_device, txd_w))
+	MCFG_Z80DART_OUT_DTRB_CB(WRITELINE(abc802_state, lrs_w))
+	MCFG_Z80DART_OUT_RTSB_CB(WRITELINE(abc802_state, mux80_40_w))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED)
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, dcda_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, ctsa_w))
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, dcda_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, ctsa_w))
+
+	MCFG_ABC_KEYBOARD_PORT_ADD(ABC_KEYBOARD_PORT_TAG, "abc55")
+	MCFG_ABC_KEYBOARD_OUT_RX_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxb_w))
+	MCFG_ABC_KEYBOARD_OUT_TRXC_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxtxcb_w))
+	MCFG_ABC_KEYBOARD_OUT_KEYDOWN_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, dcdb_w))
 
 	// ABC bus
-	MCFG_ABCBUS_SLOT_ADD(ABCBUS_TAG, abcbus_cards, "fast")
-	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("fast", abc834_fast)
+	MCFG_ABCBUS_SLOT_ADD(ABCBUS_TAG, abcbus_cards, "abc834")
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("64K")
+
+	// software list
+	//MCFG_SOFTWARE_LIST_ADD("flop_list", "abc802")
+	MCFG_SOFTWARE_LIST_ADD("hdd_list", "abc800_hdd")
 MACHINE_CONFIG_END
 
 
@@ -1290,16 +1240,47 @@ static MACHINE_CONFIG_START( abc806, abc806_state )
 
 	// peripheral hardware
 	MCFG_E0516_ADD(E0516_TAG, ABC806_X02)
-	MCFG_Z80CTC_ADD(Z80CTC_TAG, ABC800_X01/2/2, ctc_intf)
-	MCFG_Z80SIO2_ADD(Z80SIO_TAG, ABC800_X01/2/2, sio_intf)
-	MCFG_Z80DART_ADD(Z80DART_TAG, ABC800_X01/2/2, abc806_dart_intf)
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, NULL)
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
-	MCFG_ABC_KEYBOARD_PORT_ADD("abc77", DEVWRITELINE(Z80DART_TAG, z80dart_device, rxtxcb_w), DEVWRITELINE(Z80DART_TAG, z80dart_device, dcdb_w))
+
+	MCFG_DEVICE_ADD(Z80CTC_TAG, Z80CTC, ABC800_X01/2/2)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(WRITELINE(abc800_state, ctc_z0_w))
+	MCFG_Z80CTC_ZC1_CB(WRITELINE(abc800_state, ctc_z1_w))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(abc800_state, ctc_z2_w))
+
+	MCFG_Z80SIO2_ADD(Z80SIO_TAG, ABC800_X01/2/2, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(WRITELINE(abc800_state, sio_txdb_w))
+	MCFG_Z80DART_OUT_DTRB_CB(WRITELINE(abc800_state, sio_txdb_w))
+	MCFG_Z80DART_OUT_RTSB_CB(WRITELINE(abc800_state, sio_txdb_w))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_Z80DART_ADD(Z80DART_TAG, ABC800_X01/2/2, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(ABC_KEYBOARD_PORT_TAG, abc_keyboard_port_device, txd_w))
+	MCFG_Z80DART_OUT_DTRB_CB(WRITELINE(abc806_state, keydtr_w))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, dcda_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, ctsa_w))
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, dcda_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, ctsa_w))
+
+	MCFG_ABC_KEYBOARD_PORT_ADD(ABC_KEYBOARD_PORT_TAG, "abc77")
+	MCFG_ABC_KEYBOARD_OUT_RX_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxb_w))
+	MCFG_ABC_KEYBOARD_OUT_TRXC_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxtxcb_w))
+	MCFG_ABC_KEYBOARD_OUT_KEYDOWN_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, dcdb_w))
 
 	// ABC bus
-	MCFG_ABCBUS_SLOT_ADD(ABCBUS_TAG, abcbus_cards, "fast")
-	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("fast", abc832_fast)
+	MCFG_ABCBUS_SLOT_ADD(ABCBUS_TAG, abcbus_cards, "abc832")
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1308,6 +1289,7 @@ static MACHINE_CONFIG_START( abc806, abc806_state )
 
 	// software list
 	MCFG_SOFTWARE_LIST_ADD("flop_list", "abc806")
+	MCFG_SOFTWARE_LIST_ADD("hdd_list", "abc800_hdd")
 MACHINE_CONFIG_END
 
 
@@ -1360,10 +1342,10 @@ ROM_START( abc800c )
 	ROM_LOAD( "abc 7-22.2j", 0x7000, 0x1000, CRC(774511ab) SHA1(5171e43213a402c2d96dee33453c8306ac1aafc8) )
 
 	ROM_REGION( 0x20, "hru", 0 )
-	ROM_LOAD( "hru i.4g", 0x0000, 0x0020, CRC(d970a972) SHA1(c47fdd61fccc68368d42f03a01c7af90ab1fe1ab) )
+	ROM_LOAD( "hru i.4g", 0x00, 0x20, CRC(d970a972) SHA1(c47fdd61fccc68368d42f03a01c7af90ab1fe1ab) )
 
 	ROM_REGION( 0x200, "hru2", 0 )
-	ROM_LOAD( "hru ii.3a", 0x0000, 0x0200, CRC(8e9d7cdc) SHA1(4ad16dc0992e31cdb2e644c7be81d334a56f7ad6) )
+	ROM_LOAD( "hru ii.3a", 0x000, 0x200, CRC(8e9d7cdc) SHA1(4ad16dc0992e31cdb2e644c7be81d334a56f7ad6) )
 ROM_END
 
 
@@ -1373,29 +1355,30 @@ ROM_END
 
 ROM_START( abc800m )
 	ROM_REGION( 0x8000, Z80_TAG, 0 )
+	ROM_DEFAULT_BIOS("ufd20")
 	ROM_LOAD( "abc m-12.1m", 0x0000, 0x1000, CRC(f85b274c) SHA1(7d0f5639a528d8d8130a22fe688d3218c77839dc) )
 	ROM_LOAD( "abc 1-12.1l", 0x1000, 0x1000, CRC(1e99fbdc) SHA1(ec6210686dd9d03a5ed8c4a4e30e25834aeef71d) )
 	ROM_LOAD( "abc 2-12.1k", 0x2000, 0x1000, CRC(ac196ba2) SHA1(64fcc0f03fbc78e4c8056e1fa22aee12b3084ef5) )
 	ROM_LOAD( "abc 3-12.1j", 0x3000, 0x1000, CRC(3ea2b5ee) SHA1(5a51ac4a34443e14112a6bae16c92b5eb636603f) )
 	ROM_LOAD( "abc 4-12.2m", 0x4000, 0x1000, CRC(695cb626) SHA1(9603ce2a7b2d7b1cbeb525f5493de7e5c1e5a803) )
 	ROM_LOAD( "abc 5-12.2l", 0x5000, 0x1000, CRC(b4b02358) SHA1(95338efa3b64b2a602a03bffc79f9df297e9534a) )
-	ROM_SYSTEM_BIOS( 0, "13", "? (1982-07-19)" )
+	ROM_SYSTEM_BIOS( 0, "13", "ABC-DOS (1982-07-19)" )
 	ROMX_LOAD( "abc 6-13.2k", 0x6000, 0x1000, CRC(6fa71fb6) SHA1(b037dfb3de7b65d244c6357cd146376d4237dab6), ROM_BIOS(1) )
-	ROM_SYSTEM_BIOS( 1, "11", "? (1983-05-31)" )
+	ROM_SYSTEM_BIOS( 1, "ufd19", "UFD-DOS v.19 (1983-05-31)" )
 	ROMX_LOAD( "abc 6-11 ufd.2k", 0x6000, 0x1000, CRC(2a45be80) SHA1(bf08a18a74e8bdaee2656a3c8246c0122398b58f), ROM_BIOS(2) ) // is this "ABC 6-5" or "ABC 6-51" instead?
-	ROM_SYSTEM_BIOS( 2, "52", "? (1984-03-02)" )
+	ROM_SYSTEM_BIOS( 2, "ufd20", "UFD-DOS v.20 (1984-03-02)" )
 	ROMX_LOAD( "abc 6-52.2k", 0x6000, 0x1000, CRC(c311b57a) SHA1(4bd2a541314e53955a0d53ef2f9822a202daa485), ROM_BIOS(3) )
 	ROM_LOAD_OPTIONAL( "abc 7-21.2j", 0x7000, 0x1000, CRC(fd137866) SHA1(3ac914d90db1503f61397c0ea26914eb38725044) )
 	ROM_LOAD( "abc 7-22.2j", 0x7000, 0x1000, CRC(774511ab) SHA1(5171e43213a402c2d96dee33453c8306ac1aafc8) )
 
 	ROM_REGION( 0x800, MC6845_TAG, 0 )
-	ROM_LOAD( "vum se.7c", 0x0000, 0x0800, CRC(f9152163) SHA1(997313781ddcbbb7121dbf9eb5f2c6b4551fc799) )
+	ROM_LOAD( "vum se.7c", 0x000, 0x800, CRC(f9152163) SHA1(997313781ddcbbb7121dbf9eb5f2c6b4551fc799) )
 
 	ROM_REGION( 0x20, "hru", 0 )
-	ROM_LOAD( "hru i.4g", 0x0000, 0x0020, CRC(d970a972) SHA1(c47fdd61fccc68368d42f03a01c7af90ab1fe1ab) )
+	ROM_LOAD( "hru i.4g", 0x00, 0x20, CRC(d970a972) SHA1(c47fdd61fccc68368d42f03a01c7af90ab1fe1ab) )
 
 	ROM_REGION( 0x200, "hru2", 0 )
-	ROM_LOAD( "hru ii.3a", 0x0000, 0x0200, CRC(8e9d7cdc) SHA1(4ad16dc0992e31cdb2e644c7be81d334a56f7ad6) )
+	ROM_LOAD( "hru ii.3a", 0x000, 0x200, CRC(8e9d7cdc) SHA1(4ad16dc0992e31cdb2e644c7be81d334a56f7ad6) )
 ROM_END
 
 
@@ -1405,23 +1388,24 @@ ROM_END
 
 ROM_START( abc802 )
 	ROM_REGION( 0x8000, Z80_TAG, 0 )
-	ROM_LOAD(  "abc 02-11.9f",  0x0000, 0x2000, CRC(b86537b2) SHA1(4b7731ef801f9a03de0b5acd955f1e4a1828355d) )
-	ROM_LOAD(  "abc 12-11.11f", 0x2000, 0x2000, CRC(3561c671) SHA1(f12a7c0fe5670ffed53c794d96eb8959c4d9f828) )
-	ROM_LOAD(  "abc 22-11.12f", 0x4000, 0x2000, CRC(8dcb1cc7) SHA1(535cfd66c84c0370fd022d6edf702d3d1ad1b113) )
-	ROM_SYSTEM_BIOS( 0, "12", "?" )
+	ROM_DEFAULT_BIOS("ufd20")
+	ROM_LOAD( "abc 02-11.9f",  0x0000, 0x2000, CRC(b86537b2) SHA1(4b7731ef801f9a03de0b5acd955f1e4a1828355d) )
+	ROM_LOAD( "abc 12-11.11f", 0x2000, 0x2000, CRC(3561c671) SHA1(f12a7c0fe5670ffed53c794d96eb8959c4d9f828) )
+	ROM_LOAD( "abc 22-11.12f", 0x4000, 0x2000, CRC(8dcb1cc7) SHA1(535cfd66c84c0370fd022d6edf702d3d1ad1b113) )
+	ROM_SYSTEM_BIOS( 0, "abc", "ABC-DOS (1983-05-31)" )
 	ROMX_LOAD( "abc 32-12.14f", 0x6000, 0x2000, CRC(23cd0f43) SHA1(639daec4565dcdb4de408b808d0c6cd97baa35d2), ROM_BIOS(1) )
-	ROM_SYSTEM_BIOS( 1, "21", "UFD-DOS v6.19" )
+	ROM_SYSTEM_BIOS( 1, "ufd19", "UFD-DOS v.19 (1984-03-02)" )
 	ROMX_LOAD( "abc 32-21.14f", 0x6000, 0x2000, CRC(57050b98) SHA1(b977e54d1426346a97c98febd8a193c3e8259574), ROM_BIOS(2) )
-	ROM_SYSTEM_BIOS( 2, "31", "UFD-DOS v6.20" )
+	ROM_SYSTEM_BIOS( 2, "ufd20", "UFD-DOS v.20 (1984-04-03)" )
 	ROMX_LOAD( "abc 32-31.14f", 0x6000, 0x2000, CRC(fc8be7a8) SHA1(a1d4cb45cf5ae21e636dddfa70c99bfd2050ad60), ROM_BIOS(3) )
-	ROM_SYSTEM_BIOS( 3, "mica", "MICA DOS v6.20" )
+	ROM_SYSTEM_BIOS( 3, "mica620", "MICA DOS v.20 (1984-03-02)" )
 	ROMX_LOAD( "mica820.14f",   0x6000, 0x2000, CRC(edf998af) SHA1(daae7e1ff6ef3e0ddb83e932f324c56f4a98f79b), ROM_BIOS(4) )
 
 	ROM_REGION( 0x1000, MC6845_TAG, 0 )
 	ROM_LOAD( "abc t02-1.3g", 0x0000, 0x1000, CRC(4d54eed8) SHA1(04cb5fc5f3d7ba9b9a5ae0ec94241d1fe83647f7) ) // 64 90191-01
 
 	ROM_REGION( 0x400, "plds", 0 )
-	ROM_LOAD( "abc p2-1.2g", 0x0000, 0x0400, NO_DUMP ) // PAL16R4
+	ROM_LOAD( "abc p2-1.2g", 0x000, 0x400, NO_DUMP ) // PAL16R4
 ROM_END
 
 
@@ -1431,19 +1415,20 @@ ROM_END
 
 ROM_START( abc806 )
 	ROM_REGION( 0x10000, Z80_TAG, 0 )
+	ROM_DEFAULT_BIOS("ufd20")
 	ROM_LOAD( "abc 06-11.1m",  0x0000, 0x1000, CRC(27083191) SHA1(9b45592273a5673e4952c6fe7965fc9398c49827) ) // BASIC PROM ABC 06-11 "64 90231-02"
 	ROM_LOAD( "abc 16-11.1l",  0x1000, 0x1000, CRC(eb0a08fd) SHA1(f0b82089c5c8191fbc6a3ee2c78ce730c7dd5145) ) // BASIC PROM ABC 16-11 "64 90232-02"
 	ROM_LOAD( "abc 26-11.1k",  0x2000, 0x1000, CRC(97a95c59) SHA1(013bc0a2661f4630c39b340965872bf607c7bd45) ) // BASIC PROM ABC 26-11 "64 90233-02"
 	ROM_LOAD( "abc 36-11.1j",  0x3000, 0x1000, CRC(b50e418e) SHA1(991a59ed7796bdcfed310012b2bec50f0b8df01c) ) // BASIC PROM ABC 36-11 "64 90234-02"
 	ROM_LOAD( "abc 46-11.2m",  0x4000, 0x1000, CRC(17a87c7d) SHA1(49a7c33623642b49dea3d7397af5a8b9dde8185b) ) // BASIC PROM ABC 46-11 "64 90235-02"
 	ROM_LOAD( "abc 56-11.2l",  0x5000, 0x1000, CRC(b4b02358) SHA1(95338efa3b64b2a602a03bffc79f9df297e9534a) ) // BASIC PROM ABC 56-11 "64 90236-02"
-	ROM_SYSTEM_BIOS( 0, "v19",      "UFD-DOS v.19" )
+	ROM_SYSTEM_BIOS( 0, "ufd19", "UFD-DOS v.19 (1984-03-02)" )
 	ROMX_LOAD( "abc 66-21.2k", 0x6000, 0x1000, CRC(c311b57a) SHA1(4bd2a541314e53955a0d53ef2f9822a202daa485), ROM_BIOS(1) ) // DOS PROM ABC 66-21 "64 90314-01"
-	ROM_SYSTEM_BIOS( 1, "v20",      "UFD-DOS v.20" )
+	ROM_SYSTEM_BIOS( 1, "ufd20", "UFD-DOS v.20 (1984-04-03)" )
 	ROMX_LOAD( "abc 66-31.2k", 0x6000, 0x1000, CRC(a2e38260) SHA1(0dad83088222cb076648e23f50fec2fddc968883), ROM_BIOS(2) )
-	ROM_SYSTEM_BIOS( 2, "mica",     "MICA DOS v.20" )
+	ROM_SYSTEM_BIOS( 2, "mica20", "MICA DOS v.20 (1984-04-03)" )
 	ROMX_LOAD( "mica2006.2k",  0x6000, 0x1000, CRC(58bc2aa8) SHA1(0604bd2396f7d15fcf3d65888b4b673f554037c0), ROM_BIOS(3) )
-	ROM_SYSTEM_BIOS( 3, "catnet",   "CAT-NET" )
+	ROM_SYSTEM_BIOS( 3, "catnet", "CAT-NET" )
 	ROMX_LOAD( "cmd8_5.2k",    0x6000, 0x1000, CRC(25430ef7) SHA1(03a36874c23c215a19b0be14ad2f6b3b5fb2c839), ROM_BIOS(4) )
 	ROM_LOAD_OPTIONAL( "abc 76-11.2j",  0x7000, 0x1000, CRC(3eb5f6a1) SHA1(02d4e38009c71b84952eb3b8432ad32a98a7fe16) ) // Options-PROM ABC 76-11 "64 90238-02"
 	ROM_LOAD( "abc 76-xx.2j",  0x7000, 0x1000, CRC(b364cc49) SHA1(9a2c373778856a31902cdbd2ae3362c200a38e24) ) // Enhanced Options-PROM
@@ -1452,22 +1437,54 @@ ROM_START( abc806 )
 	ROM_LOAD( "abc t6-11.7c", 0x0000, 0x1000, CRC(b17c51c5) SHA1(e466e80ec989fbd522c89a67d274b8f0bed1ff72) ) // 64 90243-01
 
 	ROM_REGION( 0x200, "rad", 0 )
-	ROM_LOAD( "64 90241-01.9b", 0x0000, 0x0200, NO_DUMP ) // "RAD" 7621/7643 (82S131/82S137), character line address
+	ROM_LOAD( "60 90241-01.9b", 0x000, 0x200, CRC(ad549ebb) SHA1(4fe228ce3b84ed6f0ffd5431f2f33b94c3e5268b) ) // "RAD" 7621/7643 (82S131/82S137), character line address
 
 	ROM_REGION( 0x20, "hru", 0 )
-	ROM_LOAD( "64 90128-01.6e", 0x0000, 0x0020, NO_DUMP ) // "HRU I" 7603 (82S123), HR horizontal timing and video memory access
+	ROM_LOAD( "60 90128-01.6e", 0x00, 0x20, CRC(d970a972) SHA1(c47fdd61fccc68368d42f03a01c7af90ab1fe1ab) ) // "HRU I" 7603 (82S123), HR horizontal timing and video memory access
 
 	ROM_REGION( 0x200, "hru2", 0 )
-	ROM_LOAD( "64 90127-01.12g", 0x0000, 0x0200, CRC(8e9d7cdc) SHA1(4ad16dc0992e31cdb2e644c7be81d334a56f7ad6) ) // "HRU II" 7621 (82S131), ABC800C HR compatibility mode palette
+	ROM_LOAD( "60 90127-01.12g", 0x000, 0x200, CRC(8e9d7cdc) SHA1(4ad16dc0992e31cdb2e644c7be81d334a56f7ad6) ) // "HRU II" 7621 (82S131), ABC800C HR compatibility mode palette
 
-	ROM_REGION( 0x400, "v50", 0 )
-	ROM_LOAD( "64 90242-01.7e", 0x0000, 0x0200, NO_DUMP ) // "V50" 7621 (82S131), HR vertical timing 50Hz
-	ROM_LOAD( "64 90319-01.7e", 0x0200, 0x0200, NO_DUMP ) // "V60" 7621 (82S131), HR vertical timing 60Hz
+	ROM_REGION( 0x200, "v50", 0 )
+	ROM_LOAD( "60 90242-01.7e", 0x000, 0x200, CRC(788a56d8) SHA1(d81e55cdddc36f5d41bf0a33104c75fac590b764) ) // "V50" 7621 (82S131), HR vertical timing 50Hz
 
-	ROM_REGION( 0x400, "plds", 0 )
-	ROM_LOAD( "64 90225-01.11c", 0x0000, 0x0400, NO_DUMP ) // "VIDEO ATTRIBUTE" 40033A (?)
-	ROM_LOAD( "64 90239-01.1b",  0x0000, 0x0400, NO_DUMP ) // "ABC P3-11" PAL16R4, color encoder
-	ROM_LOAD( "64 90240-01.2d",  0x0000, 0x0400, NO_DUMP ) // "ABC P4-11" PAL16L8, memory mapper
+	//ROM_REGION( 0x200, "v60", 0 )
+	//ROM_LOAD( "60 90319-01.7e", 0x000, 0x200, NO_DUMP ) // "V60" 7621 (82S131), HR vertical timing 60Hz
+
+	ROM_REGION( 0x400, "att_hand", 0 )
+	/*
+	    1   E6P (RAD A8)
+	    2   THP (chargen A12)
+	    3   CCLK
+	    4   B0 (TX ATT 6)
+	    5   B1 (TX ATT 7)
+	    6   CONDP (40/80)
+	    7   B2 (TX ATT 0)
+	    8   B3 (TX ATT 1)
+	    9   ULP (RAD A5)
+	    10  FLP (RAD A6)
+	    11  F2P (RTF)
+	    12  GND
+	    13  F3P (GTF)
+	    14  F4P (BTF)
+	    15  B5P (RTB)
+	    16  B4 (TX ATT 2)
+	    17  B5 (TX ATT 3)
+	    18  B6 (TX ATT 4)
+	    19  B7 (TX ATT 5)
+	    20  LP (*DEN+3)
+	    21  B6P (GTB)
+	    22  B7P (BTB)
+	    23  E5P (RAD A7)
+	    24  Vcc
+	*/
+	ROM_LOAD( "60 90225-01.11c", 0x000, 0x400, NO_DUMP ) // "VIDEO ATTRIBUTE" 40033A (?)
+
+	ROM_REGION( 0x104, "abc_p3", 0 )
+	ROM_LOAD( "60 90239-01.1b",  0x000, 0x104, CRC(f3d0ba00) SHA1(bcc0ee26ecac0028aef6bf5cb308133b509bb360) ) // "ABC P3-11" PAL16R4, color encoder
+
+	ROM_REGION( 0x104, "abc_p4", 0 )
+	ROM_LOAD( "60 90240-01.2d",  0x000, 0x104, CRC(3cc5518d) SHA1(343cf951d01c9d361b695bb4e80eaadf0820b6bc) ) // "ABC P4-11" PAL16L8, memory mapper
 ROM_END
 
 

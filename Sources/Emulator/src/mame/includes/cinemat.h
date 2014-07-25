@@ -1,17 +1,30 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     Cinematronics vector hardware
 
 *************************************************************************/
 
+#include "sound/ay8910.h"
+#include "video/vector.h"
 
 class cinemat_state : public driver_device
 {
 public:
 	cinemat_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_ay1(*this, "ay1"),
+		m_vector(*this, "vector"),
 		m_rambase(*this, "rambase"),
-		m_maincpu(*this, "maincpu") { }
+		m_screen(*this, "screen") { }
+
+	required_device<ccpu_cpu_device> m_maincpu;
+	optional_device<ay8910_device> m_ay1;
+	required_device<vector_device> m_vector;
+	optional_shared_ptr<UINT16> m_rambase;
+	required_device<screen_device> m_screen;
 
 	UINT8 m_sound_control;
 	void (*m_sound_handler)(running_machine &,UINT8 sound_val, UINT8 bits_changed);
@@ -26,7 +39,6 @@ public:
 	UINT8 m_last_portb_write;
 	float m_target_volume;
 	float m_current_volume;
-	optional_shared_ptr<UINT16> m_rambase;
 	UINT8 m_coin_detected;
 	UINT8 m_coin_last_reset;
 	UINT8 m_mux_select;
@@ -61,7 +73,23 @@ public:
 	DECLARE_DRIVER_INIT(qb3);
 	virtual void machine_start();
 	virtual void machine_reset();
+	virtual void sound_start();
 	virtual void video_start();
+	DECLARE_SOUND_RESET(spacewar);
+	DECLARE_SOUND_RESET(barrier);
+	DECLARE_SOUND_RESET(speedfrk);
+	DECLARE_SOUND_RESET(starhawk);
+	DECLARE_SOUND_RESET(sundance);
+	DECLARE_SOUND_RESET(tailg);
+	DECLARE_SOUND_RESET(warrior);
+	DECLARE_SOUND_RESET(armora);
+	DECLARE_SOUND_RESET(ripoff);
+	DECLARE_SOUND_RESET(starcas);
+	DECLARE_SOUND_RESET(solarq);
+	DECLARE_SOUND_RESET(boxingb);
+	DECLARE_SOUND_RESET(wotw);
+	DECLARE_SOUND_RESET(demon);
+	DECLARE_SOUND_RESET(qb3);
 	DECLARE_VIDEO_START(cinemat_16level);
 	DECLARE_VIDEO_START(cinemat_64level);
 	DECLARE_VIDEO_START(cinemat_color);
@@ -72,7 +100,6 @@ public:
 	DECLARE_READ8_MEMBER(sound_portb_r);
 	DECLARE_WRITE8_MEMBER(sound_portb_w);
 	DECLARE_WRITE8_MEMBER(sound_output_w);
-	required_device<ccpu_cpu_device> m_maincpu;
 	void cinemat_vector_callback(INT16 sx, INT16 sy, INT16 ex, INT16 ey, UINT8 shift);
 };
 
@@ -90,6 +117,5 @@ MACHINE_CONFIG_EXTERN( starcas_sound );
 MACHINE_CONFIG_EXTERN( solarq_sound );
 MACHINE_CONFIG_EXTERN( boxingb_sound );
 MACHINE_CONFIG_EXTERN( wotw_sound );
-MACHINE_CONFIG_EXTERN( wotwc_sound );
 MACHINE_CONFIG_EXTERN( demon_sound );
 MACHINE_CONFIG_EXTERN( qb3_sound );

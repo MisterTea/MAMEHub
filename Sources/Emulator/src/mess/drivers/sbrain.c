@@ -45,25 +45,28 @@ To Do:
 class sbrain_state : public driver_device
 {
 public:
-	sbrain_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_p_videoram(*this, "videoram")
-		, m_maincpu(*this, "maincpu")
-		, m_subcpu(*this, "subcpu")
-		, m_beep(*this, "beeper")
-		, m_brg(*this, "brg")
-		, m_u0(*this, "uart0")
-		, m_u1(*this, "uart1")
-		, m_ppi(*this, "ppi")
-		, m_fdc (*this, "fdc")
-		, m_floppy0(*this, "fdc:0")
-		, m_floppy1(*this, "fdc:1")
-	{ }
+	sbrain_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
+		m_p_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "subcpu"),
+		m_beep(*this, "beeper"),
+		m_brg(*this, "brg"),
+		m_u0(*this, "uart0"),
+		m_u1(*this, "uart1"),
+		m_ppi(*this, "ppi"),
+		m_fdc (*this, "fdc"),
+		m_floppy0(*this, "fdc:0"),
+		m_floppy1(*this, "fdc:1"),
+		m_vs(*this, "VS"),
+		m_bankr0(*this, "bankr0"),
+		m_bankw0(*this, "bankw0"),
+		m_bank2(*this, "bank2") {}
 
 public:
 	const UINT8 *m_p_chargen;
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	required_shared_ptr<const UINT8> m_p_videoram;
+	required_shared_ptr<UINT8> m_p_videoram;
 	DECLARE_DRIVER_INIT(sbrain);
 	DECLARE_MACHINE_RESET(sbrain);
 	DECLARE_READ8_MEMBER(ppi_pa_r);
@@ -92,6 +95,10 @@ private:
 	required_device<fd1791_t> m_fdc;
 	required_device<floppy_connector> m_floppy0;
 	required_device<floppy_connector> m_floppy1;
+	required_ioport m_vs;
+	required_memory_bank m_bankr0;
+	required_memory_bank m_bankw0;
+	required_memory_bank m_bank2;
 };
 
 static ADDRESS_MAP_START( sbrain_mem, AS_PROGRAM, 8, sbrain_state )
@@ -204,7 +211,7 @@ d7 : cpu2 /busak line
 */
 READ8_MEMBER( sbrain_state::ppi_pb_r )
 {
-	return m_portb | 0x50 | ioport("VS")->read() | (BIT(m_port08, 0) << 5) | ((UINT8)BIT(m_portc, 5) << 7);
+	return m_portb | 0x50 | m_vs->read() | (BIT(m_port08, 0) << 5) | ((UINT8)BIT(m_portc, 5) << 7);
 }
 
 WRITE8_MEMBER( sbrain_state::ppi_pb_w )
@@ -231,8 +238,8 @@ WRITE8_MEMBER( sbrain_state::ppi_pc_w )
 {
 	m_portc = data;
 	m_beep->set_state(BIT(data, 6));
-	membank("bankr0")->set_entry(BIT(data, 2));
-	membank("bank2")->set_entry(BIT(data, 4));
+	m_bankr0->set_entry(BIT(data, 2));
+	m_bank2->set_entry(BIT(data, 4));
 
 	m_subcpu->set_input_line(INPUT_LINE_RESET, BIT(data, 3) ? ASSERT_LINE : CLEAR_LINE);
 }
@@ -248,60 +255,24 @@ DRIVER_INIT_MEMBER( sbrain_state, sbrain )
 	UINT8 *main = memregion("maincpu")->base();
 	UINT8 *sub = memregion("subcpu")->base();
 
-	membank("bankr0")->configure_entry(0, &main[0x0000]);
-	membank("bankr0")->configure_entry(1, &sub[0x0000]);
-	membank("bankw0")->configure_entry(0, &main[0x0000]);
-	membank("bank2")->configure_entry(0, &sub[0x8000]);
-	membank("bank2")->configure_entry(1, &main[0x8000]);
+	m_bankr0->configure_entry(0, &main[0x0000]);
+	m_bankr0->configure_entry(1, &sub[0x0000]);
+	m_bankw0->configure_entry(0, &main[0x0000]);
+	m_bank2->configure_entry(0, &sub[0x8000]);
+	m_bank2->configure_entry(1, &main[0x8000]);
 }
 
 static SLOT_INTERFACE_START( sbrain_floppies )
 	SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
 SLOT_INTERFACE_END
 
-static I8255_INTERFACE( ppi_intf )
-{
-	DEVCB_DRIVER_MEMBER(sbrain_state, ppi_pa_r),   // Port A read
-	DEVCB_DRIVER_MEMBER(sbrain_state, ppi_pa_w),   // Port A write
-	DEVCB_DRIVER_MEMBER(sbrain_state, ppi_pb_r),   // Port B read
-	DEVCB_DRIVER_MEMBER(sbrain_state, ppi_pb_w),   // Port B write
-	DEVCB_DRIVER_MEMBER(sbrain_state, ppi_pc_r),   // Port C read
-	DEVCB_DRIVER_MEMBER(sbrain_state, ppi_pc_w),   // Port C write
-};
-
-static const i8251_interface u0_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const i8251_interface u1_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 MACHINE_RESET_MEMBER( sbrain_state, sbrain )
 {
 	m_beep->set_frequency(800);
 	m_p_chargen = memregion("chargen")->base();
-	membank("bankr0")->set_entry(1); // point at rom
-	membank("bankw0")->set_entry(0); // always write to ram
-	membank("bank2")->set_entry(1); // point at maincpu bank
+	m_bankr0->set_entry(1); // point at rom
+	m_bankw0->set_entry(0); // always write to ram
+	m_bank2->set_entry(1); // point at maincpu bank
 	m_subcpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE); // hold subcpu in reset
 }
 
@@ -358,8 +329,9 @@ static MACHINE_CONFIG_START( sbrain, sbrain_state )
 	MCFG_SCREEN_UPDATE_DRIVER(sbrain_state, screen_update)
 	MCFG_SCREEN_SIZE(640, 240)
 	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 239)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_amber)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD_MONOCHROME_AMBER("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -367,10 +339,22 @@ static MACHINE_CONFIG_START( sbrain, sbrain_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	/* Devices */
-	MCFG_I8255_ADD("ppi", ppi_intf)
-	MCFG_I8251_ADD("uart0", u0_intf)
-	MCFG_I8251_ADD("uart1", u1_intf)
-	MCFG_COM8116_ADD("brg", XTAL_5_0688MHz, NULL, WRITELINE(sbrain_state, fr_w), WRITELINE(sbrain_state, ft_w))
+	MCFG_DEVICE_ADD("ppi", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(sbrain_state, ppi_pa_r))
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(sbrain_state, ppi_pa_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(sbrain_state, ppi_pb_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(sbrain_state, ppi_pb_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(sbrain_state, ppi_pc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(sbrain_state, ppi_pc_w))
+
+	MCFG_DEVICE_ADD("uart0", I8251, 0)
+
+	MCFG_DEVICE_ADD("uart1", I8251, 0)
+
+	MCFG_DEVICE_ADD("brg", COM8116, XTAL_5_0688MHz)
+	MCFG_COM8116_FR_HANDLER(WRITELINE(sbrain_state, fr_w))
+	MCFG_COM8116_FT_HANDLER(WRITELINE(sbrain_state, ft_w))
+
 	MCFG_FD1791x_ADD("fdc", XTAL_16MHz / 16)
 	MCFG_FLOPPY_DRIVE_ADD("fdc:0", sbrain_floppies, "525dd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("fdc:1", sbrain_floppies, "525dd", floppy_image_device::default_floppy_formats)

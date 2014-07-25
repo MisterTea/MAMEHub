@@ -24,8 +24,7 @@
 TILE_GET_INFO_MEMBER(aeroboto_state::get_tile_info)
 {
 	UINT8 code = m_videoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code + (m_charbank << 8),
 			m_tilecolor[code],
 			(m_tilecolor[code] >= 0x33) ? 0 : TILE_FORCE_LAYER0);
@@ -41,7 +40,7 @@ TILE_GET_INFO_MEMBER(aeroboto_state::get_tile_info)
 
 void aeroboto_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(aeroboto_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 64);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(aeroboto_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 64);
 	m_bg_tilemap->set_transparent_pen(0);
 	m_bg_tilemap->set_scroll_rows(64);
 
@@ -54,16 +53,13 @@ void aeroboto_state::video_start()
 
 	#if STARS_LAYOUT
 	{
-		UINT8 *temp;
 		int i;
 
-		temp = auto_alloc_array(machine(), UINT8, m_stars_length);
+		dynamic_buffer temp(m_stars_length);
 		memcpy(temp, m_stars_rom, m_stars_length);
 
 		for (i = 0; i < m_stars_length; i++)
 			m_stars_rom[(i & ~0xff) + (i << 5 & 0xe0) + (i >> 3 & 0x1f)] = temp[i];
-
-		auto_free(machine(), temp);
 	}
 	#endif
 }
@@ -135,7 +131,7 @@ void aeroboto_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &clipre
 			y = 240 - y;
 		}
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				m_spriteram[offs + 1],
 				m_spriteram[offs + 2] & 0x07,
 				flip_screen(), flip_screen(),

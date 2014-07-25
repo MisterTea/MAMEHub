@@ -11,8 +11,6 @@
 #include "cpu/m6809/m6809.h"
 #include "cpu/m6800/m6800.h"
 #include "cpu/m68000/m68000.h"
-#include "includes/namcoic.h"
-#include "sound/dac.h"
 #include "sound/2151intf.h"
 #include "rendlay.h"
 #include "tceptor2.lh"
@@ -22,15 +20,14 @@
 /*******************************************************************/
 
 
-READ16_MEMBER(tceptor_state::m68k_shared_word_r)
+READ8_MEMBER(tceptor_state::m68k_shared_r)
 {
 	return m_m68k_shared_ram[offset];
 }
 
-WRITE16_MEMBER(tceptor_state::m68k_shared_word_w)
+WRITE8_MEMBER(tceptor_state::m68k_shared_w)
 {
-	if (ACCESSING_BITS_0_7)
-		m_m68k_shared_ram[offset] = data & 0xff;
+	m_m68k_shared_ram[offset] = data;
 }
 
 
@@ -201,7 +198,7 @@ static ADDRESS_MAP_START( m68k_map, AS_PROGRAM, 16, tceptor_state )
 	AM_RANGE(0x400000, 0x4001ff) AM_WRITEONLY AM_SHARE("sprite_ram")
 	AM_RANGE(0x500000, 0x51ffff) AM_DEVWRITE("c45_road", namco_c45_road_device, write)
 	AM_RANGE(0x600000, 0x600001) AM_WRITE(m68k_irq_enable_w)    // not sure
-	AM_RANGE(0x700000, 0x703fff) AM_READWRITE(m68k_shared_word_r, m68k_shared_word_w) AM_SHARE("m68k_shared_ram")
+	AM_RANGE(0x700000, 0x703fff) AM_READWRITE8(m68k_shared_r, m68k_shared_w, 0x00ff)
 ADDRESS_MAP_END
 
 
@@ -295,7 +292,7 @@ static INPUT_PORTS_START( tceptor2 )
 
 	PORT_MODIFY("DSW2")
 	PORT_DIPNAME( 0x04, 0x04, "MODE" )
-	PORT_DIPSETTING(    0x00, "2d" )
+	PORT_DIPSETTING(    0x00, "2D" )
 	PORT_DIPSETTING(    0x04, "3D" )
 	PORT_BIT( 0xf8, IP_ACTIVE_LOW, IPT_UNKNOWN )
 INPUT_PORTS_END
@@ -322,15 +319,6 @@ static GFXDECODE_START( tceptor )
 	//GFXDECODE_ENTRY( "gfx3", 0, spr16_layout, 1024,   64 )
 	//GFXDECODE_ENTRY( "gfx4", 0, spr32_layout, 1024,   64 )
 GFXDECODE_END
-
-
-/*******************************************************************/
-
-static const namco_interface namco_config =
-{
-	8,          /* number of voices */
-	1           /* stereo */
-};
 
 
 /*******************************************************************/
@@ -382,11 +370,15 @@ static MACHINE_CONFIG_START( tceptor, tceptor_state )
 
 
 	/* video hardware */
-	MCFG_GFXDECODE(tceptor)
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tceptor)
+	MCFG_PALETTE_ADD("palette", 4096)
+	MCFG_PALETTE_INDIRECT_ENTRIES(1024)
+	MCFG_PALETTE_INIT_OWNER(tceptor_state, tceptor)
+
 	MCFG_DEFAULT_LAYOUT(layout_horizont)
 
 	MCFG_NAMCO_C45_ROAD_ADD("c45_road")
+	MCFG_GFX_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("2dscreen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60.606060)
@@ -394,6 +386,7 @@ static MACHINE_CONFIG_START( tceptor, tceptor_state )
 	MCFG_SCREEN_SIZE(38*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(2*8, 34*8-1 + 2*8, 0*8, 28*8-1 + 0)
 	MCFG_SCREEN_UPDATE_DRIVER(tceptor_state, screen_update_tceptor_2d)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("3dleft", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60.606060)
@@ -401,6 +394,7 @@ static MACHINE_CONFIG_START( tceptor, tceptor_state )
 	MCFG_SCREEN_SIZE(38*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(2*8, 34*8-1 + 2*8, 0*8, 28*8-1 + 0)
 	MCFG_SCREEN_UPDATE_DRIVER(tceptor_state, screen_update_tceptor_3d_left)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("3dright", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60.606060)
@@ -409,6 +403,7 @@ static MACHINE_CONFIG_START( tceptor, tceptor_state )
 	MCFG_SCREEN_VISIBLE_AREA(2*8, 34*8-1 + 2*8, 0*8, 28*8-1 + 0)
 	MCFG_SCREEN_UPDATE_DRIVER(tceptor_state, screen_update_tceptor_3d_right)
 	MCFG_SCREEN_VBLANK_DRIVER(tceptor_state, screen_eof_tceptor)
+	MCFG_SCREEN_PALETTE("palette")
 
 
 
@@ -420,7 +415,8 @@ static MACHINE_CONFIG_START( tceptor, tceptor_state )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
 	MCFG_SOUND_ADD("namco", NAMCO_CUS30, 49152000/2048)
-	MCFG_SOUND_CONFIG(namco_config)
+	MCFG_NAMCO_AUDIO_VOICES(8)
+	MCFG_NAMCO_AUDIO_STEREO(1)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.40)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.40)
 

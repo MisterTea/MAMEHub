@@ -122,7 +122,7 @@ enum
 class machine_config;
 class emu_options;
 class chd_file;
-
+class software_list_device;
 
 struct rom_entry
 {
@@ -189,7 +189,6 @@ struct rom_entry
 /* ----- per-disk macros ----- */
 #define DISK_GETINDEX(r)            ((r)->_offset)
 #define DISK_ISREADONLY(r)          ((ROM_GETFLAGS(r) & DISK_READONLYMASK) == DISK_READONLY)
-#define DISK_ISOPTIONAL(r)          ((ROM_GETFLAGS(r) & ROM_OPTIONALMASK) == ROM_OPTIONAL)
 
 
 /* ----- start/stop macros ----- */
@@ -308,6 +307,6 @@ chd_file *get_disk_handle(running_machine &machine, const char *region);
 /* set a pointer to the CHD file associated with the given region */
 int set_disk_handle(running_machine &machine, const char *region, const char *fullpath);
 
-void load_software_part_region(device_t *device, char *swlist, char *swname, rom_entry *start_region);
+void load_software_part_region(device_t &device, software_list_device &swlist, const char *swname, const rom_entry *start_region);
 
 #endif  /* __ROMLOAD_H__ */

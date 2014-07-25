@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /**********************************************************************************************
 
 M14 Hardware (c) 1979 Irem
@@ -61,7 +63,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_video_ram(*this, "video_ram"),
 		m_color_ram(*this, "color_ram"),
-		m_maincpu(*this, "maincpu"){ }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	/* video-related */
 	tilemap_t  *m_m14_tilemap;
@@ -73,6 +76,8 @@ public:
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+
 	DECLARE_WRITE8_MEMBER(m14_vram_w);
 	DECLARE_WRITE8_MEMBER(m14_cram_w);
 	DECLARE_READ8_MEMBER(m14_rng_r);
@@ -85,7 +90,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(m14);
 	UINT32 screen_update_m14(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(m14_irq);
 };
@@ -98,7 +103,7 @@ public:
  *************************************/
 
 /* guess, might not be 100% accurate. */
-void m14_state::palette_init()
+PALETTE_INIT_MEMBER(m14_state, m14)
 {
 	int i;
 
@@ -107,11 +112,11 @@ void m14_state::palette_init()
 		rgb_t color;
 
 		if (i & 0x01)
-			color = MAKE_RGB(pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 3));
+			color = rgb_t(pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 3));
 		else
-			color = (i & 0x10) ? RGB_WHITE : RGB_BLACK;
+			color = (i & 0x10) ? rgb_t::white : rgb_t::black;
 
-		palette_set_color(machine(), i, color);
+		palette.set_pen_color(i, color);
 	}
 }
 
@@ -122,8 +127,7 @@ TILE_GET_INFO_MEMBER(m14_state::m14_get_tile_info)
 
 	/* colorram & 0xf0 used but unknown purpose*/
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			color,
 			0);
@@ -131,7 +135,7 @@ TILE_GET_INFO_MEMBER(m14_state::m14_get_tile_info)
 
 void m14_state::video_start()
 {
-	m_m14_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(m14_state::m14_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_m14_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(m14_state::m14_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 UINT32 m14_state::screen_update_m14(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -341,8 +345,11 @@ static MACHINE_CONFIG_START( m14, m14_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(m14_state, screen_update_m14)
-	MCFG_GFXDECODE(m14)
-	MCFG_PALETTE_LENGTH(0x20)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", m14)
+	MCFG_PALETTE_ADD("palette", 0x20)
+	MCFG_PALETTE_INIT_OWNER(m14_state, m14)
 
 
 	/* sound hardware */

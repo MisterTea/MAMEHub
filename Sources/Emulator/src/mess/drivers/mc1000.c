@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /***************************************************************************
 
     MC 1000
@@ -73,14 +75,19 @@ void mc1000_state::bankswitch()
 
 /* Read/Write Handlers */
 
+WRITE_LINE_MEMBER( mc1000_state::write_centronics_busy )
+{
+	m_centronics_busy = state;
+}
+
 READ8_MEMBER( mc1000_state::printer_r )
 {
-	return m_centronics->busy_r();
+	return m_centronics_busy;
 }
 
 WRITE8_MEMBER( mc1000_state::printer_w )
 {
-	m_centronics->strobe_w(BIT(data, 0));
+	m_centronics->write_strobe(BIT(data, 0));
 }
 
 WRITE8_MEMBER( mc1000_state::mc6845_ctrl_w )
@@ -134,7 +141,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( mc1000_io, AS_IO, 8, mc1000_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x04, 0x04) AM_READWRITE(printer_r, printer_w)
-	AM_RANGE(0x05, 0x05) AM_DEVWRITE(CENTRONICS_TAG, centronics_device, write)
+	AM_RANGE(0x05, 0x05) AM_DEVWRITE("cent_data_out", output_latch_device, write)
 //  AM_RANGE(0x10, 0x10) AM_DEVWRITE(MC6845_TAG, mc6845_device, address_w)
 //  AM_RANGE(0x11, 0x11) AM_DEVREADWRITE(MC6845_TAG, mc6845_device, register_r, register_w)
 	AM_RANGE(0x12, 0x12) AM_WRITE(mc6845_ctrl_w)
@@ -309,16 +316,6 @@ READ8_MEMBER( mc1000_state::keydata_r )
 	return data;
 }
 
-static const ay8910_interface ay8910_intf =
-{
-	AY8910_SINGLE_OUTPUT,
-	{ RES_K(2.2), 0, 0 },
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(mc1000_state, keydata_r),
-	DEVCB_DRIVER_MEMBER(mc1000_state, keylatch_w),
-	DEVCB_NULL
-};
-
 /* Machine Initialization */
 
 void mc1000_state::machine_start()
@@ -417,23 +414,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(mc1000_state::ne555_tick)
 	m_maincpu->set_input_line(INPUT_LINE_IRQ0, param);
 }
 
-static const cassette_interface mc1000_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
-
-static const mc6847_interface mc1000_mc6847_intf =
-{
-	SCREEN_TAG,
-	DEVCB_DRIVER_MEMBER(mc1000_state, videoram_r),
-	DEVCB_DRIVER_LINE_MEMBER(mc1000_state, hs_w),
-	DEVCB_DRIVER_LINE_MEMBER(mc1000_state, fs_w),
-};
-
 static MACHINE_CONFIG_START( mc1000, mc1000_state )
 
 	/* basic machine hardware */
@@ -451,17 +431,29 @@ static MACHINE_CONFIG_START( mc1000, mc1000_state )
 
 	/* video hardware */
 	MCFG_SCREEN_MC6847_PAL_ADD(SCREEN_TAG, MC6847_TAG)
-	MCFG_MC6847_ADD(MC6847_TAG, MC6847_NTSC, XTAL_3_579545MHz, mc1000_mc6847_intf)
+
+	MCFG_DEVICE_ADD(MC6847_TAG, MC6847_NTSC, XTAL_3_579545MHz)
+	MCFG_MC6847_HSYNC_CALLBACK(WRITELINE(mc1000_state, hs_w))
+	MCFG_MC6847_FSYNC_CALLBACK(WRITELINE(mc1000_state, fs_w))
+	MCFG_MC6847_INPUT_CALLBACK(READ8(mc1000_state, videoram_r))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD(AY8910_TAG, AY8910, 3579545/2)
-	MCFG_SOUND_CONFIG(ay8910_intf)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_RES_LOADS(RES_K(2.2), 0, 0)
+	MCFG_AY8910_PORT_B_READ_CB(READ8(mc1000_state, keydata_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(mc1000_state, keylatch_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_CASSETTE_ADD("cassette", mc1000_cassette_interface)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(mc1000_state, write_centronics_busy))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

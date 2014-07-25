@@ -55,11 +55,10 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_rollerg(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	K05324X_CB_MEMBER(sprite_callback);
+	K051316_CB_MEMBER(zoom_callback);
+	DECLARE_WRITE8_MEMBER(banking_callback);
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
-
-/*----------- defined in video/rollerg.c -----------*/
-extern void rollerg_sprite_callback(running_machine &machine, int *code,int *color,int *priority_mask);
-extern void rollerg_zoom_callback(running_machine &machine, int *code,int *color,int *flags);

@@ -1,25 +1,17 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __COMX35__
 #define __COMX35__
 
-
 #include "emu.h"
+#include "bus/comx35/exp.h"
 #include "cpu/cosmac/cosmac.h"
 #include "imagedev/cassette.h"
 #include "imagedev/printer.h"
 #include "imagedev/snapquik.h"
 #include "machine/cdp1871.h"
-#include "machine/comxexp.h"
-#include "machine/comxpl80.h"
-#include "machine/comx_clm.h"
-#include "machine/comx_eb.h"
-#include "machine/comx_epr.h"
-#include "machine/comx_fd.h"
-#include "machine/comx_joy.h"
-#include "machine/comx_prn.h"
-#include "machine/comx_ram.h"
-#include "machine/comx_thm.h"
 #include "machine/ram.h"
 #include "machine/rescap.h"
 #include "sound/cdp1869.h"
@@ -86,13 +78,15 @@ public:
 	DECLARE_READ_LINE_MEMBER( ef2_r );
 	DECLARE_READ_LINE_MEMBER( ef4_r );
 	DECLARE_WRITE_LINE_MEMBER( q_w );
-	DECLARE_READ_LINE_MEMBER( shift_r );
-	DECLARE_READ_LINE_MEMBER( control_r );
-	DECLARE_WRITE_LINE_MEMBER( int_w );
+	DECLARE_WRITE8_MEMBER( sc_w );
+	DECLARE_WRITE_LINE_MEMBER( irq_w );
 	DECLARE_WRITE_LINE_MEMBER( prd_w );
 	DECLARE_INPUT_CHANGED_MEMBER( trigger_reset );
 	DECLARE_QUICKLOAD_LOAD_MEMBER( comx35_comx );
 	void image_fread_memory(device_image_interface &image, UINT16 addr, UINT32 count);
+	CDP1869_CHAR_RAM_READ_MEMBER(comx35_charram_r);
+	CDP1869_CHAR_RAM_WRITE_MEMBER(comx35_charram_w);
+	CDP1869_PCB_READ_MEMBER(comx35_pcb_r);
 
 	// processor state
 	int m_clear;                // CPU mode

@@ -195,32 +195,23 @@ READ8_MEMBER(ssystem3_state::ssystem3_via_read_b)
 
 WRITE8_MEMBER(ssystem3_state::ssystem3_via_write_b)
 {
-	via6522_device *via_0 = machine().device<via6522_device>("via6522_0");
-	UINT8 d;
-
 	ssystem3_playfield_write(data&1, data&8);
 	ssystem3_lcd_write(data&4, data&2);
 
-	d=ssystem3_via_read_b(space, 0, mem_mask)&~0x40;
+	// TODO: figure out what this is trying to achieve
+	via6522_device *via_0 = machine().device<via6522_device>("via6522_0");
+	UINT8 d=ssystem3_via_read_b(space, 0, mem_mask)&~0x40;
 	if (data&0x80) d|=0x40;
 	//  d&=~0x8f;
-	via_0->write_portb(space,0, d );
+	via_0->write_pb0((d>>0)&1);
+	via_0->write_pb1((d>>1)&1);
+	via_0->write_pb2((d>>2)&1);
+	via_0->write_pb3((d>>3)&1);
+	via_0->write_pb4((d>>4)&1);
+	via_0->write_pb5((d>>5)&1);
+	via_0->write_pb6((d>>6)&1);
+	via_0->write_pb7((d>>7)&1);
 }
-
-static const via6522_interface ssystem3_via_config=
-{
-	DEVCB_DRIVER_MEMBER(ssystem3_state,ssystem3_via_read_a),//read8_machine_func in_a_func;
-	DEVCB_DRIVER_MEMBER(ssystem3_state,ssystem3_via_read_b),//read8_machine_func in_b_func;
-	DEVCB_NULL,//read8_machine_func in_ca1_func;
-	DEVCB_NULL,//read8_machine_func in_cb1_func;
-	DEVCB_NULL,//read8_machine_func in_ca2_func;
-	DEVCB_NULL,//read8_machine_func in_cb2_func;
-	DEVCB_DRIVER_MEMBER(ssystem3_state,ssystem3_via_write_a),//write8_machine_func out_a_func;
-	DEVCB_DRIVER_MEMBER(ssystem3_state,ssystem3_via_write_b),//write8_machine_func out_b_func;
-	DEVCB_NULL,//write8_machine_func out_ca2_func;
-	DEVCB_NULL,//write8_machine_func out_cb2_func;
-	DEVCB_NULL,//void (*irq_func)(int state);
-};
 
 DRIVER_INIT_MEMBER(ssystem3_state,ssystem3)
 {
@@ -308,9 +299,10 @@ static MACHINE_CONFIG_START( ssystem3, ssystem3_state )
 	MCFG_SCREEN_SIZE(728, 437)
 	MCFG_SCREEN_VISIBLE_AREA(0, 728-1, 0, 437-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ssystem3_state, screen_update_ssystem3)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(242 + 32768)
-
+	MCFG_PALETTE_ADD("palette", 242 + 32768)
+	MCFG_PALETTE_INIT_OWNER(ssystem3_state, ssystem3)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -318,7 +310,11 @@ static MACHINE_CONFIG_START( ssystem3, ssystem3_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* via */
-	MCFG_VIA6522_ADD("via6522_0", 0, ssystem3_via_config)
+	MCFG_DEVICE_ADD("via6522_0", VIA6522, 0)
+	MCFG_VIA6522_READPA_HANDLER(READ8(ssystem3_state,ssystem3_via_read_a))
+	MCFG_VIA6522_READPB_HANDLER(READ8(ssystem3_state,ssystem3_via_read_b))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(ssystem3_state,ssystem3_via_write_a))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(ssystem3_state,ssystem3_via_write_b))
 MACHINE_CONFIG_END
 
 

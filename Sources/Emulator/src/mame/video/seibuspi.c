@@ -199,8 +199,8 @@ WRITE32_MEMBER(seibuspi_state::palette_dma_start_w)
 		if (m_palette_ram[i] != color)
 		{
 			m_palette_ram[i] = color;
-			palette_set_color_rgb(machine(), (i * 2), pal5bit(m_palette_ram[i] >> 0), pal5bit(m_palette_ram[i] >> 5), pal5bit(m_palette_ram[i] >> 10));
-			palette_set_color_rgb(machine(), (i * 2) + 1, pal5bit(m_palette_ram[i] >> 16), pal5bit(m_palette_ram[i] >> 21), pal5bit(m_palette_ram[i] >> 26));
+			m_palette->set_pen_color((i * 2), pal5bit(m_palette_ram[i] >> 0), pal5bit(m_palette_ram[i] >> 5), pal5bit(m_palette_ram[i] >> 10));
+			m_palette->set_pen_color((i * 2) + 1, pal5bit(m_palette_ram[i] >> 16), pal5bit(m_palette_ram[i] >> 21), pal5bit(m_palette_ram[i] >> 26));
 		}
 	}
 }
@@ -222,7 +222,7 @@ WRITE16_MEMBER(seibuspi_state::sprite_dma_start_w)
 
 void seibuspi_state::drawgfx_blend(bitmap_rgb32 &bitmap, const rectangle &cliprect, gfx_element *gfx, UINT32 code, UINT32 color, int flipx, int flipy, int sx, int sy)
 {
-	const pen_t *pens = &gfx->machine().pens[gfx->colorbase()];
+	const pen_t *pens = &m_palette->pen(gfx->colorbase());
 	const UINT8 *dp;
 	int i, j;
 	int x1, x2;
@@ -336,7 +336,7 @@ void seibuspi_state::draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprec
 	int flip_x, flip_y;
 	int priority;
 	int x1, y1;
-	gfx_element *gfx = machine().gfx[2];
+	gfx_element *gfx = m_gfxdecode->gfx(2);
 	const int has_tile_high = (gfx->elements() > 0x10000) ? 1 : 0;
 	const int colormask = (m_sprite_bpp == 6) ? 0x3f : 0x1f;
 
@@ -457,11 +457,11 @@ void seibuspi_state::combine_tilemap(bitmap_rgb32 &bitmap, const rectangle &clip
 				UINT8 alpha = m_alpha_table[pen];
 				if (alpha)
 				{
-					*d = alpha_blend_r32(*d, machine().pens[pen], 0x7f);
+					*d = alpha_blend_r32(*d, m_palette->pen(pen), 0x7f);
 				}
 				else
 				{
-					*d = machine().pens[pen];
+					*d = m_palette->pen(pen);
 				}
 			}
 			++d;
@@ -617,10 +617,10 @@ void seibuspi_state::video_start()
 	m_palette_ram = auto_alloc_array_clear(machine(), UINT32, m_palette_ram_size/4);
 	m_sprite_ram = auto_alloc_array_clear(machine(), UINT32, m_sprite_ram_size/4);
 
-	m_text_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(seibuspi_state::get_text_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64,32);
-	m_back_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(seibuspi_state::get_back_tile_info),this), TILEMAP_SCAN_COLS, 16,16,32,32);
-	m_midl_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(seibuspi_state::get_midl_tile_info),this), TILEMAP_SCAN_COLS, 16,16,32,32);
-	m_fore_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(seibuspi_state::get_fore_tile_info),this), TILEMAP_SCAN_COLS, 16,16,32,32);
+	m_text_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(seibuspi_state::get_text_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64,32);
+	m_back_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(seibuspi_state::get_back_tile_info),this), TILEMAP_SCAN_COLS, 16,16,32,32);
+	m_midl_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(seibuspi_state::get_midl_tile_info),this), TILEMAP_SCAN_COLS, 16,16,32,32);
+	m_fore_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(seibuspi_state::get_fore_tile_info),this), TILEMAP_SCAN_COLS, 16,16,32,32);
 
 	m_text_layer->set_transparent_pen(31);
 	m_back_layer->set_transparent_pen(63);

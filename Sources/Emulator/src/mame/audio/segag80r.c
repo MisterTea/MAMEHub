@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Sega G-80 raster hardware
@@ -15,9 +17,6 @@
 #include "sound/samples.h"
 #include "sound/tms36xx.h"
 #include "sound/dac.h"
-#include "devlegcy.h"
-#include "drivlgcy.h"
-
 
 
 /*************************************
@@ -29,29 +28,13 @@
 #define SEGA005_555_TIMER_FREQ      (1.44 / ((15000 + 2 * 4700) * 1.5e-6))
 #define SEGA005_COUNTER_FREQ        (100000)    /* unknown, just a guess */
 
-class sega005_sound_device : public device_t,
-									public device_sound_interface
-{
-public:
-	sega005_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-protected:
-	// device-level overrides
-	virtual void device_config_complete();
-	virtual void device_start();
-
-	// sound stream update overrides
-	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
-private:
-	// internal state
-};
-
-extern const device_type SEGA005;
-
 const device_type SEGA005 = &device_creator<sega005_sound_device>;
 
 sega005_sound_device::sega005_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, SEGA005, "005 Custom", tag, owner, clock, "sega005_sound", __FILE__),
-		device_sound_interface(mconfig, *this)
+	: device_t(mconfig, SEGA005, "Sega 005 Audio Custom", tag, owner, clock, "sega005_sound", __FILE__),
+		device_sound_interface(mconfig, *this),
+		m_sega005_sound_timer(NULL),
+		m_sega005_stream(NULL)
 {
 }
 
@@ -69,10 +52,19 @@ void sega005_sound_device::device_config_complete()
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-static DEVICE_START( sega005_sound );
 void sega005_sound_device::device_start()
 {
-	DEVICE_START_NAME( sega005_sound )(this);
+	segag80r_state *state = machine().driver_data<segag80r_state>();
+
+	/* create the stream */
+	m_sega005_stream = machine().sound().stream_alloc(*this, 0, 1, SEGA005_COUNTER_FREQ);
+
+	/* create a timer for the 555 */
+	m_sega005_sound_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(sega005_sound_device::sega005_auto_timer), this));
+
+	/* set the initial sound data */
+	state->m_sound_data = 0x00;
+	state->sega005_update_sound_data();
 }
 
 //-------------------------------------------------
@@ -81,8 +73,24 @@ void sega005_sound_device::device_start()
 
 void sega005_sound_device::sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples)
 {
-	// should never get here
-	fatalerror("sound_stream_update called; not applicable to legacy sound devices\n");
+	segag80r_state *state = machine().driver_data<segag80r_state>();
+	const UINT8 *sound_prom = state->memregion("proms")->base();
+	int i;
+
+	/* no implementation yet */
+	for (i = 0; i < samples; i++)
+	{
+		if (!(state->m_sound_state[1] & 0x10) && (++state->m_square_count & 0xff) == 0)
+		{
+			state->m_square_count = sound_prom[state->m_sound_data & 0x1f];
+
+			/* hack - the RC should filter this out */
+			if (state->m_square_count != 0xff)
+				state->m_square_state += 2;
+		}
+
+		outputs[0][i] = (state->m_square_state & 2) ? 0x7fff : 0x0000;
+	}
 }
 
 
@@ -94,8 +102,6 @@ void sega005_sound_device::sound_stream_update(sound_stream &stream, stream_samp
  *  Astro Blaster sound hardware
  *
  *************************************/
-
-static SOUND_START( astrob );
 
 /*
     Description of Astro Blaster sounds (in the hope of future discrete goodness):
@@ -242,28 +248,10 @@ static const samples_interface astrob_samples_interface =
 
 MACHINE_CONFIG_FRAGMENT( astrob_sound_board )
 
-	MCFG_SOUND_START(astrob)
-
 	/* sound hardware */
 	MCFG_SAMPLES_ADD("samples", astrob_samples_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
-
-
-
-/*************************************
- *
- *  Startup configuration
- *
- *************************************/
-
-static SOUND_START( astrob )
-{
-	segag80r_state *state = machine.driver_data<segag80r_state>();
-	state->save_item(NAME(state->m_sound_state));
-	state->save_item(NAME(state->m_sound_rate));
-}
-
 
 
 /*************************************
@@ -374,10 +362,6 @@ WRITE8_MEMBER(segag80r_state::astrob_sound_w)
  *
  *************************************/
 
-static SOUND_START( sega005 );
-static STREAM_UPDATE( sega005_stream_update );
-static TIMER_CALLBACK( sega005_auto_timer );
-
 /*
     005
 
@@ -454,23 +438,13 @@ static const samples_interface sega005_samples_interface =
 };
 
 
-static I8255A_INTERFACE( ppi8255_005_intf )
-{
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_DRIVER_MEMBER(segag80r_state,sega005_sound_a_w),  /* Port A write */
-	DEVCB_NULL,                         /* Port B read */
-	DEVCB_DRIVER_MEMBER(segag80r_state,sega005_sound_b_w),  /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
-
 MACHINE_CONFIG_FRAGMENT( 005_sound_board )
 
-	MCFG_I8255A_ADD( "ppi8255", ppi8255_005_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(segag80r_state, sega005_sound_a_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(segag80r_state, sega005_sound_b_w))
 
 	/* sound hardware */
-	MCFG_SOUND_START(sega005)
 
 	MCFG_SAMPLES_ADD("samples", sega005_samples_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
@@ -478,25 +452,6 @@ MACHINE_CONFIG_FRAGMENT( 005_sound_board )
 	MCFG_SOUND_ADD("005", SEGA005, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
-
-
-
-/*************************************
- *
- *  Startup configuration
- *
- *************************************/
-
-static SOUND_START( sega005 )
-{
-	segag80r_state *state = machine.driver_data<segag80r_state>();
-	state->save_item(NAME(state->m_sound_state));
-	state->save_item(NAME(state->m_sound_addr));
-	state->save_item(NAME(state->m_sound_data));
-	state->save_item(NAME(state->m_square_state));
-	state->save_item(NAME(state->m_square_count));
-}
-
 
 
 /*************************************
@@ -535,29 +490,28 @@ WRITE8_MEMBER(segag80r_state::sega005_sound_a_w)
 }
 
 
-INLINE void sega005_update_sound_data(running_machine &machine)
+inline void segag80r_state::sega005_update_sound_data()
 {
-	segag80r_state *state = machine.driver_data<segag80r_state>();
-	UINT8 newval = state->memregion("005")->base()[state->m_sound_addr];
-	UINT8 diff = newval ^ state->m_sound_data;
+	UINT8 newval = memregion("005")->base()[m_sound_addr];
+	UINT8 diff = newval ^ m_sound_data;
 
-	//mame_printf_debug("  [%03X] = %02X\n", state->m_sound_addr, newval);
+	//osd_printf_debug("  [%03X] = %02X\n", m_sound_addr, newval);
 
 	/* latch the new value */
-	state->m_sound_data = newval;
+	m_sound_data = newval;
 
 	/* if bit 5 goes high, we reset the timer */
 	if ((diff & 0x20) && !(newval & 0x20))
 	{
-		//mame_printf_debug("Stopping timer\n");
-		state->m_sega005_sound_timer->adjust(attotime::never);
+		//osd_printf_debug("Stopping timer\n");
+		m_005snd->m_sega005_sound_timer->adjust(attotime::never);
 	}
 
 	/* if bit 5 goes low, we start the timer again */
 	if ((diff & 0x20) && (newval & 0x20))
 	{
-		//mame_printf_debug("Starting timer\n");
-		state->m_sega005_sound_timer->adjust(attotime::from_hz(SEGA005_555_TIMER_FREQ), 0, attotime::from_hz(SEGA005_555_TIMER_FREQ));
+		//osd_printf_debug("Starting timer\n");
+		m_005snd->m_sega005_sound_timer->adjust(attotime::from_hz(SEGA005_555_TIMER_FREQ), 0, attotime::from_hz(SEGA005_555_TIMER_FREQ));
 	}
 }
 
@@ -573,10 +527,10 @@ WRITE8_MEMBER(segag80r_state::sega005_sound_b_w)
 	UINT8 diff = data ^ m_sound_state[1];
 	m_sound_state[1] = data;
 
-	//mame_printf_debug("sound[%d] = %02X\n", 1, data);
+	//osd_printf_debug("sound[%d] = %02X\n", 1, data);
 
 	/* force a stream update */
-	m_sega005_stream->update();
+	m_005snd->m_sega005_stream->update();
 
 	/* ROM address */
 	m_sound_addr = ((data & 0x0f) << 7) | (m_sound_addr & 0x7f);
@@ -593,7 +547,7 @@ WRITE8_MEMBER(segag80r_state::sega005_sound_b_w)
 		m_sound_addr = (m_sound_addr & 0x780) | ((m_sound_addr + 1) & 0x07f);
 
 	/* update the sound data */
-	sega005_update_sound_data(machine());
+	sega005_update_sound_data();
 }
 
 
@@ -604,55 +558,17 @@ WRITE8_MEMBER(segag80r_state::sega005_sound_b_w)
  *
  *************************************/
 
-static DEVICE_START( sega005_sound )
+
+
+TIMER_CALLBACK_MEMBER( sega005_sound_device::sega005_auto_timer )
 {
-	segag80r_state *state = device->machine().driver_data<segag80r_state>();
-	running_machine &machine = device->machine();
-
-	/* create the stream */
-	state->m_sega005_stream = device->machine().sound().stream_alloc(*device, 0, 1, SEGA005_COUNTER_FREQ, NULL, sega005_stream_update);
-
-	/* create a timer for the 555 */
-	state->m_sega005_sound_timer = machine.scheduler().timer_alloc(FUNC(sega005_auto_timer));
-
-	/* set the initial sound data */
-	state->m_sound_data = 0x00;
-	sega005_update_sound_data(machine);
-}
-
-
-static STREAM_UPDATE( sega005_stream_update )
-{
-	segag80r_state *state = device->machine().driver_data<segag80r_state>();
-	const UINT8 *sound_prom = state->memregion("proms")->base();
-	int i;
-
-	/* no implementation yet */
-	for (i = 0; i < samples; i++)
-	{
-		if (!(state->m_sound_state[1] & 0x10) && (++state->m_square_count & 0xff) == 0)
-		{
-			state->m_square_count = sound_prom[state->m_sound_data & 0x1f];
-
-			/* hack - the RC should filter this out */
-			if (state->m_square_count != 0xff)
-				state->m_square_state += 2;
-		}
-
-		outputs[0][i] = (state->m_square_state & 2) ? 0x7fff : 0x0000;
-	}
-}
-
-
-static TIMER_CALLBACK( sega005_auto_timer )
-{
-	segag80r_state *state = machine.driver_data<segag80r_state>();
+	segag80r_state *state = machine().driver_data<segag80r_state>();
 	/* force an update then clock the sound address if not held in reset */
-	state->m_sega005_stream->update();
+	m_sega005_stream->update();
 	if ((state->m_sound_state[1] & 0x20) && !(state->m_sound_state[1] & 0x10))
 	{
 		state->m_sound_addr = (state->m_sound_addr & 0x780) | ((state->m_sound_addr + 1) & 0x07f);
-		sega005_update_sound_data(machine);
+		state->sega005_update_sound_data();
 	}
 }
 
@@ -663,8 +579,6 @@ static TIMER_CALLBACK( sega005_auto_timer )
  *  Space Odyssey sound hardware
  *
  *************************************/
-
-static SOUND_START( spaceod );
 
 static const char *const spaceod_sample_names[] =
 {
@@ -694,26 +608,10 @@ static const samples_interface spaceod_samples_interface =
 MACHINE_CONFIG_FRAGMENT( spaceod_sound_board )
 
 	/* sound hardware */
-	MCFG_SOUND_START(spaceod)
 
 	MCFG_SAMPLES_ADD("samples", spaceod_samples_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
-
-
-
-/*************************************
- *
- *  Startup configuration
- *
- *************************************/
-
-static SOUND_START( spaceod )
-{
-	segag80r_state *state = machine.driver_data<segag80r_state>();
-	state->save_item(NAME(state->m_sound_state));
-}
-
 
 
 /*************************************
@@ -777,8 +675,6 @@ WRITE8_MEMBER(segag80r_state::spaceod_sound_w)
  *
  *************************************/
 
-static SOUND_START( monsterb );
-
 /*
     Monster Bash
 
@@ -806,14 +702,6 @@ static const samples_interface monsterb_samples_interface =
 };
 
 
-static const tms36xx_interface monsterb_tms3617_interface =
-{
-	TMS3617,
-	{0.5,0.5,0.5,0.5,0.5,0.5}  /* decay times of voices */
-};
-
-
-
 /*************************************
  *
  *  N7751 memory maps
@@ -837,20 +725,12 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-static I8255A_INTERFACE( monsterb_ppi_intf )
-{
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_DRIVER_MEMBER(segag80r_state,monsterb_sound_a_w), /* Port A write */
-	DEVCB_NULL,                         /* Port B read */
-	DEVCB_DRIVER_MEMBER(segag80r_state,monsterb_sound_b_w), /* Port B write */
-	DEVCB_DRIVER_MEMBER(segag80r_state,n7751_status_r),     /* Port C read */
-	DEVCB_DRIVER_MEMBER(segag80r_state,n7751_command_w)     /* Port C write */
-};
-
-
 MACHINE_CONFIG_FRAGMENT( monsterb_sound_board )
-
-	MCFG_I8255A_ADD( "ppi8255", monsterb_ppi_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(segag80r_state, monsterb_sound_a_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(segag80r_state, monsterb_sound_b_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(segag80r_state, n7751_status_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(segag80r_state, n7751_command_w))
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("audiocpu", N7751, 6000000)
@@ -859,36 +739,18 @@ MACHINE_CONFIG_FRAGMENT( monsterb_sound_board )
 	MCFG_I8243_ADD("audio_8243", NOOP, WRITE8(segag80r_state,n7751_rom_control_w))
 
 	/* sound hardware */
-	MCFG_SOUND_START(monsterb)
 
 	MCFG_SAMPLES_ADD("samples", monsterb_samples_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_TMS36XX_ADD("music", 247)
-	MCFG_SOUND_CONFIG(monsterb_tms3617_interface)
+	MCFG_TMS36XX_TYPE(TMS3617)
+	MCFG_TMS36XX_DECAY_TIMES(0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_DAC_ADD("dac")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
-
-
-
-/*************************************
- *
- *  Startup configuration
- *
- *************************************/
-
-static SOUND_START( monsterb )
-{
-	segag80r_state *state = machine.driver_data<segag80r_state>();
-	state->save_item(NAME(state->m_sound_state));
-	state->save_item(NAME(state->m_sound_addr));
-	state->save_item(NAME(state->m_n7751_command));
-	state->save_item(NAME(state->m_n7751_busy));
-}
-
 
 
 /*************************************

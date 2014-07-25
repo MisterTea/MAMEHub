@@ -9,9 +9,7 @@
 ****************************************************************************/
 
 #include "emu.h"
-#include "machine/68681.h"
 #include "machine/mb87078.h"
-#include "sound/es5506.h"
 #include "taito_en.h"
 
 
@@ -29,16 +27,6 @@ taito_en_device::taito_en_device(const machine_config &mconfig, const char *tag,
 }
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void taito_en_device::device_config_complete()
-{
-}
-
-//-------------------------------------------------
 //  device_start - device-specific startup
 //-------------------------------------------------
 
@@ -52,6 +40,8 @@ void taito_en_device::device_start()
 	save_item(NAME(m_es5510_dadr_latch));
 	save_item(NAME(m_es5510_gpr_latch));
 	save_item(NAME(m_es5510_ram_sel));
+
+	m_duart68681 = machine().device<mc68681_device>("duart68681");
 }
 
 //-------------------------------------------------
@@ -124,7 +114,7 @@ WRITE16_MEMBER( taito_en_device::en_es5505_bank_w )
 
 	/* mask out unused bits */
 	data &= max_banks_this_game;
-	es5505_voice_bank_w(space.machine().device("ensoniq"),offset,data<<20);
+	space.machine().device<es5505_device>("ensoniq")->voice_bank_w(offset,data<<20);
 }
 
 WRITE16_MEMBER( taito_en_device::en_volume_w )
@@ -250,9 +240,9 @@ WRITE16_MEMBER( taito_en_device::es5510_dsp_w )
 static ADDRESS_MAP_START( en_sound_map, AS_PROGRAM, 16, driver_device )
 	AM_RANGE(0x000000, 0x00ffff) AM_RAM AM_MIRROR(0x30000) AM_SHARE("share1")
 	AM_RANGE(0x140000, 0x140fff) AM_DEVREADWRITE("taito_en", taito_en_device, en_68000_share_r, en_68000_share_w)
-	AM_RANGE(0x200000, 0x20001f) AM_DEVREADWRITE_LEGACY("ensoniq", es5505_r, es5505_w)
+	AM_RANGE(0x200000, 0x20001f) AM_DEVREADWRITE("ensoniq", es5505_device, read, write)
 	AM_RANGE(0x260000, 0x2601ff) AM_DEVREADWRITE("taito_en", taito_en_device, es5510_dsp_r, es5510_dsp_w) //todo: hook up cpu/es5510
-	AM_RANGE(0x280000, 0x28001f) AM_DEVREADWRITE8_LEGACY("duart68681", duart68681_r, duart68681_w, 0x00ff)
+	AM_RANGE(0x280000, 0x28001f) AM_DEVREADWRITE8("duart68681", mc68681_device, read, write, 0x00ff)
 	AM_RANGE(0x300000, 0x30003f) AM_DEVWRITE("taito_en", taito_en_device, en_es5505_bank_w)
 	AM_RANGE(0x340000, 0x340003) AM_DEVWRITE("taito_en", taito_en_device, en_volume_w)
 	AM_RANGE(0xc00000, 0xc1ffff) AM_ROMBANK("bank1")
@@ -267,13 +257,11 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-static void mb87078_gain_changed( running_machine &machine, int channel, int percent )
+WRITE8_MEMBER(taito_en_device::mb87078_gain_changed)
 {
-	if (channel > 1)
+	if (offset > 1)
 	{
-		es5505_device *es5505 = machine.device<es5505_device>("ensoniq");
-
-		es5505->set_output_gain(channel & 1, percent / 100.0);
+		machine().device<es5505_device>("ensoniq")->set_output_gain(offset & 1, data / 100.0);
 	}
 }
 
@@ -285,16 +273,16 @@ static void mb87078_gain_changed( running_machine &machine, int channel, int per
  *************************************/
 
 
-static void taito_en_duart_irq_handler(device_t *device, int state, UINT8 vector)
+WRITE_LINE_MEMBER(taito_en_device::duart_irq_handler)
 {
 	if (state == ASSERT_LINE)
 	{
-		device->machine().device("audiocpu")->execute().set_input_line_vector(M68K_IRQ_6, vector);
-		device->machine().device("audiocpu")->execute().set_input_line(M68K_IRQ_6, ASSERT_LINE);
+		machine().device("audiocpu")->execute().set_input_line_vector(M68K_IRQ_6, m_duart68681->get_irq_vector());
+		machine().device("audiocpu")->execute().set_input_line(M68K_IRQ_6, ASSERT_LINE);
 	}
 	else
 	{
-		device->machine().device("audiocpu")->execute().set_input_line(M68K_IRQ_6, CLEAR_LINE);
+		machine().device("audiocpu")->execute().set_input_line(M68K_IRQ_6, CLEAR_LINE);
 	}
 }
 
@@ -316,31 +304,6 @@ static void taito_en_duart_irq_handler(device_t *device, int state, UINT8 vector
     IP4: 0.5MHz
     IP5: 1MHz
 */
-static const duart68681_config taito_en_duart68681_config =
-{
-	taito_en_duart_irq_handler,
-	NULL,               /* tx callback */
-	NULL,               /* input port read */
-	NULL,               /* output port write */
-	XTAL_16MHz/2/8,     /* IP2/RxCB clock */
-	XTAL_16MHz/2/16,    /* IP3/TxCA clock */
-	XTAL_16MHz/2/16,    /* IP4/RxCA clock */
-	XTAL_16MHz/2/8,     /* IP5/TxCB clock */
-};
-
-static const mb87078_interface taito_en_mb87078_intf =
-{
-	mb87078_gain_changed
-};
-
-static const es5505_interface es5505_taito_en_config =
-{
-	"ensoniq.0",    /* Bank 0: Unused by F3 games? */
-	"ensoniq.0",    /* Bank 1: All games seem to use this */
-	1,              /* channels */
-	DEVCB_NULL            /* IRQ */
-};
-
 
 /*************************************
  *
@@ -353,12 +316,18 @@ MACHINE_CONFIG_FRAGMENT( taito_en_sound )
 	MCFG_CPU_ADD("audiocpu", M68000, XTAL_30_4761MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(en_sound_map)
 
-	MCFG_DUART68681_ADD("duart68681", XTAL_16MHz / 4, taito_en_duart68681_config)
-	MCFG_MB87078_ADD("mb87078", taito_en_mb87078_intf)
+	MCFG_MC68681_ADD("duart68681", XTAL_16MHz / 4)
+	MCFG_MC68681_SET_EXTERNAL_CLOCKS(XTAL_16MHz/2/8, XTAL_16MHz/2/16, XTAL_16MHz/2/16, XTAL_16MHz/2/8)
+	MCFG_MC68681_IRQ_CALLBACK(DEVWRITELINE("taito_en", taito_en_device, duart_irq_handler))
+
+	MCFG_DEVICE_ADD("mb87078", MB87078, 0)
+	MCFG_MB87078_GAIN_CHANGED_CB(DEVWRITE8("taito_en", taito_en_device, mb87078_gain_changed))
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("ensoniq", ES5505, XTAL_30_4761MHz / 2)
-	MCFG_SOUND_CONFIG(es5505_taito_en_config)
+	MCFG_ES5505_REGION0("ensoniq.0")
+	MCFG_ES5505_REGION1("ensoniq.0")
+	MCFG_ES5506_CHANNELS(1)               /* channels */
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.08)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.08)
 MACHINE_CONFIG_END

@@ -49,7 +49,7 @@ Hopper, Ticket Counter, Prize System (Option)
 - Compiler : ADS, SDT
 
 
-ToDo: hook up QS1000
+ToDo: verify QS1000 hook-up
 
 
 */
@@ -60,6 +60,7 @@ ToDo: hook up QS1000
 #include "machine/s3c2410.h"
 //#include "machine/smartmed.h"
 #include "machine/i2cmem.h"
+#include "sound/qs1000.h"
 
 #define NAND_LOG 0
 
@@ -83,29 +84,35 @@ class ghosteo_state : public driver_device
 public:
 	ghosteo_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_system_memory(*this, "systememory"),
+		m_maincpu(*this, "maincpu") ,
 		m_i2cmem(*this, "i2cmem"),
 		m_s3c2410(*this, "s3c2410"),
-		m_maincpu(*this, "maincpu") { }
+		m_system_memory(*this, "systememory") { }
 
-	required_shared_ptr<UINT32> m_system_memory;
+	required_device<cpu_device> m_maincpu;
 	required_device<i2cmem_device> m_i2cmem;
+	required_device<s3c2410_device> m_s3c2410;
+	required_shared_ptr<UINT32> m_system_memory;
 
 	int m_security_count;
 	UINT32 m_bballoon_port[20];
 	struct nand_t m_nand;
-	DECLARE_WRITE32_MEMBER(sound_w);
 	DECLARE_READ32_MEMBER(bballoon_speedup_r);
 	DECLARE_READ32_MEMBER(touryuu_port_10000000_r);
+	DECLARE_WRITE32_MEMBER(soundlatch_w);
+
+	DECLARE_READ8_MEMBER(qs1000_p1_r);
+
+	DECLARE_WRITE8_MEMBER(qs1000_p1_w);
+	DECLARE_WRITE8_MEMBER(qs1000_p2_w);
+	DECLARE_WRITE8_MEMBER(qs1000_p3_w);
 
 	int m_rom_pagesize;
 	UINT8* m_flash;
-	required_device<s3c2410_device> m_s3c2410;
 	DECLARE_DRIVER_INIT(touryuu);
 	DECLARE_DRIVER_INIT(bballoon);
 	virtual void machine_start();
 	virtual void machine_reset();
-	required_device<cpu_device> m_maincpu;
 	DECLARE_READ32_MEMBER(s3c2410_gpio_port_r);
 	DECLARE_WRITE32_MEMBER(s3c2410_gpio_port_w);
 	DECLARE_READ32_MEMBER(s3c2410_core_pin_r);
@@ -142,6 +149,34 @@ Debug & TEST
 NAND Flash Controller (4KB internal buffer)
 24-ch external interrupts Controller (Wake-up source 16-ch)
 */
+
+READ8_MEMBER( ghosteo_state::qs1000_p1_r )
+{
+	return soundlatch_byte_r(space, 0);
+}
+
+WRITE8_MEMBER( ghosteo_state::qs1000_p1_w )
+{
+}
+
+WRITE8_MEMBER( ghosteo_state::qs1000_p2_w )
+{
+}
+
+WRITE8_MEMBER( ghosteo_state::qs1000_p3_w )
+{
+	// .... .xxx - Data ROM bank (64kB)
+	// ...x .... - ?
+	// ..x. .... - /IRQ clear
+
+	qs1000_device *qs1000 = machine().device<qs1000_device>("qs1000");
+
+	membank("qs1000:bank")->set_entry(data & 0x07);
+
+	if (!BIT(data, 5))
+		qs1000->set_irq(CLEAR_LINE);
+}
+
 
 // GPIO
 
@@ -238,7 +273,7 @@ WRITE8_MEMBER(ghosteo_state::s3c2410_nand_command_w )
 		case 0xFF :
 		{
 			nand.mode = NAND_M_INIT;
-			s3c2410_pin_frnb_w( m_s3c2410, 1);
+				m_s3c2410->frnb_w(1);
 		}
 		break;
 		case 0x00 :
@@ -278,8 +313,8 @@ WRITE8_MEMBER(ghosteo_state::s3c2410_nand_address_w )
 			nand.addr_load_ptr++;
 			if ((nand.mode == NAND_M_READ) && (nand.addr_load_ptr == 4))
 			{
-				s3c2410_pin_frnb_w( m_s3c2410, 0);
-				s3c2410_pin_frnb_w( m_s3c2410, 1);
+				m_s3c2410->frnb_w(0);
+				m_s3c2410->frnb_w(1);
 			}
 		}
 		break;
@@ -309,7 +344,7 @@ READ8_MEMBER(ghosteo_state::s3c2410_nand_data_r )
 				if ((nand.byte_addr >= 0x200) && (nand.byte_addr < 0x204))
 				{
 					UINT8 mecc[4];
-					s3c2410_nand_calculate_mecc( m_flash + nand.page_addr * 0x200, 0x200, mecc);
+					m_s3c2410->s3c2410_nand_calculate_mecc( m_flash + nand.page_addr * 0x200, 0x200, mecc);
 					data = mecc[nand.byte_addr-0x200];
 				}
 				else
@@ -346,13 +381,13 @@ WRITE8_MEMBER(ghosteo_state::s3c2410_nand_data_w )
 WRITE_LINE_MEMBER(ghosteo_state::s3c2410_i2c_scl_w )
 {
 //  logerror( "s3c2410_i2c_scl_w %d\n", state ? 1 : 0);
-	i2cmem_scl_write( m_i2cmem, state);
+	m_i2cmem->write_scl(state);
 }
 
 READ_LINE_MEMBER(ghosteo_state::s3c2410_i2c_sda_r )
 {
 	int state;
-	state = i2cmem_sda_read( m_i2cmem );
+	state = m_i2cmem->read_sda();
 //  logerror( "s3c2410_i2c_sda_r %d\n", state ? 1 : 0);
 	return state;
 }
@@ -360,23 +395,7 @@ READ_LINE_MEMBER(ghosteo_state::s3c2410_i2c_sda_r )
 WRITE_LINE_MEMBER(ghosteo_state::s3c2410_i2c_sda_w )
 {
 //  logerror( "s3c2410_i2c_sda_w %d\n", state ? 1 : 0);
-	i2cmem_sda_write( m_i2cmem, state);
-}
-
-WRITE32_MEMBER(ghosteo_state::sound_w)
-{
-	if ((data >= 0x20) && (data <= 0x7F))
-	{
-		logerror( "sound_w: music %d\n", data - 0x20);
-	}
-	else if ((data >= 0x80) && (data <= 0xFF))
-	{
-		logerror( "sound_w: effect %d\n", data - 0x80);
-	}
-	else
-	{
-		logerror( "sound_w: unknown (%d)\n", data);
-	}
+	m_i2cmem->write_sda(state);
 }
 
 READ32_MEMBER( ghosteo_state::touryuu_port_10000000_r )
@@ -400,7 +419,7 @@ static ADDRESS_MAP_START( bballoon_map, AS_PROGRAM, 32, ghosteo_state )
 	AM_RANGE(0x10000000, 0x10000003) AM_READ_PORT("10000000")
 	AM_RANGE(0x10100000, 0x10100003) AM_READ_PORT("10100000")
 	AM_RANGE(0x10200000, 0x10200003) AM_READ_PORT("10200000")
-	AM_RANGE(0x10300000, 0x10300003) AM_WRITE(sound_w)
+	AM_RANGE(0x10300000, 0x10300003) AM_WRITE(soundlatch_w)
 	AM_RANGE(0x30000000, 0x31ffffff) AM_RAM AM_SHARE("systememory") AM_MIRROR(0x02000000)
 ADDRESS_MAP_END
 
@@ -408,7 +427,7 @@ static ADDRESS_MAP_START( touryuu_map, AS_PROGRAM, 32, ghosteo_state )
 	AM_RANGE(0x10000000, 0x10000003) AM_READ(touryuu_port_10000000_r)
 	AM_RANGE(0x10100000, 0x10100003) AM_READ_PORT("10100000")
 	AM_RANGE(0x10200000, 0x10200003) AM_READ_PORT("10200000")
-	AM_RANGE(0x10300000, 0x10300003) AM_WRITE(sound_w)
+	AM_RANGE(0x10300000, 0x10300003) AM_WRITE(soundlatch_w)
 	AM_RANGE(0x30000000, 0x31ffffff) AM_RAM AM_SHARE("systememory") AM_MIRROR(0x02000000)
 ADDRESS_MAP_END
 
@@ -466,8 +485,8 @@ static INPUT_PORTS_START( bballoon )
 	PORT_BIT( 0x00000002, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x00000004, IP_ACTIVE_LOW, IPT_START1 )
 	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_START2 )
-	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_SERVICE1 )
-	PORT_BIT( 0x00000080, IP_ACTIVE_LOW, IPT_SERVICE2 )
+	PORT_SERVICE_NO_TOGGLE( 0x00000020, IP_ACTIVE_LOW )
+	PORT_BIT( 0x00000080, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0xFFFFFF50, IP_ACTIVE_LOW, IPT_UNUSED )
 INPUT_PORTS_END
 
@@ -534,43 +553,14 @@ static INPUT_PORTS_START( touryuu )
 	PORT_BIT( 0x00000002, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x00000004, IP_ACTIVE_LOW, IPT_START1 )
 	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_START2 )
-	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_SERVICE1 )
-	PORT_BIT( 0x00000080, IP_ACTIVE_LOW, IPT_SERVICE2 )
+	PORT_SERVICE_NO_TOGGLE( 0x00000020, IP_ACTIVE_LOW )
+	PORT_BIT( 0x00000080, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0xFFFFFF50, IP_ACTIVE_LOW, IPT_UNUSED )
 INPUT_PORTS_END
 
-
-static const s3c2410_interface bballoon_s3c2410_intf =
-{
-	// CORE (pin read / pin write)
-	{ DEVCB_DRIVER_MEMBER32(ghosteo_state,s3c2410_core_pin_r), DEVCB_NULL },
-	// GPIO (port read / port write)
-	{ DEVCB_DRIVER_MEMBER32(ghosteo_state,s3c2410_gpio_port_r), DEVCB_DRIVER_MEMBER32(ghosteo_state,s3c2410_gpio_port_w) },
-	// I2C (scl write / sda read / sda write)
-	{ DEVCB_DRIVER_LINE_MEMBER(ghosteo_state,s3c2410_i2c_scl_w), DEVCB_DRIVER_LINE_MEMBER(ghosteo_state,s3c2410_i2c_sda_r), DEVCB_DRIVER_LINE_MEMBER(ghosteo_state,s3c2410_i2c_sda_w) },
-	// ADC (data read)
-	{ DEVCB_NULL },
-	// I2S (data write)
-	{ DEVCB_NULL },
-	// NAND (command write / address write / data read / data write)
-	{ DEVCB_DRIVER_MEMBER(ghosteo_state,s3c2410_nand_command_w), DEVCB_DRIVER_MEMBER(ghosteo_state,s3c2410_nand_address_w), DEVCB_DRIVER_MEMBER(ghosteo_state,s3c2410_nand_data_r), DEVCB_DRIVER_MEMBER(ghosteo_state,s3c2410_nand_data_w) }
-};
-
-static const i2cmem_interface bballoon_i2cmem_interface =
-{
-	I2CMEM_SLAVE_ADDRESS, 0, 256
-};
-
-static const i2cmem_interface touryuu_i2cmem_interface =
-{
-	I2CMEM_SLAVE_ADDRESS, 0, 1024
-};
-
-
-
 READ32_MEMBER(ghosteo_state::bballoon_speedup_r)
 {
-	UINT32 ret = s3c2410_lcd_r(m_s3c2410, space, offset+0x10/4, mem_mask);
+	UINT32 ret = m_s3c2410->s3c24xx_lcd_r(space, offset+0x10/4, mem_mask);
 
 
 	int pc = space.device().safe_pc();
@@ -592,9 +582,23 @@ READ32_MEMBER(ghosteo_state::bballoon_speedup_r)
 	return ret;
 }
 
+WRITE32_MEMBER(ghosteo_state::soundlatch_w)
+{
+	qs1000_device *qs1000 = space.machine().device<qs1000_device>("qs1000");
+
+	soundlatch_byte_w(space, 0, data);
+	qs1000->set_irq(ASSERT_LINE);
+
+	machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(100));
+}
+
 void ghosteo_state::machine_start()
 {
 	m_flash = (UINT8 *)memregion( "user1")->base();
+
+	// Set up the QS1000 program ROM banking, taking care not to overlap the internal RAM
+	machine().device("qs1000:cpu")->memory().space(AS_IO).install_read_bank(0x0100, 0xffff, "bank");
+	membank("qs1000:bank")->configure_entries(0, 8, memregion("qs1000:cpu")->base()+0x100, 0x10000);
 }
 
 void ghosteo_state::machine_reset()
@@ -614,29 +618,53 @@ static MACHINE_CONFIG_START( ghosteo, ghosteo_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DEVICE("s3c2410", s3c2410_device, screen_update)
 
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_ADD("palette", 256)
 
 
-	MCFG_S3C2410_ADD("s3c2410", 12000000, bballoon_s3c2410_intf)
+	MCFG_DEVICE_ADD("s3c2410", S3C2410, 12000000)
+	MCFG_S3C2410_PALETTE("palette")
+	MCFG_S3C2410_CORE_PIN_R_CB(READ32(ghosteo_state, s3c2410_core_pin_r))
+	MCFG_S3C2410_GPIO_PORT_R_CB(READ32(ghosteo_state, s3c2410_gpio_port_r))
+	MCFG_S3C2410_GPIO_PORT_W_CB(WRITE32(ghosteo_state, s3c2410_gpio_port_w))
+	MCFG_S3C2410_I2C_SCL_W_CB(WRITELINE(ghosteo_state, s3c2410_i2c_scl_w))
+	MCFG_S3C2410_I2C_SDA_R_CB(READLINE(ghosteo_state, s3c2410_i2c_sda_r))
+	MCFG_S3C2410_I2C_SDA_W_CB(WRITELINE(ghosteo_state, s3c2410_i2c_sda_w))
+	MCFG_S3C2410_NAND_COMMAND_W_CB(WRITE8(ghosteo_state, s3c2410_nand_command_w))
+	MCFG_S3C2410_NAND_ADDRESS_W_CB(WRITE8(ghosteo_state, s3c2410_nand_address_w))
+	MCFG_S3C2410_NAND_DATA_R_CB(READ8(ghosteo_state, s3c2410_nand_data_r))
+	MCFG_S3C2410_NAND_DATA_W_CB(WRITE8(ghosteo_state, s3c2410_nand_data_w))
 
-//  MCFG_NAND_ADD("nand", 0xEC, 0x75)
+//  MCFG_DEVICE_ADD("nand", NAND, 0)
+//  MCFG_NAND_TYPE(NAND_CHIP_K9F5608U0D)    // or another variant with ID 0xEC 0x75 ?
 //  MCFG_DEVICE_CONFIG(bballoon_nand_intf)
 
 //  MCFG_I2CMEM_ADD("i2cmem", 0xA0, 0, 0x100, NULL)
 
 	/* sound hardware */
+	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+
+	MCFG_SOUND_ADD("qs1000", QS1000, XTAL_24MHz)
+	MCFG_QS1000_EXTERNAL_ROM(true)
+	MCFG_QS1000_IN_P1_CB(READ8(ghosteo_state, qs1000_p1_r))
+	MCFG_QS1000_OUT_P1_CB(WRITE8(ghosteo_state, qs1000_p1_w))
+	MCFG_QS1000_OUT_P2_CB(WRITE8(ghosteo_state, qs1000_p2_w))
+	MCFG_QS1000_OUT_P3_CB(WRITE8(ghosteo_state, qs1000_p3_w))
+	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
+	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( bballoon, ghosteo )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(bballoon_map)
-	MCFG_I2CMEM_ADD("i2cmem", bballoon_i2cmem_interface)
+	MCFG_I2CMEM_ADD("i2cmem")
+	MCFG_I2CMEM_DATA_SIZE(256)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( touryuu, ghosteo )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(touryuu_map)
-	MCFG_I2CMEM_ADD("i2cmem", touryuu_i2cmem_interface)
+	MCFG_I2CMEM_ADD("i2cmem")
+	MCFG_I2CMEM_DATA_SIZE(1024)
 MACHINE_CONFIG_END
 
 
@@ -690,14 +718,12 @@ ROM_START( bballoon )
 	ROM_LOAD( "flash.u1",     0x000000, 0x2000000, BAD_DUMP CRC(73285634) SHA1(4d0210c1bebdf3113a99978ffbcd77d6ee854168) ) // missing ECC data
 
 	// banked every 0x10000 bytes ?
-	ROM_REGION( 0x080000, "user2", 0 )
+	ROM_REGION( 0x080000, "qs1000:cpu", 0 )
 	ROM_LOAD( "b2.u20",       0x000000, 0x080000, CRC(0a12334c) SHA1(535b5b34f28435517218100d70147d87809f485a) )
 
-	ROM_REGION( 0x100000, "sfx", 0 ) /* QDSP samples (SFX) */
-	ROM_LOAD( "b1.u16",       0x000000, 0x100000, CRC(c42c1c85) SHA1(e1f49d556ffd6bc27142a7784c3bb8e37999857d) )
-
-	ROM_REGION( 0x080000, "wavetable", 0 ) /* QDSP wavetable rom */
-	ROM_LOAD( "qs1001a.u17",  0x000000, 0x80000, CRC(d13c6407) SHA1(57b14f97c7d4f9b5d9745d3571a0b7115fbe3176) )
+	ROM_REGION( 0x1000000, "qs1000", 0 )
+	ROM_LOAD( "b1.u16",       0x000000, 0x100000, CRC(c42c1c85) SHA1(e1f49d556ffd6bc27142a7784c3bb8e37999857d) ) /* QDSP samples (SFX) */
+	ROM_LOAD( "qs1001a.u17",  0x200000, 0x080000, CRC(d13c6407) SHA1(57b14f97c7d4f9b5d9745d3571a0b7115fbe3176) ) /* QDSP wavetable rom */
 ROM_END
 
 ROM_START( hapytour ) /* Same hardware: GHOST Ver1.1 2003.03.28 */
@@ -705,14 +731,12 @@ ROM_START( hapytour ) /* Same hardware: GHOST Ver1.1 2003.03.28 */
 	ROM_LOAD( "flash.u1",     0x000000, 0x2000000, BAD_DUMP CRC(49deb7f9) SHA1(708a27d7177cf6261a49ded975c2bbb6c2427742) ) // missing ECC data
 
 	// banked every 0x10000 bytes ?
-	ROM_REGION( 0x080000, "user2", 0 )
+	ROM_REGION( 0x080000, "qs1000:cpu", 0 )
 	ROM_LOAD( "ht.u20",       0x000000, 0x080000, CRC(c0581fce) SHA1(dafce679002534ffabed249a92e6b83301b8312b) )
 
-	ROM_REGION( 0x100000, "sfx", 0 ) /* QDSP samples (SFX) */
-	ROM_LOAD( "ht.u16",       0x000000, 0x100000, CRC(6a590a3a) SHA1(c1140f70c919661162334db66c6aa0ad656bfc47) )
-
-	ROM_REGION( 0x080000, "wavetable", 0 ) /* QDSP wavetable rom */
-	ROM_LOAD( "qs1001a.u17",  0x000000, 0x80000, CRC(d13c6407) SHA1(57b14f97c7d4f9b5d9745d3571a0b7115fbe3176) )
+	ROM_REGION( 0x1000000, "qs1000", 0 )
+	ROM_LOAD( "ht.u16",       0x000000, 0x100000, CRC(6a590a3a) SHA1(c1140f70c919661162334db66c6aa0ad656bfc47) ) /* QDSP samples (SFX) */
+	ROM_LOAD( "qs1001a.u17",  0x200000, 0x080000, CRC(d13c6407) SHA1(57b14f97c7d4f9b5d9745d3571a0b7115fbe3176) ) /* QDSP wavetable rom */
 ROM_END
 
 
@@ -721,14 +745,12 @@ ROM_START( touryuu )
 	ROM_LOAD( "u1.bin",     0x000000, 0x4200000, CRC(49b6856e) SHA1(639123d2fabac4e79c9315fb87f72b13f9ae8761) )
 
 	// banked every 0x10000 bytes ?
-	ROM_REGION( 0x080000, "user2", 0 )
+	ROM_REGION( 0x080000, "qs1000:cpu", 0 )
 	ROM_LOAD( "4m.eeprom_c.s(bad1h).u20",       0x000000, 0x080000, CRC(f81a6530) SHA1(c7fa412102328d06823e73d7d07cadfc25db6d28) )
 
-	ROM_REGION( 0x100000, "sfx", 0 ) /* QDSP samples (SFX) */
-	ROM_LOAD( "8m.eprom_c.s(f8b1h).u16",       0x000000, 0x100000, CRC(238a85ab) SHA1(ddd79429c0c1e67fcbca1e4ebded97ea46229f0b) )
-
-	ROM_REGION( 0x080000, "wavetable", 0 ) /* QDSP wavetable rom */
-	ROM_LOAD( "qs1001a.u17",  0x000000, 0x80000, CRC(d13c6407) SHA1(57b14f97c7d4f9b5d9745d3571a0b7115fbe3176) )
+	ROM_REGION( 0x1000000, "qs1000", 0 )
+	ROM_LOAD( "8m.eprom_c.s(f8b1h).u16",       0x000000, 0x100000, CRC(238a85ab) SHA1(ddd79429c0c1e67fcbca1e4ebded97ea46229f0b) ) /* QDSP samples (SFX) */
+	ROM_LOAD( "qs1001a.u17",  0x200000, 0x080000, CRC(d13c6407) SHA1(57b14f97c7d4f9b5d9745d3571a0b7115fbe3176) ) /* QDSP wavetable rom */
 ROM_END
 
 DRIVER_INIT_MEMBER(ghosteo_state,bballoon)
@@ -741,6 +763,6 @@ DRIVER_INIT_MEMBER(ghosteo_state,touryuu)
 	m_rom_pagesize = 0x210;
 }
 
-GAME( 2003, bballoon, 0, bballoon, bballoon, ghosteo_state, bballoon, ROT0, "Eolith", "BnB Arcade", GAME_NO_SOUND )
-GAME( 2005, hapytour, 0, bballoon, bballoon, ghosteo_state, bballoon, ROT0, "GAV Company", "Happy Tour", GAME_NO_SOUND )
-GAME( 2005, touryuu,  0, touryuu, touryuu, ghosteo_state, touryuu, ROT0, "Yuki Enterprise", "Touryuumon (V1.1)?", GAME_NO_SOUND ) // On first boot inputs won't work, TODO: hook-up default eeprom
+GAME( 2003, bballoon, 0, bballoon, bballoon, ghosteo_state, bballoon, ROT0, "Eolith", "BnB Arcade", GAME_IMPERFECT_SOUND )
+GAME( 2005, hapytour, 0, bballoon, bballoon, ghosteo_state, bballoon, ROT0, "GAV Company", "Happy Tour", GAME_IMPERFECT_SOUND )
+GAME( 2005, touryuu,  0, touryuu, touryuu, ghosteo_state, touryuu, ROT0, "Yuki Enterprise", "Touryuumon (V1.1)?", GAME_IMPERFECT_SOUND ) // On first boot inputs won't work, TODO: hook-up default eeprom

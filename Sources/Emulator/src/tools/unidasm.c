@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     mamedasm.c
 
     Generic MAME disassembler.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************/
 
@@ -116,9 +87,6 @@ CPU_DISASSEMBLE( esrip );
 CPU_DISASSEMBLE( f8 );
 CPU_DISASSEMBLE( g65816_generic );
 CPU_DISASSEMBLE( h6280 );
-CPU_DISASSEMBLE( h8 );
-CPU_DISASSEMBLE( h8_24 );
-CPU_DISASSEMBLE( h8_32 );
 CPU_DISASSEMBLE( hc11 );
 CPU_DISASSEMBLE( hcd62121 );
 CPU_DISASSEMBLE( hd61700 );
@@ -164,6 +132,7 @@ CPU_DISASSEMBLE( minx );
 CPU_DISASSEMBLE( mips3be );
 CPU_DISASSEMBLE( mips3le );
 CPU_DISASSEMBLE( mn10200 );
+CPU_DISASSEMBLE( n8x300 );
 CPU_DISASSEMBLE( nec );
 CPU_DISASSEMBLE( nsc8105 );
 CPU_DISASSEMBLE( pdp1 );
@@ -230,6 +199,7 @@ CPU_DISASSEMBLE( z8000 );
 
 static const dasm_table_entry dasm_table[] =
 {
+	{ "8x300",      _16be,  0, CPU_DISASSEMBLE_NAME(n8x300) },
 	{ "adsp21xx",   _24le, -2, CPU_DISASSEMBLE_NAME(adsp21xx) },
 	{ "alpha8201",  _8bit,  0, CPU_DISASSEMBLE_NAME(alpha8201) },
 	{ "am29000",    _32be,  0, CPU_DISASSEMBLE_NAME(am29000) },
@@ -261,9 +231,9 @@ static const dasm_table_entry dasm_table[] =
 	{ "f8",         _8bit,  0, CPU_DISASSEMBLE_NAME(f8) },
 	{ "g65816",     _8bit,  0, CPU_DISASSEMBLE_NAME(g65816_generic) },
 	{ "h6280",      _8bit,  0, CPU_DISASSEMBLE_NAME(h6280) },
-	{ "h8",         _16be,  0, CPU_DISASSEMBLE_NAME(h8) },
-	{ "h8_24",      _16be,  0, CPU_DISASSEMBLE_NAME(h8_24) },
-	{ "h8_32",      _16be,  0, CPU_DISASSEMBLE_NAME(h8_32) },
+	//  { "h8",         _16be,  0, CPU_DISASSEMBLE_NAME(h8) },
+	//  { "h8_24",      _16be,  0, CPU_DISASSEMBLE_NAME(h8_24) },
+	//  { "h8_32",      _16be,  0, CPU_DISASSEMBLE_NAME(h8_32) },
 	{ "hc11",       _8bit,  0, CPU_DISASSEMBLE_NAME(mb88) },
 	{ "hcd62121",   _16be,  0, CPU_DISASSEMBLE_NAME(hcd62121) },
 	{ "hd61700",    _8bit,  0, CPU_DISASSEMBLE_NAME(hd61700) },
@@ -373,15 +343,15 @@ static const dasm_table_entry dasm_table[] =
 //  { "z8000",      _16be,  0, CPU_DISASSEMBLE_NAME(z8000) },
 };
 
-void CLIB_DECL logerror(const char *format, ...)
+void CLIB_DECL ATTR_PRINTF(1,2) logerror(const char *format, ...)
 {
 	/* silent logerrors are allowed in disassemblers */
 }
 
 
-void CLIB_DECL mame_printf_debug(const char *format, ...)
+void CLIB_DECL ATTR_PRINTF(1,2) osd_printf_debug(const char *format, ...)
 {
-	/* silent mame_printf_debugs are allowed in disassemblers */
+	/* silent osd_printf_debugs are allowed in disassemblers */
 }
 
 

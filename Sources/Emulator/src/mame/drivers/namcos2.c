@@ -598,8 +598,8 @@ READ8_MEMBER(namcos2_state::ack_mcu_vbl_r)
 
 static ADDRESS_MAP_START( namcos2_68k_default_cpu_board_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0x200000, 0x3fffff) AM_ROM AM_REGION("data_rom", 0)
-	AM_RANGE(0x400000, 0x41ffff) AM_READWRITE(namco_tilemapvideoram16_r,namco_tilemapvideoram16_w)
-	AM_RANGE(0x420000, 0x42003f) AM_READWRITE(namco_tilemapcontrol16_r,namco_tilemapcontrol16_w)
+	AM_RANGE(0x400000, 0x41ffff) AM_READWRITE(c123_tilemap_videoram_r,c123_tilemap_videoram_w)
+	AM_RANGE(0x420000, 0x42003f) AM_READWRITE(c123_tilemap_control_r,c123_tilemap_control_w)
 	AM_RANGE(0x440000, 0x44ffff) AM_READWRITE(paletteram_word_r,paletteram_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x460000, 0x460fff) AM_READWRITE(dpram_word_r,dpram_word_w)
 	AM_RANGE(0x468000, 0x468fff) AM_READWRITE(dpram_word_r,dpram_word_w) /* mirror */
@@ -1663,11 +1663,6 @@ static GFXDECODE_START( luckywld )
 	GFXDECODE_ENTRY( "gfx2", 0x000000, chr_layout,              16*256, 16 )
 GFXDECODE_END
 
-static const c140_interface c140_config =
-{
-	C140_TYPE_SYSTEM2
-};
-
 /* end */
 
 /******************************************
@@ -1724,21 +1719,22 @@ static MACHINE_CONFIG_START( default, namcos2_state )
 	MCFG_MACHINE_RESET_OVERRIDE(namcos2_state,namcos2)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE( (49152000.0 / 8) / (384 * 264) )
 	MCFG_SCREEN_SIZE(384, 264)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(namcos2_state, screen_update)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(namcos2)
-	MCFG_PALETTE_LENGTH(0x2000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", namcos2)
+
+	MCFG_PALETTE_ADD("palette", 0x2000)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
-	MCFG_SOUND_CONFIG(c140_config)
+	MCFG_C140_BANK_TYPE(C140_TYPE_SYSTEM2)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 
@@ -1751,7 +1747,7 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( default2, default )
 
 	MCFG_C140_REPLACE("c140", C140_SOUND_CLOCK) /* 21.333kHz */
-	MCFG_SOUND_CONFIG(c140_config)
+	MCFG_C140_BANK_TYPE(C140_TYPE_SYSTEM2)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -1765,7 +1761,7 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( default3, default )
 
 	MCFG_C140_REPLACE("c140", C140_SOUND_CLOCK) /* 21.333kHz */
-	MCFG_SOUND_CONFIG(c140_config)
+	MCFG_C140_BANK_TYPE(C140_TYPE_SYSTEM2)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.45)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.45)
 
@@ -1798,21 +1794,22 @@ static MACHINE_CONFIG_START( gollygho, namcos2_state )
 	MCFG_MACHINE_RESET_OVERRIDE(namcos2_state,namcos2)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE( (49152000.0 / 8) / (384 * 264) )
 	MCFG_SCREEN_SIZE(384, 264)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(namcos2_state, screen_update)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(namcos2)
-	MCFG_PALETTE_LENGTH(0x2000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", namcos2)
+
+	MCFG_PALETTE_ADD("palette", 0x2000)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
-	MCFG_SOUND_CONFIG(c140_config)
+	MCFG_C140_BANK_TYPE(C140_TYPE_SYSTEM2)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 
@@ -1845,25 +1842,27 @@ static MACHINE_CONFIG_START( finallap, namcos2_state )
 	MCFG_MACHINE_RESET_OVERRIDE(namcos2_state,namcos2)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE( (49152000.0 / 8) / (384 * 264) )
 	MCFG_SCREEN_SIZE(384, 264)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(namcos2_state, screen_update_finallap)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(finallap)
-	MCFG_PALETTE_LENGTH(0x2000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", finallap)
+
+	MCFG_PALETTE_ADD("palette", 0x2000)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
 	MCFG_VIDEO_START_OVERRIDE(namcos2_state, finallap)
 
 	MCFG_NAMCO_C45_ROAD_ADD("c45_road")
+	MCFG_GFX_PALETTE("palette")
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
-	MCFG_SOUND_CONFIG(c140_config)
+	MCFG_C140_BANK_TYPE(C140_TYPE_SYSTEM2)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 
@@ -1896,23 +1895,24 @@ static MACHINE_CONFIG_START( sgunner, namcos2_state )
 	MCFG_MACHINE_RESET_OVERRIDE(namcos2_state,namcos2)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE( (49152000.0 / 8) / (384 * 264) )
 	MCFG_SCREEN_SIZE(384, 264)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(namcos2_state, screen_update_sgunner)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sgunner)
-	MCFG_PALETTE_LENGTH(0x2000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sgunner)
+
+	MCFG_PALETTE_ADD("palette", 0x2000)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
 	MCFG_VIDEO_START_OVERRIDE(namcos2_state, sgunner)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
-	MCFG_SOUND_CONFIG(c140_config)
+	MCFG_C140_BANK_TYPE(C140_TYPE_SYSTEM2)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 
@@ -1950,23 +1950,24 @@ static MACHINE_CONFIG_START( sgunner2, namcos2_state )
 	MCFG_MACHINE_RESET_OVERRIDE(namcos2_state,namcos2)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE( (49152000.0 / 8) / (384 * 264) )
 	MCFG_SCREEN_SIZE(384, 264)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(namcos2_state, screen_update_sgunner)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sgunner)
-	MCFG_PALETTE_LENGTH(0x2000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sgunner)
+
+	MCFG_PALETTE_ADD("palette", 0x2000)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
 	MCFG_VIDEO_START_OVERRIDE(namcos2_state, sgunner)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
-	MCFG_SOUND_CONFIG(c140_config)
+	MCFG_C140_BANK_TYPE(C140_TYPE_SYSTEM2)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 
@@ -1999,25 +2000,27 @@ static MACHINE_CONFIG_START( luckywld, namcos2_state )
 	MCFG_MACHINE_RESET_OVERRIDE(namcos2_state,namcos2)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE( (49152000.0 / 8) / (384 * 264) )
 	MCFG_SCREEN_SIZE(384, 264)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(namcos2_state, screen_update_luckywld)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(luckywld)
-	MCFG_PALETTE_LENGTH(0x2000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", luckywld)
+
+	MCFG_PALETTE_ADD("palette", 0x2000)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
 	MCFG_VIDEO_START_OVERRIDE(namcos2_state, luckywld)
 
 	MCFG_NAMCO_C45_ROAD_ADD("c45_road")
+	MCFG_GFX_PALETTE("palette")
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
-	MCFG_SOUND_CONFIG(c140_config)
+	MCFG_C140_BANK_TYPE(C140_TYPE_SYSTEM2)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 
@@ -2050,23 +2053,24 @@ static MACHINE_CONFIG_START( metlhawk, namcos2_state )
 	MCFG_MACHINE_RESET_OVERRIDE(namcos2_state,namcos2)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE( (49152000.0 / 8) / (384 * 264) )
 	MCFG_SCREEN_SIZE(384, 264)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(namcos2_state, screen_update_metlhawk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(metlhawk)
-	MCFG_PALETTE_LENGTH(0x2000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", metlhawk)
+
+	MCFG_PALETTE_ADD("palette", 0x2000)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
 	MCFG_VIDEO_START_OVERRIDE(namcos2_state, metlhawk)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
-	MCFG_SOUND_CONFIG(c140_config)
+	MCFG_C140_BANK_TYPE(C140_TYPE_SYSTEM2)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
@@ -2387,8 +2391,8 @@ ROM_END
 /* COSMO GANG THE VIDEO (USA) */
 ROM_START( cosmogng )
 	ROM_REGION( 0x040000, "maincpu", 0 ) /* Master CPU */
-	ROM_LOAD16_BYTE( "co2_mp0",  0x000000, 0x020000, CRC(2632c209) SHA1(a03136c18eff4e3d69dda955a3c774f2829393ec) )
-	ROM_LOAD16_BYTE( "co2_mp1",  0x000001, 0x020000, CRC(65840104) SHA1(71dfd379a985779e11e9e321ee998df21d03c30e) )
+	ROM_LOAD16_BYTE( "co2mpr0.bin",  0x000000, 0x020000, CRC(2632c209) SHA1(a03136c18eff4e3d69dda955a3c774f2829393ec) )
+	ROM_LOAD16_BYTE( "co2mpr1.bin",  0x000001, 0x020000, CRC(65840104) SHA1(71dfd379a985779e11e9e321ee998df21d03c30e) )
 
 	ROM_REGION( 0x040000, "slave", 0 ) /* Slave CPU */
 	ROM_LOAD16_BYTE( "co1spr0.bin",  0x000000, 0x020000, CRC(bba2c28f) SHA1(5adf4eb9d24833e462a240253ab9ac0205cb6501) )
@@ -2426,8 +2430,8 @@ ROM_START( cosmogng )
 	NAMCOS2_DATA_LOAD_O_128K( "co1dat1.bin",  0x000000, CRC(d21ad10b) SHA1(dcf2d4cc048ea57507952a9a35390af7de5cfe34) )
 
 	ROM_REGION( 0x100000, "c140", 0 ) /* Sound voices */
-	ROM_LOAD( "co2_v1",  0x000000, 0x080000, CRC(5a301349) SHA1(e333ea5955a66ac8d7c94cd50047efaf6fa95b15) )
-	ROM_LOAD( "co2_v2",  0x080000, 0x080000, CRC(a27cb45a) SHA1(08ccaaf43369e8358e31b213877829bdfd61479e) )
+	ROM_LOAD( "co2voi1.bin",  0x000000, 0x080000, CRC(5a301349) SHA1(e333ea5955a66ac8d7c94cd50047efaf6fa95b15) )
+	ROM_LOAD( "co2voi2.bin",  0x080000, 0x080000, CRC(a27cb45a) SHA1(08ccaaf43369e8358e31b213877829bdfd61479e) )
 ROM_END
 
 /* COSMO GANG THE VIDEO (JAPAN) */
@@ -4316,8 +4320,8 @@ ROM_END
 /* STEEL GUNNER 2 (Japan) */
 ROM_START( sgunner2j )
 	ROM_REGION( 0x040000, "maincpu", 0 ) /* Master CPU */
-	ROM_LOAD16_BYTE( "sns1mpr0.a",  0x000000, 0x020000, CRC(e7216ad7) SHA1(ebc8e31ee6909d89bc4f40889e80f3c8b46dcd85) )
-	ROM_LOAD16_BYTE( "sns1mpr1.a",  0x000001, 0x020000, CRC(6caef2ee) SHA1(8003517ff8b74480147786af3abdc7a78ba9d379) )
+	ROM_LOAD16_BYTE( "sns1mpr0a.bin",  0x000000, 0x020000, CRC(e7216ad7) SHA1(ebc8e31ee6909d89bc4f40889e80f3c8b46dcd85) )
+	ROM_LOAD16_BYTE( "sns1mpr1a.bin",  0x000001, 0x020000, CRC(6caef2ee) SHA1(8003517ff8b74480147786af3abdc7a78ba9d379) )
 
 	ROM_REGION( 0x040000, "slave", 0 ) /* Slave CPU */
 	ROM_LOAD16_BYTE( "sns_spr0.bin",  0x000000, 0x010000, CRC(e5e40ed0) SHA1(7bd8cd9030ddb640613420388c26220d120a1244) )
@@ -5536,15 +5540,15 @@ DRIVER_INIT_MEMBER(namcos2_state,luckywld)
 GAMEL(1987, finallap,  0,        finallap, finallap, namcos2_state, finallap, ROT0,   "Namco", "Final Lap (Rev E)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap )
 GAMEL(1987, finallapd, finallap, finallap, finallap, namcos2_state, finallap, ROT0,   "Namco", "Final Lap (Rev D)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap )
 GAMEL(1987, finallapc, finallap, finallap, finallap, namcos2_state, finallap, ROT0,   "Namco", "Final Lap (Rev C)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap )
-GAMEL(1987, finallapjc,finallap, finallap, finallap, namcos2_state, finallap, ROT0,   "Namco", "Final Lap (Japan - Rev C)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap )
-GAMEL(1987, finallapjb,finallap, finallap, finallap, namcos2_state, finallap, ROT0,   "Namco", "Final Lap (Japan - Rev B)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap )
+GAMEL(1987, finallapjc,finallap, finallap, finallap, namcos2_state, finallap, ROT0,   "Namco", "Final Lap (Japan, Rev C)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap )
+GAMEL(1987, finallapjb,finallap, finallap, finallap, namcos2_state, finallap, ROT0,   "Namco", "Final Lap (Japan, Rev B)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap )
 
-GAME( 1988, assault,   0,        default2, assault, namcos2_state,  assault ,      ROT90, "Namco", "Assault" , 0)
+GAME( 1988, assault,   0,        default2, assault, namcos2_state,  assault ,      ROT90, "Namco", "Assault (Rev B)" , 0)
 GAME( 1988, assaultj,  assault,  default2, assault, namcos2_state,  assaultj,      ROT90, "Namco", "Assault (Japan)" , 0)
 GAME( 1988, assaultp,  assault,  assaultp, assault, namcos2_state,  assaultp_hack, ROT90, "Namco", "Assault Plus (Japan)" , 0)
 
-GAME( 1988, metlhawk,  0,        metlhawk, metlhawk, namcos2_state, metlhawk, ROT90,  "Namco", "Metal Hawk", 0)
-GAME( 1988, metlhawkj, metlhawk, metlhawk, metlhawk, namcos2_state, metlhawk, ROT90,  "Namco", "Metal Hawk (Japan)", 0)
+GAME( 1988, metlhawk,  0,        metlhawk, metlhawk, namcos2_state, metlhawk, ROT90,  "Namco", "Metal Hawk (Rev C)", 0)
+GAME( 1988, metlhawkj, metlhawk, metlhawk, metlhawk, namcos2_state, metlhawk, ROT90,  "Namco", "Metal Hawk (Japan, Rev F)", 0)
 
 GAME( 1988, ordyne,    0,        default,  default, namcos2_state,  ordyne,   ROT180, "Namco", "Ordyne (Japan, English Version)", 0 )
 GAME( 1988, ordynej,   ordyne,   default,  default, namcos2_state,  ordyne,   ROT180, "Namco", "Ordyne (Japan)", 0 )
@@ -5561,17 +5565,17 @@ GAME( 1989, valkyrie,  0,        default3, default, namcos2_state,  valkyrie, RO
 
 GAME( 1989, finehour,  0,        default2, default, namcos2_state,  finehour, ROT0,   "Namco", "Finest Hour (Japan)" , 0)
 
-GAME( 1989, burnforc,  0,        default3, default, namcos2_state,  burnforc, ROT0,   "Namco", "Burning Force (Japan new version)", 0 )
-GAME( 1989, burnforco, burnforc, default3, default, namcos2_state,  burnforc, ROT0,   "Namco", "Burning Force (Japan old version)", 0 )
+GAME( 1989, burnforc,  0,        default3, default, namcos2_state,  burnforc, ROT0,   "Namco", "Burning Force (Japan, new version (Rev C))", 0 )
+GAME( 1989, burnforco, burnforc, default3, default, namcos2_state,  burnforc, ROT0,   "Namco", "Burning Force (Japan, old version)", 0 )
 
 GAME( 1989, marvland,  0,        default,  default, namcos2_state,  marvland, ROT0,   "Namco", "Marvel Land (US)", 0 )
 GAME( 1989, marvlandj, marvland, default,  default, namcos2_state,  marvlanj, ROT0,   "Namco", "Marvel Land (Japan)", 0 )
 
-GAME( 1990, kyukaidk,  0,        default,  kyukaidk, namcos2_state, kyukaidk, ROT0,   "Namco", "Kyuukai Douchuuki (Japan new version)", 0 )
-GAME( 1990, kyukaidko, kyukaidk, default,  kyukaidk, namcos2_state, kyukaidk, ROT0,   "Namco", "Kyuukai Douchuuki (Japan old version)", 0 )
+GAME( 1990, kyukaidk,  0,        default,  kyukaidk, namcos2_state, kyukaidk, ROT0,   "Namco", "Kyuukai Douchuuki (Japan, new version (Rev B))", 0 )
+GAME( 1990, kyukaidko, kyukaidk, default,  kyukaidk, namcos2_state, kyukaidk, ROT0,   "Namco", "Kyuukai Douchuuki (Japan, old version)", 0 )
 
 GAME( 1990, dsaber,    0,        default3, default, namcos2_state,  dsaber,   ROT90,  "Namco", "Dragon Saber", 0 )
-GAME( 1990, dsaberj,   dsaber,   default3, default, namcos2_state,  dsaberj,  ROT90,  "Namco", "Dragon Saber (Japan)", 0 )
+GAME( 1990, dsaberj,   dsaber,   default3, default, namcos2_state,  dsaberj,  ROT90,  "Namco", "Dragon Saber (Japan, Rev B)", 0 )
 
 GAMEL(1990, finalap2,  0,        finallap, finallap, namcos2_state, finalap2, ROT0,   "Namco", "Final Lap 2", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap  )
 GAMEL(1990, finalap2j, finalap2, finallap, finallap, namcos2_state, finalap2, ROT0,   "Namco", "Final Lap 2 (Japan)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap  )
@@ -5581,16 +5585,16 @@ GAME( 1990, gollygho,  0,        gollygho, gollygho, namcos2_state, gollygho, RO
 GAME( 1990, rthun2,    0,        default3, default, namcos2_state,  rthun2,   ROT0,   "Namco", "Rolling Thunder 2", 0 )
 GAME( 1990, rthun2j,   rthun2,   default3, default, namcos2_state,  rthun2j,  ROT0,   "Namco", "Rolling Thunder 2 (Japan)", 0 )
 
-GAME( 1990, sgunner,   0,        sgunner,  sgunner, namcos2_state,  sgunner2, ROT0,   "Namco", "Steel Gunner", 0 )
+GAME( 1990, sgunner,   0,        sgunner,  sgunner, namcos2_state,  sgunner2, ROT0,   "Namco", "Steel Gunner (Rev B)", 0 )
 GAME( 1990, sgunnerj,  sgunner,  sgunner,  sgunner, namcos2_state,  sgunner2, ROT0,   "Namco", "Steel Gunner (Japan)", 0 )
 
 GAME( 1991, sgunner2,  0,        sgunner2, sgunner2,namcos2_state,  sgunner2, ROT0,   "Namco", "Steel Gunner 2 (US)", 0 )
-GAME( 1991, sgunner2j, sgunner2, sgunner2, sgunner2,namcos2_state,  sgunner2, ROT0,   "Namco", "Steel Gunner 2 (Japan)", 0 )
+GAME( 1991, sgunner2j, sgunner2, sgunner2, sgunner2,namcos2_state,  sgunner2, ROT0,   "Namco", "Steel Gunner 2 (Japan, Rev A)", 0 )
 
 GAME( 1991, cosmogng,  0,        default,  default, namcos2_state,  cosmogng, ROT90,  "Namco", "Cosmo Gang the Video (US)", 0 )
 GAME( 1991, cosmogngj, cosmogng, default,  default, namcos2_state,  cosmogng, ROT90,  "Namco", "Cosmo Gang the Video (Japan)", 0 )
 
-GAME( 1992, bubbletr,  0,        gollygho, bubbletr, namcos2_state, bubbletr, ROT180, "Namco", "Bubble Trouble (Japan)", GAME_IMPERFECT_GRAPHICS )  /* missing external artwork */
+GAME( 1992, bubbletr,  0,        gollygho, bubbletr, namcos2_state, bubbletr, ROT180, "Namco", "Bubble Trouble (Japan, Rev C)", GAME_IMPERFECT_GRAPHICS )  /* missing external artwork */
 
 GAMEL(1992, finalap3,  0,        finallap, finalap3, namcos2_state, finalap3, ROT0,   "Namco", "Final Lap 3 (World, set 1)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap  )
 GAMEL(1992, finalap3a, finalap3, finallap, finalap3, namcos2_state, finalap3, ROT0,   "Namco", "Final Lap 3 (World, set 2)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap  )
@@ -5601,15 +5605,15 @@ GAMEL(1992, finalap3bl,finalap3, finallap, finalap3, namcos2_state, finalap3, RO
 GAME( 1992, luckywld,  0,        luckywld, luckywld, namcos2_state, luckywld, ROT0,   "Namco", "Lucky & Wild", 0 )
 GAME( 1992, luckywldj, luckywld, luckywld, luckywld, namcos2_state, luckywld, ROT0,   "Namco", "Lucky & Wild (Japan)", 0 )
 
-GAME( 1992, suzuka8h,  0,        luckywld, suzuka, namcos2_state,   suzuka8h, ROT0,   "Namco", "Suzuka 8 Hours (World)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND)
-GAME( 1992, suzuka8hj, suzuka8h, luckywld, suzuka, namcos2_state,   suzuka8h, ROT0,   "Namco", "Suzuka 8 Hours (Japan)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1992, suzuka8h,  0,        luckywld, suzuka, namcos2_state,   suzuka8h, ROT0,   "Namco", "Suzuka 8 Hours (World, Rev C)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND)
+GAME( 1992, suzuka8hj, suzuka8h, luckywld, suzuka, namcos2_state,   suzuka8h, ROT0,   "Namco", "Suzuka 8 Hours (Japan, Rev B)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 
 GAME( 1992, sws,       0,        default,  default, namcos2_state,  sws,      ROT0,   "Namco", "Super World Stadium (Japan)", 0 )
 
 GAME( 1992, sws92,     0,        default,  default, namcos2_state,  sws92,    ROT0,   "Namco", "Super World Stadium '92 (Japan)", 0 )
 GAME( 1992, sws92g,    sws92,    default,  default, namcos2_state,  sws92g,   ROT0,   "Namco", "Super World Stadium '92 Gekitouban (Japan)", 0 )
 
-GAME( 1993, suzuk8h2,  0,        luckywld, suzuka, namcos2_state,   suzuk8h2, ROT0,   "Namco", "Suzuka 8 Hours 2 (World)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1993, suzuk8h2j, suzuk8h2, luckywld, suzuka, namcos2_state,   suzuk8h2, ROT0,   "Namco", "Suzuka 8 Hours 2 (Japan)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1993, suzuk8h2,  0,        luckywld, suzuka, namcos2_state,   suzuk8h2, ROT0,   "Namco", "Suzuka 8 Hours 2 (World, Rev B)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1993, suzuk8h2j, suzuk8h2, luckywld, suzuka, namcos2_state,   suzuk8h2, ROT0,   "Namco", "Suzuka 8 Hours 2 (Japan, Rev B)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 
 GAME( 1993, sws93,     0,        default,  default, namcos2_state,  sws93,    ROT0,   "Namco", "Super World Stadium '93 (Japan)", 0 )

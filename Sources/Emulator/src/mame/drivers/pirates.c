@@ -158,7 +158,7 @@ static ADDRESS_MAP_START( pirates_map, AS_PROGRAM, 16, pirates_state )
 //  AM_RANGE(0x500800, 0x50080f) AM_WRITENOP
 	AM_RANGE(0x600000, 0x600001) AM_WRITE(pirates_out_w)
 	AM_RANGE(0x700000, 0x700001) AM_WRITEONLY AM_SHARE("scroll")    // scroll reg
-	AM_RANGE(0x800000, 0x803fff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x800000, 0x803fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x900000, 0x90017f) AM_RAM  // more of tilemaps ?
 	AM_RANGE(0x900180, 0x90137f) AM_RAM_WRITE(pirates_tx_tileram_w) AM_SHARE("tx_tileram")
 	AM_RANGE(0x901380, 0x902a7f) AM_RAM_WRITE(pirates_fg_tileram_w) AM_SHARE("fg_tileram")
@@ -253,7 +253,7 @@ static MACHINE_CONFIG_START( pirates, pirates_state )
 
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
-	MCFG_GFXDECODE(pirates)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pirates)
 
 
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -262,8 +262,10 @@ static MACHINE_CONFIG_START( pirates, pirates_state )
 	MCFG_SCREEN_SIZE(36*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pirates_state, screen_update_pirates)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x2000)
+	MCFG_PALETTE_ADD("palette", 0x2000)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -323,18 +325,13 @@ ROM_END
 
 void pirates_state::pirates_decrypt_68k()
 {
-	int rom_size;
-	UINT16 *buf, *rom;
-	int i;
+	UINT16 *rom = (UINT16 *)memregion("maincpu")->base();
+	size_t rom_size = memregion("maincpu")->bytes();
+	dynamic_array<UINT16> buf(rom_size/2);
 
-	rom_size = memregion("maincpu")->bytes();
-
-	buf = auto_alloc_array(machine(), UINT16, rom_size/2);
-
-	rom = (UINT16 *)memregion("maincpu")->base();
 	memcpy (buf, rom, rom_size);
 
-	for (i=0; i<rom_size/2; i++)
+	for (int i=0; i<rom_size/2; i++)
 	{
 		int adrl, adrr;
 		UINT8 vl, vr;
@@ -347,18 +344,17 @@ void pirates_state::pirates_decrypt_68k()
 
 		rom[i] = (vr<<8) | vl;
 	}
-	auto_free (machine(), buf);
 }
 
 void pirates_state::pirates_decrypt_p()
 {
 	int rom_size;
-	UINT8 *buf, *rom;
+	UINT8 *rom;
 	int i;
 
 	rom_size = memregion("gfx1")->bytes();
 
-	buf = auto_alloc_array(machine(), UINT8, rom_size);
+	dynamic_buffer buf(rom_size);
 
 	rom = memregion("gfx1")->base();
 	memcpy (buf, rom, rom_size);
@@ -371,18 +367,17 @@ void pirates_state::pirates_decrypt_p()
 		rom[adr+2*(rom_size/4)] = BITSWAP8(buf[i+2*(rom_size/4)], 1,4,7,0,3,5,6,2);
 		rom[adr+3*(rom_size/4)] = BITSWAP8(buf[i+3*(rom_size/4)], 2,3,4,0,7,5,1,6);
 	}
-	auto_free (machine(), buf);
 }
 
 void pirates_state::pirates_decrypt_s()
 {
 	int rom_size;
-	UINT8 *buf, *rom;
+	UINT8 *rom;
 	int i;
 
 	rom_size = memregion("gfx2")->bytes();
 
-	buf = auto_alloc_array(machine(), UINT8, rom_size);
+	dynamic_buffer buf(rom_size);
 
 	rom = memregion("gfx2")->base();
 	memcpy (buf, rom, rom_size);
@@ -395,19 +390,18 @@ void pirates_state::pirates_decrypt_s()
 		rom[adr+2*(rom_size/4)] = BITSWAP8(buf[i+2*(rom_size/4)], 2,3,4,0,7,5,1,6);
 		rom[adr+3*(rom_size/4)] = BITSWAP8(buf[i+3*(rom_size/4)], 4,2,7,1,6,5,0,3);
 	}
-	auto_free (machine(), buf);
 }
 
 
 void pirates_state::pirates_decrypt_oki()
 {
 	int rom_size;
-	UINT8 *buf, *rom;
+	UINT8 *rom;
 	int i;
 
 	rom_size = memregion("oki")->bytes();
 
-	buf = auto_alloc_array(machine(), UINT8, rom_size);
+	dynamic_buffer buf(rom_size);
 
 	rom = memregion("oki")->base();
 	memcpy (buf, rom, rom_size);
@@ -417,7 +411,6 @@ void pirates_state::pirates_decrypt_oki()
 		int adr = BITSWAP24(i,23,22,21,20,19,10,16,13,8,4,7,11,14,17,12,6,2,0,5,18,15,3,1,9);
 		rom[adr] = BITSWAP8(buf[i], 2,3,4,0,7,5,1,6);
 	}
-	auto_free (machine(), buf);
 }
 
 

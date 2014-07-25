@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Roberto Fresca, David Haywood
 /*******************************************************************************************
 
   Millennium Nuovo 4000 / Nuovo Millennium 4000
@@ -91,6 +93,17 @@
   - Button-lamps support.
   - Added technical notes.
 
+  Changes (2014-02-24, Roberto Fresca):
+
+  - Added Cherry Wheel (Version 1.7).
+  - Created new memory map due to hardware differences.
+  - Added default NVRAM. Otherwise the game checks the NVRAM,
+     and get a division by 0 error, then resets itself.
+  - Partial MCU simulation. Without it, only cherries appear
+    and the player always wins.
+  - Added proper button-lamps support.
+  - Added technical notes.
+
 
 *******************************************************************************************/
 
@@ -116,7 +129,8 @@ public:
 		m_sc1_vram(*this, "sc1_vram"),
 		m_sc2_vram(*this, "sc2_vram"),
 		m_sc3_vram(*this, "sc3_vram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT16> m_sc0_vram;
 	required_shared_ptr<UINT16> m_sc1_vram;
@@ -128,7 +142,13 @@ public:
 	tilemap_t *m_sc3_tilemap;
 	UINT16 m_vblank;
 	UINT16 m_hblank;
+	UINT8 mcucomm;
+	UINT8 mcudata;
 	DECLARE_READ16_MEMBER(hvretrace_r);
+	DECLARE_READ16_MEMBER(unk_r);
+	DECLARE_READ16_MEMBER(chewheel_mcu_r);
+	DECLARE_WRITE16_MEMBER(unk_w);
+	DECLARE_WRITE16_MEMBER(chewheel_mcu_w);
 	DECLARE_WRITE16_MEMBER(sc0_vram_w);
 	DECLARE_WRITE16_MEMBER(sc1_vram_w);
 	DECLARE_WRITE16_MEMBER(sc2_vram_w);
@@ -141,6 +161,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_mil4000(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -150,8 +171,7 @@ TILE_GET_INFO_MEMBER(mil4000_state::get_sc0_tile_info)
 	int tile = data >> 14;
 	int color = (m_sc0_vram[tile_index*2+1] & 0x1f)+0;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile,
 			color,
 			0);
@@ -163,8 +183,7 @@ TILE_GET_INFO_MEMBER(mil4000_state::get_sc1_tile_info)
 	int tile = data >> 14;
 	int color = (m_sc1_vram[tile_index*2+1] & 0x1f)+0x10;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile,
 			color,
 			0);
@@ -176,8 +195,7 @@ TILE_GET_INFO_MEMBER(mil4000_state::get_sc2_tile_info)
 	int tile = data >> 14;
 	int color = (m_sc2_vram[tile_index*2+1] & 0x1f)+0x20;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile,
 			color,
 			0);
@@ -189,8 +207,7 @@ TILE_GET_INFO_MEMBER(mil4000_state::get_sc3_tile_info)
 	int tile = data >> 14;
 	int color = (m_sc3_vram[tile_index*2+1] & 0x1f)+0x30;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile,
 			color,
 			0);
@@ -198,10 +215,10 @@ TILE_GET_INFO_MEMBER(mil4000_state::get_sc3_tile_info)
 
 void mil4000_state::video_start()
 {
-	m_sc0_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mil4000_state::get_sc0_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
-	m_sc1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mil4000_state::get_sc1_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
-	m_sc2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mil4000_state::get_sc2_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
-	m_sc3_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mil4000_state::get_sc3_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
+	m_sc0_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mil4000_state::get_sc0_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
+	m_sc1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mil4000_state::get_sc1_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
+	m_sc2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mil4000_state::get_sc2_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
+	m_sc3_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mil4000_state::get_sc3_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
 
 	m_sc1_tilemap->set_transparent_pen(0);
 	m_sc2_tilemap->set_transparent_pen(0);
@@ -293,13 +310,120 @@ WRITE16_MEMBER(mil4000_state::output_w)
 //  popmessage("%04x\n",data);
 }
 
+READ16_MEMBER(mil4000_state::chewheel_mcu_r)
+{
+/*  Damn thing!
+    708010-708011 communicate with the MCU.
+    The returned value is critical to the reels.
+
+    Writes to MCU:
+
+    0x11 --> seems quiet or null.
+    0x1A --> command for reels state/gfx. Two bytes (command + parameter).
+             The second value will be the parameter to feed.
+             The MCU will respond with one value (see table below).
+
+    bits:
+    7654-3210
+    ---- ----  = cherries.
+    ---- ---x  = single bar.
+    ---- --x-  = double bars.
+    ---- --xx  = triple bars.
+    ---- -x--  = unknown (combinations produce reset).
+    ---- x---  = sevens.
+    ---- x--x  = double plums.
+    ---- x-x-  = plums.
+    ---- x-xx  = bells.
+    ---x ----  = blanks.
+    -xx- ----  = some kind of gfx retrace.
+    x--- ----  = reset the game
+
+   There are other commands, like:
+   0x1B (+4 parameters)
+   0x1C (+1 parameter, normally 00)
+   0x1D (+2 parameters)
+   0x1E (+1 parameter)
+
+   You can find a 1E-18 at start.
+
+*/
+	switch( mcucomm )   /* MCU command */
+	{
+		case 0x11:  /* Idle - Null */
+		{
+			logerror("Writes idle command 0x11 to MCU");
+			return (machine().rand() & 0x0b);   // otherwise got corrupt gfx...
+		}
+
+		case 0x1a:  /* Reels state - Control */
+		{
+			logerror("MCU feedback to command 0x1a with data: %02x\n", mcudata);
+			return (machine().rand() & 0x0b);
+		}
+
+		case 0x1b:  /* Unknown */
+		{
+			logerror("MCU feedback to command 0x1b with data: %02x\n", mcudata);
+			return 0x00;
+		}
+
+		case 0x1c:  /* Unknown. Always 00's? */
+		{
+			logerror("MCU feedback to command 0x1c with data: %02x\n", mcudata);
+			return 0x00;
+		}
+
+		case 0x1d:  /* Unknown */
+		{
+			logerror("MCU feedback to command 0x1d with data: %02x\n", mcudata);
+			return 0x00;
+		}
+
+		case 0x1e:  /* Unknown, only one at boot (1e 18) */
+		{
+			logerror("MCU feedback to command 0x1e with data: %02x\n", mcudata);
+			return 0x00;
+		}
+	}
+
+	logerror("MCU feedback to unknown command: %02x\n", mcucomm);
+	return (machine().rand() & 0x0b);   // otherwise got corrupt gfx...
+}
+
+WRITE16_MEMBER(mil4000_state::chewheel_mcu_w)
+{
+	if ((data == 0x11)||(data == 0x1a)||(data == 0x1b)||(data == 0x1c)||(data == 0x1d)||(data == 0x1e))
+	{
+		mcucomm = data;
+		logerror("Writes command to MCU: %02x\n", data);
+	}
+	else
+	{
+		mcudata = data;
+		logerror("Writes data to MCU: %02x\n", data);
+	}
+}
+
+
+READ16_MEMBER(mil4000_state::unk_r)
+{
+//  reads:  51000C-0E. touch screen?
+	return 0xff;
+}
+
+WRITE16_MEMBER(mil4000_state::unk_w)
+{
+//  writes: 510000-02-04-06-08-0A-0C-0E
+//  logerror("unknown writes from address %04x\n", offset);
+}
+
+
 static ADDRESS_MAP_START( mil4000_map, AS_PROGRAM, 16, mil4000_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x500000, 0x503fff) AM_RAM_WRITE(sc0_vram_w) AM_SHARE("sc0_vram")  // CY62256L-70, U77
 	AM_RANGE(0x504000, 0x507fff) AM_RAM_WRITE(sc1_vram_w) AM_SHARE("sc1_vram")  // CY62256L-70, U77
 	AM_RANGE(0x508000, 0x50bfff) AM_RAM_WRITE(sc2_vram_w) AM_SHARE("sc2_vram")  // CY62256L-70, U78
 	AM_RANGE(0x50c000, 0x50ffff) AM_RAM_WRITE(sc3_vram_w) AM_SHARE("sc3_vram")  // CY62256L-70, U78
-
 	AM_RANGE(0x708000, 0x708001) AM_READ_PORT("IN0")
 	AM_RANGE(0x708002, 0x708003) AM_READ_PORT("IN1")
 	AM_RANGE(0x708004, 0x708005) AM_READ(hvretrace_r)
@@ -308,8 +432,32 @@ static ADDRESS_MAP_START( mil4000_map, AS_PROGRAM, 16, mil4000_state )
 	AM_RANGE(0x708010, 0x708011) AM_NOP //touch screen
 	AM_RANGE(0x70801e, 0x70801f) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
 
-	AM_RANGE(0x780000, 0x780fff) AM_RAM_WRITE(paletteram_RRRRRGGGGGBBBBBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x780000, 0x780fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xff0000, 0xffffff) AM_RAM AM_SHARE("nvram") // 2x CY62256L-70 (U7 & U8).
+
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( chewheel_map, AS_PROGRAM, 16, mil4000_state )
+	AM_RANGE(0x000000, 0x03ffff) AM_ROM
+	AM_RANGE(0x500000, 0x503fff) AM_RAM_WRITE(sc0_vram_w) AM_SHARE("sc0_vram")  // V62C518256L-35P (U7).
+	AM_RANGE(0x504000, 0x507fff) AM_RAM_WRITE(sc1_vram_w) AM_SHARE("sc1_vram")  // V62C518256L-35P (U7).
+	AM_RANGE(0x508000, 0x50bfff) AM_RAM_WRITE(sc2_vram_w) AM_SHARE("sc2_vram")  // V62C518256L-35P (U8).
+	AM_RANGE(0x50c000, 0x50ffff) AM_RAM_WRITE(sc3_vram_w) AM_SHARE("sc3_vram")  // V62C518256L-35P (U8).
+
+	AM_RANGE(0x51000c, 0x51000f) AM_READ(unk_r)     // no idea what's mapped here.
+	AM_RANGE(0x510000, 0x51000f) AM_WRITE(unk_w)    // no idea what's mapped here.
+
+	AM_RANGE(0x708000, 0x708001) AM_READ_PORT("IN0")
+	AM_RANGE(0x708002, 0x708003) AM_READ_PORT("IN1")
+	AM_RANGE(0x708004, 0x708005) AM_READ(hvretrace_r)
+	AM_RANGE(0x708006, 0x708007) AM_READ_PORT("IN2")
+	AM_RANGE(0x708008, 0x708009) AM_WRITE(output_w)
+	AM_RANGE(0x708010, 0x708011) AM_READWRITE(chewheel_mcu_r, chewheel_mcu_w)
+	AM_RANGE(0x70801e, 0x70801f) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
+
+	AM_RANGE(0x780000, 0x780fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0xff0000, 0xff3fff) AM_RAM AM_SHARE("nvram")   // V62C51864L-70P (U77).
+	AM_RANGE(0xffc000, 0xffffff) AM_RAM                     // V62C51864L-70P (U78).
 
 ADDRESS_MAP_END
 
@@ -400,15 +548,23 @@ static MACHINE_CONFIG_START( mil4000, mil4000_state )
 	MCFG_SCREEN_SIZE(320, 240)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mil4000_state, screen_update_mil4000)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x800)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 0x800)
+	MCFG_PALETTE_FORMAT(RRRRRGGGGGBBBBBx)
 
-	MCFG_GFXDECODE(mil4000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mil4000)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_OKIM6295_ADD("oki", 1000000, OKIM6295_PIN7_HIGH) // frequency from 1000 kHz resonator. pin 7 high not verified.
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+MACHINE_CONFIG_END
+
+
+static MACHINE_CONFIG_DERIVED( chewheel, mil4000 )
+	MCFG_CPU_REPLACE("maincpu", M68000, CPU_CLOCK) /* 2MHz */
+	MCFG_CPU_PROGRAM_MAP(chewheel_map)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", mil4000_state,  irq5_line_hold)
 MACHINE_CONFIG_END
 
 
@@ -493,7 +649,6 @@ ROM_START( mil4000c )
 ROM_END
 
 /*
-
   TOP XXI
   -------
 
@@ -542,10 +697,58 @@ ROM_START( top21 )
 	ROM_LOAD( "top21_nvram.bin", 0x00000, 0x10000, CRC(638726ce) SHA1(c55c77df5fbddfb19acf50f1b4467c63c818d5e7) )
 ROM_END
 
+/*
+Cherry Wheel.
+Similar hardware to TOP XXI
 
-/*     YEAR  NAME      PARENT    MACHINE   INPUT    STATE          INIT      ROT     COMPANY              FULLNAME                              FLAGS  LAYOUT  */
-GAMEL( 2000, mil4000,  0,        mil4000,  mil4000, driver_device, 0,        ROT0,  "Sure Milano",       "Millennium Nuovo 4000 (Version 2.0)", 0,     layout_mil4000 )
-GAMEL( 2000, mil4000a, mil4000,  mil4000,  mil4000, driver_device, 0,        ROT0,  "Sure Milano",       "Millennium Nuovo 4000 (Version 1.8)", 0,     layout_mil4000 )
-GAMEL( 2000, mil4000b, mil4000,  mil4000,  mil4000, driver_device, 0,        ROT0,  "Sure Milano",       "Millennium Nuovo 4000 (Version 1.5)", 0,     layout_mil4000 )
-GAMEL( 2000, mil4000c, mil4000,  mil4000,  mil4000, driver_device, 0,        ROT0,  "Sure Milano",       "Millennium Nuovo 4000 (Version 1.6)", 0,     layout_mil4000 )
-GAMEL( 200?, top21,    0,        mil4000,  mil4000, driver_device, 0,        ROT0,  "Assogiochi Assago", "Top XXI (Version 1.2)",               0,     layout_mil4000 )
+But...
+2x V62C518256L-35P.  32K x 8 Static RAM. (U7-U8)
+2x V62C51864L-70P.    8K x 8 Static RAM. (U77-U78)
+
+Only U77 is tied to the battery.
+
+32.u32    1ST AND 2ND HALF IDENTICAL
+33.u33    1xxxxxxxxxxxxxxxxx = 0xFF
+34.u34    1ST AND 2ND HALF IDENTICAL
+35.u35    1xxxxxxxxxxxxxxxxx = 0xFF
+36.u36    1ST AND 2ND HALF IDENTICAL
+
+The PIC16c65b @U60 is used for protection, controlling the reels state / graphics.
+Also could be used to talk with the touch screen controller via RS-232.
+
+*/
+ROM_START( chewheel )
+	ROM_REGION( 0x100000, "maincpu", 0 )    // 68000 code
+	ROM_LOAD16_BYTE( "even.u76", 0x000000, 0x20000, CRC(7790d480) SHA1(e9d4bf16c61d57840076cf3c8bc865f92caae44c) )
+	ROM_LOAD16_BYTE( "odd.u77",  0x000001, 0x20000, CRC(08f1b4b6) SHA1(7fa424b3fe899b7e8596156af6c3dbfba43984d6) )
+
+	ROM_REGION( 0xa0000, "gfx1", 0 )
+	ROM_LOAD( "36.u36",     0x000000, 0x20000, CRC(64ce0eb8) SHA1(d6533d730ecd01385c75b03884bb9b001f963ceb) )   // double size. identical halves.
+	ROM_IGNORE(                       0x20000)
+	ROM_LOAD( "35.u35",     0x020000, 0x20000, CRC(27f95f6f) SHA1(bb84b08ec5df60814d1d6825f4377ab1e8a63a70) )   // double size. 2nd half empty.
+	ROM_IGNORE(                       0x20000)
+	ROM_LOAD( "34.u34",     0x040000, 0x20000, CRC(47cac442) SHA1(e98bec034d5ab532faf86e5a11cfa1f1157491c4) )   // double size. identical halves.
+	ROM_IGNORE(                       0x20000)
+	ROM_LOAD( "33.u33",     0x060000, 0x20000, CRC(dd55ce6c) SHA1(4f5a2358ec96ed4afb4881fc8d6aa74e9f1d6aec) )   // double size. 2nd half empty.
+	ROM_IGNORE(                       0x20000)
+	ROM_LOAD( "32.u32",     0x080000, 0x20000, CRC(179e512a) SHA1(ba02563df98015349bc6fb5ac233ce3b9d6ed42e) )   // double size. identical halves.
+	ROM_IGNORE(                       0x20000)
+
+	ROM_REGION( 0x80000, "oki", 0 ) // 6295 samples
+	ROM_LOAD( "v29c51002t.u54",  0x00000, 0x40000, CRC(3c37ec4d) SHA1(11045f9b3f6fb35befdb67c111218750a4f750a7) )
+
+	ROM_REGION( 0x4000, "mcu", 0 )  // MCU code
+	ROM_LOAD( "pic16c65b_chewheel.u60", 0x0000, 0x4000, NO_DUMP )
+
+	ROM_REGION( 0x4000, "nvram", 0 )   // default NVRAM (1x 6264 storing the odd bytes)
+	ROM_LOAD( "chewheel_nvram.bin", 0x0000, 0x4000, CRC(af73a270) SHA1(3e3e2c0a629bf506830b34d4c5a45ddbece618c3) )
+ROM_END
+
+
+/*     YEAR  NAME      PARENT    MACHINE   INPUT    STATE          INIT    ROT     COMPANY              FULLNAME                              FLAGS                       LAYOUT  */
+GAMEL( 2000, mil4000,  0,        mil4000,  mil4000, driver_device, 0,      ROT0,  "Sure Milano",       "Millennium Nuovo 4000 (Version 2.0)", 0,                          layout_mil4000 )
+GAMEL( 2000, mil4000a, mil4000,  mil4000,  mil4000, driver_device, 0,      ROT0,  "Sure Milano",       "Millennium Nuovo 4000 (Version 1.8)", 0,                          layout_mil4000 )
+GAMEL( 2000, mil4000b, mil4000,  mil4000,  mil4000, driver_device, 0,      ROT0,  "Sure Milano",       "Millennium Nuovo 4000 (Version 1.5)", 0,                          layout_mil4000 )
+GAMEL( 2000, mil4000c, mil4000,  mil4000,  mil4000, driver_device, 0,      ROT0,  "Sure Milano",       "Millennium Nuovo 4000 (Version 1.6)", 0,                          layout_mil4000 )
+GAMEL( 200?, top21,    0,        mil4000,  mil4000, driver_device, 0,      ROT0,  "Assogiochi Assago", "Top XXI (Version 1.2)",               0,                          layout_mil4000 )
+GAMEL( 200?, chewheel, 0,        chewheel, mil4000, driver_device, 0,      ROT0,  "Assogiochi Assago", "Cherry Wheel (Version 1.7)",          GAME_UNEMULATED_PROTECTION, layout_mil4000 )

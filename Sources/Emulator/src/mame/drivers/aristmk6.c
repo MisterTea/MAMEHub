@@ -13,7 +13,8 @@ class aristmk6_state : public driver_device
 public:
 	aristmk6_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_palette(*this, "palette")  { }
 
 	UINT32 m_test_x,m_test_y,m_start_offs;
 	UINT8 m_type;
@@ -21,6 +22,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_aristmk6(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -62,7 +64,7 @@ UINT32 aristmk6_state::screen_update_aristmk6(screen_device &screen, bitmap_rgb3
 
 	popmessage("%d %d %04x %d",m_test_x,m_test_y,m_start_offs,m_type);
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	count = (m_start_offs);
 
@@ -97,7 +99,7 @@ UINT32 aristmk6_state::screen_update_aristmk6(screen_device &screen, bitmap_rgb3
 				color = blit_ram[count];
 
 				if(cliprect.contains(x, y))
-					bitmap.pix32(y, x) = machine().pens[color];
+					bitmap.pix32(y, x) = m_palette->pen(color);
 
 				count++;
 			}
@@ -128,12 +130,20 @@ INPUT_PORTS_END
 // ?
 #define ARISTMK6_CPU_CLOCK XTAL_200MHz
 // ?
-static const struct sh4_config sh4cpu_config = {  1,  0,  1,  0,  0,  0,  1,  1,  0, ARISTMK6_CPU_CLOCK };
 
 static MACHINE_CONFIG_START( aristmk6, aristmk6_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", SH4LE, ARISTMK6_CPU_CLOCK)
-	MCFG_CPU_CONFIG(sh4cpu_config)
+	MCFG_SH4_MD0(1)
+	MCFG_SH4_MD1(0)
+	MCFG_SH4_MD2(1)
+	MCFG_SH4_MD3(0)
+	MCFG_SH4_MD4(0)
+	MCFG_SH4_MD5(1)
+	MCFG_SH4_MD6(0)
+	MCFG_SH4_MD7(1)
+	MCFG_SH4_MD8(0)
+	MCFG_SH4_CLOCK(ARISTMK6_CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(aristmk6_map)
 	MCFG_CPU_IO_MAP(aristmk6_port)
 //  MCFG_DEVICE_DISABLE()
@@ -146,7 +156,7 @@ static MACHINE_CONFIG_START( aristmk6, aristmk6_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aristmk6_state, screen_update_aristmk6)
 
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
 
 MACHINE_CONFIG_END
 

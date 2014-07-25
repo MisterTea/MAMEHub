@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, Robbbert
 /***************************************************************************
 
     ACT Apricot F1 series
@@ -91,7 +93,7 @@ WRITE16_MEMBER( f1_state::palette_w )
 		g = ((m_p_paletteram[offset] & 4)>>1) | i;
 		b = ((m_p_paletteram[offset] & 8)>>2) | i;
 
-		palette_set_color_rgb(machine(), offset, pal2bit(r), pal2bit(g), pal2bit(b));
+		m_palette->set_pen_color(offset, pal2bit(r), pal2bit(g), pal2bit(b));
 	}
 }
 
@@ -118,7 +120,7 @@ WRITE8_MEMBER( f1_state::system_w )
 	switch(offset)
 	{
 	case 0: // centronics data port
-		m_centronics->write(space, 0, data);
+		m_cent_data_out->write(space, 0, data);
 		break;
 
 	case 1: // drive select
@@ -148,7 +150,7 @@ WRITE8_MEMBER( f1_state::system_w )
 		break;
 
 	case 0x0f: // centronics strobe output
-		m_centronics->strobe_w(!BIT(data, 0));
+		m_centronics->write_strobe(!BIT(data, 0));
 		break;
 	}
 }
@@ -156,8 +158,6 @@ WRITE8_MEMBER( f1_state::system_w )
 
 void f1_state::machine_start()
 {
-	m_fdc->setup_intrq_cb(wd2793_t::line_cb(FUNC(f1_state::wd2797_intrq_w), this));
-	m_fdc->setup_drq_cb(wd2793_t::line_cb(FUNC(f1_state::wd2797_drq_w), this));
 }
 
 
@@ -214,17 +214,7 @@ INPUT_PORTS_END
 //**************************************************************************
 
 //-------------------------------------------------
-//  APRICOT_KEYBOARD_INTERFACE( kb_intf )
-//-------------------------------------------------
-
-static APRICOT_KEYBOARD_INTERFACE( kb_intf )
-{
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  Z80SIO_INTERFACE( sio_intf )
+//  Z80SIO
 //-------------------------------------------------
 
 WRITE_LINE_MEMBER( f1_state::sio_int_w )
@@ -234,30 +224,8 @@ WRITE_LINE_MEMBER( f1_state::sio_int_w )
 	m_maincpu->set_input_line(INPUT_LINE_IRQ0, m_ctc_int || m_sio_int);
 }
 
-static Z80SIO_INTERFACE( sio_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DRIVER_LINE_MEMBER(f1_state, sio_int_w)
-};
-
-
 //-------------------------------------------------
-//  Z80CTC_INTERFACE( ctc_intf )
+//  Z80CTC
 //-------------------------------------------------
 
 WRITE_LINE_MEMBER( f1_state::ctc_int_w )
@@ -278,44 +246,14 @@ WRITE_LINE_MEMBER( f1_state::ctc_z2_w )
 	m_sio->txca_w(state);
 }
 
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(f1_state, ctc_int_w),      // interrupt handler
-	DEVCB_NULL,     // ZC/TO0 callback
-	DEVCB_DRIVER_LINE_MEMBER(f1_state, ctc_z1_w),   // ZC/TO1 callback
-	DEVCB_DRIVER_LINE_MEMBER(f1_state, ctc_z2_w),   // ZC/TO2 callback
-};
-
-
 //-------------------------------------------------
 //  floppy
 //-------------------------------------------------
-
-void f1_state::wd2797_intrq_w(bool state)
-{
-	m_maincpu->set_input_line(INPUT_LINE_NMI, state);}
-
-void f1_state::wd2797_drq_w(bool state)
-{
-	m_maincpu->set_input_line(INPUT_LINE_TEST, state);
-}
 
 static SLOT_INTERFACE_START( apricotf_floppies )
 	SLOT_INTERFACE( "d31v", SONY_OA_D31V )
 	SLOT_INTERFACE( "d32w", SONY_OA_D32W )
 SLOT_INTERFACE_END
-
-
-//-------------------------------------------------
-//  centronics_interface centronics_intf
-//-------------------------------------------------
-
-static const centronics_interface centronics_intf =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80SIO2_TAG, z80dart_device, ctsa_w),
-	DEVCB_NULL
-};
 
 
 
@@ -340,17 +278,32 @@ static MACHINE_CONFIG_START( act_f1, f1_state )
 	MCFG_SCREEN_UPDATE_DRIVER(f1_state, screen_update)
 	MCFG_SCREEN_SIZE(640, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 256-1)
-	MCFG_PALETTE_LENGTH(16)
-	MCFG_GFXDECODE(act_f1)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", act_f1)
 
 	/* Devices */
-	MCFG_APRICOT_KEYBOARD_ADD(kb_intf)
-	MCFG_Z80SIO2_ADD(Z80SIO2_TAG, 2500000, sio_intf)
-	MCFG_Z80CTC_ADD(Z80CTC_TAG, 2500000, ctc_intf)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
+	MCFG_DEVICE_ADD(APRICOT_KEYBOARD_TAG, APRICOT_KEYBOARD, 0)
+
+	MCFG_Z80SIO2_ADD(Z80SIO2_TAG, 2500000, 0, 0, 0, 0)
+	MCFG_Z80DART_OUT_INT_CB(WRITELINE(f1_state, sio_int_w))
+
+	MCFG_DEVICE_ADD(Z80CTC_TAG, Z80CTC, 2500000)
+	MCFG_Z80CTC_INTR_CB(WRITELINE(f1_state, ctc_int_w))
+	MCFG_Z80CTC_ZC1_CB(WRITELINE(f1_state, ctc_z1_w))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(f1_state, ctc_z2_w))
+
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE(Z80SIO2_TAG, z80dart_device, ctsa_w))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
 
 	// floppy
 	MCFG_WD2797x_ADD(WD2797_TAG, XTAL_4MHz / 2 /* ? */)
+	MCFG_WD_FDC_INTRQ_CALLBACK(INPUTLINE(I8086_TAG, INPUT_LINE_NMI))
+	MCFG_WD_FDC_DRQ_CALLBACK(INPUTLINE(I8086_TAG, INPUT_LINE_TEST))
+
 	MCFG_FLOPPY_DRIVE_ADD(WD2797_TAG ":0", apricotf_floppies, "d32w", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(WD2797_TAG ":1", apricotf_floppies, "d32w", floppy_image_device::default_floppy_formats)
 MACHINE_CONFIG_END

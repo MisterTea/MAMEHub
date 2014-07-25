@@ -1,8 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /***************************************************************************
 
     Tandy 2000
-
-    Skeleton driver.
 
 ****************************************************************************/
 
@@ -10,13 +10,12 @@
 
     TODO:
 
-    - CRT9007
-    - CRT9212 Double Row Buffer
-    - CRT9021B Attribute Generator
+    - floppy
+        - HDL is also connected to WP/TS input where TS is used to detect motor status
+        - 3 second motor off delay timer
+    - video (video RAM is at memory top - 0x1400, i.e. 0x1ec00)
     - keyboard ROM
     - hires graphics board
-    - floppy 720K DSQD
-    - DMA
     - WD1010
     - hard disk
     - mouse
@@ -24,24 +23,54 @@
 */
 
 #include "includes/tandy2k.h"
+#include "machine/pckeybrd.h"
 
-enum
-{
-	LPINEN = 0,
-	KBDINEN,
-	PORTINEN
-};
+#define LOG 1
 
 // Read/Write Handlers
 
+void tandy2k_state::update_drq()
+{
+	int drq0 = CLEAR_LINE;
+	int drq1 = CLEAR_LINE;
+
+	for (int i = 0; i < 4; i++)
+	{
+		if (BIT(m_dma_mux, 0 + i))
+		{
+			if (BIT(m_dma_mux, 4 + i))
+				drq1 |= m_busdmarq[i];
+			else
+				drq0 |= m_busdmarq[i];
+		}
+	}
+
+	m_maincpu->drq0_w(drq0);
+	m_maincpu->drq1_w(drq1);
+}
+
 void tandy2k_state::dma_request(int line, int state)
 {
+	m_busdmarq[line] = state;
+
+	update_drq();
 }
 
 void tandy2k_state::speaker_update()
 {
 	int level = !(m_spkrdata & m_outspkr);
+
 	m_speaker->level_w(level);
+}
+
+READ8_MEMBER( tandy2k_state::char_ram_r )
+{
+	return m_char_ram[offset];
+}
+
+WRITE8_MEMBER( tandy2k_state::char_ram_w )
+{
+	m_char_ram[offset] = data;
 }
 
 READ8_MEMBER( tandy2k_state::videoram_r )
@@ -77,7 +106,12 @@ READ8_MEMBER( tandy2k_state::enable_r )
 
 	*/
 
-	return 0x80;
+	UINT8 data = 0x80;
+
+	data |= m_rs232->ri_r();
+	data |= m_rs232->dcd_r() << 1;
+
+	return data;
 }
 
 WRITE8_MEMBER( tandy2k_state::enable_w )
@@ -88,8 +122,8 @@ WRITE8_MEMBER( tandy2k_state::enable_w )
 
 	    0       KBEN        keyboard enable
 	    1       EXTCLK      external baud rate clock
-	    2       SPKRGATE    enable periodic m_speaker output
-	    3       SPKRDATA    direct output to m_speaker
+	    2       SPKRGATE    enable periodic speaker output
+	    3       SPKRDATA    direct output to speaker
 	    4       RFRQGATE    enable refresh and baud rate clocks
 	    5       FDCRESET*   reset 8272
 	    6       TMRIN0      enable 80186 timer 0
@@ -97,26 +131,31 @@ WRITE8_MEMBER( tandy2k_state::enable_w )
 
 	*/
 
+	if (LOG) logerror("ENABLE %02x\n", data);
+
 	// keyboard enable
 	m_kb->power_w(BIT(data, 0));
+	machine().device<pc_keyboard_device>("pc_keyboard")->enable(BIT(data, 0));
 
 	// external baud rate clock
 	m_extclk = BIT(data, 1);
 
-	// m_speaker gate
-	m_pit->gate0_w(BIT(data, 2));
+	// speaker gate
+	m_pit->write_gate0(BIT(data, 2));
 
-	// m_speaker data
+	// speaker data
 	m_spkrdata = BIT(data, 3);
 	speaker_update();
 
 	// refresh and baud rate clocks
-	m_pit->gate1_w(BIT(data, 4));
-	m_pit->gate2_w(BIT(data, 4));
+	m_pit->write_gate1(BIT(data, 4));
+	m_pit->write_gate2(BIT(data, 4));
 
 	// FDC reset
-	if(BIT(data, 5))
-		m_fdc->reset();
+	if (!BIT(data, 5))
+	{
+		m_fdc->soft_reset();
+	}
 
 	// timer 0 enable
 	m_maincpu->tmrin0_w(BIT(data, 6));
@@ -142,6 +181,8 @@ WRITE8_MEMBER( tandy2k_state::dma_mux_w )
 
 	*/
 
+	if (LOG) logerror("DMA MUX %02x\n", data);
+
 	m_dma_mux = data;
 
 	// check for DMA error
@@ -156,6 +197,8 @@ WRITE8_MEMBER( tandy2k_state::dma_mux_w )
 	int dme = (drq0 > 2) || (drq1 > 2);
 
 	m_pic1->ir6_w(dme);
+
+	update_drq();
 }
 
 READ8_MEMBER( tandy2k_state::kbint_clr_r )
@@ -164,6 +207,8 @@ READ8_MEMBER( tandy2k_state::kbint_clr_r )
 	{
 		m_kb->busy_w(1);
 		m_pic1->ir0_w(CLEAR_LINE);
+
+		return machine().device<pc_keyboard_device>("pc_keyboard")->read(space, 0);
 	}
 
 	return 0xff;
@@ -195,15 +240,16 @@ WRITE16_MEMBER( tandy2k_state::vpac_w )
 
 READ8_MEMBER( tandy2k_state::fldtc_r )
 {
-	m_fdc->tc_w(true);
-	m_fdc->tc_w(false);
+	if (LOG) logerror("FLDTC\n");
+
+	fldtc_w(space, 0, 0);
 
 	return 0;
 }
 
 WRITE8_MEMBER( tandy2k_state::fldtc_w )
 {
-	m_fdc->tc_w(true);
+	m_fdc->tc_w(1);
 	m_fdc->tc_w(false);
 }
 
@@ -218,39 +264,39 @@ WRITE8_MEMBER( tandy2k_state::addr_ctrl_w )
 	    10      A17         A17 of video access
 	    11      A18         A18 of video access
 	    12      A19         A19 of video access
-	    13      CLKSPD      clock speed (0 = 22.4 MHz, 1 = 28 MHz)
+	    13      CLKSP0      clock speed (0 = 22.4 MHz, 1 = 28 MHz)
 	    14      CLKCNT      dots/char (0 = 10 [800x400], 1 = 8 [640x400])
 	    15      VIDOUTS     selects the video source for display on monochrome monitor
 
 	*/
 
+	if (LOG) logerror("Address Control %02x\n", data);
+
 	// video access
 	m_vram_base = data & 0x1f;
 
-	// dots per char
-	int character_width = BIT(data, 6) ? 8 : 10;
-
-	if (m_clkcnt != BIT(data, 6))
-	{
-		m_vpac->set_hpixels_per_column(character_width);
-		m_clkcnt = BIT(data, 6);
-	}
-
 	// video clock speed
-	if (m_clkspd != BIT(data, 5))
-	{
-		float pixel_clock = BIT(data, 5) ? XTAL_16MHz*28/16 : XTAL_16MHz*28/20;
-		float character_clock = pixel_clock / character_width;
+	int clkspd = BIT(data, 5);
+	int clkcnt = BIT(data, 6);
 
-		m_vpac->set_unscaled_clock(pixel_clock);
-		m_vac->set_unscaled_clock(character_clock);
-		m_clkspd = BIT(data, 5);
+	if (m_clkspd != clkspd || m_clkcnt != clkcnt)
+	{
+		float busdotclk = XTAL_16MHz*28 / (clkspd ? 16 : 20);
+		float vidcclk = busdotclk / (clkcnt ? 8 : 10);
+
+		m_vpac->set_character_width(clkcnt ? 8 : 10);
+		m_vpac->set_unscaled_clock(vidcclk);
+
+		m_vac->set_unscaled_clock(busdotclk);
+
+		m_timer_vidldsh->adjust(attotime::from_hz(vidcclk), 0, attotime::from_hz(vidcclk));
+
+		m_clkspd = clkspd;
+		m_clkcnt = clkcnt;
 	}
 
 	// video source select
 	m_vidouts = BIT(data, 7);
-
-	logerror("Address Control %02x\n", data);
 }
 
 // Memory Maps
@@ -259,24 +305,24 @@ static ADDRESS_MAP_START( tandy2k_mem, AS_PROGRAM, 16, tandy2k_state )
 	ADDRESS_MAP_UNMAP_HIGH
 //  AM_RANGE(0x00000, 0xdffff) AM_RAM
 	AM_RANGE(0xe0000, 0xf7fff) AM_RAM AM_SHARE("hires_ram")
-	AM_RANGE(0xf8000, 0xfbfff) AM_RAM AM_SHARE("char_ram")
+	AM_RANGE(0xf8000, 0xfbfff) AM_READWRITE8(char_ram_r, char_ram_w, 0x00ff)
 	AM_RANGE(0xfc000, 0xfdfff) AM_MIRROR(0x2000) AM_ROM AM_REGION(I80186_TAG, 0)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( tandy2k_io, AS_IO, 16, tandy2k_state )
 	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x00000, 0x00001) AM_READWRITE8(enable_r, enable_w, 0x00ff)
-	AM_RANGE(0x00002, 0x00003) AM_WRITE8(dma_mux_w, 0x00ff)
-	AM_RANGE(0x00004, 0x00005) AM_READWRITE8(fldtc_r, fldtc_w, 0x00ff)
-	AM_RANGE(0x00010, 0x00013) AM_DEVREADWRITE8(I8251A_TAG, i8251_device, data_r, data_w, 0x00ff)
-	AM_RANGE(0x00030, 0x00033) AM_DEVICE8(I8272A_TAG, i8272a_device, map, 0x00ff)
-	AM_RANGE(0x00040, 0x00047) AM_DEVREADWRITE8(I8253_TAG, pit8253_device, read, write, 0x00ff)
-	AM_RANGE(0x00052, 0x00053) AM_READ8(kbint_clr_r, 0x00ff)
-	AM_RANGE(0x00050, 0x00057) AM_DEVREADWRITE8(I8255A_TAG, i8255_device, read, write, 0x00ff)
-	AM_RANGE(0x00060, 0x00063) AM_DEVREADWRITE8(I8259A_0_TAG, pic8259_device, read, write, 0x00ff)
-	AM_RANGE(0x00070, 0x00073) AM_DEVREADWRITE8(I8259A_1_TAG, pic8259_device, read, write, 0x00ff)
-	AM_RANGE(0x00080, 0x00081) AM_DEVREADWRITE8(I8272A_TAG, i8272a_device, mdma_r, mdma_w, 0x00ff)
-//  AM_RANGE(0x00100, 0x0017f) AM_DEVREADWRITE8(CRT9007_TAG, crt9007_device, read, write, 0x00ff) AM_WRITE8(addr_ctrl_w, 0xff00)
+	AM_RANGE(0x00000, 0x00001) AM_MIRROR(0x8) AM_READWRITE8(enable_r, enable_w, 0x00ff)
+	AM_RANGE(0x00002, 0x00003) AM_MIRROR(0x8) AM_WRITE8(dma_mux_w, 0x00ff)
+	AM_RANGE(0x00004, 0x00005) AM_MIRROR(0x8) AM_READWRITE8(fldtc_r, fldtc_w, 0x00ff)
+	AM_RANGE(0x00010, 0x00013) AM_MIRROR(0xc) AM_DEVREADWRITE8(I8251A_TAG, i8251_device, data_r, data_w, 0x00ff)
+	AM_RANGE(0x00030, 0x00033) AM_MIRROR(0xc) AM_DEVICE8(I8272A_TAG, i8272a_device, map, 0x00ff)
+	AM_RANGE(0x00040, 0x00047) AM_MIRROR(0x8) AM_DEVREADWRITE8(I8253_TAG, pit8253_device, read, write, 0x00ff)
+	AM_RANGE(0x00052, 0x00053) AM_MIRROR(0x8) AM_READ8(kbint_clr_r, 0x00ff)
+	AM_RANGE(0x00050, 0x00057) AM_MIRROR(0x8) AM_DEVREADWRITE8(I8255A_TAG, i8255_device, read, write, 0x00ff)
+	AM_RANGE(0x00060, 0x00063) AM_MIRROR(0xc) AM_DEVREADWRITE8(I8259A_0_TAG, pic8259_device, read, write, 0x00ff)
+	AM_RANGE(0x00070, 0x00073) AM_MIRROR(0xc) AM_DEVREADWRITE8(I8259A_1_TAG, pic8259_device, read, write, 0x00ff)
+	AM_RANGE(0x00080, 0x00081) AM_MIRROR(0xe) AM_DEVREADWRITE8(I8272A_TAG, i8272a_device, mdma_r, mdma_w, 0x00ff)
+//  AM_RANGE(0x00100, 0x0017f) AM_DEVREADWRITE8(CRT9007_TAG, crt9007_t, read, write, 0x00ff) AM_WRITE8(addr_ctrl_w, 0xff00)
 	AM_RANGE(0x00100, 0x0017f) AM_READWRITE(vpac_r, vpac_w)
 //  AM_RANGE(0x00180, 0x00180) AM_READ8(hires_status_r, 0x00ff)
 //  AM_RANGE(0x00180, 0x001bf) AM_WRITE(hires_palette_w)
@@ -287,8 +333,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( tandy2k_hd_io, AS_IO, 16, tandy2k_state )
 	AM_IMPORT_FROM(tandy2k_io)
 //  AM_RANGE(0x000e0, 0x000ff) AM_WRITE8(hdc_dack_w, 0x00ff)
-//  AM_RANGE(0x0026c, 0x0026d) AM_DEVREADWRITE8_LEGACY(WD1010_TAG, hdc_reset_r, hdc_reset_w, 0x00ff)
-//  AM_RANGE(0x0026e, 0x0027f) AM_DEVREADWRITE8_LEGACY(WD1010_TAG, wd1010_r, wd1010_w, 0x00ff)
+//  AM_RANGE(0x0026c, 0x0026d) AM_DEVREADWRITE8(WD1010_TAG, wd1010_device, hdc_reset_r, hdc_reset_w, 0x00ff)
+//  AM_RANGE(0x0026e, 0x0027f) AM_DEVREADWRITE8(WD1010_TAG, wd1010_device, wd1010_r, wd1010_w, 0x00ff)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( vpac_mem, AS_0, 8, tandy2k_state )
@@ -299,48 +345,44 @@ ADDRESS_MAP_END
 
 static INPUT_PORTS_START( tandy2k )
 	// defined in machine/tandy2kb.c
+	PORT_INCLUDE(pc_keyboard)
 INPUT_PORTS_END
 
 // Video
 
 UINT32 tandy2k_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	if (m_vidouts)
+	const pen_t *pen = m_palette->pens();
+	address_space &program = m_maincpu->space(AS_PROGRAM);
+
+	for (int y = 0; y < 400; y++)
 	{
-		m_vac->screen_update(screen, bitmap, cliprect);
+		UINT8 cgra = y % 16;
+
+		for (int sx = 0; sx < 80; sx++)
+		{
+			offs_t addr = m_ram->size() - 0x1400 + (((y / 16) * 80) + sx) * 2;
+			UINT8 vidla = program.read_word(addr);
+			UINT8 data = m_char_ram[(vidla << 4) | cgra];
+
+			for (int x = 0; x < 8; x++)
+			{
+				int color = BIT(data, 7);
+				bitmap.pix32(y, (sx * 8) + x) = pen[color];
+				data <<= 1;
+			}
+		}
 	}
 
 	return 0;
 }
-/*
-static CRT9007_DRAW_SCANLINE( tandy2k_crt9007_display_pixels )
-{
-    tandy2k_state *state = device->machine().driver_data<tandy2k_state>();
-    address_space &program = state->m_maincpu->space(AS_PROGRAM);
-
-    for (int sx = 0; sx < x_count; sx++)
-    {
-        UINT32 videoram_addr = ((state->m_vram_base << 15) | (va << 1)) + sx;
-        UINT8 videoram_data = program.read_word(videoram_addr);
-        UINT16 charram_addr = (videoram_data << 4) | sl;
-        UINT8 charram_data = state->m_char_ram[charram_addr] & 0xff;
-
-        for (int bit = 0; bit < 10; bit++)
-        {
-            if (BIT(charram_data, 7))
-            {
-                bitmap.pix16(y, x + (sx * 10) + bit) = 1;
-            }
-
-            charram_data <<= 1;
-        }
-    }
-}
-*/
 
 WRITE_LINE_MEMBER( tandy2k_state::vpac_vlt_w )
 {
+	m_drb0->ren_w(state);
 	m_drb0->clrcnt_w(state);
+
+	m_drb1->ren_w(state);
 	m_drb1->clrcnt_w(state);
 }
 
@@ -350,45 +392,111 @@ WRITE_LINE_MEMBER( tandy2k_state::vpac_drb_w )
 	m_drb1->tog_w(state);
 }
 
-static CRT9007_INTERFACE( vpac_intf )
+WRITE_LINE_MEMBER( tandy2k_state::vpac_wben_w )
 {
-	10,
-	DEVCB_DEVICE_LINE_MEMBER(I8259A_1_TAG, pic8259_device, ir1_w),
-	DEVCB_NULL, // DMAR     80186 HOLD
-	DEVCB_DEVICE_LINE_MEMBER(CRT9021B_TAG, crt9021_device, vsync_w), // VS
-	DEVCB_NULL, // HS
-	DEVCB_DRIVER_LINE_MEMBER(tandy2k_state, vpac_vlt_w), // VLT
-	DEVCB_DEVICE_LINE_MEMBER(CRT9021B_TAG, crt9021_device, cursor_w), // CURS
-	DEVCB_DRIVER_LINE_MEMBER(tandy2k_state, vpac_drb_w), // DRB
-	DEVCB_DEVICE_LINE_MEMBER(CRT9021B_TAG, crt9021_device, retbl_w), // CBLANK
-	DEVCB_DEVICE_LINE_MEMBER(CRT9021B_TAG, crt9021_device, slg_w), // SLG
-	DEVCB_DEVICE_LINE_MEMBER(CRT9021B_TAG, crt9021_device, sld_w) // SLD
-};
+	m_drb0->wen1_w(state);
+	m_drb1->wen1_w(state);
+}
 
-static CRT9212_INTERFACE( drb0_intf )
+WRITE_LINE_MEMBER( tandy2k_state::vpac_cblank_w )
 {
-	DEVCB_NULL, // ROF
-	DEVCB_NULL, // WOF
-	DEVCB_DEVICE_LINE_MEMBER(CRT9007_TAG, crt9007_device, vlt_r), // REN
-	DEVCB_DEVICE_LINE_MEMBER(CRT9007_TAG, crt9007_device, wben_r), // WEN
-	DEVCB_LINE_VCC // WEN2
-};
+	m_cblank = state;
+}
 
-static CRT9212_INTERFACE( drb1_intf )
+WRITE_LINE_MEMBER( tandy2k_state::vpac_slg_w )
 {
-	DEVCB_NULL, // ROF
-	DEVCB_NULL, // WOF
-	DEVCB_DEVICE_LINE_MEMBER(CRT9007_TAG, crt9007_device, vlt_r), // REN
-	DEVCB_DEVICE_LINE_MEMBER(CRT9007_TAG, crt9007_device, wben_r), // WEN
-	DEVCB_LINE_VCC // WEN2
-};
+	m_slg = state;
 
-static CRT9021_INTERFACE( vac_intf )
+	m_vac->slg_w(state);
+}
+
+WRITE_LINE_MEMBER( tandy2k_state::vpac_sld_w )
 {
-	DEVCB_DEVICE_MEMBER(CRT9212_0_TAG, crt9212_device, read), // data
-	DEVCB_DEVICE_MEMBER(CRT9212_1_TAG, crt9212_device, read), // attributes
-	DEVCB_LINE_VCC // ATTEN
-};
+	m_sld = state;
+
+	m_vac->sld_w(state);
+}
+
+WRITE8_MEMBER( tandy2k_state::vidla_w )
+{
+	m_vidla = data;
+}
+
+WRITE8_MEMBER( tandy2k_state::drb_attr_w )
+{
+	/*
+
+	    bit     description
+
+	    0       BLC -> DBLC (delayed 2 CCLKs)
+	    1       BKC -> DBKC (delayed 2 CCLKs)
+	    2       CHABL
+	    3       MS0
+	    4       MS1
+	    5       BLINK
+	    6       INT
+	    7       REVID
+
+	*/
+
+	m_blc = BIT(data, 0);
+	m_bkc = BIT(data, 1);
+	m_vac->chabl_w(BIT(data, 2));
+	m_vac->ms0_w(BIT(data, 3));
+	m_vac->ms1_w(BIT(data, 4));
+	m_vac->blink_w(BIT(data, 5));
+	m_vac->intin_w(BIT(data, 6));
+	m_vac->revid_w(BIT(data, 7));
+}
+
+CRT9021_DRAW_CHARACTER_MEMBER( tandy2k_state::vac_draw_character )
+{
+	const pen_t *pen = m_palette->pens();
+
+	for (int i = 0; i < 8; i++)
+	{
+		int color = BIT(video, 7 - i);
+
+		bitmap.pix32(y, x++) = pen[color];
+	}
+}
+
+TIMER_DEVICE_CALLBACK_MEMBER( tandy2k_state::vidldsh_tick )
+{
+	m_drb0->rclk_w(0);
+	m_drb0->wclk_w(0);
+	m_drb1->rclk_w(0);
+	m_drb1->wclk_w(0);
+	m_vac->ld_sh_w(0);
+
+	// 1 busdotclk later
+	m_vac->blc_w(BIT(m_dblc, 0));
+	m_dblc >>= 1;
+	m_dblc |= m_blc << 2;
+
+	m_vac->bkc_w(BIT(m_dbkc, 0));
+	m_dbkc >>= 1;
+	m_dbkc |= m_bkc << 2;
+
+	m_vac->retbl_w(BIT(m_dblank, 0));
+	m_dblank >>= 1;
+	m_dblank |= m_cblank << 2;
+
+	if (!m_slg)
+	{
+		m_cgra >>= 1;
+		m_cgra |= m_sld << 3;
+	}
+
+	UINT8 vidd = m_char_ram[(m_vidla << 4) | m_cgra];
+	m_vac->write(vidd);
+
+	m_drb0->rclk_w(1);
+	m_drb0->wclk_w(1);
+	m_drb1->rclk_w(1);
+	m_drb1->wclk_w(1);
+	m_vac->ld_sh_w(1);
+}
 
 // Intel 8251A Interface
 
@@ -404,19 +512,6 @@ WRITE_LINE_MEMBER( tandy2k_state::txrdy_w )
 	m_pic0->ir2_w(m_rxrdy || m_txrdy);
 }
 
-static const i8251_interface usart_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dsr_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
-	DEVCB_DRIVER_LINE_MEMBER(tandy2k_state, rxrdy_w),
-	DEVCB_DRIVER_LINE_MEMBER(tandy2k_state, txrdy_w),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 // Intel 8253 Interface
 
 WRITE_LINE_MEMBER( tandy2k_state::outspkr_w )
@@ -427,37 +522,45 @@ WRITE_LINE_MEMBER( tandy2k_state::outspkr_w )
 
 WRITE_LINE_MEMBER( tandy2k_state::intbrclk_w )
 {
-	if (!m_extclk && state)
+	if (!m_extclk)
 	{
-		m_uart->transmit_clock();
-		m_uart->receive_clock();
+		m_uart->write_txc(state);
+		m_uart->write_rxc(state);
 	}
 }
 
 WRITE_LINE_MEMBER( tandy2k_state::rfrqpulse_w )
 {
+	// memory refresh counter up
 }
 
-static const struct pit8253_interface pit_intf =
-{
-	{
-		{
-			XTAL_16MHz/16,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(tandy2k_state, outspkr_w)
-		}, {
-			XTAL_16MHz/8,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(tandy2k_state, intbrclk_w)
-		}, {
-			XTAL_16MHz/8,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(tandy2k_state, rfrqpulse_w)
-		}
-	}
-};
-
 // Intel 8255A Interface
+
+WRITE_LINE_MEMBER( tandy2k_state::write_centronics_ack )
+{
+	m_centronics_ack = state;
+	m_i8255a->pc6_w(state);
+}
+
+WRITE_LINE_MEMBER( tandy2k_state::write_centronics_busy )
+{
+	m_centronics_busy = state;
+}
+
+WRITE_LINE_MEMBER( tandy2k_state::write_centronics_perror )
+{
+	m_centronics_perror = state;
+}
+
+WRITE_LINE_MEMBER( tandy2k_state::write_centronics_select )
+{
+	m_centronics_select = state;
+}
+
+WRITE_LINE_MEMBER( tandy2k_state::write_centronics_fault )
+{
+	m_centronics_fault = state;
+}
 
 READ8_MEMBER( tandy2k_state::ppi_pb_r )
 {
@@ -482,19 +585,19 @@ READ8_MEMBER( tandy2k_state::ppi_pb_r )
 	{
 	case LPINEN:
 		// printer acknowledge
-		data |= m_centronics->ack_r() << 3;
+		data |= m_centronics_ack << 3;
 
 		// printer fault
-		data |= m_centronics->fault_r() << 4;
+		data |= m_centronics_fault << 4;
 
 		// printer select
-		data |= m_centronics->vcc_r() << 5;
+		data |= m_centronics_select << 5;
 
 		// paper empty
-		data |= m_centronics->pe_r() << 6;
+		data |= m_centronics_perror << 6;
 
 		// printer busy
-		data |= m_centronics->busy_r() << 7;
+		data |= m_centronics_busy << 7;
 		break;
 
 	case KBDINEN:
@@ -535,18 +638,9 @@ WRITE8_MEMBER( tandy2k_state::ppi_pc_w )
 	m_pic1->ir3_w(BIT(data, 3));
 
 	// printer strobe
-	m_centronics->strobe_w(BIT(data, 7));
+	m_centronics->write_strobe(BIT(data, 7));
 }
 
-static I8255A_INTERFACE( ppi_intf )
-{
-	DEVCB_NULL,                                                 // Port A read
-	DEVCB_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, write),  // Port A write
-	DEVCB_DRIVER_MEMBER(tandy2k_state, ppi_pb_r),               // Port B write
-	DEVCB_NULL,                                                 // Port B write
-	DEVCB_NULL,                                                 // Port C read
-	DEVCB_DRIVER_MEMBER(tandy2k_state, ppi_pc_w)                // Port C write
-};
 
 // Intel 8259 Interfaces
 
@@ -578,41 +672,24 @@ static I8255A_INTERFACE( ppi_intf )
 
 // Intel 8272 Interface
 
-void tandy2k_state::fdc_irq(bool state)
-{
-	m_pic0->ir4_w(state);
-}
-
-void tandy2k_state::fdc_drq(bool state)
+WRITE_LINE_MEMBER( tandy2k_state::fdc_drq_w )
 {
 	dma_request(0, state);
 }
 
+WRITE_LINE_MEMBER( tandy2k_state::fdc_hdl_w )
+{
+	m_floppy0->mon_w(!state);
+	m_floppy1->mon_w(!state);
+}
+
+FLOPPY_FORMATS_MEMBER( tandy2k_state::floppy_formats )
+	FLOPPY_TANDY_2000_FORMAT
+FLOPPY_FORMATS_END
+
 static SLOT_INTERFACE_START( tandy2k_floppies )
 	SLOT_INTERFACE( "525qd", FLOPPY_525_QD )
 SLOT_INTERFACE_END
-
-// Centronics Interface
-
-static const centronics_interface centronics_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(I8255A_TAG, i8255_device, pc6_w),  // ACK output
-	DEVCB_NULL,                                     // BUSY output
-	DEVCB_NULL                                      // NOT BUSY output
-};
-
-//-------------------------------------------------
-//  rs232_port_interface rs232_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 // Keyboard
 
@@ -640,22 +717,20 @@ WRITE_LINE_MEMBER( tandy2k_state::kbddat_w )
 
 READ8_MEMBER( tandy2k_state::irq_callback )
 {
-	return (offset ? m_pic1 : m_pic0)->inta_r();
+	return (offset ? m_pic1 : m_pic0)->acknowledge();
 }
 
 // Machine Initialization
 
 void tandy2k_state::machine_start()
 {
-	// memory banking
 	address_space &program = m_maincpu->space(AS_PROGRAM);
 	UINT8 *ram = m_ram->pointer();
 	int ram_size = m_ram->size();
 
 	program.install_ram(0x00000, ram_size - 1, ram);
 
-	m_fdc->setup_intrq_cb(i8272a_device::line_cb(FUNC(tandy2k_state::fdc_irq), this));
-	m_fdc->setup_drq_cb(i8272a_device::line_cb(FUNC(tandy2k_state::fdc_drq), this));
+	m_char_ram.allocate(0x1000);
 
 	// register for state saving
 	save_item(NAME(m_dma_mux));
@@ -673,6 +748,11 @@ void tandy2k_state::machine_start()
 	save_item(NAME(m_spkrdata));
 }
 
+void tandy2k_state::device_reset_after_children()
+{
+	machine().device<pc_keyboard_device>("pc_keyboard")->enable(0);
+}
+
 // Machine Driver
 
 static MACHINE_CONFIG_START( tandy2k, tandy2k_state )
@@ -686,14 +766,39 @@ static MACHINE_CONFIG_START( tandy2k, tandy2k_state )
 	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
 	MCFG_SCREEN_REFRESH_RATE(50)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) // not accurate
+	MCFG_SCREEN_SIZE(640, 400)
+	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 400-1)
+	//MCFG_SCREEN_UPDATE_DEVICE(CRT9021B_TAG, crt9021_t, screen_update)
 	MCFG_SCREEN_UPDATE_DRIVER(tandy2k_state, screen_update)
-	MCFG_SCREEN_SIZE(640, 480)
-	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 
-	MCFG_CRT9007_ADD(CRT9007_TAG, XTAL_16MHz*28/16, vpac_intf, vpac_mem)
-	MCFG_CRT9212_ADD(CRT9212_0_TAG, drb0_intf)
-	MCFG_CRT9212_ADD(CRT9212_1_TAG, drb1_intf)
-	MCFG_CRT9021_ADD(CRT9021B_TAG, XTAL_16MHz*28/16/8, vac_intf)
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN("palette")
+
+	MCFG_DEVICE_ADD(CRT9007_TAG, CRT9007, XTAL_16MHz*28/20/8)
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, vpac_mem)
+	MCFG_CRT9007_CHARACTER_WIDTH(8)
+	MCFG_CRT9007_INT_CALLBACK(DEVWRITELINE(I8259A_1_TAG, pic8259_device, ir1_w))
+	MCFG_CRT9007_VS_CALLBACK(DEVWRITELINE(CRT9021B_TAG, crt9021_t, vsync_w))
+	MCFG_CRT9007_VLT_CALLBACK(WRITELINE(tandy2k_state, vpac_vlt_w))
+	MCFG_CRT9007_CURS_CALLBACK(DEVWRITELINE(CRT9021B_TAG, crt9021_t, cursor_w))
+	MCFG_CRT9007_DRB_CALLBACK(WRITELINE(tandy2k_state, vpac_drb_w))
+	MCFG_CRT9007_WBEN_CALLBACK(WRITELINE(tandy2k_state, vpac_wben_w))
+	MCFG_CRT9007_CBLANK_CALLBACK(WRITELINE(tandy2k_state, vpac_cblank_w))
+	MCFG_CRT9007_SLG_CALLBACK(WRITELINE(tandy2k_state, vpac_slg_w))
+	MCFG_CRT9007_SLD_CALLBACK(WRITELINE(tandy2k_state, vpac_sld_w))
+	MCFG_VIDEO_SET_SCREEN(SCREEN_TAG)
+
+	MCFG_DEVICE_ADD(CRT9212_0_TAG, CRT9212, 0)
+	MCFG_CRT9212_WEN2_VCC()
+	MCFG_CRT9212_DOUT_CALLBACK(WRITE8(tandy2k_state, vidla_w))
+
+	MCFG_DEVICE_ADD(CRT9212_1_TAG, CRT9212, 0)
+	MCFG_CRT9212_WEN2_VCC()
+	MCFG_CRT9212_DOUT_CALLBACK(WRITE8(tandy2k_state, drb_attr_w))
+
+	MCFG_DEVICE_ADD(CRT9021B_TAG, CRT9021, XTAL_16MHz*28/20)
+	MCFG_VIDEO_SET_SCREEN(SCREEN_TAG)
+
+	MCFG_TIMER_DRIVER_ADD("vidldsh", tandy2k_state, vidldsh_tick)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -701,17 +806,60 @@ static MACHINE_CONFIG_START( tandy2k, tandy2k_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// devices
-	MCFG_I8255A_ADD(I8255A_TAG, ppi_intf)
-	MCFG_I8251_ADD(I8251A_TAG, usart_intf)
-	MCFG_PIT8253_ADD(I8253_TAG, pit_intf)
+	MCFG_DEVICE_ADD(I8255A_TAG, I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_I8255_IN_PORTB_CB(READ8(tandy2k_state, ppi_pb_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(tandy2k_state, ppi_pc_w))
+
+	MCFG_DEVICE_ADD(I8251A_TAG, I8251, 0)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_I8251_DTR_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_dtr))
+	MCFG_I8251_RTS_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_rts))
+	MCFG_I8251_RXRDY_HANDLER(WRITELINE(tandy2k_state, rxrdy_w))
+	MCFG_I8251_TXRDY_HANDLER(WRITELINE(tandy2k_state, txrdy_w))
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(I8251A_TAG, i8251_device, write_rxd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(I8251A_TAG, i8251_device, write_dsr))
+	// TODO pin 15 external transmit clock
+	// TODO pin 17 external receiver clock
+
+	MCFG_DEVICE_ADD(I8253_TAG, PIT8253, 0)
+	MCFG_PIT8253_CLK0(XTAL_16MHz/16)
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(tandy2k_state, outspkr_w))
+	MCFG_PIT8253_CLK1(XTAL_16MHz/8)
+	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(tandy2k_state, intbrclk_w))
+	//MCFG_PIT8253_CLK2(XTAL_16MHz/8)
+	//MCFG_PIT8253_OUT2_HANDLER(WRITELINE(tandy2k_state, rfrqpulse_w))
+
 	MCFG_PIC8259_ADD(I8259A_0_TAG, DEVWRITELINE(I80186_TAG, i80186_cpu_device, int0_w), VCC, NULL)
+
 	MCFG_PIC8259_ADD(I8259A_1_TAG, DEVWRITELINE(I80186_TAG, i80186_cpu_device, int1_w), VCC, NULL)
+
 	MCFG_I8272A_ADD(I8272A_TAG, true)
-	MCFG_FLOPPY_DRIVE_ADD(I8272A_TAG ":0", tandy2k_floppies, "525qd", floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(I8272A_TAG ":1", tandy2k_floppies, "525qd", floppy_image_device::default_floppy_formats)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
-	MCFG_TANDY2K_KEYBOARD_ADD(WRITELINE(tandy2k_state, kbdclk_w), WRITELINE(tandy2k_state, kbddat_w))
+	downcast<i8272a_device *>(device)->set_select_lines_connected(true);
+	MCFG_UPD765_INTRQ_CALLBACK(DEVWRITELINE(I8259A_0_TAG, pic8259_device, ir4_w))
+	MCFG_UPD765_DRQ_CALLBACK(WRITELINE(tandy2k_state, fdc_drq_w))
+	MCFG_UPD765_HDL_CALLBACK(WRITELINE(tandy2k_state, fdc_hdl_w))
+	MCFG_FLOPPY_DRIVE_ADD(I8272A_TAG ":0", tandy2k_floppies, "525qd", tandy2k_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(I8272A_TAG ":1", tandy2k_floppies, "525qd", tandy2k_state::floppy_formats)
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(tandy2k_state, write_centronics_ack))
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(tandy2k_state, write_centronics_busy))
+	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(tandy2k_state, write_centronics_perror))
+	MCFG_CENTRONICS_SELECT_HANDLER(WRITELINE(tandy2k_state, write_centronics_select))
+	MCFG_CENTRONICS_FAULT_HANDLER(WRITELINE(tandy2k_state, write_centronics_fault))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
+
+	MCFG_DEVICE_ADD(TANDY2K_KEYBOARD_TAG, TANDY2K_KEYBOARD, 0)
+	MCFG_TANDY2000_KEYBOARD_CLOCK_CALLBACK(WRITELINE(tandy2k_state, kbdclk_w))
+	MCFG_TANDY2000_KEYBOARD_DATA_CALLBACK(WRITELINE(tandy2k_state, kbddat_w))
+
+	// temporary until the tandy keyboard has a rom dump
+	MCFG_PC_KEYB_ADD("pc_keyboard", DEVWRITELINE(I8259A_1_TAG, pic8259_device, ir0_w))
+
 
 	// software lists
 	MCFG_SOFTWARE_LIST_ADD("flop_list", "tandy2k")

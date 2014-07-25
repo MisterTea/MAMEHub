@@ -104,7 +104,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -117,9 +118,10 @@ public:
 	DECLARE_DRIVER_INIT(jokrwild);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(jokrwild);
 	UINT32 screen_update_jokrwild(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -153,13 +155,13 @@ TILE_GET_INFO_MEMBER(jokrwild_state::get_bg_tile_info)
 	int code = m_videoram[tile_index] | ((attr & 0xc0) << 2);
 	int color = (attr & 0x0f);
 
-	SET_TILE_INFO_MEMBER( 0, code , color , 0);
+	SET_TILE_INFO_MEMBER(0, code , color , 0);
 }
 
 
 void jokrwild_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jokrwild_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 24, 26);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jokrwild_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 24, 26);
 }
 
 
@@ -170,7 +172,7 @@ UINT32 jokrwild_state::screen_update_jokrwild(screen_device &screen, bitmap_ind1
 }
 
 
-void jokrwild_state::palette_init()
+PALETTE_INIT_MEMBER(jokrwild_state, jokrwild)
 {
 	//missing proms
 }
@@ -421,58 +423,6 @@ WRITE8_MEMBER(jokrwild_state::testb_w)
 //  printf("%02x B\n",data);
 }
 
-static const pia6821_interface pia0_intf =
-{
-	DEVCB_INPUT_PORT("IN0"),        /* port A in */
-	DEVCB_INPUT_PORT("IN1"),        /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(jokrwild_state,testa_w),        /* port A out */
-	DEVCB_DRIVER_MEMBER(jokrwild_state,testb_w),        /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-static const pia6821_interface pia1_intf =
-{
-	DEVCB_INPUT_PORT("IN2"),        /* port A in */
-	DEVCB_INPUT_PORT("IN3"),        /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_NULL,     /* port A out */
-	DEVCB_NULL,     /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-
-/************************
-*    CRTC Interface    *
-************************/
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-
 /*************************
 *    Machine Drivers     *
 *************************/
@@ -486,8 +436,15 @@ static MACHINE_CONFIG_START( jokrwild, jokrwild_state )
 
 //  MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_PIA6821_ADD("pia0", pia0_intf)
-	MCFG_PIA6821_ADD("pia1", pia1_intf)
+	MCFG_DEVICE_ADD("pia0", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(IOPORT("IN0"))
+	MCFG_PIA_READPB_HANDLER(IOPORT("IN1"))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(jokrwild_state, testa_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(jokrwild_state, testb_w))
+
+	MCFG_DEVICE_ADD("pia1", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(IOPORT("IN2"))
+	MCFG_PIA_READPB_HANDLER(IOPORT("IN3"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -496,12 +453,15 @@ static MACHINE_CONFIG_START( jokrwild, jokrwild_state )
 	MCFG_SCREEN_SIZE((32+1)*8, (32+1)*8)                  /* From MC6845, registers 00 & 04. (value-1) */
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 24*8-1, 0*8, 26*8-1)    /* From MC6845, registers 01 & 06 */
 	MCFG_SCREEN_UPDATE_DRIVER(jokrwild_state, screen_update_jokrwild)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(jokrwild)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jokrwild)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INIT_OWNER(jokrwild_state, jokrwild)
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/16, mc6845_intf) /* guess */
-
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/16) /* guess */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 MACHINE_CONFIG_END
 
 

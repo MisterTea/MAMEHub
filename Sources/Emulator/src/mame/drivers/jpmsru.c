@@ -17,7 +17,7 @@
 **********************************************************************/
 
 #include "emu.h"
-#include "cpu/tms9900/tms9900l.h"
+#include "cpu/tms9900/tms9980a.h"
 
 class jpmsru_state : public driver_device
 {
@@ -33,6 +33,7 @@ protected:
 	required_device<cpu_device> m_maincpu;
 public:
 	DECLARE_DRIVER_INIT(jpmsru);
+	DECLARE_READ8_MEMBER( interrupt_level );
 };
 
 // blind guess
@@ -61,17 +62,11 @@ static INPUT_PORTS_START( jpmsru )
 INPUT_PORTS_END
 
 static MACHINE_CONFIG_START( jpmsru, jpmsru_state )
-	MCFG_CPU_ADD("maincpu", TMS9980L, MAIN_CLOCK)
-
-	MCFG_CPU_PROGRAM_MAP(jpmsru_map)
-	MCFG_CPU_IO_MAP(jpmsru_io)
+	MCFG_TMS99xx_ADD("maincpu", TMS9980A, MAIN_CLOCK, jpmsru_map, jpmsru_io)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( jpmsru_4, jpmsru_state )
-	MCFG_CPU_ADD("maincpu", TMS9980L, MAIN_CLOCK)
-
-	MCFG_CPU_PROGRAM_MAP(jpmsru_4_map)
-	MCFG_CPU_IO_MAP(jpmsru_io)
+	MCFG_TMS99xx_ADD("maincpu", TMS9980A, MAIN_CLOCK, jpmsru_4_map, jpmsru_io)
 MACHINE_CONFIG_END
 
 DRIVER_INIT_MEMBER(jpmsru_state,jpmsru)
@@ -182,7 +177,7 @@ GAME(198?, j_nuddup ,0          ,jpmsru_4,jpmsru, jpmsru_state,jpmsru,ROT0,   "J
 
 GAME(198?, j_nuddup2,j_nuddup   ,jpmsru_4,jpmsru, jpmsru_state,jpmsru,ROT0,   "JPM","Nudge Double Up (JPM SRU, set 2)",                     GAME_IS_SKELETON_MECHANICAL )
 
-GAME(198?, j_unk    ,0          ,jpmsru_4,jpmsru, jpmsru_state,jpmsru,ROT0,   "JPM?","Unknown SRU Game (JPM?)",                     GAME_IS_SKELETON_MECHANICAL )
+GAME(198?, j_unk    ,0          ,jpmsru_4,jpmsru, jpmsru_state,jpmsru,ROT0,   "JPM?","unknown SRU Game (JPM?)",                     GAME_IS_SKELETON_MECHANICAL )
 
 // this one is different again?
 GAME(198?, j_plus2  ,0          ,jpmsru_4,jpmsru, jpmsru_state,jpmsru,ROT0,   "JPM","Plus 2 (JPM)",                     GAME_IS_SKELETON_MECHANICAL )

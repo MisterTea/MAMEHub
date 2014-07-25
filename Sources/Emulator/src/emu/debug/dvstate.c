@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*********************************************************************
 
     dvstate.c
 
     State debugger view.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -108,11 +79,11 @@ void debug_view_state::enumerate_sources()
 	for (device_state_interface *state = iter.first(); state != NULL; state = iter.next())
 	{
 		name.printf("%s '%s'", state->device().name(), state->device().tag());
-		m_source_list.append(*auto_alloc(machine(), debug_view_state_source(name, state->device())));
+		m_source_list.append(*global_alloc(debug_view_state_source(name, state->device())));
 	}
 
 	// reset the source to a known good entry
-	set_source(*m_source_list.head());
+	set_source(*m_source_list.first());
 }
 
 
@@ -240,7 +211,7 @@ void debug_view_state::view_update()
 		curitem = curitem->m_next;
 
 	// loop over visible rows
-	screen_device *screen = machine().primary_screen;
+	screen_device *screen = machine().first_screen();
 	debug_view_char *dest = m_viewdata;
 	for (UINT32 row = 0; row < m_visible.y; row++)
 	{

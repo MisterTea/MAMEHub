@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari GX2 hardware
@@ -154,6 +156,56 @@ WRITE32_MEMBER(atarigx2_state::atarigx2_protection_w)
 		m_last_write_offset = offset*2+1;
 	}
 }
+
+/********************
+
+The following pseudocode reproduces almost exactly (there are just 3 or 4 bits of divergence)
+the 0x200 values in the table below below under the "initialization" region. The function
+ftest4 must be called by throwing away the 17 lower bits on the first element of the pair
+(  ftest4(lookup_table[i][0]>>17)  ). In other words, the 16 bits value in the RHS is
+function of m_last_write_offset (see the protection code below the table). It's unclear how
+this should be generalized to cover other regions of the table, and the scarcity of data
+in those regions precludes applying the same kind of analysis.
+
+int parameters3[16][2] = {
+    {0x003a, 0x0032},
+    {0x0076, 0x0064},
+    {0x00ee, 0x00c8},
+    {0x01dc, 0x0190},
+    {0x01b0, 0x012A},
+    {0x0168, 0x005C},
+    {0x00d8, 0x00b8},
+    {0x01b0, 0x0172},
+    {0x016a, 0x00ee},
+    {0x00de, 0x01de},
+    {0x01be, 0x01b6},
+    {0x0174, 0x0164},
+    {0x00e2, 0x00c0},
+    {0x01c6, 0x0180},
+    {0x0186, 0x010a},
+    {0x0104, 0x001c}
+};
+
+// every output bit is a linear function on the input bits except by
+// a quadratic term always involving bit #0 of the input
+UINT32 ftest4(UINT32 num)
+{
+    UINT32 accum = 0;
+
+    for (int i=0; i<16; ++i)
+    {
+        int b1 = weight(num&parameters3[i][0])&1;  // <- linear function (parameters3[i][0] acts as a mask determining which bits are added)
+        int b2 = weight(num&parameters3[i][1])&1;  // <- idem
+        b2 &= BIT(num, 0);                         // quadratic term
+        int b3 = b1 ^ b2;
+
+        accum ^= (b3 << i);
+    }
+
+    return accum;
+}
+
+*********************/
 
 READ32_MEMBER(atarigx2_state::atarigx2_protection_r)
 {
@@ -1136,7 +1188,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 32, atarigx2_state )
 	AM_RANGE(0xca0000, 0xca0fff) AM_READWRITE(atarigx2_protection_r, atarigx2_protection_w) AM_SHARE("protection_base")
 	AM_RANGE(0xd00000, 0xd1ffff) AM_READ(a2d_data_r)
 	AM_RANGE(0xd20000, 0xd20fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0xff00ff00)
-	AM_RANGE(0xd40000, 0xd40fff) AM_RAM_WRITE(paletteram32_666_w) AM_SHARE("paletteram")
+	AM_RANGE(0xd40000, 0xd40fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xd72000, 0xd75fff) AM_DEVWRITE("playfield", tilemap_device, write) AM_SHARE("playfield")
 	AM_RANGE(0xd76000, 0xd76fff) AM_DEVWRITE("alpha", tilemap_device, write) AM_SHARE("alpha")
 	AM_RANGE(0xd78000, 0xd78fff) AM_RAM AM_SHARE("rle")
@@ -1410,18 +1462,20 @@ static MACHINE_CONFIG_START( atarigx2, atarigx2_state )
 	MCFG_ATARI_EEPROM_2816_ADD("eeprom")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_GFXDECODE(atarigx2)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", atarigx2)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(IRRRRRGGGGGBBBBB)
 
-	MCFG_TILEMAP_ADD_CUSTOM("playfield", 2, atarigx2_state, get_playfield_tile_info, 8,8, atarigx2_playfield_scan, 128,64)
-	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", 2, atarigx2_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,32, 0)
+	MCFG_TILEMAP_ADD_CUSTOM("playfield", "gfxdecode", 2, atarigx2_state, get_playfield_tile_info, 8,8, atarigx2_playfield_scan, 128,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", "gfxdecode", 2, atarigx2_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,32, 0)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	/* note: these parameters are from published specs, not derived */
 	/* the board uses a pair of GALs to determine H and V parameters */
 	MCFG_SCREEN_RAW_PARAMS(ATARI_CLOCK_14MHz/2, 456, 0, 336, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(atarigx2_state, screen_update_atarigx2)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(atarigx2_state,atarigx2)
 

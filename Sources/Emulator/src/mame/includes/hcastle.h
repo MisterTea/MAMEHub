@@ -15,19 +15,19 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_spriteram(*this, "spriteram"),
 			m_spriteram2(*this, "spriteram2") ,
-		m_paletteram(*this, "paletteram"),
 		m_pf1_videoram(*this, "pf1_videoram"),
 		m_pf2_videoram(*this, "pf2_videoram"),
 		m_audiocpu(*this, "audiocpu"),
 		m_k007121_1(*this, "k007121_1"),
 		m_k007121_2(*this, "k007121_2"),
 		m_k007232(*this, "k007232"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_device<buffered_spriteram8_device> m_spriteram;
 	required_device<buffered_spriteram8_device> m_spriteram2;
 	/* memory pointers */
-	required_shared_ptr<UINT8> m_paletteram;
 	required_shared_ptr<UINT8> m_pf1_videoram;
 	required_shared_ptr<UINT8> m_pf2_videoram;
 
@@ -62,11 +62,12 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(hcastle);
 	UINT32 screen_update_hcastle(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void set_pens();
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap, UINT8 *sbank, int bank );
 	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 	DECLARE_WRITE8_MEMBER(volume_callback);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

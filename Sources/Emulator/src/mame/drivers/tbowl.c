@@ -131,7 +131,7 @@ static ADDRESS_MAP_START( 6206C_map, AS_PROGRAM, 8, tbowl_state )
 	AM_RANGE(0xc000, 0xdfff) AM_READONLY
 	AM_RANGE(0xc000, 0xd7ff) AM_WRITEONLY
 	AM_RANGE(0xd800, 0xdfff) AM_WRITEONLY AM_SHARE("spriteram")
-	AM_RANGE(0xe000, 0xefff) AM_RAM_WRITE(paletteram_xxxxBBBBRRRRGGGG_byte_be_w) AM_SHARE("paletteram") // 2x palettes, one for each monitor?
+	AM_RANGE(0xe000, 0xefff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // 2x palettes, one for each monitor?
 	AM_RANGE(0xf000, 0xf7ff) AM_ROMBANK("bank2")
 	AM_RANGE(0xf800, 0xfbff) AM_READWRITE(shared_r, shared_w)
 	AM_RANGE(0xfc00, 0xfc00) AM_WRITE(tbowlc_bankswitch_w)
@@ -432,17 +432,6 @@ WRITE_LINE_MEMBER(tbowl_state::irqhandler)
 	m_audiocpu->set_input_line(0, state);
 }
 
-static const msm5205_interface msm5205_config_1 =
-{
-	DEVCB_DRIVER_LINE_MEMBER(tbowl_state,tbowl_adpcm_int_1),    /* interrupt function */
-	MSM5205_S48_4B      /* 8KHz               */
-};
-
-static const msm5205_interface msm5205_config_2 =
-{
-	DEVCB_DRIVER_LINE_MEMBER(tbowl_state,tbowl_adpcm_int_2),    /* interrupt function */
-	MSM5205_S48_4B      /* 8KHz               */
-};
 
 /*** Machine Driver
 
@@ -482,9 +471,13 @@ static MACHINE_CONFIG_START( tbowl, tbowl_state )
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 
 	/* video hardware */
-	MCFG_GFXDECODE(tbowl)
-	MCFG_PALETTE_LENGTH(1024*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tbowl)
+	MCFG_PALETTE_ADD("palette", 1024*2)
+	MCFG_PALETTE_FORMAT(xxxxBBBBRRRRGGGG)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 	MCFG_DEFAULT_LAYOUT(layout_dualhsxs)
+
+	MCFG_DEVICE_ADD("spritegen", TECMO_SPRITE, 0)
 
 	MCFG_SCREEN_ADD("lscreen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -492,6 +485,7 @@ static MACHINE_CONFIG_START( tbowl, tbowl_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tbowl_state, screen_update_tbowl_left)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("rscreen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -499,7 +493,7 @@ static MACHINE_CONFIG_START( tbowl, tbowl_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tbowl_state, screen_update_tbowl_right)
-
+	MCFG_SCREEN_PALETTE("palette")
 
 
 	/* sound hardware */
@@ -514,11 +508,13 @@ static MACHINE_CONFIG_START( tbowl, tbowl_state )
 
 	/* something for the samples? */
 	MCFG_SOUND_ADD("msm1", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config_1)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(tbowl_state, tbowl_adpcm_int_1))    /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8KHz               */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_SOUND_ADD("msm2", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config_2)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(tbowl_state, tbowl_adpcm_int_2))    /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8KHz               */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

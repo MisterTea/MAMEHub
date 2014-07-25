@@ -60,7 +60,7 @@ WRITE8_MEMBER(pk8020_state::sysreg_w)
 		UINT8 r = ((color & 0x04) ? 0xC0 : 0) + i;
 		UINT8 g = ((color & 0x02) ? 0xC0 : 0) + i;
 		UINT8 b = ((color & 0x01) ? 0xC0 : 0) + i;
-		palette_set_color( machine(), number, MAKE_RGB(r,g,b) );
+		m_palette->set_pen_color( number, rgb_t(r,g,b) );
 	}
 }
 
@@ -156,10 +156,10 @@ READ8_MEMBER(pk8020_state::devices_r)
 					}
 					break;
 		case 0x18: switch(offset & 3) {
-						case 0 : return wd17xx_status_r(m_wd1793,space, 0);
-						case 1 : return wd17xx_track_r(m_wd1793,space, 0);
-						case 2 : return wd17xx_sector_r(m_wd1793,space, 0);
-						case 3 : return wd17xx_data_r(m_wd1793,space, 0);
+						case 0 : return m_wd1793->status_r(space, 0);
+						case 1 : return m_wd1793->track_r(space, 0);
+						case 2 : return m_wd1793->sector_r(space, 0);
+						case 3 : return m_wd1793->data_r(space, 0);
 					}
 					break;
 		case 0x20: switch(offset & 1) {
@@ -186,10 +186,10 @@ WRITE8_MEMBER(pk8020_state::devices_w)
 					}
 					break;
 		case 0x18: switch(offset & 3) {
-						case 0 : wd17xx_command_w(m_wd1793,space, 0,data);break;
-						case 1 : wd17xx_track_w(m_wd1793,space, 0,data);break;
-						case 2 : wd17xx_sector_w(m_wd1793,space, 0,data);break;
-						case 3 : wd17xx_data_w(m_wd1793,space, 0,data);break;
+						case 0 : m_wd1793->command_w(space, 0,data);break;
+						case 1 : m_wd1793->track_w(space, 0,data);break;
+						case 2 : m_wd1793->sector_w(space, 0,data);break;
+						case 3 : m_wd1793->data_w(space, 0,data);break;
 					}
 					break;
 		case 0x20: switch(offset & 1) {
@@ -840,27 +840,27 @@ WRITE8_MEMBER(pk8020_state::pk8020_portc_w)
 WRITE8_MEMBER(pk8020_state::pk8020_portb_w)
 {
 	// Turn all motors off
-	floppy_mon_w(floppy_get_device(machine(), 0), 1);
-	floppy_mon_w(floppy_get_device(machine(), 1), 1);
-	floppy_mon_w(floppy_get_device(machine(), 2), 1);
-	floppy_mon_w(floppy_get_device(machine(), 3), 1);
-	wd17xx_set_side(m_wd1793,BIT(data,4));
+	floppy_get_device(machine(), 0)->floppy_mon_w(1);
+	floppy_get_device(machine(), 1)->floppy_mon_w(1);
+	floppy_get_device(machine(), 2)->floppy_mon_w(1);
+	floppy_get_device(machine(), 3)->floppy_mon_w(1);
+	m_wd1793->set_side(BIT(data,4));
 	if (BIT(data,0)) {
-		wd17xx_set_drive(m_wd1793,0);
-		floppy_mon_w(floppy_get_device(machine(), 0), 0);
-		floppy_drive_set_ready_state(floppy_get_device(machine(), 0), 1, 1);
+		m_wd1793->set_drive(0);
+		floppy_get_device(machine(), 0)->floppy_mon_w(0);
+		floppy_get_device(machine(), 0)->floppy_drive_set_ready_state(1, 1);
 	} else if (BIT(data,1)) {
-		wd17xx_set_drive(m_wd1793,1);
-		floppy_mon_w(floppy_get_device(machine(), 1), 0);
-		floppy_drive_set_ready_state(floppy_get_device(machine(), 1), 1, 1);
+		m_wd1793->set_drive(1);
+		floppy_get_device(machine(), 1)->floppy_mon_w(0);
+		floppy_get_device(machine(), 1)->floppy_drive_set_ready_state(1, 1);
 	} else if (BIT(data,2)) {
-		wd17xx_set_drive(m_wd1793,2);
-		floppy_mon_w(floppy_get_device(machine(), 2), 0);
-		floppy_drive_set_ready_state(floppy_get_device(machine(), 2), 1, 1);
+		m_wd1793->set_drive(2);
+		floppy_get_device(machine(), 2)->floppy_mon_w(0);
+		floppy_get_device(machine(), 2)->floppy_drive_set_ready_state(1, 1);
 	} else if (BIT(data,3)) {
-		wd17xx_set_drive(m_wd1793,3);
-		floppy_mon_w(floppy_get_device(machine(), 3), 0);
-		floppy_drive_set_ready_state(floppy_get_device(machine(), 3), 1, 1);
+		m_wd1793->set_drive(3);
+		floppy_get_device(machine(), 3)->floppy_mon_w(0);
+		floppy_get_device(machine(), 3)->floppy_drive_set_ready_state(1, 1);
 	}
 }
 
@@ -870,42 +870,12 @@ READ8_MEMBER(pk8020_state::pk8020_portc_r)
 }
 
 
-I8255A_INTERFACE( pk8020_ppi8255_interface_1 )
-{
-	DEVCB_DRIVER_MEMBER(pk8020_state,pk8020_porta_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(pk8020_state,pk8020_portb_w),
-	DEVCB_DRIVER_MEMBER(pk8020_state,pk8020_portc_r),
-	DEVCB_DRIVER_MEMBER(pk8020_state,pk8020_portc_w)
-};
-
 WRITE8_MEMBER(pk8020_state::pk8020_2_portc_w)
 {
 	m_sound_gate = BIT(data,3);
 
 	m_speaker->level_w(m_sound_gate ? m_sound_level : 0);
 }
-
-I8255A_INTERFACE( pk8020_ppi8255_interface_2 )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(pk8020_state,pk8020_2_portc_w)
-};
-
-I8255A_INTERFACE( pk8020_ppi8255_interface_3 )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 WRITE_LINE_MEMBER(pk8020_state::pk8020_pit_out0)
 {
@@ -919,37 +889,6 @@ WRITE_LINE_MEMBER(pk8020_state::pk8020_pit_out1)
 {
 }
 
-
-const struct pit8253_interface pk8020_pit8253_intf =
-{
-	{
-		{
-			XTAL_20MHz / 10,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(pk8020_state,pk8020_pit_out0)
-		},
-		{
-			XTAL_20MHz / 10,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(pk8020_state,pk8020_pit_out1)
-		},
-		{
-			(XTAL_20MHz / 8) / 164,
-			DEVCB_NULL,
-			DEVCB_DEVICE_LINE_MEMBER("pic8259", pic8259_device, ir5_w)
-		}
-	}
-};
-
-WRITE_LINE_MEMBER(pk8020_state::pk8020_pic_set_int_line)
-{
-	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
-}
-
-IRQ_CALLBACK_MEMBER(pk8020_state::pk8020_irq_callback)
-{
-	return m_pic8259->acknowledge();
-}
 
 void pk8020_state::machine_start()
 {
@@ -967,7 +906,6 @@ void pk8020_state::machine_start()
 void pk8020_state::machine_reset()
 {
 	pk8020_set_bank(0);
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(pk8020_state::pk8020_irq_callback),this));
 
 	m_sound_gate = 0;
 	m_sound_level = 0;

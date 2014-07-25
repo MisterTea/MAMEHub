@@ -1,38 +1,9 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     dsp32.c
     Core implementation for the portable DSP32 emulator.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************
 
@@ -53,7 +24,7 @@
 
     In addition, there are several optimizations enabled which make
     assumptions about the code which may not be valid for other
-    applications. Check dsp32ops.c for details.
+    applications. Check dsp32ops.inc for details.
 
 ***************************************************************************/
 
@@ -203,26 +174,12 @@ dsp32c_device::dsp32c_device(const machine_config &mconfig, const char *tag, dev
 		m_lastpins(0),
 		m_ppc(0),
 		m_program(NULL),
-		m_direct(NULL)
+		m_direct(NULL),
+		m_output_pins_changed(*this)
 {
-	m_output_pins_changed = NULL;
-
 	// set our instruction counter
 	m_icountptr = &m_icount;
 }
-
-
-//-------------------------------------------------
-//  static_set_config - set the configuration
-//  structure
-//-------------------------------------------------
-
-void dsp32c_device::static_set_config(device_t &device, const dsp32_config &config)
-{
-	dsp32c_device &dsp = downcast<dsp32c_device &>(device);
-	static_cast<dsp32_config &>(dsp) = config;
-}
-
 
 //-------------------------------------------------
 //  device_start - start up the device
@@ -230,6 +187,8 @@ void dsp32c_device::static_set_config(device_t &device, const dsp32_config &conf
 
 void dsp32c_device::device_start()
 {
+	m_output_pins_changed.resolve_safe();
+
 	// get our address spaces
 	m_program = &space(AS_PROGRAM);
 	m_direct = &m_program->direct();
@@ -326,8 +285,7 @@ void dsp32c_device::device_reset()
 	m_emr = 0xffff;
 
 	// clear the output pins
-	if (m_output_pins_changed != NULL)
-		(*m_output_pins_changed)(*this, 0);
+	m_output_pins_changed(0);
 
 	// initialize fixed registers
 	R0 = R0_ALT = 0;
@@ -569,21 +527,18 @@ void dsp32c_device::update_pins(void)
 {
 	if (m_pcr & PCR_ENI)
 	{
-		if (m_output_pins_changed != NULL)
+		UINT16 newoutput = 0;
+
+		if (m_pcr & PCR_PIFs)
+			newoutput |= DSP32_OUTPUT_PIF;
+
+		if (m_pcr & PCR_PDFs)
+			newoutput |= DSP32_OUTPUT_PDF;
+
+		if (newoutput != m_lastpins)
 		{
-			UINT16 newoutput = 0;
-
-			if (m_pcr & PCR_PIFs)
-				newoutput |= DSP32_OUTPUT_PIF;
-
-			if (m_pcr & PCR_PDFs)
-				newoutput |= DSP32_OUTPUT_PDF;
-
-			if (newoutput != m_lastpins)
-			{
-				m_lastpins = newoutput;
-				(*m_output_pins_changed)(*this, newoutput);
-			}
+			m_lastpins = newoutput;
+			m_output_pins_changed(newoutput);
 		}
 	}
 }
@@ -594,7 +549,7 @@ void dsp32c_device::update_pins(void)
 //  CORE INCLUDE
 //**************************************************************************
 
-#include "dsp32ops.c"
+#include "dsp32ops.inc"
 
 
 

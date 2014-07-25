@@ -50,10 +50,26 @@
 const device_type YGV608 = &device_creator<ygv608_device>;
 
 ygv608_device::ygv608_device( const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock )
-	: device_t(mconfig, YGV608, "YGV608", tag, owner, clock, "ygv608", __FILE__)
+	: device_t(mconfig, YGV608, "YGV608 VDP", tag, owner, clock, "ygv608", __FILE__),
+	m_gfxdecode(*this),
+	m_palette(*this)
 {
 }
 
+void ygv608_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
+{
+	downcast<ygv608_device &>(device).m_gfxdecode.set_tag(tag);
+}
+
+//-------------------------------------------------
+//  static_set_palette_tag: Set the tag of the
+//  palette device
+//-------------------------------------------------
+
+void ygv608_device::static_set_palette_tag(device_t &device, const char *tag)
+{
+	downcast<ygv608_device &>(device).m_palette.set_tag(tag);
+}
 
 void ygv608_device::set_gfxbank(UINT8 gfxbank)
 {
@@ -79,7 +95,7 @@ INTERRUPT_GEN_MEMBER(ygv608_device::timed_interrupt )
 	{
 		m_ports.s.p6 |= p6_fv;
 		if (m_regs.s.r14 & r14_iev)
-			irq2_line_hold(&device);
+			device.execute().set_input_line(2, HOLD_LINE);
 	}
 
 	/* once every 60Hz, set the position detection flag (somewhere) */
@@ -87,7 +103,7 @@ INTERRUPT_GEN_MEMBER(ygv608_device::timed_interrupt )
 	{
 		m_ports.s.p6 |= p6_fp;
 		if (m_regs.s.r14 & r14_iep)
-			irq2_line_hold(&device);
+			device.execute().set_input_line(2, HOLD_LINE);
 	}
 }
 
@@ -102,7 +118,7 @@ TILEMAP_MAPPER_MEMBER( ygv608_device::get_tile_offset )
 }
 
 #define layout_total(x) \
-(machine().config().m_gfxdecodeinfo[x].gfxlayout->total)
+(m_gfxdecode->gfx(x)->elements())
 
 TILE_GET_INFO_MEMBER( ygv608_device::get_tile_info_A_8 )
 {
@@ -118,11 +134,11 @@ TILE_GET_INFO_MEMBER( ygv608_device::get_tile_info_A_8 )
 
 	if( col >= m_page_x )
 	{
-		SET_TILE_INFO_MEMBER( set, 0, 0, 0 );
+		SET_TILE_INFO_MEMBER(set, 0, 0, 0 );
 	}
 	else if( row >= m_page_y )
 	{
-		SET_TILE_INFO_MEMBER( set, 0, 0, 0 );
+		SET_TILE_INFO_MEMBER(set, 0, 0, 0 );
 	}
 	else
 	{
@@ -193,7 +209,7 @@ TILE_GET_INFO_MEMBER( ygv608_device::get_tile_info_A_8 )
 			j += m_namcond1_gfxbank * 0x8000;
 		}
 
-		SET_TILE_INFO_MEMBER( set, j, attr & 0x0F, f );
+		SET_TILE_INFO_MEMBER(set, j, attr & 0x0F, f );
 	}
 }
 
@@ -211,15 +227,15 @@ TILE_GET_INFO_MEMBER( ygv608_device::get_tile_info_B_8 )
 
 	if ((m_regs.s.r7 & r7_md) & MD_1PLANE )
 	{
-		SET_TILE_INFO_MEMBER( set, 0, 0, 0 );
+		SET_TILE_INFO_MEMBER(set, 0, 0, 0 );
 	}
 	else if (col >= m_page_x)
 	{
-		SET_TILE_INFO_MEMBER( set, 0, 0, 0 );
+		SET_TILE_INFO_MEMBER(set, 0, 0, 0 );
 	}
 	else if (row >= m_page_y)
 	{
-		SET_TILE_INFO_MEMBER( set, 0, 0, 0 );
+		SET_TILE_INFO_MEMBER(set, 0, 0, 0 );
 	}
 	else
 	{
@@ -290,7 +306,7 @@ TILE_GET_INFO_MEMBER( ygv608_device::get_tile_info_B_8 )
 			j += m_namcond1_gfxbank * 0x8000;
 		}
 
-		SET_TILE_INFO_MEMBER( set, j, attr, f );
+		SET_TILE_INFO_MEMBER(set, j, attr, f );
 	}
 }
 
@@ -307,10 +323,10 @@ TILE_GET_INFO_MEMBER( ygv608_device::get_tile_info_A_16 )
 	int             base = row >> m_base_y_shift;
 
 	if( col >= m_page_x ) {
-	SET_TILE_INFO_MEMBER( set, 0, 0, 0 );
+	SET_TILE_INFO_MEMBER(set, 0, 0, 0 );
 	}
 	else if( row >= m_page_y ) {
-	SET_TILE_INFO_MEMBER( set, 0, 0, 0 );
+	SET_TILE_INFO_MEMBER(set, 0, 0, 0 );
 	}
 	else {
 	int sx, sy, page;
@@ -379,7 +395,7 @@ TILE_GET_INFO_MEMBER( ygv608_device::get_tile_info_A_16 )
 	}
 
 
-	SET_TILE_INFO_MEMBER( set, j, attr, f );
+	SET_TILE_INFO_MEMBER(set, j, attr, f );
 	}
 }
 
@@ -396,13 +412,13 @@ TILE_GET_INFO_MEMBER( ygv608_device::get_tile_info_B_16 )
 	int             base = row >> m_base_y_shift;
 
 	if((m_regs.s.r7 & r7_md) & MD_1PLANE ) {
-	SET_TILE_INFO_MEMBER( set, 0, 0, 0 );
+	SET_TILE_INFO_MEMBER(set, 0, 0, 0 );
 	}
 	if( col >= m_page_x ) {
-	SET_TILE_INFO_MEMBER( set, 0, 0, 0 );
+	SET_TILE_INFO_MEMBER(set, 0, 0, 0 );
 	}
 	else if( row >= m_page_y ) {
-	SET_TILE_INFO_MEMBER( set, 0, 0, 0 );
+	SET_TILE_INFO_MEMBER(set, 0, 0, 0 );
 	}
 	else {
 	int sx, sy, page;
@@ -469,7 +485,7 @@ TILE_GET_INFO_MEMBER( ygv608_device::get_tile_info_B_16 )
 		j += m_namcond1_gfxbank * 0x2000;
 	}
 
-	SET_TILE_INFO_MEMBER( set, j, attr, f );
+	SET_TILE_INFO_MEMBER(set, j, attr, f );
 	}
 }
 
@@ -498,6 +514,9 @@ void ygv608_device::register_state_save()
 
 void ygv608_device::device_start()
 {
+	if(!m_gfxdecode->started())
+		throw device_missing_dependencies();
+
 	memset(&m_ports, 0, sizeof(m_ports));
 	memset(&m_regs, 0, sizeof(m_regs));
 	memset(&m_pattern_name_table, 0, sizeof(m_pattern_name_table));
@@ -518,8 +537,6 @@ void ygv608_device::device_start()
 	memset(&m_base_addr, 0, sizeof(m_base_addr));
 	m_base_y_shift = 0;
 
-	m_work_bitmap = NULL;
-
 	// flag rebuild of the tilemaps
 	m_screen_resize = 1;
 	m_tilemap_resize = 1;
@@ -527,21 +544,21 @@ void ygv608_device::device_start()
 	save_item(NAME(m_namcond1_gfxbank));
 
 	/* create tilemaps of all sizes and combinations */
-	m_tilemap_A_cache_8[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_A_8),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  8,8, 32,32);
-	m_tilemap_A_cache_8[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_A_8),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  8,8, 64,32);
-	m_tilemap_A_cache_8[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_A_8),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  8,8, 32,64);
+	m_tilemap_A_cache_8[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_A_8),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  8,8, 32,32);
+	m_tilemap_A_cache_8[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_A_8),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  8,8, 64,32);
+	m_tilemap_A_cache_8[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_A_8),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  8,8, 32,64);
 
-	m_tilemap_A_cache_16[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_A_16),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  16,16, 32,32);
-	m_tilemap_A_cache_16[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_A_16),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  16,16, 64,32);
-	m_tilemap_A_cache_16[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_A_16),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  16,16, 32,64);
+	m_tilemap_A_cache_16[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_A_16),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  16,16, 32,32);
+	m_tilemap_A_cache_16[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_A_16),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  16,16, 64,32);
+	m_tilemap_A_cache_16[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_A_16),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  16,16, 32,64);
 
-	m_tilemap_B_cache_8[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_B_8),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  8,8, 32,32);
-	m_tilemap_B_cache_8[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_B_8),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  8,8, 64,32);
-	m_tilemap_B_cache_8[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_B_8),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  8,8, 32,64);
+	m_tilemap_B_cache_8[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_B_8),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  8,8, 32,32);
+	m_tilemap_B_cache_8[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_B_8),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  8,8, 64,32);
+	m_tilemap_B_cache_8[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_B_8),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  8,8, 32,64);
 
-	m_tilemap_B_cache_16[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_B_16),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  16,16, 32,32);
-	m_tilemap_B_cache_16[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_B_16),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  16,16, 64,32);
-	m_tilemap_B_cache_16[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_B_16),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  16,16, 32,64);
+	m_tilemap_B_cache_16[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_B_16),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  16,16, 32,32);
+	m_tilemap_B_cache_16[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_B_16),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  16,16, 64,32);
+	m_tilemap_B_cache_16[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ygv608_device::get_tile_info_B_16),this), tilemap_mapper_delegate(FUNC(ygv608_device::get_tile_offset),this),  16,16, 32,64);
 
 	m_tilemap_A = NULL;
 	m_tilemap_B = NULL;
@@ -601,20 +618,20 @@ void ygv608_device::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect
 		logerror( "SZ_8X8: sprite=%d\n", code );
 		code = 0;
 		}
-		drawgfx_transpen( bitmap, spriteClip,machine().gfx[GFX_8X8_4BIT],
+		m_gfxdecode->gfx(GFX_8X8_4BIT)->transpen(bitmap,spriteClip,
 			code+m_namcond1_gfxbank*0x10000,
 			color,
 			flipx,flipy,
 			sx,sy,0x00);
 		// redraw with wrap-around
 		if( sx > 512-8 )
-		drawgfx_transpen( bitmap, spriteClip,machine().gfx[GFX_8X8_4BIT],
+		m_gfxdecode->gfx(GFX_8X8_4BIT)->transpen(bitmap,spriteClip,
 			code+m_namcond1_gfxbank*0x10000,
 			color,
 			flipx,flipy,
 			sx-512,sy,0x00);
 		if( sy > 512-8 )
-		drawgfx_transpen( bitmap, spriteClip,machine().gfx[GFX_8X8_4BIT],
+		m_gfxdecode->gfx(GFX_8X8_4BIT)->transpen(bitmap,spriteClip,
 			code+m_namcond1_gfxbank*0x10000,
 			color,
 			flipx,flipy,
@@ -631,20 +648,20 @@ void ygv608_device::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect
 		logerror( "SZ_8X8: sprite=%d\n", code );
 		code = 0;
 		}
-		drawgfx_transpen( bitmap, spriteClip,machine().gfx[GFX_16X16_4BIT],
+		m_gfxdecode->gfx(GFX_16X16_4BIT)->transpen(bitmap,spriteClip,
 			code+m_namcond1_gfxbank*0x4000,
 			color,
 			flipx,flipy,
 			sx,sy,0x00);
 		// redraw with wrap-around
 		if( sx > 512-16 )
-		drawgfx_transpen( bitmap, spriteClip,machine().gfx[GFX_16X16_4BIT],
+		m_gfxdecode->gfx(GFX_16X16_4BIT)->transpen(bitmap,spriteClip,
 			code+m_namcond1_gfxbank*0x4000,
 			color,
 			flipx,flipy,
 			sx-512,sy,0x00);
 		if( sy > 512-16 )
-		drawgfx_transpen( bitmap, spriteClip,machine().gfx[GFX_16X16_4BIT],
+		m_gfxdecode->gfx(GFX_16X16_4BIT)->transpen(bitmap,spriteClip,
 			code+m_namcond1_gfxbank*0x4000,
 			color,
 			flipx,flipy,
@@ -661,20 +678,20 @@ void ygv608_device::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect
 		logerror( "SZ_32X32: sprite=%d\n", code );
 	code = 0;
 		}
-		drawgfx_transpen( bitmap, spriteClip,machine().gfx[GFX_32X32_4BIT],
+		m_gfxdecode->gfx(GFX_32X32_4BIT)->transpen(bitmap,spriteClip,
 			code+m_namcond1_gfxbank*0x1000,
 			color,
 			flipx,flipy,
 			sx,sy,0x00);
 		// redraw with wrap-around
 		if( sx > 512-32 )
-		drawgfx_transpen( bitmap, spriteClip,machine().gfx[GFX_32X32_4BIT],
+		m_gfxdecode->gfx(GFX_32X32_4BIT)->transpen(bitmap,spriteClip,
 			code+m_namcond1_gfxbank*0x1000,
 			color,
 			flipx,flipy,
 			sx-512,sy,0x00);
 		if( sy > 512-32 )
-		drawgfx_transpen( bitmap, spriteClip,machine().gfx[GFX_32X32_4BIT],
+		m_gfxdecode->gfx(GFX_32X32_4BIT)->transpen(bitmap,spriteClip,
 			code+m_namcond1_gfxbank*0x1000,
 			color,
 			flipx,flipy,
@@ -691,20 +708,20 @@ void ygv608_device::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect
 		logerror( "SZ_64X64: sprite=%d\n", code );
 		code = 0;
 		}
-		drawgfx_transpen( bitmap, spriteClip,machine().gfx[GFX_64X64_4BIT],
+		m_gfxdecode->gfx(GFX_64X64_4BIT)->transpen(bitmap,spriteClip,
 			code+m_namcond1_gfxbank*0x400,
 			color,
 			flipx,flipy,
 			sx,sy,0x00);
 		// redraw with wrap-around
 		if( sx > 512-64 )
-		drawgfx_transpen( bitmap, spriteClip,machine().gfx[GFX_64X64_4BIT],
+		m_gfxdecode->gfx(GFX_64X64_4BIT)->transpen(bitmap,spriteClip,
 			code+m_namcond1_gfxbank*0x400,
 			color,
 			flipx,flipy,
 			sx-512,sy,0x00);
 		if( sy > 512-64 )
-		drawgfx_transpen( bitmap, spriteClip,machine().gfx[GFX_64X64_4BIT],
+		m_gfxdecode->gfx(GFX_64X64_4BIT)->transpen(bitmap,spriteClip,
 			code+m_namcond1_gfxbank*0x400,
 			color,
 			flipx,flipy,
@@ -767,8 +784,7 @@ UINT32 ygv608_device::update_screen(screen_device &screen, bitmap_ind16 &bitmap,
 							0, ((int)(m_regs.s.vdw)<<3)-1 );
 #endif
 
-		auto_free( machine(), m_work_bitmap );
-		m_work_bitmap = auto_bitmap_ind16_alloc(machine(), screen.width(), screen.height());
+		m_work_bitmap.resize(screen.width(), screen.height());
 
 		// reset resize flag
 		m_screen_resize = 0;
@@ -806,7 +822,7 @@ UINT32 ygv608_device::update_screen(screen_device &screen, bitmap_ind16 &bitmap,
 		m_tilemap_B->set_scroll_cols(m_page_x );
 
 		// now clear the screen in case we change to 1-plane mode
-		m_work_bitmap->fill(0, finalclip );
+		m_work_bitmap.fill(0, finalclip );
 
 		// reset resize flag
 		m_tilemap_resize = 0;
@@ -859,12 +875,12 @@ UINT32 ygv608_device::update_screen(screen_device &screen, bitmap_ind16 &bitmap,
 	if ((m_regs.s.r7 & r7_md) & MD_1PLANE)
 	{
 		// If the background tilemap is disabled, we need to clear the bitmap to black
-		m_work_bitmap->fill(0, finalclip);
-//      m_work_bitmap->fill(1, *visarea);
+		m_work_bitmap.fill(0, finalclip);
+//      m_work_bitmap.fill(1, *visarea);
 	}
 	else
 #endif
-		m_tilemap_B->draw(screen, *m_work_bitmap, finalclip, 0, 0 );
+		m_tilemap_B->draw(screen, m_work_bitmap, finalclip, 0, 0 );
 
 #ifdef _ENABLE_ROTATE_ZOOM
 
@@ -880,7 +896,7 @@ UINT32 ygv608_device::update_screen(screen_device &screen, bitmap_ind16 &bitmap,
 	cos_theta = (double)m_dx / (double)0x10000;
 
 	if( m_regs.s.zron )
-	copyrozbitmap( bitmap, finalclip, m_work_bitmap,
+	copyrozbitmap( bitmap, finalclip, &m_work_bitmap,
 					( visarea.min_x << 16 ) +
 					m_ax + 0x10000 * r *
 					( -sin( alpha ) * cos_theta + cos( alpha ) * sin_theta ),
@@ -890,29 +906,29 @@ UINT32 ygv608_device::update_screen(screen_device &screen, bitmap_ind16 &bitmap,
 					m_dx, m_dxy, m_dyx, m_dy, 0);
 	else
 #endif
-	copybitmap( bitmap, *m_work_bitmap, 0, 0, 0, 0, finalclip);
+	copybitmap( bitmap, m_work_bitmap, 0, 0, 0, 0, finalclip);
 
 	// for some reason we can't use an opaque m_tilemap_A
 	// so use a transparent but clear the work bitmap first
 	// - look at why this is the case?!?
-	m_work_bitmap->fill(0, visarea );
+	m_work_bitmap.fill(0, visarea );
 
 	if ((m_regs.s.r11 & r11_prm) == PRM_ASBDEX ||
 		(m_regs.s.r11 & r11_prm) == PRM_ASEBDX )
 		draw_sprites(bitmap, finalclip);
 
-	m_tilemap_A->draw(screen, *m_work_bitmap, finalclip, 0, 0 );
+	m_tilemap_A->draw(screen, m_work_bitmap, finalclip, 0, 0 );
 
 #ifdef _ENABLE_ROTATE_ZOOM
 	if( m_regs.s.zron )
-	copyrozbitmap_trans( bitmap, finalclip, m_work_bitmap,
+	copyrozbitmap_trans( bitmap, finalclip, &m_work_bitmap,
 					m_ax, // + ( visarea.min_x << 16 ),
 					m_ay, // + ( visarea.min_y << 16 ),
 					m_dx, m_dxy, m_dyx, m_dy, 0,
 					0 );
 	else
 #endif
-	copybitmap_trans( bitmap, *m_work_bitmap, 0, 0, 0, 0, finalclip, 0 );
+	copybitmap_trans( bitmap, m_work_bitmap, 0, 0, 0, 0, finalclip, 0 );
 
 	if ((m_regs.s.r11 & r11_prm) == PRM_SABDEX ||
 		(m_regs.s.r11 & r11_prm) == PRM_SEABDX)
@@ -1212,7 +1228,7 @@ WRITE16_MEMBER( ygv608_device::write )
 			if (++p3_state == 3)
 			{
 				p3_state = 0;
-				palette_set_color_rgb(machine(),m_regs.s.cc,
+				m_palette->set_pen_color(m_regs.s.cc,
 					pal6bit(m_colour_palette[m_regs.s.cc][0]),
 					pal6bit(m_colour_palette[m_regs.s.cc][1]),
 					pal6bit(m_colour_palette[m_regs.s.cc][2]) );

@@ -68,7 +68,7 @@ public:
 static UINT8 mxtc_config_r(device_t *busdevice, device_t *device, int function, int reg)
 {
 	midqslvr_state *state = busdevice->machine().driver_data<midqslvr_state>();
-//  mame_printf_debug("MXTC: read %d, %02X\n", function, reg);
+//  osd_printf_debug("MXTC: read %d, %02X\n", function, reg);
 
 	if((reg & 0xfc) == 0 && function == 0) // return vendor ID
 		return (0x71008086 >> (reg & 3)*8) & 0xff;
@@ -214,8 +214,8 @@ static void intel82439tx_pci_w(device_t *busdevice, device_t *device, int functi
 
 static UINT8 piix4_config_r(device_t *busdevice, device_t *device, int function, int reg)
 {
-	address_space &space = busdevice->machine().firstcpu->space( AS_PROGRAM );
 	midqslvr_state *state = busdevice->machine().driver_data<midqslvr_state>();
+	address_space &space = state->m_maincpu->space( AS_PROGRAM );
 
 	function &= 3;
 
@@ -390,8 +390,6 @@ void midqslvr_state::machine_start()
 	m_bios_ext4_ram = auto_alloc_array(machine(), UINT32, 0x4000/4);
 	m_isa_ram1 = auto_alloc_array(machine(), UINT32, 0x4000/4);
 	m_isa_ram2 = auto_alloc_array(machine(), UINT32, 0x4000/4);
-
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(midqslvr_state::irq_callback),this));
 	intel82439tx_init();
 
 }
@@ -411,6 +409,7 @@ static MACHINE_CONFIG_START( midqslvr, midqslvr_state )
 	MCFG_CPU_ADD("maincpu", PENTIUM, 333000000) // actually Celeron 333
 	MCFG_CPU_PROGRAM_MAP(midqslvr_map)
 	MCFG_CPU_IO_MAP(midqslvr_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_1", pic8259_device, inta_cb)
 
 	MCFG_FRAGMENT_ADD( pcat_common )
 

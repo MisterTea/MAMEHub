@@ -337,25 +337,6 @@ GFXDECODE_END
     MACHINE DRIVERS
 ***************************************************************************/
 
-static const ay8910_interface aquarius_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("RIGHT"),
-	DEVCB_INPUT_PORT("LEFT"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const cassette_interface aquarius_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED),
-	NULL,
-	NULL
-};
-
 static MACHINE_CONFIG_START( aquarius, aquarius_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_3_579545MHz) // ???
@@ -370,10 +351,12 @@ static MACHINE_CONFIG_START( aquarius, aquarius_state )
 	MCFG_SCREEN_SIZE(40 * 8, 25 * 8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 40 * 8 - 1, 0 * 8, 25 * 8 - 1)
 	MCFG_SCREEN_UPDATE_DRIVER(aquarius_state, screen_update_aquarius)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE( aquarius )
-	MCFG_PALETTE_LENGTH(512)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", aquarius )
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INDIRECT_ENTRIES(16)
+	MCFG_PALETTE_INIT_OWNER(aquarius_state, aquarius)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -381,11 +364,13 @@ static MACHINE_CONFIG_START( aquarius, aquarius_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay8910", AY8910, XTAL_3_579545MHz/2) // ??? AY-3-8914
-	MCFG_SOUND_CONFIG(aquarius_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("RIGHT"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("LEFT"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( "cassette", aquarius_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
     TODO:
@@ -7,6 +9,11 @@
     - allocate color ram
     - quickload
     - color on
+
+    - keyboard not working
+    - foreground is black, according to the construction article it should be white.
+    - it is supposed to reset itself at boot, but that isn't working. You must press R.
+    - Pressing F3 causes it to jump into the weeds.
 
 */
 
@@ -40,9 +47,9 @@ WRITE8_MEMBER( eti660_state::colorram_w )
 /* Memory Maps */
 
 static ADDRESS_MAP_START( eti660_map, AS_PROGRAM, 8, eti660_state )
+	ADDRESS_MAP_GLOBAL_MASK(0xfff)
 	AM_RANGE(0x0000, 0x03ff) AM_ROM
 	AM_RANGE(0x0400, 0x0fff) AM_RAM
-	AM_RANGE(0x0c00, 0x0fff) AM_ROM
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( eti660_io_map, AS_IO, 8, eti660_state )
@@ -140,22 +147,6 @@ WRITE8_MEMBER( eti660_state::dma_w )
 	m_cti->dma_w(space, offset, data);
 }
 
-static COSMAC_INTERFACE( eti660_config )
-{
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_LINE_MEMBER(eti660_state, clear_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(eti660_state, ef2_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(eti660_state, ef4_r),
-	DEVCB_DRIVER_LINE_MEMBER(eti660_state, q_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(eti660_state, dma_w),
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 /* PIA6821 Interface */
 
 READ8_MEMBER( eti660_state::pia_pa_r )
@@ -182,7 +173,7 @@ READ8_MEMBER( eti660_state::pia_pa_r )
 	if (!BIT(m_keylatch, 2)) data &= m_pa2->read();
 	if (!BIT(m_keylatch, 3)) data &= m_pa3->read();
 
-	return data;
+	return data | m_keylatch;
 }
 
 WRITE8_MEMBER( eti660_state::pia_pa_w )
@@ -205,39 +196,19 @@ WRITE8_MEMBER( eti660_state::pia_pa_w )
 	m_keylatch = data & 0x0f;
 }
 
-static const pia6821_interface eti660_mc6821_intf =
-{
-	DEVCB_DRIVER_MEMBER(eti660_state, pia_pa_r),                                /* port A input */
-	DEVCB_NULL,                                                 /* port B input */
-	DEVCB_NULL,                                                 /* CA1 input */
-	DEVCB_NULL,                                                 /* CB1 input */
-	DEVCB_NULL,                                                 /* CA2 input */
-	DEVCB_NULL,                                                 /* CB2 input */
-	DEVCB_DRIVER_MEMBER(eti660_state, pia_pa_w),                                /* port A output */
-	DEVCB_NULL,                                                 /* port B output */
-	DEVCB_NULL,                                                 /* CA2 output */
-	DEVCB_NULL,                                                 /* CB2 output */
-	DEVCB_NULL,                                                 /* IRQA output */
-	DEVCB_NULL                                                  /* IRQB output */
-};
-
 /* Machine Drivers */
-
-static const cassette_interface eti660_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED),
-	NULL,
-	NULL
-};
 
 static MACHINE_CONFIG_START( eti660, eti660_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, XTAL_8_867238MHz/5)
 	MCFG_CPU_PROGRAM_MAP(eti660_map)
 	MCFG_CPU_IO_MAP(eti660_io_map)
-	MCFG_CPU_CONFIG(eti660_config)
+	MCFG_COSMAC_WAIT_CALLBACK(VCC)
+	MCFG_COSMAC_CLEAR_CALLBACK(READLINE(eti660_state, clear_r))
+	MCFG_COSMAC_EF2_CALLBACK(READLINE(eti660_state, ef2_r))
+	MCFG_COSMAC_EF4_CALLBACK(READLINE(eti660_state, ef4_r))
+	MCFG_COSMAC_Q_CALLBACK(WRITELINE(eti660_state, q_w))
+	MCFG_COSMAC_DMAW_CALLBACK(WRITE8(eti660_state, dma_w))
 
 	/* video hardware */
 	MCFG_CDP1864_SCREEN_ADD(SCREEN_TAG, XTAL_8_867238MHz/5)
@@ -250,8 +221,12 @@ static MACHINE_CONFIG_START( eti660, eti660_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_PIA6821_ADD(MC6821_TAG, eti660_mc6821_intf)
-	MCFG_CASSETTE_ADD("cassette", eti660_cassette_interface)
+	MCFG_DEVICE_ADD(MC6821_TAG, PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(eti660_state, pia_pa_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(eti660_state, pia_pa_w))
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

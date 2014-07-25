@@ -431,7 +431,9 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_attr(*this, "attr"),
 		m_vram(*this, "vram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT8> m_attr;
 	required_shared_ptr<UINT8> m_vram;
@@ -450,7 +452,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(amaticmg);
 	DECLARE_PALETTE_INIT(amaticmg2);
 	UINT32 screen_update_amaticmg(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_amaticmg2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -458,6 +460,8 @@ public:
 	void encf(UINT8 ciphertext, int address, UINT8 &plaintext, int &newaddress);
 	void decrypt(int key1, int key2);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -471,7 +475,7 @@ void amaticmg_state::video_start()
 
 UINT32 amaticmg_state::screen_update_amaticmg(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	int y,x;
 	int count = 0;
 
@@ -486,7 +490,7 @@ UINT32 amaticmg_state::screen_update_amaticmg(screen_device &screen, bitmap_ind1
 			/* TODO: this looks so out of place ... */
 			color = (m_attr[count]&0xf0)>>3;
 
-			drawgfx_opaque(bitmap,cliprect,gfx,tile,color,0,0,x*4,y*8);
+			gfx->opaque(bitmap,cliprect,tile,color,0,0,x*4,y*8);
 			count++;
 		}
 	}
@@ -496,7 +500,7 @@ UINT32 amaticmg_state::screen_update_amaticmg(screen_device &screen, bitmap_ind1
 
 UINT32 amaticmg_state::screen_update_amaticmg2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	int y,x;
 	int count = 16;
 
@@ -510,7 +514,7 @@ UINT32 amaticmg_state::screen_update_amaticmg2(screen_device &screen, bitmap_ind
 			tile += ((m_attr[count]&0xff)<<8);
 			color = 0;
 
-			drawgfx_opaque(bitmap,cliprect,gfx,tile,color,0,0,x*4,y*8);
+			gfx->opaque(bitmap,cliprect,tile,color,0,0,x*4,y*8);
 			count++;
 		}
 	}
@@ -518,7 +522,7 @@ UINT32 amaticmg_state::screen_update_amaticmg2(screen_device &screen, bitmap_ind
 	return 0;
 }
 
-void amaticmg_state::palette_init()
+PALETTE_INIT_MEMBER(amaticmg_state, amaticmg)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int bit0, bit1, bit2 , r, g, b;
@@ -539,7 +543,7 @@ void amaticmg_state::palette_init()
 		bit2 = (color_prom[0] >> 5) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 		color_prom++;
 	}
 }
@@ -557,7 +561,7 @@ PALETTE_INIT_MEMBER(amaticmg_state,amaticmg2)
 		g = ((color_prom[0] & 0xc0) >> 6) | ((color_prom[1] & 0x7) << 2);
 		r = ((color_prom[0] & 0x3e) >> 1);
 
-		palette_set_color_rgb(machine(), i >> 1, pal5bit(r), pal5bit(g), pal5bit(b));
+		palette.set_pen_color(i >> 1, pal5bit(r), pal5bit(g), pal5bit(b));
 		color_prom+=2;
 	}
 }
@@ -790,50 +794,6 @@ GFXDECODE_END
 
 
 /************************************
-*          CRTC Interface           *
-************************************/
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	4,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-
-/************************************
-*      PPI 8255 (x3) Interface      *
-************************************/
-
-static I8255A_INTERFACE( ppi8255_intf_0 )
-{
-	DEVCB_INPUT_PORT("IN0"),        /* Port A read */
-	DEVCB_NULL,                     /* Port A write */
-	DEVCB_INPUT_PORT("IN1"),        /* Port B read */
-	DEVCB_NULL,                     /* Port B write */
-	DEVCB_INPUT_PORT("IN2"),        /* Port C read */
-	DEVCB_NULL                      /* Port C write */
-};
-
-static I8255A_INTERFACE( ppi8255_intf_1 )
-{
-	DEVCB_NULL,                     /* Port A read */
-	DEVCB_DRIVER_MEMBER(amaticmg_state,out_a_w),            /* Port A write */
-	DEVCB_INPUT_PORT("SW1"),        /* Port B read */
-	DEVCB_NULL,                     /* Port B write */
-	DEVCB_NULL,                     /* Port C read */
-	DEVCB_DRIVER_MEMBER(amaticmg_state,out_c_w)         /* Port C write */
-};
-
-
-/************************************
 *       Machine Start & Reset       *
 ************************************/
 
@@ -865,9 +825,17 @@ static MACHINE_CONFIG_START( amaticmg, amaticmg_state )
 //  MCFG_NVRAM_ADD_0FILL("nvram")
 
 	/* 3x 8255 */
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_intf_0 )
-	MCFG_I8255A_ADD( "ppi8255_1", ppi8255_intf_1 )
-//  MCFG_PPI8255_ADD( "ppi8255_2", ppi8255_intf[2] )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(amaticmg_state, out_a_w))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("SW1"))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(amaticmg_state, out_c_w))
+
+//  MCFG_DEVICE_ADD("ppi8255_2", I8255A, 0)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -876,13 +844,16 @@ static MACHINE_CONFIG_START( amaticmg, amaticmg_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(amaticmg_state, screen_update_amaticmg)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", CRTC_CLOCK, mc6845_intf)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", CRTC_CLOCK)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(4)
 
-	MCFG_GFXDECODE(amaticmg)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", amaticmg)
 
-	MCFG_PALETTE_LENGTH(0x200)
-
+	MCFG_PALETTE_ADD("palette", 0x200)
+	MCFG_PALETTE_INIT_OWNER(amaticmg_state, amaticmg)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -912,9 +883,10 @@ static MACHINE_CONFIG_DERIVED( amaticmg2, amaticmg )
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(amaticmg_state, screen_update_amaticmg2)
 
-	MCFG_GFXDECODE(amaticmg2)
-	MCFG_PALETTE_INIT_OVERRIDE(amaticmg_state,amaticmg2)
-	MCFG_PALETTE_LENGTH(0x10000)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", amaticmg2)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(0x10000)
+	MCFG_PALETTE_INIT_OWNER(amaticmg_state,amaticmg2)
 MACHINE_CONFIG_END
 
 

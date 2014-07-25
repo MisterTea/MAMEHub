@@ -38,7 +38,7 @@ PALETTE_INIT_MEMBER(btime_state,btime)
 	/* This function is also used by Eggs. */
 	if (color_prom == 0) return;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -58,7 +58,7 @@ PALETTE_INIT_MEMBER(btime_state,btime)
 		bit2 = (color_prom[i] >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r,g,b));
+		palette.set_pen_color(i, rgb_t(r,g,b));
 	}
 }
 
@@ -84,7 +84,7 @@ PALETTE_INIT_MEMBER(btime_state,lnc)
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -104,7 +104,7 @@ PALETTE_INIT_MEMBER(btime_state,lnc)
 		bit2 = (color_prom[i] >> 0) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r,g,b));
+		palette.set_pen_color(i, rgb_t(r,g,b));
 	}
 }
 
@@ -114,12 +114,11 @@ Start the video hardware emulation.
 
 ***************************************************************************/
 
-VIDEO_START_MEMBER(btime_state,btime)
+VIDEO_START_MEMBER(btime_state,disco)
 {
-	if (machine().gfx[0]->srcdata() == NULL)
-		machine().gfx[0]->set_source(m_deco_charram);
-	if (machine().gfx[1]->srcdata() == NULL)
-		machine().gfx[1]->set_source(m_deco_charram);
+	// graphics are in RAM
+	m_gfxdecode->gfx(0)->set_source(m_deco_charram);
+	m_gfxdecode->gfx(1)->set_source(m_deco_charram);
 }
 
 
@@ -131,8 +130,6 @@ VIDEO_START_MEMBER(btime_state,bnj)
 	m_background_bitmap = auto_bitmap_ind16_alloc(machine(), 2 * width, height);
 
 	save_item(NAME(*m_background_bitmap));
-
-	VIDEO_START_CALL_MEMBER(btime);
 }
 
 
@@ -140,7 +137,7 @@ WRITE8_MEMBER(btime_state::btime_paletteram_w)
 {
 	m_paletteram[offset] = data;
 	/* RGB output is inverted */
-	paletteram_BBGGGRRR_byte_w(space, offset, ~data);
+	m_palette->write(space, offset, UINT8(~data));
 }
 
 WRITE8_MEMBER(btime_state::lnc_videoram_w)
@@ -219,10 +216,10 @@ WRITE8_MEMBER(btime_state::deco_charram_w)
 	offset &= 0x1fff;
 
 	/* dirty sprite */
-	machine().gfx[1]->mark_dirty(offset >> 5);
+	m_gfxdecode->gfx(1)->mark_dirty(offset >> 5);
 
 	/* diry char */
-	machine().gfx[0]->mark_dirty(offset >> 3);
+	m_gfxdecode->gfx(0)->mark_dirty(offset >> 3);
 }
 
 WRITE8_MEMBER(btime_state::bnj_background_w)
@@ -310,7 +307,7 @@ void btime_state::draw_chars( bitmap_ind16 &bitmap, const rectangle &cliprect, U
 			y = 33 - y;
 		}
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 				code,
 				color,
 				flip_screen(),flip_screen(),
@@ -351,7 +348,7 @@ void btime_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, 
 
 		y = y - sprite_y_adjust;
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				sprite_ram[offs + interleave],
 				color,
 				flipx,flipy,
@@ -360,7 +357,7 @@ void btime_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, 
 		y = y + (flip_screen() ? -256 : 256);
 
 		// Wrap around
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				sprite_ram[offs + interleave],
 				color,
 				flipx,flipy,
@@ -398,7 +395,7 @@ void btime_state::draw_background( bitmap_ind16 &bitmap, const rectangle &clipre
 				y = 256 - y;
 			}
 
-			drawgfx_opaque(bitmap, cliprect,machine().gfx[2],
+			m_gfxdecode->gfx(2)->opaque(bitmap,cliprect,
 					gfx[tileoffset + offs],
 					color,
 					flip_screen(),flip_screen(),
@@ -494,7 +491,7 @@ UINT32 btime_state::screen_update_bnj(screen_device &screen, bitmap_ind16 &bitma
 				sy = 256 - sy;
 			}
 
-			drawgfx_opaque(*m_background_bitmap, m_background_bitmap->cliprect(), machine().gfx[2],
+			m_gfxdecode->gfx(2)->opaque(*m_background_bitmap,m_background_bitmap->cliprect(),
 					(m_bnj_backgroundram[offs] >> 4) + ((offs & 0x80) >> 3) + 32,
 					0,
 					flip_screen(), flip_screen(),
@@ -540,7 +537,7 @@ UINT32 btime_state::screen_update_cookrace(screen_device &screen, bitmap_ind16 &
 			sy = 33 - sy;
 		}
 
-		drawgfx_opaque(bitmap, cliprect, machine().gfx[2],
+		m_gfxdecode->gfx(2)->opaque(bitmap,cliprect,
 				m_bnj_backgroundram[offs],
 				0,
 				flip_screen(), flip_screen(),

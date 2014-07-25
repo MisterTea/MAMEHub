@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic
 /***************************************************************************
 
         UT88 driver by Miodrag Milanovic
@@ -173,15 +175,6 @@ static INPUT_PORTS_START( ut88mini )
 	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYPAD) PORT_NAME("Backspace") PORT_CODE(KEYCODE_BACKSPACE)
 INPUT_PORTS_END
 
-static const cassette_interface ut88_cassette_interface =
-{
-	rku_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED),
-	"ut88_cass",
-	NULL
-};
-
 /* Machine driver */
 static MACHINE_CONFIG_START( ut88, ut88_state )
 	/* basic machine hardware */
@@ -198,9 +191,10 @@ static MACHINE_CONFIG_START( ut88, ut88_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 64*8-1, 0, 28*8-1)
 	MCFG_VIDEO_START_OVERRIDE(ut88_state,ut88)
 	MCFG_SCREEN_UPDATE_DRIVER(ut88_state, screen_update_ut88)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
-	MCFG_GFXDECODE( ut88 )
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ut88 )
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -210,8 +204,16 @@ static MACHINE_CONFIG_START( ut88, ut88_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* Devices */
-	MCFG_I8255A_ADD( "ppi8255", ut88_ppi8255_interface )
-	MCFG_CASSETTE_ADD( "cassette", ut88_cassette_interface )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(ut88_state, ut88_8255_porta_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(ut88_state, ut88_8255_portb_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(ut88_state, ut88_8255_portc_r))
+
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(rku_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
+	MCFG_CASSETTE_INTERFACE("ut88_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","ut88")
 MACHINE_CONFIG_END
 
@@ -230,7 +232,12 @@ static MACHINE_CONFIG_START( ut88mini, ut88_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_CASSETTE_ADD( "cassette", ut88_cassette_interface )
+
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(rku_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
+	MCFG_CASSETTE_INTERFACE("ut88_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","ut88")
 MACHINE_CONFIG_END
 

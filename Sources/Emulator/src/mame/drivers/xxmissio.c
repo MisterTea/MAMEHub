@@ -99,7 +99,7 @@ static ADDRESS_MAP_START( map1, AS_PROGRAM, 8, xxmissio_state )
 	AM_RANGE(0xc800, 0xcfff) AM_READWRITE(xxmissio_bgram_r, xxmissio_bgram_w) AM_SHARE("bgram")
 	AM_RANGE(0xd000, 0xd7ff) AM_RAM AM_SHARE("spriteram")
 
-	AM_RANGE(0xd800, 0xdaff) AM_SHARE("paletteram") AM_RAM_WRITE(xxmissio_paletteram_w)
+	AM_RANGE(0xd800, 0xdaff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 
 	AM_RANGE(0xe000, 0xefff) AM_SHARE("share5") AM_RAM
 	AM_RANGE(0xf000, 0xffff) AM_SHARE("share6") AM_RAM
@@ -124,7 +124,7 @@ static ADDRESS_MAP_START( map2, AS_PROGRAM, 8, xxmissio_state )
 	AM_RANGE(0xc800, 0xcfff) AM_SHARE("bgram") AM_READWRITE(xxmissio_bgram_r, xxmissio_bgram_w)
 	AM_RANGE(0xd000, 0xd7ff) AM_SHARE("spriteram") AM_RAM
 
-	AM_RANGE(0xd800, 0xdaff) AM_SHARE("paletteram") AM_RAM_WRITE(xxmissio_paletteram_w)
+	AM_RANGE(0xd800, 0xdaff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 
 	AM_RANGE(0xe000, 0xefff) AM_SHARE("share6") AM_RAM
 	AM_RANGE(0xf000, 0xffff) AM_SHARE("share5") AM_RAM
@@ -253,26 +253,6 @@ GFXDECODE_END
 
 /****************************************************************************/
 
-static const ay8910_interface ay8910_config_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface ay8910_config_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(xxmissio_state, xxmissio_scroll_x_w),
-	DEVCB_DRIVER_MEMBER(xxmissio_state, xxmissio_scroll_y_w)
-};
-
 static MACHINE_CONFIG_START( xxmissio, xxmissio_state )
 
 	/* basic machine hardware */
@@ -294,23 +274,27 @@ static MACHINE_CONFIG_START( xxmissio, xxmissio_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 4*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(xxmissio_state, screen_update_xxmissio)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(xxmissio)
-	MCFG_PALETTE_LENGTH(768)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", xxmissio)
+	MCFG_PALETTE_ADD("palette", 768)
+	MCFG_PALETTE_FORMAT(BBGGRRII)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 12000000/8)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config_1)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)
 	MCFG_SOUND_ROUTE(3, "mono", 0.40)
 
 	MCFG_SOUND_ADD("ym2", YM2203, 12000000/8)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config_2)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(xxmissio_state, xxmissio_scroll_x_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(xxmissio_state, xxmissio_scroll_y_w))
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)

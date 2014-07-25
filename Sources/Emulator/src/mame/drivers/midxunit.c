@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     Midway X-unit system
@@ -111,7 +113,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, midxunit_state )
 	AM_RANGE(0x80c00000, 0x80c000ff) AM_READWRITE(midxunit_uart_r, midxunit_uart_w)
 	AM_RANGE(0xa0440000, 0xa047ffff) AM_READWRITE(midxunit_cmos_r, midxunit_cmos_w) AM_SHARE("nvram")
 	AM_RANGE(0xa0800000, 0xa08fffff) AM_READWRITE(midxunit_paletteram_r, midxunit_paletteram_w) AM_SHARE("paletteram")
-	AM_RANGE(0xc0000000, 0xc00003ff) AM_READWRITE_LEGACY(tms34020_io_register_r, tms34020_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00003ff) AM_DEVREADWRITE("maincpu", tms34020_device, io_register_r, io_register_w)
 	AM_RANGE(0xc0c00000, 0xc0c000ff) AM_MIRROR(0x00400000) AM_READWRITE(midtunit_dma_r, midtunit_dma_w)
 	AM_RANGE(0xf8000000, 0xfeffffff) AM_READ(midwunit_gfxrom_r)
 	AM_RANGE(0xff000000, 0xffffffff) AM_ROM AM_REGION("maincpu", 0)
@@ -237,7 +239,7 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static const tms34010_config tms_config =
+static const tms340x0_config tms_config =
 {
 	FALSE,                          /* halt on reset */
 	"screen",                       /* the screen operated on */
@@ -262,22 +264,27 @@ static MACHINE_CONFIG_START( midxunit, midxunit_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", TMS34020, 40000000)
-	MCFG_CPU_CONFIG(tms_config)
+	MCFG_TMS340X0_CONFIG(tms_config)
 	MCFG_CPU_PROGRAM_MAP(main_map)
 
 	MCFG_MACHINE_RESET_OVERRIDE(midxunit_state,midxunit)
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD("palette", 32768)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 505, 0, 399, 289, 0, 253)
 	MCFG_SCREEN_UPDATE_DEVICE("maincpu", tms34010_device, tms340x0_ind16)
+	MCFG_SCREEN_PALETTE("palette")
 	MCFG_VIDEO_START_OVERRIDE(midxunit_state,midxunit)
 
+	MCFG_DEVICE_ADD("serial_pic", MIDWAY_SERIAL_PIC, 0)
+	/* serial prefixes 419, 420 */
+	MCFG_MIDWAY_SERIAL_PIC_UPPER(419);
+
 	/* sound hardware */
-	MCFG_FRAGMENT_ADD(dcs_audio_2k_uart)
+	MCFG_DEVICE_ADD("dcs", DCS_AUDIO_2K_UART, 0)
 MACHINE_CONFIG_END
 
 

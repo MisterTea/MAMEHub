@@ -3,7 +3,7 @@
 
 #include "emu.h"
 #include "includes/n64.h"
-#include "video/polynew.h"
+#include "video/poly.h"
 #include "video/rdpblend.h"
 #include "video/rdptpipe.h"
 
@@ -74,7 +74,7 @@
 #define RREADIDX32(in) ((rdp_range_check((in) << 2)) ? 0 : rdram[(in)])
 
 #define RWRITEADDR8(in, val)    if(rdp_range_check((in))) { printf("Write8: Address %08x out of range!\n", (in)); fflush(stdout); fatalerror("Address %08x out of range!\n", (in)); } else { ((UINT8*)rdram)[(in) ^ BYTE_ADDR_XOR] = val;}
-#define RWRITEIDX16(in, val)    if(rdp_range_check((in) << 1)) { printf("Write16: Address %08x out of range!\n", (in) << 1); fflush(stdout); fatalerror("Address %08x out of range!\n", (in) << 1); } else { ((UINT16*)rdram)[(in) ^ WORD_ADDR_XOR] = val;}
+#define RWRITEIDX16(in, val)    if(rdp_range_check((in) << 1)) { printf("Write16: Address %08x out of range!\n", ((object.MiscState.FBAddress >> 1) + curpixel) << 1); fflush(stdout); fatalerror("Address out of range\n"); } else { ((UINT16*)rdram)[(in) ^ WORD_ADDR_XOR] = val;}
 #define RWRITEIDX32(in, val)    if(rdp_range_check((in) << 2)) { printf("Write32: Address %08x out of range!\n", (in) << 2); fflush(stdout); fatalerror("Address %08x out of range!\n", (in) << 2); } else { rdram[(in)] = val;}
 #else
 #define RREADADDR8(in) (((UINT8*)rdram)[(in) ^ BYTE_ADDR_XOR])
@@ -89,10 +89,6 @@
 #define U_RREADADDR8(in) (((UINT8*)rdram)[(in) ^ BYTE_ADDR_XOR])
 #define U_RREADIDX16(in) (((UINT16*)rdram)[(in) ^ WORD_ADDR_XOR])
 #define U_RREADIDX32(in) (rdram[(in)])
-
-#define U_RWRITEADDR8(in, val)  ((UINT8*)rdram)[(in) ^ BYTE_ADDR_XOR] = val;
-#define U_RWRITEIDX16(in, val)  ((UINT16*)rdram)[(in) ^ WORD_ADDR_XOR] = val;
-#define U_RWRITEIDX32(in, val)  rdram[(in)] = val
 
 #define GETLOWCOL(x)    (((x) & 0x3e) << 2)
 #define GETMEDCOL(x)    (((x) & 0x7c0) >> 3)
@@ -462,8 +458,6 @@ class n64_rdp : public poly_manager<UINT32, rdp_poly_state, 8, 32000>
 		// Color Combiner
 		INT32       ColorCombinerEquation(INT32 a, INT32 b, INT32 c, INT32 d);
 		INT32       AlphaCombinerEquation(INT32 a, INT32 b, INT32 c, INT32 d);
-		void        ColorCombiner2Cycle(rdp_span_aux *userdata);
-		void        ColorCombiner1Cycle(rdp_span_aux *userdata);
 		void        SetSubAInputRGB(UINT8 **input_r, UINT8 **input_g, UINT8 **input_b, int code, rdp_span_aux *userdata);
 		void        SetSubBInputRGB(UINT8 **input_r, UINT8 **input_g, UINT8 **input_b, int code, rdp_span_aux *userdata);
 		void        SetMulInputRGB(UINT8 **input_r, UINT8 **input_g, UINT8 **input_b, int code, rdp_span_aux *userdata);
@@ -508,7 +502,7 @@ class n64_rdp : public poly_manager<UINT32, rdp_poly_state, 8, 32000>
 		const UINT8*    GetMagicMatrix() const { return s_magic_matrix; }
 		int             GetCurrFIFOIndex() const { return m_cmd_cur; }
 
-		void            ZStore(UINT32 zcurpixel, UINT32 dzcurpixel, UINT32 z, UINT32 enc);
+		void            ZStore(const rdp_poly_state &object, UINT32 zcurpixel, UINT32 dzcurpixel, UINT32 z, UINT32 enc);
 		UINT32          ZDecompress(UINT32 zcurpixel);
 		UINT32          DZDecompress(UINT32 zcurpixel, UINT32 dzcurpixel);
 		UINT32          DZCompress(UINT32 value);
@@ -565,8 +559,6 @@ class n64_rdp : public poly_manager<UINT32, rdp_poly_state, 8, 32000>
 		UINT32      AddLeftCvg(UINT32 x, UINT32 k);
 
 		void        GetDitherValues(int x, int y, int* cdith, int* adith, const rdp_poly_state &object);
-
-		UINT32*         GetSpecial9BitClampTable() { return m_special_9bit_clamptable; }
 
 		UINT16 decompress_cvmask_frombyte(UINT8 x);
 		void lookup_cvmask_derivatives(UINT32 mask, UINT8* offx, UINT8* offy, rdp_span_aux *userdata);
@@ -669,7 +661,7 @@ class n64_rdp : public poly_manager<UINT32, rdp_poly_state, 8, 32000>
 		INT32 m_gamma_table[256];
 		INT32 m_gamma_dither_table[0x4000];
 
-		UINT32 m_special_9bit_clamptable[512];
+		static UINT32 s_special_9bit_clamptable[512];
 
 		Writer              _Write[16];
 		Reader              _Read[4];

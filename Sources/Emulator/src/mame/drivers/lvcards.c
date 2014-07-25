@@ -69,7 +69,6 @@ TODO:
 - CPU speed/ YM2149 frequencies
 - Input ports need to be cleaned up
 - NVRAM does not work for lvcards?
-- AGEMAME marks lvpoker/ponttekh as GAME_SUPPORTS_SAVE, needs checking.
 
 ***************************************************************************/
 
@@ -448,17 +447,6 @@ GFXDECODE_END
 
 /* Sound Interfaces */
 
-static const ay8910_interface lcay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW0"),
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( lvcards, lvcards_state )
 	// basic machine hardware
 	MCFG_CPU_ADD("maincpu",Z80, 18432000/6) // 3.072 MHz ?
@@ -475,16 +463,18 @@ static MACHINE_CONFIG_START( lvcards, lvcards_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8*0, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(lvcards_state, screen_update_lvcards)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(lvcards)
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lvcards)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(lvcards_state, lvcards)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 18432000/12)
-	MCFG_SOUND_CONFIG(lcay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW0"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -507,7 +497,8 @@ static MACHINE_CONFIG_DERIVED( ponttehk, lvcards )
 	MCFG_MACHINE_RESET_OVERRIDE(lvcards_state,lvpoker)
 
 	// video hardware
-	MCFG_PALETTE_INIT_OVERRIDE(lvcards_state,ponttehk)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(lvcards_state,ponttehk)
 MACHINE_CONFIG_END
 
 ROM_START( lvpoker )

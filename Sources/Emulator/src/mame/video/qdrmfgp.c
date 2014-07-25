@@ -8,14 +8,12 @@
 #include "includes/qdrmfgp.h"
 
 
-
-void qdrmfgp_tile_callback(running_machine &machine, int layer, int *code, int *color, int *flags)
+K056832_CB_MEMBER(qdrmfgp_state::qdrmfgp_tile_callback)
 {
-	qdrmfgp_state *state = machine.driver_data<qdrmfgp_state>();
-	*color = ((*color>>2) & 0x0f) | state->m_pal;
+	*color = ((*color>>2) & 0x0f) | m_pal;
 }
 
-void qdrmfgp2_tile_callback(running_machine &machine, int layer, int *code, int *color, int *flags)
+K056832_CB_MEMBER(qdrmfgp_state::qdrmfgp2_tile_callback)
 {
 	*color = (*color>>1) & 0x7f;
 }
@@ -54,7 +52,7 @@ VIDEO_START_MEMBER(qdrmfgp_state,qdrmfgp2)
 
 UINT32 qdrmfgp_state::screen_update_qdrmfgp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	m_k056832->tilemap_draw(screen, bitmap, cliprect, 3, 0, 1);
 	m_k056832->tilemap_draw(screen, bitmap, cliprect, 2, 0, 2);

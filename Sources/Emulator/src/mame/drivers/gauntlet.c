@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari Gauntlet hardware
@@ -305,7 +307,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, gauntlet_state )
 	AM_RANGE(0x905f6e, 0x905f6f) AM_MIRROR(0x2c8000) AM_RAM_WRITE(gauntlet_yscroll_w) AM_SHARE("yscroll")
 	AM_RANGE(0x905000, 0x905f7f) AM_MIRROR(0x2c8000) AM_RAM_DEVWRITE("alpha", tilemap_device, write) AM_SHARE("alpha")
 	AM_RANGE(0x905f80, 0x905fff) AM_MIRROR(0x2c8000) AM_RAM AM_SHARE("mob:slip")
-	AM_RANGE(0x910000, 0x9107ff) AM_MIRROR(0x2cf800) AM_RAM_WRITE(paletteram_IIIIRRRRGGGGBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x910000, 0x9107ff) AM_MIRROR(0x2cf800) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x930000, 0x930001) AM_MIRROR(0x2cfffe) AM_WRITE(gauntlet_xscroll_w) AM_SHARE("xscroll")
 ADDRESS_MAP_END
 
@@ -506,19 +508,23 @@ static MACHINE_CONFIG_START( gauntlet, gauntlet_state )
 	MCFG_ATARI_EEPROM_2804_ADD("eeprom")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_GFXDECODE(gauntlet)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", gauntlet)
 
-	MCFG_TILEMAP_ADD_STANDARD("playfield", 2, gauntlet_state, get_playfield_tile_info, 8,8, SCAN_COLS, 64,64)
-	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", 2, gauntlet_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,32, 0)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(IIIIRRRRGGGGBBBB)
+
+	MCFG_TILEMAP_ADD_STANDARD("playfield", "gfxdecode", 2, gauntlet_state, get_playfield_tile_info, 8,8, SCAN_COLS, 64,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", "gfxdecode", 2, gauntlet_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,32, 0)
 	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", gauntlet_state::s_mob_config)
+	MCFG_ATARI_MOTION_OBJECTS_GFXDECODE("gfxdecode")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	/* note: these parameters are from published specs, not derived */
 	/* the board uses a SYNGEN chip to generate video signals */
 	MCFG_SCREEN_RAW_PARAMS(ATARI_CLOCK_14MHz/2, 456, 0, 336, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(gauntlet_state, screen_update_gauntlet)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(gauntlet_state,gauntlet)
 
@@ -530,7 +536,7 @@ static MACHINE_CONFIG_START( gauntlet, gauntlet_state )
 	MCFG_SOUND_ROUTE(1, "lspeaker", 0.48)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.48)
 
-	MCFG_POKEY_ADD("pokey", ATARI_CLOCK_14MHz/8)
+	MCFG_SOUND_ADD("pokey", POKEY, ATARI_CLOCK_14MHz/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.32)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.32)
 
@@ -1657,7 +1663,7 @@ DRIVER_INIT_MEMBER(gauntlet_state,gauntlet2)
 DRIVER_INIT_MEMBER(gauntlet_state,vindctr2)
 {
 	UINT8 *gfx2_base = memregion("gfx2")->base();
-	UINT8 *data = auto_alloc_array(machine(), UINT8, 0x8000);
+	dynamic_buffer data(0x8000);
 	int i;
 
 	common_init(118, 1);
@@ -1671,7 +1677,6 @@ DRIVER_INIT_MEMBER(gauntlet_state,vindctr2)
 		int srcoffs = (i & 0x4000) | ((i << 11) & 0x3800) | ((i >> 3) & 0x07ff);
 		gfx2_base[0x88000 + i] = data[srcoffs];
 	}
-	auto_free(machine(), data);
 }
 
 

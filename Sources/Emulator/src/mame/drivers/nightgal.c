@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, David Haywood
 /*******************************************************************************************
 
 Night Gal (c) 1984 Nichibutsu
@@ -54,7 +56,8 @@ public:
 		m_io_sysa(*this, "SYSA"),
 		m_io_dswa(*this, "DSWA"),
 		m_io_dswb(*this, "DSWB"),
-		m_io_dswc(*this, "DSWC") { }
+		m_io_dswc(*this, "DSWC"),
+		m_palette(*this, "palette") { }
 
 	/* video-related */
 	UINT8 m_blit_raw_data[3];
@@ -101,7 +104,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(nightgal);
 	UINT32 screen_update_nightgal(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 protected:
@@ -125,6 +128,7 @@ protected:
 	required_ioport m_io_dswa;
 	required_ioport m_io_dswb;
 	required_ioport m_io_dswc;
+	required_device<palette_device> m_palette;
 
 	UINT8 nightgal_gfx_nibble( int niboffset );
 	void plot_nightgal_gfx_pixel( UINT8 pix, int x, int y );
@@ -154,8 +158,8 @@ UINT32 nightgal_state::screen_update_nightgal(screen_device &screen, bitmap_ind1
 		for (x = cliprect.min_x; x <= cliprect.max_x; x += 2)
 		{
 			UINT32 srcpix = *src++;
-			*dst++ = machine().pens[srcpix & 0xf];
-			*dst++ = machine().pens[(srcpix >> 4) & 0xf];
+			*dst++ = m_palette->pen(srcpix & 0xf);
+			*dst++ = m_palette->pen((srcpix >> 4) & 0xf);
 		}
 	}
 
@@ -300,7 +304,7 @@ WRITE8_MEMBER(nightgal_state::sexygal_nsc_true_blitter_w)
 }
 
 /* guess: use the same resistor values as Crazy Climber (needs checking on the real HW) */
-void nightgal_state::palette_init()
+PALETTE_INIT_MEMBER(nightgal_state, nightgal)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances_rg[3] = { 1000, 470, 220 };
@@ -314,7 +318,7 @@ void nightgal_state::palette_init()
 			2, resistances_b,  weights_b,  0, 0,
 			0, 0, 0, 0, 0);
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2;
 		int r, g, b;
@@ -336,7 +340,7 @@ void nightgal_state::palette_init()
 		bit1 = BIT(color_prom[i], 7);
 		b = combine_2_weights(weights_b, bit0, bit1);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -863,17 +867,6 @@ static INPUT_PORTS_START( sexygal )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(nightgal_state,input_1p_r),
-	DEVCB_DRIVER_MEMBER(nightgal_state,input_2p_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 void nightgal_state::machine_start()
 {
 	save_item(NAME(m_nsc_latch));
@@ -920,15 +913,17 @@ static MACHINE_CONFIG_START( royalqn, nightgal_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nightgal_state, screen_update_nightgal)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x10)
-
+	MCFG_PALETTE_ADD("palette", 0x10)
+	MCFG_PALETTE_INIT_OWNER(nightgal_state, nightgal)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, MASTER_CLOCK / 8)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(nightgal_state, input_1p_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(nightgal_state, input_2p_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 MACHINE_CONFIG_END
 
@@ -947,7 +942,8 @@ static MACHINE_CONFIG_DERIVED( sexygal, royalqn )
 	MCFG_DEVICE_REMOVE("aysnd")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, MASTER_CLOCK / 8)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(nightgal_state, input_1p_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(nightgal_state, input_2p_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 MACHINE_CONFIG_END
 

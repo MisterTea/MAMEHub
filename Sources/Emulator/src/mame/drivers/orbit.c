@@ -72,7 +72,7 @@ void orbit_state::update_misc_flags(address_space &space, UINT8 val)
 	/* BIT6 => HYPER LED    */
 	/* BIT7 => WARNING SND  */
 
-	discrete_sound_w(m_discrete, space, ORBIT_WARNING_EN, BIT(m_misc_flags, 7));
+	m_discrete->write(space, ORBIT_WARNING_EN, BIT(m_misc_flags, 7));
 
 	set_led_status(machine(), 0, BIT(m_misc_flags, 3));
 	set_led_status(machine(), 1, BIT(m_misc_flags, 6));
@@ -300,10 +300,11 @@ static MACHINE_CONFIG_START( orbit, orbit_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK*2, 384*2, 0, 256*2, 261*2, 0, 240*2)
 	MCFG_SCREEN_UPDATE_DRIVER(orbit_state, screen_update_orbit)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(orbit)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", orbit)
+
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

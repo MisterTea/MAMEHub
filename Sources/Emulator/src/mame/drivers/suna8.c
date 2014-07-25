@@ -210,6 +210,29 @@ DRIVER_INIT_MEMBER(suna8_state,brickznv4)
 }
 
 
+DRIVER_INIT_MEMBER(suna8_state,brickzn11)
+{
+	UINT8   *RAM    =   memregion("maincpu")->base();
+	UINT8   *decrypt =  memregion("maincpu")->base();
+	int i;
+
+	for (i = 0; i < 0x8000; i++)
+	{
+		{
+			decrypt[i] = RAM[i];
+		}
+	}
+
+
+
+	// Data banks: 00-0f normal data decryption, 10-1f alternate data decryption:
+	membank("bank1")->configure_entries(0, 16*2, memregion("maincpu")->base() + 0x10000, 0x4000);
+	// Opcode banks: 00-1f normal opcode decryption:
+	membank("bank1")->configure_decrypted_entries(0, 16, decrypt + 0x10000, 0x4000);
+	membank("bank1")->configure_decrypted_entries(16, 16, decrypt + 0x10000, 0x4000);
+}
+
+
 /***************************************************************************
                                 Hard Head 2
 ***************************************************************************/
@@ -555,7 +578,7 @@ static ADDRESS_MAP_START( hardhead_map, AS_PROGRAM, 8, suna8_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM                             // ROM
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")                        // Banked ROM
 	AM_RANGE(0xc000, 0xd7ff) AM_RAM                             // RAM
-	AM_RANGE(0xd800, 0xd9ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_byte_be_w) AM_SHARE("paletteram") // Palette
+	AM_RANGE(0xd800, 0xd9ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // Palette
 	AM_RANGE(0xda00, 0xda00) AM_RAM_READ(hardhead_ip_r) AM_SHARE("hardhead_ip") // Input Port Select
 	AM_RANGE(0xda80, 0xda80) AM_READ(soundlatch2_byte_r) AM_WRITE(hardhead_bankswitch_w )   // ROM Banking
 	AM_RANGE(0xdb00, 0xdb00) AM_WRITE(soundlatch_byte_w         )   // To Sound CPU
@@ -631,7 +654,7 @@ static ADDRESS_MAP_START( rranger_map, AS_PROGRAM, 8, suna8_state )
 	AM_RANGE(0xc280, 0xc280) AM_WRITENOP    // ? NMI Ack
 	AM_RANGE(0xc280, 0xc280) AM_READ_PORT("DSW1")               // DSW 1
 	AM_RANGE(0xc2c0, 0xc2c0) AM_READ_PORT("DSW2")               // DSW 2
-	AM_RANGE(0xc600, 0xc7ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_byte_be_w) AM_SHARE("paletteram") // Palette
+	AM_RANGE(0xc600, 0xc7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // Palette
 	AM_RANGE(0xc800, 0xdfff) AM_RAM                                                                     // Work RAM
 	AM_RANGE(0xe000, 0xffff) AM_RAM_WRITE(suna8_spriteram_w) AM_SHARE("spriteram")                      // Sprites
 ADDRESS_MAP_END
@@ -926,7 +949,7 @@ static ADDRESS_MAP_START( hardhea2_map, AS_PROGRAM, 8, suna8_state )
 	AM_RANGE(0xc533, 0xc533) AM_WRITE(hardhea2_rambank_0_w )
 	// Protection ***
 
-	AM_RANGE(0xc600, 0xc7ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_byte_be_w) AM_SHARE("paletteram") // Palette
+	AM_RANGE(0xc600, 0xc7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // Palette
 	AM_RANGE(0xc800, 0xdfff) AM_RAMBANK("bank2")                                                        // Work RAM (Banked)
 	AM_RANGE(0xe000, 0xffff) AM_READWRITE(suna8_banked_spriteram_r, suna8_banked_spriteram_w)           // Sprites (Banked)
 ADDRESS_MAP_END
@@ -1030,7 +1053,7 @@ static ADDRESS_MAP_START( starfigh_map, AS_PROGRAM, 8, suna8_state )
 	AM_RANGE(0xc500, 0xc500) AM_WRITE(starfigh_sound_latch_w        )   // To Sound CPU (can be disabled)
 //  (c522 + R & 0x1f) write?
 
-	AM_RANGE(0xc600, 0xc7ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_byte_be_w) AM_SHARE("paletteram") // Palette
+	AM_RANGE(0xc600, 0xc7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // Palette
 	AM_RANGE(0xc800, 0xdfff) AM_RAM                                                                     // Work RAM
 	AM_RANGE(0xe000, 0xffff) AM_READWRITE(suna8_banked_spriteram_r, suna8_banked_spriteram_w)           // Sprites (Banked)
 ADDRESS_MAP_END
@@ -1158,7 +1181,7 @@ static ADDRESS_MAP_START( sparkman_map, AS_PROGRAM, 8, suna8_state )
 	AM_RANGE(0xc480, 0xc480) AM_WRITE(sparkman_coin_counter_w       )   // Coin Counter
 	AM_RANGE(0xc500, 0xc57f) AM_WRITE(starfigh_sound_latch_w        )   // To Sound CPU (can be disabled)
 
-	AM_RANGE(0xc600, 0xc7ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_byte_be_w) AM_SHARE("paletteram") // Palette
+	AM_RANGE(0xc600, 0xc7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // Palette
 	AM_RANGE(0xc800, 0xdfff) AM_RAM_WRITE(suna8_wram_w) AM_SHARE("wram")                        // RAM
 	AM_RANGE(0xe000, 0xffff) AM_READWRITE(suna8_banked_spriteram_r, suna8_banked_spriteram_w)   // Sprites (Banked)
 ADDRESS_MAP_END
@@ -1779,16 +1802,6 @@ WRITE_LINE_MEMBER(suna8_state::soundirq)
 
 /* 1 x 24 MHz crystal */
 
-static const ay8910_interface hardhead_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(suna8_state, suna8_play_samples_w),
-	DEVCB_DRIVER_MEMBER(suna8_state, suna8_samples_number_w)
-};
-
 static const samples_interface suna8_samples_interface =
 {
 	1,
@@ -1816,9 +1829,12 @@ static MACHINE_CONFIG_START( hardhead, suna8_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(suna8_state, screen_update_suna8)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(suna8)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", suna8)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBxxxx)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 
 	MCFG_VIDEO_START_OVERRIDE(suna8_state,suna8_textdim12)
 
@@ -1830,7 +1846,8 @@ static MACHINE_CONFIG_START( hardhead, suna8_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, SUNA8_MASTER_CLOCK / 16)    /* verified on pcb */
-	MCFG_SOUND_CONFIG(hardhead_ay8910_interface)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(suna8_state, suna8_play_samples_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(suna8_state, suna8_samples_number_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.30)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.30)
 
@@ -1846,16 +1863,6 @@ MACHINE_CONFIG_END
 ***************************************************************************/
 
 /* 1 x 24 MHz crystal */
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(suna8_state, rranger_play_samples_w),
-	DEVCB_DRIVER_MEMBER(suna8_state, suna8_samples_number_w),
-};
 
 /* 2203 + 8910 */
 static MACHINE_CONFIG_START( rranger, suna8_state )
@@ -1877,9 +1884,12 @@ static MACHINE_CONFIG_START( rranger, suna8_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(suna8_state, screen_update_suna8)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(suna8)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", suna8)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBxxxx)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 
 	MCFG_VIDEO_START_OVERRIDE(suna8_state,suna8_textdim8)
 
@@ -1887,7 +1897,8 @@ static MACHINE_CONFIG_START( rranger, suna8_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ym1", YM2203, SUNA8_MASTER_CLOCK / 6)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(suna8_state, rranger_play_samples_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(suna8_state, suna8_samples_number_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.90)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.90)
 
@@ -1937,9 +1948,12 @@ static MACHINE_CONFIG_START( brickzn, suna8_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(suna8_state, screen_update_suna8)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(suna8)
-	MCFG_PALETTE_LENGTH(256 * 2)    // 2 x Palette RAM
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", suna8)
+	MCFG_PALETTE_ADD("palette", 256 * 2)    // 2 x Palette RAM
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBxxxx)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 
 	MCFG_VIDEO_START_OVERRIDE(suna8_state,suna8_brickzn)
 
@@ -1999,23 +2013,16 @@ static MACHINE_CONFIG_DERIVED( hardhea2, brickzn )
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", suna8_state, hardhea2_interrupt, "screen", 0, 1)
 
 	MCFG_MACHINE_RESET_OVERRIDE(suna8_state,hardhea2)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(256)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBxxxx)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 MACHINE_CONFIG_END
 
 
 /***************************************************************************
                                 Star Fighter
 ***************************************************************************/
-
-static const ay8910_interface starfigh_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(suna8_state, suna8_play_samples_w),
-	DEVCB_DRIVER_MEMBER(suna8_state, suna8_samples_number_w)
-};
 
 static MACHINE_CONFIG_START( starfigh, suna8_state )
 
@@ -2037,9 +2044,12 @@ static MACHINE_CONFIG_START( starfigh, suna8_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(suna8_state, screen_update_suna8)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(suna8)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", suna8)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBxxxx)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 
 	MCFG_VIDEO_START_OVERRIDE(suna8_state,suna8_starfigh)
 
@@ -2051,7 +2061,8 @@ static MACHINE_CONFIG_START( starfigh, suna8_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, SUNA8_MASTER_CLOCK / 16)
-	MCFG_SOUND_CONFIG(starfigh_ay8910_interface)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(suna8_state, suna8_play_samples_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(suna8_state, suna8_samples_number_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
 
@@ -2084,9 +2095,12 @@ static MACHINE_CONFIG_START( sparkman, suna8_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(suna8_state, screen_update_suna8)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(suna8_x2)    // 2 sprite "chips"
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", suna8_x2)    // 2 sprite "chips"
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBxxxx)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 
 	MCFG_VIDEO_START_OVERRIDE(suna8_state,suna8_sparkman)
 
@@ -2098,7 +2112,8 @@ static MACHINE_CONFIG_START( sparkman, suna8_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, SUNA8_MASTER_CLOCK / 16)
-	MCFG_SOUND_CONFIG(hardhead_ay8910_interface)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(suna8_state, suna8_play_samples_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(suna8_state, suna8_samples_number_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.30)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.30)
 
@@ -2299,8 +2314,37 @@ All versions come with roms simply numbered 1 through 15 even if the data
 ***************************************************************************/
 
 ROM_START( rranger )
+	// Sharp Image License but distributed by CAPCOM U.S.A. Inc.  PCB came with ROM 1 labeled as 01 CAPCOM
+	// PCB have been see with ROM 1 simply labled as 1 in either RED and BLUE print.
 	ROM_REGION( 0x48000, "maincpu", 0 )     /* Main Z80 Code */
-	ROM_LOAD( "1(__rranger).e2", 0x00000, 0x8000, CRC(4fb4f096) SHA1(c5ac3e04080cdcf570769918587e8cf8d455fc30) ) // V 2.0 1988,4,15
+	ROM_LOAD( "01_capcom.e2", 0x00000, 0x8000, CRC(ff1868cf) SHA1(54175111d8e39894ff11a779057f0bc061d63912) ) // V 2.0 1988,4,15
+	ROM_LOAD( "2.f2", 0x10000, 0x8000, CRC(ff65af29) SHA1(90f9a0c862e2a9da0343446a325961ab29d26b4b) )
+	ROM_LOAD( "3.h2", 0x18000, 0x8000, CRC(64e09436) SHA1(077f0d38d489562532d5f7678434a85ca04d373c) )
+	ROM_LOAD( "4.i2", 0x30000, 0x8000, CRC(4346fae6) SHA1(a9f000e4427a1e9902627402dce14dc8ee04dbf8) )
+	ROM_CONTINUE(     0x20000, 0x8000 )
+	ROM_LOAD( "5.j2", 0x38000, 0x8000, CRC(6a7ca1c3) SHA1(0f0b508e9b20909e9efa07b42d67732082b6940b) )
+	ROM_CONTINUE(     0x28000, 0x8000 )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )        /* Sound Z80 Code */
+	ROM_LOAD( "14.j13", 0x0000, 0x8000, CRC(11c83aa1) SHA1(d1f75096528b220a3f858eac62e3b4111fa013de) )
+
+	ROM_REGION( 0x8000, "samples", 0 )  /* Samples */
+	ROM_LOAD( "15.e13", 0x0000, 0x8000, CRC(28c2c87e) SHA1(ec0d92140ef44df822f2229e79b915e051caa033) )
+
+	ROM_REGION( 0x40000, "gfx1", ROMREGION_INVERT ) /* Sprites */
+	ROM_LOAD( "6(__rranger).p5",  0x00000, 0x8000, CRC(57543643) SHA1(59c7717321314678e61b50767e168eb2a73147d3) ) // Sharp Image license
+	ROM_LOAD( "7.p6",   0x08000, 0x8000, CRC(9f35dbfa) SHA1(8a8f158ad7f0bc6b43eaa95959af3ab58cf14d6d) )
+	ROM_LOAD( "8.p7",   0x10000, 0x8000, CRC(f400db89) SHA1(a07b226af40cac5a20739bb8f4226909724fda86) )
+	ROM_LOAD( "9.p8",   0x18000, 0x8000, CRC(fa2a11ea) SHA1(ea29ade1254caa2a3bd4b4816fe338f238025284) )
+	ROM_LOAD( "10(__rranger).p9", 0x20000, 0x8000, CRC(42c4fdbf) SHA1(fd8b267d5098b640e731942b922149866ece1dc6) ) // Sharp Image license
+	ROM_LOAD( "11.p10", 0x28000, 0x8000, CRC(19037a7b) SHA1(a6843b0220bab5c47307a0c761d5bd638716aef0) )
+	ROM_LOAD( "12.p11", 0x30000, 0x8000, CRC(c59c0ec7) SHA1(80003f3e33610a84f6e194918276d5f60145b00e) )
+	ROM_LOAD( "13.p12", 0x38000, 0x8000, CRC(9809fee8) SHA1(b7e0664702d0c1f77247d7c76a381b24687a09ea) )
+ROM_END
+
+ROM_START( rrangerb ) // protection is patched out in this set.
+	ROM_REGION( 0x48000, "maincpu", 0 )     /* Main Z80 Code */
+	ROM_LOAD( "1(__rrangerb).e2", 0x00000, 0x8000, CRC(4fb4f096) SHA1(c5ac3e04080cdcf570769918587e8cf8d455fc30) ) // V 2.0 1988,4,15
 	ROM_LOAD( "2.f2", 0x10000, 0x8000, CRC(ff65af29) SHA1(90f9a0c862e2a9da0343446a325961ab29d26b4b) )
 	ROM_LOAD( "3.h2", 0x18000, 0x8000, CRC(64e09436) SHA1(077f0d38d489562532d5f7678434a85ca04d373c) )
 	ROM_LOAD( "4.i2", 0x30000, 0x8000, CRC(4346fae6) SHA1(a9f000e4427a1e9902627402dce14dc8ee04dbf8) )
@@ -2534,7 +2578,26 @@ ROM_START( brickznv4 )
 	ROM_LOAD( "brickzon.006", 0xa0000, 0x20000, CRC(bbf31081) SHA1(1fdbd0e0853082345225e18df340184a7a604b78) )
 ROM_END
 
+ROM_START( brickzn11 )
+	ROM_REGION( 0x50000 + 0x40000, "maincpu", 0 )       /* Main Z80 Code */
+	ROM_LOAD( "9.bin", 0x00000, 0x08000, CRC(24f88cfd) SHA1(dfa7313ab6696042bab2e6cc8ff97b331d526c6b) )
+	ROM_LOAD( "8.bin", 0x10000, 0x20000, CRC(e2c7f7ac) SHA1(43377daf6957829ef9bb7a81708c2f18f5d7ced6) )
+	ROM_LOAD( "7.bin", 0x30000, 0x20000, CRC(7af5b25c) SHA1(9e98e99bdc5be1602144c83f40b2ccf6b90a729a) )
 
+	ROM_REGION( 0x10000, "audiocpu", 0 )        /* Music Z80 Code */
+	ROM_LOAD( "10.bin", 0x00000, 0x10000, CRC(494adf0f) SHA1(eb28ccf0c5f38c2299f55e379ff73ba84bb793c6) )
+
+	ROM_REGION( 0x10000, "pcm", 0 )     /* PCM Z80 Code */
+	ROM_LOAD( "11.bin", 0x00000, 0x10000, CRC(6c54161a) SHA1(ea216d9f45b441acd56b9fed81a83e3bfe299fbd) )
+
+	ROM_REGION( 0xc0000, "gfx1", ROMREGION_INVERT ) /* Sprites */
+	ROM_LOAD( "5.bin", 0x00000, 0x20000, CRC(e9f73ba1) SHA1(4b5e294ae160ba3ca28b8956a797330234ace576) )
+	ROM_LOAD( "4.bin", 0x20000, 0x20000, CRC(2be5f335) SHA1(dc870a3c5303cb2ea1fea4a25f53db016ed5ecee) )
+	ROM_LOAD( "3.bin", 0x40000, 0x20000, CRC(2e4f194b) SHA1(86da1a582ea274f2af96d3e3e2ac72bcaf3638cb) )
+	ROM_LOAD( "2.bin", 0x60000, 0x20000, CRC(0e994fbf) SHA1(62e059a5ca5f7199e597841f94519a466affe098) )
+	ROM_LOAD( "1.bin", 0x80000, 0x20000, CRC(6970ada9) SHA1(5cfe5dcf25af7aff67ee5d78eb963d598251025f) )
+	ROM_LOAD( "6.bin", 0xa0000, 0x20000, CRC(bbf31081) SHA1(1fdbd0e0853082345225e18df340184a7a604b78) )
+ROM_END
 
 /***************************************************************************
 
@@ -2776,12 +2839,13 @@ DRIVER_INIT_MEMBER(suna8_state,suna8)
 	membank("bank1")->configure_entries(0, 16, memregion("maincpu")->base() + 0x10000, 0x4000);
 }
 
-GAME( 1988, sranger,   0,        rranger,  rranger,  suna8_state, suna8,     ROT0,  "SunA",                       "Super Ranger (v2.0)",                        0 )
-GAME( 1988, rranger,   sranger,  rranger,  rranger,  suna8_state, suna8,     ROT0,  "SunA (Sharp Image license)", "Rough Ranger (v2.0, unprotected, bootleg?)", 0 ) // protection is patched out in this.
-GAME( 1988, srangero,  sranger,  rranger,  rranger,  suna8_state, suna8,     ROT0,  "SunA",                       "Super Ranger (older)",                       0 )
-GAME( 1988, srangern,  sranger,  rranger,  rranger,  suna8_state, suna8,     ROT0,  "SunA (NOVA license)",        "Super Ranger (older, NOVA license)",         0 )
-GAME( 1988, srangerw,  sranger,  rranger,  rranger,  suna8_state, suna8,     ROT0,  "SunA (WDK license)",         "Super Ranger (older, WDK license)",          0 )
-GAME( 1988, srangerb,  sranger,  rranger,  rranger,  suna8_state, suna8,     ROT0,  "bootleg (NYWA)",             "Super Ranger (older, bootleg)",              0 )
+GAME( 1988, sranger,   0,        rranger,  rranger,  suna8_state, suna8,     ROT0,  "SunA",                       "Super Ranger (v2.0)",                0 )
+GAME( 1988, rranger,   sranger,  rranger,  rranger,  suna8_state, suna8,     ROT0,  "SunA (Sharp Image license)", "Rough Ranger (v2.0)",                0 )
+GAME( 1988, rrangerb,  sranger,  rranger,  rranger,  suna8_state, suna8,     ROT0,  "bootleg",                    "Rough Ranger (v2.0, bootleg)",       0 )
+GAME( 1988, srangero,  sranger,  rranger,  rranger,  suna8_state, suna8,     ROT0,  "SunA",                       "Super Ranger (older)",               0 )
+GAME( 1988, srangern,  sranger,  rranger,  rranger,  suna8_state, suna8,     ROT0,  "SunA (NOVA license)",        "Super Ranger (older, NOVA license)", 0 )
+GAME( 1988, srangerw,  sranger,  rranger,  rranger,  suna8_state, suna8,     ROT0,  "SunA (WDK license)",         "Super Ranger (older, WDK license)",  0 )
+GAME( 1988, srangerb,  sranger,  rranger,  rranger,  suna8_state, suna8,     ROT0,  "bootleg (NYWA)",             "Super Ranger (older, bootleg)",      0 )
 
 GAME( 1988, hardhead,  0,        hardhead, hardhead, suna8_state, hardhead,  ROT0,  "SunA",                       "Hard Head",                   0 )
 GAME( 1988, hardheadb, hardhead, hardhead, hardhead, suna8_state, hardhedb,  ROT0,  "bootleg",                    "Hard Head (bootleg)",         0 )
@@ -2796,3 +2860,4 @@ GAME( 1991, hardhea2,  0,        hardhea2, hardhea2, suna8_state, hardhea2,  ROT
 
 GAME( 1992, brickzn,   0,        brickzn,  brickzn,  suna8_state, brickzn,   ROT90, "SunA",                       "Brick Zone (v5.0, Joystick)", 0 )
 GAME( 1992, brickznv4, brickzn,  brickzn,  brickzn,  suna8_state, brickznv4, ROT90, "SunA",                       "Brick Zone (v4.0, Spinner)",  0 )
+GAME( 1992, brickzn11, brickzn,  brickzn,  brickzn,  suna8_state, brickzn11, ROT90, "SunA",                       "Brick Zone (v1.1)",  GAME_NOT_WORKING )

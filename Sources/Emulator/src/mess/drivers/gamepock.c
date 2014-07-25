@@ -42,9 +42,6 @@ static INPUT_PORTS_START( gamepock )
 INPUT_PORTS_END
 
 
-static const UPD7810_CONFIG gamepock_cpu_config = { TYPE_78C06, gamepock_io_callback };
-
-
 DEVICE_IMAGE_LOAD_MEMBER(gamepock_state,gamepock_cart) {
 	UINT8 *cart = memregion("user1" )->base();
 
@@ -69,18 +66,18 @@ static MACHINE_CONFIG_START( gamepock, gamepock_state )
 	MCFG_CPU_ADD("maincpu", UPD78C06, XTAL_6MHz)    /* uPD78C06AG */
 	MCFG_CPU_PROGRAM_MAP( gamepock_mem)
 	MCFG_CPU_IO_MAP( gamepock_io)
-	MCFG_CPU_CONFIG( gamepock_cpu_config )
+	MCFG_UPD7810_TO(WRITELINE(gamepock_state,gamepock_to_w))
 
 	MCFG_SCREEN_ADD("screen", LCD)
 	MCFG_SCREEN_REFRESH_RATE( 60 )
 	MCFG_SCREEN_SIZE( 75, 64 )
 	MCFG_SCREEN_VISIBLE_AREA( 0, 74, 0, 63 )
 	MCFG_SCREEN_UPDATE_DRIVER(gamepock_state, screen_update_gamepock)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 
-	MCFG_PALETTE_LENGTH( 2 )
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

@@ -21,8 +21,7 @@
 TILE_GET_INFO_MEMBER(bloodbro_state::get_bg_tile_info)
 {
 	int code = m_bgvideoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code & 0xfff,
 			(code >> 12),
 			0);
@@ -31,8 +30,7 @@ TILE_GET_INFO_MEMBER(bloodbro_state::get_bg_tile_info)
 TILE_GET_INFO_MEMBER(bloodbro_state::get_fg_tile_info)
 {
 	int code = m_fgvideoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			2,
+	SET_TILE_INFO_MEMBER(2,
 			(code & 0xfff)+0x1000,
 			(code >> 12),
 			0);
@@ -41,8 +39,7 @@ TILE_GET_INFO_MEMBER(bloodbro_state::get_fg_tile_info)
 TILE_GET_INFO_MEMBER(bloodbro_state::get_tx_tile_info)
 {
 	int code = m_txvideoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code & 0xfff,
 			code >> 12,
 			0);
@@ -58,9 +55,9 @@ TILE_GET_INFO_MEMBER(bloodbro_state::get_tx_tile_info)
 
 void bloodbro_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bloodbro_state::get_bg_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,16);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bloodbro_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,16);
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bloodbro_state::get_tx_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8,32,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bloodbro_state::get_bg_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,16);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bloodbro_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,16);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bloodbro_state::get_tx_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8,32,32);
 
 	m_fg_tilemap->set_transparent_pen(15);
 	m_tx_tilemap->set_transparent_pen(15);
@@ -170,7 +167,7 @@ void bloodbro_state::bloodbro_draw_sprites(screen_device &screen, bitmap_ind16 &
 		{
 			for (y = 0;y <= height;y++)
 			{
-				pdrawgfx_transpen(bitmap,cliprect,machine().gfx[3],
+				m_gfxdecode->gfx(3)->prio_transpen(bitmap,cliprect,
 						tile_number++,
 						color,
 						flipx,flipy,
@@ -215,7 +212,7 @@ void bloodbro_state::weststry_draw_sprites(screen_device &screen, bitmap_ind16 &
 		/* Remap code 0x800 <-> 0x1000 */
 		code = (code&0x7ff) | ((code&0x800)<<1) | ((code&0x1000)>>1);
 
-		pdrawgfx_transpen(bitmap,cliprect,machine().gfx[3],
+		m_gfxdecode->gfx(3)->prio_transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,

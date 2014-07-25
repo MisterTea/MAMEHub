@@ -1,28 +1,27 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __P500__
 #define __P500__
 
 #include "emu.h"
+#include "bus/cbm2/exp.h"
+#include "bus/cbm2/user.h"
+#include "bus/ieee488/ieee488.h"
+#include "bus/pet/cass.h"
+#include "bus/vcs/ctrl.h"
 #include "cpu/m6502/m6509.h"
 #include "cpu/i86/i86.h"
 #include "machine/cbm_snqk.h"
-#include "includes/cbm.h"
 #include "machine/6525tpi.h"
-#include "machine/cbm2exp.h"
-#include "machine/cbm2user.h"
-#include "machine/cbmipt.h"
 #include "machine/ds75160a.h"
 #include "machine/ds75161a.h"
-#include "machine/ieee488.h"
 #include "machine/mos6526.h"
 #include "machine/mos6551.h"
-#include "machine/petcass.h"
 #include "machine/pic8259.h"
 #include "machine/pla.h"
 #include "machine/ram.h"
-#include "machine/serial.h"
-#include "machine/vcsctrl.h"
 #include "sound/dac.h"
 #include "sound/mos6581.h"
 #include "video/mc6845.h"
@@ -60,6 +59,7 @@ public:
 			m_maincpu(*this, M6509_TAG),
 			m_pla1(*this, PLA1_TAG),
 			m_crtc(*this, MC68B45_TAG),
+			m_palette(*this, "palette"),
 			m_sid(*this, MOS6581_TAG),
 			m_tpi1(*this, MOS6525_1_TAG),
 			m_tpi2(*this, MOS6525_2_TAG),
@@ -115,6 +115,7 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<pls100_device> m_pla1;
 	optional_device<mc6845_device> m_crtc;
+	optional_device<palette_device> m_palette;
 	required_device<mos6581_device> m_sid;
 	required_device<tpi6525_device> m_tpi1;
 	required_device<tpi6525_device> m_tpi2;
@@ -213,7 +214,7 @@ public:
 
 	DECLARE_WRITE_LINE_MEMBER( user_irq_w );
 
-	IRQ_CALLBACK_MEMBER( pic_irq_callback );
+	MC6845_UPDATE_ROW( crtc_update_row );
 
 	DECLARE_QUICKLOAD_LOAD_MEMBER( cbmb );
 	// memory state

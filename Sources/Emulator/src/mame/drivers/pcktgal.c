@@ -204,13 +204,6 @@ static GFXDECODE_START( bootleg )
 	GFXDECODE_ENTRY( "gfx2", 0x00000, bootleg_spritelayout,   0,  8 ) /* sprites */
 GFXDECODE_END
 
-/***************************************************************************/
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(pcktgal_state,pcktgal_adpcm_int),  /* interrupt function */
-	MSM5205_S48_4B      /* 8KHz            */
-};
 
 /***************************************************************************/
 
@@ -239,13 +232,16 @@ static MACHINE_CONFIG_START( pcktgal, pcktgal_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pcktgal_state, screen_update_pcktgal)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pcktgal)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pcktgal)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INIT_OWNER(pcktgal_state, pcktgal)
 
 
 	MCFG_DEVICE_ADD("tilegen1", DECO_BAC06, 0)
 	deco_bac06_device::set_gfx_region_wide(*device,0,0,0);
+	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -257,13 +253,14 @@ static MACHINE_CONFIG_START( pcktgal, pcktgal_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(pcktgal_state, pcktgal_adpcm_int))  /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8KHz            */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
 
 static MACHINE_CONFIG_DERIVED( bootleg, pcktgal )
-	MCFG_GFXDECODE(bootleg)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", bootleg)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(pcktgal_state, screen_update_pcktgalb)
 MACHINE_CONFIG_END

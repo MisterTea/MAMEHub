@@ -31,6 +31,8 @@ ft5_v6_c4.u58 /
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
 #include "sound/okim6295.h"
+#include "sound/2413intf.h"
+#include "video/ramdac.h"
 
 
 class koftball_state : public driver_device
@@ -41,21 +43,20 @@ public:
 		m_maincpu(*this,"maincpu"),
 		m_main_ram(*this, "main_ram"),
 		m_bmc_1_videoram(*this, "bmc_1_videoram"),
-		m_bmc_2_videoram(*this, "bmc_2_videoram"){ }
+		m_bmc_2_videoram(*this, "bmc_2_videoram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT16> m_main_ram;
 	required_shared_ptr<UINT16> m_bmc_1_videoram;
 	required_shared_ptr<UINT16> m_bmc_2_videoram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 	tilemap_t *m_tilemap_1;
 	tilemap_t *m_tilemap_2;
-	UINT8 *m_bmc_colorram;
-	int m_clr_offset;
 	UINT16 m_prot_data;
 
-	DECLARE_WRITE16_MEMBER(bmc_RAMDAC_offset_w);
-	DECLARE_WRITE16_MEMBER(bmc_RAMDAC_color_w);
-	DECLARE_READ16_MEMBER(bmc_RAMDAC_color_r);
 	DECLARE_READ16_MEMBER(random_number_r);
 	DECLARE_READ16_MEMBER(prot_r);
 	DECLARE_WRITE16_MEMBER(prot_w);
@@ -73,8 +74,7 @@ public:
 TILE_GET_INFO_MEMBER(koftball_state::get_t1_tile_info)
 {
 	int data = m_bmc_1_videoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			data,
 			0,
 			0);
@@ -83,8 +83,7 @@ TILE_GET_INFO_MEMBER(koftball_state::get_t1_tile_info)
 TILE_GET_INFO_MEMBER(koftball_state::get_t2_tile_info)
 {
 	int data = m_bmc_2_videoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			data,
 			0,
 			0);
@@ -92,8 +91,8 @@ TILE_GET_INFO_MEMBER(koftball_state::get_t2_tile_info)
 
 void koftball_state::video_start()
 {
-	m_tilemap_1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(koftball_state::get_t1_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
-	m_tilemap_2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(koftball_state::get_t2_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_tilemap_1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(koftball_state::get_t1_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_tilemap_2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(koftball_state::get_t2_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
 
 	m_tilemap_1->set_transparent_pen(0);
 }
@@ -103,23 +102,6 @@ UINT32 koftball_state::screen_update_koftball(screen_device &screen, bitmap_ind1
 	m_tilemap_2->draw(screen, bitmap, cliprect, 0, 0);
 	m_tilemap_1->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
-}
-
-WRITE16_MEMBER(koftball_state::bmc_RAMDAC_offset_w)
-{
-	m_clr_offset=data*3;
-}
-
-WRITE16_MEMBER(koftball_state::bmc_RAMDAC_color_w)
-{
-	m_bmc_colorram[m_clr_offset]=data;
-	palette_set_color_rgb(machine(),m_clr_offset/3,pal6bit(m_bmc_colorram[(m_clr_offset/3)*3]),pal6bit(m_bmc_colorram[(m_clr_offset/3)*3+1]),pal6bit(m_bmc_colorram[(m_clr_offset/3)*3+2]));
-	m_clr_offset=(m_clr_offset+1)%768;
-}
-
-READ16_MEMBER(koftball_state::bmc_RAMDAC_color_r)
-{
-	return m_bmc_colorram[m_clr_offset];
 }
 
 READ16_MEMBER(koftball_state::random_number_r)
@@ -172,13 +154,12 @@ static ADDRESS_MAP_START( koftball_mem, AS_PROGRAM, 16, koftball_state )
 	AM_RANGE(0x2a0000, 0x2a001f) AM_READ(random_number_r)
 	AM_RANGE(0x2b0000, 0x2b0003) AM_READ(random_number_r)
 	AM_RANGE(0x2d8000, 0x2d8001) AM_READ(random_number_r)
-	/*sound chip or mcu comm ? maybe just i/o (offset 0xe=lamps?)*/
-	AM_RANGE(0x2da000, 0x2da001) AM_WRITENOP /* offset ? */
-	AM_RANGE(0x2da002, 0x2da003) AM_WRITENOP /* data ? */
+	AM_RANGE(0x2da000, 0x2da003) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0xff00)
 
-	AM_RANGE(0x2db000, 0x2db001) AM_WRITE(bmc_RAMDAC_offset_w)
-	AM_RANGE(0x2db002, 0x2db003) AM_READWRITE(bmc_RAMDAC_color_r, bmc_RAMDAC_color_w)
-	AM_RANGE(0x2db004, 0x2db005) AM_WRITENOP
+	AM_RANGE(0x2db000, 0x2db001) AM_DEVWRITE8("ramdac", ramdac_device, index_w, 0x00ff)
+	AM_RANGE(0x2db002, 0x2db003) AM_DEVWRITE8("ramdac", ramdac_device, pal_w, 0x00ff)
+	AM_RANGE(0x2db004, 0x2db005) AM_DEVWRITE8("ramdac", ramdac_device, mask_w, 0x00ff)
+
 	AM_RANGE(0x2dc000, 0x2dc001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0xff00)
 	AM_RANGE(0x2f0000, 0x2f0003) AM_READ_PORT("INPUTS")
 	AM_RANGE(0x300000, 0x300001) AM_WRITENOP
@@ -187,6 +168,9 @@ static ADDRESS_MAP_START( koftball_mem, AS_PROGRAM, 16, koftball_state )
 	AM_RANGE(0x360000, 0x360001) AM_WRITE(prot_w)
 ADDRESS_MAP_END
 
+static ADDRESS_MAP_START( ramdac_map, AS_0, 8, koftball_state )
+	AM_RANGE(0x000, 0x3ff) AM_DEVREADWRITE("ramdac",ramdac_device,ramdac_pal_r,ramdac_rgb666_w)
+ADDRESS_MAP_END
 
 static INPUT_PORTS_START( koftball )
 	PORT_START("INPUTS")
@@ -241,7 +225,7 @@ GFXDECODE_END
 
 
 static MACHINE_CONFIG_START( koftball, koftball_state )
-	MCFG_CPU_ADD("maincpu", M68000, 21477270/2 )
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_21_4772MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(koftball_mem)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", koftball_state, bmc_interrupt, "screen", 0, 1)
 
@@ -249,15 +233,20 @@ static MACHINE_CONFIG_START( koftball, koftball_state )
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_UPDATE_DRIVER(koftball_state, screen_update_koftball)
-
-	MCFG_GFXDECODE(koftball)
-
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 0*8, 30*8-1)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_SCREEN_PALETTE("palette")
 
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", koftball)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+
+	MCFG_SOUND_ADD("ymsnd", YM2413, XTAL_3_579545MHz)  // guessed chip type, clock not verified
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
 
 	MCFG_OKIM6295_ADD("oki", 1122000, OKIM6295_PIN7_LOW) /* clock frequency & pin 7 not verified */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
@@ -307,7 +296,7 @@ static const UINT16 nvram[]=
 #endif
 DRIVER_INIT_MEMBER(koftball_state,koftball)
 {
-	m_bmc_colorram = auto_alloc_array(machine(), UINT8, 768);
+	save_item(NAME(m_prot_data));
 
 #if NVRAM_HACK
 	{
@@ -321,4 +310,4 @@ DRIVER_INIT_MEMBER(koftball_state,koftball)
 #endif
 }
 
-GAME( 1995, koftball,    0, koftball,    koftball, koftball_state,    koftball, ROT0,  "BMC", "King of Football", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
+GAME( 1995, koftball,    0, koftball,    koftball, koftball_state,    koftball, ROT0,  "BMC", "King of Football", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )

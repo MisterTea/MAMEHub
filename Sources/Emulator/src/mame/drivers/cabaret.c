@@ -35,7 +35,9 @@ public:
 		m_fg_color_ram(*this, "fg_color_ram"),
 		m_bg_scroll(*this, "bg_scroll"),
 		m_bg_tile_ram(*this, "bg_tile_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_fg_tile_ram;
 	required_shared_ptr<UINT8> m_fg_color_ram;
@@ -59,6 +61,8 @@ public:
 	UINT32 screen_update_cabaret(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(cabaret_interrupt);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -109,8 +113,8 @@ WRITE8_MEMBER(cabaret_state::fg_color_w)
 
 void cabaret_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cabaret_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,    8,  32, 64, 8);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cabaret_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,    8,  8,  64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cabaret_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,    8,  32, 64, 8);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cabaret_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,    8,  8,  64, 32);
 	m_fg_tilemap->set_transparent_pen(0);
 	m_bg_tilemap->set_scroll_cols(64);
 }
@@ -118,7 +122,7 @@ void cabaret_state::video_start()
 
 UINT32 cabaret_state::screen_update_cabaret(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
@@ -186,8 +190,8 @@ static ADDRESS_MAP_START( cabaret_portmap, AS_IO, 8, cabaret_state )
 	AM_RANGE( 0x2000, 0x27ff ) AM_RAM_WRITE(fg_tile_w )  AM_SHARE("fg_tile_ram")
 	AM_RANGE( 0x2800, 0x2fff ) AM_RAM_WRITE(fg_color_w ) AM_SHARE("fg_color_ram")
 
-	AM_RANGE( 0x3000, 0x37ff ) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_lo_w ) AM_SHARE("paletteram")
-	AM_RANGE( 0x3800, 0x3fff ) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_hi_w ) AM_SHARE("paletteram2")
+	AM_RANGE( 0x3000, 0x37ff ) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE( 0x3800, 0x3fff ) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 
 	AM_RANGE( 0x1000, 0x103f ) AM_RAM_WRITE(bg_scroll_w ) AM_SHARE("bg_scroll")
 
@@ -348,10 +352,11 @@ static MACHINE_CONFIG_START( cabaret, cabaret_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cabaret_state, screen_update_cabaret)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cabaret)
-	MCFG_PALETTE_LENGTH(0x800)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cabaret)
+	MCFG_PALETTE_ADD("palette", 0x800)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

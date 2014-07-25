@@ -17,9 +17,7 @@
  * under the License.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <thrift_config.h>
-#endif
 #include <errno.h>
 #include <string>
 #ifdef HAVE_ARPA_INET_H

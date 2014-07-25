@@ -16,17 +16,20 @@ public:
 	ssem_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
-		m_store(*this, "store"){ }
+		m_store(*this, "store"),
+		m_screen(*this, "screen") { }
 
 	required_device<ssem_device> m_maincpu;
 	required_shared_ptr<UINT8> m_store;
+	required_device<screen_device> m_screen;
+
 	UINT8 m_store_line;
 	virtual void machine_reset();
 	UINT32 screen_update_ssem(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	DECLARE_INPUT_CHANGED_MEMBER(panel_check);
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(ssem_store);
 	inline UINT32 reverse(UINT32 v);
-	void glyph_print(bitmap_rgb32 &bitmap, INT32 x, INT32 y, const char *msg, ...);
+	void glyph_print(bitmap_rgb32 &bitmap, INT32 x, INT32 y, const char *msg, ...) ATTR_PRINTF(5,6);
 	void strlower(char *buf);
 };
 
@@ -403,8 +406,7 @@ void ssem_state::glyph_print(bitmap_rgb32 &bitmap, INT32 x, INT32 y, const char 
 	va_list arg_list;
 	char buf[32768];
 	INT32 index = 0;
-	screen_device *screen = machine().first_screen();
-	const rectangle &visarea = screen->visible_area();
+	const rectangle &visarea = m_screen->visible_area();
 
 	va_start( arg_list, msg );
 	vsprintf( buf, msg, arg_list );
@@ -489,7 +491,7 @@ UINT32 ssem_state::screen_update_ssem(screen_device &screen, bitmap_rgb32 &bitma
 					(m_store[(m_store_line << 2) | 1] << 16) |
 					(m_store[(m_store_line << 2) | 2] <<  8) |
 					(m_store[(m_store_line << 2) | 3] <<  0));
-	glyph_print(bitmap, 0, 272, "LINE:%02d  VALUE:%08x  HALT:%d", m_store_line, word, m_maincpu->state_int(SSEM_HALT));
+	glyph_print(bitmap, 0, 272, "LINE:%02d  VALUE:%08x  HALT:%"I64FMT"d", m_store_line, word, m_maincpu->state_int(SSEM_HALT));
 	return 0;
 }
 
@@ -645,8 +647,7 @@ static MACHINE_CONFIG_START( ssem, ssem_state )
 	MCFG_SCREEN_SIZE(256, 280)
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 279)
 	MCFG_SCREEN_UPDATE_DRIVER(ssem_state, screen_update_ssem)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")

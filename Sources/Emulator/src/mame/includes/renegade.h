@@ -14,7 +14,9 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_maincpu(*this,"maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_mcu(*this, "mcu") { }
+		m_mcu(*this, "mcu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	UINT8 m_bank;
 	int m_mcu_sim;
@@ -84,6 +86,8 @@ public:
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_audiocpu;
 	optional_device<cpu_device> m_mcu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 class renegade_adpcm_device : public device_t,

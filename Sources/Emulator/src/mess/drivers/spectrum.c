@@ -411,7 +411,7 @@ READ8_MEMBER(spectrum_state::spectrum_port_df_r)
 
 READ8_MEMBER(spectrum_state::spectrum_port_ula_r)
 {
-	int vpos = machine().primary_screen->vpos();
+	int vpos = machine().first_screen()->vpos();
 
 	return vpos<193 ? m_video_ram[(vpos&0xf8)<<2]:0xff;
 }
@@ -648,15 +648,6 @@ INTERRUPT_GEN_MEMBER(spectrum_state::spec_interrupt)
 	device.execute().set_input_line(0, HOLD_LINE);
 }
 
-static const cassette_interface spectrum_cassette_interface =
-{
-	tzx_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED),
-	"spectrum_cass",
-	NULL
-};
-
 DEVICE_IMAGE_LOAD_MEMBER( spectrum_state,spectrum_cart )
 {
 	UINT32 filesize;
@@ -703,10 +694,12 @@ MACHINE_CONFIG_START( spectrum_common, spectrum_state )
 
 	MCFG_SCREEN_UPDATE_DRIVER(spectrum_state, screen_update_spectrum)
 	MCFG_SCREEN_VBLANK_DRIVER(spectrum_state, screen_eof_spectrum)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
-	MCFG_PALETTE_INIT_OVERRIDE(spectrum_state, spectrum )
-	MCFG_GFXDECODE(spectrum)
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(spectrum_state, spectrum )
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", spectrum)
 	MCFG_VIDEO_START_OVERRIDE(spectrum_state, spectrum )
 
 	/* sound hardware */
@@ -719,7 +712,11 @@ MACHINE_CONFIG_START( spectrum_common, spectrum_state )
 	/* devices */
 	MCFG_SNAPSHOT_ADD("snapshot", spectrum_state, spectrum, "ach,frz,plusd,prg,sem,sit,sna,snp,snx,sp,z80,zx", 0)
 	MCFG_QUICKLOAD_ADD("quickload", spectrum_state, spectrum, "raw,scr", 2) // The delay prevents the screen from being cleared by the RAM test at boot
-	MCFG_CASSETTE_ADD( "cassette", spectrum_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(tzx_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
+	MCFG_CASSETTE_INTERFACE("spectrum_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","spectrum_cass")
 
 	/* cartridge */

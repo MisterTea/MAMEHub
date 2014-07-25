@@ -339,6 +339,14 @@ apexc_cpu_device::apexc_cpu_device(const machine_config &mconfig, const char *ta
 	: cpu_device(mconfig, APEXC, "APEXC", tag, owner, clock, "apexc_cpu", __FILE__)
 	, m_program_config("program", ENDIANNESS_BIG, 32, 15, 0)
 	, m_io_config("io", ENDIANNESS_BIG, 8, 1, 0)
+	, m_a(0)
+	, m_r(0)
+	, m_cr(0)
+	, m_ml(0)
+	, m_working_store(1)
+	, m_running(0)
+	, m_pc(0)
+	, m_ml_full(0)
 {
 }
 
@@ -809,7 +817,7 @@ void apexc_cpu_device::state_string_export(const device_state_entry &entry, astr
 	switch (entry.index())
 	{
 		case STATE_GENFLAGS:
-			string.printf("%c", m_running ? "R" : "S" );
+			string.printf("%c", m_running ? 'R' : 'S' );
 			break;
 	}
 }

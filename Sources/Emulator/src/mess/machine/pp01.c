@@ -7,10 +7,7 @@
 ****************************************************************************/
 
 
-#include "emu.h"
-#include "cpu/i8085/i8085.h"
 #include "includes/pp01.h"
-#include "machine/ram.h"
 
 
 WRITE8_MEMBER(pp01_state::pp01_video_write_mode_w)
@@ -162,27 +159,6 @@ WRITE_LINE_MEMBER(pp01_state::pp01_pit_out1)
 {
 }
 
-const struct pit8253_interface pp01_pit8253_intf =
-{
-	{
-		{
-			0,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(pp01_state,pp01_pit_out0)
-		},
-		{
-			2000000,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(pp01_state,pp01_pit_out1)
-		},
-		{
-			2000000,
-			DEVCB_NULL,
-			DEVCB_DEVICE_LINE_MEMBER("pit8253", pit8253_device, clk0_w)
-		}
-	}
-};
-
 READ8_MEMBER(pp01_state::pp01_8255_porta_r)
 {
 	return m_video_scroll;
@@ -209,22 +185,13 @@ WRITE8_MEMBER(pp01_state::pp01_8255_portb_w)
 
 WRITE8_MEMBER(pp01_state::pp01_8255_portc_w)
 {
-	m_key_line = data & 0x0f;
+	if BIT(data, 4)
+		m_key_line = data & 0x0f;
+	else
+		m_speaker->level_w(BIT(data, 0));
 }
 
 READ8_MEMBER(pp01_state::pp01_8255_portc_r)
 {
 	return 0xff;
 }
-
-
-
-I8255A_INTERFACE( pp01_ppi8255_interface )
-{
-	DEVCB_DRIVER_MEMBER(pp01_state,pp01_8255_porta_r),
-	DEVCB_DRIVER_MEMBER(pp01_state,pp01_8255_porta_w),
-	DEVCB_DRIVER_MEMBER(pp01_state,pp01_8255_portb_r),
-	DEVCB_DRIVER_MEMBER(pp01_state,pp01_8255_portb_w),
-	DEVCB_DRIVER_MEMBER(pp01_state,pp01_8255_portc_r),
-	DEVCB_DRIVER_MEMBER(pp01_state,pp01_8255_portc_w)
-};

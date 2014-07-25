@@ -70,7 +70,6 @@
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "sound/dac.h"
-#include "sound/sn76477.h"
 #include "sound/ay8910.h"
 #include "includes/route16.h"
 
@@ -121,7 +120,6 @@ WRITE8_MEMBER(route16_state::route16_sharedram_w)
 
 WRITE8_MEMBER(route16_state::stratvox_sn76477_w)
 {
-	device_t *device = machine().device("snsnd");
 	/***************************************************************
 	 * AY8910 output bits are connected to...
 	 * 7    - direct: 5V * 30k/(100+30k) = 1.15V - via DAC??
@@ -133,13 +131,13 @@ WRITE8_MEMBER(route16_state::stratvox_sn76477_w)
 	 * 1    - SN76477 vco
 	 * 0    - SN76477 enable
 	 ***************************************************************/
-	sn76477_enable_w(device, (data >> 0) & 1);
-	sn76477_vco_w(device, (data >> 1) & 1);
-	sn76477_envelope_1_w(device, (data >> 2) & 1);
-	sn76477_envelope_2_w(device, (data >> 3) & 1);
-	sn76477_mixer_a_w(device, (data >> 4) & 1);
-	sn76477_mixer_b_w(device, (data >> 5) & 1);
-	sn76477_mixer_c_w(device, (data >> 6) & 1);
+	m_sn->enable_w((data >> 0) & 1);
+	m_sn->vco_w((data >> 1) & 1);
+	m_sn->envelope_1_w((data >> 2) & 1);
+	m_sn->envelope_2_w((data >> 3) & 1);
+	m_sn->mixer_a_w((data >> 4) & 1);
+	m_sn->mixer_b_w((data >> 5) & 1);
+	m_sn->mixer_c_w((data >> 6) & 1);
 }
 
 
@@ -555,18 +553,6 @@ static INPUT_PORTS_START( ttmahjng )
 INPUT_PORTS_END
 
 
-
-static const ay8910_interface stratvox_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(route16_state,stratvox_sn76477_w),  /* SN76477 commands (not used in Route 16?) */
-	DEVCB_NULL
-};
-
-
 static const sn76477_interface sn76477_intf =
 {
 	RES_K(47),      /*  4  noise_res                    */
@@ -644,7 +630,7 @@ static MACHINE_CONFIG_DERIVED( stratvox, route16 )
 
 	/* sound hardware */
 	MCFG_SOUND_MODIFY("ay8910")
-	MCFG_SOUND_CONFIG(stratvox_ay8910_interface)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(route16_state, stratvox_sn76477_w))  /* SN76477 commands (not used in Route 16?) */
 
 	MCFG_SOUND_ADD("snsnd", SN76477, 0)
 	MCFG_SOUND_CONFIG(sn76477_intf)

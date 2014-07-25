@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic
 /***************************************************************************
 
         Poly-88 driver by Miodrag Milanovic
@@ -137,15 +139,6 @@ static const struct CassetteOptions poly88_cassette_options =
 	7200    /* sample frequency */
 };
 
-static const cassette_interface poly88_cassette_interface =
-{
-	cassette_default_formats,
-	&poly88_cassette_options,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
-
 /* F4 Character Displayer */
 static const gfx_layout poly88_charlayout =
 {
@@ -170,7 +163,7 @@ static MACHINE_CONFIG_START( poly88, poly88_state )
 	MCFG_CPU_PROGRAM_MAP(poly88_mem)
 	MCFG_CPU_IO_MAP(poly88_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", poly88_state,  poly88_interrupt)
-
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(poly88_state,poly88_irq_callback)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -179,10 +172,10 @@ static MACHINE_CONFIG_START( poly88, poly88_state )
 	MCFG_SCREEN_SIZE(64*10, 16*15)
 	MCFG_SCREEN_VISIBLE_AREA(0, 64*10-1, 0, 16*15-1)
 	MCFG_SCREEN_UPDATE_DRIVER(poly88_state, screen_update_poly88)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(poly88)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", poly88)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 
 	/* audio hardware */
@@ -191,11 +184,14 @@ static MACHINE_CONFIG_START( poly88, poly88_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( "cassette", poly88_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_CREATE_OPTS(&poly88_cassette_options)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED)
 
 	/* uart */
-	MCFG_I8251_ADD("uart", poly88_usart_interface)
-	MCFG_SERIAL_SOURCE_ADD("sercas")
+	MCFG_DEVICE_ADD("uart", I8251, 0)
+	MCFG_I8251_TXD_HANDLER(WRITELINE(poly88_state,write_cas_tx))
+	MCFG_I8251_RXRDY_HANDLER(WRITELINE(poly88_state,poly88_usart_rxready))
 
 	/* snapshot */
 	MCFG_SNAPSHOT_ADD("snapshot", poly88_state, poly88, "img", 0)

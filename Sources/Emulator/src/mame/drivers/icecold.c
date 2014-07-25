@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 
     Ice Cold Beer mechanical arcade game (c) Taito 1983
@@ -33,7 +35,6 @@ public:
 	DECLARE_WRITE8_MEMBER( ay8910_0_b_w );
 	DECLARE_WRITE8_MEMBER( ay8910_1_a_w );
 	DECLARE_WRITE8_MEMBER( ay8910_1_b_w );
-	DECLARE_READ_LINE_MEMBER( sint_r );
 	DECLARE_WRITE8_MEMBER( motors_w );
 
 	// driver_device overrides
@@ -283,11 +284,6 @@ WRITE8_MEMBER( icecold_state::ay8910_1_b_w )
 	}
 }
 
-READ_LINE_MEMBER( icecold_state::sint_r )
-{
-	return m_sint;
-}
-
 TIMER_DEVICE_CALLBACK_MEMBER(icecold_state::icecold_sint_timer)
 {
 	m_sint = !m_sint;
@@ -331,96 +327,34 @@ TIMER_DEVICE_CALLBACK_MEMBER(icecold_state::icecold_motors_timer)
 	}
 }
 
-static const pia6821_interface icecold_pia0_intf =
-{
-	DEVCB_INPUT_PORT("JOY"),                            // Port A joystick and motors limits
-	DEVCB_INPUT_PORT("DSW3"),                           // Port B DSW3
-	DEVCB_NULL,                                         // CA1 not connected
-	DEVCB_NULL,                                         // CB1 input SWIRQ (IRQ from I8279)
-	DEVCB_NULL,                                         // CA2 not connected
-	DEVCB_NULL,                                         // CB2 LPFON
-	DEVCB_NULL,                                         // Port A not used as output
-	DEVCB_NULL,                                         // Port B not used as output
-	DEVCB_NULL,                                         // CA2 not connected
-	DEVCB_NULL,                                         // CB2 not used as output
-	DEVCB_CPU_INPUT_LINE("maincpu", M6809_IRQ_LINE),    // IRQA connected to IRQ
-	DEVCB_CPU_INPUT_LINE("maincpu", M6809_IRQ_LINE)     // IRQB connected to IRQ
-};
-
-static const pia6821_interface icecold_pia1_intf =
-{
-	DEVCB_DRIVER_MEMBER(icecold_state, ay_r),           // Port A input sound bus
-	DEVCB_NULL,                                         // Port B not used as input
-	DEVCB_DRIVER_LINE_MEMBER(icecold_state, sint_r),    // CA1 input SINT
-	DEVCB_NULL,                                         // CB1 not connected
-	DEVCB_NULL,                                         // CA2 not connected
-	DEVCB_NULL,                                         // CB2 not connected
-	DEVCB_DRIVER_MEMBER(icecold_state, ay_w),           // Port A output sound bus
-	DEVCB_DRIVER_MEMBER(icecold_state, snd_ctrl_w),     // Port B output ay controls
-	DEVCB_NULL,                                         // CA2 not used as output
-	DEVCB_NULL,                                         // CB2 not connected
-	DEVCB_CPU_INPUT_LINE("maincpu", M6809_FIRQ_LINE),   // IRQA connected to FIRQ
-	DEVCB_CPU_INPUT_LINE("maincpu", M6809_FIRQ_LINE)    // IRQB connected to FIRQ
-};
-
-static const pia6821_interface icecold_pia2_intf =
-{
-	DEVCB_NULL,                                         // Port A not connected
-	DEVCB_NULL,                                         // Port B not connected
-	DEVCB_NULL,                                         // CA1 not connected
-	DEVCB_NULL,                                         // CB1 not connected
-	DEVCB_NULL,                                         // CA2 not connected
-	DEVCB_NULL,                                         // CB2 not connected
-	DEVCB_NULL,                                         // Port A not connected
-	DEVCB_NULL,                                         // Port B not connected
-	DEVCB_NULL,                                         // CA2 not connected
-	DEVCB_NULL,                                         // CB2 not connected
-	DEVCB_CPU_INPUT_LINE("maincpu", M6809_IRQ_LINE),    // IRQA connected to IRQ
-	DEVCB_CPU_INPUT_LINE("maincpu", M6809_IRQ_LINE)     // IRQB connected to IRQ
-};
-
-static I8279_INTERFACE( icecold_i8279_intf )
-{
-	DEVCB_DEVICE_LINE_MEMBER("pia0", pia6821_device, cb1_w), // irq
-	DEVCB_DRIVER_MEMBER(icecold_state, scanlines_w),    // scan SL lines
-	DEVCB_DRIVER_MEMBER(icecold_state, digit_w),        // display A&B
-	DEVCB_NULL,                                         // BD
-	DEVCB_DRIVER_MEMBER(icecold_state, kbd_r),          // kbd RL lines
-	DEVCB_NULL,                                         // Shift key
-	DEVCB_NULL                                          // Ctrl-Strobe line
-};
-
-static const ay8910_interface icecold_ay8910_0_intf =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW4"),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(icecold_state, ay8910_0_b_w)
-};
-
-static const ay8910_interface icecold_ay8910_1_intf =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(icecold_state, ay8910_1_a_w),
-	DEVCB_DRIVER_MEMBER(icecold_state, ay8910_1_b_w)
-};
-
-
 static MACHINE_CONFIG_START( icecold, icecold_state )
+
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6809, XTAL_6MHz/4)
 	MCFG_CPU_PROGRAM_MAP(icecold_map)
 
-	MCFG_PIA6821_ADD( "pia0", icecold_pia0_intf )
-	MCFG_PIA6821_ADD( "pia1", icecold_pia1_intf )
-	MCFG_PIA6821_ADD( "pia2", icecold_pia2_intf )
+	MCFG_DEVICE_ADD( "pia0", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(IOPORT("JOY"))
+	MCFG_PIA_READPB_HANDLER(IOPORT("DSW3"))
+	MCFG_PIA_IRQA_HANDLER(DEVWRITELINE("maincpu", m6809_device, irq_line))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("maincpu", m6809_device, irq_line))
 
-	MCFG_I8279_ADD("i8279", XTAL_6MHz/4, icecold_i8279_intf)
+	MCFG_DEVICE_ADD( "pia1", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(icecold_state, ay_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(icecold_state, ay_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(icecold_state, snd_ctrl_w))
+	MCFG_PIA_IRQA_HANDLER(DEVWRITELINE("maincpu", m6809_device, firq_line))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("maincpu", m6809_device, firq_line))
+
+	MCFG_DEVICE_ADD( "pia2", PIA6821, 0)
+	MCFG_PIA_IRQA_HANDLER(DEVWRITELINE("maincpu", m6809_device, irq_line))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("maincpu", m6809_device, irq_line))
+
+	MCFG_DEVICE_ADD("i8279", I8279, XTAL_6MHz/4)
+	MCFG_I8279_OUT_IRQ_CB(DEVWRITELINE("pia0", pia6821_device, cb1_w)) // irq
+	MCFG_I8279_OUT_SL_CB(WRITE8(icecold_state, scanlines_w))        // scan SL lines
+	MCFG_I8279_OUT_DISP_CB(WRITE8(icecold_state, digit_w))         // display A&B
+	MCFG_I8279_IN_RL_CB(READ8(icecold_state, kbd_r))                // kbd RL lines
 
 	// 30Hz signal from CH-C of ay0
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("sint_timer", icecold_state, icecold_sint_timer, attotime::from_hz(30))
@@ -434,11 +368,13 @@ static MACHINE_CONFIG_START( icecold, icecold_state )
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ay0", AY8910, XTAL_6MHz/4)
-	MCFG_SOUND_CONFIG(icecold_ay8910_0_intf)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW4"))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(icecold_state, ay8910_0_b_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay1", AY8910, XTAL_6MHz/4)
-	MCFG_SOUND_CONFIG(icecold_ay8910_1_intf)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(icecold_state, ay8910_1_a_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(icecold_state, ay8910_1_b_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -461,5 +397,5 @@ ROM_START(zekepeak)
 ROM_END
 
 
-GAME(1983,  icecold ,  0      ,  icecold,  icecold, driver_device,  0,  ROT0,  "Taito",    "Ice Cold Beer",      GAME_NOT_WORKING | GAME_NO_SOUND | GAME_MECHANICAL)
-GAME(1983,  zekepeak,  icecold,  icecold,  icecold, driver_device,  0,  ROT0,  "Taito",    "Zeke's Peak"  ,      GAME_NOT_WORKING | GAME_NO_SOUND | GAME_MECHANICAL)
+GAME(1983,  icecold,   0,        icecold,  icecold, driver_device,  0,  ROT0,  "Taito",    "Ice Cold Beer",      GAME_NOT_WORKING | GAME_MECHANICAL)
+GAME(1983,  zekepeak,  icecold,  icecold,  icecold, driver_device,  0,  ROT0,  "Taito",    "Zeke's Peak",        GAME_NOT_WORKING | GAME_MECHANICAL)

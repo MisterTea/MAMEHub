@@ -17,9 +17,7 @@
 
  ********************************************************************/
 
-#ifdef HAVE_CONFIG_H
 #include "vorbis_config.h"
-#endif
 
 #include <math.h>
 #include <ogg/os_types.h>

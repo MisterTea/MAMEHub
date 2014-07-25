@@ -58,7 +58,7 @@ check more info and photo from cjdh2.zip!!!
 #include "emu.h"
 #include "cpu/arm7/arm7.h"
 #include "cpu/arm7/arm7core.h"
-
+#include "machine/igs036crypt.h"
 
 
 class igs_m036_state : public driver_device
@@ -70,7 +70,15 @@ public:
 
 	UINT32 screen_update_igs_m036(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_DRIVER_INIT(igs_m036);
+
+	DECLARE_DRIVER_INIT(cjdh2);
+	DECLARE_DRIVER_INIT(cjddzsp);
+	DECLARE_DRIVER_INIT(igsm312);
+
 	required_device<cpu_device> m_maincpu;
+
+	void pgm_create_dummy_internal_arm_region(void);
+
 };
 
 
@@ -83,6 +91,8 @@ UINT32 igs_m036_state::screen_update_igs_m036(screen_device &screen, bitmap_ind1
 
 static ADDRESS_MAP_START( igs_m036_map, AS_PROGRAM, 32, igs_m036_state )
 	AM_RANGE(0x00000000, 0x00003fff) AM_ROM /* Internal ROM */
+	AM_RANGE(0x08000000, 0x081fffff) AM_ROM AM_REGION("user1", 0) // not 100% sure it maps here.
+
 ADDRESS_MAP_END
 
 static INPUT_PORTS_START( igs_m036 )
@@ -194,6 +204,41 @@ ROM_START( igsm312 )
 ROM_END
 
 
+void igs_m036_state::pgm_create_dummy_internal_arm_region(void)
+{
+	UINT16 *temp16 = (UINT16 *)memregion("maincpu")->base();
+	int i;
+	for (i=0;i<0x4000/2;i+=2)
+	{
+		temp16[i] = 0xFFFE;
+		temp16[i+1] = 0xEAFF;
+
+	}
+	int base = 0;
+
+	// jump straight to where we've mapped the external rom for testing (should really  set up a fake stack etc. too)
+
+
+	temp16[(base) / 2] = 0x0004; base += 2;
+	temp16[(base) / 2] = 0xe59f; base += 2;
+	temp16[(base) / 2] = 0x0000; base += 2;
+	temp16[(base) / 2] = 0xe590; base += 2;
+	temp16[(base) / 2] = 0xff10; base += 2;
+	temp16[(base) / 2] = 0xe12f; base += 2;
+	temp16[(base) / 2] = 0x0010; base += 2;
+	temp16[(base) / 2] = 0x0000; base += 2;
+
+#if 0
+	temp16[(base) / 2] = 0x03c9; base += 2;
+	temp16[(base) / 2] = 0x0800; base += 2;
+#else
+	temp16[(base) / 2] = 0x0000; base += 2;
+	temp16[(base) / 2] = 0x0800; base += 2;
+#endif
+
+}
+
+
 
 #define IGS036_CPU ARM7
 
@@ -209,8 +254,9 @@ static MACHINE_CONFIG_START( igs_m036, igs_m036_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(igs_m036_state, screen_update_igs_m036)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_PALETTE_ADD("palette", 0x200)
 	/* sound hardware (OKI) */
 MACHINE_CONFIG_END
 
@@ -227,8 +273,9 @@ static MACHINE_CONFIG_START( igs_m036_tt, igs_m036_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(igs_m036_state, screen_update_igs_m036)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_PALETTE_ADD("palette", 0x200)
 	/* sound hardware (TT5665) */
 MACHINE_CONFIG_END
 
@@ -236,8 +283,32 @@ MACHINE_CONFIG_END
 
 DRIVER_INIT_MEMBER(igs_m036_state,igs_m036)
 {
+	pgm_create_dummy_internal_arm_region();
 }
 
+DRIVER_INIT_MEMBER(igs_m036_state, cjdh2)
+{
+	DRIVER_INIT_CALL(igs_m036);
+
+	igs036_decryptor decrypter(cjdh2_key);
+	decrypter.decrypter_rom(memregion("user1"));
+}
+
+DRIVER_INIT_MEMBER(igs_m036_state, cjddzsp)
+{
+	DRIVER_INIT_CALL(igs_m036);
+
+	igs036_decryptor decrypter(cjddzsp_key);
+	decrypter.decrypter_rom(memregion("user1"));
+}
+
+DRIVER_INIT_MEMBER(igs_m036_state, igsm312)
+{
+	DRIVER_INIT_CALL(igs_m036);
+
+	igs036_decryptor decrypter(m312cn_key);
+	decrypter.decrypter_rom(memregion("user1"));
+}
 
 /***************************************************************************
 
@@ -245,11 +316,11 @@ DRIVER_INIT_MEMBER(igs_m036_state,igs_m036)
 
 ***************************************************************************/
 
-GAME( 200?,  cjdh2,      0,     igs_m036, igs_m036, igs_m036_state, igs_m036,        ROT0, "IGS", "Chao Ji Da Heng 2 (V311CN)", GAME_IS_SKELETON )
-GAME( 200?,  cjdh2a,     cjdh2, igs_m036, igs_m036, igs_m036_state, igs_m036,        ROT0, "IGS", "Chao Ji Da Heng 2 (V311CNA)", GAME_IS_SKELETON )
-GAME( 200?,  cjdh2b,     cjdh2, igs_m036, igs_m036, igs_m036_state, igs_m036,        ROT0, "IGS", "Chao Ji Da Heng 2 (V311CNB)", GAME_IS_SKELETON )
-GAME( 200?,  cjdh2c,     cjdh2, igs_m036, igs_m036, igs_m036_state, igs_m036,        ROT0, "IGS", "Chao Ji Da Heng 2 (V215CN)", GAME_IS_SKELETON )
+GAME( 200?,  cjdh2,      0,     igs_m036, igs_m036, igs_m036_state, cjdh2,        ROT0, "IGS", "Chao Ji Da Heng 2 (V311CN)", GAME_IS_SKELETON )
+GAME( 200?,  cjdh2a,     cjdh2, igs_m036, igs_m036, igs_m036_state, cjdh2,        ROT0, "IGS", "Chao Ji Da Heng 2 (V311CNA)", GAME_IS_SKELETON )
+GAME( 200?,  cjdh2b,     cjdh2, igs_m036, igs_m036, igs_m036_state, cjdh2,        ROT0, "IGS", "Chao Ji Da Heng 2 (V311CNB)", GAME_IS_SKELETON )
+GAME( 200?,  cjdh2c,     cjdh2, igs_m036, igs_m036, igs_m036_state, cjdh2,        ROT0, "IGS", "Chao Ji Da Heng 2 (V215CN)", GAME_IS_SKELETON )
 
-GAME( 200?,  cjddzsp,    0,     igs_m036_tt, igs_m036, igs_m036_state, igs_m036,        ROT0, "IGS", "Super Dou Di Zhu Special (V122CN)", GAME_IS_SKELETON )
+GAME( 200?,  cjddzsp,    0,     igs_m036_tt, igs_m036, igs_m036_state, cjddzsp,   ROT0, "IGS", "Super Dou Di Zhu Special (V122CN)", GAME_IS_SKELETON )
 
-GAME( 200?,  igsm312,    0,     igs_m036_tt, igs_m036, igs_m036_state, igs_m036,        ROT0, "IGS", "Unknown IGS036 CPU game (V312CN)", GAME_IS_SKELETON )
+GAME( 200?,  igsm312,    0,     igs_m036_tt, igs_m036, igs_m036_state, igsm312,   ROT0, "IGS", "unknown 'IGS 6POKER2' game (V312CN)", GAME_IS_SKELETON ) // there's very little code and no gfx roms, might be a 'set/clear' chip for a gambling game.

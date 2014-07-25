@@ -41,17 +41,19 @@ public:
 			m_uart2(*this, "ns16550_2"),
 			m_beeper(*this, "beeper"),
 			m_ram(*this, RAM_TAG),
+			m_keyboard(*this, "at_keyboard"),
 			m_region_rom(*this, "maincpu"),
 			m_io_extra(*this, "EXTRA")
 	{ }
 
-	required_device<legacy_cpu_device> m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	required_device<intel_e28f008sa_device> m_flash0;
 	required_device<intel_e28f008sa_device> m_flash1;
 	required_device<pc_fdc_superio_device> m_fdc;
 	required_device<ns16550_device> m_uart2;
 	required_device<beep_device> m_beeper;
 	required_device<ram_device> m_ram;
+	required_device<at_keyboard_device> m_keyboard;
 	required_memory_region m_region_rom;
 	required_ioport m_io_extra;
 
@@ -128,10 +130,9 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(pcw16);
 	UINT32 screen_update_pcw16(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(pcw16_timer_callback);
-	TIMER_DEVICE_CALLBACK_MEMBER(pcw16_keyboard_timer_callback);
 	TIMER_DEVICE_CALLBACK_MEMBER(rtc_timer_callback);
 	DECLARE_WRITE_LINE_MEMBER(pcw16_com_interrupt_1);
 	DECLARE_WRITE_LINE_MEMBER(pcw16_com_interrupt_2);
@@ -141,9 +142,11 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(pcw16_com_tx_1);
 	DECLARE_WRITE_LINE_MEMBER(pcw16_com_dtr_1);
 	DECLARE_WRITE_LINE_MEMBER(pcw16_com_rts_1);
+	DECLARE_WRITE_LINE_MEMBER(pcw16_keyboard_callback);
+	INPUT_CHANGED_MEMBER(power);
 
 	void trigger_fdc_int();
-	void fdc_interrupt(bool state);
+	DECLARE_WRITE_LINE_MEMBER( fdc_interrupt );
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
 	inline void pcw16_plot_pixel(bitmap_ind16 &bitmap, int x, int y, UINT32 color);
 	void pcw16_vh_decode_mode0(bitmap_ind16 &bitmap, int x, int y, unsigned char byte);

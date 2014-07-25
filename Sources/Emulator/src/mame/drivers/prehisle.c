@@ -30,7 +30,7 @@ static ADDRESS_MAP_START( prehisle_map, AS_PROGRAM, 16, prehisle_state )
 	AM_RANGE(0x090000, 0x0907ff) AM_RAM_WRITE(prehisle_fg_videoram16_w) AM_SHARE("videoram")
 	AM_RANGE(0x0a0000, 0x0a07ff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x0b0000, 0x0b3fff) AM_RAM_WRITE(prehisle_bg_videoram16_w) AM_SHARE("bg_videoram16")
-	AM_RANGE(0x0d0000, 0x0d07ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0d0000, 0x0d07ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0e0000, 0x0e00ff) AM_READ(prehisle_control16_r)
 	AM_RANGE(0x0f0070, 0x0ff071) AM_WRITE(prehisle_sound16_w)
 	AM_RANGE(0x0f0000, 0x0ff0ff) AM_WRITE(prehisle_control16_w)
@@ -215,9 +215,11 @@ static MACHINE_CONFIG_START( prehisle, prehisle_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(prehisle_state, screen_update_prehisle)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(prehisle)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", prehisle)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBxxxx)
 
 
 	/* sound hardware */
@@ -298,7 +300,7 @@ ROM_START( prehislek )
 	ROM_LOAD( "gt1.1",  0x000000, 0x10000, CRC(80a4c093) SHA1(abe59e43259eb80b504bd5541f58cd0e5eb998ab) )
 
 	ROM_REGION( 0x008000, "gfx1", 0 )
-	ROM_LOAD( "gt15.b15",   0x000000, 0x08000, CRC(ac652412) SHA1(916c04c3a8a7bfb961313ab73c0a27d7f5e48de1) )
+	ROM_LOAD( "gt15.b15",   0x000000, 0x08000, BAD_DUMP CRC(ac652412) SHA1(916c04c3a8a7bfb961313ab73c0a27d7f5e48de1) ) // not dumped, missing korean text
 
 	ROM_REGION( 0x040000, "gfx2", 0 )
 	ROM_LOAD( "pi8914.b14", 0x000000, 0x40000, CRC(207d6187) SHA1(505dfd1424b894e7b898f91b89f021ddde433c48) )

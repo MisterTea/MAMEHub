@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     GX800 (Konami Test board)
@@ -30,12 +32,14 @@ public:
 	kontest_state(const machine_config &mconfig, device_type type, const char *tag)
 			: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
-			m_ram(*this, "ram")
+			m_ram(*this, "ram"),
+			m_palette(*this, "palette")
 	{ }
 
 	// devices
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT8> m_ram;
+	required_device<palette_device> m_palette;
 
 	// screen updates
 	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
@@ -52,8 +56,8 @@ protected:
 	virtual void machine_reset();
 
 	virtual void video_start();
-	virtual void palette_init();
 public:
+	DECLARE_PALETTE_INIT(kontest);
 	INTERRUPT_GEN_MEMBER(kontest_interrupt);
 };
 
@@ -64,7 +68,7 @@ public:
 
 ***************************************************************************/
 
-void kontest_state::palette_init()
+PALETTE_INIT_MEMBER(kontest_state, kontest)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int bit0, bit1, bit2 , r, g, b;
@@ -85,7 +89,7 @@ void kontest_state::palette_init()
 		bit2 = (color_prom[i] >> 2) & 0x01;
 		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -133,7 +137,7 @@ UINT32 kontest_state::screen_update( screen_device &screen, bitmap_rgb32 &bitmap
 					res_y = y*8+yi;
 
 					if (cliprect.contains(res_x, res_y))
-						bitmap.pix32(res_y, res_x) = machine().pens[color|attr*4];
+						bitmap.pix32(res_y, res_x) = m_palette->pen(color|attr*4);
 				}
 			}
 		}
@@ -218,23 +222,6 @@ static INPUT_PORTS_START( kontest )
 INPUT_PORTS_END
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 /***************************************************************************
 
   Machine Config
@@ -274,18 +261,17 @@ static MACHINE_CONFIG_START( kontest, kontest_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 
-	MCFG_PALETTE_LENGTH(32)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(kontest_state, kontest)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("sn1", SN76489A, MAIN_CLOCK/16)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76489A, MAIN_CLOCK/16)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Kevin Horton,Jonathan Gevaryahu,Sandro Ronco
 /******************************************************************************
 *
 *  Fidelity Electronics Z80 based board driver
@@ -600,7 +602,7 @@ expect that the software reads these once on startup only.
     I8255 Device, for VCC/UVC
 ******************************************************************************/
 
-void fidelz80_state::update_display(running_machine &machine)
+void fidelz80_state::update_display()
 {
 	// data for the 4x 7seg leds, bits are 0bxABCDEFG
 	UINT8 out_digit = BITSWAP8( m_digit_data,7,0,1,2,3,4,5,6 ) & 0x7f;
@@ -659,7 +661,7 @@ WRITE8_MEMBER( fidelz80_state::fidelz80_portb_w )
 
 		m_led_selected = data;
 
-		update_display(machine());
+		update_display();
 	}
 
 	// ignoring the language switch enable for now, is bit 0x40
@@ -676,7 +678,7 @@ WRITE8_MEMBER( fidelz80_state::cc10_porta_w )
 
 	m_digit_data = data;
 
-	update_display(machine());
+	update_display();
 }
 
 READ8_MEMBER( fidelz80_state::vcc_portb_r )
@@ -692,28 +694,8 @@ WRITE8_MEMBER( fidelz80_state::vcc_porta_w )
 
 	m_digit_data = data;
 
-	update_display(machine());
+	update_display();
 }
-
-static I8255_INTERFACE( cc10_ppi8255_intf )
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(fidelz80_state, cc10_porta_w),
-	DEVCB_INPUT_PORT("LEVEL"),
-	DEVCB_DRIVER_MEMBER(fidelz80_state, fidelz80_portb_w),
-	DEVCB_DRIVER_MEMBER(fidelz80_state, fidelz80_portc_r),
-	DEVCB_DRIVER_MEMBER(fidelz80_state, fidelz80_portc_w)
-};
-
-static I8255_INTERFACE( vcc_ppi8255_intf )
-{
-	DEVCB_NULL, // only bit 6 is readable (and only sometimes) and I'm not emulating the language latch unless needed
-	DEVCB_DRIVER_MEMBER(fidelz80_state, vcc_porta_w), // display segments and s14001a lines
-	DEVCB_DRIVER_MEMBER(fidelz80_state, vcc_portb_r), // bit 7 is readable and is the done line from the s14001a
-	DEVCB_DRIVER_MEMBER(fidelz80_state, fidelz80_portb_w), // display digits and led dots
-	DEVCB_DRIVER_MEMBER(fidelz80_state, fidelz80_portc_r), // bits 0,1,2,3 are readable, have to do with input
-	DEVCB_DRIVER_MEMBER(fidelz80_state, fidelz80_portc_w), // bits 4,5,6,7 are writable, have to do with input
-};
 
 /******************************************************************************
     I8255 Device, for VSC
@@ -774,16 +756,6 @@ WRITE8_MEMBER( fidelz80_state::vsc_portc_w )
 	m_kp_matrix = (m_kp_matrix & 0x300) | data;
 }
 
-static I8255_INTERFACE( vsc_ppi8255_intf )
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(fidelz80_state, vsc_porta_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(fidelz80_state, vsc_portb_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(fidelz80_state, vsc_portc_w)
-};
-
 /******************************************************************************
     PIO Device, for VSC
 ******************************************************************************/
@@ -833,17 +805,6 @@ WRITE8_MEMBER( fidelz80_state::vsc_pio_portb_w )
 	m_speech->set_volume(15); // hack, s14001a core should assume a volume of 15 unless otherwise stated...
 	m_speech->rst_w(BIT(data, 6));
 }
-
-static Z80PIO_INTERFACE( vsc_z80pio_intf )
-{
-	DEVCB_NULL,                                             /* callback when change interrupt status */
-	DEVCB_DRIVER_MEMBER(fidelz80_state, vsc_pio_porta_r),   /* port A read callback */
-	DEVCB_NULL,                                             /* port A write callback */
-	DEVCB_NULL,                                             /* portA ready active callback */
-	DEVCB_DRIVER_MEMBER(fidelz80_state, vsc_pio_portb_r),   /* port B read callback */
-	DEVCB_DRIVER_MEMBER(fidelz80_state, vsc_pio_portb_w),   /* port B write callback */
-	DEVCB_NULL                                              /* portB ready active callback */
-};
 
 /******************************************************************************
     I8041 MCU, for VBRC/7002 and bridgec3/7014
@@ -1297,7 +1258,12 @@ static MACHINE_CONFIG_START( cc10, fidelz80_state )
 	MCFG_DEFAULT_LAYOUT(layout_fidelz80)
 
 	/* other hardware */
-	MCFG_I8255_ADD("ppi8255", cc10_ppi8255_intf)
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(fidelz80_state, cc10_porta_w))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("LEVEL"))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(fidelz80_state, fidelz80_portb_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(fidelz80_state, fidelz80_portc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(fidelz80_state, fidelz80_portc_w))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
@@ -1316,7 +1282,13 @@ static MACHINE_CONFIG_START( vcc, fidelz80_state )
 	MCFG_DEFAULT_LAYOUT(layout_fidelz80)
 
 	/* other hardware */
-	MCFG_I8255_ADD("ppi8255", vcc_ppi8255_intf)
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	// Port A Read - NULL : only bit 6 is readable (and only sometimes) and I'm not emulating the language latch unless needed
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(fidelz80_state, vcc_porta_w))       // display segments and s14001a lines
+	MCFG_I8255_IN_PORTB_CB(READ8(fidelz80_state, vcc_portb_r))         // bit 7 is readable and is the done line from the s14001a
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(fidelz80_state, fidelz80_portb_w))  // display digits and led dots
+	MCFG_I8255_IN_PORTC_CB(READ8(fidelz80_state, fidelz80_portc_r))    // bits 0,1,2,3 are readable, have to do with input
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(fidelz80_state, fidelz80_portc_w))  // bits 4,5,6,7 are writable, have to do with input
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1333,8 +1305,15 @@ static MACHINE_CONFIG_START( vsc, fidelz80_state )
 	MCFG_DEFAULT_LAYOUT(layout_vsc)
 
 	/* other hardware */
-	MCFG_I8255_ADD("ppi8255", vsc_ppi8255_intf)
-	MCFG_Z80PIO_ADD("z80pio", XTAL_4MHz, vsc_z80pio_intf)
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(fidelz80_state, vsc_porta_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(fidelz80_state, vsc_portb_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(fidelz80_state, vsc_portb_w))
+
+	MCFG_DEVICE_ADD("z80pio", Z80PIO, XTAL_4MHz)
+	MCFG_Z80PIO_IN_PA_CB(READ8(fidelz80_state, vsc_pio_porta_r))
+	MCFG_Z80PIO_IN_PB_CB(READ8(fidelz80_state, vsc_pio_portb_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(fidelz80_state, vsc_pio_portb_w))
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("nmi_timer", fidelz80_state, nmi_timer, attotime::from_hz(600))
 	MCFG_TIMER_START_DELAY(attotime::from_hz(600))

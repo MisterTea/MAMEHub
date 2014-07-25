@@ -1,37 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Sega System 18 hardware
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************
 
@@ -174,6 +145,7 @@ void segas18_state::init_generic(segas18_rom_board rom_board)
 	m_vdp->set_vdp_pal(FALSE);
 	m_vdp->set_framerate(60);
 	m_vdp->set_total_scanlines(262);
+	m_vdp->stop_timers();   // 315-5124 timers
 
 	// save state
 	save_item(NAME(m_mcu_data));
@@ -401,7 +373,7 @@ WRITE16_MEMBER( segas18_state::rom_5987_bank_w )
 	// tile banking
 	if (offset < 8)
 	{
-		int maxbanks = machine().gfx[0]->elements() / 1024;
+		int maxbanks = m_gfxdecode->gfx(0)->elements() / 1024;
 		if (data >= maxbanks)
 			data %= maxbanks;
 		m_segaic16vid->segaic16_tilemap_set_bank(0, offset, data);
@@ -579,12 +551,12 @@ WRITE8_MEMBER( segas18_state::mcu_data_w )
 
 READ16_MEMBER( segas18_state::genesis_vdp_r )
 {
-	return m_vdp->megadriv_vdp_r(space,offset,mem_mask);
+	return m_vdp->vdp_r(space, offset, mem_mask);
 }
 
 WRITE16_MEMBER( segas18_state::genesis_vdp_w )
 {
-	m_vdp->megadriv_vdp_w(space,offset,data,mem_mask);
+	m_vdp->vdp_w(space, offset, data, mem_mask);
 }
 
 
@@ -796,22 +768,26 @@ static INPUT_PORTS_START( bloxeed )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_MODIFY("DSW")
-	PORT_DIPNAME( 0x03, 0x03, "Price Type" ) PORT_DIPLOCATION("SW2:1,2") // Normal game | VS Mode
-	PORT_DIPSETTING(    0x03, "A" )     // 1 Start / 1 Continue | 2 Start / 1 Continue
-	PORT_DIPSETTING(    0x02, "B" )     // 1 Start / 1 Continue | 1 Start / 1 Continue
-	PORT_DIPSETTING(    0x01, "C" )     // 2 Start / 1 Continue | 4 Start / 2 Continue
-	PORT_DIPSETTING(    0x00, "D" )     // 2 Start / 1 Continue | 2 Start / 2 Continue
-	//"SW2:3" unused
-	PORT_DIPNAME( 0x08, 0x00, DEF_STR( Demo_Sounds ) ) PORT_DIPLOCATION("SW2:4")
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPNAME( 0x01, 0x01, "Allow VS Mode" )         PORT_DIPLOCATION("SW2:1")
+	PORT_DIPSETTING(    0x01, DEF_STR( Yes ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
+	PORT_DIPNAME( 0x02, 0x00, DEF_STR( Demo_Sounds ) )  PORT_DIPLOCATION("SW2:2")
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Difficulty ) ) PORT_DIPLOCATION("SW2:5,6")
+	PORT_DIPNAME( 0x0c, 0x0c, "Lines Per Level" )       PORT_DIPLOCATION("SW2:3,4")
+	PORT_DIPSETTING(    0x04, "2" )
+	PORT_DIPSETTING(    0x00, "2" )
+	PORT_DIPSETTING(    0x0c, "3" )
+	PORT_DIPSETTING(    0x08, "4" )
+	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Difficulty ) )   PORT_DIPLOCATION("SW2:5,6")
 	PORT_DIPSETTING(    0x20, DEF_STR( Easy ) )
 	PORT_DIPSETTING(    0x30, DEF_STR( Normal ) )
 	PORT_DIPSETTING(    0x10, DEF_STR( Hard ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Hardest ) )
-	//"SW2:7" unused
-	PORT_DIPNAME( 0x80, 0x00, "High Speed Mode" ) PORT_DIPLOCATION("SW2:8")
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SW2:7")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x00, "High Speed Mode" )       PORT_DIPLOCATION("SW2:8")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
 INPUT_PORTS_END
@@ -1216,15 +1192,15 @@ GFXDECODE_END
 
 
 // are any of the VDP interrupt lines hooked up to anything?
-WRITE_LINE_MEMBER(segas18_state::genesis_vdp_sndirqline_callback_segas18)
+WRITE_LINE_MEMBER(segas18_state::vdp_sndirqline_callback_s18)
 {
 }
 
-WRITE_LINE_MEMBER(segas18_state::genesis_vdp_lv6irqline_callback_segas18)
+WRITE_LINE_MEMBER(segas18_state::vdp_lv6irqline_callback_s18)
 {
 }
 
-WRITE_LINE_MEMBER(segas18_state::genesis_vdp_lv4irqline_callback_segas18)
+WRITE_LINE_MEMBER(segas18_state::vdp_lv4irqline_callback_s18)
 {
 }
 
@@ -1233,13 +1209,6 @@ WRITE_LINE_MEMBER(segas18_state::genesis_vdp_lv4irqline_callback_segas18)
  *  Machine driver
  *
  *************************************/
-
-static const sega315_5124_interface sms_vdp_ntsc_intf =
-{
-	false,
-	DEVCB_NULL,
-	DEVCB_NULL,
-};
 
 static MACHINE_CONFIG_START( system18, segas18_state )
 
@@ -1257,15 +1226,16 @@ static MACHINE_CONFIG_START( system18, segas18_state )
 	MCFG_SEGA_315_5195_MAPPER_ADD("mapper", "maincpu", segas18_state, memory_mapper, mapper_sound_r, mapper_sound_w)
 
 
-	MCFG_DEVICE_ADD("gen_vdp", SEGA_GEN_VDP, 0)
-	MCFG_DEVICE_CONFIG( sms_vdp_ntsc_intf )
-	sega_genesis_vdp_device::set_genesis_vdp_sndirqline_callback(*device, DEVCB2_WRITELINE(segas18_state, genesis_vdp_sndirqline_callback_segas18));
-	sega_genesis_vdp_device::set_genesis_vdp_lv6irqline_callback(*device, DEVCB2_WRITELINE(segas18_state, genesis_vdp_lv6irqline_callback_segas18));
-	sega_genesis_vdp_device::set_genesis_vdp_lv4irqline_callback(*device, DEVCB2_WRITELINE(segas18_state, genesis_vdp_lv4irqline_callback_segas18));
-	sega_genesis_vdp_device::set_genesis_vdp_alt_timing(*device, 1);
-	sega_genesis_vdp_device::set_genesis_vdp_palwrite_base(*device, 0x2000);
+	MCFG_DEVICE_ADD("gen_vdp", SEGA315_5313, 0)
+	MCFG_SEGA315_5313_IS_PAL(false)
+	MCFG_SEGA315_5313_SND_IRQ_CALLBACK(WRITELINE(segas18_state, vdp_sndirqline_callback_s18));
+	MCFG_SEGA315_5313_LV6_IRQ_CALLBACK(WRITELINE(segas18_state, vdp_lv6irqline_callback_s18));
+	MCFG_SEGA315_5313_LV4_IRQ_CALLBACK(WRITELINE(segas18_state, vdp_lv4irqline_callback_s18));
+	MCFG_SEGA315_5313_ALT_TIMING(1);
+	MCFG_SEGA315_5313_PAL_WRITE_BASE(0x2000);
+	MCFG_SEGA315_5313_PALETTE("palette")
 
-	MCFG_TIMER_ADD_SCANLINE("scantimer", megadriv_scanline_timer_callback_alt_timing, "screen", 0, 1)
+	MCFG_TIMER_DEVICE_ADD_SCANLINE("scantimer", "gen_vdp", sega315_5313_device, megadriv_scanline_timer_callback_alt_timing, "screen", 0, 1)
 
 
 	// video hardware
@@ -1274,12 +1244,14 @@ static MACHINE_CONFIG_START( system18, segas18_state )
 	MCFG_SCREEN_SIZE(342,262)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(segas18_state, screen_update)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(segas18)
-	MCFG_PALETTE_LENGTH(2048*3+2048 + 64*3)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", segas18)
+	MCFG_PALETTE_ADD("palette", 2048*3+2048 + 64*3)
 
 	MCFG_SEGA_SYS16B_SPRITES_ADD("sprites")
 	MCFG_SEGAIC16VID_ADD("segaic16vid")
+	MCFG_SEGAIC16VID_GFXDECODE("gfxdecode")
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")

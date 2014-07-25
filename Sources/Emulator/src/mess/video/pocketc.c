@@ -18,7 +18,7 @@ static const UINT8 pocketc_palette[] =
 	0, 0, 0
 };
 
-const unsigned short pocketc_colortable[8][2] = {
+const unsigned short pocketc_state::pocketc_colortable[8][2] = {
 	{ 5, 4 },
 	{ 5, 0 },
 	{ 5, 2 },
@@ -29,28 +29,26 @@ const unsigned short pocketc_colortable[8][2] = {
 	{ 3, 5 }
 };
 
-PALETTE_INIT( pocketc )
+PALETTE_INIT_MEMBER(pocketc_state, pocketc)
 {
 	UINT8 i=0, r, b, g, color_count = 6;
-
-	machine.colortable = colortable_alloc(machine, color_count);
 
 	while (color_count--)
 	{
 		r = pocketc_palette[i++]; g = pocketc_palette[i++]; b = pocketc_palette[i++];
-		colortable_palette_set_color(machine.colortable, 5 - color_count, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(5 - color_count, rgb_t(r, g, b));
 	}
 
 	for( i = 0; i < 8; i++ )
 	{
-		colortable_entry_set_value(machine.colortable, i*2, pocketc_colortable[i][0]);
-		colortable_entry_set_value(machine.colortable, i*2+1, pocketc_colortable[i][1]);
+		palette.set_pen_indirect(i*2, pocketc_colortable[i][0]);
+		palette.set_pen_indirect(i*2+1, pocketc_colortable[i][1]);
 	}
 }
 
 
 /* Draw an indicator (DEG, SHIFT, etc) */
-void pocketc_draw_special(bitmap_ind16 &bitmap, int x, int y, const POCKETC_FIGURE fig, int color)
+void pocketc_state::pocketc_draw_special(bitmap_ind16 &bitmap, int x, int y, const POCKETC_FIGURE fig, int color)
 {
 	int i,j;
 	for (i=0; fig[i]; i++, y++)

@@ -11,11 +11,15 @@ public:
 			text_data(*this, "text_data"),
 			sprites(*this, "sprites") ,
 		m_maincpu(*this, "maincpu"),
-		m_seibu_sound(*this, "seibu_sound") { }
+		m_seibu_sound(*this, "seibu_sound"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT16> back_data,fore_data,mid_data, text_data, sprites;
 	required_device<cpu_device> m_maincpu;
 	required_device<seibu_sound_device> m_seibu_sound;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	DECLARE_WRITE16_MEMBER( cop_itoa_low_w );
 	DECLARE_WRITE16_MEMBER( cop_itoa_high_w );
@@ -130,8 +134,8 @@ public:
 	UINT16 cop_hit_status;
 	INT16 cop_hit_val_x,cop_hit_val_y,cop_hit_val_z,cop_hit_val_unk;
 
-	void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect ,int pri_mask );
-	UINT8 cop_calculate_collsion_detection(running_machine &machine);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect ,int pri_mask );
+	UINT8 cop_calculate_collsion_detection();
 	void cop_take_hit_box_params(UINT8 offs);
 
 	DECLARE_WRITE16_MEMBER(cop_sort_lookup_hi_w);

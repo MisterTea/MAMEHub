@@ -13,15 +13,17 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_bgvideoram(*this, "bgvideoram"),
 		m_spriteram(*this, "spriteram"),
+		m_zoomram(*this, "k051316"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_k051316(*this, "k051316") { }
+		m_k051316(*this, "k051316"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_bgvideoram;
 	required_shared_ptr<UINT16> m_spriteram;
-	UINT16 *    m_zoomdata;
-//  UINT16 *    m_paletteram;    // currently this uses generic palette handling
+	required_shared_ptr<UINT16> m_zoomram;
 
 	/* video-related */
 	tilemap_t   *m_bg_tilemap;
@@ -33,9 +35,11 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<k051316_device> m_k051316;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE16_MEMBER(sound_command_w);
 	DECLARE_WRITE16_MEMBER(tail2nos_bgvideoram_w);
-	DECLARE_READ16_MEMBER(tail2nos_zoomdata_r);
 	DECLARE_WRITE16_MEMBER(tail2nos_zoomdata_w);
 	DECLARE_WRITE16_MEMBER(tail2nos_gfxbank_w);
 	DECLARE_WRITE8_MEMBER(sound_bankswitch_w);
@@ -47,7 +51,5 @@ public:
 	void tail2nos_postload();
 	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
 	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	K051316_CB_MEMBER(zoom_callback);
 };
-
-/*----------- defined in video/tail2nos.c -----------*/
-extern void tail2nos_zoom_callback(running_machine &machine, int *code,int *color,int *flags);

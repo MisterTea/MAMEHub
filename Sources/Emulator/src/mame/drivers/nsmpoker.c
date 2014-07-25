@@ -60,7 +60,7 @@
 #define MASTER_CLOCK    XTAL_22_1184MHz
 
 #include "emu.h"
-#include "cpu/tms9900/tms9900l.h"
+#include "cpu/tms9900/tms9995.h"
 #include "sound/ay8910.h"
 
 
@@ -71,7 +71,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -82,10 +83,12 @@ public:
 	DECLARE_READ8_MEMBER(debug_r);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(nsmpoker);
+	virtual void machine_reset();
 	UINT32 screen_update_nsmpoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(nsmpoker_interrupt);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -121,13 +124,13 @@ TILE_GET_INFO_MEMBER(nsmpoker_state::get_bg_tile_info)
 //  int bank = (attr & 0x08) >> 3;
 //  int color = (attr & 0x03);
 
-	SET_TILE_INFO_MEMBER( 0 /* bank */, code, 0 /* color */, 0);
+	SET_TILE_INFO_MEMBER(0 /* bank */, code, 0 /* color */, 0);
 }
 
 
 void nsmpoker_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(nsmpoker_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(nsmpoker_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 
@@ -138,7 +141,7 @@ UINT32 nsmpoker_state::screen_update_nsmpoker(screen_device &screen, bitmap_ind1
 }
 
 
-void nsmpoker_state::palette_init()
+PALETTE_INIT_MEMBER(nsmpoker_state, nsmpoker)
 {
 }
 
@@ -149,7 +152,9 @@ void nsmpoker_state::palette_init()
 
 INTERRUPT_GEN_MEMBER(nsmpoker_state::nsmpoker_interrupt)
 {
-	device.execute().set_input_line_and_vector(0, ASSERT_LINE, 3);//2=nmi  3,4,5,6
+	m_maincpu->set_input_line(INT_9995_INT1, ASSERT_LINE);
+	// need to clear the interrupt; maybe right here?
+	m_maincpu->set_input_line(INT_9995_INT1, CLEAR_LINE);
 }
 
 //WRITE8_MEMBER(nsmpoker_state::debug_w)
@@ -390,16 +395,20 @@ static GFXDECODE_START( nsmpoker )
 GFXDECODE_END
 
 
+void nsmpoker_state::machine_reset()
+{
+	// Disable auto wait state generation by raising the READY line on reset
+	static_cast<tms9995_device*>(machine().device("maincpu"))->set_ready(ASSERT_LINE);
+}
+
 /*************************
 *    Machine Drivers     *
 *************************/
 
 static MACHINE_CONFIG_START( nsmpoker, nsmpoker_state )
 
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", TMS9995L, MASTER_CLOCK/2)   /* guess */
-	MCFG_CPU_PROGRAM_MAP(nsmpoker_map)
-	MCFG_CPU_IO_MAP(nsmpoker_portmap)
+	// CPU TMS9995, standard variant; no line connections
+	MCFG_TMS99xx_ADD("maincpu", TMS9995, MASTER_CLOCK/2, nsmpoker_map, nsmpoker_portmap)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", nsmpoker_state,  nsmpoker_interrupt)
 
 	/* video hardware */
@@ -409,11 +418,12 @@ static MACHINE_CONFIG_START( nsmpoker, nsmpoker_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nsmpoker_state, screen_update_nsmpoker)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nsmpoker)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nsmpoker)
 
-	MCFG_PALETTE_LENGTH(8)
-
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(nsmpoker_state, nsmpoker)
 
 MACHINE_CONFIG_END
 

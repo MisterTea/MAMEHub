@@ -44,24 +44,32 @@ A1                   2101            2101
 
 #define MASTER_CLOCK XTAL_18MHz
 
-// ace_state was also defined in mess/drivers/ace.c
+
 class aceal_state : public driver_device
 {
 public:
 	aceal_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
 		m_scoreram(*this, "scoreram"),
 		m_ram2(*this, "ram2"),
 		m_characterram(*this, "characterram"),
-		m_maincpu(*this, "maincpu") { }
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
+	{ }
+
+	required_device<cpu_device> m_maincpu;
 
 	/* video-related */
 	required_shared_ptr<UINT8> m_scoreram;
 	required_shared_ptr<UINT8> m_ram2;
 	required_shared_ptr<UINT8> m_characterram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	/* input-related */
 	int m_objpos[8];
+
 	DECLARE_WRITE8_MEMBER(ace_objpos_w);
 	DECLARE_WRITE8_MEMBER(ace_characterram_w);
 	DECLARE_WRITE8_MEMBER(ace_scoreram_w);
@@ -69,10 +77,8 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
 	UINT32 screen_update_ace(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void ace_postload();
-	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -83,54 +89,24 @@ WRITE8_MEMBER(aceal_state::ace_objpos_w)
 
 void aceal_state::video_start()
 {
-	machine().gfx[1]->set_source(m_characterram);
-	machine().gfx[2]->set_source(m_characterram);
-	machine().gfx[3]->set_source(m_characterram);
-	machine().gfx[4]->set_source(m_scoreram);
+	m_gfxdecode->gfx(1)->set_source(m_characterram);
+	m_gfxdecode->gfx(2)->set_source(m_characterram);
+	m_gfxdecode->gfx(3)->set_source(m_characterram);
+	m_gfxdecode->gfx(4)->set_source(m_scoreram);
 }
 
 UINT32 aceal_state::screen_update_ace(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	int offs;
-
-	/* first of all, fill the screen with the background color */
 	bitmap.fill(0, cliprect);
 
-	drawgfx_opaque(bitmap, cliprect, machine().gfx[1],
-			0,
-			0,
-			0, 0,
-			m_objpos[0], m_objpos[1]);
+	m_gfxdecode->gfx(1)->opaque(bitmap, cliprect, 0, 0, 0, 0, m_objpos[0], m_objpos[1]);
+	m_gfxdecode->gfx(2)->opaque(bitmap, cliprect, 0, 0, 0, 0, m_objpos[2], m_objpos[3]);
+	m_gfxdecode->gfx(3)->opaque(bitmap, cliprect, 0, 0, 0, 0, m_objpos[4], m_objpos[5]);
 
-	drawgfx_opaque(bitmap, cliprect, machine().gfx[2],
-			0,
-			0,
-			0, 0,
-			m_objpos[2], m_objpos[3]);
+	for (int offs = 0; offs < 8; offs++)
+		m_gfxdecode->gfx(4)->opaque(bitmap, cliprect, offs, 0, 0, 0, 10 * 8 + offs * 16, 256 - 16);
 
-	drawgfx_opaque(bitmap, cliprect, machine().gfx[3],
-			0,
-			0,
-			0, 0,
-			m_objpos[4], m_objpos[5]);
-
-	for (offs = 0; offs < 8; offs++)
-	{
-		drawgfx_opaque(bitmap,/* ?? */
-				cliprect, machine().gfx[4],
-				offs,
-				0,
-				0, 0,
-				10 * 8 + offs * 16, 256 - 16);
-	}
 	return 0;
-}
-
-
-void aceal_state::palette_init()
-{
-	palette_set_color(machine(), 0, MAKE_RGB(0xff,0xff,0xff)); /* white */
-	palette_set_color(machine(), 1, MAKE_RGB(0x00,0x00,0x00)); /* black */
 }
 
 
@@ -139,21 +115,19 @@ WRITE8_MEMBER(aceal_state::ace_characterram_w)
 	if (m_characterram[offset] != data)
 	{
 		if (data & ~0x07)
-		{
 			logerror("write to %04x data = %02x\n", 0x8000 + offset, data);
-			popmessage("write to %04x data = %02x\n", 0x8000 + offset, data);
-		}
+
 		m_characterram[offset] = data;
-		machine().gfx[1]->mark_dirty(0);
-		machine().gfx[2]->mark_dirty(0);
-		machine().gfx[3]->mark_dirty(0);
+		m_gfxdecode->gfx(1)->mark_dirty(0);
+		m_gfxdecode->gfx(2)->mark_dirty(0);
+		m_gfxdecode->gfx(3)->mark_dirty(0);
 	}
 }
 
 WRITE8_MEMBER(aceal_state::ace_scoreram_w)
 {
 	m_scoreram[offset] = data;
-	machine().gfx[4]->mark_dirty(offset / 32);
+	m_gfxdecode->gfx(4)->mark_dirty(offset / 32);
 }
 
 READ8_MEMBER(aceal_state::unk_r)
@@ -167,7 +141,6 @@ READ8_MEMBER(aceal_state::unk_r)
 /* 1x3622 - ROM 512x4  - doesn't seem to be used ????????????*/
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, aceal_state )
-
 	AM_RANGE(0x0000, 0x09ff) AM_ROM
 
 	AM_RANGE(0x2000, 0x20ff) AM_RAM_WRITE(ace_scoreram_w) AM_SHARE("scoreram")  /* 2x2101 */
@@ -210,7 +183,6 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, aceal_state )
 	AM_RANGE(0xc024, 0xc024) AM_READ(unk_r)
 	AM_RANGE(0xc025, 0xc025) AM_READ(unk_r)
 	AM_RANGE(0xc026, 0xc026) AM_READ(unk_r)
-
 ADDRESS_MAP_END
 
 
@@ -314,19 +286,19 @@ static const gfx_layout scorelayout =
 };
 
 static GFXDECODE_START( ace )
-	GFXDECODE_ENTRY( "gfx1", 0     , charlayout,  0, 2 )
-	GFXDECODE_ENTRY( NULL          , 0x8000, charlayout0, 0, 2 )    /* the game dynamically modifies this */
-	GFXDECODE_ENTRY( NULL          , 0x8000, charlayout1, 0, 2 )    /* the game dynamically modifies this */
-	GFXDECODE_ENTRY( NULL          , 0x8000, charlayout2, 0, 2 )    /* the game dynamically modifies this */
-	GFXDECODE_ENTRY( NULL          , 0x8000, scorelayout, 0, 2 )    /* the game dynamically modifies this */
+	GFXDECODE_ENTRY( "gfx1", 0, charlayout,  0, 2 )
+	GFXDECODE_ENTRY( NULL, 0x8000, charlayout0, 0, 2 ) /* the game dynamically modifies this */
+	GFXDECODE_ENTRY( NULL, 0x8000, charlayout1, 0, 2 ) /* the game dynamically modifies this */
+	GFXDECODE_ENTRY( NULL, 0x8000, charlayout2, 0, 2 ) /* the game dynamically modifies this */
+	GFXDECODE_ENTRY( NULL, 0x8000, scorelayout, 0, 2 ) /* the game dynamically modifies this */
 GFXDECODE_END
 
 void aceal_state::ace_postload()
 {
-	machine().gfx[1]->mark_dirty(0);
-	machine().gfx[2]->mark_dirty(0);
-	machine().gfx[3]->mark_dirty(0);
-	machine().gfx[4]->mark_dirty(0);
+	m_gfxdecode->gfx(1)->mark_dirty(0);
+	m_gfxdecode->gfx(2)->mark_dirty(0);
+	m_gfxdecode->gfx(3)->mark_dirty(0);
+	m_gfxdecode->gfx(4)->mark_dirty(0);
 }
 
 void aceal_state::machine_start()
@@ -337,16 +309,14 @@ void aceal_state::machine_start()
 
 void aceal_state::machine_reset()
 {
-	int i;
-
-	for (i = 0; i < 8; i++)
+	for (int i = 0; i < 8; i++)
 		m_objpos[i] = 0;
 }
 
 static MACHINE_CONFIG_START( ace, aceal_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", I8080, MASTER_CLOCK/9)  /* 2 MHz ? */
+	MCFG_CPU_ADD("maincpu", I8080, MASTER_CLOCK/9) /* 2 MHz ? */
 	MCFG_CPU_PROGRAM_MAP(main_map)
 
 	/* video hardware */
@@ -356,13 +326,13 @@ static MACHINE_CONFIG_START( ace, aceal_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(4*8, 32*8-1, 2*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aceal_state, screen_update_ace)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ace)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ace)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	/* ???? */
-
 MACHINE_CONFIG_END
 
 /***************************************************************************
@@ -385,4 +355,4 @@ ROM_START( ace )
 ROM_END
 
 
-GAMEL(1976, ace, 0, ace, ace, driver_device, 0, ROT0, "Allied Leisure", "Ace", GAME_SUPPORTS_SAVE | GAME_NO_SOUND, layout_ace ) // color overlay assumed from flyer
+GAMEL(1976, ace, 0, ace, ace, driver_device, 0, ROT0, "Allied Leisure", "Ace", GAME_SUPPORTS_SAVE | GAME_NO_SOUND, layout_ace )

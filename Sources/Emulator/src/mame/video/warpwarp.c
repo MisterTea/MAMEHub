@@ -13,29 +13,29 @@
 
 static const rgb_t geebee_palette[] =
 {
-	MAKE_RGB(0x00,0x00,0x00), /* black */
-	MAKE_RGB(0xff,0xff,0xff), /* white */
-	MAKE_RGB(0x7f,0x7f,0x7f)  /* grey  */
+	rgb_t(0x00,0x00,0x00), /* black */
+	rgb_t(0xff,0xff,0xff), /* white */
+	rgb_t(0x7f,0x7f,0x7f)  /* grey  */
 };
 
 PALETTE_INIT_MEMBER(warpwarp_state,geebee)
 {
-	palette_set_color(machine(), 0, geebee_palette[0]);
-	palette_set_color(machine(), 1, geebee_palette[1]);
-	palette_set_color(machine(), 2, geebee_palette[1]);
-	palette_set_color(machine(), 3, geebee_palette[0]);
-	palette_set_color(machine(), 4, geebee_palette[0]);
-	palette_set_color(machine(), 5, geebee_palette[2]);
-	palette_set_color(machine(), 6, geebee_palette[2]);
-	palette_set_color(machine(), 7, geebee_palette[0]);
+	palette.set_pen_color(0, geebee_palette[0]);
+	palette.set_pen_color(1, geebee_palette[1]);
+	palette.set_pen_color(2, geebee_palette[1]);
+	palette.set_pen_color(3, geebee_palette[0]);
+	palette.set_pen_color(4, geebee_palette[0]);
+	palette.set_pen_color(5, geebee_palette[2]);
+	palette.set_pen_color(6, geebee_palette[2]);
+	palette.set_pen_color(7, geebee_palette[0]);
 }
 
 PALETTE_INIT_MEMBER(warpwarp_state,navarone)
 {
-	palette_set_color(machine(), 0, geebee_palette[0]);
-	palette_set_color(machine(), 1, geebee_palette[1]);
-	palette_set_color(machine(), 2, geebee_palette[1]);
-	palette_set_color(machine(), 3, geebee_palette[0]);
+	palette.set_pen_color(0, geebee_palette[0]);
+	palette.set_pen_color(1, geebee_palette[1]);
+	palette.set_pen_color(2, geebee_palette[1]);
+	palette.set_pen_color(3, geebee_palette[0]);
 }
 
 
@@ -95,11 +95,11 @@ PALETTE_INIT_MEMBER(warpwarp_state,warpwarp)
 		bit1 = (i >> 7) & 0x01;
 		b = combine_2_weights(weights_tiles_b, bit0, bit1);
 
-		palette_set_color(machine(), (i * 2) + 0, RGB_BLACK);
-		palette_set_color(machine(), (i * 2) + 1, MAKE_RGB(r, g, b));
+		palette.set_pen_color((i * 2) + 0, rgb_t::black);
+		palette.set_pen_color((i * 2) + 1, rgb_t(r, g, b));
 	}
 
-	palette_set_color(machine(), 0x200, MAKE_RGB(weight_ball[0], weight_ball[0], weight_ball[0]));
+	palette.set_pen_color(0x200, rgb_t(weight_ball[0], weight_ball[0], weight_ball[0]));
 }
 
 
@@ -129,8 +129,7 @@ TILE_GET_INFO_MEMBER(warpwarp_state::geebee_get_tile_info)
 {
 	int code = m_geebee_videoram[tile_index];
 	int color = (m_geebee_bgw & 1) | ((code & 0x80) >> 6);
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			color,
 			0);
@@ -140,8 +139,7 @@ TILE_GET_INFO_MEMBER(warpwarp_state::navarone_get_tile_info)
 {
 	int code = m_geebee_videoram[tile_index];
 	int color = m_geebee_bgw & 1;
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			color,
 			0);
@@ -149,8 +147,7 @@ TILE_GET_INFO_MEMBER(warpwarp_state::navarone_get_tile_info)
 
 TILE_GET_INFO_MEMBER(warpwarp_state::warpwarp_get_tile_info)
 {
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			m_videoram[tile_index],
 			m_videoram[tile_index + 0x400],
 			0);
@@ -166,17 +163,17 @@ TILE_GET_INFO_MEMBER(warpwarp_state::warpwarp_get_tile_info)
 
 VIDEO_START_MEMBER(warpwarp_state,geebee)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(warpwarp_state::geebee_get_tile_info),this),tilemap_mapper_delegate(FUNC(warpwarp_state::tilemap_scan),this),8,8,34,28);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(warpwarp_state::geebee_get_tile_info),this),tilemap_mapper_delegate(FUNC(warpwarp_state::tilemap_scan),this),8,8,34,28);
 }
 
 VIDEO_START_MEMBER(warpwarp_state,navarone)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(warpwarp_state::navarone_get_tile_info),this),tilemap_mapper_delegate(FUNC(warpwarp_state::tilemap_scan),this),8,8,34,28);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(warpwarp_state::navarone_get_tile_info),this),tilemap_mapper_delegate(FUNC(warpwarp_state::tilemap_scan),this),8,8,34,28);
 }
 
 VIDEO_START_MEMBER(warpwarp_state,warpwarp)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(warpwarp_state::warpwarp_get_tile_info),this),tilemap_mapper_delegate(FUNC(warpwarp_state::tilemap_scan),this),8,8,34,28);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(warpwarp_state::warpwarp_get_tile_info),this),tilemap_mapper_delegate(FUNC(warpwarp_state::tilemap_scan),this),8,8,34,28);
 }
 
 

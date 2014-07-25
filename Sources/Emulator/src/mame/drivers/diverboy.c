@@ -61,7 +61,10 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_audiocpu(*this, "audiocpu"),
 		m_maincpu(*this, "maincpu"),
-		m_oki(*this, "oki") { }
+		m_oki(*this, "oki"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_spriteram;
@@ -77,6 +80,9 @@ public:
 	void draw_sprites(  bitmap_ind16 &bitmap, const rectangle &cliprect );
 	required_device<cpu_device> m_maincpu;
 	required_device<okim6295_device> m_oki;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -107,7 +113,7 @@ void diverboy_state::draw_sprites(  bitmap_ind16 &bitmap, const rectangle &clipr
 
 		if (!flash || (m_screen->frame_number() & 1))
 		{
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[bank],
+			m_gfxdecode->gfx(bank)->transpen(bitmap,cliprect,
 					number,
 					colr,
 					0,0,
@@ -121,7 +127,7 @@ void diverboy_state::draw_sprites(  bitmap_ind16 &bitmap, const rectangle &clipr
 
 UINT32 diverboy_state::screen_update_diverboy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-//  bitmap.fill(get_black_pen(machine()), cliprect);
+//  bitmap.fill(m_palette->black_pen(), cliprect);
 	draw_sprites(bitmap, cliprect);
 	return 0;
 }
@@ -150,7 +156,7 @@ static ADDRESS_MAP_START( diverboy_map, AS_PROGRAM, 16, diverboy_state )
 	AM_RANGE(0x040000, 0x04ffff) AM_RAM
 	AM_RANGE(0x080000, 0x083fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x100000, 0x100001) AM_WRITE(soundcmd_w)
-	AM_RANGE(0x140000, 0x1407ff) AM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x140000, 0x1407ff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x180000, 0x180001) AM_READ_PORT("P1_P2")
 	AM_RANGE(0x180002, 0x180003) AM_READ_PORT("DSW")
 	AM_RANGE(0x180008, 0x180009) AM_READ_PORT("COINS")
@@ -262,7 +268,7 @@ static MACHINE_CONFIG_START( diverboy, diverboy_state )
 	MCFG_CPU_PROGRAM_MAP(snd_map)
 
 
-	MCFG_GFXDECODE(diverboy)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", diverboy)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -270,8 +276,10 @@ static MACHINE_CONFIG_START( diverboy, diverboy_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8+4, 40*8+1, 2*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(diverboy_state, screen_update_diverboy)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x400)
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -280,7 +288,16 @@ static MACHINE_CONFIG_START( diverboy, diverboy_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
+/*
 
+both program roms contain the following string (at the same location)
+
+This Game is programmed by the freelance group GAMART.
+ADRESS: C\SAnt Ramon,11 08130-STA PERPETUA DE MOGODA - BARCELONA (SPAIN)
+Telephone (93) 560 27 32
+Fax (93) 574 18 34
+
+*/
 
 ROM_START( diverboy )
 	ROM_REGION( 0x40000, "maincpu", 0 ) /* 68000 Code */
@@ -314,4 +331,4 @@ ROM_END
 
 
 
-GAME( 1992, diverboy, 0, diverboy, diverboy, driver_device, 0, ORIENTATION_FLIP_X, "Electronic Devices Italy", "Diver Boy", GAME_SUPPORTS_SAVE )
+GAME( 1992, diverboy, 0, diverboy, diverboy, driver_device, 0, ORIENTATION_FLIP_X, "Gamart (Electronic Devices Italy license)", "Diver Boy", GAME_SUPPORTS_SAVE )

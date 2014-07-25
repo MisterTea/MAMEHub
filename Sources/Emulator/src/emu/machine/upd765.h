@@ -49,17 +49,31 @@
 #define MCFG_WD37C65C_ADD(_tag) \
 	MCFG_DEVICE_ADD(_tag, WD37C65C, 0)
 
+#define MCFG_MCS3201_ADD(_tag) \
+	MCFG_DEVICE_ADD(_tag, MCS3201, 0)
+
+#define MCFG_TC8566AF_ADD(_tag) \
+	MCFG_DEVICE_ADD(_tag, TC8566AF, 0)
+
+#define MCFG_MCS3201_INPUT_HANDLER(_devcb) \
+	devcb = &mcs3201_device::set_input_handler(*device, DEVCB_##_devcb);
+
+#define MCFG_UPD765_INTRQ_CALLBACK(_write) \
+	devcb = &upd765_family_device::set_intrq_wr_callback(*device, DEVCB_##_write);
+
+#define MCFG_UPD765_DRQ_CALLBACK(_write) \
+	devcb = &upd765_family_device::set_drq_wr_callback(*device, DEVCB_##_write);
+
+#define MCFG_UPD765_HDL_CALLBACK(_write) \
+	devcb = &upd765_family_device::set_hdl_wr_callback(*device, DEVCB_##_write);
+
 /* Interface required for PC ISA wrapping */
 class pc_fdc_interface : public device_t {
 public:
-	typedef delegate<void (bool state)> line_cb;
 	typedef delegate<UINT8 ()> byte_read_cb;
 	typedef delegate<void (UINT8)> byte_write_cb;
 
 	pc_fdc_interface(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) : device_t(mconfig, type, name, tag, owner, clock, shortname, source) {}
-
-	virtual void setup_intrq_cb(line_cb cb) = 0;
-	virtual void setup_drq_cb(line_cb cb) = 0;
 
 	/* Note that the address map must cover and handle the whole 0-7
 	 * range.  The upd765, while conforming to the rest of the
@@ -81,8 +95,9 @@ public:
 
 	upd765_family_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
-	void setup_intrq_cb(line_cb cb);
-	void setup_drq_cb(line_cb cb);
+	template<class _Object> static devcb_base &set_intrq_wr_callback(device_t &device, _Object object) { return downcast<upd765_family_device &>(device).intrq_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_drq_wr_callback(device_t &device, _Object object) { return downcast<upd765_family_device &>(device).drq_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_hdl_wr_callback(device_t &device, _Object object) { return downcast<upd765_family_device &>(device).hdl_cb.set_callback(object); }
 
 	virtual DECLARE_ADDRESS_MAP(map, 8) = 0;
 
@@ -119,6 +134,7 @@ public:
 	void set_ready_line_connected(bool ready);
 	void set_select_lines_connected(bool select);
 	void set_floppy(floppy_image_device *image);
+	void soft_reset();
 
 protected:
 	virtual void device_start();
@@ -191,6 +207,7 @@ protected:
 		READ_TRACK,
 		FORMAT_TRACK,
 		READ_ID,
+		SCAN_DATA,
 
 		// Sub-states
 		COMMAND_DONE,
@@ -225,6 +242,7 @@ protected:
 		SEARCH_ADDRESS_MARK_DATA_FAILED,
 		READ_SECTOR_DATA,
 		READ_SECTOR_DATA_BYTE,
+		SCAN_SECTOR_DATA_BYTE,
 
 		WRITE_SECTOR_SKIP_GAP2,
 		WRITE_SECTOR_SKIP_GAP2_BYTE,
@@ -249,13 +267,13 @@ protected:
 		int write_position;
 		int freq_hist;
 
-		void set_clock(attotime period);
-		void reset(attotime when);
-		int get_next_bit(attotime &tm, floppy_image_device *floppy, attotime limit);
-		bool write_next_bit(bool bit, attotime &tm, floppy_image_device *floppy, attotime limit);
-		void start_writing(attotime tm);
-		void commit(floppy_image_device *floppy, attotime tm);
-		void stop_writing(floppy_image_device *floppy, attotime tm);
+		void set_clock(const attotime &period);
+		void reset(const attotime &when);
+		int get_next_bit(attotime &tm, floppy_image_device *floppy, const attotime &limit);
+		bool write_next_bit(bool bit, attotime &tm, floppy_image_device *floppy, const attotime &limit);
+		void start_writing(const attotime &tm);
+		void commit(floppy_image_device *floppy, const attotime &tm);
+		void stop_writing(floppy_image_device *floppy, const attotime &tm);
 	};
 
 	struct floppy_info {
@@ -295,11 +313,11 @@ protected:
 	int main_phase;
 
 	live_info cur_live, checkpoint_live;
-	line_cb intrq_cb, drq_cb;
-	bool cur_irq, other_irq, data_irq, drq, internal_drq, tc, tc_done, locked, mfm;
+	devcb_write_line intrq_cb, drq_cb, hdl_cb;
+	bool cur_irq, other_irq, data_irq, drq, internal_drq, tc, tc_done, locked, mfm, scan_done;
 	floppy_info flopi[4];
 
-	int fifo_pos, fifo_expected, command_pos, result_pos;
+	int fifo_pos, fifo_expected, command_pos, result_pos, sectors_read;
 	bool fifo_write;
 	UINT8 dor, dsr, msr, fifo[16], command[16], result[16];
 	UINT8 st1, st2, st3;
@@ -329,6 +347,9 @@ protected:
 		C_SENSE_INTERRUPT_STATUS,
 		C_SPECIFY,
 		C_WRITE_DATA,
+		C_SCAN_EQUAL,
+		C_SCAN_LOW,
+		C_SCAN_HIGH,
 
 		C_INVALID,
 		C_INCOMPLETE,
@@ -336,7 +357,6 @@ protected:
 
 	void delay_cycles(emu_timer *tm, int cycles);
 	void check_irq();
-	void soft_reset();
 	void fifo_expect(int size, bool write);
 	void fifo_push(UINT8 data, bool internal);
 	UINT8 fifo_pop(bool internal);
@@ -372,6 +392,8 @@ protected:
 	void read_id_start(floppy_info &fi);
 	void read_id_continue(floppy_info &fi);
 
+	void scan_start(floppy_info &fi);
+
 	void general_continue(floppy_info &fi);
 	void index_callback(floppy_image_device *floppy, int state);
 	bool sector_matches() const;
@@ -387,8 +409,8 @@ protected:
 	void live_write_fm(UINT8 fm);
 	void live_write_mfm(UINT8 mfm);
 
-	bool read_one_bit(attotime limit);
-	bool write_one_bit(attotime limit);
+	bool read_one_bit(const attotime &limit);
+	bool write_one_bit(const attotime &limit);
 };
 
 class upd765a_device : public upd765_family_device {
@@ -461,6 +483,38 @@ public:
 	virtual DECLARE_ADDRESS_MAP(map, 8);
 };
 
+class mcs3201_device : public upd765_family_device {
+public:
+	mcs3201_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// static configuration helpers
+	template<class _Object> static devcb_base &set_input_handler(device_t &device, _Object object) { return downcast<mcs3201_device &>(device).m_input_handler.set_callback(object); }
+
+	virtual DECLARE_ADDRESS_MAP(map, 8);
+	DECLARE_READ8_MEMBER( input_r );
+
+protected:
+	virtual void device_start();
+
+private:
+	devcb_read8 m_input_handler;
+};
+
+class tc8566af_device : public upd765_family_device {
+public:
+	tc8566af_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	virtual DECLARE_ADDRESS_MAP(map, 8);
+
+	DECLARE_WRITE8_MEMBER(cr1_w);
+
+protected:
+	virtual void device_start();
+
+private:
+	UINT8 m_cr1;
+};
+
 extern const device_type UPD765A;
 extern const device_type UPD765B;
 extern const device_type I8272A;
@@ -471,5 +525,7 @@ extern const device_type PC_FDC_SUPERIO;
 extern const device_type DP8473;
 extern const device_type PC8477A;
 extern const device_type WD37C65C;
+extern const device_type MCS3201;
+extern const device_type TC8566AF;
 
 #endif

@@ -36,7 +36,8 @@ public:
 	m_pia30(*this, "pia30"),
 	m_pia34(*this, "pia34"),
 	m_pia40(*this, "pia40"),
-	m_ym(*this, "ym2151")
+	m_ym(*this, "ym2151"),
+	m_bg(*this, "bgm")
 	{ }
 
 	DECLARE_READ8_MEMBER(dac_r);
@@ -60,7 +61,6 @@ public:
 	DECLARE_READ8_MEMBER(dips_r);
 	DECLARE_READ8_MEMBER(switch_r);
 	DECLARE_WRITE8_MEMBER(switch_w);
-	DECLARE_READ_LINE_MEMBER(pias_ca1_r);
 	DECLARE_READ_LINE_MEMBER(pia21_ca1_r);
 	DECLARE_READ8_MEMBER(pia28_w7_r);
 	DECLARE_WRITE_LINE_MEMBER(pias_ca2_w);
@@ -81,9 +81,9 @@ protected:
 	// devices
 	required_device<cpu_device> m_maincpu;
 	optional_device<cpu_device> m_audiocpu;
-	required_device<cpu_device> m_bgcpu;
+	optional_device<cpu_device> m_bgcpu;
 	optional_device<dac_device> m_dac;
-	required_device<dac_device> m_dac1;
+	optional_device<dac_device> m_dac1;
 	optional_device<hc55516_device> m_hc55516;
 	optional_device<pia6821_device> m_pias;
 	required_device<pia6821_device> m_pia21;
@@ -92,8 +92,9 @@ protected:
 	required_device<pia6821_device> m_pia2c;
 	required_device<pia6821_device> m_pia30;
 	required_device<pia6821_device> m_pia34;
-	required_device<pia6821_device> m_pia40;
-	required_device<ym2151_device> m_ym;
+	optional_device<pia6821_device> m_pia40;
+	optional_device<ym2151_device> m_ym;
+	optional_device<s11c_bg_device> m_bg;
 
 	// getters/setters
 	UINT8 get_strobe() { return m_strobe; }
@@ -115,7 +116,6 @@ private:
 	UINT8 m_diag;
 	UINT32 m_segment1;
 	UINT32 m_segment2;
-	bool m_ca1;
 	emu_timer* m_irq_timer;
 	bool m_irq_active;
 };
@@ -161,7 +161,7 @@ public:
 	DECLARE_DRIVER_INIT(s11b_invert);
 
 protected:
-	required_device<hc55516_device> m_bg_hc55516;
+	optional_device<hc55516_device> m_bg_hc55516;
 
 	void set_invert(bool inv) { m_invert = inv; }
 

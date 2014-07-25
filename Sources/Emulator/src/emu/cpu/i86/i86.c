@@ -302,6 +302,9 @@ i8086_common_cpu_device::i8086_common_cpu_device(const machine_config &mconfig, 
 		m_Mod_RM.RM.w[i] = (WREGS)( i & 7 );
 		m_Mod_RM.RM.b[i] = (BREGS)reg_name[i & 7];
 	}
+
+	memset(&m_regs, 0x00, sizeof(m_regs));
+	memset(m_sregs, 0x00, sizeof(m_sregs));
 }
 
 void i8086_common_cpu_device::state_string_export(const device_state_entry &entry, astring &string)
@@ -1134,68 +1137,88 @@ bool i8086_common_cpu_device::common_op(UINT8 op)
 			CLK(POP_R16);
 			break;
 
-
+// 8086 'invalid opcodes', as documented at http://www.os2museum.com/wp/?p=2147
+// - 0x60 - 0x6f are an alias to 0x70 - 0x7f.
+// - 0xc0,  0xc1, 0xc8, 0xc9 are also aliases where the CPU ignores BIT 1 (*).
+//
+//      Instructions are used in the boot sector for some versions of
+//      MS-DOS  (e.g. the DEC Rainbow-100 version of DOS 2.x)
+		case 0x60:
 		case 0x70: // i_jo
 			JMP( OF);
 			break;
 
+		case 0x61:
 		case 0x71: // i_jno
 			JMP(!OF);
 			break;
 
+		case 0x62:
 		case 0x72: // i_jc
 			JMP( CF);
 			break;
 
+		case 0x63:
 		case 0x73: // i_jnc
 			JMP(!CF);
 			break;
 
+		case 0x64:
 		case 0x74: // i_jz
 			JMP( ZF);
 			break;
 
+		case 0x65:
 		case 0x75: // i_jnz
 			JMP(!ZF);
 			break;
 
+		case 0x66:
 		case 0x76: // i_jce
 			JMP(CF || ZF);
 			break;
 
+		case 0x67:
 		case 0x77: // i_jnce
 			JMP(!(CF || ZF));
 			break;
 
+		case 0x68:
 		case 0x78: // i_js
 			JMP( SF);
 			break;
 
+		case 0x69:
 		case 0x79: // i_jns
 			JMP(!SF);
 			break;
 
+		case 0x6a:
 		case 0x7a: // i_jp
 			JMP( PF);
 			break;
 
+		case 0x6b:
 		case 0x7b: // i_jnp
 			JMP(!PF);
 			break;
 
+		case 0x6c:
 		case 0x7c: // i_jl
 			JMP((SF!=OF)&&(!ZF));
 			break;
 
+		case 0x6d:
 		case 0x7d: // i_jnl
 			JMP((ZF)||(SF==OF));
 			break;
 
+		case 0x6e:
 		case 0x7e: // i_jle
 			JMP((ZF)||(SF!=OF));
 			break;
 
-
+		case 0x6f:
 		case 0x7f: // i_jnle
 			JMP((SF==OF)&&(!ZF));
 			break;
@@ -1354,7 +1377,7 @@ bool i8086_common_cpu_device::common_op(UINT8 op)
 
 		case 0x8c: // i_mov_wsreg
 			m_modrm = fetch();
-			PutRMWord(m_sregs[(m_modrm & 0x38) >> 3]);
+			PutRMWord(m_sregs[(m_modrm & 0x18) >> 3]); // confirmed on hw: modrm bit 5 ignored
 			CLKM(MOV_RS,MOV_MS);
 			break;
 
@@ -1368,25 +1391,8 @@ bool i8086_common_cpu_device::common_op(UINT8 op)
 		case 0x8e: // i_mov_sregw
 			m_modrm = fetch();
 			m_src = GetRMWord();
+			m_sregs[(m_modrm & 0x18) >> 3] = m_src; // confirmed on hw: modrm bit 5 ignored
 			CLKM(MOV_SR,MOV_SM);
-			switch (m_modrm & 0x38)
-			{
-			case 0x00:  /* mov es,ew */
-				m_sregs[ES] = m_src;
-				break;
-			case 0x08:  /* mov cs,ew */
-				m_sregs[CS] = m_src;
-				break;
-			case 0x10:  /* mov ss,ew */
-				m_sregs[SS] = m_src;
-				m_no_interrupt = 1;
-				break;
-			case 0x18:  /* mov ds,ew */
-				m_sregs[DS] = m_src;
-				break;
-			default:
-				logerror("%s: %06x: Mov Sreg - Invalid register\n", tag(), pc());
-			}
 			break;
 
 		case 0x8f: // i_popw
@@ -1666,7 +1672,7 @@ bool i8086_common_cpu_device::common_op(UINT8 op)
 			CLK(MOV_RI16);
 			break;
 
-
+		case 0xc0: // 0xc0 is 0xc2 - see (*)
 		case 0xc2: // i_ret_d16
 			{
 				UINT32 count = fetch_word();
@@ -1676,6 +1682,7 @@ bool i8086_common_cpu_device::common_op(UINT8 op)
 			}
 			break;
 
+		case 0xc1: //  0xc1 is 0xc3 - see (*)
 		case 0xc3: // i_ret
 			m_ip = POP();
 			CLK(RET_NEAR);
@@ -1707,7 +1714,7 @@ bool i8086_common_cpu_device::common_op(UINT8 op)
 			CLKM(MOV_RI16,MOV_MI16);
 			break;
 
-
+		case 0xc8:  // 0xc8 = 0xca - see (*)
 		case 0xca: // i_retf_d16
 			{
 				UINT32 count = fetch_word();
@@ -1718,6 +1725,7 @@ bool i8086_common_cpu_device::common_op(UINT8 op)
 			}
 			break;
 
+		case 0xc9:  // 0xc9 = 0xcb  - see (*)
 		case 0xcb: // i_retf
 			m_ip = POP();
 			m_sregs[CS] = POP();
@@ -2069,7 +2077,7 @@ bool i8086_common_cpu_device::common_op(UINT8 op)
 			break;
 
 		case 0xf4: // i_hlt
-			logerror("%s: %06x: HALT\n", tag(), pc());
+			//logerror("%s: %06x: HALT\n", tag(), pc());
 			m_icount = 0;
 			m_halt = true;
 			break;

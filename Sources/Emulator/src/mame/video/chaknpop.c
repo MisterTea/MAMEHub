@@ -22,7 +22,7 @@
   palette decode
 ***************************************************************************/
 
-void chaknpop_state::palette_init()
+PALETTE_INIT_MEMBER(chaknpop_state, chaknpop)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -52,7 +52,7 @@ void chaknpop_state::palette_init()
 		bit2 = (col >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -150,7 +150,7 @@ void chaknpop_state::video_start()
 	UINT8 *RAM = memregion("maincpu")->base();
 
 	/*                          info                       offset             type             w   h  col row */
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(chaknpop_state::chaknpop_get_tx_tile_info),this), TILEMAP_SCAN_ROWS,   8,  8, 32, 32);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(chaknpop_state::chaknpop_get_tx_tile_info),this), TILEMAP_SCAN_ROWS,   8,  8, 32, 32);
 
 	m_vram1 = &RAM[0x10000];
 	m_vram2 = &RAM[0x12000];
@@ -198,8 +198,8 @@ void chaknpop_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &clipre
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap,cliprect,
-				machine().gfx[0],
+
+				m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 				tile,
 				color,
 				flipx, flipy,

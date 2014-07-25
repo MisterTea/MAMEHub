@@ -22,8 +22,7 @@
     released in 1993
 
 
-    Issues: i386 protected mode is far from complete.
-            Video emulation is far from complete.
+    Issues: Video emulation is far from complete.
 
 */
 
@@ -174,8 +173,8 @@ Notes:
 */
 
 #include "includes/fmtowns.h"
-#include "machine/scsibus.h"
-#include "machine/scsihd.h"
+#include "bus/scsi/scsi.h"
+#include "bus/scsi/scsihd.h"
 
 // CD controller IRQ types
 #define TOWNS_CD_IRQ_MPU 1
@@ -213,13 +212,15 @@ inline UINT32 towns_state::msf_to_lbafm(UINT32 val)  // because the CDROM core d
 	return ((m * (60 * 75)) + (s * 75) + f);
 }
 
-void towns_state::init_serial_rom(running_machine &machine)
+void towns_state::init_serial_rom()
 {
 	// TODO: init serial ROM contents
 	int x;
 	static const UINT8 code[8] = { 0x04,0x65,0x54,0xA4,0x95,0x45,0x35,0x5F };
-	UINT8* srom = machine.root_device().memregion("serial")->base();
+	UINT8* srom = NULL;
 
+	if(m_serial)
+		srom = m_serial->base();
 	memset(m_towns_serial_rom,0,256/8);
 
 	if(srom)
@@ -251,11 +252,11 @@ void towns_state::init_serial_rom(running_machine &machine)
 	m_towns_serial_rom[25] = 0x10;
 }
 
-void towns_state::init_rtc(running_machine &machine)
+void towns_state::init_rtc()
 {
 	system_time systm;
 
-	machine.base_datetime(systm);
+	machine().base_datetime(systm);
 
 	// seconds
 	m_towns_rtc_reg[0] = systm.local_time.second % 10;
@@ -498,20 +499,18 @@ WRITE_LINE_MEMBER( towns_state::mb8877a_drq_w )
 
 READ8_MEMBER(towns_state::towns_floppy_r)
 {
-	device_t* fdc = m_fdc;
-	device_image_interface* image;
 	UINT8 ret;
 
 	switch(offset)
 	{
 		case 0x00:
-			return wd17xx_status_r(fdc,space, offset/2);
+			return m_fdc->status_r(space, 0);
 		case 0x02:
-			return wd17xx_track_r(fdc,space, offset/2);
+			return m_fdc->track_r(space, 0);
 		case 0x04:
-			return wd17xx_sector_r(fdc,space, offset/2);
+			return m_fdc->sector_r(space, 0);
 		case 0x06:
-			return wd17xx_data_r(fdc,space, offset/2);
+			return m_fdc->data_r(space, 0);
 		case 0x08:  // selected drive status?
 			//logerror("FDC: read from offset 0x08\n");
 			ret = 0x80;  // always set
@@ -519,14 +518,12 @@ READ8_MEMBER(towns_state::towns_floppy_r)
 			{
 			case 1:
 				ret |= 0x0c;
-				image = dynamic_cast<device_image_interface*>(space.machine().device("floppy0"));
-				if(image->exists())
+				if(m_flop0->get_device()->exists())
 					ret |= 0x03;
 				break;
 			case 2:
 				ret |= 0x0c;
-				image = dynamic_cast<device_image_interface*>(space.machine().device("floppy1"));
-				if(image->exists())
+				if(m_flop1->get_device()->exists())
 					ret |= 0x03;
 				break;
 			case 3:
@@ -538,6 +535,10 @@ READ8_MEMBER(towns_state::towns_floppy_r)
 			return ret;
 		case 0x0e: // DRVCHG
 			logerror("FDC: read from offset 0x0e\n");
+			if(m_towns_selected_drive == 1)
+				return m_flop0->get_device()->dskchg_r();
+			if(m_towns_selected_drive == 2)
+				return m_flop1->get_device()->dskchg_r();
 			return 0x00;
 		default:
 			logerror("FDC: read from invalid or unimplemented register %02x\n",offset);
@@ -547,7 +548,7 @@ READ8_MEMBER(towns_state::towns_floppy_r)
 
 WRITE8_MEMBER(towns_state::towns_floppy_w)
 {
-	device_t* fdc = m_fdc;
+	floppy_image_device* sel[4] = { m_flop0->get_device(), m_flop1->get_device(), NULL, NULL };
 
 	switch(offset)
 	{
@@ -557,29 +558,36 @@ WRITE8_MEMBER(towns_state::towns_floppy_w)
 				return;
 			if(data == 0xfe)
 				return;
-			wd17xx_command_w(fdc,space, offset/2,data);
+			m_fdc->cmd_w(space, 0,data);
+			logerror("FDC: Command %02x\n",data);
 			break;
 		case 0x02:
-			wd17xx_track_w(fdc,space, offset/2,data);
+			m_fdc->track_w(space, 0,data);
+			logerror("FDC: Track %02x\n",data);
 			break;
 		case 0x04:
-			wd17xx_sector_w(fdc,space, offset/2,data);
+			m_fdc->sector_w(space, 0,data);
+			logerror("FDC: Sector %02x\n",data);
 			break;
 		case 0x06:
-			wd17xx_data_w(fdc,space, offset/2,data);
+			m_fdc->data_w(space, 0,data);
+			logerror("FDC: Data %02x\n",data);
 			break;
 		case 0x08:
 			// bit 5 - CLKSEL
-			if(m_towns_selected_drive != 0 && m_towns_selected_drive < 2)
+			if(m_towns_selected_drive != 0)
 			{
-				floppy_mon_w(floppy_get_device(space.machine(), m_towns_selected_drive-1), !BIT(data, 4));
-				floppy_drive_set_ready_state(floppy_get_device(space.machine(), m_towns_selected_drive-1), data & 0x10,0);
+				if(sel[m_towns_selected_drive-1] != NULL)
+				{
+					sel[m_towns_selected_drive-1]->mon_w((~data & 0x10)>>4);
+					sel[m_towns_selected_drive-1]->ss_w((data & 0x04)>>2);
+				}
 			}
-			wd17xx_set_side(fdc,(data & 0x04)>>2);
-			wd17xx_dden_w(fdc, BIT(~data, 1));
+			m_fdc->dden_w(BIT(~data, 1));
 
 			m_towns_fdc_irq6mask = data & 0x01;
-			logerror("FDC: write %02x to offset 0x08\n",data);
+			//logerror("FDC: Config drive%i %02x\n",m_towns_selected_drive-1,data);
+
 			break;
 		case 0x0c:  // drive select
 			switch(data & 0x0f)
@@ -589,22 +597,26 @@ WRITE8_MEMBER(towns_state::towns_floppy_w)
 					break;
 				case 0x01:
 					m_towns_selected_drive = 1;
-					wd17xx_set_drive(fdc,0);
+					if(sel[0] != NULL)
+						m_fdc->set_floppy(sel[0]);
 					break;
 				case 0x02:
 					m_towns_selected_drive = 2;
-					wd17xx_set_drive(fdc,1);
+					if(sel[1] != NULL)
+						m_fdc->set_floppy(sel[1]);
 					break;
 				case 0x04:
 					m_towns_selected_drive = 3;
-					wd17xx_set_drive(fdc,2);
+					if(sel[2] != NULL)
+						m_fdc->set_floppy(sel[2]);
 					break;
 				case 0x08:
 					m_towns_selected_drive = 4;
-					wd17xx_set_drive(fdc,3);
+					if(sel[3] != NULL)
+						m_fdc->set_floppy(sel[3]);
 					break;
 			}
-			logerror("FDC: drive select %02x\n",data);
+			//logerror("FDC: drive select %02x\n",data);
 			break;
 		default:
 			logerror("FDC: write %02x to invalid or unimplemented register %02x\n",data,offset);
@@ -612,15 +624,13 @@ WRITE8_MEMBER(towns_state::towns_floppy_w)
 }
 
 READ16_MEMBER(towns_state::towns_fdc_dma_r)
-{
-	device_t* fdc = m_fdc;
-	return wd17xx_data_r(fdc,generic_space(), 0);
+{   UINT16 data = m_fdc->data_r(generic_space(), 0);
+	return data;
 }
 
 WRITE16_MEMBER(towns_state::towns_fdc_dma_w)
 {
-	device_t* fdc = m_fdc;
-	wd17xx_data_w(fdc,generic_space(), 0,data);
+	m_fdc->data_w(generic_space(), 0,data);
 }
 
 /*
@@ -646,21 +656,21 @@ void towns_state::kb_sendcode(UINT8 scancode, int release)
 		case 0:  // key press
 			m_towns_kb_output = 0x80;
 			m_towns_kb_extend = scancode & 0x7f;
-			if(ioport("key3")->read() & 0x00080000)
+			if(m_key3->read() & 0x00080000)
 				m_towns_kb_output |= 0x04;
-			if(ioport("key3")->read() & 0x00040000)
+			if(m_key3->read() & 0x00040000)
 				m_towns_kb_output |= 0x08;
-			if(ioport("key3")->read() & 0x06400000)
+			if(m_key3->read() & 0x06400000)
 				m_towns_kb_output |= 0x20;
 			break;
 		case 1:  // key release
 			m_towns_kb_output = 0x90;
 			m_towns_kb_extend = scancode & 0x7f;
-			if(ioport("key3")->read() & 0x00080000)
+			if(m_key3->read() & 0x00080000)
 				m_towns_kb_output |= 0x04;
-			if(ioport("key3")->read() & 0x00040000)
+			if(m_key3->read() & 0x00040000)
 				m_towns_kb_output |= 0x08;
-			if(ioport("key3")->read() & 0x06400000)
+			if(m_key3->read() & 0x06400000)
 				m_towns_kb_output |= 0x20;
 			break;
 		case 2:  // extended byte
@@ -674,12 +684,12 @@ void towns_state::kb_sendcode(UINT8 scancode, int release)
 		m_pic_master->ir1_w(1);
 		if(IRQ_LOG) logerror("PIC: IRQ1 (keyboard) set high\n");
 	}
-	logerror("KB: sending scancode 0x%02x\n",scancode);
+	//logerror("KB: sending scancode 0x%02x\n",scancode);
 }
 
 void towns_state::poll_keyboard()
 {
-	static const char *const kb_ports[4] = { "key1", "key2", "key3", "key4" };
+	ioport_port* kb_ports[4] = { m_key1, m_key2, m_key3, m_key4 };
 	int port,bit;
 	UINT8 scan;
 	UINT32 portval;
@@ -687,7 +697,7 @@ void towns_state::poll_keyboard()
 	scan = 0;
 	for(port=0;port<4;port++)
 	{
-		portval = ioport(kb_ports[port])->read();
+		portval = kb_ports[port]->read();
 		for(bit=0;bit<32;bit++)
 		{
 			if(((portval & (1<<bit))) != ((m_kb_prev[port] & (1<<bit))))
@@ -722,7 +732,7 @@ READ8_MEMBER(towns_state::towns_keyboard_r)
 				m_towns_kb_status &= ~0x01;
 			return ret;
 		case 1:  // status
-			logerror("KB: read status port, returning %02x\n",m_towns_kb_status);
+			//logerror("KB: read status port, returning %02x\n",m_towns_kb_status);
 			return m_towns_kb_status;
 		default:
 			logerror("KB: read offset %02x\n",offset);
@@ -759,7 +769,7 @@ WRITE8_MEMBER(towns_state::towns_keyboard_w)
  */
 UINT8 towns_state::speaker_get_spk()
 {
-	return m_towns_spkrdata & m_towns_speaker_input;
+	return m_towns_spkrdata & m_pit_out2;
 }
 
 
@@ -770,19 +780,13 @@ void towns_state::speaker_set_spkrdata(UINT8 data)
 }
 
 
-void towns_state::speaker_set_input(UINT8 data)
-{
-	m_towns_speaker_input = data ? 1 : 0;
-	m_speaker->level_w(speaker_get_spk());
-}
-
 READ8_MEMBER(towns_state::towns_port60_r)
 {
 	UINT8 val = 0x00;
 
-	if (m_pit->get_output(0))
+	if (m_pit_out0)
 		val |= 0x01;
-	if (m_pit->get_output(1))
+	if (m_pit_out1)
 		val |= 0x02;
 
 	val |= (m_towns_timer_mask & 0x07) << 2;
@@ -891,7 +895,7 @@ void towns_state::mouse_timeout()
 READ8_MEMBER(towns_state::towns_padport_r)
 {
 	UINT8 ret = 0x00;
-	UINT32 porttype = ioport("ctrltype")->read();
+	UINT32 porttype = m_ctrltype->read();
 	UINT8 extra1;
 	UINT8 extra2;
 	UINT32 state;
@@ -900,12 +904,12 @@ READ8_MEMBER(towns_state::towns_padport_r)
 	{
 		if((porttype & 0x0f) == 0x01)
 		{
-			extra1 = ioport("joy1_ex")->read();
+			extra1 = m_joy1_ex->read();
 
 			if(m_towns_pad_mask & 0x10)
-				ret |= (ioport("joy1")->read() & 0x3f) | 0x40;
+				ret |= (m_joy1->read() & 0x3f) | 0x40;
 			else
-				ret |= (ioport("joy1")->read() & 0x0f) | 0x30;
+				ret |= (m_joy1->read() & 0x0f) | 0x30;
 
 			if(extra1 & 0x01) // Run button = left+right
 				ret &= ~0x0c;
@@ -919,12 +923,12 @@ READ8_MEMBER(towns_state::towns_padport_r)
 		}
 		if((porttype & 0x0f) == 0x04)  // 6-button joystick
 		{
-			extra1 = ioport("6b_joy1_ex")->read();
+			extra1 = m_6b_joy1_ex->read();
 
 			if(m_towns_pad_mask & 0x10)
 				ret |= 0x7f;
 			else
-				ret |= (ioport("6b_joy1")->read() & 0x0f) | 0x70;
+				ret |= (m_6b_joy1->read() & 0x0f) | 0x70;
 
 			if(!(m_towns_pad_mask & 0x10))
 			{
@@ -973,7 +977,7 @@ READ8_MEMBER(towns_state::towns_padport_r)
 			}
 
 			// button states are always visible
-			state = ioport("mouse1")->read();
+			state = m_mouse1->read();
 			if(!(state & 0x01))
 				ret |= 0x10;
 			if(!(state & 0x02))
@@ -987,12 +991,12 @@ READ8_MEMBER(towns_state::towns_padport_r)
 	{
 		if((porttype & 0xf0) == 0x10)
 		{
-			extra2 = ioport("joy2_ex")->read();
+			extra2 = m_joy2_ex->read();
 
 			if(m_towns_pad_mask & 0x20)
-				ret |= ((ioport("joy2")->read() & 0x3f)) | 0x40;
+				ret |= ((m_joy2->read() & 0x3f)) | 0x40;
 			else
-				ret |= ((ioport("joy2")->read() & 0x0f)) | 0x30;
+				ret |= ((m_joy2->read() & 0x0f)) | 0x30;
 
 			if(extra2 & 0x01)
 				ret &= ~0x0c;
@@ -1006,12 +1010,12 @@ READ8_MEMBER(towns_state::towns_padport_r)
 		}
 		if((porttype & 0xf0) == 0x40)  // 6-button joystick
 		{
-			extra2 = ioport("6b_joy2_ex")->read();
+			extra2 = m_6b_joy2_ex->read();
 
 			if(m_towns_pad_mask & 0x20)
 				ret |= 0x7f;
 			else
-				ret |= ((ioport("6b_joy2")->read() & 0x0f)) | 0x70;
+				ret |= ((m_6b_joy2->read() & 0x0f)) | 0x70;
 
 			if(!(m_towns_pad_mask & 0x10))
 			{
@@ -1041,16 +1045,16 @@ READ8_MEMBER(towns_state::towns_padport_r)
 			switch(m_towns_mouse_output)
 			{
 				case MOUSE_X_HIGH:
-					ret |= ((m_towns_mouse_x & 0xf0));
+					ret |= ((m_towns_mouse_x & 0xf0) >> 4);
 					break;
 				case MOUSE_X_LOW:
-					ret |= ((m_towns_mouse_x & 0x0f));
+					ret |= (m_towns_mouse_x & 0x0f);
 					break;
 				case MOUSE_Y_HIGH:
-					ret |= ((m_towns_mouse_y & 0xf0));
+					ret |= ((m_towns_mouse_y & 0xf0) >> 4);
 					break;
 				case MOUSE_Y_LOW:
-					ret |= ((m_towns_mouse_y & 0x0f));
+					ret |= (m_towns_mouse_y & 0x0f);
 					break;
 				case MOUSE_START:
 				case MOUSE_SYNC:
@@ -1060,7 +1064,7 @@ READ8_MEMBER(towns_state::towns_padport_r)
 			}
 
 			// button states are always visible
-			state = ioport("mouse1")->read();
+			state = m_mouse1->read();
 			if(!(state & 0x01))
 				ret |= 0x10;
 			if(!(state & 0x02))
@@ -1076,7 +1080,7 @@ READ8_MEMBER(towns_state::towns_padport_r)
 WRITE8_MEMBER(towns_state::towns_pad_mask_w)
 {
 	UINT8 current_x,current_y;
-	UINT32 type = ioport("ctrltype")->read();
+	UINT32 type = m_ctrltype->read();
 
 	m_towns_pad_mask = (data & 0xff);
 	if((type & 0x0f) == 0x02)  // mouse
@@ -1086,8 +1090,8 @@ WRITE8_MEMBER(towns_state::towns_pad_mask_w)
 			if(m_towns_mouse_output == MOUSE_START)
 			{
 				m_towns_mouse_output = MOUSE_X_HIGH;
-				current_x = ioport("mouse2")->read();
-				current_y = ioport("mouse3")->read();
+				current_x = m_mouse2->read();
+				current_y = m_mouse3->read();
 				m_towns_mouse_x = m_prev_x - current_x;
 				m_towns_mouse_y = m_prev_y - current_y;
 				m_prev_x = current_x;
@@ -1102,8 +1106,8 @@ WRITE8_MEMBER(towns_state::towns_pad_mask_w)
 			if(m_towns_mouse_output == MOUSE_START)
 			{
 				m_towns_mouse_output = MOUSE_SYNC;
-				current_x = ioport("mouse2")->read();
-				current_y = ioport("mouse3")->read();
+				current_x = m_mouse2->read();
+				current_y = m_mouse3->read();
 				m_towns_mouse_x = m_prev_x - current_x;
 				m_towns_mouse_y = m_prev_y - current_y;
 				m_prev_x = current_x;
@@ -1122,8 +1126,8 @@ WRITE8_MEMBER(towns_state::towns_pad_mask_w)
 			if(m_towns_mouse_output == MOUSE_START)
 			{
 				m_towns_mouse_output = MOUSE_X_HIGH;
-				current_x = ioport("mouse2")->read();
-				current_y = ioport("mouse3")->read();
+				current_x = m_mouse2->read();
+				current_y = m_mouse3->read();
 				m_towns_mouse_x = m_prev_x - current_x;
 				m_towns_mouse_y = m_prev_y - current_y;
 				m_prev_x = current_x;
@@ -1138,8 +1142,8 @@ WRITE8_MEMBER(towns_state::towns_pad_mask_w)
 			if(m_towns_mouse_output == MOUSE_START)
 			{
 				m_towns_mouse_output = MOUSE_SYNC;
-				current_x = ioport("mouse2")->read();
-				current_y = ioport("mouse3")->read();
+				current_x = m_mouse2->read();
+				current_y = m_mouse3->read();
 				m_towns_mouse_x = m_prev_x - current_x;
 				m_towns_mouse_y = m_prev_y - current_y;
 				m_prev_x = current_x;
@@ -1193,51 +1197,50 @@ WRITE8_MEMBER( towns_state::towns_cmos_w )
 
 void towns_state::towns_update_video_banks(address_space& space)
 {
-	towns_state *state = space.machine().driver_data<towns_state>();
 	UINT8* ROM;
 
 	if(m_towns_mainmem_enable != 0)  // first MB is RAM
 	{
-		ROM = state->memregion("user")->base();
+		ROM = m_user->base();
 
-//      state->membank(1)->set_base(m_messram->pointer()+0xc0000);
-//      state->membank(2)->set_base(m_messram->pointer()+0xc8000);
-//      state->membank(3)->set_base(m_messram->pointer()+0xc9000);
-//      state->membank(4)->set_base(m_messram->pointer()+0xca000);
-//      state->membank(5)->set_base(m_messram->pointer()+0xca000);
-//      state->membank(10)->set_base(m_messram->pointer()+0xca800);
-		state->membank("bank6")->set_base(m_messram->pointer()+0xcb000);
-		state->membank("bank7")->set_base(m_messram->pointer()+0xcb000);
+//      membank(1)->set_base(m_messram->pointer()+0xc0000);
+//      membank(2)->set_base(m_messram->pointer()+0xc8000);
+//      membank(3)->set_base(m_messram->pointer()+0xc9000);
+//      membank(4)->set_base(m_messram->pointer()+0xca000);
+//      membank(5)->set_base(m_messram->pointer()+0xca000);
+//      membank(10)->set_base(m_messram->pointer()+0xca800);
+		membank("bank6")->set_base(m_messram->pointer()+0xcb000);
+		membank("bank7")->set_base(m_messram->pointer()+0xcb000);
 		if(m_towns_system_port & 0x02)
-			state->membank("bank11")->set_base(m_messram->pointer()+0xf8000);
+			membank("bank11")->set_base(m_messram->pointer()+0xf8000);
 		else
-			state->membank("bank11")->set_base(ROM+0x238000);
-		state->membank("bank12")->set_base(m_messram->pointer()+0xf8000);
+			membank("bank11")->set_base(ROM+0x238000);
+		membank("bank12")->set_base(m_messram->pointer()+0xf8000);
 		return;
 	}
 	else  // enable I/O ports and VRAM
 	{
-		ROM = state->memregion("user")->base();
+		ROM = m_user->base();
 
-//      state->membank(1)->set_base(towns_gfxvram+(towns_vram_rplane*0x8000));
-//      state->membank(2)->set_base(towns_txtvram);
-//      state->membank(3)->set_base(state->m_messram->pointer()+0xc9000);
+//      membank(1)->set_base(towns_gfxvram+(towns_vram_rplane*0x8000));
+//      membank(2)->set_base(towns_txtvram);
+//      membank(3)->set_base(m_messram->pointer()+0xc9000);
 //      if(towns_ankcg_enable != 0)
-//          state->membank(4)->set_base(ROM+0x180000+0x3d000);  // ANK CG 8x8
+//          membank(4)->set_base(ROM+0x180000+0x3d000);  // ANK CG 8x8
 //      else
-//          state->membank(4)->set_base(towns_txtvram+0x2000);
-//      state->membank(5)->set_base(towns_txtvram+0x2000);
-//      state->membank(10)->set_base(state->m_messram->pointer()+0xca800);
+//          membank(4)->set_base(towns_txtvram+0x2000);
+//      membank(5)->set_base(towns_txtvram+0x2000);
+//      membank(10)->set_base(m_messram->pointer()+0xca800);
 		if(m_towns_ankcg_enable != 0)
-			state->membank("bank6")->set_base(ROM+0x180000+0x3d800);  // ANK CG 8x16
+			membank("bank6")->set_base(ROM+0x180000+0x3d800);  // ANK CG 8x16
 		else
-			state->membank("bank6")->set_base(m_messram->pointer()+0xcb000);
-		state->membank("bank7")->set_base(m_messram->pointer()+0xcb000);
+			membank("bank6")->set_base(m_messram->pointer()+0xcb000);
+		membank("bank7")->set_base(m_messram->pointer()+0xcb000);
 		if(m_towns_system_port & 0x02)
-			state->membank("bank11")->set_base(m_messram->pointer()+0xf8000);
+			membank("bank11")->set_base(m_messram->pointer()+0xf8000);
 		else
-			state->membank("bank11")->set_base(ROM+0x238000);
-		state->membank("bank12")->set_base(m_messram->pointer()+0xf8000);
+			membank("bank11")->set_base(ROM+0x238000);
+		membank("bank12")->set_base(m_messram->pointer()+0xf8000);
 		return;
 	}
 }
@@ -2049,11 +2052,6 @@ READ8_MEMBER(towns_state::towns_41ff_r)
 	return 0x01;
 }
 
-IRQ_CALLBACK_MEMBER(towns_state::towns_irq_callback)
-{
-	return m_pic_master->acknowledge();
-}
-
 // YM3438 interrupt (IRQ 13)
 WRITE_LINE_MEMBER(towns_state::towns_fm_irq)
 {
@@ -2075,29 +2073,20 @@ WRITE_LINE_MEMBER(towns_state::towns_fm_irq)
 }
 
 // PCM interrupt (IRQ 13)
-static void towns_pcm_irq(device_t* device, int channel)
+RF5C68_SAMPLE_END_CB_MEMBER(towns_state::towns_pcm_irq)
 {
-	towns_state* state = device->machine().driver_data<towns_state>();
-	pic8259_device* pic = state->m_pic_slave;
-
-	if(state->m_towns_pcm_channel_mask & (1 << channel))
+	if (m_towns_pcm_channel_mask & (1 << channel))
 	{
-		state->m_towns_pcm_irq_flag = 1;
-		state->m_towns_pcm_channel_flag |= (1 << channel);
-		pic->ir5_w(1);
+		m_towns_pcm_irq_flag = 1;
+		m_towns_pcm_channel_flag |= (1 << channel);
+		m_pic_slave->ir5_w(1);
 		if(IRQ_LOG) logerror("PIC: IRQ13 (PCM) set high (channel %i)\n",channel);
 	}
 }
 
-WRITE_LINE_MEMBER(towns_state::towns_pic_irq)
-{
-	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
-//  logerror("PIC#1: set IRQ line to %i\n",interrupt);
-}
-
 WRITE_LINE_MEMBER(towns_state::towns_pit_out0_changed)
 {
-	pic8259_device* dev = m_pic_master;
+	m_pit_out0 = state;
 
 	if(m_towns_timer_mask & 0x01)
 	{
@@ -2107,12 +2096,12 @@ WRITE_LINE_MEMBER(towns_state::towns_pit_out0_changed)
 	else
 		m_timer0 = 0;
 
-	dev->ir0_w(m_timer0 || m_timer1);
+	m_pic_master->ir0_w(m_timer0 || m_timer1);
 }
 
 WRITE_LINE_MEMBER(towns_state::towns_pit_out1_changed)
 {
-	pic8259_device* dev = m_pic_master;
+	m_pit_out1 = state;
 
 	if(m_towns_timer_mask & 0x02)
 	{
@@ -2122,12 +2111,13 @@ WRITE_LINE_MEMBER(towns_state::towns_pit_out1_changed)
 	else
 		m_timer1 = 0;
 
-	dev->ir0_w(m_timer0 || m_timer1);
+	m_pic_master->ir0_w(m_timer0 || m_timer1);
 }
 
 WRITE_LINE_MEMBER( towns_state::pit_out2_changed )
 {
-	speaker_set_input(state);
+	m_pit_out2 = state ? 1 : 0;
+	m_speaker->level_w(speaker_get_spk());
 }
 
 static ADDRESS_MAP_START(towns_mem, AS_PROGRAM, 32, towns_state)
@@ -2252,7 +2242,7 @@ static ADDRESS_MAP_START( towns_io , AS_IO, 32, towns_state)
 	// Keyboard (8042 MCU)
 	AM_RANGE(0x0600,0x0607) AM_READWRITE8(towns_keyboard_r, towns_keyboard_w,0x00ff00ff)
 	// SCSI controller
-	AM_RANGE(0x0c30,0x0c37) AM_DEVREADWRITE8("scsi:fm",fmscsi_device,fmscsi_r,fmscsi_w,0x00ff00ff)
+	AM_RANGE(0x0c30,0x0c37) AM_DEVREADWRITE8("fmscsi",fmscsi_device,fmscsi_r,fmscsi_w,0x00ff00ff)
 	// CMOS
 	AM_RANGE(0x3000,0x4fff) AM_READWRITE8(towns_cmos_r, towns_cmos_w,0x00ff00ff)
 	// Something (MS-DOS wants this 0x41ff to be 1)
@@ -2304,7 +2294,7 @@ static ADDRESS_MAP_START( towns16_io , AS_IO, 16, towns_state)  // for the 386SX
 	// Keyboard (8042 MCU)
 	AM_RANGE(0x0600,0x0607) AM_READWRITE8(towns_keyboard_r, towns_keyboard_w,0x00ff)
 	// SCSI controller
-	AM_RANGE(0x0c30,0x0c37) AM_DEVREADWRITE8("scsi:fm",fmscsi_device,fmscsi_r,fmscsi_w,0x00ff)
+	AM_RANGE(0x0c30,0x0c37) AM_DEVREADWRITE8("fmscsi",fmscsi_device,fmscsi_r,fmscsi_w,0x00ff)
 	// CMOS
 	AM_RANGE(0x3000,0x4fff) AM_READWRITE8(towns_cmos_r, towns_cmos_w,0x00ff)
 	// Something (MS-DOS wants this 0x41ff to be 1)
@@ -2576,8 +2566,8 @@ void towns_state::driver_start()
 	memset(m_towns_txtvram, 0, sizeof(UINT8)*0x20000);
 	//towns_sprram = auto_alloc_array(machine(),UINT8,0x20000);
 	m_towns_serial_rom = auto_alloc_array(machine(),UINT8,256/8);
-	init_serial_rom(machine());
-	init_rtc(machine());
+	init_serial_rom();
+	init_rtc();
 	m_towns_rtc_timer = timer_alloc(TIMER_RTC);
 	m_towns_kb_timer = timer_alloc(TIMER_KEYBOARD);
 	m_towns_mouse_timer = timer_alloc(TIMER_MOUSE);
@@ -2590,9 +2580,7 @@ void towns_state::driver_start()
 	// CD-ROM init
 	m_towns_cd.read_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(towns_state::towns_cdrom_read_byte),this), (void*)machine().device("dma_1"));
 
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(towns_state::towns_irq_callback),this));
 	m_maincpu->space(AS_PROGRAM).install_ram(0x100000,m_ram->size()-1,0xffffffff,0,NULL);
-
 }
 
 void marty_state::driver_start()
@@ -2602,14 +2590,19 @@ void marty_state::driver_start()
 		m_towns_machine_id = 0x034a;
 }
 
+void towns_state::machine_start()
+{
+	m_flop0->get_device()->set_rpm(360);
+	m_flop1->get_device()->set_rpm(360);
+}
+
 void towns_state::machine_reset()
 {
 	address_space &program = m_maincpu->space(AS_PROGRAM);
-	m_fdc = machine().device("fdc");
 	m_messram = m_ram;
 	m_cdrom = machine().device<cdrom_image_device>("cdrom");
 	m_cdda = machine().device<cdda_device>("cdda");
-	m_scsi = machine().device<fmscsi_device>("scsi:fm");
+	m_scsi = machine().device<fmscsi_device>("fmscsi");
 	m_ftimer = 0x00;
 	m_freerun_timer = 0x00;
 	m_nmi_mask = 0x00;
@@ -2635,48 +2628,6 @@ void towns_state::machine_reset()
 	m_towns_freerun_counter->adjust(attotime::zero,0,attotime::from_usec(1));
 }
 
-static const struct pit8253_interface towns_pit8253_config =
-{
-	{
-		{
-			307200,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(towns_state,towns_pit_out0_changed)
-		},
-		{
-			307200,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(towns_state,towns_pit_out1_changed)
-		},
-		{
-			307200,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(towns_state,pit_out2_changed)
-		}
-	}
-};
-
-static const struct pit8253_interface towns_pit8253_config_2 =
-{
-	{
-		{
-			307200,
-			DEVCB_NULL,
-			DEVCB_NULL  // reserved
-		},
-		{
-			307200,
-			DEVCB_NULL,
-			DEVCB_NULL  // RS-232
-		},
-		{
-			307200,
-			DEVCB_NULL,
-			DEVCB_NULL  // reserved
-		}
-	}
-};
-
 READ8_MEMBER(towns_state::get_slave_ack)
 {
 	if (offset==7) { // IRQ = 7
@@ -2685,51 +2636,13 @@ READ8_MEMBER(towns_state::get_slave_ack)
 	return 0x00;
 }
 
-static const wd17xx_interface towns_mb8877a_interface =
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER( towns_state, mb8877a_irq_w),
-	DEVCB_DRIVER_LINE_MEMBER( towns_state, mb8877a_drq_w),
-	{FLOPPY_0,FLOPPY_1,0,0}
-};
+FLOPPY_FORMATS_MEMBER( towns_state::floppy_formats )
+	FLOPPY_FMTOWNS_FORMAT
+FLOPPY_FORMATS_END
 
-static LEGACY_FLOPPY_OPTIONS_START( towns )
-	LEGACY_FLOPPY_OPTION( fmt_bin, "bin", "BIN disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([2])
-		TRACKS([77])
-		SECTORS([8])
-		SECTOR_LENGTH([1024])
-		FIRST_SECTOR_ID([1]))
-LEGACY_FLOPPY_OPTIONS_END
-
-static const floppy_interface towns_floppy_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	FLOPPY_STANDARD_5_25_DSHD,
-	LEGACY_FLOPPY_OPTIONS_NAME(towns),
-	NULL,
-	NULL
-};
-
-static const upd71071_intf towns_dma_config =
-{
-	"maincpu",
-	4000000,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	{ DEVCB_DRIVER_MEMBER16(towns_state, towns_fdc_dma_r), DEVCB_DRIVER_MEMBER16(towns_state,towns_scsi_dma_r), DEVCB_NULL, DEVCB_DRIVER_MEMBER16(towns_state,towns_cdrom_dma_r) },
-	{ DEVCB_DRIVER_MEMBER16(towns_state, towns_fdc_dma_w), DEVCB_DRIVER_MEMBER16(towns_state,towns_scsi_dma_w), DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL }
-};
-
-static const rf5c68_interface rf5c68_intf =
-{
-	towns_pcm_irq
-};
+static SLOT_INTERFACE_START( towns_floppies )
+	SLOT_INTERFACE( "35hd", FLOPPY_35_HD )
+SLOT_INTERFACE_END
 
 static const gfx_layout fnt_chars_16x16 =
 {
@@ -2758,19 +2671,13 @@ static GFXDECODE_START( towns )
 	GFXDECODE_ENTRY( "user",   0x180000, fnt_chars_16x16,  0, 16 )
 GFXDECODE_END
 
-struct cdrom_interface towns_cdrom =
-{
-	NULL,
-	NULL
-};
-
 static MACHINE_CONFIG_FRAGMENT( towns_base )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",I386, 16000000)
 	MCFG_CPU_PROGRAM_MAP(towns_mem)
 	MCFG_CPU_IO_MAP(towns_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", towns_state,  towns_vsync_irq)
-
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_master", pic8259_device, inta_cb)
 	//MCFG_MACHINE_RESET_OVERRIDE(towns_state,towns)
 
 	/* video hardware */
@@ -2781,45 +2688,76 @@ static MACHINE_CONFIG_FRAGMENT( towns_base )
 	MCFG_SCREEN_VISIBLE_AREA(0, 768-1, 0, 512-1)
 	MCFG_SCREEN_UPDATE_DRIVER(towns_state, screen_update)
 
-	MCFG_GFXDECODE(towns)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", towns)
+	MCFG_PALETTE_ADD("palette", 256)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("fm", YM3438, 53693100 / 7) // actual clock speed unknown
 	MCFG_YM2612_IRQ_HANDLER(WRITELINE(towns_state, towns_fm_irq))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+
 	MCFG_RF5C68_ADD("pcm", 53693100 / 7)  // actual clock speed unknown
-	MCFG_SOUND_CONFIG(rf5c68_intf)
+	MCFG_RF5C68_SAMPLE_END_CB(towns_state, towns_pcm_irq)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.50)
 	MCFG_SOUND_ADD("cdda",CDDA,0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND,0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
-	MCFG_PIT8253_ADD("pit", towns_pit8253_config)
-	MCFG_PIT8253_ADD("pit2", towns_pit8253_config_2)
+	MCFG_DEVICE_ADD("pit", PIT8253, 0)
+	MCFG_PIT8253_CLK0(307200)
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(towns_state, towns_pit_out0_changed))
+	MCFG_PIT8253_CLK1(307200)
+	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(towns_state, towns_pit_out1_changed))
+	MCFG_PIT8253_CLK2(307200)
+	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(towns_state, pit_out2_changed))
 
-	MCFG_PIC8259_ADD( "pic8259_master", WRITELINE(towns_state,towns_pic_irq), VCC, READ8(towns_state,get_slave_ack))
+	MCFG_DEVICE_ADD("pit2", PIT8253, 0)
+	MCFG_PIT8253_CLK0(307200) // reserved
+	MCFG_PIT8253_CLK1(307200) // RS-232
+	MCFG_PIT8253_CLK2(307200) // reserved
+
+	MCFG_PIC8259_ADD( "pic8259_master", INPUTLINE("maincpu", 0), VCC, READ8(towns_state,get_slave_ack))
 
 	MCFG_PIC8259_ADD( "pic8259_slave", DEVWRITELINE("pic8259_master", pic8259_device, ir7_w), GND, NULL)
 
-	MCFG_MB8877_ADD("fdc",towns_mb8877a_interface)
-	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(towns_floppy_interface)
+	MCFG_MB8877x_ADD("fdc",XTAL_8MHz/4)  // clock unknown
+	MCFG_WD_FDC_INTRQ_CALLBACK(WRITELINE(towns_state,mb8877a_irq_w))
+	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(towns_state,mb8877a_drq_w))
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", towns_floppies, "35hd", towns_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", towns_floppies, "35hd", towns_state::floppy_formats)
 
-	MCFG_CDROM_ADD("cdrom",towns_cdrom)
+	MCFG_CDROM_ADD("cdrom")
 
-	MCFG_SCSIBUS_ADD("scsi")
-	MCFG_SCSIDEV_ADD("scsi:harddisk0", SCSIHD, SCSI_ID_0)
-	MCFG_SCSIDEV_ADD("scsi:harddisk1", SCSIHD, SCSI_ID_1)
-	MCFG_SCSIDEV_ADD("scsi:harddisk2", SCSIHD, SCSI_ID_2)
-	MCFG_SCSIDEV_ADD("scsi:harddisk3", SCSIHD, SCSI_ID_3)
-	MCFG_SCSIDEV_ADD("scsi:harddisk4", SCSIHD, SCSI_ID_4)
-	MCFG_FMSCSI_ADD("scsi:fm")
-	MCFG_FMSCSI_IRQ_HANDLER(DEVWRITELINE(DEVICE_SELF_OWNER, towns_state, towns_scsi_irq))
-	MCFG_FMSCSI_DRQ_HANDLER(DEVWRITELINE(DEVICE_SELF_OWNER, towns_state, towns_scsi_drq))
+	MCFG_DEVICE_ADD("scsi", SCSI_PORT, 0)
+	MCFG_SCSIDEV_ADD("scsi:" SCSI_PORT_DEVICE1, "harddisk", SCSIHD, SCSI_ID_0)
+	MCFG_SCSIDEV_ADD("scsi:" SCSI_PORT_DEVICE2, "harddisk", SCSIHD, SCSI_ID_1)
+	MCFG_SCSIDEV_ADD("scsi:" SCSI_PORT_DEVICE3, "harddisk", SCSIHD, SCSI_ID_2)
+	MCFG_SCSIDEV_ADD("scsi:" SCSI_PORT_DEVICE4, "harddisk", SCSIHD, SCSI_ID_3)
+	MCFG_SCSIDEV_ADD("scsi:" SCSI_PORT_DEVICE5, "harddisk", SCSIHD, SCSI_ID_4)
 
-	MCFG_UPD71071_ADD("dma_1",towns_dma_config)
-	MCFG_UPD71071_ADD("dma_2",towns_dma_config)
+	MCFG_FMSCSI_ADD("fmscsi")
+	MCFG_LEGACY_SCSI_PORT("scsi")
+	MCFG_FMSCSI_IRQ_HANDLER(WRITELINE(towns_state, towns_scsi_irq))
+	MCFG_FMSCSI_DRQ_HANDLER(WRITELINE(towns_state, towns_scsi_drq))
+
+	MCFG_DEVICE_ADD("dma_1", UPD71071, 0)
+	MCFG_UPD71071_CPU("maincpu")
+	MCFG_UPD71071_CLOCK(4000000)
+	MCFG_UPD71071_DMA_READ_0_CB(READ16(towns_state, towns_fdc_dma_r))
+	MCFG_UPD71071_DMA_READ_1_CB(READ16(towns_state, towns_scsi_dma_r))
+	MCFG_UPD71071_DMA_READ_3_CB(READ16(towns_state, towns_cdrom_dma_r))
+	MCFG_UPD71071_DMA_WRITE_0_CB(WRITE16(towns_state, towns_fdc_dma_w))
+	MCFG_UPD71071_DMA_WRITE_1_CB(WRITE16(towns_state, towns_scsi_dma_w))
+	MCFG_DEVICE_ADD("dma_2", UPD71071, 0)
+	MCFG_UPD71071_CPU("maincpu")
+	MCFG_UPD71071_CLOCK(4000000)
+	MCFG_UPD71071_DMA_READ_0_CB(READ16(towns_state, towns_fdc_dma_r))
+	MCFG_UPD71071_DMA_READ_1_CB(READ16(towns_state, towns_scsi_dma_r))
+	MCFG_UPD71071_DMA_READ_3_CB(READ16(towns_state, towns_cdrom_dma_r))
+	MCFG_UPD71071_DMA_WRITE_0_CB(WRITE16(towns_state, towns_fdc_dma_w))
+	MCFG_UPD71071_DMA_WRITE_1_CB(WRITE16(towns_state, towns_scsi_dma_w))
 
 	//MCFG_VIDEO_START_OVERRIDE(towns_state,towns)
 
@@ -2841,6 +2779,7 @@ static MACHINE_CONFIG_START( townsux, towns16_state )
 	MCFG_CPU_PROGRAM_MAP(ux_mem)
 	MCFG_CPU_IO_MAP(towns16_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", towns_state,  towns_vsync_irq)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_master", pic8259_device, inta_cb)
 
 	MCFG_RAM_MODIFY(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("2M")
@@ -2855,6 +2794,7 @@ static MACHINE_CONFIG_DERIVED( townssj, towns )
 	MCFG_CPU_PROGRAM_MAP(towns_mem)
 	MCFG_CPU_IO_MAP(towns_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", towns_state,  towns_vsync_irq)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_master", pic8259_device, inta_cb)
 
 	MCFG_RAM_MODIFY(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("8M")
@@ -2866,10 +2806,23 @@ static MACHINE_CONFIG_DERIVED( townshr, towns )
 	MCFG_CPU_PROGRAM_MAP(towns_mem)
 	MCFG_CPU_IO_MAP(towns_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", towns_state,  towns_vsync_irq)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_master", pic8259_device, inta_cb)
 
 	MCFG_RAM_MODIFY(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("4M")
 	MCFG_RAM_EXTRA_OPTIONS("12M,20M,28M")
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( townsftv, towns )
+	MCFG_CPU_REPLACE("maincpu",I486, 33000000)
+	MCFG_CPU_PROGRAM_MAP(towns_mem)
+	MCFG_CPU_IO_MAP(towns_io)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", towns_state,  towns_vsync_irq)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_master", pic8259_device, inta_cb)
+
+	MCFG_RAM_MODIFY(RAM_TAG)
+	MCFG_RAM_DEFAULT_SIZE("6M")
+	MCFG_RAM_EXTRA_OPTIONS("32M,68M")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( marty, marty_state )
@@ -2879,6 +2832,7 @@ static MACHINE_CONFIG_START( marty, marty_state )
 	MCFG_CPU_PROGRAM_MAP(marty_mem)
 	MCFG_CPU_IO_MAP(towns16_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", towns_state,  towns_vsync_irq)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_master", pic8259_device, inta_cb)
 
 	MCFG_RAM_MODIFY(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("6M")
@@ -2946,6 +2900,30 @@ ROM_START( fmtownssj )
 	ROM_LOAD("mytownssj.rom",  0x00, 0x20, CRC(d0ed8936) SHA1(bf9eeef25e9a1dc4a9ce1c70f4155ac973cae3f9) )
 ROM_END
 
+/* 66MHz 80486DX2, dumped from an FM-Towns II MX */
+ROM_START( fmtownsmx )
+	ROM_REGION32_LE( 0x280000, "user", 0)
+	ROM_LOAD("fmtownsiimxbios.m79",  0x000000, 0x080000, CRC(f3fc636e) SHA1(a35a11ab56b1f11e3f69d70b61648ab83699a2df) )
+	ROM_CONTINUE(0x180000,0x40000)
+	ROM_CONTINUE(0x200000,0x40000)
+	ROM_CONTINUE(0x080000,0x80000)
+	ROM_CONTINUE(0x100000,0x80000)
+	ROM_REGION( 0x20, "serial", 0)
+	ROM_LOAD("mytownsmx.rom",  0x00, 0x20, CRC(16e78766) SHA1(38e8810bee9ee6b54c3999d27f499b89e4a4c33f) )
+ROM_END
+
+/* 33MHz 80486SX, 6MB RAM expandable up to 68MB, dumped from an FM Towns II Fresh TV */
+ROM_START( fmtownsftv )
+	ROM_REGION32_LE( 0x280000, "user", 0)
+	ROM_LOAD("fmt_dos.rom",  0x000000, 0x080000, CRC(112872ee) SHA1(57fd146478226f7f215caf63154c763a6d52165e) )
+	ROM_LOAD("fmt_f20.rom",  0x080000, 0x080000, CRC(9f55a20c) SHA1(1920711cb66340bb741a760de187de2f76040b8c) )
+	ROM_LOAD("fmt_dic.rom",  0x100000, 0x080000, CRC(82d1daa2) SHA1(7564020dba71deee27184824b84dbbbb7c72aa4e) )
+	ROM_LOAD("fmt_fnt.rom",  0x180000, 0x040000, CRC(dd6fd544) SHA1(a216482ea3162f348fcf77fea78e0b2e4288091a) )
+	ROM_LOAD("fmt_sys.rom",  0x200000, 0x040000, CRC(afe4ebcf) SHA1(4cd51de4fca9bd7a3d91d09ad636fa6b47a41df5) )
+	ROM_REGION( 0x20, "serial", 0)
+	ROM_LOAD("mytownsftv.rom",  0x00, 0x20, CRC(a961aae7) SHA1(bba02edafdfaa6fb1b8122f623259a87a555c307) )
+ROM_END
+
 ROM_START( fmtmarty )
 	ROM_REGION32_LE( 0x480000, "user", 0)
 	ROM_LOAD("mrom.m36",  0x000000, 0x080000, CRC(9c0c060c) SHA1(5721c5f9657c570638352fa9acac57fa8d0b94bd) )
@@ -2956,18 +2934,32 @@ ROM_START( fmtmarty )
 	ROM_CONTINUE(0x200000,0x40000)
 ROM_END
 
+ROM_START( fmtmarty2 )
+	ROM_REGION32_LE( 0x480000, "user", 0)
+	ROM_LOAD("fmt_dos.rom",  0x000000, 0x080000, CRC(2bc2af96) SHA1(99cd51c5677288ad8ef711b4ac25d981fd586884) )
+	ROM_LOAD("fmt_dic.rom",  0x100000, 0x080000, CRC(82d1daa2) SHA1(7564020dba71deee27184824b84dbbbb7c72aa4e) )
+	ROM_LOAD("fmt_fnt.rom",  0x180000, 0x040000, CRC(dd6fd544) SHA1(a216482ea3162f348fcf77fea78e0b2e4288091a) )
+	ROM_LOAD("fmt_sys.rom",  0x200000, 0x040000, CRC(937311f6) SHA1(7b1c97fa778986134104a6964c8fe13e3654f52e) )
+	ROM_LOAD("mar_ex0.rom",  0x280000, 0x080000, CRC(f67540f6) SHA1(1611fc4683dab72e56a5d0ee0f757e5878900b31) )
+	ROM_LOAD("mar_ex1.rom",  0x300000, 0x080000, CRC(99938a4b) SHA1(167d8ae47312cdaa30b8597144f60f54ce9f74d3) )
+	ROM_LOAD("mar_ex2.rom",  0x380000, 0x080000, CRC(c6783422) SHA1(b2ed2ba42b8132d139480484fe116ba7774e1604) )
+	ROM_LOAD("mar_ex3.rom",  0x400000, 0x080000, CRC(4aa43e16) SHA1(19b669aa6488bdaf8569e89b1b1067e51246a768) )
+	ROM_REGION( 0x20, "serial", 0)
+	ROM_LOAD("mytownsm2.rom",  0x00, 0x20, CRC(44f2f076) SHA1(e4d3be54e66931c947993ded9ddbae716ad51ca5) )
+ROM_END
+
 ROM_START( carmarty )
 	ROM_REGION32_LE( 0x480000, "user", 0)
 	ROM_LOAD("fmt_dos.rom",  0x000000, 0x080000, CRC(2bc2af96) SHA1(99cd51c5677288ad8ef711b4ac25d981fd586884) )
 	ROM_LOAD("fmt_dic.rom",  0x100000, 0x080000, CRC(82d1daa2) SHA1(7564020dba71deee27184824b84dbbbb7c72aa4e) )
 	ROM_LOAD("fmt_fnt.rom",  0x180000, 0x040000, CRC(dd6fd544) SHA1(a216482ea3162f348fcf77fea78e0b2e4288091a) )
-	ROM_LOAD("fmt_sys.rom",  0x200000, 0x040000, CRC(e1ff7ce1) SHA1(e6c359177e4e9fb5bbb7989c6bbf6e95c091fd88) )
-	ROM_LOAD("mar_ex0.rom",  0x280000, 0x080000, CRC(e248bfbd) SHA1(0ce89952a7901dd4d256939a6bc8597f87e51ae7) )
-	ROM_LOAD("mar_ex1.rom",  0x300000, 0x080000, CRC(ab2e94f0) SHA1(4b3378c772302622f8e1139ed0caa7da1ab3c780) )
-	ROM_LOAD("mar_ex2.rom",  0x380000, 0x080000, CRC(ce150ec7) SHA1(1cd8c39f3b940e03f9fe999ebcf7fd693f843d04) )
-	ROM_LOAD("mar_ex3.rom",  0x400000, 0x080000, CRC(582fc7fc) SHA1(a77d8014e41e9ff0f321e156c0fe1a45a0c5e58e) )
+	ROM_LOAD("cmar_sys.rom",  0x200000, 0x040000, CRC(e1ff7ce1) SHA1(e6c359177e4e9fb5bbb7989c6bbf6e95c091fd88) )
+	ROM_LOAD("cmar_ex0.rom",  0x280000, 0x080000, CRC(e248bfbd) SHA1(0ce89952a7901dd4d256939a6bc8597f87e51ae7) )
+	ROM_LOAD("cmar_ex1.rom",  0x300000, 0x080000, CRC(ab2e94f0) SHA1(4b3378c772302622f8e1139ed0caa7da1ab3c780) )
+	ROM_LOAD("cmar_ex2.rom",  0x380000, 0x080000, CRC(ce150ec7) SHA1(1cd8c39f3b940e03f9fe999ebcf7fd693f843d04) )
+	ROM_LOAD("cmar_ex3.rom",  0x400000, 0x080000, CRC(582fc7fc) SHA1(a77d8014e41e9ff0f321e156c0fe1a45a0c5e58e) )
 	ROM_REGION( 0x20, "serial", 0)
-	ROM_LOAD("mytowns.rom",  0x00, 0x20, CRC(bc58eba6) SHA1(483087d823c3952cc29bd827e5ef36d12c57ad49) )
+	ROM_LOAD("mytownscm.rom",  0x00, 0x20, CRC(bc58eba6) SHA1(483087d823c3952cc29bd827e5ef36d12c57ad49) )
 ROM_END
 
 /* Driver */
@@ -2977,6 +2969,9 @@ COMP( 1989, fmtowns,  0,        0,      towns,      towns, driver_device,    0, 
 COMP( 1989, fmtownsa, fmtowns,  0,      towns,      towns, driver_device,    0,  "Fujitsu",   "FM-Towns (alternate)", GAME_NOT_WORKING)
 COMP( 1991, fmtownsux,fmtowns,  0,      townsux,    towns, driver_device,    0,  "Fujitsu",   "FM-Towns II UX", GAME_NOT_WORKING)
 COMP( 1992, fmtownshr,fmtowns,  0,      townshr,    towns, driver_device,    0,  "Fujitsu",   "FM-Towns II HR", GAME_NOT_WORKING)
+COMP( 1993, fmtownsmx,fmtowns,  0,      townshr,    towns, driver_device,    0,  "Fujitsu",   "FM-Towns II MX", GAME_NOT_WORKING)
+COMP( 1994, fmtownsftv,fmtowns, 0,      townsftv,   towns, driver_device,    0,  "Fujitsu",   "FM-Towns II FreshTV", GAME_NOT_WORKING)
 COMP( 19??, fmtownssj,fmtowns,  0,      townssj,    towns, driver_device,    0,  "Fujitsu",   "FM-Towns II SJ", GAME_NOT_WORKING)
 CONS( 1993, fmtmarty, 0,        0,      marty,      marty, driver_device,    0,  "Fujitsu",   "FM-Towns Marty",  GAME_NOT_WORKING)
+CONS( 1993, fmtmarty2,fmtmarty, 0,      marty,      marty, driver_device,    0,  "Fujitsu",   "FM-Towns Marty 2",  GAME_NOT_WORKING)
 CONS( 1994, carmarty, fmtmarty, 0,      marty,      marty, driver_device,    0,  "Fujitsu",   "FM-Towns Car Marty",  GAME_NOT_WORKING)

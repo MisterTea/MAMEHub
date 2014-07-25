@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Model Racing Dribbling hardware
@@ -165,34 +167,6 @@ WRITE8_MEMBER(dribling_state::iowrite)
 }
 
 
-
-/*************************************
- *
- *  Machine init
- *
- *************************************/
-
-static I8255A_INTERFACE( ppi8255_0_intf )
-{
-	DEVCB_DRIVER_MEMBER(dribling_state,dsr_r),              /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_DRIVER_MEMBER(dribling_state,input_mux0_r),       /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_DRIVER_MEMBER(dribling_state,misc_w)              /* Port C write */
-};
-
-static I8255A_INTERFACE( ppi8255_1_intf )
-{
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_DRIVER_MEMBER(dribling_state,sound_w),                /* Port A write */
-	DEVCB_NULL,                         /* Port B read */
-	DEVCB_DRIVER_MEMBER(dribling_state,pb_w),               /* Port B write */
-	DEVCB_INPUT_PORT("IN0"),            /* Port C read */
-	DEVCB_DRIVER_MEMBER(dribling_state,shr_w)               /* Port C write */
-};
-
-
 /*************************************
  *
  *  Main CPU memory handlers
@@ -298,22 +272,29 @@ static MACHINE_CONFIG_START( dribling, dribling_state )
 	MCFG_CPU_IO_MAP(io_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", dribling_state,  dribling_irq_gen)
 
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_0_intf )
-	MCFG_I8255A_ADD( "ppi8255_1", ppi8255_1_intf )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(dribling_state, dsr_r))
+	MCFG_I8255_IN_PORTB_CB(READ8(dribling_state, input_mux0_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(dribling_state, misc_w))
 
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(dribling_state, sound_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(dribling_state, pb_w))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("IN0"))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(dribling_state, shr_w))
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 40, 255)
 	MCFG_SCREEN_UPDATE_DRIVER(dribling_state, screen_update_dribling)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(dribling_state, dribling)
 
 	/* sound hardware */
 MACHINE_CONFIG_END

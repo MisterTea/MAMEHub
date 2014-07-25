@@ -187,23 +187,23 @@ void cischeat_state::create_tilemaps()
 	for (layer = 0; layer < 3; layer++)
 	{
 		/* 16x16 tilemaps */
-		m_tilemap[layer][0][0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),this),
+		m_tilemap[layer][0][0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),this),
 									8,8, TILES_PER_PAGE_X * 16, TILES_PER_PAGE_Y * 2);
-		m_tilemap[layer][0][1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),this),
+		m_tilemap[layer][0][1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),this),
 									8,8, TILES_PER_PAGE_X * 8, TILES_PER_PAGE_Y * 4);
-		m_tilemap[layer][0][2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),this),
+		m_tilemap[layer][0][2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),this),
 									8,8, TILES_PER_PAGE_X * 4, TILES_PER_PAGE_Y * 8);
-		m_tilemap[layer][0][3] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),this),
+		m_tilemap[layer][0][3] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),this),
 									8,8, TILES_PER_PAGE_X * 2, TILES_PER_PAGE_Y * 16);
 
 		/* 8x8 tilemaps */
-		m_tilemap[layer][1][0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),this),
+		m_tilemap[layer][1][0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),this),
 									8,8, TILES_PER_PAGE_X * 8, TILES_PER_PAGE_Y * 1);
-		m_tilemap[layer][1][1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),this),
+		m_tilemap[layer][1][1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),this),
 									8,8, TILES_PER_PAGE_X * 4, TILES_PER_PAGE_Y * 2);
-		m_tilemap[layer][1][2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),this),
+		m_tilemap[layer][1][2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),this),
 									8,8, TILES_PER_PAGE_X * 4, TILES_PER_PAGE_Y * 2);
-		m_tilemap[layer][1][3] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),this),
+		m_tilemap[layer][1][3] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),this),
 									8,8, TILES_PER_PAGE_X * 2, TILES_PER_PAGE_Y * 4);
 
 		/* set user data and transparency */
@@ -704,7 +704,7 @@ void cischeat_state::cischeat_draw_road(bitmap_ind16 &bitmap, const rectangle &c
 	int min_priority, max_priority;
 
 	rectangle rect      =   cliprect;
-	gfx_element *gfx        =   machine().gfx[(road_num & 1)?5:4];
+	gfx_element *gfx        =   m_gfxdecode->gfx((road_num & 1)?5:4);
 
 	UINT16 *roadram         =   m_roadram[road_num & 1];
 
@@ -739,7 +739,7 @@ void cischeat_state::cischeat_draw_road(bitmap_ind16 &bitmap, const rectangle &c
 
 		for (sx = -(xscroll%TILE_SIZE) ; sx <= max_x ; sx +=TILE_SIZE)
 		{
-			drawgfx_transpen(bitmap,rect,gfx,
+			gfx->transpen(bitmap,rect,
 					curr_code++,
 					attr,
 					0,0,
@@ -794,7 +794,7 @@ void cischeat_state::f1gpstar_draw_road(bitmap_ind16 &bitmap, const rectangle &c
 	int min_priority, max_priority;
 
 	rectangle rect      =   cliprect;
-	gfx_element *gfx        =   machine().gfx[(road_num & 1)?5:4];
+	gfx_element *gfx        =   m_gfxdecode->gfx((road_num & 1)?5:4);
 
 	UINT16 *roadram         =   m_roadram[road_num & 1];
 
@@ -845,7 +845,7 @@ void cischeat_state::f1gpstar_draw_road(bitmap_ind16 &bitmap, const rectangle &c
 		/* Draw the line */
 		for (sx = xstart ; sx <= max_x ; sx += xdim)
 		{
-			drawgfxzoom_transpen(bitmap,rect,gfx,
+			gfx->zoom_transpen(bitmap,rect,
 						code++,
 						attr >> 8,
 						0,0,
@@ -1003,12 +1003,9 @@ if ( (m_debugsprites) && ( ((attr & 0x0300)>>8) != (m_debugsprites-1) ) ) { cont
 		{
 			for (x = xstart; x != xend; x += xinc)
 			{
-				drawgfxzoom_transtable(bitmap,cliprect,machine().gfx[3],
-							code++,
-							color,
-							flipx,flipy,
+				m_gfxdecode->gfx(3)->zoom_transtable(bitmap,cliprect,code++,color,flipx,flipy,
 							(sx + x * xdim) / 0x10000, (sy + y * ydim) / 0x10000,
-							xscale, yscale, m_drawmode_table, machine().shadow_table);
+							xscale, yscale, m_drawmode_table);
 			}
 		}
 #ifdef MAME_DEBUG
@@ -1157,12 +1154,9 @@ if ( (m_debugsprites) && ( ((attr & 0x0300)>>8) != (m_debugsprites-1) ) ) { cont
 		{
 			for (x = xstart; x != xend; x += xinc)
 			{
-				drawgfxzoom_transtable(bitmap,cliprect,machine().gfx[3],
-							code++,
-							color,
-							flipx,flipy,
+				m_gfxdecode->gfx(3)->zoom_transtable(bitmap,cliprect,code++,color,flipx,flipy,
 							(sx + x * xdim) / 0x10000, (sy + y * ydim) / 0x10000,
-							xscale, yscale, m_drawmode_table, machine().shadow_table);
+							xscale, yscale, m_drawmode_table);
 			}
 		}
 #ifdef MAME_DEBUG

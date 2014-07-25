@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __PROF180X__
@@ -14,7 +16,12 @@ class prof180x_state : public driver_device
 {
 public:
 	prof180x_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_centronics(*this, CENTRONICS_TAG)
+	{
+	}
+
+	required_device<centronics_device> m_centronics;
 
 	virtual void machine_start();
 	virtual void machine_reset();

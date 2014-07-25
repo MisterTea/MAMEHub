@@ -1,132 +1,66 @@
-/*
-    Sega Saturn SCU DSP disassembler
-
-    Written by Angelo Salese
-*/
-
 #include "emu.h"
+#include "debugger.h"
+#include "scudsp.h"
 
-enum
+static const char *const ALU_Commands[] =
 {
-	EA_A = 1,
-	EA_ALU,
-	EA_D0,
-	EA_IMM8,
-	EA_IMM18,
-	EA_IMM25,
-	EA_MUL,
-	EA_P,
-	EA_X,
-	EA_Y,
-	EA_SRCMEMX,
-	EA_SRCMEMY,
-	EA_SRCMEMD1,
-	EA_DMADSTMEM,
-	EA_DSTMEM,
-	EA_MVIDSTMEM,
-	EA_FLAGS,
-	EA_DMASRCMEM
-
+	"    ",     /* 0000 */
+	"AND ",  /* 0001 */
+	"OR  ",   /* 0010 */
+	"XOR ",  /* 0011 */
+	"ADD ",  /* 0100 */
+	"SUB ",  /* 0101 */
+	"AD2 ",  /* 0110 */
+	"ALU?",  /* 0111 */
+	"SR  ",   /* 1000 */
+	"RR  ",   /* 1001 */
+	"SL  ",   /* 1010 */
+	"RL  ",   /* 1011 */
+	"ALU?",  /* 1100 */
+	"ALU?",  /* 1101 */
+	"ALU?",  /* 1110 */
+	"RL8 ",  /* 1111 */
 };
 
-struct SCUDSP_OPCODE {
-	char mnemonic[32];
-	int address_mode_1;
-	int address_mode_2;
-	int address_mode_3;
-};
-
-static const SCUDSP_OPCODE alu_table[16] =
+static const char *const X_Commands[] =
 {
-	{ "NOP", 0, 0, 0, }, /* 0000 */
-	{ "AND", 0, 0, 0, }, /* 0001 */
-	{ "OR ", 0, 0, 0, }, /* 0010 */
-	{ "XOR", 0, 0, 0, }, /* 0011 */
-	{ "ADD", 0, 0, 0, }, /* 0100 */
-	{ "SUB", 0, 0, 0, }, /* 0101 */
-	{ "AD2", 0, 0, 0, }, /* 0110 */
-	{ "???", 0, 0, 0, }, /* 0111 */
-	{ "SR ", 0, 0, 0, }, /* 1000 */
-	{ "RR ", 0, 0, 0, }, /* 1001 */
-	{ "SL ", 0, 0, 0, }, /* 1010 */
-	{ "RL ", 0, 0, 0, }, /* 1011 */
-	{ "???", 0, 0, 0, }, /* 1100 */
-	{ "???", 0, 0, 0, }, /* 1101 */
-	{ "???", 0, 0, 0, }, /* 1110 */
-	{ "RL8", 0, 0, 0, }, /* 1111 */
+	"",             /* 000 */
+	"",             /* 001 */   /* NOP? check instruction @ 0x0B */
+	"MOV MUL,P",    /* 010 */
+	"MOV %s,P",     /* 011 */
+	"MOV %s,X",     /* 100 */
 };
 
-static const SCUDSP_OPCODE xbus_table[] =
+static const char *const Y_Commands[] =
 {
-	{ "NOP", 0,          0,    0, },            /* 000 */
-	{ "???", 0,          0,    0, },            /* 001 */
-	{ "MOV", EA_MUL,     EA_P, 0, },    /* 010 */
-	{ "MOV", EA_SRCMEMX, EA_P, 0, },        /* 011 */ //MOV %s,P
-	{ "MOV", EA_SRCMEMX, EA_X, 0, },        /* 100 */ //MOV %s,X
-	{ "???", 0,          0,    0, },            /* 101 */
-	{ "???", 0,          0,    0, },            /* 110 */
-	{ "???", 0,          0,    0, },            /* 111 */
+	"",             /* 000 */
+	"CLR A",        /* 001 */
+	"MOV ALU,A",    /* 010 */
+	"MOV %s,A",     /* 011 */
+	"MOV %s,Y",     /* 100 */
 };
 
-static const SCUDSP_OPCODE ybus_table[] =
+static const char *const D1_Commands[] =
 {
-	{ "NOP", 0,          0,    0, },    /* 000 */
-	{ "CLR", 0,          EA_A, 0, },    /* 001 */
-	{ "MOV", EA_ALU,     EA_A, 0, },    /* 010 */
-	{ "MOV", EA_SRCMEMY, EA_A, 0, },    /* 011 */ //MOV %s,A
-	{ "MOV", EA_SRCMEMY, EA_Y, 0, },    /* 100 */ //MOV %s,Y
-	{ "???", 0,          0,    0, },                /* 101 */
-	{ "???", 0,          0,    0, },                /* 110 */
-	{ "???", 0,          0,    0, },                /* 111 */
+	"",                 /* 00 */
+	"MOV %I8,%d",       /* 01 */
+	"???",              /* 10 */
+	"MOV %S,%d",        /* 11 */
 };
 
-static const SCUDSP_OPCODE d1bus_table[] =
+static const char *const SourceMemory[] =
 {
-	{ "NOP", 0,          0,         0, },                   /* 00 */
-	{ "MOV", EA_IMM8,    EA_DSTMEM, 0, },       /* 01 */ //MOV %I8,%d
-	{ "???", 0,          0,         0, },                   /* 10 */
-	{ "MOV", EA_SRCMEMD1,0,         0, },           /* 11 */ //MOV %S,%d
+	"M0",           /* 000 */
+	"M1",           /* 001 */
+	"M2",           /* 010 */
+	"M3",           /* 011 */
+	"MC0",          /* 100 */
+	"MC1",          /* 101 */
+	"MC2",          /* 110 */
+	"MC3",          /* 111 */
 };
 
-static const SCUDSP_OPCODE mvi_table[] =
-{
-	{ "MVI", EA_IMM25,   EA_MVIDSTMEM,  0, },                   /* 0 */ //"MVI %I,%d"
-	{ "MVI", EA_IMM18,   EA_MVIDSTMEM,  EA_FLAGS, },            /* 1 */ //"MVI %I,%d,%f"
-};
-
-static const SCUDSP_OPCODE dma_table[] =
-{
-	{ "DMA",  EA_D0,          EA_DMADSTMEM,  EA_IMM8, }, /* 000 */ // "DMA%H%A D0,%M,%I",
-	{ "DMA",  EA_DMASRCMEM,   EA_D0,  EA_IMM8, },   /* 001 */ // "DMA%H%A %s,D0,%I",
-	{ "DMA",  0,   0,  0, }, /* 010 */ // "DMA%H%A D0,%M,%s",
-	{ "DMA",  0,   0,  0, },                        /* 011 */ // "DMA%H%A %s,D0,%s",
-	{ "DMAH", EA_D0,   EA_DMADSTMEM,  EA_IMM8, },   /* 100 */ // "DMA%H%A D0,%M,%I",
-	{ "DMAH", EA_DMASRCMEM,   EA_D0,  EA_IMM8, },   /* 101 */ // "DMA%H%A %s,D0,%I",
-	{ "DMAH", 0,   0,  0, },                        /* 110 */ // "DMA%H%A D0,%M,%s",
-	{ "DMAH", 0,   0,  0, },                        /* 111 */ // "DMA%H%A %s,D0,%s",
-
-};
-
-static const SCUDSP_OPCODE jmp_table[] =
-{
-	{ "JMP", EA_IMM8, 0, 0, }, /* 0 */ // unconditional
-	{ "JMP", EA_IMM8, 0, EA_FLAGS, }, /* 1 */ // conditional
-};
-
-static const SCUDSP_OPCODE loop_table[] =
-{
-	{ "BTM", 0,   0,  0, },                 /* 00 */
-	{ "LPS", 0,   0,  0, },                 /* 01 */
-};
-
-static const SCUDSP_OPCODE end_table[] =
-{
-	{ "END", 0,   0,  0, },                 /* 00 */
-	{ "ENDI",0,   0,  0, },                 /* 01 */
-};
-
-
-static const char *const src_mem[] =
+static const char *const SourceMemory2[] =
 {
 	"M0",           /* 0000 */
 	"M1",           /* 0001 */
@@ -146,7 +80,7 @@ static const char *const src_mem[] =
 	"???",          /* 1111 */
 };
 
-static const char *const dst_mem[] =
+static const char *const DestMemory[] =
 {
 	"MC0",          /* 0000 */
 	"MC1",          /* 0001 */
@@ -166,181 +100,263 @@ static const char *const dst_mem[] =
 	"CT3",          /* 1111 */
 };
 
-static const char *const mvi_dst_mem[] =
+static const char *const DestDMAMemory[] =
 {
-	"MC0",          /* 0000 */
-	"MC1",          /* 0001 */
-	"MC2",          /* 0010 */
-	"MC3",          /* 0011 */
-	"RX",           /* 0100 */
-	"PL",           /* 0101 */
-	"RA0",          /* 0110 */
-	"WA0",          /* 0111 */
-	"???",          /* 1000 */
-	"???",          /* 1001 */
-	"LOP",          /* 1010 */
-	"???",          /* 1011 */
-	"PC",           /* 1100 */ //???
-	"???",          /* 1101 */
-	"???",          /* 1110 */
-	"???",          /* 1111 */
+	"M0",           /* 000 */
+	"M1",           /* 001 */
+	"M2",           /* 010 */
+	"M3",           /* 011 */
+	"PRG",          /* 100 */
+	"???",          /* 101 */
+	"???",          /* 110 */
+	"???",          /* 111 */
 };
 
-static const char *const cond_flags[] =
+static const char *const MVI_Command[] =
 {
-	"??", /* 0000 */
-	"Z ", /* 0001 */
-	"S ", /* 0010 */
-	"ZS", /* 0011 */
-	"C ", /* 0100 */
-	"??", /* 0101 */
-	"??", /* 0110 */
-	"??", /* 0111 */
-	"T0", /* 1000 */
-	"??", /* 1001 */
-	"??", /* 1010 */
-	"??", /* 1011 */
-	"??", /* 1100 */
-	"??", /* 1101 */
-	"??", /* 1110 */
-	"??", /* 1111 */
+	"MVI %I,%d",    /* 0 */
+	"MVI %I,%d,%f", /* 1 */
 };
 
-/*****************************************************************************/
-
-static char *output;
-static const UINT8 *rombase;
-
-static void ATTR_PRINTF(1,2) print(const char *fmt, ...)
+static const char *const JMP_Command[] =
 {
-	va_list vl;
+	"JMP %IA",
+	"JMP %f,%IA",
+};
 
-	va_start(vl, fmt);
-	output += vsprintf(output, fmt, vl);
-	va_end(vl);
-}
-
-static UINT32 fetch(void)
+static const char *const DMA_Command[] =
 {
-	return *rombase++;
-}
+	"DMA%H%A D0,%M,%I",
+	"DMA%H%A %s,D0,%I",
+	"DMA%H%A D0,%M,%s",
+	"DMA%H%A %s,D0,%s",
+};
 
-static UINT8 add_table(UINT32 cur_opcode)
+
+static void scudsp_dasm_prefix( const char* format, char* buffer, UINT32 *data )
 {
-	UINT8 res = (cur_opcode & 0x00038000) >> 15;
-
-	if(res == 0)
-		res = 0;
-	else
-		res = 1 << (res-1);
-
-	return res;
-}
-
-static UINT32 decode_opcode(UINT32 pc, const SCUDSP_OPCODE *op_table,UINT32 cur_opcode)
-{
-//  INT8 rel8;
-//  UINT32 imm32;
-//  UINT8 op2;
-	UINT32 flags = 0;
-
-	//if (!strcmp(op_table->mnemonic, "jsr") || !strcmp(op_table->mnemonic, "bsr"))
-	//  flags = DASMFLAG_STEP_OVER;
-	//else if (!strcmp(op_table->mnemonic, "rts") || !strcmp(op_table->mnemonic, "rti"))
-	//  flags = DASMFLAG_STEP_OUT;
-
-	print("%s ", op_table->mnemonic);
-
-	switch(op_table->address_mode_1)
+	for ( ; *format; format++ )
 	{
-		case EA_ALU:       print("ALU "); break;
-		case EA_IMM8:      print("%02X ",cur_opcode & 0xff); break;
-		case EA_IMM18:     print("%08X ",cur_opcode & 0x7ffff); break;
-		case EA_IMM25:     print("%08X ",cur_opcode & 0x1ffffff); break;
-		case EA_MUL:       print("MUL "); break;
-		case EA_SRCMEMX:   print("%s ", src_mem[(cur_opcode & 0x00700000) >> 20]); break;
-		case EA_SRCMEMY:   print("%s ", src_mem[(cur_opcode & 0x0001c000) >> 14]); break;
-		case EA_SRCMEMD1:  print("%s ", src_mem[(cur_opcode & 0x0000000f) >> 0]); break;
-		case EA_D0:        print("%d D0 ",add_table(cur_opcode)); break;
-		case EA_DMASRCMEM: print("%d %s ",add_table(cur_opcode),src_mem[(cur_opcode & 0x00000300) >> 8]); break;
+		if ( *format == '%' )
+		{
+			switch( *++format )
+			{
+				case 'H':
+					if ( *data )
+					{
+						strcpy( buffer, "H" );
+					}
+					else
+					{
+						*buffer = 0;
+					}
+					break;
+				case 'A':
+					if ( *data == 0 )
+					{
+						strcpy( buffer, "0" );
+					}
+					else if ( *data == 1 )
+					{
+						*buffer = 0;
+					}
+					else
+					{
+						sprintf( buffer, "%d", 1 << (*data - 1) );
+					}
+					break;
+				case 's':
+					strcpy( buffer, SourceMemory[ *data & 0x7 ] );
+					break;
+				case 'd':
+					strcpy( buffer, DestMemory[ *data & 0xf ] );
+					break;
+				case 'S':
+					strcpy( buffer, SourceMemory2[ *data & 0xf ] );
+					break;
+				case 'I':
+					++format;
+					if ( *format == '8' )
+					{
+						sprintf( buffer, "#$%x", *data );
+					}
+					else if ( *format == 'A' )
+					{
+						sprintf( buffer, "$%X", *data );
+					}
+					else
+					{
+						--format;
+						sprintf( buffer, "#$%X", *data );
+					}
+					break;
+				case 'f':
+					if ( !(*data & 0x20) )
+					{
+						strcpy( buffer, "N" );
+						buffer++;
+					}
+					switch( *data & 0xf )
+					{
+						case 0x3:
+							strcpy( buffer, "ZS" );
+							break;
+						case 0x2:
+							strcpy( buffer, "S" );
+							break;
+						case 0x4:
+							strcpy( buffer, "C" );
+							break;
+						case 0x8:
+							strcpy( buffer, "T0" );
+							break;
+						case 0x1:
+							strcpy( buffer, "Z" );
+							break;
+						default:
+							strcpy( buffer, "?" );
+							break;
+					}
+					break;
+				case 'M':
+					strcpy( buffer, DestDMAMemory[ *data ] );
+					break;
 
-		default:
-			break;
+			}
+			data++;
+			buffer += strlen( buffer );
+		}
+		else
+		{
+			*buffer++ = *format;
+		}
 	}
-
-	switch(op_table->address_mode_2)
-	{
-		case EA_A:         print("A"); break;
-		case EA_P:         print("P"); break;
-		case EA_X:         print("X"); break;
-		case EA_Y:         print("Y"); break;
-		case EA_DSTMEM:    print("%s ", dst_mem[(cur_opcode & 0x00000f00) >> 8]); break;
-		case EA_DMADSTMEM: print("%s ", dst_mem[(cur_opcode & 0x00000300) >> 8]); break;
-		case EA_MVIDSTMEM: print("%s ", mvi_dst_mem[(cur_opcode & 0x3c000000) >> 26]); break;
-		case EA_D0:        print("D0 "); break;
-
-		default:
-			break;
-	}
-
-	switch(op_table->address_mode_3)
-	{
-		case EA_IMM8:     print("%02X ",cur_opcode & 0xff); break;
-		case EA_FLAGS:
-			if(!((cur_opcode >> 19) & 0x20))
-				print("N");
-			print("%s ", cond_flags[(cur_opcode & 0x0780000) >> 19]);
-			break;
-
-		default:
-			break;
-	}
-
-	return flags;
+	*buffer = 0;
 }
+
 
 CPU_DISASSEMBLE( scudsp )
 {
-	UINT32 flags = 0;
-	UINT8 opcode;
+	UINT32 op = oprom[0]<<24|oprom[1]<<16|oprom[2]<<8|oprom[3]<<0;
+	unsigned size = 1;
+//  const char *sym, *sym2;
+	char *my_buffer = buffer;
+	char temp_buffer[64];
+	UINT32 data[4];
 
-	output = buffer;
-	rombase = oprom;
-
-	opcode = fetch();
-	switch((opcode & 0xc0000000) >> 30)
+	switch( op >> 30 )
 	{
-		case 0: // operation
-			flags =  decode_opcode(pc, &alu_table  [(opcode & 0x3c000000) >> 26],opcode);
-			flags |= decode_opcode(pc, &xbus_table [(opcode & 0x03800000) >> 23],opcode);
-			flags |= decode_opcode(pc, &ybus_table [(opcode & 0x000e0000) >> 17],opcode);
-			flags |= decode_opcode(pc, &d1bus_table[(opcode & 0x00003000) >> 12],opcode);
+		case 0:
+			if ( (op & 0x3F8E3000) == 0 )
+			{
+				sprintf( buffer, "%-10s", "NOP" );
+				break;
+			}
+
+			/* ALU */
+			sprintf(my_buffer, "%s", ALU_Commands[ (op & 0x3c000000) >> 26] );
+			my_buffer += strlen( my_buffer );
+
+			/* X-Bus */
+			data[0] = (op & 0x700000) >> 20;
+			if ( op & 0x2000000 )
+			{
+				scudsp_dasm_prefix( X_Commands[ 4 ], temp_buffer, data );
+			}
+			else
+			{
+				*temp_buffer = 0;
+			}
+			sprintf( my_buffer, "%s", temp_buffer );
+			my_buffer += strlen( my_buffer );
+
+			scudsp_dasm_prefix( X_Commands[ (op & 0x1800000) >> 23 ], temp_buffer,  data );
+			sprintf( my_buffer, "%s", temp_buffer );
+			my_buffer += strlen( my_buffer );
+
+			data[0] = (op & 0x1C000 ) >> 14 ;
+			if ( op & 0x80000 )
+			{
+				scudsp_dasm_prefix( Y_Commands[4], temp_buffer, data );
+			}
+			else
+			{
+				*temp_buffer = 0;
+			}
+			sprintf( my_buffer, "%s", temp_buffer );
+			my_buffer += strlen( my_buffer );
+
+			scudsp_dasm_prefix( Y_Commands[ (op & 0x60000) >> 17 ], temp_buffer,  data );
+			sprintf( my_buffer, "%s", temp_buffer );
+			my_buffer += strlen( my_buffer );
+
+			/* D1-Bus */
+			switch( (op & 0x3000) >> 12 )
+			{
+				case 0x1:
+					data[0] = (op & 0xFF);
+					data[1] = ((op & 0xF00) >> 8);
+					break;
+				case 0x3:
+					data[0] = (op & 0xF);
+					data[1] = ((op & 0xF00) >> 8);
+					break;
+			}
+
+			scudsp_dasm_prefix( D1_Commands[ (op & 0x3000) >> 12 ], temp_buffer, data );
+			sprintf( my_buffer, "%s", temp_buffer );
 			break;
-		case 1: // unknown
-			print("???");
-			flags = 0;
+		case 2:
+			if ( (op & 0x2000000) )
+			{
+				data[0] = op & 0x7FFFF;
+				data[1] = (op & 0x3C000000) >> 26;
+				data[2] = (op & 0x3F80000 ) >> 19;
+				scudsp_dasm_prefix( MVI_Command[1], buffer, data ); /* TODO: bad mem*/
+			}
+			else
+			{
+				data[0] = op & 0x1FFFFFF;
+				data[1] = (op & 0x3C000000) >> 26;
+				scudsp_dasm_prefix( MVI_Command[0], buffer, data ); /* TODO: bad mem*/
+			}
 			break;
-		case 2: // move immediate
-			flags = decode_opcode(pc,  &mvi_table  [(opcode & 0x02000000) >> 25],opcode);
-			break;
-		case 3: // control
-			switch((opcode & 0x30000000) >> 28)
+		case 3:
+			switch((op >> 28) & 3)
 			{
 				case 0:
-					flags = decode_opcode(pc,  &dma_table  [(opcode & 0x7000) >> 12],opcode);
+					data[0] = (op &  0x4000) >> 14; /* H */
+					data[1] = (op & 0x38000) >> 15; /* A */
+					data[2] = (op & 0x700) >> 8; /* Mem */
+					data[3] = (op & 0xff);
+					scudsp_dasm_prefix( DMA_Command[(op & 0x3000) >> 12], buffer, data );
 					break;
 				case 1:
-					flags = decode_opcode(pc,  &jmp_table  [(opcode & 0x2000000) >> 25],opcode);
+					if ( op & 0x3F80000 )
+					{
+						data[0] = (op & 0x3F80000) >> 19;
+						data[1] = op & 0xff;
+						scudsp_dasm_prefix( JMP_Command[1], buffer, data );
+					}
+					else
+					{
+						data[0] = op & 0xff;
+						scudsp_dasm_prefix( JMP_Command[0], buffer, data );
+					}
 					break;
 				case 2:
-					flags = decode_opcode(pc,  &loop_table [(opcode & 0x8000000) >> 27],opcode);
+					sprintf(buffer, op & 0x8000000 ? "LPS" : "BTM");
 					break;
 				case 3:
-					flags = decode_opcode(pc,  &end_table  [(opcode & 0x8000000) >> 27],opcode);
+					sprintf(buffer, op & 0x8000000 ? "ENDI" : "END");
 					break;
 			}
 			break;
+
+		default:
+			sprintf(buffer, "???");
+			break;
 	}
 
-	return (rombase-oprom) | flags | DASMFLAG_SUPPORTED;
+	return size;
 }

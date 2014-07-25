@@ -54,20 +54,14 @@ UINT32 uknc_state::screen_update_uknc(screen_device &screen, bitmap_ind16 &bitma
 	return 0;
 }
 
-static const struct t11_setup t11_data =
-{
-	0x36ff          /* initial mode word has DAL15,14,11,8 pulled low */
-};
-
-
 static MACHINE_CONFIG_START( uknc, uknc_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", T11, 8000000)
-	MCFG_CPU_CONFIG(t11_data)
+	MCFG_T11_INITIAL_MODE(0x36ff)  /* initial mode word has DAL15,14,11,8 pulled low */
 	MCFG_CPU_PROGRAM_MAP(uknc_mem)
 
 	MCFG_CPU_ADD("subcpu",  T11, 6000000)
-	MCFG_CPU_CONFIG(t11_data)
+	MCFG_T11_INITIAL_MODE(0x36ff)  /* initial mode word has DAL15,14,11,8 pulled low */
 	MCFG_CPU_PROGRAM_MAP(uknc_sub_mem)
 
 
@@ -78,8 +72,9 @@ static MACHINE_CONFIG_START( uknc, uknc_state )
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 	MCFG_SCREEN_UPDATE_DRIVER(uknc_state, screen_update_uknc)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 MACHINE_CONFIG_END
 
 /* ROM definition */

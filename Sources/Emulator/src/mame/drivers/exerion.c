@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Jaleco Exerion hardware
@@ -326,49 +328,11 @@ static const gfx_layout spritelayout =
 };
 
 
-/* Quick and dirty way to emulate pixel-doubled sprites. */
-static const gfx_layout bigspritelayout =
-{
-	32,32,
-	RGN_FRAC(1,1),
-	2,
-	{ 0, 4 },
-	{  3, 3, 2, 2, 1, 1, 0, 0,
-			8+3, 8+3, 8+2, 8+2, 8+1, 8+1, 8+0, 8+0,
-			16+3, 16+3, 16+2, 16+2, 16+1, 16+1, 16+0, 16+0,
-			24+3, 24+3, 24+2, 24+2, 24+1, 24+1, 24+0, 24+0 },
-	{ 32*0, 32*0, 32*1, 32*1, 32*2, 32*2, 32*3, 32*3,
-			32*4, 32*4, 32*5, 32*5, 32*6, 32*6, 32*7, 32*7,
-			32*8, 32*8, 32*9, 32*9, 32*10, 32*10, 32*11, 32*11,
-			32*12, 32*12, 32*13, 32*13, 32*14, 32*14, 32*15, 32*15 },
-	64*8
-};
-
-
 static GFXDECODE_START( exerion )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout,         0, 64 )
 	GFXDECODE_ENTRY( "gfx2", 0, spritelayout,     256, 64 )
-	GFXDECODE_ENTRY( "gfx2", 0, bigspritelayout,  256, 64 )
+	GFXDECODE_SCALE( "gfx2", 0, spritelayout,     256, 64, 2, 2 )
 GFXDECODE_END
-
-
-
-/*************************************
- *
- *  Sound interfaces
- *
- *************************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(exerion_state,exerion_porta_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(exerion_state,exerion_portb_w)
-};
-
 
 
 /*************************************
@@ -416,10 +380,12 @@ static MACHINE_CONFIG_START( exerion, exerion_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(EXERION_PIXEL_CLOCK, EXERION_HTOTAL, EXERION_HBEND, EXERION_HBSTART, EXERION_VTOTAL, EXERION_VBEND, EXERION_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(exerion_state, screen_update_exerion)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(exerion)
-	MCFG_PALETTE_LENGTH(256*3)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", exerion)
+	MCFG_PALETTE_ADD("palette", 256*3)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(exerion_state, exerion)
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -428,7 +394,8 @@ static MACHINE_CONFIG_START( exerion, exerion_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
 	MCFG_SOUND_ADD("ay2", AY8910, EXERION_AY8910_CLOCK)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(exerion_state, exerion_porta_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(exerion_state, exerion_portb_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -540,10 +507,10 @@ ROM_END
 DRIVER_INIT_MEMBER(exerion_state,exerion)
 {
 	UINT32 oldaddr, newaddr, length;
-	UINT8 *src, *dst, *temp;
+	UINT8 *src, *dst;
 
 	/* allocate some temporary space */
-	temp = auto_alloc_array(machine(), UINT8, 0x10000);
+	dynamic_buffer temp(0x10000);
 
 	/* make a temporary copy of the character data */
 	src = temp;
@@ -581,8 +548,6 @@ DRIVER_INIT_MEMBER(exerion_state,exerion)
 					((oldaddr     ) & 0xc003);        /* keep n9-n8 h3-h2 */
 		dst[newaddr] = src[oldaddr];
 	}
-
-	auto_free(machine(), temp);
 }
 
 

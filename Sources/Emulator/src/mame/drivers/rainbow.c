@@ -345,14 +345,14 @@ WRITE16_MEMBER(rbisland_state::jumping_sound_w)
 static ADDRESS_MAP_START( rbisland_map, AS_PROGRAM, 16, rbisland_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x10c000, 0x10ffff) AM_RAM             /* main RAM */
-	AM_RANGE(0x200000, 0x200fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x200000, 0x200fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x201000, 0x203fff) AM_RAM             /* r/w in initial checks */
 	AM_RANGE(0x390000, 0x390003) AM_READ_PORT("DSWA")
 	AM_RANGE(0x3a0000, 0x3a0001) AM_WRITE(rbisland_spritectrl_w)
 	AM_RANGE(0x3b0000, 0x3b0003) AM_READ_PORT("DSWB")
 	AM_RANGE(0x3c0000, 0x3c0003) AM_WRITENOP        /* written very often, watchdog? */
-	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r,tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, master_port_w, 0x00ff)
+	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, master_comm_r, master_comm_w, 0x00ff)
 	AM_RANGE(0x800000, 0x8007ff) AM_READWRITE(rbisland_cchip_ram_r,rbisland_cchip_ram_w)
 	AM_RANGE(0x800802, 0x800803) AM_READWRITE(rbisland_cchip_ctrl_r,rbisland_cchip_ctrl_w)
 	AM_RANGE(0x800c00, 0x800c01) AM_WRITE(rbisland_cchip_bank_w)
@@ -366,7 +366,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( jumping_map, AS_PROGRAM, 16, rbisland_state )
 	AM_RANGE(0x000000, 0x09ffff) AM_ROM
 	AM_RANGE(0x10c000, 0x10ffff) AM_RAM             /* main RAM */
-	AM_RANGE(0x200000, 0x200fff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x200000, 0x200fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x201000, 0x203fff) AM_RAM             /* r/w in initial checks */
 	AM_RANGE(0x400000, 0x400001) AM_READ_PORT("DSWA")
 	AM_RANGE(0x400002, 0x400003) AM_READ_PORT("DSWB")
@@ -410,8 +410,8 @@ static ADDRESS_MAP_START( rbisland_sound_map, AS_PROGRAM, 8, rbisland_state )
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
 	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE("ymsnd", ym2151_device,read,write)
 	AM_RANGE(0x9002, 0x9100) AM_READNOP
-	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
-	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("tc0140syt", tc0140syt_device, slave_port_w)
+	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, slave_comm_r, slave_comm_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( jumping_sound_map, AS_PROGRAM, 8, rbisland_state )
@@ -619,28 +619,6 @@ GFXDECODE_END
                       MACHINE DRIVERS
 ***********************************************************/
 
-static const pc080sn_interface rbisland_pc080sn_intf =
-{
-	1,   /* gfxnum */
-	0, 0, 0, 0  /* x_offset, y_offset, y_invert, dblwidth */
-};
-
-static const pc080sn_interface jumping_pc080sn_intf =
-{
-	1,   /* gfxnum */
-	0, 0, 1, 0  /* x_offset, y_offset, y_invert, dblwidth */
-};
-
-static const pc090oj_interface rbisland_pc090oj_intf =
-{
-	0, 0, 0, 0
-};
-
-static const tc0140syt_interface rbisland_tc0140syt_intf =
-{
-	"maincpu", "audiocpu"
-};
-
 void rbisland_state::machine_start()
 {
 }
@@ -665,12 +643,20 @@ static MACHINE_CONFIG_START( rbisland, rbisland_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(rbisland_state, screen_update_rainbow)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(rbisland)
-	MCFG_PALETTE_LENGTH(8192)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rbisland)
+	MCFG_PALETTE_ADD("palette", 8192)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
-	MCFG_PC080SN_ADD("pc080sn", rbisland_pc080sn_intf)
-	MCFG_PC090OJ_ADD("pc090oj", rbisland_pc090oj_intf)
+	MCFG_DEVICE_ADD("pc080sn", PC080SN, 0)
+	MCFG_PC080SN_GFX_REGION(1)
+	MCFG_PC080SN_GFXDECODE("gfxdecode")
+	MCFG_PC080SN_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("pc090oj", PC090OJ, 0)
+	MCFG_PC090OJ_GFXDECODE("gfxdecode")
+	MCFG_PC090OJ_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -681,7 +667,9 @@ static MACHINE_CONFIG_START( rbisland, rbisland_state )
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 
-	MCFG_TC0140SYT_ADD("tc0140syt", rbisland_tc0140syt_intf)
+	MCFG_DEVICE_ADD("tc0140syt", TC0140SYT, 0)
+	MCFG_TC0140SYT_MASTER_CPU("maincpu")
+	MCFG_TC0140SYT_SLAVE_CPU("audiocpu")
 MACHINE_CONFIG_END
 
 
@@ -706,13 +694,19 @@ static MACHINE_CONFIG_START( jumping, rbisland_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(rbisland_state, screen_update_jumping)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(jumping)
-	MCFG_PALETTE_LENGTH(8192)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jumping)
+	MCFG_PALETTE_ADD("palette", 8192)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(rbisland_state,jumping)
 
-	MCFG_PC080SN_ADD("pc080sn", jumping_pc080sn_intf)
+	MCFG_DEVICE_ADD("pc080sn", PC080SN, 0)
+	MCFG_PC080SN_GFX_REGION(1)
+	MCFG_PC080SN_YINVERT(1)
+	MCFG_PC080SN_GFXDECODE("gfxdecode")
+	MCFG_PC080SN_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

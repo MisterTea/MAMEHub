@@ -1,8 +1,8 @@
 /*
 
-    Sand Scorpion
+    Sand Scorpion    (C) 1992 FACE
 
-(C) 1992 FACE
+driver by   Luca Elia (l.elia@tin.it)
 
 PCB Number: Z03VA-001
 
@@ -266,7 +266,7 @@ static ADDRESS_MAP_START( sandscrp, AS_PROGRAM, 16, sandscrp_state )
 	AM_RANGE(0x300000, 0x30001f) AM_DEVREADWRITE("view2_0", kaneko_view2_tilemap_device,  kaneko_tmap_regs_r, kaneko_tmap_regs_w)
 	AM_RANGE(0x400000, 0x403fff) AM_DEVREADWRITE("view2_0", kaneko_view2_tilemap_device,  kaneko_tmap_vram_r, kaneko_tmap_vram_w )
 	AM_RANGE(0x500000, 0x501fff) AM_DEVREADWRITE("pandora", kaneko_pandora_device, spriteram_LSB_r, spriteram_LSB_w ) // sprites
-	AM_RANGE(0x600000, 0x600fff) AM_RAM_WRITE(paletteram_xGGGGGRRRRRBBBBB_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x600000, 0x600fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0xa00000, 0xa00001) AM_WRITE(sandscrp_coin_counter_w)  // Coin Counters (Lockout unused)
 	AM_RANGE(0xb00000, 0xb00001) AM_READ_PORT("P1")
 	AM_RANGE(0xb00002, 0xb00003) AM_READ_PORT("P2")
@@ -469,23 +469,6 @@ WRITE_LINE_MEMBER(sandscrp_state::irqhandler)
 	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"), /* Port A Read */
-	DEVCB_INPUT_PORT("DSW2"), /* Port B Read */
-	DEVCB_NULL, /* Port A Write */
-	DEVCB_NULL, /* Port B Write */
-};
-
-
-static const kaneko_pandora_interface sandscrp_pandora_config =
-{
-	0,  /* gfx_region */
-	0, 0    /* x_offs, y_offs */
-};
-
 static MACHINE_CONFIG_START( sandscrp, sandscrp_state )
 
 	/* basic machine hardware */
@@ -499,7 +482,6 @@ static MACHINE_CONFIG_START( sandscrp, sandscrp_state )
 
 	MCFG_WATCHDOG_TIME_INIT(attotime::from_seconds(3))  /* a guess, and certainly wrong */
 
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -508,18 +490,23 @@ static MACHINE_CONFIG_START( sandscrp, sandscrp_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(sandscrp_state, screen_update_sandscrp)
 	MCFG_SCREEN_VBLANK_DRIVER(sandscrp_state, screen_eof_sandscrp)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sandscrp)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sandscrp)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xGGGGGRRRRRBBBBB)
 
 	MCFG_DEVICE_ADD("view2_0", KANEKO_TMAP, 0)
 	kaneko_view2_tilemap_device::set_gfx_region(*device, 1);
 	kaneko_view2_tilemap_device::set_offset(*device, 0x5b, 0, 256, 224);
+	MCFG_KANEKO_TMAP_GFXDECODE("gfxdecode")
 
 	MCFG_DEVICE_ADD("calc1_mcu", KANEKO_HIT, 0)
 	kaneko_hit_device::set_type(*device, 0);
 
-	MCFG_KANEKO_PANDORA_ADD("pandora", sandscrp_pandora_config)
+	MCFG_DEVICE_ADD("pandora", KANEKO_PANDORA, 0)
+	MCFG_KANEKO_PANDORA_GFXDECODE("gfxdecode")
+	MCFG_KANEKO_PANDORA_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -530,7 +517,8 @@ static MACHINE_CONFIG_START( sandscrp, sandscrp_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 4000000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(sandscrp_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.25)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.25)
 MACHINE_CONFIG_END

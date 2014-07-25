@@ -391,24 +391,6 @@ static GFXDECODE_START( mexico86 )
 GFXDECODE_END
 
 
-
-/*************************************
- *
- *  Sound interfaces
- *
- *************************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW0"),
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 /*************************************
  *
  *  Machine driver
@@ -487,17 +469,17 @@ static MACHINE_CONFIG_START( mexico86, mexico86_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mexico86_state, screen_update_mexico86)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mexico86)
-	MCFG_PALETTE_LENGTH(256)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mexico86)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 256)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3000000)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW0"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))
 	MCFG_SOUND_ROUTE(0, "mono", 0.30)
 	MCFG_SOUND_ROUTE(1, "mono", 0.30)
 	MCFG_SOUND_ROUTE(2, "mono", 0.30)

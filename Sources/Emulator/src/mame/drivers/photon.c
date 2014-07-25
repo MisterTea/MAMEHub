@@ -116,26 +116,6 @@ WRITE8_MEMBER(photon_state::pk8000_80_portc_w)
 	m_speaker->level_w(BIT(data,7));
 }
 
-static I8255_INTERFACE( pk8000_ppi8255_interface_1 )
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(photon_state,pk8000_80_porta_w),
-	DEVCB_DRIVER_MEMBER(photon_state,pk8000_80_portb_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(photon_state,pk8000_80_portc_w)
-};
-
-static I8255A_INTERFACE( pk8000_ppi8255_interface_2 )
-{
-	DEVCB_DRIVER_MEMBER(pk8000_base_state,pk8000_84_porta_r),
-	DEVCB_DRIVER_MEMBER(pk8000_base_state,pk8000_84_porta_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(pk8000_base_state,pk8000_84_portc_w)
-};
-
 static ADDRESS_MAP_START(pk8000_mem, AS_PROGRAM, 8, photon_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE( 0x0000, 0x3fff ) AM_READ_BANK("bank1") AM_WRITE_BANK("bank5")
@@ -187,7 +167,6 @@ IRQ_CALLBACK_MEMBER(photon_state::pk8000_irq_callback)
 void photon_state::machine_reset()
 {
 	pk8000_set_bank(0);
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(photon_state::pk8000_irq_callback),this));
 }
 
 void photon_state::video_start()
@@ -206,7 +185,7 @@ static MACHINE_CONFIG_START( photon, photon_state )
 	MCFG_CPU_PROGRAM_MAP(pk8000_mem)
 	MCFG_CPU_IO_MAP(pk8000_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", photon_state,  pk8000_interrupt)
-
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(photon_state,pk8000_irq_callback)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -215,11 +194,20 @@ static MACHINE_CONFIG_START( photon, photon_state )
 	MCFG_SCREEN_SIZE(256+32, 192+32)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256+32-1, 0, 192+32-1)
 	MCFG_SCREEN_UPDATE_DRIVER(photon_state, screen_update_photon)
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_SCREEN_PALETTE("palette")
 
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(pk8000_base_state, pk8000)
 
-	MCFG_I8255_ADD( "ppi8255_1", pk8000_ppi8255_interface_1 )
-	MCFG_I8255_ADD( "ppi8255_2", pk8000_ppi8255_interface_2 )
+	MCFG_DEVICE_ADD("ppi8255_1", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(photon_state, pk8000_80_porta_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(photon_state, pk8000_80_portb_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(photon_state, pk8000_80_portc_w))
+
+	MCFG_DEVICE_ADD("ppi8255_2", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(pk8000_base_state, pk8000_84_porta_r))
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(pk8000_base_state, pk8000_84_porta_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(pk8000_base_state, pk8000_84_portc_w))
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

@@ -25,14 +25,13 @@ TODO:
 #include "cpu/z80/z80.h"
 #include "sound/sn76496.h"
 #include "includes/mjkjidai.h"
-#include "mcfglgcy.h"
 
 /* Start of ADPCM custom chip code */
 
 const device_type MJKJIDAI = &device_creator<mjkjidai_adpcm_device>;
 
 mjkjidai_adpcm_device::mjkjidai_adpcm_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, MJKJIDAI, "Custom ADPCM", tag, owner, clock, "mjkjidai_adpcm", __FILE__),
+	: device_t(mconfig, MJKJIDAI, "Mahjong Kyou Jidai ADPCM Custom", tag, owner, clock, "mjkjidai_adpcm", __FILE__),
 		device_sound_interface(mconfig, *this),
 		m_stream(NULL),
 		m_current(0),
@@ -60,7 +59,7 @@ void mjkjidai_adpcm_device::device_config_complete()
 void mjkjidai_adpcm_device::device_start()
 {
 	m_playing = 0;
-	m_stream = machine().sound().stream_alloc(*this, 0, 1, clock(), this);
+	m_stream = machine().sound().stream_alloc(*this, 0, 1, clock());
 	m_base = machine().root_device().memregion("adpcm")->base();
 	m_adpcm.reset();
 
@@ -133,12 +132,6 @@ READ8_MEMBER(mjkjidai_state::keyboard_r)
 
 	res |= (ioport("IN3")->read() & 0xc0);
 
-	if (m_nvram_init_count)
-	{
-		m_nvram_init_count--;
-		res &= 0xbf;
-	}
-
 	return res;
 }
 
@@ -153,27 +146,12 @@ WRITE8_MEMBER(mjkjidai_state::keyboard_select_w)
 	}
 }
 
-static NVRAM_HANDLER( mjkjidai )
-{
-	mjkjidai_state *state = machine.driver_data<mjkjidai_state>();
-
-	if (read_or_write)
-		file->write(state->m_nvram, state->m_nvram.bytes());
-	else if (file)
-		file->read(state->m_nvram, state->m_nvram.bytes());
-	else
-	{
-		state->m_nvram_init_count = 1;
-	}
-}
-
-
 
 static ADDRESS_MAP_START( mjkjidai_map, AS_PROGRAM, 8, mjkjidai_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
-	AM_RANGE(0xd000, 0xdfff) AM_RAM AM_SHARE("nvram")   // cleared and initialized on startup if bit 6 if port 00 is 0
+	AM_RANGE(0xd000, 0xdfff) AM_RAM AM_SHARE("nvram")   // cleared and initialized on startup if bit 6 of port 00 is 0
 	AM_RANGE(0xe000, 0xe01f) AM_RAM AM_SHARE("spriteram1")          // shared with tilemap ram
 	AM_RANGE(0xe800, 0xe81f) AM_RAM AM_SHARE("spriteram2")      // shared with tilemap ram
 	AM_RANGE(0xf000, 0xf01f) AM_RAM AM_SHARE("spriteram3")      // shared with tilemap ram
@@ -377,23 +355,6 @@ INTERRUPT_GEN_MEMBER(mjkjidai_state::vblank_irq)
 }
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( mjkjidai, mjkjidai_state )
 
 	/* basic machine hardware */
@@ -402,7 +363,7 @@ static MACHINE_CONFIG_START( mjkjidai, mjkjidai_state )
 	MCFG_CPU_IO_MAP(mjkjidai_io_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", mjkjidai_state,  vblank_irq)
 
-	MCFG_NVRAM_HANDLER(mjkjidai)
+	MCFG_NVRAM_ADD_NO_FILL("nvram")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -411,22 +372,19 @@ static MACHINE_CONFIG_START( mjkjidai, mjkjidai_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(3*8, 61*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mjkjidai_state, screen_update_mjkjidai)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mjkjidai)
-	MCFG_PALETTE_LENGTH(0x100)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mjkjidai)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 0x100)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn1", SN76489, 10000000/4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76489, 10000000/4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("adpcm", MJKJIDAI, 6000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
@@ -462,6 +420,9 @@ ROM_START( mjkjidai )
 
 	ROM_REGION( 0x8000, "adpcm", 0 )    /* ADPCM samples */
 	ROM_LOAD( "mkj-40.14c",   0x00000, 0x8000, CRC(4d8fcc4a) SHA1(24c2b8031367035c89c6649a084bce0714f3e8d4) )
+
+	ROM_REGION( 0x1000, "nvram", 0 )    /* preformatted NVRAM */
+	ROM_LOAD( "default.nv",   0x00000, 0x1000, CRC(eccc0263) SHA1(679010f096536e8bb572551e9d0776cad72145e2) )
 ROM_END
 
 

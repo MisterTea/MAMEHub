@@ -9,7 +9,7 @@
 #include "cpu/m6800/m6800.h"
 #include "machine/am9517a.h"
 #include "machine/apricotkb.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/pic8259.h"
 #include "machine/pit8253.h"
 #include "machine/ram.h"
@@ -101,9 +101,6 @@ public:
 	DECLARE_WRITE8_MEMBER( palette_w );
 	DECLARE_WRITE16_MEMBER( video_w );
 	DECLARE_WRITE8_MEMBER( lat_w );
-	DECLARE_WRITE_LINE_MEMBER( busy_w );
-	void fdc_intrq_w(bool state);
-	void fdc_drq_w(bool state);
 
 	void lat_ls259_w(offs_t offset, int state);
 
@@ -112,7 +109,16 @@ public:
 	// video state
 	optional_shared_ptr<UINT16> m_video_ram;
 	UINT8 m_video;
-	IRQ_CALLBACK_MEMBER(fp_irq_callback);
+
+	int m_centronics_busy;
+	int m_centronics_select;
+	int m_centronics_fault;
+	int m_centronics_perror;
+
+	DECLARE_WRITE_LINE_MEMBER( write_centronics_busy );
+	DECLARE_WRITE_LINE_MEMBER( write_centronics_select );
+	DECLARE_WRITE_LINE_MEMBER( write_centronics_fault );
+	DECLARE_WRITE_LINE_MEMBER( write_centronics_perror );
 };
 
 

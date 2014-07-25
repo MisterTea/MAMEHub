@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /*************************************************************************************************
 
 
@@ -60,10 +62,10 @@ static ADDRESS_MAP_START( kaypro2x_io, AS_IO, 8, kaypro_state )
 	AM_RANGE(0x00, 0x03) AM_DEVWRITE("brg", com8116_device, str_w)
 	AM_RANGE(0x04, 0x07) AM_READWRITE(kaypro_sio_r, kaypro_sio_w)
 	AM_RANGE(0x08, 0x0b) AM_DEVWRITE("brg", com8116_device, stt_w)
-	AM_RANGE(0x0c, 0x0f) AM_DEVREADWRITE("z80sio_2x", z80sio_device, read, write)
+	AM_RANGE(0x0c, 0x0f) AM_DEVREADWRITE("z80sio_2x", z80sio0_device, ba_cd_r, ba_cd_w)
 	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE("fdc", fd1793_t, read, write)
 	AM_RANGE(0x14, 0x17) AM_READWRITE(kaypro2x_system_port_r,kaypro2x_system_port_w)
-	AM_RANGE(0x18, 0x1b) AM_DEVWRITE("centronics", centronics_device, write)
+	AM_RANGE(0x18, 0x1b) AM_DEVWRITE("cent_data_out", output_latch_device, write)
 	AM_RANGE(0x1c, 0x1c) AM_READWRITE(kaypro2x_status_r,kaypro2x_index_w)
 	AM_RANGE(0x1d, 0x1d) AM_DEVREAD("crtc", mc6845_device, register_r) AM_WRITE(kaypro2x_register_w)
 	AM_RANGE(0x1f, 0x1f) AM_READWRITE(kaypro2x_videoram_r,kaypro2x_videoram_w)
@@ -146,20 +148,6 @@ static const z80_daisy_config kaypro2x_daisy_chain[] =
 
 
 
-static MC6845_INTERFACE( kaypro2x_crtc )
-{
-	false,
-	7,              /* number of dots per character */
-	NULL,
-	kaypro2x_update_row,        /* handler to display a scanline */
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
-
 //static WRITE_LINE_DEVICE_HANDLER( rx_tx_w )
 //{
 //  downcast<z80sio_device *>(device)->rx_clock_in();
@@ -206,9 +194,10 @@ static MACHINE_CONFIG_START( kayproii, kaypro_state )
 	MCFG_SCREEN_VISIBLE_AREA(0,80*7-1,0,24*10-1)
 	MCFG_VIDEO_START_OVERRIDE(kaypro_state, kaypro )
 	MCFG_SCREEN_UPDATE_DRIVER(kaypro_state, screen_update_kayproii)
-	MCFG_GFXDECODE(kayproii)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_green)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", kayproii)
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -217,13 +206,29 @@ static MACHINE_CONFIG_START( kayproii, kaypro_state )
 
 	/* devices */
 	MCFG_QUICKLOAD_ADD("quickload", kaypro_state, kaypro, "com,cpm", 3)
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
-	MCFG_COM8116_ADD("brg", XTAL_5_0688MHz, NULL, NULL, NULL)  // WD1943, SMC8116
-	MCFG_Z80PIO_ADD( "z80pio_g", 2500000, kayproii_pio_g_intf )
-	MCFG_Z80PIO_ADD( "z80pio_s", 2500000, kayproii_pio_s_intf )
-	MCFG_Z80SIO_ADD( "z80sio", 4800, kaypro_sio_intf )  /* start at 300 baud */
+
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(kaypro_state, write_centronics_busy))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+
+	MCFG_DEVICE_ADD("brg", COM8116, XTAL_5_0688MHz) // WD1943, SMC8116
+
+	MCFG_DEVICE_ADD("z80pio_g", Z80PIO, XTAL_20MHz / 8)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_OUT_PA_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
+
+	MCFG_DEVICE_ADD("z80pio_s", Z80PIO, XTAL_20MHz / 8)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_IN_PA_CB(READ8(kaypro_state, pio_system_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(kaypro_state, kayproii_pio_system_w))
+
+	MCFG_Z80SIO0_ADD("z80sio", XTAL_20MHz / 8, 0, 0, 0, 0)
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
 
 	MCFG_FD1793x_ADD("fdc", XTAL_20MHz / 20)
+	MCFG_WD_FDC_INTRQ_CALLBACK(WRITELINE(kaypro_state, fdc_intrq_w))
+	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(kaypro_state, fdc_drq_w))
 	MCFG_WD_FDC_FORCE_READY
 	//MCFG_FLOPPY_DRIVE_ADD("fdc:0", kaypro_floppies, "525dd", kaypro_state::kayproii_floppy_formats)
 	//MCFG_FLOPPY_DRIVE_ADD("fdc:1", kaypro_floppies, "525dd", kaypro_state::kayproii_floppy_formats)
@@ -234,7 +239,10 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( kaypro4, kayproii )
 	MCFG_DEVICE_REMOVE("z80pio_s")
-	MCFG_Z80PIO_ADD( "z80pio_s", 2500000, kaypro4_pio_s_intf )
+	MCFG_DEVICE_ADD("z80pio_s", Z80PIO, 2500000)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_IN_PA_CB(READ8(kaypro_state, pio_system_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(kaypro_state, kaypro4_pio_system_w))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( kaypro2x, kaypro_state )
@@ -255,9 +263,10 @@ static MACHINE_CONFIG_START( kaypro2x, kaypro_state )
 	MCFG_SCREEN_VISIBLE_AREA(0,80*8-1,0,25*16-1)
 	MCFG_VIDEO_START_OVERRIDE(kaypro_state, kaypro )
 	MCFG_SCREEN_UPDATE_DRIVER(kaypro_state, screen_update_kaypro2x)
-	MCFG_GFXDECODE(kaypro2x)
-	MCFG_PALETTE_LENGTH(3)
-	MCFG_PALETTE_INIT_OVERRIDE(kaypro_state,kaypro)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", kaypro2x)
+	MCFG_PALETTE_ADD("palette", 3)
+	MCFG_PALETTE_INIT_OWNER(kaypro_state,kaypro)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -265,13 +274,26 @@ static MACHINE_CONFIG_START( kaypro2x, kaypro_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	/* devices */
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", 2000000, kaypro2x_crtc) /* comes out of ULA - needs to be measured */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", 2000000) /* comes out of ULA - needs to be measured */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(7)
+	MCFG_MC6845_UPDATE_ROW_CB(kaypro_state, kaypro2x_update_row)
+
 	MCFG_QUICKLOAD_ADD("quickload", kaypro_state, kaypro, "com,cpm", 3)
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
-	MCFG_COM8116_ADD("brg", XTAL_5_0688MHz, NULL, NULL, NULL)  // WD1943, SMC8116
-	MCFG_Z80SIO_ADD( "z80sio", 4800, kaypro_sio_intf )
-	MCFG_Z80SIO_ADD( "z80sio_2x", 4800, kaypro_sio_intf )   /* extra sio for modem and printer */
+
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(kaypro_state, write_centronics_busy))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+
+	MCFG_Z80SIO0_ADD("z80sio", XTAL_16MHz / 4, 0, 0, 0, 0)
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80SIO0_ADD("z80sio_2x", XTAL_16MHz / 4, 0, 0, 0, 0)   /* extra sio for modem and printer */
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_DEVICE_ADD("brg", COM8116, XTAL_5_0688MHz) // WD1943, SMC8116
 	MCFG_FD1793x_ADD("fdc", XTAL_16MHz / 16)
+	MCFG_WD_FDC_INTRQ_CALLBACK(WRITELINE(kaypro_state, fdc_intrq_w))
+	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(kaypro_state, fdc_drq_w))
 	MCFG_WD_FDC_FORCE_READY
 	//MCFG_FLOPPY_DRIVE_ADD("fdc:0", kaypro_floppies, "525dd", kaypro_state::kaypro2x_floppy_formats)
 	//MCFG_FLOPPY_DRIVE_ADD("fdc:1", kaypro_floppies, "525dd", kaypro_state::kaypro2x_floppy_formats)
@@ -286,9 +308,6 @@ MACHINE_CONFIG_END
 
 DRIVER_INIT_MEMBER( kaypro_state, kaypro )
 {
-	m_fdc->setup_intrq_cb(fd1793_t::line_cb(FUNC(kaypro_state::fdc_intrq_w), this));
-	m_fdc->setup_drq_cb(fd1793_t::line_cb(FUNC(kaypro_state::fdc_drq_w), this));
-
 	UINT8 *main = memregion("roms")->base();
 	UINT8 *ram = memregion("rambank")->base();
 

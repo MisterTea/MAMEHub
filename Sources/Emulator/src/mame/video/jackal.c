@@ -12,45 +12,27 @@
 #include "includes/jackal.h"
 
 
-void jackal_state::palette_init()
+PALETTE_INIT_MEMBER(jackal_state, jackal)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x200);
-
 	for (i = 0; i < 0x100; i++)
 	{
 		UINT16 ctabentry = i | 0x100;
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 
 	for (i = 0x100; i < 0x200; i++)
 	{
 		UINT16 ctabentry = color_prom[i - 0x100] & 0x0f;
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 
 	for (i = 0x200; i < 0x300; i++)
 	{
 		UINT16 ctabentry = (color_prom[i - 0x100] & 0x0f) | 0x10;
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
-	}
-}
-
-
-void jackal_state::set_pens(  )
-{
-	int i;
-
-	for (i = 0; i < 0x400; i += 2)
-	{
-		UINT16 data = m_paletteram[i] | (m_paletteram[i | 1] << 8);
-
-		rgb_t color = MAKE_RGB(pal5bit(data >> 0), pal5bit(data >> 5), pal5bit(data >> 10));
-
-		colortable_palette_set_color(machine().colortable, i >> 1, color);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 }
 
@@ -74,7 +56,7 @@ TILE_GET_INFO_MEMBER(jackal_state::get_bg_tile_info)
 
 void jackal_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jackal_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jackal_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 void jackal_state::draw_background( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect )
@@ -112,7 +94,7 @@ void jackal_state::draw_background( screen_device &screen, bitmap_ind16 &bitmap,
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 }
 
-#define DRAW_SPRITE(bank, code, sx, sy) drawgfx_transpen(bitmap, cliprect, machine().gfx[bank], code, color, flipx, flipy, sx, sy, 0);
+#define DRAW_SPRITE(bank, code, sx, sy)  m_gfxdecode->gfx(bank)->transpen(bitmap,cliprect, code, color, flipx, flipy, sx, sy, 0);
 
 void jackal_state::draw_sprites_region( bitmap_ind16 &bitmap, const rectangle &cliprect, const UINT8 *sram, int length, int bank )
 {
@@ -220,7 +202,6 @@ void jackal_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 
 UINT32 jackal_state::screen_update_jackal(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	set_pens();
 	draw_background(screen, bitmap, cliprect);
 	draw_sprites(bitmap, cliprect);
 	return 0;

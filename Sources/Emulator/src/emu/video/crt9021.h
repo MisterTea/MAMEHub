@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /**********************************************************************
 
     SMC CRT9021 Video Attributes Controller (VAC) emulation
@@ -34,78 +36,101 @@
 
 
 //**************************************************************************
-//  MACROS / CONSTANTS
-//**************************************************************************
-
-
-
-
-//**************************************************************************
 //  INTERFACE CONFIGURATION MACROS
 //**************************************************************************
 
-#define MCFG_CRT9021_ADD(_tag, _clock, _config) \
-	MCFG_DEVICE_ADD(_tag, CRT9021, _clock) \
-	MCFG_DEVICE_CONFIG(_config)
+#define CRT9021_DRAW_CHARACTER_MEMBER(_name) void _name(bitmap_rgb32 &bitmap, int y, int x, UINT8 video, int intout)
 
 
-#define CRT9021_INTERFACE(name) \
-	const crt9021_interface (name) =
-
+#define MCFG_CRT9021_DRAW_CHARACTER_CALLBACK_OWNER(_class, _method) \
+	crt9021_t::static_set_display_callback(*device, crt9021_draw_character_delegate(&_class::_method, #_class "::" #_method, downcast<_class *>(owner)));
 
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-
-// ======================> crt9021_interface
-
-struct crt9021_interface
-{
-	devcb_read8             in_data_cb;
-	devcb_read8             in_attr_cb;
-
-	devcb_read_line         in_atten_cb;
-};
+typedef device_delegate<void (bitmap_rgb32 &bitmap, int y, int x, UINT8 video, int intout)> crt9021_draw_character_delegate;
 
 
+// ======================> crt9021_t
 
-// ======================> crt9021_device
-
-class crt9021_device :  public device_t,
-						public device_video_interface,
-						public crt9021_interface
+class crt9021_t :  public device_t,
+					public device_video_interface
 {
 public:
 	// construction/destruction
-	crt9021_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	crt9021_t(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
-	DECLARE_WRITE_LINE_MEMBER( slg_w );
-	DECLARE_WRITE_LINE_MEMBER( sld_w );
-	DECLARE_WRITE_LINE_MEMBER( cursor_w );
-	DECLARE_WRITE_LINE_MEMBER( retbl_w );
+	static void static_set_display_callback(device_t &device, crt9021_draw_character_delegate callback) { downcast<crt9021_t &>(device).m_display_cb = callback; }
+
+	void write(UINT8 data) { m_data = data; }
+	DECLARE_WRITE8_MEMBER( write ) { write(data); }
+	DECLARE_WRITE_LINE_MEMBER( ms0_w ) { m_ms0 = state; }
+	DECLARE_WRITE_LINE_MEMBER( ms1_w ) { m_ms1 = state; }
+	DECLARE_WRITE_LINE_MEMBER( revid_w ) { m_revid = state; }
+	DECLARE_WRITE_LINE_MEMBER( chabl_w ) { m_chabl = state; }
+	DECLARE_WRITE_LINE_MEMBER( blink_w ) { m_blink = state; }
+	DECLARE_WRITE_LINE_MEMBER( intin_w ) { m_intin = state; }
+	DECLARE_WRITE_LINE_MEMBER( atten_w ) { m_atten = state; }
+	DECLARE_WRITE_LINE_MEMBER( cursor_w ) { m_cursor = state; }
+	DECLARE_WRITE_LINE_MEMBER( retbl_w ) { m_retbl = state; }
+	DECLARE_WRITE_LINE_MEMBER( ld_sh_w );
+	DECLARE_WRITE_LINE_MEMBER( sld_w ) { m_sld = state; }
+	DECLARE_WRITE_LINE_MEMBER( slg_w ) { m_slg = state; }
+	DECLARE_WRITE_LINE_MEMBER( blc_w ) { m_blc = state; }
+	DECLARE_WRITE_LINE_MEMBER( bkc_w ) { m_bkc = state; }
+	DECLARE_WRITE_LINE_MEMBER( sl0_w ) { m_sl0 = state; }
+	DECLARE_WRITE_LINE_MEMBER( sl1_w ) { m_sl1 = state; }
+	DECLARE_WRITE_LINE_MEMBER( sl2_w ) { m_sl2 = state; }
+	DECLARE_WRITE_LINE_MEMBER( sl3_w ) { m_sl3 = state; }
 	DECLARE_WRITE_LINE_MEMBER( vsync_w );
 
 	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
-	virtual void device_clock_changed();
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
 private:
-	devcb_resolved_read8            m_in_data_func;
-	devcb_resolved_read8            m_in_attr_func;
-	devcb_resolved_read_line        m_in_atten_func;
+	enum
+	{
+		MS_WIDE_GRAPHICS,
+		MS_CHARACTER,
+		MS_THIN_GRAPHICS,
+		MS_UNDERLINE
+	};
 
-	int m_slg;
-	int m_sld;
+	crt9021_draw_character_delegate m_display_cb;
+
+	bitmap_rgb32 m_bitmap;
+
+	// inputs
+	UINT8 m_data;
+	int m_ms0;
+	int m_ms1;
+	int m_revid;
+	int m_chabl;
+	int m_blink;
+	int m_intin;
+	int m_atten;
 	int m_cursor;
 	int m_retbl;
+	int m_ld_sh;
+	int m_sld;
+	int m_slg;
+	int m_blc;
+	int m_bkc;
+	int m_sl0;
+	int m_sl1;
+	int m_sl2;
+	int m_sl3;
 	int m_vsync;
+
+	// outputs
+	UINT8 m_sr;
+	int m_intout;
+	int m_sl;
 };
 
 

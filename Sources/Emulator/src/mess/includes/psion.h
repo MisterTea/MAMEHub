@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 
         Psion Organiser II series
@@ -10,6 +12,7 @@
 #define _PSION_H_
 
 #include "cpu/m6800/m6800.h"
+#include "machine/nvram.h"
 #include "machine/psion_pack.h"
 #include "video/hd44780.h"
 #include "sound/beep.h"
@@ -27,7 +30,11 @@ public:
 			m_beep(*this, "beeper"),
 			m_pack1(*this, "pack1"),
 			m_pack2(*this, "pack2"),
+			m_nvram1(*this, "nvram1"),
+			m_nvram2(*this, "nvram2"),
+			m_nvram3(*this, "nvram3"),
 			m_sys_register(*this, "sys_register"),
+			m_stby_pwr(1),
 			m_ram(*this, "ram"){ }
 
 	required_device<hd63701_cpu_device> m_maincpu;
@@ -35,6 +42,9 @@ public:
 	required_device<beep_device> m_beep;
 	required_device<datapack_device> m_pack1;
 	required_device<datapack_device> m_pack2;
+	required_device<nvram_device> m_nvram1;
+	required_device<nvram_device> m_nvram2;
+	optional_device<nvram_device> m_nvram3;
 
 	UINT16 m_kb_counter;
 	UINT8 m_enable_nmi;
@@ -58,19 +68,37 @@ public:
 
 	virtual void machine_start();
 	virtual void machine_reset();
+	void nvram_init(nvram_device &nvram, void *data, size_t size);
 
-	UINT8 kb_read(running_machine &machine);
-	void update_banks(running_machine &machine);
+	UINT8 kb_read();
+	void update_banks();
 	DECLARE_WRITE8_MEMBER( hd63701_int_reg_w );
 	DECLARE_READ8_MEMBER( hd63701_int_reg_r );
 	void io_rw(address_space &space, UINT16 offset);
 	DECLARE_WRITE8_MEMBER( io_w );
 	DECLARE_READ8_MEMBER( io_r );
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(psion);
 	DECLARE_INPUT_CHANGED_MEMBER(psion_on);
 	TIMER_DEVICE_CALLBACK_MEMBER(nmi_timer);
 
 	static HD44780_PIXEL_UPDATE(lz_pixel_update);
+};
+
+
+class psion1_state : public psion_state
+{
+public:
+	psion1_state(const machine_config &mconfig, device_type type, const char *tag)
+		: psion_state(mconfig, type, tag)
+		{ }
+
+	virtual void machine_reset();
+
+	DECLARE_READ8_MEMBER( reset_kb_counter_r );
+	DECLARE_READ8_MEMBER( inc_kb_counter_r );
+	DECLARE_READ8_MEMBER( switchoff_r );
+
+	static HD44780_PIXEL_UPDATE(psion1_pixel_update);
 };
 
 #endif  // _PSION_H_

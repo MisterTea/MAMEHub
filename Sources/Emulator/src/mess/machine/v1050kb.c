@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /**********************************************************************
 
     Visual 1050 keyboard emulation
@@ -318,8 +320,8 @@ v1050_keyboard_device::v1050_keyboard_device(const machine_config &mconfig, cons
 		m_y9(*this, "Y9"),
 		m_ya(*this, "YA"),
 		m_yb(*this, "YB"),
-		m_y(0),
-		m_so(1)
+		m_out_tx_handler(*this),
+		m_y(0)
 {
 }
 
@@ -332,7 +334,6 @@ void v1050_keyboard_device::device_start()
 {
 	// state saving
 	save_item(NAME(m_y));
-	save_item(NAME(m_so));
 }
 
 
@@ -342,6 +343,8 @@ void v1050_keyboard_device::device_start()
 
 void v1050_keyboard_device::device_reset()
 {
+	m_out_tx_handler.resolve_safe();
+	m_out_tx_handler(1);
 }
 
 
@@ -352,16 +355,6 @@ void v1050_keyboard_device::device_reset()
 WRITE_LINE_MEMBER( v1050_keyboard_device::si_w )
 {
 	m_maincpu->set_input_line(MCS48_INPUT_IRQ, state ? CLEAR_LINE : ASSERT_LINE);
-}
-
-
-//-------------------------------------------------
-//  so_r -
-//-------------------------------------------------
-
-READ_LINE_MEMBER( v1050_keyboard_device::so_r )
-{
-	return m_so;
 }
 
 
@@ -428,8 +421,8 @@ WRITE8_MEMBER( v1050_keyboard_device::kb_p2_w )
 	output_set_led_value(0, BIT(data, 5));
 
 	// speaker output
-	discrete_sound_w(m_discrete, space, NODE_01, BIT(data, 6));
+	m_discrete->write(space, NODE_01, BIT(data, 6));
 
 	// serial output
-	m_so = BIT(data, 7);
+	m_out_tx_handler(BIT(data, 7));
 }

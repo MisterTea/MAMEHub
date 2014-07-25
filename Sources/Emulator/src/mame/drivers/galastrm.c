@@ -71,7 +71,7 @@ WRITE32_MEMBER(galastrm_state::galastrm_palette_w)
 	if (ACCESSING_BITS_16_31)
 		m_tc0110pcr_addr = data >> 16;
 	if ((ACCESSING_BITS_0_15) && (m_tc0110pcr_addr < 4096))
-		palette_set_color_rgb(machine(), m_tc0110pcr_addr, pal5bit(data >> 10), pal5bit(data >> 5), pal5bit(data >> 0));
+		m_palette->set_pen_color(m_tc0110pcr_addr, pal5bit(data >> 10), pal5bit(data >> 5), pal5bit(data >> 0));
 }
 
 WRITE32_MEMBER(galastrm_state::galastrm_tc0610_0_w)
@@ -277,25 +277,6 @@ GFXDECODE_END
 
 /***************************************************************************/
 
-static const tc0100scn_interface galastrm_tc0100scn_intf =
-{
-	0, 2,       /* gfxnum, txnum */
-	-48, -56,       /* x_offset, y_offset */
-	0, 0,       /* flip_xoff, flip_yoff */
-	0, 0,       /* flip_text_xoff, flip_text_yoff */
-	0, 0
-};
-
-static const tc0480scp_interface galastrm_tc0480scp_intf =
-{
-	1, 3,       /* gfxnum, txnum */
-	0,      /* pixels */
-	-40, -3,        /* x_offset, y_offset */
-	0, 0,       /* text_xoff, text_yoff */
-	0, 0,       /* flip_xoff, flip_yoff */
-	0       /* col_base */
-};
-
 static MACHINE_CONFIG_START( galastrm, galastrm_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M68EC020, 16000000) /* 16 MHz */
@@ -311,13 +292,24 @@ static MACHINE_CONFIG_START( galastrm, galastrm_state )
 	MCFG_SCREEN_SIZE(64*8, 50*8)
 	MCFG_SCREEN_VISIBLE_AREA(0+96, 40*8-1+96, 3*8+60, 32*8-1+60)
 	MCFG_SCREEN_UPDATE_DRIVER(galastrm_state, screen_update_galastrm)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(galastrm)
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", galastrm)
+	MCFG_PALETTE_ADD("palette", 4096)
 
+	MCFG_DEVICE_ADD("tc0100scn", TC0100SCN, 0)
+	MCFG_TC0100SCN_GFX_REGION(0)
+	MCFG_TC0100SCN_TX_REGION(2)
+	MCFG_TC0100SCN_OFFSETS(-48, -56)
+	MCFG_TC0100SCN_GFXDECODE("gfxdecode")
+	MCFG_TC0100SCN_PALETTE("palette")
 
-	MCFG_TC0100SCN_ADD("tc0100scn", galastrm_tc0100scn_intf)
-	MCFG_TC0480SCP_ADD("tc0480scp", galastrm_tc0480scp_intf)
+	MCFG_DEVICE_ADD("tc0480scp", TC0480SCP, 0)
+	MCFG_TC0480SCP_GFX_REGION(1)
+	MCFG_TC0480SCP_TX_REGION(3)
+	MCFG_TC0480SCP_OFFSETS(-40, -3)
+	MCFG_TC0480SCP_GFXDECODE("gfxdecode")
+	MCFG_TC0480SCP_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_FRAGMENT_ADD(taito_en_sound)

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 #include "machine/6821pia.h"
 #include "audio/midway.h"
 #include "audio/williams.h"
@@ -23,7 +25,11 @@ public:
 		m_cvsd_sound(*this, "cvsd"),
 			m_videoram(*this, "videoram"),
 			m_spriteram(*this, "spriteram") ,
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_16(*this, "paletteram") { }
 
 	optional_device<midway_chip_squeak_deluxe_device> m_chip_squeak_deluxe;
 	optional_device<midway_sounds_good_device> m_sounds_good;
@@ -87,6 +93,8 @@ public:
 	DECLARE_DRIVER_INIT(xenophob);
 	DECLARE_DRIVER_INIT(archrivl);
 	DECLARE_DRIVER_INIT(spyhunt2);
+	DECLARE_DRIVER_INIT(archrivlb);
+	DECLARE_READ16_MEMBER(archrivlb_port_1_r);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	TILE_GET_INFO_MEMBER(zwackery_get_bg_tile_info);
 	TILE_GET_INFO_MEMBER(zwackery_get_fg_tile_info);
@@ -118,10 +126,8 @@ public:
 	void subtract_from_counter(int counter, int count);
 	void mcr68_common_init(int clip, int xoffset);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT16> m_generic_paletteram_16;
 };
-
-/*----------- defined in machine/mcr68.c -----------*/
-
-extern const pia6821_interface zwackery_pia0_intf;
-extern const pia6821_interface zwackery_pia1_intf;
-extern const pia6821_interface zwackery_pia2_intf;

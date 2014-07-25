@@ -28,7 +28,6 @@ BE02 and BE03 - read data, write data
 
 
 #include "emu.h"
-#include "imagedev/flopdrv.h"
 #include "machine/micropolis.h"
 
 
@@ -59,21 +58,6 @@ static const UINT8 track_SD[][2] = {
 #endif
 
 /***************************************************************************
-    DEFAULT INTERFACES
-***************************************************************************/
-
-const micropolis_interface default_micropolis_interface =
-{
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, { FLOPPY_0, FLOPPY_1, FLOPPY_2, FLOPPY_3}
-};
-
-const micropolis_interface default_micropolis_interface_2_drives =
-{
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, { FLOPPY_0, FLOPPY_1, NULL, NULL}
-};
-
-
-/***************************************************************************
     MAME DEVICE INTERFACE
 ***************************************************************************/
 
@@ -81,6 +65,9 @@ const device_type MICROPOLIS = &device_creator<micropolis_device>;
 
 micropolis_device::micropolis_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, MICROPOLIS, "MICROPOLIS", tag, owner, clock, "micropolis", __FILE__),
+	m_read_dden(*this),
+	m_write_intrq(*this),
+	m_write_drq(*this),
 	m_data(0),
 	m_drive_num(0),
 	m_track(0),
@@ -94,35 +81,10 @@ micropolis_device::micropolis_device(const machine_config &mconfig, const char *
 	m_drive(NULL)
 {
 	for (int i = 0; i < 6144; i++)
-	{
 		m_buffer[i] = 0;
-	}
-}
 
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void micropolis_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const micropolis_interface *intf = reinterpret_cast<const micropolis_interface *>(static_config());
-	if (intf != NULL)
-		*static_cast<micropolis_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-		memset(&m_in_dden_cb, 0, sizeof(m_in_dden_cb));
-		memset(&m_out_intrq_cb, 0, sizeof(m_out_intrq_cb));
-		memset(&m_out_drq_cb, 0, sizeof(m_out_drq_cb));
-		m_floppy_drive_tags[0] = "";
-		m_floppy_drive_tags[1] = "";
-		m_floppy_drive_tags[2] = "";
-		m_floppy_drive_tags[3] = "";
-	}
+	for (int i = 0; i < 4; i++)
+		m_floppy_drive_tags[i] = NULL;
 }
 
 //-------------------------------------------------
@@ -131,9 +93,9 @@ void micropolis_device::device_config_complete()
 
 void micropolis_device::device_start()
 {
-	m_in_dden_func.resolve(m_in_dden_cb, *this);
-	m_out_intrq_func.resolve(m_out_intrq_cb, *this);
-	m_out_drq_func.resolve(m_out_drq_cb, *this);
+	m_read_dden.resolve_safe(1);
+	m_write_intrq.resolve_safe();
+	m_write_drq.resolve_safe();
 
 	save_item(NAME(m_data));
 	save_item(NAME(m_drive_num));
@@ -154,21 +116,17 @@ void micropolis_device::device_start()
 
 void micropolis_device::device_reset()
 {
-	int i;
-
-	for (i = 0; i < 4; i++)
+	for (int i = 0; i < 4; i++)
 	{
-		if(m_floppy_drive_tags[i])
+		if (m_floppy_drive_tags[i])
 		{
-			device_t *img = NULL;
-
-			img = siblingdevice(m_floppy_drive_tags[i]);
+			legacy_floppy_image_device *img = siblingdevice<legacy_floppy_image_device>(m_floppy_drive_tags[i]);
 
 			if (img)
 			{
-				floppy_drive_set_controller(img, this);
-				//floppy_drive_set_index_pulse_callback(img, wd17xx_index_pulse_callback);
-				floppy_drive_set_rpm( img, 300.);
+				img->floppy_drive_set_controller(this);
+				//img->floppy_drive_set_index_pulse_callback(wd17xx_index_pulse_callback);
+				img->floppy_drive_set_rpm(300.);
 			}
 		}
 	}
@@ -195,7 +153,7 @@ void micropolis_device::read_sector()
 	m_data_count = m_sector_length;
 
 	/* read data */
-	floppy_drive_read_sector_data(m_drive, 0, m_sector, (char *)m_buffer, m_sector_length);
+	m_drive->floppy_drive_read_sector_data(0, m_sector, (char *)m_buffer, m_sector_length);
 }
 
 
@@ -211,7 +169,7 @@ void micropolis_device::write_sector()
 	m_data_count = m_sector_length;
 
 	/* write data */
-	floppy_drive_write_sector_data(m_drive, 0, m_sector, (char *)m_buffer, m_sector_length, m_write_cmd & 0x01);
+	m_drive->floppy_drive_write_sector_data(0, m_sector, (char *)m_buffer, m_sector_length, m_write_cmd & 0x01);
 #endif
 }
 
@@ -229,7 +187,7 @@ void micropolis_device::set_drive(UINT8 drive)
 		logerror("micropolis_set_drive: $%02x\n", drive);
 
 	if (m_floppy_drive_tags[drive])
-		m_drive = siblingdevice(m_floppy_drive_tags[drive]);
+		m_drive = siblingdevice<legacy_floppy_image_device>(m_floppy_drive_tags[drive]);
 }
 
 
@@ -285,9 +243,9 @@ Command (bits 5,6,7)      Options (bits 0,1,2,3,4)
 	{
 	case 1:
 		m_drive_num = data & 3;
-		floppy_mon_w(m_drive, 1); // turn off the old drive
+		m_drive->floppy_mon_w(1); // turn off the old drive
 		set_drive(m_drive_num); // select new drive
-		floppy_mon_w(m_drive, 0); // turn it on
+		m_drive->floppy_mon_w(0); // turn it on
 		break;
 	case 2:  // not emulated, not used in sorcerer
 		break;
@@ -321,13 +279,13 @@ Command (bits 5,6,7)      Options (bits 0,1,2,3,4)
 	if (BIT(data, 5))
 		m_status |= STAT_READY;
 
-	floppy_drive_set_ready_state(m_drive, 1,0);
+	m_drive->floppy_drive_set_ready_state(1,0);
 
 
 	if (!m_track)
 		m_status |= STAT_TRACK0;
 
-	floppy_drive_seek(m_drive, direction);
+	m_drive->floppy_drive_seek(direction);
 }
 
 

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Miodrag Milanovic,Sandro Ronco
 /***************************************************************************
 
         Videoton TVC 32/64 driver
@@ -226,7 +228,7 @@ WRITE8_MEMBER(tvc_state::tvc_sound_w)
 			// bit 0-1 - video mode
 			// bit 7   - centronics STROBE
 			m_video_mode = data & 0x03;
-			m_centronics->strobe_w(BIT(data, 7));
+			m_centronics->write_strobe(BIT(data, 7));
 			if (!BIT(data, 7))
 				m_centronics_ff = 0;
 			break;
@@ -260,7 +262,7 @@ static ADDRESS_MAP_START( tvc_io , AS_IO, 8, tvc_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(tvc_border_color_w)
-	AM_RANGE(0x01, 0x01) AM_DEVWRITE(CENTRONICS_TAG, centronics_device, write)
+	AM_RANGE(0x01, 0x01) AM_DEVWRITE("cent_data_out", output_latch_device, write)
 	AM_RANGE(0x02, 0x02) AM_WRITE(tvc_bank_w)
 	AM_RANGE(0x03, 0x03) AM_WRITE(tvc_keyboard_w)
 	AM_RANGE(0x04, 0x06) AM_WRITE(tvc_sound_w)
@@ -508,29 +510,28 @@ void tvc_state::machine_reset()
 	membank("bank2")->set_base(m_ram->pointer() + 0x4000);
 }
 
-static MC6845_UPDATE_ROW( tvc_update_row )
+MC6845_UPDATE_ROW( tvc_state::crtc_update_row )
 {
-	tvc_state *state = device->machine().driver_data<tvc_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	UINT32  *p = &bitmap.pix32(y);
-	UINT8 *vram = state->memregion("vram")->base() + ((state->m_vram_bank & 0x30)<<10);
+	UINT8 *vram = memregion("vram")->base() + ((m_vram_bank & 0x30)<<10);
 	UINT16 offset = ((ma*4 + ra*0x40) & 0x3fff);
 	int i;
 
-	switch(state->m_video_mode) {
+	switch(m_video_mode) {
 		case 0 :
 				//  2 colors mode
 				for ( i = 0; i < x_count; i++ )
 				{
 					UINT8 data = vram[offset + i];
-					*p++ = palette[state->m_col[BIT(data,7)]];
-					*p++ = palette[state->m_col[BIT(data,6)]];
-					*p++ = palette[state->m_col[BIT(data,5)]];
-					*p++ = palette[state->m_col[BIT(data,4)]];
-					*p++ = palette[state->m_col[BIT(data,3)]];
-					*p++ = palette[state->m_col[BIT(data,2)]];
-					*p++ = palette[state->m_col[BIT(data,1)]];
-					*p++ = palette[state->m_col[BIT(data,0)]];
+					*p++ = palette[m_col[BIT(data,7)]];
+					*p++ = palette[m_col[BIT(data,6)]];
+					*p++ = palette[m_col[BIT(data,5)]];
+					*p++ = palette[m_col[BIT(data,4)]];
+					*p++ = palette[m_col[BIT(data,3)]];
+					*p++ = palette[m_col[BIT(data,2)]];
+					*p++ = palette[m_col[BIT(data,1)]];
+					*p++ = palette[m_col[BIT(data,0)]];
 				}
 				break;
 		case 1 :
@@ -539,14 +540,14 @@ static MC6845_UPDATE_ROW( tvc_update_row )
 				for ( i = 0; i < x_count; i++ )
 				{
 					UINT8 data = vram[offset + i];
-					*p++ = palette[state->m_col[BIT(data,3)*2 + BIT(data,7)]];
-					*p++ = palette[state->m_col[BIT(data,3)*2 + BIT(data,7)]];
-					*p++ = palette[state->m_col[BIT(data,2)*2 + BIT(data,6)]];
-					*p++ = palette[state->m_col[BIT(data,2)*2 + BIT(data,6)]];
-					*p++ = palette[state->m_col[BIT(data,1)*2 + BIT(data,5)]];
-					*p++ = palette[state->m_col[BIT(data,1)*2 + BIT(data,5)]];
-					*p++ = palette[state->m_col[BIT(data,0)*2 + BIT(data,4)]];
-					*p++ = palette[state->m_col[BIT(data,0)*2 + BIT(data,4)]];
+					*p++ = palette[m_col[BIT(data,3)*2 + BIT(data,7)]];
+					*p++ = palette[m_col[BIT(data,3)*2 + BIT(data,7)]];
+					*p++ = palette[m_col[BIT(data,2)*2 + BIT(data,6)]];
+					*p++ = palette[m_col[BIT(data,2)*2 + BIT(data,6)]];
+					*p++ = palette[m_col[BIT(data,1)*2 + BIT(data,5)]];
+					*p++ = palette[m_col[BIT(data,1)*2 + BIT(data,5)]];
+					*p++ = palette[m_col[BIT(data,0)*2 + BIT(data,4)]];
+					*p++ = palette[m_col[BIT(data,0)*2 + BIT(data,4)]];
 				}
 				break;
 		default:
@@ -571,7 +572,7 @@ static MC6845_UPDATE_ROW( tvc_update_row )
 	}
 }
 
-void tvc_state::palette_init()
+PALETTE_INIT_MEMBER(tvc_state, tvc)
 {
 	const static unsigned char tvc_palette[16][3] =
 	{
@@ -595,7 +596,7 @@ void tvc_state::palette_init()
 	int i;
 
 	for(i = 0; i < 16; i++)
-		palette_set_color_rgb(machine(), i, tvc_palette[i][0], tvc_palette[i][1], tvc_palette[i][2]);
+		palette.set_pen_color(i, tvc_palette[i][0], tvc_palette[i][1], tvc_palette[i][2]);
 }
 
 WRITE_LINE_MEMBER(tvc_state::tvc_int_ff_set)
@@ -631,47 +632,6 @@ QUICKLOAD_LOAD_MEMBER( tvc_state,tvc64)
 }
 
 
-static MC6845_INTERFACE( tvc_crtc6845_interface )
-{
-	false,
-	8 /*?*/,
-	NULL,
-	tvc_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(tvc_state, tvc_int_ff_set),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
-
-static const cassette_interface tvc_cassette_interface =
-{
-	tvc64_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED),
-	"tvc_cass",
-	NULL
-};
-
-const centronics_interface tvc_centronics_intf =
-{
-	DEVCB_DRIVER_LINE_MEMBER(tvc_state, tvc_centronics_ack),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static tvc_sound_interface  tvc_sound_intf =
-{
-	DEVCB_DRIVER_LINE_MEMBER(tvc_state, tvc_int_ff_set),
-};
-
-static const tvcexp_interface tvc_exp_interface =
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", 0),
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_NMI),
-};
-
 extern SLOT_INTERFACE_START(tvc_exp)
 	SLOT_INTERFACE("hbf", TVC_HBF)          // Videoton HBF floppy interface
 SLOT_INTERFACE_END
@@ -691,9 +651,14 @@ static MACHINE_CONFIG_START( tvc, tvc_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 512 - 1, 0, 240 - 1)
 	MCFG_SCREEN_UPDATE_DEVICE("crtc", mc6845_device, screen_update)
 
-	MCFG_PALETTE_LENGTH( 16 )
+	MCFG_PALETTE_ADD( "palette", 16 )
+	MCFG_PALETTE_INIT_OWNER(tvc_state, tvc)
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", 3125000/2, tvc_crtc6845_interface) // clk taken from schematics
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", 3125000/2) // clk taken from schematics
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8) /*?*/
+	MCFG_MC6845_UPDATE_ROW_CB(tvc_state, crtc_update_row)
+	MCFG_MC6845_OUT_CUR_CB(WRITELINE(tvc_state, tvc_int_ff_set))
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -703,10 +668,13 @@ static MACHINE_CONFIG_START( tvc, tvc_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("custom", TVC_SOUND, 0)
-	MCFG_SOUND_CONFIG(tvc_sound_intf)
+	MCFG_TVC_SOUND_SNDINT_CALLBACK(WRITELINE(tvc_state, tvc_int_ff_set))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, tvc_centronics_intf)
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(tvc_state, tvc_centronics_ack))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")
@@ -715,13 +683,28 @@ static MACHINE_CONFIG_START( tvc, tvc_state )
 	MCFG_CARTSLOT_INTERFACE("tvc_cart")
 
 	/* expansion interface */
-	MCFG_TVC64_EXPANSION_ADD("exp1", tvc_exp_interface, tvc_exp , NULL)
-	MCFG_TVC64_EXPANSION_ADD("exp2", tvc_exp_interface, tvc_exp , NULL)
-	MCFG_TVC64_EXPANSION_ADD("exp3", tvc_exp_interface, tvc_exp , NULL)
-	MCFG_TVC64_EXPANSION_ADD("exp4", tvc_exp_interface, tvc_exp , NULL)
+	MCFG_DEVICE_ADD("exp1", TVCEXP_SLOT, 0)
+	MCFG_DEVICE_SLOT_INTERFACE(tvc_exp , NULL, false)
+	MCFG_TVCEXP_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
+	MCFG_TVCEXP_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	MCFG_DEVICE_ADD("exp2", TVCEXP_SLOT, 0)
+	MCFG_DEVICE_SLOT_INTERFACE(tvc_exp , NULL, false)
+	MCFG_TVCEXP_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
+	MCFG_TVCEXP_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	MCFG_DEVICE_ADD("exp3", TVCEXP_SLOT, 0)
+	MCFG_DEVICE_SLOT_INTERFACE(tvc_exp , NULL, false)
+	MCFG_TVCEXP_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
+	MCFG_TVCEXP_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	MCFG_DEVICE_ADD("exp4", TVCEXP_SLOT, 0)
+	MCFG_DEVICE_SLOT_INTERFACE(tvc_exp , NULL, false)
+	MCFG_TVCEXP_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
+	MCFG_TVCEXP_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( "cassette", tvc_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(tvc64_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED)
+	MCFG_CASSETTE_INTERFACE("tvc_cass")
 
 	/* quickload */
 	MCFG_QUICKLOAD_ADD("quickload", tvc_state, tvc64, "cas", 6)

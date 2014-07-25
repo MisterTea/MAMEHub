@@ -367,10 +367,10 @@ WRITE_LINE_MEMBER(topspeed_state::z80ctc_to0)
 static ADDRESS_MAP_START( cpua_map, AS_PROGRAM, 16, topspeed_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	AM_RANGE(0x400000, 0x40ffff) AM_RAM AM_SHARE("sharedram")
-	AM_RANGE(0x500000, 0x503fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x500000, 0x503fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x600002, 0x600003) AM_WRITE(cpua_ctrl_w)
-	AM_RANGE(0x7e0000, 0x7e0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x7e0002, 0x7e0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x7e0000, 0x7e0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, master_port_w, 0x00ff)
+	AM_RANGE(0x7e0002, 0x7e0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, master_comm_r, master_comm_w, 0x00ff)
 	AM_RANGE(0x800000, 0x8003ff) AM_RAM AM_SHARE("raster_ctrl")
 	AM_RANGE(0x800400, 0x80ffff) AM_RAM
 	AM_RANGE(0x880000, 0x880007) AM_WRITENOP // Lamps/outputs?
@@ -402,8 +402,8 @@ static ADDRESS_MAP_START( z80_prg, AS_PROGRAM, 8, topspeed_state )
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("sndbank")
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
 	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
-	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("tc0140syt", tc0140syt_device, slave_port_w)
+	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, slave_comm_r, slave_comm_w)
 	AM_RANGE(0xb000, 0xcfff) AM_WRITE(msm5205_command_w)
 	AM_RANGE(0xd000, 0xdfff) AM_WRITE(volume_w)
 ADDRESS_MAP_END
@@ -521,56 +521,6 @@ static GFXDECODE_START( topspeed )
 GFXDECODE_END
 
 
-/**************************************************************
-                        MSM5205 (SOUND)
-**************************************************************/
-
-static const msm5205_interface msm5205_config_1 =
-{
-	DEVCB_DRIVER_LINE_MEMBER(topspeed_state, msm5205_1_vck), // VCK function
-	MSM5205_S48_4B      // 8 kHz, 4-bit
-};
-
-static const msm5205_interface msm5205_config_2 =
-{
-	DEVCB_NULL,         // VCK function
-	MSM5205_SEX_4B      // Slave mode, 4-bit
-};
-
-
-/***********************************************************
-                     DEVICES
-***********************************************************/
-
-static const pc080sn_interface pc080sn_intf =
-{
-	1,          // gfxnum
-	0, 8, 0, 0  // x_offset, y_offset, y_invert, dblwidth
-};
-
-static const tc0220ioc_interface io_intf =
-{
-	DEVCB_INPUT_PORT("DSWA"),
-	DEVCB_INPUT_PORT("DSWB"),
-	DEVCB_INPUT_PORT("IN0"),
-	DEVCB_INPUT_PORT("IN1"),
-	DEVCB_INPUT_PORT("IN2")
-};
-
-static const tc0140syt_interface tc0140syt_intf =
-{
-	"maincpu", "audiocpu"
-};
-
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_NULL, // Interrupt handler
-	DEVCB_DRIVER_LINE_MEMBER(topspeed_state, z80ctc_to0), // ZC/TO0 callback
-	DEVCB_NULL, // ZC/TO1 callback
-	DEVCB_NULL  // ZC/TO2 callback
-};
-
-
 /***********************************************************
                      MACHINE DRIVERS
 ***********************************************************/
@@ -620,11 +570,31 @@ static MACHINE_CONFIG_START( topspeed, topspeed_state )
 	MCFG_CPU_PROGRAM_MAP(z80_prg)
 	MCFG_CPU_IO_MAP(z80_io)
 
-	MCFG_Z80CTC_ADD("ctc", XTAL_16MHz / 4, ctc_intf)
-	MCFG_PC080SN_ADD("pc080sn_1", pc080sn_intf)
-	MCFG_PC080SN_ADD("pc080sn_2", pc080sn_intf)
-	MCFG_TC0140SYT_ADD("tc0140syt", tc0140syt_intf)
-	MCFG_TC0220IOC_ADD("tc0220ioc", io_intf)
+	MCFG_DEVICE_ADD("ctc", Z80CTC, XTAL_16MHz / 4)
+	MCFG_Z80CTC_ZC0_CB(WRITELINE(topspeed_state, z80ctc_to0))
+
+	MCFG_DEVICE_ADD("pc080sn_1", PC080SN, 0)
+	MCFG_PC080SN_GFX_REGION(1)
+	MCFG_PC080SN_OFFSETS(0, 8)
+	MCFG_PC080SN_GFXDECODE("gfxdecode")
+	MCFG_PC080SN_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("pc080sn_2", PC080SN, 0)
+	MCFG_PC080SN_GFX_REGION(1)
+	MCFG_PC080SN_OFFSETS(0, 8)
+	MCFG_PC080SN_GFXDECODE("gfxdecode")
+	MCFG_PC080SN_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("tc0140syt", TC0140SYT, 0)
+	MCFG_TC0140SYT_MASTER_CPU("maincpu")
+	MCFG_TC0140SYT_SLAVE_CPU("audiocpu")
+
+	MCFG_DEVICE_ADD("tc0220ioc", TC0220IOC, 0)
+	MCFG_TC0220IOC_READ_0_CB(IOPORT("DSWA"))
+	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
+	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
+	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
 
 	// video hardware
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -633,9 +603,11 @@ static MACHINE_CONFIG_START( topspeed, topspeed_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 2*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(topspeed_state, screen_update_topspeed)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(topspeed)
-	MCFG_PALETTE_LENGTH(8192)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", topspeed)
+	MCFG_PALETTE_ADD("palette", 8192)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -647,11 +619,12 @@ static MACHINE_CONFIG_START( topspeed, topspeed_state )
 	MCFG_SOUND_ROUTE(1, "filter1r", 1.0)
 
 	MCFG_SOUND_ADD("msm1", MSM5205, XTAL_384kHz)
-	MCFG_SOUND_CONFIG(msm5205_config_1)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(topspeed_state, msm5205_1_vck)) // VCK function
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      // 8 kHz, 4-bit
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "filter2", 1.0)
 
 	MCFG_SOUND_ADD("msm2", MSM5205, XTAL_384kHz)
-	MCFG_SOUND_CONFIG(msm5205_config_2)
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_SEX_4B)      // Slave mode, 4-bit
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "filter3", 1.0)
 
 	MCFG_FILTER_VOLUME_ADD("filter1l", 0)

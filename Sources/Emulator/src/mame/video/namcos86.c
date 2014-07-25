@@ -32,11 +32,11 @@ Namco System 86 Video Hardware
 
 ***************************************************************************/
 
-void namcos86_state::palette_init()
+PALETTE_INIT_MEMBER(namcos86_state, namcos86)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-	rgb_t palette[512];
+	rgb_t palette_val[512];
 
 	for (i = 0;i < 512;i++)
 	{
@@ -58,7 +58,7 @@ void namcos86_state::palette_init()
 		bit3 = (color_prom[512] >> 3) & 0x01;
 		b = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
 
-		palette[i] = MAKE_RGB(r,g,b);
+		palette_val[i] = rgb_t(r,g,b);
 		color_prom++;
 	}
 
@@ -67,11 +67,11 @@ void namcos86_state::palette_init()
 
 	/* tiles lookup table */
 	for (i = 0;i < 2048;i++)
-		palette_set_color(machine(), i, palette[*color_prom++]);
+		palette.set_pen_color(i, palette_val[*color_prom++]);
 
 	/* sprites lookup table */
 	for (i = 0;i < 2048;i++)
-		palette_set_color(machine(), 2048 + i, palette[256 + *color_prom++]);
+		palette.set_pen_color(2048 + i, palette_val[256 + *color_prom++]);
 
 	/* color_prom now points to the beginning of the tile address decode PROM */
 
@@ -96,8 +96,7 @@ inline void namcos86_state::get_tile_info(tile_data &tileinfo,int tile_index,int
 	else
 		tile_offs = ((m_tile_address_prom[((layer & 1) << 4) + ((attr & 0x03) << 2)] & 0x0e) >> 1) * 0x100 + m_tilebank * 0x800;
 
-	SET_TILE_INFO_MEMBER(
-			(layer & 2) ? 1 : 0,
+	SET_TILE_INFO_MEMBER((layer & 2) ? 1 : 0,
 			vram[2*tile_index] + tile_offs,
 			attr,
 			0);
@@ -132,15 +131,19 @@ TILE_GET_INFO_MEMBER(namcos86_state::get_tile_info3)
 
 void namcos86_state::video_start()
 {
-	m_bg_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(namcos86_state::get_tile_info0),this),TILEMAP_SCAN_ROWS,8,8,64,32);
-	m_bg_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(namcos86_state::get_tile_info1),this),TILEMAP_SCAN_ROWS,8,8,64,32);
-	m_bg_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(namcos86_state::get_tile_info2),this),TILEMAP_SCAN_ROWS,8,8,64,32);
-	m_bg_tilemap[3] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(namcos86_state::get_tile_info3),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_bg_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(namcos86_state::get_tile_info0),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_bg_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(namcos86_state::get_tile_info1),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_bg_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(namcos86_state::get_tile_info2),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_bg_tilemap[3] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(namcos86_state::get_tile_info3),this),TILEMAP_SCAN_ROWS,8,8,64,32);
 
-	m_bg_tilemap[0]->set_transparent_pen(7);
-	m_bg_tilemap[1]->set_transparent_pen(7);
-	m_bg_tilemap[2]->set_transparent_pen(7);
-	m_bg_tilemap[3]->set_transparent_pen(7);
+	for (int i = 0; i < 4; i++)
+	{
+		static const int xdisp[] = { 47, 49, 46, 48 };
+
+		m_bg_tilemap[i]->set_scrolldx(xdisp[i], 422 - xdisp[i]);
+		m_bg_tilemap[i]->set_scrolldy(-9, 9);
+		m_bg_tilemap[i]->set_transparent_pen(7);
+	}
 
 	m_spriteram = m_rthunder_spriteram + 0x1800;
 }
@@ -273,12 +276,12 @@ static void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rect
 	namcos86_state *state = screen.machine().driver_data<namcos86_state>();
 	const UINT8 *source = &state->m_spriteram[0x0800-0x20]; /* the last is NOT a sprite */
 	const UINT8 *finish = &state->m_spriteram[0];
-	gfx_element *gfx = screen.machine().gfx[2];
+	gfx_element *gfx = state->m_gfxdecode->gfx(2);
 
 	int sprite_xoffs = state->m_spriteram[0x07f5] + ((state->m_spriteram[0x07f4] & 1) << 8);
 	int sprite_yoffs = state->m_spriteram[0x07f7];
 
-	int bank_sprites = screen.machine().gfx[2]->elements() / 8;
+	int bank_sprites = state->m_gfxdecode->gfx(2)->elements() / 8;
 
 	while (source >= finish)
 	{
@@ -317,7 +320,7 @@ static void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rect
 		sy++;   /* sprites are buffered and delayed by one scanline */
 
 		gfx->set_source_clip(tx, sizex, ty, sizey);
-		pdrawgfx_transpen( bitmap, cliprect,gfx,
+		gfx->prio_transpen(bitmap,cliprect,
 				sprite,
 				color,
 				flipx,flipy,
@@ -333,11 +336,10 @@ static void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rect
 static void set_scroll(running_machine &machine, int layer)
 {
 	namcos86_state *state = machine.driver_data<namcos86_state>();
-	static const int xdisp[4] = { 47, 49, 46, 48 };
 	int scrollx,scrolly;
 
-	scrollx = state->m_xscroll[layer] - xdisp[layer];
-	scrolly = state->m_yscroll[layer] + 9;
+	scrollx = state->m_xscroll[layer];
+	scrolly = state->m_yscroll[layer];
 	if (state->flip_screen())
 	{
 		scrollx = -scrollx;
@@ -353,9 +355,7 @@ UINT32 namcos86_state::screen_update_namcos86(screen_device &screen, bitmap_ind1
 	int layer;
 
 	/* flip screen is embedded in the sprite control registers */
-	/* can't use flip_screen_set() because the visible area is asymmetrical */
-	flip_screen_set_no_update(m_spriteram[0x07f6] & 1);
-	machine().tilemap().set_flip_all(flip_screen() ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
+	flip_screen_set(m_spriteram[0x07f6] & 1);
 	set_scroll(machine(), 0);
 	set_scroll(machine(), 1);
 	set_scroll(machine(), 2);
@@ -363,7 +363,7 @@ UINT32 namcos86_state::screen_update_namcos86(screen_device &screen, bitmap_ind1
 
 	screen.priority().fill(0, cliprect);
 
-	bitmap.fill(machine().gfx[0]->colorbase() + 8*m_backcolor+7, cliprect);
+	bitmap.fill(m_gfxdecode->gfx(0)->colorbase() + 8*m_backcolor+7, cliprect);
 
 	for (layer = 0;layer < 8;layer++)
 	{

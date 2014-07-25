@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*********************************************************************
 
     formats/d67_dsk.h
@@ -22,9 +24,9 @@ public:
 protected:
 	virtual int get_sectors_per_track(const format &f, int track);
 
-	static const format formats[];
+	static const format file_formats[];
 
-	static const int sectors_per_track[];
+	static const int d67_sectors_per_track[];
 };
 
 extern const floppy_format_type FLOPPY_D67_FORMAT;

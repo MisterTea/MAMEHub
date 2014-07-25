@@ -87,7 +87,8 @@ March 2013 NPW:
 #define LOG_INTERRUPTS  0
 
 // turn off 'unreferenced label' errors
-#ifdef __GNUC__
+// this pragma doesn't work on older GCCs, so cut off at 4.2
+#if defined(__GNUC__) && __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 2)
 #pragma GCC diagnostic ignored "-Wunused-label"
 #endif
 #ifdef _MSC_VER
@@ -108,6 +109,7 @@ const device_type M6809E = &device_creator<m6809e_device>;
 
 m6809_base_device::m6809_base_device(const machine_config &mconfig, const char *name, const char *tag, device_t *owner, UINT32 clock, const device_type type, int divider, const char *shortname, const char *source)
 	: cpu_device(mconfig, type, name, tag, owner, clock, shortname, source),
+	m_lic_func(*this),
 	m_program_config("program", ENDIANNESS_BIG, 8, 16),
 	m_clock_divider(divider)
 {
@@ -120,8 +122,9 @@ m6809_base_device::m6809_base_device(const machine_config &mconfig, const char *
 
 void m6809_base_device::device_start()
 {
-	m_program = &space(AS_PROGRAM);
-	m_direct = &m_program->direct();
+	m_direct = &m_addrspace[AS_PROGRAM]->direct();
+
+	m_lic_func.resolve_safe();
 
 	// register our state for the debugger
 	astring tempstr;
@@ -161,6 +164,8 @@ void m6809_base_device::device_start()
 	save_item(NAME(m_x.w));
 	save_item(NAME(m_y.w));
 	save_item(NAME(m_cc));
+	save_item(NAME(m_temp.w));
+	save_item(NAME(m_opcode));
 	save_item(NAME(m_nmi_asserted));
 	save_item(NAME(m_nmi_line));
 	save_item(NAME(m_firq_line));
@@ -196,8 +201,8 @@ void m6809_base_device::device_reset()
 	m_cc |= CC_I;       // IRQ disabled
 	m_cc |= CC_F;       // FIRQ disabled
 
-	m_pc.b.h = m_program->read_byte(VECTOR_RESET_FFFE + 0);
-	m_pc.b.l = m_program->read_byte(VECTOR_RESET_FFFE + 1);
+	m_pc.b.h = m_addrspace[AS_PROGRAM]->read_byte(VECTOR_RESET_FFFE + 0);
+	m_pc.b.l = m_addrspace[AS_PROGRAM]->read_byte(VECTOR_RESET_FFFE + 1);
 
 	// reset sub-instruction state
 	reset_state();
@@ -245,7 +250,7 @@ void m6809_base_device::device_post_load()
 			set_regop8(m_d.b.h);
 			break;
 		case M6809_B:
-			set_regop8(m_d.b.h);
+			set_regop8(m_d.b.l);
 			break;
 		case M6809_D:
 			set_regop16(m_d);
@@ -562,4 +567,9 @@ WRITE_LINE_MEMBER( m6809_base_device::irq_line )
 WRITE_LINE_MEMBER( m6809_base_device::firq_line )
 {
 	set_input_line( M6809_FIRQ_LINE, state );
+}
+
+WRITE_LINE_MEMBER( m6809_base_device::nmi_line )
+{
+	set_input_line( INPUT_LINE_NMI, state );
 }

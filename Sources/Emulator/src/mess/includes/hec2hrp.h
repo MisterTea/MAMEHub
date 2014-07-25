@@ -41,6 +41,7 @@
 #include "machine/wd17xx.h"
 #include "imagedev/flopdrv.h"
 #include "imagedev/cassette.h"
+#include "sound/sn76477.h"   /* for sn sound*/
 
 /* Enum status for high memory bank (c000 - ffff)*/
 enum
@@ -73,14 +74,24 @@ class hec2hrp_state : public driver_device
 public:
 	hec2hrp_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_videoram(*this,"videoram"),
-		m_hector_videoram(*this,"hector_videoram") ,
 		m_maincpu(*this, "maincpu"),
 		m_disc2cpu(*this, "disc2cpu"),
-		m_cassette(*this, "cassette") { }
+		m_cassette(*this, "cassette"),
+		m_sn(*this, "sn76477"),
+		m_palette(*this, "palette"),
+		m_videoram(*this,"videoram"),
+		m_hector_videoram(*this,"hector_videoram") ,
+		m_keyboard(*this, "KEY") { }
 
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_disc2cpu;
+	required_device<cassette_image_device> m_cassette;
+	required_device<sn76477_device> m_sn;
+	required_device<palette_device> m_palette;
 	optional_shared_ptr<UINT8> m_videoram;
 	optional_shared_ptr<UINT8> m_hector_videoram;
+	required_ioport_array<9> m_keyboard;
+
 	UINT8 m_hector_flag_hr;
 	UINT8 m_hector_flag_80c;
 	UINT8 m_hector_color[4];
@@ -143,11 +154,8 @@ public:
 	UINT32 screen_update_hec2hrp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(Callback_CK);
 
-	void disc2_fdc_interrupt(bool state);
-	void disc2_fdc_dma_irq(bool state);
-	required_device<cpu_device> m_maincpu;
-	optional_device<cpu_device> m_disc2cpu;
-	required_device<cassette_image_device> m_cassette;
+	DECLARE_WRITE_LINE_MEMBER( disc2_fdc_interrupt );
+	DECLARE_WRITE_LINE_MEMBER( disc2_fdc_dma_irq );
 	int isHectorWithDisc2();
 	int isHectorWithMiniDisc();
 	int isHectorHR();
@@ -176,11 +184,9 @@ public:
 	DECLARE_WRITE8_MEMBER( hector_disc2_io50_port_w);
 
 	void hector_disc2_reset();
-	void hector_disc2_init();
 };
 
 /* Sound function*/
 extern const sn76477_interface hector_sn76477_interface;
 
-extern const wd17xx_interface hector_wd17xx_interface;  // Special for minidisc
 extern const floppy_interface minidisc_floppy_interface;

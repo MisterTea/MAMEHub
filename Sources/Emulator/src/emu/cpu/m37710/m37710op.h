@@ -88,7 +88,7 @@ void m37710_cpu_device::m37710i_set_reg_p(UINT32 value)
 	FLAG_Z = !(value & FLAGPOS_Z);
 	FLAG_C = value << 8;
 	m37710i_set_flag_mx(value);
-	m37710i_set_flag_i(value);
+	FLAG_I = value & FLAGPOS_I;
 }
 
 
@@ -485,7 +485,7 @@ void m37710_cpu_device::m37710i_set_reg_p(UINT32 value)
 #undef OP_CLI
 #define OP_CLI()                                                            \
 			CLK(CLK_OP + CLK_IMPLIED);                                      \
-			m37710i_set_flag_i(IFLAG_CLEAR);                      \
+			FLAG_I = IFLAG_CLEAR;                      \
 			m37710i_update_irqs()
 
 /* M37710   Clear oVerflow flag */
@@ -767,14 +767,14 @@ void m37710_cpu_device::m37710i_set_reg_p(UINT32 value)
 #define OP_LDM(MODE)                                                        \
 			CLK(CLK_OP + CLK_R8 + CLK_##MODE);  \
 			REG_IM2 = EA_##MODE();      \
-			REG_IM = read_8_NORM(REG_PB|REG_PC);        \
+			REG_IM = read_8_IMM(REG_PB | REG_PC);        \
 			REG_PC++;               \
 			write_8_##MODE(REG_IM2, REG_IM)
 #else
 #define OP_LDM(MODE)                                                        \
 			CLK(CLK_OP + CLK_R16 + CLK_##MODE); \
 			REG_IM2 = EA_##MODE();      \
-			REG_IM = read_16_NORM(REG_PB|REG_PC);       \
+			REG_IM = read_16_IMM(REG_PB | REG_PC);       \
 			REG_PC+=2;              \
 			write_16_##MODE(REG_IM2, REG_IM)
 #endif
@@ -785,7 +785,7 @@ void m37710_cpu_device::m37710i_set_reg_p(UINT32 value)
 #define OP_BBS(MODE)                                                        \
 			CLK(CLK_OP + CLK_R8 + CLK_##MODE);  \
 			REG_IM2 = read_8_NORM(EA_##MODE());     \
-			REG_IM = read_8_NORM(REG_PB | REG_PC);      \
+			REG_IM = read_8_IMM(REG_PB | REG_PC);      \
 			REG_PC++;               \
 			DST = OPER_8_IMM();         \
 			if ((REG_IM2 & REG_IM) == REG_IM)   \
@@ -798,7 +798,7 @@ void m37710_cpu_device::m37710i_set_reg_p(UINT32 value)
 #define OP_BBS(MODE)                                                        \
 			CLK(CLK_OP + CLK_R16 + CLK_##MODE); \
 			REG_IM2 = read_16_NORM(EA_##MODE());    \
-			REG_IM = read_16_NORM(REG_PB | REG_PC);     \
+			REG_IM = read_16_IMM(REG_PB | REG_PC);     \
 			REG_PC++;               \
 			REG_PC++;               \
 			DST = OPER_8_IMM();         \
@@ -816,7 +816,7 @@ void m37710_cpu_device::m37710i_set_reg_p(UINT32 value)
 #define OP_BBC(MODE)                                                        \
 			CLK(CLK_OP + CLK_R8 + CLK_##MODE);  \
 			REG_IM2 = read_8_NORM(EA_##MODE());     \
-			REG_IM = read_8_NORM(REG_PB | REG_PC);      \
+			REG_IM = read_8_IMM(REG_PB | REG_PC);      \
 			REG_PC++;               \
 			DST = OPER_8_IMM();         \
 			if ((REG_IM2 & REG_IM) == 0)        \
@@ -829,7 +829,7 @@ void m37710_cpu_device::m37710i_set_reg_p(UINT32 value)
 #define OP_BBC(MODE)                                                        \
 			CLK(CLK_OP + CLK_R16 + CLK_##MODE); \
 			REG_IM2 = read_16_NORM(EA_##MODE());    \
-			REG_IM = read_16_NORM(REG_PB | REG_PC);     \
+			REG_IM = read_16_IMM(REG_PB | REG_PC);     \
 			REG_PC++;               \
 			REG_PC++;               \
 			DST = OPER_8_IMM();         \
@@ -1362,7 +1362,6 @@ void m37710_cpu_device::m37710i_set_reg_p(UINT32 value)
 			m37710i_set_reg_ipl(m37710i_pull_8());                    \
 			m37710i_jump_16(m37710i_pull_16());                   \
 			REG_PB = m37710i_pull_8() << 16;                    \
-			m37710i_jumping(REG_PB | REG_PC);                           \
 			m37710i_update_irqs()
 
 /* M37710  Return from Subroutine Long */
@@ -1506,7 +1505,7 @@ void m37710_cpu_device::m37710i_set_reg_p(UINT32 value)
 #undef OP_SEI
 #define OP_SEI()                                                            \
 			CLK(CLK_OP + CLK_IMPLIED);                                      \
-			m37710i_set_flag_i(IFLAG_SET)
+			FLAG_I = IFLAG_SET
 
 /* M37710  Set Program status word */
 #undef OP_SEP
@@ -1820,7 +1819,7 @@ void m37710_cpu_device::m37710i_set_reg_p(UINT32 value)
 			CLK(CLK_OP + CLK_RMW8 + CLK_W_##MODE);                          \
 			DST    = EA_##MODE();                                           \
 			REG_IM = read_8_##MODE(DST);                                    \
-			REG_IM2 = read_8_NORM(REG_PB | REG_PC); \
+			REG_IM2 = read_8_IMM(REG_PB | REG_PC); \
 			REG_PC++;           \
 			write_8_##MODE(DST, REG_IM & ~REG_IM2);
 #else
@@ -1828,7 +1827,7 @@ void m37710_cpu_device::m37710i_set_reg_p(UINT32 value)
 			CLK(CLK_OP + CLK_RMW16 + CLK_W_##MODE);                         \
 			DST    = EA_##MODE();                                           \
 			REG_IM = read_16_##MODE(DST);                                   \
-			REG_IM2 = read_16_NORM(REG_PB | REG_PC);    \
+			REG_IM2 = read_16_IMM(REG_PB | REG_PC);    \
 			REG_PC+=2;          \
 			write_16_##MODE(DST, REG_IM & ~REG_IM2);
 #endif
@@ -1840,7 +1839,7 @@ void m37710_cpu_device::m37710i_set_reg_p(UINT32 value)
 			CLK(CLK_OP + CLK_RMW8 + CLK_W_##MODE);                          \
 			DST    = EA_##MODE();                                           \
 			REG_IM = read_8_##MODE(DST);                                    \
-			REG_IM2 = read_8_NORM(REG_PB | REG_PC); \
+			REG_IM2 = read_8_IMM(REG_PB | REG_PC); \
 			REG_PC++;           \
 			write_8_##MODE(DST, REG_IM | REG_IM2);
 #else
@@ -1848,7 +1847,7 @@ void m37710_cpu_device::m37710i_set_reg_p(UINT32 value)
 			CLK(CLK_OP + CLK_RMW16 + CLK_W_##MODE);                         \
 			DST    = EA_##MODE();                                           \
 			REG_IM = read_16_##MODE(DST);                                   \
-			REG_IM2 = read_16_NORM(REG_PB | REG_PC);    \
+			REG_IM2 = read_16_IMM(REG_PB | REG_PC);    \
 			REG_PC+=2;          \
 			write_16_##MODE(DST, REG_IM | REG_IM2);
 #endif

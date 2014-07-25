@@ -28,17 +28,12 @@
     TODO:
         * The Kram encryption algorithm is not understood. I merely provide tables to
           decrypt it, derived by comparison with the not encrypted versions.
-          The kram3 set used to be playable with the implementation in the MAME M6809
-          CPU core, encrypting only the first byte in 10 xx and 11 xx opcodes.
-          This should get a cleaner implementation. Until then, kram3 is broken on purpose.
 
           According to the QIX and Kram schematics, these games should be using 68A90Es.
           The 6809E has a 'Last Instruction Cycle' pin that is likely tied in with the encryption:
           "LIC is HIGH during the last cycle of every instruction and its transition from
           HIGH to LOW will indicate that the first byte of an opcode will be latched at
           the end of the present bus cycle"
-          Personally I'd expose the LIC output in a similar manner that was done for the 6502
-          sync output and handle the decryption in the driver.
 
         * I applied the interleave change only to elecyoyo because these games are
           really sensitive to timing, and kram's service mode was disturbed by it (the
@@ -262,6 +257,21 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, qix_state )
 	AM_RANGE(0x9c00, 0x9fff) AM_DEVREADWRITE("pia2", pia6821_device, read, write)
 	AM_RANGE(0xa000, 0xffff) AM_ROM
 ADDRESS_MAP_END
+
+
+static ADDRESS_MAP_START( kram3_main_map, AS_PROGRAM, 8, qix_state )
+	AM_RANGE(0x8000, 0x83ff) AM_RAM AM_SHARE("share1")
+	AM_RANGE(0x8400, 0x87ff) AM_RAM
+	AM_RANGE(0x8800, 0x8bff) AM_READNOP   /* 6850 ACIA */
+	AM_RANGE(0x8c00, 0x8c00) AM_MIRROR(0x3fe) AM_READWRITE(qix_video_firq_r, qix_video_firq_w)
+	AM_RANGE(0x8c01, 0x8c01) AM_MIRROR(0x3fe) AM_READWRITE(qix_data_firq_ack_r, qix_data_firq_ack_w)
+	AM_RANGE(0x9000, 0x93ff) AM_DEVREADWRITE("sndpia0", pia6821_device, read, write)
+	AM_RANGE(0x9400, 0x97ff) AM_DEVREAD("pia0", pia6821_device, read) AM_WRITE(qix_pia_w)
+	AM_RANGE(0x9800, 0x9bff) AM_DEVREADWRITE("pia1", pia6821_device, read, write)
+	AM_RANGE(0x9c00, 0x9fff) AM_DEVREADWRITE("pia2", pia6821_device, read, write)
+	AM_RANGE(0xa000, 0xffff) AM_ROMBANK("bank0")
+ADDRESS_MAP_END
+
 
 
 static ADDRESS_MAP_START( zoo_main_map, AS_PROGRAM, 8, qix_state )
@@ -549,12 +559,62 @@ as-is. Tim Lindquist 1-17-03 */
 INPUT_PORTS_END
 
 
-
 /*************************************
  *
  *  Machine drivers
  *
  *************************************/
+
+/***************************************************************************
+
+    Qix has 6 PIAs on board:
+
+    From the ROM I/O schematic:
+
+    PIA 0 = U11: (mapped to $9400 on the data CPU)
+        port A = external input (input_port_0)
+        port B = external input (input_port_1) (coin)
+
+    PIA 1 = U20: (mapped to $9800/$9900 on the data CPU)
+        port A = external input (input_port_2)
+        port B = external input (input_port_3)
+
+    PIA 2 = U30: (mapped to $9c00 on the data CPU)
+        port A = external input (input_port_4)
+        port B = external output (coin control)
+
+
+    From the data/sound processor schematic:
+
+    PIA 3 = U20: (mapped to $9000 on the data CPU)
+        port A = data CPU to sound CPU communication
+        port B = stereo volume control, 2 4-bit values
+        CA1 = interrupt signal from sound CPU
+        CA2 = interrupt signal to sound CPU
+        CB1 = VS input signal (vertical sync)
+        CB2 = INV output signal (cocktail flip)
+        IRQA = /DINT1 signal
+        IRQB = /DINT1 signal
+
+    PIA 4 = U8: (mapped to $4000 on the sound CPU)
+        port A = sound CPU to data CPU communication
+        port B = DAC value (port B)
+        CA1 = interrupt signal from data CPU
+        CA2 = interrupt signal to data CPU
+        IRQA = /SINT1 signal
+        IRQB = /SINT1 signal
+
+    PIA 5 = U7: (never actually used, mapped to $2000 on the sound CPU)
+        port A = unused
+        port B = sound CPU to TMS5220 communication
+        CA1 = interrupt signal from TMS5220
+        CA2 = write signal to TMS5220
+        CB1 = ready signal from TMS5220
+        CB2 = read signal to TMS5220
+        IRQA = /SINT2 signal
+        IRQB = /SINT2 signal
+
+***************************************************************************/
 
 static MACHINE_CONFIG_START( qix_base, qix_state )
 
@@ -568,9 +628,17 @@ static MACHINE_CONFIG_START( qix_base, qix_state )
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_PIA6821_ADD("pia0", qix_pia_0_intf)
-	MCFG_PIA6821_ADD("pia1", qix_pia_1_intf)
-	MCFG_PIA6821_ADD("pia2", qix_pia_2_intf)
+	MCFG_DEVICE_ADD("pia0", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(IOPORT("P1"))
+	MCFG_PIA_READPB_HANDLER(IOPORT("COIN"))
+
+	MCFG_DEVICE_ADD("pia1", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(IOPORT("SPARE"))
+	MCFG_PIA_READPB_HANDLER(IOPORT("IN0"))
+
+	MCFG_DEVICE_ADD("pia2", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(IOPORT("P2"))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(qix_state, qix_coinctl_w))
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD(qix_video)
@@ -581,6 +649,20 @@ static MACHINE_CONFIG_DERIVED( qix, qix_base )
 	MCFG_FRAGMENT_ADD(qix_audio)
 MACHINE_CONFIG_END
 
+static MACHINE_CONFIG_DERIVED( kram3, qix )
+	MCFG_CPU_REPLACE("maincpu", M6809E, MAIN_CLOCK_OSC/4)  /* 1.25 MHz */
+	MCFG_CPU_PROGRAM_MAP(kram3_main_map)
+	MCFG_M6809E_LIC_CB(WRITELINE(qix_state,kram3_lic_maincpu_changed))
+
+	MCFG_FRAGMENT_ADD(kram3_video)
+MACHINE_CONFIG_END
+
+/***************************************************************************
+
+    Games with an MCU need to handle coins differently, and provide
+    communication with the MCU
+
+***************************************************************************/
 
 static MACHINE_CONFIG_DERIVED( mcu, qix )
 
@@ -591,8 +673,12 @@ static MACHINE_CONFIG_DERIVED( mcu, qix )
 
 	MCFG_MACHINE_START_OVERRIDE(qix_state,qixmcu)
 
-	MCFG_PIA6821_MODIFY("pia0", qixmcu_pia_0_intf)
-	MCFG_PIA6821_MODIFY("pia2", qixmcu_pia_2_intf)
+	MCFG_DEVICE_MODIFY("pia0")
+	MCFG_PIA_READPB_HANDLER(READ8(qix_state, qixmcu_coin_r))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(qix_state, qixmcu_coin_w))
+
+	MCFG_DEVICE_MODIFY("pia2")
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(qix_state, qixmcu_coinctrl_w))
 MACHINE_CONFIG_END
 
 
@@ -608,6 +694,14 @@ static MACHINE_CONFIG_DERIVED( zookeep, mcu )
 MACHINE_CONFIG_END
 
 
+
+/***************************************************************************
+
+    Slither uses 2 SN76489's for sound instead of the 6802+DAC; these
+    are accessed via the PIAs.
+
+***************************************************************************/
+
 static MACHINE_CONFIG_DERIVED( slither, qix_base )
 
 	/* basic machine hardware */
@@ -615,8 +709,15 @@ static MACHINE_CONFIG_DERIVED( slither, qix_base )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_CLOCK(SLITHER_CLOCK_OSC/4/4)   /* 1.34 MHz */
 
-	MCFG_PIA6821_MODIFY("pia1", slither_pia_1_intf)
-	MCFG_PIA6821_MODIFY("pia2", slither_pia_2_intf)
+	MCFG_DEVICE_MODIFY("pia1")
+	MCFG_PIA_READPA_HANDLER(READ8(qix_state, slither_trak_lr_r))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(qix_state, slither_76489_0_w))
+	MCFG_PIA_READPB_HANDLER(NULL)
+
+	MCFG_DEVICE_MODIFY("pia2")
+	MCFG_PIA_READPA_HANDLER(READ8(qix_state, slither_trak_ud_r))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(qix_state, slither_76489_1_w))
+	MCFG_PIA_READPB_HANDLER(NULL)
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD(slither_video)
@@ -1262,11 +1363,12 @@ int qix_state::kram3_decrypt(int address, int value)
 
 DRIVER_INIT_MEMBER(qix_state,kram3)
 {
-	address_space &mainspace = m_maincpu->space(AS_PROGRAM);
-	address_space &videospace = m_videocpu->space(AS_PROGRAM);
 	//const UINT8 *patch;
 	UINT8 *rom, *decrypted;
 	int i;
+
+	assert(m_bank0);
+	assert(m_bank1);
 
 	/********************************
 
@@ -1287,26 +1389,40 @@ DRIVER_INIT_MEMBER(qix_state,kram3)
 	rom = memregion("maincpu")->base();
 	decrypted = auto_alloc_array(machine(), UINT8, 0x6000);
 
-	mainspace.set_decrypted_region(0xa000, 0xffff, decrypted);
-
 	memcpy(decrypted,&rom[0xa000],0x6000);
 	for (i = 0xa000; i < 0x10000; ++i)
 	{
 		decrypted[i-0xa000] = kram3_decrypt(i, rom[i]);
 	}
+
+	m_bank0->configure_entry(0, memregion("maincpu")->base() + 0xa000);
+	m_bank0->configure_entry(1, decrypted);
+	m_bank0->set_entry(0);
 
 	i = 0;
 	//patch = memregion("user2")->base();
 	rom = memregion("videocpu")->base();
 	decrypted = auto_alloc_array(machine(), UINT8, 0x6000);
 
-	videospace.set_decrypted_region(0xa000, 0xffff, decrypted);
-
 	memcpy(decrypted,&rom[0xa000],0x6000);
 	for (i = 0xa000; i < 0x10000; ++i)
 	{
 		decrypted[i-0xa000] = kram3_decrypt(i, rom[i]);
 	}
+
+	m_bank1->configure_entry(0, memregion("videocpu")->base() + 0xa000);
+	m_bank1->configure_entry(1, decrypted);
+	m_bank1->set_entry(0);
+}
+
+WRITE_LINE_MEMBER(qix_state::kram3_lic_maincpu_changed)
+{
+	m_bank0->set_entry( state ? 1 : 0 );
+}
+
+WRITE_LINE_MEMBER(qix_state::kram3_lic_videocpu_changed)
+{
+	m_bank1->set_entry( state ? 1 : 0 );
 }
 
 
@@ -1341,7 +1457,7 @@ GAMEL(1982, elecyoyo, 0,        mcu,      elecyoyo, driver_device, 0,        ROT
 GAMEL(1982, elecyoyo2,elecyoyo, mcu,      elecyoyo, driver_device, 0,        ROT270, "Taito America Corporation", "The Electric Yo-Yo (set 2)", GAME_SUPPORTS_SAVE, layout_elecyoyo )
 GAME( 1982, kram,     0,        mcu,      kram,     driver_device, 0,        ROT0,   "Taito America Corporation", "Kram (set 1)", GAME_SUPPORTS_SAVE )
 GAME( 1982, kram2,    kram,     mcu,      kram,     driver_device, 0,        ROT0,   "Taito America Corporation", "Kram (set 2)", GAME_SUPPORTS_SAVE )
-GAME( 1982, kram3,    kram,     qix,      kram,     qix_state,     kram3,    ROT0,   "Taito America Corporation", "Kram (encrypted)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
+GAME( 1982, kram3,    kram,     kram3,    kram,     qix_state,     kram3,    ROT0,   "Taito America Corporation", "Kram (encrypted)", GAME_SUPPORTS_SAVE )
 GAME( 1982, zookeep,  0,        zookeep,  zookeep,  qix_state,     zookeep,  ROT0,   "Taito America Corporation", "Zoo Keeper (set 1)", GAME_SUPPORTS_SAVE )
 GAME( 1982, zookeep2, zookeep,  zookeep,  zookeep,  qix_state,     zookeep,  ROT0,   "Taito America Corporation", "Zoo Keeper (set 2)", GAME_SUPPORTS_SAVE )
 GAME( 1982, zookeep3, zookeep,  zookeep,  zookeep,  qix_state,     zookeep,  ROT0,   "Taito America Corporation", "Zoo Keeper (set 3)", GAME_SUPPORTS_SAVE )

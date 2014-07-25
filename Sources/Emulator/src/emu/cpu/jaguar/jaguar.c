@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     jaguar.c
@@ -394,6 +396,7 @@ void jaguar_cpu_device::device_start()
 	state_add( JAGUAR_R31,   "R31", m_r[31]).formatstr("%08X");
 
 	state_add( STATE_GENPC, "GENPC", PC).noshow();
+	state_add( STATE_GENPCBASE, "GENPCBASE", m_ppc).noshow();
 	state_add( STATE_GENFLAGS, "GENFLAGS", FLAGS).formatstr("%11s").noshow();
 
 	m_icountptr = &m_icount;
@@ -438,11 +441,11 @@ jaguar_cpu_device::~jaguar_cpu_device()
 		return;
 
 	if (mirror_table != NULL)
-		global_free(mirror_table);
+		global_free_array(mirror_table);
 	mirror_table = NULL;
 
 	if (condition_table != NULL)
-		global_free(condition_table);
+		global_free_array(condition_table);
 	condition_table = NULL;
 }
 

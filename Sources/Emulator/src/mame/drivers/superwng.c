@@ -37,7 +37,9 @@ public:
 		m_videoram_bg(*this, "videorabg"),
 		m_videoram_fg(*this, "videorafg"),
 		m_colorram_bg(*this, "colorrabg"),
-		m_colorram_fg(*this, "colorrafg")
+		m_colorram_fg(*this, "colorrafg"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -46,6 +48,8 @@ public:
 	required_shared_ptr<UINT8> m_videoram_fg;
 	required_shared_ptr<UINT8> m_colorram_bg;
 	required_shared_ptr<UINT8> m_colorram_fg;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	UINT8 m_tile_bank;
 	UINT8 m_sound_byte;
@@ -72,7 +76,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(superwng);
 	UINT32 screen_update_superwng(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(superwng_nmi_interrupt);
 	INTERRUPT_GEN_MEMBER(superwng_sound_nmi_assert);
@@ -109,8 +113,8 @@ TILE_GET_INFO_MEMBER(superwng_state::get_fg_tile_info)
 
 void superwng_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(superwng_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(superwng_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(superwng_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(superwng_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_bg_tilemap->set_scrollx(0, 64);
 }
@@ -153,7 +157,7 @@ UINT32 superwng_state::screen_update_superwng(screen_device &screen, bitmap_ind1
 		int sy = m_colorram_bg[i];
 		int color = m_colorram_bg[i + 1] & 0xf;
 
-		drawgfx_transpen(bitmap, cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 						code,
 						color,
 						flip, flip,
@@ -172,12 +176,12 @@ static const UINT8 superwng_colors[]= /* temporary */
 	0x00, 0xc0, 0x07, 0x3f, 0x00, 0x1f, 0x3f, 0xff, 0x00, 0x86, 0x05, 0xff, 0x00, 0xc0, 0xe8, 0xff
 };
 
-void superwng_state::palette_init()
+PALETTE_INIT_MEMBER(superwng_state, superwng)
 {
 	int i;
 	const UINT8 * ptr=superwng_colors;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -195,7 +199,7 @@ void superwng_state::palette_init()
 		bit1 = BIT(*ptr, 7);
 		b = 0x4f * bit0 + 0xa8 * bit1;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 		++ptr;
 	}
 }
@@ -437,26 +441,6 @@ void superwng_state::machine_reset()
 	m_nmi_enable = 0;
 }
 
-static const ay8910_interface ay8910_config_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(superwng_state,superwng_sound_byte_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface ay8910_config_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( superwng, superwng_state )
 
 	/* basic machine hardware */
@@ -475,20 +459,21 @@ static MACHINE_CONFIG_START( superwng, superwng_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-
-	MCFG_GFXDECODE(superwng)
-
-	MCFG_PALETTE_LENGTH(0x40)
 	MCFG_SCREEN_UPDATE_DRIVER(superwng_state, screen_update_superwng)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", superwng)
+
+	MCFG_PALETTE_ADD("palette", 0x40)
+	MCFG_PALETTE_INIT_OWNER(superwng_state, superwng)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, MASTER_CLOCK/12)
-	MCFG_SOUND_CONFIG(ay8910_config_1)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(superwng_state, superwng_sound_byte_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_SOUND_ADD("ay2", AY8910, MASTER_CLOCK/12)
-	MCFG_SOUND_CONFIG(ay8910_config_2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

@@ -151,26 +151,6 @@ void clayshoo_state::create_analog_timers(  )
  *
  *************************************/
 
-static I8255A_INTERFACE( ppi8255_0_intf )
-{
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_NULL,                         /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
-static I8255A_INTERFACE( ppi8255_1_intf )
-{
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_DRIVER_MEMBER(clayshoo_state,input_port_select_w),    /* Port A write */
-	DEVCB_DRIVER_MEMBER(clayshoo_state,input_port_r),       /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
 void clayshoo_state::machine_start()
 {
 	create_analog_timers();
@@ -201,7 +181,7 @@ UINT32 clayshoo_state::screen_update_clayshoo(screen_device &screen, bitmap_rgb3
 
 		for (i = 0; i < 8; i++)
 		{
-			pen_t pen = (data & 0x80) ? RGB_WHITE : RGB_BLACK;
+			pen_t pen = (data & 0x80) ? rgb_t::white : rgb_t::black;
 			bitmap.pix32(y, x) = pen;
 
 			data = data << 1;
@@ -343,8 +323,11 @@ static MACHINE_CONFIG_START( clayshoo, clayshoo_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_UPDATE_DRIVER(clayshoo_state, screen_update_clayshoo)
 
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_0_intf )
-	MCFG_I8255A_ADD( "ppi8255_1", ppi8255_1_intf )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(clayshoo_state, input_port_select_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(clayshoo_state, input_port_r))
 MACHINE_CONFIG_END
 
 

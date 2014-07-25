@@ -1,37 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Sega pre-System 16 & System 16A hardware
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************
 
@@ -39,7 +10,7 @@
         * none at this time
 
     DIP locations verified from manual for:
-        * aceattaa
+        * aceattaca
         * aliensyn
         * aliensynj
         * passsht16a
@@ -182,22 +153,6 @@ Tetris         -         -         -         -         EPR12169  EPR12170  -    
 #include "machine/nvram.h"
 #include "sound/dac.h"
 #include "includes/segaipt.h"
-
-
-//**************************************************************************
-//  PPI INTERFACES
-//**************************************************************************
-
-static I8255_INTERFACE(single_ppi_intf)
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(segas16a_state, misc_control_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(segas16a_state, tilemap_sound_w)
-};
-
 
 
 //**************************************************************************
@@ -775,11 +730,11 @@ void segas16a_state::quartet_i8751_sim()
 //**************************************************************************
 
 //-------------------------------------------------
-//  aceattaa_custom_io_r - custom I/O read handler
+//  aceattaca_custom_io_r - custom I/O read handler
 //  for Ace Attacker
 //-------------------------------------------------
 
-READ16_MEMBER( segas16a_state::aceattaa_custom_io_r )
+READ16_MEMBER( segas16a_state::aceattaca_custom_io_r )
 {
 	switch (offset & (0x3000/2))
 	{
@@ -1114,7 +1069,7 @@ INPUT_PORTS_END
 //  GAME-SPECIFIC PORT DEFINITIONS
 //**************************************************************************
 
-static INPUT_PORTS_START( aceattaa )
+static INPUT_PORTS_START( aceattaca )
 	#define TMP_PL1HAND 2
 	#define TMP_PL1BALL 1
 	#define TMP_PL2HAND 4
@@ -1940,7 +1895,10 @@ static MACHINE_CONFIG_START( system16a, segas16a_state )
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_I8255_ADD( "i8255", single_ppi_intf )
+	MCFG_DEVICE_ADD("i8255", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(driver_device, soundlatch_byte_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(segas16a_state, misc_control_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(segas16a_state, tilemap_sound_w))
 
 	// video hardware
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1948,12 +1906,14 @@ static MACHINE_CONFIG_START( system16a, segas16a_state )
 	MCFG_SCREEN_SIZE(342,262)   // to be verified
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(segas16a_state, screen_update)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SEGA_SYS16A_SPRITES_ADD("sprites")
 	MCFG_SEGAIC16VID_ADD("segaic16vid")
+	MCFG_SEGAIC16VID_GFXDECODE("gfxdecode")
 
-	MCFG_GFXDECODE(segas16a)
-	MCFG_PALETTE_LENGTH(2048*3)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", segas16a)
+	MCFG_PALETTE_ADD("palette", 2048*3)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -2003,6 +1963,16 @@ static MACHINE_CONFIG_DERIVED( system16a_no7751, system16a )
 	MCFG_SOUND_REPLACE("ymsnd", YM2151, 4000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
+
+/*
+static MACHINE_CONFIG_DERIVED( system16a_i8751_no7751, system16a_i8751 )
+    MCFG_DEVICE_REMOVE("n7751")
+    MCFG_DEVICE_REMOVE("dac")
+
+    MCFG_SOUND_REPLACE("ymsnd", YM2151, 4000000)
+    MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+MACHINE_CONFIG_END
+*/
 
 static MACHINE_CONFIG_DERIVED( system16a_fd1089a_no7751, system16a_fd1089a )
 	MCFG_DEVICE_REMOVE("n7751")
@@ -2548,6 +2518,42 @@ ROM_START( fantzonep )
 ROM_END
 
 
+ROM_START( fantzonepr )
+	ROM_REGION( 0x40000, "maincpu", 0 ) // 68000 code
+	ROM_LOAD16_BYTE( "ic43-prg-dd2c.bin",   0x000000, 0x8000, CRC(895436e1) SHA1(5cf294fc4fcbacab5d2696aa4f536a8f48d4c4ce) ) // different
+	ROM_LOAD16_BYTE( "ic26-prg20-658q.bin", 0x000001, 0x8000, CRC(a0d53b86) SHA1(02b8ba869c226d929b6b761982efc262467baafc) ) // different
+	ROM_LOAD16_BYTE( "ic42-prg13-eb1f.bin", 0x010000, 0x8000, CRC(a08e9d65) SHA1(e3f8b4f1dcdd7bcdd57ae295d721131b7cc33500) ) // different
+	ROM_LOAD16_BYTE( "ic25-prg15-2b8c.bin", 0x010001, 0x8000, CRC(7e6fdae0) SHA1(c00e7e4e78505ce731483275cfcad285999bbaf3) ) // different
+	ROM_LOAD16_BYTE( "epr-7387.41",         0x020000, 0x8000, CRC(0acd335d) SHA1(f39566a2069eefa7682c57c6521ea7a328738d06) ) // missing - assumed to be the same because the rom below is
+	ROM_LOAD16_BYTE( "ic24-prg20-2f57.bin", 0x020001, 0x8000, CRC(fd909341) SHA1(2f1e01eb7d7b330c9c0dd98e5f8ed4973f0e93fb) ) // MATCH
+
+	ROM_REGION( 0x18000, "gfx1", 0 ) // tiles
+	ROM_LOAD( "ic95-1413.bin",  0x00000, 0x08000, CRC(158af770) SHA1(a02c500920770a987c9d8c78e0313cb3434c1873) ) // 96.661377%
+	ROM_LOAD( "ic94-3e96.bin",  0x08000, 0x08000, CRC(2fea4fe7) SHA1(891dbf163378e9ef55b97b4cb8ac02dab05f206c) ) // 96.710205%
+	ROM_LOAD( "ic93-de1b.bin",  0x10000, 0x08000, BAD_DUMP CRC(335fe57a) SHA1(93cfcfd1d06daa03b1b000460c4e0ff54aa9f317) ) // 72.341919%
+	ROM_LOAD( "epr-7390.93",  0x10000, 0x08000, CRC(d90609c6) SHA1(4232f6ecb21f242c0c8d81e06b88bc742668609f) ) // loading this because above is bad, should have differences tho :-(
+
+	ROM_REGION16_BE( 0x80000, "sprites", ROMREGION_ERASEFF ) // sprites
+	ROM_LOAD16_BYTE( "epr-7392.10",  0x00001, 0x8000, CRC(5bb7c8b6) SHA1(eaa0ed63ac4f66ee285757e842bdd7b005292600) ) // missing (assumed the same because of match below)
+	ROM_LOAD16_BYTE( "ic11-6235.bin",  0x00000, 0x8000, CRC(74ae4b57) SHA1(1f24b1faea765994b85f0e7ac8e944c8da22103f) ) // MATCH
+
+	ROM_LOAD16_BYTE( "ic17-5f7c.bin",  0x10001, 0x8000, CRC(9d5b5be8) SHA1(c54a6686e8d08525bafad24d40a17dae4b856e6c) ) // no match (seems bad) - ignore
+	ROM_LOAD16_BYTE( "epr-7393.17",  0x10001, 0x8000, CRC(14fc7e82) SHA1(ca7caca989a3577dd30ad4f66b0fcce712a454ef) ) // (assumed the same because of match below)
+	ROM_LOAD16_BYTE( "ic18-2614.bin",  0x10000, 0x8000, CRC(e05a1e25) SHA1(9691d9f0763b7483ee6912437902f22ab4b78a05) ) // MATCH
+
+	// these were missing, but it seems like they should be different?
+	ROM_LOAD16_BYTE( "ic23",  0x20001, 0x8000, BAD_DUMP CRC(531ca13f) SHA1(19e68bc515f6021e1145cff4f3f0e083839ee8f3) ) // misisng
+	ROM_LOAD16_BYTE( "ic24",  0x20000, 0x8000, BAD_DUMP CRC(68807b49) SHA1(0a189da8cdd2090e76d6d06c55b478abce60542d) ) // missing
+
+	ROM_REGION( 0x10000, "soundcpu", 0 ) // sound CPU
+	ROM_LOAD( "ic12-sound-56-5.bin", 0x0000, 0x8000, CRC(e62ddff6) SHA1(bd601f1e43d96b8bfae0a880d031b418e6c953b0) )
+
+	ROM_REGION( 0x1000, "mcu", 0 )  // Intel i8751 protection MCU (doesn't seem to be used?)
+	ROM_LOAD( "8751.bin", 0x00000, 0x1000, CRC(c0d325e6) SHA1(dbce2ebfab704e70b9b4a0ba442b09c5d137c878) )
+ROM_END
+
+
+
 //*************************************************************************************************************************
 //*************************************************************************************************************************
 //*************************************************************************************************************************
@@ -2872,7 +2878,48 @@ ROM_START( sdi )
 	ROM_LOAD( "epr-10759.12", 0x0000, 0x8000, CRC(d7f9649f) SHA1(ce4abe7dd7e33da048569d7817063345fab75ea7) )
 
 	ROM_REGION( 0x2000, "maincpu:key", 0 ) // decryption key
-	ROM_LOAD( "317-0027.key", 0x0000, 0x2000, BAD_DUMP CRC(9a5307b2) SHA1(2fcc576ed95b96ff6ea71252c3fab33b8b3fc1f5) )
+	ROM_LOAD( "317-0027.key", 0x0000, 0x2000, CRC(6f022730) SHA1(68461abff8808b7ba294083d4e297fef37d8fb9b) )
+ROM_END
+
+//*************************************************************************************************************************
+//  SDI, Sega System 16A
+//  CPU: FD1089B (317-0027)
+//
+//  ROM board: 834-6284-03 SDI
+//
+ROM_START( sdia )
+	ROM_REGION( 0x40000, "maincpu", 0 ) // 68000 code
+	ROM_LOAD16_BYTE( "epr-10881.43", 0x000000, 0x8000, CRC(3455a6a0) SHA1(2cf32da891424caf95ec93bf572993c1031e1aa8) )
+	ROM_LOAD16_BYTE( "epr-10879.26", 0x000001, 0x8000, CRC(3ec416de) SHA1(245b9436e42170322a38424dc176801d25653e3e) )
+	ROM_LOAD16_BYTE( "epr-10882.42", 0x010000, 0x8000, CRC(f2ac1cec) SHA1(e174ec9bc175d2e914c40b9ae2217627aee8c78e) )
+	ROM_LOAD16_BYTE( "epr-10880.25", 0x010001, 0x8000, CRC(67e088a2) SHA1(8f6d26141b1ae99cdab4f66ad8b4ef2c96912dce) )
+	ROM_LOAD16_BYTE( "epr-10755.41", 0x020000, 0x8000, CRC(405e3969) SHA1(6d8c3bd06d35c971f7db005dffa2e83cae1378f8) )
+	ROM_LOAD16_BYTE( "epr-10752.24", 0x020001, 0x8000, CRC(77453740) SHA1(9032463e5e14c3c610c31e2eb6e2c962df9adf46) )
+
+	ROM_REGION( 0x30000, "gfx1", 0 ) // tiles
+	ROM_LOAD( "epr-10756.95", 0x00000, 0x10000, CRC(44d8a506) SHA1(363d49dcb65ac0093f3ed3b259b1bc45f0291e9d) )
+	ROM_LOAD( "epr-10757.94", 0x10000, 0x10000, CRC(497e1740) SHA1(95b166a9db46a27087e417c1b2cbb76bee2e64a7) )
+	ROM_LOAD( "epr-10758.93", 0x20000, 0x10000, CRC(61d61486) SHA1(d48ff87216947b78903cd98a10436babdf8b75a0) )
+
+	ROM_REGION16_BE( 0x70000, "sprites", 0 ) // sprites
+	ROM_LOAD16_BYTE( "epr-10760.10", 0x00001, 0x08000, CRC(30e2c50a) SHA1(1fb9e69d4cb97fdcb0f98c2a7ede246aaa4ac382) )
+	ROM_CONTINUE(                    0x40001, 0x08000 )
+	ROM_LOAD16_BYTE( "epr-10763.11", 0x00000, 0x08000, CRC(794e3e8b) SHA1(91ca1cb9aabf99adc8426feed4494a992afb8c4a) )
+	ROM_CONTINUE(                    0x40000, 0x08000 )
+	ROM_LOAD16_BYTE( "epr-10761.17", 0x10001, 0x08000, CRC(6a8b3fd0) SHA1(a122d3cb0b3263714f026e57d85b0dbf6cb110d7) )
+	ROM_CONTINUE(                    0x50001, 0x08000 )
+	ROM_LOAD16_BYTE( "epr-10764.18", 0x10000, 0x08000, CRC(602da5d5) SHA1(d32cdde7d86c4561e7bfa547d7d7995ce9a43c24) )
+	ROM_CONTINUE(                    0x50000, 0x08000 )
+	ROM_LOAD16_BYTE( "epr-10762.23", 0x20001, 0x08000, CRC(b9de3aeb) SHA1(2f7a55a8377e831338a884f8962d6ab2757e8c9b) )
+	ROM_CONTINUE(                    0x60001, 0x08000 )
+	ROM_LOAD16_BYTE( "epr-10765.24", 0x20000, 0x08000, CRC(0a73a057) SHA1(7f31124c67541a245e069e5b6aac59935d99a9a9) )
+	ROM_CONTINUE(                    0x60000, 0x08000 )
+
+	ROM_REGION( 0x10000, "soundcpu", 0 ) // sound CPU
+	ROM_LOAD( "epr-10759.12", 0x0000, 0x8000, CRC(d7f9649f) SHA1(ce4abe7dd7e33da048569d7817063345fab75ea7) )
+
+	ROM_REGION( 0x2000, "maincpu:key", 0 ) // decryption key
+	ROM_LOAD( "317-0027.key", 0x0000, 0x2000, CRC(6f022730) SHA1(68461abff8808b7ba294083d4e297fef37d8fb9b) )
 ROM_END
 
 
@@ -2972,6 +3019,10 @@ ROM_END
 // Shinobi bootleg by 'Beta' (7751 replaced by what? Sample rom is different, but no extra sound CPU rom present, missing?)
 // otherwise it seems to run fine on System 16A
 //
+// note fron any:
+// on YM3012 and YM2151 sockets a sub pcb is attached
+// on that pcb there are 2x YM2203, 2 Y3014 and 3 ttl chips
+
 ROM_START( shinoblb )
 	ROM_REGION( 0x040000, "maincpu", 0 ) // 68000 code
 	ROM_LOAD16_BYTE( "4.3k", 0x000000, 0x10000, CRC(c178a39c) SHA1(05ff1679cdfc3618df8b3fabdeab64b1f2299aa3) )
@@ -3296,7 +3347,7 @@ ROM_START( timescan1 )
 	ROM_LOAD( "epr-10547.1",  0x0000, 0x8000, CRC(d24ffc4b) SHA1(3b250e1f026664f7a37f65d1c1a07381e88f11e8) )
 
 	ROM_REGION( 0x2000, "maincpu:key", 0 ) // decryption key
-	ROM_LOAD( "317-0024.key", 0x0000, 0x2000, BAD_DUMP CRC(ee42ec18) SHA1(cb65dd681f38ce20440ddcb01a935c2c8eecc77f) )
+	ROM_LOAD( "317-0024.key", 0x0000, 0x2000, CRC(0e64a504) SHA1(8fb61568d2775e403eb521f82f9d1058a0555a65) )
 ROM_END
 
 
@@ -3423,10 +3474,10 @@ DRIVER_INIT_MEMBER(segas16a_state,generic)
 //  init_* - game-specific initialization
 //-------------------------------------------------
 
-DRIVER_INIT_MEMBER(segas16a_state,aceattaa)
+DRIVER_INIT_MEMBER(segas16a_state,aceattaca)
 {
 	DRIVER_INIT_CALL(generic);
-	m_custom_io_r = read16_delegate(FUNC(segas16a_state::aceattaa_custom_io_r), this);
+	m_custom_io_r = read16_delegate(FUNC(segas16a_state::aceattaca_custom_io_r), this);
 }
 
 DRIVER_INIT_MEMBER(segas16a_state,dumpmtmt)
@@ -3492,15 +3543,17 @@ GAME( 1986, quartet2a,  quartet,  system16a,                quart2,     segas16a
 GAME( 1987, aliensyn5,  aliensyn, system16a_fd1089b,        aliensyn,   segas16a_state,generic,     ROT0,   "Sega", "Alien Syndrome (set 5, System 16A, FD1089B 317-0037)", GAME_SUPPORTS_SAVE )
 GAME( 1987, aliensyn2,  aliensyn, system16a_fd1089a,        aliensyn,   segas16a_state,generic,     ROT0,   "Sega", "Alien Syndrome (set 2, System 16A, FD1089A 317-0033)", GAME_SUPPORTS_SAVE )
 GAME( 1987, aliensynjo, aliensyn, system16a_fd1089a,        aliensynj,  segas16a_state,generic,     ROT0,   "Sega", "Alien Syndrome (set 1, Japan, old, System 16A, FD1089A 317-0033)", GAME_SUPPORTS_SAVE )
-GAME( 1988, aceattaca,  aceattac, system16a_fd1094,         aceattaa,   segas16a_state,aceattaa,    ROT270, "Sega", "Ace Attacker (Japan, System 16A, FD1094 317-0060)", GAME_SUPPORTS_SAVE )
+GAME( 1988, aceattaca,  aceattac, system16a_fd1094,         aceattaca,  segas16a_state,aceattaca,   ROT270, "Sega", "Ace Attacker (Japan, System 16A, FD1094 317-0060)", GAME_SUPPORTS_SAVE )
 GAME( 1986, afighter,   0,        system16a_fd1089a_no7751, afighter,   segas16a_state,generic,     ROT270, "Sega", "Action Fighter (FD1089A 317-0018)", GAME_SUPPORTS_SAVE )
 GAME( 1986, alexkidd,   0,        system16a,                alexkidd,   segas16a_state,generic,     ROT0,   "Sega", "Alex Kidd: The Lost Stars (set 2, unprotected)", GAME_SUPPORTS_SAVE )
 GAME( 1986, alexkidd1,  alexkidd, system16a_fd1089a,        alexkidd,   segas16a_state,generic,     ROT0,   "Sega", "Alex Kidd: The Lost Stars (set 1, FD1089A 317-0021)", GAME_SUPPORTS_SAVE )
 GAME( 1986, fantzone,   0,        system16a_no7751,         fantzone,   segas16a_state,generic,     ROT0,   "Sega", "Fantasy Zone (Rev A, unprotected)", GAME_SUPPORTS_SAVE )
 GAME( 1986, fantzone1,  fantzone, system16a_no7751,         fantzone,   segas16a_state,generic,     ROT0,   "Sega", "Fantasy Zone (unprotected)", GAME_SUPPORTS_SAVE )
 GAME( 1986, fantzonep,  fantzone, system16a_no7751,         fantzone,   segas16a_state,fantzonep,   ROT0,   "Sega", "Fantasy Zone (317-5000)", GAME_SUPPORTS_SAVE )
+GAME( 1986, fantzonepr, fantzone, system16a_no7751,         fantzone,   segas16a_state,generic,     ROT0,   "Sega", "Fantasy Zone (prototype)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE ) // bad / missing gfx roms
 GAME( 1988, passsht16a, passsht,  system16a_fd1094,         passsht16a, segas16a_state,passsht16a,  ROT270, "Sega", "Passing Shot (Japan, 4 Players, System 16A, FD1094 317-0071)", GAME_SUPPORTS_SAVE )
-GAME( 1987, sdi,        0,        system16a_fd1089b_no7751, sdi,        segas16a_state,sdi,         ROT0,   "Sega", "SDI - Strategic Defense Initiative (Japan, old, System 16A, FD1089B 317-0027)", GAME_SUPPORTS_SAVE )
+GAME( 1987, sdi,        0,        system16a_fd1089b_no7751, sdi,        segas16a_state,sdi,         ROT0,   "Sega", "SDI - Strategic Defense Initiative (Japan, newer, System 16A, FD1089B 317-0027)", GAME_SUPPORTS_SAVE )
+GAME( 1987, sdia,     sdi,        system16a_fd1089b_no7751, sdi,        segas16a_state,sdi,         ROT0,   "Sega", "SDI - Strategic Defense Initiative (Japan, old, System 16A, FD1089B 317-0027)", GAME_SUPPORTS_SAVE )
 GAME( 1987, shinobi,    0,        system16a,                shinobi,    segas16a_state,generic,     ROT0,   "Sega", "Shinobi (set 6, System 16A, unprotected)", GAME_SUPPORTS_SAVE )
 GAME( 1987, shinobi1,   shinobi,  system16a_fd1094,         shinobi,    segas16a_state,generic,     ROT0,   "Sega", "Shinobi (set 1, System 16A, FD1094 317-0050)", GAME_SUPPORTS_SAVE )
 GAME( 1987, shinobls,   shinobi,  system16a,                shinobi,    segas16a_state,generic,     ROT0,   "bootleg (Star)", "Shinobi (Star bootleg, System 16A)", GAME_SUPPORTS_SAVE )

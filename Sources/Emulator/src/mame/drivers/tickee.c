@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Raster Elite Tickee Tickats hardware
@@ -44,7 +46,8 @@ public:
 		m_vram(*this, "vram"),
 		m_control(*this, "control"),
 		m_maincpu(*this, "maincpu"),
-		m_oki(*this, "oki") { }
+		m_oki(*this, "oki"),
+		m_screen(*this, "screen") { }
 
 	required_device<tlc34076_device> m_tlc34076;
 	required_shared_ptr<UINT16> m_vram;
@@ -73,6 +76,7 @@ public:
 	TIMER_CALLBACK_MEMBER(setup_gun_interrupts);
 	required_device<cpu_device> m_maincpu;
 	optional_device<okim6295_device> m_oki;
+	required_device<screen_device> m_screen;
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -430,7 +434,7 @@ static ADDRESS_MAP_START( tickee_map, AS_PROGRAM, 16, tickee_state )
 	AM_RANGE(0x04200100, 0x0420011f) AM_DEVWRITE8("ym2", ay8910_device, address_data_w, 0x00ff)
 	AM_RANGE(0x04400000, 0x0440007f) AM_WRITE(tickee_control_w) AM_SHARE("control")
 	AM_RANGE(0x04400040, 0x0440004f) AM_READ_PORT("IN2")
-	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00001ff) AM_DEVREADWRITE("maincpu", tms34010_device, io_register_r, io_register_w)
 	AM_RANGE(0xc0000240, 0xc000025f) AM_WRITENOP        /* seems to be a bug in their code */
 	AM_RANGE(0xff000000, 0xffffffff) AM_ROM AM_REGION("user1", 0)
 ADDRESS_MAP_END
@@ -447,7 +451,7 @@ static ADDRESS_MAP_START( ghoshunt_map, AS_PROGRAM, 16, tickee_state )
 	AM_RANGE(0x04300100, 0x0430010f) AM_DEVREAD8("ym2", ay8910_device, data_r, 0x00ff)
 	AM_RANGE(0x04300100, 0x0430011f) AM_DEVWRITE8("ym2", ay8910_device, address_data_w, 0x00ff)
 	AM_RANGE(0x04500000, 0x0450007f) AM_WRITE(tickee_control_w) AM_SHARE("control")
-	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00001ff) AM_DEVREADWRITE("maincpu", tms34010_device, io_register_r, io_register_w)
 	AM_RANGE(0xc0000240, 0xc000025f) AM_WRITENOP        /* seems to be a bug in their code */
 	AM_RANGE(0xff000000, 0xffffffff) AM_ROM AM_REGION("user1", 0)
 ADDRESS_MAP_END
@@ -463,7 +467,7 @@ static ADDRESS_MAP_START( mouseatk_map, AS_PROGRAM, 16, tickee_state )
 	AM_RANGE(0x04200100, 0x0420010f) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
 	AM_RANGE(0x04400000, 0x0440007f) AM_WRITE(tickee_control_w) AM_SHARE("control")
 	AM_RANGE(0x04400040, 0x0440004f) AM_READ_PORT("IN2") // ?
-	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00001ff) AM_DEVREADWRITE("maincpu", tms34010_device, io_register_r, io_register_w)
 	AM_RANGE(0xc0000240, 0xc000025f) AM_WRITENOP        /* seems to be a bug in their code */
 	AM_RANGE(0xff000000, 0xffffffff) AM_ROM AM_REGION("user1", 0)
 ADDRESS_MAP_END
@@ -473,7 +477,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( rapidfir_map, AS_PROGRAM, 16, tickee_state )
 	AM_RANGE(0x00000000, 0x007fffff) AM_RAM AM_SHARE("vram")
 	AM_RANGE(0x02000000, 0x027fffff) AM_READWRITE(rapidfir_transparent_r, rapidfir_transparent_w)
-	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00001ff) AM_DEVREADWRITE("maincpu", tms34010_device, io_register_r, io_register_w)
 	AM_RANGE(0xfc000000, 0xfc00000f) AM_READ(rapidfir_gun1_r)
 	AM_RANGE(0xfc000100, 0xfc00010f) AM_READ(rapidfir_gun2_r)
 	AM_RANGE(0xfc000400, 0xfc00040f) AM_READ(ffff_r)
@@ -725,43 +729,13 @@ static INPUT_PORTS_START( rapidfir )
 	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_Y ) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_SENSITIVITY(70) PORT_KEYDELTA(10) PORT_PLAYER(2)
 INPUT_PORTS_END
 
-
-
-/*************************************
- *
- *  Sound interfaces
- *
- *************************************/
-
-static const ay8910_interface ay8910_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW"),
-	DEVCB_INPUT_PORT("IN1"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface ay8910_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("IN0"),
-	DEVCB_INPUT_PORT("IN2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-
 /*************************************
  *
  *  34010 configuration
  *
  *************************************/
 
-static const tms34010_config tms_config =
+static const tms340x0_config tms_config =
 {
 	FALSE,                          /* halt on reset */
 	"screen",                       /* the screen operated on */
@@ -775,7 +749,7 @@ static const tms34010_config tms_config =
 };
 
 
-static const tms34010_config rapidfir_tms_config =
+static const tms340x0_config rapidfir_tms_config =
 {
 	FALSE,                          /* halt on reset */
 	"screen",                       /* the screen operated on */
@@ -800,7 +774,7 @@ static MACHINE_CONFIG_START( tickee, tickee_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", TMS34010, XTAL_40MHz)
-	MCFG_CPU_CONFIG(tms_config)
+	MCFG_TMS340X0_CONFIG(tms_config)
 	MCFG_CPU_PROGRAM_MAP(tickee_map)
 
 	MCFG_MACHINE_RESET_OVERRIDE(tickee_state,tickee)
@@ -822,11 +796,13 @@ static MACHINE_CONFIG_START( tickee, tickee_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2149, VIDEO_CLOCK/8)
-	MCFG_SOUND_CONFIG(ay8910_interface_1)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("IN1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_SOUND_ADD("ym2", YM2149, VIDEO_CLOCK/8)
-	MCFG_SOUND_CONFIG(ay8910_interface_2)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN0"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("IN2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -843,7 +819,7 @@ static MACHINE_CONFIG_START( rapidfir, tickee_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", TMS34010, XTAL_50MHz)
-	MCFG_CPU_CONFIG(rapidfir_tms_config)
+	MCFG_TMS340X0_CONFIG(rapidfir_tms_config)
 	MCFG_CPU_PROGRAM_MAP(rapidfir_map)
 
 	MCFG_MACHINE_RESET_OVERRIDE(tickee_state,rapidfir)
@@ -870,7 +846,7 @@ static MACHINE_CONFIG_START( mouseatk, tickee_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", TMS34010, XTAL_40MHz)
-	MCFG_CPU_CONFIG(tms_config)
+	MCFG_TMS340X0_CONFIG(tms_config)
 	MCFG_CPU_PROGRAM_MAP(mouseatk_map)
 
 	MCFG_MACHINE_RESET_OVERRIDE(tickee_state,tickee)
@@ -890,7 +866,8 @@ static MACHINE_CONFIG_START( mouseatk, tickee_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym", YM2149, OKI_CLOCK)
-	MCFG_SOUND_CONFIG(ay8910_interface_1)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("IN1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_OKIM6295_ADD("oki", OKI_CLOCK, OKIM6295_PIN7_HIGH)

@@ -10,8 +10,6 @@ public:
 	nscsi_cdrom_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	virtual machine_config_constructor device_mconfig_additions() const;
 
-	static struct cdrom_interface cd_intf;
-
 protected:
 	virtual void device_start();
 	virtual void device_reset();
@@ -24,6 +22,8 @@ private:
 	cdrom_file *cdrom;
 	int bytes_per_sector;
 	int lba, cur_lba, blocks;
+
+	void return_no_cd();
 };
 
 extern const device_type NSCSI_CDROM;

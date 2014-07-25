@@ -25,7 +25,9 @@ public:
 		m_pkscramble_fgtilemap_ram(*this, "fgtilemap_ram"),
 		m_pkscramble_mdtilemap_ram(*this, "mdtilemap_ram"),
 		m_pkscramble_bgtilemap_ram(*this, "bgtilemap_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen") { }
 
 	UINT16 m_out;
 	UINT8 m_interrupt_line_active;
@@ -49,6 +51,8 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(scanline_callback);
 	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
 };
 
 
@@ -117,7 +121,7 @@ static ADDRESS_MAP_START( pkscramble_map, AS_PROGRAM, 16, pkscram_state )
 	AM_RANGE(0x045000, 0x045fff) AM_RAM_WRITE(pkscramble_mdtilemap_w) AM_SHARE("mdtilemap_ram") // md tilemap (just a copy of fg?)
 	AM_RANGE(0x046000, 0x046fff) AM_RAM_WRITE(pkscramble_bgtilemap_w) AM_SHARE("bgtilemap_ram") // bg tilemap
 	AM_RANGE(0x047000, 0x047fff) AM_RAM // unused
-	AM_RANGE(0x048000, 0x048fff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x048000, 0x048fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x049000, 0x049001) AM_READ_PORT("DSW")
 	AM_RANGE(0x049004, 0x049005) AM_READ_PORT("INPUTS")
 	AM_RANGE(0x049008, 0x049009) AM_WRITE(pkscramble_output_w)
@@ -239,9 +243,9 @@ TIMER_DEVICE_CALLBACK_MEMBER(pkscram_state::scanline_callback)
 
 void pkscram_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pkscram_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8,32,32);
-	m_md_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pkscram_state::get_md_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8,32,32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pkscram_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8,32,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pkscram_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8,32,32);
+	m_md_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pkscram_state::get_md_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8,32,32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pkscram_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8,32,32);
 
 	m_md_tilemap->set_transparent_pen(15);
 	m_fg_tilemap->set_transparent_pen(15);
@@ -277,13 +281,6 @@ WRITE_LINE_MEMBER(pkscram_state::irqhandler)
 		m_maincpu->set_input_line(2, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
 void pkscram_state::machine_start()
 {
 	save_item(NAME(m_out));
@@ -316,9 +313,11 @@ static MACHINE_CONFIG_START( pkscramble, pkscram_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 24*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pkscram_state, screen_update_pkscramble)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x800)
-	MCFG_GFXDECODE(pkscram)
+	MCFG_PALETTE_ADD("palette", 0x800)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pkscram)
 
 
 	/* sound hardware */
@@ -326,7 +325,6 @@ static MACHINE_CONFIG_START( pkscramble, pkscram_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 12000000/4)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(pkscram_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 MACHINE_CONFIG_END
 

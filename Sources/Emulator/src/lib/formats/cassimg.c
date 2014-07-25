@@ -10,7 +10,6 @@
 #include <string.h>
 
 #include "imageutl.h"
-#include "pool.h"
 #include "cassimg.h"
 
 
@@ -84,16 +83,11 @@ static cassette_image *cassette_init(const struct CassetteFormat *format, void *
 {
 	cassette_image *cassette;
 
-	cassette = (cassette_image *)malloc(sizeof(cassette_image));
-	if (!cassette)
-		return NULL;
-
-	memset(cassette, 0, sizeof(*cassette));
+	cassette = global_alloc_clear(cassette_image);
 	cassette->format = format;
 	cassette->io.file = file;
 	cassette->io.procs = procs;
 	cassette->flags = flags;
-	cassette->pool = pool_alloc_lib(NULL);
 	return cassette;
 }
 
@@ -282,8 +276,9 @@ void cassette_close(cassette_image *cassette)
 	{
 		if ((cassette->flags & CASSETTE_FLAG_DIRTY) && (cassette->flags & CASSETTE_FLAG_SAVEONEXIT))
 			cassette_save(cassette);
-		pool_free_lib(cassette->pool);
-		free(cassette);
+		for (int i = 0; i < cassette->blocks.count(); i++)
+			global_free(cassette->blocks[i]);
+		global_free(cassette);
 	}
 }
 
@@ -375,59 +370,26 @@ static casserr_t compute_manipulation_ranges(cassette_image *cassette, int chann
 
 
 
-static casserr_t lookup_sample(cassette_image *cassette, int channel, size_t sample, int allocate, INT32 **ptr)
+static casserr_t lookup_sample(cassette_image *cassette, int channel, size_t sample, INT32 **ptr)
 {
-	size_t sample_block;
-	size_t sample_index;
-	size_t sample_size;
-	size_t new_block_count;
-	size_t new_block_sample_count;
-	INT32 *new_block;
-	struct sample_block *new_blocks;
-	struct sample_block *block;
-
 	*ptr = NULL;
-	sample_block = (sample / SAMPLES_PER_BLOCK) * cassette->channels + channel;
-	sample_index = sample % SAMPLES_PER_BLOCK;
-	sample_size = sizeof(block->block[0]);
+	size_t sample_blocknum = (sample / SAMPLES_PER_BLOCK) * cassette->channels + channel;
+	size_t sample_index = sample % SAMPLES_PER_BLOCK;
 
 	/* is this block beyond the edge of our waveform? */
-	if (sample_block >= cassette->block_count)
-	{
-		if (!allocate)
-			return CASSETTE_ERROR_SUCCESS;
+	if (sample_blocknum >= cassette->blocks.count())
+		cassette->blocks.resize_keep_and_clear_new(sample_blocknum + 1);
 
-		/* allocate new blocks */
-		new_block_count = sample_block + 1;
-		new_blocks = (struct sample_block *)pool_realloc_lib(cassette->pool, cassette->blocks, new_block_count * sizeof(cassette->blocks[0]));
-		if (!new_blocks)
-			return CASSETTE_ERROR_OUTOFMEMORY;
+	if (cassette->blocks[sample_blocknum] == NULL)
+		cassette->blocks[sample_blocknum] = global_alloc(sample_block);
 
-		cassette->blocks = new_blocks;
-		memset(&cassette->blocks[cassette->block_count], 0, (new_block_count - cassette->block_count) * sizeof(cassette->blocks[0]));
-		cassette->block_count = new_block_count;
-	}
-
-	block = &cassette->blocks[sample_block];
+	sample_block &block = *cassette->blocks[sample_blocknum];
 
 	/* is this sample access off the current block? */
-	if (sample_index >= block->sample_count)
-	{
-		if (!allocate)
-			return CASSETTE_ERROR_SUCCESS;
+	if (sample_index >= block.count())
+		block.resize_keep_and_clear_new(SAMPLES_PER_BLOCK);
 
-		new_block_sample_count = SAMPLES_PER_BLOCK;
-
-		new_block = (INT32*)pool_realloc_lib(cassette->pool, block->block, new_block_sample_count * sample_size);
-		if (!new_block)
-			return CASSETTE_ERROR_OUTOFMEMORY;
-
-		block->block = new_block;
-		memset(&block->block[block->sample_count], 0, (new_block_sample_count - block->sample_count) * sample_size);
-		block->sample_count = new_block_sample_count;
-	}
-
-	*ptr = &block->block[sample_index];
+	*ptr = &block[sample_index];
 	return CASSETTE_ERROR_SUCCESS;
 }
 
@@ -467,7 +429,7 @@ casserr_t cassette_get_samples(cassette_image *cassette, int channel,
 			/* find the sample that we are putting */
 			d = map_double(ranges.sample_last + 1 - ranges.sample_first, 0, sample_count, sample_index) + ranges.sample_first;
 			cassette_sample_index = (size_t) d;
-			err = lookup_sample(cassette, channel, cassette_sample_index, TRUE, (INT32 **) &source_ptr);
+			err = lookup_sample(cassette, channel, cassette_sample_index, (INT32 **) &source_ptr);
 			if (err)
 				return err;
 
@@ -573,7 +535,7 @@ casserr_t cassette_put_samples(cassette_image *cassette, int channel,
 		for (channel = ranges.channel_first; channel <= ranges.channel_last; channel++)
 		{
 			/* find the sample that we are putting */
-			err = lookup_sample(cassette, channel, sample_index, TRUE, &dest_ptr);
+			err = lookup_sample(cassette, channel, sample_index, &dest_ptr);
 			if (err)
 				return err;
 			*dest_ptr = dest_value;
@@ -893,9 +855,9 @@ casserr_t cassette_legacy_construct(cassette_image *cassette,
 	casserr_t err;
 	int length;
 	int sample_count;
-	void *bytes = NULL;
-	void *chunk = NULL;
-	INT16 *samples = NULL;
+	dynamic_buffer bytes;
+	dynamic_buffer chunk;
+	dynamic_array<INT16> samples;
 	int pos = 0;
 	UINT64 offset = 0;
 	UINT64 size;
@@ -918,12 +880,7 @@ casserr_t cassette_legacy_construct(cassette_image *cassette,
 		args.sample_frequency = 11025;
 
 	/* allocate a buffer for the binary data */
-	chunk = malloc(args.chunk_size);
-	if (!chunk)
-	{
-		err = CASSETTE_ERROR_OUTOFMEMORY;
-		goto done;
-	}
+	chunk.resize(args.chunk_size);
 
 	/* determine number of samples */
 	if (args.chunk_sample_calc)
@@ -934,14 +891,9 @@ casserr_t cassette_legacy_construct(cassette_image *cassette,
 			goto done;
 		}
 
-		bytes = malloc(size);
-		if (!bytes)
-		{
-			err = CASSETTE_ERROR_OUTOFMEMORY;
-			goto done;
-		}
+		bytes.resize(size);
 		cassette_image_read(cassette, bytes, 0, size);
-		sample_count = args.chunk_sample_calc((const UINT8*)bytes, (int) size);
+		sample_count = args.chunk_sample_calc(bytes, (int)size);
 
 		if (args.header_samples < 0)
 			args.header_samples = sample_count;
@@ -954,12 +906,7 @@ casserr_t cassette_legacy_construct(cassette_image *cassette,
 	sample_count += args.header_samples + args.trailer_samples;
 
 	/* allocate a buffer for the completed samples */
-	samples = (INT16*)malloc(sample_count * sizeof(*samples));
-	if (!samples)
-	{
-		err = CASSETTE_ERROR_OUTOFMEMORY;
-		goto done;
-	}
+	samples.resize(sample_count);
 
 	/* if there has to be a header */
 	if (args.header_samples > 0)
@@ -979,7 +926,7 @@ casserr_t cassette_legacy_construct(cassette_image *cassette,
 		cassette_image_read(cassette, chunk, offset, args.chunk_size);
 		offset += args.chunk_size;
 
-		length = args.fill_wave(samples + pos, sample_count - pos, (UINT8*)chunk);
+		length = args.fill_wave(samples + pos, sample_count - pos, chunk);
 		if (length < 0)
 		{
 			err = CASSETTE_ERROR_INVALIDIMAGE;
@@ -1016,12 +963,6 @@ casserr_t cassette_legacy_construct(cassette_image *cassette,
 #endif
 
 done:
-	if (samples)
-		free(samples);
-	if (chunk)
-		free(chunk);
-	if (bytes)
-		free(bytes);
 	return err;
 }
 
@@ -1030,7 +971,7 @@ done:
 /*********************************************************************
     cassette_dump
 
-    A debugging call to dump a casette image to a disk based wave file
+    A debugging call to dump a cassette image to a disk based wave file
 *********************************************************************/
 
 void cassette_dump(cassette_image *image, const char *filename)

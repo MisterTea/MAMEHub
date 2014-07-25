@@ -196,7 +196,7 @@ static ADDRESS_MAP_START( snowbros_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("DSW1")
 	AM_RANGE(0x500002, 0x500003) AM_READ_PORT("DSW2")
 	AM_RANGE(0x500004, 0x500005) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0x600000, 0x6001ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x600000, 0x6001ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x700000, 0x701fff) AM_DEVREADWRITE("pandora", kaneko_pandora_device, spriteram_LSB_r, spriteram_LSB_w)
 	AM_RANGE(0x800000, 0x800001) AM_WRITE(snowbros_irq4_ack_w)  /* IRQ 4 acknowledge */
 	AM_RANGE(0x900000, 0x900001) AM_WRITE(snowbros_irq3_ack_w)  /* IRQ 3 acknowledge */
@@ -278,7 +278,7 @@ static ADDRESS_MAP_START( wintbob_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("DSW1")
 	AM_RANGE(0x500002, 0x500003) AM_READ_PORT("DSW2")
 	AM_RANGE(0x500004, 0x500005) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0x600000, 0x6001ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x600000, 0x6001ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x700000, 0x701fff) AM_RAM AM_SHARE("spriteram16b")
 	AM_RANGE(0x800000, 0x800001) AM_WRITE(snowbros_irq4_ack_w)  /* IRQ 4 acknowledge */
 	AM_RANGE(0x900000, 0x900001) AM_WRITE(snowbros_irq3_ack_w)  /* IRQ 3 acknowledge */
@@ -299,7 +299,7 @@ static ADDRESS_MAP_START( honeydol_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE(0x900000, 0x900001) AM_READ_PORT("DSW1")
 	AM_RANGE(0x900002, 0x900003) AM_READ_PORT("DSW2")
 	AM_RANGE(0x900004, 0x900005) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0xa00000, 0xa007ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xa00000, 0xa007ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xb00000, 0xb01fff) AM_RAM AM_SHARE("spriteram16b")
 ADDRESS_MAP_END
 
@@ -336,7 +336,7 @@ static ADDRESS_MAP_START( twinadv_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("DSW1")
 	AM_RANGE(0x500002, 0x500003) AM_READ_PORT("DSW2")
 	AM_RANGE(0x500004, 0x500005) AM_READ_PORT("SYSTEM")
-	AM_RANGE(0x600000, 0x6001ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x600000, 0x6001ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x700000, 0x701fff) AM_RAM AM_SHARE("spriteram16b")
 	AM_RANGE(0x800000, 0x800001) AM_WRITE(snowbros_irq4_ack_w)  /* IRQ 4 acknowledge */
 	AM_RANGE(0x900000, 0x900001) AM_WRITE(snowbros_irq3_ack_w)  /* IRQ 3 acknowledge */
@@ -376,7 +376,7 @@ static ADDRESS_MAP_START( hyperpac_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE(0x500002, 0x500003) AM_READ_PORT("DSW2")
 	AM_RANGE(0x500004, 0x500005) AM_READ_PORT("SYSTEM")
 
-	AM_RANGE(0x600000, 0x6001ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x600000, 0x6001ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x700000, 0x701fff) AM_DEVREADWRITE("pandora", kaneko_pandora_device, spriteram_LSB_r, spriteram_LSB_w)
 	AM_RANGE(0x800000, 0x800001) AM_WRITE(snowbros_irq4_ack_w)  /* IRQ 4 acknowledge */
 	AM_RANGE(0x900000, 0x900001) AM_WRITE(snowbros_irq3_ack_w)  /* IRQ 3 acknowledge */
@@ -512,7 +512,7 @@ static ADDRESS_MAP_START( snowbros3_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE( 0x500000, 0x500001) AM_READ_PORT("DSW1")
 	AM_RANGE( 0x500002, 0x500003) AM_READ_PORT("DSW2")
 	AM_RANGE( 0x500004, 0x500005) AM_READ_PORT("SYSTEM")
-	AM_RANGE( 0x600000, 0x6003ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE( 0x600000, 0x6003ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE( 0x700000, 0x7021ff) AM_RAM AM_SHARE("spriteram16b")
 	AM_RANGE(0x800000, 0x800001) AM_WRITE(snowbros_irq4_ack_w)  /* IRQ 4 acknowledge */
 	AM_RANGE(0x900000, 0x900001) AM_WRITE(snowbros_irq3_ack_w)  /* IRQ 3 acknowledge */
@@ -531,7 +531,7 @@ static ADDRESS_MAP_START( finalttr_map, AS_PROGRAM, 16, snowbros_state )
 	AM_RANGE(0x500002, 0x500003) AM_READ_PORT("DSW2")
 	AM_RANGE(0x500004, 0x500005) AM_READ_PORT("SYSTEM")
 
-	AM_RANGE(0x600000, 0x6001ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x600000, 0x6001ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x700000, 0x701fff) AM_DEVREADWRITE("pandora", kaneko_pandora_device, spriteram_LSB_r, spriteram_LSB_w)
 	AM_RANGE(0x800000, 0x800001) AM_WRITE(snowbros_irq4_ack_w)  /* IRQ 4 acknowledge */
 	AM_RANGE(0x900000, 0x900001) AM_WRITE(snowbros_irq3_ack_w)  /* IRQ 3 acknowledge */
@@ -1509,12 +1509,6 @@ MACHINE_RESET_MEMBER(snowbros_state,finalttr)
 		m_hyperpac_ram[0x2000/2 + i] = PROTDATA[i];
 }
 
-static const kaneko_pandora_interface snowbros_pandora_config =
-{
-	0,  /* gfx_region */
-	0, 0    /* x_offs, y_offs */
-};
-
 static MACHINE_CONFIG_START( snowbros, snowbros_state )
 
 	/* basic machine hardware */
@@ -1534,11 +1528,15 @@ static MACHINE_CONFIG_START( snowbros, snowbros_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(snowbros_state, screen_update_snowbros)
 	MCFG_SCREEN_VBLANK_DRIVER(snowbros_state, screen_eof_snowbros)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(snowbros)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", snowbros)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
-	MCFG_KANEKO_PANDORA_ADD("pandora", snowbros_pandora_config)
+	MCFG_DEVICE_ADD("pandora", KANEKO_PANDORA, 0)
+	MCFG_KANEKO_PANDORA_GFXDECODE("gfxdecode")
+	MCFG_KANEKO_PANDORA_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1559,7 +1557,7 @@ static MACHINE_CONFIG_DERIVED( wintbob, snowbros )
 	MCFG_DEVICE_REMOVE("pandora")
 
 	/* video hardware */
-	MCFG_GFXDECODE(wb)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", wb)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(snowbros_state, screen_update_wintbob)
 	MCFG_SCREEN_VBLANK_NONE()
@@ -1578,7 +1576,7 @@ static MACHINE_CONFIG_DERIVED( semicom, snowbros )
 	MCFG_CPU_PROGRAM_MAP(hyperpac_sound_map)
 	MCFG_CPU_IO_MAP(hyperpac_sound_io_map)
 
-	MCFG_GFXDECODE(hyperpac)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", hyperpac)
 
 	/* sound hardware */
 	MCFG_SOUND_REPLACE("ymsnd", YM2151, 4000000)
@@ -1644,9 +1642,11 @@ static MACHINE_CONFIG_START( honeydol, snowbros_state )
 	MCFG_SCREEN_SIZE(32*8, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(snowbros_state, screen_update_honeydol)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(honeydol)
-	MCFG_PALETTE_LENGTH(0x800/2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", honeydol)
+	MCFG_PALETTE_ADD("palette", 0x800/2)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1681,9 +1681,11 @@ static MACHINE_CONFIG_START( twinadv, snowbros_state )
 	MCFG_SCREEN_SIZE(32*8, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(snowbros_state, screen_update_twinadv)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(twinadv)
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", twinadv)
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1736,7 +1738,7 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( _4in1, semicom )
 
 	/* basic machine hardware */
-	MCFG_GFXDECODE(snowbros)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", snowbros)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( snowbro3, snowbros_state )
@@ -1753,9 +1755,11 @@ static MACHINE_CONFIG_START( snowbro3, snowbros_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(snowbros_state, screen_update_snowbro3)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sb3)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sb3)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -2384,7 +2388,7 @@ DRIVER_INIT_MEMBER(snowbros_state,cookbib2)
 
 
 
-//for (i = 0;i < sizeof(cookbib2_mcu68k)/sizeof(cookbib2_mcu68k[0]);i++)
+//for (i = 0;i < ARRAY_LENGTH(cookbib2_mcu68k);i++)
 //      m_hyperpac_ram[0xf000/2 + i] = cookbib2_mcu68k[i];
 
 //  for (i = 0;i < 0x200/2;i++)
@@ -2716,51 +2720,46 @@ READ16_MEMBER(snowbros_state::_4in1_02_read)
 
 DRIVER_INIT_MEMBER(snowbros_state,4in1boot)
 {
-	UINT8 *buffer;
 	UINT8 *src = memregion("maincpu")->base();
 	int len = memregion("maincpu")->bytes();
 
 	/* strange order */
-	buffer = auto_alloc_array(machine(), UINT8, len);
 	{
+		dynamic_buffer buffer(len);
 		int i;
 		for (i = 0;i < len; i++)
 			if (i&1) buffer[i] = BITSWAP8(src[i],6,7,5,4,3,2,1,0);
 			else buffer[i] = src[i];
 
 		memcpy(src,buffer,len);
-		auto_free(machine(), buffer);
 	}
 
 	src = memregion("soundcpu")->base();
 	len = memregion("soundcpu")->bytes();
 
 	/* strange order */
-	buffer = auto_alloc_array(machine(), UINT8, len);
 	{
+		dynamic_buffer buffer(len);
 		int i;
 		for (i = 0;i < len; i++)
 			buffer[i] = src[i^0x4000];
 		memcpy(src,buffer,len);
-		auto_free(machine(), buffer);
 	}
 	m_maincpu->space(AS_PROGRAM).install_read_handler(0x200000, 0x200001, read16_delegate(FUNC(snowbros_state::_4in1_02_read),this));
 }
 
 DRIVER_INIT_MEMBER(snowbros_state,snowbro3)
 {
-	UINT8 *buffer;
 	UINT8 *src = memregion("maincpu")->base();
 	int len = memregion("maincpu")->bytes();
 
 	/* strange order */
-	buffer = auto_alloc_array(machine(), UINT8, len);
 	{
+		dynamic_buffer buffer(len);
 		int i;
 		for (i = 0;i < len; i++)
 			buffer[i] = src[BITSWAP24(i,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,3,4,1,2,0)];
 		memcpy(src,buffer,len);
-		auto_free(machine(), buffer);
 	}
 }
 

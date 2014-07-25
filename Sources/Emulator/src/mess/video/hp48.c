@@ -39,13 +39,13 @@ static const int hp48_fg_color[3] = {   0,   0,  64 };  /* dark blue */
     FUNCTIONS
 ***************************************************************************/
 
-void hp48_state::palette_init()
+PALETTE_INIT_MEMBER(hp48_state, hp48)
 {
 	int i;
 	for ( i = 0; i < 255; i++ )
 	{
 		float c = i/255.;
-		palette_set_color( machine(), i, MAKE_ARGB( 0, mix2(0,c), mix2(1,c), mix2(2,c) ) );
+		m_palette->set_pen_color( i, rgb_t( 0, mix2(0,c), mix2(1,c), mix2(2,c) ) );
 	}
 }
 
@@ -118,7 +118,7 @@ void hp48_state::palette_init()
 
 
 #define draw_pixel                          \
-	state->m_screens[ state->m_cur_screen ][ y ][ xp + 8 ] = (data & 1) ? fg : 0; \
+	m_screens[ m_cur_screen ][ y ][ xp + 8 ] = (data & 1) ? fg : 0; \
 	xp++;                               \
 	data >>= 1
 
@@ -129,7 +129,6 @@ void hp48_state::palette_init()
 
 UINT32 hp48_state::screen_update_hp48(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	hp48_state *state = machine().driver_data<hp48_state>();
 	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int x, y, xp, i, addr;
 	int display       = HP48_IO_4(0) >> 3;           /* 1=on, 0=off */

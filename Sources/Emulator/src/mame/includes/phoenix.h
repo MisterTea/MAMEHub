@@ -1,3 +1,4 @@
+#include "audio/pleiads.h"
 #include "sound/discrete.h"
 #include "sound/tms36xx.h"
 
@@ -6,8 +7,13 @@ class phoenix_state : public driver_device
 public:
 	phoenix_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag) ,
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_pleiads_custom(*this, "pleiads_custom"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
+	required_device<cpu_device> m_maincpu;
+	optional_device<pleiads_sound_device> m_pleiads_custom;
+	required_device<gfxdecode_device> m_gfxdecode;
 	UINT8 *m_videoram_pg[2];
 	UINT8 m_videoram_pg_index;
 	UINT8 m_palette_bank;
@@ -37,7 +43,6 @@ public:
 	UINT32 screen_update_phoenix(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_READ8_MEMBER(survival_protection_r);
 	DECLARE_READ_LINE_MEMBER(survival_sid_callback);
-	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -96,7 +101,7 @@ private:
 	UINT8               m_sound_latch_a;
 	sound_stream *      m_channel;
 	UINT32 *                m_poly18;
-	device_t *m_discrete;
+	discrete_device *m_discrete;
 	tms36xx_device *m_tms;
 
 	int update_c24(int samplerate);

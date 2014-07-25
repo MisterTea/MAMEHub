@@ -11,7 +11,9 @@ public:
 		m_videoram2(*this, "videoram2"),
 		m_spriteram(*this, "spriteram"),
 		m_samples(*this, "samples"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_scroll;
@@ -38,10 +40,12 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(gotya);
 	UINT32 screen_update_gotya(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void draw_status_row( bitmap_ind16 &bitmap, const rectangle &cliprect, int sx, int col );
 	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
 	void draw_status( bitmap_ind16 &bitmap, const rectangle &cliprect );
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

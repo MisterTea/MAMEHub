@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Incredible Technologies/Strata system
@@ -231,7 +233,7 @@ WRITE16_MEMBER(itech32_state::timekill_intensity_w)
 		double intensity = (double)(data & 0xff) / (double)0x60;
 		int i;
 		for (i = 0; i < 8192; i++)
-			palette_set_pen_contrast(machine(), i, intensity);
+			m_palette->set_pen_contrast(i, intensity);
 	}
 }
 
@@ -299,62 +301,16 @@ WRITE32_MEMBER(itech32_state::itech020_plane_w)
  *
  *************************************/
 
-WRITE16_MEMBER(itech32_state::timekill_paletteram_w)
-{
-	int r, g, b;
-
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-
-	r = m_generic_paletteram_16[offset & ~1] & 0xff;
-	g = m_generic_paletteram_16[offset & ~1] >> 8;
-	b = m_generic_paletteram_16[offset |  1] >> 8;
-
-	palette_set_color(machine(), offset / 2, MAKE_RGB(r, g, b));
-}
-
-
 WRITE16_MEMBER(itech32_state::bloodstm_paletteram_w)
 {
-	int r, g, b;
-
 	/* in test mode, the LSB is used; in game mode, the MSB is used */
 	if (!ACCESSING_BITS_0_7 && (offset & 1))
-		data >>= 8, mem_mask >>= 8;
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
+	{
+		data >>= 8;
+		mem_mask >>= 8;
+	}
 
-	r = m_generic_paletteram_16[offset & ~1] & 0xff;
-	g = m_generic_paletteram_16[offset & ~1] >> 8;
-	b = m_generic_paletteram_16[offset |  1] & 0xff;
-
-	palette_set_color(machine(), offset / 2, MAKE_RGB(r, g, b));
-}
-
-
-WRITE32_MEMBER(itech32_state::drivedge_paletteram_w)
-{
-	int r, g, b;
-
-	COMBINE_DATA(&m_generic_paletteram_32[offset]);
-
-	r = m_generic_paletteram_32[offset] & 0xff;
-	g = (m_generic_paletteram_32[offset] >> 8) & 0xff;
-	b = (m_generic_paletteram_32[offset] >> 16) & 0xff;
-
-	palette_set_color(machine(), offset, MAKE_RGB(r, g, b));
-}
-
-
-WRITE32_MEMBER(itech32_state::itech020_paletteram_w)
-{
-	int r, g, b;
-
-	COMBINE_DATA(&m_generic_paletteram_32[offset]);
-
-	r = (m_generic_paletteram_32[offset] >> 16) & 0xff;
-	g = (m_generic_paletteram_32[offset] >> 8) & 0xff;
-	b = m_generic_paletteram_32[offset] & 0xff;
-
-	palette_set_color(machine(), offset, MAKE_RGB(r, g, b));
+	m_palette->write(space, offset, data, mem_mask);
 }
 
 

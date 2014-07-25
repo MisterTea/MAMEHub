@@ -47,7 +47,7 @@ TODO:
 Prebillian :
 ------------
 
-PCB Layout (Prebillian, from The Guru ( http://members.iinet.net.au/~lantra9jp1/gurudumps/ )
+PCB Layout (Prebillian)
 
  M6100211A
  -------------------------------------------------------------------
@@ -527,6 +527,7 @@ void superqix_state::machine_init_common()
 	save_item(NAME(m_from_mcu));
 	save_item(NAME(m_from_z80));
 	save_item(NAME(m_portb));
+	save_item(NAME(m_nmi_mask));
 
 	// hotsmash ???
 	save_item(NAME(m_portA_in));
@@ -561,7 +562,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, superqix_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( pbillian_port_map, AS_IO, 8, superqix_state )
-	AM_RANGE(0x0000, 0x01ff) AM_RAM_WRITE(paletteram_BBGGRRII_byte_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0000, 0x01ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0401, 0x0401) AM_DEVREAD("aysnd", ay8910_device, data_r)
 	AM_RANGE(0x0402, 0x0403) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE(0x0408, 0x0408) AM_READ(pbillian_from_mcu_r)
@@ -574,7 +575,7 @@ static ADDRESS_MAP_START( pbillian_port_map, AS_IO, 8, superqix_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( hotsmash_port_map, AS_IO, 8, superqix_state )
-	AM_RANGE(0x0000, 0x01ff) AM_RAM_WRITE(paletteram_BBGGRRII_byte_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0000, 0x01ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0401, 0x0401) AM_DEVREAD("aysnd", ay8910_device, data_r)
 	AM_RANGE(0x0402, 0x0403) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE(0x0408, 0x0408) AM_READ(hotsmash_from_mcu_r)
@@ -587,7 +588,7 @@ static ADDRESS_MAP_START( hotsmash_port_map, AS_IO, 8, superqix_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sqix_port_map, AS_IO, 8, superqix_state )
-	AM_RANGE(0x0000, 0x00ff) AM_RAM_WRITE(paletteram_BBGGRRII_byte_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0000, 0x00ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0401, 0x0401) AM_DEVREAD("ay1", ay8910_device, data_r)
 	AM_RANGE(0x0402, 0x0403) AM_DEVWRITE("ay1", ay8910_device, data_address_w)
 	AM_RANGE(0x0405, 0x0405) AM_DEVREAD("ay2", ay8910_device, data_r)
@@ -915,66 +916,6 @@ static const samples_interface pbillian_samples_interface =
 	pbillian_sh_start
 };
 
-static const ay8910_interface pbillian_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(superqix_state,pbillian_ay_port_a_r),   /* port Aread */
-	DEVCB_INPUT_PORT("SYSTEM"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface hotsmash_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(superqix_state,hotsmash_ay_port_a_r),   /* port Aread */
-	DEVCB_INPUT_PORT("SYSTEM"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface sqix_ay8910_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("P1"),
-	DEVCB_DRIVER_MEMBER(superqix_state,in4_mcu_r),      /* port Bread */
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface sqix_ay8910_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_DRIVER_MEMBER(superqix_state,sqix_from_mcu_r),    /* port Bread */
-	DEVCB_NULL,                     /* port Awrite */
-	DEVCB_DRIVER_MEMBER(superqix_state,sqix_z80_mcu_w)  /* port Bwrite */
-};
-
-static const ay8910_interface bootleg_ay8910_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("P1"),
-	DEVCB_INPUT_PORT("P2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface bootleg_ay8910_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_DRIVER_MEMBER(superqix_state,bootleg_in0_r),  /* port Bread */
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 INTERRUPT_GEN_MEMBER(superqix_state::vblank_irq)
 {
 	if(m_nmi_mask)
@@ -1004,16 +945,19 @@ static MACHINE_CONFIG_START( pbillian, superqix_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(superqix_state, screen_update_pbillian)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pbillian)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pbillian)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(BBGGRRII)
 
 	MCFG_VIDEO_START_OVERRIDE(superqix_state,pbillian)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 12000000/8)
-	MCFG_SOUND_CONFIG(pbillian_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(superqix_state, pbillian_ay_port_a_r))   /* port Aread */
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("SYSTEM"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
 	MCFG_SAMPLES_ADD("samples", pbillian_samples_interface)
@@ -1038,16 +982,19 @@ static MACHINE_CONFIG_START( hotsmash, superqix_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(superqix_state, screen_update_pbillian)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pbillian)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pbillian)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(BBGGRRII)
 
 	MCFG_VIDEO_START_OVERRIDE(superqix_state,pbillian)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 12000000/8)
-	MCFG_SOUND_CONFIG(hotsmash_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(superqix_state, hotsmash_ay_port_a_r))   /* port Aread */
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("SYSTEM"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
 	MCFG_SAMPLES_ADD("samples", pbillian_samples_interface)
@@ -1076,9 +1023,11 @@ static MACHINE_CONFIG_START( sqix, superqix_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(superqix_state, screen_update_superqix)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sqix)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sqix)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_FORMAT(BBGGRRII)
 
 	MCFG_VIDEO_START_OVERRIDE(superqix_state,superqix)
 
@@ -1086,11 +1035,14 @@ static MACHINE_CONFIG_START( sqix, superqix_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 12000000/8)
-	MCFG_SOUND_CONFIG(sqix_ay8910_interface_1)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("P1"))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(superqix_state, in4_mcu_r)) /* port Bread */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 12000000/8)
-	MCFG_SOUND_CONFIG(sqix_ay8910_interface_2)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW2"))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(superqix_state, sqix_from_mcu_r)) /* port Bread */
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(superqix_state,sqix_z80_mcu_w)) /* port Bwrite */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -1119,9 +1071,11 @@ static MACHINE_CONFIG_START( sqixbl, superqix_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(superqix_state, screen_update_superqix)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sqix)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sqix)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_FORMAT(BBGGRRII)
 
 	MCFG_VIDEO_START_OVERRIDE(superqix_state,superqix)
 
@@ -1129,11 +1083,13 @@ static MACHINE_CONFIG_START( sqixbl, superqix_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 12000000/8)
-	MCFG_SOUND_CONFIG(bootleg_ay8910_interface_1)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("P1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("P2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 12000000/8)
-	MCFG_SOUND_CONFIG(bootleg_ay8910_interface_2)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW2"))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(superqix_state, bootleg_in0_r)) /* port Bread */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 

@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     driver.h
 
     Core driver device base class.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -63,16 +34,13 @@
 
 // core sound callbacks
 #define MCFG_SOUND_START_OVERRIDE(_class, _func) \
-	driver_device::static_set_callback(config.root_device(), driver_device::CB_SOUND_START, driver_callback_delegate(&_class::_func, #_class "::" #_func, downcast<_class *>(owner)));
+	driver_device::static_set_callback(config.root_device(), driver_device::CB_SOUND_START, driver_callback_delegate(&_class::SOUND_START_NAME(_func), #_class "::sound_start_" #_func, downcast<_class *>(owner)));
 
 #define MCFG_SOUND_RESET_OVERRIDE(_class, _func) \
-	driver_device::static_set_callback(config.root_device(), driver_device::CB_SOUND_RESET, driver_callback_delegate(&_class::_func, #_class "::" #_func, downcast<_class *>(owner)));
+	driver_device::static_set_callback(config.root_device(), driver_device::CB_SOUND_RESET, driver_callback_delegate(&_class::SOUND_RESET_NAME(_func), #_class "::sound_reset_" #_func, downcast<_class *>(owner)));
 
 
 // core video callbacks
-#define MCFG_PALETTE_INIT_OVERRIDE(_class, _func) \
-	driver_device::static_set_callback(config.root_device(), driver_device::CB_PALETTE_INIT, driver_callback_delegate(&_class::PALETTE_INIT_NAME(_func), #_class "::palette_init_" #_func, downcast<_class *>(owner)));
-
 #define MCFG_VIDEO_START_OVERRIDE(_class, _func) \
 	driver_device::static_set_callback(config.root_device(), driver_device::CB_VIDEO_START, driver_callback_delegate(&_class::VIDEO_START_NAME(_func), #_class "::video_start_" #_func, downcast<_class *>(owner)));
 
@@ -86,38 +54,27 @@
 //**************************************************************************
 
 #define MACHINE_START_NAME(name)    machine_start_##name
-#define MACHINE_START(name)         void MACHINE_START_NAME(name)(running_machine &machine) // legacy
 #define MACHINE_START_CALL_MEMBER(name) MACHINE_START_NAME(name)()
-#define MACHINE_START_CALL_LEGACY(name) MACHINE_START_NAME(name)(machine())
-#define DECLARE_MACHINE_START(name) void MACHINE_START_NAME(name)()
+#define DECLARE_MACHINE_START(name) void MACHINE_START_NAME(name)() ATTR_COLD
 #define MACHINE_START_MEMBER(cls,name) void cls::MACHINE_START_NAME(name)()
 
 #define MACHINE_RESET_NAME(name)    machine_reset_##name
-#define MACHINE_RESET(name)         void MACHINE_RESET_NAME(name)(running_machine &machine) // legacy
 #define MACHINE_RESET_CALL_MEMBER(name) MACHINE_RESET_NAME(name)()
-#define MACHINE_RESET_CALL_LEGACY(name) MACHINE_RESET_NAME(name)(machine())
 #define DECLARE_MACHINE_RESET(name) void MACHINE_RESET_NAME(name)()
 #define MACHINE_RESET_MEMBER(cls,name) void cls::MACHINE_RESET_NAME(name)()
 
 #define SOUND_START_NAME(name)      sound_start_##name
-#define SOUND_START(name)           void SOUND_START_NAME(name)(running_machine &machine)
-#define SOUND_START_CALL(name)      SOUND_START_NAME(name)(machine)
+#define DECLARE_SOUND_START(name)   void SOUND_START_NAME(name)() ATTR_COLD
+#define SOUND_START_MEMBER(cls,name) void cls::SOUND_START_NAME(name)()
 
 #define SOUND_RESET_NAME(name)      sound_reset_##name
-#define SOUND_RESET(name)           void SOUND_RESET_NAME(name)(running_machine &machine)
-#define SOUND_RESET_CALL(name)      SOUND_RESET_NAME(name)(machine)
-
-#define PALETTE_INIT_NAME(name)     palette_init_##name
-#define PALETTE_INIT(name)          void PALETTE_INIT_NAME(name)(running_machine &machine) // legacy
-#define PALETTE_INIT_CALL_MEMBER(name)      PALETTE_INIT_NAME(name)()
-#define DECLARE_PALETTE_INIT(name)  void PALETTE_INIT_NAME(name)()
-#define PALETTE_INIT_MEMBER(cls,name) void cls::PALETTE_INIT_NAME(name)()
+#define SOUND_RESET_CALL_MEMBER(name) SOUND_RESET_NAME(name)()
+#define DECLARE_SOUND_RESET(name)   void SOUND_RESET_NAME(name)()
+#define SOUND_RESET_MEMBER(cls,name) void cls::SOUND_RESET_NAME(name)()
 
 #define VIDEO_START_NAME(name)      video_start_##name
-#define VIDEO_START(name)           void VIDEO_START_NAME(name)(running_machine &machine) // legacy
 #define VIDEO_START_CALL_MEMBER(name)       VIDEO_START_NAME(name)()
-#define VIDEO_START_CALL_LEGACY(name)       VIDEO_START_NAME(name)(machine())
-#define DECLARE_VIDEO_START(name)   void VIDEO_START_NAME(name)()
+#define DECLARE_VIDEO_START(name)   void VIDEO_START_NAME(name)() ATTR_COLD
 #define VIDEO_START_MEMBER(cls,name) void cls::VIDEO_START_NAME(name)()
 
 #define VIDEO_RESET_NAME(name)      video_reset_##name
@@ -131,10 +88,10 @@
 //  TYPE DEFINITIONS
 //**************************************************************************
 
+// forward declarations
+class gfxdecode_device;
+class palette_device;
 typedef delegate<void ()> driver_callback_delegate;
-
-// legacy callback functions
-/*ATTR_DEPRECATED*/ typedef void (*legacy_callback_func)(running_machine &machine);
 
 
 // ======================> driver_device
@@ -158,7 +115,6 @@ public:
 		CB_MACHINE_RESET,
 		CB_SOUND_START,
 		CB_SOUND_RESET,
-		CB_PALETTE_INIT,
 		CB_VIDEO_START,
 		CB_VIDEO_RESET,
 		CB_COUNT
@@ -166,7 +122,6 @@ public:
 
 	// inline configuration helpers
 	static void static_set_game(device_t &device, const game_driver &game);
-	ATTR_DEPRECATED static void static_set_callback(device_t &device, callback_type type, legacy_callback_func callback);
 	static void static_set_callback(device_t &device, callback_type type, driver_callback_delegate callback);
 
 	// generic helpers
@@ -271,89 +226,6 @@ public:
 	UINT32 flip_screen_x() const { return m_flip_screen_x; }
 	UINT32 flip_screen_y() const { return m_flip_screen_y; }
 
-	// templatized palette writers for 8-bit palette data
-	template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift> DECLARE_WRITE8_MEMBER( palette_8bit_byte_w );
-
-	// templatized palette writers for 16-bit palette data
-	template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift> DECLARE_WRITE8_MEMBER( palette_16bit_byte_le_w );
-	template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift> DECLARE_WRITE8_MEMBER( palette_16bit_byte_be_w );
-	template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift> DECLARE_WRITE8_MEMBER( palette_16bit_byte_split_lo_w );
-	template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift> DECLARE_WRITE8_MEMBER( palette_16bit_byte_split_hi_w );
-	template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift> DECLARE_WRITE16_MEMBER( palette_16bit_word_w );
-	template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift> DECLARE_WRITE32_MEMBER( palette_16bit_dword_le_w );
-	template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift> DECLARE_WRITE32_MEMBER( palette_16bit_dword_be_w );
-
-	// templatized palette writers for 32-bit palette data
-	template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift> DECLARE_WRITE16_MEMBER( palette_32bit_word_le_w );
-	template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift> DECLARE_WRITE16_MEMBER( palette_32bit_word_be_w );
-	template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift> DECLARE_WRITE32_MEMBER( palette_32bit_dword_w );
-
-	// 3-3-2 RGB palette write handlers
-	DECLARE_WRITE8_MEMBER( paletteram_BBGGGRRR_byte_w );
-	DECLARE_WRITE8_MEMBER( paletteram_RRRGGGBB_byte_w );
-	DECLARE_WRITE8_MEMBER( paletteram_BBGGRRII_byte_w );
-
-	// 4-4-4 RGB palette write handlers
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxBBBBGGGGRRRR_byte_le_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxBBBBGGGGRRRR_byte_be_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxBBBBGGGGRRRR_byte_split_lo_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxBBBBGGGGRRRR_byte_split_hi_w );
-	DECLARE_WRITE16_MEMBER( paletteram_xxxxBBBBGGGGRRRR_word_w );
-
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxBBBBRRRRGGGG_byte_le_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxBBBBRRRRGGGG_byte_be_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxBBBBRRRRGGGG_byte_split_lo_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxBBBBRRRRGGGG_byte_split_hi_w );
-	DECLARE_WRITE16_MEMBER( paletteram_xxxxBBBBRRRRGGGG_word_w );
-
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxRRRRBBBBGGGG_byte_split_lo_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxRRRRBBBBGGGG_byte_split_hi_w );
-
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxRRRRGGGGBBBB_byte_le_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxRRRRGGGGBBBB_byte_be_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxRRRRGGGGBBBB_byte_split_lo_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xxxxRRRRGGGGBBBB_byte_split_hi_w );
-	DECLARE_WRITE16_MEMBER( paletteram_xxxxRRRRGGGGBBBB_word_w );
-
-	DECLARE_WRITE8_MEMBER( paletteram_RRRRGGGGBBBBxxxx_byte_be_w );
-	DECLARE_WRITE8_MEMBER( paletteram_RRRRGGGGBBBBxxxx_byte_split_lo_w );
-	DECLARE_WRITE8_MEMBER( paletteram_RRRRGGGGBBBBxxxx_byte_split_hi_w );
-	DECLARE_WRITE16_MEMBER( paletteram_RRRRGGGGBBBBxxxx_word_w );
-
-	// 4-4-4-4 IRGB palette write handlers
-	DECLARE_WRITE16_MEMBER( paletteram_IIIIRRRRGGGGBBBB_word_w );
-	DECLARE_WRITE16_MEMBER( paletteram_RRRRGGGGBBBBIIII_word_w );
-
-	// 5-5-5 RGB palette write handlers
-	DECLARE_WRITE8_MEMBER( paletteram_xBBBBBGGGGGRRRRR_byte_le_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xBBBBBGGGGGRRRRR_byte_be_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xBBBBBGGGGGRRRRR_byte_split_lo_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xBBBBBGGGGGRRRRR_byte_split_hi_w );
-	DECLARE_WRITE16_MEMBER( paletteram_xBBBBBGGGGGRRRRR_word_w );
-
-	DECLARE_WRITE8_MEMBER( paletteram_xBBBBBRRRRRGGGGG_byte_split_lo_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xBBBBBRRRRRGGGGG_byte_split_hi_w );
-
-	DECLARE_WRITE8_MEMBER( paletteram_xRRRRRGGGGGBBBBB_byte_le_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xRRRRRGGGGGBBBBB_byte_be_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xRRRRRGGGGGBBBBB_byte_split_lo_w );
-	DECLARE_WRITE8_MEMBER( paletteram_xRRRRRGGGGGBBBBB_byte_split_hi_w );
-	DECLARE_WRITE16_MEMBER( paletteram_xRRRRRGGGGGBBBBB_word_w );
-	DECLARE_WRITE32_MEMBER( paletteram_xRRRRRGGGGGBBBBB_dword_be_w );
-	DECLARE_WRITE32_MEMBER( paletteram_xRRRRRGGGGGBBBBB_dword_le_w );
-
-	DECLARE_WRITE8_MEMBER( paletteram_xGGGGGRRRRRBBBBB_byte_le_w );
-
-	DECLARE_WRITE16_MEMBER( paletteram_xGGGGGRRRRRBBBBB_word_w );
-	DECLARE_WRITE16_MEMBER( paletteram_xGGGGGBBBBBRRRRR_word_w );
-	DECLARE_WRITE16_MEMBER( paletteram_RRRRRGGGGGBBBBBx_word_w );
-	DECLARE_WRITE16_MEMBER( paletteram_GGGGGRRRRRBBBBBx_word_w );
-	DECLARE_WRITE16_MEMBER( paletteram_RRRRGGGGBBBBRGBx_word_w );
-
-	// 8-8-8 RGB palette write handlers
-	DECLARE_WRITE16_MEMBER( paletteram_xrgb_word_be_w );
-	DECLARE_WRITE16_MEMBER( paletteram_xbgr_word_be_w );
-
 	// generic input port helpers
 	DECLARE_CUSTOM_INPUT_MEMBER( custom_port_read );
 
@@ -361,22 +233,11 @@ public:
 	DECLARE_READ8_MEMBER( fatal_generic_read );
 	DECLARE_WRITE8_MEMBER( fatal_generic_write );
 
-	// generic palette init routines
-	DECLARE_PALETTE_INIT( all_black );
-	DECLARE_PALETTE_INIT( black_and_white );
-	DECLARE_PALETTE_INIT( monochrome_amber );
-	DECLARE_PALETTE_INIT( monochrome_green );
-	DECLARE_PALETTE_INIT( RRRR_GGGG_BBBB );
-	DECLARE_PALETTE_INIT( RRRRR_GGGGG_BBBBB );
-	DECLARE_PALETTE_INIT( BBBBB_GGGGG_RRRRR );
-	DECLARE_PALETTE_INIT( RRRRR_GGGGGG_BBBBB );
-
 protected:
 	// helpers called at startup
 	virtual void driver_start();
 	virtual void machine_start();
 	virtual void sound_start();
-	virtual void palette_init();
 	virtual void video_start();
 
 	// helpers called at reset
@@ -393,25 +254,6 @@ protected:
 
 	// device_memory_interface overrides
 	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const;
-
-	// internal helpers
-	inline UINT16 paletteram16_le(offs_t offset) const { return m_generic_paletteram_8[offset & ~1] | (m_generic_paletteram_8[offset |  1] << 8); }
-	inline UINT16 paletteram16_be(offs_t offset) const { return m_generic_paletteram_8[offset |  1] | (m_generic_paletteram_8[offset & ~1] << 8); }
-	inline UINT16 paletteram16_split(offs_t offset) const { return m_generic_paletteram_8[offset] | (m_generic_paletteram2_8[offset] << 8); }
-	inline UINT32 paletteram32_be(offs_t offset) const { return m_generic_paletteram_16[offset | 1] | (m_generic_paletteram_16[offset & ~1] << 16); }
-
-public:
-	// generic devices
-	optional_device<screen_device> m_screen;
-
-	// generic pointers
-	optional_shared_ptr<UINT8> m_generic_paletteram_8;
-	optional_shared_ptr<UINT8> m_generic_paletteram2_8;
-	optional_shared_ptr<UINT16> m_generic_paletteram_16;
-	optional_shared_ptr<UINT16> m_generic_paletteram2_16;
-	optional_shared_ptr<UINT32> m_generic_paletteram_32;
-	optional_shared_ptr<UINT32> m_generic_paletteram2_32;
-
 private:
 	// helpers
 	void irq_pulse_clear(void *ptr, INT32 param);
@@ -424,7 +266,6 @@ private:
 	// internal state
 	const game_driver *     m_system;                   // pointer to the game driver
 	driver_callback_delegate m_callbacks[CB_COUNT];     // start/reset callbacks
-	legacy_callback_func    m_legacy_callbacks[CB_COUNT]; // legacy start/reset callbacks
 
 	// generic audio
 	UINT16                  m_latch_clear_value;
@@ -432,8 +273,8 @@ private:
 	UINT8                   m_latch_read[4];
 
 	// generic video
-	UINT32                  m_flip_screen_x;
-	UINT32                  m_flip_screen_y;
+	UINT8                   m_flip_screen_x;
+	UINT8                   m_flip_screen_y;
 };
 
 
@@ -446,125 +287,5 @@ device_t *driver_device_creator(const machine_config &mconfig, const char *tag, 
 	return global_alloc_clear(_DriverClass(mconfig, &driver_device_creator<_DriverClass>, tag));
 }
 
-
-
-//**************************************************************************
-//  PALETTE WRITER TEMPLATES
-//**************************************************************************
-
-// write 8-bit palette data
-template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift>
-WRITE8_MEMBER(driver_device::palette_8bit_byte_w)
-{
-	m_generic_paletteram_8[offset] = data;
-	UINT8 paldata = m_generic_paletteram_8[offset];
-	palette_set_color_rgb(machine(), offset, palexpand<_RedBits>(paldata >> _RedShift), palexpand<_GreenBits>(paldata >> _GreenShift), palexpand<_BlueBits>(paldata >> _BlueShift));
-}
-
-// write 16-bit palette data to consecutive 8-bit addresses with LSB first
-template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift>
-WRITE8_MEMBER(driver_device::palette_16bit_byte_le_w)
-{
-	m_generic_paletteram_8[offset] = data;
-	UINT16 paldata = m_generic_paletteram_8[offset & ~1] | (m_generic_paletteram_8[offset | 1] << 8);
-	palette_set_color_rgb(machine(), offset / 2, palexpand<_RedBits>(paldata >> _RedShift), palexpand<_GreenBits>(paldata >> _GreenShift), palexpand<_BlueBits>(paldata >> _BlueShift));
-}
-
-// write 16-bit palette data to consecutive 8-bit addresses with MSB first
-template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift>
-WRITE8_MEMBER(driver_device::palette_16bit_byte_be_w)
-{
-	m_generic_paletteram_8[offset] = data;
-	UINT16 paldata = m_generic_paletteram_8[offset | 1] | (m_generic_paletteram_8[offset & ~1] << 8);
-	palette_set_color_rgb(machine(), offset / 2, palexpand<_RedBits>(paldata >> _RedShift), palexpand<_GreenBits>(paldata >> _GreenShift), palexpand<_BlueBits>(paldata >> _BlueShift));
-}
-
-// write 16-bit palette data to split 8-bit addresses (LSB)
-template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift>
-WRITE8_MEMBER(driver_device::palette_16bit_byte_split_lo_w)
-{
-	m_generic_paletteram_8[offset] = data;
-	UINT16 paldata = m_generic_paletteram_8[offset] | (m_generic_paletteram2_8[offset] << 8);
-	palette_set_color_rgb(machine(), offset, palexpand<_RedBits>(paldata >> _RedShift), palexpand<_GreenBits>(paldata >> _GreenShift), palexpand<_BlueBits>(paldata >> _BlueShift));
-}
-
-// write 16-bit palette data to split 8-bit addresses (MSB)
-template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift>
-WRITE8_MEMBER(driver_device::palette_16bit_byte_split_hi_w)
-{
-	m_generic_paletteram2_8[offset] = data;
-	UINT16 paldata = m_generic_paletteram_8[offset] | (m_generic_paletteram2_8[offset] << 8);
-	palette_set_color_rgb(machine(), offset, palexpand<_RedBits>(paldata >> _RedShift), palexpand<_GreenBits>(paldata >> _GreenShift), palexpand<_BlueBits>(paldata >> _BlueShift));
-}
-
-// write 16-bit palette data to 16-bit addresses
-template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift>
-WRITE16_MEMBER(driver_device::palette_16bit_word_w)
-{
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-	UINT16 paldata = m_generic_paletteram_16[offset];
-	palette_set_color_rgb(machine(), offset, palexpand<_RedBits>(paldata >> _RedShift), palexpand<_GreenBits>(paldata >> _GreenShift), palexpand<_BlueBits>(paldata >> _BlueShift));
-}
-
-// write 16-bit palette data to packed 32-bit addresses (lower entry in lower 16 bits)
-template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift>
-WRITE32_MEMBER(driver_device::palette_16bit_dword_le_w)
-{
-	COMBINE_DATA(&m_generic_paletteram_32[offset]);
-	if (ACCESSING_BITS_0_15)
-	{
-		UINT16 paldata = m_generic_paletteram_32[offset];
-		palette_set_color_rgb(machine(), offset * 2 + 0, palexpand<_RedBits>(paldata >> _RedShift), palexpand<_GreenBits>(paldata >> _GreenShift), palexpand<_GreenBits>(paldata >> _BlueShift));
-	}
-	if (ACCESSING_BITS_16_31)
-	{
-		UINT16 paldata = m_generic_paletteram_32[offset] >> 16;
-		palette_set_color_rgb(machine(), offset * 2 + 1, palexpand<_RedBits>(paldata >> _RedShift), palexpand<_GreenBits>(paldata >> _GreenShift), palexpand<_GreenBits>(paldata >> _BlueShift));
-	}
-}
-
-// write 16-bit palette data to packed 32-bit addresses (lower entry in upper 16 bits)
-template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift>
-WRITE32_MEMBER(driver_device::palette_16bit_dword_be_w)
-{
-	COMBINE_DATA(&m_generic_paletteram_32[offset]);
-	if (ACCESSING_BITS_16_31)
-	{
-		UINT16 paldata = m_generic_paletteram_32[offset] >> 16;
-		palette_set_color_rgb(machine(), offset * 2 + 0, palexpand<_RedBits>(paldata >> _RedShift), palexpand<_GreenBits>(paldata >> _GreenShift), palexpand<_BlueBits>(paldata >> _BlueShift));
-	}
-	if (ACCESSING_BITS_0_15)
-	{
-		UINT16 paldata = m_generic_paletteram_32[offset];
-		palette_set_color_rgb(machine(), offset * 2 + 1, palexpand<_RedBits>(paldata >> _RedShift), palexpand<_GreenBits>(paldata >> _GreenShift), palexpand<_BlueBits>(paldata >> _BlueShift));
-	}
-}
-
-// write 32-bit palette data to consecutive 16-bit addresses with LSW first
-template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift>
-WRITE16_MEMBER(driver_device::palette_32bit_word_le_w)
-{
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-	UINT32 paldata = m_generic_paletteram_16[offset & ~1] | (m_generic_paletteram_16[offset | 1] << 16);
-	palette_set_color_rgb(machine(), offset / 2, palexpand<_RedBits>(paldata >> _RedShift), palexpand<_GreenBits>(paldata >> _GreenShift), palexpand<_BlueBits>(paldata >> _BlueShift));
-}
-
-// write 32-bit palette data to consecutive 16-bit addresses with MSW first
-template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift>
-WRITE16_MEMBER(driver_device::palette_32bit_word_be_w)
-{
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-	UINT32 paldata = m_generic_paletteram_16[offset | 1] | (m_generic_paletteram_16[offset & ~1] << 16);
-	palette_set_color_rgb(machine(), offset / 2, palexpand<_RedBits>(paldata >> _RedShift), palexpand<_GreenBits>(paldata >> _GreenShift), palexpand<_BlueBits>(paldata >> _BlueShift));
-}
-
-// write 32-bit palette data to 32-bit addresses
-template<int _RedBits, int _GreenBits, int _BlueBits, int _RedShift, int _GreenShift, int _BlueShift>
-WRITE32_MEMBER(driver_device::palette_32bit_dword_w)
-{
-	COMBINE_DATA(&m_generic_paletteram_32[offset]);
-	UINT32 paldata = m_generic_paletteram_32[offset];
-	palette_set_color_rgb(machine(), offset, palexpand<_RedBits>(paldata >> _RedShift), palexpand<_GreenBits>(paldata >> _GreenShift), palexpand<_BlueBits>(paldata >> _BlueShift));
-}
 
 #endif  /* __DRIVER_H__ */

@@ -29,7 +29,7 @@
 const device_type KANEKO_HIT = &device_creator<kaneko_hit_device>;
 
 kaneko_hit_device::kaneko_hit_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, KANEKO_HIT, "kaneko_hit_device", tag, owner, clock, "kaneko_hit", __FILE__)
+	: device_t(mconfig, KANEKO_HIT, "Kaneko CALC Hitbox", tag, owner, clock, "kaneko_hit", __FILE__)
 {
 	m_hittype = -1;
 	memset(&m_hit, 0, sizeof m_hit);
@@ -202,6 +202,7 @@ READ16_MEMBER(kaneko_hit_device::kaneko_hit_type0_r)
 WRITE16_MEMBER(kaneko_hit_device::kaneko_hit_type0_w)
 {
 	calc1_hit_t &hit = m_hit;
+	data &= mem_mask;
 
 	switch (offset)
 	{
@@ -294,6 +295,7 @@ READ16_MEMBER(kaneko_hit_device::kaneko_hit_type1_r)
 WRITE16_MEMBER(kaneko_hit_device::kaneko_hit_type1_w)
 {
 	calc1_hit_t &hit = m_hit;
+	data &= mem_mask;
 
 	switch (offset)
 	{
@@ -365,6 +367,8 @@ INT16 kaneko_hit_device::calc_compute_y(calc1_hit_t &hit)
 WRITE16_MEMBER(kaneko_hit_device::kaneko_hit_type2_w)
 {
 	calc3_hit_t &hit3 = m_hit3;
+	data &= mem_mask;
+
 	int idx=offset*4;
 	switch (idx)
 	{

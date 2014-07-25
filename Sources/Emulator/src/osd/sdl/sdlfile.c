@@ -279,7 +279,7 @@ file_error osd_read(osd_file *file, void *buffer, UINT64 offset, UINT32 count, U
 	switch (file->type)
 	{
 		case SDLFILE_FILE:
-#if defined(SDLMAME_DARWIN) || defined(SDLMAME_BSD)
+#if defined(SDLMAME_DARWIN) || defined(SDLMAME_BSD) || defined(SDLMAME_EMSCRIPTEN)
 			result = pread(file->handle, buffer, count, offset);
 			if (result < 0)
 #elif defined(SDLMAME_WIN32) || defined(SDLMAME_NO64BITIO) || defined(SDLMAME_OS2)
@@ -325,7 +325,7 @@ file_error osd_write(osd_file *file, const void *buffer, UINT64 offset, UINT32 c
 	switch (file->type)
 	{
 		case SDLFILE_FILE:
-#if defined(SDLMAME_DARWIN) || defined(SDLMAME_BSD)
+#if defined(SDLMAME_DARWIN) || defined(SDLMAME_BSD) || defined(SDLMAME_EMSCRIPTEN)
 			result = pwrite(file->handle, buffer, count, offset);
 			if (!result)
 #elif defined(SDLMAME_WIN32) || defined(SDLMAME_NO64BITIO) || defined(SDLMAME_OS2)
@@ -351,6 +351,29 @@ file_error osd_write(osd_file *file, const void *buffer, UINT64 offset, UINT32 c
 
 		case SDLFILE_PTTY:
 			return sdl_write_ptty(file, buffer, offset, count, actual);
+			break;
+
+		default:
+			return FILERR_FAILURE;
+	}
+}
+
+
+//============================================================
+//  osd_truncate
+//============================================================
+
+file_error osd_truncate(osd_file *file, UINT64 offset)
+{
+	UINT32 result;
+
+	switch (file->type)
+	{
+		case SDLFILE_FILE:
+			result = ftruncate(file->handle, offset);
+			if (!result)
+				return error_to_file_error(errno);
+			return FILERR_NONE;
 			break;
 
 		default:

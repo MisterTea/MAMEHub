@@ -183,16 +183,6 @@ static GFXDECODE_START( cchance )
 	GFXDECODE_ENTRY( "gfx1", 0, cchance_layout,   0x0, 32  )
 GFXDECODE_END
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 MACHINE_START_MEMBER(cchance_state,cchance)
 {
 	save_item(NAME(m_screenflip));
@@ -218,9 +208,11 @@ static MACHINE_CONFIG_START( cchance, cchance_state )
 	MCFG_MACHINE_START_OVERRIDE(cchance_state,cchance)
 	MCFG_MACHINE_RESET_OVERRIDE(cchance_state,cchance)
 
-	MCFG_GFXDECODE(cchance)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cchance)
 
 	MCFG_DEVICE_ADD("spritegen", SETA001_SPRITE, 0)
+	MCFG_SETA001_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_SETA001_SPRITE_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -230,14 +222,16 @@ static MACHINE_CONFIG_START( cchance, cchance_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cchance_state, screen_update_tnzs)
 	MCFG_SCREEN_VBLANK_DRIVER(cchance_state, screen_eof_tnzs)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(512)
-	MCFG_PALETTE_INIT_OVERRIDE(cchance_state,arknoid2)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INIT_OWNER(cchance_state,arknoid2)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1500000/2)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 

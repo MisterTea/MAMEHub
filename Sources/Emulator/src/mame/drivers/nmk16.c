@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Mirko Buffoni,Richard Bush,Nicola Salmoria,Bryan McPhail,David Haywood,R. Belmont,trap15,Angelo Salese
 /********************************************************************
 
 Task Force Harrier       1989 UPL        68000 Z80           YM2203 2xOKIM6295
@@ -29,6 +31,9 @@ Nouryoku Koujou Iinkai   1995 Tecmo      68000               2xOKIM6295
 driver by Mirko Buffoni, Richard Bush, Nicola Salmoria, Bryan McPhail,
           David Haywood, and R. Belmont.
 
+Afega based their hardware on the NMK hardware, not surprising considering Twin
+Action is simply a hack of USSAF Mustang.
+
 The NMK004 CPU might be a Toshiba TLCS-90 class CPU with internal ROM in the
 0000-1fff range.
 
@@ -40,26 +45,34 @@ games rely on mirror addresses to access the tilemap sequentially.
 
 TODO:
 - NMK004 sound CPU is just (imperfectly) simulated for now.
+
 - There is a handshaking operation happening on boot in most games. It happens on
   the NMK004 communication ports so I have implemented it in NMK004.c. However,
   the same handshaking also happen in tharrier, which doesn't have a NMK004!
   Therefore, it might be another protection device, which sits in the middle
   between CPU and NMK004.
+
+- Sound communication in Mustang might be incorrectly implemented (it does not
+  make correct sounds with our NMK004 simulation)
+
 - Protection is patched in several games.
-- Hacha Mecha Fighter: mcu simulation *might* be wrong/incorrect (see notes).
-- Cocktail mode is supported, but tilemap.c has problems with asymmetrical
-  visible areas.
+
+- Hacha Mecha Fighter: mcu simulation is wrong/incorrect (see notes).
+
 - Music timing in nouryoku is a little off.
 - In Bioship, there's an occasional flicker of one of the sprites composing big
   ships. Increasing CPU speed from 12 to 16 MHz improved it, but it's still not
-  100% fixed. (but the CPU speed has been verified to be 10Mhz??)
-- Input ports in Bio-ship Paladin, Strahl
-- Sound communication in Mustang might be incorrectly implemented
-- Incorrect OKI samples banking in Rapid Hero
+  100% fixed. (the CPU speed has been verified to be 10Mhz??)
+
 - Hacha Mecha Fighter: (BTANB) the bomb graphics are pretty weird when the game is in
   japanese mode,but it's like this on the original game,it's just a japanese write for
   "bomb" word (I presume)
+
 - (PCB owners): Measure pixel clock / vblank duration for all of these games.
+
+- for the Afega games (Guardian Storm especially) the lives display has bad colours,
+  it doesn't matter if this is drawn with the TX layer (some sets) or the sprites (others)
+  so it's probably something else funky with the memory access.
 
 ----
 
@@ -171,6 +184,7 @@ Afega stands for "Art-Fiction Electronic Game"
 
 WRITE16_MEMBER(nmk16_state::nmk16_mainram_strange_w)
 {
+#if 0
 	UINT16* dstram;
 
 	dstram = m_mainram;
@@ -187,6 +201,10 @@ WRITE16_MEMBER(nmk16_state::nmk16_mainram_strange_w)
 	{
 		dstram[offset] = data;
 	}
+#endif
+	// as of SVN 30715 the 68k core replicates the above behavior, providing mirrored bits in 'data' regardless of the value of 'mem_mask'
+	m_mainram[offset] = data;
+
 }
 
 
@@ -308,7 +326,7 @@ static ADDRESS_MAP_START( vandyke_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x080016, 0x080017) AM_WRITENOP    /* IRQ enable? */
 	AM_RANGE(0x080018, 0x080019) AM_WRITE(nmk_tilebank_w)
 	AM_RANGE(0x08001e, 0x08001f) AM_DEVWRITE("nmk004", nmk004_device, write)
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x08c000, 0x08c007) AM_WRITE(vandyke_scroll_w)
 	AM_RANGE(0x090000, 0x093fff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
 	AM_RANGE(0x094000, 0x097fff) AM_RAM /* what is this? */
@@ -327,7 +345,7 @@ static ADDRESS_MAP_START( vandykeb_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x080018, 0x080019) AM_WRITE(nmk_tilebank_w)
 	AM_RANGE(0x080010, 0x08001d) AM_WRITE(vandykeb_scroll_w) /* 10, 12, 1a, 1c */
 	AM_RANGE(0x08001e, 0x08001f) AM_DEVWRITE("nmk004", nmk004_device, write)
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x08c000, 0x08c007) AM_WRITENOP    /* just in case... */
 	AM_RANGE(0x090000, 0x093fff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
 	AM_RANGE(0x094000, 0x097fff) AM_RAM /* what is this? */
@@ -345,7 +363,7 @@ static ADDRESS_MAP_START( manybloc_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x080014, 0x080015) AM_WRITE(nmk_flipscreen_w)
 	AM_RANGE(0x08001c, 0x08001d) AM_WRITENOP            /* See notes at the top of the driver */
 	AM_RANGE(0x08001e, 0x08001f) AM_READWRITE(soundlatch2_word_r,soundlatch_word_w)
-	AM_RANGE(0x088000, 0x0883ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x0883ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x090000, 0x093fff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
 	AM_RANGE(0x09c000, 0x09cfff) AM_RAM_WRITE(manybloc_scroll_w) AM_SHARE("scrollram")
 	AM_RANGE(0x09d000, 0x09d7ff) AM_RAM_WRITE(nmk_txvideoram_w) AM_SHARE("nmk_txvideoram")
@@ -364,7 +382,7 @@ static ADDRESS_MAP_START( tharrier_map, AS_PROGRAM, 16, nmk16_state )
 //  AM_RANGE(0x080018, 0x080019) AM_WRITE(nmk_tilebank_w)
 	AM_RANGE(0x08001e, 0x08001f) AM_WRITE(soundlatch_word_w)
 	AM_RANGE(0x080202, 0x080203) AM_READ_PORT("IN2")
-	AM_RANGE(0x088000, 0x0883ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x0883ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 //  AM_RANGE(0x08c000, 0x08c007) AM_WRITE(nmk_scroll_w)
 	AM_RANGE(0x090000, 0x093fff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
 	AM_RANGE(0x09c000, 0x09c7ff) AM_RAM /* Unused txvideoram area? */
@@ -399,7 +417,7 @@ static ADDRESS_MAP_START( mustang_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x080014, 0x080015) AM_WRITE(nmk_flipscreen_w)
 	AM_RANGE(0x080016, 0x080017) AM_WRITENOP    // frame number?
 	AM_RANGE(0x08001e, 0x08001f) AM_DEVWRITE("nmk004", nmk004_device, write)
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x08c000, 0x08c001) AM_WRITE(mustang_scroll_w)
 	AM_RANGE(0x08c002, 0x08c087) AM_WRITENOP    // ??
 	AM_RANGE(0x090000, 0x093fff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
@@ -416,7 +434,7 @@ static ADDRESS_MAP_START( mustangb_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x080014, 0x080015) AM_WRITE(nmk_flipscreen_w)
 	AM_RANGE(0x080016, 0x080017) AM_WRITENOP    // frame number?
 	AM_RANGE(0x08001e, 0x08001f) AM_DEVWRITE("seibu_sound", seibu_sound_device, main_mustb_w)
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x08c000, 0x08c001) AM_WRITE(mustang_scroll_w)
 	AM_RANGE(0x08c002, 0x08c087) AM_WRITENOP    // ??
 	AM_RANGE(0x090000, 0x093fff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
@@ -434,7 +452,7 @@ static ADDRESS_MAP_START( twinactn_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x080014, 0x080015) AM_WRITE(nmk_flipscreen_w)
 	AM_RANGE(0x080016, 0x080017) AM_WRITENOP    // frame number?
 	AM_RANGE(0x08001e, 0x08001f) AM_WRITE(afega_soundlatch_w)
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x08c000, 0x08c001) AM_WRITE(mustang_scroll_w)
 	AM_RANGE(0x08c002, 0x08c087) AM_WRITENOP    // ??
 	AM_RANGE(0x090000, 0x093fff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
@@ -455,7 +473,7 @@ static ADDRESS_MAP_START( acrobatm_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0xc0016, 0xc0017) AM_WRITENOP
 	AM_RANGE(0xc0018, 0xc0019) AM_WRITE(nmk_tilebank_w)
 	AM_RANGE(0xc001e, 0xc001f) AM_DEVWRITE("nmk004", nmk004_device, write)
-	AM_RANGE(0xc4000, 0xc45ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xc4000, 0xc45ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xc8000, 0xc8007) AM_RAM_WRITE(nmk_scroll_w)
 	AM_RANGE(0xcc000, 0xcffff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
 	AM_RANGE(0xd4000, 0xd47ff) AM_RAM_WRITE(nmk_txvideoram_w) AM_SHARE("nmk_txvideoram")
@@ -471,7 +489,7 @@ static ADDRESS_MAP_START( bioship_map, AS_PROGRAM, 16, nmk16_state )
 //  AM_RANGE(0x080014, 0x080015) AM_WRITE(nmk_flipscreen_w)
 	AM_RANGE(0x08001e, 0x08001f) AM_DEVWRITE("nmk004", nmk004_device, write)
 	AM_RANGE(0x084000, 0x084001) AM_WRITE(bioship_bank_w)
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x08c000, 0x08c007) AM_RAM_WRITE(bioshipbg_scroll_w)
 	AM_RANGE(0x08c010, 0x08c017) AM_RAM_WRITE(bioship_scroll_w)
 	AM_RANGE(0x090000, 0x093fff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
@@ -650,7 +668,7 @@ static ADDRESS_MAP_START( hachamf_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x080018, 0x080019) AM_WRITE(nmk_tilebank_w)
 	AM_RANGE(0x08001e, 0x08001f) AM_DEVWRITE("nmk004", nmk004_device, write)
 	/* Video Region */
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x08c000, 0x08c007) AM_WRITE(nmk_scroll_w)
 	AM_RANGE(0x090000, 0x093fff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
 	AM_RANGE(0x09c000, 0x09c7ff) AM_RAM_WRITE(nmk_txvideoram_w) AM_SHARE("nmk_txvideoram")
@@ -882,7 +900,7 @@ static ADDRESS_MAP_START( tdragon_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x0c0018, 0x0c0019) AM_WRITE(nmk_tilebank_w) /* Tile Bank ? */
 	AM_RANGE(0x0c001e, 0x0c001f) AM_DEVWRITE("nmk004", nmk004_device, write)
 	AM_RANGE(0x0c4000, 0x0c4007) AM_RAM_WRITE(nmk_scroll_w)
-	AM_RANGE(0x0c8000, 0x0c87ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0c8000, 0x0c87ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0cc000, 0x0cffff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
 	AM_RANGE(0x0d0000, 0x0d07ff) AM_RAM_WRITE(nmk_txvideoram_w) AM_SHARE("nmk_txvideoram")
 ADDRESS_MAP_END
@@ -905,7 +923,7 @@ static ADDRESS_MAP_START( tdragonb_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x0c0018, 0x0c0019) AM_WRITE(nmk_tilebank_w) /* Tile Bank ? */
 	AM_RANGE(0x0c001e, 0x0c001f) AM_DEVWRITE("seibu_sound", seibu_sound_device, main_mustb_w)
 	AM_RANGE(0x0c4000, 0x0c4007) AM_RAM_WRITE(nmk_scroll_w)
-	AM_RANGE(0x0c8000, 0x0c87ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0c8000, 0x0c87ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0cc000, 0x0cffff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
 	AM_RANGE(0x0d0000, 0x0d07ff) AM_RAM_WRITE(nmk_txvideoram_w) AM_SHARE("nmk_txvideoram")
 ADDRESS_MAP_END
@@ -921,7 +939,7 @@ static ADDRESS_MAP_START( ssmissin_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x0c0018, 0x0c0019) AM_WRITE(nmk_tilebank_w) /* Tile Bank ? */
 	AM_RANGE(0x0c001e, 0x0c001f) AM_WRITE(ssmissin_sound_w)
 	AM_RANGE(0x0c4000, 0x0c4007) AM_RAM_WRITE(nmk_scroll_w)
-	AM_RANGE(0x0c8000, 0x0c87ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0c8000, 0x0c87ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0cc000, 0x0cffff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
 	AM_RANGE(0x0d0000, 0x0d07ff) AM_MIRROR(0x1800) AM_RAM_WRITE(nmk_txvideoram_w) AM_SHARE("nmk_txvideoram") //mirror for airattck
 ADDRESS_MAP_END
@@ -946,7 +964,7 @@ static ADDRESS_MAP_START( strahl_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x8001e, 0x8001f) AM_DEVWRITE("nmk004", nmk004_device, write)
 	AM_RANGE(0x84000, 0x84007) AM_RAM_WRITE(nmk_scroll_w)
 	AM_RANGE(0x88000, 0x88007) AM_RAM_WRITE(nmk_scroll_2_w)
-	AM_RANGE(0x8c000, 0x8c7ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x8c000, 0x8c7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x90000, 0x93fff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
 	AM_RANGE(0x94000, 0x97fff) AM_RAM_WRITE(nmk_fgvideoram_w) AM_SHARE("nmk_fgvideoram")
 	AM_RANGE(0x9c000, 0x9c7ff) AM_RAM_WRITE(nmk_txvideoram_w) AM_SHARE("nmk_txvideoram")
@@ -964,7 +982,7 @@ static ADDRESS_MAP_START( macross_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x080016, 0x080017) AM_WRITENOP    /* IRQ enable? */
 	AM_RANGE(0x080018, 0x080019) AM_WRITE(nmk_tilebank_w)
 	AM_RANGE(0x08001e, 0x08001f) AM_DEVWRITE("nmk004", nmk004_device, write)
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x08c000, 0x08c007) AM_RAM_WRITE(nmk_scroll_w)
 	AM_RANGE(0x090000, 0x093fff) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
 	AM_RANGE(0x09c000, 0x09c7ff) AM_RAM_WRITE(nmk_txvideoram_w) AM_SHARE("nmk_txvideoram")
@@ -982,7 +1000,7 @@ static ADDRESS_MAP_START( gunnail_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x080016, 0x080017) AM_WRITENOP    /* IRQ enable? */
 	AM_RANGE(0x080018, 0x080019) AM_WRITE(nmk_tilebank_w)
 	AM_RANGE(0x08001e, 0x08001f) AM_DEVWRITE("nmk004", nmk004_device, write)
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x08c000, 0x08c1ff) AM_WRITEONLY AM_SHARE("scrollram")
 	AM_RANGE(0x08c200, 0x08c3ff) AM_WRITEONLY AM_SHARE("scrollramy")
 	AM_RANGE(0x08c400, 0x08c7ff) AM_WRITEONLY   // unknown
@@ -1002,7 +1020,7 @@ static ADDRESS_MAP_START( macross2_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x100016, 0x100017) AM_WRITE(macross2_sound_reset_w)   /* Z80 reset */
 	AM_RANGE(0x100018, 0x100019) AM_WRITE(nmk_tilebank_w)
 	AM_RANGE(0x10001e, 0x10001f) AM_WRITE(macross2_sound_command_w) /* to Z80 */
-	AM_RANGE(0x120000, 0x1207ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x120000, 0x1207ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 
 	AM_RANGE(0x130000, 0x1301ff) AM_RAM AM_SHARE("scrollram")
 	AM_RANGE(0x130200, 0x1303ff) AM_RAM AM_SHARE("scrollramy")
@@ -1028,7 +1046,7 @@ static ADDRESS_MAP_START( raphero_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x100016, 0x100017) AM_WRITENOP    /* IRQ enable or z80 sound reset like in Macross 2? */
 	AM_RANGE(0x100018, 0x100019) AM_WRITE(nmk_tilebank_w)
 	AM_RANGE(0x10001e, 0x10001f) AM_WRITE(macross2_sound_command_w) /* to Z80 */
-	AM_RANGE(0x120000, 0x1207ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x120000, 0x1207ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 
 	AM_RANGE(0x130000, 0x1301ff) AM_RAM AM_SHARE("scrollram")
 	AM_RANGE(0x130200, 0x1303ff) AM_RAM AM_SHARE("scrollramy")
@@ -1089,8 +1107,8 @@ static ADDRESS_MAP_START( bjtwin_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x080014, 0x080015) AM_WRITE(nmk_flipscreen_w)
 	AM_RANGE(0x084000, 0x084001) AM_DEVREADWRITE8("oki1", okim6295_device, read, write, 0x00ff)
 	AM_RANGE(0x084010, 0x084011) AM_DEVREADWRITE8("oki2", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x084020, 0x08402f) AM_DEVWRITE("nmk112", nmk112_device, okibank_lsb_w)
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x084020, 0x08402f) AM_DEVWRITE8("nmk112", nmk112_device, okibank_w, 0x00ff)
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x094000, 0x094001) AM_WRITE(nmk_tilebank_w)
 	AM_RANGE(0x094002, 0x094003) AM_WRITENOP    /* IRQ enable? */
 	AM_RANGE(0x09c000, 0x09cfff) AM_MIRROR(0x1000) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
@@ -1116,7 +1134,7 @@ static ADDRESS_MAP_START( atombjt_map, AS_PROGRAM, 16, nmk16_state )
 //  AM_RANGE(0x084000, 0x084001) AM_DEVREADWRITE8("oki1", okim6295_device, read, write, 0x00ff)
 //  AM_RANGE(0x084010, 0x084011) AM_DEVREADWRITE8("oki2", okim6295_device, read, write, 0x00ff)
 //  AM_RANGE(0x084020, 0x08402f) AM_DEVWRITE("nmk112", nmk112_device, okibank_lsb_w)
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x094000, 0x094001) AM_WRITE(nmk_tilebank_w)
 	AM_RANGE(0x094002, 0x094003) AM_WRITENOP    /* IRQ enable? */
 	AM_RANGE(0x09c000, 0x09cfff) AM_MIRROR(0x1000) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
@@ -3427,6 +3445,65 @@ static INPUT_PORTS_START( twinactn )
 	PORT_DIPSETTING(      0x0000, "5" )
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( dolmen )
+	PORT_INCLUDE( afega_common )
+
+	PORT_MODIFY("IN0")  // $080000.w
+	PORT_SERVICE_NO_TOGGLE(0x0020, IP_ACTIVE_LOW   )    // Test in service mode
+
+	PORT_MODIFY("IN1")  // $080002.w
+	PORT_BIT(  0x0080, IP_ACTIVE_LOW,IPT_UNKNOWN ) // Tested at boot
+	PORT_BIT(  0x8000, IP_ACTIVE_LOW,IPT_UNKNOWN ) // Tested at boot
+
+	PORT_START("DSW1")  // $080004.w
+	PORT_DIPNAME( 0x0001, 0x0001, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:8")
+	PORT_DIPSETTING(      0x0001, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0002, 0x0002, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:7")
+	PORT_DIPSETTING(      0x0002, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x000c, 0x000c, DEF_STR( Difficulty ) )  PORT_DIPLOCATION("SW1:6,5")
+	PORT_DIPSETTING(      0x0008, DEF_STR( Easy ) )
+	PORT_DIPSETTING(      0x000c, DEF_STR( Normal ) )
+	PORT_DIPSETTING(      0x0004, DEF_STR( Hard ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( Hardest ) )
+	PORT_DIPNAME( 0x0010, 0x0010, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:4")
+	PORT_DIPSETTING(      0x0010, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0020, 0x0020, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:3")
+	PORT_DIPSETTING(      0x0020, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x00c0, 0x00c0, "Free Credit" )  PORT_DIPLOCATION("SW1:2,1") /* Not verified - From Bubble 2000 */
+	PORT_DIPSETTING(      0x0080, "500k" )
+	PORT_DIPSETTING(      0x00c0, "800k" )
+	PORT_DIPSETTING(      0x0040, "1000k" )
+	PORT_DIPSETTING(      0x0000, "1500k" )
+	PORT_DIPNAME( 0x0100, 0x0100, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW2:8")
+	PORT_DIPSETTING(      0x0100, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0200, 0x0200, DEF_STR( Demo_Sounds ) )  PORT_DIPLOCATION("SW2:7")
+	PORT_DIPSETTING(      0x0000, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0200, DEF_STR( On ) )
+	PORT_DIPNAME( 0x1c00, 0x1c00, DEF_STR( Coin_B ) )   PORT_DIPLOCATION("SW2:6,5,4")
+	PORT_DIPSETTING(      0x1000, DEF_STR( 4C_1C ) )
+	PORT_DIPSETTING(      0x0800, DEF_STR( 3C_1C ) )
+	PORT_DIPSETTING(      0x1800, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(      0x1c00, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(      0x0c00, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(      0x1400, DEF_STR( 1C_3C ) )
+	PORT_DIPSETTING(      0x0400, DEF_STR( 1C_4C ) )
+	PORT_DIPSETTING(      0x0000, "Credits Don't Register" )
+	PORT_DIPNAME( 0xe000, 0xe000, DEF_STR( Coin_A ) )   PORT_DIPLOCATION("SW2:3,2,1")
+	PORT_DIPSETTING(      0x8000, DEF_STR( 4C_1C ) )
+	PORT_DIPSETTING(      0x4000, DEF_STR( 3C_1C ) )
+	PORT_DIPSETTING(      0xc000, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(      0xe000, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(      0x6000, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(      0xa000, DEF_STR( 1C_3C ) )
+	PORT_DIPSETTING(      0x2000, DEF_STR( 1C_4C ) )
+	PORT_DIPSETTING(      0x0000, "Credits Don't Register" )
+INPUT_PORTS_END
+
 
 
 static const gfx_layout charlayout =
@@ -3532,13 +3609,6 @@ WRITE_LINE_MEMBER(nmk16_state::ym2203_irqhandler)
 	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
 TIMER_DEVICE_CALLBACK_MEMBER(nmk16_state::nmk16_scanline)
 {
 	int scanline = param;
@@ -3565,12 +3635,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(nmk16_state::manybloc_scanline)
 		m_maincpu->set_input_line(2, HOLD_LINE);
 }
 
-
-static const nmk112_interface nmk16_nmk112_intf =
-{
-	"oki1", "oki2", 0
-};
-
 static MACHINE_CONFIG_START( tharrier, nmk16_state )
 
 	/* basic machine hardware */
@@ -3591,10 +3655,11 @@ static MACHINE_CONFIG_START( tharrier, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_tharrier)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tharrier)
-	MCFG_PALETTE_LENGTH(512)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tharrier)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 
 	/* sound hardware */
@@ -3602,7 +3667,6 @@ static MACHINE_CONFIG_START( tharrier, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(nmk16_state, ym2203_irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -3635,9 +3699,11 @@ static MACHINE_CONFIG_START( manybloc, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_manybloc)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tharrier)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tharrier)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 
@@ -3646,7 +3712,6 @@ static MACHINE_CONFIG_START( manybloc, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(nmk16_state, ym2203_irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -3675,9 +3740,11 @@ static MACHINE_CONFIG_START( mustang, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_macross)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 
@@ -3688,7 +3755,6 @@ static MACHINE_CONFIG_START( mustang, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(DEVWRITELINE("nmk004", nmk004_device, ym2203_irq_handler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -3719,9 +3785,11 @@ static MACHINE_CONFIG_START( mustangb, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_macross)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 
@@ -3749,9 +3817,11 @@ static MACHINE_CONFIG_START( bioship, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_bioship)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bioship)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bioship)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,bioship)
 
@@ -3762,7 +3832,6 @@ static MACHINE_CONFIG_START( bioship, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, BIOSHIP_CRYSTAL2 / 8) /* 1.5 Mhz (verified) */
 	MCFG_YM2203_IRQ_HANDLER(DEVWRITELINE("nmk004", nmk004_device, ym2203_irq_handler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -3791,9 +3860,11 @@ static MACHINE_CONFIG_START( vandyke, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_macross)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 
@@ -3804,7 +3875,6 @@ static MACHINE_CONFIG_START( vandyke, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/8) /* verified on pcb */
 	MCFG_YM2203_IRQ_HANDLER(DEVWRITELINE("nmk004", nmk004_device, ym2203_irq_handler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -3836,9 +3906,11 @@ static MACHINE_CONFIG_START( vandykeb, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_macross)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 
@@ -3867,9 +3939,11 @@ static MACHINE_CONFIG_START( acrobatm, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_macross)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBxxxx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 
@@ -3880,7 +3954,6 @@ static MACHINE_CONFIG_START( acrobatm, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000) /* (verified on pcb) */
 	MCFG_YM2203_IRQ_HANDLER(DEVWRITELINE("nmk004", nmk004_device, ym2203_irq_handler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -3913,9 +3986,11 @@ static MACHINE_CONFIG_START( tdragonb, nmk16_state )    /* bootleg using Raiden 
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_macross)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 
@@ -3940,9 +4015,11 @@ static MACHINE_CONFIG_START( tdragon, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_macross)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("coinsim", nmk16_state, tdragon_mcu_sim, attotime::from_hz(10000))
@@ -3954,7 +4031,6 @@ static MACHINE_CONFIG_START( tdragon, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/8) /* verified on pcb */
 	MCFG_YM2203_IRQ_HANDLER(DEVWRITELINE("nmk004", nmk004_device, ym2203_irq_handler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -3986,9 +4062,11 @@ static MACHINE_CONFIG_START( ssmissin, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_macross)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 
@@ -4016,9 +4094,11 @@ static MACHINE_CONFIG_START( strahl, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_strahl)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_strahl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(strahl)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", strahl)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBxxxx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,strahl)
 
@@ -4029,7 +4109,6 @@ static MACHINE_CONFIG_START( strahl, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(DEVWRITELINE("nmk004", nmk004_device, ym2203_irq_handler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -4058,9 +4137,11 @@ static MACHINE_CONFIG_START( hachamf, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_macross)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("coinsim", nmk16_state, hachamf_mcu_sim, attotime::from_hz(10000))
@@ -4072,7 +4153,6 @@ static MACHINE_CONFIG_START( hachamf, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(DEVWRITELINE("nmk004", nmk004_device, ym2203_irq_handler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -4101,9 +4181,11 @@ static MACHINE_CONFIG_START( macross, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_macross)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 
@@ -4114,7 +4196,6 @@ static MACHINE_CONFIG_START( macross, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(DEVWRITELINE("nmk004", nmk004_device, ym2203_irq_handler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -4143,9 +4224,11 @@ static MACHINE_CONFIG_START( blkheart, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_macross)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 
@@ -4156,7 +4239,6 @@ static MACHINE_CONFIG_START( blkheart, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/8 ) /* verified on pcb */
 	MCFG_YM2203_IRQ_HANDLER(DEVWRITELINE("nmk004", nmk004_device, ym2203_irq_handler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -4185,9 +4267,11 @@ static MACHINE_CONFIG_START( gunnail, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 48*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_gunnail)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,gunnail)
 
@@ -4198,7 +4282,6 @@ static MACHINE_CONFIG_START( gunnail, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(DEVWRITELINE("nmk004", nmk004_device, ym2203_irq_handler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -4231,9 +4314,11 @@ static MACHINE_CONFIG_START( macross2, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 48*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_gunnail)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross2)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross2)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross2)
 
@@ -4242,7 +4327,6 @@ static MACHINE_CONFIG_START( macross2, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(nmk16_state, ym2203_irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 
 	MCFG_OKIM6295_ADD("oki1", 16000000/4, OKIM6295_PIN7_LOW)
@@ -4251,7 +4335,9 @@ static MACHINE_CONFIG_START( macross2, nmk16_state )
 	MCFG_OKIM6295_ADD("oki2", 16000000/4, OKIM6295_PIN7_LOW)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
-	MCFG_NMK112_ADD("nmk112", nmk16_nmk112_intf)
+	MCFG_DEVICE_ADD("nmk112", NMK112, 0)
+	MCFG_NMK112_ROM0("oki1")
+	MCFG_NMK112_ROM1("oki2")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( tdragon2, nmk16_state )
@@ -4274,9 +4360,11 @@ static MACHINE_CONFIG_START( tdragon2, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 48*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_tdragon2)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross2)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross2)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross2)
 
@@ -4285,7 +4373,6 @@ static MACHINE_CONFIG_START( tdragon2, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(nmk16_state, ym2203_irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	MCFG_OKIM6295_ADD("oki1", 16000000/4, OKIM6295_PIN7_LOW)
@@ -4294,7 +4381,9 @@ static MACHINE_CONFIG_START( tdragon2, nmk16_state )
 	MCFG_OKIM6295_ADD("oki2", 16000000/4, OKIM6295_PIN7_LOW)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.08)
 
-	MCFG_NMK112_ADD("nmk112", nmk16_nmk112_intf)
+	MCFG_DEVICE_ADD("nmk112", NMK112, 0)
+	MCFG_NMK112_ROM0("oki1")
+	MCFG_NMK112_ROM1("oki2")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( raphero, nmk16_state )
@@ -4316,9 +4405,11 @@ static MACHINE_CONFIG_START( raphero, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 48*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_tdragon2)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross2)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross2)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,raphero)
 
@@ -4327,7 +4418,6 @@ static MACHINE_CONFIG_START( raphero, nmk16_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(nmk16_state, ym2203_irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.70)
 	MCFG_SOUND_ROUTE(1, "mono", 0.70)
 	MCFG_SOUND_ROUTE(2, "mono", 0.70)
@@ -4339,7 +4429,9 @@ static MACHINE_CONFIG_START( raphero, nmk16_state )
 	MCFG_OKIM6295_ADD("oki2", 16000000/4, OKIM6295_PIN7_LOW)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.08)
 
-	MCFG_NMK112_ADD("nmk112", nmk16_nmk112_intf)
+	MCFG_DEVICE_ADD("nmk112", NMK112, 0)
+	MCFG_NMK112_ROM0("oki1")
+	MCFG_NMK112_ROM1("oki2")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( bjtwin, nmk16_state )
@@ -4358,9 +4450,11 @@ static MACHINE_CONFIG_START( bjtwin, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 48*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_bjtwin)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bjtwin)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bjtwin)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,bjtwin)
 
@@ -4373,7 +4467,9 @@ static MACHINE_CONFIG_START( bjtwin, nmk16_state )
 	MCFG_OKIM6295_ADD("oki2", 16000000/4, OKIM6295_PIN7_LOW) /* verified on pcb */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
-	MCFG_NMK112_ADD("nmk112", nmk16_nmk112_intf)
+	MCFG_DEVICE_ADD("nmk112", NMK112, 0)
+	MCFG_NMK112_ROM0("oki1")
+	MCFG_NMK112_ROM1("oki2")
 MACHINE_CONFIG_END
 
 
@@ -4393,9 +4489,11 @@ static MACHINE_CONFIG_START( atombjt, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 48*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_bjtwin)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(atombjt)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", atombjt)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,bjtwin)
 
@@ -4687,7 +4785,7 @@ static ADDRESS_MAP_START( afega, AS_PROGRAM, 16, nmk16_state )
 /**/AM_RANGE(0x084000, 0x084003) AM_RAM_WRITE(afega_scroll0_w)  // Scroll on redhawkb (mirror or changed?..)
 /**/AM_RANGE(0x084004, 0x084007) AM_RAM_WRITE(afega_scroll1_w)  // Scroll on redhawkb (mirror or changed?..)
 	AM_RANGE(0x080020, 0x087fff) AM_WRITEONLY               //
-/**/AM_RANGE(0x088000, 0x0885ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram") // Palette
+/**/AM_RANGE(0x088000, 0x0885ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // Palette
 	AM_RANGE(0x088600, 0x08bfff) AM_WRITEONLY               //
 /**/AM_RANGE(0x08c000, 0x08c003) AM_RAM_WRITE(afega_scroll0_w) AM_SHARE("afega_scroll_0")   // Scroll
 /**/AM_RANGE(0x08c004, 0x08c007) AM_RAM_WRITE(afega_scroll1_w) AM_SHARE("afega_scroll_1")   //
@@ -4854,9 +4952,11 @@ static MACHINE_CONFIG_START( stagger1, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_afega)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(stagger1)
-	MCFG_PALETTE_LENGTH(768)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", stagger1)
+	MCFG_PALETTE_ADD("palette", 768)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,afega)
 
@@ -4885,7 +4985,7 @@ static MACHINE_CONFIG_DERIVED( redhawkb, stagger1 )
 
 	/* basic machine hardware */
 	/* video hardware */
-	MCFG_GFXDECODE(redhawkb)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", redhawkb)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_redhawkb)
 MACHINE_CONFIG_END
@@ -4895,7 +4995,7 @@ static MACHINE_CONFIG_DERIVED( grdnstrm, stagger1 )
 	/* basic machine hardware */
 
 	/* video hardware */
-	MCFG_GFXDECODE(grdnstrm)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", grdnstrm)
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,firehawk)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_firehawk)
@@ -4908,7 +5008,7 @@ static MACHINE_CONFIG_DERIVED( grdnstrmk, stagger1 ) /* Side by side with PCB, t
 	/* video hardware */
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_REFRESH_RATE(57) /* Side by side with PCB, MAME is too fast at 56 */
-	MCFG_GFXDECODE(grdnstrm)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", grdnstrm)
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,grdnstrm)
 MACHINE_CONFIG_END
 
@@ -4939,9 +5039,11 @@ static MACHINE_CONFIG_START( firehawk, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_firehawk)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(grdnstrm)
-	MCFG_PALETTE_LENGTH(768)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", grdnstrm)
+	MCFG_PALETTE_ADD("palette", 768)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,firehawk)
 
@@ -4974,9 +5076,11 @@ static MACHINE_CONFIG_START( twinactn, nmk16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_macross)
 	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(macross)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", macross)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(nmk16_state,macross)
 
@@ -5004,7 +5108,7 @@ static void decryptcode( running_machine &machine, int a23, int a22, int a21, in
 	int i;
 	UINT8 *RAM = machine.root_device().memregion( "maincpu" )->base();
 	size_t  size = machine.root_device().memregion( "maincpu" )->bytes();
-	UINT8 *buffer = auto_alloc_array(machine, UINT8,  size );
+	dynamic_buffer buffer( size );
 
 	memcpy( buffer, RAM, size );
 	for( i = 0; i < size; i++ )
@@ -5012,7 +5116,6 @@ static void decryptcode( running_machine &machine, int a23, int a22, int a21, in
 		RAM[ i ] = buffer[ BITSWAP24( i, a23, a22, a21, a20, a19, a18, a17, a16, a15, a14, a13, a12,
 			a11, a10, a9, a8, a7, a6, a5, a4, a3, a2, a1, a0 ) ];
 	}
-	auto_free( machine, buffer );
 }
 
 
@@ -6755,6 +6858,28 @@ ROM_START( grdnstrmk )
 	ROM_LOAD( "afega1.u95", 0x00000, 0x40000, CRC(e911ce33) SHA1(a29c4dea98a22235122303325c63c15fadd3431d) )
 ROM_END
 
+ROM_START( grdnstrmj )
+	ROM_REGION( 0x80000, "maincpu", 0 )     /* 68000 Code */
+	ROM_LOAD16_BYTE( "afega_3.u112", 0x000000, 0x040000, CRC(e51a35fb) SHA1(acb733d0e5c9c54477d0475a64f53d68a84218c6) )
+	ROM_LOAD16_BYTE( "afega_4.u107", 0x000001, 0x040000, CRC(cb10aa54) SHA1(bb0cb837b5651df4ff8f215854353631a39b730c) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )        /* Z80 Code */
+	ROM_LOAD( "afega7.u92", 0x00000, 0x10000, CRC(5d8cf28e) SHA1(2a440bf5136f95af137b6688e566a14e65be94b1) )
+
+	ROM_REGION( 0x200000, "sprites", 0 )   /* Sprites, 16x16x4 */
+	ROM_LOAD( "afega_af1-sp.uc13", 0x000000, 0x200000, CRC(7d4d4985) SHA1(15c6c1aecd3f12050c1db2376f929f1a26a1d1cf) ) /* MASK ROM (read as 27C160) */
+
+	ROM_REGION( 0x400000, "bgtile", 0 )   /* Layer 0, 16x16x8 */
+	ROM_LOAD( "afega_af1-b2.uc8", 0x000000, 0x200000, CRC(d68588c2) SHA1(c5f397d74a6ecfd2e375082f82e37c5a330fba62) ) /* MASK ROM (read as 27C160) */
+	ROM_LOAD( "afega_af1-b1.uc3", 0x200000, 0x200000, CRC(f8b200a8) SHA1(a6c43dd57b752d87138d7125b47dc0df83df8987) ) /* MASK ROM (read as 27C160) */
+
+	ROM_REGION( 0x10000, "fgtile", 0 )    /* Layer 1, 8x8x4 */
+	ROM_LOAD( "gst-03.u4",  0x00000, 0x10000, CRC(a1347297) SHA1(583f4da991eeedeb523cf4fa3b6900d40e342063) )
+
+	ROM_REGION( 0x40000, "oki1", 0 )    /* Samples */
+	ROM_LOAD( "afega1.u95", 0x00000, 0x40000, CRC(e911ce33) SHA1(a29c4dea98a22235122303325c63c15fadd3431d) )
+ROM_END
+
 
 ROM_START( grdnstrmv ) /* Apples Industries license - Vertical version */
 	ROM_REGION( 0x80000, "maincpu", 0 )     /* 68000 Code */
@@ -7122,6 +7247,37 @@ ROM_START( hotbubl )
 	ROM_LOAD( "s2.uc18", 0x00000, 0x40000, CRC(401c980f) SHA1(e47710c47cfeecce3ccf87f845b219a9c9f21ee3) )
 ROM_END
 
+
+ROM_START( dolmen )
+	ROM_REGION( 0x40000, "maincpu", 0 )     /* 68000 Code */
+	ROM_LOAD16_BYTE( "afega8.uj3", 0x00000, 0x20000, CRC(f1b73e4c) SHA1(fe5bbd1e91d1a81744c373effbd96adbbc896133) )
+	ROM_LOAD16_BYTE( "afega7.uj2", 0x00001, 0x20000, CRC(c91bda0b) SHA1(8c09e3020e72e8ab2ca3a3dad708d64f9bf75a4f) )
+
+	ROM_REGION( 0x8000, "audiocpu", 0 )     /* Z80 Code */
+	ROM_LOAD( "afega1.su6", 0x0000, 0x8000, CRC(166b53cb) SHA1(44864d1518205bdc445dc95e5825924f73d334b2) )   // 1111xxxxxxxxxxx = 0x00
+
+	ROM_REGION( 0x100000, "sprites", 0 )   /* Sprites, 16x16x4 */
+	ROM_LOAD16_BYTE( "afega4.ub11", 0x00000, 0x80000, CRC(5a259393) SHA1(62c41ef4f398295d5cc1122c64487e12c4226ede) )
+	ROM_LOAD16_BYTE( "afega5.ub13", 0x00001, 0x80000, CRC(7f6a683d) SHA1(ab7026906b68aa9f4d75b0e56564216727decfde) )
+
+	ROM_REGION( 0x80000, "bgtile", 0 )    /* Layer 0, 16x16x8 */
+	ROM_LOAD( "afega9.ui20", 0x00000, 0x80000, CRC(b3fa7be6) SHA1(7ef8d902bd954960fbae727aae02dce9750f740e) )
+
+	ROM_REGION( 0x20000, "fgtile", 0 )    /* Layer 1, 8x8x4 */
+	ROM_LOAD( "afega6.uj11", 0x00000, 0x20000, CRC(13fa4415) SHA1(193524ebccbaae6b8c00893c42399c38cafdbd79) )
+
+	ROM_REGION( 0x100000, "oki1", 0 )   /* Samples */
+	ROM_LOAD( "afega2.su12", 0x000000, 0x20000, CRC(1a2ce1c2) SHA1(ae6991fbfe57d35f32b541367d3b31244456713e) )
+	ROM_RELOAD(              0x040000, 0x20000 )
+	ROM_RELOAD(              0x080000, 0x20000 )
+	ROM_RELOAD(              0x0c0000, 0x20000 )
+	ROM_RELOAD(              0x020000, 0x20000 )
+	ROM_RELOAD(              0x060000, 0x20000 )
+	ROM_LOAD( "afega3.su13", 0x0a0000, 0x20000, CRC(d3531018) SHA1(940067a8634339258666c89319cb0e1b43f2af56) )
+	ROM_CONTINUE(            0x0e0000, 0x20000 )
+ROM_END
+
+
 /***************************************************************************
 
 Fire Hawk - ESD, 2001
@@ -7189,6 +7345,34 @@ ROM_START( firehawk )
 	ROM_LOAD( "fhawk_s3.u41", 0x00000, 0x40000, CRC(3fdcfac2) SHA1(c331f2ea6fd682cfb00f73f9a5b995408eaab5cf) )
 ROM_END
 
+ROM_START( firehawkv )
+	ROM_REGION( 0x100000, "maincpu", 0 )    /* 68000 Code */
+	ROM_LOAD16_BYTE( "fire_hawk_cn1.u53", 0x00001, 0x80000, CRC(c09db3ec) SHA1(5beab9f837d8821fea1ceeac1be01c2c3ceaabf2) )
+	ROM_LOAD16_BYTE( "fire_hawk_cn2.u59", 0x00000, 0x80000, CRC(68b0737c) SHA1(d8eac5b0f4023556f39ffb187f6d75270a5b782f) )
+
+	ROM_REGION( 0x20000, "audiocpu", 0 )    /* Z80 Code */
+	ROM_LOAD( "fhawk_s1.u38", 0x00000, 0x20000, CRC(c6609c39) SHA1(fe9b5f6c3ab42c48cb493fecb1181901efabdb58) )
+
+	ROM_REGION( 0x400000, "sprites",0 ) /* Sprites, 16x16x4 */
+	ROM_LOAD( "rom.uc1", 0x000000, 0x200000, NO_DUMP )
+	ROM_LOAD( "rom.uc2", 0x200000, 0x200000, NO_DUMP )
+
+	ROM_REGION( 0x800000, "bgtile", 0 ) /* Layer 0, 16x16x8 */
+	ROM_LOAD( "rom.uc3", 0x000000, 0x200000, NO_DUMP )
+	ROM_LOAD( "rom.uc4", 0x200000, 0x200000, NO_DUMP )
+	ROM_LOAD( "rom.uc5", 0x400000, 0x200000, NO_DUMP )
+	ROM_LOAD( "rom.uc6", 0x600000, 0x200000, NO_DUMP )
+
+	ROM_REGION( 0x00100, "fgtile", ROMREGION_ERASEFF )    /* Layer 1, 8x8x4 */
+	// Unused
+
+	ROM_REGION( 0x040000, "oki1", 0 ) /* Samples */
+	ROM_LOAD( "fhawk_s2.u36", 0x00000, 0x40000, CRC(d16aaaad) SHA1(96ca173ca433164ed0ae51b41b42343bd3cfb5fe) )
+
+	ROM_REGION( 0x040000, "oki2", 0 ) /* Samples */
+	ROM_LOAD( "fhawk_s3.u41", 0x00000, 0x40000, CRC(3fdcfac2) SHA1(c331f2ea6fd682cfb00f73f9a5b995408eaab5cf) )
+ROM_END
+
 /***************************************************************************
 
 Spectrum 2000 (c) 2000 YONA Tech
@@ -7241,7 +7425,7 @@ DRIVER_INIT_MEMBER(nmk16_state,spec2k)
 	decryptcode( machine(), 23, 22, 21, 20, 19, 18, 17, 13, 14, 15, 16, 12, 11, 10, 9,  8, 7,  6,  5,  4, 3,  2,  1,  0 );
 }
 
-ROM_START( spec2k )
+ROM_START( spec2kh )
 	ROM_REGION( 0x80000, "maincpu", 0 ) /* 68000 Code */
 	ROM_LOAD16_BYTE( "yonatech5.u124", 0x00000, 0x40000, CRC(72ab5c05) SHA1(182a811982b89b8cda0677547ef0625c274f5c6b) )
 	ROM_LOAD16_BYTE( "yonatech6.u120", 0x00001, 0x40000, CRC(7e44bd9c) SHA1(da59685be14a09ec037743fcec34fb293f7d588d) )
@@ -7264,6 +7448,32 @@ ROM_START( spec2k )
 
 	ROM_REGION( 0x080000, "oki2", 0 ) /* Samples */
 	ROM_LOAD( "yonatech3.u106", 0x00000, 0x80000, CRC(6644c404) SHA1(b7ad3f9f08971432d024ef8be3fa3140f0bbae67) )
+ROM_END
+
+
+ROM_START( spec2k )
+	ROM_REGION( 0x80000, "maincpu", 0 ) /* 68000 Code */
+	ROM_LOAD16_BYTE( "u124", 0x00000, 0x40000, CRC(dbd6f65d) SHA1(0fad9836689fcbee60904ccad59a2a5be09f3139) )
+	ROM_LOAD16_BYTE( "u120", 0x00001, 0x40000, CRC(be53e243) SHA1(38144b90a35ba144921824a0c4f133339e07f9a1) )
+
+	ROM_REGION( 0x20000, "audiocpu", 0 )    /* Z80 Code */
+	ROM_LOAD( "u103", 0x00000, 0x10000, CRC(f4e4fb10) SHA1(d19953d37e31fc753b50f0047d5be16f1f2daf09) )
+
+	ROM_REGION( 0x200000, "sprites",0 ) /* Sprites, 16x16x4 */
+	ROM_LOAD( "uc1", 0x00000, 0x200000, CRC(3139a213) SHA1(5ec4be0e27cbf1c4556ab10d7e1408ea64aa9e17) )
+
+	ROM_REGION( 0x400000, "bgtile", 0 ) /* Layer 0, 16x16x8 */
+	ROM_LOAD( "uc3", 0x000000, 0x200000, CRC(1d087122) SHA1(9e82c5f26c1387c6006cbd9248b333921388146c) )
+	ROM_LOAD( "uc2", 0x200000, 0x200000, CRC(998dc05c) SHA1(cadf8bb0b8944372fbce9934b93684749ebc3ba0) )
+
+	ROM_REGION( 0x20000, "fgtile", ROMREGION_ERASEFF )    /* Layer 1, 8x8x4 */
+	ROM_LOAD( "u3", 0x00000, 0x20000, CRC(921503b8) SHA1(dea6e9d47c9db83e79907bc0609a64176aff26bc) )
+
+	ROM_REGION( 0x40000, "oki1", 0 ) /* Samples */
+	ROM_LOAD( "u101", 0x00000, 0x40000, CRC(d16aaaad) SHA1(96ca173ca433164ed0ae51b41b42343bd3cfb5fe) )
+
+	ROM_REGION( 0x080000, "oki2", 0 ) /* Samples */
+	ROM_LOAD( "u106", 0x00000, 0x80000, CRC(65d61f3a) SHA1(a8f7ad61ae29a5c852820e5cbe886a8cd437634a) )
 ROM_END
 
 /***************************************************************************
@@ -7315,8 +7525,6 @@ ROM_START( twinactn )
 	ROM_LOAD( "afega.su13", 0x0a0000, 0x20000, CRC(30e1c306) SHA1(c859f11fd329793b11e96264e91c79a557b488a4) )
 	ROM_CONTINUE(           0x0e0000, 0x20000 )
 ROM_END
-
-
 
 /***************************************************************************
 
@@ -7398,6 +7606,8 @@ GAME( 1996, airattcka,airattck, ssmissin, airattck, nmk16_state, ssmissin, ROT27
 // afega & clones
 GAME( 1995, twinactn, 0,        twinactn, twinactn, driver_device, 0,        ROT0,   "Afega",                             "Twin Action", 0 ) // hacked from USSAF Mustang
 
+GAME( 1995, dolmen, 0,          twinactn, dolmen,   driver_device, 0,        ROT0,   "Afega",                             "Dolmen", 0 )
+
 GAME( 1998, stagger1, 0,        stagger1, stagger1, driver_device, 0,        ROT270, "Afega",                             "Stagger I (Japan)", 0 )
 GAME( 1997, redhawk,  stagger1, stagger1, stagger1, nmk16_state,   redhawk,  ROT270, "Afega (New Vision Ent. license)",   "Red Hawk (US)", 0 )
 GAME( 1997, redhawki, stagger1, redhawki, stagger1, driver_device, 0,        ROT0,   "Afega (Hea Dong Corp license)",     "Red Hawk (Italy)", 0 ) // bootleg? strange scroll regs
@@ -7406,21 +7616,25 @@ GAME( 1997, redhawkb, stagger1, redhawkb, redhawkb, driver_device, 0,        ROT
 
 GAME( 1998, grdnstrm, 0,        grdnstrm, grdnstrm, driver_device, 0,        ORIENTATION_FLIP_Y, "Afega (Apples Industries license)", "Guardian Storm (horizontal, not encrypted)", 0 )
 GAME( 1998, grdnstrmv,grdnstrm, grdnstrmk,grdnstrk, nmk16_state,   grdnstrm, ROT270,             "Afega (Apples Industries license)", "Guardian Storm (vertical)", 0 )
-GAME( 1998, grdnstrmk,grdnstrm, grdnstrmk,grdnstrk, nmk16_state,   grdnstrm, ROT270,             "Afega",                             "Sen Jin - Guardian Storm (Korea)", 0 )
+GAME( 1998, grdnstrmj,grdnstrm, grdnstrmk,grdnstrk, nmk16_state,   grdnstrmg, ROT270,             "Afega",                             "Sen Jing - Guardian Storm (Japan)", 0 )
+GAME( 1998, grdnstrmk,grdnstrm, grdnstrmk,grdnstrk, nmk16_state,   grdnstrm, ROT270,             "Afega",                             "Jeon Sin - Guardian Storm (Korea)", 0 )
 GAME( 1998, redfoxwp2,grdnstrm, grdnstrmk,grdnstrk, nmk16_state,   grdnstrm, ROT270,             "Afega",                             "Red Fox War Planes II (China, set 1)", 0 )
 GAME( 1998, redfoxwp2a,grdnstrm,grdnstrmk,grdnstrk, nmk16_state,  redfoxwp2a,ROT270,             "Afega",                             "Red Fox War Planes II (China, set 2)", 0 )
 GAME( 1998, grdnstrmg,grdnstrm, grdnstrmk,grdnstrk, nmk16_state,   grdnstrmg,ROT270,             "Afega",                             "Guardian Storm (Germany)", 0 )
 
-GAME( 1998, bubl2000, 0,        popspops, bubl2000, nmk16_state,   bubl2000, ROT0,               "Tuning",                            "Bubble 2000", 0 ) // on a tuning board (bootleg?)
-GAME( 1998, hotbubl,  bubl2000, popspops, bubl2000, nmk16_state,   bubl2000, ROT0,               "Pandora",                           "Hot Bubble" , 0 ) // on an afega board ..
+// is there a 'bubble 2000' / 'hot bubble' version with Afega copyright, or is the only Afega release dolmen above, this seems like a sequel, not a clone?
+GAME( 1998, bubl2000, 0,        popspops, bubl2000, nmk16_state,   bubl2000, ROT0,               "Afega (Tuning license)",                            "Bubble 2000", 0 ) // on a tuning board (bootleg?)
+GAME( 1998, hotbubl,  bubl2000, popspops, bubl2000, nmk16_state,   bubl2000, ROT0,               "Afega (Pandora license)",                           "Hot Bubble" , 0 ) // on an afega board ..
 
 GAME( 1999, popspops, 0,        popspops, popspops, nmk16_state,   grdnstrm, ROT0,               "Afega",                             "Pop's Pop's", 0 )
 
 GAME( 2000, mangchi,  0,        popspops, mangchi, nmk16_state,    bubl2000, ROT0,               "Afega",                             "Mang-Chi", 0 )
 
 // these two are very similar games, but the exact parent/clone relationship is unknown
-GAME( 2000, spec2k,   0,        firehawk, spec2k, nmk16_state,     spec2k,   ORIENTATION_FLIP_Y, "Yona Tech",             "Spectrum 2000 (Euro)", 0 )
-GAME( 2001, firehawk, 0,        firehawk, firehawk, driver_device, 0,        ORIENTATION_FLIP_Y, "ESD",                   "Fire Hawk", 0 )
+GAME( 2000, spec2k,   0,       firehawk, spec2k, nmk16_state,     spec2k,   ROT270,             "Yona Tech",             "Spectrum 2000 (vertical)", GAME_IMPERFECT_GRAPHICS ) // the ships sometimes scroll off the screen if you insert a coin during the attract demo?  verify it doesn't happen on real hw(!)
+GAME( 2000, spec2kh,  spec2k,  firehawk, spec2k, nmk16_state,     spec2k,   ORIENTATION_FLIP_Y, "Yona Tech",             "Spectrum 2000 (horizontal, buggy) (Europe)", 0 ) // this has odd bugs even on real hardware, eg glitchy 3 step destruction sequence of some larger enemies
+GAME( 2001, firehawk, spec2k,  firehawk, firehawk, driver_device, 0,        ORIENTATION_FLIP_Y, "ESD",                   "Fire Hawk (horizontal)", 0 )
+GAME( 2001, firehawkv,spec2k,  firehawk, firehawk, driver_device, 0,        ROT270,             "ESD",                   "Fire Hawk (switchable orientation)", GAME_NOT_WORKING ) // incomplete dump
 
 // bee-oh board - different display / interrupt timing to others?
 GAME( 1991, manybloc, 0,        manybloc, manybloc, driver_device, 0,        ROT270,             "Bee-Oh",                "Many Block", GAME_NO_COCKTAIL | GAME_IMPERFECT_SOUND )

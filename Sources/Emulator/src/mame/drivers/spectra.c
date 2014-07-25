@@ -27,10 +27,10 @@ class spectra_state : public genpin_class
 {
 public:
 	spectra_state(const machine_config &mconfig, device_type type, const char *tag)
-		: genpin_class(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_snsnd(*this, "snsnd"),
-	m_p_ram(*this, "ram")
+		: genpin_class(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_snsnd(*this, "snsnd")
+		, m_p_ram(*this, "nvram")
 	{ }
 
 	DECLARE_READ8_MEMBER(porta_r);
@@ -39,27 +39,22 @@ public:
 	DECLARE_WRITE8_MEMBER(portb_w);
 	TIMER_DEVICE_CALLBACK_MEMBER(nmitimer);
 	TIMER_DEVICE_CALLBACK_MEMBER(outtimer);
-protected:
-
-	// devices
-	required_device<cpu_device> m_maincpu;
-	required_device<sn76477_device> m_snsnd;
-	required_shared_ptr<UINT8> m_p_ram;
-
-	// driver_device overrides
-	virtual void machine_reset();
 private:
 	UINT8 m_porta;
 	UINT8 m_portb;
 	UINT8 m_t_c;
 	UINT8 m_out_offs;
+	virtual void machine_reset();
+	required_device<cpu_device> m_maincpu;
+	required_device<sn76477_device> m_snsnd;
+	required_shared_ptr<UINT8> m_p_ram;
 };
 
 
 static ADDRESS_MAP_START( spectra_map, AS_PROGRAM, 8, spectra_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0xfff)
-	AM_RANGE(0x0000, 0x00ff) AM_RAM AM_SHARE("ram") // battery backed, 2x 5101L
+	AM_RANGE(0x0000, 0x00ff) AM_RAM AM_SHARE("nvram") // battery backed, 2x 5101L
 	AM_RANGE(0x0100, 0x017f) AM_RAM // RIOT RAM
 	AM_RANGE(0x0180, 0x019f) AM_DEVREADWRITE("riot", riot6532_device, read, write)
 	AM_RANGE(0x0400, 0x0fff) AM_ROM
@@ -148,23 +143,14 @@ WRITE8_MEMBER( spectra_state::portb_w )
 	if (BIT(data, 1)) vco -= 0.625;
 	if (BIT(data, 2)) vco -= 1.25;
 	if (BIT(data, 3)) vco -= 2.5;
-	sn76477_vco_voltage_w(m_snsnd, 5.4 - vco);
-	sn76477_enable_w(m_snsnd, !BIT(data, 4)); // strobe: toggles enable
-	sn76477_envelope_1_w(m_snsnd, !BIT(data, 5)); //decay: toggles envelope
-	sn76477_vco_w(m_snsnd, BIT(data, 6)); // "phaser" sound: VCO toggled
-	sn76477_mixer_b_w(m_snsnd, BIT(data, 7)); // "pulse" sound: pins 25 & 27 changed
-	sn76477_mixer_c_w(m_snsnd, BIT(data, 7)); // "pulse" sound: pins 25 & 27 changed
+	m_snsnd->vco_voltage_w(5.3125 - vco);
+	m_snsnd->enable_w(!BIT(data, 4)); // strobe: toggles enable
+	m_snsnd->envelope_1_w(!BIT(data, 5)); //decay: toggles envelope
+	m_snsnd->vco_w(BIT(data, 6)); // "phaser" sound: VCO toggled
+	m_snsnd->mixer_b_w(BIT(data, 7)); // "pulse" sound: pins 25 & 27 changed
+	m_snsnd->mixer_c_w(BIT(data, 7)); // "pulse" sound: pins 25 & 27 changed
 }
 
-
-static const riot6532_interface riot6532_intf =
-{
-	DEVCB_DRIVER_MEMBER(spectra_state, porta_r),    // port a in
-	DEVCB_DRIVER_MEMBER(spectra_state, portb_r),    // port b in
-	DEVCB_DRIVER_MEMBER(spectra_state, porta_w),    // port a out
-	DEVCB_DRIVER_MEMBER(spectra_state, portb_w),    // port b in
-	DEVCB_CPU_INPUT_LINE("maincpu", M6502_IRQ_LINE) // interrupt
-};
 
 TIMER_DEVICE_CALLBACK_MEMBER( spectra_state::nmitimer)
 {
@@ -239,8 +225,16 @@ static MACHINE_CONFIG_START( spectra, spectra_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6502, 3579545/4)  // actually a 6503
 	MCFG_CPU_PROGRAM_MAP(spectra_map)
-	MCFG_RIOT6532_ADD("riot", 3579545/4, riot6532_intf) // R6532
-	MCFG_NVRAM_ADD_1FILL("ram")
+
+	MCFG_DEVICE_ADD("riot", RIOT6532, 3579545/4)
+	MCFG_RIOT6532_IN_PA_CB(READ8(spectra_state, porta_r))
+	MCFG_RIOT6532_OUT_PA_CB(WRITE8(spectra_state, porta_w))
+	MCFG_RIOT6532_IN_PB_CB(READ8(spectra_state, portb_r))
+	MCFG_RIOT6532_OUT_PB_CB(WRITE8(spectra_state, portb_w))
+	MCFG_RIOT6532_IRQ_CB(INPUTLINE("maincpu", M6502_IRQ_LINE))
+
+	MCFG_NVRAM_ADD_1FILL("nvram")
+
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("nmitimer", spectra_state, nmitimer, attotime::from_hz(120))
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("outtimer", spectra_state, outtimer, attotime::from_hz(1200))
 
@@ -261,8 +255,7 @@ MACHINE_CONFIG_END
 ROM_START(spectra)
 	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_LOAD("spect_u5.dat", 0x0400, 0x0400, CRC(49e0759f) SHA1(c3badc90ff834cbc92d8c519780069310c2b1507))
-	// pinmame has a different u4 rom: CRC(b58f1205) SHA1(9578fd89485f3f560789cb0f24c7116e4bc1d0da)
-	ROM_LOAD("spect_u4.dat", 0x0800, 0x0400, BAD_DUMP CRC(e6519689) SHA1(06ef3d349ea27a072889b7c379f258d29b7217be))
+	ROM_LOAD("spect_u4.dat", 0x0800, 0x0400, CRC(b58f1205) SHA1(9578fd89485f3f560789cb0f24c7116e4bc1d0da) BAD_DUMP)
 	ROM_LOAD("spect_u3.dat", 0x0c00, 0x0400, CRC(9ca7510f) SHA1(a87849f16903836158063d593bb4a2e90c7473c8))
 ROM_END
 

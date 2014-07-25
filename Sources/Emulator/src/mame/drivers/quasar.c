@@ -126,7 +126,6 @@ static ADDRESS_MAP_START( quasar_io, AS_IO, 8, quasar_state )
 	AM_RANGE(S2650_DATA_PORT,  S2650_DATA_PORT) AM_READ(cvs_collision_clear) AM_WRITE(quasar_sh_command_w)
 	AM_RANGE(S2650_CTRL_PORT,  S2650_CTRL_PORT) AM_READ(cvs_collision_r) AM_WRITENOP
 	AM_RANGE(S2650_SENSE_PORT, S2650_SENSE_PORT) AM_READ_PORT("SENSE")
-	AM_RANGE(S2650_FO_PORT, S2650_FO_PORT) AM_RAM AM_SHARE("fo_state")
 ADDRESS_MAP_END
 
 /*************************************
@@ -271,24 +270,6 @@ INTERRUPT_GEN_MEMBER(quasar_state::quasar_interrupt)
 	device.execute().set_input_line_and_vector(0, HOLD_LINE, 0x03);
 }
 
-static const s2636_interface s2636_0_config =
-{
-	0x100,
-	CVS_S2636_Y_OFFSET, CVS_S2636_X_OFFSET
-};
-
-static const s2636_interface s2636_1_config =
-{
-	0x100,
-	CVS_S2636_Y_OFFSET, CVS_S2636_X_OFFSET
-};
-
-static const s2636_interface s2636_2_config =
-{
-	0x100,
-	CVS_S2636_Y_OFFSET, CVS_S2636_X_OFFSET
-};
-
 // ****************************************
 // Quasar S2650 Main CPU, I8035 sound board
 // ****************************************
@@ -336,15 +317,25 @@ static MACHINE_CONFIG_START( quasar, quasar_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(1*8+1, 29*8-1, 2*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(quasar_state, screen_update_quasar)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(quasar)
-	MCFG_PALETTE_LENGTH((64+1)*8+(4*256))
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", quasar)
+	MCFG_PALETTE_ADD("palette", (64+1)*8+(4*256))
+	MCFG_PALETTE_INDIRECT_ENTRIES(0x500)
+	MCFG_PALETTE_INIT_OWNER(quasar_state,quasar)
 
-	MCFG_S2636_ADD("s2636_0", s2636_0_config)
-	MCFG_S2636_ADD("s2636_1", s2636_1_config)
-	MCFG_S2636_ADD("s2636_2", s2636_2_config)
+	MCFG_DEVICE_ADD("s2636_0", S2636, 0)
+	MCFG_S2636_WORKRAM_SIZE(0x100)
+	MCFG_S2636_OFFSETS(CVS_S2636_Y_OFFSET, CVS_S2636_X_OFFSET)
 
-	MCFG_PALETTE_INIT_OVERRIDE(quasar_state,quasar)
+	MCFG_DEVICE_ADD("s2636_1", S2636, 0)
+	MCFG_S2636_WORKRAM_SIZE(0x100)
+	MCFG_S2636_OFFSETS(CVS_S2636_Y_OFFSET, CVS_S2636_X_OFFSET)
+
+	MCFG_DEVICE_ADD("s2636_2", S2636, 0)
+	MCFG_S2636_WORKRAM_SIZE(0x100)
+	MCFG_S2636_OFFSETS(CVS_S2636_Y_OFFSET, CVS_S2636_X_OFFSET)
+
 	MCFG_VIDEO_START_OVERRIDE(quasar_state,quasar)
 
 	/* sound hardware */

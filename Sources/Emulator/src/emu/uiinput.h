@@ -62,27 +62,27 @@ void ui_input_init(running_machine &machine);
 void ui_input_frame_update(running_machine &machine);
 
 /* pushes a single event onto the queue */
-int ui_input_push_event(running_machine &machine, ui_event event);
+bool ui_input_push_event(running_machine &machine, ui_event event);
 
 /* pops an event off of the queue */
-int ui_input_pop_event(running_machine &machine, ui_event *event);
+bool ui_input_pop_event(running_machine &machine, ui_event *event);
 
 /* clears all outstanding events */
 void ui_input_reset(running_machine &machine);
 
 /* retrieves the current location of the mouse */
-render_target *ui_input_find_mouse(running_machine &machine, INT32 *x, INT32 *y, int *button);
+render_target *ui_input_find_mouse(running_machine &machine, INT32 *x, INT32 *y, bool *button);
 
 
 
 /* ----- user interface sequence reading ----- */
 
 /* return TRUE if a key down for the given user interface sequence is detected */
-int ui_input_pressed(running_machine &machine, int code);
+bool ui_input_pressed(running_machine &machine, int code);
 
 /* return TRUE if a key down for the given user interface sequence is detected, or if
    autorepeat at the given speed is triggered */
-int ui_input_pressed_repeat(running_machine &machine, int code, int speed);
+bool ui_input_pressed_repeat(running_machine &machine, int code, int speed);
 
 
 

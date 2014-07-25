@@ -571,13 +571,6 @@ static GFXDECODE_START( firetrap )
 GFXDECODE_END
 
 
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(firetrap_state,firetrap_adpcm_int), /* interrupt function */
-	MSM5205_S48_4B      /* 7.8125kHz          */
-};
-
 INTERRUPT_GEN_MEMBER(firetrap_state::firetrap_irq)
 {
 	if (m_nmi_enable)
@@ -649,10 +642,11 @@ static MACHINE_CONFIG_START( firetrap, firetrap_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(firetrap_state, screen_update_firetrap)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(firetrap)
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", firetrap)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(firetrap_state, firetrap)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -661,7 +655,8 @@ static MACHINE_CONFIG_START( firetrap, firetrap_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("msm", MSM5205, FIRETRAP_XTAL/32)    // 375 kHz
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(firetrap_state, firetrap_adpcm_int)) /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 7.8125kHz          */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -684,11 +679,12 @@ static MACHINE_CONFIG_START( firetrapbl, firetrap_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
-
-	MCFG_GFXDECODE(firetrap)
-	MCFG_PALETTE_LENGTH(256)
-
 	MCFG_SCREEN_UPDATE_DRIVER(firetrap_state, screen_update_firetrap)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", firetrap)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(firetrap_state, firetrap)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -697,7 +693,8 @@ static MACHINE_CONFIG_START( firetrapbl, firetrap_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("msm", MSM5205, FIRETRAP_XTAL/32)    // 375 kHz
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(firetrap_state, firetrap_adpcm_int)) /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 7.8125kHz          */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 

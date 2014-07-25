@@ -442,21 +442,6 @@ static GFXDECODE_START( ccastles )
 GFXDECODE_END
 
 
-
-/*************************************
- *
- *  Sound interfaces
- *
- *************************************/
-
-static const pokey_interface pokey_config =
-{
-	{ DEVCB_NULL },
-	DEVCB_INPUT_PORT("IN1")
-};
-
-
-
 /*************************************
  *
  *  Machine driver
@@ -475,26 +460,26 @@ static MACHINE_CONFIG_START( ccastles, ccastles_state )
 	MCFG_X2212_ADD_AUTOSAVE("nvram_4a")
 
 	/* video hardware */
-	MCFG_GFXDECODE(ccastles)
-	MCFG_PALETTE_LENGTH(32)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ccastles)
+	MCFG_PALETTE_ADD("palette", 32)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, 0, HTOTAL - 1, VTOTAL, 0, VTOTAL - 1)   /* will be adjusted later */
 	MCFG_SCREEN_UPDATE_DRIVER(ccastles_state, screen_update_ccastles)
-
+	MCFG_SCREEN_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_POKEY_ADD("pokey1", MASTER_CLOCK/8)
+	MCFG_SOUND_ADD("pokey1", POKEY, MASTER_CLOCK/8)
 	/* NOTE: 1k + 0.2k is not 100% exact, but should not make an audible difference */
 	MCFG_POKEY_OUTPUT_OPAMP(RES_K(1) + RES_K(0.2), CAP_U(0.01), 5.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
-	MCFG_POKEY_ADD("pokey2", MASTER_CLOCK/8)
+	MCFG_SOUND_ADD("pokey2", POKEY, MASTER_CLOCK/8)
 	/* NOTE: 1k + 0.2k is not 100% exact, but should not make an audible difference */
 	MCFG_POKEY_OUTPUT_OPAMP(RES_K(1) + RES_K(0.2), CAP_U(0.01), 5.0)
-	MCFG_POKEY_CONFIG(pokey_config)
+	MCFG_POKEY_ALLPOT_R_CB(IOPORT("IN1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

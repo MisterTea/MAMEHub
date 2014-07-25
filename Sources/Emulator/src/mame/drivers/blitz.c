@@ -299,7 +299,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -313,9 +314,10 @@ public:
 	DECLARE_WRITE8_MEMBER(sound_w);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(blitz);
 	UINT32 screen_update_megadpkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -359,7 +361,7 @@ TILE_GET_INFO_MEMBER(blitz_state::get_bg_tile_info)
 
 void blitz_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(blitz_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(blitz_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 UINT32 blitz_state::screen_update_megadpkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -369,7 +371,7 @@ UINT32 blitz_state::screen_update_megadpkr(screen_device &screen, bitmap_ind16 &
 }
 
 
-void blitz_state::palette_init()
+PALETTE_INIT_MEMBER(blitz_state, blitz)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 /*
@@ -390,7 +392,7 @@ void blitz_state::palette_init()
 
 	if (color_prom == 0) return;
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < palette.entries();i++)
 	{
 		int bit0, bit1, bit2, bit3, r, g, b, bk;
 
@@ -410,7 +412,7 @@ void blitz_state::palette_init()
 		bit2 = (color_prom[i] >> 2) & 0x01;
 		b = bk * (bit2 * 0xff);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -699,62 +701,6 @@ static GFXDECODE_START( megadpkr )
 GFXDECODE_END
 
 
-/*******************************************
-*              PIA Interfaces              *
-*******************************************/
-
-static const pia6821_interface megadpkr_pia0_intf =
-{
-	DEVCB_DRIVER_MEMBER(blitz_state,megadpkr_mux_port_r),   /* port A in */
-	DEVCB_NULL,                 /* port B in */
-	DEVCB_NULL,                 /* line CA1 in */
-	DEVCB_NULL,                 /* line CB1 in */
-	DEVCB_NULL,                 /* line CA2 in */
-	DEVCB_NULL,                 /* line CB2 in */
-	DEVCB_NULL,                 /* port A out */
-	DEVCB_DRIVER_MEMBER(blitz_state,lamps_a_w), /* port B out */
-	DEVCB_NULL,                 /* line CA2 out */
-	DEVCB_NULL,                 /* port CB2 out */
-	DEVCB_NULL,                 /* IRQA */
-	DEVCB_NULL                  /* IRQB */
-};
-
-static const pia6821_interface megadpkr_pia1_intf =
-{
-	DEVCB_INPUT_PORT("SW1"),    /* port A in */
-	DEVCB_NULL,                 /* port B in */
-	DEVCB_NULL,                 /* line CA1 in */
-	DEVCB_NULL,                 /* line CB1 in */
-	DEVCB_NULL,                 /* line CA2 in */
-	DEVCB_NULL,                 /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(blitz_state,sound_w),       /* port A out */
-	DEVCB_DRIVER_MEMBER(blitz_state,mux_w),     /* port B out */
-	DEVCB_NULL,                 /* line CA2 out */
-	DEVCB_NULL,                 /* port CB2 out */
-	DEVCB_NULL,                 /* IRQA */
-	DEVCB_NULL                  /* IRQB */
-};
-
-
-/********************************************
-*               CRTC Interface              *
-********************************************/
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-
 /**********************************************************
 *                 Discrete Sound Routines                 *
 ***********************************************************
@@ -803,8 +749,14 @@ static MACHINE_CONFIG_START( megadpkr, blitz_state )
 
 //  MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_PIA6821_ADD("pia0", megadpkr_pia0_intf)
-	MCFG_PIA6821_ADD("pia1", megadpkr_pia1_intf)
+	MCFG_DEVICE_ADD("pia0", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(blitz_state, megadpkr_mux_port_r))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(blitz_state, lamps_a_w))
+
+	MCFG_DEVICE_ADD("pia1", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(IOPORT("SW1"))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(blitz_state, sound_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(blitz_state, mux_w))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -813,12 +765,15 @@ static MACHINE_CONFIG_START( megadpkr, blitz_state )
 	MCFG_SCREEN_SIZE((32)*8, (32)*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(blitz_state, screen_update_megadpkr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", CPU_CLOCK, mc6845_intf)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", CPU_CLOCK)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
-	MCFG_GFXDECODE(megadpkr)
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", megadpkr)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(blitz_state, blitz)
 MACHINE_CONFIG_END
 
 

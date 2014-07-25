@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     Fruit Dream (c) 1993 Nippon Data Kiki / Star Fish
@@ -338,16 +340,6 @@ static GFXDECODE_START( dfruit )
 	//GFXDECODE_ENTRY( NULL,           0, char_layout,  0, 16 )  // Ram-based
 GFXDECODE_END
 
-static I8255A_INTERFACE( ppi8255_intf )
-{
-	DEVCB_INPUT_PORT("IN0"),                        /* Port A read */
-	DEVCB_NULL,         /* Port A write */
-	DEVCB_INPUT_PORT("IN1"),        /* Port B read */
-	DEVCB_NULL,                     /* Port B write */
-	DEVCB_INPUT_PORT("IN2"),            /* Port C read */
-	DEVCB_NULL                      /* Port C write */
-};
-
 TIMER_DEVICE_CALLBACK_MEMBER(dfruit_state::dfruit_irq_scanline)
 {
 	int scanline = param;
@@ -367,15 +359,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(dfruit_state::dfruit_irq_scanline)
 		//m_maincpu->set_input_line_and_vector(0, HOLD_LINE, m_irq_vector[0]);
 	}
 }
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("IN4"), DEVCB_INPUT_PORT("IN5"), DEVCB_NULL, DEVCB_NULL,
-};
-
-
 
 #define MASTER_CLOCK XTAL_14MHz
 
@@ -397,17 +380,25 @@ static MACHINE_CONFIG_START( dfruit, dfruit_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dfruit_state, screen_update)
 	MCFG_SCREEN_VBLANK_DRIVER(dfruit_state, screen_eof)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dfruit )
+	MCFG_PALETTE_ADD("palette", 0x100)
 
 	MCFG_DEVICE_ADD("tc0091lvc", TC0091LVC, 0)
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_intf )
+	MCFG_TC0091LVC_GFXDECODE("gfxdecode")
+	MCFG_TC0091LVC_PALETTE("palette")
 
-	MCFG_GFXDECODE( dfruit )
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("opn", YM2203, MASTER_CLOCK/4)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN4"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("IN5"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 

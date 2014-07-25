@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Roberto Fresca,David Haywood
 /******************************************************************************
 
   MAGIC CARD - IMPERA
@@ -166,6 +168,7 @@
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
 #include "sound/2413intf.h"
+#include "video/ramdac.h"
 
 
 class magicard_state : public driver_device
@@ -174,6 +177,7 @@ public:
 	magicard_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_magicram(*this, "magicram"),
+		m_magicramb(*this, "magicramb"),
 		m_pcab_vregs(*this, "pcab_vregs"),
 		m_scc68070_ext_irqc_regs(*this, "scc_xirqc_regs"),
 		m_scc68070_iic_regs(*this, "scc_iic_regs"),
@@ -183,9 +187,12 @@ public:
 		m_scc68070_dma_ch1_regs(*this, "scc_dma1_regs"),
 		m_scc68070_dma_ch2_regs(*this, "scc_dma2_regs"),
 		m_scc68070_mmu_regs(*this, "scc_mmu_regs"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT16> m_magicram;
+	required_shared_ptr<UINT16> m_magicramb;
 	required_shared_ptr<UINT16> m_pcab_vregs;
 	required_shared_ptr<UINT16> m_scc68070_ext_irqc_regs;
 	required_shared_ptr<UINT16> m_scc68070_iic_regs;
@@ -195,9 +202,7 @@ public:
 	required_shared_ptr<UINT16> m_scc68070_dma_ch1_regs;
 	required_shared_ptr<UINT16> m_scc68070_dma_ch2_regs;
 	required_shared_ptr<UINT16> m_scc68070_mmu_regs;
-	struct { int r,g,b,offs,offs_internal; } m_pal;
 	DECLARE_READ16_MEMBER(test_r);
-	DECLARE_WRITE16_MEMBER(paletteram_io_w);
 	DECLARE_READ16_MEMBER(philips_66470_r);
 	DECLARE_WRITE16_MEMBER(philips_66470_w);
 	DECLARE_READ16_MEMBER(scc68070_ext_irqc_r);
@@ -222,6 +227,8 @@ public:
 	UINT32 screen_update_magicard(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(magicard_irq);
 	required_device<cpu_device> m_maincpu;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -282,7 +289,7 @@ TODO: check this register,doesn't seem to be 100% correct.
     w ........ ....aaaa  VSR:H = video start address (MSB's)
 */
 
-#define SCC_DCR_VREG    (state->m_pcab_vregs[0x02/2] & 0xffff)
+#define SCC_DCR_VREG    (m_pcab_vregs[0x02/2] & 0xffff)
 #define SCC_DE_VREG     ((SCC_DCR_VREG & 0x8000)>>15)
 #define SCC_FG_VREG     ((SCC_DCR_VREG & 0x0080)>>7)
 #define SCC_VSR_VREG_H  ((SCC_DCR_VREG & 0xf)>>0)
@@ -292,7 +299,7 @@ TODO: check this register,doesn't seem to be 100% correct.
     w aaaaaaaa aaaaaaaa  VSR:L = video start address (LSB's)
 */
 
-#define SCC_VSR_VREG_L  (state->m_pcab_vregs[0x04/2] & 0xffff)
+#define SCC_VSR_VREG_L  (m_pcab_vregs[0x04/2] & 0xffff)
 #define SCC_VSR_VREG    ((SCC_VSR_VREG_H)<<16) | (SCC_VSR_VREG_L)
 
 /*
@@ -311,7 +318,7 @@ TODO: check this register,doesn't seem to be 100% correct.
     w ........ xxxx....  not used
     w ........ ....aaaa  "data" (dunno the purpose...)
 */
-#define SCC_DCR2_VREG  (state->m_pcab_vregs[0x08/2] & 0xffff)
+#define SCC_DCR2_VREG  (m_pcab_vregs[0x08/2] & 0xffff)
 
 /*
 (Note: not present on the original vreg listing)
@@ -332,14 +339,14 @@ TODO: check this register,doesn't seem to be 100% correct.
 1ffff0  a = source register a
     w nnnnnnnn nnnnnnnn  source
 */
-#define SCC_SRCA_VREG  (state->m_pcab_vregs[0x10/2] & 0xffff)
+#define SCC_SRCA_VREG  (m_pcab_vregs[0x10/2] & 0xffff)
 
 /*
 1ffff2  b = destination register b
    rw nnnnnnnn nnnnnnnn  destination
 */
 
-#define SCC_DSTB_VREG  (state->m_pcab_vregs[0x12/2] & 0xffff)
+#define SCC_DSTB_VREG  (m_pcab_vregs[0x12/2] & 0xffff)
 
 /*
 1ffff4  pcr = pixac command register
@@ -386,7 +393,7 @@ TODO: check this register,doesn't seem to be 100% correct.
     w ........ .......0
 */
 
-#define SCC_PCR_VREG  (state->m_pcab_vregs[0x14/2] & 0xffff)
+#define SCC_PCR_VREG  (m_pcab_vregs[0x14/2] & 0xffff)
 
 /*
 1ffff6  mask = mask register
@@ -418,11 +425,10 @@ void magicard_state::video_start()
 
 UINT32 magicard_state::screen_update_magicard(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	magicard_state *state = machine().driver_data<magicard_state>();
 	int x,y;
 	UINT32 count;
 
-	bitmap.fill(get_black_pen(machine()), cliprect); //TODO
+	bitmap.fill(m_palette->black_pen(), cliprect); //TODO
 
 	if(!(SCC_DE_VREG)) //display enable
 		return 0;
@@ -440,22 +446,22 @@ UINT32 magicard_state::screen_update_magicard(screen_device &screen, bitmap_rgb3
 				color = ((m_magicram[count]) & 0x000f)>>0;
 
 				if(cliprect.contains((x*4)+3, y))
-					bitmap.pix32(y, (x*4)+3) = machine().pens[color];
+					bitmap.pix32(y, (x*4)+3) = m_palette->pen(color);
 
 				color = ((m_magicram[count]) & 0x00f0)>>4;
 
 				if(cliprect.contains((x*4)+2, y))
-					bitmap.pix32(y, (x*4)+2) = machine().pens[color];
+					bitmap.pix32(y, (x*4)+2) = m_palette->pen(color);
 
 				color = ((m_magicram[count]) & 0x0f00)>>8;
 
 				if(cliprect.contains((x*4)+1, y))
-					bitmap.pix32(y, (x*4)+1) = machine().pens[color];
+					bitmap.pix32(y, (x*4)+1) = m_palette->pen(color);
 
 				color = ((m_magicram[count]) & 0xf000)>>12;
 
 				if(cliprect.contains((x*4)+0, y))
-					bitmap.pix32(y, (x*4)+0) = machine().pens[color];
+					bitmap.pix32(y, (x*4)+0) = m_palette->pen(color);
 
 				count++;
 			}
@@ -472,12 +478,12 @@ UINT32 magicard_state::screen_update_magicard(screen_device &screen, bitmap_rgb3
 				color = ((m_magicram[count]) & 0x00ff)>>0;
 
 				if(cliprect.contains((x*2)+1, y))
-					bitmap.pix32(y, (x*2)+1) = machine().pens[color];
+					bitmap.pix32(y, (x*2)+1) = m_palette->pen(color);
 
 				color = ((m_magicram[count]) & 0xff00)>>8;
 
 				if(cliprect.contains((x*2)+0, y))
-					bitmap.pix32(y, (x*2)+0) = machine().pens[color];
+					bitmap.pix32(y, (x*2)+0) = m_palette->pen(color);
 
 				count++;
 			}
@@ -497,45 +503,17 @@ READ16_MEMBER(magicard_state::test_r)
 	return machine().rand();
 }
 
-WRITE16_MEMBER(magicard_state::paletteram_io_w)
-{
-	switch(offset*2)
-	{
-		case 0:
-			m_pal.offs = data;
-			m_pal.offs_internal = 0;
-			break;
-		case 4:
-			break;
-		case 2:
-			switch(m_pal.offs_internal)
-			{
-				case 0:
-					m_pal.r = ((data & 0x3f) << 2) | ((data & 0x30) >> 4);
-					m_pal.offs_internal++;
-					break;
-				case 1:
-					m_pal.g = ((data & 0x3f) << 2) | ((data & 0x30) >> 4);
-					m_pal.offs_internal++;
-					break;
-				case 2:
-					m_pal.b = ((data & 0x3f) << 2) | ((data & 0x30) >> 4);
-					palette_set_color(machine(), m_pal.offs, MAKE_RGB(m_pal.r, m_pal.g, m_pal.b));
-					m_pal.offs_internal = 0;
-					m_pal.offs++;
-					break;
-			}
-
-			break;
-	}
-}
-
 READ16_MEMBER(magicard_state::philips_66470_r)
 {
 	switch(offset)
 	{
-//      case 0/2:
-//          return machine().rand(); //TODO
+		case 0/2:
+		{
+			UINT8 vdisp;
+			vdisp = m_screen->vpos() < 256;
+
+			return (m_pcab_vregs[offset] & 0xff7f) | vdisp<<7; //TODO
+		}
 	}
 
 	//printf("[%04x]\n",offset*2);
@@ -564,6 +542,8 @@ READ16_MEMBER(magicard_state::scc68070_ext_irqc_r)
 
 WRITE16_MEMBER(magicard_state::scc68070_ext_irqc_w)
 {
+	data &= mem_mask;
+
 	m_scc68070_ext_irqc_regs[offset] = data;
 }
 
@@ -581,6 +561,8 @@ READ16_MEMBER(magicard_state::scc68070_iic_r)
 
 WRITE16_MEMBER(magicard_state::scc68070_iic_w)
 {
+	data &= mem_mask;
+
 	m_scc68070_iic_regs[offset] = data;
 }
 
@@ -598,6 +580,8 @@ READ16_MEMBER(magicard_state::scc68070_uart_r)
 
 WRITE16_MEMBER(magicard_state::scc68070_uart_w)
 {
+	data &= mem_mask;
+
 	m_scc68070_uart_regs[offset] = data;
 }
 
@@ -608,6 +592,8 @@ READ16_MEMBER(magicard_state::scc68070_timer_r)
 
 WRITE16_MEMBER(magicard_state::scc68070_timer_w)
 {
+	data &= mem_mask;
+
 	m_scc68070_timer_regs[offset] = data;
 }
 
@@ -618,6 +604,8 @@ READ16_MEMBER(magicard_state::scc68070_int_irqc_r)
 
 WRITE16_MEMBER(magicard_state::scc68070_int_irqc_w)
 {
+	data &= mem_mask;
+
 	m_scc68070_int_irqc_regs[offset] = data;
 }
 
@@ -628,6 +616,8 @@ READ16_MEMBER(magicard_state::scc68070_dma_ch1_r)
 
 WRITE16_MEMBER(magicard_state::scc68070_dma_ch1_w)
 {
+	data &= mem_mask;
+
 	m_scc68070_dma_ch1_regs[offset] = data;
 }
 
@@ -638,6 +628,8 @@ READ16_MEMBER(magicard_state::scc68070_dma_ch2_r)
 
 WRITE16_MEMBER(magicard_state::scc68070_dma_ch2_w)
 {
+	data &= mem_mask;
+
 	m_scc68070_dma_ch2_regs[offset] = data;
 }
 
@@ -648,6 +640,8 @@ READ16_MEMBER(magicard_state::scc68070_mmu_r)
 
 WRITE16_MEMBER(magicard_state::scc68070_mmu_w)
 {
+	data &= mem_mask;
+
 	m_scc68070_mmu_regs[offset] = data;
 
 	switch(offset)
@@ -664,20 +658,7 @@ WRITE16_MEMBER(magicard_state::scc68070_mmu_w)
 *      Memory Maps       *
 *************************/
 
-static ADDRESS_MAP_START( magicard_mem, AS_PROGRAM, 16, magicard_state )
-//  ADDRESS_MAP_GLOBAL_MASK(0x1fffff)
-	AM_RANGE(0x00000000, 0x0017ffff) AM_MIRROR(0x7fe00000) AM_RAM AM_SHARE("magicram") /*only 0-7ffff accessed in Magic Card*/
-	AM_RANGE(0x00180000, 0x001ffbff) AM_MIRROR(0x7fe00000) AM_RAM AM_REGION("maincpu", 0)
-	/* 001ffc00-001ffdff System I/O */
-	AM_RANGE(0x001ffc00, 0x001ffc01) AM_MIRROR(0x7fe00000) AM_READ(test_r)
-	AM_RANGE(0x001ffc40, 0x001ffc41) AM_MIRROR(0x7fe00000) AM_READ(test_r)
-	AM_RANGE(0x001ffd00, 0x001ffd05) AM_MIRROR(0x7fe00000) AM_WRITE(paletteram_io_w) //RAMDAC
-	/*not the right sound chip,unknown type,it should be an ADPCM with 8 channels.*/
-	AM_RANGE(0x001ffd40, 0x001ffd43) AM_MIRROR(0x7fe00000) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
-	AM_RANGE(0x001ffd80, 0x001ffd81) AM_MIRROR(0x7fe00000) AM_READ(test_r)
-	AM_RANGE(0x001ffd80, 0x001ffd81) AM_MIRROR(0x7fe00000) AM_WRITENOP //?
-	AM_RANGE(0x001fff80, 0x001fffbf) AM_MIRROR(0x7fe00000) AM_RAM //DRAM I/O, not accessed by this game, CD buffer?
-	AM_RANGE(0x001fffe0, 0x001fffff) AM_MIRROR(0x7fe00000) AM_READWRITE(philips_66470_r,philips_66470_w) AM_SHARE("pcab_vregs") //video registers
+static ADDRESS_MAP_START( scc68070_mem, AS_PROGRAM, 16, magicard_state )
 	AM_RANGE(0x80001000, 0x8000100f) AM_READWRITE(scc68070_ext_irqc_r,scc68070_ext_irqc_w) AM_SHARE("scc_xirqc_regs") //lir
 	AM_RANGE(0x80002000, 0x8000200f) AM_READWRITE(scc68070_iic_r,scc68070_iic_w) AM_SHARE("scc_iic_regs") //i2c
 	AM_RANGE(0x80002010, 0x8000201f) AM_READWRITE(scc68070_uart_r,scc68070_uart_w) AM_SHARE("scc_uart_regs")
@@ -688,6 +669,42 @@ static ADDRESS_MAP_START( magicard_mem, AS_PROGRAM, 16, magicard_state )
 	AM_RANGE(0x80008000, 0x8000807f) AM_READWRITE(scc68070_mmu_r,scc68070_mmu_w) AM_SHARE("scc_mmu_regs")
 ADDRESS_MAP_END
 
+static ADDRESS_MAP_START( magicard_mem, AS_PROGRAM, 16, magicard_state )
+//  ADDRESS_MAP_GLOBAL_MASK(0x1fffff)
+	AM_IMPORT_FROM(scc68070_mem)
+	AM_RANGE(0x00000000, 0x001ffbff) AM_MIRROR(0x00200000) AM_RAM AM_SHARE("magicram")
+	AM_RANGE(0x00600000, 0x007ffbff) AM_RAM AM_SHARE("magicramb")
+	/* 001ffc00-001ffdff System I/O */
+	AM_RANGE(0x001ffc00, 0x001ffc01) AM_MIRROR(0x7fe00000) AM_READ(test_r)
+	AM_RANGE(0x001ffc40, 0x001ffc41) AM_MIRROR(0x7fe00000) AM_READ(test_r)
+	AM_RANGE(0x001ffd00, 0x001ffd01) AM_MIRROR(0x7fe00000) AM_DEVWRITE8("ramdac", ramdac_device, index_w, 0x00ff)
+	AM_RANGE(0x001ffd02, 0x001ffd03) AM_MIRROR(0x7fe00000) AM_DEVWRITE8("ramdac", ramdac_device, pal_w, 0x00ff)
+	AM_RANGE(0x001ffd04, 0x001ffd05) AM_MIRROR(0x7fe00000) AM_DEVWRITE8("ramdac", ramdac_device, mask_w, 0x00ff)
+	/*not the right sound chip,unknown type,it should be an ADPCM with 8 channels.*/
+	AM_RANGE(0x001ffd40, 0x001ffd43) AM_MIRROR(0x7fe00000) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
+	AM_RANGE(0x001ffd80, 0x001ffd81) AM_MIRROR(0x7fe00000) AM_READ(test_r)
+	AM_RANGE(0x001ffd80, 0x001ffd81) AM_MIRROR(0x7fe00000) AM_WRITENOP //?
+	AM_RANGE(0x001fff80, 0x001fffbf) AM_MIRROR(0x7fe00000) AM_RAM //DRAM I/O, not accessed by this game, CD buffer?
+	AM_RANGE(0x001fffe0, 0x001fffff) AM_MIRROR(0x7fe00000) AM_READWRITE(philips_66470_r,philips_66470_w) AM_SHARE("pcab_vregs") //video registers
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( hotslots_mem, AS_PROGRAM, 16, magicard_state )
+//  ADDRESS_MAP_GLOBAL_MASK(0x1fffff)
+	AM_IMPORT_FROM(scc68070_mem)
+	AM_RANGE(0x00000000, 0x001ffbff) AM_MIRROR(0x00200000) AM_RAM AM_SHARE("magicram")
+	AM_RANGE(0x00600000, 0x007ffbff) AM_RAM AM_SHARE("magicramb")
+	AM_RANGE(0x001ffc00, 0x001ffc01) AM_MIRROR(0x7fe00000) AM_READ(test_r)
+	AM_RANGE(0x001ffc40, 0x001ffc41) AM_MIRROR(0x7fe00000) AM_READ(test_r)
+	/*not the right sound chip,unknown type,it should be an ADPCM with 8 channels.*/
+	AM_RANGE(0x001ffd40, 0x001ffd43) AM_MIRROR(0x7fe00000) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
+	AM_RANGE(0x001ffd80, 0x001ffd81) AM_MIRROR(0x7fe00000) AM_READ(test_r)
+	AM_RANGE(0x001ffd80, 0x001ffd81) AM_MIRROR(0x7fe00000) AM_WRITENOP //?
+	AM_RANGE(0x001fff80, 0x001fffbf) AM_MIRROR(0x7fe00000) AM_RAM //DRAM I/O, not accessed by this game, CD buffer?
+	AM_RANGE(0x001fffe0, 0x001fffff) AM_MIRROR(0x7fe00000) AM_READWRITE(philips_66470_r,philips_66470_w) AM_SHARE("pcab_vregs") //video registers
+	AM_RANGE(0x00414000, 0x00414001) AM_DEVWRITE8("ramdac", ramdac_device, index_w, 0x00ff)
+	AM_RANGE(0x00414002, 0x00414003) AM_DEVWRITE8("ramdac", ramdac_device, pal_w, 0x00ff)
+	AM_RANGE(0x00414004, 0x00414005) AM_DEVWRITE8("ramdac", ramdac_device, mask_w, 0x00ff)
+ADDRESS_MAP_END
 
 /*************************
 *      Input ports       *
@@ -702,6 +719,14 @@ void magicard_state::machine_reset()
 	UINT16 *src    = (UINT16*)memregion("maincpu" )->base();
 	UINT16 *dst    = m_magicram;
 	memcpy (dst, src, 0x80000);
+	memcpy (dst+0x40000*1, src, 0x80000);
+	memcpy (dst+0x40000*2, src, 0x80000);
+	memcpy (dst+0x40000*3, src, 0x80000);
+	dst = m_magicramb;
+	memcpy (dst, src, 0x80000);
+	memcpy (dst+0x40000*1, src, 0x80000);
+	memcpy (dst+0x40000*2, src, 0x80000);
+	memcpy (dst+0x40000*3, src, 0x80000);
 	m_maincpu->reset();
 }
 
@@ -719,27 +744,35 @@ INTERRUPT_GEN_MEMBER(magicard_state::magicard_irq)
 		device.execute().set_input_line_and_vector(1, HOLD_LINE,0xf0/4);
 }
 
+static ADDRESS_MAP_START( ramdac_map, AS_0, 8, magicard_state )
+	AM_RANGE(0x000, 0x3ff) AM_DEVREADWRITE("ramdac",ramdac_device,ramdac_pal_r,ramdac_rgb666_w)
+ADDRESS_MAP_END
+
+
 static MACHINE_CONFIG_START( magicard, magicard_state )
 	MCFG_CPU_ADD("maincpu", SCC68070, CLOCK_A/2)    /* SCC-68070 CCA84 datasheet */
 	MCFG_CPU_PROGRAM_MAP(magicard_mem)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", magicard_state,  magicard_irq) /* no interrupts? (it erases the vectors..) */
 
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
+	MCFG_SCREEN_REFRESH_RATE(50)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(400, 300)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 256-1) //dynamic resolution,TODO
 	MCFG_SCREEN_UPDATE_DRIVER(magicard_state, screen_update_magicard)
 
-	MCFG_PALETTE_LENGTH(0x100)
-
-
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette")
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ymsnd", YM2413, CLOCK_A/12)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
+static MACHINE_CONFIG_DERIVED( hotslots, magicard )
+	MCFG_CPU_MODIFY("maincpu")
+	MCFG_CPU_PROGRAM_MAP(hotslots_mem)
+MACHINE_CONFIG_END
 
 /*************************
 *        Rom Load        *
@@ -875,4 +908,4 @@ GAME( 199?, magicardb, magicard, magicard, magicard, magicard_state, magicard, R
 GAME( 1994, magicarde, magicard, magicard, magicard, magicard_state, magicard, ROT0, "Impera", "Magic Card Export 94",      GAME_NO_SOUND | GAME_NOT_WORKING )
 GAME( 1998, magicardj, magicard, magicard, magicard, magicard_state, magicard, ROT0, "Impera", "Magic Card Jackpot (4.01)", GAME_NO_SOUND | GAME_NOT_WORKING )
 GAME( 2001, magicle,   0,        magicard, magicard, magicard_state, magicard, ROT0, "Impera", "Magic Lotto Export (5.03)", GAME_NO_SOUND | GAME_NOT_WORKING )
-GAME( 2002, hotslots,  0,        magicard, magicard, magicard_state, magicard, ROT0, "Impera", "Hot Slots (6.00)",          GAME_NO_SOUND | GAME_NOT_WORKING )
+GAME( 2002, hotslots,  0,        hotslots, magicard, magicard_state, magicard, ROT0, "Impera", "Hot Slots (6.00)",          GAME_NO_SOUND | GAME_NOT_WORKING )

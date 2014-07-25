@@ -137,11 +137,11 @@ static MACHINE_CONFIG_START( galeb, galeb_state )
 	MCFG_SCREEN_SIZE(48*8, 16*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 48*8-1, 0, 16*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(galeb_state, screen_update_galeb)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE( galeb )
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", galeb )
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 
 	/* audio hardware */

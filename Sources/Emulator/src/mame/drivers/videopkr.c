@@ -38,11 +38,11 @@
     The Fortune I hardware consisted of the following games:
       Regular Draw Poker
       Progressive Draw Poker
-      Joker Wild Draw Poker
+      Joker Wild Poker
       Double Up Draw Poker
       Credit Draw Poker
       Lucky 7 Poker (Seven Card Stud Poker)
-      Regular 21 (Blackjack)
+      Twenty One
       Live 21
       Count Down 21
       Two Hand 21
@@ -303,7 +303,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_soundcpu(*this, "soundcpu"),
-		m_dac(*this, "dac") { }
+		m_dac(*this, "dac"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	UINT8 m_data_ram[0x100];
 	UINT8 m_video_ram[0x0400];
@@ -362,7 +363,7 @@ public:
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void machine_start();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(videopkr);
 	DECLARE_VIDEO_START(vidadcba);
 	DECLARE_PALETTE_INIT(babypkr);
 	DECLARE_PALETTE_INIT(fortune1);
@@ -371,6 +372,7 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_soundcpu;
 	required_device<dac_device> m_dac;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -416,12 +418,12 @@ static void count_7dig(unsigned long data, UINT8 index)
 	}
 }
 
-void videopkr_state::palette_init()
+PALETTE_INIT_MEMBER(videopkr_state, videopkr)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int j;
 
-	for (j = 0; j < machine().total_colors(); j++)
+	for (j = 0; j < palette.entries(); j++)
 	{
 		int r, g, b, tr, tg, tb, i;
 
@@ -439,7 +441,7 @@ void videopkr_state::palette_init()
 		tb = 0xf0 - (0xf0 * ((color_prom[j] >> 2) & 0x01));
 		b = tb - (i * (tb / 5));
 
-		palette_set_color(machine(), j, MAKE_RGB(r, g, b));
+		palette.set_pen_color(j, rgb_t(r, g, b));
 	}
 }
 
@@ -448,7 +450,7 @@ PALETTE_INIT_MEMBER(videopkr_state,babypkr)
 	const UINT8 *color_prom = memregion("proms")->base();
 	int j;
 
-	for (j = 0; j < machine().total_colors(); j++)
+	for (j = 0; j < palette.entries(); j++)
 	{
 		int r, g, b, tr, tg, tb, i, top;
 
@@ -470,7 +472,7 @@ PALETTE_INIT_MEMBER(videopkr_state,babypkr)
 		tb =  0xdf * ((color_prom[j] >> 2) & 0x01);
 		b = top - ((tb * top) / 0x100);
 
-		palette_set_color(machine(), j, MAKE_RGB(r, g, b));
+		palette.set_pen_color(j, rgb_t(r, g, b));
 	}
 }
 
@@ -479,7 +481,7 @@ PALETTE_INIT_MEMBER(videopkr_state,fortune1)
 	const UINT8 *color_prom = memregion("proms")->base();
 	int j;
 
-	for (j = 0; j < machine().total_colors(); j++)
+	for (j = 0; j < palette.entries(); j++)
 	{
 		int r, g, b, tr, tg, tb, i, c;
 
@@ -503,7 +505,7 @@ PALETTE_INIT_MEMBER(videopkr_state,fortune1)
 		if ((c % 4) == 1 || (c % 4) == 2)
 			c = ((int)(c / 4) * 4) + (3 - (c % 4));
 
-		palette_set_color(machine(), c, MAKE_RGB(r, g, b));
+		palette.set_pen_color(c, rgb_t(r, g, b));
 	}
 }
 
@@ -519,12 +521,12 @@ TILE_GET_INFO_MEMBER(videopkr_state::get_bg_tile_info)
 
 void videopkr_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(videopkr_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(videopkr_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 VIDEO_START_MEMBER(videopkr_state,vidadcba)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(videopkr_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(videopkr_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 8, 32, 32);
 }
 
 
@@ -1220,17 +1222,6 @@ void videopkr_state::machine_start()
 	machine().device<nvram_device>("nvram")->set_base(m_data_ram, sizeof(m_data_ram));
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	/* no ports used */
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 /************************
 *    Machine Drivers    *
 ************************/
@@ -1260,9 +1251,11 @@ static MACHINE_CONFIG_START( videopkr, videopkr_state )
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(2080)
 	MCFG_SCREEN_UPDATE_DRIVER(videopkr_state, screen_update_videopkr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(videopkr)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", videopkr)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(videopkr_state, videopkr)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1293,7 +1286,7 @@ static MACHINE_CONFIG_DERIVED( videodad, videopkr )
 	MCFG_SCREEN_SIZE(32*16, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(4*16, 31*16-1, 2*8, 30*8-1)
 
-	MCFG_GFXDECODE(videodad)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", videodad)
 	MCFG_VIDEO_START_OVERRIDE(videopkr_state,vidadcba)
 MACHINE_CONFIG_END
 
@@ -1313,12 +1306,12 @@ static MACHINE_CONFIG_DERIVED( babypkr, videopkr )
 	MCFG_SCREEN_SIZE(32*16, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(5*16, 31*16-1, 3*8, 29*8-1)
 
-	MCFG_PALETTE_INIT_OVERRIDE(videopkr_state,babypkr)
-	MCFG_GFXDECODE(videodad)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(videopkr_state,babypkr)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", videodad)
 	MCFG_VIDEO_START_OVERRIDE(videopkr_state,vidadcba)
 
-	MCFG_SOUND_ADD("aysnd", AY8910, CPU_CLOCK / 6)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_SOUND_ADD("aysnd", AY8910, CPU_CLOCK / 6) /* no ports used */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -1328,8 +1321,10 @@ static MACHINE_CONFIG_DERIVED( fortune1, videopkr )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_CLOCK(CPU_CLOCK_ALT)
 
-	MCFG_PALETTE_INIT_OVERRIDE(videopkr_state,fortune1)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(videopkr_state,fortune1)
 MACHINE_CONFIG_END
+
 
 /*************************
 *        Rom Load        *
@@ -1552,7 +1547,7 @@ ROM_END
 *************************/
 /*     YEAR  NAME      PARENT    MACHINE   INPUT     INIT  ROT    COMPANY                                 FULLNAME                              FLAGS             LAYOUT      */
 GAMEL( 1984, videopkr, 0,        videopkr, videopkr, driver_device, 0,    ROT0, "InterFlip",                             "Video Poker",                        0,                layout_videopkr )
-GAMEL( 1984, fortune1, videopkr, fortune1, videopkr, driver_device, 0,    ROT0, "IGT - International Gaming Technology", "Fortune I (PK485-S) Draw Poker",     0,                layout_videopkr )
+GAMEL( 1984, fortune1, videopkr, fortune1, videopkr, driver_device, 0,    ROT0, "IGT - International Game Technology",   "Fortune I (PK485-S) Draw Poker",     0,                layout_videopkr )
 GAMEL( 1984, blckjack, videopkr, blckjack, blckjack, driver_device, 0,    ROT0, "InterFlip",                             "Black Jack",                         0,                layout_blckjack )
 GAMEL( 1987, videodad, videopkr, videodad, videodad, driver_device, 0,    ROT0, "InterFlip",                             "Video Dado",                         0,                layout_videodad )
 GAMEL( 1987, videocba, videopkr, videodad, videocba, driver_device, 0,    ROT0, "InterFlip",                             "Video Cordoba",                      0,                layout_videocba )

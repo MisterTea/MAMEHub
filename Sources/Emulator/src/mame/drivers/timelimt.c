@@ -7,7 +7,7 @@ driver by Ernesto Corvi
 
 Notes:
 - Sprite colors are wrong (missing colortable?)
-- driver should probably be merged with suprridr.c
+- driver should probably be merged with suprridr.c and thepit.c
 
 ***************************************************************************/
 
@@ -204,16 +204,6 @@ GFXDECODE_END
 
 /***************************************************************************/
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 INTERRUPT_GEN_MEMBER(timelimt_state::timelimt_irq)
 {
 	if ( m_nmi_enabled )
@@ -245,10 +235,11 @@ static MACHINE_CONFIG_START( timelimt, timelimt_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(timelimt_state, screen_update_timelimt)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(timelimt)
-	MCFG_PALETTE_LENGTH(64+32)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", timelimt)
+	MCFG_PALETTE_ADD("palette", 64+32)
+	MCFG_PALETTE_INIT_OWNER(timelimt_state, timelimt)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -257,7 +248,7 @@ static MACHINE_CONFIG_START( timelimt, timelimt_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 18432000/12)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 

@@ -214,10 +214,9 @@ cgb_lcd_device::cgb_lcd_device(const machine_config &mconfig, const char *tag, d
 
 void gb_lcd_device::common_start()
 {
-	machine().primary_screen->register_screen_bitmap(m_bitmap);
+	m_screen->register_screen_bitmap(m_bitmap);
 	m_oam = auto_alloc_array_clear(machine(), UINT8, 0x100);
 
-	m_lcd_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(gb_lcd_device::lcd_timer_proc),this));
 	machine().save().register_postload(save_prepost_delegate(FUNC(gb_lcd_device::videoptr_restore), this));
 
 	m_maincpu = machine().device<cpu_device>("maincpu");
@@ -302,6 +301,7 @@ void cgb_lcd_device::videoptr_restore()
 void gb_lcd_device::device_start()
 {
 	common_start();
+	m_lcd_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(gb_lcd_device::lcd_timer_proc),this));
 
 	m_vram = auto_alloc_array_clear(machine(), UINT8, 0x2000);
 	save_pointer(NAME(m_vram), 0x2000);
@@ -312,30 +312,26 @@ void gb_lcd_device::device_start()
 void mgb_lcd_device::device_start()
 {
 	common_start();
+	m_lcd_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(mgb_lcd_device::lcd_timer_proc),this));
 
 	m_vram = auto_alloc_array_clear(machine(), UINT8, 0x2000);
 	save_pointer(NAME(m_vram), 0x2000);
 
 	memcpy(m_oam, mgb_oam_fingerprint, 0x100);
-
-	/* Initialize part of VRAM. This code must be deleted when we have added the bios dump */
-	for (int i = 1; i < 0x0d; i++)
-	{
-		m_vram[0x1903 + i] = i;
-		m_vram[0x1923 + i] = i + 0x0C;
-	}
-	m_vram[0x1910] = 0x19;
 }
 
 void sgb_lcd_device::device_start()
 {
 	common_start();
+	m_lcd_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(sgb_lcd_device::lcd_timer_proc),this));
 
 	m_vram = auto_alloc_array_clear(machine(), UINT8, 0x2000);
 	save_pointer(NAME(m_vram), 0x2000);
 
 	m_sgb_tile_data = auto_alloc_array_clear(machine(), UINT8, 0x2000);
 	save_pointer(NAME(m_sgb_tile_data), 0x2000);
+
+	memset(m_sgb_tile_map, 0, sizeof(m_sgb_tile_map));
 
 	/* Some default colours for non-SGB games */
 	m_sgb_pal[0] = 32767;
@@ -358,12 +354,12 @@ void sgb_lcd_device::device_start()
 void cgb_lcd_device::device_start()
 {
 	common_start();
+	m_lcd_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(cgb_lcd_device::lcd_timer_proc),this));
 
 	m_vram = auto_alloc_array_clear(machine(), UINT8, 0x4000);
 	save_pointer(NAME(m_vram), 0x4000);
 
 	memcpy(m_oam, cgb_oam_fingerprint, 0x100);
-
 
 	/* Background is initialised as white */
 	for (int i = 0; i < 32; i++)
@@ -444,27 +440,6 @@ void gb_lcd_device::device_reset()
 	m_lcd_timer->adjust(m_maincpu->cycles_to_attotime(456));
 }
 
-void mgb_lcd_device::device_reset()
-{
-	address_space &space = m_maincpu->space(AS_PROGRAM);
-	common_reset();
-
-	/* Make sure the VBlank interrupt is set when the first instruction gets executed */
-	machine().scheduler().timer_set(m_maincpu->cycles_to_attotime(1), timer_expired_delegate(FUNC(mgb_lcd_device::video_init_vbl),this));
-
-	/* Initialize some video registers */
-	video_w(space, 0x0, 0x91);    /* LCDCONT */
-	video_w(space, 0x7, 0xFC);    /* BGRDPAL */
-	video_w(space, 0x8, 0xFC);    /* SPR0PAL */
-	video_w(space, 0x9, 0xFC);    /* SPR1PAL */
-
-	CURLINE = m_current_line = 0;
-	LCDSTAT = (LCDSTAT & 0xF8) | 0x05;
-	m_mode = 1;
-
-	m_lcd_timer->adjust(m_maincpu->cycles_to_attotime(60), GB_LCD_STATE_LY00_M0);
-}
-
 void sgb_lcd_device::device_reset()
 {
 	common_reset();
@@ -490,7 +465,6 @@ void cgb_lcd_device::device_reset()
 	m_hdma_possible = 0;
 
 	m_gbc_mode = 1;
-
 }
 
 
@@ -759,8 +733,7 @@ void gb_lcd_device::update_scanline()
 			{
 				if (m_current_line < 144)
 				{
-					screen_device *screen = machine().first_screen();
-					const rectangle &r = screen->visible_area();
+					const rectangle &r = m_screen->visible_area();
 					rectangle r1(r.min_x, r.max_x, m_current_line, m_current_line);
 					bitmap.fill(0, r1);
 				}
@@ -1056,11 +1029,12 @@ void sgb_lcd_device::update_scanline()
 				data = tiles[tile_index] | (tiles[tile_index + 1] << 8);
 				data <<= m_layer[l].xshift;
 
-				/* Figure out which palette we're using */
-				sgb_palette = m_sgb_pal_map[(m_end_x - i) >> 3][m_current_line >> 3] << 2;
-
 				while (i > 0)
 				{
+					/* Figure out which palette we're using */
+					assert(((m_end_x - i) >> 3) >= 0 && ((m_end_x - i) >> 3) < ARRAY_LENGTH(m_sgb_pal_map));
+					sgb_palette = m_sgb_pal_map[(m_end_x - i) >> 3][m_current_line >> 3] << 2;
+
 					while ((m_layer[l].xshift < 8) && i)
 					{
 						register int colour = ((data & 0x8000) ? 2 : 0) | ((data & 0x0080) ? 1 : 0);
@@ -1085,7 +1059,6 @@ void sgb_lcd_device::update_scanline()
 						m_layer[l].xshift = 0;
 						tile_index = (map[m_layer[l].xindex] ^ m_gb_tile_no_mod) * 16;
 						data = tiles[tile_index] | (tiles[tile_index + 1] << 8);
-						sgb_palette = m_sgb_pal_map[(m_end_x - i) >> 3][m_current_line >> 3] << 2;
 					}
 				}
 				l++;
@@ -1164,9 +1137,8 @@ void cgb_lcd_device::update_sprites()
 			{
 				data = *((UINT16 *) &m_vram[((oam[3] & 0x8)<<10) + (oam[2] & tilemask) * 16 + (line - oam[0]) * 2]);
 			}
-#ifndef LSB_FIRST
-			data = (data << 8) | (data >> 8);
-#endif
+
+			data = LITTLE_ENDIANIZE_INT16(data);
 
 			switch (oam[3] & 0xA0)
 			{
@@ -1176,7 +1148,7 @@ void cgb_lcd_device::update_sprites()
 					register int colour = ((data & 0x0100) ? 2 : 0) | ((data & 0x0001) ? 1 : 0);
 					if (colour && !m_bg_zbuf[xindex] && xindex >= 0 && xindex < 160)
 					{
-						if (! m_gbc_mode)
+						if (!m_gbc_mode)
 							colour = pal ? m_gb_spal1[colour] : m_gb_spal0[colour];
 						plot_pixel(bitmap, xindex, yindex, m_cgb_spal[pal + colour]);
 					}
@@ -1191,7 +1163,7 @@ void cgb_lcd_device::update_sprites()
 						colour = 0;
 					if (colour && xindex >= 0 && xindex < 160)
 					{
-						if (! m_gbc_mode)
+						if (!m_gbc_mode)
 							colour = pal ? m_gb_spal1[colour] : m_gb_spal0[colour];
 						plot_pixel(bitmap, xindex, yindex, m_cgb_spal[pal + colour]);
 					}
@@ -1204,7 +1176,7 @@ void cgb_lcd_device::update_sprites()
 					register int colour = ((data & 0x8000) ? 2 : 0) | ((data & 0x0080) ? 1 : 0);
 					if (colour && !m_bg_zbuf[xindex] && xindex >= 0 && xindex < 160)
 					{
-						if (! m_gbc_mode)
+						if (!m_gbc_mode)
 							colour = pal ? m_gb_spal1[colour] : m_gb_spal0[colour];
 						plot_pixel(bitmap, xindex, yindex, m_cgb_spal[pal + colour]);
 					}
@@ -1219,7 +1191,7 @@ void cgb_lcd_device::update_sprites()
 						colour = 0;
 					if (colour && xindex >= 0 && xindex < 160)
 					{
-						if (! m_gbc_mode)
+						if (!m_gbc_mode)
 							colour = pal ? m_gb_spal1[colour] : m_gb_spal0[colour];
 						plot_pixel(bitmap, xindex, yindex, m_cgb_spal[pal + colour]);
 					}
@@ -1406,8 +1378,7 @@ void cgb_lcd_device::update_scanline()
 			{
 				if (m_current_line < 144)
 				{
-					screen_device *screen = machine().first_screen();
-					const rectangle &r1 = screen->visible_area();
+					const rectangle &r1 = m_screen->visible_area();
 					rectangle r(r1.min_x, r1.max_x, m_current_line, m_current_line);
 					bitmap.fill((!m_gbc_mode) ? 0 : 32767 , r);
 				}
@@ -1447,7 +1418,7 @@ void gb_lcd_device::increment_scanline()
 
 TIMER_CALLBACK_MEMBER(gb_lcd_device::lcd_timer_proc)
 {
-	static const int sprite_cycles[] = { 0, 8, 20, 32, 44, 52, 64, 76, 88, 96, 108 };
+	static const int gb_sprite_cycles[] = { 0, 8, 20, 32, 44, 52, 64, 76, 88, 96, 108 };
 
 	m_state = param;
 
@@ -1602,7 +1573,7 @@ TIMER_CALLBACK_MEMBER(gb_lcd_device::lcd_timer_proc)
 			break;
 		case GB_LCD_STATE_LYXX_M3:      /* Switch to mode 3 */
 			select_sprites();
-			m_sprite_cycles = sprite_cycles[m_sprCount];
+			m_sprite_cycles = gb_sprite_cycles[m_sprCount];
 			/* Set Mode 3 lcdstate */
 			m_mode = 3;
 			LCDSTAT = (LCDSTAT & 0xFC) | 0x03;
@@ -1748,7 +1719,7 @@ void cgb_lcd_device::hdma_trans(UINT16 length)
 
 TIMER_CALLBACK_MEMBER(cgb_lcd_device::lcd_timer_proc)
 {
-	static const int sprite_cycles[] = { 0, 8, 20, 32, 44, 52, 64, 76, 88, 96, 108 };
+	static const int cgb_sprite_cycles[] = { 0, 8, 20, 32, 44, 52, 64, 76, 88, 96, 108 };
 
 	m_state = param;
 
@@ -1889,7 +1860,7 @@ TIMER_CALLBACK_MEMBER(cgb_lcd_device::lcd_timer_proc)
 			LCDSTAT = (LCDSTAT & 0xFC) | 0x02;
 			m_oam_locked = LOCKED;
 			/* Generate lcd interrupt if requested */
-			if ((LCDSTAT & 0x20) && ! m_line_irq)
+			if ((LCDSTAT & 0x20) && !m_line_irq)
 			{
 				m_maincpu->set_input_line(LCD_INT, ASSERT_LINE);
 			}
@@ -1925,7 +1896,7 @@ TIMER_CALLBACK_MEMBER(cgb_lcd_device::lcd_timer_proc)
 			break;
 		case GB_LCD_STATE_LYXX_M3:      /* Switch to mode 3 */
 			select_sprites();
-			m_sprite_cycles = sprite_cycles[m_sprCount];
+			m_sprite_cycles = cgb_sprite_cycles[m_sprCount];
 			/* Set Mode 3 lcdstate */
 			m_mode = 3;
 			LCDSTAT = (LCDSTAT & 0xFC) | 0x03;

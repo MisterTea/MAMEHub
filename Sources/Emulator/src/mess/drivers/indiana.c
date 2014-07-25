@@ -3,24 +3,31 @@
         Indiana University 68030 board
 
         08/12/2009 Skeleton driver.
+        01/20/2014 Added ISA bus and peripherals
 
-        If 6001F7 is held at 40, then '>' will appear on screen.
+        TODO: Text appears in VGA f/b (0x6B8000), but doesn't display?
+
         System often reads/writes 6003D4/5, might be a cut-down 6845,
         as it only uses registers C,D,E,F.
 
 ****************************************************************************/
 
-#include "emu.h"
+#include "bus/rs232/keyboard.h"
 #include "cpu/m68000/m68000.h"
-#include "video/pc_vga.h"
+#include "bus/isa/isa.h"
+#include "bus/isa/isa_cards.h"
+#include "machine/mc68901.h"
 
+#define M68K_TAG "maincpu"
+#define ISABUS_TAG "isa"
+#define MFP_TAG "mfp"
 
 class indiana_state : public driver_device
 {
 public:
 	indiana_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag) ,
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, M68K_TAG) { }
 	DECLARE_DRIVER_INIT(indiana);
 	virtual void machine_reset();
 	required_device<cpu_device> m_maincpu;
@@ -29,18 +36,15 @@ public:
 
 static ADDRESS_MAP_START(indiana_mem, AS_PROGRAM, 32, indiana_state)
 	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x00000000, 0x0000ffff) AM_MIRROR(0x7f800000) AM_ROM AM_REGION("user1",0) // 64Kb of EPROM
+	AM_RANGE(0x00000000, 0x0000ffff) AM_MIRROR(0x7f800000) AM_ROM AM_REGION("user1", 0) // 64Kb of EPROM
 	AM_RANGE(0x00100000, 0x00107fff) AM_MIRROR(0x7f8f8000) AM_RAM // SRAM 32Kb of SRAM
-	AM_RANGE(0x00200000, 0x002fffff) AM_MIRROR(0x7f800000) AM_RAM // MFP
-	AM_RANGE(0x00400000, 0x004fffff) AM_MIRROR(0x7f800000) AM_RAM // 16 bit PC IO
-	AM_RANGE(0x00500000, 0x005fffff) AM_MIRROR(0x7f800000) AM_RAM // 16 bit PC MEM
-	AM_RANGE(0x00600000, 0x006fffff) AM_MIRROR(0x7f800000) AM_RAM // 8 bit PC IO
-	AM_RANGE(0x00700000, 0x007fffff) AM_MIRROR(0x7f800000) AM_RAM // 8 bit PC MEM
-	AM_RANGE(0x7f6003b0, 0x7f6003bf) AM_DEVREADWRITE8("vga", vga_device, port_03b0_r, port_03b0_w, 0xffffffff)
-	AM_RANGE(0x7f6003c0, 0x7f6003cf) AM_DEVREADWRITE8("vga", vga_device, port_03c0_r, port_03c0_w, 0xffffffff)
-	AM_RANGE(0x7f6003d0, 0x7f6003df) AM_DEVREADWRITE8("vga", vga_device, port_03d0_r, port_03d0_w, 0xffffffff)
-	AM_RANGE(0x7f7a0000, 0x7f7bffff) AM_DEVREADWRITE8("vga", vga_device, mem_r, mem_w, 0xffffffff)
-	AM_RANGE(0x80000000, 0x803fffff) AM_MIRROR(0x7fc00000) AM_RAM // 4 MB RAM
+	AM_RANGE(0x00200000, 0x002fffff) AM_DEVREADWRITE8(MFP_TAG, mc68901_device, read, write, 0xffffffff) AM_MIRROR(0x7f800000) // MFP
+	AM_RANGE(0x00400000, 0x004fffff) AM_DEVREADWRITE16(ISABUS_TAG, isa16_device, io16_swap_r, io16_swap_w, 0xffffffff) AM_MIRROR(0x7f800000) // 16 bit PC IO
+	AM_RANGE(0x00500000, 0x005fffff) AM_DEVREADWRITE16(ISABUS_TAG, isa16_device, prog16_swap_r, prog16_swap_w, 0xffffffff) AM_MIRROR(0x7f800000) // 16 bit PC MEM
+	AM_RANGE(0x00600000, 0x006fffff) AM_DEVREADWRITE8(ISABUS_TAG, isa16_device, io_r, io_w, 0xffffffff) AM_MIRROR(0x7f800000) // 8 bit PC IO
+	AM_RANGE(0x00700000, 0x007fffff) AM_DEVREADWRITE8(ISABUS_TAG, isa16_device, prog_r, prog_w, 0xffffffff) AM_MIRROR(0x7f800000) // 8 bit PC MEM
+	AM_RANGE(0x80000000, 0x803fffff) AM_RAM // 4 MB RAM
+	AM_RANGE(0xfffe0000, 0xfffe7fff) AM_RAM // SRAM mirror?
 ADDRESS_MAP_END
 
 
@@ -53,38 +57,51 @@ void indiana_state::machine_reset()
 {
 }
 
-/* F4 Character Displayer */
-static const gfx_layout indiana_charlayout =
-{
-	8, 16,                  /* 8 x 16 characters */
-	128,                    /* 128 characters */
-	1,                  /* 1 bits per pixel */
-	{ 0 },                  /* no bitplanes */
-	/* x offsets */
-	{ 0, 1, 2, 3, 4, 5, 6, 7 },
-	/* y offsets */
-	{ 3*8, 2*8, 1*8, 0*8, 7*8, 6*8, 5*8, 4*8, 11*8, 10*8, 9*8, 8*8, 15*8, 14*8, 13*8, 12*8 },
-	8*16                    /* every char takes 16 bytes */
-};
-
-static GFXDECODE_START( indiana )
-	GFXDECODE_ENTRY( "user1", 0x6710, indiana_charlayout, 0, 4 ) // offset is for -bios 0
-GFXDECODE_END
-
-static MACHINE_CONFIG_START( indiana, indiana_state )
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu",M68030, XTAL_16MHz)
-	MCFG_CPU_PROGRAM_MAP(indiana_mem)
-
-
-	/* video hardware */
-	MCFG_GFXDECODE(indiana)
-	MCFG_FRAGMENT_ADD( pcvideo_vga )
-MACHINE_CONFIG_END
-
 DRIVER_INIT_MEMBER(indiana_state,indiana)
 {
 }
+
+SLOT_INTERFACE_START( indiana_isa_cards )
+	// 8-bit
+	SLOT_INTERFACE("fdc_at", ISA8_FDC_AT)
+	SLOT_INTERFACE("comat", ISA8_COM_AT)
+	SLOT_INTERFACE("vga", ISA8_VGA)
+
+	// 16-bit
+	SLOT_INTERFACE("ide", ISA16_IDE)
+SLOT_INTERFACE_END
+
+static DEVICE_INPUT_DEFAULTS_START( keyboard )
+	DEVICE_INPUT_DEFAULTS( "RS232_TXBAUD", 0xff, RS232_BAUD_1200 )
+	DEVICE_INPUT_DEFAULTS( "RS232_STARTBITS", 0xff, RS232_STARTBITS_1 )
+	DEVICE_INPUT_DEFAULTS( "RS232_DATABITS", 0xff, RS232_DATABITS_8 )
+	DEVICE_INPUT_DEFAULTS( "RS232_PARITY", 0xff, RS232_PARITY_NONE )
+	DEVICE_INPUT_DEFAULTS( "RS232_STOPBITS", 0xff, RS232_STOPBITS_1 )
+DEVICE_INPUT_DEFAULTS_END
+
+static MACHINE_CONFIG_START( indiana, indiana_state )
+	/* basic machine hardware */
+	MCFG_CPU_ADD(M68K_TAG, M68030, XTAL_16MHz)
+	MCFG_CPU_PROGRAM_MAP(indiana_mem)
+
+	MCFG_DEVICE_ADD(ISABUS_TAG, ISA16, 0)
+	MCFG_ISA16_CPU(":"M68K_TAG)
+	MCFG_ISA16_BUS_CUSTOM_SPACES()
+	MCFG_ISA16_SLOT_ADD(ISABUS_TAG, "isa1", indiana_isa_cards, "vga", false)
+	MCFG_ISA16_SLOT_ADD(ISABUS_TAG, "isa2", indiana_isa_cards, "fdc_at", false)
+	MCFG_ISA16_SLOT_ADD(ISABUS_TAG, "isa3", indiana_isa_cards, "comat", false)
+	MCFG_ISA16_SLOT_ADD(ISABUS_TAG, "isa4", indiana_isa_cards, "ide", false)
+
+	MCFG_DEVICE_ADD(MFP_TAG, MC68901, XTAL_16MHz/4)
+	MCFG_MC68901_TIMER_CLOCK(XTAL_16MHz/4)
+	MCFG_MC68901_RX_CLOCK(0)
+	MCFG_MC68901_TX_CLOCK(0)
+	MCFG_MC68901_OUT_SO_CB(DEVWRITELINE("keyboard", rs232_port_device, write_txd))
+
+	MCFG_RS232_PORT_ADD("keyboard", default_rs232_devices, "keyboard")
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(MFP_TAG, mc68901_device, write_rx))
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("keyboard", keyboard)
+MACHINE_CONFIG_END
 
 /* ROM definition */
 ROM_START( indiana )

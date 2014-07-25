@@ -19,9 +19,6 @@ PALETTE_INIT_MEMBER(madalien_state,madalien)
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x20);
-
 	for (i = 0; i < 0x20; i++)
 	{
 		int r = 0;
@@ -41,11 +38,11 @@ PALETTE_INIT_MEMBER(madalien_state,madalien)
 		if (BIT(color_prom[i], 5))
 			b += 0xc0;
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	for (i = 0; i < 0x10; i++)
-		colortable_entry_set_value(machine().colortable, i, i);
+		palette.set_pen_indirect(i, i);
 
 	for (i = 0x10; i < 0x20; i++)
 	{
@@ -57,11 +54,11 @@ PALETTE_INIT_MEMBER(madalien_state,madalien)
 		if (BIT((i - 0x10), 2))
 			ctabentry = ctabentry ^ 0x06;
 
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 
 	for (i = 0x20; i < 0x30; i++)
-		colortable_entry_set_value(machine().colortable, i, (i - 0x20) | 0x10);
+		palette.set_pen_indirect(i, (i - 0x20) | 0x10);
 }
 
 
@@ -134,28 +131,22 @@ VIDEO_START_MEMBER(madalien_state,madalien)
 		16, 16, 32, 32
 	};
 
-	m_tilemap_fg = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(madalien_state::get_tile_info_FG),this), TILEMAP_SCAN_COLS_FLIP_X, 8, 8, 32, 32);
+	m_tilemap_fg = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(madalien_state::get_tile_info_FG),this), TILEMAP_SCAN_COLS_FLIP_X, 8, 8, 32, 32);
 	m_tilemap_fg->set_transparent_pen(0);
-	m_tilemap_fg->set_scrolldx(0, 0x50);
-	m_tilemap_fg->set_scrolldy(0, 0x20);
 
 	for (i = 0; i < 4; i++)
 	{
-		m_tilemap_edge1[i] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(madalien_state::get_tile_info_BG_1),this), scan_functions[i], 16, 16, tilemap_cols[i], 8);
-		m_tilemap_edge1[i]->set_scrolldx(0, 0x50);
-		m_tilemap_edge1[i]->set_scrolldy(0, 0x20);
+		m_tilemap_edge1[i] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(madalien_state::get_tile_info_BG_1),this), scan_functions[i], 16, 16, tilemap_cols[i], 8);
 
-		m_tilemap_edge2[i] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(madalien_state::get_tile_info_BG_2),this), scan_functions[i], 16, 16, tilemap_cols[i], 8);
-		m_tilemap_edge2[i]->set_scrolldx(0, 0x50);
-		m_tilemap_edge2[i]->set_scrolldy(0, m_screen->height() - 256);
+		m_tilemap_edge2[i] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(madalien_state::get_tile_info_BG_2),this), scan_functions[i], 16, 16, tilemap_cols[i], 8);
 	}
 
 	m_headlight_bitmap = auto_bitmap_ind16_alloc(machine(), 128, 128);
 
-	machine().gfx[0]->set_source(m_charram);
+	m_gfxdecode->gfx(0)->set_source(m_charram);
 
-	drawgfx_opaque(*m_headlight_bitmap, m_headlight_bitmap->cliprect(), machine().gfx[2], 0, 0, 0, 0, 0x00, 0x00);
-	drawgfx_opaque(*m_headlight_bitmap, m_headlight_bitmap->cliprect(), machine().gfx[2], 0, 0, 0, 1, 0x00, 0x40);
+	m_gfxdecode->gfx(2)->opaque(*m_headlight_bitmap,m_headlight_bitmap->cliprect(), 0, 0, 0, 0, 0x00, 0x00);
+	m_gfxdecode->gfx(2)->opaque(*m_headlight_bitmap,m_headlight_bitmap->cliprect(), 0, 0, 0, 1, 0x00, 0x40);
 }
 
 
@@ -242,7 +233,7 @@ void madalien_state::draw_foreground(screen_device &screen, bitmap_ind16 &bitmap
 WRITE8_MEMBER(madalien_state::madalien_charram_w)
 {
 	m_charram[offset] = data;
-	machine().gfx[0]->mark_dirty((offset/8) & 0xff);
+	m_gfxdecode->gfx(0)->mark_dirty((offset/8) & 0xff);
 }
 
 
@@ -374,30 +365,19 @@ static GFXDECODE_START( madalien )
 GFXDECODE_END
 
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-
 MACHINE_CONFIG_FRAGMENT( madalien_video )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 336, 0, 256, 288, 0, 256)
 	MCFG_SCREEN_UPDATE_DRIVER(madalien_state, screen_update_madalien)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(madalien)
-	MCFG_PALETTE_LENGTH(0x30)
-	MCFG_PALETTE_INIT_OVERRIDE(madalien_state,madalien)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", madalien)
+	MCFG_PALETTE_ADD("palette", 0x30)
+	MCFG_PALETTE_INDIRECT_ENTRIES(0x20)
+	MCFG_PALETTE_INIT_OWNER(madalien_state,madalien)
 	MCFG_VIDEO_START_OVERRIDE(madalien_state,madalien)
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", PIXEL_CLOCK / 8, mc6845_intf)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", PIXEL_CLOCK / 8)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 MACHINE_CONFIG_END

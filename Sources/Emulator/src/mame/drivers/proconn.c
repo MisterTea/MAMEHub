@@ -26,10 +26,11 @@
 #include "cpu/z80/z80.h"
 #include "machine/z80pio.h"
 #include "machine/z80ctc.h"
-#include "machine/z80sio.h"
+#include "machine/z80dart.h"
 #include "sound/ay8910.h"
 #include "video/awpvid.h"
 #include "machine/roc10937.h"
+#include "machine/meters.h"
 
 #include "proconn.lh"
 
@@ -50,7 +51,7 @@ public:
 			m_ay(*this, "aysnd")
 	{ }
 
-	optional_device<roc10937_t> m_vfd;
+	optional_device<s16lf01_t> m_vfd;
 
 	DECLARE_WRITE8_MEMBER( ay_w0 ) { m_ay->address_data_w(space, 0, data); }
 	DECLARE_WRITE8_MEMBER( ay_w1 ) { m_ay->address_data_w(space, 1, data); }
@@ -60,10 +61,10 @@ public:
 	DECLARE_WRITE8_MEMBER( ctc_w2 ) { m_z80ctc->write(space, 2, data); }
 	DECLARE_WRITE8_MEMBER( ctc_w3 ) { m_z80ctc->write(space, 3, data); }
 
-	DECLARE_WRITE8_MEMBER( sio_w0 ) { m_z80sio->write(space, 0, data); }
-	DECLARE_WRITE8_MEMBER( sio_w1 ) { m_z80sio->write(space, 1, data); }
-	DECLARE_WRITE8_MEMBER( sio_w2 ) { m_z80sio->write(space, 2, data); }
-	DECLARE_WRITE8_MEMBER( sio_w3 ) { m_z80sio->write(space, 3, data); }
+	DECLARE_WRITE8_MEMBER( sio_w0 ) { m_z80sio->cd_ba_w(space, 0, data); }
+	DECLARE_WRITE8_MEMBER( sio_w1 ) { m_z80sio->cd_ba_w(space, 1, data); }
+	DECLARE_WRITE8_MEMBER( sio_w2 ) { m_z80sio->cd_ba_w(space, 2, data); }
+	DECLARE_WRITE8_MEMBER( sio_w3 ) { m_z80sio->cd_ba_w(space, 3, data); }
 
 	DECLARE_WRITE8_MEMBER( pio1_w0 ) { m_z80pio_1->write(space, 0, data); }
 	DECLARE_WRITE8_MEMBER( pio1_w1 ) { m_z80pio_1->write(space, 1, data); }
@@ -97,10 +98,10 @@ public:
 	DECLARE_READ8_MEMBER( ctc_r2 ) { return m_z80ctc->read(space, 2); }
 	DECLARE_READ8_MEMBER( ctc_r3 ) { return m_z80ctc->read(space, 3); }
 
-	DECLARE_READ8_MEMBER( sio_r0 ) { return m_z80sio->read(space, 0); }
-	DECLARE_READ8_MEMBER( sio_r1 ) { return m_z80sio->read(space, 1); }
-	DECLARE_READ8_MEMBER( sio_r2 ) { return m_z80sio->read(space, 2); }
-	DECLARE_READ8_MEMBER( sio_r3 ) { return m_z80sio->read(space, 3); }
+	DECLARE_READ8_MEMBER( sio_r0 ) { return m_z80sio->cd_ba_r(space, 0); }
+	DECLARE_READ8_MEMBER( sio_r1 ) { return m_z80sio->cd_ba_r(space, 1); }
+	DECLARE_READ8_MEMBER( sio_r2 ) { return m_z80sio->cd_ba_r(space, 2); }
+	DECLARE_READ8_MEMBER( sio_r3 ) { return m_z80sio->cd_ba_r(space, 3); }
 
 	DECLARE_READ8_MEMBER( pio1_r0 ) { return m_z80pio_1->read(space, 0); }
 	DECLARE_READ8_MEMBER( pio1_r1 ) { return m_z80pio_1->read(space, 1); }
@@ -183,11 +184,13 @@ protected:
 	required_device<z80pio_device> m_z80pio_4;
 	required_device<z80pio_device> m_z80pio_5;
 	required_device<z80ctc_device> m_z80ctc;
-	required_device<z80sio_device> m_z80sio;
+	required_device<z80dart_device> m_z80sio;
 	required_device<ay8910_device> m_ay;
 public:
+	int m_meter;
 	DECLARE_DRIVER_INIT(proconn);
 	virtual void machine_reset();
+	DECLARE_WRITE8_MEMBER(meter_w);
 	DECLARE_WRITE16_MEMBER(serial_transmit);
 	DECLARE_READ16_MEMBER(serial_receive);
 };
@@ -260,111 +263,41 @@ ADDRESS_MAP_END
 static INPUT_PORTS_START( proconn )
 INPUT_PORTS_END
 
-
-
-static Z80PIO_INTERFACE( pio_interface_1 )
-{
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_1_m_out_int_w),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_1_m_in_pa_r),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_1_m_out_pa_w),
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_1_m_out_ardy_w),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_1_m_in_pb_r),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_1_m_out_pb_w),
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_1_m_out_brdy_w),
-};
-
-static Z80PIO_INTERFACE( pio_interface_2 )
-{
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_2_m_out_int_w),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_2_m_in_pa_r),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_2_m_out_pa_w),
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_2_m_out_ardy_w),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_2_m_in_pb_r),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_2_m_out_pb_w),
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_2_m_out_brdy_w),
-};
-
-static Z80PIO_INTERFACE( pio_interface_3 )
-{
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_3_m_out_int_w),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_3_m_in_pa_r),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_3_m_out_pa_w),
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_3_m_out_ardy_w),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_3_m_in_pb_r),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_3_m_out_pb_w),
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_3_m_out_brdy_w),
-};
-
-static Z80PIO_INTERFACE( pio_interface_4 )
-{
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_4_m_out_int_w),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_4_m_in_pa_r),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_4_m_out_pa_w),
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_4_m_out_ardy_w),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_4_m_in_pb_r),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_4_m_out_pb_w),
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_4_m_out_brdy_w),
-};
-
-static Z80PIO_INTERFACE( pio_interface_5 )
-{
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_5_m_out_int_w),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_5_m_in_pa_r),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_5_m_out_pa_w),
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_5_m_out_ardy_w),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_5_m_in_pb_r),
-	DEVCB_DRIVER_MEMBER(proconn_state,pio_5_m_out_pb_w),
-	DEVCB_DRIVER_LINE_MEMBER(proconn_state,pio_5_m_out_brdy_w),
-};
-
-
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),   /* interrupt handler */
-	DEVCB_NULL,                 // ZC/TO0 callback
-	DEVCB_NULL,                 // ZC/TO1 callback
-	DEVCB_NULL                  // ZC/TO2 callback
-};
-
 WRITE16_MEMBER(proconn_state::serial_transmit)
 {
 //Don't like the look of this, should be a clock somewhere
-//  if (offset == 0)
-//      m_vfd->write_char( data );
 
 	// should probably be in the pios above
 
-	for (int i=0; i<8;i++)
+	if (offset == 0)
 	{
-		m_vfd->shift_data( (data & (1<<i))?0:1  );
+		for (int i=0; i<8;i++)
+		{
+			m_vfd->data(data & (1<<i));
+			m_vfd->sclk(1);
+			m_vfd->sclk(0);
+		}
 	}
 }
 
-
 READ16_MEMBER(proconn_state::serial_receive)
 {
+	logerror("proconn serial receive read %x",offset);
 	return -1;
 }
 
-
-static const z80sio_interface sio_intf =
+WRITE8_MEMBER(proconn_state::meter_w)
 {
-	DEVCB_NULL,                 /* interrupt handler */
-	DEVCB_NULL,                 /* DTR changed handler */
-	DEVCB_NULL,                 /* RTS changed handler */
-	DEVCB_NULL,                 /* BREAK changed handler */
-	DEVCB_DRIVER_MEMBER16(proconn_state,serial_transmit),   /* transmit handler */
-	DEVCB_DRIVER_MEMBER16(proconn_state,serial_receive)     /* receive handler */
-};
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
+	int i;
+	for (i=0; i<8; i++)
+	{
+		if ( data & (1 << i) )
+		{
+			MechMtr_update(i, data & (1 << i) );
+			m_meter = data;
+		}
+	}
+}
 
 static const z80_daisy_config z80_daisy_chain[] =
 {
@@ -383,15 +316,57 @@ static MACHINE_CONFIG_START( proconn, proconn_state )
 	MCFG_CPU_CONFIG(z80_daisy_chain)
 	MCFG_CPU_PROGRAM_MAP(proconn_map)
 	MCFG_CPU_IO_MAP(proconn_portmap)
-	MCFG_ROC10937_ADD("vfd",0,LEFT_TO_RIGHT)
+	MCFG_S16LF01_ADD("vfd",0)
 
-	MCFG_Z80PIO_ADD( "z80pio_1", 4000000, pio_interface_1 ) /* ?? Mhz */
-	MCFG_Z80PIO_ADD( "z80pio_2", 4000000, pio_interface_2 ) /* ?? Mhz */
-	MCFG_Z80PIO_ADD( "z80pio_3", 4000000, pio_interface_3 ) /* ?? Mhz */
-	MCFG_Z80PIO_ADD( "z80pio_4", 4000000, pio_interface_4 ) /* ?? Mhz */
-	MCFG_Z80PIO_ADD( "z80pio_5", 4000000, pio_interface_5 ) /* ?? Mhz */
-	MCFG_Z80CTC_ADD( "z80ctc",   4000000, ctc_intf ) /* ?? Mhz */
-	MCFG_Z80SIO_ADD( "z80sio",   4000000, sio_intf ) /* ?? Mhz */
+	MCFG_DEVICE_ADD("z80pio_1", Z80PIO, 4000000) /* ?? Mhz */
+	MCFG_Z80PIO_OUT_INT_CB(WRITELINE(proconn_state,pio_1_m_out_int_w))
+	MCFG_Z80PIO_IN_PA_CB(READ8(proconn_state, pio_1_m_in_pa_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(proconn_state, pio_1_m_out_pa_w))
+	MCFG_Z80PIO_OUT_ARDY_CB(WRITELINE(proconn_state, pio_1_m_out_ardy_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(proconn_state, pio_1_m_in_pb_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(proconn_state, pio_1_m_out_pb_w))
+	MCFG_Z80PIO_OUT_BRDY_CB(WRITELINE(proconn_state, pio_1_m_out_brdy_w))
+
+	MCFG_DEVICE_ADD("z80pio_2", Z80PIO, 4000000) /* ?? Mhz */
+	MCFG_Z80PIO_OUT_INT_CB(WRITELINE(proconn_state,pio_2_m_out_int_w))
+	MCFG_Z80PIO_IN_PA_CB(READ8(proconn_state, pio_2_m_in_pa_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(proconn_state, pio_2_m_out_pa_w))
+	MCFG_Z80PIO_OUT_ARDY_CB(WRITELINE(proconn_state, pio_2_m_out_ardy_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(proconn_state, pio_2_m_in_pb_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(proconn_state, pio_2_m_out_pb_w))
+	MCFG_Z80PIO_OUT_BRDY_CB(WRITELINE(proconn_state, pio_2_m_out_brdy_w))
+
+	MCFG_DEVICE_ADD("z80pio_3", Z80PIO, 4000000) /* ?? Mhz */
+	MCFG_Z80PIO_OUT_INT_CB(WRITELINE(proconn_state,pio_3_m_out_int_w))
+	MCFG_Z80PIO_IN_PA_CB(READ8(proconn_state, pio_3_m_in_pa_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(proconn_state, pio_3_m_out_pa_w))
+	MCFG_Z80PIO_OUT_ARDY_CB(WRITELINE(proconn_state, pio_3_m_out_ardy_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(proconn_state, pio_3_m_in_pb_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(proconn_state, pio_3_m_out_pb_w))
+	MCFG_Z80PIO_OUT_BRDY_CB(WRITELINE(proconn_state, pio_3_m_out_brdy_w))
+
+	MCFG_DEVICE_ADD("z80pio_4", Z80PIO, 4000000) /* ?? Mhz */
+	MCFG_Z80PIO_OUT_INT_CB(WRITELINE(proconn_state,pio_4_m_out_int_w))
+	MCFG_Z80PIO_IN_PA_CB(READ8(proconn_state, pio_4_m_in_pa_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(proconn_state, pio_4_m_out_pa_w))
+	MCFG_Z80PIO_OUT_ARDY_CB(WRITELINE(proconn_state, pio_4_m_out_ardy_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(proconn_state, pio_4_m_in_pb_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(proconn_state, pio_4_m_out_pb_w))
+	MCFG_Z80PIO_OUT_BRDY_CB(WRITELINE(proconn_state, pio_4_m_out_brdy_w))
+
+	MCFG_DEVICE_ADD("z80pio_5", Z80PIO, 4000000) /* ?? Mhz */
+	MCFG_Z80PIO_OUT_INT_CB(WRITELINE(proconn_state,pio_5_m_out_int_w))
+	MCFG_Z80PIO_IN_PA_CB(READ8(proconn_state, pio_5_m_in_pa_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(proconn_state, pio_5_m_out_pa_w))
+	MCFG_Z80PIO_OUT_ARDY_CB(WRITELINE(proconn_state, pio_5_m_out_ardy_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(proconn_state, pio_5_m_in_pb_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(proconn_state, pio_5_m_out_pb_w))
+	MCFG_Z80PIO_OUT_BRDY_CB(WRITELINE(proconn_state, pio_5_m_out_brdy_w))
+
+	MCFG_DEVICE_ADD("z80ctc", Z80CTC, 4000000)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+
+	MCFG_Z80SIO0_ADD( "z80sio",   4000000, 0, 0, 0, 0 ) /* ?? Mhz */
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
@@ -399,7 +374,7 @@ static MACHINE_CONFIG_START( proconn, proconn_state )
 	MCFG_DEFAULT_LAYOUT(layout_proconn)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1000000) /* ?? Mhz */ // YM2149F on PC92?
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(proconn_state, meter_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.33)
 MACHINE_CONFIG_END
 

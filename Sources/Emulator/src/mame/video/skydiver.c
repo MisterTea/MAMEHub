@@ -51,7 +51,7 @@ TILE_GET_INFO_MEMBER(skydiver_state::get_tile_info)
 
 void skydiver_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(skydiver_state::get_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(skydiver_state::get_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
 }
 
 
@@ -143,13 +143,13 @@ WRITE8_MEMBER(skydiver_state::skydiver_2000_201F_w)
 			output_set_value("lampr", bit);
 			break;
 		case (0x0a):
-			discrete_sound_w(m_discrete, space, SKYDIVER_OCT1_EN, bit);
+			m_discrete->write(space, SKYDIVER_OCT1_EN, bit);
 			break;
 		case (0x0c):
-			discrete_sound_w(m_discrete, space, SKYDIVER_OCT2_EN, bit);
+			m_discrete->write(space, SKYDIVER_OCT2_EN, bit);
 			break;
 		case (0x0e):
-			discrete_sound_w(m_discrete, space, SKYDIVER_NOISE_RST, bit);
+			m_discrete->write(space, SKYDIVER_NOISE_RST, bit);
 			break;
 	}
 }
@@ -190,7 +190,7 @@ void skydiver_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 			sx -= 8;
 		}
 
-		drawgfxzoom_transpen(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->zoom_transpen(bitmap,cliprect,
 			charcode, color,
 			xflip,yflip,sx,sy,
 			wide ? 0x20000 : 0x10000, 0x10000,0);

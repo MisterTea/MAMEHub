@@ -35,24 +35,6 @@ Note:   if MAME_DEBUG is defined, pressing Z with:
 /***************************************************************************
 
 
-                                Palette
-
-
-***************************************************************************/
-
-/* xxxxBBBBGGGGRRRR */
-
-WRITE16_MEMBER(blmbycar_state::blmbycar_palette_w)
-{
-	data = COMBINE_DATA(&m_paletteram[offset]);
-	palette_set_color_rgb( machine(), offset, pal4bit(data >> 4), pal4bit(data >> 0), pal4bit(data >> 8));
-}
-
-
-
-/***************************************************************************
-
-
                                 Tilemaps
 
     Offset:     Bits:                   Value:
@@ -73,8 +55,7 @@ TILE_GET_INFO_MEMBER(blmbycar_state::get_tile_info_0)
 {
 	UINT16 code = m_vram_0[tile_index * 2 + 0];
 	UINT16 attr = m_vram_0[tile_index * 2 + 1];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			attr & 0x1f,
 			TILE_FLIPYX((attr >> 6) & 3));
@@ -86,8 +67,7 @@ TILE_GET_INFO_MEMBER(blmbycar_state::get_tile_info_1)
 {
 	UINT16 code = m_vram_1[tile_index * 2 + 0];
 	UINT16 attr = m_vram_1[tile_index * 2 + 1];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			attr & 0x1f,
 			TILE_FLIPYX((attr >> 6) & 3));
@@ -119,8 +99,8 @@ WRITE16_MEMBER(blmbycar_state::blmbycar_vram_1_w)
 
 void blmbycar_state::video_start()
 {
-	m_tilemap_0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(blmbycar_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, DIM_NX, DIM_NY );
-	m_tilemap_1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(blmbycar_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, DIM_NX, DIM_NY );
+	m_tilemap_0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(blmbycar_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, DIM_NX, DIM_NY );
+	m_tilemap_1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(blmbycar_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, DIM_NX, DIM_NY );
 
 	m_tilemap_0->set_scroll_rows(1);
 	m_tilemap_0->set_scroll_cols(1);
@@ -191,7 +171,7 @@ void blmbycar_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, 
 		x   = (x & 0x1ff) - 0x10;
 		y   = 0xf0 - ((y & 0xff)  - (y & 0x100));
 
-		pdrawgfx_transpen(bitmap, cliprect, machine().gfx[0],
+		m_gfxdecode->gfx(0)->prio_transpen(bitmap,cliprect,
 					code,
 					0x20 + (attr & 0xf),
 					flipx, flipy,

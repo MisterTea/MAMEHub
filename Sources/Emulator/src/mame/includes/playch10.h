@@ -1,4 +1,6 @@
 #include "machine/rp5h01.h"
+#include "sound/nes_apu.h"
+#include "video/ppu2c0x.h"
 
 struct chr_bank
 {
@@ -12,20 +14,27 @@ public:
 	playch10_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
+		m_nesapu(*this, "nesapu"),
+		m_ppu(*this, "ppu"),
 		m_rp5h01(*this, "rp5h01"),
 		m_ram_8w(*this, "ram_8w"),
 		m_videoram(*this, "videoram"),
 		m_timedata(*this, "timedata"),
-		m_work_ram(*this, "work_ram")
+		m_work_ram(*this, "work_ram"),
+		m_gfxdecode(*this, "gfxdecode")
 		{ }
 
 	required_device<cpu_device> m_maincpu;
+	required_device<nesapu_device> m_nesapu;
+	required_device<ppu2c0x_device> m_ppu;
 	optional_device<rp5h01_device> m_rp5h01;
 
 	required_shared_ptr<UINT8> m_ram_8w;
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_timedata;
 	required_shared_ptr<UINT8> m_work_ram;
+	required_device<gfxdecode_device> m_gfxdecode;
+
 	int m_up_8w;
 	int m_pc10_nmi_enable;
 	int m_pc10_dog_di;
@@ -120,7 +129,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(playch10);
 	DECLARE_MACHINE_START(playch10_hboard);
 	DECLARE_VIDEO_START(playch10_hboard);
 	UINT32 screen_update_playch10_top(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -133,6 +142,3 @@ public:
 	void ppu_irq(int *ppu_regs);
 	void mapper9_latch(offs_t offset);
 };
-
-/*----------- defined in video/playch10.c -----------*/
-extern const ppu2c0x_interface playch10_ppu_interface;

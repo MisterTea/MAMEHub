@@ -16,39 +16,24 @@
  * - apollo_rtc.c - APOLLO DS3500 RTC MC146818
  * - apollo_sio.c - APOLLO DS3500 SIO
  * - apollo_sio2.c - APOLLO DS3500 SIO2
- * - apollo_fdc.c - APOLLO DS3500 Floppy disk controller
+ * - apollo_stdio.c - stdio terminal for mess
+ * - apollo_3c505.h - Apollo 3C505 Ethernet controller
  *
  * see also:
  * - http://www.bitsavers.org/pdf/apollo/008778-03_DOMAIN_Series_3000_4000_Technical_Reference_Aug87.pdf
  * - http://www.freescale.com/files/32bit/doc/inactive/MC68681UM.pdf
  *
+ *  SIO usage:
+ *      SIO: ch A keyboard, ch B serial console
+ *      SIO2: modem/printer?
+ *
  */
 
 #include "includes/apollo.h"
-#include "machine/apollo_kbd.h"
-#include "machine/omti8621.h"
-#include "machine/sc499.h"
-#include "machine/3c505.h"
 
-#include "machine/6840ptm.h"
-#include "machine/68681.h"
-#include "machine/am9517a.h"
-#include "machine/mc146818.h"
-#include "machine/pic8259.h"
-
-#include "machine/pc_fdc.h"
-#include "formats/apollo_dsk.h"
-
-#include "cpu/m68000/m68000.h"
-//#include "cpu/m68000/m68kcpu.h"
-
-#include "emuopts.h"
-#include "devlegcy.h"
-
-#if defined(APOLLO_FOR_LINUX)
-#include <fcntl.h>
-#include <unistd.h>
-#endif
+#include "bus/isa/omti8621.h"
+#include "bus/isa/sc499.h"
+#include "bus/isa/3c505.h"
 
 #define APOLLO_IRQ_VECTOR 0xa0
 #define APOLLO_IRQ_PTM 0
@@ -104,17 +89,21 @@ INPUT_PORTS_START( apollo_config )
 		PORT_CONFSETTING(0x00, DEF_STR ( Off ) )
 		PORT_CONFSETTING(APOLLO_CONF_GERMAN_KBD, DEF_STR ( On ) )
 
-		PORT_CONFNAME(APOLLO_CONF_DATE_1990, APOLLO_CONF_DATE_1990, "20 Years Ago ...")
+		PORT_CONFNAME(APOLLO_CONF_20_YEARS_AGO, APOLLO_CONF_20_YEARS_AGO, "20 Years Ago ...")
 		PORT_CONFSETTING(0x00, DEF_STR ( Off ) )
-		PORT_CONFSETTING(APOLLO_CONF_DATE_1990, DEF_STR ( On ) )
+		PORT_CONFSETTING(APOLLO_CONF_20_YEARS_AGO, DEF_STR ( On ) )
 
-		PORT_CONFNAME(APOLLO_CONF_NODE_ID, APOLLO_CONF_NODE_ID, "Node ID from Disk")
+		PORT_CONFNAME(APOLLO_CONF_25_YEARS_AGO, APOLLO_CONF_25_YEARS_AGO, "25 Years Ago ...")
 		PORT_CONFSETTING(0x00, DEF_STR ( Off ) )
-		PORT_CONFSETTING(APOLLO_CONF_NODE_ID, DEF_STR ( On ) )
+		PORT_CONFSETTING(APOLLO_CONF_25_YEARS_AGO, DEF_STR ( On ) )
 
-		PORT_CONFNAME(APOLLO_CONF_IDLE_SLEEP, 0x00, "Idle Sleep")
-		PORT_CONFSETTING(0x00, DEF_STR ( Off ) )
-		PORT_CONFSETTING(APOLLO_CONF_IDLE_SLEEP, DEF_STR ( On ) )
+//      PORT_CONFNAME(APOLLO_CONF_NODE_ID, APOLLO_CONF_NODE_ID, "Node ID from Disk")
+//      PORT_CONFSETTING(0x00, DEF_STR ( Off ) )
+//      PORT_CONFSETTING(APOLLO_CONF_NODE_ID, DEF_STR ( On ) )
+
+//      PORT_CONFNAME(APOLLO_CONF_IDLE_SLEEP, 0x00, "Idle Sleep")
+//      PORT_CONFSETTING(0x00, DEF_STR ( Off ) )
+//      PORT_CONFSETTING(APOLLO_CONF_IDLE_SLEEP, DEF_STR ( On ) )
 
 		PORT_CONFNAME(APOLLO_CONF_TRAP_TRACE, 0x00, "Trap Trace")
 		PORT_CONFSETTING(0x00, DEF_STR ( Off ) )
@@ -124,13 +113,13 @@ INPUT_PORTS_START( apollo_config )
 		PORT_CONFSETTING(0x00, DEF_STR ( Off ) )
 		PORT_CONFSETTING(APOLLO_CONF_FPU_TRACE, DEF_STR ( On ) )
 
-		PORT_CONFNAME(APOLLO_CONF_DISK_TRACE, 0x00, "Disk Trace")
-		PORT_CONFSETTING(0x00, DEF_STR ( Off ) )
-		PORT_CONFSETTING(APOLLO_CONF_DISK_TRACE, DEF_STR ( On ) )
+//      PORT_CONFNAME(APOLLO_CONF_DISK_TRACE, 0x00, "Disk Trace")
+//      PORT_CONFSETTING(0x00, DEF_STR ( Off ) )
+//      PORT_CONFSETTING(APOLLO_CONF_DISK_TRACE, DEF_STR ( On ) )
 
-		PORT_CONFNAME(APOLLO_CONF_NET_TRACE, 0x00, "Network Trace")
-		PORT_CONFSETTING(0x00, DEF_STR ( Off ) )
-		PORT_CONFSETTING(APOLLO_CONF_NET_TRACE, DEF_STR ( On ) )
+//      PORT_CONFNAME(APOLLO_CONF_NET_TRACE, 0x00, "Network Trace")
+//      PORT_CONFSETTING(0x00, DEF_STR ( Off ) )
+//      PORT_CONFSETTING(APOLLO_CONF_NET_TRACE, DEF_STR ( On ) )
 
 INPUT_PORTS_END
 
@@ -204,10 +193,10 @@ static UINT16 cpu_control_register = 0x0000;
   apollo_csr_get/set_servicemode
  -------------------------------------------------*/
 
-static int apollo_csr_get_servicemode()
+/*static int apollo_csr_get_servicemode()
 {
-	return cpu_status_register & APOLLO_CSR_SR_SERVICE ? 0 : 1;
-}
+    return cpu_status_register & APOLLO_CSR_SR_SERVICE ? 0 : 1;
+}*/
 
 static void apollo_csr_set_servicemode(int mode)
 {
@@ -333,35 +322,17 @@ static const UINT8 channel2page_register[8] = { 7, 3, 1, 2, 0, 11, 9, 10};
 static UINT8 dn3000_dma_channel1 = 1; // 1 = memory/ctape, 2 = floppy dma channel
 static UINT8 dn3000_dma_channel2 = 5; // 5 = memory dma channel
 
-INLINE am9517a_device *get_device_dma8237_1(device_t *device) {
-	return device->machine().driver_data<apollo_state>()->m_dma8237_1;
-}
-
-INLINE am9517a_device *get_device_dma8237_2(device_t *device) {
-	return device->machine().driver_data<apollo_state>()->m_dma8237_2;
-}
-
-static void apollo_dma_fdc_drq(device_t *device, int state) {
-	DLOG2(("apollo_dma_fdc_drq: state=%x", state));
-	get_device_dma8237_1(device)->dreq2_w(state);
-}
-
-static void apollo_dma_ctape_drq(device_t *device, int state) {
-	DLOG1(("apollo_dma_ctape_drq: state=%x", state));
-	get_device_dma8237_1(device)->dreq1_w(state);
-}
-
 /*-------------------------------------------------
  DN3000/DN3500 DMA Controller 1 at 0x9000/0x10c00
  -------------------------------------------------*/
 
 WRITE8_MEMBER(apollo_state::apollo_dma_1_w){
 	SLOG1(("apollo_dma_1_w: writing DMA Controller 1 at offset %02x = %02x", offset, data));
-	get_device_dma8237_1(&space.device())->write(space, offset, data);
+	m_dma8237_1->write(space, offset, data);
 }
 
 READ8_MEMBER(apollo_state::apollo_dma_1_r){
-	UINT8 data = get_device_dma8237_1(&space.device())->read(space, offset);
+	UINT8 data = m_dma8237_1->read(space, offset);
 	SLOG1(("apollo_dma_1_r: reading DMA Controller 1 at offset %02x = %02x", offset, data));
 	return data;
 }
@@ -372,7 +343,7 @@ READ8_MEMBER(apollo_state::apollo_dma_1_r){
 
 WRITE8_MEMBER(apollo_state::apollo_dma_2_w){
 	SLOG1(("apollo_dma_2_w: writing DMA Controller 2 at offset %02x = %02x", offset/2, data));
-	get_device_dma8237_2(&space.device())->write(space, offset / 2, data);
+	m_dma8237_2->write(space, offset / 2, data);
 }
 
 READ8_MEMBER(apollo_state::apollo_dma_2_r){
@@ -391,7 +362,7 @@ READ8_MEMBER(apollo_state::apollo_dma_2_r){
 			break;
 		}
 	}
-	UINT8 data = get_device_dma8237_2(&space.device())->read(space, offset / 2);
+	UINT8 data = m_dma8237_2->read(space, offset / 2);
 	SLOG1(("apollo_dma_2_r: reading DMA Controller 2 at offset %02x = %02x", offset/2, data));
 	return data;
 }
@@ -438,7 +409,7 @@ READ8_MEMBER(apollo_state::apollo_dma_read_byte){
 		offset &= 0x3ff;
 	}
 
-	data = machine().firstcpu->space(AS_PROGRAM).read_byte(page_offset + offset);
+	data = m_maincpu->space(AS_PROGRAM).read_byte(page_offset + offset);
 
 	if (VERBOSE > 1 || offset < 4 || (offset & 0xff) == 0 || (offset & 0xff) == 0xff)
 	{
@@ -458,7 +429,7 @@ WRITE8_MEMBER(apollo_state::apollo_dma_write_byte){
 		offset &= 0x3ff;
 	}
 	// FIXME: MSB not available, writing only LSB
-	machine().firstcpu->space(AS_PROGRAM).write_byte(page_offset + offset, data);
+	m_maincpu->space(AS_PROGRAM).write_byte(page_offset + offset, data);
 
 	if (VERBOSE > 1 || offset < 4 || (offset & 0xff) == 0 || (offset & 0xff) == 0xff)
 	{
@@ -481,7 +452,7 @@ READ8_MEMBER(apollo_state::apollo_dma_read_word){
 		offset = (offset << 1) & 0x3ff;
 	}
 
-	data = machine().firstcpu->space(AS_PROGRAM).read_byte(page_offset + offset);
+	data = m_maincpu->space(AS_PROGRAM).read_byte(page_offset + offset);
 
 	SLOG1(("dma read word at offset %x+%03x = %04x", page_offset, offset , data));
 	// FIXME: MSB will get lost
@@ -505,66 +476,15 @@ WRITE8_MEMBER(apollo_state::apollo_dma_write_word){
 		offset = (offset << 1) & 0x3ff;
 	}
 
-	machine().firstcpu->space(AS_PROGRAM).write_byte(page_offset + offset, data);
+	m_maincpu->space(AS_PROGRAM).write_byte(page_offset + offset, data);
 	SLOG1(("dma write word at offset %x+%03x = %02x", page_offset, offset, data));
 }
 
-READ8_MEMBER(apollo_state::apollo_dma8237_ctape_dack_r ) {
-	UINT8 data = sc499_dack_r(&space.machine());
-	CLOG2(("dma ctape dack read %02x",data));
-
-	// hack for DN3000: select appropriate DMA channel No.
-	dn3000_dma_channel1 = 1; // 1 = ctape, 2 = floppy dma channel
-
-	return data;
-}
-
-WRITE8_MEMBER(apollo_state::apollo_dma8237_ctape_dack_w ) {
-	CLOG2(("dma ctape dack write %02x", data));
-	sc499_dack_w(&space.machine(), data);
-
-	// hack for DN3000: select appropriate DMA channel No.
-	// Note: too late for this byte, but next bytes will be ok
-	dn3000_dma_channel1 = 1; // 1 = ctape, 2 = floppy dma channel
-}
-
-READ8_MEMBER(apollo_state::apollo_dma8237_fdc_dack_r ) {
-	pc_fdc_at_device *fdc = space.machine().device<pc_fdc_at_device>(APOLLO_FDC_TAG);
-	UINT8 data = fdc->dma_r();
-	CLOG2(("dma fdc dack read %02x",data));
-
-	// hack for DN3000: select appropriate DMA channel No.
-	dn3000_dma_channel1 = 2; // 1 = ctape, 2 = floppy dma channel
-
-	return data;
-}
-
-WRITE8_MEMBER(apollo_state::apollo_dma8237_fdc_dack_w ) {
-	pc_fdc_at_device *fdc = space.machine().device<pc_fdc_at_device>(APOLLO_FDC_TAG);
-	CLOG2(("dma fdc dack write %02x", data));
-	fdc->dma_w(data);
-
-	// hack for DN3000: select appropriate DMA channel No.
-	// Note: too late for this byte, but next bytes will be ok
-	dn3000_dma_channel1 = 2; // 1 = ctape, 2 = floppy dma channel
-}
-
-READ8_MEMBER(apollo_state::apollo_dma8237_wdc_dack_r ) {
-	UINT8 data = 0xff; // omti8621_dack_r(device->machine);
-	CLOG1(("dma wdc dack read %02x (not used, not emulated!)",data));
-	return data;
-}
-
-WRITE8_MEMBER(apollo_state::apollo_dma8237_wdc_dack_w ) {
-	CLOG1(("dma wdc dack write %02x (not used, not emulated!)", data));
-//  omti8621_dack_w(machine, data);
-}
-
 WRITE_LINE_MEMBER(apollo_state::apollo_dma8237_out_eop ) {
-	pc_fdc_at_device *fdc = machine().device<pc_fdc_at_device>(APOLLO_FDC_TAG);
 	CLOG1(("dma out eop state %02x", state));
-	fdc->tc_w(!state);
-	sc499_set_tc_state(&machine(), state);
+	m_cur_eop = state == ASSERT_LINE;
+	if(m_dma_channel != -1)
+		m_isa->eop_w(m_dma_channel, m_cur_eop ? ASSERT_LINE : CLEAR_LINE );
 }
 
 WRITE_LINE_MEMBER(apollo_state::apollo_dma_1_hrq_changed ) {
@@ -586,27 +506,44 @@ WRITE_LINE_MEMBER(apollo_state::apollo_dma_2_hrq_changed ) {
 	m_dma8237_2->hack_w(state);
 }
 
-static I8237_INTERFACE( apollo_dma8237_1_config )
-{
-	DEVCB_DRIVER_LINE_MEMBER(apollo_state, apollo_dma_1_hrq_changed),
-	DEVCB_DRIVER_LINE_MEMBER(apollo_state, apollo_dma8237_out_eop),
-	DEVCB_DRIVER_MEMBER(apollo_state, apollo_dma_read_byte),
-	DEVCB_DRIVER_MEMBER(apollo_state, apollo_dma_write_byte),
-	{   DEVCB_NULL, DEVCB_DRIVER_MEMBER(apollo_state, apollo_dma8237_ctape_dack_r), DEVCB_DRIVER_MEMBER(apollo_state, apollo_dma8237_fdc_dack_r), DEVCB_NULL},
-	{   DEVCB_NULL, DEVCB_DRIVER_MEMBER(apollo_state, apollo_dma8237_ctape_dack_w), DEVCB_DRIVER_MEMBER(apollo_state, apollo_dma8237_fdc_dack_w), DEVCB_NULL},
-	{   DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL}
-};
+READ8_MEMBER( apollo_state::pc_dma8237_0_dack_r ) { return m_isa->dack_r(0); }
+READ8_MEMBER( apollo_state::pc_dma8237_1_dack_r ) { return m_isa->dack_r(1); }
+READ8_MEMBER( apollo_state::pc_dma8237_2_dack_r ) { return m_isa->dack_r(2); }
+READ8_MEMBER( apollo_state::pc_dma8237_3_dack_r ) { return m_isa->dack_r(3); }
+READ8_MEMBER( apollo_state::pc_dma8237_5_dack_r ) { return m_isa->dack_r(5); }
+READ8_MEMBER( apollo_state::pc_dma8237_6_dack_r ) { return m_isa->dack_r(6); }
+READ8_MEMBER( apollo_state::pc_dma8237_7_dack_r ) { return m_isa->dack_r(7); }
 
-static I8237_INTERFACE( apollo_dma8237_2_config )
+WRITE8_MEMBER( apollo_state::pc_dma8237_0_dack_w ){ m_isa->dack_w(0, data); }
+WRITE8_MEMBER( apollo_state::pc_dma8237_1_dack_w ){ m_isa->dack_w(1, data); }
+WRITE8_MEMBER( apollo_state::pc_dma8237_2_dack_w ){ m_isa->dack_w(2, data); }
+WRITE8_MEMBER( apollo_state::pc_dma8237_3_dack_w ){ m_isa->dack_w(3, data); }
+WRITE8_MEMBER( apollo_state::pc_dma8237_5_dack_w ){ m_isa->dack_w(5, data); }
+WRITE8_MEMBER( apollo_state::pc_dma8237_6_dack_w ){ m_isa->dack_w(6, data); }
+WRITE8_MEMBER( apollo_state::pc_dma8237_7_dack_w ){ m_isa->dack_w(7, data); }
+
+WRITE_LINE_MEMBER( apollo_state::pc_dack0_w ) { select_dma_channel(0, state); }
+WRITE_LINE_MEMBER( apollo_state::pc_dack1_w ) { select_dma_channel(1, state); }
+WRITE_LINE_MEMBER( apollo_state::pc_dack2_w ) { select_dma_channel(2, state); }
+WRITE_LINE_MEMBER( apollo_state::pc_dack3_w ) { select_dma_channel(3, state); }
+WRITE_LINE_MEMBER( apollo_state::pc_dack4_w ) { m_dma8237_1->hack_w( state ? 0 : 1); } // it's inverted
+WRITE_LINE_MEMBER( apollo_state::pc_dack5_w ) { select_dma_channel(5, state); }
+WRITE_LINE_MEMBER( apollo_state::pc_dack6_w ) { select_dma_channel(6, state); }
+WRITE_LINE_MEMBER( apollo_state::pc_dack7_w ) { select_dma_channel(7, state); }
+
+void apollo_state::select_dma_channel(int channel, bool state)
 {
-	DEVCB_DRIVER_LINE_MEMBER(apollo_state, apollo_dma_2_hrq_changed),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(apollo_state, apollo_dma_read_word),
-	DEVCB_DRIVER_MEMBER(apollo_state, apollo_dma_write_word),
-	{   DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_MEMBER(apollo_state, apollo_dma8237_wdc_dack_r)},
-	{   DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_MEMBER(apollo_state, apollo_dma8237_wdc_dack_w)},
-	{   DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL}
-};
+	if(!state) {
+		m_dma_channel = channel;
+		if(m_cur_eop)
+			m_isa->eop_w(channel, ASSERT_LINE );
+
+	} else if(m_dma_channel == channel) {
+		m_dma_channel = -1;
+		if(m_cur_eop)
+			m_isa->eop_w(channel, CLEAR_LINE );
+	}
+}
 
 //##########################################################################
 // machine/apollo_pic.c - APOLLO DS3500 PIC 8259 controllers
@@ -615,76 +552,34 @@ static I8237_INTERFACE( apollo_dma8237_2_config )
 #undef VERBOSE
 #define VERBOSE 0
 
-INLINE pic8259_device *get_pic8259_master(device_t *device) {
-	return device->machine().driver_data<apollo_state>()->m_pic8259_master;
-}
-
-INLINE pic8259_device *get_pic8259_slave(device_t *device) {
-	return device->machine().driver_data<apollo_state>()->m_pic8259_slave;
-}
-
-/*-------------------------------------------------
- Interrupt Controller 8259 PIC #1 at 0x9400/0x11000
- -------------------------------------------------*/
-
-WRITE8_DEVICE_HANDLER(apollo_pic8259_master_w ) {
-	DLOG1(("writing %s at offset %X = %02x", device->tag(), offset, data));
-	downcast<pic8259_device *>(device)->write(space, offset, data);
-}
-
-READ8_DEVICE_HANDLER( apollo_pic8259_master_r ) {
-	UINT8 data = downcast<pic8259_device *>(device)->read(space, offset);
-	DLOG1(("reading %s at offset %X = %02x", device->tag(), offset, data));
-	return data;
-}
-
-/*-------------------------------------------------
- Interrupt Controller 8259 PIC #2 at 0x9500/0x11100
- -------------------------------------------------*/
-
-WRITE8_DEVICE_HANDLER(apollo_pic8259_slave_w ) {
-	DLOG1(("writing %s at offset %X = %02x", device->tag(), offset, data));
-	downcast<pic8259_device *>(device)->write(space, offset, data);
-}
-
-READ8_DEVICE_HANDLER( apollo_pic8259_slave_r ) {
-	UINT8 data = downcast<pic8259_device *>(device)->read(space, offset);
-	DLOG1(("reading %s at offset %X = %02x", device->tag(), offset, data));
-	return data;
-}
-
-static void apollo_pic_set_irq_line(device_t *device, int irq, int state) {
-	// don't log PTM interrupts
-	if (irq != APOLLO_IRQ_PTM) {
-		DLOG1(("apollo_pic_set_irq_line: irq=%d state=%d", irq, state));
-	}
-
+void apollo_state::apollo_pic_set_irq_line(int irq, int state)
+{
 	switch (irq) {
-	case 0: get_pic8259_master(device)->ir0_w(state); break;
-	case 1: get_pic8259_master(device)->ir1_w(state); break;
-	case 2: get_pic8259_master(device)->ir2_w(state); break;
-	case 3: get_pic8259_master(device)->ir3_w(state); break;
-	case 4: get_pic8259_master(device)->ir4_w(state); break;
-	case 5: get_pic8259_master(device)->ir5_w(state); break;
-	case 6: get_pic8259_master(device)->ir6_w(state); break;
-	case 7: get_pic8259_master(device)->ir7_w(state); break;
+	case 0: m_pic8259_master->ir0_w(state); break;
+	case 1: m_pic8259_master->ir1_w(state); break;
+	case 2: m_pic8259_master->ir2_w(state); break;
+	case 3: m_pic8259_master->ir3_w(state); break;
+	case 4: m_pic8259_master->ir4_w(state); break;
+	case 5: m_pic8259_master->ir5_w(state); break;
+	case 6: m_pic8259_master->ir6_w(state); break;
+	case 7: m_pic8259_master->ir7_w(state); break;
 
-	case 8: get_pic8259_slave(device)->ir0_w(state); break;
-	case 9: get_pic8259_slave(device)->ir1_w(state); break;
-	case 10: get_pic8259_slave(device)->ir2_w(state); break;
-	case 11: get_pic8259_slave(device)->ir3_w(state); break;
-	case 12: get_pic8259_slave(device)->ir4_w(state); break;
-	case 13: get_pic8259_slave(device)->ir5_w(state); break;
-	case 14: get_pic8259_slave(device)->ir6_w(state); break;
-	case 15: get_pic8259_slave(device)->ir7_w(state); break;
+	case 8:  m_pic8259_slave->ir0_w(state); break;
+	case 9:  m_pic8259_slave->ir1_w(state); break;
+	case 10: m_pic8259_slave->ir2_w(state); break;
+	case 11: m_pic8259_slave->ir3_w(state); break;
+	case 12: m_pic8259_slave->ir4_w(state); break;
+	case 13: m_pic8259_slave->ir5_w(state); break;
+	case 14: m_pic8259_slave->ir6_w(state); break;
+	case 15: m_pic8259_slave->ir7_w(state); break;
 	}
 }
 
 IRQ_CALLBACK_MEMBER(apollo_state::apollo_pic_acknowledge)
 {
-	UINT32 vector = get_pic8259_master(&device)->acknowledge();
+	UINT32 vector = m_pic8259_master->acknowledge();
 	if ((vector & 0x0f) == APOLLO_IRQ_PIC_SLAVE) {
-		vector = get_pic8259_slave(&device)->acknowledge();
+		vector = m_pic8259_slave->acknowledge();
 	}
 
 	// don't log ptm interrupts
@@ -709,7 +604,7 @@ READ8_MEMBER( apollo_state::apollo_pic8259_get_slave_ack )
 {
 		MLOG1(("apollo_pic8259_get_slave_ack: offset=%x", offset));
 
-		return offset == 3 ? m_pic8259_slave->inta_r() : 0;
+		return offset == 3 ? m_pic8259_slave->acknowledge() : 0;
 }
 
 WRITE_LINE_MEMBER( apollo_state::apollo_pic8259_master_set_int_line ) {
@@ -737,10 +632,9 @@ WRITE_LINE_MEMBER( apollo_state::apollo_pic8259_slave_set_int_line ) {
 		device_t *device = m_pic8259_slave;
 		DLOG1(("apollo_pic8259_slave_set_int_line: %x", state));
 		interrupt_line = state;
-		apollo_pic_set_irq_line(device, 3, state);
+		apollo_pic_set_irq_line(3, state);
 	}
 }
-
 
 //##########################################################################
 // machine/apollo_ptm.c - APOLLO DS3500 Programmable Timer 6840
@@ -749,35 +643,25 @@ WRITE_LINE_MEMBER( apollo_state::apollo_pic8259_slave_set_int_line ) {
 #undef VERBOSE
 #define VERBOSE 0
 
-static emu_timer* ptm_timer;
-static UINT32 ptm_counter = 0;
-
-static TIMER_CALLBACK(apollo_ptm_timer_callback)
+WRITE_LINE_MEMBER(apollo_state::apollo_ptm_timer_tick)
 {
-	ptm6840_device *device = downcast<ptm6840_device *>((device_t *) ptr);
-
-	ptm_counter++;
-	device->set_c1( 1);
-	device->set_c1( 0);
-	device->set_c2(ptm_counter & 1);
-
-	if ((ptm_counter & 1) == 0)
+	if ((state) && (m_ptm->started()))
 	{
-		device->set_c3((ptm_counter >> 1) & 1);
-	}
+		ptm_counter++;
+		m_ptm->set_c1( 1);
+		m_ptm->set_c1( 0);
+		m_ptm->set_c2(ptm_counter & 1);
 
-	if (ptm_counter % 250000 == 0)
-	{
-		DLOG2(("apollo_ptm_timer_callback: %d", ptm_counter / 250000));
+		if ((ptm_counter & 1) == 0)
+		{
+			m_ptm->set_c3((ptm_counter >> 1) & 1);
+		}
 	}
 }
 
-static WRITE_LINE_DEVICE_HANDLER( apollo_ptm_irq_function ) {
-	DLOG1(("apollo_ptm_irq_function: state=%d", state ));
-
-//  ptm6840_device *ptm = device->machine().device<ptm6840_device>(APOLLO_PTM_TAG);
-
-	apollo_pic_set_irq_line(device, APOLLO_IRQ_PTM, state);
+WRITE_LINE_MEMBER(apollo_state::apollo_ptm_irq_function)
+{
+	apollo_pic_set_irq_line(APOLLO_IRQ_PTM, state);
 }
 
 //  Timer 1's input is a 250-kHz (4-microsecond period) signal.
@@ -785,45 +669,6 @@ static WRITE_LINE_DEVICE_HANDLER( apollo_ptm_irq_function ) {
 //  Timer 3's input is a 62.5-kHz (16-microsecond period) signal.
 //  The Timer 3 input may be prescaled to make the effective input signal have a 128-microsecond period.
 
-static const ptm6840_interface apollo_ptm_config = {
-		0,
-		{ 250000, 125000, 62500 },
-		{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-		DEVCB_LINE(apollo_ptm_irq_function)
-};
-
-static DEVICE_START( apollo_ptm )
-{
-	DLOG1(("start apollo_ptm"));
-	// allocate and start ptm timer
-	ptm_timer = device->machine().scheduler().timer_alloc(FUNC(apollo_ptm_timer_callback), device);
-	ptm_timer->adjust( attotime::zero, 0, attotime::from_usec(4));
-}
-
-static DEVICE_RESET( apollo_ptm )
-{
-	DLOG1(("reset apollo_ptm"));
-	device->reset();
-}
-
-READ8_DEVICE_HANDLER(apollo_ptm_r) {
-	UINT8 data =downcast<ptm6840_device *>((device_t *) device)->read(offset / 2);
-
-	// prevent excessive logging
-	static UINT8 previous = 255;
-	if (offset / 2 != 1 || data != previous) {
-		DLOG1(("apollo_ptm_read reg %x returned %02x", offset/2, data ));
-		if (offset / 2 == 1) {
-			previous = data;
-		}
-	}
-	return data;
-}
-
-WRITE8_DEVICE_HANDLER(apollo_ptm_w) {
-	DLOG1(("apollo_ptm_write reg %x with %02x", offset/2, data ));
-	downcast<ptm6840_device *>((device_t *) device)->write(offset / 2, data);
-}
 
 //##########################################################################
 // machine/apollo_rtc.c - APOLLO DS3500 RTC MC146818
@@ -836,31 +681,10 @@ WRITE8_DEVICE_HANDLER(apollo_ptm_w) {
  DN3000/DN3500 Realtime Calendar MC146818 at 0x8900/0x10900
  ***************************************************************************/
 
-static DEVICE_RESET( apollo_rtc ) {
-	address_space &space = device->machine().device(MAINCPU)->memory().space(AS_PROGRAM);
-	apollo_state *state = device->machine().driver_data<apollo_state>();
-	UINT8 year = state->apollo_rtc_r(space, 9);
-
-	// change year according to configuration settings
-	if (year < 20 && apollo_config(APOLLO_CONF_DATE_1990))
-	{
-		year+=80;
-		state->apollo_rtc_w(space, 9, year);
-	}
-	else if (year >= 80 && !apollo_config(APOLLO_CONF_DATE_1990))
-	{
-		year -=80;
-		state->apollo_rtc_w(space, 9, year);
-	}
-
-	//SLOG1(("reset apollo_rtc year=%d", year));
-}
-
 WRITE8_MEMBER(apollo_state::apollo_rtc_w)
 {
-	mc146818_device *rtc = machine().device<mc146818_device> (APOLLO_RTC_TAG);
-	rtc->write(space, 0, offset);
-	rtc->write(space, 1, data);
+	m_rtc->write(space, 0, offset);
+	m_rtc->write(space, 1, data);
 	if (offset >= 0x0b && offset <= 0x0c)
 	{
 		SLOG2(("writing MC146818 at offset %02x = %02x", offset, data));
@@ -870,9 +694,8 @@ WRITE8_MEMBER(apollo_state::apollo_rtc_w)
 READ8_MEMBER(apollo_state::apollo_rtc_r)
 {
 	UINT8 data;
-	mc146818_device *rtc = machine().device<mc146818_device> (APOLLO_RTC_TAG);
-	rtc->write(space, 0, offset);
-	data = rtc->read(space, 1);
+	m_rtc->write(space, 0, offset);
+	data = m_rtc->read(space, 1);
 	if (offset >= 0x0b && offset <= 0x0c)
 	{
 		SLOG2(("reading MC146818 at offset %02x = %02x", offset, data));
@@ -880,155 +703,51 @@ READ8_MEMBER(apollo_state::apollo_rtc_r)
 	return data;
 }
 
-static TIMER_CALLBACK( apollo_rtc_timer )
+// TODO: this is covering for missing mc146818 functionality
+TIMER_CALLBACK_MEMBER( apollo_state::apollo_rtc_timer )
 {
-	apollo_state *state = machine.driver_data<apollo_state>();
-	address_space &space = machine.device(MAINCPU)->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
 	// FIXME: reading register 0x0c will clear all interrupt flags
-	if ((state->apollo_rtc_r(space, 0x0c) & 0x80))
+	if ((apollo_rtc_r(space, 0x0c) & 0x80))
 	{
 		//SLOG2(("apollo_rtc_timer - set_irq_line %d", APOLLO_IRQ_RTC));
-		apollo_pic_set_irq_line(&space.device(), APOLLO_IRQ_RTC, 1);
+		apollo_pic_set_irq_line(APOLLO_IRQ_RTC, 1);
 	}
 }
 
 //##########################################################################
-// machine/apollo_sio.c - APOLLO DS3500 SIO
+// machine/apollo_sio.c - DN3000/DS3500 SIO at 0x8400/0x10400
 //##########################################################################
 
 #undef VERBOSE
 #define VERBOSE 0
 
-#define SIO_SLEEP_DELAY_TIME 30000 // ms
-
-static int isInitialized = 0;
-static int input_from_stdin = 0;
-
-static UINT8 sio_input_data = 0xff;
-static UINT8 sio_output_data = 0xff;
-
-static emu_timer *kbd_timer;
-static int sleep_time = 0;
-
-static int sio_irq_line = 0;
-
-static UINT8 sio_csrb = 0;
-
-/*-------------------------------------------------
- sio_sleep - sleep to reduce the CPU usage
- -------------------------------------------------*/
-
-// we reduce the CPU usage, if SRB is being polled for input
-// but only as long as the transmitter is empty and ready
-// and the initial delay time has passed w/o IO
-
-static void sio_sleep(int delay) {
-	if (!apollo_config(APOLLO_CONF_IDLE_SLEEP)) {
-		// nothing to do; sleeping is not enabled
-	} else if (delay <= 0) {
-		//reset the sleep delay time
-		if (sleep_time > 0) {
-			LOG2(("sio_sleep: sleeping stopped"))
-			sleep_time = 0;
-		}
-	} else if (sleep_time < delay) {
-		// sleep delay pending (i.e. don't sleep)
-		sleep_time++;
-	} else {
-		if (sleep_time == delay) {
-			LOG2(("sio_sleep: sleeping started after %d ms",sleep_time));
-			sleep_time++;
-		}
-		// Note: ticks_per_second/100 will sleep for 6 ms (= 4-10 ms)
-		osd_sleep(osd_ticks_per_second() / 50);
-	}
+apollo_sio::apollo_sio(const machine_config &mconfig, const char *tag,
+		device_t *owner, UINT32 clock) :
+	mc68681_device(mconfig, tag, owner, clock),
+	m_csrb(0),
+	m_ip6(0)
+{
 }
 
-/*-------------------------------------------------
- apollo_sio_rx_data - get character from keyboard/stdin
- -------------------------------------------------*/
+void apollo_sio::device_reset()
+{
+	UINT8 input_data = apollo_get_ram_config_byte();
+	ip0_w((input_data & 0x01) ? ASSERT_LINE : CLEAR_LINE);
+	ip1_w((input_data & 0x02) ? ASSERT_LINE : CLEAR_LINE);
+	ip2_w((input_data & 0x04) ? ASSERT_LINE : CLEAR_LINE);
+	ip3_w((input_data & 0x08) ? ASSERT_LINE : CLEAR_LINE);
+	ip4_w((input_data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
+	ip5_w((input_data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
+//  ip6_w((input_data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
 
-void apollo_sio_rx_data(device_t* device, int ch, UINT8 data) {
-	// omit logging for channel 1
-	if (ch == 0) {
-		DLOG1(("apollo_sio_rx_data ch=%d <- data=%02x", ch, data ));
-	}
-
-	if (ch == 1 && !isInitialized && data == '\r' && apollo_csr_get_servicemode()) {
-		// force baudrate recognition
-		data = 0xff;
-		isInitialized = 1;
-	}
-
-	duart68681_rx_data(device, ch, data);
+	// MC2681 has IP[6] (instead of /IACK on MC68681)
+	m_ip6 = (input_data & 0x40) ? ASSERT_LINE : CLEAR_LINE;
 }
 
-/*-------------------------------------------------
- apollo_sio_tx_data - put character to display/stdout
- -------------------------------------------------*/
-
-static void apollo_sio_tx_data(device_t *device, int channel, UINT8 data) {
-	if (channel == 0) {
-		DLOG1(("apollo_sio_tx_data ch=%d -> data=%02x", channel, data ));
-		device_t *keyboard = device->machine().device( APOLLO_KBD_TAG );
-		if (keyboard != NULL) {
-			apollo_kbd_getchar(keyboard, data);
-		}
-	} else if (channel == 1) {
-		DLOG2(("apollo_sio_tx_data ch=%d -> data=%02x", channel, data ));
-
-		if (data != '\r') {
-			// output data to stdout
-			putchar(data);
-			fflush(stdout);
-
-			if (apollo_is_dsp3x00()) {
-				// output data to terminal emulator
-				apollo_terminal_write(data);
-			}
-		}
-	}
-}
-
-/*-------------------------------------------------
- sio configuration
- -------------------------------------------------*/
-
-static void sio_irq_handler(device_t *device, int state, UINT8 vector) {
-	DLOG2(("sio_irq_handler: vector=%02x", vector ));
-	apollo_pic_set_irq_line(device, APOLLO_IRQ_SIO1, state);
-	sio_irq_line = 1;
-}
-
-static UINT8 sio_input(device_t *device) {
-	// necessary for DN3000?
-	// sio_input_data = sio_input_data ? 0 : 0x0f;
-	DLOG2(("reading 2681 input: %02x", sio_input_data ));
-	return sio_input_data;
-}
-
-static void sio_output(device_t *device, UINT8 data) {
-	DLOG1(("writing 2681 output: %02x", data ));
-
-	if ((data & 0x80) != (sio_output_data & 0x80)) {
-		apollo_pic_set_irq_line(device, APOLLO_IRQ_DIAG, (data & 0x80) ? 1 : 0);
-		sio_output_data = data;
-	}
-}
-
-const duart68681_config apollo_sio_config = {
-		sio_irq_handler,
-		apollo_sio_tx_data,
-		sio_input,
-		sio_output
-};
-
-/*-------------------------------------------------
- DN3000/DS3500 SIO at 0x8400/0x10400
- -------------------------------------------------*/
-
-READ8_DEVICE_HANDLER(apollo_sio_r) {
+READ8_MEMBER( apollo_sio::read )
+{
 	static int last_read8_offset[2] = { -1, -1 };
 	static int last_read8_value[2] = { -1, -1 };
 
@@ -1037,345 +756,106 @@ READ8_DEVICE_HANDLER(apollo_sio_r) {
 			"1X/16X Test", "RHRB", "IVR", "Input Ports", "Start Counter",
 			"Stop Counter" };
 
-	int data = duart68681_r(device, space, offset / 2);
+	int data = mc68681_device::read(space, offset/2, mem_mask);
 
-	if (sio_irq_line) {
-		apollo_pic_set_irq_line(device, APOLLO_IRQ_SIO1, 0);
-		sio_irq_line = 0;
-	}
-
-	switch (offset / 2) {
+	switch (offset / 2)
+	{
 	case 0x0b: /* RHRB */
-		if (data == 0x0d && sio_csrb == 0x77) {
-			// special for MD command SK (Select keyboard) with baudrate set to 2000
+		if (m_csrb == 0x77 && data == 0xfe)
+		{
+			// special fix for the MD ROM baudrate recognition
+			// fix data only if CR is entered while baudrate is set to 2000 Baud
+
+			// Receive and transmit clock in diserial.c are not precise enough
+			// to support the baudrate recognition done in the Apollo MD ROM
+			// use 0xff instead of 0xfe to set the baudrate recognition for 9600 Bd
+			// (to prevent that the MD selftest or SK command will hang in Service mode)
 			data = 0xff;
 		}
+		break;
+	case 0x0d: /* IP */
+		// MC2681 has IP[6] (instead of /IACK on MC68681)
+		data = (data & ~0x40) | (m_ip6 ? 0x40 : 0);
 		break;
 	}
 
 	// omit logging if sio is being polled from the boot rom
-	if ((offset != last_read8_offset[1] || data != last_read8_value[1])
-			&& (offset != last_read8_offset[0] || data != last_read8_value[0])) {
+	if ((offset != last_read8_offset[1] || data != last_read8_value[1]) && \
+		(offset != last_read8_offset[0] || data != last_read8_value[0]))
+	{
 		last_read8_offset[0] = last_read8_offset[1];
 		last_read8_value[0] = last_read8_value[1];
 		last_read8_offset[1] = offset;
 		last_read8_value[1] = data;
-		DLOG2(("reading 2681 reg %x (%s) returned %02x",
-				offset, duart68681_reg_read_names[offset/2], data ));
+		CLOG2(("reading MC2681 reg %02x (%s) returned %02x",
+				offset, duart68681_reg_read_names[(offset/2) & 15], data));
 	}
 
 	return data;
 }
 
-WRITE8_DEVICE_HANDLER(apollo_sio_w)
+WRITE8_MEMBER( apollo_sio::write )
 {
 	static const char * const duart68681_reg_write_names[0x10] = { "MRA",
 			"CSRA", "CRA", "THRA", "ACR", "IMR", "CRUR", "CTLR", "MRB", "CSRB",
 			"CRB", "THRB", "IVR", "OPCR", "Set OP Bits", "Reset OP Bits" };
 
-	if (sio_irq_line) {
-		apollo_pic_set_irq_line(device, APOLLO_IRQ_SIO1, 0);
-		sio_irq_line = 0;
-	}
-
-	// don't log THRB
-	if (offset != 0x17) {
-		DLOG2(("writing 2681 reg %x (%s) with %02x", offset, duart68681_reg_write_names[(offset/2) & 15], data ));
-	}
+	CLOG2(("writing MC2681 reg %02x (%s) with %02x",
+			offset, duart68681_reg_write_names[(offset/2) & 15], data));
 
 	switch (offset / 2) {
 	case 0x09: /* CSRB */
-		// remember CSRB to handle MD command SK on DSP3x00
-		sio_csrb = data;
+		// remember CSRB to handle MD selftest or SK command
+		m_csrb = data;
 		break;
+#if 1
 	case 0x0b: /* THRB */
-		// stop sleeping
-		sio_sleep(0);
+		// tee output of SIO1 to stdout
+		// sad: ceterm will get confused from '\r'
+		if (apollo_is_dsp3x00() && data != '\r') ::putchar(data);
 		break;
-	case 0x0d: /* OPCR */
-		if ((data & 0x0c) == 0x04) {
-			// Unhandled OPCR value; used for RAM refresh circuit
-			// ignore value; omit error message
-			data &= ~0x0c;
-		}
-		break;
+#endif
 	}
-	duart68681_w(device, space, offset / 2, data);
+	mc68681_device::write(space, offset/2, data, mem_mask);
 }
 
-/*-------------------------------------------------
- kbd tty timer callback
- -------------------------------------------------*/
+// device type definition
+const device_type APOLLO_SIO = &device_creator<apollo_sio>;
 
-static TIMER_CALLBACK(kbd_timer_callback)
+WRITE_LINE_MEMBER(apollo_state::sio_irq_handler)
 {
-#if defined(APOLLO_FOR_LINUX)
-	device_t *device = (device_t *) ptr;
-	address_space &space = device->machine().device(MAINCPU)->memory().space(AS_PROGRAM);
-	UINT8 data;
+	apollo_pic_set_irq_line(APOLLO_IRQ_SIO1, state);
+}
 
-#define SRA 0x01
-#define SRB 0x09
+WRITE8_MEMBER(apollo_state::sio_output)
+{
+//  CLOG2(("apollo_sio - sio_output %02x", data));
 
-	if (!(duart68681_r(device, space, SRB) & 0x02))
+	if ((data & 0x80) != (sio_output_data & 0x80))
 	{
-		// Channel B FIFO not yet full (STATUS_FIFO_FULL)
-		if (read(STDIN_FILENO, &data, 1) == 1)
-		{
-			apollo_sio_rx_data(device, 1, data == '\n' ? '\r' : data);
-			input_from_stdin = 1;
-			// stop sleeping to reduce CPU usage
-			sio_sleep(0);
-		}
-		else if (input_from_stdin && (duart68681_r(device, space, SRB) & 0x0c) == 0x0c)
-		{
-			// we reduce the CPU usage, if SRB is being polled for input
-			// but only as long as the transmitter is empty and ready
-			// and the initial delay time has has passed
-			sio_sleep(SIO_SLEEP_DELAY_TIME);
-		}
+		apollo_pic_set_irq_line(APOLLO_IRQ_DIAG, (data & 0x80) ? 1 : 0);
 	}
-#endif
 
-	// The counter/timer on the SIO chip is used for the refresh count.
-	// This is set up in the timer mode to  produce a square wave output on output OP3.
+	// The counter/timer on the SIO chip is used for the RAM refresh count.
+	// This is set up in the timer mode to produce a square wave output on output OP3.
 	// The period of the output is 15 microseconds.
 
-	// toggle memory refresh counter
-	sio_input_data ^= 0x01;
-}
+	if ((data & 0x08) != (sio_output_data & 0x08))
+	{
+		m_sio->ip0_w((data & 0x08) ? ASSERT_LINE : CLEAR_LINE);
+	}
 
-/*-------------------------------------------------
- device start callback
- -------------------------------------------------*/
-
-static DEVICE_START(apollo_sio)
-{
-	kbd_timer = device->machine().scheduler().timer_alloc(FUNC(kbd_timer_callback), device);
-}
-
-/*-------------------------------------------------
- device reset callback
- -------------------------------------------------*/
-
-static DEVICE_RESET(apollo_sio)
-{
-	DLOG1(("reset apollo_sio"));
-
-	isInitialized = 0;
-	input_from_stdin = 0;
-	sleep_time = 0;
-	sio_input_data = apollo_get_ram_config_byte();
-	sio_output_data = 0xff;
-
-#if defined(APOLLO_FOR_LINUX)
-	// FIXME: unavailable in mingw
-	// set stdin to nonblocking to allow polling in sio_poll_rxb
-	fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL) | O_NONBLOCK);
-#endif
-
-	// start the keyboard timer
-	kbd_timer->adjust( attotime::zero, 0, attotime::from_msec(1));
+	sio_output_data = data;
 }
 
 //##########################################################################
 // machine/apollo_sio2.c - APOLLO DS3500 SIO2
 //##########################################################################
 
-#undef VERBOSE
-#define VERBOSE 0
-
-/*-------------------------------------------------
- sio2 configuration (DN3500 only)
- -------------------------------------------------*/
-
-static void sio2_irq_handler(device_t *device, int state, UINT8 vector)
+WRITE_LINE_MEMBER(apollo_state::sio2_irq_handler)
 {
-	DLOG1(("sio2_irq_handler: vector=%02x", vector ));
-	apollo_pic_set_irq_line(device, APOLLO_IRQ_SIO2, state);
+	apollo_pic_set_irq_line(APOLLO_IRQ_SIO2, state);
 }
-
-static void sio2_tx_data(device_t *device, int channel, UINT8 data)
-{
-	DLOG1(("apollo_sio2_tx_data ch=%d -> data=%02x", channel, data ));
-}
-
-static UINT8 sio2_input(device_t *device)
-{
-	UINT8 data = 0x00;
-	DLOG1(("reading 2681 input: %02x", data ));
-	return data;
-}
-
-static void sio2_output(device_t *device, UINT8 data)
-{
-	DLOG1(("writing 2681 output: %02x", data ));
-}
-
-const duart68681_config apollo_sio2_config = {
-		sio2_irq_handler,
-		sio2_tx_data,
-		sio2_input,
-		sio2_output
-};
-
-/*-------------------------------------------------
- DN3500 SIO2 at 0x10500
- -------------------------------------------------*/
-
-READ8_DEVICE_HANDLER(apollo_sio2_r)
-{
-	static const char * const duart68681_reg_read_names[0x10] = { "MRA", "SRA",
-			"BRG Test", "RHRA", "IPCR", "ISR", "CTU", "CTL", "MRB", "SRB",
-			"1X/16X Test", "RHRB", "IVR", "Input Ports", "Start Counter",
-			"Stop Counter" };
-
-	apollo_pic_set_irq_line(device, APOLLO_IRQ_SIO2, 0);
-
-	int data = duart68681_r(device, space, offset / 2);
-
-	DLOG2(("reading 2681 reg %x (%s) returned %02x",
-				offset, duart68681_reg_read_names[offset/2], data ));
-	return data;
-}
-
-WRITE8_DEVICE_HANDLER(apollo_sio2_w)
-{
-	static const char * const duart68681_reg_write_names[0x10] = { "MRA",
-			"CSRA", "CRA", "THRA", "ACR", "IMR", "CRUR", "CTLR", "MRB", "CSRB",
-			"CRB", "THRB", "IVR", "OPCR", "Set OP Bits", "Reset OP Bits" };
-
-	DLOG2(("writing 2681 reg %x (%s) with %02x", offset, duart68681_reg_write_names[(offset/2) & 15], data ));
-
-	apollo_pic_set_irq_line(device, APOLLO_IRQ_SIO2, 0);
-
-	switch (offset / 2) {
-	case 0x04: /* ACR */
-		if (data == 0x80) {
-			// FIXME: unhandled ACR value
-			// data = 0xe0;
-		}
-		break;
-	}
-
-	duart68681_w(device, space, offset / 2, data);
-}
-
-/*-------------------------------------------------
- device start callback
- -------------------------------------------------*/
-
-static DEVICE_START(apollo_sio2)
-{
-	DLOG1(("start apollo_sio2"));
-}
-
-/*-------------------------------------------------
- device reset callback
- -------------------------------------------------*/
-
-static DEVICE_RESET(apollo_sio2)
-{
-	DLOG1(("reset apollo_sio2"));
-}
-
-//##########################################################################
-// machine/apollo_fdc.c - APOLLO DS3500 Floppy disk controller
-//##########################################################################
-
-FLOPPY_FORMATS_MEMBER( apollo_state::floppy_formats )
-	FLOPPY_APOLLO_FORMAT
-FLOPPY_FORMATS_END
-
-static SLOT_INTERFACE_START( apollo_floppies )
-	SLOT_INTERFACE( "525hd", FLOPPY_525_HD )
-SLOT_INTERFACE_END
-
-
-void apollo_state::fdc_interrupt(bool state) {
-	apollo_pic_set_irq_line( machine().firstcpu, APOLLO_IRQ_FDC, state ? ASSERT_LINE : CLEAR_LINE);
-}
-
-void apollo_state::fdc_dma_drq(bool state) {
-	apollo_dma_fdc_drq(machine().firstcpu, state);
-}
-
-/***************************************************************************
- DN3500 3c505 DEVICE Configuration
- ***************************************************************************/
-
-static void apollo_3c505_set_irq(device_t *device, int state) {
-	// DLOG2(("apollo_3c505_interrupt: state=%x", state ));
-	apollo_pic_set_irq_line(device->machine().firstcpu, APOLLO_IRQ_ETH1, state);
-}
-
-static int apollo_3c505_tx_data(device_t *device,
-		const UINT8 tx_data_buffer[], int tx_data_length) {
-	// transmit all transmitted packets to the apollo_netserver
-	apollo_netserver_receive(device, tx_data_buffer, tx_data_length);
-
-	// transmit all transmitted packets to the host ethernet (ignore any errors)
-	return apollo_eth_transmit(device, tx_data_buffer, tx_data_length);
-}
-
-static int apollo_3c505_setfilter(device_t *device, int node_id)
-{
-	return apollo_eth_setfilter(device, node_id);
-}
-
-static int apollo_3c505_rx_data(device_t *device,
-		const UINT8 rx_data_buffer[], int rx_data_length) {
-	// transmit all received packets to the threecom3c505 receiver
-	return threecom3c505_receive(device, rx_data_buffer, rx_data_length);
-}
-
-static void apollo_3c505_tx_init(device_t *device) {
-	apollo_eth_init(device, apollo_3c505_rx_data);
-
-	// setup to receive all packets from the apollo_netserver
-	apollo_netserver_init(device->machine().options().media_path(), apollo_3c505_rx_data);
-}
-
-static THREECOM3C505_INTERFACE(apollo_3c505_config) = {
-	apollo_3c505_set_irq,
-	apollo_3c505_tx_init,
-	apollo_3c505_tx_data,
-	apollo_3c505_setfilter
-};
-
-/***************************************************************************
- DN3500 OMTI 8621 DEVICE Configuration
- ***************************************************************************/
-
-static void apollo_wdc_set_irq(const running_machine *machine, int state) {
-//  FIXME:
-//  MLOG2(("apollo_wdc_set_irq: state=%x", state ));
-	apollo_pic_set_irq_line(machine->firstcpu, APOLLO_IRQ_WIN1, state);
-}
-
-static const omti8621_config apollo_wdc_config = {
-		apollo_wdc_set_irq
-};
-
-/***************************************************************************
- DN3500 Cartridge Tape DEVICE Configuration
- ***************************************************************************/
-
-static void apollo_ctape_set_irq(const device_t *device, int state) {
-	DLOG2(("apollo_ctape_set_irq: state=%x", state ));
-	apollo_pic_set_irq_line(device->machine().firstcpu, APOLLO_IRQ_CTAPE, state);
-}
-
-
-static void apollo_ctape_dma_drq(const device_t *device, int state) {
-	DLOG2(("apollo_ctape_dma_drq: state=%x", state ));
-	apollo_dma_ctape_drq(device->machine().firstcpu, state);
-}
-
-static const sc499_interface apollo_ctape_config = {
-	apollo_ctape_set_irq,
-	apollo_ctape_dma_drq,
-};
 
 //##########################################################################
 // machine/apollo.c - APOLLO DS3500 CPU Board
@@ -1384,65 +864,178 @@ static const sc499_interface apollo_ctape_config = {
 #undef VERBOSE
 #define VERBOSE 0
 
-MACHINE_CONFIG_FRAGMENT( apollo )
+static SLOT_INTERFACE_START(apollo_isa_cards)
+	SLOT_INTERFACE("wdc", ISA16_OMTI8621)   // Combo ESDI/AT floppy controller
+	SLOT_INTERFACE("ctape", ISA8_SC499)     // Archive SC499 cartridge tape
+	SLOT_INTERFACE("3c505", ISA16_3C505)   // 3Com 3C505 Ethernet card
+SLOT_INTERFACE_END
+
+MACHINE_CONFIG_FRAGMENT( common )
 	// configuration MUST be reset first !
 	MCFG_DEVICE_ADD(APOLLO_CONF_TAG, APOLLO_CONF, 0)
 
-	MCFG_I8237_ADD( APOLLO_DMA1_TAG, XTAL_14_31818MHz/3, apollo_dma8237_1_config )
-	MCFG_I8237_ADD( APOLLO_DMA2_TAG, XTAL_14_31818MHz/3, apollo_dma8237_2_config )
+	MCFG_DEVICE_ADD( APOLLO_DMA1_TAG, AM9517A, XTAL_14_31818MHz/3 )
+	MCFG_I8237_OUT_HREQ_CB(WRITELINE(apollo_state, apollo_dma_1_hrq_changed))
+	MCFG_I8237_OUT_EOP_CB(WRITELINE(apollo_state, apollo_dma8237_out_eop))
+	MCFG_I8237_IN_MEMR_CB(READ8(apollo_state, apollo_dma_read_byte))
+	MCFG_I8237_OUT_MEMW_CB(WRITE8(apollo_state, apollo_dma_write_byte))
+	MCFG_I8237_IN_IOR_0_CB(READ8(apollo_state, pc_dma8237_0_dack_r))
+	MCFG_I8237_IN_IOR_1_CB(READ8(apollo_state, pc_dma8237_1_dack_r))
+	MCFG_I8237_IN_IOR_2_CB(READ8(apollo_state, pc_dma8237_2_dack_r))
+	MCFG_I8237_IN_IOR_3_CB(READ8(apollo_state, pc_dma8237_3_dack_r))
+	MCFG_I8237_OUT_IOW_0_CB(WRITE8(apollo_state, pc_dma8237_0_dack_w))
+	MCFG_I8237_OUT_IOW_1_CB(WRITE8(apollo_state, pc_dma8237_1_dack_w))
+	MCFG_I8237_OUT_IOW_2_CB(WRITE8(apollo_state, pc_dma8237_2_dack_w))
+	MCFG_I8237_OUT_IOW_3_CB(WRITE8(apollo_state, pc_dma8237_3_dack_w))
+	MCFG_I8237_OUT_DACK_0_CB(WRITELINE(apollo_state, pc_dack0_w))
+	MCFG_I8237_OUT_DACK_1_CB(WRITELINE(apollo_state, pc_dack1_w))
+	MCFG_I8237_OUT_DACK_2_CB(WRITELINE(apollo_state, pc_dack2_w))
+	MCFG_I8237_OUT_DACK_3_CB(WRITELINE(apollo_state, pc_dack3_w))
+	MCFG_DEVICE_ADD( APOLLO_DMA2_TAG, AM9517A, XTAL_14_31818MHz/3 )
+	MCFG_I8237_OUT_HREQ_CB(WRITELINE(apollo_state, apollo_dma_2_hrq_changed))
+	MCFG_I8237_IN_MEMR_CB(READ8(apollo_state, apollo_dma_read_word))
+	MCFG_I8237_OUT_MEMW_CB(WRITE8(apollo_state, apollo_dma_write_word))
+	MCFG_I8237_IN_IOR_1_CB(READ8(apollo_state, pc_dma8237_5_dack_r))
+	MCFG_I8237_IN_IOR_2_CB(READ8(apollo_state, pc_dma8237_6_dack_r))
+	MCFG_I8237_IN_IOR_3_CB(READ8(apollo_state, pc_dma8237_7_dack_r))
+	MCFG_I8237_OUT_IOW_1_CB(WRITE8(apollo_state, pc_dma8237_5_dack_w))
+	MCFG_I8237_OUT_IOW_2_CB(WRITE8(apollo_state, pc_dma8237_6_dack_w))
+	MCFG_I8237_OUT_IOW_3_CB(WRITE8(apollo_state, pc_dma8237_7_dack_w))
+	MCFG_I8237_OUT_DACK_0_CB(WRITELINE(apollo_state, pc_dack4_w))
+	MCFG_I8237_OUT_DACK_1_CB(WRITELINE(apollo_state, pc_dack5_w))
+	MCFG_I8237_OUT_DACK_2_CB(WRITELINE(apollo_state, pc_dack6_w))
+	MCFG_I8237_OUT_DACK_3_CB(WRITELINE(apollo_state, pc_dack7_w))
 	MCFG_PIC8259_ADD( APOLLO_PIC1_TAG, WRITELINE(apollo_state,apollo_pic8259_master_set_int_line), VCC, READ8(apollo_state, apollo_pic8259_get_slave_ack))
 	MCFG_PIC8259_ADD( APOLLO_PIC2_TAG, WRITELINE(apollo_state,apollo_pic8259_slave_set_int_line), GND, NULL)
 
-	MCFG_PTM6840_ADD(APOLLO_PTM_TAG, apollo_ptm_config)
-	MCFG_MC146818_ADD( APOLLO_RTC_TAG, MC146818_UTC )
-	MCFG_DUART68681_ADD( APOLLO_SIO_TAG, XTAL_3_6864MHz, apollo_sio_config )
-	MCFG_DUART68681_ADD( APOLLO_SIO2_TAG, XTAL_3_6864MHz, apollo_sio2_config )
+	MCFG_DEVICE_ADD(APOLLO_PTM_TAG, PTM6840, 0)
+	MCFG_PTM6840_INTERNAL_CLOCK(0)
+	MCFG_PTM6840_EXTERNAL_CLOCKS(250000, 125000, 62500)
+	MCFG_PTM6840_IRQ_CB(WRITELINE(apollo_state, apollo_ptm_irq_function))
+	MCFG_DEVICE_ADD("ptmclock", CLOCK, 250000)
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(apollo_state, apollo_ptm_timer_tick))
 
-	MCFG_PC_FDC_AT_ADD(APOLLO_FDC_TAG)
-	MCFG_FLOPPY_DRIVE_ADD(APOLLO_FDC_TAG ":0", apollo_floppies, "525hd", apollo_state::floppy_formats)
+	MCFG_MC146818_ADD( APOLLO_RTC_TAG, XTAL_32_768kHz )
+	MCFG_MC146818_UTC( true )
 
-	MCFG_OMTI8621_ADD(APOLLO_WDC_TAG, apollo_wdc_config)
-	MCFG_SC499_ADD(APOLLO_CTAPE_TAG, apollo_ctape_config)
-	MCFG_THREECOM3C505_ADD(APOLLO_ETH_TAG, apollo_3c505_config)
+	MCFG_APOLLO_SIO_ADD( APOLLO_SIO2_TAG, XTAL_3_6864MHz )
+	MCFG_APOLLO_SIO_IRQ_CALLBACK(WRITELINE(apollo_state, sio2_irq_handler))
+
+	MCFG_DEVICE_ADD(APOLLO_ISA_TAG, ISA16, 0)
+	MCFG_ISA16_CPU(":"MAINCPU)
+	MCFG_ISA16_BUS_CUSTOM_SPACES()
+	MCFG_ISA_OUT_IRQ2_CB(DEVWRITELINE(APOLLO_PIC2_TAG, pic8259_device, ir2_w)) // in place of irq 2 on at irq 9 is used
+	MCFG_ISA_OUT_IRQ3_CB(DEVWRITELINE(APOLLO_PIC1_TAG, pic8259_device, ir3_w))
+	MCFG_ISA_OUT_IRQ4_CB(DEVWRITELINE(APOLLO_PIC1_TAG, pic8259_device, ir4_w))
+	MCFG_ISA_OUT_IRQ5_CB(DEVWRITELINE(APOLLO_PIC1_TAG, pic8259_device, ir5_w))
+	MCFG_ISA_OUT_IRQ6_CB(DEVWRITELINE(APOLLO_PIC1_TAG, pic8259_device, ir6_w))
+	MCFG_ISA_OUT_IRQ7_CB(DEVWRITELINE(APOLLO_PIC1_TAG, pic8259_device, ir7_w))
+	MCFG_ISA_OUT_IRQ10_CB(DEVWRITELINE(APOLLO_PIC2_TAG, pic8259_device, ir2_w))
+	MCFG_ISA_OUT_IRQ11_CB(DEVWRITELINE(APOLLO_PIC2_TAG, pic8259_device, ir3_w))
+	MCFG_ISA_OUT_IRQ12_CB(DEVWRITELINE(APOLLO_PIC2_TAG, pic8259_device, ir4_w))
+	MCFG_ISA_OUT_IRQ14_CB(DEVWRITELINE(APOLLO_PIC2_TAG, pic8259_device, ir6_w))
+	MCFG_ISA_OUT_IRQ15_CB(DEVWRITELINE(APOLLO_PIC2_TAG, pic8259_device, ir7_w))
+	MCFG_ISA_OUT_DRQ0_CB(DEVWRITELINE(APOLLO_DMA1_TAG, am9517a_device, dreq0_w))
+	MCFG_ISA_OUT_DRQ1_CB(DEVWRITELINE(APOLLO_DMA1_TAG, am9517a_device, dreq1_w))
+	MCFG_ISA_OUT_DRQ2_CB(DEVWRITELINE(APOLLO_DMA1_TAG, am9517a_device, dreq2_w))
+	MCFG_ISA_OUT_DRQ3_CB(DEVWRITELINE(APOLLO_DMA1_TAG, am9517a_device, dreq3_w))
+	MCFG_ISA_OUT_DRQ5_CB(DEVWRITELINE(APOLLO_DMA2_TAG, am9517a_device, dreq1_w))
+	MCFG_ISA_OUT_DRQ6_CB(DEVWRITELINE(APOLLO_DMA2_TAG, am9517a_device, dreq2_w))
+	MCFG_ISA_OUT_DRQ7_CB(DEVWRITELINE(APOLLO_DMA2_TAG, am9517a_device, dreq3_w))
+	MCFG_ISA16_SLOT_ADD(APOLLO_ISA_TAG, "isa1", apollo_isa_cards, "wdc", false)
+	MCFG_ISA16_SLOT_ADD(APOLLO_ISA_TAG, "isa2", apollo_isa_cards, "ctape", false)
+	MCFG_ISA16_SLOT_ADD(APOLLO_ISA_TAG, "isa3", apollo_isa_cards, "3c505", false)
+	MCFG_ISA16_SLOT_ADD(APOLLO_ISA_TAG, "isa4", apollo_isa_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD(APOLLO_ISA_TAG, "isa5", apollo_isa_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD(APOLLO_ISA_TAG, "isa6", apollo_isa_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD(APOLLO_ISA_TAG, "isa7", apollo_isa_cards, NULL, false)
+MACHINE_CONFIG_END
+
+// for machines with the keyboard and a graphics head
+MACHINE_CONFIG_FRAGMENT( apollo )
+	MCFG_FRAGMENT_ADD(common)
+	MCFG_APOLLO_SIO_ADD( APOLLO_SIO_TAG, XTAL_3_6864MHz )
+	MCFG_APOLLO_SIO_IRQ_CALLBACK(WRITELINE(apollo_state, sio_irq_handler))
+	MCFG_APOLLO_SIO_OUTPORT_CALLBACK(WRITE8(apollo_state, sio_output))
+	MCFG_APOLLO_SIO_A_TX_CALLBACK(DEVWRITELINE(APOLLO_KBD_TAG, apollo_kbd_device, rx_w))
+MACHINE_CONFIG_END
+
+static DEVICE_INPUT_DEFAULTS_START( apollo_terminal )
+	DEVICE_INPUT_DEFAULTS( "RS232_TXBAUD", 0xff, RS232_BAUD_9600 )
+	DEVICE_INPUT_DEFAULTS( "RS232_RXBAUD", 0xff, RS232_BAUD_9600 )
+	DEVICE_INPUT_DEFAULTS( "RS232_STARTBITS", 0xff, RS232_STARTBITS_1 )
+	DEVICE_INPUT_DEFAULTS( "RS232_DATABITS", 0xff, RS232_DATABITS_8 )
+	DEVICE_INPUT_DEFAULTS( "RS232_PARITY", 0xff, RS232_PARITY_NONE )
+	DEVICE_INPUT_DEFAULTS( "RS232_STOPBITS", 0xff, RS232_STOPBITS_1 )
+DEVICE_INPUT_DEFAULTS_END
+
+// for headless machines using a serial console
+MACHINE_CONFIG_FRAGMENT( apollo_terminal )
+	MCFG_FRAGMENT_ADD(common)
+	MCFG_APOLLO_SIO_ADD( APOLLO_SIO_TAG, XTAL_3_6864MHz )
+	MCFG_APOLLO_SIO_IRQ_CALLBACK(WRITELINE(apollo_state, sio_irq_handler))
+	MCFG_APOLLO_SIO_OUTPORT_CALLBACK(WRITE8(apollo_state, sio_output))
+	MCFG_APOLLO_SIO_B_TX_CALLBACK(DEVWRITELINE("rs232", rs232_port_device, write_txd))
+
+	MCFG_RS232_PORT_ADD("rs232", default_rs232_devices, "terminal")
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(APOLLO_SIO_TAG, apollo_sio, rx_b_w))
+
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("terminal", apollo_terminal)
 MACHINE_CONFIG_END
 
 DRIVER_INIT_MEMBER(apollo_state,apollo)
 {
-	//MLOG1(("driver_init_apollo"));
+	MLOG1(("driver_init_apollo"));
 }
 
 MACHINE_START_MEMBER(apollo_state,apollo)
 {
-	//MLOG1(("machine_start_apollo"));
-
-	pc_fdc_at_device *fdc = machine().device<pc_fdc_at_device>(APOLLO_FDC_TAG);
-	fdc->setup_intrq_cb(pc_fdc_at_device::line_cb(FUNC(apollo_state::fdc_interrupt), this));
-	fdc->setup_drq_cb(pc_fdc_at_device::line_cb(FUNC(apollo_state::fdc_dma_drq), this));
-
-	// motor is on, floppy disk is ready
-	fdc->fdc->ready_w(1);
-
-	device_start_apollo_ptm (machine().device(APOLLO_PTM_TAG) );
-	device_start_apollo_sio(machine().device(APOLLO_SIO_TAG));
-	device_start_apollo_sio2(machine().device(APOLLO_SIO2_TAG));
+	MLOG1(("machine_start_apollo"));
 
 	if (apollo_is_dn3000())
 	{
 		//MLOG1(("faking mc146818 interrupts (DN3000 only)"));
 		// fake mc146818 interrupts (DN3000 only)
-		machine().scheduler().timer_pulse(attotime::from_hz(2), FUNC(apollo_rtc_timer));
+		m_dn3000_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(apollo_state::apollo_rtc_timer),this));
 	}
 }
 
 MACHINE_RESET_MEMBER(apollo_state,apollo)
 {
-	//MLOG1(("machine_reset_apollo"));
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	UINT8 year = apollo_rtc_r(space, 9);
+
+	m_dma_channel = -1;
+	m_cur_eop = false;
+
+	MLOG1(("machine_reset_apollo"));
 
 	// set configuration
 	apollo_csr_set_servicemode(apollo_config(APOLLO_CONF_SERVICE_MODE));
 
-	device_reset_apollo_ptm(machine().device(APOLLO_PTM_TAG));
-	device_reset_apollo_rtc(machine().device(APOLLO_RTC_TAG));
-	device_reset_apollo_sio(machine().device(APOLLO_SIO_TAG));
-	device_reset_apollo_sio2(machine().device(APOLLO_SIO2_TAG));
+	// change year according to configuration settings
+	if (year < 20 && apollo_config(APOLLO_CONF_20_YEARS_AGO))
+	{
+		year+=80;
+		apollo_rtc_w(space, 9, year);
+	}
+	else if (year < 25 && apollo_config(APOLLO_CONF_25_YEARS_AGO))
+	{
+		year += 75;
+		apollo_rtc_w(space, 9, year);
+	}
+	else if (year >= 80 && !apollo_config(APOLLO_CONF_20_YEARS_AGO)
+			&& !apollo_config(APOLLO_CONF_25_YEARS_AGO))
+	{
+		year -=80;
+		apollo_rtc_w(space, 9, year);
+	}
+
+	ptm_counter = 0;
+	sio_output_data = 0xff;
+
+	if (apollo_is_dn3000())
+	{
+		m_dn3000_timer->adjust(attotime::from_hz(2), 0, attotime::from_hz(2));
+	}
 }

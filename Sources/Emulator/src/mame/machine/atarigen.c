@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     atarigen.c
 
     General functions for Atari games.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -1000,7 +971,11 @@ atarigen_state::atarigen_state(const machine_config &mconfig, device_type type, 
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_oki(*this, "oki"),
-		m_soundcomm(*this, "soundcomm")
+		m_soundcomm(*this, "soundcomm"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_16(*this, "paletteram")
 {
 }
 
@@ -1425,85 +1400,6 @@ void atarigen_state::halt_until_hblank_0(device_t &device, screen_device &screen
 }
 
 
-//-------------------------------------------------
-//  paletteram_666_w: 6-6-6 RGB palette RAM handler.
-//-------------------------------------------------
-
-WRITE16_MEMBER(atarigen_state::paletteram_666_w)
-{
-	int newword, r, g, b;
-
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-	newword = m_generic_paletteram_16[offset];
-
-	r = ((newword >> 9) & 0x3e) | ((newword >> 15) & 1);
-	g = ((newword >> 4) & 0x3e) | ((newword >> 15) & 1);
-	b = ((newword << 1) & 0x3e) | ((newword >> 15) & 1);
-
-	palette_set_color_rgb(space.machine(), offset, pal6bit(r), pal6bit(g), pal6bit(b));
-}
-
-
-//-------------------------------------------------
-//  expanded_paletteram_666_w: 6-6-6 RGB expanded
-//  palette RAM handler.
-//-------------------------------------------------
-
-WRITE16_MEMBER(atarigen_state::expanded_paletteram_666_w)
-{
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-
-	if (ACCESSING_BITS_8_15)
-	{
-		int palentry = offset / 2;
-		int newword = (m_generic_paletteram_16[palentry * 2] & 0xff00) | (m_generic_paletteram_16[palentry * 2 + 1] >> 8);
-
-		int r, g, b;
-
-		r = ((newword >> 9) & 0x3e) | ((newword >> 15) & 1);
-		g = ((newword >> 4) & 0x3e) | ((newword >> 15) & 1);
-		b = ((newword << 1) & 0x3e) | ((newword >> 15) & 1);
-
-		palette_set_color_rgb(space.machine(), palentry & 0x1ff, pal6bit(r), pal6bit(g), pal6bit(b));
-	}
-}
-
-
-//-------------------------------------------------
-//  paletteram32_666_w: 6-6-6 RGB palette RAM handler.
-//-------------------------------------------------
-
-WRITE32_MEMBER(atarigen_state::paletteram32_666_w )
-{
-	int newword, r, g, b;
-
-	COMBINE_DATA(&m_generic_paletteram_32[offset]);
-
-	if (ACCESSING_BITS_16_31)
-	{
-		newword = m_generic_paletteram_32[offset] >> 16;
-
-		r = ((newword >> 9) & 0x3e) | ((newword >> 15) & 1);
-		g = ((newword >> 4) & 0x3e) | ((newword >> 15) & 1);
-		b = ((newword << 1) & 0x3e) | ((newword >> 15) & 1);
-
-		palette_set_color_rgb(space.machine(), offset * 2, pal6bit(r), pal6bit(g), pal6bit(b));
-	}
-
-	if (ACCESSING_BITS_0_15)
-	{
-		newword = m_generic_paletteram_32[offset] & 0xffff;
-
-		r = ((newword >> 9) & 0x3e) | ((newword >> 15) & 1);
-		g = ((newword >> 4) & 0x3e) | ((newword >> 15) & 1);
-		b = ((newword << 1) & 0x3e) | ((newword >> 15) & 1);
-
-		palette_set_color_rgb(space.machine(), offset * 2 + 1, pal6bit(r), pal6bit(g), pal6bit(b));
-	}
-}
-
-
-
 /***************************************************************************
     MISC HELPERS
 ***************************************************************************/
@@ -1515,8 +1411,8 @@ WRITE32_MEMBER(atarigen_state::paletteram32_666_w )
 
 void atarigen_state::blend_gfx(int gfx0, int gfx1, int mask0, int mask1)
 {
-	gfx_element *gx0 = machine().gfx[gfx0];
-	gfx_element *gx1 = machine().gfx[gfx1];
+	gfx_element *gx0 = m_gfxdecode->gfx(gfx0);
+	gfx_element *gx1 = m_gfxdecode->gfx(gfx1);
 	UINT8 *srcdata, *dest;
 	int c, x, y;
 
@@ -1549,8 +1445,7 @@ void atarigen_state::blend_gfx(int gfx0, int gfx1, int mask0, int mask1)
 	gx0->set_granularity(granularity);
 
 	// free the second graphics element
-	machine().gfx[gfx1] = NULL;
-	auto_free(machine(), gx1);
+	m_gfxdecode->set_gfx(gfx1, NULL);
 }
 
 

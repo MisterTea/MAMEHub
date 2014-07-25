@@ -1,41 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 //============================================================
 //
 //  winwork.c - Win32 OSD core work item functions
-//
-//============================================================
-//
-//  Copyright Aaron Giles
-//  All rights reserved.
-//
-//  Redistribution and use in source and binary forms, with or
-//  without modification, are permitted provided that the
-//  following conditions are met:
-//
-//    * Redistributions of source code must retain the above
-//      copyright notice, this list of conditions and the
-//      following disclaimer.
-//    * Redistributions in binary form must reproduce the
-//      above copyright notice, this list of conditions and
-//      the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//    * Neither the name 'MAME' nor the names of its
-//      contributors may be used to endorse or promote
-//      products derived from this software without specific
-//      prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND
-//  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-//  FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
-//  EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-//  DAMAGE (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-//  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-//  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-//  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-//  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-//  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //============================================================
 
@@ -84,6 +51,10 @@
 #define add_to_stat(v,x)        do { } while (0)
 #define begin_timing(v)         do { } while (0)
 #define end_timing(v)           do { } while (0)
+#endif
+
+#if __GNUC__ && defined(__i386__) && !defined(__x86_64)
+#undef YieldProcessor
 #endif
 
 #ifndef YieldProcessor
@@ -255,6 +226,7 @@ osd_work_queue *osd_work_queue_alloc(int flags)
 	int numprocs = effective_num_processors();
 	osd_work_queue *queue;
 	int threadnum;
+	TCHAR *osdworkqueuemaxthreads = _tgetenv(_T("OSDWORKQUEUEMAXTHREADS"));
 
 	// allocate a new queue
 	queue = (osd_work_queue *)malloc(sizeof(*queue));
@@ -282,6 +254,9 @@ osd_work_queue *osd_work_queue_alloc(int flags)
 	// on an n-CPU system, create n threads for multi queues, and 1 thread for everything else
 	else
 		queue->threads = (flags & WORK_QUEUE_FLAG_MULTI) ? numprocs : 1;
+
+	if (osdworkqueuemaxthreads != NULL && _stscanf(osdworkqueuemaxthreads, _T("%d"), &threadnum) == 1 && queue->threads > threadnum)
+		queue->threads = threadnum;
 
 	// multi-queues with high frequency items should top out at 4 for now
 	// since we have scaling problems above that

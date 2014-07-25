@@ -1,10 +1,34 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Miodrag Milanovic,Jonathan Gevaryahu
 /***************************************************************************
 
     Canon Cat, Model V777
     IAI Swyft Model P0001
-    driver by Miodrag Milanovic and Lord Nightmare
+    Copyright (C) 2009-2013 Miodrag Milanovic and Jonathan Gevaryahu AKA Lord Nightmare
     With information and help from John "Sandy" Bumgarner, Dwight Elvey,
     Charles Springer, Terry Holmes, Jonathan Sand, Aza Raskin and others.
+
+
+    This source file is dual-licensed under the following licenses:
+    1. The MAME license as of September 2013
+    2. The GNU LGPLv2.1:
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License as published by the Free Software Foundation; either
+    version 2.1 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+    Please contact the authors if you require other licensing.
+
 
     This driver is dedicated in memory of Jef Raskin and Dave Boulton
 
@@ -64,7 +88,7 @@ In MESS, to activate it as above:
 * when the Cat boots, type (without quotes) "Enable Forth Language"
 * hold left-alt(leap left) and type E n a, release left-alt (the left cursor is now at the first character)
 * simultaneously press both alt keys for a moment and release both (the whole "Enable Forth Language" line will be selected)
-* press control(use front) and press backspace(ERASE) (If beeping actually worked the cat would beep here)
+* press control(use front) and press backspace(ERASE) (The cat will beep here)
 * press control(use front), shift, and space (the cursor should stop blinking)
 * press enter and the forth "ok" prompt should appear. you can type 'page' and enter to clear the screen
 Optional further steps:
@@ -154,48 +178,89 @@ Canon Cat:
 Crystals:
 X1: 19.968Mhz, used by GA2 (plus a PLL to multiply by 2?), and divide by 4 for
     cpuclk, divide by 8 for 2.5mhz and divide by 5.5 for 3.63mhz (is this
-    suposed to be divide by 6? there may not be a pll if it is...)
+    supposed to be divide by 6? there may not be a pll if it is...)
 X2: 3.579545Mhz, used by the DTMF generator chip AMI S2579 at IC40
 X3: 2.4576Mhz, used by the modem chip AMI S35213 at IC37
 
 IAI Swyft:
 Board name: 950-0001C
 "INFORMATION APPLIANCE INC. COPYRIGHT 1985"
- _________________|||||||||_____________________________________________________________________________
-|                 video out         [unknown IDC connector]____                                         |
-|                                                         /    \                                        |
-<4 pin edge)           74LS107                            |PB1 |        uA339     MC3403                |
-|                                          7407           \____/                                        |
-| Y1       "TIMING B" 74LS132    74LS175                                                                |
-|                                                  ____________                                         |
-| TMS4256   74LS161  "DECODE E" "DISK 3.5C"       |            |                           4N37         |
-|                                                 |  MC6850P   |                                   -----|
-| TMS4256   74LS166   74HCT259   74LS299          '------------'        MC3403    MC3403           LINE =
-|                      ___________________     ___________________                                 -----|
-| TMS4256   74LS373   |                   |   |                   |                                PHONE=
-|                     |   MC68008P8       |   |       R6522P      |                                -----|
-| TMS4256   74F153    '-------------------'   '-------------------'     MN4053    MN4053          .-----|
-|                             (jumper E1)                                                         |J1   =
-| TMS4256   74F153    74HCT08     __________   ___________________      MC14412   DS1489          | B   =
-|                                |          | |                   | ||                            | R   =
-| TMS4256   74F153    74HC4040E  | AM27256  | |       R6522P      | ||                            | E   =
-|                                '----------' '-------------------' ||                            | A   =
-| TMS4256   74F153    "VIDEO 2B" .----------.                       J4                            | K   =
-|                                | AM27256  |   74HC02     74HC374  ||                            | O   =
-| TMS4256   74F153    74LS393    |__________|                       ||  UM95089  Y2               | U   =
-|_____________________________________(j9)________________________________________________________|_T___=
+ _________________|||||||||___________________________________________________________________________________
+|                     J8               [=======J3=======]  ____                              Trans-           |
+==                                                        /    \  (E2)                       former           |
+==Jx                   74LS107   J5                       |PB1 |        uA339     MC3403                 -----|
+|                                          7407           \____/                                         J7   =
+| Y1       "TIMING B" 74LS132    74LS175                                                                 -----|
+|                                                  ____________                            4N37  Relay   -----|
+| TMS4256   74LS161  "DECODE E" "DISK 3.5C"       |            |                                         J6   =
+|                                                 |  MC6850P   |                                         -----|
+| TMS4256   74LS166   74HCT259   74LS299          '------------'        MC3403    MC3403                 _____|
+|                      ___________________     ___________________             ||                       |     =
+| TMS4256   74LS373   |                   |   |                   |            J2                       | J1  =
+|                     |   MC68008P8       |   |       R6522P      |            ||              I   P R  |     =
+| TMS4256   74F153    '-------------------'   '-------------------'     MN4053 || MN4053       N   R E  | B   =
+|                                    (E1)                                                      D   O S  | R   =
+| TMS4256   74F153    74HCT08     __________   ___________________      MC14412   DS1489       U E T I  | E   =
+|                                |          | |                   | ||                         C S E S  | A   =
+| TMS4256   74F153    74HC4040E  | AM27256  | |       R6522P      | ||                         T D C T  | K   =
+|                                '----------' '-------------------' ||  INFORMATION            O   T O  | O   =
+| TMS4256   74F153    "VIDEO 2B" .----------.                       J4  APPLIANCE INC.         R   I R  | U   =
+|                                | AM27256  |   74HC02     74HC374  ||  Copyright 1985         S   O S  | T   =
+| TMS4256   74F153    74LS393  B1|__________|                       ||  UM95089  Y2                N    |     =
+|_____________________________[________J9___]__________________________________________________D13______|_____=
 
-"TIMING B" - AMPAL16R4APC (marked on silkscreen "TIMING PAL")
-"DECODE E" - AMPAL16L8PC (marked on silkscreen "DECODE PAL")
-"VIDEO 2B" - AMPAL16R4APC (marked on silkscreen "VIDEO PAL")
-"DISK 3.5C" - AMPAL16R4PC (marked on silkscreen "DISK PAL")
-4N37 (marked on silkscreen "4N35")
-74F153 (marked on silkscreen "74ALS153")
+*Devices of interest:
+J1: breakout of joystick, serial/rs232, hex-keypad, parallel port, and forth switch (and maybe cassette?) pins
+    DIL 60 pin 2-row right-angle rectangular connector with metal shield contact;
+    not all 60 pins are populated in the connector, only pins 1-6, 8, 13-15, 17-18, 23-30, 35-60 are present
+    (traced partly by dwight)
+J2: unpopulated 8-pin sip header, serial/rs232-related?
+    (vcc ? ? ? ? ? ? gnd) (random guess: txd, rxd, rts, cts, dsr, dtr, and one pin could be cd/ri though the modem circuit may do that separately?)
+J3: Floppy Connector
+    (standard DIL 34 pin 2-row rectangular connector for mini-shugart/pc floppy cable; pin 2 IS connected somewhere and ?probably? is used for /DISKCHANGE like on an Amiga, with pin 34 being /TRUEREADY?)
+    (as opposed to normal ibm pc 3.5" drives where pin 2 is unconnected or is /DENSITY *input to drive*, and pin 34 is /DISKCHANGE)
+J4: 18-pin sip header for keyboard ribbon cable
+    (needs tracing to see the VIA hookup order)
+J5: locking-tab-type "CONN HEADER VERT 4POS .100 TIN" connector for supplying power
+    through a small cable with a berg connector at the other end, to the floppy drive
+    (5v gnd gnd 12v)
+J6: Phone connector, rj11 jack
+J7: Line connector, rj11 jack
+J8: 9-pin Video out/power in connector "CONN RECEPT 6POS .156 R/A PCB" plus "CONN RECEPT 3POS .156 R/A PCB" acting as one 9-pin connector
+    (NC ? ? ? NC NC ? 12v 5v) (video, vsync, hsync and case/video-gnd are likely here)
+    (the video pinout of the cat is: (Video Vsync Hsync SyncGnd PwrGnd PwrGnd +5v(VCC) +12v(VDD) -12v(VEE)) which is not the same as the swyft.
+J9: unpopulated DIL 40-pin straight connector for a ROM debug/expansion/RAM-shadow daughterboard
+    the pins after pin 12 connect to that of the ROM-LO 27256 pinout counting pins 1,28,2,27,3,26,etc
+    the ROM-HI rom has a different /HICE pin which is not connected to this connector
+    /LOCE is most likely !(a19|a18)&a15
+    /HICE is most likely !(a19|a18)&!a15
+    pin 1 (GND) is in the lower left and the pins count low-high then to the right
+    (gnd ? ? ? ?   ? vcc a14 a13 a8 a9 a11 /OE a10 /LOCE d7 d6 d5 d4 d3 )
+    (GND ? ? ? gnd ? vcc a12 a7  a6 a5 a4  a3  a2  a1    a0 d0 d1 d2 gnd)
+Jx: 4 pin on top side, 6 pin on bottom side edge ?debug? connector (doesn't have a Jx number)
+    (trace me!)
+B1: a cuttable trace on the pcb. Not cut, affects one of the pins on the unpopulated J9 connector only.
+E1: jumper, unknown purpose, not set
+E2: jumper, unknown purpose, not set
+D13: LED
+R6522P (upper): parallel port via
+R6522P (lower): keyboard via
+UM95089: DTMF Tone generator chip (if you read the datasheet this is technically ROM based!)
+Y1: 15.8976Mhz, main clock?
+Y2: 3.579545Mhz, used by the DTMF generator chip UM95089 (connects to pins 7 and 8 of it)
 TMS4256-15NL - 262144 x 1 DRAM
 PB1 - piezo speaker
-Crystals:
-Y1: 15.8976Mhz, main clock?
-Y2: 3.579545Mhz, used by the DTMF generator chip UM95089?
+
+*Pals:
+"TIMING B" - AMPAL16R4APC (marked on silkscreen "TIMING PAL")
+"DECODE E" - AMPAL16L8PC (marked on silkscreen "DECODE PAL")
+"VIDEO 2B" - AMPAL16R4PC (marked on silkscreen "VIDEO PAL")
+"DISK 3.5C" - AMPAL16R4PC (marked on silkscreen "DISK PAL")
+
+*Deviations from silkscreen:
+4N37 (marked on silkscreen "4N35")
+74F153 (marked on silkscreen "74ALS153")
+74HCT259 is socketed, possibly intended that the rom expansion daughterboard will have a ribbon cable fit in its socket?
 
 
 ToDo:
@@ -217,14 +282,14 @@ ToDo:
     data, though track 0 is just a disk "unique" identifier for the cat
     meaning 404480 usable bytes
   * (Once the floppy is working I'd declare the system working)
-- Beeper/speaker; this is connected to the DUART 'user output' pin OP3 and
-  probably depends on an accurate implementation of the duart counters/timers
-- Centronics port
+- Centronics port finishing touches: verify where the paper out, slct/err, and
+  IPP pins map in memory. The firmware doesn't actually use them, but they must
+  map somewhere as they connect to the ASIC.
 - RS232C port and Modem "port" connected to the DUART's two ports
+  These are currently optionally debug-logged but don't connect anywhere
 - DTMF generator chip (connected to DUART 'user output' pins OP4,5,6,7)
-- Correctly hook the duart interrupt to the 68k, including autovector using
-  the vector register on the duart; this is currently hacked around.
-- Watchdog timer/powerfail at 0x85xxxx
+- WIP: Watchdog timer/powerfail at 0x85xxxx (watchdog NMI needs to actually
+  fire if wdt goes above a certain number, possibly 3, 7 or F?)
 - Canon Cat released versions known: 1.74 US (dumped), 2.40 US (dumped both
   original compile, and Dwight's recompile from the released source code),
   2.42 (NEED DUMP)
@@ -244,27 +309,31 @@ ToDo:
   happens inside an asic) for the SVROMS (or the svram or the code roms, for
   that matter!)
 - Hook Battery Low input to a dipswitch.
+- Hook pfail to a dipswitch.
 - Hook the floppy control register readback up properly, things seem to get
   confused.
 
 
 * Swyft
 - Figure out the keyboard (interrupts are involved? or maybe an NMI on a
-  timer/vblank? It iss possible this uses the same DUART+IP2 'keyboard read
-  int' stuff as the cat does)
-- Beeper
-- Communications port (Duart? or some other plain UART?)
+  timer/vblank? It is possible this uses a similar 'keyboard read int'
+  to what the cat does)
+- get the keyboard scanning actually working; the VIAs are going nuts right now.
+- Beeper (on one of the vias?)
+- vblank/hblank stuff
+- Get the 6850 ACIA working for communications
 - Floppy (probably similar to the Cat)
-- Centronics port (probably similar to the Cat)
-- Joystick port
-- Forth button (keep in mind shift-usefront-space ALWAYS enables forth on a swyft)
-- Multple undumped firmware revisions exist
+- Centronics port (attached to one of the VIAs)
+- Joystick port (also likely on a via)
+- Keypad? (also likely on a via done as a grid scan?)
+- Forth button (on the port on the back; keep in mind shift-usefront-space ALWAYS enables forth on a swyft)
+- Multple undumped firmware revisions exist (330 and 331 are dumped)
 
 ****************************************************************************/
 
 // Defines
 
-#undef DEBUG_VIDEO_ENABLE_W
+#undef DEBUG_GA2OPR_W
 #undef DEBUG_VIDEO_CONTROL_W
 
 #undef DEBUG_FLOPPY_CONTROL_W
@@ -280,20 +349,29 @@ ToDo:
 #undef DEBUG_MODEM_W
 
 #undef DEBUG_DUART_OUTPUT_LINES
-#undef DEBUG_DUART_INPUT_LINES
-#undef DEBUG_DUART_TXD
-// TODO: the duart irq handler doesn't work becuase there is no easy way to strobe the duart to force it to check its inputs yet
+// data sent to rs232 port
+#undef DEBUG_DUART_TXA
+// data sent to modem chip
+#undef DEBUG_DUART_TXB
 #undef DEBUG_DUART_IRQ_HANDLER
+#undef DEBUG_PRN_FF
 
 #undef DEBUG_TEST_W
+
+#define DEBUG_SWYFT_VIA0 1
+#define DEBUG_SWYFT_VIA1 1
+
 
 // Includes
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/n68681.h"
+#include "machine/clock.h"
+#include "machine/mc68681.h"
 #include "machine/6850acia.h"
 #include "machine/6522via.h"
 #include "machine/nvram.h"
+#include "sound/speaker.h"
+#include "bus/centronics/ctronics.h"
 
 class cat_state : public driver_device
 {
@@ -309,12 +387,15 @@ public:
 		m_maincpu(*this, "maincpu"),
 		//m_nvram(*this, "nvram"), // merge with svram?
 		m_duart(*this, "duartn68681"),
-		m_acia(*this, "acia6850"),
+		m_ctx(*this, "ctx"),
+		m_ctx_data_out(*this, "ctx_data_out"),
+		m_acia6850(*this, "acia6850"),
 		m_via0(*this, "via6522_0"),
 		m_via1(*this, "via6522_1"),
-		//m_speaker(*this, "speaker"),
+		m_speaker(*this, "speaker"),
 		m_svram(*this, "svram"), // nvram
-		m_p_videoram(*this, "p_videoram"),
+		m_p_cat_videoram(*this, "p_cat_vram"),
+		m_p_swyft_videoram(*this, "p_swyft_vram"),
 		m_y0(*this, "Y0"),
 		m_y1(*this, "Y1"),
 		m_y2(*this, "Y2"),
@@ -328,17 +409,16 @@ public:
 
 	required_device<cpu_device> m_maincpu;
 	//optional_device<nvram_device> m_nvram;
-	optional_device<duartn68681_device> m_duart; // only cat uses this
-	optional_device<acia6850_device> m_acia; // only swyft uses this
+	optional_device<mc68681_device> m_duart; // only cat uses this
+	optional_device<centronics_device> m_ctx;
+	optional_device<output_latch_device> m_ctx_data_out;
+	optional_device<acia6850_device> m_acia6850; // only swyft uses this
 	optional_device<via6522_device> m_via0; // only swyft uses this
 	optional_device<via6522_device> m_via1; // only swyft uses this
-	DECLARE_WRITE_LINE_MEMBER(cat_duart_irq_handler);
-	DECLARE_WRITE_LINE_MEMBER(cat_duart_txa);
-	DECLARE_READ8_MEMBER(cat_duart_input);
-	DECLARE_WRITE8_MEMBER(cat_duart_output);
-	//required_device<speaker_sound_device> m_speaker;
+	optional_device<speaker_sound_device> m_speaker;
 	optional_shared_ptr<UINT16> m_svram;
-	required_shared_ptr<UINT16> m_p_videoram;
+	optional_shared_ptr<UINT16> m_p_cat_videoram;
+	optional_shared_ptr<UINT8> m_p_swyft_videoram;
 	optional_ioport m_y0;
 	optional_ioport m_y1;
 	optional_ioport m_y2;
@@ -362,6 +442,12 @@ public:
 	UINT32 screen_update_cat(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_swyft(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
+	DECLARE_WRITE_LINE_MEMBER(cat_duart_irq_handler);
+	DECLARE_WRITE_LINE_MEMBER(cat_duart_txa);
+	DECLARE_WRITE_LINE_MEMBER(cat_duart_txb);
+	DECLARE_WRITE8_MEMBER(cat_duart_output);
+	DECLARE_WRITE_LINE_MEMBER(prn_ack_ff);
+
 	DECLARE_READ16_MEMBER(cat_floppy_control_r);
 	DECLARE_WRITE16_MEMBER(cat_floppy_control_w);
 	DECLARE_WRITE16_MEMBER(cat_printer_data_w);
@@ -377,21 +463,63 @@ public:
 	DECLARE_WRITE16_MEMBER(cat_modem_w);
 	DECLARE_READ16_MEMBER(cat_6ms_counter_r);
 	DECLARE_WRITE16_MEMBER(cat_opr_w);
+	DECLARE_READ16_MEMBER(cat_wdt_r);
 	DECLARE_WRITE16_MEMBER(cat_tcb_w);
 	DECLARE_READ16_MEMBER(cat_2e80_r);
 	DECLARE_READ16_MEMBER(cat_0080_r);
 	DECLARE_READ16_MEMBER(cat_0000_r);
 
-	UINT8 m_duart_inp;
+	DECLARE_READ8_MEMBER(swyft_d0000);
+
+	DECLARE_READ8_MEMBER(swyft_via0_r);
+	DECLARE_WRITE8_MEMBER(swyft_via0_w);
+	DECLARE_READ8_MEMBER(via0_pa_r);
+	DECLARE_WRITE8_MEMBER(via0_pa_w);
+	DECLARE_WRITE_LINE_MEMBER(via0_ca2_w);
+	DECLARE_READ8_MEMBER(via0_pb_r);
+	DECLARE_WRITE8_MEMBER(via0_pb_w);
+	DECLARE_WRITE_LINE_MEMBER(via0_cb1_w);
+	DECLARE_WRITE_LINE_MEMBER(via0_cb2_w);
+	DECLARE_WRITE_LINE_MEMBER(via0_int_w);
+
+	DECLARE_READ8_MEMBER(swyft_via1_r);
+	DECLARE_WRITE8_MEMBER(swyft_via1_w);
+	DECLARE_READ8_MEMBER(via1_pa_r);
+	DECLARE_WRITE8_MEMBER(via1_pa_w);
+	DECLARE_WRITE_LINE_MEMBER(via1_ca2_w);
+	DECLARE_READ8_MEMBER(via1_pb_r);
+	DECLARE_WRITE8_MEMBER(via1_pb_w);
+	DECLARE_WRITE_LINE_MEMBER(via1_cb1_w);
+	DECLARE_WRITE_LINE_MEMBER(via1_cb2_w);
+	DECLARE_WRITE_LINE_MEMBER(via1_int_w);
+
+	DECLARE_WRITE_LINE_MEMBER(write_acia_clock);
+
 	/* gate array 2 has a 16-bit counter inside which counts at 10mhz and
-	   rolls over at FFFF->0000; on rollover (or maybe at FFFF terminal count)
+	   rolls over at FFFF->0000; on roll-over (or likely at FFFF terminal count)
 	   it triggers the KTOBF output. It does this every 6.5535ms, which causes
-	   a 74LS74 d-latch at IC100 to switch the state of the DUART IP2 line;
+	   a 74LS74 d-latch at IC100 to invert the state of the DUART IP2 line;
 	   this causes the DUART to fire an interrupt, which makes the 68000 read
 	   the keyboard.
+	   The watchdog counter and the 6ms counter are both incremented
+	   every time the KTOBF pulses.
 	 */
-	UINT8 m_duart_irq_state;
 	UINT16 m_6ms_counter;
+	UINT8 m_wdt_counter;
+	UINT8 m_duart_ktobf_ff;
+	/* the /ACK line from the centronics printer port goes through a similar
+	   flipflop to the ktobf line as well, so duart IP4 inverts on /ACK rising edge
+	 */
+	UINT8 m_duart_prn_ack_prev_state;
+	UINT8 m_duart_prn_ack_ff;
+	/* Gate array 2 is in charge of serializing the video for display to the screen;
+	   Gate array 1 is in charge of vblank/hblank timing, and in charge of refreshing
+	   dram and indicating to GA2, using the /LDPS signal, what times the address it is
+	   writing to ram it is intending to be used by GA2 to read 16 bits of data to be
+	   shifted out to the screen. (it is obviously not active during hblank and vblank)
+	   GA2 then takes: ((output_bit XNOR video_invert) AND video enable), and serially
+	   bangs the result to the analog display circuitry.
+	 */
 	UINT8 m_video_enable;
 	UINT8 m_video_invert;
 	UINT16 m_pr_cont;
@@ -460,6 +588,25 @@ WRITE16_MEMBER( cat_state::cat_video_control_w )
 	 * 006080F4 ,          ( VST End of VSync    378 )
 	 * 00600120 ,          ( VSE End of Frame    400 )
 	 * 006581C0 ,          ( VOC Video Control Normal Syncs )
+	 * based on diagrams from https://archive.org/details/DTCJefRaskinDoc062
+	 * we can determine what at least some of these values do:
+	 * HORIZONTAL:
+	 *   0 is the first pixel output to the screen at the end of the frontporch
+	 *   stuff is shifted to the screen here, and then zeroed for the backporch; manual claims backporch is 2 cycles, it is actually 7
+	 *   HSS (89) is the horizontal count at which the HSYNC pin goes high
+	 *   sync is active here for 7 cycles; manual claims 10 but is wrong
+	 *   HST (96) is the horizontal count at which the HSYNC pin goes low
+	 *   sync is inactive here for 7 cycles, manual claims 8 but is wrong?, this is the frontporch
+	 *   HSE (104) is the horizontal count at which the horizontal counter is reset to 0 (so counts 0-103 then back to 0)
+	 *
+	 * VERTICAL:
+	 *   0 is the first vertical line displayed to screen
+	 *   VDE (344) affects the number of lines that /LDPS is active for display of
+	 *   VSS (362) is the vertical line at which the VSYNC pin goes high
+	 *   VST (378) is the vertical line at which the VSYNC pin goes low
+	 *   VSE (400) is the vertical line at which the vertical line count is reset to 0
+	 *   VOC (0x1c0) controls the polarity and enabling of the sync signals in some unknown way
+	 *     Suffice to say, whatever bit combination 0b00011100000x does, it enables both horiz and vert sync and both are positive
 	 */
 #ifdef DEBUG_VIDEO_CONTROL_W
 	static const char *const regDest[16] = { "VSE (End of frame)", "VST (End of VSync)", "VSS (Start of VSync)", "VDE (Active Lines)", "unknown 620xxx", "unknown 628xxx", "unknown 630xxx", "unknown 638xxx", "HSE (end of horizontal line)", "HST (end of HSync)", "HSS (HSync Start)", "VOC (Video Control)", "unknown 660xxx", "unknown 668xxx", "unknown 670xxx", "unknown 678xxx" };
@@ -507,12 +654,18 @@ WRITE16_MEMBER( cat_state::cat_keyboard_w )
 	m_keyboard_line = data >> 8;
 }
 
-// 0x800004-0x800005 write = printer data
+// 0x800004-0x800005 'pr.data' write
+// /DSTB (centronics pin 1) is implied by the cat source code to be pulsed
+// low (for some unknown period of time) upon any write to this port.
 WRITE16_MEMBER( cat_state::cat_printer_data_w )
 {
 #ifdef DEBUG_PRINTER_DATA_W
 	fprintf(stderr,"Write to Printer Data address %06X, data %04X\n", 0x800004+(offset<<1), data);
 #endif
+	m_ctx_data_out->write(data>>8);
+	m_ctx->write_strobe(1);
+	m_ctx->write_strobe(0);
+	m_ctx->write_strobe(1);
 }
 // 0x800006-0x800007: Floppy data register (called fd.dwr in the cat source code)
 READ16_MEMBER( cat_state::cat_floppy_data_r )
@@ -539,7 +692,7 @@ WRITE16_MEMBER( cat_state::cat_floppy_data_w )
 	 * ||\------- /INDEX: 0 = index sensor active, 1 = index sensor inactive (verified)
 	 * |\-------- ? this bit may indicate which drive is selected, i.e. same as floppy control bit 7; low on drive 1, high on drive 0?
 	 * \--------- ? this bit may indicate 'data separator overflow'; it is usually low but becomes high if you manually select the floppy drive
-	 ALL of these bits except bit 7 seem to be reset when the selected drive in floppy control is switched
+	 ALL of these bits except bit F seem to be reset when the selected drive in floppy control is switched
 	 */
 READ16_MEMBER( cat_state::cat_floppy_status_r )
 {
@@ -554,11 +707,11 @@ READ16_MEMBER( cat_state::cat_keyboard_r )
 {
 	UINT16 retVal = 0;
 	// Read country code
-	if (m_pr_cont == 0x0900)
+	if ((m_pr_cont&0xFF00) == 0x0900)
 		retVal = m_dipsw->read();
 
 	// Regular keyboard read
-	if (m_pr_cont == 0x0800 || m_pr_cont == 0x0a00)
+	if ((m_pr_cont&0xFF00) == 0x0800 || (m_pr_cont&0xFF00) == 0x0a00)
 	{
 		retVal=0xff00;
 		switch(m_keyboard_line)
@@ -573,28 +726,45 @@ READ16_MEMBER( cat_state::cat_keyboard_r )
 			case 0x80: retVal = m_y7->read() << 8; break;
 		}
 	}
+#if 0
+	if (((m_pr_cont&0xFF00) != 0x0800) && ((m_pr_cont&0xFF00) != 0x0900) && ((m_pr_cont&0xFF00) != 0x0a00))
+	{
+		fprintf(stderr,"Read from keyboard in %06X with unexpected pr_cont %04X\n", 0x80000a+(offset<<1), m_pr_cont);
+	}
+#endif
 	return retVal;
 }
 
 // 0x80000c-0x80000d (unused in cat source code; may have originally been a separate read only port where 800006 would have been write-only)
 
-// 0x80000e-0x80000f read
+// 0x80000e-0x80000f 'pr.cont' read
 READ16_MEMBER( cat_state::cat_battery_r )
 {
+	/*
+	 * FEDCBA98 (76543210 is open bus)
+	 * |||||||\-- ? possibly PE (pin 1) read ("PAPER OUT" pin 12 of centronics port)
+	 * ||||||\--- ? possibly SLCT/ERR (pin 3) read ("not selected or error" NAND of pins 32 and 13 of centronics port)
+	 * |||||\---- (always 0?)
+	 * ||||\----- (always 0?)
+	 * |||\------ (always 0?)
+	 * ||\------- (always 0?)
+	 * |\-------- (always 0?)
+	 * \--------- Battery status (0 = good, 1 = bad)
+	 */
 	/* just return that battery is full, i.e. bit 15 is 0 */
 	/* to make the cat think the battery is bad, return 0x8080 instead of 0x0080 */
 	// TODO: hook this to a dipswitch
 	return 0x0080;
 }
-// 0x80000e-0x80000f write
+// 0x80000e-0x80000f 'pr.cont' write
 WRITE16_MEMBER( cat_state::cat_printer_control_w )
 {
 	/*
 	 * FEDCBA98 (76543210 is ignored)
 	 * |||||||\-- CC line enable (pin 34) (verified from cat source code)
 	 * ||||||\--- LEDE line enable (pin 33) (verified from cat source code)
-	 * |||||\---- ? May control pin 32?
-	 * ||||\----- ? always seems to be written as high?
+	 * |||||\---- ?
+	 * ||||\----- ? may be IPP (pin 2) write (non-standard pin 34 of centronics port) or another watchdog reset bit; may also be /DSTB-enable-on-pr.data-write
 	 * |||\------ ?
 	 * ||\------- ?
 	 * |\-------- ?
@@ -625,41 +795,68 @@ WRITE16_MEMBER( cat_state::cat_modem_w )
 #endif
 }
 
-// 0x830000: 6ms counter (used for KTOBF)
+// 0x830000: 6ms counter (counts KTOBF pulses and does not reset; 16 bits wide)
 READ16_MEMBER( cat_state::cat_6ms_counter_r )
 {
 	return m_6ms_counter;
 }
 
-/* 0x840001: 'opr' Output Port Register
- * writing 0x1c (or probably anything with bit 3 set) here resets the watchdog
- * if the watchdog expires an NMI is sent to the cpu
+/* 0x840001: 'opr' or 'ga2opr' Output Port Register (within GA2)
+ * writing anything with bit 3 set here resets the watchdog
+ * if the watchdog expires /NMI (and maybe /RESET) are asserted to the cpu
+ * watchdog counter (counts KTOBF pulses and is reset on any ga2opr write with bit 3 set; <9 bits wide)
  */
 WRITE16_MEMBER( cat_state::cat_opr_w )
 {
 	/*
 	 * 76543210 (FEDCBA98 are ignored)
-	 * |||||||\-- ?
-	 * ||||||\--- ?
+	 * |||||||\-- OFFHOOK pin (pin 3) output control (1 = puts phone off hook by energizing relay K2)
+	 * ||||||\--- PHONE pin (pin 4) output control (1 = connects phone and line together by energizing relay K1)
 	 * |||||\---- Video enable (1 = video on, 0 = video off/screen black)
-	 * ||||\----- Watchdog reset?
+	 * ||||\----- Watchdog reset (the watchdog is reset whenever this bit is written with a 1)
 	 * |||\------ Video invert (1 = black-on-white video; 0 = white-on-black)
-	 * ||\------- ?
-	 * |\-------- ?
-	 * \--------- ?
+	 * ||\------- (unused?)
+	 * |\-------- (unused?)
+	 * \--------- (unused?)
 	 */
-#ifdef DEBUG_VIDEO_ENABLE_W
-	fprintf(stderr, "Video enable reg write: offset %06X, data %04X\n", 0x840000+(offset<<1), data);
+#ifdef DEBUG_GA2OPR_W
+	if (data != 0x001C)
+		fprintf(stderr, "GA2 OPR (video ena/inv, watchdog, and phone relay) reg write: offset %06X, data %04X\n", 0x840000+(offset<<1), data);
 #endif
+	if (data&0x08) m_wdt_counter = 0;
 	m_video_enable = BIT( data, 2 );
 	m_video_invert = 1-BIT( data, 4 );
 }
 
-// 0x850000: 'wdt' watchdog timer/video status
-// implement me!
+// 0x850000: 'wdt' "watchdog timer and power fail", read only?
+	/* NOTE: BELOW IS A GUESS based on seeing what the register reads as,
+	 * the cat code barely touches this stuff at all, despite the fact
+	 * that the service manual states that PFAIL is supposed to be checked
+	 * before each write to SVRAM, the forth code does NOT actually do that!
+	 *
+	 * 76543210
+	 * ??????\\-- Watchdog count? (counts upward? if this reaches <some unknown number greater than 3> the watchdog fires? writing bit 3 set to opr above resets this)
+	 *
+	 * FEDCBA98
+	 * |||||||\-- PFAIL state (MB3771 comparator: 1: vcc = 5v; 0: vcc != 5v, hence do not write to svram!)
+	 * ||||||\--- (always 0?)
+	 * |||||\---- (always 0?)
+	 * ||||\----- (always 0?)
+	 * |||\------ (always 0?)
+	 * ||\------- (always 0?)
+	 * |\-------- (always 0?)
+	 * \--------- (always 0?)
+	 */
+READ16_MEMBER( cat_state::cat_wdt_r )
+{
+	uint16 Retval = 0x0100; // set pfail to 1; should this be a dipswitch?
+	return Retval | m_wdt_counter;
+}
 
-// 0x860000: 'tcb' test regitser
-// the power fail status reset bit also lives here somewhere?
+// 0x860000: 'tcb' "test control bits" test mode register; what the bits do is
+// unknown. 0x0000 is written here to disable test mode, and that is the extent
+// of the cat touching this register.
+// it is possible that writing ANYTHING here will set the PFAIL state from 0 to 1, assuming the guessed information about pfail above is correct.
 WRITE16_MEMBER( cat_state::cat_tcb_w )
 {
 #ifdef DEBUG_TEST_W
@@ -684,7 +881,7 @@ READ16_MEMBER( cat_state::cat_0080_r )
 }
 
 
-/* Canon cat memory map, based on a 16MB dump of the entire address space of a running unit using forth "1000000 0 do i c@ semit loop"
+/* Canon cat memory map, based on testing and a 16MB dump of the entire address space of a running unit using forth "1000000 0 do i c@ semit loop"
 68k address map:
 a23 a22 a21 a20 a19 a18 a17 a16 a15 a14 a13 a12 a11 a10 a9  a8  a7  a6  a5  a4  a3  a2  a1  (a0 via UDS/LDS)
 *i  *i  *   x   x   *   *   *   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x       *GATE ARRAY 2 DECODES THESE LINES TO ENABLE THIS AREA* (a23 and a22 are indirectly decoded via the /RAMROMCS and /IOCS lines from gate array 1)
@@ -719,7 +916,7 @@ a23 a22 a21 a20 a19 a18 a17 a16 a15 a14 a13 a12 a11 a10 a9  a8  a7  a6  a5  a4  
 1   0   0   x   x   0   1   1   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x   *       R   {'timer'} Read: Fixed 16-bit counter from ga2. increments every 6.5535ms when another 16-bit counter clocked at 10mhz overflows
 1   0   0   x   x   1   0   0   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x   *       W   {'opr'} Output Port (Video/Sync enable and watchdog reset?) register (screen enable on bit 3?) (reads as 0x2e80)
 1   0   0   x   x   1   0   1   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x   *       R   {'wdt'} Watchdog timer reads as 0x0100 0x0101 or 0x0102, some sort of test register or video status register?
-1   0   0   x   x   1   1   0   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x   *       R?W {'tcb'} test control bits: powerfail status in bit <?> (reads as 0x0000)
+1   0   0   x   x   1   1   0   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x   *       R?W {'tcb'} test control bits (reads as 0x0000)
 1   0   0   x   x   1   1   1   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x   *       ?   Unknown (reads as 0x2e80)
 
 1   0   1   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x   x       O   OPEN BUS (reads as 0x2e80) [68k DTACK is asserted by gate array 1 when accessing this area, for testing?] On real IAI shadow rom board, at least 0x40000 of ram lives here.
@@ -732,8 +929,8 @@ static ADDRESS_MAP_START(cat_mem, AS_PROGRAM, 16, cat_state)
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM AM_MIRROR(0x180000) // 256 KB ROM
 	AM_RANGE(0x040000, 0x043fff) AM_RAM AM_SHARE("svram") AM_MIRROR(0x18C000)// SRAM powered by battery
 	AM_RANGE(0x200000, 0x27ffff) AM_ROM AM_REGION("svrom",0x0000) AM_MIRROR(0x180000) // SV ROM
-	AM_RANGE(0x400000, 0x47ffff) AM_RAM AM_SHARE("p_videoram") AM_MIRROR(0x180000) // 512 KB RAM
-	AM_RANGE(0x600000, 0x67ffff) AM_READWRITE(cat_2e80_r,cat_video_control_w) AM_MIRROR(0x180000) // Gate Array #1: Video
+	AM_RANGE(0x400000, 0x47ffff) AM_RAM AM_SHARE("p_cat_vram") AM_MIRROR(0x180000) // 512 KB RAM
+	AM_RANGE(0x600000, 0x67ffff) AM_READWRITE(cat_2e80_r,cat_video_control_w) AM_MIRROR(0x180000) // Gate Array #1: Video Addressing and Timing, dram refresh timing, dram /cs and /wr (ga2 does the actual video invert/display and access to the dram data bus)
 	AM_RANGE(0x800000, 0x800001) AM_READWRITE(cat_floppy_control_r, cat_floppy_control_w) AM_MIRROR(0x18FFE0) // floppy control lines and readback
 	AM_RANGE(0x800002, 0x800003) AM_READWRITE(cat_0080_r, cat_keyboard_w) AM_MIRROR(0x18FFE0) // keyboard col write
 	AM_RANGE(0x800004, 0x800005) AM_READWRITE(cat_0080_r, cat_printer_data_w) AM_MIRROR(0x18FFE0) // Centronics Printer Data
@@ -743,38 +940,15 @@ static ADDRESS_MAP_START(cat_mem, AS_PROGRAM, 16, cat_state)
 	AM_RANGE(0x80000c, 0x80000d) AM_READ(cat_0080_r) AM_MIRROR(0x18FFE0) // Open bus?
 	AM_RANGE(0x80000e, 0x80000f) AM_READWRITE(cat_battery_r,cat_printer_control_w) AM_MIRROR(0x18FFE0) // Centronics Printer Control, keyboard led and country code enable
 	AM_RANGE(0x800010, 0x80001f) AM_READ(cat_0080_r) AM_MIRROR(0x18FFE0) // Open bus?
-	AM_RANGE(0x810000, 0x81001f) AM_DEVREADWRITE8("duartn68681", duartn68681_device, read, write, 0xff ) AM_MIRROR(0x18FFE0)
+	AM_RANGE(0x810000, 0x81001f) AM_DEVREADWRITE8("duartn68681", mc68681_device, read, write, 0xff ) AM_MIRROR(0x18FFE0)
 	AM_RANGE(0x820000, 0x82003f) AM_READWRITE(cat_modem_r,cat_modem_w) AM_MIRROR(0x18FFC0) // AMI S35213 Modem Chip, all access is on bit 7
 	AM_RANGE(0x830000, 0x830001) AM_READ(cat_6ms_counter_r) AM_MIRROR(0x18FFFE) // 16bit 6ms counter clocked by output of another 16bit counter clocked at 10mhz
-	AM_RANGE(0x840000, 0x840001) AM_READWRITE(cat_2e80_r,cat_opr_w) AM_MIRROR(0x18FFFE) // Output port register (video enable, invert, watchdog reset)
-	//AM_RANGE(0x850000, 0x850001) AM_READ(cat_video_status) AM_MIRROR(0x18FFFE) // video status and watchdog read: hblank, vblank or draw?
+	AM_RANGE(0x840000, 0x840001) AM_READWRITE(cat_2e80_r,cat_opr_w) AM_MIRROR(0x18FFFE) // GA2 Output port register (video enable, invert, watchdog reset, phone relays)
+	AM_RANGE(0x850000, 0x850001) AM_READ(cat_wdt_r) AM_MIRROR(0x18FFFE) // watchdog and power fail state read
 	AM_RANGE(0x860000, 0x860001) AM_READWRITE(cat_0000_r, cat_tcb_w) AM_MIRROR(0x18FFFE) // Test mode
 	AM_RANGE(0x870000, 0x870001) AM_READ(cat_2e80_r) AM_MIRROR(0x18FFFE) // Open bus?
 	AM_RANGE(0xA00000, 0xA00001) AM_READ(cat_2e80_r) AM_MIRROR(0x1FFFFE) // Open bus/dtack? The 0xA00000-0xA3ffff area is ram used for shadow rom storage on cat developer machines, which is either banked over top of, or jumped to instead of the normal rom
 	AM_RANGE(0xC00000, 0xC00001) AM_READ(cat_2e80_r) AM_MIRROR(0x3FFFFE) // Open bus/vme?
-ADDRESS_MAP_END
-
-/* Swyft Memory map, based on watching the infoapp roms do their thing:
-68k address map:
-a23 a22 a21 a20 a19 a18 a17 a16 a15 a14 a13 a12 a11 a10 a9  a8  a7  a6  a5  a4  a3  a2  a1  (a0 via UDS/LDS)
-?   ?   ?   ?   0   0   ?   ?   *   *   *   *   *   *   *   *   *   *   *   *   *   *   *   a        R   ROM (a=0 is low, a=1 is high)
-?   ?   ?   ?   0   1   *   *   *   *   *   *   *   *   *   *   *   *   *   *   *   *   *   a        RW  RAM
-?   ?   ?   ?   1   1  ?0? ?1?  ?   ?   ?   ?   ?   ?   ?   ?   ?   ?   ?   ?   *   *   *   *        R   ? status of something? floppy?
-?   ?   ?   ?   1   1  ?1? ?0?  ?   0   0   1   ?   ?   ?   ?   ?   ?   ?   ?   ?   ?   ?   ?        ?R?W   6850 acia control reg lives here, gets 0x55 steadystate and 0x57 written to it to reset it
-?   ?   ?   ?   1   1  ?1? ?0?  ?   0   1   0   ?   ?   *   *   *   *  ?*?  ?   ?   ?   ?   ?        RW  VIA 0
-?   ?   ?   ?   1   1  ?1? ?0?  ?   1   0   0   ?   ?   *   *   *   *  ?*?  ?   ?   ?   ?   ?        RW  VIA 1
-              ^               ^               ^               ^               ^
-*/
-
-static ADDRESS_MAP_START(swyft_mem, AS_PROGRAM, 16, cat_state)
-	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x000000, 0x00ffff) AM_ROM AM_MIRROR(0xF00000) // 64 KB ROM
-	AM_RANGE(0x040000, 0x07ffff) AM_RAM AM_MIRROR(0xF00000) AM_SHARE("p_videoram") // 256 KB RAM
-	//AM_RANGE(0x0d0000, 0x0d000f) AM_READ(unknown_d0004) // status of something? reads from d0000, d0004, d0008, d000a, d000e
-	AM_RANGE(0x0e1000, 0x0e1001) AM_DEVWRITE8("acia6850", acia6850_device, control_write, 0xFF00) // 6850 ACIA lives here
-	// where are the other 3 acia registers? e1002-e1003, and read/write for each?
-	//AM_RANGE(0x0e2000, 0x0e2fff) AM_READWRITE(unknown_e2000) // io area with selector on a9 a8 a7 a6?
-	//AM_RANGE(0x0e4000, 0x0e4fff) AM_READWRITE(unknown_e4000) // there's likely a modem chip mapped around somewhere
 ADDRESS_MAP_END
 
 /* Input ports */
@@ -830,7 +1004,7 @@ static INPUT_PORTS_START( cat )
 	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_COLON) PORT_CHAR(';') PORT_CHAR(':')
 	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_G) PORT_CHAR('g') PORT_CHAR('G')
 	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_I) PORT_CHAR('i') PORT_CHAR('I')
-	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_UNUSED)
+	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_UNUSED) // totally unused
 	PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_8) PORT_CHAR('8') PORT_CHAR('*')
 	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_3) PORT_CHAR('3') PORT_CHAR('#')
 
@@ -842,12 +1016,12 @@ static INPUT_PORTS_START( cat )
 	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_O) PORT_CHAR('o') PORT_CHAR('O')
 	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_E) PORT_CHAR('e') PORT_CHAR('E')
 	PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_9) PORT_CHAR('9') PORT_CHAR('(')
-	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_UNUSED)
+	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_UNUSED) // totally unused
 
 	PORT_START("Y4")
 	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_X) PORT_CHAR('x') PORT_CHAR('X')
 	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Right USE FRONT") PORT_CODE(KEYCODE_RCONTROL)
-	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Right Shift") PORT_CODE(KEYCODE_F12) PORT_CHAR(UCHAR_SHIFT_1)
+	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Right Shift") PORT_CODE(KEYCODE_F2) // intl only: latin diaresis and latin !; norway, danish and finnish * and '; others
 	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_D) PORT_CHAR('d') PORT_CHAR('D')
 	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_P) PORT_CHAR('p') PORT_CHAR('P')
 	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_W) PORT_CHAR('w') PORT_CHAR('W')
@@ -865,27 +1039,28 @@ static INPUT_PORTS_START( cat )
 	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_1) PORT_CHAR('1') PORT_CHAR('!')
 
 	PORT_START("Y6")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Left Shift") PORT_CODE(KEYCODE_F1)
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Left Shift") PORT_CODE(KEYCODE_F1) // intl only: latin inv ? and inv !; norway and danish ! and |; finnish <>; others
 	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Left LEAP") PORT_CODE(KEYCODE_LALT)
 	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_SLASH) PORT_CHAR('/') PORT_CHAR('?')
 	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_A) PORT_CHAR('a') PORT_CHAR('A')
 	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_CLOSEBRACE) PORT_CHAR(']') PORT_CHAR('[')
 	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_TAB) PORT_CHAR('\t')
 	PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_EQUALS) PORT_CHAR('=') PORT_CHAR('+')
-	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_UNUSED)
+	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_UNUSED) // totally unused
 
 	PORT_START("Y7")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Shift") PORT_CODE(KEYCODE_RSHIFT) PORT_CODE(KEYCODE_LSHIFT)
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Shift") PORT_CODE(KEYCODE_RSHIFT) PORT_CODE(KEYCODE_LSHIFT) PORT_CHAR(UCHAR_SHIFT_1)
 	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Right Leap") PORT_CODE(KEYCODE_RALT)
 	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Page") PORT_CODE(KEYCODE_PGUP) PORT_CODE(KEYCODE_PGDN)
 	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Shift Lock") PORT_CODE(KEYCODE_CAPSLOCK)
 	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Erase") PORT_CODE(KEYCODE_BACKSPACE)
-	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_UNUSED)
+	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_UNUSED) // totally unused
 	PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("UNDO") PORT_CODE(KEYCODE_BACKSLASH)
 	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_TILDE) PORT_CHAR('\xb1') PORT_CHAR('\xb0') // PORT_CHAR('\\') PORT_CHAR('~')
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( swyft )
+// insert dwight and sandy's swyft keyboard map here once we figure out the byte line order
 INPUT_PORTS_END
 
 
@@ -903,13 +1078,12 @@ void cat_state::device_timer(emu_timer &timer, device_timer_id id, int param, vo
 
 TIMER_CALLBACK_MEMBER(cat_state::counter_6ms_callback)
 {
-	// This is effectively also the KTOBF line 'clock' output to the d-latch before the duart
-	// Hence, invert the d-latch on the duart's input ports.
-	// is there some way to 'strobe' the duart to tell it that its input ports just changed?
-	// with the devcb stuff, there definitely should be!
-	m_duart_inp ^= 0x04;
+	// This is effectively also the KTOBF (guessed: acronym for "Keyboard Timer Out Bit Flip")
+	// line connected in such a way to invert the d-flipflop connected to the duart IP2
+	m_duart_ktobf_ff ^= 1;
+	m_duart->ip2_w(m_duart_ktobf_ff);
+	m_wdt_counter++;
 	m_6ms_counter++;
-	m_maincpu->set_input_line(M68K_IRQ_1, ASSERT_LINE); // hack until duart ints work; as of march 2013 they do not work correctly here (they fire at the wrong rate)
 }
 
 IRQ_CALLBACK_MEMBER(cat_state::cat_int_ack)
@@ -920,9 +1094,11 @@ IRQ_CALLBACK_MEMBER(cat_state::cat_int_ack)
 
 MACHINE_START_MEMBER(cat_state,cat)
 {
-	m_duart_inp = 0;
-	m_duart_irq_state = 0;
+	m_duart_ktobf_ff = 0; // reset doesn't touch this
+	m_duart_prn_ack_prev_state = 1; // technically uninitialized
+	m_duart_prn_ack_ff = 0; // reset doesn't touch this
 	m_6ms_counter = 0;
+	m_wdt_counter = 0;
 	m_video_enable = 1;
 	m_video_invert = 0;
 	m_6ms_timer = timer_alloc(TIMER_COUNTER_6MS);
@@ -931,10 +1107,8 @@ MACHINE_START_MEMBER(cat_state,cat)
 
 MACHINE_RESET_MEMBER(cat_state,cat)
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(cat_state::cat_int_ack),this));
-	m_duart_inp = 0;
-	m_duart_irq_state = 0;
 	m_6ms_counter = 0;
+	m_wdt_counter = 0;
 	m_floppy_control = 0;
 	m_6ms_timer->adjust(attotime::zero, 0, attotime::from_hz((XTAL_19_968MHz/2)/65536));
 }
@@ -956,7 +1130,7 @@ UINT32 cat_state::screen_update_cat(screen_device &screen, bitmap_ind16 &bitmap,
 			int horpos = 0;
 			for (x = 0; x < 42; x++)
 			{
-				code = m_p_videoram[addr++];
+				code = m_p_cat_videoram[addr++];
 				for (b = 15; b >= 0; b--)
 				{
 					bitmap.pix16(y, horpos++) = ((code >> b) & 0x01) ^ m_video_invert;
@@ -970,15 +1144,244 @@ UINT32 cat_state::screen_update_cat(screen_device &screen, bitmap_ind16 &bitmap,
 	return 0;
 }
 
+/* The duart is the only thing actually connected to the cpu IRQ pin
+ * The KTOBF output of the gate array 2 (itself the terminal count output
+ * of a 16-bit counter clocked at ~10mhz, hence 6.5536ms period) goes to a
+ * d-latch and inputs on ip2 of the duart, causing the duart to fire an irq;
+ * this is used by the cat to read the keyboard.
+ * The duart also will, if configured to do so, fire an int when the state
+ * changes of the centronics /ACK pin; this is used while printing.
+ */
+WRITE_LINE_MEMBER(cat_state::cat_duart_irq_handler)
+{
+	int irqvector = m_duart->get_irq_vector();
+
+#ifdef DEBUG_DUART_IRQ_HANDLER
+	fprintf(stderr, "Duart IRQ handler called: state: %02X, vector: %06X\n", state, irqvector);
+#endif
+	m_maincpu->set_input_line_and_vector(M68K_IRQ_1, state, irqvector);
+}
+
+WRITE_LINE_MEMBER(cat_state::cat_duart_txa) // semit sends stuff here; connects to the serial port on the back
+{
+#ifdef DEBUG_DUART_TXA
+	fprintf(stderr, "Duart TXA: data %02X\n", state);
+#endif
+}
+
+WRITE_LINE_MEMBER(cat_state::cat_duart_txb) // memit sends stuff here; connects to the modem chip
+{
+#ifdef DEBUG_DUART_TXB
+	fprintf(stderr, "Duart TXB: data %02X\n", state);
+#endif
+}
+
+/* mc68681 DUART Input pins:
+ * IP0: CTS [using the DUART builtin hardware-CTS feature?]
+ * IP1: Centronics /ACK (pin 10) positive edge detect (IP1 changes state 0->1 or 1->0 on the rising edge of /ACK using a 74ls74a d-flipflop)
+ * IP2: KTOBF (IP2 changes state 0->1 or 1->0 on the rising edge of KTOBF using a 74ls74a d-flipflop; KTOBF is a 6.5536ms-period squarewave generated by one of the gate arrays, I need to check with a scope to see whether it is a single spike/pulse every 6.5536ms or if from the gate array it inverts every 6.5536ms, documentation isn't 100% clear but I suspect the former) [uses the Delta IP2 state change detection feature to generate an interrupt; I'm not sure if IP2 is used as a counter clock source but given the beep frequency of the real unit I very much doubt it, 6.5536ms is too slow]
+ * IP3: RG ("ring" input)
+ * IP4: Centronics BUSY (pin 11), inverted
+ * IP5: DSR
+ */
+
+/* mc68681 DUART Output pins:
+ * OP0: RTS [using the DUART builtin hardware-RTS feature?]
+ * OP1: DTR
+ * OP2: /TDCS (select/enable the S2579 DTMF tone generator chip)
+ * OP3: speaker out [using the 'channel b 1X tx or rx clock output' or more likely the 'timer output' feature to generate a squarewave]
+ * OP4: TD03 (data bus for the S2579 DTMF tone generator chip)
+ * OP5: TD02 "
+ * OP6: TD01 "
+ * OP7: TD00 "
+ */
+WRITE8_MEMBER(cat_state::cat_duart_output)
+{
+#ifdef DEBUG_DUART_OUTPUT_LINES
+	fprintf(stderr,"Duart output io lines changed to: %02X\n", data);
+#endif
+	m_speaker->level_w((data >> 3) & 1);
+}
+
+WRITE_LINE_MEMBER(cat_state::prn_ack_ff) // switch the flipflop state on the rising edge of /ACK
+{
+	if ((m_duart_prn_ack_prev_state == 0) && (state == 1))
+	{
+		m_duart_prn_ack_ff ^= 1;
+	}
+	m_duart->ip1_w(m_duart_prn_ack_ff);
+	m_duart_prn_ack_prev_state = state;
+#ifdef DEBUG_PRN_FF
+	fprintf(stderr, "Printer ACK: state %02X, flipflop is now %02x\n", state, m_duart_prn_ack_ff);
+#endif
+}
+
+static MACHINE_CONFIG_START( cat, cat_state )
+
+	/* basic machine hardware */
+	MCFG_CPU_ADD("maincpu",M68000, XTAL_19_968MHz/4)
+	MCFG_CPU_PROGRAM_MAP(cat_mem)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(cat_state,cat_int_ack)
+
+	MCFG_MACHINE_START_OVERRIDE(cat_state,cat)
+	MCFG_MACHINE_RESET_OVERRIDE(cat_state,cat)
+
+	/* video hardware */
+	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_REFRESH_RATE(50)
+	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
+	MCFG_SCREEN_SIZE(672, 344)
+	MCFG_SCREEN_VISIBLE_AREA(0, 672-1, 0, 344-1)
+	MCFG_SCREEN_UPDATE_DRIVER(cat_state, screen_update_cat)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
+
+	MCFG_VIDEO_START_OVERRIDE(cat_state,cat)
+
+	MCFG_MC68681_ADD( "duartn68681", (XTAL_19_968MHz*2)/11 ) // duart is normally clocked by 3.6864mhz xtal, but cat seemingly uses a divider from the main xtal instead which probably yields 3.63054545Mhz. There is a trace to cut and a mounting area to allow using an actual 3.6864mhz xtal if you so desire
+	MCFG_MC68681_IRQ_CALLBACK(WRITELINE(cat_state, cat_duart_irq_handler))
+	MCFG_MC68681_A_TX_CALLBACK(WRITELINE(cat_state, cat_duart_txa))
+	MCFG_MC68681_B_TX_CALLBACK(WRITELINE(cat_state, cat_duart_txb))
+	MCFG_MC68681_OUTPORT_CALLBACK(WRITE8(cat_state, cat_duart_output))
+
+	MCFG_CENTRONICS_ADD("ctx", centronics_printers, "printer")
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(cat_state, prn_ack_ff))
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE("duartn68681", mc68681_device, ip4_w)) MCFG_DEVCB_XOR(1)
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("ctx_data_out", "ctx")
+
+	MCFG_SPEAKER_STANDARD_MONO("mono")
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
+
+	MCFG_NVRAM_ADD_0FILL("nvram")
+MACHINE_CONFIG_END
+
+
+/* Swyft Memory map, based on watching the infoapp roms do their thing:
+68k address map:
+(a23,a22,a21,a20 lines don't exist on the 68008 so are considered unconnected)
+a23 a22 a21 a20 a19 a18 a17 a16 a15 a14 a13 a12 a11 a10 a9  a8  a7  a6  a5  a4  a3  a2  a1  a0
+x   x   x   x   0   0   ?   ?   0   *   *   *   *   *   *   *   *   *   *   *   *   *   *   *        R   ROM-LO (/LOCE is 0, /HICE is 1)
+x   x   x   x   0   0   ?   ?   1   *   *   *   *   *   *   *   *   *   *   *   *   *   *   *        R   ROM-HI (/LOCE is 1, /HICE is 0)
+x   x   x   x   0   1   *   *   *   *   *   *   *   *   *   *   *   *   *   *   *   *   *   a        RW  RAM
+x   x   x   x   1   1  ?0? ?1?  ?   ?   ?   ?   ?   ?   ?   ?   ?   ?   ?   ?   *   *   *   *        R   ? status of something? floppy?
+x   x   x   x   1   1  ?1? ?0?  ?   0   0   1   ?   ?   ?   ?   ?   ?   ?   ?   ?   ?   ?   ?        ?R?W   6850 acia control reg lives here, gets 0x55 steadystate and 0x57 written to it to reset it
+x   x   x   x   1   1  ?1? ?0?  ?   0   1   0   ?   ?   *   *   *   *  ?*?  ?   ?   ?   ?   ?        RW  VIA 0
+x   x   x   x   1   1  ?1? ?0?  ?   1   0   0   ?   ?   *   *   *   *  ?*?  ?   ?   ?   ?   ?        RW  VIA 1
+              ^               ^               ^               ^               ^
+*/
+
+/* Swyft rom and ram notes:
+rom:
+**Vectors:
+0x0000-0x0003: SP boot vector
+0x0004-0x0007: PC boot vector
+**unknown:
+0x0009-0x00BF: ? table
+0x00C0-0x01DF: ? table
+0x01E0-0x02DF: ? table (may be part of next table)
+0x02E0-0x03DF: ? table
+0x03E0-0x0B3F: int16-packed jump table (expanded to int32s at ram at 0x46000-0x46EC0 on boot)
+0x0B40-0x0E83: ? function index tables?
+0x0E84-0x1544: binary code (purpose?)
+0x1545-0x24CF: ?
+**Fonts:
+0x24D0-0x254F: ? (likely font 1 width lookup table)
+0x2550-0x2BCF: Font 1 data
+0x2BD0-0x2C4F: ? (likely font 2 width lookup table)
+0x2C50-0x32CF: Font 2 data
+**unknown?:
+0x32D0-0x360F: String data (and control codes?)
+0x3610-0x364F: ? fill (0x03 0xe8)
+0x3650-0x369F: ? fill (0x03 0x20)
+0x36A0-0x384d: ? forth code?
+0x384e-0x385d: Lookup table for phone keypad
+0x385e-...: ?
+...-0xC951: ?
+0xC952: boot vector
+0xC952-0xCAAE: binary code (purpose?)
+    0xCD26-0xCD3B: ?init forth bytecode?
+0xCD3C-0xCEBA: 0xFF fill (unused?)
+0xCEEB-0xFFFE: Forth dictionaries for compiling, with <word> then <3 bytes> afterward? (or before it? most likely afterward)
+
+ram: (system dram ranges from 0x40000-0x7FFFF)
+0x40000-0x425CF - the screen display ram
+(?0x425D0-0x44BA0 - ?unknown (maybe screen ram page 2?))
+0x44DC6 - SP vector
+0x46000-0x46EC0 - jump tables to instructions for ? (each forth word?)
+
+
+on boot:
+copy/expand packed rom short words 0x3E0-0xB3F to long words at 0x46000-0x46EC0
+copy 0x24f longwords of zero beyond that up to 0x47800
+CD26->A5 <?pointer to init stream function?>
+44DC6->A7 <reset SP... why it does this twice, once by the vector and once here, i'm gonna guess has to do with running the code in a debugger or on a development daughterboard like the cat had, where the 68008 wouldn't get explicitly reset>
+44F2A->A6 <?pointer to work ram space?>
+EA2->A4 <?function>
+E94->A3 <?function>
+EAE->A2 <?function>
+41800->D7 <?forth? opcode index base; the '1800' portion gets the opcode type added to it then is multiplied by 4 to produce the jump table offset within the 0x46000-0x46EC0 range>
+46e3c->D4 <?pointer to more work ram space?>
+CD22->D5 <?pointer to another function?>
+write 0xFFFF to d0004.l
+jump to A4(EA2)
+
+read first stream byte (which is 0x03) from address pointed to by A5 (which is CD26), inc A5, OR the opcode (0x03) to D7
+ (Note: if the forth opcodes are in order in the dictionary, then 0x03 is "!char" which is used to read a char from an arbitrary address)
+copy D7 to A0
+Add A0 low word to itself
+Add A0 low word to itself again
+move the long word from address pointed to by A0 (i.e. the specific opcode's area at the 46xxx part of ram) to A1
+Jump to A1(11A4)
+
+11A4: move 41b00 to D0 (select an opcode "page" 1bxx)
+jump to 118E
+
+118E: read next stream byte (in this case, 0x8E) from address pointed to by A5 (which is CD27), inc A5, OR the opcode (0x8e) to D7
+add to 41b00 in d0, for 41b8E
+Add A0 low word to itself
+Add A0 low word to itself again
+move the long word from address pointed to by A0 (i.e. the specific opcode's area at the 46xxx part of ram) to A1
+Jump to A1(CD06)
+
+CD06: jump to A3 (E94)
+
+E94: subtract D5 from A5 (cd28 - cd22 = 0x0006)
+write 6 to address @A5(44f28) and decrement A5
+write D4(46e3c) to address @a6(44f26) and decrement a5
+lea ($2, A1), A5 - i.e. increment A1 by 2, and write that to A5, so write CD06+2=CD08 to A5
+A1->D5
+A0->D4
+read next stream byte (in this case, 0x03) from address pointed to by A5 (which is CD08), inc A5, OR the opcode (0x03) to D7
+
+*/
+
+static ADDRESS_MAP_START(swyft_mem, AS_PROGRAM, 8, cat_state)
+	ADDRESS_MAP_UNMAP_HIGH
+	AM_RANGE(0x000000, 0x00ffff) AM_ROM AM_MIRROR(0xF00000) // 64 KB ROM
+	AM_RANGE(0x040000, 0x07ffff) AM_RAM AM_MIRROR(0xF00000) AM_SHARE("p_swyft_vram") // 256 KB RAM
+	AM_RANGE(0x0d0000, 0x0d000f) AM_READ(swyft_d0000) AM_MIRROR(0xF00000) // status of something? reads from d0000, d0004, d0008, d000a, d000e
+	AM_RANGE(0x0e1000, 0x0e1000) AM_DEVWRITE("acia6850", acia6850_device, control_w) AM_MIRROR(0xF00000) // 6850 ACIA lives here
+	AM_RANGE(0x0e2000, 0x0e2fff) AM_READWRITE(swyft_via0_r, swyft_via0_w) AM_MIRROR(0xF00000)// io area with selector on a9 a8 a7 a6?
+	AM_RANGE(0x0e4000, 0x0e4fff) AM_READWRITE(swyft_via1_r, swyft_via1_w) AM_MIRROR(0xF00000)
+ADDRESS_MAP_END
+
 MACHINE_START_MEMBER(cat_state,swyft)
 {
-	//m_6ms_timer = timer_alloc(TIMER_COUNTER_6MS); // CRUDE HACK
+	m_via0->write_ca1(1);
+	m_via0->write_ca2(1);
+	m_via0->write_cb1(1);
+	m_via0->write_cb2(1);
+
+	m_via1->write_ca1(1);
+	m_via1->write_ca2(1);
+	m_via1->write_cb1(1);
+	m_via1->write_cb2(1);
 }
 
 MACHINE_RESET_MEMBER(cat_state,swyft)
 {
-	//m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(cat_state::cat_int_ack),this));
-	//m_6ms_timer->adjust(attotime::zero, 0, attotime::from_hz((XTAL_19_968MHz/2)/65536)); // horrible hack
 }
 
 VIDEO_START_MEMBER(cat_state,swyft)
@@ -994,10 +1397,10 @@ UINT32 cat_state::screen_update_swyft(screen_device &screen, bitmap_ind16 &bitma
 	for (y = 0; y < 242; y++)
 	{
 		int horpos = 0;
-		for (x = 0; x < 20; x++)
+		for (x = 0; x < 40; x++)
 		{
-			code = m_p_videoram[addr++];
-			for (b = 15; b >= 0; b--)
+			code = m_p_swyft_videoram[addr++];
+			for (b = 7; b >= 0; b--)
 			{
 				bitmap.pix16(y, horpos++) = (code >> b) & 0x01;
 			}
@@ -1006,147 +1409,157 @@ UINT32 cat_state::screen_update_swyft(screen_device &screen, bitmap_ind16 &bitma
 	return 0;
 }
 
-/* TODO: the duart is the only thing actually connected to the cpu IRQ pin
- * The KTOBF output of the gate array 2 (itself the terminal count output
- * of a 16-bit counter clocked at ~10mhz, hence 6.5536ms period) goes to a
- * d-latch and inputs on ip2 of the duart, causing the duart to fire an irq;
- * this is used by the cat to read the keyboard.
- */
-WRITE_LINE_MEMBER(cat_state::cat_duart_irq_handler)
+READ8_MEMBER( cat_state::swyft_d0000 )
 {
-#ifdef DEBUG_DUART_IRQ_HANDLER
-	fprintf(stderr, "Duart IRQ handler called: state: %02X, vector: %06X\n", state, vector);
-#endif
-	m_duart_irq_state = state;
-	//device->m_maincpu->set_input_line_and_vector(M68K_IRQ_1, state, vector);
+	// wtf is this supposed to be?
+	UINT8 byte = 0xFF; // ?
+	logerror("mystery device: read from 0x%5X, returning %02X\n", offset+0xD0000, byte);
+	return byte;
 }
 
-WRITE_LINE_MEMBER(cat_state::cat_duart_txa)
+
+// if bit is 1 enable: (obviously don't set more than one bit or you get bus contention!)
+//                                           acia
+//                                       via0
+//                                    via1
+// x   x   x   x   1   1  ?1? ?0?  ?   ^   ^   ^   ?   ?   *   *   *   *  ?*?  ?   ?   ?   ?   ?
+//                                                         ^   ^   ^   ^  <- these four bits address the VIA registers? is this correct?
+static const char *const swyft_via_regnames[] = { "0: ORB/IRB", "1: ORA/IRA", "2: DDRB", "3: DDRA", "4: T1C-L", "5: T1C-H", "6: T1L-L", "7: T1L-H", "8: T2C-L" "9: T2C-H", "A: SR", "B: ACR", "C: PCR", "D: IFR", "E: IER", "F: ORA/IRA*" };
+
+READ8_MEMBER( cat_state::swyft_via0_r )
 {
-#ifdef DEBUG_DUART_TXD
-	fprintf(stderr, "Duart TXD: data %02X\n", data);
+	if (offset&0x000C3F) fprintf(stderr,"VIA0: read from invalid offset in 68k space: %06X!\n", offset);
+	UINT8 data = m_via0->read(space, (offset>>6)&0xF);
+#ifdef DEBUG_SWYFT_VIA0
+	logerror("VIA0 register %s read by cpu: returning %02x\n", swyft_via_regnames[(offset>>5)&0xF], data);
 #endif
+	return data;
 }
 
-/* mc68681 DUART Input pins:
- * IP0: CTS [using the duart builtin hardware-CTS feature?]
- * IP1: Centronics ACK (IP1 changes state 0->1 or 1->0 on the falling edge of /ACK using a d-latch)
- * IP2: KTOBF (IP2 changes state 0->1 or 1->0 on the rising edge of KTOBF using a d-latch; KTOBF is a 6.5536ms-period squarewave generated by one of the gate arrays, i need to check with a scope to see whether it is a single spike/pulse every 6.5536ms or if from the gate array it inverts every 6.5536ms, documentation isn't 100% clear but I suspect the former) [uses the Delta IP2 state change detection feature to generate an interrupt; I'm not sure if IP2 is used as a counter clock source but given the beep frequency of the real unit i very much doubt it, 6.5536ms is too slow]
- * IP3: RG ("ring" input)
- * IP4: Centronics BUSY
- * IP5: DSR
- */
-READ8_MEMBER(cat_state::cat_duart_input)
+WRITE8_MEMBER( cat_state::swyft_via0_w )
 {
-#ifdef DEBUG_DUART_INPUT_LINES
-	fprintf(stderr, "Duart input lines read!\n");
+#ifdef DEBUG_SWYFT_VIA0
+	logerror("VIA0 register %s written by cpu with data %02x\n", swyft_via_regnames[(offset>>5)&0xF], data);
 #endif
-	return m_duart_inp;
+	if (offset&0x000C3F) fprintf(stderr,"VIA0: write to invalid offset in 68k space: %06X, data: %02X!\n", offset, data);
+	m_via1->write(space, (offset>>6)&0xF, data);
 }
 
-/* mc68681 DUART Output pins:
- * OP0: RTS [using the duart builtin hardware-RTS feature?]
- * OP1: DTR
- * OP2: /TDCS (select/enable the S2579 DTMF tone generator chip)
- * OP3: speaker out [using the 'channel b 1X tx or rx clock output' or more likely the 'timer output' feature to generate a squarewave]
- * OP4: TD03 (data bus for the S2579 DTMF tone generator chip)
- * OP5: TD02 "
- * OP6: TD01 "
- * OP7: TD00 "
- */
-WRITE8_MEMBER(cat_state::cat_duart_output)
+READ8_MEMBER( cat_state::swyft_via1_r )
 {
-#ifdef DEBUG_DUART_OUTPUT_LINES
-	fprintf(stderr,"Duart output io lines changed to: %02X\n", data);
+	if (offset&0x000C3F) fprintf(stderr," VIA1: read from invalid offset in 68k space: %06X!\n", offset);
+	UINT8 data = m_via1->read(space, (offset>>6)&0xF);
+#ifdef DEBUG_SWYFT_VIA1
+	logerror(" VIA1 register %s read by cpu: returning %02x\n", swyft_via_regnames[(offset>>5)&0xF], data);
 #endif
+	return data;
 }
 
-static const duartn68681_config cat_duart_config =
+WRITE8_MEMBER( cat_state::swyft_via1_w )
 {
-	DEVCB_DRIVER_LINE_MEMBER(cat_state, cat_duart_irq_handler), /* irq callback */
-	DEVCB_DRIVER_LINE_MEMBER(cat_state, cat_duart_txa),         /* serial transmit A */
-	DEVCB_NULL,                                                 /* serial transmit B */
-	DEVCB_DRIVER_MEMBER(cat_state, cat_duart_input),            /* input port */
-	DEVCB_DRIVER_MEMBER(cat_state, cat_duart_output),           /* output port */
-};
+#ifdef DEBUG_SWYFT_VIA1
+	logerror(" VIA1 register %s written by cpu with data %02x\n", swyft_via_regnames[(offset>>5)&0xF], data);
+#endif
+	if (offset&0x000C3F) fprintf(stderr," VIA1: write to invalid offset in 68k space: %06X, data: %02X!\n", offset, data);
+	m_via0->write(space, (offset>>6)&0xF, data);
+}
 
-static MACHINE_CONFIG_START( cat, cat_state )
-
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu",M68000, XTAL_19_968MHz/4)
-	MCFG_CPU_PROGRAM_MAP(cat_mem)
-
-	MCFG_MACHINE_START_OVERRIDE(cat_state,cat)
-	MCFG_MACHINE_RESET_OVERRIDE(cat_state,cat)
-
-	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_SIZE(672, 344)
-	MCFG_SCREEN_VISIBLE_AREA(0, 672-1, 0, 344-1)
-	MCFG_SCREEN_UPDATE_DRIVER(cat_state, screen_update_cat)
-
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
-
-	MCFG_VIDEO_START_OVERRIDE(cat_state,cat)
-
-	MCFG_DUARTN68681_ADD( "duartn68681", XTAL_19_968MHz*2/11, cat_duart_config ) // duart is normally clocked by 3.6864mhz xtal, but cat seemingly uses a divider from the main xtal instead which probably yields 3.63054545Mhz. There is a trace to cut and a mounting area to allow using an actual 3.6864mhz xtal if you so desire
-
-	MCFG_NVRAM_ADD_0FILL("nvram")
-MACHINE_CONFIG_END
-
-static const acia6850_interface swyft_acia_config =
+// first via
+READ8_MEMBER( cat_state::via0_pa_r )
 {
-	3579545, // guess
-	3579545, // guess
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-};
+	logerror("VIA0: Port A read!\n");
+	return 0xFF;
+}
 
-static const via6522_interface swyft_via0_config =
+WRITE8_MEMBER( cat_state::via0_pa_w )
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-};
+	logerror("VIA0: Port A written with data of 0x%02x!\n", data);
+}
 
-static const via6522_interface swyft_via1_config =
+WRITE_LINE_MEMBER ( cat_state::via0_ca2_w )
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-};
+	logerror("VIA0: CA2 written with %d!\n", state);
+}
+
+READ8_MEMBER( cat_state::via0_pb_r )
+{
+	logerror("VIA0: Port B read!\n");
+	return 0xFF;
+}
+
+WRITE8_MEMBER( cat_state::via0_pb_w )
+{
+	logerror("VIA0: Port B written with data of 0x%02x!\n", data);
+}
+
+WRITE_LINE_MEMBER ( cat_state::via0_cb1_w )
+{
+	logerror("VIA0: CB1 written with %d!\n", state);
+}
+
+WRITE_LINE_MEMBER ( cat_state::via0_cb2_w )
+{
+	logerror("VIA0: CB2 written with %d!\n", state);
+}
+
+WRITE_LINE_MEMBER ( cat_state::via0_int_w )
+{
+	logerror("VIA0: INT output set to %d!\n", state);
+}
+
+// second via
+READ8_MEMBER( cat_state::via1_pa_r )
+{
+	logerror(" VIA1: Port A read!\n");
+	return 0xFF;
+}
+
+WRITE8_MEMBER( cat_state::via1_pa_w )
+{
+	logerror(" VIA1: Port A written with data of 0x%02x!\n", data);
+}
+
+WRITE_LINE_MEMBER ( cat_state::via1_ca2_w )
+{
+	logerror(" VIA1: CA2 written with %d!\n", state);
+}
+
+READ8_MEMBER( cat_state::via1_pb_r )
+{
+	logerror(" VIA1: Port B read!\n");
+	return 0xFF;
+}
+
+WRITE8_MEMBER( cat_state::via1_pb_w )
+{
+	logerror(" VIA1: Port B written with data of 0x%02x!\n", data);
+}
+
+WRITE_LINE_MEMBER ( cat_state::via1_cb1_w )
+{
+	logerror(" VIA1: CB1 written with %d!\n", state);
+}
+
+WRITE_LINE_MEMBER ( cat_state::via1_cb2_w )
+{
+	logerror(" VIA1: CB2 written with %d!\n", state);
+}
+
+WRITE_LINE_MEMBER ( cat_state::via1_int_w )
+{
+	logerror(" VIA1: INT output set to %d!\n", state);
+}
+
+WRITE_LINE_MEMBER( cat_state::write_acia_clock )
+{
+	m_acia6850->write_txc(state);
+	m_acia6850->write_rxc(state);
+}
 
 static MACHINE_CONFIG_START( swyft, cat_state )
 
 	/* basic machine hardware */
-	//MCFG_CPU_ADD("maincpu",M68008, XTAL_15_8976MHz/2) //MC68008P8, Y1=15.8796Mhz, clock GUESSED at Y1 / 2
-	MCFG_CPU_ADD("maincpu",M68000, XTAL_15_8976MHz/2) //MC68008P8, Y1=15.8796Mhz, clock GUESSED at Y1 / 2
+	MCFG_CPU_ADD("maincpu",M68008, XTAL_15_8976MHz/2) //MC68008P8, Y1=15.8976Mhz, clock GUESSED at Y1 / 2
 	MCFG_CPU_PROGRAM_MAP(swyft_mem)
 
 	MCFG_MACHINE_START_OVERRIDE(cat_state,swyft)
@@ -1159,26 +1572,86 @@ static MACHINE_CONFIG_START( swyft, cat_state )
 	MCFG_SCREEN_SIZE(320, 242)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 242-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cat_state, screen_update_swyft)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(cat_state,swyft)
 
-	MCFG_ACIA6850_ADD("acia6850", swyft_acia_config) // unknown clock
+	MCFG_DEVICE_ADD("acia6850", ACIA6850, 0)
+
+	MCFG_DEVICE_ADD("acia_clock", CLOCK, 3579545) // guess
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(cat_state, write_acia_clock))
+
+	MCFG_DEVICE_ADD("via6522_0", VIA6522, XTAL_15_8976MHz/16) // unknown clock, GUESSED
+	MCFG_VIA6522_READPA_HANDLER(READ8(cat_state, via0_pa_r))
+	MCFG_VIA6522_READPB_HANDLER(READ8(cat_state, via0_pb_r))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(cat_state, via0_pa_w))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(cat_state, via0_pb_w))
+	MCFG_VIA6522_CB1_HANDLER(WRITELINE(cat_state, via0_cb1_w))
+	MCFG_VIA6522_CA2_HANDLER(WRITELINE(cat_state, via0_ca2_w))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(cat_state, via0_cb2_w))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(cat_state, via0_int_w))
+
+	MCFG_DEVICE_ADD("via6522_1", VIA6522, XTAL_15_8976MHz/16) // unknown clock, GUESSED
+	MCFG_VIA6522_READPA_HANDLER(READ8(cat_state, via1_pa_r))
+	MCFG_VIA6522_READPB_HANDLER(READ8(cat_state, via1_pb_r))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(cat_state, via1_pa_w))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(cat_state, via1_pb_w))
+	MCFG_VIA6522_CB1_HANDLER(WRITELINE(cat_state, via1_cb1_w))
+	MCFG_VIA6522_CA2_HANDLER(WRITELINE(cat_state, via1_ca2_w))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(cat_state, via1_cb2_w))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(cat_state, via1_int_w))
 MACHINE_CONFIG_END
 
 /* ROM definition */
 ROM_START( swyft )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
-	ROM_LOAD( "infoapp.lo", 0x0000, 0x8000, CRC(52c1bd66) SHA1(b3266d72970f9d64d94d405965b694f5dcb23bca) )
-	ROM_LOAD( "infoapp.hi", 0x8000, 0x8000, CRC(83505015) SHA1(693c914819dd171114a8c408f399b56b470f6be0) )
-	/* a version of the swyft roms are labeled '331 low' and '331 high' */
-	ROM_REGION( 0x1000, "pals", ROMREGION_ERASEFF )
-	ROM_LOAD( "timing b.pal16r4", 0x0000, 0x38b, NO_DUMP)
-	ROM_LOAD( "decode e.pal16l8", 0x0400, 0x38b, NO_DUMP)
-	ROM_LOAD( "video 2b.pal16r4", 0x0800, 0x38b, NO_DUMP)
-	ROM_LOAD( "disk 3.5c.pal16r4", 0x0c00, 0x38b, NO_DUMP)
+	ROM_SYSTEM_BIOS( 0, "v331", "IAI Swyft Version 331 Firmware")
+	ROMX_LOAD( "331-lo.u30", 0x0000, 0x8000, CRC(d6cc2e2f) SHA1(39ff26c18b1cf589fc48793263f280ef3780cc61), ROM_BIOS(1))
+	ROMX_LOAD( "331-hi.u31", 0x8000, 0x8000, CRC(4677630a) SHA1(8845d702fa8b8e1a08352f4c59d3076cc2e1307e), ROM_BIOS(1))
+	/* this version of the swyft code identifies itself at 0x3FCB as version 330 */
+	ROM_SYSTEM_BIOS( 1, "v330", "IAI Swyft Version 330 Firmware")
+	ROMX_LOAD( "infoapp.lo.u30", 0x0000, 0x8000, CRC(52c1bd66) SHA1(b3266d72970f9d64d94d405965b694f5dcb23bca), ROM_BIOS(2))
+	ROMX_LOAD( "infoapp.hi.u31", 0x8000, 0x8000, CRC(83505015) SHA1(693c914819dd171114a8c408f399b56b470f6be0), ROM_BIOS(2))
+	ROM_REGION( 0x4000, "pals", ROMREGION_ERASEFF )
+	/* Swyft PALs:
+	 * The Swyft has four PALs, whose rough function can be derived from their names:
+	 * TIMING - state machine for DRAM refresh/access; handles ras/cas and choosing whether the video out shifter or the 68k is accessing ram. also divides clock
+	 * DECODE - address decoder for the 68008
+	 * VIDEO - state machine for the video shifter (and vblank/hblank?)
+	 * DISK 3.5 - state machine for the floppy drive interface
+	 */
+	/* U9: Timing AMPAL16R4
+	 *
+	 * input
+	 * 76543210
+	 * |||||||\-- ?
+	 * ||||||\--- ?
+	 * |||||\---- ?
+	 * ||||\----- ?
+	 * |||\------ ?
+	 * ||\------- ?
+	 * |\-------- ?
+	 * \--------- ?
+	 * /CK ------ 15.8976mhz crystal and transistor oscillator
+	 * /OE ------ ?
+	 *
+	 * output
+	 * 76543210
+	 * |||||||\-- ?
+	 * ||||||\--- ?
+	 * |||||\-R-- ?
+	 * ||||\--R-- ?
+	 * |||\---R-- ?
+	 * ||\----R-- ?
+	 * |\-------- ?
+	 * \--------- ?
+	 */
+	ROM_LOAD( "timing_b.ampal16r4a.u9.jed", 0x0000, 0xb08, CRC(643e6e83) SHA1(7db167883f9d6cf385ce496d08976dc16fc3e2c3))
+	ROM_LOAD( "decode_e.ampal16l8.u20.jed", 0x1000, 0xb08, CRC(0b1dbd76) SHA1(08c144ad7a7bbdd53eefd271b2f6813f8b3b1594))
+	ROM_LOAD( "video_2b.ampal16r4.u25.jed", 0x2000, 0xb08, CRC(caf91148) SHA1(3f8ddcb512a1c05395c74ad9a6ba7b87027ce4ec))
+	ROM_LOAD( "disk_3.5c.ampal16r4.u28.jed", 0x3000, 0xb08, CRC(fd994d02) SHA1(f910ab16587dd248d63017da1e5b37855e4c1a0c))
 ROM_END
 
 ROM_START( cat )
@@ -1200,7 +1673,8 @@ ROM_START( cat )
 	ROMX_LOAD( "boulth1.ic5", 0x20000, 0x10000, CRC(bed1f761) SHA1(d177e1d3a39b005dd94a6bda186221d597129af4), ROM_SKIP(1) | ROM_BIOS(1))
 	/* This 2.40 code was compiled by Dwight Elvey based on the v2.40 source
 	 * code disks recovered around 2004. It does NOT exactly match the above
-	 * set exactly but has a few small differences.
+	 * set exactly but has a few small differences. One of the printer drivers
+	 * may have been replaced by Dwight with an HP PCL4 driver.
 	 * It is as of yet unknown whether it is earlier or later code than the
 	 * set above.
 	 */
@@ -1230,7 +1704,7 @@ ROM_START( cat )
 	 *  (since no rom is in the socket; it reads as open bus, sometimes 0x2E)
 	 * svrom-2 maps to 240000-25ffff every ODD byte (d8-d0)
 	 *  (since no rom is in the socket; it reads as open bus, sometimes 0x80)
-	 * there is no svrom-3; 240000-25ffff EVEN always reads as 0x2E
+	 * there is no svrom-3 socket; 240000-25ffff EVEN always reads as 0x2E
 	 * since ROM_FILL16BE(0x0, 0x80000, 0x2e80) doesn't exist, the
 	 * even bytes and latter chunk of the svrom space need to be filled in
 	 * DRIVER_INIT or some other means needs to be found to declare them as
@@ -1256,7 +1730,7 @@ ROM_START( cat )
 	 * Based on the inputs and outputs of this pal, almost if not the entire
 	 * open bus and mirrored areas of the cat address space could be made
 	 * to cause bus errors. REMAP was probably used to 'open up' the A00000-A7ffff
-	 * shadow rom/ram area and make it writable without erroring.
+	 * shadow rom/ram area and make it writeable without erroring.
 	 */
 ROM_END
 
@@ -1264,4 +1738,4 @@ ROM_END
 
 /*    YEAR  NAME  PARENT  COMPAT   MACHINE    INPUT    DEVICE         INIT     COMPANY   FULLNAME       FLAGS */
 COMP( 1985, swyft,0,      0,       swyft,     swyft,   driver_device, 0,       "Information Applicance Inc", "Swyft", GAME_NOT_WORKING | GAME_NO_SOUND)
-COMP( 1987, cat,  swyft,  0,       cat,       cat,     driver_device, 0,       "Canon",  "Cat", GAME_NOT_WORKING | GAME_NO_SOUND)
+COMP( 1987, cat,  swyft,  0,       cat,       cat,     driver_device, 0,       "Canon",  "Cat", GAME_NOT_WORKING)

@@ -1,22 +1,21 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder, Olivier Galibert
 #pragma once
 
 #ifndef __ATARI_ST__
 #define __ATARI_ST__
 
-#include "emu.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/m68000/m68000.h"
 #include "cpu/m6800/m6800.h"
 #include "imagedev/cartslot.h"
 #include "machine/6850acia.h"
 #include "machine/8530scc.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/mc68901.h"
-#include "machine/midiinport.h"
-#include "machine/midioutport.h"
 #include "machine/ram.h"
 #include "machine/rescap.h"
 #include "machine/rp5c15.h"
-#include "machine/serial.h"
 #include "machine/wd_fdc.h"
 #include "sound/ay8910.h"
 #include "sound/lmc1992.h"
@@ -85,11 +84,11 @@ public:
 			m_maincpu(*this, M68000_TAG),
 			m_fdc(*this, WD1772_TAG),
 			m_mfp(*this, MC68901_TAG),
+			m_acia0(*this, MC6850_0_TAG),
 			m_acia1(*this, MC6850_1_TAG),
 			m_centronics(*this, CENTRONICS_TAG),
 			m_ram(*this, RAM_TAG),
 			m_rs232(*this, RS232_TAG),
-			m_mdout(*this, "mdout"),
 			m_p31(*this, "P31"),
 			m_p32(*this, "P32"),
 			m_p33(*this, "P33"),
@@ -117,17 +116,19 @@ public:
 			m_ikbd_mouse_px(IKBD_MOUSE_PHASE_STATIC),
 			m_ikbd_mouse_py(IKBD_MOUSE_PHASE_STATIC),
 			m_ikbd_mouse_pc(0),
-			m_ikbd_joy(1)
+			m_ikbd_joy(1),
+			m_monochrome(1),
+			m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<wd1772_t> m_fdc;
 	required_device<mc68901_device> m_mfp;
+	required_device<acia6850_device> m_acia0;
 	required_device<acia6850_device> m_acia1;
 	required_device<centronics_device> m_centronics;
 	required_device<ram_device> m_ram;
 	required_device<rs232_port_device> m_rs232;
-	required_device<serial_port_device> m_mdout;
 	required_ioport m_p31;
 	required_ioport m_p32;
 	required_ioport m_p33;
@@ -224,22 +225,18 @@ public:
 	DECLARE_READ8_MEMBER( ikbd_port4_r );
 	DECLARE_WRITE8_MEMBER( ikbd_port4_w );
 
-	void fdc_intrq_w(bool state);
-	void fdc_drq_w(bool state);
+	DECLARE_WRITE_LINE_MEMBER( fdc_drq_w );
 
 	DECLARE_WRITE8_MEMBER( psg_pa_w );
 
-	DECLARE_READ_LINE_MEMBER( ikbd_rx_r );
 	DECLARE_WRITE_LINE_MEMBER( ikbd_tx_w );
 	DECLARE_WRITE_LINE_MEMBER( acia_ikbd_irq_w );
-	DECLARE_READ_LINE_MEMBER( midi_rx_in );
-	DECLARE_WRITE_LINE_MEMBER( midi_tx_out );
 	DECLARE_WRITE_LINE_MEMBER( acia_midi_irq_w );
 
 	DECLARE_READ8_MEMBER( mfp_gpio_r );
 	DECLARE_WRITE_LINE_MEMBER( mfp_tdo_w );
 
-	DECLARE_WRITE_LINE_MEMBER( midi_rx_w );
+	DECLARE_WRITE_LINE_MEMBER( write_acia_clock );
 
 	void toggle_dma_fifo();
 	void flush_dma_fifo();
@@ -252,9 +249,6 @@ public:
 	/* memory state */
 	UINT8 m_mmu;
 
-	// MIDI state
-	int m_midi_rx_state;
-
 	/* keyboard state */
 	int m_acia_ikbd_irq;
 	int m_acia_midi_irq;
@@ -265,10 +259,8 @@ public:
 	UINT8 m_ikbd_mouse_px;
 	UINT8 m_ikbd_mouse_py;
 	UINT8 m_ikbd_mouse_pc;
-	int m_ikbd_rx;
 	int m_ikbd_tx;
 	int m_ikbd_joy;
-	int m_midi_rx;
 	int m_midi_tx;
 
 	/* floppy state */
@@ -304,7 +296,6 @@ public:
 	int m_shifter_vblank_start;
 
 	/* blitter state */
-	int m_blitter_done;
 	UINT16 m_blitter_halftone[16];
 	INT16 m_blitter_src_inc_x;
 	INT16 m_blitter_src_inc_y;
@@ -335,6 +326,10 @@ public:
 
 	DECLARE_FLOPPY_FORMATS(floppy_formats);
 	IRQ_CALLBACK_MEMBER(atarist_int_ack);
+
+	int m_monochrome;
+	required_device<palette_device> m_palette;
+	virtual DECLARE_WRITE_LINE_MEMBER( write_monochrome );
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -396,6 +391,7 @@ public:
 	DECLARE_WRITE16_MEMBER( microwire_mask_w );
 
 	DECLARE_READ8_MEMBER( mfp_gpio_r );
+	virtual DECLARE_WRITE_LINE_MEMBER( write_monochrome );
 
 	void dmasound_set_state(int level);
 	void dmasound_tick();

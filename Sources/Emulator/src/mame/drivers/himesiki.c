@@ -109,7 +109,7 @@ static ADDRESS_MAP_START( himesiki_prm0, AS_PROGRAM, 8, himesiki_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x9fff) AM_RAM
 	AM_RANGE(0xa000, 0xa7ff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xa800, 0xafff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xa800, 0xafff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xb000, 0xbfff) AM_RAM_WRITE(himesiki_bg_ram_w) AM_SHARE("bg_ram")
 	AM_RANGE(0xc000, 0xffff) AM_ROMBANK("bank1")
 ADDRESS_MAP_END
@@ -304,9 +304,11 @@ static MACHINE_CONFIG_START( himesiki, himesiki_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 24*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(himesiki_state, screen_update_himesiki)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(himesiki)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", himesiki)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	/* sound hardware */

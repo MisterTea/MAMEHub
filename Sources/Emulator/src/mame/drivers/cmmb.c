@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
 Centipede / Millipede / Missile Command / Let's Go Bowling
@@ -54,11 +56,15 @@ public:
 	cmmb_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
-		m_videoram(*this, "videoram")
+		m_videoram(*this, "videoram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT8> m_videoram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	UINT8 m_irq_mask;
 
@@ -82,7 +88,7 @@ void cmmb_state::video_start()
 UINT32 cmmb_state::screen_update_cmmb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	UINT8 *videoram = m_videoram;
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	int count = 0x00000;
 
 	int y,x;
@@ -93,7 +99,7 @@ UINT32 cmmb_state::screen_update_cmmb(screen_device &screen, bitmap_ind16 &bitma
 		{
 			int tile = videoram[count] & 0x3f;
 			int colour = (videoram[count] & 0xc0)>>6;
-			drawgfx_opaque(bitmap,cliprect,gfx,tile,colour,0,0,x*8,y*8);
+			gfx->opaque(bitmap,cliprect,tile,colour,0,0,x*8,y*8);
 
 			count++;
 		}
@@ -118,15 +124,15 @@ WRITE8_MEMBER(cmmb_state::cmmb_charram_w)
 	offset&=0xfff;
 
 	/* dirty char */
-	machine().gfx[0]->mark_dirty(offset >> 4);
-	machine().gfx[1]->mark_dirty(offset >> 5);
+	m_gfxdecode->gfx(0)->mark_dirty(offset >> 4);
+	m_gfxdecode->gfx(1)->mark_dirty(offset >> 5);
 }
 
 
 WRITE8_MEMBER(cmmb_state::cmmb_paletteram_w)
 {
 	/* RGB output is inverted */
-	paletteram_RRRGGGBB_byte_w(space,offset,~data);
+	m_palette->write(space, offset, UINT8(~data), mem_mask);
 }
 
 READ8_MEMBER(cmmb_state::cmmb_input_r)
@@ -187,7 +193,7 @@ static ADDRESS_MAP_START( cmmb_map, AS_PROGRAM, 8, cmmb_state )
 	AM_RANGE(0x0000, 0x01ff) AM_RAM /* zero page address */
 //  AM_RANGE(0x13c0, 0x13ff) AM_RAM //spriteram
 	AM_RANGE(0x1000, 0x13ff) AM_RAM AM_SHARE("videoram")
-	AM_RANGE(0x2480, 0x249f) AM_RAM_WRITE(cmmb_paletteram_w) AM_SHARE("paletteram")
+	AM_RANGE(0x2480, 0x249f) AM_RAM_WRITE(cmmb_paletteram_w) AM_SHARE("palette")
 	AM_RANGE(0x4000, 0x400f) AM_READWRITE(cmmb_input_r,cmmb_output_w) //i/o
 	AM_RANGE(0x4900, 0x4900) AM_READ(kludge_r)
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")
@@ -329,9 +335,12 @@ static MACHINE_CONFIG_START( cmmb, cmmb_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cmmb_state, screen_update_cmmb)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cmmb)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cmmb)
+
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(RRRGGGBB)
 
 	/* sound hardware */
 //  MCFG_SPEAKER_STANDARD_MONO("mono")

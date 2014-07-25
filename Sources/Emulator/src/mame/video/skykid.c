@@ -15,13 +15,10 @@
 
 ***************************************************************************/
 
-void skykid_state::palette_init()
+PALETTE_INIT_MEMBER(skykid_state, skykid)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x100);
 
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x100; i++)
@@ -30,7 +27,7 @@ void skykid_state::palette_init()
 		int g = pal4bit(color_prom[i + 0x100]);
 		int b = pal4bit(color_prom[i + 0x200]);
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -38,13 +35,13 @@ void skykid_state::palette_init()
 
 	/* text palette */
 	for (i = 0; i < 0x100; i++)
-		colortable_entry_set_value(machine().colortable, i, i);
+		palette.set_pen_indirect(i, i);
 
 	/* tiles/sprites */
 	for (i = 0x100; i < 0x500; i++)
 	{
 		UINT8 ctabentry = color_prom[i - 0x100];
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 }
 
@@ -81,8 +78,7 @@ TILE_GET_INFO_MEMBER(skykid_state::tx_get_tile_info)
 	   screen is flipped, character flip is done by selecting the 2nd character set.
 	   We reproduce this here, but since the tilemap system automatically flips
 	   characters when screen is flipped, we have to flip them back. */
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code | (flip_screen() ? 0x100 : 0),
 			attr & 0x3f,
 			flip_screen() ? (TILE_FLIPY | TILE_FLIPX) : 0);
@@ -94,8 +90,7 @@ TILE_GET_INFO_MEMBER(skykid_state::bg_get_tile_info)
 	int code = m_videoram[tile_index];
 	int attr = m_videoram[tile_index+0x800];
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code + ((attr & 0x01) << 8),
 			((attr & 0x7e) >> 1) | ((attr & 0x01) << 6),
 			0);
@@ -111,8 +106,8 @@ TILE_GET_INFO_MEMBER(skykid_state::bg_get_tile_info)
 
 void skykid_state::video_start()
 {
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(skykid_state::tx_get_tile_info),this),tilemap_mapper_delegate(FUNC(skykid_state::tx_tilemap_scan),this),  8,8,36,28);
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(skykid_state::bg_get_tile_info),this),TILEMAP_SCAN_ROWS,     8,8,64,32);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(skykid_state::tx_get_tile_info),this),tilemap_mapper_delegate(FUNC(skykid_state::tx_tilemap_scan),this),  8,8,36,28);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(skykid_state::bg_get_tile_info),this),TILEMAP_SCAN_ROWS,     8,8,64,32);
 
 	m_tx_tilemap->set_transparent_pen(0);
 
@@ -216,12 +211,12 @@ void skykid_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
 		{
 			for (x = 0;x <= sizex;x++)
 			{
-				drawgfx_transmask(bitmap,cliprect,machine().gfx[2],
+				m_gfxdecode->gfx(2)->transmask(bitmap,cliprect,
 					sprite + gfx_offs[y ^ (sizey * flipy)][x ^ (sizex * flipx)],
 					color,
 					flipx,flipy,
 					sx + 16*x,sy + 16*y,
-					colortable_get_transpen_mask(machine().colortable, machine().gfx[2], color, 0xff));
+					m_palette->transpen_mask(*m_gfxdecode->gfx(2), color, 0xff));
 			}
 		}
 	}

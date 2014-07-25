@@ -370,7 +370,7 @@ static ADDRESS_MAP_START( punchout_sound_map, AS_PROGRAM, 8, punchout_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM
 	AM_RANGE(0x4016, 0x4016) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x4017, 0x4017) AM_READ(soundlatch2_byte_r)
-	AM_RANGE(0x4000, 0x4017) AM_DEVREADWRITE_LEGACY("nes", nes_psg_r,nes_psg_w)
+	AM_RANGE(0x4000, 0x4017) AM_DEVREADWRITE("nesapu", nesapu_device, read, write)
 	AM_RANGE(0xe000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -911,12 +911,6 @@ static GFXDECODE_START( armwrest )
 GFXDECODE_END
 
 
-
-static const nes_interface nes_config =
-{
-	"audiocpu"
-};
-
 void punchout_state::machine_reset()
 {
 	m_rp5c01_mode_sel = 0;
@@ -946,8 +940,8 @@ static MACHINE_CONFIG_START( punchout, punchout_state )
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	/* video hardware */
-	MCFG_GFXDECODE(punchout)
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", punchout)
+	MCFG_PALETTE_ADD("palette", 0x200)
 	MCFG_DEFAULT_LAYOUT(layout_dualhovu)
 
 	MCFG_SCREEN_ADD("top", RASTER)
@@ -956,6 +950,7 @@ static MACHINE_CONFIG_START( punchout, punchout_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(punchout_state, screen_update_punchout_top)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("bottom", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -963,13 +958,14 @@ static MACHINE_CONFIG_START( punchout, punchout_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(punchout_state, screen_update_punchout_bottom)
+	MCFG_SCREEN_PALETTE("palette")
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("nes", NES, N2A03_DEFAULTCLOCK)
-	MCFG_SOUND_CONFIG(nes_config)
+	MCFG_SOUND_ADD("nesapu", NES_APU, N2A03_DEFAULTCLOCK)
+	MCFG_NES_APU_CPU("audiocpu")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, 3580000)
@@ -985,7 +981,7 @@ static MACHINE_CONFIG_DERIVED( armwrest, punchout )
 	MCFG_CPU_PROGRAM_MAP(armwrest_map)
 
 	/* video hardware */
-	MCFG_GFXDECODE(armwrest)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", armwrest)
 
 	MCFG_VIDEO_START_OVERRIDE(punchout_state,armwrest)
 	MCFG_SCREEN_MODIFY("top")

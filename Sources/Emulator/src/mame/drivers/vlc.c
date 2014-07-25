@@ -131,12 +131,12 @@ nevada TYPE2 :  64       45      51       06       32      02        31     31  
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/n68681.h"
+#include "machine/mc68681.h"
+#include "machine/nvram.h"
 #include "video/mc6845.h"
 #include "sound/ay8910.h"
 #include "machine/msm6242.h"
 #include "machine/microtch.h"
-#include "mcfglgcy.h"
 
 
 /***************************************************************************
@@ -156,19 +156,23 @@ public:
 		m_duart40_68681(*this, "duart40_68681"),
 		m_maincpu(*this,"maincpu"),
 		m_microtouch(*this,"microtouch"),
-			m_nvram(*this, "nvram"),
-			m_backup(*this, "backup")
+		m_nvram(*this,"nvram"),
+		m_ram62256(*this, "ram62256"),
+		m_backup(*this, "backup")
 		{ }
 
-	required_device<duartn68681_device> m_duart18_68681;
-	required_device<duartn68681_device> m_duart39_68681;
-	required_device<duartn68681_device> m_duart40_68681;
+	required_device<mc68681_device> m_duart18_68681;
+	required_device<mc68681_device> m_duart39_68681;
+	required_device<mc68681_device> m_duart40_68681;
 
 	required_device<cpu_device> m_maincpu;
-	optional_device<microtouch_serial_device> m_microtouch;
+	optional_device<microtouch_device> m_microtouch;
+	required_device<nvram_device> m_nvram;
 
-	required_shared_ptr<UINT16> m_nvram;
+	required_shared_ptr<UINT16> m_ram62256;
 	required_shared_ptr<UINT16> m_backup;
+
+	void nvram_init(nvram_device &nvram, void *data, size_t size);
 
 	UINT16  m_datA40000;
 
@@ -179,7 +183,7 @@ public:
 	tilemap_t *m_bg_tilemap;
 	virtual void video_start();
 	UINT32 screen_update_nevada(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(nevada);
 
 	DECLARE_WRITE_LINE_MEMBER(duart18_irq_handler);
 	DECLARE_WRITE_LINE_MEMBER(duart39_irq_handler);
@@ -190,8 +194,8 @@ public:
 	DECLARE_WRITE16_MEMBER (io_board_x);
 	DECLARE_READ16_MEMBER( nevada_sec_r );
 	DECLARE_WRITE16_MEMBER( nevada_sec_w );
-	virtual void machine_reset();
 
+	DECLARE_MACHINE_START(nevada);
 	DECLARE_DRIVER_INIT(nevada);
 };
 
@@ -230,20 +234,6 @@ static const UINT8 pal35[256] = {
 /***************************************************************************/
 /********************   VIDEO SECTION   ************************************/
 /***************************************************************************/
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
 
 static const gfx_layout charlayout =
 {
@@ -310,7 +300,7 @@ UINT32 nevada_state::screen_update_nevada(screen_device &screen, bitmap_ind16 &b
 }
 
 /***************************************************************************/
-void nevada_state::palette_init()
+PALETTE_INIT_MEMBER(nevada_state, nevada)
 {
 	// Palette init
 }
@@ -319,23 +309,13 @@ void nevada_state::palette_init()
 /********************   NVRAM SECTION   ************************************/
 /***************************************************************************/
 
-static  NVRAM_HANDLER( nevada )
+void nevada_state::nvram_init(nvram_device &nvram, void *data, size_t size)
 {
-	nevada_state *state = machine.driver_data<nevada_state>();
-	if (read_or_write)
-		file->write(state->m_nvram,state->m_nvram.bytes());
-	else
-	{
-		if (file)
-			file->read(state->m_nvram,state->m_nvram.bytes());
-		else
-		{
-			UINT16* defaultram = (UINT16 *) state->memregion("defaults")->base();
-			memset(state->m_nvram,0x00,state->m_nvram.bytes());
-			if (defaultram) memcpy(state->m_nvram, state->memregion("defaults")->base(), state->memregion("defaults")->bytes());
-		}
-	}
+	memset(data, 0x00, size);
+	if (memregion("defaults")->base())
+		memcpy(data, memregion("defaults")->base(), memregion("defaults")->bytes());
 }
+
 
 /***************************************************************************
 
@@ -389,14 +369,9 @@ WRITE_LINE_MEMBER(nevada_state::nevada_rtc_irq)
 }
 
 /***************************************************************************/
-static MSM6242_INTERFACE( nevada_rtc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(nevada_state,nevada_rtc_irq)
-};
-
-/***************************************************************************/
 /*********************    SOUND SECTION     ********************************/
 /***************************************************************************/
+#if 0
 static const ay8910_interface ay8910_config =
 {
 	AY8910_LEGACY_OUTPUT,
@@ -408,6 +383,7 @@ static const ay8910_interface ay8910_config =
 	DEVCB_NULL,
 	DEVCB_NULL
 };
+#endif
 
 /***************************************************************************/
 READ16_MEMBER(nevada_state::io_board_r)
@@ -529,7 +505,7 @@ U40 MC68681 Pin27 OP4  JCM Bill Acceptor  (J4-6, J4-7 Control)
 */
 /***************************************************************************/
 static ADDRESS_MAP_START( nevada_map, AS_PROGRAM, 16,nevada_state )
-	AM_RANGE(0x00000000, 0x0000ffff) AM_RAM AM_SHARE("nvram")
+	AM_RANGE(0x00000000, 0x0000ffff) AM_RAM AM_SHARE("ram62256")
 	AM_RANGE(0x00010000, 0x00021fff) AM_RAM AM_SHARE("backup")
 	AM_RANGE(0x00900000, 0x00900001) AM_DEVWRITE8("crtc",mc6845_device, address_w,0x00ff )
 	AM_RANGE(0x00908000, 0x00908001) AM_DEVWRITE8("crtc",mc6845_device,register_w,0x00ff )
@@ -542,9 +518,9 @@ static ADDRESS_MAP_START( nevada_map, AS_PROGRAM, 16,nevada_state )
 	AM_RANGE(0x00a40000, 0x00A40001) AM_READWRITE( nevada_sec_r, nevada_sec_w)
 		//AM_RANGE(0x00b00000, 0x00b01fff) AM_RAM_WRITE(nevada_videoram_w) AM_BASE_MEMBER(nevada_state, m_videoram)
 			AM_RANGE(0x00b00000, 0x00b01fff) AM_RAM // Video
-	AM_RANGE(0x00b10000, 0x00b100ff) AM_DEVREADWRITE8( "duart40_68681", duartn68681_device, read, write, 0x00ff ) // Lower byte
-	AM_RANGE(0x00b20000, 0x00b200ff) AM_DEVREADWRITE8( "duart39_68681", duartn68681_device, read, write, 0x00ff ) // Lower byte
-	AM_RANGE(0x00e00000, 0x00e000ff) AM_DEVREADWRITE8( "duart18_68681", duartn68681_device, read, write, 0xff00 ) // Upper byte
+	AM_RANGE(0x00b10000, 0x00b100ff) AM_DEVREADWRITE8( "duart40_68681", mc68681_device, read, write, 0x00ff ) // Lower byte
+	AM_RANGE(0x00b20000, 0x00b200ff) AM_DEVREADWRITE8( "duart39_68681", mc68681_device, read, write, 0x00ff ) // Lower byte
+	AM_RANGE(0x00e00000, 0x00e000ff) AM_DEVREADWRITE8( "duart18_68681", mc68681_device, read, write, 0xff00 ) // Upper byte
 	AM_RANGE(0x00fa0000, 0x00fbffff) AM_RAM  // not used
 	AM_RANGE(0x00fc0000, 0x00ffffff) AM_ROM  // ROM ext + ROM boot
 ADDRESS_MAP_END
@@ -596,41 +572,15 @@ static INPUT_PORTS_START( nevada )
 INPUT_PORTS_END
 
 /***************************************************************************/
-static const duartn68681_config nevada_duart18_68681_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(nevada_state, duart18_irq_handler),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_NULL
-};
-/***************************************************************************/
-static const duartn68681_config nevada_duart39_68681_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(nevada_state, duart39_irq_handler),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL
-};
-/***************************************************************************/
-static const duartn68681_config nevada_duart40_68681_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(nevada_state, duart40_irq_handler),
-	DEVCB_DEVICE_LINE_MEMBER("microtouch", microtouch_serial_device, rx),
-	DEVCB_NULL,
-	DEVCB_INPUT_PORT("DSW3"),
-	DEVCB_NULL
-};
-
-/***************************************************************************/
 /*************************
-*     Machine Reset      *
+*     Machine start      *
 *************************/
 
-	void nevada_state::machine_reset()
+MACHINE_START_MEMBER(nevada_state, nevada)
 {
+	m_nvram->set_base(m_ram62256, 0x1000);
 }
+
 /***************************************************************************/
 
 /*************************
@@ -645,8 +595,9 @@ static MACHINE_CONFIG_START( nevada, nevada_state )
 
 	MCFG_WATCHDOG_TIME_INIT(attotime::from_msec(150))   /* 150ms Ds1232 TD to Ground */
 
+	MCFG_MACHINE_START_OVERRIDE(nevada_state, nevada)
 
-	MCFG_NVRAM_HANDLER(nevada)
+	MCFG_NVRAM_ADD_CUSTOM_DRIVER("nvram", nevada_state, nvram_init)
 
 	// video hardware
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -655,11 +606,15 @@ static MACHINE_CONFIG_START( nevada, nevada_state )
 	MCFG_SCREEN_SIZE((42+1)*8, (32+1)*8)                  /* From MC6845 init, registers 00 & 04 (programmed with value-1). */
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 31*8-1, 0*8, 31*8-1)    /* From MC6845 init, registers 01 & 06. */
 	MCFG_SCREEN_UPDATE_DRIVER(nevada_state, screen_update_nevada)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nevada)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nevada)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(nevada_state, nevada)
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", MC6845_CLOCK, mc6845_intf)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", MC6845_CLOCK)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -667,12 +622,24 @@ static MACHINE_CONFIG_START( nevada, nevada_state )
 	MCFG_SOUND_ADD("aysnd", AY8912, SOUND_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
-	MCFG_DUARTN68681_ADD( "duart18_68681", XTAL_3_6864MHz , nevada_duart18_68681_config )  // UARTA = Modem 1200Baud
-	MCFG_DUARTN68681_ADD( "duart39_68681", XTAL_3_6864MHz , nevada_duart39_68681_config )  // UARTA = Printer
-	MCFG_DUARTN68681_ADD( "duart40_68681", XTAL_3_6864MHz , nevada_duart40_68681_config )  // UARTA = Touch , UARTB = Bill Acceptor
-	MCFG_MICROTOUCH_SERIAL_ADD( "microtouch", 9600, DEVWRITELINE("duart40_68681", duartn68681_device, rx_a_w) )
+	MCFG_MC68681_ADD( "duart18_68681", XTAL_3_6864MHz )  // UARTA = Modem 1200Baud
+	MCFG_MC68681_IRQ_CALLBACK(WRITELINE(nevada_state, duart18_irq_handler))
+	MCFG_MC68681_INPORT_CALLBACK(IOPORT("DSW1"))
+
+	MCFG_MC68681_ADD( "duart39_68681", XTAL_3_6864MHz )  // UARTA = Printer
+	MCFG_MC68681_IRQ_CALLBACK(WRITELINE(nevada_state, duart39_irq_handler))
+	MCFG_MC68681_INPORT_CALLBACK(IOPORT("DSW2"))
+
+	MCFG_MC68681_ADD( "duart40_68681", XTAL_3_6864MHz )  // UARTA = Touch , UARTB = Bill Acceptor
+	MCFG_MC68681_IRQ_CALLBACK(WRITELINE(nevada_state, duart40_irq_handler))
+	MCFG_MC68681_A_TX_CALLBACK(DEVWRITELINE("microtouch", microtouch_device, rx))
+	MCFG_MC68681_INPORT_CALLBACK(IOPORT("DSW3"))
+
+	MCFG_MICROTOUCH_ADD( "microtouch", 9600, DEVWRITELINE("duart40_68681", mc68681_device, rx_a_w) )
+
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", nevada_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(nevada_state, nevada_rtc_irq))
 
 MACHINE_CONFIG_END
 

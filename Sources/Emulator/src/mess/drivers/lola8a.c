@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic, Robbbert
 /***************************************************************************
 
         Lola 8A
@@ -34,12 +36,13 @@ public:
 	lola8a_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag)
 		, m_maincpu(*this, "maincpu")
-		, m_cass(*this, "cassette")
+		, m_cass(*this, "cassette"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(lola8a);
 	virtual void machine_reset() { m_maincpu->set_pc(0x8000); }
 
 	DECLARE_READ8_MEMBER(lola8a_port_a_r);
@@ -49,10 +52,13 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(cass_w);
 
 	DECLARE_READ8_MEMBER(keyboard_r);
+	MC6845_UPDATE_ROW(crtc_update_row);
 
 private:
 	UINT8 m_portb;
 	required_device<cassette_image_device> m_cass;
+public:
+	required_device<palette_device> m_palette;
 };
 
 static ADDRESS_MAP_START(lola8a_mem, AS_PROGRAM, 8, lola8a_state)
@@ -182,20 +188,19 @@ static INPUT_PORTS_START( lola8a )
 INPUT_PORTS_END
 
 
-void lola8a_state::palette_init()
+PALETTE_INIT_MEMBER(lola8a_state, lola8a)
 {
 	int i;
 
 	for(i=0;i<8;i++) {
-		palette_set_color_rgb(machine(), i, pal1bit(i >> 1),pal1bit(i >> 2),pal1bit(i >> 0));
+		palette.set_pen_color(i, pal1bit(i >> 1),pal1bit(i >> 2),pal1bit(i >> 0));
 	}
 }
 
-static MC6845_UPDATE_ROW( lola8a_update_row )
+MC6845_UPDATE_ROW( lola8a_state::crtc_update_row )
 {
-	lola8a_state *state = device->machine().driver_data<lola8a_state>();
-	address_space &program = state->m_maincpu->space(AS_PROGRAM);
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	address_space &program = m_maincpu->space(AS_PROGRAM);
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 
 	for (int sx = 0; sx < x_count; sx++)
 	{
@@ -252,30 +257,6 @@ WRITE_LINE_MEMBER(lola8a_state::crtc_vsync)
 	m_maincpu->set_input_line(I8085_RST75_LINE, state? ASSERT_LINE : CLEAR_LINE);
 }
 
-static MC6845_INTERFACE( hd46505sp_intf )
-{
-	false,
-	8,
-	NULL,
-	lola8a_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(lola8a_state, crtc_vsync),
-	NULL
-};
-
-static const ay8910_interface psg_intf =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(lola8a_state, lola8a_port_a_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(lola8a_state, lola8a_port_b_w)
-};
-
 static MACHINE_CONFIG_START( lola8a, lola8a_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", I8085A, XTAL_4_9152MHz)
@@ -286,7 +267,8 @@ static MACHINE_CONFIG_START( lola8a, lola8a_state )
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD(AY8910_TAG, AY8910, XTAL_4_9152MHz / 4)
-	MCFG_SOUND_CONFIG(psg_intf)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(lola8a_state, lola8a_port_a_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(lola8a_state, lola8a_port_b_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",1.0)
 
 	/* video hardware */
@@ -296,11 +278,18 @@ static MACHINE_CONFIG_START( lola8a, lola8a_state )
 	MCFG_SCREEN_UPDATE_DEVICE(HD46505SP_TAG, hd6845_device, screen_update)
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
-	MCFG_MC6845_ADD(HD46505SP_TAG, HD6845, "screen", XTAL_8MHz / 8, hd46505sp_intf) // HD6845 == HD46505S
-	MCFG_PALETTE_LENGTH(8)
+
+	MCFG_MC6845_ADD(HD46505SP_TAG, HD6845, "screen", XTAL_8MHz / 8) // HD6845 == HD46505S
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(lola8a_state, crtc_update_row)
+	MCFG_MC6845_OUT_VSYNC_CB(WRITELINE(lola8a_state, crtc_vsync))
+
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(lola8a_state, lola8a)
 
 	/* Cassette */
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END

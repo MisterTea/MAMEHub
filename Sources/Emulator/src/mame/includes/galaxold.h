@@ -13,6 +13,8 @@
 #ifndef __GALAXOLD_H__
 #define __GALAXOLD_H__
 
+#include "machine/7474.h"
+
 /* star circuit */
 #define STAR_COUNT  252
 struct star
@@ -33,7 +35,14 @@ public:
 			m_rockclim_videoram(*this,"rockclim_vram"),
 			m_racknrol_tiles_bank(*this,"racknrol_tbank"),
 			m_maincpu(*this, "maincpu"),
-			m_audiocpu(*this, "audiocpu") { }
+			m_audiocpu(*this, "audiocpu"),
+			m_7474_9m_1(*this, "7474_9m_1"),
+			m_7474_9m_2(*this, "7474_9m_2"),
+			m_gfxdecode(*this, "gfxdecode"),
+			m_screen(*this, "screen"),
+			m_palette(*this, "palette")
+	{
+	}
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_spriteram;
@@ -101,14 +110,9 @@ public:
 	DECLARE_WRITE8_MEMBER(galaxold_coin_counter_1_w);
 	DECLARE_WRITE8_MEMBER(galaxold_coin_counter_2_w);
 	DECLARE_WRITE8_MEMBER(galaxold_leds_w);
-	DECLARE_WRITE8_MEMBER(zigzag_sillyprotection_w);
 	DECLARE_READ8_MEMBER(scramblb_protection_1_r);
 	DECLARE_READ8_MEMBER(scramblb_protection_2_r);
 	DECLARE_WRITE8_MEMBER(_4in1_bank_w);
-	DECLARE_READ8_MEMBER(checkmaj_protection_r);
-	DECLARE_READ8_MEMBER(dingo_3000_r);
-	DECLARE_READ8_MEMBER(dingo_3035_r);
-	DECLARE_READ8_MEMBER(dingoe_3001_r);
 	DECLARE_WRITE8_MEMBER(racknrol_tiles_bank_w);
 	DECLARE_WRITE8_MEMBER(galaxold_videoram_w);
 	DECLARE_READ8_MEMBER(galaxold_videoram_r);
@@ -138,7 +142,6 @@ public:
 	DECLARE_CUSTOM_INPUT_MEMBER(vpool_lives_r);
 	DECLARE_CUSTOM_INPUT_MEMBER(ckongg_coinage_r);
 	DECLARE_CUSTOM_INPUT_MEMBER(dkongjrm_coinage_r);
-	DECLARE_READ8_MEMBER(ttl7474_trampoline);
 	DECLARE_DRIVER_INIT(bullsdrtg);
 	DECLARE_DRIVER_INIT(ladybugg);
 	DECLARE_DRIVER_INIT(4in1);
@@ -244,9 +247,13 @@ public:
 	void bagmanmc_modify_charcode(UINT16 *code, UINT8 x);
 	void bagmanmc_modify_spritecode(UINT8 *spriteram, int *code, int *flipx, int *flipy, int offs);
 	void machine_reset_common(int line);
-	UINT8 decode_mooncrst(UINT8 data,offs_t addr);
 	required_device<cpu_device> m_maincpu;
 	optional_device<cpu_device> m_audiocpu;
+	optional_device<ttl7474_device> m_7474_9m_1;
+	optional_device<ttl7474_device> m_7474_9m_2;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 #define galaxold_coin_counter_0_w galaxold_coin_counter_w

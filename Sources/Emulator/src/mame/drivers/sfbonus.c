@@ -290,7 +290,9 @@ public:
 		m_2c01_regs(*this, "2c01_regs"),
 		m_3000_regs(*this, "3000_regs"),
 		m_3800_regs(*this, "3800_regs"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	bitmap_ind16 *m_temp_reel_bitmap;
 	tilemap_t *m_tilemap;
@@ -456,6 +458,8 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_sfbonus(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -781,8 +785,7 @@ TILE_GET_INFO_MEMBER(sfbonus_state::get_sfbonus_tile_info)
 	int flipx = (m_tilemap_ram[(tile_index*2)+1] & 0x80)>>7;
 	int flipy = (m_tilemap_ram[(tile_index*2)+1] & 0x40)>>5;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			0,
 			TILE_FLIPYX(flipx | flipy));
@@ -796,8 +799,7 @@ TILE_GET_INFO_MEMBER(sfbonus_state::get_sfbonus_reel_tile_info)
 
 	int priority = (m_reel_ram[(tile_index*2)+1] & 0x40)>>6;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code,
 			priority,  // colour aboused as priority
 			TILE_FLIPYX(flipx | flipy));
@@ -811,8 +813,7 @@ TILE_GET_INFO_MEMBER(sfbonus_state::get_sfbonus_reel2_tile_info)
 
 	int priority = (m_reel2_ram[(tile_index*2)+1] & 0x40)>>6;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code,
 			priority,  // colour abused as priority
 			TILE_FLIPYX(flipx | flipy));
@@ -826,8 +827,7 @@ TILE_GET_INFO_MEMBER(sfbonus_state::get_sfbonus_reel3_tile_info)
 
 	int priority = (m_reel3_ram[(tile_index*2)+1] & 0x40)>>6;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code,
 			priority,  // colour abused as priority
 			TILE_FLIPYX(flipx | flipy));
@@ -841,8 +841,7 @@ TILE_GET_INFO_MEMBER(sfbonus_state::get_sfbonus_reel4_tile_info)
 
 	int priority = (m_reel4_ram[(tile_index*2)+1] & 0x40)>>6;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code,
 			priority, // colour abused as priority
 			TILE_FLIPYX(flipx | flipy));
@@ -904,11 +903,11 @@ void sfbonus_state::video_start()
 {
 	m_temp_reel_bitmap = auto_bitmap_ind16_alloc(machine(),1024,512);
 
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sfbonus_state::get_sfbonus_tile_info),this),TILEMAP_SCAN_ROWS,8,8, 128, 64);
-	m_reel_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sfbonus_state::get_sfbonus_reel_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 16);
-	m_reel2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sfbonus_state::get_sfbonus_reel2_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 16);
-	m_reel3_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sfbonus_state::get_sfbonus_reel3_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 16);
-	m_reel4_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sfbonus_state::get_sfbonus_reel4_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 16);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sfbonus_state::get_sfbonus_tile_info),this),TILEMAP_SCAN_ROWS,8,8, 128, 64);
+	m_reel_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sfbonus_state::get_sfbonus_reel_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 16);
+	m_reel2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sfbonus_state::get_sfbonus_reel2_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 16);
+	m_reel3_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sfbonus_state::get_sfbonus_reel3_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 16);
+	m_reel4_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sfbonus_state::get_sfbonus_reel4_tile_info),this),TILEMAP_SCAN_ROWS,8,32, 64, 16);
 
 	m_tilemap->set_transparent_pen(0);
 	m_reel_tilemap->set_transparent_pen(255);
@@ -1074,8 +1073,8 @@ UINT32 sfbonus_state::screen_update_sfbonus(screen_device &screen, bitmap_ind16 
 	globalyscroll += 8;
 	globalxscroll += 8;
 
-	bitmap.fill(machine().pens[0], cliprect);
-	m_temp_reel_bitmap->fill(machine().pens[0], cliprect);
+	bitmap.fill(m_palette->pen(0), cliprect);
+	m_temp_reel_bitmap->fill(m_palette->pen(0), cliprect);
 
 	/* render reels to bitmap */
 	sfbonus_draw_reel_layer(screen,*m_temp_reel_bitmap,cliprect,0);
@@ -1350,11 +1349,6 @@ static ADDRESS_MAP_START( ramdac_map, AS_0, 8, sfbonus_state )
 	AM_RANGE(0x000, 0x3ff) AM_DEVREADWRITE("ramdac",ramdac_device,ramdac_pal_r,ramdac_rgb666_w)
 ADDRESS_MAP_END
 
-static RAMDAC_INTERFACE( ramdac_intf )
-{
-	0
-};
-
 
 static MACHINE_CONFIG_START( sfbonus, sfbonus_state )
 	MCFG_CPU_ADD("maincpu", Z80, 6000000) // custom packaged z80 CPU ?? Mhz
@@ -1366,7 +1360,7 @@ static MACHINE_CONFIG_START( sfbonus, sfbonus_state )
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_GFXDECODE(sfbonus)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sfbonus)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -1374,10 +1368,11 @@ static MACHINE_CONFIG_START( sfbonus, sfbonus_state )
 	MCFG_SCREEN_SIZE(128*8, 64*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 512-1, 0*8, 288-1)
 	MCFG_SCREEN_UPDATE_DRIVER(sfbonus_state, screen_update_sfbonus)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x100*2) // *2 for priority workaraound / custom drawing
+	MCFG_PALETTE_ADD("palette", 0x100*2) // *2 for priority workaraound / custom drawing
 
-	MCFG_RAMDAC_ADD("ramdac", ramdac_intf, ramdac_map)
+	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette")
 
 
 	/* Parrot 3 seems fine at 1 Mhz, but Double Challenge isn't? */

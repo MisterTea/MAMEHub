@@ -70,7 +70,7 @@ void asc_device::static_set_type(device_t &device, int type)
 void asc_device::device_start()
 {
 	// create the stream
-	m_stream = machine().sound().stream_alloc(*this, 0, 2, 22257, this);
+	m_stream = machine().sound().stream_alloc(*this, 0, 2, 22257);
 
 	memset(m_regs, 0, sizeof(m_regs));
 
@@ -372,6 +372,11 @@ READ8_MEMBER( asc_device::read )
 		m_regs[0x2f] = m_incr[3];
 	}
 
+	if (offset >= 0x1000)
+	{
+		return 0xff;
+	}
+
 	return m_regs[offset-0x800];
 }
 
@@ -582,6 +587,9 @@ WRITE8_MEMBER( asc_device::write )
 				break;
 		}
 
-		m_regs[offset-0x800] = data;
+		if (offset >= 0x800 && offset < 0x1000)
+		{
+			m_regs[offset-0x800] = data;
+		}
 	}
 }

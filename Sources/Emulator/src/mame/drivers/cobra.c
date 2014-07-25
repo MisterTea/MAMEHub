@@ -320,7 +320,7 @@
 #include "machine/jvsdev.h"
 #include "machine/timekpr.h"
 #include "video/k001604.h"
-#include "video/polynew.h"
+#include "video/poly.h"
 #include "video/rgbgen.h"
 #include "sound/rf5c400.h"
 #include "sound/dmadac.h"
@@ -610,16 +610,22 @@ public:
 		m_gfxcpu(*this, "gfxcpu"),
 		m_gfx_pagetable(*this, "pagetable"),
 		m_k001604(*this, "k001604"),
-		m_ata(*this, "ata")
+		m_ata(*this, "ata"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_32(*this, "paletteram")
 	{
 	}
 
-	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_subcpu;
-	required_device<cpu_device> m_gfxcpu;
+	required_device<ppc_device> m_maincpu;
+	required_device<ppc4xx_device> m_subcpu;
+	required_device<ppc_device> m_gfxcpu;
 	required_shared_ptr<UINT64> m_gfx_pagetable;
 	required_device<k001604_device> m_k001604;
 	required_device<ata_interface_device> m_ata;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT32> m_generic_paletteram_32;
 
 	DECLARE_READ64_MEMBER(main_comram_r);
 	DECLARE_WRITE64_MEMBER(main_comram_w);
@@ -800,7 +806,7 @@ rgb_t cobra_renderer::texture_fetch(UINT32 *texture, int u, int v, int width, in
 		int g = (texel & 0x0f00) >> 4;
 		int b = (texel & 0x00f0) >> 0;
 		int a = (texel & 0x000f) | ((texel & 0x000f) << 4);
-		color = MAKE_ARGB(a, r, g, b);
+		color = rgb_t(a, r, g, b);
 	}
 	else
 	{
@@ -808,7 +814,7 @@ rgb_t cobra_renderer::texture_fetch(UINT32 *texture, int u, int v, int width, in
 		int g = (texel & 0x07c0) >> 3;
 		int b = (texel & 0x003e) << 2;
 		int a = (texel & 0x0001) ? 0xff : 0;
-		color = MAKE_ARGB(a, r, g, b);
+		color = rgb_t(a, r, g, b);
 	}
 
 	return color;
@@ -886,7 +892,7 @@ void cobra_renderer::render_texture_scan(INT32 scanline, const extent_t &extent,
 
 #endif
 
-			int a = RGB_ALPHA(texel);
+			int a = texel.a();
 
 			if (a != 0 || !alpha_test)
 			{
@@ -894,9 +900,9 @@ void cobra_renderer::render_texture_scan(INT32 scanline, const extent_t &extent,
 				UINT32 goug = (int)(gg);
 				UINT32 goub = (int)(gb);
 
-				int r = (RGB_RED(texel) * gour) >> 8;
-				int g = (RGB_GREEN(texel) * goug) >> 8;
-				int b = (RGB_BLUE(texel) * goub) >> 8;
+				int r = (texel.r() * gour) >> 8;
+				int g = (texel.g() * goug) >> 8;
+				int b = (texel.b() * goub) >> 8;
 
 				if (a != 0xff)
 				{
@@ -1014,11 +1020,6 @@ UINT32 cobra_state::screen_update_cobra(screen_device &screen, bitmap_rgb32 &bit
 	m_renderer->display(&bitmap, cliprect);
 	return 0;
 }
-
-
-
-
-
 
 
 
@@ -1869,7 +1870,7 @@ WRITE32_MEMBER(cobra_state::sub_psac_palette_w)
 {
 	COMBINE_DATA(&m_generic_paletteram_32[offset]);
 	data = m_generic_paletteram_32[offset];
-	palette_set_color_rgb(machine(), offset, pal5bit(data >> 10), pal5bit(data >> 5), pal5bit(data >> 0));
+	m_palette->set_pen_color(offset, pal5bit(data >> 10), pal5bit(data >> 5), pal5bit(data >> 0));
 }
 
 READ32_MEMBER(cobra_state::sub_psac2_r)
@@ -1922,6 +1923,7 @@ static void sub_sound_dma_w(device_t *device, int width, UINT32 data)
 
 static void sub_jvs_w(device_t *device, UINT8 data)
 {
+	cobra_state *cobra = device->machine().driver_data<cobra_state>();
 	cobra_jvs_host *jvs = downcast<cobra_jvs_host *>(device->machine().device("cobra_jvs_host"));
 
 #if LOG_JVS
@@ -1946,7 +1948,7 @@ static void sub_jvs_w(device_t *device, UINT8 data)
 
 		for (int i=0; i < rec_size; i++)
 		{
-			ppc4xx_spu_receive_byte(device, rec_data[i]);
+			cobra->m_subcpu->ppc4xx_spu_receive_byte(rec_data[i]);
 		}
 	}
 }
@@ -3079,7 +3081,7 @@ INPUT_PORTS_START( cobra )
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("P1")
-	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_START ) PORT_PLAYER(1)
+	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_START1 )
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN ) PORT_PLAYER(1)
 	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(1)
 	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(1)
@@ -3097,7 +3099,7 @@ INPUT_PORTS_START( cobra )
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_UNUSED ) PORT_PLAYER(1)
 
 	PORT_START("P2")
-	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_START ) PORT_PLAYER(2)
+	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_START2 )
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN ) PORT_PLAYER(2)
 	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(2)
 	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(2)
@@ -3114,29 +3116,6 @@ INPUT_PORTS_START( cobra )
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_UNUSED ) PORT_PLAYER(2)
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_UNUSED ) PORT_PLAYER(2)
 INPUT_PORTS_END
-
-static powerpc_config main_ppc_cfg =
-{
-	XTAL_66_6667MHz,        /* Multiplier 1.5, Bus = 66MHz, Core = 100MHz */
-	NULL,
-	NULL
-};
-
-static powerpc_config gfx_ppc_cfg =
-{
-	XTAL_66_6667MHz,        /* Multiplier 1.5, Bus = 66MHz, Core = 100MHz */
-	NULL,
-	NULL
-};
-
-
-static const k001604_interface cobra_k001604_intf =
-{
-	0, 1,   /* gfx index 1 & 2 */
-	0, 1,   /* layer_size, roz_size */
-	0       /* slrasslt hack */
-};
-
 
 WRITE_LINE_MEMBER(cobra_state::ide_interrupt)
 {
@@ -3187,7 +3166,7 @@ static MACHINE_CONFIG_START( cobra, cobra_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", PPC603, 100000000)      /* 603EV, 100? MHz */
-	MCFG_CPU_CONFIG(main_ppc_cfg)
+	MCFG_PPC_BUS_FREQUENCY(XTAL_66_6667MHz)  /* Multiplier 1.5, Bus = 66MHz, Core = 100MHz */
 	MCFG_CPU_PROGRAM_MAP(cobra_main_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", cobra_state,  cobra_vblank)
 
@@ -3195,7 +3174,7 @@ static MACHINE_CONFIG_START( cobra, cobra_state )
 	MCFG_CPU_PROGRAM_MAP(cobra_sub_map)
 
 	MCFG_CPU_ADD("gfxcpu", PPC604, 100000000)       /* 604, 100? MHz */
-	MCFG_CPU_CONFIG(gfx_ppc_cfg)
+	MCFG_PPC_BUS_FREQUENCY(XTAL_66_6667MHz)   /* Multiplier 1.5, Bus = 66MHz, Core = 100MHz */
 	MCFG_CPU_PROGRAM_MAP(cobra_gfx_map)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(15005))
@@ -3213,8 +3192,8 @@ static MACHINE_CONFIG_START( cobra, cobra_state )
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(512, 400)
 	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 399)
-	MCFG_PALETTE_LENGTH(65536)
 	MCFG_SCREEN_UPDATE_DRIVER(cobra_state, screen_update_cobra)
+	MCFG_PALETTE_ADD("palette", 65536)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
@@ -3230,7 +3209,16 @@ static MACHINE_CONFIG_START( cobra, cobra_state )
 
 	MCFG_M48T58_ADD("m48t58")
 
-	MCFG_K001604_ADD("k001604", cobra_k001604_intf)     // on the LAN board in Racing Jam DX
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
+	MCFG_DEVICE_ADD("k001604", K001604, 0)     // on the LAN board in Racing Jam DX
+	MCFG_K001604_GFX_INDEX1(0)
+	MCFG_K001604_GFX_INDEX2(1)
+	MCFG_K001604_LAYER_SIZE(0)
+	MCFG_K001604_ROZ_SIZE(1)
+	MCFG_K001604_TXT_OFFSET(0)  // correct?
+	MCFG_K001604_ROZ_OFFSET(0)  // correct?
+	MCFG_K001604_GFXDECODE("gfxdecode")
+	MCFG_K001604_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("cobra_jvs_host", COBRA_JVS_HOST, 4000000)
 	MCFG_JVS_DEVICE_ADD("cobra_jvs", COBRA_JVS, "cobra_jvs_host")
@@ -3275,12 +3263,12 @@ DRIVER_INIT_MEMBER(cobra_state, cobra)
 								cobra_fifo::event_delegate(FUNC(cobra_state::s2mfifo_event_callback), this))
 								);
 
-	ppc_set_dcstore_callback(m_maincpu, main_cpu_dc_store);
+	m_maincpu->ppc_set_dcstore_callback(main_cpu_dc_store);
 
-	ppc_set_dcstore_callback(m_gfxcpu, gfx_cpu_dc_store);
+	m_gfxcpu->ppc_set_dcstore_callback(gfx_cpu_dc_store);
 
-	ppc4xx_set_dma_write_handler(m_subcpu, 0, sub_sound_dma_w, 44100);
-	ppc4xx_spu_set_tx_handler(m_subcpu, sub_jvs_w);
+	m_subcpu->ppc4xx_set_dma_write_handler(0, sub_sound_dma_w, 44100);
+	m_subcpu->ppc4xx_spu_set_tx_handler(sub_jvs_w);
 
 
 	m_comram[0] = auto_alloc_array(machine(), UINT32, 0x40000/4);

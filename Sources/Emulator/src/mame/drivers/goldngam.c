@@ -248,7 +248,7 @@ public:
 	required_shared_ptr<UINT16> m_videoram;
 	DECLARE_READ16_MEMBER(unk_r);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(goldngam);
 	UINT32 screen_update_goldngam(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 };
@@ -283,7 +283,7 @@ UINT32 goldngam_state::screen_update_goldngam(screen_device &screen, bitmap_ind1
 }
 
 
-void goldngam_state::palette_init()
+PALETTE_INIT_MEMBER(goldngam_state, goldngam)
 {
 }
 
@@ -544,16 +544,6 @@ GFXDECODE_END
 *************************/
 
 
-static const ay8910_interface goldngam_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, //r
-	DEVCB_NULL, //r
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( swisspkr, goldngam_state )
 
 	/* basic machine hardware */
@@ -568,17 +558,17 @@ static MACHINE_CONFIG_START( swisspkr, goldngam_state )
 	MCFG_SCREEN_SIZE(64*8, 64*8)
 	MCFG_SCREEN_VISIBLE_AREA(4*8, 43*8-1, 1*8, 37*8-1)  // 312x288
 	MCFG_SCREEN_UPDATE_DRIVER(goldngam_state, screen_update_goldngam)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(goldngam)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", goldngam)
 
-	MCFG_PALETTE_LENGTH(512)
-
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INIT_OWNER(goldngam_state, goldngam)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, MASTER_CLOCK/4)
-	MCFG_SOUND_CONFIG(goldngam_ay8910_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 MACHINE_CONFIG_END
 

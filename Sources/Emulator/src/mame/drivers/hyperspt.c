@@ -83,6 +83,18 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, hyperspt_state )
 	AM_RANGE(0xe002, 0xe002) AM_WRITE(konami_SN76496_w)  /* This address triggers the SN chip to read the data port. */
 ADDRESS_MAP_END
 
+static ADDRESS_MAP_START( roadf_sound_map, AS_PROGRAM, 8, hyperspt_state )
+	AM_RANGE(0x0000, 0x3fff) AM_ROM
+	AM_RANGE(0x4000, 0x4fff) AM_RAM
+	AM_RANGE(0x6000, 0x6000) AM_READ(soundlatch_byte_r)
+	AM_RANGE(0x8000, 0x8000) AM_DEVREAD("trackfld_audio", trackfld_audio_device, hyperspt_sh_timer_r)
+	AM_RANGE(0xa000, 0xa000) AM_NOP // No VLM
+	AM_RANGE(0xc000, 0xdfff) AM_NOP // No VLM
+	AM_RANGE(0xe000, 0xe000) AM_DEVWRITE("dac", dac_device, write_unsigned8)
+	AM_RANGE(0xe001, 0xe001) AM_WRITE(konami_SN76496_latch_w)  /* Loads the snd command into the snd latch */
+	AM_RANGE(0xe002, 0xe002) AM_WRITE(konami_SN76496_w)  /* This address triggers the SN chip to read the data port. */
+ADDRESS_MAP_END
+
 static ADDRESS_MAP_START( soundb_map, AS_PROGRAM, 8, hyperspt_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x4fff) AM_RAM
@@ -275,15 +287,6 @@ INTERRUPT_GEN_MEMBER(hyperspt_state::vblank_irq)
 		device.execute().set_input_line(0, HOLD_LINE);
 }
 
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( hyperspt, hyperspt_state )
 
 	/* basic machine hardware */
@@ -303,10 +306,12 @@ static MACHINE_CONFIG_START( hyperspt, hyperspt_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(hyperspt_state, screen_update_hyperspt)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(hyperspt)
-	MCFG_PALETTE_LENGTH(16*16+16*16)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", hyperspt)
+	MCFG_PALETTE_ADD("palette", 16*16+16*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(hyperspt_state, hyperspt)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -318,7 +323,6 @@ static MACHINE_CONFIG_START( hyperspt, hyperspt_state )
 
 	MCFG_SOUND_ADD("snsnd", SN76496, XTAL_14_31818MHz/8) /* verified on pcb */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, XTAL_3_579545MHz) /* verified on pcb */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
@@ -339,8 +343,12 @@ static MACHINE_CONFIG_DERIVED( roadf, hyperspt )
 
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(roadf_map)
-	MCFG_GFXDECODE(roadf)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", roadf)
 	MCFG_VIDEO_START_OVERRIDE(hyperspt_state,roadf)
+
+	MCFG_CPU_MODIFY("audiocpu")
+	MCFG_CPU_PROGRAM_MAP(roadf_sound_map)
+	MCFG_DEVICE_REMOVE("vlm")
 MACHINE_CONFIG_END
 
 

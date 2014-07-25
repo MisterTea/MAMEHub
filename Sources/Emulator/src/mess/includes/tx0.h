@@ -8,6 +8,7 @@
 #define TX0_H_
 
 #include "video/crt.h"
+#include "cpu/pdp1/tx0.h"
 
 enum state_t
 {
@@ -131,7 +132,9 @@ class tx0_state : public driver_device
 public:
 	tx0_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	tape_reader_t m_tape_reader;
 	tape_puncher_t m_tape_puncher;
@@ -152,7 +155,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(tx0);
 	UINT32 screen_update_tx0(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_tx0(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(tx0_interrupt);
@@ -161,7 +164,7 @@ public:
 	TIMER_CALLBACK_MEMBER(prt_callback);
 	TIMER_CALLBACK_MEMBER(dis_callback);
 	void tx0_machine_stop();
-	required_device<cpu_device> m_maincpu;
+	required_device<tx0_device> m_maincpu;
 	inline void tx0_plot_pixel(bitmap_ind16 &bitmap, int x, int y, UINT32 color);
 	void tx0_plot(int x, int y);
 	void tx0_draw_led(bitmap_ind16 &bitmap, int x, int y, int state);
@@ -183,6 +186,18 @@ public:
 	void schedule_select();
 	void schedule_unselect();
 	void tx0_keyboard();
+	DECLARE_WRITE_LINE_MEMBER(tx0_io_cpy);
+	DECLARE_WRITE_LINE_MEMBER(tx0_io_r1l);
+	DECLARE_WRITE_LINE_MEMBER(tx0_io_r3l);
+	DECLARE_WRITE_LINE_MEMBER(tx0_io_p6h);
+	DECLARE_WRITE_LINE_MEMBER(tx0_io_p7h);
+	DECLARE_WRITE_LINE_MEMBER(tx0_io_prt);
+	DECLARE_WRITE_LINE_MEMBER(tx0_io_dis);
+	DECLARE_WRITE_LINE_MEMBER(tx0_sel);
+	DECLARE_WRITE_LINE_MEMBER(tx0_io_reset_callback);
+	void magtape_callback();
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 /* defines for each bit and mask in input port "CSW" */

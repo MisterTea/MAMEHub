@@ -17,23 +17,24 @@ class rohga_state : public driver_device
 public:
 	rohga_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu"),
-			m_audiocpu(*this, "audiocpu"),
-			m_deco146(*this, "ioprot"),
-			m_deco104(*this, "ioprot104"),
-			m_decocomn(*this, "deco_common"),
-			m_deco_tilegen1(*this, "tilegen1"),
-			m_deco_tilegen2(*this, "tilegen2"),
-			m_oki1(*this, "oki1"),
-			m_oki2(*this, "oki2"),
-			m_spriteram(*this, "spriteram"),
-			m_spriteram2(*this, "spriteram2") ,
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_deco146(*this, "ioprot"),
+		m_deco104(*this, "ioprot104"),
+		m_decocomn(*this, "deco_common"),
+		m_deco_tilegen1(*this, "tilegen1"),
+		m_deco_tilegen2(*this, "tilegen2"),
+		m_oki1(*this, "oki1"),
+		m_oki2(*this, "oki2"),
+		m_spriteram(*this, "spriteram"),
+		m_spriteram2(*this, "spriteram2") ,
 		m_pf1_rowscroll(*this, "pf1_rowscroll"),
 		m_pf2_rowscroll(*this, "pf2_rowscroll"),
 		m_pf3_rowscroll(*this, "pf3_rowscroll"),
 		m_pf4_rowscroll(*this, "pf4_rowscroll"),
 		m_sprgen1(*this, "spritegen1"),
-		m_sprgen2(*this, "spritegen2")
+		m_sprgen2(*this, "spritegen2"),
+		m_palette(*this, "palette")
 	{ }
 
 	/* devices */
@@ -58,6 +59,8 @@ public:
 	optional_device<decospr_device> m_sprgen1;
 	optional_device<decospr_device> m_sprgen2;
 
+	required_device<palette_device> m_palette;
+
 	DECLARE_READ16_MEMBER(rohga_irq_ack_r);
 	DECLARE_WRITE16_MEMBER(wizdfire_irq_ack_w);
 	DECLARE_WRITE16_MEMBER(rohga_buffer_spriteram16_w);
@@ -66,20 +69,18 @@ public:
 	DECLARE_DRIVER_INIT(nitrobal);
 	DECLARE_DRIVER_INIT(schmeisr);
 	DECLARE_DRIVER_INIT(rohga);
-	DECLARE_VIDEO_START(rohga);
 	DECLARE_VIDEO_START(wizdfire);
-	DECLARE_VIDEO_START(schmeisr);
 	UINT32 screen_update_rohga(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_wizdfire(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_nitrobal(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void mixwizdfirelayer(bitmap_rgb32 &bitmap, const rectangle &cliprect, int gfxregion, UINT16 pri, UINT16 primask);
+	DECO16IC_BANK_CB_MEMBER(bank_callback);
+	DECOSPR_PRIORITY_CB_MEMBER(rohga_pri_callback);
+	DECOSPR_COLOUR_CB_MEMBER(rohga_col_callback);
+	DECOSPR_COLOUR_CB_MEMBER(schmeisr_col_callback);
 
 	READ16_MEMBER( nb_protection_region_0_146_r );
 	WRITE16_MEMBER( nb_protection_region_0_146_w );
 	READ16_MEMBER( wf_protection_region_0_104_r );
 	WRITE16_MEMBER( wf_protection_region_0_104_w );
 };
-/*----------- defined in video/rohga.c -----------*/
-UINT16 rohga_pri_callback(UINT16 x);
-UINT16 schmeisr_col_callback(UINT16 x);
-UINT16 rohga_col_callback(UINT16 x);

@@ -94,7 +94,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, taotaido_state )
 	AM_RANGE(0xa00000, 0xa01fff) AM_RAM AM_SHARE("spriteram")       // sprite ram
 	AM_RANGE(0xc00000, 0xc0ffff) AM_RAM AM_SHARE("spriteram2")      // sprite tile lookup ram
 	AM_RANGE(0xfe0000, 0xfeffff) AM_RAM                                     // main ram
-	AM_RANGE(0xffc000, 0xffcfff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")    // palette ram
+	AM_RANGE(0xffc000, 0xffcfff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // palette ram
 	AM_RANGE(0xffe000, 0xffe3ff) AM_RAM AM_SHARE("scrollram")       // rowscroll / rowselect / scroll ram
 	AM_RANGE(0xffff80, 0xffff81) AM_READ_PORT("P1")
 	AM_RANGE(0xffff82, 0xffff83) AM_READ_PORT("P2")
@@ -279,7 +279,22 @@ static INPUT_PORTS_START( taotaido )
 	/* 0x09 to 0x0f : DEF_STR( Japan ) */
 INPUT_PORTS_END
 
-static INPUT_PORTS_START( taotaida )
+static INPUT_PORTS_START( taotaido3 )
+	PORT_INCLUDE(taotaido)
+
+	PORT_MODIFY("P1")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(1)
+
+	PORT_MODIFY("P2")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(2)
+
+	PORT_MODIFY("DSW3")
+	PORT_DIPNAME( 0x04, 0x04, "Number of Buttons" )
+	PORT_DIPSETTING(    0x00, "2" )
+	PORT_DIPSETTING(    0x04, "3" )
+INPUT_PORTS_END
+
+static INPUT_PORTS_START( taotaido6 )
 	PORT_INCLUDE(taotaido)
 
 	PORT_MODIFY("P1")
@@ -299,6 +314,20 @@ static INPUT_PORTS_START( taotaida )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON5 ) PORT_PLAYER(2)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON6 ) PORT_PLAYER(2)
 	PORT_BIT( 0xf8, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_MODIFY("DSW3")
+	PORT_DIPNAME( 0x08, 0x08, "Debug Info 1" )
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, "Debug Info 2" )
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, "Debug Info 3" )
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, "Debug Info 4" )
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
 
 
@@ -337,7 +366,7 @@ static MACHINE_CONFIG_START( taotaido, taotaido_state )
 	MCFG_CPU_IO_MAP(sound_port_map)
 								/* IRQs are triggered by the YM2610 */
 
-	MCFG_GFXDECODE(taotaido)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", taotaido)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -346,12 +375,16 @@ static MACHINE_CONFIG_START( taotaido, taotaido_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(taotaido_state, screen_update_taotaido)
 	MCFG_SCREEN_VBLANK_DRIVER(taotaido_state, screen_eof_taotaido)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x800)
+	MCFG_PALETTE_ADD("palette", 0x800)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_DEVICE_ADD("vsystem_spr", VSYSTEM_SPR, 0)
 	MCFG_VSYSTEM_SPR_SET_TILE_INDIRECT( taotaido_state, taotaido_tile_callback )
 	MCFG_VSYSTEM_SPR_SET_GFXREGION(0)
+	MCFG_VSYSTEM_SPR_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -413,5 +446,30 @@ ROM_START( taotaidoa )
 	ROM_LOAD( "u15.bin", 0x000000, 0x200000, CRC(e95823e9) SHA1(362583944ad4fdde4f9e29928cf34376c7ad931f) )
 ROM_END
 
-GAME( 1993, taotaido, 0,        taotaido, taotaido, driver_device, 0, ROT0, "Video System Co.", "Tao Taido (set 1)", GAME_NO_COCKTAIL )
-GAME( 1993, taotaidoa,taotaido, taotaido, taotaida, driver_device, 0, ROT0, "Video System Co.", "Tao Taido (set 2)", GAME_NO_COCKTAIL )
+ROM_START( taotaido3 )
+	ROM_REGION( 0x100000, "maincpu", 0 ) /* 68000 Code */
+	ROM_LOAD16_WORD_SWAP( "1.u90", 0x00000, 0x80000, CRC(27c5c626) SHA1(f2aea45a15db24c914aa889be21cd8994d138a59) )
+	ROM_LOAD16_WORD_SWAP( "2.u91", 0x80000, 0x80000, CRC(71a4e538) SHA1(608c2d77aa8c1c4bb39a419bdfdf73a2fd587403) )
+
+	ROM_REGION( 0x30000, "audiocpu", 0 ) /* z80 Code */
+	ROM_LOAD( "3-u113.bin", 0x000000, 0x20000, CRC(a167c4e4) SHA1(d32184e7040935cd440d4d82c66491b710ec87a8) )
+	ROM_RELOAD ( 0x10000, 0x20000 )
+
+	ROM_REGION( 0x100000, "ymsnd.deltat", 0 ) /* sound samples */
+	ROM_LOAD( "u104.bin",     0x000000, 0x100000, CRC(e89387a9) SHA1(1deeee056af367d1a5aa0722dd3d6c68a82d0489) )
+
+	ROM_REGION( 0x200000, "ymsnd", 0 ) /* sound samples */
+	ROM_LOAD( "u127.bin",     0x00000, 0x200000, CRC(0cf0cb23) SHA1(a87e7159db2fa0d50446cbf45ec9fbf585b8f396) )
+
+	ROM_REGION( 0x600000, "gfx1", 0 ) /* Sprites */
+	ROM_LOAD( "u86.bin", 0x000000, 0x200000, CRC(908e251e) SHA1(5a135787f3263bfb195f8fd1e814c580d840531f) )
+	ROM_LOAD( "u87.bin", 0x200000, 0x200000, CRC(c4290ba6) SHA1(4132ffad4668f1dd3f708f009e18435e7dd60120) )
+	ROM_LOAD( "u88.bin", 0x400000, 0x200000, CRC(407d9aeb) SHA1(d532c7b80f6c192dba86542fb6eb3ef24fbbbdb9) )
+
+	ROM_REGION( 0x200000, "gfx2", 0 ) /* BG Tiles */
+	ROM_LOAD( "u15.bin", 0x000000, 0x200000, CRC(e95823e9) SHA1(362583944ad4fdde4f9e29928cf34376c7ad931f) )
+ROM_END
+
+GAME( 1993, taotaido, 0,        taotaido, taotaido, driver_device, 0, ROT0, "Video System Co.", "Tao Taido (2 button version)", GAME_NO_COCKTAIL )
+GAME( 1993, taotaidoa,taotaido, taotaido, taotaido6,driver_device, 0, ROT0, "Video System Co.", "Tao Taido (6 button version)", GAME_NO_COCKTAIL ) // maybe a prototype? has various debug features
+GAME( 1993, taotaido3,taotaido, taotaido, taotaido3,driver_device, 0, ROT0, "Video System Co.", "Tao Taido (2/3 button version)", GAME_NO_COCKTAIL )

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     Sega Z80-3D system
@@ -39,22 +41,22 @@ static void turbo_update_samples(turbo_state *state, samples_device *samples)
 
 static TIMER_CALLBACK( update_sound_a )
 {
-	device_t *discrete = machine.device("discrete");
+	discrete_device *discrete = machine.device<discrete_device>("discrete");
 	int data = param;
 
 	/* missing short crash sample, but I've never seen it triggered */
-	discrete_sound_w(discrete, 0, !(data & 0x01));
-	discrete_sound_w(discrete, 1, (data >> 1) & 1);
-	discrete_sound_w(discrete, 2, (data >> 2) & 1);
-	discrete_sound_w(discrete, 3, (data >> 3) & 1);
-	discrete_sound_w(discrete, 4, (data >> 4) & 1);
-	discrete_sound_w(discrete, 5, !(data & 0x20));
-	discrete_sound_w(discrete, 6, !(data & 0x40));
+	discrete->write(0, !(data & 0x01));
+	discrete->write(1, (data >> 1) & 1);
+	discrete->write(2, (data >> 2) & 1);
+	discrete->write(3, (data >> 3) & 1);
+	discrete->write(4, (data >> 4) & 1);
+	discrete->write(5, !(data & 0x20));
+	discrete->write(6, !(data & 0x40));
 
-if (!((data >> 1) & 1)) mame_printf_debug("/TRIG1\n");
-if (!((data >> 2) & 1)) mame_printf_debug("/TRIG2\n");
-if (!((data >> 3) & 1)) mame_printf_debug("/TRIG3\n");
-if (!((data >> 4) & 1)) mame_printf_debug("/TRIG4\n");
+if (!((data >> 1) & 1)) osd_printf_debug("/TRIG1\n");
+if (!((data >> 2) & 1)) osd_printf_debug("/TRIG2\n");
+if (!((data >> 3) & 1)) osd_printf_debug("/TRIG3\n");
+if (!((data >> 4) & 1)) osd_printf_debug("/TRIG4\n");
 
 //  osel = (osel & 6) | ((data >> 5) & 1);
 //  turbo_update_samples(samples);

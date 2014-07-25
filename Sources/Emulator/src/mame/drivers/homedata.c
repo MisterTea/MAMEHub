@@ -956,6 +956,40 @@ static INPUT_PORTS_START( pteacher )
 	PORT_INCLUDE( mj_keyboard )
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( lemnangl )
+	PORT_INCLUDE( pteacher )
+
+	PORT_MODIFY("DSW")
+	PORT_DIPNAME( 0x0001, 0x0000, DEF_STR( Demo_Sounds ) )  PORT_DIPLOCATION("SW1:1")
+	PORT_DIPSETTING(      0x0001, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0002, 0x0000, "In-Game BGM" )           PORT_DIPLOCATION("SW1:2")
+	PORT_DIPSETTING(      0x0002, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x000c, 0x000c, DEF_STR( Coinage ) )      PORT_DIPLOCATION("SW1:3,4")
+	PORT_DIPSETTING(      0x0000, DEF_STR( 3C_1C ) )
+	PORT_DIPSETTING(      0x0004, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(      0x000c, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(      0x0008, DEF_STR( 1C_2C ) )
+	PORT_DIPNAME( 0x0010, 0x0010, "Female Voices" )         PORT_DIPLOCATION("SW1:5")
+	PORT_DIPSETTING(      0x0000, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0010, DEF_STR( On ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0020, 0x0020, "SW1:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0040, 0x0040, "SW1:7" )
+	PORT_DIPNAME( 0x0080, 0x0080, DEF_STR( Flip_Screen ) )  PORT_DIPLOCATION("SW1:8")
+	PORT_DIPSETTING(      0x0080, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+
+	PORT_SERVICE_DIPLOC(0x0100, IP_ACTIVE_LOW, "SW2:1" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0200, 0x0200, "SW2:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0400, 0x0400, "SW2:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0800, 0x0800, "SW2:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x1000, 0x1000, "SW2:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x2000, 0x2000, "SW2:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x4000, 0x4000, "SW2:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x8000, 0x8000, "SW2:8" )
+INPUT_PORTS_END
+
 static INPUT_PORTS_START( jogakuen )
 	PORT_START("DSW")   /* dip switches (handled by pteacher_keyboard_r) */
 	PORT_DIPNAME( 0x0001, 0x0001, DEF_STR( Unknown ) )
@@ -1121,23 +1155,6 @@ static GFXDECODE_START( lemnangl )
 GFXDECODE_END
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 MACHINE_START_MEMBER(homedata_state,homedata)
 {
 	m_sn = machine().device<sn76489a_device>("snsnd");
@@ -1256,11 +1273,12 @@ static MACHINE_CONFIG_START( mrokumei, homedata_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 54*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(homedata_state, screen_update_mrokumei)
 	MCFG_SCREEN_VBLANK_DRIVER(homedata_state, screen_eof_homedata)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mrokumei)
-	MCFG_PALETTE_LENGTH(0x8000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mrokumei)
+	MCFG_PALETTE_ADD("palette", 0x8000)
 
-	MCFG_PALETTE_INIT_OVERRIDE(homedata_state,mrokumei)
+	MCFG_PALETTE_INIT_OWNER(homedata_state,mrokumei)
 	MCFG_VIDEO_START_OVERRIDE(homedata_state,mrokumei)
 
 	/* sound hardware */
@@ -1268,7 +1286,6 @@ static MACHINE_CONFIG_START( mrokumei, homedata_state )
 
 	MCFG_SOUND_ADD("snsnd", SN76489A, 16000000/4)     // SN76489AN actually
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_DAC_ADD("dac")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
@@ -1276,25 +1293,6 @@ MACHINE_CONFIG_END
 
 
 /**************************************************************************/
-
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-static const UPD7810_CONFIG upd_config =
-{
-	TYPE_7810,
-	NULL    /* io_callback */
-};
-
 
 static MACHINE_CONFIG_START( reikaids, homedata_state )
 
@@ -1304,7 +1302,6 @@ static MACHINE_CONFIG_START( reikaids, homedata_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", homedata_state,  homedata_irq) /* also triggered by the blitter */
 
 	MCFG_CPU_ADD("audiocpu", UPD7807, 8000000)  /* ??? MHz (max speed for the 7807 is 12MHz) */
-	MCFG_CPU_CONFIG(upd_config)
 	MCFG_CPU_PROGRAM_MAP(reikaids_upd7807_map)
 	MCFG_CPU_IO_MAP(reikaids_upd7807_io_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", homedata_state,  upd7807_irq)
@@ -1322,18 +1319,20 @@ static MACHINE_CONFIG_START( reikaids, homedata_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 16, 256-1-16)
 	MCFG_SCREEN_UPDATE_DRIVER(homedata_state, screen_update_reikaids)
 	MCFG_SCREEN_VBLANK_DRIVER(homedata_state, screen_eof_homedata)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(reikaids)
-	MCFG_PALETTE_LENGTH(0x8000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", reikaids)
+	MCFG_PALETTE_ADD("palette", 0x8000)
 
-	MCFG_PALETTE_INIT_OVERRIDE(homedata_state,reikaids)
+	MCFG_PALETTE_INIT_OWNER(homedata_state,reikaids)
 	MCFG_VIDEO_START_OVERRIDE(homedata_state,reikaids)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3000000)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 	MCFG_SOUND_ROUTE(2, "mono", 0.25)
@@ -1354,7 +1353,6 @@ static MACHINE_CONFIG_START( pteacher, homedata_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", homedata_state,  homedata_irq) /* also triggered by the blitter */
 
 	MCFG_CPU_ADD("audiocpu", UPD7807, 9000000)  /* 9MHz ? */
-	MCFG_CPU_CONFIG(upd_config)
 	MCFG_CPU_PROGRAM_MAP(pteacher_upd7807_map)
 	MCFG_CPU_IO_MAP(pteacher_upd7807_io_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", homedata_state,  upd7807_irq)
@@ -1373,11 +1371,12 @@ static MACHINE_CONFIG_START( pteacher, homedata_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 54*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(homedata_state, screen_update_pteacher)
 	MCFG_SCREEN_VBLANK_DRIVER(homedata_state, screen_eof_homedata)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pteacher)
-	MCFG_PALETTE_LENGTH(0x8000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pteacher)
+	MCFG_PALETTE_ADD("palette", 0x8000)
 
-	MCFG_PALETTE_INIT_OVERRIDE(homedata_state,pteacher)
+	MCFG_PALETTE_INIT_OWNER(homedata_state,pteacher)
 	MCFG_VIDEO_START_OVERRIDE(homedata_state,pteacher)
 
 	/* sound hardware */
@@ -1385,7 +1384,6 @@ static MACHINE_CONFIG_START( pteacher, homedata_state )
 
 	MCFG_SOUND_ADD("snsnd", SN76489A, 16000000/4)     // SN76489AN actually
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_DAC_ADD("dac")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
@@ -1400,7 +1398,7 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( lemnangl, pteacher )
 
 	/* video hardware */
-	MCFG_GFXDECODE(lemnangl)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", lemnangl)
 
 	MCFG_VIDEO_START_OVERRIDE(homedata_state,lemnangl)
 MACHINE_CONFIG_END
@@ -1536,11 +1534,12 @@ static MACHINE_CONFIG_START( mirderby, homedata_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 54*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(homedata_state, screen_update_mirderby)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mirderby)
-	MCFG_PALETTE_LENGTH(0x8000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mirderby)
+	MCFG_PALETTE_ADD("palette", 0x8000)
 
-	MCFG_PALETTE_INIT_OVERRIDE(homedata_state,mirderby)
+	MCFG_PALETTE_INIT_OWNER(homedata_state,mirderby)
 	MCFG_VIDEO_START_OVERRIDE(homedata_state,mirderby)
 
 	/* sound hardware */
@@ -2032,23 +2031,23 @@ DRIVER_INIT_MEMBER(homedata_state,mirderby)
 }
 
 
-GAME( 1987, hourouki, 0, mrokumei, mjhokite, driver_device, 0,          ROT0, "Home Data", "Mahjong Hourouki Part 1 - Seisyun Hen (Japan)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1987, mhgaiden, 0, mrokumei, mjhokite, driver_device, 0,          ROT0, "Home Data", "Mahjong Hourouki Gaiden (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1988, mjhokite, 0, mrokumei, mjhokite, driver_device, 0,          ROT0, "Home Data", "Mahjong Hourouki Okite (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1988, mjclinic, 0, mrokumei, mjhokite, driver_device, 0,          ROT0, "Home Data", "Mahjong Clinic (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1988, mrokumei, 0, mrokumei, mjhokite, driver_device, 0,          ROT0, "Home Data", "Mahjong Rokumeikan (Japan)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1987, hourouki, 0, mrokumei, mjhokite, driver_device,  0,          ROT0, "Home Data", "Mahjong Hourouki Part 1 - Seisyun Hen (Japan)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1987, mhgaiden, 0, mrokumei, mjhokite, driver_device,  0,          ROT0, "Home Data", "Mahjong Hourouki Gaiden (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1988, mjhokite, 0, mrokumei, mjhokite, driver_device,  0,          ROT0, "Home Data", "Mahjong Hourouki Okite (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1988, mjclinic, 0, mrokumei, mjhokite, driver_device,  0,          ROT0, "Home Data", "Mahjong Clinic (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1988, mrokumei, 0, mrokumei, mjhokite, driver_device,  0,          ROT0, "Home Data", "Mahjong Rokumeikan (Japan)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
 
 GAME( 1988, reikaids, 0, reikaids, reikaids, homedata_state, reikaids,   ROT0, "Home Data", "Reikai Doushi (Japan)", GAME_SUPPORTS_SAVE )
 GAME( 1991, battlcry, 0, reikaids, battlcry, homedata_state, battlcry,   ROT0, "Home Data", "Battlecry", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1989, mjkojink, 0, pteacher, pteacher, driver_device, 0,          ROT0, "Home Data", "Mahjong Kojinkyouju (Private Teacher) (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1989, vitaminc, 0, pteacher, pteacher, driver_device, 0,          ROT0, "Home Data", "Mahjong Vitamin C (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1989, mjyougo,  0, pteacher, pteacher, driver_device, 0,          ROT0, "Home Data", "Mahjong-yougo no Kisotairyoku (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1991, mjkinjas, 0, mjkinjas, pteacher, driver_device, 0,          ROT0, "Home Data", "Mahjong Kinjirareta Asobi (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1989, mjkojink, 0, pteacher, pteacher, driver_device,  0,          ROT0, "Home Data", "Mahjong Kojinkyouju (Private Teacher) (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1989, vitaminc, 0, pteacher, pteacher, driver_device,  0,          ROT0, "Home Data", "Mahjong Vitamin C (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1989, mjyougo,  0, pteacher, pteacher, driver_device,  0,          ROT0, "Home Data", "Mahjong-yougo no Kisotairyoku (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1991, mjkinjas, 0, mjkinjas, pteacher, driver_device,  0,          ROT0, "Home Data", "Mahjong Kinjirareta Asobi (Japan)", GAME_SUPPORTS_SAVE )
 GAME( 1992?,jogakuen, 0, pteacher, jogakuen, homedata_state, jogakuen,   ROT0, "Windom",    "Mahjong Jogakuen (Japan)", GAME_SUPPORTS_SAVE )
 
-GAME( 1990, lemnangl, 0, lemnangl, pteacher, driver_device, 0,          ROT0, "Home Data", "Mahjong Lemon Angel (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1991, mjprivat, 0, lemnangl, pteacher, driver_device, 0,          ROT0, "Matoba",    "Mahjong Private (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1990, lemnangl, 0, lemnangl, lemnangl, driver_device,  0,          ROT0, "Home Data", "Mahjong Lemon Angel (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1991, mjprivat, 0, lemnangl, pteacher, driver_device,  0,          ROT0, "Matoba",    "Mahjong Private (Japan)", GAME_SUPPORTS_SAVE )
 
-GAME( 1991?,mjikaga,  0, lemnangl, mjikaga, homedata_state,  mjikaga,    ROT0, "Mitchell",  "Mahjong Ikaga Desu ka (Japan)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1991?,mjikaga,  0, lemnangl, mjikaga,  homedata_state, mjikaga,    ROT0, "Mitchell",  "Mahjong Ikaga Desu ka (Japan)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 
 GAME( 1988, mirderby, 0, mirderby, mirderby, homedata_state, mirderby,   ROT0, "Home Data?", "Miracle Derby - Ascot", GAME_NO_SOUND|GAME_NOT_WORKING )

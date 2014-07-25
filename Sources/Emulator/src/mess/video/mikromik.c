@@ -1,21 +1,21 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #include "includes/mikromik.h"
 
 
 
 //-------------------------------------------------
-//  i8275_interface crtc_intf
+//  i8275 crtc display pixels
 //-------------------------------------------------
 
-static I8275_DISPLAY_PIXELS( crtc_display_pixels )
+I8275_DRAW_CHARACTER_MEMBER( mm1_state::crtc_display_pixels )
 {
-	mm1_state *state = device->machine().driver_data<mm1_state>();
-
-	UINT8 romdata = state->m_char_rom->base()[(charcode << 4) | linecount];
+	UINT8 romdata = m_char_rom->base()[(charcode << 4) | linecount];
 
 	int d0 = BIT(romdata, 0);
 	int d7 = BIT(romdata, 7);
 	int gpa0 = BIT(gpa, 0);
-	int llen = state->m_llen;
+	int llen = m_llen;
 	int i;
 
 	UINT8 data = (romdata << 1) | (d7 & d0);
@@ -29,7 +29,7 @@ static I8275_DISPLAY_PIXELS( crtc_display_pixels )
 
 		int color = hlt_in ? 2 : (video_in ^ compl_in);
 
-		bitmap.pix32(y, x + i) = RGB_MONOCHROME_GREEN_HIGHLIGHT[color];
+		bitmap.pix32(y, x + i) = m_palette->pen(color);
 	}
 }
 
@@ -48,26 +48,15 @@ ADDRESS_MAP_END
 //  UPD7220_INTERFACE( hgdc_intf )
 //-------------------------------------------------
 
-static UPD7220_DISPLAY_PIXELS( hgdc_display_pixels )
+UPD7220_DISPLAY_PIXELS_MEMBER( mm1_state::hgdc_display_pixels )
 {
-	mm1_state *state = device->machine().driver_data<mm1_state>();
-
-	UINT8 data = state->m_video_ram[address];
+	UINT8 data = m_video_ram[address];
 
 	for (int i = 0; i < 8; i++)
 	{
-		if (BIT(data, 7-i)) bitmap.pix32(y, x + i) = RGB_MONOCHROME_GREEN_HIGHLIGHT[1];
+		if (BIT(data, 7 - i)) bitmap.pix32(y, x + i) = m_palette->pen(1);
 	}
 }
-
-static UPD7220_INTERFACE( hgdc_intf )
-{
-	hgdc_display_pixels,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 
 UINT32 mm1_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -104,7 +93,7 @@ static const gfx_layout charlayout =
 //-------------------------------------------------
 
 static GFXDECODE_START( mm1 )
-	GFXDECODE_ENTRY( "chargen", 0, charlayout, 0, 0x100 )
+	GFXDECODE_ENTRY( "chargen", 0, charlayout, 0, 1 )
 GFXDECODE_END
 
 
@@ -120,8 +109,18 @@ MACHINE_CONFIG_FRAGMENT( mm1m6_video )
 	MCFG_SCREEN_VISIBLE_AREA( 0, 800-1, 0, 400-1 )
 	//MCFG_SCREEN_RAW_PARAMS(XTAL_18_720MHz, ...)
 
-	MCFG_GFXDECODE(mm1)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mm1)
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN_HIGHLIGHT("palette")
 
-	MCFG_I8275_ADD(I8275_TAG, XTAL_18_720MHz/8, 8, crtc_display_pixels, DEVWRITELINE(I8237_TAG, am9517a_device, dreq0_w))
-	MCFG_UPD7220_ADD(UPD7220_TAG, XTAL_18_720MHz/8, hgdc_intf, mm1_upd7220_map)
+	MCFG_DEVICE_ADD(I8275_TAG, I8275, XTAL_18_720MHz/8)
+	MCFG_I8275_CHARACTER_WIDTH(8)
+	MCFG_I8275_DRAW_CHARACTER_CALLBACK_OWNER(mm1_state, crtc_display_pixels)
+	MCFG_I8275_DRQ_CALLBACK(DEVWRITELINE(I8237_TAG, am9517a_device, dreq0_w))
+	MCFG_I8275_VRTC_CALLBACK(DEVWRITELINE(UPD7220_TAG, upd7220_device, ext_sync_w))
+	MCFG_VIDEO_SET_SCREEN(SCREEN_TAG)
+
+	MCFG_DEVICE_ADD(UPD7220_TAG, UPD7220, XTAL_18_720MHz/8)
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, mm1_upd7220_map)
+	MCFG_UPD7220_DISPLAY_PIXELS_CALLBACK_OWNER(mm1_state, hgdc_display_pixels)
+	MCFG_VIDEO_SET_SCREEN(SCREEN_TAG)
 MACHINE_CONFIG_END

@@ -86,9 +86,9 @@ WRITE8_MEMBER(atarifb_state::atarifb_field_videoram_w)
 
 void atarifb_state::video_start()
 {
-	m_alpha1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(atarifb_state::alpha1_get_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 3, 32);
-	m_alpha2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(atarifb_state::alpha2_get_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 3, 32);
-	m_field_tilemap  = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(atarifb_state::field_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_alpha1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(atarifb_state::alpha1_get_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 3, 32);
+	m_alpha2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(atarifb_state::alpha2_get_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 3, 32);
+	m_field_tilemap  = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(atarifb_state::field_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 
@@ -139,14 +139,14 @@ void atarifb_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 		{
 			shade = ((m_spriteram[obj * 2 + 1 + 0x20]) & 0x07);
 
-			drawgfx_transpen(bitmap, bigfield_area, machine().gfx[gfx + 1],
+			m_gfxdecode->gfx(gfx + 1)->transpen(bitmap,bigfield_area,
 				charcode, shade,
 				flipx, flipy, sx, sy, 0);
 
 			shade = ((m_spriteram[obj * 2 + 1 + 0x20]) & 0x08) >> 3;
 		}
 
-		drawgfx_transpen(bitmap, bigfield_area, machine().gfx[gfx],
+		m_gfxdecode->gfx(gfx)->transpen(bitmap,bigfield_area,
 				charcode, shade,
 				flipx, flipy, sx, sy, 0);
 
@@ -158,7 +158,7 @@ void atarifb_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 			if ((charcode == 0x11) && (sy == 0x07))
 			{
 				sy = 0xf1; /* When multiplexed, it's 0x10...why? */
-				drawgfx_transpen(bitmap, bigfield_area, machine().gfx[gfx],
+				m_gfxdecode->gfx(gfx)->transpen(bitmap,bigfield_area,
 					charcode, 0,
 					flipx, flipy, sx, sy, 0);
 			}

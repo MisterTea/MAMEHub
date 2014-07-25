@@ -16,10 +16,10 @@ class if800_state : public driver_device
 public:
 	if800_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_hgdc(*this, "upd7220")
-		,
+		m_hgdc(*this, "upd7220"),
 		m_video_ram(*this, "video_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_palette(*this, "palette") { }
 
 	required_device<upd7220_device> m_hgdc;
 
@@ -27,17 +27,18 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
+	UPD7220_DISPLAY_PIXELS_MEMBER( hgdc_display_pixels );
 };
 
-static UPD7220_DISPLAY_PIXELS( hgdc_display_pixels )
+UPD7220_DISPLAY_PIXELS_MEMBER( if800_state::hgdc_display_pixels )
 {
-	if800_state *state = device->machine().driver_data<if800_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 
 	int xi,gfx;
 	UINT8 pen;
 
-	gfx = state->m_video_ram[address];
+	gfx = m_video_ram[address];
 
 	for(xi=0;xi<8;xi++)
 	{
@@ -72,15 +73,6 @@ void if800_state::machine_reset()
 {
 }
 
-static UPD7220_INTERFACE( hgdc_intf )
-{
-	hgdc_display_pixels,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 static ADDRESS_MAP_START( upd7220_map, AS_0, 8, if800_state )
 	AM_RANGE(0x00000, 0x3ffff) AM_RAM AM_SHARE("video_ram")
 ADDRESS_MAP_END
@@ -93,7 +85,9 @@ static MACHINE_CONFIG_START( if800, if800_state )
 
 
 //  MCFG_PIC8259_ADD( "pic8259", if800_pic8259_config )
-	MCFG_UPD7220_ADD("upd7220", 8000000/4, hgdc_intf, upd7220_map)
+	MCFG_DEVICE_ADD("upd7220", UPD7220, 8000000/4)
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, upd7220_map)
+	MCFG_UPD7220_DISPLAY_PIXELS_CALLBACK_OWNER(if800_state, hgdc_display_pixels)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -103,8 +97,8 @@ static MACHINE_CONFIG_START( if800, if800_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 	MCFG_SCREEN_UPDATE_DEVICE("upd7220", upd7220_device, screen_update)
 
-	MCFG_PALETTE_LENGTH(8)
-//  MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD("palette", 8)
+//  MCFG_PALETTE_INIT(black_and_white)
 
 //  MCFG_VIDEO_START_OVERRIDE(if800_state,if800)
 MACHINE_CONFIG_END

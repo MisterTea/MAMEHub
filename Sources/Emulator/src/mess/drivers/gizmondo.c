@@ -45,17 +45,18 @@ class gizmondo_state : public driver_device
 public:
 	gizmondo_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag) ,
+		m_s3c2440(*this, "s3c2440"),
 		m_maincpu(*this, "maincpu"),
 		m_gf4500(*this, "gf4500")
 		{ }
 
 	UINT32 m_port[9];
-	device_t *m_s3c2440;
+	required_device<s3c2440_device> m_s3c2440;
 	DECLARE_DRIVER_INIT(gizmondo);
 	virtual void machine_start();
 	virtual void machine_reset();
 	DECLARE_INPUT_CHANGED_MEMBER(port_changed);
-	inline void ATTR_PRINTF(3,4) verboselog( int n_level, const char *s_fmt, ...);
+	inline void verboselog(int n_level, const char *s_fmt, ...) ATTR_PRINTF(3,4);
 	required_device<cpu_device> m_maincpu;
 	required_device<gf4500_device> m_gf4500;
 	DECLARE_READ32_MEMBER(s3c2440_gpio_port_r);
@@ -65,7 +66,7 @@ public:
 };
 
 
-inline void ATTR_PRINTF(3,4) gizmondo_state::verboselog( int n_level, const char *s_fmt, ...)
+inline void gizmondo_state::verboselog( int n_level, const char *s_fmt, ...)
 {
 	if (VERBOSE_LEVEL >= n_level)
 	{
@@ -129,8 +130,8 @@ WRITE32_MEMBER(gizmondo_state::s3c2440_gpio_port_w)
 
 INPUT_CHANGED_MEMBER(gizmondo_state::port_changed)
 {
-	s3c2440_request_eint( m_s3c2440, 4);
-	//s3c2440_request_irq( device, S3C2440_INT_EINT1);
+	m_s3c2440->s3c2440_request_eint( 4);
+	//m_s3c2440->s3c2440_request_irq( S3C2440_INT_EINT1);
 }
 
 #if 0
@@ -147,7 +148,6 @@ QUICKLOAD_LOAD_MEMBER( gizmondo_state, gizmondo )
 
 void gizmondo_state::machine_start()
 {
-	m_s3c2440 = machine().device( "s3c2440");
 	m_port[S3C2440_GPIO_PORT_B] = 0x055E;
 	m_port[S3C2440_GPIO_PORT_C] = 0x5F20;
 	m_port[S3C2440_GPIO_PORT_D] = 0x4F60;
@@ -180,29 +180,11 @@ DRIVER_INIT_MEMBER(gizmondo_state,gizmondo)
 	// do nothing
 }
 
-static S3C2440_INTERFACE( gizmondo_s3c2440_intf )
-{
-	// CORE (pin read / pin write)
-	{ DEVCB_NULL, DEVCB_NULL },
-	// GPIO (port read / port write)
-	{ DEVCB_DRIVER_MEMBER32(gizmondo_state,s3c2440_gpio_port_r), DEVCB_DRIVER_MEMBER32(gizmondo_state,s3c2440_gpio_port_w) },
-	// I2C (scl write / sda read / sda write)
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	// ADC (data read)
-	{ DEVCB_NULL },
-	// I2S (data write)
-	{ DEVCB_NULL },
-	// NAND (command write / address write / data read / data write)
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	// LCD (flags)
-	{ 0 }
-};
-
 static MACHINE_CONFIG_START( gizmondo, gizmondo_state )
 	MCFG_CPU_ADD("maincpu", ARM9, 40000000)
 	MCFG_CPU_PROGRAM_MAP(gizmondo_map)
 
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD("palette", 32768)
 
 	MCFG_SCREEN_ADD("screen", LCD)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -215,7 +197,10 @@ static MACHINE_CONFIG_START( gizmondo, gizmondo_state )
 
 	MCFG_GF4500_ADD("gf4500")
 
-	MCFG_S3C2440_ADD("s3c2440", 12000000, gizmondo_s3c2440_intf)
+	MCFG_DEVICE_ADD("s3c2440", S3C2440, 12000000)
+	MCFG_S3C2440_PALETTE("palette")
+	MCFG_S3C2440_GPIO_PORT_R_CB(READ32(gizmondo_state, s3c2440_gpio_port_r))
+	MCFG_S3C2440_GPIO_PORT_W_CB(WRITE32(gizmondo_state, s3c2440_gpio_port_w))
 
 	MCFG_DISKONCHIP_G3_ADD("diskonchip", 64)
 

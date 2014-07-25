@@ -346,21 +346,6 @@ static GFXDECODE_START( pengo )
 GFXDECODE_END
 
 
-
-/*************************************
- *
- *  Sound interfaces
- *
- *************************************/
-
-static const namco_interface namco_config =
-{
-	3,          /* number of voices */
-	0           /* stereo */
-};
-
-
-
 /*************************************
  *
  *  Machine drivers
@@ -382,21 +367,23 @@ static MACHINE_CONFIG_START( pengo, pengo_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", pengo_state,  vblank_irq)
 
 	/* video hardware */
-	MCFG_GFXDECODE(pengo)
-	MCFG_PALETTE_LENGTH(128*4)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pengo)
+	MCFG_PALETTE_ADD("palette", 128*4)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(pengo_state,pacman)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(pengo_state, screen_update_pacman)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_INIT_OVERRIDE(pengo_state,pacman)
 	MCFG_VIDEO_START_OVERRIDE(pengo_state,pengo)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("namco", NAMCO, MASTER_CLOCK/6/32)
-	MCFG_SOUND_CONFIG(namco_config)
+	MCFG_NAMCO_AUDIO_VOICES(3)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

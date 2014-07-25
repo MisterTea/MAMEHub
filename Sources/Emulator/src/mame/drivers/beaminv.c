@@ -62,7 +62,8 @@ public:
 	beaminv_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_maincpu(*this, "maincpu"){ }
+		m_maincpu(*this, "maincpu"),
+		m_screen(*this, "screen") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -75,6 +76,7 @@ public:
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
+	required_device<screen_device> m_screen;
 	DECLARE_READ8_MEMBER(v128_r);
 	DECLARE_WRITE8_MEMBER(controller_select_w);
 	DECLARE_READ8_MEMBER(controller_r);
@@ -183,7 +185,7 @@ UINT32 beaminv_state::screen_update_beaminv(screen_device &screen, bitmap_rgb32 
 
 		for (i = 0; i < 8; i++)
 		{
-			pen_t pen = (data & 0x01) ? RGB_WHITE : RGB_BLACK;
+			pen_t pen = (data & 0x01) ? rgb_t::white : rgb_t::black;
 			bitmap.pix32(y, x) = pen;
 
 			data = data >> 1;

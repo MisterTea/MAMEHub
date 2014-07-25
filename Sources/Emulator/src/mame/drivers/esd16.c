@@ -146,7 +146,7 @@ WRITE16_MEMBER(esd16_state::esd_eeprom_w)
 	AM_RANGE(_BASE + 0xc, _BASE + 0xd) AM_WRITENOP \
 	AM_RANGE(_BASE + 0xe, _BASE + 0xf) AM_WRITEONLY AM_SHARE("head_layersize")
 #define ESD16_PALETTE_AREA( _BASE ) \
-	AM_RANGE(_BASE + 0x000, _BASE + 0xfff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(_BASE + 0x000, _BASE + 0xfff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 #define ESD16_SPRITE_AREA( _BASE ) \
 	AM_RANGE(_BASE + 0x000, _BASE + 0x7ff) AM_WRITEONLY AM_SHARE("spriteram") AM_MIRROR(0x000800)
 #define ESD16_VRAM_AREA( _BASE ) \
@@ -585,16 +585,18 @@ void esd16_state::machine_start()
 	membank("bank1")->configure_entries(0, 16, &AUDIO[0x0000], 0x4000);
 
 	save_item(NAME(m_tilemap0_color));
+	save_item(NAME(m_tilemap1_color));
 }
 
 void esd16_state::machine_reset()
 {
 	m_tilemap0_color = 0;
+	m_tilemap1_color = 0;
 }
 
-UINT16 esd16_state::hedpanic_pri_callback(UINT16 x)
+DECOSPR_PRIORITY_CB_MEMBER(esd16_state::hedpanic_pri_callback)
 {
-	if (x & 0x8000)
+	if (pri & 0x8000)
 		return 0xfffe; // under "tilemap 1"
 	else
 		return 0; // above everything
@@ -620,15 +622,19 @@ static MACHINE_CONFIG_START( esd16, esd16_state )
 	MCFG_SCREEN_SIZE(0x140, 0x100)
 	MCFG_SCREEN_VISIBLE_AREA(0, 0x140-1, 0+8, 0x100-8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(esd16_state, screen_update_hedpanic)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 0);
-	decospr_device::set_is_bootleg(*device, true);
-	decospr_device::set_pri_callback(*device, esd16_state::hedpanic_pri_callback);
-	decospr_device::set_flipallx(*device, 1);
+	MCFG_DECO_SPRITE_GFX_REGION(0)
+	MCFG_DECO_SPRITE_ISBOOTLEG(true)
+	MCFG_DECO_SPRITE_PRIORITY_CB(esd16_state, hedpanic_pri_callback)
+	MCFG_DECO_SPRITE_FLIPALLX(1)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
-	MCFG_GFXDECODE(esd16)
-	MCFG_PALETTE_LENGTH(0x1000/2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", esd16)
+	MCFG_PALETTE_ADD("palette", 0x1000/2)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	/* sound hardware */
@@ -652,7 +658,7 @@ static MACHINE_CONFIG_DERIVED( jumppop, esd16 )
 	MCFG_CPU_MODIFY("audiocpu")
 	MCFG_CPU_CLOCK( XTAL_14MHz/4) /* 3.5MHz - Verified */
 
-	MCFG_GFXDECODE(jumppop)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", jumppop)
 
 	MCFG_SOUND_REPLACE("ymsnd", YM3812, XTAL_14MHz/4) /* 3.5MHz - Verified */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
@@ -675,7 +681,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( hedpanic, hedpanio )
 	MCFG_DEVICE_MODIFY("spritegen")
-	decospr_device::set_offsets(*device, -0x18,-0x100);
+	MCFG_DECO_SPRITE_OFFSETS(-0x18, -0x100)
 MACHINE_CONFIG_END
 
 /* ESD 08-26-1999 PCBs with different memory maps */
@@ -1182,6 +1188,52 @@ ROM_START( deluxe5 ) /* Deluxe 5 */
 	ROM_LOAD( "esd4.su10", 0x00000, 0x20000, CRC(23f2b7d9) SHA1(328c951d14674760df68486841c933bad0d59fe3) ) /* AT27C010 mask rom */
 ROM_END
 
+ROM_START( deluxe5a ) /* Deluxe 5 */
+	ROM_REGION( 0x080000, "maincpu", 0 )        /* 68000 Code */
+	ROM_LOAD16_BYTE( "(__deluxe5a)esd2.cu02", 0x000000, 0x040000,  CRC(c67bf757) SHA1(c90d486088d4aedbc9dd307cf1a8d5febf6fdba0) )
+	ROM_LOAD16_BYTE( "(__deluxe5a)esd1.cu03", 0x000001, 0x040000,  CRC(24f4d7b9) SHA1(bb0eabdd72a475149d6df768d9d29b545f061e54) )
+
+	ROM_REGION( 0x40000, "audiocpu", 0 )        /* Z80 Code */
+	ROM_LOAD( "esd3.su06", 0x00000, 0x40000, CRC(31de379a) SHA1(a0c9a9cec7207cc4ba33abb68bef62d7eb8e75e9) ) /* AM27C020 mask rom */
+
+	ROM_REGION( 0x180000, "spr", 0 )    /* Sprites, 16x16x5 */
+	ROM_LOAD16_BYTE( "am27c020.ju06", 0x000000, 0x040000, CRC(8b853bce) SHA1(fa6e654fc965d88bb426b76cdce3417f357b25f3) ) /* AM27C020 mask roms with no label */
+	ROM_LOAD16_BYTE( "am27c020.ju05", 0x000001, 0x040000, CRC(bbe81779) SHA1(750387fb4aaa04b7f4f1d3985896f5e11219e3ea) )
+	ROM_LOAD16_BYTE( "am27c020.ju04", 0x080000, 0x040000, CRC(40fa2c2f) SHA1(b9d9bfdc9343f00bad9749c76472f064c509cfce) )
+	ROM_LOAD16_BYTE( "am27c020.ju03", 0x080001, 0x040000, CRC(aa130fd3) SHA1(46a55d8ca59a52e610600fdba76d9729528d2871) )
+	ROM_LOAD16_BYTE( "am27c020.ju07", 0x100000, 0x040000, CRC(d414c3af) SHA1(9299b07a8c7a3e30a1bb6028204a049a7cb510f7) )
+
+	ROM_REGION( 0x400000, "bgs", 0 )    /* Layers, 16x16x8 */
+	ROM_LOAD16_BYTE( "fu35", 0x000000, 0x200000, CRC(ae10242a) SHA1(f3d18c0cb7951b5f7ee47aa2856b7554088328ed) ) /* No labels on the flash roms */
+	ROM_LOAD16_BYTE( "fu34", 0x000001, 0x200000, CRC(248b8c05) SHA1(fe7bcc05ae0dd0a27c6ba4beb4ac155a8f3d7f7e) ) /* No labels on the flash roms */
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
+	ROM_LOAD( "esd4.su10", 0x00000, 0x20000, CRC(23f2b7d9) SHA1(328c951d14674760df68486841c933bad0d59fe3) ) /* AT27C010 mask rom */
+ROM_END
+
+ROM_START( deluxe5b ) /* Deluxe 5 */
+	ROM_REGION( 0x080000, "maincpu", 0 )        /* 68000 Code */
+	ROM_LOAD16_BYTE( "(__deluxe5b)esd2.cu02", 0x000000, 0x040000,  CRC(72a67495) SHA1(4fd5871621a6d1d4ea7a23c84f5796ee99caf857) )
+	ROM_LOAD16_BYTE( "(__deluxe5b)esd1.cu03", 0x000001, 0x040000,  CRC(7cc119c8) SHA1(4d2d37e815ab3211ff88c2e6584b4eaee1cd202d) )
+
+	ROM_REGION( 0x40000, "audiocpu", 0 )        /* Z80 Code */
+	ROM_LOAD( "esd3.su06", 0x00000, 0x40000, CRC(31de379a) SHA1(a0c9a9cec7207cc4ba33abb68bef62d7eb8e75e9) ) /* AM27C020 mask rom */
+
+	ROM_REGION( 0x180000, "spr", 0 )    /* Sprites, 16x16x5 */
+	ROM_LOAD16_BYTE( "am27c020.ju06", 0x000000, 0x040000, CRC(8b853bce) SHA1(fa6e654fc965d88bb426b76cdce3417f357b25f3) ) /* AM27C020 mask roms with no label */
+	ROM_LOAD16_BYTE( "am27c020.ju05", 0x000001, 0x040000, CRC(bbe81779) SHA1(750387fb4aaa04b7f4f1d3985896f5e11219e3ea) )
+	ROM_LOAD16_BYTE( "am27c020.ju04", 0x080000, 0x040000, CRC(40fa2c2f) SHA1(b9d9bfdc9343f00bad9749c76472f064c509cfce) )
+	ROM_LOAD16_BYTE( "am27c020.ju03", 0x080001, 0x040000, CRC(aa130fd3) SHA1(46a55d8ca59a52e610600fdba76d9729528d2871) )
+	ROM_LOAD16_BYTE( "am27c020.ju07", 0x100000, 0x040000, CRC(d414c3af) SHA1(9299b07a8c7a3e30a1bb6028204a049a7cb510f7) )
+
+	ROM_REGION( 0x400000, "bgs", 0 )    /* Layers, 16x16x8 */
+	ROM_LOAD16_BYTE( "fu35", 0x000000, 0x200000, CRC(ae10242a) SHA1(f3d18c0cb7951b5f7ee47aa2856b7554088328ed) ) /* No labels on the flash roms */
+	ROM_LOAD16_BYTE( "fu34", 0x000001, 0x200000, CRC(248b8c05) SHA1(fe7bcc05ae0dd0a27c6ba4beb4ac155a8f3d7f7e) ) /* No labels on the flash roms */
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
+	ROM_LOAD( "esd4.su10", 0x00000, 0x20000, CRC(23f2b7d9) SHA1(328c951d14674760df68486841c933bad0d59fe3) ) /* AT27C010 mask rom */
+ROM_END
+
 /* Tang Tang
 
 Tang Tang (ESD)
@@ -1491,6 +1543,9 @@ GAME( 2000, hedpanic, 0,        hedpanic, hedpanic, driver_device, 0, ROT0, "ESD
 GAME( 2000, hedpanicf,hedpanic, hedpanic, hedpanic, driver_device, 0, ROT0, "ESD / Fuuki", "Head Panic (ver. 0315, 15/03/2000)", GAME_SUPPORTS_SAVE )
 
 /* ESD - This PCB looks identical to the ESD 08-26-1999 PCB */
-GAME( 2000, deluxe5,  0,        tangtang, hedpanic, driver_device, 0, ROT0, "ESD",         "Deluxe 5 (ver. 0107, 07/01/2000)", GAME_SUPPORTS_SAVE )
+GAME( 2000, deluxe5,  0,        tangtang, hedpanic, driver_device, 0, ROT0, "ESD",         "Deluxe 5 (ver. 0107, 07/01/2000, set 1)", GAME_SUPPORTS_SAVE ) // all 3 sets report the same version number?
+GAME( 2000, deluxe5a, deluxe5,  tangtang, hedpanic, driver_device, 0, ROT0, "ESD",         "Deluxe 5 (ver. 0107, 07/01/2000, set 2)", GAME_SUPPORTS_SAVE )
+GAME( 2000, deluxe5b, deluxe5,  tangtang, hedpanic, driver_device, 0, ROT0, "ESD",         "Deluxe 5 (ver. 0107, 07/01/2000, set 3)", GAME_SUPPORTS_SAVE )
+
 GAME( 2000, tangtang, 0,        tangtang, hedpanic, driver_device, 0, ROT0, "ESD",         "Tang Tang (ver. 0526, 26/05/2000)", GAME_SUPPORTS_SAVE )
 GAME( 2001, swatpolc, 0,        hedpanic, swatpolc, driver_device, 0, ROT0, "ESD",         "SWAT Police", GAME_SUPPORTS_SAVE )

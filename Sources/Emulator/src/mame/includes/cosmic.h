@@ -20,7 +20,10 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_samples(*this, "samples"),
 		m_dac(*this, "dac"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -40,6 +43,8 @@ public:
 
 	/* misc */
 	UINT32         m_pixel_clock;
+	int            m_ic_state;   // for 9980
+	DECLARE_READ8_MEMBER( interrupt_level );
 
 	/* devices */
 	optional_device<samples_device> m_samples;
@@ -67,6 +72,7 @@ public:
 	DECLARE_DRIVER_INIT(panic);
 	DECLARE_MACHINE_START(cosmic);
 	DECLARE_MACHINE_RESET(cosmic);
+	DECLARE_MACHINE_RESET(cosmicg);
 	DECLARE_PALETTE_INIT(cosmicg);
 	DECLARE_PALETTE_INIT(panic);
 	DECLARE_PALETTE_INIT(cosmica);
@@ -85,4 +91,7 @@ public:
 	void devzone_draw_grid( bitmap_ind16 &bitmap, const rectangle &cliprect );
 	void nomnlnd_draw_background( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect );
 	required_device<cpu_device> m_maincpu;
+	optional_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };

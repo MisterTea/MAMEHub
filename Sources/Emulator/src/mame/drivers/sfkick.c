@@ -115,7 +115,7 @@ READ8_MEMBER(sfkick_state::ppi_port_b_r)
 
 void sfkick_state::sfkick_remap_banks()
 {
-	/* 0000-3ffff */
+	/* 0000-3fff */
 	switch(m_bank_cfg&3)
 	{
 		case 0: /* bios */
@@ -151,7 +151,7 @@ void sfkick_state::sfkick_remap_banks()
 		break;
 	}
 
-	/* 4000-7ffff */
+	/* 4000-7fff */
 	switch((m_bank_cfg>>2)&3)
 	{
 		case 0: /* bios - upper part */
@@ -180,7 +180,7 @@ void sfkick_state::sfkick_remap_banks()
 		break;
 	}
 
-	/* 8000-bffff */
+	/* 8000-bfff */
 	switch((m_bank_cfg>>4)&3)
 	{
 		case 0: /* cartridge */
@@ -209,7 +209,7 @@ void sfkick_state::sfkick_remap_banks()
 		break;
 	}
 
-	/* c000-fffff */
+	/* c000-ffff */
 	switch((m_bank_cfg>>6)&3)
 	{
 		case 0: /* unknown */
@@ -364,17 +364,6 @@ WRITE8_MEMBER(sfkick_state::ppi_port_c_w)
 	m_input_mux=data;
 }
 
-static I8255A_INTERFACE( ppi8255_intf )
-{
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_DRIVER_MEMBER(sfkick_state,ppi_port_a_w),     /* Port A write */
-	DEVCB_DRIVER_MEMBER(sfkick_state,ppi_port_b_r),     /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_DRIVER_MEMBER(sfkick_state,ppi_port_c_w)          /* Port C write */
-};
-
-
 static INPUT_PORTS_START( sfkick )
 	PORT_START("IN0")
 	PORT_BIT( 0x3f, IP_ACTIVE_LOW, IPT_UNUSED ) /* unused ? */
@@ -466,13 +455,6 @@ WRITE_LINE_MEMBER(sfkick_state::irqhandler)
 	m_soundcpu->set_input_line_and_vector(0, state ? ASSERT_LINE : CLEAR_LINE, 0xff);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,DEVCB_NULL,DEVCB_NULL,DEVCB_NULL,
-};
-
 static MACHINE_CONFIG_START( sfkick, sfkick_state )
 
 	MCFG_CPU_ADD("maincpu",Z80,MASTER_CLOCK/6)
@@ -495,15 +477,16 @@ static MACHINE_CONFIG_START( sfkick, sfkick_state )
 	MCFG_SCREEN_UPDATE_DEVICE("v9938", v9938_device, screen_update)
 	MCFG_SCREEN_SIZE(MSX2_TOTAL_XRES_PIXELS, MSX2_TOTAL_YRES_PIXELS)
 	MCFG_SCREEN_VISIBLE_AREA(MSX2_XBORDER_PIXELS - MSX2_VISIBLE_XBORDER_PIXELS, MSX2_TOTAL_XRES_PIXELS - MSX2_XBORDER_PIXELS + MSX2_VISIBLE_XBORDER_PIXELS - 1, MSX2_YBORDER_PIXELS - MSX2_VISIBLE_YBORDER_PIXELS, MSX2_TOTAL_YRES_PIXELS - MSX2_YBORDER_PIXELS + MSX2_VISIBLE_YBORDER_PIXELS - 1)
+	MCFG_SCREEN_PALETTE("v9938:palette")
 
-	MCFG_PALETTE_LENGTH(512)
-
-	MCFG_I8255A_ADD( "ppi8255", ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(sfkick_state, ppi_port_a_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(sfkick_state, ppi_port_b_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(sfkick_state, ppi_port_c_w))
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ym1", YM2203, MASTER_CLOCK/6)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(sfkick_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 	MCFG_SOUND_ROUTE(2, "mono", 0.25)

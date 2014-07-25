@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, Robbbert
 /******************************************************************************
 
     MYCOMZ-80A (c) 1981 Japan Electronics College
@@ -37,11 +39,12 @@
     TODO/info:
     - Sound not working. The info makes its way to the audio chip but for
       some unknown reason, nothing is heard.
-    - FDC, type 1771, single sided, capacity 143KBytes, not connected up
+    - FDC, little info, guessing (143kb, single sided, 525sd)
     - Cassette doesn't load
     - Printer
     - Keyboard lookup table for Kana and Shifted Kana
     - Keyboard autorepeat
+    - Need software
 
 *******************************************************************************/
 
@@ -52,30 +55,58 @@
 #include "sound/sn76496.h"
 #include "imagedev/cassette.h"
 #include "sound/wave.h"
-#include "machine/wd17xx.h"
 #include "machine/msm5832.h"
-#include "imagedev/flopdrv.h"
-#include "formats/basicdsk.h"
+#include "machine/wd_fdc.h"
 
-#define MSM5832RS_TAG "rtc"
 
 class mycom_state : public driver_device
 {
 public:
 	mycom_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_ppi0(*this, "ppi8255_0"),
-	m_ppi1(*this, "ppi8255_1"),
-	m_ppi2(*this, "ppi8255_2"),
-	m_cass(*this, "cassette"),
-	m_wave(*this, WAVE_TAG),
-	m_crtc(*this, "crtc"),
-	m_fdc(*this, "fdc"),
-	m_audio(*this, "sn1"),
-	m_rtc(*this, MSM5832RS_TAG)
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_ppi0(*this, "ppi8255_0")
+		, m_ppi1(*this, "ppi8255_1")
+		, m_ppi2(*this, "ppi8255_2")
+		, m_cass(*this, "cassette")
+		, m_wave(*this, WAVE_TAG)
+		, m_crtc(*this, "crtc")
+		, m_fdc(*this, "fdc")
+		, m_floppy0(*this, "fdc:0")
+		, m_floppy1(*this, "fdc:1")
+		, m_audio(*this, "sn1")
+		, m_rtc(*this, "rtc"),
+		m_palette(*this, "palette")
 	{ }
 
+	DECLARE_READ8_MEMBER(mycom_upper_r);
+	DECLARE_WRITE8_MEMBER(mycom_upper_w);
+	DECLARE_READ8_MEMBER(vram_data_r);
+	DECLARE_WRITE8_MEMBER(vram_data_w);
+	DECLARE_WRITE8_MEMBER(mycom_00_w);
+	DECLARE_WRITE8_MEMBER(mycom_04_w);
+	DECLARE_WRITE8_MEMBER(mycom_06_w);
+	DECLARE_WRITE8_MEMBER(mycom_0a_w);
+	DECLARE_READ8_MEMBER(mycom_05_r);
+	DECLARE_READ8_MEMBER(mycom_06_r);
+	DECLARE_READ8_MEMBER(mycom_08_r);
+	DECLARE_DRIVER_INIT(mycom);
+	TIMER_DEVICE_CALLBACK_MEMBER(mycom_kbd);
+	DECLARE_WRITE8_MEMBER(mycom_rtc_w);
+	MC6845_UPDATE_ROW(crtc_update_row);
+	UINT8 *m_p_videoram;
+	UINT8 *m_p_chargen;
+	UINT8 m_0a;
+private:
+	UINT16 m_i_videoram;
+	UINT8 m_keyb_press;
+	UINT8 m_keyb_press_flag;
+	UINT8 m_sn_we;
+	UINT32 m_upper_sw;
+	UINT8 *m_p_ram;
+	virtual void machine_reset();
+	virtual void machine_start();
+	virtual void video_start();
 	required_device<cpu_device> m_maincpu;
 	required_device<i8255_device> m_ppi0;
 	required_device<i8255_device> m_ppi1;
@@ -83,35 +114,13 @@ public:
 	required_device<cassette_image_device> m_cass;
 	required_device<wave_device> m_wave;
 	required_device<mc6845_device> m_crtc;
-	required_device<fd1771_device> m_fdc;
+	required_device<fd1771_t> m_fdc;
+	required_device<floppy_connector> m_floppy0;
+	required_device<floppy_connector> m_floppy1;
 	required_device<sn76489_device> m_audio;
 	required_device<msm5832_device> m_rtc;
-	DECLARE_READ8_MEMBER( mycom_upper_r );
-	DECLARE_WRITE8_MEMBER( mycom_upper_w );
-	DECLARE_READ8_MEMBER( vram_data_r );
-	DECLARE_WRITE8_MEMBER( vram_data_w );
-	DECLARE_WRITE8_MEMBER( mycom_00_w );
-	DECLARE_WRITE8_MEMBER( mycom_04_w );
-	DECLARE_WRITE8_MEMBER( mycom_06_w );
-	DECLARE_WRITE8_MEMBER( mycom_0a_w );
-	DECLARE_READ8_MEMBER( mycom_05_r );
-	DECLARE_READ8_MEMBER( mycom_06_r );
-	DECLARE_READ8_MEMBER( mycom_08_r );
-	UINT8 *m_p_videoram;
-	UINT8 *m_p_chargen;
-	UINT16 m_i_videoram;
-	UINT8 m_keyb_press;
-	UINT8 m_keyb_press_flag;
-	UINT8 m_0a;
-	UINT8 m_sn_we;
-	UINT32 m_upper_sw;
-	UINT8 *m_p_ram;
-	virtual void machine_reset();
-	virtual void machine_start();
-	virtual void video_start();
-	DECLARE_DRIVER_INIT(mycom);
-	TIMER_DEVICE_CALLBACK_MEMBER(mycom_kbd);
-	DECLARE_WRITE8_MEMBER(mycom_rtc_w);
+public:
+	required_device<palette_device> m_palette;
 };
 
 
@@ -122,22 +131,21 @@ void mycom_state::video_start()
 	m_p_chargen = memregion("chargen")->base();
 }
 
-static MC6845_UPDATE_ROW( mycom_update_row )
+MC6845_UPDATE_ROW( mycom_state::crtc_update_row )
 {
-	mycom_state *state = device->machine().driver_data<mycom_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	UINT8 chr,gfx=0,z;
 	UINT16 mem,x;
 	UINT32 *p = &bitmap.pix32(y);
 
-	if (state->m_0a & 0x40)
+	if (m_0a & 0x40)
 	{
 		for (x = 0; x < x_count; x++)                   // lores pixels
 		{
 			UINT8 dbit=1;
 			if (x == cursor_x) dbit=0;
 			mem = (ma + x) & 0x7ff;
-			chr = state->m_p_videoram[mem];
+			chr = m_p_videoram[mem];
 			z = ra / 3;
 			*p++ = palette[BIT( chr, z ) ? dbit: dbit^1];
 			*p++ = palette[BIT( chr, z ) ? dbit: dbit^1];
@@ -161,8 +169,8 @@ static MC6845_UPDATE_ROW( mycom_update_row )
 				gfx = inv;  // some blank spacing lines
 			else
 			{
-				chr = state->m_p_videoram[mem];
-				gfx = state->m_p_chargen[(chr<<3) | ra] ^ inv;
+				chr = m_p_videoram[mem];
+				gfx = m_p_chargen[(chr<<3) | ra] ^ inv;
 			}
 
 			/* Display a scanline of a character */
@@ -225,7 +233,7 @@ static ADDRESS_MAP_START(mycom_io, AS_IO, 8, mycom_state)
 	AM_RANGE(0x04, 0x07) AM_DEVREADWRITE("ppi8255_0", i8255_device, read, write)
 	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write)
 	AM_RANGE(0x0c, 0x0f) AM_DEVREADWRITE("ppi8255_2", i8255_device, read, write)
-	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE_LEGACY("fdc", wd17xx_r, wd17xx_w)
+	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE("fdc", fd1771_t, read, write)
 ADDRESS_MAP_END
 
 /* Input ports */
@@ -331,20 +339,6 @@ static GFXDECODE_START( mycom )
 	GFXDECODE_ENTRY( "chargen", 0x0000, mycom_charlayout, 0, 1 )
 GFXDECODE_END
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,              /* show border area */
-	8,                  /* number of pixels per video memory address */
-	NULL,               /* before pixel update callback */
-	mycom_update_row,   /* row update callback */
-	NULL,               /* after pixel update callback */
-	DEVCB_NULL,         /* callback for display state changes */
-	DEVCB_NULL,         /* callback for cursor state changes */
-	DEVCB_NULL,         /* HSYNC callback */
-	DEVCB_NULL,         /* VSYNC callback */
-	NULL                /* update address callback */
-};
-
 WRITE8_MEMBER( mycom_state::mycom_04_w )
 {
 	m_i_videoram = (m_i_videoram & 0x700) | data;
@@ -430,36 +424,6 @@ WRITE8_MEMBER(mycom_state::mycom_rtc_w)
 	m_rtc->cs_w(BIT(data, 7));
 }
 
-static I8255_INTERFACE( ppi8255_intf_0 )
-{
-	DEVCB_NULL,         /* Port A read */
-	DEVCB_DRIVER_MEMBER(mycom_state, mycom_04_w),   /* Port A write */
-	DEVCB_DRIVER_MEMBER(mycom_state, mycom_05_r),   /* Port B read */
-	DEVCB_NULL,         /* Port B write */
-	DEVCB_DRIVER_MEMBER(mycom_state, mycom_06_r),   /* Port C read */
-	DEVCB_DRIVER_MEMBER(mycom_state, mycom_06_w)    /* Port C write */
-};
-
-static I8255_INTERFACE( ppi8255_intf_1 )
-{
-	DEVCB_DRIVER_MEMBER(mycom_state, mycom_08_r),   /* Port A read */
-	DEVCB_NULL,         /* Port A write */
-	DEVCB_NULL,         /* Port B read */
-	DEVCB_NULL,         /* Port B write */
-	DEVCB_NULL,         /* Port C read */
-	DEVCB_DRIVER_MEMBER(mycom_state, mycom_0a_w)    /* Port C write */
-};
-
-static I8255_INTERFACE( ppi8255_intf_2 )
-{
-	DEVCB_NULL,         /* Port A read */
-	DEVCB_NULL,         /* Port A write */
-	DEVCB_DEVICE_MEMBER(MSM5832RS_TAG, msm5832_device, data_r),         /* Port B read */
-	DEVCB_DEVICE_MEMBER(MSM5832RS_TAG, msm5832_device, data_w),         /* Port B write */
-	DEVCB_NULL,         /* Port C read */
-	DEVCB_DRIVER_MEMBER(mycom_state,mycom_rtc_w)            /* Port C write */
-};
-
 static const UINT8 mycom_keyval[] = { 0,
 0x1b,0x1b,0x7c,0x7c,0x18,0x18,0x0f,0x0f,0x09,0x09,0x1c,0x1c,0x30,0x00,0x50,0x70,0x3b,0x2b,
 0x00,0x00,0x31,0x21,0x51,0x71,0x41,0x61,0x5a,0x7a,0x17,0x17,0x2d,0x3d,0x40,0x60,0x3a,0x2a,
@@ -513,54 +477,11 @@ TIMER_DEVICE_CALLBACK_MEMBER(mycom_state::mycom_kbd)
 	}
 }
 
-// The floppy parameters are unknown, the below is copied from another driver
-static LEGACY_FLOPPY_OPTIONS_START(mycom)
-	LEGACY_FLOPPY_OPTION(mycom, "fdd", "mycom disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([2])
-		TRACKS([82])
-		SECTORS([5])
-		SECTOR_LENGTH([1024])
-		FIRST_SECTOR_ID([1]))
-LEGACY_FLOPPY_OPTIONS_END
-
-static const floppy_interface mycom_floppy_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	FLOPPY_STANDARD_5_25_DSHD,
-	LEGACY_FLOPPY_OPTIONS_NAME(mycom),
-	NULL,
-	NULL
-};
-
-static const wd17xx_interface wd1771_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL, // no information available
-	DEVCB_NULL,
-	{FLOPPY_0, FLOPPY_1, NULL, NULL}
-};
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
+static SLOT_INTERFACE_START( mycom_floppies )
+	SLOT_INTERFACE( "525sd", FLOPPY_525_SD )
+SLOT_INTERFACE_END
 
 void mycom_state::machine_start()
 {
@@ -586,9 +507,20 @@ static MACHINE_CONFIG_START( mycom, mycom_state )
 	MCFG_CPU_PROGRAM_MAP(mycom_map)
 	MCFG_CPU_IO_MAP(mycom_io)
 
-	MCFG_I8255_ADD( "ppi8255_0", ppi8255_intf_0 )
-	MCFG_I8255_ADD( "ppi8255_1", ppi8255_intf_1 )
-	MCFG_I8255_ADD( "ppi8255_2", ppi8255_intf_2 )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(mycom_state, mycom_04_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(mycom_state, mycom_05_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(mycom_state, mycom_06_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(mycom_state, mycom_06_w))
+
+	MCFG_DEVICE_ADD("ppi8255_1", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(mycom_state, mycom_08_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(mycom_state, mycom_0a_w))
+
+	MCFG_DEVICE_ADD("ppi8255_2", I8255, 0)
+	MCFG_I8255_IN_PORTB_CB(DEVREAD8("rtc", msm5832_device, data_r))
+	MCFG_I8255_OUT_PORTB_CB(DEVWRITE8("rtc", msm5832_device, data_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(mycom_state, mycom_rtc_w))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -597,26 +529,30 @@ static MACHINE_CONFIG_START( mycom, mycom_state )
 	MCFG_SCREEN_UPDATE_DEVICE("crtc", mc6845_device, screen_update)
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 192-1)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
-	MCFG_GFXDECODE(mycom)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mycom)
 
 	/* Manual states clock is 1.008mhz for 40 cols, and 2.016 mhz for 80 cols.
 	The CRTC is a HD46505S - same as a 6845. The start registers need to be readable. */
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", 1008000, mc6845_intf)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", 1008000)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(mycom_state, crtc_update_row)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+
 	MCFG_SOUND_ADD("sn1", SN76489, XTAL_10MHz / 4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	/* Devices */
-	MCFG_MSM5832_ADD(MSM5832RS_TAG, XTAL_32_768kHz)
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
-	MCFG_FD1771_ADD("fdc", wd1771_intf)
-	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(mycom_floppy_interface)
+	MCFG_MSM5832_ADD("rtc", XTAL_32_768kHz)
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_FD1771x_ADD("fdc", XTAL_16MHz / 16)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", mycom_floppies, "525sd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", mycom_floppies, "525sd", floppy_image_device::default_floppy_formats)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("keyboard_timer", mycom_state, mycom_kbd, attotime::from_hz(20))
 MACHINE_CONFIG_END

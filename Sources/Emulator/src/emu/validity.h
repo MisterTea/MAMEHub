@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     validity.h
 
     Validity checks
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -75,6 +46,10 @@ public:
 
 	// helpers for devices
 	void validate_tag(const char *tag);
+	int region_length(const char *tag) { return m_region_map.find(tag); }
+
+	// generic registry of already-checked stuff
+	bool already_checked(const char *string) { return (m_already_checked.add(string, 1, false) == TMERR_DUPLICATE); }
 
 private:
 	// internal helpers
@@ -91,8 +66,6 @@ private:
 	void validate_inlines();
 	void validate_driver();
 	void validate_roms();
-	void validate_display();
-	void validate_gfx();
 	void validate_analog_input_field(ioport_field &field);
 	void validate_dip_settings(ioport_field &field);
 	void validate_condition(ioport_condition &condition, device_t &device, int_map &port_map);
@@ -103,7 +76,7 @@ private:
 	void build_output_prefix(astring &string);
 	void error_output(const char *format, va_list argptr);
 	void warning_output(const char *format, va_list argptr);
-	void output_via_delegate(output_delegate &delegate, const char *format, ...);
+	void output_via_delegate(output_delegate &delegate, const char *format, ...) ATTR_PRINTF(3,4);
 
 	// internal driver list
 	driver_enumerator       m_drivlist;
@@ -126,6 +99,7 @@ private:
 	const device_t *        m_current_device;
 	const char *            m_current_ioport;
 	int_map                 m_region_map;
+	tagmap_t<UINT8>         m_already_checked;
 
 	// callbacks
 	output_delegate         m_saved_error_output;

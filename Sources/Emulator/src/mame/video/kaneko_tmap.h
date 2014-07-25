@@ -5,7 +5,8 @@ class kaneko_view2_tilemap_device : public device_t
 public:
 	kaneko_view2_tilemap_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
-	// used to set values when creating device
+	// static configuration
+	static void static_set_gfxdecode_tag(device_t &device, const char *tag);
 	static void set_gfx_region(device_t &device, int region);
 	static void set_offset(device_t &device, int dx, int dy, int xdim, int ydim);
 	static void set_invert_flip(device_t &device, int invert_flip); // for fantasia (bootleg)
@@ -25,9 +26,20 @@ public:
 	void kaneko16_vram_w(offs_t offset, UINT16 data, UINT16 mem_mask, int _N_);
 
 	// call to do the rendering etc.
+	template<class _BitmapClass>
+	void kaneko16_prepare_common(_BitmapClass &bitmap, const rectangle &cliprect);
+	template<class _BitmapClass>
+	void render_tilemap_chip_common(screen_device &screen, _BitmapClass &bitmap, const rectangle &cliprect, int pri);
+	template<class _BitmapClass>
+	void render_tilemap_chip_alt_common(screen_device &screen, _BitmapClass &bitmap, const rectangle &cliprect, int pri, int v2pri);
+
 	void kaneko16_prepare(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void kaneko16_prepare(bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void render_tilemap_chip(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int pri);
+	void render_tilemap_chip(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, int pri);
 	void render_tilemap_chip_alt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int pri, int v2pri);
+	void render_tilemap_chip_alt(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, int pri, int v2pri);
+
 
 	// access
 	DECLARE_READ16_MEMBER( kaneko_tmap_vram_r );
@@ -60,7 +72,11 @@ protected:
 private:
 	TILE_GET_INFO_MEMBER(get_tile_info_0);
 	TILE_GET_INFO_MEMBER(get_tile_info_1);
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
 extern const device_type KANEKO_TMAP;
+
+#define MCFG_KANEKO_TMAP_GFXDECODE(_gfxtag) \
+	kaneko_view2_tilemap_device::static_set_gfxdecode_tag(*device, "^" _gfxtag);

@@ -2,9 +2,9 @@
 #include "cpu/z80/z80.h"
 #include "cpu/z80/z80daisy.h"
 #include "machine/z80pio.h"
-#include "machine/z80sio.h"
+#include "machine/z80dart.h"
 #include "machine/com8116.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "imagedev/snapquik.h"
 #include "sound/beep.h"
 #include "video/mc6845.h"
@@ -32,9 +32,11 @@ public:
 		m_floppy0(*this, "fdc:0"),
 		m_floppy1(*this, "fdc:1"),
 		m_crtc(*this, "crtc"),
-		m_beep(*this, "beeper")
+		m_beep(*this, "beeper"),
+		m_palette(*this, "palette")
 	{}
 
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
 	DECLARE_READ8_MEMBER(kaypro2x_87_r);
 	DECLARE_READ8_MEMBER(kaypro2x_system_port_r);
 	DECLARE_READ8_MEMBER(kaypro2x_status_r);
@@ -47,8 +49,8 @@ public:
 	DECLARE_WRITE8_MEMBER(common_pio_system_w);
 	DECLARE_WRITE8_MEMBER(kayproii_pio_system_w);
 	DECLARE_WRITE8_MEMBER(kaypro4_pio_system_w);
-	DECLARE_WRITE_LINE_MEMBER(kaypro_fdc_intrq_w);
-	DECLARE_WRITE_LINE_MEMBER(kaypro_fdc_drq_w);
+	DECLARE_WRITE_LINE_MEMBER(fdc_intrq_w);
+	DECLARE_WRITE_LINE_MEMBER(fdc_drq_w);
 	DECLARE_READ8_MEMBER(kaypro_videoram_r);
 	DECLARE_WRITE8_MEMBER(kaypro_videoram_w);
 	DECLARE_MACHINE_START(kayproii);
@@ -66,39 +68,39 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(kaypro_interrupt);
 	DECLARE_READ8_MEMBER(kaypro_sio_r);
 	DECLARE_WRITE8_MEMBER(kaypro_sio_w);
+	MC6845_UPDATE_ROW(kaypro2x_update_row);
 	DECLARE_QUICKLOAD_LOAD_MEMBER(kaypro);
 	const UINT8 *m_p_chargen;
 	UINT8 m_mc6845_cursor[16];
 	UINT8 m_mc6845_reg[32];
 	UINT8 m_mc6845_ind;
-	UINT8 m_speed;
-	UINT8 m_flash;
 	UINT8 m_framecnt;
-	UINT16 m_cursor;
 	UINT8 *m_p_videoram;
 	kay_kbd_t *m_kbd;
+	int m_centronics_busy;
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+
 private:
 	UINT8 m_system_port;
 	UINT16 m_mc6845_video_address;
 	floppy_image_device *m_floppy;
 	void mc6845_cursor_configure();
 	void mc6845_screen_configure();
-	void fdc_intrq_w(bool state);
-	void fdc_drq_w(bool state);
 	required_device<cpu_device> m_maincpu;
 	optional_device<z80pio_device> m_pio_g;
 	optional_device<z80pio_device> m_pio_s;
-	required_device<z80sio_device> m_sio;
-	optional_device<z80sio_device> m_sio2x;
+	required_device<z80sio0_device> m_sio;
+	optional_device<z80sio0_device> m_sio2x;
 	required_device<centronics_device> m_centronics;
 	required_device<fd1793_t> m_fdc;
 	required_device<floppy_connector> m_floppy0;
 	required_device<floppy_connector> m_floppy1;
 	optional_device<mc6845_device> m_crtc;
 	required_device<beep_device> m_beep;
+public:
+	required_device<palette_device> m_palette;
 };
 
 
@@ -109,15 +111,3 @@ UINT8 kay_kbd_d_r( running_machine &machine );
 void kay_kbd_d_w( running_machine &machine, UINT8 data );
 
 INPUT_PORTS_EXTERN( kay_kbd );
-
-
-/*----------- defined in machine/kaypro.c -----------*/
-
-extern const z80pio_interface kayproii_pio_g_intf;
-extern const z80pio_interface kayproii_pio_s_intf;
-extern const z80pio_interface kaypro4_pio_s_intf;
-extern const z80sio_interface kaypro_sio_intf;
-
-/*----------- defined in video/kaypro.c -----------*/
-
-MC6845_UPDATE_ROW( kaypro2x_update_row );

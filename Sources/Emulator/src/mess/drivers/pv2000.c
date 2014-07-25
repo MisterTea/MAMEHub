@@ -339,30 +339,6 @@ WRITE_LINE_MEMBER( pv2000_state::pv2000_vdp_interrupt )
 
 /* Machine Initialization */
 
-static TMS9928A_INTERFACE(pv2000_tms9928a_interface)
-{
-	0x4000,
-	DEVCB_DRIVER_LINE_MEMBER(pv2000_state, pv2000_vdp_interrupt)
-};
-
-
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 void pv2000_state::machine_start()
 {
 }
@@ -407,16 +383,6 @@ DEVICE_IMAGE_LOAD_MEMBER( pv2000_state, pv2000_cart )
 	return IMAGE_INIT_PASS;
 }
 
-static const cassette_interface pv2000_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED),
-	NULL,
-	NULL
-};
-
-
 /* Machine Drivers */
 static MACHINE_CONFIG_START( pv2000, pv2000_state )
 
@@ -427,20 +393,24 @@ static MACHINE_CONFIG_START( pv2000, pv2000_state )
 
 
 	// video hardware
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9928A, pv2000_tms9928a_interface )
+	MCFG_DEVICE_ADD( "tms9928a", TMS9928A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(pv2000_state, pv2000_vdp_interrupt))
 	MCFG_TMS9928A_SCREEN_ADD_NTSC( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9928a_device, screen_update )
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
 	MCFG_SOUND_ADD("sn76489a", SN76489A, XTAL_7_15909MHz/2) /* 3.579545 MHz */
-	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
+
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( "cassette", pv2000_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED)
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")

@@ -50,7 +50,7 @@ static ADDRESS_MAP_START( main_cpu_map, AS_PROGRAM, 8, speedbal_state )
 	AM_RANGE(0xdc00, 0xdfff) AM_RAM AM_SHARE("share1") // shared with SOUND
 	AM_RANGE(0xe000, 0xe1ff) AM_RAM_WRITE(speedbal_background_videoram_w) AM_SHARE("bg_videoram")
 	AM_RANGE(0xe800, 0xefff) AM_RAM_WRITE(speedbal_foreground_videoram_w) AM_SHARE("fg_videoram")
-	AM_RANGE(0xf000, 0xf5ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_byte_be_w) AM_SHARE("paletteram")
+	AM_RANGE(0xf000, 0xf5ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xf600, 0xfeff) AM_RAM
 	AM_RANGE(0xff00, 0xffff) AM_RAM AM_SHARE("spriteram")
 ADDRESS_MAP_END
@@ -254,9 +254,12 @@ static MACHINE_CONFIG_START( speedbal, speedbal_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(speedbal_state, screen_update_speedbal)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(speedbal)
-	MCFG_PALETTE_LENGTH(768)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", speedbal)
+	MCFG_PALETTE_ADD("palette", 768)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBxxxx)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -270,7 +273,7 @@ DRIVER_INIT_MEMBER(speedbal_state,speedbal)
 {
 	// sprite tiles are in an odd order, rearrange to simplify video drawing function
 	UINT8* rom = memregion("sprites")->base();
-	UINT8* temp = auto_alloc_array(machine(), UINT8, 0x200*128);
+	dynamic_buffer temp(0x200*128);
 
 	for (int i=0;i<0x200;i++)
 	{
@@ -279,7 +282,6 @@ DRIVER_INIT_MEMBER(speedbal_state,speedbal)
 	}
 
 	memcpy(rom,temp,0x200*128);
-	auto_free(machine(), temp);
 }
 
 

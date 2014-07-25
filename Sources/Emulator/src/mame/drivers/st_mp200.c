@@ -103,6 +103,7 @@ ROM_END
 /*--------------------------------
 / Cue (Proto - Never released)
 /-------------------------------*/
+#ifdef MISSING_GAME // everything is NO_DUMP
 ROM_START(cue)
 	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_LOAD( "cpu_u1.716", 0x1000, 0x0800, NO_DUMP)
@@ -111,6 +112,7 @@ ROM_START(cue)
 	ROM_LOAD( "cpu_u6.716", 0x5800, 0x0800, NO_DUMP)
 	ROM_RELOAD( 0xf800, 0x0800)
 ROM_END
+#endif
 
 /*--------------------------------
 / Dragonfist
@@ -347,11 +349,11 @@ ROM_START(st_game)
 ROM_END
 
 
-//GAME(1982,    cue,        0,      st_mp200,   st_mp200, st_mp200_state,   st_mp200,   ROT0,   "Stern",                "Cue",              GAME_IS_SKELETON_MECHANICAL)
 GAME(1980,  ali,        0,          st_mp200,   st_mp200, st_mp200_state,   st_mp200,   ROT0,   "Stern",                "Ali",              GAME_IS_SKELETON_MECHANICAL)
 GAME(1980,  biggame,    0,          st_mp200,   st_mp200, st_mp200_state,   st_mp200,   ROT0,   "Stern",                "Big Game",             GAME_IS_SKELETON_MECHANICAL)
 GAME(1981,  catacomp,   0,          st_mp200,   st_mp200, st_mp200_state,   st_mp200,   ROT0,   "Stern",                "Catacomb (Pinball)",               GAME_IS_SKELETON_MECHANICAL)
 GAME(1980,  cheetah,    0,          st_mp200,   st_mp200, st_mp200_state,   st_mp200,   ROT0,   "Stern",                "Cheetah",              GAME_IS_SKELETON_MECHANICAL)
+//GAME(1982,  cue,        0,          st_mp200,   st_mp200, st_mp200_state,   st_mp200,   ROT0,   "Stern",                "Cue",              GAME_IS_SKELETON_MECHANICAL)
 GAME(1982,  dragfist,   0,          st_mp200,   st_mp200, st_mp200_state,   st_mp200,   ROT0,   "Stern",                "Dragonfist",               GAME_IS_SKELETON_MECHANICAL)
 GAME(1980,  flight2k,   0,          st_mp200,   st_mp200, st_mp200_state,   st_mp200,   ROT0,   "Stern",                "Flight 2000",              GAME_IS_SKELETON_MECHANICAL)
 GAME(1981,  freefall,   0,          st_mp200,   st_mp200, st_mp200_state,   st_mp200,   ROT0,   "Stern",                "Freefall",             GAME_IS_SKELETON_MECHANICAL)

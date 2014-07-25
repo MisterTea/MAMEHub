@@ -11,10 +11,14 @@ public:
 	nbmj8900_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag) ,
 		m_maincpu(*this, "maincpu"),
-		m_nb1413m3(*this, "nb1413m3")   { }
+		m_nb1413m3(*this, "nb1413m3"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")   { }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<nb1413m3_device> m_nb1413m3;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	int m_scrolly;
 	int m_blitter_destx;
@@ -37,7 +41,7 @@ public:
 	bitmap_ind16 m_tmpbitmap1;
 	UINT8 *m_videoram0;
 	UINT8 *m_videoram1;
-	UINT8 *m_palette;
+	UINT8 *m_palette_ptr;
 	UINT8 *m_clut;
 	int m_flipscreen_old;
 	DECLARE_READ8_MEMBER(nbmj8900_palette_type1_r);

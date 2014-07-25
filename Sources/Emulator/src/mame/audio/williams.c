@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
-    audio/williams.h
+    williams.h
 
     Functions to emulate general the various Williams/Midway sound cards.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************
 
@@ -232,27 +203,6 @@ ADDRESS_MAP_END
 
 
 //-------------------------------------------------
-//  6821 PIA interface
-//-------------------------------------------------
-
-static const pia6821_interface cvsd_pia_intf =
-{
-	DEVCB_NULL,     // port A in
-	DEVCB_NULL,     // port B in
-	DEVCB_NULL,     // line CA1 in
-	DEVCB_NULL,     // line CB1 in
-	DEVCB_NULL,     // line CA2 in
-	DEVCB_NULL,     // line CB2 in
-	DEVCB_DEVICE_MEMBER("dac", dac_device, write_unsigned8),        // port A out
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, williams_cvsd_sound_device, talkback_w),     // port B out
-	DEVCB_NULL,     // line CA2 out
-	DEVCB_NULL,     // port CB2 out
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, williams_cvsd_sound_device, pia_irqa),  // IRQA
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, williams_cvsd_sound_device, pia_irqb)   // IRQB
-};
-
-
-//-------------------------------------------------
 //  machine configuration
 //-------------------------------------------------
 
@@ -260,7 +210,11 @@ static MACHINE_CONFIG_FRAGMENT( williams_cvsd_sound )
 	MCFG_CPU_ADD("cpu", M6809E, CVSD_MASTER_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(williams_cvsd_map)
 
-	MCFG_PIA6821_ADD("pia", cvsd_pia_intf)
+	MCFG_DEVICE_ADD("pia", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(DEVWRITE8("dac", dac_device, write_unsigned8))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(williams_cvsd_sound_device, talkback_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(williams_cvsd_sound_device, pia_irqa))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(williams_cvsd_sound_device, pia_irqb))
 
 	MCFG_YM2151_ADD("ym2151", CVSD_FM_CLOCK)
 	MCFG_YM2151_IRQ_HANDLER(WRITELINE(williams_cvsd_sound_device, ym2151_irq_w))

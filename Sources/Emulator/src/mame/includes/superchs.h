@@ -23,7 +23,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_subcpu(*this, "sub"),
 		m_tc0480scp(*this, "tc0480scp"),
-		m_eeprom(*this, "eeprom") { }
+		m_eeprom(*this, "eeprom"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	UINT16 m_coin_word;
 	required_shared_ptr<UINT32> m_ram;
@@ -36,7 +38,6 @@ public:
 	DECLARE_READ16_MEMBER(shared_ram_r);
 	DECLARE_WRITE16_MEMBER(shared_ram_w);
 	DECLARE_WRITE32_MEMBER(cpua_ctrl_w);
-	DECLARE_WRITE32_MEMBER(superchs_palette_w);
 	DECLARE_READ32_MEMBER(superchs_input_r);
 	DECLARE_WRITE32_MEMBER(superchs_input_w);
 	DECLARE_READ32_MEMBER(superchs_stick_r);
@@ -51,4 +52,6 @@ public:
 	required_device<cpu_device> m_subcpu;
 	required_device<tc0480scp_device> m_tc0480scp;
 	required_device<eeprom_serial_93cxx_device> m_eeprom;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

@@ -887,15 +887,6 @@ INTERRUPT_GEN_MEMBER(trackfld_state::vblank_nmi)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( trackfld, trackfld_state )
 
 	/* basic machine hardware */
@@ -917,11 +908,12 @@ static MACHINE_CONFIG_START( trackfld, trackfld_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(trackfld_state, screen_update_trackfld)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(trackfld)
-	MCFG_PALETTE_LENGTH(16*16+16*16)
-
-	MCFG_PALETTE_INIT_OVERRIDE(trackfld_state,trackfld)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", trackfld)
+	MCFG_PALETTE_ADD("palette", 16*16+16*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(trackfld_state,trackfld)
 	MCFG_VIDEO_START_OVERRIDE(trackfld_state,trackfld)
 
 	/* sound hardware */
@@ -934,7 +926,6 @@ static MACHINE_CONFIG_START( trackfld, trackfld_state )
 
 	MCFG_SOUND_ADD("snsnd", SN76496, SOUND_CLOCK/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, VLM_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
@@ -970,11 +961,12 @@ static MACHINE_CONFIG_START( yieartf, trackfld_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(trackfld_state, screen_update_trackfld)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(trackfld)
-	MCFG_PALETTE_LENGTH(16*16+16*16)
-
-	MCFG_PALETTE_INIT_OVERRIDE(trackfld_state,trackfld)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", trackfld)
+	MCFG_PALETTE_ADD("palette", 16*16+16*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(trackfld_state,trackfld)
 	MCFG_VIDEO_START_OVERRIDE(trackfld_state,trackfld)
 
 	/* sound hardware */
@@ -987,7 +979,6 @@ static MACHINE_CONFIG_START( yieartf, trackfld_state )
 
 	MCFG_SOUND_ADD("snsnd", SN76496, MASTER_CLOCK/6/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, VLM_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
@@ -1480,6 +1471,7 @@ DRIVER_INIT_MEMBER(trackfld_state,mastkin)
 		else
 			prom[i + 0x20] = (i + i / 16) & 0x0f;
 	}
+	m_palette->update();
 }
 
 DRIVER_INIT_MEMBER(trackfld_state,wizzquiz)

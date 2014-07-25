@@ -98,8 +98,9 @@ static MACHINE_CONFIG_START( beezer, beezer_state )
 	MCFG_SCREEN_SIZE(384, 256)
 	MCFG_SCREEN_VISIBLE_AREA(16, 304-1, 0, 240-1) // 288 x 240, correct?
 	MCFG_SCREEN_UPDATE_DRIVER(beezer_state, screen_update_beezer)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
 
 
 	/* sound hardware */
@@ -111,8 +112,21 @@ static MACHINE_CONFIG_START( beezer, beezer_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	/* via */
-	MCFG_VIA6522_ADD("via6522_0", 0, b_via_0_interface)
-	MCFG_VIA6522_ADD("via6522_1", 0, b_via_1_interface)
+	MCFG_DEVICE_ADD("via6522_0", VIA6522, 0)
+	MCFG_VIA6522_READPA_HANDLER(READ8(beezer_state, b_via_0_pa_r))
+	MCFG_VIA6522_READPB_HANDLER(READ8(beezer_state, b_via_0_pb_r))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(beezer_state, b_via_0_pa_w))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(beezer_state, b_via_0_pb_w))
+	MCFG_VIA6522_CB2_HANDLER(DEVWRITELINE("via6522_1", via6522_device, write_ca1))
+	MCFG_VIA6522_IRQ_HANDLER(DEVWRITELINE("maincpu", m6809_device, irq_line))
+
+	MCFG_DEVICE_ADD("via6522_1", VIA6522, 0)
+	MCFG_VIA6522_READPA_HANDLER(READ8(beezer_state, b_via_1_pa_r))
+	MCFG_VIA6522_READPB_HANDLER(READ8(beezer_state, b_via_1_pb_r))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(beezer_state, b_via_1_pa_w))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(beezer_state, b_via_1_pb_w))
+	MCFG_VIA6522_CA2_HANDLER(DEVWRITELINE("via6522_0", via6522_device, write_cb1))
+	MCFG_VIA6522_IRQ_HANDLER(DEVWRITELINE("audiocpu", m6809_device, irq_line))
 MACHINE_CONFIG_END
 
 /***************************************************************************

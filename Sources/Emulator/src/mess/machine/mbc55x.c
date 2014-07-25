@@ -33,18 +33,6 @@ static int instruction_hook(device_t &device, offs_t curpc);
 //static void fdc_reset(running_machine &machine);
 //static void set_disk_int(running_machine &machine, int state);
 
-
-/* Floppy drives WD2793 */
-
-const wd17xx_interface mbc55x_wd17xx_interface =
-{
-	DEVCB_LINE_GND,
-	DEVCB_DRIVER_LINE_MEMBER(mbc55x_state, mbc55x_fdc_intrq_w),
-	DEVCB_DRIVER_LINE_MEMBER(mbc55x_state, mbc55x_fdc_drq_w),
-	{FLOPPY_0, FLOPPY_1, FLOPPY_2, FLOPPY_3}
-};
-
-
 /* 8255 Configuration */
 
 READ8_MEMBER( mbc55x_state::ppi8255_r )
@@ -82,19 +70,9 @@ WRITE8_MEMBER( mbc55x_state::mbc55x_ppi_portb_w )
 
 WRITE8_MEMBER( mbc55x_state::mbc55x_ppi_portc_w )
 {
-	wd17xx_set_drive(m_fdc,(data & 0x03));
-	wd17xx_set_side(m_fdc, BIT(data, 2));
+	m_fdc->set_drive((data & 0x03));
+	m_fdc->set_side(BIT(data, 2));
 }
-
-I8255_INTERFACE( mbc55x_ppi8255_interface )
-{
-	DEVCB_DRIVER_MEMBER(mbc55x_state, mbc55x_ppi_porta_r),
-	DEVCB_DRIVER_MEMBER(mbc55x_state, mbc55x_ppi_porta_w),
-	DEVCB_DRIVER_MEMBER(mbc55x_state, mbc55x_ppi_portb_r),
-	DEVCB_DRIVER_MEMBER(mbc55x_state, mbc55x_ppi_portb_w),
-	DEVCB_DRIVER_MEMBER(mbc55x_state, mbc55x_ppi_portc_r),
-	DEVCB_DRIVER_MEMBER(mbc55x_state, mbc55x_ppi_portc_w)
-};
 
 /* Serial port USART, unimplemented as yet */
 
@@ -119,34 +97,6 @@ WRITE8_MEMBER(mbc55x_state::mbcpic8259_w)
 	m_pic->write(space, offset>>1, data);
 }
 
-IRQ_CALLBACK_MEMBER(mbc55x_state::mbc55x_irq_callback)
-{
-	return m_pic->inta_r();
-}
-
-/* PIT8253 Configuration */
-
-const struct pit8253_interface mbc55x_pit8253_config =
-{
-	{
-		{
-			PIT_C0_CLOCK,
-			DEVCB_NULL,
-			DEVCB_DEVICE_LINE_MEMBER(PIC8259_TAG, pic8259_device, ir0_w)
-		},
-		{
-			PIT_C1_CLOCK,
-			DEVCB_NULL,
-			DEVCB_DEVICE_LINE_MEMBER(PIC8259_TAG, pic8259_device, ir1_w)
-		},
-		{
-			PIT_C2_CLOCK,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(mbc55x_state, pit8253_t2)
-		}
-	}
-};
-
 READ8_MEMBER(mbc55x_state::mbcpit8253_r)
 {
 	return m_pit->read(space, offset >> 1);
@@ -159,8 +109,8 @@ WRITE8_MEMBER(mbc55x_state::mbcpit8253_w)
 
 WRITE_LINE_MEMBER( mbc55x_state::pit8253_t2 )
 {
-	m_kb_uart->transmit_clock();
-	m_kb_uart->receive_clock();
+	m_kb_uart->write_txc(state);
+	m_kb_uart->write_rxc(state);
 }
 
 /* Video ram page register */
@@ -179,12 +129,12 @@ WRITE8_MEMBER( mbc55x_state::vram_page_w )
 
 READ8_MEMBER(mbc55x_state::mbc55x_disk_r)
 {
-	return wd17xx_r(m_fdc, space, offset>>1);
+	return m_fdc->read(space, offset>>1);
 }
 
 WRITE8_MEMBER(mbc55x_state::mbc55x_disk_w)
 {
-	wd17xx_w(m_fdc, space, offset>>1, data);
+	m_fdc->write(space, offset>>1, data);
 }
 
 WRITE_LINE_MEMBER( mbc55x_state::mbc55x_fdc_intrq_w )
@@ -280,21 +230,6 @@ TIMER_CALLBACK_MEMBER(mbc55x_state::keyscan_callback)
 	scan_keyboard();
 }
 
-/* i8251 serial */
-
-const i8251_interface mbc55x_i8251a_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(PIC8259_TAG, pic8259_device, ir3_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 READ8_MEMBER(mbc55x_state::mbc55x_kb_usart_r)
 {
 	UINT8 result = 0;
@@ -302,14 +237,15 @@ READ8_MEMBER(mbc55x_state::mbc55x_kb_usart_r)
 
 	switch (offset)
 	{
-		case 0  : //logerror("%s read kb_uart\n",machine().describe_context());
-				result = m_kb_uart->data_r(space,0); break;
+		case 0: //logerror("%s read kb_uart\n",machine().describe_context());
+			result = m_kb_uart->data_r(space,0);
+			break;
 
-		case 1  :   result = m_kb_uart->status_r(space,0);
-
-				if (m_keyboard.key_special & KEY_BIT_CTRL)  // Parity error used to flag control down
-					result |= I8251_STATUS_PARITY_ERROR;
-				break;
+		case 1:
+			result = m_kb_uart->status_r(space,0);
+			if (m_keyboard.key_special & KEY_BIT_CTRL)  // Parity error used to flag control down
+				result |= i8251_device::I8251_STATUS_PARITY_ERROR;
+			break;
 	}
 
 	return result;
@@ -377,7 +313,6 @@ void mbc55x_state::machine_reset()
 {
 	set_ram_size();
 	keyboard_reset();
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(mbc55x_state::mbc55x_irq_callback),this));
 }
 
 void mbc55x_state::machine_start()

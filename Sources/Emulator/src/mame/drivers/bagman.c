@@ -359,17 +359,6 @@ static GFXDECODE_START( pickin )
 GFXDECODE_END
 
 
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("P1"),
-	DEVCB_INPUT_PORT("P2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 /* squaitsa doesn't map the dial directly, instead it polls the results of the dial through an external circuitry.
    I don't know if the following is correct, there can possbily be multiple solutions for the same problem. */
 READ8_MEMBER(bagman_state::dial_input_p1_r)
@@ -412,55 +401,6 @@ READ8_MEMBER(bagman_state::dial_input_p2_r)
 	return (ioport("P2")->read() & 0x9f) | (m_p2_res);
 }
 
-static const ay8910_interface ay8910_dial_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(bagman_state,dial_input_p1_r),
-	DEVCB_DRIVER_MEMBER(bagman_state,dial_input_p2_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface ay8910_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const tmsprom_interface prom_intf =
-{
-	"5110ctrl",                     /* prom memory region - sound region is automatically assigned */
-	0x1000,                         /* individual rom_size */
-	1,                              /* bit # of pdc line */
-	/* virtual bit 8: constant 0, virtual bit 9:constant 1 */
-	8,                              /* bit # of ctl1 line */
-	2,                              /* bit # of ctl2 line */
-	8,                              /* bit # of ctl4 line */
-	2,                              /* bit # of ctl8 line */
-	6,                              /* bit # of rom reset */
-	7,                              /* bit # of stop */
-	DEVCB_DEVICE_LINE_MEMBER("tms", tms5110_device, pdc_w),        /* tms pdc func */
-	DEVCB_DEVICE_MEMBER("tms", tms5110_device, ctl_w)      /* tms ctl func */
-};
-
-static const tms5110_interface bagman_tms5110_interface =
-{
-	/* legacy interface */
-	NULL,                                           /* function to be called when chip requests another bit */
-	NULL,                                           /* speech ROM load address callback */
-	/* new rom controller interface */
-	DEVCB_DEVICE_LINE_MEMBER("tmsprom", tmsprom_device, m0_w),     /* the M0 line */
-	DEVCB_NULL,                                     /* the M1 line */
-	DEVCB_NULL,                                     /* Write to ADD1,2,4,8 - 4 address bits */
-	DEVCB_DEVICE_LINE_MEMBER("tmsprom", tmsprom_device, data_r),   /* Read one bit from ADD8/Data - voice data */
-	DEVCB_NULL                                      /* rom clock - Only used to drive the data lines */
-};
-
 INTERRUPT_GEN_MEMBER(bagman_state::vblank_irq)
 {
 	if(m_irq_mask)
@@ -482,25 +422,39 @@ static MACHINE_CONFIG_START( bagman, bagman_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(BAGMAN_HCLK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(bagman_state, screen_update_bagman)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bagman)
-	MCFG_PALETTE_LENGTH(64)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bagman)
+	MCFG_PALETTE_ADD("palette", 64)
 
-	MCFG_PALETTE_INIT_OVERRIDE(bagman_state,bagman)
+	MCFG_PALETTE_INIT_OWNER(bagman_state,bagman)
 	MCFG_VIDEO_START_OVERRIDE(bagman_state,bagman)
 
 	MCFG_DEVICE_ADD("tmsprom", TMSPROM, 640000 / 2)  /* rom clock */
-	MCFG_DEVICE_CONFIG(prom_intf)
+	MCFG_TMSPROM_REGION("5110ctrl") /* prom memory region - sound region is automatically assigned */
+	MCFG_TMSPROM_ROM_SIZE(0x1000)   /* individual rom_size */
+	MCFG_TMSPROM_PDC_BIT(1)         /* bit # of pdc line */
+	/* virtual bit 8: constant 0, virtual bit 9:constant 1 */
+	MCFG_TMSPROM_CTL1_BIT(8)        /* bit # of ctl1 line */
+	MCFG_TMSPROM_CTL2_BIT(2)        /* bit # of ctl2 line */
+	MCFG_TMSPROM_CTL4_BIT(8)        /* bit # of ctl4 line */
+	MCFG_TMSPROM_CTL8_BIT(2)        /* bit # of ctl8 line */
+	MCFG_TMSPROM_RESET_BIT(6)       /* bit # of rom reset */
+	MCFG_TMSPROM_STOP_BIT(7)        /* bit # of stop */
+	MCFG_TMSPROM_PDC_CB(DEVWRITELINE("tms", tms5110_device, pdc_w))        /* tms pdc func */
+	MCFG_TMSPROM_CTL_CB(DEVWRITE8("tms", tms5110_device, ctl_w))      /* tms ctl func */
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, BAGMAN_H0 / 2)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("P1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("P2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 
 	MCFG_SOUND_ADD("tms", TMS5110A, 640000)
-	MCFG_SOUND_CONFIG(bagman_tms5110_interface)
+	MCFG_TMS5110_M0_CB(DEVWRITELINE("tmsprom", tmsprom_device, m0_w))
+	MCFG_TMS5110_DATA_CB(DEVREADLINE("tmsprom", tmsprom_device, data_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -518,23 +472,24 @@ static MACHINE_CONFIG_START( pickin, bagman_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(BAGMAN_HCLK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(bagman_state, screen_update_bagman)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pickin)
-	MCFG_PALETTE_LENGTH(64)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pickin)
+	MCFG_PALETTE_ADD("palette", 64)
 
-	MCFG_PALETTE_INIT_OVERRIDE(bagman_state,bagman)
+	MCFG_PALETTE_INIT_OWNER(bagman_state,bagman)
 	MCFG_VIDEO_START_OVERRIDE(bagman_state,bagman)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1500000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("P1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("P2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 
 	/* maybe */
 	MCFG_SOUND_ADD("ay2", AY8910, 1500000)
-	MCFG_SOUND_CONFIG(ay8910_interface_2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 MACHINE_CONFIG_END
 
@@ -570,28 +525,31 @@ static MACHINE_CONFIG_START( botanic, bagman_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(BAGMAN_HCLK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(bagman_state, screen_update_bagman)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bagman)
-	MCFG_PALETTE_LENGTH(64)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bagman)
+	MCFG_PALETTE_ADD("palette", 64)
 
-	MCFG_PALETTE_INIT_OVERRIDE(bagman_state,bagman)
+	MCFG_PALETTE_INIT_OWNER(bagman_state,bagman)
 	MCFG_VIDEO_START_OVERRIDE(bagman_state,bagman)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1500000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("P1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("P2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 1500000)
-	MCFG_SOUND_CONFIG(ay8910_interface_2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( squaitsa, botanic )
 	MCFG_SOUND_MODIFY("aysnd")
-	MCFG_SOUND_CONFIG(ay8910_dial_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(bagman_state, dial_input_p1_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(bagman_state, dial_input_p2_r))
+
 MACHINE_CONFIG_END
 
 

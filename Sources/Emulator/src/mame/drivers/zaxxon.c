@@ -452,7 +452,7 @@ static ADDRESS_MAP_START( ixion_map, AS_PROGRAM, 8, zaxxon_state )
 	AM_RANGE(0xc000, 0xc002) AM_MIRROR(0x18f8) AM_WRITE(zaxxon_coin_enable_w)
 	AM_RANGE(0xc003, 0xc004) AM_MIRROR(0x18f8) AM_WRITE(zaxxon_coin_counter_w)
 	AM_RANGE(0xc006, 0xc006) AM_MIRROR(0x18f8) AM_WRITE(zaxxon_flipscreen_w)
-	AM_RANGE(0xe03c, 0xe03c) AM_MIRROR(0x1f00) AM_DEVREADWRITE_LEGACY("usbsnd", sega_usb_status_r, sega_usb_data_w)
+	AM_RANGE(0xe03c, 0xe03c) AM_MIRROR(0x1f00) AM_DEVREADWRITE("usbsnd", usb_sound_device, status_r, data_w)
 	AM_RANGE(0xe0f0, 0xe0f0) AM_MIRROR(0x1f00) AM_WRITE(int_enable_w)
 	AM_RANGE(0xe0f1, 0xe0f1) AM_MIRROR(0x1f00) AM_WRITE(zaxxon_fg_color_w)
 	AM_RANGE(0xe0f8, 0xe0f9) AM_MIRROR(0x1f00) AM_WRITE(zaxxon_bg_position_w)
@@ -869,34 +869,6 @@ static INPUT_PORTS_START( congo )
 INPUT_PORTS_END
 
 
-
-/*************************************
- *
- * PPI8255 configurations
- *
- *************************************/
-
-static I8255A_INTERFACE( zaxxon_ppi_intf )
-{
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_DRIVER_MEMBER(zaxxon_state, zaxxon_sound_a_w),    /* Port A write */
-	DEVCB_NULL,                         /* Port B read */
-	DEVCB_DRIVER_MEMBER(zaxxon_state, zaxxon_sound_b_w),    /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_DRIVER_MEMBER(zaxxon_state, zaxxon_sound_c_w)     /* Port C write */
-};
-
-static I8255A_INTERFACE( congo_ppi_intf )
-{
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r),  /* Port A read */
-	DEVCB_NULL,                     /* Port A write */
-	DEVCB_NULL,                     /* Port B read */
-	DEVCB_DRIVER_MEMBER(zaxxon_state, congo_sound_b_w), /* Port B write */
-	DEVCB_NULL,                     /* Port C read */
-	DEVCB_DRIVER_MEMBER(zaxxon_state, congo_sound_c_w)  /* Port C write */
-};
-
-
 /*************************************
  *
  *  Graphics definitions
@@ -930,23 +902,6 @@ GFXDECODE_END
 
 /*************************************
  *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
-/*************************************
- *
  *  Machine driver
  *
  *************************************/
@@ -958,16 +913,20 @@ static MACHINE_CONFIG_START( root, zaxxon_state )
 	MCFG_CPU_PROGRAM_MAP(zaxxon_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", zaxxon_state,  vblank_int)
 
-
-	MCFG_I8255A_ADD( "ppi8255", zaxxon_ppi_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(zaxxon_state, zaxxon_sound_a_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(zaxxon_state, zaxxon_sound_b_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(zaxxon_state, zaxxon_sound_c_w))
 
 	/* video hardware */
-	MCFG_GFXDECODE(zaxxon)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", zaxxon)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(zaxxon_state, zaxxon)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(zaxxon_state, screen_update_zaxxon)
+	MCFG_SCREEN_PALETTE("palette")
 
 MACHINE_CONFIG_END
 
@@ -1006,7 +965,7 @@ static MACHINE_CONFIG_DERIVED( razmataz, root )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_FRAGMENT_ADD(sega_universal_sound_board_rom)
+	MCFG_SEGAUSBROM_ADD("usbsnd")
 MACHINE_CONFIG_END
 
 
@@ -1016,14 +975,20 @@ static MACHINE_CONFIG_DERIVED( congo, root )
 	MCFG_CPU_PROGRAM_MAP(congo_map)
 
 	MCFG_DEVICE_REMOVE("ppi8255")
-	MCFG_I8255A_ADD( "ppi8255", congo_ppi_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(driver_device, soundlatch_byte_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(zaxxon_state, congo_sound_b_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(zaxxon_state, congo_sound_c_w))
 
 	MCFG_CPU_ADD("audiocpu", Z80, SOUND_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(congo_sound_map)
 	MCFG_CPU_PERIODIC_INT_DRIVER(zaxxon_state, irq0_line_hold,  (double)SOUND_CLOCK/16/16/16/4)
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(512)
+	MCFG_PALETTE_INIT_OWNER(zaxxon_state, zaxxon)
+
 	MCFG_VIDEO_START_OVERRIDE(zaxxon_state,congo)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(zaxxon_state, screen_update_congo)
@@ -1033,11 +998,9 @@ static MACHINE_CONFIG_DERIVED( congo, root )
 
 	MCFG_SOUND_ADD("sn1", SN76496, SOUND_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76496, SOUND_CLOCK/4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_FRAGMENT_ADD(congo_samples)
 MACHINE_CONFIG_END

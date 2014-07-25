@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     Driver for Gaelco 3D games
@@ -7,9 +9,10 @@
 **************************************************************************/
 
 #include "sound/dmadac.h"
-#include "video/polynew.h"
+#include "video/poly.h"
 #include "machine/eepromser.h"
 #include "machine/gaelco3d.h"
+#include "cpu/adsp2100/adsp2100.h"
 
 #define SOUND_CHANNELS  4
 
@@ -63,7 +66,10 @@ public:
 		m_adsp(*this, "adsp"),
 		m_eeprom(*this, "eeprom"),
 		m_tms(*this, "tms"),
-		m_serial(*this, "serial") { }
+		m_serial(*this, "serial"),
+		m_screen(*this, "screen"),
+		m_paletteram16(*this, "paletteram"),
+		m_paletteram32(*this, "paletteram") { }
 
 	required_shared_ptr<UINT32> m_adsp_ram_base;
 	required_shared_ptr<UINT16> m_m68k_ram_base;
@@ -71,10 +77,14 @@ public:
 	required_shared_ptr<UINT16> m_adsp_control_regs;
 	required_shared_ptr<UINT16> m_adsp_fastram_base;
 	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_adsp;
+	required_device<adsp21xx_device> m_adsp;
 	required_device<eeprom_serial_93cxx_device> m_eeprom;
 	required_device<cpu_device> m_tms;
 	required_device<gaelco_serial_device> m_serial;
+	required_device<screen_device> m_screen;
+	optional_shared_ptr<UINT16> m_paletteram16;
+	optional_shared_ptr<UINT32> m_paletteram32;
+
 	UINT16 m_sound_data;
 	UINT8 m_sound_status;
 	offs_t m_tms_offset_xor;
@@ -132,4 +142,5 @@ public:
 	TIMER_CALLBACK_MEMBER(delayed_sound_w);
 	TIMER_DEVICE_CALLBACK_MEMBER(adsp_autobuffer_irq);
 	void gaelco3d_render(screen_device &screen);
+	DECLARE_WRITE32_MEMBER(adsp_tx_callback);
 };

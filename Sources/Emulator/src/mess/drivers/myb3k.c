@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     Matsushita / Panasonic My Brain 3000 / JB-3000
@@ -13,9 +15,7 @@
 #include "emu.h"
 #include "cpu/i86/i86.h"
 #include "video/mc6845.h"
-#include "machine/wd17xx.h"
-#include "imagedev/flopdrv.h"
-#include "formats/basicdsk.h"
+#include "machine/wd_fdc.h"
 
 class myb3k_state : public driver_device
 {
@@ -24,18 +24,23 @@ public:
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
 	m_fdc(*this, "fdc"),
-	m_crtc(*this, "crtc")
-	,
-		m_p_vram(*this, "p_vram"){ }
+	m_crtc(*this, "crtc"),
+	m_floppy0(*this, "fdc:0:8dsdd"),
+	m_floppy1(*this, "fdc:1:8dsdd"),
+	m_p_vram(*this, "p_vram"),
+	m_palette(*this, "palette") { }
 
 	required_device<cpu_device> m_maincpu;
-	required_device<mb8877_device> m_fdc;
+	required_device<mb8877_t> m_fdc;
 	required_device<mc6845_device> m_crtc;
+	required_device<floppy_image_device> m_floppy0;
+	required_device<floppy_image_device> m_floppy1;
 	DECLARE_WRITE8_MEMBER(myb3k_6845_address_w);
 	DECLARE_WRITE8_MEMBER(myb3k_6845_data_w);
 	DECLARE_WRITE8_MEMBER(myb3k_video_mode_w);
 	DECLARE_WRITE8_MEMBER(myb3k_fdc_output_w);
 	required_shared_ptr<UINT8> m_p_vram;
+	required_device<palette_device> m_palette;
 	UINT8 m_crtc_vreg[0x100],m_crtc_index;
 	UINT8 m_vmode;
 	virtual void machine_start();
@@ -91,7 +96,7 @@ UINT32 myb3k_state::screen_update_myb3k(screen_device &screen, bitmap_ind16 &bit
 						dot = 0;
 
 					if(y*mc6845_tile_height+yi < 200 && x*8+xi < 320) /* TODO: safety check */
-						bitmap.pix16(y*mc6845_tile_height+yi, x*8+xi) = machine().pens[dot];
+						bitmap.pix16(y*mc6845_tile_height+yi, x*8+xi) = m_palette->pen(dot);
 				}
 			}
 		}
@@ -118,15 +123,21 @@ WRITE8_MEMBER( myb3k_state::myb3k_video_mode_w )
 	/* ---- --xx horizontal step count (number of offsets of vram RAM data to skip, 64 >> n) */
 
 	m_vmode = data;
-}
 
+}
 WRITE8_MEMBER( myb3k_state::myb3k_fdc_output_w )
 {
 	/* TODO: complete guesswork! (it just does a 0x24 -> 0x20 in there) */
-	wd17xx_set_drive(m_fdc, data & 3);
-	floppy_mon_w(floppy_get_device(machine(), data & 3), !(data & 4) ? 1: 0);
-	floppy_drive_set_ready_state(floppy_get_device(machine(), data & 3), data & 0x4,0);
-	//wd17xx_set_side(m_fdc, (data & 0x10)>>4);
+	floppy_image_device *floppy = NULL;
+
+	if (data & 1) floppy = m_floppy0;
+	if (data & 2) floppy = m_floppy1;
+
+	if (floppy)
+	{
+		floppy->mon_w(!(data & 4) ? 1: 0);
+		floppy->ss_w((data & 0x10)>>4);
+	}
 }
 
 static ADDRESS_MAP_START(myb3k_map, AS_PROGRAM, 8, myb3k_state)
@@ -146,7 +157,7 @@ static ADDRESS_MAP_START(myb3k_io, AS_IO, 8, myb3k_state)
 	AM_RANGE(0x06, 0x06) AM_READ_PORT("DSW2")
 	AM_RANGE(0x1c, 0x1c) AM_WRITE(myb3k_6845_address_w)
 	AM_RANGE(0x1d, 0x1d) AM_WRITE(myb3k_6845_data_w)
-	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE_LEGACY("fdc",wd17xx_r,wd17xx_w) //FDC, almost likely wd17xx
+	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE("fdc", mb8877_t, read, write) //FDC, almost likely wd17xx
 	AM_RANGE(0x24, 0x24) AM_WRITE(myb3k_fdc_output_w)
 //  AM_RANGE(0x520,0x524) mirror of above
 ADDRESS_MAP_END
@@ -230,49 +241,16 @@ static GFXDECODE_START( myb3k )
 	GFXDECODE_ENTRY( "ipl", 0x0000, myb3k_charlayout, 0, 1 )
 GFXDECODE_END
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-
-static const wd17xx_interface myb3k_wd17xx_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	{FLOPPY_0, FLOPPY_1, NULL, NULL}
-};
-
-
-static const floppy_interface myb3k_floppy_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	FLOPPY_STANDARD_5_25_DSDD_40, //todo
-	LEGACY_FLOPPY_OPTIONS_NAME(default),
-	NULL,
-	NULL
-};
+static SLOT_INTERFACE_START( myb3k_floppies )
+	SLOT_INTERFACE( "525sssd", FLOPPY_525_SSSD )
+	SLOT_INTERFACE( "8dsdd", FLOPPY_8_DSDD )
+SLOT_INTERFACE_END
 
 static MACHINE_CONFIG_START( myb3k, myb3k_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", I8088, 4000000) /* unknown clock*/
 	MCFG_CPU_PROGRAM_MAP(myb3k_map)
 	MCFG_CPU_IO_MAP(myb3k_io)
-
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -281,14 +259,19 @@ static MACHINE_CONFIG_START( myb3k, myb3k_state )
 	MCFG_SCREEN_SIZE(320, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 200-1)
 	MCFG_SCREEN_UPDATE_DRIVER(myb3k_state, screen_update_myb3k)
-	MCFG_GFXDECODE(myb3k)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_PALETTE("palette")
 
-	/* Devices */
-	MCFG_MC6845_ADD("crtc", H46505, "screen", XTAL_3_579545MHz/4, mc6845_intf)    /* unknown clock, hand tuned to get ~60 fps */
-	MCFG_MB8877_ADD("fdc", myb3k_wd17xx_interface ) //unknown type
-	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(myb3k_floppy_interface)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", myb3k)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
+
+	/* devices */
+	MCFG_MC6845_ADD("crtc", H46505, "screen", XTAL_3_579545MHz/4)    /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+
+	MCFG_DEVICE_ADD("fdc", MB8877x, 2000000)    // unknown type
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", myb3k_floppies, "8dsdd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", myb3k_floppies, "8dsdd", floppy_image_device::default_floppy_formats)
 MACHINE_CONFIG_END
 
 /* ROM definition */

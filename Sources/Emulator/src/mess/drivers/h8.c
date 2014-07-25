@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
         Heathkit H8
@@ -47,6 +49,7 @@ TODO:
 #include "emu.h"
 #include "cpu/i8085/i8085.h"
 #include "machine/i8251.h"
+#include "machine/clock.h"
 #include "imagedev/cassette.h"
 #include "sound/beep.h"
 #include "sound/wave.h"
@@ -69,8 +72,8 @@ public:
 	DECLARE_WRITE8_MEMBER(portf1_w);
 	DECLARE_WRITE8_MEMBER(h8_status_callback);
 	DECLARE_WRITE_LINE_MEMBER(h8_inte_callback);
-	DECLARE_READ_LINE_MEMBER(rxdata_callback);
 	DECLARE_WRITE_LINE_MEMBER(txdata_callback);
+	DECLARE_WRITE_LINE_MEMBER(write_cassette_clock);
 	TIMER_DEVICE_CALLBACK_MEMBER(h8_irq_pulse);
 	TIMER_DEVICE_CALLBACK_MEMBER(h8_c);
 	TIMER_DEVICE_CALLBACK_MEMBER(h8_p);
@@ -81,6 +84,7 @@ private:
 	bool m_ff_b;
 	UINT8 m_cass_data[4];
 	bool m_cass_state;
+	bool m_cassold;
 	virtual void machine_reset();
 	required_device<cpu_device> m_maincpu;
 	required_device<i8251_device> m_uart;
@@ -217,7 +221,7 @@ void h8_state::machine_reset()
 	m_cass_state = 1;
 	m_cass_data[0] = 0;
 	m_cass_data[1] = 0;
-	m_cass_data[2] = 0;
+	m_uart->write_rxd(0);
 	m_cass_data[3] = 0;
 	m_ff_b = 1;
 }
@@ -260,34 +264,26 @@ But, all of this can only occur if bit 5 of port F0 is low. */
 	output_set_value("run_led", state);
 }
 
-READ_LINE_MEMBER( h8_state::rxdata_callback )
-{//printf("%X",m_cass_data[2]);
-	return (bool)m_cass_data[2];
-}
-
 WRITE_LINE_MEMBER( h8_state::txdata_callback )
 {
 	m_cass_state = state;
 }
 
-static const i8251_interface uart_intf =
+WRITE_LINE_MEMBER( h8_state::write_cassette_clock )
 {
-	DEVCB_DRIVER_LINE_MEMBER(h8_state,rxdata_callback), //rxd_cb
-	DEVCB_DRIVER_LINE_MEMBER(h8_state,txdata_callback), //txd_cb
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
+	m_uart->write_txc(state);
+	m_uart->write_rxc(state);
+}
 
 TIMER_DEVICE_CALLBACK_MEMBER(h8_state::h8_c)
 {
-	m_uart->receive_clock();
-	m_uart->transmit_clock();
 	m_cass_data[3]++;
+
+	if (m_cass_state != m_cassold)
+	{
+		m_cass_data[3] = 0;
+		m_cassold = m_cass_state;
+	}
 
 	if (m_cass_state)
 		m_cass->output(BIT(m_cass_data[3], 0) ? -1.0 : +1.0); // 2400Hz
@@ -304,20 +300,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(h8_state::h8_p)
 	if (cass_ws != m_cass_data[0])
 	{
 		m_cass_data[0] = cass_ws;
-		m_cass_data[2] = (m_cass_data[1] < 12) ? 1 : 0;
+		m_uart->write_rxd((m_cass_data[1] < 12) ? 1 : 0);
 		m_cass_data[1] = 0;
 	}
 }
-
-static const cassette_interface h8_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	//(cassette_state) (CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED),
-	(cassette_state) (CASSETTE_PLAY | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED),
-	"h8_cass",
-	NULL
-};
 
 static MACHINE_CONFIG_START( h8, h8_state )
 	/* basic machine hardware */
@@ -338,8 +324,16 @@ static MACHINE_CONFIG_START( h8, h8_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* Devices */
-	MCFG_I8251_ADD("uart", uart_intf)
-	MCFG_CASSETTE_ADD("cassette", h8_cassette_interface)
+	MCFG_DEVICE_ADD("uart", I8251, 0)
+	MCFG_I8251_TXD_HANDLER(WRITELINE(h8_state, txdata_callback))
+
+	MCFG_DEVICE_ADD("cassette_clock", CLOCK, 4800)
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(h8_state, write_cassette_clock))
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("h8_cass")
+
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("h8_c", h8_state, h8_c, attotime::from_hz(4800))
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("h8_p", h8_state, h8_p, attotime::from_hz(40000))
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("h8_timer", h8_state, h8_irq_pulse, attotime::from_hz(H8_IRQ_PULSE))

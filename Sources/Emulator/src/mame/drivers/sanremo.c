@@ -109,7 +109,8 @@ public:
 	sanremo_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 
@@ -121,9 +122,10 @@ public:
 	DECLARE_WRITE8_MEMBER(lamps_w);
 	int banksel;
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(sanremo);
 	UINT32 screen_update_sanremo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -144,12 +146,12 @@ TILE_GET_INFO_MEMBER(sanremo_state::get_sanremo_tile_info)
 	int code = m_videoram[tile_index];
 	int bank = m_attrram[tile_index];
 
-	SET_TILE_INFO_MEMBER( 0, code + bank * 256, 0, 0);
+	SET_TILE_INFO_MEMBER(0, code + bank * 256, 0, 0);
 }
 
 void sanremo_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sanremo_state::get_sanremo_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 48, 40);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sanremo_state::get_sanremo_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 48, 40);
 
 }
 
@@ -159,15 +161,15 @@ UINT32 sanremo_state::screen_update_sanremo(screen_device &screen, bitmap_ind16 
 	return 0;
 }
 
-void sanremo_state::palette_init()
+PALETTE_INIT_MEMBER(sanremo_state, sanremo)
 {
 	int index;
 
 	for (index = 0; index < 0x8; index++)
-		palette_entry_set_color(machine().palette, index, MAKE_RGB(pal1bit((index >> 0)&1), pal1bit((index >> 1)&1), pal1bit((index >> 2)&1)));
+		palette.set_pen_color(index, rgb_t(pal1bit((index >> 0)&1), pal1bit((index >> 1)&1), pal1bit((index >> 2)&1)));
 
 	for (index = 0x8; index < 0x10; index++)
-		palette_entry_set_color(machine().palette, index, MAKE_RGB(pal2bit((index >> 0)&1), pal2bit((index >> 1)&1), pal2bit((index >> 2)&1)));
+		palette.set_pen_color(index, rgb_t(pal2bit((index >> 0)&1), pal2bit((index >> 1)&1), pal2bit((index >> 2)&1)));
 }
 
 
@@ -331,48 +333,6 @@ static GFXDECODE_START( sanremo )
 GFXDECODE_END
 
 
-/********************************************
-*              CRTC Interface               *
-********************************************/
-
-
-static const mc6845_interface mc6845_intf =
-/*
-  *** MC6845 init ***
-
-  Register:   00    01    02    03    04    05    06    07    08    09    10    11    12    13    14    15    16    17
-  Value:     0x45  0x30  0x36  0x0A  0x28  0x00  0x26  0x27  0x00  0x07  0x20  0x0B  0x00  0x00  0x00  0x00  0x00  0x00.
-
-*/
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-
-/********************************************
-*             Sound Interface               *
-********************************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW"),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 /*********************************************
 *              Machine Drivers               *
 *********************************************/
@@ -394,16 +354,24 @@ static MACHINE_CONFIG_START( sanremo, sanremo_state )
 	MCFG_SCREEN_SIZE(70*8, 41*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 48*8-1, 0, 38*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(sanremo_state, screen_update_sanremo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", CRTC_CLOCK, mc6845_intf)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", CRTC_CLOCK)
+	// *** MC6845 init ***
+	//
+	// Register:   00    01    02    03    04    05    06    07    08    09    10    11    12    13    14    15    16    17
+	// Value:     0x45  0x30  0x36  0x0A  0x28  0x00  0x26  0x27  0x00  0x07  0x20  0x0B  0x00  0x00  0x00  0x00  0x00  0x00.
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
-	MCFG_GFXDECODE(sanremo)
-	MCFG_PALETTE_LENGTH(0x10)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sanremo)
+	MCFG_PALETTE_ADD("palette", 0x10)
+	MCFG_PALETTE_INIT_OWNER(sanremo_state, sanremo)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ay8910", AY8910, SND_CLOCK)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 MACHINE_CONFIG_END
 

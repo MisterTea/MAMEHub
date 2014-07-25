@@ -60,13 +60,6 @@
 // genf is a generic function pointer; cast function pointers to this instead of void *
 typedef void genf(void);
 
-// FPTR is used to cast a pointer to a scalar
-#ifdef PTR64
-typedef UINT64 FPTR;
-#else
-typedef UINT32 FPTR;
-#endif
-
 // pen_t is used to represent pixel values in bitmaps
 typedef UINT32 pen_t;
 
@@ -234,13 +227,6 @@ inline void operator--(_Type &value, int) { value = (_Type)((int)value - 1); }
 #endif
 
 
-// map mame_* helpers to core_* helpers */
-#define mame_stricmp        core_stricmp
-#define mame_strnicmp       core_strnicmp
-#define mame_strdup         core_strdup
-#define mame_strwildcmp     core_strwildcmp
-
-
 // macros to convert radians to degrees and degrees to radians
 #define RADIAN_TO_DEGREE(x)   ((180.0 / M_PI) * (x))
 #define DEGREE_TO_RADIAN(x)   ((M_PI / 180.0) * (x))
@@ -301,36 +287,64 @@ class emu_exception : public std::exception { };
 class emu_fatalerror : public emu_exception
 {
 public:
-	emu_fatalerror(const char *format, ...)
+	emu_fatalerror(const char *format, ...) ATTR_PRINTF(2,3)
 		: code(0)
 	{
-		va_list ap;
-		va_start(ap, format);
-		vsprintf(text, format, ap);
-		va_end(ap);
+		if (format == NULL)
+		{
+			text[0] = '\0';
+		}
+		else
+		{
+			va_list ap;
+			va_start(ap, format);
+			vsprintf(text, format, ap);
+			va_end(ap);
+		}
 		osd_break_into_debugger(text);
 	}
 
 	emu_fatalerror(const char *format, va_list ap)
 		: code(0)
 	{
-		vsprintf(text, format, ap);
+		if (format == NULL)
+		{
+			text[0] = '\0';
+		}
+		else
+		{
+			vsprintf(text, format, ap);
+		}
 		osd_break_into_debugger(text);
 	}
 
-	emu_fatalerror(int _exitcode, const char *format, ...)
+	emu_fatalerror(int _exitcode, const char *format, ...) ATTR_PRINTF(3,4)
 		: code(_exitcode)
 	{
-		va_list ap;
-		va_start(ap, format);
-		vsprintf(text, format, ap);
-		va_end(ap);
+		if (format == NULL)
+		{
+			text[0] = '\0';
+		}
+		else
+		{
+			va_list ap;
+			va_start(ap, format);
+			vsprintf(text, format, ap);
+			va_end(ap);
+		}
 	}
 
 	emu_fatalerror(int _exitcode, const char *format, va_list ap)
 		: code(_exitcode)
 	{
-		vsprintf(text, format, ap);
+		if (format == NULL)
+		{
+			text[0] = '\0';
+		}
+		else
+		{
+			vsprintf(text, format, ap);
+		}
 	}
 
 	const char *string() const { return text; }

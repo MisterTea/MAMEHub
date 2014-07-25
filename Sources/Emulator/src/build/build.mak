@@ -85,7 +85,8 @@ $(MAKEDEP_TARGET): $(MAKEDEPOBJS) $(LIBUTIL) $(LIBOCORE) $(ZLIB)
 MAKEMAKOBJS = \
 	$(BUILDOBJ)/makemak.o \
 
-$(MAKEMAK_TARGET): $(MAKEMAKOBJS) $(LIBUTIL) $(LIBOCORE) $(ZLIB)
+# TODO: 7z and flac - really?
+$(MAKEMAK_TARGET): $(MAKEMAKOBJS) $(LIBUTIL) $(LIBOCORE) $(ZLIB) $(FLAC_LIB) $(7Z_LIB)
 	@echo Linking $@...
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
@@ -98,7 +99,8 @@ $(MAKEMAK_TARGET): $(MAKEMAKOBJS) $(LIBUTIL) $(LIBOCORE) $(ZLIB)
 MAKELISTOBJS = \
 	$(BUILDOBJ)/makelist.o \
 
-$(MAKELIST_TARGET): $(MAKELISTOBJS) $(LIBUTIL) $(LIBOCORE) $(ZLIB)
+# TODO: 7z and flac - really?
+$(MAKELIST_TARGET): $(MAKELISTOBJS) $(LIBUTIL) $(LIBOCORE) $(ZLIB) $(FLAC_LIB) $(7Z_LIB)
 	@echo Linking $@...
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
@@ -128,4 +130,23 @@ $(VERINFO_TARGET): $(VERINFOOBJS) $(LIBOCORE)
 	@echo Linking $@...
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
-endif
+else
+#-------------------------------------------------
+# It's a CROSS_BUILD. Ensure the targets exist.
+#-------------------------------------------------
+$(FILE2STR_TARGET):
+	@echo $@ should be built natively. Nothing to do.
+
+$(MAKEDEP_TARGET):
+	@echo $@ should be built natively. Nothing to do.
+
+$(MAKELIST_TARGET):
+	@echo $@ should be built natively. Nothing to do.
+
+$(PNG2BDC_TARGET):
+	@echo $@ should be built natively. Nothing to do.
+
+$(VERINFO_TARGET):
+	@echo $@ should be built natively. Nothing to do.
+
+endif # CROSS_BUILD

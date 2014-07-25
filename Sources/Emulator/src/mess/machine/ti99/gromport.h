@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Michael Zapf
 /***************************************************************************
     Gromport of the TI-99 consoles
 
@@ -15,15 +17,6 @@
 
 extern const device_type GROMPORT;
 
-#define GROMPORT_CONFIG(name) \
-	const gromport_config(name) =
-
-struct gromport_config
-{
-	devcb_write_line    ready;
-	devcb_write_line    reset;
-};
-
 class ti99_cartridge_connector_device;
 
 class gromport_device : public bus8z_device, public device_slot_interface
@@ -32,11 +25,17 @@ public:
 	gromport_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	DECLARE_READ8Z_MEMBER(readz);
 	DECLARE_WRITE8_MEMBER(write);
-	void crureadz(offs_t offset, UINT8 *value);
-	void cruwrite(offs_t offset, UINT8 data);
+	DECLARE_READ8Z_MEMBER(crureadz);
+	DECLARE_WRITE8_MEMBER(cruwrite);
 	DECLARE_WRITE_LINE_MEMBER(ready_line);
 
+	template<class _Object> static devcb_base &static_set_ready_callback(device_t &device, _Object object)  { return downcast<gromport_device &>(device).m_console_ready.set_callback(object); }
+	template<class _Object> static devcb_base &static_set_reset_callback(device_t &device, _Object object) { return downcast<gromport_device &>(device).m_console_reset.set_callback(object); }
+
 	void    cartridge_inserted();
+	void    set_grom_base(UINT16 grombase, UINT16 grommask);
+	UINT16  get_grom_base() { return m_grombase; }
+	UINT16  get_grom_mask() { return m_grommask; }
 
 protected:
 	virtual void device_start();
@@ -46,17 +45,24 @@ protected:
 
 private:
 	ti99_cartridge_connector_device*    m_connector;
-	bool m_reset_on_insert;
-	devcb_resolved_write_line m_console_reset;
-	devcb_resolved_write_line m_console_ready;
+	bool                m_reset_on_insert;
+	devcb_write_line   m_console_ready;
+	devcb_write_line   m_console_reset;
+	UINT16              m_grombase;
+	UINT16              m_grommask;
 };
 
 SLOT_INTERFACE_EXTERN(gromport);
 
-#define MCFG_TI99_GROMPORT_ADD( _tag, _conf )   \
+#define MCFG_TI99_GROMPORT_ADD( _tag )   \
 	MCFG_DEVICE_ADD(_tag, GROMPORT, 0) \
-	MCFG_DEVICE_CONFIG(_conf)   \
 	MCFG_DEVICE_SLOT_INTERFACE(gromport, "single", false)
+
+#define MCFG_GROMPORT_READY_HANDLER( _ready ) \
+	devcb = &gromport_device::static_set_ready_callback( *device, DEVCB_##_ready );
+
+#define MCFG_GROMPORT_RESET_HANDLER( _reset ) \
+	devcb = &gromport_device::static_set_reset_callback( *device, DEVCB_##_reset );
 
 /****************************************************************************/
 
@@ -70,12 +76,15 @@ public:
 
 	DECLARE_READ8Z_MEMBER(readz);
 	DECLARE_WRITE8_MEMBER(write);
-	void    crureadz(offs_t offset, UINT8 *value);
-	void    cruwrite(offs_t offset, UINT8 data);
-	void    ready_line(int state);
+	DECLARE_READ8Z_MEMBER(crureadz);
+	DECLARE_WRITE8_MEMBER(cruwrite);
+
+	DECLARE_WRITE_LINE_MEMBER(ready_line);
 	bool    is_available() { return m_pcb != NULL; }
 	bool    has_grom();
 	void    set_slot(int i);
+	UINT16  grom_base();
+	UINT16  grom_mask();
 
 protected:
 	virtual void device_start() { };
@@ -86,7 +95,7 @@ protected:
 	// Image handling: implementation of methods which are abstract in the parent
 	bool call_load();
 	void call_unload();
-	bool call_softlist_load(char *swlist, char *swname, rom_entry *start_entry);
+	bool call_softlist_load(software_list_device &swlist, const char *swname, const rom_entry *start_entry);
 
 	void prepare_cartridge();
 
@@ -124,15 +133,20 @@ class ti99_cartridge_connector_device : public bus8z_device
 public:
 	virtual DECLARE_READ8Z_MEMBER(readz) =0;
 	virtual DECLARE_WRITE8_MEMBER(write) =0;
-	virtual void crureadz(offs_t offset, UINT8 *value) =0;
-	virtual void cruwrite(offs_t offset, UINT8 data) =0;
-	void ready_line(int state);
+	virtual DECLARE_READ8Z_MEMBER(crureadz) = 0;
+	virtual DECLARE_WRITE8_MEMBER(cruwrite) = 0;
+
+	DECLARE_WRITE_LINE_MEMBER(ready_line);
 
 	virtual void insert(int index, ti99_cartridge_device* cart) { m_gromport->cartridge_inserted(); };
 	virtual void remove(int index) { };
+	UINT16 grom_base();
+	UINT16 grom_mask();
 
 protected:
 	ti99_cartridge_connector_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
+	virtual void device_config_complete();
+
 	gromport_device*    m_gromport;
 };
 
@@ -146,14 +160,13 @@ public:
 
 	DECLARE_READ8Z_MEMBER(readz);
 	DECLARE_WRITE8_MEMBER(write);
-	void crureadz(offs_t offset, UINT8 *value);
-	void cruwrite(offs_t offset, UINT8 data);
+	DECLARE_READ8Z_MEMBER(crureadz);
+	DECLARE_WRITE8_MEMBER(cruwrite);
 
 protected:
-	virtual void device_start() { };
+	virtual void device_start();
 	virtual void device_reset();
 	virtual machine_config_constructor device_mconfig_additions() const;
-	virtual void device_config_complete();
 
 private:
 	ti99_cartridge_device *m_cartridge;
@@ -175,8 +188,8 @@ public:
 
 	DECLARE_READ8Z_MEMBER(readz);
 	DECLARE_WRITE8_MEMBER(write);
-	void crureadz(offs_t offset, UINT8 *value);
-	void cruwrite(offs_t offset, UINT8 data);
+	DECLARE_READ8Z_MEMBER(crureadz);
+	DECLARE_WRITE8_MEMBER(cruwrite);
 
 	void insert(int index, ti99_cartridge_device* cart);
 	void remove(int index);
@@ -208,8 +221,8 @@ public:
 
 	DECLARE_READ8Z_MEMBER(readz);
 	DECLARE_WRITE8_MEMBER(write);
-	void crureadz(offs_t offset, UINT8 *value);
-	void cruwrite(offs_t offset, UINT8 data);
+	DECLARE_READ8Z_MEMBER(crureadz);
+	DECLARE_WRITE8_MEMBER(cruwrite);
 
 	void insert(int index, ti99_cartridge_device* cart);
 	void remove(int index);
@@ -260,13 +273,17 @@ public:
 protected:
 	virtual DECLARE_READ8Z_MEMBER(readz);
 	virtual DECLARE_WRITE8_MEMBER(write);
-	virtual void    crureadz(offs_t offset, UINT8 *value);
-	virtual void    cruwrite(offs_t offset, UINT8 data);
+	virtual DECLARE_READ8Z_MEMBER(crureadz);
+	virtual DECLARE_WRITE8_MEMBER(cruwrite);
 
 	DECLARE_READ8Z_MEMBER(gromreadz);
 	DECLARE_WRITE8_MEMBER(gromwrite);
 	inline void         set_grom_pointer(int number, device_t *dev);
+	void                set_cartridge(ti99_cartridge_device *cart);
+	UINT16              grom_base();
+	UINT16              grom_mask();
 
+	ti99_cartridge_device*  m_cart;
 	ti99_grom_device*   m_grom[5];
 	int                 m_grom_size;
 	int                 m_rom_size;
@@ -318,8 +335,8 @@ public:
 	~ti99_super_cartridge() { };
 	DECLARE_READ8Z_MEMBER(readz);
 	DECLARE_WRITE8_MEMBER(write);
-	void    crureadz(offs_t offset, UINT8 *value);
-	void    cruwrite(offs_t offset, UINT8 data);
+	DECLARE_READ8Z_MEMBER(crureadz);
+	DECLARE_WRITE8_MEMBER(cruwrite);
 };
 
 /************************* MBX  ***************************************/
@@ -352,8 +369,8 @@ public:
 	~ti99_pagedcru_cartridge() { };
 	DECLARE_READ8Z_MEMBER(readz);
 	DECLARE_WRITE8_MEMBER(write);
-	void    crureadz(offs_t offset, UINT8 *value);
-	void    cruwrite(offs_t offset, UINT8 data);
+	DECLARE_READ8Z_MEMBER(crureadz);
+	DECLARE_WRITE8_MEMBER(cruwrite);
 };
 
 /********************** GROM emulation cartridge  ************************************/
@@ -389,22 +406,22 @@ class rpk_socket
 	friend class rpk;
 
 public:
-	rpk_socket(const char *id, int length, void *contents);
-	rpk_socket(const char *id, int length, void *contents, const char *pathname);
+	rpk_socket(const char *id, int length, UINT8 *contents);
+	rpk_socket(const char *id, int length, UINT8 *contents, const char *pathname);
 
 	const char*     id() { return m_id; }
 	int             get_content_length() { return m_length; }
-	void*           get_contents() { return m_contents; }
+	UINT8*          get_contents() { return m_contents; }
 	bool            persistent_ram() { return m_pathname != NULL; }
 	const char*     get_pathname() { return m_pathname; }
-	void            cleanup() { if (m_contents != NULL) free(m_contents); }
+	void            cleanup() { if (m_contents != NULL) global_free_array(m_contents); }
 
 private:
-	const char      *m_id;
+	const char*     m_id;
 	UINT32          m_length;
-	rpk_socket      *m_next;
-	void            *m_contents;
-	const char      *m_pathname;
+	rpk_socket*     m_next;
+	UINT8*          m_contents;
+	const char*     m_pathname;
 };
 
 class rpk_reader
@@ -430,7 +447,7 @@ public:
 	~rpk();
 
 	int         get_type(void) { return m_type; }
-	void*       get_contents_of_socket(const char *socket_name);
+	UINT8*      get_contents_of_socket(const char *socket_name);
 	int         get_resource_length(const char *socket_name);
 	void        close();
 
@@ -452,6 +469,7 @@ enum rpk_open_error
 	RPK_XML_ERROR,
 	RPK_INVALID_FILE_REF,
 	RPK_ZIP_ERROR,
+	RPK_ZIP_UNSUPPORTED,
 	RPK_MISSING_RAM_LENGTH,
 	RPK_INVALID_RAM_SPEC,
 	RPK_UNKNOWN_RESOURCE_TYPE,
@@ -462,7 +480,7 @@ enum rpk_open_error
 	RPK_UNKNOWN_PCB_TYPE
 };
 
-static const char error_text[15][30] =
+static const char error_text[16][30] =
 {
 	"No error",
 	"Not a RPK (zip) file",
@@ -471,6 +489,7 @@ static const char error_text[15][30] =
 	"XML format error",
 	"Invalid file reference",
 	"Zip file error",
+	"Unsupported zip version",
 	"Missing RAM length",
 	"Invalid RAM specification",
 	"Unknown resource type",

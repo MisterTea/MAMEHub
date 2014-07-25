@@ -74,8 +74,7 @@ TILE_GET_INFO_MEMBER(ddragon3_state::get_fg_tile_info)
 	tilebase =  &m_fg_videoram[tile_index*2];
 	tileno =  (tilebase[1] & 0x1fff);
 	colbank = (tilebase[0] & 0x000f);
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			tileno,
 			colbank,
 			TILE_FLIPYX((tilebase[0] & 0x00c0) >> 6));
@@ -103,8 +102,7 @@ TILE_GET_INFO_MEMBER(wwfwfest_state::get_fg0_tile_info)
 	tilebase =  &m_fg0_videoram[tile_index*2];
 	tileno =  (tilebase[0] & 0x00ff) | ((tilebase[1] & 0x000f) << 8);
 	colbank = (tilebase[1] & 0x00f0) >> 4;
-	SET_TILE_INFO_MEMBER(
-			3,
+	SET_TILE_INFO_MEMBER(3,
 			tileno,
 			colbank,
 			0);
@@ -130,8 +128,8 @@ void ddragon3_state::video_start()
 {
 	save_item(NAME(m_pri));
 
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ddragon3_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ddragon3_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ddragon3_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ddragon3_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 
 	m_bg_tilemap->set_transparent_pen(0);
 	m_fg_tilemap->set_transparent_pen(0);
@@ -145,7 +143,7 @@ void wwfwfest_state::video_start()
 	ddragon3_state::video_start();
 
 
-	m_fg0_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(wwfwfest_state::get_fg0_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8,64,32);
+	m_fg0_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(wwfwfest_state::get_fg0_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8,64,32);
 	m_fg0_tilemap->set_transparent_pen(0);
 
 }
@@ -184,7 +182,7 @@ void ddragon3_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 
 	UINT16 *buffered_spriteram16 = m_spriteram->buffer();
 	int length = m_spriteram->bytes();
-	gfx_element *gfx = machine().gfx[2];
+	gfx_element *gfx = m_gfxdecode->gfx(2);
 	UINT16 *source = buffered_spriteram16;
 	UINT16 *finish = source + length/2;
 
@@ -218,15 +216,15 @@ void ddragon3_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 			for (count=0;count<chain;count++) {
 				if (flip_screen()) {
 					if (!flipy) {
-						drawgfx_transpen(bitmap,cliprect,gfx,number+count,colourbank,flipx,flipy,xpos,ypos+(16*(chain-1))-(16*count),0);
+						gfx->transpen(bitmap,cliprect,number+count,colourbank,flipx,flipy,xpos,ypos+(16*(chain-1))-(16*count),0);
 					} else {
-						drawgfx_transpen(bitmap,cliprect,gfx,number+count,colourbank,flipx,flipy,xpos,ypos+16*count,0);
+						gfx->transpen(bitmap,cliprect,number+count,colourbank,flipx,flipy,xpos,ypos+16*count,0);
 					}
 				} else {
 					if (flipy) {
-						drawgfx_transpen(bitmap,cliprect,gfx,number+count,colourbank,flipx,flipy,xpos,ypos-(16*(chain-1))+(16*count),0);
+						gfx->transpen(bitmap,cliprect,number+count,colourbank,flipx,flipy,xpos,ypos-(16*(chain-1))+(16*count),0);
 					} else {
-						drawgfx_transpen(bitmap,cliprect,gfx,number+count,colourbank,flipx,flipy,xpos,ypos-16*count,0);
+						gfx->transpen(bitmap,cliprect,number+count,colourbank,flipx,flipy,xpos,ypos-16*count,0);
 					}
 				}
 			}

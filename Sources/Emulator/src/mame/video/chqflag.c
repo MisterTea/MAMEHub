@@ -16,13 +16,11 @@
 
 ***************************************************************************/
 
-void chqflag_sprite_callback( running_machine &machine, int *code, int *color, int *priority, int *shadow )
+K051960_CB_MEMBER(chqflag_state::sprite_callback)
 {
-	chqflag_state *state = machine.driver_data<chqflag_state>();
 	*priority = (*color & 0x10) >> 4;
-	*color = state->m_sprite_colorbase + (*color & 0x0f);
+	*color = m_sprite_colorbase + (*color & 0x0f);
 }
-
 
 /***************************************************************************
 
@@ -30,19 +28,17 @@ void chqflag_sprite_callback( running_machine &machine, int *code, int *color, i
 
 ***************************************************************************/
 
-void chqflag_zoom_callback_0( running_machine &machine, int *code, int *color, int *flags )
+K051316_CB_MEMBER(chqflag_state::zoom_callback_1)
 {
-	chqflag_state *state = machine.driver_data<chqflag_state>();
 	*code |= ((*color & 0x03) << 8);
-	*color = state->m_zoom_colorbase[0] + ((*color & 0x3c) >> 2);
+	*color = m_zoom_colorbase[0] + ((*color & 0x3c) >> 2);
 }
 
-void chqflag_zoom_callback_1( running_machine &machine, int *code, int *color, int *flags )
+K051316_CB_MEMBER(chqflag_state::zoom_callback_2)
 {
-	chqflag_state *state = machine.driver_data<chqflag_state>();
 	*flags = TILE_FLIPYX((*color & 0xc0) >> 6);
 	*code |= ((*color & 0x0f) << 8);
-	*color = state->m_zoom_colorbase[1] + ((*color & 0x10) >> 4);
+	*color = m_zoom_colorbase[1] + ((*color & 0x10) >> 4);
 }
 
 /***************************************************************************
@@ -53,8 +49,6 @@ void chqflag_zoom_callback_1( running_machine &machine, int *code, int *color, i
 
 void chqflag_state::video_start()
 {
-	m_generic_paletteram_8.allocate(0x800);
-
 	m_sprite_colorbase = 0;
 	m_zoom_colorbase[0] = 0x10;
 	m_zoom_colorbase[1] = 0x02;

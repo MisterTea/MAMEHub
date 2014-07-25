@@ -21,7 +21,9 @@ public:
 		m_colorram(*this, "colorram"),
 		m_videoram(*this, "videoram"),
 		m_eeprom(*this, "eeprom"),
-		m_msm(*this, "msm"){ }
+		m_msm(*this, "msm"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"){ }
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
@@ -34,13 +36,16 @@ public:
 
 	optional_device<eeprom_serial_93cxx_device> m_eeprom;
 	optional_device<msm5205_device> m_msm;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	/* video-related */
 	tilemap_t    *m_bg_tilemap;
-	UINT8      *m_objram;           /* Sprite RAM */
+	dynamic_array<UINT8> m_objram;           /* Sprite RAM */
 	int        m_flipscreen;
 	int        m_video_bank;
 	int        m_paletteram_bank;
+	dynamic_array<UINT8> m_paletteram;
 
 	/* sound-related */
 	int        m_sample_buffer;
@@ -80,8 +85,6 @@ public:
 	DECLARE_WRITE8_MEMBER(mstworld_gfxctrl_w);
 	DECLARE_WRITE8_MEMBER(pang_paletteram_w);
 	DECLARE_READ8_MEMBER(pang_paletteram_r);
-	DECLARE_WRITE8_MEMBER(mgakuen_paletteram_w);
-	DECLARE_READ8_MEMBER(mgakuen_paletteram_r);
 	DECLARE_WRITE8_MEMBER(eeprom_cs_w);
 	DECLARE_WRITE8_MEMBER(eeprom_clock_w);
 	DECLARE_WRITE8_MEMBER(eeprom_serial_w);

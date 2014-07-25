@@ -8,13 +8,19 @@ public:
 		m_videoram(*this, "videoram"),
 		m_s2636_0_ram(*this, "s2636_0_ram"),
 		m_maincpu(*this, "maincpu"),
-		m_s2636_sound(*this, "s2636snd") { }
+		m_s2636(*this, "s2636"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_s2636_0_ram;
 
 	required_device<cpu_device> m_maincpu;
-	required_device<s2636_device> m_s2636_sound;
+	required_device<s2636_device> m_s2636;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	bitmap_ind16 m_bitmap;
 	bitmap_ind16 m_spritebitmap;
@@ -28,7 +34,7 @@ public:
 	DECLARE_READ8_MEMBER(tinvader_port_0_r);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(zac2650);
 	UINT32 screen_update_tinvader(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	int SpriteCollision(int first,int second);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);

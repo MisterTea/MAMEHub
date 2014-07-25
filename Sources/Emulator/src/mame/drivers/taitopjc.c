@@ -54,36 +54,78 @@
    1.84320MHz osc
 */
 
+/*
+    PPC -> TLCS Commands:
+        0x5010:            ?                                        RTC?
+        0x5020:            ?                                        RTC?
+        0x6000:            ?                                        Backup RAM init?
+        0x6010:            ?                                        Backup RAM Read. Address in io_shared[0x1d00].
+        0x6020:            ?                                        Backup RAM Write. Address in io_shared[0x1d00].
+        0x6030:            ?                                        ?
+        0x6040:            ?                                        ?
+        0x4000:            ?                                        Sound?
+        0x4001:            ?
+        0x4002:            ?
+        0x4003:            ?
+        0x4004:            ?
+        0xf055:
+        0xf0ff:
+        0xf000:
+        0xf001:
+        0xf010:
+        0xf020:
+
+*/
+
 #include "emu.h"
 #include "cpu/powerpc/ppc.h"
 #include "cpu/tlcs900/tlcs900.h"
+#include "cpu/mn10200/mn10200.h"
+#include "machine/nvram.h"
+
+#define LOG_TLCS_TO_PPC_COMMANDS        1
+#define LOG_PPC_TO_TLCS_COMMANDS        1
+
 
 static UINT32 jc_char_ram[0x2000];
 static UINT32 jc_tile_ram[0x4000];
 //static UINT32 jc_pal_ram[0x8000];
 static UINT32 jc_screen_ram[0x10000];
 
-static UINT8 common_ram[0x2000];
-
 class taitopjc_state : public driver_device
 {
 public:
 	taitopjc_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_iocpu(*this, "iocpu"),
+		m_soundcpu(*this, "mn10200")
+	{ }
+
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_iocpu;
+	required_device<cpu_device> m_soundcpu;
 
 	DECLARE_READ64_MEMBER(video_r);
 	DECLARE_WRITE64_MEMBER(video_w);
 	DECLARE_READ64_MEMBER(ppc_common_r);
+	DECLARE_WRITE64_MEMBER(ppc_common_w);
 	DECLARE_READ64_MEMBER(dsp_r);
 	DECLARE_WRITE64_MEMBER(dsp_w);
 	DECLARE_READ8_MEMBER(tlcs_common_r);
 	DECLARE_WRITE8_MEMBER(tlcs_common_w);
 	DECLARE_READ8_MEMBER(tlcs_sound_r);
 	DECLARE_WRITE8_MEMBER(tlcs_sound_w);
+	DECLARE_WRITE16_MEMBER(tlcs_unk_w);
+	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_taitopjc(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	required_device<cpu_device> m_maincpu;
+	INTERRUPT_GEN_MEMBER(taitopjc_vbi);
+
+	DECLARE_DRIVER_INIT(optiger);
+
+	UINT16 m_dsp_ram[0x1000];
+	UINT16 m_io_share_ram[0x2000];
 };
 
 void taitopjc_state::video_start()
@@ -202,72 +244,66 @@ WRITE64_MEMBER(taitopjc_state::video_w)
 	}
 }
 
-/*
-static UINT16 com_ram[256] =
-{
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x434F, 0x4D4E, 0x4F4B, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,     // COMNOK
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x574F, 0x524B, 0x4F4B, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,     // WORKOK
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-    0x5355, 0x4E44, 0x4F4B, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,     // SUNDOK
-    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-};
-*/
-
 READ64_MEMBER(taitopjc_state::ppc_common_r)
 {
 	UINT64 r = 0;
 	UINT32 address;
 
-	logerror("com_r: %08X, %08X%08X\n", offset, (UINT32)(mem_mask >> 32), (UINT32)(mem_mask));
+	//logerror("ppc_common_r: %08X, %08X%08X\n", offset, (UINT32)(mem_mask >> 32), (UINT32)(mem_mask));
 
-	address = offset * 4;
+	address = offset * 2;
 
 	if (ACCESSING_BITS_48_63)
 	{
-		r |= (UINT64)(common_ram[address]) << 48;
-		r |= (UINT64)(common_ram[address+1]) << 56;
+		r |= (UINT64)(m_io_share_ram[address]) << 48;
 	}
 	if (ACCESSING_BITS_16_31)
 	{
-		r |= (UINT64)(common_ram[address+2]) << 16;
-		r |= (UINT64)(common_ram[address+3]) << 24;
+		r |= (UINT64)(m_io_share_ram[address+1]) << 16;
 	}
 
-	/*
-	if (offset < 0x7f)
-	{
-	    int reg = (offset & 0x7f) * 2;
-
-	    if (!(mem_mask & U64(0xffff000000000000)))
-	    {
-	        r |= (UINT64)(com_ram[reg + 0]) << 48;
-	    }
-	    if (!(mem_mask & U64(0x00000000ffff0000)))
-	    {
-	        r |= (UINT64)(com_ram[reg + 1]) << 16;
-	    }
-	}
-	*/
 	return r;
 }
 
-static UINT32 dsp_value = 0x4f4b0000;
+WRITE64_MEMBER(taitopjc_state::ppc_common_w)
+{
+	UINT32 address = offset * 2;
 
-static UINT16 dsp_ram[0x1000];
+//  logerror("ppc_common_w: %08X, %I64X, %I64X\n", offset, data, mem_mask);
+
+	if (ACCESSING_BITS_48_63)
+	{
+		m_io_share_ram[address] = (UINT16)(data >> 48);
+	}
+	if (ACCESSING_BITS_16_31)
+	{
+		m_io_share_ram[address+1] = (UINT16)(data >> 16);
+	}
+
+	if (offset == 0x7ff && ACCESSING_BITS_48_63)
+	{
+#if LOG_PPC_TO_TLCS_COMMANDS
+		printf("PPC -> TLCS cmd %04X\n", m_io_share_ram[0xfff]);
+#endif
+
+		m_iocpu->set_input_line(TLCS900_INT6, ASSERT_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+	}
+}
 
 READ64_MEMBER(taitopjc_state::dsp_r)
 {
 	UINT64 r = 0;
 
-	if (offset == 0x7fe)
+	if (ACCESSING_BITS_48_63)
 	{
-		if (!(mem_mask & U64(0xffffffff00000000)))
-		{
-			r |= (UINT64)(dsp_value) << 32;
-		}
+		int addr = offset * 2;
+		r |= (UINT64)(m_dsp_ram[addr+0]) << 48;
+	}
+	if (ACCESSING_BITS_16_31)
+	{
+		int addr = offset * 2;
+		r |= (UINT64)(m_dsp_ram[addr+1]) << 16;
 	}
 
 	return r;
@@ -275,15 +311,15 @@ READ64_MEMBER(taitopjc_state::dsp_r)
 
 WRITE64_MEMBER(taitopjc_state::dsp_w)
 {
-	logerror("dsp_w: %08X, %08X%08X, %08X%08X\n", offset, (UINT32)(data >> 32), (UINT32)(data), (UINT32)(mem_mask >> 32), (UINT32)(mem_mask));
+	printf("dsp_w: %08X, %08X%08X, %08X%08X\n", offset, (UINT32)(data >> 32), (UINT32)(data), (UINT32)(mem_mask >> 32), (UINT32)(mem_mask));
+
+	if (offset != 0x7fe)
+	{
+		logerror("dsp_w: %08X, %08X%08X, %08X%08X\n", offset, (UINT32)(data >> 32), (UINT32)(data), (UINT32)(mem_mask >> 32), (UINT32)(mem_mask));
+	}
 
 	if (offset == 0x7fe)
 	{
-		if (!(mem_mask & U64(0xffffffff00000000)))
-		{
-			dsp_value = data >> 32;
-		}
-
 		#if 0
 		{
 			int i;
@@ -298,15 +334,34 @@ WRITE64_MEMBER(taitopjc_state::dsp_w)
 		#endif
 	}
 
-	if (!(mem_mask & U64(0xffff000000000000)))
+	if (ACCESSING_BITS_48_63)
 	{
 		int addr = offset * 2;
-		dsp_ram[addr+0] = (data >> 48) & 0xffff;
+		m_dsp_ram[addr+0] = (data >> 48) & 0xffff;
 	}
-	if (!(mem_mask & U64(0x00000000ffff0000)))
+	if (ACCESSING_BITS_16_31)
 	{
 		int addr = offset * 2;
-		dsp_ram[addr+1] = (data >> 16) & 0xffff;
+		m_dsp_ram[addr+1] = (data >> 16) & 0xffff;
+	}
+
+
+
+	if (offset == 0x7fe && ACCESSING_BITS_48_63)
+	{
+		UINT16 w = data >> 48;
+		if (w == 0x4450)
+		{
+			m_dsp_ram[0xffc] = 0;
+		}
+		else if (w == 0x4558)
+		{
+			m_dsp_ram[0xffc] = 0;
+		}
+		else if (w == 0x5349)
+		{
+			m_dsp_ram[0xffc] = 0;
+		}
 	}
 }
 
@@ -324,7 +379,7 @@ static ADDRESS_MAP_START( ppc603e_mem, AS_PROGRAM, 64, taitopjc_state )
 	AM_RANGE(0x00000000, 0x003fffff) AM_RAM // Work RAM
 	AM_RANGE(0x40000000, 0x4000000f) AM_READWRITE(video_r, video_w)
 	AM_RANGE(0x80000000, 0x80003fff) AM_READWRITE(dsp_r, dsp_w)
-	AM_RANGE(0xc0000000, 0xc000ffff) AM_READ(ppc_common_r)
+	AM_RANGE(0xc0000000, 0xc0003fff) AM_READWRITE(ppc_common_r, ppc_common_w)
 	AM_RANGE(0xff000000, 0xff01ffff) AM_ROM AM_REGION("user2", 0)
 	AM_RANGE(0xffe00000, 0xffffffff) AM_ROM AM_REGION("user1", 0)
 ADDRESS_MAP_END
@@ -334,14 +389,43 @@ ADDRESS_MAP_END
 
 READ8_MEMBER(taitopjc_state::tlcs_common_r)
 {
-	return common_ram[offset];
+	if (offset & 1)
+	{
+		return (UINT8)(m_io_share_ram[offset / 2] >> 8);
+	}
+	else
+	{
+		return (UINT8)(m_io_share_ram[offset / 2]);
+	}
 }
 
 WRITE8_MEMBER(taitopjc_state::tlcs_common_w)
 {
-//  printf("tlcs_common_w: %08X, %02X\n", offset, data);
+	if (offset & 1)
+	{
+		m_io_share_ram[offset / 2] &= 0x00ff;
+		m_io_share_ram[offset / 2] |= (UINT16)(data) << 8;
+	}
+	else
+	{
+		m_io_share_ram[offset / 2] &= 0xff00;
+		m_io_share_ram[offset / 2] |= data;
+	}
 
-	common_ram[offset] = data;
+	if (offset == 0x1fff)
+	{
+		m_iocpu->set_input_line(TLCS900_INT6, CLEAR_LINE);
+	}
+
+	if (offset == 0x1ffd)
+	{
+#if LOG_TLCS_TO_PPC_COMMANDS
+		printf("TLCS -> PPC cmd %04X\n", m_io_share_ram[0xffe]);
+#endif
+
+		m_iocpu->set_input_line(TLCS900_INT1, CLEAR_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+	}
 }
 
 READ8_MEMBER(taitopjc_state::tlcs_sound_r)
@@ -357,6 +441,15 @@ READ8_MEMBER(taitopjc_state::tlcs_sound_r)
 WRITE8_MEMBER(taitopjc_state::tlcs_sound_w)
 {
 //  printf("tlcs_sound_w: %08X, %02X\n", offset, data);
+}
+
+WRITE16_MEMBER(taitopjc_state::tlcs_unk_w)
+{
+	if (offset == 0xc/2)
+	{
+		int reset = (data & 0x4) ? ASSERT_LINE : CLEAR_LINE;
+		m_maincpu->set_input_line(INPUT_LINE_RESET, reset);
+	}
 }
 
 // TLCS900 interrupt vectors
@@ -379,37 +472,56 @@ WRITE8_MEMBER(taitopjc_state::tlcs_sound_w)
 static ADDRESS_MAP_START( tlcs900h_mem, AS_PROGRAM, 16, taitopjc_state )
 	AM_RANGE(0x010000, 0x02ffff) AM_RAM     // Work RAM
 	AM_RANGE(0x040000, 0x0400ff) AM_READWRITE8(tlcs_sound_r, tlcs_sound_w, 0xffff)
+	AM_RANGE(0x044000, 0x045fff) AM_RAM AM_SHARE("nvram")
 	AM_RANGE(0x060000, 0x061fff) AM_READWRITE8(tlcs_common_r, tlcs_common_w, 0xffff)
+	AM_RANGE(0x06c000, 0x06c00f) AM_WRITE(tlcs_unk_w)
 	AM_RANGE(0xfc0000, 0xffffff) AM_ROM AM_REGION("io_cpu", 0)
 ADDRESS_MAP_END
 
+ADDRESS_MAP_START( mn10200_map, AS_PROGRAM, 16, driver_device )
+	AM_RANGE(0x080000, 0x0fffff) AM_ROM AM_REGION("mn10200", 0)
+ADDRESS_MAP_END
 
 
 static INPUT_PORTS_START( taitopjc )
 INPUT_PORTS_END
 
 
-static const powerpc_config ppc603e_config =
+void taitopjc_state::machine_reset()
 {
-	XTAL_66_6667MHz,        /* Multiplier 1.5, Bus = 66MHz, Core = 100MHz */
-	NULL,
-	NULL
-};
+	// halt sound CPU since we don't emulate this yet
+	m_soundcpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+
+	m_maincpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+
+	m_dsp_ram[0x0ffc] = 0x4f4b;
+}
+
+
+INTERRUPT_GEN_MEMBER(taitopjc_state::taitopjc_vbi)
+{
+	m_iocpu->set_input_line(TLCS900_INT1, ASSERT_LINE);
+}
 
 
 static MACHINE_CONFIG_START( taitopjc, taitopjc_state )
 	MCFG_CPU_ADD("maincpu", PPC603E, 100000000)
-	MCFG_CPU_CONFIG(ppc603e_config)
+	MCFG_PPC_BUS_FREQUENCY(XTAL_66_6667MHz)    /* Multiplier 1.5, Bus = 66MHz, Core = 100MHz */
 	MCFG_CPU_PROGRAM_MAP(ppc603e_mem)
 
 	/* TMP95C063F I/O CPU */
 	MCFG_CPU_ADD("iocpu", TMP95C063, 25000000)
 	MCFG_CPU_PROGRAM_MAP(tlcs900h_mem)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", taitopjc_state,  taitopjc_vbi)
 
 	/* TMS320C53 DSP */
-	/* MN1020819DA sound CPU - NOTE: May have 64kB internal ROM */
+
+	MCFG_CPU_ADD("mn10200", MN1020012A, 10000000) /* MN1020819DA sound CPU - NOTE: May have 64kB internal ROM */
+	MCFG_CPU_PROGRAM_MAP(mn10200_map)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
+
+	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -419,6 +531,16 @@ static MACHINE_CONFIG_START( taitopjc, taitopjc_state )
 	MCFG_SCREEN_UPDATE_DRIVER(taitopjc_state, screen_update_taitopjc)
 
 MACHINE_CONFIG_END
+
+
+DRIVER_INIT_MEMBER(taitopjc_state, optiger)
+{
+	UINT8 *rom = (UINT8*)memregion("io_cpu")->base();
+
+	// skip sound check
+	rom[0x217] = 0x00;
+	rom[0x218] = 0x00;
+}
 
 
 ROM_START( optiger )
@@ -437,7 +559,7 @@ ROM_START( optiger )
 	ROM_LOAD16_BYTE( "e63-28-1_0.59", 0x000000, 0x020000, CRC(ef41ffaf) SHA1(419621f354f548180d37961b861304c469e43a65) )
 	ROM_LOAD16_BYTE( "e63-27-1_1.58", 0x000001, 0x020000, CRC(facc17a7) SHA1(40d69840cfcfe5a509d69824c2994de56a3c6ece) )
 
-	ROM_REGION( 0x80000, "unk1", 0 )
+	ROM_REGION( 0x80000, "mn10200", 0 )
 	ROM_LOAD16_BYTE( "e63-17-1_s-l.18", 0x000000, 0x040000, CRC(2a063d5b) SHA1(a2b2fe4d8bad1aef7d9dcc0be607cc4e5bc4f0eb) )
 	ROM_LOAD16_BYTE( "e63-18-1_s-h.19", 0x000001, 0x040000, CRC(2f590881) SHA1(7fb827a676f45b24380558b0068b76cb858314f6) )
 
@@ -463,4 +585,4 @@ ROM_START( optiger )
 	// TODO: There are 6 PALs in total on the main PCB.
 ROM_END
 
-GAME( 1998, optiger, 0, taitopjc, taitopjc, driver_device, 0, ROT0, "Taito", "Operation Tiger", GAME_NOT_WORKING | GAME_NO_SOUND )
+GAME( 1998, optiger, 0, taitopjc, taitopjc, taitopjc_state, optiger, ROT0, "Taito", "Operation Tiger", GAME_NOT_WORKING | GAME_NO_SOUND )

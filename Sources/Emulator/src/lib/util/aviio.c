@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     aviio.c
 
     AVI movie format parsing helpers.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -399,9 +370,15 @@ INLINE avi_error set_stream_chunk_info(avi_stream *stream, UINT32 index, UINT64 
 	if (index >= stream->chunksalloc)
 	{
 		UINT32 newcount = MAX(index, stream->chunksalloc + 1000);
-		stream->chunk = (avi_chunk_list *)realloc(stream->chunk, newcount * sizeof(stream->chunk[0]));
-		if (stream->chunk == NULL)
+		avi_chunk_list *newchunks = (avi_chunk_list *)malloc(newcount * sizeof(stream->chunk[0]));
+		if (newchunks == NULL)
 			return AVIERR_NO_MEMORY;
+		if (stream->chunk != NULL)
+		{
+			memcpy(newchunks, stream->chunk, stream->chunksalloc * sizeof(stream->chunk[0]));
+			free(stream->chunk);
+		}
+		stream->chunk = newchunks;
 		stream->chunksalloc = newcount;
 	}
 
@@ -475,9 +452,12 @@ INLINE avi_error expand_tempbuffer(avi_file *file, UINT32 length)
 	if (length > file->tempbuffersize)
 	{
 		file->tempbuffersize = 2 * length;
-		file->tempbuffer = (UINT8 *)realloc(file->tempbuffer, file->tempbuffersize);
-		if (file->tempbuffer == NULL)
+		UINT8 *newbuffer = (UINT8 *)malloc(file->tempbuffersize);
+		if (newbuffer == NULL)
 			return AVIERR_NO_MEMORY;
+		if (file->tempbuffer != NULL)
+			free(file->tempbuffer);
+		file->tempbuffer = newbuffer;
 	}
 	return AVIERR_NONE;
 }
@@ -2356,10 +2336,10 @@ static avi_error rgb32_compress_to_rgb(avi_stream *stream, const bitmap_rgb32 &b
 
 		for (x = 0; x < width && dest < dataend; x++)
 		{
-			UINT32 pix = *source++;
-			*dest++ = RGB_BLUE(pix);
-			*dest++ = RGB_GREEN(pix);
-			*dest++ = RGB_RED(pix);
+			rgb_t pix = *source++;
+			*dest++ = pix.b();
+			*dest++ = pix.g();
+			*dest++ = pix.r();
 		}
 
 		/* fill in any blank space on the right */

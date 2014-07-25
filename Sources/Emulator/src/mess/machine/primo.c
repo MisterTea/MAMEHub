@@ -15,7 +15,7 @@
 
 /* Components */
 #include "cpu/z80/z80.h"
-#include "machine/cbmiec.h"
+#include "bus/cbmiec/cbmiec.h"
 #include "sound/speaker.h"
 
 /* Devices */
@@ -82,7 +82,7 @@ READ8_MEMBER(primo_state::primo_be_1_r)
 	// bit 7, 6 - not used
 
 	// bit 5 - VBLANK
-	data |= (machine().primary_screen->vblank()) ? 0x20 : 0x00;
+	data |= (machine().first_screen()->vblank()) ? 0x20 : 0x00;
 
 	// bit 4 - I4 (external bus)
 
@@ -299,26 +299,20 @@ void primo_state::primo_setup_pss (UINT8* snapshot_data, UINT32 snapshot_size)
 
 SNAPSHOT_LOAD_MEMBER( primo_state, primo )
 {
-	UINT8 *snapshot_data;
+	dynamic_buffer snapshot_data(snapshot_size);
 
-	if (!(snapshot_data = (UINT8*) malloc(snapshot_size)))
-		return IMAGE_INIT_FAIL;
-
-	if (image.fread( snapshot_data, snapshot_size) != snapshot_size)
+	if (image.fread(snapshot_data, snapshot_size) != snapshot_size)
 	{
-		free(snapshot_data);
 		return IMAGE_INIT_FAIL;
 	}
 
-	if (strncmp((char *)snapshot_data, "PS01", 4))
+	if (strncmp((char *)(UINT8 *)snapshot_data, "PS01", 4))
 	{
-		free(snapshot_data);
 		return IMAGE_INIT_FAIL;
 	}
 
 	primo_setup_pss(snapshot_data, snapshot_size);
 
-	free(snapshot_data);
 	return IMAGE_INIT_PASS;
 }
 
@@ -332,7 +326,6 @@ SNAPSHOT_LOAD_MEMBER( primo_state, primo )
 void primo_state::primo_setup_pp (UINT8* quickload_data, UINT32 quickload_size)
 {
 	int i;
-
 
 	UINT16 load_addr;
 	UINT16 start_addr;
@@ -350,19 +343,14 @@ void primo_state::primo_setup_pp (UINT8* quickload_data, UINT32 quickload_size)
 
 QUICKLOAD_LOAD_MEMBER( primo_state, primo )
 {
-	UINT8 *quickload_data;
+	dynamic_buffer quickload_data(quickload_size);
 
-	if (!(quickload_data = (UINT8*) malloc(quickload_size)))
-		return IMAGE_INIT_FAIL;
-
-	if (image.fread( quickload_data, quickload_size) != quickload_size)
+	if (image.fread(quickload_data, quickload_size) != quickload_size)
 	{
-		free(quickload_data);
 		return IMAGE_INIT_FAIL;
 	}
 
 	primo_setup_pp(quickload_data, quickload_size);
 
-	free(quickload_data);
 	return IMAGE_INIT_PASS;
 }

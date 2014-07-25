@@ -9,28 +9,26 @@ Atari Ultra Tank video emulation
 #include "audio/sprint4.h"
 
 
-void ultratnk_state::palette_init()
+PALETTE_INIT_MEMBER(ultratnk_state, ultratnk)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 4);
 
-	colortable_palette_set_color(machine().colortable, 0, MAKE_RGB(0x00, 0x00, 0x00));
-	colortable_palette_set_color(machine().colortable, 1, MAKE_RGB(0xa4, 0xa4, 0xa4));
-	colortable_palette_set_color(machine().colortable, 2, MAKE_RGB(0x5b, 0x5b, 0x5b));
-	colortable_palette_set_color(machine().colortable, 3, MAKE_RGB(0xff, 0xff, 0xff));
+	palette.set_indirect_color(0, rgb_t(0x00, 0x00, 0x00));
+	palette.set_indirect_color(1, rgb_t(0xa4, 0xa4, 0xa4));
+	palette.set_indirect_color(2, rgb_t(0x5b, 0x5b, 0x5b));
+	palette.set_indirect_color(3, rgb_t(0xff, 0xff, 0xff));
 
-	colortable_entry_set_value(machine().colortable, 0, color_prom[0x00] & 3);
-	colortable_entry_set_value(machine().colortable, 2, color_prom[0x00] & 3);
-	colortable_entry_set_value(machine().colortable, 4, color_prom[0x00] & 3);
-	colortable_entry_set_value(machine().colortable, 6, color_prom[0x00] & 3);
-	colortable_entry_set_value(machine().colortable, 8, color_prom[0x00] & 3);
+	palette.set_pen_indirect(0, color_prom[0x00] & 3);
+	palette.set_pen_indirect(2, color_prom[0x00] & 3);
+	palette.set_pen_indirect(4, color_prom[0x00] & 3);
+	palette.set_pen_indirect(6, color_prom[0x00] & 3);
+	palette.set_pen_indirect(8, color_prom[0x00] & 3);
 
-	colortable_entry_set_value(machine().colortable, 1, color_prom[0x01] & 3);
-	colortable_entry_set_value(machine().colortable, 3, color_prom[0x02] & 3);
-	colortable_entry_set_value(machine().colortable, 5, color_prom[0x04] & 3);
-	colortable_entry_set_value(machine().colortable, 7, color_prom[0x08] & 3);
-	colortable_entry_set_value(machine().colortable, 9, color_prom[0x10] & 3);
+	palette.set_pen_indirect(1, color_prom[0x01] & 3);
+	palette.set_pen_indirect(3, color_prom[0x02] & 3);
+	palette.set_pen_indirect(5, color_prom[0x04] & 3);
+	palette.set_pen_indirect(7, color_prom[0x08] & 3);
+	palette.set_pen_indirect(9, color_prom[0x10] & 3);
 }
 
 
@@ -50,7 +48,7 @@ void ultratnk_state::video_start()
 {
 	m_screen->register_screen_bitmap(m_helper);
 
-	m_playfield = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ultratnk_state::ultratnk_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_playfield = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ultratnk_state::ultratnk_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 
@@ -75,7 +73,7 @@ UINT32 ultratnk_state::screen_update_ultratnk(screen_device &screen, bitmap_ind1
 
 		if (!(attr & 0x80))
 		{
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				(code >> 3) | bank,
 				i,
 				0, 0,
@@ -94,7 +92,7 @@ void ultratnk_state::screen_eof_ultratnk(screen_device &screen, bool state)
 	if (state)
 	{
 		int i;
-		UINT16 BG = colortable_entry_get_value(machine().colortable, 0);
+		UINT16 BG = m_palette->pen_indirect(0);
 		UINT8 *videoram = m_videoram;
 
 		/* check for sprite-playfield collisions */
@@ -114,8 +112,8 @@ void ultratnk_state::screen_eof_ultratnk(screen_device &screen, bool state)
 
 			rect.min_x = horz - 15;
 			rect.min_y = vert - 15;
-			rect.max_x = horz - 15 + machine().gfx[1]->width() - 1;
-			rect.max_y = vert - 15 + machine().gfx[1]->height() - 1;
+			rect.max_x = horz - 15 + m_gfxdecode->gfx(1)->width() - 1;
+			rect.max_y = vert - 15 + m_gfxdecode->gfx(1)->height() - 1;
 
 			rect &= m_screen->visible_area();
 
@@ -124,7 +122,7 @@ void ultratnk_state::screen_eof_ultratnk(screen_device &screen, bool state)
 			if (code & 4)
 				bank = 32;
 
-			drawgfx_transpen(m_helper, rect, machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(m_helper,rect,
 				(code >> 3) | bank,
 				4,
 				0, 0,
@@ -133,15 +131,15 @@ void ultratnk_state::screen_eof_ultratnk(screen_device &screen, bool state)
 
 			for (y = rect.min_y; y <= rect.max_y; y++)
 				for (x = rect.min_x; x <= rect.max_x; x++)
-					if (colortable_entry_get_value(machine().colortable, m_helper.pix16(y, x)) != BG)
+					if (m_palette->pen_indirect(m_helper.pix16(y, x)) != BG)
 						m_collision[i] = 1;
 		}
 
 		/* update sound status */
 
 		address_space &space = machine().driver_data()->generic_space();
-		discrete_sound_w(m_discrete, space, ULTRATNK_MOTOR_DATA_1, videoram[0x391] & 15);
-		discrete_sound_w(m_discrete, space, ULTRATNK_MOTOR_DATA_2, videoram[0x393] & 15);
+		m_discrete->write(space, ULTRATNK_MOTOR_DATA_1, videoram[0x391] & 15);
+		m_discrete->write(space, ULTRATNK_MOTOR_DATA_2, videoram[0x393] & 15);
 	}
 }
 

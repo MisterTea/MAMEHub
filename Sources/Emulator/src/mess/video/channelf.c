@@ -2,14 +2,14 @@
 
 static const rgb_t channelf_palette[] =
 {
-	MAKE_RGB(0x10, 0x10, 0x10), /* black */
-	MAKE_RGB(0xfd, 0xfd, 0xfd), /* white */
-	MAKE_RGB(0xff, 0x31, 0x53), /* red   */
-	MAKE_RGB(0x02, 0xcc, 0x5d), /* green */
-	MAKE_RGB(0x4b, 0x3f, 0xf3), /* blue  */
-	MAKE_RGB(0xe0, 0xe0, 0xe0), /* ltgray  */
-	MAKE_RGB(0x91, 0xff, 0xa6), /* ltgreen */
-	MAKE_RGB(0xce, 0xd0, 0xff)  /* ltblue  */
+	rgb_t(0x10, 0x10, 0x10), /* black */
+	rgb_t(0xfd, 0xfd, 0xfd), /* white */
+	rgb_t(0xff, 0x31, 0x53), /* red   */
+	rgb_t(0x02, 0xcc, 0x5d), /* green */
+	rgb_t(0x4b, 0x3f, 0xf3), /* blue  */
+	rgb_t(0xe0, 0xe0, 0xe0), /* ltgray  */
+	rgb_t(0x91, 0xff, 0xa6), /* ltgreen */
+	rgb_t(0xce, 0xd0, 0xff)  /* ltblue  */
 };
 
 #define BLACK   0
@@ -29,9 +29,9 @@ static const UINT16 colormap[] = {
 };
 
 /* Initialise the palette */
-void channelf_state::palette_init()
+PALETTE_INIT_MEMBER(channelf_state, channelf)
 {
-	palette_set_colors(machine(), 0, channelf_palette, ARRAY_LENGTH(channelf_palette));
+	palette.set_pen_colors(0, channelf_palette, ARRAY_LENGTH(channelf_palette));
 }
 
 void channelf_state::video_start()

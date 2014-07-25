@@ -16,7 +16,9 @@ public:
 		m_status_vram(*this, "status_vram"),
 		m_vreg(*this, "vreg"),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu"){ }
+		m_audiocpu(*this, "audiocpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_sprite_xpos;
@@ -37,6 +39,9 @@ public:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(mnchmobl_nmi_enable_w);
 	DECLARE_WRITE8_MEMBER(mnchmobl_soundlatch_w);
 	DECLARE_WRITE8_MEMBER(sound_nmi_ack_w);
@@ -47,7 +52,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(munchmo);
 	UINT32 screen_update_mnchmobl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(mnchmobl_vblank_irq);
 	INTERRUPT_GEN_MEMBER(mnchmobl_sound_irq);

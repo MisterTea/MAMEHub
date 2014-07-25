@@ -28,19 +28,17 @@
 	} while (0)
 
 
-void mz_state::palette_init()
+PALETTE_INIT_MEMBER(mz_state, mz)
 {
 	int i;
 
-	machine().colortable = colortable_alloc(machine(), 8);
-
 	for (i = 0; i < 8; i++)
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB((i & 2) ? 0xff : 0x00, (i & 4) ? 0xff : 0x00, (i & 1) ? 0xff : 0x00));
+		m_palette->set_indirect_color(i, rgb_t((i & 2) ? 0xff : 0x00, (i & 4) ? 0xff : 0x00, (i & 1) ? 0xff : 0x00));
 
 	for (i = 0; i < 256; i++)
 	{
-		colortable_entry_set_value(machine().colortable, i*2, i & 7);
-			colortable_entry_set_value(machine().colortable, i*2+1, (i >> 4) & 7);
+		m_palette->set_pen_indirect(i*2, i & 7);
+			m_palette->set_pen_indirect(i*2+1, (i >> 4) & 7);
 	}
 }
 
@@ -50,7 +48,7 @@ UINT32 mz_state::screen_update_mz700(screen_device &screen, bitmap_ind16 &bitmap
 	UINT8 *videoram = m_videoram;
 	int offs;
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	for(offs = 0; offs < 40*25; offs++)
 	{
@@ -62,7 +60,7 @@ UINT32 mz_state::screen_update_mz700(screen_device &screen, bitmap_ind16 &bitmap
 		color = m_colorram[offs];
 		code = videoram[offs] | (color & 0x80) << 1;
 
-		drawgfx_opaque(bitmap, cliprect, machine().gfx[0], code, color, 0, 0, sx, sy);
+		m_gfxdecode->gfx(0)->opaque(bitmap,cliprect, code, color, 0, 0, sx, sy);
 	}
 
 	return 0;
@@ -75,14 +73,14 @@ UINT32 mz_state::screen_update_mz700(screen_device &screen, bitmap_ind16 &bitmap
 
 VIDEO_START_MEMBER(mz_state,mz800)
 {
-	machine().gfx[0]->set_source(m_cgram);
+	m_gfxdecode->gfx(0)->set_source(m_cgram);
 }
 
 UINT32 mz_state::screen_update_mz800(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	UINT8 *videoram = m_videoram;
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	if (m_mz700_mode)
 		return screen_update_mz700(screen, bitmap, cliprect);
@@ -124,5 +122,5 @@ WRITE8_MEMBER(mz_state::mz800_cgram_w)
 {
 	m_cgram[offset] = data;
 
-	machine().gfx[0]->mark_dirty(offset/8);
+	m_gfxdecode->gfx(0)->mark_dirty(offset/8);
 }

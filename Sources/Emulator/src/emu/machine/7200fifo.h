@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:hap
 /**********************************************************************
 
     IDT7200 series 9-bit Asynchronous FIFO Emulation
@@ -63,13 +65,13 @@ The following chips are functionally equivalent and pin-compatible.
 	fifo7200_device::set_ram_size(*device, _ramsize);
 
 #define MCFG_FIFO7200_EF_HANDLER(_devcb) \
-	devcb = &fifo7200_device::set_ef_handler(*device, DEVCB2_##_devcb);
+	devcb = &fifo7200_device::set_ef_handler(*device, DEVCB_##_devcb);
 
 #define MCFG_FIFO7200_FF_HANDLER(_devcb) \
-	devcb = &fifo7200_device::set_ff_handler(*device, DEVCB2_##_devcb);
+	devcb = &fifo7200_device::set_ff_handler(*device, DEVCB_##_devcb);
 
 #define MCFG_FIFO7200_HF_HANDLER(_devcb) \
-	devcb = &fifo7200_device::set_hf_handler(*device, DEVCB2_##_devcb);
+	devcb = &fifo7200_device::set_hf_handler(*device, DEVCB_##_devcb);
 
 
 
@@ -85,14 +87,14 @@ public:
 	fifo7200_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 	// static configuration helpers
-	template<class _Object> static devcb2_base &set_ef_handler(device_t &device, _Object object) { return downcast<fifo7200_device &>(device).m_ef_handler.set_callback(object); }
-	template<class _Object> static devcb2_base &set_ff_handler(device_t &device, _Object object) { return downcast<fifo7200_device &>(device).m_ff_handler.set_callback(object); }
-	template<class _Object> static devcb2_base &set_hf_handler(device_t &device, _Object object) { return downcast<fifo7200_device &>(device).m_hf_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_ef_handler(device_t &device, _Object object) { return downcast<fifo7200_device &>(device).m_ef_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_ff_handler(device_t &device, _Object object) { return downcast<fifo7200_device &>(device).m_ff_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_hf_handler(device_t &device, _Object object) { return downcast<fifo7200_device &>(device).m_hf_handler.set_callback(object); }
 	static void set_ram_size(device_t &device, int size) { downcast<fifo7200_device &>(device).m_ram_size = size; }
 
-	DECLARE_READ_LINE_MEMBER( ef_r ) { return m_ef; }
-	DECLARE_READ_LINE_MEMBER( ff_r ) { return m_ff; }
-	DECLARE_READ_LINE_MEMBER( hf_r ) { return m_hf; }
+	DECLARE_READ_LINE_MEMBER( ef_r ) { return !m_ef; } // _EF
+	DECLARE_READ_LINE_MEMBER( ff_r ) { return !m_ff; } // _FF
+	DECLARE_READ_LINE_MEMBER( hf_r ) { return !m_hf; } // _HF
 
 	// normal configuration
 	DECLARE_WRITE16_MEMBER( data_word_w ) { fifo_write(data); }
@@ -111,7 +113,7 @@ private:
 	void fifo_write(UINT16 data);
 	UINT16 fifo_read();
 
-	UINT16* m_buffer;
+	dynamic_array<UINT16> m_buffer;
 	int m_ram_size;
 
 	int m_read_ptr;
@@ -121,9 +123,9 @@ private:
 	int m_ff; // full flag
 	int m_hf; // half-full flag
 
-	devcb2_write_line m_ef_handler;
-	devcb2_write_line m_ff_handler;
-	devcb2_write_line m_hf_handler;
+	devcb_write_line m_ef_handler;
+	devcb_write_line m_ff_handler;
+	devcb_write_line m_hf_handler;
 };
 
 // device type definition

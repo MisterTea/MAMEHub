@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     Atari GT hardware
@@ -5,7 +7,7 @@
 *************************************************************************/
 
 #include "machine/atarigen.h"
-
+#include "audio/cage.h"
 
 #define CRAM_ENTRIES        0x4000
 #define TRAM_ENTRIES        0x4000
@@ -22,7 +24,8 @@ public:
 			m_playfield_tilemap(*this, "playfield"),
 			m_alpha_tilemap(*this, "alpha"),
 			m_rle(*this, "rle"),
-			m_mo_command(*this, "mo_command") { }
+			m_mo_command(*this, "mo_command"),
+			m_cage(*this, "cage") { }
 
 	UINT8           m_is_primrage;
 	required_shared_ptr<UINT16> m_colorram;
@@ -31,8 +34,8 @@ public:
 	required_device<tilemap_device> m_alpha_tilemap;
 	required_device<atari_rle_objects_device> m_rle;
 
-	bitmap_ind16 *      m_pf_bitmap;
-	bitmap_ind16 *      m_an_bitmap;
+	bitmap_ind16    m_pf_bitmap;
+	bitmap_ind16    m_an_bitmap;
 
 	UINT8           m_playfield_tile_bank;
 	UINT8           m_playfield_color_bank;
@@ -44,6 +47,7 @@ public:
 	UINT32          m_expanded_mram[MRAM_ENTRIES * 3];
 
 	required_shared_ptr<UINT32> m_mo_command;
+	optional_device<atari_cage_device> m_cage;
 
 	void            (atarigt_state::*m_protection_w)(address_space &space, offs_t offset, UINT16 data);
 	void            (atarigt_state::*m_protection_r)(address_space &space, offs_t offset, UINT16 *data);
@@ -68,9 +72,11 @@ public:
 	DECLARE_READ32_MEMBER(colorram_protection_r);
 	DECLARE_WRITE32_MEMBER(colorram_protection_w);
 	DECLARE_WRITE32_MEMBER(tmek_pf_w);
+
+	DECLARE_WRITE8_MEMBER(cage_irq_callback);
+
 	void atarigt_colorram_w(offs_t address, UINT16 data, UINT16 mem_mask);
 	UINT16 atarigt_colorram_r(offs_t address);
-	DECLARE_DRIVER_INIT(primrage20);
 	DECLARE_DRIVER_INIT(primrage);
 	DECLARE_DRIVER_INIT(tmek);
 	TILE_GET_INFO_MEMBER(get_alpha_tile_info);
@@ -87,6 +93,5 @@ private:
 	void primrage_update_mode(offs_t offset);
 	void primrage_protection_w(address_space &space, offs_t offset, UINT16 data);
 	void primrage_protection_r(address_space &space, offs_t offset, UINT16 *data);
-	void primrage_init_common(offs_t cage_speedup);
 	void compute_fake_pots(int *pots);
 };

@@ -43,8 +43,7 @@ TILE_GET_INFO_MEMBER(renegade_state::get_bg_tilemap_info)
 	UINT8 *videoram = m_videoram;
 	const UINT8 *source = &videoram[tile_index];
 	UINT8 attributes = source[0x400]; /* CCC??BBB */
-	SET_TILE_INFO_MEMBER(
-		1 + (attributes & 0x7),
+	SET_TILE_INFO_MEMBER(1 + (attributes & 0x7),
 		source[0],
 		attributes >> 5,
 		0);
@@ -54,8 +53,7 @@ TILE_GET_INFO_MEMBER(renegade_state::get_fg_tilemap_info)
 {
 	const UINT8 *source = &m_videoram2[tile_index];
 	UINT8 attributes = source[0x400];
-	SET_TILE_INFO_MEMBER(
-		0,
+	SET_TILE_INFO_MEMBER(0,
 		(attributes & 3) * 256 + source[0],
 		attributes >> 6,
 		0);
@@ -63,8 +61,8 @@ TILE_GET_INFO_MEMBER(renegade_state::get_fg_tilemap_info)
 
 void renegade_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(renegade_state::get_bg_tilemap_info),this), TILEMAP_SCAN_ROWS,      16, 16, 64, 16);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(renegade_state::get_fg_tilemap_info),this), TILEMAP_SCAN_ROWS,   8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(renegade_state::get_bg_tilemap_info),this), TILEMAP_SCAN_ROWS,      16, 16, 64, 16);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(renegade_state::get_fg_tilemap_info),this), TILEMAP_SCAN_ROWS,   8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 	m_bg_tilemap->set_scrolldx(256, 0);
@@ -103,7 +101,7 @@ void renegade_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 			if (attributes & 0x80) /* big sprite */
 			{
 				sprite_number &= ~1;
-				drawgfx_transpen(bitmap, cliprect, machine().gfx[sprite_bank],
+				m_gfxdecode->gfx(sprite_bank)->transpen(bitmap,cliprect,
 					sprite_number + 1,
 					color,
 					xflip, flip_screen(),
@@ -113,7 +111,7 @@ void renegade_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 			{
 				sy += (flip_screen() ? -16 : 16);
 			}
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[sprite_bank],
+			m_gfxdecode->gfx(sprite_bank)->transpen(bitmap,cliprect,
 				sprite_number,
 				color,
 				xflip, flip_screen(),

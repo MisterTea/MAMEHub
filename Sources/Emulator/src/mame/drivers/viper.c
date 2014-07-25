@@ -363,7 +363,7 @@ public:
 	void mpc8240_epic_reset(void);
 	int ds2430_insert_cmd_bit(int bit);
 	void DS2430_w(int bit);
-	required_device<cpu_device> m_maincpu;
+	required_device<ppc_device> m_maincpu;
 	required_device<ata_interface_device> m_ata;
 };
 
@@ -375,39 +375,39 @@ UINT32 viper_state::screen_update_viper(screen_device &screen, bitmap_rgb32 &bit
 
 UINT32 m_mpc8240_regs[256/4];
 
-INLINE UINT64 read64le_with_32le_device_handler(read32_device_func handler, device_t *device, address_space &space, offs_t offset, UINT64 mem_mask)
+INLINE UINT64 read64le_with_32le_device_handler(read32_delegate handler, address_space &space, offs_t offset, UINT64 mem_mask)
 {
 	UINT64 result = 0;
 	if (ACCESSING_BITS_0_31)
-		result |= (UINT64)(*handler)(device, space, offset * 2 + 0, mem_mask >> 0) << 0;
+		result |= (UINT64)(handler)(space, offset * 2 + 0, mem_mask >> 0) << 0;
 	if (ACCESSING_BITS_32_63)
-		result |= (UINT64)(*handler)(device, space, offset * 2 + 1, mem_mask >> 32) << 32;
+		result |= (UINT64)(handler)(space, offset * 2 + 1, mem_mask >> 32) << 32;
 	return result;
 }
 
 
-INLINE void write64le_with_32le_device_handler(write32_device_func handler, device_t *device, address_space &space, offs_t offset, UINT64 data, UINT64 mem_mask)
+INLINE void write64le_with_32le_device_handler(write32_delegate handler, address_space &space, offs_t offset, UINT64 data, UINT64 mem_mask)
 {
 	if (ACCESSING_BITS_0_31)
-		(*handler)(device, space, offset * 2 + 0, data >> 0, mem_mask >> 0);
+		handler(space, offset * 2 + 0, data >> 0, mem_mask >> 0);
 	if (ACCESSING_BITS_32_63)
-		(*handler)(device, space, offset * 2 + 1, data >> 32, mem_mask >> 32);
+		handler(space, offset * 2 + 1, data >> 32, mem_mask >> 32);
 }
 
-INLINE UINT64 read64be_with_32le_device_handler(read32_device_func handler, device_t *device, address_space &space, offs_t offset, UINT64 mem_mask)
+INLINE UINT64 read64be_with_32le_device_handler(read32_delegate handler, address_space &space, offs_t offset, UINT64 mem_mask)
 {
 	UINT64 result;
 	mem_mask = FLIPENDIAN_INT64(mem_mask);
-	result = read64le_with_32le_device_handler(handler, device, space, offset, mem_mask);
+	result = read64le_with_32le_device_handler(handler, space, offset, mem_mask);
 	return FLIPENDIAN_INT64(result);
 }
 
 
-INLINE void write64be_with_32le_device_handler(write32_device_func handler, device_t *device, address_space &space, offs_t offset, UINT64 data, UINT64 mem_mask)
+INLINE void write64be_with_32le_device_handler(write32_delegate handler,  address_space &space, offs_t offset, UINT64 data, UINT64 mem_mask)
 {
 	data = FLIPENDIAN_INT64(data);
 	mem_mask = FLIPENDIAN_INT64(mem_mask);
-	write64le_with_32le_device_handler(handler, device, space, offset, data, mem_mask);
+	write64le_with_32le_device_handler(handler, space, offset, data, mem_mask);
 }
 
 /*****************************************************************************/
@@ -1595,41 +1595,41 @@ static void voodoo3_pci_w(device_t *busdevice, device_t *device, int function, i
 
 READ64_MEMBER(viper_state::voodoo3_io_r)
 {
-	device_t *device = machine().device("voodoo");
-	return read64be_with_32le_device_handler(banshee_io_r, device, space, offset, mem_mask);
+	voodoo_banshee_device *device = machine().device<voodoo_banshee_device>("voodoo");
+	return read64be_with_32le_device_handler(read32_delegate(FUNC(voodoo_banshee_device::banshee_io_r), device), space, offset, mem_mask);
 }
 WRITE64_MEMBER(viper_state::voodoo3_io_w)
 {
 //  printf("voodoo3_io_w: %08X%08X, %08X at %08X\n", (UINT32)(data >> 32), (UINT32)(data), offset, space.device().safe_pc());
 
-	device_t *device = machine().device("voodoo");
-	write64be_with_32le_device_handler(banshee_io_w, device, space, offset, data, mem_mask);
+	voodoo_banshee_device *device = machine().device<voodoo_banshee_device>("voodoo");
+	write64be_with_32le_device_handler(write32_delegate(FUNC(voodoo_banshee_device::banshee_io_w), device), space, offset, data, mem_mask);
 }
 
 READ64_MEMBER(viper_state::voodoo3_r)
 {
-	device_t *device = machine().device("voodoo");
-	return read64be_with_32le_device_handler(banshee_r, device, space, offset, mem_mask);
+	voodoo_banshee_device *device = machine().device<voodoo_banshee_device>("voodoo");
+	return read64be_with_32le_device_handler(read32_delegate(FUNC(voodoo_banshee_device::banshee_r), device), space, offset, mem_mask);
 }
 WRITE64_MEMBER(viper_state::voodoo3_w)
 {
 //  printf("voodoo3_w: %08X%08X, %08X at %08X\n", (UINT32)(data >> 32), (UINT32)(data), offset, space.device().safe_pc());
 
-	device_t *device = machine().device("voodoo");
-	write64be_with_32le_device_handler(banshee_w, device, space, offset, data, mem_mask);
+	voodoo_banshee_device *device = machine().device<voodoo_banshee_device>("voodoo");
+	write64be_with_32le_device_handler(write32_delegate(FUNC(voodoo_banshee_device::banshee_w), device), space, offset, data, mem_mask);
 }
 
 READ64_MEMBER(viper_state::voodoo3_lfb_r)
 {
-	device_t *device = machine().device("voodoo");
-	return read64be_with_32le_device_handler(banshee_fb_r, device, space, offset, mem_mask);
+	voodoo_banshee_device *device = machine().device<voodoo_banshee_device>("voodoo");
+	return read64be_with_32le_device_handler(read32_delegate(FUNC(voodoo_banshee_device::banshee_fb_r), device), space, offset, mem_mask);
 }
 WRITE64_MEMBER(viper_state::voodoo3_lfb_w)
 {
 //  printf("voodoo3_lfb_w: %08X%08X, %08X at %08X\n", (UINT32)(data >> 32), (UINT32)(data), offset, space.device().safe_pc());
 
-	device_t *device = machine().device("voodoo");
-	write64be_with_32le_device_handler(banshee_fb_w, device, space, offset, data, mem_mask);
+	voodoo_banshee_device *device = machine().device<voodoo_banshee_device>("voodoo");
+	write64be_with_32le_device_handler(write32_delegate(FUNC(voodoo_banshee_device::banshee_fb_w), device), space, offset, data, mem_mask);
 }
 
 
@@ -1986,13 +1986,6 @@ INPUT_PORTS_END
 /*****************************************************************************/
 
 
-static const powerpc_config viper_ppc_cfg =
-{
-	100000000,
-	NULL,
-	NULL
-};
-
 INTERRUPT_GEN_MEMBER(viper_state::viper_vblank)
 {
 	mpc8240_interrupt(MPC8240_IRQ0);
@@ -2011,10 +2004,10 @@ void viper_state::machine_start()
 	mpc8240_epic_init();
 
 	/* set conservative DRC options */
-	ppcdrc_set_options(m_maincpu, PPCDRC_COMPATIBLE_OPTIONS);
+	m_maincpu->ppcdrc_set_options(PPCDRC_COMPATIBLE_OPTIONS);
 
 	/* configure fast RAM regions for DRC */
-	ppcdrc_add_fastram(m_maincpu, 0x00000000, 0x00ffffff, FALSE, workram);
+	m_maincpu->ppcdrc_add_fastram(0x00000000, 0x00ffffff, FALSE, workram);
 
 	ds2430_rom = (UINT8*)memregion("ds2430")->base();
 }
@@ -2031,22 +2024,11 @@ void viper_state::machine_reset()
 	identify_device[67] = 0x00f0;           /* 67: minimum PIO transfer cycle time without flow control */
 }
 
-static const voodoo_config voodoo_intf =
-{
-	8, //               fbmem;
-	0,//                tmumem0;
-	0,//                tmumem1;
-	"screen",//         screen;
-	"maincpu",//        cputag;
-	DEVCB_DRIVER_LINE_MEMBER(viper_state,voodoo_vblank),//    vblank;
-	DEVCB_NULL//             stall;
-};
-
 static MACHINE_CONFIG_START( viper, viper_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", MPC8240, 200000000)
-	MCFG_CPU_CONFIG(viper_ppc_cfg)
+	MCFG_PPC_BUS_FREQUENCY(100000000)
 	MCFG_CPU_PROGRAM_MAP(viper_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", viper_state,  viper_vblank)
 
@@ -2056,17 +2038,20 @@ static MACHINE_CONFIG_START( viper, viper_state )
 
 	MCFG_ATA_INTERFACE_ADD("ata", ata_devices, "hdd", NULL, true)
 
-	MCFG_3DFX_VOODOO_3_ADD("voodoo", STD_VOODOO_3_CLOCK, voodoo_intf)
+	MCFG_DEVICE_ADD("voodoo", VOODOO_3, STD_VOODOO_3_CLOCK)
+	MCFG_VOODOO_FBMEM(8)
+	MCFG_VOODOO_SCREEN_TAG("screen")
+	MCFG_VOODOO_CPU_TAG("maincpu")
+	MCFG_VOODOO_VBLANK_CB(WRITELINE(viper_state,voodoo_vblank))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(1024, 768)
 	MCFG_SCREEN_VISIBLE_AREA(0, 1023, 0, 383)
-
-	MCFG_PALETTE_LENGTH(65536)
-
 	MCFG_SCREEN_UPDATE_DRIVER(viper_state, screen_update_viper)
+
+	MCFG_PALETTE_ADD("palette", 65536)
 
 	MCFG_TIMER_ADD_NONE("ds2430_timer2")
 

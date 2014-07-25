@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
         SBC6510 from Josip Perusanec
@@ -55,15 +57,18 @@ ToDo:
 #include "sound/ay8910.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class sbc6510_state : public driver_device
 {
 public:
 	sbc6510_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") ,
-		m_videocpu(*this, "videocpu") ,
-		m_terminal(*this, TERMINAL_TAG) { }
+		m_maincpu(*this, "maincpu"),
+		m_videocpu(*this, "videocpu"),
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
 	DECLARE_READ8_MEMBER(a2_r);
 	DECLARE_WRITE8_MEMBER(a2_w);
@@ -211,12 +216,6 @@ WRITE8_MEMBER( sbc6510_state::a2_w )
 	m_terminal->write(space, 0, data);
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_NULL
-};
-
-
 void sbc6510_state::machine_start()
 {
 	char kbdrow[6];
@@ -242,17 +241,6 @@ READ8_MEMBER( sbc6510_state::psg_b_r )
 	return 0x7f;
 }
 
-// Ports A and B connect to the IDE socket
-static const ay8910_interface sbc6510_ay_interface =
-{
-	AY8910_LEGACY_OUTPUT,   // flags
-	AY8910_DEFAULT_LOADS,   // channel load in ohms
-	DEVCB_DRIVER_MEMBER(sbc6510_state, psg_a_r),        // port A read
-	DEVCB_DRIVER_MEMBER(sbc6510_state, psg_b_r),        // port B read
-	DEVCB_NULL,     // port A write
-	DEVCB_NULL      // port B write
-};
-
 READ8_MEMBER( sbc6510_state::key_r )
 {
 	UINT8 data=0;
@@ -277,6 +265,22 @@ const avr8_config atmega88_config =
 	"eeprom"
 };
 
+static const gfx_layout charset_8x16 =
+{
+	8, 9,
+	256,
+	1,
+	{ 0 },
+	{ STEP8(0,1) },
+	{ 0*1024*2, 1*1024*2, 2*1024*2, 3*1024*2, 4*1024*2, 5*1024*2, 6*1024*2, 7*1024*2, 8*1024*2 },
+	8
+};
+
+
+static GFXDECODE_START( sbc6510 )
+	GFXDECODE_ENTRY( "videocpu", 0x1500, charset_8x16, 0, 128 )
+GFXDECODE_END
+
 
 static MACHINE_CONFIG_START( sbc6510, sbc6510_state )
 	/* basic machine hardware */
@@ -290,18 +294,24 @@ static MACHINE_CONFIG_START( sbc6510, sbc6510_state )
 	MCFG_CPU_DATA_MAP(sbc6510_video_data)
 	MCFG_CPU_IO_MAP(sbc6510_video_io)
 
+	MCFG_GFXDECODE_ADD("gfxdecode", TERMINAL_TAG":palette", sbc6510)
+
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ay8910", AY8910, XTAL_1MHz)
-	MCFG_SOUND_CONFIG(sbc6510_ay_interface)
+	// Ports A and B connect to the IDE socket
+	MCFG_AY8910_PORT_A_READ_CB(READ8(sbc6510_state, psg_a_r))        // port A read
+	MCFG_AY8910_PORT_B_READ_CB(READ8(sbc6510_state, psg_b_r))        // port B read
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
-	MCFG_MOS6526_ADD("cia6526", XTAL_1MHz, 50, INPUTLINE("maincpu", M6510_IRQ_LINE))
-	MCFG_MOS6526_PORT_A_CALLBACKS(NULL, WRITE8(sbc6510_state, key_w))
-	MCFG_MOS6526_PORT_B_CALLBACKS(READ8(sbc6510_state, key_r), NULL, NULL)
+	MCFG_DEVICE_ADD("cia6526", MOS6526, XTAL_1MHz)
+	MCFG_MOS6526_TOD(50)
+	MCFG_MOS6526_IRQ_CALLBACK(INPUTLINE("maincpu", M6510_IRQ_LINE))
+	MCFG_MOS6526_PA_OUTPUT_CALLBACK(WRITE8(sbc6510_state, key_w))
+	MCFG_MOS6526_PB_INPUT_CALLBACK(READ8(sbc6510_state, key_r))
 MACHINE_CONFIG_END
 
 /* ROM definition */

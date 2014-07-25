@@ -23,7 +23,8 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_speaker(*this, "speaker"),
 		m_pit(*this, "pit8253"),
-		m_ram(*this, RAM_TAG) { }
+		m_ram(*this, RAM_TAG),
+		m_palette(*this, "palette")  { }
 
 	UINT8 m_b2m_8255_porta;
 	UINT8 m_b2m_video_scroll;
@@ -43,6 +44,7 @@ public:
 	required_device<speaker_sound_device> m_speaker;
 	required_device<pit8253_device> m_pit;
 	required_device<ram_device> m_ram;
+	required_device<palette_device> m_palette;
 
 	/* devices */
 	fd1793_t *m_fdc;
@@ -56,7 +58,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(b2m);
 	UINT32 screen_update_b2m(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(b2m_vblank_interrupt);
 	DECLARE_WRITE_LINE_MEMBER(bm2_pit_out1);
@@ -68,20 +70,10 @@ public:
 	DECLARE_READ8_MEMBER(b2m_romdisk_porta_r);
 	DECLARE_WRITE8_MEMBER(b2m_romdisk_portb_w);
 	DECLARE_WRITE8_MEMBER(b2m_romdisk_portc_w);
-	DECLARE_WRITE_LINE_MEMBER(b2m_pic_set_int_line);
-	void b2m_fdc_drq(bool state);
+	DECLARE_WRITE_LINE_MEMBER(b2m_fdc_drq);
 	DECLARE_FLOPPY_FORMATS( b2m_floppy_formats );
-	IRQ_CALLBACK_MEMBER(b2m_irq_callback);
 	void b2m_postload();
 	void b2m_set_bank(int bank);
 };
-
-/*----------- defined in machine/b2m.c -----------*/
-
-extern const struct pit8253_interface b2m_pit8253_intf;
-
-extern const i8255_interface b2m_ppi8255_interface_1;
-extern const i8255_interface b2m_ppi8255_interface_2;
-extern const i8255_interface b2m_ppi8255_interface_3;
 
 #endif

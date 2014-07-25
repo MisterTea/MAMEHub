@@ -547,18 +547,6 @@ WRITE8_MEMBER(lsasquad_state::unk)
 {
 }
 
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(lsasquad_state,unk),
-	DEVCB_DRIVER_MEMBER(lsasquad_state,unk),
-};
-
-
 MACHINE_START_MEMBER(lsasquad_state,lsasquad)
 {
 	UINT8 *ROM = memregion("maincpu")->base();
@@ -631,11 +619,10 @@ static MACHINE_CONFIG_START( lsasquad, lsasquad_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(lsasquad_state, screen_update_lsasquad)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(lsasquad)
-	MCFG_PALETTE_LENGTH(512)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lsasquad)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 512)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -645,7 +632,8 @@ static MACHINE_CONFIG_START( lsasquad, lsasquad_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, MASTER_CLOCK / 8)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(lsasquad_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(lsasquad_state, unk))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(lsasquad_state, unk))
 	MCFG_SOUND_ROUTE(0, "mono", 0.12)
 	MCFG_SOUND_ROUTE(1, "mono", 0.12)
 	MCFG_SOUND_ROUTE(2, "mono", 0.12)
@@ -687,12 +675,11 @@ static MACHINE_CONFIG_START( daikaiju, lsasquad_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 32*8-1, 2*8, 30*8-1)
-
-	MCFG_GFXDECODE(lsasquad)
-	MCFG_PALETTE_LENGTH(512)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
 	MCFG_SCREEN_UPDATE_DRIVER(lsasquad_state, screen_update_daikaiju)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lsasquad)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 512)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -702,7 +689,8 @@ static MACHINE_CONFIG_START( daikaiju, lsasquad_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, MASTER_CLOCK / 8)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(lsasquad_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(lsasquad_state, unk))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(lsasquad_state, unk))
 	MCFG_SOUND_ROUTE(0, "mono", 0.12)
 	MCFG_SOUND_ROUTE(1, "mono", 0.12)
 	MCFG_SOUND_ROUTE(2, "mono", 0.12)

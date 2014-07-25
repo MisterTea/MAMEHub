@@ -88,8 +88,8 @@ void fromance_state::init_common(  )
 VIDEO_START_MEMBER(fromance_state,fromance)
 {
 	/* allocate tilemaps */
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(fromance_state::get_fromance_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(fromance_state::get_fromance_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(fromance_state::get_fromance_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(fromance_state::get_fromance_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
 
 	init_common();
 }
@@ -97,8 +97,8 @@ VIDEO_START_MEMBER(fromance_state,fromance)
 VIDEO_START_MEMBER(fromance_state,nekkyoku)
 {
 	/* allocate tilemaps */
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(fromance_state::get_nekkyoku_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(fromance_state::get_nekkyoku_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(fromance_state::get_nekkyoku_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(fromance_state::get_nekkyoku_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 4, 64, 64);
 
 	init_common();
 }
@@ -162,7 +162,7 @@ WRITE8_MEMBER(fromance_state::fromance_paletteram_w)
 
 	/* compute R,G,B */
 	palword = (m_local_paletteram[offset | 1] << 8) | m_local_paletteram[offset & ~1];
-	palette_set_color_rgb(machine(), offset / 2, pal5bit(palword >> 10), pal5bit(palword >> 5), pal5bit(palword >> 0));
+	m_palette->set_pen_color(offset / 2, pal5bit(palword >> 10), pal5bit(palword >> 5), pal5bit(palword >> 0));
 }
 
 

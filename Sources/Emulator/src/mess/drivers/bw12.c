@@ -24,6 +24,7 @@
 ****************************************************************************/
 
 #include "includes/bw12.h"
+#include "bus/rs232/rs232.h"
 
 /*
 
@@ -323,17 +324,16 @@ INPUT_PORTS_END
 
 /* Video */
 
-static MC6845_UPDATE_ROW( bw12_update_row )
+MC6845_UPDATE_ROW( bw12_state::crtc_update_row )
 {
-	bw12_state *state = device->machine().driver_data<bw12_state>();
-
+	const pen_t *pen = m_palette->pens();
 	int column, bit;
 
 	for (column = 0; column < x_count; column++)
 	{
-		UINT8 code = state->m_video_ram[((ma + column) & BW12_VIDEORAM_MASK)];
+		UINT8 code = m_video_ram[((ma + column) & BW12_VIDEORAM_MASK)];
 		UINT16 addr = code << 4 | (ra & 0x0f);
-		UINT8 data = state->m_char_rom->base()[addr & BW12_CHARROM_MASK];
+		UINT8 data = m_char_rom->base()[addr & BW12_CHARROM_MASK];
 
 		if (column == cursor_x)
 		{
@@ -343,9 +343,9 @@ static MC6845_UPDATE_ROW( bw12_update_row )
 		for (bit = 0; bit < 8; bit++)
 		{
 			int x = (column * 8) + bit;
-			int color = BIT(data, 7);
+			int color = BIT(data, 7) && de;
 
-			bitmap.pix32(y, x) = RGB_MONOCHROME_AMBER[color];
+			bitmap.pix32(vbp + y, hbp + x) = pen[color];
 
 			data <<= 1;
 		}
@@ -353,21 +353,22 @@ static MC6845_UPDATE_ROW( bw12_update_row )
 }
 
 
-static MC6845_INTERFACE( bw12_mc6845_interface )
-{
-	false,
-	8,
-	NULL,
-	bw12_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
-
 /* PIA6821 Interface */
+
+WRITE_LINE_MEMBER( bw12_state::write_centronics_busy )
+{
+	m_centronics_busy = state;
+}
+
+WRITE_LINE_MEMBER( bw12_state::write_centronics_fault )
+{
+	m_centronics_fault = state;
+}
+
+WRITE_LINE_MEMBER( bw12_state::write_centronics_perror )
+{
+	m_centronics_perror = state;
+}
 
 READ8_MEMBER( bw12_state::pia_pa_r )
 {
@@ -388,9 +389,9 @@ READ8_MEMBER( bw12_state::pia_pa_r )
 
 	UINT8 data = 0;
 
-	data |= m_centronics->busy_r();
-	data |= (m_centronics->fault_r() << 1);
-	data |= (m_centronics->pe_r() << 2);
+	data |= m_centronics_busy;
+	data |= (m_centronics_fault << 1);
+	data |= (m_centronics_perror << 2);
 	data |= (m_motor_on << 3);
 	data |= (m_pit_out2 << 4);
 	data |= (m_key_stb << 5);
@@ -398,11 +399,6 @@ READ8_MEMBER( bw12_state::pia_pa_r )
 	data |= (m_fdc->get_irq() ? 1 : 0) << 7;
 
 	return data;
-}
-
-READ_LINE_MEMBER( bw12_state::pia_cb1_r )
-{
-	return m_key_stb;
 }
 
 WRITE_LINE_MEMBER( bw12_state::pia_cb2_w )
@@ -419,54 +415,6 @@ WRITE_LINE_MEMBER( bw12_state::pia_cb2_w )
 	}
 }
 
-static const pia6821_interface pia_intf =
-{
-	DEVCB_DRIVER_MEMBER(bw12_state, pia_pa_r),                  /* port A input */
-	DEVCB_NULL,                                                 /* port B input */
-	DEVCB_DEVICE_LINE_MEMBER(CENTRONICS_TAG, centronics_device, ack_r),     /* CA1 input */
-	DEVCB_DRIVER_LINE_MEMBER(bw12_state, pia_cb1_r),            /* CB1 input */
-	DEVCB_NULL,                                                 /* CA2 input */
-	DEVCB_NULL,                                                 /* CB2 input */
-	DEVCB_NULL,                                                 /* port A output */
-	DEVCB_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, write),  /* port B output */
-	DEVCB_DEVICE_LINE_MEMBER(CENTRONICS_TAG, centronics_device, strobe_w),      /* CA2 output */
-	DEVCB_DRIVER_LINE_MEMBER(bw12_state, pia_cb2_w),            /* CB2 output */
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0),             /* IRQA output */
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0)              /* IRQB output */
-};
-
-/* Centronics Interface */
-
-static const centronics_interface bw12_centronics_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(PIA6821_TAG, pia6821_device, ca1_w),       /* ACK output */
-	DEVCB_NULL,                                         /* BUSY output */
-	DEVCB_NULL                                          /* NOT BUSY output */
-};
-
-/* Z80-SIO/0 Interface */
-
-static Z80SIO_INTERFACE( sio_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0)
-};
-
 /* PIT8253 Interface */
 
 WRITE_LINE_MEMBER( bw12_state::pit_out0_w )
@@ -479,27 +427,6 @@ WRITE_LINE_MEMBER( bw12_state::pit_out2_w )
 {
 	m_pit_out2 = state;
 }
-
-static const struct pit8253_interface pit_intf =
-{
-	{
-		{
-			XTAL_1_8432MHz,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(bw12_state, pit_out0_w)
-		},
-		{
-			XTAL_1_8432MHz,
-			DEVCB_NULL,
-			DEVCB_DEVICE_LINE_MEMBER(Z80SIO_TAG, z80dart_device, rxtxcb_w)
-		},
-		{
-			XTAL_1_8432MHz,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(bw12_state, pit_out2_w)
-		}
-	}
-};
 
 /* AY-5-3600-PRO-002 Interface */
 
@@ -537,23 +464,6 @@ WRITE_LINE_MEMBER( bw12_state::ay3600_data_ready_w )
 		m_key_sin = m_key_data[m_key_shift];
 	}
 }
-
-static AY3600_INTERFACE( bw12_ay3600_intf )
-{
-	DEVCB_INPUT_PORT("X0"),
-	DEVCB_INPUT_PORT("X1"),
-	DEVCB_INPUT_PORT("X2"),
-	DEVCB_INPUT_PORT("X3"),
-	DEVCB_INPUT_PORT("X4"),
-	DEVCB_INPUT_PORT("X5"),
-	DEVCB_INPUT_PORT("X6"),
-	DEVCB_INPUT_PORT("X7"),
-	DEVCB_INPUT_PORT("X8"),
-	DEVCB_DRIVER_LINE_MEMBER(bw12_state, ay3600_shift_r),
-	DEVCB_DRIVER_LINE_MEMBER(bw12_state, ay3600_control_r),
-	DEVCB_DRIVER_LINE_MEMBER(bw12_state, ay3600_data_ready_w),
-	DEVCB_NULL
-};
 
 /* Machine Initialization */
 
@@ -601,33 +511,6 @@ FLOPPY_FORMATS_MEMBER( bw12_state::bw14_floppy_formats )
 FLOPPY_FORMATS_END
 
 
-//-------------------------------------------------
-//  rs232_port_interface rs232a_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232a_intf =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80SIO_TAG, z80dart_device, dcda_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80SIO_TAG, z80dart_device, ctsa_w)
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232b_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232b_intf =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80SIO_TAG, z80dart_device, dcdb_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80SIO_TAG, z80dart_device, ctsb_w)
-};
-
 /* F4 Character Displayer */
 static const gfx_layout bw12_charlayout =
 {
@@ -662,9 +545,13 @@ static MACHINE_CONFIG_START( common, bw12_state )
 	MCFG_SCREEN_SIZE(640, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
 
-	MCFG_GFXDECODE(bw12)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bw12)
+	MCFG_PALETTE_ADD_MONOCHROME_AMBER("palette")
 
-	MCFG_MC6845_ADD(MC6845_TAG, MC6845, SCREEN_TAG, XTAL_16MHz/8, bw12_mc6845_interface)
+	MCFG_MC6845_ADD(MC6845_TAG, MC6845, SCREEN_TAG, XTAL_16MHz/8)
+	MCFG_MC6845_SHOW_BORDER_AREA(true)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(bw12_state, crtc_update_row)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -675,15 +562,64 @@ static MACHINE_CONFIG_START( common, bw12_state )
 	/* devices */
 	MCFG_TIMER_DRIVER_ADD(FLOPPY_TIMER_TAG, bw12_state, floppy_motor_off_tick)
 	MCFG_UPD765A_ADD(UPD765_TAG, false, true)
-	MCFG_PIA6821_ADD(PIA6821_TAG, pia_intf)
-	MCFG_Z80SIO0_ADD(Z80SIO_TAG, XTAL_16MHz/4, sio_intf)
-	MCFG_PIT8253_ADD(PIT8253_TAG, pit_intf)
-	MCFG_AY3600_ADD(AY3600PRO002_TAG, 0, bw12_ay3600_intf)
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, NULL)
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
+
+	MCFG_DEVICE_ADD(PIA6821_TAG, PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(bw12_state, pia_pa_r))
+	MCFG_PIA_WRITEPB_HANDLER(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_PIA_CA2_HANDLER(DEVWRITELINE(CENTRONICS_TAG, centronics_device, write_strobe))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(bw12_state, pia_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(DEVWRITELINE(Z80_TAG, z80_device, irq_line))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE(Z80_TAG, z80_device, irq_line))
+
+	MCFG_Z80SIO0_ADD(Z80SIO_TAG, XTAL_16MHz/4, 0, 0, 0, 0)
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_DEVICE_ADD(PIT8253_TAG, PIT8253, 0)
+	MCFG_PIT8253_CLK0(XTAL_1_8432MHz)
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(bw12_state, pit_out0_w))
+	MCFG_PIT8253_CLK1(XTAL_1_8432MHz)
+	MCFG_PIT8253_OUT1_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, rxtxcb_w))
+	MCFG_PIT8253_CLK2(XTAL_1_8432MHz)
+	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(bw12_state, pit_out2_w))
+
+	MCFG_DEVICE_ADD(AY3600PRO002_TAG, AY3600, 0)
+	MCFG_AY3600_MATRIX_X0(IOPORT("X0"))
+	MCFG_AY3600_MATRIX_X1(IOPORT("X1"))
+	MCFG_AY3600_MATRIX_X2(IOPORT("X2"))
+	MCFG_AY3600_MATRIX_X3(IOPORT("X3"))
+	MCFG_AY3600_MATRIX_X4(IOPORT("X4"))
+	MCFG_AY3600_MATRIX_X5(IOPORT("X5"))
+	MCFG_AY3600_MATRIX_X6(IOPORT("X6"))
+	MCFG_AY3600_MATRIX_X7(IOPORT("X7"))
+	MCFG_AY3600_MATRIX_X8(IOPORT("X8"))
+	MCFG_AY3600_SHIFT_CB(READLINE(bw12_state, ay3600_shift_r))
+	MCFG_AY3600_CONTROL_CB(READLINE(bw12_state, ay3600_control_r))
+	MCFG_AY3600_DATA_READY_CB(WRITELINE(bw12_state, ay3600_data_ready_w))
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, dcda_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, ctsa_w))
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, rxb_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, dcdb_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, ctsb_w))
 
 	/* printer */
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, bw12_centronics_intf)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_ACK_HANDLER(DEVWRITELINE(PIA6821_TAG, pia6821_device, ca1_w))
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(bw12_state, write_centronics_busy))
+	MCFG_CENTRONICS_FAULT_HANDLER(WRITELINE(bw12_state, write_centronics_fault))
+	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(bw12_state, write_centronics_perror))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( bw12, common )

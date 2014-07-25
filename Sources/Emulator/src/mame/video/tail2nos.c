@@ -13,8 +13,7 @@
 TILE_GET_INFO_MEMBER(tail2nos_state::get_tile_info)
 {
 	UINT16 code = m_bgvideoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code & 0x1fff) + (m_charbank << 13),
 			((code & 0xe000) >> 13) + m_charpalette * 16,
 			0);
@@ -27,7 +26,7 @@ TILE_GET_INFO_MEMBER(tail2nos_state::get_tile_info)
 
 ***************************************************************************/
 
-void tail2nos_zoom_callback( running_machine &machine, int *code, int *color, int *flags )
+K051316_CB_MEMBER(tail2nos_state::zoom_callback)
 {
 	*code |= ((*color & 0x03) << 8);
 	*color = 32 + ((*color & 0x38) >> 3);
@@ -41,25 +40,17 @@ void tail2nos_zoom_callback( running_machine &machine, int *code, int *color, in
 
 void tail2nos_state::tail2nos_postload()
 {
-	int i;
-
 	m_bg_tilemap->mark_all_dirty();
 
-	for (i = 0; i < 0x20000; i += 64)
-	{
-		machine().gfx[2]->mark_dirty(i / 64);
-	}
+	m_k051316->gfx(0)->mark_all_dirty();
 }
 
 void tail2nos_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tail2nos_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tail2nos_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_bg_tilemap->set_transparent_pen(15);
 
-	m_zoomdata = (UINT16 *)memregion("gfx3")->base();
-
-	save_pointer(NAME(m_zoomdata), 0x20000 / 2);
 	machine().save().register_postload(save_prepost_delegate(FUNC(tail2nos_state::tail2nos_postload), this));
 }
 
@@ -77,18 +68,13 @@ WRITE16_MEMBER(tail2nos_state::tail2nos_bgvideoram_w)
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
-READ16_MEMBER(tail2nos_state::tail2nos_zoomdata_r)
-{
-	return m_zoomdata[offset];
-}
-
 WRITE16_MEMBER(tail2nos_state::tail2nos_zoomdata_w)
 {
-	int oldword = m_zoomdata[offset];
-
-	COMBINE_DATA(&m_zoomdata[offset]);
-	if (oldword != m_zoomdata[offset])
-		machine().gfx[2]->mark_dirty(offset / 64);
+	int oldword = m_zoomram[offset];
+	COMBINE_DATA(&m_zoomram[offset]);
+	// tell the K051316 device the data changed
+	if (oldword != m_zoomram[offset])
+		m_k051316->mark_gfx_dirty(offset * 2);
 }
 
 WRITE16_MEMBER(tail2nos_state::tail2nos_gfxbank_w)
@@ -156,8 +142,8 @@ void tail2nos_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &clipre
 		flipx = spriteram[offs + 2] & 0x1000;
 		flipy = spriteram[offs + 2] & 0x0800;
 
-		drawgfx_transpen(bitmap,/* placement relative to zoom layer verified on the real thing */
-				cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,/* placement relative to zoom layer verified on the real thing */
+				cliprect,
 				code,
 				40 + color,
 				flipx,flipy,
@@ -169,7 +155,7 @@ UINT32 tail2nos_state::screen_update_tail2nos(screen_device &screen, bitmap_ind1
 {
 	if (m_video_enable)
 	{
-		m_k051316->zoom_draw(screen, bitmap, cliprect, 0, 0);
+		m_k051316->zoom_draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 		draw_sprites(bitmap, cliprect);
 		m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	}

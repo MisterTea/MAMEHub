@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
         Digital Microsystems ZSBC-3
@@ -36,23 +38,26 @@
 #include "cpu/z80/z80.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class zsbc3_state : public driver_device
 {
 public:
 	zsbc3_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu"),
-			m_terminal(*this, TERMINAL_TAG)
-	{ }
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
-	required_device<cpu_device> m_maincpu;
-	required_device<generic_terminal_device> m_terminal;
 	DECLARE_READ8_MEMBER(zsbc3_28_r);
 	DECLARE_READ8_MEMBER(zsbc3_2a_r);
 	DECLARE_WRITE8_MEMBER(kbd_put);
+private:
 	UINT8 m_term_data;
 	virtual void machine_reset();
+	required_device<cpu_device> m_maincpu;
+	required_device<generic_terminal_device> m_terminal;
 };
 
 
@@ -95,11 +100,6 @@ WRITE8_MEMBER( zsbc3_state::kbd_put )
 	m_term_data = data;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(zsbc3_state, kbd_put)
-};
-
 
 static MACHINE_CONFIG_START( zsbc3, zsbc3_state )
 	/* basic machine hardware */
@@ -107,9 +107,9 @@ static MACHINE_CONFIG_START( zsbc3, zsbc3_state )
 	MCFG_CPU_PROGRAM_MAP(zsbc3_mem)
 	MCFG_CPU_IO_MAP(zsbc3_io)
 
-
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(zsbc3_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

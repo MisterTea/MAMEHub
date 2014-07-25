@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __PORTFOLIO__
@@ -6,13 +8,11 @@
 #include "emu.h"
 #include "cpu/i86/i86.h"
 #include "imagedev/cartslot.h"
-#include "imagedev/printer.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/i8255.h"
 #include "machine/ins8250.h"
 #include "machine/nvram.h"
 #include "machine/ram.h"
-#include "machine/serial.h"
 #include "sound/speaker.h"
 #include "video/hd61830.h"
 
@@ -108,7 +108,7 @@ public:
 
 	/* peripheral state */
 	UINT8 m_pid;                        /* peripheral identification */
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(portfolio);
 	TIMER_DEVICE_CALLBACK_MEMBER(keyboard_tick);
 	TIMER_DEVICE_CALLBACK_MEMBER(system_tick);
 	TIMER_DEVICE_CALLBACK_MEMBER(counter_tick);

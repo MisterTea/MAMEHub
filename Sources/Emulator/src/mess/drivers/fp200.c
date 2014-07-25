@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     FP-200 (c) 1982 Casio
@@ -63,13 +65,13 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(sod_w);
 	DECLARE_READ_LINE_MEMBER(sid_r);
 
+	DECLARE_PALETTE_INIT(fp200);
 protected:
 	// driver_device overrides
 	virtual void machine_start();
 	virtual void machine_reset();
 
 	virtual void video_start();
-	virtual void palette_init();
 };
 
 void fp200_state::video_start()
@@ -559,10 +561,10 @@ void fp200_state::machine_reset()
 }
 
 
-void fp200_state::palette_init()
+PALETTE_INIT_MEMBER(fp200_state, fp200)
 {
-	palette_set_color_rgb(machine(), 0, 0xa0, 0xa8, 0xa0);
-	palette_set_color_rgb(machine(), 1, 0x30, 0x38, 0x10);
+	palette.set_pen_color(0, 0xa0, 0xa8, 0xa0);
+	palette.set_pen_color(1, 0x30, 0x38, 0x10);
 }
 
 WRITE_LINE_MEMBER( fp200_state::sod_w )
@@ -591,10 +593,12 @@ static MACHINE_CONFIG_START( fp200, fp200_state )
 	MCFG_SCREEN_UPDATE_DRIVER(fp200_state, screen_update)
 	MCFG_SCREEN_SIZE(20*8, 8*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 20*8-1, 0*8, 8*8-1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(fp200)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", fp200)
 
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_PALETTE_ADD("palette", 2)
+	MCFG_PALETTE_INIT_OWNER(fp200_state, fp200)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -619,4 +623,4 @@ ROM_START( fp200 )
 	ROM_REGION( 0x800, "chargen", ROMREGION_ERASE00 )
 ROM_END
 
-GAME( 1982, fp200,  0,   fp200,  fp200, driver_device,  0,       ROT0, "Casio",      "FP-200 (Japan)", GAME_NOT_WORKING | GAME_NO_SOUND_HW )
+COMP( 1982, fp200,  0,   0,   fp200,  fp200, driver_device,  0,  "Casio",      "FP-200 (Japan)", GAME_NOT_WORKING | GAME_NO_SOUND_HW )

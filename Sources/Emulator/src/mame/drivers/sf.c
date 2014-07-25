@@ -198,7 +198,7 @@ WRITE8_MEMBER(sf_state::msm2_5205_w)
 static ADDRESS_MAP_START( sf_map, AS_PROGRAM, 16, sf_state )
 	AM_RANGE(0x000000, 0x04ffff) AM_ROM
 	AM_RANGE(0x800000, 0x800fff) AM_RAM_WRITE(sf_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0xb00000, 0xb007ff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xb00000, 0xb007ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xc00000, 0xc00001) AM_READ_PORT("COINS")
 	AM_RANGE(0xc00002, 0xc00003) AM_READ_PORT("IN0")
 	AM_RANGE(0xc00004, 0xc00005) AM_READ(button1_r)
@@ -220,7 +220,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sfus_map, AS_PROGRAM, 16, sf_state )
 	AM_RANGE(0x000000, 0x04ffff) AM_ROM
 	AM_RANGE(0x800000, 0x800fff) AM_RAM_WRITE(sf_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0xb00000, 0xb007ff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xb00000, 0xb007ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xc00000, 0xc00001) AM_READ_PORT("IN0")
 	AM_RANGE(0xc00002, 0xc00003) AM_READ_PORT("IN1")
 	AM_RANGE(0xc00004, 0xc00005) AM_READ(dummy_r)
@@ -242,7 +242,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sfjp_map, AS_PROGRAM, 16, sf_state )
 	AM_RANGE(0x000000, 0x04ffff) AM_ROM
 	AM_RANGE(0x800000, 0x800fff) AM_RAM_WRITE(sf_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0xb00000, 0xb007ff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xb00000, 0xb007ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xc00000, 0xc00001) AM_READ_PORT("COINS")
 	AM_RANGE(0xc00002, 0xc00003) AM_READ_PORT("P1")
 	AM_RANGE(0xc00004, 0xc00005) AM_READ_PORT("P2")
@@ -792,13 +792,6 @@ static GFXDECODE_START( sf )
 GFXDECODE_END
 
 
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_NULL,              /* interrupt function */
-	MSM5205_SEX_4B  /* 8KHz playback ?    */
-};
-
 void sf_state::machine_start()
 {
 	/* devices */
@@ -839,10 +832,12 @@ static MACHINE_CONFIG_START( sf, sf_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 2*8, 30*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(sf_state, screen_update_sf)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sf)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sf)
 
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -853,12 +848,12 @@ static MACHINE_CONFIG_START( sf, sf_state )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.60)
 
 	MCFG_SOUND_ADD("msm1", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_SEX_4B)  /* 8KHz playback ?    */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
 	MCFG_SOUND_ADD("msm2", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_SEX_4B)  /* 8KHz playback ?    */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -948,10 +943,10 @@ ROM_START( sf )
 	ROM_LOAD( "sf-33.bin", 0x030000, 0x010000, CRC(3e99d3d5) SHA1(9168a977e80f8c23c6126b9e64eb176290cf941a) )
 
 	ROM_REGION( 0x0320, "proms", 0 )
-	ROM_LOAD( "mb7114h.12k",  0x0000, 0x0100, CRC(75af3553) SHA1(14da009592877a6097b34ea844fa897ceda7465e) )    /* unknown */
-	ROM_LOAD( "mb7114h.11h",  0x0100, 0x0100, CRC(c0e56586) SHA1(2abf93aef48af34f869b30f63c130513a97f86a3) )    /* unknown */
-	ROM_LOAD( "mb7114h.12j",  0x0200, 0x0100, CRC(4c734b64) SHA1(7a122b643bad3e3586821980efff023a63e5a029) )    /* unknown */
-	ROM_LOAD( "mmi-7603.13h", 0x0300, 0x0020, CRC(06bcda53) SHA1(fa69b77697bb12aa6012d82ef5b504d3a1d20232) )    /* unknown */
+	ROM_LOAD( "sfb05(__sf).mb7114h.12k",  0x0000, 0x0100, CRC(75af3553) SHA1(14da009592877a6097b34ea844fa897ceda7465e) )    /* MB7114H */
+	ROM_LOAD( "sfb10(__sf).mb7114h.11h",  0x0100, 0x0100, CRC(c0e56586) SHA1(2abf93aef48af34f869b30f63c130513a97f86a3) )    /* MB7114H */
+	ROM_LOAD( "sfb04(__sf).mb7114h.12j",  0x0200, 0x0100, CRC(4c734b64) SHA1(7a122b643bad3e3586821980efff023a63e5a029) )    /* MB7114H */
+	ROM_LOAD( "sfb00(__sf).mb7051.13h", 0x0300, 0x0020, CRC(06bcda53) SHA1(fa69b77697bb12aa6012d82ef5b504d3a1d20232) )    /* MMI-7603 or MB7051 (equiv to 82s123 32x8 TS) */
 ROM_END
 
 ROM_START( sfu )

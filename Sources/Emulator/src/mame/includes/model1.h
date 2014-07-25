@@ -1,5 +1,6 @@
 #include "audio/dsbz80.h"
 #include "audio/segam1audio.h"
+#include "cpu/v60/v60.h"
 
 typedef void (*tgp_func)(running_machine &machine);
 
@@ -19,9 +20,11 @@ public:
 		m_mr(*this, "mr"),
 		m_display_list0(*this, "display_list0"),
 		m_display_list1(*this, "display_list1"),
-		m_color_xlat(*this, "color_xlat"){ }
+		m_color_xlat(*this, "color_xlat"),
+		m_paletteram16(*this, "palette"),
+		m_palette(*this, "palette") { }
 
-	required_device<cpu_device> m_maincpu;      // V60
+	required_device<v60_device> m_maincpu;      // V60
 	required_device<segam1audio_device> m_m1audio;  // Model 1 standard sound board
 	optional_device<dsbz80_device> m_dsbz80;    // Digital Sound Board
 	optional_device<mb86233_cpu_device> m_tgp;
@@ -94,7 +97,8 @@ public:
 	UINT16 *m_glist;
 	int m_render_done;
 	UINT16 *m_tgp_ram;
-	UINT16 *m_paletteram16;
+	optional_shared_ptr<UINT16> m_paletteram16;
+	required_device<palette_device> m_palette;
 	UINT32 *m_poly_rom;
 	UINT32 *m_poly_ram;
 	UINT16 m_lamp_state;
@@ -137,6 +141,7 @@ public:
 	DECLARE_MACHINE_RESET(model1);
 	DECLARE_VIDEO_START(model1);
 	DECLARE_MACHINE_RESET(model1_vr);
+	DECLARE_WRITE_LINE_MEMBER(m1_to_main_irq);
 	UINT32 screen_update_model1(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void screen_eof_model1(screen_device &screen, bool state);
 	TIMER_DEVICE_CALLBACK_MEMBER(model1_interrupt);

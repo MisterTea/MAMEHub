@@ -9,6 +9,80 @@
  These are the final Xexex hardware games before the pre-GX/Mystic Warriors
  hardware took over.
 
+
+Wild West C.O.W. Boys Of Moo Mesa
+Konami 1992
+
+PCB Layout
+----------
+GX151 PWB353126
+|--------------------------------------------------------|
+|LA4705                             151A11.A8  151A11.A10|
+|                        151A08.B6  151A10.B8  151A12.B10|
+| 054986    |------|     62256                  |------| |
+|           |054539|     62256                  |053246A |
+|S_OUT      |      |          054744   5168     |      | |
+|           |      |                   5168     |      | |
+|           |------|                            |      | |
+| YM2151  Z80E  151A07.F5                       |------| |
+|                                                        |
+|J   051550                                     |------| |
+|A                                              |053247A |
+|M 054573   |------| 2018                       |      | |
+|M 054753   |054338| 2018                       |      | |
+|A 054753   |      | 2018                       |      | |
+|  054754   |      |                  |------|  |------| |
+|           |------|  053252          |053251|   5168    |
+|                    |------|         |      |   5168    |
+| 18.432MHz |-----|  |053990|         |------|   5168    |
+| 32MHz     |68000|  |      |          |------|          |
+|           |     |  |------|          |054157| |------| |
+|  ER5911.N2|-----|  055373            |      | |054156| |
+|                                      |      | |      | |
+|005273(X10)   151B01.Q5  151AAB02.Q6  |      | |      | |
+|TEST_SW       62256      62256        |------| |      | |
+|              151A03.T5  151A04.T6             |------| |
+|PL3 PL4 DSW(4)                      151A05.T8 151A06.T10|
+|--------------------------------------------------------|
+Notes:
+      68000   - Clock 16.000MHz [32/2]
+      Z80E    - Clock 8.000MHz [32/4]
+      YM2151  - Clock 4.000MHz [32/8]
+      62256   - KM62256 32kx8 SRAM (DIP28)
+      5168    - Sharp LH5168 8kx8 SRAM (DIP28)
+      ER5911  - EEPROM (128 bytes)
+      S_OUT   - 4 pin connector for stereo sound output
+      PL3/PL4 - 15 pin connectors for player 3 & player 4 controls
+      151*    - EPROM/mask ROM
+      LA4705  - Power AMP IC
+
+      Custom Chips
+      ------------
+      053990  - ? (Connected to 68000, main program ROMs and 2018 RAM)
+      053251  - Priority encoder
+      053252  - Timing/Interrupt controller. Clock input 32MHz
+      054157  \
+      054156  / Tilemap generators
+      053246A \
+      053247A / Sprite generators
+      054539  - 8-Channel ADPCM sound generator. Clock input 18.432MHz. Clock outputs 18.432/4 & 18.432/8
+      054573  - Video DAC (one for each R,G,B video signal)
+      054574  - Possibly RGB mixer/DAC/filter? (connected to 054573)
+      054338  - Color mixer for special effects/alpha blending etc (connected to 054573 & 054574 and 2018 RAM)
+      051550  - EMI filter for credit/coin counter
+      005273  - Resistor array for player 3 & player 4 controls
+      054986  - Audio DAC/filter
+      054744  - PAL16L8
+      055373  - PAL20L10
+
+      Sync Measurements
+      -----------------
+      HSync - 15.2036kHz
+      VSync - 59.1858Hz
+
+
+****************************************************************************
+
 Bug Fixes and Outstanding Issues
 --------------------------------
 Moo:
@@ -268,7 +342,7 @@ static ADDRESS_MAP_START( moo_map, AS_PROGRAM, 16, moo_state )
 	AM_RANGE(0x1a0000, 0x1a1fff) AM_DEVREADWRITE("k056832", k056832_device, ram_word_r, ram_word_w)  /* Graphic planes */
 	AM_RANGE(0x1a2000, 0x1a3fff) AM_DEVREADWRITE("k056832", k056832_device, ram_word_r, ram_word_w)  /* Graphic planes mirror */
 	AM_RANGE(0x1b0000, 0x1b1fff) AM_DEVREAD("k056832", k056832_device, rom_word_r)   /* Passthrough to tile roms */
-	AM_RANGE(0x1c0000, 0x1c1fff) AM_RAM_WRITE(paletteram_xrgb_word_be_w) AM_SHARE("paletteram")
+	AM_RANGE(0x1c0000, 0x1c1fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 #if MOO_DEBUG
 	AM_RANGE(0x0c0000, 0x0c003f) AM_DEVREAD("k056832", k056832_device, word_r)
 	AM_RANGE(0x0c2000, 0x0c2007) AM_DEVREAD("k053246", k053247_device, k053246_reg_word_r)
@@ -301,7 +375,7 @@ static ADDRESS_MAP_START( moobl_map, AS_PROGRAM, 16, moo_state )
 	AM_RANGE(0x1a0000, 0x1a1fff) AM_DEVREADWRITE("k056832", k056832_device, ram_word_r, ram_word_w) /* Graphic planes */
 	AM_RANGE(0x1a2000, 0x1a3fff) AM_DEVREADWRITE("k056832", k056832_device, ram_word_r, ram_word_w)  /* Graphic planes mirror */
 	AM_RANGE(0x1b0000, 0x1b1fff) AM_DEVREAD("k056832", k056832_device, rom_word_r)   /* Passthrough to tile roms */
-	AM_RANGE(0x1c0000, 0x1c1fff) AM_RAM_WRITE(paletteram_xrgb_word_be_w) AM_SHARE("paletteram")
+	AM_RANGE(0x1c0000, 0x1c1fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( bucky_map, AS_PROGRAM, 16, moo_state )
@@ -332,7 +406,7 @@ static ADDRESS_MAP_START( bucky_map, AS_PROGRAM, 16, moo_state )
 	AM_RANGE(0x182000, 0x183fff) AM_DEVREADWRITE("k056832", k056832_device, ram_word_r, ram_word_w)  /* Graphic planes mirror */
 	AM_RANGE(0x184000, 0x187fff) AM_RAM                         /* extra tile RAM? */
 	AM_RANGE(0x190000, 0x191fff) AM_DEVREAD("k056832", k056832_device, rom_word_r)   /* Passthrough to tile roms */
-	AM_RANGE(0x1b0000, 0x1b3fff) AM_RAM_WRITE(paletteram_xrgb_word_be_w) AM_SHARE("paletteram")
+	AM_RANGE(0x1b0000, 0x1b3fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x200000, 0x23ffff) AM_ROM                         /* data */
 #if MOO_DEBUG
 	AM_RANGE(0x0c0000, 0x0c003f) AM_DEVREAD("k056832", k056832_device, word_r)
@@ -440,58 +514,14 @@ MACHINE_RESET_MEMBER(moo_state,moo)
 	m_sprite_colorbase = 0;
 }
 
-static const k056832_interface moo_k056832_intf =
-{
-	"gfx1", 0,
-	K056832_BPP_4,
-	1, 0,
-	KONAMI_ROM_DEINTERLEAVE_2,
-	moo_tile_callback, "none"
-};
-
-static const k053247_interface moo_k053247_intf =
-{
-	"gfx2", 1,
-	NORMAL_PLANE_ORDER,
-	-48+1, 23,
-	KONAMI_ROM_DEINTERLEAVE_4,
-	moo_sprite_callback
-};
-
-static const k053247_interface bucky_k053247_intf =
-{
-	"gfx2", 1,
-	NORMAL_PLANE_ORDER,
-	-48, 23,
-	KONAMI_ROM_DEINTERLEAVE_4,
-	moo_sprite_callback
-};
-
-static const k054338_interface moo_k054338_intf =
-{
-	0,
-	"none"
-};
-
-static const k053252_interface moo_k053252_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	40, 16
-};
-
-static k054539_interface k054539_config;
-
 static MACHINE_CONFIG_START( moo, moo_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 16000000)
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_32MHz/2) // 16MHz verified
 	MCFG_CPU_PROGRAM_MAP(moo_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", moo_state,  moo_interrupt)
 
-	MCFG_CPU_ADD("soundcpu", Z80, 8000000)
+	MCFG_CPU_ADD("soundcpu", Z80, XTAL_32MHz/4) // 8MHz verified
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 
 	MCFG_MACHINE_START_OVERRIDE(moo_state,moo)
@@ -499,35 +529,51 @@ static MACHINE_CONFIG_START( moo, moo_state )
 
 	MCFG_EEPROM_SERIAL_ER5911_8BIT_ADD("eeprom")
 
-	MCFG_K053252_ADD("k053252", 16000000/2, moo_k053252_intf)
+	MCFG_DEVICE_ADD("k053252", K053252, XTAL_32MHz/4) // 8MHz
+	MCFG_K053252_OFFSETS(40, 16)
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS | VIDEO_HAS_HIGHLIGHTS | VIDEO_UPDATE_AFTER_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(1200))   // should give IRQ4 sufficient time to update scroll registers
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(40, 40+384-1, 16, 16+224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(moo_state, screen_update_moo)
 
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(XRGB)
+	MCFG_PALETTE_ENABLE_SHADOWS()
+	MCFG_PALETTE_ENABLE_HILIGHTS()
 
 	MCFG_VIDEO_START_OVERRIDE(moo_state,moo)
 
-	MCFG_K053246_ADD("k053246", moo_k053247_intf)
-	MCFG_K056832_ADD("k056832", moo_k056832_intf)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
+
+	MCFG_DEVICE_ADD("k053246", K053246, 0)
+	MCFG_K053246_CB(moo_state, sprite_callback)
+	MCFG_K053246_CONFIG("gfx2", 1, NORMAL_PLANE_ORDER, -48+1, 23)
+	MCFG_K053246_GFXDECODE("gfxdecode")
+	MCFG_K053246_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("k056832", K056832, 0)
+	MCFG_K056832_CB(moo_state, tile_callback)
+	MCFG_K056832_CONFIG("gfx1", 0, K056832_BPP_4, 1, 0, "none")
+	MCFG_K056832_GFXDECODE("gfxdecode")
+	MCFG_K056832_PALETTE("palette")
+
 	MCFG_K053251_ADD("k053251")
-	MCFG_K054338_ADD("k054338", moo_k054338_intf)
+
+	MCFG_DEVICE_ADD("k054338", K054338, 0)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_YM2151_ADD("ymsnd", 4000000)
+	MCFG_YM2151_ADD("ymsnd", XTAL_32MHz/8) // 4MHz verified
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
 
-	MCFG_K054539_ADD("k054539", 48000, k054539_config)
+	MCFG_DEVICE_ADD("k054539", K054539, XTAL_18_432MHz)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 MACHINE_CONFIG_END
@@ -545,23 +591,38 @@ static MACHINE_CONFIG_START( moobl, moo_state )
 	MCFG_EEPROM_SERIAL_ER5911_8BIT_ADD("eeprom")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS | VIDEO_HAS_HIGHLIGHTS | VIDEO_UPDATE_AFTER_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(1200)) // should give IRQ4 sufficient time to update scroll registers
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(40, 40+384-1, 16, 16+224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(moo_state, screen_update_moo)
 
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(XRGB)
+	MCFG_PALETTE_ENABLE_SHADOWS()
+	MCFG_PALETTE_ENABLE_HILIGHTS()
 
 	MCFG_VIDEO_START_OVERRIDE(moo_state,moo)
 
-	MCFG_K053246_ADD("k053246", moo_k053247_intf)
-	MCFG_K056832_ADD("k056832", moo_k056832_intf)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
+
+	MCFG_DEVICE_ADD("k053246", K053246, 0)
+	MCFG_K053246_CB(moo_state, sprite_callback)
+	MCFG_K053246_CONFIG("gfx2", 1, NORMAL_PLANE_ORDER, -48+1, 23)
+	MCFG_K053246_GFXDECODE("gfxdecode")
+	MCFG_K053246_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("k056832", K056832, 0)
+	MCFG_K056832_CB(moo_state, tile_callback)
+	MCFG_K056832_CONFIG("gfx1", 0, K056832_BPP_4, 1, 0, "none")
+	MCFG_K056832_GFXDECODE("gfxdecode")
+	MCFG_K056832_PALETTE("palette")
+
 	MCFG_K053251_ADD("k053251")
-	MCFG_K054338_ADD("k054338", moo_k054338_intf)
+
+	MCFG_DEVICE_ADD("k054338", K054338, 0)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -578,11 +639,15 @@ static MACHINE_CONFIG_DERIVED( bucky, moo )
 
 	MCFG_K054000_ADD("k054000")
 
-	MCFG_DEVICE_REMOVE("k053246")
-	MCFG_K053246_ADD("k053246", bucky_k053247_intf)     // diff x offset
+	MCFG_DEVICE_MODIFY("k053246")
+	MCFG_K053246_CONFIG("gfx2", 1, NORMAL_PLANE_ORDER, -48, 23)
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(4096)
+	MCFG_PALETTE_FORMAT(XRGB)
+	MCFG_PALETTE_ENABLE_SHADOWS()
+	MCFG_PALETTE_ENABLE_HILIGHTS()
 
 	MCFG_VIDEO_START_OVERRIDE(moo_state,bucky)
 MACHINE_CONFIG_END
@@ -605,15 +670,15 @@ ROM_START( moomesa ) /* Version EA */
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
 	/* tilemaps */
-	ROM_LOAD( "151a05.t8",  0x000000, 0x100000, CRC(bc616249) SHA1(58c1f1a03ce9bead8f79d12ce4b2d342432b24b5) )
-	ROM_LOAD( "151a06.t10", 0x100000, 0x100000, CRC(38dbcac1) SHA1(c357779733921695b20ac586db5b475f5b2b8f4c) )
+	ROM_LOAD32_WORD( "151a05.t8",  0x000000, 0x100000, CRC(bc616249) SHA1(58c1f1a03ce9bead8f79d12ce4b2d342432b24b5) )
+	ROM_LOAD32_WORD( "151a06.t10", 0x000002, 0x100000, CRC(38dbcac1) SHA1(c357779733921695b20ac586db5b475f5b2b8f4c) )
 
 	ROM_REGION( 0x800000, "gfx2", 0 )
 	/* sprites */
-	ROM_LOAD( "151a10.b8",  0x000000, 0x200000, CRC(376c64f1) SHA1(eb69c5a27f9795e28f04a503955132f0a9e4de12) )
-	ROM_LOAD( "151a11.a8",  0x200000, 0x200000, CRC(e7f49225) SHA1(1255b214f29b6507540dad5892c60a7ae2aafc5c) )
-	ROM_LOAD( "151a12.b10", 0x400000, 0x200000, CRC(4978555f) SHA1(d9871f21d0c8a512b408e137e2e80e9392c2bf6f) )
-	ROM_LOAD( "151a13.a10", 0x600000, 0x200000, CRC(4771f525) SHA1(218d86b6230919b5db0304dac00513eb6b27ba9a) )
+	ROM_LOAD64_WORD( "151a10.b8",  0x000000, 0x200000, CRC(376c64f1) SHA1(eb69c5a27f9795e28f04a503955132f0a9e4de12) )
+	ROM_LOAD64_WORD( "151a11.a8",  0x000002, 0x200000, CRC(e7f49225) SHA1(1255b214f29b6507540dad5892c60a7ae2aafc5c) )
+	ROM_LOAD64_WORD( "151a12.b10", 0x000004, 0x200000, CRC(4978555f) SHA1(d9871f21d0c8a512b408e137e2e80e9392c2bf6f) )
+	ROM_LOAD64_WORD( "151a13.a10", 0x000006, 0x200000, CRC(4771f525) SHA1(218d86b6230919b5db0304dac00513eb6b27ba9a) )
 
 	ROM_REGION( 0x200000, "k054539", 0 )
 	/* K054539 samples */
@@ -640,15 +705,15 @@ ROM_START( moomesauac ) /* Version UA */
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
 	/* tilemaps */
-	ROM_LOAD( "151a05.t8",  0x000000, 0x100000, CRC(bc616249) SHA1(58c1f1a03ce9bead8f79d12ce4b2d342432b24b5) )
-	ROM_LOAD( "151a06.t10", 0x100000, 0x100000, CRC(38dbcac1) SHA1(c357779733921695b20ac586db5b475f5b2b8f4c) )
+	ROM_LOAD32_WORD( "151a05.t8",  0x000000, 0x100000, CRC(bc616249) SHA1(58c1f1a03ce9bead8f79d12ce4b2d342432b24b5) )
+	ROM_LOAD32_WORD( "151a06.t10", 0x000002, 0x100000, CRC(38dbcac1) SHA1(c357779733921695b20ac586db5b475f5b2b8f4c) )
 
 	ROM_REGION( 0x800000, "gfx2", 0 )
 	/* sprites */
-	ROM_LOAD( "151a10.b8",  0x000000, 0x200000, CRC(376c64f1) SHA1(eb69c5a27f9795e28f04a503955132f0a9e4de12) )
-	ROM_LOAD( "151a11.a8",  0x200000, 0x200000, CRC(e7f49225) SHA1(1255b214f29b6507540dad5892c60a7ae2aafc5c) )
-	ROM_LOAD( "151a12.b10", 0x400000, 0x200000, CRC(4978555f) SHA1(d9871f21d0c8a512b408e137e2e80e9392c2bf6f) )
-	ROM_LOAD( "151a13.a10", 0x600000, 0x200000, CRC(4771f525) SHA1(218d86b6230919b5db0304dac00513eb6b27ba9a) )
+	ROM_LOAD64_WORD( "151a10.b8",  0x000000, 0x200000, CRC(376c64f1) SHA1(eb69c5a27f9795e28f04a503955132f0a9e4de12) )
+	ROM_LOAD64_WORD( "151a11.a8",  0x000002, 0x200000, CRC(e7f49225) SHA1(1255b214f29b6507540dad5892c60a7ae2aafc5c) )
+	ROM_LOAD64_WORD( "151a12.b10", 0x000004, 0x200000, CRC(4978555f) SHA1(d9871f21d0c8a512b408e137e2e80e9392c2bf6f) )
+	ROM_LOAD64_WORD( "151a13.a10", 0x000006, 0x200000, CRC(4771f525) SHA1(218d86b6230919b5db0304dac00513eb6b27ba9a) )
 
 	ROM_REGION( 0x200000, "k054539", 0 )
 	/* K054539 samples */
@@ -675,15 +740,15 @@ ROM_START( moomesauab ) /* Version UA */
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
 	/* tilemaps */
-	ROM_LOAD( "151a05.t8",  0x000000, 0x100000, CRC(bc616249) SHA1(58c1f1a03ce9bead8f79d12ce4b2d342432b24b5) )
-	ROM_LOAD( "151a06.t10", 0x100000, 0x100000, CRC(38dbcac1) SHA1(c357779733921695b20ac586db5b475f5b2b8f4c) )
+	ROM_LOAD32_WORD( "151a05.t8",  0x000000, 0x100000, CRC(bc616249) SHA1(58c1f1a03ce9bead8f79d12ce4b2d342432b24b5) )
+	ROM_LOAD32_WORD( "151a06.t10", 0x000002, 0x100000, CRC(38dbcac1) SHA1(c357779733921695b20ac586db5b475f5b2b8f4c) )
 
 	ROM_REGION( 0x800000, "gfx2", 0 )
 	/* sprites */
-	ROM_LOAD( "151a10.b8",  0x000000, 0x200000, CRC(376c64f1) SHA1(eb69c5a27f9795e28f04a503955132f0a9e4de12) )
-	ROM_LOAD( "151a11.a8",  0x200000, 0x200000, CRC(e7f49225) SHA1(1255b214f29b6507540dad5892c60a7ae2aafc5c) )
-	ROM_LOAD( "151a12.b10", 0x400000, 0x200000, CRC(4978555f) SHA1(d9871f21d0c8a512b408e137e2e80e9392c2bf6f) )
-	ROM_LOAD( "151a13.a10", 0x600000, 0x200000, CRC(4771f525) SHA1(218d86b6230919b5db0304dac00513eb6b27ba9a) )
+	ROM_LOAD64_WORD( "151a10.b8",  0x000000, 0x200000, CRC(376c64f1) SHA1(eb69c5a27f9795e28f04a503955132f0a9e4de12) )
+	ROM_LOAD64_WORD( "151a11.a8",  0x000002, 0x200000, CRC(e7f49225) SHA1(1255b214f29b6507540dad5892c60a7ae2aafc5c) )
+	ROM_LOAD64_WORD( "151a12.b10", 0x000004, 0x200000, CRC(4978555f) SHA1(d9871f21d0c8a512b408e137e2e80e9392c2bf6f) )
+	ROM_LOAD64_WORD( "151a13.a10", 0x000006, 0x200000, CRC(4771f525) SHA1(218d86b6230919b5db0304dac00513eb6b27ba9a) )
 
 	ROM_REGION( 0x200000, "k054539", 0 )
 	/* K054539 samples */
@@ -710,15 +775,15 @@ ROM_START( moomesaaab ) /* Version AA */
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
 	/* tilemaps */
-	ROM_LOAD( "151a05.t8",  0x000000, 0x100000, CRC(bc616249) SHA1(58c1f1a03ce9bead8f79d12ce4b2d342432b24b5) )
-	ROM_LOAD( "151a06.t10", 0x100000, 0x100000, CRC(38dbcac1) SHA1(c357779733921695b20ac586db5b475f5b2b8f4c) )
+	ROM_LOAD32_WORD( "151a05.t8",  0x000000, 0x100000, CRC(bc616249) SHA1(58c1f1a03ce9bead8f79d12ce4b2d342432b24b5) )
+	ROM_LOAD32_WORD( "151a06.t10", 0x000002, 0x100000, CRC(38dbcac1) SHA1(c357779733921695b20ac586db5b475f5b2b8f4c) )
 
 	ROM_REGION( 0x800000, "gfx2", 0 )
 	/* sprites */
-	ROM_LOAD( "151a10.b8",  0x000000, 0x200000, CRC(376c64f1) SHA1(eb69c5a27f9795e28f04a503955132f0a9e4de12) )
-	ROM_LOAD( "151a11.a8",  0x200000, 0x200000, CRC(e7f49225) SHA1(1255b214f29b6507540dad5892c60a7ae2aafc5c) )
-	ROM_LOAD( "151a12.b10", 0x400000, 0x200000, CRC(4978555f) SHA1(d9871f21d0c8a512b408e137e2e80e9392c2bf6f) )
-	ROM_LOAD( "151a13.a10", 0x600000, 0x200000, CRC(4771f525) SHA1(218d86b6230919b5db0304dac00513eb6b27ba9a) )
+	ROM_LOAD64_WORD( "151a10.b8",  0x000000, 0x200000, CRC(376c64f1) SHA1(eb69c5a27f9795e28f04a503955132f0a9e4de12) )
+	ROM_LOAD64_WORD( "151a11.a8",  0x000002, 0x200000, CRC(e7f49225) SHA1(1255b214f29b6507540dad5892c60a7ae2aafc5c) )
+	ROM_LOAD64_WORD( "151a12.b10", 0x000004, 0x200000, CRC(4978555f) SHA1(d9871f21d0c8a512b408e137e2e80e9392c2bf6f) )
+	ROM_LOAD64_WORD( "151a13.a10", 0x000006, 0x200000, CRC(4771f525) SHA1(218d86b6230919b5db0304dac00513eb6b27ba9a) )
 
 	ROM_REGION( 0x200000, "k054539", 0 )
 	/* K054539 samples */
@@ -745,15 +810,51 @@ ROM_START( bucky ) /* Version EA */
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
 	/* tilemaps */
-	ROM_LOAD( "173a05.t8",  0x000000, 0x100000, CRC(d14333b4) SHA1(d1a15ead2d156e1fceca0bf202ab3962411caf11) )
-	ROM_LOAD( "173a06.t10", 0x100000, 0x100000, CRC(6541a34f) SHA1(15cf481498e3b7e0b2f7bfe5434121cc3bd65662) )
+	ROM_LOAD32_WORD( "173a05.t8",  0x000000, 0x100000, CRC(d14333b4) SHA1(d1a15ead2d156e1fceca0bf202ab3962411caf11) )
+	ROM_LOAD32_WORD( "173a06.t10", 0x000002, 0x100000, CRC(6541a34f) SHA1(15cf481498e3b7e0b2f7bfe5434121cc3bd65662) )
 
 	ROM_REGION( 0x800000, "gfx2", 0 )
 	/* sprites */
-	ROM_LOAD( "173a10.b8",  0x000000, 0x200000, CRC(42fb0a0c) SHA1(d68c932cfabdec7896698b433525fe47ef4698d0) )
-	ROM_LOAD( "173a11.a8",  0x200000, 0x200000, CRC(b0d747c4) SHA1(0cf1ee1b9a35ded31a81c321df2a076f7b588971) )
-	ROM_LOAD( "173a12.b10", 0x400000, 0x200000, CRC(0fc2ad24) SHA1(6eda1043ee1266b8ba938a03a90bc7787210a936) )
-	ROM_LOAD( "173a13.a10", 0x600000, 0x200000, CRC(4cf85439) SHA1(8c298bf0e659a830a1830a1180f4ce71215ade45) )
+	ROM_LOAD64_WORD( "173a10.b8",  0x000000, 0x200000, CRC(42fb0a0c) SHA1(d68c932cfabdec7896698b433525fe47ef4698d0) )
+	ROM_LOAD64_WORD( "173a11.a8",  0x000002, 0x200000, CRC(b0d747c4) SHA1(0cf1ee1b9a35ded31a81c321df2a076f7b588971) )
+	ROM_LOAD64_WORD( "173a12.b10", 0x000004, 0x200000, CRC(0fc2ad24) SHA1(6eda1043ee1266b8ba938a03a90bc7787210a936) )
+	ROM_LOAD64_WORD( "173a13.a10", 0x000006, 0x200000, CRC(4cf85439) SHA1(8c298bf0e659a830a1830a1180f4ce71215ade45) )
+
+	ROM_REGION( 0x400000, "k054539", 0 )
+	/* K054539 samples */
+	ROM_LOAD( "173a08.b6",  0x000000, 0x200000, CRC(dcdded95) SHA1(8eeb546a0b60a35a6dce36c5ee872e6c93c577c9) )
+	ROM_LOAD( "173a09.a6",  0x200000, 0x200000, CRC(c93697c4) SHA1(0528a604868267a30d281b822c187df118566691) )
+
+	ROM_REGION( 0x80, "eeprom", 0 ) // default eeprom to prevent game booting upside down with error
+	ROM_LOAD( "bucky.nv", 0x0000, 0x080, CRC(6a5986f3) SHA1(3efddeed261b09031c582e12318f00c2cbb214ea) )
+ROM_END
+
+ROM_START( buckyea ) /* Version EA */
+	ROM_REGION( 0x240000, "maincpu", 0 )
+	/* main program */
+	ROM_LOAD16_BYTE( "2.d5", 0x000000, 0x40000, CRC(e18518a6) SHA1(6b0bac8080032b7528b47e802c2f6a5264da5f55) )   /* 27C2001 EA prototype? */
+	ROM_LOAD16_BYTE( "3.d6", 0x000001, 0x40000, CRC(45ef9545) SHA1(370862e916410e7052e094033cc18ac727c75d8e) )   /* 27C2001 EA prototype? */
+
+	/* data */
+	ROM_LOAD16_BYTE( "173a03.t5", 0x200000, 0x20000, CRC(cd724026) SHA1(525445499604b713da4d8bc0a88e428654ceab95) )
+	ROM_LOAD16_BYTE( "173a04.t6", 0x200001, 0x20000, CRC(7dd54d6f) SHA1(b0ee8ec445b92254bca881eefd4449972fed506a) )
+
+	ROM_REGION( 0x050000, "soundcpu", 0 )
+	/* Z80 sound program */
+	ROM_LOAD( "173a07.f5",  0x000000, 0x040000, CRC(4cdaee71) SHA1(bdc05d4475415f6fac65d7cdbc48df398e57845e) )
+	ROM_RELOAD(             0x010000, 0x040000 )
+
+	ROM_REGION( 0x200000, "gfx1", 0 )
+	/* tilemaps */
+	ROM_LOAD32_WORD( "173a05.t8",  0x000000, 0x100000, CRC(d14333b4) SHA1(d1a15ead2d156e1fceca0bf202ab3962411caf11) )
+	ROM_LOAD32_WORD( "173a06.t10", 0x000002, 0x100000, CRC(6541a34f) SHA1(15cf481498e3b7e0b2f7bfe5434121cc3bd65662) )
+
+	ROM_REGION( 0x800000, "gfx2", 0 )
+	/* sprites */
+	ROM_LOAD64_WORD( "173a10.b8",  0x000000, 0x200000, CRC(42fb0a0c) SHA1(d68c932cfabdec7896698b433525fe47ef4698d0) )
+	ROM_LOAD64_WORD( "173a11.a8",  0x000002, 0x200000, CRC(b0d747c4) SHA1(0cf1ee1b9a35ded31a81c321df2a076f7b588971) )
+	ROM_LOAD64_WORD( "173a12.b10", 0x000004, 0x200000, CRC(0fc2ad24) SHA1(6eda1043ee1266b8ba938a03a90bc7787210a936) )
+	ROM_LOAD64_WORD( "173a13.a10", 0x000006, 0x200000, CRC(4cf85439) SHA1(8c298bf0e659a830a1830a1180f4ce71215ade45) )
 
 	ROM_REGION( 0x400000, "k054539", 0 )
 	/* K054539 samples */
@@ -781,15 +882,15 @@ ROM_START( buckyuab ) /* Version UA */
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
 	/* tilemaps */
-	ROM_LOAD( "173a05.t8",  0x000000, 0x100000, CRC(d14333b4) SHA1(d1a15ead2d156e1fceca0bf202ab3962411caf11) )
-	ROM_LOAD( "173a06.t10", 0x100000, 0x100000, CRC(6541a34f) SHA1(15cf481498e3b7e0b2f7bfe5434121cc3bd65662) )
+	ROM_LOAD32_WORD( "173a05.t8",  0x000000, 0x100000, CRC(d14333b4) SHA1(d1a15ead2d156e1fceca0bf202ab3962411caf11) )
+	ROM_LOAD32_WORD( "173a06.t10", 0x000002, 0x100000, CRC(6541a34f) SHA1(15cf481498e3b7e0b2f7bfe5434121cc3bd65662) )
 
 	ROM_REGION( 0x800000, "gfx2", 0 )
 	/* sprites */
-	ROM_LOAD( "173a10.b8",  0x000000, 0x200000, CRC(42fb0a0c) SHA1(d68c932cfabdec7896698b433525fe47ef4698d0) )
-	ROM_LOAD( "173a11.a8",  0x200000, 0x200000, CRC(b0d747c4) SHA1(0cf1ee1b9a35ded31a81c321df2a076f7b588971) )
-	ROM_LOAD( "173a12.b10", 0x400000, 0x200000, CRC(0fc2ad24) SHA1(6eda1043ee1266b8ba938a03a90bc7787210a936) )
-	ROM_LOAD( "173a13.a10", 0x600000, 0x200000, CRC(4cf85439) SHA1(8c298bf0e659a830a1830a1180f4ce71215ade45) )
+	ROM_LOAD64_WORD( "173a10.b8",  0x000000, 0x200000, CRC(42fb0a0c) SHA1(d68c932cfabdec7896698b433525fe47ef4698d0) )
+	ROM_LOAD64_WORD( "173a11.a8",  0x000002, 0x200000, CRC(b0d747c4) SHA1(0cf1ee1b9a35ded31a81c321df2a076f7b588971) )
+	ROM_LOAD64_WORD( "173a12.b10", 0x000004, 0x200000, CRC(0fc2ad24) SHA1(6eda1043ee1266b8ba938a03a90bc7787210a936) )
+	ROM_LOAD64_WORD( "173a13.a10", 0x000006, 0x200000, CRC(4cf85439) SHA1(8c298bf0e659a830a1830a1180f4ce71215ade45) )
 
 	ROM_REGION( 0x400000, "k054539", 0 )
 	/* K054539 samples */
@@ -817,15 +918,15 @@ ROM_START( buckyaab ) /* Version AA */
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
 	/* tilemaps */
-	ROM_LOAD( "173a05.t8",  0x000000, 0x100000, CRC(d14333b4) SHA1(d1a15ead2d156e1fceca0bf202ab3962411caf11) )
-	ROM_LOAD( "173a06.t10", 0x100000, 0x100000, CRC(6541a34f) SHA1(15cf481498e3b7e0b2f7bfe5434121cc3bd65662) )
+	ROM_LOAD32_WORD( "173a05.t8",  0x000000, 0x100000, CRC(d14333b4) SHA1(d1a15ead2d156e1fceca0bf202ab3962411caf11) )
+	ROM_LOAD32_WORD( "173a06.t10", 0x000002, 0x100000, CRC(6541a34f) SHA1(15cf481498e3b7e0b2f7bfe5434121cc3bd65662) )
 
 	ROM_REGION( 0x800000, "gfx2", 0 )
 	/* sprites */
-	ROM_LOAD( "173a10.b8",  0x000000, 0x200000, CRC(42fb0a0c) SHA1(d68c932cfabdec7896698b433525fe47ef4698d0) )
-	ROM_LOAD( "173a11.a8",  0x200000, 0x200000, CRC(b0d747c4) SHA1(0cf1ee1b9a35ded31a81c321df2a076f7b588971) )
-	ROM_LOAD( "173a12.b10", 0x400000, 0x200000, CRC(0fc2ad24) SHA1(6eda1043ee1266b8ba938a03a90bc7787210a936) )
-	ROM_LOAD( "173a13.a10", 0x600000, 0x200000, CRC(4cf85439) SHA1(8c298bf0e659a830a1830a1180f4ce71215ade45) )
+	ROM_LOAD64_WORD( "173a10.b8",  0x000000, 0x200000, CRC(42fb0a0c) SHA1(d68c932cfabdec7896698b433525fe47ef4698d0) )
+	ROM_LOAD64_WORD( "173a11.a8",  0x000002, 0x200000, CRC(b0d747c4) SHA1(0cf1ee1b9a35ded31a81c321df2a076f7b588971) )
+	ROM_LOAD64_WORD( "173a12.b10", 0x000004, 0x200000, CRC(0fc2ad24) SHA1(6eda1043ee1266b8ba938a03a90bc7787210a936) )
+	ROM_LOAD64_WORD( "173a13.a10", 0x000006, 0x200000, CRC(4cf85439) SHA1(8c298bf0e659a830a1830a1180f4ce71215ade45) )
 
 	ROM_REGION( 0x400000, "k054539", 0 )
 	/* K054539 samples */
@@ -847,17 +948,17 @@ ROM_START( moomesabl )
 	ROM_LOAD16_WORD_SWAP( "moo04.rom", 0x080000, 0x80000, CRC(ec45892a) SHA1(594330cbbfbca87e61ddf519e565018b6eaf5a20) )
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
-	ROM_LOAD( "moo05.rom", 0x000000, 0x080000, CRC(8c045f9c) SHA1(cde81a722a4bc2efac09a26d7e300664059ec7bb) )
-	ROM_LOAD( "moo06.rom", 0x080000, 0x080000, CRC(1261aa89) SHA1(b600916911bc0d8b6348e2ad4a16ed1a1c528261) )
-	ROM_LOAD( "moo07.rom", 0x100000, 0x080000, CRC(b9e29f50) SHA1(c2af095df0af45064d49210085370425b319b82b) )
-	ROM_LOAD( "moo08.rom", 0x180000, 0x080000, CRC(e6937229) SHA1(089b3d4af33e8d8fbc1f3abb81e047a7a590567c) )
+	ROM_LOAD32_WORD( "moo05.rom", 0x000000, 0x080000, CRC(8c045f9c) SHA1(cde81a722a4bc2efac09a26d7e300664059ec7bb) )
+	ROM_LOAD32_WORD( "moo07.rom", 0x000002, 0x080000, CRC(b9e29f50) SHA1(c2af095df0af45064d49210085370425b319b82b) )
+	ROM_LOAD32_WORD( "moo06.rom", 0x100000, 0x080000, CRC(1261aa89) SHA1(b600916911bc0d8b6348e2ad4a16ed1a1c528261) )
+	ROM_LOAD32_WORD( "moo08.rom", 0x100002, 0x080000, CRC(e6937229) SHA1(089b3d4af33e8d8fbc1f3abb81e047a7a590567c) )
 
 	// sprites from bootleg not included in dump, taken from original game
 	ROM_REGION( 0x800000, "gfx2", 0 )
-	ROM_LOAD( "151a10", 0x000000, 0x200000, CRC(376c64f1) SHA1(eb69c5a27f9795e28f04a503955132f0a9e4de12) )
-	ROM_LOAD( "151a11", 0x200000, 0x200000, CRC(e7f49225) SHA1(1255b214f29b6507540dad5892c60a7ae2aafc5c) )
-	ROM_LOAD( "151a12", 0x400000, 0x200000, CRC(4978555f) SHA1(d9871f21d0c8a512b408e137e2e80e9392c2bf6f) )
-	ROM_LOAD( "151a13", 0x600000, 0x200000, CRC(4771f525) SHA1(218d86b6230919b5db0304dac00513eb6b27ba9a) )
+	ROM_LOAD64_WORD( "151a10", 0x000000, 0x200000, CRC(376c64f1) SHA1(eb69c5a27f9795e28f04a503955132f0a9e4de12) )
+	ROM_LOAD64_WORD( "151a11", 0x000002, 0x200000, CRC(e7f49225) SHA1(1255b214f29b6507540dad5892c60a7ae2aafc5c) )
+	ROM_LOAD64_WORD( "151a12", 0x000004, 0x200000, CRC(4978555f) SHA1(d9871f21d0c8a512b408e137e2e80e9392c2bf6f) )
+	ROM_LOAD64_WORD( "151a13", 0x000006, 0x200000, CRC(4771f525) SHA1(218d86b6230919b5db0304dac00513eb6b27ba9a) )
 
 	ROM_REGION( 0x340000, "oki", 0 )
 	ROM_LOAD( "moo01.rom", 0x000000, 0x040000, CRC(3311338a) SHA1(c0b5cd16f0275b5b93a2ea4fc64013c848c5fa43) )//bank 0 lo & hi
@@ -892,11 +993,12 @@ ROM_START( moomesabl )
 ROM_END
 
 
-GAME( 1992, moomesa,    0,       moo,     moo,   driver_device, 0, ROT0, "Konami", "Wild West C.O.W.-Boys of Moo Mesa (ver EAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1992, moomesauac, moomesa, moo,     moo,   driver_device, 0, ROT0, "Konami", "Wild West C.O.W.-Boys of Moo Mesa (ver UAC)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1992, moomesauab, moomesa, moo,     moo,   driver_device, 0, ROT0, "Konami", "Wild West C.O.W.-Boys of Moo Mesa (ver UAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1992, moomesaaab, moomesa, moo,     moo,   driver_device, 0, ROT0, "Konami", "Wild West C.O.W.-Boys of Moo Mesa (ver AAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, moomesa,    0,       moo,     moo,   driver_device, 0, ROT0, "Konami",  "Wild West C.O.W.-Boys of Moo Mesa (ver EAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, moomesauac, moomesa, moo,     moo,   driver_device, 0, ROT0, "Konami",  "Wild West C.O.W.-Boys of Moo Mesa (ver UAC)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, moomesauab, moomesa, moo,     moo,   driver_device, 0, ROT0, "Konami",  "Wild West C.O.W.-Boys of Moo Mesa (ver UAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, moomesaaab, moomesa, moo,     moo,   driver_device, 0, ROT0, "Konami",  "Wild West C.O.W.-Boys of Moo Mesa (ver AAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
 GAME( 1992, moomesabl,  moomesa, moobl,   moo,   driver_device, 0, ROT0, "bootleg", "Wild West C.O.W.-Boys of Moo Mesa (bootleg)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE ) // based on Version AA
-GAME( 1992, bucky,      0,       bucky,   bucky, driver_device, 0, ROT0, "Konami", "Bucky O'Hare (ver EAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1992, buckyuab,   bucky,   bucky,   bucky, driver_device, 0, ROT0, "Konami", "Bucky O'Hare (ver UAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1992, buckyaab,   bucky,   bucky,   bucky, driver_device, 0, ROT0, "Konami", "Bucky O'Hare (ver AAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, bucky,      0,       bucky,   bucky, driver_device, 0, ROT0, "Konami",  "Bucky O'Hare (ver EAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, buckyea,    bucky,   bucky,   bucky, driver_device, 0, ROT0, "Konami",  "Bucky O'Hare (ver EA)",  GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, buckyuab,   bucky,   bucky,   bucky, driver_device, 0, ROT0, "Konami",  "Bucky O'Hare (ver UAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, buckyaab,   bucky,   bucky,   bucky, driver_device, 0, ROT0, "Konami",  "Bucky O'Hare (ver AAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )

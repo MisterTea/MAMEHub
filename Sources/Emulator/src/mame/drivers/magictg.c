@@ -273,7 +273,7 @@ UINT32 magictg_state::screen_update_magictg(screen_device &screen, bitmap_rgb32 
 
 static UINT32 pci_dev0_r(device_t *busdevice, device_t *device, int function, int reg, UINT32 mem_mask)
 {
-	mame_printf_debug("PCI[0] READ: %x\n", reg);
+	osd_printf_debug("PCI[0] READ: %x\n", reg);
 	return 0x00000000; // TODO
 }
 
@@ -299,7 +299,7 @@ static UINT32 voodoo_0_pci_r(device_t *busdevice, device_t *device, int function
 			val = state->m_voodoo_pci_regs[0].init_enable;
 			break;
 		default:
-			mame_printf_debug("Voodoo[0] PCI R: %x\n", reg);
+			osd_printf_debug("Voodoo[0] PCI R: %x\n", reg);
 	}
 	return val;
 }
@@ -325,7 +325,7 @@ static void voodoo_0_pci_w(device_t *busdevice, device_t *device, int function, 
 			break;
 
 		default:
-			mame_printf_debug("Voodoo [%x]: %x\n", reg, data);
+			osd_printf_debug("Voodoo [%x]: %x\n", reg, data);
 	}
 }
 
@@ -347,7 +347,7 @@ static UINT32 voodoo_1_pci_r(device_t *busdevice, device_t *device, int function
 			val = state->m_voodoo_pci_regs[1].init_enable;
 			break;
 		default:
-			mame_printf_debug("Voodoo[1] PCI R: %x\n", reg);
+			osd_printf_debug("Voodoo[1] PCI R: %x\n", reg);
 	}
 	return val;
 }
@@ -373,7 +373,7 @@ static void voodoo_1_pci_w(device_t *busdevice, device_t *device, int function, 
 			break;
 
 		default:
-			mame_printf_debug("Voodoo [%x]: %x\n", reg, data);
+			osd_printf_debug("Voodoo [%x]: %x\n", reg, data);
 	}
 }
 #endif
@@ -432,7 +432,7 @@ static UINT32 zr36120_pci_r(device_t* busdevice, device_t* device, int function,
 			val = state->m_zr36120.base_addr;
 			break;
 		default:
-			mame_printf_debug("ZR36120 R[%x]\n", reg);
+			osd_printf_debug("ZR36120 R[%x]\n", reg);
 	}
 	return val;
 }
@@ -450,7 +450,7 @@ static void zr36120_pci_w(device_t* busdevice, device_t* device, int function, i
 			state->m_zr36120.base_addr = data & 0xfffff000;
 			break;
 		default:
-			mame_printf_debug("ZR36120 [%x]: %x\n", reg, data);
+			osd_printf_debug("ZR36120 [%x]: %x\n", reg, data);
 	}
 }
 
@@ -473,7 +473,7 @@ READ32_MEMBER( magictg_state::zr36120_r )
 		/* Post office */
 		res = 0;//mame_rand(space.machine);//m_zr36120.as_regs[0x48/4];
 	}
-	mame_printf_debug("PINKEYE_R[%x]\n", offset);
+	osd_printf_debug("PINKEYE_R[%x]\n", offset);
 	return res;
 }
 
@@ -483,7 +483,7 @@ WRITE32_MEMBER( magictg_state::zr36120_w )
 
 	if (offset < 0x200)
 	{
-		mame_printf_debug("PINKEYE_W[%x] %x\n", offset, data);
+		osd_printf_debug("PINKEYE_W[%x] %x\n", offset, data);
 		switch (offset)
 		{
 			case 0x00/4:
@@ -506,7 +506,7 @@ WRITE32_MEMBER( magictg_state::zr36120_w )
 		//  zr36120_guest_write(guest, g_data, g_reg);
 		// 2 - ZR36050 JPEG decoder
 		// 3 - ZR36016 color-space converter
-		mame_printf_debug("GUEST (%.8x): %d  REG: %d  DATA: %x\n", data, guest, g_reg, g_data);
+		osd_printf_debug("GUEST (%.8x): %d  REG: %d  DATA: %x\n", data, guest, g_reg, g_data);
 	}
 }
 
@@ -554,21 +554,21 @@ WRITE32_MEMBER( magictg_state::f0_w )
 		case 0x808:
 		case 0x80c:
 			m_dma_ch[ch].count = data;
-//          mame_printf_debug("DMA%d COUNT: %.8x\n", ch, data);
+//          osd_printf_debug("DMA%d COUNT: %.8x\n", ch, data);
 			break;
 
 		case 0x814:
 		case 0x818:
 		case 0x81c:
 			m_dma_ch[ch].src_addr = data;
-//          mame_printf_debug("DMA%d SRC: %.8x\n", ch, data);
+//          osd_printf_debug("DMA%d SRC: %.8x\n", ch, data);
 			break;
 
 		case 0x824:
 		case 0x828:
 		case 0x82c:
 			m_dma_ch[ch].dst_addr = data;
-//          mame_printf_debug("DMA%d DST: %.8x\n", ch, data);
+//          osd_printf_debug("DMA%d DST: %.8x\n", ch, data);
 			break;
 
 		case 0x844:
@@ -576,7 +576,7 @@ WRITE32_MEMBER( magictg_state::f0_w )
 		case 0x84c:
 		{
 			m_dma_ch[ch].ctrl = data;
-//          mame_printf_debug("DMA%d CTRL: %.8x\n", ch, data);
+//          osd_printf_debug("DMA%d CTRL: %.8x\n", ch, data);
 
 			if (data & 0x1000)
 			{
@@ -622,7 +622,7 @@ WRITE32_MEMBER( magictg_state::f0_w )
 			break;
 		}
 //      default:
-//          mame_printf_debug("W: %.8x: %.8x\n", 0x0f000000 + offset, data);
+//          osd_printf_debug("W: %.8x: %.8x\n", 0x0f000000 + offset, data);
 	}
 }
 
@@ -659,7 +659,7 @@ READ32_MEMBER( magictg_state::f0_r )
 			break;
 		}
 //      default:
-//          mame_printf_debug("R: %.8x\n", 0x0f000000 + offset);
+//          osd_printf_debug("R: %.8x\n", 0x0f000000 + offset);
 	}
 
 	return FLIPENDIAN_INT32(val);
@@ -685,7 +685,7 @@ READ32_MEMBER( magictg_state::adsp_idma_data_r )
 	// TODO: Set /IACK appropriately
 	if (ACCESSING_BITS_0_15)
 	{
-		//mame_printf_debug("RD %.8x %.8x\n", offset, mem_mask);
+		//osd_printf_debug("RD %.8x %.8x\n", offset, mem_mask);
 		return m_adsp->idma_addr_r();
 	}
 	else
@@ -701,7 +701,7 @@ WRITE32_MEMBER( magictg_state::adsp_idma_addr_w )
 	if (ACCESSING_BITS_16_31)
 	{
 		m_adsp->idma_addr_w(data >> 16);
-		//mame_printf_debug("WR %.8x %.8x %.8x\n", offset, mem_mask, data >> 16);
+		//osd_printf_debug("WR %.8x %.8x %.8x\n", offset, mem_mask, data >> 16);
 	}
 	else
 		fatalerror("????\n");
@@ -726,7 +726,7 @@ READ16_MEMBER( magictg_state::adsp_control_r )
 			res = space.machine().rand() & 0xff;
 			break;
 		default:
-			mame_printf_debug("Unhandled register: %x\n", 0x3fe0 + offset);
+			osd_printf_debug("Unhandled register: %x\n", 0x3fe0 + offset);
 	}
 	return res;
 }
@@ -804,10 +804,10 @@ WRITE16_MEMBER( magictg_state::adsp_control_w )
 			break;
 		}
 		case 5:
-			mame_printf_debug("PFLAGS: %x\n", data);
+			osd_printf_debug("PFLAGS: %x\n", data);
 			break;
 		default:
-			mame_printf_debug("Unhandled register: %x %x\n", 0x3fe0 + offset, data);
+			osd_printf_debug("Unhandled register: %x %x\n", 0x3fe0 + offset, data);
 	}
 }
 
@@ -821,9 +821,9 @@ WRITE16_MEMBER( magictg_state::adsp_control_w )
 static ADDRESS_MAP_START( magictg_map, AS_PROGRAM, 32, magictg_state )
 	AM_RANGE(0x00000000, 0x007fffff) AM_RAM // 8MB RAM
 	AM_RANGE(0x00800000, 0x0081003f) AM_RAM // ?
-	AM_RANGE(0x0a000000, 0x0affffff) AM_DEVREADWRITE_LEGACY("voodoo_0", voodoo_r, voodoo_w)
+	AM_RANGE(0x0a000000, 0x0affffff) AM_DEVREADWRITE("voodoo_0", voodoo_device, voodoo_r, voodoo_w)
 #if defined(USE_TWO_3DFX)
-	AM_RANGE(0x0b000000, 0x0bffffff) AM_DEVREADWRITE_LEGACY("voodoo_1", voodoo_r, voodoo_w)
+	AM_RANGE(0x0b000000, 0x0bffffff) AM_DEVREADWRITE("voodoo_1", voodoo_device, voodoo_r, voodoo_w)
 	AM_RANGE(0x0c000000, 0x0c000fff) AM_READWRITE(zr36120_r, zr36120_w)
 #else
 	AM_RANGE(0x0b000000, 0x0b000fff) AM_READWRITE(zr36120_r, zr36120_w)
@@ -879,41 +879,15 @@ INPUT_PORTS_END
  *
  *************************************/
 
+#if 0
 /* TODO: Unknown */
 static const mips3_config config =
 {
 	16384,              /* code cache size */
 	16384               /* data cache size */
 };
+#endif
 
-static const adsp21xx_config adsp_config =
-{
-	NULL,                       /* callback for serial receive */
-	0,//sound_tx_callback,      /* callback for serial transmit */
-	0,//timer_enable_callback   /* callback for timer fired */
-};
-
-static const voodoo_config voodoo_1_intf =
-{
-	2, //               fbmem;
-	4,//                tmumem0;
-	0,//                tmumem1;
-	"screen",//         screen;
-	"mips",//           cputag;
-	DEVCB_NULL,//             vblank;
-	DEVCB_NULL//             stall;
-};
-
-static const voodoo_config voodoo_2_intf =
-{
-	2, //               fbmem;
-	4,//                tmumem0;
-	0,//                tmumem1;
-	"screen",//         screen;
-	"mips",//           cputag;
-	DEVCB_NULL,//vblank_assert                vblank;
-	DEVCB_NULL// voodoo_stall            stall;
-};
 /*************************************
  *
  *  Machine driver
@@ -926,7 +900,6 @@ static MACHINE_CONFIG_START( magictg, magictg_state )
 	MCFG_CPU_PROGRAM_MAP(magictg_map)
 
 	MCFG_CPU_ADD("adsp", ADSP2181, 16000000)
-	MCFG_ADSP21XX_CONFIG(adsp_config)
 	MCFG_CPU_PROGRAM_MAP(adsp_program_map)
 	MCFG_CPU_DATA_MAP(adsp_data_map)
 	MCFG_CPU_IO_MAP(adsp_io_map)
@@ -948,9 +921,17 @@ static MACHINE_CONFIG_START( magictg, magictg_state )
 #endif
 	MCFG_PCI_BUS_LEGACY_DEVICE(9, "zr36120", zr36120_pci_r, zr36120_pci_w)
 
-	MCFG_3DFX_VOODOO_1_ADD("voodoo_0", STD_VOODOO_1_CLOCK, voodoo_1_intf)
+	MCFG_DEVICE_ADD("voodoo_0", VOODOO_1, STD_VOODOO_1_CLOCK)
+	MCFG_VOODOO_FBMEM(2)
+	MCFG_VOODOO_TMUMEM(4,0)
+	MCFG_VOODOO_SCREEN_TAG("screen")
+	MCFG_VOODOO_CPU_TAG("mips")
 
-	MCFG_3DFX_VOODOO_1_ADD("voodoo_1", STD_VOODOO_1_CLOCK, voodoo_2_intf)
+	MCFG_DEVICE_ADD("voodoo_1", VOODOO_1, STD_VOODOO_1_CLOCK)
+	MCFG_VOODOO_FBMEM(2)
+	MCFG_VOODOO_TMUMEM(4,0)
+	MCFG_VOODOO_SCREEN_TAG("screen")
+	MCFG_VOODOO_CPU_TAG("mips")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -1002,25 +983,23 @@ ROM_START( magictga )
 	ROM_LOAD16_BYTE( "magic.u62", 0x200001, 0x100000, CRC(690946eb) SHA1(6c9b02367704309f4fde5cbd9d195a45c32c3861) )
 
 	// this set was incomplete, none of these roms were dumped for it, are they the same?
-	#if 0
 	ROM_REGION32_BE( 0x80000, "adsp", 0 )
-	ROM_LOAD( "magic.20u", 0x00000, 0x80000, CRC(50968301) SHA1(e9bdd0c942f0c66e18aa8de5a04edb51cdf1fee8) )
+	ROM_LOAD( "magic.20u", 0x00000, 0x80000, BAD_DUMP CRC(50968301) SHA1(e9bdd0c942f0c66e18aa8de5a04edb51cdf1fee8) )
 
 	ROM_REGION32_BE( 0x1000000, "adsp_data", 0 )
-	ROM_LOAD( "magic.snd0.u8", 0x000000, 0x400000, CRC(3cb81717) SHA1(9d35796381ca57e9782e0338c456e63c31d11266) )
-	ROM_LOAD( "magic.snd1.u14",0x400000, 0x400000, CRC(b4ef9977) SHA1(dedc79e5d506bb0d1649a41b9912dcc999e1da72) )
-	ROM_LOAD( "magic.snd2.u13",0x800000, 0x400000, CRC(3728f16e) SHA1(6b7da30b100d053e95aa96edf74a0474f1493dfb) )
-	ROM_LOAD( "magic.snd3.u7", 0xc00000, 0x400000, CRC(11a1cb63) SHA1(a1048d3cd580747c20eb0b4e816e7e4e0f5c8c2b) )
+	ROM_LOAD( "magic.snd0.u8", 0x000000, 0x400000, BAD_DUMP CRC(3cb81717) SHA1(9d35796381ca57e9782e0338c456e63c31d11266) )
+	ROM_LOAD( "magic.snd1.u14",0x400000, 0x400000, BAD_DUMP CRC(b4ef9977) SHA1(dedc79e5d506bb0d1649a41b9912dcc999e1da72) )
+	ROM_LOAD( "magic.snd2.u13",0x800000, 0x400000, BAD_DUMP CRC(3728f16e) SHA1(6b7da30b100d053e95aa96edf74a0474f1493dfb) )
+	ROM_LOAD( "magic.snd3.u7", 0xc00000, 0x400000, BAD_DUMP CRC(11a1cb63) SHA1(a1048d3cd580747c20eb0b4e816e7e4e0f5c8c2b) )
 
 	ROM_REGION( 0x2000000, "jpeg", 0 )
-	ROM_LOAD( "magic_s0.u9",  0x0000000, 0x800000, CRC(a01b5b99) SHA1(e77f2e9b08a97d6118e1e307b38ea79d0177e9b8) )
-	ROM_LOAD( "magic_s1.u10", 0x0800000, 0x800000, CRC(d5a1a557) SHA1(2511ee8d08da765a2fa2d42fb504793f9e8b615c) )
-	ROM_LOAD( "magic_s2.u12", 0x1000000, 0x800000, CRC(06ed6770) SHA1(884a3e4c97a50fa926546eb6def2c11c5732ba88) )
-	ROM_LOAD( "magic_s3.u11", 0x1800000, 0x800000, CRC(71d4c252) SHA1(aeab2542b9d5fb63f4d60b808010a657a895c1d7) )
+	ROM_LOAD( "magic_s0.u9",  0x0000000, 0x800000, BAD_DUMP CRC(a01b5b99) SHA1(e77f2e9b08a97d6118e1e307b38ea79d0177e9b8) )
+	ROM_LOAD( "magic_s1.u10", 0x0800000, 0x800000, BAD_DUMP CRC(d5a1a557) SHA1(2511ee8d08da765a2fa2d42fb504793f9e8b615c) )
+	ROM_LOAD( "magic_s2.u12", 0x1000000, 0x800000, BAD_DUMP CRC(06ed6770) SHA1(884a3e4c97a50fa926546eb6def2c11c5732ba88) )
+	ROM_LOAD( "magic_s3.u11", 0x1800000, 0x800000, BAD_DUMP CRC(71d4c252) SHA1(aeab2542b9d5fb63f4d60b808010a657a895c1d7) )
 
 	ROM_REGION( 0x400000, "key", 0 )
-	ROM_LOAD( "magic.k0.u20", 0x000000, 0x400000, CRC(63ab0e9e) SHA1(c4f0b009860ee499496ed7fc1f14ef1e221c1085) )
-	#endif
+	ROM_LOAD( "magic.k0.u20", 0x000000, 0x400000, BAD_DUMP CRC(63ab0e9e) SHA1(c4f0b009860ee499496ed7fc1f14ef1e221c1085) )
 ROM_END
 
 

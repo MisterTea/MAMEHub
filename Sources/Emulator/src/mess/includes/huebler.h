@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #ifndef __HUEBLER__
 #define __HUEBLER__
 
@@ -23,6 +25,8 @@ public:
 	amu880_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_cassette(*this, "cassette"),
+			m_z80sio(*this, Z80SIO_TAG),
+			m_palette(*this, "palette"),
 			m_kb_rom(*this, "keyboard"),
 			m_char_rom(*this, "chargen"),
 			m_video_ram(*this, "video_ram"),
@@ -49,6 +53,8 @@ public:
 	{ }
 
 	required_device<cassette_image_device> m_cassette;
+	required_device<z80dart_device> m_z80sio;
+	required_device<palette_device> m_palette;
 	required_memory_region m_kb_rom;
 	required_memory_region m_char_rom;
 	required_shared_ptr<UINT8> m_video_ram;
@@ -75,6 +81,7 @@ public:
 	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 	DECLARE_READ8_MEMBER( keyboard_r );
+	TIMER_DEVICE_CALLBACK_MEMBER( tape_tick );
 
 	void scan_keyboard();
 

@@ -16,38 +16,31 @@
 const device_type K001604 = &device_creator<k001604_device>;
 
 k001604_device::k001604_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, K001604, "Konami 001604", tag, owner, clock, "k001604", __FILE__),
+	: device_t(mconfig, K001604, "K001604 2D tilemaps + 2x ROZ", tag, owner, clock, "k001604", __FILE__),
+	m_gfx_index_1(0),
+	m_gfx_index_2(0),
+	m_layer_size(0),
+	m_roz_size(0),
+	m_txt_mem_offset(0),
+	m_roz_mem_offset(0),
 	m_tile_ram(NULL),
 	m_char_ram(NULL),
-	m_reg(NULL)
+	m_reg(NULL),
+	m_gfxdecode(*this),
+	m_palette(*this)
 {
 	m_gfx_index[0] = 0;
 	m_gfx_index[1] = 0;
 }
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
 //-------------------------------------------------
 
-void k001604_device::device_config_complete()
+void k001604_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
 {
-	// inherit a copy of the static data
-	const k001604_interface *intf = reinterpret_cast<const k001604_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<k001604_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-		m_gfx_index_1 = 0;
-		m_gfx_index_2 = 0;
-		m_layer_size = 0;
-		m_roz_size = 0;
-		m_txt_mem_offset = 0;
-		m_roz_mem_offset = 0;
-	}
+	downcast<k001604_device &>(device).m_gfxdecode.set_tag(tag);
 }
 
 //-------------------------------------------------
@@ -78,6 +71,9 @@ void k001604_device::device_start()
 		16*256
 	};
 
+	if(!m_gfxdecode->started())
+		throw device_missing_dependencies();
+
 	int roz_tile_size;
 
 	m_gfx_index[0] = m_gfx_index_1;
@@ -92,24 +88,24 @@ void k001604_device::device_start()
 
 	if (m_layer_size)
 	{
-		m_layer_8x8[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::scan_layer_8x8_0_size1),this), 8, 8, 64, 64);
-		m_layer_8x8[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::scan_layer_8x8_1_size1),this), 8, 8, 64, 64);
+		m_layer_8x8[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(k001604_device::tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::scan_layer_8x8_0_size1),this), 8, 8, 64, 64);
+		m_layer_8x8[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(k001604_device::tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::scan_layer_8x8_1_size1),this), 8, 8, 64, 64);
 
-		m_layer_roz = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::tile_info_layer_roz),this), tilemap_mapper_delegate(FUNC(k001604_device::scan_layer_roz_256),this), roz_tile_size, roz_tile_size, 128, 64);
+		m_layer_roz = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(k001604_device::tile_info_layer_roz),this), tilemap_mapper_delegate(FUNC(k001604_device::scan_layer_roz_256),this), roz_tile_size, roz_tile_size, 128, 64);
 	}
 	else
 	{
-		m_layer_8x8[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::scan_layer_8x8_0_size0),this), 8, 8, 64, 64);
-		m_layer_8x8[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::scan_layer_8x8_1_size0),this), 8, 8, 64, 64);
+		m_layer_8x8[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(k001604_device::tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::scan_layer_8x8_0_size0),this), 8, 8, 64, 64);
+		m_layer_8x8[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(k001604_device::tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::scan_layer_8x8_1_size0),this), 8, 8, 64, 64);
 
-		m_layer_roz = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::tile_info_layer_roz),this), tilemap_mapper_delegate(FUNC(k001604_device::scan_layer_roz_128),this), roz_tile_size, roz_tile_size, 128, 64);
+		m_layer_roz = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(k001604_device::tile_info_layer_roz),this), tilemap_mapper_delegate(FUNC(k001604_device::scan_layer_roz_128),this), roz_tile_size, roz_tile_size, 128, 64);
 	}
 
 	m_layer_8x8[0]->set_transparent_pen(0);
 	m_layer_8x8[1]->set_transparent_pen(0);
 
-	machine().gfx[m_gfx_index[0]] = auto_alloc_clear(machine(), gfx_element(machine(), k001604_char_layout_layer_8x8, (UINT8*)&m_char_ram[0], machine().total_colors() / 16, 0));
-	machine().gfx[m_gfx_index[1]] = auto_alloc_clear(machine(), gfx_element(machine(), k001604_char_layout_layer_16x16, (UINT8*)&m_char_ram[0], machine().total_colors() / 16, 0));
+	m_gfxdecode->set_gfx(m_gfx_index[0], global_alloc(gfx_element(m_palette, k001604_char_layout_layer_8x8, (UINT8*)&m_char_ram[0], 0, m_palette->entries() / 16, 0)));
+	m_gfxdecode->set_gfx(m_gfx_index[1], global_alloc(gfx_element(m_palette, k001604_char_layout_layer_16x16, (UINT8*)&m_char_ram[0], 0, m_palette->entries() / 16, 0)));
 
 	save_pointer(NAME(m_reg), 0x400 / 4);
 	save_pointer(NAME(m_char_ram), 0x200000 / 4);
@@ -238,7 +234,7 @@ void k001604_device::draw_back_layer( bitmap_rgb32 &bitmap, const rectangle &cli
 	int ex = cliprect.max_x;
 	int ey = cliprect.max_y;
 
-	const rgb_t *clut = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *clut = m_palette->palette()->entry_list_raw();
 
 	int window_x, window_y, window_xmask, window_ymask;
 
@@ -398,8 +394,8 @@ WRITE32_MEMBER( k001604_device::char_w )
 
 	COMBINE_DATA(m_char_ram + addr);
 
-	space.machine().gfx[m_gfx_index[0]]->mark_dirty(addr / 32);
-	space.machine().gfx[m_gfx_index[1]]->mark_dirty(addr / 128);
+	m_gfxdecode->gfx(m_gfx_index[0])->mark_dirty(addr / 32);
+	m_gfxdecode->gfx(m_gfx_index[1])->mark_dirty(addr / 128);
 }
 
 WRITE32_MEMBER( k001604_device::reg_w )
@@ -419,4 +415,14 @@ WRITE32_MEMBER( k001604_device::reg_w )
 	{
 		//printf("K001604_reg_w (%d), %02X, %08X, %08X at %08X\n", chip, offset, data, mem_mask, space.device().safe_pc());
 	}
+}
+
+//-------------------------------------------------
+//  static_set_palette_tag: Set the tag of the
+//  palette device
+//-------------------------------------------------
+
+void k001604_device::static_set_palette_tag(device_t &device, const char *tag)
+{
+	downcast<k001604_device &>(device).m_palette.set_tag(tag);
 }

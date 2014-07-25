@@ -677,7 +677,10 @@ TODO:
 
 - bosco: is the scrolling tilemap placement correct? It is currently aligned so that
   the test grid shown on startup is correct, but this way an unerased grey strip
-  remains on the left of the screen during the title sequence.
+  remains on the left of the screen during the title sequence. Alignment of the
+  bullets/radar blips is also mysterious. Currently the radar blips are perfectly
+  aligned with the radar, but the alignment of the player bullets with the player
+  ship differs by one horizontal pixel when the screen is flipped.
 
 - gallag/gatsbee: explosions are not emulated since the bootleg board doesn't have
   the 54XX custom. Should probably use samples like Battles?
@@ -789,21 +792,6 @@ WRITE8_MEMBER(galaga_state::out_1)
 	coin_lockout_global_w(machine(), data & 1);
 }
 
-static const namco_51xx_interface namco_51xx_intf =
-{
-	{   /* port read handlers */
-		DEVCB_INPUT_PORT("IN0L"),
-		DEVCB_INPUT_PORT("IN0H"),
-		DEVCB_INPUT_PORT("IN1L"),
-		DEVCB_INPUT_PORT("IN1H")
-	},
-	{   /* port write handlers */
-		DEVCB_DRIVER_MEMBER(galaga_state,out_0),
-		DEVCB_DRIVER_MEMBER(galaga_state,out_1)
-	}
-};
-
-
 READ8_MEMBER(galaga_state::namco_52xx_rom_r)
 {
 	UINT32 length = memregion("52xx")->bytes();
@@ -825,34 +813,11 @@ READ8_MEMBER(galaga_state::namco_52xx_si_r)
 	return 0;
 }
 
-static const namco_52xx_interface namco_52xx_intf =
-{
-	"discrete",                         /* name of the discrete sound device */
-	NODE_04,                            /* index of the first node */
-	ATTOSECONDS_IN_NSEC(PERIOD_OF_555_ASTABLE_NSEC(RES_K(33), RES_K(10), CAP_U(0.0047))),   /* external clock rate */
-	DEVCB_DRIVER_MEMBER(galaga_state,namco_52xx_rom_r), /* ROM read handler */
-	DEVCB_DRIVER_MEMBER(galaga_state,namco_52xx_si_r)       /* SI (pin 6) read handler */
-};
-
-
 READ8_MEMBER(galaga_state::custom_mod_r)
 {
 	/* MOD0-2 is connected to K1-3; K0 is left unconnected */
 	return m_custom_mod << 1;
 }
-
-static const namco_53xx_interface namco_53xx_intf =
-{
-	DEVCB_DRIVER_MEMBER(galaga_state,custom_mod_r),     /* K port */
-	{
-		DEVCB_INPUT_PORT("DSWA"),       /* R0 port */
-		DEVCB_INPUT_PORT("DSWA_HI"),    /* R1 port */
-		DEVCB_INPUT_PORT("DSWB"),       /* R2 port */
-		DEVCB_INPUT_PORT("DSWB_HI")     /* R3 port */
-	},
-	DEVCB_NULL                          /* P port */
-};
-
 
 TIMER_CALLBACK_MEMBER(galaga_state::cpu3_interrupt_callback)
 {
@@ -913,12 +878,12 @@ static ADDRESS_MAP_START( bosco_map, AS_PROGRAM, 8, bosco_state )
 	AM_RANGE(0x6800, 0x681f) AM_DEVWRITE("namco", namco_device, pacman_sound_w)
 	AM_RANGE(0x6820, 0x6827) AM_WRITE(bosco_latch_w)                        /* misc latches */
 	AM_RANGE(0x6830, 0x6830) AM_WRITE(watchdog_reset_w)
-	AM_RANGE(0x7000, 0x70ff) AM_DEVREADWRITE_LEGACY("06xx_0", namco_06xx_data_r, namco_06xx_data_w)
-	AM_RANGE(0x7100, 0x7100) AM_DEVREADWRITE_LEGACY("06xx_0", namco_06xx_ctrl_r, namco_06xx_ctrl_w)
+	AM_RANGE(0x7000, 0x70ff) AM_DEVREADWRITE("06xx_0", namco_06xx_device, data_r, data_w)
+	AM_RANGE(0x7100, 0x7100) AM_DEVREADWRITE("06xx_0", namco_06xx_device, ctrl_r, ctrl_w)
 	AM_RANGE(0x7800, 0x7fff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0x8000, 0x8fff) AM_RAM_WRITE(bosco_videoram_w) AM_SHARE("videoram")/* + sprite registers */
-	AM_RANGE(0x9000, 0x90ff) AM_DEVREADWRITE_LEGACY("06xx_1", namco_06xx_data_r, namco_06xx_data_w)
-	AM_RANGE(0x9100, 0x9100) AM_DEVREADWRITE_LEGACY("06xx_1", namco_06xx_ctrl_r, namco_06xx_ctrl_w)
+	AM_RANGE(0x9000, 0x90ff) AM_DEVREADWRITE("06xx_1", namco_06xx_device, data_r, data_w)
+	AM_RANGE(0x9100, 0x9100) AM_DEVREADWRITE("06xx_1", namco_06xx_device, ctrl_r, ctrl_w)
 	AM_RANGE(0x9800, 0x980f) AM_WRITEONLY AM_SHARE("bosco_radarattr")
 	AM_RANGE(0x9810, 0x9810) AM_WRITE(bosco_scrollx_w)
 	AM_RANGE(0x9820, 0x9820) AM_WRITE(bosco_scrolly_w)
@@ -935,8 +900,8 @@ static ADDRESS_MAP_START( galaga_map, AS_PROGRAM, 8, galaga_state )
 	AM_RANGE(0x6800, 0x681f) AM_DEVWRITE("namco", namco_device, pacman_sound_w)
 	AM_RANGE(0x6820, 0x6827) AM_WRITE(bosco_latch_w)                        /* misc latches */
 	AM_RANGE(0x6830, 0x6830) AM_WRITE(watchdog_reset_w)
-	AM_RANGE(0x7000, 0x70ff) AM_DEVREADWRITE_LEGACY("06xx", namco_06xx_data_r, namco_06xx_data_w)
-	AM_RANGE(0x7100, 0x7100) AM_DEVREADWRITE_LEGACY("06xx", namco_06xx_ctrl_r, namco_06xx_ctrl_w)
+	AM_RANGE(0x7000, 0x70ff) AM_DEVREADWRITE("06xx", namco_06xx_device, data_r, data_w)
+	AM_RANGE(0x7100, 0x7100) AM_DEVREADWRITE("06xx", namco_06xx_device, ctrl_r, ctrl_w)
 	AM_RANGE(0x8000, 0x87ff) AM_RAM_WRITE(galaga_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0x8800, 0x8bff) AM_RAM AM_SHARE("galaga_ram1")
 	AM_RANGE(0x9000, 0x93ff) AM_RAM AM_SHARE("galaga_ram2")
@@ -952,8 +917,8 @@ static ADDRESS_MAP_START( xevious_map, AS_PROGRAM, 8, xevious_state )
 	AM_RANGE(0x6800, 0x681f) AM_DEVWRITE("namco", namco_device, pacman_sound_w)
 	AM_RANGE(0x6820, 0x6827) AM_WRITE(bosco_latch_w)    /* misc latches */
 	AM_RANGE(0x6830, 0x6830) AM_WRITE(watchdog_reset_w)
-	AM_RANGE(0x7000, 0x70ff) AM_DEVREADWRITE_LEGACY("06xx", namco_06xx_data_r, namco_06xx_data_w)
-	AM_RANGE(0x7100, 0x7100) AM_DEVREADWRITE_LEGACY("06xx", namco_06xx_ctrl_r, namco_06xx_ctrl_w)
+	AM_RANGE(0x7000, 0x70ff) AM_DEVREADWRITE("06xx", namco_06xx_device, data_r, data_w)
+	AM_RANGE(0x7100, 0x7100) AM_DEVREADWRITE("06xx", namco_06xx_device, ctrl_r, ctrl_w)
 	AM_RANGE(0x7800, 0x7fff) AM_RAM AM_SHARE("share1")                          /* work RAM */
 	AM_RANGE(0x8000, 0x87ff) AM_RAM AM_SHARE("xevious_sr1") /* work RAM + sprite registers */
 	AM_RANGE(0x9000, 0x97ff) AM_RAM AM_SHARE("xevious_sr2") /* work RAM + sprite registers */
@@ -972,8 +937,8 @@ static ADDRESS_MAP_START( digdug_map, AS_PROGRAM, 8, digdug_state )
 	AM_RANGE(0x6800, 0x681f) AM_DEVWRITE("namco", namco_device, pacman_sound_w)
 	AM_RANGE(0x6820, 0x6827) AM_WRITE(bosco_latch_w)                        /* misc latches */
 	AM_RANGE(0x6830, 0x6830) AM_WRITE(watchdog_reset_w)
-	AM_RANGE(0x7000, 0x70ff) AM_DEVREADWRITE_LEGACY("06xx", namco_06xx_data_r, namco_06xx_data_w)
-	AM_RANGE(0x7100, 0x7100) AM_DEVREADWRITE_LEGACY("06xx", namco_06xx_ctrl_r, namco_06xx_ctrl_w)
+	AM_RANGE(0x7000, 0x70ff) AM_DEVREADWRITE("06xx", namco_06xx_device, data_r, data_w)
+	AM_RANGE(0x7100, 0x7100) AM_DEVREADWRITE("06xx", namco_06xx_device, ctrl_r, ctrl_w)
 	AM_RANGE(0x8000, 0x83ff) AM_RAM_WRITE(digdug_videoram_w) AM_SHARE("videoram") /* tilemap RAM (bottom half of RAM 0 */
 	AM_RANGE(0x8400, 0x87ff) AM_RAM AM_SHARE("share1")                          /* work RAM (top half for RAM 0 */
 	AM_RANGE(0x8800, 0x8bff) AM_RAM AM_SHARE("digdug_objram")   /* work RAM + sprite registers */
@@ -1609,11 +1574,6 @@ GFXDECODE_END
 /* The resistance path of the namco sound is 16k compared to
  * the 10k of the highest gain 54xx filter. Giving a 10/16 gain.
  */
-static const namco_interface namco_config =
-{
-	3,              /* number of voices */
-	0               /* stereo */
-};
 
 static const char *const battles_sample_names[] =
 {
@@ -1642,21 +1602,6 @@ INTERRUPT_GEN_MEMBER(galaga_state::sub_vblank_irq)
 		device.execute().set_input_line(0, ASSERT_LINE);
 }
 
-const namco_06xx_config bosco_namco_06xx_0_intf =
-{
-	"maincpu", "51xx",   NULL,   "50xx_1", "54xx"
-};
-
-const namco_06xx_config bosco_namco_06xx_1_intf =
-{
-	"sub",     "50xx_2", "52xx", NULL,     NULL
-};
-
-const namco_54xx_config namco_54xx_intf =
-{
-	"discrete", NODE_01
-};
-
 static MACHINE_CONFIG_START( bosco, bosco_state )
 
 	/* basic machine hardware */
@@ -1673,12 +1618,41 @@ static MACHINE_CONFIG_START( bosco, bosco_state )
 
 	MCFG_NAMCO_50XX_ADD("50xx_1", MASTER_CLOCK/6/2) /* 1.536 MHz */
 	MCFG_NAMCO_50XX_ADD("50xx_2", MASTER_CLOCK/6/2) /* 1.536 MHz */
-	MCFG_NAMCO_51XX_ADD("51xx", MASTER_CLOCK/6/2, namco_51xx_intf)      /* 1.536 MHz */
-	MCFG_NAMCO_52XX_ADD("52xx", MASTER_CLOCK/6/2, namco_52xx_intf)      /* 1.536 MHz */
-	MCFG_NAMCO_54XX_ADD("54xx", MASTER_CLOCK/6/2, namco_54xx_intf)      /* 1.536 MHz */
+	MCFG_NAMCO_51XX_ADD("51xx", MASTER_CLOCK/6/2)      /* 1.536 MHz */
+	MCFG_NAMCO_51XX_INPUT_0_CB(IOPORT("IN0L"))
+	MCFG_NAMCO_51XX_INPUT_1_CB(IOPORT("IN0H"))
+	MCFG_NAMCO_51XX_INPUT_2_CB(IOPORT("IN1L"))
+	MCFG_NAMCO_51XX_INPUT_3_CB(IOPORT("IN1H"))
+	MCFG_NAMCO_51XX_OUTPUT_0_CB(WRITE8(galaga_state,out_0))
+	MCFG_NAMCO_51XX_OUTPUT_1_CB(WRITE8(galaga_state,out_1))
 
-	MCFG_NAMCO_06XX_ADD("06xx_0", MASTER_CLOCK/6/64, bosco_namco_06xx_0_intf)
-	MCFG_NAMCO_06XX_ADD("06xx_1", MASTER_CLOCK/6/64, bosco_namco_06xx_1_intf)
+
+	MCFG_NAMCO_52XX_ADD("52xx", MASTER_CLOCK/6/2)      /* 1.536 MHz */
+	MCFG_NAMCO_52XX_DISCRETE("discrete")
+	MCFG_NAMCO_52XX_BASENODE(NODE_04)
+	MCFG_NAMCO_52XX_EXT_CLOCK(ATTOSECONDS_IN_NSEC(PERIOD_OF_555_ASTABLE_NSEC(RES_K(33), RES_K(10), CAP_U(0.0047))))
+	MCFG_NAMCO_52XX_ROMREAD_CB(READ8(galaga_state,namco_52xx_rom_r))
+	MCFG_NAMCO_52XX_SI_CB(READ8(galaga_state,namco_52xx_si_r))
+
+	MCFG_NAMCO_54XX_ADD("54xx", MASTER_CLOCK/6/2)      /* 1.536 MHz */
+	MCFG_NAMCO_54XX_DISCRETE("discrete")
+	MCFG_NAMCO_54XX_BASENODE(NODE_01)
+
+	MCFG_NAMCO_06XX_ADD("06xx_0", MASTER_CLOCK/6/64)
+	MCFG_NAMCO_06XX_MAINCPU("maincpu")
+	MCFG_NAMCO_06XX_READ_0_CB(DEVREAD8("51xx", namco_51xx_device, read))
+	MCFG_NAMCO_06XX_WRITE_0_CB(DEVWRITE8("51xx", namco_51xx_device, write))
+	MCFG_NAMCO_06XX_READ_2_CB(DEVREAD8("50xx_1", namco_50xx_device, read))
+	MCFG_NAMCO_06XX_READ_REQUEST_2_CB(DEVWRITELINE("50xx_1", namco_50xx_device, read_request))
+	MCFG_NAMCO_06XX_WRITE_2_CB(DEVWRITE8("50xx_1", namco_50xx_device, write))
+	MCFG_NAMCO_06XX_WRITE_3_CB(DEVWRITE8("54xx", namco_54xx_device, write))
+
+	MCFG_NAMCO_06XX_ADD("06xx_1", MASTER_CLOCK/6/64)
+	MCFG_NAMCO_06XX_MAINCPU("sub")
+	MCFG_NAMCO_06XX_READ_0_CB(DEVREAD8("50xx_2", namco_50xx_device, read))
+	MCFG_NAMCO_06XX_READ_REQUEST_0_CB(DEVWRITELINE("50xx_2", namco_50xx_device, read_request))
+	MCFG_NAMCO_06XX_WRITE_0_CB(DEVWRITE8("50xx_2", namco_50xx_device, write))
+	MCFG_NAMCO_06XX_WRITE_1_CB(DEVWRITE8("52xx", namco_52xx_device, write))
 
 	MCFG_WATCHDOG_VBLANK_INIT(8)
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))  /* 100 CPU slices per frame - an high value to ensure proper */
@@ -1691,18 +1665,19 @@ static MACHINE_CONFIG_START( bosco, bosco_state )
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/3, 384, 0, 288, 264, 16, 224+16)
 	MCFG_SCREEN_UPDATE_DRIVER(bosco_state, screen_update_bosco)
 	MCFG_SCREEN_VBLANK_DRIVER(bosco_state, screen_eof_bosco)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bosco)
-	MCFG_PALETTE_LENGTH(64*4+64*4+4+64)
-
-	MCFG_PALETTE_INIT_OVERRIDE(bosco_state,bosco)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bosco)
+	MCFG_PALETTE_ADD("palette", 64*4+64*4+4+64)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32+64)
+	MCFG_PALETTE_INIT_OWNER(bosco_state,bosco)
 	MCFG_VIDEO_START_OVERRIDE(bosco_state,bosco)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("namco", NAMCO, MASTER_CLOCK/6/32)
-	MCFG_SOUND_CONFIG(namco_config)
+	MCFG_NAMCO_AUDIO_VOICES(3)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90 * 10.0 / 16.0)
 
 	/* discrete circuit on the 54XX outputs */
@@ -1710,12 +1685,6 @@ static MACHINE_CONFIG_START( bosco, bosco_state )
 	MCFG_SOUND_CONFIG_DISCRETE(bosco)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 MACHINE_CONFIG_END
-
-
-const namco_06xx_config galaga_namco_06xx_intf =
-{
-	"maincpu", "51xx", NULL, NULL, "54xx"
-};
 
 static MACHINE_CONFIG_START( galaga, galaga_state )
 
@@ -1731,10 +1700,23 @@ static MACHINE_CONFIG_START( galaga, galaga_state )
 	MCFG_CPU_ADD("sub2", Z80, MASTER_CLOCK/6)   /* 3.072 MHz */
 	MCFG_CPU_PROGRAM_MAP(galaga_map)
 
-	MCFG_NAMCO_51XX_ADD("51xx", MASTER_CLOCK/6/2, namco_51xx_intf)      /* 1.536 MHz */
-	MCFG_NAMCO_54XX_ADD("54xx", MASTER_CLOCK/6/2, namco_54xx_intf)      /* 1.536 MHz */
+	MCFG_NAMCO_51XX_ADD("51xx", MASTER_CLOCK/6/2)      /* 1.536 MHz */
+	MCFG_NAMCO_51XX_INPUT_0_CB(IOPORT("IN0L"))
+	MCFG_NAMCO_51XX_INPUT_1_CB(IOPORT("IN0H"))
+	MCFG_NAMCO_51XX_INPUT_2_CB(IOPORT("IN1L"))
+	MCFG_NAMCO_51XX_INPUT_3_CB(IOPORT("IN1H"))
+	MCFG_NAMCO_51XX_OUTPUT_0_CB(WRITE8(galaga_state,out_0))
+	MCFG_NAMCO_51XX_OUTPUT_1_CB(WRITE8(galaga_state,out_1))
 
-	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/6/64,  galaga_namco_06xx_intf)
+	MCFG_NAMCO_54XX_ADD("54xx", MASTER_CLOCK/6/2)      /* 1.536 MHz */
+	MCFG_NAMCO_54XX_DISCRETE("discrete")
+	MCFG_NAMCO_54XX_BASENODE(NODE_01)
+
+	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/6/64)
+	MCFG_NAMCO_06XX_MAINCPU("maincpu")
+	MCFG_NAMCO_06XX_READ_0_CB(DEVREAD8("51xx", namco_51xx_device, read))
+	MCFG_NAMCO_06XX_WRITE_0_CB(DEVWRITE8("51xx", namco_51xx_device, write))
+	MCFG_NAMCO_06XX_WRITE_3_CB(DEVWRITE8("54xx", namco_54xx_device, write))
 
 	MCFG_WATCHDOG_VBLANK_INIT(8)
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))  /* 100 CPU slices per frame - an high value to ensure proper */
@@ -1747,18 +1729,19 @@ static MACHINE_CONFIG_START( galaga, galaga_state )
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/3, 384, 0, 288, 264, 0, 224)
 	MCFG_SCREEN_UPDATE_DRIVER(galaga_state, screen_update_galaga)
 	MCFG_SCREEN_VBLANK_DRIVER(galaga_state, screen_eof_galaga)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(galaga)
-	MCFG_PALETTE_LENGTH(64*4+64*4+64)
-
-	MCFG_PALETTE_INIT_OVERRIDE(galaga_state,galaga)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", galaga)
+	MCFG_PALETTE_ADD("palette", 64*4+64*4+64)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32+64)
+	MCFG_PALETTE_INIT_OWNER(galaga_state,galaga)
 	MCFG_VIDEO_START_OVERRIDE(galaga_state,galaga)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("namco", NAMCO, MASTER_CLOCK/6/32)
-	MCFG_SOUND_CONFIG(namco_config)
+	MCFG_NAMCO_AUDIO_VOICES(3)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90 * 10.0 / 16.0)
 
 	/* discrete circuit on the 54XX outputs */
@@ -1766,11 +1749,6 @@ static MACHINE_CONFIG_START( galaga, galaga_state )
 	MCFG_SOUND_CONFIG_DISCRETE(galaga)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 MACHINE_CONFIG_END
-
-const namco_06xx_config galagab_namco_06xx_intf =
-{
-	"maincpu", "51xx", NULL, NULL, NULL
-};
 
 static MACHINE_CONFIG_DERIVED( galagab, galaga )
 
@@ -1780,7 +1758,10 @@ static MACHINE_CONFIG_DERIVED( galagab, galaga )
 	MCFG_DEVICE_REMOVE("06xx")
 
 	/* FIXME: bootlegs should not have any Namco custom chip. However, this workaround is needed atm */
-	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/6/64, galagab_namco_06xx_intf)
+	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/6/64)
+	MCFG_NAMCO_06XX_MAINCPU("maincpu")
+	MCFG_NAMCO_06XX_READ_0_CB(DEVREAD8("51xx", namco_51xx_device, read))
+	MCFG_NAMCO_06XX_WRITE_0_CB(DEVWRITE8("51xx", namco_51xx_device, write))
 
 	MCFG_CPU_ADD("sub3", Z80, MASTER_CLOCK/6)   /* 3.072 MHz */
 	MCFG_CPU_PROGRAM_MAP(galaga_mem4)
@@ -1788,11 +1769,6 @@ static MACHINE_CONFIG_DERIVED( galagab, galaga )
 	/* sound hardware */
 	MCFG_DEVICE_REMOVE("discrete")
 MACHINE_CONFIG_END
-
-const namco_06xx_config xevious_namco_06xx_intf =
-{
-	"maincpu", "51xx", NULL, "50xx", "54xx"
-};
 
 static MACHINE_CONFIG_START( xevious, xevious_state )
 
@@ -1809,10 +1785,27 @@ static MACHINE_CONFIG_START( xevious, xevious_state )
 	MCFG_CPU_PROGRAM_MAP(xevious_map)
 
 	MCFG_NAMCO_50XX_ADD("50xx", MASTER_CLOCK/6/2)   /* 1.536 MHz */
-	MCFG_NAMCO_51XX_ADD("51xx", MASTER_CLOCK/6/2, namco_51xx_intf)      /* 1.536 MHz */
-	MCFG_NAMCO_54XX_ADD("54xx", MASTER_CLOCK/6/2, namco_54xx_intf)      /* 1.536 MHz */
 
-	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/6/64, xevious_namco_06xx_intf)
+	MCFG_NAMCO_51XX_ADD("51xx", MASTER_CLOCK/6/2)      /* 1.536 MHz */
+	MCFG_NAMCO_51XX_INPUT_0_CB(IOPORT("IN0L"))
+	MCFG_NAMCO_51XX_INPUT_1_CB(IOPORT("IN0H"))
+	MCFG_NAMCO_51XX_INPUT_2_CB(IOPORT("IN1L"))
+	MCFG_NAMCO_51XX_INPUT_3_CB(IOPORT("IN1H"))
+	MCFG_NAMCO_51XX_OUTPUT_0_CB(WRITE8(galaga_state,out_0))
+	MCFG_NAMCO_51XX_OUTPUT_1_CB(WRITE8(galaga_state,out_1))
+
+	MCFG_NAMCO_54XX_ADD("54xx", MASTER_CLOCK/6/2)      /* 1.536 MHz */
+	MCFG_NAMCO_54XX_DISCRETE("discrete")
+	MCFG_NAMCO_54XX_BASENODE(NODE_01)
+
+	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/6/64)
+	MCFG_NAMCO_06XX_MAINCPU("maincpu")
+	MCFG_NAMCO_06XX_READ_0_CB(DEVREAD8("51xx", namco_51xx_device, read))
+	MCFG_NAMCO_06XX_WRITE_0_CB(DEVWRITE8("51xx", namco_51xx_device, write))
+	MCFG_NAMCO_06XX_READ_2_CB(DEVREAD8("50xx", namco_50xx_device, read))
+	MCFG_NAMCO_06XX_READ_REQUEST_2_CB(DEVWRITELINE("50xx", namco_50xx_device, read_request))
+	MCFG_NAMCO_06XX_WRITE_2_CB(DEVWRITE8("50xx", namco_50xx_device, write))
+	MCFG_NAMCO_06XX_WRITE_3_CB(DEVWRITE8("54xx", namco_54xx_device, write))
 
 	MCFG_WATCHDOG_VBLANK_INIT(8)
 	MCFG_QUANTUM_TIME(attotime::from_hz(60000)) /* 1000 CPU slices per frame - an high value to ensure proper */
@@ -1824,18 +1817,19 @@ static MACHINE_CONFIG_START( xevious, xevious_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/3, 384, 0, 288, 264, 0, 224)
 	MCFG_SCREEN_UPDATE_DRIVER(xevious_state, screen_update_xevious)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(xevious)
-	MCFG_PALETTE_LENGTH(128*4+64*8+64*2)
-
-	MCFG_PALETTE_INIT_OVERRIDE(xevious_state,xevious)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", xevious)
+	MCFG_PALETTE_ADD("palette", 128*4+64*8+64*2)
+	MCFG_PALETTE_INDIRECT_ENTRIES(128+1)
+	MCFG_PALETTE_INIT_OWNER(xevious_state,xevious)
 	MCFG_VIDEO_START_OVERRIDE(xevious_state,xevious)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("namco", NAMCO, MASTER_CLOCK/6/32)
-	MCFG_SOUND_CONFIG(namco_config)
+	MCFG_NAMCO_AUDIO_VOICES(3)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90 * 10.0 / 16.0)
 
 	/* discrete circuit on the 54XX outputs */
@@ -1843,11 +1837,6 @@ static MACHINE_CONFIG_START( xevious, xevious_state )
 	MCFG_SOUND_CONFIG_DISCRETE(galaga)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 MACHINE_CONFIG_END
-
-const namco_06xx_config battles_namco_06xx_intf =
-{
-	"maincpu", "51xx", NULL, NULL, NULL
-};
 
 static MACHINE_CONFIG_DERIVED( battles, xevious )
 
@@ -1858,7 +1847,10 @@ static MACHINE_CONFIG_DERIVED( battles, xevious )
 	MCFG_DEVICE_REMOVE("06xx")
 
 	/* FIXME: bootlegs should not have any Namco custom chip. However, this workaround is needed atm */
-	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/6/64, battles_namco_06xx_intf)
+	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/6/64)
+	MCFG_NAMCO_06XX_MAINCPU("maincpu")
+	MCFG_NAMCO_06XX_READ_0_CB(DEVREAD8("51xx", namco_51xx_device, read))
+	MCFG_NAMCO_06XX_WRITE_0_CB(DEVWRITE8("51xx", namco_51xx_device, write))
 
 	MCFG_CPU_ADD("sub3", Z80, MASTER_CLOCK/6)   /* 3.072 MHz */
 	MCFG_CPU_PROGRAM_MAP(battles_mem4)
@@ -1869,7 +1861,8 @@ static MACHINE_CONFIG_DERIVED( battles, xevious )
 	MCFG_MACHINE_RESET_OVERRIDE(xevious_state,battles)
 
 	/* video hardware */
-	MCFG_PALETTE_INIT_OVERRIDE(xevious_state,battles)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(xevious_state,battles)
 
 	/* sound hardware */
 	MCFG_DEVICE_REMOVE("discrete")
@@ -1877,11 +1870,6 @@ static MACHINE_CONFIG_DERIVED( battles, xevious )
 	MCFG_SAMPLES_ADD("samples", battles_samples_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 MACHINE_CONFIG_END
-
-const namco_06xx_config digdug_namco_06xx_intf =
-{
-	"maincpu", "51xx", "53xx", NULL, NULL
-};
 
 static MACHINE_CONFIG_START( digdug, digdug_state )
 
@@ -1897,10 +1885,27 @@ static MACHINE_CONFIG_START( digdug, digdug_state )
 	MCFG_CPU_ADD("sub2", Z80, MASTER_CLOCK/6)   /* 3.072 MHz */
 	MCFG_CPU_PROGRAM_MAP(digdug_map)
 
-	MCFG_NAMCO_51XX_ADD("51xx", MASTER_CLOCK/6/2, namco_51xx_intf)      /* 1.536 MHz */
-	MCFG_NAMCO_53XX_ADD("53xx", MASTER_CLOCK/6/2, namco_53xx_intf)      /* 1.536 MHz */
+	MCFG_NAMCO_51XX_ADD("51xx", MASTER_CLOCK/6/2)      /* 1.536 MHz */
+	MCFG_NAMCO_51XX_INPUT_0_CB(IOPORT("IN0L"))
+	MCFG_NAMCO_51XX_INPUT_1_CB(IOPORT("IN0H"))
+	MCFG_NAMCO_51XX_INPUT_2_CB(IOPORT("IN1L"))
+	MCFG_NAMCO_51XX_INPUT_3_CB(IOPORT("IN1H"))
+	MCFG_NAMCO_51XX_OUTPUT_0_CB(WRITE8(galaga_state,out_0))
+	MCFG_NAMCO_51XX_OUTPUT_1_CB(WRITE8(galaga_state,out_1))
 
-	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/6/64, digdug_namco_06xx_intf)
+	MCFG_NAMCO_53XX_ADD("53xx", MASTER_CLOCK/6/2)      /* 1.536 MHz */
+	MCFG_NAMCO_53XX_K_CB(READ8(galaga_state,custom_mod_r))
+	MCFG_NAMCO_53XX_INPUT_0_CB(IOPORT("DSWA"))
+	MCFG_NAMCO_53XX_INPUT_1_CB(IOPORT("DSWA_HI"))
+	MCFG_NAMCO_53XX_INPUT_2_CB(IOPORT("DSWB"))
+	MCFG_NAMCO_53XX_INPUT_3_CB(IOPORT("DSWB_HI"))
+
+	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/6/64)
+	MCFG_NAMCO_06XX_MAINCPU("maincpu")
+	MCFG_NAMCO_06XX_READ_0_CB(DEVREAD8("51xx", namco_51xx_device, read))
+	MCFG_NAMCO_06XX_WRITE_0_CB(DEVWRITE8("51xx", namco_51xx_device, write))
+	MCFG_NAMCO_06XX_READ_1_CB(DEVREAD8("53xx", namco_53xx_device, read))
+	MCFG_NAMCO_06XX_READ_REQUEST_1_CB(DEVWRITELINE("53xx", namco_53xx_device, read_request))
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))  /* 100 CPU slices per frame - an high value to ensure proper */
 							/* synchronization of the CPUs */
@@ -1913,18 +1918,19 @@ static MACHINE_CONFIG_START( digdug, digdug_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/3, 384, 0, 288, 264, 0, 224)
 	MCFG_SCREEN_UPDATE_DRIVER(digdug_state, screen_update_digdug)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(digdug)
-	MCFG_PALETTE_LENGTH(16*2+64*4+64*4)
-
-	MCFG_PALETTE_INIT_OVERRIDE(digdug_state,digdug)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", digdug)
+	MCFG_PALETTE_ADD("palette", 16*2+64*4+64*4)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(digdug_state,digdug)
 	MCFG_VIDEO_START_OVERRIDE(digdug_state,digdug)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("namco", NAMCO, MASTER_CLOCK/6/32)
-	MCFG_SOUND_CONFIG(namco_config)
+	MCFG_NAMCO_AUDIO_VOICES(3)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90 * 10.0 / 16.0)
 MACHINE_CONFIG_END
 
@@ -2820,52 +2826,58 @@ ROM_START( xevios )
 	ROM_LOAD( "pal10l8.16a.bin", 0x0000, 0x002c, CRC(6fb9bd9a) SHA1(698b5fc19f5873b02a4bed7d9ec1f24763a6fef7) )
 ROM_END
 
+/*
+    Battles (Xevious Bootleg)
+
+    Three Boards with no markings except row/column designations
+*/
+
 ROM_START( battles )
-	ROM_REGION( 0x10000, "maincpu", 0 ) /* 64k for the first CPU */
-	ROM_LOAD( "b_1.bin",      0x0000, 0x2000, CRC(b6e4f4f3) SHA1(ceaaa63b50e75dcb05aeb68574336dfe56a8434a) )
-	ROM_LOAD( "b_2.bin",      0x2000, 0x2000, CRC(47017bc8) SHA1(0da73ae079fb6a64eed56197e2c88609ef34166c) )
+	ROM_REGION( 0x10000, "maincpu", 0 ) /* 64k for the first CPU (Located on the top board) */
+	ROM_LOAD( "bg1.d9",      0x0000, 0x2000, CRC(b6e4f4f3) SHA1(ceaaa63b50e75dcb05aeb68574336dfe56a8434a) )
+	ROM_LOAD( "bg2.d10",     0x2000, 0x2000, CRC(47017bc8) SHA1(0da73ae079fb6a64eed56197e2c88609ef34166c) )
 
-	ROM_REGION( 0x10000, "sub", 0 ) /* 64k for the second CPU */
-	ROM_LOAD( "b_3.bin",      0x0000, 0x2000, CRC(0ede5706) SHA1(65b235c5abe487612e11d0235410f1ca59b06e95) )
+	ROM_REGION( 0x10000, "sub", 0 ) /* 64k for the second CPU (Located on the top board) */
+	ROM_LOAD( "bg3.d12",     0x0000, 0x2000, CRC(0ede5706) SHA1(65b235c5abe487612e11d0235410f1ca59b06e95) )
 
-	ROM_REGION( 0x10000, "sub2", 0 )
-	ROM_LOAD( "xvi_7.2c",     0x0000, 0x1000, CRC(dd35cf1c) SHA1(f8d1f8e019d8198308443c2e7e815d0d04b23d14) )
+	ROM_REGION( 0x10000, "sub2", 0 ) /* (Located on the top board) */
+	ROM_LOAD( "bg4.d13",     0x0000, 0x1000, CRC(dd35cf1c) SHA1(f8d1f8e019d8198308443c2e7e815d0d04b23d14) )
 
-	ROM_REGION( 0x10000, "sub3", 0 )    /* 64k for the CUSTOM I/O Emulation CPU */
-	ROM_LOAD( "b_5.bin",      0x0000, 0x1000, CRC(23107dfb) SHA1(74c49a5648faab632ae5ed8dd18a1d8b39837e2d) )
+	ROM_REGION( 0x10000, "sub3", 0 ) /* 64k for the CUSTOM I/O Emulation CPU (Located on the top board) */
+	ROM_LOAD( "bg5.h5",      0x0000, 0x1000, CRC(23107dfb) SHA1(74c49a5648faab632ae5ed8dd18a1d8b39837e2d) )
 
-	ROM_REGION( 0x1000, "gfx1", 0 )
-	ROM_LOAD( "b_9.bin",      0x0000, 0x1000, CRC(5bd6e9ae) SHA1(f16c7eec39fce856c775b2b81ab55fb42376850e) )    /* foreground characters */
+	ROM_REGION( 0x1000, "gfx1", 0 ) /* (Located on the middle board) */
+	ROM_LOAD( "bg9.c10",     0x0000, 0x1000, CRC(5bd6e9ae) SHA1(f16c7eec39fce856c775b2b81ab55fb42376850e) )    /* foreground characters */
 
-	ROM_REGION( 0x2000, "gfx2", 0 )
-	ROM_LOAD( "b_10.bin",     0x0000, 0x1000, CRC(b43ea55d) SHA1(06f4c4e7fc71b9e173c3bdf91c40f47750051b5e) )    /* bg pattern B0 */
-	ROM_LOAD( "b_11.bin",     0x1000, 0x1000, CRC(73603931) SHA1(1f7824b107a5a3d5c3434f02f17173a1f85fd29c) )    /* bg pattern B1 */
+	ROM_REGION( 0x2000, "gfx2", 0 ) /* (Located on the middle board) */
+	ROM_LOAD( "bg10.c8",     0x0000, 0x1000, CRC(b43ea55d) SHA1(06f4c4e7fc71b9e173c3bdf91c40f47750051b5e) )    /* bg pattern B0 */
+	ROM_LOAD( "bg11.c7",     0x1000, 0x1000, CRC(73603931) SHA1(1f7824b107a5a3d5c3434f02f17173a1f85fd29c) )    /* bg pattern B1 */
 
-	ROM_REGION( 0xa000, "gfx3", 0 )
-	ROM_LOAD( "xvi_15.4m",    0x0000, 0x2000, CRC(dc2c0ecb) SHA1(19ddbd9805f77f38c9a9a1bb30dba6c720b8609f) )    /* sprite set #1, planes 0/1 */
-	ROM_LOAD( "xvi_17.4p",    0x2000, 0x2000, CRC(dfb587ce) SHA1(acff2bf5cde85a16cdc98a52cdea11f77fadf25a) )    /* sprite set #2, planes 0/1 */
-	ROM_LOAD( "xvi_16.4n",    0x4000, 0x1000, CRC(605ca889) SHA1(3bf380ef76c03822a042ecc73b5edd4543c268ce) )    /* sprite set #3, planes 0/1 */
-	ROM_LOAD( "xvi_18.4r",    0x5000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
+	ROM_REGION( 0xa000, "gfx3", 0 ) /* (Located on the bottom board) */
+	ROM_LOAD( "bg13.c6",    0x0000, 0x2000, CRC(dc2c0ecb) SHA1(19ddbd9805f77f38c9a9a1bb30dba6c720b8609f) )    /* sprite set #1, planes 0/1 */
+	ROM_LOAD( "bg14.c4",    0x2000, 0x2000, CRC(dfb587ce) SHA1(acff2bf5cde85a16cdc98a52cdea11f77fadf25a) )    /* sprite set #2, planes 0/1 */
+	ROM_LOAD( "bg12.c8",    0x4000, 0x1000, CRC(605ca889) SHA1(3bf380ef76c03822a042ecc73b5edd4543c268ce) )    /* sprite set #3, planes 0/1 */
+	ROM_LOAD( "bg15.c2",    0x5000, 0x2000, CRC(02417d19) SHA1(b5f830dd2cf25cf154308d2e640f0ecdcda5d8cd) )    /* sprite set #1, plane 2, set #2, plane 2 */
 	/* 0x7000-0x8fff  will be unpacked from 0x5000-0x6fff */
-	ROM_FILL(                 0x9000, 0x1000, 0x00 )    // empty space to decode sprite set #3 as 3 bits per pixel
+	ROM_FILL(                0x9000, 0x1000, 0x00 )    // empty space to decode sprite set #3 as 3 bits per pixel
 
-	ROM_REGION( 0x4000, "gfx4", 0 ) /* background tilemaps */
-	ROM_LOAD( "xvi_9.2a",     0x0000, 0x1000, CRC(57ed9879) SHA1(3106d1aacff06cf78371bd19967141072b32b7d7) )
-	ROM_LOAD( "xvi_10.2b",    0x1000, 0x2000, CRC(ae3ba9e5) SHA1(49064b25667ffcd81137cd5e800df4b78b182a46) )
-	ROM_LOAD( "xvi_11.2c",    0x3000, 0x1000, CRC(31e244dd) SHA1(3f7eac12863697a98e1122111801606759e44b2a) )
+	ROM_REGION( 0x4000, "gfx4", 0 ) /* background tilemaps (Located on the middle board) */
+	ROM_LOAD( "bg6.b14",     0x0000, 0x1000, CRC(57ed9879) SHA1(3106d1aacff06cf78371bd19967141072b32b7d7) )
+	ROM_LOAD( "bg7.b12",     0x1000, 0x2000, CRC(ae3ba9e5) SHA1(49064b25667ffcd81137cd5e800df4b78b182a46) )
+	ROM_LOAD( "bg8.b11",     0x3000, 0x1000, CRC(31e244dd) SHA1(3f7eac12863697a98e1122111801606759e44b2a) )
 
 	ROM_REGION( 0x1400, "proms", 0 )
-	ROM_LOAD( "xvi-8.6a",     0x0000, 0x0100, CRC(5cc2727f) SHA1(0dc1e63a47a4cb0ba75f6f1e0c15e408bb0ee2a1) ) /* palette red component */
-	ROM_LOAD( "xvi-9.6d",     0x0100, 0x0100, CRC(5c8796cc) SHA1(63015e3c0874afc6b1ca032f1ffb8f90562c77c8) ) /* palette green component */
-	ROM_LOAD( "xvi-10.6e",    0x0200, 0x0100, CRC(3cb60975) SHA1(c94d5a5dd4d8a08d6d39c051a4a722581b903f45) ) /* palette blue component */
-	ROM_LOAD( "b_-bpr.bin",   0x0300, 0x0400, CRC(d2d208b1) SHA1(6c8d29912c03ee93759e24085bc66ab738768bcc) ) /* bg tiles lookup table low bits */
-	ROM_LOAD( "b_6bpr.bin",   0x0700, 0x0400, CRC(0260c041) SHA1(1a7516e8b18ffdd9789eec8b834c17b3ba312afe) ) /* bg tiles lookup table high bits */
-	ROM_LOAD( "b_4bpr.bin",   0x0b00, 0x0400, CRC(33764974) SHA1(567b048b8a93e30090ccee4f6aadc0353524d8d1) ) /* sprite lookup table low bits */
-	ROM_LOAD( "b_5bpr.bin",   0x0f00, 0x0400, CRC(43674c7e) SHA1(94c19a9da81839cb1dfde3f11b2fd82ffe45efb9) ) /* sprite lookup table high bits */
+	ROM_LOAD( "xvi-8.6a",    0x0000, 0x0100, CRC(5cc2727f) SHA1(0dc1e63a47a4cb0ba75f6f1e0c15e408bb0ee2a1) ) /* palette red component */
+	ROM_LOAD( "xvi-9.6d",    0x0100, 0x0100, CRC(5c8796cc) SHA1(63015e3c0874afc6b1ca032f1ffb8f90562c77c8) ) /* palette green component */
+	ROM_LOAD( "xvi-10.6e",   0x0200, 0x0100, CRC(3cb60975) SHA1(c94d5a5dd4d8a08d6d39c051a4a722581b903f45) ) /* palette blue component */
+	ROM_LOAD( "b_-bpr.bin",  0x0300, 0x0400, CRC(d2d208b1) SHA1(6c8d29912c03ee93759e24085bc66ab738768bcc) ) /* bg tiles lookup table low bits */
+	ROM_LOAD( "b_6bpr.bin",  0x0700, 0x0400, CRC(0260c041) SHA1(1a7516e8b18ffdd9789eec8b834c17b3ba312afe) ) /* bg tiles lookup table high bits */
+	ROM_LOAD( "b_4bpr.bin",  0x0b00, 0x0400, CRC(33764974) SHA1(567b048b8a93e30090ccee4f6aadc0353524d8d1) ) /* sprite lookup table low bits */
+	ROM_LOAD( "b_5bpr.bin",  0x0f00, 0x0400, CRC(43674c7e) SHA1(94c19a9da81839cb1dfde3f11b2fd82ffe45efb9) ) /* sprite lookup table high bits */
 
 	ROM_REGION( 0x0200, "namco", 0 )    /* sound PROMs */
-	ROM_LOAD( "xvi-2.7n",     0x0000, 0x0100, CRC(550f06bc) SHA1(816a0fafa0b084ac11ae1af70a5186539376fc2a) )
-	ROM_LOAD( "xvi-1.5n",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )    /* timing - not used */
+	ROM_LOAD( "xvi-2.7n",    0x0000, 0x0100, CRC(550f06bc) SHA1(816a0fafa0b084ac11ae1af70a5186539376fc2a) )
+	ROM_LOAD( "xvi-1.5n",    0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )    /* timing - not used */
 ROM_END
 
 ROM_START( sxevious )

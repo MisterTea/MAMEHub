@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, R. Belmont
 /*
 
     dc.c - Sega Dreamcast driver
@@ -574,9 +576,8 @@ INPUT_PORTS_END
 
 MACHINE_RESET_MEMBER(dc_cons_state,dc_console)
 {
-	device_t *aica = machine().device("aica");
 	dc_state::machine_reset();
-	aica_set_ram_base(aica, dc_sound_ram, 2*1024*1024);
+	m_aica->set_ram_base(dc_sound_ram, 2*1024*1024);
 }
 
 WRITE_LINE_MEMBER(dc_cons_state::aica_irq)
@@ -594,30 +595,25 @@ WRITE_LINE_MEMBER(dc_cons_state::sh4_aica_irq)
 	dc_update_interrupt_status();
 }
 
-static const aica_interface dc_aica_interface =
-{
-	TRUE,
-	0,
-	DEVCB_DRIVER_LINE_MEMBER(dc_cons_state,aica_irq),
-	DEVCB_DRIVER_LINE_MEMBER(dc_cons_state,sh4_aica_irq)
-};
-
-static const struct sh4_config sh4cpu_config = {  1,  0,  1,  0,  0,  0,  1,  1,  0, CPU_CLOCK };
-
-SLOT_INTERFACE_START(dccons_ata_devices)
-	SLOT_INTERFACE("gdrom", GDROM)
-SLOT_INTERFACE_END
-
 static MACHINE_CONFIG_FRAGMENT( gdrom_config )
-	MCFG_DEVICE_MODIFY("device:cdda")
-	MCFG_SOUND_ROUTE(0, "^^^^^lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(1, "^^^^^rspeaker", 1.0)
+	MCFG_DEVICE_MODIFY("cdda")
+	MCFG_SOUND_ROUTE(0, "^^^^lspeaker", 1.0)
+	MCFG_SOUND_ROUTE(1, "^^^^rspeaker", 1.0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( dc, dc_cons_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", SH4LE, CPU_CLOCK)
-	MCFG_CPU_CONFIG(sh4cpu_config)
+	MCFG_SH4_MD0(1)
+	MCFG_SH4_MD1(0)
+	MCFG_SH4_MD2(1)
+	MCFG_SH4_MD3(0)
+	MCFG_SH4_MD4(0)
+	MCFG_SH4_MD5(1)
+	MCFG_SH4_MD6(0)
+	MCFG_SH4_MD7(1)
+	MCFG_SH4_MD8(0)
+	MCFG_SH4_CLOCK(CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(dc_map)
 	MCFG_CPU_IO_MAP(dc_port)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", dc_state, dc_scanline, "screen", 0, 1)
@@ -639,22 +635,26 @@ static MACHINE_CONFIG_START( dc, dc_cons_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(13458568*2, 857, 0, 640, 524, 0, 480) /* TODO: where pclk actually comes? */
 	MCFG_SCREEN_UPDATE_DEVICE("powervr2", powervr2_device, screen_update)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
 	MCFG_POWERVR2_ADD("powervr2", WRITE8(dc_state, pvr_irq))
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("aica", AICA, 0)
-	MCFG_SOUND_CONFIG(dc_aica_interface)
+	MCFG_AICA_MASTER
+	MCFG_AICA_IRQ_CB(WRITELINE(dc_cons_state, aica_irq))
+	MCFG_AICA_MAIN_IRQ_CB(WRITELINE(dc_cons_state, sh4_aica_irq))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 1.0)
 
-	MCFG_AICARTC_ADD("aicartc", XTAL_32_768kHz )
+	MCFG_AICARTC_ADD("aicartc", XTAL_32_768kHz)
 
-	MCFG_ATA_INTERFACE_ADD("ata", dccons_ata_devices, "gdrom", NULL, true)
+	MCFG_DEVICE_ADD("ata", ATA_INTERFACE, 0)
 	MCFG_ATA_INTERFACE_IRQ_HANDLER(WRITELINE(dc_cons_state, ata_interrupt))
 
 	MCFG_DEVICE_MODIFY("ata:0")
-	MCFG_DEVICE_CARD_MACHINE_CONFIG( "gdrom", gdrom_config )
+	MCFG_SLOT_OPTION_ADD("gdrom", GDROM)
+	MCFG_SLOT_OPTION_MACHINE_CONFIG("gdrom", gdrom_config)
+	MCFG_SLOT_DEFAULT_OPTION("gdrom")
 MACHINE_CONFIG_END
 
 /*

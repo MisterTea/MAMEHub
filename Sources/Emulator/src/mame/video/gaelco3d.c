@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     Driver for Gaelco 3D games
@@ -10,7 +12,6 @@
 #include "includes/gaelco3d.h"
 #include "cpu/tms32031/tms32031.h"
 #include "video/rgbutil.h"
-#include "video/poly.h"
 
 
 #define MAX_POLYGONS        4096
@@ -347,7 +348,6 @@ void gaelco3d_renderer::render_alphablend(INT32 scanline, const extent_t &extent
 
 void gaelco3d_state::gaelco3d_render(screen_device &screen)
 {
-	gaelco3d_state *state = screen.machine().driver_data<gaelco3d_state>();
 	/* wait for any queued stuff to complete */
 	m_poly->wait("Time to render");
 
@@ -358,8 +358,8 @@ void gaelco3d_state::gaelco3d_render(screen_device &screen)
 }
 #endif
 
-	state->m_polydata_count = 0;
-	state->m_lastscan = -1;
+	m_polydata_count = 0;
+	m_lastscan = -1;
 }
 
 
@@ -404,17 +404,17 @@ WRITE32_MEMBER(gaelco3d_state::gaelco3d_render_w)
 WRITE16_MEMBER(gaelco3d_state::gaelco3d_paletteram_w)
 {
 	m_poly->wait("Palette change");
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-	m_palette[offset] = ((m_generic_paletteram_16[offset] & 0x7fe0) << 6) | (m_generic_paletteram_16[offset] & 0x1f);
+	COMBINE_DATA(&m_paletteram16[offset]);
+	m_palette[offset] = ((m_paletteram16[offset] & 0x7fe0) << 6) | (m_paletteram16[offset] & 0x1f);
 }
 
 
 WRITE32_MEMBER(gaelco3d_state::gaelco3d_paletteram_020_w)
 {
 	m_poly->wait("Palette change");
-	COMBINE_DATA(&m_generic_paletteram_32[offset]);
-	m_palette[offset*2+0] = ((m_generic_paletteram_32[offset] & 0x7fe00000) >> 10) | ((m_generic_paletteram_32[offset] & 0x1f0000) >> 16);
-	m_palette[offset*2+1] = ((m_generic_paletteram_32[offset] & 0x7fe0) << 6) | (m_generic_paletteram_32[offset] & 0x1f);
+	COMBINE_DATA(&m_paletteram32[offset]);
+	m_palette[offset*2+0] = ((m_paletteram32[offset] & 0x7fe00000) >> 10) | ((m_paletteram32[offset] & 0x1f0000) >> 16);
+	m_palette[offset*2+1] = ((m_paletteram32[offset] & 0x7fe0) << 6) | (m_paletteram32[offset] & 0x1f);
 }
 
 

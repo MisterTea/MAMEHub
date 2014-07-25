@@ -54,29 +54,29 @@ if (PRINT_CRTC_DATA)
 	{
 		switch (data)
 		{
-			case 0x00: mame_printf_debug("Horizontal Total         "); break;
-			case 0x01: mame_printf_debug("Horizontal displayed     "); break;
-			case 0x02: mame_printf_debug("Horizontal sync position "); break;
-			case 0x03: mame_printf_debug("Horizontal sync width    "); break;
-			case 0x04: mame_printf_debug("Vertical total           "); break;
-			case 0x05: mame_printf_debug("Vertical total adjust    "); break;
-			case 0x06: mame_printf_debug("Vertical displayed       "); break;
-			case 0x07: mame_printf_debug("Vertical sync position   "); break;
-			case 0x08: mame_printf_debug("Interlace mode           "); break;
-			case 0x09: mame_printf_debug("Max. scan line address   "); break;
-			case 0x0a: mame_printf_debug("Cursror start            "); break;
-			case 0x0b: mame_printf_debug("Cursor end               "); break;
-			case 0x0c: mame_printf_debug("Start address (h)        "); break;
-			case 0x0d: mame_printf_debug("Start address (l)        "); break;
-			case 0x0e: mame_printf_debug("Cursor (h)               "); break;
-			case 0x0f: mame_printf_debug("Cursor (l)               "); break;
-			case 0x10: mame_printf_debug("Light pen (h))           "); break;
-			case 0x11: mame_printf_debug("Light pen (l)            "); break;
+			case 0x00: osd_printf_debug("Horizontal Total         "); break;
+			case 0x01: osd_printf_debug("Horizontal displayed     "); break;
+			case 0x02: osd_printf_debug("Horizontal sync position "); break;
+			case 0x03: osd_printf_debug("Horizontal sync width    "); break;
+			case 0x04: osd_printf_debug("Vertical total           "); break;
+			case 0x05: osd_printf_debug("Vertical total adjust    "); break;
+			case 0x06: osd_printf_debug("Vertical displayed       "); break;
+			case 0x07: osd_printf_debug("Vertical sync position   "); break;
+			case 0x08: osd_printf_debug("Interlace mode           "); break;
+			case 0x09: osd_printf_debug("Max. scan line address   "); break;
+			case 0x0a: osd_printf_debug("Cursror start            "); break;
+			case 0x0b: osd_printf_debug("Cursor end               "); break;
+			case 0x0c: osd_printf_debug("Start address (h)        "); break;
+			case 0x0d: osd_printf_debug("Start address (l)        "); break;
+			case 0x0e: osd_printf_debug("Cursor (h)               "); break;
+			case 0x0f: osd_printf_debug("Cursor (l)               "); break;
+			case 0x10: osd_printf_debug("Light pen (h))           "); break;
+			case 0x11: osd_printf_debug("Light pen (l)            "); break;
 		}
 	}
 	else if (offset == 1)
 	{
-		mame_printf_debug("0x%.2x, (%d)\n",data, data);
+		osd_printf_debug("0x%.2x, (%d)\n",data, data);
 	}
 }
 }
@@ -130,11 +130,11 @@ PALETTE_INIT_MEMBER(tx1_state,tx1)
 	{
 		int r, g, b;
 
-		r = compute_res_net(color_prom[i + 0x300] & 0xf, 0, &tx1_net_info);
-		g = compute_res_net(color_prom[i + 0x400] & 0xf, 1, &tx1_net_info);
-		b = compute_res_net(color_prom[i + 0x500] & 0xf, 2, &tx1_net_info);
+		r = compute_res_net(color_prom[i + 0x300] & 0xf, 0, tx1_net_info);
+		g = compute_res_net(color_prom[i + 0x400] & 0xf, 1, tx1_net_info);
+		b = compute_res_net(color_prom[i + 0x500] & 0xf, 2, tx1_net_info);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -1285,7 +1285,7 @@ PALETTE_INIT_MEMBER(tx1_state,buggyboy)
 		bit4 = BIT(color_prom[i + 0x300], 0);
 		b = 0x06 * bit4 + 0x0d * bit0 + 0x1e * bit1 + 0x41 * bit2 + 0x8a * bit3;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 

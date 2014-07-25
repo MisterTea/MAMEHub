@@ -42,7 +42,8 @@ public:
 		m_colorram(*this, "colorram"),
 		m_videoram(*this, "videoram"),
 		m_maincpu(*this, "maincpu"),
-		m_msm(*this, "msm") { }
+		m_msm(*this, "msm"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	int m_gfxbank;
 	required_shared_ptr<UINT8> m_colorram;
@@ -64,6 +65,7 @@ public:
 	UINT32 screen_update_rmhaihai(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<msm5205_device> m_msm;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -91,7 +93,7 @@ TILE_GET_INFO_MEMBER(rmhaihai_state::get_bg_tile_info)
 
 void rmhaihai_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rmhaihai_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rmhaihai_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
 		8, 8, 64, 32);
 }
 
@@ -449,23 +451,6 @@ static GFXDECODE_START( themj )
 GFXDECODE_END
 
 
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_INPUT_PORT("DSW1")
-};
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_NULL,              /* interrupt function */
-	MSM5205_SEX_4B  /* vclk input mode    */
-};
-
-
-
 static MACHINE_CONFIG_START( rmhaihai, rmhaihai_state )
 
 	/* basic machine hardware */
@@ -481,21 +466,22 @@ static MACHINE_CONFIG_START( rmhaihai, rmhaihai_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(4*8, 60*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(rmhaihai_state, screen_update_rmhaihai)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(rmhaihai)
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rmhaihai)
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 0x100)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 20000000/16)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW2"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 500000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_SEX_4B)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -504,8 +490,9 @@ static MACHINE_CONFIG_DERIVED( rmhaisei, rmhaihai )
 	/* basic machine hardware */
 
 	/* video hardware */
-	MCFG_GFXDECODE(themj)
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", themj)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(0x200)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( themj, rmhaihai )
@@ -519,8 +506,9 @@ static MACHINE_CONFIG_DERIVED( themj, rmhaihai )
 	MCFG_MACHINE_RESET_OVERRIDE(rmhaihai_state,themj)
 
 	/* video hardware */
-	MCFG_GFXDECODE(themj)
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", themj)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(0x200)
 MACHINE_CONFIG_END
 
 

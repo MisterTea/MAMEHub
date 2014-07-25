@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Michael Zapf
 /****************************************************************************
 
     TI-99/4(A) databus multiplexer circuit
@@ -39,7 +41,6 @@ struct dmux_device_list_entry
 
 struct datamux_config
 {
-	devcb_write_line                ready;
 	const dmux_device_list_entry    *devlist;
 };
 
@@ -70,25 +71,58 @@ public:
 	ti99_datamux_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	DECLARE_READ16_MEMBER( read );
 	DECLARE_WRITE16_MEMBER( write );
+	DECLARE_SETOFFSET_MEMBER( setoffset );
 
-	void clock_in(int state);
+	DECLARE_WRITE_LINE_MEMBER( clock_in );
+	DECLARE_WRITE_LINE_MEMBER( dbin_in );
+	DECLARE_WRITE_LINE_MEMBER( ready_line );
+
+	template<class _Object> static devcb_base &static_set_ready_callback(device_t &device, _Object object)
+	{
+		return downcast<ti99_datamux_device &>(device).m_ready.set_callback(object);
+	}
 
 protected:
 	/* Constructor */
-	virtual void device_start(void);
-	virtual void device_stop(void);
-	virtual void device_reset(void);
-	virtual ioport_constructor device_input_ports() const;
+	void device_start();
+	void device_stop();
+	void device_reset();
+	ioport_constructor device_input_ports() const;
 
 private:
+	// Keeps the address space pointer
+	address_space* m_spacep;
+
 	// Common read routine
 	void read_all(address_space& space, UINT16 addr, UINT8 *target);
 
 	// Common write routine
 	void write_all(address_space& space, UINT16 addr, UINT8 value);
 
+	// Common set address method
+	void setaddress_all(address_space& space, UINT16 addr);
+
+	// Debugger access
+	UINT16 debugger_read(address_space& space, UINT16 addr);
+	void debugger_write(address_space& space, UINT16 addr, UINT16 data);
+
+	// Join own READY and external READY
+	void ready_join();
+
 	// Ready line to the CPU
-	devcb_resolved_write_line m_ready;
+	devcb_write_line m_ready;
+
+	// Own ready state.
+	line_state  m_muxready;
+
+	// Ready state. Needed to control wait state generation via inbound READY
+	line_state  m_sysready;
+
+	/* Address latch (emu). In reality, the address bus remains constant. */
+	UINT16 m_addr_buf;
+
+	/* Stores the state of the DBIN line. */
+	bool    m_read_mode;
 
 	/* All devices that are attached to the 8-bit bus. */
 	simple_list<attached_device> m_devices;
@@ -105,6 +139,9 @@ private:
 	/* Use the memory expansion? */
 	bool m_use32k;
 
+	/* Memory base for piggy-back 32K expansion. If 0, expansion is not used. */
+	UINT16  m_base32k;
+
 	/* Reference to the CPU; avoid lookups. */
 	device_t *m_cpu;
 };
@@ -115,3 +152,6 @@ private:
 	MCFG_DEVICE_ADD(_tag, DATAMUX, 0) \
 	MCFG_DEVICE_CONFIG( _devices )
 #endif
+
+#define MCFG_DMUX_READY_HANDLER( _intcallb ) \
+	devcb = &ti99_datamux_device::static_set_ready_callback( *device, DEVCB_##_intcallb );

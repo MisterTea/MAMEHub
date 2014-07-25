@@ -56,7 +56,7 @@ WRITE16_MEMBER(drgnmst_state::drgnmst_md_videoram_w)
 
 void drgnmst_state::draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect )
 {
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	UINT16 *source = m_spriteram;
 	UINT16 *finish = source + 0x800 / 2;
 
@@ -93,7 +93,7 @@ void drgnmst_state::draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect
 				realy = ypos + incy * y;
 				realnumber = number + x + y * 16;
 
-				drawgfx_transpen(bitmap, cliprect, gfx, realnumber, colr, flipx, flipy, realx, realy, 15);
+					gfx->transpen(bitmap,cliprect, realnumber, colr, flipx, flipy, realx, realy, 15);
 			}
 		}
 		source += 4;
@@ -118,13 +118,13 @@ TILEMAP_MAPPER_MEMBER(drgnmst_state::drgnmst_bg_tilemap_scan_cols)
 
 void drgnmst_state::video_start()
 {
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(drgnmst_state::get_drgnmst_fg_tile_info),this), tilemap_mapper_delegate(FUNC(drgnmst_state::drgnmst_fg_tilemap_scan_cols),this), 8, 8, 64,64);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(drgnmst_state::get_drgnmst_fg_tile_info),this), tilemap_mapper_delegate(FUNC(drgnmst_state::drgnmst_fg_tilemap_scan_cols),this), 8, 8, 64,64);
 	m_fg_tilemap->set_transparent_pen(15);
 
-	m_md_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(drgnmst_state::get_drgnmst_md_tile_info),this), tilemap_mapper_delegate(FUNC(drgnmst_state::drgnmst_md_tilemap_scan_cols),this), 16, 16, 64,64);
+	m_md_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(drgnmst_state::get_drgnmst_md_tile_info),this), tilemap_mapper_delegate(FUNC(drgnmst_state::drgnmst_md_tilemap_scan_cols),this), 16, 16, 64,64);
 	m_md_tilemap->set_transparent_pen(15);
 
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(drgnmst_state::get_drgnmst_bg_tile_info),this), tilemap_mapper_delegate(FUNC(drgnmst_state::drgnmst_bg_tilemap_scan_cols),this), 32, 32, 64,64);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(drgnmst_state::get_drgnmst_bg_tile_info),this), tilemap_mapper_delegate(FUNC(drgnmst_state::drgnmst_bg_tilemap_scan_cols),this), 32, 32, 64,64);
 	m_bg_tilemap->set_transparent_pen(15);
 
 	// do the other tilemaps have rowscroll too? probably not ..

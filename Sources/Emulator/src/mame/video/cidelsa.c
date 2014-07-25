@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #include "emu.h"
 #include "cpu/cosmac/cosmac.h"
 #include "sound/cdp1869.h"
@@ -36,70 +38,58 @@ WRITE8_MEMBER( cidelsa_state::cdp1869_w )
 
 /* Character RAM Access */
 
-static CDP1869_CHAR_RAM_READ( cidelsa_charram_r )
+CDP1869_CHAR_RAM_READ_MEMBER( cidelsa_state::cidelsa_charram_r )
 {
-	cidelsa_state *state = device->machine().driver_data<cidelsa_state>();
-
 	UINT8 column = BIT(pma, 10) ? 0xff : pmd;
 	UINT16 addr = ((column << 3) | (cma & 0x07)) & CIDELSA_CHARRAM_MASK;
 
-	UINT8 data = state->m_charram[addr];
-	state->m_cdp1869_pcb = state->m_pcbram[addr];
+	UINT8 data = m_charram[addr];
+	m_cdp1869_pcb = m_pcbram[addr];
 
 	return data;
 }
 
-static CDP1869_CHAR_RAM_WRITE( cidelsa_charram_w )
+CDP1869_CHAR_RAM_WRITE_MEMBER( cidelsa_state::cidelsa_charram_w )
 {
-	cidelsa_state *state = device->machine().driver_data<cidelsa_state>();
-
 	UINT8 column = BIT(pma, 10) ? 0xff : pmd;
 	UINT16 addr = ((column << 3) | (cma & 0x07)) & CIDELSA_CHARRAM_MASK;
 
-	state->m_charram[addr] = data;
-	state->m_pcbram[addr] = state->m_cdp1802_q;
+	m_charram[addr] = data;
+	m_pcbram[addr] = m_cdp1802_q;
 }
 
-static CDP1869_CHAR_RAM_READ( draco_charram_r )
+CDP1869_CHAR_RAM_READ_MEMBER( draco_state::draco_charram_r )
 {
-	cidelsa_state *state = device->machine().driver_data<cidelsa_state>();
-
 	UINT16 addr = ((pmd << 3) | (cma & 0x07)) & CIDELSA_CHARRAM_MASK;
 
-	UINT8 data = state->m_charram[addr];
-	state->m_cdp1869_pcb = state->m_pcbram[addr];
+	UINT8 data = m_charram[addr];
+	m_cdp1869_pcb = m_pcbram[addr];
 
 	return data;
 }
 
-static CDP1869_CHAR_RAM_WRITE( draco_charram_w )
+CDP1869_CHAR_RAM_WRITE_MEMBER( draco_state::draco_charram_w )
 {
-	cidelsa_state *state = device->machine().driver_data<cidelsa_state>();
-
 	UINT16 addr = ((pmd << 3) | (cma & 0x07)) & CIDELSA_CHARRAM_MASK;
 
-	state->m_charram[addr] = data;
-	state->m_pcbram[addr] = state->m_cdp1802_q;
+	m_charram[addr] = data;
+	m_pcbram[addr] = m_cdp1802_q;
 }
 
 /* Page Color Bit Access */
 
-static CDP1869_PCB_READ( cidelsa_pcb_r )
+CDP1869_PCB_READ_MEMBER( cidelsa_state::cidelsa_pcb_r )
 {
-	cidelsa_state *state = device->machine().driver_data<cidelsa_state>();
-
 	UINT16 addr = ((pmd << 3) | (cma & 0x07)) & CIDELSA_CHARRAM_MASK;
 
-	return state->m_pcbram[addr];
+	return m_pcbram[addr];
 }
 
-static CDP1869_PCB_READ( draco_pcb_r )
+CDP1869_PCB_READ_MEMBER( draco_state::draco_pcb_r )
 {
-	cidelsa_state *state = device->machine().driver_data<cidelsa_state>();
-
 	UINT16 addr = ((pmd << 3) | (cma & 0x07)) & CIDELSA_CHARRAM_MASK;
 
-	return state->m_pcbram[addr];
+	return m_pcbram[addr];
 }
 
 /* Predisplay Changed Handler */
@@ -122,38 +112,6 @@ static ADDRESS_MAP_START( draco_page_ram, AS_0, 8, driver_device )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000, 0x7ff) AM_RAM
 ADDRESS_MAP_END
-
-/* CDP1869 Interface */
-
-static CDP1869_INTERFACE( destryer_vis_intf )
-{
-	0,
-	CDP1869_PAL,
-	cidelsa_pcb_r,
-	cidelsa_charram_r,
-	cidelsa_charram_w,
-	DEVCB_DRIVER_LINE_MEMBER(cidelsa_state, prd_w)
-};
-
-static CDP1869_INTERFACE( altair_vis_intf )
-{
-	0,
-	CDP1869_PAL,
-	cidelsa_pcb_r,
-	cidelsa_charram_r,
-	cidelsa_charram_w,
-	DEVCB_DRIVER_LINE_MEMBER(cidelsa_state, prd_w)
-};
-
-static CDP1869_INTERFACE( draco_vis_intf )
-{
-	0,
-	CDP1869_PAL,
-	draco_pcb_r,
-	draco_charram_r,
-	draco_charram_w,
-	DEVCB_CPU_INPUT_LINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1)
-};
 
 /* Video Start */
 
@@ -189,16 +147,6 @@ WRITE8_MEMBER( draco_state::psg_pb_w )
 	*/
 }
 
-static const ay8910_interface psg_intf =
-{
-	AY8910_SINGLE_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(draco_state, psg_pb_w)
-};
-
 /* Machine Drivers */
 
 MACHINE_CONFIG_FRAGMENT( destryer_video )
@@ -206,7 +154,12 @@ MACHINE_CONFIG_FRAGMENT( destryer_video )
 	MCFG_SCREEN_DEFAULT_POSITION(1.226, 0.012, 1.4, 0.044)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_CDP1869_ADD(CDP1869_TAG, DESTRYER_CHR2, destryer_vis_intf, cidelsa_page_ram)
+	MCFG_CDP1869_ADD(CDP1869_TAG, DESTRYER_CHR2, cidelsa_page_ram)
+	MCFG_CDP1869_CHAR_PCB_READ_OWNER(cidelsa_state, cidelsa_pcb_r)
+	MCFG_CDP1869_CHAR_RAM_READ_OWNER(cidelsa_state, cidelsa_charram_r)
+	MCFG_CDP1869_CHAR_RAM_WRITE_OWNER(cidelsa_state, cidelsa_charram_w)
+	MCFG_CDP1869_PAL_NTSC_CALLBACK(VCC)
+	MCFG_CDP1869_PRD_CALLBACK(WRITELINE(cidelsa_state, prd_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -215,7 +168,12 @@ MACHINE_CONFIG_FRAGMENT( altair_video )
 	MCFG_SCREEN_DEFAULT_POSITION(1.226, 0.012, 1.4, 0.044)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_CDP1869_ADD(CDP1869_TAG, ALTAIR_CHR2, altair_vis_intf, cidelsa_page_ram)
+	MCFG_CDP1869_ADD(CDP1869_TAG, ALTAIR_CHR2, cidelsa_page_ram)
+	MCFG_CDP1869_CHAR_PCB_READ_OWNER(cidelsa_state, cidelsa_pcb_r)
+	MCFG_CDP1869_CHAR_RAM_READ_OWNER(cidelsa_state, cidelsa_charram_r)
+	MCFG_CDP1869_CHAR_RAM_WRITE_OWNER(cidelsa_state, cidelsa_charram_w)
+	MCFG_CDP1869_PAL_NTSC_CALLBACK(VCC)
+	MCFG_CDP1869_PRD_CALLBACK(WRITELINE(cidelsa_state, prd_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -224,8 +182,14 @@ MACHINE_CONFIG_FRAGMENT( draco_video )
 	MCFG_SCREEN_DEFAULT_POSITION(1.226, 0.012, 1.360, 0.024)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_CDP1869_ADD(CDP1869_TAG, DRACO_CHR2, draco_vis_intf, draco_page_ram)
+	MCFG_CDP1869_ADD(CDP1869_TAG, DRACO_CHR2, draco_page_ram)
+	MCFG_CDP1869_CHAR_PCB_READ_OWNER(draco_state, draco_pcb_r)
+	MCFG_CDP1869_CHAR_RAM_READ_OWNER(draco_state, draco_charram_r)
+	MCFG_CDP1869_CHAR_RAM_WRITE_OWNER(draco_state, draco_charram_w)
+	MCFG_CDP1869_PAL_NTSC_CALLBACK(VCC)
+	MCFG_CDP1869_PRD_CALLBACK(INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1))
 	MCFG_SOUND_ADD(AY8910_TAG, AY8910, DRACO_SND_CHR1)
-	MCFG_SOUND_CONFIG(psg_intf)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(draco_state, psg_pb_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END

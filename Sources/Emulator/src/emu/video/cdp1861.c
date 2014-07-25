@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /**********************************************************************
 
     RCA CDP1861 Video Display Controller emulation
@@ -202,8 +204,8 @@ WRITE8_MEMBER( cdp1861_device::dma_w )
 
 	for (x = 0; x < 8; x++)
 	{
-		int color = BIT(data, 7);
-		m_bitmap.pix32(y, sx + x) = RGB_MONOCHROME_WHITE[color];
+		pen_t color = BIT(data, 7) ? rgb_t::white : rgb_t::black;
+		m_bitmap.pix32(y, sx + x) = color;
 		data <<= 1;
 	}
 }
@@ -248,7 +250,7 @@ UINT32 cdp1861_device::screen_update(screen_device &screen, bitmap_rgb32 &bitmap
 	}
 	else
 	{
-		bitmap.fill(RGB_BLACK, cliprect);
+		bitmap.fill(rgb_t::black, cliprect);
 	}
 	return 0;
 }

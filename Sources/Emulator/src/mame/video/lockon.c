@@ -35,29 +35,29 @@ WRITE16_MEMBER(lockon_state::lockon_crtc_w)
 	{
 		switch (data)
 		{
-			case 0x00: mame_printf_debug("Horizontal Total         "); break;
-			case 0x01: mame_printf_debug("Horizontal displayed     "); break;
-			case 0x02: mame_printf_debug("Horizontal sync position "); break;
-			case 0x03: mame_printf_debug("Horizontal sync width    "); break;
-			case 0x04: mame_printf_debug("Vertical total           "); break;
-			case 0x05: mame_printf_debug("Vertical total adjust    "); break;
-			case 0x06: mame_printf_debug("Vertical displayed       "); break;
-			case 0x07: mame_printf_debug("Vertical sync position   "); break;
-			case 0x08: mame_printf_debug("Interlace mode           "); break;
-			case 0x09: mame_printf_debug("Max. scan line address   "); break;
-			case 0x0a: mame_printf_debug("Cursror start            "); break;
-			case 0x0b: mame_printf_debug("Cursor end               "); break;
-			case 0x0c: mame_printf_debug("Start address (h)        "); break;
-			case 0x0d: mame_printf_debug("Start address (l)        "); break;
-			case 0x0e: mame_printf_debug("Cursor (h)               "); break;
-			case 0x0f: mame_printf_debug("Cursor (l)               "); break;
-			case 0x10: mame_printf_debug("Light pen (h))           "); break;
-			case 0x11: mame_printf_debug("Light pen (l)            "); break;
+			case 0x00: osd_printf_debug("Horizontal Total         "); break;
+			case 0x01: osd_printf_debug("Horizontal displayed     "); break;
+			case 0x02: osd_printf_debug("Horizontal sync position "); break;
+			case 0x03: osd_printf_debug("Horizontal sync width    "); break;
+			case 0x04: osd_printf_debug("Vertical total           "); break;
+			case 0x05: osd_printf_debug("Vertical total adjust    "); break;
+			case 0x06: osd_printf_debug("Vertical displayed       "); break;
+			case 0x07: osd_printf_debug("Vertical sync position   "); break;
+			case 0x08: osd_printf_debug("Interlace mode           "); break;
+			case 0x09: osd_printf_debug("Max. scan line address   "); break;
+			case 0x0a: osd_printf_debug("Cursror start            "); break;
+			case 0x0b: osd_printf_debug("Cursor end               "); break;
+			case 0x0c: osd_printf_debug("Start address (h)        "); break;
+			case 0x0d: osd_printf_debug("Start address (l)        "); break;
+			case 0x0e: osd_printf_debug("Cursor (h)               "); break;
+			case 0x0f: osd_printf_debug("Cursor (l)               "); break;
+			case 0x10: osd_printf_debug("Light pen (h))           "); break;
+			case 0x11: osd_printf_debug("Light pen (l)            "); break;
 		}
 	}
 	else if (offset == 1)
 	{
-		mame_printf_debug("0x%.2x, (%d)\n",data, data);
+		osd_printf_debug("0x%.2x, (%d)\n",data, data);
 	}
 #endif
 }
@@ -96,7 +96,7 @@ static const res_net_info lockon_pd_net_info =
 	}
 };
 
-void lockon_state::palette_init()
+PALETTE_INIT_MEMBER(lockon_state, lockon)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -109,18 +109,18 @@ void lockon_state::palette_init()
 
 		if (p2 & 0x80)
 		{
-			r = compute_res_net((p2 >> 2) & 0x1f, 0, &lockon_net_info);
-			g = compute_res_net(((p1 >> 5) & 0x7) | (p2 & 3) << 3, 1, &lockon_net_info);
-			b = compute_res_net((p1 & 0x1f), 2, &lockon_net_info);
+			r = compute_res_net((p2 >> 2) & 0x1f, 0, lockon_net_info);
+			g = compute_res_net(((p1 >> 5) & 0x7) | (p2 & 3) << 3, 1, lockon_net_info);
+			b = compute_res_net((p1 & 0x1f), 2, lockon_net_info);
 		}
 		else
 		{
-			r = compute_res_net((p2 >> 2) & 0x1f, 0, &lockon_pd_net_info);
-			g = compute_res_net(((p1 >> 5) & 0x7) | (p2 & 3) << 3, 1, &lockon_pd_net_info);
-			b = compute_res_net((p1 & 0x1f), 2, &lockon_pd_net_info);
+			r = compute_res_net((p2 >> 2) & 0x1f, 0, lockon_pd_net_info);
+			g = compute_res_net(((p1 >> 5) & 0x7) | (p2 & 3) << 3, 1, lockon_pd_net_info);
+			b = compute_res_net((p1 & 0x1f), 2, lockon_pd_net_info);
 		}
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -645,8 +645,8 @@ WRITE16_MEMBER(lockon_state::lockon_fb_clut_w)
 {
 	rgb_t color;
 
-	color = palette_get_color(machine(), 0x300 + (data & 0xff));
-	palette_set_color(machine(), 0x400 + offset, color);
+	color = m_palette->pen_color(0x300 + (data & 0xff));
+	m_palette->set_pen_color(0x400 + offset, color);
 }
 
 /* Rotation control register */
@@ -885,7 +885,7 @@ void lockon_state::hud_draw( bitmap_ind16 &bitmap, const rectangle &cliprect )
 
 void lockon_state::video_start()
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(lockon_state::get_lockon_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(lockon_state::get_lockon_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 	m_tilemap->set_transparent_pen(0);
 
 	/* Allocate the two frame buffers for rotation */
@@ -912,7 +912,7 @@ UINT32 lockon_state::screen_update_lockon(screen_device &screen, bitmap_ind16 &b
 	/* If screen output is disabled, fill with black */
 	if (!BIT(m_ctrl_reg, 7))
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 		return 0;
 	}
 

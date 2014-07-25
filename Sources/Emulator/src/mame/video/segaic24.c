@@ -22,9 +22,32 @@ const device_type S24MIXER = &device_creator<segas24_mixer>;
 
 
 segas24_tile::segas24_tile(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, S24TILE, "S24TILE", tag, owner, clock, "segas24_tile", __FILE__)
+	: device_t(mconfig, S24TILE, "Sega System 24 Tilemap", tag, owner, clock, "segas24_tile", __FILE__),
+		m_gfxdecode(*this),
+		m_palette(*this)
 {
 }
+
+//-------------------------------------------------
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
+//-------------------------------------------------
+
+void segas24_tile::static_set_gfxdecode_tag(device_t &device, const char *tag)
+{
+	downcast<segas24_tile &>(device).m_gfxdecode.set_tag(tag);
+}
+
+//-------------------------------------------------
+//  static_set_palette_tag: Set the tag of the
+//  palette device
+//-------------------------------------------------
+
+void segas24_tile::static_set_palette_tag(device_t &device, const char *tag)
+{
+	downcast<segas24_tile &>(device).m_palette.set_tag(tag);
+}
+
 
 void segas24_tile::static_set_tile_mask(device_t &device, UINT16 _tile_mask)
 {
@@ -32,23 +55,21 @@ void segas24_tile::static_set_tile_mask(device_t &device, UINT16 _tile_mask)
 	dev.tile_mask = _tile_mask;
 }
 
-#define XOR(a) WORD_XOR_BE(a)
-
 const gfx_layout segas24_tile::char_layout = {
 	8, 8,
 	SYS24_TILES,
 	4,
 	{ 0, 1, 2, 3 },
-	{ XOR(0)*4, XOR(1)*4, XOR(2)*4, XOR(3)*4, XOR(4)*4, XOR(5)*4, XOR(6)*4, XOR(7)*4 },
-	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
+	{ STEP8(0, 4) },
+	{ STEP8(0, 32) },
 	8*32
 };
 
 void segas24_tile::tile_info(int offset, tile_data &tileinfo, tilemap_memory_index tile_index)
 {
 	UINT16 val = tile_ram[tile_index|offset];
+	SET_TILE_INFO_MEMBER(char_gfx_index, val & tile_mask, (val >> 7) & 0xff, 0);
 	tileinfo.category = (val & 0x8000) != 0;
-	tileinfo.set(machine(), char_gfx_index, val & tile_mask, (val >> 7) & 0xff, 0);
 }
 
 TILE_GET_INFO_MEMBER(segas24_tile::tile_info_0s)
@@ -73,18 +94,21 @@ TILE_GET_INFO_MEMBER(segas24_tile::tile_info_1w)
 
 void segas24_tile::device_start()
 {
+	if(!m_gfxdecode->started())
+		throw device_missing_dependencies();
+
 	for(char_gfx_index = 0; char_gfx_index < MAX_GFX_ELEMENTS; char_gfx_index++)
-		if (machine().gfx[char_gfx_index] == 0)
+		if (m_gfxdecode->gfx(char_gfx_index) == 0)
 			break;
 	assert(char_gfx_index != MAX_GFX_ELEMENTS);
 
 	char_ram = auto_alloc_array(machine(), UINT16, 0x80000/2);
 	tile_ram = auto_alloc_array(machine(), UINT16, 0x10000/2);
 
-	tile_layer[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(segas24_tile::tile_info_0s),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 64);
-	tile_layer[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(segas24_tile::tile_info_0w),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 64);
-	tile_layer[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(segas24_tile::tile_info_1s),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 64);
-	tile_layer[3] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(segas24_tile::tile_info_1w),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 64);
+	tile_layer[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(segas24_tile::tile_info_0s),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 64);
+	tile_layer[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(segas24_tile::tile_info_0w),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 64);
+	tile_layer[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(segas24_tile::tile_info_1s),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 64);
+	tile_layer[3] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(segas24_tile::tile_info_1w),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 64);
 
 	tile_layer[0]->set_transparent_pen(0);
 	tile_layer[1]->set_transparent_pen(0);
@@ -94,7 +118,7 @@ void segas24_tile::device_start()
 	memset(char_ram, 0, 0x80000);
 	memset(tile_ram, 0, 0x10000);
 
-	machine().gfx[char_gfx_index] = auto_alloc(machine(), gfx_element(machine(), char_layout, (UINT8 *)char_ram, machine().total_colors() / 16, 0));
+	m_gfxdecode->set_gfx(char_gfx_index, global_alloc(gfx_element(m_palette, char_layout, (UINT8 *)char_ram, NATIVE_ENDIAN_VALUE_LE_BE(8,0), m_palette->entries() / 16, 0)));
 
 	save_pointer(NAME(tile_ram), 0x10000/2);
 	save_pointer(NAME(char_ram), 0x80000/2);
@@ -241,7 +265,7 @@ void segas24_tile::draw_rect(screen_device &screen, bitmap_ind16 &bm, bitmap_ind
 	const UINT16 *source  = &bm.pix16(sy, sx);
 	const UINT8  *trans = &tm.pix8(sy, sx);
 	UINT32       *dest = &dm.pix32(0);
-	const pen_t  *pens   = machine().pens;
+	const pen_t  *pens   = m_palette->pens();
 
 	tpri |= TILEMAP_PIXEL_LAYER0;
 
@@ -550,7 +574,7 @@ WRITE16_MEMBER(segas24_tile::char_w)
 	UINT16 old = char_ram[offset];
 	COMBINE_DATA(char_ram + offset);
 	if(old != char_ram[offset])
-		machine().gfx[char_gfx_index]->mark_dirty(offset / 16);
+		m_gfxdecode->gfx(char_gfx_index)->mark_dirty(offset / 16);
 }
 
 READ32_MEMBER(segas24_tile::tile32_r)
@@ -577,7 +601,7 @@ WRITE32_MEMBER(segas24_tile::char32_w)
 
 
 segas24_sprite::segas24_sprite(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, S24SPRITE, "S24SPRITE", tag, owner, clock, "segas24_sprite", __FILE__)
+	: device_t(mconfig, S24SPRITE, "Sega System 24 Sprites", tag, owner, clock, "segas24_sprite", __FILE__)
 {
 }
 
@@ -822,7 +846,7 @@ READ16_MEMBER(segas24_sprite::read)
 
 
 segas24_mixer::segas24_mixer(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, S24MIXER, "S24MIXER", tag, owner, clock, "segas24_mixer", __FILE__)
+	: device_t(mconfig, S24MIXER, "Sega System 24 Mixer", tag, owner, clock, "segas24_mixer", __FILE__)
 {
 }
 

@@ -10,9 +10,9 @@
 #include "emu.h"
 #include "cpu/i8085/i8085.h"
 #include "sound/wave.h"
+#include "sound/speaker.h"
 #include "machine/i8255.h"
-#include "machine/8257dma.h"
-#include "video/i8275.h"
+#include "machine/pit8253.h"
 #include "imagedev/cassette.h"
 #include "formats/rk_cas.h"
 #include "includes/radio86.h"
@@ -22,7 +22,18 @@ class apogee_state : public radio86_state
 {
 public:
 	apogee_state(const machine_config &mconfig, device_type type, const char *tag)
-		: radio86_state(mconfig, type, tag) { }
+		: radio86_state(mconfig, type, tag),
+		m_speaker(*this, "speaker") { }
+
+	UINT8 m_out0;
+	UINT8 m_out1;
+	UINT8 m_out2;
+	DECLARE_WRITE_LINE_MEMBER(pit8253_out0_changed);
+	DECLARE_WRITE_LINE_MEMBER(pit8253_out1_changed);
+	DECLARE_WRITE_LINE_MEMBER(pit8253_out2_changed);
+	I8275_DRAW_CHARACTER_MEMBER(display_pixels);
+
+	required_device<speaker_sound_device> m_speaker;
 };
 
 
@@ -30,11 +41,11 @@ public:
 static ADDRESS_MAP_START(apogee_mem, AS_PROGRAM, 8, apogee_state )
 	AM_RANGE( 0x0000, 0x0fff ) AM_RAMBANK("bank1") // First bank
 	AM_RANGE( 0x1000, 0xebff ) AM_RAM  // RAM
-	//AM_RANGE( 0xec00, 0xecff ) AM_RAM  // Timer
+	AM_RANGE( 0xec00, 0xec03 ) AM_DEVREADWRITE("pit8253", pit8253_device, read, write) AM_MIRROR(0x00fc)
 	AM_RANGE( 0xed00, 0xed03 ) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write) AM_MIRROR(0x00fc)
 	//AM_RANGE( 0xee00, 0xee03 ) AM_DEVREADWRITE("ppi8255_2", i8255_device, read, write) AM_MIRROR(0x00fc)
 	AM_RANGE( 0xef00, 0xef01 ) AM_DEVREADWRITE("i8275", i8275_device, read, write) AM_MIRROR(0x00fe) // video
-	AM_RANGE( 0xf000, 0xf0ff ) AM_DEVWRITE("dma8257", i8257_device, i8257_w)    // DMA
+	AM_RANGE( 0xf000, 0xf0ff ) AM_DEVWRITE("dma8257", i8257_device, write)    // DMA
 	AM_RANGE( 0xf000, 0xffff ) AM_ROM  // System ROM
 ADDRESS_MAP_END
 
@@ -131,15 +142,53 @@ static INPUT_PORTS_START( apogee )
 	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Rus/Lat") PORT_CODE(KEYCODE_LALT) PORT_CODE(KEYCODE_RALT)
 INPUT_PORTS_END
 
-static const cassette_interface apogee_cassette_interface =
+static const INT16 speaker_levels[] = {-32767, -10922, 10922, 32767};
+
+static const speaker_interface apogee_speaker_interface =
 {
-	rka_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED),
-	"apogee_cass",
-	NULL
+	4,
+	speaker_levels
 };
 
+WRITE_LINE_MEMBER(apogee_state::pit8253_out0_changed)
+{
+	m_out0 = state;
+	m_speaker->level_w(m_out0+m_out1+m_out2);
+}
+
+WRITE_LINE_MEMBER(apogee_state::pit8253_out1_changed)
+{
+	m_out1 = state;
+	m_speaker->level_w(m_out0+m_out1+m_out2);
+}
+
+WRITE_LINE_MEMBER(apogee_state::pit8253_out2_changed)
+{
+	m_out2 = state;
+	m_speaker->level_w(m_out0+m_out1+m_out2);
+}
+
+I8275_DRAW_CHARACTER_MEMBER(apogee_state::display_pixels)
+{
+	int i;
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
+	const UINT8 *charmap = m_charmap + (gpa & 1) * 0x400;
+	UINT8 pixels = charmap[(linecount & 7) + (charcode << 3)] ^ 0xff;
+	if(linecount == 8)
+		pixels = 0;
+	if (vsp) {
+		pixels = 0;
+	}
+	if (lten) {
+		pixels = 0xff;
+	}
+	if (rvv) {
+		pixels ^= 0xff;
+	}
+	for(i=0;i<6;i++) {
+		bitmap.pix32(y, x + i) = palette[(pixels >> (5-i)) & 1 ? (hlgt ? 2 : 1) : 0];
+	}
+}
 
 /* F4 Character Displayer */
 static const gfx_layout apogee_charlayout =
@@ -167,30 +216,57 @@ static MACHINE_CONFIG_START( apogee, apogee_state )
 	MCFG_CPU_PROGRAM_MAP(apogee_mem)
 	MCFG_MACHINE_RESET_OVERRIDE(apogee_state, radio86 )
 
-	MCFG_I8255_ADD( "ppi8255_1", radio86_ppi8255_interface_1 )
+	MCFG_DEVICE_ADD("pit8253", PIT8253, 0)
+	MCFG_PIT8253_CLK0(XTAL_16MHz/9)
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(apogee_state,pit8253_out0_changed))
+	MCFG_PIT8253_CLK1(XTAL_16MHz/9)
+	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(apogee_state,pit8253_out1_changed))
+	MCFG_PIT8253_CLK2(XTAL_16MHz/9)
+	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(apogee_state,pit8253_out2_changed))
 
-	//MCFG_I8255_ADD( "ppi8255_2", apogee_ppi8255_interface_2 )
+	MCFG_DEVICE_ADD("ppi8255_1", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(radio86_state, radio86_8255_porta_w2))
+	MCFG_I8255_IN_PORTB_CB(READ8(radio86_state, radio86_8255_portb_r2))
+	MCFG_I8255_IN_PORTC_CB(READ8(radio86_state, radio86_8255_portc_r2))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(radio86_state, radio86_8255_portc_w2))
 
-	MCFG_I8275_ADD  ( "i8275", apogee_i8275_interface)
+	//MCFG_DEVICE_ADD("ppi8255_2", I8255, 0)
+
+	MCFG_DEVICE_ADD("i8275", I8275, XTAL_16MHz / 12)
+	MCFG_I8275_CHARACTER_WIDTH(6)
+	MCFG_I8275_DRAW_CHARACTER_CALLBACK_OWNER(apogee_state, display_pixels)
+	MCFG_I8275_DRQ_CALLBACK(DEVWRITELINE("dma8257",i8257_device, dreq2_w))
+
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_UPDATE_DEVICE("i8275", i8275_device, screen_update)
 	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_SIZE(78*6, 30*10)
 	MCFG_SCREEN_VISIBLE_AREA(0, 78*6-1, 0, 30*10-1)
 
-	MCFG_GFXDECODE(apogee)
-	MCFG_PALETTE_LENGTH(3)
-	MCFG_PALETTE_INIT_OVERRIDE(apogee_state,radio86)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", apogee)
+	MCFG_PALETTE_ADD("palette", 3)
+	MCFG_PALETTE_INIT_OWNER(apogee_state,radio86)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
+	MCFG_SOUND_CONFIG(apogee_speaker_interface)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
-	MCFG_I8257_ADD("dma8257", XTAL_16MHz / 9, radio86_dma)
+	MCFG_DEVICE_ADD("dma8257", I8257, XTAL_16MHz / 9)
+	MCFG_I8257_OUT_HRQ_CB(WRITELINE(radio86_state, hrq_w))
+	MCFG_I8257_IN_MEMR_CB(READ8(radio86_state, memory_read_byte))
+	MCFG_I8257_OUT_MEMW_CB(WRITE8(radio86_state, memory_write_byte))
+	MCFG_I8257_OUT_IOW_2_CB(DEVWRITE8("i8275", i8275_device, dack_w))
+	MCFG_I8257_REVERSE_RW_MODE(1)
 
-	MCFG_CASSETTE_ADD( "cassette", apogee_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(rka_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
+	MCFG_CASSETTE_INTERFACE("apogee_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","apogee")
 MACHINE_CONFIG_END
 

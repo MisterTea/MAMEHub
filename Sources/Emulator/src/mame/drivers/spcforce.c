@@ -44,12 +44,26 @@ WRITE8_MEMBER(spcforce_state::spcforce_SN76496_latch_w)
 	m_sn76496_latch = data;
 }
 
+WRITE_LINE_MEMBER(spcforce_state::write_sn1_ready)
+{
+	m_sn1_ready = state;
+}
+
+WRITE_LINE_MEMBER(spcforce_state::write_sn2_ready)
+{
+	m_sn2_ready = state;
+}
+
+WRITE_LINE_MEMBER(spcforce_state::write_sn3_ready)
+{
+	m_sn3_ready = state;
+}
+
 READ8_MEMBER(spcforce_state::spcforce_SN76496_select_r)
 {
-		if (~m_sn76496_select & 0x40) return m_sn1->ready_r();
-		if (~m_sn76496_select & 0x20) return m_sn2->ready_r();
-		if (~m_sn76496_select & 0x10) return m_sn3->ready_r();
-
+	if (~m_sn76496_select & 0x40) return m_sn1_ready;
+	if (~m_sn76496_select & 0x20) return m_sn2_ready;
+	if (~m_sn76496_select & 0x10) return m_sn3_ready;
 
 	return 0;
 }
@@ -61,7 +75,6 @@ WRITE8_MEMBER(spcforce_state::spcforce_SN76496_select_w)
 	if (~data & 0x40) m_sn1->write(space, 0, m_sn76496_latch);
 	if (~data & 0x20) m_sn2->write(space, 0, m_sn76496_latch);
 	if (~data & 0x10) m_sn3->write(space, 0, m_sn76496_latch);
-
 }
 
 READ8_MEMBER(spcforce_state::spcforce_t0_r)
@@ -225,28 +238,18 @@ static const int colortable_source[] =
 	0, 2, 3, 4, 5, 6, 7, 0
 };
 
-void spcforce_state::palette_init()
+PALETTE_INIT_MEMBER(spcforce_state, spcforce)
 {
 	int i;
 
-	for (i = 0; i < sizeof(colortable_source) / sizeof(colortable_source[0]); i++)
+	for (i = 0; i < ARRAY_LENGTH(colortable_source); i++)
 	{
 		int data = colortable_source[i];
-		rgb_t color = MAKE_RGB(pal1bit(data >> 0), pal1bit(data >> 1), pal1bit(data >> 2));
+		rgb_t color = rgb_t(pal1bit(data >> 0), pal1bit(data >> 1), pal1bit(data >> 2));
 
-		palette_set_color(machine(), i, color);
+		palette.set_pen_color(i, color);
 	}
 }
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
 
 
 INTERRUPT_GEN_MEMBER(spcforce_state::vblank_irq)
@@ -274,25 +277,26 @@ static MACHINE_CONFIG_START( spcforce, spcforce_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(spcforce_state, screen_update_spcforce)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(spcforce)
-	MCFG_PALETTE_LENGTH(sizeof(colortable_source) / sizeof(colortable_source[0]))
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", spcforce)
+	MCFG_PALETTE_ADD("palette", ARRAY_LENGTH(colortable_source))
+	MCFG_PALETTE_INIT_OWNER(spcforce_state, spcforce)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn1", SN76496, 2000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
+	MCFG_SN76496_READY_HANDLER(WRITELINE(spcforce_state, write_sn1_ready))
 
 	MCFG_SOUND_ADD("sn2", SN76496, 2000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
+	MCFG_SN76496_READY_HANDLER(WRITELINE(spcforce_state, write_sn2_ready))
 
 	MCFG_SOUND_ADD("sn3", SN76496, 2000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
+	MCFG_SN76496_READY_HANDLER(WRITELINE(spcforce_state, write_sn3_ready))
 MACHINE_CONFIG_END
 
 

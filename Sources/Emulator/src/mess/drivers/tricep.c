@@ -10,6 +10,7 @@
 #include "cpu/m68000/m68000.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class tricep_state : public driver_device
 {
@@ -67,11 +68,6 @@ WRITE8_MEMBER( tricep_state::kbd_put )
 {
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(tricep_state, kbd_put)
-};
-
 static MACHINE_CONFIG_START( tricep, tricep_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",M68000, XTAL_8MHz)
@@ -79,7 +75,8 @@ static MACHINE_CONFIG_START( tricep, tricep_state )
 
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(tricep_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

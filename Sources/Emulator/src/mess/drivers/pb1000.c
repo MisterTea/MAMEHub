@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 
         Casio PB-1000 / PB-2000c driver
@@ -46,11 +48,11 @@ public:
 	virtual void machine_start();
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_WRITE16_MEMBER( gatearray_w );
-	UINT16 pb2000c_kb_r(running_machine &machine);
-	UINT16 pb1000_kb_r(running_machine &machine);
-	void kb_matrix_w(running_machine &machine, UINT8 matrix);
-	UINT16 read_touchscreen(running_machine &machine, UINT8 line);
-	virtual void palette_init();
+	UINT16 pb2000c_kb_r();
+	UINT16 pb1000_kb_r();
+	void kb_matrix_w(UINT8 matrix);
+	UINT16 read_touchscreen(UINT8 line);
+	DECLARE_PALETTE_INIT(pb1000);
 	TIMER_CALLBACK_MEMBER(keyboard_timer);
 };
 
@@ -278,10 +280,10 @@ static INPUT_PORTS_START( pb2000c )
 		PORT_BIT(0xffff, IP_ACTIVE_HIGH, IPT_UNUSED)
 INPUT_PORTS_END
 
-void pb1000_state::palette_init()
+PALETTE_INIT_MEMBER(pb1000_state, pb1000)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(138, 146, 148));
-	palette_set_color(machine(), 1, MAKE_RGB(92, 83, 88));
+	palette.set_pen_color(0, rgb_t(138, 146, 148));
+	palette.set_pen_color(1, rgb_t(92, 83, 88));
 }
 
 
@@ -336,12 +338,12 @@ static void lcd_data_w(hd61700_cpu_device &device, UINT8 data)
 }
 
 
-UINT16 pb1000_state::read_touchscreen(running_machine &machine, UINT8 line)
+UINT16 pb1000_state::read_touchscreen(UINT8 line)
 {
-	UINT8 x = machine.root_device().ioport("POSX")->read()/0x40;
-	UINT8 y = machine.root_device().ioport("POSY")->read()/0x40;
+	UINT8 x = ioport("POSX")->read()/0x40;
+	UINT8 y = ioport("POSY")->read()/0x40;
 
-	if (machine.root_device().ioport("TOUCH")->read())
+	if (ioport("TOUCH")->read())
 	{
 		if (x == line-7)
 			return (0x1000<<y);
@@ -351,7 +353,7 @@ UINT16 pb1000_state::read_touchscreen(running_machine &machine, UINT8 line)
 }
 
 
-UINT16 pb1000_state::pb1000_kb_r(running_machine &machine)
+UINT16 pb1000_state::pb1000_kb_r()
 {
 	static const char *const bitnames[] = {"NULL", "KO1", "KO2", "KO3", "KO4", "KO5", "KO6", "KO7", "KO8", "KO9", "KO10", "KO11", "KO12", "NULL", "NULL", "NULL"};
 	UINT16 data = 0;
@@ -361,21 +363,21 @@ UINT16 pb1000_state::pb1000_kb_r(running_machine &machine)
 		//Read all the input lines
 		for (int line = 1; line <= 12; line++)
 		{
-			data |= machine.root_device().ioport(bitnames[line])->read();
-			data |= read_touchscreen(machine, line);
+			data |= ioport(bitnames[line])->read();
+			data |= read_touchscreen(line);
 		}
 
 	}
 	else
 	{
-		data = machine.root_device().ioport(bitnames[m_kb_matrix & 0x0f])->read();
-		data |= read_touchscreen(machine, m_kb_matrix & 0x0f);
+		data = ioport(bitnames[m_kb_matrix & 0x0f])->read();
+		data |= read_touchscreen(m_kb_matrix & 0x0f);
 	}
 
 	return data;
 }
 
-UINT16 pb1000_state::pb2000c_kb_r(running_machine &machine)
+UINT16 pb1000_state::pb2000c_kb_r()
 {
 	static const char *const bitnames[] = {"NULL", "KO1", "KO2", "KO3", "KO4", "KO5", "KO6", "KO7", "KO8", "KO9", "KO10", "KO11", "KO12", "NULL", "NULL", "NULL"};
 	UINT16 data = 0;
@@ -385,19 +387,19 @@ UINT16 pb1000_state::pb2000c_kb_r(running_machine &machine)
 		//Read all the input lines
 		for (int line = 1; line <= 12; line++)
 		{
-			data |= machine.root_device().ioport(bitnames[line])->read();
+			data |= ioport(bitnames[line])->read();
 		}
 
 	}
 	else
 	{
-		data = machine.root_device().ioport(bitnames[m_kb_matrix & 0x0f])->read();
+		data = ioport(bitnames[m_kb_matrix & 0x0f])->read();
 	}
 
 	return data;
 }
 
-void pb1000_state::kb_matrix_w(running_machine &machine, UINT8 matrix)
+void pb1000_state::kb_matrix_w(UINT8 matrix)
 {
 	if (matrix & 0x80)
 	{
@@ -426,7 +428,7 @@ static void kb_matrix_w_call(hd61700_cpu_device &device, UINT8 matrix)
 {
 	pb1000_state *state = device.machine().driver_data<pb1000_state>();
 
-	state->kb_matrix_w(device.machine(), matrix);
+	state->kb_matrix_w(matrix);
 }
 
 static UINT8 pb1000_port_r(hd61700_cpu_device &device)
@@ -452,14 +454,14 @@ static UINT16 pb1000_kb_r_call(hd61700_cpu_device &device)
 {
 	pb1000_state *state = device.machine().driver_data<pb1000_state>();
 
-	return state->pb1000_kb_r(device.machine());
+	return state->pb1000_kb_r();
 }
 
 static UINT16 pb2000c_kb_r_call(hd61700_cpu_device &device)
 {
 	pb1000_state *state = device.machine().driver_data<pb1000_state>();
 
-	return state->pb2000c_kb_r(device.machine());
+	return state->pb2000c_kb_r();
 }
 
 static const hd61700_config pb1000_config =
@@ -498,11 +500,6 @@ void pb1000_state::machine_start()
 	m_kb_timer->adjust(attotime::from_hz(192), 0, attotime::from_hz(192));
 }
 
-static const hd44352_interface hd44352_pb1000_conf =
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", HD61700_ON_INT)
-};
-
 static MACHINE_CONFIG_START( pb1000, pb1000_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", HD61700, 910000)
@@ -516,11 +513,15 @@ static MACHINE_CONFIG_START( pb1000, pb1000_state )
 	MCFG_SCREEN_UPDATE_DEVICE("hd44352", hd44352_device, screen_update)
 	MCFG_SCREEN_SIZE(192, 32)
 	MCFG_SCREEN_VISIBLE_AREA(0, 192-1, 0, 32-1)
-	MCFG_DEFAULT_LAYOUT(layout_lcd)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_GFXDECODE( pb1000 )
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_HD44352_ADD("hd44352", 910000, hd44352_pb1000_conf)
+	MCFG_DEFAULT_LAYOUT(layout_lcd)
+	MCFG_PALETTE_ADD("palette", 2)
+	MCFG_PALETTE_INIT_OWNER(pb1000_state, pb1000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pb1000 )
+
+	MCFG_DEVICE_ADD("hd44352", HD44352, 910000)
+	MCFG_HD44352_ON_CB(INPUTLINE("maincpu", HD61700_ON_INT))
 
 	MCFG_NVRAM_ADD_0FILL("nvram1")
 	MCFG_NVRAM_ADD_0FILL("nvram2")

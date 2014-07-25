@@ -206,7 +206,7 @@ void busicom_state::machine_reset()
 
 }
 
-static const char layout_busicom [] = "busicom";
+//static const char layout_busicom [] = "busicom";
 
 static MACHINE_CONFIG_START( busicom, busicom_state )
 	/* basic machine hardware */
@@ -223,9 +223,10 @@ static MACHINE_CONFIG_START( busicom, busicom_state )
 	MCFG_SCREEN_SIZE(40*17, 44*11)
 	MCFG_SCREEN_VISIBLE_AREA(0, 40*17-1, 0, 44*11-1)
 	MCFG_SCREEN_UPDATE_DRIVER(busicom_state, screen_update_busicom)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
-
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(busicom_state, busicom)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("busicom_timer", busicom_state, timer_callback, attotime::from_msec(28*2))
 MACHINE_CONFIG_END

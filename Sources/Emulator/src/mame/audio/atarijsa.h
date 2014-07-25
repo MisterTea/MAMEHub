@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
-    audio/atarijsa.h
+    atarijsa.h
 
     Functions to emulate the Atari "JSA" audio boards
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -67,22 +38,22 @@ extern const device_type ATARI_JSA_IIIS;
 
 #define MCFG_ATARI_JSA_I_ADD(_tag, _intcb) \
 	MCFG_DEVICE_ADD(_tag, ATARI_JSA_I, 0) \
-	devcb = &atari_jsa_i_device::static_set_main_int_cb(*device, DEVCB2_##_intcb);
+	devcb = &atari_jsa_i_device::static_set_main_int_cb(*device, DEVCB_##_intcb);
 
 #define MCFG_ATARI_JSA_II_ADD(_tag, _intcb) \
 	MCFG_DEVICE_ADD(_tag, ATARI_JSA_II, 0) \
-	devcb = &atari_jsa_ii_device::static_set_main_int_cb(*device, DEVCB2_##_intcb);
+	devcb = &atari_jsa_ii_device::static_set_main_int_cb(*device, DEVCB_##_intcb);
 
 #define MCFG_ATARI_JSA_III_ADD(_tag, _intcb) \
 	MCFG_DEVICE_ADD(_tag, ATARI_JSA_III, 0) \
-	devcb = &atari_jsa_iii_device::static_set_main_int_cb(*device, DEVCB2_##_intcb);
+	devcb = &atari_jsa_iii_device::static_set_main_int_cb(*device, DEVCB_##_intcb);
 
 #define MCFG_ATARI_JSA_IIIS_ADD(_tag, _intcb) \
 	MCFG_DEVICE_ADD(_tag, ATARI_JSA_IIIS, 0) \
-	devcb = &atari_jsa_iiis_device::static_set_main_int_cb(*device, DEVCB2_##_intcb);
+	devcb = &atari_jsa_iiis_device::static_set_main_int_cb(*device, DEVCB_##_intcb);
 
 #define MCFG_ATARI_JSA_TEST_PORT(_port, _bitnum) \
-	devcb = &atari_jsa_base_device::static_set_test_read_cb(*device, DEVCB2_IOPORT(_port)); \
+	devcb = &atari_jsa_base_device::static_set_test_read_cb(*device, DEVCB_IOPORT(_port)); \
 	MCFG_DEVCB_RSHIFT(_bitnum);
 
 
@@ -113,8 +84,8 @@ protected:
 
 public:
 	// static configuration
-	template<class _Object> static devcb2_base &static_set_test_read_cb(device_t &device, _Object object) { return downcast<atari_jsa_base_device &>(device).m_test_read_cb.set_callback(object); }
-	template<class _Object> static devcb2_base &static_set_main_int_cb(device_t &device, _Object object) { return downcast<atari_jsa_base_device &>(device).m_main_int_cb.set_callback(object); }
+	template<class _Object> static devcb_base &static_set_test_read_cb(device_t &device, _Object object) { return downcast<atari_jsa_base_device &>(device).m_test_read_cb.set_callback(object); }
+	template<class _Object> static devcb_base &static_set_main_int_cb(device_t &device, _Object object) { return downcast<atari_jsa_base_device &>(device).m_main_int_cb.set_callback(object); }
 
 	// getters
 	m6502_device &soundcpu() const { return *m_jsacpu; }
@@ -150,8 +121,8 @@ protected:
 	required_memory_bank m_cpu_bank;
 
 	// configuration state
-	devcb2_read_line    m_test_read_cb;
-	devcb2_write_line   m_main_int_cb;
+	devcb_read_line    m_test_read_cb;
+	devcb_write_line   m_main_int_cb;
 
 	// internal state
 	double              m_ym2151_volume;

@@ -336,28 +336,6 @@ ADDRESS_MAP_END
 
 /***************************************************************************************/
 
-static const ay8910_interface chinhero_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(shangkid_state,chinhero_ay8910_porta_w),
-	DEVCB_DRIVER_MEMBER(shangkid_state,ay8910_portb_w)
-};
-
-
-static const ay8910_interface shangkid_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(shangkid_state,shangkid_ay8910_porta_w),
-	DEVCB_DRIVER_MEMBER(shangkid_state,ay8910_portb_w)
-};
-
-
 static MACHINE_CONFIG_START( chinhero, shangkid_state )
 
 	/* basic machine hardware */
@@ -385,11 +363,10 @@ static MACHINE_CONFIG_START( chinhero, shangkid_state )
 	MCFG_SCREEN_SIZE(40*8, 28*8)
 	MCFG_SCREEN_VISIBLE_AREA(16, 319-16, 0, 223)
 	MCFG_SCREEN_UPDATE_DRIVER(shangkid_state, screen_update_shangkid)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(chinhero)
-	MCFG_PALETTE_LENGTH(256)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", chinhero)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 256)
 	MCFG_VIDEO_START_OVERRIDE(shangkid_state,shangkid)
 
 	/* sound hardware */
@@ -399,7 +376,8 @@ static MACHINE_CONFIG_START( chinhero, shangkid_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, XTAL_18_432MHz/12) /* verified on pcb */
-	MCFG_SOUND_CONFIG(chinhero_ay8910_interface)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(shangkid_state, chinhero_ay8910_porta_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(shangkid_state, ay8910_portb_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 
@@ -420,10 +398,11 @@ static MACHINE_CONFIG_DERIVED( shangkid, chinhero )
 	MCFG_MACHINE_RESET_OVERRIDE(shangkid_state,shangkid)
 
 	/* video hardware */
-	MCFG_GFXDECODE(shangkid)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", shangkid)
 
 	MCFG_SOUND_MODIFY("aysnd")
-	MCFG_SOUND_CONFIG(shangkid_ay8910_interface)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(shangkid_state, shangkid_ay8910_porta_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(shangkid_state, ay8910_portb_w))
 MACHINE_CONFIG_END
 
 
@@ -464,11 +443,12 @@ static MACHINE_CONFIG_START( dynamski, shangkid_state )
 	MCFG_SCREEN_SIZE(256+32, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 255+32, 16, 255-16)
 	MCFG_SCREEN_UPDATE_DRIVER(shangkid_state, screen_update_dynamski)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(dynamski)
-	MCFG_PALETTE_LENGTH(16*4+16*4)
-
-	MCFG_PALETTE_INIT_OVERRIDE(shangkid_state,dynamski)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dynamski)
+	MCFG_PALETTE_ADD("palette", 16*4+16*4)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(shangkid_state,dynamski)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

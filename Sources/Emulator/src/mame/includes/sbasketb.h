@@ -16,7 +16,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_sn(*this, "snsnd"),
-		m_vlm(*this, "vlm") { }
+		m_vlm(*this, "vlm"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_colorram;
@@ -31,6 +33,8 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	required_device<sn76489_device> m_sn;
 	required_device<vlm5030_device> m_vlm;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	/* video-related */
 	tilemap_t  *m_bg_tilemap;
@@ -49,7 +53,7 @@ public:
 	DECLARE_WRITE8_MEMBER( konami_SN76496_w ) { m_sn->write(space, offset, m_SN76496_latch); };
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(sbasketb);
 	UINT32 screen_update_sbasketb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
 	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );

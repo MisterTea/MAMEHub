@@ -32,12 +32,10 @@ class ggconnie_state : public pce_common_state
 public:
 	ggconnie_state(const machine_config &mconfig, device_type type, const char *tag)
 		: pce_common_state(mconfig, type, tag),
-		m_huc6260(*this, "huc6260"),
 		m_rtc(*this, "rtc"),
 		m_oki(*this, "oki")
 		{ }
 
-	required_device <huc6260_device> m_huc6260;
 	required_device <msm6242_device> m_rtc;
 	required_device <okim6295_device> m_oki;
 	DECLARE_WRITE8_MEMBER(lamp_w);
@@ -45,16 +43,7 @@ public:
 	DECLARE_READ8_MEMBER(rtc_r);
 	DECLARE_WRITE8_MEMBER(rtc_w);
 	DECLARE_WRITE8_MEMBER(oki_bank_w);
-	DECLARE_WRITE_LINE_MEMBER(pce_irq_changed);
-
-	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 };
-
-UINT32 ggconnie_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
-{
-	m_huc6260->video_update( bitmap, cliprect );
-	return 0;
-}
 
 WRITE8_MEMBER(ggconnie_state::lamp_w)
 {
@@ -186,78 +175,6 @@ static INPUT_PORTS_START(ggconnie)
 	PORT_DIPSETTING(0x00, DEF_STR(On) )
 INPUT_PORTS_END
 
-static const c6280_interface c6280_config =
-{
-	"maincpu"
-};
-
-WRITE_LINE_MEMBER(ggconnie_state::pce_irq_changed)
-{
-	m_maincpu->set_input_line(0, state);
-}
-
-
-static const huc6270_interface pce_huc6270_config =
-{
-	0x10000,
-	DEVCB_DRIVER_LINE_MEMBER(ggconnie_state,pce_irq_changed)
-};
-
-
-static const huc6260_interface pce_huc6260_config =
-{
-	DEVCB_DEVICE_MEMBER16( "huc6270", huc6270_device, next_pixel ),
-	DEVCB_DEVICE_MEMBER16( "huc6270", huc6270_device, time_until_next_event ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6270", huc6270_device, vsync_changed ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6270", huc6270_device, hsync_changed )
-};
-
-
-static const huc6270_interface sgx_huc6270_0_config =
-{
-	0x10000,
-	DEVCB_DRIVER_LINE_MEMBER(ggconnie_state,pce_irq_changed)
-};
-
-
-static const huc6270_interface sgx_huc6270_1_config =
-{
-	0x10000,
-	DEVCB_DRIVER_LINE_MEMBER(ggconnie_state,pce_irq_changed)
-};
-
-
-static const huc6202_interface sgx_huc6202_config =
-{
-	DEVCB_DEVICE_MEMBER16( "huc6270_0", huc6270_device, next_pixel ),
-	DEVCB_DEVICE_MEMBER16( "huc6270_0", huc6270_device, time_until_next_event ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6270_0", huc6270_device, vsync_changed ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6270_0", huc6270_device, hsync_changed ),
-	DEVCB_DEVICE_MEMBER( "huc6270_0", huc6270_device, read ),
-	DEVCB_DEVICE_MEMBER( "huc6270_0", huc6270_device, write ),
-	DEVCB_DEVICE_MEMBER16( "huc6270_1", huc6270_device, next_pixel ),
-	DEVCB_DEVICE_MEMBER16( "huc6270_1", huc6270_device, time_until_next_event ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6270_1", huc6270_device, vsync_changed ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6270_1", huc6270_device, hsync_changed ),
-	DEVCB_DEVICE_MEMBER( "huc6270_1", huc6270_device, read ),
-	DEVCB_DEVICE_MEMBER( "huc6270_1", huc6270_device, write ),
-};
-
-
-static const huc6260_interface sgx_huc6260_config =
-{
-	DEVCB_DEVICE_MEMBER16( "huc6202", huc6202_device, next_pixel ),
-	DEVCB_DEVICE_MEMBER16( "huc6202", huc6202_device, time_until_next_event ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6202", huc6202_device, vsync_changed ),
-	DEVCB_DEVICE_LINE_MEMBER( "huc6202", huc6202_device, hsync_changed )
-};
-
-static MSM6242_INTERFACE( ggconnie_rtc_intf )
-{
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( ggconnie, ggconnie_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", H6280, PCE_MAIN_CLOCK/3)
@@ -268,19 +185,38 @@ static MACHINE_CONFIG_START( ggconnie, ggconnie_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PCE_MAIN_CLOCK/3, HUC6260_WPF, 64, 64 + 1024 + 64, HUC6260_LPF, 18, 18 + 242)
 	MCFG_SCREEN_UPDATE_DRIVER( ggconnie_state, screen_update )
+	MCFG_SCREEN_PALETTE("huc6260:palette")
 
-	MCFG_PALETTE_LENGTH( HUC6260_PALETTE_SIZE )
+	MCFG_DEVICE_ADD( "huc6260", HUC6260, PCE_MAIN_CLOCK/3 )
+	MCFG_HUC6260_NEXT_PIXEL_DATA_CB(DEVREAD16("huc6202", huc6202_device, next_pixel))
+	MCFG_HUC6260_TIME_TIL_NEXT_EVENT_CB(DEVREAD16("huc6202", huc6202_device, time_until_next_event))
+	MCFG_HUC6260_VSYNC_CHANGED_CB(DEVWRITELINE("huc6202", huc6202_device, vsync_changed))
+	MCFG_HUC6260_HSYNC_CHANGED_CB(DEVWRITELINE("huc6202", huc6202_device, hsync_changed))
+	MCFG_DEVICE_ADD( "huc6270_0", HUC6270, 0 )
+	MCFG_HUC6270_VRAM_SIZE(0x10000)
+	MCFG_HUC6270_IRQ_CHANGED_CB(WRITELINE(pce_common_state, pce_irq_changed))
+	MCFG_DEVICE_ADD( "huc6270_1", HUC6270, 0 )
+	MCFG_HUC6270_VRAM_SIZE(0x10000)
+	MCFG_HUC6270_IRQ_CHANGED_CB(WRITELINE(pce_common_state, pce_irq_changed))
+	MCFG_DEVICE_ADD( "huc6202", HUC6202, 0 )
+	MCFG_HUC6202_NEXT_PIXEL_0_CB(DEVREAD16("huc6270_0", huc6270_device, next_pixel))
+	MCFG_HUC6202_TIME_TIL_NEXT_EVENT_0_CB(DEVREAD16("huc6270_0", huc6270_device, time_until_next_event))
+	MCFG_HUC6202_VSYNC_CHANGED_0_CB(DEVWRITELINE("huc6270_0", huc6270_device, vsync_changed))
+	MCFG_HUC6202_HSYNC_CHANGED_0_CB(DEVWRITELINE("huc6270_0", huc6270_device, hsync_changed))
+	MCFG_HUC6202_READ_0_CB(DEVREAD8("huc6270_0", huc6270_device, read))
+	MCFG_HUC6202_WRITE_0_CB(DEVWRITE8("huc6270_0", huc6270_device, write))
+	MCFG_HUC6202_NEXT_PIXEL_1_CB(DEVREAD16("huc6270_1", huc6270_device, next_pixel))
+	MCFG_HUC6202_TIME_TIL_NEXT_EVENT_1_CB(DEVREAD16("huc6270_1", huc6270_device, time_until_next_event))
+	MCFG_HUC6202_VSYNC_CHANGED_1_CB(DEVWRITELINE("huc6270_1", huc6270_device, vsync_changed))
+	MCFG_HUC6202_HSYNC_CHANGED_1_CB(DEVWRITELINE("huc6270_1", huc6270_device, hsync_changed))
+	MCFG_HUC6202_READ_1_CB(DEVREAD8("huc6270_1", huc6270_device, read))
+	MCFG_HUC6202_WRITE_1_CB(DEVWRITE8("huc6270_1", huc6270_device, write))
 
-	MCFG_HUC6260_ADD( "huc6260", PCE_MAIN_CLOCK/3, sgx_huc6260_config )
-	MCFG_HUC6270_ADD( "huc6270_0", sgx_huc6270_0_config )
-	MCFG_HUC6270_ADD( "huc6270_1", sgx_huc6270_1_config )
-	MCFG_HUC6202_ADD( "huc6202", sgx_huc6202_config )
-
-	MCFG_MSM6242_ADD("rtc", ggconnie_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker","rspeaker")
 	MCFG_SOUND_ADD("c6280", C6280, PCE_MAIN_CLOCK/6)
-	MCFG_SOUND_CONFIG(c6280_config)
+	MCFG_C6280_CPU("maincpu")
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.00)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.00)
 

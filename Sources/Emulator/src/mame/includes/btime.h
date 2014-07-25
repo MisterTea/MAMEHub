@@ -12,7 +12,7 @@ public:
 		m_rambase(*this, "rambase"),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_paletteram(*this, "paletteram"),
+		m_paletteram(*this, "palette"),
 		m_bnj_backgroundram(*this, "bnj_bgram"),
 		m_zoar_scrollram(*this, "zoar_scrollram"),
 		m_lnc_charbank(*this, "lnc_charbank"),
@@ -20,8 +20,10 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_audio_rambase(*this, "audio_rambase"),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu")
-	{ }
+		m_audiocpu(*this, "audiocpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	optional_shared_ptr<UINT8> m_rambase;
@@ -57,6 +59,9 @@ public:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	optional_device<cpu_device> m_audiocpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	DECLARE_WRITE8_MEMBER(audio_nmi_enable_w);
 	DECLARE_WRITE8_MEMBER(lnc_w);
@@ -103,13 +108,13 @@ public:
 	DECLARE_DRIVER_INIT(lnc);
 	DECLARE_MACHINE_START(btime);
 	DECLARE_MACHINE_RESET(btime);
-	DECLARE_VIDEO_START(btime);
 	DECLARE_PALETTE_INIT(btime);
 	DECLARE_MACHINE_RESET(lnc);
 	DECLARE_PALETTE_INIT(lnc);
 	DECLARE_MACHINE_START(mmonkey);
 	DECLARE_MACHINE_RESET(mmonkey);
 	DECLARE_VIDEO_START(bnj);
+	DECLARE_VIDEO_START(disco);
 	UINT32 screen_update_btime(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_cookrace(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_lnc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);

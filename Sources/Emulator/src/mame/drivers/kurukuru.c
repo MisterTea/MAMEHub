@@ -534,28 +534,6 @@ void kurukuru_state::machine_reset()
 	update_sound_irq(0);
 }
 
-
-/*************************************************
-*                Sound Interfaces                *
-*************************************************/
-
-static const ay8910_interface ym2149_intf =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_UNMAPPED,
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_DRIVER_MEMBER(kurukuru_state, ym2149_aout_w),
-	DEVCB_DRIVER_MEMBER(kurukuru_state, ym2149_bout_w)
-};
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(kurukuru_state,kurukuru_msm5205_vck),
-	MSM5205_S48_4B      /* changed on the fly */
-};
-
-
 /*************************************************
 *                 Machine Driver                 *
 *************************************************/
@@ -575,31 +553,31 @@ static MACHINE_CONFIG_START( kurukuru, kurukuru_state )
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_V9938_ADD("v9938", "screen", VDP_MEM)
 	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(kurukuru_state,kurukuru_vdp_interrupt))
 
 	MCFG_SCREEN_ADD("screen",RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-
 	MCFG_SCREEN_SIZE(MSX2_TOTAL_XRES_PIXELS, MSX2_TOTAL_YRES_PIXELS)
 	MCFG_SCREEN_VISIBLE_AREA(MSX2_XBORDER_PIXELS - MSX2_VISIBLE_XBORDER_PIXELS, MSX2_TOTAL_XRES_PIXELS - MSX2_XBORDER_PIXELS + MSX2_VISIBLE_XBORDER_PIXELS - 1, MSX2_YBORDER_PIXELS - MSX2_VISIBLE_YBORDER_PIXELS, MSX2_TOTAL_YRES_PIXELS - MSX2_YBORDER_PIXELS + MSX2_VISIBLE_YBORDER_PIXELS - 1)
 	MCFG_SCREEN_UPDATE_DEVICE("v9938", v9938_device, screen_update)
-
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_SCREEN_PALETTE("v9938:palette")
 
 	MCFG_TICKET_DISPENSER_ADD("hopper", attotime::from_msec(HOPPER_PULSE), TICKET_MOTOR_ACTIVE_LOW, TICKET_STATUS_ACTIVE_LOW )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ym2149", YM2149, YM2149_CLOCK)
-	MCFG_SOUND_CONFIG(ym2149_intf)
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(kurukuru_state, ym2149_aout_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(kurukuru_state, ym2149_bout_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_SOUND_ADD("adpcm", MSM5205, M5205_CLOCK)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(kurukuru_state, kurukuru_msm5205_vck))
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* changed on the fly */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 MACHINE_CONFIG_END
 

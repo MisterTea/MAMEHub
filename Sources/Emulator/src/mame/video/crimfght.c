@@ -1,7 +1,5 @@
 #include "emu.h"
-
 #include "includes/crimfght.h"
-
 
 /***************************************************************************
 
@@ -9,13 +7,11 @@
 
 ***************************************************************************/
 
-void crimfght_tile_callback( running_machine &machine, int layer, int bank, int *code, int *color, int *flags, int *priority )
+K052109_CB_MEMBER(crimfght_state::tile_callback)
 {
-	crimfght_state *state = machine.driver_data<crimfght_state>();
-
 	*flags = (*color & 0x20) ? TILE_FLIPX : 0;
 	*code |= ((*color & 0x1f) << 8) | (bank << 13);
-	*color = state->m_layer_colorbase[layer] + ((*color & 0xc0) >> 6);
+	*color = m_layer_colorbase[layer] + ((*color & 0xc0) >> 6);
 }
 
 /***************************************************************************
@@ -24,14 +20,12 @@ void crimfght_tile_callback( running_machine &machine, int layer, int bank, int 
 
 ***************************************************************************/
 
-void crimfght_sprite_callback( running_machine &machine, int *code, int *color, int *priority, int *shadow )
+K051960_CB_MEMBER(crimfght_state::sprite_callback)
 {
 	/* Weird priority scheme. Why use three bits when two would suffice? */
 	/* The PROM allows for mixed priorities, where sprites would have */
 	/* priority over text but not on one or both of the other two planes. */
 	/* Luckily, this isn't used by the game. */
-	crimfght_state *state = machine.driver_data<crimfght_state>();
-
 	switch (*color & 0x70)
 	{
 		case 0x10: *priority = 0; break;
@@ -45,7 +39,7 @@ void crimfght_sprite_callback( running_machine &machine, int *code, int *color, 
 	}
 	/* bit 7 is on in the "Game Over" sprites, meaning unknown */
 	/* in Aliens it is the top bit of the code, but that's not needed here */
-	*color = state->m_sprite_colorbase + (*color & 0x0f);
+	*color = m_sprite_colorbase + (*color & 0x0f);
 }
 
 
@@ -57,12 +51,15 @@ void crimfght_sprite_callback( running_machine &machine, int *code, int *color, 
 
 void crimfght_state::video_start()
 {
-	m_generic_paletteram_8.allocate(0x400);
+	m_paletteram.resize(0x400);
+	m_palette->basemem().set(m_paletteram, ENDIANNESS_BIG, 2);
 
 	m_layer_colorbase[0] = 0;
 	m_layer_colorbase[1] = 4;
 	m_layer_colorbase[2] = 8;
 	m_sprite_colorbase = 16;
+
+	save_item(NAME(m_paletteram));
 }
 
 

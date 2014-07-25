@@ -11,7 +11,9 @@ public:
 		m_spriteram2(*this, "spriteram2"),
 		m_spr(*this, "vsystem_spr"),
 		m_audiocpu(*this, "audiocpu"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_bg_videoram;
@@ -59,4 +61,6 @@ public:
 	void screen_eof_inufuku(screen_device &screen, bool state);
 	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

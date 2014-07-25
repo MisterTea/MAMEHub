@@ -10,7 +10,9 @@ public:
 		m_txvideoram(*this, "txvideoram"),
 		m_paletteram_flytiger(*this, "flytiger_palram"),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu")  { }
+		m_audiocpu(*this, "audiocpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	optional_device<buffered_spriteram8_device> m_spriteram;
 	optional_device<buffered_spriteram16_device> m_spriteram16;
@@ -99,4 +101,6 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(irqhandler_2203_2);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

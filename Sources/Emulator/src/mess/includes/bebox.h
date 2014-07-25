@@ -31,7 +31,7 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_ppc1(*this, "ppc1"),
 			m_ppc2(*this, "ppc2"),
-			m_lsi53c810(*this, "scsi:lsi53c810"),
+			m_lsi53c810(*this, "lsi53c810"),
 			m_dma8237_1(*this, "dma8237_1"),
 			m_dma8237_2(*this, "dma8237_2"),
 			m_pic8259_1(*this, "pic8259_1"),
@@ -101,11 +101,16 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(bebox_ide_interrupt);
 
 	DECLARE_WRITE_LINE_MEMBER(bebox_keyboard_interrupt);
-	DECLARE_READ8_MEMBER(bebox_get_out2);
 
-	void fdc_interrupt(bool state);
-	void fdc_dma_drq(bool state);
+	DECLARE_WRITE_LINE_MEMBER( fdc_interrupt );
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
+
+	LSI53C810_FETCH_CB(scsi_fetch);
+	LSI53C810_IRQ_CB(scsi_irq_callback);
+	LSI53C810_DMA_CB(scsi_dma_callback);
+
+	void bebox_set_irq_bit(unsigned int interrupt_bit, int val);
+	void bebox_update_interrupts();
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -113,16 +118,6 @@ protected:
 
 
 /*----------- defined in machine/bebox.c -----------*/
-
-extern const struct pit8253_interface bebox_pit8254_config;
-extern const am9517a_interface bebox_dma8237_1_config;
-extern const am9517a_interface bebox_dma8237_2_config;
-extern const ins8250_interface bebox_uart_inteface_0;
-extern const ins8250_interface bebox_uart_inteface_1;
-extern const ins8250_interface bebox_uart_inteface_2;
-extern const ins8250_interface bebox_uart_inteface_3;
-
-void bebox_set_irq_bit(running_machine &machine, unsigned int interrupt_bit, int val);
 
 UINT32 scsi53c810_pci_read(device_t *busdevice, device_t *device, int function, int offset, UINT32 mem_mask);
 void scsi53c810_pci_write(device_t *busdevice, device_t *device, int function, int offset, UINT32 data, UINT32 mem_mask);

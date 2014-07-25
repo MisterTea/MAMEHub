@@ -90,7 +90,7 @@ static ADDRESS_MAP_START( pbaction_map, AS_PROGRAM, 8, pbaction_state )
 	AM_RANGE(0xd800, 0xdbff) AM_RAM_WRITE(pbaction_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0xdc00, 0xdfff) AM_RAM_WRITE(pbaction_colorram_w) AM_SHARE("colorram")
 	AM_RANGE(0xe000, 0xe07f) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xe400, 0xe5ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe400, 0xe5ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xe600, 0xe600) AM_READ_PORT("P1") AM_WRITE(nmi_mask_w)
 	AM_RANGE(0xe601, 0xe601) AM_READ_PORT("P2")
 	AM_RANGE(0xe602, 0xe602) AM_READ_PORT("SYSTEM")
@@ -291,10 +291,11 @@ static MACHINE_CONFIG_START( pbaction, pbaction_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pbaction_state, screen_update_pbaction)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pbaction)
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pbaction)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

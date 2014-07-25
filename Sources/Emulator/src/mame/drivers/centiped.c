@@ -1685,56 +1685,6 @@ static GFXDECODE_START( warlords )
 GFXDECODE_END
 
 
-
-/*************************************
- *
- *  Sound interfaces
- *
- *************************************/
-
-static const ay8910_interface centipdb_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(centiped_state,caterplr_rand_r)
-};
-
-
-static const pokey_interface milliped_pokey_interface_1 =
-{
-	{ DEVCB_NULL },
-	DEVCB_INPUT_PORT("DSW1")
-};
-
-
-static const pokey_interface milliped_pokey_interface_2 =
-{
-	{ DEVCB_NULL },
-	DEVCB_INPUT_PORT("DSW2")
-};
-
-
-static const pokey_interface warlords_pokey_interface =
-{
-	{
-		DEVCB_INPUT_PORT("PADDLE0"),
-		DEVCB_INPUT_PORT("PADDLE1"),
-		DEVCB_INPUT_PORT("PADDLE2"),
-		DEVCB_INPUT_PORT("PADDLE3")
-	}
-};
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 /*************************************
  *
  *  Machine drivers
@@ -1760,9 +1710,10 @@ static MACHINE_CONFIG_START( centiped_base, centiped_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(centiped_state, screen_update_centiped)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(centiped)
-	MCFG_PALETTE_LENGTH(4+4*4*4*4)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", centiped)
+	MCFG_PALETTE_ADD("palette", 4+4*4*4*4)
 
 	MCFG_VIDEO_START_OVERRIDE(centiped_state,centiped)
 
@@ -1775,7 +1726,7 @@ static MACHINE_CONFIG_DERIVED( centiped, centiped_base )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_POKEY_ADD("pokey", 12096000/8)
+	MCFG_DEVICE_ADD("pokey", POKEY, 12096000/8)
 	MCFG_POKEY_OUTPUT_OPAMP_LOW_PASS(RES_K(3.3), CAP_U(0.01), 5.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
@@ -1805,7 +1756,7 @@ static MACHINE_CONFIG_DERIVED( centipdb, centiped )
 
 	/* sound hardware */
 	MCFG_SOUND_REPLACE("pokey", AY8910, 12096000/8)
-	MCFG_SOUND_CONFIG(centipdb_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(centiped_state, caterplr_rand_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 2.0)
 MACHINE_CONFIG_END
 
@@ -1821,7 +1772,7 @@ static MACHINE_CONFIG_DERIVED( magworm, centiped_base )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("pokey", AY8910, 12096000/8)
-	MCFG_SOUND_CONFIG(centipdb_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(centiped_state, caterplr_rand_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 2.0)
 
 MACHINE_CONFIG_END
@@ -1834,20 +1785,21 @@ static MACHINE_CONFIG_DERIVED( milliped, centiped )
 	MCFG_CPU_PROGRAM_MAP(milliped_map)
 
 	/* video hardware */
-	MCFG_GFXDECODE(milliped)
-	MCFG_PALETTE_LENGTH(4*4+4*4*4*4*4)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", milliped)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(4*4+4*4*4*4*4)
 
 	MCFG_VIDEO_START_OVERRIDE(centiped_state,milliped)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(centiped_state, screen_update_milliped)
 
 	/* sound hardware */
-	MCFG_POKEY_REPLACE("pokey", 12096000/8)
-	MCFG_POKEY_CONFIG(milliped_pokey_interface_1)
+	MCFG_SOUND_REPLACE("pokey", POKEY, 12096000/8)
+	MCFG_POKEY_ALLPOT_R_CB(IOPORT("DSW1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
-	MCFG_POKEY_ADD("pokey2", 12096000/8)
-	MCFG_POKEY_CONFIG(milliped_pokey_interface_2)
+	MCFG_DEVICE_ADD("pokey2", POKEY, 12096000/8)
+	MCFG_POKEY_ALLPOT_R_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -1870,17 +1822,21 @@ static MACHINE_CONFIG_DERIVED( warlords, centiped )
 	MCFG_CPU_PROGRAM_MAP(warlords_map)
 
 	/* video hardware */
-	MCFG_GFXDECODE(warlords)
-	MCFG_PALETTE_LENGTH(8*4+8*4)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", warlords)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(8*4+8*4)
 
-	MCFG_PALETTE_INIT_OVERRIDE(centiped_state,warlords)
+	MCFG_PALETTE_INIT_OWNER(centiped_state,warlords)
 	MCFG_VIDEO_START_OVERRIDE(centiped_state,warlords)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(centiped_state, screen_update_warlords)
 
 	/* sound hardware */
-	MCFG_POKEY_REPLACE("pokey", 12096000/8)
-	MCFG_POKEY_CONFIG(warlords_pokey_interface)
+	MCFG_SOUND_REPLACE("pokey", POKEY, 12096000/8)
+	MCFG_POKEY_POT0_R_CB(IOPORT("PADDLE0"))
+	MCFG_POKEY_POT1_R_CB(IOPORT("PADDLE1"))
+	MCFG_POKEY_POT2_R_CB(IOPORT("PADDLE2"))
+	MCFG_POKEY_POT3_R_CB(IOPORT("PADDLE3"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1910,9 +1866,10 @@ static MACHINE_CONFIG_START( bullsdrt, centiped_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(centiped_state, screen_update_bullsdrt)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(centiped)
-	MCFG_PALETTE_LENGTH(4+4*4*4*4)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", centiped)
+	MCFG_PALETTE_ADD("palette", 4+4*4*4*4)
 
 	MCFG_VIDEO_START_OVERRIDE(centiped_state,bullsdrt)
 
@@ -1921,7 +1878,6 @@ static MACHINE_CONFIG_START( bullsdrt, centiped_state )
 
 	MCFG_SOUND_ADD("snsnd", SN76496, 12096000/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 
@@ -2056,6 +2012,22 @@ ROM_START( magworm )
 	ROM_REGION( 0x1000, "gfx1", 0 )
 	ROM_LOAD( "11005-4.c4",  0x0000, 0x0800, CRC(cea64e1a) SHA1(9022102124e1ad93f912ce8bdf85f8a886b0879b) )
 	ROM_LOAD( "11005-5.c5",  0x0800, 0x0800, CRC(24558ea5) SHA1(8cd7131e19afd7a96191b1b3c3fba7ae9a140f4b) )
+ROM_END
+
+
+ROM_START( magworma )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "h41.1d",  0x2000, 0x0800, CRC(773a3da6) SHA1(577ae0578231df83a768d6a50b86dcaf715a32d7) )
+	ROM_LOAD( "h42.1e",  0x2800, 0x0800, CRC(482c7808) SHA1(6d274a988e603d33131cb6ffbfe2cdd22fabf25b) )
+	ROM_LOAD( "h43.1fh", 0x3000, 0x0800, CRC(1c46f769) SHA1(dc25ab3d9abf2180d3ff20f96b69fd6ed3b0e08c) )
+	ROM_LOAD( "h44.1j",  0x3800, 0x0800, CRC(19a79e26) SHA1(0485ae6d21ad7c9d04475ad7858c47205830df84) )
+
+	ROM_REGION( 0x1000, "gfx1", 0 ) /* same as magworm */
+	ROM_LOAD( "h45.7hj", 0x0000, 0x0800, CRC(cea64e1a) SHA1(9022102124e1ad93f912ce8bdf85f8a886b0879b) )
+	ROM_LOAD( "h45.7f",  0x0800, 0x0800, CRC(24558ea5) SHA1(8cd7131e19afd7a96191b1b3c3fba7ae9a140f4b) )
+
+	ROM_REGION( 0x0200, "proms", 0 )
+	ROM_LOAD( "prom.4p", 0x0000, 0x0200, CRC(a5101624) SHA1(36d11e343a78046b99ea1a2daba4908ec60ae61e) ) /* not used */
 ROM_END
 
 
@@ -2196,19 +2168,23 @@ DRIVER_INIT_MEMBER(centiped_state,multiped)
  *
  *************************************/
 
-GAME( 1980, centiped, 0,        centiped, centiped, driver_device, 0,        ROT270, "Atari",   "Centipede (revision 3)", GAME_SUPPORTS_SAVE)
-GAME( 1980, centiped2,centiped, centiped, centiped, driver_device, 0,        ROT270, "Atari",   "Centipede (revision 2)", GAME_SUPPORTS_SAVE )
-GAME( 1980, centtime, centiped, centiped, centtime, driver_device, 0,        ROT270, "Atari",   "Centipede (1 player, timed)", GAME_SUPPORTS_SAVE )
-GAME( 1980, centipdb, centiped, centipdb, centiped, driver_device, 0,        ROT270, "bootleg", "Centipede (bootleg)", GAME_SUPPORTS_SAVE )
-GAME( 1989, centipdd, centiped, centiped, centiped, driver_device, 0,        ROT270, "hack (Two-Bit Score)", "Centipede Dux (hack)", GAME_SUPPORTS_SAVE )
-GAME( 1980, caterplr, centiped, caterplr, caterplr, driver_device, 0,        ROT270, "bootleg", "Caterpillar (bootleg of Centipede)", GAME_SUPPORTS_SAVE )
-GAME( 1980, millpac,  centiped, centipdb, centiped, driver_device, 0,        ROT270, "bootleg? (Valadon Automation)", "Millpac (bootleg of Centipede)", GAME_SUPPORTS_SAVE )
-GAME( 1980, magworm,  centiped, magworm,  magworm, driver_device,  0,        ROT270, "bootleg", "Magic Worm (bootleg of Centipede)", GAME_SUPPORTS_SAVE )
-GAME( 1982, milliped, 0,        milliped, milliped, driver_device, 0,        ROT270, "Atari",   "Millipede", GAME_SUPPORTS_SAVE )
-GAME( 1989, millipdd, milliped, milliped, milliped, driver_device, 0,        ROT270, "hack (Two-Bit Score)", "Millipede Dux (hack)", GAME_SUPPORTS_SAVE )
-GAME( 2002, multiped, 0,        multiped, multiped, centiped_state, multiped, ROT270, "hack (Braze Technologies)", "Multipede (Centipede/Millipede multigame kit)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
+// Centipede, Millipede, and clones
+GAME( 1980, centiped,  0,        centiped, centiped, driver_device,  0,        ROT270, "Atari", "Centipede (revision 3)", GAME_SUPPORTS_SAVE)
+GAME( 1980, centiped2, centiped, centiped, centiped, driver_device,  0,        ROT270, "Atari", "Centipede (revision 2)", GAME_SUPPORTS_SAVE )
+GAME( 1980, centtime,  centiped, centiped, centtime, driver_device,  0,        ROT270, "Atari", "Centipede (1 player, timed)", GAME_SUPPORTS_SAVE )
+GAME( 1980, centipdb,  centiped, centipdb, centiped, driver_device,  0,        ROT270, "bootleg", "Centipede (bootleg)", GAME_SUPPORTS_SAVE )
+GAME( 1989, centipdd,  centiped, centiped, centiped, driver_device,  0,        ROT270, "hack (Two-Bit Score)", "Centipede Dux (hack)", GAME_SUPPORTS_SAVE )
+GAME( 1980, caterplr,  centiped, caterplr, caterplr, driver_device,  0,        ROT270, "bootleg (Olympia)", "Caterpillar (bootleg of Centipede)", GAME_SUPPORTS_SAVE )
+GAME( 1980, millpac,   centiped, centipdb, centiped, driver_device,  0,        ROT270, "bootleg? (Valadon Automation)", "Millpac (bootleg of Centipede)", GAME_SUPPORTS_SAVE )
+GAME( 1980, magworm,   centiped, magworm,  magworm,  driver_device,  0,        ROT270, "bootleg (Sidam)", "Magic Worm (bootleg of Centipede, set 1)", GAME_SUPPORTS_SAVE )
+GAME( 1980, magworma,  centiped, magworm,  magworm,  driver_device,  0,        ROT270, "bootleg", "Magic Worm (bootleg of Centipede, set 2)", GAME_SUPPORTS_SAVE | GAME_NOT_WORKING )
+GAME( 1982, milliped,  0,        milliped, milliped, driver_device,  0,        ROT270, "Atari", "Millipede", GAME_SUPPORTS_SAVE )
+GAME( 1989, millipdd,  milliped, milliped, milliped, driver_device,  0,        ROT270, "hack (Two-Bit Score)", "Millipede Dux (hack)", GAME_SUPPORTS_SAVE )
+GAME( 2002, multiped,  0,        multiped, multiped, centiped_state, multiped, ROT270, "hack (Braze Technologies)", "Multipede (Centipede/Millipede multigame kit)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
 
-GAME( 1980, warlords, 0,        warlords, warlords, driver_device, 0,        ROT0,   "Atari",   "Warlords", GAME_SUPPORTS_SAVE )
-GAME( 1981, mazeinv,  0,        mazeinv,  mazeinv, driver_device,  0,        ROT270, "Atari",   "Maze Invaders (prototype)", 0 )
+// other Atari games
+GAME( 1980, warlords,  0,        warlords, warlords, driver_device,  0,        ROT0,   "Atari", "Warlords", GAME_SUPPORTS_SAVE )
+GAME( 1981, mazeinv,   0,        mazeinv,  mazeinv,  driver_device,  0,        ROT270, "Atari", "Maze Invaders (prototype)", 0 )
 
-GAME( 1985, bullsdrt, 0,        bullsdrt, bullsdrt, centiped_state, bullsdrt, ROT270, "Shinkai Inc. (Magic Electronics Inc. license)", "Bulls Eye Darts", GAME_WRONG_COLORS | GAME_SUPPORTS_SAVE )
+// other manufacturers
+GAME( 1985, bullsdrt,  0,        bullsdrt, bullsdrt, centiped_state, bullsdrt, ROT270, "Shinkai Inc. (Magic Electronics Inc. license)", "Bulls Eye Darts", GAME_WRONG_COLORS | GAME_SUPPORTS_SAVE )

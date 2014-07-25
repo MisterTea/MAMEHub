@@ -112,6 +112,42 @@ HT-01B
 |-------------------------------------------------------|
 
 
+*************************************************************
+
+           Desert Dan (C)1982 by Video Optics
+                 pinout
+                          -------------
+
+       ---------------------------------------------------
+                   SOLDER SIDE  |  COMPONENT SIDE
+       -------------------------+-------------------------
+                       GND |  A | 1  | GND
+                        +5 |  B | 2  | +5
+                        +5 |  C | 3  | +5
+                           |  D | 4  |
+                  1P START |  E | 5  | 2P START
+                           |  F | 6  |
+                           |  H | 7  | COIN
+                           |  J | 8  |
+                           |  K | 9  |
+                           |  L | 10 | ATTACK
+                           |  M | 11 |
+                           |  N | 12 |
+                        UP |  P | 13 |
+                      DOWN |  R | 14 |
+                      LEFT |  S | 15 |
+                     RIGHT |  T | 16 |
+                     SPK + |  U | 17 | SPK - (GND)
+                           |  V | 18 |
+               SYNC (COMP) |  W | 19 | RED
+                     GREEN |  X | 20 | BLUE
+                      + 12 |  Y | 21 | + 12
+                       GND |  Z | 22 | GND
+       ---------------------------------------------------
+
+NOTE:
+Player 2 and Player 1 share the same controls !
+
 ***************************************************************************/
 
 #include "emu.h"
@@ -511,7 +547,7 @@ static INPUT_PORTS_START( suprmous )
 	//PORT_DIPSETTING(    0x10, "5" )
 	//PORT_DIPSETTING(    0x18, "5" )
 	PORT_DIPNAME( 0x20, 0x00, DEF_STR( Bonus_Life ) )
-	PORT_DIPSETTING(    0x10, "5000" )
+	PORT_DIPSETTING(    0x20, "5000" )
 	PORT_DIPSETTING(    0x00, "10000" )
 	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
@@ -656,16 +692,6 @@ static GFXDECODE_START( suprmous )
 GFXDECODE_END
 
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 INTERRUPT_GEN_MEMBER(thepit_state::vblank_irq)
 {
 	if(m_nmi_mask)
@@ -685,18 +711,20 @@ static MACHINE_CONFIG_START( thepit, thepit_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", thepit_state,  irq0_line_hold)
 
 	/* video hardware */
-	MCFG_GFXDECODE(thepit)
-	MCFG_PALETTE_LENGTH(32+8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", thepit)
+	MCFG_PALETTE_ADD("palette", 32+8)
+	MCFG_PALETTE_INIT_OWNER(thepit_state, thepit)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(thepit_state, screen_update_thepit)
+	MCFG_SCREEN_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, PIXEL_CLOCK/4)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, PIXEL_CLOCK/4)
@@ -713,7 +741,7 @@ static MACHINE_CONFIG_DERIVED( desertdn, thepit )
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(thepit_state, screen_update_desertdan)
 
-	MCFG_GFXDECODE(intrepid)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", intrepid)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( intrepid, thepit )
@@ -723,7 +751,7 @@ static MACHINE_CONFIG_DERIVED( intrepid, thepit )
 	MCFG_CPU_PROGRAM_MAP(intrepid_main_map)
 
 	/* video hardware */
-	MCFG_GFXDECODE(intrepid)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", intrepid)
 MACHINE_CONFIG_END
 
 
@@ -732,8 +760,9 @@ static MACHINE_CONFIG_DERIVED( suprmous, intrepid )
 	/* basic machine hardware */
 
 	/* video hardware */
-	MCFG_PALETTE_INIT_OVERRIDE(thepit_state,suprmous)
-	MCFG_GFXDECODE(suprmous)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(thepit_state,suprmous)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", suprmous)
 MACHINE_CONFIG_END
 
 
@@ -962,6 +991,47 @@ ROM_START( intrepidb )
 	ROM_LOAD( "82s123.ic4",      0x0000, 0x0020, CRC(aa1f7f5e) SHA1(311dd17aa11490a1173c76223e4ccccf8ea29850) )
 ROM_END
 
+ROM_START( intrepidb2 )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "1intrepid.prg",       0x0000, 0x1000, CRC(b23e632a) SHA1(c0ccc958a99f35f25a1853f618f3e008ce0247a7) )
+	ROM_LOAD( "2intrepid.prg",       0x1000, 0x1000, CRC(fd75b90e) SHA1(33d2a3c10be2266760a8341a4238a8734fc9c4c8) )
+	ROM_LOAD( "3intrepid.prg",       0x2000, 0x1000, CRC(86a9b6de) SHA1(458f8019ac0ca192e74bbc908c8d326d561a0b30) )
+	ROM_LOAD( "4intrepid.prg",       0x3000, 0x1000, CRC(28abf634) SHA1(a382adac4f4442df94f772cec51659688f1a3c28) )
+	ROM_LOAD( "5intrepid.prg",       0x4000, 0x1000, CRC(7c868725) SHA1(dca370c835fdd0564d42ecca69b9ad2600b1ce31) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "7intrepid.prg",       0x0000, 0x0800, CRC(f85ead07) SHA1(72479a9b49dd9c629480a2ce72bdd09fbb12b25d) )
+	ROM_LOAD( "6intrepid.prg",       0x0800, 0x0800, CRC(9eb6c61b) SHA1(a168fa634b6909c2ea484c2bbaa5afee2a5fe616) )
+
+	ROM_REGION( 0x2000, "gfx1", 0 ) /* chars and sprites */
+	ROM_LOAD( "9intrepid.prg",        0x0000, 0x1000, CRC(8c70d18d) SHA1(785099c947ee1fe19196dfb02752cc849640fe21) )
+	ROM_LOAD( "8intrepid.prg",        0x1000, 0x1000, CRC(04d067d3) SHA1(aeb763e658cd3d0bd849cdae6af55cb1008b2143) )
+
+	ROM_REGION( 0x0020, "proms", 0 )
+	ROM_LOAD( "82s123.ic4",      0x0000, 0x0020, CRC(aa1f7f5e) SHA1(311dd17aa11490a1173c76223e4ccccf8ea29850) )
+ROM_END
+
+ROM_START( intrepidb3)
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "1intrepid.prg",       0x0000, 0x1000, CRC(b23e632a) SHA1(c0ccc958a99f35f25a1853f618f3e008ce0247a7) )
+	ROM_LOAD( "2intrepid.prg",       0x1000, 0x1000, CRC(fd75b90e) SHA1(33d2a3c10be2266760a8341a4238a8734fc9c4c8) )
+	ROM_LOAD( "3intrepid.prg",       0x2000, 0x1000, CRC(86a9b6de) SHA1(458f8019ac0ca192e74bbc908c8d326d561a0b30) )
+	ROM_LOAD( "4intrepidb.prg",     0x3000, 0x1000, CRC(137d0648) SHA1(dfcbbbf530a9f687961cea9a3d8fb289f9157179) )
+	ROM_LOAD( "5intrepid.prg",       0x4000, 0x1000, CRC(7c868725) SHA1(dca370c835fdd0564d42ecca69b9ad2600b1ce31) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "7intrepid.prg",       0x0000, 0x0800, CRC(f85ead07) SHA1(72479a9b49dd9c629480a2ce72bdd09fbb12b25d) )
+	ROM_LOAD( "6intrepid.prg",       0x0800, 0x0800, CRC(9eb6c61b) SHA1(a168fa634b6909c2ea484c2bbaa5afee2a5fe616) )
+
+	ROM_REGION( 0x2000, "gfx1", 0 ) /* chars and sprites */
+	ROM_LOAD( "9intrepid.prg",        0x0000, 0x1000, CRC(8c70d18d) SHA1(785099c947ee1fe19196dfb02752cc849640fe21) )
+	ROM_LOAD( "8intrepid.prg",        0x1000, 0x1000, CRC(04d067d3) SHA1(aeb763e658cd3d0bd849cdae6af55cb1008b2143) )
+
+	ROM_REGION( 0x0020, "proms", 0 )
+	ROM_LOAD( "82s123.ic4",      0x0000, 0x0020, CRC(aa1f7f5e) SHA1(311dd17aa11490a1173c76223e4ccccf8ea29850) )
+ROM_END
+
+
 ROM_START( zaryavos )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "zv1.rom",      0x0000, 0x1000, CRC(b7eec75d) SHA1(cf7ab3a411cf126f01b8ed96c3bd4dfb3d76886a) )
@@ -1048,19 +1118,19 @@ ROM_END
 
 ROM_START( funnymou )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "suprmous.x1",  0x0000, 0x1000, CRC(ad72b467) SHA1(98c79424bc98f2f1af79a04dabdd3985a71d761c) )
-	ROM_LOAD( "suprmous.x2",  0x1000, 0x1000, CRC(53f5be5e) SHA1(9ed0a04fb19f93336fa3a9882c6842062d841201) )
-	ROM_LOAD( "suprmous.x3",  0x2000, 0x1000, CRC(b5b8d34d) SHA1(e0edcdb7f070061f6f86991e22c0ea0808d4fbe4) )
-	ROM_LOAD( "suprmous.x4",  0x3000, 0x1000, CRC(603333df) SHA1(04723fbd912e3d8fabf88643742c3553f4bb603b) )
-	ROM_LOAD( "suprmous.x5",  0x4000, 0x1000, CRC(2ef9cbf1) SHA1(02323499ddcf4dcbbe432e2dbf5d305e5f9e15ad) )
+	ROM_LOAD( "fm.1",         0x0000, 0x1000, CRC(ad72b467) SHA1(98c79424bc98f2f1af79a04dabdd3985a71d761c) )
+	ROM_LOAD( "fm.2",         0x1000, 0x1000, CRC(53f5be5e) SHA1(9ed0a04fb19f93336fa3a9882c6842062d841201) )
+	ROM_LOAD( "fm.3",         0x2000, 0x1000, CRC(b5b8d34d) SHA1(e0edcdb7f070061f6f86991e22c0ea0808d4fbe4) )
+	ROM_LOAD( "fm.4",         0x3000, 0x1000, CRC(603333df) SHA1(04723fbd912e3d8fabf88643742c3553f4bb603b) )
+	ROM_LOAD( "fm.5",         0x4000, 0x1000, CRC(2ef9cbf1) SHA1(02323499ddcf4dcbbe432e2dbf5d305e5f9e15ad) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )
-	ROM_LOAD( "sm.6",         0x0000, 0x1000, CRC(fba71785) SHA1(56537a64a1e6cffedb8a6bd77e3edfa8aca94822) )
+	ROM_LOAD( "fm.6",         0x0000, 0x1000, CRC(fba71785) SHA1(56537a64a1e6cffedb8a6bd77e3edfa8aca94822) )
 
 	ROM_REGION( 0x3000, "gfx1", 0 ) /* chars and sprites */
-	ROM_LOAD( "suprmous.x8",  0x0000, 0x1000, CRC(dbef9db8) SHA1(2bb070603f79e4acb7821cfa61ea1b4aed6d8e1f) )
-	ROM_LOAD( "suprmous.x9",  0x1000, 0x1000, CRC(700d996e) SHA1(31884ec80b5eb70dc8e96712b5541754997b0ca8) )
-	ROM_LOAD( "suprmous.x7",  0x2000, 0x1000, CRC(e9295071) SHA1(6034b7bc86bf070464af82bf1b9a55da81e864d9) )
+	ROM_LOAD( "fm.8",         0x0000, 0x1000, CRC(dbef9db8) SHA1(2bb070603f79e4acb7821cfa61ea1b4aed6d8e1f) )
+	ROM_LOAD( "fm.9",         0x1000, 0x1000, CRC(700d996e) SHA1(31884ec80b5eb70dc8e96712b5541754997b0ca8) )
+	ROM_LOAD( "fm.7",         0x2000, 0x1000, CRC(e9295071) SHA1(6034b7bc86bf070464af82bf1b9a55da81e864d9) )
 
 	ROM_REGION( 0x0040, "proms", 0 )
 	ROM_LOAD( "smouse2.clr",  0x0000, 0x0020, CRC(8c295553) SHA1(7b43a4f023a163c233f6d9cf13fa4beee95d19d6) )
@@ -1137,7 +1207,7 @@ ROM_START( desertdn )
 	ROM_LOAD( "rs1.bin",  0x1000, 0x1000, CRC(c051b090) SHA1(7280831c99a3f5a1d4af707bddf5b25a5000cabd) )
 
 	ROM_REGION( 0x0020, "proms", 0 )
-	ROM_LOAD( "82s123.ic4",   0x0000, 0x0020, NO_DUMP CRC(a758b567) SHA1(d188c90dba10fe3abaae92488786b555b35218c5) ) /* Color prom was a MMI6331 and is compatible with the 82s123 prom type */
+	ROM_LOAD( "mb7051.8j",   0x0000, 0x0020, CRC(a14111f4) SHA1(cc103d91ca01390a68c8a211409f23d8af713296) ) /* BPROM is a Harris M3-7603-5 (82S123N compatible) */
 ROM_END
 
 /*
@@ -1182,19 +1252,29 @@ DRIVER_INIT_MEMBER(thepit_state,rtriv)
 GAME( 1981, roundup,  0,        thepit,   roundup,  driver_device, 0,     ROT90, "Taito Corporation (Amenip/Centuri license)",  "Round-Up", 0 )
 GAME( 1981, fitter,   roundup,  thepit,   fitter,   driver_device, 0,     ROT90, "Taito Corporation",                           "Fitter", 0 )
 GAME( 1981, fitterbl, roundup,  thepit,   fitter,   driver_device, 0,     ROT90, "bootleg",                                     "Fitter (bootleg of Round-Up)", 0 )
-GAME( 1981, ttfitter, roundup,  thepit,   fitter,   driver_device, 0,     ROT90, "Taito Corporation",                           "T.T. Fitter", 0 )
+GAME( 1981, ttfitter, roundup,  thepit,   fitter,   driver_device, 0,     ROT90, "Taito Corporation",                           "T.T. Fitter (Japan)", 0 )
+
 GAME( 1982, thepit,   0,        thepit,   thepit,   driver_device, 0,     ROT90, "Zilec Electronics",                           "The Pit", 0 ) // AW == Andy Walker
 GAME( 1982, thepitu1, thepit,   thepit,   thepit,   driver_device, 0,     ROT90, "Zilec Electronics (Centuri license)",         "The Pit (US set 1)", 0 )
 GAME( 1982, thepitu2, thepit,   thepit,   thepit,   driver_device, 0,     ROT90, "Zilec Electronics (Centuri license)",         "The Pit (US set 2)", 0 ) // Bally PCB
 GAME( 1982, thepitj,  thepit,   thepit,   thepit,   driver_device, 0,     ROT90, "Zilec Electronics (Taito license)",           "The Pit (Japan)", 0 )
+
 GAME( 1982, dockman,  0,        intrepid, dockman,  driver_device, 0,     ROT90, "Taito Corporation",                           "Dock Man", 0 )
 GAME( 1982, portman,  dockman,  intrepid, dockman,  driver_device, 0,     ROT90, "Taito Corporation (Nova Games Ltd. license)", "Port Man", 0 )
+
 GAME( 1982, suprmous, 0,        suprmous, suprmous, driver_device, 0,     ROT90, "Taito Corporation",                           "Super Mouse", 0 )
-GAME( 1982, funnymou, suprmous, suprmous, suprmous, driver_device, 0,     ROT90, "bootleg? (Chuo Co. Ltd)",                     "Funny Mouse", 0 )
+GAME( 1982, funnymou, suprmous, suprmous, suprmous, driver_device, 0,     ROT90, "Taito Corporation (Chuo Co. Ltd license)",    "Funny Mouse (Japan)", 0 ) // Taito PCB
+
 GAME( 1982, machomou, 0,        suprmous, suprmous, driver_device, 0,     ROT90, "Techstar",                                    "Macho Mouse", 0 )
-GAME( 1982, desertdn, 0,        desertdn, desertdn, driver_device, 0,     ROT0,  "Video Optics",                                "Desert Dan", GAME_WRONG_COLORS )
+
+GAME( 1982, desertdn, 0,        desertdn, desertdn, driver_device, 0,     ROT0,  "Video Optics",                                "Desert Dan", 0 )
+
 GAME( 1983, intrepid, 0,        intrepid, intrepid, driver_device, 0,     ROT90, "Nova Games Ltd.",                             "Intrepid (set 1)", 0 )
 GAME( 1983, intrepid2,intrepid, intrepid, intrepid, driver_device, 0,     ROT90, "Nova Games Ltd.",                             "Intrepid (set 2)", 0 )
-GAME( 1984, intrepidb,intrepid, intrepid, intrepid, driver_device, 0,     ROT90, "bootleg (Elsys)",                             "Intrepid (bootleg)", 0 )
+GAME( 1984, intrepidb,intrepid, intrepid, intrepid, driver_device, 0,     ROT90, "bootleg (Elsys)",                             "Intrepid (Elsys bootleg, set 1)", 0 )
+GAME( 1984, intrepidb3,intrepid,intrepid, intrepid, driver_device, 0,     ROT90, "bootleg (Elsys)",                             "Intrepid (Elsys bootleg, set 2)", 0 )
+GAME( 1984, intrepidb2,intrepid,intrepid, intrepid, driver_device, 0,     ROT90, "bootleg (Loris)",                             "Intrepid (Loris bootleg)", 0 )
+
 GAME( 1984, zaryavos, 0,        intrepid, intrepid, driver_device, 0,     ROT90, "Nova Games of Canada",                        "Zarya Vostoka", GAME_NOT_WORKING )
+
 GAME( 198?, rtriv,    0,        intrepid, rtriv,    thepit_state,  rtriv, ROT90, "Romar",                                       "Romar Triv", GAME_WRONG_COLORS )

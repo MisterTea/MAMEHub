@@ -10,19 +10,8 @@
 #define __MIDIIN_H__
 
 
-/***************************************************************************
-    CONSTANTS
-***************************************************************************/
-
-struct midiin_config
-{
-	/* callback to driver */
-	devcb_write_line        m_input_callback;
-};
-
-#define MCFG_MIDIIN_ADD(_tag, _config) \
-	MCFG_DEVICE_ADD(_tag, MIDIIN, 0) \
-	MCFG_DEVICE_CONFIG(_config)
+#define MCFG_MIDIIN_INPUT_CB(_devcb) \
+	devcb = &midiin_device::set_input_callback(*device, DEVCB_##_devcb);
 
 
 /***************************************************************************
@@ -31,12 +20,13 @@ struct midiin_config
 
 class midiin_device :    public device_t,
 						public device_image_interface,
-						public device_serial_interface,
-						public midiin_config
+						public device_serial_interface
 {
 public:
 	// construction/destruction
 	midiin_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	template<class _Object> static devcb_base &set_input_callback(device_t &device, _Object object) { return downcast<midiin_device &>(device).m_input_cb.set_callback(object); }
 
 	// image-level overrides
 	virtual bool call_load();
@@ -64,7 +54,6 @@ protected:
 	// serial overrides
 	virtual void tra_complete();    // Tx completed sending byte
 	virtual void tra_callback();    // Tx send bit
-	void input_callback(UINT8 state);
 
 private:
 	static const int XMIT_RING_SIZE = (8192*4*4);
@@ -73,7 +62,7 @@ private:
 
 	osd_midi_device *m_midi;
 	emu_timer *m_timer;
-	devcb_resolved_write_line m_input_func;
+	devcb_write_line        m_input_cb;
 	UINT8 m_xmitring[XMIT_RING_SIZE];
 	int m_xmit_read, m_xmit_write;
 	bool m_tx_busy;

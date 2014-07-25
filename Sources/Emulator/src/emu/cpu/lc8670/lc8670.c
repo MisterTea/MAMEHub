@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /******************************************************************************
 
     Sanyo LC8670 "Potato" CPU core
@@ -177,6 +179,9 @@ lc8670_cpu_device::lc8670_cpu_device(const machine_config &mconfig, const char *
 		m_ppc(0),
 		m_bankswitch_func(*this)
 {
+	memset(m_sfr, 0x00, sizeof(m_sfr));
+	memset(m_timer0, 0x00, sizeof(m_timer0));
+	memset(m_timer1, 0x00, sizeof(m_timer1));
 }
 
 //-------------------------------------------------
@@ -201,12 +206,6 @@ void lc8670_cpu_device::device_start()
 	m_basetimer = timer_alloc(BASE_TIMER);
 	m_basetimer->adjust(attotime::from_hz(m_clocks[LC8670_SUB_CLOCK]), 0, attotime::from_hz(m_clocks[LC8670_SUB_CLOCK]));
 	m_clocktimer = timer_alloc(CLOCK_TIMER);
-
-	// alloc internal RAM
-	m_sfr = auto_alloc_array(machine(), UINT8, 0x80);
-	m_mram = auto_alloc_array(machine(), UINT8, 0x200);
-	m_xram = auto_alloc_array(machine(), UINT8, 0xc6);
-	m_vtrbf = auto_alloc_array(machine(), UINT8, 0x200);
 
 	// register state for debugger
 	state_add(LC8670_PC  , "PC"  , m_pc).callimport().callexport().formatstr("%04X");

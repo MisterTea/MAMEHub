@@ -142,13 +142,13 @@ inline void upd65031_device::interrupt_refresh()
 	{
 		if (LOG) logerror("uPD65031 '%s': set int\n", tag());
 
-		m_out_int_func(ASSERT_LINE);
+		m_write_int(ASSERT_LINE);
 	}
 	else
 	{
 		if (LOG) logerror("uPD65031 '%s': clear int\n", tag());
 
-		m_out_int_func(CLEAR_LINE);
+		m_write_int(CLEAR_LINE);
 	}
 }
 
@@ -194,35 +194,12 @@ inline void upd65031_device::set_mode(int mode)
 //-------------------------------------------------
 
 upd65031_device::upd65031_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, UPD65031, "NEC uPD65031", tag, owner, clock, "upd65031", __FILE__)
+	: device_t(mconfig, UPD65031, "NEC uPD65031", tag, owner, clock, "upd65031", __FILE__),
+	m_read_kb(*this),
+	m_write_int(*this),
+	m_write_nmi(*this),
+	m_write_spkr(*this)
 {
-}
-
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void upd65031_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const upd65031_interface *intf = reinterpret_cast<const upd65031_interface *>(static_config());
-	if (intf != NULL)
-	{
-		*static_cast<upd65031_interface *>(this) = *intf;
-	}
-	// or initialize to defaults if none provided
-	else
-	{
-		m_screen_update_cb = NULL;
-		m_out_mem_cb = NULL;
-		memset(&m_in_kb_cb, 0, sizeof(m_in_kb_cb));
-		memset(&m_out_int_cb, 0, sizeof(m_out_int_cb));
-		memset(&m_out_nmi_cb, 0, sizeof(m_out_nmi_cb));
-		memset(&m_out_spkr_cb, 0, sizeof(m_out_spkr_cb));
-	}
 }
 
 
@@ -233,10 +210,14 @@ void upd65031_device::device_config_complete()
 void upd65031_device::device_start()
 {
 	// resolve callbacks
-	m_out_int_func.resolve(m_out_int_cb, *this);
-	m_out_nmi_func.resolve(m_out_nmi_cb, *this);
-	m_out_spkr_func.resolve(m_out_spkr_cb, *this);
-	m_int_kb_func.resolve(m_in_kb_cb, *this);
+	m_read_kb.resolve_safe(0);
+	m_write_int.resolve_safe();
+	m_write_nmi.resolve_safe();
+	m_write_spkr.resolve_safe();
+
+	// bind delegates
+	m_screen_update_cb.bind_relative_to(*owner());
+	m_out_mem_cb.bind_relative_to(*owner());
 
 	// allocate timers
 	m_rtc_timer = timer_alloc(TIMER_RTC);
@@ -282,13 +263,13 @@ void upd65031_device::device_reset()
 	m_mode = 0;
 	set_mode(STATE_AWAKE);
 
-	if (m_out_mem_cb)
+	if (!m_out_mem_cb.isnull())
 	{
 		// reset bankswitch
-		(m_out_mem_cb)(*this, 0, 0, 0);
-		(m_out_mem_cb)(*this, 1, 0, 0);
-		(m_out_mem_cb)(*this, 2, 0, 0);
-		(m_out_mem_cb)(*this, 3, 0, 0);
+		m_out_mem_cb(0, 0, 0);
+		m_out_mem_cb(1, 0, 0);
+		m_out_mem_cb(2, 0, 0);
+		m_out_mem_cb(3, 0, 0);
 	}
 }
 
@@ -304,7 +285,7 @@ void upd65031_device::device_timer(emu_timer &timer, device_timer_id id, int par
 	case TIMER_RTC:
 
 		// if a key is pressed sets the interrupt
-		if ((m_int & INT_GINT) && (m_int & INT_KEY) && m_int_kb_func(0) != 0xff)
+		if ((m_int & INT_GINT) && (m_int & INT_KEY) && m_read_kb(0) != 0xff)
 		{
 			if (LOG) logerror("uPD65031 '%s': Keyboard interrupt!\n", tag());
 
@@ -393,7 +374,7 @@ void upd65031_device::device_timer(emu_timer &timer, device_timer_id id, int par
 		break;
 	case TIMER_SPEAKER:
 		m_speaker_state = !m_speaker_state;
-		m_out_spkr_func(m_speaker_state ? 1 : 0);
+		m_write_spkr(m_speaker_state ? 1 : 0);
 		break;
 	}
 }
@@ -405,8 +386,8 @@ void upd65031_device::device_timer(emu_timer &timer, device_timer_id id, int par
 
 UINT32 upd65031_device::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	if (m_screen_update_cb && (m_com & COM_LCDON))
-		(m_screen_update_cb)(*this, bitmap, m_lcd_regs[4], m_lcd_regs[2], m_lcd_regs[3], m_lcd_regs[0], m_lcd_regs[1], m_flash);
+	if (!m_screen_update_cb.isnull() && (m_com & COM_LCDON))
+		m_screen_update_cb(bitmap, m_lcd_regs[4], m_lcd_regs[2], m_lcd_regs[3], m_lcd_regs[0], m_lcd_regs[1], m_flash);
 	else
 		bitmap.fill(0, cliprect);
 
@@ -436,7 +417,7 @@ READ8_MEMBER( upd65031_device::read )
 				if (LOG) logerror("uPD65031 '%s': entering snooze!\n", tag());
 			}
 
-			UINT8 data = m_int_kb_func(offset>>8);
+			UINT8 data = m_read_kb(offset>>8);
 
 			if (LOG) logerror("uPD65031 '%s': key r %02x: %02x\n", tag(), offset>>8, data);
 
@@ -516,7 +497,7 @@ WRITE8_MEMBER( upd65031_device::write )
 				{
 					// speaker controlled by SBIT
 					m_speaker_state = BIT(data, 6);
-					m_out_spkr_func(m_speaker_state);
+					m_write_spkr(m_speaker_state);
 				}
 				else
 				{
@@ -528,8 +509,8 @@ WRITE8_MEMBER( upd65031_device::write )
 			}
 
 			// bit 2 controls the lower 8kb of memory
-			if (BIT(m_com^data, 2) && m_out_mem_cb)
-				(m_out_mem_cb)(*this, 0, m_sr[0], BIT(data, 2));
+			if (BIT(m_com^data, 2) && !m_out_mem_cb.isnull())
+				m_out_mem_cb(0, m_sr[0], BIT(data, 2));
 
 			m_com = data;
 			break;
@@ -582,8 +563,8 @@ WRITE8_MEMBER( upd65031_device::write )
 		case REG_SR1:
 		case REG_SR2:
 		case REG_SR3:
-			if (m_out_mem_cb && m_sr[port & 3] != data)
-				(m_out_mem_cb)(*this, port & 3, data, BIT(m_com, 2));
+			if (!m_out_mem_cb.isnull() && m_sr[port & 3] != data)
+				m_out_mem_cb(port & 3, data, BIT(m_com, 2));
 
 			m_sr[port & 3] = data;
 			break;

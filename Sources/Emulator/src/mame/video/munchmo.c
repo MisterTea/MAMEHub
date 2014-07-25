@@ -2,12 +2,12 @@
 #include "includes/munchmo.h"
 
 
-void munchmo_state::palette_init()
+PALETTE_INIT_MEMBER(munchmo_state, munchmo)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -26,7 +26,7 @@ void munchmo_state::palette_init()
 		bit1 = BIT(color_prom[i], 7);
 		b = 0x4f * bit0 + 0xa8 * bit1;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -48,7 +48,7 @@ void munchmo_state::video_start()
 
 void munchmo_state::draw_status( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	int row;
 
 	for (row = 0; row < 4; row++)
@@ -63,8 +63,7 @@ void munchmo_state::draw_status( bitmap_ind16 &bitmap, const rectangle &cliprect
 
 		for (sy = 0; sy < 256; sy += 8)
 		{
-			drawgfx_opaque( bitmap, cliprect,
-				gfx,
+				gfx->opaque(bitmap,cliprect,
 				*source++,
 				0, /* color */
 				0,0, /* no flip */
@@ -80,7 +79,7 @@ void munchmo_state::draw_background( bitmap_ind16 &bitmap, const rectangle &clip
     the tiles in ROM B2.2B
 */
 	UINT8 *rom = memregion("gfx2")->base();
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 	int offs;
 
 	for (offs = 0; offs < 0x100; offs++)
@@ -94,7 +93,7 @@ void munchmo_state::draw_background( bitmap_ind16 &bitmap, const rectangle &clip
 		{
 			for (col = 0; col < 4; col++)
 			{
-				drawgfx_opaque(*m_tmpbitmap, m_tmpbitmap->cliprect(), gfx,
+					gfx->opaque(*m_tmpbitmap,m_tmpbitmap->cliprect(),
 					rom[col + tile_number * 4 + row * 0x400],
 					m_palette_bank,
 					0,0, /* flip */
@@ -117,7 +116,7 @@ void munchmo_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 	int flags = m_vreg[7];                           /*   XB?????? */
 	int xadjust = - 128 - 16 - ((flags & 0x80) ? 1 : 0);
 	int bank = (flags & 0x40) ? 1 : 0;
-	gfx_element *gfx = machine().gfx[2 + bank];
+	gfx_element *gfx = m_gfxdecode->gfx(2 + bank);
 	int color_base = m_palette_bank * 4 + 3;
 	int i, j;
 	int firstsprite = m_vreg[4] & 0x3f;
@@ -135,7 +134,7 @@ void munchmo_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 			{
 				sx = (sx >> 1) | (tile_number & 0x80);
 				sx = 2 * ((- 32 - scroll - sx) & 0xff) + xadjust;
-				drawgfx_transpen( bitmap, cliprect, gfx,
+					gfx->transpen(bitmap,cliprect,
 					0x7f - (tile_number & 0x7f),
 					color_base - (attributes & 0x03),
 					0,0,                            /* no flip */

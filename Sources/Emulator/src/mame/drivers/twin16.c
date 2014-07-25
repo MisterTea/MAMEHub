@@ -66,27 +66,7 @@ int twin16_state::twin16_spriteram_process_enable(  )
 
 /******************************************************************************************/
 
-#define COMRAM_r                    "comram"
-#define COMRAM_w                    "comram"
-
 /* Read/Write Handlers */
-
-READ16_MEMBER(twin16_state::videoram16_r)
-{
-	UINT16 *videoram = m_videoram;
-	return videoram[offset];
-}
-
-WRITE16_MEMBER(twin16_state::videoram16_w)
-{
-	UINT16 *videoram = m_videoram;
-	COMBINE_DATA(videoram + offset);
-}
-
-READ16_MEMBER(twin16_state::extra_rom_r)
-{
-	return ((UINT16 *)memregion("gfx3")->base())[offset];
-}
 
 READ16_MEMBER(twin16_state::twin16_gfx_rom1_r)
 {
@@ -96,12 +76,6 @@ READ16_MEMBER(twin16_state::twin16_gfx_rom1_r)
 READ16_MEMBER(twin16_state::twin16_gfx_rom2_r)
 {
 	return m_gfx_rom[offset + 0x80000 + ((m_CPUB_register&0x04)?0x40000:0)];
-}
-
-WRITE16_MEMBER(twin16_state::sound_command_w)
-{
-	COMBINE_DATA(&m_sound_command);
-	soundlatch_byte_w(space, 0, m_sound_command&0xff );
 }
 
 WRITE16_MEMBER(twin16_state::twin16_CPUA_register_w)
@@ -169,22 +143,6 @@ WRITE16_MEMBER(twin16_state::fround_CPU_register_w)
 	}
 }
 
-READ16_MEMBER(twin16_state::twin16_input_r)
-{
-	switch( offset )
-	{
-		case 0x00: return ioport("SYSTEM")->read();
-		case 0x01: return ioport("P1")->read();
-		case 0x02: return ioport("P2")->read();
-		case 0x03: return ioport("P3")->read();
-		case 0x08: return ioport("DSW2")->read();
-		case 0x09: return ioport("DSW1")->read();
-		case 0x0c: return ioport("DSW3")->read();
-		default: break;
-	}
-	return 0;
-}
-
 READ8_MEMBER(twin16_state::twin16_upd_busy_r)
 {
 	return m_upd7759->busy_r();
@@ -200,26 +158,11 @@ WRITE8_MEMBER(twin16_state::twin16_upd_start_w)
 	m_upd7759->start_w(data & 1);
 }
 
-READ16_MEMBER(twin16_state::cuebrickj_nvram_r)
-{
-	return m_cuebrickj_nvram[offset + (m_cuebrickj_nvram_bank * 0x400 / 2)];
-}
-
-WRITE16_MEMBER(twin16_state::cuebrickj_nvram_w)
-{
-	COMBINE_DATA(&m_cuebrickj_nvram[offset + (m_cuebrickj_nvram_bank * 0x400 / 2)]);
-}
-
-WRITE16_MEMBER(twin16_state::cuebrickj_nvram_bank_w)
-{
-	m_cuebrickj_nvram_bank = (data >> 8);
-}
-
 /* Memory Maps */
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, twin16_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x8fff) AM_RAM
+	AM_RANGE(0x8000, 0x87ff) AM_RAM
 	AM_RANGE(0x9000, 0x9000) AM_WRITE(twin16_upd_reset_w)
 	AM_RANGE(0xa000, 0xa000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE("k007232", k007232_device, read, write)
@@ -231,17 +174,19 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, twin16_state )
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, twin16_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
-	AM_RANGE(0x040000, 0x043fff) AM_READ_BANK(COMRAM_r) AM_WRITE_BANK(COMRAM_w)
+	AM_RANGE(0x040000, 0x043fff) AM_RAM AM_SHARE("comram")
 //  AM_RANGE(0x044000, 0x04ffff) AM_NOP             // miaj
 	AM_RANGE(0x060000, 0x063fff) AM_RAM
-	AM_RANGE(0x080000, 0x080fff) AM_RAM_WRITE(twin16_paletteram_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x080000, 0x080fff) AM_DEVREADWRITE8("palette", palette_device, read, write, 0x00ff) AM_SHARE("palette")
 	AM_RANGE(0x081000, 0x081fff) AM_WRITENOP
-	AM_RANGE(0x0a0000, 0x0a001b) AM_READ(twin16_input_r)
-	AM_RANGE(0x0a0000, 0x0a0001) AM_WRITE(twin16_CPUA_register_w)
-	AM_RANGE(0x0a0008, 0x0a0009) AM_WRITE(sound_command_w)
-	AM_RANGE(0x0a0010, 0x0a0011) AM_WRITE(watchdog_reset16_w)
-	AM_RANGE(0x0b0000, 0x0b03ff) AM_READWRITE(cuebrickj_nvram_r, cuebrickj_nvram_w) AM_SHARE("nvram")
-	AM_RANGE(0x0b0400, 0x0b0401) AM_WRITE(cuebrickj_nvram_bank_w)
+	AM_RANGE(0x0a0000, 0x0a0001) AM_READ_PORT("SYSTEM") AM_WRITE(twin16_CPUA_register_w)
+	AM_RANGE(0x0a0002, 0x0a0003) AM_READ_PORT("P1")
+	AM_RANGE(0x0a0004, 0x0a0005) AM_READ_PORT("P2")
+	AM_RANGE(0x0a0006, 0x0a0007) AM_READ_PORT("P3")
+	AM_RANGE(0x0a0008, 0x0a0009) AM_WRITE8(soundlatch_byte_w, 0x00ff)
+	AM_RANGE(0x0a0010, 0x0a0011) AM_READ_PORT("DSW2") AM_WRITE(watchdog_reset16_w)
+	AM_RANGE(0x0a0012, 0x0a0013) AM_READ_PORT("DSW1")
+	AM_RANGE(0x0a0018, 0x0a0019) AM_READ_PORT("DSW3")
 	AM_RANGE(0x0c0000, 0x0c000f) AM_WRITE(twin16_video_register_w)
 	AM_RANGE(0x0c000e, 0x0c000f) AM_READ(twin16_sprite_status_r)
 	AM_RANGE(0x100000, 0x103fff) AM_RAM_WRITE(twin16_text_ram_w) AM_SHARE("text_ram")
@@ -252,13 +197,13 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sub_map, AS_PROGRAM, 16, twin16_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
-	AM_RANGE(0x040000, 0x043fff) AM_READ_BANK(COMRAM_r) AM_WRITE_BANK(COMRAM_w)
+	AM_RANGE(0x040000, 0x043fff) AM_RAM AM_SHARE("comram")
 //  AM_RANGE(0x044000, 0x04ffff) AM_NOP             // miaj
 	AM_RANGE(0x060000, 0x063fff) AM_RAM
-	AM_RANGE(0x080000, 0x09ffff) AM_READ(extra_rom_r)
+	AM_RANGE(0x080000, 0x09ffff) AM_ROM AM_REGION("gfx3", 0)
 	AM_RANGE(0x0a0000, 0x0a0001) AM_WRITE(twin16_CPUB_register_w)
 	AM_RANGE(0x400000, 0x403fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x480000, 0x483fff) AM_READWRITE(videoram16_r, videoram16_w)
+	AM_RANGE(0x480000, 0x483fff) AM_RAM AM_SHARE("videoram")
 	AM_RANGE(0x500000, 0x53ffff) AM_RAM AM_SHARE("tile_gfx_ram")
 	AM_RANGE(0x600000, 0x6fffff) AM_READ(twin16_gfx_rom1_r)
 	AM_RANGE(0x700000, 0x77ffff) AM_READ(twin16_gfx_rom2_r)
@@ -267,20 +212,23 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( fround_map, AS_PROGRAM, 16, twin16_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
-	AM_RANGE(0x040000, 0x043fff) AM_READ_BANK(COMRAM_r) AM_WRITE_BANK(COMRAM_w)
+	AM_RANGE(0x040000, 0x043fff) AM_RAM AM_SHARE("comram")
 	AM_RANGE(0x060000, 0x063fff) AM_RAM
-	AM_RANGE(0x080000, 0x080fff) AM_RAM_WRITE(twin16_paletteram_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x0a0000, 0x0a001b) AM_READ(twin16_input_r)
-	AM_RANGE(0x0a0000, 0x0a0001) AM_WRITE(fround_CPU_register_w)
-	AM_RANGE(0x0a0008, 0x0a0009) AM_WRITE(sound_command_w)
-	AM_RANGE(0x0a0010, 0x0a0011) AM_WRITE(watchdog_reset16_w)
+	AM_RANGE(0x080000, 0x080fff) AM_DEVREADWRITE8("palette", palette_device, read, write, 0x00ff) AM_SHARE("palette")
+	AM_RANGE(0x0a0000, 0x0a0001) AM_READ_PORT("SYSTEM") AM_WRITE(fround_CPU_register_w)
+	AM_RANGE(0x0a0002, 0x0a0003) AM_READ_PORT("P1")
+	AM_RANGE(0x0a0004, 0x0a0005) AM_READ_PORT("P2")
+	AM_RANGE(0x0a0008, 0x0a0009) AM_WRITE8(soundlatch_byte_w, 0x00ff)
+	AM_RANGE(0x0a0010, 0x0a0011) AM_READ_PORT("DSW2") AM_WRITE(watchdog_reset16_w)
+	AM_RANGE(0x0a0012, 0x0a0013) AM_READ_PORT("DSW1")
+	AM_RANGE(0x0a0018, 0x0a0019) AM_READ_PORT("DSW3")
 	AM_RANGE(0x0c0000, 0x0c000f) AM_WRITE(twin16_video_register_w)
 	AM_RANGE(0x0c000e, 0x0c000f) AM_READ(twin16_sprite_status_r)
 	AM_RANGE(0x0e0000, 0x0e0001) AM_WRITE(fround_gfx_bank_w)
 	AM_RANGE(0x100000, 0x103fff) AM_RAM_WRITE(twin16_text_ram_w) AM_SHARE("text_ram")
 	AM_RANGE(0x120000, 0x123fff) AM_RAM AM_SHARE("videoram")
 	AM_RANGE(0x140000, 0x143fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x500000, 0x6fffff) AM_READ(twin16_gfx_rom1_r)
+	AM_RANGE(0x500000, 0x6fffff) AM_ROM AM_REGION("gfx2", 0)
 ADDRESS_MAP_END
 
 /* Input Ports */
@@ -672,11 +620,6 @@ WRITE8_MEMBER(twin16_state::volume_callback)
 	m_k007232->set_volume(1,0,(data & 0x0f) * 0x11);
 }
 
-static const k007232_interface k007232_config =
-{
-	DEVCB_DRIVER_MEMBER(twin16_state,volume_callback) /* external port callback */
-};
-
 /* Interrupt Generators */
 
 INTERRUPT_GEN_MEMBER(twin16_state::CPUA_interrupt)
@@ -693,21 +636,15 @@ INTERRUPT_GEN_MEMBER(twin16_state::CPUB_interrupt)
 
 MACHINE_RESET_MEMBER(twin16_state,twin16)
 {
-	;
+	m_CPUA_register = 0;
+	m_CPUB_register = 0;
 }
 
 MACHINE_START_MEMBER(twin16_state,twin16)
 {
-	m_CPUA_register=0;
-	m_CPUB_register=0;
-
 	/* register for savestates */
 	save_item(NAME(m_CPUA_register));
 	save_item(NAME(m_CPUB_register));
-
-	save_item(NAME(m_sound_command));
-	save_item(NAME(m_cuebrickj_nvram_bank));
-	save_item(NAME(m_cuebrickj_nvram));
 }
 
 static MACHINE_CONFIG_START( twin16, twin16_state )
@@ -720,7 +657,7 @@ static MACHINE_CONFIG_START( twin16, twin16_state )
 	MCFG_CPU_PROGRAM_MAP(sub_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", twin16_state,  CPUB_interrupt)
 
-	MCFG_CPU_ADD("audiocpu", Z80, 3579545)
+	MCFG_CPU_ADD("audiocpu", Z80, XTAL_3_579545MHz)
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
@@ -729,31 +666,32 @@ static MACHINE_CONFIG_START( twin16, twin16_state )
 	MCFG_MACHINE_RESET_OVERRIDE(twin16_state,twin16)
 
 	// video hardware
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(((double)XTAL_18_432MHz / 2) / (576 * 264))
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2062)) // 32 lines
-	MCFG_SCREEN_SIZE(40*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0, 40*8-1, 2*8, 30*8-1)
+	MCFG_SCREEN_RAW_PARAMS(XTAL_18_432MHz/2, 576, 0, 40*8, 264, 2*8, 30*8)
 	MCFG_SCREEN_UPDATE_DRIVER(twin16_state, screen_update_twin16)
 	MCFG_SCREEN_VBLANK_DRIVER(twin16_state, screen_eof_twin16)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(twin16)
-	MCFG_PALETTE_LENGTH(0x400)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", twin16)
+
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	MCFG_PALETTE_MEMBITS(8)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
 	MCFG_VIDEO_START_OVERRIDE(twin16_state,twin16)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_YM2151_ADD("ymsnd", 7159160/2)
+	MCFG_YM2151_ADD("ymsnd", XTAL_3_579545MHz)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("k007232", K007232, 3579545)
-	MCFG_SOUND_CONFIG(k007232_config)
+	MCFG_SOUND_ADD("k007232", K007232, XTAL_3_579545MHz)
+	MCFG_K007232_PORT_WRITE_HANDLER(WRITE8(twin16_state, volume_callback))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.12) // estimated with gradius2 OST
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.12)
 	MCFG_SOUND_ROUTE(1, "lspeaker", 0.12)
@@ -770,11 +708,11 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( fround, twin16_state )
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 10000000)
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_18_432MHz/2)
 	MCFG_CPU_PROGRAM_MAP(fround_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", twin16_state,  CPUA_interrupt)
 
-	MCFG_CPU_ADD("audiocpu", Z80, 3579545)
+	MCFG_CPU_ADD("audiocpu", Z80, XTAL_3_579545MHz)
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
@@ -783,31 +721,32 @@ static MACHINE_CONFIG_START( fround, twin16_state )
 	MCFG_MACHINE_RESET_OVERRIDE(twin16_state,twin16)
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
-	MCFG_SCREEN_SIZE(40*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0, 40*8-1, 2*8, 30*8-1)
+	MCFG_SCREEN_RAW_PARAMS(XTAL_18_432MHz/2, 576, 0, 40*8, 264, 2*8, 30*8)
 	MCFG_SCREEN_UPDATE_DRIVER(twin16_state, screen_update_twin16)
 	MCFG_SCREEN_VBLANK_DRIVER(twin16_state, screen_eof_twin16)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(twin16)
-	MCFG_PALETTE_LENGTH(0x400)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", twin16)
+
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	MCFG_PALETTE_MEMBITS(8)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
 	MCFG_VIDEO_START_OVERRIDE(twin16_state,twin16)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_YM2151_ADD("ymsnd", 7159160/2)
+	MCFG_YM2151_ADD("ymsnd", XTAL_3_579545MHz)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("k007232", K007232, 3579545)
-	MCFG_SOUND_CONFIG(k007232_config)
+	MCFG_SOUND_ADD("k007232", K007232, XTAL_3_579545MHz)
+	MCFG_K007232_PORT_WRITE_HANDLER(WRITE8(twin16_state, volume_callback))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.12)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.12)
 	MCFG_SOUND_ROUTE(1, "lspeaker", 0.12)
@@ -820,12 +759,12 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( miaj, twin16 )
 	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_VISIBLE_AREA(1*8, 39*8-1, 2*8, 30*8-1)
+	MCFG_SCREEN_RAW_PARAMS(XTAL_18_432MHz/2, 576, 1*8, 39*8, 264, 2*8, 30*8)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( cuebrickj, twin16 )
+static MACHINE_CONFIG_DERIVED_CLASS( cuebrickj, twin16, cuebrickj_state )
 	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_VISIBLE_AREA(1*8, 39*8-1, 2*8, 30*8-1)
+	MCFG_SCREEN_RAW_PARAMS(XTAL_18_432MHz/2, 576, 1*8, 39*8, 264, 2*8, 30*8)
 	MCFG_NVRAM_ADD_0FILL("nvram")
 MACHINE_CONFIG_END
 
@@ -848,13 +787,13 @@ ROM_START( devilw )
 	ROM_LOAD( "687_l03.10a", 0x00000,  0x8000, CRC(7201983c) SHA1(06d089406d2f702e8d51ffdfbf34e4727a28d506) )
 
 	ROM_REGION( 0x4000, "gfx1", 0 )
-	ROM_LOAD( "687_m14.d8", 0x00000,  0x4000, CRC(d7338557) SHA1(9b384baafabaab3888a0139674f0b530303684ca) ) /* Title screen graphics & characters */
+	ROM_LOAD( "687_m14.d8", 0x0000, 0x4000, CRC(d7338557) SHA1(9b384baafabaab3888a0139674f0b530303684ca) ) /* Title screen graphics & characters */
 
-	ROM_REGION16_LE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
-	ROM_LOAD16_WORD( "687i17.p16",  0x000000, 0x80000, CRC(66cb3923) SHA1(3c1fc1dff77201cf8d8c4594c965695066c1701c) )
-	ROM_LOAD16_WORD( "687i18.p18",  0x080000, 0x80000, CRC(a1c7d0db) SHA1(901bc6e1982b9a8c2150a802995256d0168cc605) )
-	ROM_LOAD16_WORD( "687i15.p13",  0x100000, 0x80000, CRC(eec8c5b2) SHA1(c400dd8c7bb85d233815572acd547acf626e4c73) )
-	ROM_LOAD16_WORD( "687i16.p15",  0x180000, 0x80000, CRC(746cf48b) SHA1(8f51df931b1de928f402f51bbaf02e37dfec1d6d) )
+	ROM_REGION16_BE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
+	ROM_LOAD32_WORD_SWAP( "687i15.p13", 0x000000, 0x80000, CRC(eec8c5b2) SHA1(c400dd8c7bb85d233815572acd547acf626e4c73) )
+	ROM_LOAD32_WORD_SWAP( "687i17.p16", 0x000002, 0x80000, CRC(66cb3923) SHA1(3c1fc1dff77201cf8d8c4594c965695066c1701c) )
+	ROM_LOAD32_WORD_SWAP( "687i16.p15", 0x100000, 0x80000, CRC(746cf48b) SHA1(8f51df931b1de928f402f51bbaf02e37dfec1d6d) )
+	ROM_LOAD32_WORD_SWAP( "687i18.p18", 0x100002, 0x80000, CRC(a1c7d0db) SHA1(901bc6e1982b9a8c2150a802995256d0168cc605) )
 
 	ROM_REGION16_BE( 0x20000, "gfx3", 0 )   // tile data; mapped at 0x80000 on CPUB
 	ROM_LOAD16_BYTE( "687_l11.10r", 0x00000, 0x10000, CRC(399deee8) SHA1(dcc65e95f28ae4e9b671e70ce0bd5ba0fe178506) )
@@ -884,13 +823,13 @@ ROM_START( majuu )
 	ROM_LOAD( "687_l03.10a", 0x00000,  0x8000, CRC(7201983c) SHA1(06d089406d2f702e8d51ffdfbf34e4727a28d506) )
 
 	ROM_REGION( 0x4000, "gfx1", 0 )
-	ROM_LOAD( "687_l14.d8", 0x00000,  0x4000, CRC(20ecccd6) SHA1(b8ac3186de5ea81ae1c64b9511b7a0718aabab48) ) /* Title screen graphics & characters */
+	ROM_LOAD( "687_l14.d8", 0x0000, 0x4000, CRC(20ecccd6) SHA1(b8ac3186de5ea81ae1c64b9511b7a0718aabab48) ) /* Title screen graphics & characters */
 
-	ROM_REGION16_LE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
-	ROM_LOAD16_WORD( "687i17.p16",  0x000000, 0x80000, CRC(66cb3923) SHA1(3c1fc1dff77201cf8d8c4594c965695066c1701c) )
-	ROM_LOAD16_WORD( "687i18.p18",  0x080000, 0x80000, CRC(a1c7d0db) SHA1(901bc6e1982b9a8c2150a802995256d0168cc605) )
-	ROM_LOAD16_WORD( "687i15.p13",  0x100000, 0x80000, CRC(eec8c5b2) SHA1(c400dd8c7bb85d233815572acd547acf626e4c73) )
-	ROM_LOAD16_WORD( "687i16.p15",  0x180000, 0x80000, CRC(746cf48b) SHA1(8f51df931b1de928f402f51bbaf02e37dfec1d6d) )
+	ROM_REGION16_BE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
+	ROM_LOAD32_WORD_SWAP( "687i15.p13", 0x000000, 0x80000, CRC(eec8c5b2) SHA1(c400dd8c7bb85d233815572acd547acf626e4c73) )
+	ROM_LOAD32_WORD_SWAP( "687i17.p16", 0x000002, 0x80000, CRC(66cb3923) SHA1(3c1fc1dff77201cf8d8c4594c965695066c1701c) )
+	ROM_LOAD32_WORD_SWAP( "687i16.p15", 0x100000, 0x80000, CRC(746cf48b) SHA1(8f51df931b1de928f402f51bbaf02e37dfec1d6d) )
+	ROM_LOAD32_WORD_SWAP( "687i18.p18", 0x100002, 0x80000, CRC(a1c7d0db) SHA1(901bc6e1982b9a8c2150a802995256d0168cc605) )
 
 	ROM_REGION16_BE( 0x20000, "gfx3", 0 )   // tile data; mapped at 0x80000 on CPUB
 	ROM_LOAD16_BYTE( "687_l11.10r", 0x00000, 0x10000, CRC(399deee8) SHA1(dcc65e95f28ae4e9b671e70ce0bd5ba0fe178506) )
@@ -922,13 +861,13 @@ ROM_START( darkadv )
 	ROM_REGION( 0x4000, "gfx1", 0 )
 	ROM_LOAD( "687_n14.d8", 0x0000, 0x4000, CRC(c76ac6d2) SHA1(d8fec255f1f7177a3716a5894fb679cbe172b6ea) ) /* Title screen graphics & characters */
 
-	ROM_REGION16_LE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
-	ROM_LOAD16_WORD( "687i17.p16",  0x000000, 0x80000, CRC(66cb3923) SHA1(3c1fc1dff77201cf8d8c4594c965695066c1701c) )
-	ROM_LOAD16_WORD( "687i18.p18",  0x080000, 0x80000, CRC(a1c7d0db) SHA1(901bc6e1982b9a8c2150a802995256d0168cc605) )
-	ROM_LOAD16_WORD( "687i15.p13",  0x100000, 0x80000, CRC(eec8c5b2) SHA1(c400dd8c7bb85d233815572acd547acf626e4c73) )
-	ROM_LOAD16_WORD( "687i16.p15",  0x180000, 0x80000, CRC(746cf48b) SHA1(8f51df931b1de928f402f51bbaf02e37dfec1d6d) )
+	ROM_REGION16_BE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
+	ROM_LOAD32_WORD_SWAP( "687i15.p13", 0x000000, 0x80000, CRC(eec8c5b2) SHA1(c400dd8c7bb85d233815572acd547acf626e4c73) )
+	ROM_LOAD32_WORD_SWAP( "687i17.p16", 0x000002, 0x80000, CRC(66cb3923) SHA1(3c1fc1dff77201cf8d8c4594c965695066c1701c) )
+	ROM_LOAD32_WORD_SWAP( "687i16.p15", 0x100000, 0x80000, CRC(746cf48b) SHA1(8f51df931b1de928f402f51bbaf02e37dfec1d6d) )
+	ROM_LOAD32_WORD_SWAP( "687i18.p18", 0x100002, 0x80000, CRC(a1c7d0db) SHA1(901bc6e1982b9a8c2150a802995256d0168cc605) )
 
-	ROM_REGION16_BE( 0x20000, "gfx3", 0 ) // tile data; mapped at 0x80000 on CPUB
+	ROM_REGION16_BE( 0x20000, "gfx3", 0 )   // tile data; mapped at 0x80000 on CPUB
 	ROM_LOAD16_BYTE( "687_l11.10r", 0x00000, 0x10000, CRC(399deee8) SHA1(dcc65e95f28ae4e9b671e70ce0bd5ba0fe178506) )
 	ROM_LOAD16_BYTE( "687_l10.8r",  0x00001, 0x10000, CRC(117c91ee) SHA1(dcf8efb25fc73cff916b66b7bcfd3c1fb2556a53) )
 
@@ -959,10 +898,10 @@ ROM_START( vulcan )
 	ROM_LOAD( "785_h14.d8", 0x0000, 0x4000, CRC(02f4b16f) SHA1(45addc99f520770f38c6aa69aef9af59cfc410b5) ) /* Title screen graphics & characters */
 
 	ROM_REGION16_BE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
-	ROM_LOAD16_WORD( "785f17.p16",  0x000000, 0x80000, CRC(8fbec1a4) SHA1(71cbdb25470b5a2ca7e80c92f12fc47e28085793) )
-	ROM_LOAD16_WORD( "785f18.p18",  0x080000, 0x80000, CRC(50d61e38) SHA1(051d332d93d435d19571e22d69ffc5395dbb16a4) )
-	ROM_LOAD16_WORD( "785f15.p13",  0x100000, 0x80000, CRC(af96aef3) SHA1(a58e26a8b134ab6e7938cd4fa342c04c236efd99) )
-	ROM_LOAD16_WORD( "785f16.p15",  0x180000, 0x80000, CRC(b858df1f) SHA1(c434da7ba54d59643fe6ca30bceccf16413904c3) )
+	ROM_LOAD32_WORD_SWAP( "785f15.p13", 0x000000, 0x80000, CRC(5bd239ac) SHA1(9c96f6069d06a1d80c04650ed56bc5e1508db657) )
+	ROM_LOAD32_WORD_SWAP( "785f17.p16", 0x000002, 0x80000, CRC(4e7a7b82) SHA1(520b5ebd400954042d55cf243842a6d6b6d10210) )
+	ROM_LOAD32_WORD_SWAP( "785f16.p15", 0x100000, 0x80000, CRC(95c6b8a3) SHA1(0a906af72d08993fd83f23d72ffb919801aa17af) )
+	ROM_LOAD32_WORD_SWAP( "785f18.p18", 0x100002, 0x80000, CRC(3f604e9a) SHA1(c5e0b6f6dd506209e8c07cbae89c821828f488ff) )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
@@ -993,10 +932,10 @@ ROM_START( vulcana )
 	ROM_LOAD( "785_h14.d8", 0x0000, 0x4000, CRC(02f4b16f) SHA1(45addc99f520770f38c6aa69aef9af59cfc410b5) ) /* Title screen graphics & characters */
 
 	ROM_REGION16_BE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
-	ROM_LOAD16_WORD( "785f17.p16",  0x000000, 0x80000, CRC(8fbec1a4) SHA1(71cbdb25470b5a2ca7e80c92f12fc47e28085793) )
-	ROM_LOAD16_WORD( "785f18.p18",  0x080000, 0x80000, CRC(50d61e38) SHA1(051d332d93d435d19571e22d69ffc5395dbb16a4) )
-	ROM_LOAD16_WORD( "785f15.p13",  0x100000, 0x80000, CRC(af96aef3) SHA1(a58e26a8b134ab6e7938cd4fa342c04c236efd99) )
-	ROM_LOAD16_WORD( "785f16.p15",  0x180000, 0x80000, CRC(b858df1f) SHA1(c434da7ba54d59643fe6ca30bceccf16413904c3) )
+	ROM_LOAD32_WORD_SWAP( "785f15.p13", 0x000000, 0x80000, CRC(5bd239ac) SHA1(9c96f6069d06a1d80c04650ed56bc5e1508db657) )
+	ROM_LOAD32_WORD_SWAP( "785f17.p16", 0x000002, 0x80000, CRC(4e7a7b82) SHA1(520b5ebd400954042d55cf243842a6d6b6d10210) )
+	ROM_LOAD32_WORD_SWAP( "785f16.p15", 0x100000, 0x80000, CRC(95c6b8a3) SHA1(0a906af72d08993fd83f23d72ffb919801aa17af) )
+	ROM_LOAD32_WORD_SWAP( "785f18.p18", 0x100002, 0x80000, CRC(3f604e9a) SHA1(c5e0b6f6dd506209e8c07cbae89c821828f488ff) )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
@@ -1027,10 +966,10 @@ ROM_START( vulcanb )
 	ROM_LOAD( "785_h14.d8", 0x0000, 0x4000, CRC(02f4b16f) SHA1(45addc99f520770f38c6aa69aef9af59cfc410b5) ) /* Title screen graphics & characters */
 
 	ROM_REGION16_BE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
-	ROM_LOAD16_WORD( "785f17.p16",  0x000000, 0x80000, CRC(8fbec1a4) SHA1(71cbdb25470b5a2ca7e80c92f12fc47e28085793) )
-	ROM_LOAD16_WORD( "785f18.p18",  0x080000, 0x80000, CRC(50d61e38) SHA1(051d332d93d435d19571e22d69ffc5395dbb16a4) )
-	ROM_LOAD16_WORD( "785f15.p13",  0x100000, 0x80000, CRC(af96aef3) SHA1(a58e26a8b134ab6e7938cd4fa342c04c236efd99) )
-	ROM_LOAD16_WORD( "785f16.p15",  0x180000, 0x80000, CRC(b858df1f) SHA1(c434da7ba54d59643fe6ca30bceccf16413904c3) )
+	ROM_LOAD32_WORD_SWAP( "785f15.p13", 0x000000, 0x80000, CRC(5bd239ac) SHA1(9c96f6069d06a1d80c04650ed56bc5e1508db657) )
+	ROM_LOAD32_WORD_SWAP( "785f17.p16", 0x000002, 0x80000, CRC(4e7a7b82) SHA1(520b5ebd400954042d55cf243842a6d6b6d10210) )
+	ROM_LOAD32_WORD_SWAP( "785f16.p15", 0x100000, 0x80000, CRC(95c6b8a3) SHA1(0a906af72d08993fd83f23d72ffb919801aa17af) )
+	ROM_LOAD32_WORD_SWAP( "785f18.p18", 0x100002, 0x80000, CRC(3f604e9a) SHA1(c5e0b6f6dd506209e8c07cbae89c821828f488ff) )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
@@ -1061,15 +1000,10 @@ ROM_START( gradius2 )
 	ROM_LOAD( "785_g14.d8", 0x0000, 0x4000, CRC(9dcdad9d) SHA1(22f457408b453a71b7e91974aee1b1e735ff887f) ) /* Title screen graphics & characters */
 
 	ROM_REGION16_BE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
-	ROM_LOAD16_WORD_SWAP( "gr2.p16",    0x000000, 0x80000, CRC(4e7a7b82) SHA1(520b5ebd400954042d55cf243842a6d6b6d10210) ) /* 785f17.p16 byteswapped */
-	ROM_LOAD16_WORD_SWAP( "gr2.p18",    0x080000, 0x80000, CRC(3f604e9a) SHA1(c5e0b6f6dd506209e8c07cbae89c821828f488ff) ) /* 785f18.p18 byteswapped */
-	ROM_LOAD16_WORD_SWAP( "gr2.p13",    0x100000, 0x80000, CRC(5bd239ac) SHA1(9c96f6069d06a1d80c04650ed56bc5e1508db657) ) /* 785f15.p13 byteswapped */
-	ROM_LOAD16_WORD_SWAP( "gr2.p15",    0x180000, 0x80000, CRC(95c6b8a3) SHA1(0a906af72d08993fd83f23d72ffb919801aa17af) ) /* 785f16.p15 byteswapped */
-
-//  ROM_LOAD16_WORD( "785f17.p16",  0x000000, 0x80000, CRC(8fbec1a4) SHA1(71cbdb25470b5a2ca7e80c92f12fc47e28085793) ) /* not working in a original PCB */
-//  ROM_LOAD16_WORD( "785f18.p18",  0x080000, 0x80000, CRC(50d61e38) SHA1(051d332d93d435d19571e22d69ffc5395dbb16a4) ) /* not working in a original PCB */
-//  ROM_LOAD16_WORD( "785f15.p13",  0x100000, 0x80000, CRC(af96aef3) SHA1(a58e26a8b134ab6e7938cd4fa342c04c236efd99) ) /* not working in a original PCB */
-//  ROM_LOAD16_WORD( "785f16.p15",  0x180000, 0x80000, CRC(b858df1f) SHA1(c434da7ba54d59643fe6ca30bceccf16413904c3) ) /* not working in a original PCB */
+	ROM_LOAD32_WORD_SWAP( "785f15.p13", 0x000000, 0x80000, CRC(5bd239ac) SHA1(9c96f6069d06a1d80c04650ed56bc5e1508db657) )
+	ROM_LOAD32_WORD_SWAP( "785f17.p16", 0x000002, 0x80000, CRC(4e7a7b82) SHA1(520b5ebd400954042d55cf243842a6d6b6d10210) )
+	ROM_LOAD32_WORD_SWAP( "785f16.p15", 0x100000, 0x80000, CRC(95c6b8a3) SHA1(0a906af72d08993fd83f23d72ffb919801aa17af) )
+	ROM_LOAD32_WORD_SWAP( "785f18.p18", 0x100002, 0x80000, CRC(3f604e9a) SHA1(c5e0b6f6dd506209e8c07cbae89c821828f488ff) )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
@@ -1100,10 +1034,10 @@ ROM_START( gradius2a )
 	ROM_LOAD( "785_g14.d8", 0x0000, 0x4000, CRC(9dcdad9d) SHA1(22f457408b453a71b7e91974aee1b1e735ff887f) ) /* Title screen graphics & characters */
 
 	ROM_REGION16_BE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
-	ROM_LOAD16_WORD( "785f17.p16",  0x000000, 0x80000, CRC(8fbec1a4) SHA1(71cbdb25470b5a2ca7e80c92f12fc47e28085793) )
-	ROM_LOAD16_WORD( "785f18.p18",  0x080000, 0x80000, CRC(50d61e38) SHA1(051d332d93d435d19571e22d69ffc5395dbb16a4) )
-	ROM_LOAD16_WORD( "785f15.p13",  0x100000, 0x80000, CRC(af96aef3) SHA1(a58e26a8b134ab6e7938cd4fa342c04c236efd99) )
-	ROM_LOAD16_WORD( "785f16.p15",  0x180000, 0x80000, CRC(b858df1f) SHA1(c434da7ba54d59643fe6ca30bceccf16413904c3) )
+	ROM_LOAD32_WORD_SWAP( "785f15.p13", 0x000000, 0x80000, CRC(5bd239ac) SHA1(9c96f6069d06a1d80c04650ed56bc5e1508db657) )
+	ROM_LOAD32_WORD_SWAP( "785f17.p16", 0x000002, 0x80000, CRC(4e7a7b82) SHA1(520b5ebd400954042d55cf243842a6d6b6d10210) )
+	ROM_LOAD32_WORD_SWAP( "785f16.p15", 0x100000, 0x80000, CRC(95c6b8a3) SHA1(0a906af72d08993fd83f23d72ffb919801aa17af) )
+	ROM_LOAD32_WORD_SWAP( "785f18.p18", 0x100002, 0x80000, CRC(3f604e9a) SHA1(c5e0b6f6dd506209e8c07cbae89c821828f488ff) )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
@@ -1134,10 +1068,10 @@ ROM_START( gradius2b )
 	ROM_LOAD( "785_g14.d8", 0x0000, 0x4000, CRC(9dcdad9d) SHA1(22f457408b453a71b7e91974aee1b1e735ff887f) ) /* Title screen graphics & characters */
 
 	ROM_REGION16_BE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
-	ROM_LOAD16_WORD( "785f17.p16",  0x000000, 0x80000, CRC(8fbec1a4) SHA1(71cbdb25470b5a2ca7e80c92f12fc47e28085793) )
-	ROM_LOAD16_WORD( "785f18.p18",  0x080000, 0x80000, CRC(50d61e38) SHA1(051d332d93d435d19571e22d69ffc5395dbb16a4) )
-	ROM_LOAD16_WORD( "785f15.p13",  0x100000, 0x80000, CRC(af96aef3) SHA1(a58e26a8b134ab6e7938cd4fa342c04c236efd99) )
-	ROM_LOAD16_WORD( "785f16.p15",  0x180000, 0x80000, CRC(b858df1f) SHA1(c434da7ba54d59643fe6ca30bceccf16413904c3) )
+	ROM_LOAD32_WORD_SWAP( "785f15.p13", 0x000000, 0x80000, CRC(5bd239ac) SHA1(9c96f6069d06a1d80c04650ed56bc5e1508db657) )
+	ROM_LOAD32_WORD_SWAP( "785f17.p16", 0x000002, 0x80000, CRC(4e7a7b82) SHA1(520b5ebd400954042d55cf243842a6d6b6d10210) )
+	ROM_LOAD32_WORD_SWAP( "785f16.p15", 0x100000, 0x80000, CRC(95c6b8a3) SHA1(0a906af72d08993fd83f23d72ffb919801aa17af) )
+	ROM_LOAD32_WORD_SWAP( "785f18.p18", 0x100002, 0x80000, CRC(3f604e9a) SHA1(c5e0b6f6dd506209e8c07cbae89c821828f488ff) )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
@@ -1159,11 +1093,11 @@ ROM_START( fround )
 	ROM_REGION( 0x4000, "gfx1", 0 )
 	ROM_LOAD( "870_f14.d8", 0x0000, 0x4000, CRC(c9b46615) SHA1(c0cddb1af47b8e0865055624cf4e89a111ac1b0f) ) /* Title screen graphics & characters */
 
-	ROM_REGION16_LE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
-	ROM_LOAD16_WORD("870c18.p18", 0x000000, 0x80000, CRC(07927fe8) SHA1(0ab5e0e785347fbed5c4b930a32876d6ce2bef4a) )
-	ROM_LOAD16_WORD("870c17.p16", 0x080000, 0x80000, CRC(2bc99ff8) SHA1(9a06502317a71ca5662b79aedf47379b8e5434a9) )
-	ROM_LOAD16_WORD("870c16.p15", 0x100000, 0x80000, CRC(41df6a1b) SHA1(32e0fdeb53628d18adde851e4496dd01ac6ec68f) )
-	ROM_LOAD16_WORD("870c15.p13", 0x180000, 0x80000, CRC(8c9281df) SHA1(5e3d80be414db108d5363d0ea1b74021ba942c33) )
+	ROM_REGION16_BE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
+	ROM_LOAD32_WORD_SWAP( "870c16.p15", 0x000000, 0x80000, CRC(41df6a1b) SHA1(32e0fdeb53628d18adde851e4496dd01ac6ec68f) )
+	ROM_LOAD32_WORD_SWAP( "870c18.p18", 0x000002, 0x80000, CRC(07927fe8) SHA1(0ab5e0e785347fbed5c4b930a32876d6ce2bef4a) )
+	ROM_LOAD32_WORD_SWAP( "870c15.p13", 0x100000, 0x80000, CRC(8c9281df) SHA1(5e3d80be414db108d5363d0ea1b74021ba942c33) )
+	ROM_LOAD32_WORD_SWAP( "870c17.p16", 0x100002, 0x80000, CRC(2bc99ff8) SHA1(9a06502317a71ca5662b79aedf47379b8e5434a9) )
 
 	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "870_c01.5a", 0x00000, 0x20000, CRC(6af96546) SHA1(63b49b28c0f2ef8f52bc4c5955ad6a633dd553cf) )
@@ -1183,11 +1117,11 @@ ROM_START( froundl )
 	ROM_REGION( 0x4000, "gfx1", 0 )
 	ROM_LOAD( "870_f14.d8", 0x0000, 0x4000, CRC(c9b46615) SHA1(c0cddb1af47b8e0865055624cf4e89a111ac1b0f) ) /* Title screen graphics & characters */
 
-	ROM_REGION16_LE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
-	ROM_LOAD16_WORD("870c18.p18", 0x000000, 0x80000, CRC(07927fe8) SHA1(0ab5e0e785347fbed5c4b930a32876d6ce2bef4a) )
-	ROM_LOAD16_WORD("870c17.p16", 0x080000, 0x80000, CRC(2bc99ff8) SHA1(9a06502317a71ca5662b79aedf47379b8e5434a9) )
-	ROM_LOAD16_WORD("870c16.p15", 0x100000, 0x80000, CRC(41df6a1b) SHA1(32e0fdeb53628d18adde851e4496dd01ac6ec68f) )
-	ROM_LOAD16_WORD("870c15.p13", 0x180000, 0x80000, CRC(8c9281df) SHA1(5e3d80be414db108d5363d0ea1b74021ba942c33) )
+	ROM_REGION16_BE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
+	ROM_LOAD32_WORD_SWAP( "870c16.p15", 0x000000, 0x80000, CRC(41df6a1b) SHA1(32e0fdeb53628d18adde851e4496dd01ac6ec68f) )
+	ROM_LOAD32_WORD_SWAP( "870c18.p18", 0x000002, 0x80000, CRC(07927fe8) SHA1(0ab5e0e785347fbed5c4b930a32876d6ce2bef4a) )
+	ROM_LOAD32_WORD_SWAP( "870c15.p13", 0x100000, 0x80000, CRC(8c9281df) SHA1(5e3d80be414db108d5363d0ea1b74021ba942c33) )
+	ROM_LOAD32_WORD_SWAP( "870c17.p16", 0x100002, 0x80000, CRC(2bc99ff8) SHA1(9a06502317a71ca5662b79aedf47379b8e5434a9) )
 
 	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "870_c01.5a", 0x00000, 0x20000, CRC(6af96546) SHA1(63b49b28c0f2ef8f52bc4c5955ad6a633dd553cf) )
@@ -1213,11 +1147,13 @@ ROM_START( hpuncher )
 	ROM_REGION( 0x4000, "gfx1", 0 )
 	ROM_LOAD( "870_f14.d8", 0x0000, 0x4000, CRC(c9b46615) SHA1(c0cddb1af47b8e0865055624cf4e89a111ac1b0f) ) /* Title screen graphics & characters */
 
-	ROM_REGION16_LE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
-	ROM_LOAD16_WORD("870c17.p16", 0x000000, 0x80000, CRC(2bc99ff8) SHA1(9a06502317a71ca5662b79aedf47379b8e5434a9) )
-	ROM_LOAD16_WORD("870c18.p18", 0x080000, 0x80000, CRC(07927fe8) SHA1(0ab5e0e785347fbed5c4b930a32876d6ce2bef4a) )
-	ROM_LOAD16_WORD("870c15.p13", 0x100000, 0x80000, CRC(8c9281df) SHA1(5e3d80be414db108d5363d0ea1b74021ba942c33) )
-	ROM_LOAD16_WORD("870c16.p15", 0x180000, 0x80000, CRC(41df6a1b) SHA1(32e0fdeb53628d18adde851e4496dd01ac6ec68f) )
+	ROM_REGION16_BE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
+	ROM_LOAD32_WORD_SWAP( "870c15.p13", 0x000000, 0x80000, CRC(8c9281df) SHA1(5e3d80be414db108d5363d0ea1b74021ba942c33) )
+	ROM_LOAD32_WORD_SWAP( "870c17.p16", 0x000002, 0x80000, CRC(2bc99ff8) SHA1(9a06502317a71ca5662b79aedf47379b8e5434a9) )
+	ROM_LOAD32_WORD_SWAP( "870c16.p15", 0x100000, 0x80000, CRC(41df6a1b) SHA1(32e0fdeb53628d18adde851e4496dd01ac6ec68f) )
+	ROM_LOAD32_WORD_SWAP( "870c18.p18", 0x100002, 0x80000, CRC(07927fe8) SHA1(0ab5e0e785347fbed5c4b930a32876d6ce2bef4a) )
+
+	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
 	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "870_c01.5a", 0x00000, 0x20000, CRC(6af96546) SHA1(63b49b28c0f2ef8f52bc4c5955ad6a633dd553cf) )
@@ -1245,9 +1181,9 @@ ROM_START( miaj )
 	ROM_REGION( 0x4000, "gfx1", 0 )
 	ROM_LOAD("808_e14.d8", 0x0000, 0x4000, CRC(b9d36525) SHA1(53291c4911d7e1a5110539e4c57a11d0d530dc6f) ) /* Title screen graphics & characters */
 
-	ROM_REGION16_LE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
-	ROM_LOAD16_WORD("808d17.p16", 0x000000, 0x80000, CRC(d1299082) SHA1(c3c07b0517e7428ccd1cdf9e15aaf16d98e7c4cd) )
-	ROM_LOAD16_WORD("808d15.p13", 0x100000, 0x80000, CRC(2b22a6b6) SHA1(8e1af0627a4eac045128c4096e2cfb59c3d2f5ef) )
+	ROM_REGION16_BE( 0x200000, "gfx2", 0 )  // gfx data used at runtime
+	ROM_LOAD32_WORD_SWAP("808d15.p13", 0x000000, 0x80000, CRC(2b22a6b6) SHA1(8e1af0627a4eac045128c4096e2cfb59c3d2f5ef) )
+	ROM_LOAD32_WORD_SWAP("808d17.p16", 0x000002, 0x80000, CRC(d1299082) SHA1(c3c07b0517e7428ccd1cdf9e15aaf16d98e7c4cd) )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
@@ -1292,40 +1228,35 @@ ROM_END
 
 /* Driver Initialization */
 
-void twin16_state::gfx_untangle(  )
-{
-	// sprite, tile data
-	int i;
-	UINT16 *temp = auto_alloc_array(machine(), UINT16, 0x200000/2);
-
-	m_gfx_rom = (UINT16 *)memregion("gfx2")->base();
-	memcpy( temp, m_gfx_rom, 0x200000 );
-
-	for( i=0; i<0x080000; i++ )
-	{
-		m_gfx_rom[i*2+0] = temp[i+0x080000];
-		m_gfx_rom[i*2+1] = temp[i];
-	}
-	auto_free( machine(), temp );
-}
-
 DRIVER_INIT_MEMBER(twin16_state,twin16)
 {
-	gfx_untangle();
 	m_custom_video = 0;
 }
 
 DRIVER_INIT_MEMBER(twin16_state,fround)
 {
-	gfx_untangle();
 	m_custom_video = 1;
 }
 
-DRIVER_INIT_MEMBER(twin16_state,cuebrickj)
+WRITE8_MEMBER(cuebrickj_state::nvram_bank_w)
 {
-	gfx_untangle();
+	membank("nvrambank")->set_entry(data);
+}
 
-	machine().device<nvram_device>("nvram")->set_base(m_cuebrickj_nvram, 0x400*0x20);
+DRIVER_INIT_MEMBER(cuebrickj_state,cuebrickj)
+{
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+
+	space.install_readwrite_bank(0x0b0000, 0x0b03ff, "nvrambank");
+	space.install_write_handler( 0x0b0400, 0x0b0401, WRITE8_DELEGATE(cuebrickj_state, nvram_bank_w), 0xff00);
+
+	membank("nvrambank")->configure_entries(0, 0x20, m_nvram, 0x400);
+
+	machine().device<nvram_device>("nvram")->set_base(m_nvram, sizeof(m_nvram));
+
+	save_item(NAME(m_nvram));
+
+	m_custom_video = 0;
 }
 
 /* Game Drivers */
@@ -1335,8 +1266,8 @@ GAME( 1987, devilw,    0,        devilw,    devilw, twin16_state,    twin16,    
 GAME( 1987, majuu,     devilw,   devilw,    devilw, twin16_state,    twin16,    ROT0,   "Konami", "Majuu no Ohkoku", GAME_SUPPORTS_SAVE )
 GAME( 1987, darkadv,   devilw,   devilw,    darkadv, twin16_state,   twin16,    ROT0,   "Konami", "Dark Adventure", GAME_SUPPORTS_SAVE )
 GAME( 1988, vulcan,    0,        twin16,    vulcan, twin16_state,    twin16,    ROT0,   "Konami", "Vulcan Venture (New)", GAME_SUPPORTS_SAVE )
-GAME( 1988, vulcana,   vulcan,   twin16,    gradius2, twin16_state,  twin16,    ROT0,   "Konami", "Vulcan Venture (Old)", GAME_SUPPORTS_SAVE )
-GAME( 1988, vulcanb,   vulcan,   twin16,    gradius2, twin16_state,  twin16,    ROT0,   "Konami", "Vulcan Venture (Oldest)", GAME_SUPPORTS_SAVE )
+GAME( 1988, vulcana,   vulcan,   twin16,    vulcan, twin16_state,    twin16,    ROT0,   "Konami", "Vulcan Venture (Old)", GAME_SUPPORTS_SAVE )
+GAME( 1988, vulcanb,   vulcan,   twin16,    vulcan, twin16_state,    twin16,    ROT0,   "Konami", "Vulcan Venture (Oldest)", GAME_SUPPORTS_SAVE )
 GAME( 1988, gradius2,  vulcan,   twin16,    gradius2, twin16_state,  twin16,    ROT0,   "Konami", "Gradius II - GOFER no Yabou (Japan New Ver.)", GAME_SUPPORTS_SAVE )
 GAME( 1988, gradius2a, vulcan,   twin16,    vulcan, twin16_state,    twin16,    ROT0,   "Konami", "Gradius II - GOFER no Yabou (Japan Old Ver.)", GAME_SUPPORTS_SAVE )
 GAME( 1988, gradius2b, vulcan,   twin16,    vulcan, twin16_state,    twin16,    ROT0,   "Konami", "Gradius II - GOFER no Yabou (Japan Older Ver.)", GAME_SUPPORTS_SAVE )
@@ -1344,5 +1275,5 @@ GAME( 1988, gradius2b, vulcan,   twin16,    vulcan, twin16_state,    twin16,    
 GAME( 1988, fround,    0,        fround,    fround, twin16_state,    fround,    ROT0,   "Konami", "The Final Round (version M)", GAME_SUPPORTS_SAVE )
 GAME( 1988, froundl,   fround,   fround,    fround, twin16_state,    fround,    ROT0,   "Konami", "The Final Round (version L)", GAME_SUPPORTS_SAVE )
 GAME( 1988, hpuncher,  fround,   twin16,    fround, twin16_state,    twin16,    ROT0,   "Konami", "Hard Puncher (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1989, miaj,      mia,      miaj,      miaj, twin16_state,      twin16,    ROT0,   "Konami", "M.I.A. - Missing in Action (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1989, cuebrickj, cuebrick, cuebrickj, cuebrickj, twin16_state, cuebrickj, ROT0,   "Konami", "Cue Brick (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1989, miaj,      mia,      miaj,      miaj,   twin16_state,    twin16,    ROT0,   "Konami", "M.I.A. - Missing in Action (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1989, cuebrickj, cuebrick, cuebrickj, cuebrickj, cuebrickj_state, cuebrickj, ROT0, "Konami", "Cue Brick (Japan)", GAME_SUPPORTS_SAVE )

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __TEK405X__
@@ -9,7 +11,8 @@
 #include "machine/ram.h"
 #include "machine/6821pia.h"
 #include "machine/6850acia.h"
-#include "machine/ieee488.h"
+#include "machine/clock.h"
+#include "bus/ieee488/ieee488.h"
 #include "machine/ram.h"
 #include "sound/speaker.h"
 #include "video/vector.h"
@@ -30,25 +33,28 @@
 class tek4051_state : public driver_device
 {
 public:
-	tek4051_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, MC6800_TAG),
-			m_gpib_pia(*this, MC6820_GPIB_TAG),
-			m_com_pia(*this, MC6820_COM_TAG),
-			m_acia(*this, MC6850_TAG),
-			m_gpib(*this, IEEE488_TAG),
-			m_speaker(*this, "speaker"),
-			m_ram(*this, RAM_TAG),
-			m_rom(*this, MC6800_TAG),
-			m_bsofl_rom(*this, "020_0147_00"),
-			m_bscom_rom(*this, "021_0188_00"),
-			m_special(*this, "SPECIAL")
-		{ }
+	tek4051_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
+		m_maincpu(*this, MC6800_TAG),
+		m_gpib_pia(*this, MC6820_GPIB_TAG),
+		m_com_pia(*this, MC6820_COM_TAG),
+		m_acia(*this, MC6850_TAG),
+		m_acia_clock(*this, "acia_clock"),
+		m_gpib(*this, IEEE488_TAG),
+		m_speaker(*this, "speaker"),
+		m_ram(*this, RAM_TAG),
+		m_rom(*this, MC6800_TAG),
+		m_bsofl_rom(*this, "020_0147_00"),
+		m_bscom_rom(*this, "021_0188_00"),
+		m_special(*this, "SPECIAL")
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<pia6821_device> m_gpib_pia;
 	required_device<pia6821_device> m_com_pia;
 	required_device<acia6850_device> m_acia;
+	required_device<clock_device> m_acia_clock;
 	required_device<ieee488_device> m_gpib;
 	required_device<speaker_sound_device> m_speaker;
 	required_device<ram_device> m_ram;
@@ -72,7 +78,6 @@ public:
 	DECLARE_WRITE8_MEMBER( x_pia_pa_w );
 	DECLARE_WRITE8_MEMBER( x_pia_pb_w );
 	DECLARE_WRITE_LINE_MEMBER( adot_w );
-	DECLARE_READ_LINE_MEMBER( viewcause_r );
 	DECLARE_WRITE_LINE_MEMBER( bufclk_w );
 	DECLARE_WRITE_LINE_MEMBER( x_pia_irqa_w );
 	DECLARE_WRITE_LINE_MEMBER( x_pia_irqb_w );
@@ -80,9 +85,6 @@ public:
 	DECLARE_READ8_MEMBER( sa_r );
 	DECLARE_WRITE8_MEMBER( y_pia_pa_w );
 	DECLARE_WRITE8_MEMBER( sb_w );
-	DECLARE_READ_LINE_MEMBER( rdbyte_r );
-	DECLARE_READ_LINE_MEMBER( mdata_r );
-	DECLARE_READ_LINE_MEMBER( fmark_r );
 	DECLARE_WRITE_LINE_MEMBER( sot_w );
 	DECLARE_WRITE_LINE_MEMBER( y_pia_irqa_w );
 	DECLARE_WRITE_LINE_MEMBER( y_pia_irqb_w );
@@ -90,7 +92,6 @@ public:
 	DECLARE_READ8_MEMBER( kb_pia_pa_r );
 	DECLARE_READ8_MEMBER( kb_pia_pb_r );
 	DECLARE_WRITE8_MEMBER( kb_pia_pb_w );
-	DECLARE_READ_LINE_MEMBER( key_r );
 	DECLARE_WRITE_LINE_MEMBER( kb_halt_w );
 	DECLARE_WRITE_LINE_MEMBER( kb_pia_irqa_w );
 	DECLARE_WRITE_LINE_MEMBER( kb_pia_irqb_w );
@@ -98,10 +99,6 @@ public:
 	DECLARE_READ8_MEMBER( tape_pia_pa_r );
 	DECLARE_WRITE8_MEMBER( tape_pia_pa_w );
 	DECLARE_WRITE8_MEMBER( tape_pia_pb_w );
-	DECLARE_READ_LINE_MEMBER( rmark_r );
-	DECLARE_READ_LINE_MEMBER( lohole_r );
-	DECLARE_READ_LINE_MEMBER( filfnd_r );
-	DECLARE_READ_LINE_MEMBER( uphole_r );
 	DECLARE_WRITE_LINE_MEMBER( tape_pia_irqa_w );
 	DECLARE_WRITE_LINE_MEMBER( tape_pia_irqb_w );
 
@@ -118,6 +115,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( com_pia_irqa_w );
 	DECLARE_WRITE_LINE_MEMBER( com_pia_irqb_w );
 	DECLARE_WRITE_LINE_MEMBER( acia_irq_w );
+	DECLARE_WRITE_LINE_MEMBER( write_acia_clock );
 
 	// interrupts
 	int m_x_pia_irqa;
@@ -137,7 +135,6 @@ public:
 	// keyboard
 	int m_kbhalt;
 	int m_kc;
-	int m_key;
 
 	// GPIB
 	int m_talk;

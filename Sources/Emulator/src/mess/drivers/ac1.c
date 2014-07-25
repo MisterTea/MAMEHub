@@ -126,7 +126,11 @@ static MACHINE_CONFIG_START( ac1, ac1_state )
 	MCFG_CPU_PROGRAM_MAP(ac1_mem)
 	MCFG_CPU_IO_MAP(ac1_io)
 
-	MCFG_Z80PIO_ADD( "z80pio", XTAL_8MHz / 4, ac1_z80pio_intf )
+	MCFG_DEVICE_ADD("z80pio", Z80PIO, XTAL_8MHz / 4)
+	MCFG_Z80PIO_IN_PA_CB(READ8(ac1_state, ac1_port_a_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(ac1_state, ac1_port_a_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(ac1_state, ac1_port_b_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(ac1_state, ac1_port_b_w))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -135,18 +139,17 @@ static MACHINE_CONFIG_START( ac1, ac1_state )
 	MCFG_SCREEN_SIZE(64*6, 16*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 64*6-1, 0, 16*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ac1_state, screen_update_ac1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE( ac1 )
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ac1 )
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
-
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ac1_32, ac1 )

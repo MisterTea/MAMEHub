@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     P&P Marketing Police Trainer hardware
@@ -211,7 +213,7 @@ WRITE32_MEMBER(policetr_state::speedup_w)
 	/* see if the PC matches */
 	if ((space.device().safe_pcbase() & 0x1fffffff) == m_speedup_pc)
 	{
-		UINT64 curr_cycles = machine().firstcpu->total_cycles();
+		UINT64 curr_cycles = m_maincpu->total_cycles();
 
 		/* if less than 50 cycles from the last time, count it */
 		if (curr_cycles - m_last_cycles < 50)
@@ -400,15 +402,15 @@ static MACHINE_CONFIG_START( policetr, policetr_state )
 	MCFG_EEPROM_SERIAL_93C66_ADD("eeprom")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(400, 262)  /* needs to be verified */
 	MCFG_SCREEN_VISIBLE_AREA(0, 393, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(policetr_state, screen_update_policetr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_ADD("palette", 256)
 
 
 	/* sound hardware */

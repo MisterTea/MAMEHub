@@ -468,34 +468,6 @@ READ8_MEMBER(tx1_state::bbjr_analog_r)
 
 /*************************************
  *
- *  8255 PPI Interfaces
- *
- *************************************/
-
-/* Buggy Boy uses an 8255 PPI instead of YM2149 ports for inputs! */
-static I8255A_INTERFACE( buggyboy_ppi8255_intf )
-{
-	DEVCB_INPUT_PORT("PPI_PORTA"),                      /* Port A read */
-	DEVCB_NULL,                                         /* Port A write */
-	DEVCB_NULL,                                         /* Port B read */
-	DEVCB_DRIVER_MEMBER(tx1_state,bb_coin_cnt_w),       /* Port B write */
-	DEVCB_INPUT_PORT("PPI_PORTC"),                      /* Port C read */
-	DEVCB_NULL                                          /* Port C write */
-};
-
-static I8255A_INTERFACE( tx1_ppi8255_intf )
-{
-	DEVCB_DRIVER_MEMBER(tx1_state,tx1_ppi_porta_r),     /* Port A read */
-	DEVCB_NULL,                                         /* Port A write */
-	DEVCB_DRIVER_MEMBER(tx1_state,tx1_ppi_portb_r),     /* Port B read */
-	DEVCB_NULL,                                         /* Port B write */
-	DEVCB_INPUT_PORT("PPI_PORTC"),                      /* Port C read */
-	DEVCB_DRIVER_MEMBER(tx1_state,tx1_coin_cnt_w)       /* Port C write */
-};
-
-
-/*************************************
- *
  *  TX-1 Memory Maps
  *
  *************************************/
@@ -622,68 +594,6 @@ static ADDRESS_MAP_START( buggyboy_sound_io, AS_IO, 8, tx1_state )
 	AM_RANGE(0x80, 0x81) AM_DEVWRITE("ym2", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
-
-/*************************************
- *
- *  Sound Hardware
- *
- *************************************/
-
-static const ay8910_interface tx1_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER("tx1", tx1_sound_device, ay8910_a_w),
-	DEVCB_DEVICE_MEMBER("tx1", tx1_sound_device, ay8910_b_w),
-};
-
-
-static const ay8910_interface buggyboy_ym2149_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER("buggyboy", buggyboy_sound_device, ym1_a_w),
-	DEVCB_NULL,
-};
-
-static const ay8910_interface buggyboy_ym2149_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER("buggyboy", buggyboy_sound_device, ym2_a_w),
-	DEVCB_DEVICE_MEMBER("buggyboy", buggyboy_sound_device, ym2_b_w),
-};
-
-
-/* YM2149 IC19 */
-static const ay8910_interface buggybjr_ym2149_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("YM2149_IC19_A"),
-	DEVCB_INPUT_PORT("YM2149_IC19_B"),
-	DEVCB_NULL,
-	DEVCB_NULL,
-};
-
-/* YM2149 IC24 */
-static const ay8910_interface buggybjr_ym2149_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER("buggyboy", buggyboy_sound_device, ym2_a_w),
-	DEVCB_DEVICE_MEMBER("buggyboy", buggyboy_sound_device, ym2_b_w),
-};
-
-
 /*************************************
  *
  *  Machine driver
@@ -706,25 +616,32 @@ static MACHINE_CONFIG_START( tx1, tx1_state )
 	MCFG_MACHINE_RESET_OVERRIDE(tx1_state,tx1)
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_I8255A_ADD("ppi8255", tx1_ppi8255_intf)
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(tx1_state, tx1_ppi_porta_r))
+	MCFG_I8255_IN_PORTB_CB(READ8(tx1_state, tx1_ppi_portb_r))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("PPI_PORTC"))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(tx1_state, tx1_coin_cnt_w))
 
-	MCFG_PALETTE_LENGTH(256)
-	MCFG_PALETTE_INIT_OVERRIDE(tx1_state,tx1)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(tx1_state,tx1)
 
 	MCFG_DEFAULT_LAYOUT(layout_triphsxs)
 
 	MCFG_SCREEN_ADD("lscreen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(TX1_PIXEL_CLOCK, TX1_HTOTAL, TX1_HBEND, TX1_HBSTART, TX1_VTOTAL, TX1_VBEND, TX1_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(tx1_state, screen_update_tx1_left)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(TX1_PIXEL_CLOCK, TX1_HTOTAL, TX1_HBEND, TX1_HBSTART, TX1_VTOTAL, TX1_VBEND, TX1_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(tx1_state, screen_update_tx1_middle)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("rscreen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(TX1_PIXEL_CLOCK, TX1_HTOTAL, TX1_HBEND, TX1_HBSTART, TX1_VTOTAL, TX1_VBEND, TX1_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(tx1_state, screen_update_tx1_right)
 	MCFG_SCREEN_VBLANK_DRIVER(tx1_state, screen_eof_tx1)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(tx1_state,tx1)
 
@@ -733,7 +650,8 @@ static MACHINE_CONFIG_START( tx1, tx1_state )
 
 
 	MCFG_SOUND_ADD("aysnd", AY8910, TX1_PIXEL_CLOCK / 8)
-	MCFG_SOUND_CONFIG(tx1_ay8910_interface)
+	MCFG_AY8910_PORT_A_WRITE_CB(DEVWRITE8("tx1", tx1_sound_device, ay8910_a_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("tx1", tx1_sound_device, ay8910_b_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "frontleft", 0.1)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "frontright", 0.1)
 
@@ -759,36 +677,44 @@ static MACHINE_CONFIG_START( buggyboy, tx1_state )
 	MCFG_MACHINE_RESET_OVERRIDE(tx1_state,buggyboy)
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_I8255A_ADD("ppi8255", buggyboy_ppi8255_intf)
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	/* Buggy Boy uses an 8255 PPI instead of YM2149 ports for inputs! */
+	MCFG_I8255_IN_PORTA_CB(IOPORT("PPI_PORTA"))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(tx1_state, bb_coin_cnt_w))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("PPI_PORTC"))
 
 	MCFG_DEFAULT_LAYOUT(layout_triphsxs)
 
 	MCFG_SCREEN_ADD("lscreen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(BB_PIXEL_CLOCK, BB_HTOTAL, BB_HBEND, BB_HBSTART, BB_VTOTAL, BB_VBEND, BB_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(tx1_state, screen_update_buggyboy_left)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(BB_PIXEL_CLOCK, BB_HTOTAL, BB_HBEND, BB_HBSTART, BB_VTOTAL, BB_VBEND, BB_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(tx1_state, screen_update_buggyboy_middle)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("rscreen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(BB_PIXEL_CLOCK, BB_HTOTAL, BB_HBEND, BB_HBSTART, BB_VTOTAL, BB_VBEND, BB_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(tx1_state, screen_update_buggyboy_right)
 	MCFG_SCREEN_VBLANK_DRIVER(tx1_state, screen_eof_buggyboy)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(256)
-	MCFG_PALETTE_INIT_OVERRIDE(tx1_state,buggyboy)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(tx1_state,buggyboy)
 	MCFG_VIDEO_START_OVERRIDE(tx1_state,buggyboy)
 
 	MCFG_SPEAKER_STANDARD_STEREO("frontleft", "frontright")
 //  MCFG_SPEAKER_STANDARD_STEREO("rearleft", "rearright")
 
 	MCFG_SOUND_ADD("ym1", YM2149, BUGGYBOY_ZCLK / 4)
-	MCFG_SOUND_CONFIG(buggyboy_ym2149_interface_1)
+	MCFG_AY8910_PORT_A_WRITE_CB(DEVWRITE8("buggyboy", buggyboy_sound_device, ym1_a_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "frontleft", 0.15)
 
 	MCFG_SOUND_ADD("ym2", YM2149, BUGGYBOY_ZCLK / 4)
-	MCFG_SOUND_CONFIG(buggyboy_ym2149_interface_2)
+	MCFG_AY8910_PORT_A_WRITE_CB(DEVWRITE8("buggyboy", buggyboy_sound_device, ym2_a_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("buggyboy", buggyboy_sound_device, ym2_b_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "frontright", 0.15)
 
 	MCFG_SOUND_ADD("buggyboy", BUGGYBOY, 0)
@@ -817,20 +743,23 @@ static MACHINE_CONFIG_START( buggybjr, tx1_state )
 	MCFG_SCREEN_RAW_PARAMS(BB_PIXEL_CLOCK, BB_HTOTAL, BB_HBEND, BB_HBSTART, BB_VTOTAL, BB_VBEND, BB_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(tx1_state, screen_update_buggybjr)
 	MCFG_SCREEN_VBLANK_DRIVER(tx1_state, screen_eof_buggyboy)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(256)
-	MCFG_PALETTE_INIT_OVERRIDE(tx1_state,buggyboy)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(tx1_state,buggyboy)
 	MCFG_VIDEO_START_OVERRIDE(tx1_state,buggybjr)
 
 	MCFG_SPEAKER_STANDARD_STEREO("frontleft", "frontright")
 //  MCFG_SPEAKER_STANDARD_STEREO("rearleft", "rearright")
 
-	MCFG_SOUND_ADD("ym1", YM2149, BUGGYBOY_ZCLK / 4)
-	MCFG_SOUND_CONFIG(buggybjr_ym2149_interface_1)
+	MCFG_SOUND_ADD("ym1", YM2149, BUGGYBOY_ZCLK / 4) /* YM2149 IC19 */
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("YM2149_IC19_A"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("YM2149_IC19_B"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "frontleft", 0.15)
 
-	MCFG_SOUND_ADD("ym2", YM2149, BUGGYBOY_ZCLK / 4)
-	MCFG_SOUND_CONFIG(buggybjr_ym2149_interface_2)
+	MCFG_SOUND_ADD("ym2", YM2149, BUGGYBOY_ZCLK / 4) /* YM2149 IC24 */
+	MCFG_AY8910_PORT_A_WRITE_CB(DEVWRITE8("buggyboy", buggyboy_sound_device, ym2_a_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("buggyboy", buggyboy_sound_device, ym2_b_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "frontright", 0.15)
 
 	MCFG_SOUND_ADD("buggyboy", BUGGYBOY, 0)

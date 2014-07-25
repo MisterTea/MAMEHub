@@ -20,10 +20,12 @@
 		if(VERBOSE_DBG>=N) \
 		{ \
 			if( M ) \
-				logerror("%11.6f: %-24s",machine.time().as_double(),(char*)M ); \
+				logerror("%11.6f: %-24s",machine().time().as_double(),(char*)M ); \
 			logerror A; \
 		} \
 	} while (0)
+
+#define TERMINAL_TAG "terminal"
 
 class besta_state : public driver_device
 {
@@ -32,7 +34,9 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_terminal(*this, TERMINAL_TAG),
-		m_p_ram(*this, "p_ram") { }
+		m_p_ram(*this, "p_ram")
+	{
+	}
 
 	DECLARE_READ8_MEMBER( mpcc_reg_r );
 	DECLARE_WRITE8_MEMBER( mpcc_reg_w );
@@ -50,12 +54,11 @@ public:
 #if 1
 READ8_MEMBER( besta_state::mpcc_reg_r )
 {
-	running_machine &machine = space.machine();
 	UINT8 ret;
 
 	if (!(offset == 0 && !m_mpcc_regs[0])) {
 	DBG_LOG(1,"mpcc_reg_r",("(%d) = %02X at %s\n", offset,
-		(offset > 31 ? -1 : m_mpcc_regs[offset]), machine.describe_context()));
+		(offset > 31 ? -1 : m_mpcc_regs[offset]), machine().describe_context()));
 	}
 
 	switch (offset) {
@@ -72,16 +75,15 @@ READ8_MEMBER( besta_state::mpcc_reg_r )
 
 WRITE8_MEMBER( besta_state::mpcc_reg_w )
 {
-	running_machine &machine = space.machine();
-	device_t *devconf = space.machine().device(TERMINAL_TAG);
+	device_t *devconf = machine().device(TERMINAL_TAG);
 
-	DBG_LOG(1,"mpcc_reg_w",("(%d) <- %02X at %s\n", offset, data, machine.describe_context()));
+	DBG_LOG(1,"mpcc_reg_w",("(%d) <- %02X at %s\n", offset, data, machine().describe_context()));
 
 	switch (offset) {
 		case 2:
 			m_term_data = data;
 		case 10:
-			dynamic_cast<generic_terminal_device *>(devconf)->write(*devconf->machine().memory().first_space(), 0, data);
+			dynamic_cast<generic_terminal_device *>(devconf)->write(*machine().memory().first_space(), 0, data);
 		default:
 			m_mpcc_regs[offset] = data; break;
 	}
@@ -124,12 +126,6 @@ void besta_state::machine_reset()
 	m_maincpu->reset();
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(besta_state, kbd_put)
-};
-
-
 /* CP31 processor board */
 static MACHINE_CONFIG_START( besta, besta_state )
 	/* basic machine hardware */
@@ -137,9 +133,10 @@ static MACHINE_CONFIG_START( besta, besta_state )
 	MCFG_CPU_PROGRAM_MAP(besta_mem)
 
 #if 0
-	MCFG_MPCC68561_ADD("mpcc", XTAL_25MHz, line_cb_t());    // confirm internal oscillator frequency
+	MCFG_DEVICE_ADD("mpcc", MPCC68561, XTAL_25MHz);    // confirm internal oscillator frequency
 #endif
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(besta_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

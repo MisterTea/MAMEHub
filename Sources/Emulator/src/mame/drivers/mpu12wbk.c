@@ -220,7 +220,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -230,9 +231,10 @@ public:
 	DECLARE_DRIVER_INIT(mpu12wbk);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(mpu12wbk);
 	UINT32 screen_update_mpu12wbk(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -266,14 +268,14 @@ TILE_GET_INFO_MEMBER(mpu12wbk_state::get_bg_tile_info)
 //  int code = m_videoram[tile_index] | ((attr & 0xc0) << 2);
 //  int color = (attr & 0x0f);
 
-//  SET_TILE_INFO_MEMBER( 0, code, color, 0);
-	SET_TILE_INFO_MEMBER( 0, 0 ,0 ,0);
+//  SET_TILE_INFO_MEMBER(0, code, color, 0);
+	SET_TILE_INFO_MEMBER(0, 0 ,0 ,0);
 }
 
 
 void mpu12wbk_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mpu12wbk_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mpu12wbk_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 
@@ -284,7 +286,7 @@ UINT32 mpu12wbk_state::screen_update_mpu12wbk(screen_device &screen, bitmap_ind1
 }
 
 
-void mpu12wbk_state::palette_init()
+PALETTE_INIT_MEMBER(mpu12wbk_state, mpu12wbk)
 {
 }
 
@@ -473,41 +475,6 @@ static GFXDECODE_START( mpu12wbk )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout, 0, 16 )
 GFXDECODE_END
 
-
-/*************************
-*    Sound Interface     *
-*************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-/************************
-*    CRTC Interface    *
-************************/
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	4,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-
 /*************************
 *    Machine Drivers     *
 *************************/
@@ -528,17 +495,20 @@ static MACHINE_CONFIG_START( mpu12wbk, mpu12wbk_state )
 	MCFG_SCREEN_SIZE((32+1)*8, (32+1)*8)                  /* From MC6845, registers 00 & 04. (value-1) */
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)    /* Driven by MC6845, registers 01 & 06 */
 	MCFG_SCREEN_UPDATE_DRIVER(mpu12wbk_state, screen_update_mpu12wbk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mpu12wbk)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mpu12wbk)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INIT_OWNER(mpu12wbk_state, mpu12wbk)
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/4, mc6845_intf) /* guess */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/4) /* guess */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(4)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay8910", AY8910, MASTER_CLOCK/8)        /* guess */
-	MCFG_SOUND_CONFIG(ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 MACHINE_CONFIG_END

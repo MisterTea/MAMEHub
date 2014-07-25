@@ -63,7 +63,9 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_videoram2(*this, "videoram2"),
 		m_colorram2(*this, "colorram2"),
-		m_maincpu(*this, "maincpu"){ }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -80,6 +82,9 @@ public:
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(chanbara_videoram_w);
 	DECLARE_WRITE8_MEMBER(chanbara_colorram_w);
 	DECLARE_WRITE8_MEMBER(chanbara_videoram2_w);
@@ -92,25 +97,25 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(chanbara);
 	UINT32 screen_update_chanbara(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
 	DECLARE_WRITE_LINE_MEMBER(sound_irq);
 };
 
 
-void chanbara_state::palette_init()
+PALETTE_INIT_MEMBER(chanbara_state, chanbara)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i, red, green, blue;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		red = color_prom[i];
-		green = color_prom[machine().total_colors() + i];
-		blue = color_prom[2 * machine().total_colors() + i];
+		green = color_prom[palette.entries() + i];
+		blue = color_prom[2 * palette.entries() + i];
 
-		palette_set_color_rgb(machine(), i, pal4bit(red << 1), pal4bit(green << 1), pal4bit(blue << 1));
+		palette.set_pen_color(i, pal4bit(red << 1), pal4bit(green << 1), pal4bit(blue << 1));
 	}
 }
 
@@ -157,8 +162,8 @@ TILE_GET_INFO_MEMBER(chanbara_state::get_bg2_tile_info)
 
 void chanbara_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(chanbara_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,8, 8, 32, 32);
-	m_bg2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(chanbara_state::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS,16, 16, 16, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(chanbara_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,8, 8, 32, 32);
+	m_bg2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(chanbara_state::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS,16, 16, 16, 32);
 	m_bg_tilemap->set_transparent_pen(0);
 }
 
@@ -188,18 +193,18 @@ void chanbara_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &clipre
 			{
 				if (!flipy)
 				{
-					drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code, color, flipx, flipy, sx, sy-16, 0);
-					drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code+1, color, flipx, flipy, sx, sy, 0);
+					m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, code, color, flipx, flipy, sx, sy-16, 0);
+					m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, code+1, color, flipx, flipy, sx, sy, 0);
 				}
 				else
 				{
-					drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code, color, flipx, flipy, sx, sy, 0);
-					drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code+1, color, flipx, flipy, sx, sy-16, 0);
+					m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, code, color, flipx, flipy, sx, sy, 0);
+					m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, code+1, color, flipx, flipy, sx, sy-16, 0);
 				}
 			}
 			else
 			{
-				drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code, color, flipx, flipy, sx, sy, 0);
+				m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, code, color, flipx, flipy, sx, sy, 0);
 			}
 		}
 	}
@@ -368,18 +373,6 @@ WRITE_LINE_MEMBER(chanbara_state::sound_irq)
 	m_maincpu->set_input_line(0, state);
 }
 
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(chanbara_state,chanbara_ay_out_0_w),
-	DEVCB_DRIVER_MEMBER(chanbara_state,chanbara_ay_out_1_w),
-};
-
-
 void chanbara_state::machine_start()
 {
 	save_item(NAME(m_scroll));
@@ -405,16 +398,21 @@ static MACHINE_CONFIG_START( chanbara, chanbara_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(chanbara_state, screen_update_chanbara)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(chanbara)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", chanbara)
 
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(chanbara_state, chanbara)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 12000000/8)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(chanbara_state, sound_irq))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+
+
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(chanbara_state, chanbara_ay_out_0_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(chanbara_state, chanbara_ay_out_1_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

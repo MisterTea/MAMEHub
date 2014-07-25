@@ -53,7 +53,10 @@ public:
 		m_digit5(*this, "tm_unity"),
 		m_s2636(*this, "s2636"),
 		m_waveenable(false),
-		m_collision(0)
+		m_collision(0),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")
 	{
 	}
 
@@ -90,10 +93,13 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(seabattl);
 	UINT32 screen_update_seabattl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	bool m_waveenable;
 	UINT8 m_collision;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -103,24 +109,24 @@ public:
 
 ***************************************************************************/
 
-void seabattl_state::palette_init()
+PALETTE_INIT_MEMBER(seabattl_state, seabattl)
 {
 	// sprites (m.obj) + s2636
 	for (int i = 0; i < 8; i++)
 	{
-		palette_set_color(machine(), i, MAKE_RGB((i & 1) ? 0xff : 0x00, (i & 2) ? 0xff : 0x00, (i & 4) ? 0xff : 0x00));
+		palette.set_pen_color(i, rgb_t((i & 1) ? 0xff : 0x00, (i & 2) ? 0xff : 0x00, (i & 4) ? 0xff : 0x00));
 	}
 
 	// scr
 	for (int i = 0; i < 8; i++)
 	{
-		palette_set_color(machine(), 8 + 2 * i + 0, RGB_BLACK);
-		palette_set_color(machine(), 8 + 2 * i + 1, MAKE_RGB((i & 1) ? 0xff : 0x00, (i & 2) ? 0xff : 0x00, (i & 4) ? 0xff : 0x00));
+		palette.set_pen_color(8 + 2 * i + 0, rgb_t::black);
+		palette.set_pen_color(8 + 2 * i + 1, rgb_t((i & 1) ? 0xff : 0x00, (i & 2) ? 0xff : 0x00, (i & 4) ? 0xff : 0x00));
 	}
 
 	// wave
-	palette_set_color(machine(), 24, RGB_BLACK);
-	palette_set_color(machine(), 25, MAKE_RGB(0x00, 0xff, 0xff)); // cyan
+	palette.set_pen_color(24, rgb_t::black);
+	palette.set_pen_color(25, rgb_t(0x00, 0xff, 0xff)); // cyan
 }
 
 TILE_GET_INFO_MEMBER(seabattl_state::get_bg_tile_info)
@@ -154,7 +160,7 @@ UINT32 seabattl_state::screen_update_seabattl(screen_device &screen, bitmap_ind1
 		{
 			for ( x = 0; x < 32; x++ )
 			{
-				drawgfx_opaque( bitmap, cliprect, machine().gfx[2], (y & 0x0f) + (((x & 0x0f) + ((screen.frame_number() & 0xe0) >> 4)) << 4), 0, 0, 0, x*8, y*8 );
+				m_gfxdecode->gfx(2)->opaque(bitmap,cliprect, (y & 0x0f) + (((x & 0x0f) + ((screen.frame_number() & 0xe0) >> 4)) << 4), 0, 0, 0, x*8, y*8 );
 			}
 		}
 	}
@@ -178,7 +184,7 @@ UINT32 seabattl_state::screen_update_seabattl(screen_device &screen, bitmap_ind1
 			int x = ((offset & 0x0f) << 4) - ((m_objram[offset] & 0xf0) >> 4);
 			int y = (offset & 0xf0);
 
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[0], code, 0, 0, 0, x, y, 0);
+			m_gfxdecode->gfx(0)->transpen(bitmap,cliprect, code, 0, 0, 0, x, y, 0);
 		}
 	}
 
@@ -226,7 +232,7 @@ UINT32 seabattl_state::screen_update_seabattl(screen_device &screen, bitmap_ind1
 void seabattl_state::video_start()
 {
 	m_screen->register_screen_bitmap(m_collision_bg);
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(seabattl_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(seabattl_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_bg_tilemap->set_transparent_pen(0);
 	m_bg_tilemap->set_scrolldx(-12, 0);
 }
@@ -262,7 +268,7 @@ static ADDRESS_MAP_START( seabattl_io_map, AS_IO, 8, seabattl_state )
 	AM_RANGE(S2650_SENSE_PORT, S2650_SENSE_PORT) AM_READ_PORT("SENSE")
 ADDRESS_MAP_END
 
-READ8_HANDLER(seabattl_state::seabattl_collision_r)
+READ8_MEMBER(seabattl_state::seabattl_collision_r)
 {
 	m_screen->update_partial(m_screen->vpos());
 	return m_collision;
@@ -281,20 +287,20 @@ WRITE8_MEMBER(seabattl_state::seabattl_control_w)
 	m_waveenable = BIT(data, 5);
 }
 
-READ8_HANDLER(seabattl_state::seabattl_collision_clear_r)
+READ8_MEMBER(seabattl_state::seabattl_collision_clear_r)
 {
 	m_screen->update_partial(m_screen->vpos());
 	m_collision = 0;
 	return 0;
 }
 
-WRITE8_HANDLER(seabattl_state::seabattl_collision_clear_w )
+WRITE8_MEMBER(seabattl_state::seabattl_collision_clear_w )
 {
 	m_screen->update_partial(m_screen->vpos());
 	m_collision = 0;
 }
 
-WRITE8_HANDLER(seabattl_state::sound_w )
+WRITE8_MEMBER(seabattl_state::sound_w )
 {
 	// sound effects
 	// bits:
@@ -308,7 +314,7 @@ WRITE8_HANDLER(seabattl_state::sound_w )
 	// 7 - unused
 }
 
-WRITE8_HANDLER(seabattl_state::sound2_w )
+WRITE8_MEMBER(seabattl_state::sound2_w )
 {
 	// sound effects
 	// bits:
@@ -322,19 +328,19 @@ WRITE8_HANDLER(seabattl_state::sound2_w )
 	// 7 - unused
 }
 
-WRITE8_HANDLER(seabattl_state::time_display_w )
+WRITE8_MEMBER(seabattl_state::time_display_w )
 {
 	m_digit5->a_w(data & 0x0f);
 	m_digit4->a_w((data >> 4) & 0x0f);
 }
 
-WRITE8_HANDLER(seabattl_state::score_display_w )
+WRITE8_MEMBER(seabattl_state::score_display_w )
 {
 	m_digit3->a_w(data & 0x0f);
 	m_digit2->a_w((data >> 4) & 0x0f);
 }
 
-WRITE8_HANDLER(seabattl_state::score2_display_w )
+WRITE8_MEMBER(seabattl_state::score2_display_w )
 {
 	m_digit1->a_w(data & 0x0f);
 	m_digit0->a_w((data >> 4) & 0x0f);
@@ -466,55 +472,6 @@ static GFXDECODE_START( seabattl )
 	GFXDECODE_ENTRY( "gfx3", 0, tiles8x8_layout, 24, 1 )
 GFXDECODE_END
 
-static const s2636_interface s2636_config =
-{
-	0x100,
-	3, -21,
-	//"s2636snd"
-};
-
-static DM9368_INTERFACE( digit_score_thousand_intf )
-{
-	0,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static DM9368_INTERFACE( digit_score_hundred_intf )
-{
-	1,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static DM9368_INTERFACE( digit_score_half_a_score_intf )
-{
-	2,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static DM9368_INTERFACE( digit_score_unity_intf )
-{
-	3,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static DM9368_INTERFACE( digit_time_half_a_score_intf )
-{
-	4,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static DM9368_INTERFACE( digit_time_unity_intf )
-{
-	5,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( seabattl, seabattl_state )
 
 	/* basic machine hardware */
@@ -523,27 +480,37 @@ static MACHINE_CONFIG_START( seabattl, seabattl_state )
 	MCFG_CPU_IO_MAP(seabattl_io_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", seabattl_state, seabattl_interrupt)
 
-	MCFG_S2636_ADD("s2636", s2636_config)
+	MCFG_DEVICE_ADD("s2636", S2636, 0)
+	MCFG_S2636_WORKRAM_SIZE(0x100)
+	MCFG_S2636_OFFSETS(3, -21)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
-	MCFG_DM9368_ADD("sc_thousand", digit_score_thousand_intf)
-	MCFG_DM9368_ADD("sc_hundred", digit_score_hundred_intf)
-	MCFG_DM9368_ADD("sc_half", digit_score_half_a_score_intf)
-	MCFG_DM9368_ADD("sc_unity", digit_score_unity_intf)
-	MCFG_DM9368_ADD("tm_half", digit_time_half_a_score_intf)
-	MCFG_DM9368_ADD("tm_unity", digit_time_unity_intf)
+	MCFG_DEVICE_ADD("sc_thousand", DM9368, 0)
+	MCFG_OUTPUT_INDEX(0)
+	MCFG_DEVICE_ADD("sc_hundred", DM9368, 0)
+	MCFG_OUTPUT_INDEX(1)
+	MCFG_DEVICE_ADD("sc_half", DM9368, 0)
+	MCFG_OUTPUT_INDEX(2)
+	MCFG_DEVICE_ADD("sc_unity", DM9368, 0)
+	MCFG_OUTPUT_INDEX(3)
+	MCFG_DEVICE_ADD("tm_half", DM9368, 0)
+	MCFG_OUTPUT_INDEX(4)
+	MCFG_DEVICE_ADD("tm_unity", DM9368, 0)
+	MCFG_OUTPUT_INDEX(5)
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_SCREEN_REFRESH_RATE(50)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 29*8-1, 2*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(seabattl_state, screen_update_seabattl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(seabattl)
-	MCFG_PALETTE_LENGTH(26)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", seabattl)
+	MCFG_PALETTE_ADD("palette", 26)
+	MCFG_PALETTE_INIT_OWNER(seabattl_state, seabattl)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

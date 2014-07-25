@@ -3,7 +3,7 @@
 
 #include "audio/gb.h"
 #include "machine/intelfsh.h"
-#include "machine/gba_slot.h"
+#include "bus/gba/gba_slot.h"
 #include "sound/dac.h"
 
 #define DISPSTAT_VBL            0x0001
@@ -245,7 +245,7 @@ public:
 	DECLARE_DRIVER_INIT(gbadv);
 	virtual void machine_start();
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(gba);
 	TIMER_CALLBACK_MEMBER(dma_complete);
 	TIMER_CALLBACK_MEMBER(timer_expire);
 	TIMER_CALLBACK_MEMBER(handle_irq);

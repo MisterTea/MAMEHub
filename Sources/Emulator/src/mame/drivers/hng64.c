@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:David Haywood, Angelo Salese, ElSemi, Andrew Gardner, Andrew Zaferakis
 /* Hyper NeoGeo 64
 
 Driver by David Haywood, ElSemi, Andrew Gardner and Angelo Salese
@@ -27,6 +29,9 @@ Notes:
                                   pedal, shift lever, and switches.  This will cause the cabinet to malfunction."
 
   * The Japanese text on the Roads Edge network screen says : "waiting to connect network... please wait without touching machine"
+
+  * Xrally and Roads Edge have a symbols table at respectively 0xb2f30 and 0xe10c0
+    Also, to enter into service mode you need to change value of 0xa2363  / 0xcfb53 to 1 during gameplay (of course, if you put into free play mode games are playable)
 
 ToDo:
   * Buriki One / Xrally and Roads Edge doesn't coin it up, irq issue?
@@ -475,35 +480,38 @@ READ32_MEMBER(hng64_state::hng64_random_read)
 
 READ32_MEMBER(hng64_state::hng64_com_r)
 {
-	logerror("com read  (PC=%08x): %08x %08x = %08x\n", space.device().safe_pc(), (offset*4)+0xc0000000, mem_mask, m_com_ram[offset]);
+	//logerror("com read  (PC=%08x): %08x %08x = %08x\n", space.device().safe_pc(), (offset*4)+0xc0000000, mem_mask, m_com_ram[offset]);
 	return m_com_ram[offset];
 }
 
 WRITE32_MEMBER(hng64_state::hng64_com_w)
 {
-	logerror("com write (PC=%08x): %08x %08x = %08x\n", space.device().safe_pc(), (offset*4)+0xc0000000, mem_mask, data);
+	//logerror("com write (PC=%08x): %08x %08x = %08x\n", space.device().safe_pc(), (offset*4)+0xc0000000, mem_mask, data);
 	COMBINE_DATA(&m_com_ram[offset]);
 }
 
-WRITE32_MEMBER(hng64_state::hng64_com_share_w)
+/* TODO: fully understand this */
+WRITE8_MEMBER(hng64_state::hng64_com_share_mips_w)
 {
-	logerror("commw  (PC=%08x): %08x %08x %08x\n", space.device().safe_pc(), data, (offset*4)+0xc0001000, mem_mask);
-
-	if (offset == 0x0) COMBINE_DATA(&m_com_shared_a);
-	if (offset == 0x1) COMBINE_DATA(&m_com_shared_b);
+	m_com_shared[offset ^ 3] = data;
 }
 
-READ32_MEMBER(hng64_state::hng64_com_share_r)
+READ8_MEMBER(hng64_state::hng64_com_share_mips_r)
 {
-	logerror("commr  (PC=%08x): %08x %08x\n", space.device().safe_pc(), (offset*4)+0xc0001000, mem_mask);
+	return m_com_shared[offset];
+}
 
-	//if(offset == 0x0) return m_com_shared_a;
-	//if(offset == 0x1) return m_com_shared_b;
+WRITE8_MEMBER(hng64_state::hng64_com_share_w)
+{
+	m_com_shared[offset] = data;
+}
 
-	if(offset==0x0) return 0x0000aaaa;
-	if(offset==0x1) return 0x00030000;      // fatfurwa : at bfc06624 it wants a 01 : at bfc06650 it wants a 02
+READ8_MEMBER(hng64_state::hng64_com_share_r)
+{
+	if(offset == 4)
+		return m_com_shared[offset] | 1; // some busy flag?
 
-	return 0x00;
+	return m_com_shared[offset];
 }
 
 WRITE32_MEMBER(hng64_state::hng64_pal_w)
@@ -517,7 +525,7 @@ WRITE32_MEMBER(hng64_state::hng64_pal_w)
 	g = ((paletteram[offset] & 0x0000ff00) >>8);
 	r = ((paletteram[offset] & 0x00ff0000) >>16);
 	//a = ((paletteram[offset] & 0xff000000) >>24);
-	palette_set_color(machine(),offset,MAKE_RGB(r,g,b));
+	m_palette->set_pen_color(offset,rgb_t(r,g,b));
 }
 
 READ32_MEMBER(hng64_state::hng64_sysregs_r)
@@ -632,6 +640,14 @@ WRITE32_MEMBER(hng64_state::hng64_sysregs_w)
 /* Fatal Fury Wild Ambition / Buriki One */
 READ32_MEMBER(hng64_state::fight_io_r)
 {
+	/*
+	TODO: reads to i/o but coins doesn't work? Let's put a cheap hack for now
+	*/
+	if(ioport("SYSTEM")->read() & 0x00030000 && m_mcu_type == BURIKI_MCU)
+	{
+		space.write_byte(0xf3ce4, 1);
+	}
+
 	switch (offset*4)
 	{
 		case 0x000: return 0x00000400;
@@ -735,7 +751,18 @@ READ32_MEMBER(hng64_state::racing_io_r)
 				return 0x000;
 		}
 		case 0x004: return ioport("SYSTEM")->read();
-		case 0x008: return ioport("P1_P2")->read();
+		case 0x008: return ioport("IN0")->read();
+		case 0x014: return ioport("VIEW")->read();
+		case 0x018:
+		{
+			UINT8 handle, acc, brake;
+			handle = ioport("HANDLE")->read() & 0xff;
+			acc = ioport("ACCELERATOR")->read() & 0xff;
+			brake = ioport("BRAKE")->read() & 0xff;
+
+			return (handle<<24) | (acc<<16) | (brake<<8) | (0xff<<0);
+		}
+
 		case 0x600: return m_no_machine_error_code;
 	}
 
@@ -760,7 +787,8 @@ READ32_MEMBER(hng64_state::hng64_dualport_r)
 
 	switch (m_mcu_type)
 	{
-		case FIGHT_MCU:  return fight_io_r(space, offset,0xffffffff);
+		case FIGHT_MCU:
+		case BURIKI_MCU: return fight_io_r(space, offset,0xffffffff);
 		case SHOOT_MCU:  return shoot_io_r(space, offset,0xffffffff);
 		case RACING_MCU: return racing_io_r(space, offset,0xffffffff);
 		case SAMSHO_MCU: return samsho_io_r(space, offset,0xffffffff);
@@ -797,12 +825,10 @@ READ32_MEMBER(hng64_state::hng64_3d_1_r)
 	return m_3d_1[offset];
 }
 
-#ifdef UNUSED_FUNCTION
 WRITE32_MEMBER(hng64_state::hng64_3d_1_w)
 {
-	fatalerror("WRITE32_HANDLER( hng64_3d_1_w )\n");
+	COMBINE_DATA (&m_3d_1[offset]);
 }
-#endif
 
 READ32_MEMBER(hng64_state::hng64_3d_2_r)
 {
@@ -811,7 +837,6 @@ READ32_MEMBER(hng64_state::hng64_3d_2_r)
 
 WRITE32_MEMBER(hng64_state::hng64_3d_2_w)
 {
-	COMBINE_DATA (&m_3d_1[offset]);
 	COMBINE_DATA (&m_3d_2[offset]);
 }
 
@@ -819,11 +844,11 @@ WRITE32_MEMBER(hng64_state::hng64_3d_2_w)
 WRITE32_MEMBER(hng64_state::dl_w)
 {
 	UINT32 *hng64_dl = m_dl;
-	int i;
-	UINT16 packet3d[16];
+	//UINT16 packet3d[16];
 
 	COMBINE_DATA(&hng64_dl[offset]);
 
+#if 0
 	if (offset == 0x08 || offset == 0x7f || // Special buggers.
 		offset == 0x10 || offset == 0x18 ||
 		offset == 0x20 || offset == 0x28 ||
@@ -846,39 +871,69 @@ WRITE32_MEMBER(hng64_state::dl_w)
 		// Send it off to the 3d subsystem.
 		hng64_command3d(machine(), packet3d);
 	}
+#endif
 }
 
 #if 0
 READ32_MEMBER(hng64_state::dl_r)
 {
-	//mame_printf_debug("dl R (%08x) : %x %x\n", space.device().safe_pc(), offset, hng64_dl[offset]);
+	//osd_printf_debug("dl R (%08x) : %x %x\n", space.device().safe_pc(), offset, hng64_dl[offset]);
 	//usrintf_showmessage("dl R (%08x) : %x %x", space.device().safe_pc(), offset, hng64_dl[offset]);
 	return hng64_dl[offset];
 }
 #endif
 
-// Some kind of buffering of the display lists, or 'render current buffer' write?
-WRITE32_MEMBER(hng64_state::dl_control_w)
+TIMER_CALLBACK_MEMBER(hng64_state::hng64_3dfifo_processed )
 {
-//  printf("\n");   // Debug - ajg
-	// TODO: put this back in.
-	/*
-	if (activeBuffer==0 || activeBuffer==1)
-	    memcpy(&hng64_dls[activeBuffer][0],&hng64_dl[0],0x200);
+// ...
+	m_set_irq(0x0008);
+}
 
-	// Only if it's VALID (hack)
-	if (data & 1)
-	    activeBuffer = 0;
-	if (data & 2)
-	    activeBuffer = 1;
-	*/
+/* TODO: different param for both Samurai games, less FIFO to process? */
+WRITE32_MEMBER(hng64_state::dl_upload_w)
+{
+	// this handles 3d to fb upload
+	UINT16 packet3d[16];
+
+	for(int packetStart=0;packetStart<0x200/4;packetStart+=8)
+	{
+		// Create a 3d packet
+		//UINT16 packetStart = offset - 0x08;
+		//if (offset == 0x7f) packetStart += 1;
+
+		for (int i = 0; i < 0x08; i++)
+		{
+			packet3d[i*2+0] = (m_dl[packetStart+i] & 0xffff0000) >> 16;
+			packet3d[i*2+1] = (m_dl[packetStart+i] & 0x0000ffff);
+		}
+
+		// Send it off to the 3d subsystem.
+		hng64_command3d(machine(), packet3d);
+	}
+
+	machine().scheduler().timer_set(m_maincpu->cycles_to_attotime(0x200*8), timer_expired_delegate(FUNC(hng64_state::hng64_3dfifo_processed),this));
+}
+
+/* Note: Samurai Shodown games never calls bit 1, so it can't be framebuffer clear. It also calls bit 3 at start-up, meaning unknown */
+WRITE32_MEMBER(hng64_state::dl_control_w) // This handles framebuffers
+{
+	//if(data & 2) // swap buffers
+	//{
+	//  clear3d();
+	//}
+
+//  printf("%02x\n",data);
+
+//  if(data & 1) // process DMA from 3d FIFO to framebuffer
+
+//  if(data & 4) // reset buffer count
 }
 
 #ifdef UNUSED_FUNCTION
 WRITE32_MEMBER(hng64_state::activate_3d_buffer)
 {
 	COMBINE_DATA (&active_3d_buffer[offset]);
-	mame_printf_debug("COMBINED %d\n", active_3d_buffer[offset]);
+	osd_printf_debug("COMBINED %d\n", active_3d_buffer[offset]);
 }
 #endif
 
@@ -922,10 +977,18 @@ READ32_MEMBER(hng64_state::tcram_r)
 }
 
 /* Some games (namely sams64 after the title screen) tests bit 15 of this to be high,
-   unknown purpose (vblank? related to the display list?). */
+   unknown purpose (vblank? related to the display list?).
+
+   bit 1 needs to be off, otherwise Fatal Fury WA locks up (FIFO full?)
+   bit 0 is likely to be fifo empty (active low)
+   */
 READ32_MEMBER(hng64_state::unk_vreg_r)
 {
-	return ++m_unk_vreg_toggle;
+//  m_unk_vreg_toggle^=0x8000;
+
+	return 0;
+
+//  return ++m_unk_vreg_toggle;
 }
 
 /***** I don't think there is a soundram2, having it NOT hooked up causes xrally to copy the sound program to the expected location, see memory map note *****/
@@ -1139,13 +1202,13 @@ static ADDRESS_MAP_START( hng_map, AS_PROGRAM, 32, hng64_state )
 	AM_RANGE(0x20200000, 0x20203fff) AM_RAM_WRITE(hng64_pal_w) AM_SHARE("paletteram")
 	AM_RANGE(0x20208000, 0x2020805f) AM_READWRITE(tcram_r, tcram_w) AM_SHARE("tcram")   // Transition Control
 	AM_RANGE(0x20300000, 0x203001ff) AM_RAM_WRITE(dl_w) AM_SHARE("dl")  // 3d Display List
-//  AM_RANGE(0x20300200, 0x20300213) AM_RAM_WRITE(xxxx) AM_SHARE("xxxxxxxx")  // 3d Display List Upload?
+	AM_RANGE(0x20300200, 0x20300203) AM_WRITE(dl_upload_w)  // 3d Display List Upload
 	AM_RANGE(0x20300214, 0x20300217) AM_WRITE(dl_control_w)
 	AM_RANGE(0x20300218, 0x2030021b) AM_READ(unk_vreg_r)
 
 	// 3d?
 	AM_RANGE(0x30000000, 0x3000002f) AM_RAM AM_SHARE("3dregs")
-	AM_RANGE(0x30100000, 0x3015ffff) AM_READWRITE(hng64_3d_1_r, hng64_3d_2_w) AM_SHARE("3d_1")  // 3D Display Buffer A
+	AM_RANGE(0x30100000, 0x3015ffff) AM_READWRITE(hng64_3d_1_r, hng64_3d_1_w) AM_SHARE("3d_1")  // 3D Display Buffer A
 	AM_RANGE(0x30200000, 0x3025ffff) AM_READWRITE(hng64_3d_2_r, hng64_3d_2_w) AM_SHARE("3d_2")  // 3D Display Buffer B
 
 	// Sound
@@ -1160,7 +1223,7 @@ static ADDRESS_MAP_START( hng_map, AS_PROGRAM, 32, hng64_state )
 
 	// Communications
 	AM_RANGE(0xc0000000, 0xc0000fff) AM_READWRITE(hng64_com_r, hng64_com_w) AM_SHARE("com_ram")
-	AM_RANGE(0xc0001000, 0xc0001007) AM_READWRITE(hng64_com_share_r, hng64_com_share_w)
+	AM_RANGE(0xc0001000, 0xc0001007) AM_READWRITE8(hng64_com_share_mips_r, hng64_com_share_mips_w,0xffffffff)
 
 	/* 6e000000-6fffffff */
 	/* 80000000-81ffffff */
@@ -1170,165 +1233,109 @@ static ADDRESS_MAP_START( hng_map, AS_PROGRAM, 32, hng64_state )
 	/* a0000000-a3ffffff */
 ADDRESS_MAP_END
 
-/**************/
-/** COMM CPU **/
-/**************/
-#define KL5C_MMU_A(xxx) ( (xxx == 0) ? 0x0000 : (state->m_com_mmu_mem[((xxx-1)*2)+1] << 2) | ((state->m_com_mmu_mem[(xxx-1)*2] & 0xc0) >> 6) )
-#define KL5C_MMU_B(xxx) ( (xxx == 0) ? 0x0000 : (state->m_com_mmu_mem[(xxx-1)*2] & 0x3f) )
+/*
+0x6010: tests RAM at [3]8000
 
-DIRECT_UPDATE_MEMBER(hng64_state::KL5C80_direct_handler)
+*/
+
+UINT8 hng64_state::read_comm_data(UINT32 offset)
 {
-	direct.explicit_configure(0x0000, 0xffff, 0xffff, m_com_op_base);
-	return ~0;
+	if((offset & 0x10000) == 0)
+		return m_comm_rom[offset & 0xffff];
+
+	if(offset & 0x10000)
+		return m_comm_ram[(offset & 0xffff)];
+
+	printf("%08x\n",offset);
+	return 0xff;
 }
 
-static UINT32 KL5C80_translate_address(hng64_state *state, UINT16 vAddr)
+void hng64_state::write_comm_data(UINT32 offset,UINT8 data)
 {
-	int i;
-	UINT8 bNum = 4;
-
-	/* Determine what B the vAddr is in */
-	for (i = 1; i < 5; i++)
+	if((offset & 0x10000) == 0)
 	{
-		if ( ((KL5C_MMU_B(i)+1)*0x400) > vAddr)
-		{
-			bNum = i-1;
-			break;
-		}
+		//m_comm_rom[offset];
+		return;
+	}
+	if(offset & 0x10000)
+	{
+		m_comm_ram[offset & 0xffff] = data;
+		return;
 	}
 
-	/* Calculate the full address and return */
-	if (bNum == 0)
-	{
-		return vAddr;
-	}
-	else
-	{   /* the offset to the base physical address plus the vAddr's offset from the virtual base */
-		return ((KL5C_MMU_A(bNum) + (KL5C_MMU_B(bNum)+1)) * 0x400) + (vAddr - ((KL5C_MMU_B(bNum)+1) * 0x400));
-	}
+
+	printf("%08x %02x\n",offset,data);
+
 }
 
-static void KL5C80_virtual_mem_sync(hng64_state *state)
+READ8_MEMBER(hng64_state::hng64_comm_space_r)
 {
-	/* The KL5C80 maps each progressive chunk from the beginning of the
-	   virtual region until the beginning of the next virtual region.
-	   This is implemented here in a lame way to simplify the code.  */
+	if((offset & 0xfc00) == 0) // B0 is fixed at 0-0x3ff
+		return m_comm_rom[offset];
 
-	int i,region;
-
-	for (region = 0; region < 5; region++)
+	for(int i=0;i<5;i++)
 	{
-		int logical_offset  = (KL5C_MMU_B(region)+1) * 0x400;
-		int physical_offset = (KL5C_MMU_A(region) + (KL5C_MMU_B(region)+1)) * 0x400;
+		if(offset >= m_mmub[i] && offset <= m_mmub[i+1]-1)
+			return read_comm_data(m_mmua[i]|offset);
+	}
 
-		/* The first MMU region is a special case */
-		if (region == 0)
-		{
-			logical_offset  = 0x0000;
-			physical_offset = 0x00000;
-		}
+	return 0xff;
+}
 
-		logerror("Now copying 0x%x to 0x%x\n", physical_offset, logical_offset);
-		for (i = logical_offset; i <= 0xffff; i++)
+WRITE8_MEMBER(hng64_state::hng64_comm_space_w)
+{
+	if((offset & 0xfc00) == 0) // B0 is fixed at 0-0x3ff
+		return;// m_comm_rom[offset];
+
+	for(int i=0;i<5;i++)
+	{
+		if(offset >= m_mmub[i] && offset <= m_mmub[i+1]-1)
 		{
-			if (physical_offset+i <= 0xfffff)
-				state->m_com_op_base[i] = state->m_com_virtual_mem[physical_offset+i];
+			write_comm_data(m_mmua[i]|offset,data);
+			return;
 		}
 	}
 }
 
-static void KL5C80_init(hng64_state *state)
+READ8_MEMBER(hng64_state::hng64_comm_mmu_r)
 {
-	UINT8 *hng64_com_mmu_mem = state->m_com_mmu_mem;
-
-	/* init the MMU */
-	hng64_com_mmu_mem[0] =
-	hng64_com_mmu_mem[2] =
-	hng64_com_mmu_mem[4] =
-	hng64_com_mmu_mem[6] = 0x3f;
-
-	hng64_com_mmu_mem[1] =
-	hng64_com_mmu_mem[3] =
-	hng64_com_mmu_mem[5] = 0x00;
-	hng64_com_mmu_mem[7] = 0xf0;
+	return m_mmu_regs[offset];
 }
 
-READ8_MEMBER(hng64_state::hng64_comm_memory_r)
-{
-	hng64_state *state = machine().driver_data<hng64_state>();
-	UINT32 physical_address = KL5C80_translate_address(state, offset);
-	logerror("READING 0x%02x from 0x%04x (0x%05x)\n", m_com_virtual_mem[physical_address], offset, physical_address);
+#define MMUA (m_mmu_regs[(offset&~1)+0]>>6)|(m_mmu_regs[(offset&~1)+1]<<2)
+#define MMUB (m_mmu_regs[(offset&~1)+0]&0x3f)
 
-	/* Custom "virtual" memory map */
-	if (physical_address >= 0x26000 && physical_address <= 0x28000)
+WRITE8_MEMBER(hng64_state::hng64_comm_mmu_w)
+{
+	m_mmu_regs[offset] = data;
+
+	/* cheap: avoid to overwrite read only params*/
+	if((offset & 6) == 6)
 	{
-		/* May very well be shared memory - it reads 16 bits from it at 0x309 */
+		m_mmu_regs[6] = m_mmu_regs[6] & 0x3f;
+		m_mmu_regs[7] = 0xf0;
+
 	}
 
-
-	return m_com_virtual_mem[physical_address];
+	{
+		m_mmua[offset/2+1] = (m_mmu_regs[(offset&~1)+0]>>6)|(m_mmu_regs[(offset&~1)+1]<<2);
+		m_mmua[offset/2+1]*= 0x400;
+		m_mmub[offset/2+1] = (m_mmu_regs[(offset&~1)+0]&0x3f);
+		m_mmub[offset/2+1]++;
+		m_mmub[offset/2+1]*= 0x400;
+		//printf("%d A %08x B %04x\n",offset/2,m_mmua[offset/2],m_mmub[offset/2]);
+		//printf("A %04x B %02x\n",MMUA,MMUB);
+	}
 }
-
-WRITE8_MEMBER(hng64_state::hng64_comm_memory_w)
-{
-	// Write to both virtual and physical memory
-//  UINT32 physical_address = KL5C80_translate_address(offset);
-//  logerror("WRITING 0x%02x to 0x%04x (0x%05x)\n", hng64_com_virtual_mem[physical_address], offset, physical_address);
-}
-
-/* KL5C80 I/O handlers */
-WRITE8_MEMBER(hng64_state::hng64_comm_io_mmu)
-{
-	m_com_mmu_mem[offset] = data;
-
-	/* Debugging - you can't change A4 - the hardware doesn't let you */
-	if (m_com_mmu_mem[7] != 0xf0 || ((m_com_mmu_mem[6] & 0xc0) != 0x00))
-		logerror("KL5C MMU error !!! Code is trying to change A4!\n");
-
-	hng64_state *state = machine().driver_data<hng64_state>();
-	logerror("COMM CPU MMU WRITE : ");
-	logerror("B : %02x %02x %02x %02x  A : %03x %03x %03x %03x\n", KL5C_MMU_B(1), KL5C_MMU_B(2), KL5C_MMU_B(3), KL5C_MMU_B(4),
-																	KL5C_MMU_A(1), KL5C_MMU_A(2), KL5C_MMU_A(3), KL5C_MMU_A(4));
-	KL5C80_virtual_mem_sync(state);
-}
-
-#ifdef UNUSED_FUNCTION
-READ8_MEMBER(hng64_state::hng64_comm_shared_r)
-{
-	// I'm thinking 0x54 comes from an interrupt on the MIPS CPU?  Or maybe the Toshiba one?
-	// Nothing from CPU0 seems to ping the COM CPU as often as it reads 0x54.
-	// Sometimes it wants 0x54 to be a 0x01 and sometimes it wants a 0x02.
-
-	// It's not an interrupt on the KL5C80 because they aren't enabled before 0x54 is ping'ed
-	// There is a special onboard interrupt handler for the KL5C80 though...
-
-	if (offset==0x00) logerror("COM CPU reading from 0x50.\n");
-	if (offset==0x01) logerror("COM CPU reading from 0x51.\n");
-	if (offset==0x02) logerror("COM CPU reading from 0x52.\n");
-	if (offset==0x03) logerror("COM CPU reading from 0x53.\n");
-	if (offset==0x04) (hng64_com_shared_b & 0x000000ff) ? return 0xff : return 0x00;
-}
-
-WRITE8_MEMBER(hng64_state::hng64_comm_shared_w)
-{
-	if (offset==0x00) hng64_com_shared_a = (hng64_com_shared_a & 0x00ffffff) | (data << 24);
-	if (offset==0x01) hng64_com_shared_a = (hng64_com_shared_a & 0xff00ffff) | (data << 16);
-	if (offset==0x02) hng64_com_shared_a = (hng64_com_shared_a & 0xffff00ff) | (data <<  8);
-	if (offset==0x03) hng64_com_shared_a = (hng64_com_shared_a & 0xffffff00) | (data <<  0);
-	if (offset==0x04) logerror("COM CPU writing to 0x54.\n");
-
-	logerror("COM CPU wrote to com_shared_a : %08x\n", hng64_com_shared_a);
-}
-#endif
 
 static ADDRESS_MAP_START( hng_comm_map, AS_PROGRAM, 8, hng64_state )
-	AM_RANGE(0x0000,0xffff) AM_READWRITE(hng64_comm_memory_r, hng64_comm_memory_w )
+	AM_RANGE(0x0000,0xffff) AM_READWRITE(hng64_comm_space_r, hng64_comm_space_w )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( hng_comm_io_map, AS_IO, 8, hng64_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	/* Reserved for the KL5C80 internal hardware */
-	AM_RANGE(0x00, 0x07) AM_WRITE(hng64_comm_io_mmu ) AM_SHARE("com_mmu_mem")
+	AM_RANGE(0x00, 0x07) AM_READWRITE(hng64_comm_mmu_r,hng64_comm_mmu_w )
 //  AM_RANGE(0x08,0x1f) AM_NOP              /* Reserved */
 //  AM_RANGE(0x20,0x25) AM_READWRITE        /* Timer/Counter B */           /* hng64 writes here */
 //  AM_RANGE(0x27,0x27) AM_NOP              /* Reserved */
@@ -1341,13 +1348,14 @@ static ADDRESS_MAP_START( hng_comm_io_map, AS_IO, 8, hng64_state )
 //  AM_RANGE(0x3c,0x3f) AM_NOP              /* Reserved */
 
 	/* General IO */
-	AM_RANGE(0x50,0x54) AM_NOP // AM_WRITE(hng64_comm_shared_r, hng64_comm_shared_w)
+	AM_RANGE(0x50,0x57) AM_READWRITE(hng64_com_share_r, hng64_com_share_w)
 //  AM_RANGE(0x72,0x72) AM_WRITE            /* dunno yet */
 ADDRESS_MAP_END
 
 
 static ADDRESS_MAP_START( hng_sound_map, AS_PROGRAM, 16, hng64_state )
 	AM_RANGE(0x00000, 0x0ffff) AM_RAMBANK("bank2")
+	AM_RANGE(0x10000, 0x1ffff) AM_RAM // tmp, roadedge
 	AM_RANGE(0xf0000, 0xfffff) AM_RAMBANK("bank1")
 ADDRESS_MAP_END
 
@@ -1430,6 +1438,142 @@ static INPUT_PORTS_START( hng64 )
 	PORT_BIT( 0x40000000, IP_ACTIVE_HIGH, IPT_START1 )
 	PORT_BIT( 0x80000000, IP_ACTIVE_HIGH, IPT_UNKNOWN )
 INPUT_PORTS_END
+
+
+CUSTOM_INPUT_MEMBER(hng64_state::left_handle_r)
+{
+	return (ioport("HANDLE")->read() == 0);
+}
+
+CUSTOM_INPUT_MEMBER(hng64_state::right_handle_r)
+{
+	return (ioport("HANDLE")->read() == 0xff);
+}
+
+CUSTOM_INPUT_MEMBER(hng64_state::acc_down_r)
+{
+	return (ioport("ACCELERATOR")->read() == 0);
+}
+
+CUSTOM_INPUT_MEMBER(hng64_state::brake_down_r)
+{
+	return (ioport("BRAKE")->read() == 0);
+}
+
+static INPUT_PORTS_START( roadedge )
+	PORT_START("VBLANK")
+	PORT_BIT( 0xffffffff, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen")
+
+	PORT_START("SYSTEM")
+	PORT_DIPNAME( 0x01, 0x00, "SYSA" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x00, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x00, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x00, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x00, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x00, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x00, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
+	PORT_BIT( 0x00000100, IP_ACTIVE_HIGH, IPT_BUTTON7 ) PORT_NAME("Shift Up")
+	PORT_BIT( 0x00000200, IP_ACTIVE_HIGH, IPT_BUTTON8 ) PORT_NAME("Shift Down")
+	PORT_BIT( 0x00000400, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, hng64_state, left_handle_r, NULL)
+	PORT_BIT( 0x00000800, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, hng64_state, right_handle_r, NULL)
+	PORT_BIT( 0x00001000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, hng64_state, acc_down_r, NULL)
+	PORT_BIT( 0x00002000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, hng64_state, brake_down_r, NULL)
+
+	PORT_DIPNAME( 0x4000, 0x0000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x0000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x4000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x8000, 0x0000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x0000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x8000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x010000, 0x000000, "SYSA" )
+	PORT_DIPSETTING(    0x000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x010000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x020000, 0x000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x020000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x040000, 0x000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x040000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x080000, 0x000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x080000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x100000, 0x000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x100000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x200000, 0x000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x200000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x400000, 0x000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x400000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x800000, 0x000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x800000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x01000000, 0x00000000, "SYSA" )
+	PORT_DIPSETTING(    0x00000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x01000000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02000000, 0x00000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x02000000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04000000, 0x00000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x04000000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08000000, 0x00000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x08000000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10000000, 0x00000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x10000000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20000000, 0x00000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x20000000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40000000, 0x00000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x40000000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80000000, 0x00000000, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x00000000, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x80000000, DEF_STR( On ) )
+
+
+	PORT_START("IN0")
+
+	PORT_BIT( 0x00000010, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("BGM 1")
+	PORT_BIT( 0x00000020, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("BGM 2")
+	PORT_BIT( 0x00000040, IP_ACTIVE_HIGH, IPT_BUTTON3 ) PORT_NAME("BGM 3")
+	PORT_BIT( 0x00000080, IP_ACTIVE_HIGH, IPT_BUTTON4 ) PORT_NAME("BGM 4")
+	PORT_BIT( 0x40000000, IP_ACTIVE_HIGH, IPT_START1 )
+
+	PORT_START("VIEW")
+	PORT_BIT( 0x00000800, IP_ACTIVE_HIGH, IPT_BUTTON5 ) PORT_NAME("View 1")
+	PORT_BIT( 0x00001000, IP_ACTIVE_HIGH, IPT_BUTTON6 ) PORT_NAME("View 2")
+
+	PORT_START("HANDLE")
+	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_MINMAX(0x00,0xff) PORT_SENSITIVITY(30) PORT_KEYDELTA(60) PORT_PLAYER(1) PORT_NAME("Handle")
+
+	PORT_START("ACCELERATOR")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL ) PORT_MINMAX(0x00,0xff) PORT_SENSITIVITY(50) PORT_KEYDELTA(60) PORT_PLAYER(1) PORT_REVERSE PORT_NAME("Accelerator")
+
+	PORT_START("BRAKE")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL2 ) PORT_MINMAX(0x00,0xff) PORT_SENSITIVITY(50) PORT_KEYDELTA(60) PORT_PLAYER(1) PORT_REVERSE PORT_NAME("Brake")
+INPUT_PORTS_END
+
 
 static INPUT_PORTS_START( bbust2 )
 	PORT_START("VBLANK")
@@ -1592,11 +1736,10 @@ static void hng64_reorder(running_machine &machine, UINT8* gfxregion, size_t gfx
 {
 	// by default 2 4bpp tiles are stored in each 8bpp tile, this makes decoding in MAME harder than it needs to be
 	// reorder them
-	UINT8* buffer;
 	int i;
 	UINT8 tilesize = 4*8; // 4 bytes per line, 8 lines
 
-	buffer = auto_alloc_array(machine, UINT8, gfxregionsize);
+	dynamic_buffer buffer(gfxregionsize);
 
 	for (i=0;i<gfxregionsize/2;i+=tilesize)
 	{
@@ -1605,8 +1748,6 @@ static void hng64_reorder(running_machine &machine, UINT8* gfxregion, size_t gfx
 	}
 
 	memcpy(gfxregion, buffer, gfxregionsize);
-
-	auto_free (machine, buffer);
 }
 
 DRIVER_INIT_MEMBER(hng64_state,hng64_reorder_gfx)
@@ -1665,6 +1806,12 @@ DRIVER_INIT_MEMBER(hng64_state,fatfurwa)
 	m_mcu_type = FIGHT_MCU;
 }
 
+DRIVER_INIT_MEMBER(hng64_state,buriki)
+{
+	DRIVER_INIT_CALL(hng64_fght);
+	m_mcu_type = BURIKI_MCU;
+}
+
 DRIVER_INIT_MEMBER(hng64_state,ss64)
 {
 	DRIVER_INIT_CALL(hng64_fght);
@@ -1686,13 +1833,6 @@ DRIVER_INIT_MEMBER(hng64_state,hng64_shoot)
 }
 
 
-/* ?? */
-static const mips3_config vr4300_config =
-{
-	16384,              /* code cache size */
-	16384               /* data cache size */
-};
-
 void hng64_state::m_set_irq(UINT32 irq_vector)
 {
 	/*
@@ -1704,13 +1844,13 @@ void hng64_state::m_set_irq(UINT32 irq_vector)
 
 	    This is written with irqs DISABLED
 	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00000001. (PC=80009b54) 0 vblank irq
-	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00000002. (PC=80009b5c) 1
-	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00000004. (PC=80009b64) 2
-	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00000008. (PC=80009b6c) 3 (actually this is cleared even if it isn't fired?)
+	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00000002. (PC=80009b5c) 1 <empty>
+	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00000004. (PC=80009b64) 2 <empty>
+	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00000008. (PC=80009b6c) 3 3d fifo processed irq
 	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00000200. (PC=80009b70) 9
 	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00000400. (PC=80009b78) 10
-	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00020000. (PC=80009b80) 17
-	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00000800. (PC=80009b88) 11 network irq? needed by xrally and roadedge
+	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00020000. (PC=80009b80) 17 MCU related irq
+	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00000800. (PC=80009b88) 11 network irq, needed by xrally and roadedge
 
 	    samsho64 / samsho64_2 does this during running:
 	    HNG64 writing to SYSTEM Registers 0x0000111c == 0x00000000. (PC=800008fc) just checking?
@@ -1744,8 +1884,9 @@ TIMER_DEVICE_CALLBACK_MEMBER(hng64_state::hng64_irq)
 	switch(scanline)
 	{
 		case 224*2: m_set_irq(0x0001);  break; // lv 0 vblank irq
-		//case 0*2:   m_set_irq(0x0002);  break; // lv 1
-		//case 64*2:  m_set_irq(0x0004);  break; // lv 2
+//      case 0*2:   m_set_irq(0x0002);  break; // lv 1
+//      case 32*2:  m_set_irq(0x0008);  break; // lv 2
+//      case 64*2:  m_set_irq(0x0008);  break; // lv 2
 		case 128*2: m_set_irq(0x0800);  break; // lv 11 network irq?
 	}
 }
@@ -1754,20 +1895,20 @@ TIMER_DEVICE_CALLBACK_MEMBER(hng64_state::hng64_irq)
 void hng64_state::machine_start()
 {
 	/* set the fastest DRC options */
-	mips3drc_set_options(m_maincpu, MIPS3DRC_FASTEST_OPTIONS + MIPS3DRC_STRICT_VERIFY);
+	m_maincpu->mips3drc_set_options(MIPS3DRC_FASTEST_OPTIONS + MIPS3DRC_STRICT_VERIFY);
 
 	/* configure fast RAM regions for DRC */
-	mips3drc_add_fastram(m_maincpu, 0x00000000, 0x00ffffff, FALSE, m_mainram);
-	mips3drc_add_fastram(m_maincpu, 0x04000000, 0x05ffffff, TRUE,  m_cart);
-	mips3drc_add_fastram(m_maincpu, 0x1fc00000, 0x1fc7ffff, TRUE,  m_rombase);
+	m_maincpu->mips3drc_add_fastram(0x00000000, 0x00ffffff, FALSE, m_mainram);
+	m_maincpu->mips3drc_add_fastram(0x04000000, 0x05ffffff, TRUE,  m_cart);
+	m_maincpu->mips3drc_add_fastram(0x1fc00000, 0x1fc7ffff, TRUE,  m_rombase);
+
+	m_comm_rom = memregion("user2")->base();
+	m_comm_ram = auto_alloc_array(machine(),UINT8,0x10000);
 }
 
 
 void hng64_state::machine_reset()
 {
-	int i;
-	const UINT8 *rom = memregion("user2")->base();
-
 	/* Sound CPU */
 	UINT8 *RAM = (UINT8*)m_soundram;
 	membank("bank1")->set_base(&RAM[0x1f0000]); // allows us to boot
@@ -1775,40 +1916,27 @@ void hng64_state::machine_reset()
 	m_audiocpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 	m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 
-	/* Comm CPU */
-	KL5C80_init(this);
-
-	/* Fill up virtual memory with ROM */
-	for (i = 0x0; i < 0x100000; i++)
-		m_com_virtual_mem[i] = rom[i];
-
-	KL5C80_virtual_mem_sync(this);
-
-	address_space &space = m_comm->space(AS_PROGRAM);
-	space.set_direct_update_handler(direct_update_delegate(FUNC(hng64_state::KL5C80_direct_handler), this));
-
-	m_comm->set_input_line(INPUT_LINE_RESET, PULSE_LINE);     // reset the CPU and let 'er rip
+//  m_comm->set_input_line(INPUT_LINE_RESET, PULSE_LINE);     // reset the CPU and let 'er rip
 //  m_comm->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);     // hold on there pardner...
 
 	// "Display List" init - ugly
-	m_activeBuffer = 0;
+//  m_activeBuffer = 0;
 
 	/* For simulate MCU stepping */
 	m_mcu_fake_time = 0;
 	m_mcu_en = 0;
+
+	m_mmub[0] = 0;
+	m_mmub[5] = 0; // rolls back to 0xffff
 }
 
-
-static MSM6242_INTERFACE( hng64_rtc_intf )
-{
-	DEVCB_NULL
-};
 
 static MACHINE_CONFIG_START( hng64, hng64_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", VR4300BE, MASTER_CLOCK)     // actually R4300
-	MCFG_CPU_CONFIG(vr4300_config)
+	MCFG_MIPS3_ICACHE_SIZE(16384)
+	MCFG_MIPS3_DCACHE_SIZE(16384)
 	MCFG_CPU_PROGRAM_MAP(hng_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", hng64_state, hng64_irq, "screen", 0, 1)
 
@@ -1821,17 +1949,17 @@ static MACHINE_CONFIG_START( hng64, hng64_state )
 	MCFG_CPU_IO_MAP(hng_comm_io_map)
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
-	MCFG_MSM6242_ADD("rtc", hng64_rtc_intf)
 
-	MCFG_GFXDECODE(hng64)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", hng64)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(hng64_state, screen_update_hng64)
-
-	MCFG_PALETTE_LENGTH(0x1000)
-
 	MCFG_SCREEN_VBLANK_DRIVER(hng64_state, screen_eof_hng64)
+
+	MCFG_PALETTE_ADD("palette", 0x1000)
 MACHINE_CONFIG_END
 
 
@@ -2300,10 +2428,10 @@ ROM_END
 GAME( 1997, hng64,    0,      hng64, hng64, hng64_state,  hng64,       ROT0, "SNK", "Hyper NeoGeo 64 Bios", GAME_NOT_WORKING|GAME_NO_SOUND|GAME_IS_BIOS_ROOT )
 
 /* Games */
-GAME( 1997, roadedge, hng64,  hng64, hng64, hng64_state,  hng64_race,  ROT0, "SNK", "Roads Edge / Round Trip (rev.B)",        GAME_NOT_WORKING|GAME_NO_SOUND )  /* 001 */
+GAME( 1997, roadedge, hng64,  hng64, roadedge, hng64_state,  hng64_race,  ROT0, "SNK", "Roads Edge / Round Trip (rev.B)",        GAME_NOT_WORKING|GAME_NO_SOUND )  /* 001 */
 GAME( 1998, sams64,   hng64,  hng64, hng64, hng64_state,  ss64,        ROT0, "SNK", "Samurai Shodown 64 / Samurai Spirits 64", GAME_NOT_WORKING|GAME_NO_SOUND ) /* 002 */
-GAME( 1998, xrally,   hng64,  hng64, hng64, hng64_state,  hng64_race,  ROT0, "SNK", "Xtreme Rally / Off Beat Racer!",         GAME_NOT_WORKING|GAME_NO_SOUND )  /* 003 */
+GAME( 1998, xrally,   hng64,  hng64, roadedge, hng64_state,  hng64_race,  ROT0, "SNK", "Xtreme Rally / Off Beat Racer!",         GAME_NOT_WORKING|GAME_NO_SOUND )  /* 003 */
 GAME( 1998, bbust2,   hng64,  hng64, bbust2, hng64_state, hng64_shoot, ROT0, "SNK", "Beast Busters 2nd Nightmare",            GAME_NOT_WORKING|GAME_NO_SOUND )  /* 004 */
 GAME( 1998, sams64_2, hng64,  hng64, hng64, hng64_state,  ss64,        ROT0, "SNK", "Samurai Shodown: Warrior's Rage / Samurai Spirits 2: Asura Zanmaden", GAME_NOT_WORKING|GAME_NO_SOUND ) /* 005 */
 GAME( 1998, fatfurwa, hng64,  hng64, hng64, hng64_state,  fatfurwa,    ROT0, "SNK", "Fatal Fury: Wild Ambition (rev.A)",          GAME_NOT_WORKING|GAME_NO_SOUND )  /* 006 */
-GAME( 1999, buriki,   hng64,  hng64, hng64, hng64_state,  fatfurwa,    ROT0, "SNK", "Buriki One (rev.B)",                     GAME_NOT_WORKING|GAME_NO_SOUND )  /* 007 */
+GAME( 1999, buriki,   hng64,  hng64, hng64, hng64_state,  buriki,      ROT0, "SNK", "Buriki One (rev.B)",                     GAME_NOT_WORKING|GAME_NO_SOUND )  /* 007 */

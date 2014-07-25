@@ -40,7 +40,10 @@ harddisk_image_device::harddisk_image_device(const machine_config &mconfig, cons
 	: device_t(mconfig, HARDDISK, "Harddisk", tag, owner, clock, "harddisk_image", __FILE__),
 		device_image_interface(mconfig, *this),
 		m_chd(NULL),
-		m_hard_disk_handle(NULL)
+		m_hard_disk_handle(NULL),
+		m_device_image_load(device_image_load_delegate()),
+		m_device_image_unload(device_image_func_delegate()),
+		m_interface(NULL)
 {
 }
 
@@ -60,29 +63,7 @@ harddisk_image_device::~harddisk_image_device()
 
 void harddisk_image_device::device_config_complete()
 {
-	// inherit a copy of the static data
-	const harddisk_interface *intf = reinterpret_cast<const harddisk_interface *>(static_config());
-	if (intf != NULL)
-		*static_cast<harddisk_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-		memset(&m_device_image_load,   0, sizeof(m_device_image_load));
-		memset(&m_device_image_unload, 0, sizeof(m_device_image_unload));
-		memset(&m_interface, 0, sizeof(m_interface));
-		memset(&m_device_displayinfo, 0, sizeof(m_device_displayinfo));
-	}
-
-	image_device_format *format = global_alloc_clear(image_device_format);;
-	format->m_index       = 0;
-	format->m_name        = "chd";
-	format->m_description = "CHD Hard drive";
-	format->m_extensions  = "chd,hd";
-	format->m_optspec     = hd_option_spec;
-	format->m_next        = NULL;
-
-	m_formatlist = format;
+	m_formatlist.append(*global_alloc(image_device_format("chd", "CHD Hard drive", "chd,hd", hd_option_spec)));
 
 	// set brief and instance name
 	update_names();
@@ -126,7 +107,7 @@ bool harddisk_image_device::call_load()
 	our_result = internal_load_hd();
 
 	/* Check if there is an image_load callback defined */
-	if ( m_device_image_load )
+	if (!m_device_image_load.isnull())
 	{
 		/* Let the override do some additional work/checks */
 		our_result = m_device_image_load(*this);
@@ -173,7 +154,7 @@ error:
 void harddisk_image_device::call_unload()
 {
 	/* Check if there is an image_unload callback defined */
-	if ( m_device_image_unload )
+	if ( !m_device_image_unload.isnull() )
 	{
 		m_device_image_unload(*this);
 	}

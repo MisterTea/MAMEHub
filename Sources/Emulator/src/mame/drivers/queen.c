@@ -60,7 +60,7 @@ public:
 static UINT8 mxtc_config_r(device_t *busdevice, device_t *device, int function, int reg)
 {
 	queen_state *state = busdevice->machine().driver_data<queen_state>();
-//  mame_printf_debug("MXTC: read %d, %02X\n", function, reg);
+//  osd_printf_debug("MXTC: read %d, %02X\n", function, reg);
 
 	return state->m_mxtc_config_reg[reg];
 }
@@ -152,14 +152,14 @@ static void intel82439tx_pci_w(device_t *busdevice, device_t *device, int functi
 static UINT8 piix4_config_r(device_t *busdevice, device_t *device, int function, int reg)
 {
 	queen_state *state = busdevice->machine().driver_data<queen_state>();
-//  mame_printf_debug("PIIX4: read %d, %02X\n", function, reg);
+//  osd_printf_debug("PIIX4: read %d, %02X\n", function, reg);
 	return state->m_piix4_config_reg[function][reg];
 }
 
 static void piix4_config_w(device_t *busdevice, device_t *device, int function, int reg, UINT8 data)
 {
 	queen_state *state = busdevice->machine().driver_data<queen_state>();
-//  mame_printf_debug("%s:PIIX4: write %d, %02X, %02X\n", machine.describe_context(), function, reg, data);
+//  osd_printf_debug("%s:PIIX4: write %d, %02X, %02X\n", machine.describe_context(), function, reg, data);
 	state->m_piix4_config_reg[function][reg] = data;
 }
 
@@ -252,7 +252,6 @@ void queen_state::machine_start()
 	m_bios_ram = auto_alloc_array(machine(), UINT32, 0x10000/4);
 	m_bios_ext_ram = auto_alloc_array(machine(), UINT32, 0x10000/4);
 
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(queen_state::irq_callback),this));
 	intel82439tx_init();
 }
 
@@ -268,6 +267,7 @@ static MACHINE_CONFIG_START( queen, queen_state )
 	MCFG_CPU_ADD("maincpu", PENTIUM3, 533000000/16) // Celeron or Pentium 3, 533 Mhz
 	MCFG_CPU_PROGRAM_MAP(queen_map)
 	MCFG_CPU_IO_MAP(queen_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_1", pic8259_device, inta_cb)
 
 	MCFG_FRAGMENT_ADD( pcat_common )
 

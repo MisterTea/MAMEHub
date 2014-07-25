@@ -17,6 +17,7 @@
 #include "machine/mcf5206e.h"
 #include "bfm_sc5.lh"
 #include "video/awpvid.h"
+#include "bfm_sc45_helper.h"
 
 
 
@@ -27,7 +28,7 @@ WRITE16_MEMBER( bfm_sc5_state::sc5_duart_w )
 
 	if (mem_mask &0xff00)
 	{
-		duart68681_w(m_duart,space,offset,(data>>8)&0x00ff);
+		m_duart->write(space,offset,(data>>8)&0x00ff);
 	}
 	else
 	{
@@ -173,7 +174,7 @@ WRITE8_MEMBER( bfm_sc5_state::sc5_10202F0_w )
 	switch (offset)
 	{
 		case 0x0:
-			bfm_sc45_write_serial_vfd(machine(), (data &0x4)?1:0, (data &0x1)?1:0, (data&0x2) ? 0:1);
+			bfm_sc45_write_serial_vfd((data &0x4)?1:0, (data &0x1)?1:0, (data&0x2) ? 0:1);
 			if (data&0xf8) printf("%s: sc5_10202F0_w %d - %02x\n", machine().describe_context(), offset, data);
 			break;
 		case 0x1:
@@ -193,44 +194,26 @@ WRITE_LINE_MEMBER(bfm_sc5_state::bfm_sc5_ym_irqhandler)
 
 
 
-void bfm_sc5_duart_irq_handler(device_t *device, int state, UINT8 vector)
+WRITE_LINE_MEMBER(bfm_sc5_state::bfm_sc5_duart_irq_handler)
 {
 	printf("bfm_sc5_duart_irq_handler\n");
-};
+}
 
-void bfm_sc5_duart_tx(device_t *device, int channel, UINT8 data)
+WRITE_LINE_MEMBER(bfm_sc5_state::bfm_sc5_duart_txa)
 {
 	logerror("bfm_sc5_duart_tx\n");
-};
+}
 
-
-
-UINT8 bfm_sc5_duart_input_r(device_t *device)
+READ8_MEMBER(bfm_sc5_state::bfm_sc5_duart_input_r)
 {
-	//bfm_sc5_state *state = device->machine().driver_data<bfm_sc5_state>();
 	printf("bfm_sc5_duart_input_r\n");
 	return 0xff;
 }
 
-void bfm_sc5_duart_output_w(device_t *device, UINT8 data)
+WRITE8_MEMBER(bfm_sc5_state::bfm_sc5_duart_output_w)
 {
 	logerror("bfm_sc5_duart_output_w\n");
 }
-
-
-static const duart68681_config bfm_sc5_duart68681_config =
-{
-	bfm_sc5_duart_irq_handler,
-	bfm_sc5_duart_tx,
-	bfm_sc5_duart_input_r,
-	bfm_sc5_duart_output_w,
-	// TODO: What are the actual frequencies?
-	16000000/2/8,     /* IP2/RxCB clock */
-	16000000/2/16,    /* IP3/TxCA clock */
-	16000000/2/16,    /* IP4/RxCA clock */
-	16000000/2/8,     /* IP5/TxCB clock */
-};
-
 
 MACHINE_CONFIG_START( bfm_sc5, bfm_sc5_state )
 	MCFG_CPU_ADD("maincpu", MCF5206E, 40000000) /* MCF5206eFT */
@@ -240,8 +223,12 @@ MACHINE_CONFIG_START( bfm_sc5, bfm_sc5_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_DUART68681_ADD("duart68681", 16000000/4, bfm_sc5_duart68681_config) // ?? Mhz
-
+	MCFG_MC68681_ADD("duart68681", 16000000/4) // ?? Mhz
+	MCFG_MC68681_SET_EXTERNAL_CLOCKS(16000000/2/8, 16000000/2/16, 16000000/2/16, 16000000/2/8)
+	MCFG_MC68681_IRQ_CALLBACK(WRITELINE(bfm_sc5_state, bfm_sc5_duart_irq_handler))
+	MCFG_MC68681_A_TX_CALLBACK(WRITELINE(bfm_sc5_state, bfm_sc5_duart_txa))
+	MCFG_MC68681_INPORT_CALLBACK(READ8(bfm_sc5_state, bfm_sc5_duart_input_r))
+	MCFG_MC68681_OUTPORT_CALLBACK(WRITE8(bfm_sc5_state, bfm_sc5_duart_output_w))
 
 	MCFG_BFMBDA_ADD("vfd0",0)
 

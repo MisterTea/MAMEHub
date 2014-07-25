@@ -17,7 +17,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_subcpu(*this, "sub"),
-		m_msm(*this, "msm") { }
+		m_msm(*this, "msm"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	int m_track0[2];
 	int m_track1[2];
@@ -65,7 +67,8 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_subcpu;
 	required_device<msm5205_device> m_msm;
-
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };

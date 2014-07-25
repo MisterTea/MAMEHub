@@ -176,7 +176,7 @@ public:
 	DECLARE_DRIVER_INIT(wildpkr);
 	virtual void machine_start();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(wildpkr);
 	UINT32 screen_update_wildpkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 };
@@ -195,7 +195,7 @@ UINT32 wildpkr_state::screen_update_wildpkr(screen_device &screen, bitmap_ind16 
 	return 0;
 }
 
-void wildpkr_state::palette_init()
+PALETTE_INIT_MEMBER(wildpkr_state, wildpkr)
 {
 }
 
@@ -255,19 +255,12 @@ void wildpkr_state::machine_start()
 
 }
 
-// static const hd63484_interface wildpkr_hd63484_intf = { 1 };
-
 
 static ADDRESS_MAP_START( ramdac_map, AS_0, 8, wildpkr_state )
 	AM_RANGE(0x000, 0x3ff) AM_DEVREADWRITE("ramdac",ramdac_device,ramdac_pal_r,ramdac_rgb666_w)
 ADDRESS_MAP_END
 
 
-
-static RAMDAC_INTERFACE( ramdac_intf )
-{
-	0
-};
 
 /*************************
 *    Machine Drivers     *
@@ -287,12 +280,13 @@ static MACHINE_CONFIG_START( wildpkr, wildpkr_state )
 	MCFG_SCREEN_SIZE(512, 512)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 512-1)
 	MCFG_SCREEN_UPDATE_DRIVER(wildpkr_state, screen_update_wildpkr)
+	MCFG_SCREEN_PALETTE("palette")
 
-//  MCFG_HD63484_ADD("hd63484", wildpkr_hd63484_intf)
-	MCFG_RAMDAC_ADD("ramdac", ramdac_intf, ramdac_map)
+//  MCFG_DEVICE_ADD("hd63484", HD63484, 0)
+	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette")
 
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(wildpkr_state, wildpkr)
 
 MACHINE_CONFIG_END
 

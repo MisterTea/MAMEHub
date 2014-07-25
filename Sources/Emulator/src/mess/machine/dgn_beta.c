@@ -56,8 +56,6 @@
 ***************************************************************************/
 
 #include <math.h>
-#include <assert.h>
-
 #include "emu.h"
 #include "debug/debugcon.h"
 #include "cpu/m6809/m6809.h"
@@ -94,68 +92,6 @@ static void execute_beta_key_dump(running_machine &machine, int ref, int params,
 
 #define INVALID_KEYROW  -1          /* no ketrow selected */
 #define NO_KEY_PRESSED  0x7F            /* retrurned by hardware if no key pressed */
-
-const pia6821_interface dgnbeta_pia_intf[] =
-{
-	/* PIA 0 at $FC20-$FC23 I46 */
-	{
-		/*inputs : A/B,CA/B1,CA/B2 */
-		DEVCB_DRIVER_MEMBER(dgn_beta_state,d_pia0_pa_r),
-		DEVCB_DRIVER_MEMBER(dgn_beta_state,d_pia0_pb_r),
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		/*outputs: A/B,CA/B2       */
-		DEVCB_DRIVER_MEMBER(dgn_beta_state,d_pia0_pa_w),
-		DEVCB_DRIVER_MEMBER(dgn_beta_state,d_pia0_pb_w),
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(dgn_beta_state,d_pia0_cb2_w),
-		/*irqs   : A/B         */
-		DEVCB_DRIVER_LINE_MEMBER(dgn_beta_state,d_pia0_irq_a),
-		DEVCB_DRIVER_LINE_MEMBER(dgn_beta_state,d_pia0_irq_b)
-	},
-
-	/* PIA 1 at $FC24-$FC27 I63 */
-	{
-		/*inputs : A/B,CA/B1,CA/B2 */
-		DEVCB_DRIVER_MEMBER(dgn_beta_state,d_pia1_pa_r),
-		DEVCB_DRIVER_MEMBER(dgn_beta_state,d_pia1_pb_r),
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		/*outputs: A/B,CA/B2       */
-		DEVCB_DRIVER_MEMBER(dgn_beta_state,d_pia1_pa_w),
-		DEVCB_DRIVER_MEMBER(dgn_beta_state,d_pia1_pb_w),
-		DEVCB_NULL,
-		DEVCB_NULL,
-		/*irqs   : A/B         */
-		DEVCB_DRIVER_LINE_MEMBER(dgn_beta_state,d_pia1_irq_a),
-		DEVCB_DRIVER_LINE_MEMBER(dgn_beta_state,d_pia1_irq_b)
-	},
-
-	/* PIA 2 at FCC0-FCC3 I28 */
-	/* This seems to control the RAM paging system, and have the DRQ */
-	/* from the WD2797 */
-	{
-		/*inputs : A/B,CA/B1,CA/B2 */
-		DEVCB_DRIVER_MEMBER(dgn_beta_state,d_pia2_pa_r),
-		DEVCB_DRIVER_MEMBER(dgn_beta_state,d_pia2_pb_r),
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		/*outputs: A/B,CA/B2       */
-		DEVCB_DRIVER_MEMBER(dgn_beta_state,d_pia2_pa_w),
-		DEVCB_DRIVER_MEMBER(dgn_beta_state,d_pia2_pb_w),
-		DEVCB_NULL,
-		DEVCB_NULL,
-		/*irqs   : A/B         */
-		DEVCB_DRIVER_LINE_MEMBER(dgn_beta_state,d_pia2_irq_a),
-		DEVCB_DRIVER_LINE_MEMBER(dgn_beta_state,d_pia2_irq_b)
-	}
-};
 
 // Info for bank switcher
 struct bank_info_entry
@@ -578,13 +514,13 @@ WRITE8_MEMBER(dgn_beta_state::d_pia0_pb_w)
 	m_d_pia0_pb_last=data;
 }
 
-WRITE8_MEMBER(dgn_beta_state::d_pia0_cb2_w)
+WRITE_LINE_MEMBER(dgn_beta_state::d_pia0_cb2_w)
 {
 	int RowNo;
 	LOG_KEYBOARD(("\nCB2 Write\n"));
 
 	/* load keyrow on rising edge of CB2 */
-	if((data==1) && (m_d_pia0_cb2_last==0))
+	if((state==1) && (m_d_pia0_cb2_last==0))
 	{
 		RowNo=SelectedKeyrow(this, m_RowShifter);
 		m_Keyrow=GetKeyRow(this, RowNo);
@@ -597,7 +533,7 @@ WRITE8_MEMBER(dgn_beta_state::d_pia0_cb2_w)
 		if (VERBOSE) debug_console_printf(machine(), "rowshifter clocked, value=%3X, RowNo=%d, Keyrow=%2X\n",m_RowShifter,RowNo,m_Keyrow);
 	}
 
-	m_d_pia0_cb2_last=data;
+	m_d_pia0_cb2_last=state;
 }
 
 
@@ -629,7 +565,7 @@ READ8_MEMBER(dgn_beta_state::d_pia1_pa_r)
 WRITE8_MEMBER(dgn_beta_state::d_pia1_pa_w)
 {
 	int HALT_DMA;
-	device_t *fdc = machine().device(FDC_TAG);
+	wd2797_device *fdc = machine().device<wd2797_device>(FDC_TAG);
 
 	/* Only play with halt line if halt bit changed since last write */
 	if((data & 0x80) != m_d_pia1_pa_last)
@@ -651,10 +587,10 @@ WRITE8_MEMBER(dgn_beta_state::d_pia1_pa_w)
 	}
 
 	/* Drive selects are binary encoded on PA0 & PA1 */
-	wd17xx_set_drive(fdc, ~data & DSMask);
+	fdc->set_drive(~data & DSMask);
 
 	/* Set density of WD2797 */
-	wd17xx_dden_w(fdc, BIT(data, 6));
+	fdc->dden_w(BIT(data, 6));
 	LOG_DISK(("Set density %s\n", BIT(data, 6) ? "low" : "high"));
 }
 
@@ -864,33 +800,25 @@ WRITE_LINE_MEMBER(dgn_beta_state::dgnbeta_fdc_drq_w)
 	cpu1_recalc_firq(state);
 }
 
-const wd17xx_interface dgnbeta_wd17xx_interface =
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(dgn_beta_state,dgnbeta_fdc_intrq_w),
-	DEVCB_DRIVER_LINE_MEMBER(dgn_beta_state,dgnbeta_fdc_drq_w),
-	{FLOPPY_0, FLOPPY_1, FLOPPY_2, FLOPPY_3}
-};
-
 READ8_MEMBER(dgn_beta_state::dgnbeta_wd2797_r)
 {
 	int result = 0;
-	device_t *fdc = space.machine().device(FDC_TAG);
+	wd2797_device *fdc = machine().device<wd2797_device>(FDC_TAG);
 
 	switch(offset & 0x03)
 	{
 		case 0:
-			result = wd17xx_status_r(fdc, space, 0);
+			result = fdc->status_r(space, 0);
 			LOG_DISK(("Disk status=%2.2X\n",result));
 			break;
 		case 1:
-			result = wd17xx_track_r(fdc, space, 0);
+			result = fdc->track_r(space, 0);
 			break;
 		case 2:
-			result = wd17xx_sector_r(fdc, space, 0);
+			result = fdc->sector_r(space, 0);
 			break;
 		case 3:
-			result = wd17xx_data_r(fdc, space, 0);
+			result = fdc->data_r(space, 0);
 			break;
 		default:
 			break;
@@ -901,7 +829,7 @@ READ8_MEMBER(dgn_beta_state::dgnbeta_wd2797_r)
 
 WRITE8_MEMBER(dgn_beta_state::dgnbeta_wd2797_w)
 {
-	device_t *fdc = space.machine().device(FDC_TAG);
+	wd2797_device *fdc = machine().device<wd2797_device>(FDC_TAG);
 
 	m_wd2797_written=1;
 
@@ -911,17 +839,17 @@ WRITE8_MEMBER(dgn_beta_state::dgnbeta_wd2797_w)
 			/* disk head is encoded in the command byte */
 			/* But only for Type 3/4 commands */
 			if(data & 0x80)
-				wd17xx_set_side(fdc,(data & 0x02) ? 1 : 0);
-			wd17xx_command_w(fdc, space, 0, data);
+				fdc->set_side((data & 0x02) ? 1 : 0);
+			fdc->command_w(space, 0, data);
 			break;
 		case 1:
-			wd17xx_track_w(fdc, space, 0, data);
+			fdc->track_w(space, 0, data);
 			break;
 		case 2:
-			wd17xx_sector_w(fdc, space, 0, data);
+			fdc->sector_w(space, 0, data);
 			break;
 		case 3:
-			wd17xx_data_w(fdc, space, 0, data);
+			fdc->data_w(space, 0, data);
 			break;
 	};
 }
@@ -994,7 +922,7 @@ void dgn_beta_state::dgn_beta_line_interrupt (int data)
 /********************************* Machine/Driver Initialization ****************************************/
 void dgn_beta_state::machine_reset()
 {
-	device_t *fdc = machine().device(FDC_TAG);
+	wd2797_device *fdc = machine().device<wd2797_device>(FDC_TAG);
 	pia6821_device *pia_0 = machine().device<pia6821_device>( PIA_0_TAG );
 	pia6821_device *pia_1 = machine().device<pia6821_device>( PIA_1_TAG );
 	pia6821_device *pia_2 = machine().device<pia6821_device>( PIA_2_TAG );
@@ -1033,12 +961,12 @@ void dgn_beta_state::machine_reset()
 	m_DMA_NMI_LAST = 0x80;       /* start with DMA NMI inactive, as pulled up */
 //  DMA_NMI = CLEAR_LINE;       /* start with DMA NMI inactive */
 
-	wd17xx_dden_w(fdc, CLEAR_LINE);
-	wd17xx_set_drive(fdc, 0);
+	fdc->dden_w(CLEAR_LINE);
+	fdc->set_drive(0);
 
 	m_videoram.set_target(m_ram->pointer(),m_videoram.bytes());     /* Point video ram at the start of physical ram */
 
-	wd17xx_reset(fdc);
+	fdc->reset();
 	m_wd2797_written=0;
 
 	m_maincpu->reset();

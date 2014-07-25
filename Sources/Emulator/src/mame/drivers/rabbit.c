@@ -106,7 +106,9 @@ public:
 		m_blitterregs(*this, "blitterregs"),
 		m_spriteram(*this, "spriteram"),
 		m_maincpu(*this, "maincpu"),
-		m_eeprom(*this, "eeprom") { }
+		m_eeprom(*this, "eeprom"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT32> m_viewregs0;
 	required_shared_ptr<UINT32> m_viewregs6;
@@ -128,7 +130,6 @@ public:
 	DECLARE_WRITE32_MEMBER(rabbit_tilemap1_w);
 	DECLARE_WRITE32_MEMBER(rabbit_tilemap2_w);
 	DECLARE_WRITE32_MEMBER(rabbit_tilemap3_w);
-	DECLARE_WRITE32_MEMBER(rabbit_paletteram_dword_w);
 	DECLARE_READ32_MEMBER(rabbit_tilemap0_r);
 	DECLARE_READ32_MEMBER(rabbit_tilemap1_r);
 	DECLARE_READ32_MEMBER(rabbit_tilemap2_r);
@@ -153,7 +154,8 @@ public:
 	void rabbit_do_blit();
 	required_device<cpu_device> m_maincpu;
 	required_device<eeprom_serial_93cxx_device> m_eeprom;
-
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
@@ -287,7 +289,7 @@ sprites invisible at the end of a round in rabbit, why?
 void rabbit_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
 	int xpos,ypos,tileno,xflip,yflip, colr;
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 	int todraw = (m_spriteregs[5]&0x0fff0000)>>16; // how many sprites to draw (start/end reg..) what is the other half?
 
 	UINT32 *source = (m_spriteram+ (todraw*2))-2;
@@ -310,8 +312,8 @@ void rabbit_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect 
 
 		if(xpos&0x800)xpos-=0x1000;
 
-		drawgfx_transpen(*m_sprite_bitmap,m_sprite_clip,gfx,tileno,colr,!xflip/*wrongdecode?*/,yflip,xpos+0x20-8/*-(m_spriteregs[0]&0x00000fff)*/,ypos-24/*-((m_spriteregs[1]&0x0fff0000)>>16)*/,15);
-//      drawgfx_transpen(bitmap,cliprect,gfx,tileno,colr,!xflip/*wrongdecode?*/,yflip,xpos+0xa0-8/*-(m_spriteregs[0]&0x00000fff)*/,ypos-24+0x80/*-((m_spriteregs[1]&0x0fff0000)>>16)*/,0);
+		gfx->transpen(*m_sprite_bitmap,m_sprite_clip,tileno,colr,!xflip/*wrongdecode?*/,yflip,xpos+0x20-8/*-(m_spriteregs[0]&0x00000fff)*/,ypos-24/*-((m_spriteregs[1]&0x0fff0000)>>16)*/,15);
+//      gfx->transpen(bitmap,cliprect,tileno,colr,!xflip/*wrongdecode?*/,yflip,xpos+0xa0-8/*-(m_spriteregs[0]&0x00000fff)*/,ypos-24+0x80/*-((m_spriteregs[1]&0x0fff0000)>>16)*/,0);
 
 
 		source-=2;
@@ -409,10 +411,10 @@ void rabbit_state::video_start()
 	m_tilemap_ram[2] = auto_alloc_array_clear(machine(), UINT32, 0x20000/4);
 	m_tilemap_ram[3] = auto_alloc_array_clear(machine(), UINT32, 0x20000/4);
 
-	m_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rabbit_state::get_rabbit_tilemap0_tile_info),this),TILEMAP_SCAN_ROWS,16, 16, 128,32);
-	m_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rabbit_state::get_rabbit_tilemap1_tile_info),this),TILEMAP_SCAN_ROWS,16, 16, 128,32);
-	m_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rabbit_state::get_rabbit_tilemap2_tile_info),this),TILEMAP_SCAN_ROWS,16, 16, 128,32);
-	m_tilemap[3] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rabbit_state::get_rabbit_tilemap3_tile_info),this),TILEMAP_SCAN_ROWS, 8,  8, 128,32);
+	m_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rabbit_state::get_rabbit_tilemap0_tile_info),this),TILEMAP_SCAN_ROWS,16, 16, 128,32);
+	m_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rabbit_state::get_rabbit_tilemap1_tile_info),this),TILEMAP_SCAN_ROWS,16, 16, 128,32);
+	m_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rabbit_state::get_rabbit_tilemap2_tile_info),this),TILEMAP_SCAN_ROWS,16, 16, 128,32);
+	m_tilemap[3] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rabbit_state::get_rabbit_tilemap3_tile_info),this),TILEMAP_SCAN_ROWS, 8,  8, 128,32);
 
 	/* the tilemaps mix 4bpp and 8bbp tiles, we split these into 2 groups, and set a different transpen for each group */
 	m_tilemap[0]->map_pen_to_layer(0, 15,  TILEMAP_PIXEL_TRANSPARENT);
@@ -477,7 +479,7 @@ UINT32 rabbit_state::screen_update_rabbit(screen_device &screen, bitmap_ind16 &b
 {
 	int prilevel;
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 //  popmessage("%08x %08x", m_viewregs0[0], m_viewregs0[1]);
 //  popmessage("%08x %08x %08x %08x %08x %08x", m_tilemap_regs[0][0],m_tilemap_regs[0][1],m_tilemap_regs[0][2],m_tilemap_regs[0][3],m_tilemap_regs[0][4],m_tilemap_regs[0][5]);
@@ -511,17 +513,7 @@ UINT32 rabbit_state::screen_update_rabbit(screen_device &screen, bitmap_ind16 &b
 }
 
 
-WRITE32_MEMBER(rabbit_state::rabbit_paletteram_dword_w)
-{
-	int r,g,b;
-	COMBINE_DATA(&m_generic_paletteram_32[offset]);
 
-	b = ((m_generic_paletteram_32[offset] & 0x000000ff) >>0);
-	r = ((m_generic_paletteram_32[offset] & 0x0000ff00) >>8);
-	g = ((m_generic_paletteram_32[offset] & 0x00ff0000) >>16);
-
-	palette_set_color(machine(),offset,MAKE_RGB(r,g,b));
-}
 
 READ32_MEMBER(rabbit_state::rabbit_tilemap0_r)
 {
@@ -591,7 +583,7 @@ void rabbit_state::rabbit_do_blit()
 	int mask,shift;
 
 
-	if(BLITCMDLOG) mame_printf_debug("BLIT command %08x %08x %08x\n", m_blitterregs[0], m_blitterregs[1], m_blitterregs[2]);
+	if(BLITCMDLOG) osd_printf_debug("BLIT command %08x %08x %08x\n", m_blitterregs[0], m_blitterregs[1], m_blitterregs[2]);
 
 	if (blt_oddflg&1)
 	{
@@ -623,12 +615,12 @@ void rabbit_state::rabbit_do_blit()
 			case 0x00: /* copy nn bytes */
 				if (!blt_amount)
 				{
-					if(BLITLOG) mame_printf_debug("end of blit list\n");
+					if(BLITLOG) osd_printf_debug("end of blit list\n");
 					timer_set(attotime::from_usec(500), TIMER_BLIT_DONE);
 					return;
 				}
 
-				if(BLITLOG) mame_printf_debug("blit copy %02x bytes\n", blt_amount);
+				if(BLITLOG) osd_printf_debug("blit copy %02x bytes\n", blt_amount);
 				for (loopcount=0;loopcount<blt_amount;loopcount++)
 				{
 					blt_value = ((blt_data[blt_source+1]<<8)|(blt_data[blt_source+0]));
@@ -644,7 +636,7 @@ void rabbit_state::rabbit_do_blit()
 				break;
 
 			case 0x02: /* fill nn bytes */
-				if(BLITLOG) mame_printf_debug("blit fill %02x bytes\n", blt_amount);
+				if(BLITLOG) osd_printf_debug("blit fill %02x bytes\n", blt_amount);
 				blt_value = ((blt_data[blt_source+1]<<8)|(blt_data[blt_source+0]));
 				blt_source+=2;
 
@@ -660,13 +652,13 @@ void rabbit_state::rabbit_do_blit()
 				break;
 
 			case 0x03: /* next line */
-				if(BLITLOG) mame_printf_debug("blit: move to next line\n");
+				if(BLITLOG) osd_printf_debug("blit: move to next line\n");
 				blt_column = (m_blitterregs[1]&0x00ff0000)>>16; /* --CC---- */
 				blt_oddflg+=128;
 				break;
 
 			default: /* unknown / illegal */
-				if(BLITLOG) mame_printf_debug("unknown blit command %02x\n",blt_commnd);
+				if(BLITLOG) osd_printf_debug("unknown blit command %02x\n",blt_commnd);
 				break;
 		}
 	}
@@ -733,7 +725,7 @@ static ADDRESS_MAP_START( rabbit_map, AS_PROGRAM, 32, rabbit_state )
 	AM_RANGE(0x488000, 0x48bfff) AM_READWRITE(rabbit_tilemap2_r,rabbit_tilemap2_w)
 	AM_RANGE(0x48c000, 0x48ffff) AM_READWRITE(rabbit_tilemap3_r,rabbit_tilemap3_w)
 	AM_RANGE(0x494000, 0x497fff) AM_RAM AM_SHARE("spriteram") // sprites?
-	AM_RANGE(0x4a0000, 0x4affff) AM_RAM_WRITE(rabbit_paletteram_dword_w) AM_SHARE("paletteram")
+	AM_RANGE(0x4a0000, 0x4affff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xff0000, 0xffffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -895,7 +887,7 @@ static MACHINE_CONFIG_START( rabbit, rabbit_state )
 
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
-	MCFG_GFXDECODE(rabbit)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rabbit)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -905,10 +897,10 @@ static MACHINE_CONFIG_START( rabbit, rabbit_state )
 //  MCFG_SCREEN_VISIBLE_AREA(0*8, 64*16-1, 0*16, 64*16-1)
 //  MCFG_SCREEN_VISIBLE_AREA(0*8, 20*16-1, 32*16, 48*16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(rabbit_state, screen_update_rabbit)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x4000)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
-
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 0x4000)
+	MCFG_PALETTE_FORMAT(XGRB)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

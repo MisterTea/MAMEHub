@@ -112,7 +112,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, tumblep_state )
 #endif
 	AM_RANGE(0x100000, 0x100001) AM_WRITE(tumblep_sound_w)
 	AM_RANGE(0x120000, 0x123fff) AM_RAM
-	AM_RANGE(0x140000, 0x1407ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x140000, 0x1407ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x180000, 0x18000f) AM_READ(tumblepop_controls_r)
 	AM_RANGE(0x18000c, 0x18000d) AM_WRITENOP
 	AM_RANGE(0x1a0000, 0x1a07ff) AM_RAM AM_SHARE("spriteram")
@@ -271,16 +271,6 @@ GFXDECODE_END
 
 /***************************************************************************/
 
-static const deco16ic_interface tumblep_deco16ic_tilegen1_intf =
-{
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0, 16, /* color base (default values) */
-	0x0f, 0x0f, /* color masks (default values) */
-	NULL, NULL,
-	0,1
-};
-
 void tumblep_state::machine_start()
 {
 }
@@ -303,13 +293,30 @@ static MACHINE_CONFIG_START( tumblep, tumblep_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-2, 1*8, 31*8-1) // hmm
 	MCFG_SCREEN_UPDATE_DRIVER(tumblep_state, screen_update_tumblep)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tumblep)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tumblep)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
-	MCFG_DECO16IC_ADD("tilegen1", tumblep_deco16ic_tilegen1_intf)
+	MCFG_DEVICE_ADD("tilegen1", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x10)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(1)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
+
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 2);
+	MCFG_DECO_SPRITE_GFX_REGION(2)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

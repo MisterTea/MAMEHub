@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Kevin Thacker,Sandro Ronco
 /******************************************************************************
 
         avigo.c
@@ -67,7 +69,6 @@
  ******************************************************************************/
 
 
-#include "emu.h"
 #include "includes/avigo.h"
 #include "avigo.lh"
 
@@ -149,13 +150,6 @@ WRITE_LINE_MEMBER( avigo_state::tc8521_alarm_int )
 //#endif
 }
 
-
-static RP5C01_INTERFACE( rtc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(avigo_state, tc8521_alarm_int)
-};
-
-
 void avigo_state::refresh_memory(UINT8 bank, UINT8 chip_select)
 {
 	address_space& space = m_maincpu->space(AS_PROGRAM);
@@ -221,25 +215,6 @@ WRITE_LINE_MEMBER( avigo_state::com_interrupt )
 
 	refresh_ints();
 }
-
-static const ins8250_interface avigo_com_interface =
-{
-	DEVCB_DEVICE_LINE_MEMBER("serport", serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER("serport", rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER("serport", rs232_port_device, rts_w),
-	DEVCB_DRIVER_LINE_MEMBER(avigo_state, com_interrupt),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const rs232_port_interface avigo_serport_config =
-{
-	DEVCB_DEVICE_LINE_MEMBER("ns16550", ins8250_uart_device, rx_w),
-	DEVCB_DEVICE_LINE_MEMBER("ns16550", ins8250_uart_device, dcd_w),
-	DEVCB_DEVICE_LINE_MEMBER("ns16550", ins8250_uart_device, dsr_w),
-	DEVCB_DEVICE_LINE_MEMBER("ns16550", ins8250_uart_device, ri_w),
-	DEVCB_DEVICE_LINE_MEMBER("ns16550", ins8250_uart_device, cts_w)
-};
 
 void avigo_state::machine_reset()
 {
@@ -879,10 +854,6 @@ void avigo_state::nvram_init(nvram_device &nvram, void *base, size_t size)
 	memset(base, 0x00, size);
 }
 
-static SLOT_INTERFACE_START( avigo_com )
-	SLOT_INTERFACE("null_modem", NULL_MODEM)
-SLOT_INTERFACE_END
-
 static MACHINE_CONFIG_START( avigo, avigo_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, 4000000)
@@ -890,8 +861,18 @@ static MACHINE_CONFIG_START( avigo, avigo_state )
 	MCFG_CPU_IO_MAP(avigo_io)
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
-	MCFG_NS16550_ADD( "ns16550", avigo_com_interface, XTAL_1_8432MHz )
-	MCFG_RS232_PORT_ADD( "serport", avigo_serport_config, avigo_com, NULL )
+	MCFG_DEVICE_ADD( "ns16550", NS16550, XTAL_1_8432MHz )
+	MCFG_INS8250_OUT_TX_CB(DEVWRITELINE("serport", rs232_port_device, write_txd))
+	MCFG_INS8250_OUT_DTR_CB(DEVWRITELINE("serport", rs232_port_device, write_dtr))
+	MCFG_INS8250_OUT_RTS_CB(DEVWRITELINE("serport", rs232_port_device, write_rts))
+	MCFG_INS8250_OUT_INT_CB(WRITELINE(avigo_state, com_interrupt))
+
+	MCFG_RS232_PORT_ADD( "serport", default_rs232_devices, NULL )
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("ns16550", ins8250_uart_device, rx_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE("ns16550", ins8250_uart_device, dcd_w))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE("ns16550", ins8250_uart_device, dsr_w))
+	MCFG_RS232_RI_HANDLER(DEVWRITELINE("ns16550", ins8250_uart_device, ri_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE("ns16550", ins8250_uart_device, cts_w))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", LCD)
@@ -900,10 +881,13 @@ static MACHINE_CONFIG_START( avigo, avigo_state )
 	MCFG_SCREEN_UPDATE_DRIVER(avigo_state, screen_update)
 	MCFG_SCREEN_SIZE(AVIGO_SCREEN_WIDTH, AVIGO_SCREEN_HEIGHT + AVIGO_PANEL_HEIGHT)
 	MCFG_SCREEN_VISIBLE_AREA(0, AVIGO_SCREEN_WIDTH-1, 0, AVIGO_SCREEN_HEIGHT + AVIGO_PANEL_HEIGHT -1)
+	MCFG_SCREEN_PALETTE("palette")
+
 	MCFG_DEFAULT_LAYOUT(layout_avigo)
 
-	MCFG_GFXDECODE(avigo)
-	MCFG_PALETTE_LENGTH(AVIGO_NUM_COLOURS)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", avigo)
+	MCFG_PALETTE_ADD("palette", AVIGO_NUM_COLOURS)
+	MCFG_PALETTE_INIT_OWNER(avigo_state, avigo)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -911,7 +895,8 @@ static MACHINE_CONFIG_START( avigo, avigo_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* real time clock */
-	MCFG_RP5C01_ADD("rtc", XTAL_32_768kHz, rtc_intf)
+	MCFG_DEVICE_ADD("rtc", RP5C01, XTAL_32_768kHz)
+	MCFG_RP5C01_OUT_ALARM_CB(WRITELINE(avigo_state, tc8521_alarm_int))
 
 	/* flash ROMs */
 	MCFG_AMD_29F080_ADD("flash0")

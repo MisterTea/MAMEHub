@@ -1,15 +1,17 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #include "includes/kyocera.h"
 
 PALETTE_INIT_MEMBER(kc85_state,kc85)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(138, 146, 148));
-	palette_set_color(machine(), 1, MAKE_RGB(92, 83, 88));
+	palette.set_pen_color(0, rgb_t(138, 146, 148));
+	palette.set_pen_color(1, rgb_t(92, 83, 88));
 }
 
 PALETTE_INIT_MEMBER(tandy200_state,tandy200)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(138, 146, 148));
-	palette_set_color(machine(), 1, MAKE_RGB(92, 83, 88));
+	palette.set_pen_color(0, rgb_t(138, 146, 148));
+	palette.set_pen_color(1, rgb_t(92, 83, 88));
 }
 
 UINT32 kc85_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -35,11 +37,6 @@ UINT32 tandy200_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap
 	return 0;
 }
 
-static HD61830_INTERFACE( lcdc_intf )
-{
-	DEVCB_NULL
-};
-
 static ADDRESS_MAP_START( tandy200_lcdc, AS_0, 8, tandy200_state )
 	ADDRESS_MAP_GLOBAL_MASK(0x1fff)
 	AM_RANGE(0x0000, 0x1fff) AM_RAM
@@ -51,11 +48,12 @@ MACHINE_CONFIG_FRAGMENT( kc85_video )
 	MCFG_SCREEN_UPDATE_DRIVER(kc85_state, screen_update)
 	MCFG_SCREEN_SIZE(240, 64)
 	MCFG_SCREEN_VISIBLE_AREA(0, 240-1, 0, 64-1)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(kc85_state,kc85)
+	MCFG_PALETTE_ADD("palette", 2)
+	MCFG_PALETTE_INIT_OWNER(kc85_state,kc85)
 
 	MCFG_HD44102_ADD(HD44102_0_TAG, SCREEN_TAG,   0,  0)
 	MCFG_HD44102_ADD(HD44102_1_TAG, SCREEN_TAG,  50,  0)
@@ -78,12 +76,14 @@ MACHINE_CONFIG_FRAGMENT( tandy200_video )
 	MCFG_SCREEN_UPDATE_DRIVER(tandy200_state, screen_update)
 	MCFG_SCREEN_SIZE(240, 128)
 	MCFG_SCREEN_VISIBLE_AREA(0, 240-1, 0, 128-1)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(tandy200_state,tandy200)
+	MCFG_PALETTE_ADD("palette", 2)
+	MCFG_PALETTE_INIT_OWNER(tandy200_state,tandy200)
 
-	MCFG_HD61830_ADD(HD61830_TAG, XTAL_4_9152MHz/2/2, lcdc_intf)
+	MCFG_DEVICE_ADD(HD61830_TAG, HD61830, XTAL_4_9152MHz/2/2)
 	MCFG_DEVICE_ADDRESS_MAP(AS_0, tandy200_lcdc)
+	MCFG_VIDEO_SET_SCREEN(SCREEN_TAG)
 MACHINE_CONFIG_END

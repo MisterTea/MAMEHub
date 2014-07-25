@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /**********************************************************************
 
     Toshiba T6721A C2MOS Voice Synthesizing LSI emulation
@@ -45,16 +47,16 @@
 //**************************************************************************
 
 #define MCFG_T6721A_EOS_HANDLER(_eos) \
-	downcast<t6721a_device *>(device)->set_eos_callback(DEVCB2_##_eos);
+	downcast<t6721a_device *>(device)->set_eos_callback(DEVCB_##_eos);
 
 #define MCFG_T6721A_PHI2_HANDLER(_phi2) \
-	downcast<t6721a_device *>(device)->set_phi2_callback(DEVCB2_##_phi2);
+	downcast<t6721a_device *>(device)->set_phi2_callback(DEVCB_##_phi2);
 
 #define MCFG_T6721A_DTRD_HANDLER(_dtrd) \
-	downcast<t6721a_device *>(device)->set_dtrd_callback(DEVCB2_##_dtrd);
+	downcast<t6721a_device *>(device)->set_dtrd_callback(DEVCB_##_dtrd);
 
 #define MCFG_T6721A_APD_HANDLER(_apd) \
-	downcast<t6721a_device *>(device)->set_apd_callback(DEVCB2_##_apd);
+	downcast<t6721a_device *>(device)->set_apd_callback(DEVCB_##_apd);
 
 
 
@@ -107,10 +109,10 @@ private:
 		CMD_SAGN
 	};
 
-	devcb2_write_line m_write_eos;
-	devcb2_write_line m_write_phi2;
-	devcb2_write_line m_write_dtrd;
-	devcb2_write_line m_write_apd;
+	devcb_write_line m_write_eos;
+	devcb_write_line m_write_phi2;
+	devcb_write_line m_write_dtrd;
+	devcb_write_line m_write_apd;
 
 	sound_stream *m_stream;
 };

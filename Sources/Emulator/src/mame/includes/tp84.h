@@ -13,7 +13,10 @@ public:
 		m_fg_videoram(*this, "fg_videoram"),
 		m_bg_colorram(*this, "bg_colorram"),
 		m_fg_colorram(*this, "fg_colorram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_device<cpu_device> m_audiocpu;
 	required_shared_ptr<UINT8> m_palette_bank;
@@ -26,6 +29,9 @@ public:
 	required_shared_ptr<UINT8> m_bg_colorram;
 	required_shared_ptr<UINT8> m_fg_colorram;
 	required_shared_ptr<UINT8> m_spriteram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 	tilemap_t *m_bg_tilemap;
 	tilemap_t *m_fg_tilemap;
 
@@ -40,7 +46,7 @@ public:
 	TILE_GET_INFO_MEMBER(get_fg_tile_info);
 	virtual void machine_start();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(tp84);
 	UINT32 screen_update_tp84(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(sub_vblank_irq);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);

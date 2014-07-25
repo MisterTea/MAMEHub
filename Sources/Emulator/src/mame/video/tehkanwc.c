@@ -87,10 +87,10 @@ TILE_GET_INFO_MEMBER(tehkanwc_state::get_fg_tile_info)
 
 void tehkanwc_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tehkanwc_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tehkanwc_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
 			16, 8, 32, 32);
 
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tehkanwc_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tehkanwc_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,
 			8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
@@ -148,7 +148,7 @@ void tehkanwc_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 			code, color, flipx, flipy, sx, sy, 0);
 	}
 }

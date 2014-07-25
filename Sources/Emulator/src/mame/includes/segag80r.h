@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     Sega G-80 raster hardware
@@ -6,6 +8,10 @@
 #include "sound/samples.h"
 #include "machine/segag80.h"
 #include "sound/sn76496.h"
+#include "audio/segasnd.h"
+
+
+class sega005_sound_device;
 
 class segag80r_state : public driver_device
 {
@@ -23,13 +29,30 @@ public:
 		m_sn2(*this, "sn2"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_samples(*this, "samples") { }
+		m_samples(*this, "samples"),
+		m_speech(*this, "segaspeech"),
+		m_usbsnd(*this, "usbsnd"),
+		m_005snd(*this, "005"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_mainram;
 	required_shared_ptr<UINT8> m_videoram;
 
 	optional_device<sn76496_device> m_sn1;
 	optional_device<sn76496_device> m_sn2;
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<samples_device> m_samples;
+	optional_device<speech_sound_device> m_speech;
+	optional_device<usb_sound_device> m_usbsnd;
+	optional_device<sega005_sound_device> m_005snd;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
+	dynamic_array<UINT8> m_paletteram;
 
 	UINT8 m_sound_state[2];
 	UINT8 m_sound_rate;
@@ -37,8 +60,6 @@ public:
 	UINT8 m_sound_data;
 	UINT8 m_square_state;
 	UINT8 m_square_count;
-	emu_timer *m_sega005_sound_timer;
-	sound_stream *m_sega005_stream;
 	UINT8 m_n7751_command;
 	UINT8 m_n7751_busy;
 	segag80_decrypt_func m_decrypt;
@@ -111,6 +132,7 @@ public:
 	INTERRUPT_GEN_MEMBER(sindbadm_vblank_start);
 	DECLARE_WRITE8_MEMBER(sega005_sound_a_w);
 	DECLARE_WRITE8_MEMBER(sega005_sound_b_w);
+	inline void sega005_update_sound_data();
 	DECLARE_WRITE8_MEMBER(monsterb_sound_a_w);
 	DECLARE_WRITE8_MEMBER(monsterb_sound_b_w);
 	DECLARE_READ8_MEMBER(n7751_status_r);
@@ -127,9 +149,6 @@ public:
 	offs_t decrypt_offset(address_space &space, offs_t offset);
 	inline UINT8 demangle(UINT8 d7d6, UINT8 d5d4, UINT8 d3d2, UINT8 d1d0);
 	void monsterb_expand_gfx(const char *region);
-	required_device<cpu_device> m_maincpu;
-	optional_device<cpu_device> m_audiocpu;
-	optional_device<samples_device> m_samples;
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -137,6 +156,32 @@ protected:
 
 
 /*----------- defined in audio/segag80r.c -----------*/
+
+
+class sega005_sound_device : public device_t,
+									public device_sound_interface
+{
+public:
+	sega005_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	emu_timer *m_sega005_sound_timer;
+	sound_stream *m_sega005_stream;
+
+protected:
+	// device-level overrides
+	virtual void device_config_complete();
+	virtual void device_start();
+
+	// sound stream update overrides
+	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
+
+private:
+	// internal state
+	TIMER_CALLBACK_MEMBER( sega005_auto_timer );
+};
+
+extern const device_type SEGA005;
+
 
 MACHINE_CONFIG_EXTERN( astrob_sound_board );
 MACHINE_CONFIG_EXTERN( 005_sound_board );

@@ -113,7 +113,7 @@ $8000 - $ffff   ROM
 const device_type RENEGADE_ADPCM = &device_creator<renegade_adpcm_device>;
 
 renegade_adpcm_device::renegade_adpcm_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, RENEGADE_ADPCM, "Renegade Custom ADPCM", tag, owner, clock, "renegade_adpcm", __FILE__),
+	: device_t(mconfig, RENEGADE_ADPCM, "Renegade ADPCM Custom", tag, owner, clock, "renegade_adpcm", __FILE__),
 		device_sound_interface(mconfig, *this),
 		m_stream(NULL),
 		m_current(0),
@@ -141,7 +141,7 @@ void renegade_adpcm_device::device_config_complete()
 void renegade_adpcm_device::device_start()
 {
 	m_playing = 0;
-	m_stream = machine().sound().stream_alloc(*this, 0, 1, clock(), this);
+	m_stream = machine().sound().stream_alloc(*this, 0, 1, clock());
 	m_base = machine().root_device().memregion("adpcm")->base();
 	m_adpcm.reset();
 
@@ -635,8 +635,8 @@ static ADDRESS_MAP_START( renegade_map, AS_PROGRAM, 8, renegade_state )
 	AM_RANGE(0x1800, 0x1fff) AM_RAM_WRITE(renegade_videoram2_w) AM_SHARE("videoram2")
 	AM_RANGE(0x2000, 0x27ff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x2800, 0x2fff) AM_RAM_WRITE(renegade_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x3000, 0x30ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_split_lo_w) AM_SHARE("paletteram")
-	AM_RANGE(0x3100, 0x31ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_split_hi_w) AM_SHARE("paletteram2")
+	AM_RANGE(0x3000, 0x30ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0x3100, 0x31ff) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0x3800, 0x3800) AM_READ_PORT("IN0") AM_WRITE(renegade_scroll0_w)       /* Player#1 controls, P1,P2 start */
 	AM_RANGE(0x3801, 0x3801) AM_READ_PORT("IN1") AM_WRITE(renegade_scroll1_w)       /* Player#2 controls, coin triggers */
 	AM_RANGE(0x3802, 0x3802) AM_READ_PORT("DSW2") AM_WRITE(sound_w) /* DIP2  various IO ports */
@@ -892,10 +892,11 @@ static MACHINE_CONFIG_START( renegade, renegade_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 31*8-1, 0, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(renegade_state, screen_update_renegade)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(renegade)
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", renegade)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

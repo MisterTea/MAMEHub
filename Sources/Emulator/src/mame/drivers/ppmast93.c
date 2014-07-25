@@ -144,7 +144,8 @@ public:
 		m_bgram(*this, "bgram"),
 		m_fgram(*this, "fgram"),
 		m_maincpu(*this, "maincpu"),
-		m_dac(*this, "dac") { }
+		m_dac(*this, "dac"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	tilemap_t *m_fg_tilemap;
 	tilemap_t *m_bg_tilemap;
@@ -160,6 +161,7 @@ public:
 	UINT32 screen_update_ppmast93(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<dac_device> m_dac;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -333,8 +335,7 @@ GFXDECODE_END
 TILE_GET_INFO_MEMBER(ppmast93_state::get_ppmast93_bg_tile_info)
 {
 	int code = (m_bgram[tile_index*2+1] << 8) | m_bgram[tile_index*2];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code & 0x0fff,
 			(code & 0xf000) >> 12,
 			0);
@@ -343,8 +344,7 @@ TILE_GET_INFO_MEMBER(ppmast93_state::get_ppmast93_bg_tile_info)
 TILE_GET_INFO_MEMBER(ppmast93_state::get_ppmast93_fg_tile_info)
 {
 	int code = (m_fgram[tile_index*2+1] << 8) | m_fgram[tile_index*2];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			(code & 0x0fff)+0x1000,
 			(code & 0xf000) >> 12,
 			0);
@@ -352,8 +352,8 @@ TILE_GET_INFO_MEMBER(ppmast93_state::get_ppmast93_fg_tile_info)
 
 void ppmast93_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ppmast93_state::get_ppmast93_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ppmast93_state::get_ppmast93_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ppmast93_state::get_ppmast93_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ppmast93_state::get_ppmast93_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 }
@@ -384,11 +384,11 @@ static MACHINE_CONFIG_START( ppmast93, ppmast93_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ppmast93_state, screen_update_ppmast93)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ppmast93)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ppmast93)
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 0x100)
 
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")

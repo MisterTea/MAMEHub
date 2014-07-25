@@ -232,8 +232,6 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "cpu/s2650/s2650.h"
-#include "sound/dac.h"
 #include "includes/lazercmd.h"
 
 // color overlays, bbonk does not have an overlay
@@ -259,7 +257,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(lazercmd_state::lazercmd_timer)
 	{
 		m_timer_count = 0;
 		m_sense_state ^= 1;
-		m_maincpu->set_input_line(1, (m_sense_state) ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->write_sense(m_sense_state ? ASSERT_LINE : CLEAR_LINE);
 	}
 }
 
@@ -595,15 +593,15 @@ static GFXDECODE_START( lazercmd )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout, 0, 2 )
 GFXDECODE_END
 
-void lazercmd_state::palette_init()
+PALETTE_INIT_MEMBER(lazercmd_state, lazercmd)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(0xb0, 0xb0, 0xb0)); /* white */
-	palette_set_color(machine(), 1, MAKE_RGB(0x00, 0x00, 0x00)); /* black */
+	palette.set_pen_color(0, rgb_t(0xb0, 0xb0, 0xb0)); /* white */
+	palette.set_pen_color(1, rgb_t(0x00, 0x00, 0x00)); /* black */
 
-	palette_set_color(machine(), 2, MAKE_RGB(0x00, 0x00, 0x00)); /* black */
-	palette_set_color(machine(), 3, MAKE_RGB(0xb0, 0xb0, 0xb0)); /* white */
+	palette.set_pen_color(2, rgb_t(0x00, 0x00, 0x00)); /* black */
+	palette.set_pen_color(3, rgb_t(0xb0, 0xb0, 0xb0)); /* white */
 
-	palette_set_color(machine(), 4, MAKE_RGB(0xff, 0xff, 0xff)); /* bright white */
+	palette.set_pen_color(4, rgb_t(0xff, 0xff, 0xff)); /* bright white */
 }
 
 
@@ -647,9 +645,11 @@ static MACHINE_CONFIG_START( lazercmd, lazercmd_state )
 	MCFG_SCREEN_SIZE(HORZ_RES * HORZ_CHR, VERT_RES * VERT_CHR + 16)
 	MCFG_SCREEN_VISIBLE_AREA(0 * HORZ_CHR, HORZ_RES * HORZ_CHR - 1, 0 * VERT_CHR, (VERT_RES - 1) * VERT_CHR - 1)
 	MCFG_SCREEN_UPDATE_DRIVER(lazercmd_state, screen_update_lazercmd)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(lazercmd)
-	MCFG_PALETTE_LENGTH(5)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lazercmd)
+	MCFG_PALETTE_ADD("palette", 5)
+	MCFG_PALETTE_INIT_OWNER(lazercmd_state, lazercmd)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -678,9 +678,11 @@ static MACHINE_CONFIG_START( medlanes, lazercmd_state )
 	MCFG_SCREEN_SIZE(HORZ_RES * HORZ_CHR, VERT_RES * VERT_CHR)
 	MCFG_SCREEN_VISIBLE_AREA(0 * HORZ_CHR, HORZ_RES * HORZ_CHR - 1, 0 * VERT_CHR, VERT_RES * VERT_CHR - 1)
 	MCFG_SCREEN_UPDATE_DRIVER(lazercmd_state, screen_update_lazercmd)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(lazercmd)
-	MCFG_PALETTE_LENGTH(5)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lazercmd)
+	MCFG_PALETTE_ADD("palette", 5)
+	MCFG_PALETTE_INIT_OWNER(lazercmd_state, lazercmd)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -709,9 +711,11 @@ static MACHINE_CONFIG_START( bbonk, lazercmd_state )
 	MCFG_SCREEN_SIZE(HORZ_RES * HORZ_CHR, VERT_RES * VERT_CHR)
 	MCFG_SCREEN_VISIBLE_AREA(0 * HORZ_CHR, HORZ_RES * HORZ_CHR - 1, 0 * VERT_CHR, (VERT_RES - 1) * VERT_CHR - 1)
 	MCFG_SCREEN_UPDATE_DRIVER(lazercmd_state, screen_update_lazercmd)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(lazercmd)
-	MCFG_PALETTE_LENGTH(5)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lazercmd)
+	MCFG_PALETTE_ADD("palette", 5)
+	MCFG_PALETTE_INIT_OWNER(lazercmd_state, lazercmd)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

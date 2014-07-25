@@ -144,25 +144,7 @@ static INPUT_PORTS_START( galaxyp )
 	PORT_INCLUDE( galaxy_common )
 INPUT_PORTS_END
 
-static const ay8910_interface galaxy_ay_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL
-};
-
 #define XTAL 6144000
-
-
-static const cassette_interface galaxy_cassette_interface =
-{
-	gtp_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED),
-	"galaxy_cass",
-	NULL
-};
-
 
 /* F4 Character Displayer */
 static const gfx_layout galaxy_charlayout =
@@ -188,8 +170,11 @@ static MACHINE_CONFIG_START( galaxy, galaxy_state )
 	MCFG_CPU_ADD("maincpu", Z80, XTAL / 2)
 	MCFG_CPU_PROGRAM_MAP(galaxy_mem)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", galaxy_state,  galaxy_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(galaxy_state,galaxy_irq_callback)
+
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(50)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_MACHINE_RESET_OVERRIDE(galaxy_state, galaxy )
 
@@ -198,9 +183,8 @@ static MACHINE_CONFIG_START( galaxy, galaxy_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 384-1, 0, 208-1)
 	MCFG_SCREEN_UPDATE_DRIVER(galaxy_state, screen_update_galaxy)
 
-	MCFG_GFXDECODE(galaxy)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", galaxy)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 
 	/* snapshot */
@@ -210,7 +194,11 @@ static MACHINE_CONFIG_START( galaxy, galaxy_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( "cassette", galaxy_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(gtp_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
+	MCFG_CASSETTE_INTERFACE("galaxy_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","galaxy")
 
 	/* internal ram */
@@ -225,8 +213,11 @@ static MACHINE_CONFIG_START( galaxyp, galaxy_state )
 	MCFG_CPU_PROGRAM_MAP(galaxyp_mem)
 	MCFG_CPU_IO_MAP(galaxyp_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", galaxy_state,  galaxy_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(galaxy_state,galaxy_irq_callback)
+
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(50)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_MACHINE_RESET_OVERRIDE(galaxy_state, galaxyp )
 
@@ -235,8 +226,7 @@ static MACHINE_CONFIG_START( galaxyp, galaxy_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 384-1, 0, 208-1)
 	MCFG_SCREEN_UPDATE_DRIVER(galaxy_state, screen_update_galaxy)
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 
 	/* snapshot */
@@ -245,11 +235,14 @@ static MACHINE_CONFIG_START( galaxyp, galaxy_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ay8910", AY8910, XTAL/4)
-	MCFG_SOUND_CONFIG(galaxy_ay_interface)
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( "cassette", galaxy_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(gtp_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
+	MCFG_CASSETTE_INTERFACE("galaxy_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","galaxy")
 
 	/* internal ram */

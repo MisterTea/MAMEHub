@@ -54,7 +54,6 @@ RO-3-9506 = 8KiB (4Kiw) self decoding address mask rom with external address dec
 #include "includes/intv.h"
 #include "imagedev/cartslot.h"
 #include "sound/ay8910.h"
-#include "sound/sp0256.h"
 
 #ifndef VERBOSE
 #ifdef MAME_DEBUG
@@ -84,29 +83,27 @@ static const unsigned char intv_colors[] =
 	0xB5, 0x1A, 0x58  /* PURPLE */
 };
 
-void intv_state::palette_init()
+PALETTE_INIT_MEMBER(intv_state, intv)
 {
 	int k = 0;
 	UINT8 r, g, b;
 	/* Two copies of everything (why?) */
-
-	machine().colortable = colortable_alloc(machine(), 32);
 
 	for (int i = 0; i < 16; i++)
 	{
 		r = intv_colors[i * 3 + 0];
 		g = intv_colors[i * 3 + 1];
 		b = intv_colors[i * 3 + 2];
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
-		colortable_palette_set_color(machine().colortable, i + 16, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
+		palette.set_indirect_color(i + 16, rgb_t(r, g, b));
 	}
 
 	for (int i = 0; i < 16; i++)
 	{
 		for (int j = 0; j < 16; j++)
 		{
-			colortable_entry_set_value(machine().colortable, k++, i);
-			colortable_entry_set_value(machine().colortable, k++, j);
+			palette.set_pen_indirect(k++, i);
+			palette.set_pen_indirect(k++, j);
 		}
 	}
 
@@ -114,48 +111,11 @@ void intv_state::palette_init()
 	{
 		for (int j = 16; j < 32; j++)
 		{
-			colortable_entry_set_value(machine().colortable, k++, i);
-			colortable_entry_set_value(machine().colortable, k++, j);
+			palette.set_pen_indirect(k++, i);
+			palette.set_pen_indirect(k++, j);
 		}
 	}
 }
-
-static const ay8910_interface intv_ay8914_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(intv_state, intv_right_control_r),
-	DEVCB_DRIVER_MEMBER(intv_state, intv_left_control_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface intv_ay8914_ecs_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(intv_state, intv_ecs_porta_r),
-	DEVCB_DRIVER_MEMBER(intv_state, intv_ecs_portb_r),
-	DEVCB_DRIVER_MEMBER(intv_state, intv_ecs_porta_w),
-	DEVCB_NULL
-};
-
-static const sp0256_interface intellivoice_sp0256 =
-{
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-/*
-static const cassette_interface ecs_cassette_interface =
-{
-    cassette_default_formats,
-    NULL,
-    (cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED),
-    NULL,
-    NULL
-};
-*/
 
 /* graphics output */
 
@@ -825,17 +785,20 @@ static MACHINE_CONFIG_START( intv, intv_state )
 	MCFG_SCREEN_UPDATE_DRIVER(intv_state, screen_update_intv)
 	MCFG_SCREEN_SIZE((STIC_OVERSCAN_LEFT_WIDTH+STIC_BACKTAB_WIDTH*STIC_CARD_WIDTH-1+STIC_OVERSCAN_RIGHT_WIDTH)*STIC_X_SCALE*INTV_X_SCALE, (STIC_OVERSCAN_TOP_HEIGHT+STIC_BACKTAB_HEIGHT*STIC_CARD_HEIGHT+STIC_OVERSCAN_BOTTOM_HEIGHT)*STIC_Y_SCALE*INTV_Y_SCALE)
 	MCFG_SCREEN_VISIBLE_AREA(0, (STIC_OVERSCAN_LEFT_WIDTH+STIC_BACKTAB_WIDTH*STIC_CARD_WIDTH-1+STIC_OVERSCAN_RIGHT_WIDTH)*STIC_X_SCALE*INTV_X_SCALE-1, 0, (STIC_OVERSCAN_TOP_HEIGHT+STIC_BACKTAB_HEIGHT*STIC_CARD_HEIGHT+STIC_OVERSCAN_BOTTOM_HEIGHT)*STIC_Y_SCALE*INTV_Y_SCALE-1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x400)
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(intv_state, intv)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ay8914.1", AY8914, XTAL_3_579545MHz/2)
-	MCFG_SOUND_CONFIG(intv_ay8914_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(intv_state, intv_right_control_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(intv_state, intv_left_control_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.33)
 
 	MCFG_SOUND_ADD("sp0256_speech", SP0256, 3120000)
-	MCFG_SOUND_CONFIG(intellivoice_sp0256)
 	/* The Intellivoice uses a speaker with its own volume control so the relative volumes to use are subjective */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
@@ -859,11 +822,13 @@ static MACHINE_CONFIG_DERIVED( intvecs, intv )
 	MCFG_SOFTWARE_LIST_ADD("cart_list_ecs","intvecs")
 
 	MCFG_SOUND_ADD("ay8914.2", AY8914, XTAL_3_579545MHz/2)
-	MCFG_SOUND_CONFIG(intv_ay8914_ecs_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(intv_state, intv_ecs_porta_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(intv_state, intv_ecs_portb_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(intv_state, intv_ecs_porta_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.33)
 
 	/* cassette */
-	//MCFG_CASSETTE_ADD( "cassette", ecs_cassette_interface )
+	//MCFG_CASSETTE_ADD( "cassette" )
 
 MACHINE_CONFIG_END
 
@@ -878,7 +843,10 @@ static MACHINE_CONFIG_DERIVED( intvkbd, intv )
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 
 	/* video hardware */
-	MCFG_GFXDECODE(intvkbd)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", intvkbd)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(intv_state, intv)
+
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_SIZE((STIC_OVERSCAN_LEFT_WIDTH+STIC_BACKTAB_WIDTH*STIC_CARD_WIDTH-1+STIC_OVERSCAN_RIGHT_WIDTH)*STIC_X_SCALE*INTVKBD_X_SCALE, (STIC_OVERSCAN_TOP_HEIGHT+STIC_BACKTAB_HEIGHT*STIC_CARD_HEIGHT+STIC_OVERSCAN_BOTTOM_HEIGHT)*STIC_Y_SCALE*INTVKBD_Y_SCALE)
 	MCFG_SCREEN_VISIBLE_AREA(0, (STIC_OVERSCAN_LEFT_WIDTH+STIC_BACKTAB_WIDTH*STIC_CARD_WIDTH-1+STIC_OVERSCAN_RIGHT_WIDTH)*STIC_X_SCALE*INTVKBD_X_SCALE-1, 0, (STIC_OVERSCAN_TOP_HEIGHT+STIC_BACKTAB_HEIGHT*STIC_CARD_HEIGHT+STIC_OVERSCAN_BOTTOM_HEIGHT)*STIC_Y_SCALE*INTVKBD_Y_SCALE-1)

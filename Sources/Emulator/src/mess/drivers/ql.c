@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder, Phill Harvey-Smith
 /*
 
     Sinclair QL
@@ -10,7 +12,6 @@
 
     TODO:
 
-    - slotify cartridges
     - microdrive
     - ZX8301 memory access slowdown
     - use resnet.h to create palette
@@ -44,7 +45,7 @@
 
         The trump card has some interesting memory mapping and re-mapping during initialisation which goes like this
 
-        On rest the card ram is mapped into the entire $40000-$fffff area, this is the official 512K expansion ram area
+        On reset the card ram is mapped into the entire $40000-$fffff area, this is the official 512K expansion ram area
         plus the area set aside for addon card roms. The trump card onboard rom is also mapped in at $10000-$17fff.
 
         The main bios then performs a series of loops that initialise and size the ram, this will find either
@@ -72,26 +73,124 @@
 
 */
 
-
-#include "emu.h"
-#include "cpu/m68000/m68000.h"
-#include "cpu/mcs48/mcs48.h"
-#include "cpu/mcs51/mcs51.h"
-#include "imagedev/cartslot.h"
-#include "imagedev/flopdrv.h"
-#include "imagedev/printer.h"
-#include "machine/ram.h"
-#include "machine/microdrv.h"
-#include "formats/basicdsk.h"
-#include "machine/zx8302.h"
-#include "sound/speaker.h"
-#include "video/zx8301.h"
 #include "includes/ql.h"
-#include "machine/wd17xx.h"
-#include "debugger.h"
 
-#define LOG_DISK_WRITE  0
-#define LOG_DISK_READ   0
+
+
+//**************************************************************************
+//  ADDRESS DECODING
+//**************************************************************************
+
+//-------------------------------------------------
+//  read -
+//-------------------------------------------------
+
+READ8_MEMBER( ql_state::read )
+{
+	UINT8 data = 0;
+	int cart_romoeh = 0;
+	int exp_romoeh = 0;
+
+	if (offset < 0xc000)
+	{
+		data = m_rom->base()[offset];
+	}
+	if (offset >= 0xc000 && offset < 0x10000)
+	{
+		cart_romoeh = 1;
+	}
+	if (offset >= 0x18000 && offset <= 0x18003)
+	{
+		data = m_zx8302->rtc_r(space, offset & 0x03);
+	}
+	if (offset == 0x18020)
+	{
+		data = m_zx8302->status_r(space, 0);
+	}
+	if (offset == 0x18021)
+	{
+		data = m_zx8302->irq_status_r(space, 0);
+	}
+	if (offset >= 0x18022 && offset <= 0x18023)
+	{
+		data = m_zx8302->mdv_track_r(space, offset & 0x01);
+	}
+	if (offset >= 0x20000 && offset < 0x40000)
+	{
+		data = m_zx8301->data_r(space, offset & 0x1ffff);
+	}
+	if (offset >= 0xc0000)
+	{
+		exp_romoeh = 1;
+	}
+	if (m_qimi_enabled)
+	{
+		data = m_qimi->read(space, offset, data);
+	}
+
+	m_cart->romoeh_w(cart_romoeh);
+	data = m_cart->read(space, offset & 0x7fff, data);
+	m_cart->romoeh_w(0);
+
+	m_exp->romoeh_w(exp_romoeh);
+	data = m_exp->read(space, offset, data);
+	m_exp->romoeh_w(0);
+
+	return data;
+}
+
+
+//-------------------------------------------------
+//  write -
+//-------------------------------------------------
+
+WRITE8_MEMBER( ql_state::write )
+{
+	if (offset >= 0x18000 && offset <= 0x18001)
+	{
+		m_zx8302->rtc_w(space, offset & 0x01, data);
+	}
+	if (offset == 0x18002)
+	{
+		m_zx8302->control_w(space, 0, data);
+	}
+	if (offset == 0x18003)
+	{
+		m_zx8302->ipc_command_w(space, 0, data);
+	}
+	if (offset == 0x18020)
+	{
+		m_zx8302->mdv_control_w(space, 0, data);
+	}
+	if (offset == 0x18021)
+	{
+		m_zx8302->irq_acknowledge_w(space, 0, data);
+	}
+	if (offset == 0x18022)
+	{
+		m_zx8302->data_w(space, 0, data);
+	}
+	if (offset == 0x18063)
+	{
+		m_zx8301->control_w(space, 0, data);
+	}
+	if (offset >= 0x20000 && offset < 0x40000)
+	{
+			m_zx8301->data_w(space, offset & 0x1ffff, data);
+	}
+	if (m_qimi_enabled)
+	{
+		m_qimi->write(space, offset, data);
+	}
+
+	m_cart->romoeh_w(0);
+	m_cart->write(space, offset & 0x7fff, data);
+
+	m_exp->romoeh_w(0);
+	m_exp->write(space, offset, data);
+}
+
+
 
 //**************************************************************************
 //  INTELLIGENT PERIPHERAL CONTROLLER
@@ -157,10 +256,10 @@ READ8_MEMBER( ql_state::ipc_port2_r )
 	UINT8 data = 0;
 
 	// SER2 serial data input
-	data |= m_ser2->rx();
+	data |= m_ser2->rxd_r();
 
 	// COMDATA
-	data |= m_comdata << 7;
+	data |= m_comdata_to_ipc << 7;
 
 	return data;
 }
@@ -209,11 +308,9 @@ WRITE8_MEMBER( ql_state::ipc_port2_w )
 	// TODO SER1 clear to send
 
 	// SER2 data terminal ready
-	m_ser2->dtr_w(!BIT(data, 5));
+	m_ser2->write_dtr(!BIT(data, 5));
 
 	// COMDATA
-	m_comdata = BIT(data, 7);
-
 	m_zx8302->comdata_w(BIT(data, 7));
 }
 
@@ -263,128 +360,7 @@ READ8_MEMBER( ql_state::ipc_bus_r )
 	return data;
 }
 
-READ8_MEMBER( ql_state::disk_io_r )
-{
-	UINT8   result = 0;
 
-	if(LOG_DISK_READ)
-		logerror("%s DiskIO:Read of %08X\n",machine().describe_context(),m_disk_io_base+offset);
-
-	switch (offset)
-	{
-		case 0x0000 : result=wd17xx_r(m_fdc, space, offset); break;
-		case 0x0001 : result=wd17xx_r(m_fdc, space, offset); break;
-		case 0x0002 : result=wd17xx_r(m_fdc, space, offset); break;
-		case 0x0003 : result=wd17xx_r(m_fdc, space, offset); break;
-		default     : logerror("%s DiskIO undefined read : from %08X\n",machine().describe_context(),m_disk_io_base+offset); break;
-	}
-
-	return result;
-}
-
-WRITE8_MEMBER( ql_state::disk_io_w )
-{
-	if(LOG_DISK_WRITE)
-		logerror("%s DiskIO:Write %02X to %08X\n",machine().describe_context(),data,m_disk_io_base+offset);
-
-	switch (offset)
-	{
-		case 0x0000 : wd17xx_w(m_fdc, space, offset, data); break;
-		case 0x0001 : wd17xx_w(m_fdc, space, offset, data); break;
-		case 0x0002 : wd17xx_w(m_fdc, space, offset, data); break;
-		case 0x0003 : wd17xx_w(m_fdc, space, offset, data); break;
-		case 0x0004 : if(m_disk_type==DISK_TYPE_SANDY)
-						sandy_set_control(data);break;
-		case 0x0008 : if(m_disk_type==DISK_TYPE_SANDY)
-						m_printer_char=data;
-		case 0x2000 : if(m_disk_type==DISK_TYPE_TRUMP)
-						trump_card_set_control(data);break;
-		default     : logerror("%s DiskIO undefined write : %02X to %08X\n",machine().describe_context(),data,m_disk_io_base+offset); break;
-	}
-}
-
-READ8_MEMBER( ql_state::trump_card_rom_r )
-{
-	// If we have more than 640K them map extra ram into top 256K
-	// else just map to unmap.
-	if (m_ram->size()>(640*1024))
-		space.install_ram(0x0c0000, 0x0fffff, NULL);
-	else
-		space.unmap_readwrite(0x0c0000, 0x0fffff);
-
-	// Setup trumcard rom mapped to rom so unlink us
-	space.install_rom(0x010000, 0x018000, &memregion(M68008_TAG)->base()[TRUMP_ROM_BASE]);
-
-	return memregion(M68008_TAG)->base()[TRUMP_ROM_BASE+offset];
-}
-
-READ8_MEMBER( ql_state::cart_rom_r )
-{
-	// Setup trumcard rom mapped in at $c0000
-	space.install_rom(0x0c0000, 0x0c8000, &memregion(M68008_TAG)->base()[TRUMP_ROM_BASE]);
-
-	// Setup cart rom to rom handler, so unlink us
-	space.install_rom(0x0c000, 0x0ffff, &memregion(M68008_TAG)->base()[CART_ROM_BASE]);
-
-	return memregion(M68008_TAG)->base()[CART_ROM_BASE+offset];
-}
-
-void ql_state::trump_card_set_control(UINT8 data)
-{
-	if(data & TRUMP_DRIVE0_MASK)
-		wd17xx_set_drive(m_fdc,0);
-
-	if(data & TRUMP_DRIVE1_MASK)
-		wd17xx_set_drive(m_fdc,1);
-
-	wd17xx_set_side(m_fdc,(data & TRUMP_SIDE_MASK) >> TRUMP_SIDE_SHIFT);
-}
-
-void ql_state::sandy_set_control(UINT8 data)
-{
-	//logerror("sandy_set_control:%02X\n",data);
-
-	m_disk_io_byte=data;
-
-	if(data & SANDY_DRIVE0_MASK)
-		wd17xx_set_drive(m_fdc,0);
-
-	if(data & SANDY_DRIVE1_MASK)
-		wd17xx_set_drive(m_fdc,1);
-
-	wd17xx_set_side(m_fdc,(data & SANDY_SIDE_MASK) >> SANDY_SIDE_SHIFT);
-	if (data & SANDY_SIDE_MASK)
-	{
-		logerror("Accessing side 1\n");
-	}
-
-	if (m_printer->is_ready())
-	{
-		if(data & SANDY_PRINTER_STROBE)
-			m_printer->output(m_printer_char);
-
-		if(data & SANDY_PRINTER_INTMASK)
-			m_zx8302->extint_w(ASSERT_LINE);
-	}
-}
-
-READ_LINE_MEMBER(ql_state::disk_io_dden_r)
-{
-	if(m_disk_type==DISK_TYPE_SANDY)
-		return ((m_disk_io_byte & SANDY_DDEN_MASK) >> SANDY_DDEN_SHIFT);
-	else
-		return 0;
-}
-
-WRITE_LINE_MEMBER(ql_state::disk_io_intrq_w)
-{
-	//logerror("DiskIO:intrq = %d\n",state);
-}
-
-WRITE_LINE_MEMBER(ql_state::disk_io_drq_w)
-{
-	//logerror("DiskIO:drq = %d\n",state);
-}
 
 
 //**************************************************************************
@@ -396,21 +372,7 @@ WRITE_LINE_MEMBER(ql_state::disk_io_drq_w)
 //-------------------------------------------------
 
 static ADDRESS_MAP_START( ql_mem, AS_PROGRAM, 8, ql_state )
-	AM_RANGE(0x000000, 0x00bfff) AM_ROM // 48K System ROM
-	AM_RANGE(0x00c000, 0x00ffff) AM_ROM AM_WRITENOP                         // 16K Cartridge ROM
-	AM_RANGE(0x010000, 0x017fff) AM_UNMAP                                   // Trump card ROM is mapped in here
-	AM_RANGE(0x018000, 0x018003) AM_DEVREAD(ZX8302_TAG, zx8302_device, rtc_r)
-	AM_RANGE(0x018000, 0x018001) AM_DEVWRITE(ZX8302_TAG, zx8302_device, rtc_w)
-	AM_RANGE(0x018002, 0x018002) AM_DEVWRITE(ZX8302_TAG, zx8302_device, control_w)
-	AM_RANGE(0x018003, 0x018003) AM_DEVWRITE(ZX8302_TAG, zx8302_device, ipc_command_w)
-	AM_RANGE(0x018020, 0x018020) AM_DEVREADWRITE(ZX8302_TAG, zx8302_device, status_r, mdv_control_w)
-	AM_RANGE(0x018021, 0x018021) AM_DEVREADWRITE(ZX8302_TAG, zx8302_device, irq_status_r, irq_acknowledge_w)
-	AM_RANGE(0x018022, 0x018022) AM_DEVREADWRITE(ZX8302_TAG, zx8302_device, mdv_track_r, data_w)
-	AM_RANGE(0x018023, 0x018023) AM_DEVREAD(ZX8302_TAG, zx8302_device, mdv_track_r) AM_WRITENOP
-	AM_RANGE(0x018063, 0x018063) AM_DEVWRITE(ZX8301_TAG, zx8301_device, control_w)
-	AM_RANGE(0x01c000, 0x01ffff) AM_UNMAP                                   // 16K Expansion I/O
-	AM_RANGE(0x020000, 0x03ffff) AM_DEVREADWRITE(ZX8301_TAG, zx8301_device, data_r, data_w)
-	AM_RANGE(0x040000, 0x0fffff) AM_RAM
+	AM_RANGE(0x000000, 0x0fffff) AM_READWRITE(read, write)
 ADDRESS_MAP_END
 
 
@@ -538,13 +500,10 @@ static INPUT_PORTS_START( ql )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_BUTTON1 )       PORT_PLAYER(2) PORT_CODE(KEYCODE_SPACE)
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN ) PORT_PLAYER(2) PORT_8WAY PORT_CODE(KEYCODE_DOWN)
 
-
-	PORT_START(QL_CONFIG_PORT)
-	PORT_DIPNAME( DISK_TYPE_MASK, DISK_TYPE_NONE, "Disk interface select")
-	PORT_DIPSETTING(DISK_TYPE_NONE,     DEF_STR( None ))
-	PORT_DIPSETTING(DISK_TYPE_TRUMP,    "Miracle Trump card")
-	PORT_DIPSETTING(DISK_TYPE_SANDY,    "Sandy Superdisk")
-
+	PORT_START("config")
+	PORT_CONFNAME( 0x01, 0x00, "QL Internal Mouse Interface (QIMI)")
+	PORT_CONFSETTING( 0x00, DEF_STR( Off ) )
+	PORT_CONFSETTING( 0x01, DEF_STR( On ) )
 INPUT_PORTS_END
 
 
@@ -708,18 +667,6 @@ INPUT_PORTS_END
 //**************************************************************************
 
 //-------------------------------------------------
-//  ZX8301_INTERFACE( ql_zx8301_intf )
-//-------------------------------------------------
-
-static ZX8301_INTERFACE( ql_zx8301_intf )
-{
-	M68008_TAG,
-	SCREEN_TAG,
-	DEVCB_DEVICE_LINE_MEMBER(ZX8302_TAG, zx8302_device, vsync_w)
-};
-
-
-//-------------------------------------------------
 //  ZX8302_INTERFACE( ql_zx8302_intf )
 //-------------------------------------------------
 
@@ -728,9 +675,10 @@ WRITE_LINE_MEMBER( ql_state::ql_baudx4_w )
 	m_baudx4 = state;
 }
 
+// CPU to IPC
 WRITE_LINE_MEMBER( ql_state::ql_comdata_w )
 {
-	m_comdata = state;
+	m_comdata_to_ipc = state;
 }
 
 WRITE_LINE_MEMBER( ql_state::zx8302_mdselck_w )
@@ -773,144 +721,25 @@ READ_LINE_MEMBER( ql_state::zx8302_raw2_r )
 	return m_mdv1->data2_r() | m_mdv2->data2_r();
 }
 
-static ZX8302_INTERFACE( ql_zx8302_intf )
+void ql_state::update_interrupt()
 {
-	X2,
-	DEVCB_CPU_INPUT_LINE(M68008_TAG, M68K_IRQ_2),
-	DEVCB_DRIVER_LINE_MEMBER(ql_state, ql_baudx4_w),
-	DEVCB_DRIVER_LINE_MEMBER(ql_state, ql_comdata_w),
-	DEVCB_NULL, // TXD1
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
-	DEVCB_NULL, // DTR1
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, cts_r),
-	DEVCB_NULL, // NETOUT
-	DEVCB_NULL, // NETIN
-	DEVCB_DRIVER_LINE_MEMBER(ql_state, zx8302_mdselck_w),
-	DEVCB_DEVICE_LINE_MEMBER(MDV_1, microdrive_image_device, comms_in_w),
-	DEVCB_DRIVER_LINE_MEMBER(ql_state, zx8302_mdrdw_w),
-	DEVCB_DRIVER_LINE_MEMBER(ql_state, zx8302_erase_w),
-	DEVCB_DRIVER_LINE_MEMBER(ql_state, zx8302_raw1_w),
-	DEVCB_DRIVER_LINE_MEMBER(ql_state, zx8302_raw1_r),
-	DEVCB_DRIVER_LINE_MEMBER(ql_state, zx8302_raw2_w),
-	DEVCB_DRIVER_LINE_MEMBER(ql_state, zx8302_raw2_r)
-};
+	m_zx8302->extint_w(m_extintl || m_qimi_extint);
+}
 
-
-//-------------------------------------------------
-//  floppy_interface ql_floppy_interface
-//-------------------------------------------------
-
-static LEGACY_FLOPPY_OPTIONS_START( ql )
-	LEGACY_FLOPPY_OPTION(ql, "dsk", "SSDD 40 track disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([1])
-		TRACKS([40])
-		SECTORS([9])
-		SECTOR_LENGTH([512])
-		FIRST_SECTOR_ID([1]))
-	LEGACY_FLOPPY_OPTION(ql, "dsk", "DSDD 40 track disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([2])
-		TRACKS([40])
-		SECTORS([9])
-		SECTOR_LENGTH([512])
-		FIRST_SECTOR_ID([1]))
-	LEGACY_FLOPPY_OPTION(ql, "dsk", "DSDD 80 track disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([2])
-		TRACKS([80])
-		SECTORS([9])
-		SECTOR_LENGTH([512])
-		FIRST_SECTOR_ID([1]))
-	LEGACY_FLOPPY_OPTION(ql, "dsk", "DSHD 80 track disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([2])
-		TRACKS([80])
-		SECTORS([18])
-		SECTOR_LENGTH([512])
-		FIRST_SECTOR_ID([1]))
-	LEGACY_FLOPPY_OPTION(ql, "dsk", "DSED disk 80 track image", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([2])
-		TRACKS([80])
-		SECTORS([40])
-		SECTOR_LENGTH([512])
-		FIRST_SECTOR_ID([1]))
-	LEGACY_FLOPPY_OPTION(ql, "img", "QDOS 800KB disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([2])
-		TRACKS([80])
-		SECTORS([5])
-		SECTOR_LENGTH([1024])
-		FIRST_SECTOR_ID([1]))
-LEGACY_FLOPPY_OPTIONS_END
-
-static const floppy_interface ql_floppy_interface =
+WRITE_LINE_MEMBER( ql_state::exp_extintl_w )
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	FLOPPY_STANDARD_5_25_DSHD,
-	LEGACY_FLOPPY_OPTIONS_NAME(ql),
-	NULL,
-	NULL
-};
+	m_extintl = state;
+	update_interrupt();
+}
 
-wd17xx_interface ql_wd17xx_interface =
+WRITE_LINE_MEMBER( ql_state::qimi_extintl_w )
 {
-	DEVCB_DRIVER_LINE_MEMBER(ql_state,disk_io_dden_r),
-	DEVCB_DRIVER_LINE_MEMBER(ql_state,disk_io_intrq_w),
-	DEVCB_DRIVER_LINE_MEMBER(ql_state,disk_io_drq_w),
-	{FLOPPY_0, FLOPPY_1, FLOPPY_2, FLOPPY_3}
-};
-
-
-//-------------------------------------------------
-//  MICRODRIVE_CONFIG( mdv1_config )
-//-------------------------------------------------
-
-static MICRODRIVE_CONFIG( mdv1_config )
-{
-	DEVCB_DEVICE_LINE_MEMBER(MDV_2, microdrive_image_device, comms_in_w),
-	NULL,
-	NULL,
-};
-
-
-//-------------------------------------------------
-//  MICRODRIVE_CONFIG( mdv2_config )
-//-------------------------------------------------
-
-static MICRODRIVE_CONFIG( mdv2_config )
-{
-	DEVCB_NULL,
-	NULL,
-	NULL
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232a_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232a_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232b_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232b_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
+	if (m_qimi_enabled)
+	{
+		m_qimi_extint = state;
+		update_interrupt();
+	}
+}
 
 
 
@@ -918,83 +747,22 @@ static const rs232_port_interface rs232b_intf =
 //  MACHINE INITIALIZATION
 //**************************************************************************
 
-//-------------------------------------------------
-//  MACHINE_START( ql )
-//-------------------------------------------------
-
-//
-// The 896K option is dealt with once the machine is up and running as
-// the Trump Card ROM is initally mapped in at $C0000-$C8000, as this is
-// officially the expansion card rom area. Once the Trump Card has initialised
-// it maps the last 256K of ram into this area (asuming that it has 768K
-// onboard).
-//
-
 void ql_state::machine_start()
 {
 	// register for state saving
 	save_item(NAME(m_keylatch));
 	save_item(NAME(m_ipl));
-	save_item(NAME(m_comdata));
+	save_item(NAME(m_comdata_to_ipc));
 	save_item(NAME(m_baudx4));
-	save_item(NAME(m_printer_char));
-	save_item(NAME(m_disk_io_byte));
 }
 
 void ql_state::machine_reset()
 {
-	address_space   &program    = m_maincpu->space(AS_PROGRAM);
-
-	m_disk_type=ioport(QL_CONFIG_PORT)->read() & DISK_TYPE_MASK;
-	logerror("disktype=%d\n",m_disk_type);
-
-	m_printer_char=0;
-	m_disk_io_byte=0;
-
-	logerror("Configuring RAM\n");
-	// configure RAM
-	switch (m_ram->size())
-	{
-		case 128*1024:
-			program.unmap_readwrite(0x040000, 0x0fffff);
-			break;
-
-		case 192*1024:
-			program.unmap_readwrite(0x050000, 0x0fffff);
-			break;
-
-		case 256*1024:
-			program.unmap_readwrite(0x060000, 0x0fffff);
-			break;
-
-		case 384*1024:
-			program.unmap_readwrite(0x080000, 0x0fffff);
-			break;
-
-		case 640*1024:
-			program.unmap_readwrite(0x0c0000, 0x0fffff);
-			break;
-	}
-
-	switch (m_disk_type)
-	{
-		case DISK_TYPE_SANDY :
-			logerror("Configuring SandySuperDisk\n");
-			program.install_rom(0x0c0000, 0x0c3fff, &memregion(M68008_TAG)->base()[SANDY_ROM_BASE]);
-			program.install_read_handler(SANDY_IO_BASE, SANDY_IO_END, 0, 0, read8_delegate(FUNC(ql_state::disk_io_r), this));
-			program.install_write_handler(SANDY_IO_BASE, SANDY_IO_END, 0, 0, write8_delegate(FUNC(ql_state::disk_io_w), this));
-			m_disk_io_base=SANDY_IO_BASE;
-			break;
-		case DISK_TYPE_TRUMP :
-			logerror("Configuring TrumpCard\n");
-			program.install_read_handler(CART_ROM_BASE, CART_ROM_END, 0, 0, read8_delegate(FUNC(ql_state::cart_rom_r), this));
-			program.install_read_handler(TRUMP_ROM_BASE, TRUMP_ROM_END, 0, 0, read8_delegate(FUNC(ql_state::trump_card_rom_r), this));
-			program.install_read_handler(TRUMP_IO_BASE, TRUMP_IO_END, 0, 0, read8_delegate(FUNC(ql_state::disk_io_r), this));
-			program.install_write_handler(TRUMP_IO_BASE, TRUMP_IO_END, 0, 0, write8_delegate(FUNC(ql_state::disk_io_w), this));
-			m_disk_io_base=TRUMP_IO_BASE;
-			break;
-	}
+	// QIMI
+	m_qimi_enabled = (m_config->read() & 0x01) ? true : false;
 }
+
+
 
 //**************************************************************************
 //  MACHINE CONFIGURATION
@@ -1026,20 +794,47 @@ static MACHINE_CONFIG_START( ql, ql_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// devices
-	MCFG_ZX8301_ADD(ZX8301_TAG, X1, ql_zx8301_intf)
-	MCFG_ZX8302_ADD(ZX8302_TAG, X1, ql_zx8302_intf)
-	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(ql_floppy_interface)
-	MCFG_WD1772_ADD(WD1772_TAG,ql_wd17xx_interface)
-	MCFG_MICRODRIVE_ADD(MDV_1, mdv1_config)
-	MCFG_MICRODRIVE_ADD(MDV_2, mdv2_config)
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, NULL) // wired as DCE
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL) // wired as DTE
+	MCFG_DEVICE_ADD(ZX8301_TAG, ZX8301, X1)
+	MCFG_ZX8301_CPU(M68008_TAG)
+	MCFG_ZX8301_VSYNC_CALLBACK(DEVWRITELINE(ZX8302_TAG, zx8302_device, vsync_w))
 
-	// cartridge
-	MCFG_CARTSLOT_ADD("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("bin,rom")
-	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_INTERFACE("ql_cart")
+	MCFG_VIDEO_SET_SCREEN(SCREEN_TAG)
+
+	MCFG_DEVICE_ADD(ZX8302_TAG, ZX8302, X1)
+	MCFG_ZX8302_RTC_CLOCK(X2)
+	MCFG_ZX8302_OUT_IPL1L_CB(INPUTLINE(M68008_TAG, M68K_IRQ_2))
+	MCFG_ZX8302_OUT_BAUDX4_CB(WRITELINE(ql_state, ql_baudx4_w))
+	MCFG_ZX8302_OUT_COMDATA_CB(WRITELINE(ql_state, ql_comdata_w))
+	// TXD1
+	MCFG_ZX8302_OUT_TXD2_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	// NETOUT
+	MCFG_ZX8302_OUT_MDSELCK_CB(WRITELINE(ql_state, zx8302_mdselck_w))
+	MCFG_ZX8302_OUT_MDSELD_CB(DEVWRITELINE(MDV_1, microdrive_image_device, comms_in_w))
+	MCFG_ZX8302_OUT_MDRDW_CB(WRITELINE(ql_state, zx8302_mdrdw_w))
+	MCFG_ZX8302_OUT_ERASE_CB(WRITELINE(ql_state, zx8302_erase_w))
+	MCFG_ZX8302_OUT_RAW1_CB(WRITELINE(ql_state, zx8302_raw1_w))
+	MCFG_ZX8302_IN_RAW1_CB(READLINE(ql_state, zx8302_raw1_r))
+	MCFG_ZX8302_OUT_RAW2_CB(WRITELINE(ql_state, zx8302_raw2_w))
+	MCFG_ZX8302_IN_RAW2_CB(READLINE(ql_state, zx8302_raw2_r))
+
+	MCFG_MICRODRIVE_ADD(MDV_1)
+	MCFG_MICRODRIVE_COMMS_OUT_CALLBACK(DEVWRITELINE(MDV_2, microdrive_image_device, comms_in_w))
+	MCFG_MICRODRIVE_ADD(MDV_2)
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, NULL) // wired as DCE
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL) // wired as DTE
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(ZX8302_TAG, zx8302_device, write_cts2))
+
+	MCFG_QL_EXPANSION_SLOT_ADD("exp", ql_expansion_cards, NULL)
+	//MCFG_QL_EXPANSION_SLOT_IPL0L_CALLBACK()
+	//MCFG_QL_EXPANSION_SLOT_IPL1L_CALLBACK()
+	//MCFG_QL_EXPANSION_SLOT_BERRL_CALLBACK()
+	MCFG_QL_EXPANSION_SLOT_EXTINTL_CALLBACK(WRITELINE(ql_state, exp_extintl_w))
+
+	MCFG_QL_ROM_CARTRIDGE_SLOT_ADD("rom", ql_rom_cartridge_cards, NULL)
+
+	MCFG_DEVICE_ADD(QIMI_TAG, QIMI, 0)
+	MCFG_QIMI_EXTINT_CALLBACK(WRITELINE(ql_state, qimi_extintl_w))
 
 	// software lists
 	MCFG_SOFTWARE_LIST_ADD("cart_list", "ql_cart")
@@ -1049,10 +844,6 @@ static MACHINE_CONFIG_START( ql, ql_state )
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("128K")
-	MCFG_RAM_EXTRA_OPTIONS("192K,256K,384K,640K,896K")
-
-	// Parallel printer port on Sandy disk interface
-	MCFG_PRINTER_ADD(PRINTER_TAG)
 MACHINE_CONFIG_END
 
 
@@ -1103,7 +894,7 @@ MACHINE_CONFIG_END
 //-------------------------------------------------
 
 ROM_START( ql )
-	ROM_REGION( 0x20000, M68008_TAG, 0 )
+	ROM_REGION( 0x10000, M68008_TAG, 0 )
 	ROM_DEFAULT_BIOS("js")
 	ROM_SYSTEM_BIOS( 0, "fb", "v1.00 (FB)" )
 	ROMX_LOAD( "fb.ic33", 0x0000, 0x8000, NO_DUMP, ROM_BIOS(1) )
@@ -1128,10 +919,6 @@ ROM_START( ql )
 	ROMX_LOAD( "tyche.rom", 0x0000, 0x010000, CRC(8724b495) SHA1(5f33a1bc3f23fd09c31844b65bc3aca7616f180a), ROM_BIOS(7) )
 	ROM_SYSTEM_BIOS( 7, "min189", "Minerva v1.89" )
 	ROMX_LOAD( "minerva.rom", 0x0000, 0x00c000, BAD_DUMP CRC(930befe3) SHA1(84a99c4df13b97f90baf1ec8cb6c2e52e3e1bb4d), ROM_BIOS(8) )
-	ROM_CART_LOAD("cart", 0xc000, 0x8000, ROM_MIRROR | ROM_OPTIONAL)
-
-	ROM_LOAD( "trumpcard-125.rom", TRUMP_ROM_BASE, 0x08000, CRC(938eaa46) SHA1(9b3458cf3a279ed86ba395dc45c8f26939d6c44d))
-	ROM_LOAD( "sandysuperdisk.rom", SANDY_ROM_BASE, 0x04000, CRC(b52077da) SHA1(bf531758145ffd083e01c1cf9c45d0e9264a3b53))
 
 	ROM_REGION( 0x800, I8749_TAG, 0 )
 	ROM_LOAD( "ipc8049.ic24", 0x000, 0x800, CRC(6a0d1f20) SHA1(fcb1c97ee7c66e5b6d8fbb57c06fd2f6509f2e1b) )
@@ -1149,10 +936,9 @@ ROM_END
 //-------------------------------------------------
 
 ROM_START( ql_us )
-	ROM_REGION( 0x20000, M68008_TAG, 0 )
+	ROM_REGION( 0xc000, M68008_TAG, 0 )
 	ROM_LOAD( "jsu.ic33", 0x0000, 0x8000, BAD_DUMP CRC(e397f49f) SHA1(c06f92eabaf3e6dd298c51cb7f7535d8ef0ef9c5) )
 	ROM_LOAD( "jsu.ic34", 0x8000, 0x4000, BAD_DUMP CRC(3debbacc) SHA1(9fbc3e42ec463fa42f9c535d63780ff53a9313ec) )
-	ROM_CART_LOAD("cart", 0xc000, 0x8000, ROM_MIRROR | ROM_OPTIONAL)
 
 	ROM_REGION( 0x800, I8749_TAG, 0 )
 	ROM_LOAD( "ipc8049.ic24", 0x000, 0x800, CRC(6a0d1f20) SHA1(fcb1c97ee7c66e5b6d8fbb57c06fd2f6509f2e1b) )
@@ -1167,10 +953,9 @@ ROM_END
 //-------------------------------------------------
 
 ROM_START( ql_es )
-	ROM_REGION( 0x20000, M68008_TAG, 0 )
+	ROM_REGION( 0xc000, M68008_TAG, 0 )
 	ROM_LOAD( "mge.ic33", 0x0000, 0x8000, BAD_DUMP CRC(d5293bde) SHA1(bf5af7e53a472d4e9871f182210787d601db0634) )
 	ROM_LOAD( "mge.ic34", 0x8000, 0x4000, BAD_DUMP CRC(a694f8d7) SHA1(bd2868656008de85d7c191598588017ae8aa3339) )
-	ROM_CART_LOAD("cart", 0xc000, 0x8000, ROM_MIRROR | ROM_OPTIONAL)
 
 	ROM_REGION( 0x800, I8749_TAG, 0 )
 	ROM_LOAD( "ipc8049.ic24", 0x000, 0x800, CRC(6a0d1f20) SHA1(fcb1c97ee7c66e5b6d8fbb57c06fd2f6509f2e1b) )
@@ -1185,10 +970,9 @@ ROM_END
 //-------------------------------------------------
 
 ROM_START( ql_fr )
-	ROM_REGION( 0x20000, M68008_TAG, 0 )
+	ROM_REGION( 0xc000, M68008_TAG, 0 )
 	ROM_LOAD( "mgf.ic33", 0x0000, 0x8000, NO_DUMP )
 	ROM_LOAD( "mgf.ic34", 0x8000, 0x4000, NO_DUMP )
-	ROM_CART_LOAD("cart", 0xc000, 0x8000, ROM_MIRROR | ROM_OPTIONAL)
 
 	ROM_REGION( 0x800, I8749_TAG, 0 )
 	ROM_LOAD( "ipc8049.ic24", 0x000, 0x800, CRC(6a0d1f20) SHA1(fcb1c97ee7c66e5b6d8fbb57c06fd2f6509f2e1b) )
@@ -1203,7 +987,7 @@ ROM_END
 //-------------------------------------------------
 
 ROM_START( ql_de )
-	ROM_REGION( 0x20000, M68008_TAG, 0 )
+	ROM_REGION( 0xc000, M68008_TAG, 0 )
 	ROM_SYSTEM_BIOS( 0, "mg", "v1.10 (MG)" )
 	ROMX_LOAD( "mgg.ic33", 0x0000, 0x8000, BAD_DUMP CRC(b4e468fd) SHA1(cd02a3cd79af90d48b65077d0571efc2f12f146e), ROM_BIOS(1) )
 	ROMX_LOAD( "mgg.ic34", 0x8000, 0x4000, BAD_DUMP CRC(54959d40) SHA1(ffc0be9649f26019d7be82925c18dc699259877f), ROM_BIOS(1) )
@@ -1212,7 +996,6 @@ ROM_START( ql_de )
 	ROMX_LOAD( "mf.ic34", 0x8000, 0x4000, BAD_DUMP CRC(5974616b) SHA1(c3603768c08535c25f077eed02fb80128aff13d9), ROM_BIOS(2) )
 	ROM_SYSTEM_BIOS( 2, "ultramg", "Ultrasoft" )
 	ROMX_LOAD( "ultramg.rom", 0x0000, 0x00c000, BAD_DUMP CRC(ad12463b) SHA1(0561b3bc7ce090f3101b2142ee957c18c250eefa), ROM_BIOS(3) )
-	ROM_CART_LOAD("cart", 0xc000, 0x8000, ROM_MIRROR | ROM_OPTIONAL)
 
 	ROM_REGION( 0x800, I8749_TAG, 0 )
 	ROM_LOAD( "ipc8049.ic24", 0x000, 0x800, CRC(6a0d1f20) SHA1(fcb1c97ee7c66e5b6d8fbb57c06fd2f6509f2e1b) )
@@ -1227,10 +1010,9 @@ ROM_END
 //-------------------------------------------------
 
 ROM_START( ql_it )
-	ROM_REGION( 0x20000, M68008_TAG, 0 )
+	ROM_REGION( 0xc000, M68008_TAG, 0 )
 	ROM_LOAD( "mgi.ic33", 0x0000, 0x8000, BAD_DUMP CRC(d5293bde) SHA1(bf5af7e53a472d4e9871f182210787d601db0634) )
 	ROM_LOAD( "mgi.ic34", 0x8000, 0x4000, BAD_DUMP CRC(a2fdfb83) SHA1(162b1052737500f3c13497cdf0f813ba006bdae9) )
-	ROM_CART_LOAD("cart", 0xc000, 0x8000, ROM_MIRROR | ROM_OPTIONAL)
 
 	ROM_REGION( 0x800, I8749_TAG, 0 )
 	ROM_LOAD( "ipc8049.ic24", 0x000, 0x800, CRC(6a0d1f20) SHA1(fcb1c97ee7c66e5b6d8fbb57c06fd2f6509f2e1b) )
@@ -1245,10 +1027,9 @@ ROM_END
 //-------------------------------------------------
 
 ROM_START( ql_se )
-	ROM_REGION( 0x20000, M68008_TAG, 0 )
+	ROM_REGION( 0xc000, M68008_TAG, 0 )
 	ROM_LOAD( "mgs.ic33", 0x0000, 0x8000, NO_DUMP )
 	ROM_LOAD( "mgs.ic34", 0x8000, 0x4000, NO_DUMP )
-	ROM_CART_LOAD("cart", 0xc000, 0x8000, ROM_MIRROR | ROM_OPTIONAL)
 
 	ROM_REGION( 0x800, I8749_TAG, 0 )
 	ROM_LOAD( "ipc8049.ic24", 0x000, 0x800, CRC(6a0d1f20) SHA1(fcb1c97ee7c66e5b6d8fbb57c06fd2f6509f2e1b) )
@@ -1263,10 +1044,9 @@ ROM_END
 //-------------------------------------------------
 
 ROM_START( ql_gr )
-	ROM_REGION( 0x20000, M68008_TAG, 0 )
+	ROM_REGION( 0xc000, M68008_TAG, 0 )
 	ROM_LOAD( "efp.ic33", 0x0000, 0x8000, BAD_DUMP CRC(eb181641) SHA1(43c1e0215cf540cbbda240b1048910ff55681059) )
 	ROM_LOAD( "efp.ic34", 0x8000, 0x4000, BAD_DUMP CRC(4c3b34b7) SHA1(f9dc571d2d4f68520b306ecc7516acaeea69ec0d) )
-	ROM_CART_LOAD("cart", 0xc000, 0x8000, ROM_MIRROR | ROM_OPTIONAL)
 
 	ROM_REGION( 0x800, I8749_TAG, 0 )
 	ROM_LOAD( "ipc8049.ic24", 0x000, 0x800, CRC(6a0d1f20) SHA1(fcb1c97ee7c66e5b6d8fbb57c06fd2f6509f2e1b) )
@@ -1281,10 +1061,9 @@ ROM_END
 //-------------------------------------------------
 
 ROM_START( ql_dk )
-	ROM_REGION( 0x20000, M68008_TAG, 0 )
+	ROM_REGION( 0xc000, M68008_TAG, 0 )
 	ROM_LOAD( "mgd.ic33",  0x0000, 0x8000, BAD_DUMP CRC(f57755eb) SHA1(dc57939ffb8741e17967a1d2479c339750ec7ff6) )
 	ROM_LOAD( "mgd.ic34",  0x8000, 0x4000, BAD_DUMP CRC(1892465a) SHA1(0ff3046b5276da6639d3fe79b22ae25cc265d540) )
-	ROM_CART_LOAD("cart", 0xc000, 0x8000, ROM_MIRROR | ROM_OPTIONAL)
 
 	ROM_REGION( 0x4000, "extra", 0 )
 	ROM_LOAD( "extra.rom", 0x0000, 0x4000, NO_DUMP ) // located at 0x1c000 in M68008 memory map
@@ -1302,7 +1081,7 @@ ROM_END
 //-------------------------------------------------
 
 ROM_START( tonto )
-	ROM_REGION( 0x400000, M68008_TAG, 0 )
+	ROM_REGION( 0x20000, M68008_TAG, 0 )
 	ROM_LOAD( "xbaa02.ic4", 0x000000, 0x008000, CRC(86e7915b) SHA1(a4d8369052eaea93d2174cfd3b14e6cf777f54b4) )
 	ROM_LOAD( "xbab03.ic5", 0x008000, 0x008000, CRC(97ef393c) SHA1(450c708e8dfbd42d939a9af6a72ef2a33a3dd3b5) )
 	ROM_LOAD( "xbac02.ic6", 0x010000, 0x008000, CRC(a7950897) SHA1(7cd4d6e33a350420a9ebd5c1b32708c29cb20799) )
@@ -1326,12 +1105,13 @@ ROM_START( tonto )
 ROM_END
 
 
+#if 0
 //-------------------------------------------------
 //  ROM( megaopd )
 //-------------------------------------------------
 
 ROM_START( megaopd )
-	ROM_REGION( 0x400000, M68008_TAG, 0 )
+	ROM_REGION( 0x20000, M68008_TAG, 0 )
 	ROM_LOAD( "bios-1.rom", 0x000000, 0x008000, NO_DUMP )
 	ROM_LOAD( "bios-2.rom", 0x008000, 0x008000, NO_DUMP )
 	ROM_LOAD( "bios-3.rom", 0x010000, 0x008000, NO_DUMP )
@@ -1350,6 +1130,7 @@ ROM_START( megaopd )
 	ROM_LOAD( "rompack-4.rom", 0x018000, 0x008000, NO_DUMP )
 	ROM_LOAD( "rompack-5.rom", 0x020000, 0x008000, NO_DUMP )
 ROM_END
+#endif
 
 
 

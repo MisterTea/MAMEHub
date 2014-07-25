@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Kevin Thacker, Robbbert
 /******************************************************************************
 
   Exidy Sorcerer system driver
@@ -185,7 +187,8 @@ static ADDRESS_MAP_START( sorcerer_io, AS_IO, 8, sorcerer_state)
 	AM_RANGE(0xfc, 0xfc) AM_READWRITE( sorcerer_fc_r, sorcerer_fc_w )
 	AM_RANGE(0xfd, 0xfd) AM_READWRITE( sorcerer_fd_r, sorcerer_fd_w )
 	AM_RANGE(0xfe, 0xfe) AM_READWRITE( sorcerer_fe_r, sorcerer_fe_w )
-	AM_RANGE(0xff, 0xff) AM_READWRITE( sorcerer_ff_r, sorcerer_ff_w )
+	AM_RANGE(0xff, 0xff) AM_DEVREAD("cent_status_in", input_buffer_device, read)
+	AM_RANGE(0xff, 0xff) AM_WRITE( sorcerer_ff_w )
 ADDRESS_MAP_END
 
 static INPUT_PORTS_START(sorcerer)
@@ -312,10 +315,9 @@ static INPUT_PORTS_START(sorcerer)
 	PORT_CONFSETTING(    0x00, DEF_STR(No))
 	PORT_CONFSETTING(    0x01, DEF_STR(Yes))
 	/* hardware connected to printer port */
-	PORT_CONFNAME( 0x06, 0x00, "Parallel port" )
-	PORT_CONFSETTING(    0x00, "Speaker" )
-	PORT_CONFSETTING(    0x02, "Printer (7-bit)" )
-	PORT_CONFSETTING(    0x04, "Printer (8-bit)" )
+	PORT_CONFNAME( 0x02, 0x02, "Parallel port" )
+	PORT_CONFSETTING(    0x00, "7-bit" )
+	PORT_CONFSETTING(    0x02, "8-bit" )
 	PORT_CONFNAME( 0x08, 0x08, "Cassette Speaker")
 	PORT_CONFSETTING(    0x08, DEF_STR(On))
 	PORT_CONFSETTING(    0x00, DEF_STR(Off))
@@ -384,36 +386,11 @@ UINT32 sorcerer_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap
 
 /**********************************************************************************************************/
 
-static const ay31015_config sorcerer_ay31015_config =
-{
-	4800.0,
-	4800.0,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-static const cassette_interface sorcerer_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED),
-	"sorcerer_cass",
-	NULL
-};
-
 static const floppy_interface sorcerer_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_8_SSSD,
 	LEGACY_FLOPPY_OPTIONS_NAME(sorcerer),
-	"floppy_8",
-	NULL
+	"floppy_8"
 };
 
 
@@ -431,9 +408,10 @@ static MACHINE_CONFIG_START( sorcerer, sorcerer_state )
 	MCFG_SCREEN_SIZE(64*8, 30*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 64*8-1, 0, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(sorcerer_state, screen_update)
-	MCFG_GFXDECODE(sorcerer)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sorcerer)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -441,20 +419,34 @@ static MACHINE_CONFIG_START( sorcerer, sorcerer_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25) // cass1 speaker
 	MCFG_SOUND_WAVE_ADD(WAVE2_TAG, "cassette2")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25) // cass2 speaker
-	MCFG_SOUND_ADD("dac", DAC, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75) // speaker or music card on parallel port
 
-	MCFG_AY31015_ADD( "uart", sorcerer_ay31015_config )
+	MCFG_DEVICE_ADD( "uart", AY31015, 0 )
+	MCFG_AY31015_TX_CLOCK(4800.0)
+	MCFG_AY31015_RX_CLOCK(4800.0)
 
 	/* printer */
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "covox")
+	MCFG_SLOT_OPTION_ADD( "covox", CENTRONICS_COVOX )
+
+	/* The use of the parallel port as a general purpose port is not emulated.
+	Currently the only use is to read the printer status in the Centronics CENDRV bios routine. */
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit7))
+
+	MCFG_DEVICE_ADD("cent_status_in", INPUT_BUFFER, 0)
 
 	/* quickload */
 	MCFG_SNAPSHOT_ADD("snapshot", sorcerer_state, sorcerer, "snp", 2)
 	MCFG_QUICKLOAD_ADD("quickload", sorcerer_state, sorcerer, "bin", 3)
 
-	MCFG_CASSETTE_ADD( "cassette", sorcerer_cassette_interface )
-	MCFG_CASSETTE_ADD( "cassette2", sorcerer_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(sorcerer_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("sorcerer_cass")
+
+	MCFG_CASSETTE_ADD( "cassette2" )
+	MCFG_CASSETTE_FORMATS(sorcerer_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("sorcerer_cass")
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")
@@ -474,8 +466,12 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( sorcererd, sorcerer )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(sorcererd_mem)
+
 	MCFG_MACHINE_START_OVERRIDE(sorcerer_state, sorcererd )
-	MCFG_MICROPOLIS_ADD("fdc", default_micropolis_interface )
+
+	MCFG_DEVICE_ADD("fdc", MICROPOLIS, 0)
+	MCFG_MICROPOLIS_DEFAULT_DRIVE4_TAGS
+
 	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(sorcerer_floppy_interface)
 	MCFG_SOFTWARE_LIST_ADD("flop_list","sorcerer_flop")
 MACHINE_CONFIG_END

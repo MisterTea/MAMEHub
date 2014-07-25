@@ -18,11 +18,11 @@
 
 UINT32 malzak_state::screen_update_malzak(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	int sx, sy;
 	int x,y;
 
-	bitmap.fill(RGB_BLACK);
+	bitmap.fill(rgb_t::black);
 
 	m_trom->screen_update(screen, bitmap, cliprect);
 
@@ -38,7 +38,7 @@ UINT32 malzak_state::screen_update_malzak(screen_device &screen, bitmap_rgb32 &b
 			if (sx < -15*2)
 				sx += 256*2;
 
-			drawgfxzoom_transpen(bitmap,cliprect, machine().gfx[0], m_playfield_code[x * 16 + y], 2, 0, 0, sx, sy, 0x20000, 0x20000, 0);
+			m_gfxdecode->gfx(0)->zoom_transpen(bitmap,cliprect, m_playfield_code[x * 16 + y], 2, 0, 0, sx, sy, 0x20000, 0x20000, 0);
 		}
 
 	/* update the S2636 chips */

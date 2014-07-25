@@ -819,9 +819,10 @@ static MACHINE_CONFIG_START( bssoccer, suna16_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(suna16_state, screen_update_suna16)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(suna16)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", suna16)
+	MCFG_PALETTE_ADD("palette", 512)
 
 
 	/* sound hardware */
@@ -877,9 +878,10 @@ static MACHINE_CONFIG_START( uballoon, suna16_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(suna16_state, screen_update_suna16)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(suna16)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", suna16)
+	MCFG_PALETTE_ADD("palette", 512)
 
 
 	/* sound hardware */
@@ -925,9 +927,10 @@ static MACHINE_CONFIG_START( sunaq, suna16_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(suna16_state, screen_update_suna16)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(suna16)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", suna16)
+	MCFG_PALETTE_ADD("palette", 512)
 
 
 	/* sound hardware */
@@ -952,14 +955,6 @@ WRITE8_MEMBER(suna16_state::bestbest_ay8910_port_a_w)
 {
 	// ?
 }
-
-static const ay8910_interface bestbest_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,                                 DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(suna16_state,bestbest_ay8910_port_a_w), DEVCB_NULL
-};
 
 static MACHINE_CONFIG_START( bestbest, suna16_state )
 
@@ -986,16 +981,17 @@ static MACHINE_CONFIG_START( bestbest, suna16_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(suna16_state, screen_update_bestbest)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bestbest)
-	MCFG_PALETTE_LENGTH(256*8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bestbest)
+	MCFG_PALETTE_ADD("palette", 256*8)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, XTAL_24MHz/16)  /* 1.5MHz */
-	MCFG_SOUND_CONFIG(bestbest_ay8910_interface)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(suna16_state, bestbest_ay8910_port_a_w))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 

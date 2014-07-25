@@ -20,7 +20,7 @@
 #include "emu.h"
 
 #include "unicode.h"
-#include "ui.h"
+#include "ui/ui.h"
 #include "osdcore.h"
 #include "emuopts.h"
 
@@ -384,7 +384,6 @@ vector<MemoryBlock> Server::createMemoryBlock(unsigned char *ptr,int size)
 
 extern bool waitingForClientCatchup;
 attotime oldInputTime;
-extern astring &nvram_filename(astring &result, device_t &device);
 extern int nvram_size(running_machine &machine);
 
 void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine)
@@ -458,26 +457,12 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
   bool writenvram=(nvram_size(*machine)<1024*1024*32);
   if(writenvram) 
   {
-    if (machine->config().m_nvram_handler != NULL)
-    {
-      astring filename;
-      emu_file file(machine->options().nvram_directory(), OPEN_FLAG_READ);
-      if (file.open(nvram_filename(filename,machine->root_device()), ".nv") == FILERR_NONE)
-      {
-        vector<unsigned char> fileContents(file.size());
-        file.read(&fileContents[0],file.size());
-        initial_sync.add_nvram(&fileContents[0],file.size());
-        cout << "ADDING NVRAM OF SIZE: " << file.size() << " " << file.filename() << endl;
-        file.close();
-      }
-    }
-
     nvram_interface_iterator iter(machine->root_device());
     for (device_nvram_interface *nvram = iter.first(); nvram != NULL; nvram = iter.next())
     {
       astring filename;
       emu_file file(machine->options().nvram_directory(), OPEN_FLAG_READ);
-      if (file.open(nvram_filename(filename,nvram->device())) == FILERR_NONE)
+      if (file.open(machine->nvram_filename(filename,nvram->device())) == FILERR_NONE)
       {
         vector<unsigned char> fileContents(file.size());
         file.read(&fileContents[0],file.size());
@@ -521,7 +506,7 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
       guid,
       false
       );
-    ui_update_and_render(*machine, &machine->render().ui_container());
+    machine->ui().update_and_render(&machine->render().ui_container());
     machine->osd().update(false);
     RakSleep(10);
   }
@@ -538,7 +523,7 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
       guid,
       false
       );
-    ui_update_and_render(*machine, &machine->render().ui_container());
+    machine->ui().update_and_render(&machine->render().ui_container());
     machine->osd().update(false);
     RakSleep(10);
   }

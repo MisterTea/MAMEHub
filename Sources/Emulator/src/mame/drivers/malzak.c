@@ -259,14 +259,14 @@ static GFXDECODE_START( malzak )
 GFXDECODE_END
 
 
-void malzak_state::palette_init()
+PALETTE_INIT_MEMBER(malzak_state, malzak)
 {
 	int i;
 
 	for (i = 0; i < 8 * 8; i++)
 	{
-		palette_set_color_rgb(machine(), i * 2 + 0, pal1bit(i >> 3), pal1bit(i >> 4), pal1bit(i >> 5));
-		palette_set_color_rgb(machine(), i * 2 + 1, pal1bit(i >> 0), pal1bit(i >> 1), pal1bit(i >> 2));
+		palette.set_pen_color(i * 2 + 0, pal1bit(i >> 3), pal1bit(i >> 4), pal1bit(i >> 5));
+		palette.set_pen_color(i * 2 + 1, pal1bit(i >> 0), pal1bit(i >> 1), pal1bit(i >> 2));
 	}
 }
 
@@ -298,29 +298,10 @@ static const sn76477_interface sn76477_intf =
 	1                   /* 9     enable          */
 };
 
-
-static const s2636_interface malzac_s2636_0_config =
-{
-	0x100,
-	0, -16 /* -8, -16 */
-};
-
-static const s2636_interface malzac_s2636_1_config =
-{
-	0x100,
-	0, -16 /* -9, -16 */
-};
-
 READ8_MEMBER(malzak_state::videoram_r)
 {
 	return m_videoram[offset];
 }
-
-static SAA5050_INTERFACE( malzac_saa5050_intf )
-{
-	DEVCB_DRIVER_MEMBER(malzak_state, videoram_r),
-	42, 24, 64  /* x, y, size */
-};
 
 void malzak_state::machine_start()
 {
@@ -348,7 +329,6 @@ static MACHINE_CONFIG_START( malzak, malzak_state )
 	MCFG_CPU_PROGRAM_MAP(malzak_map)
 	MCFG_CPU_IO_MAP(malzak_io_map)
 
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(50)
@@ -357,15 +337,23 @@ static MACHINE_CONFIG_START( malzak, malzak_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 479, 0, 479)
 	MCFG_SCREEN_UPDATE_DRIVER(malzak_state, screen_update_malzak)
 
-	MCFG_GFXDECODE(malzak)
-	MCFG_PALETTE_LENGTH(128)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", malzak)
+	MCFG_PALETTE_ADD("palette", 128)
+	MCFG_PALETTE_INIT_OWNER(malzak_state, malzak)
 
-	MCFG_S2636_ADD("s2636_0", malzac_s2636_0_config)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_S2636_ADD("s2636_1", malzac_s2636_1_config)
+	MCFG_DEVICE_ADD("s2636_0", S2636, 0)
+	MCFG_S2636_WORKRAM_SIZE(0x100)
+	MCFG_S2636_OFFSETS(0, -16)  // -8, -16
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_SAA5050_ADD("saa5050", 6000000, malzac_saa5050_intf)
+	MCFG_DEVICE_ADD("s2636_1", S2636, 0)
+	MCFG_S2636_WORKRAM_SIZE(0x100)
+	MCFG_S2636_OFFSETS(0, -16)  // -9, -16
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+
+	MCFG_DEVICE_ADD("saa5050", SAA5050, 6000000)
+	MCFG_SAA5050_D_CALLBACK(READ8(malzak_state, videoram_r))
+	MCFG_SAA5050_SCREEN_SIZE(42, 24, 64)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

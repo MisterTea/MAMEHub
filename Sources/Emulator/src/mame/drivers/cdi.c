@@ -35,7 +35,7 @@ TODO:
 #include "imagedev/chd_cd.h"
 
 #if ENABLE_VERBOSE_LOG
-INLINE void verboselog(running_machine &machine, int n_level, const char *s_fmt, ...)
+INLINE void ATTR_PRINTF(3,4) verboselog(running_machine &machine, int n_level, const char *s_fmt, ...)
 {
 	if( VERBOSE_LEVEL >= n_level )
 	{
@@ -48,7 +48,7 @@ INLINE void verboselog(running_machine &machine, int n_level, const char *s_fmt,
 	}
 }
 #else
-#define verboselog(x,y,z,...)
+#define verboselog(x,y,z, ...)
 #endif
 
 /*************************
@@ -59,7 +59,7 @@ static ADDRESS_MAP_START( cdimono1_mem, AS_PROGRAM, 16, cdi_state )
 	AM_RANGE(0x00000000, 0x0007ffff) AM_RAM AM_SHARE("planea")
 	AM_RANGE(0x00200000, 0x0027ffff) AM_RAM AM_SHARE("planeb")
 #if ENABLE_UART_PRINTING
-	AM_RANGE(0x00301400, 0x00301403) AM_READ_LEGACY(uart_loopback_enable)
+	AM_RANGE(0x00301400, 0x00301403) AM_DEVREAD("scc68070", cdi68070_device, uart_loopback_enable)
 #endif
 	AM_RANGE(0x00300000, 0x00303bff) AM_DEVREADWRITE("cdic", cdicdic_device, ram_r, ram_w)
 	AM_RANGE(0x00303c00, 0x00303fff) AM_DEVREADWRITE("cdic", cdicdic_device, regs_r, regs_w)
@@ -303,19 +303,6 @@ MACHINE_RESET_MEMBER(cdi_state,quizrr42)
 	m_scc->set_quizard_mcu_ack(0x57);
 }
 
-static DEVICE_IMAGE_DISPLAY_INFO(cdi_cdinfo)
-{
-	const char *compatibility = image.get_feature("compatibility");
-	if (compatibility)
-	{
-		if (!mame_stricmp(compatibility, "DVC"))
-		{
-			mame_printf_warning("This software requires the Digital Video Cartridge to work.\n");
-			mame_printf_warning("Therefore, it might not work in MESS at present.\n");
-		}
-	}
-}
-
 /*************************
 *    Machine Drivers     *
 *************************/
@@ -342,7 +329,7 @@ static MACHINE_CONFIG_START( cdi, cdi_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 192-1, 0, 22-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cdi_state, screen_update_cdimono1_lcd)
 
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_PALETTE_ADD("palette", 0x100)
 
 	MCFG_DEFAULT_LAYOUT(layout_cdi)
 
@@ -366,21 +353,16 @@ static MACHINE_CONFIG_START( cdi, cdi_state )
 	MCFG_MK48T08_ADD( "mk48t08" )
 MACHINE_CONFIG_END
 
-struct cdrom_interface cdi_cdrom =
-{
-	"cdi_cdrom",
-	DEVICE_IMAGE_DISPLAY_INFO_NAME(cdi_cdinfo)
-};
-
 // Standard CD-i system, with CD-ROM image device (MESS) and Software List (MESS)
 static MACHINE_CONFIG_DERIVED( cdi_base, cdi )
 	MCFG_MACHINE_RESET_OVERRIDE(cdi_state, cdi )
-
-	MCFG_CDROM_ADD( "cdrom", cdi_cdrom )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( cdimono1, cdi_base )
+	MCFG_CDROM_ADD( "cdrom" )
+	MCFG_CDROM_INTERFACE("cdi_cdrom")
 	MCFG_SOFTWARE_LIST_ADD("cd_list","cdi")
+	MCFG_SOFTWARE_LIST_FILTER("cd_list","!DVC")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( quizard, cdi_base )

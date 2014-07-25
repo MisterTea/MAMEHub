@@ -10,7 +10,6 @@
 #include "emu.h"
 #include "cpu/i8085/i8085.h"
 #include "imagedev/cassette.h"
-#include "machine/i8255.h"
 #include "machine/wd_fdc.h"
 #include "machine/pic8259.h"
 #include "machine/i8251.h"
@@ -146,31 +145,11 @@ WRITE_LINE_MEMBER(b2m_state::bm2_pit_out1)
 	m_speaker->level_w(state);
 }
 
-const struct pit8253_interface b2m_pit8253_intf =
-{
-	{
-		{
-			0,
-			DEVCB_NULL,
-			DEVCB_DEVICE_LINE_MEMBER("pic8259", pic8259_device, ir1_w)
-		},
-		{
-			2000000,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(b2m_state,bm2_pit_out1)
-		},
-		{
-			2000000,
-			DEVCB_NULL,
-			DEVCB_DEVICE_LINE_MEMBER("pit8253", pit8253_device, clk0_w)
-		}
-	}
-};
-
 WRITE8_MEMBER(b2m_state::b2m_8255_porta_w)
 {
 	m_b2m_8255_porta = data;
 }
+
 WRITE8_MEMBER(b2m_state::b2m_8255_portb_w)
 {
 	m_b2m_video_scroll = data;
@@ -188,17 +167,7 @@ READ8_MEMBER(b2m_state::b2m_8255_portb_r)
 	return m_b2m_video_scroll;
 }
 
-I8255A_INTERFACE( b2m_ppi8255_interface_1 )
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(b2m_state,b2m_8255_porta_w),
-	DEVCB_DRIVER_MEMBER(b2m_state,b2m_8255_portb_r),
-	DEVCB_DRIVER_MEMBER(b2m_state,b2m_8255_portb_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(b2m_state,b2m_8255_portc_w)
-};
-
-void b2m_state::b2m_fdc_drq(bool state)
+WRITE_LINE_MEMBER( b2m_state::b2m_fdc_drq )
 {
 	/* Clears HALT state of CPU when data is ready to read */
 	if (state)
@@ -237,16 +206,6 @@ WRITE8_MEMBER(b2m_state::b2m_ext_8255_portc_w)
 	}
 }
 
-I8255A_INTERFACE( b2m_ppi8255_interface_2 )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(b2m_state,b2m_ext_8255_portc_w)
-};
-
 READ8_MEMBER(b2m_state::b2m_romdisk_porta_r)
 {
 	UINT8 *romdisk = memregion("maincpu")->base() + 0x12000;
@@ -261,21 +220,6 @@ WRITE8_MEMBER(b2m_state::b2m_romdisk_portb_w)
 WRITE8_MEMBER(b2m_state::b2m_romdisk_portc_w)
 {
 	m_b2m_romdisk_msb = data & 0x7f;
-}
-
-I8255A_INTERFACE( b2m_ppi8255_interface_3 )
-{
-	DEVCB_DRIVER_MEMBER(b2m_state,b2m_romdisk_porta_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(b2m_state,b2m_romdisk_portb_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(b2m_state,b2m_romdisk_portc_w)
-};
-
-WRITE_LINE_MEMBER(b2m_state::b2m_pic_set_int_line)
-{
-	m_maincpu->set_input_line(0, state ?  HOLD_LINE : CLEAR_LINE);
 }
 
 /* Driver initialization */
@@ -295,9 +239,9 @@ WRITE8_MEMBER(b2m_state::b2m_palette_w)
 	m_b2m_color[offset & 3] = data;
 
 	if (ioport("MONITOR")->read()==1) {
-		palette_set_color_rgb(machine(),offset, r, g, b);
+		m_palette->set_pen_color(offset, r, g, b);
 	} else {
-		palette_set_color_rgb(machine(),offset, bw, bw, bw);
+		m_palette->set_pen_color(offset, bw, bw, bw);
 	}
 }
 
@@ -326,8 +270,6 @@ void b2m_state::machine_start()
 	m_pic = machine().device<pic8259_device>("pic8259");
 	m_fdc = machine().device<fd1793_t>("fd1793");
 
-	m_fdc->setup_drq_cb(fd1793_t::line_cb(FUNC(b2m_state::b2m_fdc_drq), this));
-
 	/* register for state saving */
 	save_item(NAME(m_b2m_8255_porta));
 	save_item(NAME(m_b2m_video_scroll));
@@ -344,11 +286,6 @@ void b2m_state::machine_start()
 	machine().save().register_postload(save_prepost_delegate(FUNC(b2m_state::b2m_postload), this));
 }
 
-IRQ_CALLBACK_MEMBER(b2m_state::b2m_irq_callback)
-{
-	return m_pic->acknowledge();
-}
-
 INTERRUPT_GEN_MEMBER(b2m_state::b2m_vblank_interrupt)
 {
 	m_vblank_state++;
@@ -361,6 +298,5 @@ void b2m_state::machine_reset()
 	m_b2m_side = 0;
 	m_b2m_drive = 0;
 
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(b2m_state::b2m_irq_callback),this));
 	b2m_set_bank(7);
 }

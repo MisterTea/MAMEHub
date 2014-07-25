@@ -7,15 +7,18 @@ class darkseal_state : public driver_device
 public:
 	darkseal_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_deco_tilegen1(*this, "tilegen1"),
-			m_deco_tilegen2(*this, "tilegen2"),
-			m_spriteram(*this, "spriteram") ,
+		m_deco_tilegen1(*this, "tilegen1"),
+		m_deco_tilegen2(*this, "tilegen2"),
+		m_spriteram(*this, "spriteram") ,
 		m_ram(*this, "ram"),
 		m_pf1_rowscroll(*this, "pf1_rowscroll"),
 		m_pf3_rowscroll(*this, "pf3_rowscroll"),
 		m_sprgen(*this, "spritegen"),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu") { }
+		m_audiocpu(*this, "audiocpu"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_16(*this, "paletteram"),
+		m_generic_paletteram2_16(*this, "paletteram2") { }
 
 	required_device<deco16ic_device> m_deco_tilegen1;
 	required_device<deco16ic_device> m_deco_tilegen2;
@@ -39,4 +42,7 @@ public:
 	void update_24bitcol(int offset);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT16> m_generic_paletteram_16;
+	required_shared_ptr<UINT16> m_generic_paletteram2_16;
 };

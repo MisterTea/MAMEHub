@@ -49,8 +49,7 @@ TILE_GET_INFO_MEMBER(dcon_state::get_back_tile_info)
 
 	tile&=0xfff;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			tile,
 			color,
 			0);
@@ -63,8 +62,7 @@ TILE_GET_INFO_MEMBER(dcon_state::get_fore_tile_info)
 
 	tile&=0xfff;
 
-	SET_TILE_INFO_MEMBER(
-			2,
+	SET_TILE_INFO_MEMBER(2,
 			tile,
 			color,
 			0);
@@ -77,8 +75,7 @@ TILE_GET_INFO_MEMBER(dcon_state::get_mid_tile_info)
 
 	tile&=0xfff;
 
-	SET_TILE_INFO_MEMBER(
-			3,
+	SET_TILE_INFO_MEMBER(3,
 			tile|m_gfx_bank_select,
 			color,
 			0);
@@ -91,8 +88,7 @@ TILE_GET_INFO_MEMBER(dcon_state::get_text_tile_info)
 
 	tile&=0xfff;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile,
 			color,
 			0);
@@ -100,10 +96,10 @@ TILE_GET_INFO_MEMBER(dcon_state::get_text_tile_info)
 
 void dcon_state::video_start()
 {
-	m_background_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dcon_state::get_back_tile_info),this),TILEMAP_SCAN_ROWS,     16,16,32,32);
-	m_foreground_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dcon_state::get_fore_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,32);
-	m_midground_layer =  &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dcon_state::get_mid_tile_info),this), TILEMAP_SCAN_ROWS,16,16,32,32);
-	m_text_layer =       &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dcon_state::get_text_tile_info),this),TILEMAP_SCAN_ROWS,  8,8,64,32);
+	m_background_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dcon_state::get_back_tile_info),this),TILEMAP_SCAN_ROWS,     16,16,32,32);
+	m_foreground_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dcon_state::get_fore_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,32);
+	m_midground_layer =  &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dcon_state::get_mid_tile_info),this), TILEMAP_SCAN_ROWS,16,16,32,32);
+	m_text_layer =       &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dcon_state::get_text_tile_info),this),TILEMAP_SCAN_ROWS,  8,8,64,32);
 
 	m_midground_layer->set_transparent_pen(15);
 	m_foreground_layer->set_transparent_pen(15);
@@ -157,76 +153,76 @@ void dcon_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap,const
 			for (ay=0; ay<dy; ay++) {
 				if (!fx && !fy)
 				{
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[4],
+					m_gfxdecode->gfx(4)->prio_transpen(bitmap,cliprect,
 						sprite + inc,
 						color,fx,fy,x+ax*16,y+ay*16,
 						screen.priority(),pri_mask,15);
 
 					// wrap around y
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[4],
+					m_gfxdecode->gfx(4)->prio_transpen(bitmap,cliprect,
 						sprite + inc,
 						color,fx,fy,x+ax*16,y+ay*16 + 512,
 						screen.priority(),pri_mask,15);
 
 					// wrap around y
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[4],
+					m_gfxdecode->gfx(4)->prio_transpen(bitmap,cliprect,
 						sprite + inc,
 						color,fx,fy,x+ax*16,y+ay*16 - 512,
 						screen.priority(),pri_mask,15);
 				}
 				else if (fx && !fy)
 				{
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[4],
+					m_gfxdecode->gfx(4)->prio_transpen(bitmap,cliprect,
 						sprite + inc,
 						color,fx,fy,x+(dx-1-ax)*16,y+ay*16,
 						screen.priority(),pri_mask,15);
 
 					// wrap around y
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[4],
+					m_gfxdecode->gfx(4)->prio_transpen(bitmap,cliprect,
 						sprite + inc,
 						color,fx,fy,x+(dx-1-ax)*16,y+ay*16 + 512,
 						screen.priority(),pri_mask,15);
 
 					// wrap around y
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[4],
+					m_gfxdecode->gfx(4)->prio_transpen(bitmap,cliprect,
 						sprite + inc,
 						color,fx,fy,x+(dx-1-ax)*16,y+ay*16 - 512,
 						screen.priority(),pri_mask,15);
 				}
 				else if (!fx && fy)
 				{
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[4],
+					m_gfxdecode->gfx(4)->prio_transpen(bitmap,cliprect,
 						sprite + inc,
 						color,fx,fy,x+ax*16,y+(dy-1-ay)*16,
 						screen.priority(),pri_mask,15);
 
 					// wrap around y
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[4],
+					m_gfxdecode->gfx(4)->prio_transpen(bitmap,cliprect,
 						sprite + inc,
 						color,fx,fy,x+ax*16,y+(dy-1-ay)*16 + 512,
 						screen.priority(),pri_mask,15);
 
 					// wrap around y
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[4],
+					m_gfxdecode->gfx(4)->prio_transpen(bitmap,cliprect,
 						sprite + inc,
 						color,fx,fy,x+ax*16,y+(dy-1-ay)*16 - 512,
 						screen.priority(),pri_mask,15);
 				}
 				else
 				{
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[4],
+					m_gfxdecode->gfx(4)->prio_transpen(bitmap,cliprect,
 						sprite + inc,
 						color,fx,fy,x+(dx-1-ax)*16,y+(dy-1-ay)*16,
 						screen.priority(),pri_mask,15);
 
 					// wrap around y
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[4],
+					m_gfxdecode->gfx(4)->prio_transpen(bitmap,cliprect,
 						sprite + inc,
 						color,fx,fy,x+(dx-1-ax)*16,y+(dy-1-ay)*16 + 512,
 						screen.priority(),pri_mask,15);
 
 					// wrap around y
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[4],
+					m_gfxdecode->gfx(4)->prio_transpen(bitmap,cliprect,
 						sprite + inc,
 						color,fx,fy,x+(dx-1-ax)*16,y+(dy-1-ay)*16 - 512,
 						screen.priority(),pri_mask,15);

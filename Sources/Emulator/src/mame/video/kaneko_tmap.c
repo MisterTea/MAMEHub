@@ -95,11 +95,21 @@ There are more!
 const device_type KANEKO_TMAP = &device_creator<kaneko_view2_tilemap_device>;
 
 kaneko_view2_tilemap_device::kaneko_view2_tilemap_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, KANEKO_TMAP, "kaneko_view2_tilemap_device", tag, owner, clock, "kaneko_view2_tilemap", __FILE__)
+	: device_t(mconfig, KANEKO_TMAP, "Kaneko VIEW2 Tilemaps", tag, owner, clock, "kaneko_view2_tilemap", __FILE__),
+	m_gfxdecode(*this)
 {
 	m_invert_flip = 0;
 }
 
+//-------------------------------------------------
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
+//-------------------------------------------------
+
+void kaneko_view2_tilemap_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
+{
+	downcast<kaneko_view2_tilemap_device &>(device).m_gfxdecode.set_tag(tag);
+}
 
 void kaneko_view2_tilemap_device::set_gfx_region(device_t &device, int region)
 {
@@ -136,15 +146,18 @@ TILE_GET_INFO_MEMBER(kaneko_view2_tilemap_device::get_tile_info_1) { get_tile_in
 
 void kaneko_view2_tilemap_device::device_start()
 {
+	if(!m_gfxdecode->started())
+		throw device_missing_dependencies();
+
 	m_vram[0] = (UINT16*)auto_alloc_array_clear(this->machine(), UINT16, 0x1000/2);
 	m_vram[1] = (UINT16*)auto_alloc_array_clear(this->machine(), UINT16, 0x1000/2);
 	m_vscroll[0] = (UINT16*)auto_alloc_array_clear(this->machine(), UINT16, 0x1000/2);
 	m_vscroll[1] = (UINT16*)auto_alloc_array_clear(this->machine(), UINT16, 0x1000/2);
 	m_regs = (UINT16*)auto_alloc_array_clear(this->machine(), UINT16, 0x20/2);
 
-	m_tmap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(kaneko_view2_tilemap_device::get_tile_info_0),this), TILEMAP_SCAN_ROWS,
+	m_tmap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(kaneko_view2_tilemap_device::get_tile_info_0),this), TILEMAP_SCAN_ROWS,
 											16,16, 0x20,0x20    );
-	m_tmap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(kaneko_view2_tilemap_device::get_tile_info_1),this), TILEMAP_SCAN_ROWS,
+	m_tmap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(kaneko_view2_tilemap_device::get_tile_info_1),this), TILEMAP_SCAN_ROWS,
 											16,16, 0x20,0x20    );
 
 	m_tmap[0]->set_transparent_pen(0);
@@ -182,8 +195,11 @@ void kaneko_view2_tilemap_device::kaneko16_vram_w(offs_t offset, UINT16 data, UI
 	m_tmap[_N_]->mark_tile_dirty(offset/2);
 }
 
+void kaneko_view2_tilemap_device::kaneko16_prepare(bitmap_ind16 &bitmap, const rectangle &cliprect) { kaneko16_prepare_common(bitmap, cliprect); };
+void kaneko_view2_tilemap_device::kaneko16_prepare(bitmap_rgb32 &bitmap, const rectangle &cliprect) { kaneko16_prepare_common(bitmap, cliprect); };
 
-void kaneko_view2_tilemap_device::kaneko16_prepare(bitmap_ind16 &bitmap, const rectangle &cliprect)
+template<class _BitmapClass>
+void kaneko_view2_tilemap_device::kaneko16_prepare_common(_BitmapClass &bitmap, const rectangle &cliprect)
 {
 	int layers_flip_0;
 	UINT16 layer0_scrollx, layer0_scrolly;
@@ -231,13 +247,21 @@ void kaneko_view2_tilemap_device::kaneko16_prepare(bitmap_ind16 &bitmap, const r
 	}
 }
 
-void kaneko_view2_tilemap_device::render_tilemap_chip(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int pri)
+void kaneko_view2_tilemap_device::render_tilemap_chip(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int pri) { render_tilemap_chip_common(screen, bitmap, cliprect, pri); }
+void kaneko_view2_tilemap_device::render_tilemap_chip(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, int pri) { render_tilemap_chip_common(screen, bitmap, cliprect, pri); }
+
+template<class _BitmapClass>
+void kaneko_view2_tilemap_device::render_tilemap_chip_common(screen_device &screen, _BitmapClass &bitmap, const rectangle &cliprect, int pri)
 {
 	m_tmap[0]->draw(screen, bitmap, cliprect, pri, pri, 0);
 	m_tmap[1]->draw(screen, bitmap, cliprect, pri, pri, 0);
 }
 
-void kaneko_view2_tilemap_device::render_tilemap_chip_alt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int pri, int v2pri)
+void kaneko_view2_tilemap_device::render_tilemap_chip_alt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int pri, int v2pri) { render_tilemap_chip_alt_common(screen, bitmap, cliprect, pri, v2pri); }
+void kaneko_view2_tilemap_device::render_tilemap_chip_alt(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, int pri, int v2pri) { render_tilemap_chip_alt_common(screen, bitmap, cliprect, pri, v2pri); }
+
+template<class _BitmapClass>
+void kaneko_view2_tilemap_device::render_tilemap_chip_alt_common(screen_device &screen, _BitmapClass &bitmap, const rectangle &cliprect, int pri, int v2pri)
 {
 	m_tmap[0]->draw(screen, bitmap, cliprect, pri, v2pri ? pri : 0, 0);
 	m_tmap[1]->draw(screen, bitmap, cliprect, pri, v2pri ? pri : 0, 0);

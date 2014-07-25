@@ -25,7 +25,8 @@ public:
 		m_k053246(*this, "k053246"),
 		m_k053251(*this, "k053251"),
 		m_k053252(*this, "k053252"),
-		m_sprram(*this, "sprram")
+		m_sprram(*this, "sprram"),
+		m_screen(*this, "screen")
 	{ }
 
 	/* memory pointers */
@@ -51,6 +52,7 @@ public:
 	required_device<k053251_device> m_k053251;
 	required_device<k053252_device> m_k053252;
 	required_shared_ptr<UINT16> m_sprram;
+	required_device<screen_device> m_screen;
 	DECLARE_WRITE16_MEMBER(eeprom_w);
 	DECLARE_WRITE16_MEMBER(cpuA_ctrl_w);
 	DECLARE_READ16_MEMBER(cpuB_ctrl_r);
@@ -67,9 +69,7 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(overdriv_cpuA_scanline);
 
 	DECLARE_WRITE16_MEMBER( overdriv_k053246_word_w );
+	K051316_CB_MEMBER(zoom_callback_1);
+	K051316_CB_MEMBER(zoom_callback_2);
+	K053246_CB_MEMBER(sprite_callback);
 };
-
-/*----------- defined in video/overdriv.c -----------*/
-extern void overdriv_sprite_callback(running_machine &machine, int *code,int *color,int *priority_mask);
-extern void overdriv_zoom_callback_0(running_machine &machine, int *code,int *color,int *flags);
-extern void overdriv_zoom_callback_1(running_machine &machine, int *code,int *color,int *flags);

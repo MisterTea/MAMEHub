@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     atarigen.h
 
     General functions for Atari games.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -66,43 +37,49 @@
 #define MCFG_ATARI_SOUND_COMM_ADD(_tag, _soundcpu, _intcb) \
 	MCFG_DEVICE_ADD(_tag, ATARI_SOUND_COMM, 0) \
 	atari_sound_comm_device::static_set_sound_cpu(*device, _soundcpu); \
-	devcb = &atari_sound_comm_device::static_set_main_int_cb(*device, DEVCB2_##_intcb);
+	devcb = &atari_sound_comm_device::static_set_main_int_cb(*device, DEVCB_##_intcb);
 
 
 
 #define MCFG_ATARI_VAD_ADD(_tag, _screen, _intcb) \
 	MCFG_DEVICE_ADD(_tag, ATARI_VAD, 0) \
 	MCFG_VIDEO_SET_SCREEN(_screen) \
-	devcb = &atari_vad_device::static_set_scanline_int_cb(*device, DEVCB2_##_intcb);
-#define MCFG_ATARI_VAD_PLAYFIELD(_class, _getinfo) \
+	devcb = &atari_vad_device::static_set_scanline_int_cb(*device, DEVCB_##_intcb);
+
+#define MCFG_ATARI_VAD_PLAYFIELD(_class, _gfxtag, _getinfo) \
 	{ astring fulltag(device->tag(), ":playfield"); device_t *device; \
 	MCFG_TILEMAP_ADD(fulltag) \
+	MCFG_TILEMAP_GFXDECODE("^" _gfxtag) \
 	MCFG_TILEMAP_BYTES_PER_ENTRY(2) \
 	MCFG_TILEMAP_INFO_CB_DEVICE(DEVICE_SELF_OWNER, _class, _getinfo) \
 	MCFG_TILEMAP_TILE_SIZE(8,8) \
 	MCFG_TILEMAP_LAYOUT_STANDARD(SCAN_COLS, 64,64) }
 
-#define MCFG_ATARI_VAD_PLAYFIELD2(_class, _getinfo) \
+#define MCFG_ATARI_VAD_PLAYFIELD2(_class, _gfxtag, _getinfo) \
 	{ astring fulltag(device->tag(), ":playfield2"); device_t *device; \
 	MCFG_TILEMAP_ADD(fulltag) \
+	MCFG_TILEMAP_GFXDECODE("^" _gfxtag) \
 	MCFG_TILEMAP_BYTES_PER_ENTRY(2) \
 	MCFG_TILEMAP_INFO_CB_DEVICE(DEVICE_SELF_OWNER, _class, _getinfo) \
 	MCFG_TILEMAP_TILE_SIZE(8,8) \
 	MCFG_TILEMAP_LAYOUT_STANDARD(SCAN_COLS, 64,64) \
 	MCFG_TILEMAP_TRANSPARENT_PEN(0) }
 
-#define MCFG_ATARI_VAD_ALPHA(_class, _getinfo) \
+#define MCFG_ATARI_VAD_ALPHA(_class, _gfxtag, _getinfo) \
 	{ astring fulltag(device->tag(), ":alpha"); device_t *device; \
 	MCFG_TILEMAP_ADD(fulltag) \
+	MCFG_TILEMAP_GFXDECODE("^" _gfxtag) \
 	MCFG_TILEMAP_BYTES_PER_ENTRY(2) \
 	MCFG_TILEMAP_INFO_CB_DEVICE(DEVICE_SELF_OWNER, _class, _getinfo) \
 	MCFG_TILEMAP_TILE_SIZE(8,8) \
 	MCFG_TILEMAP_LAYOUT_STANDARD(SCAN_ROWS, 64,32) \
 	MCFG_TILEMAP_TRANSPARENT_PEN(0) }
 
-#define MCFG_ATARI_VAD_MOB(_config) \
+#define MCFG_ATARI_VAD_MOB(_config, _gfxtag) \
 	{ astring fulltag(device->tag(), ":mob"); device_t *device; \
-	MCFG_ATARI_MOTION_OBJECTS_ADD(fulltag, "^^screen", _config) }
+	MCFG_ATARI_MOTION_OBJECTS_ADD(fulltag, "^^screen", _config) \
+	MCFG_ATARI_MOTION_OBJECTS_GFXDECODE("^" _gfxtag) }
+
 
 
 #define MCFG_ATARI_EEPROM_2804_ADD(_tag) \
@@ -137,7 +114,7 @@ public:
 
 	// static configuration helpers
 	static void static_set_sound_cpu(device_t &device, const char *cputag);
-	template<class _Object> static devcb2_base &static_set_main_int_cb(device_t &device, _Object object) { return downcast<atari_sound_comm_device &>(device).m_main_int_cb.set_callback(object); }
+	template<class _Object> static devcb_base &static_set_main_int_cb(device_t &device, _Object object) { return downcast<atari_sound_comm_device &>(device).m_main_int_cb.set_callback(object); }
 
 	// getters
 	DECLARE_READ_LINE_MEMBER(main_to_sound_ready) { return m_main_to_sound_ready ? ASSERT_LINE : CLEAR_LINE; }
@@ -182,7 +159,7 @@ private:
 
 	// configuration state
 	const char *        m_sound_cpu_tag;
-	devcb2_write_line   m_main_int_cb;
+	devcb_write_line   m_main_int_cb;
 
 	// internal state
 	m6502_device *      m_sound_cpu;
@@ -209,7 +186,7 @@ public:
 	atari_vad_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 	// static configuration helpers
-	template<class _Object> static devcb2_base &static_set_scanline_int_cb(device_t &device, _Object object) { return downcast<atari_vad_device &>(device).m_scanline_int_cb.set_callback(object); }
+	template<class _Object> static devcb_base &static_set_scanline_int_cb(device_t &device, _Object object) { return downcast<atari_vad_device &>(device).m_scanline_int_cb.set_callback(object); }
 
 	// getters
 	tilemap_device *alpha() const { return m_alpha_tilemap; }
@@ -251,7 +228,7 @@ private:
 	void eof_update(emu_timer &timer);
 
 	// configuration state
-	devcb2_write_line   m_scanline_int_cb;
+	devcb_write_line   m_scanline_int_cb;
 
 	// internal state
 	optional_device<tilemap_device> m_alpha_tilemap;
@@ -401,9 +378,6 @@ public:
 	// video helpers
 	int get_hblank(screen_device &screen) const { return (screen.hpos() > (screen.width() * 9 / 10)); }
 	void halt_until_hblank_0(device_t &device, screen_device &screen);
-	DECLARE_WRITE16_MEMBER( paletteram_666_w );
-	DECLARE_WRITE16_MEMBER( expanded_paletteram_666_w );
-	DECLARE_WRITE32_MEMBER( paletteram32_666_w );
 
 	// misc helpers
 	void blend_gfx(int gfx0, int gfx1, int mask0, int mask1);
@@ -453,6 +427,10 @@ public:
 	optional_device<okim6295_device> m_oki;
 
 	optional_device<atari_sound_comm_device> m_soundcomm;
+	optional_device<gfxdecode_device> m_gfxdecode;
+	optional_device<screen_device> m_screen;
+	optional_device<palette_device> m_palette;
+	optional_shared_ptr<UINT16> m_generic_paletteram_16;
 };
 
 

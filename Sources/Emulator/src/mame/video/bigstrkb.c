@@ -16,7 +16,7 @@ void bigstrkb_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 	    ( rest unused )
 	**- End of Comments -*/
 
-	gfx_element *gfx = machine().gfx[2];
+	gfx_element *gfx = m_gfxdecode->gfx(2);
 	UINT16 *source = m_spriteram;
 	UINT16 *finish = source + 0x800/2;
 
@@ -40,7 +40,7 @@ void bigstrkb_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 		flipx = attr & 0x0100;
 		col = attr & 0x000f;
 
-		drawgfx_transpen(bitmap,cliprect,gfx,num,col,flipx,0,xpos,ypos,15);
+		gfx->transpen(bitmap,cliprect,num,col,flipx,0,xpos,ypos,15);
 		source+=8;
 	}
 }
@@ -111,9 +111,9 @@ WRITE16_MEMBER(bigstrkb_state::bsb_videoram3_w)
 
 void bigstrkb_state::video_start()
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bigstrkb_state::get_bsb_tile_info),this),TILEMAP_SCAN_COLS, 8, 8,64,32);
-	m_tilemap2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bigstrkb_state::get_bsb_tile2_info),this),tilemap_mapper_delegate(FUNC(bigstrkb_state::bsb_bg_scan),this), 16, 16,128,64);
-	m_tilemap3 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bigstrkb_state::get_bsb_tile3_info),this),tilemap_mapper_delegate(FUNC(bigstrkb_state::bsb_bg_scan),this), 16, 16,128,64);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bigstrkb_state::get_bsb_tile_info),this),TILEMAP_SCAN_COLS, 8, 8,64,32);
+	m_tilemap2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bigstrkb_state::get_bsb_tile2_info),this),tilemap_mapper_delegate(FUNC(bigstrkb_state::bsb_bg_scan),this), 16, 16,128,64);
+	m_tilemap3 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bigstrkb_state::get_bsb_tile3_info),this),tilemap_mapper_delegate(FUNC(bigstrkb_state::bsb_bg_scan),this), 16, 16,128,64);
 
 	m_tilemap->set_transparent_pen(15);
 	//m_tilemap2->set_transparent_pen(15);
@@ -122,7 +122,7 @@ void bigstrkb_state::video_start()
 
 UINT32 bigstrkb_state::screen_update_bigstrkb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-//  bitmap.fill(get_black_pen(machine()), cliprect);
+//  bitmap.fill(m_palette->black_pen(), cliprect);
 
 	m_tilemap2->set_scrollx(0, m_vidreg1[0]+(256-14));
 	m_tilemap2->set_scrolly(0, m_vidreg2[0]);

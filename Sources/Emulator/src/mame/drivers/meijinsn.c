@@ -95,7 +95,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(meijinsn);
 	UINT32 screen_update_meijinsn(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(meijinsn_interrupt);
 };
@@ -252,7 +252,7 @@ void meijinsn_state::video_start()
 {
 }
 
-void meijinsn_state::palette_init()
+PALETTE_INIT_MEMBER(meijinsn_state, meijinsn)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -266,7 +266,7 @@ void meijinsn_state::palette_init()
 			3,  resistances_rg, weights_g,  0,  1000+1000,
 			2,  resistances_b,  weights_b,  0,  1000+1000);
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -287,7 +287,7 @@ void meijinsn_state::palette_init()
 		bit1 = BIT(color_prom[i], 7);
 		b = combine_2_weights(weights_b, bit0, bit1);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -328,13 +328,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(meijinsn_state::meijinsn_interrupt)
 		m_maincpu->set_input_line(2, HOLD_LINE);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r)
-};
-
 void meijinsn_state::machine_start()
 {
 	save_item(NAME(m_deposits1));
@@ -370,15 +363,16 @@ static MACHINE_CONFIG_START( meijinsn, meijinsn_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(12, 243, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(meijinsn_state, screen_update_meijinsn)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(32)
-
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(meijinsn_state, meijinsn)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 2000000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
 MACHINE_CONFIG_END

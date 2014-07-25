@@ -40,7 +40,9 @@ public:
 		m_bank4(*this, "bank4"),
 		m_io_options(*this, "OPTIONS"),
 		m_io_ecs_cntrlsel(*this, "ECS_CNTRLSEL"),
-		m_io_test(*this, "TEST") { }
+		m_io_test(*this, "TEST"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<sp0256_device> m_intellivoice;
@@ -114,7 +116,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(intv);
 	void ecs_banks_restore();
 	UINT32 screen_update_intv(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_intvkbd(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -140,6 +142,9 @@ protected:
 	required_ioport m_io_options;
 	optional_ioport m_io_ecs_cntrlsel;
 	optional_ioport m_io_test;
+
+	optional_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	ioport_port *m_keypad[4];
 	ioport_port *m_disc[4];

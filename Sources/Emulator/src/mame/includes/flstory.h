@@ -12,7 +12,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_mcu(*this, "mcu"),
-		m_msm(*this, "msm"){ }
+		m_msm(*this, "msm"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -24,10 +26,11 @@ public:
 
 	/* video-related */
 	tilemap_t  *m_bg_tilemap;
-	int      m_char_bank;
-	int      m_palette_bank;
-	int      m_flipscreen;
-	int      m_gfxctrl;
+	dynamic_array<UINT8> m_paletteram;
+	dynamic_array<UINT8> m_paletteram_ext;
+	UINT8    m_gfxctrl;
+	UINT8    m_char_bank;
+	UINT8    m_palette_bank;
 
 	/* sound-related */
 	UINT8    m_snd_data;
@@ -61,6 +64,8 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	optional_device<cpu_device> m_mcu;
 	required_device<msm5232_device> m_msm;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	/* mcu */
 	UINT8 m_mcu_cmd;

@@ -11,7 +11,10 @@ public:
 		m_dac1(*this, "dac1"),
 		m_dac2(*this, "dac2"),
 		m_dac3(*this, "dac3"),
-		m_dac4(*this, "dac4")
+		m_dac4(*this, "dac4"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -21,6 +24,9 @@ public:
 	required_device<dac_device> m_dac2;
 	optional_device<dac_device> m_dac3;
 	optional_device<dac_device> m_dac4;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 	UINT8 m_prot;
 	UINT16 *m_paletteram;
 	int m_color_bank;

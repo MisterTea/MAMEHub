@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 
         Hitachi HD44780 LCD controller
@@ -50,6 +52,8 @@ public:
 	virtual DECLARE_READ8_MEMBER(control_read);
 	virtual DECLARE_WRITE8_MEMBER(data_write);
 	virtual DECLARE_READ8_MEMBER(data_read);
+
+	const UINT8 *render();
 	virtual UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 protected:
@@ -82,6 +86,7 @@ protected:
 private:
 	// internal helper
 	void set_busy_flag(UINT16 usec);
+	void correct_ac();
 	void update_ac(int direction);
 	void update_nibble(int rs, int rw);
 	void shift_display(int direction);
@@ -102,7 +107,7 @@ private:
 	UINT8       m_ddram[0x80];    // internal display data RAM
 	UINT8       m_cgram[0x40];    // internal chargen RAM
 	UINT8 *     m_cgrom;          // internal chargen ROM
-	INT8        m_ac;             // address counter
+	int         m_ac;             // address counter
 	UINT8       m_dr;             // data register
 	UINT8       m_ir;             // instruction register
 	UINT8       m_active_ram;     // DDRAM or CGRAM
@@ -110,8 +115,8 @@ private:
 	bool        m_cursor_on;      // cursor on/off
 	bool        m_blink_on;       // blink on/off
 	bool        m_shift_on;       // shift on/off
-	UINT8       m_disp_shift;     // display shift
-	INT8        m_direction;      // auto increment/decrement
+	int         m_disp_shift;     // display shift
+	int         m_direction;      // auto increment/decrement (-1 or +1)
 	UINT8       m_data_len;       // interface data length 4 or 8 bit
 	UINT8       m_num_line;       // number of lines
 	UINT8       m_char_size;      // char size 5x8 or 5x10
@@ -121,6 +126,7 @@ private:
 	int         m_rw_state;
 	bool        m_nibble;
 	int         m_charset_type;
+	UINT8       m_render_buf[80 * 16];
 
 	enum        { DDRAM, CGRAM };
 };

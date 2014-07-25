@@ -117,7 +117,7 @@ READ8_MEMBER(capbowl_state::bowlrama_blitter_r)
 
 inline rgb_t capbowl_state::pen_for_pixel( UINT8 *src, UINT8 pix )
 {
-	return MAKE_RGB(pal4bit(src[(pix << 1) + 0] >> 0),
+	return rgb_t(pal4bit(src[(pix << 1) + 0] >> 0),
 					pal4bit(src[(pix << 1) + 1] >> 4),
 					pal4bit(src[(pix << 1) + 1] >> 0));
 }
@@ -133,7 +133,7 @@ UINT32 capbowl_state::screen_update_capbowl(screen_device &screen, bitmap_rgb32 
 	/* if we're blanked, just fill with black */
 	if (m_tms34061->m_display.blanked)
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(rgb_t::black, cliprect);
 		return 0;
 	}
 

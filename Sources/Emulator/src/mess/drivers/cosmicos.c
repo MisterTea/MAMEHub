@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
     COSMICOS
@@ -410,26 +412,6 @@ READ_LINE_MEMBER( cosmicos_state::ef4_r )
 	return BIT(m_buttons->read(), 0);
 }
 
-static COSMAC_SC_WRITE( cosmicos_sc_w )
-{
-	cosmicos_state *driver_state = device->machine().driver_data<cosmicos_state>();
-
-	int sc1 = BIT(sc, 1);
-
-	if (driver_state->m_sc1 && !sc1)
-	{
-		driver_state->clear_input_data();
-	}
-
-	if (sc1)
-	{
-		driver_state->m_maincpu->set_input_line(COSMAC_INPUT_LINE_INT, CLEAR_LINE);
-		driver_state->m_maincpu->set_input_line(COSMAC_INPUT_LINE_DMAIN, CLEAR_LINE);
-	}
-
-	driver_state->m_sc1 = sc1;
-}
-
 WRITE_LINE_MEMBER( cosmicos_state::q_w )
 {
 	/* cassette */
@@ -449,22 +431,23 @@ READ8_MEMBER( cosmicos_state::dma_r )
 	return m_data;
 }
 
-static COSMAC_INTERFACE( cosmicos_config )
+WRITE8_MEMBER( cosmicos_state::sc_w )
 {
-	DEVCB_DRIVER_LINE_MEMBER(cosmicos_state, wait_r),
-	DEVCB_DRIVER_LINE_MEMBER(cosmicos_state, clear_r),
-	DEVCB_DRIVER_LINE_MEMBER(cosmicos_state, ef1_r),
-	DEVCB_DRIVER_LINE_MEMBER(cosmicos_state, ef2_r),
-	DEVCB_DRIVER_LINE_MEMBER(cosmicos_state, ef3_r),
-	DEVCB_DRIVER_LINE_MEMBER(cosmicos_state, ef4_r),
-	DEVCB_DRIVER_LINE_MEMBER(cosmicos_state, q_w),
-	DEVCB_DRIVER_MEMBER(cosmicos_state, dma_r),
-	DEVCB_NULL,
-	cosmicos_sc_w,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
+	int sc1 = BIT(data, 1);
 
+	if (m_sc1 && !sc1)
+	{
+		clear_input_data();
+	}
+
+	if (sc1)
+	{
+		m_maincpu->set_input_line(COSMAC_INPUT_LINE_INT, CLEAR_LINE);
+		m_maincpu->set_input_line(COSMAC_INPUT_LINE_DMAIN, CLEAR_LINE);
+	}
+
+	m_sc1 = sc1;
+}
 
 /* Machine Initialization */
 
@@ -517,32 +500,24 @@ QUICKLOAD_LOAD_MEMBER( cosmicos_state, cosmicos )
 
 /* Machine Driver */
 
-static const cassette_interface cosmicos_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED),
-	NULL,
-	NULL
-};
-
-static DM9368_INTERFACE( led_intf )
-{
-	0,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( cosmicos, cosmicos_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, XTAL_1_75MHz)
 	MCFG_CPU_PROGRAM_MAP(cosmicos_mem)
 	MCFG_CPU_IO_MAP(cosmicos_io)
-	MCFG_CPU_CONFIG(cosmicos_config)
+	MCFG_COSMAC_WAIT_CALLBACK(READLINE(cosmicos_state, wait_r))
+	MCFG_COSMAC_CLEAR_CALLBACK(READLINE(cosmicos_state, clear_r))
+	MCFG_COSMAC_EF1_CALLBACK(READLINE(cosmicos_state, ef1_r))
+	MCFG_COSMAC_EF2_CALLBACK(READLINE(cosmicos_state, ef2_r))
+	MCFG_COSMAC_EF3_CALLBACK(READLINE(cosmicos_state, ef3_r))
+	MCFG_COSMAC_EF4_CALLBACK(READLINE(cosmicos_state, ef4_r))
+	MCFG_COSMAC_Q_CALLBACK(WRITELINE(cosmicos_state, q_w))
+	MCFG_COSMAC_DMAR_CALLBACK(READ8(cosmicos_state, dma_r))
+	MCFG_COSMAC_SC_CALLBACK(WRITE8(cosmicos_state, sc_w))
 
 	/* video hardware */
 	MCFG_DEFAULT_LAYOUT( layout_cosmicos )
-	MCFG_DM9368_ADD(DM9368_TAG, led_intf)
+	MCFG_DEVICE_ADD(DM9368_TAG, DM9368, 0)
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("digit", cosmicos_state, digit_tick, attotime::from_hz(100))
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("interrupt", cosmicos_state, int_tick, attotime::from_hz(1000))
 
@@ -561,7 +536,8 @@ static MACHINE_CONFIG_START( cosmicos, cosmicos_state )
 
 	/* devices */
 	MCFG_QUICKLOAD_ADD("quickload", cosmicos_state, cosmicos, "bin", 0)
-	MCFG_CASSETTE_ADD("cassette", cosmicos_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

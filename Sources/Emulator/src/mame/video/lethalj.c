@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     The Game Room Lethal Justice hardware
@@ -134,12 +136,14 @@ void lethalj_state::do_blit()
 
 			/* loop over X coordinates */
 			for (x = 0; x <= width; x++, sx++, dx++)
-				if (dx >= 0 && dx < BLITTER_DEST_WIDTH)
-				{
-					int pix = source[sx % BLITTER_SOURCE_WIDTH];
-					if (pix)
-						dest[dx] = pix;
-				}
+			{
+				dx &= BLITTER_DEST_WIDTH -1 ;
+
+				int pix = source[sx % BLITTER_SOURCE_WIDTH];
+				if (pix)
+					dest[dx] = pix;
+
+			}
 		}
 	}
 }

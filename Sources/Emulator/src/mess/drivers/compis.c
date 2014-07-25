@@ -41,399 +41,754 @@
  ******************************************************************************/
 
 #include "includes/compis.h"
-#include "formats/mfi_dsk.h"
+#include "bus/rs232/rs232.h"
 
-#if 0
-/* TODO: this is likely to come from a RAMdac ... */
-static const unsigned char COMPIS_palette[16*3] =
+
+
+//**************************************************************************
+//  READ/WRITE HANDLERS
+//**************************************************************************
+
+//-------------------------------------------------
+//  tape_mon_w -
+//-------------------------------------------------
+
+WRITE8_MEMBER( compis_state::tape_mon_w )
 {
-	0, 0, 0,
-	0, 0, 0,
-	33, 200, 66,
-	94, 220, 120,
-	84, 85, 237,
-	125, 118, 252,
-	212, 82, 77,
-	66, 235, 245,
-	252, 85, 84,
-	255, 121, 120,
-	212, 193, 84,
-	230, 206, 128,
-	33, 176, 59,
-	201, 91, 186,
-	204, 204, 204,
-	255, 255, 255
-};
+	cassette_state state = BIT(data, 0) ? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED;
 
-PALETTE_INIT_MEMBER(compis_state,compis_gdc)
+	m_cassette->change_state(state, CASSETTE_MASK_MOTOR);
+}
+
+
+//-------------------------------------------------
+//  isbx
+//-------------------------------------------------
+
+READ16_MEMBER( compis_state::isbx0_tdma_r )
 {
-	int i;
+	if (ACCESSING_BITS_0_7)
+	{
+		return m_mpsc->cd_ba_r(space, offset & 0x03);
+	}
+	else
+	{
+		m_isbx0->tdma_w(0);
+		m_isbx0->tdma_w(1);
 
-	for ( i = 0; i < 16; i++ ) {
-		palette_set_color_rgb(machine(), i, COMPIS_palette[i*3], COMPIS_palette[i*3+1], COMPIS_palette[i*3+2]);
+		return 0xff;
 	}
 }
-#endif
 
-
-void compis_state::palette_init()
+WRITE16_MEMBER( compis_state::isbx0_tdma_w )
 {
-	palette_set_color(machine(), 0, RGB_BLACK); // black
-	palette_set_color(machine(), 1, MAKE_RGB(0x00, 0xc0, 0x00)); // green
-	palette_set_color(machine(), 2, MAKE_RGB(0x00, 0xff, 0x00)); // highlight
+	if (ACCESSING_BITS_0_7)
+	{
+		m_mpsc->cd_ba_w(space, offset & 0x03, data);
+	}
+	else
+	{
+		m_isbx0->tdma_w(0);
+		m_isbx0->tdma_w(1);
+	}
 }
 
-UINT32 compis_state::screen_update_compis2(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+READ16_MEMBER( compis_state::isbx1_tdma_r )
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	if (ACCESSING_BITS_0_7)
+	{
+		if (offset < 2)
+			return m_crtc->read(space, offset & 0x01);
+		else
+			return 0;
+	}
+	else
+	{
+		m_isbx1->tdma_w(0);
+		m_isbx1->tdma_w(1);
 
-	m_crtc->screen_update(screen, bitmap, cliprect);
-
-	return 0;
+		return 0xff;
+	}
 }
 
-static UPD7220_DISPLAY_PIXELS( hgdc_display_pixels )
+WRITE16_MEMBER( compis_state::isbx1_tdma_w )
 {
-	compis_state *state = device->machine().driver_data<compis_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
-	UINT8 i,gfx = state->m_video_ram[address];
-
-	for(i=0; i<8; i++)
-		bitmap.pix32(y, x + i) = palette[BIT((gfx >> i), 0)];
+	if (ACCESSING_BITS_0_7)
+	{
+		if (offset < 2) m_crtc->write(space, offset & 0x01, data);
+	}
+	else
+	{
+		m_isbx1->tdma_w(0);
+		m_isbx1->tdma_w(1);
+	}
 }
 
-static UPD7220_INTERFACE( hgdc_intf )
+READ16_MEMBER( compis_state::isbx0_cs_r )
 {
-	hgdc_display_pixels,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
+	if (ACCESSING_BITS_0_7)
+	{
+		return m_isbx0->mcs0_r(space, offset);
+	}
+	else
+	{
+		return m_isbx0->mcs1_r(space, offset) << 8;
+	}
+}
 
-/* TODO: why it writes to ROM region? */
+WRITE16_MEMBER( compis_state::isbx0_cs_w )
+{
+	if (ACCESSING_BITS_0_7)
+	{
+		m_isbx0->mcs0_w(space, offset, data);
+	}
+	else
+	{
+		m_isbx0->mcs1_w(space, offset, data >> 8);
+	}
+}
+
+READ16_MEMBER( compis_state::isbx0_dack_r )
+{
+	if (ACCESSING_BITS_0_7)
+	{
+		return m_isbx0->mcs1_r(space, offset);
+	}
+	else
+	{
+		return m_isbx0->mdack_r(space, offset) << 8;
+	}
+}
+
+WRITE16_MEMBER( compis_state::isbx0_dack_w )
+{
+	if (ACCESSING_BITS_0_7)
+	{
+		m_isbx0->mcs1_w(space, offset, data);
+	}
+	else
+	{
+		m_isbx0->mdack_w(space, offset, data >> 8);
+	}
+}
+
+READ16_MEMBER( compis_state::isbx1_cs_r )
+{
+	if (ACCESSING_BITS_0_7)
+	{
+		return m_isbx1->mcs0_r(space, offset);
+	}
+	else
+	{
+		return m_isbx1->mcs1_r(space, offset) << 8;
+	}
+}
+
+WRITE16_MEMBER( compis_state::isbx1_cs_w )
+{
+	if (ACCESSING_BITS_0_7)
+	{
+		m_isbx1->mcs0_w(space, offset, data);
+	}
+	else
+	{
+		m_isbx1->mcs1_w(space, offset, data >> 8);
+	}
+}
+
+READ16_MEMBER( compis_state::isbx1_dack_r )
+{
+	if (ACCESSING_BITS_0_7)
+	{
+		return m_isbx1->mcs1_r(space, offset);
+	}
+	else
+	{
+		return m_isbx1->mdack_r(space, offset) << 8;
+	}
+}
+
+WRITE16_MEMBER( compis_state::isbx1_dack_w )
+{
+	if (ACCESSING_BITS_0_7)
+	{
+		m_isbx1->mcs1_w(space, offset, data);
+	}
+	else
+	{
+		m_isbx1->mdack_w(space, offset, data >> 8);
+	}
+}
+
+
+//-------------------------------------------------
+//  vram_r -
+//-------------------------------------------------
+
+READ8_MEMBER( compis_state::vram_r )
+{
+	return m_video_ram[offset];
+}
+
+
+//-------------------------------------------------
+//  vram_w -
+//-------------------------------------------------
+
 WRITE8_MEMBER( compis_state::vram_w )
 {
-	m_video_ram[offset+0x20000] = data;
+	m_video_ram[offset] = data;
 }
 
-static ADDRESS_MAP_START( compis_mem , AS_PROGRAM, 16, compis_state )
-	AM_RANGE( 0x00000, 0x3ffff) AM_RAM
-	AM_RANGE( 0x40000, 0x4ffff) AM_RAM
-	AM_RANGE( 0x50000, 0x5ffff) AM_RAM
-	AM_RANGE( 0x60000, 0x6ffff) AM_RAM
-	AM_RANGE( 0x70000, 0x7ffff) AM_RAM
-	AM_RANGE( 0xe8000, 0xeffff) AM_ROM AM_REGION("maincpu",0)
-	AM_RANGE( 0xf0000, 0xfffff) AM_ROM AM_REGION("maincpu",0) AM_WRITE8(vram_w, 0xffff)
+
+
+//**************************************************************************
+//  ADDRESS MAPS
+//**************************************************************************
+
+//-------------------------------------------------
+//  ADDRESS_MAP( compis_mem )
+//-------------------------------------------------
+
+static ADDRESS_MAP_START( compis_mem, AS_PROGRAM, 16, compis_state )
+	ADDRESS_MAP_UNMAP_HIGH
+	AM_RANGE(0x00000, 0x1ffff) AM_RAM
+	AM_RANGE(0x40000, 0x5ffff) AM_READWRITE8(vram_r, vram_w, 0xffff)
+	AM_RANGE(0x60000, 0x63fff) AM_MIRROR(0x1c000) AM_DEVICE(I80130_TAG, i80130_device, rom_map)
+	AM_RANGE(0xe0000, 0xeffff) AM_MIRROR(0x10000) AM_ROM AM_REGION(I80186_TAG, 0)
 ADDRESS_MAP_END
+
+
+//-------------------------------------------------
+//  ADDRESS_MAP( compis2_mem )
+//-------------------------------------------------
+
+static ADDRESS_MAP_START( compis2_mem, AS_PROGRAM, 16, compis_state )
+	ADDRESS_MAP_UNMAP_HIGH
+	AM_RANGE(0x00000, 0x3ffff) AM_RAM
+	AM_RANGE(0x40000, 0x5ffff) AM_READWRITE8(vram_r, vram_w, 0xffff)
+	AM_RANGE(0x60000, 0xbffff) AM_RAM
+	AM_RANGE(0xe0000, 0xeffff) AM_MIRROR(0x10000) AM_ROM AM_REGION(I80186_TAG, 0)
+ADDRESS_MAP_END
+
+
+//-------------------------------------------------
+//  ADDRESS_MAP( compis_io )
+//-------------------------------------------------
 
 static ADDRESS_MAP_START( compis_io, AS_IO, 16, compis_state )
-	AM_RANGE( 0x0000, 0x0007) AM_DEVREADWRITE8("ppi8255", i8255_device, read, write, 0xff00)
-	AM_RANGE( 0x0080, 0x0087) AM_DEVREADWRITE8("pit8253", pit8253_device, read, write, 0xffff)
-	AM_RANGE( 0x0100, 0x011b) AM_DEVREADWRITE8("mm58274c", mm58274c_device, read, write, 0xffff)
-	AM_RANGE( 0x0280, 0x0283) AM_DEVREADWRITE8("pic8259_master", pic8259_device, read, write, 0x00ff) /* 80150/80130 */
-	//AM_RANGE( 0x0288, 0x028f) AM_READWRITE( compis_osp_pit_r, compis_osp_pit_w ) /* PIT 8254 (80150/80130)  */
-	AM_RANGE( 0x0310, 0x031f) AM_READWRITE8( compis_usart_r, compis_usart_w, 0xff00)    /* USART 8251 Keyboard      */
-	AM_RANGE( 0x0330, 0x0333) AM_DEVREADWRITE8("upd7220", upd7220_device, read, write, 0x00ff) /* GDC 82720 PCS6:6     */
-	AM_RANGE( 0x0340, 0x0343) AM_DEVICE8("i8272a", i8272a_device, map, 0x00ff)  /* iSBX0 (J8) FDC 8272      */
-	AM_RANGE( 0x0350, 0x0351) AM_DEVREADWRITE8("i8272a", i8272a_device, mdma_r, mdma_w, 0x00ff) /* iSBX0 (J8) DMA ACK       */
-	AM_RANGE( 0x034e, 0x034f) AM_READWRITE8(fdc_mon_r, fdc_mon_w, 0x00ff)
-//{ 0x0100, 0x017e, compis_null_r },    /* RTC              */
-//{ 0x0180, 0x01ff, compis_null_r },    /* PCS3?            */
-//{ 0x0200, 0x027f, compis_null_r },    /* Reserved         */
-//{ 0x0280, 0x02ff, compis_null_r },    /* 80150 not used?      */
-//{ 0x0300, 0x0300, compis_null_r },    /* Cassette  motor      */
-//{ 0x0301, 0x030f, compis_null_r},     /* DMA ACK Graphics     */
-//{ 0x0310, 0x031e, compis_null_r },    /* SCC 8274 Int Ack     */
-//{ 0x0320, 0x0320, compis_null_r },    /* SCC 8274 Serial port     */
-//{ 0x0321, 0x032f, compis_null_r },    /* DMA Terminate        */
-//{ 0x0331, 0x033f, compis_null_r },    /* DMA Terminate        */
-//{ 0x0341, 0x034f, compis_null_r },    /* J8 CS1 (16-bit)      */
-//{ 0x0350, 0x035e, compis_null_r },    /* J8 CS1 (8-bit)       */
-//{ 0x0360, 0x036e, compis_null_r },    /* J9 CS0 (8/16-bit)        */
-//{ 0x0361, 0x036f, compis_null_r },    /* J9 CS1 (16-bit)      */
-//{ 0x0370, 0x037e, compis_null_r },    /* J9 CS1 (8-bit)       */
-//{ 0x0371, 0x037f, compis_null_r },    /* J9 CS1 (8-bit)       */
-//{ 0xff20, 0xffff, compis_null_r },    /* CPU 80186            */
+	ADDRESS_MAP_UNMAP_HIGH
+	AM_RANGE(0x0000, 0x0007) /* PCS0 */ AM_MIRROR(0x78) AM_DEVREADWRITE8(I8255_TAG, i8255_device, read, write, 0xff00)
+	AM_RANGE(0x0080, 0x0087) /* PCS1 */ AM_MIRROR(0x78) AM_DEVREADWRITE8(I8253_TAG, pit8253_device, read, write, 0x00ff)
+	AM_RANGE(0x0100, 0x011f) /* PCS2 */ AM_MIRROR(0x60) AM_DEVREADWRITE8(MM58174A_TAG, mm58274c_device, read, write, 0x00ff)
+	//AM_RANGE(0x0180, 0x0181) /* PCS3 */ AM_MIRROR(0x7e)
+	//AM_RANGE(0x0200, 0x0201) /* PCS4 */ AM_MIRROR(0x7e)
+	AM_RANGE(0x0280, 0x028f) /* PCS5 */ AM_MIRROR(0x70) AM_DEVICE(I80130_TAG, i80130_device, io_map)
+	AM_RANGE(0x0300, 0x0301) /* PCS6:0 */ AM_MIRROR(0xe) AM_WRITE8(tape_mon_w, 0x00ff)
+	AM_RANGE(0x0310, 0x0311) /* PCS6:3 */ AM_MIRROR(0xc) AM_DEVREADWRITE8(I8251A_TAG, i8251_device, data_r, data_w, 0xff00)
+	AM_RANGE(0x0312, 0x0313) /* PCS6:3 */ AM_MIRROR(0xc) AM_DEVREADWRITE8(I8251A_TAG, i8251_device, status_r, control_w, 0xff00)
+	AM_RANGE(0x0320, 0x032f) AM_READWRITE(isbx0_tdma_r, isbx0_tdma_w)
+	AM_RANGE(0x0330, 0x033f) AM_READWRITE(isbx1_tdma_r, isbx1_tdma_w)
+	AM_RANGE(0x0340, 0x034f) AM_READWRITE(isbx0_cs_r, isbx0_cs_w)
+	AM_RANGE(0x0350, 0x035f) AM_READWRITE(isbx0_dack_r, isbx0_dack_w)
+	AM_RANGE(0x0360, 0x036f) AM_READWRITE(isbx1_cs_r, isbx1_cs_w)
+	AM_RANGE(0x0370, 0x037f) AM_READWRITE(isbx1_dack_r, isbx1_dack_w)
+#ifdef NOT_SUPPORTED_BY_MAME_CORE
+	AM_RANGE(0x0300, 0x0301) /* PCS6:1 */ AM_MIRROR(0xe) AM_DEVREADWRITE8("upd7220", upd7220_device, dack_r, dack_w, 0xff00) // DMA-ACK graphics
+	AM_RANGE(0x0310, 0x0311) /* PCS6:2 */ AM_MIRROR(0xe) AM_DEVREAD8(I8274_TAG, i8274_device, inta_r, 0x00ff) // 8274 INTERRUPT ACKNOWLEDGE
+	AM_RANGE(0x0320, 0x0323) /* PCS6:4 */ AM_MIRROR(0xc) AM_DEVREADWRITE8(I8274_TAG, i8274_device, cd_ba_r, cd_ba_w, 0x00ff)
+	AM_RANGE(0x0320, 0x0321) /* PCS6:5 */ AM_MIRROR(0xe) AM_READWRITE8(isbx0_tdma_r, isbx0_tdma_w, 0xff00) // DMA-TERMINATE J8 (iSBX0)
+	AM_RANGE(0x0330, 0x0333) /* PCS6:6 */ AM_DEVREADWRITE8("upd7220", upd7220_device, read, write, 0x00ff)
+	AM_RANGE(0x0330, 0x0331) /* PCS6:7 */ AM_MIRROR(0xe) AM_READWRITE8(isbx1_tdma_r, isbx1_tdma_w, 0xff00) // DMA-TERMINATE J9 (iSBX1)
+	AM_RANGE(0x0340, 0x034f) /* PCS6:8 */ AM_DEVREADWRITE8(ISBX_0_TAG, isbx_slot_device, mcs0_r, mcs0_w, 0x00ff) // 8272 CS0 (8/16-bit) J8 (iSBX0)
+	AM_RANGE(0x0340, 0x034f) /* PCS6:9 */ AM_DEVREADWRITE8(ISBX_0_TAG, isbx_slot_device, mcs1_r, mcs1_w, 0xff00) // CS1 (16-bit) J8 (iSBX0)
+	AM_RANGE(0x0350, 0x035f) /* PCS6:10 */ AM_DEVREADWRITE8(ISBX_0_TAG, isbx_slot_device, mcs1_r, mcs1_w, 0x00ff) // CS1 (8-bit) J8 (iSBX0)
+	AM_RANGE(0x0350, 0x035f) /* PCS6:11 */ AM_DEVREADWRITE8(ISBX_0_TAG, isbx_slot_device, mdack_r, mdack_w, 0xff00) // DMA-ACK J8 (iSBX0)
+	AM_RANGE(0x0360, 0x036f) /* PCS6:13 */ AM_DEVREADWRITE8(ISBX_1_TAG, isbx_slot_device, mcs0_r, mcs0_w, 0x00ff) // CS0 (8/16-bit) J9 (iSBX1)
+	AM_RANGE(0x0360, 0x036f) /* PCS6:13 */ AM_DEVREADWRITE8(ISBX_1_TAG, isbx_slot_device, mcs1_r, mcs1_w, 0xff00) // CS1 (16-bit) J9 (iSBX1)
+	AM_RANGE(0x0370, 0x037f) /* PCS6:14 */ AM_DEVREADWRITE8(ISBX_1_TAG, isbx_slot_device, mcs1_r, mcs1_w, 0x00ff) // CS1 (8-bit) J9 (iSBX1)
+	AM_RANGE(0x0370, 0x037f) /* PCS6:15 */ AM_DEVREADWRITE8(ISBX_1_TAG, isbx_slot_device, mdack_r, mdack_w, 0xff00) // DMA-ACK J9 (iSBX1)
+#endif
 ADDRESS_MAP_END
 
-/* COMPIS Keyboard */
 
-/* 2008-05 FP:
-Small note about natural keyboard: currently,
-- Both "SShift" keys (left and right) are not mapped
-- Keypad '00' and '000' are not mapped
-- "Compis !" is mapped to 'F3'
-- "Compis ?" is mapped to 'F4'
-- "Compis |" is mapped to 'F5'
-- "Compis S" is mapped to 'F6'
-- "Avbryt" is mapped to 'F7'
-- "Inpassa" is mapped to 'Insert'
-- "S?k" is mapped to "Print Screen"
-- "Utpl?na"is mapped to 'Delete'
-- "Start / Stop" is mapped to 'Pause'
-- "TabL" is mapped to 'Page Up'
-- "TabR" is mapped to 'Page Down'
-*/
+//-------------------------------------------------
+//  ADDRESS_MAP( upd7220_map )
+//-------------------------------------------------
 
-static INPUT_PORTS_START (compis)
-	PORT_START("ROW0")
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_ESC)       PORT_CHAR(UCHAR_MAMEKEY(ESC))
-	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_1)         PORT_CHAR('1') PORT_CHAR('!')
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_2)         PORT_CHAR('2') PORT_CHAR('"')
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_3)         PORT_CHAR('3') PORT_CHAR('#')
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_4)         PORT_CHAR('4') PORT_CHAR('$')
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_5)         PORT_CHAR('5') PORT_CHAR('%')
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_6)         PORT_CHAR('6') PORT_CHAR('&')
-	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_7)         PORT_CHAR('7') PORT_CHAR('/')
-	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_8)         PORT_CHAR('8') PORT_CHAR('(')
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_9)         PORT_CHAR('9') PORT_CHAR(')')
-	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_0)         PORT_CHAR('0') PORT_CHAR('=')
-	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_MINUS)     PORT_CHAR('+') PORT_CHAR('?')
-	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("\xC2\xB4 `") PORT_CODE(KEYCODE_EQUALS) PORT_CHAR('`')
-	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_BACKSPACE) PORT_CHAR(8)
-	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_TAB)       PORT_CHAR('\t')
-	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_Q)         PORT_CHAR('q') PORT_CHAR('Q')
+static ADDRESS_MAP_START( upd7220_map, AS_0, 8, compis_state )
+	ADDRESS_MAP_GLOBAL_MASK(0x1ffff)
+	AM_RANGE(0x00000, 0x1ffff) AM_RAM AM_SHARE("video_ram")
+ADDRESS_MAP_END
 
-	PORT_START("ROW1")
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_W)         PORT_CHAR('w') PORT_CHAR('W')
-	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_E)         PORT_CHAR('e') PORT_CHAR('E')
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_R)         PORT_CHAR('r') PORT_CHAR('R')
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_T)         PORT_CHAR('t') PORT_CHAR('T')
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_Y)         PORT_CHAR('y') PORT_CHAR('Y')
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_U)         PORT_CHAR('u') PORT_CHAR('U')
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_I)         PORT_CHAR('i') PORT_CHAR('I')
-	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_O)         PORT_CHAR('o') PORT_CHAR('O')
-	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_P)         PORT_CHAR('p') PORT_CHAR('P')
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME(a_RING " " A_RING) PORT_CODE(KEYCODE_OPENBRACE) PORT_CHAR(0x00E5) PORT_CHAR(0x00C5)
-	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME(u_UMLAUT " " U_UMLAUT) PORT_CODE(KEYCODE_CLOSEBRACE) PORT_CHAR(0x00FC) PORT_CHAR(0x00DC)
-	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_ENTER)     PORT_CHAR(13)
-	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Caps") PORT_CODE(KEYCODE_CAPSLOCK) PORT_CHAR(UCHAR_MAMEKEY(CAPSLOCK))
-	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_A)         PORT_CHAR('a') PORT_CHAR('A')
-	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_S)         PORT_CHAR('s') PORT_CHAR('S')
-	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_D)         PORT_CHAR('d') PORT_CHAR('D')
 
-	PORT_START("ROW2")
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_F)         PORT_CHAR('f') PORT_CHAR('F')
-	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_G)         PORT_CHAR('g') PORT_CHAR('G')
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_H)         PORT_CHAR('h') PORT_CHAR('H')
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_J)         PORT_CHAR('j') PORT_CHAR('J')
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_K)         PORT_CHAR('k') PORT_CHAR('K')
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_L)         PORT_CHAR('l') PORT_CHAR('L')
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME(o_UMLAUT " " O_UMLAUT) PORT_CODE(KEYCODE_COLON) PORT_CHAR(0x00F6) PORT_CHAR(0x00D6)
-	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME(a_UMLAUT " " A_UMLAUT) PORT_CODE(KEYCODE_QUOTE) PORT_CHAR(0x00E4) PORT_CHAR(0x00C4)
-	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("'' *") PORT_CODE(KEYCODE_TILDE) PORT_CHAR('*')
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Shift (Left)") PORT_CODE(KEYCODE_LSHIFT) PORT_CHAR(UCHAR_SHIFT_1)
-	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_BACKSLASH) PORT_CHAR('<') PORT_CHAR('>')
-	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_Z)         PORT_CHAR('z') PORT_CHAR('Z')
-	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_X)         PORT_CHAR('x') PORT_CHAR('X')
-	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_C)         PORT_CHAR('c') PORT_CHAR('C')
-	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_V)         PORT_CHAR('v') PORT_CHAR('V')
-	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_B)         PORT_CHAR('b') PORT_CHAR('B')
 
-	PORT_START("ROW3")
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_N)         PORT_CHAR('n') PORT_CHAR('N')
-	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_M)         PORT_CHAR('m') PORT_CHAR('M')
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_COMMA)     PORT_CHAR(',') PORT_CHAR(';')
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_STOP)      PORT_CHAR('.') PORT_CHAR(':')
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_SLASH)     PORT_CHAR('-') PORT_CHAR('_')
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Shift (Right)") PORT_CODE(KEYCODE_RSHIFT) PORT_CHAR(UCHAR_SHIFT_1)
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("SShift (Left)") PORT_CODE(KEYCODE_LALT)
-	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_LCONTROL)  PORT_CHAR(UCHAR_MAMEKEY(LCONTROL))
-	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_SPACE)     PORT_CHAR(' ')
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_RCONTROL)  PORT_CHAR(UCHAR_MAMEKEY(RCONTROL))
-	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("SShift (Right)") PORT_CODE(KEYCODE_RALT)
-	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("INPASSA") PORT_CODE(KEYCODE_INSERT) PORT_CHAR(UCHAR_MAMEKEY(INSERT))
-	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("S" O_UMLAUT "K") PORT_CODE(KEYCODE_PRTSCR) PORT_CHAR(UCHAR_MAMEKEY(PRTSCR))
-	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("UTPL" A_RING "NA") PORT_CODE(KEYCODE_DEL) PORT_CHAR(UCHAR_MAMEKEY(DEL))
-	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("START-STOP") PORT_CODE(KEYCODE_PAUSE) PORT_CHAR(UCHAR_MAMEKEY(PAUSE))
-	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME(UTF8_UP) PORT_CODE(KEYCODE_UP) PORT_CHAR(UCHAR_MAMEKEY(UP))
+//**************************************************************************
+//  INPUT PORTS
+//**************************************************************************
 
-	PORT_START("ROW4")
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("AVBRYT") PORT_CODE(KEYCODE_SCRLOCK) PORT_CHAR(UCHAR_MAMEKEY(F7))
-	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME(UTF8_LEFT) PORT_CODE(KEYCODE_LEFT) PORT_CHAR(UCHAR_MAMEKEY(LEFT))
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("HOME") PORT_CODE(KEYCODE_HOME) PORT_CHAR(UCHAR_MAMEKEY(HOME))
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME(UTF8_RIGHT) PORT_CODE(KEYCODE_RIGHT) PORT_CHAR(UCHAR_MAMEKEY(RIGHT))
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("TABL") PORT_CODE(KEYCODE_PGUP) PORT_CHAR(UCHAR_MAMEKEY(PGUP))
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME(UTF8_DOWN) PORT_CODE(KEYCODE_DOWN) PORT_CHAR(UCHAR_MAMEKEY(DOWN))
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("TABR") PORT_CODE(KEYCODE_PGDN) PORT_CHAR(UCHAR_MAMEKEY(PGDN))
-	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("COMPIS !") PORT_CODE(KEYCODE_F3) PORT_CHAR(UCHAR_MAMEKEY(F3))
-	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("COMPIS ?") PORT_CODE(KEYCODE_F4) PORT_CHAR(UCHAR_MAMEKEY(F4))
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("COMPIS |") PORT_CODE(KEYCODE_F5) PORT_CHAR(UCHAR_MAMEKEY(F5))
-	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_F1)        PORT_CHAR(UCHAR_MAMEKEY(F1))
-	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_F2)        PORT_CHAR(UCHAR_MAMEKEY(F2))
-	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("COMPIS S") PORT_CODE(KEYCODE_NUMLOCK) PORT_CHAR(UCHAR_MAMEKEY(F6))
-	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_7_PAD)     PORT_CHAR(UCHAR_MAMEKEY(7_PAD))
-	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_8_PAD)     PORT_CHAR(UCHAR_MAMEKEY(8_PAD))
-	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_9_PAD)     PORT_CHAR(UCHAR_MAMEKEY(9_PAD))
+//-------------------------------------------------
+//  INPUT_PORTS( compis )
+//-------------------------------------------------
 
-	PORT_START("ROW5")
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_4_PAD)     PORT_CHAR(UCHAR_MAMEKEY(4_PAD))
-	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_5_PAD)     PORT_CHAR(UCHAR_MAMEKEY(5_PAD))
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_6_PAD)     PORT_CHAR(UCHAR_MAMEKEY(6_PAD))
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_1_PAD)     PORT_CHAR(UCHAR_MAMEKEY(1_PAD))
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_2_PAD)     PORT_CHAR(UCHAR_MAMEKEY(2_PAD))
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_3_PAD)     PORT_CHAR(UCHAR_MAMEKEY(3_PAD))
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_0_PAD)     PORT_CHAR(UCHAR_MAMEKEY(0_PAD))
-	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Keypad 00") PORT_CODE(KEYCODE_SLASH_PAD)
-	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Keypad 000") PORT_CODE(KEYCODE_ASTERISK)
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Keypad Enter") PORT_CODE(KEYCODE_ENTER_PAD) PORT_CHAR(UCHAR_MAMEKEY(ENTER_PAD))
-	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Keypad ,") PORT_CODE(KEYCODE_DEL_PAD) PORT_CHAR(UCHAR_MAMEKEY(DEL_PAD))
-	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Keypad -") PORT_CODE(KEYCODE_MINUS_PAD) PORT_CHAR(UCHAR_MAMEKEY(MINUS_PAD))
-	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Keypad +") PORT_CODE(KEYCODE_PLUS_PAD) PORT_CHAR(UCHAR_MAMEKEY(PLUS_PAD))
-	PORT_BIT( 0xE000, IP_ACTIVE_LOW, IPT_UNUSED)
+static INPUT_PORTS_START( compis )
+	PORT_START("S1")
+	PORT_CONFNAME( 0x01, 0x00, "S1 ROM Type")
+	PORT_CONFSETTING(    0x00, "27128" )
+	PORT_CONFSETTING(    0x01, "27256" )
 
-	PORT_START("DSW0")
-	PORT_DIPNAME( 0x18, 0x00, "S8 Test mode")
-	PORT_DIPSETTING( 0x00, DEF_STR( Normal ) )
-	PORT_DIPSETTING( 0x08, "Remote" )
-	PORT_DIPSETTING( 0x10, "Stand alone" )
-	PORT_DIPSETTING( 0x18, "Reserved" )
+	PORT_START("S2")
+	PORT_CONFNAME( 0x01, 0x00, "S2 IC36/IC40")
+	PORT_CONFSETTING(    0x00, "ROM" )
+	PORT_CONFSETTING(    0x01, "RAM" )
 
-	PORT_START("DSW1")
-	PORT_DIPNAME( 0x01, 0x00, "iSBX-218A DMA")
-	PORT_DIPSETTING( 0x01, "Enabled" )
-	PORT_DIPSETTING( 0x00, "Disabled" )
+	PORT_START("S3")
+	PORT_CONFNAME( 0x03, 0x00, "S3 J4 RxC")
+	PORT_CONFSETTING(    0x00, "DCE" )
+	PORT_CONFSETTING(    0x01, "Tmr3" )
+	PORT_CONFSETTING(    0x02, "Tmr4" )
+
+	PORT_START("S4")
+	PORT_CONFNAME( 0x01, 0x01, "S4 iSBX0 Bus Width")
+	PORT_CONFSETTING(    0x00, "8 Bit" )
+	PORT_CONFSETTING(    0x01, "16 Bit" )
+
+	PORT_START("S5")
+	PORT_CONFNAME( 0x01, 0x01, "S5 iSBX1 Bus Width")
+	PORT_CONFSETTING(    0x00, "8 Bit" )
+	PORT_CONFSETTING(    0x01, "16 Bit" )
+
+	PORT_START("S6")
+	PORT_CONFNAME( 0x001, 0x001, "S6 INT 8274")
+	PORT_CONFSETTING(     0x000, DEF_STR( Off ) )
+	PORT_CONFSETTING(     0x001, DEF_STR( On ) )
+	PORT_CONFNAME( 0x002, 0x000, "S6 TxRDY 8251")
+	PORT_CONFSETTING(     0x000, DEF_STR( Off ) )
+	PORT_CONFSETTING(     0x002, DEF_STR( On ) )
+	PORT_CONFNAME( 0x004, 0x000, "S6 INT KB")
+	PORT_CONFSETTING(     0x000, DEF_STR( Off ) )
+	PORT_CONFSETTING(     0x004, DEF_STR( On ) )
+	PORT_CONFNAME( 0x008, 0x008, "S6 DELAY 80150")
+	PORT_CONFSETTING(     0x000, DEF_STR( Off ) )
+	PORT_CONFSETTING(     0x008, DEF_STR( On ) )
+	PORT_CONFNAME( 0x010, 0x000, "S6 INT0 iSBX1 (J9)")
+	PORT_CONFSETTING(     0x000, DEF_STR( Off ) )
+	PORT_CONFSETTING(     0x010, DEF_STR( On ) )
+	PORT_CONFNAME( 0x020, 0x000, "S6 INT1 iSBX1 (J9)")
+	PORT_CONFSETTING(     0x000, DEF_STR( Off ) )
+	PORT_CONFSETTING(     0x020, DEF_STR( On ) )
+	PORT_CONFNAME( 0x040, 0x040, "S6 ACK J7")
+	PORT_CONFSETTING(     0x000, DEF_STR( Off ) )
+	PORT_CONFSETTING(     0x040, DEF_STR( On ) )
+	PORT_CONFNAME( 0x080, 0x000, "S6 SYSTICK 80150")
+	PORT_CONFSETTING(     0x000, DEF_STR( Off ) )
+	PORT_CONFSETTING(     0x080, DEF_STR( On ) )
+	PORT_CONFNAME( 0x100, 0x100, "S6 RxRDY 8251")
+	PORT_CONFSETTING(     0x000, DEF_STR( Off ) )
+	PORT_CONFSETTING(     0x100, DEF_STR( On ) )
+	PORT_CONFNAME( 0x200, 0x000, "S6 INT0 iSBX0 (J8)")
+	PORT_CONFSETTING(     0x000, DEF_STR( Off ) )
+	PORT_CONFSETTING(     0x200, DEF_STR( On ) )
+	PORT_CONFNAME( 0x400, 0x400, "S6 INT1 iSBX0 (J8)")
+	PORT_CONFSETTING(     0x000, DEF_STR( Off ) )
+	PORT_CONFSETTING(     0x400, DEF_STR( On ) )
+
+	PORT_START("S7")
+	PORT_CONFNAME( 0x01, 0x00, "S7 ROM Type")
+	PORT_CONFSETTING(    0x00, "27128" )
+	PORT_CONFSETTING(    0x01, "27256" )
+
+	PORT_START("S8")
+	PORT_CONFNAME( 0x18, 0x00, "S8 Test Mode")
+	PORT_CONFSETTING(    0x00, DEF_STR( Off ) )
+	PORT_CONFSETTING(    0x08, "Remote Test" )
+	PORT_CONFSETTING(    0x10, "Standalone Test" )
+	PORT_CONFSETTING(    0x18, "Reserved" )
+
+	PORT_START("S9")
+	PORT_CONFNAME( 0x03, 0x00, "S9 8274 TxCB")
+	PORT_CONFSETTING(    0x00, "DCE-Rxc (J4-11)" )
+	PORT_CONFSETTING(    0x01, "DCE-Txc (J4-13)" )
+	PORT_CONFSETTING(    0x02, "Tmr3" )
+
+	PORT_START("S10")
+	PORT_CONFNAME( 0x01, 0x01, "S10 8274 RxCA")
+	PORT_CONFSETTING(    0x00, "DCE (J2-11)" )
+	PORT_CONFSETTING(    0x01, "Tmr5" )
+
+	PORT_START("S11")
+	PORT_CONFNAME( 0x03, 0x01, "S11 8274 TxCA")
+	PORT_CONFSETTING(    0x00, DEF_STR( Off ) )
+	PORT_CONFSETTING(    0x01, "DCE (J2-13)" )
+	PORT_CONFSETTING(    0x02, "Tmr5" )
+
+	PORT_START("S12")
+	PORT_CONFNAME( 0x01, 0x01, "S12 8274 TxDA")
+	PORT_CONFSETTING(    0x00, DEF_STR( Off ) )
+	PORT_CONFSETTING(    0x01, "V24 (J2)" )
+
+	PORT_START("S13")
+	PORT_CONFNAME( 0x01, 0x01, "S13 8274 RxDA")
+	PORT_CONFSETTING(    0x00, DEF_STR( Off ) )
+	PORT_CONFSETTING(    0x01, "V24 (J2)" )
+
+	PORT_START("S14")
+	PORT_CONFNAME( 0x01, 0x01, "S14 8274 TxCA")
+	PORT_CONFSETTING(    0x00, DEF_STR( Off ) )
+	PORT_CONFSETTING(    0x01, DEF_STR( On ) )
+
+	PORT_START("S15")
+	PORT_CONFNAME( 0x01, 0x00, "S15 Network")
+	PORT_CONFSETTING(    0x00, "Server" )
+	PORT_CONFSETTING(    0x01, "Client" )
 INPUT_PORTS_END
 
 
-static const mm58274c_interface compis_mm58274c_interface =
+
+//**************************************************************************
+//  DEVICE CONFIGURATION
+//**************************************************************************
+
+//-------------------------------------------------
+//  UPD7220_INTERFACE( hgdc_intf )
+//-------------------------------------------------
+
+UPD7220_DISPLAY_PIXELS_MEMBER( compis_state::hgdc_display_pixels )
 {
-	0,  /*  mode 24*/
-	1   /*  first day of week */
-};
+	UINT8 i,gfx = m_video_ram[address];
+	const pen_t *pen = m_palette->pens();
 
-const floppy_format_type compis_floppy_formats[] = {
-	FLOPPY_D88_FORMAT,
-	FLOPPY_DFI_FORMAT,
-	FLOPPY_IMD_FORMAT,
-	FLOPPY_IPF_FORMAT,
-	FLOPPY_MFI_FORMAT,
-	FLOPPY_MFM_FORMAT,
-	FLOPPY_TD0_FORMAT,
-	FLOPPY_CPIS_FORMAT,
-	NULL
-};
-static SLOT_INTERFACE_START( compis_floppies )
-	SLOT_INTERFACE( "525qd", FLOPPY_525_QD )
-SLOT_INTERFACE_END
+	for(i=0; i<8; i++)
+		bitmap.pix32(y, x + i) = pen[BIT(gfx, i)];
+}
 
-static ADDRESS_MAP_START( upd7220_map, AS_0, 8, compis_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x3ffff)
-	AM_RANGE(0x00000, 0x3ffff) AM_RAM AM_SHARE("video_ram")
-ADDRESS_MAP_END
+
+//-------------------------------------------------
+//  I80186_INTERFACE( cpu_intf )
+//-------------------------------------------------
+
+READ8_MEMBER( compis_state::compis_irq_callback )
+{
+	return m_osp->inta_r();
+}
+
+WRITE_LINE_MEMBER( compis_state::tmr0_w )
+{
+	m_tmr0 = state;
+
+	m_cassette->output(m_tmr0 ? -1 : 1);
+
+	m_maincpu->tmrin0_w(state);
+}
+
+WRITE_LINE_MEMBER( compis_state::tmr1_w )
+{
+	m_isbx0->mclk_w(state);
+	m_isbx1->mclk_w(state);
+
+	m_maincpu->tmrin1_w(state);
+}
+
+
+//-------------------------------------------------
+//  I80130_INTERFACE( osp_intf )
+//-------------------------------------------------
+
+WRITE_LINE_MEMBER( compis_state::tmr2_w )
+{
+	m_uart->write_rxc(state);
+	m_uart->write_txc(state);
+}
+
+
+WRITE_LINE_MEMBER( compis_state::tmr5_w )
+{
+	m_mpsc->rxca_w(state);
+	m_mpsc->txca_w(state);
+}
+
+//-------------------------------------------------
+//  I8255A interface
+//-------------------------------------------------
+
+WRITE_LINE_MEMBER(compis_state::write_centronics_busy)
+{
+	m_centronics_busy = state;
+}
+
+WRITE_LINE_MEMBER(compis_state::write_centronics_select)
+{
+	m_centronics_select = state;
+}
+
+READ8_MEMBER( compis_state::ppi_pb_r )
+{
+	/*
+
+	    bit     description
+
+	    0       J5-4
+	    1       J5-5
+	    2       J6-3 Cassette read
+	    3       J2-6 DSR / S8-4 Test
+	    4       J4-6 DSR / S8-3 Test
+	    5       J7-11 Centronics BUSY
+	    6       J7-13 Centronics SELECT
+	    7       Tmr0
+
+	*/
+
+	UINT8 data = 0;
+
+	/* DIP switch - Test mode */
+	data = m_s8->read();
+
+	// cassette
+	data |= (m_cassette->input() > 0.0) << 2;
+
+	/* Centronics busy */
+	data |= m_centronics_busy << 5;
+	data |= m_centronics_select << 6;
+
+	// TMR0
+	data |= m_tmr0 << 7;
+
+	return data;
+}
+
+WRITE8_MEMBER( compis_state::ppi_pc_w )
+{
+	/*
+
+	    bit     description
+
+	    0       J5-1
+	    1       J5-2
+	    2       Select: 1=time measure, DSR from J2/J4 pin 6. 0=read cassette
+	    3       Datex: Tristate datex output (low)
+	    4       V2-5 Floppy motor on/off
+	    5       J7-1 Centronics STROBE
+	    6       V2-4 Floppy Soft reset
+	    7       V2-3 Floppy Terminal count
+
+	*/
+
+	m_isbx0->opt1_w(BIT(data, 4));
+
+	m_centronics->write_strobe(BIT(data, 5));
+
+	if (BIT(data, 6))
+	{
+		m_isbx0->reset();
+	}
+
+	m_isbx0->opt0_w(BIT(data, 7));
+}
+
+TIMER_DEVICE_CALLBACK_MEMBER( compis_state::tape_tick )
+{
+	m_maincpu->tmrin0_w(m_cassette->input() > 0.0);
+}
+
+//**************************************************************************
+//  MACHINE INITIALIZATION
+//**************************************************************************
+
+//-------------------------------------------------
+//  machine_start
+//-------------------------------------------------
+
+void compis_state::machine_start()
+{
+	if (m_ram->size() == 256*1024)
+	{
+		m_maincpu->space(AS_PROGRAM).install_ram(0x20000, 0x3ffff, NULL);
+	}
+}
+
+
+//-------------------------------------------------
+//  machine_reset
+//-------------------------------------------------
+
+void compis_state::machine_reset()
+{
+	m_uart->reset();
+	m_mpsc->reset();
+	m_ppi->reset();
+	m_isbx0->reset();
+	m_isbx1->reset();
+}
+
+
+
+//**************************************************************************
+//  MACHINE DRIVERS
+//**************************************************************************
+
+//-------------------------------------------------
+//  MACHINE_CONFIG( compis )
+//-------------------------------------------------
 
 static MACHINE_CONFIG_START( compis, compis_state )
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", I80186, 8000000)    /* 8 MHz */
+	// basic machine hardware
+	MCFG_CPU_ADD(I80186_TAG, I80186, XTAL_16MHz)
 	MCFG_CPU_PROGRAM_MAP(compis_mem)
 	MCFG_CPU_IO_MAP(compis_io)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", compis_state,  compis_vblank_int)
 	MCFG_80186_IRQ_SLAVE_ACK(DEVREAD8(DEVICE_SELF, compis_state, compis_irq_callback))
+	MCFG_80186_TMROUT0_HANDLER(DEVWRITELINE(DEVICE_SELF, compis_state, tmr0_w))
+	MCFG_80186_TMROUT1_HANDLER(DEVWRITELINE(DEVICE_SELF, compis_state, tmr1_w))
 
-	//MCFG_QUANTUM_TIME(attotime::from_hz(60))
-
-
-	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_SCREEN_ADD("screen", RASTER)
+	// video hardware
+	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_SIZE(640, 480)
-	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
-	MCFG_SCREEN_UPDATE_DEVICE("upd7220", upd7220_device, screen_update)
-#if 0
-	MCFG_PALETTE_LENGTH(16)
-	MCFG_PALETTE_INIT_OVERRIDE(compis_state,compis_gdc)
-#endif
-	MCFG_PALETTE_LENGTH(3)
-
-	/* Devices */
-	MCFG_PIT8253_ADD( "pit8253", compis_pit8253_config )
-	MCFG_PIT8254_ADD( "pit8254", compis_pit8254_config )
-	MCFG_PIC8259_ADD( "pic8259_master", DEVWRITELINE("maincpu", i80186_cpu_device, int0_w), VCC, NULL )
-	MCFG_I8255_ADD( "ppi8255", compis_ppi_interface )
-	MCFG_UPD7220_ADD("upd7220", XTAL_4_433619MHz/2, hgdc_intf, upd7220_map) //unknown clock
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
-	MCFG_I8251_ADD("uart", compis_usart_interface)
-	MCFG_MM58274C_ADD("mm58274c", compis_mm58274c_interface)
-	MCFG_I8272A_ADD("i8272a", true)
-	MCFG_FLOPPY_DRIVE_ADD("i8272a:0", compis_floppies, "525qd", compis_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("i8272a:1", compis_floppies, "525qd", compis_floppy_formats)
-	MCFG_COMPIS_KEYBOARD_ADD(NULL)
-
-	/* software lists */
-	MCFG_SOFTWARE_LIST_ADD("flop_list", "compis")
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_START( compis2, compis_state )
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", I80186, 8000000)    /* 8 MHz */
-	MCFG_CPU_PROGRAM_MAP(compis_mem)
-	MCFG_CPU_IO_MAP(compis_io)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", compis_state,  compis_vblank_int)
-	MCFG_80186_IRQ_SLAVE_ACK(DEVREAD8(DEVICE_SELF, compis_state, compis_irq_callback))
-
-	//MCFG_QUANTUM_TIME(attotime::from_hz(60))
-
-
-	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
+	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) // not accurate
 	MCFG_SCREEN_SIZE(640, 400)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 400-1)
-	MCFG_SCREEN_UPDATE_DRIVER(compis_state, screen_update_compis2)
-	MCFG_PALETTE_LENGTH(3)
+	MCFG_SCREEN_UPDATE_DEVICE("upd7220", upd7220_device, screen_update)
 
-	/* Devices */
-	MCFG_PIT8253_ADD( "pit8253", compis_pit8253_config )
-	MCFG_PIT8254_ADD( "pit8254", compis_pit8254_config )
-	MCFG_PIC8259_ADD( "pic8259_master", DEVWRITELINE("maincpu", i80186_cpu_device, int0_w), VCC, NULL )
-	MCFG_I8255_ADD( "ppi8255", compis_ppi_interface )
-	MCFG_UPD7220_ADD("upd7220", XTAL_4_433619MHz/2, hgdc_intf, upd7220_map) //unknown clock
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
-	MCFG_I8251_ADD("uart", compis_usart_interface)
-	MCFG_MM58274C_ADD("mm58274c", compis_mm58274c_interface)
-	MCFG_I8272A_ADD("i8272a", true)
-	MCFG_FLOPPY_DRIVE_ADD("i8272a:0", compis_floppies, "525qd", compis_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("i8272a:1", compis_floppies, "525qd", compis_floppy_formats)
-	MCFG_COMPIS_KEYBOARD_ADD(NULL)
+	MCFG_DEVICE_ADD("upd7220", UPD7220, XTAL_4_433619MHz/2) // unknown clock
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, upd7220_map)
+	MCFG_UPD7220_DISPLAY_PIXELS_CALLBACK_OWNER(compis_state, hgdc_display_pixels)
+	MCFG_VIDEO_SET_SCREEN(SCREEN_TAG)
 
-	/* software lists */
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN("palette")
+
+	// devices
+	MCFG_DEVICE_ADD(I80130_TAG, I80130, XTAL_16MHz/2)
+	MCFG_I80130_IRQ_CALLBACK(DEVWRITELINE(I80186_TAG, i80186_cpu_device, int0_w))
+	//MCFG_I80130_SYSTICK_CALLBACK(DEVWRITELINE(I80130_TAG, i80130_device, ir3_w))
+	MCFG_I80130_DELAY_CALLBACK(DEVWRITELINE(I80130_TAG, i80130_device, ir7_w))
+	MCFG_I80130_BAUD_CALLBACK(WRITELINE(compis_state, tmr2_w))
+
+	MCFG_DEVICE_ADD(I8253_TAG, PIT8253, 0)
+	MCFG_PIT8253_CLK0(XTAL_16MHz/8)
+	MCFG_PIT8253_OUT0_HANDLER(DEVWRITELINE(I8274_TAG, i8274_device, rxtxcb_w))
+	MCFG_PIT8253_CLK1(XTAL_16MHz/8)
+	MCFG_PIT8253_CLK2(XTAL_16MHz/8)
+	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(compis_state, tmr5_w))
+
+	MCFG_DEVICE_ADD(I8255_TAG, I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_I8255_IN_PORTB_CB(READ8(compis_state, ppi_pb_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(compis_state, ppi_pc_w))
+
+	MCFG_DEVICE_ADD(I8251A_TAG, I8251, 0)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(COMPIS_KEYBOARD_TAG, compis_keyboard_device, si_w))
+	MCFG_I8251_RXRDY_HANDLER(DEVWRITELINE(I80130_TAG, i80130_device, ir2_w))
+	//MCFG_I8251_TXRDY_HANDLER(DEVWRITELINE(I80186_TAG, i80186_cpu_device, int1_w))
+
+	MCFG_DEVICE_ADD(COMPIS_KEYBOARD_TAG, COMPIS_KEYBOARD, 0)
+	MCFG_COMPIS_KEYBOARD_OUT_TX_HANDLER(DEVWRITELINE(I8251A_TAG, i8251_device, write_rxd))
+
+	MCFG_I8274_ADD(I8274_TAG, XTAL_16MHz/4, 0, 0, 0, 0)
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_INT_CB(DEVWRITELINE(I80186_TAG, i80186_cpu_device, int3_w))
+
+	MCFG_DEVICE_ADD(MM58174A_TAG, MM58274C, 0)
+	MCFG_MM58274C_MODE24(0) // 12 hour
+	MCFG_MM58274C_DAY1(1)   // monday
+
+	MCFG_CASSETTE_ADD(CASSETTE_TAG)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED)
+
+	MCFG_TIMER_DRIVER_ADD_PERIODIC("tape", compis_state, tape_tick, attotime::from_hz(44100))
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(I8274_TAG, z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(I8274_TAG, z80dart_device, dcda_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(I8274_TAG, z80dart_device, ctsa_w))
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(I8274_TAG, z80dart_device, rxb_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(I8274_TAG, z80dart_device, dcdb_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(I8274_TAG, z80dart_device, ctsb_w))
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(compis_state, write_centronics_busy))
+	MCFG_CENTRONICS_SELECT_HANDLER(WRITELINE(compis_state, write_centronics_select))
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
+
+	MCFG_ISBX_SLOT_ADD(ISBX_0_TAG, 0, isbx_cards, "fdc")
+	MCFG_ISBX_SLOT_MINTR0_CALLBACK(DEVWRITELINE(I80130_TAG, i80130_device, ir1_w))
+	MCFG_ISBX_SLOT_MINTR1_CALLBACK(DEVWRITELINE(I80130_TAG, i80130_device, ir0_w))
+	MCFG_ISBX_SLOT_MDRQT_CALLBACK(DEVWRITELINE(I80186_TAG, i80186_cpu_device, drq0_w))
+	MCFG_ISBX_SLOT_ADD(ISBX_1_TAG, 0, isbx_cards, NULL)
+	MCFG_ISBX_SLOT_MINTR0_CALLBACK(DEVWRITELINE(I80130_TAG, i80130_device, ir6_w))
+	MCFG_ISBX_SLOT_MINTR1_CALLBACK(DEVWRITELINE(I80130_TAG, i80130_device, ir5_w))
+	MCFG_ISBX_SLOT_MDRQT_CALLBACK(DEVWRITELINE(I80186_TAG, i80186_cpu_device, drq1_w))
+
+	// software lists
 	MCFG_SOFTWARE_LIST_ADD("flop_list", "compis")
+
+	// internal ram
+	MCFG_RAM_ADD(RAM_TAG)
+	MCFG_RAM_DEFAULT_SIZE("128K")
+	MCFG_RAM_EXTRA_OPTIONS("256K")
+MACHINE_CONFIG_END
+
+
+//-------------------------------------------------
+//  MACHINE_CONFIG( compis2 )
+//-------------------------------------------------
+
+static MACHINE_CONFIG_DERIVED( compis2, compis )
+	// basic machine hardware
+	MCFG_CPU_MODIFY(I80186_TAG)
+	MCFG_CPU_PROGRAM_MAP(compis2_mem)
+	// TODO 8087
+
+	// devices
+	// TODO 525hd drives
+
+	// internal ram
+	MCFG_RAM_MODIFY(RAM_TAG)
+	MCFG_RAM_DEFAULT_SIZE("768K")
 MACHINE_CONFIG_END
 
 
 
-/***************************************************************************
+//**************************************************************************
+//  ROMS
+//**************************************************************************
 
-  Game driver(s)
-
-***************************************************************************/
+//-------------------------------------------------
+//  ROM( compis )
+//-------------------------------------------------
 
 ROM_START( compis )
-	ROM_REGION16_LE( 0x10000, "maincpu", 0 )
-	ROM_LOAD16_BYTE( "sa883003.u40", 0x0000, 0x4000, CRC(195ef6bf) SHA1(eaf8ae897e1a4b62d3038ff23777ce8741b766ef) )
-	ROM_LOAD16_BYTE( "sa883003.u36", 0x0001, 0x4000, CRC(7c918f56) SHA1(8ba33d206351c52f44f1aa76cc4d7f292dcef761) )
-	ROM_LOAD16_BYTE( "sa883003.u39", 0x8000, 0x4000, CRC(3cca66db) SHA1(cac36c9caa2f5bb42d7a6d5b84f419318628935f) )
-	ROM_LOAD16_BYTE( "sa883003.u35", 0x8001, 0x4000, CRC(43c38e76) SHA1(f32e43604107def2c2259898926d090f2ed62104) )
-ROM_END
-
-ROM_START( compis2 )
-	ROM_REGION16_LE( 0x10000, "maincpu", 0 )
+	ROM_REGION16_LE( 0x10000, I80186_TAG, 0 )
 	ROM_DEFAULT_BIOS( "v303" )
 
-	ROM_SYSTEM_BIOS( 0, "v302", "Compis II v3.02 (1986-09-09)" )
-	ROMX_LOAD( "comp302.u39", 0x0000, 0x8000, CRC(16a7651e) SHA1(4cbd4ba6c6c915c04dfc913ec49f87c1dd7344e3), ROM_BIOS(1) | ROM_SKIP(1) )
-	ROMX_LOAD( "comp302.u35", 0x0001, 0x8000, CRC(ae546bef) SHA1(572e45030de552bb1949a7facbc885b8bf033fc6), ROM_BIOS(1) | ROM_SKIP(1) )
+	ROM_SYSTEM_BIOS( 0, "v20", "Compis v2.0 (1985-05-15)" )
+	ROMX_LOAD( "sa883003.u40", 0x0000, 0x4000, CRC(195ef6bf) SHA1(eaf8ae897e1a4b62d3038ff23777ce8741b766ef), ROM_BIOS(1) | ROM_SKIP(1) )
+	ROMX_LOAD( "sa883003.u36", 0x0001, 0x4000, CRC(7c918f56) SHA1(8ba33d206351c52f44f1aa76cc4d7f292dcef761), ROM_BIOS(1) | ROM_SKIP(1) )
+	ROMX_LOAD( "sa883003.u39", 0x8000, 0x4000, CRC(3cca66db) SHA1(cac36c9caa2f5bb42d7a6d5b84f419318628935f), ROM_BIOS(1) | ROM_SKIP(1) )
+	ROMX_LOAD( "sa883003.u35", 0x8001, 0x4000, CRC(43c38e76) SHA1(f32e43604107def2c2259898926d090f2ed62104), ROM_BIOS(1) | ROM_SKIP(1) )
 
-	ROM_SYSTEM_BIOS( 1, "v303", "Compis II v3.03 (1987-03-09)" )
-	ROMX_LOAD( "rysa094.u39", 0x0000, 0x8000, CRC(e7302bff) SHA1(44ea20ef4008849af036c1a945bc4f27431048fb), ROM_BIOS(2) | ROM_SKIP(1) )
-	ROMX_LOAD( "rysa094.u35", 0x0001, 0x8000, CRC(b0694026) SHA1(eb6b2e3cb0f42fd5ffdf44f70e652ecb9714ce30), ROM_BIOS(2) | ROM_SKIP(1) )
+	ROM_SYSTEM_BIOS( 1, "v302", "Compis II v3.02 (1986-09-09)" )
+	ROMX_LOAD( "comp302.u39", 0x0000, 0x8000, CRC(16a7651e) SHA1(4cbd4ba6c6c915c04dfc913ec49f87c1dd7344e3), ROM_BIOS(2) | ROM_SKIP(1) )
+	ROMX_LOAD( "comp302.u35", 0x0001, 0x8000, CRC(ae546bef) SHA1(572e45030de552bb1949a7facbc885b8bf033fc6), ROM_BIOS(2) | ROM_SKIP(1) )
+
+	ROM_SYSTEM_BIOS( 2, "v303", "Compis II v3.03 (1987-03-09)" )
+	ROMX_LOAD( "rysa094.u39", 0x0000, 0x8000, CRC(e7302bff) SHA1(44ea20ef4008849af036c1a945bc4f27431048fb), ROM_BIOS(3) | ROM_SKIP(1) )
+	ROMX_LOAD( "rysa094.u35", 0x0001, 0x8000, CRC(b0694026) SHA1(eb6b2e3cb0f42fd5ffdf44f70e652ecb9714ce30), ROM_BIOS(3) | ROM_SKIP(1) )
 ROM_END
 
-/*   YEAR   NAME        PARENT  COMPAT MACHINE  INPUT   INIT     COMPANY     FULLNAME */
-COMP(1985,  compis,     0,      0,     compis,  compis, compis_state, compis, "Telenova", "Compis" , GAME_NOT_WORKING | GAME_NO_SOUND)
-COMP(1986,  compis2,    compis, 0,     compis2, compis, compis_state, compis, "Telenova", "Compis II" , GAME_NOT_WORKING | GAME_NO_SOUND)
+#define rom_compis2 rom_compis
+
+
+
+//**************************************************************************
+//  SYSTEM DRIVERS
+//**************************************************************************
+
+//    YEAR  NAME        PARENT      COMPAT  MACHINE     INPUT   INIT                         COMPANY             FULLNAME        FLAGS
+COMP(1985,  compis,     0,      0,     compis,  compis, driver_device, 0, "Telenova", "Compis" , GAME_NOT_WORKING )
+COMP(1986,  compis2,    compis, 0,     compis2, compis, driver_device, 0, "Telenova", "Compis II" , GAME_NOT_WORKING )

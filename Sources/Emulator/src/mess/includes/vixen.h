@@ -3,13 +3,12 @@
 #ifndef __VIXEN__
 #define __VIXEN__
 
-#include "emu.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/z80/z80.h"
 #include "machine/i8155.h"
 #include "machine/i8251.h"
-#include "machine/ieee488.h"
+#include "bus/ieee488/ieee488.h"
 #include "machine/ram.h"
-#include "machine/serial.h"
 #include "machine/wd_fdc.h"
 #include "sound/discrete.h"
 
@@ -33,6 +32,7 @@ public:
 			m_usart(*this, P8251A_TAG),
 			m_discrete(*this, DISCRETE_TAG),
 			m_ieee488(*this, IEEE488_TAG),
+			m_palette(*this, "palette"),
 			m_ram(*this, RAM_TAG),
 			m_floppy0(*this, FDC1797_TAG":0"),
 			m_floppy1(*this, FDC1797_TAG":1"),
@@ -49,6 +49,7 @@ public:
 			m_y5(*this, "Y5"),
 			m_y6(*this, "Y6"),
 			m_y7(*this, "Y7"),
+			m_cmd_d1(0),
 			m_fdint(0),
 			m_vsync(0),
 			m_srq(1),
@@ -63,6 +64,7 @@ public:
 	required_device<i8251_device> m_usart;
 	required_device<discrete_sound_device> m_discrete;
 	required_device<ieee488_device> m_ieee488;
+	required_device<palette_device> m_palette;
 	required_device<ram_device> m_ram;
 	required_device<floppy_connector> m_floppy0;
 	required_device<floppy_connector> m_floppy1;
@@ -103,7 +105,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( atn_w );
 	DECLARE_WRITE_LINE_MEMBER( rxrdy_w );
 	DECLARE_WRITE_LINE_MEMBER( txrdy_w );
-	void fdc_intrq_w(bool state);
+	DECLARE_WRITE_LINE_MEMBER( fdc_intrq_w );
 	DIRECT_UPDATE_MEMBER(vixen_direct_update_handler);
 
 	// memory state

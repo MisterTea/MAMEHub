@@ -6,13 +6,7 @@
 #ifndef _NCR539x_H_
 #define _NCR539x_H_
 
-#include "machine/scsihle.h"
-
-struct NCR539Xinterface
-{
-	devcb_write_line m_out_irq_cb;          /* IRQ line */
-	devcb_write_line m_out_drq_cb;          /* DRQ line */
-};
+#include "legscsi.h"
 
 //// 539x registers
 //enum
@@ -20,16 +14,21 @@ struct NCR539Xinterface
 //};
 
 // device stuff
-#define MCFG_NCR539X_ADD(_tag, _clock, _intrf) \
-	MCFG_DEVICE_ADD(_tag, NCR539X, _clock) \
-	MCFG_DEVICE_CONFIG(_intrf)
 
-class ncr539x_device : public device_t,
-						public NCR539Xinterface
+#define MCFG_NCR539X_OUT_IRQ_CB(_devcb) \
+	devcb = &ncr539x_device::set_out_irq_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_NCR539X_OUT_DRQ_CB(_devcb) \
+	devcb = &ncr539x_device::set_out_drq_callback(*device, DEVCB_##_devcb);
+
+class ncr539x_device : public legacy_scsi_host_adapter
 {
 public:
 	// construction/destruction
 	ncr539x_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	template<class _Object> static devcb_base &set_out_irq_callback(device_t &device, _Object object) { return downcast<ncr539x_device &>(device).m_out_irq_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_out_drq_callback(device_t &device, _Object object) { return downcast<ncr539x_device &>(device).m_out_drq_cb.set_callback(object); }
 
 	// our API
 	DECLARE_READ8_MEMBER(read);
@@ -42,7 +41,6 @@ protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
 private:
@@ -50,8 +48,6 @@ private:
 	void check_fifo_executable();
 	void exec_fifo();
 	void update_fifo_internal_state(int bytes);
-
-	scsihle_device *m_scsi_devices[8];
 
 	UINT32 m_xfer_count;
 	UINT32 m_dma_size;
@@ -69,7 +65,7 @@ private:
 	bool m_chipid_available, m_chipid_lock;
 
 	static const int m_fifo_size = 16;
-	UINT8 m_fifo_ptr, m_fifo[m_fifo_size];
+	UINT8 m_fifo_ptr, m_fifo_read_ptr, m_fifo[m_fifo_size];
 
 	//int m_xfer_remaining;   // amount in the FIFO when we're in data in phase
 
@@ -83,8 +79,8 @@ private:
 
 	emu_timer *m_operation_timer;
 
-	devcb_resolved_write_line   m_out_irq_func;
-	devcb_resolved_write_line   m_out_drq_func;
+	devcb_write_line m_out_irq_cb;          /* IRQ line */
+	devcb_write_line m_out_drq_cb;          /* DRQ line */
 };
 
 // device type definition

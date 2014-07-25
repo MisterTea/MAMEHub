@@ -50,9 +50,12 @@ public:
 	TIMER_CALLBACK_MEMBER(reset_tick);
 	DECLARE_READ_LINE_MEMBER(clear_r);
 	DECLARE_READ_LINE_MEMBER(ef2_r);
-	DECLARE_WRITE_LINE_MEMBER(pecom64_q_w);
+	DECLARE_WRITE_LINE_MEMBER(q_w);
+	DECLARE_WRITE8_MEMBER( sc_w );
 	DECLARE_WRITE_LINE_MEMBER(pecom_prd_w);
-
+	CDP1869_CHAR_RAM_READ_MEMBER(pecom_char_ram_r);
+	CDP1869_CHAR_RAM_WRITE_MEMBER(pecom_char_ram_w);
+	CDP1869_PCB_READ_MEMBER(pecom_pcb_r);
 protected:
 	required_device<cassette_image_device> m_cassette;
 	required_device<ram_device> m_ram;
@@ -63,9 +66,6 @@ protected:
 	required_ioport m_io_cnt;
 	ioport_port *m_io_ports[26];
 };
-
-/*----------- defined in machine/pecom.c -----------*/
-extern const cosmac_interface pecom64_cdp1802_config;
 
 /* ---------- defined in video/pecom.c ---------- */
 

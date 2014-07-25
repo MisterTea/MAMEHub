@@ -11,7 +11,7 @@
 
 ***************************************************************************/
 
-void dogfgt_state::palette_init()
+PALETTE_INIT_MEMBER(dogfgt_state, dogfgt)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -37,7 +37,7 @@ void dogfgt_state::palette_init()
 		bit2 = (*color_prom >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i + 16, MAKE_RGB(r,g,b));
+		palette.set_pen_color(i + 16, rgb_t(r,g,b));
 		color_prom++;
 	}
 }
@@ -51,8 +51,7 @@ void dogfgt_state::palette_init()
 
 TILE_GET_INFO_MEMBER(dogfgt_state::get_tile_info)
 {
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			m_bgvideoram[tile_index],
 			m_bgvideoram[tile_index + 0x400] & 0x03,
 			0);
@@ -67,7 +66,7 @@ TILE_GET_INFO_MEMBER(dogfgt_state::get_tile_info)
 
 void dogfgt_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dogfgt_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dogfgt_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 
 	m_bitmapram = auto_alloc_array(machine(), UINT8, BITMAPRAM_SIZE);
 	save_pointer(NAME(m_bitmapram), BITMAPRAM_SIZE);
@@ -192,7 +191,7 @@ void dogfgt_state::draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect 
 				flipy = !flipy;
 			}
 
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 					m_spriteram[offs + 1] + ((m_spriteram[offs] & 0x30) << 4),
 					(m_spriteram[offs] & 0x08) >> 3,
 					flipx,flipy,

@@ -101,7 +101,7 @@ WRITE16_MEMBER(oneshot_state::soundbank_w)
 static ADDRESS_MAP_START( oneshot_map, AS_PROGRAM, 16, oneshot_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x080000, 0x087fff) AM_RAM
-	AM_RANGE(0x0c0000, 0x0c07ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0c0000, 0x0c07ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x120000, 0x120fff) AM_RAM AM_SHARE("sprites")
 	AM_RANGE(0x180000, 0x180fff) AM_RAM_WRITE(oneshot_mid_videoram_w) AM_SHARE("mid_videoram") // some people , girl etc.
 	AM_RANGE(0x181000, 0x181fff) AM_RAM_WRITE(oneshot_fg_videoram_w) AM_SHARE("fg_videoram") // credits etc.
@@ -371,10 +371,11 @@ static MACHINE_CONFIG_START( oneshot, oneshot_state )
 	MCFG_SCREEN_SIZE(32*16, 32*16)
 	MCFG_SCREEN_VISIBLE_AREA(0*16, 20*16-1, 0*16, 15*16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(oneshot_state, screen_update_oneshot)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(oneshot)
-	MCFG_PALETTE_LENGTH(0x400)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", oneshot)
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 

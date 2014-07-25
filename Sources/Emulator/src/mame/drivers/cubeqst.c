@@ -33,7 +33,9 @@ public:
 			m_laserdisc(*this, "laserdisc"),
 			m_rotatecpu(*this, "rotate_cpu"),
 			m_linecpu(*this, "line_cpu"),
-			m_soundcpu(*this, "sound_cpu") { }
+			m_soundcpu(*this, "sound_cpu"),
+			m_screen(*this, "screen"),
+			m_generic_paletteram_16(*this, "paletteram") { }
 
 	UINT8 *m_depth_buffer;
 	int m_video_field;
@@ -43,6 +45,8 @@ public:
 	required_device<cquestrot_cpu_device> m_rotatecpu;
 	required_device<cquestlin_cpu_device> m_linecpu;
 	required_device<cquestsnd_cpu_device> m_soundcpu;
+	required_device<screen_device> m_screen;
+	required_shared_ptr<UINT16> m_generic_paletteram_16;
 	rgb_t *m_colormap;
 	DECLARE_WRITE16_MEMBER(palette_w);
 	DECLARE_READ16_MEMBER(line_r);
@@ -62,7 +66,6 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
 	UINT32 screen_update_cubeqst(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank);
 	TIMER_CALLBACK_MEMBER(delayed_bank_swap);
@@ -92,26 +95,6 @@ void cubeqst_state::video_start()
 {
 	m_video_field = 0;
 	m_depth_buffer = auto_alloc_array(machine(), UINT8, 512);
-}
-
-/* TODO: Use resistor values */
-void cubeqst_state::palette_init()
-{
-	int i;
-
-	m_colormap = auto_alloc_array(machine(), rgb_t, 65536);
-	for (i = 0; i < 65536; ++i)
-	{
-		UINT8 a, r, g, b, y;
-
-		a = (i >> 3) & 1;
-		b = (i >> 0) & 7;
-		g = (i >> 4) & 7;
-		r = (i >> 8) & 7;
-		y = ((i >> 12) & 0xf) * 2;
-
-		m_colormap[i] = MAKE_ARGB(a ? 0 : 255, y*r, y*g, y*b);
-	}
 }
 
 WRITE16_MEMBER(cubeqst_state::palette_w)
@@ -454,6 +437,22 @@ ADDRESS_MAP_END
 
 void cubeqst_state::machine_start()
 {
+	/* TODO: Use resistor values */
+	int i;
+
+	m_colormap = auto_alloc_array(machine(), rgb_t, 65536);
+	for (i = 0; i < 65536; ++i)
+	{
+		UINT8 a, r, g, b, y;
+
+		a = (i >> 3) & 1;
+		b = (i >> 0) & 7;
+		g = (i >> 4) & 7;
+		r = (i >> 8) & 7;
+		y = ((i >> 12) & 0xf) * 2;
+
+		m_colormap[i] = rgb_t(a ? 0 : 255, y*r, y*g, y*b);
+	}
 }
 
 void cubeqst_state::machine_reset()
@@ -529,6 +528,7 @@ static MACHINE_CONFIG_START( cubeqst, cubeqst_state )
 	MCFG_LASERDISC_OVERLAY_CLIP(0, 320-1, 0, 256-8)
 	MCFG_LASERDISC_OVERLAY_POSITION(0.002f, -0.018f)
 	MCFG_LASERDISC_OVERLAY_SCALE(1.0f, 1.030f)
+	MCFG_LASERDISC_OVERLAY_PALETTE("palette")
 
 	MCFG_LASERDISC_SCREEN_ADD_NTSC("screen", "laserdisc")
 

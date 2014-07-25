@@ -46,6 +46,10 @@ System notes:
 
 Glitch list!
 
+    All games:
+        Flip screen/Cocktail Mode is unsupported (offsetted screens, and also Irem Skins Game
+        hangs at title screen when flip is enabled), it's also unknown where exactly it's tied.
+
     Gunforce:
         Animated water sometimes doesn't appear on level 5 (but it
         always appears if you cheat and jump straight to the level).
@@ -196,6 +200,7 @@ psoldier dip locations still need verification.
 
 #include "emu.h"
 #include "cpu/nec/nec.h"
+#include "cpu/nec/v25.h"
 #include "includes/m92.h"
 #include "includes/iremipt.h"
 #include "machine/irem_cpu.h"
@@ -614,9 +619,9 @@ static INPUT_PORTS_START( majtitl2 )
 
 	PORT_MODIFY("DSW")
 	/* Dip switch bank 2 */
-	PORT_DIPNAME( 0x0200, 0x0000, DEF_STR( Cabinet ) ) PORT_DIPLOCATION("SW2:2")
-	PORT_DIPSETTING(      0x0000, DEF_STR( Upright ) )
-	PORT_DIPSETTING(      0x0200, DEF_STR( Cocktail ) )
+	PORT_DIPNAME( 0x0200, 0x0200, DEF_STR( Cabinet ) ) PORT_DIPLOCATION("SW2:2")
+	PORT_DIPSETTING(      0x0200, DEF_STR( Upright ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( Cocktail ) )
 
 	/* Dip switch bank 1 */
 	PORT_DIPNAME( 0x0001, 0x0001, "Given Holes/Stroke Play" ) PORT_DIPLOCATION("SW1:1")
@@ -935,9 +940,11 @@ static MACHINE_CONFIG_START( m92, m92_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(80, 511-112, 8, 247) /* 320 x 240 */
 	MCFG_SCREEN_UPDATE_DRIVER(m92_state, screen_update_m92)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(m92)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", m92)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(m92_state,m92)
 
@@ -954,104 +961,75 @@ static MACHINE_CONFIG_START( m92, m92_state )
 MACHINE_CONFIG_END
 
 
-static const nec_config gunforce_config ={  gunforce_decryption_table, };
 static MACHINE_CONFIG_DERIVED( gunforce, m92 )
 	MCFG_CPU_MODIFY("soundcpu")
-	MCFG_CPU_CONFIG(gunforce_config)
+	MCFG_V25_CONFIG(gunforce_decryption_table)
 MACHINE_CONFIG_END
 
-static const nec_config bmaster_config ={ bomberman_decryption_table, };
 static MACHINE_CONFIG_DERIVED( bmaster, m92 )
 	MCFG_CPU_MODIFY("soundcpu")
-	MCFG_CPU_CONFIG(bmaster_config)
+	MCFG_V25_CONFIG(bomberman_decryption_table)
 MACHINE_CONFIG_END
 
-static const nec_config lethalth_config ={ lethalth_decryption_table, };
 static MACHINE_CONFIG_DERIVED( lethalth, m92 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(lethalth_map)
 	MCFG_CPU_MODIFY("soundcpu")
-	MCFG_CPU_CONFIG(lethalth_config)
+	MCFG_V25_CONFIG(lethalth_decryption_table)
 MACHINE_CONFIG_END
 
-static const nec_config uccops_config ={ dynablaster_decryption_table, };
 static MACHINE_CONFIG_DERIVED( uccops, m92 )
 	MCFG_CPU_MODIFY("soundcpu")
-	MCFG_CPU_CONFIG(uccops_config)
+	MCFG_V25_CONFIG(dynablaster_decryption_table)
 MACHINE_CONFIG_END
 
-static const nec_config mysticri_config ={ mysticri_decryption_table, };
 static MACHINE_CONFIG_DERIVED( mysticri, m92 )
 	MCFG_CPU_MODIFY("soundcpu")
-	MCFG_CPU_CONFIG(mysticri_config)
+	MCFG_V25_CONFIG(mysticri_decryption_table)
 MACHINE_CONFIG_END
 
-static const nec_config majtitl2_config ={ majtitl2_decryption_table, };
 static MACHINE_CONFIG_DERIVED( majtitl2, m92 )
 	MCFG_CPU_MODIFY("soundcpu")
-	MCFG_CPU_CONFIG(majtitl2_config)
+	MCFG_V25_CONFIG(majtitl2_decryption_table)
 MACHINE_CONFIG_END
 
-static const nec_config hook_config ={ hook_decryption_table, };
 static MACHINE_CONFIG_DERIVED( hook, m92 )
 	MCFG_CPU_MODIFY("soundcpu")
-	MCFG_CPU_CONFIG(hook_config)
+	MCFG_V25_CONFIG(hook_decryption_table)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_START( ppan, m92_state )
-
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu",V33,XTAL_18MHz/2)
-	MCFG_CPU_PROGRAM_MAP(m92_map)
+static MACHINE_CONFIG_DERIVED( ppan, m92 )
+	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_IO_MAP(ppan_portmap)
 
-	/* no Sound CPU */
+	MCFG_DEVICE_REMOVE("soundcpu")
+	MCFG_DEVICE_REMOVE("ymsnd")
+	MCFG_DEVICE_REMOVE("irem")
 
-	MCFG_MACHINE_START_OVERRIDE(m92_state,m92)
-	MCFG_MACHINE_RESET_OVERRIDE(m92_state,m92)
-
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", m92_state, m92_scanline_interrupt, "screen", 0, 1)
-
-	/* video hardware */
-	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram") // not really...
-
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(512, 256)
-	MCFG_SCREEN_VISIBLE_AREA(80, 511-112, 8, 247) /* 320 x 240 */
+	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(m92_state, screen_update_ppan)
 
-	MCFG_GFXDECODE(m92)
-	MCFG_PALETTE_LENGTH(2048)
-
 	MCFG_VIDEO_START_OVERRIDE(m92_state,ppan)
-
-	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_OKIM6295_ADD("oki", 1000000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
-static const nec_config rtypeleo_config ={ rtypeleo_decryption_table, };
 static MACHINE_CONFIG_DERIVED( rtypeleo, m92 )
 	MCFG_CPU_MODIFY("soundcpu")
-	MCFG_CPU_CONFIG(rtypeleo_config)
+	MCFG_V25_CONFIG(rtypeleo_decryption_table)
 MACHINE_CONFIG_END
 
 
-static const nec_config inthunt_config ={ inthunt_decryption_table, };
 static MACHINE_CONFIG_DERIVED( inthunt, m92 )
 	MCFG_CPU_MODIFY("soundcpu")
-	MCFG_CPU_CONFIG(inthunt_config)
+	MCFG_V25_CONFIG(inthunt_decryption_table)
 MACHINE_CONFIG_END
 
 
-static const nec_config nbbatman_config ={ leagueman_decryption_table, };
 static MACHINE_CONFIG_DERIVED( nbbatman, m92 )
 	MCFG_CPU_MODIFY("soundcpu")
-	MCFG_CPU_CONFIG(nbbatman_config)
+	MCFG_V25_CONFIG(leagueman_decryption_table)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( nbbatman2bl, m92 )
@@ -1059,33 +1037,30 @@ static MACHINE_CONFIG_DERIVED( nbbatman2bl, m92 )
 	MCFG_DEVICE_REMOVE("ymsnd")
 	MCFG_DEVICE_REMOVE("irem")
 
-	MCFG_GFXDECODE(bootleg)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", bootleg)
 
 	/* 8951 MCU as sound CPU */
 	/* OKI6295 (AD-65) as sound */
 
 MACHINE_CONFIG_END
 
-static const nec_config psoldier_config ={ psoldier_decryption_table, };
 static MACHINE_CONFIG_DERIVED( psoldier, m92 )
 	MCFG_CPU_MODIFY("soundcpu")
-	MCFG_CPU_CONFIG(psoldier_config)
+	MCFG_V25_CONFIG(psoldier_decryption_table)
 	/* video hardware */
-	MCFG_GFXDECODE(psoldier)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", psoldier)
 MACHINE_CONFIG_END
 
-static const nec_config dsoccr94_config ={ dsoccr94_decryption_table, };
 static MACHINE_CONFIG_DERIVED( dsoccr94j, m92 )
 	MCFG_CPU_MODIFY("soundcpu")
-	MCFG_CPU_CONFIG(dsoccr94_config)
+	MCFG_V25_CONFIG(dsoccr94_decryption_table)
 	/* video hardware */
-	MCFG_GFXDECODE(psoldier)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", psoldier)
 MACHINE_CONFIG_END
 
-static const nec_config gunforc2_config ={ lethalth_decryption_table, };
 static MACHINE_CONFIG_DERIVED( gunforc2, m92 )
 	MCFG_CPU_MODIFY("soundcpu")
-	MCFG_CPU_CONFIG(gunforc2_config)
+	MCFG_V25_CONFIG(lethalth_decryption_table)
 MACHINE_CONFIG_END
 
 /***************************************************************************/
@@ -1170,7 +1145,7 @@ ROM_START( skingame )
 	ROM_REGION( 0x80000, "irem", 0 )
 	ROM_LOAD( "da", 0x000000, 0x80000, CRC(713b9e9f) SHA1(91384d67d4ba9c7d926fbecb077293c661b8ec83) )
 
-	ROM_REGION( 0x4000, "eeprom", 0 )   /* EEPROM */
+	ROM_REGION( 0x4000, "eeprom", 0 )   /* D28C64C-20 EEPROM */
 	ROM_LOAD( "mt2eep",  0x000000, 0x800, CRC(208af971) SHA1(69384cac24b7af35a031f9b60e035131a8b10cb2) )
 
 	ROM_REGION( 0x0c00, "plds", 0 )
@@ -1207,7 +1182,7 @@ ROM_START( majtitl2 )
 	ROM_REGION( 0x80000, "irem", 0 )
 	ROM_LOAD( "da", 0x000000, 0x80000, CRC(713b9e9f) SHA1(91384d67d4ba9c7d926fbecb077293c661b8ec83) )
 
-	ROM_REGION( 0x4000, "eeprom", 0 )   /* EEPROM */
+	ROM_REGION( 0x4000, "eeprom", 0 )   /* D28C64C-20 EEPROM */
 	ROM_LOAD( "mt2eep",  0x000000, 0x800, CRC(208af971) SHA1(69384cac24b7af35a031f9b60e035131a8b10cb2) )
 
 	ROM_REGION( 0x0c00, "plds", 0 )
@@ -1244,7 +1219,7 @@ ROM_START( majtitl2j )
 	ROM_REGION( 0x80000, "irem", 0 )
 	ROM_LOAD( "da", 0x000000, 0x80000, CRC(713b9e9f) SHA1(91384d67d4ba9c7d926fbecb077293c661b8ec83) )
 
-	ROM_REGION( 0x4000, "eeprom", 0 )   /* EEPROM */
+	ROM_REGION( 0x4000, "eeprom", 0 )   /* D28C64C-20 EEPROM */
 	ROM_LOAD( "mt2eep",  0x000000, 0x800, CRC(208af971) SHA1(69384cac24b7af35a031f9b60e035131a8b10cb2) )
 
 	ROM_REGION( 0x0c00, "plds", 0 )
@@ -1281,7 +1256,7 @@ ROM_START( skingame2 )
 	ROM_REGION( 0x80000, "irem", 0 )
 	ROM_LOAD( "da", 0x000000, 0x80000, CRC(713b9e9f) SHA1(91384d67d4ba9c7d926fbecb077293c661b8ec83) )
 
-	ROM_REGION( 0x4000, "eeprom", 0 )   /* EEPROM */
+	ROM_REGION( 0x4000, "eeprom", 0 )   /* D28C64C-20 EEPROM */
 	ROM_LOAD( "mt2eep",  0x000000, 0x800, CRC(208af971) SHA1(69384cac24b7af35a031f9b60e035131a8b10cb2) )
 
 	ROM_REGION( 0x0c00, "plds", 0 )
@@ -2198,41 +2173,41 @@ DRIVER_INIT_MEMBER(m92_state,ppan)
 
 /***************************************************************************/
 
-GAME( 1991, gunforce, 0,        gunforce,      gunforce, m92_state, m92,      ROT0,   "Irem",         "Gunforce - Battle Fire Engulfed Terror Island (World)", GAME_SUPPORTS_SAVE )
-GAME( 1991, gunforcej,gunforce, gunforce,      gunforce, m92_state, m92,      ROT0,   "Irem",         "Gunforce - Battle Fire Engulfed Terror Island (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1991, gunforceu,gunforce, gunforce,      gunforce, m92_state, m92,      ROT0,   "Irem America", "Gunforce - Battle Fire Engulfed Terror Island (US)", GAME_SUPPORTS_SAVE )
-GAME( 1991, bmaster,  0,        bmaster,       bmaster, m92_state,  m92,      ROT0,   "Irem",         "Blade Master (World)", GAME_SUPPORTS_SAVE )
-GAME( 1991, crossbld, bmaster,  bmaster,       bmaster, m92_state,  m92,      ROT0,   "Irem",         "Cross Blades! (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1991, lethalth, 0,        lethalth,      lethalth, m92_state, lethalth, ROT270, "Irem",         "Lethal Thunder (World)", GAME_SUPPORTS_SAVE )
-GAME( 1991, thndblst, lethalth, lethalth,      lethalth, m92_state, lethalth, ROT270, "Irem",         "Thunder Blaster (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1992, uccops,   0,        uccops,        uccops, m92_state,   m92,      ROT0,   "Irem",         "Undercover Cops (World)", GAME_SUPPORTS_SAVE )
-GAME( 1992, uccopsu,  uccops,   uccops,        uccops, m92_state,   m92,      ROT0,   "Irem",         "Undercover Cops (US)", GAME_SUPPORTS_SAVE )
-GAME( 1992, uccopsar, uccops,   uccops,        uccops, m92_state,   m92,      ROT0,   "Irem",         "Undercover Cops - Alpha Renewal Version", GAME_SUPPORTS_SAVE )
-GAME( 1992, uccopsj,  uccops,   uccops,        uccops, m92_state,   m92,      ROT0,   "Irem",         "Undercover Cops (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1992, mysticri, 0,        mysticri,      mysticri, m92_state, m92,      ROT0,   "Irem",         "Mystic Riders (World)", GAME_SUPPORTS_SAVE )
-GAME( 1992, gunhohki, mysticri, mysticri,      mysticri, m92_state, m92,      ROT0,   "Irem",         "Mahou Keibitai Gun Hohki (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1991, gunforce, 0,        gunforce,      gunforce, m92_state, m92,      ROT0,   "Irem",         "Gunforce - Battle Fire Engulfed Terror Island (World)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1991, gunforcej,gunforce, gunforce,      gunforce, m92_state, m92,      ROT0,   "Irem",         "Gunforce - Battle Fire Engulfed Terror Island (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1991, gunforceu,gunforce, gunforce,      gunforce, m92_state, m92,      ROT0,   "Irem America", "Gunforce - Battle Fire Engulfed Terror Island (US)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1991, bmaster,  0,        bmaster,       bmaster, m92_state,  m92,      ROT0,   "Irem",         "Blade Master (World)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1991, crossbld, bmaster,  bmaster,       bmaster, m92_state,  m92,      ROT0,   "Irem",         "Cross Blades! (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL)
+GAME( 1991, lethalth, 0,        lethalth,      lethalth, m92_state, lethalth, ROT270, "Irem",         "Lethal Thunder (World)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1991, thndblst, lethalth, lethalth,      lethalth, m92_state, lethalth, ROT270, "Irem",         "Thunder Blaster (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1992, uccops,   0,        uccops,        uccops, m92_state,   m92,      ROT0,   "Irem",         "Undercover Cops (World)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1992, uccopsu,  uccops,   uccops,        uccops, m92_state,   m92,      ROT0,   "Irem",         "Undercover Cops (US)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1992, uccopsar, uccops,   uccops,        uccops, m92_state,   m92,      ROT0,   "Irem",         "Undercover Cops - Alpha Renewal Version", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1992, uccopsj,  uccops,   uccops,        uccops, m92_state,   m92,      ROT0,   "Irem",         "Undercover Cops (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1992, mysticri, 0,        mysticri,      mysticri, m92_state, m92,      ROT0,   "Irem",         "Mystic Riders (World)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL)
+GAME( 1992, gunhohki, mysticri, mysticri,      mysticri, m92_state, m92,      ROT0,   "Irem",         "Mahou Keibitai Gun Hohki (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
 // cheaply produced Korean board, has original chips, but lacks any proper labels
 // main code is also significantly different to the supported original set, so it might just be a legitimate early revision on a cheap board
-GAME( 1992, mysticrib,mysticri, mysticri,      mysticri, m92_state, m92,      ROT0,   "Irem",         "Mystic Riders (bootleg?)", GAME_SUPPORTS_SAVE )
-GAME( 1992, majtitl2, 0,        majtitl2,      majtitl2, m92_state, majtitl2, ROT0,   "Irem",         "Major Title 2 (World)", GAME_SUPPORTS_SAVE )
-GAME( 1992, majtitl2j,majtitl2, majtitl2,      majtitl2, m92_state, majtitl2, ROT0,   "Irem",         "Major Title 2 (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1992, skingame, majtitl2, majtitl2,      majtitl2, m92_state, majtitl2, ROT0,   "Irem America", "The Irem Skins Game (US set 1)", GAME_SUPPORTS_SAVE )
-GAME( 1992, skingame2,majtitl2, majtitl2,      majtitl2, m92_state, majtitl2, ROT0,   "Irem America", "The Irem Skins Game (US set 2)", GAME_SUPPORTS_SAVE )
-GAME( 1992, hook,     0,        hook,          hook, m92_state,     m92,      ROT0,   "Irem",         "Hook (World)", GAME_SUPPORTS_SAVE )
-GAME( 1992, hooku,    hook,     hook,          hook, m92_state,     m92,      ROT0,   "Irem America", "Hook (US)", GAME_SUPPORTS_SAVE )
-GAME( 1992, hookj,    hook,     hook,          hook, m92_state,     m92,      ROT0,   "Irem",         "Hook (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1992, ppan,     hook,     ppan,          hook, m92_state,     ppan,     ROT0,   "bootleg",      "Peter Pan (bootleg of Hook)", GAME_IMPERFECT_GRAPHICS ) // PCB marked 'Peter Pan', no title screen, made in Italy?
-GAME( 1992, rtypeleo, 0,        rtypeleo,      rtypeleo, m92_state, m92_alt,  ROT0,   "Irem",         "R-Type Leo (World)", GAME_SUPPORTS_SAVE )
-GAME( 1992, rtypeleoj,rtypeleo, rtypeleo,      rtypeleo, m92_state, m92_alt,  ROT0,   "Irem",         "R-Type Leo (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1993, inthunt,  0,        inthunt,       inthunt, m92_state,  m92,      ROT0,   "Irem",         "In The Hunt (World)", GAME_SUPPORTS_SAVE )
-GAME( 1993, inthuntu, inthunt,  inthunt,       inthunt, m92_state,  m92,      ROT0,   "Irem America", "In The Hunt (US)", GAME_SUPPORTS_SAVE )
-GAME( 1993, kaiteids, inthunt,  inthunt,       inthunt, m92_state,  m92,      ROT0,   "Irem",         "Kaitei Daisensou (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1993, nbbatman, 0,        nbbatman,      nbbatman, m92_state, m92_bank, ROT0,   "Irem",         "Ninja Baseball Bat Man (World)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS )
-GAME( 1993, nbbatmanu,nbbatman, nbbatman,      nbbatman, m92_state, m92_bank, ROT0,   "Irem America", "Ninja Baseball Bat Man (US)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS )
-GAME( 1993, leaguemn, nbbatman, nbbatman,      nbbatman, m92_state, m92_bank, ROT0,   "Irem",         "Yakyuu Kakutou League-Man (Japan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS )
-GAME( 1993, nbbatman2bl,nbbatman,nbbatman2bl,  nbbatman, m92_state, m92_bank, ROT0,   "bootleg",      "Ninja Baseball Bat Man II (bootleg)", GAME_NO_SOUND | GAME_NOT_WORKING ) // different sprite system, MCU as soundcpu, OKI samples for music/sound
-GAME( 1993, ssoldier, 0,        psoldier,      psoldier, m92_state, m92_alt,  ROT0,   "Irem America", "Superior Soldiers (US)", GAME_SUPPORTS_SAVE )
-GAME( 1993, psoldier, ssoldier, psoldier,      psoldier, m92_state, m92_alt,  ROT0,   "Irem",         "Perfect Soldiers (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1994, dsoccr94j,dsoccr94, dsoccr94j,     dsoccr94j, m92_state,m92_bank, ROT0,   "Irem",         "Dream Soccer '94 (Japan, M92 hardware)", GAME_SUPPORTS_SAVE )
-GAME( 1994, gunforc2, 0,        gunforc2,      gunforc2, m92_state, m92_bank, ROT0,   "Irem",         "Gun Force II (US)", GAME_SUPPORTS_SAVE )
-GAME( 1994, geostorm, gunforc2, gunforc2,      gunforc2, m92_state, m92_bank, ROT0,   "Irem",         "Geo Storm (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1992, mysticrib,mysticri, mysticri,      mysticri, m92_state, m92,      ROT0,   "Irem",         "Mystic Riders (bootleg?)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1992, majtitl2, 0,        majtitl2,      majtitl2, m92_state, majtitl2, ROT0,   "Irem",         "Major Title 2 (World)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL)
+GAME( 1992, majtitl2j,majtitl2, majtitl2,      majtitl2, m92_state, majtitl2, ROT0,   "Irem",         "Major Title 2 (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL)
+GAME( 1992, skingame, majtitl2, majtitl2,      majtitl2, m92_state, majtitl2, ROT0,   "Irem America", "The Irem Skins Game (US set 1)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1992, skingame2,majtitl2, majtitl2,      majtitl2, m92_state, majtitl2, ROT0,   "Irem America", "The Irem Skins Game (US set 2)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1992, hook,     0,        hook,          hook, m92_state,     m92,      ROT0,   "Irem",         "Hook (World)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL)
+GAME( 1992, hooku,    hook,     hook,          hook, m92_state,     m92,      ROT0,   "Irem America", "Hook (US)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL)
+GAME( 1992, hookj,    hook,     hook,          hook, m92_state,     m92,      ROT0,   "Irem",         "Hook (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL)
+GAME( 1992, ppan,     hook,     ppan,          hook, m92_state,     ppan,     ROT0,   "bootleg",      "Peter Pan (bootleg of Hook)", GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL) // PCB marked 'Peter Pan', no title screen, made in Italy?
+GAME( 1992, rtypeleo, 0,        rtypeleo,      rtypeleo, m92_state, m92_alt,  ROT0,   "Irem",         "R-Type Leo (World)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL)
+GAME( 1992, rtypeleoj,rtypeleo, rtypeleo,      rtypeleo, m92_state, m92_alt,  ROT0,   "Irem",         "R-Type Leo (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL)
+GAME( 1993, inthunt,  0,        inthunt,       inthunt, m92_state,  m92,      ROT0,   "Irem",         "In The Hunt (World)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL)
+GAME( 1993, inthuntu, inthunt,  inthunt,       inthunt, m92_state,  m92,      ROT0,   "Irem America", "In The Hunt (US)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL)
+GAME( 1993, kaiteids, inthunt,  inthunt,       inthunt, m92_state,  m92,      ROT0,   "Irem",         "Kaitei Daisensou (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1993, nbbatman, 0,        nbbatman,      nbbatman, m92_state, m92_bank, ROT0,   "Irem",         "Ninja Baseball Bat Man (World)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL )
+GAME( 1993, nbbatmanu,nbbatman, nbbatman,      nbbatman, m92_state, m92_bank, ROT0,   "Irem America", "Ninja Baseball Bat Man (US)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL)
+GAME( 1993, leaguemn, nbbatman, nbbatman,      nbbatman, m92_state, m92_bank, ROT0,   "Irem",         "Yakyuu Kakutou League-Man (Japan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL )
+GAME( 1993, nbbatman2bl,nbbatman,nbbatman2bl,  nbbatman, m92_state, m92_bank, ROT0,   "bootleg",      "Ninja Baseball Bat Man II (bootleg)", GAME_NO_SOUND | GAME_NOT_WORKING | GAME_NO_COCKTAIL ) // different sprite system, MCU as soundcpu, OKI samples for music/sound
+GAME( 1993, ssoldier, 0,        psoldier,      psoldier, m92_state, m92_alt,  ROT0,   "Irem America", "Superior Soldiers (US)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1993, psoldier, ssoldier, psoldier,      psoldier, m92_state, m92_alt,  ROT0,   "Irem",         "Perfect Soldiers (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1994, dsoccr94j,dsoccr94, dsoccr94j,     dsoccr94j, m92_state,m92_bank, ROT0,   "Irem",         "Dream Soccer '94 (Japan, M92 hardware)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1994, gunforc2, 0,        gunforc2,      gunforc2, m92_state, m92_bank, ROT0,   "Irem",         "Gun Force II (US)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1994, geostorm, gunforc2, gunforc2,      gunforc2, m92_state, m92_bank, ROT0,   "Irem",         "Geo Storm (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL)

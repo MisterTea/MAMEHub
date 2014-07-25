@@ -56,6 +56,8 @@ So this is the correct behavior of real hardware, not an emulation bug.
 #include "includes/nemesis.h"
 #include "includes/konamipt.h"
 
+#include "konamigt.lh"
+
 
 INTERRUPT_GEN_MEMBER(nemesis_state::nemesis_interrupt)
 {
@@ -206,16 +208,20 @@ READ16_MEMBER(nemesis_state::selected_ip_word_r)
 }
 
 
-WRITE16_MEMBER(nemesis_state::nemesis_soundlatch_word_w)
+WRITE8_MEMBER(nemesis_state::nemesis_filter_w)
 {
-	if (ACCESSING_BITS_0_7)
-		soundlatch_byte_w(space, offset, data & 0xff);
+	int C1 = /* offset & 0x1000 ? 4700 : */ 0; // is this right? 4.7uF seems too large
+	int C2 = offset & 0x0800 ? 33 : 0;         // 0.033uF = 33 nF
+	m_filter1->filter_rc_set_RC(FLT_RC_LOWPASS, (AY8910_INTERNAL_RESISTANCE + 12000) / 3, 0, 0, CAP_N(C1)); // unused?
+	m_filter2->filter_rc_set_RC(FLT_RC_LOWPASS, AY8910_INTERNAL_RESISTANCE + 1000, 10000, 0, CAP_N(C2));
+	m_filter3->filter_rc_set_RC(FLT_RC_LOWPASS, AY8910_INTERNAL_RESISTANCE + 1000, 10000, 0, CAP_N(C2));
+	m_filter4->filter_rc_set_RC(FLT_RC_LOWPASS, AY8910_INTERNAL_RESISTANCE + 1000, 10000, 0, CAP_N(C2));
+
+	// konamigt also uses bits 0x0018, what are they for?
 }
 
 WRITE8_MEMBER(nemesis_state::gx400_speech_start_w)
 {
-	/* the voice data is not in a rom but in sound RAM at $8000 */
-	m_vlm->set_rom(m_gx400_shared_ram + 0x4000);
 	m_vlm->st(1);
 	m_vlm->st(0);
 }
@@ -266,7 +272,7 @@ static ADDRESS_MAP_START( nemesis_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x055000, 0x055fff) AM_RAM_WRITE(nemesis_colorram2_word_w) AM_SHARE("colorram2")
 	AM_RANGE(0x056000, 0x056fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x05a000, 0x05afff) AM_RAM_WRITE(nemesis_palette_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x05c000, 0x05c001) AM_WRITE(nemesis_soundlatch_word_w)
+	AM_RANGE(0x05c000, 0x05c001) AM_WRITE8(soundlatch_byte_w, 0x00ff)
 	AM_RANGE(0x05c400, 0x05c401) AM_READ_PORT("DSW0")
 	AM_RANGE(0x05c402, 0x05c403) AM_READ_PORT("DSW1")
 	AM_RANGE(0x05c800, 0x05c801) AM_WRITE(watchdog_reset16_w)   /* probably */
@@ -286,7 +292,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( gx400_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_ROM     /* ROM BIOS */
 	AM_RANGE(0x010000, 0x01ffff) AM_RAM
-	AM_RANGE(0x020000, 0x0287ff) AM_READWRITE(gx400_sharedram_word_r, gx400_sharedram_word_w)
+	AM_RANGE(0x020000, 0x027fff) AM_READWRITE(gx400_sharedram_word_r, gx400_sharedram_word_w)
 	AM_RANGE(0x030000, 0x03ffff) AM_RAM_WRITE(nemesis_charram_word_w) AM_SHARE("charram")
 	AM_RANGE(0x050000, 0x051fff) AM_RAM
 	AM_RANGE(0x050000, 0x0503ff) AM_SHARE("xscroll1")
@@ -300,7 +306,7 @@ static ADDRESS_MAP_START( gx400_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x056000, 0x056fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x057000, 0x057fff) AM_RAM             /* needed for twinbee */
 	AM_RANGE(0x05a000, 0x05afff) AM_RAM_WRITE(nemesis_palette_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x05c000, 0x05c001) AM_WRITE(nemesis_soundlatch_word_w)
+	AM_RANGE(0x05c000, 0x05c001) AM_WRITE8(soundlatch_byte_w, 0x00ff)
 	AM_RANGE(0x05c402, 0x05c403) AM_READ_PORT("DSW0")
 	AM_RANGE(0x05c404, 0x05c405) AM_READ_PORT("DSW1")
 	AM_RANGE(0x05c406, 0x05c407) AM_READ_PORT("TEST")
@@ -332,7 +338,7 @@ static ADDRESS_MAP_START( konamigt_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x055000, 0x055fff) AM_RAM_WRITE(nemesis_colorram2_word_w) AM_SHARE("colorram2")
 	AM_RANGE(0x056000, 0x056fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x05a000, 0x05afff) AM_RAM_WRITE(nemesis_palette_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x05c000, 0x05c001) AM_WRITE(nemesis_soundlatch_word_w)
+	AM_RANGE(0x05c000, 0x05c001) AM_WRITE8(soundlatch_byte_w, 0x00ff)
 	AM_RANGE(0x05c400, 0x05c401) AM_READ_PORT("DSW0")
 	AM_RANGE(0x05c402, 0x05c403) AM_READ_PORT("DSW1")
 	AM_RANGE(0x05c800, 0x05c801) AM_WRITE(watchdog_reset16_w)   /* probably */
@@ -353,7 +359,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( rf2_gx400_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_ROM     /* ROM BIOS */
 	AM_RANGE(0x010000, 0x01ffff) AM_RAM
-	AM_RANGE(0x020000, 0x0287ff) AM_READWRITE(gx400_sharedram_word_r, gx400_sharedram_word_w)
+	AM_RANGE(0x020000, 0x027fff) AM_READWRITE(gx400_sharedram_word_r, gx400_sharedram_word_w)
 	AM_RANGE(0x030000, 0x03ffff) AM_RAM_WRITE(nemesis_charram_word_w) AM_SHARE("charram")
 	AM_RANGE(0x050000, 0x051fff) AM_RAM
 	AM_RANGE(0x050000, 0x0503ff) AM_SHARE("xscroll1")
@@ -366,7 +372,7 @@ static ADDRESS_MAP_START( rf2_gx400_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x055000, 0x055fff) AM_RAM_WRITE(nemesis_colorram2_word_w) AM_SHARE("colorram2")
 	AM_RANGE(0x056000, 0x056fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x05a000, 0x05afff) AM_RAM_WRITE(nemesis_palette_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x05c000, 0x05c001) AM_WRITE(nemesis_soundlatch_word_w)
+	AM_RANGE(0x05c000, 0x05c001) AM_WRITE8(soundlatch_byte_w, 0x00ff)
 	AM_RANGE(0x05c402, 0x05c403) AM_READ_PORT("DSW0")
 	AM_RANGE(0x05c404, 0x05c405) AM_READ_PORT("DSW1")
 	AM_RANGE(0x05c406, 0x05c407) AM_READ_PORT("TEST")
@@ -389,13 +395,14 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, nemesis_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x47ff) AM_RAM
-	AM_RANGE(0xa000, 0xafff) AM_DEVWRITE("k005289", k005289_device, k005289_pitch_A_w)
-	AM_RANGE(0xc000, 0xcfff) AM_DEVWRITE("k005289", k005289_device, k005289_pitch_B_w)
+	AM_RANGE(0xa000, 0xafff) AM_DEVWRITE("k005289", k005289_device, ld1_w)
+	AM_RANGE(0xc000, 0xcfff) AM_DEVWRITE("k005289", k005289_device, ld2_w)
 	AM_RANGE(0xe001, 0xe001) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xe003, 0xe003) AM_DEVWRITE("k005289", k005289_device, k005289_keylatch_A_w)
-	AM_RANGE(0xe004, 0xe004) AM_DEVWRITE("k005289", k005289_device, k005289_keylatch_B_w)
+	AM_RANGE(0xe003, 0xe003) AM_DEVWRITE("k005289", k005289_device, tg1_w)
+	AM_RANGE(0xe004, 0xe004) AM_DEVWRITE("k005289", k005289_device, tg2_w)
 	AM_RANGE(0xe005, 0xe005) AM_DEVWRITE("ay2", ay8910_device, address_w)
 	AM_RANGE(0xe006, 0xe006) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0xe007, 0xe007) AM_MIRROR(0x1ff8) AM_MASK(0x1ff8) AM_WRITE(nemesis_filter_w)
 	AM_RANGE(0xe086, 0xe086) AM_DEVREAD("ay1", ay8910_device, data_r)
 	AM_RANGE(0xe106, 0xe106) AM_DEVWRITE("ay1", ay8910_device, data_w)
 	AM_RANGE(0xe205, 0xe205) AM_DEVREAD("ay2", ay8910_device, data_r)
@@ -404,15 +411,17 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( gx400_sound_map, AS_PROGRAM, 8, nemesis_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
-	AM_RANGE(0x4000, 0x87ff) AM_RAM AM_SHARE("gx400_shared")
-	AM_RANGE(0xa000, 0xafff) AM_DEVWRITE("k005289", k005289_device, k005289_pitch_A_w)
-	AM_RANGE(0xc000, 0xcfff) AM_DEVWRITE("k005289", k005289_device, k005289_pitch_B_w)
+	AM_RANGE(0x4000, 0x7fff) AM_RAM AM_SHARE("gx400_shared")
+	AM_RANGE(0x8000, 0x87ff) AM_RAM AM_SHARE("voiceram")
+	AM_RANGE(0xa000, 0xafff) AM_DEVWRITE("k005289", k005289_device, ld1_w)
+	AM_RANGE(0xc000, 0xcfff) AM_DEVWRITE("k005289", k005289_device, ld2_w)
 	AM_RANGE(0xe000, 0xe000) AM_DEVWRITE("vlm", vlm5030_device, data_w)
 	AM_RANGE(0xe001, 0xe001) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xe003, 0xe003) AM_DEVWRITE("k005289", k005289_device, k005289_keylatch_A_w)
-	AM_RANGE(0xe004, 0xe004) AM_DEVWRITE("k005289", k005289_device, k005289_keylatch_B_w)
+	AM_RANGE(0xe003, 0xe003) AM_DEVWRITE("k005289", k005289_device, tg1_w)
+	AM_RANGE(0xe004, 0xe004) AM_DEVWRITE("k005289", k005289_device, tg2_w)
 	AM_RANGE(0xe005, 0xe005) AM_DEVWRITE("ay2", ay8910_device, address_w)
 	AM_RANGE(0xe006, 0xe006) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0xe007, 0xe007) AM_MIRROR(0x1ff8) AM_MASK(0x1ff8) AM_WRITE(nemesis_filter_w)
 	AM_RANGE(0xe030, 0xe030) AM_WRITE(gx400_speech_start_w)
 	AM_RANGE(0xe086, 0xe086) AM_DEVREAD("ay1", ay8910_device, data_r)
 	AM_RANGE(0xe106, 0xe106) AM_DEVWRITE("ay1", ay8910_device, data_w)
@@ -425,9 +434,9 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( salamand_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x080000, 0x087fff) AM_RAM
-	AM_RANGE(0x090000, 0x091fff) AM_RAM_WRITE(salamander_palette_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x090000, 0x091fff) AM_DEVREADWRITE8("palette", palette_device, read, write, 0x00ff) AM_SHARE("palette")
 	AM_RANGE(0x0a0000, 0x0a0001) AM_WRITE(salamand_control_port_word_w)     /* irq enable, flipscreen, etc. */
-	AM_RANGE(0x0c0000, 0x0c0001) AM_WRITE(nemesis_soundlatch_word_w)
+	AM_RANGE(0x0c0000, 0x0c0001) AM_WRITE8(soundlatch_byte_w, 0x00ff)
 	AM_RANGE(0x0c0002, 0x0c0003) AM_READ_PORT("DSW0")
 	AM_RANGE(0x0c0004, 0x0c0005) AM_WRITE(watchdog_reset16_w)   /* probably */
 	AM_RANGE(0x0c2000, 0x0c2001) AM_READ_PORT("IN0")    /* Coins, start buttons, test mode */
@@ -449,10 +458,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( blkpnthr_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x080000, 0x081fff) AM_RAM_WRITE(salamander_palette_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x080000, 0x081fff) AM_DEVREADWRITE8("palette", palette_device, read, write, 0x00ff) AM_SHARE("palette")
 	AM_RANGE(0x090000, 0x097fff) AM_RAM
 	AM_RANGE(0x0a0000, 0x0a0001) AM_RAM_WRITE(salamand_control_port_word_w)     /* irq enable, flipscreen, etc. */
-	AM_RANGE(0x0c0000, 0x0c0001) AM_WRITE(nemesis_soundlatch_word_w)
+	AM_RANGE(0x0c0000, 0x0c0001) AM_WRITE8(soundlatch_byte_w, 0x00ff)
 	AM_RANGE(0x0c0002, 0x0c0003) AM_READ_PORT("DSW0")
 	AM_RANGE(0x0c0004, 0x0c0005) AM_WRITE(watchdog_reset16_w)   /* probably */
 	AM_RANGE(0x0c2000, 0x0c2001) AM_READ_PORT("IN0")    /* Coins, start buttons, test mode */
@@ -475,13 +484,13 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( citybomb_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x000000, 0x01ffff) AM_ROM
 	AM_RANGE(0x080000, 0x087fff) AM_RAM
-	AM_RANGE(0x0e0000, 0x0e1fff) AM_RAM_WRITE(salamander_palette_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0e0000, 0x0e1fff) AM_DEVREADWRITE8("palette", palette_device, read, write, 0x00ff) AM_SHARE("palette")
 	AM_RANGE(0x0f0000, 0x0f0001) AM_READ_PORT("DSW1")
 	AM_RANGE(0x0f0002, 0x0f0003) AM_READ_PORT("IN2")
 	AM_RANGE(0x0f0004, 0x0f0005) AM_READ_PORT("IN1")
 	AM_RANGE(0x0f0006, 0x0f0007) AM_READ_PORT("IN0")    /* Coins, start buttons, test mode */
 	AM_RANGE(0x0f0008, 0x0f0009) AM_READ_PORT("DSW0")
-	AM_RANGE(0x0f0010, 0x0f0011) AM_WRITE(nemesis_soundlatch_word_w)
+	AM_RANGE(0x0f0010, 0x0f0011) AM_WRITE8(soundlatch_byte_w, 0x00ff)
 	AM_RANGE(0x0f0018, 0x0f0019) AM_WRITE(watchdog_reset16_w)   /* probably */
 	AM_RANGE(0x0f0020, 0x0f0021) AM_READ(selected_ip_word_r) AM_WRITENOP    /* WEC Le Mans 24 control? */
 	AM_RANGE(0x0f8000, 0x0f8001) AM_WRITE(salamand_control_port_word_w)     /* irq enable, flipscreen, etc. */
@@ -502,16 +511,16 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( nyanpani_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x000000, 0x01ffff) AM_ROM
 	AM_RANGE(0x040000, 0x047fff) AM_RAM
-	AM_RANGE(0x060000, 0x061fff) AM_RAM_WRITE(salamander_palette_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x100000, 0x13ffff) AM_ROM
+	AM_RANGE(0x060000, 0x061fff) AM_DEVREADWRITE8("palette", palette_device, read, write, 0x00ff) AM_SHARE("palette")
 	AM_RANGE(0x070000, 0x070001) AM_READ_PORT("DSW1")
 	AM_RANGE(0x070002, 0x070003) AM_READ_PORT("IN2")
 	AM_RANGE(0x070004, 0x070005) AM_READ_PORT("IN1")
 	AM_RANGE(0x070006, 0x070007) AM_READ_PORT("IN0")    /* Coins, start buttons, test mode */
 	AM_RANGE(0x070008, 0x070009) AM_READ_PORT("DSW0")
-	AM_RANGE(0x070010, 0x070011) AM_WRITE(nemesis_soundlatch_word_w)
+	AM_RANGE(0x070010, 0x070011) AM_WRITE8(soundlatch_byte_w, 0x00ff)
 	AM_RANGE(0x070018, 0x070019) AM_WRITE(watchdog_reset16_w)   /* probably */
 	AM_RANGE(0x078000, 0x078001) AM_WRITE(salamand_control_port_word_w)     /* irq enable, flipscreen, etc. */
+	AM_RANGE(0x100000, 0x13ffff) AM_ROM
 	AM_RANGE(0x200000, 0x200fff) AM_RAM_WRITE(nemesis_videoram1_word_w) AM_SHARE("videoram1")       /* VRAM */
 	AM_RANGE(0x201000, 0x201fff) AM_RAM_WRITE(nemesis_videoram2_word_w) AM_SHARE("videoram2")
 	AM_RANGE(0x202000, 0x202fff) AM_RAM_WRITE(nemesis_colorram1_word_w) AM_SHARE("colorram1")
@@ -571,9 +580,9 @@ static ADDRESS_MAP_START( hcrash_map, AS_PROGRAM, 16, nemesis_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_ROM
 	AM_RANGE(0x040000, 0x05ffff) AM_ROM
 	AM_RANGE(0x080000, 0x083fff) AM_RAM
-	AM_RANGE(0x090000, 0x091fff) AM_RAM_WRITE(salamander_palette_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x090000, 0x091fff) AM_DEVREADWRITE8("palette", palette_device, read, write, 0x00ff) AM_SHARE("palette")
 	AM_RANGE(0x0a0000, 0x0a0001) AM_WRITE(salamand_control_port_word_w)     /* irq enable, flipscreen, etc. */
-	AM_RANGE(0x0c0000, 0x0c0001) AM_WRITE(nemesis_soundlatch_word_w)
+	AM_RANGE(0x0c0000, 0x0c0001) AM_WRITE8(soundlatch_byte_w, 0x00ff)
 	AM_RANGE(0x0c0002, 0x0c0003) AM_READ_PORT("DSW0")
 	AM_RANGE(0x0c0004, 0x0c0005) AM_READ_PORT("DSW1")
 	AM_RANGE(0x0c0006, 0x0c0007) AM_READ_PORT("TEST")
@@ -700,15 +709,15 @@ static INPUT_PORTS_START( konamigt )
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_UNKNOWN )
 
 	PORT_START("IN1")
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_BUTTON3 ) /* gear */
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_BUTTON3 ) PORT_NAME("Gear Shift") PORT_TOGGLE
 	PORT_BIT( 0xef, IP_ACTIVE_HIGH, IPT_UNKNOWN )
 
 	PORT_START("IN2")
 	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNKNOWN )
 
 	PORT_START("IN3")
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_BUTTON2 )
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_BUTTON1 )
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("Brake")
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("Accelerator")
 //  PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_BUTTON4 )
 
 	PORT_START("DSW0")
@@ -795,11 +804,11 @@ static INPUT_PORTS_START( gwarrior )
 	KONAMI8_SYSTEM_UNK
 
 	PORT_START("IN1")
-	KONAMI8_B321(1)
+	KONAMI8_B123(1)
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("IN2")
-	KONAMI8_B321(2)
+	KONAMI8_B123(2)
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("DSW0")
@@ -1309,179 +1318,117 @@ INPUT_PORTS_END
 
 /******************************************************************************/
 
-#define XOR(x) ((x)^NATIVE_ENDIAN_VALUE_LE_BE(8,0))
-
 static const gfx_layout charlayout =
 {
 	8,8,    /* 8*8 characters */
-	2048,   /* 2048 characters (+ blank one) */
+	RGN_FRAC(1,1),
 	4,  /* 4 bits per pixel */
 	{ 0, 1, 2, 3 }, /* the two bitplanes are merged in the same nibble */
-	{ XOR(0*4), XOR(1*4), XOR(2*4), XOR(3*4), XOR(4*4), XOR(5*4), XOR(6*4), XOR(7*4) },
-	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
-	32*8     /* every char takes 32 consecutive bytes */
+	{ STEP8(0, 4) },
+	{ STEP8(0, 4*8) },
+	4*8*8
 };
 
 static const gfx_layout spritelayout =
 {
 	16,16,  /* 16*16 sprites */
-	512,    /* 512 sprites */
+	RGN_FRAC(1,1),
 	4,  /* 4 bits per pixel */
 	{ 0, 1, 2, 3 }, /* the two bitplanes are merged in the same nibble */
-	{ XOR(0*4), XOR(1*4), XOR(2*4), XOR(3*4), XOR(4*4), XOR(5*4), XOR(6*4), XOR(7*4),
-			XOR(8*4), XOR(9*4), XOR(10*4), XOR(11*4), XOR(12*4), XOR(13*4), XOR(14*4), XOR(15*4) },
-	{ 0*64, 1*64, 2*64, 3*64, 4*64, 5*64, 6*64, 7*64,
-			8*64, 9*64, 10*64, 11*64, 12*64, 13*64, 14*64, 15*64 },
-	128*8     /* every sprite takes 128 consecutive bytes */
+	{ STEP16(0, 4) },
+	{ STEP16(0, 4*16) },
+	4*16*16
 };
 
 static const gfx_layout spritelayout3216 =
 {
 	32,16,  /* 32*16 sprites */
-	256,    /* 256 sprites */
+	RGN_FRAC(1,1),
 	4,  /* 4 bits per pixel */
 	{ 0, 1, 2, 3 }, /* the two bitplanes are merged in the same nibble */
-	{ XOR(0*4), XOR(1*4), XOR(2*4), XOR(3*4), XOR(4*4), XOR(5*4), XOR(6*4), XOR(7*4),
-			XOR(8*4), XOR(9*4), XOR(10*4), XOR(11*4), XOR(12*4), XOR(13*4), XOR(14*4), XOR(15*4),
-			XOR(16*4),XOR(17*4), XOR(18*4), XOR(19*4), XOR(20*4), XOR(21*4), XOR(22*4), XOR(23*4),
-			XOR(24*4),XOR(25*4), XOR(26*4), XOR(27*4), XOR(28*4), XOR(29*4), XOR(30*4), XOR(31*4)},
-	{ 0*128, 1*128, 2*128, 3*128, 4*128, 5*128, 6*128, 7*128,
-			8*128, 9*128, 10*128, 11*128, 12*128, 13*128, 14*128, 15*128 },
-	256*8     /* every sprite takes 128 consecutive bytes */
+	{ STEP32(0, 4) },
+	{ STEP16(0, 4*32) },
+	4*32*16
 };
 
 static const gfx_layout spritelayout1632 =
 {
 	16,32,  /* 16*32 sprites */
-	256,    /* 256 sprites */
+	RGN_FRAC(1,1),
 	4,  /* 4 bits per pixel */
 	{ 0, 1, 2, 3 }, /* the two bitplanes are merged in the same nibble */
-	{ XOR(0*4), XOR(1*4), XOR(2*4), XOR(3*4), XOR(4*4), XOR(5*4), XOR(6*4), XOR(7*4),
-			XOR(8*4), XOR(9*4), XOR(10*4), XOR(11*4), XOR(12*4), XOR(13*4), XOR(14*4), XOR(15*4)},
-	{ 0*64,  1*64,  2*64,  3*64,  4*64,  5*64,  6*64,  7*64,
-		8*64,  9*64, 10*64, 11*64, 12*64, 13*64, 14*64, 15*64,
-		16*64, 17*64, 18*64, 19*64, 20*64, 21*64, 22*64, 23*64,
-		24*64, 25*64, 26*64, 27*64, 28*64, 29*64, 30*64, 31*64},
-	256*8     /* every sprite takes 128 consecutive bytes */
+	{ STEP16(0, 4) },
+	{ STEP32(0, 4*16) },
+	4*16*32
 };
 
 static const gfx_layout spritelayout3232 =
 {
 	32,32,  /* 32*32 sprites */
-	128,    /* 128 sprites */
+	RGN_FRAC(1,1),
 	4,  /* 4 bits per pixel */
 	{ 0, 1, 2, 3 }, /* the two bitplanes are merged in the same nibble */
-	{ XOR(0*4), XOR(1*4), XOR(2*4), XOR(3*4), XOR(4*4), XOR(5*4), XOR(6*4), XOR(7*4),
-			XOR(8*4), XOR(9*4), XOR(10*4), XOR(11*4), XOR(12*4), XOR(13*4), XOR(14*4), XOR(15*4),
-			XOR(16*4),XOR(17*4), XOR(18*4), XOR(19*4), XOR(20*4), XOR(21*4), XOR(22*4), XOR(23*4),
-			XOR(24*4),XOR(25*4), XOR(26*4), XOR(27*4), XOR(28*4), XOR(29*4), XOR(30*4), XOR(31*4)},
-	{ 0*128, 1*128, 2*128, 3*128, 4*128, 5*128, 6*128, 7*128,
-			8*128,  9*128, 10*128, 11*128, 12*128, 13*128, 14*128, 15*128,
-			16*128, 17*128, 18*128, 19*128, 20*128, 21*128, 22*128, 23*128,
-			24*128, 25*128, 26*128, 27*128, 28*128, 29*128, 30*128, 31*128},
-	512*8     /* every sprite takes 128 consecutive bytes */
+	{ STEP32(0, 4) },
+	{ STEP32(0, 4*32) },
+	4*32*32
 };
 
 static const gfx_layout spritelayout816 =
 {
-	8,16,   /* 16*16 sprites */
-	1024,   /* 1024 sprites */
+	8,16,   /* 8*16 sprites */
+	RGN_FRAC(1,1),
 	4,  /* 4 bits per pixel */
 	{ 0, 1, 2, 3 }, /* the two bitplanes are merged in the same nibble */
-	{ XOR(0*4), XOR(1*4), XOR(2*4), XOR(3*4), XOR(4*4), XOR(5*4), XOR(6*4), XOR(7*4)},
-	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32,
-			8*32, 9*32, 10*32, 11*32, 12*32, 13*32, 14*32, 15*32 },
-	64*8     /* every sprite takes 128 consecutive bytes */
+	{ STEP8(0, 4) },
+	{ STEP16(0, 4*8) },
+	4*8*16
 };
 
 static const gfx_layout spritelayout168 =
 {
 	16,8,   /* 16*8 sprites */
-	1024,   /* 1024 sprites */
+	RGN_FRAC(1,1),
 	4,  /* 4 bits per pixel */
 	{ 0, 1, 2, 3 }, /* the two bitplanes are merged in the same nibble */
-	{ XOR(0*4), XOR(1*4), XOR(2*4), XOR(3*4), XOR(4*4), XOR(5*4), XOR(6*4), XOR(7*4),
-			XOR(8*4), XOR(9*4), XOR(10*4), XOR(11*4), XOR(12*4), XOR(13*4), XOR(14*4), XOR(15*4)},
-	{ 0*64, 1*64, 2*64, 3*64, 4*64, 5*64, 6*64, 7*64},
-	64*8     /* every sprite takes 128 consecutive bytes */
-
+	{ STEP16(0, 4) },
+	{ STEP8(0, 4*16) },
+	4*16*8
 };
 
-static const UINT32 spritelayout6464_xoffset[64] =
-{
-	XOR(0*4), XOR(1*4), XOR(2*4), XOR(3*4), XOR(4*4), XOR(5*4), XOR(6*4), XOR(7*4),
-	XOR(8*4), XOR(9*4), XOR(10*4), XOR(11*4), XOR(12*4), XOR(13*4), XOR(14*4), XOR(15*4),
-	XOR(16*4),XOR(17*4), XOR(18*4), XOR(19*4), XOR(20*4), XOR(21*4), XOR(22*4), XOR(23*4),
-	XOR(24*4),XOR(25*4), XOR(26*4), XOR(27*4), XOR(28*4), XOR(29*4), XOR(30*4), XOR(31*4),
-	XOR(32*4),XOR(33*4), XOR(34*4), XOR(35*4), XOR(36*4), XOR(37*4), XOR(38*4), XOR(39*4),
-	XOR(40*4),XOR(41*4), XOR(42*4), XOR(43*4), XOR(44*4), XOR(45*4), XOR(46*4), XOR(47*4),
-	XOR(48*4),XOR(49*4), XOR(50*4), XOR(51*4), XOR(52*4), XOR(53*4), XOR(54*4), XOR(55*4),
-	XOR(56*4),XOR(57*4), XOR(58*4), XOR(59*4), XOR(60*4), XOR(61*4), XOR(62*4), XOR(63*4)
-};
+static const UINT32 spritelayout6464_xoffset[64] = { STEP64(0, 4) };
 
-static const UINT32 spritelayout6464_yoffset[64] =
-{
-	0*256, 1*256, 2*256, 3*256, 4*256, 5*256, 6*256, 7*256,
-	8*256, 9*256, 10*256, 11*256, 12*256, 13*256, 14*256, 15*256,
-	16*256, 17*256, 18*256, 19*256, 20*256, 21*256, 22*256, 23*256,
-	24*256, 25*256, 26*256, 27*256, 28*256, 29*256, 30*256, 31*256,
-	32*256, 33*256, 34*256, 35*256, 36*256, 37*256, 38*256, 39*256,
-	40*256, 41*256, 42*256, 43*256, 44*256, 45*256, 46*256, 47*256,
-	48*256, 49*256, 50*256, 51*256, 52*256, 53*256, 54*256, 55*256,
-	56*256, 57*256, 58*256, 59*256, 60*256, 61*256, 62*256, 63*256
-};
+static const UINT32 spritelayout6464_yoffset[64] = { STEP64(0, 4*64) };
 
 static const gfx_layout spritelayout6464 =
 {
-	64,64,  /* 32*32 sprites */
-	32, /* 128 sprites */
+	64,64,  /* 64*64 sprites */
+	RGN_FRAC(1,1),
 	4,  /* 4 bits per pixel */
 	{ 0, 1, 2, 3 },
 	EXTENDED_XOFFS,
 	EXTENDED_YOFFS,
-	2048*8,     /* every sprite takes 128 consecutive bytes */
+	4*64*64,
 	spritelayout6464_xoffset,
 	spritelayout6464_yoffset
 };
 
 static GFXDECODE_START( nemesis )
-	GFXDECODE_ENTRY( NULL, 0x0, charlayout,   0, 0x80 ) /* the game dynamically modifies this */
-	GFXDECODE_ENTRY( NULL, 0x0, spritelayout, 0, 0x80 ) /* the game dynamically modifies this */
-	GFXDECODE_ENTRY( NULL, 0x0, spritelayout3216, 0, 0x80 ) /* the game dynamically modifies this */
-	GFXDECODE_ENTRY( NULL, 0x0, spritelayout816, 0, 0x80 )  /* the game dynamically modifies this */
-	GFXDECODE_ENTRY( NULL, 0x0, spritelayout3232, 0, 0x80 ) /* the game dynamically modifies this */
-	GFXDECODE_ENTRY( NULL, 0x0, spritelayout1632, 0, 0x80 ) /* the game dynamically modifies this */
-	GFXDECODE_ENTRY( NULL, 0x0, spritelayout168, 0, 0x80 )  /* the game dynamically modifies this */
-	GFXDECODE_ENTRY( NULL, 0x0, spritelayout6464, 0, 0x80 ) /* the game dynamically modifies this */
+	GFXDECODE_RAM( "charram", 0x0, charlayout,   0, 0x80 )
+	GFXDECODE_RAM( "charram", 0x0, spritelayout, 0, 0x80 )
+	GFXDECODE_RAM( "charram", 0x0, spritelayout3216, 0, 0x80 )
+	GFXDECODE_RAM( "charram", 0x0, spritelayout816, 0, 0x80 )
+	GFXDECODE_RAM( "charram", 0x0, spritelayout3232, 0, 0x80 )
+	GFXDECODE_RAM( "charram", 0x0, spritelayout1632, 0, 0x80 )
+	GFXDECODE_RAM( "charram", 0x0, spritelayout168, 0, 0x80 )
+	GFXDECODE_RAM( "charram", 0x0, spritelayout6464, 0, 0x80 )
 GFXDECODE_END
 
 /******************************************************************************/
 
-static const ay8910_interface ay8910_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(nemesis_state,nemesis_portA_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface ay8910_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER("k005289", k005289_device, k005289_control_A_w),
-	DEVCB_DEVICE_MEMBER("k005289", k005289_device, k005289_control_B_w)
-};
-
 WRITE_LINE_MEMBER(nemesis_state::sound_irq)
 {
 /* Interrupts _are_ generated, I wonder where they go.. */
-// nemesis_state *driver_state = device->machine().driver_data<nemesis_state>();
-// driver_state->audiocpu->set_input_line(0, HOLD_LINE);
+// m_audiocpu->set_input_line(0, HOLD_LINE);
 }
 
 WRITE8_MEMBER(nemesis_state::volume_callback)
@@ -1489,11 +1436,6 @@ WRITE8_MEMBER(nemesis_state::volume_callback)
 	m_k007232->set_volume(0, (data >> 4) * 0x11, 0);
 	m_k007232->set_volume(1, 0, (data & 0x0f) * 0x11);
 }
-
-static const k007232_interface k007232_config =
-{
-	DEVCB_DRIVER_MEMBER(nemesis_state,volume_callback) /* external port callback */
-};
 
 /******************************************************************************/
 
@@ -1510,6 +1452,10 @@ void nemesis_state::machine_start()
 	save_item(NAME(m_tilemap_flip));
 	save_item(NAME(m_flipscreen));
 	save_item(NAME(m_irq_port_last));
+
+	/* gx400 voice data is not in a ROM but in sound RAM at $8000 */
+	if (m_vlm != NULL && memregion("vlm")->bytes() == 0x800)
+		m_vlm->set_rom(m_voiceram);
 }
 
 void nemesis_state::machine_reset()
@@ -1546,27 +1492,38 @@ static MACHINE_CONFIG_START( nemesis, nemesis_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nemesis_state, screen_update_nemesis)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nemesis)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nemesis)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 14318180/8)
-	MCFG_SOUND_CONFIG(ay8910_interface_1)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40) /* verified with OST */
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_LEGACY_OUTPUT | AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(nemesis_state, nemesis_portA_r))
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "filter1", 0.20)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 14318180/8)
-	MCFG_SOUND_CONFIG(ay8910_interface_2)   /* fixed */
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00) /* verified with OST */
+	MCFG_AY8910_PORT_A_WRITE_CB(DEVWRITE8("k005289", k005289_device, k005289_control_A_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("k005289", k005289_device, k005289_control_B_w))
+	MCFG_SOUND_ROUTE(0, "filter2", 1.00)
+	MCFG_SOUND_ROUTE(1, "filter3", 1.00)
+	MCFG_SOUND_ROUTE(2, "filter4", 1.00)
 
-	MCFG_K005289_ADD("k005289", 3579545/2)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35) /* verified with OST */
+	MCFG_FILTER_RC_ADD("filter1", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter2", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter3", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter4", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
-	MCFG_SOUND_ADD("vlm", VLM5030, 3579545)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70) /* unused */
+	MCFG_K005289_ADD("k005289", 3579545)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35)
 MACHINE_CONFIG_END
 
 
@@ -1589,27 +1546,41 @@ static MACHINE_CONFIG_START( gx400, nemesis_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nemesis_state, screen_update_nemesis)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nemesis)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nemesis)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 14318180/8)
-	MCFG_SOUND_CONFIG(ay8910_interface_1)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40) /* verified with OST */
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_LEGACY_OUTPUT | AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(nemesis_state, nemesis_portA_r))
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "filter1", 0.20)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 14318180/8)
-	MCFG_SOUND_CONFIG(ay8910_interface_2)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00) /* verified with OST */
+	MCFG_AY8910_PORT_A_WRITE_CB(DEVWRITE8("k005289", k005289_device, k005289_control_A_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("k005289", k005289_device, k005289_control_B_w))
+	MCFG_SOUND_ROUTE(0, "filter2", 1.00)
+	MCFG_SOUND_ROUTE(1, "filter3", 1.00)
+	MCFG_SOUND_ROUTE(2, "filter4", 1.00)
 
-	MCFG_K005289_ADD("k005289", 3579545/2)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35) /* verified with OST */
+	MCFG_FILTER_RC_ADD("filter1", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter2", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter3", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter4", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+
+	MCFG_K005289_ADD("k005289", 3579545)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, 3579545)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70) /* unused */
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
 
@@ -1631,23 +1602,37 @@ static MACHINE_CONFIG_START( konamigt, nemesis_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nemesis_state, screen_update_nemesis)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nemesis)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nemesis)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 14318180/8)
-	MCFG_SOUND_CONFIG(ay8910_interface_1)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.85)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_LEGACY_OUTPUT | AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(nemesis_state, nemesis_portA_r))
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "filter1", 0.20)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 14318180/8)
-	MCFG_SOUND_CONFIG(ay8910_interface_2)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
+	MCFG_AY8910_PORT_A_WRITE_CB(DEVWRITE8("k005289", k005289_device, k005289_control_A_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("k005289", k005289_device, k005289_control_B_w))
+	MCFG_SOUND_ROUTE(0, "filter2", 1.00)
+	MCFG_SOUND_ROUTE(1, "filter3", 1.00)
+	MCFG_SOUND_ROUTE(2, "filter4", 1.00)
 
-	MCFG_K005289_ADD("k005289", 3579545/2)
+	MCFG_FILTER_RC_ADD("filter1", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter2", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter3", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter4", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+
+	MCFG_K005289_ADD("k005289", 3579545)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 MACHINE_CONFIG_END
 
@@ -1671,23 +1656,37 @@ static MACHINE_CONFIG_START( rf2_gx400, nemesis_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nemesis_state, screen_update_nemesis)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nemesis)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nemesis)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 14318180/8)
-	MCFG_SOUND_CONFIG(ay8910_interface_1)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.85)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_LEGACY_OUTPUT | AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(nemesis_state, nemesis_portA_r))
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "filter1", 0.20)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 14318180/8)
-	MCFG_SOUND_CONFIG(ay8910_interface_2)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
+	MCFG_AY8910_PORT_A_WRITE_CB(DEVWRITE8("k005289", k005289_device, k005289_control_A_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("k005289", k005289_device, k005289_control_B_w))
+	MCFG_SOUND_ROUTE(0, "filter2", 1.00)
+	MCFG_SOUND_ROUTE(1, "filter3", 1.00)
+	MCFG_SOUND_ROUTE(2, "filter4", 1.00)
 
-	MCFG_K005289_ADD("k005289", 3579545/2)
+	MCFG_FILTER_RC_ADD("filter1", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter2", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter3", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter4", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+
+	MCFG_K005289_ADD("k005289", 3579545)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, 3579545)
@@ -1707,18 +1706,19 @@ static MACHINE_CONFIG_START( salamand, nemesis_state )
 
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE((18432000.0/4)/(288*264))      /* 60.606060 Hz */
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC((264-256)*125/2))
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nemesis_state, screen_update_nemesis)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nemesis)
-	MCFG_PALETTE_LENGTH(2048)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nemesis)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	MCFG_PALETTE_MEMBITS(8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -1728,7 +1728,7 @@ static MACHINE_CONFIG_START( salamand, nemesis_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 2.50)
 
 	MCFG_SOUND_ADD("k007232", K007232, 3579545)
-	MCFG_SOUND_CONFIG(k007232_config)
+	MCFG_K007232_PORT_WRITE_HANDLER(WRITE8(nemesis_state, volume_callback))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.08)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.08)
 	MCFG_SOUND_ROUTE(1, "lspeaker", 0.08)
@@ -1753,24 +1753,25 @@ static MACHINE_CONFIG_START( blkpnthr, nemesis_state )
 
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE((18432000.0/4)/(288*264))      /* 60.606060 Hz */
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nemesis_state, screen_update_nemesis)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nemesis)
-	MCFG_PALETTE_LENGTH(2048)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nemesis)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	MCFG_PALETTE_MEMBITS(8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("k007232", K007232, 3579545)
-	MCFG_SOUND_CONFIG(k007232_config)
+	MCFG_K007232_PORT_WRITE_HANDLER(WRITE8(nemesis_state, volume_callback))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.10)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.10)
 	MCFG_SOUND_ROUTE(1, "lspeaker", 0.10)
@@ -1795,24 +1796,25 @@ static MACHINE_CONFIG_START( citybomb, nemesis_state )
 
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE((18432000.0/4)/(288*264))      /* 60.606060 Hz */
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nemesis_state, screen_update_nemesis)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nemesis)
-	MCFG_PALETTE_LENGTH(2048)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nemesis)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	MCFG_PALETTE_MEMBITS(8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("k007232", K007232, 3579545)
-	MCFG_SOUND_CONFIG(k007232_config)
+	MCFG_K007232_PORT_WRITE_HANDLER(WRITE8(nemesis_state, volume_callback))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.30)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.30)
 	MCFG_SOUND_ROUTE(1, "lspeaker", 0.30)
@@ -1841,24 +1843,25 @@ static MACHINE_CONFIG_START( nyanpani, nemesis_state )
 
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE((18432000.0/4)/(288*264))      /* 60.606060 Hz */
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nemesis_state, screen_update_nemesis)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nemesis)
-	MCFG_PALETTE_LENGTH(2048)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nemesis)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	MCFG_PALETTE_MEMBITS(8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("k007232", K007232, 3579545)
-	MCFG_SOUND_CONFIG(k007232_config)
+	MCFG_K007232_PORT_WRITE_HANDLER(WRITE8(nemesis_state, volume_callback))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.30)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.30)
 	MCFG_SOUND_ROUTE(1, "lspeaker", 0.30)
@@ -1893,10 +1896,12 @@ static MACHINE_CONFIG_START( hcrash, nemesis_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nemesis_state, screen_update_nemesis)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nemesis)
-	MCFG_PALETTE_LENGTH(2048)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nemesis)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	MCFG_PALETTE_MEMBITS(8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -1906,7 +1911,7 @@ static MACHINE_CONFIG_START( hcrash, nemesis_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.60)
 
 	MCFG_SOUND_ADD("k007232", K007232, 3579545)
-	MCFG_SOUND_CONFIG(k007232_config)
+	MCFG_K007232_PORT_WRITE_HANDLER(WRITE8(nemesis_state, volume_callback))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.10)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.10)
 	MCFG_SOUND_ROUTE(1, "lspeaker", 0.10)
@@ -1994,6 +1999,8 @@ ROM_START( rf2 )
 	ROM_REGION( 0x0200,  "k005289", 0 )      /* 2x 256 byte for 0005289 wavetable data */
 	ROM_LOAD(      "400-a01.fse",  0x00000, 0x0100, CRC(5827b1e8) SHA1(fa8cf5f868cfb08bce203baaebb6c4055ee2a000) )
 	ROM_LOAD(      "400-a02.fse",  0x00100, 0x0100, CRC(2f44f970) SHA1(7ab46f9d5d587665782cefc623b8de0124a6d38a) )
+
+	ROM_REGION( 0x800, "vlm", ROMREGION_ERASE00 ) /* dummy region to set the correct vlm address mask */
 ROM_END
 
 ROM_START( twinbee )
@@ -2009,6 +2016,8 @@ ROM_START( twinbee )
 	ROM_REGION( 0x0200,  "k005289", 0 )      /* 2x 256 byte for 0005289 wavetable data */
 	ROM_LOAD(      "400-a01.fse",  0x00000, 0x0100, CRC(5827b1e8) SHA1(fa8cf5f868cfb08bce203baaebb6c4055ee2a000) )
 	ROM_LOAD(      "400-a02.fse",  0x00100, 0x0100, CRC(2f44f970) SHA1(7ab46f9d5d587665782cefc623b8de0124a6d38a) )
+
+	ROM_REGION( 0x800, "vlm", ROMREGION_ERASE00 ) /* dummy region to set the correct vlm address mask */
 ROM_END
 
 ROM_START( gradius )
@@ -2024,6 +2033,8 @@ ROM_START( gradius )
 	ROM_REGION( 0x0200,  "k005289", 0 )      /* 2x 256 byte for 0005289 wavetable data */
 	ROM_LOAD(      "400-a01.fse",  0x00000, 0x0100, CRC(5827b1e8) SHA1(fa8cf5f868cfb08bce203baaebb6c4055ee2a000) )
 	ROM_LOAD(      "400-a02.fse",  0x00100, 0x0100, CRC(2f44f970) SHA1(7ab46f9d5d587665782cefc623b8de0124a6d38a) )
+
+	ROM_REGION( 0x800, "vlm", ROMREGION_ERASE00 ) /* dummy region to set the correct vlm address mask */
 ROM_END
 
 ROM_START( gwarrior )
@@ -2039,6 +2050,8 @@ ROM_START( gwarrior )
 	ROM_REGION( 0x0200,  "k005289", 0 )      /* 2x 256 byte for 0005289 wavetable data */
 	ROM_LOAD(      "400-a01.fse",  0x00000, 0x0100, CRC(5827b1e8) SHA1(fa8cf5f868cfb08bce203baaebb6c4055ee2a000) )
 	ROM_LOAD(      "400-a02.fse",  0x00100, 0x0100, CRC(2f44f970) SHA1(7ab46f9d5d587665782cefc623b8de0124a6d38a) )
+
+	ROM_REGION( 0x800, "vlm", ROMREGION_ERASE00 ) /* dummy region to set the correct vlm address mask */
 ROM_END
 
 ROM_START( salamand )
@@ -2051,7 +2064,7 @@ ROM_START( salamand )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for sound */
 	ROM_LOAD(      "587-d09.11j",      0x00000, 0x08000, CRC(5020972c) SHA1(04c752c3b7fd850a8a51ecd230b39e6edde9dd7e) )
 
-	ROM_REGION( 0x04000, "vlm", 0 )    /* VLM5030 data? */
+	ROM_REGION( 0x04000, "vlm", 0 )    /* VLM5030 data */
 	ROM_LOAD(      "587-d08.8g",       0x00000, 0x04000, CRC(f9ac6b82) SHA1(3370fc3a7f82e922e19d54afb3bca7b07fa4aa9a) )
 
 	ROM_REGION( 0x20000, "k007232", 0 )    /* 007232 data */
@@ -2068,7 +2081,7 @@ ROM_START( salamandj )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for sound */
 	ROM_LOAD(      "587-d09.11j",      0x00000, 0x08000, CRC(5020972c) SHA1(04c752c3b7fd850a8a51ecd230b39e6edde9dd7e) )
 
-	ROM_REGION( 0x04000, "vlm", 0 )    /* VLM5030 data? */
+	ROM_REGION( 0x04000, "vlm", 0 )    /* VLM5030 data */
 	ROM_LOAD(      "587-d08.8g",       0x00000, 0x04000, CRC(f9ac6b82) SHA1(3370fc3a7f82e922e19d54afb3bca7b07fa4aa9a) )
 
 	ROM_REGION( 0x20000, "k007232", 0 )    /* 007232 data */
@@ -2085,7 +2098,7 @@ ROM_START( lifefrce )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for sound */
 	ROM_LOAD(      "587-k09.11j",  0x00000, 0x08000, CRC(2255fe8c) SHA1(6ee35575a15f593642b29020857ec466094ef495) )
 
-	ROM_REGION( 0x04000, "vlm", 0 )    /* VLM5030 data? */
+	ROM_REGION( 0x04000, "vlm", 0 )    /* VLM5030 data */
 	ROM_LOAD(      "587-k08.8g",  0x00000, 0x04000, CRC(7f0e9b41) SHA1(c9fc2723fac55691dfbb4cf9b3c472a42efa97c9) )
 
 	ROM_REGION( 0x20000, "k007232", 0 )    /* 007232 data */
@@ -2102,7 +2115,7 @@ ROM_START( lifefrcej )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for sound */
 	ROM_LOAD(      "587-n09.11j",  0x00000, 0x08000, CRC(e8496150) SHA1(c7d40b6dc56849dfd8d080f1aaebad36c88d93df) )
 
-	ROM_REGION( 0x04000, "vlm", 0 )    /* VLM5030 data? */
+	ROM_REGION( 0x04000, "vlm", 0 )    /* VLM5030 data */
 	ROM_LOAD(      "587-k08.8g",  0x00000, 0x04000, CRC(7f0e9b41) SHA1(c9fc2723fac55691dfbb4cf9b3c472a42efa97c9) )
 
 	ROM_REGION( 0x20000, "k007232", 0 )    /* 007232 data */
@@ -2333,7 +2346,7 @@ ROM_END
 
 GAME( 1985, nemesis,   0,         nemesis,    nemesis, driver_device,   0,    ROT0,   "Konami", "Nemesis (ROM version)",  GAME_SUPPORTS_SAVE )
 GAME( 1985, nemesisuk, nemesis,   nemesis,    nemesuk, driver_device,   0,    ROT0,   "Konami", "Nemesis (World?, ROM version)",  GAME_SUPPORTS_SAVE )
-GAME( 1985, konamigt,  0,         konamigt,   konamigt, driver_device,  0,    ROT0,   "Konami", "Konami GT",  GAME_SUPPORTS_SAVE )
+GAMEL(1985, konamigt,  0,         konamigt,   konamigt, driver_device,  0,    ROT0,   "Konami", "Konami GT",  GAME_SUPPORTS_SAVE, layout_konamigt )
 GAME( 1985, rf2,       konamigt,  rf2_gx400,  rf2, driver_device,       0,    ROT0,   "Konami", "Konami RF2 - Red Fighter",  GAME_SUPPORTS_SAVE )
 GAME( 1985, twinbee,   0,         gx400,      twinbee, driver_device,   0,    ROT90,  "Konami", "TwinBee (ROM version)",  GAME_SUPPORTS_SAVE )
 GAME( 1985, gradius,   nemesis,   gx400,      gradius, driver_device,   0,    ROT0,   "Konami", "Gradius (Japan, ROM version)",  GAME_SUPPORTS_SAVE )
@@ -2433,7 +2446,7 @@ Notes:
       VLM5030 - clock 1.7897725MHz [3.579545/2]
       AY3-8910 - clock 3.579545MHz
       400A1.2B / 400A2.1B - Texas Instruments TBP24S10 Bipolar PROMs
-                            Connected to 0005289, maybe MCU code?
+                            Connected to 0005289 (wavetable data)
       400B03.8G - 2764 EPROM
       2128 - 2kx8 SRAM
       6264 - 8kx8 SRAM
@@ -2441,10 +2454,7 @@ Notes:
       VSync - 60Hz
       HSync - 15.52kHz
 
-      Custom Chips - 0005289 (DIP42, possibly MCU?), 0005297 (SDIP64)
-      NOTE! Removing the 0005289 results in the music at start-up having missing notes,
-      as if only one of the AY3-8910's is being used. The game otherwise boots fine and
-      appears to play perfectly without any noticeable errors or missing graphics or sounds.
+      Custom Chips - 0005289 (DIP42, wavetable sound chip), 0005297 (SDIP64)
 
 
 Bottom PCB
@@ -2630,7 +2640,7 @@ static MACHINE_CONFIG_START( bubsys, nemesis_state )
 
 	MCFG_CPU_ADD("audiocpu", Z80,14318180/4)        /* 3.579545 MHz */
 	MCFG_CPU_PROGRAM_MAP(gx400_sound_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", nemesis_state,  nmi_line_pulse)    /* interrupts are triggered by the main CPU */
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", nemesis_state, nmi_line_pulse)    /* interrupts are triggered by the main CPU */
 
 
 	/* video hardware */
@@ -2640,27 +2650,41 @@ static MACHINE_CONFIG_START( bubsys, nemesis_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nemesis_state, screen_update_nemesis)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nemesis)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nemesis)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 14318180/8)
-	MCFG_SOUND_CONFIG(ay8910_interface_1)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40) /* verified with OST */
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_LEGACY_OUTPUT | AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(nemesis_state, nemesis_portA_r))
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "filter1", 0.20)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 14318180/8)
-	MCFG_SOUND_CONFIG(ay8910_interface_2)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00) /* verified with OST */
+	MCFG_AY8910_PORT_A_WRITE_CB(DEVWRITE8("k005289", k005289_device, k005289_control_A_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("k005289", k005289_device, k005289_control_B_w))
+	MCFG_SOUND_ROUTE(0, "filter2", 1.00)
+	MCFG_SOUND_ROUTE(1, "filter3", 1.00)
+	MCFG_SOUND_ROUTE(2, "filter4", 1.00)
 
-	MCFG_SOUND_ADD("k005289", K005289, 3579545/2)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35) /* verified with OST */
+	MCFG_FILTER_RC_ADD("filter1", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter2", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter3", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter4", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+
+	MCFG_K005289_ADD("k005289", 3579545)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, 3579545)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70) /* unused */
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
 
@@ -2678,6 +2702,8 @@ ROM_START( bubsys )
 	ROM_REGION( 0x0200,  "k005289", 0 )      /* 2x 256 byte for 0005289 wavetable data */
 	ROM_LOAD( "400a1.2b", 0x000, 0x100, CRC(5827b1e8) SHA1(fa8cf5f868cfb08bce203baaebb6c4055ee2a000) )
 	ROM_LOAD( "400a2.1b", 0x100, 0x100, CRC(2f44f970) SHA1(7ab46f9d5d587665782cefc623b8de0124a6d38a) )
+
+	ROM_REGION( 0x800, "vlm", ROMREGION_ERASE00 ) /* dummy region to set the correct vlm address mask */
 
 	ROM_REGION( 0x4000, "sram", 0 ) // raw RAM dumps, just for emulation aid, to be removed ...
 	ROM_LOAD( "sram1.ic1", 0x0000, 0x2000, CRC(45fc9453) SHA1(eeb4ff2c2c9d3b6ea9d0f0e8fd4873f2cce2cff9) )

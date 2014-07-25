@@ -450,7 +450,9 @@ public:
 		m_tileram(*this, "tileram"),
 		m_colram(*this, "colram"),
 		m_maincpu(*this, "maincpu"),
-		m_msm(*this, "msm") { }
+		m_msm(*this, "msm"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8>  m_nvram;
 	required_shared_ptr<UINT8> m_workram;
@@ -485,6 +487,8 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(mastboy_adpcm_int);
 	required_device<cpu_device> m_maincpu;
 	required_device<msm5205_device> m_msm;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -492,7 +496,7 @@ public:
 
 void mastboy_state::video_start()
 {
-	machine().gfx[0]->set_source(m_vram);
+	m_gfxdecode->gfx(0)->set_source(m_vram);
 }
 
 UINT32 mastboy_state::screen_update_mastboy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -504,7 +508,7 @@ UINT32 mastboy_state::screen_update_mastboy(screen_device &screen, bitmap_ind16 
 	{
 		int coldat = m_colram[i+1] |  (m_colram[i+0]<<8);
 
-		palette_set_color_rgb(machine(),i/2,pal4bit(coldat>>8),pal4bit(coldat>>12),pal4bit(coldat>>4));
+		m_palette->set_pen_color(i/2,pal4bit(coldat>>8),pal4bit(coldat>>12),pal4bit(coldat>>4));
 	}
 
 	for (y=0;y<32;y++)
@@ -518,16 +522,16 @@ UINT32 mastboy_state::screen_update_mastboy(screen_device &screen, bitmap_ind16 
 
 			if (tileno&0x800)
 			{
-				gfx = machine().gfx[1];
+				gfx = m_gfxdecode->gfx(1);
 				tileno &=0x7ff;
 			}
 			else
 			{
-				gfx = machine().gfx[0];
+				gfx = m_gfxdecode->gfx(0);
 			}
 
 
-			drawgfx_opaque(bitmap,cliprect,gfx,tileno,attr,0,0,x*8,y*8);
+			gfx->opaque(bitmap,cliprect,tileno,attr,0,0,x*8,y*8);
 
 			count+=4;
 
@@ -596,7 +600,7 @@ WRITE8_MEMBER(mastboy_state::banked_ram_w)
 			m_vram[offs] = data^0xff;
 
 			/* Decode the new tile */
-			machine().gfx[0]->mark_dirty(offs/32);
+			m_gfxdecode->gfx(0)->mark_dirty(offs/32);
 		}
 	}
 	else
@@ -677,12 +681,6 @@ WRITE_LINE_MEMBER(mastboy_state::mastboy_adpcm_int)
 		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(mastboy_state,mastboy_adpcm_int),  /* interrupt function */
-	MSM5205_SEX_4B      /* 4KHz 4-bit */
-};
 
 /* Interrupt Handling */
 
@@ -899,9 +897,10 @@ static MACHINE_CONFIG_START( mastboy, mastboy_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mastboy_state, screen_update_mastboy)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mastboy)
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mastboy)
+	MCFG_PALETTE_ADD("palette", 0x100)
 
 
 	// sound hardware
@@ -910,7 +909,8 @@ static MACHINE_CONFIG_START( mastboy, mastboy_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(mastboy_state, mastboy_adpcm_int))  /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_SEX_4B)      /* 4KHz 4-bit */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

@@ -1,8 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*********************************************************************
 
     formats/d64_dsk.h
 
-    Commodore 2040/1541/1571 sector disk image format
+    Commodore 4040/1541/1551 sector disk image format
 
 *********************************************************************/
 
@@ -34,7 +36,6 @@ public:
 
 	virtual int identify(io_generic *io, UINT32 form_factor);
 	virtual bool load(io_generic *io, UINT32 form_factor, floppy_image *image);
-	virtual bool save(io_generic *io, floppy_image *image);
 	virtual bool supports_save() const;
 
 protected:
@@ -57,14 +58,13 @@ protected:
 	const format *formats;
 
 	int find_size(io_generic *io, UINT32 form_factor);
-	virtual int get_physical_track(const format &f, int track);
+	virtual int get_physical_track(const format &f, int head, int track);
 	virtual UINT32 get_cell_size(const format &f, int track);
 	virtual int get_sectors_per_track(const format &f, int track);
 	virtual int get_disk_id_offset(const format &f);
 	void get_disk_id(const format &f, io_generic *io, UINT8 &id1, UINT8 &id2);
-	floppy_image_format_t::desc_e* get_sector_desc(const format &f, int &current_size, int track, int sector_count, UINT8 id1, UINT8 id2, int gap_2);
-	void build_sector_description(const format &f, UINT8 *sectdata, desc_s *sectors, int sector_count, UINT8 *errordata) const;
-	void extract_sectors(floppy_image *image, const format &f, desc_s *sdesc, int track, int head);
+	floppy_image_format_t::desc_e* get_sector_desc(const format &f, int &current_size, int sector_count, UINT8 id1, UINT8 id2, int gap_2);
+	void build_sector_description(const format &f, UINT8 *sectdata, offs_t sect_offs, offs_t error_offs, desc_s *sectors, int sector_count) const;
 
 	static const format file_formats[];
 

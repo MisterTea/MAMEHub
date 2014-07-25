@@ -1,37 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Sega 16-bit common hardware
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -75,7 +46,9 @@ sega_16bit_common_base::sega_16bit_common_base(const machine_config &mconfig, de
 	: driver_device(mconfig, type, tag),
 		m_paletteram(*this, "paletteram"),
 		m_open_bus_recurse(false),
-		m_palette_entries(0)
+		m_palette_entries(0),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")
 {
 	palette_init();
 }
@@ -186,9 +159,9 @@ WRITE16_MEMBER( sega_16bit_common_base::paletteram_w )
 	int b = ((newval >> 14) & 0x01) | ((newval >> 7) & 0x1e);
 
 	// normal colors
-	palette_set_color_rgb(machine(), offset + 0 * m_palette_entries, m_palette_normal[r],  m_palette_normal[g],  m_palette_normal[b]);
-	palette_set_color_rgb(machine(), offset + 1 * m_palette_entries, m_palette_shadow[r],  m_palette_shadow[g],  m_palette_shadow[b]);
-	palette_set_color_rgb(machine(), offset + 2 * m_palette_entries, m_palette_hilight[r], m_palette_hilight[g], m_palette_hilight[b]);
+	m_palette->set_pen_color(offset + 0 * m_palette_entries, m_palette_normal[r],  m_palette_normal[g],  m_palette_normal[b]);
+	m_palette->set_pen_color(offset + 1 * m_palette_entries, m_palette_shadow[r],  m_palette_shadow[g],  m_palette_shadow[b]);
+	m_palette->set_pen_color(offset + 2 * m_palette_entries, m_palette_hilight[r], m_palette_hilight[g], m_palette_hilight[b]);
 }
 
 
@@ -257,7 +230,7 @@ WRITE8_MEMBER( sega_315_5195_mapper_device::write )
 	// wraps every 32 bytes
 	offset &= 0x1f;
 
-if (LOG_MEMORY_MAP) mame_printf_debug("(Write %02X = %02X)\n", offset, data);
+if (LOG_MEMORY_MAP) osd_printf_debug("(Write %02X = %02X)\n", offset, data);
 
 	// remember the previous value and swap in the new one
 	UINT8 oldval = m_regs[offset];
@@ -388,9 +361,9 @@ void sega_315_5195_mapper_device::map_as_rom(UINT32 offset, UINT32 length, offs_
 	compute_region(info, m_curregion, length, mirror, offset);
 	if (LOG_MEMORY_MAP)
 	{
-		mame_printf_debug("Map %06X-%06X (%06X) as ROM+%06X(%s)", info.start, info.end, info.mirror, rgnoffset, bank_name);
-		if (!whandler.isnull()) mame_printf_debug(" with handler=%s", whandler.name());
-		mame_printf_debug("\n");
+		osd_printf_debug("Map %06X-%06X (%06X) as ROM+%06X(%s)", info.start, info.end, info.mirror, rgnoffset, bank_name);
+		if (!whandler.isnull()) osd_printf_debug(" with handler=%s", whandler.name());
+		osd_printf_debug("\n");
 	}
 
 	// don't map if the start is past the end of the ROM region
@@ -438,9 +411,9 @@ void sega_315_5195_mapper_device::map_as_ram(UINT32 offset, UINT32 length, offs_
 	compute_region(info, m_curregion, length, mirror, offset);
 	if (LOG_MEMORY_MAP)
 	{
-		mame_printf_debug("Map %06X-%06X (%06X) as RAM(%s)", info.start, info.end, info.mirror, bank_share_name);
-		if (!whandler.isnull()) mame_printf_debug(" with handler=%s", whandler.name());
-		mame_printf_debug("\n");
+		osd_printf_debug("Map %06X-%06X (%06X) as RAM(%s)", info.start, info.end, info.mirror, bank_share_name);
+		if (!whandler.isnull()) osd_printf_debug(" with handler=%s", whandler.name());
+		osd_printf_debug("\n");
 	}
 
 	// map now
@@ -473,10 +446,10 @@ void sega_315_5195_mapper_device::map_as_handler(UINT32 offset, UINT32 length, o
 	compute_region(info, m_curregion, length, mirror, offset);
 	if (LOG_MEMORY_MAP)
 	{
-		mame_printf_debug("Map %06X-%06X (%06X) as handler", info.start, info.end, info.mirror);
-		if (!rhandler.isnull()) mame_printf_debug(" read=%s", rhandler.name());
-		if (!whandler.isnull()) mame_printf_debug(" write=%s", whandler.name());
-		mame_printf_debug("\n");
+		osd_printf_debug("Map %06X-%06X (%06X) as handler", info.start, info.end, info.mirror);
+		if (!rhandler.isnull()) osd_printf_debug(" read=%s", rhandler.name());
+		if (!whandler.isnull()) osd_printf_debug(" write=%s", whandler.name());
+		osd_printf_debug("\n");
 	}
 
 	// install read/write handlers
@@ -598,7 +571,7 @@ void sega_315_5195_mapper_device::compute_region(region_info &info, UINT8 index,
 
 void sega_315_5195_mapper_device::update_mapping()
 {
-	if (LOG_MEMORY_MAP) mame_printf_debug("----\nRemapping:\n");
+	if (LOG_MEMORY_MAP) osd_printf_debug("----\nRemapping:\n");
 
 	// first reset everything back to the beginning
 	m_space->install_readwrite_handler(0x000000, 0xffffff, read8_delegate(FUNC(sega_315_5195_mapper_device::read), this), write8_delegate(FUNC(sega_315_5195_mapper_device::write), this), 0x00ff);
@@ -628,8 +601,7 @@ sega_315_5195_mapper_device::decrypt_bank::decrypt_bank()
 		m_end(0),
 		m_rgnoffs(~0),
 		m_srcptr(NULL),
-		m_fd1089(NULL),
-		m_fd1094_cache(NULL)
+		m_fd1089(NULL)
 {
 	// invalidate all states
 	reset();
@@ -642,8 +614,6 @@ sega_315_5195_mapper_device::decrypt_bank::decrypt_bank()
 
 sega_315_5195_mapper_device::decrypt_bank::~decrypt_bank()
 {
-	// delete any allocated cache
-	global_free(m_fd1094_cache);
 }
 
 
@@ -658,14 +628,13 @@ void sega_315_5195_mapper_device::decrypt_bank::set_decrypt(fd1089_base_device *
 	m_fd1089 = fd1089;
 
 	// clear out all fd1094 stuff
-	delete m_fd1094_cache;
-	m_fd1094_cache = NULL;
+	m_fd1094_cache.reset();
 }
 
 void sega_315_5195_mapper_device::decrypt_bank::set_decrypt(fd1094_device *fd1094)
 {
 	// set the fd1094 pointer and allocate a decryption cache
-	m_fd1094_cache = global_alloc(fd1094_decryption_cache(*fd1094));
+	m_fd1094_cache.reset(global_alloc(fd1094_decryption_cache(*fd1094)));
 
 	// clear out all fd1089 stuff
 	m_fd1089 = NULL;

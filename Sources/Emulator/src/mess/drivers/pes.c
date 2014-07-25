@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Jonathan Gevaryahu
 /******************************************************************************
 *
 *  Pacific Educational Systems 'PES' Speech box
@@ -62,7 +64,6 @@ Address map:
 #include "includes/pes.h"
 #include "cpu/mcs51/mcs51.h"
 #include "sound/tms5220.h"
-#include "machine/terminal.h"
 
 /* Devices */
 WRITE8_MEMBER(pes_state::pes_kbd_input)
@@ -90,11 +91,6 @@ WRITE8_MEMBER(pes_state::pes_kbd_input)
 	m_maincpu->set_input_line(MCS51_RX_LINE, CLEAR_LINE);
 }
 
-static GENERIC_TERMINAL_INTERFACE( pes_terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(pes_state,pes_kbd_input)
-};
-
 /* Helper Functions */
 READ8_MEMBER( pes_state::data_to_i8031)
 {
@@ -120,31 +116,28 @@ WRITE8_MEMBER(pes_state::data_from_i8031)
 /* Port Handlers */
 WRITE8_MEMBER( pes_state::rsws_w )
 {
-	pes_state *state = machine().driver_data<pes_state>();
 	m_wsstate = data&0x1; // /ws is bit 0
 	m_rsstate = (data&0x2)>>1; // /rs is bit 1
 #ifdef DEBUG_PORTS
 	logerror("port0 write: RSWS states updated: /RS: %d, /WS: %d\n", m_rsstate, m_wsstate);
 #endif
-	state->m_speech->rsq_w(m_rsstate);
-	state->m_speech->wsq_w(m_wsstate);
+	m_speech->rsq_w(m_rsstate);
+	m_speech->wsq_w(m_wsstate);
 }
 
 WRITE8_MEMBER( pes_state::port1_w )
 {
-	pes_state *state = machine().driver_data<pes_state>();
 #ifdef DEBUG_PORTS
 	logerror("port1 write: tms5220 data written: %02X\n", data);
 #endif
-	state->m_speech->data_w(space, 0, data);
+	m_speech->data_w(space, 0, data);
 
 }
 
 READ8_MEMBER( pes_state::port1_r )
 {
 	UINT8 data = 0xFF;
-	pes_state *state = machine().driver_data<pes_state>();
-	data = state->m_speech->status_r(space, 0);
+	data = m_speech->status_r(space, 0);
 #ifdef DEBUG_PORTS
 	logerror("port1 read: tms5220 data read: 0x%02X\n", data);
 #endif
@@ -180,14 +173,13 @@ WRITE8_MEMBER( pes_state::port3_w )
 READ8_MEMBER( pes_state::port3_r )
 {
 	UINT8 data = m_port3_state & 0xE3; // return last written state with rts, /rdy and /int masked out
-	pes_state *state = machine().driver_data<pes_state>();
 	// check rts state; if virtual fifo is nonzero, rts is set, otherwise it is cleared
-	if (state->m_infifo_tail_ptr != state->m_infifo_head_ptr)
+	if (m_infifo_tail_ptr != m_infifo_head_ptr)
 	{
 		data |= 0x10; // set RTS bit
 	}
-	data |= (state->m_speech->intq_r()<<2);
-	data |= (state->m_speech->readyq_r()<<3);
+	data |= (m_speech->intq_r()<<2);
+	data |= (m_speech->readyq_r()<<3);
 #ifdef DEBUG_PORTS
 	logerror("port3 read: returning 0x%02X: ", data);
 	logerror("RXD: %d; ", BIT(data,0));
@@ -269,7 +261,8 @@ static MACHINE_CONFIG_START( pes, pes_state )
 	MCFG_SOUND_ADD("tms5220", TMS5220C, 720000) /* 720Khz clock, 10khz output */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG,pes_terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(pes_state, pes_kbd_input))
 MACHINE_CONFIG_END
 
 /******************************************************************************

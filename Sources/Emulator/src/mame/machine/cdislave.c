@@ -30,7 +30,7 @@ const device_type MACHINE_CDISLAVE = &device_creator<cdislave_device>;
 
 
 #if ENABLE_VERBOSE_LOG
-INLINE void verboselog(running_machine &machine, int n_level, const char *s_fmt, ...)
+INLINE void ATTR_PRINTF(3,4) verboselog(running_machine &machine, int n_level, const char *s_fmt, ...)
 {
 	if( VERBOSE_LEVEL >= n_level )
 	{
@@ -43,7 +43,7 @@ INLINE void verboselog(running_machine &machine, int n_level, const char *s_fmt,
 	}
 }
 #else
-#define verboselog(x,y,z,...)
+#define verboselog(x,y,z, ...)
 #endif
 
 //**************************************************************************
@@ -60,7 +60,7 @@ TIMER_CALLBACK_MEMBER( cdislave_device::trigger_readback_int )
 	m_interrupt_timer->adjust(attotime::never);
 }
 
-void cdislave_device::prepare_readback(attotime delay, UINT8 channel, UINT8 count, UINT8 data0, UINT8 data1, UINT8 data2, UINT8 data3, UINT8 cmd)
+void cdislave_device::prepare_readback(const attotime &delay, UINT8 channel, UINT8 count, UINT8 data0, UINT8 data1, UINT8 data2, UINT8 data3, UINT8 cmd)
 {
 	m_channel[channel].m_out_index = 0;
 	m_channel[channel].m_out_count = count;

@@ -64,8 +64,8 @@ TILE_GET_INFO_MEMBER(wrally_state::get_tile_info_wrally_screen1)
 
 void wrally_state::video_start()
 {
-	m_pant[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(wrally_state::get_tile_info_wrally_screen0),this),TILEMAP_SCAN_ROWS,16,16,64,32);
-	m_pant[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(wrally_state::get_tile_info_wrally_screen1),this),TILEMAP_SCAN_ROWS,16,16,64,32);
+	m_pant[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(wrally_state::get_tile_info_wrally_screen0),this),TILEMAP_SCAN_ROWS,16,16,64,32);
+	m_pant[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(wrally_state::get_tile_info_wrally_screen1),this),TILEMAP_SCAN_ROWS,16,16,64,32);
 
 	m_pant[0]->set_transmask(0,0xff01,0x00ff); /* this layer is split in two (pens 1..7, pens 8-15) */
 	m_pant[1]->set_transparent_pen(0);
@@ -104,7 +104,7 @@ void wrally_state::video_start()
 void wrally_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority)
 {
 	int i, px, py;
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 
 	for (i = 6/2; i < (0x1000 - 6)/2; i += 4) {
 		int sx = m_spriteram[i+2] & 0x03ff;
@@ -126,7 +126,7 @@ void wrally_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect,
 		}
 
 		if (!color_effect) {
-			drawgfx_transpen(bitmap,cliprect,gfx,number,
+			gfx->transpen(bitmap,cliprect,number,
 					0x20 + color,xflip,yflip,
 					sx - 0x0f,sy,0);
 		} else {

@@ -20,7 +20,9 @@ public:
 		m_videoram_bg(*this, "videorabg"),
 		m_spriteram(*this, "spriteram"),
 		m_maincpu(*this, "maincpu"),
-		m_oki(*this, "oki") { }
+		m_oki(*this, "oki"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_videoram_fg;
@@ -46,6 +48,8 @@ public:
 	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
 	required_device<cpu_device> m_maincpu;
 	required_device<okim6295_device> m_oki;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -86,7 +90,7 @@ TILE_GET_INFO_MEMBER(drtomy_state::get_tile_info_bg)
 void drtomy_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
 	int i, x, y, ex, ey;
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 
 	static const int x_offset[2] = {0x0, 0x2};
 	static const int y_offset[2] = {0x0, 0x1};
@@ -118,7 +122,7 @@ void drtomy_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 				ex = xflip ? (spr_size - 1 - x) : x;
 				ey = yflip ? (spr_size - 1 - y) : y;
 
-				drawgfx_transpen(bitmap,cliprect,gfx,number + x_offset[ex] + y_offset[ey],
+				gfx->transpen(bitmap,cliprect,number + x_offset[ex] + y_offset[ey],
 						color,xflip,yflip,
 						sx-0x09+x*8,sy+y*8,0);
 			}
@@ -128,8 +132,8 @@ void drtomy_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 
 void drtomy_state::video_start()
 {
-	m_tilemap_bg = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(drtomy_state::get_tile_info_bg),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_tilemap_fg = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(drtomy_state::get_tile_info_fg),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_tilemap_bg = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(drtomy_state::get_tile_info_bg),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_tilemap_fg = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(drtomy_state::get_tile_info_fg),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 
 	m_tilemap_fg->set_transparent_pen(0);
 }
@@ -169,7 +173,7 @@ static ADDRESS_MAP_START( drtomy_map, AS_PROGRAM, 16, drtomy_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM /* ROM */
 	AM_RANGE(0x100000, 0x100fff) AM_RAM_WRITE(drtomy_vram_fg_w) AM_SHARE("videorafg")   /* Video RAM FG */
 	AM_RANGE(0x101000, 0x101fff) AM_RAM_WRITE(drtomy_vram_bg_w) AM_SHARE("videorabg") /* Video RAM BG */
-	AM_RANGE(0x200000, 0x2007ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram") /* Palette */
+	AM_RANGE(0x200000, 0x2007ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") /* Palette */
 	AM_RANGE(0x440000, 0x440fff) AM_RAM AM_SHARE("spriteram") /* Sprite RAM */
 	AM_RANGE(0x700000, 0x700001) AM_READ_PORT("DSW1")
 	AM_RANGE(0x700002, 0x700003) AM_READ_PORT("DSW2")
@@ -307,9 +311,11 @@ static MACHINE_CONFIG_START( drtomy, drtomy_state )
 	MCFG_SCREEN_SIZE(32*16, 32*16)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 16, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(drtomy_state, screen_update_drtomy)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(drtomy)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", drtomy)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	/* sound hardware */

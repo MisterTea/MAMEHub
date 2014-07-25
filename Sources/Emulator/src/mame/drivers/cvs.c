@@ -109,9 +109,14 @@ Todo & FIXME:
  *
  *************************************/
 
+WRITE_LINE_MEMBER(cvs_state::write_s2650_flag)
+{
+	m_s2650_flag = state;
+}
+
 READ8_MEMBER(cvs_state::cvs_video_or_color_ram_r)
 {
-	if (*m_fo_state)
+	if (m_s2650_flag)
 		return m_video_ram[offset];
 	else
 		return m_color_ram[offset];
@@ -119,7 +124,7 @@ READ8_MEMBER(cvs_state::cvs_video_or_color_ram_r)
 
 WRITE8_MEMBER(cvs_state::cvs_video_or_color_ram_w)
 {
-	if (*m_fo_state)
+	if (m_s2650_flag)
 		m_video_ram[offset] = data;
 	else
 		m_color_ram[offset] = data;
@@ -128,7 +133,7 @@ WRITE8_MEMBER(cvs_state::cvs_video_or_color_ram_w)
 
 READ8_MEMBER(cvs_state::cvs_bullet_ram_or_palette_r)
 {
-	if (*m_fo_state)
+	if (m_s2650_flag)
 		return m_palette_ram[offset & 0x0f];
 	else
 		return m_bullet_ram[offset];
@@ -136,7 +141,7 @@ READ8_MEMBER(cvs_state::cvs_bullet_ram_or_palette_r)
 
 WRITE8_MEMBER(cvs_state::cvs_bullet_ram_or_palette_w)
 {
-	if (*m_fo_state)
+	if (m_s2650_flag)
 		m_palette_ram[offset & 0x0f] = data;
 	else
 		m_bullet_ram[offset] = data;
@@ -145,7 +150,7 @@ WRITE8_MEMBER(cvs_state::cvs_bullet_ram_or_palette_w)
 
 READ8_MEMBER(cvs_state::cvs_s2636_0_or_character_ram_r)
 {
-	if (*m_fo_state)
+	if (m_s2650_flag)
 		return m_character_ram[(0 * 0x800) | 0x400 | m_character_ram_page_start | offset];
 	else
 		return m_s2636_0->work_ram_r(space, offset);
@@ -153,11 +158,11 @@ READ8_MEMBER(cvs_state::cvs_s2636_0_or_character_ram_r)
 
 WRITE8_MEMBER(cvs_state::cvs_s2636_0_or_character_ram_w)
 {
-	if (*m_fo_state)
+	if (m_s2650_flag)
 	{
 		offset |= (0 * 0x800) | 0x400 | m_character_ram_page_start;
 		m_character_ram[offset] = data;
-		machine().gfx[1]->mark_dirty((offset / 8) % 256);
+		m_gfxdecode->gfx(1)->mark_dirty((offset / 8) % 256);
 	}
 	else
 		m_s2636_0->work_ram_w(space, offset, data);
@@ -166,7 +171,7 @@ WRITE8_MEMBER(cvs_state::cvs_s2636_0_or_character_ram_w)
 
 READ8_MEMBER(cvs_state::cvs_s2636_1_or_character_ram_r)
 {
-	if (*m_fo_state)
+	if (m_s2650_flag)
 		return m_character_ram[(1 * 0x800) | 0x400 | m_character_ram_page_start | offset];
 	else
 		return m_s2636_1->work_ram_r(space, offset);
@@ -174,11 +179,11 @@ READ8_MEMBER(cvs_state::cvs_s2636_1_or_character_ram_r)
 
 WRITE8_MEMBER(cvs_state::cvs_s2636_1_or_character_ram_w)
 {
-	if (*m_fo_state)
+	if (m_s2650_flag)
 	{
 		offset |= (1 * 0x800) | 0x400 | m_character_ram_page_start;
 		m_character_ram[offset] = data;
-		machine().gfx[1]->mark_dirty((offset / 8) % 256);
+		m_gfxdecode->gfx(1)->mark_dirty((offset / 8) % 256);
 	}
 	else
 		m_s2636_1->work_ram_w(space, offset, data);
@@ -187,7 +192,7 @@ WRITE8_MEMBER(cvs_state::cvs_s2636_1_or_character_ram_w)
 
 READ8_MEMBER(cvs_state::cvs_s2636_2_or_character_ram_r)
 {
-	if (*m_fo_state)
+	if (m_s2650_flag)
 		return m_character_ram[(2 * 0x800) | 0x400 | m_character_ram_page_start | offset];
 	else
 		return m_s2636_2->work_ram_r(space, offset);
@@ -195,11 +200,11 @@ READ8_MEMBER(cvs_state::cvs_s2636_2_or_character_ram_r)
 
 WRITE8_MEMBER(cvs_state::cvs_s2636_2_or_character_ram_w)
 {
-	if (*m_fo_state)
+	if (m_s2650_flag)
 	{
 		offset |= (2 * 0x800) | 0x400 | m_character_ram_page_start;
 		m_character_ram[offset] = data;
-		machine().gfx[1]->mark_dirty((offset / 8) % 256);
+		m_gfxdecode->gfx(1)->mark_dirty((offset / 8) % 256);
 	}
 	else
 		m_s2636_2->work_ram_w(space, offset, data);
@@ -401,29 +406,20 @@ WRITE8_MEMBER(cvs_state::cvs_tms5110_pdc_w)
 }
 
 
-static int speech_rom_read_bit( device_t *device )
+READ_LINE_MEMBER(cvs_state::speech_rom_read_bit)
 {
-	cvs_state *state = device->machine().driver_data<cvs_state>();
-	UINT8 *ROM = state->memregion("speechdata")->base();
 	int bit;
+	UINT8 *ROM = memregion("speechdata")->base();
 
 	/* before reading the bit, clamp the address to the region length */
-	state->m_speech_rom_bit_address = state->m_speech_rom_bit_address & ((state->memregion("speechdata")->bytes() * 8) - 1);
-	bit = (ROM[state->m_speech_rom_bit_address >> 3] >> (state->m_speech_rom_bit_address & 0x07)) & 0x01;
+	m_speech_rom_bit_address &= ((memregion("speechdata")->bytes() * 8) - 1);
+	bit = BIT(ROM[m_speech_rom_bit_address >> 3], m_speech_rom_bit_address & 0x07);
 
 	/* prepare for next bit */
-	state->m_speech_rom_bit_address = state->m_speech_rom_bit_address + 1;
+	m_speech_rom_bit_address++;
 
 	return bit;
 }
-
-
-static const tms5110_interface tms5100_interface =
-{
-	speech_rom_read_bit, /* M0 callback function. Called whenever chip requests a single bit of data */
-	NULL
-};
-
 
 
 /*************************************
@@ -468,7 +464,6 @@ static ADDRESS_MAP_START( cvs_main_cpu_io_map, AS_IO, 8, cvs_state )
 	AM_RANGE(S2650_DATA_PORT, S2650_DATA_PORT) AM_READWRITE(cvs_collision_clear, cvs_video_fx_w)
 	AM_RANGE(S2650_CTRL_PORT, S2650_CTRL_PORT) AM_READ(cvs_collision_r) AM_WRITE(audio_command_w)
 	AM_RANGE(S2650_SENSE_PORT, S2650_SENSE_PORT) AM_READ_PORT("SENSE")
-	AM_RANGE(S2650_FO_PORT, S2650_FO_PORT) AM_RAM AM_SHARE("fo_state")
 ADDRESS_MAP_END
 
 
@@ -941,35 +936,13 @@ GFXDECODE_END
  *
  *************************************/
 
-static const s2636_interface s2636_0_config =
-{
-	0x100,
-	CVS_S2636_Y_OFFSET, CVS_S2636_X_OFFSET
-};
-
-static const s2636_interface s2636_1_config =
-{
-	0x100,
-	CVS_S2636_Y_OFFSET, CVS_S2636_X_OFFSET
-};
-
-static const s2636_interface s2636_2_config =
-{
-	0x100,
-	CVS_S2636_Y_OFFSET, CVS_S2636_X_OFFSET
-};
-
-
 MACHINE_START_MEMBER(cvs_state,cvs)
 {
 	/* allocate memory */
-	if (machine().gfx[1] != NULL)
-		machine().gfx[1]->set_source(m_character_ram);
+	if (m_gfxdecode->gfx(1) != NULL)
+		m_gfxdecode->gfx(1)->set_source(m_character_ram);
 
 	start_393hz_timer();
-
-	/* set devices */
-	m_speech = machine().device("speech");
 
 	/* register state save */
 	save_item(NAME(m_color_ram));
@@ -978,6 +951,7 @@ MACHINE_START_MEMBER(cvs_state,cvs)
 	save_item(NAME(m_character_banking_mode));
 	save_item(NAME(m_character_ram_page_start));
 	save_item(NAME(m_speech_rom_bit_address));
+	save_item(NAME(m_s2650_flag));
 	save_item(NAME(m_cvs_393hz_clock));
 	save_item(NAME(m_collision_register));
 	save_item(NAME(m_total_stars));
@@ -1002,16 +976,17 @@ MACHINE_RESET_MEMBER(cvs_state,cvs)
 static MACHINE_CONFIG_START( cvs, cvs_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", S2650, 894886.25)
+	MCFG_CPU_ADD("maincpu", S2650, XTAL_14_31818MHz/16)
 	MCFG_CPU_PROGRAM_MAP(cvs_main_cpu_map)
 	MCFG_CPU_IO_MAP(cvs_main_cpu_io_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", cvs_state,  cvs_main_cpu_interrupt)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", cvs_state, cvs_main_cpu_interrupt)
+	MCFG_S2650_FLAG_HANDLER(WRITELINE(cvs_state, write_s2650_flag))
 
-	MCFG_CPU_ADD("audiocpu", S2650, 894886.25)
+	MCFG_CPU_ADD("audiocpu", S2650, XTAL_14_31818MHz/16)
 	MCFG_CPU_PROGRAM_MAP(cvs_dac_cpu_map)
 	MCFG_CPU_IO_MAP(cvs_dac_cpu_io_map)
 
-	MCFG_CPU_ADD("speech", S2650, 894886.25)
+	MCFG_CPU_ADD("speechcpu", S2650, XTAL_14_31818MHz/16)
 	MCFG_CPU_PROGRAM_MAP(cvs_speech_cpu_map)
 	MCFG_CPU_IO_MAP(cvs_speech_cpu_io_map)
 
@@ -1019,23 +994,34 @@ static MACHINE_CONFIG_START( cvs, cvs_state )
 	MCFG_MACHINE_RESET_OVERRIDE(cvs_state,cvs)
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(cvs_state,cvs)
 
-	MCFG_GFXDECODE(cvs)
-	MCFG_PALETTE_LENGTH((256+4)*8+8+1)
-	MCFG_PALETTE_INIT_OVERRIDE(cvs_state,cvs)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cvs)
+
+	MCFG_PALETTE_ADD("palette", (256+4)*8+8+1)
+	MCFG_PALETTE_INDIRECT_ENTRIES(16)
+	MCFG_PALETTE_INIT_OWNER(cvs_state,cvs)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 30*8-1, 1*8, 32*8-1)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(1000))
 	MCFG_SCREEN_UPDATE_DRIVER(cvs_state, screen_update_cvs)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_S2636_ADD("s2636_0", s2636_0_config)
-	MCFG_S2636_ADD("s2636_1", s2636_1_config)
-	MCFG_S2636_ADD("s2636_2", s2636_2_config)
+	MCFG_DEVICE_ADD("s2636_0", S2636, 0)
+	MCFG_S2636_WORKRAM_SIZE(0x100)
+	MCFG_S2636_OFFSETS(CVS_S2636_Y_OFFSET, CVS_S2636_X_OFFSET)
+
+	MCFG_DEVICE_ADD("s2636_1", S2636, 0)
+	MCFG_S2636_WORKRAM_SIZE(0x100)
+	MCFG_S2636_OFFSETS(CVS_S2636_Y_OFFSET, CVS_S2636_X_OFFSET)
+
+	MCFG_DEVICE_ADD("s2636_2", S2636, 0)
+	MCFG_S2636_WORKRAM_SIZE(0x100)
+	MCFG_S2636_OFFSETS(CVS_S2636_Y_OFFSET, CVS_S2636_X_OFFSET)
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1052,8 +1038,8 @@ static MACHINE_CONFIG_START( cvs, cvs_state )
 	MCFG_DAC_ADD("dac3")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
-	MCFG_SOUND_ADD("tms", TMS5100, 640000)
-	MCFG_SOUND_CONFIG(tms5100_interface)
+	MCFG_SOUND_ADD("tms", TMS5100, XTAL_640kHz)
+	MCFG_TMS5110_DATA_CB(READLINE(cvs_state, speech_rom_read_bit))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1066,7 +1052,7 @@ MACHINE_CONFIG_END
  *************************************/
 
 #define CVS_COMMON_ROMS                                                                                             \
-	ROM_REGION( 0x8000, "speech", 0 )                                                                   \
+	ROM_REGION( 0x8000, "speechcpu", 0 )                                                                   \
 	ROM_LOAD( "5b.bin",     0x0000, 0x0800, CRC(f055a624) SHA1(5dfe89d7271092e665cdd5cd59d15a2b70f92f43) )  \
 																											\
 	ROM_REGION( 0x0820, "proms", 0 )                                                                    \
@@ -1640,7 +1626,7 @@ DRIVER_INIT_MEMBER(cvs_state,raiders)
 
 	offs_t offs;
 
-	/* data lines D1 and D5 swapped */
+	/* data lines D1 and D6 swapped */
 	for (offs = 0; offs < 0x7400; offs++)
 		ROM[offs] = BITSWAP8(ROM[offs],7,1,5,4,3,2,6,0);
 

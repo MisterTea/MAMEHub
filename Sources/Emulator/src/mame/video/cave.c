@@ -73,13 +73,13 @@ PALETTE_INIT_MEMBER(cave_state,cave)
 	for (int chip = 0; chip < 4; chip++)
 	{
 		/* create a 1:1 palette map covering everything */
-		m_palette_map[chip] = auto_alloc_array(machine(), UINT16, machine().total_colors());
+		m_palette_map[chip] = auto_alloc_array(machine(), UINT16, palette.entries());
 
 		int maxpens = m_paletteram[chip].bytes() / 2;
 		if (!maxpens)
 			continue;
 
-		for (int pen = 0; pen < machine().total_colors(); pen++)
+		for (int pen = 0; pen < palette.entries(); pen++)
 			m_palette_map[chip][pen] = pen % maxpens;
 	}
 }
@@ -93,7 +93,7 @@ PALETTE_INIT_MEMBER(cave_state,dfeveron)
 	   multiplies the color code by $100 (for consistency).
 	   That's why we need this function.    */
 
-	PALETTE_INIT_CALL_MEMBER(cave);
+	PALETTE_INIT_NAME(cave)(palette);
 
 	for (color = 0; color < 0x40; color++)
 		for (pen = 0; pen < 0x10; pen++)
@@ -109,7 +109,7 @@ PALETTE_INIT_MEMBER(cave_state,ddonpach)
 	   like layer 2, but use the first 16 color of every 256 for
 	   any given color code. */
 
-	PALETTE_INIT_CALL_MEMBER(cave);
+	PALETTE_INIT_NAME(cave)(palette);
 
 	for (color = 0; color < 0x40; color++)
 		for (pen = 0; pen < 0x10; pen++)
@@ -120,7 +120,7 @@ PALETTE_INIT_MEMBER(cave_state,mazinger)
 {
 	int color, pen;
 
-	PALETTE_INIT_CALL_MEMBER(cave);
+	PALETTE_INIT_NAME(cave)(palette);
 
 	/* sprites (encrypted) are 4 bit deep */
 	for (color = 0; color < 0x40; color++)
@@ -138,7 +138,7 @@ PALETTE_INIT_MEMBER(cave_state,sailormn)
 {
 	int color, pen;
 
-	PALETTE_INIT_CALL_MEMBER(cave);
+	PALETTE_INIT_NAME(cave)(palette);
 
 	/* sprites (encrypted) are 4 bit deep */
 	for (color = 0; color < 0x40; color++)
@@ -149,14 +149,14 @@ PALETTE_INIT_MEMBER(cave_state,sailormn)
 	   colors are actually addressable */
 	for (color = 0; color < 0x40; color++)
 		for (pen = 0; pen < 0x40; pen++)
-			m_palette_map[0][0x4c00 | (color << 6) | pen] = 0xc00 | ((color & 0x0f) << 6) | pen;
+			m_palette_map[0][0x4c00 + ((color << 6) | pen)] = 0xc00 | ((color & 0x0f) << 6) | pen;
 }
 
 PALETTE_INIT_MEMBER(cave_state,pwrinst2)
 {
 	int color, pen;
 
-	PALETTE_INIT_CALL_MEMBER(cave);
+	PALETTE_INIT_NAME(cave)(palette);
 
 	for (color = 0; color < 0x80; color++)
 		for (pen = 0; pen < 0x10; pen++)
@@ -170,7 +170,7 @@ PALETTE_INIT_MEMBER(cave_state,korokoro)
 {
 	int color, pen;
 
-	PALETTE_INIT_CALL_MEMBER(cave);
+	PALETTE_INIT_NAME(cave)(palette);
 
 	for (color = 0; color < 0x40; color++)
 		for (pen = 0; pen < 0x10; pen++)
@@ -182,13 +182,13 @@ void cave_state::set_pens(int chip)
 {
 	int pen;
 
-	for (pen = 0; pen < machine().total_colors(); pen++)
+	for (pen = 0; pen < m_palette->entries(); pen++)
 	{
 		UINT16 data = m_paletteram[chip][m_palette_map[chip][pen]];
 
-		rgb_t color = MAKE_RGB(pal5bit(data >> 5), pal5bit(data >> 10), pal5bit(data >> 0));
+		rgb_t color = rgb_t(pal5bit(data >> 5), pal5bit(data >> 10), pal5bit(data >> 0));
 
-		palette_set_color(machine(), pen, color);
+		m_palette->set_pen_color(pen, color);
 	}
 }
 
@@ -243,7 +243,7 @@ inline void cave_state::get_tile_info( tile_data &tileinfo, int tile_index, int 
 		code  = (code & 0x00ffffff);
 	}
 
-	SET_TILE_INFO_MEMBER( GFX, code, color, 0 );
+	SET_TILE_INFO_MEMBER(GFX, code, color, 0 );
 	tileinfo.category = pri;
 }
 
@@ -287,7 +287,7 @@ TILE_GET_INFO_MEMBER(cave_state::sailormn_get_tile_info_2)
 			code += 0x40000;
 	}
 
-	SET_TILE_INFO_MEMBER( 2, code, color, 0 );
+	SET_TILE_INFO_MEMBER(2, code, color, 0 );
 	tileinfo.category = pri;
 }
 
@@ -383,7 +383,7 @@ void cave_state::cave_vh_start( int num )
 	switch (num)
 	{
 		case 4:
-			m_tilemap[3] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cave_state::get_tile_info_3),this), TILEMAP_SCAN_ROWS, 8, 8, 512 / 8, 512 / 8);
+			m_tilemap[3] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cave_state::get_tile_info_3),this), TILEMAP_SCAN_ROWS, 8, 8, 512 / 8, 512 / 8);
 			m_tilemap[3]->set_transparent_pen(0);
 			m_tilemap[3]->set_scroll_rows(1);
 			m_tilemap[3]->set_scroll_cols(1);
@@ -391,7 +391,7 @@ void cave_state::cave_vh_start( int num )
 			save_item(NAME(m_old_tiledim[3]));
 
 		case 3:
-			m_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cave_state::get_tile_info_2),this), TILEMAP_SCAN_ROWS, 8, 8, 512 / 8, 512 / 8);
+			m_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cave_state::get_tile_info_2),this), TILEMAP_SCAN_ROWS, 8, 8, 512 / 8, 512 / 8);
 			m_tilemap[2]->set_transparent_pen(0);
 			m_tilemap[2]->set_scroll_rows(1);
 			m_tilemap[2]->set_scroll_cols(1);
@@ -399,7 +399,7 @@ void cave_state::cave_vh_start( int num )
 			save_item(NAME(m_old_tiledim[2]));
 
 		case 2:
-			m_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cave_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 8, 8, 512 / 8, 512 / 8);
+			m_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cave_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 8, 8, 512 / 8, 512 / 8);
 			m_tilemap[1]->set_transparent_pen(0);
 			m_tilemap[1]->set_scroll_rows(1);
 			m_tilemap[1]->set_scroll_cols(1);
@@ -407,7 +407,7 @@ void cave_state::cave_vh_start( int num )
 			save_item(NAME(m_old_tiledim[1]));
 
 		case 1:
-			m_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cave_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 8, 8, 512 / 8, 512 / 8);
+			m_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cave_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 8, 8, 512 / 8, 512 / 8);
 			m_tilemap[0]->set_transparent_pen(0);
 			m_tilemap[0]->set_scroll_rows(1);
 			m_tilemap[0]->set_scroll_cols(1);
@@ -425,9 +425,9 @@ void cave_state::cave_vh_start( int num )
 	m_row_effect_offs_n = -1;
 	m_row_effect_offs_f = 1;
 
-	m_background_pen    =   machine().config().m_gfxdecodeinfo[0].color_codes_start +
-							(machine().config().m_gfxdecodeinfo[0].total_color_codes - 1) *
-							machine().gfx[0]->granularity();
+	m_background_pen    =  m_gfxdecode->gfx(0)->colorbase() +
+							(m_gfxdecode->gfx(0)->colors() - 1) *
+							m_gfxdecode->gfx(0)->granularity();
 
 	switch (m_kludge)
 	{
@@ -456,7 +456,7 @@ VIDEO_START_MEMBER(cave_state,sailormn_3_layers)
 	cave_vh_start(2);
 
 	/* Layer 2 (8x8) needs to be handled differently */
-	m_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cave_state::sailormn_get_tile_info_2),this), TILEMAP_SCAN_ROWS, 8, 8, 512 / 8, 512 / 8 );
+	m_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cave_state::sailormn_get_tile_info_2),this), TILEMAP_SCAN_ROWS, 8, 8, 512 / 8, 512 / 8 );
 
 	m_tilemap[2]->set_transparent_pen(0);
 	m_tilemap[2]->set_scroll_rows(1);
@@ -947,7 +947,7 @@ void cave_state::do_blit_zoom32_cave( int chip, const struct sprite_cave *sprite
 						xcount &= 0xffff;
 						pen = *source;
 						if (pen)
-							dest[x] = palette_get_color(machine(), base_pen + pen);
+							dest[x] = m_palette->pen_color(base_pen + pen);
 					}
 					xcount += sprite->zoomx_re;
 				}
@@ -1080,7 +1080,7 @@ void cave_state::do_blit_zoom32_cave_zb( int chip, const struct sprite_cave *spr
 						pen = *source;
 						if (pen && (zbf[x] <= pri_sp))
 						{
-							dest[x] = palette_get_color(machine(), base_pen + pen);
+							dest[x] = m_palette->pen_color(base_pen + pen);
 							zbf[x] = pri_sp;
 						}
 					}
@@ -1179,7 +1179,7 @@ void cave_state::do_blit_32_cave( int chip, const struct sprite_cave *sprite )
 			{
 				pen = *source;
 				if (pen)
-					dest[x] = palette_get_color(machine(), base_pen + pen);
+					dest[x] = m_palette->pen_color(base_pen + pen);
 				source++;
 			}
 			pen_data += sprite->line_offset;
@@ -1279,7 +1279,7 @@ void cave_state::do_blit_32_cave_zb( int chip, const struct sprite_cave *sprite 
 				pen = *source;
 				if (pen && (zbf[x] <= pri_sp))
 				{
-					dest[x] = palette_get_color(machine(), base_pen + pen);
+					dest[x] = m_palette->pen_color(base_pen + pen);
 					zbf[x] = pri_sp;
 				}
 				source++;
@@ -1593,7 +1593,7 @@ UINT32 cave_state::screen_update_cave(screen_device &screen, bitmap_rgb32 &bitma
 
 	cave_sprite_check(0, screen, cliprect);
 
-	bitmap.fill(palette_get_color(machine(), m_background_pen), cliprect);
+	bitmap.fill(m_palette->pen_color(m_background_pen), cliprect);
 
 	/*
 	    Tiles and sprites are ordered by priority (0 back, 3 front) with
@@ -1662,7 +1662,7 @@ PALETTE_INIT_MEMBER(cave_state,ppsatan)
 {
 	int color, pen;
 
-	PALETTE_INIT_CALL_MEMBER(cave);
+	PALETTE_INIT_NAME(cave)(palette);
 
 	for (int chip = 0; chip < 3; chip++)
 	{
@@ -1694,7 +1694,7 @@ UINT32 cave_state::screen_update_ppsatan_core(screen_device &screen, bitmap_rgb3
 
 	cave_sprite_check(chip, screen, cliprect);
 
-	bitmap.fill(palette_get_color(machine(), m_background_pen), cliprect);
+	bitmap.fill(m_palette->pen_color(m_background_pen), cliprect);
 
 	for (int pri = 0; pri <= 3; pri++)  // tile / sprite priority
 	{

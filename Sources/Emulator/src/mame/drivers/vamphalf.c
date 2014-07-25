@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, David Haywood, Pierpaolo Prazzoli, Tomasz Slanina
 /********************************************************************
 
  Driver for common Hyperstone based games
@@ -20,8 +22,8 @@
     Mr. Dig                         (c) 2000 Sun
     Diet Family                     (c) 2001 SemiCom
     Final Godori                    (c) 2001 SemiCom            (version 2.20.5915)
-    Wyvern Wings                    (c) 2001 SemiCom
-    Mr. Kicker                      (c) 2001 SemiCom [1]
+    Wivern Wings / Wyvern Wings     (c) 2001 SemiCom
+    Mr. Kicker                      (c) 2001 SemiCom
     Toy Land Adventure              (c) 2001 SemiCom
     Age Of Heroes - Silkroad 2      (c) 2001 Unico              (v0.63 - 2001/02/07)
     Boong-Ga Boong-Ga (Spank 'em)   (c) 2001 Taff System
@@ -30,9 +32,6 @@
  - dquizgo2: bugged video test
 
  Notes:
- [1]    Mr. Kicker game code crashes if the eeprom values are empty, because it replaces
-        the SP register with a bogus value at PC = $18D0 before crashing. It could be an
-        original game bug or a hyperstone core bug. Also happens with High Score update.
 
  Mr Kicker is also known to exist (not dumped) on the F-E1-16-010 PCB that
    Semicom also used for Toy Land Adventure & SemiComDate Quiz Go Go Episode 2 game.
@@ -46,7 +45,6 @@
  result in some graphics also being cut off slightly, but that is correct.
 
  Undumped Semicom games on similar hardware:
-   Wivern Wings - Semicom's orginal release with alt spelling of title
    Red Wyvern - A semi-sequel or update?
  Same time era, but unknown hardware:
    Gaia The last Choice of the Earth (c) 1998 (might be Byron Future Assault type hardware)
@@ -55,6 +53,7 @@
 TODO:
 - boonggab: simulate photo sensors with a "stroke strength"
 - boonggab: what are sensors bit used for? are they used in the japanese version?
+- wyvernsg: fails a protection check after ~1 hour of play?
 
 *********************************************************************/
 
@@ -78,9 +77,12 @@ public:
 			m_tiles32(*this,"tiles32"),
 			m_wram32(*this,"wram32"),
 			m_maincpu(*this, "maincpu"),
+			m_qs1000(*this, "qs1000"),
 			m_oki(*this, "oki"),
 			m_oki2(*this, "oki_2"),
-			m_eeprom(*this, "eeprom") {
+			m_eeprom(*this, "eeprom"),
+			m_gfxdecode(*this, "gfxdecode"),
+			m_palette(*this, "palette")  {
 			m_has_extra_gfx = 0;
 		}
 
@@ -88,6 +90,15 @@ public:
 	optional_shared_ptr<UINT16> m_wram;
 	optional_shared_ptr<UINT32> m_tiles32;
 	optional_shared_ptr<UINT32> m_wram32;
+
+	required_device<cpu_device> m_maincpu;
+	optional_device<qs1000_device> m_qs1000;
+	optional_device<okim6295_device> m_oki;
+	optional_device<okim6295_device> m_oki2;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	int m_flip_bit;
 	int m_flipscreen;
 	int m_palshift;
@@ -102,7 +113,6 @@ public:
 	DECLARE_WRITE16_MEMBER(flipscreen_w);
 	DECLARE_WRITE32_MEMBER(flipscreen32_w);
 	DECLARE_WRITE16_MEMBER(jmpbreak_flipscreen_w);
-	DECLARE_WRITE32_MEMBER(paletteram32_w);
 	DECLARE_READ32_MEMBER(wyvernwg_prot_r);
 	DECLARE_WRITE32_MEMBER(wyvernwg_prot_w);
 	DECLARE_READ32_MEMBER(finalgdr_prot_r);
@@ -122,6 +132,7 @@ public:
 	DECLARE_READ16_MEMBER(luplup29_speedup_r);
 	DECLARE_READ16_MEMBER(puzlbang_speedup_r);
 	DECLARE_READ16_MEMBER(puzlbanga_speedup_r);
+	DECLARE_READ32_MEMBER(wivernwg_speedup_r);
 	DECLARE_READ32_MEMBER(wyvernwg_speedup_r);
 	DECLARE_READ32_MEMBER(wyvernwga_speedup_r);
 	DECLARE_READ32_MEMBER(finalgdr_speedup_r);
@@ -171,10 +182,6 @@ public:
 	DECLARE_DRIVER_INIT(wyvernwg);
 	UINT32 screen_update_common(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_aoh(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	required_device<cpu_device> m_maincpu;
-	optional_device<okim6295_device> m_oki;
-	optional_device<okim6295_device> m_oki2;
-	required_device<eeprom_serial_93cxx_device> m_eeprom;
 };
 
 READ16_MEMBER(vamphalf_state::eeprom_r)
@@ -237,18 +244,6 @@ WRITE16_MEMBER(vamphalf_state::jmpbreak_flipscreen_w)
 }
 
 
-WRITE32_MEMBER(vamphalf_state::paletteram32_w)
-{
-	UINT16 paldata;
-
-	COMBINE_DATA(&m_generic_paletteram_32[offset]);
-
-	paldata = m_generic_paletteram_32[offset] & 0xffff;
-	palette_set_color_rgb(machine(), offset*2 + 1, pal5bit(paldata >> 10), pal5bit(paldata >> 5), pal5bit(paldata >> 0));
-
-	paldata = (m_generic_paletteram_32[offset] >> 16) & 0xffff;
-	palette_set_color_rgb(machine(), offset*2 + 0, pal5bit(paldata >> 10), pal5bit(paldata >> 5), pal5bit(paldata >> 0));
-}
 
 READ32_MEMBER(vamphalf_state::wyvernwg_prot_r)
 {
@@ -375,19 +370,15 @@ WRITE16_MEMBER(vamphalf_state::boonggab_lamps_w)
 
 WRITE32_MEMBER( vamphalf_state::wyvernwg_snd_w )
 {
-	qs1000_device *qs1000 = machine().device<qs1000_device>("qs1000");
-
 	m_qs1000_data = data & 0xff;
-	qs1000->set_irq(ASSERT_LINE);
+	m_qs1000->set_irq(ASSERT_LINE);
 	machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(100));
 }
 
 WRITE16_MEMBER( vamphalf_state::misncrft_snd_w )
 {
-	qs1000_device *qs1000 = machine().device<qs1000_device>("qs1000");
-
 	m_qs1000_data = data & 0xff;
-	qs1000->set_irq(ASSERT_LINE);
+	m_qs1000->set_irq(ASSERT_LINE);
 	machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(100));
 }
 
@@ -398,10 +389,8 @@ READ8_MEMBER( vamphalf_state::qs1000_p1_r )
 
 WRITE8_MEMBER( vamphalf_state::qs1000_p3_w )
 {
-	qs1000_device *qs1000 = machine().device<qs1000_device>("qs1000");
-
 	if (!BIT(data, 5))
-		qs1000->set_irq(CLEAR_LINE);
+		m_qs1000->set_irq(CLEAR_LINE);
 
 	membank("qs1000:data")->set_entry(data & 7);
 }
@@ -410,14 +399,14 @@ WRITE8_MEMBER( vamphalf_state::qs1000_p3_w )
 static ADDRESS_MAP_START( common_map, AS_PROGRAM, 16, vamphalf_state )
 	AM_RANGE(0x00000000, 0x001fffff) AM_RAM AM_SHARE("wram")
 	AM_RANGE(0x40000000, 0x4003ffff) AM_RAM AM_SHARE("tiles")
-	AM_RANGE(0x80000000, 0x8000ffff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x80000000, 0x8000ffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xfff00000, 0xffffffff) AM_ROM AM_REGION("user1",0)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( common_32bit_map, AS_PROGRAM, 32, vamphalf_state )
 	AM_RANGE(0x00000000, 0x001fffff) AM_RAM AM_SHARE("wram32")
 	AM_RANGE(0x40000000, 0x4003ffff) AM_RAM AM_SHARE("tiles32")
-	AM_RANGE(0x80000000, 0x8000ffff) AM_RAM_WRITE(paletteram32_w) AM_SHARE("paletteram")
+	AM_RANGE(0x80000000, 0x8000ffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xfff00000, 0xffffffff) AM_ROM AM_REGION("user1",0)
 ADDRESS_MAP_END
 
@@ -533,7 +522,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( aoh_map, AS_PROGRAM, 32, vamphalf_state )
 	AM_RANGE(0x00000000, 0x003fffff) AM_RAM AM_SHARE("wram32")
 	AM_RANGE(0x40000000, 0x4003ffff) AM_RAM AM_SHARE("tiles32")
-	AM_RANGE(0x80000000, 0x8000ffff) AM_RAM_WRITE(paletteram32_w) AM_SHARE("paletteram")
+	AM_RANGE(0x80000000, 0x8000ffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x80210000, 0x80210003) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x80220000, 0x80220003) AM_READ_PORT("P1_P2")
 	AM_RANGE(0xffc00000, 0xffffffff) AM_ROM AM_REGION("user1",0)
@@ -586,7 +575,7 @@ Offset+3
 static void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap)
 {
 	vamphalf_state *state = screen.machine().driver_data<vamphalf_state>();
-	gfx_element *gfx = screen.machine().gfx[0];
+	gfx_element *gfx = state->m_gfxdecode->gfx(0);
 	UINT32 cnt;
 	int block, offs;
 	int code,color,x,y,fx,fy;
@@ -664,7 +653,7 @@ static void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap)
 				y = 256 - y;
 			}
 
-			drawgfx_transpen(bitmap,clip,gfx,code,color,fx,fy,x,y,0);
+			gfx->transpen(bitmap,clip,code,color,fx,fy,x,y,0);
 		}
 	}
 }
@@ -672,7 +661,7 @@ static void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap)
 static void draw_sprites_aoh(screen_device &screen, bitmap_ind16 &bitmap)
 {
 	vamphalf_state *state = screen.machine().driver_data<vamphalf_state>();
-	gfx_element *gfx = screen.machine().gfx[0];
+	gfx_element *gfx = state->m_gfxdecode->gfx(0);
 	UINT32 cnt;
 	int block, offs;
 	int code,color,x,y,fx,fy;
@@ -725,7 +714,7 @@ static void draw_sprites_aoh(screen_device &screen, bitmap_ind16 &bitmap)
 				y = 256 - y;
 			}
 
-			drawgfx_transpen(bitmap,clip,gfx,code,color,fx,fy,x,y,0);
+			gfx->transpen(bitmap,clip,code,color,fx,fy,x,y,0);
 		}
 	}
 }
@@ -956,28 +945,6 @@ static GFXDECODE_START( vamphalf )
 GFXDECODE_END
 
 
-
-
-static QS1000_INTERFACE( qs1000_intf )
-{
-	/* External ROM */
-	true,
-
-	/* P1-P3 read handlers */
-	DEVCB_DRIVER_MEMBER(vamphalf_state, qs1000_p1_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	/* P1-P3 write handlers */
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(vamphalf_state, qs1000_p3_w),
-};
-
-
-
-
-
 static MACHINE_CONFIG_START( common, vamphalf_state )
 	MCFG_CPU_ADD("maincpu", E116T, 50000000)    /* 50 MHz */
 	MCFG_CPU_PROGRAM_MAP(common_map)
@@ -994,9 +961,11 @@ static MACHINE_CONFIG_START( common, vamphalf_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(31, 350, 16, 251)
 	MCFG_SCREEN_UPDATE_DRIVER(vamphalf_state, screen_update_common)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x8000)
-	MCFG_GFXDECODE(vamphalf)
+	MCFG_PALETTE_ADD("palette", 0x8000)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", vamphalf)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_FRAGMENT( sound_ym_oki )
@@ -1027,7 +996,10 @@ static MACHINE_CONFIG_FRAGMENT( sound_qs1000 )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_QS1000_ADD("qs1000", XTAL_24MHz, qs1000_intf)
+	MCFG_SOUND_ADD("qs1000", QS1000, XTAL_24MHz)
+	MCFG_QS1000_EXTERNAL_ROM(true)
+	MCFG_QS1000_IN_P1_CB(READ8(vamphalf_state, qs1000_p1_r))
+	MCFG_QS1000_OUT_P3_CB(WRITE8(vamphalf_state, qs1000_p3_w))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -1125,9 +1097,11 @@ static MACHINE_CONFIG_START( aoh, vamphalf_state )
 	MCFG_SCREEN_SIZE(512, 512)
 	MCFG_SCREEN_VISIBLE_AREA(64, 511-64, 16, 255-16)
 	MCFG_SCREEN_UPDATE_DRIVER(vamphalf_state, screen_update_aoh)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x8000)
-	MCFG_GFXDECODE(vamphalf)
+	MCFG_PALETTE_ADD("palette", 0x8000)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", vamphalf)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -1754,7 +1728,7 @@ ROM_END
 
 /*
 
-Wyvern Wings (c) 2001 SemiCom, Game Vision License
+Wivern Wings (c) 2001 SemiCom / Wyvern Wings (c) 2001 SemiCom, Game Vision License
 
    CPU: Hyperstone E1-32T
  Video: 2 QuickLogic QL12x16B-XPL84 FPGA
@@ -1808,19 +1782,45 @@ ROM1 & ROM2 are both ST 27c4000D
 
 */
 
-ROM_START( wyvernwg )
+ROM_START( wivernwg )
 	ROM_REGION32_BE( 0x100000, "user1", ROMREGION_ERASE00 ) /* Hyperstone CPU Code */
-	ROM_LOAD( "rom1.bin", 0x000000, 0x080000, CRC(66bf3a5c) SHA1(037d5e7a6ef6f5b4ac08a9c811498c668a9d2522) )
-	ROM_LOAD( "rom2.bin", 0x080000, 0x080000, CRC(fd9b5911) SHA1(a01e8c6e5a9009024af385268ba3ba90e1ebec50) )
+	ROM_LOAD( "rom1", 0x000000, 0x080000, CRC(83eb9a36) SHA1(d9c3b2facf42c137abc2923bbaeae300964ca4a0) ) /* ST 27C4000D with no labels */
+	ROM_LOAD( "rom2", 0x080000, 0x080000, CRC(5d657055) SHA1(21baa81b80f28aec4a6be9eaf69709958bf2a129) )
 
 	ROM_REGION( 0x080000, "qs1000:cpu", 0 ) /* QDSP (8052) Code */
-	ROM_LOAD( "u7",  0x00000, 0x20000, CRC(00a3f705) SHA1(f0a6bafd16bea53d4c05c8cc108983cbd41e5757) )
+	ROM_LOAD( "u7",  0x00000, 0x20000, CRC(00a3f705) SHA1(f0a6bafd16bea53d4c05c8cc108983cbd41e5757) ) /* ST 27C1001 with no labels */
 	ROM_RELOAD(      0x20000, 0x20000 )
 	ROM_RELOAD(      0x40000, 0x20000 )
 	ROM_RELOAD(      0x60000, 0x20000 )
 
 	ROM_REGION( 0x1000000, "gfx1", 0 )  /* gfx data */
-	ROM_LOAD32_WORD( "roml00", 0x000000, 0x200000, CRC(fb3541b6) SHA1(4f569ac7bde92c5febf005ab73f76552421ec223) )
+	ROM_LOAD32_WORD( "roml00", 0x000000, 0x200000, CRC(fb3541b6) SHA1(4f569ac7bde92c5febf005ab73f76552421ec223) ) /* MX 29F1610MC-16 flash roms with no labels */
+	ROM_LOAD32_WORD( "romh00", 0x000002, 0x200000, CRC(516aca48) SHA1(42cf5678eb4c0ee7da2ab0bd66e4e34b2735c75a) )
+	ROM_LOAD32_WORD( "roml01", 0x400000, 0x200000, CRC(1c764f95) SHA1(ba6ac1376e837b491bc0269f2a1d10577a3d40cb) )
+	ROM_LOAD32_WORD( "romh01", 0x400002, 0x200000, CRC(fee42c63) SHA1(a27b5cbca0defa9be85fee91dde1273f445d3372) )
+	ROM_LOAD32_WORD( "roml02", 0x800000, 0x200000, CRC(fc846707) SHA1(deaee15ab71927f644dcf576959e2ceaa55bfd44) )
+	ROM_LOAD32_WORD( "romh02", 0x800002, 0x200000, CRC(86141c7d) SHA1(22a82cc7d44d655b03867503a83e81f7c82d6c91) )
+	ROM_LOAD32_WORD( "l03",    0xc00000, 0x200000, CRC(85aa8db8) SHA1(8ad067f92ff161683ac962ffc5391504145a3d4a) )
+	ROM_LOAD32_WORD( "h03",    0xc00002, 0x200000, CRC(ade8af9f) SHA1(05cdc1b38dec9d8a86302f2de794391fd3e376a5) )
+
+	ROM_REGION( 0x1000000, "qs1000", 0 ) /* Music data / QDSP samples (SFX) */
+	ROM_LOAD( "romsnd.u15a", 0x000000, 0x200000, CRC(fc89eedc) SHA1(2ce28bdb773cfa5b5660e4c0a9ef454cb658f2da) ) /* MX 29F1610MC-16 flash rom with no label */
+	ROM_LOAD( "qs1001a",     0x200000, 0x080000, CRC(d13c6407) SHA1(57b14f97c7d4f9b5d9745d3571a0b7115fbe3176) )
+ROM_END
+
+ROM_START( wyvernwg )
+	ROM_REGION32_BE( 0x100000, "user1", ROMREGION_ERASE00 ) /* Hyperstone CPU Code */
+	ROM_LOAD( "rom1.bin", 0x000000, 0x080000, CRC(66bf3a5c) SHA1(037d5e7a6ef6f5b4ac08a9c811498c668a9d2522) ) /* ST 27c4000D with no labels */
+	ROM_LOAD( "rom2.bin", 0x080000, 0x080000, CRC(fd9b5911) SHA1(a01e8c6e5a9009024af385268ba3ba90e1ebec50) )
+
+	ROM_REGION( 0x080000, "qs1000:cpu", 0 ) /* QDSP (8052) Code */
+	ROM_LOAD( "u7",  0x00000, 0x20000, CRC(00a3f705) SHA1(f0a6bafd16bea53d4c05c8cc108983cbd41e5757) ) /* ST 27C1001 with no labels */
+	ROM_RELOAD(      0x20000, 0x20000 )
+	ROM_RELOAD(      0x40000, 0x20000 )
+	ROM_RELOAD(      0x60000, 0x20000 )
+
+	ROM_REGION( 0x1000000, "gfx1", 0 )  /* gfx data */
+	ROM_LOAD32_WORD( "roml00", 0x000000, 0x200000, CRC(fb3541b6) SHA1(4f569ac7bde92c5febf005ab73f76552421ec223) ) /* MX 29F1610MC-16 flash roms with no labels */
 	ROM_LOAD32_WORD( "romh00", 0x000002, 0x200000, CRC(516aca48) SHA1(42cf5678eb4c0ee7da2ab0bd66e4e34b2735c75a) )
 	ROM_LOAD32_WORD( "roml01", 0x400000, 0x200000, CRC(1c764f95) SHA1(ba6ac1376e837b491bc0269f2a1d10577a3d40cb) )
 	ROM_LOAD32_WORD( "romh01", 0x400002, 0x200000, CRC(fee42c63) SHA1(a27b5cbca0defa9be85fee91dde1273f445d3372) )
@@ -1830,20 +1830,23 @@ ROM_START( wyvernwg )
 	ROM_LOAD32_WORD( "romh03", 0xc00002, 0x200000, CRC(e01c2a92) SHA1(f53c2db92d62f595d473b1835c46d426f0dbe6b3) )
 
 	ROM_REGION( 0x1000000, "qs1000", 0 ) /* Music data / QDSP samples (SFX) */
-	ROM_LOAD( "romsnd.u15a", 0x000000, 0x200000, CRC(fc89eedc) SHA1(2ce28bdb773cfa5b5660e4c0a9ef454cb658f2da) )
+	ROM_LOAD( "romsnd.u15a", 0x000000, 0x200000, CRC(fc89eedc) SHA1(2ce28bdb773cfa5b5660e4c0a9ef454cb658f2da) ) /* MX 29F1610MC-16 flash rom with no label */
 	ROM_LOAD( "qs1001a",     0x200000, 0x080000, CRC(d13c6407) SHA1(57b14f97c7d4f9b5d9745d3571a0b7115fbe3176) )
 ROM_END
 
 ROM_START( wyvernwga )
 	ROM_REGION32_BE( 0x100000, "user1", ROMREGION_ERASE00 ) /* Hyperstone CPU Code */
-	ROM_LOAD( "rom1(__alt).rom", 0x000000, 0x080000, CRC(586881fd) SHA1(d335bbd91def8fa4935eb2375c9b00471a1f40eb) )
-	ROM_LOAD( "rom2(__alt).rom", 0x080000, 0x080000, CRC(938049ec) SHA1(cc10944c99ceb388dd4aafc93377c40540861d14) )
+	ROM_LOAD( "rom1.rom", 0x000000, 0x080000, CRC(586881fd) SHA1(d335bbd91def8fa4935eb2375c9b00471a1f40eb) ) /* ST 27c4000D with no labels */
+	ROM_LOAD( "rom2.rom", 0x080000, 0x080000, CRC(938049ec) SHA1(cc10944c99ceb388dd4aafc93377c40540861d14) )
 
-	ROM_REGION( 0x020000, "qs1000:cpu", 0 ) /* QDSP (8052) Code */
-	ROM_LOAD( "u7", 0x0000, 0x20000, CRC(00a3f705) SHA1(f0a6bafd16bea53d4c05c8cc108983cbd41e5757) )
+	ROM_REGION( 0x080000, "qs1000:cpu", 0 ) /* QDSP (8052) Code */
+	ROM_LOAD( "u7",  0x00000, 0x20000, CRC(00a3f705) SHA1(f0a6bafd16bea53d4c05c8cc108983cbd41e5757) ) /* ST 27C1001 with no labels */
+	ROM_RELOAD(      0x20000, 0x20000 )
+	ROM_RELOAD(      0x40000, 0x20000 )
+	ROM_RELOAD(      0x60000, 0x20000 )
 
 	ROM_REGION( 0x1000000, "gfx1", 0 )  /* gfx data */
-	ROM_LOAD32_WORD( "roml00", 0x000000, 0x200000, CRC(fb3541b6) SHA1(4f569ac7bde92c5febf005ab73f76552421ec223) )
+	ROM_LOAD32_WORD( "roml00", 0x000000, 0x200000, CRC(fb3541b6) SHA1(4f569ac7bde92c5febf005ab73f76552421ec223) ) /* MX 29F1610MC-16 flash roms with no labels */
 	ROM_LOAD32_WORD( "romh00", 0x000002, 0x200000, CRC(516aca48) SHA1(42cf5678eb4c0ee7da2ab0bd66e4e34b2735c75a) )
 	ROM_LOAD32_WORD( "roml01", 0x400000, 0x200000, CRC(1c764f95) SHA1(ba6ac1376e837b491bc0269f2a1d10577a3d40cb) )
 	ROM_LOAD32_WORD( "romh01", 0x400002, 0x200000, CRC(fee42c63) SHA1(a27b5cbca0defa9be85fee91dde1273f445d3372) )
@@ -1853,7 +1856,7 @@ ROM_START( wyvernwga )
 	ROM_LOAD32_WORD( "romh03", 0xc00002, 0x200000, CRC(e01c2a92) SHA1(f53c2db92d62f595d473b1835c46d426f0dbe6b3) )
 
 	ROM_REGION( 0x1000000, "qs1000", 0 ) /* Music data / QDSP samples (SFX) */
-	ROM_LOAD( "romsnd.u15a", 0x000000, 0x200000, CRC(fc89eedc) SHA1(2ce28bdb773cfa5b5660e4c0a9ef454cb658f2da) )
+	ROM_LOAD( "romsnd.u15a", 0x000000, 0x200000, CRC(fc89eedc) SHA1(2ce28bdb773cfa5b5660e4c0a9ef454cb658f2da) ) /* MX 29F1610MC-16 flash rom with no label */
 	ROM_LOAD( "qs1001a",     0x200000, 0x080000, CRC(d13c6407) SHA1(57b14f97c7d4f9b5d9745d3571a0b7115fbe3176) )
 ROM_END
 
@@ -2385,6 +2388,19 @@ READ16_MEMBER(vamphalf_state::puzlbanga_speedup_r)
 	return m_wram[(0x113ecc/2)+offset];
 }
 
+READ32_MEMBER(vamphalf_state::wivernwg_speedup_r)
+{
+	if(space.device().safe_pc() == 0x10758 )
+	{
+		if(irq_active(space))
+			space.device().execute().spin_until_interrupt();
+		else
+			space.device().execute().eat_cycles(50);
+	}
+
+	return m_wram32[0x00b4ccc/4];
+}
+
 READ32_MEMBER(vamphalf_state::wyvernwg_speedup_r)
 {
 	if(space.device().safe_pc() == 0x10758 )
@@ -2410,8 +2426,6 @@ READ32_MEMBER(vamphalf_state::wyvernwga_speedup_r)
 
 	return m_wram32[0x00b74f8/4];
 }
-
-
 
 READ32_MEMBER(vamphalf_state::finalgdr_speedup_r)
 {
@@ -2595,9 +2609,9 @@ DRIVER_INIT_MEMBER(vamphalf_state,puzlbang)
 
 DRIVER_INIT_MEMBER(vamphalf_state,wyvernwg)
 {
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x00b4ccc, 0x00b4ccf, read32_delegate(FUNC(vamphalf_state::wivernwg_speedup_r), this));
 	m_maincpu->space(AS_PROGRAM).install_read_handler(0x00b56fc, 0x00b56ff, read32_delegate(FUNC(vamphalf_state::wyvernwg_speedup_r), this));
 	m_maincpu->space(AS_PROGRAM).install_read_handler(0x00b74f8, 0x00b74fb, read32_delegate(FUNC(vamphalf_state::wyvernwga_speedup_r), this));
-
 	m_palshift = 0;
 	m_flip_bit = 1;
 
@@ -2715,9 +2729,10 @@ GAME( 2000, misncrfta,misncrft, misncrft, common, vamphalf_state,   misncrft, RO
 GAME( 2000, mrdig,    0,        mrdig,    common, vamphalf_state,   mrdig,    ROT0,   "Sun",               "Mr. Dig", 0 )
 GAME( 2001, dtfamily, 0,        coolmini, common, vamphalf_state,   dtfamily, ROT0,   "SemiCom",           "Diet Family", 0 )
 GAME( 2001, finalgdr, 0,        finalgdr, finalgdr, vamphalf_state, finalgdr, ROT0,   "SemiCom",           "Final Godori (Korea, version 2.20.5915)", 0 )
-GAME( 2001, mrkicker, 0,        mrkicker, finalgdr, vamphalf_state, mrkicker, ROT0,   "SemiCom",           "Mr. Kicker", GAME_NOT_WORKING ) // game stops booting / working properly after you get a high score, or if you don't have a default eeprom with 'valid data.  It's never worked properly, CPU core issue?
+GAME( 2001, mrkicker, 0,        mrkicker, finalgdr, vamphalf_state, mrkicker, ROT0,   "SemiCom",           "Mr. Kicker", 0 ) // game still doesn't boot without a default valid eeprom, but no longer seems to fail after you get a high score (since eeprom rewrite)
 GAME( 2001, toyland,  0,        coolmini, common, vamphalf_state,   toyland,  ROT0,   "SemiCom",           "Toy Land Adventure", 0 )
-GAME( 2001, wyvernwg, 0,        wyvernwg, common, vamphalf_state,   wyvernwg, ROT270, "SemiCom (Game Vision license)", "Wyvern Wings (set 1)", GAME_IMPERFECT_SOUND )
-GAME( 2001, wyvernwga,wyvernwg, wyvernwg, common, vamphalf_state,   wyvernwg, ROT270, "SemiCom (Game Vision license)", "Wyvern Wings (set 2)", GAME_IMPERFECT_SOUND )
+GAME( 2001, wivernwg, 0,        wyvernwg, common, vamphalf_state,   wyvernwg, ROT270, "SemiCom",            "Wivern Wings", GAME_IMPERFECT_SOUND )
+GAME( 2001, wyvernwg, wivernwg, wyvernwg, common, vamphalf_state,   wyvernwg, ROT270, "SemiCom (Game Vision license)", "Wyvern Wings (set 1)", GAME_IMPERFECT_SOUND )
+GAME( 2001, wyvernwga,wivernwg, wyvernwg, common, vamphalf_state,   wyvernwg, ROT270, "SemiCom (Game Vision license)", "Wyvern Wings (set 2)", GAME_IMPERFECT_SOUND )
 GAME( 2001, aoh,      0,        aoh,      aoh, vamphalf_state,      aoh,      ROT0,   "Unico",             "Age Of Heroes - Silkroad 2 (v0.63 - 2001/02/07)", 0 )
 GAME( 2001, boonggab, 0,        boonggab, boonggab, vamphalf_state, boonggab, ROT270, "Taff System",       "Boong-Ga Boong-Ga (Spank'em!)", 0 )

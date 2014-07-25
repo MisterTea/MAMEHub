@@ -231,15 +231,19 @@ public:
 	wheelfir_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
-		m_subcpu(*this, "subcpu") { }
+		m_subcpu(*this, "subcpu"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	INT32 *m_zoom_table;
 	UINT16 *m_blitter_data;
 
-	UINT8 *m_palette;
+	UINT8 *m_palette_ptr;
 	INT32 m_palpos;
 
 	INT32 m_current_scanline;
@@ -616,16 +620,16 @@ WRITE16_MEMBER(wheelfir_state::pal_reset_pos_w)
 WRITE16_MEMBER(wheelfir_state::pal_data_w)
 {
 	int color=m_palpos/3;
-	m_palette[m_palpos] = data & 0xff;
+	m_palette_ptr[m_palpos] = data & 0xff;
 	++m_palpos;
 
 	m_palpos %=NUM_COLORS*3;
 
 	{
-		int r = m_palette[color*3];
-		int g = m_palette[color*3+1];
-		int b = m_palette[color*3+2];
-		palette_set_color(machine(), color, MAKE_RGB(r,g,b));
+		int r = m_palette_ptr[color*3];
+		int g = m_palette_ptr[color*3+1];
+		int b = m_palette_ptr[color*3+2];
+		m_palette->set_pen_color(color, rgb_t(r,g,b));
 	}
 
 }
@@ -767,7 +771,7 @@ void wheelfir_state::machine_start()
 	m_blitter_data = auto_alloc_array(machine(), UINT16, 16);
 
 	m_scanlines = reinterpret_cast<scroll_info*>(auto_alloc_array(machine(), UINT8, sizeof(scroll_info)*(NUM_SCANLINES+NUM_VBLANK_LINES)));
-	m_palette=auto_alloc_array(machine(), UINT8, NUM_COLORS*3);
+	m_palette_ptr = auto_alloc_array(machine(), UINT8, NUM_COLORS*3);
 
 
 	for(int i=0;i<(ZOOM_TABLE_SIZE);++i)
@@ -815,8 +819,9 @@ static MACHINE_CONFIG_START( wheelfir, wheelfir_state )
 	MCFG_SCREEN_VISIBLE_AREA(0,335, 0, NUM_SCANLINES-1)
 	MCFG_SCREEN_UPDATE_DRIVER(wheelfir_state, screen_update_wheelfir)
 	MCFG_SCREEN_VBLANK_DRIVER(wheelfir_state, screen_eof_wheelfir)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(NUM_COLORS)
+	MCFG_PALETTE_ADD("palette", NUM_COLORS)
 
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 

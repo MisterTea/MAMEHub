@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, R. Belmont, Anthony Kruize, Fabio Priuli, Harmony
 /***************************************************************************
 
   snes.c
@@ -21,25 +23,16 @@
 #define __MACHINE_SNES_C
 
 #include "emu.h"
-#include "cpu/superfx/superfx.h"
-#include "cpu/g65816/g65816.h"
-#include "cpu/upd7725/upd7725.h"
 #include "includes/snes.h"
-#include "audio/snes_snd.h"
 
 
 #define DMA_REG(a) m_dma_regs[a - 0x4300]   // regs 0x4300-0x437f
-
-void snes_state::video_start()
-{
-	m_ppu.ppu_start(m_screen);
-}
 
 UINT32 snes_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	/* NTSC SNES draw range is 1-225. */
 	for (int y = cliprect.min_y; y <= cliprect.max_y; y++)
-		m_ppu.refresh_scanline(machine(), bitmap, y + 1);
+		m_ppu->refresh_scanline(machine(), bitmap, y + 1);
 
 	return 0;
 }
@@ -94,7 +87,7 @@ void snes_state::hirq_tick()
 {
 	// latch the counters and pull IRQ
 	// (don't need to switch to the 65816 context, we don't do anything dependant on it)
-	m_ppu.latch_counters(machine());
+	m_ppu->latch_counters(machine());
 	SNES_CPU_REG(TIMEUP) = 0x80;    /* Indicate that irq occurred */
 	m_maincpu->set_input_line(G65816_LINE_IRQ, ASSERT_LINE);
 
@@ -112,11 +105,11 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_reset_oam_address)
 	// make sure we're in the 65816's context since we're messing with the OAM and stuff
 	address_space &space = m_maincpu->space(AS_PROGRAM);
 
-	if (!(m_ppu.m_screen_disabled)) //Reset OAM address, byuu says it happens at H=10
+	if (!(m_ppu->m_screen_disabled)) //Reset OAM address, byuu says it happens at H=10
 	{
-		space.write_byte(OAMADDL, m_ppu.m_oam.saved_address_low); /* Reset oam address */
-		space.write_byte(OAMADDH, m_ppu.m_oam.saved_address_high);
-		m_ppu.m_oam.first_sprite = m_ppu.m_oam.priority_rotation ? (m_ppu.m_oam.address >> 1) & 127 : 0;
+		space.write_byte(OAMADDL, m_ppu->m_oam.saved_address_low); /* Reset oam address */
+		space.write_byte(OAMADDH, m_ppu->m_oam.saved_address_high);
+		m_ppu->m_oam.first_sprite = m_ppu->m_oam.priority_rotation ? (m_ppu->m_oam.address >> 1) & 127 : 0;
 	}
 }
 
@@ -137,7 +130,7 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_update_io)
 TIMER_CALLBACK_MEMBER(snes_state::snes_scanline_tick)
 {
 	/* Increase current line - we want to latch on this line during it, not after it */
-	m_ppu.m_beam.current_vert = m_screen->vpos();
+	m_ppu->m_beam.current_vert = m_screen->vpos();
 
 	// not in hblank
 	SNES_CPU_REG(HVBJOY) &= ~0x40;
@@ -145,11 +138,11 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_scanline_tick)
 	/* Vertical IRQ timer - only if horizontal isn't also enabled! */
 	if ((SNES_CPU_REG(NMITIMEN) & 0x20) && !(SNES_CPU_REG(NMITIMEN) & 0x10))
 	{
-		if (m_ppu.m_beam.current_vert == m_vtime)
+		if (m_ppu->m_beam.current_vert == m_vtime)
 		{
 			SNES_CPU_REG(TIMEUP) = 0x80;    /* Indicate that irq occurred */
 			// IRQ latches the counters, do it now
-			m_ppu.latch_counters(machine());
+			m_ppu->latch_counters(machine());
 			m_maincpu->set_input_line(G65816_LINE_IRQ, ASSERT_LINE );
 		}
 	}
@@ -162,7 +155,7 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_scanline_tick)
 		// is the HIRQ on a specific scanline?
 		if (SNES_CPU_REG(NMITIMEN) & 0x20)
 		{
-			if (m_ppu.m_beam.current_vert != m_vtime)
+			if (m_ppu->m_beam.current_vert != m_vtime)
 			{
 				setirq = 0;
 			}
@@ -170,22 +163,22 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_scanline_tick)
 
 		if (setirq)
 		{
-//          printf("HIRQ @ %d, %d\n", pixel * m_ppu.m_htmult, m_ppu.m_beam.current_vert);
+//          printf("HIRQ @ %d, %d\n", pixel * m_ppu->m_htmult, m_ppu->m_beam.current_vert);
 			if (pixel == 0)
 			{
 				hirq_tick();
 			}
 			else
 			{
-				m_hirq_timer->adjust(m_screen->time_until_pos(m_ppu.m_beam.current_vert, pixel * m_ppu.m_htmult));
+				m_hirq_timer->adjust(m_screen->time_until_pos(m_ppu->m_beam.current_vert, pixel * m_ppu->m_htmult));
 			}
 		}
 	}
 
 	/* Start of VBlank */
-	if (m_ppu.m_beam.current_vert == m_ppu.m_beam.last_visible_line)
+	if (m_ppu->m_beam.current_vert == m_ppu->m_beam.last_visible_line)
 	{
-		timer_set(m_screen->time_until_pos(m_ppu.m_beam.current_vert, 10), TIMER_RESET_OAM_ADDRESS);
+		timer_set(m_screen->time_until_pos(m_ppu->m_beam.current_vert, 10), TIMER_RESET_OAM_ADDRESS);
 
 		SNES_CPU_REG(HVBJOY) |= 0x81;       /* Set vblank bit to on & indicate controllers being read */
 		SNES_CPU_REG(RDNMI) |= 0x80;        /* Set NMI occurred bit */
@@ -197,30 +190,30 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_scanline_tick)
 		}
 
 		/* three lines after start of vblank we update the controllers (value from snes9x) */
-		m_io_timer->adjust(m_screen->time_until_pos(m_ppu.m_beam.current_vert + 2, m_hblank_offset * m_ppu.m_htmult));
+		m_io_timer->adjust(m_screen->time_until_pos(m_ppu->m_beam.current_vert + 2, m_hblank_offset * m_ppu->m_htmult));
 	}
 
 	// hdma reset happens at scanline 0, H=~6
-	if (m_ppu.m_beam.current_vert == 0)
+	if (m_ppu->m_beam.current_vert == 0)
 	{
 		address_space &cpu0space = m_maincpu->space(AS_PROGRAM);
 		hdma_init(cpu0space);
 	}
 
-	if (m_ppu.m_beam.current_vert == 0)
+	if (m_ppu->m_beam.current_vert == 0)
 	{   /* VBlank is over, time for a new frame */
 		SNES_CPU_REG(HVBJOY) &= 0x7f;       /* Clear vblank bit */
 		SNES_CPU_REG(RDNMI)  &= 0x7f;       /* Clear nmi occurred bit */
-		m_ppu.m_stat78 ^= 0x80;       /* Toggle field flag */
-		m_ppu.m_stat77 &= 0x3f;  /* Clear Time Over and Range Over bits */
+		m_ppu->m_stat78 ^= 0x80;       /* Toggle field flag */
+		m_ppu->m_stat77 &= 0x3f;  /* Clear Time Over and Range Over bits */
 
 		m_maincpu->set_input_line(G65816_LINE_NMI, CLEAR_LINE );
 	}
 
 	m_scanline_timer->adjust(attotime::never);
-	m_hblank_timer->adjust(m_screen->time_until_pos(m_ppu.m_beam.current_vert, m_hblank_offset * m_ppu.m_htmult));
+	m_hblank_timer->adjust(m_screen->time_until_pos(m_ppu->m_beam.current_vert, m_hblank_offset * m_ppu->m_htmult));
 
-//  printf("%02x %d\n",SNES_CPU_REG(HVBJOY),m_ppu.m_beam.current_vert);
+//  printf("%02x %d\n",SNES_CPU_REG(HVBJOY),m_ppu->m_beam.current_vert);
 }
 
 /* This is called at the start of hblank *before* the scanline indicated in current_vert! */
@@ -229,13 +222,13 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_hblank_tick)
 	address_space &cpu0space = m_maincpu->space(AS_PROGRAM);
 	int nextscan;
 
-	m_ppu.m_beam.current_vert = m_screen->vpos();
+	m_ppu->m_beam.current_vert = m_screen->vpos();
 
 	/* make sure we halt */
 	m_hblank_timer->adjust(attotime::never);
 
 	/* draw a scanline */
-	if (m_ppu.m_beam.current_vert <= m_ppu.m_beam.last_visible_line)
+	if (m_ppu->m_beam.current_vert <= m_ppu->m_beam.last_visible_line)
 	{
 		if (m_screen->vpos() > 0)
 		{
@@ -243,7 +236,7 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_hblank_tick)
 			if (SNES_CPU_REG(HDMAEN))
 				hdma(cpu0space);
 
-			m_screen->update_partial((m_ppu.m_interlace == 2) ? (m_ppu.m_beam.current_vert * m_ppu.m_interlace) : m_ppu.m_beam.current_vert - 1);
+			m_screen->update_partial((m_ppu->m_interlace == 2) ? (m_ppu->m_beam.current_vert * m_ppu->m_interlace) : m_ppu->m_beam.current_vert - 1);
 		}
 	}
 
@@ -251,8 +244,8 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_hblank_tick)
 	SNES_CPU_REG(HVBJOY) |= 0x40;
 
 	/* kick off the start of scanline timer */
-	nextscan = m_ppu.m_beam.current_vert + 1;
-	if (nextscan >= (((m_ppu.m_stat78 & 0x10) == SNES_NTSC) ? SNES_VTOTAL_NTSC : SNES_VTOTAL_PAL))
+	nextscan = m_ppu->m_beam.current_vert + 1;
+	if (nextscan >= (((m_ppu->m_stat78 & 0x10) == SNES_NTSC) ? SNES_VTOTAL_NTSC : SNES_VTOTAL_PAL))
 	{
 		nextscan = 0;
 	}
@@ -267,7 +260,7 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_hblank_tick)
 
 *************************************/
 
-READ8_HANDLER( snes_open_bus_r )
+READ8_MEMBER( snes_state::snes_open_bus_r )
 {
 	static UINT8 recurse = 0;
 	UINT16 result;
@@ -329,7 +322,7 @@ READ8_MEMBER( snes_state::snes_io_dma_r )
 	return snes_open_bus_r(space, 0);
 }
 
-WRITE8_HANDLER( snes_state::snes_io_dma_w )
+WRITE8_MEMBER( snes_state::snes_io_dma_w )
 {
 	switch (offset)
 	{
@@ -400,7 +393,7 @@ READ8_MEMBER( snes_state::snes_r_io )
 	// PPU accesses are from 2100 to 213f
 	if (offset >= INIDISP && offset < APU00)
 	{
-		return m_ppu.read(space, offset, SNES_CPU_REG(WRIO) & 0x80);
+		return m_ppu->read(space, offset, SNES_CPU_REG(WRIO) & 0x80);
 	}
 
 	// APU is mirrored from 2140 to 217f
@@ -465,7 +458,7 @@ READ8_MEMBER( snes_state::snes_r_io )
 //      case 0x4101: //PC: a104 - a10e - a12a   //only nss_actr (DSW actually reads in word units ...)
 
 		default:
-//          mame_printf_debug("snes_r: offset = %x pc = %x\n",offset,space.device().safe_pc());
+//          osd_printf_debug("snes_r: offset = %x pc = %x\n",offset,space.device().safe_pc());
 // Added break; after commenting above line.  If uncommenting, drop the break;
 			break;
 	}
@@ -488,7 +481,7 @@ WRITE8_MEMBER( snes_state::snes_w_io )
 	// PPU accesses are from 2100 to 213f
 	if (offset >= INIDISP && offset < APU00)
 	{
-		m_ppu.write(space, offset, data);
+		m_ppu->write(space, offset, data);
 		return;
 	}
 
@@ -546,7 +539,7 @@ WRITE8_MEMBER( snes_state::snes_w_io )
 			if (!(SNES_CPU_REG(WRIO) & 0x80) && (data & 0x80))
 			{
 				// external latch
-				m_ppu.latch_counters(space.machine());
+				m_ppu->latch_counters(space.machine());
 			}
 			SNES_CPU_REG(WRIO) = data;
 			return;
@@ -572,7 +565,7 @@ WRITE8_MEMBER( snes_state::snes_w_io )
 			return;
 		case HDMAEN:    /* HDMA channel designation */
 			if (data) //if a HDMA is enabled, data is inited at the next scanline
-				timer_set(m_screen->time_until_pos(m_ppu.m_beam.current_vert + 1), TIMER_RESET_HDMA);
+				timer_set(m_screen->time_until_pos(m_ppu->m_beam.current_vert + 1), TIMER_RESET_HDMA);
 			SNES_CPU_REG(HDMAEN) = data;
 			return;
 		case TIMEUP:    // IRQ Flag is cleared on both read and write
@@ -1040,7 +1033,7 @@ void snes_state::snes_init_timers()
 	// SNES hcounter has a 0-339 range.  hblank starts at counter 260.
 	// clayfighter sets an HIRQ at 260, apparently it wants it to be before hdma kicks off, so we'll delay 2 pixels.
 	m_hblank_offset = 274;
-	m_hblank_timer->adjust(m_screen->time_until_pos(((m_ppu.m_stat78 & 0x10) == SNES_NTSC) ? SNES_VTOTAL_NTSC - 1 : SNES_VTOTAL_PAL - 1, m_hblank_offset));
+	m_hblank_timer->adjust(m_screen->time_until_pos(((m_ppu->m_stat78 & 0x10) == SNES_NTSC) ? SNES_VTOTAL_NTSC - 1 : SNES_VTOTAL_PAL - 1, m_hblank_offset));
 }
 
 void snes_state::snes_init_ram()
@@ -1067,9 +1060,9 @@ void snes_state::snes_init_ram()
 
 	// init frame counter so first line is 0
 	if (ATTOSECONDS_TO_HZ(m_screen->frame_period().attoseconds) >= 59)
-		m_ppu.m_beam.current_vert = SNES_VTOTAL_NTSC;
+		m_ppu->m_beam.current_vert = SNES_VTOTAL_NTSC;
 	else
-		m_ppu.m_beam.current_vert = SNES_VTOTAL_PAL;
+		m_ppu->m_beam.current_vert = SNES_VTOTAL_PAL;
 }
 
 void snes_state::machine_start()
@@ -1133,18 +1126,18 @@ void snes_state::machine_reset()
 
 	/* Set STAT78 to NTSC or PAL */
 	if (ATTOSECONDS_TO_HZ(m_screen->frame_period().attoseconds) >= 59.0f)
-		m_ppu.m_stat78 = SNES_NTSC;
+		m_ppu->m_stat78 = SNES_NTSC;
 	else /* if (ATTOSECONDS_TO_HZ(m_screen->frame_period().attoseconds) == 50.0f) */
-		m_ppu.m_stat78 = SNES_PAL;
+		m_ppu->m_stat78 = SNES_PAL;
 
 	// reset does this to these registers
 	SNES_CPU_REG(NMITIMEN) = 0;
 	m_htime = 0x1ff;
 	m_vtime = 0x1ff;
 
-	m_ppu.m_htmult = 1;
-	m_ppu.m_interlace = 1;
-	m_ppu.m_obj_interlace = 1;
+	m_ppu->m_htmult = 1;
+	m_ppu->m_interlace = 1;
+	m_ppu->m_obj_interlace = 1;
 }
 
 
@@ -1395,7 +1388,7 @@ void snes_state::hdma( address_space &space )
 					break;
 				default:
 #ifdef MAME_DEBUG
-					mame_printf_debug( "  HDMA of unsupported type: %d\n", m_dma_channel[i].dmap & 0x07);
+					osd_printf_debug( "  HDMA of unsupported type: %d\n", m_dma_channel[i].dmap & 0x07);
 #endif
 					break;
 				}
@@ -1463,7 +1456,7 @@ void snes_state::dma( address_space &space, UINT8 channels )
 //          printf( "DMA-Ch %d: len: %X, abus: %X, bbus: %X, incr: %d, dir: %s, type: %d\n", i, length, abus | abus_bank, bbus, increment, m_dma_channel[i].dmap & 0x80 ? "PPU->CPU" : "CPU->PPU", m_dma_channel[i].dmap & 0x07);
 
 #ifdef SNES_DBG_DMA
-			mame_printf_debug( "DMA-Ch %d: len: %X, abus: %X, bbus: %X, incr: %d, dir: %s, type: %d\n", i, length, abus | abus_bank, bbus, increment, m_dma_channel[i].dmap & 0x80 ? "PPU->CPU" : "CPU->PPU", m_dma_channel[i].dmap & 0x07);
+			osd_printf_debug( "DMA-Ch %d: len: %X, abus: %X, bbus: %X, incr: %d, dir: %s, type: %d\n", i, length, abus | abus_bank, bbus, increment, m_dma_channel[i].dmap & 0x80 ? "PPU->CPU" : "CPU->PPU", m_dma_channel[i].dmap & 0x07);
 #endif
 
 			switch (m_dma_channel[i].dmap & 0x07)
@@ -1530,7 +1523,7 @@ void snes_state::dma( address_space &space, UINT8 channels )
 					break;
 				default:
 #ifdef MAME_DEBUG
-					mame_printf_debug("  DMA of unsupported type: %d\n", m_dma_channel[i].dmap & 0x07);
+					osd_printf_debug("  DMA of unsupported type: %d\n", m_dma_channel[i].dmap & 0x07);
 #endif
 					break;
 			}

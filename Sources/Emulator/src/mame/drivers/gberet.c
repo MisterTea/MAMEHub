@@ -379,23 +379,6 @@ GFXDECODE_END
 
 /*************************************
  *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
-/*************************************
- *
  *  Machine drivers
  *
  *************************************/
@@ -431,11 +414,12 @@ static MACHINE_CONFIG_START( gberet, gberet_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 31*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(gberet_state, screen_update_gberet)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(gberet)
-	MCFG_PALETTE_LENGTH(2*16*16)
-
-	MCFG_PALETTE_INIT_OVERRIDE(gberet_state,gberet)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", gberet)
+	MCFG_PALETTE_ADD("palette", 2*16*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(gberet_state,gberet)
 	MCFG_VIDEO_START_OVERRIDE(gberet_state,gberet)
 
 	/* sound hardware */
@@ -443,7 +427,6 @@ static MACHINE_CONFIG_START( gberet, gberet_state )
 
 	MCFG_SOUND_ADD("snsnd", SN76489A, XTAL_18_432MHz/12) /* type verified on real and bootleg pcb */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mrgoemon, gberet )
@@ -471,11 +454,12 @@ static MACHINE_CONFIG_START( gberetb, gberet_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 31*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(gberet_state, screen_update_gberetb)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(gberetb)
-	MCFG_PALETTE_LENGTH(2*16*16)
-
-	MCFG_PALETTE_INIT_OVERRIDE(gberet_state,gberet)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", gberetb)
+	MCFG_PALETTE_ADD("palette", 2*16*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(gberet_state,gberet)
 	MCFG_VIDEO_START_OVERRIDE(gberet_state,gberet)
 
 	/* sound hardware */
@@ -483,7 +467,6 @@ static MACHINE_CONFIG_START( gberetb, gberet_state )
 
 	MCFG_SOUND_ADD("snsnd", SN76489A, XTAL_20MHz/12) // divider guessed
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 

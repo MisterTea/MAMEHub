@@ -14,6 +14,7 @@
 #include "includes/apple2.h"
 #include "sound/es5503.h"
 #include "machine/nvram.h"
+#include "cpu/g65816/g65816.h"
 #if RUN_ADB_MICRO
 #include "cpu/m6502/m5074x.h"
 #endif
@@ -98,10 +99,11 @@ public:
 		m_adbmicro(*this, ADBMICRO_TAG),
 		#endif
 		m_adb_mousex(*this, "adb_mouse_x"),
-		m_adb_mousey(*this, "adb_mouse_y")
+		m_adb_mousey(*this, "adb_mouse_y"),
+		m_palette(*this, "palette")
 		{ }
 
-	required_device<cpu_device> m_maincpu;
+	required_device<g65816_device> m_maincpu;
 	required_device<es5503_device> m_es5503;
 	required_device<applefdc_base_device> m_fdc;
 	#if RUN_ADB_MICRO
@@ -109,6 +111,7 @@ public:
 	#endif
 
 	required_ioport  m_adb_mousex, m_adb_mousey;
+	required_device<palette_device> m_palette;
 
 	UINT8 *m_slowmem;
 	UINT8 m_newvideo;
@@ -161,6 +164,8 @@ public:
 	UINT8 m_echo_bank;
 	UINT64 m_last_adb_time;
 	int m_adb_dtime;
+	UINT32 m_a2_palette[16];
+	UINT32 m_shr_palette[256];
 
 	DECLARE_DIRECT_UPDATE_MEMBER(apple2gs_opbase);
 
@@ -187,13 +192,13 @@ public:
 	DECLARE_PALETTE_INIT(apple2gs);
 	DECLARE_MACHINE_START(apple2gsr1);
 	DECLARE_MACHINE_START(apple2gscommon);
-	UINT32 screen_update_apple2gs(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	UINT32 screen_update_apple2gs(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(apple2gs_clock_tick);
 	TIMER_CALLBACK_MEMBER(apple2gs_qsecond_tick);
 	TIMER_CALLBACK_MEMBER(apple2gs_scanline_tick);
-	DECLARE_WRITE8_MEMBER(a2bus_irq_w);
-	DECLARE_WRITE8_MEMBER(a2bus_nmi_w);
-	DECLARE_WRITE8_MEMBER(a2bus_inh_w);
+	DECLARE_WRITE_LINE_MEMBER(a2bus_irq_w);
+	DECLARE_WRITE_LINE_MEMBER(a2bus_nmi_w);
+	DECLARE_WRITE_LINE_MEMBER(a2bus_inh_w);
 	DECLARE_READ8_MEMBER(apple2gs_read_vector);
 
 	// ADB MCU and ADB GLU stuff
@@ -256,10 +261,9 @@ public:
 	DECLARE_WRITE8_MEMBER( apple2gs_E12xxx_w );
 	DECLARE_WRITE8_MEMBER( apple2gs_slowmem_w );
 	DECLARE_READ8_MEMBER(apple2gs_bank_echo_r);
+	DECLARE_WRITE_LINE_MEMBER( apple2gs_doc_irq);
+	DECLARE_READ8_MEMBER(apple2gs_adc_read);
+
 };
-
-
-/*----------- defined in machine/apple2gs.c -----------*/
-void apple2gs_doc_irq(device_t *device, int state);
 
 #endif /* APPLE2GS_H_ */

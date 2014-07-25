@@ -5,6 +5,8 @@ Dambusters
 
 Reverse-engineering and MAME Driver by Norbert Kehrer (August 2006)
 
+NOTE:  Eventually to be merged into GALAXIAN.C
+
 2008-08
 Dip locations verified with manual
 
@@ -51,7 +53,6 @@ Stephh's notes (based on the games Z80 code and some tests) :
 #include "cpu/z80/z80.h"
 #include "audio/galaxian.h"
 #include "includes/galaxold.h"
-#include "machine/7474.h"
 
 
 class dambustr_state : public galaxold_state
@@ -253,8 +254,11 @@ static MACHINE_CONFIG_START( dambustr, dambustr_state )
 
 	MCFG_MACHINE_RESET_OVERRIDE(dambustr_state,galaxold)
 
-	MCFG_7474_ADD("7474_9m_1", WRITELINE(dambustr_state,galaxold_7474_9m_1_callback), NOOP)
-	MCFG_7474_ADD("7474_9m_2", NOOP, WRITELINE(dambustr_state,galaxold_7474_9m_2_q_callback))
+	MCFG_DEVICE_ADD("7474_9m_1", TTL7474, 0)
+	MCFG_7474_OUTPUT_CB(WRITELINE(dambustr_state,galaxold_7474_9m_1_callback))
+
+	MCFG_DEVICE_ADD("7474_9m_2", TTL7474, 0)
+	MCFG_7474_COMP_OUTPUT_CB(WRITELINE(dambustr_state,galaxold_7474_9m_2_q_callback))
 
 	MCFG_TIMER_DRIVER_ADD("int_timer", dambustr_state, galaxold_interrupt_timer)
 
@@ -264,11 +268,12 @@ static MACHINE_CONFIG_START( dambustr, dambustr_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dambustr_state, screen_update_dambustr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(dambustr)
-	MCFG_PALETTE_LENGTH(32+2+64+8)      /* 32 for the characters, 2 for the bullets, 64 for the stars, 8 for the background */
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dambustr)
+	MCFG_PALETTE_ADD("palette", 32+2+64+8)      /* 32 for the characters, 2 for the bullets, 64 for the stars, 8 for the background */
 
-	MCFG_PALETTE_INIT_OVERRIDE(dambustr_state,dambustr)
+	MCFG_PALETTE_INIT_OWNER(dambustr_state,dambustr)
 	MCFG_VIDEO_START_OVERRIDE(dambustr_state,dambustr)
 
 	/* sound hardware */

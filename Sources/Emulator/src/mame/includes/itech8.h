@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     Incredible Technologies/Strata system
@@ -20,7 +22,8 @@ public:
 		m_subcpu(*this, "sub"),
 		m_tms34061(*this, "tms34061"),
 		m_tlc34076(*this, "tlc34076"),
-		m_visarea(0, 0, 0, 0) { }
+		m_visarea(0, 0, 0, 0),
+		m_screen(*this, "screen") { }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_soundcpu;
@@ -28,6 +31,7 @@ public:
 	required_device<tms34061_device> m_tms34061;
 	required_device<tlc34076_device> m_tlc34076;
 	rectangle m_visarea;
+	required_device<screen_device> m_screen;
 	UINT8 m_grom_bank;
 
 	UINT8 m_blitter_int;
@@ -65,8 +69,7 @@ public:
 	UINT8 m_grmatch_palcontrol;
 	UINT8 m_grmatch_xscroll;
 	rgb_t m_grmatch_palette[2][16];
-	static void static_generate_interrupt(running_machine &machine, int state_num);
-	void generate_interrupt(int state_num);
+	DECLARE_WRITE_LINE_MEMBER(generate_tms34061_interrupt);
 	DECLARE_WRITE8_MEMBER(itech8_nmi_ack_w);
 	DECLARE_WRITE8_MEMBER(blitter_w);
 	DECLARE_WRITE8_MEMBER(rimrockn_bank_w);

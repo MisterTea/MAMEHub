@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
 Sega SG-1000
@@ -64,7 +66,8 @@ Notes:
 
 
 #include "includes/sg1000.h"
-#include "machine/sega8_rom.h"
+#include "bus/rs232/rs232.h"
+#include "bus/sega8/rom.h"
 
 
 /***************************************************************************
@@ -438,7 +441,7 @@ static INPUT_PORTS_START( sf7000 )
 	PORT_INCLUDE( sk1100 )
 
 	PORT_START("BAUD")
-	PORT_CONFNAME( 0x05, 0x05, "Baud rate")
+	PORT_CONFNAME( 0x07, 0x05, "Baud rate")
 	PORT_CONFSETTING( 0x00, "9600 baud" )
 	PORT_CONFSETTING( 0x01, "4800 baud" )
 	PORT_CONFSETTING( 0x02, "2400 baud" )
@@ -460,14 +463,8 @@ WRITE_LINE_MEMBER(sg1000_state::sg1000_vdp_interrupt)
 	m_maincpu->set_input_line(INPUT_LINE_IRQ0, state);
 }
 
-static TMS9928A_INTERFACE(sg1000_tms9918a_interface)
-{
-	0x4000,
-	DEVCB_DRIVER_LINE_MEMBER(sg1000_state,sg1000_vdp_interrupt)
-};
-
 /*-------------------------------------------------
-    I8255_INTERFACE( sc3000_ppi_intf )
+    I8255 INTERFACE
 -------------------------------------------------*/
 
 READ8_MEMBER( sc3000_state::ppi_pa_r )
@@ -542,32 +539,14 @@ WRITE8_MEMBER( sc3000_state::ppi_pc_w )
 	/* TODO printer */
 }
 
-I8255_INTERFACE( sc3000_ppi_intf )
-{
-	DEVCB_DRIVER_MEMBER(sc3000_state, ppi_pa_r),    // Port A read
-	DEVCB_NULL,                                     // Port A write
-	DEVCB_DRIVER_MEMBER(sc3000_state, ppi_pb_r),    // Port B read
-	DEVCB_NULL,                                     // Port B write
-	DEVCB_NULL,                                     // Port C read
-	DEVCB_DRIVER_MEMBER(sc3000_state, ppi_pc_w),    // Port C write
-};
-
 /*-------------------------------------------------
-    cassette_interface sc3000_cassette_interface
+    I8255 INTERFACE
 -------------------------------------------------*/
 
-const cassette_interface sc3000_cassette_interface =
+WRITE_LINE_MEMBER( sf7000_state::write_centronics_busy )
 {
-	sc3000_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
-
-/*-------------------------------------------------
-    I8255_INTERFACE( sf7000_ppi_intf )
--------------------------------------------------*/
+	m_centronics_busy = state;
+}
 
 READ8_MEMBER( sf7000_state::ppi_pa_r )
 {
@@ -587,7 +566,7 @@ READ8_MEMBER( sf7000_state::ppi_pa_r )
 	UINT8 data = 0;
 
 	data |= m_fdc->get_irq() ? 0x01 : 0x00;
-	data |= m_centronics->busy_r() << 1;
+	data |= m_centronics_busy << 1;
 	data |= m_floppy0->idx_r() << 2;
 
 	return data;
@@ -629,35 +608,8 @@ WRITE8_MEMBER( sf7000_state::ppi_pc_w )
 	membank("bank1")->set_entry(BIT(data, 6));
 
 	/* printer strobe */
-	m_centronics->strobe_w(BIT(data, 7));
+	m_centronics->write_strobe(BIT(data, 7));
 }
-
-static I8255_INTERFACE( sf7000_ppi_intf )
-{
-	DEVCB_DRIVER_MEMBER(sf7000_state, ppi_pa_r),                // Port A read
-	DEVCB_NULL,                                                 // Port A write
-	DEVCB_NULL,                                                 // Port B read
-	DEVCB_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, write),  // Port B write
-	DEVCB_NULL,                                                 // Port C read
-	DEVCB_DRIVER_MEMBER(sf7000_state, ppi_pc_w)                 // Port C write
-};
-
-//-------------------------------------------------
-//  i8251_interface usart_intf
-//-------------------------------------------------
-
-static const i8251_interface usart_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dsr_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 /*-------------------------------------------------
     upd765_interface sf7000_upd765_interface
@@ -674,28 +626,6 @@ FLOPPY_FORMATS_END
 static SLOT_INTERFACE_START( sf7000_floppies )
 	SLOT_INTERFACE( "3ssdd", FLOPPY_3_SSDD )
 SLOT_INTERFACE_END
-
-/*-------------------------------------------------
-    sn76496_config psg_intf
--------------------------------------------------*/
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-//-------------------------------------------------
-//  rs232_port_interface rs232_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 /*-------------------------------------------------
     MACHINE_START( sg1000 )
@@ -757,6 +687,8 @@ void sf7000_state::machine_start()
 {
 	sc3000_state::machine_start();
 
+	save_item(NAME(m_centronics_busy));
+
 	/* configure memory banking */
 	membank("bank1")->configure_entry(0, m_rom->base());
 	membank("bank1")->configure_entry(1, m_ram->pointer());
@@ -797,15 +729,17 @@ static MACHINE_CONFIG_START( sg1000, sg1000_state )
 	MCFG_CPU_IO_MAP(sg1000_io_map)
 
 	/* video hardware */
-	MCFG_TMS9928A_ADD( TMS9918A_TAG, TMS9918A, sg1000_tms9918a_interface )
+	MCFG_DEVICE_ADD( TMS9918A_TAG, TMS9918A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(sg1000_state, sg1000_vdp_interrupt))
 	MCFG_TMS9928A_SCREEN_ADD_NTSC( SCREEN_TAG )
 	MCFG_SCREEN_UPDATE_DEVICE( TMS9918A_TAG, tms9918a_device, screen_update )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
 	MCFG_SOUND_ADD(SN76489AN_TAG, SN76489A, XTAL_10_738635MHz/3)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	/* cartridge */
 	MCFG_SG1000_CARTRIDGE_ADD(CARTSLOT_TAG, sg1000_cart, NULL)
@@ -845,26 +779,38 @@ static MACHINE_CONFIG_START( sc3000, sc3000_state )
 	MCFG_CPU_IO_MAP(sc3000_io_map)
 
 	/* video hardware */
-	MCFG_TMS9928A_ADD( TMS9918A_TAG, TMS9918A, sg1000_tms9918a_interface )
+	MCFG_DEVICE_ADD( TMS9918A_TAG, TMS9918A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(sg1000_state, sg1000_vdp_interrupt))
 	MCFG_TMS9928A_SCREEN_ADD_NTSC( SCREEN_TAG )
 	MCFG_SCREEN_UPDATE_DEVICE( TMS9918A_TAG, tms9918a_device, screen_update )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
 	MCFG_SOUND_ADD(SN76489AN_TAG, SN76489A, XTAL_10_738635MHz/3)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	/* devices */
-	MCFG_I8255_ADD(UPD9255_TAG, sc3000_ppi_intf)
+	MCFG_DEVICE_ADD(UPD9255_TAG, I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(sc3000_state, ppi_pa_r))
+	MCFG_I8255_IN_PORTB_CB(READ8(sc3000_state, ppi_pb_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(sc3000_state, ppi_pc_w))
+
 //  MCFG_PRINTER_ADD("sp400") /* serial printer */
-	MCFG_CASSETTE_ADD("cassette", sc3000_cassette_interface)
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_FORMATS(sc3000_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("sc3000_cass")
 
 	/* cartridge */
 	MCFG_SC3000_CARTRIDGE_ADD(CARTSLOT_TAG, sg1000_cart, NULL)
 
 	/* software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list","sg1000")
+	MCFG_SOFTWARE_LIST_ADD("sc3k_cart_list","sc3000_cart")
+	MCFG_SOFTWARE_LIST_ADD("cass_list","sc3000_cass")
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -882,25 +828,49 @@ static MACHINE_CONFIG_START( sf7000, sf7000_state )
 	MCFG_CPU_IO_MAP(sf7000_io_map)
 
 	/* video hardware */
-	MCFG_TMS9928A_ADD( TMS9918A_TAG, TMS9918A, sg1000_tms9918a_interface )
+	MCFG_DEVICE_ADD( TMS9918A_TAG, TMS9918A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(sg1000_state, sg1000_vdp_interrupt))
 	MCFG_TMS9928A_SCREEN_ADD_NTSC( SCREEN_TAG )
 	MCFG_SCREEN_UPDATE_DEVICE( TMS9918A_TAG, tms9918a_device, screen_update )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
 	MCFG_SOUND_ADD(SN76489AN_TAG, SN76489A, XTAL_10_738635MHz/3)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	/* devices */
-	MCFG_I8255_ADD(UPD9255_0_TAG, sc3000_ppi_intf)
-	MCFG_I8255_ADD(UPD9255_1_TAG, sf7000_ppi_intf)
-	MCFG_I8251_ADD(UPD8251_TAG, usart_intf)
+	MCFG_DEVICE_ADD(UPD9255_0_TAG, I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(sc3000_state, ppi_pa_r))
+	MCFG_I8255_IN_PORTB_CB(READ8(sc3000_state, ppi_pb_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(sc3000_state, ppi_pc_w))
+
+	MCFG_DEVICE_ADD(UPD9255_1_TAG, I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(sf7000_state, ppi_pa_r))
+	MCFG_I8255_OUT_PORTB_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(sf7000_state, ppi_pc_w))
+
+	MCFG_DEVICE_ADD(UPD8251_TAG, I8251, 0)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_I8251_DTR_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_dtr))
+	MCFG_I8251_RTS_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_rts))
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(UPD8251_TAG, i8251_device, write_rxd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(UPD8251_TAG, i8251_device, write_dsr))
+
 	MCFG_UPD765A_ADD(UPD765_TAG, false, false)
 	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":0", sf7000_floppies, "3ssdd", sf7000_state::floppy_formats)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_CASSETTE_ADD("cassette", sc3000_cassette_interface)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_FORMATS(sc3000_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("sc3000_cass")
 
 	/* software lists */
 	MCFG_SOFTWARE_LIST_ADD("flop_list","sf7000")

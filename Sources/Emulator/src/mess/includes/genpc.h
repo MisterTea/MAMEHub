@@ -10,9 +10,9 @@
 #include "machine/ins8250.h"
 #include "machine/i8255.h"
 #include "machine/am9517a.h"
-#include "machine/isa.h"
-#include "machine/isa_cards.h"
-#include "machine/pc_kbdc.h"
+#include "bus/isa/isa.h"
+#include "bus/isa/isa_cards.h"
+#include "bus/pc_kbd/pc_kbdc.h"
 #include "machine/pic8259.h"
 #include "machine/pit8253.h"
 #include "sound/speaker.h"
@@ -39,18 +39,16 @@ protected:
 	virtual void device_start();
 	virtual void device_reset();
 
-	ATTR_DEPRECATED void install_device(device_t *dev, offs_t start, offs_t end, offs_t mask, offs_t mirror, read8_device_func rhandler, const char* rhandler_name, write8_device_func whandler, const char *whandler_name);
-	ATTR_DEPRECATED void install_device_write(device_t *dev, offs_t start, offs_t end, offs_t mask, offs_t mirror, write8_device_func whandler, const char *whandler_name);
 	void install_device(offs_t start, offs_t end, offs_t mask, offs_t mirror, read8_delegate rhandler, write8_delegate whandler);
 public:
 	required_device<cpu_device>  m_maincpu;
 	required_device<pic8259_device>  m_pic8259;
 	required_device<am9517a_device>  m_dma8237;
 	required_device<pit8253_device>  m_pit8253;
-	required_device<i8255_device>  m_ppi8255;
+	optional_device<i8255_device>  m_ppi8255;
 	required_device<speaker_sound_device>  m_speaker;
 	required_device<isa8_device>  m_isabus;
-	required_device<pc_kbdc_device>  m_pc_kbdc;
+	optional_device<pc_kbdc_device>  m_pc_kbdc;
 	required_device<ram_device> m_ram;
 
 	/* U73 is an LS74 - dual flip flop */
@@ -60,7 +58,7 @@ public:
 	int m_dma_channel;
 	UINT8 m_dma_offset[4];
 	UINT8 m_pc_spkrdata;
-	UINT8 m_pc_input;
+	UINT8 m_pit_out2;
 	bool m_cur_eop;
 
 	UINT8 m_nmi_enabled;
@@ -75,10 +73,8 @@ public:
 	UINT8                   m_ppi_shift_register;
 	UINT8                   m_ppi_shift_enable;
 
-	IRQ_CALLBACK_MEMBER(pc_irq_callback);
-
 	// interface to the keyboard
-	DECLARE_WRITE_LINE_MEMBER( keyboard_clock_w );
+	virtual DECLARE_WRITE_LINE_MEMBER( keyboard_clock_w );
 	DECLARE_WRITE_LINE_MEMBER( keyboard_data_w );
 
 	virtual DECLARE_READ8_MEMBER ( pc_ppi_porta_r );
@@ -106,6 +102,10 @@ public:
 
 	DECLARE_WRITE_LINE_MEMBER( pc_speaker_set_spkrdata );
 
+	DECLARE_READ8_MEMBER(pc_page_r);
+	DECLARE_WRITE8_MEMBER(pc_page_w);
+	DECLARE_WRITE8_MEMBER(nmi_enable_w);
+
 	const char *m_cputag;
 
 private:
@@ -131,7 +131,7 @@ public:
 	// optional information overrides
 	virtual machine_config_constructor device_mconfig_additions() const;
 
-	DECLARE_WRITE_LINE_MEMBER( keyboard_clock_w );
+	virtual DECLARE_WRITE_LINE_MEMBER( keyboard_clock_w );
 
 protected:
 	// device-level overrides
@@ -148,5 +148,56 @@ public:
 
 // device type definition
 extern const device_type IBM5150_MOTHERBOARD;
+
+
+#define MCFG_EC1841_MOTHERBOARD_ADD(_tag, _cputag) \
+	MCFG_DEVICE_ADD(_tag, EC1841_MOTHERBOARD, 0) \
+	ec1841_mb_device::static_set_cputag(*device, _cputag);
+
+// ======================> ibm5150_mb_device
+class ec1841_mb_device : public ibm5160_mb_device
+{
+public:
+	// construction/destruction
+	ec1841_mb_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual machine_config_constructor device_mconfig_additions() const;
+	virtual ioport_constructor device_input_ports() const;
+
+protected:
+	// device-level overrides
+	virtual void device_start();
+	virtual void device_reset();
+
+public:
+	virtual DECLARE_READ8_MEMBER ( pc_ppi_portc_r );
+	virtual DECLARE_WRITE8_MEMBER( pc_ppi_portb_w );
+
+	virtual DECLARE_WRITE_LINE_MEMBER( keyboard_clock_w );
+};
+
+
+// device type definition
+extern const device_type EC1841_MOTHERBOARD;
+
+#define MCFG_PCNOPPI_MOTHERBOARD_ADD(_tag, _cputag) \
+	MCFG_DEVICE_ADD(_tag, PCNOPPI_MOTHERBOARD, 0) \
+	pc_noppi_mb_device::static_set_cputag(*device, _cputag);
+
+class pc_noppi_mb_device : public ibm5160_mb_device
+{
+public:
+	// construction/destruction
+	pc_noppi_mb_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	virtual machine_config_constructor device_mconfig_additions() const;
+	virtual ioport_constructor device_input_ports() const;
+protected:
+	// device-level overrides
+	void device_start();
+};
+
+extern const device_type PCNOPPI_MOTHERBOARD;
 
 #endif /* GENPC_H_ */

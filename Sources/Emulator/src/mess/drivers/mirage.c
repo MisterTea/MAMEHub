@@ -55,13 +55,16 @@ class mirage_state : public driver_device
 {
 public:
 	mirage_state(const machine_config &mconfig, device_type type, const char *tag)
-	: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_fdc(*this, "wd1772")
-	{ }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_fdc(*this, "wd1772"),
+		m_via(*this, "via6522")
+	{
+	}
 
 	required_device<m6809e_device> m_maincpu;
 	required_device<wd1772_t> m_fdc;
+	required_device<via6522_device> m_via;
 
 	virtual void machine_reset();
 
@@ -69,21 +72,13 @@ public:
 
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
 
-	void fdc_intrq_w(bool state);
-	void fdc_drq_w(bool state);
 	DECLARE_DRIVER_INIT(mirage);
 	virtual void video_start();
 	UINT32 screen_update_mirage(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	DECLARE_WRITE8_MEMBER(mirage_via_write_porta);
 	DECLARE_WRITE8_MEMBER(mirage_via_write_portb);
-	DECLARE_READ8_MEMBER(mirage_via_read_porta);
-	DECLARE_READ8_MEMBER(mirage_via_read_portb);
-	DECLARE_READ8_MEMBER(mirage_via_read_ca1);
-	DECLARE_READ8_MEMBER(mirage_via_read_cb1);
-	DECLARE_READ8_MEMBER(mirage_via_read_ca2);
-	DECLARE_READ8_MEMBER(mirage_via_read_cb2);
-
-	DECLARE_WRITE_LINE_MEMBER(acia_irq_w);
+	DECLARE_WRITE_LINE_MEMBER(mirage_doc_irq);
+	DECLARE_READ8_MEMBER(mirage_adc_read);
 
 	UINT8 m_l_segs, m_r_segs;
 	int   m_l_hi, m_r_hi;
@@ -97,27 +92,12 @@ static SLOT_INTERFACE_START( ensoniq_floppies )
 	SLOT_INTERFACE( "35dd", FLOPPY_35_DD )
 SLOT_INTERFACE_END
 
-WRITE_LINE_MEMBER(mirage_state::acia_irq_w)
-{
-	m_maincpu->set_input_line(M6809_FIRQ_LINE, state);
-}
-
-void mirage_state::fdc_intrq_w(bool state)
-{
-	m_maincpu->set_input_line(INPUT_LINE_NMI, state);
-}
-
-void mirage_state::fdc_drq_w(bool state)
-{
-	m_maincpu->set_input_line(M6809_IRQ_LINE, state);
-}
-
-static void mirage_doc_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(mirage_state::mirage_doc_irq)
 {
 //    m_maincpu->set_input_line(M6809_IRQ_LINE, state);
 }
 
-static UINT8 mirage_adc_read(device_t *device)
+READ8_MEMBER(mirage_state::mirage_adc_read)
 {
 	return 0x00;
 }
@@ -141,8 +121,8 @@ static ADDRESS_MAP_START( mirage_map, AS_PROGRAM, 8, mirage_state )
 	AM_RANGE(0x0000, 0x7fff) AM_RAMBANK("sndbank")  // 32k window on 128k of wave RAM
 	AM_RANGE(0x8000, 0xbfff) AM_RAM         // main RAM
 	AM_RANGE(0xc000, 0xdfff) AM_RAM         // expansion RAM
-	AM_RANGE(0xe100, 0xe100) AM_DEVREADWRITE("acia6850", acia6850_device, status_read, control_write)
-	AM_RANGE(0xe101, 0xe101) AM_DEVREADWRITE("acia6850", acia6850_device, data_read, data_write)
+	AM_RANGE(0xe100, 0xe100) AM_DEVREADWRITE("acia6850", acia6850_device, status_r, control_w)
+	AM_RANGE(0xe101, 0xe101) AM_DEVREADWRITE("acia6850", acia6850_device, data_r, data_w)
 	AM_RANGE(0xe200, 0xe2ff) AM_DEVREADWRITE("via6522", via6522_device, read, write)
 	AM_RANGE(0xe400, 0xe4ff) AM_NOP
 	AM_RANGE(0xe800, 0xe803) AM_DEVREADWRITE("wd1772", wd1772_t, read, write)
@@ -224,74 +204,6 @@ WRITE8_MEMBER(mirage_state::mirage_via_write_portb)
 	}
 }
 
-// port A: front panel
-READ8_MEMBER(mirage_state::mirage_via_read_porta)
-{
-	return 0;
-}
-
-// port B:
-//  bit 6: IN FDC disk ready
-//  bit 5: IN 5503 sync (?)
-READ8_MEMBER(mirage_state::mirage_via_read_portb)
-{
-	return 0x60;
-}
-
-// external sync pulse
-READ8_MEMBER(mirage_state::mirage_via_read_ca1)
-{
-	return 0;
-}
-
-// keyscan
-READ8_MEMBER(mirage_state::mirage_via_read_cb1)
-{
-	return 0;
-}
-
-// keyscan
-READ8_MEMBER(mirage_state::mirage_via_read_ca2)
-{
-	return 0;
-}
-
-
-// keyscan
-READ8_MEMBER(mirage_state::mirage_via_read_cb2)
-{
-	return 0;
-}
-
-const via6522_interface mirage_via =
-{
-	DEVCB_DRIVER_MEMBER(mirage_state, mirage_via_read_porta),
-	DEVCB_DRIVER_MEMBER(mirage_state, mirage_via_read_portb),
-	DEVCB_DRIVER_MEMBER(mirage_state, mirage_via_read_ca1),
-	DEVCB_DRIVER_MEMBER(mirage_state, mirage_via_read_cb1),
-	DEVCB_DRIVER_MEMBER(mirage_state, mirage_via_read_ca2),
-	DEVCB_DRIVER_MEMBER(mirage_state, mirage_via_read_cb2),
-	DEVCB_DRIVER_MEMBER(mirage_state, mirage_via_write_porta),
-	DEVCB_DRIVER_MEMBER(mirage_state, mirage_via_write_portb),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_CPU_INPUT_LINE("maincpu", M6809_IRQ_LINE)
-};
-
-static ACIA6850_INTERFACE( mirage_acia6850_interface )
-{
-	0,              // tx clock
-	0,              // rx clock
-	DEVCB_NULL,         // rx in
-	DEVCB_NULL,         // rx out
-	DEVCB_NULL,         // cts in
-	DEVCB_NULL,         // rts out
-	DEVCB_NULL,         // dcd in
-	DEVCB_DRIVER_LINE_MEMBER(mirage_state, acia_irq_w)
-};
-
 static MACHINE_CONFIG_START( mirage, mirage_state )
 	MCFG_CPU_ADD("maincpu", M6809E, 4000000)
 	MCFG_CPU_PROGRAM_MAP(mirage_map)
@@ -299,15 +211,26 @@ static MACHINE_CONFIG_START( mirage, mirage_state )
 	MCFG_DEFAULT_LAYOUT( layout_mirage )
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
-	MCFG_ES5503_ADD("es5503", 7000000, 2, mirage_doc_irq, mirage_adc_read)
+	MCFG_ES5503_ADD("es5503", 7000000)
+	MCFG_ES5503_OUTPUT_CHANNELS(2)
+	MCFG_ES5503_IRQ_FUNC(WRITELINE(mirage_state, mirage_doc_irq))
+	MCFG_ES5503_ADC_FUNC(READ8(mirage_state, mirage_adc_read))
+
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_VIA6522_ADD("via6522", 1000000, mirage_via)
+	MCFG_DEVICE_ADD("via6522", VIA6522, 1000000)
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(mirage_state, mirage_via_write_porta))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(mirage_state, mirage_via_write_portb))
+	MCFG_VIA6522_IRQ_HANDLER(DEVWRITELINE("maincpu", m6809e_device, irq_line))
 
-	MCFG_ACIA6850_ADD("acia6850", mirage_acia6850_interface)
+	MCFG_DEVICE_ADD("acia6850", ACIA6850, 0)
+	MCFG_ACIA6850_IRQ_HANDLER(DEVWRITELINE("maincpu", m6809e_device, firq_line))
 
 	MCFG_WD1772x_ADD("wd1772", 8000000)
+	MCFG_WD_FDC_INTRQ_CALLBACK(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	MCFG_WD_FDC_DRQ_CALLBACK(INPUTLINE("maincpu", M6809_IRQ_LINE))
+
 	MCFG_FLOPPY_DRIVE_ADD("wd1772:0", ensoniq_floppies, "35dd", mirage_state::floppy_formats)
 MACHINE_CONFIG_END
 
@@ -328,14 +251,34 @@ DRIVER_INIT_MEMBER(mirage_state,mirage)
 	if (floppy)
 	{
 		m_fdc->set_floppy(floppy);
-		m_fdc->setup_intrq_cb(wd1772_t::line_cb(FUNC(mirage_state::fdc_intrq_w), this));
-		m_fdc->setup_drq_cb(wd1772_t::line_cb(FUNC(mirage_state::fdc_drq_w), this));
 
 		floppy->ss_w(0);
 	}
 
 	m_l_hi = m_r_hi = 9;
 	m_l_segs = m_r_segs = 0;
+
+	// port A: front panel
+	m_via->write_pa0(0);
+	m_via->write_pa1(0);
+	m_via->write_pa2(0);
+	m_via->write_pa3(0);
+	m_via->write_pa4(0);
+	m_via->write_pa5(0);
+	m_via->write_pa6(0);
+	m_via->write_pa7(0);
+
+	// port B:
+	//  bit 6: IN FDC disk ready
+	//  bit 5: IN 5503 sync (?)
+	m_via->write_pb0(0);
+	m_via->write_pb1(0);
+	m_via->write_pb2(0);
+	m_via->write_pb3(0);
+	m_via->write_pb4(0);
+	m_via->write_pb5(1);
+	m_via->write_pb6(1);
+	m_via->write_pb7(0);
 }
 
 CONS( 1984, enmirage, 0, 0, mirage, mirage, mirage_state, mirage, "Ensoniq", "Ensoniq Mirage", GAME_NOT_WORKING )

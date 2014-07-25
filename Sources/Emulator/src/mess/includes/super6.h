@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __SUPER6__
@@ -8,7 +10,6 @@
 #include "cpu/z80/z80daisy.h"
 #include "machine/com8116.h"
 #include "machine/ram.h"
-#include "machine/serial.h"
 #include "machine/wd_fdc.h"
 #include "machine/z80ctc.h"
 #include "machine/z80dart.h"
@@ -68,8 +69,8 @@ public:
 	DECLARE_WRITE8_MEMBER( bank1_w );
 	DECLARE_WRITE8_MEMBER( baud_w );
 	DECLARE_WRITE_LINE_MEMBER( fr_w );
-	void fdc_intrq_w(bool state);
-	void fdc_drq_w(bool state);
+	DECLARE_WRITE_LINE_MEMBER( fdc_intrq_w );
+	DECLARE_WRITE_LINE_MEMBER( fdc_drq_w );
 
 	void bankswitch();
 

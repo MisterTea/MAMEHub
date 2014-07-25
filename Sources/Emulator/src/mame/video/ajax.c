@@ -16,11 +16,10 @@
 
 ***************************************************************************/
 
-void ajax_tile_callback( running_machine &machine, int layer, int bank, int *code, int *color, int *flags, int *priority )
+K052109_CB_MEMBER(ajax_state::tile_callback)
 {
-	ajax_state *state = machine.driver_data<ajax_state>();
 	*code |= ((*color & 0x0f) << 8) | (bank << 12);
-	*color = state->m_layer_colorbase[layer] + ((*color & 0xf0) >> 4);
+	*color = m_layer_colorbase[layer] + ((*color & 0xf0) >> 4);
 }
 
 
@@ -30,7 +29,7 @@ void ajax_tile_callback( running_machine &machine, int layer, int bank, int *cod
 
 ***************************************************************************/
 
-void ajax_sprite_callback( running_machine &machine, int *code, int *color, int *priority, int *shadow )
+K051960_CB_MEMBER(ajax_state::sprite_callback)
 {
 	/* priority bits:
 	   4 over zoom (0 = have priority)
@@ -38,12 +37,11 @@ void ajax_sprite_callback( running_machine &machine, int *code, int *color, int 
 	   6 over A    (1 = have priority)
 	   never over F
 	*/
-	ajax_state *state = machine.driver_data<ajax_state>();
 	*priority = 0xff00;                         /* F = 8 */
 	if ( *color & 0x10) *priority |= 0xf0f0;    /* Z = 4 */
 	if (~*color & 0x40) *priority |= 0xcccc;    /* A = 2 */
 	if ( *color & 0x20) *priority |= 0xaaaa;    /* B = 1 */
-	*color = state->m_sprite_colorbase + (*color & 0x0f);
+	*color = m_sprite_colorbase + (*color & 0x0f);
 }
 
 
@@ -53,11 +51,10 @@ void ajax_sprite_callback( running_machine &machine, int *code, int *color, int 
 
 ***************************************************************************/
 
-void ajax_zoom_callback( running_machine &machine, int *code, int *color, int *flags )
+K051316_CB_MEMBER(ajax_state::zoom_callback)
 {
-	ajax_state *state = machine.driver_data<ajax_state>();
 	*code |= ((*color & 0x07) << 8);
-	*color = state->m_zoom_colorbase + ((*color & 0x08) >> 3);
+	*color = m_zoom_colorbase + ((*color & 0x08) >> 3);
 }
 
 
@@ -90,7 +87,7 @@ UINT32 ajax_state::screen_update_ajax(screen_device &screen, bitmap_ind16 &bitma
 
 	screen.priority().fill(0, cliprect);
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 	m_k052109->tilemap_draw(screen, bitmap, cliprect, 2, 0, 1);
 	if (m_priority)
 	{

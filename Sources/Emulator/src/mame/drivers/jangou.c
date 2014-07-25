@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:David Haywood, Angelo Salese, Phil Bennett
 /*******************************************************************************************
 
 Jangou (c) 1983 Nichibutsu
@@ -31,7 +33,7 @@ $c088-$c095 player tiles
 #include "sound/msm5205.h"
 #include "video/resnet.h"
 #include "machine/nvram.h"
-#include "drivlgcy.h"
+
 
 #define MASTER_CLOCK    XTAL_19_968MHz
 
@@ -44,7 +46,8 @@ public:
 		m_cpu_1(*this, "cpu1"),
 		m_nsc(*this, "nsc"),
 		m_msm(*this, "msm"),
-		m_cvsd(*this, "cvsd") { }
+		m_cvsd(*this, "cvsd"),
+		m_palette(*this, "palette") { }
 
 	/* sound-related */
 	// Jangou CVSD Sound
@@ -66,6 +69,7 @@ public:
 	optional_device<cpu_device> m_nsc;
 	optional_device<msm5205_device> m_msm;
 	optional_device<hc55516_device> m_cvsd;
+	required_device<palette_device> m_palette;
 
 	/* video-related */
 	UINT8        m_pen_data[0x10];
@@ -91,7 +95,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(jangou);
 	DECLARE_MACHINE_START(jngolady);
 	DECLARE_MACHINE_RESET(jngolady);
 	DECLARE_MACHINE_START(common);
@@ -111,7 +115,7 @@ public:
  *************************************/
 
 /* guess: use the same resistor values as Crazy Climber (needs checking on the real HW) */
-void jangou_state::palette_init()
+PALETTE_INIT_MEMBER(jangou_state, jangou)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances_rg[3] = { 1000, 470, 220 };
@@ -125,7 +129,7 @@ void jangou_state::palette_init()
 			2, resistances_b,  weights_b,  0, 0,
 			0, 0, 0, 0, 0);
 
-	for (i = 0;i < machine().total_colors(); i++)
+	for (i = 0;i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2;
 		int r, g, b;
@@ -147,7 +151,7 @@ void jangou_state::palette_init()
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		b = combine_2_weights(weights_b, bit0, bit1);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -168,8 +172,8 @@ UINT32 jangou_state::screen_update_jangou(screen_device &screen, bitmap_ind16 &b
 		for (x = cliprect.min_x; x <= cliprect.max_x; x += 2)
 		{
 			UINT32 srcpix = *src++;
-			*dst++ = machine().pens[srcpix & 0xf];
-			*dst++ = machine().pens[(srcpix >> 4) & 0xf];
+			*dst++ = m_palette->pen(srcpix & 0xf);
+			*dst++ = m_palette->pen((srcpix >> 4) & 0xf);
 		}
 	}
 
@@ -381,12 +385,13 @@ READ8_MEMBER(jangou_state::master_com_r)
 
 WRITE8_MEMBER(jangou_state::master_com_w)
 {
-	m_nsc->set_input_line(0, HOLD_LINE);
+	m_nsc->set_input_line(0, ASSERT_LINE);
 	m_nsc_latch = data;
 }
 
 READ8_MEMBER(jangou_state::slave_com_r)
 {
+	m_nsc->set_input_line(0, CLEAR_LINE);
 	return m_nsc_latch;
 }
 
@@ -885,38 +890,6 @@ INPUT_PORTS_END
 
 /*************************************
  *
- *  Sound HW Config
- *
- *************************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(jangou_state,input_mux_r),
-	DEVCB_DRIVER_MEMBER(jangou_state,input_system_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(jangou_state,jngolady_vclk_cb),
-	MSM5205_S96_4B
-};
-
-static SOUND_START( jangou )
-{
-	jangou_state *state = machine.driver_data<jangou_state>();
-
-	/* Create a timer to feed the CVSD DAC with sample bits */
-	state->m_cvsd_bit_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(jangou_state::cvsd_bit_timer_callback),state));
-	state->m_cvsd_bit_timer->adjust(attotime::from_hz(MASTER_CLOCK / 1024), 0, attotime::from_hz(MASTER_CLOCK / 1024));
-}
-
-
-/*************************************
- *
  *  Machine driver
  *
  *************************************/
@@ -934,6 +907,10 @@ void jangou_state::machine_start()
 
 	save_item(NAME(m_cvsd_shiftreg));
 	save_item(NAME(m_cvsd_shift_cnt));
+
+	/* Create a timer to feed the CVSD DAC with sample bits */
+	m_cvsd_bit_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(jangou_state::cvsd_bit_timer_callback), this));
+	m_cvsd_bit_timer->adjust(attotime::from_hz(MASTER_CLOCK / 1024), 0, attotime::from_hz(MASTER_CLOCK / 1024));
 }
 
 MACHINE_START_MEMBER(jangou_state,jngolady)
@@ -999,17 +976,17 @@ static MACHINE_CONFIG_START( jangou, jangou_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(jangou_state, screen_update_jangou)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(32)
-
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(jangou_state, jangou)
 
 	/* sound hardware */
-	MCFG_SOUND_START(jangou)
-
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, MASTER_CLOCK / 16)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(jangou_state, input_mux_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(jangou_state, input_system_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 
 	MCFG_SOUND_ADD("cvsd", HC55516, MASTER_CLOCK / 1024)
@@ -1034,11 +1011,11 @@ static MACHINE_CONFIG_DERIVED( jngolady, jangou )
 	MCFG_MACHINE_RESET_OVERRIDE(jangou_state,jngolady)
 
 	/* sound hardware */
-	MCFG_SOUND_START(0)
 	MCFG_DEVICE_REMOVE("cvsd")
 
 	MCFG_SOUND_ADD("msm", MSM5205, XTAL_400kHz)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(jangou_state, jngolady_vclk_cb))
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S96_4B)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 MACHINE_CONFIG_END
 
@@ -1056,7 +1033,6 @@ static MACHINE_CONFIG_DERIVED( cntrygrl, jangou )
 	MCFG_MACHINE_RESET_OVERRIDE(jangou_state,common)
 
 	/* sound hardware */
-	MCFG_SOUND_START(0)
 	MCFG_DEVICE_REMOVE("cvsd")
 MACHINE_CONFIG_END
 
@@ -1076,7 +1052,6 @@ static MACHINE_CONFIG_DERIVED( roylcrdn, jangou )
 	MCFG_MACHINE_RESET_OVERRIDE(jangou_state,common)
 
 	/* sound hardware */
-	MCFG_SOUND_START(0)
 	MCFG_DEVICE_REMOVE("cvsd")
 MACHINE_CONFIG_END
 

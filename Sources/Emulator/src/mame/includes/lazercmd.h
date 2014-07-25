@@ -1,3 +1,4 @@
+#include "cpu/s2650/s2650.h"
 #include "sound/dac.h"
 
 #define HORZ_RES        32
@@ -26,14 +27,19 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_dac(*this, "dac"),
-		m_videoram(*this, "videoram")
+		m_videoram(*this, "videoram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 	{ }
 
 	/* device */
-	required_device<cpu_device> m_maincpu;
+	required_device<s2650_device> m_maincpu;
 	required_device<dac_device> m_dac;
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
+
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	/* video-related */
 	UINT8 m_marker_x;
@@ -56,7 +62,7 @@ public:
 	DECLARE_DRIVER_INIT(lazercmd);
 	virtual void machine_start();
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(lazercmd);
 	UINT32 screen_update_lazercmd(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(lazercmd_timer);
 	TIMER_DEVICE_CALLBACK_MEMBER(bbonk_timer);

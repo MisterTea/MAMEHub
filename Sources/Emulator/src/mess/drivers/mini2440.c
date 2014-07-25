@@ -27,7 +27,7 @@ public:
 		m_peny(*this, "PENY") { }
 
 	required_device<cpu_device> m_maincpu;
-	required_device<device_t> m_s3c2440;
+	required_device<s3c2440_device> m_s3c2440;
 	required_device<nand_device> m_nand;
 	required_device<dac_device> m_dac1;
 	required_device<dac_device> m_dac2;
@@ -39,7 +39,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	DECLARE_INPUT_CHANGED_MEMBER(mini2440_input_changed);
-	inline void ATTR_PRINTF(3,4) verboselog( int n_level, const char *s_fmt, ...);
+	inline void verboselog(int n_level, const char *s_fmt, ...) ATTR_PRINTF(3,4);
 	DECLARE_READ32_MEMBER(s3c2440_gpio_port_r);
 	DECLARE_WRITE32_MEMBER(s3c2440_gpio_port_w);
 	DECLARE_READ32_MEMBER(s3c2440_core_pin_r);
@@ -52,7 +52,7 @@ public:
 
 };
 
-inline void ATTR_PRINTF(3,4) mini2440_state::verboselog( int n_level, const char *s_fmt, ...)
+inline void mini2440_state::verboselog(int n_level, const char *s_fmt, ...)
 {
 	if (VERBOSE_LEVEL >= n_level)
 	{
@@ -175,7 +175,7 @@ READ32_MEMBER(mini2440_state::s3c2440_adc_data_r )
 
 INPUT_CHANGED_MEMBER(mini2440_state::mini2440_input_changed)
 {
-	s3c2440_touch_screen( m_s3c2440, (newval & 0x01) ? 1 : 0);
+	m_s3c2440->s3c2440_touch_screen( (newval & 0x01) ? 1 : 0);
 }
 
 // ...
@@ -209,33 +209,11 @@ DRIVER_INIT_MEMBER(mini2440_state,mini2440)
 	// do nothing
 }
 
-static S3C2440_INTERFACE( mini2440_s3c2440_intf )
-{
-	// CORE (pin read / pin write)
-	{ DEVCB_DRIVER_MEMBER32(mini2440_state,s3c2440_core_pin_r), DEVCB_NULL },
-	// GPIO (port read / port write)
-	{ DEVCB_DRIVER_MEMBER32(mini2440_state,s3c2440_gpio_port_r), DEVCB_DRIVER_MEMBER32(mini2440_state,s3c2440_gpio_port_w) },
-	// I2C (scl write / sda read / sda write)
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	// ADC (data read)
-	{ DEVCB_DRIVER_MEMBER32(mini2440_state,s3c2440_adc_data_r) },
-	// I2S (data write)
-	{ DEVCB_DRIVER_MEMBER16(mini2440_state,s3c2440_i2s_data_w) },
-	// NAND (command write / address write / data read / data write)
-	{ DEVCB_DRIVER_MEMBER(mini2440_state,s3c2440_nand_command_w), DEVCB_DRIVER_MEMBER(mini2440_state,s3c2440_nand_address_w), DEVCB_DRIVER_MEMBER(mini2440_state,s3c2440_nand_data_r), DEVCB_DRIVER_MEMBER(mini2440_state,s3c2440_nand_data_w) }
-};
-
-static NAND_INTERFACE( mini2440_nand_intf )
-{
-	NAND_CHIP_K9F1G08U0B,
-	DEVCB_DEVICE_LINE( "s3c2440", s3c2440_pin_frnb_w)
-};
-
 static MACHINE_CONFIG_START( mini2440, mini2440_state )
 	MCFG_CPU_ADD("maincpu", ARM920T, 400000000)
 	MCFG_CPU_PROGRAM_MAP(mini2440_map)
 
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD("palette", 32768)
 
 	MCFG_SCREEN_ADD("screen", LCD)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -246,16 +224,27 @@ static MACHINE_CONFIG_START( mini2440, mini2440_state )
 
 	MCFG_SCREEN_UPDATE_DEVICE("s3c2440", s3c2440_device, screen_update)
 
-
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("dac1", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 	MCFG_SOUND_ADD("dac2", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
-	MCFG_S3C2440_ADD("s3c2440", 12000000, mini2440_s3c2440_intf)
+	MCFG_DEVICE_ADD("s3c2440", S3C2440, 12000000)
+	MCFG_S3C2440_PALETTE("palette")
+	MCFG_S3C2440_CORE_PIN_R_CB(READ32(mini2440_state, s3c2440_core_pin_r))
+	MCFG_S3C2440_GPIO_PORT_R_CB(READ32(mini2440_state, s3c2440_gpio_port_r))
+	MCFG_S3C2440_GPIO_PORT_W_CB(WRITE32(mini2440_state, s3c2440_gpio_port_w))
+	MCFG_S3C2440_ADC_DATA_R_CB(READ32(mini2440_state, s3c2440_adc_data_r))
+	MCFG_S3C2440_I2S_DATA_W_CB(WRITE16(mini2440_state, s3c2440_i2s_data_w))
+	MCFG_S3C2440_NAND_COMMAND_W_CB(WRITE8(mini2440_state, s3c2440_nand_command_w))
+	MCFG_S3C2440_NAND_ADDRESS_W_CB(WRITE8(mini2440_state, s3c2440_nand_address_w))
+	MCFG_S3C2440_NAND_DATA_R_CB(READ8(mini2440_state, s3c2440_nand_data_r))
+	MCFG_S3C2440_NAND_DATA_W_CB(WRITE8(mini2440_state, s3c2440_nand_data_w))
 
-	MCFG_NAND_ADD("nand", mini2440_nand_intf)
+	MCFG_DEVICE_ADD("nand", NAND, 0)
+	MCFG_NAND_TYPE(NAND_CHIP_K9F1G08U0B)
+	MCFG_NAND_RNB_CALLBACK(DEVWRITELINE("s3c2440", s3c2440_device, frnb_w))
 MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( mini2440 )

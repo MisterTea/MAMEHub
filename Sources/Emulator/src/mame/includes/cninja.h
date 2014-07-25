@@ -17,17 +17,17 @@ class cninja_state : public driver_device
 public:
 	cninja_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu"),
-			m_audiocpu(*this, "audiocpu"),
-			m_deco146(*this, "ioprot"),
-			m_deco104(*this, "ioprot104"),
-			m_decocomn(*this, "deco_common"),
-			m_deco_tilegen1(*this, "tilegen1"),
-			m_deco_tilegen2(*this, "tilegen2"),
-			m_raster_irq_timer(*this, "raster_timer"),
-			m_oki2(*this, "oki2"),
-			m_spriteram(*this, "spriteram"),
-			m_spriteram2(*this, "spriteram2") ,
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_deco146(*this, "ioprot"),
+		m_deco104(*this, "ioprot104"),
+		m_decocomn(*this, "deco_common"),
+		m_deco_tilegen1(*this, "tilegen1"),
+		m_deco_tilegen2(*this, "tilegen2"),
+		m_raster_irq_timer(*this, "raster_timer"),
+		m_oki2(*this, "oki2"),
+		m_spriteram(*this, "spriteram"),
+		m_spriteram2(*this, "spriteram2") ,
 		m_pf1_rowscroll(*this, "pf1_rowscroll"),
 		m_pf2_rowscroll(*this, "pf2_rowscroll"),
 		m_pf3_rowscroll(*this, "pf3_rowscroll"),
@@ -35,7 +35,10 @@ public:
 		m_ram(*this, "ram"),
 		m_sprgen(*this, "spritegen"),
 		m_sprgen1(*this, "spritegen1"),
-		m_sprgen2(*this, "spritegen2")
+		m_sprgen2(*this, "spritegen2"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")
 	{ }
 
 	/* devices */
@@ -59,6 +62,9 @@ public:
 	optional_device<decospr_device> m_sprgen;
 	optional_device<decospr_device> m_sprgen1;
 	optional_device<decospr_device> m_sprgen2;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	/* misc */
 	int        m_scanline;
@@ -85,6 +91,13 @@ public:
 	UINT32 screen_update_mutantf(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(interrupt_gen);
 	void cninjabl_draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect );
+
+	DECO16IC_BANK_CB_MEMBER(cninja_bank_callback);
+	DECO16IC_BANK_CB_MEMBER(robocop2_bank_callback);
+	DECO16IC_BANK_CB_MEMBER(mutantf_1_bank_callback);
+	DECO16IC_BANK_CB_MEMBER(mutantf_2_bank_callback);
+
+	DECOSPR_PRIORITY_CB_MEMBER(pri_callback);
 
 	DECLARE_READ16_MEMBER( sshangha_protection_region_6_146_r );
 	DECLARE_WRITE16_MEMBER( sshangha_protection_region_6_146_w );

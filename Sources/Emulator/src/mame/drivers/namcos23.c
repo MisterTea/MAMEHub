@@ -18,7 +18,7 @@
 
     NOTES:
     - First 128k of main program ROM is the BIOS, and after that is a 64-bit MIPS ELF image.
-    - Text layer is (almost?) identical to System 22 & Super System 22.
+    - Text layer is identical to System 22 & Super System 22.
 
     TODO:
     - There are currently no differences seen between System 23 (Time Crisis 2) and
@@ -54,9 +54,9 @@
       C435   (level 4):
         clear: a200000e.h = 1
                a200000e.h = 0
-        raise: a2000000.h = a200
-               a2000000.h = 1
-               a2000000.h = 1 (yes, twice)
+        raise: a2000000.h = 4f02 (c435 pio, state_set)
+               a2000000.h = 1    (          interrupt)
+               a2000000.h = 1    (          raise)
 
       C422   (level 5):
         clear: a6400002.h = f
@@ -67,7 +67,7 @@
                a6400006.h = fffb
                a6400006.h = 0
 
-      RS323  (level 6, not tested by timecrs2v4a):
+      RS232  (level 6, not tested by timecrs2v4a):
         clear: nothing
         raise: nothing
 
@@ -75,9 +75,16 @@
         clear: c0.Compare = 10d880
         raise: c0.Count   = 10c8e0
                c0.Compare = 10d880
-*/
 
-/*
+   Downhill bikers irq ack on level 3:
+        check ad000000 & 0400
+          if not, a4c3ff04 = 0
+        check ad000000 & 0800
+          if not, read a682000a, wait until it stops changing (?)
+        return
+
+
+****************************************************************************
 
 Namco System 23 and Super System 23 Hardware Overview (last updated 7th April 2013 at 12.49am)
 Namco, 1997 - 2000
@@ -1225,21 +1232,24 @@ Notes:
 
 #include "emu.h"
 #include <float.h>
-#include "video/poly.h"
+#include "video/polylgcy.h"
 #include "cpu/mips/mips3.h"
-#include "cpu/h83002/h8.h"
+#include "cpu/h8/h83002.h"
+#include "cpu/h8/h83337.h"
 #include "cpu/sh2/sh2.h"
 #include "sound/c352.h"
 #include "machine/nvram.h"
 #include "machine/rtc4543.h"
+#include "machine/namco_settings.h"
 
-#define S23_BUSCLOCK    (66664460/2)    /* 33MHz CPU bus clock / input, somehow derived from 14.31721 MHz crystal */
-#define S23_H8CLOCK     (14745600)
-#define S23_C352CLOCK   (24576000)      /* measured at 25.992MHz from 2061 pin 9 (but that sounds too highpitched) */
-#define S23_VSYNC1      (59.8824)
-#define S23_VSYNC2      (59.915)
-#define S23_HSYNC       (16666150)
-#define S23_MODECLOCK   (130205)
+#define JVSCLOCK    (XTAL_14_7456MHz)
+#define H8CLOCK     (16737350)      /* from 2061 */
+#define BUSCLOCK    (16737350*2)    /* 33MHz CPU bus clock / input */
+#define C352CLOCK   (16737350*1.5)  /* measured at 25.992MHz from 2061 pin 9 (but that sounds too highpitched) */
+#define VSYNC1      (59.8824)
+#define VSYNC2      (59.915)
+#define HSYNC       (16666150)
+#define MODECLOCK   (130205)
 
 #define MAIN_VBLANK_IRQ 0x01
 #define MAIN_C361_IRQ   0x02
@@ -1331,7 +1341,7 @@ struct c404_t
 
 struct render_t
 {
-	poly_manager *polymgr;
+	legacy_poly_manager *polymgr;
 	int cur;
 	int poly_count;
 	int count[2];
@@ -1347,8 +1357,10 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_subcpu(*this, "subcpu"),
+		m_adc(*this, "subcpu:adc"),
 		m_iocpu(*this, "iocpu"),
 		m_rtc(*this, "rtc"),
+		m_settings(*this, "namco_settings"),
 		m_mainram(*this, "mainram"),
 		m_shared_ram(*this, "shared_ram"),
 		m_gammaram(*this, "gammaram"),
@@ -1356,13 +1368,23 @@ public:
 		m_textram(*this, "textram"),
 		m_czattr(*this, "czattr"),
 		m_gmen_sh2(*this, "gmen_sh2"),
-		m_gmen_sh2_shared(*this, "gmen_sh2_shared")
+		m_gmen_sh2_shared(*this, "gmen_sh2_shared"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_lightx(*this, "LIGHTX"),
+		m_lighty(*this, "LIGHTY"),
+		m_p1(*this, "P1"),
+		m_p2(*this, "P2"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_32(*this, "paletteram")
 	{ }
 
-	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_subcpu;
-	optional_device<cpu_device> m_iocpu;
+	required_device<mips3_device> m_maincpu;
+	required_device<h83002_device> m_subcpu;
+	required_device<h8_adc_device> m_adc;
+	optional_device<h83334_device> m_iocpu;
 	required_device<rtc4543_device> m_rtc;
+	required_device<namco_settings_device> m_settings;
 	required_shared_ptr<UINT32> m_mainram;
 	required_shared_ptr<UINT32> m_shared_ram;
 	required_shared_ptr<UINT32> m_gammaram;
@@ -1371,6 +1393,14 @@ public:
 	optional_shared_ptr<UINT32> m_czattr;
 	optional_device<cpu_device> m_gmen_sh2;
 	optional_shared_ptr<UINT32> m_gmen_sh2_shared;
+	required_device<gfxdecode_device> m_gfxdecode;
+	optional_ioport m_lightx;
+	optional_ioport m_lighty;
+	required_ioport m_p1;
+	required_ioport m_p2;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT32> m_generic_paletteram_32;
 
 	c404_t m_c404;
 	c361_t m_c361;
@@ -1388,8 +1418,8 @@ public:
 	UINT8 m_ctl_led;
 	UINT16 m_ctl_inp_buffer[2];
 	bool m_subcpu_running;
-	UINT32 m_p3d_address;
-	UINT32 m_p3d_size;
+	UINT32 m_c435_address;
+	UINT32 m_c435_size;
 	const UINT32 *m_ptrom;
 	const UINT16 *m_tmlrom;
 	const UINT8 *m_tmhrom;
@@ -1397,6 +1427,8 @@ public:
 	UINT32 m_tileid_mask;
 	UINT32 m_tile_mask;
 	UINT32 m_ptrom_limit;
+
+	int m_vblank_count;
 
 // It may only be 128
 // At 0x1e bytes per slot, rounded up to 0x20, that's 0x1000 to 0x2000 bytes.
@@ -1413,97 +1445,92 @@ public:
 	INT32 m_spv[3];
 	INT16 m_spm[3];
 
-	int m_s23_porta;
-	int m_s23_rtcstate;
-	int m_s23_lastpb;
-	int m_s23_setstate;
-	int m_s23_setnum;
-	int m_s23_settings[8];
-	UINT8 m_maintoio[128];
-	UINT8 m_mi_rd;
-	UINT8 m_mi_wr;
-	UINT8 m_iotomain[128];
-	UINT8 m_im_rd;
-	UINT8 m_im_wr;
-	UINT8 m_s23_tssio_port_4;
+	UINT16 m_c435_buffer[256];
+	int m_c435_buffer_pos;
+
+	UINT8 m_sub_porta;
+	UINT8 m_sub_portb;
+	UINT8 m_tssio_port_4;
 
 	void update_main_interrupts(UINT32 cause);
 	void update_mixer();
 
-	DECLARE_WRITE32_MEMBER(s23_textram_w);
-	DECLARE_WRITE32_MEMBER(s23_textchar_w);
-	DECLARE_WRITE32_MEMBER(s23_paletteram_w);
-	DECLARE_READ16_MEMBER(s23_c417_r);
-	DECLARE_WRITE16_MEMBER(s23_c417_w);
-	DECLARE_READ16_MEMBER(s23_c412_ram_r);
-	DECLARE_WRITE16_MEMBER(s23_c412_ram_w);
-	DECLARE_READ16_MEMBER(s23_c412_r);
-	DECLARE_WRITE16_MEMBER(s23_c412_w);
-	DECLARE_READ16_MEMBER(s23_c421_ram_r);
-	DECLARE_WRITE16_MEMBER(s23_c421_ram_w);
-	DECLARE_READ16_MEMBER(s23_c421_r);
-	DECLARE_WRITE16_MEMBER(s23_c421_w);
-	DECLARE_WRITE16_MEMBER(s23_ctl_w);
-	DECLARE_READ16_MEMBER(s23_ctl_r);
-	DECLARE_WRITE16_MEMBER(s23_c361_w);
-	DECLARE_READ16_MEMBER(s23_c361_r);
-	DECLARE_READ16_MEMBER(s23_c422_r);
-	DECLARE_WRITE16_MEMBER(s23_c422_w);
-	DECLARE_WRITE16_MEMBER(s23_mcuen_w);
-	DECLARE_READ16_MEMBER(s23_sub_comm_r);
-	DECLARE_WRITE16_MEMBER(s23_sub_comm_w);
-	DECLARE_READ32_MEMBER(p3d_r);
-	DECLARE_WRITE32_MEMBER(p3d_w);
+	DECLARE_WRITE32_MEMBER(textram_w);
+	DECLARE_WRITE32_MEMBER(textchar_w);
+	DECLARE_WRITE32_MEMBER(paletteram_w);
+	DECLARE_READ16_MEMBER(c417_r);
+	DECLARE_WRITE16_MEMBER(c417_w);
+	DECLARE_READ16_MEMBER(c412_ram_r);
+	DECLARE_WRITE16_MEMBER(c412_ram_w);
+	DECLARE_READ16_MEMBER(c412_r);
+	DECLARE_WRITE16_MEMBER(c412_w);
+	DECLARE_READ16_MEMBER(c421_ram_r);
+	DECLARE_WRITE16_MEMBER(c421_ram_w);
+	DECLARE_READ16_MEMBER(c421_r);
+	DECLARE_WRITE16_MEMBER(c421_w);
+	DECLARE_WRITE16_MEMBER(ctl_w);
+	DECLARE_READ16_MEMBER(ctl_r);
+	DECLARE_WRITE16_MEMBER(c361_w);
+	DECLARE_READ16_MEMBER(c361_r);
+	DECLARE_READ16_MEMBER(c422_r);
+	DECLARE_WRITE16_MEMBER(c422_w);
+	DECLARE_WRITE16_MEMBER(mcuen_w);
+	DECLARE_READ16_MEMBER(sub_comm_r);
+	DECLARE_WRITE16_MEMBER(sub_comm_w);
+	DECLARE_READ32_MEMBER(c435_r);
+	DECLARE_WRITE32_MEMBER(c435_w);
 	DECLARE_READ32_MEMBER(gmen_trigger_sh2);
 	DECLARE_READ32_MEMBER(sh2_shared_r);
 	DECLARE_WRITE32_MEMBER(sh2_shared_w);
 	DECLARE_WRITE16_MEMBER(sharedram_sub_w);
 	DECLARE_READ16_MEMBER(sharedram_sub_r);
 	DECLARE_WRITE16_MEMBER(sub_interrupt_main_w);
-	DECLARE_READ8_MEMBER(s23_mcu_p8_r);
-	DECLARE_WRITE8_MEMBER(s23_mcu_p8_w);
-	DECLARE_READ8_MEMBER(s23_mcu_pa_r);
-	DECLARE_WRITE8_MEMBER(s23_mcu_pa_w);
-	DECLARE_READ8_MEMBER(s23_mcu_rtc_r);
-	DECLARE_READ8_MEMBER(s23_mcu_pb_r);
-	DECLARE_WRITE8_MEMBER(s23_mcu_pb_w);
-	DECLARE_WRITE8_MEMBER(s23_mcu_settings_w);
-	DECLARE_READ8_MEMBER(s23_mcu_iob_r);
-	DECLARE_WRITE8_MEMBER(s23_mcu_iob_w);
-	DECLARE_READ8_MEMBER(s23_mcu_p6_r);
-	DECLARE_WRITE8_MEMBER(s23_mcu_p6_w);
-	DECLARE_READ8_MEMBER(s23_iob_mcu_r);
-	DECLARE_WRITE8_MEMBER(s23_iob_mcu_w);
-	DECLARE_READ8_MEMBER(s23_iob_p4_r);
-	DECLARE_WRITE8_MEMBER(s23_iob_p4_w);
-	DECLARE_READ8_MEMBER(s23_iob_p6_r);
-	DECLARE_WRITE8_MEMBER(s23_iob_p6_w);
-	DECLARE_READ8_MEMBER(s23_iob_gun_r);
-	DECLARE_READ8_MEMBER(s23_iob_analog_r);
+	DECLARE_READ16_MEMBER(mcu_p8_r);
+	DECLARE_WRITE16_MEMBER(mcu_p8_w);
+	DECLARE_READ16_MEMBER(mcu_pa_r);
+	DECLARE_WRITE16_MEMBER(mcu_pa_w);
+	DECLARE_READ16_MEMBER(mcu_rtc_r);
+	DECLARE_READ16_MEMBER(mcu_pb_r);
+	DECLARE_WRITE16_MEMBER(mcu_pb_w);
+	DECLARE_READ16_MEMBER(mcu_p6_r);
+	DECLARE_WRITE16_MEMBER(mcu_p6_w);
+	DECLARE_READ16_MEMBER(iob_p4_r);
+	DECLARE_WRITE16_MEMBER(iob_p4_w);
+	DECLARE_READ16_MEMBER(iob_p6_r);
+	DECLARE_WRITE16_MEMBER(iob_p6_w);
+	DECLARE_READ8_MEMBER(iob_gun_r);
+	DECLARE_READ16_MEMBER(iob_analog_r);
 	DECLARE_DRIVER_INIT(s23);
 	TILE_GET_INFO_MEMBER(TextTilemapGetInfo);
 	DECLARE_VIDEO_START(s23);
 	DECLARE_MACHINE_RESET(gmen);
 	virtual void machine_start();
 	virtual void machine_reset();
-	UINT32 screen_update_s23(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	INTERRUPT_GEN_MEMBER(s23_interrupt);
+	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	INTERRUPT_GEN_MEMBER(interrupt);
 	TIMER_CALLBACK_MEMBER(c361_timer_cb);
+	void sub_irq(screen_device &screen, bool vblank_state);
 	UINT8 nthbyte(const UINT32 *pSource, int offs);
 	UINT16 nthword(const UINT32 *pSource, int offs);
 	inline INT32 u32_to_s24(UINT32 v);
 	inline INT32 u32_to_s10(UINT32 v);
-	INT32 *p3d_getv(UINT16 id);
-	INT16 *p3d_getm(UINT16 id);
-	void p3d_matrix_set(const UINT16 *p, int size);
-	void p3d_vector_set(const UINT16 *p, int size);
-	void p3d_scaling_set(const UINT16 *p, int size);
-	void p3d_vector_matrix_mul(const UINT16 *p, int size);
-	void p3d_matrix_vector_mul(const UINT16 *p, int size);
-	void p3d_matrix_matrix_mul(const UINT16 *p, int size);
-	void p3d_render(const UINT16 *p, int size, bool use_scaling);
-	void p3d_flush(const UINT16 *p, int size);
-	void p3d_dma(address_space &space, UINT32 adr, UINT32 size);
+	INT32 *c435_getv(UINT16 id);
+	INT16 *c435_getm(UINT16 id);
+
+	void c435_matrix_matrix_mul();
+	void c435_matrix_set();
+	void c435_vector_set();
+	void c435_matrix_vector_mul();
+	void c435_vector_matrix_mul();
+	void c435_scaling_set();
+	void c435_state_set_interrupt();
+	void c435_state_set();
+	void c435_render();
+	void c435_flush();
+
+	void c435_pio_w(UINT16 data);
+	void c435_dma(address_space &space, UINT32 adr, UINT32 size);
+
 	void render_apply_transform(INT32 xi, INT32 yi, INT32 zi, const namcos23_render_entry *re, poly_vertex &pv);
 	void render_apply_matrot(INT32 xi, INT32 yi, INT32 zi, const namcos23_render_entry *re, INT32 &x, INT32 &y, INT32 &z);
 	void render_project(poly_vertex &pv);
@@ -1557,7 +1584,7 @@ INLINE UINT8 light(UINT8 c, float l)
 	return UINT8(l);
 }
 
-INT32 *namcos23_state::p3d_getv(UINT16 id)
+INT32 *namcos23_state::c435_getv(UINT16 id)
 {
 	if(id == 0x8000)
 		return m_light_vector;
@@ -1569,7 +1596,7 @@ INT32 *namcos23_state::p3d_getv(UINT16 id)
 	return m_vectors[id];
 }
 
-INT16 *namcos23_state::p3d_getm(UINT16 id)
+INT16 *namcos23_state::c435_getm(UINT16 id)
 {
 	if(id >= 0x100)
 	{
@@ -1579,120 +1606,134 @@ INT16 *namcos23_state::p3d_getm(UINT16 id)
 	return m_matrices[id];
 }
 
-void namcos23_state::p3d_matrix_set(const UINT16 *p, int size)
+void namcos23_state::c435_matrix_matrix_mul() // 0.0
 {
-	if(size != 10)
+	if((m_c435_buffer[0] & 0xf) != 4)
 	{
-		logerror("WARNING: p3d_matrix_set with size %d\n", size);
+		logerror("WARNING: c435_matrix_matrix_mul with size %d\n", m_c435_buffer[0] & 0xf);
 		return;
 	}
-	INT16 *t = p3d_getm(*p++);
+	if(m_c435_buffer[3] != 0xffff)
+		logerror("WARNING: c435_matrix_matrix_mul with +2=%04x\n", m_c435_buffer[3]);
+
+	INT16 *t        = c435_getm(m_c435_buffer[1]);
+	const INT16 *m2 = c435_getm(m_c435_buffer[2]);
+	const INT16 *m1 = c435_getm(m_c435_buffer[4]);
+
+	t[0] = INT16((m1[0]*m2[0] + m1[1]*m2[1] + m1[2]*m2[2]) >> 14);
+	t[1] = INT16((m1[0]*m2[3] + m1[1]*m2[4] + m1[2]*m2[5]) >> 14);
+	t[2] = INT16((m1[0]*m2[6] + m1[1]*m2[7] + m1[2]*m2[8]) >> 14);
+	t[3] = INT16((m1[3]*m2[0] + m1[4]*m2[1] + m1[5]*m2[2]) >> 14);
+	t[4] = INT16((m1[3]*m2[3] + m1[4]*m2[4] + m1[5]*m2[5]) >> 14);
+	t[5] = INT16((m1[3]*m2[6] + m1[4]*m2[7] + m1[5]*m2[8]) >> 14);
+	t[6] = INT16((m1[6]*m2[0] + m1[7]*m2[1] + m1[8]*m2[2]) >> 14);
+	t[7] = INT16((m1[6]*m2[3] + m1[7]*m2[4] + m1[8]*m2[5]) >> 14);
+	t[8] = INT16((m1[6]*m2[6] + m1[7]*m2[7] + m1[8]*m2[8]) >> 14);
+}
+
+void namcos23_state::c435_matrix_vector_mul() // 0.1
+{
+	if((m_c435_buffer[0] & 0xf) != 4)
+	{
+		logerror("WARNING: c435_matrix_vector_mul with size %d\n", m_c435_buffer[0] & 0xf);
+		return;
+	}
+
+	if(m_c435_buffer[3] != 0xffff) {
+		INT32 *t        = c435_getv(m_c435_buffer[1]);
+		const INT16 *m  = c435_getm(m_c435_buffer[2]);
+		const INT32 *vt = c435_getv(m_c435_buffer[3]);
+		const INT32 *v  = c435_getv(m_c435_buffer[4]);
+
+		t[0] = INT32((m[0]*INT64(v[0]) + m[1]*INT64(v[1]) + m[2]*INT64(v[2])) >> 14) + vt[0];
+		t[1] = INT32((m[3]*INT64(v[0]) + m[4]*INT64(v[1]) + m[5]*INT64(v[2])) >> 14) + vt[1];
+		t[2] = INT32((m[6]*INT64(v[0]) + m[7]*INT64(v[1]) + m[8]*INT64(v[2])) >> 14) + vt[2];
+
+	} else {
+		INT32 *t       = c435_getv(m_c435_buffer[1]);
+		const INT16 *m = c435_getm(m_c435_buffer[2]);
+		const INT32 *v = c435_getv(m_c435_buffer[4]);
+
+		t[0] = INT32((m[0]*INT64(v[0]) + m[1]*INT64(v[1]) + m[2]*INT64(v[2])) >> 14);
+		t[1] = INT32((m[3]*INT64(v[0]) + m[4]*INT64(v[1]) + m[5]*INT64(v[2])) >> 14);
+		t[2] = INT32((m[6]*INT64(v[0]) + m[7]*INT64(v[1]) + m[8]*INT64(v[2])) >> 14);
+	}
+}
+
+void namcos23_state::c435_matrix_set() // 0.4
+{
+	if((m_c435_buffer[0] & 0xf) != 10)
+	{
+		logerror("WARNING: c435_matrix_set with size %d\n", m_c435_buffer[0] & 0xf);
+		return;
+	}
+	INT16 *t = c435_getm(m_c435_buffer[1]);
 	for(int i=0; i<9; i++)
-		t[i] = *p++;
+		t[i] = m_c435_buffer[i+2];
 }
 
-void namcos23_state::p3d_vector_set(const UINT16 *p, int size)
+void namcos23_state::c435_vector_set() // 0.5
 {
-	if(size != 7)
+	if((m_c435_buffer[0] & 0xf) != 7)
 	{
-		logerror("WARNING: p3d_vector_set with size %d\n", size);
+		logerror("WARNING: c435_vector_set with size %d\n", m_c435_buffer[0] & 0xf);
 		return;
 	}
-	INT32 *t = p3d_getv(*p++);
+	INT32 *t = c435_getv(m_c435_buffer[1]);
 	for(int i=0; i<3; i++)
-	{
-		t[i] = u32_to_s24((p[0] << 16) | p[1]);
-		p += 2;
-	}
+		t[i] = u32_to_s24((m_c435_buffer[2*i+2] << 16) | m_c435_buffer[2*i+3]);
 }
 
-
-void namcos23_state::p3d_scaling_set(const UINT16 *p, int size)
+void namcos23_state::c435_scaling_set() // 4.4
 {
-	if(size != 1)
+	if((m_c435_buffer[0] & 0xff) != 1)
 	{
-		logerror("WARNING: p3d_scaling_set with size %d\n", size);
+		logerror("WARNING: c435_scaling_set with size %d\n", m_c435_buffer[0] & 0xff);
 		return;
 	}
-	m_scaling = *p;
+	m_scaling = m_c435_buffer[1];
 }
 
-void namcos23_state::p3d_vector_matrix_mul(const UINT16 *p, int size)
+void namcos23_state::c435_state_set_interrupt() // 4.f.0001
 {
-	if(size != 4)
+	if(m_c435_buffer[0] != 0x4f02)
 	{
-		logerror("WARNING: p3d_vector_matrix_mul with size %d\n", size);
+		logerror("WARNING: c435_state_set_interrupt with size %d\n", m_c435_buffer[0] & 0xff);
 		return;
 	}
-	if(p[2] != 0xffff)
-		logerror("WARNING: p3d_vector_matrix_mul with +2=%04x\n", p[2]);
-
-	INT32 *t       = p3d_getv(p[0]);
-	const INT16 *m = p3d_getm(p[1]);
-	const INT32 *v = p3d_getv(p[3]);
-
-	t[0] = INT32((m[0]*INT64(v[0]) + m[3]*INT64(v[1]) + m[6]*INT64(v[2])) >> 14);
-	t[1] = INT32((m[1]*INT64(v[0]) + m[4]*INT64(v[1]) + m[7]*INT64(v[2])) >> 14);
-	t[2] = INT32((m[2]*INT64(v[0]) + m[5]*INT64(v[1]) + m[8]*INT64(v[2])) >> 14);
+	if(m_c435_buffer[2] & 1)
+		update_main_interrupts(m_main_irqcause | MAIN_C435_IRQ);
+	else
+		update_main_interrupts(m_main_irqcause & ~MAIN_C435_IRQ);
 }
 
-void namcos23_state::p3d_matrix_vector_mul(const UINT16 *p, int size)
+void namcos23_state::c435_state_set() // 4.f
 {
-	if(size != 4)
+	if((m_c435_buffer[0] & 0xff) == 0)
 	{
-		logerror("WARNING: p3d_matrix_vector_mul with size %d\n", size);
+		logerror("WARNING: c435_state_set with size %d\n", m_c435_buffer[0] & 0xff);
 		return;
 	}
-	if(p[2] != 0xffff)
-		logerror("WARNING: p3d_matrix_vector_mul with +2=%04x\n", p[2]);
-
-	INT32 *t       = p3d_getv(p[0]);
-	const INT16 *m = p3d_getm(p[1]);
-	const INT32 *v = p3d_getv(p[3]);
-
-	t[0] = INT32((m[0]*INT64(v[0]) + m[1]*INT64(v[1]) + m[2]*INT64(v[2])) >> 14);
-	t[1] = INT32((m[3]*INT64(v[0]) + m[4]*INT64(v[1]) + m[7]*INT64(v[2])) >> 14);
-	t[2] = INT32((m[6]*INT64(v[0]) + m[7]*INT64(v[1]) + m[8]*INT64(v[2])) >> 14);
+	switch(m_c435_buffer[1]) {
+	case 0x0001: c435_state_set_interrupt(); break;
+	default:
+		logerror("WARNING: c435_state_set(%04x, ...)\n", m_c435_buffer[1]);
+		break;
+	}
 }
 
-
-void namcos23_state::p3d_matrix_matrix_mul(const UINT16 *p, int size)
+void namcos23_state::c435_render() // 8
 {
-	if(size != 4)
+	if((m_c435_buffer[0] & 0xf) != 3)
 	{
-		logerror("WARNING: p3d_matrix_matrix_mul with size %d\n", size);
+		logerror("WARNING: c435_render with size %d, header %04x", m_c435_buffer[0] & 0xf, m_c435_buffer[0]);
 		return;
 	}
-	if(p[2] != 0xffff)
-		logerror("WARNING: p3d_matrix_matrix_mul with +2=%04x\n", p[2]);
 
-	INT16 *t        = p3d_getm(p[0]);
-	const INT16 *m1 = p3d_getm(p[1]);
-	const INT16 *m2 = p3d_getm(p[3]);
-
-	t[0] = INT16((m1[0]*m2[0] + m1[1]*m2[3] + m1[2]*m2[6]) >> 14);
-	t[1] = INT16((m1[0]*m2[1] + m1[1]*m2[4] + m1[2]*m2[7]) >> 14);
-	t[2] = INT16((m1[0]*m2[2] + m1[1]*m2[5] + m1[2]*m2[8]) >> 14);
-	t[3] = INT16((m1[3]*m2[0] + m1[4]*m2[3] + m1[5]*m2[6]) >> 14);
-	t[4] = INT16((m1[3]*m2[1] + m1[4]*m2[4] + m1[5]*m2[7]) >> 14);
-	t[5] = INT16((m1[3]*m2[2] + m1[4]*m2[5] + m1[5]*m2[8]) >> 14);
-	t[6] = INT16((m1[6]*m2[0] + m1[7]*m2[3] + m1[8]*m2[6]) >> 14);
-	t[7] = INT16((m1[6]*m2[1] + m1[7]*m2[4] + m1[8]*m2[7]) >> 14);
-	t[8] = INT16((m1[6]*m2[2] + m1[7]*m2[5] + m1[8]*m2[8]) >> 14);
-}
-
-
-void namcos23_state::p3d_render(const UINT16 *p, int size, bool use_scaling)
-{
 	render_t &render = m_render;
+	bool use_scaling = m_c435_buffer[0] & 0x0080;
 
-	if(size != 3)
-	{
-		logerror("WARNING: p3d_render with size %d\n", size);
-		return;
-	}
-
-	logerror("render model %x %swith matrix %x and vector %x\n", p[0], use_scaling ? "scaled " : "", p[1], p[2]);
+	logerror("render model %x %swith matrix %x and vector %x\n", m_c435_buffer[1], use_scaling ? "scaled " : "", m_c435_buffer[2], m_c435_buffer[3]);
 
 	if(render.count[render.cur] >= RENDER_MAX_ENTRIES)
 	{
@@ -1701,12 +1742,12 @@ void namcos23_state::p3d_render(const UINT16 *p, int size, bool use_scaling)
 	}
 
 	// Vector and matrix may be inverted
-	const INT16 *m = p3d_getm(p[1]);
-	const INT32 *v = p3d_getv(p[2]);
+	const INT16 *m = c435_getm(m_c435_buffer[2]);
+	const INT32 *v = c435_getv(m_c435_buffer[3]);
 
 	namcos23_render_entry *re = render.entries[render.cur] + render.count[render.cur];
 	re->type = MODEL;
-	re->model.model = p[0];
+	re->model.model = m_c435_buffer[1];
 	re->model.scaling = use_scaling ? m_scaling / 16384.0 : 1.0;
 	memcpy(re->model.m, m, sizeof(re->model.m));
 	memcpy(re->model.v, v, sizeof(re->model.v));
@@ -1721,84 +1762,76 @@ void namcos23_state::p3d_render(const UINT16 *p, int size, bool use_scaling)
 	render.count[render.cur]++;
 }
 
-
-void namcos23_state::p3d_flush(const UINT16 *p, int size)
+void namcos23_state::c435_flush() // c
 {
-	render_t &render = m_render;
-
-	if(size != 0)
+	if((m_c435_buffer[0] & 0xf) != 0)
 	{
-		logerror("WARNING: p3d_flush with size %d\n", size);
+		logerror("WARNING: c435_flush with size %d\n", m_c435_buffer[0] & 0xf);
 		return;
 	}
 
+	render_t &render = m_render;
 	namcos23_render_entry *re = render.entries[render.cur] + render.count[render.cur];
 	re->type = FLUSH;
 	render.count[render.cur]++;
 }
 
-void namcos23_state::p3d_dma(address_space &space, UINT32 adr, UINT32 size)
+
+void namcos23_state::c435_pio_w(UINT16 data)
 {
-	UINT16 buffer[256];
-	adr &= 0x1fffffff;
-	int pos = 0;
+	m_c435_buffer[m_c435_buffer_pos++] = data;
+	UINT16 h = m_c435_buffer[0];
+	int psize;
+	if((h & 0x4000) == 0x4000)
+		psize = h & 0xff;
+	else
+		psize = h & 0xf;
+	if(m_c435_buffer_pos < psize+1)
+		return;
 
-	while(pos < size)
-	{
-		UINT16 h = space.read_word(adr+pos);
-
-		pos += 2;
-
-		UINT16 h1;
-		int psize;
-		if(h & 0x4000)
-		{
-			h1 = h & 0xff00;
-			psize = h & 0xff;
+	bool known = true;
+	switch(h & 0xc000) {
+	case 0x0000:
+		switch(h & 0xf0) {
+		case 0x00: c435_matrix_matrix_mul(); break;
+		case 0x10: c435_matrix_vector_mul(); break;
+		case 0x40: c435_matrix_set(); break;
+		case 0x50: c435_vector_set(); break;
+		default: known = false; break;
 		}
-		else
-		{
-			h1 = h & 0xfff0;
-			psize = h & 0xf;
-		}
+		break;
 
-		if(size-pos < psize*2)
-		{
-			logerror("WARNING: short packet (header %04x, remaining %x)\n", h, (size-pos)/2);
-			return;
+	case 0x4000:
+		switch(h & 0x3f00) {
+		case 0x0400: c435_scaling_set(); break;
+		case 0x0f00: c435_state_set(); break;
+		default: known = false; break;
 		}
+		break;
 
-		for(int i=0; i < psize; i++)
-		{
-			buffer[i] = space.read_word(adr+pos);
-			pos += 2;
-		}
-
-		switch(h1)
-		{
-			case 0x0040: p3d_matrix_set(buffer, psize); break;
-			case 0x0050: p3d_vector_set(buffer, psize); break;
-			case 0x0000: p3d_matrix_matrix_mul(buffer, psize); break;
-			case 0x0810: p3d_matrix_vector_mul(buffer, psize); break;
-			case 0x1010: p3d_vector_matrix_mul(buffer, psize); break;
-			case 0x4400: p3d_scaling_set(buffer, psize); break;
-			case 0x8000: p3d_render(buffer, psize, false); break;
-			case 0x8080: p3d_render(buffer, psize, true); break;
-			case 0xc000: p3d_flush(buffer, psize); break;
-			default:
-				if(0)
-				{
-					logerror("p3d - [%04x] %04x", h1, h);
-					for(int i=0; i<psize; i++)
-						logerror(" %04x", buffer[i]);
-					logerror("\n");
-				}
-				break;
-		}
+	case 0x8000: c435_render(); break;
+	case 0xc000: c435_flush(); break;
 	}
+
+	if(!known) {
+		logerror("c435 -");
+		for(int i=0; i<m_c435_buffer_pos; i++)
+			logerror(" %04x", m_c435_buffer[i]);
+		logerror("\n");
+	}
+
+	m_c435_buffer_pos = 0;
 }
 
-READ32_MEMBER(namcos23_state::p3d_r)
+void namcos23_state::c435_dma(address_space &space, UINT32 adr, UINT32 size)
+{
+	adr &= 0x1fffffff;
+
+	for(int pos=0; pos < size; pos += 2)
+		c435_pio_w(space.read_word(adr+pos));
+}
+
+READ32_MEMBER(namcos23_state::c435_r)
 {
 	switch (offset)
 	{
@@ -1806,26 +1839,26 @@ READ32_MEMBER(namcos23_state::p3d_r)
 			return 1; // Busy flag
 	}
 
-	logerror("p3d_r %02x @ %08x (%08x, %08x)\n", offset, mem_mask, space.device().safe_pc(), (unsigned int)space.device().state().state_int(MIPS3_R31));
+	logerror("c435_r %02x @ %08x (%08x, %08x)\n", offset, mem_mask, space.device().safe_pc(), (unsigned int)space.device().state().state_int(MIPS3_R31));
 	return 0;
 }
 
-WRITE32_MEMBER(namcos23_state::p3d_w)
+WRITE32_MEMBER(namcos23_state::c435_w)
 {
 	switch (offset)
 	{
 		case 0x7:
-			COMBINE_DATA(&m_p3d_address);
+			COMBINE_DATA(&m_c435_address);
 			break;
 		case 0x8:
-			COMBINE_DATA(&m_p3d_size);
+			COMBINE_DATA(&m_c435_size);
 			break;
 		case 0x9:
 			if (data & 1)
-				p3d_dma(space, m_p3d_address, m_p3d_size);
+				c435_dma(space, m_c435_address, m_c435_size);
 			break;
 		default:
-			logerror("p3d_w %02x, %08x @ %08x (%08x, %08x)\n", offset, data, mem_mask, space.device().safe_pc(), (unsigned int)space.device().state().state_int(MIPS3_R31));
+			logerror("c435_w %02x, %08x @ %08x (%08x, %08x)\n", offset, data, mem_mask, space.device().safe_pc(), (unsigned int)space.device().state().state_int(MIPS3_R31));
 			break;
 	}
 }
@@ -1865,9 +1898,9 @@ static void render_scanline(void *dest, INT32 scanline, const poly_extent *exten
 
 void namcos23_state::render_apply_transform(INT32 xi, INT32 yi, INT32 zi, const namcos23_render_entry *re, poly_vertex &pv)
 {
-	pv.x =    (INT32((re->model.m[0]*INT64(xi) + re->model.m[3]*INT64(yi) + re->model.m[6]*INT64(zi)) >> 14)*re->model.scaling + re->model.v[0])/16384.0;
-	pv.y =    (INT32((re->model.m[1]*INT64(xi) + re->model.m[4]*INT64(yi) + re->model.m[7]*INT64(zi)) >> 14)*re->model.scaling + re->model.v[1])/16384.0;
-	pv.p[0] = (INT32((re->model.m[2]*INT64(xi) + re->model.m[5]*INT64(yi) + re->model.m[8]*INT64(zi)) >> 14)*re->model.scaling + re->model.v[2])/16384.0;
+	pv.x =    (INT32((re->model.m[0]*INT64(xi) + re->model.m[1]*INT64(yi) + re->model.m[2]*INT64(zi)) >> 14)*re->model.scaling + re->model.v[0])/16384.0;
+	pv.y =    (INT32((re->model.m[3]*INT64(xi) + re->model.m[4]*INT64(yi) + re->model.m[5]*INT64(zi)) >> 14)*re->model.scaling + re->model.v[1])/16384.0;
+	pv.p[0] = (INT32((re->model.m[6]*INT64(xi) + re->model.m[7]*INT64(yi) + re->model.m[8]*INT64(zi)) >> 14)*re->model.scaling + re->model.v[2])/16384.0;
 }
 
 void namcos23_state::render_apply_matrot(INT32 xi, INT32 yi, INT32 zi, const namcos23_render_entry *re, INT32 &x, INT32 &y, INT32 &z)
@@ -1926,7 +1959,6 @@ void namcos23_state::render_one_model(const namcos23_render_entry *re)
 		UINT32 type = m_ptrom[adr++];
 		UINT32 h    = m_ptrom[adr++];
 
-
 		float tbase = (type >> 24) << 12;
 		UINT8 color = (h >> 24) & 0x7f;
 		int lmode = (type >> 19) & 3;
@@ -1967,7 +1999,10 @@ void namcos23_state::render_one_model(const namcos23_render_entry *re)
 
 			switch(lmode)
 			{
-			case 0: case 1:
+			case 0:
+				pv[i].p[3] = ((light >> (8*(3-i))) & 0xff) / 64.0;
+				break;
+			case 1:
 				pv[i].p[3] = ((light >> (8*(3-i))) & 0xff) / 64.0;
 				break;
 			case 2:
@@ -1981,13 +2016,12 @@ void namcos23_state::render_one_model(const namcos23_render_entry *re)
 				INT32 nz = u32_to_s10(norm);
 				INT32 nrx, nry, nrz;
 				render_apply_matrot(nx, ny, nz, re, nrx, nry, nrz);
-
 				float lsi = float(nrx*m_light_vector[0] + nry*m_light_vector[1] + nrz*m_light_vector[2])/4194304.0;
 				if(lsi < 0)
 					lsi = 0;
 
 				// Mapping taken out of a hat
-				pv[i].p[3] = 0.5+lsi;
+				pv[i].p[3] = 0.25+1.5*lsi;
 				break;
 			}
 			}
@@ -2011,7 +2045,7 @@ void namcos23_state::render_one_model(const namcos23_render_entry *re)
 			p->front = !(h & 0x00000001);
 			p->rd.machine = &machine();
 			p->rd.texture_lookup = render_texture_lookup_nocache_point;
-			p->rd.pens = machine().pens + (color << 8);
+			p->rd.pens = m_palette->pens() + (color << 8);
 			render.poly_count++;
 		}
 
@@ -2091,12 +2125,12 @@ void namcos23_state::update_mixer()
 	// 0a - background color blue
 	// 1b - text layer palette base
 	// 1f - layer enable (d0: polygons, d1: sprites, d2: text)
-	m_c404.bgcolor = MAKE_RGB(nthword(m_gammaram,0x08), nthword(m_gammaram,0x09), nthword(m_gammaram,0x0a));
+	m_c404.bgcolor = rgb_t(nthword(m_gammaram,0x08), nthword(m_gammaram,0x09), nthword(m_gammaram,0x0a));
 	m_c404.palbase = nthword(m_gammaram, 0x1b) << 8 & 0x7f00;
 	m_c404.layer = nthword(m_gammaram, 0x1f) & 0xff;
 }
 
-WRITE32_MEMBER(namcos23_state::s23_paletteram_w)
+WRITE32_MEMBER(namcos23_state::paletteram_w)
 {
 	COMBINE_DATA(&m_generic_paletteram_32[offset]);
 
@@ -2107,7 +2141,7 @@ WRITE32_MEMBER(namcos23_state::s23_paletteram_w)
 		int r = nthbyte(m_generic_paletteram_32, which|0x00001);
 		int g = nthbyte(m_generic_paletteram_32, which|0x10001);
 		int b = nthbyte(m_generic_paletteram_32, which|0x20001);
-		palette_set_color(machine(), which/2, MAKE_RGB(r,g,b));
+		m_palette->set_pen_color(which/2, rgb_t(r,g,b));
 	}
 }
 
@@ -2126,17 +2160,17 @@ TILE_GET_INFO_MEMBER(namcos23_state::TextTilemapGetInfo)
 	SET_TILE_INFO_MEMBER(0, data&0x03ff, data>>12, TILE_FLIPYX((data&0x0c00)>>10));
 }
 
-WRITE32_MEMBER(namcos23_state::s23_textram_w)
+WRITE32_MEMBER(namcos23_state::textram_w)
 {
 	COMBINE_DATA( &m_textram[offset] );
 	m_bgtilemap->mark_tile_dirty(offset*2);
 	m_bgtilemap->mark_tile_dirty((offset*2)+1);
 }
 
-WRITE32_MEMBER(namcos23_state::s23_textchar_w)
+WRITE32_MEMBER(namcos23_state::textchar_w)
 {
 	COMBINE_DATA(&m_charram[offset]);
-	machine().gfx[0]->mark_dirty(offset/32);
+	m_gfxdecode->gfx(0)->mark_dirty(offset/32);
 }
 
 
@@ -2145,15 +2179,15 @@ WRITE32_MEMBER(namcos23_state::s23_textchar_w)
 
 VIDEO_START_MEMBER(namcos23_state,s23)
 {
-	machine().gfx[0]->set_source(reinterpret_cast<UINT8 *>(m_charram.target()));
-	m_bgtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(namcos23_state::TextTilemapGetInfo),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
+	m_gfxdecode->gfx(0)->set_source(reinterpret_cast<UINT8 *>(m_charram.target()));
+	m_bgtilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(namcos23_state::TextTilemapGetInfo),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
 	m_bgtilemap->set_transparent_pen(0xf);
 	m_bgtilemap->set_scrolldx(860, 860);
 	m_render.polymgr = poly_alloc(machine(), 10000, sizeof(namcos23_render_data), 0);
 }
 
 
-UINT32 namcos23_state::screen_update_s23(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+UINT32 namcos23_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	update_mixer();
 	bitmap.fill(m_c404.bgcolor, cliprect);
@@ -2163,6 +2197,9 @@ UINT32 namcos23_state::screen_update_s23(screen_device &screen, bitmap_rgb32 &bi
 	m_bgtilemap->set_palette_offset(m_c404.palbase);
 	if (m_c404.layer & 4)
 		m_bgtilemap->draw(screen, bitmap, cliprect, 0, 0);
+
+	m_vblank_count++;
+
 	return 0;
 }
 
@@ -2207,7 +2244,7 @@ void namcos23_state::update_main_interrupts(UINT32 cause)
 	// level 6: C450
 }
 
-INTERRUPT_GEN_MEMBER(namcos23_state::s23_interrupt)
+INTERRUPT_GEN_MEMBER(namcos23_state::interrupt)
 {
 	if (!m_ctl_vbl_active)
 	{
@@ -2219,11 +2256,17 @@ INTERRUPT_GEN_MEMBER(namcos23_state::s23_interrupt)
 	m_render.count[m_render.cur] = 0;
 }
 
+void namcos23_state::sub_irq(screen_device &screen, bool vblank_state)
+{
+	m_subcpu->set_input_line(1, vblank_state ? ASSERT_LINE : CLEAR_LINE);
+	m_adc->adtrg_w(vblank_state);
+	m_sub_portb = (m_sub_portb & 0x7f) | (vblank_state << 7);
+}
 
 
 // C417
 
-READ16_MEMBER(namcos23_state::s23_c417_r)
+READ16_MEMBER(namcos23_state::c417_r)
 {
 	switch (offset)
 	{
@@ -2262,12 +2305,12 @@ READ16_MEMBER(namcos23_state::s23_c417_r)
 	return 0;
 }
 
-WRITE16_MEMBER(namcos23_state::s23_c417_w)
+WRITE16_MEMBER(namcos23_state::c417_w)
 {
 	switch (offset)
 	{
 		case 0:
-			logerror("p3d PIO %04x\n", data);
+			c435_pio_w(data);
 			break;
 		case 1:
 			COMBINE_DATA(&m_c417.adr);
@@ -2279,7 +2322,7 @@ WRITE16_MEMBER(namcos23_state::s23_c417_w)
 			m_c417.pointrom_adr = 0;
 			break;
 		case 4:
-			//logerror("c417_w %04x = %04x (%08x, %08x)\n", c417.adr, data, space.device().safe_pc(), (unsigned int)space.device().state().state_int(MIPS3_R31));
+			//logerror("c417_w %04x = %04x (%08x, %08x)\n", m_c417.adr, data, space.device().safe_pc(), (unsigned int)space.device().state().state_int(MIPS3_R31));
 			COMBINE_DATA(m_c417.ram + m_c417.adr);
 			break;
 		case 7:
@@ -2296,7 +2339,7 @@ WRITE16_MEMBER(namcos23_state::s23_c417_w)
 
 // C412
 
-READ16_MEMBER(namcos23_state::s23_c412_ram_r)
+READ16_MEMBER(namcos23_state::c412_ram_r)
 {
 	//  logerror("c412_ram_r %06x (%08x, %08x)\n", offset, space.device().safe_pc(), (unsigned int)space.device().state().state_int(MIPS3_R31));
 	if(offset < 0x100000)
@@ -2311,7 +2354,7 @@ READ16_MEMBER(namcos23_state::s23_c412_ram_r)
 	return 0xffff;
 }
 
-WRITE16_MEMBER(namcos23_state::s23_c412_ram_w)
+WRITE16_MEMBER(namcos23_state::c412_ram_w)
 {
 	//  logerror("c412_ram_w %06x = %04x (%08x, %08x)\n", offset, data, space.device().safe_pc(), (unsigned int)space.device().state().state_int(MIPS3_R31));
 	if(offset < 0x100000)
@@ -2324,7 +2367,7 @@ WRITE16_MEMBER(namcos23_state::s23_c412_ram_w)
 		COMBINE_DATA(m_c412.pczram  + (offset & 0x001ff));
 }
 
-READ16_MEMBER(namcos23_state::s23_c412_r)
+READ16_MEMBER(namcos23_state::c412_r)
 {
 	switch (offset)
 	{
@@ -2335,7 +2378,7 @@ READ16_MEMBER(namcos23_state::s23_c412_r)
 		case 0x9:
 			return m_c412.adr >> 16;
 		case 0xa:
-			return s23_c412_ram_r(space, m_c412.adr, mem_mask);
+			return c412_ram_r(space, m_c412.adr, mem_mask);
 		case 0xc:
 			// unknown status, 500gp reads it and waits for a transition
 			// no other games use it?
@@ -2347,7 +2390,7 @@ READ16_MEMBER(namcos23_state::s23_c412_r)
 	return 0;
 }
 
-WRITE16_MEMBER(namcos23_state::s23_c412_w)
+WRITE16_MEMBER(namcos23_state::c412_w)
 {
 	switch (offset)
 	{
@@ -2362,7 +2405,7 @@ WRITE16_MEMBER(namcos23_state::s23_c412_w)
 			m_c412.adr = ((data & mem_mask) << 16) | (m_c412.adr & (0xffffffff ^ (mem_mask << 16)));
 			break;
 		case 0xa:
-			s23_c412_ram_w(space, m_c412.adr, data, mem_mask);
+			c412_ram_w(space, m_c412.adr, data, mem_mask);
 			m_c412.adr += 2;
 			break;
 		default:
@@ -2375,7 +2418,7 @@ WRITE16_MEMBER(namcos23_state::s23_c412_w)
 
 // C421
 
-READ16_MEMBER(namcos23_state::s23_c421_ram_r)
+READ16_MEMBER(namcos23_state::c421_ram_r)
 {
 	//  logerror("c421_ram_r %06x (%08x, %08x)\n", offset, space.device().safe_pc(), (unsigned int)space.device().state().state_int(MIPS3_R31));
 	if(offset < 0x40000)
@@ -2388,7 +2431,7 @@ READ16_MEMBER(namcos23_state::s23_c421_ram_r)
 	return 0xffff;
 }
 
-WRITE16_MEMBER(namcos23_state::s23_c421_ram_w)
+WRITE16_MEMBER(namcos23_state::c421_ram_w)
 {
 	//  logerror("c421_ram_w %06x = %04x (%08x, %08x)\n", offset, data, space.device().safe_pc(), (unsigned int)space.device().state().state_int(MIPS3_R31));
 	if(offset < 0x40000)
@@ -2399,12 +2442,12 @@ WRITE16_MEMBER(namcos23_state::s23_c421_ram_w)
 		COMBINE_DATA(m_c421.sram   + (offset & 0x07fff));
 }
 
-READ16_MEMBER(namcos23_state::s23_c421_r)
+READ16_MEMBER(namcos23_state::c421_r)
 {
 	switch (offset)
 	{
 		case 0:
-			return s23_c421_ram_r(space, m_c421.adr & 0xfffff, mem_mask);
+			return c421_ram_r(space, m_c421.adr & 0xfffff, mem_mask);
 
 		case 2:
 			return m_c421.adr >> 16;
@@ -2416,12 +2459,12 @@ READ16_MEMBER(namcos23_state::s23_c421_r)
 	return 0;
 }
 
-WRITE16_MEMBER(namcos23_state::s23_c421_w)
+WRITE16_MEMBER(namcos23_state::c421_w)
 {
 	switch (offset)
 	{
 		case 0:
-			s23_c421_ram_w(space, m_c421.adr & 0xfffff, data, mem_mask);
+			c421_ram_w(space, m_c421.adr & 0xfffff, data, mem_mask);
 			m_c421.adr += 2;
 			break;
 		case 2:
@@ -2440,12 +2483,12 @@ WRITE16_MEMBER(namcos23_state::s23_c421_w)
 
 // C422
 
-READ16_MEMBER(namcos23_state::s23_c422_r)
+READ16_MEMBER(namcos23_state::c422_r)
 {
 	return m_c422.regs[offset];
 }
 
-WRITE16_MEMBER(namcos23_state::s23_c422_w)
+WRITE16_MEMBER(namcos23_state::c422_w)
 {
 	switch (offset)
 	{
@@ -2489,7 +2532,7 @@ TIMER_CALLBACK_MEMBER(namcos23_state::c361_timer_cb)
 		update_main_interrupts(m_main_irqcause & ~MAIN_C361_IRQ);
 }
 
-WRITE16_MEMBER(namcos23_state::s23_c361_w)
+WRITE16_MEMBER(namcos23_state::c361_w)
 {
 	switch (offset)
 	{
@@ -2512,7 +2555,7 @@ WRITE16_MEMBER(namcos23_state::s23_c361_w)
 	}
 }
 
-READ16_MEMBER(namcos23_state::s23_c361_r)
+READ16_MEMBER(namcos23_state::c361_r)
 {
 	switch (offset)
 	{
@@ -2520,7 +2563,7 @@ READ16_MEMBER(namcos23_state::s23_c361_r)
 		// how does it work exactly? it's not understood in namcos22 either (also has a c361)
 		case 5:
 			update_main_interrupts(m_main_irqcause & ~MAIN_C361_IRQ);
-			return m_screen->vpos()*2 | (m_screen->vblank() ? 1 : 0);
+			return (m_screen->vpos()*2) | (m_screen->vblank() ? 1 : 0);
 		case 6:
 			update_main_interrupts(m_main_irqcause & ~MAIN_C361_IRQ);
 			return m_screen->vblank() ? 1 : 0;
@@ -2534,7 +2577,7 @@ READ16_MEMBER(namcos23_state::s23_c361_r)
 
 // C?? (control)
 
-WRITE16_MEMBER(namcos23_state::s23_ctl_w)
+WRITE16_MEMBER(namcos23_state::ctl_w)
 {
 	switch (offset)
 	{
@@ -2549,7 +2592,7 @@ WRITE16_MEMBER(namcos23_state::s23_ctl_w)
 
 		case 2: case 3:
 			// These may be coming from another CPU, in particular the I/O one
-			m_ctl_inp_buffer[offset-2] = ioport(offset == 2 ? "P1" : "P2")->read();
+			m_ctl_inp_buffer[offset-2] = (offset == 2 ? m_p1 : m_p2)->read();
 			break;
 		case 5:
 			if(m_ctl_vbl_active)
@@ -2570,13 +2613,13 @@ WRITE16_MEMBER(namcos23_state::s23_ctl_w)
 	}
 }
 
-READ16_MEMBER(namcos23_state::s23_ctl_r)
+READ16_MEMBER(namcos23_state::ctl_r)
 {
 	switch (offset)
 	{
 		// 0100 set freezes gorgon (polygon fifo flag)
 		case 1:
-			return 0x0000 | ioport("DSW")->read();
+			return 0x0000 | ioport("DSW")->read() | ((m_main_irqcause & MAIN_C361_IRQ) ? 0x400 : 0);
 		case 2: case 3:
 		{
 			UINT16 res = m_ctl_inp_buffer[offset-2] & 0x800 ? 0xffff : 0x0000;
@@ -2593,7 +2636,7 @@ READ16_MEMBER(namcos23_state::s23_ctl_r)
 
 // C?? (MCU enable)
 
-WRITE16_MEMBER(namcos23_state::s23_mcuen_w)
+WRITE16_MEMBER(namcos23_state::mcuen_w)
 {
 	switch (offset)
 	{
@@ -2637,12 +2680,12 @@ WRITE16_MEMBER(namcos23_state::s23_mcuen_w)
 
 // while getting the subcpu to be ready, panicprk sits in a tight loop waiting for this AND 0002 to be non-zero (at PC=BFC02F00)
 // timecrs2 locks up in a similar way as panicprk, at the beginning of the 2nd level, by reading/writing to this register a couple of times
-READ16_MEMBER(namcos23_state::s23_sub_comm_r)
+READ16_MEMBER(namcos23_state::sub_comm_r)
 {
 	return 2;
 }
 
-WRITE16_MEMBER(namcos23_state::s23_sub_comm_w)
+WRITE16_MEMBER(namcos23_state::sub_comm_w)
 {
 	;
 }
@@ -2652,24 +2695,24 @@ WRITE16_MEMBER(namcos23_state::s23_sub_comm_w)
 static ADDRESS_MAP_START( gorgon_map, AS_PROGRAM, 32, namcos23_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xfffffff)
 	AM_RANGE(0x00000000, 0x003fffff) AM_RAM AM_SHARE("mainram")
-	AM_RANGE(0x01000000, 0x010000ff) AM_READWRITE(p3d_r, p3d_w)
-	AM_RANGE(0x02000000, 0x0200000f) AM_READWRITE16(s23_c417_r, s23_c417_w, 0xffffffff)
+	AM_RANGE(0x01000000, 0x010000ff) AM_READWRITE(c435_r, c435_w)
+	AM_RANGE(0x02000000, 0x0200000f) AM_READWRITE16(c417_r, c417_w, 0xffffffff)
 	AM_RANGE(0x04400000, 0x0440ffff) AM_RAM AM_SHARE("shared_ram") // Communication RAM (C416)
-	AM_RANGE(0x04c3ff00, 0x04c3ff0f) AM_WRITE16(s23_mcuen_w, 0xffffffff)
+	AM_RANGE(0x04c3ff00, 0x04c3ff0f) AM_WRITE16(mcuen_w, 0xffffffff)
 	AM_RANGE(0x06080000, 0x0608000f) AM_RAM AM_SHARE("czattr")
 	AM_RANGE(0x06080200, 0x060803ff) AM_RAM // PCZ Convert RAM (C406) (should be banked)
 	AM_RANGE(0x06108000, 0x061087ff) AM_RAM AM_SHARE("gammaram") // Gamma RAM (C404)
-	AM_RANGE(0x06110000, 0x0613ffff) AM_RAM_WRITE(s23_paletteram_w) AM_SHARE("paletteram") // Palette RAM (C404)
-	AM_RANGE(0x06400000, 0x0641dfff) AM_RAM_WRITE(s23_textchar_w) AM_SHARE("charram") // Text CGRAM (C361)
-	AM_RANGE(0x0641e000, 0x0641ffff) AM_RAM_WRITE(s23_textram_w) AM_SHARE("textram") // Text VRAM (C361)
-	AM_RANGE(0x06420000, 0x0642000f) AM_READWRITE16(s23_c361_r, s23_c361_w, 0xffffffff) // C361
+	AM_RANGE(0x06110000, 0x0613ffff) AM_RAM_WRITE(paletteram_w) AM_SHARE("paletteram") // Palette RAM (C404)
+	AM_RANGE(0x06400000, 0x0641dfff) AM_RAM_WRITE(textchar_w) AM_SHARE("charram") // Text CGRAM (C361)
+	AM_RANGE(0x0641e000, 0x0641ffff) AM_RAM_WRITE(textram_w) AM_SHARE("textram") // Text VRAM (C361)
+	AM_RANGE(0x06420000, 0x0642000f) AM_READWRITE16(c361_r, c361_w, 0xffffffff) // C361
 	AM_RANGE(0x08000000, 0x087fffff) AM_ROM AM_REGION("data", 0) // data ROMs
 	AM_RANGE(0x0c000000, 0x0c00ffff) AM_RAM AM_SHARE("nvram") // Backup RAM
-	AM_RANGE(0x0d000000, 0x0d00000f) AM_READWRITE16(s23_ctl_r, s23_ctl_w, 0xffffffff) // write for LEDs at d000000, watchdog at d000004
+	AM_RANGE(0x0d000000, 0x0d00000f) AM_READWRITE16(ctl_r, ctl_w, 0xffffffff) // write for LEDs at d000000, watchdog at d000004
 	AM_RANGE(0x0e000000, 0x0e007fff) AM_RAM // C405 RAM - what is this?
-	AM_RANGE(0x0f000000, 0x0f000003) AM_READWRITE16(s23_sub_comm_r, s23_sub_comm_w, 0xffffffff) // not sure
+	AM_RANGE(0x0f000000, 0x0f000003) AM_READWRITE16(sub_comm_r, sub_comm_w, 0xffffffff) // not sure
 	AM_RANGE(0x0f200000, 0x0f203fff) AM_RAM // C422 RAM
-	AM_RANGE(0x0f300000, 0x0f30000f) AM_READWRITE16(s23_c422_r, s23_c422_w, 0xffffffff) // C422 registers
+	AM_RANGE(0x0f300000, 0x0f30000f) AM_READWRITE16(c422_r, c422_w, 0xffffffff) // C422 registers
 	AM_RANGE(0x0fc00000, 0x0fffffff) AM_WRITENOP AM_ROM AM_REGION("user1", 0)
 ADDRESS_MAP_END
 
@@ -2677,24 +2720,24 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( s23_map, AS_PROGRAM, 32, namcos23_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xfffffff)
 	AM_RANGE(0x00000000, 0x00ffffff) AM_RAM AM_SHARE("mainram")
-	AM_RANGE(0x01000000, 0x010000ff) AM_READWRITE(p3d_r, p3d_w)
-	AM_RANGE(0x02000000, 0x0200000f) AM_READWRITE16(s23_c417_r, s23_c417_w, 0xffffffff)
+	AM_RANGE(0x01000000, 0x010000ff) AM_READWRITE(c435_r, c435_w)
+	AM_RANGE(0x02000000, 0x0200000f) AM_READWRITE16(c417_r, c417_w, 0xffffffff)
 	AM_RANGE(0x04400000, 0x0440ffff) AM_RAM AM_SHARE("shared_ram") // Communication RAM (C416)
-	AM_RANGE(0x04c3ff00, 0x04c3ff0f) AM_WRITE16(s23_mcuen_w, 0xffffffff)
+	AM_RANGE(0x04c3ff00, 0x04c3ff0f) AM_WRITE16(mcuen_w, 0xffffffff)
 	AM_RANGE(0x06000000, 0x0600ffff) AM_RAM AM_SHARE("nvram") // Backup RAM
 	AM_RANGE(0x06200000, 0x06203fff) AM_RAM // C422 RAM
-	AM_RANGE(0x06400000, 0x0640000f) AM_READWRITE16(s23_c422_r, s23_c422_w, 0xffffffff) // C422 registers
-	AM_RANGE(0x06800000, 0x0681dfff) AM_RAM_WRITE(s23_textchar_w) AM_SHARE("charram") // Text CGRAM (C361)
-	AM_RANGE(0x0681e000, 0x0681ffff) AM_RAM_WRITE(s23_textram_w) AM_SHARE("textram") // Text VRAM (C361)
-	AM_RANGE(0x06820000, 0x0682000f) AM_READWRITE16(s23_c361_r, s23_c361_w, 0xffffffff) // C361
+	AM_RANGE(0x06400000, 0x0640000f) AM_READWRITE16(c422_r, c422_w, 0xffffffff) // C422 registers
+	AM_RANGE(0x06800000, 0x0681dfff) AM_RAM_WRITE(textchar_w) AM_SHARE("charram") // Text CGRAM (C361)
+	AM_RANGE(0x0681e000, 0x0681ffff) AM_RAM_WRITE(textram_w) AM_SHARE("textram") // Text VRAM (C361)
+	AM_RANGE(0x06820000, 0x0682000f) AM_READWRITE16(c361_r, c361_w, 0xffffffff) // C361
 	AM_RANGE(0x06a08000, 0x06a087ff) AM_RAM AM_SHARE("gammaram") // Gamma RAM (C404)
-	AM_RANGE(0x06a10000, 0x06a3ffff) AM_RAM_WRITE(s23_paletteram_w) AM_SHARE("paletteram") // Palette RAM (C404)
+	AM_RANGE(0x06a10000, 0x06a3ffff) AM_RAM_WRITE(paletteram_w) AM_SHARE("paletteram") // Palette RAM (C404)
 	AM_RANGE(0x08000000, 0x08ffffff) AM_ROM AM_REGION("data", 0x0000000) AM_MIRROR(0x1000000) // data ROMs
 	AM_RANGE(0x0a000000, 0x0affffff) AM_ROM AM_REGION("data", 0x1000000) AM_MIRROR(0x1000000)
-	AM_RANGE(0x0c000000, 0x0c00001f) AM_READWRITE16(s23_c412_r, s23_c412_w, 0xffffffff)
-	AM_RANGE(0x0c400000, 0x0c400007) AM_READWRITE16(s23_c421_r, s23_c421_w, 0xffffffff)
-	AM_RANGE(0x0d000000, 0x0d00000f) AM_READWRITE16(s23_ctl_r, s23_ctl_w, 0xffffffff)
-	AM_RANGE(0x0e800000, 0x0e800003) AM_READWRITE16(s23_sub_comm_r, s23_sub_comm_w, 0xffffffff) // not sure
+	AM_RANGE(0x0c000000, 0x0c00001f) AM_READWRITE16(c412_r, c412_w, 0xffffffff)
+	AM_RANGE(0x0c400000, 0x0c400007) AM_READWRITE16(c421_r, c421_w, 0xffffffff)
+	AM_RANGE(0x0d000000, 0x0d00000f) AM_READWRITE16(ctl_r, ctl_w, 0xffffffff)
+	AM_RANGE(0x0e800000, 0x0e800003) AM_READWRITE16(sub_comm_r, sub_comm_w, 0xffffffff) // not sure
 	AM_RANGE(0x0fc00000, 0x0fffffff) AM_WRITENOP AM_ROM AM_REGION("user1", 0)
 ADDRESS_MAP_END
 
@@ -2723,14 +2766,19 @@ WRITE32_MEMBER(namcos23_state::sh2_shared_w)
 static ADDRESS_MAP_START( gmen_mips_map, AS_PROGRAM, 32, namcos23_state )
 	AM_IMPORT_FROM(s23_map)
 	AM_RANGE(0x0e400000, 0x0e400003) AM_READ(gmen_trigger_sh2)
-	AM_RANGE(0x0e700000, 0x0e707fff) AM_READWRITE(sh2_shared_r, sh2_shared_w)
+	AM_RANGE(0x0e700000, 0x0e70ffff) AM_READWRITE(sh2_shared_r, sh2_shared_w)
 ADDRESS_MAP_END
 
 
 // SH2 memmap
+/* TODO: of course, I believe that area 0x008***** is actually a bank of some sort ... */
 static ADDRESS_MAP_START( gmen_sh2_map, AS_PROGRAM, 32, namcos23_state )
-	AM_RANGE(0x00000000, 0x00007fff) AM_RAM AM_SHARE("gmen_sh2_shared")
-	AM_RANGE(0x04000000, 0x043fffff) AM_RAM // SH-2 main work RAM
+	AM_RANGE(0x00000000, 0x0000ffff) AM_RAM AM_SHARE("gmen_sh2_shared")
+	AM_RANGE(0x00800000, 0x008fffff) AM_ROM AM_REGION("data", 0xc00000) //c00000 "data" for final furlong 2. 0x1b6bc0 "user1" for gunmen wars
+	AM_RANGE(0x01800000, 0x0183ffff) AM_RAM // ???
+	//AM_RANGE(0x02800000, 0x02800003) AM_RAM // probably transfer status related, reads/writes after each end of flash transfer, TBD
+	AM_RANGE(0x04000000, 0x043fffff) AM_RAM // SH-2 main work RAM (SDRAM)
+	AM_RANGE(0x06000000, 0x06000003) AM_NOP // serial port for camera?
 ADDRESS_MAP_END
 
 
@@ -2783,13 +2831,13 @@ WRITE16_MEMBER(namcos23_state::sub_interrupt_main_w)
 
 // Port 6
 
-READ8_MEMBER(namcos23_state::s23_mcu_p6_r)
+READ16_MEMBER(namcos23_state::mcu_p6_r)
 {
 	// bit 1 = JVS cable present sense (1 = I/O board plugged in)
 	return (m_jvssense << 1) | 0xfd;
 }
 
-WRITE8_MEMBER(namcos23_state::s23_mcu_p6_w)
+WRITE16_MEMBER(namcos23_state::mcu_p6_w)
 {
 	//printf("%02x to port 6\n", data);
 }
@@ -2798,12 +2846,12 @@ WRITE8_MEMBER(namcos23_state::s23_mcu_p6_w)
 
 // Port 8, looks like serial comms, where to/from?
 
-READ8_MEMBER(namcos23_state::s23_mcu_p8_r)
+READ16_MEMBER(namcos23_state::mcu_p8_r)
 {
 	return 0x02;
 }
 
-WRITE8_MEMBER(namcos23_state::s23_mcu_p8_w)
+WRITE16_MEMBER(namcos23_state::mcu_p8_w)
 {
 	;
 }
@@ -2812,115 +2860,33 @@ WRITE8_MEMBER(namcos23_state::s23_mcu_p8_w)
 
 // Port A
 
-READ8_MEMBER(namcos23_state::s23_mcu_pa_r)
+READ16_MEMBER(namcos23_state::mcu_pa_r)
 {
-	return m_s23_porta;
+	return m_sub_porta;
 }
 
-WRITE8_MEMBER(namcos23_state::s23_mcu_pa_w)
+WRITE16_MEMBER(namcos23_state::mcu_pa_w)
 {
-	// bit 0 = chip enable for the RTC
 	m_rtc->ce_w(data & 1);
-	m_s23_porta = data;
+	m_sub_porta = data;
+	m_rtc->ce_w((m_sub_portb & 0x20) && (m_sub_porta & 1));
+	m_settings->ce_w((m_sub_portb & 0x20) && !(m_sub_porta & 1));
 }
 
 
 
 // Port B
 
-READ8_MEMBER(namcos23_state::s23_mcu_pb_r)
+READ16_MEMBER(namcos23_state::mcu_pb_r)
 {
-	m_s23_lastpb ^= 0x80;
-	return m_s23_lastpb;
+	return m_sub_portb;
 }
 
-WRITE8_MEMBER(namcos23_state::s23_mcu_pb_w)
+WRITE16_MEMBER(namcos23_state::mcu_pb_w)
 {
-	// bit 7 = chip enable for the video settings controller
-	if (data & 0x80)
-	{
-		m_s23_setstate = 0;
-	}
-
-	m_s23_lastpb = data;
-}
-
-
-
-// Serial Port 0
-
-READ8_MEMBER(namcos23_state::s23_mcu_iob_r)
-{
-	UINT8 ret = m_iotomain[m_im_rd];
-
-	m_im_rd++;
-	m_im_rd &= 0x7f;
-
-	if (m_im_rd == m_im_wr)
-	{
-		m_subcpu->set_input_line(H8_SCI_0_RX, CLEAR_LINE);
-	}
-	else
-	{
-		m_subcpu->set_input_line(H8_SCI_0_RX, CLEAR_LINE);
-		m_subcpu->set_input_line(H8_SCI_0_RX, ASSERT_LINE);
-	}
-
-	return ret;
-}
-
-WRITE8_MEMBER(namcos23_state::s23_mcu_iob_w)
-{
-	m_maintoio[m_mi_wr++] = data;
-	m_mi_wr &= 0x7f;
-
-	m_iocpu->set_input_line(H8_SCI_0_RX, ASSERT_LINE);
-}
-
-
-
-// Serial Port 1
-
-READ8_MEMBER(namcos23_state::s23_mcu_rtc_r)
-{
-	// emulation of the Epson R4543 real time clock
-	// in System 12, bit 0 of H8/3002 port A is connected to it's chip enable
-	// the actual I/O takes place through the H8/3002's serial port 1.
-	UINT8 ret = 0;
-
-	for (int i = 0; i < 8; i++)
-	{
-		m_rtc->clk_w(0);
-		m_rtc->clk_w(1);
-		ret <<= 1;
-		ret |= m_rtc->data_r();
-		}
-
-	return ret;
-}
-
-WRITE8_MEMBER(namcos23_state::s23_mcu_settings_w)
-{
-	if (m_s23_setstate)
-	{
-		// data
-		m_s23_settings[m_s23_setnum] = data;
-
-		if (m_s23_setnum == 7)
-		{
-			logerror("S23 video settings: Contrast: %02x  R: %02x  G: %02x  B: %02x\n",
-				BITSWAP8(m_s23_settings[0], 0, 1, 2, 3, 4, 5, 6, 7),
-				BITSWAP8(m_s23_settings[1], 0, 1, 2, 3, 4, 5, 6, 7),
-				BITSWAP8(m_s23_settings[2], 0, 1, 2, 3, 4, 5, 6, 7),
-				BITSWAP8(m_s23_settings[3], 0, 1, 2, 3, 4, 5, 6, 7));
-		}
-	}
-	else
-	{   // setting number
-		m_s23_setnum = (data >> 4)-1;
-	}
-
-	m_s23_setstate ^= 1;
+	m_sub_portb = (m_sub_portb & 0x80) | (data & 0x7f);
+	m_rtc->ce_w((m_sub_portb & 0x20) && (m_sub_porta & 1));
+	m_settings->ce_w((m_sub_portb & 0x20) && !(m_sub_porta & 1));
 }
 
 
@@ -2935,30 +2901,15 @@ static ADDRESS_MAP_START( s23h8rwmap, AS_PROGRAM, 16, namcos23_state )
 ADDRESS_MAP_END
 
 
-static ADDRESS_MAP_START( s23h8iomap, AS_IO, 8, namcos23_state )
-	AM_RANGE(H8_PORT_6, H8_PORT_6) AM_READWRITE(s23_mcu_p6_r, s23_mcu_p6_w )
-	AM_RANGE(H8_PORT_8, H8_PORT_8) AM_READWRITE(s23_mcu_p8_r, s23_mcu_p8_w )
-	AM_RANGE(H8_PORT_A, H8_PORT_A) AM_READWRITE(s23_mcu_pa_r, s23_mcu_pa_w )
-	AM_RANGE(H8_PORT_B, H8_PORT_B) AM_READWRITE(s23_mcu_pb_r, s23_mcu_pb_w )
-	AM_RANGE(H8_SERIAL_0, H8_SERIAL_0) AM_READWRITE(s23_mcu_iob_r, s23_mcu_iob_w )
-	AM_RANGE(H8_SERIAL_1, H8_SERIAL_1) AM_READWRITE(s23_mcu_rtc_r, s23_mcu_settings_w )
-	AM_RANGE(H8_ADC_0_H, H8_ADC_0_L) AM_NOP
-	AM_RANGE(H8_ADC_1_H, H8_ADC_1_L) AM_NOP
-	AM_RANGE(H8_ADC_2_H, H8_ADC_2_L) AM_NOP
-	AM_RANGE(H8_ADC_3_H, H8_ADC_3_L) AM_NOP
-ADDRESS_MAP_END
-
-// version without serial hookup to I/O board for games where the PIC isn't dumped
-static ADDRESS_MAP_START( s23h8noiobmap, AS_IO, 8, namcos23_state )
-	AM_RANGE(H8_PORT_6, H8_PORT_6) AM_READWRITE(s23_mcu_p6_r, s23_mcu_p6_w )
-	AM_RANGE(H8_PORT_8, H8_PORT_8) AM_READWRITE(s23_mcu_p8_r, s23_mcu_p8_w )
-	AM_RANGE(H8_PORT_A, H8_PORT_A) AM_READWRITE(s23_mcu_pa_r, s23_mcu_pa_w )
-	AM_RANGE(H8_PORT_B, H8_PORT_B) AM_READWRITE(s23_mcu_pb_r, s23_mcu_pb_w )
-	AM_RANGE(H8_SERIAL_1, H8_SERIAL_1) AM_READWRITE(s23_mcu_rtc_r, s23_mcu_settings_w )
-	AM_RANGE(H8_ADC_0_H, H8_ADC_0_L) AM_NOP
-	AM_RANGE(H8_ADC_1_H, H8_ADC_1_L) AM_NOP
-	AM_RANGE(H8_ADC_2_H, H8_ADC_2_L) AM_NOP
-	AM_RANGE(H8_ADC_3_H, H8_ADC_3_L) AM_NOP
+static ADDRESS_MAP_START( s23h8iomap, AS_IO, 16, namcos23_state )
+	AM_RANGE(h8_device::PORT_6, h8_device::PORT_6) AM_READWRITE(mcu_p6_r, mcu_p6_w )
+	AM_RANGE(h8_device::PORT_8, h8_device::PORT_8) AM_READWRITE(mcu_p8_r, mcu_p8_w )
+	AM_RANGE(h8_device::PORT_A, h8_device::PORT_A) AM_READWRITE(mcu_pa_r, mcu_pa_w )
+	AM_RANGE(h8_device::PORT_B, h8_device::PORT_B) AM_READWRITE(mcu_pb_r, mcu_pb_w )
+	AM_RANGE(h8_device::ADC_0, h8_device::ADC_0) AM_NOP
+	AM_RANGE(h8_device::ADC_1, h8_device::ADC_1) AM_NOP
+	AM_RANGE(h8_device::ADC_2, h8_device::ADC_2) AM_NOP
+	AM_RANGE(h8_device::ADC_3, h8_device::ADC_3) AM_NOP
 ADDRESS_MAP_END
 
 
@@ -2973,14 +2924,14 @@ ADDRESS_MAP_END
 
 // Port 4
 
-READ8_MEMBER(namcos23_state::s23_iob_p4_r)
+READ16_MEMBER(namcos23_state::iob_p4_r)
 {
-	return m_s23_tssio_port_4;
+	return m_tssio_port_4;
 }
 
-WRITE8_MEMBER(namcos23_state::s23_iob_p4_w)
+WRITE16_MEMBER(namcos23_state::iob_p4_w)
 {
-	m_s23_tssio_port_4 = data;
+	m_tssio_port_4 = data;
 
 	// bit 2 = SENSE line back to main (0 = asserted, 1 = dropped)
 	m_jvssense = (data & 0x04) ? 0 : 1;
@@ -2990,7 +2941,7 @@ WRITE8_MEMBER(namcos23_state::s23_iob_p4_w)
 
 // Port 6
 
-READ8_MEMBER(namcos23_state::s23_iob_p6_r)
+READ16_MEMBER(namcos23_state::iob_p6_r)
 {
 	// d4 is service button
 	UINT8 sb = (ioport("SERVICE")->read() & 1) << 4;
@@ -2999,99 +2950,63 @@ READ8_MEMBER(namcos23_state::s23_iob_p6_r)
 	return sb | 0;
 }
 
-WRITE8_MEMBER(namcos23_state::s23_iob_p6_w)
+WRITE16_MEMBER(namcos23_state::iob_p6_w)
 {
 	//printf("iob %02x to port 6\n", data);
 }
 
 
-
-// Serial Port 0
-
-READ8_MEMBER(namcos23_state::s23_iob_mcu_r)
-{
-	UINT8 ret = m_maintoio[m_mi_rd];
-
-	m_mi_rd++;
-	m_mi_rd &= 0x7f;
-
-	if (m_mi_rd == m_mi_wr)
-	{
-		m_iocpu->set_input_line(H8_SCI_0_RX, CLEAR_LINE);
-	}
-
-	return ret;
-}
-
-WRITE8_MEMBER(namcos23_state::s23_iob_mcu_w)
-{
-	m_iotomain[m_im_wr++] = data;
-	m_im_wr &= 0x7f;
-
-	m_subcpu->set_input_line(H8_SCI_0_RX, ASSERT_LINE);
-}
-
-
-
 // Analog Ports
 
-READ8_MEMBER(namcos23_state::s23_iob_analog_r)
+READ16_MEMBER(namcos23_state::iob_analog_r)
 {
 	static const char *const portnames[] = { "ADC0", "ADC1", "ADC2", "ADC3" };
-	if (offset & 1)
-		return ioport(portnames[offset >> 1 & 3])->read_safe(0) >> 8 & 0xff;
-	else
-		return ioport(portnames[offset >> 1 & 3])->read_safe(0) & 0xff;
+	return ioport(portnames[offset >> 1 & 3])->read_safe(0);
 }
 
 
-static ADDRESS_MAP_START( s23iobrdmap, AS_PROGRAM, 8, namcos23_state )
+static ADDRESS_MAP_START( s23iobrdmap, AS_PROGRAM, 16, namcos23_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM AM_REGION("iocpu", 0)
-	AM_RANGE(0x6000, 0x6000) AM_READ_PORT("IN0")
-	AM_RANGE(0x6001, 0x6001) AM_READ_PORT("IN1")
-	AM_RANGE(0x6002, 0x6002) AM_READ_PORT("IN2")
-	AM_RANGE(0x6003, 0x6003) AM_READ_PORT("IN3")
+	AM_RANGE(0x6000, 0x6001) AM_READ_PORT("IN01")
+	AM_RANGE(0x6002, 0x6003) AM_READ_PORT("IN23")
 	AM_RANGE(0x6004, 0x6005) AM_WRITENOP
 	AM_RANGE(0x6006, 0x6007) AM_NOP
-	AM_RANGE(0xc000, 0xf7ff) AM_RAM
+	AM_RANGE(0xc000, 0xffff) AM_RAM
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( s23iobrdiomap, AS_IO, 8, namcos23_state )
-	AM_RANGE(H8_PORT_4, H8_PORT_4) AM_READWRITE(s23_iob_p4_r, s23_iob_p4_w)
-	AM_RANGE(H8_PORT_5, H8_PORT_5) AM_NOP   // bit 2 = status LED to indicate transmitting packet to main
-	AM_RANGE(H8_PORT_6, H8_PORT_6) AM_READWRITE(s23_iob_p6_r, s23_iob_p6_w)
-	AM_RANGE(H8_PORT_8, H8_PORT_8) AM_NOP   // unknown - used on ASCA-5 only
-	AM_RANGE(H8_PORT_9, H8_PORT_9) AM_NOP   // unknown - used on ASCA-5 only
-	AM_RANGE(H8_SERIAL_0, H8_SERIAL_0) AM_READWRITE(s23_iob_mcu_r, s23_iob_mcu_w)
-	AM_RANGE(H8_ADC_0_H, H8_ADC_3_L) AM_READ(s23_iob_analog_r)
+static ADDRESS_MAP_START( s23iobrdiomap, AS_IO, 16, namcos23_state )
+	AM_RANGE(h8_device::PORT_4,  h8_device::PORT_4)  AM_READWRITE(iob_p4_r, iob_p4_w)
+	AM_RANGE(h8_device::PORT_5,  h8_device::PORT_5)  AM_NOP   // bit 2 = status LED to indicate transmitting packet to main
+	AM_RANGE(h8_device::PORT_6,  h8_device::PORT_6)  AM_READWRITE(iob_p6_r, iob_p6_w)
+	AM_RANGE(h8_device::PORT_8,  h8_device::PORT_8)  AM_NOP   // unknown - used on ASCA-5 only
+	AM_RANGE(h8_device::PORT_9,  h8_device::PORT_9)  AM_NOP   // unknown - used on ASCA-5 only
+	AM_RANGE(h8_device::ADC_0,   h8_device::ADC_3)   AM_READ(iob_analog_r)
 ADDRESS_MAP_END
-
 
 
 // Time Crisis lightgun
 
-READ8_MEMBER(namcos23_state::s23_iob_gun_r)
+READ8_MEMBER(namcos23_state::iob_gun_r)
 {
-	UINT16 xpos = ioport("LIGHTX")->read();
-	UINT16 ypos = ioport("LIGHTY")->read();
+	UINT16 xpos = m_lightx->read();
+	UINT16 ypos = m_lighty->read();
 	// ypos is not completely understood yet, there should be a difference between case 1/4 and 2/5
 
 	switch(offset)
 	{
 		case 0: return xpos&0xff;
-		case 3: return xpos>>8;
 		case 1: return ypos&0xff;
-		case 4: return ypos>>8;
 		case 2: return ypos&0xff;
+		case 3: return xpos>>8;
+		case 4: return ypos>>8;
 		case 5: return ypos>>8;
-		default: break;
 	}
 
 	return 0;
 }
 
-static ADDRESS_MAP_START( timecrs2iobrdmap, AS_PROGRAM, 8, namcos23_state )
-	AM_RANGE(0x7000, 0x700f) AM_READ(s23_iob_gun_r)
+static ADDRESS_MAP_START( timecrs2iobrdmap, AS_PROGRAM, 16, namcos23_state )
+	AM_RANGE(0x7000, 0x700f) AM_READ8(iob_gun_r, 0xffff)
 	AM_IMPORT_FROM( s23iobrdmap )
 ADDRESS_MAP_END
 
@@ -3112,25 +3027,17 @@ static INPUT_PORTS_START( rapidrvr )
 	PORT_START("P2")
 	PORT_BIT( 0xfff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	PORT_START("IN0")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Test Button") PORT_CODE(KEYCODE_F1)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_NAME("Service Up")
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_NAME("Service Down")
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("Service Enter")
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_START1 )
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_START("IN01")
+	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Test Button") PORT_CODE(KEYCODE_F1)
+	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_NAME("Service Up")
+	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_NAME("Service Down")
+	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("Service Enter")
+	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_START1 )
+	PORT_BIT( 0xe0ff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	PORT_START("IN1")
-	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
-
-	PORT_START("IN2")
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_COIN1 )
-	PORT_BIT( 0xf7, IP_ACTIVE_LOW, IPT_UNKNOWN )
-
-	PORT_START("IN3")
-	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_START("IN23")
+	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_COIN1 )
+	PORT_BIT( 0xf7ff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("SERVICE")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SERVICE1 )
@@ -3181,15 +3088,13 @@ static INPUT_PORTS_START( rapidrvrp )
 	PORT_BIT( 0x400, IP_ACTIVE_LOW, IPT_UNKNOWN ) // I/O Air Dumper FL
 	PORT_BIT( 0x800, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2) PORT_NAME("Dev Service B") // + I/O Air Dumper RL
 
-	PORT_MODIFY("IN0")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Test Button") PORT_CODE(KEYCODE_F1)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_NAME("User Service Up")
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_NAME("User Service Down")
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("User Service Enter")
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_START1 ) PORT_NAME("User Start")
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_MODIFY("IN01")
+	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Test Button") PORT_CODE(KEYCODE_F1)
+	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_NAME("User Service Up")
+	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_NAME("User Service Down")
+	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("User Service Enter")
+	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_START1 ) PORT_NAME("User Start")
+	PORT_BIT( 0xe0ff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_MODIFY("DSW")
 	PORT_DIPNAME( 0x08, 0x08, "Debug Messages" )    PORT_DIPLOCATION("DIP:5")
@@ -3216,9 +3121,9 @@ INPUT_PORTS_END
 static INPUT_PORTS_START( finfurl )
 	PORT_INCLUDE( rapidrvr )
 
-	PORT_MODIFY("IN0")
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT )
+	PORT_MODIFY("IN01")
+	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )
+	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT )
 
 #if 0 // need to hook these up properly
 	PORT_START("ADC0")
@@ -3248,29 +3153,24 @@ static INPUT_PORTS_START( s23 )
 	PORT_START("P2")
 	PORT_BIT( 0xfff, IP_ACTIVE_LOW, IPT_UNKNOWN )   // 0x100 = freeze?
 
-	PORT_START("IN0")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_COIN1 )
-	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_UNKNOWN )    // this is the "coin acceptor connected" signal
-	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_SERVICE1 )
-	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )
-	PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_JOYSTICK_UP )
-	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_BUTTON3 )
+	PORT_START("IN01")
+	PORT_BIT(0x0001, IP_ACTIVE_LOW, IPT_BUTTON1 ) // gun trigger
+	PORT_BIT(0x0002, IP_ACTIVE_LOW, IPT_BUTTON2 ) // foot pedal
+	PORT_BIT(0x00fc, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT(0x0100, IP_ACTIVE_LOW, IPT_COIN1 )
+	PORT_BIT(0x0200, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT(0x0400, IP_ACTIVE_HIGH, IPT_UNKNOWN )    // this is the "coin acceptor connected" signal
+	PORT_BIT(0x0800, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT(0x1000, IP_ACTIVE_LOW, IPT_SERVICE1 )
+	PORT_BIT(0x2000, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )
+	PORT_BIT(0x4000, IP_ACTIVE_LOW, IPT_JOYSTICK_UP )
+	PORT_BIT(0x8000, IP_ACTIVE_LOW, IPT_BUTTON3 )
 
-	PORT_START("IN1")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) // gun trigger
-	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_BUTTON2 ) // foot pedal
-	PORT_BIT(0xfc, IP_ACTIVE_LOW, IPT_UNKNOWN )
-
-	PORT_START("IN2")
-	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
-
-	PORT_START("IN3")
-	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_START("IN23")
+	PORT_BIT( 0xffff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("SERVICE")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SERVICE1 )
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SERVICE )
 
 	PORT_START("DSW")
 	PORT_SERVICE( 0x01, IP_ACTIVE_LOW )
@@ -3322,12 +3222,14 @@ void namcos23_state::machine_start()
 	m_c361.timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(namcos23_state::c361_timer_cb),this));
 	m_c361.timer->adjust(attotime::never);
 
-	mips3drc_add_fastram(m_maincpu, 0, m_mainram.bytes()-1, FALSE, reinterpret_cast<UINT32 *>(memshare("mainram")->ptr()));
+	m_maincpu->mips3drc_add_fastram(0, m_mainram.bytes()-1, FALSE, reinterpret_cast<UINT32 *>(memshare("mainram")->ptr()));
 }
 
 
 void namcos23_state::machine_reset()
 {
+	m_vblank_count = 0;
+	m_c435_buffer_pos = 0;
 	m_subcpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
@@ -3352,27 +3254,25 @@ DRIVER_INIT_MEMBER(namcos23_state,s23)
 	m_tile_mask = memregion("textile")->bytes()/256 - 1;
 	m_ptrom_limit = memregion("pointrom")->bytes()/4;
 
-	m_mi_rd = m_mi_wr = m_im_rd = m_im_wr = 0;
 	m_jvssense = 1;
 	m_main_irqcause = 0;
 	m_ctl_vbl_active = false;
-	m_s23_lastpb = 0x50;
-	m_s23_setstate = 0;
-	m_s23_setnum = 0;
-	memset(m_s23_settings, 0, sizeof(m_s23_settings));
-	m_s23_tssio_port_4 = 0;
-	m_s23_porta = 0, m_s23_rtcstate = 0;
+	m_sub_portb = 0x50;
+	m_tssio_port_4 = 0;
+	m_sub_porta = 0;
 	m_subcpu_running = false;
 	m_render.count[0] = m_render.count[1] = 0;
 	m_render.cur = 0;
 
 	if ((!strcmp(machine().system().name, "motoxgo")) ||
 		(!strcmp(machine().system().name, "panicprk")) ||
+		(!strcmp(machine().system().name, "panicprkj")) ||
 		(!strcmp(machine().system().name, "rapidrvr")) ||
 		(!strcmp(machine().system().name, "rapidrvrv2c")) ||
 		(!strcmp(machine().system().name, "rapidrvrp")) ||
 		(!strcmp(machine().system().name, "finfurl")) ||
 		(!strcmp(machine().system().name, "gunwars")) ||
+		(!strcmp(machine().system().name, "gunwarsa")) ||
 		(!strcmp(machine().system().name, "downhill")) ||
 		(!strcmp(machine().system().name, "finfurl2")) ||
 		(!strcmp(machine().system().name, "finfurl2j")) ||
@@ -3415,54 +3315,68 @@ static GFXDECODE_START( namcos23 )
 GFXDECODE_END
 
 
-static const mips3_config r4650_config =
-{
-	8192,               /* code cache size - VERIFIED */
-	8192                /* data cache size - VERIFIED */
-};
-
-
-
 static MACHINE_CONFIG_START( gorgon, namcos23_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", R4650BE, S23_BUSCLOCK*4)
-	MCFG_CPU_CONFIG(r4650_config)
+	MCFG_CPU_ADD("maincpu", R4650BE, BUSCLOCK*4)
+	MCFG_MIPS3_ICACHE_SIZE(8192)   // VERIFIED
+	MCFG_MIPS3_DCACHE_SIZE(8192)   // VERIFIED
 	MCFG_CPU_PROGRAM_MAP(gorgon_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos23_state,  s23_interrupt)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos23_state, interrupt)
 
-	MCFG_CPU_ADD("subcpu", H83002, S23_H8CLOCK )
+	MCFG_CPU_ADD("subcpu", H83002, H8CLOCK )
 	MCFG_CPU_PROGRAM_MAP( s23h8rwmap )
 	MCFG_CPU_IO_MAP( s23h8iomap )
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos23_state,  irq1_line_pulse)
 
-	MCFG_CPU_ADD("iocpu", H83334, S23_H8CLOCK )
+	// Timer at 115200*16 for the jvs serial clock
+	MCFG_DEVICE_MODIFY(":subcpu:sci0")
+	MCFG_H8_SCI_SET_EXTERNAL_CLOCK_PERIOD(attotime::from_hz(JVSCLOCK/8))
+
+	MCFG_CPU_ADD("iocpu", H83334, JVSCLOCK )
 	MCFG_CPU_PROGRAM_MAP( s23iobrdmap )
 	MCFG_CPU_IO_MAP( s23iobrdiomap )
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(60000))
+	MCFG_DEVICE_MODIFY("iocpu:sci0")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE(":subcpu:sci0", h8_sci_device, rx_w))
+	MCFG_DEVICE_MODIFY("subcpu:sci0")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE(":iocpu:sci0", h8_sci_device, rx_w))
+
+	MCFG_QUANTUM_TIME(attotime::from_hz(2*115200))
+
+	MCFG_NAMCO_SETTINGS_ADD("namco_settings")
 
 	MCFG_RTC4543_ADD("rtc", XTAL_32_768kHz)
+	MCFG_RTC4543_DATA_CALLBACK(DEVWRITELINE("subcpu:sci1", h8_sci_device, rx_w))
 
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(S23_VSYNC1)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) // Not in any way accurate
-	MCFG_SCREEN_SIZE(640, 480)
-	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 479)
-	MCFG_SCREEN_UPDATE_DRIVER(namcos23_state, screen_update_s23)
+	MCFG_LINE_DISPATCH_ADD("clk_dispatch", 2)
+	MCFG_LINE_DISPATCH_FWD_CB(0, 2, DEVWRITELINE(":rtc", rtc4543_device, clk_w)) MCFG_DEVCB_INVERT
+	MCFG_LINE_DISPATCH_FWD_CB(1, 2, DEVWRITELINE(":namco_settings", namco_settings_device, clk_w))
 
-	MCFG_PALETTE_LENGTH(0x8000)
+	MCFG_DEVICE_MODIFY("subcpu:sci1")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE(":namco_settings", namco_settings_device, data_w))
+	MCFG_H8_SCI_CLK_CALLBACK(DEVWRITELINE(":clk_dispatch", devcb_line_dispatch_device<2>, in_w))
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_GFXDECODE(namcos23)
+	/* video hardware */
+	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_REFRESH_RATE(VSYNC1)
+	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) // Not in any way accurate
+	MCFG_SCREEN_SIZE(640, 480)
+	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 479)
+	MCFG_SCREEN_UPDATE_DRIVER(namcos23_state, screen_update)
+	MCFG_SCREEN_VBLANK_DRIVER(namcos23_state, sub_irq)
+
+	MCFG_PALETTE_ADD("palette", 0x8000)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", namcos23)
 
 	MCFG_VIDEO_START_OVERRIDE(namcos23_state,s23)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_C352_ADD("c352", S23_C352CLOCK)
+	MCFG_C352_ADD("c352", C352CLOCK)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 1.00)
 	MCFG_SOUND_ROUTE(1, "lspeaker", 1.00)
 	MCFG_SOUND_ROUTE(2, "rspeaker", 1.00)
@@ -3473,43 +3387,65 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( s23, namcos23_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", R4650BE, S23_BUSCLOCK*4)
-	MCFG_CPU_CONFIG(r4650_config)
+	MCFG_CPU_ADD("maincpu", R4650BE, BUSCLOCK*4)
+	MCFG_MIPS3_ICACHE_SIZE(8192)   // VERIFIED
+	MCFG_MIPS3_DCACHE_SIZE(8192)   // VERIFIED
 	MCFG_CPU_PROGRAM_MAP(s23_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos23_state,  s23_interrupt)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos23_state, interrupt)
 
-	MCFG_CPU_ADD("subcpu", H83002, S23_H8CLOCK )
+	MCFG_CPU_ADD("subcpu", H83002, H8CLOCK )
 	MCFG_CPU_PROGRAM_MAP( s23h8rwmap )
 	MCFG_CPU_IO_MAP( s23h8iomap )
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos23_state,  irq1_line_pulse)
 
-	MCFG_CPU_ADD("iocpu", H83334, S23_H8CLOCK )
+	// Timer at 115200*16 for the jvs serial clock
+	MCFG_DEVICE_MODIFY(":subcpu:sci0")
+	MCFG_H8_SCI_SET_EXTERNAL_CLOCK_PERIOD(attotime::from_hz(JVSCLOCK/8))
+
+	MCFG_CPU_ADD("iocpu", H83334, JVSCLOCK )
 	MCFG_CPU_PROGRAM_MAP( s23iobrdmap )
 	MCFG_CPU_IO_MAP( s23iobrdiomap )
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(60000))
+	MCFG_DEVICE_MODIFY("iocpu:sci0")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE(":subcpu:sci0", h8_sci_device, rx_w))
+	MCFG_DEVICE_MODIFY("subcpu:sci0")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE(":iocpu:sci0", h8_sci_device, rx_w))
+
+	MCFG_QUANTUM_TIME(attotime::from_hz(2*115200))
+
+	MCFG_NAMCO_SETTINGS_ADD("namco_settings")
 
 	MCFG_RTC4543_ADD("rtc", XTAL_32_768kHz)
+	MCFG_RTC4543_DATA_CALLBACK(DEVWRITELINE("subcpu:sci1", h8_sci_device, rx_w))
 
+	MCFG_LINE_DISPATCH_ADD("clk_dispatch", 2)
+	MCFG_LINE_DISPATCH_FWD_CB(0, 2, DEVWRITELINE(":rtc", rtc4543_device, clk_w)) MCFG_DEVCB_INVERT
+	MCFG_LINE_DISPATCH_FWD_CB(1, 2, DEVWRITELINE(":namco_settings", namco_settings_device, clk_w))
+
+	MCFG_DEVICE_MODIFY("subcpu:sci1")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE(":namco_settings", namco_settings_device, data_w))
+	MCFG_H8_SCI_CLK_CALLBACK(DEVWRITELINE(":clk_dispatch", devcb_line_dispatch_device<2>, in_w))
+
+	MCFG_NVRAM_ADD_0FILL("nvram")
+
+	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(S23_VSYNC1)
+	MCFG_SCREEN_REFRESH_RATE(VSYNC1)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) // Not in any way accurate
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 479)
-	MCFG_SCREEN_UPDATE_DRIVER(namcos23_state, screen_update_s23)
+	MCFG_SCREEN_UPDATE_DRIVER(namcos23_state, screen_update)
+	MCFG_SCREEN_VBLANK_DRIVER(namcos23_state, sub_irq)
 
-	MCFG_PALETTE_LENGTH(0x8000)
+	MCFG_PALETTE_ADD("palette", 0x8000)
 
-	MCFG_GFXDECODE(namcos23)
-
-	MCFG_NVRAM_ADD_0FILL("nvram")
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", namcos23)
 
 	MCFG_VIDEO_START_OVERRIDE(namcos23_state,s23)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_C352_ADD("c352", S23_C352CLOCK)
+	MCFG_C352_ADD("c352", C352CLOCK)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 1.00)
 	MCFG_SOUND_ROUTE(1, "lspeaker", 1.00)
 	MCFG_SOUND_ROUTE(2, "rspeaker", 1.00)
@@ -3518,17 +3454,19 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( timecrs2, s23 )
 
+	/* basic machine hardware */
 	MCFG_CPU_MODIFY("iocpu")
 	MCFG_CPU_PROGRAM_MAP( timecrs2iobrdmap )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( gmen, s23 )
 
+	/* basic machine hardware */
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CLOCK(S23_BUSCLOCK*5)
+	MCFG_CPU_CLOCK(BUSCLOCK*5)
 	MCFG_CPU_PROGRAM_MAP(gmen_mips_map)
 
-	MCFG_CPU_ADD("gmen_sh2", SH2, 28700000)
+	MCFG_CPU_ADD("gmen_sh2", SH2, XTAL_28_7MHz)
 	MCFG_CPU_PROGRAM_MAP(gmen_sh2_map)
 
 	MCFG_MACHINE_RESET_OVERRIDE(namcos23_state,gmen)
@@ -3538,39 +3476,56 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( ss23, namcos23_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", R4650BE, S23_BUSCLOCK*5)
-	MCFG_CPU_CONFIG(r4650_config)
+	MCFG_CPU_ADD("maincpu", R4650BE, BUSCLOCK*5)
+	MCFG_MIPS3_ICACHE_SIZE(8192)   // VERIFIED
+	MCFG_MIPS3_DCACHE_SIZE(8192)   // VERIFIED
 	MCFG_CPU_PROGRAM_MAP(s23_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos23_state,  s23_interrupt)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos23_state, interrupt)
 
-	MCFG_CPU_ADD("subcpu", H83002, S23_H8CLOCK )
+	MCFG_CPU_ADD("subcpu", H83002, H8CLOCK )
 	MCFG_CPU_PROGRAM_MAP( s23h8rwmap )
-	MCFG_CPU_IO_MAP( s23h8noiobmap )
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos23_state,  irq1_line_pulse)
+	MCFG_CPU_IO_MAP( s23h8iomap )
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(60000))
+	// Timer at 115200*16 for the jvs serial clock
+	MCFG_DEVICE_MODIFY(":subcpu:sci0")
+	MCFG_H8_SCI_SET_EXTERNAL_CLOCK_PERIOD(attotime::from_hz(JVSCLOCK/8))
+
+	MCFG_QUANTUM_TIME(attotime::from_hz(2*115200))
+
+	MCFG_NAMCO_SETTINGS_ADD("namco_settings")
 
 	MCFG_RTC4543_ADD("rtc", XTAL_32_768kHz)
+	MCFG_RTC4543_DATA_CALLBACK(DEVWRITELINE("subcpu:sci1", h8_sci_device, rx_w))
 
+	MCFG_LINE_DISPATCH_ADD("clk_dispatch", 2)
+	MCFG_LINE_DISPATCH_FWD_CB(0, 2, DEVWRITELINE(":rtc", rtc4543_device, clk_w)) MCFG_DEVCB_INVERT
+	MCFG_LINE_DISPATCH_FWD_CB(1, 2, DEVWRITELINE(":namco_settings", namco_settings_device, clk_w))
+
+	MCFG_DEVICE_MODIFY("subcpu:sci1")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE(":namco_settings", namco_settings_device, data_w))
+	MCFG_H8_SCI_CLK_CALLBACK(DEVWRITELINE(":clk_dispatch", devcb_line_dispatch_device<2>, in_w))
+
+	MCFG_NVRAM_ADD_0FILL("nvram")
+
+	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(S23_VSYNC1)
+	MCFG_SCREEN_REFRESH_RATE(VSYNC1)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) // Not in any way accurate
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 479)
-	MCFG_SCREEN_UPDATE_DRIVER(namcos23_state, screen_update_s23)
+	MCFG_SCREEN_UPDATE_DRIVER(namcos23_state, screen_update)
+	MCFG_SCREEN_VBLANK_DRIVER(namcos23_state, sub_irq)
 
-	MCFG_PALETTE_LENGTH(0x8000)
+	MCFG_PALETTE_ADD("palette", 0x8000)
 
-	MCFG_GFXDECODE(namcos23)
-
-	MCFG_NVRAM_ADD_0FILL("nvram")
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", namcos23)
 
 	MCFG_VIDEO_START_OVERRIDE(namcos23_state,s23)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_C352_ADD("c352", S23_C352CLOCK)
+	MCFG_C352_ADD("c352", C352CLOCK)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 1.00)
 	MCFG_SOUND_ROUTE(1, "lspeaker", 1.00)
 	MCFG_SOUND_ROUTE(2, "rspeaker", 1.00)
@@ -3578,26 +3533,31 @@ static MACHINE_CONFIG_START( ss23, namcos23_state )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( timecrs2v4a, ss23 )
-
-	MCFG_CPU_MODIFY("subcpu")
-	MCFG_CPU_IO_MAP( s23h8iomap )
-
-	MCFG_CPU_ADD("iocpu", H83334, S23_H8CLOCK )
+	/* basic machine hardware */
+	MCFG_CPU_ADD("iocpu", H83334, JVSCLOCK )
 	MCFG_CPU_PROGRAM_MAP( timecrs2iobrdmap )
 	MCFG_CPU_IO_MAP( s23iobrdiomap )
+
+	MCFG_DEVICE_MODIFY("iocpu:sci0")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE(":subcpu:sci0", h8_sci_device, rx_w))
+	MCFG_DEVICE_MODIFY("subcpu:sci0")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE(":iocpu:sci0", h8_sci_device, rx_w))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ss23e2, ss23 )
 
+	/* basic machine hardware */
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CLOCK(S23_BUSCLOCK*6)
+	MCFG_CPU_CLOCK(BUSCLOCK*6)
 
-	MCFG_CPU_MODIFY("subcpu")
-	MCFG_CPU_IO_MAP( s23h8iomap )
-
-	MCFG_CPU_ADD("iocpu", H83334, S23_H8CLOCK )
+	MCFG_CPU_ADD("iocpu", H83334, JVSCLOCK )
 	MCFG_CPU_PROGRAM_MAP( s23iobrdmap )
 	MCFG_CPU_IO_MAP( s23iobrdiomap )
+
+	MCFG_DEVICE_MODIFY("iocpu:sci0")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE(":subcpu:sci0", h8_sci_device, rx_w))
+	MCFG_DEVICE_MODIFY("subcpu:sci0")
+	MCFG_H8_SCI_TX_CALLBACK(DEVWRITELINE(":iocpu:sci0", h8_sci_device, rx_w))
 MACHINE_CONFIG_END
 
 
@@ -3870,10 +3830,10 @@ ROM_START( motoxgo )
 	ROM_LOAD( "mg1ccrh.7e",   0x000000, 0x200000, CRC(2e77597d) SHA1(58dd83c1b0c08115e728c5e7dea5e62135b821ba) )
 
 	ROM_REGION32_BE( 0x1000000, "pointrom", ROMREGION_ERASEFF ) /* 3D model data */
-	ROM_LOAD32_WORD( "mg1pt0h.7a",   0x000000, 0x400000, CRC(c9ba1b47) SHA1(42ec0638edb4c502ff0a340c4cf590bdd767cfe2) )
-	ROM_LOAD32_WORD( "mg1pt0l.7c",   0x000002, 0x400000, CRC(3b9e95d3) SHA1(d7823ed6c590669ccd4098ed439599a3eb814ed1) )
-	ROM_LOAD32_WORD( "mg1pt1l.5c",   0x800000, 0x400000, CRC(0dd2f358) SHA1(3537e6be3fec9fec8d5a8dd02d9cf67b3805f8f0) )
-	ROM_LOAD32_WORD( "mg1pt1h.5a",   0x800002, 0x400000, CRC(8d4f7097) SHA1(004e9ed0b5d6ce83ffadb9bd429fa7560abdb598) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt0h.7a",   0x000000, 0x400000, CRC(c9ba1b47) SHA1(42ec0638edb4c502ff0a340c4cf590bdd767cfe2) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt0l.7c",   0x000002, 0x400000, CRC(3b9e95d3) SHA1(d7823ed6c590669ccd4098ed439599a3eb814ed1) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt1h.5a",   0x800000, 0x400000, CRC(8d4f7097) SHA1(004e9ed0b5d6ce83ffadb9bd429fa7560abdb598) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt1l.5c",   0x800002, 0x400000, CRC(0dd2f358) SHA1(3537e6be3fec9fec8d5a8dd02d9cf67b3805f8f0) )
 
 	ROM_REGION( 0x1000000, "c352", ROMREGION_ERASEFF ) /* C352 PCM samples */
 	ROM_LOAD( "mg1wavel.2c",  0x000000, 0x800000, CRC(f78b1b4d) SHA1(47cd654ec0a69de0dc81b8d83692eebf5611228b) )
@@ -3918,10 +3878,10 @@ ROM_START( motoxgov2a )
 	ROM_LOAD( "mg1ccrh.7e",   0x000000, 0x200000, CRC(2e77597d) SHA1(58dd83c1b0c08115e728c5e7dea5e62135b821ba) )
 
 	ROM_REGION32_BE( 0x1000000, "pointrom", ROMREGION_ERASEFF ) /* 3D model data */
-	ROM_LOAD32_WORD( "mg1pt0h.7a",   0x000000, 0x400000, CRC(c9ba1b47) SHA1(42ec0638edb4c502ff0a340c4cf590bdd767cfe2) )
-	ROM_LOAD32_WORD( "mg1pt0l.7c",   0x000002, 0x400000, CRC(3b9e95d3) SHA1(d7823ed6c590669ccd4098ed439599a3eb814ed1) )
-	ROM_LOAD32_WORD( "mg1pt1l.5c",   0x800000, 0x400000, CRC(0dd2f358) SHA1(3537e6be3fec9fec8d5a8dd02d9cf67b3805f8f0) )
-	ROM_LOAD32_WORD( "mg1pt1h.5a",   0x800002, 0x400000, CRC(8d4f7097) SHA1(004e9ed0b5d6ce83ffadb9bd429fa7560abdb598) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt0h.7a",   0x000000, 0x400000, CRC(c9ba1b47) SHA1(42ec0638edb4c502ff0a340c4cf590bdd767cfe2) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt0l.7c",   0x000002, 0x400000, CRC(3b9e95d3) SHA1(d7823ed6c590669ccd4098ed439599a3eb814ed1) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt1h.5a",   0x800000, 0x400000, CRC(8d4f7097) SHA1(004e9ed0b5d6ce83ffadb9bd429fa7560abdb598) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt1l.5c",   0x800002, 0x400000, CRC(0dd2f358) SHA1(3537e6be3fec9fec8d5a8dd02d9cf67b3805f8f0) )
 
 	ROM_REGION( 0x1000000, "c352", ROMREGION_ERASEFF ) /* C352 PCM samples */
 	ROM_LOAD( "mg1wavel.2c",  0x000000, 0x800000, CRC(f78b1b4d) SHA1(47cd654ec0a69de0dc81b8d83692eebf5611228b) )
@@ -3966,10 +3926,10 @@ ROM_START( motoxgov1a )
 	ROM_LOAD( "mg1ccrh.7e",   0x000000, 0x200000, CRC(2e77597d) SHA1(58dd83c1b0c08115e728c5e7dea5e62135b821ba) )
 
 	ROM_REGION32_BE( 0x1000000, "pointrom", ROMREGION_ERASEFF ) /* 3D model data */
-	ROM_LOAD32_WORD( "mg1pt0h.7a",   0x000000, 0x400000, CRC(c9ba1b47) SHA1(42ec0638edb4c502ff0a340c4cf590bdd767cfe2) )
-	ROM_LOAD32_WORD( "mg1pt0l.7c",   0x000002, 0x400000, CRC(3b9e95d3) SHA1(d7823ed6c590669ccd4098ed439599a3eb814ed1) )
-	ROM_LOAD32_WORD( "mg1pt1l.5c",   0x800000, 0x400000, CRC(0dd2f358) SHA1(3537e6be3fec9fec8d5a8dd02d9cf67b3805f8f0) )
-	ROM_LOAD32_WORD( "mg1pt1h.5a",   0x800002, 0x400000, CRC(8d4f7097) SHA1(004e9ed0b5d6ce83ffadb9bd429fa7560abdb598) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt0h.7a",   0x000000, 0x400000, CRC(c9ba1b47) SHA1(42ec0638edb4c502ff0a340c4cf590bdd767cfe2) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt0l.7c",   0x000002, 0x400000, CRC(3b9e95d3) SHA1(d7823ed6c590669ccd4098ed439599a3eb814ed1) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt1h.5a",   0x800000, 0x400000, CRC(8d4f7097) SHA1(004e9ed0b5d6ce83ffadb9bd429fa7560abdb598) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt1l.5c",   0x800002, 0x400000, CRC(0dd2f358) SHA1(3537e6be3fec9fec8d5a8dd02d9cf67b3805f8f0) )
 
 	ROM_REGION( 0x1000000, "c352", ROMREGION_ERASEFF ) /* C352 PCM samples */
 	ROM_LOAD( "mg1wavel.2c",  0x000000, 0x800000, CRC(f78b1b4d) SHA1(47cd654ec0a69de0dc81b8d83692eebf5611228b) )
@@ -4014,10 +3974,10 @@ ROM_START( motoxgov1a2 )
 	ROM_LOAD( "mg1ccrh.7e",   0x000000, 0x200000, CRC(2e77597d) SHA1(58dd83c1b0c08115e728c5e7dea5e62135b821ba) )
 
 	ROM_REGION32_BE( 0x1000000, "pointrom", ROMREGION_ERASEFF ) /* 3D model data */
-	ROM_LOAD32_WORD( "mg1pt0h.7a",   0x000000, 0x400000, CRC(c9ba1b47) SHA1(42ec0638edb4c502ff0a340c4cf590bdd767cfe2) )
-	ROM_LOAD32_WORD( "mg1pt0l.7c",   0x000002, 0x400000, CRC(3b9e95d3) SHA1(d7823ed6c590669ccd4098ed439599a3eb814ed1) )
-	ROM_LOAD32_WORD( "mg1pt1l.5c",   0x800000, 0x400000, CRC(0dd2f358) SHA1(3537e6be3fec9fec8d5a8dd02d9cf67b3805f8f0) )
-	ROM_LOAD32_WORD( "mg1pt1h.5a",   0x800002, 0x400000, CRC(8d4f7097) SHA1(004e9ed0b5d6ce83ffadb9bd429fa7560abdb598) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt0h.7a",   0x000000, 0x400000, CRC(c9ba1b47) SHA1(42ec0638edb4c502ff0a340c4cf590bdd767cfe2) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt0l.7c",   0x000002, 0x400000, CRC(3b9e95d3) SHA1(d7823ed6c590669ccd4098ed439599a3eb814ed1) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt1h.5a",   0x800000, 0x400000, CRC(8d4f7097) SHA1(004e9ed0b5d6ce83ffadb9bd429fa7560abdb598) )
+	ROM_LOAD32_WORD_SWAP( "mg1pt1l.5c",   0x800002, 0x400000, CRC(0dd2f358) SHA1(3537e6be3fec9fec8d5a8dd02d9cf67b3805f8f0) )
 
 	ROM_REGION( 0x1000000, "c352", ROMREGION_ERASEFF ) /* C352 PCM samples */
 	ROM_LOAD( "mg1wavel.2c",  0x000000, 0x800000, CRC(f78b1b4d) SHA1(47cd654ec0a69de0dc81b8d83692eebf5611228b) )
@@ -4161,6 +4121,51 @@ ROM_START( timecrs2v4a )
 ROM_END
 
 
+ROM_START( aking )
+	ROM_REGION32_BE( 0x400000, "user1", 0 ) /* 4 megs for main R4650 code */
+	ROM_LOAD16_BYTE( "ag1vera.ic2",   0x000000, 0x200000, CRC(dc98fefb) SHA1(d173c5c6d23f1dae61d448bb6fae27daca525221) )
+	ROM_LOAD16_BYTE( "ag1vera.ic1",   0x000001, 0x200000, CRC(f1a08d5c) SHA1(f11bee1093b237067b84ddec8e1bca0b70fc6678) )
+
+	ROM_REGION( 0x80000, "subcpu", 0 )  /* Hitachi H8/3002 MCU code */
+	ROM_LOAD16_WORD_SWAP( "ag1vera.ic3",   0x000000, 0x080000, CRC(266ac71c) SHA1(648a64adc0e4a2cefd71c31a6a71359b6c196430) )
+
+	ROM_REGION( 0x40000, "iocpu", 0 )   /* I/O board MB90F574 MCU code */
+	ROM_LOAD( "fcaf10.bin", 0x000000, 0x040000, NO_DUMP ) // 256KB internal flashrom
+
+	ROM_REGION32_BE( 0x2000000, "data", 0 ) /* data roms */
+	ROM_LOAD16_BYTE( "ag1mtah.2j",  0x0000000, 0x800000, CRC(f2d8ca9d) SHA1(8158d13d74f2aae7c0d1238619ce1ad3a17d8047) )
+	ROM_LOAD16_BYTE( "ag1mtal.2h",  0x0000001, 0x800000, CRC(7facbfd4) SHA1(c42988e274a1b4f40f4b4379e94653ef07429c58) )
+	ROM_LOAD16_BYTE( "ag1mtbh.2m",  0x1000000, 0x800000, CRC(890bdb52) SHA1(a38f039187448ee328547582eab22813ce625615) )
+	ROM_LOAD16_BYTE( "ag1mtbl.2f",  0x1000001, 0x800000, CRC(62d771c9) SHA1(69a47af1366d351157131472756fd05e0fdbf87f) )
+
+	ROM_REGION( 0x2000000, "textile", 0 )   /* texture tiles */
+	ROM_LOAD( "ag1cgll.4m",  0x0000000, 0x800000, CRC(9db7e939) SHA1(7be8d6f6d1e236f2655784493bdf4f9869ecd6eb) )
+	ROM_LOAD( "ag1cglm.4k",  0x0800000, 0x800000, CRC(17792dba) SHA1(367676870820e44b0092d5ff6d4ee4e80bbf91d2) )
+	ROM_LOAD( "ag1cgum.4j",  0x1000000, 0x800000, CRC(5dfa863d) SHA1(a1cde62f00dd8b70538a8eba2aa7ec497cdcaa5c) )
+	ROM_LOAD( "ag1cguu.4f",  0x1800000, 0x800000, CRC(86396786) SHA1(d20121eb7d595567cd3438c66ae4c07dbaaaaeb8) )
+
+	ROM_REGION16_LE( 0x400000, "textilemapl", 0 )   /* texture tilemap 0-15 */
+	ROM_LOAD( "ag1ccrl.7f",  0x000000, 0x400000, CRC(86bbe1f9) SHA1(3d8484aadc48638ad2b6806118416ac69345e35a) )
+
+	ROM_REGION( 0x200000, "textilemaph", 0 )        /* texture tilemap 16-17 + attr */
+	ROM_LOAD( "ag1ccrh.7e",  0x000000, 0x200000, CRC(abe2aab1) SHA1(b43ddf9b0f4a7ac75dc16fa5b2ed86ac5a273a50) )
+
+	ROM_REGION32_BE( 0x2000000, "pointrom", 0 ) /* 3D model data */
+	ROM_LOAD32_WORD_SWAP( "ag1pt0h.7a",  0x0000000, 0x400000, CRC(b5582ca7) SHA1(0e48b7e3595f9be4e9403a2db939ec140726a880) )
+	ROM_LOAD32_WORD_SWAP( "ag1pt0l.7c",  0x0000002, 0x400000, CRC(10e7f54f) SHA1(caf1d28991a9d082b5ddc5def62586b09fa8aff2) )
+	ROM_LOAD32_WORD_SWAP( "ag1pt1h.5a",  0x0800000, 0x400000, CRC(25e4776a) SHA1(31e7c9dd3aba01e425839a0ffe1eb0001ac16770) )
+	ROM_LOAD32_WORD_SWAP( "ag1pt1l.5c",  0x0800002, 0x400000, CRC(5d3d7099) SHA1(d80d6b692c513945857bcd2c8cfc12b8ec0f3be5) )
+	ROM_LOAD32_WORD_SWAP( "ag1pt2h.4a",  0x1000000, 0x400000, CRC(f0eb9012) SHA1(a867f09162e0b0a4eead0bd212df76ba1abb2c19) )
+	ROM_LOAD32_WORD_SWAP( "ag1pt2l.4c",  0x1000002, 0x400000, CRC(bf92c054) SHA1(9d676c3bb63bf29d7b18fe5d7e6912a922f06350) )
+	ROM_LOAD32_WORD_SWAP( "ag1pt3h.3a",  0x1800000, 0x400000, CRC(e11a12ce) SHA1(4ee78a4d7ada9c26734132baac47b0cbede3d4fd) )
+	ROM_LOAD32_WORD_SWAP( "ag1pt3l.3c",  0x1800002, 0x400000, CRC(04b475db) SHA1(3ea28e51185dc2c2bfa50a87031580524eaacc4a) )
+
+	ROM_REGION( 0x1000000, "c352", 0 ) /* C352 PCM samples */
+	ROM_LOAD( "ag1wavel.2c", 0x000000, 0x800000, CRC(d7fefbd4) SHA1(2cf31661feb6aef40621621897be8e0bc248c1d9) )
+	ROM_LOAD( "ag1waveh.2a", 0x800000, 0x800000, CRC(37a61daa) SHA1(34632809f49975d9dc4c76b09ef896df0bc03a52) )
+ROM_END
+
+
 ROM_START( 500gp )
 	/* r4650-generic-xrom-generic: NMON 1.0.8-sys23-19990105 P for SYSTEM23 P1 */
 	ROM_REGION32_BE( 0x400000, "user1", 0 ) /* 4 megs for main R4650 code */
@@ -4176,10 +4181,6 @@ ROM_START( 500gp )
 	ROM_REGION32_BE( 0x2000000, "data", 0 ) /* data roms */
 	ROM_LOAD16_BYTE( "5gp1mtah.2j",  0x0000000, 0x800000, CRC(246e4b7a) SHA1(75743294b8f48bffb84f062febfbc02230d49ce9) )
 	ROM_LOAD16_BYTE( "5gp1mtal.2h",  0x0000001, 0x800000, CRC(1bb00c7b) SHA1(922be45d57330c31853b2dc1642c589952b09188) )
-
-		/* COMMON FUJII YASUI WAKAO KURE INOUE
-		 * 0x000000..0x57ffff: all 0xff
-		 */
 	ROM_LOAD16_BYTE( "5gp1mtbh.2m",  0x1000000, 0x800000, CRC(352360e8) SHA1(d621dfac3385059c52d215f6623901589a8658a3) )
 	ROM_LOAD16_BYTE( "5gp1mtbl.2f",  0x1000001, 0x800000, CRC(66640606) SHA1(c69a0219748241c49315d7464f8156f8068e9cf5) )
 
@@ -4356,11 +4357,58 @@ ROM_END
 
 ROM_START( panicprk )
 	ROM_REGION32_BE( 0x400000, "user1", 0 ) /* 4 megs for main R4650 code */
-	ROM_LOAD16_BYTE( "pnp2ver-a.ic2", 0x000000, 0x200000, CRC(cd528597) SHA1(cf390e78228eb10d5f50ff7e7e37063a2d87f469) )
-	ROM_LOAD16_BYTE( "pnp2ver-a.ic1", 0x000001, 0x200000, CRC(80fea853) SHA1(b18003bde060ebb3c892a6d7fa4abf868cadc777) )
+	ROM_LOAD16_BYTE( "pnp2vera.ic2", 0x000000, 0x200000, CRC(cd528597) SHA1(cf390e78228eb10d5f50ff7e7e37063a2d87f469) )
+	ROM_LOAD16_BYTE( "pnp2vera.ic1", 0x000001, 0x200000, CRC(80fea853) SHA1(b18003bde060ebb3c892a6d7fa4abf868cadc777) )
 
 	ROM_REGION( 0x80000, "subcpu", 0 )  /* Hitachi H8/3002 MCU code */
-	ROM_LOAD16_WORD_SWAP( "pnp2ver-a.ic3", 0x000000, 0x080000, CRC(fe4bc6f4) SHA1(2114dc4bc63d589e6c3b26a73dbc60924f3b1765) )
+	ROM_LOAD16_WORD_SWAP( "pnp1vera.ic3", 0x000000, 0x080000, CRC(fe4bc6f4) SHA1(2114dc4bc63d589e6c3b26a73dbc60924f3b1765) )
+
+	ROM_REGION( 0x40000, "iocpu", 0 )   /* I/O board HD643334 H8/3334 MCU code */
+	ROM_LOAD( "asca-3a.ic14", 0x000000, 0x040000, CRC(8e9266e5) SHA1(ffa8782ca641d71d57df23ed1c5911db05d3df97) )
+
+	ROM_REGION32_BE( 0x2000000, "data", 0 ) /* data roms */
+	ROM_LOAD16_BYTE( "pnp1mtah.2j",  0x000000, 0x800000, CRC(37addddd) SHA1(3032989653304417df80606bc3fde6e9425d8cbb) )
+	ROM_LOAD16_BYTE( "pnp1mtal.2h",  0x000001, 0x800000, CRC(6490faaa) SHA1(03443746009b434e5d4074ea6314910418907360) )
+
+	ROM_REGION( 0x2000000, "textile", 0 )   /* texture tiles */
+	ROM_LOAD( "pnp1cgll.4m",  0x0000000, 0x800000, CRC(d03932cf) SHA1(49240e44923cc6e815e9457b6290fd18466658af) )
+	ROM_LOAD( "pnp1cglm.5k",  0x0800000, 0x800000, CRC(abf4ccf2) SHA1(3848e26d0ba6c872bbc6d5e0eb23a9d4b34152d5) )
+	ROM_LOAD( "pnp1cgum.4j",  0x1000000, 0x800000, CRC(206217ca) SHA1(9c095bba7764f3405c3fab10513b9b78981ec44d) )
+	ROM_LOAD( "pnp1cguu.5f",  0x1800000, 0x800000, CRC(cd64f57f) SHA1(8780270298e0823db1acbbf79396788df0c3c19c) )
+
+	ROM_REGION16_LE( 0x200000, "textilemapl", 0 )   /* texture tilemap 0-15 */
+	ROM_LOAD( "pnp1ccrl.7f",  0x000000, 0x200000, CRC(b7bc43c2) SHA1(f4b470540194486ca6822f438fc1d4700cfb2ab1) )
+
+	ROM_REGION( 0x200000, "textilemaph", 0 )        /* texture tilemap 16-17 + attr */
+	ROM_LOAD( "pnp1ccrh.7e",  0x000000, 0x200000, CRC(caaf1b73) SHA1(b436992817ab4e4dad05e7429eb102d4fb57fa6a) )
+
+	ROM_REGION32_BE( 0x2000000, "pointrom", 0 ) /* 3D model data */
+	ROM_LOAD32_WORD_SWAP( "pnp1pt0h.7a",  0x000000, 0x400000, CRC(43fc2246) SHA1(301d321cd4a01ebd7ccfa6f295d6c3daf0a19efe) )
+	ROM_LOAD32_WORD_SWAP( "pnp1pt0l.7c",  0x000002, 0x400000, CRC(26af5fa1) SHA1(12fcf98c2a59643e0fdfdd7186f9f16baf54a9cf) )
+	ROM_LOAD32_WORD_SWAP( "pnp1pt1h.5a",  0x800000, 0x400000, CRC(1ff470c0) SHA1(ca8fad90743589744939d681b0ce94f368337b3f) )
+	ROM_LOAD32_WORD_SWAP( "pnp1pt1l.5c",  0x800002, 0x400000, CRC(15c6f236) SHA1(e8c393359a91cdce6e9110a48c0a80708f8fc132) )
+
+	ROM_REGION( 0x1000000, "c352", 0 ) /* C352 PCM samples */
+	ROM_LOAD( "pnp1wavel.2c", 0x000000, 0x800000, CRC(35c6a9bd) SHA1(4b56fdc37525c15e57d93091e6609d6a6905fc5c) )
+	ROM_LOAD( "pnp1waveh.2a", 0x800000, 0x800000, CRC(6fa1826a) SHA1(20a5af49e65ae2bc57c016b5cd9bafa5a5220d35) )
+
+	ROM_REGION( 0x800000, "dups", 0 )   /* duplicate roms */
+	ROM_LOAD( "pnp1cguu.4f",  0x000000, 0x800000, CRC(cd64f57f) SHA1(8780270298e0823db1acbbf79396788df0c3c19c) )
+	ROM_LOAD( "pnp1cgum.5j",  0x000000, 0x800000, CRC(206217ca) SHA1(9c095bba7764f3405c3fab10513b9b78981ec44d) )
+	ROM_LOAD( "pnp1cgll.5m",  0x000000, 0x800000, CRC(d03932cf) SHA1(49240e44923cc6e815e9457b6290fd18466658af) )
+	ROM_LOAD( "pnp1cglm.4k",  0x000000, 0x800000, CRC(abf4ccf2) SHA1(3848e26d0ba6c872bbc6d5e0eb23a9d4b34152d5) )
+	ROM_LOAD( "pnp1ccrl.7m",  0x000000, 0x200000, CRC(b7bc43c2) SHA1(f4b470540194486ca6822f438fc1d4700cfb2ab1) )
+	ROM_LOAD( "pnp1ccrh.7k",  0x000000, 0x200000, CRC(caaf1b73) SHA1(b436992817ab4e4dad05e7429eb102d4fb57fa6a) )
+ROM_END
+
+
+ROM_START( panicprkj )
+	ROM_REGION32_BE( 0x400000, "user1", 0 ) /* 4 megs for main R4650 code */
+	ROM_LOAD16_BYTE( "pnp1verb.ic2", 0x000000, 0x200000, CRC(a46e34f8) SHA1(c84eb701a1e01e706dea515acaaf6d98ad53f453) )
+	ROM_LOAD16_BYTE( "pnp1verb.ic1", 0x000001, 0x200000, CRC(4de52a64) SHA1(7edd974d52e17bcbdb029f718c06d603ed558d90) )
+
+	ROM_REGION( 0x80000, "subcpu", 0 )  /* Hitachi H8/3002 MCU code */
+	ROM_LOAD16_WORD_SWAP( "pnp1vera.ic3", 0x000000, 0x080000, CRC(fe4bc6f4) SHA1(2114dc4bc63d589e6c3b26a73dbc60924f3b1765) )
 
 	ROM_REGION( 0x40000, "iocpu", 0 )   /* I/O board HD643334 H8/3334 MCU code */
 	ROM_LOAD( "asca-3a.ic14", 0x000000, 0x040000, CRC(8e9266e5) SHA1(ffa8782ca641d71d57df23ed1c5911db05d3df97) )
@@ -4402,6 +4450,52 @@ ROM_END
 
 
 ROM_START( gunwars )
+	ROM_REGION32_BE( 0x400000, "user1", 0 ) /* 4 megs for main R4650 code */
+	ROM_LOAD16_BYTE( "gm1verb.ic2",  0x000000, 0x200000, CRC(401f8264) SHA1(281f245ae0fbc2b82248c7aacaa5dfcdb114e2ee) )
+	ROM_LOAD16_BYTE( "gm1verb.ic1",  0x000001, 0x200000, CRC(f9fd0f2b) SHA1(53dadd49d0d43f0693c84853ba3de1b5faa9e1d8) )
+
+	ROM_REGION( 0x80000, "subcpu", 0 )  /* Hitachi H8/3002 MCU code */
+	ROM_LOAD16_WORD_SWAP( "gm1vera.ic3",  0x000000, 0x080000, CRC(5582fdd4) SHA1(8aae8bc6688d531888f2de509c07502ee355b3ab) )
+
+	ROM_REGION( 0x40000, "iocpu", 0 )   /* I/O board HD643334 H8/3334 MCU code. "ASCA-5;Ver 2.09;JPN,Multipurpose" */
+	ROM_LOAD( "asc5_io-a.ic14", 0x000000, 0x020000, CRC(5964767f) SHA1(320db5e78ae23c5f94e368432d51573b409995db) )
+
+	ROM_REGION32_BE( 0x2000000, "data", 0 ) /* data roms */
+	ROM_LOAD16_BYTE( "gm1mtah.2j",   0x000000, 0x800000, CRC(3cea9094) SHA1(497395425e409de47e1114de9aeeaf05e4f6a9a1) )
+	ROM_LOAD16_BYTE( "gm1mtal.2h",   0x000001, 0x800000, CRC(d531dfcd) SHA1(9f7cbe9a03c1f7649bf05a7a30d47511573b50ba) )
+
+	ROM_REGION( 0x2000000, "textile", 0 )   /* texture tiles */
+	ROM_LOAD( "gm1cgll.4m",   0x0000000, 0x800000, CRC(936c0079) SHA1(3aec8caada35b7ed790bb3a8bcf6e01cad068fcd) )
+	ROM_LOAD( "gm1cglm.4k",   0x0800000, 0x800000, CRC(e2ee5493) SHA1(1ffd74646796ad554d7967ba9fc18deab4fedadf) )
+	ROM_LOAD( "gm1cgum.4j",   0x1000000, 0x800000, CRC(a7728944) SHA1(c187c6d66128554fcecc96e81d4f5396197e8280) )
+	ROM_LOAD( "gm1cguu.5f",   0x1800000, 0x800000, CRC(26a74698) SHA1(3f07d273abb3f2552dc6a29300f5dc2f2744c852) )
+
+	ROM_REGION16_LE( 0x400000, "textilemapl", 0 )   /* texture tilemap 0-15 */
+	ROM_LOAD( "gm1ccrl.7f",   0x000000, 0x400000, CRC(2c54c182) SHA1(538dfb04653f8d86f976e702456bf4da97e3fda9) )
+
+	ROM_REGION( 0x200000, "textilemaph", 0 )        /* texture tilemap 16-17 + attr */
+	ROM_LOAD( "gm1ccrh.7e",   0x000000, 0x200000, CRC(8563ef01) SHA1(59f09a08008a71a4bb12bd43a1b5dbe633d3061d) )
+
+	ROM_REGION32_BE( 0x2000000, "pointrom", 0 ) /* 3D model data */
+	ROM_LOAD32_WORD_SWAP( "gm1pt0h.7a",   0x000000, 0x400000, CRC(5ebd658c) SHA1(9e7b89a726b11b6da3327d72ec6adcc30fbb384d) )
+	ROM_LOAD32_WORD_SWAP( "gm1pt0l.7c",   0x000002, 0x400000, CRC(62e9bedb) SHA1(7043c5e6f26139c9e6e18d4f35fac6a16d4dabd1) )
+	ROM_LOAD32_WORD_SWAP( "gm1pt1h.5a",   0x800000, 0x400000, CRC(5f6cebab) SHA1(95bd30d30ea25509b66a107fb255d0af1e6a357e) )
+	ROM_LOAD32_WORD_SWAP( "gm1pt1l.5c",   0x800002, 0x400000, CRC(f44c149f) SHA1(9f995de02ea6ac35ccbabbba5bb473a10e1ec667) )
+
+	ROM_REGION( 0x1000000, "c352", 0 ) /* C352 PCM samples */
+	ROM_LOAD( "gm1wave.2c",   0x000000, 0x800000, CRC(7d5c79a4) SHA1(b800a46bcca10cb0d0d9e0acfa68af63ae64dcaf) )
+
+	ROM_REGION( 0x800000, "dups", 0 )   /* duplicate roms */
+	ROM_LOAD( "gm1cguu.4f",   0x000000, 0x800000, CRC(26a74698) SHA1(3f07d273abb3f2552dc6a29300f5dc2f2744c852) )
+	ROM_LOAD( "gm1cgum.5j",   0x000000, 0x800000, CRC(a7728944) SHA1(c187c6d66128554fcecc96e81d4f5396197e8280) )
+	ROM_LOAD( "gm1cgll.5m",   0x000000, 0x800000, CRC(936c0079) SHA1(3aec8caada35b7ed790bb3a8bcf6e01cad068fcd) )
+	ROM_LOAD( "gm1cglm.5k",   0x000000, 0x800000, CRC(e2ee5493) SHA1(1ffd74646796ad554d7967ba9fc18deab4fedadf) )
+	ROM_LOAD( "gm1ccrl.7m",   0x000000, 0x400000, CRC(2c54c182) SHA1(538dfb04653f8d86f976e702456bf4da97e3fda9) )
+	ROM_LOAD( "gm1ccrh.7k",   0x000000, 0x200000, CRC(8563ef01) SHA1(59f09a08008a71a4bb12bd43a1b5dbe633d3061d) )
+ROM_END
+
+
+ROM_START( gunwarsa )
 	ROM_REGION32_BE( 0x400000, "user1", 0 ) /* 4 megs for main R4650 code */
 	ROM_LOAD16_BYTE( "gm1vera.ic2",  0x000000, 0x200000, CRC(cf61467f) SHA1(eae79e4e540340cba7d576a36085f802b8032f4f) )
 	ROM_LOAD16_BYTE( "gm1vera.ic1",  0x000001, 0x200000, CRC(abc9ffe6) SHA1(d833b9b9d8bb0cc4b53f30507c9603df9e63fa2f) )
@@ -4657,7 +4751,7 @@ ROM_END
 
 ROM_START( crszonev3b2 )
 	ROM_REGION32_BE( 0x800000, "user1", 0 ) /* 4 megs for main R4650 code */
-	ROM_LOAD16_WORD_SWAP( "cszo3verb.ic4", 0x400000, 0x400000, CRC(3755b402) SHA1(e169fded9d136af7ce6997868629eed5196b8cdd) )
+	ROM_LOAD16_WORD_SWAP( "cszo3verb(__crszonev3b2).ic4", 0x400000, 0x400000, CRC(3755b402) SHA1(e169fded9d136af7ce6997868629eed5196b8cdd) )  // cszo3verb.ic4
 	ROM_CONTINUE( 0x000000, 0x400000 )
 
 	ROM_REGION( 0x80000, "subcpu", 0 )  /* Hitachi H8/3002 MCU code */
@@ -4830,9 +4924,12 @@ GAME( 1997, timecrs2,    0,        timecrs2,    timecrs2,  namcos23_state, s23, 
 GAME( 1997, timecrs2v2b, timecrs2, timecrs2,    timecrs2,  namcos23_state, s23, ROT0, "Namco", "Time Crisis II (TSS2 Ver. B)", GAME_FLAGS )
 GAME( 1997, timecrs2v4a, timecrs2, timecrs2v4a, timecrs2,  namcos23_state, s23, ROT0, "Namco", "Time Crisis II (TSS4 Ver. A)", GAME_FLAGS )
 GAME( 1998, panicprk,    0,        s23,         s23,       namcos23_state, s23, ROT0, "Namco", "Panic Park (PNP2 Ver. A)",     GAME_FLAGS )
-GAME( 1998, gunwars,     0,        gmen,        s23,       namcos23_state, s23, ROT0, "Namco", "Gunmen Wars (GM1 Ver. A)",     GAME_FLAGS )
+GAME( 1998, panicprkj,   panicprk, s23,         s23,       namcos23_state, s23, ROT0, "Namco", "Panic Park (PNP1 Ver. B)",     GAME_FLAGS )
+GAME( 1998, gunwars,     0,        gmen,        s23,       namcos23_state, s23, ROT0, "Namco", "Gunmen Wars (GM1 Ver. B)",     GAME_FLAGS )
+GAME( 1998, gunwarsa,    gunwars,  gmen,        s23,       namcos23_state, s23, ROT0, "Namco", "Gunmen Wars (GM1 Ver. A)",     GAME_FLAGS )
 GAME( 1998, raceon,      0,        gmen,        s23,       namcos23_state, s23, ROT0, "Namco", "Race On! (RO2 Ver. A)",        GAME_FLAGS )
 GAME( 1998, 500gp,       0,        ss23,        s23,       namcos23_state, s23, ROT0, "Namco", "500 GP (5GP3 Ver. C)",         GAME_FLAGS )
+GAME( 1998, aking,       0,        ss23,        s23,       namcos23_state, s23, ROT0, "Namco", "Angler King (AG1 Ver. A)",     GAME_FLAGS )
 GAME( 1999, finfurl2,    0,        gmen,        s23,       namcos23_state, s23, ROT0, "Namco", "Final Furlong 2 (World)",      GAME_FLAGS )
 GAME( 1999, finfurl2j,   finfurl2, gmen,        s23,       namcos23_state, s23, ROT0, "Namco", "Final Furlong 2 (Japan)",      GAME_FLAGS )
 GAME( 2000, crszone,     0,        ss23e2,      s23,       namcos23_state, s23, ROT0, "Namco", "Crisis Zone (CSZO4 Ver. B)",   GAME_FLAGS )

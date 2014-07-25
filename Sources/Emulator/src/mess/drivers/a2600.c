@@ -17,7 +17,7 @@ TODO:
 #include "imagedev/cassette.h"
 #include "formats/a26_cas.h"
 #include "video/tia.h"
-#include "machine/vcsctrl.h"
+#include "bus/vcs/ctrl.h"
 #include "hashfile.h"
 
 #define CONTROL1_TAG    "joyport1"
@@ -55,7 +55,9 @@ public:
 		m_joy1(*this, CONTROL1_TAG),
 		m_joy2(*this, CONTROL2_TAG) ,
 		m_maincpu(*this, "maincpu"),
-		m_cassette(*this, "cassette") { }
+		m_cassette(*this, "cassette"),
+		m_modeFE_trigger_on_next_access(false),
+		m_screen(*this, "screen") { }
 
 	dpc_t m_dpc;
 	memory_region* m_extra_RAM;
@@ -77,13 +79,9 @@ public:
 	UINT16 m_modeSS_last_address;
 	unsigned m_FVlocked;
 	UINT16 m_current_screen_height;
-	int m_FETimer;
-
-	direct_update_delegate m_FE_old_opbase_handler;
 
 	DECLARE_DIRECT_UPDATE_MEMBER(modeF6_opbase);
 	DECLARE_DIRECT_UPDATE_MEMBER(modeDPC_opbase_handler);
-	DECLARE_DIRECT_UPDATE_MEMBER(modeFE_opbase_handler);
 	DECLARE_READ8_MEMBER(modeF8_switch_r);
 	DECLARE_READ8_MEMBER(modeFA_switch_r);
 	DECLARE_READ8_MEMBER(modeF6_switch_r);
@@ -115,6 +113,7 @@ public:
 	DECLARE_WRITE8_MEMBER(modeDPC_w);
 	DECLARE_READ8_MEMBER(modeFE_switch_r);
 	DECLARE_WRITE8_MEMBER(modeFE_switch_w);
+	DECLARE_READ8_MEMBER(modeFE_rom_r);
 	DECLARE_READ8_MEMBER(current_bank_r);
 	DECLARE_READ16_MEMBER(a2600_read_input_port);
 	DECLARE_READ8_MEMBER(a2600_get_databus_contents);
@@ -150,7 +149,6 @@ protected:
 	void mode3E_RAM_switch(UINT16 offset, UINT8 data);
 	void modeFV_switch(UINT16 offset, UINT8 data);
 	void modeJVP_switch(UINT16 offset, UINT8 data);
-	void modeFE_switch(UINT16 offset, UINT8 data);
 	void install_banks(int count, unsigned init);
 
 	UINT8   *m_cart;
@@ -169,8 +167,10 @@ protected:
 	int detect_32K_mode3F();
 	int detect_super_chip();
 	unsigned long detect_2600controllers();
-	required_device<cpu_device> m_maincpu;
+	required_device<m6502_device> m_maincpu;
 	required_device<cassette_image_device> m_cassette;
+	bool m_modeFE_trigger_on_next_access;
+	required_device<screen_device> m_screen;
 };
 
 
@@ -614,7 +614,7 @@ DEVICE_IMAGE_LOAD_MEMBER( a2600_state, a2600_cart )
 
 			for (int i = 0; i < ARRAY_LENGTH(mapper_types) && m_banking_mode == 0xff; i++)
 			{
-				if (!mame_stricmp(mapper, mapper_types[i].mapper_name))
+				if (!core_stricmp(mapper, mapper_types[i].mapper_name))
 				{
 					m_banking_mode = mapper_types[i].mapper_type;
 				}
@@ -1205,44 +1205,58 @@ depending on last byte & 0x20 -> 0x00 -> switch to bank #1
  */
 
 
-DIRECT_UPDATE_MEMBER(a2600_state::modeFE_opbase_handler)
-{
-	/* Still cheating a bit here by looking bit 13 of the address..., but the high byte of the
-	   cpu should be the last byte that was on the data bus and so should determine the bank
-	   we should switch in. */
-	m_bank_base[1] = memregion("user1")->base() + 0x1000 * ( ( m_maincpu->pc() & 0x2000 ) ? 0 : 1 );
-	membank("bank1")->set_base(m_bank_base[1] );
-	/* and restore old opbase handler */
-	m_maincpu->space(AS_PROGRAM).set_direct_update_handler(m_FE_old_opbase_handler);
-	return address;
-}
-
-void a2600_state::modeFE_switch(UINT16 offset, UINT8 data)
-{
-	address_space& space = m_maincpu->space(AS_PROGRAM);
-	/* Retrieve last byte read by the cpu (for this mapping scheme this
-	   should be the last byte that was on the data bus
-	*/
-	m_FE_old_opbase_handler = space.set_direct_update_handler(direct_update_delegate(FUNC(a2600_state::modeFE_opbase_handler), this));
-}
-
 READ8_MEMBER(a2600_state::modeFE_switch_r)
 {
+	UINT8 data = space.read_byte(0xFE + offset );
+
 	if ( ! space.debugger_access() )
 	{
-		modeFE_switch(offset, 0 );
+		switch ( offset & 1 )
+		{
+			case 0:
+				/* The next byte on the data bus determines which bank to switch to */
+				m_modeFE_trigger_on_next_access = true;
+				break;
+
+			case 1:
+				if ( m_modeFE_trigger_on_next_access ) {
+					m_bank_base[1] = m_cart + 0x1000 * ( ( data & 0x20 ) ? 0 : 1 );
+					m_modeFE_trigger_on_next_access = false;
+				}
+				break;
+		}
 	}
-	return space.read_byte(0xFE);
+	return data;
 }
+
 
 WRITE8_MEMBER(a2600_state::modeFE_switch_w)
 {
 	space.write_byte(0xFE, data );
 	if ( ! space.debugger_access() )
 	{
-		modeFE_switch(offset, 0 );
+		/* The next byte on the data bus determines which bank to switch to */
+		m_modeFE_trigger_on_next_access = true;
 	}
 }
+
+
+READ8_MEMBER(a2600_state::modeFE_rom_r)
+{
+	UINT8 data = m_bank_base[1][offset];;
+
+	if ( ! space.debugger_access() )
+	{
+		if ( m_modeFE_trigger_on_next_access )
+		{
+			m_bank_base[1] = m_cart + 0x1000 * ( ( data & 0x20 ) ? 0 : 1 );
+			m_modeFE_trigger_on_next_access = false;
+		}
+	}
+
+	return data;
+}
+
 
 READ8_MEMBER(a2600_state::current_bank_r)
 {
@@ -1298,16 +1312,6 @@ READ8_MEMBER(a2600_state::riot_input_port_8_r)
 {
 	return ioport("SWB")->read();
 }
-
-static const riot6532_interface r6532_interface =
-{
-	DEVCB_DRIVER_MEMBER(a2600_state,switch_A_r),
-	DEVCB_DRIVER_MEMBER(a2600_state,riot_input_port_8_r),
-	DEVCB_DRIVER_MEMBER(a2600_state,switch_A_w),
-	DEVCB_DRIVER_MEMBER(a2600_state,switch_B_w),
-	DEVCB_DRIVER_LINE_MEMBER(a2600_state, irq_callback)
-};
-
 
 void a2600_state::install_banks(int count, unsigned init)
 {
@@ -1415,7 +1419,7 @@ WRITE16_MEMBER(a2600_state::a2600_tia_vsync_callback)
 			if ( supported_screen_heights[i] != m_current_screen_height )
 			{
 				m_current_screen_height = supported_screen_heights[i];
-//              machine.primary_screen->configure(228, m_current_screen_height, &visarea[i], HZ_TO_ATTOSECONDS( MASTER_CLOCK_NTSC ) * 228 * m_current_screen_height );
+//              machine.first_screen()->configure(228, m_current_screen_height, &visarea[i], HZ_TO_ATTOSECONDS( MASTER_CLOCK_NTSC ) * 228 * m_current_screen_height );
 			}
 		}
 	}
@@ -1432,31 +1436,16 @@ WRITE16_MEMBER(a2600_state::a2600_tia_vsync_callback_pal)
 			if ( supported_screen_heights[i] != m_current_screen_height )
 			{
 				m_current_screen_height = supported_screen_heights[i];
-//              machine.primary_screen->configure(228, m_current_screen_height, &visarea[i], HZ_TO_ATTOSECONDS( MASTER_CLOCK_PAL ) * 228 * m_current_screen_height );
+//              machine.first_screen()->configure(228, m_current_screen_height, &visarea[i], HZ_TO_ATTOSECONDS( MASTER_CLOCK_PAL ) * 228 * m_current_screen_height );
 			}
 		}
 	}
 }
 
-static const tia_interface a2600_tia_interface =
-{
-	DEVCB_DRIVER_MEMBER16(a2600_state, a2600_read_input_port),
-	DEVCB_DRIVER_MEMBER(a2600_state, a2600_get_databus_contents),
-	DEVCB_DRIVER_MEMBER16(a2600_state, a2600_tia_vsync_callback)
-};
-
-static const tia_interface a2600_tia_interface_pal =
-{
-	DEVCB_DRIVER_MEMBER16(a2600_state, a2600_read_input_port),
-	DEVCB_DRIVER_MEMBER(a2600_state, a2600_get_databus_contents),
-	DEVCB_DRIVER_MEMBER16(a2600_state, a2600_tia_vsync_callback_pal)
-};
-
 
 MACHINE_START_MEMBER(a2600_state,a2600)
 {
-	screen_device *screen = machine().first_screen();
-	m_current_screen_height = screen->height();
+	m_current_screen_height = m_screen->height();
 	m_extra_RAM = machine().memory().region_alloc("user2", 0x8600, 1, ENDIANNESS_LITTLE);
 	memset( m_riot_ram, 0x00, 0x80 );
 	m_current_reset_bank_counter = 0xFF;
@@ -1799,7 +1788,9 @@ void a2600_state::machine_reset()
 
 	case modeFE:
 		space.install_write_handler(0x01fe, 0x01fe, write8_delegate(FUNC(a2600_state::modeFE_switch_w),this));
-		space.install_read_handler(0x01fe, 0x01fe, read8_delegate(FUNC(a2600_state::modeFE_switch_r),this));
+		space.install_read_handler(0x01fe, 0x01ff, read8_delegate(FUNC(a2600_state::modeFE_switch_r),this));
+		space.install_read_handler(0x1000, 0x1fff, read8_delegate(FUNC(a2600_state::modeFE_rom_r),this));
+		m_modeFE_trigger_on_next_access = false;
 		break;
 
 	case mode3E:
@@ -1904,15 +1895,6 @@ static INPUT_PORTS_START( a2600 )
 INPUT_PORTS_END
 
 
-static const cassette_interface a2600_cassette_interface =
-{
-	a26_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED),
-	"a2600_cass",
-	NULL
-};
-
 static MACHINE_CONFIG_FRAGMENT(a2600_cartslot)
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("bin,a26")
@@ -1934,13 +1916,15 @@ static MACHINE_CONFIG_START( a2600, a2600_state )
 	MCFG_MACHINE_START_OVERRIDE(a2600_state,a2600)
 
 	/* video hardware */
-	MCFG_TIA_NTSC_VIDEO_ADD("tia_video", a2600_tia_interface)
+	MCFG_DEVICE_ADD("tia_video", TIA_NTSC_VIDEO, 0)
+	MCFG_TIA_READ_INPUT_PORT_CB(READ16(a2600_state, a2600_read_input_port))
+	MCFG_TIA_DATABUS_CONTENTS_CB(READ8(a2600_state, a2600_get_databus_contents))
+	MCFG_TIA_VSYNC_CB(WRITE16(a2600_state, a2600_tia_vsync_callback))
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS( MASTER_CLOCK_NTSC, 228, 26, 26 + 160 + 16, 262, 24 , 24 + 192 + 31 )
 	MCFG_SCREEN_UPDATE_DEVICE("tia_video", tia_video_device, screen_update)
-
-	MCFG_PALETTE_LENGTH( TIA_PALETTE_LENGTH )
+	MCFG_SCREEN_PALETTE("tia_video:palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1950,14 +1934,22 @@ static MACHINE_CONFIG_START( a2600, a2600_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_RIOT6532_ADD("riot", MASTER_CLOCK_NTSC / 3, r6532_interface)
+	MCFG_DEVICE_ADD("riot", RIOT6532, MASTER_CLOCK_NTSC / 3)
+	MCFG_RIOT6532_IN_PA_CB(READ8(a2600_state, switch_A_r))
+	MCFG_RIOT6532_OUT_PA_CB(WRITE8(a2600_state, switch_A_w))
+	MCFG_RIOT6532_IN_PB_CB(READ8(a2600_state, riot_input_port_8_r))
+	MCFG_RIOT6532_OUT_PB_CB(WRITE8(a2600_state, switch_B_w))
+	MCFG_RIOT6532_IRQ_CB(WRITELINE(a2600_state, irq_callback))
 
 	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, "joy")
 	MCFG_VCS_CONTROL_PORT_ADD(CONTROL2_TAG, vcs_control_port_devices, NULL)
 
 	MCFG_FRAGMENT_ADD(a2600_cartslot)
 	MCFG_SOFTWARE_LIST_FILTER("cart_list", "NTSC")
-	MCFG_CASSETTE_ADD( "cassette", a2600_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(a26_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("a2600_cass")
 MACHINE_CONFIG_END
 
 
@@ -1970,13 +1962,16 @@ static MACHINE_CONFIG_START( a2600p, a2600_state )
 	MCFG_MACHINE_START_OVERRIDE(a2600_state,a2600)
 
 	/* video hardware */
-	MCFG_TIA_PAL_VIDEO_ADD("tia_video", a2600_tia_interface_pal)
+	MCFG_DEVICE_ADD("tia_video", TIA_PAL_VIDEO, 0)
+	MCFG_TIA_READ_INPUT_PORT_CB(READ16(a2600_state, a2600_read_input_port))
+	MCFG_TIA_DATABUS_CONTENTS_CB(READ8(a2600_state, a2600_get_databus_contents))
+	MCFG_TIA_VSYNC_CB(WRITE16(a2600_state, a2600_tia_vsync_callback_pal))
+
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS( MASTER_CLOCK_PAL, 228, 26, 26 + 160 + 16, 312, 32, 32 + 228 + 31 )
 	MCFG_SCREEN_UPDATE_DEVICE("tia_video", tia_video_device, screen_update)
-
-	MCFG_PALETTE_LENGTH( TIA_PALETTE_LENGTH )
+	MCFG_SCREEN_PALETTE("tia_video:palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1986,14 +1981,22 @@ static MACHINE_CONFIG_START( a2600p, a2600_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_RIOT6532_ADD("riot", MASTER_CLOCK_PAL / 3, r6532_interface)
+	MCFG_DEVICE_ADD("riot", RIOT6532, MASTER_CLOCK_PAL / 3)
+	MCFG_RIOT6532_IN_PA_CB(READ8(a2600_state, switch_A_r))
+	MCFG_RIOT6532_OUT_PA_CB(WRITE8(a2600_state, switch_A_w))
+	MCFG_RIOT6532_IN_PB_CB(READ8(a2600_state, riot_input_port_8_r))
+	MCFG_RIOT6532_OUT_PB_CB(WRITE8(a2600_state, switch_B_w))
+	MCFG_RIOT6532_IRQ_CB(WRITELINE(a2600_state, irq_callback))
 
 	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, "joy")
 	MCFG_VCS_CONTROL_PORT_ADD(CONTROL2_TAG, vcs_control_port_devices, NULL)
 
 	MCFG_FRAGMENT_ADD(a2600_cartslot)
 	MCFG_SOFTWARE_LIST_FILTER("cart_list", "PAL")
-	MCFG_CASSETTE_ADD( "cassette", a2600_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(a26_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("a2600_cass")
 MACHINE_CONFIG_END
 
 

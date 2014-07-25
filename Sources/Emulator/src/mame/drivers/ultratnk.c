@@ -142,19 +142,19 @@ WRITE8_MEMBER(ultratnk_state::ultratnk_lockout_w)
 
 WRITE8_MEMBER(ultratnk_state::ultratnk_fire_1_w)
 {
-	discrete_sound_w(m_discrete, space, ULTRATNK_FIRE_EN_1, offset & 1);
+	m_discrete->write(space, ULTRATNK_FIRE_EN_1, offset & 1);
 }
 WRITE8_MEMBER(ultratnk_state::ultratnk_fire_2_w)
 {
-	discrete_sound_w(m_discrete, space, ULTRATNK_FIRE_EN_2, offset & 1);
+	m_discrete->write(space, ULTRATNK_FIRE_EN_2, offset & 1);
 }
 WRITE8_MEMBER(ultratnk_state::ultratnk_attract_w)
 {
-	discrete_sound_w(m_discrete, space, ULTRATNK_ATTRACT_EN, data & 1);
+	m_discrete->write(space, ULTRATNK_ATTRACT_EN, data & 1);
 }
 WRITE8_MEMBER(ultratnk_state::ultratnk_explosion_w)
 {
-	discrete_sound_w(m_discrete, space, ULTRATNK_EXPLOSION_DATA, data & 15);
+	m_discrete->write(space, ULTRATNK_EXPLOSION_DATA, data & 15);
 }
 
 
@@ -312,10 +312,12 @@ static MACHINE_CONFIG_START( ultratnk, ultratnk_state )
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, 0, 256, VTOTAL, 0, 224)
 	MCFG_SCREEN_UPDATE_DRIVER(ultratnk_state, screen_update_ultratnk)
 	MCFG_SCREEN_VBLANK_DRIVER(ultratnk_state, screen_eof_ultratnk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ultratnk)
-	MCFG_PALETTE_LENGTH(10)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ultratnk)
+	MCFG_PALETTE_ADD("palette", 10)
+	MCFG_PALETTE_INDIRECT_ENTRIES(4)
+	MCFG_PALETTE_INIT_OWNER(ultratnk_state, ultratnk)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

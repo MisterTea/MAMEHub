@@ -11,7 +11,7 @@ WRITE16_MEMBER(dynduke_state::dynduke_paletteram_w)
 
 	COMBINE_DATA(&m_generic_paletteram_16[offset]);
 	color=m_generic_paletteram_16[offset];
-	palette_set_color_rgb(machine(),offset,pal4bit(color >> 0),pal4bit(color >> 4),pal4bit(color >> 8));
+	m_palette->set_pen_color(offset,pal4bit(color >> 0),pal4bit(color >> 4),pal4bit(color >> 8));
 }
 
 WRITE16_MEMBER(dynduke_state::dynduke_background_w)
@@ -40,8 +40,7 @@ TILE_GET_INFO_MEMBER(dynduke_state::get_bg_tile_info)
 
 	tile=tile&0xfff;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			tile+m_back_bankbase,
 			color,
 			0);
@@ -54,8 +53,7 @@ TILE_GET_INFO_MEMBER(dynduke_state::get_fg_tile_info)
 
 	tile=tile&0xfff;
 
-	SET_TILE_INFO_MEMBER(
-			2,
+	SET_TILE_INFO_MEMBER(2,
 			tile+m_fore_bankbase,
 			color,
 			0);
@@ -69,8 +67,7 @@ TILE_GET_INFO_MEMBER(dynduke_state::get_tx_tile_info)
 
 	tile = (tile & 0xff) | ((tile & 0xc000) >> 6);
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile,
 			color,
 			0);
@@ -78,9 +75,9 @@ TILE_GET_INFO_MEMBER(dynduke_state::get_tx_tile_info)
 
 void dynduke_state::video_start()
 {
-	m_bg_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dynduke_state::get_bg_tile_info),this),TILEMAP_SCAN_COLS,      16,16,32,32);
-	m_fg_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dynduke_state::get_fg_tile_info),this),TILEMAP_SCAN_COLS,16,16,32,32);
-	m_tx_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dynduke_state::get_tx_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8,32,32);
+	m_bg_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dynduke_state::get_bg_tile_info),this),TILEMAP_SCAN_COLS,      16,16,32,32);
+	m_fg_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dynduke_state::get_fg_tile_info),this),TILEMAP_SCAN_COLS,16,16,32,32);
+	m_tx_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dynduke_state::get_tx_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8,32,32);
 
 	m_fg_layer->set_transparent_pen(15);
 	m_tx_layer->set_transparent_pen(15);
@@ -157,7 +154,7 @@ void dynduke_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect,
 			if (fy) fy=0; else fy=1;
 		}
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[3],
+		m_gfxdecode->gfx(3)->transpen(bitmap,cliprect,
 				sprite,
 				color,fx,fy,x,y,15);
 	}
@@ -173,7 +170,7 @@ void dynduke_state::draw_background(bitmap_ind16 &bitmap, const rectangle &clipr
 	/* if we're disabled, don't draw */
 	if (!m_back_enable)
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 		return;
 	}
 

@@ -112,7 +112,9 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_bitmap(*this, "bitmap"),
 		m_bulletram(*this, "bulletram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -139,12 +141,14 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(jollyjgr);
 	UINT32 screen_update_jollyjgr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_fspider(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(jollyjgr_interrupt);
 	void draw_bitmap( bitmap_ind16 &bitmap );
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -409,7 +413,7 @@ INPUT_PORTS_END
  *
  *************************************/
 
-void jollyjgr_state::palette_init()
+PALETTE_INIT_MEMBER(jollyjgr_state, jollyjgr)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -434,13 +438,13 @@ void jollyjgr_state::palette_init()
 		bit1 = BIT(*color_prom, 7);
 		b = 0x4f * bit0 + 0xa8 * bit1;
 
-		palette_set_color(machine(), i, MAKE_RGB(r,g,b));
+		palette.set_pen_color(i, rgb_t(r,g,b));
 		color_prom++;
 	}
 
 	/* bitmap palette */
 	for (i = 0;i < 8;i++)
-		palette_set_color_rgb(machine(), 32 + i, pal1bit(i >> 0), pal1bit(i >> 1), pal1bit(i >> 2));
+		palette.set_pen_color(32 + i, pal1bit(i >> 0), pal1bit(i >> 1), pal1bit(i >> 2));
 }
 
 /* Tilemap is the same as in Galaxian */
@@ -453,7 +457,7 @@ TILE_GET_INFO_MEMBER(jollyjgr_state::get_bg_tile_info)
 
 void jollyjgr_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(jollyjgr_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(jollyjgr_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_bg_tilemap->set_transparent_pen(0);
 	m_bg_tilemap->set_scroll_cols(32);
@@ -541,7 +545,7 @@ UINT32 jollyjgr_state::screen_update_jollyjgr(screen_device &screen, bitmap_ind1
 		if (offs < 3 * 4)
 			sy++;
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				code,color,
 				flipx,flipy,
 				sx,sy,0);
@@ -661,10 +665,11 @@ static MACHINE_CONFIG_START( jollyjgr, jollyjgr_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(jollyjgr_state, screen_update_jollyjgr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(jollyjgr)
-	MCFG_PALETTE_LENGTH(32+8) /* 32 for tilemap and sprites + 8 for the bitmap */
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jollyjgr)
+	MCFG_PALETTE_ADD("palette", 32+8) /* 32 for tilemap and sprites + 8 for the bitmap */
+	MCFG_PALETTE_INIT_OWNER(jollyjgr_state, jollyjgr)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

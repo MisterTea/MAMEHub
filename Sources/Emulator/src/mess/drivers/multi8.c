@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     Multi 8 (c) 1983 Mitsubishi
@@ -67,7 +69,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(multi8);
 	UINT32 screen_update_multi8(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(keyboard_callback);
 	void multi8_draw_pixel(bitmap_ind16 &bitmap,int y,int x,UINT8 pen,UINT8 width);
@@ -104,7 +106,7 @@ void multi8_state::video_start()
 
 void multi8_state::multi8_draw_pixel(bitmap_ind16 &bitmap,int y,int x,UINT8 pen,UINT8 width)
 {
-	if(!machine().primary_screen->visible_area().contains(x, y))
+	if(!machine().first_screen()->visible_area().contains(x, y))
 		return;
 
 	if(width)
@@ -181,7 +183,7 @@ UINT32 multi8_state::screen_update_multi8(screen_device &screen, bitmap_ind16 &b
 				}
 			}
 
-			//drawgfx_opaque(bitmap, cliprect, machine().gfx[0], tile,color >> 5, 0, 0, x*8, y*8);
+			// m_gfxdecode->gfx(0)->opaque(bitmap,cliprect, tile,color >> 5, 0, 0, x*8, y*8);
 
 			// draw cursor
 			if(mc6845_cursor_addr+0xc000 == count)
@@ -193,8 +195,8 @@ UINT32 multi8_state::screen_update_multi8(screen_device &screen, bitmap_ind16 &b
 				{
 					case 0x00: cursor_on = 1; break; //always on
 					case 0x20: cursor_on = 0; break; //always off
-					case 0x40: if(machine().primary_screen->frame_number() & 0x10) { cursor_on = 1; } break; //fast blink
-					case 0x60: if(machine().primary_screen->frame_number() & 0x20) { cursor_on = 1; } break; //slow blink
+					case 0x40: if(machine().first_screen()->frame_number() & 0x10) { cursor_on = 1; } break; //fast blink
+					case 0x60: if(machine().first_screen()->frame_number() & 0x20) { cursor_on = 1; } break; //slow blink
 				}
 
 				if(cursor_on)
@@ -558,26 +560,12 @@ static GFXDECODE_START( multi8 )
 GFXDECODE_END
 
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-void multi8_state::palette_init()
+PALETTE_INIT_MEMBER(multi8_state, multi8)
 {
 	UINT8 i;
 
 	for(i=0; i<8; i++)
-		palette_set_color_rgb(machine(), i, pal1bit(i >> 1),pal1bit(i >> 2),pal1bit(i >> 0));
+		palette.set_pen_color(i, pal1bit(i >> 1),pal1bit(i >> 2),pal1bit(i >> 0));
 }
 
 READ8_MEMBER( multi8_state::porta_r )
@@ -616,31 +604,10 @@ WRITE8_MEMBER( multi8_state::portc_w )
 }
 
 
-static I8255_INTERFACE( ppi8255_intf_0 )
-{
-	DEVCB_DRIVER_MEMBER(multi8_state, porta_r), /* Port A read */
-	DEVCB_NULL,                 /* Port B read */
-	DEVCB_NULL,                 /* Port C read */
-	DEVCB_DRIVER_MEMBER(multi8_state, portb_w), /* Port B write */
-	DEVCB_NULL,                 /* Port A write */
-	DEVCB_DRIVER_MEMBER(multi8_state, portc_w)  /* Port C write */
-};
-
 WRITE8_MEMBER( multi8_state::ym2203_porta_w )
 {
 	m_beeper->set_state((data & 0x08));
 }
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(multi8_state, ym2203_porta_w ),
-	DEVCB_NULL
-};
-
 
 void multi8_state::machine_start()
 {
@@ -662,7 +629,6 @@ static MACHINE_CONFIG_START( multi8, multi8_state )
 	MCFG_CPU_PROGRAM_MAP(multi8_mem)
 	MCFG_CPU_IO_MAP(multi8_io)
 
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -670,21 +636,31 @@ static MACHINE_CONFIG_START( multi8, multi8_state )
 	MCFG_SCREEN_SIZE(640, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 200-1)
 	MCFG_SCREEN_UPDATE_DRIVER(multi8_state, screen_update_multi8)
-	MCFG_PALETTE_LENGTH(8)
-	MCFG_GFXDECODE(multi8)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(multi8_state, multi8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", multi8)
 
 	/* Audio */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("aysnd", AY8912, 1500000) //unknown clock / divider
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(multi8_state, ym2203_porta_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.50)
 
-	/* Devices */
+	/* devices */
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("keyboard_timer", multi8_state, keyboard_callback, attotime::from_hz(240/32))
-	MCFG_MC6845_ADD("crtc", H46505, "screen", XTAL_3_579545MHz/2, mc6845_intf)    /* unknown clock, hand tuned to get ~60 fps */
-	MCFG_I8255_ADD( "ppi8255_0", ppi8255_intf_0 )
+
+	MCFG_MC6845_ADD("crtc", H46505, "screen", XTAL_3_579545MHz/2)    /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+
+	MCFG_DEVICE_ADD("ppi8255_0", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(multi8_state, porta_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(multi8_state, portb_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(multi8_state, portc_w))
 MACHINE_CONFIG_END
 
 /* ROM definition */

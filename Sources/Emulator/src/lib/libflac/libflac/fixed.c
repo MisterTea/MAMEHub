@@ -29,7 +29,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if HAVE_CONFIG_H
+#ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
 
@@ -37,7 +37,7 @@
 #include <string.h>
 #include "private/bitmath.h"
 #include "private/fixed.h"
-#include "flac/assert.h"
+#include "FLAC/assert.h"
 
 #ifndef M_LN2
 /* math.h in VC++ doesn't seem to have this (how Microsoft is that?) */

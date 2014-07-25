@@ -2,12 +2,16 @@
 
     ACT Apricot PC/Xi
 
+    license: MAME, GPL-2.0+
+    copyright-holders: Dirk Best
+
     - Error 29 (timer failed)
     - Dump of the keyboard MCU ROM needed (can be dumped using test mode)
 
 ***************************************************************************/
 
-#include "emu.h"
+#include "bus/centronics/ctronics.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/i86/i86.h"
 #include "cpu/i8089/i8089.h"
 #include "machine/ram.h"
@@ -15,8 +19,6 @@
 #include "machine/i8255.h"
 #include "machine/pic8259.h"
 #include "machine/z80dart.h"
-#include "machine/serial.h"
-#include "machine/ctronics.h"
 #include "machine/wd_fdc.h"
 #include "video/mc6845.h"
 #include "sound/sn76496.h"
@@ -47,6 +49,7 @@ public:
 	m_fdc(*this, "ic68"),
 	m_floppy0(*this, "ic68:0"),
 	m_floppy1(*this, "ic68:1"),
+	m_palette(*this, "palette"),
 	m_screen_buffer(*this, "screen_buffer"),
 	m_data_selector_dtr(1),
 	m_data_selector_rts(1),
@@ -69,25 +72,29 @@ public:
 	required_device<wd2793_t> m_fdc;
 	required_device<floppy_connector> m_floppy0;
 	required_device<floppy_connector> m_floppy1;
-
+	required_device<palette_device> m_palette;
 	required_shared_ptr<UINT16> m_screen_buffer;
 
 	DECLARE_WRITE8_MEMBER( i8089_ca1_w );
 	DECLARE_WRITE8_MEMBER( i8089_ca2_w );
-	DECLARE_READ8_MEMBER( apricot_sysctrl_r );
-	DECLARE_WRITE8_MEMBER( apricot_sysctrl_w );
+	DECLARE_WRITE8_MEMBER( i8255_portb_w );
+	DECLARE_READ8_MEMBER( i8255_portc_r );
+	DECLARE_WRITE8_MEMBER( i8255_portc_w );
 	DECLARE_WRITE_LINE_MEMBER( timer_out1 );
 	DECLARE_WRITE_LINE_MEMBER( timer_out2 );
-	void wd2793_intrq_w(bool state);
-	void wd2793_drq_w(bool state);
+	DECLARE_WRITE_LINE_MEMBER( wd2793_intrq_w );
+
+	DECLARE_WRITE_LINE_MEMBER( write_centronics_fault );
+	DECLARE_WRITE_LINE_MEMBER( write_centronics_perror );
+
 	DECLARE_WRITE_LINE_MEMBER( apricot_mc6845_de ) { m_display_enabled = state; };
 
 	DECLARE_WRITE_LINE_MEMBER( data_selector_dtr_w ) { m_data_selector_dtr = state; };
 	DECLARE_WRITE_LINE_MEMBER( data_selector_rts_w ) { m_data_selector_rts = state; };
 
-	virtual void machine_start();
+	MC6845_UPDATE_ROW( crtc_update_row );
 
-	IRQ_CALLBACK_MEMBER( irq_callback ) { return m_pic->inta_r(); }
+	virtual void machine_start();
 
 	int m_data_selector_dtr;
 	int m_data_selector_rts;
@@ -98,6 +105,9 @@ public:
 	int m_display_enabled;
 
 	UINT32 screen_update_apricot(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+
+	int m_centronics_fault;
+	int m_centronics_perror;
 };
 
 
@@ -119,16 +129,31 @@ WRITE8_MEMBER( apricot_state::i8089_ca2_w )
 	m_iop->ca_w(0);
 }
 
-READ8_MEMBER( apricot_state::apricot_sysctrl_r )
+WRITE_LINE_MEMBER( apricot_state::write_centronics_fault )
+{
+	m_centronics_fault = state;
+	m_sio->syncb_w(state);
+	m_ppi->pc2_w(state);
+}
+
+WRITE_LINE_MEMBER( apricot_state::write_centronics_perror )
+{
+	m_centronics_perror = state;
+}
+
+READ8_MEMBER( apricot_state::i8255_portc_r )
 {
 	UINT8 data = 0;
 
+	data |= m_centronics_perror << 0;
+	// schematic page 294 says pc1 is centronics pin 34, which is n/c.
+	data |= m_centronics_fault << 2;
 	data |= m_display_enabled << 3;
 
 	return data;
 }
 
-WRITE8_MEMBER( apricot_state::apricot_sysctrl_w )
+WRITE8_MEMBER( apricot_state::i8255_portb_w )
 {
 	m_display_on = BIT(data, 3);
 	m_video_mode = BIT(data, 4);
@@ -139,17 +164,16 @@ WRITE8_MEMBER( apricot_state::apricot_sysctrl_w )
 	// switch video modes
 	m_crtc->set_clock( m_video_mode ? XTAL_15MHz / 10 : XTAL_15MHz / 16);
 	m_crtc->set_hpixels_per_column( m_video_mode ? 10 : 16);
+
+	// PB7 Centronics transceiver direction. 0 = output, 1 = input
 }
 
-static const i8255_interface apricot_i8255a_intf =
+WRITE8_MEMBER( apricot_state::i8255_portc_w )
 {
-	DEVCB_DEVICE_MEMBER("centronics", centronics_device, read),
-	DEVCB_DEVICE_MEMBER("centronics", centronics_device, write),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(apricot_state, apricot_sysctrl_w),
-	DEVCB_DRIVER_MEMBER(apricot_state, apricot_sysctrl_r),
-	DEVCB_NULL
-};
+//  schematic page 294 says pc4 outputs to centronics pin 13, which is the "select" output from the printer.
+	m_centronics->write_strobe(BIT(data, 5));
+//  schematic page 294 says pc6 outputs to centronics pin 15, which is unused
+}
 
 WRITE_LINE_MEMBER( apricot_state::timer_out1 )
 {
@@ -172,76 +196,14 @@ WRITE_LINE_MEMBER( apricot_state::timer_out2 )
 	}
 }
 
-static const struct pit8253_interface apricot_pit8253_intf =
-{
-	{
-		{ XTAL_4MHz / 16, DEVCB_LINE_VCC, DEVCB_DEVICE_LINE_MEMBER("ic31", pic8259_device, ir6_w) },
-		{ XTAL_4MHz / 2,  DEVCB_LINE_VCC, DEVCB_DRIVER_LINE_MEMBER(apricot_state, timer_out1) },
-		{ XTAL_4MHz / 2,  DEVCB_LINE_VCC, DEVCB_DRIVER_LINE_MEMBER(apricot_state, timer_out2) }
-	}
-};
-
-static Z80SIO_INTERFACE( apricot_z80sio_intf )
-{
-	0, 0,
-	XTAL_4MHz / 16, XTAL_4MHz / 16,
-
-	// channel a
-	DEVCB_DEVICE_LINE_MEMBER("rs232", serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER("rs232", serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER("rs232", rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER("rs232", rs232_port_device, rts_w),
-	DEVCB_DEVICE_LINE_MEMBER("ic71", i8089_device, drq2_w),
-	DEVCB_NULL,
-
-	// channel b
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(apricot_state, data_selector_dtr_w),
-	DEVCB_DRIVER_LINE_MEMBER(apricot_state, data_selector_rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DEVICE_LINE_MEMBER("ic31", pic8259_device, ir5_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-// note: missing a receive clock callback to support external clock mode
-// (m_data_selector_rts == 1 and m_data_selector_dtr == 0)
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER("ic15", z80dart_device, dcda_w),
-	DEVCB_DEVICE_LINE_MEMBER("ic15", z80dart_device, synca_w),
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER("ic15", z80dart_device, ctsa_w)
-};
-
-// note: fault output should be connected to syncb input of the sio
-static const centronics_interface apricot_centronics_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER("ic15", z80dart_device, ctsb_w),
-	DEVCB_DEVICE_LINE_MEMBER("ic15", z80dart_device, dcdb_w),
-	DEVCB_NULL
-};
-
-
 //**************************************************************************
 //  FLOPPY
 //**************************************************************************
 
-void apricot_state::wd2793_intrq_w(bool state)
+WRITE_LINE_MEMBER( apricot_state::wd2793_intrq_w )
 {
 	m_pic->ir4_w(state);
 	m_iop->ext1_w(state);
-}
-
-void apricot_state::wd2793_drq_w(bool state)
-{
-	m_iop->drq1_w(state);
 }
 
 static SLOT_INTERFACE_START( apricot_floppies )
@@ -259,23 +221,23 @@ UINT32 apricot_state::screen_update_apricot(screen_device &screen, bitmap_rgb32 
 	if (!m_display_on)
 		m_crtc->screen_update(screen, bitmap, cliprect);
 	else
-		bitmap.fill(RGB_BLACK, cliprect);
+		bitmap.fill(rgb_t::black, cliprect);
 
 	return 0;
 }
 
-static MC6845_UPDATE_ROW( apricot_update_row )
+MC6845_UPDATE_ROW( apricot_state::crtc_update_row )
 {
-	apricot_state *state = device->machine().driver_data<apricot_state>();
-	UINT8 *ram = state->m_ram->pointer();
+	UINT8 *ram = m_ram->pointer();
+	const pen_t *pen = m_palette->pens();
 	int i, x;
 
-	if (state->m_video_mode)
+	if (m_video_mode)
 	{
 		// text mode
 		for (i = 0; i < x_count; i++)
 		{
-			UINT16 code = state->m_screen_buffer[(ma + i) & 0x7ff];
+			UINT16 code = m_screen_buffer[(ma + i) & 0x7ff];
 			UINT16 offset = ((code & 0x7ff) << 5) | (ra << 1);
 			UINT16 data = ram[offset + 1] << 8 | ram[offset];
 			int fill = 0;
@@ -288,7 +250,7 @@ static MC6845_UPDATE_ROW( apricot_update_row )
 			{
 				int color = fill ? 1 : BIT(data, x);
 				if (BIT(code, 15)) color = !color; // reverse?
-				bitmap.pix32(y, x + i*10) = RGB_MONOCHROME_GREEN_HIGHLIGHT[color ? 1 + BIT(code, 14) : 0];
+				bitmap.pix32(y, x + i*10) = pen[color ? 1 + BIT(code, 14) : 0];
 			}
 		}
 	}
@@ -299,21 +261,6 @@ static MC6845_UPDATE_ROW( apricot_update_row )
 	}
 }
 
-static MC6845_INTERFACE( apricot_mc6845_intf )
-{
-	false,
-	10,
-	NULL,
-	apricot_update_row,
-	NULL,
-	DEVCB_DRIVER_LINE_MEMBER(apricot_state, apricot_mc6845_de),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
-
-
 //**************************************************************************
 //  MACHINE EMULATION
 //**************************************************************************
@@ -323,13 +270,6 @@ void apricot_state::machine_start()
 	// install shared memory to the main cpu and the iop
 	m_cpu->space(AS_PROGRAM).install_ram(0x00000, m_ram->size() - 1, m_ram->pointer());
 	m_iop->space(AS_PROGRAM).install_ram(0x00000, m_ram->size() - 1, m_ram->pointer());
-
-	// setup interrupt acknowledge callback for the main cpu
-	m_cpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(apricot_state::irq_callback), this));
-
-	// setup floppy disk controller callbacks
-	m_fdc->setup_intrq_cb(wd2793_t::line_cb(FUNC(apricot_state::wd2793_intrq_w), this));
-	m_fdc->setup_drq_cb(wd2793_t::line_cb(FUNC(apricot_state::wd2793_drq_w), this));
 
 	// motor on is connected to gnd
 	m_floppy0->get_device()->mon_w(0);
@@ -367,16 +307,12 @@ ADDRESS_MAP_END
 //  MACHINE DRIVERS
 //**************************************************************************
 
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( apricot, apricot_state )
 	// main cpu
 	MCFG_CPU_ADD("ic91", I8086, XTAL_15MHz / 3)
 	MCFG_CPU_PROGRAM_MAP(apricot_mem)
 	MCFG_CPU_IO_MAP(apricot_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("ic31", pic8259_device, inta_cb)
 
 	// i/o cpu
 	MCFG_CPU_ADD("ic71", I8089, XTAL_15MHz / 3)
@@ -393,12 +329,17 @@ static MACHINE_CONFIG_START( apricot, apricot_state )
 	MCFG_SCREEN_REFRESH_RATE(72)
 	MCFG_SCREEN_UPDATE_DRIVER(apricot_state, screen_update_apricot)
 
-	MCFG_MC6845_ADD("ic30", MC6845, "screen", XTAL_15MHz / 10, apricot_mc6845_intf)
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN_HIGHLIGHT("palette")
+
+	MCFG_MC6845_ADD("ic30", MC6845, "screen", XTAL_15MHz / 10)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(10)
+	MCFG_MC6845_UPDATE_ROW_CB(apricot_state, crtc_update_row)
+	MCFG_MC6845_OUT_DE_CB(WRITELINE(apricot_state, apricot_mc6845_de))
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ic7", SN76489, XTAL_4MHz / 2)
-	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	// internal ram
@@ -407,19 +348,57 @@ static MACHINE_CONFIG_START( apricot, apricot_state )
 	MCFG_RAM_EXTRA_OPTIONS("384k,512k") // with 1 or 2 128k expansion boards
 
 	// devices
-	MCFG_I8255A_ADD("ic17", apricot_i8255a_intf)
+	MCFG_DEVICE_ADD("ic17", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(DEVREAD8("cent_data_in", input_buffer_device, read))
+	MCFG_I8255_OUT_PORTA_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(apricot_state, i8255_portb_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(apricot_state, i8255_portc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(apricot_state, i8255_portc_w))
+
 	MCFG_PIC8259_ADD("ic31", INPUTLINE("ic91", 0), VCC, NULL)
-	MCFG_PIT8253_ADD("ic16", apricot_pit8253_intf)
-	MCFG_Z80SIO0_ADD("ic15", XTAL_15MHz / 6, apricot_z80sio_intf)
+
+	MCFG_DEVICE_ADD("ic16", PIT8253, 0)
+	MCFG_PIT8253_CLK0(XTAL_4MHz / 16)
+	MCFG_PIT8253_OUT0_HANDLER(DEVWRITELINE("ic31", pic8259_device, ir6_w))
+	MCFG_PIT8253_CLK1(XTAL_4MHz / 2)
+	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(apricot_state, timer_out1))
+	MCFG_PIT8253_CLK2(XTAL_4MHz / 2)
+	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(apricot_state, timer_out2))
+
+	MCFG_Z80SIO0_ADD("ic15", XTAL_15MHz / 6, 0, 0, XTAL_4MHz / 16, XTAL_4MHz / 16)
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE("rs232", rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE("rs232", rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE("rs232", rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_WRDYA_CB(DEVWRITELINE("ic71", i8089_device, drq2_w))
+	MCFG_Z80DART_OUT_DTRB_CB(WRITELINE(apricot_state, data_selector_dtr_w))
+	MCFG_Z80DART_OUT_RTSB_CB(WRITELINE(apricot_state, data_selector_rts_w))
+	MCFG_Z80DART_OUT_INT_CB(DEVWRITELINE("ic31", pic8259_device, ir5_w))
 
 	// rs232 port
-	MCFG_RS232_PORT_ADD("rs232", rs232_intf, default_rs232_devices, NULL)
+	MCFG_RS232_PORT_ADD("rs232", default_rs232_devices, NULL)
+// note: missing a receive clock callback to support external clock mode
+// (m_data_selector_rts == 1 and m_data_selector_dtr == 0)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("ic15", z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE("ic15", z80dart_device, dcda_w))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE("ic15", z80dart_device, synca_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE("ic15", z80dart_device, ctsa_w))
 
 	// centronics printer
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", apricot_centronics_intf)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_DATA_INPUT_BUFFER("cent_data_in")
+	MCFG_CENTRONICS_ACK_HANDLER(DEVWRITELINE("ic15", z80dart_device, ctsb_w))
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE("ic15", z80dart_device, dcdb_w))
+	MCFG_CENTRONICS_FAULT_HANDLER(WRITELINE(apricot_state, write_centronics_fault))
+	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(apricot_state, write_centronics_perror))
+	//MCFG_CENTRONICS_SELECT_HANDLER() // schematic page 294 says this is connected to pc4, but that is an output to the printer
+
+	MCFG_DEVICE_ADD("cent_data_in", INPUT_BUFFER, 0)
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	// floppy
 	MCFG_WD2793x_ADD("ic68", XTAL_4MHz / 2)
+	MCFG_WD_FDC_INTRQ_CALLBACK(WRITELINE(apricot_state, wd2793_intrq_w))
+	MCFG_WD_FDC_DRQ_CALLBACK(DEVWRITELINE("ic71", i8089_device, drq1_w))
 	MCFG_FLOPPY_DRIVE_ADD("ic68:0", apricot_floppies, "d32w", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("ic68:1", apricot_floppies, "d32w", floppy_image_device::default_floppy_formats)
 MACHINE_CONFIG_END

@@ -53,7 +53,9 @@ public:
 		m_audiocpu(*this, "audiocpu"),
 		m_atram(*this, "atram"),
 		m_maincpu(*this, "maincpu"),
-		m_oki(*this, "oki") { }
+		m_oki(*this, "oki"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* video-related */
 	tilemap_t   *m_bg_tilemap;
@@ -86,6 +88,8 @@ public:
 	void draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect );
 	required_device<cpu_device> m_maincpu;
 	required_device<okim6295_device> m_oki;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -119,7 +123,7 @@ void egghunt_state::draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect
 			sx = 496 - sx;
 			sy = 240 - sy;
 		}
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 					code,
 					color,
 					flipscreen,flipscreen,
@@ -179,7 +183,7 @@ WRITE8_MEMBER(egghunt_state::egghunt_atram_w)
 
 void egghunt_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(egghunt_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(egghunt_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	save_item(NAME(m_bgram));
 	save_item(NAME(m_spram));
@@ -225,7 +229,7 @@ WRITE8_MEMBER(egghunt_state::egghunt_okibanking_w)
 
 static ADDRESS_MAP_START( egghunt_map, AS_PROGRAM, 8, egghunt_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0xc000, 0xc7ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xc000, 0xc7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xc800, 0xcfff) AM_RAM_WRITE(egghunt_atram_w) AM_SHARE("atram")
 	AM_RANGE(0xd000, 0xdfff) AM_READWRITE(egghunt_bgram_r, egghunt_bgram_w)
 	AM_RANGE(0xe000, 0xffff) AM_RAM
@@ -425,10 +429,12 @@ static MACHINE_CONFIG_START( egghunt, egghunt_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8*8, 56*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(egghunt_state, screen_update_egghunt)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(egghunt)
-	MCFG_PALETTE_LENGTH(0x400)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", egghunt)
 
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

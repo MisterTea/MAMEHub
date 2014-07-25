@@ -17,30 +17,29 @@
 #include "machine/ins8250.h"
 #include "machine/mc146818.h"
 #include "machine/pic8259.h"
-#include "machine/i82371ab.h"
-#include "machine/i82371sb.h"
-#include "machine/i82439tx.h"
+#include "bus/pci/i82371ab.h"
+#include "bus/pci/i82371sb.h"
+#include "bus/pci/i82439tx.h"
 #include "machine/cs8221.h"
 #include "machine/pit8253.h"
-#include "video/pc_cga.h"
+#include "machine/wd7600.h"
 
 #include "machine/idectrl.h"
 #include "machine/at_keybc.h"
 
 #include "imagedev/harddriv.h"
 #include "machine/am9517a.h"
-#include "machine/pci.h"
-#include "machine/kb_keytro.h"
+#include "bus/pci/pci.h"
 
 #include "sound/dac.h"
 #include "sound/speaker.h"
 #include "machine/ram.h"
 #include "machine/nvram.h"
-#include "machine/isa.h"
-#include "machine/isa_cards.h"
+#include "bus/isa/isa.h"
+#include "bus/isa/isa_cards.h"
 
 #include "machine/pc_lpt.h"
-#include "machine/pc_kbdc.h"
+#include "bus/pc_kbd/pc_kbdc.h"
 
 
 class at586_state : public driver_device
@@ -50,6 +49,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu") { }
 	required_device<cpu_device> m_maincpu;
+
+	DECLARE_DRIVER_INIT(at586);
 };
 
 class at_state : public driver_device
@@ -91,6 +92,7 @@ public:
 	DECLARE_WRITE8_MEMBER(at_page8_w);
 	DECLARE_READ8_MEMBER(at_portb_r);
 	DECLARE_WRITE8_MEMBER(at_portb_w);
+	DECLARE_READ8_MEMBER(ps2_portb_r);
 	DECLARE_READ8_MEMBER(get_slave_ack);
 	DECLARE_WRITE_LINE_MEMBER(at_pit8254_out0_changed);
 	DECLARE_WRITE_LINE_MEMBER(at_pit8254_out2_changed);
@@ -128,23 +130,20 @@ public:
 	DECLARE_WRITE16_MEMBER(neat_chipset_w);
 	DECLARE_WRITE_LINE_MEMBER(at_mc146818_irq);
 	DECLARE_WRITE8_MEMBER(write_rtc);
-	int m_poll_delay;
 	UINT8 m_at_spkrdata;
-	UINT8 m_at_speaker_input;
+	UINT8 m_pit_out2;
 	int m_dma_channel;
 	bool m_cur_eop;
 	UINT8 m_dma_offset[2][4];
 	UINT8 m_at_pages[0x10];
 	UINT16 m_dma_high_byte;
 	UINT8 m_at_speaker;
-	UINT8 m_at_offset1;
 	UINT16 m_ps1_reg[2];
 	DECLARE_READ16_MEMBER(ps1_unk_r);
 	DECLARE_WRITE16_MEMBER(ps1_unk_w);
 	DECLARE_READ8_MEMBER(ps1_kbdc_r);
 
 	void at_speaker_set_spkrdata(UINT8 data);
-	void at_speaker_set_input(UINT8 data);
 	DECLARE_WRITE_LINE_MEMBER(at_shutdown);
 
 	UINT8 m_channel_check;
@@ -156,29 +155,40 @@ public:
 
 	DECLARE_DRIVER_INIT(atcga);
 	DECLARE_DRIVER_INIT(atvga);
-	DECLARE_DRIVER_INIT(at586);
+	DECLARE_DRIVER_INIT(megapcpla);
 	DECLARE_MACHINE_START(at);
 	DECLARE_MACHINE_RESET(at);
 	void pc_set_dma_channel(int channel, int state);
-	IRQ_CALLBACK_MEMBER(at_irq_callback);
 	void init_at_common();
 	UINT32 at_286_a20(bool state);
-
-	enum {
-		TYPE_286,
-		TYPE_386,
-		TYPE_486,
-		TYPE_586
-	};
-
-	int m_type;
 };
 
+class megapc_state : public driver_device
+{
+public:
+	megapc_state(const machine_config &mconfig, device_type type, const char *tag)
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_wd7600(*this, "wd7600"),
+		m_isabus(*this, "isabus"),
+		m_speaker(*this, "speaker")
+		{ }
 
-/*----------- defined in machine/at.c -----------*/
+public:
+	required_device<cpu_device> m_maincpu;
+	required_device<wd7600_device> m_wd7600;
+	required_device<isa16_device> m_isabus;
+	required_device<speaker_sound_device> m_speaker;
 
-extern const struct pit8253_interface at_pit8254_config;
-extern const am9517a_interface at_dma8237_1_config;
-extern const am9517a_interface at_dma8237_2_config;
+	DECLARE_DRIVER_INIT(megapc);
+	DECLARE_DRIVER_INIT(megapcpl);
+
+	DECLARE_READ16_MEMBER( wd7600_ior );
+	DECLARE_WRITE16_MEMBER( wd7600_iow );
+	DECLARE_WRITE_LINE_MEMBER( wd7600_hold );
+	DECLARE_WRITE8_MEMBER( wd7600_tc ) { m_isabus->eop_w(offset, data); }
+	DECLARE_WRITE_LINE_MEMBER( wd7600_spkr ) { m_speaker->level_w(state); }
+};
+
 
 #endif /* AT_H_ */

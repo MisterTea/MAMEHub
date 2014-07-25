@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     dis32031.c
@@ -28,6 +30,7 @@
     CODE CODE
 ***************************************************************************/
 
+#if 0
 INLINE char *signed_16bit(INT16 val)
 {
 	static char temp[10];
@@ -37,6 +40,7 @@ INLINE char *signed_16bit(INT16 val)
 		sprintf(temp, "$%x", val);
 	return temp;
 }
+#endif
 
 static const char *const regname[32] =
 {

@@ -153,12 +153,12 @@ private:
  *
  *************************************/
 
-#include "disc_sys.c"       /* discrete core modules and support functions */
-#include "disc_wav.c"       /* Wave sources   - SINE/SQUARE/NOISE/etc */
-#include "disc_mth.c"       /* Math Devices   - ADD/GAIN/etc */
-#include "disc_inp.c"       /* Input Devices  - INPUT/CONST/etc */
-#include "disc_flt.c"       /* Filter Devices - RCF/HPF/LPF */
-#include "disc_dev.c"       /* Popular Devices - NE555/etc */
+#include "disc_sys.inc"       /* discrete core modules and support functions */
+#include "disc_wav.inc"       /* Wave sources   - SINE/SQUARE/NOISE/etc */
+#include "disc_mth.inc"       /* Math Devices   - ADD/GAIN/etc */
+#include "disc_inp.inc"       /* Input Devices  - INPUT/CONST/etc */
+#include "disc_flt.inc"       /* Filter Devices - RCF/HPF/LPF */
+#include "disc_dev.inc"       /* Popular Devices - NE555/etc */
 
 /*************************************
  *
@@ -464,7 +464,7 @@ const double *discrete_device::node_output_ptr(int onode)
 //  discrete_log: Debug logging
 //-------------------------------------------------
 
-void CLIB_DECL ATTR_PRINTF(2,3) discrete_device::discrete_log(const char *text, ...) const
+void CLIB_DECL discrete_device::discrete_log(const char *text, ...) const
 {
 	if (DISCRETE_DEBUGLOG)
 	{
@@ -698,7 +698,8 @@ void discrete_device::init_nodes(const sound_block_list_t &block_list)
 	{
 		const discrete_block *block = block_list[i];
 
-		discrete_base_node *node = block->factory->Create(this, block);
+		//discrete_base_node *node = block->factory->Create(this, block);
+		discrete_base_node *node = block->factory(this, block);
 		/* keep track of special nodes */
 		if (block->node == NODE_SPECIAL)
 		{

@@ -82,7 +82,7 @@ void raiden_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect,
 		return;
 
 	UINT16 *sprites = m_spriteram->buffer();
-	gfx_element *gfx = machine().gfx[3];
+	gfx_element *gfx = m_gfxdecode->gfx(3);
 
 	for (int offs = 0x1000/2-4; offs >= 0; offs -= 4)
 	{
@@ -133,7 +133,7 @@ void raiden_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect,
 			flipx = !flipx;
 		}
 
-		drawgfx_transpen(bitmap, cliprect, gfx, code, color, flipx, flipy, x, y, 15);
+			gfx->transpen(bitmap,cliprect, code, color, flipx, flipy, x, y, 15);
 	}
 }
 
@@ -145,7 +145,7 @@ UINT32 raiden_state::screen_update_common(screen_device &screen, bitmap_ind16 &b
 	m_fg_layer->set_scrollx(0, scrollregs[2]);
 	m_fg_layer->set_scrolly(0, scrollregs[3]);
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	// back layer
 	if (m_bg_layer_enabled)
@@ -222,9 +222,9 @@ TILE_GET_INFO_MEMBER(raiden_state::get_text_tile_info)
 
 void raiden_state::video_start()
 {
-	m_bg_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(raiden_state::get_back_tile_info),this),TILEMAP_SCAN_COLS,16,16,32,32);
-	m_fg_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(raiden_state::get_fore_tile_info),this),TILEMAP_SCAN_COLS,16,16,32,32);
-	m_tx_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(raiden_state::get_text_tile_info),this),TILEMAP_SCAN_ROWS,8, 8, 32,32);
+	m_bg_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(raiden_state::get_back_tile_info),this),TILEMAP_SCAN_COLS,16,16,32,32);
+	m_fg_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(raiden_state::get_fore_tile_info),this),TILEMAP_SCAN_COLS,16,16,32,32);
+	m_tx_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(raiden_state::get_text_tile_info),this),TILEMAP_SCAN_ROWS,8, 8, 32,32);
 
 	m_fg_layer->set_transparent_pen(15);
 	m_tx_layer->set_transparent_pen(15);
@@ -232,9 +232,9 @@ void raiden_state::video_start()
 
 VIDEO_START_MEMBER(raiden_state,raidenb)
 {
-	m_bg_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(raiden_state::get_back_tile_info),this),TILEMAP_SCAN_COLS,16,16,32,32);
-	m_fg_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(raiden_state::get_fore_tile_info),this),TILEMAP_SCAN_COLS,16,16,32,32);
-	m_tx_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(raiden_state::get_text_tile_info),this),TILEMAP_SCAN_COLS,8, 8, 32,32);
+	m_bg_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(raiden_state::get_back_tile_info),this),TILEMAP_SCAN_COLS,16,16,32,32);
+	m_fg_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(raiden_state::get_fore_tile_info),this),TILEMAP_SCAN_COLS,16,16,32,32);
+	m_tx_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(raiden_state::get_text_tile_info),this),TILEMAP_SCAN_COLS,8, 8, 32,32);
 
 	m_fg_layer->set_transparent_pen(15);
 	m_tx_layer->set_transparent_pen(15);

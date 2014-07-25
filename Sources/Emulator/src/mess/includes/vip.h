@@ -1,15 +1,17 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __VIP__
 #define __VIP__
 
 #include "emu.h"
+#include "bus/vip/byteio.h"
+#include "bus/vip/exp.h"
 #include "cpu/cosmac/cosmac.h"
 #include "imagedev/cassette.h"
 #include "imagedev/snapquik.h"
 #include "machine/ram.h"
-#include "machine/vip_byteio.h"
-#include "machine/vip_exp.h"
 #include "sound/discrete.h"
 #include "video/cdp1861.h"
 
@@ -85,6 +87,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( q_w );
 	DECLARE_READ8_MEMBER( dma_r );
 	DECLARE_WRITE8_MEMBER( dma_w );
+	DECLARE_WRITE8_MEMBER( sc_w );
 
 	DECLARE_WRITE_LINE_MEMBER( vdc_int_w );
 	DECLARE_WRITE_LINE_MEMBER( vdc_dma_out_w );

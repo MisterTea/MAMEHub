@@ -1,36 +1,5 @@
-/***************************************************************************
-
-    Copyright Olivier Galibert
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
-
-****************************************************************************/
-
+// license:BSD-3-Clause
+// copyright-holders:Olivier Galibert
 #include "emu.h"
 
 #include "hxcmfm_dsk.h"
@@ -102,23 +71,17 @@ bool mfm_format::load(io_generic *io, UINT32 form_factor, floppy_image *image)
 {
 	MFMIMG header;
 	MFMTRACKIMG trackdesc;
-	UINT8 *trackbuf = 0;
-	int trackbuf_size = 0;
 
 	// read header
 	io_generic_read(io, &header, 0, sizeof(header));
 	int counter = 0;
+	dynamic_buffer trackbuf;
 	for(int track=0; track < header.number_of_track; track++) {
 		for(int side=0; side < header.number_of_side; side++) {
 			// read location of
 			io_generic_read(io, &trackdesc,(header.mfmtracklistoffset)+( counter *sizeof(trackdesc)),sizeof(trackdesc));
 
-			if(trackdesc.mfmtracksize > trackbuf_size) {
-				if(trackbuf)
-					global_free(trackbuf);
-				trackbuf_size = trackdesc.mfmtracksize;
-				trackbuf = global_alloc_array(UINT8, trackbuf_size);
-			}
+			trackbuf.resize(trackdesc.mfmtracksize);
 
 			// actual data read
 			io_generic_read(io, trackbuf, trackdesc.mfmtrackoffset, trackdesc.mfmtracksize);
@@ -128,8 +91,6 @@ bool mfm_format::load(io_generic *io, UINT32 form_factor, floppy_image *image)
 			counter++;
 		}
 	}
-	if(trackbuf)
-		global_free(trackbuf);
 
 	image->set_variant(floppy_image::DSDD);
 	return true;

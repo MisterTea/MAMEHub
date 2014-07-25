@@ -495,8 +495,8 @@ READ8_MEMBER(ddragon_state::dd_adpcm_status_r)
 
 static ADDRESS_MAP_START( ddragon_map, AS_PROGRAM, 8, ddragon_state )
 	AM_RANGE(0x0000, 0x0fff) AM_RAM AM_SHARE("rambase")
-	AM_RANGE(0x1000, 0x11ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_split_lo_w) AM_SHARE("paletteram")
-	AM_RANGE(0x1200, 0x13ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_split_hi_w) AM_SHARE("paletteram2")
+	AM_RANGE(0x1000, 0x11ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0x1200, 0x13ff) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0x1800, 0x1fff) AM_RAM_WRITE(ddragon_fgvideoram_w) AM_SHARE("fgvideoram")
 	AM_RANGE(0x2000, 0x21ff) AM_READWRITE(ddragon_comram_r, ddragon_comram_w) AM_SHARE("comram") AM_MIRROR(0x0600)
 	AM_RANGE(0x2800, 0x2fff) AM_RAM AM_SHARE("spriteram")
@@ -530,8 +530,8 @@ static ADDRESS_MAP_START( dd2_map, AS_PROGRAM, 8, ddragon_state )
 	AM_RANGE(0x3809, 0x3809) AM_WRITEONLY AM_SHARE("scrollx_lo")
 	AM_RANGE(0x380a, 0x380a) AM_WRITEONLY AM_SHARE("scrolly_lo")
 	AM_RANGE(0x380b, 0x380f) AM_READWRITE(ddragon_interrupt_r, ddragon_interrupt_w)
-	AM_RANGE(0x3c00, 0x3dff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_split_lo_w) AM_SHARE("paletteram")
-	AM_RANGE(0x3e00, 0x3fff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_split_hi_w) AM_SHARE("paletteram2")
+	AM_RANGE(0x3c00, 0x3dff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0x3e00, 0x3fff) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -936,27 +936,6 @@ static GFXDECODE_START( ddragon )
 	GFXDECODE_ENTRY( "gfx3", 0, tile_layout, 256, 8 )   /* colors 256-383 */
 GFXDECODE_END
 
-
-
-/*************************************
- *
- *  Sound definitions
- *
- *************************************/
-
-static const msm5205_interface msm5205_config_1 =
-{
-	DEVCB_DRIVER_LINE_MEMBER(ddragon_state,dd_adpcm_int_1),   /* interrupt function */
-	MSM5205_S48_4B  /* 8kHz */
-};
-
-static const msm5205_interface msm5205_config_2 =
-{
-	DEVCB_DRIVER_LINE_MEMBER(ddragon_state,dd_adpcm_int_2),   /* interrupt function */
-	MSM5205_S48_4B  /* 8kHz */
-};
-
-
 /*************************************
  *
  *  Machine drivers
@@ -982,12 +961,14 @@ static MACHINE_CONFIG_START( ddragon, ddragon_state )
 	MCFG_MACHINE_RESET_OVERRIDE(ddragon_state,ddragon)
 
 	/* video hardware */
-	MCFG_GFXDECODE(ddragon)
-	MCFG_PALETTE_LENGTH(384)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ddragon)
+	MCFG_PALETTE_ADD("palette", 384)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 384, 0, 256, 272, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(ddragon_state, screen_update_ddragon)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(ddragon_state,ddragon)
 
@@ -1000,11 +981,13 @@ static MACHINE_CONFIG_START( ddragon, ddragon_state )
 	MCFG_SOUND_ROUTE(1, "mono", 0.60)
 
 	MCFG_SOUND_ADD("adpcm1", MSM5205, MAIN_CLOCK / 32)
-	MCFG_SOUND_CONFIG(msm5205_config_1)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(ddragon_state, dd_adpcm_int_1))   /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)  /* 8kHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_SOUND_ADD("adpcm2", MSM5205, MAIN_CLOCK / 32)
-	MCFG_SOUND_CONFIG(msm5205_config_2)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(ddragon_state, dd_adpcm_int_2))   /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)  /* 8kHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -1045,12 +1028,14 @@ static MACHINE_CONFIG_START( ddragon6809, ddragon_state )
 	MCFG_MACHINE_RESET_OVERRIDE(ddragon_state,ddragon)
 
 	/* video hardware */
-	MCFG_GFXDECODE(ddragon)
-	MCFG_PALETTE_LENGTH(384)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ddragon)
+	MCFG_PALETTE_ADD("palette", 384)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 384, 0, 256, 272, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(ddragon_state, screen_update_ddragon)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(ddragon_state,ddragon)
 
@@ -1063,11 +1048,13 @@ static MACHINE_CONFIG_START( ddragon6809, ddragon_state )
 	MCFG_SOUND_ROUTE(1, "mono", 0.60)
 
 	MCFG_SOUND_ADD("adpcm1", MSM5205, MAIN_CLOCK/32)
-	MCFG_SOUND_CONFIG(msm5205_config_1)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(ddragon_state, dd_adpcm_int_1))   /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)  /* 8kHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_SOUND_ADD("adpcm2", MSM5205, MAIN_CLOCK/32)
-	MCFG_SOUND_CONFIG(msm5205_config_2)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(ddragon_state, dd_adpcm_int_2))   /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)  /* 8kHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -1091,12 +1078,14 @@ static MACHINE_CONFIG_START( ddragon2, ddragon_state )
 	MCFG_MACHINE_RESET_OVERRIDE(ddragon_state,ddragon)
 
 	/* video hardware */
-	MCFG_GFXDECODE(ddragon)
-	MCFG_PALETTE_LENGTH(384)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ddragon)
+	MCFG_PALETTE_ADD("palette", 384)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 384, 0, 256, 272, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(ddragon_state, screen_update_ddragon)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(ddragon_state,ddragon)
 
@@ -1932,14 +1921,14 @@ ROM_END
 
 
 ROM_START( toffy )
-	ROM_REGION( 0x30000, "maincpu", 0 ) /* Main CPU? */
+	ROM_REGION( 0x30000, "maincpu", 0 ) /* Main CPU */
 	ROM_LOAD( "2-27512.rom", 0x00000, 0x10000, CRC(244709dd) SHA1(b2db51b910f1a031b94fb50e684351f657a465dc) )
 	ROM_RELOAD( 0x10000, 0x10000 )
 
-	ROM_REGION( 0x10000, "soundcpu", 0 ) /* Sound CPU? */
+	ROM_REGION( 0x10000, "soundcpu", 0 ) /* Sound CPU */
 	ROM_LOAD( "u142.1", 0x00000, 0x10000, CRC(541bd7f0) SHA1(3f0097f5877eae50651f94d46d7dd9127037eb6e) )
 
-	ROM_REGION( 0x10000, "gfx1", 0 ) /* GFX? */
+	ROM_REGION( 0x10000, "gfx1", 0 ) /* GFX */
 	ROM_LOAD( "7-27512.rom", 0x000, 0x10000, CRC(f9e8ec64) SHA1(36891cd8f28800e03fe0eac84b2484a70011eabb) )
 
 	ROM_REGION( 0x20000, "gfx3", 0 ) /* GFX */
@@ -1953,14 +1942,34 @@ ROM_START( toffy )
 ROM_END
 
 ROM_START( stoffy )
-	ROM_REGION( 0x30000, "maincpu", 0 ) /* Main CPU? */
+	ROM_REGION( 0x30000, "maincpu", 0 ) /* Main CPU */
+	ROM_LOAD( "2.u70", 0x00000, 0x10000, CRC(6203aeb5) SHA1(e57aa520e8096df01461b235f77557c267571a57) )
+	ROM_RELOAD( 0x10000, 0x10000 )
+
+	ROM_REGION( 0x10000, "soundcpu", 0 ) /* Sound CPU */
+	ROM_LOAD( "1.u142", 0x00000, 0x10000, CRC(541bd7f0) SHA1(3f0097f5877eae50651f94d46d7dd9127037eb6e) ) // same as 'toffy'
+
+	ROM_REGION( 0x10000, "gfx1", 0 ) /* GFX */
+	ROM_LOAD( "7.u35", 0x00000, 0x10000, CRC(1cf13736) SHA1(bff5b99ea20af32f1fc7f28f4f0b397ec987c7ca) )
+
+	ROM_REGION( 0x20000, "gfx3", 0 ) /* GFX */
+	ROM_LOAD( "4.u78", 0x00000, 0x10000, CRC(2066c3c7) SHA1(6778e654c0953a7e4ff18cbd326e9d3f8218a3b2) ) // 0
+	ROM_LOAD( "3.u77", 0x10000, 0x10000, CRC(3625f813) SHA1(b44830896c69cd5c618c4740ccf471f31dfa34c1) ) // 0
+
+	ROM_REGION( 0x20000, "gfx2", 0 ) /* GFX */
+	ROM_LOAD( "6.u80", 0x00000, 0x10000, CRC(ff190865) SHA1(245e69651d0161fcb416bba8f743602b4ee83139) ) // 1
+	ROM_LOAD( "5.u79", 0x10000, 0x10000, CRC(333d5b8a) SHA1(d3573db87e2318c144ee9ace6c975a70fc96f4c4) ) // 1
+ROM_END
+
+ROM_START( stoffyu )
+	ROM_REGION( 0x30000, "maincpu", 0 ) /* Main CPU */
 	ROM_LOAD( "u70.2", 0x00000, 0x10000, CRC(3c156610) SHA1(d7fdbc595bdc77c452da39da8b20774db0952e33) )
 	ROM_RELOAD( 0x10000, 0x10000 )
 
-	ROM_REGION( 0x10000, "soundcpu", 0 ) /* Sound CPU? */
-	ROM_LOAD( "u142.1", 0x00000, 0x10000, CRC(541bd7f0) SHA1(3f0097f5877eae50651f94d46d7dd9127037eb6e) ) // same as 'toffy'
+	ROM_REGION( 0x10000, "soundcpu", 0 ) /* Sound CPU */
+	ROM_LOAD( "1.u142", 0x00000, 0x10000, CRC(541bd7f0) SHA1(3f0097f5877eae50651f94d46d7dd9127037eb6e) ) // same as 'toffy'
 
-	ROM_REGION( 0x10000, "gfx1", 0 ) /* GFX? */
+	ROM_REGION( 0x10000, "gfx1", 0 ) /* GFX */
 	ROM_LOAD( "u35.7", 0x00000, 0x10000, CRC(83735d25) SHA1(d82c046db0112d7d2877339652b2111f12513a4f) )
 
 	ROM_REGION( 0x20000, "gfx3", 0 ) /* GFX */
@@ -1968,8 +1977,8 @@ ROM_START( stoffy )
 	ROM_LOAD( "u77.3", 0x10000, 0x10000, CRC(f267109a) SHA1(679d2147c79636796dda850345c04ad8a9daa6af) ) // 0
 
 	ROM_REGION( 0x20000, "gfx2", 0 ) /* GFX */
-	ROM_LOAD( "u80.5", 0x00000, 0x10000, CRC(ff190865) SHA1(245e69651d0161fcb416bba8f743602b4ee83139) ) // 1 | should be u80.6 ?
-	ROM_LOAD( "u79.5", 0x10000, 0x10000, CRC(333d5b8a) SHA1(d3573db87e2318c144ee9ace6c975a70fc96f4c4) ) // 1
+	ROM_LOAD( "6.u80", 0x00000, 0x10000, CRC(ff190865) SHA1(245e69651d0161fcb416bba8f743602b4ee83139) ) // 1
+	ROM_LOAD( "5.u79", 0x10000, 0x10000, CRC(333d5b8a) SHA1(d3573db87e2318c144ee9ace6c975a70fc96f4c4) ) // 1
 ROM_END
 
 
@@ -2104,4 +2113,5 @@ GAME( 1992, darktowr, 0,        darktowr, darktowr, ddragon_state, darktowr, ROT
 
 /* these run on their own board, but are basically the same game. Toffy even has 'dangerous dungeons' text in it */
 GAME( 1993, toffy,    0,        toffy,    toffy, ddragon_state,    toffy,    ROT0, "Midas", "Toffy", GAME_SUPPORTS_SAVE )
-GAME( 1994, stoffy,   0,        toffy,    toffy, ddragon_state,    toffy,    ROT0, "Midas (Unico license)", "Super Toffy", GAME_SUPPORTS_SAVE )
+GAME( 1994, stoffy,   0,        toffy,    toffy, ddragon_state,    toffy,    ROT0, "Midas", "Super Toffy", GAME_SUPPORTS_SAVE )
+GAME( 1994, stoffyu,  stoffy,   toffy,    toffy, ddragon_state,    toffy,    ROT0, "Midas (Unico license)", "Super Toffy (Unico license)", GAME_SUPPORTS_SAVE )

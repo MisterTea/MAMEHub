@@ -81,6 +81,9 @@
         0xffce: R7 / PC
         0xfffe: PSW
 
+        SMS-1000:
+        Claims to be 100% compatible with DEC PDP-11. Added as a skeleton.
+
 ****************************************************************************/
 
 #include "emu.h"
@@ -88,14 +91,17 @@
 #include "machine/terminal.h"
 #include "machine/rx01.h"
 
+#define TERMINAL_TAG "terminal"
+
 class pdp11_state : public driver_device
 {
 public:
 	pdp11_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_terminal(*this, TERMINAL_TAG)
-	{ }
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<generic_terminal_device> m_terminal;
@@ -331,15 +337,6 @@ MACHINE_RESET_MEMBER(pdp11_state,pdp11qb)
 	m_maincpu->set_state_int(T11_PC, 0xea00);
 }
 
-static const struct t11_setup pdp11_data =
-{
-	6 << 13
-};
-
-static const struct t11_setup mxv11_data =
-{
-	0 << 13
-};
 
 WRITE8_MEMBER( pdp11_state::kbd_put )
 {
@@ -347,20 +344,16 @@ WRITE8_MEMBER( pdp11_state::kbd_put )
 	m_teletype_status |= 0x80;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(pdp11_state, kbd_put)
-};
-
 static MACHINE_CONFIG_START( pdp11, pdp11_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",T11, XTAL_4MHz) // Need proper CPU here
-	MCFG_CPU_CONFIG(pdp11_data)
+	MCFG_T11_INITIAL_MODE(6 << 13)
 	MCFG_CPU_PROGRAM_MAP(pdp11_mem)
 
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(pdp11_state, kbd_put))
 
 	MCFG_RX01_ADD("rx01")
 MACHINE_CONFIG_END
@@ -373,7 +366,7 @@ static MACHINE_CONFIG_DERIVED( pdp11qb, pdp11 )
 	MCFG_MACHINE_RESET_OVERRIDE(pdp11_state,pdp11qb)
 
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CONFIG(mxv11_data)
+	MCFG_T11_INITIAL_MODE(0 << 13)
 	MCFG_CPU_PROGRAM_MAP(pdp11qb_mem)
 MACHINE_CONFIG_END
 
@@ -407,7 +400,7 @@ ROM_START( pdp11ub2 )
 	ROM_LOAD( "23-763a9.bin", 0x1600, 0x0200, NO_DUMP)                                                      // M9312 'CR' BOOT prom for CR11 card reader
 	ROM_LOAD( "23-764a9.bin", 0x1800, 0x0200, CRC(7c8b7ed4) SHA1(ba0c9f03027eb3dafcc0936e877637d3c9947f94)) // M9312 'MS' BOOT prom for TS11/TS04/TU80 compatible controller
 	ROM_LOAD( "23-765a9.bin", 0x1a00, 0x0200, CRC(702dfeb2) SHA1(0d37bdd3846de4b104b8968a0e83ed81abd7f9ae)) // M9312 'DD' BOOT prom for TU58 DECtapeII serial tape controller
-	ROM_LOAD( "23-767a9.bin", 0x1c00, 0x0200, CRC(4b94e3fa) SHA1(3cf92c2f64f95e8cc3abb8af2526cc65ce53ca8a)) // M9312 'DU' BOOT prom for MSCP compatible controller
+	ROM_LOAD( "23-767a9.bin", 0x1c00, 0x0200, CRC(4b94e3fa) SHA1(3cf92c2f64f95e8cc3abb8af2526cc65ce53ca8a)) // M9312 'DU' BOOT prom for MSCP compatible controller (UDA50/RA50/RC25/RAxx)
 	ROM_LOAD( "23-786a9.bin", 0x1e00, 0x0200, CRC(a5326664) SHA1(238f97fc5b2b540948ea1e27a4cd1dcf18255b21)) // M9312 'XX' Unknown 1/3
 	ROM_LOAD( "23-787a9.bin", 0x2000, 0x0200, CRC(025debf9) SHA1(8ea2faf2e2d78be0ad2f77e61bae0dfb9c3b4b01)) // M9312 'XX' Unknown 2/3
 	ROM_LOAD( "23-788a9.bin", 0x2200, 0x0200, CRC(3c7ed364) SHA1(519ffac2e4878490128e754a0473502c767a94e2)) // M9312 'XX' Unknown 3/3
@@ -434,9 +427,42 @@ ROM_START( pdp11qb )
 	ROM_LOAD16_BYTE( "m7195fa.1", 0xc000, 0x2000, CRC(0fa58752) SHA1(4bcd006790a60f2998ee8377ac5e2c18ef330930))
 	ROM_LOAD16_BYTE( "m7195fa.2", 0xc001, 0x2000, CRC(15b6f60c) SHA1(80dd4f8ca3c27babb5e75111b04241596a07c53a))
 ROM_END
+
+ROM_START( sms1000 )
+	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
+	ROM_REGION( 0x20000, "user1", ROMREGION_ERASEFF )
+	ROM_LOAD( "21251000u",    0x00000, 0x008000, CRC(68db0afc) SHA1(577124bc64f6ddc9771e11b483120a175bfcf8c5) )
+	ROM_LOAD( "21251001u",    0x00000, 0x010000, CRC(eec3ccbb) SHA1(69eedb2c3bffe0a2988b1c066df1fea195618087) )
+	ROM_LOAD( "21251002u",    0x00000, 0x000800, CRC(66ca0eaf) SHA1(8141f64f81d9954169bcff6c79fd9f85e91f98e0) )
+	ROM_LOAD( "2123001",      0x00000, 0x000800, CRC(7eb10e9b) SHA1(521ce8b8a79075c30ad92d810141c725d26fc50e) )
+	ROM_LOAD( "2115001.jed",  0x00000, 0x000b19, CRC(02170f78) SHA1(afe50d165b39bff1cadae4290344341376729fda) )
+	// no idea how large these undumped proms are
+	ROM_LOAD( "2096001",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2097002",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "20982000f",    0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "20982001f",    0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2099002b",     0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2108001",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2109001",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2110001",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2111001",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2116001",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2117001",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2118001",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2119001",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2120001",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2121001",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2122001",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2124008",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2124009",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2124010",      0x1f000, 0x000100, NO_DUMP )
+	ROM_LOAD( "2127001b",     0x1f000, 0x000100, NO_DUMP ) // has 3 of these
+ROM_END
+
 /* Driver */
 
 /*    YEAR  NAME    PARENT  COMPAT   MACHINE    INPUT    INIT    COMPANY   FULLNAME       FLAGS */
 COMP( ????, pdp11ub,  0,       0,   pdp11,    pdp11, driver_device,  0,   "Digital Equipment Corporation",   "PDP-11 [Unibus](M9301-YA)",       GAME_NOT_WORKING | GAME_NO_SOUND)
 COMP( ????, pdp11ub2, pdp11ub, 0,   pdp11ub2, pdp11, driver_device,  0,   "Digital Equipment Corporation",   "PDP-11 [Unibus](M9312)",      GAME_NOT_WORKING | GAME_NO_SOUND)
 COMP( ????, pdp11qb,  pdp11ub, 0,   pdp11qb,  pdp11, driver_device,  0,   "Digital Equipment Corporation",   "PDP-11 [Q-BUS] (M7195 - MXV11)",      GAME_NOT_WORKING | GAME_NO_SOUND)
+COMP( 1987, sms1000,  pdp11ub, 0,   pdp11qb,  pdp11, driver_device,  0,   "Scientific Micro Systems",   "SMS-1000",      GAME_IS_SKELETON )

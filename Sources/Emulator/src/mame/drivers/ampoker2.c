@@ -1146,19 +1146,6 @@ static GFXDECODE_START( sigma2k )
 	GFXDECODE_ENTRY( "gfx1", 0x0000, s2k_charlayout, 0, 16 )
 GFXDECODE_END
 
-
-/*******************
-* AY8910 Interfase *
-*******************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL  /* no ports used */
-};
-
-
 /*************************
 *     Machine Driver     *
 *************************/
@@ -1183,15 +1170,15 @@ static MACHINE_CONFIG_START( ampoker2, ampoker2_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(20*8, 56*8-1, 2*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ampoker2_state, screen_update_ampoker2)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ampoker2)
-	MCFG_PALETTE_LENGTH(512)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ampoker2)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INIT_OWNER(ampoker2_state, ampoker2)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("aysnd", AY8910,MASTER_CLOCK/4)  /* 1.5 MHz, measured */
-	MCFG_SOUND_CONFIG(ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -1200,7 +1187,7 @@ static MACHINE_CONFIG_DERIVED( sigma2k, ampoker2 )
 	/* basic machine hardware */
 
 	/* video hardware */
-	MCFG_GFXDECODE(sigma2k)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", sigma2k)
 	MCFG_VIDEO_START_OVERRIDE(ampoker2_state,sigma2k)
 MACHINE_CONFIG_END
 

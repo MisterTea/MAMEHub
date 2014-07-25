@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     schedule.h
 
     Core device execution and scheduling engine.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -108,8 +79,8 @@ public:
 	void set_ptr(void *ptr) { m_ptr = ptr; }
 
 	// control
-	void reset(attotime duration = attotime::never) { adjust(duration, m_param, m_period); }
-	void adjust(attotime duration, INT32 param = 0, attotime periodicity = attotime::never);
+	void reset(const attotime &duration = attotime::never) { adjust(duration, m_param, m_period); }
+	void adjust(attotime start_delay, INT32 param = 0, const attotime &periodicity = attotime::never);
 
 	// timing queries
 	attotime elapsed() const;
@@ -162,25 +133,25 @@ public:
 	// execution
 	void timeslice();
 	void abort_timeslice();
-	void trigger(int trigid, attotime after = attotime::zero);
-	void boost_interleave(attotime timeslice_time, attotime boost_duration);
+	void trigger(int trigid, const attotime &after = attotime::zero);
+	void boost_interleave(const attotime &timeslice_time, const attotime &boost_duration);
 	void suspend_resume_changed() { m_suspend_changes_pending = true; }
 
 	// timers, specified by callback/name
 	emu_timer *timer_alloc(timer_expired_delegate callback, void *ptr = NULL);
-	void timer_set(attotime duration, timer_expired_delegate callback, int param = 0, void *ptr = NULL);
-	void timer_pulse(attotime period, timer_expired_delegate callback, int param = 0, void *ptr = NULL);
+	void timer_set(const attotime &duration, timer_expired_delegate callback, int param = 0, void *ptr = NULL);
+	void timer_pulse(const attotime &period, timer_expired_delegate callback, int param = 0, void *ptr = NULL);
 	void synchronize(timer_expired_delegate callback = timer_expired_delegate(), int param = 0, void *ptr = NULL) { timer_set(attotime::zero, callback, param, ptr); }
 
 	// timers with old-skool callbacks
 	emu_timer *timer_alloc(timer_expired_func callback, const char *name, void *ptr = NULL) { return timer_alloc(timer_expired_delegate(callback, name, &machine()), ptr); }
-	void timer_set(attotime duration, timer_expired_func callback, const char *name, int param = 0, void *ptr = NULL) { timer_set(duration, timer_expired_delegate(callback, name, &machine()), param, ptr); }
-	void timer_pulse(attotime period, timer_expired_func callback, const char *name, int param = 0, void *ptr = NULL) { timer_pulse(period, timer_expired_delegate(callback, name, &machine()), param, ptr); }
+	void timer_set(const attotime &duration, timer_expired_func callback, const char *name, int param = 0, void *ptr = NULL) { timer_set(duration, timer_expired_delegate(callback, name, &machine()), param, ptr); }
+	void timer_pulse(const attotime &period, timer_expired_func callback, const char *name, int param = 0, void *ptr = NULL) { timer_pulse(period, timer_expired_delegate(callback, name, &machine()), param, ptr); }
 	void synchronize(timer_expired_func callback, const char *name = NULL, int param = 0, void *ptr = NULL) { timer_set(attotime::zero, callback, name, param, ptr); }
 
 	// timers, specified by device/id; generally devices should use the device_t methods instead
 	emu_timer *timer_alloc(device_t &device, device_timer_id id = 0, void *ptr = NULL);
-	void timer_set(attotime duration, device_t &device, device_timer_id id = 0, int param = 0, void *ptr = NULL);
+	void timer_set(const attotime &duration, device_t &device, device_timer_id id = 0, int param = 0, void *ptr = NULL);
 
 	// debugging
 	void dump_timers() const;
@@ -198,7 +169,7 @@ private:
 	void compute_perfect_interleave();
 	void rebuild_execute_list();
 	void apply_suspend_changes();
-	void add_scheduling_quantum(attotime quantum, attotime duration);
+	void add_scheduling_quantum(const attotime &quantum, const attotime &duration);
 
 	// timer helpers
 	emu_timer &timer_list_insert(emu_timer &timer);

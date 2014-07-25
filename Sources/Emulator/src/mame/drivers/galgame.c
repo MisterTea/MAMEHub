@@ -19,7 +19,8 @@ class galaxygame_state : public driver_device
 public:
 	galaxygame_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_palette(*this, "palette")  { }
 
 	UINT16 m_clk;
 
@@ -47,11 +48,11 @@ public:
 	DECLARE_WRITE16_MEMBER(clk_w);
 	DECLARE_DRIVER_INIT(galaxygame);
 	virtual void machine_reset();
-	virtual void palette_init();
 	UINT32 screen_update_galaxygame(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(galaxygame_irq);
 	IRQ_CALLBACK_MEMBER(galaxygame_irq_callback);
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
 };
 
 /*************************************
@@ -173,7 +174,7 @@ WRITE16_MEMBER(galaxygame_state::ke_w)
 
 UINT32 galaxygame_state::screen_update_galaxygame(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 	for (int i = 0; i < m_point_display_list_index; i++ )
 	{
 		bitmap.pix16(m_point_display_list[i].x >> 7, m_point_display_list[i].y >> 7) = 1;
@@ -291,12 +292,6 @@ static ADDRESS_MAP_START( galaxygame_map, AS_PROGRAM, 16, galaxygame_state )
 ADDRESS_MAP_END
 
 
-void galaxygame_state::palette_init()
-{
-	palette_set_color(machine(),0,RGB_BLACK); /* black */
-	palette_set_color(machine(),1,RGB_WHITE); /* white */
-}
-
 IRQ_CALLBACK_MEMBER(galaxygame_state::galaxygame_irq_callback)
 {
 	device.execute().set_input_line(0, CLEAR_LINE);
@@ -318,21 +313,15 @@ void galaxygame_state::machine_reset()
 	m_point_work_list_index = 0;
 	m_point_display_list_index = 0;
 	m_interrupt = 0;
-
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(galaxygame_state::galaxygame_irq_callback),this));
 }
-
-static const struct t11_setup t11_data =
-{
-	5 << 13
-};
 
 static MACHINE_CONFIG_START( galaxygame, galaxygame_state )
 
 	MCFG_CPU_ADD("maincpu", T11, 3000000 )
 	MCFG_CPU_PROGRAM_MAP(galaxygame_map)
-	MCFG_CPU_CONFIG(t11_data)
+	MCFG_T11_INITIAL_MODE(5 << 13)
 	MCFG_CPU_PERIODIC_INT_DRIVER(galaxygame_state, galaxygame_irq, 60)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(galaxygame_state,galaxygame_irq_callback)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -341,8 +330,9 @@ static MACHINE_CONFIG_START( galaxygame, galaxygame_state )
 	MCFG_SCREEN_SIZE(512, 512)
 	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 511)
 	MCFG_SCREEN_UPDATE_DRIVER(galaxygame_state, screen_update_galaxygame)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 MACHINE_CONFIG_END
 

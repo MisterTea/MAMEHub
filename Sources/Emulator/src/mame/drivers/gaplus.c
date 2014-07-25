@@ -208,21 +208,6 @@ WRITE8_MEMBER(gaplus_state::gaplus_freset_w)
 	m_namco56xx->set_reset_line(bit ? CLEAR_LINE : ASSERT_LINE);
 }
 
-static const namco_62xx_interface namco_62xx_intf =
-{
-	{   /* port read handlers */
-		//DEVCB_INPUT_PORT("IN0L"),
-		//DEVCB_INPUT_PORT("IN0H"),
-		//DEVCB_INPUT_PORT("IN1L"),
-		//DEVCB_INPUT_PORT("IN1H")
-	},
-	{   /* port write handlers */
-		//DEVCB_HANDLER(out_0),
-		//DEVCB_HANDLER(out_1)
-	}
-};
-
-
 void gaplus_state::machine_reset()
 {
 	/* on reset, VINTON is reset, while the other flags don't seem to be affected */
@@ -482,12 +467,6 @@ static GFXDECODE_START( gaplus )
 	GFXDECODE_ENTRY( "gfx2", 0x0000, spritelayout, 64*4, 64 )
 GFXDECODE_END
 
-static const namco_interface namco_config =
-{
-	8,              /* number of voices */
-	0               /* stereo */
-};
-
 static const char *const gaplus_sample_names[] =
 {
 	"*gaplus",
@@ -521,30 +500,6 @@ WRITE8_MEMBER(gaplus_state::out_lamps1)
 {
 	coin_counter_w(machine(), 1, ~data & 1);
 }
-
-/* chip #0: player inputs, buttons, coins */
-static const namcoio_interface intf0 =
-{
-	{ DEVCB_INPUT_PORT("COINS"), DEVCB_INPUT_PORT("P1"), DEVCB_INPUT_PORT("P2"), DEVCB_INPUT_PORT("BUTTONS") }, /* port read handlers */
-	{ DEVCB_NULL, DEVCB_NULL },     /* port write handlers */
-};
-
-static const namcoio_interface intf0_lamps =
-{
-	{ DEVCB_INPUT_PORT("COINS"), DEVCB_INPUT_PORT("P1"), DEVCB_INPUT_PORT("P2"), DEVCB_INPUT_PORT("BUTTONS") }, /* port read handlers */
-	{ DEVCB_DRIVER_MEMBER(gaplus_state,out_lamps0), DEVCB_DRIVER_MEMBER(gaplus_state,out_lamps1) },     /* port write handlers */
-};
-
-/* chip #1: dip switches */
-static const namcoio_interface intf1 =
-{
-	{ DEVCB_INPUT_PORT("DSWA_HIGH"), DEVCB_INPUT_PORT("DSWB_LOW"), DEVCB_INPUT_PORT("DSWB_HIGH"), DEVCB_INPUT_PORT("DSWA_LOW") },   /* port read handlers */
-	{ DEVCB_NULL, DEVCB_NULL },     /* port write handlers */
-};
-
-/* TODO: chip #2: test/cocktail, optional buttons */
-
-
 
 MACHINE_START_MEMBER(gaplus_state,gaplus)
 {
@@ -581,10 +536,27 @@ static MACHINE_CONFIG_START( gaplus, gaplus_state )
 	MCFG_MACHINE_START_OVERRIDE(gaplus_state, gaplus)
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))  /* a high value to ensure proper synchronization of the CPUs */
 
-	MCFG_NAMCO56XX_ADD("namcoio_1", intf0_lamps)
-	MCFG_NAMCO58XX_ADD("namcoio_2", intf1)
+	MCFG_DEVICE_ADD("namcoio_1", NAMCO56XX, 0)
+	MCFG_NAMCO56XX_IN_0_CB(IOPORT("COINS"))
+	MCFG_NAMCO56XX_IN_1_CB(IOPORT("P1"))
+	MCFG_NAMCO56XX_IN_2_CB(IOPORT("P2"))
+	MCFG_NAMCO56XX_IN_3_CB(IOPORT("BUTTONS"))
+	MCFG_NAMCO56XX_OUT_0_CB(WRITE8(gaplus_state, out_lamps0))
+	MCFG_NAMCO56XX_OUT_1_CB(WRITE8(gaplus_state, out_lamps1))
 
-	MCFG_NAMCO_62XX_ADD("62xx", 24576000/6/2, namco_62xx_intf)  /* totally made up - TODO: fix */
+	MCFG_DEVICE_ADD("namcoio_2", NAMCO58XX, 0)
+	MCFG_NAMCO58XX_IN_0_CB(IOPORT("DSWA_HIGH"))
+	MCFG_NAMCO58XX_IN_1_CB(IOPORT("DSWB_LOW"))
+	MCFG_NAMCO58XX_IN_2_CB(IOPORT("DSWB_HIGH"))
+	MCFG_NAMCO58XX_IN_3_CB(IOPORT("DSWA_LOW"))
+
+	MCFG_NAMCO_62XX_ADD("62xx", 24576000/6/2)  /* totally made up - TODO: fix */
+	//MCFG_NAMCO_62XX_INPUT_0_CB(IOPORT("IN0L"))
+	//MCFG_NAMCO_62XX_INPUT_1_CB(IOPORT("IN0H"))
+	//MCFG_NAMCO_62XX_INPUT_2_CB(IOPORT("IN1L"))
+	//MCFG_NAMCO_62XX_INPUT_3_CB(IOPORT("IN1H"))
+	//MCFG_NAMCO_62XX_OUTPUT_0_CB(WRITE8(gaplus_state,out_0))
+	//MCFG_NAMCO_62XX_OUTPUT_1_CB(WRITE8(gaplus_state,out_1))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -594,15 +566,18 @@ static MACHINE_CONFIG_START( gaplus, gaplus_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(gaplus_state, screen_update_gaplus)
 	MCFG_SCREEN_VBLANK_DRIVER(gaplus_state, screen_eof_gaplus)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(gaplus)
-	MCFG_PALETTE_LENGTH(64*4+64*8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", gaplus)
+	MCFG_PALETTE_ADD("palette", 64*4+64*8)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(gaplus_state, gaplus)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("namco", NAMCO_15XX, 24576000/1024)
-	MCFG_SOUND_CONFIG(namco_config)
+	MCFG_NAMCO_AUDIO_VOICES(8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SAMPLES_ADD("samples", gaplus_samples_interface)
@@ -611,10 +586,17 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( gaplusd, gaplus )
 
-	MCFG_DEVICE_REMOVE("namcoio_1")
-	MCFG_DEVICE_REMOVE("namcoio_2")
-	MCFG_NAMCO58XX_ADD("namcoio_1", intf0)
-	MCFG_NAMCO56XX_ADD("namcoio_2", intf1)
+	MCFG_DEVICE_REPLACE("namcoio_1", NAMCO58XX, 0)
+	MCFG_NAMCO58XX_IN_0_CB(IOPORT("COINS"))
+	MCFG_NAMCO58XX_IN_1_CB(IOPORT("P1"))
+	MCFG_NAMCO58XX_IN_2_CB(IOPORT("P2"))
+	MCFG_NAMCO58XX_IN_3_CB(IOPORT("BUTTONS"))
+
+	MCFG_DEVICE_REPLACE("namcoio_2", NAMCO56XX, 0)
+	MCFG_NAMCO56XX_IN_0_CB(IOPORT("DSWA_HIGH"))
+	MCFG_NAMCO56XX_IN_1_CB(IOPORT("DSWB_LOW"))
+	MCFG_NAMCO56XX_IN_2_CB(IOPORT("DSWB_HIGH"))
+	MCFG_NAMCO56XX_IN_3_CB(IOPORT("DSWA_LOW"))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( gapluso, gaplusd )
@@ -623,10 +605,17 @@ static MACHINE_CONFIG_DERIVED( gapluso, gaplusd )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", gaplus_state,  gapluso_vblank_main_irq)
 
-	MCFG_DEVICE_REMOVE("namcoio_1")
-	MCFG_DEVICE_REMOVE("namcoio_2")
-	MCFG_NAMCO56XX_ADD("namcoio_1", intf0)
-	MCFG_NAMCO58XX_ADD("namcoio_2", intf1)
+	MCFG_DEVICE_REPLACE("namcoio_1", NAMCO56XX, 0)
+	MCFG_NAMCO56XX_IN_0_CB(IOPORT("COINS"))
+	MCFG_NAMCO56XX_IN_1_CB(IOPORT("P1"))
+	MCFG_NAMCO56XX_IN_2_CB(IOPORT("P2"))
+	MCFG_NAMCO56XX_IN_3_CB(IOPORT("BUTTONS"))
+
+	MCFG_DEVICE_REPLACE("namcoio_2", NAMCO58XX, 0)
+	MCFG_NAMCO58XX_IN_0_CB(IOPORT("DSWA_HIGH"))
+	MCFG_NAMCO58XX_IN_1_CB(IOPORT("DSWB_LOW"))
+	MCFG_NAMCO58XX_IN_2_CB(IOPORT("DSWB_HIGH"))
+	MCFG_NAMCO58XX_IN_3_CB(IOPORT("DSWA_LOW"))
 MACHINE_CONFIG_END
 
 

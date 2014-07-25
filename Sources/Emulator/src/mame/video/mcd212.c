@@ -28,7 +28,7 @@ TODO:
 const device_type MACHINE_MCD212 = &device_creator<mcd212_device>;
 
 #if ENABLE_VERBOSE_LOG
-INLINE void verboselog(running_machine &machine, int n_level, const char *s_fmt, ...)
+INLINE void ATTR_PRINTF(3,4) verboselog(running_machine &machine, int n_level, const char *s_fmt, ...)
 {
 	if( VERBOSE_LEVEL >= n_level )
 	{
@@ -41,7 +41,7 @@ INLINE void verboselog(running_machine &machine, int n_level, const char *s_fmt,
 	}
 }
 #else
-#define verboselog(x,y,z,...)
+#define verboselog(x,y,z, ...)
 #endif
 
 static const UINT16 cdi220_lcd_char[20*22] =
@@ -1509,7 +1509,7 @@ void mcd212_device::device_reset()
 //-------------------------------------------------
 
 mcd212_device::mcd212_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, MACHINE_MCD212, "MCD212", tag, owner, clock, "mcd212", __FILE__),
+	: device_t(mconfig, MACHINE_MCD212, "MCD212 Video", tag, owner, clock, "mcd212", __FILE__),
 		device_video_interface(mconfig, *this)
 {
 }

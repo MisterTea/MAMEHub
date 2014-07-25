@@ -49,7 +49,7 @@
 
     1  -  -  0  0                    Vec RAM (4k)
     1  -  -  0  1
-    1  -  -  1  0            Vec ROM (2k) E1
+    1  -  -  1  0                    Vec ROM (2k) E1
     1  -  -  1  1                    Vec ROM (2k) F1
 
     I/O Ports
@@ -61,7 +61,7 @@
 
     10 I    DIP SW C4 (game ship settings)
 
-        6 5  4 3  2 1
+            6 5  4 3  2 1
                           1st bonus ship at
             | |  | |  0 0  40,000
             | |  | |  0 1  50,000
@@ -79,22 +79,22 @@
             1 1           1 credit = 3 ships / 2 credits = 7 ships
 
     11 I    7 = Test
-        6 = P1 Fire
-        5 = P1 Thrust
-        4 = Tilt
+            6 = P1 Fire
+            5 = P1 Thrust
+            4 = Tilt
 
-        1 = Coin 2
-        0 = Coin 1
+            1 = Coin 2
+            0 = Coin 1
 
     12 I    7 = 1P1CR
-        6 = 1P2CR
+            6 = 1P2CR
 
-        3 = 2P2CR -+
-        2 = 2P1CR  |
-        1 = P2Fire |
-        0 = P2Thr -+ cocktail only
+            3 = 2P2CR -+
+            2 = 2P1CR  |
+            1 = P2Fire |
+            0 = P2Thr -+ cocktail only
 
-    13 O   7 =
+    13 O    7 =
             6 = screen reverse
             5 = 2 player 2 credit start LED
             4 = 2 player 1 credit start LED
@@ -107,24 +107,24 @@
 
     15 I    encoder 1 (d7-d2)
 
-        The encoder is a 64 position Grey Code encoder, or a
-        pot and A to D converter.
+            The encoder is a 64 position Grey Code encoder, or a
+            pot and A to D converter.
 
-        Unlike the quadrature inputs on Atari and Sega games,
+            Unlike the quadrature inputs on Atari and Sega games,
             Omega Race's controller is an absolute angle.
 
-        0x00, 0x04, 0x14, 0x10, 0x18, 0x1c, 0x5c, 0x58,
-        0x50, 0x54, 0x44, 0x40, 0x48, 0x4c, 0x6c, 0x68,
-        0x60, 0x64, 0x74, 0x70, 0x78, 0x7c, 0xfc, 0xf8,
-        0xf0, 0xf4, 0xe4, 0xe0, 0xe8, 0xec, 0xcc, 0xc8,
-        0xc0, 0xc4, 0xd4, 0xd0, 0xd8, 0xdc, 0x9c, 0x98,
-        0x90, 0x94, 0x84, 0x80, 0x88, 0x8c, 0xac, 0xa8,
-        0xa0, 0xa4, 0xb4, 0xb0, 0xb8, 0xbc, 0x3c, 0x38,
-        0x30, 0x34, 0x24, 0x20, 0x28, 0x2c, 0x0c, 0x08
+            0x00, 0x04, 0x14, 0x10, 0x18, 0x1c, 0x5c, 0x58,
+            0x50, 0x54, 0x44, 0x40, 0x48, 0x4c, 0x6c, 0x68,
+            0x60, 0x64, 0x74, 0x70, 0x78, 0x7c, 0xfc, 0xf8,
+            0xf0, 0xf4, 0xe4, 0xe0, 0xe8, 0xec, 0xcc, 0xc8,
+            0xc0, 0xc4, 0xd4, 0xd0, 0xd8, 0xdc, 0x9c, 0x98,
+            0x90, 0x94, 0x84, 0x80, 0x88, 0x8c, 0xac, 0xa8,
+            0xa0, 0xa4, 0xb4, 0xb0, 0xb8, 0xbc, 0x3c, 0x38,
+            0x30, 0x34, 0x24, 0x20, 0x28, 0x2c, 0x0c, 0x08
 
     16 I    encoder 2 (d5-d0)
 
-        The inputs aren't scrambled as they are on the 1 player
+            The inputs aren't scrambled as they are on the 1 player
             encoder
 
     17 I    DIP SW C6 (coin/cocktail settings)
@@ -199,8 +199,8 @@
 
     I/O (write-only)
 
-    0,1             8912 (K3)
-    2,3         8912 (J3)
+    0,1                     8912 (K3)
+    2,3                     8912 (J3)
 
 
     I/O (read-only)
@@ -219,8 +219,6 @@
 #include "video/avgdvg.h"
 #include "sound/ay8910.h"
 #include "machine/nvram.h"
-#include "drivlgcy.h"
-#include "scrlegcy.h"
 
 #include "omegrace.lh"
 
@@ -231,7 +229,12 @@ public:
 	omegrace_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu") { }
+		m_audiocpu(*this, "audiocpu"),
+		m_dvg(*this, "dvg") { }
+
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<dvg_device> m_dvg;
 
 	DECLARE_READ8_MEMBER(omegrace_vg_go_r);
 	DECLARE_READ8_MEMBER(omegrace_spinner1_r);
@@ -239,8 +242,6 @@ public:
 	DECLARE_WRITE8_MEMBER(omegrace_soundlatch_w);
 	DECLARE_DRIVER_INIT(omegrace);
 	virtual void machine_reset();
-	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_audiocpu;
 };
 
 
@@ -254,7 +255,7 @@ void omegrace_state::machine_reset()
 {
 	address_space &space = m_maincpu->space(AS_PROGRAM);
 	/* Omega Race expects the vector processor to be ready. */
-	avgdvg_reset_w(space, 0, 0);
+m_dvg->reset_w(space, 0, 0);
 }
 
 
@@ -267,7 +268,7 @@ void omegrace_state::machine_reset()
 
 READ8_MEMBER(omegrace_state::omegrace_vg_go_r)
 {
-	avgdvg_go_w(space,0,0);
+	m_dvg->go_w(space, 0, 0);
 	return 0;
 }
 
@@ -359,7 +360,7 @@ static ADDRESS_MAP_START( port_map, AS_IO, 8, omegrace_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x08, 0x08) AM_READ(omegrace_vg_go_r)
 	AM_RANGE(0x09, 0x09) AM_READ(watchdog_reset_r)
-	AM_RANGE(0x0a, 0x0a) AM_WRITE_LEGACY(avgdvg_reset_w)
+	AM_RANGE(0x0a, 0x0a) AM_DEVWRITE("dvg", dvg_device, reset_w)
 	AM_RANGE(0x0b, 0x0b) AM_READ_PORT("AVGDVG")             /* vg_halt */
 	AM_RANGE(0x10, 0x10) AM_READ_PORT("DSW1")               /* DIP SW C4 */
 	AM_RANGE(0x17, 0x17) AM_READ_PORT("DSW2")               /* DIP SW C6 */
@@ -379,16 +380,16 @@ ADDRESS_MAP_END
  *************************************/
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, omegrace_state )
-	AM_RANGE(0x0000, 0x07ff) AM_ROM
+	AM_RANGE(0x0000, 0x07ff) AM_ROM AM_MIRROR(0x800)
 	AM_RANGE(0x1000, 0x13ff) AM_RAM
 ADDRESS_MAP_END
 
 
 static ADDRESS_MAP_START( sound_port, AS_IO, 8, omegrace_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_READ(soundlatch_byte_r) /* likely ay8910 input port, not direct */
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x00, 0x00) AM_READ(soundlatch_byte_r) // the game reads from ay1 port b, but ay8912 only has port a
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8912_device, address_data_w)
+	AM_RANGE(0x02, 0x03) AM_DEVWRITE("ay2", ay8912_device, address_data_w)
 ADDRESS_MAP_END
 
 
@@ -476,7 +477,7 @@ static INPUT_PORTS_START( omegrace )
 	PORT_BIT( 0x3f, 0x00, IPT_DIAL ) PORT_SENSITIVITY(12) PORT_KEYDELTA(10) PORT_COCKTAIL
 
 	PORT_START("AVGDVG")    /* port 0x0b */
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_CUSTOM(avgdvg_done_r, NULL)
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_CUSTOM_MEMBER("dvg", dvg_device, done_r, NULL)
 INPUT_PORTS_END
 
 
@@ -494,7 +495,7 @@ static MACHINE_CONFIG_START( omegrace, omegrace_state )
 	/* main CPU */
 	/* XTAL101 Crystal @ 12mhz */
 	/* through 74LS161, Pin 13 = divide by 4 */
-	MCFG_CPU_ADD("maincpu", Z80,12000000/4)
+	MCFG_CPU_ADD("maincpu", Z80, XTAL_12MHz/4)
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_CPU_IO_MAP(port_map)
 	MCFG_CPU_PERIODIC_INT_DRIVER(omegrace_state, irq0_line_hold, 250)
@@ -503,7 +504,7 @@ static MACHINE_CONFIG_START( omegrace, omegrace_state )
 	/* XTAL101 Crystal @ 12mhz */
 	/* through 74LS161, Pin 12 = divide by 8 */
 	/* Fed to CPU as 1.5mhz though line J4-D */
-	MCFG_CPU_ADD("audiocpu", Z80,12000000/8)
+	MCFG_CPU_ADD("audiocpu", Z80, XTAL_12MHz/8)
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 	MCFG_CPU_IO_MAP(sound_port)
 	MCFG_CPU_PERIODIC_INT_DRIVER(omegrace_state, nmi_line_pulse, 250)
@@ -511,23 +512,25 @@ static MACHINE_CONFIG_START( omegrace, omegrace_state )
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	/* video hardware */
+	MCFG_VECTOR_ADD("vector")
 	MCFG_SCREEN_ADD("screen", VECTOR)
 	MCFG_SCREEN_REFRESH_RATE(40)
 	MCFG_SCREEN_SIZE(400, 300)
 	MCFG_SCREEN_VISIBLE_AREA(522, 1566, 522, 1566)
-	MCFG_SCREEN_UPDATE_STATIC(vector)
+	MCFG_SCREEN_UPDATE_DEVICE("vector", vector_device, screen_update)
 
-	MCFG_VIDEO_START(dvg)
+	MCFG_DEVICE_ADD("dvg", DVG, 0)
+	MCFG_AVGDVG_VECTOR("vector")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	/* XTAL101 Crystal @ 12mhz */
 	/* through 74LS92, Pin 8 = divide by 12 */
-	MCFG_SOUND_ADD("ay1", AY8912, 12000000/12)
+	MCFG_SOUND_ADD("ay1", AY8912, XTAL_12MHz/12)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_SOUND_ADD("ay2", AY8912, 12000000/12)
+	MCFG_SOUND_ADD("ay2", AY8912, XTAL_12MHz/12)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 

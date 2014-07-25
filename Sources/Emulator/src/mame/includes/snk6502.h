@@ -20,7 +20,9 @@ public:
 		m_colorram(*this, "colorram"),
 		m_charram(*this, "charram"),
 		m_maincpu(*this, "maincpu"),
-		m_sound(*this, "snk6502") { }
+		m_sound(*this, "snk6502"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	UINT8 m_sasuke_counter;
 
@@ -31,13 +33,15 @@ public:
 
 	required_device<cpu_device> m_maincpu;
 	required_device<snk6502_sound_device> m_sound;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	int m_charbank;
 	int m_backcolor;
 	tilemap_t *m_bg_tilemap;
 	tilemap_t *m_fg_tilemap;
 
-	rgb_t m_palette[64];
+	rgb_t m_palette_val[64];
 
 	UINT8 m_irq_mask;
 	DECLARE_WRITE8_MEMBER(snk6502_videoram_w);

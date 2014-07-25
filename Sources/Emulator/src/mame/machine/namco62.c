@@ -10,16 +10,10 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "namco62.h"
-#include "cpu/mb88xx/mb88xx.h"
-
+#include "machine/namco62.h"
 
 #define VERBOSE 0
 #define LOG(x) do { if (VERBOSE) logerror x; } while (0)
-
-
-
-
 
 
 /***************************************************************************
@@ -49,7 +43,14 @@ ROM_END
 const device_type NAMCO_62XX = &device_creator<namco_62xx_device>;
 
 namco_62xx_device::namco_62xx_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, NAMCO_62XX, "Namco 62xx", tag, owner, clock, "namco62", __FILE__)
+	: device_t(mconfig, NAMCO_62XX, "Namco 62xx", tag, owner, clock, "namco62", __FILE__),
+	m_cpu(*this, "mcu"),
+	m_in_0(*this),
+	m_in_1(*this),
+	m_in_2(*this),
+	m_in_3(*this),
+	m_out_0(*this),
+	m_out_1(*this)
 {
 }
 
@@ -59,21 +60,15 @@ namco_62xx_device::namco_62xx_device(const machine_config &mconfig, const char *
 
 void namco_62xx_device::device_start()
 {
-	astring tempstring;
-
-	/* find our CPU */
-	m_cpu = subdevice("mcu");
-	assert(m_cpu != NULL);
-
 	/* resolve our read callbacks */
-	m_in_func[0].resolve(m_in[0], *this);
-	m_in_func[1].resolve(m_in[1], *this);
-	m_in_func[2].resolve(m_in[2], *this);
-	m_in_func[3].resolve(m_in[3], *this);
+	m_in_0.resolve_safe(0);
+	m_in_1.resolve_safe(0);
+	m_in_2.resolve_safe(0);
+	m_in_3.resolve_safe(0);
 
 	/* resolve our write callbacks */
-	m_out_func[0].resolve(m_out[0], *this);
-	m_out_func[1].resolve(m_out[1], *this);
+	m_out_0.resolve_safe();
+	m_out_1.resolve_safe();
 }
 
 //-------------------------------------------------

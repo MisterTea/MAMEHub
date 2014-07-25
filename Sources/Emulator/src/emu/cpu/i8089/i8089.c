@@ -2,6 +2,9 @@
 
     Intel 8089 I/O Processor
 
+    license: MAME, GPL-2.0+
+    copyright-holders: Dirk Best
+
 ***************************************************************************/
 
 #include "i8089.h"
@@ -97,6 +100,7 @@ void i8089_device::device_start()
 	save_item(NAME(m_master));
 	save_item(NAME(m_ca));
 	save_item(NAME(m_sel));
+	save_item(NAME(m_last_chan));
 
 	// assign memory spaces
 	m_mem = &space(AS_PROGRAM);
@@ -122,6 +126,7 @@ void i8089_device::device_config_complete()
 void i8089_device::device_reset()
 {
 	m_initialized = false;
+	m_last_chan = 0;
 }
 
 //-------------------------------------------------
@@ -238,17 +243,17 @@ void i8089_device::initialize()
 	m_sysbus = m_mem->read_byte(0xffff6);
 
 	// get system configuration block address
-	UINT16 scb_offset = read_word(0xffff8);
-	UINT16 scb_segment = read_word(0xffffa);
+	UINT16 scb_offset = read_word(0, 0xffff8);
+	UINT16 scb_segment = read_word(0, 0xffffa);
 	m_scb = ((scb_segment << 4) + scb_offset) & 0x0fffff;
 
 	// get system operation command
-	m_soc = read_byte(m_scb);
+	m_soc = read_byte(0, m_scb);
 	m_master = !m_sel;
 
 	// get control block address
-	UINT16 cb_offset = read_word(m_scb + 2);
-	UINT16 cb_segment = read_word(m_scb + 4);
+	UINT16 cb_offset = read_word(0, m_scb + 2);
+	UINT16 cb_segment = read_word(0, m_scb + 4);
 	offs_t cb_address = ((cb_segment << 4) + cb_offset) & 0x0fffff;
 
 	// initialize channels
@@ -256,8 +261,8 @@ void i8089_device::initialize()
 	m_ch2->set_reg(i8089_channel::CP, cb_address + 8);
 
 	// clear busy
-	UINT16 ccw = read_word(cb_address);
-	write_word(cb_address, ccw & 0x00ff);
+	UINT16 ccw = read_word(0, cb_address);
+	write_word(0, cb_address, ccw & 0x00ff);
 
 	// done
 	m_initialized = true;
@@ -275,49 +280,46 @@ void i8089_device::initialize()
 	}
 }
 
-UINT8 i8089_device::read_byte(offs_t address)
+UINT8 i8089_device::read_byte(bool space, offs_t address)
 {
-	assert(m_initialized);
-	return m_mem->read_byte(address);
+	return (space ? m_io : m_mem)->read_byte(address);
 }
 
-UINT16 i8089_device::read_word(offs_t address)
+UINT16 i8089_device::read_word(bool space, offs_t address)
 {
-	assert(m_initialized);
-
 	UINT16 data = 0xffff;
+	address_space *aspace = (space ? m_io : m_mem);
 
 	if (sysbus_width() && !(address & 1))
 	{
-		data = m_mem->read_word(address);
+		data = aspace->read_word(address);
 	}
 	else
 	{
-		data  = m_mem->read_byte(address);
-		data |= m_mem->read_byte(address + 1) << 8;
+		data  = aspace->read_byte(address);
+		data |= aspace->read_byte(address + 1) << 8;
 	}
 
 	return data;
 }
 
-void i8089_device::write_byte(offs_t address, UINT8 data)
+void i8089_device::write_byte(bool space, offs_t address, UINT8 data)
 {
-	assert(m_initialized);
-	m_mem->write_byte(address, data);
+	(space ? m_io : m_mem)->write_byte(address, data);
 }
 
-void i8089_device::write_word(offs_t address, UINT16 data)
+void i8089_device::write_word(bool space, offs_t address, UINT16 data)
 {
-	assert(m_initialized);
+	address_space *aspace = (space ? m_io : m_mem);
 
 	if (sysbus_width() && !(address & 1))
 	{
-		m_mem->write_word(address, data);
+		aspace->write_word(address, data);
 	}
 	else
 	{
-		m_mem->write_byte(address, data & 0xff);
-		m_mem->write_byte(address + 1, (data >> 8) & 0xff);
+		aspace->write_byte(address, data & 0xff);
+		aspace->write_byte(address + 1, (data >> 8) & 0xff);
 	}
 }
 
@@ -325,9 +327,24 @@ void i8089_device::execute_run()
 {
 	do
 	{
-		// allocate cycles to the two channels, very very incomplete
-		m_icount -= m_ch1->execute_run();
-		m_icount -= m_ch2->execute_run();
+		bool next_chan;
+
+		if(m_ch1->chan_prio() < m_ch2->chan_prio())
+			next_chan = 0;
+		else if(m_ch1->chan_prio() > m_ch2->chan_prio())
+			next_chan = 1;
+		else if(m_ch1->priority() && !m_ch2->priority())
+			next_chan = 0;
+		else if(!m_ch1->priority() && m_ch2->priority())
+			next_chan = 1;
+		else
+			next_chan = !m_last_chan;
+
+		m_last_chan = next_chan;
+		if(!next_chan)
+			m_icount -= m_ch1->execute_run();
+		else
+			m_icount -= m_ch2->execute_run();
 	}
 	while (m_icount > 0);
 }
@@ -349,9 +366,9 @@ WRITE_LINE_MEMBER( i8089_device::ca_w )
 		else
 		{
 			if (m_sel == 0)
-				m_ch1->attention();
+				m_ch1->ca();
 			else
-				m_ch2->attention();
+				m_ch2->ca();
 		}
 	}
 

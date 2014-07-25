@@ -198,36 +198,36 @@ WRITE8_MEMBER(sprint4_state::sprint4_lockout_w)
 
 WRITE8_MEMBER(sprint4_state::sprint4_screech_1_w)
 {
-	discrete_sound_w(m_discrete, space, SPRINT4_SCREECH_EN_1, offset & 1);
+	m_discrete->write(space, SPRINT4_SCREECH_EN_1, offset & 1);
 }
 
 
 WRITE8_MEMBER(sprint4_state::sprint4_screech_2_w)
 {
-	discrete_sound_w(m_discrete, space, SPRINT4_SCREECH_EN_2, offset & 1);
+	m_discrete->write(space, SPRINT4_SCREECH_EN_2, offset & 1);
 }
 
 
 WRITE8_MEMBER(sprint4_state::sprint4_screech_3_w)
 {
-	discrete_sound_w(m_discrete, space, SPRINT4_SCREECH_EN_3, offset & 1);
+	m_discrete->write(space, SPRINT4_SCREECH_EN_3, offset & 1);
 }
 
 
 WRITE8_MEMBER(sprint4_state::sprint4_screech_4_w)
 {
-	discrete_sound_w(m_discrete, space, SPRINT4_SCREECH_EN_4, offset & 1);
+	m_discrete->write(space, SPRINT4_SCREECH_EN_4, offset & 1);
 }
 
 WRITE8_MEMBER(sprint4_state::sprint4_bang_w)
 {
-	discrete_sound_w(m_discrete, space, SPRINT4_BANG_DATA, data & 0x0f);
+	m_discrete->write(space, SPRINT4_BANG_DATA, data & 0x0f);
 }
 
 
 WRITE8_MEMBER(sprint4_state::sprint4_attract_w)
 {
-	discrete_sound_w(m_discrete, space, SPRINT4_ATTRACT_EN, data & 1);
+	m_discrete->write(space, SPRINT4_ATTRACT_EN, data & 1);
 }
 
 
@@ -409,10 +409,12 @@ static MACHINE_CONFIG_START( sprint4, sprint4_state )
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, 0, 256, VTOTAL, 0, 224)
 	MCFG_SCREEN_UPDATE_DRIVER(sprint4_state, screen_update_sprint4)
 	MCFG_SCREEN_VBLANK_DRIVER(sprint4_state, screen_eof_sprint4)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sprint4)
-	MCFG_PALETTE_LENGTH(10)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sprint4)
+	MCFG_PALETTE_ADD("palette", 10)
+	MCFG_PALETTE_INDIRECT_ENTRIES(6)
+	MCFG_PALETTE_INIT_OWNER(sprint4_state, sprint4)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

@@ -17,7 +17,7 @@
 #define SEGA315_5124_WIDTH                      342     /* 342 pixels */
 #define SEGA315_5124_HEIGHT_NTSC                262     /* 262 lines */
 #define SEGA315_5124_HEIGHT_PAL                 313     /* 313 lines */
-#define SEGA315_5124_LBORDER_START              (1 + 2 + 14 + 8)
+#define SEGA315_5124_LBORDER_START              (9 + 2 + 14 + 8)
 #define SEGA315_5124_LBORDER_WIDTH              13      /* 13 pixels */
 #define SEGA315_5124_RBORDER_WIDTH              15      /* 15 pixels */
 #define SEGA315_5124_TBORDER_START              (3 + 13)
@@ -47,21 +47,12 @@
     TYPE DEFINITIONS
 ***************************************************************************/
 
-struct sega315_5124_interface
-{
-	bool               m_is_pal;             /* false = NTSC, true = PAL */
-	devcb_write_line   m_int_callback;       /* Interrupt callback function */
-	devcb_write_line   m_pause_callback;     /* Pause callback function */
-};
-
-
 extern const device_type SEGA315_5124;      /* aka SMS1 vdp */
 extern const device_type SEGA315_5246;      /* aka SMS2 vdp */
 extern const device_type SEGA315_5378;      /* aka Gamegear vdp */
 
 
 class sega315_5124_device : public device_t,
-							public sega315_5124_interface,
 							public device_memory_interface,
 							public device_video_interface
 {
@@ -69,6 +60,10 @@ public:
 	// construction/destruction
 	sega315_5124_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	sega315_5124_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT8 cram_size, UINT8 palette_offset, bool supports_224_240, const char *shortname, const char *source);
+
+	static void set_signal_type(device_t &device, bool is_pal) { downcast<sega315_5124_device &>(device).m_is_pal = is_pal; }
+	template<class _Object> static devcb_base &set_int_callback(device_t &device, _Object object) { return downcast<sega315_5124_device &>(device).m_int_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_pause_callback(device_t &device, _Object object) { return downcast<sega315_5124_device &>(device).m_pause_cb.set_callback(object); }
 
 	DECLARE_READ8_MEMBER( vram_read );
 	DECLARE_WRITE8_MEMBER( vram_write );
@@ -81,6 +76,7 @@ public:
 
 	void hcount_latch() { hcount_latch_at_hpos( m_screen->hpos() ); };
 	void hcount_latch_at_hpos( int hpos );
+	void stop_timers();
 
 	bitmap_rgb32 &get_bitmap() { return m_tmpbitmap; };
 	bitmap_ind8 &get_y1_bitmap() { return m_y1_bitmap; };
@@ -93,6 +89,7 @@ public:
 protected:
 	void set_display_settings();
 	virtual void update_palette();
+	virtual void cram_write(UINT8 data);
 	virtual void draw_scanline( int pixel_offset_x, int pixel_plot_y, int line );
 	virtual UINT16 get_name_table_address();
 	void process_line_timer();
@@ -102,10 +99,9 @@ protected:
 	void draw_scanline_mode2( int *line_buffer, int line );
 	void draw_scanline_mode0( int *line_buffer, int line );
 	void select_sprites( int line );
-	void check_pending_flags( int hpos );
+	void check_pending_flags();
 
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
 	virtual void device_reset();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -118,7 +114,8 @@ protected:
 	UINT8            m_reg[16];                  /* All the registers */
 	UINT8            m_status;                   /* Status register */
 	UINT8            m_pending_status;           /* Pending status flags */
-	UINT8            m_reg9copy;                 /* Internal copy of register 9 */
+	UINT8            m_reg8copy;                 /* Internal copy of register 8 (X-Scroll) */
+	UINT8            m_reg9copy;                 /* Internal copy of register 9 (Y-Scroll) */
 	UINT8            m_addrmode;                 /* Type of VDP action */
 	UINT16           m_addr;                     /* Contents of internal VDP address register */
 	UINT8            m_cram_size;                /* CRAM size */
@@ -141,6 +138,7 @@ protected:
 	UINT8            m_collision_buffer[SEGA315_5124_WIDTH];
 	UINT8            m_palette_offset;
 	bool             m_supports_224_240;
+	bool             m_display_disabled;
 	UINT16           m_sprite_base;
 	int              m_selected_sprite[8];
 	int              m_sprite_count;
@@ -152,20 +150,29 @@ protected:
 	   sms compatibility mode. */
 	int              *m_line_buffer;
 	int              m_current_palette[32];
-	devcb_resolved_write_line   m_cb_int;
-	devcb_resolved_write_line   m_cb_pause;
+	bool               m_is_pal;             /* false = NTSC, true = PAL */
+	devcb_write_line  m_int_cb;       /* Interrupt callback function */
+	devcb_write_line  m_pause_cb;     /* Pause callback function */
 	emu_timer        *m_display_timer;
-	emu_timer        *m_check_hint_timer;
-	emu_timer        *m_check_vint_timer;
+	emu_timer        *m_hint_timer;
+	emu_timer        *m_vint_timer;
+	emu_timer        *m_nmi_timer;
 	emu_timer        *m_draw_timer;
+	emu_timer        *m_lborder_timer;
+	emu_timer        *m_rborder_timer;
 
 	const address_space_config  m_space_config;
 
 	/* Timers */
 	static const device_timer_id TIMER_LINE = 0;
 	static const device_timer_id TIMER_DRAW = 1;
-	static const device_timer_id TIMER_CHECK_HINT = 2;
-	static const device_timer_id TIMER_CHECK_VINT = 3;
+	static const device_timer_id TIMER_LBORDER = 2;
+	static const device_timer_id TIMER_RBORDER = 3;
+	static const device_timer_id TIMER_HINT = 4;
+	static const device_timer_id TIMER_VINT = 5;
+	static const device_timer_id TIMER_NMI = 6;
+
+	required_device<palette_device> m_palette;
 };
 
 
@@ -193,6 +200,7 @@ protected:
 	virtual machine_config_constructor device_mconfig_additions() const;
 
 	virtual void update_palette();
+	virtual void cram_write(UINT8 data);
 	virtual void draw_scanline( int pixel_offset_x, int pixel_plot_y, int line );
 	virtual UINT16 get_name_table_address();
 };
@@ -202,22 +210,40 @@ protected:
     DEVICE CONFIGURATION MACROS
 ***************************************************************************/
 
-#define MCFG_SEGA315_5124_ADD(_tag, _interface) \
-	MCFG_DEVICE_ADD(_tag, SEGA315_5124, 0) \
-	MCFG_DEVICE_CONFIG(_interface)
-
 #define MCFG_SEGA315_5124_SET_SCREEN MCFG_VIDEO_SET_SCREEN
 
-#define MCFG_SEGA315_5246_ADD(_tag, _interface) \
-	MCFG_DEVICE_ADD(_tag, SEGA315_5246, 0) \
-	MCFG_DEVICE_CONFIG(_interface)
+#define MCFG_SEGA315_5124_IS_PAL(_bool) \
+	sega315_5124_device::set_signal_type(*device, _bool);
+
+#define MCFG_SEGA315_5124_INT_CB(_devcb) \
+	devcb = &sega315_5124_device::set_int_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_SEGA315_5124_PAUSE_CB(_devcb) \
+	devcb = &sega315_5124_device::set_pause_callback(*device, DEVCB_##_devcb);
+
 
 #define MCFG_SEGA315_5246_SET_SCREEN MCFG_VIDEO_SET_SCREEN
 
-#define MCFG_SEGA315_5378_ADD(_tag, _interface) \
-	MCFG_DEVICE_ADD(_tag, SEGA315_5378, 0) \
-	MCFG_DEVICE_CONFIG(_interface)
+#define MCFG_SEGA315_5246_IS_PAL(_bool) \
+	sega315_5246_device::set_signal_type(*device, _bool);
+
+#define MCFG_SEGA315_5246_INT_CB(_devcb) \
+	devcb = &sega315_5246_device::set_int_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_SEGA315_5246_PAUSE_CB(_devcb) \
+	devcb = &sega315_5246_device::set_pause_callback(*device, DEVCB_##_devcb);
+
 
 #define MCFG_SEGA315_5378_SET_SCREEN MCFG_VIDEO_SET_SCREEN
+
+#define MCFG_SEGA315_5378_IS_PAL(_bool) \
+	sega315_5378_device::set_signal_type(*device, _bool);
+
+#define MCFG_SEGA315_5378_INT_CB(_devcb) \
+	devcb = &sega315_5378_device::set_int_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_SEGA315_5378_PAUSE_CB(_devcb) \
+	devcb = &sega315_5378_device::set_pause_callback(*device, DEVCB_##_devcb);
+
 
 #endif /* __SEGA315_5124_H__ */

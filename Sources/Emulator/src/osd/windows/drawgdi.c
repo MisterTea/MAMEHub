@@ -1,41 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 //============================================================
 //
 //  drawgdi.c - Win32 GDI drawing
-//
-//============================================================
-//
-//  Copyright Aaron Giles
-//  All rights reserved.
-//
-//  Redistribution and use in source and binary forms, with or
-//  without modification, are permitted provided that the
-//  following conditions are met:
-//
-//    * Redistributions of source code must retain the above
-//      copyright notice, this list of conditions and the
-//      following disclaimer.
-//    * Redistributions in binary form must reproduce the
-//      above copyright notice, this list of conditions and
-//      the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//    * Neither the name 'MAME' nor the names of its
-//      contributors may be used to endorse or promote
-//      products derived from this software without specific
-//      prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND
-//  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-//  FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
-//  EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-//  DAMAGE (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-//  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-//  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-//  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-//  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-//  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //============================================================
 
@@ -45,7 +12,7 @@
 
 // MAME headers
 #include "emu.h"
-#include "rendersw.c"
+#include "rendersw.inc"
 
 // MAMEOS headers
 #include "window.h"
@@ -60,7 +27,6 @@
 struct gdi_info
 {
 	BITMAPINFO              bminfo;
-	RGBQUAD                 colors[256];
 	UINT8 *                 bmdata;
 	size_t                  bmsize;
 };
@@ -87,13 +53,11 @@ static int drawgdi_window_draw(win_window_info *window, HDC dc, int update);
 int drawgdi_init(running_machine &machine, win_draw_callbacks *callbacks)
 {
 	// fill in the callbacks
+	memset(callbacks, 0, sizeof(*callbacks));
 	callbacks->exit = drawgdi_exit;
 	callbacks->window_init = drawgdi_window_init;
 	callbacks->window_get_primitives = drawgdi_window_get_primitives;
 	callbacks->window_draw = drawgdi_window_draw;
-	callbacks->window_save = NULL;
-	callbacks->window_record = NULL;
-	callbacks->window_toggle_fsfx = NULL;
 	callbacks->window_destroy = drawgdi_window_destroy;
 	return 0;
 }
@@ -116,31 +80,20 @@ static void drawgdi_exit(void)
 
 static int drawgdi_window_init(win_window_info *window)
 {
-	gdi_info *gdi;
-	int i;
-
 	// allocate memory for our structures
-	gdi = global_alloc_clear(gdi_info);
+	gdi_info *gdi = global_alloc_clear(gdi_info);
 	window->drawdata = gdi;
 
 	// fill in the bitmap info header
 	gdi->bminfo.bmiHeader.biSize            = sizeof(gdi->bminfo.bmiHeader);
 	gdi->bminfo.bmiHeader.biPlanes          = 1;
+	gdi->bminfo.bmiHeader.biBitCount        = 32;
 	gdi->bminfo.bmiHeader.biCompression     = BI_RGB;
 	gdi->bminfo.bmiHeader.biSizeImage       = 0;
 	gdi->bminfo.bmiHeader.biXPelsPerMeter   = 0;
 	gdi->bminfo.bmiHeader.biYPelsPerMeter   = 0;
 	gdi->bminfo.bmiHeader.biClrUsed         = 0;
 	gdi->bminfo.bmiHeader.biClrImportant    = 0;
-
-	// initialize the palette to a gray ramp
-	for (i = 0; i < 256; i++)
-	{
-		gdi->bminfo.bmiColors[i].rgbRed         = i;
-		gdi->bminfo.bmiColors[i].rgbGreen       = i;
-		gdi->bminfo.bmiColors[i].rgbBlue        = i;
-		gdi->bminfo.bmiColors[i].rgbReserved    = i;
-	}
 
 	return 0;
 }
@@ -161,7 +114,7 @@ static void drawgdi_window_destroy(win_window_info *window)
 
 	// free the bitmap memory
 	if (gdi->bmdata != NULL)
-		global_free(gdi->bmdata);
+		global_free_array(gdi->bmdata);
 	global_free(gdi);
 	window->drawdata = NULL;
 }
@@ -208,7 +161,7 @@ static int drawgdi_window_draw(win_window_info *window, HDC dc, int update)
 	if (pitch * height * 4 > gdi->bmsize)
 	{
 		gdi->bmsize = pitch * height * 4 * 2;
-		global_free(gdi->bmdata);
+		global_free_array(gdi->bmdata);
 		gdi->bmdata = global_alloc_array(UINT8, gdi->bmsize);
 	}
 
@@ -220,7 +173,6 @@ static int drawgdi_window_draw(win_window_info *window, HDC dc, int update)
 	// fill in bitmap-specific info
 	gdi->bminfo.bmiHeader.biWidth = pitch;
 	gdi->bminfo.bmiHeader.biHeight = -height;
-	gdi->bminfo.bmiHeader.biBitCount = 32;
 
 	// blit to the screen
 	StretchDIBits(dc, 0, 0, width, height,

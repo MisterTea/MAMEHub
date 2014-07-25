@@ -204,15 +204,6 @@ static GFXDECODE_START( microtan )
 	GFXDECODE_ENTRY( "gfx2", 0, chunky_layout, 0, 1 )
 GFXDECODE_END
 
-static const ay8910_interface microtan_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 static MACHINE_CONFIG_START( microtan, microtan_state )
 	/* basic machine hardware */
@@ -228,11 +219,11 @@ static MACHINE_CONFIG_START( microtan, microtan_state )
 	MCFG_SCREEN_SIZE(32*8, 16*16)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*16, 16*16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(microtan_state, screen_update_microtan)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(microtan)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", microtan)
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -241,10 +232,8 @@ static MACHINE_CONFIG_START( microtan, microtan_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("ay8910.1", AY8910, 1000000)
-	MCFG_SOUND_CONFIG(microtan_ay8910_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 	MCFG_SOUND_ADD("ay8910.2", AY8910, 1000000)
-	MCFG_SOUND_CONFIG(microtan_ay8910_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* snapshot/quickload */
@@ -252,14 +241,27 @@ static MACHINE_CONFIG_START( microtan, microtan_state )
 	MCFG_QUICKLOAD_ADD("quickload", microtan_state, microtan, "hex", 0.5)
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
 
 	/* acia */
-	MCFG_MOS6551_ADD("acia", XTAL_1_8432MHz, NULL)
+	MCFG_DEVICE_ADD("acia", MOS6551, 0)
+	MCFG_MOS6551_XTAL(XTAL_1_8432MHz)
 
 	/* via */
-	MCFG_VIA6522_ADD("via6522_0", 0, microtan_via6522_0)
-	MCFG_VIA6522_ADD("via6522_1", 0, microtan_via6522_1)
+	MCFG_DEVICE_ADD("via6522_0", VIA6522, 0)
+	MCFG_VIA6522_READPA_HANDLER(READ8(microtan_state, via_0_in_a))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(microtan_state, via_0_out_a))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(microtan_state, via_0_out_b))
+	MCFG_VIA6522_CA2_HANDLER(WRITELINE(microtan_state, via_0_out_ca2))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(microtan_state, via_0_out_cb2))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(microtan_state, via_0_irq))
+
+	MCFG_DEVICE_ADD("via6522_1", VIA6522, 0)
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(microtan_state, via_1_out_a))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(microtan_state, via_1_out_b))
+	MCFG_VIA6522_CA2_HANDLER(WRITELINE(microtan_state, via_1_out_ca2))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(microtan_state, via_1_out_cb2))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(microtan_state, via_1_irq))
 MACHINE_CONFIG_END
 
 ROM_START( microtan )

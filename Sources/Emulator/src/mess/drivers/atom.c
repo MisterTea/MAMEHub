@@ -244,14 +244,14 @@ WRITE8_MEMBER( atom_state::eprom_w )
 
 static ADDRESS_MAP_START( atom_mem, AS_PROGRAM, 8, atom_state )
 	AM_RANGE(0x0000, 0x09ff) AM_RAM
-	AM_RANGE(0x0a00, 0x0a03) AM_MIRROR(0x1f8) AM_DEVREADWRITE_LEGACY(I8271_TAG, i8271_r, i8271_w)
-	AM_RANGE(0x0a04, 0x0a04) AM_MIRROR(0x1f8) AM_DEVREADWRITE_LEGACY(I8271_TAG, i8271_data_r, i8271_data_w)
+	AM_RANGE(0x0a00, 0x0a03) AM_MIRROR(0x1f8) AM_DEVREADWRITE(I8271_TAG, i8271_device, read, write)
+	AM_RANGE(0x0a04, 0x0a04) AM_MIRROR(0x1f8) AM_DEVREADWRITE(I8271_TAG, i8271_device, data_r, data_w)
 	AM_RANGE(0x0a05, 0x7fff) AM_RAM
 	AM_RANGE(0x8000, 0x97ff) AM_RAM AM_SHARE("video_ram")
 	AM_RANGE(0x9800, 0x9fff) AM_RAM
 	AM_RANGE(0xa000, 0xafff) AM_ROM AM_REGION(EXTROM_TAG, 0)
 	AM_RANGE(0xb000, 0xb003) AM_MIRROR(0x3fc) AM_DEVREADWRITE(INS8255_TAG, i8255_device, read, write)
-//  AM_RANGE(0xb400, 0xb403) AM_DEVREADWRITE_LEGACY(MC6854_TAG, mc6854_r, mc6854_w)
+//  AM_RANGE(0xb400, 0xb403) AM_DEVREADWRITE(MC6854_TAG, mc6854_device, read, write)
 //  AM_RANGE(0xb404, 0xb404) AM_READ_PORT("ECONET")
 	AM_RANGE(0xb800, 0xb80f) AM_MIRROR(0x3f0) AM_DEVREADWRITE(R6522_TAG, via6522_device, read, write)
 	AM_RANGE(0xc000, 0xffff) AM_ROM AM_REGION(SY6502_TAG, 0)
@@ -423,7 +423,7 @@ INPUT_PORTS_END
 ***************************************************************************/
 
 /*-------------------------------------------------
-    I8255_INTERFACE( ppi_intf )
+    I8255 interface
 -------------------------------------------------*/
 
 WRITE8_MEMBER( atom_state::ppi_pa_w )
@@ -553,90 +553,30 @@ WRITE8_MEMBER( atom_state::ppi_pc_w )
 	m_vdg->css_w(BIT(data, 3));
 }
 
-static I8255_INTERFACE( ppi_intf )
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(atom_state, ppi_pa_w),
-	DEVCB_DRIVER_MEMBER(atom_state, ppi_pb_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(atom_state, ppi_pc_r),
-	DEVCB_DRIVER_MEMBER(atom_state, ppi_pc_w)
-};
-
 /*-------------------------------------------------
-    via6522_interface via_intf
+    i8271 interface
 -------------------------------------------------*/
 
-READ8_MEMBER( atom_state::printer_busy )
+WRITE_LINE_MEMBER( atom_state::atom_8271_interrupt_callback )
 {
-	return m_centronics->busy_r() << 7;
-}
-
-WRITE8_MEMBER( atom_state::printer_data )
-{
-	m_centronics->write(space, 0, data & 0x7f);
-}
-
-static const via6522_interface via_intf =
-{
-	DEVCB_DRIVER_MEMBER(atom_state, printer_busy),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(atom_state, printer_data),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(CENTRONICS_TAG, centronics_device, strobe_w),
-	DEVCB_NULL,
-	DEVCB_CPU_INPUT_LINE(SY6502_TAG, INPUT_LINE_IRQ0)
-};
-
-/*-------------------------------------------------
-    i8271_interface fdc_intf
--------------------------------------------------*/
-
-static void atom_8271_interrupt_callback(device_t *device, int state)
-{
-	atom_state *drvstate = device->machine().driver_data<atom_state>();
 	/* I'm assuming that the nmi is edge triggered */
 	/* a interrupt from the fdc will cause a change in line state, and
 	the nmi will be triggered, but when the state changes because the int
 	is cleared this will not cause another nmi */
 	/* I'll emulate it like this to be sure */
 
-	if (state!=drvstate->m_previous_i8271_int_state)
+	if (state!=m_previous_i8271_int_state)
 	{
 		if (state)
 		{
 			/* I'll pulse it because if I used hold-line I'm not sure
 			it would clear - to be checked */
-			drvstate->m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 		}
 	}
 
-	drvstate->m_previous_i8271_int_state = state;
+	m_previous_i8271_int_state = state;
 }
-
-static const i8271_interface fdc_intf =
-{
-	atom_8271_interrupt_callback,
-	NULL,
-	{ FLOPPY_0, FLOPPY_1 }
-};
-
-/*-------------------------------------------------
-    centronics_interface atom_centronics_config
--------------------------------------------------*/
-
-static const centronics_interface atom_centronics_config =
-{
-	DEVCB_DEVICE_LINE_MEMBER(R6522_TAG, via6522_device, write_ca1),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 /*-------------------------------------------------
     LEGACY_FLOPPY_OPTIONS( atom )
@@ -657,20 +597,11 @@ LEGACY_FLOPPY_OPTIONS_END
 
 static const floppy_interface atom_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_SSDD_40,
 	LEGACY_FLOPPY_OPTIONS_NAME(atom),
-	"floppy_5_25",
-	NULL
+	"floppy_5_25"
 };
 
-/*-------------------------------------------------
-    cassette_interface atom_cassette_interface
--------------------------------------------------*/
 
 TIMER_DEVICE_CALLBACK_MEMBER(atom_state::cassette_output_tick)
 {
@@ -681,17 +612,8 @@ TIMER_DEVICE_CALLBACK_MEMBER(atom_state::cassette_output_tick)
 	m_hz2400 = !m_hz2400;
 }
 
-static const cassette_interface atom_cassette_interface =
-{
-	atom_cassette_formats,
-	NULL,
-	(cassette_state) (CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED),
-	NULL,
-	NULL
-};
-
 /*-------------------------------------------------
-    mc6847_interface vdg_intf
+    mc6847 interface
 -------------------------------------------------*/
 
 READ8_MEMBER( atom_state::vdg_videoram_r )
@@ -704,12 +626,6 @@ READ8_MEMBER( atom_state::vdg_videoram_r )
 
 	return m_video_ram[offset];
 }
-
-static const mc6847_interface vdg_intf =
-{
-	SCREEN_TAG,
-	DEVCB_DRIVER_MEMBER(atom_state, vdg_videoram_r)
-};
 
 /***************************************************************************
     MACHINE INITIALIZATION
@@ -783,7 +699,6 @@ static const struct atom_cart_range atom_cart_table[] =
 DEVICE_IMAGE_LOAD_MEMBER( atom_state, atom_cart )
 {
 	UINT32 size;
-	UINT8 *temp_copy;
 	int mirror, i;
 	const struct atom_cart_range *atom_cart = &atom_cart_table[0], *this_cart;
 
@@ -806,29 +721,28 @@ DEVICE_IMAGE_LOAD_MEMBER( atom_state, atom_cart )
 		return IMAGE_INIT_FAIL;
 	}
 
+	dynamic_buffer temp_copy;
 	if (image.software_entry() == NULL)
 	{
 		size = image.length();
-		temp_copy = auto_alloc_array(machine(), UINT8, size);
 
 		if (size > 0x1000)
 		{
 			image.seterror(IMAGE_ERROR_UNSPECIFIED, "Unsupported cartridge size");
-			auto_free(machine(), temp_copy);
 			return IMAGE_INIT_FAIL;
 		}
 
+		temp_copy.resize(size);
 		if (image.fread(temp_copy, size) != size)
 		{
 			image.seterror(IMAGE_ERROR_UNSPECIFIED, "Unable to fully read from file");
-			auto_free(machine(), temp_copy);
 			return IMAGE_INIT_FAIL;
 		}
 	}
 	else
 	{
 		size = image.get_software_region_length( "rom");
-		temp_copy = auto_alloc_array(machine(), UINT8, size);
+		temp_copy.resize(size);
 		memcpy(temp_copy, image.get_software_region("rom"), size);
 	}
 
@@ -837,8 +751,6 @@ DEVICE_IMAGE_LOAD_MEMBER( atom_state, atom_cart )
 	/* With the following, we mirror the cart in the whole memory region */
 	for (i = 0; i < mirror; i++)
 		memcpy(memregion(this_cart->region)->base() + this_cart->offset + i * size, temp_copy, size);
-
-	auto_free(machine(), temp_copy);
 
 	return IMAGE_INIT_PASS;
 }
@@ -862,7 +774,9 @@ static MACHINE_CONFIG_START( atom, atom_state )
 
 	/* video hardware */
 	MCFG_SCREEN_MC6847_PAL_ADD(SCREEN_TAG, MC6847_TAG)
-	MCFG_MC6847_ADD(MC6847_TAG, MC6847_PAL, XTAL_4_433619MHz, vdg_intf)
+
+	MCFG_DEVICE_ADD(MC6847_TAG, MC6847_PAL, XTAL_4_433619MHz)
+	MCFG_MC6847_INPUT_CALLBACK(READ8(atom_state, vdg_videoram_r))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -871,12 +785,33 @@ static MACHINE_CONFIG_START( atom, atom_state )
 
 	/* devices */
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("hz2400", atom_state, cassette_output_tick, attotime::from_hz(4806))
-	MCFG_VIA6522_ADD(R6522_TAG, X2/4, via_intf)
-	MCFG_I8255_ADD(INS8255_TAG, ppi_intf)
-	MCFG_I8271_ADD(I8271_TAG, fdc_intf)
+
+	MCFG_DEVICE_ADD(R6522_TAG, VIA6522, X2/4)
+	MCFG_VIA6522_WRITEPA_HANDLER(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_VIA6522_CA2_HANDLER(DEVWRITELINE(CENTRONICS_TAG, centronics_device, write_strobe))
+	MCFG_VIA6522_IRQ_HANDLER(DEVWRITELINE(SY6502_TAG, m6502_device, irq_line))
+
+	MCFG_DEVICE_ADD(INS8255_TAG, I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(atom_state, ppi_pa_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(atom_state, ppi_pb_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(atom_state, ppi_pc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(atom_state, ppi_pc_w))
+
+	MCFG_DEVICE_ADD(I8271_TAG, I8271, 0)
+	MCFG_I8271_IRQ_CALLBACK(WRITELINE(atom_state, atom_8271_interrupt_callback))
+	MCFG_I8271_FLOPPIES(FLOPPY_0, FLOPPY_1)
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(atom_floppy_interface)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, atom_centronics_config)
-	MCFG_CASSETTE_ADD("cassette", atom_cassette_interface)
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_ACK_HANDLER(DEVWRITELINE(R6522_TAG, via6522_device, write_ca1))
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE(R6522_TAG, via6522_device, write_pa7))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_FORMATS(atom_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
+
 	MCFG_QUICKLOAD_ADD("quickload", atom_state, atom_atm, "atm", 0)
 
 	/* cartridge */
@@ -933,7 +868,9 @@ static MACHINE_CONFIG_START( atombb, atom_state )
 
 	/* video hardware */
 	MCFG_SCREEN_MC6847_PAL_ADD(SCREEN_TAG, MC6847_TAG)
-	MCFG_MC6847_ADD(MC6847_TAG, MC6847_PAL, XTAL_4_433619MHz, vdg_intf)
+
+	MCFG_DEVICE_ADD(MC6847_TAG, MC6847_PAL, XTAL_4_433619MHz)
+	MCFG_MC6847_INPUT_CALLBACK(READ8(atom_state, vdg_videoram_r))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -942,10 +879,27 @@ static MACHINE_CONFIG_START( atombb, atom_state )
 
 	/* devices */
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("hz2400", atom_state, cassette_output_tick, attotime::from_hz(4806))
-	MCFG_VIA6522_ADD(R6522_TAG, X2/4, via_intf)
-	MCFG_I8255_ADD(INS8255_TAG, ppi_intf)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, atom_centronics_config)
-	MCFG_CASSETTE_ADD("cassette", atom_cassette_interface)
+
+	MCFG_DEVICE_ADD(R6522_TAG, VIA6522, X2/4)
+	MCFG_VIA6522_WRITEPA_HANDLER(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_VIA6522_CA2_HANDLER(DEVWRITELINE(CENTRONICS_TAG, centronics_device, write_strobe))
+	MCFG_VIA6522_IRQ_HANDLER(DEVWRITELINE(SY6502_TAG, m6502_device, irq_line))
+
+	MCFG_DEVICE_ADD(INS8255_TAG, I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(atom_state, ppi_pa_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(atom_state, ppi_pb_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(atom_state, ppi_pc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(atom_state, ppi_pc_w))
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_ACK_HANDLER(DEVWRITELINE(R6522_TAG, via6522_device, write_ca1))
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE(R6522_TAG, via6522_device, write_pa7))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_FORMATS(atom_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

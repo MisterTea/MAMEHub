@@ -7,7 +7,9 @@ public:
 		m_m62_tileram(*this, "m62_tileram"),
 		m_m62_textram(*this, "m62_textram"),
 		m_scrollram(*this, "scrollram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_spriteram;
@@ -82,7 +84,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(m62);
 	DECLARE_VIDEO_START(kungfum);
 	DECLARE_VIDEO_START(battroad);
 	DECLARE_PALETTE_INIT(battroad);
@@ -113,4 +115,6 @@ public:
 	void m62_start( tilemap_get_info_delegate tile_get_info, int rows, int cols, int x1, int y1, int x2, int y2 );
 	void m62_textlayer( tilemap_get_info_delegate tile_get_info, int rows, int cols, int x1, int y1, int x2, int y2 );
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

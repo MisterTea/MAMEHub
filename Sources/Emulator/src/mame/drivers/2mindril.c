@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Tomasz Slanina, David Haywood
 /*
  Two Minute Drill - Taito 1993
  -----------------------------
@@ -43,8 +45,7 @@ class _2mindril_state : public taito_f3_state
 public:
 	_2mindril_state(const machine_config &mconfig, device_type type, const char *tag)
 		: taito_f3_state(mconfig, type, tag),
-		m_iodata(*this, "iodata"),
-		m_maincpu(*this, "maincpu") { }
+		m_iodata(*this, "iodata") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_iodata;
@@ -55,7 +56,6 @@ public:
 	UINT16        irq_reg;
 
 	/* devices */
-	required_device<cpu_device> m_maincpu;
 	DECLARE_READ16_MEMBER(drill_io_r);
 	DECLARE_WRITE16_MEMBER(drill_io_w);
 	DECLARE_WRITE16_MEMBER(sensors_w);
@@ -66,10 +66,18 @@ public:
 	DECLARE_MACHINE_RESET(drill);
 	INTERRUPT_GEN_MEMBER(drill_vblank_irq);
 	//INTERRUPT_GEN_MEMBER(drill_device_irq);
-	TIMER_CALLBACK_MEMBER(shutter_req);
-	TIMER_CALLBACK_MEMBER(defender_req);
 	void tile_decode();
 	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	#ifdef UNUSED_FUNCTION
+	enum
+	{
+		TIMER_SHUTTER_REQ,
+		TIMER_DEFENDER_REQ
+	};
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+	#endif
 };
 
 
@@ -134,14 +142,19 @@ WRITE16_MEMBER(_2mindril_state::drill_io_w)
     PORT_DIPSETTING(      0x0800, DEF_STR( On ) )
 */
 #ifdef UNUSED_FUNCTION
-TIMER_CALLBACK_MEMBER(_2mindril_state::shutter_req)
+void _2mindril_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_shutter_sensor = param;
-}
-
-TIMER_CALLBACK_MEMBER(_2mindril_state::defender_req)
-{
-	m_defender_sensor = param;
+	switch (id)
+	{
+	case TIMER_SHUTTER_REQ:
+			m_shutter_sensor = param;
+			break;
+	case TIMER_DEFENDER_REQ:
+			m_defender_sensor = param;
+			break;
+	default:
+			assert_always(FALSE, "Unknown id in _2mindril_state::device_timer");
+	}
 }
 #endif
 
@@ -151,23 +164,23 @@ WRITE16_MEMBER(_2mindril_state::sensors_w)
 	/*---- ---- ---- -x-- lamp*/
 	if (data & 1)
 	{
-		//machine().scheduler().timer_set(attotime::from_seconds(2), FUNC(shutter_req ), 0x100);
+		//timer_set( attotime::from_seconds(2), TIMER_SHUTTER_REQ, 0x100);
 		m_shutter_sensor = 0x100;
 	}
 	else if (data & 2)
 	{
-		//machine().scheduler().timer_set( attotime::from_seconds(2), FUNC(shutter_req ), 0x200);
+		//timer_set( attotime::from_seconds(2), TIMER_SHUTTER_REQ, 0x200);
 		m_shutter_sensor = 0x200;
 	}
 
 	if (data & 0x1000 || data & 0x4000)
 	{
-		//machine().scheduler().timer_set( attotime::from_seconds(2), FUNC(defender_req ), 0x800);
+		//timer_set( attotime::from_seconds(2), TIMER_DEFENDER_REQ, 0x800);
 		m_defender_sensor = 0x800;
 	}
 	else if (data & 0x2000 || data & 0x8000)
 	{
-		//machine().scheduler().timer_set( attotime::from_seconds(2), FUNC(defender_req ), 0x400);
+		//timer_set( attotime::from_seconds(2), TIMER_DEFENDER_REQ, 0x400);
 		m_defender_sensor = 0x400;
 	}
 }
@@ -209,7 +222,7 @@ static ADDRESS_MAP_START( drill_map, AS_PROGRAM, 16, _2mindril_state )
 	AM_RANGE(0x430000, 0x43ffff) AM_READWRITE(f3_pivot_r,f3_pivot_w)
 	AM_RANGE(0x460000, 0x46000f) AM_WRITE(f3_control_0_w)
 	AM_RANGE(0x460010, 0x46001f) AM_WRITE(f3_control_1_w)
-	AM_RANGE(0x500000, 0x501fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x500000, 0x501fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x502022, 0x502023) AM_WRITENOP //countinously switches between 0 and 2
 	AM_RANGE(0x600000, 0x600007) AM_DEVREADWRITE8("ymsnd", ym2610_device, read, write, 0x00ff)
 	AM_RANGE(0x60000c, 0x60000d) AM_READWRITE(drill_irq_r,drill_irq_w)
@@ -435,7 +448,7 @@ static MACHINE_CONFIG_START( drill, _2mindril_state )
 	MCFG_CPU_PROGRAM_MAP(drill_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", _2mindril_state,  drill_vblank_irq)
 	//MCFG_CPU_PERIODIC_INT_DRIVER(_2mindril_state, drill_device_irq, 60)
-	MCFG_GFXDECODE(2mindril)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", 2mindril)
 
 	MCFG_MACHINE_START_OVERRIDE(_2mindril_state,drill)
 	MCFG_MACHINE_RESET_OVERRIDE(_2mindril_state,drill)
@@ -448,7 +461,8 @@ static MACHINE_CONFIG_START( drill, _2mindril_state )
 	MCFG_SCREEN_UPDATE_DRIVER(_2mindril_state, screen_update_f3)
 	MCFG_SCREEN_VBLANK_DRIVER(_2mindril_state, screen_eof_f3)
 
-	MCFG_PALETTE_LENGTH(0x2000)
+	MCFG_PALETTE_ADD("palette", 0x2000)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(_2mindril_state,f3)
 

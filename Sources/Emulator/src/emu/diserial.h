@@ -7,128 +7,113 @@
 #ifndef __DISERIAL_H__
 #define __DISERIAL_H__
 
-//**************************************************************************
-//  TYPE DEFINITIONS
-//**************************************************************************
-/* parity selections */
-/* if all the bits are added in a byte, if the result is:
-    even -> parity is even
-    odd -> parity is odd
-*/
-enum
-{
-	SERIAL_PARITY_NONE,     /* no parity. a parity bit will not be in the transmitted/received data */
-	SERIAL_PARITY_ODD,      /* odd parity */
-	SERIAL_PARITY_EVEN,     /* even parity */
-	SERIAL_PARITY_MARK,     /* one parity */
-	SERIAL_PARITY_SPACE     /* zero parity */
-};
-
-/*
-    CTS = Clear to Send. (INPUT)
-    Other end of connection is ready to accept data
-
-
-    NOTE:
-
-      This output is active low on serial chips (e.g. 0 is CTS is set),
-      but here it is active high!
-*/
-#define SERIAL_STATE_CTS    0x0001
-
-/*
-    RTS = Request to Send. (OUTPUT)
-    This end is ready to send data, and requests if the other
-    end is ready to accept it
-
-    NOTE:
-
-      This output is active low on serial chips (e.g. 0 is RTS is set),
-      but here it is active high!
-*/
-#define SERIAL_STATE_RTS    0x0002
-
-/*
-    DSR = Data Set ready. (INPUT)
-    Other end of connection has data
-
-
-    NOTE:
-
-      This output is active low on serial chips (e.g. 0 is DSR is set),
-      but here it is active high!
-*/
-#define SERIAL_STATE_DSR    0x0004
-
-/*
-    DTR = Data terminal Ready. (OUTPUT)
-    TX contains new data.
-
-    NOTE:
-
-      This output is active low on serial chips (e.g. 0 is DTR is set),
-      but here it is active high!
-*/
-#define SERIAL_STATE_DTR    0x0008
-/* RX = Recieve data. (INPUT) */
-#define SERIAL_STATE_RX_DATA    0x00010
-/* TX = Transmit data. (OUTPUT) */
-#define SERIAL_STATE_TX_DATA    0x00020
+// Windows headers are crap, let me count the ways
+#undef PARITY_NONE
+#undef PARITY_ODD
+#undef PARITY_EVEN
+#undef PARITY_MARK
+#undef PARITY_SPACE
 
 // ======================> device_serial_interface
 class device_serial_interface : public device_interface
 {
 public:
+	enum
+	{
+		/* receive is waiting for start bit. The transition from high-low indicates
+		start of start bit. This is used to synchronise with the data being transfered */
+		RECEIVE_REGISTER_WAITING_FOR_START_BIT = 0x01,
+
+		/* receive is synchronised with data, data bits will be clocked in */
+		RECEIVE_REGISTER_SYNCHRONISED = 0x02,
+
+		/* set if receive register has been filled */
+		RECEIVE_REGISTER_FULL = 0x04
+	};
+
+	enum
+	{
+		/* register is empty and ready to be filled with data */
+		TRANSMIT_REGISTER_EMPTY = 0x0001
+	};
+
+	/* parity selections */
+	/* if all the bits are added in a byte, if the result is:
+	   even -> parity is even
+	   odd -> parity is odd
+	*/
+
+	enum parity_t
+	{
+		PARITY_NONE,     /* no parity. a parity bit will not be in the transmitted/received data */
+		PARITY_ODD,      /* odd parity */
+		PARITY_EVEN,     /* even parity */
+		PARITY_MARK,     /* one parity */
+		PARITY_SPACE     /* zero parity */
+	};
+
+	enum stop_bits_t
+	{
+		STOP_BITS_0,
+		STOP_BITS_1 = 1,
+		STOP_BITS_1_5 = 2,
+		STOP_BITS_2 = 3
+	};
+
+	/* Communication lines.  Beware, everything is active high */
+	enum
+	{
+		CTS = 0x0001, /* Clear to Send.       (INPUT)  Other end of connection is ready to accept data */
+		RTS = 0x0002, /* Request to Send.     (OUTPUT) This end is ready to send data, and requests if the other */
+						/*                               end is ready to accept it */
+		DSR = 0x0004, /* Data Set ready.      (INPUT)  Other end of connection has data */
+		DTR = 0x0008, /* Data terminal Ready. (OUTPUT) TX contains new data. */
+		RX  = 0x0010, /* Recieve data.        (INPUT)  */
+		TX  = 0x0020  /* TX = Transmit data.  (OUTPUT) */
+	};
+
 	// construction/destruction
 	device_serial_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_serial_interface();
 
-	virtual void input_callback(UINT8 state) = 0;
+	DECLARE_WRITE_LINE_MEMBER(rx_w);
+	DECLARE_WRITE_LINE_MEMBER(tx_clock_w);
+	DECLARE_WRITE_LINE_MEMBER(rx_clock_w);
+	DECLARE_WRITE_LINE_MEMBER(clock_w);
 
-	void set_data_frame(int num_data_bits, int stop_bit_count, int parity_code);
+protected:
+	void set_data_frame(int start_bit_count, int data_bit_count, parity_t parity, stop_bits_t stop_bits);
 
 	void receive_register_reset();
 	void receive_register_update_bit(int bit);
 	void receive_register_extract();
 
-	void set_rcv_rate(attotime rate);
-	void set_tra_rate(attotime rate);
+	void set_rcv_rate(const attotime &rate);
+	void set_tra_rate(const attotime &rate);
 	void set_rcv_rate(UINT32 clock, int div) { set_rcv_rate((clock && div) ? (attotime::from_hz(clock) * div) : attotime::never); }
 	void set_tra_rate(UINT32 clock, int div) { set_tra_rate((clock && div) ? (attotime::from_hz(clock) * div) : attotime::never); }
 	void set_rcv_rate(int baud) { set_rcv_rate(baud ? attotime::from_hz(baud) : attotime::never); }
 	void set_tra_rate(int baud) { set_tra_rate(baud ? attotime::from_hz(baud) : attotime::never); }
-	void set_rate(attotime rate) { set_rcv_rate(rate); set_tra_rate(rate); }
+	void set_rate(const attotime &rate) { set_rcv_rate(rate); set_tra_rate(rate); }
 	void set_rate(UINT32 clock, int div) { set_rcv_rate(clock, div); set_tra_rate(clock, div); }
 	void set_rate(int baud) { set_rcv_rate(baud); set_tra_rate(baud); }
-
-	void tra_clock();
-	void rcv_clock();
 
 	void transmit_register_reset();
 	void transmit_register_add_bit(int bit);
 	void transmit_register_setup(UINT8 data_byte);
 	UINT8 transmit_register_get_data_bit();
-	UINT8 transmit_register_send_bit();
 
 	UINT8 serial_helper_get_parity(UINT8 data) { return m_serial_parity_table[data]; }
 
-	UINT8 get_in_data_bit()  { return ((m_input_state & SERIAL_STATE_RX_DATA)>>4) & 1; }
-	void set_out_data_bit(UINT8 data)  { m_connection_state &=~SERIAL_STATE_TX_DATA; m_connection_state |=(data<<5); }
-
-	void serial_connection_out();
-
 	bool is_receive_register_full();
 	bool is_transmit_register_empty();
+	bool is_receive_register_synchronized() { return m_rcv_flags & RECEIVE_REGISTER_SYNCHRONISED; }
+	bool is_receive_register_shifting() { return m_rcv_bit_count_received > 0; }
+	bool is_receive_framing_error() { return m_rcv_framing_error; }
+	bool is_receive_parity_error() { return m_rcv_parity_error; }
 
 	UINT8 get_received_char() { return m_rcv_byte_received; }
 
-	void set_other_connection(device_serial_interface *other_connection);
-
-	void connect(device_serial_interface *other_connection);
-	DECLARE_WRITE_LINE_MEMBER(rx_w);
-protected:
-	UINT8 m_input_state;
-	UINT8 m_connection_state;
 	virtual void tra_callback() { }
 	virtual void rcv_callback() { receive_register_update_bit(m_rcv_line); }
 	virtual void tra_complete() { }
@@ -136,13 +121,23 @@ protected:
 
 	// interface-level overrides
 	virtual void interface_pre_start();
+
+	// Must be called from device_timer in the underlying device
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+
+	bool m_start_bit_hack_for_external_clocks;
+
+	const char *parity_tostring(parity_t stop_bits);
+	const char *stop_bits_tostring(stop_bits_t stop_bits);
+
 private:
-	void tra_timer(void *ptr, int param);
-	void rcv_timer(void *ptr, int param);
+	enum { TRA_TIMER_ID = 10000, RCV_TIMER_ID };
 
 	UINT8 m_serial_parity_table[256];
 
 	// Data frame
+	// number of start bits
+	int m_df_start_bit_count;
 	// length of word in bits
 	UINT8 m_df_word_length;
 	// parity state
@@ -162,6 +157,9 @@ private:
 	/* the byte of data received */
 	UINT8 m_rcv_byte_received;
 
+	bool m_rcv_framing_error;
+	bool m_rcv_parity_error;
+
 	// Transmit register
 	/* data */
 	UINT16 m_tra_register_data;
@@ -178,27 +176,10 @@ private:
 	attotime m_tra_rate;
 	UINT8 m_rcv_line;
 
-	device_serial_interface *m_other_connection;
+	int m_tra_clock_state, m_rcv_clock_state;
+
+	void tra_edge();
+	void rcv_edge();
 };
-
-
-class serial_source_device :  public device_t,
-								public device_serial_interface
-{
-public:
-	// construction/destruction
-	serial_source_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-
-	virtual void input_callback(UINT8 state);
-	void send_bit(UINT8 data);
-protected:
-	// device-level overrides
-	virtual void device_start();
-};
-
-extern const device_type SERIAL_SOURCE;
-
-#define MCFG_SERIAL_SOURCE_ADD(_tag)    \
-	MCFG_DEVICE_ADD((_tag), SERIAL_SOURCE, 0)
 
 #endif  /* __DISERIAL_H__ */

@@ -173,6 +173,20 @@ i80286_cpu_device::i80286_cpu_device(const machine_config &mconfig, const char *
 	memcpy(m_timing, m_i80286_timing, sizeof(m_i80286_timing));
 	m_amask = 0xffffff;
 	m_fetch_xor = BYTE_XOR_LE(0);
+	memset(m_sregs, 0x00, sizeof(m_sregs));
+	m_sregs[CS] = 0xf000;
+	memset(m_base, 0x00, sizeof(m_base));
+	m_base[CS] = 0xff0000;
+	memset(m_limit, 0x00, sizeof(m_limit));
+	m_limit[CS] = m_limit[SS] = m_limit[DS] = m_limit[ES] = 0xffff;
+	memset(m_rights, 0x00, sizeof(m_rights));
+	m_rights[DS] = m_rights[SS] = m_rights[ES] = 0x93;
+	memset(&m_gdtr, 0x00, sizeof(m_gdtr));
+	memset(&m_idtr, 0x00, sizeof(m_idtr));
+	m_idtr.limit = 0x3ff;
+	memset(&m_ldtr, 0x00, sizeof(m_ldtr));
+	memset(&m_tr, 0x00, sizeof(m_tr));
+	m_msw = 0xfff0;
 }
 
 void i80286_cpu_device::device_reset()
@@ -515,7 +529,7 @@ void i80286_cpu_device::switch_task(UINT16 ntask, int type)
 	UINT8 r, lr;
 	UINT32 naddr, oaddr, ldtaddr;
 	int i;
-	logerror("This program uses TSSs, how rare. Please report this to the developers.\n");
+	logerror("i286: %06x This program uses TSSs, how rare. Please report this to the developers.\n", pc());
 
 	if(TBL(ntask))
 		throw TRAP(FAULT_TS, IDXTBL(ntask));
@@ -539,9 +553,6 @@ void i80286_cpu_device::switch_task(UINT16 ntask, int type)
 	if(LIMIT(ndesc) < 43)
 		throw TRAP(FAULT_TS, IDXTBL(ntask));
 
-	for (i = 0; i < 44; i += 2)
-		ntss[i / 2] = read_word(BASE(ndesc) + i);
-
 	flags = CompressFlags();
 
 	if(type == NT_CALL)
@@ -564,10 +575,12 @@ void i80286_cpu_device::switch_task(UINT16 ntask, int type)
 	otss[TSS_CS] = m_sregs[CS];
 	otss[TSS_SS] = m_sregs[SS];
 	otss[TSS_DS] = m_sregs[DS];
-	otss[TSS_LDT] = m_ldtr.sel;
 
-	for (i = 14; i < 44; i += 2)
+	for (i = 14; i < 42; i += 2)
 		write_word(m_tr.base + i, otss[i / 2]);
+
+	for (i = 0; i < 44; i += 2)
+		ntss[i / 2] = read_word(BASE(ndesc) + i);
 
 	// jmp does both
 	if(type != NT_CALL)
@@ -587,7 +600,7 @@ void i80286_cpu_device::switch_task(UINT16 ntask, int type)
 	m_tr.base = BASE(ndesc);
 	m_tr.rights = RIGHTS(ndesc);
 
-	ExpandFlags(ntss[TSS_FLAG]);
+	load_flags(ntss[TSS_FLAG], 0);
 	m_regs.w[AX] = ntss[TSS_AX];
 	m_regs.w[CX] = ntss[TSS_CX];
 	m_regs.w[DX] = ntss[TSS_DX];
@@ -635,7 +648,7 @@ void i80286_cpu_device::switch_task(UINT16 ntask, int type)
 	m_msw |= 8;
 	// Docs explicitly say SS is loaded first.  Why?  Because the DPL
 	// of the TSS is compared to the DPL of SS which is CPL
-	data_descriptor(SS, ntss[TSS_SS], DPL(r), TRAP(FAULT_TS, IDXTBL(ntss[TSS_SS])));
+	data_descriptor(SS, ntss[TSS_SS], RPL(ntss[TSS_CS]), TRAP(FAULT_TS, IDXTBL(ntss[TSS_SS])));
 
 	try
 	{
@@ -1058,7 +1071,7 @@ void i80286_cpu_device::execute_run()
 					{
 						case 0:
 							if(!PM)
-								throw TRAP(FAULT_UD, -1);
+								throw TRAP(FAULT_UD, (UINT16)-1);
 							m_modrm = fetch();
 							switch (m_modrm & 0x38)
 							{
@@ -1151,7 +1164,7 @@ void i80286_cpu_device::execute_run()
 									break;
 
 								default:
-									throw TRAP(FAULT_UD, -1);
+									throw TRAP(FAULT_UD, (UINT16)-1);
 							}
 							break;
 						case 1:
@@ -1159,7 +1172,7 @@ void i80286_cpu_device::execute_run()
 							UINT32 ea;
 							m_modrm = fetch();
 							if((m_modrm >= 0xc0) && (m_modrm < 0xe0))
-								throw TRAP(FAULT_UD, -1);
+								throw TRAP(FAULT_UD, (UINT16)-1);
 							switch (m_modrm & 0x38)
 							{
 								case 0: /* sgdt */
@@ -1198,13 +1211,13 @@ void i80286_cpu_device::execute_run()
 									m_msw = (m_msw & 1) | msw;
 									break;
 								default:
-									throw TRAP(FAULT_UD, -1);
+									throw TRAP(FAULT_UD, (UINT16)-1);
 							}
 							break;
 						}
 						case 2: /* LAR */
 							if(!PM)
-								throw TRAP(FAULT_UD, -1);
+								throw TRAP(FAULT_UD, (UINT16)-1);
 							m_modrm = fetch_op();
 							tmp = GetRMWord();
 							if((addr = selector_address(tmp)) == -1)
@@ -1213,7 +1226,9 @@ void i80286_cpu_device::execute_run()
 							{
 								desc[2] = read_word(addr + 4);
 								r = RIGHTS(desc);
-								if(DPL(r) >= PMAX(RPL(tmp),CPL) || (SEGDESC(r) && CODE(r) && CONF(r)))
+								if(!SEGDESC(r) && ((GATE(r) > TRAPGATE) || !GATE(r)))
+									m_ZeroVal = 1;
+								else if(DPL(r) >= PMAX(RPL(tmp),CPL) || (SEGDESC(r) && CODE(r) && CONF(r)))
 								{
 									m_ZeroVal = 0;
 									// rights are expected to be in upper byte
@@ -1225,7 +1240,7 @@ void i80286_cpu_device::execute_run()
 							break;
 						case 3: /* LSL */
 							if(!PM)
-								throw TRAP(FAULT_UD, -1);
+								throw TRAP(FAULT_UD, (UINT16)-1);
 							m_modrm = fetch_op();
 							tmp = GetRMWord();
 							if((addr = selector_address(tmp)) == -1)
@@ -1234,7 +1249,7 @@ void i80286_cpu_device::execute_run()
 							{
 								desc[2] = read_word(addr + 4);
 								r = RIGHTS(desc);
-								if(!SEGDESC(r) && (GATE(r) >= CALLGATE))
+								if(!SEGDESC(r) && ((GATE(r) >= CALLGATE) || !GATE(r)))
 									m_ZeroVal = 1; // not valid for gates
 								else if(DPL(r) >= PMAX(RPL(tmp),CPL) || (SEGDESC(r) && CODE(r) && CONF(r)))
 								{
@@ -1290,7 +1305,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 							m_msw &= ~8;
 							break;
 						default:
-							throw TRAP(FAULT_UD, -1);
+							throw TRAP(FAULT_UD, (UINT16)-1);
 					}
 					break;
 				}
@@ -1357,7 +1372,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 				case 0x63: // arpl
 				{
 					UINT16 tmp, source;
-					if (!PM) throw TRAP(FAULT_UD,-1);
+					if (!PM) throw TRAP(FAULT_UD,(UINT16)-1);
 
 					m_modrm=fetch_op();
 					tmp=GetRMWord();
@@ -1423,6 +1438,17 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 					i_outsw();
 					break;
 
+				case 0x8c: // i_mov_wsreg
+					m_modrm = fetch();
+					if((m_modrm & 0x38) > 0x18)
+					{
+						logerror("%s: %06x: Mov Sreg - Invalid register\n", tag(), pc());
+						throw TRAP(FAULT_UD, (UINT16)-1);
+					}
+					PutRMWord(m_sregs[(m_modrm & 0x38) >> 3]);
+					CLKM(MOV_RS,MOV_MS);
+					break;
+
 				case 0x8e: // i_mov_sregw
 					m_modrm = fetch();
 					m_src = GetRMWord();
@@ -1441,7 +1467,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 							break;
 						default:
 							logerror("%s: %06x: Mov Sreg - Invalid register\n", tag(), pc());
-							throw TRAP(FAULT_UD, -1);
+							throw TRAP(FAULT_UD, (UINT16)-1);
 					}
 					break;
 
@@ -1470,7 +1496,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 
 				case 0x9b: // i_wait
 					if((m_msw & 0x0a) == 0x0a)
-						throw TRAP(FAULT_NM, -1);
+						throw TRAP(FAULT_NM, (UINT16)-1);
 					CLK(WAIT);
 					break;
 
@@ -1549,7 +1575,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 				{
 					m_modrm = fetch();
 					if(m_modrm >= 0xc0)
-						throw TRAP(FAULT_UD, -1);
+						throw TRAP(FAULT_UD, (UINT16)-1);
 					UINT16 tmp = GetRMWord();
 					data_descriptor(ES, GetnextRMWord());
 					RegWord(tmp);
@@ -1561,7 +1587,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 				{
 					m_modrm = fetch();
 					if(m_modrm >= 0xc0)
-						throw TRAP(FAULT_UD, -1);
+						throw TRAP(FAULT_UD, (UINT16)-1);
 					UINT16 tmp = GetRMWord();
 					data_descriptor(DS, GetnextRMWord());
 					RegWord(tmp);
@@ -1683,7 +1709,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 				case 0xde:
 				case 0xdf:
 					if((m_msw & 8) || (m_msw & 4))
-						throw TRAP(FAULT_NM, -1);
+						throw TRAP(FAULT_NM, (UINT16)-1);
 					m_modrm = fetch();
 					GetRMByte();
 					CLK(NOP);
@@ -1781,7 +1807,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 							break;
 						default:
 							logerror("%s: %06x: FF Pre with unimplemented mod\n", tag(), pc());
-							throw TRAP(FAULT_UD,-1);
+							throw TRAP(FAULT_UD,(UINT16)-1);
 						}
 					}
 					break;
@@ -1818,7 +1844,7 @@ reg.base = BASE(desc); (void)(r); reg.limit = LIMIT(desc); }
 						m_icount -= 10; // UD fault timing?
 						logerror("%s: %06x: Invalid Opcode %02x\n", tag(), pc(), op);
 						m_ip = m_prev_ip;
-						throw TRAP(FAULT_UD, -1);
+						throw TRAP(FAULT_UD, (UINT16)-1);
 					}
 					break;
 			}
@@ -1846,6 +1872,9 @@ void i80286_cpu_device::load_flags(UINT16 flags, int cpl)
 	else if(!PM)
 		(flags &= ~0xf000);
 	ExpandFlags(flags);
+
+	if(m_TF)
+		m_fire_trap = 1;
 }
 
 UINT16 i80286_cpu_device::far_return(int iret, int bytes)

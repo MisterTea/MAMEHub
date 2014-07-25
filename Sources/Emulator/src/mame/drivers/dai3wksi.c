@@ -49,15 +49,31 @@ class dai3wksi_state : public driver_device
 public:
 	dai3wksi_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_dai3wksi_videoram(*this, "videoram"),
 		m_maincpu(*this, "maincpu"),
-		m_samples(*this, "samples") { }
+		m_samples(*this, "samples"),
+		m_ic77(*this, "ic77"),
+		m_ic78(*this, "ic78"),
+		m_ic79(*this, "ic79"),
+		m_ic80(*this, "ic80"),
+		m_ic81(*this, "ic81"),
+		m_dai3wksi_videoram(*this, "videoram"),
+		m_in2(*this, "IN2") { }
+
+	/* devices */
+	required_device<cpu_device> m_maincpu;
+	required_device<samples_device> m_samples;
+	optional_device<sn76477_device> m_ic77;
+	optional_device<sn76477_device> m_ic78;
+	optional_device<sn76477_device> m_ic79;
+	optional_device<sn76477_device> m_ic80;
+	optional_device<sn76477_device> m_ic81;
 
 	/* video */
 	required_shared_ptr<UINT8> m_dai3wksi_videoram;
 	int         m_dai3wksi_flipscreen;
 	int         m_dai3wksi_redscreen;
 	int         m_dai3wksi_redterop;
+	UINT32 screen_update_dai3wksi(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 	/* sound */
 	UINT8       m_port_last1;
@@ -67,11 +83,12 @@ public:
 	DECLARE_WRITE8_MEMBER(dai3wksi_audio_1_w);
 	DECLARE_WRITE8_MEMBER(dai3wksi_audio_2_w);
 	DECLARE_WRITE8_MEMBER(dai3wksi_audio_3_w);
+
+	/* i/o ports */
+	required_ioport m_in2;
+
 	virtual void machine_start();
 	virtual void machine_reset();
-	UINT32 screen_update_dai3wksi(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	required_device<cpu_device> m_maincpu;
-	required_device<samples_device> m_samples;
 };
 
 
@@ -128,7 +145,7 @@ static void dai3wksi_get_pens(pen_t *pens)
 
 	for (i = 0; i <= 7; i++)
 	{
-		pens[i] = MAKE_RGB(pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
+		pens[i] = rgb_t(pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
 	}
 }
 
@@ -156,7 +173,7 @@ UINT32 dai3wksi_state::screen_update_dai3wksi(screen_device &screen, bitmap_rgb3
 		}
 		else
 		{
-			if (ioport("IN2")->read() & 0x03)
+			if (m_in2->read() & 0x03)
 				color = vr_prom2[value];
 			else
 				color = vr_prom1[value];
@@ -286,36 +303,28 @@ static const samples_interface dai3wksi_samples_interface =
 
 WRITE8_MEMBER(dai3wksi_state::dai3wksi_audio_1_w)
 {
-	device_t *ic79 = machine().device("ic79");
-
 	machine().sound().system_enable(data & 0x80);
 
-	sn76477_enable_w(ic79, (~data >> 5) & 0x01);        /* invader movement enable */
-	sn76477_envelope_1_w(ic79, (~data >> 2) & 0x01);    /* invader movement envelope control*/
+	m_ic79->enable_w((~data >> 5) & 0x01);        /* invader movement enable */
+	m_ic79->envelope_1_w((~data >> 2) & 0x01);    /* invader movement envelope control*/
 }
 
 WRITE8_MEMBER(dai3wksi_state::dai3wksi_audio_2_w)
 {
-	device_t *ic77 = machine().device("ic77");
-	device_t *ic78 = machine().device("ic78");
-	device_t *ic80 = machine().device("ic80");
-
 	m_dai3wksi_flipscreen =  data & 0x10;
 	m_dai3wksi_redscreen  = ~data & 0x20;
 	m_dai3wksi_redterop   =  data & 0x40;
 
-	sn76477_enable_w(ic77, (~data >> 0) & 0x01);    /* ship movement */
-	sn76477_enable_w(ic78, (~data >> 1) & 0x01);    /* danger text */
+	m_ic77->enable_w((~data >> 0) & 0x01);    /* ship movement */
+	m_ic78->enable_w((~data >> 1) & 0x01);    /* danger text */
 	/* ic76 - invader hit  (~data >> 2) & 0x01 */
-	sn76477_enable_w(ic80, (~data >> 3) & 0x01);    /* planet explosion */
+	m_ic80->enable_w((~data >> 3) & 0x01);    /* planet explosion */
 }
 
 WRITE8_MEMBER(dai3wksi_state::dai3wksi_audio_3_w)
 {
-	device_t *ic81 = machine().device("ic81");
-
-	sn76477_enable_w(ic81, (~data >> 2) & 0x01);    /* player shoot enable */
-	sn76477_vco_w(ic81, (~data >> 3) & 0x01);       /* player shoot vco control */
+	m_ic81->enable_w((~data >> 2) & 0x01);    /* player shoot enable */
+	m_ic81->vco_w((~data >> 3) & 0x01);       /* player shoot vco control */
 }
 
 

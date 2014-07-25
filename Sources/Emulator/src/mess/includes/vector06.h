@@ -30,7 +30,8 @@ public:
 	m_fdc(*this, "wd1793"),
 	m_ppi(*this, "ppi8255"),
 	m_ppi2(*this, "ppi8255_2"),
-	m_ram(*this, RAM_TAG)
+	m_ram(*this, RAM_TAG),
+	m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -39,6 +40,7 @@ public:
 	required_device<i8255_device> m_ppi;
 	required_device<i8255_device> m_ppi2;
 	required_device<ram_device> m_ram;
+	required_device<palette_device> m_palette;
 	DECLARE_READ8_MEMBER(vector06_8255_portb_r);
 	DECLARE_READ8_MEMBER(vector06_8255_portc_r);
 	DECLARE_WRITE8_MEMBER(vector06_8255_porta_w);
@@ -62,16 +64,11 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(vector06);
 	UINT32 screen_update_vector06(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vector06_interrupt);
 	TIMER_CALLBACK_MEMBER(reset_check_callback);
 	IRQ_CALLBACK_MEMBER(vector06_irq_callback);
 };
-
-
-/*----------- defined in machine/vector06.c -----------*/
-extern const i8255_interface vector06_ppi8255_interface;
-extern const i8255_interface vector06_ppi8255_2_interface;
 
 #endif /* VECTOR06_H_ */

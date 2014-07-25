@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:hap, Roberto Fresca
 /****************************************************************
 
   Meyco 8088 based hardware
@@ -64,7 +66,7 @@ public:
 	DECLARE_WRITE8_MEMBER(meyc8088_common_w);
 
 	DECLARE_WRITE_LINE_MEMBER(meyc8088_sound_out);
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(meyc8088);
 	UINT32 screen_update_meyc8088(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_meyc8088(screen_device &screen, bool state);
 	TIMER_DEVICE_CALLBACK_MEMBER(heartbeat_callback);
@@ -117,14 +119,13 @@ static const res_net_info meyc8088_net_info =
 	}
 };
 
-void meyc8088_state::palette_init()
+PALETTE_INIT_MEMBER(meyc8088_state, meyc8088)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
-	rgb_t *rgb;
+	dynamic_array<rgb_t> rgb;
 
-	rgb = compute_res_net_all(machine(), color_prom, &meyc8088_decode_info, &meyc8088_net_info);
-	palette_set_colors(machine(), 0, rgb, 32);
-	auto_free(machine(), rgb);
+	compute_res_net_all(rgb, color_prom, meyc8088_decode_info, meyc8088_net_info);
+	palette.set_pen_colors(0, rgb, 32);
 }
 
 UINT32 meyc8088_state::screen_update_meyc8088(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -282,31 +283,6 @@ WRITE_LINE_MEMBER(meyc8088_state::meyc8088_sound_out)
 }
 
 
-static const i8155_interface i8155_intf[2] =
-{
-	{
-		// all ports set to input
-		DEVCB_DRIVER_MEMBER(meyc8088_state,meyc8088_input_r),
-		DEVCB_NULL,
-		DEVCB_INPUT_PORT("SW"), // filtered switch inputs
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(meyc8088_state,meyc8088_status_r),
-		DEVCB_NULL,
-		DEVCB_NULL // i8251A trigger txc/rxc (debug related, unpopulated on sold boards)
-	},
-	{
-		// all ports set to output
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(meyc8088_state,meyc8088_lights2_w),
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(meyc8088_state,meyc8088_lights1_w),
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(meyc8088_state,meyc8088_common_w),
-		DEVCB_DRIVER_LINE_MEMBER(meyc8088_state,meyc8088_sound_out)
-	}
-};
-
-
 /***************************************************************************
 
   Inputs
@@ -377,8 +353,19 @@ static MACHINE_CONFIG_START( meyc8088, meyc8088_state )
 	MCFG_CPU_ADD("maincpu", I8088, (XTAL_15MHz / 3) * 0.95) // NOTE: underclocked to prevent errors on diagnostics, MAME i8088 cycle timing is probably inaccurate
 	MCFG_CPU_PROGRAM_MAP(meyc8088_map)
 
-	MCFG_I8155_ADD("i8155_1", XTAL_15MHz / (3*1), i8155_intf[0])
-	MCFG_I8155_ADD("i8155_2", XTAL_15MHz / (3*32), i8155_intf[1])
+	MCFG_DEVICE_ADD("i8155_1", I8155, XTAL_15MHz / (3*1))
+	// all ports set to input
+	MCFG_I8155_IN_PORTA_CB(READ8(meyc8088_state, meyc8088_input_r))
+	MCFG_I8155_IN_PORTB_CB(IOPORT("SW"))
+	MCFG_I8155_IN_PORTC_CB(READ8(meyc8088_state, meyc8088_status_r))
+	// i8251A trigger txc/rxc (debug related, unpopulated on sold boards)
+
+	MCFG_DEVICE_ADD("i8155_2", I8155, XTAL_15MHz / (3*32))
+	// all ports set to output
+	MCFG_I8155_OUT_PORTA_CB(WRITE8(meyc8088_state, meyc8088_lights2_w))
+	MCFG_I8155_OUT_PORTB_CB(WRITE8(meyc8088_state, meyc8088_lights1_w))
+	MCFG_I8155_OUT_PORTC_CB(WRITE8(meyc8088_state, meyc8088_common_w))
+	MCFG_I8155_OUT_TIMEROUT_CB(WRITELINE(meyc8088_state, meyc8088_sound_out))
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
@@ -389,8 +376,10 @@ static MACHINE_CONFIG_START( meyc8088, meyc8088_state )
 	MCFG_SCREEN_RAW_PARAMS(XTAL_15MHz/3, 320, 0, 256, 261, 0, 224)
 	MCFG_SCREEN_UPDATE_DRIVER(meyc8088_state, screen_update_meyc8088)
 	MCFG_SCREEN_VBLANK_DRIVER(meyc8088_state, screen_eof_meyc8088)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(32)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(meyc8088_state, meyc8088)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

@@ -266,12 +266,12 @@ static MACHINE_CONFIG_START( dommy, scregg_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_12MHz/2, 384, 8, 248, 272, 8, 248)
 	MCFG_SCREEN_UPDATE_DRIVER(scregg_state, screen_update_eggs)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(scregg)
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", scregg)
+	MCFG_PALETTE_ADD("palette", 8)
 
-	MCFG_PALETTE_INIT_OVERRIDE(scregg_state,btime)
-	MCFG_VIDEO_START_OVERRIDE(scregg_state,btime)
+	MCFG_PALETTE_INIT_OWNER(scregg_state,btime)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -298,12 +298,12 @@ static MACHINE_CONFIG_START( scregg, scregg_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_12MHz/2, 384, 8, 248, 272, 8, 248)
 	MCFG_SCREEN_UPDATE_DRIVER(scregg_state, screen_update_eggs)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(scregg)
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", scregg)
+	MCFG_PALETTE_ADD("palette", 8)
 
-	MCFG_PALETTE_INIT_OVERRIDE(scregg_state,btime)
-	MCFG_VIDEO_START_OVERRIDE(scregg_state,btime)
+	MCFG_PALETTE_INIT_OWNER(scregg_state,btime)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -351,7 +351,7 @@ ROM_START( scregg )
 	ROM_LOAD( "da0.g10",   0x5000, 0x1000, CRC(9c20214a) SHA1(e01b72501a01ffc0370cf19c9a379a54800cccc6) )
 
 	ROM_REGION( 0x0040, "proms", 0 )
-	ROM_LOAD( "dc0.c6 ",   0x0000, 0x0020, CRC(ff23bdd6) SHA1(d09738915da456449bb4e8d9eefb8e6378f0edea) )   /* palette */
+	ROM_LOAD( "dc0.c6",    0x0000, 0x0020, CRC(ff23bdd6) SHA1(d09738915da456449bb4e8d9eefb8e6378f0edea) )   /* palette */
 	ROM_LOAD( "db1.b4",    0x0020, 0x0020, CRC(7cc4824b) SHA1(2a283fc17fac32e63385948bfe180d05f1fb8727) )   /* unknown */
 ROM_END
 

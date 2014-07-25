@@ -39,26 +39,6 @@ static INS8250_REFRESH_CONNECT( svi318_com_refresh_connected )
 	ins8250_handshake_in(device, UART8250_HANDSHAKE_IN_CTS|UART8250_HANDSHAKE_IN_DSR|UART8250_INPUTS_RING_INDICATOR|UART8250_INPUTS_DATA_CARRIER_DETECT);
 }
 #endif
-const ins8250_interface svi318_ins8250_interface[2]=
-{
-	{
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DRIVER_LINE_MEMBER(svi318_state,svi318_ins8250_interrupt),
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
-	{
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DRIVER_LINE_MEMBER(svi318_state,svi318_ins8250_interrupt),
-		DEVCB_NULL,
-		DEVCB_NULL
-	}
-};
-
 
 /* Cartridge */
 
@@ -208,16 +188,6 @@ WRITE8_MEMBER(svi318_state::svi318_ppi_port_c_w)
 	m_svi.keyboard_row = data & 0x0F;
 }
 
-I8255_INTERFACE( svi318_ppi8255_interface )
-{
-	DEVCB_DRIVER_MEMBER(svi318_state,svi318_ppi_port_a_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(svi318_state,svi318_ppi_port_b_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(svi318_state,svi318_ppi_port_c_w)
-};
-
 WRITE8_MEMBER(svi318_state::svi318_ppi_w)
 {
 	m_ppi->write(space, offset + 2, data);
@@ -281,25 +251,17 @@ WRITE_LINE_MEMBER(svi318_state::svi_fdc_drq_w)
 	m_fdc.drq = state;
 }
 
-const wd17xx_interface svi_wd17xx_interface =
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(svi318_state,svi_fdc_intrq_w),
-	DEVCB_DRIVER_LINE_MEMBER(svi318_state,svi_fdc_drq_w),
-	{FLOPPY_0, FLOPPY_1, NULL, NULL}
-};
-
 WRITE8_MEMBER(svi318_state::svi318_fdc_drive_motor_w)
 {
-	device_t *fdc = machine().device("wd179x");
+	fd1793_device *fdc = machine().device<fd1793_device>("wd179x");
 	switch (data & 3)
 	{
 	case 1:
-		wd17xx_set_drive(fdc,0);
+		fdc->set_drive(0);
 		m_fdc.driveselect = 0;
 		break;
 	case 2:
-		wd17xx_set_drive(fdc,1);
+		fdc->set_drive(1);
 		m_fdc.driveselect = 1;
 		break;
 	}
@@ -307,10 +269,10 @@ WRITE8_MEMBER(svi318_state::svi318_fdc_drive_motor_w)
 
 WRITE8_MEMBER(svi318_state::svi318_fdc_density_side_w)
 {
-	device_t *fdc = machine().device("wd179x");
+	fd1793_device *fdc = machine().device<fd1793_device>("wd179x");
 
-	wd17xx_dden_w(fdc, BIT(data, 0));
-	wd17xx_set_side(fdc, BIT(data, 1));
+	fdc->dden_w(BIT(data, 0));
+	fdc->set_side(BIT(data, 1));
 }
 
 READ8_MEMBER(svi318_state::svi318_fdc_irqdrq_r)
@@ -323,16 +285,15 @@ READ8_MEMBER(svi318_state::svi318_fdc_irqdrq_r)
 	return result;
 }
 
-MC6845_UPDATE_ROW( svi806_crtc6845_update_row )
+MC6845_UPDATE_ROW( svi318_state::crtc_update_row )
 {
-	svi318_state *state = device->machine().driver_data<svi318_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	int i;
 
 	for( i = 0; i < x_count; i++ )
 	{
 		int j;
-		UINT8   data = state->m_svi.svi806_gfx[ state->m_svi.svi806_ram->u8(( ma + i ) & 0x7FF) * 16 + ra ];
+		UINT8   data = m_svi.svi806_gfx[ m_svi.svi806_ram->u8(( ma + i ) & 0x7FF) * 16 + ra ];
 
 		if ( i == cursor_x )
 		{
@@ -379,8 +340,8 @@ MACHINE_RESET_MEMBER(svi318_state,svi328_806)
 	svi318_set_banks();
 
 	/* Set SVI-806 80 column card palette */
-	palette_set_color_rgb( machine(), TMS9928A_PALETTE_SIZE, 0, 0, 0 );     /* Monochrome black */
-	palette_set_color_rgb( machine(), TMS9928A_PALETTE_SIZE+1, 0, 224, 0 ); /* Monochrome green */
+	m_palette->set_pen_color( TMS9928A_PALETTE_SIZE, 0, 0, 0 );     /* Monochrome black */
+	m_palette->set_pen_color( TMS9928A_PALETTE_SIZE+1, 0, 224, 0 ); /* Monochrome green */
 }
 
 /* Init functions */
@@ -510,7 +471,7 @@ static const UINT8 cc_ex[0x100] = {
 DRIVER_INIT_MEMBER(svi318_state,svi318)
 {
 	/* z80 stuff */
-	z80_set_cycle_tables( m_maincpu, cc_op, cc_cb, cc_ed, cc_xy, cc_xycb, cc_ex );
+	m_maincpu->z80_set_cycle_tables( cc_op, cc_cb, cc_ed, cc_xy, cc_xycb, cc_ex );
 
 	memset(&m_svi, 0, sizeof (m_svi) );
 
@@ -564,7 +525,7 @@ MACHINE_RESET_MEMBER(svi318_state,svi318)
 
 	for(drive=0;drive<2;drive++)
 	{
-		floppy_install_load_proc(floppy_get_device(machine(), drive), svi318_load_proc);
+		floppy_get_device(machine(), drive)->floppy_install_load_proc(svi318_load_proc);
 	}
 }
 
@@ -727,6 +688,11 @@ void svi318_state::svi318_set_banks()
 
 /* External I/O */
 
+WRITE_LINE_MEMBER(svi318_state::write_centronics_busy)
+{
+	m_centronics_busy = state;
+}
+
 READ8_MEMBER(svi318_state::svi318_io_ext_r)
 {
 	UINT8 data = 0xff;
@@ -737,10 +703,12 @@ READ8_MEMBER(svi318_state::svi318_io_ext_r)
 		return 0xff;
 	}
 
+	fd1793_device *fdc = machine().device<fd1793_device>("wd179x");
+
 	switch( offset )
 	{
 	case 0x12:
-		data = 0xfe | m_centronics->busy_r();
+		data = 0xfe | m_centronics_busy;
 		break;
 
 	case 0x20:
@@ -766,20 +734,16 @@ READ8_MEMBER(svi318_state::svi318_io_ext_r)
 		break;
 
 	case 0x30:
-		device = machine().device("wd179x");
-		data = wd17xx_status_r(device, space, 0);
+		data = fdc->status_r(space, 0);
 		break;
 	case 0x31:
-		device = machine().device("wd179x");
-		data = wd17xx_track_r(device, space, 0);
+		data = fdc->track_r(space, 0);
 		break;
 	case 0x32:
-		device = machine().device("wd179x");
-		data = wd17xx_sector_r(device, space, 0);
+		data = fdc->sector_r(space, 0);
 		break;
 	case 0x33:
-		device = machine().device("wd179x");
-		data = wd17xx_data_r(device, space, 0);
+		data = fdc->data_r(space, 0);
 		break;
 	case 0x34:
 		data = svi318_fdc_irqdrq_r(space, 0);
@@ -802,14 +766,16 @@ WRITE8_MEMBER(svi318_state::svi318_io_ext_w)
 		return;
 	}
 
+	fd1793_device *fdc = machine().device<fd1793_device>("wd179x");
+
 	switch( offset )
 	{
 	case 0x10:
-		m_centronics->write(space, 0, data);
+		m_cent_data_out->write(space, 0, data);
 		break;
 
 	case 0x11:
-		m_centronics->strobe_w(BIT(data, 0));
+		m_centronics->write_strobe(BIT(data, 0));
 		break;
 
 	case 0x20:
@@ -835,20 +801,16 @@ WRITE8_MEMBER(svi318_state::svi318_io_ext_w)
 		break;
 
 	case 0x30:
-		device = machine().device("wd179x");
-		wd17xx_command_w(device, space, 0, data);
+		fdc->command_w(space, 0, data);
 		break;
 	case 0x31:
-		device = machine().device("wd179x");
-		wd17xx_track_w(device, space, 0, data);
+		fdc->track_w(space, 0, data);
 		break;
 	case 0x32:
-		device = machine().device("wd179x");
-		wd17xx_sector_w(device, space, 0, data);
+		fdc->sector_w(space, 0, data);
 		break;
 	case 0x33:
-		device = machine().device("wd179x");
-		wd17xx_data_w(device, space, 0, data);
+		fdc->data_w(space, 0, data);
 		break;
 	case 0x34:
 		svi318_fdc_drive_motor_w(space, 0, data);

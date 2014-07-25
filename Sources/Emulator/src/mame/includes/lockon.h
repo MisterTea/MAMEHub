@@ -36,7 +36,10 @@ public:
 		m_f2203_3l(*this, "f2203.3l"),
 		m_f2203_1r(*this, "f2203.1r"),
 		m_f2203_2r(*this, "f2203.2r"),
-		m_f2203_3r(*this, "f2203.3r") { }
+		m_f2203_3r(*this, "f2203.3r"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_char_ram;
@@ -86,6 +89,10 @@ public:
 	required_device<filter_volume_device> m_f2203_1r;
 	required_device<filter_volume_device> m_f2203_2r;
 	required_device<filter_volume_device> m_f2203_3r;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	DECLARE_READ16_MEMBER(lockon_crtc_r);
 	DECLARE_WRITE16_MEMBER(lockon_crtc_w);
 	DECLARE_WRITE16_MEMBER(lockon_char_w);
@@ -114,7 +121,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(lockon);
 	UINT32 screen_update_lockon(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_lockon(screen_device &screen, bool state);
 	TIMER_CALLBACK_MEMBER(cursor_callback);

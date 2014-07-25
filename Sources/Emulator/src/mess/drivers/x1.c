@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, Barry Rodewald
 /************************************************************************************************
 
     Sharp X1 (c) 1983 Sharp Corporation
@@ -227,30 +229,30 @@ VIDEO_START_MEMBER(x1_state,x1)
 	m_pal_4096 = auto_alloc_array_clear(machine(), UINT8, 0x1000*3);
 }
 
-void x1_state::x1_draw_pixel(running_machine &machine, bitmap_rgb32 &bitmap,int y,int x,UINT16 pen,UINT8 width,UINT8 height)
+void x1_state::x1_draw_pixel(bitmap_rgb32 &bitmap,int y,int x,UINT16 pen,UINT8 width,UINT8 height)
 {
-	if(!machine.primary_screen->visible_area().contains(x, y))
+	if(!machine().first_screen()->visible_area().contains(x, y))
 		return;
 
 	if(width && height)
 	{
-		bitmap.pix32(y+0+m_ystart, x+0+m_xstart) = machine.pens[pen];
-		bitmap.pix32(y+0+m_ystart, x+1+m_xstart) = machine.pens[pen];
-		bitmap.pix32(y+1+m_ystart, x+0+m_xstart) = machine.pens[pen];
-		bitmap.pix32(y+1+m_ystart, x+1+m_xstart) = machine.pens[pen];
+		bitmap.pix32(y+0+m_ystart, x+0+m_xstart) = m_palette->pen(pen);
+		bitmap.pix32(y+0+m_ystart, x+1+m_xstart) = m_palette->pen(pen);
+		bitmap.pix32(y+1+m_ystart, x+0+m_xstart) = m_palette->pen(pen);
+		bitmap.pix32(y+1+m_ystart, x+1+m_xstart) = m_palette->pen(pen);
 	}
 	else if(width)
 	{
-		bitmap.pix32(y+m_ystart, x+0+m_xstart) = machine.pens[pen];
-		bitmap.pix32(y+m_ystart, x+1+m_xstart) = machine.pens[pen];
+		bitmap.pix32(y+m_ystart, x+0+m_xstart) = m_palette->pen(pen);
+		bitmap.pix32(y+m_ystart, x+1+m_xstart) = m_palette->pen(pen);
 	}
 	else if(height)
 	{
-		bitmap.pix32(y+0+m_ystart, x+m_xstart) = machine.pens[pen];
-		bitmap.pix32(y+1+m_ystart, x+m_xstart) = machine.pens[pen];
+		bitmap.pix32(y+0+m_ystart, x+m_xstart) = m_palette->pen(pen);
+		bitmap.pix32(y+1+m_ystart, x+m_xstart) = m_palette->pen(pen);
 	}
 	else
-		bitmap.pix32(y+m_ystart, x+m_xstart) = machine.pens[pen];
+		bitmap.pix32(y+m_ystart, x+m_xstart) = m_palette->pen(pen);
 }
 
 #define mc6845_h_char_total     (m_crtc_vreg[0])
@@ -272,7 +274,7 @@ void x1_state::x1_draw_pixel(running_machine &machine, bitmap_rgb32 &bitmap,int 
 
 
 /* adjust tile index when we are under double height condition */
-UINT8 x1_state::check_prev_height(running_machine &machine,int x,int y,int x_size)
+UINT8 x1_state::check_prev_height(int x,int y,int x_size)
 {
 	UINT8 prev_tile = m_tvram[(x+((y-1)*x_size)+mc6845_start_addr) & 0x7ff];
 	UINT8 cur_tile = m_tvram[(x+(y*x_size)+mc6845_start_addr) & 0x7ff];
@@ -286,7 +288,7 @@ UINT8 x1_state::check_prev_height(running_machine &machine,int x,int y,int x_siz
 }
 
 /* Exoa II - Warroid: if double height isn't enabled on the first tile of the line then double height is disabled on everything else. */
-UINT8 x1_state::check_line_valid_height(running_machine &machine,int y,int x_size,int height)
+UINT8 x1_state::check_line_valid_height(int y,int x_size,int height)
 {
 	UINT8 line_attr = m_avram[(0+(y*x_size)+mc6845_start_addr) & 0x7ff];
 
@@ -296,7 +298,7 @@ UINT8 x1_state::check_line_valid_height(running_machine &machine,int y,int x_siz
 	return height;
 }
 
-void x1_state::draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect)
+void x1_state::draw_fgtilemap(bitmap_rgb32 &bitmap,const rectangle &cliprect)
 {
 	/*
 	    attribute table:
@@ -362,10 +364,10 @@ void x1_state::draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,con
 
 				dy = 0;
 
-				height = check_line_valid_height(machine,y,x_size,height);
+				height = check_line_valid_height(y,x_size,height);
 
 				if(height && y)
-					dy = check_prev_height(machine,x,y,x_size);
+					dy = check_prev_height(x,y,x_size);
 
 				/* guess: assume that Kanji VRAM doesn't double the vertical size */
 				if(knj_enable) { height = 0; }
@@ -427,7 +429,7 @@ void x1_state::draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,con
 
 						pcg_pen = pen[2]<<2|pen[1]<<1|pen[0]<<0;
 
-						if(color & 0x10 && machine.primary_screen->frame_number() & 0x10) //reverse flickering
+						if(color & 0x10 && machine().first_screen()->frame_number() & 0x10) //reverse flickering
 							pcg_pen^=7;
 
 						if(pcg_pen == 0 && (!(color & 8)))
@@ -445,7 +447,7 @@ void x1_state::draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,con
 						if(res_y < cliprect.min_y || res_y > cliprect.max_y) // partial update, TODO: optimize
 							continue;
 
-						x1_draw_pixel(machine,bitmap,res_y,res_x,pcg_pen,width,0);
+						x1_draw_pixel(bitmap,res_y,res_x,pcg_pen,width,0);
 					}
 				}
 			}
@@ -484,7 +486,7 @@ int x1_state::priority_mixer_pri(int color)
 	return pri_mask_calc;
 }
 
-void x1_state::draw_gfxbitmap(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect, int plane,int pri)
+void x1_state::draw_gfxbitmap(bitmap_rgb32 &bitmap,const rectangle &cliprect, int plane,int pri)
 {
 	int xi,yi,x,y;
 	int pen_r,pen_g,pen_b,color;
@@ -528,7 +530,7 @@ void x1_state::draw_gfxbitmap(running_machine &machine, bitmap_rgb32 &bitmap,con
 					if(y*(mc6845_tile_height)+yi < cliprect.min_y || y*(mc6845_tile_height)+yi > cliprect.max_y) // partial update TODO: optimize
 						continue;
 
-					x1_draw_pixel(machine,bitmap,y*(mc6845_tile_height)+yi,x*8+xi,color,0,0);
+					x1_draw_pixel(bitmap,y*(mc6845_tile_height)+yi,x*8+xi,color,0,0);
 				}
 			}
 		}
@@ -537,7 +539,7 @@ void x1_state::draw_gfxbitmap(running_machine &machine, bitmap_rgb32 &bitmap,con
 
 UINT32 x1_state::screen_update_x1(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(MAKE_ARGB(0xff,0x00,0x00,0x00), cliprect);
+	bitmap.fill(rgb_t(0xff,0x00,0x00,0x00), cliprect);
 
 	/* TODO: correct calculation thru mc6845 regs */
 	m_xstart = ((mc6845_h_char_total - mc6845_h_sync_pos) * 8) / 2;
@@ -545,9 +547,9 @@ UINT32 x1_state::screen_update_x1(screen_device &screen, bitmap_rgb32 &bitmap, c
 
 //  popmessage("%d %d %d %d",mc6845_h_sync_pos,mc6845_v_sync_pos,mc6845_h_char_total,mc6845_v_char_total);
 
-	draw_gfxbitmap(machine(),bitmap,cliprect,m_scrn_reg.disp_bank,m_scrn_reg.pri);
-	draw_fgtilemap(machine(),bitmap,cliprect);
-	draw_gfxbitmap(machine(),bitmap,cliprect,m_scrn_reg.disp_bank,m_scrn_reg.pri^0xff);
+	draw_gfxbitmap(bitmap,cliprect,m_scrn_reg.disp_bank,m_scrn_reg.pri);
+	draw_fgtilemap(bitmap,cliprect);
+	draw_gfxbitmap(bitmap,cliprect,m_scrn_reg.disp_bank,m_scrn_reg.pri^0xff);
 
 	return 0;
 }
@@ -993,13 +995,13 @@ READ8_MEMBER( x1_state::x1_fdc_r )
 	switch(offset+0xff8)
 	{
 		case 0x0ff8:
-			return wd17xx_status_r(m_fdc,space, offset);
+			return m_fdc->status_r(space, offset);
 		case 0x0ff9:
-			return wd17xx_track_r(m_fdc,space, offset);
+			return m_fdc->track_r(space, offset);
 		case 0x0ffa:
-			return wd17xx_sector_r(m_fdc,space, offset);
+			return m_fdc->sector_r(space, offset);
 		case 0x0ffb:
-			return wd17xx_data_r(m_fdc,space, offset);
+			return m_fdc->data_r(space, offset);
 		case 0x0ffc:
 			printf("FDC: read FM type\n");
 			return 0xff;
@@ -1022,22 +1024,22 @@ WRITE8_MEMBER( x1_state::x1_fdc_w )
 	switch(offset+0xff8)
 	{
 		case 0x0ff8:
-			wd17xx_command_w(m_fdc,space, offset,data);
+			m_fdc->command_w(space, offset,data);
 			break;
 		case 0x0ff9:
-			wd17xx_track_w(m_fdc,space, offset,data);
+			m_fdc->track_w(space, offset,data);
 			break;
 		case 0x0ffa:
-			wd17xx_sector_w(m_fdc,space, offset,data);
+			m_fdc->sector_w(space, offset,data);
 			break;
 		case 0x0ffb:
-			wd17xx_data_w(m_fdc,space, offset,data);
+			m_fdc->data_w(space, offset,data);
 			break;
 		case 0x0ffc:
-			wd17xx_set_drive(m_fdc,data & 3);
-			floppy_mon_w(floppy_get_device(machine(), data & 3), !BIT(data, 7));
-			floppy_drive_set_ready_state(floppy_get_device(machine(), data & 3), data & 0x80,0);
-			wd17xx_set_side(m_fdc, BIT(data, 4));
+			m_fdc->set_drive(data & 3);
+			floppy_get_device(machine(), data & 3)->floppy_mon_w(!BIT(data, 7));
+			floppy_get_device(machine(), data & 3)->floppy_drive_set_ready_state(data & 0x80,0);
+			m_fdc->set_side(BIT(data, 4));
 			break;
 		case 0x0ffd:
 		case 0x0ffe:
@@ -1047,26 +1049,10 @@ WRITE8_MEMBER( x1_state::x1_fdc_w )
 	}
 }
 
-static const wd17xx_interface x1_mb8877a_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	{FLOPPY_0, FLOPPY_1, FLOPPY_2, FLOPPY_3}
-};
-
 WRITE_LINE_MEMBER(x1_state::fdc_drq_w)
 {
-	z80dma_rdy_w(machine().device("dma"), state ^ 1);
+	m_dma->rdy_w(state ^ 1);
 }
-
-static const wd17xx_interface x1turbo_mb8877a_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(x1_state,fdc_drq_w),
-	{FLOPPY_0, FLOPPY_1, FLOPPY_2, FLOPPY_3}
-};
 
 /*************************************
  *
@@ -1096,11 +1082,11 @@ UINT16 x1_state::check_chr_addr()
 
 UINT16 x1_state::get_pcg_addr( UINT16 width, UINT8 y_char_size )
 {
-	int hbeam = machine().primary_screen->hpos() >> 3;
-	int vbeam = machine().primary_screen->vpos() / y_char_size;
+	int hbeam = machine().first_screen()->hpos() >> 3;
+	int vbeam = machine().first_screen()->vpos() / y_char_size;
 	UINT16 pcg_offset = ((hbeam + vbeam*width) + (((m_crtc_vreg[0x0c]<<8) & 0x3f00) | (m_crtc_vreg[0x0d] & 0xff))) & 0x7ff;
 
-	//printf("%08x %d %d %d %d\n",(hbeam+vbeam*width),hbeam,vbeam,machine.primary_screen->vpos() & 7,width);
+	//printf("%08x %d %d %d %d\n",(hbeam+vbeam*width),hbeam,vbeam,machine.first_screen()->vpos() & 7,width);
 
 	return pcg_offset;
 }
@@ -1133,7 +1119,7 @@ READ8_MEMBER( x1_state::x1_pcg_r )
 		y_char_size = ((m_crtc_vreg[9]+1) > 8) ? 8 : m_crtc_vreg[9]+1;
 		if(y_char_size == 0) { y_char_size = 1; }
 		pcg_offset = m_tvram[get_pcg_addr(m_crtc_vreg[1], y_char_size)]*8;
-		pcg_offset+= machine().primary_screen->vpos() & (y_char_size-1);
+		pcg_offset+= machine().first_screen()->vpos() & (y_char_size-1);
 		if(addr) { pcg_offset+= ((addr-1)*0x800); }
 		res = gfx_data[pcg_offset];
 	}
@@ -1163,7 +1149,7 @@ WRITE8_MEMBER( x1_state::x1_pcg_w )
 
 			pcg_offset &= 0x7ff;
 
-			machine().gfx[3]->mark_dirty(pcg_offset >> 3);
+			m_gfxdecode->gfx(3)->mark_dirty(pcg_offset >> 3);
 		}
 		else // Compatible Mode
 		{
@@ -1173,14 +1159,14 @@ WRITE8_MEMBER( x1_state::x1_pcg_w )
 			y_char_size = (m_crtc_vreg[9]+1) > 8 ? (m_crtc_vreg[9]+1)-8 : m_crtc_vreg[9]+1;
 			if(y_char_size == 0) { y_char_size = 1; }
 			pcg_offset = m_tvram[get_pcg_addr(m_crtc_vreg[1], y_char_size)]*8;
-			pcg_offset+= machine().primary_screen->vpos() & (y_char_size-1);
+			pcg_offset+= machine().first_screen()->vpos() & (y_char_size-1);
 			pcg_offset+= ((addr-1)*0x800);
 
 			m_pcg_ram[pcg_offset] = data;
 
 			pcg_offset &= 0x7ff;
 
-			machine().gfx[3]->mark_dirty(pcg_offset >> 3);
+			m_gfxdecode->gfx(3)->mark_dirty(pcg_offset >> 3);
 		}
 	}
 }
@@ -1202,7 +1188,7 @@ void x1_state::set_current_palette()
 		g = ((m_x_g)>>(addr)) & 1;
 		b = ((m_x_b)>>(addr)) & 1;
 
-		palette_set_color_rgb(machine(), addr|8, pal1bit(r), pal1bit(g), pal1bit(b));
+		m_palette->set_pen_color(addr|8, pal1bit(r), pal1bit(g), pal1bit(b));
 	}
 }
 
@@ -1219,7 +1205,7 @@ WRITE8_MEMBER( x1_state::x1turboz_4096_palette_w )
 	g = m_pal_4096[pal_entry+(2<<12)];
 	b = m_pal_4096[pal_entry+(0<<12)];
 
-	palette_set_color_rgb(machine(), pal_entry+16, pal3bit(r), pal3bit(g), pal3bit(b));
+	m_palette->set_pen_color(pal_entry+16, pal3bit(r), pal3bit(g), pal3bit(b));
 }
 
 /* Note: docs claims that reading the palette ports makes the value to change somehow in X1 mode ...
@@ -1235,10 +1221,10 @@ WRITE8_MEMBER( x1_state::x1_pal_r_w )
 	{
 		m_x_r = data;
 		set_current_palette();
-		//if(m_old_vpos != machine().primary_screen->vpos())
+		//if(m_old_vpos != machine().first_screen()->vpos())
 		//{
-		//  machine().primary_screen->update_partial(machine().primary_screen->vpos());
-		//  m_old_vpos = machine().primary_screen->vpos();
+		//  machine().first_screen()->update_partial(machine().first_screen()->vpos());
+		//  m_old_vpos = machine().first_screen()->vpos();
 		//}
 	}
 }
@@ -1254,10 +1240,10 @@ WRITE8_MEMBER( x1_state::x1_pal_g_w )
 	{
 		m_x_g = data;
 		set_current_palette();
-		//if(m_old_vpos != machine().primary_screen->vpos())
+		//if(m_old_vpos != machine().first_screen()->vpos())
 		//{
-			machine().primary_screen->update_partial(machine().primary_screen->vpos());
-		//  m_old_vpos = machine().primary_screen->vpos();
+			machine().first_screen()->update_partial(machine().first_screen()->vpos());
+		//  m_old_vpos = machine().first_screen()->vpos();
 		//}
 	}
 }
@@ -1273,10 +1259,10 @@ WRITE8_MEMBER( x1_state::x1_pal_b_w )
 	{
 		m_x_b = data;
 		set_current_palette();
-		//if(m_old_vpos != machine().primary_screen->vpos())
+		//if(m_old_vpos != machine().first_screen()->vpos())
 		//{
-		//  machine().primary_screen->update_partial(machine().primary_screen->vpos());
-		//  m_old_vpos = machine().primary_screen->vpos();
+		//  machine().first_screen()->update_partial(machine().first_screen()->vpos());
+		//  m_old_vpos = machine().first_screen()->vpos();
 		//}
 	}
 }
@@ -1400,7 +1386,7 @@ WRITE8_MEMBER( x1_state::x1turbo_txpal_w )
 		g = (data & 0x30) >> 4;
 		b = (data & 0x03) >> 0;
 
-		palette_set_color_rgb(machine(), offset, pal2bit(r), pal2bit(g), pal2bit(b));
+		m_palette->set_pen_color(offset, pal2bit(r), pal2bit(g), pal2bit(b));
 	}
 }
 
@@ -1679,7 +1665,7 @@ READ8_MEMBER( x1_state::x1turbo_io_r )
 	else if(offset >= 0x1900 && offset <= 0x19ff)   { return x1_sub_io_r(space, 0); }
 	else if(offset >= 0x1a00 && offset <= 0x1aff)   { return machine().device<i8255_device>("ppi8255_0")->read(space, (offset-0x1a00) & 3); }
 	else if(offset >= 0x1b00 && offset <= 0x1bff)   { return machine().device<ay8910_device>("ay")->data_r(space, 0); }
-	else if(offset >= 0x1f80 && offset <= 0x1f8f)   { return z80dma_r(machine().device("dma"), space, 0); }
+	else if(offset >= 0x1f80 && offset <= 0x1f8f)   { return m_dma->read(space, 0); }
 	else if(offset >= 0x1f90 && offset <= 0x1f93)   { return machine().device<z80sio0_device>("sio")->ba_cd_r(space, (offset-0x1f90) & 3); }
 	else if(offset >= 0x1f98 && offset <= 0x1f9f)   { printf("Extended SIO/CTC read %04x\n",offset); return 0xff; }
 	else if(offset >= 0x1fa0 && offset <= 0x1fa3)   { return m_ctc->read(space,offset-0x1fa0); }
@@ -1732,7 +1718,7 @@ WRITE8_MEMBER( x1_state::x1turbo_io_w )
 	else if(offset >= 0x1c00 && offset <= 0x1cff)   { machine().device<ay8910_device>("ay")->address_w(space, 0,data); }
 	else if(offset >= 0x1d00 && offset <= 0x1dff)   { x1_rom_bank_1_w(space,0,data); }
 	else if(offset >= 0x1e00 && offset <= 0x1eff)   { x1_rom_bank_0_w(space,0,data); }
-	else if(offset >= 0x1f80 && offset <= 0x1f8f)   { z80dma_w(machine().device("dma"), space, 0,data); }
+	else if(offset >= 0x1f80 && offset <= 0x1f8f)   { m_dma->write(space, 0,data); }
 	else if(offset >= 0x1f90 && offset <= 0x1f93)   { machine().device<z80sio0_device>("sio")->ba_cd_w(space, (offset-0x1f90) & 3,data); }
 	else if(offset >= 0x1f98 && offset <= 0x1f9f)   { printf("Extended SIO/CTC write %04x %02x\n",offset,data); }
 	else if(offset >= 0x1fa0 && offset <= 0x1fa3)   { m_ctc->write(space,offset-0x1fa0,data); }
@@ -1802,8 +1788,8 @@ READ8_MEMBER( x1_state::x1_portb_r )
 	UINT8 res = 0;
 	int vblank_line = m_crtc_vreg[6] * (m_crtc_vreg[9]+1);
 	int vsync_line = m_crtc_vreg[7] * (m_crtc_vreg[9]+1);
-	m_vdisp = (machine().primary_screen->vpos() < vblank_line) ? 0x80 : 0x00;
-	m_vsync = (machine().primary_screen->vpos() < vsync_line) ? 0x00 : 0x04;
+	m_vdisp = (machine().first_screen()->vpos() < vblank_line) ? 0x80 : 0x00;
+	m_vsync = (machine().first_screen()->vpos() < vsync_line) ? 0x00 : 0x04;
 
 //  popmessage("%d",vsync_line);
 //  popmessage("%d",vblank_line);
@@ -1868,30 +1854,6 @@ WRITE8_MEMBER( x1_state::x1_portc_w )
 	m_cassette->output(BIT(data, 0) ? +1.0 : -1.0);
 }
 
-static I8255A_INTERFACE( ppi8255_intf )
-{
-	DEVCB_DRIVER_MEMBER(x1_state, x1_porta_r),                      /* Port A read */
-	DEVCB_DRIVER_MEMBER(x1_state, x1_porta_w),                      /* Port A write */
-	DEVCB_DRIVER_MEMBER(x1_state, x1_portb_r),                      /* Port B read */
-	DEVCB_DRIVER_MEMBER(x1_state, x1_portb_w),                      /* Port B write */
-	DEVCB_DRIVER_MEMBER(x1_state, x1_portc_r),                      /* Port C read */
-	DEVCB_DRIVER_MEMBER(x1_state, x1_portc_w)                       /* Port C write */
-};
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	true,       /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
 READ8_MEMBER(x1_state::memory_read_byte)
 {
 	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
@@ -1915,17 +1877,6 @@ WRITE8_MEMBER(x1_state::io_write_byte)
 	address_space& prog_space = m_maincpu->space(AS_IO);
 	return prog_space.write_byte(offset, data);
 }
-
-static Z80DMA_INTERFACE( x1_dma )
-{
-	DEVCB_CPU_INPUT_LINE("x1_cpu", INPUT_LINE_HALT),
-	DEVCB_CPU_INPUT_LINE("x1_cpu", INPUT_LINE_IRQ0),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(x1_state, memory_read_byte),
-	DEVCB_DRIVER_MEMBER(x1_state, memory_write_byte),
-	DEVCB_DRIVER_MEMBER(x1_state, io_read_byte),
-	DEVCB_DRIVER_MEMBER(x1_state, io_write_byte)
-};
 
 /*************************************
  *
@@ -2259,41 +2210,6 @@ static GFXDECODE_START( x1 )
 //  GFXDECODE_ENTRY( "pcg",     0x00000, x1_pcg_8x8,      0, 1 )
 GFXDECODE_END
 
-/*************************************
- *
- *  CTC
- *
- *************************************/
-
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("x1_cpu", INPUT_LINE_IRQ0),        // interrupt handler
-	DEVCB_DEVICE_LINE_MEMBER("ctc", z80ctc_device, trg3),       // ZC/TO0 callback
-	DEVCB_DEVICE_LINE_MEMBER("ctc", z80ctc_device, trg1),       // ZC/TO1 callback
-	DEVCB_DEVICE_LINE_MEMBER("ctc", z80ctc_device, trg2),       // ZC/TO2 callback
-};
-
-static Z80SIO_INTERFACE( sio_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_CPU_INPUT_LINE("x1_cpu", INPUT_LINE_IRQ0)
-};
-
 static const z80_daisy_config x1_daisy[] =
 {
 	{ "x1kb" },
@@ -2309,40 +2225,6 @@ static const z80_daisy_config x1turbo_daisy[] =
 	{ "sio" },
 	{ NULL }
 };
-
-/*************************************
- *
- *  Sound HW Config
- *
- *************************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("P1"),
-	DEVCB_INPUT_PORT("P2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-// (ym-2151 handler here)
-
-/*************************************
- *
- *  Cassette configuration
- *
- *************************************/
-
-static const cassette_interface x1_cassette_interface =
-{
-	x1_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED),
-	"x1_cass",
-	NULL
-};
-
 
 /*************************************
  *
@@ -2438,7 +2320,7 @@ MACHINE_RESET_MEMBER(x1_state,x1)
 	for(i=0;i<0x1800;i++)
 	{
 		m_pcg_ram[i] = 0;
-		machine().gfx[3]->mark_dirty(i >> 3);
+		m_gfxdecode->gfx(3)->mark_dirty(i >> 3);
 	}
 
 	m_is_turbo = 0;
@@ -2466,7 +2348,7 @@ MACHINE_RESET_MEMBER(x1_state,x1)
 
 	/* Reinitialize palette here if there's a soft reset for the Turbo PAL stuff*/
 	for(i=0;i<0x10;i++)
-		palette_set_color_rgb(machine(), i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
+		m_palette->set_pen_color(i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
 
 	m_ram_bank = 0;
 //  m_old_vpos = -1;
@@ -2521,7 +2403,7 @@ MACHINE_START_MEMBER(x1_state,x1)
 	save_pointer(NAME(m_emm_ram), 0x1000000);
 	save_pointer(NAME(m_pcg_ram), 0x1800);
 
-	machine().gfx[3] = auto_alloc(machine(), gfx_element(machine(), x1_pcg_8x8, (UINT8 *)m_pcg_ram, 1, 0));
+	m_gfxdecode->set_gfx(3, global_alloc(gfx_element(m_palette, x1_pcg_8x8, (UINT8 *)m_pcg_ram, 0, 1, 0)));
 }
 
 PALETTE_INIT_MEMBER(x1_state,x1)
@@ -2529,7 +2411,7 @@ PALETTE_INIT_MEMBER(x1_state,x1)
 	int i;
 
 	for(i=0;i<(0x10+0x1000);i++)
-		palette_set_color(machine(), i,MAKE_RGB(0x00,0x00,0x00));
+		palette.set_pen_color(i,rgb_t(0x00,0x00,0x00));
 }
 
 static LEGACY_FLOPPY_OPTIONS_START( x1 )
@@ -2543,15 +2425,9 @@ LEGACY_FLOPPY_OPTIONS_END
 
 static const floppy_interface x1_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSDD_40,
 	LEGACY_FLOPPY_OPTIONS_NAME(x1),
-	"floppy_5_25",
-	NULL
+	"floppy_5_25"
 };
 
 static MACHINE_CONFIG_START( x1, x1_state )
@@ -2561,11 +2437,21 @@ static MACHINE_CONFIG_START( x1, x1_state )
 	MCFG_CPU_IO_MAP(x1_io)
 	MCFG_CPU_CONFIG(x1_daisy)
 
-	MCFG_Z80CTC_ADD( "ctc", MAIN_CLOCK/4, ctc_intf )
+	MCFG_DEVICE_ADD("ctc", Z80CTC, MAIN_CLOCK/4)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("x1_cpu", INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(DEVWRITELINE("ctc", z80ctc_device, trg3))
+	MCFG_Z80CTC_ZC1_CB(DEVWRITELINE("ctc", z80ctc_device, trg1))
+	MCFG_Z80CTC_ZC2_CB(DEVWRITELINE("ctc", z80ctc_device, trg2))
 
 	MCFG_DEVICE_ADD("x1kb", X1_KEYBOARD, 0)
 
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(x1_state, x1_porta_r))
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(x1_state, x1_porta_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(x1_state, x1_portb_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(x1_state, x1_portb_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(x1_state, x1_portc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(x1_state, x1_portc_w))
 
 	MCFG_MACHINE_START_OVERRIDE(x1_state,x1)
 	MCFG_MACHINE_RESET_OVERRIDE(x1_state,x1)
@@ -2578,15 +2464,19 @@ static MACHINE_CONFIG_START( x1, x1_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 	MCFG_SCREEN_UPDATE_DRIVER(x1_state, screen_update_x1)
 
-	MCFG_MC6845_ADD("crtc", H46505, "screen", (VDP_CLOCK/48), mc6845_intf) //unknown divider
-	MCFG_PALETTE_LENGTH(0x10+0x1000)
-	MCFG_PALETTE_INIT_OVERRIDE(x1_state,x1)
+	MCFG_MC6845_ADD("crtc", H46505, "screen", (VDP_CLOCK/48)) //unknown divider
+	MCFG_MC6845_SHOW_BORDER_AREA(true)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
-	MCFG_GFXDECODE(x1)
+	MCFG_PALETTE_ADD("palette", 0x10+0x1000)
+	MCFG_PALETTE_INIT_OWNER(x1_state,x1)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", x1)
 
 	MCFG_VIDEO_START_OVERRIDE(x1_state,x1)
 
-	MCFG_MB8877_ADD("fdc",x1_mb8877a_interface)
+	MCFG_DEVICE_ADD("fdc", MB8877, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE4_TAGS
 
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("rom")
@@ -2596,7 +2486,8 @@ static MACHINE_CONFIG_START( x1, x1_state )
 
 	/* TODO:is the AY mono or stereo? Also volume balance isn't right. */
 	MCFG_SOUND_ADD("ay", AY8910, MAIN_CLOCK/8)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("P1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("P2"))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  0.5)
@@ -2605,7 +2496,11 @@ static MACHINE_CONFIG_START( x1, x1_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.25)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.10)
 
-	MCFG_CASSETTE_ADD("cassette",x1_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_FORMATS(x1_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("x1_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","x1_cass")
 
 	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(x1_floppy_interface)
@@ -2622,11 +2517,21 @@ static MACHINE_CONFIG_DERIVED( x1turbo, x1 )
 	MCFG_CPU_CONFIG(x1turbo_daisy)
 	MCFG_MACHINE_RESET_OVERRIDE(x1_state,x1turbo)
 
-	MCFG_Z80SIO0_ADD("sio", MAIN_CLOCK/4 , sio_intf )
-	MCFG_Z80DMA_ADD( "dma", MAIN_CLOCK/4 , x1_dma )
+	MCFG_Z80SIO0_ADD("sio", MAIN_CLOCK/4 , 0, 0, 0, 0)
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE("x1_cpu", INPUT_LINE_IRQ0))
+
+	MCFG_DEVICE_ADD("dma", Z80DMA, MAIN_CLOCK/4)
+	MCFG_Z80DMA_OUT_BUSREQ_CB(INPUTLINE("x1_cpu", INPUT_LINE_HALT))
+	MCFG_Z80DMA_OUT_INT_CB(INPUTLINE("x1_cpu", INPUT_LINE_IRQ0))
+	MCFG_Z80DMA_IN_MREQ_CB(READ8(x1_state, memory_read_byte))
+	MCFG_Z80DMA_OUT_MREQ_CB(WRITE8(x1_state, memory_write_byte))
+	MCFG_Z80DMA_IN_IORQ_CB(READ8(x1_state, io_read_byte))
+	MCFG_Z80DMA_OUT_IORQ_CB(WRITE8(x1_state, io_write_byte))
 
 	MCFG_DEVICE_REMOVE("fdc")
-	MCFG_MB8877_ADD("fdc",x1turbo_mb8877a_interface)
+	MCFG_DEVICE_ADD("fdc", MB8877, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE4_TAGS
+	MCFG_WD17XX_DRQ_CALLBACK(WRITELINE(x1_state,fdc_drq_w))
 
 	MCFG_YM2151_ADD("ym", MAIN_CLOCK/8) //option board
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.50)
@@ -2742,4 +2647,4 @@ COMP( 1982, x1,        0,      0,       x1,      x1, driver_device,         0,  
 // x1twin in x1twin.c
 COMP( 1984, x1turbo,   x1,     0,       x1turbo, x1turbo, x1_state,    x1_kanji, "Sharp", "X1 Turbo (CZ-850C)", GAME_NOT_WORKING ) //model 10
 COMP( 1985, x1turbo40, x1,     0,       x1turbo, x1turbo, x1_state,    x1_kanji, "Sharp", "X1 Turbo (CZ-862C)", 0 ) //model 40
-// x1turboz  /* 1986 Sharp X1 TurboZ  */
+//COMP( 1986, x1turboz, x1,     0,       x1turbo, x1turbo, x1_state,    x1_kanji, "Sharp", "X1 TurboZ", GAME_NOT_WORKING )

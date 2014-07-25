@@ -211,16 +211,6 @@ static const gfx_layout charlayout =
 	8*8*2
 };
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r),
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 static GFXDECODE_START( pitnrun )
 	GFXDECODE_ENTRY( "gfx3", 0, charlayout,   64, 2 )
 	GFXDECODE_ENTRY( "gfx2", 0, charlayout,   32, 2 )
@@ -250,19 +240,23 @@ static MACHINE_CONFIG_START( pitnrun, pitnrun_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pitnrun_state, screen_update_pitnrun)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pitnrun)
-	MCFG_PALETTE_LENGTH(32*3)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pitnrun)
+	MCFG_PALETTE_ADD("palette", 32*3)
+	MCFG_PALETTE_INIT_OWNER(pitnrun_state, pitnrun)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, XTAL_18_432MHz/12)    /* verified on pcb */
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(driver_device, soundlatch_byte_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_SOUND_ADD("ay2", AY8910, XTAL_18_432MHz/12)    /* verified on pcb */
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(driver_device, soundlatch_byte_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

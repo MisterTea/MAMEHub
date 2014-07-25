@@ -359,43 +359,41 @@ GFXDECODE_END
 
 static const rgb_t vt_colors[] =
 {
-	RGB_BLACK,
-	MAKE_RGB(0x00, 0x00, 0x7f),  /* blue */
-	MAKE_RGB(0x00, 0x7f, 0x00),  /* green */
-	MAKE_RGB(0x00, 0x7f, 0x7f),  /* cyan */
-	MAKE_RGB(0x7f, 0x00, 0x00),  /* red */
-	MAKE_RGB(0x7f, 0x00, 0x7f),  /* magenta */
-	MAKE_RGB(0x7f, 0x7f, 0x00),  /* yellow */
-	MAKE_RGB(0xa0, 0xa0, 0xa0),  /* bright grey */
-	MAKE_RGB(0x7f, 0x7f, 0x7f),  /* dark grey */
-	MAKE_RGB(0x00, 0x00, 0xff),  /* bright blue */
-	MAKE_RGB(0x00, 0xff, 0x00),  /* bright green */
-	MAKE_RGB(0x00, 0xff, 0xff),  /* bright cyan */
-	MAKE_RGB(0xff, 0x00, 0x00),  /* bright red */
-	MAKE_RGB(0xff, 0x00, 0xff),  /* bright magenta */
-	MAKE_RGB(0xff, 0xff, 0x00),  /* bright yellow */
-	RGB_WHITE
+	rgb_t::black,
+	rgb_t(0x00, 0x00, 0x7f),  /* blue */
+	rgb_t(0x00, 0x7f, 0x00),  /* green */
+	rgb_t(0x00, 0x7f, 0x7f),  /* cyan */
+	rgb_t(0x7f, 0x00, 0x00),  /* red */
+	rgb_t(0x7f, 0x00, 0x7f),  /* magenta */
+	rgb_t(0x7f, 0x7f, 0x00),  /* yellow */
+	rgb_t(0xa0, 0xa0, 0xa0),  /* bright grey */
+	rgb_t(0x7f, 0x7f, 0x7f),  /* dark grey */
+	rgb_t(0x00, 0x00, 0xff),  /* bright blue */
+	rgb_t(0x00, 0xff, 0x00),  /* bright green */
+	rgb_t(0x00, 0xff, 0xff),  /* bright cyan */
+	rgb_t(0xff, 0x00, 0x00),  /* bright red */
+	rgb_t(0xff, 0x00, 0xff),  /* bright magenta */
+	rgb_t(0xff, 0xff, 0x00),  /* bright yellow */
+	rgb_t::white
 };
 
 
 /* Initialise the palette */
-void vtech2_state::palette_init()
+PALETTE_INIT_MEMBER(vtech2_state, vtech2)
 {
 	int i;
 
-	machine().colortable = colortable_alloc(machine(), 16);
-
 	for ( i = 0; i < 16; i++ )
-		colortable_palette_set_color(machine().colortable, i, vt_colors[i]);
+		palette.set_indirect_color(i, vt_colors[i]);
 
 	for (i = 0; i < 256; i++)
 	{
-		colortable_entry_set_value(machine().colortable, 2*i, i&15);
-		colortable_entry_set_value(machine().colortable, 2*i+1, i>>4);
+		palette.set_pen_indirect(2*i, i&15);
+		palette.set_pen_indirect(2*i+1, i>>4);
 	}
 
 	for (i = 0; i < 16; i++)
-		colortable_entry_set_value(machine().colortable, 512+i, i);
+		palette.set_pen_indirect(512+i, i);
 }
 
 INTERRUPT_GEN_MEMBER(vtech2_state::vtech2_interrupt)
@@ -403,25 +401,10 @@ INTERRUPT_GEN_MEMBER(vtech2_state::vtech2_interrupt)
 	m_maincpu->set_input_line(0, HOLD_LINE);
 }
 
-static const cassette_interface laser_cassette_interface =
-{
-	vtech2_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_PLAY),
-	NULL,
-	NULL
-};
-
 static const floppy_interface vtech2_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_SSDD_40,
 	LEGACY_FLOPPY_OPTIONS_NAME(default),
-	NULL,
 	NULL
 };
 
@@ -441,9 +424,12 @@ static MACHINE_CONFIG_START( laser350, vtech2_state )
 	MCFG_SCREEN_SIZE(88*8, 24*8+32)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 88*8-1, 0*8, 24*8+32-1)
 	MCFG_SCREEN_UPDATE_DRIVER(vtech2_state, screen_update_laser)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE( vtech2 )
-	MCFG_PALETTE_LENGTH(528)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", vtech2 )
+	MCFG_PALETTE_ADD("palette", 512+16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(16)
+	MCFG_PALETTE_INIT_OWNER(vtech2_state, vtech2)
 
 
 	/* sound hardware */
@@ -453,7 +439,9 @@ static MACHINE_CONFIG_START( laser350, vtech2_state )
 	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
-	MCFG_CASSETTE_ADD( "cassette", laser_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(vtech2_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")

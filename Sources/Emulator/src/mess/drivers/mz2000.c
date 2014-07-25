@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     Sharp MZ-2000
@@ -18,7 +20,6 @@
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "machine/z80pio.h"
-#include "machine/z80sio.h"
 #include "machine/i8255.h"
 #include "machine/wd17xx.h"
 #include "machine/pit8253.h"
@@ -64,7 +65,8 @@ public:
 		m_io_keyc(*this, "KEYC"),
 		m_io_keyd(*this, "KEYD"),
 		m_io_unused(*this, "UNUSED"),
-		m_io_config(*this, "CONFIG") { }
+		m_io_config(*this, "CONFIG"),
+		m_palette(*this, "palette")  { }
 
 	required_device<cassette_image_device> m_cass;
 
@@ -117,7 +119,7 @@ public:
 
 protected:
 	required_device<cpu_device> m_maincpu;
-	required_device<device_t> m_mb8877a;
+	required_device<mb8877_device> m_mb8877a;
 	required_device<pit8253_device> m_pit8253;
 	required_device<beep_device> m_beeper;
 	required_memory_region m_region_tvram;
@@ -141,6 +143,7 @@ protected:
 	required_ioport m_io_keyd;
 	required_ioport m_io_unused;
 	required_ioport m_io_config;
+	required_device<palette_device> m_palette;
 };
 
 void mz2000_state::video_start()
@@ -170,8 +173,8 @@ UINT32 mz2000_state::screen_update_mz2000(screen_device &screen, bitmap_ind16 &b
 				pen |= ((gvram[count+0xc000] >> (xi)) & 1) ? 4 : 0; //G
 				pen &= m_gvram_mask;
 
-				bitmap.pix16(y*2+0, x+xi) = machine().pens[pen];
-				bitmap.pix16(y*2+1, x+xi) = machine().pens[pen];
+				bitmap.pix16(y*2+0, x+xi) = m_palette->pen(pen);
+				bitmap.pix16(y*2+1, x+xi) = m_palette->pen(pen);
 			}
 			count++;
 		}
@@ -211,27 +214,27 @@ UINT32 mz2000_state::screen_update_mz2000(screen_device &screen, bitmap_ind16 &b
 						{
 							if(m_width80 == 0)
 							{
-								bitmap.pix16(res_y, res_x*2+0) = machine().pens[pen];
-								bitmap.pix16(res_y, res_x*2+1) = machine().pens[pen];
+								bitmap.pix16(res_y, res_x*2+0) = m_palette->pen(pen);
+								bitmap.pix16(res_y, res_x*2+1) = m_palette->pen(pen);
 							}
 							else
 							{
-								bitmap.pix16(res_y, res_x) = machine().pens[pen];
+								bitmap.pix16(res_y, res_x) = m_palette->pen(pen);
 							}
 						}
 						else
 						{
 							if(m_width80 == 0)
 							{
-								bitmap.pix16(res_y*2+0, res_x*2+0) = machine().pens[pen];
-								bitmap.pix16(res_y*2+0, res_x*2+1) = machine().pens[pen];
-								bitmap.pix16(res_y*2+1, res_x*2+0) = machine().pens[pen];
-								bitmap.pix16(res_y*2+1, res_x*2+1) = machine().pens[pen];
+								bitmap.pix16(res_y*2+0, res_x*2+0) = m_palette->pen(pen);
+								bitmap.pix16(res_y*2+0, res_x*2+1) = m_palette->pen(pen);
+								bitmap.pix16(res_y*2+1, res_x*2+0) = m_palette->pen(pen);
+								bitmap.pix16(res_y*2+1, res_x*2+1) = m_palette->pen(pen);
 							}
 							else
 							{
-								bitmap.pix16(res_y*2+0, res_x) = machine().pens[pen];
-								bitmap.pix16(res_y*2+1, res_x) = machine().pens[pen];
+								bitmap.pix16(res_y*2+0, res_x) = m_palette->pen(pen);
+								bitmap.pix16(res_y*2+1, res_x) = m_palette->pen(pen);
 							}
 						}
 					}
@@ -339,7 +342,7 @@ WRITE8_MEMBER(mz2000_state::mz2000_gvram_bank_w)
 READ8_MEMBER(mz2000_state::mz2000_wd17xx_r)
 {
 	if(m_has_fdc)
-		return wd17xx_r(m_mb8877a, space, offset) ^ 0xff;
+		return m_mb8877a->read(space, offset) ^ 0xff;
 
 	return 0xff;
 }
@@ -347,7 +350,7 @@ READ8_MEMBER(mz2000_state::mz2000_wd17xx_r)
 WRITE8_MEMBER(mz2000_state::mz2000_wd17xx_w)
 {
 	if(m_has_fdc)
-		wd17xx_w(m_mb8877a, space, offset, data ^ 0xff);
+		m_mb8877a->write(space, offset, data ^ 0xff);
 }
 
 WRITE8_MEMBER(mz2000_state::mz2000_fdc_w)
@@ -355,24 +358,24 @@ WRITE8_MEMBER(mz2000_state::mz2000_fdc_w)
 	switch(offset+0xdc)
 	{
 		case 0xdc:
-			wd17xx_set_drive(m_mb8877a,data & 3);
-			floppy_mon_w(floppy_get_device(machine(), data & 3), (data & 0x80) ? CLEAR_LINE : ASSERT_LINE);
-			floppy_drive_set_ready_state(floppy_get_device(machine(), data & 3), 1,0);
+			m_mb8877a->set_drive(data & 3);
+			floppy_get_device(machine(), data & 3)->floppy_mon_w((data & 0x80) ? CLEAR_LINE : ASSERT_LINE);
+			floppy_get_device(machine(), data & 3)->floppy_drive_set_ready_state(1,0);
 			break;
 		case 0xdd:
-			wd17xx_set_side(m_mb8877a,(data & 1));
+			m_mb8877a->set_side((data & 1));
 			break;
 	}
 }
 
 WRITE8_MEMBER(mz2000_state::timer_w)
 {
-	m_pit8253->gate0_w(1);
-	m_pit8253->gate1_w(1);
-	m_pit8253->gate0_w(0);
-	m_pit8253->gate1_w(0);
-	m_pit8253->gate0_w(1);
-	m_pit8253->gate1_w(1);
+	m_pit8253->write_gate0(1);
+	m_pit8253->write_gate1(1);
+	m_pit8253->write_gate0(0);
+	m_pit8253->write_gate1(0);
+	m_pit8253->write_gate0(1);
+	m_pit8253->write_gate1(1);
 }
 
 WRITE8_MEMBER(mz2000_state::mz2000_tvram_attr_w)
@@ -571,7 +574,7 @@ void mz2000_state::machine_reset()
 			g = (m_color_mode) ? (i & 4)>>2 : ((i) ? 1 : 0);
 			b = (m_color_mode) ? (i & 1)>>0 : 0;
 
-			palette_set_color_rgb(machine(), i,pal1bit(r),pal1bit(g),pal1bit(b));
+			m_palette->set_pen_color(i,pal1bit(r),pal1bit(g),pal1bit(b));
 		}
 	}
 }
@@ -631,7 +634,7 @@ READ8_MEMBER(mz2000_state::mz2000_portb_r)
 	else
 		res |= 0x20;
 
-	res |= (machine().primary_screen->vblank()) ? 0x00 : 0x01;
+	res |= (machine().first_screen()->vblank()) ? 0x00 : 0x01;
 
 	return res;
 }
@@ -736,16 +739,6 @@ WRITE8_MEMBER(mz2000_state::mz2000_portc_w)
 	m_old_portc = data;
 }
 
-static I8255_INTERFACE( ppi8255_intf )
-{
-	DEVCB_DRIVER_MEMBER(mz2000_state,mz2000_porta_r),                       /* Port A read */
-	DEVCB_DRIVER_MEMBER(mz2000_state,mz2000_porta_w),                       /* Port A write */
-	DEVCB_DRIVER_MEMBER(mz2000_state,mz2000_portb_r),                       /* Port B read */
-	DEVCB_DRIVER_MEMBER(mz2000_state,mz2000_portb_w),                       /* Port B write */
-	DEVCB_DRIVER_MEMBER(mz2000_state,mz2000_portc_r),                       /* Port C read */
-	DEVCB_DRIVER_MEMBER(mz2000_state,mz2000_portc_w)                        /* Port C write */
-};
-
 WRITE8_MEMBER(mz2000_state::mz2000_pio1_porta_w)
 {
 	m_tvram_enable = ((data & 0xc0) == 0xc0);
@@ -782,25 +775,7 @@ READ8_MEMBER(mz2000_state::mz2000_pio1_porta_r)
 	return m_porta_latch;
 }
 
-static Z80PIO_INTERFACE( mz2000_pio1_intf )
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(mz2000_state, mz2000_pio1_porta_r ),
-	DEVCB_DRIVER_MEMBER(mz2000_state, mz2000_pio1_porta_w ),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(mz2000_state, mz2000_pio1_portb_r ),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const wd17xx_interface mz2000_mb8877a_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	{FLOPPY_0, FLOPPY_1, FLOPPY_2, FLOPPY_3}
-};
-
+#if 0
 static LEGACY_FLOPPY_OPTIONS_START( mz2000 )
 	LEGACY_FLOPPY_OPTION( img2d, "2d", "2D disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
 		HEADS([2])
@@ -809,51 +784,12 @@ static LEGACY_FLOPPY_OPTIONS_START( mz2000 )
 		SECTOR_LENGTH([256])
 		FIRST_SECTOR_ID([1]))
 LEGACY_FLOPPY_OPTIONS_END
+#endif
 
 static const floppy_interface mz2000_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_3_5_DSHD,
 	LEGACY_FLOPPY_OPTIONS_NAME(default),
-	NULL,
-	NULL
-};
-
-/* PIT8253 Interface */
-
-/* TODO: clocks aren't known */
-static const struct pit8253_interface mz2000_pit8253_intf =
-{
-	{
-		{
-			31250,
-			DEVCB_NULL,
-			DEVCB_NULL
-		},
-		{
-			31250, /* needed by "Art Magic" to boot */
-			DEVCB_NULL,
-			DEVCB_NULL
-		},
-		{
-			31250,
-			DEVCB_NULL,
-			DEVCB_NULL
-		}
-	}
-};
-
-
-static const cassette_interface mz2000_cassette_interface =
-{
-	mz700_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED),
-	"mz_cass",
 	NULL
 };
 
@@ -863,16 +799,37 @@ static MACHINE_CONFIG_START( mz2000, mz2000_state )
 	MCFG_CPU_PROGRAM_MAP(mz2000_map)
 	MCFG_CPU_IO_MAP(mz2000_io)
 
+	MCFG_DEVICE_ADD("i8255_0", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(mz2000_state, mz2000_porta_r))
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(mz2000_state, mz2000_porta_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(mz2000_state, mz2000_portb_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(mz2000_state, mz2000_portb_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(mz2000_state, mz2000_portc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(mz2000_state, mz2000_portc_w))
 
-	MCFG_I8255_ADD( "i8255_0", ppi8255_intf )
-	MCFG_Z80PIO_ADD( "z80pio_1", MASTER_CLOCK, mz2000_pio1_intf )
-	MCFG_PIT8253_ADD("pit", mz2000_pit8253_intf)
+	MCFG_DEVICE_ADD("z80pio_1", Z80PIO, MASTER_CLOCK)
+	MCFG_Z80PIO_IN_PA_CB(READ8(mz2000_state, mz2000_pio1_porta_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(mz2000_state, mz2000_pio1_porta_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(mz2000_state, mz2000_pio1_portb_r))
 
-	MCFG_MB8877_ADD("mb8877a",mz2000_mb8877a_interface)
+	/* TODO: clocks aren't known */
+	MCFG_DEVICE_ADD("pit", PIT8253, 0)
+	MCFG_PIT8253_CLK0(31250)
+	MCFG_PIT8253_CLK1(31250) /* needed by "Art Magic" to boot */
+	MCFG_PIT8253_CLK2(31250)
+
+	MCFG_DEVICE_ADD("mb8877a", MB8877, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE4_TAGS
+
 	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(mz2000_floppy_interface)
+
 	MCFG_SOFTWARE_LIST_ADD("flop_list","mz2000_flop")
 
-	MCFG_CASSETTE_ADD( "cassette", mz2000_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(mz700_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("mz_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","mz2000_cass")
 
 	/* video hardware */
@@ -881,11 +838,12 @@ static MACHINE_CONFIG_START( mz2000, mz2000_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 400-1)
-
-	MCFG_GFXDECODE(mz2000)
-	MCFG_PALETTE_LENGTH(8)
-
 	MCFG_SCREEN_UPDATE_DRIVER(mz2000_state, screen_update_mz2000)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mz2000)
+	MCFG_PALETTE_ADD("palette", 8)
+
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 

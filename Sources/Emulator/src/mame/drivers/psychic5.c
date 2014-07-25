@@ -648,13 +648,6 @@ WRITE_LINE_MEMBER(psychic5_state::irqhandler)
 	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( psychic5, psychic5_state )
 
 	/* basic machine hardware */
@@ -677,8 +670,8 @@ static MACHINE_CONFIG_START( psychic5, psychic5_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(psychic5_state, screen_update_psychic5)
 
-	MCFG_GFXDECODE(psychic5)
-	MCFG_PALETTE_LENGTH(768)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", psychic5)
+	MCFG_PALETTE_ADD("palette", 768)
 
 	MCFG_VIDEO_START_OVERRIDE(psychic5_state,psychic5)
 	MCFG_VIDEO_RESET_OVERRIDE(psychic5_state,psychic5)
@@ -688,7 +681,6 @@ static MACHINE_CONFIG_START( psychic5, psychic5_state )
 
 	MCFG_SOUND_ADD("ym1", YM2203, XTAL_12MHz/8)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(psychic5_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)
@@ -722,8 +714,8 @@ static MACHINE_CONFIG_START( bombsa, psychic5_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(psychic5_state, screen_update_bombsa)
 
-	MCFG_GFXDECODE(bombsa)
-	MCFG_PALETTE_LENGTH(768)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bombsa)
+	MCFG_PALETTE_ADD("palette", 768)
 
 	MCFG_VIDEO_START_OVERRIDE(psychic5_state,bombsa)
 	MCFG_VIDEO_RESET_OVERRIDE(psychic5_state,bombsa)
@@ -733,7 +725,6 @@ static MACHINE_CONFIG_START( bombsa, psychic5_state )
 
 	MCFG_SOUND_ADD("ym1", YM2203, XTAL_12MHz/8)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(psychic5_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.30)
 	MCFG_SOUND_ROUTE(1, "mono", 0.30)
 	MCFG_SOUND_ROUTE(2, "mono", 0.30)

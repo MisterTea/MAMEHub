@@ -34,6 +34,7 @@ public:
 
 	DECLARE_WRITE_LINE_MEMBER( irq_line );
 	DECLARE_WRITE_LINE_MEMBER( firq_line );
+	DECLARE_WRITE_LINE_MEMBER( nmi_line );
 
 protected:
 	// device-level overrides
@@ -128,6 +129,9 @@ protected:
 	UINT8                       m_opcode;
 
 	// other internal state
+	UINT8 *                     m_reg8;
+	PAIR16 *                    m_reg16;
+	int                         m_reg;
 	bool                        m_nmi_line;
 	bool                        m_nmi_asserted;
 	bool                        m_firq_line;
@@ -137,15 +141,18 @@ protected:
 	int                         m_addressing_mode;
 	PAIR16                      m_ea;               // effective address
 
+	// Callbacks
+	devcb_write_line           m_lic_func;         // LIC pin on the 6809E
+
 	// eat cycles
 	ATTR_FORCE_INLINE void eat(int cycles)                          { m_icount -= cycles; }
 	void eat_remaining();
 
 	// read a byte from given memory location
-	ATTR_FORCE_INLINE UINT8 read_memory(UINT16 address)             { eat(1); return m_program->read_byte(address); }
+	ATTR_FORCE_INLINE UINT8 read_memory(UINT16 address)             { eat(1); return m_addrspace[AS_PROGRAM]->read_byte(address); }
 
 	// write a byte to given memory location
-	ATTR_FORCE_INLINE void write_memory(UINT16 address, UINT8 data) { eat(1); m_program->write_byte(address, data); }
+	ATTR_FORCE_INLINE void write_memory(UINT16 address, UINT8 data) { eat(1); m_addrspace[AS_PROGRAM]->write_byte(address, data); }
 
 	// read_opcode() is like read_memory() except it is used for reading opcodes. In  the case of a system
 	// with memory mapped I/O, this function can be used  to greatly speed up emulation.
@@ -237,14 +244,10 @@ protected:
 private:
 	// address spaces
 	const address_space_config  m_program_config;
-	address_space *             m_program;
 	direct_read_data *          m_direct;
 
 	// other state
 	UINT32                      m_state;
-	int                         m_reg;
-	UINT8 *                     m_reg8;
-	PAIR16 *                    m_reg16;
 	bool                        m_cond;
 
 	// incidentals
@@ -266,11 +269,18 @@ public:
 
 // ======================> m6809e_device
 
+#define MCFG_M6809E_LIC_CB(_devcb) \
+	m6809e_device::set_lic_cb(*device, DEVCB_##_devcb);
+
+
 class m6809e_device : public m6809_base_device
 {
 public:
 	// construction/destruction
 	m6809e_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// static configuration helpers
+	template<class _Object> static devcb_base &set_lic_cb(device_t &device, _Object object) { return downcast<m6809e_device &>(device).m_lic_func.set_callback(object); }
 };
 
 enum

@@ -35,7 +35,9 @@ public:
 		m_tile_control_ram(*this, "tile_ctrl_ram"),
 		m_sprite_ram(*this, "sprite_ram"),
 		m_maincpu(*this, "maincpu"),
-		m_subcpu(*this, "sub") { }
+		m_subcpu(*this, "sub"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_device<pioneer_ldv1000_device> m_laserdisc;
 	required_shared_ptr<UINT8> m_tile_ram;
@@ -54,11 +56,13 @@ public:
 	DECLARE_WRITE8_MEMBER(z80_2_ldp_write);
 	DECLARE_DRIVER_INIT(istellar);
 	virtual void machine_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(istellar);
 	UINT32 screen_update_istellar(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_callback_istellar);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -82,7 +86,7 @@ UINT32 istellar_state::screen_update_istellar(screen_device &screen, bitmap_rgb3
 			int tile = m_tile_ram[x+y*32];
 			int attr = m_tile_control_ram[x+y*32];
 
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[0],tile,attr & 0x0f,0, 0, x*8, y*8, 0);
+			m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,tile,attr & 0x0f,0, 0, x*8, y*8, 0);
 		}
 	}
 
@@ -269,12 +273,12 @@ static INPUT_PORTS_START( istellar )
 	/* SERVICE might be hanging out back here */
 INPUT_PORTS_END
 
-void istellar_state::palette_init()
+PALETTE_INIT_MEMBER(istellar_state, istellar)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int r,g,b;
 		int bit0,bit1,bit2,bit3;
@@ -302,7 +306,7 @@ void istellar_state::palette_init()
 		bit3 = (color_prom[i+0x200] >> 3) & 0x01;
 		b = (0x8f * bit3) + (0x43 * bit2) + (0x1f * bit1) + (0x0e * bit0);
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
@@ -352,13 +356,15 @@ static MACHINE_CONFIG_START( istellar, istellar_state )
 
 	MCFG_LASERDISC_LDV1000_ADD("laserdisc")
 	MCFG_LASERDISC_OVERLAY_DRIVER(256, 256, istellar_state, screen_update_istellar)
+	MCFG_LASERDISC_OVERLAY_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_LASERDISC_SCREEN_ADD_NTSC("screen", "laserdisc")
 
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(istellar_state, istellar)
 
-	MCFG_GFXDECODE(istellar)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", istellar)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

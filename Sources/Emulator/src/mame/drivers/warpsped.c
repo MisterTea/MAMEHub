@@ -93,7 +93,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_workram(*this, "workram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	tilemap_t   *m_text_tilemap;
@@ -106,9 +107,10 @@ public:
 	TILE_GET_INFO_MEMBER(get_warpspeed_text_tile_info);
 	TILE_GET_INFO_MEMBER(get_warpspeed_starfield_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(warpspeed);
 	UINT32 screen_update_warpspeed(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 WRITE8_MEMBER(warpspeed_state::warpspeed_hardware_w)
@@ -140,9 +142,9 @@ WRITE8_MEMBER(warpspeed_state::warpspeed_vidram_w)
 
 void warpspeed_state::video_start()
 {
-	m_text_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(warpspeed_state::get_warpspeed_text_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_text_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(warpspeed_state::get_warpspeed_text_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_text_tilemap->set_transparent_pen(0);
-	m_starfield_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(warpspeed_state::get_warpspeed_starfield_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_starfield_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(warpspeed_state::get_warpspeed_starfield_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_starfield_tilemap->mark_all_dirty();
 }
 
@@ -289,16 +291,16 @@ static GFXDECODE_START( warpspeed )
 	GFXDECODE_ENTRY( "gfx2", 0, warpspeed_charlayout,   0, 1  )
 GFXDECODE_END
 
-void warpspeed_state::palette_init()
+PALETTE_INIT_MEMBER(warpspeed_state, warpspeed)
 {
 	// tilemaps
-	palette_set_color(machine(),0,RGB_BLACK); /* black */
-	palette_set_color(machine(),1,RGB_WHITE); /* white */
+	palette.set_pen_color(0,rgb_t::black); /* black */
+	palette.set_pen_color(1,rgb_t::white); /* white */
 
 	// circles
 	for ( int i = 0; i < 8; i++ )
 	{
-		palette_set_color_rgb(machine(), 2 + i, 0xff*BIT(i,0), 0xff*BIT(i,1), 0xff*BIT(i,2));
+		palette.set_pen_color(2 + i, 0xff*BIT(i,0), 0xff*BIT(i,1), 0xff*BIT(i,2));
 	}
 }
 
@@ -316,11 +318,12 @@ static MACHINE_CONFIG_START( warpspeed, warpspeed_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_SIZE((32)*8, (32)*8)
 	MCFG_SCREEN_VISIBLE_AREA(4*8, 32*8-1, 8*8, 32*8-1)
-
+	MCFG_SCREEN_PALETTE("palette")
 	MCFG_SCREEN_UPDATE_DRIVER(warpspeed_state, screen_update_warpspeed)
 
-	MCFG_GFXDECODE(warpspeed)
-	MCFG_PALETTE_LENGTH(2+8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", warpspeed)
+	MCFG_PALETTE_ADD("palette", 2+8)
+	MCFG_PALETTE_INIT_OWNER(warpspeed_state, warpspeed)
 MACHINE_CONFIG_END
 
 ROM_START( warpsped )

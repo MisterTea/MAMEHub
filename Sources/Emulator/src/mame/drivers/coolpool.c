@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles,Nicola Salmoria
 /***************************************************************************
 
     AmeriDarts      (c) 1989 Ameri Corporation
@@ -20,6 +22,7 @@
       4U/8U it is actually reading 4U/8U/3U/7U, when testing 3U/7U it
       actually reads 2U/6U/1U/5U. The placement cannot therefore be exactly
       determined by the check passing.
+
 
 ***************************************************************************/
 
@@ -69,7 +72,7 @@ static void amerdart_scanline(screen_device &screen, bitmap_rgb32 &bitmap, int s
 		for (x = 0; x < 16; x++)
 		{
 			UINT16 pal = state->m_vram_base[x];
-			pens[x] = MAKE_RGB(pal4bit(pal >> 4), pal4bit(pal >> 8), pal4bit(pal >> 12));
+			pens[x] = rgb_t(pal4bit(pal >> 4), pal4bit(pal >> 8), pal4bit(pal >> 12));
 		}
 
 	for (x = params->heblnk; x < params->hsblnk; x += 4)
@@ -621,7 +624,7 @@ static ADDRESS_MAP_START( amerdart_map, AS_PROGRAM, 16, coolpool_state )
 	AM_RANGE(0x04000000, 0x0400000f) AM_WRITE(amerdart_misc_w)
 	AM_RANGE(0x05000000, 0x0500000f) AM_READWRITE(amerdart_iop_r, amerdart_iop_w)
 	AM_RANGE(0x06000000, 0x06007fff) AM_RAM_WRITE(nvram_thrash_data_w) AM_SHARE("nvram")
-	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00001ff) AM_DEVREADWRITE("maincpu", tms34010_device, io_register_r, io_register_w)
 	AM_RANGE(0xffb00000, 0xffffffff) AM_ROM AM_REGION("user1", 0)
 ADDRESS_MAP_END
 
@@ -633,7 +636,7 @@ static ADDRESS_MAP_START( coolpool_map, AS_PROGRAM, 16, coolpool_state )
 	AM_RANGE(0x03000000, 0x0300000f) AM_WRITE(coolpool_misc_w)
 	AM_RANGE(0x03000000, 0x03ffffff) AM_ROM AM_REGION("gfx1", 0)
 	AM_RANGE(0x06000000, 0x06007fff) AM_RAM_WRITE(nvram_thrash_data_w) AM_SHARE("nvram")
-	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00001ff) AM_DEVREADWRITE("maincpu", tms34010_device, io_register_r, io_register_w)
 	AM_RANGE(0xffe00000, 0xffffffff) AM_ROM AM_REGION("user1", 0)
 ADDRESS_MAP_END
 
@@ -644,7 +647,7 @@ static ADDRESS_MAP_START( nballsht_map, AS_PROGRAM, 16, coolpool_state )
 	AM_RANGE(0x03000000, 0x0300000f) AM_WRITE(coolpool_misc_w)
 	AM_RANGE(0x04000000, 0x040000ff) AM_DEVREADWRITE8("tlc34076", tlc34076_device, read, write, 0x00ff)    // IMSG176P-40
 	AM_RANGE(0x06000000, 0x0601ffff) AM_MIRROR(0x00020000) AM_RAM_WRITE(nvram_thrash_data_w) AM_SHARE("nvram")
-	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00001ff) AM_DEVREADWRITE("maincpu", tms34010_device, io_register_r, io_register_w)
 	AM_RANGE(0xff000000, 0xff7fffff) AM_ROM AM_REGION("gfx1", 0)
 	AM_RANGE(0xffc00000, 0xffffffff) AM_ROM AM_REGION("user1", 0)
 ADDRESS_MAP_END
@@ -730,10 +733,12 @@ INPUT_PORTS_END
 static INPUT_PORTS_START( coolpool )
 	PORT_START("IN0")
 	PORT_BIT( 0x00ff, IP_ACTIVE_HIGH, IPT_UNKNOWN )
-	PORT_BIT( 0x0f00, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
-	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1)
-	PORT_BIT( 0xc000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x0700, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2) PORT_NAME("P2 English")
+	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2) PORT_NAME("P2 Lock")
+	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1) PORT_NAME("P1 Lock")
+	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(1) PORT_NAME("P1 English")
+	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("IN1")
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_START1 )
@@ -792,7 +797,7 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static const tms34010_config tms_config_amerdart =
+static const tms340x0_config tms_config_amerdart =
 {
 	FALSE,                          /* halt on reset */
 	"screen",                       /* the screen operated on */
@@ -806,7 +811,7 @@ static const tms34010_config tms_config_amerdart =
 };
 
 
-static const tms34010_config tms_config_coolpool =
+static const tms340x0_config tms_config_coolpool =
 {
 	FALSE,                          /* halt on reset */
 	"screen",                       /* the screen operated on */
@@ -831,7 +836,7 @@ static MACHINE_CONFIG_START( amerdart, coolpool_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", TMS34010, XTAL_40MHz)
-	MCFG_CPU_CONFIG(tms_config_amerdart)
+	MCFG_TMS340X0_CONFIG(tms_config_amerdart)
 	MCFG_CPU_PROGRAM_MAP(amerdart_map)
 
 	MCFG_CPU_ADD("dsp", TMS32015, XTAL_40MHz/2)
@@ -862,7 +867,7 @@ static MACHINE_CONFIG_START( coolpool, coolpool_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", TMS34010, XTAL_40MHz)
-	MCFG_CPU_CONFIG(tms_config_coolpool)
+	MCFG_TMS340X0_CONFIG(tms_config_coolpool)
 	MCFG_CPU_PROGRAM_MAP(coolpool_map)
 
 	MCFG_CPU_ADD("dsp", TMS32026,XTAL_40MHz)

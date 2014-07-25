@@ -137,15 +137,14 @@ Note: press Z to show some info on each sprite (debug builds only)
 #include "emu.h"
 #include "includes/ssv.h"
 #ifdef MAME_DEBUG
-#include "ui.h"
+#include "ui/ui.h"
 #endif
 
 
-static void ssv_drawgfx(    bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx,
+void ssv_state::ssv_drawgfx(bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx,
 					UINT32 code,UINT32 color,int flipx,int flipy,int x0,int y0,
 					int shadow )
 {
-	ssv_state *state = gfx->machine().driver_data<ssv_state>();
 	const UINT8 *addr, *source;
 	UINT8 pen;
 	UINT16 *dest;
@@ -183,7 +182,7 @@ static void ssv_drawgfx(    bitmap_ind16 &bitmap, const rectangle &cliprect, gfx
 
 	if (shadow)
 	{
-		SSV_DRAWGFX( { dest[sx] = ((dest[sx] & state->m_shadow_pen_mask) | (pen << state->m_shadow_pen_shift)) & 0x7fff; } )
+		SSV_DRAWGFX( { dest[sx] = ((dest[sx] & m_shadow_pen_mask) | (pen << m_shadow_pen_shift)) & 0x7fff; } )
 	}
 	else
 	{
@@ -194,7 +193,7 @@ static void ssv_drawgfx(    bitmap_ind16 &bitmap, const rectangle &cliprect, gfx
 
 void ssv_state::video_start()
 {
-	machine().gfx[0]->set_granularity(64); /* 256 colour sprites with palette selectable on 64 colour boundaries */
+	m_gfxdecode->gfx(0)->set_granularity(64); /* 256 colour sprites with palette selectable on 64 colour boundaries */
 }
 
 VIDEO_START_MEMBER(ssv_state,eaglshot)
@@ -203,8 +202,8 @@ VIDEO_START_MEMBER(ssv_state,eaglshot)
 
 	m_eaglshot_gfxram       =   auto_alloc_array(machine(), UINT16, 16 * 0x40000 / 2);
 
-	machine().gfx[0]->set_source((UINT8 *)m_eaglshot_gfxram);
-	machine().gfx[1]->set_source((UINT8 *)m_eaglshot_gfxram);
+	m_gfxdecode->gfx(0)->set_source((UINT8 *)m_eaglshot_gfxram);
+	m_gfxdecode->gfx(1)->set_source((UINT8 *)m_eaglshot_gfxram);
 }
 
 TILE_GET_INFO_MEMBER(ssv_state::get_tile_info_0)
@@ -225,7 +224,7 @@ VIDEO_START_MEMBER(ssv_state,gdfs)
 	ssv_state::video_start();
 
 
-	m_gdfs_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ssv_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16,16, 0x100,0x100);
+	m_gdfs_tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ssv_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16,16, 0x100,0x100);
 
 	m_gdfs_tmap->set_transparent_pen(0);
 }
@@ -402,7 +401,7 @@ WRITE16_MEMBER(ssv_state::paletteram16_xrgb_swap_word_w)
 	g = data1 >> 8;
 	b = data1 & 0xff;
 
-	palette_set_color(machine(), offset>>1, MAKE_RGB(r, g, b));
+	m_palette->set_pen_color(offset>>1, rgb_t(r, g, b));
 }
 
 /***************************************************************************
@@ -708,7 +707,7 @@ void ssv_state::draw_row(bitmap_ind16 &bitmap, const rectangle &cliprect, int sx
 			{
 				for (ty = ystart; ty != yend; ty += yinc)
 				{
-					ssv_drawgfx( bitmap, clip, machine().gfx[gfx],
+					ssv_drawgfx( bitmap, clip, m_gfxdecode->gfx(gfx),
 											code++,
 											color,
 											flipx, flipy,
@@ -933,7 +932,7 @@ void ssv_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 				{
 					for (y = ystart; y != yend; y += yinc)
 					{
-						ssv_drawgfx( bitmap, cliprect, machine().gfx[gfx],
+						ssv_drawgfx( bitmap, cliprect, m_gfxdecode->gfx(gfx),
 												code++,
 												color,
 												flipx, flipy,
@@ -946,7 +945,7 @@ void ssv_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 				if (machine().input().code_pressed(KEYCODE_Z))    /* Display some info on each sprite */
 				{   char buf[30];
 					sprintf(buf, "%02X",/*(s2[2] & ~0x3ff)>>8*/mode>>8);
-					ui_draw_text(&machine().render().ui_container(), buf, sx, sy);
+					machine().ui().draw_text(&machine().render().ui_container(), buf, sx, sy);
 				}
 				#endif
 

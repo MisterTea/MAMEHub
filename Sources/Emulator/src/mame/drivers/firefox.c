@@ -46,7 +46,10 @@ public:
 		m_sprite_palette(*this, "sprite_palette"),
 		m_tile_palette(*this, "tile_palette"),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu") { }
+		m_audiocpu(*this, "audiocpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_device<phillips_22vp931_device> m_laserdisc;
 	required_shared_ptr<unsigned char> m_tileram;
@@ -106,6 +109,9 @@ public:
 	void firq_gen(phillips_22vp931_device &laserdisc, int state);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -216,7 +222,7 @@ WRITE8_MEMBER(firefox_state::tileram_w)
 
 void firefox_state::video_start()
 {
-	m_bgtiles = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(firefox_state::bgtile_get_info),this), TILEMAP_SCAN_ROWS, 8,8, 64,64);
+	m_bgtiles = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(firefox_state::bgtile_get_info),this), TILEMAP_SCAN_ROWS, 8,8, 64,64);
 	m_bgtiles->set_transparent_pen(0);
 	m_bgtiles->set_scrolldy(m_screen->visible_area().min_y, 0);
 }
@@ -227,7 +233,7 @@ UINT32 firefox_state::screen_update_firefox(screen_device &screen, bitmap_rgb32 
 	int sprite;
 	int gfxtop = screen.visible_area().min_y;
 
-	bitmap.fill(palette_get_color(machine(), 256), cliprect);
+	bitmap.fill(m_palette->pen_color(256), cliprect);
 
 	for( sprite = 0; sprite < 32; sprite++ )
 	{
@@ -247,7 +253,7 @@ UINT32 firefox_state::screen_update_firefox(screen_device &screen, bitmap_rgb32 
 				int flipx = flags & 0x20;
 				int code = sprite_data[ 15 - row ] + ( 256 * ( ( flags >> 6 ) & 3 ) );
 
-				drawgfx_transpen( bitmap, cliprect, machine().gfx[ 1 ], code, color, flipx, flipy, x + 8, gfxtop + 500 - y - ( row * 16 ), 0 );
+				m_gfxdecode->gfx( 1 )->transpen(bitmap,cliprect, code, color, flipx, flipy, x + 8, gfxtop + 500 - y - ( row * 16 ), 0 );
 			}
 		}
 	}
@@ -271,7 +277,7 @@ void firefox_state::set_rgba( int start, int index, unsigned char *palette_ram )
 	int b = palette_ram[ index + 512 ];
 	int a = ( b & 3 ) * 0x55;
 
-	palette_set_color( machine(), start + index, MAKE_ARGB( a, r, g, b ) );
+	m_palette->set_pen_color( start + index, rgb_t( a, r, g, b ) );
 }
 
 WRITE8_MEMBER(firefox_state::tile_palette_w)
@@ -693,16 +699,6 @@ GFXDECODE_END
  *
  *************************************/
 
-static const riot6532_interface riot_intf =
-{
-	DEVCB_DRIVER_MEMBER(firefox_state,riot_porta_r),
-	DEVCB_DEVICE_MEMBER("tms", tms5220_device, status_r),
-	DEVCB_DRIVER_MEMBER(firefox_state,riot_porta_w),
-	DEVCB_DEVICE_MEMBER("tms", tms5220_device, data_w),
-	DEVCB_DRIVER_LINE_MEMBER(firefox_state,riot_irq)
-};
-
-
 static MACHINE_CONFIG_START( firefox, firefox_state )
 
 	/* basic machine hardware */
@@ -719,36 +715,42 @@ static MACHINE_CONFIG_START( firefox, firefox_state )
 	MCFG_WATCHDOG_TIME_INIT(attotime::from_hz((double)MASTER_XTAL/8/16/16/16/16))
 
 	/* video hardware */
-	MCFG_GFXDECODE(firefox)
-	MCFG_PALETTE_LENGTH(512)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", firefox)
+	MCFG_PALETTE_ADD("palette", 512)
 
 	MCFG_LASERDISC_22VP931_ADD("laserdisc")
 	MCFG_LASERDISC_OVERLAY_DRIVER(64*8, 525, firefox_state, screen_update_firefox)
 	MCFG_LASERDISC_OVERLAY_CLIP(7*8, 53*8-1, 44, 480+44)
+	MCFG_LASERDISC_OVERLAY_PALETTE("palette")
 
 	MCFG_LASERDISC_SCREEN_ADD_NTSC("screen", "laserdisc")
 
 	MCFG_X2212_ADD_AUTOSAVE("nvram_1c")
 	MCFG_X2212_ADD_AUTOSAVE("nvram_1d")
-	MCFG_RIOT6532_ADD("riot", MASTER_XTAL/8, riot_intf)
+
+	MCFG_DEVICE_ADD("riot", RIOT6532, MASTER_XTAL/8)
+	MCFG_RIOT6532_IN_PA_CB(READ8(firefox_state, riot_porta_r))
+	MCFG_RIOT6532_OUT_PA_CB(WRITE8(firefox_state, riot_porta_w))
+	MCFG_RIOT6532_IN_PB_CB(DEVREAD8("tms", tms5220_device, status_r))
+	MCFG_RIOT6532_OUT_PB_CB(DEVWRITE8("tms", tms5220_device, data_w))
+	MCFG_RIOT6532_IRQ_CB(WRITELINE(firefox_state, riot_irq))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_POKEY_ADD("pokey1", MASTER_XTAL/8)
+	MCFG_SOUND_ADD("pokey1", POKEY, MASTER_XTAL/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.30)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.30)
 
-	MCFG_POKEY_ADD("pokey2", MASTER_XTAL/8)
+	MCFG_SOUND_ADD("pokey2", POKEY, MASTER_XTAL/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.30)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.30)
 
-	MCFG_POKEY_ADD("pokey3", MASTER_XTAL/8)
+	MCFG_SOUND_ADD("pokey3", POKEY, MASTER_XTAL/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.30)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.30)
 
-	MCFG_POKEY_ADD("pokey4", MASTER_XTAL/8)
+	MCFG_SOUND_ADD("pokey4", POKEY, MASTER_XTAL/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.30)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.30)
 

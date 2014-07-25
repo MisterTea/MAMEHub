@@ -1654,7 +1654,7 @@ WRITE8_MEMBER(ddenlovr_state::rongrong_palette_w)
 	/* what were they smoking??? */
 	b = ((d1 & 0xe0) >> 5) | (d2 & 0xc0) >> 3;
 
-	palette_set_color_rgb(machine(), indx, pal5bit(r), pal5bit(g), pal5bit(b));
+	m_palette->set_pen_color(indx, pal5bit(r), pal5bit(g), pal5bit(b));
 }
 
 WRITE16_MEMBER(ddenlovr_state::ddenlovr_palette_w)
@@ -2711,7 +2711,7 @@ WRITE8_MEMBER(ddenlovr_state::hanakanz_palette_w)
 		int g = m_ddenlovr_blit_latch & 0x1f;
 		int r = data & 0x1f;
 		int b = ((data & 0xe0) >> 5) | ((m_ddenlovr_blit_latch & 0x60) >> 2);
-		palette_set_color_rgb(machine(), (m_palette_index++) & 0x1ff, pal5bit(r), pal5bit(g), pal5bit(b));
+		m_palette->set_pen_color((m_palette_index++) & 0x1ff, pal5bit(r), pal5bit(g), pal5bit(b));
 	}
 }
 
@@ -2919,7 +2919,7 @@ WRITE8_MEMBER(ddenlovr_state::mjchuuka_palette_w)
 		int r = (rgb >> 0) & 0x1f;
 		int g = (rgb >> 8) & 0x1f;
 		int b = ((rgb >> 5) & 0x07) | ((rgb & 0x6000) >> 10);
-		palette_set_color_rgb(machine(), (m_palette_index++) & 0x1ff, pal5bit(r), pal5bit(g), pal5bit(b));
+		m_palette->set_pen_color((m_palette_index++) & 0x1ff, pal5bit(r), pal5bit(g), pal5bit(b));
 	}
 }
 
@@ -4182,20 +4182,6 @@ ADDRESS_MAP_END
                            Hanafuda Hana Tengoku
 ***************************************************************************/
 
-static const ay8910_interface htengoku_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	// A            B
-	DEVCB_DRIVER_MEMBER(ddenlovr_state,htengoku_dsw_r),    DEVCB_NULL,                         // R
-	DEVCB_NULL,                     DEVCB_DRIVER_MEMBER(ddenlovr_state,htengoku_dsw_w)     // W
-};
-
-static MSM6242_INTERFACE( htengoku_rtc_intf )
-{
-	DEVCB_NULL
-};
-
 static ADDRESS_MAP_START( yarunara_mem_map, AS_PROGRAM, 8, dynax_state )
 	AM_RANGE( 0x0000, 0x5fff ) AM_ROM
 	AM_RANGE( 0x6000, 0x6fff ) AM_RAM
@@ -4225,24 +4211,26 @@ static MACHINE_CONFIG_START( htengoku, ddenlovr_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 0+8, 256-1-8)
 	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_htengoku)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16*256)
+	MCFG_PALETTE_ADD("palette", 16*256)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,htengoku)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 20000000 / 16)
-	MCFG_SOUND_CONFIG(htengoku_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(ddenlovr_state, htengoku_dsw_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(ddenlovr_state, htengoku_dsw_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ymsnd", YM2413, 3579545)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", htengoku_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
 MACHINE_CONFIG_END
 
 
@@ -9420,11 +9408,6 @@ MACHINE_START_MEMBER(ddenlovr_state,sryudens)
                             Don Den Lover Vol.1
 ***************************************************************************/
 
-static MSM6242_INTERFACE( ddenlovr_rtc_intf )
-{
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( ddenlovr, ddenlovr_state )
 
 	/* basic machine hardware */
@@ -9442,10 +9425,11 @@ static MACHINE_CONFIG_START( ddenlovr, ddenlovr_state )
 	MCFG_SCREEN_SIZE(336, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 5, 256-16+5-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_PALETTE_ADD("palette", 0x100)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* sound hardware */
@@ -9461,7 +9445,7 @@ static MACHINE_CONFIG_START( ddenlovr, ddenlovr_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", ddenlovr_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ddenlovj, ddenlovr )
@@ -9483,16 +9467,6 @@ static MACHINE_CONFIG_DERIVED( akamaru, ddenlovr )
 	MCFG_CPU_PROGRAM_MAP(akamaru_map)
 MACHINE_CONFIG_END
 
-
-static const ay8910_interface quiz365_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	// A                            B
-	DEVCB_DRIVER_MEMBER(ddenlovr_state,quiz365_input_r), DEVCB_NULL,                         // R
-	DEVCB_NULL,                     DEVCB_DRIVER_MEMBER(ddenlovr_state,ddenlovr_select_w)    // W
-};
-
 static MACHINE_CONFIG_DERIVED( quiz365, ddenlovr )
 
 	/* basic machine hardware */
@@ -9500,7 +9474,8 @@ static MACHINE_CONFIG_DERIVED( quiz365, ddenlovr )
 	MCFG_CPU_PROGRAM_MAP(quiz365_map)
 
 	MCFG_SOUND_MODIFY("aysnd")
-	MCFG_SOUND_CONFIG(quiz365_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(ddenlovr_state, quiz365_input_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(ddenlovr_state, ddenlovr_select_w))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( nettoqc, ddenlovr )
@@ -9550,11 +9525,6 @@ WRITE_LINE_MEMBER(ddenlovr_state::quizchq_rtc_irq )
 	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xfc);
 }
 
-static MSM6242_INTERFACE( quizchq_rtc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,quizchq_rtc_irq)
-};
-
 static MACHINE_CONFIG_START( quizchq, ddenlovr_state )
 
 	/* basic machine hardware */
@@ -9573,10 +9543,11 @@ static MACHINE_CONFIG_START( quizchq, ddenlovr_state )
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 5, 256-16+5-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_PALETTE_ADD("palette", 0x100)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* sound hardware */
@@ -9589,7 +9560,8 @@ static MACHINE_CONFIG_START( quizchq, ddenlovr_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", quizchq_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, quizchq_rtc_irq))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( rongrong, quizchq )
@@ -9632,11 +9604,6 @@ WRITE_LINE_MEMBER(ddenlovr_state::mmpanic_rtc_irq )
 	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xdf); // RST 18, clock
 }
 
-static MSM6242_INTERFACE( mmpanic_rtc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,mmpanic_rtc_irq)
-};
-
 static MACHINE_CONFIG_START( mmpanic, ddenlovr_state )
 
 	/* basic machine hardware */
@@ -9660,10 +9627,11 @@ static MACHINE_CONFIG_START( mmpanic, ddenlovr_state )
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 5, 256-16+5-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_PALETTE_ADD("palette", 0x100)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,mmpanic)  // extra layers
 
 	/* sound hardware */
@@ -9679,7 +9647,8 @@ static MACHINE_CONFIG_START( mmpanic, ddenlovr_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", mmpanic_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, mmpanic_rtc_irq))
 MACHINE_CONFIG_END
 
 
@@ -9717,11 +9686,6 @@ WRITE_LINE_MEMBER(ddenlovr_state::hanakanz_rtc_irq)
 	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xe2);
 }
 
-static MSM6242_INTERFACE( hanakanz_rtc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,hanakanz_rtc_irq)
-};
-
 static MACHINE_CONFIG_START( hanakanz, ddenlovr_state )
 
 	/* basic machine hardware */
@@ -9740,10 +9704,11 @@ static MACHINE_CONFIG_START( hanakanz, ddenlovr_state )
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 5, 256-11-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_PALETTE_ADD("palette", 0x200)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,hanakanz) // blitter commands in the roms are shuffled around
 
 	/* sound hardware */
@@ -9756,7 +9721,8 @@ static MACHINE_CONFIG_START( hanakanz, ddenlovr_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", hanakanz_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, hanakanz_rtc_irq))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( hkagerou, hanakanz )
@@ -9784,10 +9750,11 @@ static MACHINE_CONFIG_START( kotbinyo, ddenlovr_state )
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1-1, 1+4, 256-15-1+4)
 	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_PALETTE_ADD("palette", 0x200)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,hanakanz) // blitter commands in the roms are shuffled around
 
 	/* sound hardware */
@@ -9800,7 +9767,8 @@ static MACHINE_CONFIG_START( kotbinyo, ddenlovr_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* devices */
-//  MCFG_MSM6242_ADD("rtc", hanakanz_rtc_intf)
+//  MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+//  MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, hanakanz_rtc_irq))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( kotbinsp, kotbinyo )
@@ -9850,11 +9818,6 @@ WRITE_LINE_MEMBER(ddenlovr_state::mjchuuka_rtc_irq)
 	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xfa);
 }
 
-static MSM6242_INTERFACE( mjchuuka_rtc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,mjchuuka_rtc_irq)
-};
-
 static MACHINE_CONFIG_DERIVED( mjchuuka, hanakanz )
 
 	/* basic machine hardware */
@@ -9863,7 +9826,7 @@ static MACHINE_CONFIG_DERIVED( mjchuuka, hanakanz )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, mjchuuka_irq)
 
 	MCFG_DEVICE_MODIFY("rtc")
-	MCFG_DEVICE_CONFIG(mjchuuka_rtc_intf)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, mjchuuka_rtc_irq))
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1789772)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
@@ -9879,7 +9842,7 @@ static MACHINE_CONFIG_DERIVED( funkyfig, mmpanic )
 	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,funkyfig)
 
 	MCFG_DEVICE_MODIFY("rtc")
-	MCFG_DEVICE_CONFIG(mjchuuka_rtc_intf)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, mjchuuka_rtc_irq))
 
 	MCFG_CPU_MODIFY("soundcpu")
 	MCFG_CPU_IO_MAP(funkyfig_sound_portmap)
@@ -9922,15 +9885,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(ddenlovr_state::mjmyster_irq)
 		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xfa);
 }
 
-static const ay8910_interface mjmyster_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	// A            B
-	DEVCB_NULL,     DEVCB_NULL,                         // R
-	DEVCB_NULL,     DEVCB_DRIVER_MEMBER(ddenlovr_state,ddenlovr_select_w)    // W
-};
-
 WRITE_LINE_MEMBER(ddenlovr_state::mjmyster_rtc_irq)
 {
 	/* I haven't found a irq ack register, so I need this kludge to
@@ -9941,11 +9895,6 @@ WRITE_LINE_MEMBER(ddenlovr_state::mjmyster_rtc_irq)
 
 	m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
-
-static MSM6242_INTERFACE( mjmyster_rtc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,mjmyster_rtc_irq)
-};
 
 
 static MACHINE_CONFIG_DERIVED( mjmyster, quizchq )
@@ -9959,12 +9908,12 @@ static MACHINE_CONFIG_DERIVED( mjmyster, quizchq )
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ddenlovr_state, mjmyster_irq, "screen", 0, 1)
 
 	MCFG_DEVICE_MODIFY("rtc")
-	MCFG_DEVICE_CONFIG(mjmyster_rtc_intf)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, mjmyster_rtc_irq))
 
 	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mjmyster)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 3579545)
-	MCFG_SOUND_CONFIG(mjmyster_ay8910_interface)
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(ddenlovr_state, ddenlovr_select_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -9991,15 +9940,6 @@ INTERRUPT_GEN_MEMBER(ddenlovr_state::hginga_irq)
 	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xf8);
 }
 
-static const ay8910_interface hginga_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	// A                            B
-	DEVCB_DRIVER_MEMBER(ddenlovr_state,hginga_dsw_r),    DEVCB_NULL,                             // R
-	DEVCB_NULL,                     DEVCB_DRIVER_MEMBER(ddenlovr_state,ddenlovr_select_w)        // W
-};
-
 WRITE_LINE_MEMBER(ddenlovr_state::hginga_rtc_irq)
 {
 	/* I haven't found a irq ack register, so I need this kludge to
@@ -10011,10 +9951,6 @@ WRITE_LINE_MEMBER(ddenlovr_state::hginga_rtc_irq)
 	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xee);
 }
 
-static MSM6242_INTERFACE( hginga_rtc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,hginga_rtc_irq)
-};
 
 static MACHINE_CONFIG_DERIVED( hginga, quizchq )
 
@@ -10025,12 +9961,13 @@ static MACHINE_CONFIG_DERIVED( hginga, quizchq )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, hginga_irq)
 
 	MCFG_DEVICE_MODIFY("rtc")
-	MCFG_DEVICE_CONFIG(hginga_rtc_intf)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, hginga_rtc_irq))
 
 	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mjmyster)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 3579545)
-	MCFG_SOUND_CONFIG(hginga_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(ddenlovr_state, hginga_dsw_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(ddenlovr_state, ddenlovr_select_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -10043,12 +9980,13 @@ static MACHINE_CONFIG_DERIVED( hgokou, quizchq )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, hginga_irq)
 
 	MCFG_DEVICE_MODIFY("rtc")
-	MCFG_DEVICE_CONFIG(hginga_rtc_intf)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, hginga_rtc_irq))
 
 	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mjmyster)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 3579545)
-	MCFG_SOUND_CONFIG(hginga_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(ddenlovr_state, hginga_dsw_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(ddenlovr_state, ddenlovr_select_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -10081,10 +10019,10 @@ static MACHINE_CONFIG_DERIVED( mjmyuniv, quizchq )
 	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mjmyster)
 
 	MCFG_DEVICE_MODIFY("rtc")
-	MCFG_DEVICE_CONFIG(mjmyster_rtc_intf)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, mjmyster_rtc_irq))
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1789772)
-	MCFG_SOUND_CONFIG(mjmyster_ay8910_interface)
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(ddenlovr_state, ddenlovr_select_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -10101,10 +10039,10 @@ static MACHINE_CONFIG_DERIVED( mjmyornt, quizchq )
 	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mjmyster)
 
 	MCFG_DEVICE_MODIFY("rtc")
-	MCFG_DEVICE_CONFIG(mjmyster_rtc_intf)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, mjmyster_rtc_irq))
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1789772)
-	MCFG_SOUND_CONFIG(mjmyster_ay8910_interface)
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(ddenlovr_state, ddenlovr_select_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -10121,10 +10059,6 @@ WRITE_LINE_MEMBER(ddenlovr_state::mjflove_rtc_irq)
 	m_maincpu->set_input_line(0, HOLD_LINE);
 }
 
-static MSM6242_INTERFACE( mjflove_rtc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,mjflove_rtc_irq)
-};
 
 static MACHINE_CONFIG_DERIVED( mjflove, quizchq )
 
@@ -10139,7 +10073,7 @@ static MACHINE_CONFIG_DERIVED( mjflove, quizchq )
 	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mjflove)
 
 	MCFG_DEVICE_MODIFY("rtc")
-	MCFG_DEVICE_CONFIG(mjflove_rtc_intf)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, mjflove_rtc_irq))
 
 	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,mjflove)  // blitter commands in the roms are shuffled around
 
@@ -10185,10 +10119,11 @@ static MACHINE_CONFIG_START( jongtei, ddenlovr_state )
 	MCFG_SCREEN_SIZE(336, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 5, 256-11-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_PALETTE_ADD("palette", 0x200)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,hanakanz) // blitter commands in the roms are shuffled around
 
 	/* sound hardware */
@@ -10201,7 +10136,8 @@ static MACHINE_CONFIG_START( jongtei, ddenlovr_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", hanakanz_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, hanakanz_rtc_irq))
 MACHINE_CONFIG_END
 
 /***************************************************************************
@@ -10226,10 +10162,11 @@ static MACHINE_CONFIG_START( sryudens, ddenlovr_state )
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 0+5, 256-12-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_PALETTE_ADD("palette", 0x100)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,mjflove)  // blitter commands in the roms are shuffled around
 
 	/* sound hardware */
@@ -10245,7 +10182,8 @@ static MACHINE_CONFIG_START( sryudens, ddenlovr_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", mjchuuka_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, mjchuuka_rtc_irq))
 MACHINE_CONFIG_END
 
 /***************************************************************************
@@ -10271,10 +10209,11 @@ static MACHINE_CONFIG_START( janshinp, ddenlovr_state )
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 0+5, 256-12-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_PALETTE_ADD("palette", 0x100)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* sound hardware */
@@ -10290,7 +10229,8 @@ static MACHINE_CONFIG_START( janshinp, ddenlovr_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", mjchuuka_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, mjchuuka_rtc_irq))
 MACHINE_CONFIG_END
 
 // Same PCB as janshinp
@@ -10303,15 +10243,6 @@ MACHINE_CONFIG_END
 /***************************************************************************
                              Return Of Sel Jan II
 ***************************************************************************/
-
-static const ay8910_interface seljan2_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	// A                            B
-	DEVCB_DRIVER_MEMBER(ddenlovr_state,seljan2_dsw_r),   DEVCB_NULL,                             // R
-	DEVCB_NULL,                     DEVCB_DRIVER_MEMBER(ddenlovr_state,ddenlovr_select_w)        // W
-};
 
 MACHINE_START_MEMBER(ddenlovr_state,seljan2)
 {
@@ -10345,10 +10276,11 @@ static MACHINE_CONFIG_START( seljan2, ddenlovr_state )
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 0+5, 256-12-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_PALETTE_ADD("palette", 0x100)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,mjflove)  // blitter commands in the roms are shuffled around
 
 	/* sound hardware */
@@ -10358,14 +10290,16 @@ static MACHINE_CONFIG_START( seljan2, ddenlovr_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, XTAL_28_63636MHz / 8)
-	MCFG_SOUND_CONFIG(seljan2_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(ddenlovr_state, seljan2_dsw_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(ddenlovr_state, ddenlovr_select_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
 	MCFG_OKIM6295_ADD("oki", XTAL_28_63636MHz / 28, OKIM6295_PIN7_HIGH) // ?
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", mjchuuka_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, mjchuuka_rtc_irq))
 MACHINE_CONFIG_END
 
 
@@ -10392,10 +10326,11 @@ static MACHINE_CONFIG_START( daimyojn, ddenlovr_state )
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1-1, 1, 256-15-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_PALETTE_ADD("palette", 0x200)
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,hanakanz) // blitter commands in the roms are shuffled around
 
 	/* sound hardware */
@@ -10408,7 +10343,8 @@ static MACHINE_CONFIG_START( daimyojn, ddenlovr_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", hanakanz_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(ddenlovr_state, hanakanz_rtc_irq))
 MACHINE_CONFIG_END
 
 
@@ -11543,21 +11479,42 @@ the second halves of 7408.13b, 7409.4b, 7410.3b and 7411.2b are identical
 
 ROM_START( funkyfig )
 	ROM_REGION( 0x90000 + 0x1000*8, "maincpu", 0 )  /* Z80 Code + space for banked RAM */
-	ROM_LOAD( "7403.3c",      0x00000, 0x80000, CRC(ad0f5e14) SHA1(82de58d7ba35266f2d96503d72487796a9693996) )
+	ROM_LOAD( "(__funkyfig)7403.3c",      0x00000, 0x80000, CRC(ad0f5e14) SHA1(82de58d7ba35266f2d96503d72487796a9693996) )
 	ROM_RELOAD(               0x10000, 0x80000 )
 
 	ROM_REGION( 0x20000, "soundcpu", 0 )    /* Z80 Code */
 	ROM_LOAD( "7401.1h",      0x00000, 0x20000, CRC(0f47d785) SHA1(d57733db6dcfb4c2cdaad04b5d3f0f569a0e7461) )  // 1xxxxxxxxxxxxxxxx = 0xFF
 
-ROM_REGION( 0x500000, "blitter", ROMREGION_ERASE00 )    /* blitter data */
-	ROM_LOAD( "7404.8b",      0x000000, 0x080000, CRC(aa4ddf32) SHA1(864890795a238ab34a85ca55a387d7e5efafccee) )            // \ 7e6f +
-	ROM_LOAD( "7405.9b",      0x080000, 0x080000, CRC(fc125bd8) SHA1(150578f67d89be59eeeb811c159a789e5e9c993e) )            // / 35bb = b42a OK
-	ROM_LOAD( "7406.10b",     0x100000, 0x080000, BAD_DUMP CRC(04a214b1) SHA1(af3e652377f5652377c7dedfad7c2677695eaf46) )   // \ af08 +
-	ROM_LOAD( "7407.11b",     0x180000, 0x080000, BAD_DUMP CRC(635d4052) SHA1(7bc2f20d633c69352fc2d5634349c83055c99408) )   // / 6d64 = 1c6c ERR (should be 1c68!)
-	ROM_LOAD( "7409.4b",      0x200000, 0x100000, CRC(064082c3) SHA1(26b0eec56b06365740b213b34e33a4b94ebc1d25) )            // \ 15bd +
-	ROM_LOAD( "7410.3b",      0x280000, 0x100000, CRC(0ba67874) SHA1(3d984c77a843501e1075cadcc27820a35410ea3b) )            // / 2e4c = 4409 OK
-	ROM_LOAD( "7408.13b",     0x300000, 0x100000, CRC(9efe4c60) SHA1(6462dca2af38517639bd2f182e68b7b1fc98a312) )            // 0f46 + 1825 = 276b OK
-	ROM_LOAD( "7411.2b",      0x400000, 0x100000, CRC(1e9c73dc) SHA1(ba64de6168dc626dc89d38b3f9d8991163f5e63e) )            // f248 + 1825 OK (first half)
+	ROM_REGION( 0x500000, "blitter", ROMREGION_ERASE00 )    /* blitter data */
+	// the rom naming / sizes in this set are strange and don't match up with test mode properly!
+	ROM_LOAD( "(__funkyfig)7404.8b",      0x000000, 0x080000, CRC(aa4ddf32) SHA1(864890795a238ab34a85ca55a387d7e5efafccee) )            // \             \-- tested as 7404
+	ROM_LOAD( "(__funkyfig)7405.9b",      0x080000, 0x080000, CRC(fc125bd8) SHA1(150578f67d89be59eeeb811c159a789e5e9c993e) )            // /             /
+	ROM_LOAD( "(__funkyfig)7406.10b",     0x100000, 0x080000, CRC(04a214b1) SHA1(af3e652377f5652377c7dedfad7c2677695eaf46) )            // \             \-- tested as 7405
+	ROM_LOAD( "(__funkyfig)7407.11b",     0x180000, 0x080000, CRC(7c794189) SHA1(641bc5b51e53315d730a56feccaf75b75a8020dd) )            // /             /
+	ROM_LOAD( "(__funkyfig)7409.4b",      0x200000, 0x100000, CRC(064082c3) SHA1(26b0eec56b06365740b213b34e33a4b94ebc1d25) )            // \             \-- tested as 7406
+	ROM_LOAD( "(__funkyfig)7410.3b",      0x280000, 0x100000, CRC(0ba67874) SHA1(3d984c77a843501e1075cadcc27820a35410ea3b) )            // /             /
+	ROM_LOAD( "(__funkyfig)7408.13b",     0x300000, 0x100000, CRC(9efe4c60) SHA1(6462dca2af38517639bd2f182e68b7b1fc98a312) )            //                --- tested as 7407
+	ROM_LOAD( "(__funkyfig)7411.2b",      0x400000, 0x100000, CRC(1e9c73dc) SHA1(ba64de6168dc626dc89d38b3f9d8991163f5e63e) )            //                --- tested as 7408 (first half only)
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
+	ROM_LOAD( "7402.1e",      0x000000, 0x040000, CRC(5038cc34) SHA1(65618b232a6592ad36f4abbaa40625c208a015fd) )
+ROM_END
+
+
+ROM_START( funkyfiga )
+	ROM_REGION( 0x90000 + 0x1000*8, "maincpu", 0 )  /* Z80 Code + space for banked RAM */
+	ROM_LOAD( "7403.3c",      0x00000, 0x80000, CRC(2e68c8a0) SHA1(327e118b6494e59c4b4fee60493a8c23f76b56af) )
+	ROM_RELOAD(               0x10000, 0x80000 )
+
+	ROM_REGION( 0x20000, "soundcpu", 0 )    /* Z80 Code */
+	ROM_LOAD( "7401.1h",      0x00000, 0x20000, CRC(0f47d785) SHA1(d57733db6dcfb4c2cdaad04b5d3f0f569a0e7461) )  // 1xxxxxxxxxxxxxxxx = 0xFF
+
+	ROM_REGION( 0x500000, "blitter", ROMREGION_ERASE00 )    /* blitter data */
+	ROM_LOAD( "7404.8b",       0x000000, 0x100000, CRC(5e60f3f5) SHA1(ed34fe9f93ee797e0a412a432cf444bc0553ee8c) )
+	ROM_LOAD( "7405.9b",       0x100000, 0x100000, CRC(b100b696) SHA1(4a3f7b3462e4cca62a7b81df560ab12595837577) )
+	ROM_LOAD( "7406.10b",      0x200000, 0x100000, CRC(6a00492a) SHA1(afcfc94277c3339229ac40a7f11df79565757b2d) )
+	ROM_LOAD( "7407.11b",      0x300000, 0x100000, CRC(9efe4c60) SHA1(6462dca2af38517639bd2f182e68b7b1fc98a312) )
+	ROM_LOAD( "7408.13b",      0x400000, 0x080000, CRC(1a947f3b) SHA1(ad8d52de54c5a507dd759604613e1d85e13db5fd) )
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
 	ROM_LOAD( "7402.1e",      0x000000, 0x040000, CRC(5038cc34) SHA1(65618b232a6592ad36f4abbaa40625c208a015fd) )
@@ -12580,7 +12537,8 @@ ROM_END
 
 GAME( 1992, htengoku, 0,        htengoku, htengoku, driver_device, 0,        ROT180, "Dynax",                    "Hanafuda Hana Tengoku (Japan)",                                 GAME_SUPPORTS_SAVE )
 GAME( 1992, mmpanic,   0,        mmpanic,   mmpanic,  driver_device, 0,        ROT0, "Nakanihon / East Technology (Taito license)", "Monkey Mole Panic (USA)",                                         GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 1993, funkyfig,  0,        funkyfig,  funkyfig, driver_device, 0,        ROT0, "Nakanihon / East Technology (Taito license)", "The First Funky Fighter",                                         GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS ) // scrolling, priority?
+GAME( 1993, funkyfig,  0,        funkyfig,  funkyfig, driver_device, 0,        ROT0, "Nakanihon / East Technology (Taito license)", "The First Funky Fighter (set 1)",                                 GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS ) // scrolling, priority?
+GAME( 1993, funkyfiga, funkyfig, funkyfig,  funkyfig, driver_device, 0,        ROT0, "Nakanihon / East Technology (Taito license)", "The First Funky Fighter (set 2)",                                 GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS )
 GAME( 1993, quizchq,   0,        quizchq,   quizchq,  driver_device, 0,        ROT0, "Nakanihon",                                   "Quiz Channel Question (Ver 1.00) (Japan)",                        GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING )
 GAME( 1993, quizchql,  quizchq,  quizchq,   quizchq,  driver_device, 0,        ROT0, "Nakanihon (Laxan license)",                   "Quiz Channel Question (Ver 1.23) (Taiwan?)",                      GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING )
 GAME( 1993, animaljr,  0,        mmpanic,   animaljr, driver_device, 0,        ROT0, "Nakanihon / East Technology (Taito license)", "Exciting Animal Land Jr. (USA)",                                  GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_SOUND )

@@ -19,7 +19,7 @@
 #include "sound/2151intf.h"
 #include "sound/okim6295.h"
 #include "includes/madmotor.h"
-#include "video/decmxc06.h"
+
 
 /******************************************************************************/
 
@@ -54,7 +54,7 @@ static ADDRESS_MAP_START( madmotor_map, AS_PROGRAM, 16, madmotor_state )
 	AM_RANGE(0x1a4000, 0x1a4fff) AM_DEVREADWRITE("tilegen3", deco_bac06_device, pf_data_r, pf_data_w)
 	AM_RANGE(0x3e0000, 0x3e3fff) AM_RAM
 	AM_RANGE(0x3e8000, 0x3e87ff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x3f0000, 0x3f07ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x3f0000, 0x3f07ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x3f8002, 0x3f8003) AM_READ_PORT("P1_P2")
 	AM_RANGE(0x3f8004, 0x3f8005) AM_READ_PORT("DSW")
 	AM_RANGE(0x3f8006, 0x3f8007) AM_READ_PORT("SYSTEM")
@@ -239,27 +239,33 @@ static MACHINE_CONFIG_START( madmotor, madmotor_state )
 
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(58)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */ /* frames per second, vblank duration taken from Burger Time */)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(madmotor_state, screen_update_madmotor)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(madmotor)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", madmotor)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	MCFG_DEVICE_ADD("tilegen1", DECO_BAC06, 0)
 	deco_bac06_device::set_gfx_region_wide(*device,0,0,0);
+	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
 	MCFG_DEVICE_ADD("tilegen2", DECO_BAC06, 0)
 	deco_bac06_device::set_gfx_region_wide(*device,0,1,0);
+	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
 	MCFG_DEVICE_ADD("tilegen3", DECO_BAC06, 0)
 	deco_bac06_device::set_gfx_region_wide(*device,0,2,1);
+	MCFG_DECO_BAC06_GFXDECODE("gfxdecode")
 
 	MCFG_DEVICE_ADD("spritegen", DECO_MXC06, 0)
 	deco_mxc06_device::set_gfx_region(*device, 3);
+	MCFG_DECO_MXC06_GFXDECODE("gfxdecode")
+	MCFG_DECO_MXC06_PALETTE("palette")
 
 
 

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Sega G-80 raster hardware
@@ -99,7 +101,7 @@ void segag80r_state::g80_set_palette_entry(int entry, UINT8 data)
 	bit1 = (b >> 1) & 0x01;
 	b = combine_2_weights(m_bweights, bit0, bit1);
 
-	palette_set_color(machine(), entry, MAKE_RGB(r, g, b));
+	m_palette->set_pen_color(entry, rgb_t(r, g, b));
 }
 
 
@@ -141,7 +143,7 @@ void segag80r_state::spaceod_bg_init_palette()
 		bit1 = (b >> 1) & 0x01;
 		b = combine_2_weights(tbweights, bit0, bit1);
 
-		palette_set_color(machine(), 64 + i, MAKE_RGB(r, g, b));
+		m_palette->set_pen_color(64 + i, rgb_t(r, g, b));
 	}
 }
 
@@ -194,10 +196,10 @@ void segag80r_state::video_start()
 			3,  rg_resistances, m_gweights, 220, 0,
 			2,  b_resistances,  m_bweights, 220, 0);
 
-	machine().gfx[0]->set_source(&videoram[0x800]);
+	m_gfxdecode->gfx(0)->set_source(&videoram[0x800]);
 
 	/* allocate paletteram */
-	m_generic_paletteram_8.allocate(0x80);
+	m_paletteram.resize(0x80);
 
 	/* initialize the particulars for each type of background PCB */
 	switch (m_background_pcb)
@@ -210,19 +212,19 @@ void segag80r_state::video_start()
 		/* and one vertically scrolling */
 		case G80_BACKGROUND_SPACEOD:
 			spaceod_bg_init_palette();
-			m_spaceod_bg_htilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(segag80r_state::spaceod_get_tile_info),this), tilemap_mapper_delegate(FUNC(segag80r_state::spaceod_scan_rows),this),  8,8, 128,32);
-			m_spaceod_bg_vtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(segag80r_state::spaceod_get_tile_info),this), tilemap_mapper_delegate(FUNC(segag80r_state::spaceod_scan_rows),this),  8,8, 32,128);
+			m_spaceod_bg_htilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(segag80r_state::spaceod_get_tile_info),this), tilemap_mapper_delegate(FUNC(segag80r_state::spaceod_scan_rows),this),  8,8, 128,32);
+			m_spaceod_bg_vtilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(segag80r_state::spaceod_get_tile_info),this), tilemap_mapper_delegate(FUNC(segag80r_state::spaceod_scan_rows),this),  8,8, 32,128);
 			break;
 
 		/* background tilemap is effectively 1 screen x n screens */
 		case G80_BACKGROUND_MONSTERB:
-			m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(segag80r_state::bg_get_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,memregion("gfx2")->bytes() / 32);
+			m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(segag80r_state::bg_get_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,memregion("gfx2")->bytes() / 32);
 			break;
 
 		/* background tilemap is effectively 4 screens x n screens */
 		case G80_BACKGROUND_PIGNEWT:
 		case G80_BACKGROUND_SINDBADM:
-			m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(segag80r_state::bg_get_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 128,memregion("gfx2")->bytes() / 128);
+			m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(segag80r_state::bg_get_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 128,memregion("gfx2")->bytes() / 128);
 			break;
 	}
 
@@ -260,7 +262,7 @@ WRITE8_MEMBER(segag80r_state::segag80r_videoram_w)
 	if ((offset & 0x1000) && (m_video_control & 0x02))
 	{
 		offset &= 0x3f;
-		m_generic_paletteram_8[offset] = data;
+		m_paletteram[offset] = data;
 		g80_set_palette_entry(offset, data);
 		return;
 	}
@@ -270,7 +272,7 @@ WRITE8_MEMBER(segag80r_state::segag80r_videoram_w)
 
 	/* track which characters are dirty */
 	if (offset & 0x800)
-		machine().gfx[0]->mark_dirty((offset & 0x7ff) / 8);
+		m_gfxdecode->gfx(0)->mark_dirty((offset & 0x7ff) / 8);
 }
 
 
@@ -424,7 +426,7 @@ WRITE8_MEMBER(segag80r_state::monsterb_videoram_w)
 	if ((offset & 0x1fc0) == 0x1040 && (m_video_control & 0x40))
 	{
 		offs_t paloffs = offset & 0x3f;
-		m_generic_paletteram_8[paloffs | 0x40] = data;
+		m_paletteram[paloffs | 0x40] = data;
 		g80_set_palette_entry(paloffs | 0x40, data);
 		/* note that since the background board is not integrated with the main board */
 		/* writes here also write through to regular videoram */
@@ -494,7 +496,7 @@ WRITE8_MEMBER(segag80r_state::pignewt_videoram_w)
 	if ((offset & 0x1fc0) == 0x1040 && (m_video_control & 0x02))
 	{
 		offs_t paloffs = offset & 0x3f;
-		m_generic_paletteram_8[paloffs | 0x40] = data;
+		m_paletteram[paloffs | 0x40] = data;
 		g80_set_palette_entry(paloffs | 0x40, data);
 		return;
 	}
@@ -577,7 +579,7 @@ WRITE8_MEMBER(segag80r_state::sindbadm_videoram_w)
 	if ((offset & 0x1fc0) == 0x1000 && (m_video_control & 0x02))
 	{
 		offs_t paloffs = offset & 0x3f;
-		m_generic_paletteram_8[paloffs | 0x40] = data;
+		m_paletteram[paloffs | 0x40] = data;
 		g80_set_palette_entry(paloffs | 0x40, data);
 		return;
 	}
@@ -642,7 +644,7 @@ void segag80r_state::draw_videoram(bitmap_ind16 &bitmap, const rectangle &clipre
 			UINT8 tile = videoram[offs];
 
 			/* draw the tile */
-			drawgfx_transmask(bitmap, cliprect, machine().gfx[0], tile, tile >> 4, m_video_flip, m_video_flip, x*8, y*8, transparent_pens[tile >> 4]);
+			m_gfxdecode->gfx(0)->transmask(bitmap,cliprect, tile, tile >> 4, m_video_flip, m_video_flip, x*8, y*8, transparent_pens[tile >> 4]);
 		}
 	}
 }
@@ -681,7 +683,7 @@ void segag80r_state::draw_background_spaceod(bitmap_ind16 &bitmap, const rectang
 		for (x = cliprect.min_x; x <= cliprect.max_x; x++)
 		{
 			int effx = ((x + m_spaceod_hcounter) ^ flipmask) + xoffset;
-			UINT8 fgpix = m_generic_paletteram_8[dst[x]];
+			UINT8 fgpix = m_paletteram[dst[x]];
 			UINT8 bgpix = src[effx & xmask] & 0x3f;
 
 			/* the background detect flag is set if:

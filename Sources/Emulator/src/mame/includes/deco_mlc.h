@@ -1,5 +1,7 @@
 #include "machine/eepromser.h"
 #include "machine/deco146.h"
+#include "sound/ymz280b.h"
+
 
 class deco_mlc_state : public driver_device
 {
@@ -12,7 +14,13 @@ public:
 		m_mlc_clip_ram(*this, "mlc_clip_ram"),
 		m_mlc_vram(*this, "mlc_vram"),
 		m_maincpu(*this, "maincpu"),
-		m_eeprom(*this, "eeprom") { }
+		m_eeprom(*this, "eeprom"),
+		m_ymz(*this, "ymz"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_32(*this, "paletteram")
+		{ }
 
 	optional_device<deco146_device> m_deco146;
 	required_shared_ptr<UINT32> m_mlc_ram;
@@ -32,8 +40,6 @@ public:
 	UINT16 *m_mlc_spriteram_spare;
 	UINT16 *m_mlc_buffered_spriteram;
 	DECLARE_READ32_MEMBER(test2_r);
-	DECLARE_READ32_MEMBER(mlc_440000_r);
-	DECLARE_READ32_MEMBER(mlc_440004_r);
 	DECLARE_READ32_MEMBER(mlc_440008_r);
 	DECLARE_READ32_MEMBER(mlc_44001c_r);
 	DECLARE_WRITE32_MEMBER(mlc_44001c_w);
@@ -65,6 +71,11 @@ public:
 	void descramble_sound(  );
 	required_device<cpu_device> m_maincpu;
 	required_device<eeprom_serial_93cxx_device> m_eeprom;
+	required_device<ymz280b_device> m_ymz;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT32> m_generic_paletteram_32;
 
 	DECLARE_READ16_MEMBER( sh96_protection_region_0_146_r );
 	DECLARE_WRITE16_MEMBER( sh96_protection_region_0_146_w );

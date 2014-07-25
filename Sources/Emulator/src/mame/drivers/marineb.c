@@ -545,10 +545,11 @@ static MACHINE_CONFIG_START( marineb, marineb_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(marineb_state, screen_update_marineb)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(marineb)
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", marineb)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(marineb_state, marineb)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -562,7 +563,7 @@ static MACHINE_CONFIG_DERIVED( changes, marineb )
 	/* basic machine hardware */
 
 	/* video hardware */
-	MCFG_GFXDECODE(changes)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", changes)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(marineb_state, screen_update_changes)
 MACHINE_CONFIG_END
@@ -584,7 +585,7 @@ static MACHINE_CONFIG_DERIVED( hoccer, marineb )
 	/* basic machine hardware */
 
 	/* video hardware */
-	MCFG_GFXDECODE(hoccer)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", hoccer)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(marineb_state, screen_update_hoccer)
 MACHINE_CONFIG_END
@@ -598,7 +599,7 @@ static MACHINE_CONFIG_DERIVED( wanted, marineb )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", marineb_state,  wanted_vblank_irq)
 
 	/* video hardware */
-	MCFG_GFXDECODE(wanted)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", wanted)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(marineb_state, screen_update_springer)
 
@@ -616,7 +617,7 @@ static MACHINE_CONFIG_DERIVED( hopprobo, marineb )
 	/* basic machine hardware */
 
 	/* video hardware */
-	MCFG_GFXDECODE(hopprobo)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", hopprobo)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(marineb_state, screen_update_hopprobo)
 MACHINE_CONFIG_END

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Leland Ataxx-era driver
@@ -49,7 +51,7 @@ static ADDRESS_MAP_START( master_map_program, AS_PROGRAM, 8, leland_state )
 	AM_RANGE(0x2000, 0x9fff) AM_ROMBANK("bank1")
 	AM_RANGE(0xa000, 0xdfff) AM_ROMBANK("bank2") AM_WRITE(ataxx_battery_ram_w) AM_SHARE("battery")
 	AM_RANGE(0xe000, 0xf7ff) AM_RAM
-	AM_RANGE(0xf800, 0xffff) AM_READWRITE(ataxx_paletteram_and_misc_r, ataxx_paletteram_and_misc_w) AM_SHARE("paletteram")
+	AM_RANGE(0xf800, 0xffff) AM_READWRITE(ataxx_paletteram_and_misc_r, ataxx_paletteram_and_misc_w) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 
@@ -300,7 +302,7 @@ static MACHINE_CONFIG_START( ataxx, leland_state )
 	MCFG_CPU_PROGRAM_MAP(slave_map_program)
 	MCFG_CPU_IO_MAP(slave_map_io)
 
-	MCFG_CPU_ADD("audiocpu", I80186, XTAL_16MHz/2)
+	MCFG_CPU_ADD("audiocpu", I80186, XTAL_16MHz)
 	MCFG_CPU_PROGRAM_MAP(leland_80186_map_program)
 	MCFG_CPU_IO_MAP(ataxx_80186_map_io)
 	MCFG_80186_CHIP_SELECT_CB(DEVWRITE16("custom", leland_80186_sound_device, peripheral_ctrl))

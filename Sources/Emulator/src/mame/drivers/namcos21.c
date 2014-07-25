@@ -1043,18 +1043,6 @@ READ16_MEMBER(namcos21_state::data2_r)
 	return m_mpDataROM[0x100000/2+offset];
 }
 
-/* palette memory handlers */
-
-READ16_MEMBER(namcos21_state::paletteram16_r)
-{
-	return m_generic_paletteram_16[offset];
-}
-
-WRITE16_MEMBER(namcos21_state::paletteram16_w)
-{
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-}
-
 /******************************************************************************/
 WRITE16_MEMBER(namcos21_state::NAMCO_C139_SCI_buffer_w){}
 READ16_MEMBER(namcos21_state::NAMCO_C139_SCI_buffer_r){ return 0; }
@@ -1076,7 +1064,8 @@ READ16_MEMBER(namcos21_state::NAMCO_C139_SCI_register_r){ return 0; }
 	AM_RANGE(0x480000, 0x4807ff) AM_READWRITE(namcos21_depthcue_r,namcos21_depthcue_w) /* Air Combat */ \
 	AM_RANGE(0x700000, 0x71ffff) AM_READWRITE(c355_obj_ram_r,c355_obj_ram_w) \
 	AM_RANGE(0x720000, 0x720007) AM_READWRITE(c355_obj_position_r,c355_obj_position_w) \
-	AM_RANGE(0x740000, 0x75ffff) AM_READWRITE(paletteram16_r,paletteram16_w) AM_SHARE("paletteram") \
+	AM_RANGE(0x740000, 0x74ffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") \
+	AM_RANGE(0x750000, 0x75ffff) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext") \
 	AM_RANGE(0x760000, 0x760001) AM_READWRITE(namcos21_video_enable_r,namcos21_video_enable_w) \
 	AM_RANGE(0x800000, 0x8fffff) AM_READ(datarom_r) \
 	AM_RANGE(0x900000, 0x90ffff) AM_READWRITE(shareram1_r,shareram1_w) AM_SHARE("mpsharedram1") \
@@ -1353,7 +1342,8 @@ static ADDRESS_MAP_START( am_gpu_winrun, AS_PROGRAM, 16, namcos21_state )
 	AM_RANGE(0x180000, 0x19ffff) AM_RAM /* work RAM */
 	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE(namcos21_68k_gpu_C148_r,namcos21_68k_gpu_C148_w)
 	AM_RANGE(0x200000, 0x20ffff) AM_RAM AM_SHARE("winrun_comram")
-	AM_RANGE(0x400000, 0x41ffff) AM_READWRITE(paletteram16_r,paletteram16_w) AM_SHARE("paletteram")
+	AM_RANGE(0x400000, 0x40ffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0x410000, 0x41ffff) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0x600000, 0x6fffff) AM_READ(gpu_data_r)
 	AM_RANGE(0xc00000, 0xcfffff) AM_READWRITE(winrun_gpu_videoram_r,winrun_gpu_videoram_w)
 	AM_RANGE(0xd00000, 0xd0000f) AM_READWRITE(winrun_gpu_register_r,winrun_gpu_register_w)
@@ -1415,7 +1405,8 @@ ADDRESS_MAP_END
 #define DRIVEYES_68K_COMMON \
 	AM_RANGE(0x700000, 0x71ffff) AM_READWRITE(c355_obj_ram_r,c355_obj_ram_w) \
 	AM_RANGE(0x720000, 0x720007) AM_READWRITE(c355_obj_position_r,c355_obj_position_w) \
-	AM_RANGE(0x740000, 0x75ffff) AM_READWRITE(paletteram16_r,paletteram16_w) AM_SHARE("paletteram") \
+	AM_RANGE(0x740000, 0x74ffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") \
+	AM_RANGE(0x750000, 0x75ffff) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext") \
 	AM_RANGE(0x760000, 0x760001) AM_READWRITE(namcos21_video_enable_r,namcos21_video_enable_w) \
 	AM_RANGE(0x800000, 0x8fffff) AM_READ(datarom_r) \
 	AM_RANGE(0x900000, 0x90ffff) AM_READWRITE(shareram1_r,shareram1_w) AM_SHARE("mpsharedram1") \
@@ -1472,11 +1463,6 @@ static GFXDECODE_START( namcos21 )
 	GFXDECODE_ENTRY( "gfx1", 0x000000, tile_layout,  0x1000, 0x10 )
 GFXDECODE_END
 
-static const c140_interface C140_interface =
-{
-	C140_TYPE_SYSTEM21
-};
-
 MACHINE_START_MEMBER(namcos21_state,namcos21)
 {
 	MACHINE_START_CALL_MEMBER( namcos2 );
@@ -1525,16 +1511,18 @@ static MACHINE_CONFIG_START( namcos21, namcos21_state )
 	MCFG_SCREEN_SIZE(NAMCOS21_POLY_FRAME_WIDTH,NAMCOS21_POLY_FRAME_HEIGHT)
 	MCFG_SCREEN_VISIBLE_AREA(0,495,0,479)
 	MCFG_SCREEN_UPDATE_DRIVER(namcos21_state, screen_update_namcos21)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(namcos21)
-	MCFG_PALETTE_LENGTH(NAMCOS21_NUM_COLORS)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", namcos21)
+	MCFG_PALETTE_ADD("palette", NAMCOS21_NUM_COLORS)
+	MCFG_PALETTE_FORMAT(XBRG)
 
 	MCFG_VIDEO_START_OVERRIDE(namcos21_state,namcos21)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_C140_ADD("c140", 8000000/374)
-	MCFG_SOUND_CONFIG(C140_interface)
+	MCFG_C140_BANK_TYPE(C140_TYPE_SYSTEM21)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
 
@@ -1580,16 +1568,18 @@ static MACHINE_CONFIG_START( driveyes, namcos21_state )
 	MCFG_SCREEN_SIZE(NAMCOS21_POLY_FRAME_WIDTH,NAMCOS21_POLY_FRAME_HEIGHT)
 	MCFG_SCREEN_VISIBLE_AREA(0,495,0,479)
 	MCFG_SCREEN_UPDATE_DRIVER(namcos21_state, screen_update_namcos21)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(namcos21)
-	MCFG_PALETTE_LENGTH(NAMCOS21_NUM_COLORS)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", namcos21)
+	MCFG_PALETTE_ADD("palette", NAMCOS21_NUM_COLORS)
+	MCFG_PALETTE_FORMAT(XBRG)
 
 	MCFG_VIDEO_START_OVERRIDE(namcos21_state,namcos21)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_C140_ADD("c140", 8000000/374)
-	MCFG_SOUND_CONFIG(C140_interface)
+	MCFG_C140_BANK_TYPE(C140_TYPE_SYSTEM21)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
 
@@ -1639,15 +1629,19 @@ static MACHINE_CONFIG_START( winrun, namcos21_state )
 	MCFG_SCREEN_SIZE(NAMCOS21_POLY_FRAME_WIDTH,NAMCOS21_POLY_FRAME_HEIGHT)
 	MCFG_SCREEN_VISIBLE_AREA(0,495,0,479)
 	MCFG_SCREEN_UPDATE_DRIVER(namcos21_state, screen_update_namcos21)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(NAMCOS21_NUM_COLORS)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
+
+	MCFG_PALETTE_ADD("palette", NAMCOS21_NUM_COLORS)
+	MCFG_PALETTE_FORMAT(XBRG)
 
 	MCFG_VIDEO_START_OVERRIDE(namcos21_state,namcos21)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_C140_ADD("c140", 8000000/374)
-	MCFG_SOUND_CONFIG(C140_interface)
+	MCFG_C140_BANK_TYPE(C140_TYPE_SYSTEM21)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
 
@@ -2536,7 +2530,7 @@ INPUT_PORTS_END
 GAME( 1988, winrun,    0,        winrun,   winrun,     namcos21_state, winrun,   ROT0,    "Namco", "Winning Run",                           GAME_IMPERFECT_GRAPHICS )
 GAME( 1989, winrungp,  0,        winrun,   winrungp,   namcos21_state, winrun,   ROT0,    "Namco", "Winning Run Suzuka Grand Prix (Japan)", GAME_IMPERFECT_GRAPHICS )
 GAME( 1991, winrun91,  0,        winrun,   winrungp,   namcos21_state, winrun,   ROT0,    "Namco", "Winning Run '91 (Japan)",               GAME_IMPERFECT_GRAPHICS )
-GAME( 1991, driveyes,  0,        driveyes, winrungp,   namcos21_state, driveyes, ROT0,    "Namco", "Driver's Eyes (US)",                    GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS )
+GAME( 1991, driveyes,  0,        driveyes, winrungp,   namcos21_state, driveyes, ROT0,    "Namco", "Driver's Eyes (Japan)",                 GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS )
 GAME( 1991, solvalou,  0,        namcos21, s21default, namcos21_state, solvalou, ROT0,    "Namco", "Solvalou (Japan)",                      GAME_IMPERFECT_GRAPHICS )
 GAME( 1991, starblad,  0,        namcos21, s21default, namcos21_state, starblad, ROT0,    "Namco", "Starblade (World)",                     GAME_IMPERFECT_GRAPHICS )
 GAME( 1991, starbladj, starblad, namcos21, s21default, namcos21_state, starblad, ROT0,    "Namco", "Starblade (Japan)",                     GAME_IMPERFECT_GRAPHICS )

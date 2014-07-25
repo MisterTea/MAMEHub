@@ -17,7 +17,7 @@
 #include "video/tms9928a.h"
 #include "machine/i8255.h"
 #include "machine/wd17xx.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "imagedev/flopdrv.h"
 #include "formats/svi_dsk.h"
 #include "imagedev/cartslot.h"
@@ -250,47 +250,16 @@ static INPUT_PORTS_START( svi328 )
 	PORT_BIT (0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Keypad ,") PORT_CODE(KEYCODE_DEL_PAD)
 INPUT_PORTS_END
 
-static const ay8910_interface svi318_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(svi318_state, svi318_psg_port_a_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(svi318_state, svi318_psg_port_b_w)
-};
-
 WRITE_LINE_MEMBER(svi318_state::vdp_interrupt)
 {
 	m_maincpu->set_input_line(0, (state ? HOLD_LINE : CLEAR_LINE));
 }
 
-static TMS9928A_INTERFACE(svi318_tms9928a_interface)
-{
-	0x4000,
-	DEVCB_DRIVER_LINE_MEMBER(svi318_state,vdp_interrupt)
-};
-
-static const cassette_interface svi318_cassette_interface =
-{
-	svi_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_PLAY),
-	"svi318_cass",
-	NULL
-};
-
 static const floppy_interface svi318_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSHD,
 	LEGACY_FLOPPY_OPTIONS_NAME(svi318),
-	"floppy_5_25",
-	NULL
+	"floppy_5_25"
 };
 
 static MACHINE_CONFIG_FRAGMENT( svi318_cartslot )
@@ -315,13 +284,20 @@ static MACHINE_CONFIG_START( svi318, svi318_state )
 	MCFG_MACHINE_START_OVERRIDE(svi318_state, svi318_pal )
 	MCFG_MACHINE_RESET_OVERRIDE(svi318_state, svi318 )
 
-	MCFG_I8255_ADD( "ppi8255", svi318_ppi8255_interface )
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(svi318_state, svi318_ppi_port_a_r))
+	MCFG_I8255_IN_PORTB_CB(READ8(svi318_state, svi318_ppi_port_b_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(svi318_state, svi318_ppi_port_c_w))
 
-	MCFG_INS8250_ADD( "ins8250_0", svi318_ins8250_interface[0], 1000000 )
-	MCFG_INS8250_ADD( "ins8250_1", svi318_ins8250_interface[1], 3072000 )
+	MCFG_DEVICE_ADD( "ins8250_0", INS8250, 1000000 )
+	MCFG_INS8250_OUT_INT_CB(WRITELINE(svi318_state, svi318_ins8250_interrupt))
+	MCFG_DEVICE_ADD( "ins8250_1", INS8250, 3072000 )
+	MCFG_INS8250_OUT_INT_CB(WRITELINE(svi318_state, svi318_ins8250_interrupt))
 
 	/* Video hardware */
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9929A, svi318_tms9928a_interface )
+	MCFG_DEVICE_ADD( "tms9928a", TMS9929A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(svi318_state, vdp_interrupt))
 	MCFG_TMS9928A_SCREEN_ADD_PAL( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9929a_device, screen_update )
 
@@ -332,15 +308,25 @@ static MACHINE_CONFIG_START( svi318, svi318_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("ay8910", AY8910, 1789773)
-	MCFG_SOUND_CONFIG(svi318_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(svi318_state, svi318_psg_port_a_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(svi318_state, svi318_psg_port_b_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
 	/* printer */
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(svi318_state, write_centronics_busy))
 
-	MCFG_CASSETTE_ADD( "cassette", svi318_cassette_interface )
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
-	MCFG_FD1793_ADD("wd179x", svi_wd17xx_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(svi_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
+	MCFG_CASSETTE_INTERFACE("svi318_cass")
+
+	MCFG_DEVICE_ADD("wd179x", FD1793, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE2_TAGS
+	MCFG_WD17XX_INTRQ_CALLBACK(WRITELINE(svi318_state,svi_fdc_intrq_w))
+	MCFG_WD17XX_DRQ_CALLBACK(WRITELINE(svi318_state,svi_fdc_drq_w))
 
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(svi318_floppy_interface)
 
@@ -360,7 +346,9 @@ static MACHINE_CONFIG_DERIVED( svi318n, svi318 )
 
 	MCFG_DEVICE_REMOVE("tms9928a")
 	MCFG_DEVICE_REMOVE("screen")
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9928A, svi318_tms9928a_interface )
+	MCFG_DEVICE_ADD( "tms9928a", TMS9928A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(svi318_state, vdp_interrupt))
 	MCFG_TMS9928A_SCREEN_ADD_NTSC( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9928a_device, screen_update )
 
@@ -384,20 +372,6 @@ static MACHINE_CONFIG_DERIVED( svi328n, svi318n )
 	MCFG_RAM_EXTRA_OPTIONS("96K,160K")
 MACHINE_CONFIG_END
 
-
-static MC6845_INTERFACE( svi806_crtc6845_interface )
-{
-	false,
-	8 /*?*/,
-	NULL,
-	svi806_crtc6845_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
 
 /* F4 Character Displayer */
 static const gfx_layout svi328_charlayout =
@@ -427,19 +401,26 @@ static MACHINE_CONFIG_START( svi328_806, svi318_state )
 	MCFG_MACHINE_START_OVERRIDE(svi318_state, svi318_pal )
 	MCFG_MACHINE_RESET_OVERRIDE(svi318_state, svi328_806 )
 
-	MCFG_I8255A_ADD( "ppi8255", svi318_ppi8255_interface )
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(svi318_state, svi318_ppi_port_a_r))
+	MCFG_I8255_IN_PORTB_CB(READ8(svi318_state, svi318_ppi_port_b_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(svi318_state, svi318_ppi_port_c_w))
 
-	MCFG_INS8250_ADD( "ins8250_0", svi318_ins8250_interface[0], 1000000 )
-	MCFG_INS8250_ADD( "ins8250_1", svi318_ins8250_interface[1], 3072000 )
+	MCFG_DEVICE_ADD( "ins8250_0", INS8250, 1000000 )
+	MCFG_INS8250_OUT_INT_CB(WRITELINE(svi318_state, svi318_ins8250_interrupt))
+	MCFG_DEVICE_ADD( "ins8250_1", INS8250, 3072000 )
+	MCFG_INS8250_OUT_INT_CB(WRITELINE(svi318_state, svi318_ins8250_interrupt))
 
 	/* Video hardware */
 	MCFG_DEFAULT_LAYOUT( layout_dualhsxs )
 
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9929A, svi318_tms9928a_interface )
+	MCFG_DEVICE_ADD( "tms9928a", TMS9929A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(svi318_state, vdp_interrupt))
 	MCFG_TMS9928A_SET_SCREEN( "screen" )
 	MCFG_TMS9928A_SCREEN_ADD_PAL( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9929a_device, screen_update )
-	MCFG_PALETTE_LENGTH(TMS9928A_PALETTE_SIZE + 2)  /* 2 additional entries for monochrome svi806 output */
+	MCFG_PALETTE_ADD("palette", TMS9928A_PALETTE_SIZE + 2)  /* 2 additional entries for monochrome svi806 output */
 
 	MCFG_SCREEN_ADD("svi806", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(50)
@@ -448,9 +429,12 @@ static MACHINE_CONFIG_START( svi328_806, svi318_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 400-1)
 	MCFG_SCREEN_UPDATE_DEVICE("crtc", mc6845_device, screen_update)
 
-	MCFG_GFXDECODE(svi328)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", svi328)
 
-	MCFG_MC6845_ADD("crtc", MC6845, "svi806", XTAL_12MHz / 8, svi806_crtc6845_interface)
+	MCFG_MC6845_ADD("crtc", MC6845, "svi806", XTAL_12MHz / 8)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)   /* ? */
+	MCFG_MC6845_UPDATE_ROW_CB(svi318_state, crtc_update_row)
 
 	MCFG_VIDEO_START_OVERRIDE(svi318_state, svi328_806 )
 
@@ -461,15 +445,25 @@ static MACHINE_CONFIG_START( svi328_806, svi318_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("ay8910", AY8910, 1789773)
-	MCFG_SOUND_CONFIG(svi318_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(svi318_state, svi318_psg_port_a_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(svi318_state, svi318_psg_port_b_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
 	/* printer */
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(svi318_state, write_centronics_busy))
 
-	MCFG_CASSETTE_ADD( "cassette", svi318_cassette_interface )
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
-	MCFG_FD1793_ADD("wd179x", svi_wd17xx_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(svi_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
+	MCFG_CASSETTE_INTERFACE("svi318_cass")
+
+	MCFG_DEVICE_ADD("wd179x", FD1793, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE2_TAGS
+	MCFG_WD17XX_INTRQ_CALLBACK(WRITELINE(svi318_state,svi_fdc_intrq_w))
+	MCFG_WD17XX_DRQ_CALLBACK(WRITELINE(svi318_state,svi_fdc_drq_w))
 
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(svi318_floppy_interface)
 

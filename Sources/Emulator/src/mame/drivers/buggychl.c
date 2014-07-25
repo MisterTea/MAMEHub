@@ -150,7 +150,7 @@ static ADDRESS_MAP_START( buggychl_map, AS_PROGRAM, 8, buggychl_state )
 //  AM_RANGE(0xd60b, 0xd60b) // other inputs, not used?
 	AM_RANGE(0xd610, 0xd610) AM_WRITE(sound_command_w)
 	AM_RANGE(0xd618, 0xd618) AM_WRITENOP    /* accelerator clear */
-	AM_RANGE(0xd700, 0xd7ff) AM_WRITE(paletteram_xxxxRRRRGGGGBBBB_byte_be_w) AM_SHARE("paletteram")
+	AM_RANGE(0xd700, 0xd7ff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xd840, 0xd85f) AM_WRITEONLY AM_SHARE("scrollv")
 	AM_RANGE(0xdb00, 0xdbff) AM_WRITEONLY AM_SHARE("scrollh")
 	AM_RANGE(0xdc04, 0xdc04) AM_WRITEONLY /* should be fg scroll */
@@ -325,34 +325,6 @@ WRITE8_MEMBER(buggychl_state::port_b_1_w)
 	/* TRBL/BASS for the 7630 on this 8910 output */
 }
 
-
-static const ay8910_interface ay8910_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(buggychl_state,port_a_0_w),
-	DEVCB_DRIVER_MEMBER(buggychl_state,port_b_0_w)
-};
-
-static const ay8910_interface ay8910_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(buggychl_state,port_a_1_w),
-	DEVCB_DRIVER_MEMBER(buggychl_state,port_b_1_w)
-};
-
-static const msm5232_interface msm5232_config =
-{
-	{ 0.39e-6, 0.39e-6, 0.39e-6, 0.39e-6, 0.39e-6, 0.39e-6, 0.39e-6, 0.39e-6 }, /* default 0.39 uF capacitors (not verified) */
-	DEVCB_NULL
-};
-
-
 void buggychl_state::machine_start()
 {
 	UINT8 *ROM = memregion("maincpu")->base();
@@ -407,24 +379,29 @@ static MACHINE_CONFIG_START( buggychl, buggychl_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(buggychl_state, screen_update_buggychl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(buggychl)
-	MCFG_PALETTE_LENGTH(128+128)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", buggychl)
+	MCFG_PALETTE_ADD("palette", 128+128)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
+	MCFG_PALETTE_INIT_OWNER(buggychl_state, buggychl)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 8000000/4)
-	MCFG_SOUND_CONFIG(ay8910_interface_1)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(buggychl_state, port_a_0_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(buggychl_state, port_b_0_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 8000000/4)
-	MCFG_SOUND_CONFIG(ay8910_interface_2)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(buggychl_state, port_a_1_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(buggychl_state, port_b_1_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_SOUND_ADD("msm", MSM5232, 2000000)
-	MCFG_SOUND_CONFIG(msm5232_config)
+	MCFG_MSM5232_SET_CAPACITORS(0.39e-6, 0.39e-6, 0.39e-6, 0.39e-6, 0.39e-6, 0.39e-6, 0.39e-6, 0.39e-6) /* default 0.39 uF capacitors (not verified) */
 	MCFG_SOUND_ROUTE(0, "mono", 1.0)    // pin 28  2'-1
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)    // pin 29  4'-1
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)    // pin 30  8'-1

@@ -82,8 +82,7 @@ TILE_GET_INFO_MEMBER(apple1_state::terminal_gettileinfo)
 	if ((tile_index == m_current_terminal->cur_offset) && !m_current_terminal->cur_hidden && m_current_terminal->getcursorcode)
 		code = m_current_terminal->getcursorcode(code);
 
-	SET_TILE_INFO_MEMBER(
-		gfxfont,    /* gfx */
+	SET_TILE_INFO_MEMBER(gfxfont,    /* gfx */
 		code,       /* character */
 		color,      /* color */
 		0);         /* flags */
@@ -184,13 +183,13 @@ terminal_t *apple1_state::terminal_create(
 	terminal_t *term;
 	int char_width, char_height;
 
-	char_width = machine().gfx[gfx]->width();
-	char_height = machine().gfx[gfx]->height();
+	char_width = m_gfxdecode->gfx(gfx)->width();
+	char_height = m_gfxdecode->gfx(gfx)->height();
 
 	term = (terminal_t *) auto_alloc_array(machine(), char, sizeof(terminal_t) - sizeof(term->mem)
 		+ (num_cols * num_rows * sizeof(termchar_t)));
 
-	term->tm = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(apple1_state::terminal_gettileinfo),this), TILEMAP_SCAN_ROWS,
+	term->tm = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(apple1_state::terminal_gettileinfo),this), TILEMAP_SCAN_ROWS,
 		char_width, char_height, num_cols, num_rows);
 
 	term->gfx = gfx;
@@ -322,7 +321,7 @@ attotime  apple1_state::apple1_vh_dsp_time_to_ready ()
 {
 	int cursor_x, cursor_y;
 	int cursor_scanline;
-	double scanline_period = machine().primary_screen->scan_period().as_double();
+	double scanline_period = m_screen->scan_period().as_double();
 	double cursor_hfrac;
 
 	/* The video hardware refreshes the screen by reading the
@@ -341,20 +340,20 @@ attotime  apple1_state::apple1_vh_dsp_time_to_ready ()
 	   for the visible part of the scanline. */
 	cursor_hfrac = (175 + cursor_x * apple1_charlayout.width) / 455;
 
-	if (machine().primary_screen->vpos() == cursor_scanline) {
+	if (m_screen->vpos() == cursor_scanline) {
 		/* video_screen_get_hpos() doesn't account for the horizontal
 		   blanking interval; it acts as if the scanline period is
 		   entirely composed of visible pixel times.  However, we can
 		   still use it to find what fraction of the current scanline
 		   period has elapsed. */
-		double current_hfrac = machine().primary_screen->hpos() /
-								machine().first_screen()->width();
+		double current_hfrac = m_screen->hpos() /
+								m_screen->width();
 		if (current_hfrac < cursor_hfrac)
 			return attotime::from_double(scanline_period * (cursor_hfrac - current_hfrac));
 	}
 
 	return attotime::from_double(
-		machine().primary_screen->time_until_pos(cursor_scanline, 0).as_double() +
+		m_screen->time_until_pos(cursor_scanline, 0).as_double() +
 		scanline_period * cursor_hfrac);
 }
 

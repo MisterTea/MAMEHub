@@ -203,7 +203,7 @@ static ADDRESS_MAP_START( ninjakun_cpu1_map, AS_PROGRAM, 8, nova2001_state )
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM_WRITE(nova2001_fg_videoram_w) AM_SHARE("fg_videoram")
 	AM_RANGE(0xc800, 0xcfff) AM_READWRITE(ninjakun_bg_videoram_r, ninjakun_bg_videoram_w) AM_SHARE("bg_videoram")
 	AM_RANGE(0xd000, 0xd7ff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xd800, 0xd9ff) AM_RAM_WRITE(ninjakun_paletteram_w) AM_SHARE("paletteram")
+	AM_RANGE(0xd800, 0xd9ff) AM_RAM_WRITE(ninjakun_paletteram_w) AM_SHARE("palette")
 	AM_RANGE(0xe000, 0xe3ff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0xe400, 0xe7ff) AM_RAM AM_SHARE("share2")
 ADDRESS_MAP_END
@@ -222,7 +222,7 @@ static ADDRESS_MAP_START( ninjakun_cpu2_map, AS_PROGRAM, 8, nova2001_state )
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM_WRITE(nova2001_fg_videoram_w) AM_SHARE("fg_videoram")
 	AM_RANGE(0xc800, 0xcfff) AM_READWRITE(ninjakun_bg_videoram_r, ninjakun_bg_videoram_w) AM_SHARE("bg_videoram")
 	AM_RANGE(0xd000, 0xd7ff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xd800, 0xd9ff) AM_RAM_WRITE(ninjakun_paletteram_w) AM_SHARE("paletteram")
+	AM_RANGE(0xd800, 0xd9ff) AM_RAM_WRITE(ninjakun_paletteram_w) AM_SHARE("palette")
 	AM_RANGE(0xe000, 0xe3ff) AM_RAM AM_SHARE("share2") /* swapped wrt CPU1 */
 	AM_RANGE(0xe400, 0xe7ff) AM_RAM AM_SHARE("share1") /* swapped wrt CPU1 */
 ADDRESS_MAP_END
@@ -258,7 +258,7 @@ static ADDRESS_MAP_START( raiders5_cpu1_map, AS_PROGRAM, 8, nova2001_state )
 	AM_RANGE(0xc001, 0xc001) AM_DEVREAD("ay1", ay8910_device, data_r)
 	AM_RANGE(0xc002, 0xc003) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
 	AM_RANGE(0xc003, 0xc003) AM_DEVREAD("ay2", ay8910_device, data_r)
-	AM_RANGE(0xd000, 0xd1ff) AM_RAM_WRITE(ninjakun_paletteram_w) AM_SHARE("paletteram")
+	AM_RANGE(0xd000, 0xd1ff) AM_RAM_WRITE(ninjakun_paletteram_w) AM_SHARE("palette")
 	AM_RANGE(0xe000, 0xe7ff) AM_RAM AM_SHARE("share1")
 ADDRESS_MAP_END
 
@@ -623,55 +623,6 @@ static GFXDECODE_START( raiders5 )
 GFXDECODE_END
 
 
-
-/*************************************
- *
- *  Sound definitions
- *
- *************************************/
-
-static const ay8910_interface nova2001_ay8910_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(nova2001_state, nova2001_scroll_x_w),
-	DEVCB_DRIVER_MEMBER(nova2001_state, nova2001_scroll_y_w)
-};
-
-static const ay8910_interface nova2001_ay8910_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface pkunwar_ay8910_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("IN0"),
-	DEVCB_INPUT_PORT("IN1"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface pkunwar_ay8910_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("IN2"),
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-
 /*************************************
  *
  *  Machine drivers
@@ -691,22 +642,26 @@ static MACHINE_CONFIG_START( nova2001, nova2001_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 4*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nova2001_state, screen_update_nova2001)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nova2001)
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nova2001)
+	MCFG_PALETTE_ADD("palette", 0x200)
+	MCFG_PALETTE_FORMAT(BBGGRRII)
 
-	MCFG_PALETTE_INIT_OVERRIDE(nova2001_state,nova2001)
+	MCFG_PALETTE_INIT_OWNER(nova2001_state,nova2001)
 	MCFG_VIDEO_START_OVERRIDE(nova2001_state,nova2001)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, MAIN_CLOCK/6) // 2 MHz verified on schematics
-	MCFG_SOUND_CONFIG(nova2001_ay8910_interface_1)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(nova2001_state, nova2001_scroll_x_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(nova2001_state, nova2001_scroll_y_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, MAIN_CLOCK/6)
-	MCFG_SOUND_CONFIG(nova2001_ay8910_interface_2)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -732,9 +687,11 @@ static MACHINE_CONFIG_START( ninjakun, nova2001_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 4*8, 28*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(nova2001_state, screen_update_ninjakun)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ninjakun)
-	MCFG_PALETTE_LENGTH(0x300)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ninjakun)
+	MCFG_PALETTE_ADD("palette", 0x300)
+	MCFG_PALETTE_FORMAT(BBGGRRII)
 
 	MCFG_VIDEO_START_OVERRIDE(nova2001_state,ninjakun)
 
@@ -742,11 +699,13 @@ static MACHINE_CONFIG_START( ninjakun, nova2001_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, MAIN_CLOCK/4) // 3 MHz
-	MCFG_SOUND_CONFIG(nova2001_ay8910_interface_2)  // note swapped order wrt nova2001
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ay2", AY8910, MAIN_CLOCK/4) // 3 MHz
-	MCFG_SOUND_CONFIG(nova2001_ay8910_interface_1)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(nova2001_state, nova2001_scroll_x_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(nova2001_state, nova2001_scroll_y_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 MACHINE_CONFIG_END
 
@@ -764,22 +723,26 @@ static MACHINE_CONFIG_START( pkunwar, nova2001_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 4*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nova2001_state, screen_update_pkunwar)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pkunwar)
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pkunwar)
+	MCFG_PALETTE_ADD("palette", 0x200)
+	MCFG_PALETTE_FORMAT(BBGGRRII)
 
-	MCFG_PALETTE_INIT_OVERRIDE(nova2001_state,nova2001)
+	MCFG_PALETTE_INIT_OWNER(nova2001_state,nova2001)
 	MCFG_VIDEO_START_OVERRIDE(nova2001_state,pkunwar)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, MAIN_CLOCK/8) // 1.5MHz (correct?)
-	MCFG_SOUND_CONFIG(pkunwar_ay8910_interface_1)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN0"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("IN1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, MAIN_CLOCK/8)
-	MCFG_SOUND_CONFIG(pkunwar_ay8910_interface_2)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN2"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -803,9 +766,11 @@ static MACHINE_CONFIG_START( raiders5, nova2001_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 4*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nova2001_state, screen_update_raiders5)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(raiders5)
-	MCFG_PALETTE_LENGTH(0x300)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", raiders5)
+	MCFG_PALETTE_ADD("palette", 0x300)
+	MCFG_PALETTE_FORMAT(BBGGRRII)
 
 	MCFG_VIDEO_START_OVERRIDE(nova2001_state,raiders5)
 
@@ -813,11 +778,13 @@ static MACHINE_CONFIG_START( raiders5, nova2001_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, MAIN_CLOCK/8) // 1.5MHz
-	MCFG_SOUND_CONFIG(pkunwar_ay8910_interface_1)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN0"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("IN1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, MAIN_CLOCK/8)
-	MCFG_SOUND_CONFIG(pkunwar_ay8910_interface_2)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN2"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -983,7 +950,7 @@ void nova2001_state::lineswap_gfx_roms(const char *region, const int bit)
 
 	UINT8* const src = memregion(region)->base();
 
-	UINT8* const temp = auto_alloc_array(machine(), UINT8, length);
+	dynamic_buffer temp(length);
 
 	const int mask = (1 << (bit + 1)) - 1;
 
@@ -997,8 +964,6 @@ void nova2001_state::lineswap_gfx_roms(const char *region, const int bit)
 	}
 
 	memcpy(src, temp, length);
-
-	auto_free(machine(), temp);
 }
 
 

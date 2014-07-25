@@ -376,16 +376,6 @@ WRITE8_MEMBER(bking_state::port_b_w)
 		logerror("port_b = %02x\n", data);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER("dac", dac_device, write_signed8),
-	DEVCB_DRIVER_MEMBER(bking_state,port_b_w)
-};
-
 void bking_state::machine_start()
 {
 	/* video */
@@ -479,9 +469,11 @@ static MACHINE_CONFIG_START( bking, bking_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(bking_state, screen_update_bking)
 	MCFG_SCREEN_VBLANK_DRIVER(bking_state, screen_eof_bking)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bking)
-	MCFG_PALETTE_LENGTH(4*8+4*4+4*2+4*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bking)
+	MCFG_PALETTE_ADD("palette", 4*8+4*4+4*2+4*2)
+	MCFG_PALETTE_INIT_OWNER(bking_state, bking)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -490,7 +482,8 @@ static MACHINE_CONFIG_START( bking, bking_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, XTAL_6MHz/4)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_WRITE_CB(DEVWRITE8("dac", dac_device, write_signed8))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(bking_state, port_b_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_DAC_ADD("dac")

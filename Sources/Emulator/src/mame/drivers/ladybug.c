@@ -118,7 +118,7 @@ WRITE8_MEMBER(ladybug_state::sraider_misc_w)
 			m_sraider_0x38 = data&0x3f;
 			break;
 		default:
-			mame_printf_debug("(%04X) write to %02X\n", space.device().safe_pc(), offset);
+			osd_printf_debug("(%04X) write to %02X\n", space.device().safe_pc(), offset);
 			break;
 	}
 }
@@ -706,23 +706,6 @@ static GFXDECODE_START( sraider )
 GFXDECODE_END
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 MACHINE_START_MEMBER(ladybug_state,ladybug)
 {
 }
@@ -782,11 +765,13 @@ static MACHINE_CONFIG_START( ladybug, ladybug_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 31*8-1, 4*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ladybug_state, screen_update_ladybug)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ladybug)
-	MCFG_PALETTE_LENGTH(4*8+4*16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ladybug)
+	MCFG_PALETTE_ADD("palette", 4*8+4*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(ladybug_state,ladybug)
 
-	MCFG_PALETTE_INIT_OVERRIDE(ladybug_state,ladybug)
 	MCFG_VIDEO_START_OVERRIDE(ladybug_state,ladybug)
 
 	/* sound hardware */
@@ -794,11 +779,9 @@ static MACHINE_CONFIG_START( ladybug, ladybug_state )
 
 	MCFG_SOUND_ADD("sn1", SN76489, 4000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76489, 4000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 
@@ -825,11 +808,13 @@ static MACHINE_CONFIG_START( sraider, ladybug_state )
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 31*8-1, 4*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ladybug_state, screen_update_sraider)
 	MCFG_SCREEN_VBLANK_DRIVER(ladybug_state, screen_eof_sraider)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sraider)
-	MCFG_PALETTE_LENGTH(4*8+4*16+32+2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sraider)
+	MCFG_PALETTE_ADD("palette", 4*8+4*16+32+2)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32+32+1)
+	MCFG_PALETTE_INIT_OWNER(ladybug_state,sraider)
 
-	MCFG_PALETTE_INIT_OVERRIDE(ladybug_state,sraider)
 	MCFG_VIDEO_START_OVERRIDE(ladybug_state,sraider)
 
 	/* sound hardware */
@@ -837,23 +822,18 @@ static MACHINE_CONFIG_START( sraider, ladybug_state )
 
 	MCFG_SOUND_ADD("sn1", SN76489, 4000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76489, 4000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn3", SN76489, 4000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn4", SN76489, 4000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn5", SN76489, 4000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 

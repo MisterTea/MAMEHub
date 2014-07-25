@@ -4,6 +4,7 @@
 
 *************************************************************************/
 #include "sound/dac.h"
+#include "cpu/tms32010/tms32010.h"
 
 class exterm_state : public driver_device
 {
@@ -40,13 +41,13 @@ public:
 	DECLARE_WRITE8_MEMBER(sound_control_w);
 	DECLARE_WRITE8_MEMBER(ym2151_data_latch_w);
 	DECLARE_WRITE8_MEMBER(sound_slave_dac_w);
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(exterm);
 	TIMER_CALLBACK_MEMBER(sound_delayed_w);
 	TIMER_DEVICE_CALLBACK_MEMBER(master_sound_nmi_callback);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_audioslave;
-	required_device<cpu_device> m_slave;
+	required_device<tms34010_device> m_slave;
 	required_device<dac_device> m_dac;
 };
 

@@ -110,7 +110,7 @@ void mystston_state::set_palette()
 		bit1 = (data >> 7) & 0x01;
 		b = combine_2_weights(weights_b, bit0, bit1);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		m_palette->set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -197,7 +197,7 @@ void mystston_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 				flipy = !flipy;
 			}
 
-			drawgfx_transpen(bitmap, cliprect, gfx, code, color, flipx, flipy, x, y, 0);
+				gfx->transpen(bitmap,cliprect, code, color, flipx, flipy, x, y, 0);
 		}
 	}
 }
@@ -212,9 +212,9 @@ void mystston_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 
 VIDEO_START_MEMBER(mystston_state,mystston)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mystston_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS_FLIP_X, 16, 16, 16, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mystston_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS_FLIP_X, 16, 16, 16, 32);
 
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mystston_state::get_fg_tile_info),this), TILEMAP_SCAN_COLS_FLIP_X,  8,  8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mystston_state::get_fg_tile_info),this), TILEMAP_SCAN_COLS_FLIP_X,  8,  8, 32, 32);
 	m_fg_tilemap->set_transparent_pen(0);
 
 	/* create the interrupt timer */
@@ -253,7 +253,7 @@ UINT32 mystston_state::screen_update_mystston(screen_device &screen, bitmap_ind1
 	machine().tilemap().set_flip_all(flip ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
 
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
-	draw_sprites(bitmap, cliprect, machine().gfx[2], flip);
+	draw_sprites(bitmap, cliprect, m_gfxdecode->gfx(2), flip);
 	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	return 0;
@@ -311,10 +311,11 @@ MACHINE_CONFIG_FRAGMENT( mystston_video )
 	MCFG_VIDEO_START_OVERRIDE(mystston_state,mystston)
 	MCFG_VIDEO_RESET_OVERRIDE(mystston_state,mystston)
 
-	MCFG_GFXDECODE(mystston)
-	MCFG_PALETTE_LENGTH(0x40)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mystston)
+	MCFG_PALETTE_ADD("palette", 0x40)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(mystston_state, screen_update_mystston)
+	MCFG_SCREEN_PALETTE("palette")
 MACHINE_CONFIG_END

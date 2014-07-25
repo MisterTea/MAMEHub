@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Luca Elia, David Haywood, Angelo Salese and Roberto Fresca.
 /***************************************************************************
 
               -= Subsino's Gambling Games =-
@@ -246,7 +248,9 @@ public:
 		m_reel2_ram(*this, "reel2_ram"),
 		m_reel3_ram(*this, "reel3_ram"),
 		m_stisub_out_c(*this, "stisub_out_c"),
-		m_maincpu(*this, "maincpu") {
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") {
 	}
 
 	required_shared_ptr<UINT8> m_colorram;
@@ -293,6 +297,7 @@ public:
 	DECLARE_READ8_MEMBER(reel_scrollattr_r);
 	DECLARE_DRIVER_INIT(stisub);
 	DECLARE_DRIVER_INIT(tesorone);
+	DECLARE_DRIVER_INIT(tesorone230);
 	DECLARE_DRIVER_INIT(smoto20);
 	DECLARE_DRIVER_INIT(sharkpy);
 	DECLARE_DRIVER_INIT(smoto16);
@@ -321,6 +326,8 @@ public:
 	UINT32 screen_update_stisub_reels(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	virtual void machine_start();
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 void subsino_state::machine_start()
@@ -371,7 +378,7 @@ TILE_GET_INFO_MEMBER(subsino_state::get_stisub_tile_info)
 
 VIDEO_START_MEMBER(subsino_state,subsino)
 {
-	m_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(subsino_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8,8, 0x40,0x20 );
+	m_tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(subsino_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8,8, 0x40,0x20 );
 	m_tmap->set_transparent_pen(0 );
 	m_tiles_offset = 0;
 }
@@ -389,8 +396,7 @@ TILE_GET_INFO_MEMBER(subsino_state::get_subsino_reel1_tile_info)
 	int code = m_reel1_ram[tile_index];
 	int colour = (m_out_c&0x7) + 8;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code,
 			colour,
 			0);
@@ -401,8 +407,7 @@ TILE_GET_INFO_MEMBER(subsino_state::get_stisub_reel1_tile_info)
 	int code = m_reel1_ram[tile_index];
 	int attr = m_reel1_attr[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code | (attr << 8),
 			0,
 			0);
@@ -420,8 +425,7 @@ TILE_GET_INFO_MEMBER(subsino_state::get_subsino_reel2_tile_info)
 	int code = m_reel2_ram[tile_index];
 	int colour = (m_out_c&0x7) + 8;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code,
 			colour,
 			0);
@@ -432,8 +436,7 @@ TILE_GET_INFO_MEMBER(subsino_state::get_stisub_reel2_tile_info)
 	int code = m_reel2_ram[tile_index];
 	int attr = m_reel2_attr[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code | (attr << 8),
 			0,
 			0);
@@ -450,8 +453,7 @@ TILE_GET_INFO_MEMBER(subsino_state::get_subsino_reel3_tile_info)
 	int code = m_reel3_ram[tile_index];
 	int colour = (m_out_c&0x7) + 8;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code,
 			colour,
 			0);
@@ -462,8 +464,7 @@ TILE_GET_INFO_MEMBER(subsino_state::get_stisub_reel3_tile_info)
 	int code = m_reel3_ram[tile_index];
 	int attr = m_reel3_attr[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code | (attr << 8),
 			0,
 			0);
@@ -474,9 +475,9 @@ VIDEO_START_MEMBER(subsino_state,subsino_reels)
 {
 	VIDEO_START_CALL_MEMBER( subsino );
 
-	m_reel1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(subsino_state::get_subsino_reel1_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
-	m_reel2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(subsino_state::get_subsino_reel2_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
-	m_reel3_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(subsino_state::get_subsino_reel3_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
+	m_reel1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(subsino_state::get_subsino_reel1_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
+	m_reel2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(subsino_state::get_subsino_reel2_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
+	m_reel3_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(subsino_state::get_subsino_reel3_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
 
 	m_reel1_tilemap->set_scroll_cols(64);
 	m_reel2_tilemap->set_scroll_cols(64);
@@ -486,12 +487,12 @@ VIDEO_START_MEMBER(subsino_state,subsino_reels)
 
 VIDEO_START_MEMBER(subsino_state,stisub)
 {
-	m_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(subsino_state::get_stisub_tile_info),this), TILEMAP_SCAN_ROWS, 8,8, 0x40,0x20 );
+	m_tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(subsino_state::get_stisub_tile_info),this), TILEMAP_SCAN_ROWS, 8,8, 0x40,0x20 );
 	m_tmap->set_transparent_pen(0 );
 
-	m_reel1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(subsino_state::get_stisub_reel1_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
-	m_reel2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(subsino_state::get_stisub_reel2_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
-	m_reel3_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(subsino_state::get_stisub_reel3_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
+	m_reel1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(subsino_state::get_stisub_reel1_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
+	m_reel2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(subsino_state::get_stisub_reel2_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
+	m_reel3_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(subsino_state::get_stisub_reel3_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
 
 	m_reel1_tilemap->set_scroll_cols(64);
 	m_reel2_tilemap->set_scroll_cols(64);
@@ -597,7 +598,7 @@ PALETTE_INIT_MEMBER(subsino_state,subsino_2proms)
 		bit2 = (val >> 2) & 0x01;
 		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -624,7 +625,7 @@ PALETTE_INIT_MEMBER(subsino_state,subsino_3proms)
 		bit2 = (val >> 0) & 0x01;
 		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -1081,7 +1082,7 @@ WRITE8_MEMBER(subsino_state::colordac_w)
 
 		case 1:
 			m_stisub_colorram[m_colordac_offs] = data;
-			palette_set_color_rgb(machine(), m_colordac_offs/3,
+			m_palette->set_pen_color(m_colordac_offs/3,
 				pal6bit(m_stisub_colorram[(m_colordac_offs/3)*3+0]),
 				pal6bit(m_stisub_colorram[(m_colordac_offs/3)*3+1]),
 				pal6bit(m_stisub_colorram[(m_colordac_offs/3)*3+2])
@@ -1203,7 +1204,7 @@ static ADDRESS_MAP_START( mtrainnv_map, AS_PROGRAM, 8, subsino_state )
 	AM_RANGE( 0x0d004, 0x0d004 ) AM_READ_PORT( "SW4" )
 	AM_RANGE( 0x0d005, 0x0d005 ) AM_READ_PORT( "INB" )
 	AM_RANGE( 0x0d006, 0x0d006 ) AM_READ_PORT( "INA" )
-//  AM_RANGE( 0x0d008, 0x0d008 ) AM_READWRITE
+	AM_RANGE( 0x0d008, 0x0d008 ) AM_RAM AM_SHARE("stisub_out_c")
 //  AM_RANGE( 0x0d009, 0x0d009 ) AM_WRITE
 //  AM_RANGE( 0x0d00a, 0x0d00a ) AM_WRITE
 //  AM_RANGE( 0x0d00b, 0x0d00b ) AM_WRITE
@@ -2809,11 +2810,12 @@ static MACHINE_CONFIG_START( victor21, subsino_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(subsino_state, screen_update_subsino)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(subsino_depth3)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", subsino_depth3)
 
-	MCFG_PALETTE_LENGTH(0x100)
-	MCFG_PALETTE_INIT_OVERRIDE(subsino_state,subsino_2proms)
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_INIT_OWNER(subsino_state,subsino_2proms)
 
 	MCFG_VIDEO_START_OVERRIDE(subsino_state,subsino)
 
@@ -2851,11 +2853,12 @@ static MACHINE_CONFIG_START( crsbingo, subsino_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(subsino_state, screen_update_subsino)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(subsino_depth4)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", subsino_depth4)
 
-	MCFG_PALETTE_LENGTH(0x100)
-	MCFG_PALETTE_INIT_OVERRIDE(subsino_state,subsino_2proms)
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_INIT_OWNER(subsino_state,subsino_2proms)
 
 	MCFG_VIDEO_START_OVERRIDE(subsino_state,subsino)
 
@@ -2882,11 +2885,12 @@ static MACHINE_CONFIG_START( srider, subsino_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(subsino_state, screen_update_subsino)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(subsino_depth4)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", subsino_depth4)
 
-	MCFG_PALETTE_LENGTH(0x100)
-	MCFG_PALETTE_INIT_OVERRIDE(subsino_state,subsino_3proms)
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_INIT_OWNER(subsino_state,subsino_3proms)
 
 	MCFG_VIDEO_START_OVERRIDE(subsino_state,subsino)
 
@@ -2923,11 +2927,12 @@ static MACHINE_CONFIG_START( tisub, subsino_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(subsino_state, screen_update_subsino_reels)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(subsino_depth4_reels)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", subsino_depth4_reels)
 
-	MCFG_PALETTE_LENGTH(0x100)
-	MCFG_PALETTE_INIT_OVERRIDE(subsino_state,subsino_3proms)
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_INIT_OWNER(subsino_state,subsino_3proms)
 
 	MCFG_VIDEO_START_OVERRIDE(subsino_state,subsino_reels)
 
@@ -2953,11 +2958,12 @@ static MACHINE_CONFIG_START( stisub, subsino_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(subsino_state, screen_update_stisub_reels)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(subsino_stisub)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", subsino_stisub)
 
-	MCFG_PALETTE_LENGTH(0x100)
-	//MCFG_PALETTE_INIT_OVERRIDE(subsino_state,subsino_3proms)
+	MCFG_PALETTE_ADD("palette", 0x100)
+	//MCFG_PALETTE_INIT_OWNER(subsino_state,subsino_3proms)
 
 	MCFG_VIDEO_START_OVERRIDE(subsino_state,stisub)
 
@@ -3676,6 +3682,23 @@ ROM_START( tesorone )
 	ROM_LOAD( "tesorone.d.isol.italy_9ver1.7.u22", 0x60000, 0x20000, CRC(1c9f754e) SHA1(7b2feeeaaa4845d2fcfebb2c1bc4d6b69d937400) )
 ROM_END
 
+ROM_START( tesorone230 )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "tesorone.d.isol.italy_1ver2.3.u12", 0x00000, 0x10000, CRC(46cd019b) SHA1(40412ac1234ae0f31b13c4d3b48681da34f1ded9) )
+
+	ROM_REGION( 0x100000, "tilemap", 0 )
+	ROM_LOAD( "tesorone.d.isol.italy_2ver1.7.u30", 0x00000, 0x40000, CRC(295887c5) SHA1(b36914977b276ac5e5e31902dff28796f3a28ea1) )
+	ROM_LOAD( "tesorone.d.isol.italy_3ver1.7.u29", 0x40000, 0x40000, CRC(89469522) SHA1(ba373900e0310aad3d04ff58909f6144d9b689a7) )
+	ROM_LOAD( "tesorone.d.isol.italy_4ver1.7.u28", 0x80000, 0x40000, CRC(2092a368) SHA1(05e1af15761e0186ea7ddb8b82c177e35fcdd382) )
+	ROM_LOAD( "tesorone.d.isol.italy_5ver1.7.u27", 0xc0000, 0x40000, CRC(57870bad) SHA1(7a3342c5cc3ed5f48d2dda224913eb357aeb401b) )
+
+	ROM_REGION( 0x80000, "reels", 0 )
+	ROM_LOAD( "tesorone.d.isol.italy_6ver1.7.u25", 0x00000, 0x20000, CRC(e5578d00) SHA1(28882131d13f052bc31c3fc1b6dc5d9e45d30e82) )
+	ROM_LOAD( "tesorone.d.isol.italy_7ver1.7.u24", 0x20000, 0x20000, CRC(c29a7841) SHA1(7bec4a4db0b545b9b9d9a4c14efa9442e7738d8a) )
+	ROM_LOAD( "tesorone.d.isol.italy_8ver1.7.u23", 0x40000, 0x20000, CRC(2b4b195a) SHA1(cb165f6737231ae52dbf9775fff13b778835fcac) )
+	ROM_LOAD( "tesorone.d.isol.italy_9ver1.7.u22", 0x60000, 0x20000, CRC(1c9f754e) SHA1(7b2feeeaaa4845d2fcfebb2c1bc4d6b69d937400) )
+ROM_END
+
 ROM_START( tesorone240 )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "tesorone.d.isol.italy_1ver2.4.u12", 0x00000, 0x10000, CRC(6a7d5395) SHA1(448184b78b6a3e28f891731c83a4e2d1e283c205) )
@@ -3713,9 +3736,11 @@ ROM_START( mtrainnv )
 	ROM_LOAD( "mtrain_settings.bin", 0x00000, 0x10000, CRC(584af1b5) SHA1(91d966d282823dddfdc455bb03728fcdf3713dd7) )
 
 	ROM_REGION( 0x10000, "tilemap", 0 )
+	ROM_LOAD( "mtrain_tilemap.bin", 0x00000, 0x10000, NO_DUMP )
 	ROM_COPY( "maincpu", 0x0000, 0x00000, 0x10000 ) // just to show something
 
 	ROM_REGION( 0x10000, "reels", 0 )
+	ROM_LOAD( "mtrain_reels.bin", 0x00000, 0x10000, NO_DUMP )
 	ROM_COPY( "maincpu", 0x0000, 0x00000, 0x10000 ) // just to show something
 ROM_END
 
@@ -3825,6 +3850,28 @@ DRIVER_INIT_MEMBER(subsino_state,tesorone)
 	m_reel3_attr = auto_alloc_array(machine(), UINT8, 0x200);
 }
 
+DRIVER_INIT_MEMBER(subsino_state,tesorone230)
+{
+#if 1
+	UINT8 *rom = memregion( "maincpu" )->base();            //check this patch!!!!
+	rom[0x10a8] = 0x18; //patch protection check ("ERROR 08073"):
+	rom[0x10a9] = 0x11;
+	rom[0x8ba] = 0x18; //patch "winning protection" check
+	rom[0xa88] = 0x18; //patch "losing protection" check
+#endif
+
+	m_stisub_colorram = auto_alloc_array(machine(), UINT8, 256*3);
+
+	m_reel1_scroll.allocate(0x40);
+	m_reel2_scroll.allocate(0x40);
+	m_reel3_scroll.allocate(0x40);
+
+	m_reel1_attr = auto_alloc_array(machine(), UINT8, 0x200);
+	m_reel2_attr = auto_alloc_array(machine(), UINT8, 0x200);
+	m_reel3_attr = auto_alloc_array(machine(), UINT8, 0x200);
+}
+
+
 DRIVER_INIT_MEMBER(subsino_state,mtrainnv)
 {
 	m_stisub_colorram = auto_alloc_array(machine(), UINT8, 256*3);
@@ -3844,19 +3891,28 @@ DRIVER_INIT_MEMBER(subsino_state,mtrainnv)
 
 //     YEAR  NAME         PARENT    MACHINE   INPUT     INIT                     ROT   COMPANY            FULLNAME                                FLAGS            LAYOUT
 GAMEL( 1990, victor21,    0,        victor21, victor21, subsino_state, victor21, ROT0, "Subsino / Buffy", "Victor 21",                            0,               layout_victor21 )
+
 GAMEL( 1991, victor5,     0,        victor5,  victor5,  subsino_state, victor5,  ROT0, "Subsino",         "G.E.A.",                               0,               layout_victor5  ) // PCB black-box was marked 'victor 5' - in-game says G.E.A with no manufacturer info?
+
 GAMEL( 1992, tisub,       0,        tisub,    tisub,    subsino_state, tisub,    ROT0, "Subsino",         "Treasure Island (Subsino, set 1)",     0,               layout_tisub    )
 GAMEL( 1992, tisuba,      tisub,    tisub,    tisub,    subsino_state, tisuba,   ROT0, "Subsino",         "Treasure Island (Subsino, set 2)",     0,               layout_tisub    )
+
 GAMEL( 1991, crsbingo,    0,        crsbingo, crsbingo, subsino_state, crsbingo, ROT0, "Subsino",         "Poker Carnival",                       0,               layout_crsbingo )
+
 GAMEL( 1995, stisub,      0,        stisub,   stisub,   subsino_state, stisub,   ROT0, "American Alpha",  "Treasure Bonus (Subsino, v1.6)",       0,               layout_stisub   ) // board CPU module marked 'Super Treasure Island' (alt title?)
 GAMEL( 1995, tesorone,    stisub,   stisub,   tesorone, subsino_state, tesorone, ROT0, "Subsino",         "Tesorone Dell'Isola (Italy, v2.41)",   0,               layout_stisub   )
 GAMEL( 1995, tesorone240, stisub,   stisub,   tesorone, subsino_state, tesorone, ROT0, "Subsino",         "Tesorone Dell'Isola (Italy, v2.40)",   0,               layout_stisub   )
+GAMEL( 1995, tesorone230, stisub,   stisub,   tesorone, subsino_state, tesorone230,ROT0,"Subsino",        "Tesorone Dell'Isola (Italy, v2.30)",   0,               layout_stisub   )
+
 GAMEL( 1996, sharkpy,     0,        sharkpy,  sharkpy,  subsino_state, sharkpy,  ROT0, "Subsino",         "Shark Party (Italy, v1.3)",            0,               layout_sharkpy  ) // missing POST messages?
 GAMEL( 1996, sharkpya,    sharkpy,  sharkpy,  sharkpy,  subsino_state, sharkpy,  ROT0, "Subsino",         "Shark Party (Italy, v1.6)",            0,               layout_sharkpy  ) // missing POST messages?
 GAMEL( 1995, sharkpye,    sharkpy,  sharkpy,  sharkpye, subsino_state, sharkpye, ROT0, "American Alpha",  "Shark Party (English, Alpha license)", 0,               layout_sharkpye ) // PCB black-box was marked 'victor 6'
+
 GAMEL( 1995, victor6,     0,        sharkpy,  victor6,  subsino_state, sharkpye, ROT0, "American Alpha",  "Victor 6 (v2.3N)",                     0,               layout_sharkpye ) // ^^
 GAMEL( 1995, victor6a,    victor6,  sharkpy,  victor6a, subsino_state, sharkpye, ROT0, "American Alpha",  "Victor 6 (v2.3)",                      0,               layout_sharkpye ) // ^^
 GAMEL( 1995, victor6b,    victor6,  sharkpy,  victor6b, subsino_state, sharkpye, ROT0, "American Alpha",  "Victor 6 (v1.2)",                      0,               layout_sharkpye ) // ^^ Version # according to label, not displayed
+
 GAMEL( 1996, smoto20,     0,        srider,   smoto20,  subsino_state, smoto20,  ROT0, "Subsino",         "Super Rider (Italy, v2.0)",            0,               layout_smoto    )
 GAMEL( 1996, smoto16,     smoto20,  srider,   smoto16,  subsino_state, smoto16,  ROT0, "Subsino",         "Super Moto (Italy, v1.6)",             0,               layout_smoto    )
+
 GAME ( 1996, mtrainnv,    mtrain,   mtrainnv, stisub,   subsino_state, mtrainnv, ROT0, "Subsino",         "Magic Train (Clear NVRAM ROM?)",       GAME_NOT_WORKING )

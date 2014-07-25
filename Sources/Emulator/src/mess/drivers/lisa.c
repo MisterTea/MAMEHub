@@ -9,16 +9,10 @@
 *********************************************************************/
 
 #include "emu.h"
-#include "cpu/m68000/m68000.h"
 #include "cpu/m6502/m6504.h"
 #include "cpu/cop400/cop400.h"
 #include "includes/lisa.h"
-#include "machine/sonydriv.h"
-#include "machine/applefdc.h"
 #include "formats/ap_dsk35.h"
-#include "machine/6522via.h"
-#include "sound/speaker.h"
-#include "mcfglgcy.h"
 
 
 /***************************************************************************
@@ -109,15 +103,9 @@ static const applefdc_interface lisa210_fdc_interface =
 
 static const floppy_interface lisa_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSHD,
 	LEGACY_FLOPPY_OPTIONS_NAME(apple35_mac),
-	"floppy_5_25",
-	NULL
+	"floppy_5_25"
 };
 
 /***************************************************************************
@@ -144,16 +132,16 @@ static MACHINE_CONFIG_START( lisa, lisa_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_SIZE(880, 380)
 	MCFG_SCREEN_VISIBLE_AREA(0, 720-1, 0, 364-1)
 	MCFG_SCREEN_UPDATE_DRIVER(lisa_state, screen_update_lisa)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 
 	/* sound hardware */
@@ -162,7 +150,7 @@ static MACHINE_CONFIG_START( lisa, lisa_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	/* nvram */
-	MCFG_NVRAM_HANDLER(lisa)
+	MCFG_NVRAM_ADD_CUSTOM_DRIVER("nvram", lisa_state, nvram_init)
 
 	/* devices */
 	MCFG_IWM_ADD("fdc", lisa2_fdc_interface)
@@ -172,10 +160,16 @@ static MACHINE_CONFIG_START( lisa, lisa_state )
 	MCFG_SOFTWARE_LIST_ADD("disk_list","lisa")
 
 	/* via */
-	MCFG_VIA6522_ADD("via6522_0", 500000, lisa_via6522_0_intf)
-	MCFG_VIA6522_ADD("via6522_1", 500000, lisa_via6522_1_intf)
+	MCFG_DEVICE_ADD("via6522_0", VIA6522, 500000)
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(lisa_state, COPS_via_out_a))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(lisa_state, COPS_via_out_b))
+	MCFG_VIA6522_CA2_HANDLER(WRITELINE(lisa_state, COPS_via_out_ca2))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(lisa_state, COPS_via_out_cb2))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(lisa_state, COPS_via_irq_func))
 
-	MCFG_SCC8530_ADD("scc", 7833600, line_cb_t(FUNC(lisa_state::set_scc_interrupt), static_cast<lisa_state *>(owner)))
+	MCFG_DEVICE_ADD("via6522_1", VIA6522, 500000)
+
+	MCFG_DEVICE_ADD("scc", SCC8530, 7833600)
 MACHINE_CONFIG_END
 
 
@@ -187,10 +181,10 @@ static MACHINE_CONFIG_DERIVED( lisa210, lisa )
 	MCFG_IWM_MODIFY("fdc", lisa210_fdc_interface)
 
 	/* via */
-	MCFG_DEVICE_REMOVE("via6522_0")
-	MCFG_DEVICE_REMOVE("via6522_1")
-	MCFG_VIA6522_ADD("via6522_0", 1250000, lisa_via6522_0_intf)
-	MCFG_VIA6522_ADD("via6522_1", 1250000, lisa_via6522_1_intf)
+	MCFG_DEVICE_MODIFY("via6522_0")
+	MCFG_DEVICE_CLOCK(1250000)
+	MCFG_DEVICE_MODIFY("via6522_1")
+	MCFG_DEVICE_CLOCK(1250000)
 MACHINE_CONFIG_END
 
 

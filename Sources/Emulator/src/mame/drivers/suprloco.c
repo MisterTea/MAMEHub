@@ -158,22 +158,6 @@ static GFXDECODE_START( suprloco )
 GFXDECODE_END
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( suprloco, suprloco_state )
 
 	/* basic machine hardware */
@@ -192,21 +176,20 @@ static MACHINE_CONFIG_START( suprloco, suprloco_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 31*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(suprloco_state, screen_update_suprloco)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(suprloco)
-	MCFG_PALETTE_LENGTH(512+256)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", suprloco)
+	MCFG_PALETTE_ADD("palette", 512+256)
+	MCFG_PALETTE_INIT_OWNER(suprloco_state, suprloco)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn1", SN76496, 4000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76496, 2000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 

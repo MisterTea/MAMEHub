@@ -15,7 +15,7 @@
  *
  *************************************/
 
-void zaxxon_state::palette_init()
+PALETTE_INIT_MEMBER(zaxxon_state, zaxxon)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances[3] = { 1000, 470, 220 };
@@ -29,7 +29,7 @@ void zaxxon_state::palette_init()
 			2,  &resistances[1], bweights, 470, 0);
 
 	/* initialize the palette with these colors */
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2;
 		int r, g, b;
@@ -51,7 +51,7 @@ void zaxxon_state::palette_init()
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		b = combine_2_weights(bweights, bit0, bit1);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the character color codes */
@@ -126,13 +126,11 @@ void zaxxon_state::video_start_common(tilemap_get_info_delegate fg_tile_info)
 	memset(m_congo_custom, 0, sizeof(m_congo_custom));
 
 	/* create a background and foreground tilemap */
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(zaxxon_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,512);
-	m_fg_tilemap = &machine().tilemap().create(fg_tile_info, TILEMAP_SCAN_ROWS,  8,8, 32,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(zaxxon_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,512);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, fg_tile_info, TILEMAP_SCAN_ROWS,  8,8, 32,32);
 
 	/* configure the foreground tilemap */
 	m_fg_tilemap->set_transparent_pen(0);
-	m_fg_tilemap->set_scrolldx(0, m_screen->width() - 256);
-	m_fg_tilemap->set_scrolldy(0, m_screen->height() - 256);
 
 	/* register for save states */
 	save_item(NAME(m_bg_enable));
@@ -355,7 +353,7 @@ void zaxxon_state::draw_background(bitmap_ind16 &bitmap, const rectangle &clipre
 
 	/* if not enabled, fill the background with black */
 	else
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 }
 
 
@@ -414,7 +412,7 @@ inline int zaxxon_state::find_minimum_x(UINT8 value, int flip)
 void zaxxon_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT16 flipxmask, UINT16 flipymask)
 {
 	UINT8 *spriteram = m_spriteram;
-	gfx_element *gfx = machine().gfx[2];
+	gfx_element *gfx = m_gfxdecode->gfx(2);
 	int flip = flip_screen();
 	int flipmask = flip ? 0xff : 0x00;
 	int offs;
@@ -430,10 +428,10 @@ void zaxxon_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect,
 		int sx = find_minimum_x(spriteram[offs + 3], flip);
 
 		/* draw with 256 pixel offsets to ensure we wrap properly */
-		drawgfx_transpen(bitmap, cliprect, gfx, code, color, flipx, flipy, sx, sy, 0);
-		drawgfx_transpen(bitmap, cliprect, gfx, code, color, flipx, flipy, sx, sy - 0x100, 0);
-		drawgfx_transpen(bitmap, cliprect, gfx, code, color, flipx, flipy, sx - 0x100, sy, 0);
-		drawgfx_transpen(bitmap, cliprect, gfx, code, color, flipx, flipy, sx - 0x100, sy - 0x100, 0);
+			gfx->transpen(bitmap,cliprect, code, color, flipx, flipy, sx, sy, 0);
+			gfx->transpen(bitmap,cliprect, code, color, flipx, flipy, sx, sy - 0x100, 0);
+			gfx->transpen(bitmap,cliprect, code, color, flipx, flipy, sx - 0x100, sy, 0);
+			gfx->transpen(bitmap,cliprect, code, color, flipx, flipy, sx - 0x100, sy - 0x100, 0);
 	}
 }
 

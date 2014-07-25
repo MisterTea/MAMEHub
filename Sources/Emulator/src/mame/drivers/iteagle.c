@@ -102,7 +102,7 @@ public:
 		m_voodoo(*this, "voodoo")
 	{}
 
-	required_device<cpu_device> m_maincpu;
+	required_device<mips3_device> m_maincpu;
 	required_device<device_t>   m_voodoo;
 
 	DECLARE_DRIVER_INIT(iteagle);
@@ -122,7 +122,7 @@ public:
 void iteagle_state::machine_start()
 {
 	/* set the fastest DRC options */
-	mips3drc_set_options(m_maincpu, MIPS3DRC_FASTEST_OPTIONS);
+	m_maincpu->mips3drc_set_options(MIPS3DRC_FASTEST_OPTIONS);
 }
 
 
@@ -181,44 +181,31 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static const voodoo_config iteagle_voodoo_intf =
-{
-	16, //              fbmem;
-	0,//                tmumem0;
-	0,//                tmumem1;
-	"screen",//     screen;
-	"maincpu",//            cputag;
-	DEVCB_DRIVER_LINE_MEMBER(iteagle_state,vblank_assert),//    vblank;
-	DEVCB_NULL//             stall;
-};
-
-static const mips3_config r4310_config =
-{
-	16384,              /* code cache size */
-	16384               /* data cache size */
-};
-
 static MACHINE_CONFIG_START( gtfore, iteagle_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", VR4310LE, 166666666)
-	MCFG_CPU_CONFIG(r4310_config)
+	MCFG_MIPS3_ICACHE_SIZE(16384)
+	MCFG_MIPS3_DCACHE_SIZE(16384)
 	MCFG_CPU_PROGRAM_MAP(main_map)
 
 	MCFG_ATA_INTERFACE_ADD("ata", ata_devices, "hdd", NULL, true)
 	MCFG_ATA_INTERFACE_IRQ_HANDLER(WRITELINE(iteagle_state, ide_interrupt))
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_SIZE(320, 240)
 	MCFG_SCREEN_VISIBLE_AREA(0, 319, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(iteagle_state, screen_update_iteagle)
 
-	MCFG_3DFX_VOODOO_BANSHEE_ADD("voodoo", STD_VOODOO_BANSHEE_CLOCK, iteagle_voodoo_intf)
+	MCFG_DEVICE_ADD("voodoo", VOODOO_BANSHEE, STD_VOODOO_BANSHEE_CLOCK)
+	MCFG_VOODOO_FBMEM(16)
+	MCFG_VOODOO_SCREEN_TAG("screen")
+	MCFG_VOODOO_CPU_TAG("maincpu")
+	MCFG_VOODOO_VBLANK_CB(WRITELINE(iteagle_state,vblank_assert))
 MACHINE_CONFIG_END
 
 

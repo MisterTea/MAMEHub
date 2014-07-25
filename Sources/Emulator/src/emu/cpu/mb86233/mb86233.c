@@ -192,7 +192,7 @@ void mb86233_cpu_device::device_reset()
 
 void mb86233_cpu_device::FLAGSF( float v )
 {
-	GETSR() = 0;
+	GETSR() &= ~(ZERO_FLAG|SIGN_FLAG);
 
 	if ( v == 0 )
 		GETSR() |= ZERO_FLAG;
@@ -203,7 +203,7 @@ void mb86233_cpu_device::FLAGSF( float v )
 
 void mb86233_cpu_device::FLAGSI( UINT32 v )
 {
-	GETSR() = 0;
+	GETSR() &= ~(ZERO_FLAG|SIGN_FLAG);
 
 	if ( v == 0 )
 		GETSR() |= ZERO_FLAG;
@@ -292,6 +292,11 @@ void mb86233_cpu_device::ALU( UINT32 alu)
 			FLAGSI( GETD().u);
 		break;
 
+		case 0x04:  /* D = D ~ A */
+			GETD().u = ~GETA().u;
+			FLAGSI( GETD().u);
+		break;
+
 		case 0x05:  /* CMP D,A */
 			ftmp = GETD().f - GETA().f;
 			FLAGSF( ftmp);
@@ -355,8 +360,16 @@ void mb86233_cpu_device::ALU( UINT32 alu)
 		break;
 
 		case 0x0F:  /* D = int(D) */
-			GETD().i = (INT32)GETD().f;
-			FLAGSI( GETD().u);
+			switch((m_fpucontrol>>1)&3)
+			{
+				//case 0: GETD().i = floor(GETD().f+0.5f); break;
+				//case 1: GETD().i = ceil(GETD().f); break;
+				case 2: GETD().i = floor(GETD().f); break; // Manx TT
+				case 3: GETD().i = (INT32)GETD().f; break;
+				default: popmessage("TGP uses D = int(D) with FPU control = %02x, contact MAMEdev",m_fpucontrol>>1); break;
+			}
+
+			FLAGSI( GETD().i);
 		break;
 
 		case 0x10:  /* D = D / A */
@@ -411,7 +424,7 @@ void mb86233_cpu_device::ALU( UINT32 alu)
 		break;
 
 		default:
-			logerror( "TGP: Unknown ALU op %x at PC:%04x\n", alu, GETPC() );
+			fatalerror( "TGP: Unknown ALU op %x at PC:%04x\n", alu, GETPC() );
 		break;
 	}
 }
@@ -704,7 +717,7 @@ UINT32 mb86233_cpu_device::GETREGS( UINT32 reg, int source )
 				return GETREPCNT();
 
 			default:
-				logerror( "TGP: Unknown GETREG (%d) at PC=%04x\n", reg, GETPC() );
+				fatalerror( "TGP: Unknown GETREG (%d) at PC=%04x\n", reg, GETPC() );
 			break;
 		}
 	}
@@ -781,11 +794,11 @@ void mb86233_cpu_device::SETREGS( UINT32 reg, UINT32 val )
 
 	if( mode == 0 || mode == 1 || mode == 3 )
 	{
+		if(reg==12 || reg==13) // counter regs seem to be 8 bit only
+			val&=0xff;
+
 		if ( reg < 0x10 )
 		{
-			if ( reg == 12 || reg == 13 )
-				val &= 0xff;
-
 			GETGPR(reg) = val;
 			return;
 		}
@@ -842,7 +855,7 @@ void mb86233_cpu_device::SETREGS( UINT32 reg, UINT32 val )
 			break;
 
 			case 0x1D:  /* P.e */
-				GETP().u &= ~((0x0000007f) << 23);
+				GETP().u &= ~((0x000000ff) << 23);
 				GETP().u |= (( val & 0xff ) << 23 );
 			break;
 
@@ -900,7 +913,7 @@ UINT32 mb86233_cpu_device::INDIRECT( UINT32 reg, int source )
 	}
 	else if ( mode == 2 )
 	{
-		UINT32  addr = reg & 0x1f;
+		UINT32  addr = reg & 0x3f;
 
 		if ( source )
 		{
@@ -952,6 +965,13 @@ UINT32 mb86233_cpu_device::INDIRECT( UINT32 reg, int source )
 			else
 				GETGPR(3) += ( reg & 0x1f );
 		}
+		if( mode == 7)
+		{
+			if ( source )
+				GETGPR(2)&=0x3f;
+			else
+				GETGPR(3)&=0x3f;
+		}
 
 		return addr;
 	}
@@ -993,13 +1013,23 @@ void mb86233_cpu_device::execute_run()
 
 				switch( op )
 				{
-					case 0x0C:
+					case 0x01:
+						GETA().u = GETARAM()[INDIRECT(r1,1)];
+						GETB().u = GETEXTERNAL( GETEB(),INDIRECT(r2|(2<<6), 0));
+					break;
+
+					case 0x04: // ?
 						GETA().u = GETARAM()[r1];
+						GETB().u = GETEXTERNAL( GETEB(),r2);
+					break;
+
+					case 0x0C:
+						GETA().u = GETARAM()[INDIRECT(r1,1)];
 						GETB().u = GETBRAM()[r2];
 					break;
 
-					case 0x0D:
-						GETA().u = GETARAM()[INDIRECT(r1,0)];
+					case 0x0D: // VF2 shadows
+						GETA().u = GETARAM()[INDIRECT(r1,1)];
 						GETB().u = GETBRAM()[INDIRECT(r2|2<<6,0)];
 					break;
 
@@ -1014,8 +1044,8 @@ void mb86233_cpu_device::execute_run()
 					break;
 
 					case 0x11:
-						GETA().u = GETARAM()[INDIRECT(r1,1)];
-						GETB().u = GETBRAM()[INDIRECT(r2|(2<<6),0)];
+						GETA().u = GETBRAM()[INDIRECT(r1,1)];
+						GETB().u = GETARAM()[INDIRECT(r2|(2<<6),0)];
 					break;
 
 					default:
@@ -1037,14 +1067,22 @@ void mb86233_cpu_device::execute_run()
 					case 0x04:  /* MOV RAM->External */
 					{
 						SETEXTERNAL( GETEB(), r2, GETARAM()[r1]);
-						ALU( alu);
+						ALU(alu);
 					}
 					break;
 
 					case 0x0c:  /* MOV RAM->BRAM */
 					{
 						GETBRAM()[r2] = GETARAM()[r1];
-						ALU( alu);
+						ALU(alu);
+					}
+					break;
+
+					case 0x0d: /* Move RAM->BRAM indirect? */
+					{
+						val = GETARAM()[r1];
+						ALU(alu);
+						GETBRAM()[INDIRECT(r2|(2<<6),0)] = val;
 					}
 					break;
 
@@ -1063,7 +1101,7 @@ void mb86233_cpu_device::execute_run()
 						if ( GETFIFOWAIT() )
 							break;
 
-						ALU( alu);
+						ALU(alu);
 						SETREGS(r2,val);
 					}
 					break;
@@ -1076,7 +1114,7 @@ void mb86233_cpu_device::execute_run()
 						if ( GETFIFOWAIT() )
 							break;
 
-						ALU( alu);
+						ALU(alu);
 
 						if ( ( r2 >> 6 ) & 0x01)
 						{
@@ -1104,8 +1142,8 @@ void mb86233_cpu_device::execute_run()
 							if ( GETFIFOWAIT() )
 								break;
 
-							ALU( alu);
-							SETREGS( r2, val );
+							ALU(alu);
+							SETREGS(r2, val);
 						}
 					}
 					break;
@@ -1113,7 +1151,7 @@ void mb86233_cpu_device::execute_run()
 					case 0x0f:  /* MOV RAMInd->BRAMInd */
 					{
 						val = GETARAM()[INDIRECT(r1,1)];
-						ALU( alu);
+						ALU(alu);
 						GETBRAM()[INDIRECT(r2|(6<<6),0)] = val;
 					}
 					break;
@@ -1121,7 +1159,7 @@ void mb86233_cpu_device::execute_run()
 					case 0x13:  /* MOV BRAMInd->RAMInd */
 					{
 						val = GETBRAM()[INDIRECT(r1,1)];
-						ALU( alu);
+						ALU(alu);
 						GETARAM()[INDIRECT(r2|(6<<6),0)] = val;
 					}
 					break;
@@ -1129,7 +1167,7 @@ void mb86233_cpu_device::execute_run()
 					case 0x10:  /* MOV RAMInd->RAM  */
 					{
 						val = GETBRAM()[INDIRECT(r1,1)];
-						ALU( alu);
+						ALU(alu);
 						GETARAM()[r2] = val;
 					}
 					break;
@@ -1138,13 +1176,18 @@ void mb86233_cpu_device::execute_run()
 					{
 						UINT32  offset;
 
-						if ( ( r2 >> 6 ) & 1 )
+						if ( (( r2 >> 6 ) & 7) == 1 )
+						{
 							offset = INDIRECT(r1,1);
+							val = GETEXTERNAL(0,offset);
+						}
 						else
+						{
 							offset = INDIRECT(r1,0);
+							val = GETEXTERNAL(GETEB(),offset);
+						}
 
-						val = GETEXTERNAL( GETEB(),offset);
-						ALU( alu);
+						ALU(alu);
 						SETREGS(r2,val);
 					}
 					break;
@@ -1152,15 +1195,15 @@ void mb86233_cpu_device::execute_run()
 					case 0x03:  /* RAM->External Ind */
 					{
 						val = GETARAM()[r1];
-						ALU( alu);
-						SETEXTERNAL( GETEB(),INDIRECT(r2|(6<<6),0),val);
+						ALU(alu);
+						SETEXTERNAL(GETEB(),INDIRECT(r2|(6<<6),0),val);
 					}
 					break;
 
 					case 0x07:  /* RAMInd->External */
 					{
 						val = GETARAM()[INDIRECT(r1,1)];
-						ALU( alu);
+						ALU(alu);
 						SETEXTERNAL( GETEB(),INDIRECT(r2|(6<<6),0),val);
 					}
 					break;
@@ -1168,7 +1211,7 @@ void mb86233_cpu_device::execute_run()
 					case 0x08:  /* External->RAM */
 					{
 						val = GETEXTERNAL( GETEB(),INDIRECT(r1,1));
-						ALU( alu);
+						ALU(alu);
 						GETARAM()[r2] = val;
 					}
 					break;
@@ -1181,12 +1224,53 @@ void mb86233_cpu_device::execute_run()
 					}
 					break;
 
+					case 0x17: /* External r2-> RAMInd r3 */
+					{
+						UINT32  offset;
+
+						offset = INDIRECT(r1,1);
+
+						val = GETEXTERNAL( GETEB(), offset);
+						ALU(alu);
+						GETARAM()[INDIRECT(r2|(6<<6),0)] = val;
+					}
+					break;
+					case 0x14:
+					{
+						UINT32  offset;
+
+						offset = INDIRECT(r1,1);
+
+						val = GETEXTERNAL( 0, offset);
+						ALU(alu);
+						GETARAM()[r2] = val;
+					}
+					break;
+
 					default:
-						logerror( "TGP: Unknown TGP move (op=%d) at PC:%x\n", op, GETPC());
+						fatalerror( "TGP: Unknown TGP move (op=%02x) at PC:%x\n", op, GETPC());
 					break;
 				}
 			}
 			break;
+
+			case 0x0d: /* CONTROL? */
+			{
+				UINT32  sub = (opcode>>16) & 0xff;
+
+				switch(sub)
+				{
+					case 0x0a: // FPU Round Control opcode
+						m_fpucontrol = opcode & 0xff;
+						logerror( "TGP: FPU Round CONTROL sets %02x at PC:%x\n", m_fpucontrol, GETPC());
+						break;
+					default:
+						logerror( "TGP: Unknown CONTROL sub-type %02x at PC:%x\n", sub, GETPC());
+						break;
+				}
+
+				break;
+			}
 
 			case 0x0e:  /* LDIMM24 */
 			{
@@ -1223,7 +1307,7 @@ void mb86233_cpu_device::execute_run()
 				UINT32      alu = ( opcode >> 20 ) & 0x1f;
 				UINT32      sub2 = ( opcode >> 16 ) & 0x0f;
 
-				ALU( alu );
+				ALU(alu);
 
 				if( sub2 == 0x00 )          /* CLEAR reg */
 				{
@@ -1246,7 +1330,7 @@ void mb86233_cpu_device::execute_run()
 				}
 				else if ( sub2 == 0x04 )    /* REP xxx */
 				{
-					UINT32      sub3 = ( opcode >> 12 ) & 0x0f;
+					UINT32 sub3 = ( opcode >> 12 ) & 0x0f;
 
 					if ( sub3 == 0 )
 					{
@@ -1289,9 +1373,9 @@ void mb86233_cpu_device::execute_run()
 				UINT32  imm = opcode & 0xffffff;
 
 				if ( sub == 0 ) /* R12 */
-					GETGPR(12) = imm & 0xff;
+					GETGPR(12) = imm;
 				else if ( sub == 1 ) /* R13 */
-					GETGPR(13) = imm & 0xff;
+					GETGPR(13) = imm;
 				else
 					logerror( "TGP: Unknown LDIMM r12 (sub=%d) at PC:%04x\n", sub, GETPC() );
 			}
@@ -1318,7 +1402,7 @@ void mb86233_cpu_device::execute_run()
 				}
 				else
 				{
-					logerror( "TGP: Unknown LDIMM m,e (sub=%d) at PC:%04x\n", sub, GETPC() );
+					fatalerror( "TGP: Unknown LDIMM m,e (sub=%d) at PC:%04x\n", sub, GETPC() );
 				}
 			}
 			break;
@@ -1346,7 +1430,7 @@ void mb86233_cpu_device::execute_run()
 				}
 				else
 				{
-					logerror( "TGP: Unknown LDIMM m,e (sub=%d) at PC:%04x\n", sub, GETPC() );
+					fatalerror( "TGP: Unknown LDIMM m,e (sub=%d) at PC:%04x\n", sub, GETPC() );
 				}
 			}
 			break;
@@ -1372,7 +1456,7 @@ void mb86233_cpu_device::execute_run()
 				}
 				else
 				{
-					logerror( "TGP: Unknown LDIMM m,e (sub=%d) at PC:%04x\n", sub, GETPC() );
+					fatalerror( "TGP: Unknown LDIMM m,e (sub=%d) at PC:%04x\n", sub, GETPC() );
 				}
 			}
 			break;
@@ -1404,7 +1488,7 @@ void mb86233_cpu_device::execute_run()
 				}
 				else
 				{
-					logerror( "TGP: Unknown LDIMM external reg (sub=%d) at PC:%04x\n", sub, GETPC() );
+					fatalerror( "TGP: Unknown LDIMM external reg (sub=%d) at PC:%04x\n", sub, GETPC() );
 				}
 			}
 			break;
@@ -1419,7 +1503,7 @@ void mb86233_cpu_device::execute_run()
 				}
 				else
 				{
-					logerror( "TGP: Unknown LDIMM REPCnt (sub=%d) at PC:%04x\n", sub, GETPC() );
+					fatalerror( "TGP: Unknown LDIMM REPCnt (sub=%d) at PC:%04x\n", sub, GETPC() );
 				}
 			}
 			break;
@@ -1439,10 +1523,7 @@ void mb86233_cpu_device::execute_run()
 						break;
 
 						case 0x02:  /* BRIF indirect */
-							if ( data & 0x4000 )
-								data = GETREGS(data&0x3f,0) - 1;
-							else
-								data = ((GETARAM()[data&0x3ff])&0xffff)-1;
+							data = GETREGS(data&0x7f,0) - 1;
 
 							/* if we're waiting for data, don't complete the instruction */
 							if ( GETFIFOWAIT() )
@@ -1461,7 +1542,7 @@ void mb86233_cpu_device::execute_run()
 							GETPCS()[GETPCSP()] = GETPC();
 							GETPCSP()++;
 							if ( data & 0x4000 )
-								data = GETREGS(data&0x3f,0) - 1;
+								data = GETREGS(data&0x7f,0) - 1;
 							else
 								data = ((GETARAM()[data&0x3ff])&0xffff)-1;
 
@@ -1478,15 +1559,15 @@ void mb86233_cpu_device::execute_run()
 						break;
 
 						case 0x0c:  /* LDIF */
-							SETREGS(((data>>9)&0x3f), GETARAM()[data&0x1FF] );
+							SETREGS(((data>>9)&0x7f), GETARAM()[data&0x1FF] );
 						break;
 
 						case 0x0e:  /* RIIF */
-							logerror( "TGP: RIIF unimplemented at PC:%04x\n", GETPC() );
+							fatalerror( "TGP: RIIF unimplemented at PC:%04x\n", GETPC() );
 						break;
 
 						default:
-							logerror( "TGP: Unknown Branch opcode (subtype=%d) at PC:%04x\n", subtype, GETPC() );
+							fatalerror( "TGP: Unknown Branch opcode (subtype=%d) at PC:%04x\n", subtype, GETPC() );
 						break;
 					}
 				}
@@ -1508,10 +1589,7 @@ void mb86233_cpu_device::execute_run()
 						break;
 
 						case 0x02:  /* BRUL indirect */
-							if ( data & 0x4000 )
-								data = GETREGS(data&0x3f,0) - 1;
-							else
-								data = ((GETARAM()[data&0x3ff])&0xffff)-1;
+							data = GETREGS(data&0x7f,0) - 1;
 
 							/* if we're waiting for data, don't complete the instruction */
 							if ( GETFIFOWAIT() )
@@ -1527,12 +1605,7 @@ void mb86233_cpu_device::execute_run()
 						break;
 
 						case 0x06:  /* BSUL indirect */
-							GETPCS()[GETPCSP()] = GETPC();
-							GETPCSP()++;
-							if ( data & 0x4000 )
-								data = GETREGS(data&0x3f,0) - 1;
-							else
-								data = ((GETARAM()[data&0x3ff])&0xffff)-1;
+							data = GETARAM()[data] - 1;
 
 							/* if we're waiting for data, don't complete the instruction */
 							if ( GETFIFOWAIT() )
@@ -1547,23 +1620,28 @@ void mb86233_cpu_device::execute_run()
 						break;
 
 						case 0x0c:  /* LDUL */
-							SETREGS(((data>>9)&0x3f), GETARAM()[data&0x1FF] );
+							SETREGS(((data>>9)&0x7f), GETARAM()[data&0x1FF] );
 						break;
 
 						case 0x0e:  /* RIUL */
-							logerror( "TGP: RIIF unimplemented at PC:%04x\n", GETPC() );
+							fatalerror( "TGP: RIUL unimplemented at PC:%04x\n", GETPC() );
 						break;
 
 						default:
-							logerror( "TGP: Unknown Branch opcode (subtype=%d) at PC:%04x\n", subtype, GETPC() );
+							fatalerror( "TGP: Unknown Branch opcode (subtype=%d) at PC:%04x\n", subtype, GETPC() );
 						break;
 					}
 				}
 			}
 			break;
 
+			case 0x1f:
+			case 0x12:
+				logerror( "TGP: unknown opcode %08x at PC:%04x (%02x)\n", opcode, GETPC(),(opcode >> 26) & 0x3f );
+			break;
+
 			default:
-				logerror( "TGP: unknown opcode %08x at PC:%04x\n", opcode, GETPC() );
+				fatalerror( "TGP: unknown opcode %08x at PC:%04x (%02x)\n", opcode, GETPC(),(opcode >> 26) & 0x3f );
 			break;
 		}
 

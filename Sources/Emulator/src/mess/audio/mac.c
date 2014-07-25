@@ -31,7 +31,7 @@
 const device_type MAC_SOUND = &device_creator<mac_sound_device>;
 
 mac_sound_device::mac_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-					: device_t(mconfig, MAC_SOUND, "Mac Custom", tag, owner, clock, "mac_sound", __FILE__),
+					: device_t(mconfig, MAC_SOUND, "Mac Audio Custom", tag, owner, clock, "mac_sound", __FILE__),
 						device_sound_interface(mconfig, *this),
 						m_sample_enable(0),
 						m_mac_snd_buf_ptr(NULL),
@@ -61,7 +61,7 @@ void mac_sound_device::device_start()
 	mac_state *mac = machine().driver_data<mac_state>();
 
 	m_snd_cache = auto_alloc_array_clear(machine(), UINT8, SND_CACHE_SIZE);
-	m_mac_stream = machine().sound().stream_alloc(*this, 0, 1, MAC_SAMPLE_RATE, this);
+	m_mac_stream = machine().sound().stream_alloc(*this, 0, 1, MAC_SAMPLE_RATE);
 
 	m_ram = machine().device<ram_device>(RAM_TAG);
 	m_mac_model = mac->m_model;

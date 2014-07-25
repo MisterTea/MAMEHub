@@ -56,20 +56,10 @@ void k053247_device::clear_all()
 	for (int i=0;i<16;i++)
 		m_kx47_regs[i] = 0;
 
-	m_dx = m_dy = 0;
 	m_objcha_line = 0;
 	m_z_rejection = 0;
 
-	m_callback = 0;
-
 	m_memory_region = 0;
-
-	m_intf_gfx_memory_region = 0;
-	m_intf_gfx_num = -1;
-	m_intf_plane_order = 0;
-	m_intf_dx = m_intf_dy = 0;
-	m_intf_deinterleave = 0;
-	m_intf_callback = 0;
 }
 
 void k053247_device::k053247_get_ram( UINT16 **ram )
@@ -96,13 +86,6 @@ int k053247_device::k053247_read_register( int regnum )
 {
 	return(m_kx47_regs[regnum]);
 }
-
-void k053247_device::k053247_set_sprite_offs( int offsx, int offsy )
-{
-	m_dx = offsx;
-	m_dy = offsy;
-}
-
 
 
 WRITE16_MEMBER( k053247_device::k053247_reg_word_w ) // write-only OBJSET2 registers (see p.43 table 6.1)
@@ -358,9 +341,9 @@ void k053247_device::k053247_sprites_draw_common( _BitmapClass &bitmap, const re
 
 	    VIDEO_HAS_SHADOWS | VIDEO_HAS_HIGHLIGHTS
 	*/
-	if (machine().config().m_video_attributes & VIDEO_HAS_SHADOWS)
+	if (m_palette->shadows_enabled())
 	{
-		if (sizeof(typename _BitmapClass::pixel_t) == 4 && (machine().config().m_video_attributes & VIDEO_HAS_HIGHLIGHTS))
+		if (sizeof(typename _BitmapClass::pixel_t) == 4 && (m_palette->hilights_enabled()))
 			shdmask = 3; // enable all shadows and highlights
 		else
 			shdmask = 0; // enable default shadows
@@ -463,7 +446,7 @@ void k053247_device::k053247_sprites_draw_common( _BitmapClass &bitmap, const re
 		shadow = color = m_ram[offs + 6];
 		primask = 0;
 
-		m_callback(machine(), &code, &color, &primask);
+		m_k053247_cb(&code, &color, &primask);
 
 		k053247_draw_single_sprite_gxcore( bitmap, cliprect,
 				NULL, NULL,
@@ -571,8 +554,8 @@ void k053247_device::zdrawgfxzoom32GP(
 	src_fh    = 16;
 	src_base  = m_gfx->get_data(code % m_gfx->elements());
 
-	pal_base  = m_gfx->machine().pens + m_gfx->colorbase() + (color % m_gfx->colors()) * granularity;
-	shd_base  = m_gfx->machine().shadow_table;
+	pal_base  = m_palette->pens() + m_gfx->colorbase() + (color % m_gfx->colors()) * granularity;
+	shd_base  = m_palette->shadow_table();
 
 	dst_ptr   = &bitmap.pix32(0);
 	dst_pitch = bitmap.rowpixels();
@@ -786,12 +769,12 @@ void k053247_device::zdrawgfxzoom32GP(
 							src_fx += src_fdx;
 							src_x >>= FP;
 							if (eax < shdpen || szbuf_ptr[ecx*2] < z8 || szbuf_ptr[ecx*2+1] <= p8) continue;
-							eax = dst_ptr[ecx];
+							rgb_t pix = dst_ptr[ecx];
 							szbuf_ptr[ecx*2] = z8;
 							szbuf_ptr[ecx*2+1] = p8;
 
 							// the shadow tables are 15-bit lookup tables which accept RGB15... lossy, nasty, yuck!
-							dst_ptr[ecx] = shd_base[rgb_to_rgb15(eax)];
+							dst_ptr[ecx] = shd_base[pix.as_rgb15()];
 							//dst_ptr[ecx] =(eax>>3&0x001f);lend_r32( eax, 0x00000000, 128);
 						}
 						while (++ecx);
@@ -923,12 +906,12 @@ void k053247_device::zdrawgfxzoom32GP(
 							eax = *src_ptr;
 							src_ptr += src_fdx;
 							if (eax < shdpen || szbuf_ptr[ecx*2] < z8 || szbuf_ptr[ecx*2+1] <= p8) continue;
-							eax = dst_ptr[ecx];
+							rgb_t pix = dst_ptr[ecx];
 							szbuf_ptr[ecx*2] = z8;
 							szbuf_ptr[ecx*2+1] = p8;
 
 							// the shadow tables are 15-bit lookup tables which accept RGB15... lossy, nasty, yuck!
-							dst_ptr[ecx] = shd_base[rgb_to_rgb15(eax)];
+							dst_ptr[ecx] = shd_base[pix.as_rgb15()];
 						}
 						while (++ecx);
 
@@ -969,7 +952,7 @@ void k053247_device::zdrawgfxzoom32GP(
 const device_type K055673 = &device_creator<k055673_device>;
 
 k055673_device::k055673_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: k053247_device(mconfig, K055673, "Konami 055673", tag, owner, clock, "k055673", __FILE__)
+	: k053247_device(mconfig, K055673, "K055673 Sprite Generator", tag, owner, clock, "k055673", __FILE__)
 {
 }
 
@@ -980,11 +963,125 @@ k055673_device::k055673_device(const machine_config &mconfig, const char *tag, d
 
 void k055673_device::device_start()
 {
-	/* early out for the non-interface cases for now */
-	if (m_intf_gfx_num == -1)
-		return;
+	int gfx_index;
+	UINT32 total;
 
-	alt_k055673_vh_start(machine(), m_intf_gfx_memory_region, m_intf_plane_order, m_intf_dx, m_intf_dy, m_intf_callback);
+	static const gfx_layout spritelayout =  /* System GX sprite layout */
+	{
+		16,16,
+		0,
+		5,
+		{ 32, 24, 16, 8, 0 },
+		{ 0, 1, 2, 3, 4, 5, 6, 7, 40, 41, 42, 43, 44, 45, 46, 47 },
+		{ 0, 10*8, 10*8*2, 10*8*3, 10*8*4, 10*8*5, 10*8*6, 10*8*7, 10*8*8,
+			10*8*9, 10*8*10, 10*8*11, 10*8*12, 10*8*13, 10*8*14, 10*8*15 },
+		16*16*5
+	};
+	static const gfx_layout spritelayout2 = /* Run and Gun sprite layout */
+	{
+		16,16,
+		0,
+		4,
+		{ 24, 16, 8, 0 },
+		{ 0, 1, 2, 3, 4, 5, 6, 7, 32, 33, 34, 35, 36, 37, 38, 39 },
+		{ 0, 64, 128, 192, 256, 320, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960 },
+		16*16*4
+	};
+	static const gfx_layout spritelayout3 = /* Lethal Enforcers II sprite layout */
+	{
+		16,16,
+		0,
+		8,
+		{ 8*1,8*0,8*3,8*2,8*5,8*4,8*7,8*6 },
+		{  0,1,2,3,4,5,6,7,64+0,64+1,64+2,64+3,64+4,64+5,64+6,64+7 },
+		{ 128*0, 128*1, 128*2,  128*3,  128*4,  128*5,  128*6,  128*7,
+			128*8, 128*9, 128*10, 128*11, 128*12, 128*13, 128*14, 128*15 },
+		128*16
+	};
+	static const gfx_layout spritelayout4 = /* System GX 6bpp sprite layout */
+	{
+		16,16,
+		0,
+		6,
+		{ 40, 32, 24, 16, 8, 0 },
+		{ 0, 1, 2, 3, 4, 5, 6, 7, 48, 49, 50, 51, 52, 53, 54, 55 },
+		{ 0, 12*8, 12*8*2, 12*8*3, 12*8*4, 12*8*5, 12*8*6, 12*8*7, 12*8*8,
+			12*8*9, 12*8*10, 12*8*11, 12*8*12, 12*8*13, 12*8*14, 12*8*15 },
+		16*16*6
+	};
+	UINT8 *s1, *s2, *d;
+	long i;
+	UINT16 *alt_k055673_rom;
+	int size4;
+
+	/* find first empty slot to decode gfx */
+	for (gfx_index = 0; gfx_index < MAX_GFX_ELEMENTS; gfx_index++)
+		if (m_gfxdecode->gfx(gfx_index) == 0)
+			break;
+	assert(gfx_index != MAX_GFX_ELEMENTS);
+
+	alt_k055673_rom = (UINT16 *)machine().root_device().memregion(m_memory_region)->base();
+
+	/* decode the graphics */
+	switch (m_plane_order)
+	{
+		case K055673_LAYOUT_GX:
+			size4 = (machine().root_device().memregion(m_memory_region)->bytes()/(1024*1024))/5;
+			size4 *= 4*1024*1024;
+			/* set the # of tiles based on the 4bpp section */
+			alt_k055673_rom = auto_alloc_array(machine(), UINT16, size4 * 5 / 2);
+			d = (UINT8 *)alt_k055673_rom;
+			// now combine the graphics together to form 5bpp
+			s1 = machine().root_device().memregion(m_memory_region)->base(); // 4bpp area
+			s2 = s1 + (size4);   // 1bpp area
+			for (i = 0; i < size4; i+= 4)
+			{
+				*d++ = *s1++;
+				*d++ = *s1++;
+				*d++ = *s1++;
+				*d++ = *s1++;
+				*d++ = *s2++;
+			}
+
+			total = size4 / 128;
+			konami_decode_gfx(machine(), m_gfxdecode, m_palette, gfx_index, (UINT8 *)alt_k055673_rom, total, &spritelayout, 5);
+			break;
+
+		case K055673_LAYOUT_RNG:
+			total = machine().root_device().memregion(m_memory_region)->bytes() / (16*16/2);
+			konami_decode_gfx(machine(), m_gfxdecode, m_palette, gfx_index, (UINT8 *)alt_k055673_rom, total, &spritelayout2, 4);
+			break;
+
+		case K055673_LAYOUT_LE2:
+			total = machine().root_device().memregion(m_memory_region)->bytes() / (16*16);
+			konami_decode_gfx(machine(), m_gfxdecode, m_palette, gfx_index, (UINT8 *)alt_k055673_rom, total, &spritelayout3, 8);
+			break;
+
+		case K055673_LAYOUT_GX6:
+			total = machine().root_device().memregion(m_memory_region)->bytes() / (16*16*6/8);
+			konami_decode_gfx(machine(), m_gfxdecode, m_palette, gfx_index, (UINT8 *)alt_k055673_rom, total, &spritelayout4, 6);
+			break;
+
+		default:
+			fatalerror("Unsupported layout\n");
+	}
+
+	if (VERBOSE && !(m_palette->shadows_enabled()))
+		popmessage("driver should use VIDEO_HAS_SHADOWS");
+
+	m_z_rejection = -1;
+	m_gfx = m_gfxdecode->gfx(gfx_index);
+	m_objcha_line = CLEAR_LINE;
+	m_ram = auto_alloc_array(machine(), UINT16, 0x1000/2);
+
+	memset(m_ram,  0, 0x1000);
+	memset(m_kx46_regs, 0, 8);
+	memset(m_kx47_regs, 0, 32);
+
+	machine().save().save_pointer(NAME(m_ram), 0x800);
+	machine().save().save_item(NAME(m_kx46_regs));
+	machine().save().save_item(NAME(m_kx47_regs));
+	machine().save().save_item(NAME(m_objcha_line));
 }
 
 //-------------------------------------------------
@@ -996,38 +1093,41 @@ void k055673_device::device_start()
 const device_type K053246 = &device_creator<k053247_device>;
 
 k053247_device::k053247_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, K053246, "Konami 053246 & 053247", tag, owner, clock, "k053247", __FILE__),
-		device_video_interface(mconfig, *this)
+	: device_t(mconfig, K053246, "K053246 & 053247 Sprite Generator", tag, owner, clock, "k053247", __FILE__),
+		device_video_interface(mconfig, *this),
+		m_gfxdecode(*this),
+		m_palette(*this)
 {
 	clear_all();
 }
 
 k053247_device::k053247_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
 	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-		device_video_interface(mconfig, *this)
+		device_video_interface(mconfig, *this),
+		m_gfxdecode(*this),
+		m_palette(*this)
 {
 	clear_all();
 }
 
-
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
 //-------------------------------------------------
 
-void k053247_device::device_config_complete()
+void k053247_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
 {
-	// inherit a copy of the static data
-	const k053247_interface *intf = reinterpret_cast<const k053247_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<k053247_interface *>(this) = *intf;
+	downcast<k053247_device &>(device).m_gfxdecode.set_tag(tag);
+}
 
-	// or initialize to defaults if none provided
-	else
-	{
-	}
+//-------------------------------------------------
+//  static_set_palette_tag: Set the tag of the
+//  palette device
+//-------------------------------------------------
 
+void k053247_device::static_set_palette_tag(device_t &device, const char *tag)
+{
+	downcast<k053247_device &>(device).m_palette.set_tag(tag);
 }
 
 //-------------------------------------------------
@@ -1065,16 +1165,16 @@ void k053247_device::device_start()
 	};
 
 	/* decode the graphics */
-	switch (m_intf_plane_order)
+	switch (m_plane_order)
 	{
 	case NORMAL_PLANE_ORDER:
-		total = machine().root_device().memregion(m_intf_gfx_memory_region)->bytes() / 128;
-		konami_decode_gfx(machine(), m_intf_gfx_num, machine().root_device().memregion(m_intf_gfx_memory_region)->base(), total, &spritelayout, 4);
+		total = machine().root_device().memregion(m_memory_region)->bytes() / 128;
+		konami_decode_gfx(machine(), m_gfxdecode, m_palette, m_gfx_num, machine().root_device().memregion(m_memory_region)->base(), total, &spritelayout, 4);
 		break;
 
 	case TASMAN_PLANE_ORDER:
-		total = machine().root_device().memregion(m_intf_gfx_memory_region)->bytes() / 128;
-		konami_decode_gfx(machine(), m_intf_gfx_num, machine().root_device().memregion(m_intf_gfx_memory_region)->base(), total, &tasman_16x16_layout, 4);
+		total = machine().root_device().memregion(m_memory_region)->bytes() / 128;
+		konami_decode_gfx(machine(), m_gfxdecode, m_palette, m_gfx_num, machine().root_device().memregion(m_memory_region)->base(), total, &tasman_16x16_layout, 4);
 		break;
 
 	default:
@@ -1085,24 +1185,17 @@ void k053247_device::device_start()
 	{
 		if (m_screen->format() == BITMAP_FORMAT_RGB32)
 		{
-			if ((machine().config().m_video_attributes & (VIDEO_HAS_SHADOWS|VIDEO_HAS_HIGHLIGHTS)) != VIDEO_HAS_SHADOWS+VIDEO_HAS_HIGHLIGHTS)
+			if (!m_palette->shadows_enabled() || !m_palette->hilights_enabled())
 				popmessage("driver missing SHADOWS or HIGHLIGHTS flag");
 		}
 		else
 		{
-			if (!(machine().config().m_video_attributes & VIDEO_HAS_SHADOWS))
+			if (!(m_palette->shadows_enabled()))
 				popmessage("driver should use VIDEO_HAS_SHADOWS");
 		}
 	}
 
-	/* deinterleave the graphics, if needed */
-	konami_deinterleave_gfx(machine(), m_intf_gfx_memory_region, m_intf_deinterleave);
-
-	m_dx = m_intf_dx;
-	m_dy = m_intf_dy;
-	m_memory_region = m_intf_gfx_memory_region;
-	m_gfx = machine().gfx[m_intf_gfx_num];
-	m_callback = m_intf_callback;
+	m_gfx = m_gfxdecode->gfx(m_gfx_num);
 
 	m_ram = auto_alloc_array_clear(machine(), UINT16, 0x1000 / 2);
 
@@ -1164,147 +1257,4 @@ READ32_MEMBER( k053247_device::k053247_reg_long_r )
 {
 	offset <<= 1;
 	return (k053247_reg_word_r( space, offset + 1, 0xffff) | k053247_reg_word_r( space, offset, 0xffff) << 16);
-}
-
-
-/***************************************************************************/
-/*                                                                         */
-/*                                 053246/053247                           */
-/* stuff GX still relies on                                                */
-/*                                                                         */
-/***************************************************************************/
-
-
-void k053247_device::alt_k053247_export_config(void (**callback)(running_machine &, int *, int *, int *))
-{
-	if(callback)
-		*callback = m_callback;
-}
-
-/* alt_K055673 used with the 54246 in PreGX/Run and Gun/System GX games */
-void k053247_device::alt_k055673_vh_start(running_machine &machine, const char *gfx_memory_region, int layout, int dx, int dy, void (*callback)(running_machine &machine, int *code,int *color,int *priority))
-{
-	int gfx_index;
-	UINT32 total;
-
-	static const gfx_layout spritelayout =  /* System GX sprite layout */
-	{
-		16,16,
-		0,
-		5,
-		{ 32, 24, 16, 8, 0 },
-		{ 0, 1, 2, 3, 4, 5, 6, 7, 40, 41, 42, 43, 44, 45, 46, 47 },
-		{ 0, 10*8, 10*8*2, 10*8*3, 10*8*4, 10*8*5, 10*8*6, 10*8*7, 10*8*8,
-			10*8*9, 10*8*10, 10*8*11, 10*8*12, 10*8*13, 10*8*14, 10*8*15 },
-		16*16*5
-	};
-	static const gfx_layout spritelayout2 = /* Run and Gun sprite layout */
-	{
-		16,16,
-		0,
-		4,
-		{ 24, 16, 8, 0 },
-		{ 0, 1, 2, 3, 4, 5, 6, 7, 32, 33, 34, 35, 36, 37, 38, 39 },
-		{ 0, 64, 128, 192, 256, 320, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960 },
-		16*16*4
-	};
-	static const gfx_layout spritelayout3 = /* Lethal Enforcers II sprite layout */
-	{
-		16,16,
-		0,
-		8,
-		{ 8*1,8*0,8*3,8*2,8*5,8*4,8*7,8*6 },
-		{  0,1,2,3,4,5,6,7,64+0,64+1,64+2,64+3,64+4,64+5,64+6,64+7 },
-		{ 128*0, 128*1, 128*2,  128*3,  128*4,  128*5,  128*6,  128*7,
-			128*8, 128*9, 128*10, 128*11, 128*12, 128*13, 128*14, 128*15 },
-		128*16
-	};
-	static const gfx_layout spritelayout4 = /* System GX 6bpp sprite layout */
-	{
-		16,16,
-		0,
-		6,
-		{ 40, 32, 24, 16, 8, 0 },
-		{ 0, 1, 2, 3, 4, 5, 6, 7, 48, 49, 50, 51, 52, 53, 54, 55 },
-		{ 0, 12*8, 12*8*2, 12*8*3, 12*8*4, 12*8*5, 12*8*6, 12*8*7, 12*8*8,
-			12*8*9, 12*8*10, 12*8*11, 12*8*12, 12*8*13, 12*8*14, 12*8*15 },
-		16*16*6
-	};
-	UINT8 *s1, *s2, *d;
-	long i;
-	UINT16 *alt_k055673_rom;
-	int size4;
-
-	/* find first empty slot to decode gfx */
-	for (gfx_index = 0; gfx_index < MAX_GFX_ELEMENTS; gfx_index++)
-		if (machine.gfx[gfx_index] == 0)
-			break;
-	assert(gfx_index != MAX_GFX_ELEMENTS);
-
-	alt_k055673_rom = (UINT16 *)machine.root_device().memregion(gfx_memory_region)->base();
-
-	/* decode the graphics */
-	switch(layout)
-	{
-	case K055673_LAYOUT_GX:
-		size4 = (machine.root_device().memregion(gfx_memory_region)->bytes()/(1024*1024))/5;
-		size4 *= 4*1024*1024;
-		/* set the # of tiles based on the 4bpp section */
-		alt_k055673_rom = auto_alloc_array(machine, UINT16, size4 * 5 / 2);
-		d = (UINT8 *)alt_k055673_rom;
-		// now combine the graphics together to form 5bpp
-		s1 = machine.root_device().memregion(gfx_memory_region)->base(); // 4bpp area
-		s2 = s1 + (size4);   // 1bpp area
-		for (i = 0; i < size4; i+= 4)
-		{
-			*d++ = *s1++;
-			*d++ = *s1++;
-			*d++ = *s1++;
-			*d++ = *s1++;
-			*d++ = *s2++;
-		}
-
-		total = size4 / 128;
-		konami_decode_gfx(machine, gfx_index, (UINT8 *)alt_k055673_rom, total, &spritelayout, 5);
-		break;
-
-	case K055673_LAYOUT_RNG:
-		total = machine.root_device().memregion(gfx_memory_region)->bytes() / (16*16/2);
-		konami_decode_gfx(machine, gfx_index, (UINT8 *)alt_k055673_rom, total, &spritelayout2, 4);
-		break;
-
-	case K055673_LAYOUT_LE2:
-		total = machine.root_device().memregion(gfx_memory_region)->bytes() / (16*16);
-		konami_decode_gfx(machine, gfx_index, (UINT8 *)alt_k055673_rom, total, &spritelayout3, 8);
-		break;
-
-	case K055673_LAYOUT_GX6:
-		total = machine.root_device().memregion(gfx_memory_region)->bytes() / (16*16*6/8);
-		konami_decode_gfx(machine, gfx_index, (UINT8 *)alt_k055673_rom, total, &spritelayout4, 6);
-		break;
-
-	default:
-		fatalerror("Unsupported layout\n");
-	}
-
-	if (VERBOSE && !(machine.config().m_video_attributes & VIDEO_HAS_SHADOWS))
-		popmessage("driver should use VIDEO_HAS_SHADOWS");
-
-	m_dx = dx;
-	m_dy = dy;
-	m_z_rejection = -1;
-	m_memory_region = gfx_memory_region;
-	m_gfx = machine.gfx[gfx_index];
-	m_callback = callback;
-	m_objcha_line = CLEAR_LINE;
-	m_ram = auto_alloc_array(machine, UINT16, 0x1000/2);
-
-	memset(m_ram,  0, 0x1000);
-	memset(m_kx46_regs, 0, 8);
-	memset(m_kx47_regs, 0, 32);
-
-	machine.save().save_pointer(NAME(m_ram), 0x800);
-	machine.save().save_item(NAME(m_kx46_regs));
-	machine.save().save_item(NAME(m_kx47_regs));
-	machine.save().save_item(NAME(m_objcha_line));
 }

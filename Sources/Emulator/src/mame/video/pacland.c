@@ -83,17 +83,14 @@ void pacland_state::switch_palette()
 
 		color_prom++;
 
-		colortable_palette_set_color(machine().colortable,i,MAKE_RGB(r,g,b));
+		m_palette->set_indirect_color(i,rgb_t(r,g,b));
 	}
 }
 
-void pacland_state::palette_init()
+PALETTE_INIT_MEMBER(pacland_state, pacland)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 256);
 
 	m_color_prom = color_prom;  /* we'll need this later */
 	/* skip the palette data, it will be initialized later */
@@ -101,15 +98,15 @@ void pacland_state::palette_init()
 	/* color_prom now points to the beginning of the lookup table */
 
 	for (i = 0;i < 0x400;i++)
-		colortable_entry_set_value(machine().colortable, machine().gfx[0]->colorbase() + i, *color_prom++);
+		palette.set_pen_indirect(m_gfxdecode->gfx(0)->colorbase() + i, *color_prom++);
 
 	/* Background */
 	for (i = 0;i < 0x400;i++)
-		colortable_entry_set_value(machine().colortable, machine().gfx[1]->colorbase() + i, *color_prom++);
+		palette.set_pen_indirect(m_gfxdecode->gfx(1)->colorbase() + i, *color_prom++);
 
 	/* Sprites */
 	for (i = 0;i < 0x400;i++)
-		colortable_entry_set_value(machine().colortable, machine().gfx[2]->colorbase() + i, *color_prom++);
+		palette.set_pen_indirect(m_gfxdecode->gfx(2)->colorbase() + i, *color_prom++);
 
 	m_palette_bank = 0;
 	switch_palette();
@@ -128,7 +125,7 @@ void pacland_state::palette_init()
 		/* iterate over all palette entries except the last one */
 		for (palentry = 0; palentry < 0x100; palentry++)
 		{
-			UINT32 mask = colortable_get_transpen_mask(machine().colortable, machine().gfx[2], i, palentry);
+			UINT32 mask = palette.transpen_mask(*m_gfxdecode->gfx(2), i, palentry);
 
 			/* transmask[0] is a mask that is used to draw only high priority sprite pixels; thus, pens
 			   $00-$7F are opaque, and others are transparent */
@@ -195,18 +192,20 @@ void pacland_state::video_start()
 	m_screen->register_screen_bitmap(m_fg_bitmap);
 	m_fg_bitmap.fill(0xffff);
 
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pacland_state::get_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pacland_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pacland_state::get_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pacland_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
 
+	m_bg_tilemap->set_scrolldx(3, 340);
+	m_fg_tilemap->set_scrolldx(0, 336); /* scrolling portion needs an additional offset when flipped */
 	m_fg_tilemap->set_scroll_rows(32);
 
 	/* create one group per color code; for each group, set the transparency mask
 	   to correspond to the pens that are 0x7f or 0xff */
-	assert(machine().gfx[0]->colors() <= TILEMAP_NUM_GROUPS);
-	for (color = 0; color < machine().gfx[0]->colors(); color++)
+	assert(m_gfxdecode->gfx(0)->colors() <= TILEMAP_NUM_GROUPS);
+	for (color = 0; color < m_gfxdecode->gfx(0)->colors(); color++)
 	{
-		UINT32 mask = colortable_get_transpen_mask(machine().colortable, machine().gfx[0], color, 0x7f);
-		mask |= colortable_get_transpen_mask(machine().colortable, machine().gfx[0], color, 0xff);
+		UINT32 mask = m_palette->transpen_mask(*m_gfxdecode->gfx(0), color, 0x7f);
+		mask |= m_palette->transpen_mask(*m_gfxdecode->gfx(0), color, 0xff);
 		m_fg_tilemap->set_transmask(color, mask, 0);
 	}
 
@@ -271,7 +270,7 @@ WRITE8_MEMBER(pacland_state::pacland_bankswitch_w)
 ***************************************************************************/
 
 /* the sprite generator IC is the same as Mappy */
-void pacland_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int whichmask)
+void pacland_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int flip, int whichmask)
 {
 	UINT8 *spriteram = m_spriteram + 0x780;
 	UINT8 *spriteram_2 = spriteram + 0x800;
@@ -298,7 +297,7 @@ void pacland_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, co
 		sprite &= ~sizex;
 		sprite &= ~(sizey << 1);
 
-		if (flip_screen())
+		if (flip)
 		{
 			flipx ^= 1;
 			flipy ^= 1;
@@ -312,13 +311,13 @@ void pacland_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, co
 			for (x = 0;x <= sizex;x++)
 			{
 				if (whichmask != 0)
-					drawgfx_transmask(bitmap,cliprect,machine().gfx[2],
+					m_gfxdecode->gfx(2)->transmask(bitmap,cliprect,
 						sprite + gfx_offs[y ^ (sizey * flipy)][x ^ (sizex * flipx)],
 						color,
 						flipx,flipy,
 						sx + 16*x,sy + 16*y,m_transmask[whichmask][color]);
 				else
-					pdrawgfx_transmask(bitmap,cliprect,machine().gfx[2],
+					m_gfxdecode->gfx(2)->prio_transmask(bitmap,cliprect,
 						sprite + gfx_offs[y ^ (sizey * flipy)][x ^ (sizex * flipx)],
 						color,
 						flipx,flipy,
@@ -365,16 +364,17 @@ void pacland_state::draw_fg(screen_device &screen, bitmap_ind16 &bitmap, const r
 UINT32 pacland_state::screen_update_pacland(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	int row;
+	int flip = flip_screen();
 
 	for (row = 5; row < 29; row++)
-		m_fg_tilemap->set_scrollx(row, flip_screen() ? m_scroll0-7 : m_scroll0);
-	m_bg_tilemap->set_scrollx(0, flip_screen() ? m_scroll1-4 : m_scroll1-3);
+		m_fg_tilemap->set_scrollx(row, m_scroll0 - (flip ? 7 : 0));
+	m_bg_tilemap->set_scrollx(0, m_scroll1);
 
 	/* draw high priority sprite pixels, setting priority bitmap to non-zero
 	   wherever there is a high-priority pixel; note that we draw to the bitmap
 	   which is safe because the bg_tilemap draw will overwrite everything */
 	screen.priority().fill(0x00, cliprect);
-	draw_sprites(screen, bitmap, cliprect, 0);
+	draw_sprites(screen, bitmap, cliprect, flip, 0);
 
 	/* draw background */
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
@@ -383,12 +383,12 @@ UINT32 pacland_state::screen_update_pacland(screen_device &screen, bitmap_ind16 
 	draw_fg(screen, bitmap, cliprect, 0);
 
 	/* draw sprites with regular transparency */
-	draw_sprites(screen, bitmap, cliprect, 1);
+	draw_sprites(screen, bitmap, cliprect, flip, 1);
 
 	/* draw high priority fg tiles */
 	draw_fg(screen, bitmap, cliprect, 1);
 
 	/* draw sprite pixels with colortable values >= 0xf0, which have priority over everything */
-	draw_sprites(screen, bitmap, cliprect, 2);
+	draw_sprites(screen, bitmap, cliprect, flip, 2);
 	return 0;
 }

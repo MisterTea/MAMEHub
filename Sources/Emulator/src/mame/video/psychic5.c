@@ -28,7 +28,7 @@ void psychic5_state::psychic5_change_palette(int color, int offset)
 	UINT8 lo = m_ps5_palette_ram[offset & ~1];
 	UINT8 hi = m_ps5_palette_ram[offset | 1];
 	jal_blend_set(color, hi & 0x0f);
-	palette_set_color_rgb(machine(), color, pal4bit(lo >> 4), pal4bit(lo), pal4bit(hi >> 4));
+	m_palette->set_pen_color(color, pal4bit(lo >> 4), pal4bit(lo), pal4bit(hi >> 4));
 }
 
 void psychic5_state::psychic5_change_bg_palette(int color, int lo_offs, int hi_offs)
@@ -42,7 +42,7 @@ void psychic5_state::psychic5_change_bg_palette(int color, int lo_offs, int hi_o
 	ib = pal4bit(m_palette_intensity >>  4);
 	ix = m_palette_intensity & 0x0f;
 
-	irgb = MAKE_RGB(ir,ig,ib);
+	irgb = rgb_t(ir,ig,ib);
 
 	lo = m_ps5_palette_ram[lo_offs];
 	hi = m_ps5_palette_ram[hi_offs];
@@ -57,7 +57,7 @@ void psychic5_state::psychic5_change_bg_palette(int color, int lo_offs, int hi_o
 	{
 		UINT8 val = (r + g + b) / 3;        /* Grey */
 		/* Just leave plain grey */
-		palette_set_color(machine(),color,jal_blend_func(MAKE_RGB(val,val,val),irgb,ix));
+		m_palette->set_pen_color(color,jal_blend_func(rgb_t(val,val,val),irgb,ix));
 	}
 	else
 	{
@@ -65,7 +65,7 @@ void psychic5_state::psychic5_change_bg_palette(int color, int lo_offs, int hi_o
 		if (!(m_title_screen & 1))
 		{
 			/* Leave the world as-is */
-			palette_set_color(machine(),color,jal_blend_func(MAKE_RGB(r,g,b),irgb,ix));
+			m_palette->set_pen_color(color,jal_blend_func(rgb_t(r,g,b),irgb,ix));
 		}
 	}
 }
@@ -225,8 +225,8 @@ TILE_GET_INFO_MEMBER(psychic5_state::get_fg_tile_info)
 VIDEO_START_MEMBER(psychic5_state,psychic5)
 {
 	/*                          info              offset             w   h  col  row */
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(psychic5_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(psychic5_state::get_fg_tile_info),this), TILEMAP_SCAN_COLS,  8,  8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(psychic5_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(psychic5_state::get_fg_tile_info),this), TILEMAP_SCAN_COLS,  8,  8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(15);
 
@@ -248,8 +248,8 @@ VIDEO_START_MEMBER(psychic5_state,psychic5)
 VIDEO_START_MEMBER(psychic5_state,bombsa)
 {
 	/*                          info              offset             w   h   col  row */
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(psychic5_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 128, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(psychic5_state::get_fg_tile_info),this), TILEMAP_SCAN_COLS,  8,  8,  32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(psychic5_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 128, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(psychic5_state::get_fg_tile_info),this), TILEMAP_SCAN_COLS,  8,  8,  32, 32);
 
 	m_fg_tilemap->set_transparent_pen(15);
 
@@ -293,7 +293,7 @@ VIDEO_RESET_MEMBER(psychic5_state,bombsa)
   Screen refresh
 ***************************************************************************/
 
-#define DRAW_SPRITE(code, sx, sy) jal_blend_drawgfx(bitmap, cliprect, machine().gfx[0], code, color, flipx, flipy, sx, sy, 15);
+#define DRAW_SPRITE(code, sx, sy) jal_blend_drawgfx(m_palette, bitmap, cliprect, m_gfxdecode->gfx(0), code, color, flipx, flipy, sx, sy, 15);
 
 void psychic5_state::draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
@@ -406,7 +406,7 @@ void psychic5_state::draw_background(screen_device &screen, bitmap_rgb32 &bitmap
 
 UINT32 psychic5_state::screen_update_psychic5(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 	if (m_bg_status & 1)    /* Backgound enable */
 		draw_background(screen, bitmap, cliprect);
 	if (!(m_title_screen & 1))
@@ -420,7 +420,7 @@ UINT32 psychic5_state::screen_update_bombsa(screen_device &screen, bitmap_rgb32 
 	if (m_bg_status & 1)    /* Backgound enable */
 		m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	else
-		bitmap.fill(machine().pens[0x0ff], cliprect);
+		bitmap.fill(m_palette->pen(0x0ff), cliprect);
 	draw_sprites(bitmap, cliprect);
 	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;

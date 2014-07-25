@@ -137,7 +137,7 @@ static ADDRESS_MAP_START( common_map, AS_PROGRAM, 16, bloodbro_state )
 	AM_RANGE(0x08d400, 0x08d7ff) AM_RAM
 	AM_RANGE(0x08d800, 0x08dfff) AM_RAM_WRITE(bloodbro_txvideoram_w) AM_SHARE("txvideoram")
 	AM_RANGE(0x08e000, 0x08e7ff) AM_RAM
-	AM_RANGE(0x08e800, 0x08f7ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x08e800, 0x08f7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x08f800, 0x08ffff) AM_RAM
 	AM_RANGE(0x0a0000, 0x0a000d) AM_DEVREADWRITE("seibu_sound", seibu_sound_device, main_word_r, main_word_w)
 //  AM_RANGE(0x0c0000, 0x0c007f) AM_RAM AM_SHARE("scroll")
@@ -173,7 +173,7 @@ static ADDRESS_MAP_START( weststry_map, AS_PROGRAM, 16, bloodbro_state )
 	AM_RANGE(0x0c1002, 0x0c1003) AM_READ_PORT("IN0")
 	AM_RANGE(0x0c1004, 0x0c1005) AM_READ_PORT("IN1")
 	AM_RANGE(0x0c1000, 0x0c17ff) AM_RAM
-	AM_RANGE(0x128000, 0x1287ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x128000, 0x1287ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x120000, 0x128fff) AM_RAM
 ADDRESS_MAP_END
 
@@ -449,13 +449,6 @@ WRITE16_MEMBER( bloodbro_state::layer_scroll_w )
 	COMBINE_DATA(&m_scrollram[offset]);
 }
 
-
-SEIBU_CRTC_INTERFACE(crtc_intf)
-{
-	DEVCB_DRIVER_MEMBER16(bloodbro_state, layer_en_w),
-	DEVCB_DRIVER_MEMBER16(bloodbro_state, layer_scroll_w),
-};
-
 /* Machine Drivers */
 
 static MACHINE_CONFIG_START( bloodbro, bloodbro_state )
@@ -474,11 +467,16 @@ static MACHINE_CONFIG_START( bloodbro, bloodbro_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(bloodbro_state, screen_update_bloodbro)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_SEIBU_CRTC_ADD("crtc",crtc_intf,0)
+	MCFG_DEVICE_ADD("crtc", SEIBU_CRTC, 0)
+	MCFG_SEIBU_CRTC_LAYER_EN_CB(WRITE16(bloodbro_state, layer_en_w))
+	MCFG_SEIBU_CRTC_LAYER_SCROLL_CB(WRITE16(bloodbro_state, layer_scroll_w))
 
-	MCFG_GFXDECODE(bloodbro)
-	MCFG_PALETTE_LENGTH(2048)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bloodbro)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	// sound hardware
 	SEIBU_SOUND_SYSTEM_YM3812_RAIDEN_INTERFACE(XTAL_7_15909MHz/2, XTAL_12MHz/12)
@@ -490,8 +488,10 @@ static MACHINE_CONFIG_DERIVED( weststry, bloodbro )
 	MCFG_CPU_PROGRAM_MAP(weststry_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", bloodbro_state,  irq6_line_hold)
 
-	MCFG_GFXDECODE(weststry)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", weststry)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(bloodbro_state, screen_update_weststry)

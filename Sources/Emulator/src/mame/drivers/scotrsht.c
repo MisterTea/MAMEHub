@@ -195,10 +195,12 @@ static MACHINE_CONFIG_START( scotrsht, scotrsht_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(scotrsht_state, screen_update_scotrsht)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(scotrsht)
-	MCFG_PALETTE_LENGTH(16*8*16+16*8*16)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", scotrsht)
+	MCFG_PALETTE_ADD("palette", 16*8*16+16*8*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(scotrsht_state, scotrsht)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

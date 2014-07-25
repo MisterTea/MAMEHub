@@ -6,16 +6,17 @@
 
     driver by Phil Bennett
 
+    AWP bits J.Wallace, D. Haywood
+
     Video System Games supported:
         * Monopoly
         * Monopoly Classic
         * Monopoly Deluxe
 
     Known Issues:
-        * Some features used by the AWP games such as reels and meters
-        are not emulated.
-        * Timing for reels, and other opto devices is controlled by the same clock
-        as the lamps, in a weird daisychain setup.
+        * Some features used by the AWP games such as reels are not emulated.
+        * Timing for reels, and other opto devices is controlled by a generated clock
+        in a weird daisychain setup.
 
     AWP game notes:
       The byte at 0x81 of the EVEN 68k rom appears to be some kind of
@@ -30,6 +31,7 @@
 
 #include "emu.h"
 #include "includes/jpmsys5.h"
+#include "machine/clock.h"
 #include "sound/saa1099.h"
 #include "jpmsys5.lh"
 
@@ -59,18 +61,10 @@ enum int_levels
  *
  *************************************/
 
-static void tms_interrupt(running_machine &machine, int state)
+WRITE_LINE_MEMBER(jpmsys5_state::generate_tms34061_interrupt)
 {
-	jpmsys5_state *drvstate = machine.driver_data<jpmsys5_state>();
-	drvstate->m_maincpu->set_input_line(INT_TMS34061, state);
+	m_maincpu->set_input_line(INT_TMS34061, state);
 }
-
-static const struct tms34061_interface tms34061intf =
-{
-	8,              /* VRAM address is (row << rowshift) | col */
-	0x40000,        /* Size of video RAM - FIXME: Should be 128kB + 32kB */
-	tms_interrupt   /* Interrupt gen callback */
-};
 
 WRITE16_MEMBER(jpmsys5_state::sys5_tms34061_w)
 {
@@ -130,12 +124,12 @@ WRITE16_MEMBER(jpmsys5_state::ramdac_w)
 	}
 	else if (offset == 1)
 	{
-		m_palette[m_pal_addr][m_pal_idx] = data;
+		m_palette_val[m_pal_addr][m_pal_idx] = data;
 
 		if (++m_pal_idx == 3)
 		{
 			/* Update the MAME palette */
-			palette_set_color_rgb(machine(), m_pal_addr, pal6bit(m_palette[m_pal_addr][0]), pal6bit(m_palette[m_pal_addr][1]), pal6bit(m_palette[m_pal_addr][2]));
+			m_palette->set_pen_color(m_pal_addr, pal6bit(m_palette_val[m_pal_addr][0]), pal6bit(m_palette_val[m_pal_addr][1]), pal6bit(m_palette_val[m_pal_addr][2]));
 			m_pal_addr++;
 			m_pal_idx = 0;
 		}
@@ -154,7 +148,7 @@ UINT32 jpmsys5_state::screen_update_jpmsys5v(screen_device &screen, bitmap_rgb32
 
 	if (m_tms34061->m_display.blanked)
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 		return 0;
 	}
 
@@ -168,8 +162,8 @@ UINT32 jpmsys5_state::screen_update_jpmsys5v(screen_device &screen, bitmap_rgb32
 			UINT8 pen = src[(x-cliprect.min_x)>>1];
 
 			/* Draw two 4-bit pixels */
-			*dest++ = machine().pens[(pen >> 4) & 0xf];
-			*dest++ = machine().pens[pen & 0xf];
+			*dest++ = m_palette->pen((pen >> 4) & 0xf);
+			*dest++ = m_palette->pen(pen & 0xf);
 		}
 	}
 
@@ -244,23 +238,10 @@ WRITE16_MEMBER(jpmsys5_state::jpm_upd7759_w)
 		}
 		case 1:
 		{
-			//Reset 0x04, data 0x02, clock 0x01
-			if(data & 0x04)
-			{
-				int alpha_data = (data & 0x02)?0:1;
-				if (m_alpha_clock != (data & 0x01))
-				{
-					if (!m_alpha_clock)//falling edge
-					{
-						m_vfd->shift_data(alpha_data);
-					}
-				}
-				m_alpha_clock = (data & 0x01);
-			}
-			else
-			{
-				m_vfd->reset();
-			}
+			//Reset 0x04, data 0x02, clock
+			m_vfd->por(data & 0x04);
+			m_vfd->data(data & 0x02);
+			m_vfd->sclk(data & 0x01);
 			break;
 		}
 		case 2:
@@ -290,22 +271,18 @@ READ16_MEMBER(jpmsys5_state::jpm_upd7759_r)
  *************************************/
 
 #define JPM_SYS5_COMMON_MAP \
+	ADDRESS_MAP_UNMAP_HIGH \
 	AM_RANGE(0x000000, 0x01ffff) AM_ROM \
 	AM_RANGE(0x040000, 0x043fff) AM_RAM AM_SHARE("nvram") \
 	AM_RANGE(0x046000, 0x046001) AM_WRITENOP \
-	AM_RANGE(0x046020, 0x046021) AM_DEVREADWRITE8("acia6850_0", acia6850_device, status_read, control_write, 0xff) \
-	AM_RANGE(0x046022, 0x046023) AM_DEVREADWRITE8("acia6850_0", acia6850_device, data_read, data_write, 0xff) \
+	AM_RANGE(0x046020, 0x046021) AM_DEVREADWRITE8("acia6850_0", acia6850_device, status_r, control_w, 0xff) \
+	AM_RANGE(0x046022, 0x046023) AM_DEVREADWRITE8("acia6850_0", acia6850_device, data_r, data_w, 0xff) \
 	AM_RANGE(0x046040, 0x04604f) AM_DEVREADWRITE8("6840ptm", ptm6840_device, read, write, 0xff) \
-	AM_RANGE(0x046060, 0x046061) AM_READ_PORT("DIRECT") AM_WRITENOP \
-	AM_RANGE(0x046062, 0x046063) AM_WRITENOP \
-	AM_RANGE(0x046064, 0x046065) AM_WRITENOP \
-	AM_RANGE(0x046066, 0x046067) AM_WRITENOP \
-	AM_RANGE(0x046080, 0x046081) AM_DEVREADWRITE8("acia6850_1", acia6850_device, status_read, control_write, 0xff) \
-	AM_RANGE(0x046082, 0x046083) AM_DEVREADWRITE8("acia6850_1", acia6850_device, data_read, data_write, 0xff) \
-	AM_RANGE(0x046084, 0x046085) AM_READ(unk_r) /* PIA? */ \
-	AM_RANGE(0x046088, 0x046089) AM_READ(unk_r) /* PIA? */ \
-	AM_RANGE(0x04608c, 0x04608d) AM_DEVREADWRITE8("acia6850_2", acia6850_device, status_read, control_write, 0xff) \
-	AM_RANGE(0x04608e, 0x04608f) AM_DEVREADWRITE8("acia6850_2", acia6850_device, data_read, data_write, 0xff) \
+	AM_RANGE(0x046060, 0x046067) AM_DEVREADWRITE8("6821pia", pia6821_device, read, write,0xff) \
+	AM_RANGE(0x046080, 0x046081) AM_DEVREADWRITE8("acia6850_1", acia6850_device, status_r, control_w, 0xff) \
+	AM_RANGE(0x046082, 0x046083) AM_DEVREADWRITE8("acia6850_1", acia6850_device, data_r, data_w, 0xff) \
+	AM_RANGE(0x04608c, 0x04608d) AM_DEVREADWRITE8("acia6850_2", acia6850_device, status_r, control_w, 0xff) \
+	AM_RANGE(0x04608e, 0x04608f) AM_DEVREADWRITE8("acia6850_2", acia6850_device, data_r, data_w, 0xff) \
 	AM_RANGE(0x0460c0, 0x0460c1) AM_WRITENOP \
 	AM_RANGE(0x048000, 0x04801f) AM_READWRITE(coins_r, coins_w) \
 	AM_RANGE(0x04c000, 0x04c0ff) AM_READ(mux_r) AM_WRITE(mux_w)
@@ -355,13 +332,13 @@ TIMER_CALLBACK_MEMBER(jpmsys5_state::touch_cb)
 		case START:
 		{
 			m_touch_shift_cnt = 0;
-			m_a2_data_in = 0;
+			m_acia6850_2->write_rxd(0);
 			m_touch_state = DATA;
 			break;
 		}
 		case DATA:
 		{
-			m_a2_data_in = (m_touch_data[m_touch_data_count] >> (m_touch_shift_cnt)) & 1;
+			m_acia6850_2->write_rxd((m_touch_data[m_touch_data_count] >> (m_touch_shift_cnt)) & 1);
 
 			if (++m_touch_shift_cnt == 8)
 				m_touch_state = STOP1;
@@ -370,13 +347,13 @@ TIMER_CALLBACK_MEMBER(jpmsys5_state::touch_cb)
 		}
 		case STOP1:
 		{
-			m_a2_data_in = 1;
+			m_acia6850_2->write_rxd(1);
 			m_touch_state = STOP2;
 			break;
 		}
 		case STOP2:
 		{
-			m_a2_data_in = 1;
+			m_acia6850_2->write_rxd(1);
 
 			if (++m_touch_data_count == 3)
 			{
@@ -481,6 +458,56 @@ static INPUT_PORTS_START( monopoly )
 	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_Y ) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_SENSITIVITY(45) PORT_KEYDELTA(15)
 INPUT_PORTS_END
 
+/*************************************
+ *
+ *  6821 PIA
+ *
+ *************************************/
+WRITE_LINE_MEMBER(jpmsys5_state::pia_irq)
+{
+	m_maincpu->set_input_line(INT_6821PIA, state ? ASSERT_LINE : CLEAR_LINE);
+}
+
+READ8_MEMBER(jpmsys5_state::u29_porta_r)
+{
+	int combined_meter = MechMtr_GetActivity(0) | MechMtr_GetActivity(1) |
+							MechMtr_GetActivity(2) | MechMtr_GetActivity(3) |
+							MechMtr_GetActivity(4) | MechMtr_GetActivity(5) |
+							MechMtr_GetActivity(6) | MechMtr_GetActivity(7);
+
+	int meter_bit =0;
+	if(combined_meter)
+	{
+		meter_bit =  0x80;
+	}
+	else
+	{
+		meter_bit =  0x00;
+	}
+
+	return m_direct_port->read() | meter_bit;
+}
+
+WRITE8_MEMBER(jpmsys5_state::u29_portb_w)
+{
+	int meter =0;
+	for (meter = 0; meter < 8; meter ++)
+	{
+		MechMtr_update(meter, (data & (1 << meter)));
+	}
+}
+
+WRITE_LINE_MEMBER(jpmsys5_state::u29_ca2_w)
+{
+	//The 'CHOP' line controls power to the reel motors, without this the reels won't turn
+	m_chop = state;
+}
+
+WRITE_LINE_MEMBER(jpmsys5_state::u29_cb2_w)
+{
+	//On a cabinet, this overrides the volume, we don't emulate this yet
+	logerror("Alarm override enabled \n");
+}
 
 /*************************************
  *
@@ -511,15 +538,6 @@ WRITE8_MEMBER(jpmsys5_state::u26_o1_callback)
 }
 
 
-static const ptm6840_interface ptm_intf =
-{
-	1000000,
-	{ 0, 0, 0 },
-	{ DEVCB_DRIVER_MEMBER(jpmsys5_state,u26_o1_callback), DEVCB_NULL, DEVCB_NULL },
-	DEVCB_DRIVER_LINE_MEMBER(jpmsys5_state,ptm_irq)
-};
-
-
 /*************************************
  *
  *  6850 ACIAs
@@ -531,38 +549,9 @@ WRITE_LINE_MEMBER(jpmsys5_state::acia_irq)
 	m_maincpu->set_input_line(INT_6850ACIA, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-/* Clocks are incorrect */
-
-READ_LINE_MEMBER(jpmsys5_state::a0_rx_r)
-{
-	return m_a0_data_in;
-}
-
 WRITE_LINE_MEMBER(jpmsys5_state::a0_tx_w)
 {
 	m_a0_data_out = state;
-}
-
-READ_LINE_MEMBER(jpmsys5_state::a0_dcd_r)
-{
-	return m_a0_acia_dcd;
-}
-
-static ACIA6850_INTERFACE( acia0_if )
-{
-	10000,
-	10000,
-	DEVCB_DRIVER_LINE_MEMBER(jpmsys5_state,a0_rx_r), /*&a0_data_in,*/
-	DEVCB_DRIVER_LINE_MEMBER(jpmsys5_state,a0_tx_w), /*&a0_data_out,*/
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(jpmsys5_state,a0_dcd_r), /*&a0_acia_dcd,*/
-	DEVCB_DRIVER_LINE_MEMBER(jpmsys5_state,acia_irq)
-};
-
-READ_LINE_MEMBER(jpmsys5_state::a1_rx_r)
-{
-	return m_a1_data_in;
 }
 
 WRITE_LINE_MEMBER(jpmsys5_state::a1_tx_w)
@@ -570,50 +559,20 @@ WRITE_LINE_MEMBER(jpmsys5_state::a1_tx_w)
 	m_a1_data_out = state;
 }
 
-READ_LINE_MEMBER(jpmsys5_state::a1_dcd_r)
-{
-	return m_a1_acia_dcd;
-}
-
-static ACIA6850_INTERFACE( acia1_if )
-{
-	10000,
-	10000,
-	DEVCB_DRIVER_LINE_MEMBER(jpmsys5_state,a1_rx_r), /*&state->m_a1_data_in,*/
-	DEVCB_DRIVER_LINE_MEMBER(jpmsys5_state,a1_tx_w), /*&state->m_a1_data_out,*/
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(jpmsys5_state,a1_dcd_r), /*&state->m_a1_acia_dcd,*/
-	DEVCB_DRIVER_LINE_MEMBER(jpmsys5_state,acia_irq)
-};
-
-READ_LINE_MEMBER(jpmsys5_state::a2_rx_r)
-{
-	return m_a2_data_in;
-}
-
 WRITE_LINE_MEMBER(jpmsys5_state::a2_tx_w)
 {
 	m_a2_data_out = state;
 }
 
-READ_LINE_MEMBER(jpmsys5_state::a2_dcd_r)
+WRITE_LINE_MEMBER(jpmsys5_state::write_acia_clock)
 {
-	return m_a2_acia_dcd;
+	m_acia6850_0->write_txc(state);
+	m_acia6850_0->write_rxc(state);
+	m_acia6850_1->write_txc(state);
+	m_acia6850_1->write_rxc(state);
+	m_acia6850_2->write_txc(state);
+	m_acia6850_2->write_rxc(state);
 }
-
-static ACIA6850_INTERFACE( acia2_if )
-{
-	10000,
-	10000,
-	DEVCB_DRIVER_LINE_MEMBER(jpmsys5_state,a2_rx_r), /*&state->m_a2_data_in,*/
-	DEVCB_DRIVER_LINE_MEMBER(jpmsys5_state,a2_tx_w), /*&state->m_a2_data_out,*/
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(jpmsys5_state,a2_dcd_r), /*&state->m_a2_acia_dcd,*/
-	DEVCB_DRIVER_LINE_MEMBER(jpmsys5_state,acia_irq)
-};
-
 
 /*************************************
  *
@@ -631,8 +590,8 @@ MACHINE_RESET_MEMBER(jpmsys5_state,jpmsys5v)
 {
 	m_touch_timer->reset();
 	m_touch_state = IDLE;
-	m_a2_data_in = 1;
-	m_a2_acia_dcd = 0;
+	m_acia6850_2->write_rxd(1);
+	m_acia6850_2->write_dcd(0);
 	m_vfd->reset();
 
 }
@@ -645,16 +604,27 @@ MACHINE_RESET_MEMBER(jpmsys5_state,jpmsys5v)
  *************************************/
 
 static MACHINE_CONFIG_START( jpmsys5v, jpmsys5_state )
-	MCFG_CPU_ADD("maincpu", M68000, 8000000)
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_8MHz)
 	MCFG_CPU_PROGRAM_MAP(68000_map)
 
-	MCFG_ACIA6850_ADD("acia6850_0", acia0_if)
-	MCFG_ACIA6850_ADD("acia6850_1", acia1_if)
-	MCFG_ACIA6850_ADD("acia6850_2", acia2_if)
+	MCFG_DEVICE_ADD("acia6850_0", ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(jpmsys5_state, a0_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(jpmsys5_state, acia_irq))
+
+	MCFG_DEVICE_ADD("acia6850_1", ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(jpmsys5_state, a1_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(jpmsys5_state, acia_irq))
+
+	MCFG_DEVICE_ADD("acia6850_2", ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(jpmsys5_state, a2_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(jpmsys5_state, acia_irq))
+
+	MCFG_DEVICE_ADD("acia_clock", CLOCK, 10000) // What are the correct ACIA clocks ?
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(jpmsys5_state, write_acia_clock))
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_ROC10937_ADD("vfd",0,RIGHT_TO_LEFT)//for debug ports
+	MCFG_S16LF01_ADD("vfd",0)//for debug ports
 
 	MCFG_MACHINE_START_OVERRIDE(jpmsys5_state,jpmsys5v)
 	MCFG_MACHINE_RESET_OVERRIDE(jpmsys5_state,jpmsys5v)
@@ -663,21 +633,36 @@ static MACHINE_CONFIG_START( jpmsys5v, jpmsys5_state )
 	MCFG_SCREEN_RAW_PARAMS(XTAL_40MHz / 4, 676, 20*4, 147*4, 256, 0, 254)
 	MCFG_SCREEN_UPDATE_DRIVER(jpmsys5_state, screen_update_jpmsys5v)
 
-	MCFG_TMS34061_ADD("tms34061", tms34061intf)
+	MCFG_DEVICE_ADD("tms34061", TMS34061, 0)
+	MCFG_TMS34061_ROWSHIFT(8)  /* VRAM address is (row << rowshift) | col */
+	MCFG_TMS34061_VRAM_SIZE(0x40000) /* size of video RAM */
+	MCFG_TMS34061_INTERRUPT_CB(WRITELINE(jpmsys5_state, generate_tms34061_interrupt))      /* interrupt gen callback */
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("upd7759", UPD7759, UPD7759_STANDARD_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
-	/* Earlier revisions use an SAA1099 */
+	/* Earlier revisions use an SAA1099, but no video card games seem to (?) */
 	MCFG_SOUND_ADD("ym2413", YM2413, 4000000 ) /* Unconfirmed */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
+	MCFG_DEVICE_ADD("6821pia", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(jpmsys5_state, u29_porta_r))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(jpmsys5_state, u29_portb_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(jpmsys5_state, u29_ca2_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(jpmsys5_state, u29_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(jpmsys5_state, pia_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(jpmsys5_state, pia_irq))
+
 	/* 6840 PTM */
-	MCFG_PTM6840_ADD("6840ptm", ptm_intf)
+	MCFG_DEVICE_ADD("6840ptm", PTM6840, 0)
+	MCFG_PTM6840_INTERNAL_CLOCK(1000000)
+	MCFG_PTM6840_EXTERNAL_CLOCKS(0, 0, 0)
+	MCFG_PTM6840_OUT0_CB(WRITE8(jpmsys5_state, u26_o1_callback))
+	MCFG_PTM6840_IRQ_CB(WRITELINE(jpmsys5_state, ptm_irq))
 MACHINE_CONFIG_END
 
 READ16_MEMBER(jpmsys5_state::mux_awp_r)
@@ -747,7 +732,7 @@ INPUT_PORTS_START( popeye )
 	PORT_START("DSW2")
 	PORT_BIT(0xFF, IP_ACTIVE_LOW, IPT_UNKNOWN)
 
-	PORT_START("ROTARY")//not everything has this hooked up, cna be used as a test switch internally
+	PORT_START("ROTARY")//not everything has this hooked up, can be used as a test switch internally
 	PORT_CONFNAME(0x0F, 0x0F, "Rotary Switch")
 	PORT_CONFSETTING(   0x0F, "0")
 	PORT_CONFSETTING(   0x0E, "1")
@@ -782,9 +767,7 @@ INPUT_PORTS_START( popeye )
 	PORT_DIPNAME( 0x40, 0x40, "Reset" ) PORT_DIPLOCATION("SW1:1")
 	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x00, DEF_STR ( Unknown ) )
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL )
 
 	PORT_START("COINS")
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN1 ) PORT_NAME("10p")
@@ -821,14 +804,19 @@ INPUT_PORTS_END
 MACHINE_START_MEMBER(jpmsys5_state,jpmsys5)
 {
 //  membank("bank1")->set_base(memregion("maincpu")->base()+0x20000);
+
+	/* setup 8 mechanical meters */
+	MechMtr_config(machine(),8);
+
 }
 
 MACHINE_RESET_MEMBER(jpmsys5_state,jpmsys5)
 {
-	m_a2_data_in = 1;
-	m_a2_acia_dcd = 0;
+	m_acia6850_2->write_rxd(1);
+	m_acia6850_2->write_dcd(0);
 	m_vfd->reset();
 }
+
 
 /*************************************
  *
@@ -838,15 +826,27 @@ MACHINE_RESET_MEMBER(jpmsys5_state,jpmsys5)
 
 // later (incompatible with earlier revision) motherboards used a YM2413
 MACHINE_CONFIG_START( jpmsys5_ym, jpmsys5_state )
-	MCFG_CPU_ADD("maincpu", M68000, 8000000)
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_8MHz)
+
 	MCFG_CPU_PROGRAM_MAP(68000_awp_map)
 
-	MCFG_ACIA6850_ADD("acia6850_0", acia0_if)
-	MCFG_ACIA6850_ADD("acia6850_1", acia1_if)
-	MCFG_ACIA6850_ADD("acia6850_2", acia2_if)
+	MCFG_DEVICE_ADD("acia6850_0", ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(jpmsys5_state, a0_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(jpmsys5_state, acia_irq))
+
+	MCFG_DEVICE_ADD("acia6850_1", ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(jpmsys5_state, a1_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(jpmsys5_state, acia_irq))
+
+	MCFG_DEVICE_ADD("acia6850_2", ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(jpmsys5_state, a2_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(jpmsys5_state, acia_irq))
+
+	MCFG_DEVICE_ADD("acia_clock", CLOCK, 10000) // What are the correct ACIA clocks ?
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(jpmsys5_state, write_acia_clock))
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
-	MCFG_ROC10937_ADD("vfd",0,RIGHT_TO_LEFT)
+	MCFG_S16LF01_ADD("vfd",0)
 
 	MCFG_MACHINE_START_OVERRIDE(jpmsys5_state,jpmsys5)
 	MCFG_MACHINE_RESET_OVERRIDE(jpmsys5_state,jpmsys5)
@@ -859,22 +859,45 @@ MACHINE_CONFIG_START( jpmsys5_ym, jpmsys5_state )
 	MCFG_SOUND_ADD("ym2413", YM2413, 4000000 ) /* Unconfirmed */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
+	MCFG_DEVICE_ADD("6821pia", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(jpmsys5_state, u29_porta_r))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(jpmsys5_state, u29_portb_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(jpmsys5_state, u29_ca2_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(jpmsys5_state, u29_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(jpmsys5_state, pia_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(jpmsys5_state, pia_irq))
+
 	/* 6840 PTM */
-	MCFG_PTM6840_ADD("6840ptm", ptm_intf)
+	MCFG_DEVICE_ADD("6840ptm", PTM6840, 0)
+	MCFG_PTM6840_INTERNAL_CLOCK(1000000)
+	MCFG_PTM6840_EXTERNAL_CLOCKS(0, 0, 0)
+	MCFG_PTM6840_OUT0_CB(WRITE8(jpmsys5_state, u26_o1_callback))
+	MCFG_PTM6840_IRQ_CB(WRITELINE(jpmsys5_state, ptm_irq))
 	MCFG_DEFAULT_LAYOUT(layout_jpmsys5)
 MACHINE_CONFIG_END
 
 // the first rev PCB used an SAA1099
 MACHINE_CONFIG_START( jpmsys5, jpmsys5_state )
-	MCFG_CPU_ADD("maincpu", M68000, 8000000)
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_8MHz)
 	MCFG_CPU_PROGRAM_MAP(68000_awp_map_saa)
 
-	MCFG_ACIA6850_ADD("acia6850_0", acia0_if)
-	MCFG_ACIA6850_ADD("acia6850_1", acia1_if)
-	MCFG_ACIA6850_ADD("acia6850_2", acia2_if)
+	MCFG_DEVICE_ADD("acia6850_0", ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(jpmsys5_state, a0_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(jpmsys5_state, acia_irq))
+
+	MCFG_DEVICE_ADD("acia6850_1", ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(jpmsys5_state, a1_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(jpmsys5_state, acia_irq))
+
+	MCFG_DEVICE_ADD("acia6850_2", ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(jpmsys5_state, a2_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(jpmsys5_state, acia_irq))
+
+	MCFG_DEVICE_ADD("acia_clock", CLOCK, 10000) // What are the correct ACIA clocks ?
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(jpmsys5_state, write_acia_clock))
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
-	MCFG_ROC10937_ADD("vfd",0,RIGHT_TO_LEFT)
+	MCFG_S16LF01_ADD("vfd",0)
 
 	MCFG_MACHINE_START_OVERRIDE(jpmsys5_state,jpmsys5)
 	MCFG_MACHINE_RESET_OVERRIDE(jpmsys5_state,jpmsys5)
@@ -886,8 +909,20 @@ MACHINE_CONFIG_START( jpmsys5, jpmsys5_state )
 	MCFG_SAA1099_ADD("saa", 4000000 /* guess */)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
+	MCFG_DEVICE_ADD("6821pia", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(jpmsys5_state, u29_porta_r))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(jpmsys5_state, u29_portb_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(jpmsys5_state, u29_ca2_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(jpmsys5_state, u29_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(jpmsys5_state, pia_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(jpmsys5_state, pia_irq))
+
 	/* 6840 PTM */
-	MCFG_PTM6840_ADD("6840ptm", ptm_intf)
+	MCFG_DEVICE_ADD("6840ptm", PTM6840, 0)
+	MCFG_PTM6840_INTERNAL_CLOCK(1000000)
+	MCFG_PTM6840_EXTERNAL_CLOCKS(0, 0, 0)
+	MCFG_PTM6840_OUT0_CB(WRITE8(jpmsys5_state, u26_o1_callback))
+	MCFG_PTM6840_IRQ_CB(WRITELINE(jpmsys5_state, ptm_irq))
 	MCFG_DEFAULT_LAYOUT(layout_jpmsys5)
 MACHINE_CONFIG_END
 

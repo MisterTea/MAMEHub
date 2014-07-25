@@ -14,7 +14,7 @@
 #include "cpu/nec/nec.h"
 #include "cpu/i86/i86.h"
 #include "machine/pc_lpt.h"
-#include "machine/pc_keyboards.h"
+#include "bus/pc_kbd/keyboards.h"
 
 class genpc_state : public driver_device
 {
@@ -73,6 +73,7 @@ static MACHINE_CONFIG_START( pcmda, genpc_state )
 	MCFG_CPU_ADD("maincpu", V20, 4772720)
 	MCFG_CPU_PROGRAM_MAP(pc8_map)
 	MCFG_CPU_IO_MAP(pc8_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("mb:pic8259", pic8259_device, inta_cb)
 
 	MCFG_IBM5160_MOTHERBOARD_ADD("mb","maincpu")
 
@@ -97,6 +98,7 @@ static MACHINE_CONFIG_START( pcherc, genpc_state )
 	MCFG_CPU_ADD("maincpu", V20, 4772720)
 	MCFG_CPU_PROGRAM_MAP(pc8_map)
 	MCFG_CPU_IO_MAP(pc8_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("mb:pic8259", pic8259_device, inta_cb)
 
 	MCFG_IBM5160_MOTHERBOARD_ADD("mb","maincpu")
 
@@ -121,6 +123,7 @@ static MACHINE_CONFIG_START( pccga, genpc_state )
 	MCFG_CPU_ADD("maincpu",  I8086, 4772720)
 	MCFG_CPU_PROGRAM_MAP(pc16_map)
 	MCFG_CPU_IO_MAP(pc16_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("mb:pic8259", pic8259_device, inta_cb)
 
 	MCFG_IBM5160_MOTHERBOARD_ADD("mb","maincpu")
 	MCFG_DEVICE_INPUT_DEFAULTS(cga)
@@ -146,6 +149,7 @@ static MACHINE_CONFIG_START( pcega, genpc_state )
 	MCFG_CPU_ADD("maincpu",  I8086, 4772720)
 	MCFG_CPU_PROGRAM_MAP(pc16_map)
 	MCFG_CPU_IO_MAP(pc16_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("mb:pic8259", pic8259_device, inta_cb)
 
 	MCFG_IBM5160_MOTHERBOARD_ADD("mb","maincpu")
 	MCFG_DEVICE_INPUT_DEFAULTS(vga)
@@ -171,6 +175,7 @@ static MACHINE_CONFIG_START( xtvga, genpc_state )
 	MCFG_CPU_ADD("maincpu",  I8086, 4772720)
 	MCFG_CPU_PROGRAM_MAP(pc16_map)
 	MCFG_CPU_IO_MAP(pc16_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("mb:pic8259", pic8259_device, inta_cb)
 
 	MCFG_IBM5160_MOTHERBOARD_ADD("mb","maincpu")
 	MCFG_DEVICE_INPUT_DEFAULTS(vga)

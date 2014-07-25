@@ -18,12 +18,12 @@
 
 ***************************************************************************/
 
-void ambush_state::palette_init()
+PALETTE_INIT_MEMBER(ambush_state, ambush)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -43,7 +43,7 @@ void ambush_state::palette_init()
 		bit2 = (color_prom[i] >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r,g,b));
+		palette.set_pen_color(i, rgb_t(r,g,b));
 	}
 }
 
@@ -78,7 +78,7 @@ void ambush_state::draw_chars( bitmap_ind16 &bitmap, const rectangle &cliprect, 
 			scroll = ~scroll - 1;
 		}
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 			code,
 			(col & 0x0f) | ((*m_colorbank & 0x03) << 4),
 			flip_screen(), flip_screen(),
@@ -145,7 +145,7 @@ UINT32 ambush_state::screen_update_ambush(screen_device &screen, bitmap_ind16 &b
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[gfx],
+		m_gfxdecode->gfx(gfx)->transpen(bitmap,cliprect,
 				code, col | ((*m_colorbank & 0x03) << 4),
 				flipx, flipy,
 				sx,sy,0);

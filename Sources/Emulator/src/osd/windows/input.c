@@ -1,41 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 //============================================================
 //
 //  input.c - Win32 implementation of MAME input routines
-//
-//============================================================
-//
-//  Copyright Aaron Giles
-//  All rights reserved.
-//
-//  Redistribution and use in source and binary forms, with or
-//  without modification, are permitted provided that the
-//  following conditions are met:
-//
-//    * Redistributions of source code must retain the above
-//      copyright notice, this list of conditions and the
-//      following disclaimer.
-//    * Redistributions in binary form must reproduce the
-//      above copyright notice, this list of conditions and
-//      the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//    * Neither the name 'MAME' nor the names of its
-//      contributors may be used to endorse or promote
-//      products derived from this software without specific
-//      prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND
-//  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-//  FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
-//  EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-//  DAMAGE (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-//  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-//  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-//  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-//  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-//  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //============================================================
 
@@ -61,13 +28,12 @@
 // MAME headers
 #include "emu.h"
 #include "osdepend.h"
-#include "ui.h"
+#include "ui/ui.h"
 
 // MAMEOS headers
 #include "winmain.h"
 #include "window.h"
 #include "input.h"
-#include "debugwin.h"
 #include "video.h"
 #include "strconv.h"
 #include "config.h"
@@ -202,9 +168,9 @@ typedef /*WINUSERAPI*/ BOOL (WINAPI *register_rawinput_devices_ptr)(IN PCRAWINPU
 //============================================================
 
 // global states
-static UINT8                input_enabled;
+static bool                 input_enabled;
 static osd_lock *           input_lock;
-static UINT8                input_paused;
+static bool                 input_paused;
 static DWORD                last_poll;
 
 // DirectInput variables
@@ -218,16 +184,16 @@ static get_rawinput_device_info_ptr     get_rawinput_device_info;
 static register_rawinput_devices_ptr    register_rawinput_devices;
 
 // keyboard states
-static UINT8                keyboard_win32_reported_key_down;
+static bool                 keyboard_win32_reported_key_down;
 static device_info *        keyboard_list;
 
 // mouse states
-static UINT8                mouse_enabled;
+static bool                 mouse_enabled;
 static device_info *        mouse_list;
 
 // lightgun states
 static UINT8                lightgun_shared_axis_mode;
-static UINT8                lightgun_enabled;
+static bool                 lightgun_enabled;
 static device_info *        lightgun_list;
 
 // joystick states
@@ -245,10 +211,6 @@ static const TCHAR *const default_axis_name[] =
 //============================================================
 //  PROTOTYPES
 //============================================================
-
-static void wininput_pause(running_machine &machine);
-static void wininput_resume(running_machine &machine);
-static void wininput_exit(running_machine &machine);
 
 // device list management
 static void device_list_poll_devices(device_info *devlist_head);
@@ -496,31 +458,27 @@ INLINE INT32 normalize_absolute_axis(INT32 raw, INT32 rawmin, INT32 rawmax)
 
 
 //============================================================
-//  wininput_init
+//  input_init
 //============================================================
 
-void wininput_init(running_machine &machine)
+bool windows_osd_interface::input_init()
 {
-	// we need pause and exit callbacks
-	machine.add_notifier(MACHINE_NOTIFY_PAUSE, machine_notify_delegate(FUNC(wininput_pause), &machine));
-	machine.add_notifier(MACHINE_NOTIFY_RESUME, machine_notify_delegate(FUNC(wininput_resume), &machine));
-	machine.add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(wininput_exit), &machine));
-
 	// allocate a lock for input synchronizations, since messages sometimes come from another thread
 	input_lock = osd_lock_alloc();
 	assert_always(input_lock != NULL, "Failed to allocate input_lock");
 
 	// decode the options
-	lightgun_shared_axis_mode = downcast<windows_options &>(machine.options()).dual_lightgun();
+	lightgun_shared_axis_mode = downcast<windows_options &>(machine().options()).dual_lightgun();
 
 	// initialize RawInput and DirectInput (RawInput first so we can fall back)
-	rawinput_init(machine);
-	dinput_init(machine);
-	win32_init(machine);
+	rawinput_init(machine());
+	dinput_init(machine());
+	win32_init(machine());
 
 	// poll once to get the initial states
-	input_enabled = TRUE;
-	wininput_poll(machine);
+	input_enabled = true;
+	wininput_poll(machine());
+	return true;
 }
 
 
@@ -528,13 +486,13 @@ void wininput_init(running_machine &machine)
 //  wininput_pause
 //============================================================
 
-static void wininput_pause(running_machine &machine)
+void windows_osd_interface::input_pause()
 {
 	// keep track of the paused state
 	input_paused = true;
 }
 
-static void wininput_resume(running_machine &machine)
+void windows_osd_interface::input_resume()
 {
 	// keep track of the paused state
 	input_paused = false;
@@ -545,11 +503,11 @@ static void wininput_resume(running_machine &machine)
 //  wininput_exit
 //============================================================
 
-static void wininput_exit(running_machine &machine)
+void windows_osd_interface::input_exit()
 {
 	// acquire the lock and turn off input (this ensures everyone is done)
 	osd_lock_acquire(input_lock);
-	input_enabled = FALSE;
+	input_enabled = false;
 	osd_lock_release(input_lock);
 
 	// free the lock
@@ -563,7 +521,7 @@ static void wininput_exit(running_machine &machine)
 
 void wininput_poll(running_machine &machine)
 {
-	int hasfocus = winwindow_has_focus() && input_enabled;
+	bool hasfocus = winwindow_has_focus() && input_enabled;
 
 	// ignore if not enabled
 	if (input_enabled)
@@ -602,22 +560,22 @@ void wininput_poll(running_machine &machine)
 //  wininput_should_hide_mouse
 //============================================================
 
-int wininput_should_hide_mouse(void)
+bool wininput_should_hide_mouse(void)
 {
 	// if we are paused or disabled, no
 	if (input_paused || !input_enabled)
-		return FALSE;
+		return false;
 
 	// if neither mice nor lightguns enabled in the core, then no
 	if (!mouse_enabled && !lightgun_enabled)
-		return FALSE;
+		return false;
 
 	// if the window has a menu, no
 	if (win_window_list != NULL && win_has_menu(win_window_list))
-		return FALSE;
+		return false;
 
 	// otherwise, yes
-	return TRUE;
+	return true;
 }
 
 
@@ -726,7 +684,7 @@ BOOL wininput_handle_raw(HANDLE device)
 
 	// free the temporary buffer and return the result
 	if (data != small_buffer)
-		global_free(data);
+		global_free_array(data);
 	return result;
 }
 
@@ -773,25 +731,37 @@ void windows_osd_interface::customize_input_type_list(simple_list<input_type_ent
 			// alt-enter for fullscreen
 			case IPT_OSD_1:
 				entry->configure_osd("TOGGLE_FULLSCREEN", "Toggle Fullscreen");
-				entry->defseq(SEQ_TYPE_STANDARD).set(KEYCODE_LALT, KEYCODE_ENTER);
+				entry->defseq(SEQ_TYPE_STANDARD).set(KEYCODE_ENTER, KEYCODE_LALT, input_seq::or_code, KEYCODE_ENTER, KEYCODE_RALT);
 				break;
 
-			// alt-F12 for fullscreen snap
+			// lalt-F12 for fullscreen snap (HLSL)
 			case IPT_OSD_2:
 				entry->configure_osd("RENDER_SNAP", "Take Rendered Snapshot");
-				entry->defseq(SEQ_TYPE_STANDARD).set(KEYCODE_LALT, KEYCODE_F12, input_seq::not_code, KEYCODE_LCONTROL);
+				entry->defseq(SEQ_TYPE_STANDARD).set(KEYCODE_F12, KEYCODE_LALT, input_seq::not_code, KEYCODE_LSHIFT);
+				break;
+			// add a NOT-lalt to our default F12
+			case IPT_UI_SNAPSHOT: // emu/input.c: input_seq(KEYCODE_F12, input_seq::not_code, KEYCODE_LSHIFT)
+				entry->defseq(SEQ_TYPE_STANDARD).set(KEYCODE_F12, input_seq::not_code, KEYCODE_LSHIFT, input_seq::not_code, KEYCODE_LALT);
 				break;
 
-			// alt-F11 for fullscreen video
+			// lshift-lalt-F12 for fullscreen video (HLSL)
 			case IPT_OSD_3:
 				entry->configure_osd("RENDER_AVI", "Record Rendered Video");
-				entry->defseq(SEQ_TYPE_STANDARD).set(KEYCODE_LALT, KEYCODE_F11);
+				entry->defseq(SEQ_TYPE_STANDARD).set(KEYCODE_F12, KEYCODE_LSHIFT, KEYCODE_LALT);
+				break;
+			// add a NOT-lalt to our default shift-F12
+			case IPT_UI_RECORD_MOVIE: // emu/input.c: input_seq(KEYCODE_F12, KEYCODE_LSHIFT)
+				entry->defseq(SEQ_TYPE_STANDARD).set(KEYCODE_F12, KEYCODE_LSHIFT, input_seq::not_code, KEYCODE_LALT);
 				break;
 
-			// ctrl-alt-F12 to toggle post-processing
+			// lctrl-lalt-F5 to toggle post-processing
 			case IPT_OSD_4:
 				entry->configure_osd("POST_PROCESS", "Toggle Post-Processing");
-				entry->defseq(SEQ_TYPE_STANDARD).set(KEYCODE_LALT, KEYCODE_LCONTROL, KEYCODE_F5);
+				entry->defseq(SEQ_TYPE_STANDARD).set(KEYCODE_F5, KEYCODE_LALT, KEYCODE_LCONTROL);
+				break;
+			// add a NOT-lctrl-lalt to our default F5
+			case IPT_UI_TOGGLE_DEBUG: // emu/input.c: input_seq(KEYCODE_F5)
+				entry->defseq(SEQ_TYPE_STANDARD).set(KEYCODE_F5, input_seq::not_code, KEYCODE_LCONTROL, input_seq::not_code, KEYCODE_LALT);
 				break;
 
 			// leave everything else alone
@@ -1029,7 +999,7 @@ static void win32_keyboard_poll(device_info *devinfo)
 	int keynum;
 
 	// clear the flag that says we detected a key down via win32
-	keyboard_win32_reported_key_down = FALSE;
+	keyboard_win32_reported_key_down = false;
 
 	// reset the keyboard state and then repopulate
 	memset(devinfo->keyboard.state, 0, sizeof(devinfo->keyboard.state));
@@ -1047,7 +1017,7 @@ static void win32_keyboard_poll(device_info *devinfo)
 				devinfo->keyboard.state[dik] = 0x80;
 
 			// set this flag so that we continue to use win32 until all keys are up
-			keyboard_win32_reported_key_down = TRUE;
+			keyboard_win32_reported_key_down = true;
 		}
 	}
 }
@@ -1133,7 +1103,7 @@ static void dinput_init(running_machine &machine)
 	}
 #endif
 
-	mame_printf_verbose("DirectInput: Using DirectInput %d\n", dinput_version >> 8);
+	osd_printf_verbose("DirectInput: Using DirectInput %d\n", dinput_version >> 8);
 
 	// we need an exit callback
 	machine.add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(dinput_exit), &machine));
@@ -1316,7 +1286,7 @@ static char *dinput_device_item_name(device_info *devinfo, int offset, const TCH
 
 	// convert to UTF8, free the temporary string, and return
 	utf8 = utf8_from_tstring(combined);
-	global_free(combined);
+	global_free_array(combined);
 	return utf8;
 }
 
@@ -1430,7 +1400,7 @@ static BOOL CALLBACK dinput_mouse_enum(LPCDIDEVICEINSTANCE instance, LPVOID ref)
 	result = dinput_set_dword_property(devinfo->dinput.device, DIPROP_AXISMODE, 0, DIPH_DEVICE, DIPROPAXISMODE_REL);
 	if (result != DI_OK && result != DI_PROPNOEFFECT)
 	{
-		mame_printf_error("DirectInput: Unable to set relative mode for mouse %d (%s)\n", generic_device_index(mouse_list, devinfo), devinfo->name);
+		osd_printf_error("DirectInput: Unable to set relative mode for mouse %d (%s)\n", generic_device_index(mouse_list, devinfo), devinfo->name);
 		goto error;
 	}
 
@@ -1526,17 +1496,17 @@ static BOOL CALLBACK dinput_joystick_enum(LPCDIDEVICEINSTANCE instance, LPVOID r
 	// set absolute mode
 	result = dinput_set_dword_property(devinfo->dinput.device, DIPROP_AXISMODE, 0, DIPH_DEVICE, DIPROPAXISMODE_ABS);
 	if (result != DI_OK && result != DI_PROPNOEFFECT)
-		mame_printf_warning("DirectInput: Unable to set absolute mode for joystick %d (%s)\n", generic_device_index(joystick_list, devinfo), devinfo->name);
+		osd_printf_warning("DirectInput: Unable to set absolute mode for joystick %d (%s)\n", generic_device_index(joystick_list, devinfo), devinfo->name);
 
 	// turn off deadzone; we do our own calculations
 	result = dinput_set_dword_property(devinfo->dinput.device, DIPROP_DEADZONE, 0, DIPH_DEVICE, 0);
 	if (result != DI_OK && result != DI_PROPNOEFFECT)
-		mame_printf_warning("DirectInput: Unable to reset deadzone for joystick %d (%s)\n", generic_device_index(joystick_list, devinfo), devinfo->name);
+		osd_printf_warning("DirectInput: Unable to reset deadzone for joystick %d (%s)\n", generic_device_index(joystick_list, devinfo), devinfo->name);
 
 	// turn off saturation; we do our own calculations
 	result = dinput_set_dword_property(devinfo->dinput.device, DIPROP_SATURATION, 0, DIPH_DEVICE, 10000);
 	if (result != DI_OK && result != DI_PROPNOEFFECT)
-		mame_printf_warning("DirectInput: Unable to reset saturation for joystick %d (%s)\n", generic_device_index(joystick_list, devinfo), devinfo->name);
+		osd_printf_warning("DirectInput: Unable to reset saturation for joystick %d (%s)\n", generic_device_index(joystick_list, devinfo), devinfo->name);
 
 	// cap the number of axes, POVs, and buttons based on the format
 	devinfo->dinput.caps.dwAxes = MIN(devinfo->dinput.caps.dwAxes, 8);
@@ -1700,7 +1670,7 @@ static void rawinput_init(running_machine &machine)
 	get_rawinput_data = (get_rawinput_data_ptr)GetProcAddress(user32, "GetRawInputData");
 	if (register_rawinput_devices == NULL || get_rawinput_device_list == NULL || get_rawinput_device_info == NULL || get_rawinput_data == NULL)
 		goto error;
-	mame_printf_verbose("RawInput: APIs detected\n");
+	osd_printf_verbose("RawInput: APIs detected\n");
 
 	// get the number of devices, allocate a device list, and fetch it
 	if ((*get_rawinput_device_list)(NULL, &device_count, sizeof(*devlist)) != 0)
@@ -1717,11 +1687,11 @@ static void rawinput_init(running_machine &machine)
 		RAWINPUTDEVICELIST *device = &devlist[devnum];
 
 		// handle keyboards
-		if (device->dwType == RIM_TYPEKEYBOARD && !FORCE_DIRECTINPUT)
+		if (!FORCE_DIRECTINPUT && device->dwType == RIM_TYPEKEYBOARD)
 			rawinput_keyboard_enum(machine, device);
 
 		// handle mice
-		else if (device->dwType == RIM_TYPEMOUSE && !FORCE_DIRECTINPUT)
+		else if (!FORCE_DIRECTINPUT && device->dwType == RIM_TYPEMOUSE)
 			rawinput_mouse_enum(machine, device);
 	}
 
@@ -1749,12 +1719,12 @@ static void rawinput_init(running_machine &machine)
 		if (!(*register_rawinput_devices)(reglist, regcount, sizeof(reglist[0])))
 			goto error;
 
-	global_free(devlist);
+	global_free_array(devlist);
 	return;
 
 error:
 	if (devlist != NULL)
-		global_free(devlist);
+		global_free_array(devlist);
 }
 
 
@@ -1799,7 +1769,7 @@ static device_info *rawinput_device_create(running_machine &machine, device_info
 	// improve the name and then allocate a device
 	tname = rawinput_device_improve_name(tname);
 	devinfo = generic_device_alloc(machine, devlist_head_ptr, tname);
-	global_free(tname);
+	global_free_array(tname);
 
 	// copy the handle
 	devinfo->rawinput.device = device->hDevice;
@@ -1807,7 +1777,7 @@ static device_info *rawinput_device_create(running_machine &machine, device_info
 
 error:
 	if (tname != NULL)
-		global_free(tname);
+		global_free_array(tname);
 	if (devinfo != NULL)
 		rawinput_device_release(devinfo);
 	return NULL;
@@ -1940,7 +1910,7 @@ static TCHAR *rawinput_device_improve_name(TCHAR *name)
 
 					// free memory and close the key
 					if (endparentid != NULL)
-						global_free(endparentid);
+						global_free_array(endparentid);
 					RegCloseKey(endkey);
 				}
 			}
@@ -1956,7 +1926,7 @@ static TCHAR *rawinput_device_improve_name(TCHAR *name)
 
 convert:
 	// replace the name with the nicer one
-	global_free(name);
+	global_free_array(name);
 
 	// remove anything prior to the final semicolon
 	chsrc = _tcsrchr(regstring, ';');
@@ -1969,9 +1939,9 @@ convert:
 
 exit:
 	if (regstring != NULL)
-		global_free(regstring);
+		global_free_array(regstring);
 	if (regpath != NULL)
-		global_free(regpath);
+		global_free_array(regpath);
 	if (regkey != NULL)
 		RegCloseKey(regkey);
 
@@ -2194,7 +2164,7 @@ static TCHAR *reg_query_string(HKEY key, const TCHAR *path)
 		return buffer;
 
 	// otherwise return a NULL buffer
-	global_free(buffer);
+	global_free_array(buffer);
 	return NULL;
 }
 

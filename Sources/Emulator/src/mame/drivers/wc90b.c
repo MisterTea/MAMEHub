@@ -164,7 +164,7 @@ static ADDRESS_MAP_START( wc90b_map2, AS_PROGRAM, 8, wc90b_state )
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
 	AM_RANGE(0xd000, 0xd7ff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0xd800, 0xdfff) AM_RAM
-	AM_RANGE(0xe000, 0xe7ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_be_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe000, 0xe7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xe800, 0xefff) AM_ROM
 	AM_RANGE(0xf000, 0xf7ff) AM_ROMBANK("bank2")
 	AM_RANGE(0xf800, 0xfbff) AM_RAM AM_SHARE("share1")
@@ -329,13 +329,6 @@ WRITE_LINE_MEMBER(wc90b_state::irqhandler)
 	//m_audiocpu->set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
 WRITE_LINE_MEMBER(wc90b_state::adpcm_int)
 {
 	m_toggle ^= 1;
@@ -348,11 +341,6 @@ WRITE_LINE_MEMBER(wc90b_state::adpcm_int)
 		m_msm->data_w((m_msm5205next & 0x0f) >> 0);
 }
 
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(wc90b_state,adpcm_int),      /* interrupt function */
-	MSM5205_S96_4B  /* 4KHz 4-bit */
-};
 
 static MACHINE_CONFIG_START( wc90b, wc90b_state )
 
@@ -376,21 +364,23 @@ static MACHINE_CONFIG_START( wc90b, wc90b_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(wc90b_state, screen_update_wc90b)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(wc90b)
-	MCFG_PALETTE_LENGTH(1024)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", wc90b)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, YM2203_CLOCK)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(wc90b_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("msm", MSM5205, MSM5205_CLOCK)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(wc90b_state, adpcm_int))      /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S96_4B)  /* 4KHz 4-bit */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -484,9 +474,9 @@ ROM_START( wc90b2 )
 	ROM_LOAD( "el_ic143_gal16v8_4.bin", 0x0800, 0x0117, NO_DUMP SHA1(fbe632437eac2418da7a3c3e947cfd36f6211407) )
 ROM_END
 
-#if 0
-/* Different bootleg set with only one new ROM, a05 (added as "el_ic98_27c512_05.bin"), not included because it's
-probably just a minor text mod from the supported set (only two bytes differs), although I cannot find the difference:
+
+/* Different bootleg set with only one new ROM, a05 (added as "el_ic98_27c512_05.bin"), probably just a minor text mod from the supported set
+(only two bytes differs), although I cannot find the difference:
    Comparing files a05.bin and el_ic98_27c512_05.bin
     00000590: 0F 0B
     00000591: FF FA
@@ -533,9 +523,8 @@ ROM_START( wc90ba )
 	ROM_LOAD( "el_ic100_gal16v8_3.bin", 0x0600, 0x0117, NO_DUMP SHA1(515fcdf378e75ed078f54439fefce8807403bdd5) )
 	ROM_LOAD( "el_ic143_gal16v8_4.bin", 0x0800, 0x0117, NO_DUMP SHA1(fbe632437eac2418da7a3c3e947cfd36f6211407) )
 ROM_END
-#endif
 
 
 GAME( 1989, wc90b1, wc90, wc90b, wc90b, driver_device, 0, ROT0, "bootleg", "Euro League (Italian hack of Tecmo World Cup '90)", GAME_NO_COCKTAIL | GAME_IMPERFECT_SOUND )
 GAME( 1989, wc90b2, wc90, wc90b, wc90b, driver_device, 0, ROT0, "bootleg", "Worldcup '90", GAME_NO_COCKTAIL | GAME_IMPERFECT_SOUND )
-//GAME( 1989, wc90ba,  wc90, wc90b, wc90b, driver_device, 0, ROT0, "bootleg", "Euro League (alt version)", GAME_NO_COCKTAIL | GAME_IMPERFECT_SOUND )
+GAME( 1989, wc90ba, wc90, wc90b, wc90b, driver_device, 0, ROT0, "bootleg", "Euro League (Italian hack of Temco World Cup '90 - alt version)", GAME_NO_COCKTAIL | GAME_IMPERFECT_SOUND )

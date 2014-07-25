@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #include "includes/v1050.h"
 
 /*
@@ -50,17 +52,15 @@ WRITE8_MEMBER( v1050_state::videoram_w )
 
 /* MC6845 Interface */
 
-static MC6845_UPDATE_ROW( v1050_update_row )
+MC6845_UPDATE_ROW( v1050_state::crtc_update_row )
 {
-	v1050_state *state = device->machine().driver_data<v1050_state>();
-
 	int column, bit;
 
 	for (column = 0; column < x_count; column++)
 	{
 		UINT16 address = (((ra & 0x03) + 1) << 13) | ((ma & 0x1fff) + column);
-		UINT8 data = state->m_video_ram[address & V1050_VIDEORAM_MASK];
-		UINT8 attr = (state->m_attr & 0xfc) | (state->m_attr_ram[address] & 0x03);
+		UINT8 data = m_video_ram[address & V1050_VIDEORAM_MASK];
+		UINT8 attr = (m_attr & 0xfc) | (m_attr_ram[address] & 0x03);
 
 		for (bit = 0; bit < 8; bit++)
 		{
@@ -79,7 +79,7 @@ static MC6845_UPDATE_ROW( v1050_update_row )
 			/* display blank */
 			if (attr & V1050_ATTR_BLANK) color = 0;
 
-			bitmap.pix32(y, x) = RGB_MONOCHROME_GREEN_HIGHLIGHT[color];
+			bitmap.pix32(vbp + y, hbp + x) = m_palette->pen(de ? color : 0);
 
 			data <<= 1;
 		}
@@ -92,20 +92,6 @@ WRITE_LINE_MEMBER( v1050_state::crtc_vs_w )
 
 	set_interrupt(INT_VSYNC, state);
 }
-
-static MC6845_INTERFACE( crtc_intf )
-{
-	false,
-	8,
-	NULL,
-	v1050_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(v1050_state, crtc_vs_w),
-	NULL
-};
 
 /* Video Start */
 
@@ -121,13 +107,18 @@ void v1050_state::video_start()
 /* Machine Drivers */
 
 MACHINE_CONFIG_FRAGMENT( v1050_video )
-	MCFG_MC6845_ADD(H46505_TAG, H46505, SCREEN_TAG, XTAL_15_36MHz/8, crtc_intf)
+	MCFG_MC6845_ADD(H46505_TAG, H46505, SCREEN_TAG, XTAL_15_36MHz/8)
+	MCFG_MC6845_SHOW_BORDER_AREA(true)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(v1050_state, crtc_update_row)
+	MCFG_MC6845_OUT_VSYNC_CB(WRITELINE(v1050_state, crtc_vs_w))
 
 	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
 	MCFG_SCREEN_UPDATE_DEVICE(H46505_TAG, h46505_device, screen_update)
-
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_SIZE(640, 400)
 	MCFG_SCREEN_VISIBLE_AREA(0,640-1, 0, 400-1)
+
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN_HIGHLIGHT("palette")
 MACHINE_CONFIG_END

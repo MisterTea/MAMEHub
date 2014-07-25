@@ -27,7 +27,7 @@ WRITE8_MEMBER(sbugger_state::sbugger_videoram_attr_w)
 
 void sbugger_state::video_start()
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sbugger_state::get_sbugger_tile_info),this), TILEMAP_SCAN_ROWS, 8, 16, 64, 16);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sbugger_state::get_sbugger_tile_info),this), TILEMAP_SCAN_ROWS, 8, 16, 64, 16);
 }
 
 UINT32 sbugger_state::screen_update_sbugger(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -37,7 +37,7 @@ UINT32 sbugger_state::screen_update_sbugger(screen_device &screen, bitmap_ind16 
 }
 
 /* not right but so we can see things ok */
-void sbugger_state::palette_init()
+PALETTE_INIT_MEMBER(sbugger_state, sbugger)
 {
 	/* just some random colours for now */
 	int i;
@@ -49,8 +49,8 @@ void sbugger_state::palette_init()
 		int b = machine().rand()|0x80;
 		if (i == 0) r = g = b = 0;
 
-		palette_set_color(machine(),i*2+1,MAKE_RGB(r,g,b));
-		palette_set_color(machine(),i*2,MAKE_RGB(0,0,0));
+		palette.set_pen_color(i*2+1,rgb_t(r,g,b));
+		palette.set_pen_color(i*2,rgb_t(0,0,0));
 
 	}
 

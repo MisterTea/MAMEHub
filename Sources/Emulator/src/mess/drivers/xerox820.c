@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /***************************************************************************
 
         Xerox 820
@@ -11,7 +13,9 @@
     TODO:
 
     - Xerox 820
-        - floppy (wd1772.c FM support)
+        - floppy format has 3xcd at the end of track data
+            :u109: write track 0
+            :u109: track description 16xff ... 109xff 3xcd
     - Xerox 820-II
         - floppy (read/write to FDC triggers Z80 WAIT)
         - Winchester
@@ -34,6 +38,9 @@
 
 
 #include "includes/xerox820.h"
+#include "bus/rs232/rs232.h"
+
+#define KEYBOARD_TAG "keyboard"
 
 /* Read/Write Handlers */
 
@@ -315,40 +322,7 @@ READ8_MEMBER( xerox820_state::kbpio_pb_r )
 	return m_keydata;
 };
 
-static Z80PIO_INTERFACE( xerox820_kbpio_intf )
-{
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0),     /* callback when change interrupt status */
-	DEVCB_DRIVER_MEMBER(xerox820_state, kbpio_pa_r),    /* port A read callback */
-	DEVCB_DRIVER_MEMBER(xerox820_state, kbpio_pa_w),    /* port A write callback */
-	DEVCB_NULL,                                         /* portA ready active callback */
-	DEVCB_DRIVER_MEMBER(xerox820_state, kbpio_pb_r),    /* port B read callback */
-	DEVCB_NULL,                                         /* port B write callback */
-	DEVCB_NULL                                          /* portB ready active callback */
-};
-
-static Z80PIO_INTERFACE( xerox820ii_kbpio_intf )
-{
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0),     /* callback when change interrupt status */
-	DEVCB_DRIVER_MEMBER(xerox820_state, kbpio_pa_r),    /* port A read callback */
-	DEVCB_DRIVER_MEMBER(xerox820_state, kbpio_pa_w),    /* port A write callback */
-	DEVCB_NULL,                                         /* portA ready active callback */
-	DEVCB_DRIVER_MEMBER(xerox820_state, kbpio_pb_r),    /* port B read callback */
-	DEVCB_NULL,                                         /* port B write callback */
-	DEVCB_NULL                                          /* portB ready active callback */
-};
-
-static Z80PIO_INTERFACE( gppio_intf )
-{
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0), /* callback when change interrupt status */
-	DEVCB_NULL,     /* port A read callback */
-	DEVCB_NULL,     /* port A write callback */
-	DEVCB_NULL,     /* portA ready active callback */
-	DEVCB_NULL,     /* port B read callback */
-	DEVCB_NULL,     /* port B write callback */
-	DEVCB_NULL      /* portB ready active callback */
-};
-
-READ8_MEMBER( xerox820ii_state::rdpio_pb_r )
+WRITE8_MEMBER( xerox820ii_state::rdpio_pb_w )
 {
 	/*
 
@@ -359,82 +333,20 @@ READ8_MEMBER( xerox820ii_state::rdpio_pb_r )
 	    2       NC/D
 	    3       NREQ
 	    4       NI/O
-	    5
-	    6       LS74 Q
-	    7
-
-	*/
-
-	UINT8 data = 0;
-
-	data |= !m_sasibus->scsi_bsy_r();
-	data |= !m_sasibus->scsi_msg_r() << 1;
-	data |= !m_sasibus->scsi_cd_r() << 2;
-	data |= !m_sasibus->scsi_req_r() << 3;
-	data |= !m_sasibus->scsi_io_r() << 4;
-
-	return data;
-}
-
-WRITE8_MEMBER( xerox820ii_state::rdpio_pb_w )
-{
-	/*
-
-	    bit     description
-
-	    0
-	    1
-	    2
-	    3
-	    4
 	    5       NSEL
-	    6
+	    6       LS74 Q
 	    7       NRST
-
 	*/
 
-	m_sasibus->scsi_sel_w(!BIT(data, 5));
-	m_sasibus->scsi_rst_w(!BIT(data, 7));
+	m_sasibus->write_sel(!BIT(data, 5));
+	m_sasibus->write_rst(!BIT(data, 7));
+	// TODO: LS74 Q
 }
 
 WRITE_LINE_MEMBER( xerox820ii_state::rdpio_pardy_w )
 {
 	// TODO
 }
-
-static Z80PIO_INTERFACE( rdpio_intf )
-{
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0), /* callback when change interrupt status */
-	DEVCB_DEVICE_MEMBER(SASIBUS_TAG ":host", scsicb_device, scsi_data_r),   /* port A read callback */
-	DEVCB_DEVICE_MEMBER(SASIBUS_TAG ":host", scsicb_device, scsi_data_w),   /* port A write callback */
-	DEVCB_DRIVER_LINE_MEMBER(xerox820ii_state, rdpio_pardy_w),      /* portA ready active callback */
-	DEVCB_DRIVER_MEMBER(xerox820ii_state, rdpio_pb_r),      /* port B read callback */
-	DEVCB_DRIVER_MEMBER(xerox820ii_state, rdpio_pb_w),      /* port B write callback */
-	DEVCB_NULL      /* portB ready active callback */
-};
-
-/* Z80 SIO */
-
-static Z80SIO_INTERFACE( sio_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0)
-};
 
 /* Z80 CTC */
 
@@ -443,14 +355,6 @@ TIMER_DEVICE_CALLBACK_MEMBER( xerox820_state::ctc_tick )
 	m_ctc->trg0(1);
 	m_ctc->trg0(0);
 }
-
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0), /* interrupt handler */
-	DEVCB_DEVICE_LINE_MEMBER(Z80CTC_TAG, z80ctc_device, trg1),  /* ZC/TO0 callback */
-	DEVCB_NULL, /* ZC/TO1 callback */
-	DEVCB_DEVICE_LINE_MEMBER(Z80CTC_TAG, z80ctc_device, trg3)   /* ZC/TO2 callback */
-};
 
 /* Z80 Daisy Chain */
 
@@ -480,14 +384,14 @@ void xerox820_state::update_nmi()
 	m_maincpu->set_input_line(INPUT_LINE_NMI, state);
 }
 
-void xerox820_state::fdc_intrq_w(bool state)
+WRITE_LINE_MEMBER( xerox820_state::fdc_intrq_w )
 {
 	m_fdc_irq = state;
 
 	update_nmi();
 }
 
-void xerox820_state::fdc_drq_w(bool state)
+WRITE_LINE_MEMBER( xerox820_state::fdc_drq_w )
 {
 	m_fdc_drq = state;
 
@@ -511,45 +415,13 @@ WRITE8_MEMBER( xerox820_state::kbd_w )
 	m_kbpio->strobe_b(1);
 }
 
-static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
-{
-	DEVCB_DRIVER_MEMBER(xerox820_state, kbd_w)
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232a_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232a_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232b_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232b_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 /* Video */
 
 UINT32 xerox820_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	UINT8 y,ra,chr,gfx;
 	UINT16 sy=0,ma=(m_scroll + 1) * 0x80,x;
+	const pen_t *pen=m_palette->pens();
 
 	m_framecnt++;
 
@@ -578,13 +450,13 @@ UINT32 xerox820_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap
 					gfx = 0xff;
 
 			/* Display a scanline of a character (7 pixels) */
-			*p++ = RGB_MONOCHROME_WHITE[0];
-			*p++ = RGB_MONOCHROME_WHITE[BIT(gfx, 4) ^ 1];
-			*p++ = RGB_MONOCHROME_WHITE[BIT(gfx, 3) ^ 1];
-			*p++ = RGB_MONOCHROME_WHITE[BIT(gfx, 2) ^ 1];
-			*p++ = RGB_MONOCHROME_WHITE[BIT(gfx, 1) ^ 1];
-			*p++ = RGB_MONOCHROME_WHITE[BIT(gfx, 0) ^ 1];
-			*p++ = RGB_MONOCHROME_WHITE[0];
+			*p++ = pen[0];
+			*p++ = pen[BIT(gfx, 4) ^ 1];
+			*p++ = pen[BIT(gfx, 3) ^ 1];
+			*p++ = pen[BIT(gfx, 2) ^ 1];
+			*p++ = pen[BIT(gfx, 1) ^ 1];
+			*p++ = pen[BIT(gfx, 0) ^ 1];
+			*p++ = pen[0];
 			}
 		}
 		ma+=128;
@@ -596,10 +468,6 @@ UINT32 xerox820_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap
 
 void xerox820_state::machine_start()
 {
-	// floppy callbacks
-	m_fdc->setup_intrq_cb(wd_fdc_t::line_cb(FUNC(xerox820_state::fdc_intrq_w), this));
-	m_fdc->setup_drq_cb(wd_fdc_t::line_cb(FUNC(xerox820_state::fdc_drq_w), this));
-
 	// state saving
 	save_item(NAME(m_keydata));
 	save_item(NAME(m_scroll));
@@ -713,21 +581,53 @@ static MACHINE_CONFIG_START( xerox820, xerox820_state )
 	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
 	MCFG_SCREEN_UPDATE_DRIVER(xerox820_state, screen_update)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_10_69425MHz, 700, 0, 560, 260, 0, 240)
-	MCFG_GFXDECODE(xerox820)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", xerox820)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* devices */
-	MCFG_Z80SIO0_ADD(Z80SIO_TAG, XTAL_20MHz/8, sio_intf)
-	MCFG_Z80PIO_ADD(Z80PIO_KB_TAG, XTAL_20MHz/8, xerox820_kbpio_intf)
-	MCFG_Z80PIO_ADD(Z80PIO_GP_TAG, XTAL_20MHz/8, gppio_intf)
-	MCFG_Z80CTC_ADD(Z80CTC_TAG, XTAL_20MHz/8, ctc_intf)
+	MCFG_DEVICE_ADD(Z80PIO_KB_TAG, Z80PIO, XTAL_20MHz/8)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_IN_PA_CB(READ8(xerox820_state, kbpio_pa_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(xerox820_state, kbpio_pa_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(xerox820_state, kbpio_pb_r))
+
+	MCFG_DEVICE_ADD(Z80PIO_GP_TAG, Z80PIO, XTAL_20MHz/8)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_DEVICE_ADD(Z80CTC_TAG, Z80CTC, XTAL_20MHz/8)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(DEVWRITELINE(Z80CTC_TAG, z80ctc_device, trg1))
+	MCFG_Z80CTC_ZC2_CB(DEVWRITELINE(Z80CTC_TAG, z80ctc_device, trg3))
 	//MCFG_TIMER_DRIVER_ADD_PERIODIC("ctc", xerox820_state, ctc_tick, attotime::from_hz(XTAL_20MHz/8))
+
 	MCFG_FD1771x_ADD(FD1771_TAG, XTAL_20MHz/20)
+	MCFG_WD_FDC_INTRQ_CALLBACK(WRITELINE(xerox820_state, fdc_intrq_w))
+	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(xerox820_state, fdc_drq_w))
 	MCFG_FLOPPY_DRIVE_ADD(FD1771_TAG":0", xerox820_floppies, "sa400", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(FD1771_TAG":1", xerox820_floppies, "sa400", floppy_image_device::default_floppy_formats)
-	MCFG_COM8116_ADD(COM8116_TAG, XTAL_5_0688MHz, NULL, WRITELINE(xerox820_state, fr_w), DEVWRITELINE(Z80SIO_TAG, z80dart_device, rxtxcb_w))
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, NULL)
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
-	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
+
+	MCFG_Z80SIO0_ADD(Z80SIO_TAG, XTAL_20MHz/8, 0, 0, 0, 0)
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80sio0_device, rxa_w))
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80sio0_device, rxb_w))
+
+	MCFG_DEVICE_ADD(COM8116_TAG, COM8116, XTAL_5_0688MHz)
+	MCFG_COM8116_FR_HANDLER(WRITELINE(xerox820_state, fr_w))
+	MCFG_COM8116_FT_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, rxtxcb_w))
+
+	MCFG_DEVICE_ADD(KEYBOARD_TAG, GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(xerox820_state, kbd_w))
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -755,7 +655,9 @@ static MACHINE_CONFIG_START( xerox820ii, xerox820ii_state )
 	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
 	MCFG_SCREEN_UPDATE_DRIVER(xerox820ii_state, screen_update)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_10_69425MHz, 700, 0, 560, 260, 0, 240)
-	MCFG_GFXDECODE(xerox820ii)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", xerox820ii)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -763,24 +665,71 @@ static MACHINE_CONFIG_START( xerox820ii, xerox820ii_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* devices */
-	MCFG_Z80SIO0_ADD(Z80SIO_TAG, XTAL_16MHz/4, sio_intf)
-	MCFG_Z80PIO_ADD(Z80PIO_KB_TAG, XTAL_16MHz/4, xerox820ii_kbpio_intf)
-	MCFG_Z80PIO_ADD(Z80PIO_GP_TAG, XTAL_16MHz/4, gppio_intf)
-	MCFG_Z80PIO_ADD(Z80PIO_RD_TAG, XTAL_20MHz/8, rdpio_intf)
-	MCFG_Z80CTC_ADD(Z80CTC_TAG, XTAL_16MHz/4, ctc_intf)
+	MCFG_DEVICE_ADD(Z80PIO_KB_TAG, Z80PIO, XTAL_16MHz/4)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_IN_PA_CB(READ8(xerox820_state, kbpio_pa_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(xerox820_state, kbpio_pa_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(xerox820_state, kbpio_pb_r))
+
+	MCFG_DEVICE_ADD(Z80PIO_GP_TAG, Z80PIO, XTAL_16MHz/4)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_DEVICE_ADD(Z80PIO_RD_TAG, Z80PIO, XTAL_20MHz/8)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_IN_PA_CB(DEVREAD8("sasi_data_in", input_buffer_device, read))
+	MCFG_Z80PIO_OUT_PA_CB(DEVWRITE8("sasi_data_out", output_latch_device, write))
+	MCFG_Z80PIO_OUT_ARDY_CB(WRITELINE(xerox820ii_state, rdpio_pardy_w))
+	MCFG_Z80PIO_IN_PB_CB(DEVREAD8("sasi_ctrl_in", input_buffer_device, read))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(xerox820ii_state, rdpio_pb_w))
+
+	MCFG_DEVICE_ADD(Z80CTC_TAG, Z80CTC, XTAL_16MHz/4)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(DEVWRITELINE(Z80CTC_TAG, z80ctc_device, trg1))
+	MCFG_Z80CTC_ZC2_CB(DEVWRITELINE(Z80CTC_TAG, z80ctc_device, trg3))
 	//MCFG_TIMER_DRIVER_ADD_PERIODIC("ctc", xerox820_state, ctc_tick, attotime::from_hz(XTAL_16MHz/4))
+
 	MCFG_FD1797x_ADD(FD1797_TAG, XTAL_16MHz/8)
+	MCFG_WD_FDC_INTRQ_CALLBACK(WRITELINE(xerox820_state, fdc_intrq_w))
+	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(xerox820_state, fdc_drq_w))
 	MCFG_FLOPPY_DRIVE_ADD(FD1797_TAG":0", xerox820_floppies, "sa450", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(FD1797_TAG":1", xerox820_floppies, "sa450", floppy_image_device::default_floppy_formats)
-	MCFG_COM8116_ADD(COM8116_TAG, XTAL_5_0688MHz, NULL, WRITELINE(xerox820_state, fr_w), DEVWRITELINE(Z80SIO_TAG, z80dart_device, rxtxcb_w))
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, NULL)
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
-	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
+
+	MCFG_Z80SIO0_ADD(Z80SIO_TAG, XTAL_16MHz/4, 0, 0, 0, 0)
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80sio0_device, rxa_w))
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80sio0_device, rxb_w))
+
+	MCFG_DEVICE_ADD(COM8116_TAG, COM8116, XTAL_5_0688MHz)
+	MCFG_COM8116_FR_HANDLER(WRITELINE(xerox820_state, fr_w))
+	MCFG_COM8116_FT_HANDLER(DEVWRITELINE(Z80SIO_TAG, z80dart_device, rxtxcb_w))
+
+	MCFG_DEVICE_ADD(KEYBOARD_TAG, GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(xerox820_state, kbd_w))
 
 	// SASI bus
-	MCFG_SCSIBUS_ADD(SASIBUS_TAG)
-	MCFG_SCSIDEV_ADD(SASIBUS_TAG ":harddisk0", SA1403D, SCSI_ID_0)
-	MCFG_SCSICB_ADD(SASIBUS_TAG ":host")
+	MCFG_DEVICE_ADD(SASIBUS_TAG, SCSI_PORT, 0)
+	MCFG_SCSI_DATA_INPUT_BUFFER("sasi_data_in")
+	MCFG_SCSI_BSY_HANDLER(DEVWRITELINE("sasi_ctrl_in", input_buffer_device, write_bit0)) MCFG_DEVCB_XOR(1)
+	MCFG_SCSI_MSG_HANDLER(DEVWRITELINE("sasi_ctrl_in", input_buffer_device, write_bit1)) MCFG_DEVCB_XOR(1)
+	MCFG_SCSI_CD_HANDLER(DEVWRITELINE("sasi_ctrl_in", input_buffer_device, write_bit2)) MCFG_DEVCB_XOR(1)
+	MCFG_SCSI_REQ_HANDLER(DEVWRITELINE("sasi_ctrl_in", input_buffer_device, write_bit3)) MCFG_DEVCB_XOR(1)
+	MCFG_SCSI_IO_HANDLER(DEVWRITELINE("sasi_ctrl_in", input_buffer_device, write_bit4)) MCFG_DEVCB_XOR(1)
+
+	MCFG_SCSIDEV_ADD(SASIBUS_TAG ":" SCSI_PORT_DEVICE1, "harddisk", SA1403D, SCSI_ID_0)
+
+	MCFG_SCSI_OUTPUT_LATCH_ADD("sasi_data_out", SASIBUS_TAG)
+	MCFG_DEVICE_ADD("sasi_data_in", INPUT_BUFFER, 0)
+	MCFG_DEVICE_ADD("sasi_ctrl_in", INPUT_BUFFER, 0)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

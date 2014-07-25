@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, hap
 /***************************************************************************
 
 prelim notes:
@@ -94,7 +96,9 @@ public:
 		m_crtc(*this, "crtc"),
 		m_fbram(*this, "fb_ram"),
 		m_vram(*this, "vram"),
-		m_cram(*this, "cram")
+		m_cram(*this, "cram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 	{
 		m_soundlatch = 0;
 		m_bank = 0;
@@ -109,6 +113,9 @@ public:
 	required_shared_ptr<UINT8> m_vram;
 	required_shared_ptr<UINT8> m_cram;
 
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	UINT8 m_soundlatch;
 	UINT8 m_bank;
 	UINT8 m_layer;
@@ -121,7 +128,7 @@ public:
 	DECLARE_READ8_MEMBER(flipjack_soundlatch_r);
 	DECLARE_WRITE8_MEMBER(flipjack_portc_w);
 	virtual void machine_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(flipjack);
 	UINT32 screen_update_flipjack(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 };
 
@@ -132,19 +139,19 @@ public:
 
 ***************************************************************************/
 
-void flipjack_state::palette_init()
+PALETTE_INIT_MEMBER(flipjack_state, flipjack)
 {
 	// from prom
 	const UINT8 *color_prom = memregion("proms")->base();
 	for (int i = 0; i < 0x40; i++)
 	{
-		palette_set_color_rgb(machine(), 2*i+1, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
-		palette_set_color_rgb(machine(), 2*i+0, pal1bit(color_prom[i] >> 1), pal1bit(color_prom[i] >> 2), pal1bit(color_prom[i] >> 0));
+		palette.set_pen_color(2*i+1, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
+		palette.set_pen_color(2*i+0, pal1bit(color_prom[i] >> 1), pal1bit(color_prom[i] >> 2), pal1bit(color_prom[i] >> 0));
 	}
 
 	// standard 3bpp for blitter
 	for (int i = 0; i < 8; i++)
-		palette_set_color_rgb(machine(), i+0x80, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
+		palette.set_pen_color(i+0x80, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
 }
 
 
@@ -152,7 +159,7 @@ UINT32 flipjack_state::screen_update_flipjack(screen_device &screen, bitmap_rgb3
 {
 	int x,y,count;
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	// draw playfield
 	if (m_layer & 2)
@@ -179,7 +186,7 @@ UINT32 flipjack_state::screen_update_flipjack(screen_device &screen, bitmap_rgb3
 						color = ((pen_r >> (7-xi)) & 1)<<0;
 						color|= ((pen_g >> (7-xi)) & 1)<<1;
 						color|= ((pen_b >> (7-xi)) & 1)<<2;
-						bitmap.pix32(y, x+xi) = machine().pens[color+0x80];
+						bitmap.pix32(y, x+xi) = m_palette->pen(color+0x80);
 					}
 				}
 
@@ -193,11 +200,11 @@ UINT32 flipjack_state::screen_update_flipjack(screen_device &screen, bitmap_rgb3
 	{
 		for (x=0;x<32;x++)
 		{
-			gfx_element *gfx = machine().gfx[0];
+			gfx_element *gfx = m_gfxdecode->gfx(0);
 			int tile = m_bank << 8 | m_vram[x+y*0x100];
 			int color = m_cram[x+y*0x100] & 0x3f;
 
-			drawgfx_transpen(bitmap, cliprect, gfx, tile, color, 0, 0, x*8, y*8, 0);
+				gfx->transpen(bitmap,cliprect, tile, color, 0, 0, x*8, y*8, 0);
 		}
 	}
 
@@ -221,7 +228,7 @@ UINT32 flipjack_state::screen_update_flipjack(screen_device &screen, bitmap_rgb3
 					{
 						color = ((pen >> (7-xi)) & 1) ? 0x87 : 0;
 						if(color)
-							bitmap.pix32(y, x+xi) = machine().pens[color];
+							bitmap.pix32(y, x+xi) = m_palette->pen(color);
 					}
 				}
 
@@ -396,53 +403,6 @@ INPUT_PORTS_END
 
 ***************************************************************************/
 
-static I8255A_INTERFACE( ppi8255_intf )
-{
-	DEVCB_INPUT_PORT("P1"),             /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_INPUT_PORT("P2"),             /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_INPUT_PORT("P3"),             /* Port C read */
-	DEVCB_DRIVER_MEMBER(flipjack_state,flipjack_portc_w)        /* Port C write */
-};
-
-
-static const ay8910_interface ay8910_config_1 =
-{
-	AY8910_LEGACY_OUTPUT,                   /* Flags */
-	AY8910_DEFAULT_LOADS,                   /* Load on channel in ohms */
-	DEVCB_DRIVER_MEMBER(flipjack_state,flipjack_soundlatch_r),  /* Port A read */
-	DEVCB_NULL,                             /* Port B read */
-	DEVCB_NULL,                             /* Port A write */
-	DEVCB_NULL                              /* Port B write */
-};
-
-static const ay8910_interface ay8910_config_2 =
-{
-	AY8910_LEGACY_OUTPUT,                   /* Flags */
-	AY8910_DEFAULT_LOADS,                   /* Load on channel in ohms */
-	DEVCB_NULL,                             /* Port A read */
-	DEVCB_NULL,                             /* Port B read */
-	DEVCB_NULL,                             /* Port A write */
-	DEVCB_NULL                              /* Port B write */
-};
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-
-
 static const gfx_layout tilelayout =
 {
 	8, 8,
@@ -485,29 +445,34 @@ static MACHINE_CONFIG_START( flipjack, flipjack_state )
 	MCFG_CPU_IO_MAP(flipjack_sound_io_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", flipjack_state,  nmi_line_assert)
 
-	MCFG_I8255A_ADD( "ppi8255", ppi8255_intf )
-
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("P1"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("P2"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("P3"))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(flipjack_state, flipjack_portc_w))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(VIDEO_CLOCK, 0x188, 0, 0x100, 0x100, 0, 0xc0) // from crtc
 	MCFG_SCREEN_UPDATE_DRIVER(flipjack_state, screen_update_flipjack)
 
-	MCFG_MC6845_ADD("crtc", HD6845, "screen", VIDEO_CLOCK/8, mc6845_intf)
+	MCFG_MC6845_ADD("crtc", HD6845, "screen", VIDEO_CLOCK/8)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
-	MCFG_GFXDECODE(flipjack)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", flipjack)
 
-	MCFG_PALETTE_LENGTH(128+8)
+	MCFG_PALETTE_ADD("palette", 128+8)
+	MCFG_PALETTE_INIT_OWNER(flipjack_state, flipjack)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, MASTER_CLOCK/8)
-	MCFG_SOUND_CONFIG(ay8910_config_1)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(flipjack_state, flipjack_soundlatch_r))  /* Port A read */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_SOUND_ADD("ay2", AY8910, MASTER_CLOCK/8)
-	MCFG_SOUND_CONFIG(ay8910_config_2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

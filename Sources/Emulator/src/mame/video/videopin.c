@@ -27,7 +27,7 @@ TILE_GET_INFO_MEMBER(videopin_state::get_tile_info)
 
 void videopin_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(videopin_state::get_tile_info),this), tilemap_mapper_delegate(FUNC(videopin_state::get_memory_offset),this),  8, 8, 48, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(videopin_state::get_tile_info),this), tilemap_mapper_delegate(FUNC(videopin_state::get_memory_offset),this),  8, 8, 48, 32);
 }
 
 
@@ -68,7 +68,7 @@ UINT32 videopin_state::screen_update_videopin(screen_device &screen, bitmap_ind1
 				{
 					for (j = 0; j < 2; j++)
 					{
-						drawgfx_transpen(bitmap, rect, machine().gfx[1],
+						m_gfxdecode->gfx(1)->transpen(bitmap,rect,
 							0, 0,
 							0, 0,
 							x + 16 * i,

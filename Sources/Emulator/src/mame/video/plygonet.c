@@ -93,21 +93,21 @@ void polygonet_state::video_start()
 
 	/* find first empty slot to decode gfx */
 	for (m_ttl_gfx_index = 0; m_ttl_gfx_index < MAX_GFX_ELEMENTS; m_ttl_gfx_index++)
-		if (machine().gfx[m_ttl_gfx_index] == 0)
+		if (m_gfxdecode->gfx(m_ttl_gfx_index) == 0)
 			break;
 
 	assert(m_ttl_gfx_index != MAX_GFX_ELEMENTS);
 
 	/* decode the ttl layer's gfx */
-	machine().gfx[m_ttl_gfx_index] = auto_alloc(machine(), gfx_element(machine(), charlayout, memregion("gfx1")->base(), machine().total_colors() / 16, 0));
+	m_gfxdecode->set_gfx(m_ttl_gfx_index, global_alloc(gfx_element(m_palette, charlayout, memregion("gfx1")->base(), 0, m_palette->entries() / 16, 0)));
 
 	/* create the tilemap */
-	m_ttl_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(polygonet_state::ttl_get_tile_info),this), tilemap_mapper_delegate(FUNC(polygonet_state::plygonet_scan),this),  8, 8, 64, 32);
+	m_ttl_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(polygonet_state::ttl_get_tile_info),this), tilemap_mapper_delegate(FUNC(polygonet_state::plygonet_scan),this),  8, 8, 64, 32);
 
 	m_ttl_tilemap->set_transparent_pen(0);
 
 	/* set up the roz t-map too */
-	m_roz_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(polygonet_state::roz_get_tile_info),this), tilemap_mapper_delegate(FUNC(polygonet_state::plygonet_scan_cols),this), 16, 16, 32, 64);
+	m_roz_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(polygonet_state::roz_get_tile_info),this), tilemap_mapper_delegate(FUNC(polygonet_state::plygonet_scan_cols),this), 16, 16, 32, 64);
 	m_roz_tilemap->set_transparent_pen(0);
 
 	/* save states */
@@ -119,7 +119,7 @@ void polygonet_state::video_start()
 UINT32 polygonet_state::screen_update_polygonet(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	screen.priority().fill(0);
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	m_k053936->zoom_draw(screen, bitmap, cliprect, m_roz_tilemap, 0, 0, 0);
 

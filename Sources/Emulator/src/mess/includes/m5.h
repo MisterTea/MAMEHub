@@ -64,6 +64,9 @@ public:
 	// video state
 //  const TMS9928a_interface *m_vdp_intf;
 
+	int m_centronics_busy;
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
+
 	// floppy state
 	UINT8 m_fd5_data;
 	UINT8 m_fd5_com;
@@ -74,7 +77,6 @@ public:
 	DECLARE_DRIVER_INIT(ntsc);
 	DECLARE_WRITE_LINE_MEMBER(sordm5_video_interrupt_callback);
 
-	void fdc_irq(bool state);
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
 };
 

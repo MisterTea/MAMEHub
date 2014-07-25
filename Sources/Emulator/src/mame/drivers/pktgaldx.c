@@ -165,7 +165,7 @@ static ADDRESS_MAP_START( pktgaldb_map, AS_PROGRAM, 16, pktgaldx_state )
 
 	AM_RANGE(0x300000, 0x30000f) AM_RAM // ??
 
-	AM_RANGE(0x330000, 0x330bff) AM_RAM_WRITE(paletteram_xbgr_word_be_w) AM_SHARE("paletteram") // extra colours?
+	AM_RANGE(0x330000, 0x330bff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // extra colours?
 ADDRESS_MAP_END
 
 
@@ -303,22 +303,10 @@ static GFXDECODE_START( bootleg )
 GFXDECODE_END
 
 
-static int pktgaldx_bank_callback( const int bank )
+DECO16IC_BANK_CB_MEMBER(pktgaldx_state::bank_callback)
 {
 	return ((bank >> 4) & 0x7) * 0x1000;
 }
-
-static const deco16ic_interface pktgaldx_deco16ic_tilegen1_intf =
-{
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0, 16, /* color base (default values) */
-	0x0f, 0x0f, /* color masks (default values) */
-	NULL,
-	pktgaldx_bank_callback,
-	0,1,
-};
-
 
 
 void pktgaldx_state::machine_start()
@@ -340,16 +328,36 @@ static MACHINE_CONFIG_START( pktgaldx, pktgaldx_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pktgaldx_state, screen_update_pktgaldx)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(4096)
-	MCFG_GFXDECODE(pktgaldx)
+	MCFG_PALETTE_ADD("palette", 4096)
+	MCFG_PALETTE_FORMAT(XBGR)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pktgaldx)
 
 	MCFG_DECOCOMN_ADD("deco_common")
+	MCFG_DECOCOMN_PALETTE("palette")
 
-	MCFG_DECO16IC_ADD("tilegen1", pktgaldx_deco16ic_tilegen1_intf)
+	MCFG_DEVICE_ADD("tilegen1", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x10)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(pktgaldx_state, bank_callback)
+	MCFG_DECO16IC_BANK2_CB(pktgaldx_state, bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(1)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 2);
+	MCFG_DECO_SPRITE_GFX_REGION(2)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	MCFG_DECO104_ADD("ioprot104")
 	MCFG_DECO146_SET_INTERFACE_SCRAMBLE(8,9,  4,5,6,7    ,1,0,3,2) // hopefully this is correct, nothing else uses this arrangement!
@@ -382,9 +390,12 @@ static MACHINE_CONFIG_START( pktgaldb, pktgaldx_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pktgaldx_state, screen_update_pktgaldb)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(4096)
-	MCFG_GFXDECODE(bootleg)
+	MCFG_PALETTE_ADD("palette", 4096)
+	MCFG_PALETTE_FORMAT(XBGR)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bootleg)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

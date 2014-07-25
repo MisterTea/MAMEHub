@@ -39,7 +39,9 @@ public:
 		m_io_in0(*this, "IN0"),
 		m_io_in1(*this, "IN1"),
 		m_io_in2(*this, "IN2"),
-		m_io_in3(*this, "IN3")
+		m_io_in3(*this, "IN3"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_32(*this, "paletteram")
 	{ }
 
 	/* memory pointers */
@@ -95,11 +97,15 @@ public:
 	UINT32 screen_update_backfire_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(deco32_vbl_interrupt);
 	void descramble_sound();
+	DECO16IC_BANK_CB_MEMBER(bank_callback);
+	DECOSPR_PRIORITY_CB_MEMBER(pri_callback);
 
 	required_ioport m_io_in0;
 	required_ioport m_io_in1;
 	required_ioport m_io_in2;
 	required_ioport m_io_in3;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT32> m_generic_paletteram_32;
 	DECLARE_WRITE_LINE_MEMBER(sound_irq_gen);
 };
 
@@ -232,7 +238,7 @@ WRITE32_MEMBER(backfire_state::backfire_eeprom_w)
 WRITE32_MEMBER(backfire_state::backfire_nonbuffered_palette_w)
 {
 	COMBINE_DATA(&m_generic_paletteram_32[offset]);
-	palette_set_color_rgb(machine(),offset,pal5bit(m_generic_paletteram_32[offset] >> 0),pal5bit(m_generic_paletteram_32[offset] >> 5),pal5bit(m_generic_paletteram_32[offset] >> 10));
+	m_palette->set_pen_color(offset,pal5bit(m_generic_paletteram_32[offset] >> 0),pal5bit(m_generic_paletteram_32[offset] >> 5),pal5bit(m_generic_paletteram_32[offset] >> 10));
 }
 
 /* map 32-bit writes to 16-bit */
@@ -444,45 +450,18 @@ INTERRUPT_GEN_MEMBER(backfire_state::deco32_vbl_interrupt)
 }
 
 
-
-static int backfire_bank_callback( int bank )
+DECO16IC_BANK_CB_MEMBER(backfire_state::bank_callback)
 {
-	//  mame_printf_debug("bank callback %04x\n",bank); // bit 1 gets set too?
+	//  osd_printf_debug("bank callback %04x\n",bank); // bit 1 gets set too?
 	bank = bank >> 4;
 	bank = (bank & 1) | ((bank & 4) >> 1) | ((bank & 2) << 1);
 
 	return bank * 0x1000;
 }
 
-static const deco16ic_interface backfire_deco16ic_tilegen1_intf =
+DECOSPR_PRIORITY_CB_MEMBER(backfire_state::pri_callback)
 {
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0x00, 0x40, /* color base */
-	0x0f, 0x0f, /* color masks (default values) */
-	backfire_bank_callback,
-	backfire_bank_callback,
-	0,1
-};
-
-static const deco16ic_interface backfire_deco16ic_tilegen2_intf =
-{
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0x10, 0x50, /* color base */
-	0x0f, 0x0f, /* color masks (default values) */
-	backfire_bank_callback,
-	backfire_bank_callback,
-	2,3
-};
-
-void backfire_state::machine_start()
-{
-}
-
-UINT16 backfire_pri_callback(UINT16 x)
-{
-	switch (x & 0xc000)
+	switch (pri & 0xc000)
 	{
 		case 0x0000: return 0;    // numbers, people, cars when in the air, status display..
 		case 0x4000: return 0xf0; // cars most of the time
@@ -490,6 +469,10 @@ UINT16 backfire_pri_callback(UINT16 x)
 		case 0xc000: return 0xf0; // car wheels in race?
 	}
 	return 0;
+}
+
+void backfire_state::machine_start()
+{
 }
 
 static MACHINE_CONFIG_START( backfire, backfire_state )
@@ -503,8 +486,8 @@ static MACHINE_CONFIG_START( backfire, backfire_state )
 
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(2048)
-	MCFG_GFXDECODE(backfire)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", backfire)
 	MCFG_DEFAULT_LAYOUT(layout_dualhsxs)
 
 	MCFG_SCREEN_ADD("lscreen", RASTER)
@@ -513,6 +496,7 @@ static MACHINE_CONFIG_START( backfire, backfire_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(backfire_state, screen_update_backfire_left)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("rscreen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -520,22 +504,55 @@ static MACHINE_CONFIG_START( backfire, backfire_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(backfire_state, screen_update_backfire_right)
+	MCFG_SCREEN_PALETTE("palette")
 
+	MCFG_DEVICE_ADD("tilegen1", DECO16IC, 0)
+	MCFG_DECO16IC_SET_SCREEN("lscreen")
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x40)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(backfire_state, bank_callback)
+	MCFG_DECO16IC_BANK2_CB(backfire_state, bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(1)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
 
-	MCFG_DECO16IC_ADD("tilegen1", backfire_deco16ic_tilegen1_intf)
+	MCFG_DEVICE_ADD("tilegen2", DECO16IC, 0)
 	MCFG_DECO16IC_SET_SCREEN("lscreen")
-	MCFG_DECO16IC_ADD("tilegen2", backfire_deco16ic_tilegen2_intf)
-	MCFG_DECO16IC_SET_SCREEN("lscreen")
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x10)
+	MCFG_DECO16IC_PF2_COL_BANK(0x50)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(backfire_state, bank_callback)
+	MCFG_DECO16IC_BANK2_CB(backfire_state, bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(2)
+	MCFG_DECO16IC_PF12_16X16_BANK(3)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
 	MCFG_VIDEO_SET_SCREEN("lscreen")
-	decospr_device::set_gfx_region(*device, 4);
-	decospr_device::set_pri_callback(*device, backfire_pri_callback);
+	MCFG_DECO_SPRITE_GFX_REGION(4)
+	MCFG_DECO_SPRITE_PRIORITY_CB(backfire_state, pri_callback)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("spritegen2", DECO_SPRITE, 0)
 	MCFG_VIDEO_SET_SCREEN("rscreen")
-	decospr_device::set_gfx_region(*device, 5);
-	decospr_device::set_pri_callback(*device, backfire_pri_callback);
+	MCFG_DECO_SPRITE_GFX_REGION(5)
+	MCFG_DECO_SPRITE_PRIORITY_CB(backfire_state, pri_callback)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 
 	/* sound hardware */
@@ -673,7 +690,7 @@ void backfire_state::descramble_sound()
 {
 	UINT8 *rom = memregion("ymz")->base();
 	int length = 0x200000; // only the first rom is swapped on backfire!
-	UINT8 *buf1 = auto_alloc_array(machine(), UINT8, length);
+	dynamic_buffer buf1(length);
 	UINT32 x;
 
 	for (x = 0; x < length; x++)
@@ -691,13 +708,11 @@ void backfire_state::descramble_sound()
 	}
 
 	memcpy(rom, buf1, length);
-
-	auto_free(machine(), buf1);
 }
 
 READ32_MEMBER(backfire_state::backfire_speedup_r)
 {
-	//mame_printf_debug( "%08x\n",space.device().safe_pc());
+	//osd_printf_debug( "%08x\n",space.device().safe_pc());
 
 	if (space.device() .safe_pc()== 0xce44)  space.device().execute().spin_until_time(attotime::from_usec(400)); // backfire
 	if (space.device().safe_pc() == 0xcee4)  space.device().execute().spin_until_time(attotime::from_usec(400)); // backfirea

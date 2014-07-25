@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     corestr.c
 
     Core string functions used throughout MAME.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************/
 
@@ -87,12 +58,17 @@ int core_strnicmp(const char *s1, const char *s2, size_t n)
 int core_strwildcmp(const char *sp1, const char *sp2)
 {
 	char s1[17], s2[17];
-	int i, l1, l2;
+	size_t i, l1, l2;
 	char *p;
 
-	strncpy(s1, sp1, 16); s1[16] = 0; if (s1[0] == 0) strcpy(s1, "*");
+	//assert(strlen(sp1) < 16);
+	//assert(strlen(sp2) < 16);
 
-	strncpy(s2, sp2, 16); s2[16] = 0; if (s2[0] == 0) strcpy(s2, "*");
+	if (sp1[0] == 0) strcpy(s1, "*");
+	else { strncpy(s1, sp1, 16); s1[16] = 0; }
+
+	if (sp2[0] == 0) strcpy(s2, "*");
+	else { strncpy(s2, sp2, 16); s2[16] = 0; }
 
 	p = strchr(s1, '*');
 	if (p)
@@ -108,14 +84,14 @@ int core_strwildcmp(const char *sp1, const char *sp2)
 		s2[16] = 0;
 	}
 
-	l1 = (int)strlen(s1);
+	l1 = strlen(s1);
 	if (l1 < 16)
 	{
 		for (i = l1 + 1; i < 16; i++) s1[i] = ' ';
 		s1[16] = 0;
 	}
 
-	l2 = (int)strlen(s2);
+	l2 = strlen(s2);
 	if (l2 < 16)
 	{
 		for (i = l2 + 1; i < 16; i++) s2[i] = ' ';
@@ -156,6 +132,7 @@ char *core_strdup(const char *str)
 char *core_i64_hex_format(UINT64 value, UINT8 mindigits)
 {
 	static char buffer[16][64];
+	// TODO: this can overflow - e.g. when a lot of unmapped writes are logged
 	static int index;
 	char *bufbase = &buffer[index++ % 16][0];
 	char *bufptr = bufbase;
@@ -184,6 +161,7 @@ char *core_i64_hex_format(UINT64 value, UINT8 mindigits)
 char *core_i64_oct_format(UINT64 value, UINT8 mindigits)
 {
 	static char buffer[22][64];
+	// TODO: this can overflow
 	static int index;
 	char *bufbase = &buffer[index++ % 22][0];
 	char *bufptr = bufbase;

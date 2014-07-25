@@ -96,18 +96,18 @@ void fuuki32_state::video_start()
 	save_pointer(NAME(m_buf_spriteram), m_spriteram.bytes() / 4);
 	save_pointer(NAME(m_buf_spriteram2), m_spriteram.bytes() / 4);
 
-	m_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(fuuki32_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 32);
-	m_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(fuuki32_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 32);
-	m_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(fuuki32_state::get_tile_info_2),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
-	m_tilemap[3] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(fuuki32_state::get_tile_info_3),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(fuuki32_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 32);
+	m_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(fuuki32_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 32);
+	m_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(fuuki32_state::get_tile_info_2),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_tilemap[3] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(fuuki32_state::get_tile_info_3),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_tilemap[0]->set_transparent_pen(0xff);    // 8 bits
 	m_tilemap[1]->set_transparent_pen(0xff);    // 8 bits
 	m_tilemap[2]->set_transparent_pen(0x0f);    // 4 bits
 	m_tilemap[3]->set_transparent_pen(0x0f);    // 4 bits
 
-	//machine().gfx[1]->set_granularity(16); /* 256 colour tiles with palette selectable on 16 colour boundaries */
-	//machine().gfx[2]->set_granularity(16);
+	//m_gfxdecode->gfx(1)->set_granularity(16); /* 256 colour tiles with palette selectable on 16 colour boundaries */
+	//m_gfxdecode->gfx(2)->set_granularity(16);
 }
 
 
@@ -142,7 +142,7 @@ void fuuki32_state::video_start()
 void fuuki32_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
 	int offs;
-	gfx_element *gfx = screen.machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	bitmap_ind8 &priority_bitmap = screen.priority();
 	const rectangle &visarea = screen.visible_area();
 	int max_x = visarea.max_x + 1;
@@ -218,7 +218,7 @@ void fuuki32_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, c
 			for (x = xstart; x != xend; x += xinc)
 			{
 				if (xzoom == (16*8) && yzoom == (16*8))
-					pdrawgfx_transpen(bitmap,cliprect,gfx,
+					gfx->prio_transpen(bitmap,cliprect,
 									code++,
 									attr & 0x3f,
 									flipx, flipy,
@@ -226,7 +226,7 @@ void fuuki32_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, c
 									priority_bitmap,
 									pri_mask,15 );
 				else
-					pdrawgfxzoom_transpen(bitmap,cliprect,gfx,
+					gfx->prio_zoom_transpen(bitmap,cliprect,
 									code++,
 									attr & 0x3f,
 									flipx, flipy,

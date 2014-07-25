@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /***************************************************************************
 
     Netronics Elf II
@@ -147,23 +149,6 @@ READ_LINE_MEMBER( elf2_state::ef4_r )
 	return INPUT;
 }
 
-static COSMAC_SC_WRITE( elf2_sc_w )
-{
-	elf2_state *state = device->machine().driver_data<elf2_state>();
-
-	switch (sc)
-	{
-	case COSMAC_STATE_CODE_S2_DMA:
-	case COSMAC_STATE_CODE_S3_INTERRUPT:
-		/* clear DMAIN */
-		state->m_maincpu->set_input_line(COSMAC_INPUT_LINE_DMAIN, CLEAR_LINE);
-		break;
-
-	default:
-		break;
-	}
-}
-
 WRITE_LINE_MEMBER( elf2_state::q_w )
 {
 	output_set_led_value(0, state);
@@ -174,21 +159,20 @@ READ8_MEMBER( elf2_state::dma_r )
 	return m_data;
 }
 
-static COSMAC_INTERFACE( elf2_config )
+WRITE8_MEMBER( elf2_state::sc_w )
 {
-	DEVCB_DRIVER_LINE_MEMBER(elf2_state, wait_r),
-	DEVCB_DRIVER_LINE_MEMBER(elf2_state, clear_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(elf2_state, ef4_r),
-	DEVCB_DRIVER_LINE_MEMBER(elf2_state, q_w),
-	DEVCB_DRIVER_MEMBER(elf2_state, dma_r),
-	DEVCB_DEVICE_MEMBER(CDP1861_TAG, cdp1861_device, dma_w),
-	elf2_sc_w,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
+	switch (data)
+	{
+	case COSMAC_STATE_CODE_S2_DMA:
+	case COSMAC_STATE_CODE_S3_INTERRUPT:
+		/* clear DMAIN */
+		m_maincpu->set_input_line(COSMAC_INPUT_LINE_DMAIN, CLEAR_LINE);
+		break;
+
+	default:
+		break;
+	}
+}
 
 /* MM74C923 Interface */
 
@@ -198,7 +182,7 @@ WRITE_LINE_MEMBER( elf2_state::da_w )
 	{
 		/* shift keyboard data to latch */
 		m_data <<= 4;
-		m_data |= m_kb->data_out_r() & 0x0f;
+		m_data |= m_kb->read() & 0x0f;
 
 		if (LOAD)
 		{
@@ -208,18 +192,6 @@ WRITE_LINE_MEMBER( elf2_state::da_w )
 		}
 	}
 }
-
-static MM74C923_INTERFACE( keyboard_intf )
-{
-	CAP_U(0.15),
-	CAP_U(1),
-	DEVCB_DRIVER_LINE_MEMBER(elf2_state, da_w),
-	DEVCB_INPUT_PORT("X1"),
-	DEVCB_INPUT_PORT("X2"),
-	DEVCB_INPUT_PORT("X3"),
-	DEVCB_INPUT_PORT("X4"),
-	DEVCB_NULL
-};
 
 /* Machine Initialization */
 
@@ -243,29 +215,6 @@ void elf2_state::machine_start()
 
 /* Machine Driver */
 
-static const cassette_interface elf_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED),
-	NULL,
-	NULL
-};
-
-static DM9368_INTERFACE( led_h_intf )
-{
-	0,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static DM9368_INTERFACE( led_l_intf )
-{
-	1,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 QUICKLOAD_LOAD_MEMBER( elf2_state, elf )
 {
 	int size = image.length();
@@ -285,20 +234,41 @@ static MACHINE_CONFIG_START( elf2, elf2_state )
 	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, XTAL_3_579545MHz/2)
 	MCFG_CPU_PROGRAM_MAP(elf2_mem)
 	MCFG_CPU_IO_MAP(elf2_io)
-	MCFG_CPU_CONFIG(elf2_config)
+	MCFG_COSMAC_WAIT_CALLBACK(READLINE(elf2_state, wait_r))
+	MCFG_COSMAC_CLEAR_CALLBACK(READLINE(elf2_state, clear_r))
+	MCFG_COSMAC_EF4_CALLBACK(READLINE(elf2_state, ef4_r))
+	MCFG_COSMAC_Q_CALLBACK(WRITELINE(elf2_state, q_w))
+	MCFG_COSMAC_DMAR_CALLBACK(READ8(elf2_state, dma_r))
+	MCFG_COSMAC_DMAW_CALLBACK(DEVWRITE8(CDP1861_TAG, cdp1861_device, dma_w))
+	MCFG_COSMAC_SC_CALLBACK(WRITE8(elf2_state, sc_w))
 
 	/* video hardware */
-	MCFG_DEFAULT_LAYOUT( layout_elf2 )
-	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
-	MCFG_SCREEN_UPDATE_DEVICE(CDP1861_TAG, cdp1861_device, screen_update)
-	MCFG_SCREEN_RAW_PARAMS(XTAL_3_579545MHz/2, CDP1861_SCREEN_WIDTH, CDP1861_HBLANK_END, CDP1861_HBLANK_START, CDP1861_TOTAL_SCANLINES, CDP1861_SCANLINE_VBLANK_END, CDP1861_SCANLINE_VBLANK_START)
+	MCFG_DEFAULT_LAYOUT(layout_elf2)
+
+	MCFG_DEVICE_ADD(CDP1861_TAG, CDP1861, XTAL_3_579545MHz/2)
+	MCFG_CDP1861_IRQ_CALLBACK(INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT))
+	MCFG_CDP1861_DMA_OUT_CALLBACK(INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT))
+	MCFG_CDP1861_EFX_CALLBACK(INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1))
+	MCFG_CDP1861_SCREEN_ADD(CDP1861_TAG, SCREEN_TAG, XTAL_3_579545MHz/2)
 
 	/* devices */
-	MCFG_MM74C923_ADD(MM74C923_TAG, keyboard_intf)
-	MCFG_DM9368_ADD(DM9368_H_TAG, led_h_intf)
-	MCFG_DM9368_ADD(DM9368_L_TAG, led_l_intf)
-	MCFG_CDP1861_ADD(CDP1861_TAG, SCREEN_TAG, XTAL_3_579545MHz/2, INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1))
-	MCFG_CASSETTE_ADD("cassette", elf_cassette_interface)
+	MCFG_DEVICE_ADD(MM74C923_TAG, MM74C923, 0)
+	MCFG_MM74C922_OSC(CAP_U(0.15))
+	MCFG_MM74C922_DEBOUNCE(CAP_U(1))
+	MCFG_MM74C922_DA_CALLBACK(WRITELINE(elf2_state, da_w))
+	MCFG_MM74C922_X1_CALLBACK(IOPORT("X1"))
+	MCFG_MM74C922_X2_CALLBACK(IOPORT("X2"))
+	MCFG_MM74C922_X3_CALLBACK(IOPORT("X3"))
+	MCFG_MM74C922_X4_CALLBACK(IOPORT("X4"))
+
+	MCFG_DEVICE_ADD(DM9368_H_TAG, DM9368, 0)
+	MCFG_OUTPUT_NAME("digit0")
+	MCFG_DEVICE_ADD(DM9368_L_TAG, DM9368, 0)
+	MCFG_OUTPUT_NAME("digit1")
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
+
 	MCFG_QUICKLOAD_ADD("quickload", elf2_state, elf, "bin", 0)
 
 	/* internal ram */

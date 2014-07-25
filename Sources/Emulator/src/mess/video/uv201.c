@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /**********************************************************************
 
     VideoBrain UV201/UV202 video chip emulation
@@ -81,7 +83,7 @@
 	((_y >= cliprect.min_y) && (_y <= cliprect.max_y))
 
 #define DRAW_PIXEL(_scanline, _dot) \
-	if (IS_VISIBLE(_scanline)) bitmap.pix32((_scanline), HSYNC_WIDTH + HFP_WIDTH + _dot) = m_palette[pixel];
+	if (IS_VISIBLE(_scanline)) bitmap.pix32((_scanline), HSYNC_WIDTH + HFP_WIDTH + _dot) = m_palette_val[pixel];
 
 
 
@@ -97,33 +99,13 @@ const device_type UV201 = &device_creator<uv201_device>;
 //  uv201_device - constructor
 //-------------------------------------------------
 
-uv201_device::uv201_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, UV201, "UV201", tag, owner, clock, "uv201", __FILE__),
-		device_video_interface(mconfig, *this)
+uv201_device::uv201_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+	device_t(mconfig, UV201, "UV201", tag, owner, clock, "uv201", __FILE__),
+	device_video_interface(mconfig, *this),
+	m_write_ext_int(*this),
+	m_write_hblank(*this),
+	m_read_db(*this)
 {
-}
-
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void uv201_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const uv201_interface *intf = reinterpret_cast<const uv201_interface *>(static_config());
-	if (intf != NULL)
-		*static_cast<uv201_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-		memset(&m_out_ext_int_cb, 0, sizeof(m_out_ext_int_cb));
-		memset(&m_out_hblank_cb, 0, sizeof(m_out_hblank_cb));
-		memset(&m_in_db_cb, 0, sizeof(m_in_db_cb));
-	}
 }
 
 
@@ -134,9 +116,9 @@ void uv201_device::device_config_complete()
 void uv201_device::device_start()
 {
 	// resolve callbacks
-	m_out_ext_int_func.resolve(m_out_ext_int_cb, *this);
-	m_out_hblank_func.resolve(m_out_hblank_cb, *this);
-	m_in_db_func.resolve(m_in_db_cb, *this);
+	m_write_ext_int.resolve_safe();
+	m_write_hblank.resolve_safe();
+	m_read_db.resolve_safe(0);
 
 	// allocate timers
 	m_timer_y_odd = timer_alloc(TIMER_Y_ODD);
@@ -173,9 +155,9 @@ void uv201_device::device_start()
 
 void uv201_device::device_reset()
 {
-	m_out_ext_int_func(CLEAR_LINE);
+	m_write_ext_int(CLEAR_LINE);
 
-	m_out_hblank_func(1);
+	m_write_hblank(1);
 	m_timer_hblank_off->adjust(attotime::from_ticks( HBLANK_END, m_clock ));
 }
 
@@ -198,19 +180,19 @@ void uv201_device::device_timer(emu_timer &timer, device_timer_id id, int param,
 
 			m_freeze_y = scanline;
 
-			m_out_ext_int_func(ASSERT_LINE);
-			m_out_ext_int_func(CLEAR_LINE);
+			m_write_ext_int(ASSERT_LINE);
+			m_write_ext_int(CLEAR_LINE);
 		}
 		break;
 
 	case TIMER_HBLANK_ON:
-		m_out_hblank_func(1);
+		m_write_hblank(1);
 
 		m_timer_hblank_off->adjust(attotime::from_ticks( HBLANK_WIDTH, m_clock ) );
 		break;
 
 	case TIMER_HBLANK_OFF:
-		m_out_hblank_func(0);
+		m_write_hblank(0);
 
 		m_timer_hblank_on->adjust(attotime::from_ticks( VISAREA_WIDTH, m_clock ) );
 		break;
@@ -246,14 +228,14 @@ void uv201_device::initialize_palette()
 			onvalue = onhiintensity;
 		}
 
-		m_palette[offset + 0] = MAKE_RGB(offvalue, offvalue, offvalue); // black
-		m_palette[offset + 1] = MAKE_RGB(onvalue, offvalue, offvalue); // red
-		m_palette[offset + 2] = MAKE_RGB(offvalue, onvalue, offvalue); // green
-		m_palette[offset + 3] = MAKE_RGB(onvalue, onvalue, offvalue); // red-green
-		m_palette[offset + 4] = MAKE_RGB(offvalue, offvalue, onvalue); // blue
-		m_palette[offset + 5] = MAKE_RGB(onvalue, offvalue, onvalue); // red-blue
-		m_palette[offset + 6] = MAKE_RGB(offvalue, onvalue, onvalue); // green-blue
-		m_palette[offset + 7] = MAKE_RGB(onvalue, onvalue, onvalue); // white
+		m_palette_val[offset + 0] = rgb_t(offvalue, offvalue, offvalue); // black
+		m_palette_val[offset + 1] = rgb_t(onvalue, offvalue, offvalue); // red
+		m_palette_val[offset + 2] = rgb_t(offvalue, onvalue, offvalue); // green
+		m_palette_val[offset + 3] = rgb_t(onvalue, onvalue, offvalue); // red-green
+		m_palette_val[offset + 4] = rgb_t(offvalue, offvalue, onvalue); // blue
+		m_palette_val[offset + 5] = rgb_t(onvalue, offvalue, onvalue); // red-blue
+		m_palette_val[offset + 6] = rgb_t(offvalue, onvalue, onvalue); // green-blue
+		m_palette_val[offset + 7] = rgb_t(onvalue, onvalue, onvalue); // white
 	}
 }
 
@@ -505,7 +487,7 @@ READ_LINE_MEMBER( uv201_device::kbd_r )
 
 UINT32 uv201_device::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(rgb_t(0x00,0x00,0x00), cliprect);
 
 	if (!(m_cmd & COMMAND_ENB))
 	{
@@ -550,7 +532,7 @@ UINT32 uv201_device::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, 
 		{
 			for (int sx = 0; sx < dx; sx++)
 			{
-				UINT8 data = m_in_db_func(rp);
+				UINT8 data = m_read_db(rp);
 
 				for (int bit = 0; bit < 8; bit++)
 				{

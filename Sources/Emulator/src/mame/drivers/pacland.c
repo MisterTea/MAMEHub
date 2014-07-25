@@ -161,14 +161,30 @@ Notes:
 
 Notes:
 -----
-- Is there a service mode Easter egg? Maybe with this game they stopped putting
-  them in, because I haven't found them in the later games either (skykid,
-  drgnbstr, etc.)
 
 - Sprites cover the top and bottom non-scrolling portions of the fg. This
   includes the cookie cut light in round 19, which makes text disappear from
   those areas. This looks odd, but it's the correct behaviour verified on the
   real hardware.
+
+- There is an Easter egg in the service mode:
+  1) Go into the service mode
+  2) Press left or right to change the sound effect until it's $18
+  3) Press the service button to display the screen calibration test grid
+  4) Press right 4 times
+  5) Press left once
+  6) Press right twice
+  7) Press left 6 times
+  8) Press jump
+
+- There's a minor Easter egg in the high score name entry routine.
+  If you enter your name as one of the following then the name will
+  flash red and yellow for 12.8 seconds when you finish entering it:
+
+  KISSY
+  YURI.
+  NEGIE
+  S#TOU (# is the small ghost sprite)
 
 ***************************************************************************/
 
@@ -186,9 +202,7 @@ WRITE8_MEMBER(pacland_state::pacland_subreset_w)
 WRITE8_MEMBER(pacland_state::pacland_flipscreen_w)
 {
 	int bit = !BIT(offset,11);
-	/* can't use flip_screen_set() because the visible area is asymmetrical */
-	flip_screen_set_no_update(bit);
-	machine().tilemap().set_flip_all(flip_screen() ? (TILEMAP_FLIPX | TILEMAP_FLIPY) : 0);
+	flip_screen_set(bit);
 }
 
 
@@ -325,7 +339,7 @@ static INPUT_PORTS_START( pacland )
 	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
 
 	PORT_START("IN0")   /* Memory Mapped Port */
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_COCKTAIL
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_COCKTAIL  PORT_NAME("P2 Right")
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_COIN2 )
@@ -350,11 +364,11 @@ static INPUT_PORTS_START( pacland )
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_COCKTAIL  /* OUT:coin lockout */
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SPECIAL )    /* OUT:coin counter 1 */
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_SPECIAL )    /* OUT:coin counter 2 */
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON1 )
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT )
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_COCKTAIL
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_COCKTAIL
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_NAME("P1 Jump")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("P1 Left")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_NAME("P1 Right")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_COCKTAIL PORT_NAME("P2 Jump")
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_COCKTAIL PORT_NAME("P2 Left")
 INPUT_PORTS_END
 
 
@@ -388,13 +402,6 @@ static GFXDECODE_START( pacland )
 GFXDECODE_END
 
 
-
-static const namco_interface namco_config =
-{
-	8,      /* number of voices */
-	0       /* stereo */
-};
-
 INTERRUPT_GEN_MEMBER(pacland_state::main_vblank_irq)
 {
 	if(m_main_irq_mask)
@@ -410,11 +417,11 @@ INTERRUPT_GEN_MEMBER(pacland_state::mcu_vblank_irq)
 static MACHINE_CONFIG_START( pacland, pacland_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6809, 49152000/32) /* 1.536 MHz */
+	MCFG_CPU_ADD("maincpu", M6809, XTAL_49_152MHz/32) /* 1.536 MHz */
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", pacland_state,  main_vblank_irq)
 
-	MCFG_CPU_ADD("mcu", HD63701, 49152000/8)    /* 1.536 MHz? */
+	MCFG_CPU_ADD("mcu", HD63701, XTAL_49_152MHz/8) /* 6.144 MHz? */
 	MCFG_CPU_PROGRAM_MAP(mcu_map)
 	MCFG_CPU_IO_MAP(mcu_port_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", pacland_state,  mcu_vblank_irq)
@@ -423,21 +430,20 @@ static MACHINE_CONFIG_START( pacland, pacland_state )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60.606060)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(64*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(3*8, 39*8-1, 2*8, 30*8-1)
+	MCFG_SCREEN_RAW_PARAMS(XTAL_49_152MHz/8, 384, 3*8, 39*8, 264, 2*8, 30*8)
 	MCFG_SCREEN_UPDATE_DRIVER(pacland_state, screen_update_pacland)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pacland)
-	MCFG_PALETTE_LENGTH(256*4+256*4+64*16)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pacland)
+	MCFG_PALETTE_ADD("palette", 256*4+256*4+64*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(pacland_state, pacland)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("namco", NAMCO_CUS30, 49152000/2/1024)
-	MCFG_SOUND_CONFIG(namco_config)
+	MCFG_SOUND_ADD("namco", NAMCO_CUS30, XTAL_49_152MHz/2/1024)
+	MCFG_NAMCO_AUDIO_VOICES(8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

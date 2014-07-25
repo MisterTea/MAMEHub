@@ -264,7 +264,7 @@ WRITE8_MEMBER(mitchell_state::input_w)
 static ADDRESS_MAP_START( mgakuen_map, AS_PROGRAM, 8, mitchell_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
-	AM_RANGE(0xc000, 0xc7ff) AM_READWRITE(mgakuen_paletteram_r, mgakuen_paletteram_w)   /* palette RAM */
+	AM_RANGE(0xc000, 0xc7ff) AM_RAM_DEVWRITE("palette", palette_device, write)   /* palette RAM */
 	AM_RANGE(0xc800, 0xcfff) AM_READWRITE(pang_colorram_r, pang_colorram_w) AM_SHARE("colorram") /* Attribute RAM */
 	AM_RANGE(0xd000, 0xdfff) AM_READWRITE(mgakuen_videoram_r, mgakuen_videoram_w) AM_SHARE("videoram") /* char RAM */
 	AM_RANGE(0xe000, 0xefff) AM_RAM /* Work RAM */
@@ -1089,9 +1089,12 @@ static MACHINE_CONFIG_START( mgakuen, mitchell_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 1*8, 31*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(mitchell_state, screen_update_pang)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mgakuen)
-	MCFG_PALETTE_LENGTH(1024)   /* less colors than the others */
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mgakuen)
+
+	MCFG_PALETTE_ADD("palette", 1024)   /* less colors than the others */
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(mitchell_state,pang)
 
@@ -1125,12 +1128,15 @@ static MACHINE_CONFIG_START( pang, mitchell_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 1*8, 31*8-1 )
+	MCFG_SCREEN_UPDATE_DRIVER(mitchell_state, screen_update_pang)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mitchell)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mitchell)
+
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(mitchell_state,pang)
-	MCFG_SCREEN_UPDATE_DRIVER(mitchell_state, screen_update_pang)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1176,13 +1182,6 @@ WRITE_LINE_MEMBER(mitchell_state::spangbl_adpcm_int)
 }
 
 
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(mitchell_state,spangbl_adpcm_int),  /* interrupt function */
-	MSM5205_S48_4B      /* 4KHz 4-bit */
-};
-
-
 static MACHINE_CONFIG_DERIVED( spangbl, pangnv )
 
 	MCFG_CPU_MODIFY("maincpu")
@@ -1198,11 +1197,12 @@ static MACHINE_CONFIG_DERIVED( spangbl, pangnv )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", mitchell_state,  irq0_line_hold)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", mitchell_state,  nmi_line_pulse)
 
-	MCFG_GFXDECODE(spangbl)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", spangbl)
 
 	MCFG_DEVICE_REMOVE("oki")
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(mitchell_state, spangbl_adpcm_int))  /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 4KHz 4-bit */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -1229,12 +1229,15 @@ static MACHINE_CONFIG_START( mstworld, mitchell_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 1*8, 31*8-1 )
+	MCFG_SCREEN_UPDATE_DRIVER(mitchell_state, screen_update_pang)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mstworld)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mstworld)
+
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(mitchell_state,pang)
-	MCFG_SCREEN_UPDATE_DRIVER(mitchell_state, screen_update_pang)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1260,12 +1263,15 @@ static MACHINE_CONFIG_START( marukin, mitchell_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 1*8, 31*8-1 )
+	MCFG_SCREEN_UPDATE_DRIVER(mitchell_state, screen_update_pang)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(marukin)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", marukin)
+
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(mitchell_state,pang)
-	MCFG_SCREEN_UPDATE_DRIVER(mitchell_state, screen_update_pang)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1311,12 +1317,15 @@ static MACHINE_CONFIG_START( pkladiesbl, mitchell_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 1*8, 31*8-1 )
+	MCFG_SCREEN_UPDATE_DRIVER(mitchell_state, screen_update_pang)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pkladiesbl)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pkladiesbl)
+
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(mitchell_state,pang)
-	MCFG_SCREEN_UPDATE_DRIVER(mitchell_state, screen_update_pang)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -2224,7 +2233,7 @@ DRIVER_INIT_MEMBER(mitchell_state,mstworld)
 {
 	/* descramble the program rom .. */
 	int len = memregion("maincpu")->bytes();
-	UINT8* source = auto_alloc_array(machine(), UINT8, len);
+	dynamic_buffer source(len);
 	UINT8* dst = memregion("maincpu")->base() ;
 	int x;
 
@@ -2261,7 +2270,6 @@ DRIVER_INIT_MEMBER(mitchell_state,mstworld)
 			memcpy(&dst[((x / 2) * 0x4000) + 0x50000],&source[tablebank[x + 1] * 0x4000], 0x4000);
 		}
 	}
-	auto_free(machine(), source);
 
 	bootleg_decode();
 	configure_banks();

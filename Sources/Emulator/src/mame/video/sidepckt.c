@@ -1,13 +1,21 @@
+/******************************************************************************
+
+    Data East Side Pocket hardware
+
+    Functions to emulate the video hardware
+
+******************************************************************************/
+
 #include "emu.h"
 #include "includes/sidepckt.h"
 
 
-void sidepckt_state::palette_init()
+PALETTE_INIT_MEMBER(sidepckt_state, sidepckt)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < palette.entries();i++)
 	{
 		int bit0,bit1,bit2,bit3,r,g,b;
 
@@ -24,13 +32,13 @@ void sidepckt_state::palette_init()
 		bit3 = (color_prom[i] >> 3) & 0x01;
 		g = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
 		/* blue component */
-		bit0 = (color_prom[i + machine().total_colors()] >> 0) & 0x01;
-		bit1 = (color_prom[i + machine().total_colors()] >> 1) & 0x01;
-		bit2 = (color_prom[i + machine().total_colors()] >> 2) & 0x01;
-		bit3 = (color_prom[i + machine().total_colors()] >> 3) & 0x01;
+		bit0 = (color_prom[i + palette.entries()] >> 0) & 0x01;
+		bit1 = (color_prom[i + palette.entries()] >> 1) & 0x01;
+		bit2 = (color_prom[i + palette.entries()] >> 2) & 0x01;
+		bit3 = (color_prom[i + palette.entries()] >> 3) & 0x01;
 		b = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
@@ -45,8 +53,7 @@ void sidepckt_state::palette_init()
 TILE_GET_INFO_MEMBER(sidepckt_state::get_tile_info)
 {
 	UINT8 attr = m_colorram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			m_videoram[tile_index] + ((attr & 0x07) << 8),
 			((attr & 0x10) >> 3) | ((attr & 0x20) >> 5),
 			TILE_FLIPX);
@@ -63,7 +70,7 @@ TILE_GET_INFO_MEMBER(sidepckt_state::get_tile_info)
 
 void sidepckt_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sidepckt_state::get_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sidepckt_state::get_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
 
 	m_bg_tilemap->set_transmask(0,0xff,0x00); /* split type 0 is totally transparent in front half */
 	m_bg_tilemap->set_transmask(1,0x01,0xfe); /* split type 1 has pen 0 transparent in front half */
@@ -122,13 +129,13 @@ void sidepckt_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect
 		flipx = spriteram[offs+1] & 0x08;
 		flipy = spriteram[offs+1] & 0x04;
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,
 				sx,sy,0);
 		/* wraparound */
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,

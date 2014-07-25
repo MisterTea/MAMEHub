@@ -10,7 +10,7 @@
 #include "includes/mustache.h"
 
 
-void mustache_state::palette_init()
+PALETTE_INIT_MEMBER(mustache_state, mustache)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -40,7 +40,7 @@ void mustache_state::palette_init()
 		bit3 = (color_prom[i + 512] >> 3) & 0x01;
 		b = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
@@ -90,7 +90,7 @@ TILE_GET_INFO_MEMBER(mustache_state::get_bg_tile_info)
 
 void mustache_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mustache_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS_FLIP_X,
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mustache_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS_FLIP_X,
 			8, 8, 64, 32);
 
 	m_bg_tilemap->set_scroll_rows(4);
@@ -99,7 +99,7 @@ void mustache_state::video_start()
 void mustache_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
 	rectangle clip = cliprect;
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 	const rectangle &visarea = m_screen->visible_area();
 	UINT8 *spriteram = m_spriteram;
 	int offs;
@@ -130,7 +130,7 @@ void mustache_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 			sy = 240 - sy;
 		}
 
-		drawgfx_transpen(bitmap,clip,gfx,
+		gfx->transpen(bitmap,clip,
 				code,
 				color,
 				flip_screen(),flip_screen(),

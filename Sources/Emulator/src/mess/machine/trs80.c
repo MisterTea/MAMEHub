@@ -520,17 +520,17 @@ WRITE8_MEMBER( trs80_state::trs80m4_f4_w )
 
 	if (drive < 4)
 	{
-		wd17xx_set_drive(m_fdc,drive);
-		wd17xx_set_side(m_fdc,m_head);
+		m_fdc->set_drive(drive);
+		m_fdc->set_side(m_head);
 	}
 
-	wd17xx_dden_w(m_fdc, !BIT(data, 7));
+	m_fdc->dden_w(!BIT(data, 7));
 
 	/* CLEAR_LINE means to turn motors on */
-	floppy_mon_w(floppy_get_device(machine(), 0), (data & 0x0f) ? CLEAR_LINE : ASSERT_LINE);
-	floppy_mon_w(floppy_get_device(machine(), 1), (data & 0x0f) ? CLEAR_LINE : ASSERT_LINE);
-	floppy_mon_w(floppy_get_device(machine(), 2), (data & 0x0f) ? CLEAR_LINE : ASSERT_LINE);
-	floppy_mon_w(floppy_get_device(machine(), 3), (data & 0x0f) ? CLEAR_LINE : ASSERT_LINE);
+	floppy_get_device(machine(), 0)->floppy_mon_w((data & 0x0f) ? CLEAR_LINE : ASSERT_LINE);
+	floppy_get_device(machine(), 1)->floppy_mon_w((data & 0x0f) ? CLEAR_LINE : ASSERT_LINE);
+	floppy_get_device(machine(), 2)->floppy_mon_w((data & 0x0f) ? CLEAR_LINE : ASSERT_LINE);
+	floppy_get_device(machine(), 3)->floppy_mon_w((data & 0x0f) ? CLEAR_LINE : ASSERT_LINE);
 }
 
 WRITE8_MEMBER( trs80_state::sys80_f8_w )
@@ -576,10 +576,10 @@ WRITE8_MEMBER( trs80_state::lnw80_fe_w )
 		mem.install_readwrite_handler (0x37e0, 0x37e3, read8_delegate(FUNC(trs80_state::trs80_irq_status_r), this), write8_delegate(FUNC(trs80_state::trs80_motor_w), this));
 		mem.install_readwrite_handler (0x37e8, 0x37eb, read8_delegate(FUNC(trs80_state::trs80_printer_r), this), write8_delegate(FUNC(trs80_state::trs80_printer_w), this));
 		mem.install_read_handler (0x37ec, 0x37ec, read8_delegate(FUNC(trs80_state::trs80_wd179x_r), this));
-		mem.install_legacy_write_handler (*m_fdc, 0x37ec, 0x37ec, FUNC(wd17xx_command_w));
-		mem.install_legacy_readwrite_handler (*m_fdc, 0x37ed, 0x37ed, FUNC(wd17xx_track_r), FUNC(wd17xx_track_w));
-		mem.install_legacy_readwrite_handler (*m_fdc, 0x37ee, 0x37ee, FUNC(wd17xx_sector_r), FUNC(wd17xx_sector_w));
-		mem.install_legacy_readwrite_handler (*m_fdc, 0x37ef, 0x37ef, FUNC(wd17xx_data_r), FUNC(wd17xx_data_w));
+		mem.install_write_handler (0x37ec, 0x37ec, write8_delegate(FUNC(fd1793_device::command_w),(fd1793_device*)m_fdc));
+		mem.install_readwrite_handler (0x37ed, 0x37ed, read8_delegate(FUNC(fd1793_device::track_r),(fd1793_device*)m_fdc), write8_delegate(FUNC(fd1793_device::track_w),(fd1793_device*)m_fdc));
+		mem.install_readwrite_handler (0x37ee, 0x37ee, read8_delegate(FUNC(fd1793_device::sector_r),(fd1793_device*)m_fdc), write8_delegate(FUNC(fd1793_device::sector_w),(fd1793_device*)m_fdc));
+		mem.install_readwrite_handler (0x37ef, 0x37ef, read8_delegate(FUNC(fd1793_device::data_r),(fd1793_device*)m_fdc),write8_delegate( FUNC(fd1793_device::data_w),(fd1793_device*)m_fdc));
 		mem.install_read_handler (0x3800, 0x38ff, 0, 0x0300, read8_delegate(FUNC(trs80_state::trs80_keyboard_r), this));
 		mem.install_readwrite_handler (0x3c00, 0x3fff, read8_delegate(FUNC(trs80_state::trs80_videoram_r), this), write8_delegate(FUNC(trs80_state::trs80_videoram_w), this));
 	}
@@ -680,14 +680,6 @@ WRITE_LINE_MEMBER(trs80_state::trs80_fdc_intrq_w)
 	}
 }
 
-const wd17xx_interface trs80_wd17xx_interface =
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(trs80_state,trs80_fdc_intrq_w),
-	DEVCB_NULL,
-	{FLOPPY_0, FLOPPY_1, FLOPPY_2, FLOPPY_3}
-};
-
 
 /*************************************
  *                                   *
@@ -699,33 +691,21 @@ READ8_MEMBER( trs80_state::trs80_wd179x_r )
 {
 	UINT8 data = 0xff;
 	if (BIT(m_io_config->read(), 7))
-		data = wd17xx_status_r(m_fdc, space, offset);
+		data = m_fdc->status_r(space, offset);
 
 	return data;
 }
 
 READ8_MEMBER( trs80_state::trs80_printer_r )
 {
-	/* Bit 7 - 1 = Busy; 0 = Not Busy
-	   Bit 6 - 1 = Out of Paper; 0 = Paper
-	   Bit 5 - 1 = Printer selected; 0 = Printer not selected
-	   Bit 4 - 1 = No Fault; 0 = Fault
-	   Bits 3..0 - Not used */
-
-	UINT8 data = 0;
-	data |= m_printer->busy_r() << 7;
-	data |= m_printer->pe_r() << 6;
-	data |= m_printer->vcc_r() << 5;
-	data |= m_printer->fault_r() << 4;
-
-	return data;
+	return m_cent_status_in->read();
 }
 
 WRITE8_MEMBER( trs80_state::trs80_printer_w )
 {
-	m_printer->strobe_w(1);
-	m_printer->write(space, 0, data);
-	m_printer->strobe_w(0);
+	m_cent_data_out->write(space, 0, data);
+	m_centronics->write_strobe(0);
+	m_centronics->write_strobe(1);
 }
 
 WRITE8_MEMBER( trs80_state::trs80_cassunit_w )
@@ -793,21 +773,21 @@ WRITE8_MEMBER( trs80_state::trs80_motor_w )
 
 	if (drive > 3)
 	{   /* Turn motors off */
-		floppy_mon_w(floppy_get_device(machine(), 0), ASSERT_LINE);
-		floppy_mon_w(floppy_get_device(machine(), 1), ASSERT_LINE);
-		floppy_mon_w(floppy_get_device(machine(), 2), ASSERT_LINE);
-		floppy_mon_w(floppy_get_device(machine(), 3), ASSERT_LINE);
+		floppy_get_device(machine(), 0)->floppy_mon_w(ASSERT_LINE);
+		floppy_get_device(machine(), 1)->floppy_mon_w(ASSERT_LINE);
+		floppy_get_device(machine(), 2)->floppy_mon_w(ASSERT_LINE);
+		floppy_get_device(machine(), 3)->floppy_mon_w(ASSERT_LINE);
 		return;
 	}
 
-	wd17xx_set_drive(m_fdc,drive);
-	wd17xx_set_side(m_fdc,m_head);
+	m_fdc->set_drive(drive);
+	m_fdc->set_side(m_head);
 
 	/* Turn motors on */
-	floppy_mon_w(floppy_get_device(machine(), 0), CLEAR_LINE);
-	floppy_mon_w(floppy_get_device(machine(), 1), CLEAR_LINE);
-	floppy_mon_w(floppy_get_device(machine(), 2), CLEAR_LINE);
-	floppy_mon_w(floppy_get_device(machine(), 3), CLEAR_LINE);
+	floppy_get_device(machine(), 0)->floppy_mon_w(CLEAR_LINE);
+	floppy_get_device(machine(), 1)->floppy_mon_w(CLEAR_LINE);
+	floppy_get_device(machine(), 2)->floppy_mon_w(CLEAR_LINE);
+	floppy_get_device(machine(), 3)->floppy_mon_w(CLEAR_LINE);
 }
 
 /*************************************

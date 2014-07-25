@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:David Haywood, Angelo Salese
 /******************************************************************************
 
 Hit Poker (c) 1997 Accept LTD
@@ -55,7 +57,9 @@ public:
 	hitpoker_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_sys_regs(*this, "sys_regs"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT8> m_sys_regs;
 
@@ -84,6 +88,8 @@ public:
 	UINT32 screen_update_hitpoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(hitpoker_irq);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -113,7 +119,7 @@ UINT32 hitpoker_state::screen_update_hitpoker(screen_device &screen, bitmap_ind1
 			gfx_bpp = (m_colorram[count] & 0x80)>>7; //flag between 4 and 8 bpp
 			color = gfx_bpp ? ((m_colorram[count] & 0x70)>>4) : (m_colorram[count] & 0xf);
 
-			drawgfx_opaque(bitmap,cliprect,machine().gfx[gfx_bpp],tile,color,0,0,x*8,y*8);
+			m_gfxdecode->gfx(gfx_bpp)->opaque(bitmap,cliprect,tile,color,0,0,x*8,y*8);
 
 			count+=2;
 		}
@@ -177,7 +183,7 @@ WRITE8_MEMBER(hitpoker_state::hitpoker_paletteram_w)
 	g = ((datax)&0x07e0)>>5;
 	r = ((datax)&0x001f)>>0;
 
-	palette_set_color_rgb(machine(), offset, pal5bit(r), pal6bit(g), pal5bit(b));
+	m_palette->set_pen_color(offset, pal5bit(r), pal6bit(g), pal5bit(b));
 }
 
 READ8_MEMBER(hitpoker_state::rtc_r)
@@ -456,31 +462,6 @@ static GFXDECODE_START( hitpoker )
 	GFXDECODE_ENTRY( "gfx1", 0, hitpoker_layout_8bpp,   0, 8  )
 GFXDECODE_END
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 INTERRUPT_GEN_MEMBER(hitpoker_state::hitpoker_irq)
 {
 	device.execute().set_input_line(MC68HC11_IRQ_LINE, HOLD_LINE);
@@ -502,17 +483,20 @@ static MACHINE_CONFIG_START( hitpoker, hitpoker_state )
 	MCFG_SCREEN_SIZE(648, 480) //setted by the CRTC
 	MCFG_SCREEN_VISIBLE_AREA(0, 648-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(hitpoker_state, screen_update_hitpoker)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_MC6845_ADD("crtc", H46505, "screen", CRTC_CLOCK/2, mc6845_intf)  /* hand tuned to get ~60 fps */
+	MCFG_MC6845_ADD("crtc", H46505, "screen", CRTC_CLOCK/2)  /* hand tuned to get ~60 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
-	MCFG_GFXDECODE(hitpoker)
-	MCFG_PALETTE_LENGTH(0x800)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", hitpoker)
+	MCFG_PALETTE_ADD("palette", 0x800)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", YM2149, 1500000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

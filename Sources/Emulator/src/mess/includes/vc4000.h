@@ -75,6 +75,7 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_cassette(*this, "cassette"),
 		m_maincpu(*this, "maincpu"),
+		m_screen(*this, "screen"),
 		m_keypad1_1(*this, "KEYPAD1_1"),
 		m_keypad1_2(*this, "KEYPAD1_2"),
 		m_keypad1_3(*this, "KEYPAD1_3"),
@@ -111,7 +112,7 @@ public:
 	bitmap_ind16 *m_bitmap;
 	optional_device<cassette_image_device> m_cassette;
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(vc4000);
 	UINT32 screen_update_vc4000(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vc4000_video_line);
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(vc4000_cart);
@@ -119,6 +120,7 @@ public:
 
 protected:
 	required_device<cpu_device> m_maincpu;
+	required_device<screen_device> m_screen;
 	required_ioport m_keypad1_1;
 	required_ioport m_keypad1_2;
 	required_ioport m_keypad1_3;

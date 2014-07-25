@@ -389,7 +389,7 @@ static ADDRESS_MAP_START( terraf_map, AS_PROGRAM, 16, armedf_state )
 	AM_RANGE(0x000000, 0x05ffff) AM_ROM
 	AM_RANGE(0x060000, 0x0603ff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x060400, 0x063fff) AM_RAM
-	AM_RANGE(0x064000, 0x064fff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x064000, 0x064fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x068000, 0x069fff) AM_READWRITE8(nb1414m4_text_videoram_r,nb1414m4_text_videoram_w,0x00ff)
 	AM_RANGE(0x06a000, 0x06a9ff) AM_RAM
 	AM_RANGE(0x06c000, 0x06cfff) AM_RAM AM_SHARE("spr_pal_clut")
@@ -420,7 +420,7 @@ static ADDRESS_MAP_START( cclimbr2_map, AS_PROGRAM, 16, armedf_state )
 	AM_RANGE(0x000000, 0x05ffff) AM_ROM
 	AM_RANGE(0x060000, 0x060fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x061000, 0x063fff) AM_RAM
-	AM_RANGE(0x064000, 0x064fff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x064000, 0x064fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x068000, 0x069fff) AM_READWRITE8(nb1414m4_text_videoram_r,nb1414m4_text_videoram_w,0x00ff)
 	AM_RANGE(0x06a000, 0x06a9ff) AM_RAM
 	AM_RANGE(0x06c000, 0x06cfff) AM_RAM AM_SHARE("spr_pal_clut")
@@ -442,7 +442,7 @@ static ADDRESS_MAP_START( legion_map, AS_PROGRAM, 16, armedf_state )
 	AM_RANGE(0x000000, 0x05ffff) AM_ROM
 	AM_RANGE(0x060000, 0x060fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x061000, 0x063fff) AM_RAM
-	AM_RANGE(0x064000, 0x064fff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x064000, 0x064fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x068000, 0x069fff) AM_READWRITE8(nb1414m4_text_videoram_r,nb1414m4_text_videoram_w,0x00ff)
 	AM_RANGE(0x06a000, 0x06a9ff) AM_RAM
 	AM_RANGE(0x06c000, 0x06cfff) AM_RAM AM_SHARE("spr_pal_clut")
@@ -474,7 +474,7 @@ static ADDRESS_MAP_START( legiono_map, AS_PROGRAM, 16, armedf_state )
 	AM_RANGE(0x000000, 0x05ffff) AM_ROM
 	AM_RANGE(0x060000, 0x060fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x061000, 0x063fff) AM_RAM
-	AM_RANGE(0x064000, 0x064fff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x064000, 0x064fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x068000, 0x069fff) AM_READWRITE8(nb1414m4_text_videoram_r,nb1414m4_text_videoram_w,0x00ff)
 	AM_RANGE(0x06a000, 0x06a9ff) AM_RAM
 	AM_RANGE(0x06c000, 0x06cfff) AM_RAM AM_SHARE("spr_pal_clut")
@@ -499,7 +499,7 @@ static ADDRESS_MAP_START( armedf_map, AS_PROGRAM, 16, armedf_state )
 	AM_RANGE(0x066000, 0x066fff) AM_RAM_WRITE(armedf_bg_videoram_w) AM_SHARE("bg_videoram")
 	AM_RANGE(0x067000, 0x067fff) AM_RAM_WRITE(armedf_fg_videoram_w) AM_SHARE("fg_videoram")
 	AM_RANGE(0x068000, 0x069fff) AM_READWRITE8(armedf_text_videoram_r,armedf_text_videoram_w,0x00ff)
-	AM_RANGE(0x06a000, 0x06afff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x06a000, 0x06afff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x06b000, 0x06bfff) AM_RAM AM_SHARE("spr_pal_clut")
 	AM_RANGE(0x06c000, 0x06c001) AM_READ_PORT("P1")
 	AM_RANGE(0x06c002, 0x06c003) AM_READ_PORT("P2")
@@ -672,7 +672,7 @@ static ADDRESS_MAP_START( bigfghtr_map, AS_PROGRAM, 16, bigfghtr_state )
 	AM_RANGE(0x086000, 0x086fff) AM_RAM_WRITE(armedf_bg_videoram_w) AM_SHARE("bg_videoram")
 	AM_RANGE(0x087000, 0x087fff) AM_RAM_WRITE(armedf_fg_videoram_w) AM_SHARE("fg_videoram")
 	AM_RANGE(0x088000, 0x089fff) AM_READWRITE8(armedf_text_videoram_r,armedf_text_videoram_w,0x00ff)
-	AM_RANGE(0x08a000, 0x08afff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x08a000, 0x08afff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x08b000, 0x08bfff) AM_RAM AM_SHARE("spr_pal_clut")
 	AM_RANGE(0x08c000, 0x08c001) AM_READ_PORT("P1")
 	AM_RANGE(0x08c002, 0x08c003) AM_READ_PORT("P2")
@@ -1182,14 +1182,16 @@ static MACHINE_CONFIG_START( terraf, armedf_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(12*8, (64-12)*8-1, 1*8, 31*8-1 )
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(armedf_state,terraf)
 	MCFG_SCREEN_UPDATE_DRIVER(armedf_state, screen_update_armedf)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram16_device, vblank_copy_rising)
 
-	MCFG_GFXDECODE(armedf)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", armedf)
 
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
@@ -1231,13 +1233,15 @@ static MACHINE_CONFIG_START( terrafjb, armedf_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(12*8, (64-12)*8-1, 1*8, 31*8-1 )
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(armedf_state,terraf)
 	MCFG_SCREEN_UPDATE_DRIVER(armedf_state, screen_update_armedf)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram16_device, vblank_copy_rising)
 
-	MCFG_GFXDECODE(armedf)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", armedf)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
@@ -1275,13 +1279,15 @@ static MACHINE_CONFIG_START( kozure, armedf_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(12*8, (64-12)*8-1, 1*8, 31*8-1 ) // 320 x 240, trusted
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(armedf_state,terraf)
 	MCFG_SCREEN_UPDATE_DRIVER(armedf_state, screen_update_armedf)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram16_device, vblank_copy_rising)
 
-	MCFG_GFXDECODE(armedf)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", armedf)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
@@ -1319,13 +1325,15 @@ static MACHINE_CONFIG_START( armedf, armedf_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(12*8, (64-12)*8-1, 1*8, 31*8-1 )
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(armedf_state,armedf)
 	MCFG_SCREEN_UPDATE_DRIVER(armedf_state, screen_update_armedf)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram16_device, vblank_copy_rising)
 
-	MCFG_GFXDECODE(armedf)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", armedf)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
@@ -1363,13 +1371,15 @@ static MACHINE_CONFIG_START( cclimbr2, armedf_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(14*8, (64-14)*8-1, 2*8, 30*8-1 )
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(armedf_state,terraf)
 	MCFG_SCREEN_UPDATE_DRIVER(armedf_state, screen_update_armedf)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram16_device, vblank_copy_rising)
 
-	MCFG_GFXDECODE(armedf)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", armedf)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
@@ -1407,13 +1417,15 @@ static MACHINE_CONFIG_START( legion, armedf_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(14*8, (64-14)*8-1, 2*8, 30*8-1 )
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(armedf_state,terraf)
 	MCFG_SCREEN_UPDATE_DRIVER(armedf_state, screen_update_armedf)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram16_device, vblank_copy_rising)
 
-	MCFG_GFXDECODE(armedf)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", armedf)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
@@ -1451,13 +1463,15 @@ static MACHINE_CONFIG_START( legiono, armedf_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(14*8, (64-14)*8-1, 2*8, 30*8-1 )
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(armedf_state,terraf)
 	MCFG_SCREEN_UPDATE_DRIVER(armedf_state, screen_update_armedf)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram16_device, vblank_copy_rising)
 
-	MCFG_GFXDECODE(armedf)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", armedf)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
@@ -1506,13 +1520,15 @@ static MACHINE_CONFIG_START( bigfghtr, bigfghtr_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(12*8, (64-12)*8-1, 1*8, 31*8-1 )
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(armedf_state,armedf)
 	MCFG_SCREEN_UPDATE_DRIVER(armedf_state, screen_update_armedf)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram16_device, vblank_copy_rising)
 
-	MCFG_GFXDECODE(armedf)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", armedf)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 

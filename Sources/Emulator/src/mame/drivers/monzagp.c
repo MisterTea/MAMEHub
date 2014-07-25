@@ -36,7 +36,9 @@ class monzagp_state : public driver_device
 public:
 	monzagp_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	int m_coordx;
 	int m_coordy;
@@ -51,14 +53,16 @@ public:
 	DECLARE_WRITE8_MEMBER(port2_w);
 	DECLARE_WRITE8_MEMBER(port3_w);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(monzagp);
 	UINT32 screen_update_monzagp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
 
-void monzagp_state::palette_init()
+PALETTE_INIT_MEMBER(monzagp_state, monzagp)
 {
 }
 
@@ -102,7 +106,7 @@ UINT32 monzagp_state::screen_update_monzagp(screen_device &screen, bitmap_ind16 
 	{
 		for(x=0;x<256;x++)
 		{
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[m_bank&1],
+			m_gfxdecode->gfx(m_bank&1)->transpen(bitmap,cliprect,
 				m_vram[y*m_screenw+x],
 				//(m_vram[y*m_screenw+x]&0x3f)+(m_bank>>1)*64,
 				0,
@@ -266,10 +270,12 @@ static MACHINE_CONFIG_START( monzagp, monzagp_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(monzagp_state, screen_update_monzagp)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_PALETTE_ADD("palette", 0x200)
+	MCFG_PALETTE_INIT_OWNER(monzagp_state, monzagp)
 
-	MCFG_GFXDECODE(monzagp)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", monzagp)
 MACHINE_CONFIG_END
 
 ROM_START( monzagp )

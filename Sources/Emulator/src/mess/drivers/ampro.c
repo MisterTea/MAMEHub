@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
 Ampro Little Z80 Board
@@ -19,12 +21,11 @@ ToDo:
 
 ****************************************************************************/
 
-#include "emu.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/z80/z80.h"
 #include "cpu/z80/z80daisy.h"
 #include "machine/z80ctc.h"
 #include "machine/z80dart.h"
-#include "machine/serial.h"
 #include "machine/wd_fdc.h"
 
 
@@ -76,7 +77,7 @@ WRITE8_MEMBER( ampro_state::port00_w )
 READ8_MEMBER( ampro_state::io_r )
 {
 	if (offset < 0x40)
-		return m_ctc->read(offset>>4);
+		return m_ctc->read(space, offset>>4);
 	else
 		return m_dart->ba_cd_r(space, offset>>2);
 }
@@ -84,7 +85,7 @@ READ8_MEMBER( ampro_state::io_r )
 WRITE8_MEMBER( ampro_state::io_w )
 {
 	if (offset < 0x40)
-		m_ctc->write(offset>>4, data);
+		m_ctc->write(space, offset>>4, data);
 	else
 		m_dart->ba_cd_w(space, offset>>2, data);
 }
@@ -116,31 +117,6 @@ static const z80_daisy_config daisy_chain_intf[] =
 	{ NULL }
 };
 
-static Z80DART_INTERFACE( dart_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_DEVICE_LINE_MEMBER("rs232", serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER("rs232", serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER("rs232", rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER("rs232", rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_NULL, // ChB in data
-	DEVCB_NULL, // out data
-	DEVCB_NULL, // DTR
-	DEVCB_NULL, // RTS
-	DEVCB_NULL, // WRDY
-	DEVCB_NULL, // SYNC
-
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 // Baud rate generator. All inputs are 2MHz.
 TIMER_DEVICE_CALLBACK_MEMBER( ampro_state::ctc_tick )
 {
@@ -155,23 +131,6 @@ WRITE_LINE_MEMBER( ampro_state::ctc_z0_w )
 	m_dart->rxca_w(state);
 	m_dart->txca_w(state);
 }
-
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0), // interrupt callback
-	DEVCB_DRIVER_LINE_MEMBER(ampro_state, ctc_z0_w),         /* ZC/TO0 callback - Z80DART Ch A, SIO Ch A */
-	DEVCB_DEVICE_LINE_MEMBER("z80dart", z80dart_device, rxtxcb_w),         /* ZC/TO1 callback - SIO Ch B */
-	DEVCB_NULL         /* ZC/TO2 callback */
-};
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 static SLOT_INTERFACE_START( ampro_floppies )
 	SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
@@ -205,9 +164,20 @@ static MACHINE_CONFIG_START( ampro, ampro_state )
 	MCFG_MACHINE_RESET_OVERRIDE(ampro_state, ampro)
 
 	/* Devices */
-	MCFG_Z80CTC_ADD( "z80ctc",   XTAL_16MHz / 4, ctc_intf )
-	MCFG_Z80DART_ADD("z80dart",  XTAL_16MHz / 4, dart_intf )
-	MCFG_RS232_PORT_ADD("rs232", rs232_intf, default_rs232_devices, "serial_terminal")
+	MCFG_DEVICE_ADD("z80ctc", Z80CTC, XTAL_16MHz / 4)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(WRITELINE(ampro_state, ctc_z0_w))    // Z80DART Ch A, SIO Ch A
+	MCFG_Z80CTC_ZC1_CB(DEVWRITELINE("z80dart", z80dart_device, rxtxcb_w))   // SIO Ch B
+
+	MCFG_Z80DART_ADD("z80dart", XTAL_16MHz / 4, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE("rs232", rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE("rs232", rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE("rs232", rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+
+	MCFG_RS232_PORT_ADD("rs232", default_rs232_devices, "terminal")
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("z80dart", z80dart_device, rxa_w))
+
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("ctc_tick", ampro_state, ctc_tick, attotime::from_hz(XTAL_16MHz / 8))
 	MCFG_WD1772x_ADD("fdc", XTAL_16MHz / 2)
 	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ampro_floppies, "525dd", floppy_image_device::default_floppy_formats)

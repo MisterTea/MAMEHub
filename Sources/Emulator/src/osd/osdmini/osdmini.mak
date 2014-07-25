@@ -70,8 +70,9 @@ OSDCOREOBJS = \
 OSDOBJS = \
 	$(MINIOBJ)/minimain.o
 
-
-
+ifeq ($(OS),Windows_NT)
+LIBS += -lwinmm -lwsock32
+endif
 #-------------------------------------------------
 # rules for building the libaries
 #-------------------------------------------------

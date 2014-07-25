@@ -18,8 +18,7 @@ TILE_GET_INFO_MEMBER(mitchell_state::get_tile_info)
 {
 	UINT8 attr = m_colorram[tile_index];
 	int code = m_videoram[2 * tile_index] + (m_videoram[2 * tile_index + 1] << 8);
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			attr & 0x7f,
 			(attr & 0x80) ? TILE_FLIPX : 0);
@@ -35,16 +34,18 @@ TILE_GET_INFO_MEMBER(mitchell_state::get_tile_info)
 
 VIDEO_START_MEMBER(mitchell_state,pang)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mitchell_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mitchell_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 	m_bg_tilemap->set_transparent_pen(15);
 
 	/* OBJ RAM */
-	m_objram = auto_alloc_array_clear(machine(), UINT8, m_videoram.bytes());
+	m_objram.resize(m_videoram.bytes());
 
 	/* Palette RAM */
-	m_generic_paletteram_8.allocate(2 * machine().total_colors());
+	m_paletteram.resize(2 * m_palette->entries());
+	m_palette->basemem().set(m_paletteram, ENDIANNESS_LITTLE, 2);
 
-	save_pointer(NAME(m_objram), m_videoram.bytes());
+	save_item(NAME(m_objram));
+	save_item(NAME(m_paletteram));
 }
 
 
@@ -238,28 +239,12 @@ logerror("PC %04x: pang_gfxctrl_w %02x\n",space.device().safe_pc(),data);
 
 WRITE8_MEMBER(mitchell_state::pang_paletteram_w)
 {
-	if (m_paletteram_bank)
-		paletteram_xxxxRRRRGGGGBBBB_byte_le_w(space, offset + 0x800, data);
-	else
-		paletteram_xxxxRRRRGGGGBBBB_byte_le_w(space, offset, data);
+	m_palette->write(space, offset + (m_paletteram_bank ? 0x800 : 0x000), data);
 }
 
 READ8_MEMBER(mitchell_state::pang_paletteram_r)
 {
-	if (m_paletteram_bank)
-		return m_generic_paletteram_8[offset + 0x800];
-
-	return m_generic_paletteram_8[offset];
-}
-
-WRITE8_MEMBER(mitchell_state::mgakuen_paletteram_w)
-{
-	paletteram_xxxxRRRRGGGGBBBB_byte_le_w(space, offset, data);
-}
-
-READ8_MEMBER(mitchell_state::mgakuen_paletteram_r)
-{
-	return m_generic_paletteram_8[offset];
+	return m_paletteram[offset + (m_paletteram_bank ? 0x800 : 0x000)];
 }
 
 
@@ -289,7 +274,7 @@ void mitchell_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &clipre
 			sx = 496 - sx;
 			sy = 240 - sy;
 		}
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 					code,
 					color,
 					m_flipscreen, m_flipscreen,

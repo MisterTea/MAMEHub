@@ -10,7 +10,7 @@
 
 WRITE8_MEMBER(battlex_state::battlex_palette_w)
 {
-	palette_set_color_rgb(machine(), offset, pal1bit(data >> 0), pal1bit(data >> 2), pal1bit(data >> 1));
+	m_palette->set_pen_color(offset, pal1bit(data >> 0), pal1bit(data >> 2), pal1bit(data >> 1));
 }
 
 WRITE8_MEMBER(battlex_state::battlex_scroll_x_lsb_w)
@@ -55,12 +55,12 @@ TILE_GET_INFO_MEMBER(battlex_state::get_bg_tile_info)
 
 void battlex_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(battlex_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(battlex_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 }
 
 void battlex_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 	UINT8 *source = m_spriteram;
 	UINT8 *finish = m_spriteram + 0x200;
 
@@ -81,7 +81,7 @@ void battlex_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap, cliprect, gfx, tile, color, flipx, flipy, sx, sy, 0);
+			gfx->transpen(bitmap,cliprect, tile, color, flipx, flipy, sx, sy, 0);
 		source += 4;
 	}
 

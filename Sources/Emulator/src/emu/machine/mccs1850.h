@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /**********************************************************************
 
     Motorola MCCS1850 Serial Real-Time Clock emulation
@@ -31,9 +33,15 @@
 //  INTERFACE CONFIGURATION MACROS
 //**************************************************************************
 
-#define MCFG_MCCS1850_ADD(_tag, _clock, _int_cb, _pse_cb, _nuc_cb)  \
-	MCFG_DEVICE_ADD(_tag, MCCS1850, _clock) \
-	downcast<mccs1850_device *>(device)->set_cb(_int_cb, _pse_cb, _nuc_cb);
+#define MCFG_MCCS1850_INT_CALLBACK(_write) \
+	devcb = &mccs1850_device::set_int_wr_callback(*device, DEVCB_##_write);
+
+#define MCFG_MCCS1850_PSE_CALLBACK(_write) \
+	devcb = &mccs1850_device::set_pse_wr_callback(*device, DEVCB_##_write);
+
+#define MCFG_MCCS1850_NUC_CALLBACK(_write) \
+	devcb = &mccs1850_device::set_nuc_wr_callback(*device, DEVCB_##_write);
+
 
 
 //**************************************************************************
@@ -49,7 +57,10 @@ class mccs1850_device : public device_t,
 public:
 	// construction/destruction
 	mccs1850_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	void set_cb(line_cb_t int_cb, line_cb_t pse_cb, line_cb_t nuc_cb);
+
+	template<class _Object> static devcb_base &set_int_wr_callback(device_t &device, _Object object) { return downcast<mccs1850_device &>(device).int_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_pse_wr_callback(device_t &device, _Object object) { return downcast<mccs1850_device &>(device).pse_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_nuc_wr_callback(device_t &device, _Object object) { return downcast<mccs1850_device &>(device).nuc_cb.set_callback(object); }
 
 	DECLARE_WRITE_LINE_MEMBER( ce_w );
 	DECLARE_WRITE_LINE_MEMBER( sck_w );
@@ -58,6 +69,9 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( pwrsw_w );
 	DECLARE_WRITE_LINE_MEMBER( por_w );
 	DECLARE_WRITE_LINE_MEMBER( test_w );
+
+	// For setting the time at startup
+	void set_counter(UINT32 value);
 
 protected:
 	// device-level overrides
@@ -79,7 +93,7 @@ private:
 
 	static const device_timer_id TIMER_CLOCK = 0;
 
-	line_cb_t int_cb, pse_cb, nuc_cb;
+	devcb_write_line int_cb, pse_cb, nuc_cb;
 
 	UINT8 m_ram[0x80];          // RAM
 

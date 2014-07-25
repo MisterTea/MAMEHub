@@ -15,7 +15,7 @@
 TILE_GET_INFO_MEMBER(msisaac_state::get_fg_tile_info)
 {
 	int tile_number = m_videoram[tile_index];
-	SET_TILE_INFO_MEMBER( 0,
+	SET_TILE_INFO_MEMBER(0,
 			tile_number,
 			0x10,
 			0);
@@ -24,7 +24,7 @@ TILE_GET_INFO_MEMBER(msisaac_state::get_fg_tile_info)
 TILE_GET_INFO_MEMBER(msisaac_state::get_bg_tile_info)
 {
 	int tile_number = m_videoram2[tile_index];
-	SET_TILE_INFO_MEMBER( 1,
+	SET_TILE_INFO_MEMBER(1,
 			0x100 + tile_number,
 			0x30,
 			0);
@@ -37,7 +37,7 @@ TILE_GET_INFO_MEMBER(msisaac_state::get_bg2_tile_info)
 	/* graphics 0 or 1 */
 	int gfx_b = (m_bg2_textbank >> 3) & 1;
 
-	SET_TILE_INFO_MEMBER( gfx_b,
+	SET_TILE_INFO_MEMBER(gfx_b,
 			tile_number,
 			0x20,
 			0);
@@ -51,9 +51,9 @@ TILE_GET_INFO_MEMBER(msisaac_state::get_bg2_tile_info)
 
 void msisaac_state::video_start()
 {
-	m_bg_tilemap  = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(msisaac_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_bg2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(msisaac_state::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fg_tilemap  = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(msisaac_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap  = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(msisaac_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(msisaac_state::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap  = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(msisaac_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_bg2_tilemap->set_transparent_pen(0);
 	m_fg_tilemap->set_transparent_pen(0);
@@ -163,12 +163,12 @@ void msisaac_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 		int flipx = (attributes & 0x1);
 		int flipy = (attributes & 0x2);
 
-		gfx_element *gfx = machine().gfx[2];
+		gfx_element *gfx = m_gfxdecode->gfx(2);
 
 		if (attributes & 4)
 		{
 			//color = rand() & 15;
-			gfx = machine().gfx[3];
+			gfx = m_gfxdecode->gfx(3);
 		}
 
 		if (attributes & 8) /* double size sprite */
@@ -176,41 +176,41 @@ void msisaac_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 			switch (attributes & 3)
 			{
 			case 0: /* flipx==0 && flipy==0 */
-				drawgfx_transpen(bitmap,cliprect,gfx,
+				gfx->transpen(bitmap,cliprect,
 					sprite_number+1,color,
 					flipx,flipy,
 					sx,sy-16,0 );
-				drawgfx_transpen(bitmap,cliprect,gfx,
+				gfx->transpen(bitmap,cliprect,
 					sprite_number,color,
 					flipx,flipy,
 					sx,sy,0 );
 				break;
 			case 1: /* flipx==1 && flipy==0 */
-				drawgfx_transpen(bitmap,cliprect,gfx,
+				gfx->transpen(bitmap,cliprect,
 					sprite_number+1,color,
 					flipx,flipy,
 					sx,sy-16,0 );
-				drawgfx_transpen(bitmap,cliprect,gfx,
+				gfx->transpen(bitmap,cliprect,
 					sprite_number,color,
 					flipx,flipy,
 					sx,sy,0 );
 				break;
 			case 2: /* flipx==0 && flipy==1 */
-				drawgfx_transpen(bitmap,cliprect,gfx,
+				gfx->transpen(bitmap,cliprect,
 					sprite_number,color,
 					flipx,flipy,
 					sx,sy-16,0 );
-				drawgfx_transpen(bitmap,cliprect,gfx,
+				gfx->transpen(bitmap,cliprect,
 					sprite_number+1,color,
 					flipx,flipy,
 					sx,sy,0 );
 				break;
 			case 3: /* flipx==1 && flipy==1 */
-				drawgfx_transpen(bitmap,cliprect,gfx,
+				gfx->transpen(bitmap,cliprect,
 					sprite_number,color,
 					flipx,flipy,
 					sx,sy-16,0 );
-				drawgfx_transpen(bitmap,cliprect,gfx,
+				gfx->transpen(bitmap,cliprect,
 					sprite_number+1,color,
 					flipx,flipy,
 					sx,sy,0 );
@@ -219,7 +219,7 @@ void msisaac_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 		}
 		else
 		{
-			drawgfx_transpen(bitmap,cliprect,gfx,
+			gfx->transpen(bitmap,cliprect,
 				sprite_number,
 				color,
 				flipx,flipy,

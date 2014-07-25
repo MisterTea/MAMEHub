@@ -17,6 +17,7 @@
 #define __RSP_H__
 
 #define USE_SIMD        (0)
+#define SIMUL_SIMD      (0)
 
 #if USE_SIMD
 #include <tmmintrin.h>
@@ -69,23 +70,6 @@ enum
 	RSP_V16, RSP_V17, RSP_V18, RSP_V19, RSP_V20, RSP_V21, RSP_V22, RSP_V23,
 	RSP_V24, RSP_V25, RSP_V26, RSP_V27, RSP_V28, RSP_V29, RSP_V30, RSP_V31
 };
-
-
-
-/***************************************************************************
-    STRUCTURES
-***************************************************************************/
-
-struct rsp_config
-{
-	devcb_read32 dp_reg_r_cb;
-	devcb_write32 dp_reg_w_cb;
-	devcb_read32 sp_reg_r_cb;
-	devcb_write32 sp_reg_w_cb;
-	devcb_write32 sp_set_status_cb;
-};
-
-
 
 /***************************************************************************
     PUBLIC FUNCTIONS
@@ -159,6 +143,44 @@ union ACCUMULATOR_REG
 	INT16 w[4];
 };
 
+#define MCFG_RSP_DP_REG_R_CB(_devcb) \
+	devcb = &rsp_cpu_device::static_set_dp_reg_r_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_RSP_DP_REG_W_CB(_devcb) \
+	devcb = &rsp_cpu_device::static_set_dp_reg_w_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_RSP_SP_REG_R_CB(_devcb) \
+	devcb = &rsp_cpu_device::static_set_sp_reg_r_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_RSP_SP_REG_W_CB(_devcb) \
+	devcb = &rsp_cpu_device::static_set_sp_reg_w_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_RSP_SP_SET_STATUS_CB(_devcb) \
+	devcb = &rsp_cpu_device::static_set_status_callback(*device, DEVCB_##_devcb);
+
+class rsp_cpu_device : public legacy_cpu_device
+{
+protected:
+	// construction/destruction
+	rsp_cpu_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, cpu_get_info_func info);
+
+public:
+	void resolve_cb();
+	template<class _Object> static devcb_base &static_set_dp_reg_r_callback(device_t &device, _Object object) { return downcast<rsp_cpu_device &>(device).dp_reg_r_func.set_callback(object); }
+	template<class _Object> static devcb_base &static_set_dp_reg_w_callback(device_t &device, _Object object) { return downcast<rsp_cpu_device &>(device).dp_reg_w_func.set_callback(object); }
+	template<class _Object> static devcb_base &static_set_sp_reg_r_callback(device_t &device, _Object object) { return downcast<rsp_cpu_device &>(device).sp_reg_r_func.set_callback(object); }
+	template<class _Object> static devcb_base &static_set_sp_reg_w_callback(device_t &device, _Object object) { return downcast<rsp_cpu_device &>(device).sp_reg_w_func.set_callback(object); }
+	template<class _Object> static devcb_base &static_set_status_callback(device_t &device, _Object object) { return downcast<rsp_cpu_device &>(device).sp_set_status_func.set_callback(object); }
+
+
+	devcb_read32 dp_reg_r_func;
+	devcb_write32 dp_reg_w_func;
+	devcb_read32 sp_reg_r_func;
+	devcb_write32 sp_reg_w_func;
+	devcb_write32 sp_set_status_func;
+};
+
+
 struct rspimp_state;
 struct rsp_state
 {
@@ -167,12 +189,34 @@ struct rsp_state
 	UINT32 pc;
 	UINT32 r[35];
 	VECTOR_REG v[32];
+	UINT16 vflag[6][8];
+
+#if SIMUL_SIMD
+	UINT32 old_r[35];
+	UINT8 old_dmem[4096];
+
+	UINT32 scalar_r[35];
+	UINT8 scalar_dmem[4096];
+
+	INT32 old_reciprocal_res;
+	UINT32 old_reciprocal_high;
+	INT32 old_dp_allowed;
+
+	INT32 scalar_reciprocal_res;
+	UINT32 scalar_reciprocal_high;
+	INT32 scalar_dp_allowed;
+
+	INT32 simd_reciprocal_res;
+	UINT32 simd_reciprocal_high;
+	INT32 simd_dp_allowed;
+#endif
+
 #if USE_SIMD
 	// Mirror of v[] for now, to be used in parallel as
 	// more vector ops are transitioned over
 	__m128i xv[32];
+	__m128i xvflag[6];
 #endif
-	UINT16 flag[4];
 	UINT32 sr;
 	UINT32 step_count;
 
@@ -181,6 +225,7 @@ struct rsp_state
 	__m128i accum_h;
 	__m128i accum_m;
 	__m128i accum_l;
+	__m128i accum_ll;
 #endif
 	INT32 reciprocal_res;
 	UINT32 reciprocal_high;
@@ -189,8 +234,8 @@ struct rsp_state
 	UINT32 ppc;
 	UINT32 nextpc;
 
-	device_irq_acknowledge_callback irq_callback;
-	legacy_cpu_device *device;
+	device_irq_acknowledge_delegate irq_callback;
+	rsp_cpu_device *device;
 	address_space *program;
 	direct_read_data *direct;
 	int icount;
@@ -204,16 +249,27 @@ struct rsp_state
 	UINT8 *imem8;
 
 	rspimp_state* impstate;
-
-	devcb_resolved_read32 dp_reg_r_func;
-	devcb_resolved_write32 dp_reg_w_func;
-	devcb_resolved_read32 sp_reg_r_func;
-	devcb_resolved_write32 sp_reg_w_func;
-	devcb_resolved_write32 sp_set_status_func;
 };
 
-DECLARE_LEGACY_CPU_DEVICE(RSP_INT, rsp_int);
-DECLARE_LEGACY_CPU_DEVICE(RSP_DRC, rsp_drc);
+CPU_GET_INFO( rsp_int );
+
+class rsp_int_device : public rsp_cpu_device
+{
+public:
+	rsp_int_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock);
+};
+
+extern const device_type RSP_INT;
+
+CPU_GET_INFO( rsp_drc );
+
+class rsp_drc_device : public rsp_cpu_device
+{
+public:
+	rsp_drc_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock);
+};
+
+extern const device_type RSP_DRC;
 
 extern const device_type RSP;
 

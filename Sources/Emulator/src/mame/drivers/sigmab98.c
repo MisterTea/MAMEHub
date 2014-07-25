@@ -104,12 +104,19 @@ public:
 		m_maincpu(*this,"maincpu"),
 		m_spriteram(*this, "spriteram"),
 		m_nvram(*this, "nvram"),
-		m_eeprom(*this, "eeprom"){ }
+		m_eeprom(*this, "eeprom"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_device<cpu_device> m_maincpu;
 	optional_shared_ptr<UINT8> m_spriteram;
 	required_shared_ptr<UINT8> m_nvram;
 	required_device<eeprom_serial_93cxx_device> m_eeprom;
+	required_device<gfxdecode_device> m_gfxdecode;
+	dynamic_array<UINT8> m_paletteram;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	UINT8 m_reg;
 	UINT8 m_rombank;
@@ -298,7 +305,7 @@ void sigmab98_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 		{
 			for (x = x0; x != x1; x += dx)
 			{
-				drawgfxzoom_transpen(   bitmap, cliprect, machine().gfx[gfx],
+				m_gfxdecode->gfx(gfx)->zoom_transpen(bitmap,cliprect,
 										code++, color,
 										flipx, flipy,
 										(sx + x * dim) / 0x10000, (sy + y * dim) / 0x10000,
@@ -324,7 +331,7 @@ UINT32 sigmab98_state::screen_update_sigmab98(screen_device &screen, bitmap_ind1
 	}
 #endif
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	// Draw from priority 3 (bottom, converted to a bitmask) to priority 0 (top)
 	draw_sprites(bitmap, cliprect, layers_ctrl & 8);
@@ -506,7 +513,7 @@ static ADDRESS_MAP_START( gegege_mem_map, AS_PROGRAM, 8, sigmab98_state )
 
 	AM_RANGE( 0xa000, 0xafff ) AM_RAM AM_SHARE("spriteram")
 
-	AM_RANGE( 0xc000, 0xc1ff ) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_byte_be_w) AM_SHARE("paletteram")
+	AM_RANGE( 0xc000, 0xc1ff ) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 
 	AM_RANGE( 0xc800, 0xc87f ) AM_RAM
 
@@ -749,7 +756,7 @@ static ADDRESS_MAP_START( animalc_map, AS_PROGRAM, 8, sigmab98_state )
 	AM_RANGE( 0xa000, 0xafff ) AM_RAM
 	AM_RANGE( 0xb000, 0xbfff ) AM_RAMBANK("sprbank")
 
-	AM_RANGE( 0xd000, 0xd1ff ) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_byte_be_w ) AM_SHARE("paletteram")
+	AM_RANGE( 0xd000, 0xd1ff ) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE( 0xd800, 0xd87f ) AM_RAM   // table?
 
 	AM_RANGE( 0xe011, 0xe011 ) AM_WRITENOP  // IRQ Enable? Screen disable?
@@ -917,7 +924,7 @@ READ8_MEMBER(sigmab98_state::haekaka_b000_r)
 
 		case 0x67:  // PALETTERAM + TABLE? + REGS
 			if (offset < 0x200)
-				return m_generic_paletteram_8[offset];
+				return m_paletteram[offset];
 			else if (offset == (0xc013-0xb000))
 				return haekaka_vblank_r(space, offset);
 			break;
@@ -942,7 +949,7 @@ WRITE8_MEMBER(sigmab98_state::haekaka_b000_w)
 		case 0x67:  // PALETTERAM + TABLE? + REGS
 			if (offset < 0x200)
 			{
-				paletteram_xRRRRRGGGGGBBBBB_byte_be_w(space, offset, data);
+				m_palette->write(space, offset, data);
 //              m_generic_paletteram_8[offset] = data;
 				return;
 			}
@@ -1151,7 +1158,7 @@ WRITE8_MEMBER(sigmab98_state::itazuram_rambank_w)
 			switch (data)
 			{
 				case 0x52:  membank("palbank")->set_base(m_nvram);                                  break;
-				case 0x64:  membank("palbank")->set_base(m_generic_paletteram_8);   break;
+				case 0x64:  membank("palbank")->set_base(m_paletteram);   break;
 				default:
 					logerror("%s: unknown ram bank = %02x, reg2 = %02x\n", machine().describe_context(), data, m_reg2);
 					return;
@@ -1183,7 +1190,7 @@ WRITE8_MEMBER(sigmab98_state::itazuram_nvram_palette_w)
 {
 	if (m_rambank == 0x64)
 	{
-		paletteram_xRRRRRGGGGGBBBBB_byte_be_w(space, offset, data);
+		m_palette->write(space, offset, data);
 //      m_generic_paletteram_8[offset] = data;
 	}
 	else if (m_rambank == 0x52)
@@ -1201,7 +1208,7 @@ WRITE8_MEMBER(sigmab98_state::itazuram_palette_w)
 	if (m_rombank == 0x6c)
 	{
 		if (offset < 0x200)
-			paletteram_xRRRRRGGGGGBBBBB_byte_be_w(space, offset, data);
+			m_palette->write(space, offset, data);
 //          m_generic_paletteram_8[offset] = data;
 	}
 	else
@@ -1212,7 +1219,7 @@ WRITE8_MEMBER(sigmab98_state::itazuram_palette_w)
 
 READ8_MEMBER(sigmab98_state::itazuram_palette_r)
 {
-	return m_generic_paletteram_8[offset];
+	return m_paletteram[offset];
 }
 
 static ADDRESS_MAP_START( itazuram_map, AS_PROGRAM, 8, sigmab98_state )
@@ -1394,7 +1401,7 @@ READ8_MEMBER(sigmab98_state::tdoboon_c000_r)
 
 		case 0x66:  // PALETTERAM + TABLE?
 			if (offset < 0x200)
-				return m_generic_paletteram_8[offset];
+				return m_paletteram[offset];
 			break;
 
 		case 0x67:  // REGS
@@ -1422,7 +1429,7 @@ WRITE8_MEMBER(sigmab98_state::tdoboon_c000_w)
 		case 0x66:  // PALETTERAM + TABLE?
 			if (offset < 0x200)
 			{
-				paletteram_xRRRRRGGGGGBBBBB_byte_be_w(space, offset, data);
+				m_palette->write(space, offset, data);
 //              m_generic_paletteram_8[offset] = data;
 				return;
 			}
@@ -1697,9 +1704,12 @@ static MACHINE_CONFIG_START( gegege, sigmab98_state )
 	MCFG_SCREEN_SIZE(0x200, 0x200)
 	MCFG_SCREEN_VISIBLE_AREA(0,0x140-1, 0,0xf0-1)
 	MCFG_SCREEN_UPDATE_DRIVER(sigmab98_state, screen_update_sigmab98)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sigmab98)
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sigmab98)
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -1737,9 +1747,12 @@ static MACHINE_CONFIG_START( sammymdl, sigmab98_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 0x140-1, 0, 0xf0-1)
 	MCFG_SCREEN_UPDATE_DRIVER(sigmab98_state, screen_update_sigmab98)
 	MCFG_SCREEN_VBLANK_DRIVER(sigmab98_state, screen_eof_sammymdl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sigmab98)
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sigmab98)
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -2136,9 +2149,9 @@ DRIVER_INIT_MEMBER(sigmab98_state,itazuram)
 	m_rombank = 0x0f;
 
 	// RAM banks
-	m_generic_paletteram_8.allocate(0x3000);
-	memset(m_generic_paletteram_8, 0, 0x3000);
-	membank("palbank")->set_base(m_generic_paletteram_8);
+	m_paletteram.resize_and_clear(0x3000);
+	m_palette->basemem().set(m_paletteram, ENDIANNESS_BIG, 2);
+	membank("palbank")->set_base(m_paletteram);
 	m_rambank = 0x64;
 
 	m_spriteram.allocate(0x1000 * 5);
@@ -2248,8 +2261,8 @@ ROM_END
 DRIVER_INIT_MEMBER(sigmab98_state,haekaka)
 {
 	// RAM banks
-	m_generic_paletteram_8.allocate(0x200);
-	memset(m_generic_paletteram_8, 0, 0x200);
+	m_paletteram.resize_and_clear(0x200);
+	m_palette->basemem().set(m_paletteram, ENDIANNESS_BIG, 2);
 
 	m_spriteram.allocate(0x1000);
 	memset(m_spriteram, 0, 0x1000);

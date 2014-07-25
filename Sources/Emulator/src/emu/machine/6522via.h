@@ -24,32 +24,31 @@
 //  INTERFACE CONFIGURATION MACROS
 //**************************************************************************
 
-#define MCFG_VIA6522_ADD(_tag, _clock, _intrf) \
-	MCFG_DEVICE_ADD(_tag, VIA6522, _clock) \
-	MCFG_DEVICE_CONFIG(_intrf)
+// TODO: REMOVE THESE
+#define MCFG_VIA6522_READPA_HANDLER(_devcb) \
+	devcb = &via6522_device::set_readpa_handler(*device, DEVCB_##_devcb);
 
+#define MCFG_VIA6522_READPB_HANDLER(_devcb) \
+	devcb = &via6522_device::set_readpb_handler(*device, DEVCB_##_devcb);
 
+// TODO: CONVERT THESE TO WRITE LINE
+#define MCFG_VIA6522_WRITEPA_HANDLER(_devcb) \
+	devcb = &via6522_device::set_writepa_handler(*device, DEVCB_##_devcb);
 
-/***************************************************************************
-    MACROS / CONSTANTS
-***************************************************************************/
+#define MCFG_VIA6522_WRITEPB_HANDLER(_devcb) \
+	devcb = &via6522_device::set_writepb_handler(*device, DEVCB_##_devcb);
 
-#define VIA_PB      0
-#define VIA_PA      1
-#define VIA_DDRB    2
-#define VIA_DDRA    3
-#define VIA_T1CL    4
-#define VIA_T1CH    5
-#define VIA_T1LL    6
-#define VIA_T1LH    7
-#define VIA_T2CL    8
-#define VIA_T2CH    9
-#define VIA_SR     10
-#define VIA_ACR    11
-#define VIA_PCR    12
-#define VIA_IFR    13
-#define VIA_IER    14
-#define VIA_PANH   15
+#define MCFG_VIA6522_CA2_HANDLER(_devcb) \
+	devcb = &via6522_device::set_ca2_handler(*device, DEVCB_##_devcb);
+
+#define MCFG_VIA6522_CB1_HANDLER(_devcb) \
+	devcb = &via6522_device::set_cb1_handler(*device, DEVCB_##_devcb);
+
+#define MCFG_VIA6522_CB2_HANDLER(_devcb) \
+	devcb = &via6522_device::set_cb2_handler(*device, DEVCB_##_devcb);
+
+#define MCFG_VIA6522_IRQ_HANDLER(_devcb) \
+	devcb = &via6522_device::set_irq_handler(*device, DEVCB_##_devcb);
 
 
 /***************************************************************************
@@ -57,60 +56,76 @@
 ***************************************************************************/
 
 
-// ======================> via6522_interface
-
-struct via6522_interface
-{
-	devcb_read8 m_in_a_cb;
-	devcb_read8 m_in_b_cb;
-	devcb_read_line m_in_ca1_cb;
-	devcb_read_line m_in_cb1_cb;
-	devcb_read_line m_in_ca2_cb;
-	devcb_read_line m_in_cb2_cb;
-	devcb_write8 m_out_a_cb;
-	devcb_write8 m_out_b_cb;
-	devcb_write_line m_out_ca1_cb;
-	devcb_write_line m_out_cb1_cb;
-	devcb_write_line m_out_ca2_cb;
-	devcb_write_line m_out_cb2_cb;
-	devcb_write_line m_irq_cb;
-};
-
-
 // ======================> via6522_device
 
-class via6522_device :  public device_t,
-						public via6522_interface
+class via6522_device :  public device_t
 {
-	friend class dart_channel;
-
 public:
 	// construction/destruction
 	via6522_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
+	// TODO: REMOVE THESE
+	template<class _Object> static devcb_base &set_readpa_handler(device_t &device, _Object object) { return downcast<via6522_device &>(device).m_in_a_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_readpb_handler(device_t &device, _Object object) { return downcast<via6522_device &>(device).m_in_b_handler.set_callback(object); }
+
+	// TODO: CONVERT THESE TO WRITE LINE
+	template<class _Object> static devcb_base &set_writepa_handler(device_t &device, _Object object) { return downcast<via6522_device &>(device).m_out_a_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_writepb_handler(device_t &device, _Object object) { return downcast<via6522_device &>(device).m_out_b_handler.set_callback(object); }
+
+	template<class _Object> static devcb_base &set_ca2_handler(device_t &device, _Object object) { return downcast<via6522_device &>(device).m_ca2_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_cb1_handler(device_t &device, _Object object) { return downcast<via6522_device &>(device).m_cb1_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_cb2_handler(device_t &device, _Object object) { return downcast<via6522_device &>(device).m_cb2_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_irq_handler(device_t &device, _Object object) { return downcast<via6522_device &>(device).m_irq_handler.set_callback(object); }
+
 	DECLARE_READ8_MEMBER( read );
 	DECLARE_WRITE8_MEMBER( write );
 
-	DECLARE_WRITE8_MEMBER( write_porta ) { m_in_a = data; }
-
-	DECLARE_READ8_MEMBER( read_portb ) { return m_in_b; }
-	DECLARE_WRITE8_MEMBER( write_portb ) { m_in_b = data; }
-
-	DECLARE_READ_LINE_MEMBER( read_ca1 ) { return m_in_ca1; }
+	DECLARE_WRITE_LINE_MEMBER( write_pa0 ) { write_pa(0, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pa1 ) { write_pa(1, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pa2 ) { write_pa(2, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pa3 ) { write_pa(3, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pa4 ) { write_pa(4, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pa5 ) { write_pa(5, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pa6 ) { write_pa(6, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pa7 ) { write_pa(7, state); }
+	DECLARE_WRITE8_MEMBER( write_pa );
 	DECLARE_WRITE_LINE_MEMBER( write_ca1 );
-
-	DECLARE_READ_LINE_MEMBER( read_ca2 ) { return m_in_ca2; }
 	DECLARE_WRITE_LINE_MEMBER( write_ca2 );
 
-	DECLARE_READ_LINE_MEMBER( read_cb1 ) { return m_in_cb1; }
+	DECLARE_WRITE_LINE_MEMBER( write_pb0 ) { write_pb(0, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pb1 ) { write_pb(1, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pb2 ) { write_pb(2, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pb3 ) { write_pb(3, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pb4 ) { write_pb(4, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pb5 ) { write_pb(5, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pb6 ) { write_pb(6, state); }
+	DECLARE_WRITE_LINE_MEMBER( write_pb7 ) { write_pb(7, state); }
+	DECLARE_WRITE8_MEMBER( write_pb );
 	DECLARE_WRITE_LINE_MEMBER( write_cb1 );
-
-	DECLARE_READ_LINE_MEMBER( read_cb2 ) { return m_in_cb2; }
 	DECLARE_WRITE_LINE_MEMBER( write_cb2 );
+
+	enum
+	{
+		VIA_PB = 0,
+		VIA_PA = 1,
+		VIA_DDRB = 2,
+		VIA_DDRA = 3,
+		VIA_T1CL = 4,
+		VIA_T1CH = 5,
+		VIA_T1LL = 6,
+		VIA_T1LH = 7,
+		VIA_T2CL = 8,
+		VIA_T2CH = 9,
+		VIA_SR = 10,
+		VIA_ACR = 11,
+		VIA_PCR = 12,
+		VIA_IFR = 13,
+		VIA_IER = 14,
+		VIA_PANH = 15
+	};
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
 	virtual void device_reset();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -123,38 +138,48 @@ private:
 
 	UINT16 get_counter1_value();
 
-	inline void set_irq_line(int state);
 	void set_int(int data);
 	void clear_int(int data);
-	void shift();
+	void shift_out();
+	void shift_in();
+	void write_pa(int line, int state);
+	void write_pb(int line, int state);
 
-	devcb_resolved_read8 m_in_a_func;
-	devcb_resolved_read8 m_in_b_func;
-	devcb_resolved_read_line m_in_ca1_func;
-	devcb_resolved_read_line m_in_cb1_func;
-	devcb_resolved_read_line m_in_ca2_func;
-	devcb_resolved_read_line m_in_cb2_func;
-	devcb_resolved_write8 m_out_a_func;
-	devcb_resolved_write8 m_out_b_func;
-	devcb_resolved_write_line m_out_ca1_func;
-	devcb_resolved_write_line m_out_cb1_func;
-	devcb_resolved_write_line m_out_ca2_func;
-	devcb_resolved_write_line m_out_cb2_func;
-	devcb_resolved_write_line m_irq_func;
+	UINT8 input_pa();
+	void output_pa();
+	UINT8 input_pb();
+	void output_pb();
+	void output_irq();
+
+	// TODO: REMOVE THESE
+	devcb_read8 m_in_a_handler;
+	devcb_read8 m_in_b_handler;
+
+	// TODO: CONVERT THESE TO WRITE LINE
+	devcb_write8 m_out_a_handler;
+	devcb_write8 m_out_b_handler;
+
+	devcb_write_line m_ca2_handler;
+	devcb_write_line m_cb1_handler;
+	devcb_write_line m_cb2_handler;
+	devcb_write_line m_irq_handler;
 
 	UINT8 m_in_a;
-	UINT8 m_in_ca1;
-	UINT8 m_in_ca2;
+	int m_in_ca1;
+	int m_in_ca2;
 	UINT8 m_out_a;
-	UINT8 m_out_ca2;
+	int m_out_ca2;
 	UINT8 m_ddr_a;
+	UINT8 m_latch_a;
 
 	UINT8 m_in_b;
-	UINT8 m_in_cb1;
-	UINT8 m_in_cb2;
+	int m_in_cb1;
+	int m_in_cb2;
 	UINT8 m_out_b;
-	UINT8 m_out_cb2;
+	int m_out_cb1;
+	int m_out_cb2;
 	UINT8 m_ddr_b;
+	UINT8 m_latch_b;
 
 	UINT8 m_t1cl;
 	UINT8 m_t1ch;
@@ -170,11 +195,11 @@ private:
 	UINT8 m_acr;
 	UINT8 m_ier;
 	UINT8 m_ifr;
-	int m_irq;
 
 	emu_timer *m_t1;
 	attotime m_time1;
 	UINT8 m_t1_active;
+	int m_t1_pb7;
 	emu_timer *m_t2;
 	attotime m_time2;
 	UINT8 m_t2_active;

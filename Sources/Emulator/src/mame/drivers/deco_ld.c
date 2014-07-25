@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
 Bega's Battle (c) 1983 Data East Corporation
@@ -123,7 +125,10 @@ public:
 			m_vram0(*this, "vram0"),
 			m_attr0(*this, "attr0"),
 			m_vram1(*this, "vram1"),
-			m_attr1(*this, "attr1")
+			m_attr1(*this, "attr1"),
+			m_gfxdecode(*this, "gfxdecode"),
+			m_screen(*this, "screen"),
+			m_palette(*this, "palette")
 			{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -133,6 +138,9 @@ public:
 	required_shared_ptr<UINT8> m_attr0;
 	required_shared_ptr<UINT8> m_vram1;
 	required_shared_ptr<UINT8> m_attr1;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	UINT8 m_laserdisc_data;
 	int m_nmimask;
@@ -153,7 +161,7 @@ public:
 
 void deco_ld_state::draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect, UINT8 *spriteram, UINT16 tile_bank )
 {
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 	int i,spr_offs,x,y,col,fx,fy;
 
 	/*
@@ -167,7 +175,7 @@ void deco_ld_state::draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect
 
 	for(i=0;i<0x20;i+=4)
 	{
-		if(!spriteram[i+0] & 1)
+		if(~spriteram[i+0] & 1)
 			continue;
 
 		spr_offs = spriteram[i+1]|tile_bank;
@@ -177,12 +185,12 @@ void deco_ld_state::draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect
 		fx = (spriteram[i+0] & 0x04) ? 1 : 0;
 		fy = (spriteram[i+0] & 0x02) ? 1 : 0;
 
-		drawgfx_transpen(bitmap,cliprect,gfx,spr_offs,col,fx,fy,x,y,0);
+		gfx->transpen(bitmap,cliprect,spr_offs,col,fx,fy,x,y,0);
 	}
 
 	for(i=0x3e0;i<0x400;i+=4)
 	{
-		if(!spriteram[i+0] & 1)
+		if(~spriteram[i+0] & 1)
 			continue;
 
 		spr_offs = spriteram[i+1]|tile_bank;
@@ -192,13 +200,13 @@ void deco_ld_state::draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect
 		fx = (spriteram[i+0] & 0x04) ? 1 : 0;
 		fy = (spriteram[i+0] & 0x02) ? 1 : 0;
 
-		drawgfx_transpen(bitmap,cliprect,gfx,spr_offs,col,fx,fy,x,y,0);
+		gfx->transpen(bitmap,cliprect,spr_offs,col,fx,fy,x,y,0);
 	}
 }
 
 UINT32 deco_ld_state::screen_update_rblaster(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	int y,x;
 
 	bitmap.fill(0, cliprect);
@@ -214,7 +222,7 @@ UINT32 deco_ld_state::screen_update_rblaster(screen_device &screen, bitmap_rgb32
 			int tile = m_vram0[x+y*32] | ((attr & 3) << 8);
 			int colour = (6 & 0x7); /* TODO */
 
-			drawgfx_transpen(bitmap,cliprect,gfx,tile|0x400,colour,0,0,x*8,y*8,0);
+			gfx->transpen(bitmap,cliprect,tile|0x400,colour,0,0,x*8,y*8,0);
 		}
 	}
 
@@ -226,7 +234,7 @@ UINT32 deco_ld_state::screen_update_rblaster(screen_device &screen, bitmap_rgb32
 			int tile = m_vram1[x+y*32] | ((attr & 3) << 8);
 			int colour = (6 & 0x7); /* TODO */
 
-			drawgfx_transpen(bitmap,cliprect,gfx,tile,colour,0,0,x*8,y*8,0);
+			gfx->transpen(bitmap,cliprect,tile,colour,0,0,x*8,y*8,0);
 		}
 	}
 
@@ -238,7 +246,7 @@ UINT32 deco_ld_state::screen_update_rblaster(screen_device &screen, bitmap_rgb32
 READ8_MEMBER(deco_ld_state::laserdisc_r)
 {
 	UINT8 result = m_laserdisc->status_r();
-//  mame_printf_debug("laserdisc_r = %02X\n", result);
+//  osd_printf_debug("laserdisc_r = %02X\n", result);
 	return result;
 }
 
@@ -258,7 +266,7 @@ WRITE8_MEMBER(deco_ld_state::decold_sound_cmd_w)
 /* same as Burger Time HW */
 WRITE8_MEMBER(deco_ld_state::decold_palette_w)
 {
-	paletteram_BBGGGRRR_byte_w(space, offset, ~data);
+	m_palette->write(space, offset, UINT8(~data));
 }
 
 /* unknown, but certainly related to audiocpu somehow */
@@ -277,7 +285,7 @@ static ADDRESS_MAP_START( rblaster_map, AS_PROGRAM, 8, deco_ld_state )
 	AM_RANGE(0x1005, 0x1005) AM_READ(sound_status_r)
 	AM_RANGE(0x1006, 0x1006) AM_NOP // 6850 status
 	AM_RANGE(0x1007, 0x1007) AM_READWRITE(laserdisc_r,laserdisc_w) // 6850 data
-	AM_RANGE(0x1800, 0x1fff) AM_RAM_WRITE(decold_palette_w) AM_SHARE("paletteram")
+	AM_RANGE(0x1800, 0x1fff) AM_RAM_WRITE(decold_palette_w) AM_SHARE("palette")
 	AM_RANGE(0x2000, 0x27ff) AM_RAM
 	AM_RANGE(0x2800, 0x2bff) AM_RAM AM_SHARE("vram0")
 	AM_RANGE(0x2c00, 0x2fff) AM_RAM AM_SHARE("attr0")
@@ -471,11 +479,13 @@ static MACHINE_CONFIG_START( rblaster, deco_ld_state )
 	MCFG_LASERDISC_LDV1000_ADD("laserdisc") //Sony LDP-1000A, is it truly compatible with the Pioneer?
 	MCFG_LASERDISC_OVERLAY_DRIVER(256, 256, deco_ld_state, screen_update_rblaster)
 	MCFG_LASERDISC_OVERLAY_CLIP(0, 256-1, 8, 240-1)
+	MCFG_LASERDISC_OVERLAY_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_LASERDISC_SCREEN_ADD_NTSC("screen", "laserdisc")
-	MCFG_GFXDECODE(rblaster)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rblaster)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(BBGGGRRR)
 
 	/* sound hardware */
 	/* TODO: mixing */
@@ -608,7 +618,6 @@ ROM_START( cobra )
 	ROM_LOAD( "au0a",   0x0000, 0x2000, CRC(6aaedcf3) SHA1(52dc913eecf8a159784d500217cffd7a6d8eb45c) )
 	ROM_LOAD( "au0b",   0x4000, 0x2000, CRC(92247877) SHA1(f9bb0c20212ab13caabfb5beb9b6afc807bc9555) )
 	ROM_LOAD( "au0c",   0x8000, 0x2000, CRC(d00a2762) SHA1(84d4329b39b9fd30682b7efa5cb2744934c5ee5c) )
-
 	ROM_LOAD( "au07",   0x2000, 0x2000, CRC(d4bf12a5) SHA1(e172f69ae02ac2670b70af0cfcf3887dd99c2761) )
 	ROM_LOAD( "au08",   0x6000, 0x2000, CRC(63158274) SHA1(c728e8ba0a11ea67cf508877ad74a3aab9ef26fc) )
 	ROM_LOAD( "au09",   0xa000, 0x2000, CRC(74e93394) SHA1(7a1470cf2008b1bef8d950939b758707297b3655) )
@@ -617,8 +626,41 @@ ROM_START( cobra )
 	DISK_IMAGE_READONLY( "cobra", 0, SHA1(8390498294aca97a5d1769032e7b115d1a42f5d3) )
 ROM_END
 
+ROM_START( cobraa )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "bd03-a4.bin",      0x8000, 0x2000, CRC(f1b9df77) SHA1(7fcc613463441f69e4336c12252a616508c296d1) )
+	ROM_LOAD( "bd02-a3.bin",      0xa000, 0x2000, CRC(3d802707) SHA1(89033b2f9b295b74b6b5034c837509377f5aba62) )
+	ROM_LOAD( "bd01-a2.bin",      0xc000, 0x2000, CRC(1b4db507) SHA1(c58021cb7dcbcb159d9bb24d231755b3d07aa74a) )
+	ROM_LOAD( "bd000-1-a1.bin",   0xe000, 0x2000, CRC(8d9ad777) SHA1(10914251350988a82c0cfa1dc6e22587b885cc71) )
+	ROM_COPY( "maincpu",          0x8000, 0x4000, 0x4000 )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "bd07-b11.bin",   0xe000, 0x2000, CRC(584d714a) SHA1(e3df3c42367d879c5f12db78d2797049ba18e6f8) )
+
+	ROM_REGION( 0xc000, "gfx1", 0 )
+	ROM_LOAD( "bd04-.a10",     0x0000, 0x2000, CRC(33013cc2) SHA1(380ca35a891805e2aa1d35000a3770483aaedbfc) )
+	ROM_LOAD( "bd06-a8.bin",   0x4000, 0x2000, CRC(b1340125) SHA1(eef325c56d3a441432c7d31ea1dadfaa0c871c10) )
+	ROM_LOAD( "bd05-a9.bin",   0x8000, 0x2000, CRC(98412178) SHA1(20e93f377a0d572a6752d7435aa4d0a3feec0e92) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "cobra", 0, SHA1(8390498294aca97a5d1769032e7b115d1a42f5d3) ) // might be wrong for this set
+
+	ROM_REGION( 0x40000, "misc", 0 )
+	ROM_LOAD( "lp4-1.pal16l8cn.bin",        0x0000, 0x40000, CRC(4aeb2c7e) SHA1(3c962656cffc8d927047c64a15afccab767d776f) ) // dumped with cgfm's tool
+	ROM_LOAD( "lp4-1.pal16l8cn.pld",        0x0000, 0x00f71, CRC(ac1f1177) SHA1(ab721a840207354916c96e0ae83220fed12c6352) )
+//  ROM_LOAD( "lp4-2-pal10l8.d6.jed",       0x0000, 0x00249, CRC(309b3ce5) SHA1(04f185911d33730004c7cd44a693dd1b69b82032) )
+	ROM_LOAD( "lp4-2-pal10l8.d6.bin",       0x0000, 0x0002c, CRC(e594fd13) SHA1(4bb8a9b7cf8f8eaa3c9f290b6e5085a10c927e20) )
+
+	ROM_REGION( 0x20, "proms", 0 )
+	ROM_LOAD( "vd0-c.h15",        0x0000, 0x00020, CRC(02c27aa0) SHA1(e7b814aabbfbcd992f78254b29b6ab6fa8115429) )
+	ROM_LOAD( "vd0-t.f6",         0x0000, 0x00020, CRC(78449942) SHA1(584e25f7bffccd943c4db1edf05552f7989e08a4) )
+ROM_END
+
+
+
 GAME( 1983, begas,  0,       rblaster,  begas, driver_device,  0, ROT0, "Data East", "Bega's Battle (Revision 3)", GAME_NOT_WORKING )
 GAME( 1983, begas1, begas,   rblaster,  begas, driver_device,  0, ROT0, "Data East", "Bega's Battle (Revision 1)", GAME_NOT_WORKING )
-GAME( 1984, cobra,  0,       rblaster,  cobra, driver_device,  0, ROT0, "Data East", "Cobra Command (Data East LD)", GAME_NOT_WORKING )
+GAME( 1984, cobra,  0,       rblaster,  cobra, driver_device,  0, ROT0, "Data East", "Cobra Command (Data East LD, set 1)", GAME_NOT_WORKING )
+GAME( 1984, cobraa, cobra,   rblaster,  cobra, driver_device,  0, ROT0, "Data East", "Cobra Command (Data East LD, set 2)", GAME_NOT_WORKING ) // might be a prototype
 // Thunder Storm (Cobra Command Japanese version)
 GAME( 1985, rblaster,  0,    rblaster,  rblaster, driver_device,  0, ROT0, "Data East", "Road Blaster (Data East LD)", GAME_NOT_WORKING )

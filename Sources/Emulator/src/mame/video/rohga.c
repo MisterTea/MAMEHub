@@ -15,49 +15,6 @@ WRITE16_MEMBER(rohga_state::rohga_buffer_spriteram16_w)
 	m_spriteram->copy();
 }
 
-VIDEO_START_MEMBER(rohga_state,rohga)
-{
-	m_sprgen1->set_col_callback(rohga_col_callback);
-	m_sprgen1->set_pri_callback(rohga_pri_callback);
-}
-
-VIDEO_START_MEMBER(rohga_state,schmeisr)
-{
-	VIDEO_START_CALL_MEMBER( rohga );
-	// wire mods on pcb..
-	m_sprgen1->set_col_callback(schmeisr_col_callback);
-}
-
-
-UINT16 rohga_pri_callback(UINT16 x)
-{
-	switch (x & 0x6000)
-	{
-		case 0x0000: return 0;
-		case 0x4000: return 0xf0;
-		case 0x6000: return 0xf0 | 0xcc;
-		case 0x2000: return 0;//0xf0|0xcc; /* Perhaps 0xf0|0xcc|0xaa (Sprite under bottom layer) */
-	}
-
-	return 0;
-}
-
-UINT16 schmeisr_col_callback(UINT16 x)
-{
-	UINT16 colour = ((x >> 9) & 0xf) << 2;
-	if (x & 0x8000)
-		colour++;
-
-	return colour;
-}
-
-UINT16 rohga_col_callback(UINT16 x)
-{
-	return (x >> 9) & 0xf;
-}
-
-
-
 /******************************************************************************/
 
 UINT32 rohga_state::screen_update_rohga(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -73,7 +30,7 @@ UINT32 rohga_state::screen_update_rohga(screen_device &screen, bitmap_ind16 &bit
 
 	/* Draw playfields */
 	screen.priority().fill(0, cliprect);
-	bitmap.fill(machine().pens[768], cliprect);
+	bitmap.fill(m_palette->pen(768), cliprect);
 
 	switch (priority & 3)
 	{
@@ -121,11 +78,11 @@ VIDEO_START_MEMBER(rohga_state,wizdfire)
 void rohga_state::mixwizdfirelayer(bitmap_rgb32 &bitmap, const rectangle &cliprect, int gfxregion, UINT16 pri, UINT16 primask)
 {
 	int y, x;
-	const pen_t *paldata = machine().pens;
+	const pen_t *paldata = m_palette->pens();
 	bitmap_ind16* sprite_bitmap;
 	int penbase;
 
-	sprite_bitmap = &machine().device<decospr_device>("spritegen2")->get_sprite_temp_bitmap();
+	sprite_bitmap = &m_sprgen2->get_sprite_temp_bitmap();
 	penbase = 0x600;
 
 	UINT16* srcline;
@@ -179,7 +136,7 @@ UINT32 rohga_state::screen_update_wizdfire(screen_device &screen, bitmap_rgb32 &
 	m_deco_tilegen2->pf_update(m_pf3_rowscroll, m_pf4_rowscroll);
 
 	/* Draw playfields - Palette of 2nd playfield chip visible if playfields turned off */
-	bitmap.fill(machine().pens[512], cliprect);
+	bitmap.fill(m_palette->pen(512), cliprect);
 
 	m_deco_tilegen2->tilemap_2_draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 	m_sprgen1->inefficient_copy_sprite_bitmap(bitmap, cliprect, 0x0600, 0x0600, 0x400, 0x1ff);
@@ -216,7 +173,7 @@ UINT32 rohga_state::screen_update_nitrobal(screen_device &screen, bitmap_rgb32 &
 	m_deco_tilegen2->pf_update(m_pf3_rowscroll, m_pf4_rowscroll);
 
 	/* Draw playfields - Palette of 2nd playfield chip visible if playfields turned off */
-	bitmap.fill(machine().pens[512], cliprect);
+	bitmap.fill(m_palette->pen(512), cliprect);
 	screen.priority().fill(0);
 
 	/* pf3 and pf4 are combined into a single 8bpp bitmap */

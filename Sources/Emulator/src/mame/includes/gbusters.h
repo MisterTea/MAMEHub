@@ -19,10 +19,12 @@ public:
 		m_audiocpu(*this, "audiocpu"),
 		m_k007232(*this, "k007232"),
 		m_k052109(*this, "k052109"),
-		m_k051960(*this, "k051960") { }
+		m_k051960(*this, "k051960"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_ram;
+	dynamic_array<UINT8> m_paletteram;
 
 	/* video-related */
 	int        m_layer_colorbase[3];
@@ -38,6 +40,7 @@ public:
 	required_device<k007232_device> m_k007232;
 	required_device<k052109_device> m_k052109;
 	required_device<k051960_device> m_k051960;
+	required_device<palette_device> m_palette;
 	DECLARE_READ8_MEMBER(bankedram_r);
 	DECLARE_WRITE8_MEMBER(bankedram_w);
 	DECLARE_WRITE8_MEMBER(gbusters_1f98_w);
@@ -53,8 +56,7 @@ public:
 	UINT32 screen_update_gbusters(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(gbusters_interrupt);
 	DECLARE_WRITE8_MEMBER(volume_callback);
+	K052109_CB_MEMBER(tile_callback);
+	K051960_CB_MEMBER(sprite_callback);
+	DECLARE_WRITE8_MEMBER(banking_callback);
 };
-
-/*----------- defined in video/gbusters.c -----------*/
-extern void gbusters_tile_callback(running_machine &machine, int layer,int bank,int *code,int *color,int *flags, int *priority);
-extern void gbusters_sprite_callback(running_machine &machine, int *code,int *color,int *priority,int *shadow);

@@ -10,36 +10,19 @@
 #include "includes/ddribble.h"
 
 
-void ddribble_state::palette_init()
+PALETTE_INIT_MEMBER(ddribble_state, ddribble)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x40);
-
 	for (i = 0x10; i < 0x40; i++)
-		colortable_entry_set_value(machine().colortable, i, i);
+		palette.set_pen_indirect(i, i);
 
 	/* sprite #2 uses pens 0x00-0x0f */
 	for (i = 0x40; i < 0x140; i++)
 	{
 		UINT8 ctabentry = color_prom[i - 0x40] & 0x0f;
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
-	}
-}
-
-
-void ddribble_state::set_pens(  )
-{
-	int i;
-
-	for (i = 0x00; i < 0x80; i += 2)
-	{
-		UINT16 data = m_paletteram[i | 1] | (m_paletteram[i] << 8);
-
-		rgb_t color = MAKE_RGB(pal5bit(data >> 0), pal5bit(data >> 5), pal5bit(data >> 10));
-		colortable_palette_set_color(machine().colortable, i >> 1, color);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 }
 
@@ -96,8 +79,7 @@ TILE_GET_INFO_MEMBER(ddribble_state::get_fg_tile_info)
 {
 	UINT8 attr = m_fg_videoram[tile_index];
 	int num = m_fg_videoram[tile_index + 0x400] + ((attr & 0xc0) << 2) + ((attr & 0x20) << 5) + ((m_charbank[0] & 2) << 10);
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			num,
 			0,
 			TILE_FLIPYX((attr & 0x30) >> 4));
@@ -107,8 +89,7 @@ TILE_GET_INFO_MEMBER(ddribble_state::get_bg_tile_info)
 {
 	UINT8 attr = m_bg_videoram[tile_index];
 	int num = m_bg_videoram[tile_index + 0x400] + ((attr & 0xc0) << 2) + ((attr & 0x20) << 5) + (m_charbank[1] << 11);
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			num,
 			0,
 			TILE_FLIPYX((attr & 0x30) >> 4));
@@ -122,8 +103,8 @@ TILE_GET_INFO_MEMBER(ddribble_state::get_bg_tile_info)
 
 void ddribble_state::video_start()
 {
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ddribble_state::get_fg_tile_info),this), tilemap_mapper_delegate(FUNC(ddribble_state::tilemap_scan),this), 8, 8, 64, 32);
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ddribble_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(ddribble_state::tilemap_scan),this), 8, 8, 64, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ddribble_state::get_fg_tile_info),this), tilemap_mapper_delegate(FUNC(ddribble_state::tilemap_scan),this), 8, 8, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ddribble_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(ddribble_state::tilemap_scan),this), 8, 8, 64, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 }
@@ -170,7 +151,7 @@ byte #4:    attributes
 
 void ddribble_state::draw_sprites(  bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8* source, int lenght, int gfxset, int flipscreen )
 {
-	gfx_element *gfx = machine().gfx[gfxset];
+	gfx_element *gfx = m_gfxdecode->gfx(gfxset);
 	const UINT8 *finish = source + lenght;
 
 	while (source < finish)
@@ -223,8 +204,8 @@ void ddribble_state::draw_sprites(  bitmap_ind16 &bitmap, const rectangle &clipr
 					ex = flipx ? (width - 1 - x) : x;
 					ey = flipy ? (height - 1 - y) : y;
 
-					drawgfx_transpen(bitmap,cliprect,
-						gfx,
+
+						gfx->transpen(bitmap,cliprect,
 						(number)+x_offset[ex]+y_offset[ey],
 						color,
 						flipx, flipy,
@@ -244,8 +225,6 @@ void ddribble_state::draw_sprites(  bitmap_ind16 &bitmap, const rectangle &clipr
 
 UINT32 ddribble_state::screen_update_ddribble(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	set_pens();
-
 	m_fg_tilemap->set_flip((m_vregs[0][4] & 0x08) ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
 	m_bg_tilemap->set_flip((m_vregs[1][4] & 0x08) ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
 

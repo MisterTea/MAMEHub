@@ -24,7 +24,8 @@ public:
 
 	mjsister_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_palette(*this, "palette") { }
 
 	/* video-related */
 	bitmap_ind16 *m_tmpbitmap0;
@@ -50,6 +51,7 @@ public:
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
 	dac_device *m_dac;
 
 	/* memory */
@@ -166,7 +168,7 @@ UINT32 mjsister_state::screen_update_mjsister(screen_device &screen, bitmap_ind1
 		copybitmap_trans(bitmap, *m_tmpbitmap1, flip, flip, 2, 0, cliprect, 0);
 	}
 	else
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 	return 0;
 }
 
@@ -443,22 +445,6 @@ INPUT_PORTS_END
 
 /*************************************
  *
- *  Sound interface
- *
- *************************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-/*************************************
- *
  *  Machine driver
  *
  *************************************/
@@ -526,16 +512,17 @@ static MACHINE_CONFIG_START( mjsister, mjsister_state )
 	MCFG_SCREEN_SIZE(256+4, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 255+4, 8, 247)
 	MCFG_SCREEN_UPDATE_DRIVER(mjsister_state, screen_update_mjsister)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 256)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, MCLK/8)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.15)
 
 	MCFG_DAC_ADD("dac")

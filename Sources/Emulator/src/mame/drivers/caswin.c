@@ -78,7 +78,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_sc0_vram(*this, "sc0_vram"),
 		m_sc0_attr(*this, "sc0_attr"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT8> m_sc0_vram;
 	required_shared_ptr<UINT8> m_sc0_attr;
@@ -92,9 +93,10 @@ public:
 	DECLARE_WRITE8_MEMBER(vvillage_lamps_w);
 	TILE_GET_INFO_MEMBER(get_sc0_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(caswin);
 	UINT32 screen_update_vvillage(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -104,8 +106,7 @@ TILE_GET_INFO_MEMBER(caswin_state::get_sc0_tile_info)
 	int tile = (m_sc0_vram[tile_index] | ((m_sc0_attr[tile_index] & 0x70)<<4)) & 0x7ff;
 	int colour = m_sc0_attr[tile_index] & 0xf;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile,
 			colour,
 			0);
@@ -113,7 +114,7 @@ TILE_GET_INFO_MEMBER(caswin_state::get_sc0_tile_info)
 
 void caswin_state::video_start()
 {
-	m_sc0_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(caswin_state::get_sc0_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_sc0_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(caswin_state::get_sc0_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
 }
 
 UINT32 caswin_state::screen_update_vvillage(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -289,17 +290,7 @@ static GFXDECODE_START( vvillage )
 	GFXDECODE_ENTRY( "gfx1", 0, tiles8x8_layout, 0, 16 )
 GFXDECODE_END
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-void caswin_state::palette_init()
+PALETTE_INIT_MEMBER(caswin_state, caswin)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int bit0, bit1, bit2 , r, g, b;
@@ -320,7 +311,7 @@ void caswin_state::palette_init()
 		bit2 = (color_prom[0] >> 7) & 0x01;
 		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 		color_prom++;
 	}
 }
@@ -340,17 +331,19 @@ static MACHINE_CONFIG_START( vvillage, caswin_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(caswin_state, screen_update_vvillage)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_GFXDECODE(vvillage)
-	MCFG_PALETTE_LENGTH(0x40)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", vvillage)
+	MCFG_PALETTE_ADD("palette", 0x40)
+	MCFG_PALETTE_INIT_OWNER(caswin_state, caswin)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 4000000 / 4)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 MACHINE_CONFIG_END
 

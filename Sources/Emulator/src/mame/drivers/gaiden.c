@@ -382,10 +382,10 @@ static ADDRESS_MAP_START( gaiden_map, AS_PROGRAM, 16, gaiden_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x060000, 0x063fff) AM_RAM
 	AM_RANGE(0x070000, 0x070fff) AM_RAM_WRITE(gaiden_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x072000, 0x073fff) AM_READWRITE(gaiden_videoram2_r, gaiden_videoram2_w) AM_SHARE("videoram2")
-	AM_RANGE(0x074000, 0x075fff) AM_READWRITE(gaiden_videoram3_r, gaiden_videoram3_w) AM_SHARE("videoram3")
+	AM_RANGE(0x072000, 0x073fff) AM_RAM_WRITE(gaiden_videoram2_w) AM_SHARE("videoram2")
+	AM_RANGE(0x074000, 0x075fff) AM_RAM_WRITE(gaiden_videoram3_w) AM_SHARE("videoram3")
 	AM_RANGE(0x076000, 0x077fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x078000, 0x079fff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x078000, 0x079fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x07a000, 0x07a001) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x07a002, 0x07a003) AM_READ_PORT("P1_P2") AM_WRITE(gaiden_sproffsety_w)
 	AM_RANGE(0x07a004, 0x07a005) AM_READ_PORT("DSW")
@@ -411,7 +411,7 @@ static ADDRESS_MAP_START( drgnbowl_map, AS_PROGRAM, 16, gaiden_state )
 	AM_RANGE(0x072000, 0x073fff) AM_RAM_WRITE(gaiden_videoram2_w) AM_SHARE("videoram2")
 	AM_RANGE(0x074000, 0x075fff) AM_RAM_WRITE(gaiden_videoram3_w) AM_SHARE("videoram3")
 	AM_RANGE(0x076000, 0x077fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x078000, 0x079fff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x078000, 0x079fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x07a000, 0x07a001) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x07a002, 0x07a003) AM_READ_PORT("P1_P2")
 	AM_RANGE(0x07a004, 0x07a005) AM_READ_PORT("DSW")
@@ -665,16 +665,16 @@ static const gfx_layout spritelayout =
 
 static GFXDECODE_START( gaiden )
 	GFXDECODE_ENTRY( "gfx1", 0, tilelayout,        0x100, 16 )  /* tiles 8x8  */
-	GFXDECODE_ENTRY( "gfx2", 0, tile2layout,       0x300, 16 )  /* tiles 16x16 */
-	GFXDECODE_ENTRY( "gfx3", 0, tile2layout,       0x200, 16+128 )  /* tiles 16x16 */
-	GFXDECODE_ENTRY( "gfx4", 0, spritelayout,      0x000, 16+128 )  /* sprites 8x8 */
+	GFXDECODE_ENTRY( "gfx2", 0, tile2layout,       0x000, 0x1000 )  /* tiles 16x16 */
+	GFXDECODE_ENTRY( "gfx3", 0, tile2layout,       0x000, 0x1000 )  /* tiles 16x16 */
+	GFXDECODE_ENTRY( "gfx4", 0, spritelayout,      0x000, 0x1000 )  /* sprites 8x8 */
 GFXDECODE_END
 
 static GFXDECODE_START( raiga )
 	GFXDECODE_ENTRY( "gfx1", 0, tilelayout,        0x100, 16 )  /* tiles 8x8  */
-	GFXDECODE_ENTRY( "gfx2", 0, tile2layout,       0x300, 16 )  /* tiles 16x16 */
-	GFXDECODE_ENTRY( "gfx3", 0, tile2layout,       0x200, 16 + 128 ) /* tiles 16x16 (only colors 0x00-x0f and 0x80-0x8f are used) */
-	GFXDECODE_ENTRY( "gfx4", 0, spritelayout,      0x000, 16 + 128 ) /* sprites 8x8 (only colors 0x00-x0f and 0x80-0x8f are used) */
+	GFXDECODE_ENTRY( "gfx2", 0, tile2layout,       0x000, 0x1000 )  /* tiles 16x16 */
+	GFXDECODE_ENTRY( "gfx3", 0, tile2layout,       0x000, 0x1000 ) /* tiles 16x16 (only colors 0x00-x0f and 0x80-0x8f are used) */
+	GFXDECODE_ENTRY( "gfx4", 0, spritelayout,      0x000, 0x1000 ) /* sprites 8x8 (only colors 0x00-x0f and 0x80-0x8f are used) */
 GFXDECODE_END
 
 static const gfx_layout mastninj_tile2layout =
@@ -690,20 +690,20 @@ static const gfx_layout mastninj_tile2layout =
 
 static const gfx_layout mastninj_spritelayout =
 {
-	8,8,    /* tile size */
+	16,16,    /* tile size */
 	RGN_FRAC(1,4),  /* number of tiles */
 	4,  /* 4 bits per pixel */
 	{ RGN_FRAC(0,4),RGN_FRAC(1,4),RGN_FRAC(2,4),RGN_FRAC(3,4) },
-	{ 0,1,2,3,4,5,6,7 },
-	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8 },
-	8*8 /* offset to next tile */
+	{ 0,1,2,3,4,5,6,7,  128+0,128+1,128+2,128+3,128+4,128+5,128+6,128+7 },
+	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8, 8*8, 9*8, 10*8, 11*8, 12*8, 13*8, 14*8, 15*8 },
+	32*8 /* offset to next tile */
 };
 
 static GFXDECODE_START( mastninj )
 	GFXDECODE_ENTRY( "gfx1", 0, tilelayout,        0x000, 16 )  /* tiles 8x8  */
 	GFXDECODE_ENTRY( "gfx2", 0, mastninj_tile2layout,       0x300, 16 ) /* tiles 16x16 */
 	GFXDECODE_ENTRY( "gfx3", 0, mastninj_tile2layout,       0x200, 16 ) /* tiles 16x16 */
-	GFXDECODE_ENTRY( "gfx4", 0, mastninj_spritelayout,      0x100, 16 ) /* sprites 8x8 */
+	GFXDECODE_ENTRY( "gfx4", 0, mastninj_spritelayout,      0x100, 16 ) /* sprites 16x16 */
 GFXDECODE_END
 
 static const gfx_layout drgnbowl_tile2layout =
@@ -741,13 +741,6 @@ WRITE_LINE_MEMBER(gaiden_state::irqhandler)
 	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( shadoww, gaiden_state )
 
 	/* basic machine hardware */
@@ -770,8 +763,20 @@ static MACHINE_CONFIG_START( shadoww, gaiden_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 4*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(gaiden_state, screen_update_gaiden)
 
-	MCFG_GFXDECODE(gaiden)
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", gaiden)
+	MCFG_PALETTE_ADD("palette", 4096)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+
+	MCFG_DEVICE_ADD("spritegen", TECMO_SPRITE, 0)
+	MCFG_TECMO_SPRITE_GFX_REGION(3)
+
+	MCFG_DEVICE_ADD("mixer", TECMO_MIXER, 0)
+	MCFG_TECMO_MIXER_SHIFTS(10,9,4)
+	MCFG_TECMO_MIXER_BLENDCOLS(   0x0400 + 0x300, 0x0400 + 0x200, 0x0400 + 0x100, 0x0400 + 0x000 )
+	MCFG_TECMO_MIXER_REGULARCOLS( 0x0000 + 0x300, 0x0000 + 0x200, 0x0000 + 0x100, 0x0000 + 0x000 )
+	MCFG_TECMO_MIXER_BLENDSOUCE( 0x0800 + 0x000, 0x0800 + 0x200)
+	MCFG_TECMO_MIXER_REVSPRITETILE
+	MCFG_TECMO_MIXER_BGPEN(0x000 + 0x200)
 
 	MCFG_VIDEO_START_OVERRIDE(gaiden_state,gaiden)
 
@@ -780,7 +785,6 @@ static MACHINE_CONFIG_START( shadoww, gaiden_state )
 
 	MCFG_SOUND_ADD("ym1", YM2203, 4000000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(gaiden_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)
@@ -802,7 +806,7 @@ static MACHINE_CONFIG_DERIVED( raiga, shadoww )
 	MCFG_SCREEN_UPDATE_DRIVER(gaiden_state, screen_update_raiga)
 
 	MCFG_VIDEO_START_OVERRIDE(gaiden_state,raiga)
-	MCFG_GFXDECODE(raiga)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", raiga)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( drgnbowl, gaiden_state )
@@ -826,9 +830,13 @@ static MACHINE_CONFIG_START( drgnbowl, gaiden_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(gaiden_state, screen_update_drgnbowl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(drgnbowl)
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", drgnbowl)
+	MCFG_PALETTE_ADD("palette", 4096)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+
+	/* NOT using Tecmo Sprite device - signifcant changes, maybe a clone of something else */
 
 	MCFG_VIDEO_START_OVERRIDE(gaiden_state,drgnbowl)
 
@@ -901,10 +909,10 @@ static ADDRESS_MAP_START( mastninj_map, AS_PROGRAM, 16, gaiden_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x060000, 0x063fff) AM_RAM
 	AM_RANGE(0x070000, 0x070fff) AM_RAM_WRITE(gaiden_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x072000, 0x073fff) AM_READWRITE(gaiden_videoram2_r, gaiden_videoram2_w) AM_SHARE("videoram2")
-	AM_RANGE(0x074000, 0x075fff) AM_READWRITE(gaiden_videoram3_r, gaiden_videoram3_w) AM_SHARE("videoram3")
+	AM_RANGE(0x072000, 0x073fff) AM_RAM_WRITE(gaiden_videoram2_w) AM_SHARE("videoram2")
+	AM_RANGE(0x074000, 0x075fff) AM_RAM_WRITE(gaiden_videoram3_w) AM_SHARE("videoram3")
 	AM_RANGE(0x076000, 0x077fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x078000, 0x079fff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x078000, 0x079fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 //  AM_RANGE(0x078800, 0x079fff) AM_RAM
 	AM_RANGE(0x07a000, 0x07a001) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x07a002, 0x07a003) AM_READ_PORT("P1_P2")
@@ -937,23 +945,26 @@ static MACHINE_CONFIG_START( mastninj, gaiden_state )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(59.17)   /* verified on pcb */
+	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(gaiden_state, screen_update_gaiden)
+	MCFG_SCREEN_UPDATE_DRIVER(gaiden_state, screen_update_drgnbowl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mastninj)
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mastninj)
+	MCFG_PALETTE_ADD("palette", 4096)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
-	MCFG_VIDEO_START_OVERRIDE(gaiden_state,mastninj)
+	/* NOT using Tecmo Sprite device - signifcant changes, maybe a clone of something else */
+
+	MCFG_VIDEO_START_OVERRIDE(gaiden_state,drgnbowl)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 4000000) /* ?? MHz */
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(gaiden_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)
@@ -1217,7 +1228,7 @@ ROM_START( mastninj )
 	ROM_LOAD32_BYTE( "25.ic22",      0x040002, 0x10000, CRC(ca691635) SHA1(177f94a17cfaf67c764c2a2dff48475039207fae) )
 	ROM_LOAD32_BYTE( "27.ic20",      0x040003, 0x10000, CRC(2ae70f42) SHA1(aad89dbd0309a5e3a786aa028995b56859d5b5ff) )
 
-	ROM_REGION( 0x100000, "gfx4", 0) /* these will need a further descramble to be in the same format as gaiden, although the sprites on the bootleg look different anyway */
+	ROM_REGION( 0x100000, "gfx4", ROMREGION_INVERT) /* these will need a further descramble to be in the same format as gaiden, although the sprites on the bootleg look different anyway */
 	ROM_LOAD( "36.ic50",           0x000000, 0x10000, CRC(3c117e62) SHA1(dee45d6bbe053996e0b3faaba0293a273faf1ffa) )
 	ROM_LOAD( "37.ic49",           0x010000, 0x10000, CRC(f6d6422d) SHA1(933487b09d3bcff9714fb2469b3d751b38459cfd) )
 	ROM_LOAD( "38.ic48",           0x020000, 0x10000, CRC(642f06e7) SHA1(5b30b5029884b7eddcad201224a639f94ee27823) )
@@ -1471,6 +1482,43 @@ ROM_START( drgnbowl )
 ROM_END
 
 
+ROM_START( drgnbowla )
+	ROM_REGION( 0x40000, "maincpu", 0 ) /* 2*128k for 68000 code */
+	ROM_LOAD16_BYTE( "dbowl_4.u4",         0x00000, 0x20000, CRC(58d69235) SHA1(58ab422793787cae5dfffd07d3bbbb7fee48b628) )
+	ROM_LOAD16_BYTE( "dbowl_5.u3",         0x00001, 0x20000, CRC(e3176ebb) SHA1(9513a84c016b372fbb17117998e6910bde1f72a2) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "1.2r",         0x00000, 0x10000, CRC(d9cbf84a) SHA1(d14d749a41a440a56fea1d836a8d62be65786d68) ) /* Audio CPU is a Z80  */
+
+	ROM_REGION( 0x010000, "gfx1", 0 )
+	ROM_LOAD( "22.6m",        0x00000, 0x10000, CRC(86e41198) SHA1(40201a139a668e6fc441d500f40601c7af934b1d) )  /* 8x8 tiles */
+
+	ROM_REGION( 0x100000, "gfx2", 0 )
+	ROM_LOAD( "6.5a",         0x00000, 0x20000, CRC(b15759f7) SHA1(1710e5ebe8197fdc622ed5c2813257ebe662b7f2) )
+	ROM_LOAD( "7.5b",         0x20000, 0x20000, CRC(2541d445) SHA1(a9688cb216bc56fe1b454bc79f967582709991b1) )
+	ROM_LOAD( "8.6a",         0x40000, 0x20000, CRC(51a2f5c4) SHA1(dba1278303055b420b128907ba9909e7a39b2df6) )
+	ROM_LOAD( "9.6b",         0x60000, 0x20000, CRC(f4c8850f) SHA1(d618c3b8b5d93b9e6fa47b833d8f06a664f63e49) )
+	ROM_LOAD( "10.7a",        0x80000, 0x20000, CRC(9e4b3c61) SHA1(5a3739a40d8ffe551262fe42fc36d5a07a59457e) )
+	ROM_LOAD( "11.7b",        0xa0000, 0x20000, CRC(0d33d083) SHA1(204889531cce4f7251edfa44f723b43a08c3b28c) )
+	ROM_LOAD( "12.8a",        0xc0000, 0x20000, CRC(6c497ad3) SHA1(f0bbf5d7b6efe64c34829104f97b343def705d7f) )
+	ROM_LOAD( "13.8b",        0xe0000, 0x20000, CRC(7a84adff) SHA1(86b15842e1fcdb882af6159ff3d44c5806fe3ced) )
+
+	ROM_REGION( 0x100000, "gfx3", ROMREGION_INVERT )
+	ROM_LOAD( "15.5r",        0x00000, 0x20000, CRC(7429371c) SHA1(1412312d429ea4bb00db2b8704a7c3d7e14db19b) )
+	ROM_LOAD( "14.5q",        0x20000, 0x20000, CRC(4301b97f) SHA1(70614691794a04e0ac1547ba1772ee527fe77ba8) )
+	ROM_LOAD( "17.6r",        0x40000, 0x20000, CRC(9088af09) SHA1(8b5090d8a88ad06152030e92acecd76cb2f0f88c) )
+	ROM_LOAD( "16.6q",        0x60000, 0x20000, CRC(8ade4e01) SHA1(f02fcc66d1f842ff3861813431942a95de08f654) )
+	ROM_LOAD( "19.7r",        0x80000, 0x20000, CRC(5082ceff) SHA1(fad67375b774236b345d3496ce17665947a21201) )
+	ROM_LOAD( "18.7q",        0xa0000, 0x20000, CRC(d18a7ffb) SHA1(8ea792dfb8e7c9e6df0fd7596c3972f79b15d860) )
+	ROM_LOAD( "21.8r",        0xc0000, 0x20000, CRC(0cee8711) SHA1(5ec071db383a56629a7063d86264bd2bbb6b0036) )
+	ROM_LOAD( "20.8q",        0xe0000, 0x20000, CRC(9647e02a) SHA1(97b05716b13dd77f31ac6a08326267ec175115f1) )
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* 2*128k for ADPCM samples - sound chip is OKIM6295 */
+	ROM_LOAD( "3.3q",         0x00000, 0x20000, CRC(489c6d0e) SHA1(5a276fad500a760c83a16e0a4cd91d5963ad8089) ) /* samples */
+	ROM_LOAD( "2.3r",         0x20000, 0x20000, CRC(7710ce39) SHA1(7a7cf0b4005b000589d0bad380575d625d9d20f7) ) /* samples */
+ROM_END
+
+
 DRIVER_INIT_MEMBER(gaiden_state,shadoww)
 {
 	/* sprite size Y = sprite size X */
@@ -1502,59 +1550,67 @@ DRIVER_INIT_MEMBER(gaiden_state,raiga)
 	m_maincpu->space(AS_PROGRAM).install_write_handler(0x07a804, 0x07a805, write16_delegate(FUNC(gaiden_state::raiga_protection_w),this));
 }
 
-void gaiden_state::descramble_drgnbowl_gfx()
+void gaiden_state::descramble_drgnbowl(int descramble_cpu)
 {
 	int i;
 	UINT8 *ROM = memregion("maincpu")->base();
 	size_t size = memregion("maincpu")->bytes();
-	UINT8 *buffer = auto_alloc_array(machine(), UINT8, size);
 
-	memcpy(buffer, ROM, size);
-	for( i = 0; i < size; i++ )
+	if (descramble_cpu)
 	{
-		ROM[i] = buffer[BITSWAP24(i,23,22,21,20,
-									19,18,17,15,
-							16,14,13,12,
-							11,10, 9, 8,
-								7, 6, 5, 4,
-								3, 2, 1, 0)];
-	}
+		dynamic_buffer buffer(size);
 
-	auto_free(machine(), buffer);
+		memcpy(buffer, ROM, size);
+		for( i = 0; i < size; i++ )
+		{
+			ROM[i] = buffer[BITSWAP24(i,23,22,21,20,
+										19,18,17,15,
+								16,14,13,12,
+								11,10, 9, 8,
+									7, 6, 5, 4,
+									3, 2, 1, 0)];
+		}
+	}
 
 	ROM = memregion("gfx2")->base();
 	size = memregion("gfx2")->bytes();
-	buffer = auto_alloc_array(machine(), UINT8, size);
-
-	memcpy(buffer,ROM,size);
-	for( i = 0; i < size; i++ )
 	{
-		ROM[i] = buffer[BITSWAP24(i,23,22,21,20,
-									19,18,16,17,
-									15,14,13, 4,
-										3,12,11,10,
-										9, 8, 7, 6,
-										5, 2, 1, 0)];
-	}
+		dynamic_buffer buffer(size);
 
-	auto_free(machine(), buffer);
+		memcpy(buffer,ROM,size);
+		for( i = 0; i < size; i++ )
+		{
+			ROM[i] = buffer[BITSWAP24(i,23,22,21,20,
+										19,18,16,17,
+										15,14,13, 4,
+											3,12,11,10,
+											9, 8, 7, 6,
+											5, 2, 1, 0)];
+		}
+	}
 }
 
 DRIVER_INIT_MEMBER(gaiden_state,drgnbowl)
 {
 	m_raiga_jumppoints = jumppoints_00;
 
-	descramble_drgnbowl_gfx();
+	descramble_drgnbowl(1);
+}
+
+DRIVER_INIT_MEMBER(gaiden_state,drgnbowla)
+{
+	m_raiga_jumppoints = jumppoints_00;
+
+	descramble_drgnbowl(0);
 }
 
 void gaiden_state::descramble_mastninj_gfx(UINT8* src)
 {
-	UINT8 *buffer;
 	int len = 0x80000;
 
 	/*  rearrange gfx */
-	buffer = auto_alloc_array(machine(), UINT8, len);
 	{
+		dynamic_buffer buffer(len);
 		int i;
 		for (i = 0;i < len; i++)
 		{
@@ -1567,11 +1623,10 @@ void gaiden_state::descramble_mastninj_gfx(UINT8* src)
 			3,2,1,0)];
 		}
 		memcpy(src, buffer, len);
-		auto_free(machine(), buffer);
 	}
 
-	buffer = auto_alloc_array(machine(), UINT8, len);
 	{
+		dynamic_buffer buffer(len);
 		int i;
 		for (i = 0; i < len; i++)
 		{
@@ -1584,7 +1639,6 @@ void gaiden_state::descramble_mastninj_gfx(UINT8* src)
 			3,2,1,0)];
 		}
 		memcpy(src, buffer, len);
-		auto_free(machine(), buffer);
 	}
 }
 
@@ -1602,10 +1656,13 @@ GAME( 1988, shadowwa,  shadoww,  shadoww,  common, gaiden_state,   shadoww,  ROT
 GAME( 1988, gaiden,    shadoww,  shadoww,  common, gaiden_state,   shadoww,  ROT0,   "Tecmo", "Ninja Gaiden (US)", GAME_SUPPORTS_SAVE )
 GAME( 1989, ryukendn,  shadoww,  shadoww,  common, gaiden_state,   shadoww,  ROT0,   "Tecmo", "Ninja Ryukenden (Japan, set 1)", GAME_SUPPORTS_SAVE )
 GAME( 1989, ryukendna, shadoww,  shadoww,  common, gaiden_state,   shadoww,  ROT0,   "Tecmo", "Ninja Ryukenden (Japan, set 2)", GAME_SUPPORTS_SAVE )
-GAME( 1989, mastninj,  shadoww,  mastninj, common, gaiden_state,   mastninj, ROT0,   "bootleg", "Master Ninja (bootleg of Shadow Warriors / Ninja Gaiden)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE ) // sprites need fixing, sound and yscroll too.
+GAME( 1989, mastninj,  shadoww,  mastninj, common, gaiden_state,   mastninj, ROT0,   "bootleg", "Master Ninja (bootleg of Shadow Warriors / Ninja Gaiden)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE ) // sprites need fixing, sound and yscroll too. - it is confirmed the curtains don't scroll on the pcb
+GAME( 1992, drgnbowl,  0,        drgnbowl, drgnbowl, gaiden_state, drgnbowl, ROT0,   "Nics",  "Dragon Bowl (set 1, encrypted program)", GAME_SUPPORTS_SAVE ) // Draogn Bowl is based on Ninja Gaiden code
+GAME( 1992, drgnbowla, drgnbowl, drgnbowl, drgnbowl, gaiden_state, drgnbowla,ROT0,   "Nics",  "Dragon Bowl (set 2, unencrypted program)", GAME_SUPPORTS_SAVE )
+
 GAME( 1989, wildfang,  0,        shadoww,  wildfang, gaiden_state, wildfang, ROT0,   "Tecmo", "Wild Fang / Tecmo Knight", GAME_SUPPORTS_SAVE )
 GAME( 1989, wildfangs, wildfang, shadoww,  tknight, gaiden_state,  wildfang, ROT0,   "Tecmo", "Wild Fang", GAME_SUPPORTS_SAVE )
 GAME( 1989, tknight,   wildfang, shadoww,  tknight, gaiden_state,  wildfang, ROT0,   "Tecmo", "Tecmo Knight", GAME_SUPPORTS_SAVE )
+
 GAME( 1991, stratof,   0,        raiga,    raiga, gaiden_state,    raiga,    ROT0,   "Tecmo", "Raiga - Strato Fighter (US)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
 GAME( 1991, raiga,     stratof,  raiga,    raiga, gaiden_state,    raiga,    ROT0,   "Tecmo", "Raiga - Strato Fighter (Japan)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1992, drgnbowl,  0,        drgnbowl, drgnbowl, gaiden_state, drgnbowl, ROT0,   "Nics",  "Dragon Bowl", GAME_SUPPORTS_SAVE )

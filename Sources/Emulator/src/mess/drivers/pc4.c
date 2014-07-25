@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 
     VTech Laser PC4
@@ -159,10 +161,10 @@ static INPUT_PORTS_START( pc4 )
 		PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_UNUSED
 INPUT_PORTS_END
 
-void pc4_state::palette_init()
+PALETTE_INIT_MEMBER(pc4_state, pc4)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(138, 146, 148));
-	palette_set_color(machine(), 1, MAKE_RGB(92, 83, 88));
+	palette.set_pen_color(0, rgb_t(138, 146, 148));
+	palette.set_pen_color(1, rgb_t(92, 83, 88));
 }
 
 static const gfx_layout pc4_charlayout =
@@ -210,11 +212,6 @@ void pc4_state::machine_start()
 	m_blink = 0;
 }
 
-static RP5C01_INTERFACE( rtc_intf )
-{
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( pc4, pc4_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_4MHz)
@@ -227,16 +224,19 @@ static MACHINE_CONFIG_START( pc4, pc4_state )
 	MCFG_SCREEN_UPDATE_DRIVER(pc4_state, screen_update)
 	MCFG_SCREEN_SIZE(240, 36)
 	MCFG_SCREEN_VISIBLE_AREA(0, 240-1, 0, 36-1)
+	MCFG_SCREEN_PALETTE("palette")
+
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_GFXDECODE(pc4)
+	MCFG_PALETTE_ADD("palette", 2)
+	MCFG_PALETTE_INIT_OWNER(pc4_state, pc4)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pc4)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
 	MCFG_SOUND_ADD( "beeper", BEEP, 0 )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 
-	MCFG_RP5C01_ADD("rtc", XTAL_32_768kHz, rtc_intf)
+	MCFG_DEVICE_ADD("rtc", RP5C01, XTAL_32_768kHz)
 MACHINE_CONFIG_END
 
 ROM_START( pc4 )

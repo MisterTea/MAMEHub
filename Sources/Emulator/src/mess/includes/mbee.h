@@ -11,7 +11,8 @@
 #include "imagedev/snapquik.h"
 #include "machine/z80pio.h"
 #include "imagedev/cassette.h"
-#include "machine/ctronics.h"
+#include "machine/buffer.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/mc146818.h"
 #include "video/mc6845.h"
 #include "sound/speaker.h"
@@ -39,7 +40,8 @@ public:
 		m_cassette(*this, "cassette"),
 		m_wave(*this, WAVE_TAG),
 		m_speaker(*this, "speaker"),
-		m_printer(*this, "centronics"),
+		m_centronics(*this, "centronics"),
+		m_cent_data_out(*this, "cent_data_out"),
 		m_crtc(*this, "crtc"),
 		m_fdc(*this, "fdc"),
 		m_floppy0(*this, "fdc:0"),
@@ -73,7 +75,9 @@ public:
 		m_io_x11(*this, "X11"),
 		m_io_x12(*this, "X12"),
 		m_io_x13(*this, "X13"),
-		m_io_x14(*this, "X14") { }
+		m_io_x14(*this, "X14"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	DECLARE_WRITE8_MEMBER( mbee_04_w );
 	DECLARE_WRITE8_MEMBER( mbee_06_w );
@@ -149,21 +153,22 @@ public:
 	UINT8 *m_p_gfxram;
 	UINT8 *m_p_colorram;
 	UINT8 *m_p_attribram;
-	UINT8 m_speed;
-	UINT8 m_flash;
 	UINT8 m_framecnt;
-	UINT16 m_cursor;
 	UINT8 m_08;
 	UINT8 m_1c;
 	void mbee_video_kbd_scan(int param);
 	UINT8 m_sy6545_cursor[16];
 
+	MC6845_UPDATE_ROW(mbee_update_row);
+	MC6845_UPDATE_ROW(mbeeic_update_row);
+	MC6845_UPDATE_ROW(mbeeppc_update_row);
+	MC6845_ON_UPDATE_ADDR_CHANGED(mbee_update_addr);
+	MC6845_ON_UPDATE_ADDR_CHANGED(mbee256_update_addr);
+
 private:
 	size_t m_size;
 	UINT8 m_clock_pulse;
 	UINT8 m_mbee256_key_available;
-	UINT8 m_fdc_intrq;
-	UINT8 m_fdc_drq;
 	UINT8 m_mbee256_was_pressed[15];
 	UINT8 m_mbee256_q[20];
 	UINT8 m_mbee256_q_pos;
@@ -180,7 +185,8 @@ private:
 	required_device<cassette_image_device> m_cassette;
 	required_device<wave_device> m_wave;
 	required_device<speaker_sound_device> m_speaker;
-	required_device<centronics_device> m_printer;
+	required_device<centronics_device> m_centronics;
+	required_device<output_latch_device> m_cent_data_out;
 	required_device<mc6845_device> m_crtc;
 	optional_device<wd2793_t> m_fdc;
 	optional_device<floppy_connector> m_floppy0;
@@ -215,25 +221,12 @@ private:
 	optional_ioport m_io_x12;
 	optional_ioport m_io_x13;
 	optional_ioport m_io_x14;
+	required_device<screen_device> m_screen;
+public:
+	required_device<palette_device> m_palette;
 
 	void machine_reset_common_disk();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
-	void fdc_intrq_w(bool state);
-	void fdc_drq_w(bool state);
 };
-
-
-/*----------- defined in machine/mbee.c -----------*/
-
-extern const z80pio_interface mbee_z80pio_intf;
-
-/*----------- defined in video/mbee.c -----------*/
-
-MC6845_UPDATE_ROW( mbee_update_row );
-MC6845_UPDATE_ROW( mbeeic_update_row );
-MC6845_UPDATE_ROW( mbeeppc_update_row );
-MC6845_ON_UPDATE_ADDR_CHANGED( mbee_update_addr );
-MC6845_ON_UPDATE_ADDR_CHANGED( mbee256_update_addr );
-
 
 #endif /* MBEE_H_ */

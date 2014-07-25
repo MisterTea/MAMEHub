@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*********************************************************************
 
     debugcpu.h
 
     Debugger CPU/memory interface engine.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -66,6 +37,9 @@ typedef int (*debug_instruction_hook_func)(device_t &device, offs_t curpc);
 
 
 struct xml_data_node;
+
+
+// ======================> device_debug
 
 class device_debug
 {
@@ -203,7 +177,7 @@ public:
 
 
 	// hooks used by the rest of the system
-	void start_hook(attotime endtime);
+	void start_hook(const attotime &endtime);
 	void stop_hook();
 	void interrupt_hook(int irqline);
 	void exception_hook(int exception);
@@ -234,7 +208,7 @@ public:
 	void go_exception(int exception);
 	void go_milliseconds(UINT64 milliseconds);
 	void go_next_device();
-	void halt_on_next_instruction(const char *fmt, ...);
+	void halt_on_next_instruction(const char *fmt, ...) ATTR_PRINTF(2,3);
 
 	// breakpoints
 	breakpoint *breakpoint_first() const { return m_bplist; }
@@ -292,7 +266,7 @@ public:
 
 	// tracing
 	void trace(FILE *file, bool trace_over, const char *action);
-	void trace_printf(const char *fmt, ...);
+	void trace_printf(const char *fmt, ...) ATTR_PRINTF(2,3);
 	void trace_flush() { if (m_trace != NULL) m_trace->flush(); }
 
 	void reset_transient_flag() { m_flags &= ~DEBUG_FLAG_TRANSIENT; }
@@ -395,8 +369,7 @@ private:
 		address_space *     m_space;                    // space where the access occurred
 		UINT32              m_count;                    // number of hits
 	};
-	hotspot_entry *         m_hotspots;                 // hotspot list
-	int                     m_hotspot_count;            // number of hotspots
+	dynamic_array<hotspot_entry> m_hotspots;            // hotspot list
 	int                     m_hotspot_threshhold;       // threshhold for the number of hits to print
 
 	// pc tracking

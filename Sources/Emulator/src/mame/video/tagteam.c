@@ -32,14 +32,13 @@ static const res_net_decode_info tagteam_decode_info =
 	{  0x07, 0x07, 0x03 }  /* masks */
 };
 
-void tagteam_state::palette_init()
+PALETTE_INIT_MEMBER(tagteam_state, tagteam)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
-	rgb_t *rgb;
+	dynamic_array<rgb_t> rgb;
 
-	rgb = compute_res_net_all(machine(), color_prom, &tagteam_decode_info, &tagteam_net_info);
-	palette_set_colors(machine(), 0x00, rgb, 0x20);
-	auto_free(machine(), rgb);
+	compute_res_net_all(rgb, color_prom, tagteam_decode_info, tagteam_net_info);
+	palette.set_pen_colors(0x00, rgb, 0x20);
 }
 
 
@@ -136,7 +135,7 @@ TILE_GET_INFO_MEMBER(tagteam_state::get_bg_tile_info)
 
 void tagteam_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tagteam_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS_FLIP_X,
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tagteam_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS_FLIP_X,
 			8, 8, 32, 32);
 }
 
@@ -164,8 +163,8 @@ void tagteam_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap, cliprect,
-			machine().gfx[1],
+
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 			code, color,
 			flipx, flipy,
 			sx, sy, 0);
@@ -176,8 +175,8 @@ void tagteam_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect
 		color = m_palettebank;
 		sy += (flip_screen() ? -256 : 256);
 
-		drawgfx_transpen(bitmap, cliprect,
-			machine().gfx[1],
+
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 			code, color,
 			flipx, flipy,
 			sx, sy, 0);

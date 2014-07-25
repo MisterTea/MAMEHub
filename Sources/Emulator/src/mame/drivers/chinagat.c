@@ -113,8 +113,8 @@ public:
 
 VIDEO_START_MEMBER(chinagat_state,chinagat)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(chinagat_state::get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(chinagat_state::background_scan),this), 16, 16, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(chinagat_state::get_fg_16color_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(chinagat_state::get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(chinagat_state::background_scan),this), 16, 16, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(chinagat_state::get_fg_16color_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 	m_fg_tilemap->set_scrolldy(-8, -8);
@@ -322,8 +322,8 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, chinagat_state )
 	AM_RANGE(0x0000, 0x1fff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0x2000, 0x27ff) AM_RAM_WRITE(ddragon_fgvideoram_w) AM_SHARE("fgvideoram")
 	AM_RANGE(0x2800, 0x2fff) AM_RAM_WRITE(ddragon_bgvideoram_w) AM_SHARE("bgvideoram")
-	AM_RANGE(0x3000, 0x317f) AM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_split_lo_w) AM_SHARE("paletteram")
-	AM_RANGE(0x3400, 0x357f) AM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_split_hi_w) AM_SHARE("paletteram2")
+	AM_RANGE(0x3000, 0x317f) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0x3400, 0x357f) AM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0x3800, 0x397f) AM_WRITE_BANK("bank3") AM_SHARE("spriteram")
 	AM_RANGE(0x3e00, 0x3e04) AM_WRITE(chinagat_interrupt_w)
 	AM_RANGE(0x3e06, 0x3e06) AM_WRITEONLY AM_SHARE("scrolly_lo")
@@ -510,22 +510,6 @@ WRITE_LINE_MEMBER(chinagat_state::chinagat_irq_handler)
 	m_soundcpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE );
 }
 
-/* This on the bootleg board, instead of the m6295 */
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(chinagat_state,saiyugoub1_m5205_irq_w), /* Interrupt function */
-	MSM5205_S64_4B          /* vclk input mode (6030Hz, 4-bit) */
-};
-
-/* This is only on the second bootleg board */
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
-
 MACHINE_START_MEMBER(chinagat_state,chinagat)
 {
 	/* configure banks */
@@ -586,9 +570,11 @@ static MACHINE_CONFIG_START( chinagat, chinagat_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 384, 0, 256, 272, 0, 240)   /* based on ddragon driver */
 	MCFG_SCREEN_UPDATE_DRIVER(chinagat_state, screen_update_ddragon)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(chinagat)
-	MCFG_PALETTE_LENGTH(384)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", chinagat)
+	MCFG_PALETTE_ADD("palette", 384)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(chinagat_state,chinagat)
 
@@ -630,9 +616,11 @@ static MACHINE_CONFIG_START( saiyugoub1, chinagat_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 384, 0, 256, 272, 0, 240)   /* based on ddragon driver */
 	MCFG_SCREEN_UPDATE_DRIVER(chinagat_state, screen_update_ddragon)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(chinagat)
-	MCFG_PALETTE_LENGTH(384)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", chinagat)
+	MCFG_PALETTE_ADD("palette", 384)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(chinagat_state,chinagat)
 
@@ -645,7 +633,8 @@ static MACHINE_CONFIG_START( saiyugoub1, chinagat_state )
 	MCFG_SOUND_ROUTE(1, "mono", 0.80)
 
 	MCFG_SOUND_ADD("adpcm", MSM5205, 9263750 / 24)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(chinagat_state, saiyugoub1_m5205_irq_w)) /* Interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S64_4B)          /* vclk input mode (6030Hz, 4-bit) */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 MACHINE_CONFIG_END
 
@@ -671,9 +660,11 @@ static MACHINE_CONFIG_START( saiyugoub2, chinagat_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 384, 0, 256, 272, 0, 240)   /* based on ddragon driver */
 	MCFG_SCREEN_UPDATE_DRIVER(chinagat_state, screen_update_ddragon)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(chinagat)
-	MCFG_PALETTE_LENGTH(384)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", chinagat)
+	MCFG_PALETTE_ADD("palette", 384)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(chinagat_state,chinagat)
 
@@ -682,7 +673,6 @@ static MACHINE_CONFIG_START( saiyugoub2, chinagat_state )
 
 	MCFG_SOUND_ADD("ym1", YM2203, 3579545)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(chinagat_state, chinagat_irq_handler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)

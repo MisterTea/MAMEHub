@@ -46,15 +46,6 @@ WRITE16_MEMBER(twin16_state::twin16_text_ram_w)
 	m_text_tilemap->mark_tile_dirty(offset);
 }
 
-WRITE16_MEMBER(twin16_state::twin16_paletteram_word_w)
-{   // identical to tmnt_paletteram_w
-	COMBINE_DATA(m_generic_paletteram_16 + offset);
-	offset &= ~1;
-
-	data = ((m_generic_paletteram_16[offset] & 0xff) << 8) | (m_generic_paletteram_16[offset + 1] & 0xff);
-	palette_set_color_rgb(machine(), offset / 2, pal5bit(data >> 0), pal5bit(data >> 5), pal5bit(data >> 10));
-}
-
 WRITE16_MEMBER(twin16_state::fround_gfx_bank_w)
 {
 	COMBINE_DATA(&m_gfx_bank);
@@ -62,14 +53,14 @@ WRITE16_MEMBER(twin16_state::fround_gfx_bank_w)
 
 WRITE16_MEMBER(twin16_state::twin16_video_register_w)
 {
+	int text_flip;
 	switch (offset)
 	{
 		case 0:
 			COMBINE_DATA( &m_video_register );
-
-			flip_screen_x_set(m_video_register & TWIN16_SCREEN_FLIPX);
-			flip_screen_y_set(m_video_register & TWIN16_SCREEN_FLIPY);
-
+			text_flip  = (m_video_register&TWIN16_SCREEN_FLIPX) ? TILEMAP_FLIPX : 0;
+			text_flip |= (m_video_register&TWIN16_SCREEN_FLIPY) ? TILEMAP_FLIPY : 0;
+			m_text_tilemap->set_flip(text_flip);
 			break;
 
 		case 1: COMBINE_DATA( &m_scrollx[0] ); break;
@@ -311,7 +302,7 @@ void twin16_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap )
 
 								if (pdest[sx]<priority) {
 									if (shadow) {
-										dest[sx] = machine().shadow_table[dest[sx]];
+										dest[sx] = m_palette->shadow_table()[dest[sx]];
 										pdest[sx]|=TWIN16_SPRITE_CAST_SHADOW;
 									}
 									else {
@@ -320,7 +311,7 @@ void twin16_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap )
 								}
 								else if (!shadow && pdest[sx]&TWIN16_SPRITE_CAST_SHADOW && (pdest[sx]&0xf)<priority) {
 									// shadow cast onto sprite below, evident in devilw lava level
-									dest[sx] = machine().shadow_table[pal_base + pen];
+									dest[sx] = m_palette->shadow_table()[pal_base + pen];
 									pdest[sx]^=TWIN16_SPRITE_CAST_SHADOW;
 								}
 
@@ -488,10 +479,12 @@ TILE_GET_INFO_MEMBER(twin16_state::get_text_tile_info)
 
 VIDEO_START_MEMBER(twin16_state,twin16)
 {
-	m_text_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(twin16_state::get_text_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_gfx_rom = (UINT16 *)memregion("gfx2")->base();
+
+	m_text_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(twin16_state::get_text_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 	m_text_tilemap->set_transparent_pen(0);
 
-	palette_set_shadow_factor(machine(),0.4); // screenshots estimate
+	m_palette->set_shadow_factor(0.4); // screenshots estimate
 
 	memset(m_sprite_buffer,0xff,0x800*sizeof(UINT16));
 	m_sprite_busy = 0;
@@ -511,16 +504,11 @@ VIDEO_START_MEMBER(twin16_state,twin16)
 
 UINT32 twin16_state::screen_update_twin16(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	int text_flip=0;
-	if (m_video_register&TWIN16_SCREEN_FLIPX) text_flip|=TILEMAP_FLIPX;
-	if (m_video_register&TWIN16_SCREEN_FLIPY) text_flip|=TILEMAP_FLIPY;
-
 	screen.priority().fill(0, cliprect);
 	draw_layer( screen, bitmap, 1 );
 	draw_layer( screen, bitmap, 0 );
 	draw_sprites( screen, bitmap );
 
-	if (text_flip) m_text_tilemap->set_flip(text_flip);
 	m_text_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }

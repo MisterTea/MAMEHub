@@ -190,7 +190,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(btime_state::audio_nmi_gen)
 
 static ADDRESS_MAP_START( btime_map, AS_PROGRAM, 8, btime_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM AM_SHARE("rambase")
-	AM_RANGE(0x0c00, 0x0c0f) AM_RAM_WRITE(btime_paletteram_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0c00, 0x0c0f) AM_RAM_WRITE(btime_paletteram_w) AM_SHARE("palette")
 	AM_RANGE(0x1000, 0x13ff) AM_RAM AM_SHARE("videoram")
 	AM_RANGE(0x1400, 0x17ff) AM_RAM AM_SHARE("colorram")
 	AM_RANGE(0x1800, 0x1bff) AM_READWRITE(btime_mirrorvideoram_r, btime_mirrorvideoram_w)
@@ -225,7 +225,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( tisland_map, AS_PROGRAM, 8, btime_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM AM_SHARE("rambase")
-	AM_RANGE(0x0c00, 0x0c0f) AM_RAM_WRITE(btime_paletteram_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0c00, 0x0c0f) AM_RAM_WRITE(btime_paletteram_w) AM_SHARE("palette")
 	AM_RANGE(0x1000, 0x13ff) AM_RAM AM_SHARE("videoram")
 	AM_RANGE(0x1400, 0x17ff) AM_RAM AM_SHARE("colorram")
 	AM_RANGE(0x1800, 0x1bff) AM_READWRITE(btime_mirrorvideoram_r, btime_mirrorvideoram_w)
@@ -302,7 +302,7 @@ static ADDRESS_MAP_START( bnj_map, AS_PROGRAM, 8, btime_state )
 	AM_RANGE(0x5200, 0x53ff) AM_RAM
 	AM_RANGE(0x5400, 0x5400) AM_WRITE(bnj_scroll1_w)
 	AM_RANGE(0x5800, 0x5800) AM_WRITE(bnj_scroll2_w)
-	AM_RANGE(0x5c00, 0x5c0f) AM_RAM_WRITE(btime_paletteram_w) AM_SHARE("paletteram")
+	AM_RANGE(0x5c00, 0x5c0f) AM_RAM_WRITE(btime_paletteram_w) AM_SHARE("palette")
 	AM_RANGE(0xa000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -1151,20 +1151,6 @@ GFXDECODE_END
 
  ****************************************************************************/
 
-static const ay8910_interface ay1_intf =
-{
-	AY8910_DISCRETE_OUTPUT,
-	{RES_K(5), RES_K(5), RES_K(5)},
-	DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_MEMBER(btime_state,ay_audio_nmi_enable_w), DEVCB_NULL
-};
-
-static const ay8910_interface ay2_intf =
-{
-	AY8910_DISCRETE_OUTPUT,
-	{RES_K(1), RES_K(5), RES_K(5)},
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
 static const discrete_mixer_desc btime_sound_mixer_desc =
 	{DISC_MIXER_IS_OP_AMP,
 		{RES_K(100), RES_K(100)},
@@ -1313,27 +1299,31 @@ static MACHINE_CONFIG_START( btime, btime_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(HCLK, 384, 8, 248, 272, 8, 248)
 	MCFG_SCREEN_UPDATE_DRIVER(btime_state, screen_update_btime)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_MACHINE_START_OVERRIDE(btime_state,btime)
 	MCFG_MACHINE_RESET_OVERRIDE(btime_state,btime)
 
-	MCFG_GFXDECODE(btime)
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", btime)
 
-	MCFG_PALETTE_INIT_OVERRIDE(btime_state,btime)
-	MCFG_VIDEO_START_OVERRIDE(btime_state,btime)
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(btime_state,btime)
+	MCFG_PALETTE_FORMAT(BBGGGRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, HCLK2)
-	MCFG_SOUND_CONFIG(ay1_intf)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_DISCRETE_OUTPUT)
+	MCFG_AY8910_RES_LOADS(RES_K(5), RES_K(5), RES_K(5))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(btime_state, ay_audio_nmi_enable_w))
 	MCFG_SOUND_ROUTE_EX(0, "discrete", 1.0, 0)
 	MCFG_SOUND_ROUTE_EX(1, "discrete", 1.0, 1)
 	MCFG_SOUND_ROUTE_EX(2, "discrete", 1.0, 2)
 
 	MCFG_SOUND_ADD("ay2", AY8910, HCLK2)
-	MCFG_SOUND_CONFIG(ay2_intf)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_DISCRETE_OUTPUT)
+	MCFG_AY8910_RES_LOADS(RES_K(1), RES_K(5), RES_K(5))
 	MCFG_SOUND_ROUTE_EX(0, "discrete", 1.0, 3)
 	MCFG_SOUND_ROUTE_EX(1, "discrete", 1.0, 4)
 	MCFG_SOUND_ROUTE_EX(2, "discrete", 1.0, 5)
@@ -1354,8 +1344,7 @@ static MACHINE_CONFIG_DERIVED( cookrace, btime )
 	MCFG_CPU_PROGRAM_MAP(audio_map)
 
 	/* video hardware */
-	MCFG_GFXDECODE(cookrace)
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", cookrace)
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(btime_state, screen_update_cookrace)
@@ -1371,10 +1360,12 @@ static MACHINE_CONFIG_DERIVED( lnc, btime )
 	MCFG_MACHINE_RESET_OVERRIDE(btime_state,lnc)
 
 	/* video hardware */
-	MCFG_GFXDECODE(lnc)
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", lnc)
 
-	MCFG_PALETTE_INIT_OVERRIDE(btime_state,lnc)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(8)
+	MCFG_PALETTE_INIT_OWNER(btime_state,lnc)
+
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(btime_state, screen_update_lnc)
 MACHINE_CONFIG_END
@@ -1408,10 +1399,10 @@ static MACHINE_CONFIG_DERIVED( bnj, btime )
 	MCFG_CPU_PROGRAM_MAP(bnj_map)
 
 	/* video hardware */
-	MCFG_GFXDECODE(bnj)
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", bnj)
 
 	MCFG_VIDEO_START_OVERRIDE(btime_state,bnj)
+
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(btime_state, screen_update_bnj)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1) // 256 * 240, confirmed
@@ -1433,17 +1424,21 @@ static MACHINE_CONFIG_DERIVED( zoar, btime )
 	MCFG_CPU_PROGRAM_MAP(zoar_map)
 
 	/* video hardware */
-	MCFG_GFXDECODE(zoar)
-	MCFG_PALETTE_LENGTH(64)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", zoar)
 
-	MCFG_DEVICE_MODIFY("screen")
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(64)
+
+	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(btime_state, screen_update_zoar)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1) // 256 * 240, confirmed
 
 	/* sound hardware */
 	MCFG_SOUND_REPLACE("ay1", AY8910, HCLK1)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.23)
-	MCFG_SOUND_CONFIG(ay1_intf)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_DISCRETE_OUTPUT)
+	MCFG_AY8910_RES_LOADS(RES_K(5), RES_K(5), RES_K(5))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(btime_state, ay_audio_nmi_enable_w))
 
 	MCFG_SOUND_REPLACE("ay2", AY8910, HCLK1)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.23)
@@ -1461,8 +1456,12 @@ static MACHINE_CONFIG_DERIVED( disco, btime )
 	MCFG_CPU_PROGRAM_MAP(disco_audio_map)
 
 	/* video hardware */
-	MCFG_GFXDECODE(disco)
-	MCFG_PALETTE_LENGTH(32)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", disco)
+
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(32)
+
+	MCFG_VIDEO_START_OVERRIDE(btime_state,disco)
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(btime_state, screen_update_disco)
@@ -1476,7 +1475,7 @@ static MACHINE_CONFIG_DERIVED( tisland, btime )
 	MCFG_CPU_PROGRAM_MAP(tisland_map)
 
 	/* video hardware */
-	MCFG_GFXDECODE(zoar)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", zoar)
 MACHINE_CONFIG_END
 
 
@@ -1539,6 +1538,34 @@ ROM_START( btime2 )
 
 	ROM_REGION( 0x0800, "bg_map", 0 )   /* background tilemaps */
 	ROM_LOAD( "ab03.6b",      0x0000, 0x0800, CRC(d26bc1f3) SHA1(737af6e264183a1f151f277a07cf250d6abb3fd8) )
+ROM_END
+
+ROM_START( btime3 )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "ab05a-3.12b",  0xb000, 0x1000, CRC(12e9f58c) SHA1(c1a933c83255af431643451b4eb68dc755bf0f61) ) /* Revision 3 & Copyright 1982 DATA EAST USA. INC. */
+	ROM_LOAD( "ab04-3.9b",    0xc000, 0x1000, CRC(5d90c696) SHA1(7b1674e7b6249a2d806d81abd967adeeb51111be) )
+	ROM_LOAD( "ab06-3.13b",   0xd000, 0x1000, CRC(e0b993ad) SHA1(42674cc399a8281a9a6c6cdbe38f7e5a4b3e6cb9) )
+	ROM_LOAD( "ab05-3.10b",   0xe000, 0x1000, CRC(c2b44b7f) SHA1(03c972f4ca0a31a2689d2f2d4064d82732fb19b9) )
+	ROM_LOAD( "ab07-3.15b",   0xf000, 0x1000, CRC(91986594) SHA1(f163eb7b27b602ce61a2dee1ae221a6e1f84c43d) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "ab14-1.12h",   0xe000, 0x1000, CRC(f55e5211) SHA1(27940026d0c6212d1138d2fd88880df697218627) )
+
+	ROM_REGION( 0x6000, "gfx1", 0 )
+	ROM_LOAD( "ab12-1.7k",    0x0000, 0x1000, BAD_DUMP CRC(6c79f79f) SHA1(338009199b5889621693833d88c35abb8e9e38a2) ) /* ROM was damaged, not verified the same */   /* charset #1 */
+	ROM_LOAD( "ab13-1.9k",    0x1000, 0x1000, BAD_DUMP CRC(ac01042f) SHA1(e64b6381a9298eaf74e79fa5f1ea8e9596c58a49) ) /* ROM was damaged, not verified the same */
+	ROM_LOAD( "ab10-1.10k",   0x2000, 0x1000, CRC(854a872a) SHA1(3d2ecfd54a5a9d68b53cf4b4ee1f2daa6aef2123) )
+	ROM_LOAD( "ab11-1.12k",   0x3000, 0x1000, CRC(d4848014) SHA1(0a55b091cd4e7f317c35defe13d5051b26042eee) )
+	ROM_LOAD( "ab8-1.13k",    0x4000, 0x1000, BAD_DUMP CRC(70b35bbe) SHA1(ee8d70d6792ac4b8fe3de90c665457fedb94a7ba) ) /* ROM was damaged, not verified the same */
+	ROM_LOAD( "ab9-1.15k",    0x5000, 0x1000, BAD_DUMP CRC(8dec15e6) SHA1(b72633de6268ce16742bba4dcba835df860d6c2f) ) /* ROM was damaged, not verified the same */
+
+	ROM_REGION( 0x1800, "gfx2", 0 )
+	ROM_LOAD( "ab00-1.1b",    0x0000, 0x0800, CRC(c7a14485) SHA1(6a0a8e6b7860859f22daa33634e34fbf91387659) )
+	ROM_LOAD( "ab01-1.3b",    0x0800, 0x0800, BAD_DUMP CRC(25b49078) SHA1(4abdcbd4f3362c3e4463a1274731289f1a72d2e6) ) /* ROM was damaged, not verified the same */
+	ROM_LOAD( "ab02-1.4b",    0x1000, 0x0800, CRC(b8ef56c3) SHA1(4a03bf011dc1fb2902f42587b1174b880cf06df1) )
+
+	ROM_REGION( 0x0800, "bg_map", 0 )   /* background tilemaps */
+	ROM_LOAD( "ab03-3.6b",    0x0000, 0x0800, CRC(f699d797) SHA1(c09ba5e652f26683d90b6a5637e41adecc4f1afa) )
 ROM_END
 
 ROM_START( btimem )
@@ -2031,6 +2058,7 @@ DRIVER_INIT_MEMBER(btime_state,sdtennis)
 
 GAME( 1982, btime,    0,       btime,    btime, btime_state,    btime,    ROT270, "Data East Corporation", "Burger Time (Data East set 1)", GAME_SUPPORTS_SAVE )
 GAME( 1982, btime2,   btime,   btime,    btime, btime_state,    btime,    ROT270, "Data East Corporation", "Burger Time (Data East set 2)", GAME_SUPPORTS_SAVE )
+GAME( 1982, btime3,   btime,   btime,    btime, btime_state,    btime,    ROT270, "Data East USA Inc.",    "Burger Time (Data East USA)", GAME_SUPPORTS_SAVE )
 GAME( 1982, btimem,   btime,   btime,    btime, btime_state,    btime,    ROT270, "Data East (Bally Midway license)", "Burger Time (Midway)", GAME_SUPPORTS_SAVE )
 GAME( 1982, cookrace, btime,   cookrace, cookrace, btime_state, cookrace, ROT270, "bootleg", "Cook Race", GAME_SUPPORTS_SAVE )
 GAME( 1981, tisland,  0,       tisland,  btime, btime_state,    tisland,  ROT270, "Data East Corporation", "Treasure Island", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )

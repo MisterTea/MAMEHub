@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Killer Instinct hardware
@@ -133,7 +135,6 @@ Notes:
 #include "cpu/adsp2100/adsp2100.h"
 #include "machine/ataintf.h"
 #include "machine/idehd.h"
-#include "machine/midwayic.h"
 #include "audio/dcs.h"
 
 
@@ -152,7 +153,8 @@ public:
 		m_control(*this, "control"),
 		m_rombase(*this, "rombase"),
 		m_maincpu(*this, "maincpu"),
-		m_ata(*this, "ata" )
+		m_ata(*this, "ata"),
+		m_dcs(*this, "dcs")
 	{
 	}
 
@@ -175,8 +177,9 @@ public:
 	virtual void machine_reset();
 	UINT32 screen_update_kinst(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(irq0_start);
-	required_device<cpu_device> m_maincpu;
+	required_device<mips3_device> m_maincpu;
 	required_device<ata_interface_device> m_ata;
+	required_device<dcs_audio_2k_device> m_dcs;
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -198,12 +201,12 @@ protected:
 void kinst_state::machine_start()
 {
 	/* set the fastest DRC options */
-	mips3drc_set_options(m_maincpu, MIPS3DRC_FASTEST_OPTIONS);
+	m_maincpu->mips3drc_set_options(MIPS3DRC_FASTEST_OPTIONS);
 
 	/* configure fast RAM regions for DRC */
-	mips3drc_add_fastram(m_maincpu, 0x08000000, 0x087fffff, FALSE, m_rambase2);
-	mips3drc_add_fastram(m_maincpu, 0x00000000, 0x0007ffff, FALSE, m_rambase);
-	mips3drc_add_fastram(m_maincpu, 0x1fc00000, 0x1fc7ffff, TRUE,  m_rombase);
+	m_maincpu->mips3drc_add_fastram(0x08000000, 0x087fffff, FALSE, m_rambase2);
+	m_maincpu->mips3drc_add_fastram(0x00000000, 0x0007ffff, FALSE, m_rambase);
+	m_maincpu->mips3drc_add_fastram(0x1fc00000, 0x1fc7ffff, TRUE,  m_rombase);
 }
 
 
@@ -360,7 +363,7 @@ READ32_MEMBER(kinst_state::kinst_control_r)
 		case 2:     /* $90 -- sound return */
 			result = ioport(portnames[offset])->read();
 			result &= ~0x0002;
-			if (dcs_control_r(machine()) & 0x800)
+			if (m_dcs->control_r() & 0x800)
 				result |= 0x0002;
 			break;
 
@@ -400,12 +403,12 @@ WRITE32_MEMBER(kinst_state::kinst_control_w)
 			break;
 
 		case 1:     /* $88 - sound reset */
-			dcs_reset_w(machine(), ~data & 0x01);
+			m_dcs->reset_w(~data & 0x01);
 			break;
 
 		case 2:     /* $90 - sound control */
 			if (!(olddata & 0x02) && (m_control[offset] & 0x02))
-				dcs_data_w(machine(), m_control[3]);
+				m_dcs->data_w(m_control[3]);
 			break;
 
 		case 3:     /* $98 - sound data */
@@ -666,17 +669,12 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static const mips3_config r4600_config =
-{
-	16384,              /* code cache size */
-	16384               /* data cache size */
-};
-
 static MACHINE_CONFIG_START( kinst, kinst_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", R4600LE, MASTER_CLOCK*2)
-	MCFG_CPU_CONFIG(r4600_config)
+	MCFG_MIPS3_ICACHE_SIZE(16384)
+	MCFG_MIPS3_DCACHE_SIZE(16384)
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", kinst_state,  irq0_start)
 
@@ -685,20 +683,19 @@ static MACHINE_CONFIG_START( kinst, kinst_state )
 	MCFG_ATA_INTERFACE_IRQ_HANDLER(WRITELINE(kinst_state, ide_interrupt))
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(320, 240)
 	MCFG_SCREEN_VISIBLE_AREA(0, 319, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(kinst_state, screen_update_kinst)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, BBBBB_GGGGG_RRRRR)
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD_BBBBBGGGGGRRRRR("palette")
 
 	/* sound hardware */
-	MCFG_FRAGMENT_ADD(dcs_audio_2k)
+	MCFG_DEVICE_ADD("dcs", DCS_AUDIO_2K, 0)
 MACHINE_CONFIG_END
 
 
@@ -910,8 +907,6 @@ DRIVER_INIT_MEMBER(kinst_state,kinst)
 {
 	static const UINT8 kinst_control_map[8] = { 0,1,2,3,4,5,6,7 };
 
-	dcs_init(machine());
-
 	/* set up the control register mapping */
 	m_control_map = kinst_control_map;
 }
@@ -927,8 +922,6 @@ DRIVER_INIT_MEMBER(kinst_state,kinst2)
 	// write: $90 on ki2 = $88 on ki
 	// write: $98 on ki2 = $80 on ki
 	// write: $a0 on ki2 = $98 on ki
-
-	dcs_init(machine());
 
 	/* set up the control register mapping */
 	m_control_map = kinst2_control_map;

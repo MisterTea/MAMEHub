@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /*************************************************************************************
 
     SMC-777 (c) 1983 Sony
@@ -53,7 +55,9 @@ public:
 	m_crtc(*this, "crtc"),
 	m_fdc(*this, "fdc"),
 	m_sn(*this, "sn1"),
-	m_beeper(*this, "beeper")
+	m_beeper(*this, "beeper"),
+	m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -116,13 +120,15 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(smc777);
 	UINT32 screen_update_smc777(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(smc777_vblank_irq);
 	TIMER_DEVICE_CALLBACK_MEMBER(keyboard_callback);
 	DECLARE_WRITE_LINE_MEMBER(smc777_fdc_intrq_w);
 	DECLARE_WRITE_LINE_MEMBER(smc777_fdc_drq_w);
 	void check_floppy_inserted();
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -142,7 +148,7 @@ UINT32 smc777_state::screen_update_smc777(screen_device &screen, bitmap_ind16 &b
 
 //  popmessage("%d %d %d %d",mc6845_v_char_total,mc6845_v_total_adj,mc6845_v_display,mc6845_v_sync_pos);
 
-	bitmap.fill(machine().pens[m_backdrop_pen], cliprect);
+	bitmap.fill(m_palette->pen(m_backdrop_pen), cliprect);
 
 	x_width = ((m_display_reg & 0x80) >> 7);
 
@@ -160,23 +166,23 @@ UINT32 smc777_state::screen_update_smc777(screen_device &screen, bitmap_ind16 &b
 				/* todo: clean this up! */
 				//if(x_width)
 				{
-					bitmap.pix16(y+yi+CRTC_MIN_Y, x*4+0+CRTC_MIN_X) = machine().pens[color];
-					bitmap.pix16(y+yi+CRTC_MIN_Y, x*4+1+CRTC_MIN_X) = machine().pens[color];
+					bitmap.pix16(y+yi+CRTC_MIN_Y, x*4+0+CRTC_MIN_X) = m_palette->pen(color);
+					bitmap.pix16(y+yi+CRTC_MIN_Y, x*4+1+CRTC_MIN_X) = m_palette->pen(color);
 				}
 				//else
 				//{
-				//  bitmap.pix16(y+yi+CRTC_MIN_Y, x*2+0+CRTC_MIN_X) = machine().pens[color];
+				//  bitmap.pix16(y+yi+CRTC_MIN_Y, x*2+0+CRTC_MIN_X) = m_palette->pen(color);
 				//}
 
 				color = (m_gvram[count] & 0x0f) >> 0;
 				//if(x_width)
 				{
-					bitmap.pix16(y+yi+CRTC_MIN_Y, x*4+2+CRTC_MIN_X) = machine().pens[color];
-					bitmap.pix16(y+yi+CRTC_MIN_Y, x*4+3+CRTC_MIN_X) = machine().pens[color];
+					bitmap.pix16(y+yi+CRTC_MIN_Y, x*4+2+CRTC_MIN_X) = m_palette->pen(color);
+					bitmap.pix16(y+yi+CRTC_MIN_Y, x*4+3+CRTC_MIN_X) = m_palette->pen(color);
 				}
 				//else
 				//{
-				//  bitmap.pix16(y+yi+CRTC_MIN_Y, x*2+1+CRTC_MIN_X) = machine().pens[color];
+				//  bitmap.pix16(y+yi+CRTC_MIN_Y, x*2+1+CRTC_MIN_X) = m_palette->pen(color);
 				//}
 
 				count++;
@@ -214,7 +220,7 @@ UINT32 smc777_state::screen_update_smc777(screen_device &screen, bitmap_ind16 &b
 				case 3: bk_pen = (color ^ 0xf); break; //complementary
 			}
 
-			if(blink && machine().primary_screen->frame_number() & 0x10) //blinking, used by Dragon's Alphabet
+			if(blink && machine().first_screen()->frame_number() & 0x10) //blinking, used by Dragon's Alphabet
 				color = bk_pen;
 
 			for(yi=0;yi<8;yi++)
@@ -229,11 +235,11 @@ UINT32 smc777_state::screen_update_smc777(screen_device &screen, bitmap_ind16 &b
 					{
 						if(x_width)
 						{
-							bitmap.pix16(y*8+CRTC_MIN_Y+yi, (x*8+xi)*2+0+CRTC_MIN_X) = machine().pens[pen];
-							bitmap.pix16(y*8+CRTC_MIN_Y+yi, (x*8+xi)*2+1+CRTC_MIN_X) = machine().pens[pen];
+							bitmap.pix16(y*8+CRTC_MIN_Y+yi, (x*8+xi)*2+0+CRTC_MIN_X) = m_palette->pen(pen);
+							bitmap.pix16(y*8+CRTC_MIN_Y+yi, (x*8+xi)*2+1+CRTC_MIN_X) = m_palette->pen(pen);
 						}
 						else
-							bitmap.pix16(y*8+CRTC_MIN_Y+yi, x*8+CRTC_MIN_X+xi) = machine().pens[pen];
+							bitmap.pix16(y*8+CRTC_MIN_Y+yi, x*8+CRTC_MIN_X+xi) = m_palette->pen(pen);
 					}
 				}
 			}
@@ -248,8 +254,8 @@ UINT32 smc777_state::screen_update_smc777(screen_device &screen, bitmap_ind16 &b
 				{
 					case 0x00: cursor_on = 1; break; //always on
 					case 0x20: cursor_on = 0; break; //always off
-					case 0x40: if(machine().primary_screen->frame_number() & 0x10) { cursor_on = 1; } break; //fast blink
-					case 0x60: if(machine().primary_screen->frame_number() & 0x20) { cursor_on = 1; } break; //slow blink
+					case 0x40: if(machine().first_screen()->frame_number() & 0x10) { cursor_on = 1; } break; //fast blink
+					case 0x60: if(machine().first_screen()->frame_number() & 0x20) { cursor_on = 1; } break; //slow blink
 				}
 
 				if(cursor_on)
@@ -260,11 +266,11 @@ UINT32 smc777_state::screen_update_smc777(screen_device &screen, bitmap_ind16 &b
 						{
 							if(x_width)
 							{
-								bitmap.pix16(y*8+CRTC_MIN_Y-yc+7, (x*8+xc)*2+0+CRTC_MIN_X) = machine().pens[0x7];
-								bitmap.pix16(y*8+CRTC_MIN_Y-yc+7, (x*8+xc)*2+1+CRTC_MIN_X) = machine().pens[0x7];
+								bitmap.pix16(y*8+CRTC_MIN_Y-yc+7, (x*8+xc)*2+0+CRTC_MIN_X) = m_palette->pen(0x7);
+								bitmap.pix16(y*8+CRTC_MIN_Y-yc+7, (x*8+xc)*2+1+CRTC_MIN_X) = m_palette->pen(0x7);
 							}
 							else
-								bitmap.pix16(y*8+CRTC_MIN_Y-yc+7, x*8+CRTC_MIN_X+xc) = machine().pens[0x7];
+								bitmap.pix16(y*8+CRTC_MIN_Y-yc+7, x*8+CRTC_MIN_X+xc) = m_palette->pen(0x7);
 						}
 					}
 				}
@@ -350,7 +356,7 @@ WRITE8_MEMBER(smc777_state::smc777_pcg_w)
 
 	m_pcg[vram_index] = data;
 
-	machine().gfx[0]->mark_dirty(vram_index >> 3);
+	m_gfxdecode->gfx(0)->mark_dirty(vram_index >> 3);
 }
 
 READ8_MEMBER(smc777_state::smc777_fbuf_r)
@@ -383,9 +389,9 @@ void smc777_state::check_floppy_inserted()
 	/* FIXME: floppy drive 1 doesn't work? */
 	for(f_num=0;f_num<2;f_num++)
 	{
-		floppy = flopimg_get_image(floppy_get_device(machine(), f_num));
-		floppy_mon_w(floppy_get_device(machine(), f_num), (floppy != NULL) ? 0 : 1);
-		floppy_drive_set_ready_state(floppy_get_device(machine(), f_num), (floppy != NULL) ? 1 : 0,0);
+		floppy = floppy_get_device(machine(), f_num)->flopimg_get_image();
+		floppy_get_device(machine(), f_num)->floppy_mon_w((floppy != NULL) ? 0 : 1);
+		floppy_get_device(machine(), f_num)->floppy_drive_set_ready_state((floppy != NULL) ? 1 : 0,0);
 	}
 }
 
@@ -396,13 +402,13 @@ READ8_MEMBER(smc777_state::smc777_fdc1_r)
 	switch(offset)
 	{
 		case 0x00:
-			return wd17xx_status_r(m_fdc,space, offset) ^ 0xff;
+			return m_fdc->status_r(space, offset) ^ 0xff;
 		case 0x01:
-			return wd17xx_track_r(m_fdc,space, offset) ^ 0xff;
+			return m_fdc->track_r(space, offset) ^ 0xff;
 		case 0x02:
-			return wd17xx_sector_r(m_fdc,space, offset) ^ 0xff;
+			return m_fdc->sector_r(space, offset) ^ 0xff;
 		case 0x03:
-			return wd17xx_data_r(m_fdc,space, offset) ^ 0xff;
+			return m_fdc->data_r(space, offset) ^ 0xff;
 		case 0x04: //irq / drq status
 			//popmessage("%02x %02x\n",m_fdc_irq_flag,m_fdc_drq_flag);
 
@@ -419,21 +425,21 @@ WRITE8_MEMBER(smc777_state::smc777_fdc1_w)
 	switch(offset)
 	{
 		case 0x00:
-			wd17xx_command_w(m_fdc,space, offset,data ^ 0xff);
+			m_fdc->command_w(space, offset,data ^ 0xff);
 			break;
 		case 0x01:
-			wd17xx_track_w(m_fdc,space, offset,data ^ 0xff);
+			m_fdc->track_w(space, offset,data ^ 0xff);
 			break;
 		case 0x02:
-			wd17xx_sector_w(m_fdc,space, offset,data ^ 0xff);
+			m_fdc->sector_w(space, offset,data ^ 0xff);
 			break;
 		case 0x03:
-			wd17xx_data_w(m_fdc,space, offset,data ^ 0xff);
+			m_fdc->data_w(space, offset,data ^ 0xff);
 			break;
 		case 0x04:
 			// ---- xxxx select floppy drive (yes, 15 of them, A to P)
-			wd17xx_set_drive(m_fdc,data & 0x01);
-			//  wd17xx_set_side(m_fdc,(data & 0x10)>>4);
+			m_fdc->set_drive(data & 0x01);
+			//  m_fdc->set_side((data & 0x10)>>4);
 			if(data & 0xf0)
 				printf("floppy access %02x\n",data);
 			break;
@@ -560,9 +566,9 @@ WRITE8_MEMBER(smc777_state::smc777_ramdac_w)
 
 	switch((offset & 0x3000) >> 12)
 	{
-		case 0: m_pal.r = (data & 0xf0) >> 4; palette_set_color_rgb(machine(), pal_index, pal4bit(m_pal.r), pal4bit(m_pal.g), pal4bit(m_pal.b)); break;
-		case 1: m_pal.g = (data & 0xf0) >> 4; palette_set_color_rgb(machine(), pal_index, pal4bit(m_pal.r), pal4bit(m_pal.g), pal4bit(m_pal.b)); break;
-		case 2: m_pal.b = (data & 0xf0) >> 4; palette_set_color_rgb(machine(), pal_index, pal4bit(m_pal.r), pal4bit(m_pal.g), pal4bit(m_pal.b)); break;
+		case 0: m_pal.r = (data & 0xf0) >> 4; m_palette->set_pen_color(pal_index, pal4bit(m_pal.r), pal4bit(m_pal.g), pal4bit(m_pal.b)); break;
+		case 1: m_pal.g = (data & 0xf0) >> 4; m_palette->set_pen_color(pal_index, pal4bit(m_pal.r), pal4bit(m_pal.g), pal4bit(m_pal.b)); break;
+		case 2: m_pal.b = (data & 0xf0) >> 4; m_palette->set_pen_color(pal_index, pal4bit(m_pal.r), pal4bit(m_pal.g), pal4bit(m_pal.b)); break;
 		case 3: printf("RAMdac used with gradient index = 3! pal_index = %02x data = %02x\n",pal_index,data); break;
 	}
 }
@@ -982,7 +988,7 @@ void smc777_state::machine_start()
 	save_pointer(NAME(m_gvram), 0x8000);
 	save_pointer(NAME(m_pcg), 0x800);
 
-	machine().gfx[0] = auto_alloc(machine(), gfx_element(machine(), smc777_charlayout, (UINT8 *)m_pcg, 8, 0));
+	m_gfxdecode->set_gfx(0, global_alloc(gfx_element(m_palette, smc777_charlayout, (UINT8 *)m_pcg, 0, 8, 0)));
 }
 
 void smc777_state::machine_reset()
@@ -997,22 +1003,8 @@ void smc777_state::machine_reset()
 }
 
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	true,       /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
 /* set-up SMC-70 mode colors */
-void smc777_state::palette_init()
+PALETTE_INIT_MEMBER(smc777_state, smc777)
 {
 	int i;
 
@@ -1024,18 +1016,10 @@ void smc777_state::palette_init()
 		g = (i & 2) >> 1;
 		b = (i & 1) >> 0;
 
-		palette_set_color_rgb(machine(), i, pal1bit(r),pal1bit(g),pal1bit(b));
-		palette_set_color_rgb(machine(), i+8, pal1bit(0),pal1bit(0),pal1bit(0));
+		palette.set_pen_color(i, pal1bit(r),pal1bit(g),pal1bit(b));
+		palette.set_pen_color(i+8, pal1bit(0),pal1bit(0),pal1bit(0));
 	}
 }
-
-static const wd17xx_interface smc777_mb8876_interface =
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(smc777_state, smc777_fdc_intrq_w),
-	DEVCB_DRIVER_LINE_MEMBER(smc777_state, smc777_fdc_drq_w),
-	{FLOPPY_0, FLOPPY_1, NULL, NULL}
-};
 
 static LEGACY_FLOPPY_OPTIONS_START( smc777 )
 	LEGACY_FLOPPY_OPTION( img, "img", "SMC70 disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
@@ -1048,15 +1032,9 @@ LEGACY_FLOPPY_OPTIONS_END
 
 static const floppy_interface smc777_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_SSDD,
 	LEGACY_FLOPPY_OPTIONS_NAME(smc777),
-	"floppy_5_25",
-	NULL
+	"floppy_5_25"
 };
 
 INTERRUPT_GEN_MEMBER(smc777_state::smc777_vblank_irq)
@@ -1064,24 +1042,6 @@ INTERRUPT_GEN_MEMBER(smc777_state::smc777_vblank_irq)
 	if(m_irq_mask)
 		device.execute().set_input_line(0,HOLD_LINE);
 }
-
-
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
 
 
 #define MASTER_CLOCK XTAL_4_028MHz
@@ -1100,20 +1060,32 @@ static MACHINE_CONFIG_START( smc777, smc777_state )
 	MCFG_SCREEN_SIZE(0x400, 400)
 	MCFG_SCREEN_VISIBLE_AREA(0, 660-1, 0, 220-1) //normal 640 x 200 + 20 pixels for border color
 	MCFG_SCREEN_UPDATE_DRIVER(smc777_state, screen_update_smc777)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x20) // 16 + 8 colors (SMC-777 + SMC-70) + 8 empty entries (SMC-70)
+	MCFG_PALETTE_ADD("palette", 0x20) // 16 + 8 colors (SMC-777 + SMC-70) + 8 empty entries (SMC-70)
+	MCFG_PALETTE_INIT_OWNER(smc777_state, smc777)
 
-	MCFG_MC6845_ADD("crtc", H46505, "screen", MASTER_CLOCK/2, mc6845_intf)    /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
 
-	MCFG_MB8876_ADD("fdc",smc777_mb8876_interface)
+	MCFG_MC6845_ADD("crtc", H46505, "screen", MASTER_CLOCK/2)    /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(true)
+	MCFG_MC6845_CHAR_WIDTH(8)
+
+	/* devices */
+	MCFG_DEVICE_ADD("fdc", MB8876, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE2_TAGS
+	MCFG_WD17XX_INTRQ_CALLBACK(WRITELINE(smc777_state, smc777_fdc_intrq_w))
+	MCFG_WD17XX_DRQ_CALLBACK(WRITELINE(smc777_state, smc777_fdc_drq_w))
+
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(smc777_floppy_interface)
+
 	MCFG_SOFTWARE_LIST_ADD("flop_list","smc777")
 
+	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn1", SN76489A, MASTER_CLOCK) // unknown clock / divider
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.50)

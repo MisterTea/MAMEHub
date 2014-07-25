@@ -162,6 +162,7 @@ static MACHINE_CONFIG_START( mc8020, mc80_state )
 	MCFG_CPU_ADD("maincpu",Z80, XTAL_2_4576MHz)
 	MCFG_CPU_PROGRAM_MAP(mc8020_mem)
 	MCFG_CPU_IO_MAP(mc8020_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(mc80_state,mc8020_irq_callback)
 
 	MCFG_MACHINE_RESET_OVERRIDE(mc80_state,mc8020)
 
@@ -173,12 +174,23 @@ static MACHINE_CONFIG_START( mc8020, mc80_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 32*6-1, 0, 16*8-1)
 	MCFG_VIDEO_START_OVERRIDE(mc80_state,mc8020)
 	MCFG_SCREEN_UPDATE_DRIVER(mc80_state, screen_update_mc8020)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_PALETTE("palette")
 
-	/* Devices */
-	MCFG_Z80PIO_ADD( "z80pio", XTAL_2_4576MHz, mc8020_z80pio_intf )
-	MCFG_Z80CTC_ADD( "z80ctc", XTAL_2_4576MHz / 100, mc8020_ctc_intf )
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
+
+	/* devices */
+	MCFG_DEVICE_ADD("z80pio", Z80PIO, XTAL_2_4576MHz)
+	MCFG_Z80PIO_IN_PA_CB(READ8(mc80_state, mc80_port_a_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(mc80_state, mc80_port_a_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(mc80_state, mc80_port_b_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(mc80_state, mc80_port_b_w))
+
+	MCFG_DEVICE_ADD("z80ctc", Z80CTC, XTAL_2_4576MHz / 100)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(WRITELINE(mc80_state, ctc_z0_w))
+	MCFG_Z80CTC_ZC1_CB(WRITELINE(mc80_state, ctc_z1_w))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(mc80_state, ctc_z2_w))
+
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("mc8020_kbd", mc80_state, mc8020_kbd, attotime::from_hz(50))
 MACHINE_CONFIG_END
 
@@ -188,6 +200,7 @@ static MACHINE_CONFIG_START( mc8030, mc80_state )
 	MCFG_CPU_PROGRAM_MAP(mc8030_mem)
 	MCFG_CPU_IO_MAP(mc8030_io)
 	MCFG_CPU_CONFIG(mc8030_daisy_chain)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(mc80_state,mc8030_irq_callback)
 
 	MCFG_MACHINE_RESET_OVERRIDE(mc80_state,mc8030)
 
@@ -199,15 +212,37 @@ static MACHINE_CONFIG_START( mc8030, mc80_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
 	MCFG_VIDEO_START_OVERRIDE(mc80_state,mc8030)
 	MCFG_SCREEN_UPDATE_DRIVER(mc80_state, screen_update_mc8030)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* Devices */
-	MCFG_Z80PIO_ADD( "zve_pio", XTAL_2_4576MHz, mc8030_zve_z80pio_intf )
-	MCFG_Z80CTC_ADD( "zve_ctc", XTAL_2_4576MHz, mc8030_zve_z80ctc_intf )
-	MCFG_Z80PIO_ADD( "asp_pio", XTAL_2_4576MHz, mc8030_asp_z80pio_intf )
-	MCFG_Z80CTC_ADD( "asp_ctc", XTAL_2_4576MHz, mc8030_asp_z80ctc_intf )
-	MCFG_Z80SIO0_ADD( "asp_sio", 4800, mc8030_asp_z80sio_intf )
+	MCFG_DEVICE_ADD("zve_pio", Z80PIO, XTAL_2_4576MHz)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_IN_PA_CB(READ8(mc80_state, zve_port_a_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(mc80_state, zve_port_a_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(mc80_state, zve_port_b_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(mc80_state, zve_port_b_w))
+
+	MCFG_DEVICE_ADD("zve_ctc", Z80CTC, XTAL_2_4576MHz)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	// ZC0, ZC1, ZC2 for user
+
+	MCFG_DEVICE_ADD("asp_pio", Z80PIO, XTAL_2_4576MHz)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_IN_PA_CB(READ8(mc80_state, asp_port_a_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(mc80_state, asp_port_a_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(mc80_state, asp_port_b_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(mc80_state, asp_port_b_w))
+
+	MCFG_DEVICE_ADD("asp_ctc", Z80CTC, XTAL_2_4576MHz)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	// ZC0: to SIO CLK CH A
+	// ZC1: to SIO CLK CH B
+	// ZC2: KMBG (??)
+
+	MCFG_Z80SIO0_ADD("asp_sio", 4800, 0, 0, 0, 0 )
+	// SIO CH A in = keyboard; out = beeper; CH B = IFSS (??)
 MACHINE_CONFIG_END
 
 /* ROM definition */

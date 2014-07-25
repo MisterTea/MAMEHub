@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Bally/Sente SAC-1 system
@@ -45,7 +47,10 @@ public:
 		m_shrike_shared(*this, "shrike_shared"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_68k(*this, "68k") { }
+		m_68k(*this, "68k"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_8(*this, "paletteram") { }
 
 	required_device<timer_device> m_scanline_timer;
 
@@ -211,9 +216,19 @@ public:
 	void update_grudge_steering();
 	void expand_roms(UINT8 cd_rom_mask);
 	inline void config_shooter_adc(UINT8 shooter, UINT8 adc_shift);
+	inline void noise_gen_chip(int chip, int count, short *buffer);
+	CEM3394_EXT_INPUT(noise_gen_0);
+	CEM3394_EXT_INPUT(noise_gen_1);
+	CEM3394_EXT_INPUT(noise_gen_2);
+	CEM3394_EXT_INPUT(noise_gen_3);
+	CEM3394_EXT_INPUT(noise_gen_4);
+	CEM3394_EXT_INPUT(noise_gen_5);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	optional_device<cpu_device> m_68k;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT8> m_generic_paletteram_8;
 };
 
 

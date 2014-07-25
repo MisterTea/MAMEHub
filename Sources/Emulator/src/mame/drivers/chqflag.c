@@ -21,8 +21,6 @@
 #include "chqflag.lh"
 
 
-
-
 TIMER_DEVICE_CALLBACK_MEMBER(chqflag_state::chqflag_scanline)
 {
 	int scanline = param;
@@ -46,8 +44,8 @@ WRITE8_MEMBER(chqflag_state::chqflag_bankswitch_w)
 	if (data & 0x20)
 	{
 		space.install_read_bank(0x1800, 0x1fff, "bank5");
-		space.install_write_handler(0x1800, 0x1fff, write8_delegate(FUNC(driver_device::paletteram_xBBBBBGGGGGRRRRR_byte_be_w),this));
-		membank("bank5")->set_base(m_generic_paletteram_8);
+		space.install_write_handler(0x1800, 0x1fff, write8_delegate(FUNC(palette_device::write),m_palette.target()));
+		membank("bank5")->set_base(m_paletteram);
 
 		if (m_k051316_readroms)
 			space.install_readwrite_handler(0x1000, 0x17ff, read8_delegate(FUNC(k051316_device::rom_r), (k051316_device*)m_k051316_1), write8_delegate(FUNC(k051316_device::write), (k051316_device*)m_k051316_1)); /* 051316 #1 (ROM test) */
@@ -83,9 +81,9 @@ WRITE8_MEMBER(chqflag_state::chqflag_vreg_w)
 	/* the headlight (which have the shadow bit set) become highlights */
 	/* Maybe one of the bits inverts the SHAD line while the other darkens the background. */
 	if (data & 0x08)
-		palette_set_shadow_factor(machine(), 1 / PALETTE_DEFAULT_SHADOW_FACTOR);
+		m_palette->set_shadow_factor(1 / PALETTE_DEFAULT_SHADOW_FACTOR);
 	else
-		palette_set_shadow_factor(machine(), PALETTE_DEFAULT_SHADOW_FACTOR);
+		m_palette->set_shadow_factor(PALETTE_DEFAULT_SHADOW_FACTOR);
 
 	if ((data & 0x80) != m_last_vreg)
 	{
@@ -96,7 +94,7 @@ WRITE8_MEMBER(chqflag_state::chqflag_vreg_w)
 
 		/* only affect the background */
 		for (i = 512; i < 1024; i++)
-			palette_set_pen_contrast(machine(), i, brt);
+			m_palette->set_pen_contrast(i, brt);
 	}
 
 //if ((data & 0xf8) && (data & 0xf8) != 0x88)
@@ -268,46 +266,16 @@ WRITE8_MEMBER(chqflag_state::volume_callback1)
 	m_k007232_2->set_volume(0, (data & 0x0f) * 0x11/2, (data >> 4) * 0x11/2);
 }
 
-static const k007232_interface k007232_interface_1 =
-{
-	DEVCB_DRIVER_MEMBER(chqflag_state,volume_callback0)
-};
-
-static const k007232_interface k007232_interface_2 =
-{
-	DEVCB_DRIVER_MEMBER(chqflag_state,volume_callback1)
-};
-
-static const k051960_interface chqflag_k051960_intf =
-{
-	"gfx1", 0,
-	NORMAL_PLANE_ORDER,
-	KONAMI_ROM_DEINTERLEAVE_2,
-	chqflag_sprite_callback
-};
-
-static const k051316_interface chqflag_k051316_intf_1 =
-{
-	"gfx2", 1,
-	4, FALSE, 0,
-	0, 7, 0,
-	chqflag_zoom_callback_0
-};
-
-static const k051316_interface chqflag_k051316_intf_2 =
-{
-	"gfx3", 2,
-	8, TRUE, 0xc0,
-	1, 0, 0,
-	chqflag_zoom_callback_1
-};
-
 void chqflag_state::machine_start()
 {
 	UINT8 *ROM = memregion("maincpu")->base();
 
 	membank("bank1")->configure_entries(0, 4, &ROM[0x10000], 0x2000);
 
+	m_paletteram.resize(m_palette->entries() * 2);
+	m_palette->basemem().set(m_paletteram, ENDIANNESS_BIG, 2);
+
+	save_item(NAME(m_paletteram));
 	save_item(NAME(m_k051316_readroms));
 	save_item(NAME(m_last_vreg));
 	save_item(NAME(m_analog_ctrl));
@@ -336,10 +304,7 @@ static MACHINE_CONFIG_START( chqflag, chqflag_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(600))
 
-
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	//TODO: Vsync 59.17hz Hsync 15.13 / 15.19khz
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -347,13 +312,28 @@ static MACHINE_CONFIG_START( chqflag, chqflag_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(12*8, (64-14)*8-1, 2*8, 30*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(chqflag_state, screen_update_chqflag)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_ENABLE_SHADOWS()
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
+	MCFG_DEVICE_ADD("k051960", K051960, 0)
+	MCFG_GFX_PALETTE("palette")
+	MCFG_K051960_CB(chqflag_state, sprite_callback)
 
-	MCFG_K051960_ADD("k051960", chqflag_k051960_intf)
-	MCFG_K051316_ADD("k051316_1", chqflag_k051316_intf_1)
-	MCFG_K051316_ADD("k051316_2", chqflag_k051316_intf_2)
+	MCFG_DEVICE_ADD("k051316_1", K051316, 0)
+	MCFG_GFX_PALETTE("palette")
+	MCFG_K051316_OFFSETS(7, 0)
+	MCFG_K051316_CB(chqflag_state, zoom_callback_1)
+
+	MCFG_DEVICE_ADD("k051316_2", K051316, 0)
+	MCFG_GFX_PALETTE("palette")
+	MCFG_K051316_BPP(8)
+	MCFG_K051316_LAYER_MASK(0xc0)
+	MCFG_K051316_WRAP(1)
+	MCFG_K051316_CB(chqflag_state, zoom_callback_2)
+
 	MCFG_K051733_ADD("k051733")
 
 	/* sound hardware */
@@ -365,14 +345,14 @@ static MACHINE_CONFIG_START( chqflag, chqflag_state )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.80)
 
 	MCFG_SOUND_ADD("k007232_1", K007232, XTAL_3_579545MHz) /* verified on pcb */
-	MCFG_SOUND_CONFIG(k007232_interface_1)
+	MCFG_K007232_PORT_WRITE_HANDLER(WRITE8(chqflag_state, volume_callback0))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.20)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.20)
 	MCFG_SOUND_ROUTE(1, "lspeaker", 0.20)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.20)
 
 	MCFG_SOUND_ADD("k007232_2", K007232, XTAL_3_579545MHz) /* verified on pcb */
-	MCFG_SOUND_CONFIG(k007232_interface_2)
+	MCFG_K007232_PORT_WRITE_HANDLER(WRITE8(chqflag_state, volume_callback1))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.20)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.20)
 MACHINE_CONFIG_END
@@ -387,18 +367,18 @@ ROM_START( chqflag )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for the SOUND CPU */
 	ROM_LOAD( "717e01",     0x000000, 0x008000, CRC(966b8ba8) SHA1(ab7448cb61fa5922b1d8ae5f0d0f42d734ed4f93) )
 
-	ROM_REGION( 0x100000, "gfx1", 0 )   /* graphics (addressable by the main CPU) */
-	ROM_LOAD( "717e04",     0x000000, 0x080000, CRC(1a50a1cc) SHA1(bc16fab84c637ed124e37b115ddc0149560b727d) )  /* sprites */
-	ROM_LOAD( "717e05",     0x080000, 0x080000, CRC(46ccb506) SHA1(3ed1f54744fc5cdc0f48e42f250c366267a8199a) )  /* sprites */
+	ROM_REGION( 0x100000, "k051960", 0 )    /* sprites */
+	ROM_LOAD32_WORD( "717e04",     0x000000, 0x080000, CRC(1a50a1cc) SHA1(bc16fab84c637ed124e37b115ddc0149560b727d) )
+	ROM_LOAD32_WORD( "717e05",     0x000002, 0x080000, CRC(46ccb506) SHA1(3ed1f54744fc5cdc0f48e42f250c366267a8199a) )
 
-	ROM_REGION( 0x020000, "gfx2", 0 )   /* graphics (addressable by the main CPU) */
-	ROM_LOAD( "717e06",     0x000000, 0x020000, CRC(1ec26c7a) SHA1(05b5b522c5ebf5d0a71a7fc39ec9382008ef33c8) )  /* zoom/rotate (N16) */
+	ROM_REGION( 0x020000, "k051316_1", 0 )      /* zoom/rotate */
+	ROM_LOAD( "717e06.n16",     0x000000, 0x020000, CRC(1ec26c7a) SHA1(05b5b522c5ebf5d0a71a7fc39ec9382008ef33c8) )
 
-	ROM_REGION( 0x100000, "gfx3", 0 )   /* graphics (addressable by the main CPU) */
-	ROM_LOAD( "717e07",     0x000000, 0x040000, CRC(b9a565a8) SHA1(a11782f7336e5ad58a4c6ea81f2eeac35d5e7d0a) )  /* zoom/rotate (L20) */
-	ROM_LOAD( "717e08",     0x040000, 0x040000, CRC(b68a212e) SHA1(b2bd121a43552c3ade528ac763a0df40c3e648e0) )  /* zoom/rotate (L22) */
-	ROM_LOAD( "717e11",     0x080000, 0x040000, CRC(ebb171ec) SHA1(d65d4a6b169ce03e4427b2a397484634f938236b) )  /* zoom/rotate (N20) */
-	ROM_LOAD( "717e12",     0x0c0000, 0x040000, CRC(9269335d) SHA1(af298c8cff50d707d6abc806065f8e931f975dc0) )  /* zoom/rotate (N22) */
+	ROM_REGION( 0x100000, "k051316_2", 0 )      /* zoom/rotate */
+	ROM_LOAD( "717e07.l20",     0x000000, 0x040000, CRC(b9a565a8) SHA1(a11782f7336e5ad58a4c6ea81f2eeac35d5e7d0a) )
+	ROM_LOAD( "717e08.l22",     0x040000, 0x040000, CRC(b68a212e) SHA1(b2bd121a43552c3ade528ac763a0df40c3e648e0) )
+	ROM_LOAD( "717e11.n20",     0x080000, 0x040000, CRC(ebb171ec) SHA1(d65d4a6b169ce03e4427b2a397484634f938236b) )
+	ROM_LOAD( "717e12.n22",     0x0c0000, 0x040000, CRC(9269335d) SHA1(af298c8cff50d707d6abc806065f8e931f975dc0) )
 
 	ROM_REGION( 0x080000, "k007232_1", 0 )  /* 007232 data (chip 1) */
 	ROM_LOAD( "717e03",     0x000000, 0x080000, CRC(ebe73c22) SHA1(fad3334e5e91bf8d11b74ffdbbfd57567e6f6f8c) )
@@ -417,18 +397,18 @@ ROM_START( chqflagj )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for the SOUND CPU */
 	ROM_LOAD( "717e01",     0x000000, 0x008000, CRC(966b8ba8) SHA1(ab7448cb61fa5922b1d8ae5f0d0f42d734ed4f93) )
 
-	ROM_REGION( 0x100000, "gfx1", 0 )   /* graphics (addressable by the main CPU) */
-	ROM_LOAD( "717e04",     0x000000, 0x080000, CRC(1a50a1cc) SHA1(bc16fab84c637ed124e37b115ddc0149560b727d) )  /* sprites */
-	ROM_LOAD( "717e05",     0x080000, 0x080000, CRC(46ccb506) SHA1(3ed1f54744fc5cdc0f48e42f250c366267a8199a) )  /* sprites */
+	ROM_REGION( 0x100000, "k051960", 0 )    /* sprites */
+	ROM_LOAD32_WORD( "717e04",     0x000000, 0x080000, CRC(1a50a1cc) SHA1(bc16fab84c637ed124e37b115ddc0149560b727d) )
+	ROM_LOAD32_WORD( "717e05",     0x000002, 0x080000, CRC(46ccb506) SHA1(3ed1f54744fc5cdc0f48e42f250c366267a8199a) )
 
-	ROM_REGION( 0x020000, "gfx2", 0 )   /* graphics (addressable by the main CPU) */
-	ROM_LOAD( "717e06",     0x000000, 0x020000, CRC(1ec26c7a) SHA1(05b5b522c5ebf5d0a71a7fc39ec9382008ef33c8) )  /* zoom/rotate (N16) */
+	ROM_REGION( 0x020000, "k051316_1", 0 )      /* zoom/rotate */
+	ROM_LOAD( "717e06.n16",     0x000000, 0x020000, CRC(1ec26c7a) SHA1(05b5b522c5ebf5d0a71a7fc39ec9382008ef33c8) )
 
-	ROM_REGION( 0x100000, "gfx3", 0 )   /* graphics (addressable by the main CPU) */
-	ROM_LOAD( "717e07",     0x000000, 0x040000, CRC(b9a565a8) SHA1(a11782f7336e5ad58a4c6ea81f2eeac35d5e7d0a) )  /* zoom/rotate (L20) */
-	ROM_LOAD( "717e08",     0x040000, 0x040000, CRC(b68a212e) SHA1(b2bd121a43552c3ade528ac763a0df40c3e648e0) )  /* zoom/rotate (L22) */
-	ROM_LOAD( "717e11",     0x080000, 0x040000, CRC(ebb171ec) SHA1(d65d4a6b169ce03e4427b2a397484634f938236b) )  /* zoom/rotate (N20) */
-	ROM_LOAD( "717e12",     0x0c0000, 0x040000, CRC(9269335d) SHA1(af298c8cff50d707d6abc806065f8e931f975dc0) )  /* zoom/rotate (N22) */
+	ROM_REGION( 0x100000, "k051316_2", 0 )      /* zoom/rotate */
+	ROM_LOAD( "717e07.l20",     0x000000, 0x040000, CRC(b9a565a8) SHA1(a11782f7336e5ad58a4c6ea81f2eeac35d5e7d0a) )
+	ROM_LOAD( "717e08.l22",     0x040000, 0x040000, CRC(b68a212e) SHA1(b2bd121a43552c3ade528ac763a0df40c3e648e0) )
+	ROM_LOAD( "717e11.n20",     0x080000, 0x040000, CRC(ebb171ec) SHA1(d65d4a6b169ce03e4427b2a397484634f938236b) )
+	ROM_LOAD( "717e12.n22",     0x0c0000, 0x040000, CRC(9269335d) SHA1(af298c8cff50d707d6abc806065f8e931f975dc0) )
 
 	ROM_REGION( 0x080000, "k007232_1", 0 )  /* 007232 data (chip 1) */
 	ROM_LOAD( "717e03",     0x000000, 0x080000, CRC(ebe73c22) SHA1(fad3334e5e91bf8d11b74ffdbbfd57567e6f6f8c) )

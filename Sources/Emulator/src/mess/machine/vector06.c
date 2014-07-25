@@ -42,7 +42,7 @@ WRITE8_MEMBER( vector06_state::vector06_8255_porta_w )
 void vector06_state::vector06_set_video_mode(int width)
 {
 	rectangle visarea(0, width+64-1, 0, 256+64-1);
-	machine().primary_screen->configure(width+64, 256+64, visarea, machine().primary_screen->frame_period().attoseconds);
+	machine().first_screen()->configure(width+64, 256+64, visarea, machine().first_screen()->frame_period().attoseconds);
 }
 
 WRITE8_MEMBER( vector06_state::vector06_8255_portb_w )
@@ -60,7 +60,7 @@ WRITE8_MEMBER( vector06_state::vector06_color_set )
 	UINT8 r = (data & 7) << 5;
 	UINT8 g = ((data >> 3) & 7) << 5;
 	UINT8 b = ((data >>6) & 3) << 6;
-	palette_set_color( machine(), m_color_index, MAKE_RGB(r,g,b) );
+	m_palette->set_pen_color( m_color_index, rgb_t(r,g,b) );
 }
 
 
@@ -80,27 +80,6 @@ WRITE8_MEMBER( vector06_state::vector06_romdisk_portc_w )
 {
 	m_romdisk_msb = data << 8;
 }
-
-I8255A_INTERFACE( vector06_ppi8255_2_interface )
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(vector06_state, vector06_romdisk_porta_w),
-	DEVCB_DRIVER_MEMBER(vector06_state, vector06_romdisk_portb_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(vector06_state, vector06_romdisk_portc_w)
-};
-
-
-I8255A_INTERFACE( vector06_ppi8255_interface )
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(vector06_state, vector06_8255_porta_w),
-	DEVCB_DRIVER_MEMBER(vector06_state, vector06_8255_portb_r),
-	DEVCB_DRIVER_MEMBER(vector06_state, vector06_8255_portb_w),
-	DEVCB_DRIVER_MEMBER(vector06_state, vector06_8255_portc_r),
-	DEVCB_NULL
-};
 
 READ8_MEMBER( vector06_state::vector06_8255_1_r )
 {
@@ -157,8 +136,8 @@ WRITE8_MEMBER( vector06_state::vector06_disc_w )
 {
 // something here needs to turn the motor on
 
-	wd17xx_set_side (m_fdc,BIT(data, 2) ^ 1);
-	wd17xx_set_drive(m_fdc,BIT(data, 0));
+	m_fdc->set_side (BIT(data, 2) ^ 1);
+	m_fdc->set_drive(BIT(data, 0));
 }
 
 void vector06_state::machine_start()
@@ -170,7 +149,6 @@ void vector06_state::machine_reset()
 {
 	address_space &space = m_maincpu->space(AS_PROGRAM);
 
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(vector06_state::vector06_irq_callback),this));
 	space.install_read_bank (0x0000, 0x7fff, "bank1");
 	space.install_write_bank(0x0000, 0x7fff, "bank2");
 	space.install_read_bank (0x8000, 0xffff, "bank3");

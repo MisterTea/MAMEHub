@@ -20,6 +20,7 @@
 
 #include <time.h>
 
+#include "webengine.h"
 
 
 //**************************************************************************
@@ -49,9 +50,6 @@ enum
 //    TYPE DEFINITIONS
 //**************************************************************************
 
-// output channel callback
-typedef delegate<void (const char *, va_list)> output_delegate;
-
 class emulator_info
 {
 public:
@@ -78,6 +76,45 @@ public:
 };
 
 
+// ======================> machine_manager
+
+class machine_manager
+{
+	DISABLE_COPYING(machine_manager);
+private:
+	// construction/destruction
+	machine_manager(emu_options &options, osd_interface &osd);
+public:
+	static machine_manager *instance(emu_options &options, osd_interface &osd);
+	static machine_manager *instance();
+	~machine_manager();
+
+	osd_interface &osd() const { return m_osd; }
+	emu_options &options() const { return m_options; }
+	web_engine *web() { return &m_web; }
+	lua_engine *lua() { return &m_lua; }
+
+	running_machine *machine() { return m_machine; }
+
+	void set_machine(running_machine *machine) { m_machine = machine; }
+
+	void update_machine();
+
+	/* execute as configured by the OPTION_SYSTEMNAME option on the specified options */
+	int execute();
+	void schedule_new_driver(const game_driver &driver);
+private:
+	osd_interface &         m_osd;                  // reference to OSD system
+	emu_options &           m_options;              // reference to options
+
+	web_engine              m_web;
+	lua_engine              m_lua;
+
+	const game_driver *     m_new_driver_pending;   // pointer to the next pending driver
+
+	running_machine *m_machine;
+	static machine_manager* m_manager;
+};
 
 //**************************************************************************
 //  GLOBAL VARIABLES
@@ -91,45 +128,13 @@ extern const char build_version[];
     FUNCTION PROTOTYPES
 ***************************************************************************/
 
-
-/* ----- core system management ----- */
-
-/* execute as configured by the OPTION_SYSTEMNAME option on the specified options */
-int mame_execute(emu_options &options, osd_interface &osd);
-
-
-
-/* ----- output management ----- */
-
-/* set the output handler for a channel, returns the current one */
-output_delegate mame_set_output_channel(output_channel channel, output_delegate callback);
-
-/* built-in default callbacks */
-void mame_file_output_callback(FILE *file, const char *format, va_list argptr);
-void mame_null_output_callback(FILE *param, const char *format, va_list argptr);
-
-/* calls to be used by the code */
-void mame_printf_error(const char *format, ...) ATTR_PRINTF(1,2);
-void mame_printf_warning(const char *format, ...) ATTR_PRINTF(1,2);
-void mame_printf_info(const char *format, ...) ATTR_PRINTF(1,2);
-void mame_printf_verbose(const char *format, ...) ATTR_PRINTF(1,2);
-void mame_printf_debug(const char *format, ...) ATTR_PRINTF(1,2);
-
-/* discourage the use of printf directly */
-/* sadly, can't do this because of the ATTR_PRINTF under GCC */
-/*
-#undef printf
-#define printf !MUST_USE_MAME_PRINTF_*_CALLS_WITHIN_THE_CORE!
-*/
-
-
 /* ----- miscellaneous bits & pieces ----- */
 
 // pop-up a user visible message
-void CLIB_DECL popmessage(const char *format,...) ATTR_PRINTF(1,2);
+void CLIB_DECL popmessage(const char *format, ...) ATTR_PRINTF(1,2);
 
 // log to the standard error.log file
-void CLIB_DECL logerror(const char *format,...) ATTR_PRINTF(1,2);
+void CLIB_DECL logerror(const char *format, ...) ATTR_PRINTF(1,2);
 void CLIB_DECL vlogerror(const char *format, va_list arg);
 
 

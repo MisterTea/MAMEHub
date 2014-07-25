@@ -51,7 +51,7 @@ UINT32 hotstuff_state::screen_update_hotstuff(screen_device &screen, bitmap_rgb3
 		{
 			row_palette_data[p] = m_bitmapram[count+p];
 
-			row_palette_data_as_rgb32_pen_data[p] = MAKE_RGB( (row_palette_data[p] & 0x0f00)>>4, (row_palette_data[p] & 0x00f0)>>0, (row_palette_data[p] & 0x000f)<<4  );
+			row_palette_data_as_rgb32_pen_data[p] = rgb_t( (row_palette_data[p] & 0x0f00)>>4, (row_palette_data[p] & 0x00f0)>>0, (row_palette_data[p] & 0x000f)<<4  );
 
 		}
 
@@ -136,7 +136,7 @@ static MACHINE_CONFIG_START( hotstuff, hotstuff_state )
 	MCFG_SCREEN_VISIBLE_AREA((0x10*4)+8, 101*8-1, 0*8, 33*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(hotstuff_state, screen_update_hotstuff)
 
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_PALETTE_ADD("palette", 0x200)
 
 MACHINE_CONFIG_END
 

@@ -28,7 +28,9 @@ public:
 		m_k053251(*this, "k053251"),
 		m_k053252(*this, "k053252"),
 		m_k056832(*this, "k056832"),
-		m_k054338(*this, "k054338") { }
+		m_k054338(*this, "k054338"),
+		m_palette(*this, "palette"),
+		m_screen(*this, "screen") { }
 
 	/* memory pointers */
 	optional_shared_ptr<UINT16> m_workram;
@@ -56,6 +58,8 @@ public:
 	optional_device<k053252_device> m_k053252;
 	required_device<k056832_device> m_k056832;
 	required_device<k054338_device> m_k054338;
+	required_device<palette_device> m_palette;
+	required_device<screen_device> m_screen;
 
 	emu_timer *m_dmaend_timer;
 	DECLARE_READ16_MEMBER(control2_r);
@@ -78,8 +82,6 @@ public:
 	INTERRUPT_GEN_MEMBER(moobl_interrupt);
 	TIMER_CALLBACK_MEMBER(dmaend_callback);
 	void moo_objdma();
+	K056832_CB_MEMBER(tile_callback);
+	K053246_CB_MEMBER(sprite_callback);
 };
-
-/*----------- defined in video/moo.c -----------*/
-extern void moo_tile_callback(running_machine &machine, int layer, int *code, int *color, int *flags);
-extern void moo_sprite_callback(running_machine &machine, int *code, int *color, int *priority_mask);

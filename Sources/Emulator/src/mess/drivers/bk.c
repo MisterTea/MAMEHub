@@ -154,28 +154,13 @@ static INPUT_PORTS_START( bk0010 )
 	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("=") PORT_CODE(KEYCODE_EQUALS)   // this alone acts like Enter and gives no result with Shift
 INPUT_PORTS_END
 
-static const struct t11_setup t11_data =
-{
-	0x36ff          /* initial mode word has DAL15,14,11,8 pulled low */
-};
-
-/* Machine driver */
-static const cassette_interface bk0010_cassette_interface =
-{
-	/*rk8_cassette_formats*/cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED),
-	"bk0010_cass",
-	NULL
-};
-
 
 static MACHINE_CONFIG_START( bk0010, bk_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", T11, 3000000)
-	MCFG_CPU_CONFIG(t11_data)
+	MCFG_T11_INITIAL_MODE(0x36ff)          /* initial mode word has DAL15,14,11,8 pulled low */
 	MCFG_CPU_PROGRAM_MAP(bk0010_mem)
-
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(bk_state,bk0010_irq_callback)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -184,16 +169,19 @@ static MACHINE_CONFIG_START( bk0010, bk_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(bk_state, screen_update_bk0010)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( "cassette", bk0010_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
+	MCFG_CASSETTE_INTERFACE("bk0010_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","bk0010")
 MACHINE_CONFIG_END
 
@@ -239,7 +227,7 @@ ROM_END
 /* Driver */
 
 /*    YEAR  NAME    PARENT  COMPAT  MACHINE     INPUT       INIT    COMPANY                  FULLNAME   FLAGS */
-COMP( 1985, bk0010,     0,       0, bk0010,     bk0010, driver_device,  0,      "Elektronika",           "BK-0010",  0)
-COMP( 1986, bk001001,   bk0010,  0, bk0010,     bk0010, driver_device,  0,      "Elektronika",           "BK-0010.01",   0)
-COMP( 1986, bk0010fd,   bk0010,  0, bk0010fd,   bk0010, driver_device,  0,      "Elektronika",           "BK-0010 FDD",  GAME_NOT_WORKING)
-COMP( 1986, bk0011m,    bk0010,  0, bk0010fd,   bk0010, driver_device,  0,      "Elektronika",           "BK-0011M",     GAME_NOT_WORKING)
+COMP( 1985, bk0010,     0,       0, bk0010,     bk0010, driver_device,  0,      "Elektronika",           "BK 0010",  0)
+COMP( 1986, bk001001,   bk0010,  0, bk0010,     bk0010, driver_device,  0,      "Elektronika",           "BK 0010-01",   0)
+COMP( 1986, bk0010fd,   bk0010,  0, bk0010fd,   bk0010, driver_device,  0,      "Elektronika",           "BK 0010 FDD",  GAME_NOT_WORKING)
+COMP( 1986, bk0011m,    bk0010,  0, bk0010fd,   bk0010, driver_device,  0,      "Elektronika",           "BK 0011M",     GAME_NOT_WORKING)

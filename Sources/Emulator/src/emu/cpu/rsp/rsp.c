@@ -16,13 +16,13 @@ CPU_DISASSEMBLE( rsp );
 #define SAVE_DMEM                       0
 #define RSP_TEST_SYNC                   0
 
-#define PRINT_VECREG(x)     mame_printf_debug("V%d: %04X|%04X|%04X|%04X|%04X|%04X|%04X|%04X\n", (x), \
+#define PRINT_VECREG(x)     osd_printf_debug("V%d: %04X|%04X|%04X|%04X|%04X|%04X|%04X|%04X\n", (x), \
 							(UINT16)VREG_S((x),0), (UINT16)VREG_S((x),1), \
 							(UINT16)VREG_S((x),2), (UINT16)VREG_S((x),3), \
 							(UINT16)VREG_S((x),4), (UINT16)VREG_S((x),5), \
 							(UINT16)VREG_S((x),6), (UINT16)VREG_S((x),7))
 
-#define PRINT_ACCUM(x)     mame_printf_debug("A%d: %08X|%08X\n", (x), \
+#define PRINT_ACCUM(x)     osd_printf_debug("A%d: %08X|%08X\n", (x), \
 							(UINT32)( ( ACCUM(x) >> 32 ) & 0x00000000ffffffff ),    \
 							(UINT32)(   ACCUM(x)         & 0x00000000ffffffff ))
 
@@ -66,22 +66,35 @@ INLINE rsp_state *get_safe_token(device_t *device)
 #define ACCUM_M(x)      rsp->accum[((x))].w[2]
 #define ACCUM_L(x)      rsp->accum[((x))].w[1]
 
-#define CARRY_FLAG(x)           ((rsp->flag[0] & (1 << ((x)))) ? 1 : 0)
-#define CLEAR_CARRY_FLAGS()     { rsp->flag[0] &= ~0xff; }
-#define SET_CARRY_FLAG(x)       { rsp->flag[0] |= (1 << ((x))); }
-#define CLEAR_CARRY_FLAG(x)     { rsp->flag[0] &= ~(1 << ((x))); }
+#define CARRY       0
+#define COMPARE     1
+#define CLIP1       2
+#define ZERO        3
+#define CLIP2       4
 
-#define COMPARE_FLAG(x)         ((rsp->flag[1] & (1 << ((x)))) ? 1 : 0)
-#define CLEAR_COMPARE_FLAGS()   { rsp->flag[1] &= ~0xff; }
-#define SET_COMPARE_FLAG(x)     { rsp->flag[1] |= (1 << ((x))); }
-#define CLEAR_COMPARE_FLAG(x)   { rsp->flag[1] &= ~(1 << ((x))); }
+#define CARRY_FLAG(x)           (rsp->vflag[CARRY][x & 7] != 0 ? 0xffff : 0)
+#define COMPARE_FLAG(x)         (rsp->vflag[COMPARE][x & 7] != 0 ? 0xffff : 0)
+#define CLIP1_FLAG(x)           (rsp->vflag[CLIP1][x & 7] != 0 ? 0xffff : 0)
+#define ZERO_FLAG(x)            (rsp->vflag[ZERO][x & 7] != 0 ? 0xffff : 0)
+#define CLIP2_FLAG(x)           (rsp->vflag[CLIP2][x & 7] != 0 ? 0xffff : 0)
 
-#define ZERO_FLAG(x)            ((rsp->flag[0] & (1 << (8+(x)))) ? 1 : 0)
-#define CLEAR_ZERO_FLAGS()      { rsp->flag[0] &= ~0xff00; }
-#define SET_ZERO_FLAG(x)        { rsp->flag[0] |= (1 << (8+(x))); }
-#define CLEAR_ZERO_FLAG(x)      { rsp->flag[0] &= ~(1 << (8+(x))); }
+#define CLEAR_CARRY_FLAGS()     { memset(rsp->vflag[0], 0, 16); }
+#define CLEAR_COMPARE_FLAGS()   { memset(rsp->vflag[1], 0, 16); }
+#define CLEAR_CLIP1_FLAGS()     { memset(rsp->vflag[2], 0, 16); }
+#define CLEAR_ZERO_FLAGS()      { memset(rsp->vflag[3], 0, 16); }
+#define CLEAR_CLIP2_FLAGS()     { memset(rsp->vflag[4], 0, 16); }
 
-#define EXTENSION_FLAG(x)       ((rsp.flag[2] & (1 << ((x)))) ? 1 : 0)
+#define SET_CARRY_FLAG(x)       { rsp->vflag[0][x & 7] = 0xffff; }
+#define SET_COMPARE_FLAG(x)     { rsp->vflag[1][x & 7] = 0xffff; }
+#define SET_CLIP1_FLAG(x)       { rsp->vflag[2][x & 7] = 0xffff; }
+#define SET_ZERO_FLAG(x)        { rsp->vflag[3][x & 7] = 0xffff; }
+#define SET_CLIP2_FLAG(x)       { rsp->vflag[4][x & 7] = 0xffff; }
+
+#define CLEAR_CARRY_FLAG(x)     { rsp->vflag[0][x & 7] = 0; }
+#define CLEAR_COMPARE_FLAG(x)   { rsp->vflag[1][x & 7] = 0; }
+#define CLEAR_CLIP1_FLAG(x)     { rsp->vflag[2][x & 7] = 0; }
+#define CLEAR_ZERO_FLAG(x)      { rsp->vflag[3][x & 7] = 0; }
+#define CLEAR_CLIP2_FLAG(x)     { rsp->vflag[4][x & 7] = 0; }
 
 #define ROPCODE(pc)     rsp->program->read_dword(pc)
 
@@ -90,7 +103,7 @@ INLINE UINT8 READ8(rsp_state *rsp, UINT32 address)
 	UINT8 ret;
 	address = 0x04000000 | (address & 0xfff);
 	ret = rsp->program->read_byte(address);
-	printf("%04xr%02x\n", address & 0x0000ffff, ret);
+	//printf("%04xr%02x\n", address & 0x0000ffff, ret);
 	return ret;
 }
 
@@ -108,7 +121,7 @@ INLINE UINT16 READ16(rsp_state *rsp, UINT32 address)
 		ret = rsp->program->read_word(address);
 	}
 
-	printf("%04xr%04x\n", address & 0x0000ffff, ret);
+	//printf("%04xr%04x\n", address & 0x0000ffff, ret);
 
 	return ret;
 }
@@ -130,21 +143,21 @@ INLINE UINT32 READ32(rsp_state *rsp, UINT32 address)
 		ret = rsp->program->read_dword(address);
 	}
 
-	printf("%04xr%08x\n", address & 0x0000ffff, ret);
+	//printf("%04xr%08x\n", address & 0x0000ffff, ret);
 	return ret;
 }
 
 INLINE void WRITE8(rsp_state *rsp, UINT32 address, UINT8 data)
 {
 	address = 0x04000000 | (address & 0xfff);
-	printf("%04x:%02x\n", address & 0x0000ffff, data);
+	//printf("%04x:%02x\n", address & 0x0000ffff, data);
 	rsp->program->write_byte(address, data);
 }
 
 INLINE void WRITE16(rsp_state *rsp, UINT32 address, UINT16 data)
 {
 	address = 0x04000000 | (address & 0xfff);
-	printf("%04x:%04x\n", address & 0x0000ffff, data);
+	//printf("%04x:%04x\n", address & 0x0000ffff, data);
 
 	if(address & 1)
 	{
@@ -159,7 +172,7 @@ INLINE void WRITE16(rsp_state *rsp, UINT32 address, UINT16 data)
 INLINE void WRITE32(rsp_state *rsp, UINT32 address, UINT32 data)
 {
 	address = 0x04000000 | (address & 0xfff);
-	printf("%04x:%08x\n", address & 0x0000ffff, data);
+	//printf("%04x:%08x\n", address & 0x0000ffff, data);
 
 	if(address & 3)
 	{
@@ -180,11 +193,11 @@ static UINT32 get_cop0_reg(rsp_state *rsp, int reg)
 	reg &= 0xf;
 	if (reg < 8)
 	{
-		return (rsp->sp_reg_r_func)(reg, 0x00000000);
+		return (rsp->device->sp_reg_r_func)(reg, 0xffffffff);
 	}
 	else if (reg >= 8 && reg < 16)
 	{
-		return (rsp->dp_reg_r_func)(reg - 8, 0x00000000);
+		return (rsp->device->dp_reg_r_func)(reg - 8, 0xffffffff);
 	}
 
 	return 0;
@@ -195,11 +208,11 @@ static void set_cop0_reg(rsp_state *rsp, int reg, UINT32 data)
 	reg &= 0xf;
 	if (reg < 8)
 	{
-		(rsp->sp_reg_w_func)(reg, data, 0x00000000);
+		(rsp->device->sp_reg_w_func)(reg, data, 0xffffffff);
 	}
 	else if (reg >= 8 && reg < 16)
 	{
-		(rsp->dp_reg_w_func)(reg - 8, data, 0x00000000);
+		(rsp->device->dp_reg_w_func)(reg - 8, data, 0xffffffff);
 	}
 }
 
@@ -209,7 +222,7 @@ static void unimplemented_opcode(rsp_state *rsp, UINT32 op)
 	{
 		char string[200];
 		rsp_dasm_one(string, rsp->ppc, op);
-		mame_printf_debug("%08X: %s\n", rsp->ppc, string);
+		osd_printf_debug("%08X: %s\n", rsp->ppc, string);
 	}
 
 #if SAVE_DISASM
@@ -267,26 +280,29 @@ static const int vector_elements[16][8] =
 	{ 7, 7, 7, 7, 7, 7, 7, 7 },     // 7
 };
 
+void rsp_cpu_device::resolve_cb()
+{
+	dp_reg_r_func.resolve();
+	dp_reg_w_func.resolve();
+	sp_reg_r_func.resolve();
+	sp_reg_w_func.resolve();
+	sp_set_status_func.resolve();
+}
+
 static CPU_INIT( rsp )
 {
 	rsp_state *rsp = get_safe_token(device);
 	int regIdx;
 	int accumIdx;
-	const rsp_config *config = (const rsp_config *)device->static_config();
-	// resolve callbacks
-	rsp->dp_reg_r_func.resolve(config->dp_reg_r_cb, *device);
-	rsp->dp_reg_w_func.resolve(config->dp_reg_w_cb, *device);
-	rsp->sp_reg_r_func.resolve(config->sp_reg_r_cb, *device);
-	rsp->sp_reg_w_func.resolve(config->sp_reg_w_cb, *device);
-	rsp->sp_set_status_func.resolve(config->sp_set_status_cb, *device);
 
 	if (LOG_INSTRUCTION_EXECUTION)
 		rsp->exec_output = fopen("rsp_execute.txt", "wt");
 
 	rsp->irq_callback = irqcallback;
-	rsp->device = device;
+	rsp->device = downcast<rsp_cpu_device *>(device);
 	rsp->program = &device->space(AS_PROGRAM);
 	rsp->direct = &rsp->program->direct();
+	rsp->device->resolve_cb();
 
 #if 1
 	// Inaccurate.  RSP registers power on to a random state...
@@ -296,10 +312,11 @@ static CPU_INIT( rsp )
 		rsp->v[regIdx].d[0] = 0;
 		rsp->v[regIdx].d[1] = 0;
 	}
-	rsp->flag[0] = 0;
-	rsp->flag[1] = 0;
-	rsp->flag[2] = 0;
-	rsp->flag[3] = 0;
+	CLEAR_CARRY_FLAGS();
+	CLEAR_COMPARE_FLAGS();
+	CLEAR_CLIP1_FLAGS();
+	CLEAR_ZERO_FLAGS();
+	CLEAR_CLIP2_FLAGS();
 	//rsp->square_root_res = 0;
 	//rsp->square_root_high = 0;
 	rsp->reciprocal_res = 0;
@@ -855,7 +872,7 @@ static void handle_swc2(rsp_state *rsp, UINT32 op)
 
 			// FIXME: only works for index 0 and index 8
 
-			if (index & 0x7)    mame_printf_debug("RSP: SFV: index = %d at %08X\n", index, rsp->ppc);
+			if (index & 0x7)    osd_printf_debug("RSP: SFV: index = %d at %08X\n", index, rsp->ppc);
 
 			ea = (base) ? rsp->r[base] + (offset * 16) : (offset * 16);
 
@@ -1732,7 +1749,8 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 			// Moves the element in VS2 to destination vector
 
 			int sel;
-			rsp->flag[1] = 0;
+			CLEAR_COMPARE_FLAGS();
+			CLEAR_CLIP2_FLAGS();
 
 			for (i=0; i < 8; i++)
 			{
@@ -1762,7 +1780,8 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 				ACCUM_L(i) = vres[i];
 			}
 
-			rsp->flag[0] = 0;
+			CLEAR_CARRY_FLAGS();
+			CLEAR_ZERO_FLAGS();
 			WRITEBACK_RESULT();
 			break;
 		}
@@ -1778,7 +1797,8 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 			// Moves the element in VS2 to destination vector
 
 			int sel;
-			rsp->flag[1] = 0;
+			CLEAR_COMPARE_FLAGS();
+			CLEAR_CLIP2_FLAGS();
 
 			for (i = 0; i < 8; i++)
 			{
@@ -1796,7 +1816,8 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 				ACCUM_L(i) = vres[i];
 			}
 
-			rsp->flag[0] = 0;
+			CLEAR_ZERO_FLAGS();
+			CLEAR_CARRY_FLAGS();
 			WRITEBACK_RESULT();
 			break;
 		}
@@ -1812,7 +1833,8 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 			// Moves the element in VS2 to destination vector
 
 			int sel;
-			rsp->flag[1] = 0;
+			CLEAR_COMPARE_FLAGS();
+			CLEAR_CLIP2_FLAGS();
 
 			for (i=0; i < 8; i++)//?????????? ????
 			{
@@ -1840,7 +1862,8 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 				ACCUM_L(i) = vres[i];
 			}
 
-			rsp->flag[0] = 0;
+			CLEAR_CARRY_FLAGS();
+			CLEAR_ZERO_FLAGS();
 			WRITEBACK_RESULT();
 			break;
 		}
@@ -1856,7 +1879,8 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 			// Moves the element in VS2 to destination vector
 
 			int sel;
-			rsp->flag[1] = 0;
+			CLEAR_COMPARE_FLAGS();
+			CLEAR_CLIP2_FLAGS();
 
 			for (i=0; i < 8; i++)
 			{
@@ -1886,7 +1910,8 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 				ACCUM_L(i) = vres[i];
 			}
 
-			rsp->flag[0] = 0;
+			CLEAR_CARRY_FLAGS();
+			CLEAR_ZERO_FLAGS();
 			WRITEBACK_RESULT();
 			break;
 		}
@@ -1923,7 +1948,7 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 					}
 					else//ZERO_FLAG(i)==0
 					{
-						if (rsp->flag[2] & (1 << (i)))
+						if (CLIP1_FLAG(i) != 0)
 						{
 							if (((UINT32)(UINT16)(s1) + (UINT32)(UINT16)(s2)) > 0x10000)
 							{//proper fix for Harvest Moon 64, r4
@@ -1956,7 +1981,7 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 				{
 					if (ZERO_FLAG(i) != 0)
 					{
-						if (rsp->flag[1] & (1 << (8+i)))
+						if (CLIP2_FLAG(i) != 0)
 						{
 							ACCUM_L(i) = s2;
 						}
@@ -1970,20 +1995,21 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 						if (((INT32)(UINT16)s1 - (INT32)(UINT16)s2) >= 0)
 						{
 							ACCUM_L(i) = s2;
-							rsp->flag[1] |= (1 << (8+i));
+							SET_CLIP2_FLAG(i);
 						}
 						else
 						{
 							ACCUM_L(i) = s1;
-							rsp->flag[1] &= ~(1 << (8+i));
+							CLEAR_CLIP2_FLAG(i);
 						}
 					}
 				}
 
 				vres[i] = ACCUM_L(i);
 			}
-			rsp->flag[0] = 0;
-			rsp->flag[2] = 0;
+			CLEAR_CARRY_FLAGS();
+			CLEAR_ZERO_FLAGS();
+			CLEAR_CLIP1_FLAGS();
 			WRITEBACK_RESULT();
 			break;
 		}
@@ -1999,9 +2025,11 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 
 			int sel;
 			INT16 s1, s2;
-			rsp->flag[0] = 0;
-			rsp->flag[1] = 0;
-			rsp->flag[2] = 0;
+			CLEAR_CARRY_FLAGS();
+			CLEAR_COMPARE_FLAGS();
+			CLEAR_CLIP1_FLAGS();
+			CLEAR_ZERO_FLAGS();
+			CLEAR_CLIP2_FLAGS();
 			UINT32 vce = 0;
 
 			for (i=0; i < 8; i++)
@@ -2016,7 +2044,7 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 					SET_CARRY_FLAG(i);
 					if (s2 < 0)
 					{
-						rsp->flag[1] |= (1 << (8+i));
+						SET_CLIP2_FLAG(i);
 					}
 
 					if (s1 + s2 <= 0)
@@ -2046,7 +2074,7 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 					}
 					if (s1 - s2 >= 0)
 					{
-						rsp->flag[1] |= (1 << (8+i));
+						SET_CLIP2_FLAG(i);
 						vres[i] = s2;
 					}
 					else
@@ -2062,7 +2090,10 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 						}
 					}
 				}
-				rsp->flag[2] |= (vce << (i));
+				if (vce != 0)
+				{
+					SET_CLIP1_FLAG(i);
+				}
 				ACCUM_L(i) = vres[i];
 			}
 			WRITEBACK_RESULT();
@@ -2080,9 +2111,11 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 
 			int sel;
 			INT16 s1, s2;
-			rsp->flag[0] = 0;
-			rsp->flag[1] = 0;
-			rsp->flag[2] = 0;
+			CLEAR_CARRY_FLAGS();
+			CLEAR_COMPARE_FLAGS();
+			CLEAR_CLIP1_FLAGS();
+			CLEAR_ZERO_FLAGS();
+			CLEAR_CLIP2_FLAGS();
 
 			for (i=0; i < 8; i++)
 			{
@@ -2094,7 +2127,7 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 				{
 					if (s2 < 0)
 					{
-						rsp->flag[1] |= (1 << (8+i));
+						SET_CLIP2_FLAG(i);
 					}
 					if ((s1 + s2) <= 0)
 					{
@@ -2115,7 +2148,7 @@ static void handle_vector_ops(rsp_state *rsp, UINT32 op)
 					if ((s1 - s2) >= 0)
 					{
 						ACCUM_L(i) = s2;
-						rsp->flag[1] |= (1 << (8+i));
+						SET_CLIP2_FLAG(i);
 					}
 					else
 					{
@@ -2712,7 +2745,7 @@ static CPU_EXECUTE( rsp )
 					case 0x09:  /* JALR */      JUMP_PC_L(RSVAL, RDREG); break;
 					case 0x0d:  /* BREAK */
 					{
-						(rsp->sp_set_status_func)(0, 0x3);
+						(rsp->device->sp_set_status_func)(0, 0x3, 0xffffffff);
 						rsp->icount = MIN(rsp->icount, 1);
 
 						if (LOG_INSTRUCTION_EXECUTION) fprintf(rsp->exec_output, "\n---------- break ----------\n\n");
@@ -2801,15 +2834,65 @@ static CPU_EXECUTE( rsp )
 
 						if (RTREG)
 						{
-							if (RDREG == 2)
+							switch(RDREG)
 							{
-								// Anciliary clipping flags
-								RTVAL = rsp->flag[RDREG] & 0x00ff;
-							}
-							else
-							{
-								// All other flags are 16 bits but sign-extended at retrieval
-								RTVAL = (UINT32)rsp->flag[RDREG] | ( ( rsp->flag[RDREG] & 0x8000 ) ? 0xffff0000 : 0 );
+								case 0:
+									RTVAL = ((CARRY_FLAG(0) & 1) << 0) |
+											((CARRY_FLAG(1) & 1) << 1) |
+											((CARRY_FLAG(2) & 1) << 2) |
+											((CARRY_FLAG(3) & 1) << 3) |
+											((CARRY_FLAG(4) & 1) << 4) |
+											((CARRY_FLAG(5) & 1) << 5) |
+											((CARRY_FLAG(6) & 1) << 6) |
+											((CARRY_FLAG(7) & 1) << 7) |
+											((ZERO_FLAG(0) & 1) << 8) |
+											((ZERO_FLAG(1) & 1) << 9) |
+											((ZERO_FLAG(2) & 1) << 10) |
+											((ZERO_FLAG(3) & 1) << 11) |
+											((ZERO_FLAG(4) & 1) << 12) |
+											((ZERO_FLAG(5) & 1) << 13) |
+											((ZERO_FLAG(6) & 1) << 14) |
+											((ZERO_FLAG(7) & 1) << 15);
+									if (RTVAL & 0x8000) RTVAL |= 0xffff0000;
+									break;
+								case 1:
+									RTVAL = ((COMPARE_FLAG(0) & 1) << 0) |
+											((COMPARE_FLAG(1) & 1) << 1) |
+											((COMPARE_FLAG(2) & 1) << 2) |
+											((COMPARE_FLAG(3) & 1) << 3) |
+											((COMPARE_FLAG(4) & 1) << 4) |
+											((COMPARE_FLAG(5) & 1) << 5) |
+											((COMPARE_FLAG(6) & 1) << 6) |
+											((COMPARE_FLAG(7) & 1) << 7) |
+											((CLIP2_FLAG(0) & 1) << 8) |
+											((CLIP2_FLAG(1) & 1) << 9) |
+											((CLIP2_FLAG(2) & 1) << 10) |
+											((CLIP2_FLAG(3) & 1) << 11) |
+											((CLIP2_FLAG(4) & 1) << 12) |
+											((CLIP2_FLAG(5) & 1) << 13) |
+											((CLIP2_FLAG(6) & 1) << 14) |
+											((CLIP2_FLAG(7) & 1) << 15);
+									if (RTVAL & 0x8000) RTVAL |= 0xffff0000;
+									break;
+								case 2:
+									// Anciliary clipping flags
+									RTVAL = ((CARRY_FLAG(0) & 1) << 0) |
+											((CARRY_FLAG(1) & 1) << 1) |
+											((CARRY_FLAG(2) & 1) << 2) |
+											((CARRY_FLAG(3) & 1) << 3) |
+											((CARRY_FLAG(4) & 1) << 4) |
+											((CARRY_FLAG(5) & 1) << 5) |
+											((CARRY_FLAG(6) & 1) << 6) |
+											((CARRY_FLAG(7) & 1) << 7) |
+											((ZERO_FLAG(0) & 1) << 8) |
+											((ZERO_FLAG(1) & 1) << 9) |
+											((ZERO_FLAG(2) & 1) << 10) |
+											((ZERO_FLAG(3) & 1) << 11) |
+											((ZERO_FLAG(4) & 1) << 12) |
+											((ZERO_FLAG(5) & 1) << 13) |
+											((ZERO_FLAG(6) & 1) << 14) |
+											((ZERO_FLAG(7) & 1) << 15);
+									if (RTVAL & 0x8000) RTVAL |= 0xffff0000;
 							}
 						}
 						break;
@@ -2835,7 +2918,60 @@ static CPU_EXECUTE( rsp )
 						// ------------------------------------------------
 						//
 
-						rsp->flag[RDREG] = RTVAL & 0xffff;
+						switch(RDREG)
+						{
+							case 0:
+								CLEAR_CARRY_FLAGS();
+								CLEAR_ZERO_FLAGS();
+								if (RTVAL & (1 << 0))  { SET_CARRY_FLAG(0); }
+								if (RTVAL & (1 << 1))  { SET_CARRY_FLAG(1); }
+								if (RTVAL & (1 << 2))  { SET_CARRY_FLAG(2); }
+								if (RTVAL & (1 << 3))  { SET_CARRY_FLAG(3); }
+								if (RTVAL & (1 << 4))  { SET_CARRY_FLAG(4); }
+								if (RTVAL & (1 << 5))  { SET_CARRY_FLAG(5); }
+								if (RTVAL & (1 << 6))  { SET_CARRY_FLAG(6); }
+								if (RTVAL & (1 << 7))  { SET_CARRY_FLAG(7); }
+								if (RTVAL & (1 << 8))  { SET_ZERO_FLAG(0); }
+								if (RTVAL & (1 << 9))  { SET_ZERO_FLAG(1); }
+								if (RTVAL & (1 << 10)) { SET_ZERO_FLAG(2); }
+								if (RTVAL & (1 << 11)) { SET_ZERO_FLAG(3); }
+								if (RTVAL & (1 << 12)) { SET_ZERO_FLAG(4); }
+								if (RTVAL & (1 << 13)) { SET_ZERO_FLAG(5); }
+								if (RTVAL & (1 << 14)) { SET_ZERO_FLAG(6); }
+								if (RTVAL & (1 << 15)) { SET_ZERO_FLAG(7); }
+								break;
+							case 1:
+								CLEAR_COMPARE_FLAGS();
+								CLEAR_CLIP2_FLAGS();
+								if (RTVAL & (1 << 0)) { SET_COMPARE_FLAG(0); }
+								if (RTVAL & (1 << 1)) { SET_COMPARE_FLAG(1); }
+								if (RTVAL & (1 << 2)) { SET_COMPARE_FLAG(2); }
+								if (RTVAL & (1 << 3)) { SET_COMPARE_FLAG(3); }
+								if (RTVAL & (1 << 4)) { SET_COMPARE_FLAG(4); }
+								if (RTVAL & (1 << 5)) { SET_COMPARE_FLAG(5); }
+								if (RTVAL & (1 << 6)) { SET_COMPARE_FLAG(6); }
+								if (RTVAL & (1 << 7)) { SET_COMPARE_FLAG(7); }
+								if (RTVAL & (1 << 8))  { SET_CLIP2_FLAG(0); }
+								if (RTVAL & (1 << 9))  { SET_CLIP2_FLAG(1); }
+								if (RTVAL & (1 << 10)) { SET_CLIP2_FLAG(2); }
+								if (RTVAL & (1 << 11)) { SET_CLIP2_FLAG(3); }
+								if (RTVAL & (1 << 12)) { SET_CLIP2_FLAG(4); }
+								if (RTVAL & (1 << 13)) { SET_CLIP2_FLAG(5); }
+								if (RTVAL & (1 << 14)) { SET_CLIP2_FLAG(6); }
+								if (RTVAL & (1 << 15)) { SET_CLIP2_FLAG(7); }
+								break;
+							case 2:
+								CLEAR_CLIP1_FLAGS();
+								if (RTVAL & (1 << 0)) { SET_CLIP1_FLAG(0); }
+								if (RTVAL & (1 << 1)) { SET_CLIP1_FLAG(1); }
+								if (RTVAL & (1 << 2)) { SET_CLIP1_FLAG(2); }
+								if (RTVAL & (1 << 3)) { SET_CLIP1_FLAG(3); }
+								if (RTVAL & (1 << 4)) { SET_CLIP1_FLAG(4); }
+								if (RTVAL & (1 << 5)) { SET_CLIP1_FLAG(5); }
+								if (RTVAL & (1 << 6)) { SET_CLIP1_FLAG(6); }
+								if (RTVAL & (1 << 7)) { SET_CLIP1_FLAG(7); }
+								break;
+						}
 						break;
 					}
 
@@ -3121,6 +3257,21 @@ CPU_GET_INFO( rsp_int )
 	}
 }
 
-DEFINE_LEGACY_CPU_DEVICE(RSP_INT, rsp_int);
+rsp_cpu_device::rsp_cpu_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, cpu_get_info_func get_info)
+	: legacy_cpu_device(mconfig, type, tag, owner, clock, get_info),
+		dp_reg_r_func(*this),
+		dp_reg_w_func(*this),
+		sp_reg_r_func(*this),
+		sp_reg_w_func(*this),
+		sp_set_status_func(*this)
+{
+}
+
+rsp_int_device::rsp_int_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock)
+	: rsp_cpu_device(mconfig, type, tag, owner, clock, CPU_GET_INFO_NAME(rsp_int))
+{
+}
+
+const device_type RSP_INT = &legacy_device_creator<rsp_drc_device>;
 
 const device_type RSP = &legacy_device_creator_drc<rsp_int_device, rsp_drc_device>;

@@ -20,8 +20,7 @@ TILE_GET_INFO_MEMBER(darkmist_state::get_bgtile_info)
 	code+=(attr&3)<<8;
 	pal=(attr>>4);
 
-	SET_TILE_INFO_MEMBER(
-		1,
+	SET_TILE_INFO_MEMBER(1,
 		code,
 		pal,
 		0);
@@ -41,8 +40,7 @@ TILE_GET_INFO_MEMBER(darkmist_state::get_fgtile_info)
 
 	pal+=16;
 
-	SET_TILE_INFO_MEMBER(
-		1,
+	SET_TILE_INFO_MEMBER(1,
 		code,
 		pal,
 		0);
@@ -61,22 +59,19 @@ TILE_GET_INFO_MEMBER(darkmist_state::get_txttile_info)
 
 	pal+=48;
 
-	SET_TILE_INFO_MEMBER(
-		0,
+	SET_TILE_INFO_MEMBER(0,
 		code,
 		pal,
 		0);
 }
 
-void darkmist_state::palette_init()
+PALETTE_INIT_MEMBER(darkmist_state, darkmist)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
-	int i;
 
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x101);
+	palette.set_indirect_color(0x100, rgb_t::black);
 
-	for (i = 0; i < 0x400; i++)
+	for (int i = 0; i < 0x400; i++)
 	{
 		int ctabentry;
 
@@ -95,33 +90,16 @@ void darkmist_state::palette_init()
 			}
 		}
 
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
-}
-
-
-void darkmist_state::set_pens()
-{
-	int i;
-
-	for (i = 0; i < 0x100; i++)
-	{
-		int r = pal4bit(m_generic_paletteram_8[i | 0x200] >> 0);
-		int g = pal4bit(m_generic_paletteram_8[i | 0x000] >> 4);
-		int b = pal4bit(m_generic_paletteram_8[i | 0x000] >> 0);
-
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
-	}
-
-	colortable_palette_set_color(machine().colortable, 0x100, RGB_BLACK);
 }
 
 
 void darkmist_state::video_start()
 {
-	m_bgtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(darkmist_state::get_bgtile_info),this),TILEMAP_SCAN_ROWS,16,16,512,64 );
-	m_fgtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(darkmist_state::get_fgtile_info),this),TILEMAP_SCAN_ROWS,16,16,64,256 );
-	m_txtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(darkmist_state::get_txttile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32 );
+	m_bgtilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(darkmist_state::get_bgtile_info),this),TILEMAP_SCAN_ROWS,16,16,512,64 );
+	m_fgtilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(darkmist_state::get_fgtile_info),this),TILEMAP_SCAN_ROWS,16,16,64,256 );
+	m_txtilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(darkmist_state::get_txttile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32 );
 	m_fgtilemap->set_transparent_pen(0);
 	m_txtilemap->set_transparent_pen(0);
 }
@@ -132,14 +110,12 @@ UINT32 darkmist_state::screen_update_darkmist(screen_device &screen, bitmap_ind1
 
 #define DM_GETSCROLL(n) (((m_scroll[(n)]<<1)&0xff) + ((m_scroll[(n)]&0x80)?1:0) +( ((m_scroll[(n)-1]<<4) | (m_scroll[(n)-1]<<12) )&0xff00))
 
-	set_pens();
-
 	m_bgtilemap->set_scrollx(0, DM_GETSCROLL(0x2));
 	m_bgtilemap->set_scrolly(0, DM_GETSCROLL(0x6));
 	m_fgtilemap->set_scrollx(0, DM_GETSCROLL(0xa));
 	m_fgtilemap->set_scrolly(0, DM_GETSCROLL(0xe));
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	if(m_hw & DISPLAY_BG)
 		m_bgtilemap->draw(screen, bitmap, cliprect, 0,0);
@@ -178,9 +154,9 @@ UINT32 darkmist_state::screen_update_darkmist(screen_device &screen, bitmap_ind1
 
 			palette+=32;
 
-			drawgfx_transpen(
+
+				m_gfxdecode->gfx(2)->transpen(
 				bitmap,cliprect,
-				machine().gfx[2],
 				tile,
 				palette,
 				fx,fy,

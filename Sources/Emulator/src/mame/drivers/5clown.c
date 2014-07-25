@@ -460,7 +460,9 @@ public:
 		m_colorram(*this, "colorram"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_ay8910(*this, "ay8910")
+		m_ay8910(*this, "ay8910"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 	{
 	}
 
@@ -489,11 +491,13 @@ public:
 	DECLARE_DRIVER_INIT(fclown);
 	TILE_GET_INFO_MEMBER(get_fclown_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(_5clown);
 	UINT32 screen_update_fclown(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<ay8910_device> m_ay8910;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -540,7 +544,7 @@ TILE_GET_INFO_MEMBER(_5clown_state::get_fclown_tile_info)
 
 void _5clown_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(_5clown_state::get_fclown_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(_5clown_state::get_fclown_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 
@@ -550,7 +554,7 @@ UINT32 _5clown_state::screen_update_fclown(screen_device &screen, bitmap_ind16 &
 	return 0;
 }
 
-void _5clown_state::palette_init()
+PALETTE_INIT_MEMBER(_5clown_state, _5clown)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 /*
@@ -567,7 +571,7 @@ void _5clown_state::palette_init()
 
 	if (color_prom == 0) return;
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < m_palette->entries();i++)
 	{
 		int bit0, bit1, bit2, bit3, r, g, b, bk;
 
@@ -587,7 +591,7 @@ void _5clown_state::palette_init()
 		bit2 = (color_prom[i] >> 2) & 0x01;
 		b = bk * (bit2 * 0xff);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		m_palette->set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -990,78 +994,6 @@ static GFXDECODE_START( fclown )
 	GFXDECODE_ENTRY( "gfx2", 0, tilelayout, 0, 16 )
 GFXDECODE_END
 
-
-/***********************
-*    CRTC Interface    *
-***********************/
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-
-/***********************
-*    PIA Interfaces    *
-***********************/
-
-static const pia6821_interface fclown_pia0_intf =
-{
-	DEVCB_DRIVER_MEMBER(_5clown_state,mux_port_r),  /* Port A IN        Multiplexed Ports read */
-	DEVCB_DRIVER_MEMBER(_5clown_state,pia0_b_r),    /* Port B IN        unknown (used) */
-	DEVCB_NULL,                 /* Line CA1 IN */
-	DEVCB_NULL,                 /* Line CB1 IN */
-	DEVCB_NULL,                 /* Line CA2 IN */
-	DEVCB_NULL,                 /* Line CA2 IN */
-	DEVCB_NULL,                 /* Port A OUT       NULL */
-	DEVCB_DRIVER_MEMBER(_5clown_state,counters_w),  /* Port B OUT       Counters */
-	DEVCB_NULL,                 /* Line CA2 OUT */
-	DEVCB_NULL,                 /* Line CB2 OUT */
-	DEVCB_NULL,                 /* IRQA */
-	DEVCB_NULL                  /* IRQB */
-};
-
-static const pia6821_interface fclown_pia1_intf =
-{
-	DEVCB_INPUT_PORT("SW4"),    /* Port A IN        4th DIP Switchs bank */
-	DEVCB_DRIVER_MEMBER(_5clown_state,pia1_b_r),    /* Port B IN        Check bit 2 to allow key out system to work */
-	DEVCB_NULL,                 /* Line CA1 IN */
-	DEVCB_NULL,                 /* Line CB1 IN */
-	DEVCB_NULL,                 /* Line CA2 IN */
-	DEVCB_NULL,                 /* Line CB2 IN */
-	DEVCB_DRIVER_MEMBER(_5clown_state,trigsnd_w),   /* Port A OUT       Trigger the audio CPU interrupts */
-	DEVCB_DRIVER_MEMBER(_5clown_state,mux_w),       /* Port B OUT       Multiplexed Ports selector */
-	DEVCB_NULL,                 /* Line CA2 OUT */
-	DEVCB_NULL,                 /* Line CB2 OUT */
-	DEVCB_NULL,                 /* IRQA */
-	DEVCB_NULL                  /* IRQB */
-};
-
-
-/*************************
-*    Sound Interfaces    *
-*************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 /*************************
 *    Machine Drivers     *
 *************************/
@@ -1078,8 +1010,16 @@ static MACHINE_CONFIG_START( fclown, _5clown_state )
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_PIA6821_ADD("pia0", fclown_pia0_intf)
-	MCFG_PIA6821_ADD("pia1", fclown_pia1_intf)
+	MCFG_DEVICE_ADD("pia0", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(_5clown_state, mux_port_r))
+	MCFG_PIA_READPB_HANDLER(READ8(_5clown_state, pia0_b_r))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(_5clown_state, counters_w))
+
+	MCFG_DEVICE_ADD("pia1", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(IOPORT("SW4"))
+	MCFG_PIA_READPB_HANDLER(READ8(_5clown_state, pia1_b_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(_5clown_state, trigsnd_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(_5clown_state, mux_w))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1088,18 +1028,20 @@ static MACHINE_CONFIG_START( fclown, _5clown_state )
 	MCFG_SCREEN_SIZE((39+1)*8, (31+1)*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(_5clown_state, screen_update_fclown)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(fclown)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", fclown)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(_5clown_state, _5clown)
 
-
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/16, mc6845_intf) /* guess */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/16) /* guess */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay8910", AY8910, MASTER_CLOCK/8)        /* guess, seems ok */
-	MCFG_SOUND_CONFIG(ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	MCFG_OKIM6295_ADD("oki6295", MASTER_CLOCK/12, OKIM6295_PIN7_LOW)    /* guess, seems ok; pin7 guessed, seems ok */

@@ -14,8 +14,8 @@
 #include "drivenum.h"
 #include "png.h"
 #include "harddisk.h"
-#include "config.h"
-#include "ui.h"
+#include "emuconfig.h"
+#include "ui/ui.h"
 
 #include "NSM_Common.h"
 
@@ -287,15 +287,15 @@ static void CLIB_DECL ATTR_PRINTF(1,2) debugload(const char *string, ...)
     from SystemBios structure and OPTION_BIOS
 -------------------------------------------------*/
 
-static void determine_bios_rom(romload_private *romdata, device_t *device,const char *specbios)
+static void determine_bios_rom(romload_private *romdata, device_t *device, const char *specbios)
 {
 	const char *defaultname = NULL;
 	const rom_entry *rom;
 	int default_no = 1;
 	int bios_count = 0;
 
-
 	device->set_system_bios(0);
+
 	/* first determine the default BIOS name */
 	for (rom = device->rom_region(); !ROMENTRY_ISEND(rom); rom++)
 		if (ROMENTRY_ISDEFAULT_BIOS(rom))
@@ -311,9 +311,9 @@ static void determine_bios_rom(romload_private *romdata, device_t *device,const 
 
 			/* Allow '-bios n' to still be used */
 			sprintf(bios_number, "%d", bios_flags - 1);
-			if (mame_stricmp(bios_number, specbios) == 0 || mame_stricmp(biosname, specbios) == 0)
+			if (core_stricmp(bios_number, specbios) == 0 || core_stricmp(biosname, specbios) == 0)
 				device->set_system_bios(bios_flags);
-			if (defaultname != NULL && mame_stricmp(biosname, defaultname) == 0)
+			if (defaultname != NULL && core_stricmp(biosname, defaultname) == 0)
 				default_no = bios_flags;
 			bios_count++;
 		}
@@ -325,7 +325,7 @@ static void determine_bios_rom(romload_private *romdata, device_t *device,const 
 		if (specbios[0] != 0 && strcmp(specbios, "default") != 0 && romdata != NULL)
 		{
 			romdata->errorstring.catprintf("%s: invalid bios\n", specbios);
-			romdata->warnings++;
+			romdata->errors++;
 		}
 
 		/* set to default */
@@ -379,29 +379,42 @@ static void fill_random(running_machine &machine, UINT8 *base, UINT32 length)
     for missing files
 -------------------------------------------------*/
 
-static void handle_missing_file(romload_private *romdata, const rom_entry *romp, astring tried_file_names)
+static void handle_missing_file(romload_private *romdata, const rom_entry *romp, astring tried_file_names, chd_error chderr)
 {
 	if(tried_file_names.len() != 0)
 		tried_file_names = " (tried in " + tried_file_names + ")";
 
+	astring name(ROM_GETNAME(romp));
+
+	bool is_chd = (chderr != CHDERR_NONE);
+	if (is_chd)
+		name += ".chd";
+
+	bool is_chd_error = (is_chd && chderr != CHDERR_FILE_NOT_FOUND);
+	if (is_chd_error)
+		romdata->errorstring.catprintf("%s CHD ERROR: %s\n", name.cstr(), chd_file::error_string(chderr));
+
 	/* optional files are okay */
 	if (ROM_ISOPTIONAL(romp))
 	{
-		romdata->errorstring.catprintf("OPTIONAL %s NOT FOUND%s\n", ROM_GETNAME(romp), tried_file_names.cstr());
+		if (!is_chd_error)
+			romdata->errorstring.catprintf("OPTIONAL %s NOT FOUND%s\n", name.cstr(), tried_file_names.cstr());
 		romdata->warnings++;
 	}
 
 	/* no good dumps are okay */
 	else if (hash_collection(ROM_GETHASHDATA(romp)).flag(hash_collection::FLAG_NO_DUMP))
 	{
-		romdata->errorstring.catprintf("%s NOT FOUND (NO GOOD DUMP KNOWN)%s\n", ROM_GETNAME(romp), tried_file_names.cstr());
+		if (!is_chd_error)
+			romdata->errorstring.catprintf("%s NOT FOUND (NO GOOD DUMP KNOWN)%s\n", name.cstr(), tried_file_names.cstr());
 		romdata->knownbad++;
 	}
 
 	/* anything else is bad */
 	else
 	{
-		romdata->errorstring.catprintf("%s NOT FOUND%s\n", ROM_GETNAME(romp), tried_file_names.cstr());
+		if (!is_chd_error)
+			romdata->errorstring.catprintf("%s NOT FOUND%s\n", name.cstr(), tried_file_names.cstr());
 		romdata->errors++;
 	}
 }
@@ -479,7 +492,8 @@ static void display_loading_rom_message(romload_private *romdata, const char *na
 	else
 		sprintf(buffer, "Loading Complete");
 
-	if (!ui_is_menu_active()) ui_set_startup_text(romdata->machine(), buffer, FALSE);
+	if (!romdata->machine().ui().is_menu_active())
+		romdata->machine().ui().set_startup_text(buffer, false);
 }
 
 
@@ -497,8 +511,8 @@ static void display_rom_load_results(romload_private *romdata, bool from_list)
 	if (romdata->errors != 0)
 	{
 		/* create the error message and exit fatally */
-		mame_printf_error("%s", romdata->errorstring.cstr());
-		fatalerror_exitcode(romdata->machine(), MAMERR_MISSING_FILES, "ERROR: required files are missing, the %s cannot be run.",emulator_info::get_gamenoun());
+		osd_printf_error("%s", romdata->errorstring.cstr());
+		fatalerror_exitcode(romdata->machine(), MAMERR_MISSING_FILES, "Required files are missing, the %s cannot be run.",emulator_info::get_gamenoun());
 	}
 
 	/* if we had warnings, output them, but continue */
@@ -507,7 +521,7 @@ static void display_rom_load_results(romload_private *romdata, bool from_list)
 		romdata->errorstring.cat("WARNING: the ");
 		romdata->errorstring.cat(emulator_info::get_gamenoun());
 		romdata->errorstring.cat(" might not run correctly.");
-		mame_printf_warning("%s\n", romdata->errorstring.cstr());
+		osd_printf_warning("%s\n", romdata->errorstring.cstr());
 	}
 }
 
@@ -706,14 +720,13 @@ static int read_rom_data(romload_private *romdata, const rom_entry *parent_regio
 	int numgroups = (numbytes + groupsize - 1) / groupsize;
 	UINT8 *base = romdata->region->base() + ROM_GETOFFSET(romp);
 	UINT32 tempbufsize;
-	UINT8 *tempbuf;
 	int i;
 
 	LOG(("Loading ROM data: offs=%X len=%X mask=%02X group=%d skip=%d reverse=%d\n", ROM_GETOFFSET(romp), numbytes, datamask, groupsize, skip, reversed));
 
 	/* make sure the length was an even multiple of the group size */
 	if (numbytes % groupsize != 0)
-		mame_printf_warning("Warning in RomModule definition: %s length not an even multiple of group size\n", ROM_GETNAME(romp));
+		osd_printf_warning("Warning in RomModule definition: %s length not an even multiple of group size\n", ROM_GETNAME(romp));
 
 	/* make sure we only fill within the region space */
 	if (ROM_GETOFFSET(romp) + numgroups * groupsize + (numgroups - 1) * skip > romdata->region->bytes())
@@ -729,7 +742,7 @@ static int read_rom_data(romload_private *romdata, const rom_entry *parent_regio
 
 	/* use a temporary buffer for complex loads */
 	tempbufsize = MIN(TEMPBUFFER_MAX_SIZE, numbytes);
-	tempbuf = auto_alloc_array(romdata->machine(), UINT8, tempbufsize);
+	dynamic_buffer tempbuf(tempbufsize);
 
 	/* chunky reads for complex loads */
 	skip += groupsize;
@@ -742,10 +755,7 @@ static int read_rom_data(romload_private *romdata, const rom_entry *parent_regio
 		/* read as much as we can */
 		LOG(("  Reading %X bytes into buffer\n", bytesleft));
 		if (rom_fread(romdata, bufptr, bytesleft, parent_region) != bytesleft)
-		{
-			auto_free(romdata->machine(), tempbuf);
 			return 0;
-		}
 		numbytes -= bytesleft;
 
 		LOG(("  Copying to %p\n", base));
@@ -804,7 +814,6 @@ static int read_rom_data(romload_private *romdata, const rom_entry *parent_regio
 				}
 		}
 	}
-	auto_free(romdata->machine(), tempbuf);
 
 	LOG(("  All done\n"));
 	return ROM_GETLENGTH(romp);
@@ -909,7 +918,7 @@ static void process_rom_entries(romload_private *romdata, const char *regiontag,
 			LOG(("Opening ROM file: %s\n", ROM_GETNAME(romp)));
 			astring tried_file_names;
 			if (!irrelevantbios && !open_rom_file(romdata, regiontag, romp, tried_file_names, from_list))
-				handle_missing_file(romdata, romp, tried_file_names);
+				handle_missing_file(romdata, romp, tried_file_names, CHDERR_NONE);
 
 			/* loop until we run out of reloads */
 			do
@@ -1187,18 +1196,7 @@ static void process_disk_entries(romload_private *romdata, const char *regiontag
 			err = chd_error(open_disk_image(romdata->machine().options(), &romdata->machine().system(), romp, chd->orig_chd(), locationtag));
 			if (err != CHDERR_NONE)
 			{
-				if (err == CHDERR_FILE_NOT_FOUND)
-					romdata->errorstring.catprintf("%s NOT FOUND\n", filename.cstr());
-				else
-					romdata->errorstring.catprintf("%s CHD ERROR: %s\n", filename.cstr(), chd_file::error_string(err));
-
-				/* if this is NO_DUMP, keep going, though the system may not be able to handle it */
-				if (hashes.flag(hash_collection::FLAG_NO_DUMP))
-					romdata->knownbad++;
-				else if (DISK_ISOPTIONAL(romp))
-					romdata->warnings++;
-				else
-					romdata->errors++;
+				handle_missing_file(romdata, romp, astring(), err);
 				global_free(chd);
 				continue;
 			}
@@ -1288,43 +1286,12 @@ static void normalize_flags_for_device(running_machine &machine, const char *rgn
     more general process_region_list.
 -------------------------------------------------*/
 
-void load_software_part_region(device_t *device, char *swlist, char *swname, rom_entry *start_region)
+void load_software_part_region(device_t &device, software_list_device &swlist, const char *swname, const rom_entry *start_region)
 {
-	astring locationtag(swlist), breakstr("%");
-	romload_private *romdata = device->machine().romload_data;
+	astring locationtag(swlist.list_name()), breakstr("%");
+	romload_private *romdata = device.machine().romload_data;
 	const rom_entry *region;
 	astring regiontag;
-
-	// attempt reading up the chain through the parents and create a locationtag astring in the format
-	// " swlist % clonename % parentname "
-	// open_rom_file contains the code to split the elements and to create paths to load from
-
-	software_list *software_list_ptr = software_list_open(device->machine().options(), swlist, FALSE, NULL);
-	if (software_list_ptr)
-	{
-		locationtag.cat(breakstr);
-
-		for (software_info *swinfo = software_list_find(software_list_ptr, swname, NULL); swinfo != NULL; )
-		{
-			{
-				astring tmp(swinfo->shortname);
-				locationtag.cat(tmp);
-				locationtag.cat(breakstr);
-				// printf("%s\n", locationtag.cstr());
-			}
-			const char *parentname = software_get_clone(device->machine().options(), swlist, swinfo->shortname);
-			if (parentname != NULL)
-				swinfo = software_list_find(software_list_ptr, parentname, NULL);
-			else
-				swinfo = NULL;
-		}
-		// strip the final '%'
-		locationtag.del(locationtag.len() - 1, 1);
-		software_list_close(software_list_ptr);
-	}
-
-	/* Make sure we are passed a device */
-	assert(device != NULL);
 
 	romdata->errorstring.reset();
 	romdata->softwarningstring.reset();
@@ -1333,23 +1300,44 @@ void load_software_part_region(device_t *device, char *swlist, char *swname, rom
 	romdata->romstotalsize = 0;
 	romdata->romsloadedsize = 0;
 
-	if (software_get_support(device->machine().options(), swlist, swname) == SOFTWARE_SUPPORTED_PARTIAL)
+	software_info *swinfo = swlist.find(swname);
+	if (swinfo != NULL)
 	{
-		romdata->errorstring.catprintf("WARNING: support for software %s (in list %s) is only partial\n", swname, swlist);
-		romdata->softwarningstring.catprintf("Support for software %s (in list %s) is only partial\n", swname, swlist);
+		UINT32 supported = swinfo->supported();
+		if (supported == SOFTWARE_SUPPORTED_PARTIAL)
+		{
+			romdata->errorstring.catprintf("WARNING: support for software %s (in list %s) is only partial\n", swname, swlist.list_name());
+			romdata->softwarningstring.catprintf("Support for software %s (in list %s) is only partial\n", swname, swlist.list_name());
+		}
+		if (supported == SOFTWARE_SUPPORTED_NO)
+		{
+			romdata->errorstring.catprintf("WARNING: support for software %s (in list %s) is only preliminary\n", swname, swlist.list_name());
+			romdata->softwarningstring.catprintf("Support for software %s (in list %s) is only preliminary\n", swname, swlist.list_name());
+		}
+
+		// attempt reading up the chain through the parents and create a locationtag astring in the format
+		// " swlist % clonename % parentname "
+		// open_rom_file contains the code to split the elements and to create paths to load from
+
+		locationtag.cat(breakstr);
+
+		while (swinfo != NULL)
+		{
+			locationtag.cat(swinfo->shortname()).cat(breakstr);
+			const char *parentname = swinfo->parentname();
+			swinfo = (parentname != NULL) ? swlist.find(parentname) : NULL;
+		}
+		// strip the final '%'
+		locationtag.del(locationtag.len() - 1, 1);
 	}
-	if (software_get_support(device->machine().options(), swlist, swname) == SOFTWARE_SUPPORTED_NO)
-	{
-		romdata->errorstring.catprintf("WARNING: support for software %s (in list %s) is only preliminary\n", swname, swlist);
-		romdata->softwarningstring.catprintf("Support for software %s (in list %s) is only preliminary\n", swname, swlist);
-	}
+
 
 	/* loop until we hit the end */
 	for (region = start_region; region != NULL; region = rom_next_region(region))
 	{
 		UINT32 regionlength = ROMREGION_GETLENGTH(region);
 
-		device->subtag(regiontag, ROMREGION_GETTAG(region));
+		device.subtag(regiontag, ROMREGION_GETTAG(region));
 		LOG(("Processing region \"%s\" (length=%X)\n", regiontag.cstr(), regionlength));
 
 		/* the first entry must be a region */
@@ -1395,7 +1383,7 @@ void load_software_part_region(device_t *device, char *swlist, char *swname, rom
 
 		/* now process the entries in the region */
 		if (ROMREGION_ISROMDATA(region))
-			process_rom_entries(romdata, locationtag, region, region + 1, device, TRUE);
+			process_rom_entries(romdata, locationtag, region, region + 1, &device, TRUE);
 		else if (ROMREGION_ISDISKDATA(region))
 			process_disk_entries(romdata, core_strdup(regiontag.cstr()), region, region + 1, locationtag);
 	}
@@ -1403,7 +1391,7 @@ void load_software_part_region(device_t *device, char *swlist, char *swname, rom
 	/* now go back and post-process all the regions */
 	for (region = start_region; region != NULL; region = rom_next_region(region))
 	{
-		device->subtag(regiontag, ROMREGION_GETTAG(region));
+		device.subtag(regiontag, ROMREGION_GETTAG(region));
 		region_post_process(romdata, regiontag.cstr(), ROMREGION_ISINVERTED(region));
 	}
 
@@ -1504,6 +1492,9 @@ void rom_init(running_machine &machine)
 				specbios = romdata->machine().options().bios();
 			} else {
 				specbios = romdata->machine().options().sub_value(temp,device->owner()->tag()+1,"bios");
+				if (strlen(specbios) == 0) {
+					specbios = device->default_bios_tag().cstr();
+				}
 			}
 			determine_bios_rom(romdata, device, specbios);
 		}

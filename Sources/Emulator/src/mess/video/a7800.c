@@ -4,8 +4,11 @@
 
   Routines to control the Atari 7800 video hardware
 
-  TODO:
-    precise DMA cycle stealing
+    2014-05-06 Mike Saarna Added interrupts to DMA cycle eating. Updates to
+                LL, OL, and spin accounting for HALT behavior.
+
+    2014-03-24 Mike Saarna Fixed DMA regarding startup, shutdown and
+                            cycle stealing.
 
     2013-05-08 huygens rewrite to emulate line ram buffers (mostly fixes Kung-Fu Master
                             Started DMA cycle stealing implementation
@@ -68,7 +71,7 @@ void a7800_state::video_start()
 	m_maria_kangaroo = 0;
 	m_maria_rm = 0;
 
-	machine().primary_screen->register_screen_bitmap(m_bitmap);
+	machine().first_screen()->register_screen_bitmap(m_bitmap);
 }
 
 /***************************************************************************
@@ -126,7 +129,18 @@ void a7800_state::maria_draw_scanline()
 	int x, d, c, i, pixel_cell, cells;
 	int maria_cycles;
 
-	maria_cycles = 0;
+	if ( m_maria_offset == 0 )
+	{
+		if(READ_MEM(m_maria_dll+3) & 0x80)
+			maria_cycles=40; // DMA + maria interrupt overhead
+		else
+			maria_cycles=19; // DMA
+		}
+		else
+		{
+			maria_cycles = 16; // DMA
+			}
+
 	cells = 0;
 
 	/* Process this DLL entry */
@@ -168,10 +182,10 @@ void a7800_state::maria_draw_scanline()
 			if (ind)
 			{
 				c = READ_MEM(graph_adr + x) & 0xFF;
-				maria_cycles += 3;
 				data_addr = (m_maria_charbase | c) + (m_maria_offset << 8);
 				if (is_holey(data_addr))
 					continue;
+				maria_cycles += 3;
 				if( m_maria_cwidth ) // two data bytes per map byte
 				{
 					cells = write_line_ram(data_addr, hpos, pal);
@@ -198,7 +212,12 @@ void a7800_state::maria_draw_scanline()
 			}
 		}
 	}
-	m_maincpu->eat_cycles(maria_cycles/4); // Maria clock rate is 4 times that of CPU
+	// Spin the CPU for Maria DMA, if it's not already spinning for WSYNC.
+	// MARIA generates the 6502 clock by dividing its own clock by 4. It needs to HALT and unHALT
+	// the 6502 on ths same clock phase, so MARIA will wait until its clock divides evenly by 4.
+	// To spin until an even divisor, we just round-up any would-be truncations by adding 3.
+	if ( ! m_maria_wsync )
+		m_maincpu->spin_until_time(m_maincpu->cycles_to_attotime((maria_cycles+3)/4));
 
 	// draw line buffer to screen
 	m_active_buffer = !m_active_buffer; // switch buffers
@@ -255,7 +274,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(a7800_state::a7800_interrupt)
 	if (frame_scanline == 16)
 		m_maria_vblank = 0x00;
 
-	if ( frame_scanline == ( m_lines - 4 ) )
+	if ( frame_scanline == ( m_lines - 5 ) )
 	{
 		m_maria_vblank = 0x80;
 	}
@@ -279,12 +298,12 @@ TIMER_CALLBACK_MEMBER(a7800_state::a7800_maria_startdma)
 		m_maria_offset = READ_MEM(m_maria_dll) & 0x0f;
 		m_maria_holey = (READ_MEM(m_maria_dll) & 0x60) >> 5;
 		m_maria_nmi = READ_MEM(m_maria_dll) & 0x80;
-		m_maincpu->eat_cycles(6); // 24 Maria cycles minimum (DMA startup + shutdown list-list fetch)
 		/*  logerror("DLL=%x\n",m_maria_dll); */
+		maria_draw_scanline();
 	}
 
 
-	if( ( frame_scanline > 15 ) && (frame_scanline < (m_lines - 4)) && m_maria_dmaon )
+	if( ( frame_scanline > 16 ) && (frame_scanline < (m_lines - 5)) && m_maria_dmaon )
 	{
 		maria_draw_scanline();
 
@@ -294,7 +313,6 @@ TIMER_CALLBACK_MEMBER(a7800_state::a7800_maria_startdma)
 			m_maria_dl = (READ_MEM(m_maria_dll+1) << 8) | READ_MEM(m_maria_dll+2);
 			m_maria_offset = READ_MEM(m_maria_dll) & 0x0f;
 			m_maria_holey = (READ_MEM(m_maria_dll) & 0x60) >> 5;
-			m_maincpu->eat_cycles(5); // 20 Maria cycles (DMA startup + shutdown)
 			if ( READ_MEM(m_maria_dll & 0x10) )
 				logerror("dll bit 5 set!\n");
 			m_maria_nmi = READ_MEM(m_maria_dll) & 0x80;

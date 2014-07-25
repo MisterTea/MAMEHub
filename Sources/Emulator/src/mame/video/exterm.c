@@ -15,13 +15,13 @@
  *
  *************************************/
 
-void exterm_state::palette_init()
+PALETTE_INIT_MEMBER(exterm_state, exterm)
 {
 	int i;
 
 	/* initialize 555 RGB lookup */
 	for (i = 0; i < 32768; i++)
-		palette_set_color_rgb(machine(), i + 0x800, pal5bit(i >> 10), pal5bit(i >> 5), pal5bit(i >> 0));
+		palette.set_pen_color(i + 0x800, pal5bit(i >> 10), pal5bit(i >> 5), pal5bit(i >> 0));
 }
 
 
@@ -79,7 +79,7 @@ void exterm_scanline_update(screen_device &screen, bitmap_ind16 &bitmap, int sca
 	int x;
 
 	/* get parameters for the slave CPU */
-	tms34010_get_display_params(state->m_slave, &fgparams);
+	state->m_slave->get_display_params(&fgparams);
 
 	/* compute info about the slave vram */
 	if (fgparams.enabled && scanline >= fgparams.veblnk && scanline < fgparams.vsblnk && fgparams.heblnk < fgparams.hsblnk)

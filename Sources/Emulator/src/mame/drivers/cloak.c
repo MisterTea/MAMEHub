@@ -301,27 +301,6 @@ static GFXDECODE_START( cloak )
 GFXDECODE_END
 
 
-
-/*************************************
- *
- *  Sound interfaces
- *
- *************************************/
-
-static const pokey_interface pokey_interface_1 =
-{
-	{ DEVCB_NULL },
-	DEVCB_INPUT_PORT("START"),
-};
-
-static const pokey_interface pokey_interface_2 =
-{
-	{ DEVCB_NULL },
-	DEVCB_INPUT_PORT("DSW"),
-};
-
-
-
 /*************************************
  *
  *  Machine driver
@@ -350,22 +329,23 @@ static MACHINE_CONFIG_START( cloak, cloak_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 3*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cloak_state, screen_update_cloak)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cloak)
-	MCFG_PALETTE_LENGTH(64)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cloak)
+	MCFG_PALETTE_ADD("palette", 64)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	/* more low pass filters ==> DISCRETE processing */
-	MCFG_POKEY_ADD("pokey1", XTAL_10MHz/8)      /* Accurate to recording */
-	MCFG_POKEY_CONFIG(pokey_interface_1)
+	MCFG_SOUND_ADD("pokey1", POKEY, XTAL_10MHz/8)      /* Accurate to recording */
+	MCFG_POKEY_ALLPOT_R_CB(IOPORT("START"))
 	MCFG_POKEY_OUTPUT_OPAMP_LOW_PASS(RES_K(1), CAP_U(0.047), 5.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
-	MCFG_POKEY_ADD("pokey2", XTAL_10MHz/8)      /* Accurate to recording */
-	MCFG_POKEY_CONFIG(pokey_interface_2)
+	MCFG_SOUND_ADD("pokey2", POKEY, XTAL_10MHz/8)      /* Accurate to recording */
+	MCFG_POKEY_ALLPOT_R_CB(IOPORT("DSW"))
 	MCFG_POKEY_OUTPUT_OPAMP_LOW_PASS(RES_K(1), CAP_U(0.022), 5.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END

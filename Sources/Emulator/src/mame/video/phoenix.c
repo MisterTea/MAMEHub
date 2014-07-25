@@ -8,7 +8,6 @@
 
 #include "emu.h"
 #include "video/resnet.h"
-#include "audio/pleiads.h"
 #include "includes/phoenix.h"
 
 
@@ -80,54 +79,51 @@ PALETTE_INIT_MEMBER(phoenix_state,phoenix)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-	rgb_t   *rgb;
+	dynamic_array<rgb_t> rgb;
 
-	rgb = compute_res_net_all(machine(), color_prom, &phoenix_decode_info, &phoenix_net_info);
+	compute_res_net_all(rgb, color_prom, phoenix_decode_info, phoenix_net_info);
 	/* native order */
 	for (i=0;i<256;i++)
 	{
 		int col;
 		col = ((i << 3 ) & 0x18) | ((i>>2) & 0x07) | (i & 0x60);
-		palette_set_color(machine(),i,rgb[col]);
+		palette.set_pen_color(i,rgb[col]);
 	}
-	palette_normalize_range(machine().palette, 0, 255, 0, 255);
-	auto_free(machine(), rgb);
+	palette.palette()->normalize_range(0, 255);
 }
 
 PALETTE_INIT_MEMBER(phoenix_state,survival)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-	rgb_t   *rgb;
+	dynamic_array<rgb_t> rgb;
 
-	rgb = compute_res_net_all(machine(), color_prom, &phoenix_decode_info, &survival_net_info);
+	compute_res_net_all(rgb, color_prom, phoenix_decode_info, survival_net_info);
 	/* native order */
 	for (i=0;i<256;i++)
 	{
 		int col;
 		col = ((i << 3 ) & 0x18) | ((i>>2) & 0x07) | (i & 0x60);
-		palette_set_color(machine(),i,rgb[col]);
+		palette.set_pen_color(i,rgb[col]);
 	}
-	palette_normalize_range(machine().palette, 0, 255, 0, 255);
-	auto_free(machine(), rgb);
+	palette.palette()->normalize_range(0, 255);
 }
 
 PALETTE_INIT_MEMBER(phoenix_state,pleiads)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-	rgb_t   *rgb;
+	dynamic_array<rgb_t> rgb;
 
-	rgb = compute_res_net_all(machine(), color_prom, &phoenix_decode_info, &pleiades_net_info);
+	compute_res_net_all(rgb, color_prom, phoenix_decode_info, pleiades_net_info);
 	/* native order */
 	for (i=0;i<256;i++)
 	{
 		int col;
 		col = ((i << 3 ) & 0x18) | ((i>>2) & 0x07) | (i & 0xE0);
-		palette_set_color(machine(),i,rgb[col]);
+		palette.set_pen_color(i,rgb[col]);
 	}
-	palette_normalize_range(machine().palette, 0, 255, 0, 255);
-	auto_free(machine(), rgb);
+	palette.palette()->normalize_range(0, 255);
 }
 
 /***************************************************************************
@@ -143,8 +139,7 @@ TILE_GET_INFO_MEMBER(phoenix_state::get_fg_tile_info)
 	code = m_videoram_pg[m_videoram_pg_index][tile_index];
 	col = (code >> 5);
 	col = col | 0x08 | (m_palette_bank << 4);
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code,
 			col,
 			0);
@@ -157,8 +152,7 @@ TILE_GET_INFO_MEMBER(phoenix_state::get_bg_tile_info)
 	code = m_videoram_pg[m_videoram_pg_index][tile_index + 0x800];
 	col = (code >> 5);
 	col = col | 0x00 | (m_palette_bank << 4);
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			col,
 			0);
@@ -173,7 +167,9 @@ TILE_GET_INFO_MEMBER(phoenix_state::get_bg_tile_info)
 VIDEO_START_MEMBER(phoenix_state,phoenix)
 {
 	m_videoram_pg[0] = auto_alloc_array(machine(), UINT8, 0x1000);
+	memset(m_videoram_pg[0], 0x00, 0x1000 * sizeof(UINT8));
 	m_videoram_pg[1] = auto_alloc_array(machine(), UINT8, 0x1000);
+	memset(m_videoram_pg[1], 0x00, 0x1000 * sizeof(UINT8));
 
 	membank("bank1")->configure_entry(0, m_videoram_pg[0]);
 	membank("bank1")->configure_entry(1, m_videoram_pg[1]);
@@ -183,8 +179,8 @@ VIDEO_START_MEMBER(phoenix_state,phoenix)
 	m_palette_bank = 0;
 	m_cocktail_mode = 0;
 
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(phoenix_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(phoenix_state::get_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(phoenix_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(phoenix_state::get_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 
@@ -294,7 +290,7 @@ WRITE8_MEMBER(phoenix_state::pleiads_videoreg_w)
 	m_pleiads_protection_question = data & 0xfc;
 
 	/* send two bits to sound control C (not sure if they are there) */
-	pleiads_sound_control_c_w(machine().device("cust"), space, offset, data);
+	m_pleiads_custom->control_c_w(space, offset, data);
 }
 
 

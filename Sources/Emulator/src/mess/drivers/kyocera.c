@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /******************************************************************************************
 
     Kyocera Kyotronics 85 (and similar laptop computers)
@@ -28,6 +30,7 @@
 
     TODO:
 
+    - bar code reader (!RxDB -> RST5.5, Hewlett-Packard HREDS-3050 interface)
     - un-Y2K-hack tandy200
     - keyboard is unresponsive for couple of seconds after boot
     - soft power on/off
@@ -190,7 +193,7 @@ WRITE8_MEMBER( pc8201_state::scp_w )
 	m_rtc->stb_w(BIT(data, 4));
 
 	/* printer strobe */
-	m_centronics->strobe_w(BIT(data, 5));
+	m_centronics->write_strobe(BIT(data, 5));
 
 	/* serial interface select */
 	m_iosel = data >> 5;
@@ -425,7 +428,7 @@ WRITE8_MEMBER( kc85_state::ctrl_w )
 	membank("bank1")->set_entry(BIT(data, 0));
 
 	/* printer strobe */
-	m_centronics->strobe_w(BIT(data, 1));
+	m_centronics->write_strobe(BIT(data, 1));
 
 	/* RTC strobe */
 	m_rtc->stb_w(BIT(data, 2));
@@ -529,7 +532,7 @@ WRITE8_MEMBER( tandy200_state::stbk_w )
 	*/
 
 	/* printer strobe */
-	m_centronics->strobe_w(BIT(data, 0));
+	m_centronics->write_strobe(BIT(data, 0));
 
 	/* cassette motor */
 	m_cassette->change_state(BIT(data,1) ? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED, CASSETTE_MASK_MOTOR);
@@ -939,12 +942,6 @@ static INPUT_PORTS_START( olivm10 )
 	PORT_CONFSETTING( 0x00, "Low Battery" )
 INPUT_PORTS_END
 
-/* RP5C01A Interface */
-
-static RP5C01_INTERFACE( tandy200_rtc_intf )
-{
-	DEVCB_NULL                              /* alarm */
-};
 
 /* 8155 Interface */
 
@@ -1017,8 +1014,18 @@ WRITE8_MEMBER( kc85_state::i8155_pb_w )
 	if (m_buzzer) m_speaker->level_w(m_bell);
 
 	// RS-232
-	m_rs232->dtr_w(BIT(data, 6));
-	m_rs232->rts_w(BIT(data, 7));
+	m_rs232->write_dtr(BIT(data, 6));
+	m_rs232->write_rts(BIT(data, 7));
+}
+
+WRITE_LINE_MEMBER( kc85_state::write_centronics_busy )
+{
+	m_centronics_busy = state;
+}
+
+WRITE_LINE_MEMBER( kc85_state::write_centronics_select )
+{
+	m_centronics_select = state;
 }
 
 READ8_MEMBER( kc85_state::i8155_pc_r )
@@ -1042,8 +1049,8 @@ READ8_MEMBER( kc85_state::i8155_pc_r )
 	data |= m_rtc->data_out_r();
 
 	// centronics busy
-	data |= m_centronics->not_busy_r() << 1;
-	data |= m_centronics->busy_r() << 2;
+	data |= m_centronics_select << 1;
+	data |= m_centronics_busy << 2;
 
 	// RS-232
 	data |= m_rs232->cts_r() << 4;
@@ -1063,17 +1070,6 @@ WRITE_LINE_MEMBER( kc85_state::i8155_to_w )
 	m_uart->rrc_w(state);
 }
 
-static I8155_INTERFACE( kc85_8155_intf )
-{
-	DEVCB_NULL,                                         /* port A read */
-	DEVCB_DRIVER_MEMBER(kc85_state, i8155_pa_w),        /* port A write */
-	DEVCB_NULL,                                         /* port B read */
-	DEVCB_DRIVER_MEMBER(kc85_state, i8155_pb_w),        /* port B write */
-	DEVCB_DRIVER_MEMBER(kc85_state, i8155_pc_r),        /* port C read */
-	DEVCB_NULL,                                         /* port C write */
-	DEVCB_DRIVER_LINE_MEMBER(kc85_state, i8155_to_w)    /* timer output */
-};
-
 WRITE8_MEMBER( tandy200_state::i8155_pa_w )
 {
 	/*
@@ -1091,7 +1087,7 @@ WRITE8_MEMBER( tandy200_state::i8155_pa_w )
 
 	*/
 
-	m_centronics->write(space, 0, data);
+	m_cent_data_out->write(space, 0, data);
 
 	m_keylatch = (m_keylatch & 0x100) | data;
 }
@@ -1123,6 +1119,16 @@ WRITE8_MEMBER( tandy200_state::i8155_pb_w )
 	if (m_buzzer) m_speaker->level_w(m_bell);
 }
 
+WRITE_LINE_MEMBER( tandy200_state::write_centronics_busy )
+{
+	m_centronics_busy = state;
+}
+
+WRITE_LINE_MEMBER( tandy200_state::write_centronics_select )
+{
+	m_centronics_select = state;
+}
+
 READ8_MEMBER( tandy200_state::i8155_pc_r )
 {
 	/*
@@ -1141,8 +1147,8 @@ READ8_MEMBER( tandy200_state::i8155_pc_r )
 	UINT8 data = 0x01;
 
 	// centronics
-	data |= m_centronics->not_busy_r() << 1;
-	data |= m_centronics->busy_r() << 2;
+	data |= m_centronics_select << 1;
+	data |= m_centronics_busy << 2;
 
 	// RS-232
 	data |= m_rs232->dcd_r() << 4;
@@ -1157,58 +1163,6 @@ WRITE_LINE_MEMBER( tandy200_state::i8155_to_w )
 		m_speaker->level_w(state);
 	}
 }
-
-static I8155_INTERFACE( tandy200_8155_intf )
-{
-	DEVCB_NULL,                                             /* port A read */
-	DEVCB_DRIVER_MEMBER(tandy200_state, i8155_pa_w),        /* port A write */
-	DEVCB_NULL,                                             /* port B read */
-	DEVCB_DRIVER_MEMBER(tandy200_state, i8155_pb_w),        /* port B write */
-	DEVCB_DRIVER_MEMBER(tandy200_state, i8155_pc_r),        /* port C read */
-	DEVCB_NULL,                                             /* port C write */
-	DEVCB_DRIVER_LINE_MEMBER(tandy200_state, i8155_to_w)    /* timer output */
-};
-
-/* IM6402 Interface */
-
-static IM6402_INTERFACE( uart_intf )
-{
-	0,
-	0,
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-/* I8251 Interface */
-
-static const i8251_interface tandy200_uart_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dsr_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-//-------------------------------------------------
-//  rs232_port_interface rs232_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 /* Machine Drivers */
 
@@ -1248,6 +1202,8 @@ void kc85_state::machine_start()
 	save_item(NAME(m_keylatch));
 	save_item(NAME(m_buzzer));
 	save_item(NAME(m_bell));
+	save_item(NAME(m_centronics_busy));
+	save_item(NAME(m_centronics_select));
 }
 
 void pc8201_state::machine_start()
@@ -1276,6 +1232,8 @@ void pc8201_state::machine_start()
 	save_item(NAME(m_keylatch));
 	save_item(NAME(m_buzzer));
 	save_item(NAME(m_bell));
+	save_item(NAME(m_centronics_busy));
+	save_item(NAME(m_centronics_select));
 	save_item(NAME(m_iosel));
 }
 
@@ -1325,6 +1283,8 @@ void trsm100_state::machine_start()
 	save_item(NAME(m_keylatch));
 	save_item(NAME(m_buzzer));
 	save_item(NAME(m_bell));
+	save_item(NAME(m_centronics_busy));
+	save_item(NAME(m_centronics_select));
 }
 
 void tandy200_state::machine_start()
@@ -1341,20 +1301,13 @@ void tandy200_state::machine_start()
 
 	/* register for state saving */
 	save_item(NAME(m_bank));
-	save_item(NAME(m_tp));
 	save_item(NAME(m_keylatch));
 	save_item(NAME(m_buzzer));
 	save_item(NAME(m_bell));
+	save_item(NAME(m_centronics_busy));
+	save_item(NAME(m_centronics_select));
+	save_item(NAME(m_tp));
 }
-
-static const cassette_interface kc85_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
 
 WRITE_LINE_MEMBER( kc85_state::kc85_sod_w )
 {
@@ -1400,12 +1353,25 @@ static MACHINE_CONFIG_START( kc85, kc85_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_I8155_ADD(I8155_TAG, XTAL_4_9152MHz/2, kc85_8155_intf)
+	MCFG_DEVICE_ADD(I8155_TAG, I8155, XTAL_4_9152MHz/2)
+	MCFG_I8155_OUT_PORTA_CB(WRITE8(kc85_state, i8155_pa_w))
+	MCFG_I8155_OUT_PORTB_CB(WRITE8(kc85_state, i8155_pb_w))
+	MCFG_I8155_IN_PORTC_CB(READ8(kc85_state, i8155_pc_r))
+	MCFG_I8155_OUT_TIMEROUT_CB(WRITELINE(kc85_state, i8155_to_w))
+
 	MCFG_UPD1990A_ADD(UPD1990A_TAG, XTAL_32_768kHz, NULL, INPUTLINE(I8085_TAG, I8085_RST75_LINE))
-	MCFG_IM6402_ADD(IM6402_TAG, uart_intf)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_CASSETTE_ADD("cassette", kc85_cassette_interface)
+
+	MCFG_IM6402_ADD(IM6402_TAG, 0, 0)
+	MCFG_IM6402_TRO_CALLBACK(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(IM6402_TAG, im6402_device, write_rri))
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(kc85_state, write_centronics_busy))
+	MCFG_CENTRONICS_SELECT_HANDLER(WRITELINE(kc85_state, write_centronics_select))
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
 
 	/* option ROM cartridge */
 	MCFG_CARTSLOT_ADD("cart")
@@ -1439,12 +1405,25 @@ static MACHINE_CONFIG_START( pc8201, pc8201_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_I8155_ADD(I8155_TAG, XTAL_4_9152MHz/2, kc85_8155_intf)
+	MCFG_DEVICE_ADD(I8155_TAG, I8155, XTAL_4_9152MHz/2)
+	MCFG_I8155_OUT_PORTA_CB(WRITE8(kc85_state, i8155_pa_w))
+	MCFG_I8155_OUT_PORTB_CB(WRITE8(kc85_state, i8155_pb_w))
+	MCFG_I8155_IN_PORTC_CB(READ8(kc85_state, i8155_pc_r))
+	MCFG_I8155_OUT_TIMEROUT_CB(WRITELINE(kc85_state, i8155_to_w))
+
 	MCFG_UPD1990A_ADD(UPD1990A_TAG, XTAL_32_768kHz, NULL, INPUTLINE(I8085_TAG, I8085_RST75_LINE))
-	MCFG_IM6402_ADD(IM6402_TAG, uart_intf)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_CASSETTE_ADD("cassette", kc85_cassette_interface)
+
+	MCFG_IM6402_ADD(IM6402_TAG, 0, 0)
+	MCFG_IM6402_TRO_CALLBACK(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(IM6402_TAG, im6402_device, write_rri))
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(kc85_state, write_centronics_busy))
+	MCFG_CENTRONICS_SELECT_HANDLER(WRITELINE(kc85_state, write_centronics_select))
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
 
 	/* option ROM cartridge */
 	MCFG_CARTSLOT_ADD("cart")
@@ -1490,12 +1469,23 @@ static MACHINE_CONFIG_START( trsm100, trsm100_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_I8155_ADD(I8155_TAG, XTAL_4_9152MHz/2, kc85_8155_intf)
+	MCFG_DEVICE_ADD(I8155_TAG, I8155, XTAL_4_9152MHz/2)
+	MCFG_I8155_OUT_PORTA_CB(WRITE8(kc85_state, i8155_pa_w))
+	MCFG_I8155_OUT_PORTB_CB(WRITE8(kc85_state, i8155_pb_w))
+	MCFG_I8155_IN_PORTC_CB(READ8(kc85_state, i8155_pc_r))
+	MCFG_I8155_OUT_TIMEROUT_CB(WRITELINE(kc85_state, i8155_to_w))
+
 	MCFG_UPD1990A_ADD(UPD1990A_TAG, XTAL_32_768kHz, NULL, INPUTLINE(I8085_TAG, I8085_RST75_LINE))
-	MCFG_IM6402_ADD(IM6402_TAG, uart_intf)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_CASSETTE_ADD("cassette", kc85_cassette_interface)
+
+	MCFG_IM6402_ADD(IM6402_TAG, 0, 0)
+	MCFG_IM6402_TRO_CALLBACK(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(IM6402_TAG, im6402_device, write_rri))
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
+
 //  MCFG_MC14412_ADD(MC14412_TAG, XTAL_1MHz)
 
 	/* option ROM cartridge */
@@ -1540,13 +1530,32 @@ static MACHINE_CONFIG_START( tandy200, tandy200_state )
 //  MCFG_TCM5089_ADD(TCM5089_TAG, XTAL_3_579545MHz)
 
 	/* devices */
-	MCFG_I8155_ADD(I8155_TAG, XTAL_4_9152MHz/2, tandy200_8155_intf)
-	MCFG_RP5C01_ADD(RP5C01A_TAG, XTAL_32_768kHz, tandy200_rtc_intf)
-	MCFG_I8251_ADD(I8251_TAG, /*XTAL_4_9152MHz/2,*/ tandy200_uart_intf)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
+	MCFG_DEVICE_ADD(I8155_TAG, I8155, XTAL_4_9152MHz/2)
+	MCFG_I8155_OUT_PORTA_CB(WRITE8(tandy200_state, i8155_pa_w))
+	MCFG_I8155_OUT_PORTB_CB(WRITE8(tandy200_state, i8155_pb_w))
+	MCFG_I8155_IN_PORTC_CB(READ8(tandy200_state, i8155_pc_r))
+	MCFG_I8155_OUT_TIMEROUT_CB(WRITELINE(tandy200_state, i8155_to_w))
+
+	MCFG_DEVICE_ADD(RP5C01A_TAG, RP5C01, XTAL_32_768kHz)
+
+	MCFG_DEVICE_ADD(I8251_TAG, I8251, 0) /*XTAL_4_9152MHz/2,*/
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_I8251_DTR_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_dtr))
+	MCFG_I8251_RTS_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_rts))
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(I8251_TAG, i8251_device, write_rxd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(I8251_TAG, i8251_device, write_dsr))
+
 //  MCFG_MC14412_ADD(MC14412_TAG, XTAL_1MHz)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_CASSETTE_ADD("cassette", kc85_cassette_interface)
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(tandy200_state, write_centronics_busy))
+	MCFG_CENTRONICS_SELECT_HANDLER(WRITELINE(tandy200_state, write_centronics_select))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
 
 	/* option ROM cartridge */
 	MCFG_CARTSLOT_ADD("cart")

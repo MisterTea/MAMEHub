@@ -1,98 +1,95 @@
 /*
-
 Chihiro is an Xbox-based arcade system from SEGA.
 
 Games on this system include....
 
-   Game (Known media)                                  Manufacturer      Media               Key Chip
-+-+---------------------------------------------------+-----------------+-------------------+--------------|
-|*|The House of the Dead III                          | Sega, 2002      | GDROM  GDX-0001   | 317-0348-COM |
-| |Crazy Taxi High Roller                             | Sega, 2003      | GDROM  GDX-0002   | 317-0300-COM |
-| |Crazy Taxi High Roller (Rev A)                     | Sega, 2003      | GDROM  GDX-0002A  | 317-0300-COM |
-|*|Crazy Taxi High Roller (Rev B)                     | Sega, 2003      | GDROM  GDX-0002B  | 317-0300-COM |
-| |Virtua Cop 3                                       | Sega, 2003      | GDROM  GDX-0003   | 317-0354-COM |
-|*|Virtua Cop 3 (Rev A)                               | Sega, 2003      | GDROM  GDX-0003A  | 317-0354-COM |
-| |Out Run 2                                          | Sega, 2003      | GDROM  GDX-0004   | 317-0372-COM |
-|*|Out Run 2 (Rev A)                                  | Sega, 2003      | GDROM  GDX-0004A  | 317-0372-COM |
-| |Out Run 2 prototype (Rev P)                        | Sega, 2003      | GDROM  GDX-0004P  |              |
-| |Sega Golf Club Network Pro Tour                    | Sega, 2004      | GDROM  GDX-0005   |              |
-| |Sega Network Taisen Mahjong MJ 2                   | Sega, 2004      | GDROM  GDX-0006   |              |
-| |Sega Network Taisen Mahjong MJ 2 (Rev A)           | Sega, 2004      | GDROM  GDX-0006A  |              |
-| |Sega Network Taisen Mahjong MJ 2 (Rev B)           | Sega, 2004      | GDROM  GDX-0006B  |              |
-|*|Sega Network Taisen Mahjong MJ 2 (Rev C)           | Sega, 2004      | GDROM  GDX-0006C  |              |
-| |Sega Network Taisen Mahjong MJ 2 (Rev D)           | Sega, 2004      | GDROM  GDX-0006D  |              |
-| |Sega Network Taisen Mahjong MJ 2 (Rev E)           | Sega, 2005      | GDROM  GDX-0006E  |              |
-| |Sega Network Taisen Mahjong MJ 2 (Rev F)           | Sega, 2005      | GDROM  GDX-0006F  |              |
-|*|Sega Network Taisen Mahjong MJ 2 (Rev G)           | Sega, 2005      | GDROM  GDX-0006G  | 317-0374-JPN |
-|*|Ollie King                                         | Sega, 2004      | GDROM  GDX-0007   | 317-0377-COM |
-| |Wangan Midnight Maximum Tune (Japan)               | Namco, 2004     | GDROM  GDX-0008   | 317-5101-JPN |
-| |Wangan Midnight Maximum Tune (Japan) (Rev A)       | Namco, 2004     | GDROM  GDX-0008A  | 317-5101-JPN |
-|*|Wangan Midnight Maximum Tune (Japan) (Rev B)       | Namco, 2004     | GDROM  GDX-0008B  | 317-5101-JPN |
-| |Wangan Midnight Maximum Tune (Export)              | Namco, 2004     | GDROM  GDX-0009   | 317-5101-COM |
-| |Wangan Midnight Maximum Tune (Export) (Rev A)      | Namco, 2004     | GDROM  GDX-0009A  | 317-5101-COM |
-|*|Wangan Midnight Maximum Tune (Export) (Rev B)      | Namco, 2004     | GDROM  GDX-0009B  | 317-5101-COM |
-| |Outrun 2 SP (Japan)                                | Sega, 2004      | GDROM  GDX-0011   |              |
-| |Ghost Squad                                        | Sega, 2004      | GDROM  GDX-0012   | 317-0398-COM |
-|*|Ghost Squad (Rev A)                                | Sega, 2004      | GDROM  GDX-0012A  | 317-0398-COM |
-|*|Gundam Battle Operating Simulator                  | Banpresto, 2005 | GDROM  GDX-0013   | 317-0400-JPN |
-| |Outrun 2 Special Tours                             | Sega, 2004      | GDROM  GDX-0014   |              |
-|*|Outrun 2 Special Tours (Rev A)                     | Sega, 2004      | GDROM  GDX-0014A  |              |
-|*|Wangan Midnight Maximum Tune 2 (Export)            | Namco, 2005     | GDROM  GDX-0015   | 317-5106-COM |
-| |Wangan Midnight Maximum Tune 2 (Japan)             | Namco, 2005     | GDROM  GDX-0016   | 317-5106-JPN |
-|*|Wangan Midnight Maximum Tune 2 (Japan) (Rev A)     | Namco, 2005     | GDROM  GDX-0016A  | 317-5106-JPN |
-| |Sega Network Taisen Mahjong MJ 3                   | Sega, 2005      | GDROM  GDX-0017   |              |
-| |Sega Network Taisen Mahjong MJ 3 (Rev A)           | Sega, 2005      | GDROM  GDX-0017A  |              |
-| |Sega Network Taisen Mahjong MJ 3 (Rev B)           | Sega, 2005      | GDROM  GDX-0017B  |              |
-| |Sega Network Taisen Mahjong MJ 3 (Rev C)           | Sega, 2005      | GDROM  GDX-0017C  |              |
-|*|Sega Network Taisen Mahjong MJ 3 (Rev D)           | Sega, 2005      | GDROM  GDX-0017D  |              |
-| |Sega Network Taisen Mahjong MJ 3 (Rev E)           | Sega, 2005      | GDROM  GDX-0017E  |              |
-|*|Sega Network Taisen Mahjong MJ 3 (Rev F)           | Sega, 2005      | GDROM  GDX-0017F  | 317-0414-JPN |
-| |Sega Club Golf 2006: Next Tours                    | Sega, 2005      | GDROM  GDX-0018   |              |
-|*|Sega Club Golf 2006: Next Tours (Rev A)            | Sega, 2005      | GDROM  GDX-0018A  |              |
-| |Sega Network Taisen Mahjong MJ 3 Evolution         | Sega, 2006      | GDROM  GDX-0021   |              |
-| |Sega Network Taisen Mahjong MJ 3 Evolution (Rev A) | Sega, 2006      | GDROM  GDX-0021A  |              |
-| |Firmware Update For Compact Flash Box              | Sega, 200x      | GDROM  GDX-0024   |              |
-|*|Firmware Update For Compact Flash Box (Rev A)      | Sega, 200x      | GDROM  GDX-0024A  | 317-0567-EXP |
-|*|Quest Of D (Ver.1.01C)                             | Sega, 2004      | CDROM  CDV-10005C |              |
-|*|Sangokushi Taisen (Ver.1.002)                      | Sega, 2005      | DVDROM CDV-10009D |              |
-|*|Sangokushi Taisen 2 (Ver.2.007)                    | Sega, 2006      | DVDROM CDV-10019A |              |
-|*|Sangokushi Taisen                                  | Sega, 2005      | DVDROM CDV-10022  |              |
-|*|Sangokushi Taisen 2 Firmware Update                | Sega, 2006      | DVDROM CDV-10023  |              |
-|*|Sangokushi Taisen 2                                | Sega, 2006      | DVDROM CDV-10029  |              |
-|*|Sangokushi Taisen 3                                | Sega, 2008      | DVDROM CDV-10036  |              |
-|*|Sangokushi Taisen 3 (Ver.J)                        | Sega, 2008      | DVDROM CDV-10036J |              |
-|*|Sangokushi Taisen 3 War Begins (Ver.3.59)          | Sega, 2008      | DVDROM CDV-10041  |              |
-|*|Sangokushi Taisen 3 War Begins                     | Sega, 2008      | DVDROM CDV-10042  |              |
-+-+---------------------------------------------------+-----------------+-------------------+--------------+
+   Year   Game                                                 Manufacturer / Developer   Media    Number       Key Chip
++-+------+----------------------------------------------------+--------------------------+--------+------------+--------------|
+|*| 2002 | The House of the Dead III                          | Sega / Wow Entertainment | GDROM  | GDX-0001   | 317-0348-COM |
+| | 2003 | Crazy Taxi High Roller                             | Sega / Hitmaker          | GDROM  | GDX-0002   | 317-0353-COM |
+| | 2003 | Crazy Taxi High Roller (Rev A)                     | Sega / Hitmaker          | GDROM  | GDX-0002A  | 317-0353-COM |
+|*| 2003 | Crazy Taxi High Roller (Rev B)                     | Sega / Hitmaker          | GDROM  | GDX-0002B  | 317-0353-COM |
+| | 2003 | Virtua Cop 3                                       | Sega                     | GDROM  | GDX-0003   | 317-0354-COM |
+|*| 2003 | Virtua Cop 3 (Rev A)                               | Sega                     | GDROM  | GDX-0003A  | 317-0354-COM |
+| | 2003 | Out Run 2                                          | Sega                     | GDROM  | GDX-0004   | 317-0372-COM |
+|*| 2003 | Out Run 2 (Rev A)                                  | Sega                     | GDROM  | GDX-0004A  | 317-0372-COM |
+| | 2003 | Out Run 2 prototype (Rev P)                        | Sega                     | GDROM  | GDX-0004P  |              |
+| | 2004 | Sega Golf Club Network Pro Tour                    | Sega                     | GDROM  | GDX-0005   |              |
+| | 2004 | Sega Network Taisen Mahjong MJ 2                   | Sega                     | GDROM  | GDX-0006   |              |
+| | 2004 | Sega Network Taisen Mahjong MJ 2 (Rev A)           | Sega                     | GDROM  | GDX-0006A  |              |
+| | 2004 | Sega Network Taisen Mahjong MJ 2 (Rev B)           | Sega                     | GDROM  | GDX-0006B  |              |
+|*| 2004 | Sega Network Taisen Mahjong MJ 2 (Rev C)           | Sega                     | GDROM  | GDX-0006C  |              |
+| | 2004 | Sega Network Taisen Mahjong MJ 2 (Rev D)           | Sega                     | GDROM  | GDX-0006D  |              |
+| | 2005 | Sega Network Taisen Mahjong MJ 2 (Rev E)           | Sega                     | GDROM  | GDX-0006E  |              |
+| | 2005 | Sega Network Taisen Mahjong MJ 2 (Rev F)           | Sega                     | GDROM  | GDX-0006F  |              |
+|*| 2005 | Sega Network Taisen Mahjong MJ 2 (Rev G)           | Sega                     | GDROM  | GDX-0006G  | 317-0374-JPN |
+|*| 2004 | Ollie King                                         | Sega / Amusement Vision  | GDROM  | GDX-0007   | 317-0377-COM |
+| | 2004 | Wangan Midnight Maximum Tune (Japan)               | Namco                    | GDROM  | GDX-0008   | 317-5101-JPN |
+| | 2004 | Wangan Midnight Maximum Tune (Japan) (Rev A)       | Namco                    | GDROM  | GDX-0008A  | 317-5101-JPN |
+|*| 2004 | Wangan Midnight Maximum Tune (Japan) (Rev B)       | Namco                    | GDROM  | GDX-0008B  | 317-5101-JPN |
+| | 2004 | Wangan Midnight Maximum Tune (Export)              | Namco                    | GDROM  | GDX-0009   | 317-5101-COM |
+| | 2004 | Wangan Midnight Maximum Tune (Export) (Rev A)      | Namco                    | GDROM  | GDX-0009A  | 317-5101-COM |
+|*| 2004 | Wangan Midnight Maximum Tune (Export) (Rev B)      | Namco                    | GDROM  | GDX-0009B  | 317-5101-COM |
+| | 2004 | Outrun 2 SP (Japan)                                | Sega                     | GDROM  | GDX-0011   |              |
+| | 2004 | Ghost Squad                                        | Sega                     | GDROM  | GDX-0012   | 317-0398-COM |
+|*| 2004 | Ghost Squad (Rev A)                                | Sega                     | GDROM  | GDX-0012A  | 317-0398-COM |
+|*| 2005 | Gundam Battle Operating Simulator                  | Banpresto                | GDROM  | GDX-0013   | 317-0400-JPN |
+| | 2004 | Outrun 2 Special Tours                             | Sega                     | GDROM  | GDX-0014   | 317-0xxx-COM |
+|*| 2004 | Outrun 2 Special Tours (Rev A)                     | Sega                     | GDROM  | GDX-0014A  | 317-0xxx-COM |
+|*| 2005 | Wangan Midnight Maximum Tune 2 (Japan)             | Namco                    | GDROM  | GDX-0015   | 317-5106-JPN |
+|*| 2005 | Wangan Midnight Maximum Tune 2 (Japan) (Rev A)     | Namco                    | GDROM  | GDX-0015A  | 317-5106-JPN |
+|*| 2005 | Wangan Midnight Maximum Tune 2 (Export)            | Namco                    | GDROM  | GDX-0016   | 317-5106-COM |
+| | 2005 | Sega Network Taisen Mahjong MJ 3                   | Sega                     | GDROM  | GDX-0017   | 317-0414-JPN |
+| | 2005 | Sega Network Taisen Mahjong MJ 3 (Rev A)           | Sega                     | GDROM  | GDX-0017A  | 317-0414-JPN |
+| | 2005 | Sega Network Taisen Mahjong MJ 3 (Rev B)           | Sega                     | GDROM  | GDX-0017B  | 317-0414-JPN |
+| | 2005 | Sega Network Taisen Mahjong MJ 3 (Rev C)           | Sega                     | GDROM  | GDX-0017C  | 317-0414-JPN |
+|*| 2005 | Sega Network Taisen Mahjong MJ 3 (Rev D)           | Sega                     | GDROM  | GDX-0017D  | 317-0414-JPN |
+| | 2005 | Sega Network Taisen Mahjong MJ 3 (Rev E)           | Sega                     | GDROM  | GDX-0017E  | 317-0414-JPN |
+|*| 2005 | Sega Network Taisen Mahjong MJ 3 (Rev F)           | Sega                     | GDROM  | GDX-0017F  | 317-0414-JPN |
+| | 2005 | Sega Club Golf 2006: Next Tours                    | Sega                     | GDROM  | GDX-0018   |              |
+|*| 2005 | Sega Club Golf 2006: Next Tours (Rev A)            | Sega                     | GDROM  | GDX-0018A  |              |
+| | 2006 | Sega Network Taisen Mahjong MJ 3 Evolution         | Sega                     | GDROM  | GDX-0021   |              |
+| | 2006 | Sega Network Taisen Mahjong MJ 3 Evolution (Rev A) | Sega                     | GDROM  | GDX-0021A  |              |
+| | 2009 | Firmware Update For Compact Flash Box              | Sega                     | GDROM  | GDX-0024   |              |
+|*| 2009 | Firmware Update For Compact Flash Box (Rev A)      | Sega                     | GDROM  | GDX-0024A  | 317-0567-EXP |
+|*| 2004 | Quest Of D (Ver.1.01C)                             | Sega                     | CDROM  | CDV-10005C |              |
+|*| 2005 | Sangokushi Taisen (Ver.1.002)                      | Sega                     | DVDROM | CDV-10009D |              |
+|*| 2006 | Sangokushi Taisen 2 (Ver.2.007)                    | Sega                     | DVDROM | CDV-10019A |              |
+|*| 2005 | Sangokushi Taisen                                  | Sega                     | DVDROM | CDV-10022  |              |
+|*| 2006 | Sangokushi Taisen 2 Firmware Update                | Sega                     | DVDROM | CDV-10023  |              |
+|*| 2006 | Sangokushi Taisen 2                                | Sega                     | DVDROM | CDV-10029  |              |
+|*| 2008 | Sangokushi Taisen 3                                | Sega                     | DVDROM | CDV-10036  |              |
+|*| 2008 | Sangokushi Taisen 3 (Ver.J)                        | Sega                     | DVDROM | CDV-10036J |              |
+|*| 2008 | Sangokushi Taisen 3 War Begins (Ver.3.59)          | Sega                     | DVDROM | CDV-10041  |              |
+|*| 2008 | Sangokushi Taisen 3 War Begins                     | Sega                     | DVDROM | CDV-10042  |              |
++-+------+----------------------------------------------------+--------------------------+--------+------------+--------------+
 * denotes these games are archived.
 
-   Game (Unknown media)                                Manufacturer
-+-+---------------------------------------------------+-----------------+
-| |Quest Of D                                         | Sega, 2004      |
-| |Quest Of D (Ver.1.02)                              | Sega, 2004      |
-| |Quest Of D (Ver.1.10)                              | Sega, 2004      |
-| |Quest Of D (Ver.1.10a)                             | Sega, 2004      |
-| |Quest Of D (Ver.1.20)                              | Sega, 2005      |
-| |Quest Of D (Ver.1.20a)                             | Sega, 2005      |
-| |Quest Of D (Ver.1.21)                              | Sega, 2005      |
-| |Quest Of D: Gofu no Keisyousya (Ver.2.00)          | Sega, 2005      |
-| |Quest Of D: Gofu no Keisyousya (Ver.2.01)          | Sega, 2005      |
-| |Quest Of D: Gofu no Keisyousya (Ver.2.02b)         | Sega, 2006      |
-| |Quest Of D: Oukoku no Syugosya (Ver.3.00)          | Sega, 2006      |
-| |Quest Of D: Oukoku no Syugosya (Ver.3.01)          | Sega, 2006      |
-| |Quest Of D: The Battle Kingdom (Ver.4.00)          | Sega, 2007      |
-| |Quest Of D: The Battle Kingdom (Ver.4.00b)         | Sega, 2008      |
-| |Quest Of D: The Battle Kingdom (Ver.4.00c)         | Sega, 2008      |
-| |Quest Of D: The Battle Kingdom (Ver.4.01)          | Sega, 2008      |
-| |Sangokushi Taisen (Ver.1.03)                       | Sega, 2005      |
-| |Sangokushi Taisen (Ver.1.10)                       | Sega, 2005      |
-| |Sangokushi Taisen (Ver.1.11)                       | Sega, 2005      |
-| |Sangokushi Taisen (Ver.1.12)                       | Sega, 2006      |
-| |Sangokushi Taisen 2 (Ver.2.01)                     | Sega, 2006      |
-| |Sega Golf Club Network Pro Tour 2005               | Sega, 2005      |
-+-+---------------------------------------------------+-----------------+
-If you can help with the undumped games or know of missing Chihiro games, please contact...
-http://members.iinet.net.au/~lantra9jp1/gurudumps/ or http://www.mamedev.org
+   Year   Game (Unknown media)                                Manufacturer
++-+-----------------------------------------------------------+------------+
+| | 2004 | Quest Of D                                         | Sega       |
+| | 2004 | Quest Of D (Ver.1.02)                              | Sega       |
+| | 2004 | Quest Of D (Ver.1.10)                              | Sega       |
+| | 2004 | Quest Of D (Ver.1.10a)                             | Sega       |
+| | 2005 | Quest Of D (Ver.1.20)                              | Sega       |
+| | 2005 | Quest Of D (Ver.1.20a)                             | Sega       |
+| | 2005 | Quest Of D (Ver.1.21)                              | Sega       |
+| | 2005 | Quest Of D: Gofu no Keisyousya (Ver.2.00)          | Sega       |
+| | 2005 | Quest Of D: Gofu no Keisyousya (Ver.2.01)          | Sega       |
+| | 2006 | Quest Of D: Gofu no Keisyousya (Ver.2.02b)         | Sega       |
+| | 2006 | Quest Of D: Oukoku no Syugosya (Ver.3.00)          | Sega       |
+| | 2006 | Quest Of D: Oukoku no Syugosya (Ver.3.01)          | Sega       |
+| | 2007 | Quest Of D: The Battle Kingdom (Ver.4.00)          | Sega       |
+| | 2008 | Quest Of D: The Battle Kingdom (Ver.4.00b)         | Sega       |
+| | 2008 | Quest Of D: The Battle Kingdom (Ver.4.00c)         | Sega       |
+| | 2008 | Quest Of D: The Battle Kingdom (Ver.4.01)          | Sega       |
+| | 2005 | Sangokushi Taisen (Ver.1.03)                       | Sega       |
+| | 2005 | Sangokushi Taisen (Ver.1.10)                       | Sega       |
+| | 2005 | Sangokushi Taisen (Ver.1.11)                       | Sega       |
+| | 2006 | Sangokushi Taisen (Ver.1.12)                       | Sega       |
+| | 2006 | Sangokushi Taisen 2 (Ver.2.01)                     | Sega       |
+| | 2005 | Sega Golf Club Network Pro Tour 2005               | Sega       |
++-+------+----------------------------------------------------+------------+
 
 A Chihiro system consists of several boards.
 The system is in 2 separate metal boxes that fit together to form one box.
@@ -303,7 +300,7 @@ Notes:
       CN11/12   - Network board connectors joining to Sega Network PCB
       CN13      - Battery connector (maintains power to DIMM RAM)
       CN14S     - 100 pin connector joining to base board
-      JP4-10    - Jumpers. Settings are as follows (taken from Wangan Midnight Maximum Tune 2 Ver.B)
+      JP4-10    - Jumpers. Settings are as follows (taken from Wangan Midnight Maximum Tune 2 (Japan) (Rev A))
                   JP4 2-3
                   JP5 2-3. Sets DIMM RAM size. 1-2 = 1GB (2x 512M sticks), 2-3 = 512MB (1x 512M stick)
                   JP6 1-2
@@ -336,7 +333,7 @@ Notes:
       CN6   - 7-pin connector
       SW1/2 - test/service buttons
       DIN1  - 96-pin connector joining to Base Board
-      DIPSW - 8-position DIP switch. On this game (Wangan Midnight Maximum Tune 2 Ver.B) DIPs 3, 4, 6, 7 & 8 are set ON. The others are OFF.
+      DIPSW - 8-position DIP switch. On this game (Wangan Midnight Maximum Tune 2 (Japan) (Rev A)) DIPs 3, 4, 6, 7 & 8 are set ON. The others are OFF.
 
 Dump info:
 
@@ -367,7 +364,7 @@ Thanks to Alex, Mr Mudkips, and Philip Burke for this info.
 #include "machine/idectrl.h"
 #include "machine/idehd.h"
 #include "machine/naomigd.h"
-#include "video/polynew.h"
+#include "video/poly.h"
 #include "bitmap.h"
 #include "debug/debugcon.h"
 #include "debug/debugcmd.h"
@@ -377,7 +374,7 @@ Thanks to Alex, Mr Mudkips, and Philip Burke for this info.
 #define LOG_PCI
 //#define LOG_OHCI
 //#define LOG_NV2A
-#define LOG_BASEBOARD
+//#define LOG_BASEBOARD
 
 class nv2a_renderer; // forw. dec.
 struct nvidia_object_data
@@ -447,11 +444,23 @@ public:
 		UINT32 words[256/4];
 	} smbusst;
 	struct apu_state {
-		UINT32 memory0_sgaddress;
-		UINT32 memory0_sgblocks;
-		UINT32 memory0_address;
-		UINT32 memory1_sgaddress;
-		UINT32 memory1_sgblocks;
+		UINT32 memory[0x60000/4];
+		UINT32 gpdsp_sgaddress; // global processor scatter-gather
+		UINT32 gpdsp_sgblocks;
+		UINT32 gpdsp_address;
+		UINT32 epdsp_sgaddress; // encoder processor scatter-gather
+		UINT32 epdsp_sgblocks;
+		UINT32 unknown_sgaddress;
+		UINT32 unknown_sgblocks;
+		int voice_number;
+		UINT32 voices_heap_blockaddr[1024];
+		UINT64 voices_active[4]; //one bit for each voice: 1 playing 0 not
+		UINT32 voicedata_address;
+		int voices_frequency[256]; // sample rate
+		int voices_position[256]; // position in samples * 1000
+		int voices_position_start[256]; // position in samples * 1000
+		int voices_position_end[256]; // position in samples * 1000
+		int voices_position_increment[256]; // position increment every 1ms * 1000
 		emu_timer *timer;
 		address_space *space;
 	} apust;
@@ -468,6 +477,484 @@ public:
 	int usbhack_counter;
 	required_device<cpu_device> m_maincpu;
 };
+
+/*
+ * geforce 3d (NV2A) vertex program disassembler
+ */
+class vertex_program_disassembler {
+	static const char *srctypes[];
+	static const char *scaops[];
+	static const int scapar2[];
+	static const char *vecops[];
+	static const int vecpar2[];
+	static const char *vecouts[];
+	static const char compchar[];
+	int o[6];
+	int state;
+
+	struct sourcefields
+	{
+		int Sign;
+		int SwizzleX;
+		int SwizzleY;
+		int SwizzleZ;
+		int SwizzleW;
+		int TempIndex;
+		int ParameterType;
+	};
+
+	struct fields
+	{
+		int ScaOperation;
+		int VecOperation;
+		int SourceConstantIndex;
+		int InputIndex;
+		sourcefields src[3];
+		int VecTempWriteMask;
+		int VecTempIndex;
+		int ScaTempWriteMask;
+		int OutputWriteMask;
+		int OutputSelect;
+		int OutputIndex;
+		int MultiplexerControl;
+		int Usea0x;
+		int EndOfProgram;
+	};
+	fields f;
+
+	void decodefields(unsigned int *dwords, int offset, fields &decoded);
+	int disassemble_mask(int mask, char *s);
+	int disassemble_swizzle(sourcefields f, char *s);
+	int disassemble_source(sourcefields f, fields fi, char *s);
+	int disassemble_output(fields f, char *s);
+	int output_types(fields f, int *o);
+public:
+	vertex_program_disassembler() { state = 0; }
+	int disassemble(unsigned int *instruction, char *line);
+};
+
+const char *vertex_program_disassembler::srctypes[] = { "??", "Rn", "Vn", "Cn" };
+const char *vertex_program_disassembler::scaops[] = { "NOP", "IMV", "RCP", "RCC", "RSQ", "EXP", "LOG", "LIT", "???", "???", "???", "???", "???", "???", "???", "???", "???" };
+const int vertex_program_disassembler::scapar2[] = { 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+const char *vertex_program_disassembler::vecops[] = { "NOP", "MOV", "MUL", "ADD", "MAD", "DP3", "DPH", "DP4", "DST", "MIN", "MAX", "SLT", "SGE", "ARL", "???", "???", "???" };
+const int vertex_program_disassembler::vecpar2[] = { 0, 4, 6, 5, 7, 6, 6, 6, 6, 6, 6, 6, 6, 4, 0, 0, 0 };
+const char *vertex_program_disassembler::vecouts[] = { "oPos", "???", "???", "oD0", "oD1", "oFog", "oPts", "oB0", "oB1", "oT0", "oT1", "oT2", "oT3" };
+const char vertex_program_disassembler::compchar[] = { 'x', 'y', 'z', 'w' };
+
+/*
+Each vertex program instruction is a 128 bit word made of the fields:
+d         f
+w   b     i
+o   i     e
+r   t     l
+d   s     d
++-+-----+-------
+|0|31-0 |not used
++-+-----+-------
+| |31-29|not used
+| +-----+-------
+| |28-25|scalar operation
+| +-----+-------
+| |24-21|vectorial operation
+| +-----+-------
+| |20-13|index for source constant C[]
+| +-----+-------
+| |12-9 |input vector index
+| +-----+-------
+|1|  8  |parameter A:sign
+| +-----+-------
+| | 7-6 |parameter A:swizzle x
+| +-----+-------
+| | 5-4 |parameter A:swizzle y
+| +-----+-------
+| | 3-2 |parameter A:swizzle z
+| +-----+-------
+| | 1-0 |parameter A:swizzle w
+|-+-----+-------
+| |31-28|parameter A:parameter Rn index
+| +-----+-------
+| |27-26|parameter A:input type 1:Rn 2:Vn 3:C[n]
+| +-----+-------
+| | 25  |parameter B:sign
+| +-----+-------
+| |24-23|parameter B:swizzle x
+| +-----+-------
+| |22-21|parameter B:swizzle y
+| +-----+-------
+| |20-19|parameter B:swizzle z
+| +-----+-------
+|2|18-17|parameter B:swizzle w
+| +-----+-------
+| |16-13|parameter B:parameter Rn index
+| +-----+-------
+| |12-11|parameter B:input type 1:Rn 2:Vn 3:C[n]
+| +-----+-------
+| | 10  |parameter C:sign
+| +-----+-------
+| | 9-8 |parameter C:swizzle x
+| +-----+-------
+| | 7-6 |parameter C:swizzle y
+| +-----+-------
+| | 5-4 |parameter C:swizzle z
+| +-----+-------
+| | 3-2 |parameter C:swizzle w
+| +-----+-------
+| | 1-0 |
+|-+     |parameter C:parameter Rn index
+| |31-30|
+| +-----+-------
+| |29-28|parameter C:input type 1:Rn 2:Vn 3:C[n]
+| +-----+-------
+| |27-24|output Rn mask from vectorial operation
+| +-----+-------
+| |23-20|output Rn index from vectorial operation
+| +-----+-------
+| |19-16|output Rn mask from scalar operation
+| +-----+-------
+|3|15-12|output vector write mask
+| +-----+-------
+| | 11  |1:output is output vector 0:output is constant C[]
+| +-----+-------
+| |10-3 |output vector/constant index
+| +-----+-------
+| |  2  |0:output Rn from vectorial operation 1:output Rn from scalar operation
+| +-----+-------
+| |  1  |1:add a0x to index for source constant C[]
+| +-----+-------
+| |  0  |1:end of program
++-+-----+-------
+Each vertex program instruction can generate up to three destination values using up to three source values.
+The first possible destination is to Rn from a vectorial operation.
+The second possible destination is to a vertex shader output or C[n] from a vectorial or scalar operation.
+The third possible destination is to Rn from a scalar operation.
+*/
+void vertex_program_disassembler::decodefields(unsigned int *dwords, int offset, fields &decoded)
+{
+	unsigned int srcbits[3];
+	int a;
+
+	srcbits[0] = ((dwords[1 + offset] & 0x1ff) << 6) | (dwords[2 + offset] >> 26);
+	srcbits[1] = (dwords[2 + offset] >> 11) & 0x7fff;
+	srcbits[2] = ((dwords[2 + offset] & 0x7ff) << 4) | (dwords[3 + offset] >> 28);
+	decoded.ScaOperation = (int)(dwords[1 + offset] >> 25) & 0xf;
+	decoded.VecOperation = (int)(dwords[1 + offset] >> 21) & 0xf;
+	decoded.SourceConstantIndex = (int)(dwords[1 + offset] >> 13) & 0xff;
+	decoded.InputIndex = (int)(dwords[1 + offset] >> 9) & 0xf;
+	for (a = 0; a < 3; a++)
+	{
+		decoded.src[a].Sign = (int)(srcbits[a] >> 14) & 1;
+		decoded.src[a].SwizzleX = (int)(srcbits[a] >> 12) & 3;
+		decoded.src[a].SwizzleY = (int)(srcbits[a] >> 10) & 3;
+		decoded.src[a].SwizzleZ = (int)(srcbits[a] >> 8) & 3;
+		decoded.src[a].SwizzleW = (int)(srcbits[a] >> 6) & 3;
+		decoded.src[a].TempIndex = (int)(srcbits[a] >> 2) & 0xf;
+		decoded.src[a].ParameterType = (int)(srcbits[a] >> 0) & 3;
+	}
+
+	decoded.VecTempWriteMask = (int)(dwords[3 + offset] >> 24) & 0xf;
+	decoded.VecTempIndex = (int)(dwords[3 + offset] >> 20) & 0xf;
+	decoded.ScaTempWriteMask = (int)(dwords[3 + offset] >> 16) & 0xf;
+	decoded.OutputWriteMask = (int)(dwords[3 + offset] >> 12) & 0xf;
+	decoded.OutputSelect = (int)(dwords[3 + offset] >> 11) & 0x1;
+	decoded.OutputIndex = (int)(dwords[3 + offset] >> 3) & 0xff;
+	decoded.MultiplexerControl = (int)(dwords[3 + offset] >> 2) & 0x1;
+	decoded.Usea0x = (int)(dwords[3 + offset] >> 1) & 0x1;
+	decoded.EndOfProgram = (int)(dwords[3 + offset] >> 0) & 0x1;
+}
+
+int vertex_program_disassembler::disassemble_mask(int mask, char *s)
+{
+	int l;
+
+	*s = 0;
+	if (mask == 15)
+		return 0;
+	s[0] = '.';
+	l = 1;
+	if ((mask & 8) != 0) {
+		s[l] = 'x';
+		l++;
+	}
+	if ((mask & 4) != 0){
+		s[l] = 'y';
+		l++;
+	}
+	if ((mask & 2) != 0){
+		s[l] = 'z';
+		l++;
+	}
+	if ((mask & 1) != 0){
+		s[l] = 'w';
+		l++;
+	}
+	s[l] = 0;
+	return l;
+}
+
+int vertex_program_disassembler::disassemble_swizzle(sourcefields f, char *s)
+{
+	int t, l;
+
+	t = 4;
+	if (f.SwizzleW == 3)
+	{
+		t = t - 1;
+		if (f.SwizzleZ == 2)
+		{
+			t = t - 1;
+			if (f.SwizzleY == 1)
+			{
+				t = t - 1;
+				if (f.SwizzleX == 0)
+				{
+					t = t - 1;
+				}
+			}
+		}
+	}
+	*s = 0;
+	if (t == 0)
+		return 0;
+	s[0] = '.';
+	l = 1;
+	if (t > 0)
+	{
+		s[l] = compchar[f.SwizzleX];
+		l++;
+	}
+	if (t > 1)
+	{
+		s[l] = compchar[f.SwizzleY];
+		l++;
+	}
+	if (t > 2)
+	{
+		s[l] = compchar[f.SwizzleZ];
+		l++;
+	}
+	if (t > 3)
+	{
+		s[l] = compchar[f.SwizzleW];
+		l++;
+	}
+	s[l] = 0;
+	return l;
+}
+
+int vertex_program_disassembler::disassemble_source(sourcefields f, fields fi, char *s)
+{
+	int l;
+
+	if (f.ParameterType == 0) {
+		strcpy(s, ",???");
+		return 4;
+	}
+	l = 0;
+	if (f.Sign != 0) {
+		s[l] = '-';
+		l++;
+	}
+	if (f.ParameterType == 1) {
+		s[l] = 'r';
+		l = l + 1 + sprintf(s + l + 1, "%d", f.TempIndex);
+	}
+	else if (f.ParameterType == 2){
+		s[l] = 'v';
+		l = l + 1 + sprintf(s + l + 1, "%d", fi.InputIndex);
+	}
+	else
+	{
+		if (fi.Usea0x != 0)
+		{
+			if (fi.SourceConstantIndex >= 96) {
+				strcpy(s + l, "c[");
+				l = l + 2;
+				l = l + sprintf(s + l, "%d", fi.SourceConstantIndex - 96);
+				strcpy(s + l, "+a0.x]");
+				l = l + 6;
+			}
+			else {
+				strcpy(s + l, "c[a0.x");
+				l = l + 6;
+				l = l + sprintf(s + l, "%d", fi.SourceConstantIndex - 96);
+				s[l] = ']';
+				l++;
+			}
+		}
+		else {
+			strcpy(s + l, "c[");
+			l = l + 2;
+			l = l + sprintf(s + l, "%d", fi.SourceConstantIndex - 96);
+			s[l] = ']';
+			l++;
+		}
+	}
+	l = l + disassemble_swizzle(f, s + l);
+	s[l] = 0;
+	return l;
+}
+
+int vertex_program_disassembler::disassemble_output(fields f, char *s)
+{
+	int l;
+
+	if (f.OutputSelect == 1) {
+		strcpy(s, vecouts[f.OutputIndex]);
+		return strlen(s);
+	}
+	else {
+		strcpy(s, "c[");
+		l = 2;
+		l = l + sprintf(s + l, "%d", f.OutputIndex - 96);
+		s[l] = ']';
+		l++;
+	}
+	s[l] = 0;
+	return l;
+}
+
+int vertex_program_disassembler::output_types(fields f, int *o)
+{
+	o[0] = o[1] = o[2] = o[3] = o[4] = o[5] = 0;
+	if ((f.VecOperation > 0) && (f.VecTempWriteMask != 0))
+		o[0] = 1;
+	if ((f.VecOperation > 0) && (f.OutputWriteMask != 0) && (f.MultiplexerControl == 0))
+		o[1] = 1;
+	if ((f.ScaOperation > 0) && (f.OutputWriteMask != 0) && (f.MultiplexerControl == 1))
+		o[2] = 1;
+	if ((f.ScaOperation > 0) && (f.ScaTempWriteMask != 0))
+		o[3] = 1;
+	if (f.VecOperation == 13)
+		o[4] = 1;
+	if (f.EndOfProgram == 1)
+		o[5] = 1;
+	return o[0] + o[1] + o[2] + o[3] + o[4] + o[5];
+}
+
+int vertex_program_disassembler::disassemble(unsigned int *instruction, char *line)
+{
+	int b, p;
+	char *c;
+
+	if (state == 0) {
+		decodefields(instruction, 0, f);
+		output_types(f, o);
+		state = 1;
+	}
+	if (o[0] != 0)
+	{
+		o[0] = 0;
+		c = line;
+		strcpy(c, vecops[f.VecOperation]);
+		c = c + strlen(c);
+		strcpy(c, " r");
+		c = c + 2;
+		c = c + sprintf(c, "%d", f.VecTempIndex);
+		c = c + disassemble_mask(f.VecTempWriteMask, c);
+		b = 0;
+		for (p = 4; p != 0; p = p >> 1)
+		{
+			if ((vecpar2[f.VecOperation] & p) != 0) {
+				c[0] = ',';
+				c++;
+				c = c + disassemble_source(f.src[b], f, c);
+			}
+			b++;
+		}
+		*c = 0;
+		return 1;
+	}
+	if (o[1] != 0)
+	{
+		o[1] = 0;
+		c = line;
+		strcpy(c, vecops[f.VecOperation]);
+		c = c + strlen(c);
+		*c = ' ';
+		c++;
+		c = c + disassemble_output(f, c);
+		c = c + disassemble_mask(f.OutputWriteMask, c);
+		b = 0;
+		for (p = 4; p != 0; p = p >> 1)
+		{
+			if ((vecpar2[f.VecOperation] & p) != 0) {
+				*c = ',';
+				c++;
+				c = c + disassemble_source(f.src[b], f, c);
+			}
+			b++;
+		}
+		*c = 0;
+		return 1;
+	}
+	if (o[2] != 0)
+	{
+		o[2] = 0;
+		c = line;
+		strcpy(c, scaops[f.ScaOperation]);
+		c = c + strlen(c);
+		*c = ' ';
+		c++;
+		c = c + disassemble_output(f, c);
+		c = c + disassemble_mask(f.OutputWriteMask, c);
+		b = 0;
+		for (p = 4; p != 0; p = p >> 1)
+		{
+			if ((scapar2[f.ScaOperation] & p) != 0) {
+				*c = ',';
+				c++;
+				c = c + disassemble_source(f.src[b], f, c);
+			}
+			b++;
+		}
+		*c = 0;
+		return 1;
+	}
+	if (o[3] != 0)
+	{
+		if (f.VecOperation > 0)
+			b = 1;
+		else
+			b = f.VecTempIndex;
+		o[3] = 0;
+		c = line;
+		strcpy(c, scaops[f.ScaOperation]);
+		c = c + strlen(c);
+		strcpy(c, " r");
+		c = c + 2;
+		c = c + sprintf(c, "%d", b);
+		c = c + disassemble_mask(f.ScaTempWriteMask, c);
+		b = 0;
+		for (p = 4; p != 0; p = p >> 1)
+		{
+			if ((scapar2[f.ScaOperation] & p) != 0) {
+				*c = ',';
+				c++;
+				c = c + disassemble_source(f.src[b], f, c);
+			}
+			b++;
+		}
+		*c = 0;
+		return 1;
+	}
+	if (o[4] != 0)
+	{
+		o[4] = 0;
+		c = line;
+		c = c + sprintf(c, "MOV a0.x,");
+		c = c + disassemble_source(f.src[0], f, c);
+		*c = 0;
+		return 1;
+	}
+	if (o[5] != 0)
+	{
+		o[5] = 0;
+		strcpy(line, "END");
+		return 1;
+	}
+	state = 0;
+	return 0;
+}
 
 /*
  * geforce 3d (NV2A) accellerator
@@ -488,10 +975,10 @@ offset in ramht+4 contains in the lower 16 bits the offset in RAMIN divided by 1
 objects have methods used to do drawing
 most methods set parameters, others actually draw
 */
-class nv2a_renderer : public poly_manager<float, nvidia_object_data, 12, 6000>
+class nv2a_renderer : public poly_manager<float, nvidia_object_data, 12, 8192>
 {
 public:
-	nv2a_renderer(running_machine &machine) : poly_manager<float, nvidia_object_data, 12, 6000>(machine)
+	nv2a_renderer(running_machine &machine) : poly_manager<float, nvidia_object_data, 12, 8192>(machine)
 	{
 		memset(channel,0,sizeof(channel));
 		memset(pfifo,0,sizeof(pfifo));
@@ -505,7 +992,22 @@ public:
 		combiner.used=0;
 		combiner.lock=osd_lock_alloc();
 		enabled_vertex_attributes=0;
-		memset(words_vertex_attributes,0,sizeof(words_vertex_attributes));
+		indexesleft_count = 0;
+		vertex_pipeline = 4;
+		alpha_test_enabled = false;
+		alpha_reference = 0;
+		alpha_func = nv2a_renderer::ALWAYS;
+		blending_enabled = false;
+		blend_equation = nv2a_renderer::FUNC_ADD;
+		blend_color = 0;
+		blend_function_destination = nv2a_renderer::ZERO;
+		blend_function_source = nv2a_renderer::ONE;
+		logical_operation_enabled = false;
+		logical_operation = nv2a_renderer::COPY;
+		debug_grab_texttype = -1;
+		debug_grab_textfile = NULL;
+		memset(vertex_attribute_words, 0, sizeof(vertex_attribute_words));
+		memset(vertex_attribute_offset, 0, sizeof(vertex_attribute_offset));
 	}
 	DECLARE_READ32_MEMBER( geforce_r );
 	DECLARE_WRITE32_MEMBER( geforce_w );
@@ -521,6 +1023,7 @@ public:
 	void geforce_read_dma_object(UINT32 handle,UINT32 &offset,UINT32 &size);
 	void geforce_exec_method(address_space &space,UINT32 channel,UINT32 subchannel,UINT32 method,UINT32 address,int &countlen);
 	UINT32 texture_get_texel(int number,int x,int y);
+	void write_pixel(int x, int y, UINT32 color);
 	void combiner_initialize_registers(UINT32 argb8[6]);
 	void combiner_initialize_stage(int stage_number);
 	void combiner_initialize_final();
@@ -548,7 +1051,20 @@ public:
 	void computedilated(void);
 	void putpixtex(int xp,int yp,int up,int vp);
 	int toggle_register_combiners_usage();
+	void debug_grab_texture(int type, const char *filename);
+	void debug_grab_vertex_program_slot(int slot, UINT32 *instruction);
 	void savestate_items();
+
+	struct vertex {
+		union {
+			float fv[4];
+			UINT32 iv[4];
+		} attribute[16];
+	};
+	int read_vertices_0x1810(address_space & space, vertex *destination, int offset, int limit);
+	int read_vertices_0x1800(address_space & space, vertex *destination, UINT32 address, int limit);
+	int read_vertices_0x1818(address_space & space, vertex *destination, UINT32 address, int limit);
+	void convert_vertices_poly(vertex *source, vertex_t *destination, int count);
 
 	struct {
 		UINT32 regs[0x80/4];
@@ -562,6 +1078,10 @@ public:
 	UINT32 pcrtc[0x1000/4];
 	UINT32 pmc[0x1000/4];
 	UINT32 ramin[0x100000/4];
+	UINT32 dma_offset[2];
+	UINT32 dma_size[2];
+	UINT32 vertexbuffer_address[16];
+	int vertexbuffer_stride[16];
 	struct {
 		int enabled;
 		int sizeu;
@@ -572,6 +1092,10 @@ public:
 		int rectangle_pitch;
 		void *buffer;
 	} texture[4];
+	int primitives_count;
+	int indexesleft_count;
+	int indexesleft_first;
+	UINT32 indexesleft[8];
 	struct {
 		float variable_A[4]; // 0=R 1=G 2=B 3=A
 		float variable_B[4];
@@ -675,13 +1199,42 @@ public:
 		int used;
 		osd_lock *lock;
 	} combiner;
+	bool alpha_test_enabled;
+	int alpha_func;
+	int alpha_reference;
+	bool blending_enabled;
+	int blend_equation;
+	int blend_function_source;
+	int blend_function_destination;
+	UINT32 blend_color;
+	bool logical_operation_enabled;
+	int logical_operation;
+	struct {
+		float modelview[16];
+		float modelview_inverse[16];
+		float projection[16];
+		float translate[4];
+		float scale[4];
+	} matrix;
+	struct {
+		UINT32 instruction[1024];
+		int instructions;
+		int upload_instruction;
+		int start_instruction;
+		float parameter[1024];
+		int upload_parameter;
+	} vertexprogram;
+	int vertex_pipeline;
 	int enabled_vertex_attributes;
-	int words_vertex_attributes[16];
+	int vertex_attribute_words[16];
+	int vertex_attribute_offset[16];
 	bitmap_rgb32 fb;
 	UINT32 dilated0[16][2048];
 	UINT32 dilated1[16][2048];
 	int dilatechose[256];
 	nvidia_object_data *objectdata;
+	int debug_grab_texttype;
+	char *debug_grab_textfile;
 
 	enum NV2A_BEGIN_END {
 		STOP=0,
@@ -746,6 +1299,68 @@ public:
 		SIGNED_HILO8=0x45,
 		HILO8_RECT=0x46,
 		SIGNED_HILO8_RECT=0x47
+	};
+	enum NV2A_LOGIC_OP {
+		CLEAR=0x1500,
+		AND=0x1501,
+		AND_REVERSE=0x1502,
+		COPY=0x1503,
+		AND_INVERTED=0x1504,
+		NOOP=0x1505,
+		XOR=0x1506,
+		OR=0x1507,
+		NOR=0x1508,
+		EQUIV=0x1509,
+		INVERT=0x150a,
+		OR_REVERSE=0x150b,
+		COPY_INVERTED=0x150c,
+		OR_INVERTED=0x150d,
+		NAND=0x150e,
+		SET=0x150f
+	};
+	enum NV2A_BLEND_EQUATION {
+		FUNC_ADD=0x8006,
+		MIN=0x8007,
+		MAX=0x8008,
+		FUNC_SUBTRACT=0x800a,
+		FUNC_REVERSE_SUBTRACT=0x80b
+	};
+	enum NV2A_BLEND_FACTOR {
+		ZERO=0x0000,
+		ONE=0x0001,
+		SRC_COLOR=0x0300,
+		ONE_MINUS_SRC_COLOR=0x0301,
+		SRC_ALPHA=0x0302,
+		ONE_MINUS_SRC_ALPHA=0x0303,
+		DST_ALPHA=0x0304,
+		ONE_MINUS_DST_ALPHA=0x0305,
+		DST_COLOR=0x0306,
+		ONE_MINUS_DST_COLOR=0x0307,
+		SRC_ALPHA_SATURATE=0x0308,
+		CONSTANT_COLOR=0x8001,
+		ONE_MINUS_CONSTANT_COLOR=0x8002,
+		CONSTANT_ALPHA=0x8003,
+		ONE_MINUS_CONSTANT_ALPHA=0x8004
+	};
+	enum NV2A_COMPARISON_OP {
+		NEVER=0x0200,
+		LESS=0x0201,
+		EQUAL=0x0202,
+		LEQUAL=0x0203,
+		GREATER=0x0204,
+		NOTEQUAL=0x0205,
+		GEQUAL=0x0206,
+		ALWAYS=0x0207
+	};
+	enum NV2A_STENCIL_OP {
+		ZEROOP=0x0000,
+		INVERTOP=0x150a,
+		KEEP=0x1e00,
+		REPLACE=0x1e01,
+		INCR=0x1e02,
+		DECR=0x1e03,
+		INCR_WRAP=0x8507,
+		DECR_WRAP=0x8508
 	};
 };
 
@@ -863,7 +1478,8 @@ static void jamtable_disasm(running_machine &machine, address_space &space,UINT3
 
 static void jamtable_disasm_command(running_machine &machine, int ref, int params, const char **param)
 {
-	address_space &space=machine.firstcpu->space();
+	chihiro_state *state = machine.driver_data<chihiro_state>();
+	address_space &space=state->m_maincpu->space();
 	UINT64  addr,size;
 
 	if (params < 2)
@@ -877,7 +1493,8 @@ static void jamtable_disasm_command(running_machine &machine, int ref, int param
 
 static void dump_string_command(running_machine &machine, int ref, int params, const char **param)
 {
-	address_space &space=machine.firstcpu->space();
+	chihiro_state *state = machine.driver_data<chihiro_state>();
+	address_space &space=state->m_maincpu->space();
 	UINT64  addr;
 	offs_t address;
 	UINT32 length,maximumlength;
@@ -916,7 +1533,8 @@ static void dump_string_command(running_machine &machine, int ref, int params, c
 
 static void dump_process_command(running_machine &machine, int ref, int params, const char **param)
 {
-	address_space &space=machine.firstcpu->space();
+	chihiro_state *state = machine.driver_data<chihiro_state>();
+	address_space &space=state->m_maincpu->space();
 	UINT64 addr;
 	offs_t address;
 
@@ -942,7 +1560,8 @@ static void dump_process_command(running_machine &machine, int ref, int params, 
 
 static void dump_list_command(running_machine &machine, int ref, int params, const char **param)
 {
-	address_space &space=machine.firstcpu->space();
+	chihiro_state *state = machine.driver_data<chihiro_state>();
+	address_space &space=state->m_maincpu->space();
 	UINT64 addr,offs,start,old;
 	offs_t address,offset;
 
@@ -989,14 +1608,13 @@ static void dump_list_command(running_machine &machine, int ref, int params, con
 
 static void curthread_command(running_machine &machine, int ref, int params, const char **param)
 {
-	address_space &space=machine.firstcpu->space();
+	chihiro_state *state = machine.driver_data<chihiro_state>();
+	address_space &space=state->m_maincpu->space();
 	UINT64 fsbase;
 	UINT32 kthrd,topstack,tlsdata;
 	offs_t address;
-	cpuinfo cpu_info;
 
-	CPU_GET_INFO_NAME(i386)((legacy_cpu_device *)machine.firstcpu,CPUINFO_INT_REGISTER + 44,&cpu_info);
-	fsbase=cpu_info.i;
+	fsbase = state->m_maincpu->state_int(44);
 	address=(offs_t)fsbase+0x28;
 	if (!debug_cpu_translate(space,TRANSLATE_READ_DEBUG,&address))
 	{
@@ -1051,6 +1669,80 @@ static void nv2a_combiners_command(running_machine &machine, int ref, int params
 		debug_console_printf(machine,"Register combiners disabled\n");
 }
 
+static void grab_texture_command(running_machine &machine, int ref, int params, const char **param)
+{
+	UINT64 type;
+	chihiro_state *chst = machine.driver_data<chihiro_state>();
+
+	if (params < 2)
+		return;
+	if (!debug_command_parameter_number(machine, param[0], &type))
+		return;
+	if ((param[1][0] == 0) || (strlen(param[1]) > 127))
+		return;
+	chst->nvidia_nv2a->debug_grab_texture((int)type,param[1]);
+}
+
+static void grab_vprog_command(running_machine &machine, int ref, int params, const char **param)
+{
+	chihiro_state *chst = machine.driver_data<chihiro_state>();
+	UINT32 instruction[4];
+	FILE *fil;
+
+	if (params < 1)
+		return;
+	if ((param[0][0] == 0) || (strlen(param[0]) > 127))
+		return;
+	if ((fil = fopen(param[0], "wb")) == NULL)
+		return;
+	for (int n = 0; n < 136; n++) {
+		chst->nvidia_nv2a->debug_grab_vertex_program_slot(n, instruction);
+		fwrite(instruction, sizeof(UINT32), 4, fil);
+	}
+	fclose(fil);
+}
+
+static void vprogdis_command(running_machine &machine, int ref, int params, const char **param)
+{
+	UINT64 address, length, type;
+	UINT32 instruction[4];
+	offs_t addr;
+	vertex_program_disassembler vd;
+	char line[64];
+	chihiro_state *chst = machine.driver_data<chihiro_state>();
+	address_space &space = chst->m_maincpu->space();
+
+	if (params < 2)
+		return;
+	if (!debug_command_parameter_number(machine, param[0], &address))
+		return;
+	if (!debug_command_parameter_number(machine, param[1], &length))
+		return;
+	type = 0;
+	if (params > 2)
+		if (!debug_command_parameter_number(machine, param[2], &type))
+			return;
+	while (length > 0) {
+		if (type == 1) {
+			addr = (offs_t)address;
+			if (!debug_cpu_translate(space, TRANSLATE_READ_DEBUG, &addr))
+				return;
+			instruction[0] = space.read_dword_unaligned(address);
+			instruction[1] = space.read_dword_unaligned(address+4);
+			instruction[2] = space.read_dword_unaligned(address+8);
+			instruction[3] = space.read_dword_unaligned(address+12);
+		} else
+			chst->nvidia_nv2a->debug_grab_vertex_program_slot((int)address, instruction);
+		while (vd.disassemble(instruction, line) != 0)
+			debug_console_printf(machine, "%s\n", line);
+		if (type == 1)
+			address = address + 4 * 4;
+		else
+			address++;
+		length--;
+	}
+}
+
 static void help_command(running_machine &machine, int ref, int params, const char **param)
 {
 	debug_console_printf(machine,"Available Chihiro commands:\n");
@@ -1061,6 +1753,9 @@ static void help_command(running_machine &machine, int ref, int params, const ch
 	debug_console_printf(machine,"  chihiro curthread -- Print information about current thread\n");
 	debug_console_printf(machine,"  chihiro irq,<number> -- Generate interrupt with irq number 0-15\n");
 	debug_console_printf(machine,"  chihiro nv2a_combiners -- Toggle use of register combiners\n");
+	debug_console_printf(machine,"  chihiro grab_texture,<type>,<filename> -- Save to <filename> the next used texture of type <type>\n");
+	debug_console_printf(machine,"  chihiro grab_vprog,<filename> -- save current vertex program instruction slots to <filename>\n");
+	debug_console_printf(machine,"  chihiro vprogdis,<address>,<length>[,<type>] -- disassemble <lenght> vertex program instructions at <address> of <type>\n");
 	debug_console_printf(machine,"  chihiro help -- this list\n");
 }
 
@@ -1082,6 +1777,12 @@ static void chihiro_debug_commands(running_machine &machine, int ref, int params
 		generate_irq_command(machine,ref,params-1,param+1);
 	else if (strcmp("nv2a_combiners",param[0]) == 0)
 		nv2a_combiners_command(machine,ref,params-1,param+1);
+	else if (strcmp("grab_texture", param[0]) == 0)
+		grab_texture_command(machine, ref, params - 1, param + 1);
+	else if (strcmp("grab_vprog", param[0]) == 0)
+		grab_vprog_command(machine, ref, params - 1, param + 1);
+	else if (strcmp("vprogdis", param[0]) == 0)
+		vprogdis_command(machine, ref, params - 1, param + 1);
 	else
 		help_command(machine,ref,params-1,param+1);
 }
@@ -1163,6 +1864,7 @@ UINT32 nv2a_renderer::geforce_object_offset(UINT32 handle)
 	UINT32 o=(pfifo[0x210/4] & 0x1f) << 8; // or 12 ?
 	UINT32 e=o+h*8; // at 0xfd000000+0x00700000
 	UINT32 w;
+
 	if (ramin[e/4] != handle)
 		e=0;
 	w=ramin[e/4+1];
@@ -1215,7 +1917,7 @@ void nv2a_renderer::geforce_read_dma_object(UINT32 handle,UINT32 &offset,UINT32 
     }
 }*/
 
-UINT32 convert_a4r4g4b4_a8r8g8b8(UINT32 a4r4g4b4)
+inline UINT32 convert_a4r4g4b4_a8r8g8b8(UINT32 a4r4g4b4)
 {
 	UINT32 a8r8g8b8;
 	int ca,cr,cg,cb;
@@ -1228,7 +1930,7 @@ UINT32 convert_a4r4g4b4_a8r8g8b8(UINT32 a4r4g4b4)
 	return a8r8g8b8;
 }
 
-UINT32 convert_a1r5g5b5_a8r8g8b8(UINT32 a1r5g5b5)
+inline UINT32 convert_a1r5g5b5_a8r8g8b8(UINT32 a1r5g5b5)
 {
 	UINT32 a8r8g8b8;
 	int ca,cr,cg,cb;
@@ -1241,7 +1943,7 @@ UINT32 convert_a1r5g5b5_a8r8g8b8(UINT32 a1r5g5b5)
 	return a8r8g8b8;
 }
 
-UINT32 convert_r5g6b5_r8g8b8(UINT32 r5g6b5)
+inline UINT32 convert_r5g6b5_r8g8b8(UINT32 r5g6b5)
 {
 	UINT32 r8g8b8;
 	int cr,cg,cb;
@@ -1255,119 +1957,559 @@ UINT32 convert_r5g6b5_r8g8b8(UINT32 r5g6b5)
 
 UINT32 nv2a_renderer::texture_get_texel(int number,int x,int y)
 {
-	UINT32 to,s,c,sa,ca;
-	UINT32 a4r4g4b4,a1r5g5b5,r5g6b5;
-	int bx,by;
-	int color0,color1,color0m2,color1m2;
+	UINT32 to, s, c, sa, ca;
+	UINT32 a4r4g4b4, a1r5g5b5, r5g6b5;
+	int bx, by;
+	int color0, color1, color0m2, color1m2, alpha0, alpha1;
 	UINT32 codes;
 	UINT64 alphas;
-	int cr,cg,cb;
+	int cr, cg, cb;
 
+	// force to [0,size-1]
+	x = (unsigned int)x & (texture[number].sizeu - 1);
+	y = (unsigned int)y & (texture[number].sizev - 1);
 	switch (texture[number].format) {
-		case A8R8G8B8:
-			to=dilated0[texture[number].dilate][x]+dilated1[texture[number].dilate][y]; // offset of texel in texture memory
-			return *(((UINT32 *)texture[number].buffer)+to); // get texel color
-		case DXT1:
-			bx=x >> 2;
-			by=y >> 2;
-			x=x & 3;
-			y=y & 3;
-			//to=dilated0[texture[number].dilate][bx]+dilated1[texture[number].dilate][by]; // swizzle 4x4 blocks ?
-			to=bx+by*(texture[number].sizeu >> 2);
-			color0=*((UINT16 *)(((UINT64 *)texture[number].buffer)+to)+0);
-			color1=*((UINT16 *)(((UINT64 *)texture[number].buffer)+to)+1);
-			codes=*((UINT32 *)(((UINT64 *)texture[number].buffer)+to)+1);
-			s=(y << 3)+(x << 1);
-			c=(codes >> s) & 3;
-			c=c+(color0 > color1 ? 0 : 4);
-			color0m2=color0 << 1;
-			color1m2=color1 << 1;
-			switch (c) {
-				case 0:
-					return 0xff000000+convert_r5g6b5_r8g8b8(color0);
-					break;
-				case 1:
-					return 0xff000000+convert_r5g6b5_r8g8b8(color1);
-					break;
-				case 2:
-					cb=pal5bit(((color0m2 & 0x003e)+(color1 & 0x001f))/3);
-					cg=pal6bit(((color0m2 & 0x0fc0)+(color1 & 0x07e0))/3 >> 5);
-					cr=pal5bit(((color0m2 & 0x1f000)+color1)/3 >> 11);
-					return 0xff000000|(cr<<16)|(cg<<8)|(cb);
-					break;
-				case 3:
-					cb=pal5bit(((color1m2 & 0x003e)+(color0 & 0x001f))/3);
-					cg=pal6bit(((color1m2 & 0x0fc0)+(color0 & 0x07e0))/3 >> 5);
-					cr=pal5bit(((color1m2 & 0x1f000)+color0)/3 >> 11);
-					return 0xff000000|(cr<<16)|(cg<<8)|(cb);
-					break;
-				case 4:
-					return 0xff000000+convert_r5g6b5_r8g8b8(color0);
-					break;
-				case 5:
-					return 0xff000000+convert_r5g6b5_r8g8b8(color1);
-					break;
-				case 6:
-					cb=pal5bit(((color0 & 0x001f)+(color1 & 0x001f))/2);
-					cg=pal6bit(((color0 & 0x07e0)+(color1 & 0x07e0))/2 >> 5);
-					cr=pal5bit((color0+color1)/2 >> 11);
-					return 0xff000000|(cr<<16)|(cg<<8)|(cb);
-					break;
-				default:
-					return 0xff000000;
-					break;
-			}
-		case DXT3:
-			bx=x >> 2;
-			by=y >> 2;
-			x=x & 3;
-			y=y & 3;
-			//to=(dilated0[texture[number].dilate][bx]+dilated1[texture[number].dilate][by]) << 1; // swizzle 4x4 blocks ?
-			to=(bx+by*(texture[number].sizeu >> 2)) << 1;
-			color0=*((UINT16 *)(((UINT64 *)texture[number].buffer)+to)+4);
-			color1=*((UINT16 *)(((UINT64 *)texture[number].buffer)+to)+5);
-			codes=*((UINT32 *)(((UINT64 *)texture[number].buffer)+to)+3);
-			alphas=*(((UINT64 *)texture[number].buffer)+to);
-			s=(y << 3)+(x << 1);
-			sa=((y << 2)+x) << 2;
-			c=(codes >> s) & 3;
-			ca=(alphas >> sa) & 15;
-			switch (c) {
-				case 0:
-					return ((ca+(ca << 4)) << 24)+convert_r5g6b5_r8g8b8(color0);
-					break;
-				case 1:
-					return ((ca+(ca << 4)) << 24)+convert_r5g6b5_r8g8b8(color1);
-					break;
-				case 2:
-					cb=pal5bit(((color0 & 0x001f)+(color1 & 0x001f))/2);
-					cg=pal6bit(((color0 & 0x07e0)+(color1 & 0x07e0))/2 >> 5);
-					cr=pal5bit((color0+color1)/2 >> 11);
-					return ((ca+(ca << 4)) << 24)|(cr<<16)|(cg<<8)|(cb);
-					break;
-				default:
-					return (ca+(ca << 4)) << 24;
-					break;
-			}
+	case A8R8G8B8:
+		to = dilated0[texture[number].dilate][x] + dilated1[texture[number].dilate][y]; // offset of texel in texture memory
+		return *(((UINT32 *)texture[number].buffer) + to); // get texel color
+	case DXT1:
+		bx = x >> 2;
+		by = y >> 2;
+		x = x & 3;
+		y = y & 3;
+		to = bx + by*(texture[number].sizeu >> 2);
+		color0 = *((UINT16 *)(((UINT64 *)texture[number].buffer) + to) + 0);
+		color1 = *((UINT16 *)(((UINT64 *)texture[number].buffer) + to) + 1);
+		codes = *((UINT32 *)(((UINT64 *)texture[number].buffer) + to) + 1);
+		s = (y << 3) + (x << 1);
+		c = (codes >> s) & 3;
+		c = c + (color0 > color1 ? 0 : 4);
+		color0m2 = color0 << 1;
+		color1m2 = color1 << 1;
+		switch (c) {
+		case 0:
+			return 0xff000000 + convert_r5g6b5_r8g8b8(color0);
 			break;
-		case A4R4G4B4:
-			to=dilated0[texture[number].dilate][x]+dilated1[texture[number].dilate][y]; // offset of texel in texture memory
-			a4r4g4b4=*(((UINT16 *)texture[number].buffer)+to); // get texel color
-			return convert_a4r4g4b4_a8r8g8b8(a4r4g4b4);
-		case A1R5G5B5:
-			to=dilated0[texture[number].dilate][x]+dilated1[texture[number].dilate][y]; // offset of texel in texture memory
-			a1r5g5b5=*(((UINT16 *)texture[number].buffer)+to); // get texel color
-			return convert_a1r5g5b5_a8r8g8b8(a1r5g5b5);
-		case R5G6B5:
-			to=dilated0[texture[number].dilate][x]+dilated1[texture[number].dilate][y]; // offset of texel in texture memory
-			r5g6b5=*(((UINT16 *)texture[number].buffer)+to); // get texel color
-			return 0xff000000+convert_r5g6b5_r8g8b8(r5g6b5);
-		case R8G8B8_RECT:
-			to=texture[number].rectangle_pitch*y+(x << 2);
-			return *((UINT32 *)(((UINT8 *)texture[number].buffer)+to));
+		case 1:
+			return 0xff000000 + convert_r5g6b5_r8g8b8(color1);
+			break;
+		case 2:
+			cb = pal5bit(((color0m2 & 0x003e) + (color1 & 0x001f)) / 3);
+			cg = pal6bit(((color0m2 & 0x0fc0) + (color1 & 0x07e0)) / 3 >> 5);
+			cr = pal5bit(((color0m2 & 0x1f000) + color1) / 3 >> 11);
+			return 0xff000000 | (cr << 16) | (cg << 8) | (cb);
+			break;
+		case 3:
+			cb = pal5bit(((color1m2 & 0x003e) + (color0 & 0x001f)) / 3);
+			cg = pal6bit(((color1m2 & 0x0fc0) + (color0 & 0x07e0)) / 3 >> 5);
+			cr = pal5bit(((color1m2 & 0x1f000) + color0) / 3 >> 11);
+			return 0xff000000 | (cr << 16) | (cg << 8) | (cb);
+			break;
+		case 4:
+			return 0xff000000 + convert_r5g6b5_r8g8b8(color0);
+			break;
+		case 5:
+			return 0xff000000 + convert_r5g6b5_r8g8b8(color1);
+			break;
+		case 6:
+			cb = pal5bit(((color0 & 0x001f) + (color1 & 0x001f)) / 2);
+			cg = pal6bit(((color0 & 0x07e0) + (color1 & 0x07e0)) / 2 >> 5);
+			cr = pal5bit(((color0 & 0xf800) + (color1 & 0xf800)) / 2 >> 11);
+			return 0xff000000 | (cr << 16) | (cg << 8) | (cb);
+			break;
 		default:
-			return 0xff00ff00;
+			return 0xff000000;
+			break;
+		}
+	case DXT3:
+		bx = x >> 2;
+		by = y >> 2;
+		x = x & 3;
+		y = y & 3;
+		to = (bx + by*(texture[number].sizeu >> 2)) << 1;
+		color0 = *((UINT16 *)(((UINT64 *)texture[number].buffer) + to) + 4);
+		color1 = *((UINT16 *)(((UINT64 *)texture[number].buffer) + to) + 5);
+		codes = *((UINT32 *)(((UINT64 *)texture[number].buffer) + to) + 3);
+		alphas = *(((UINT64 *)texture[number].buffer) + to);
+		s = (y << 3) + (x << 1);
+		sa = ((y << 2) + x) << 2;
+		c = (codes >> s) & 3;
+		ca = (alphas >> sa) & 15;
+		switch (c) {
+		case 0:
+			return ((ca + (ca << 4)) << 24) + convert_r5g6b5_r8g8b8(color0);
+			break;
+		case 1:
+			return ((ca + (ca << 4)) << 24) + convert_r5g6b5_r8g8b8(color1);
+			break;
+		case 2:
+			cb = pal5bit((2 * (color0 & 0x001f) + (color1 & 0x001f)) / 3);
+			cg = pal6bit((2 * (color0 & 0x07e0) + (color1 & 0x07e0)) / 3 >> 5);
+			cr = pal5bit((2 * (color0 & 0xf800) + (color1 & 0xf800)) / 3 >> 11);
+			return ((ca + (ca << 4)) << 24) | (cr << 16) | (cg << 8) | (cb);
+			break;
+		default:
+			cb = pal5bit(((color0 & 0x001f) + 2 * (color1 & 0x001f)) / 3);
+			cg = pal6bit(((color0 & 0x07e0) + 2 * (color1 & 0x07e0)) / 3 >> 5);
+			cr = pal5bit(((color0 & 0xf800) + 2 * (color1 & 0xf800)) / 3 >> 11);
+			return ((ca + (ca << 4)) << 24) | (cr << 16) | (cg << 8) | (cb);
+			break;
+		}
+		break;
+	case A4R4G4B4:
+		to = dilated0[texture[number].dilate][x] + dilated1[texture[number].dilate][y]; // offset of texel in texture memory
+		a4r4g4b4 = *(((UINT16 *)texture[number].buffer) + to); // get texel color
+		return convert_a4r4g4b4_a8r8g8b8(a4r4g4b4);
+	case A1R5G5B5:
+		to = dilated0[texture[number].dilate][x] + dilated1[texture[number].dilate][y]; // offset of texel in texture memory
+		a1r5g5b5 = *(((UINT16 *)texture[number].buffer) + to); // get texel color
+		return convert_a1r5g5b5_a8r8g8b8(a1r5g5b5);
+	case R5G6B5:
+		to = dilated0[texture[number].dilate][x] + dilated1[texture[number].dilate][y]; // offset of texel in texture memory
+		r5g6b5 = *(((UINT16 *)texture[number].buffer) + to); // get texel color
+		return 0xff000000 + convert_r5g6b5_r8g8b8(r5g6b5);
+	case R8G8B8_RECT:
+		to = texture[number].rectangle_pitch*y + (x << 2);
+		return *((UINT32 *)(((UINT8 *)texture[number].buffer) + to));
+	case A8R8G8B8_RECT:
+		to = texture[number].rectangle_pitch*y + (x << 2);
+		return *((UINT32 *)(((UINT8 *)texture[number].buffer) + to));
+	case DXT5:
+		bx = x >> 2;
+		by = y >> 2;
+		x = x & 3;
+		y = y & 3;
+		to = (bx + by*(texture[number].sizeu >> 2)) << 1;
+		color0 = *((UINT16 *)(((UINT64 *)texture[number].buffer) + to) + 4);
+		color1 = *((UINT16 *)(((UINT64 *)texture[number].buffer) + to) + 5);
+		codes = *((UINT32 *)(((UINT64 *)texture[number].buffer) + to) + 3);
+		alpha0 = *((UINT8 *)(((UINT64 *)texture[number].buffer) + to) + 0);
+		alpha1 = *((UINT8 *)(((UINT64 *)texture[number].buffer) + to) + 1);
+		alphas = *(((UINT64 *)texture[number].buffer) + to);
+		s = (y << 3) + (x << 1);
+		sa = ((y << 2) + x) * 3;
+		c = (codes >> s) & 3;
+		ca = (alphas >> sa) & 7;
+		ca = ca + (alpha0 > alpha1 ? 0 : 8);
+		switch (ca) {
+		case 0:
+			ca = alpha0;
+			break;
+		case 1:
+			ca = alpha1;
+			break;
+		case 2:
+			ca = (6 * alpha0 + 1 * alpha1) / 7;
+			break;
+		case 3:
+			ca = (5 * alpha0 + 2 * alpha1) / 7;
+			break;
+		case 4:
+			ca = (4 * alpha0 + 3 * alpha1) / 7;
+			break;
+		case 5:
+			ca = (3 * alpha0 + 4 * alpha1) / 7;
+			break;
+		case 6:
+			ca = (2 * alpha0 + 5 * alpha1) / 7;
+			break;
+		case 7:
+			ca = (1 * alpha0 + 6 * alpha1) / 7;
+			break;
+		case 8:
+			ca = alpha0;
+			break;
+		case 9:
+			ca = alpha1;
+			break;
+		case 10:
+			ca = (4 * alpha0 + 1 * alpha1) / 5;
+			break;
+		case 11:
+			ca = (3 * alpha0 + 2 * alpha1) / 5;
+			break;
+		case 12:
+			ca = (2 * alpha0 + 3 * alpha1) / 5;
+			break;
+		case 13:
+			ca = (1 * alpha0 + 4 * alpha1) / 5;
+			break;
+		case 14:
+			ca = 0;
+			break;
+		case 15:
+			ca = 255;
+			break;
+		}
+		switch (c) {
+		case 0:
+			return (ca << 24) + convert_r5g6b5_r8g8b8(color0);
+			break;
+		case 1:
+			return (ca << 24) + convert_r5g6b5_r8g8b8(color1);
+			break;
+		case 2:
+			cb = pal5bit((2 * (color0 & 0x001f) + (color1 & 0x001f)) / 3);
+			cg = pal6bit((2 * (color0 & 0x07e0) + (color1 & 0x07e0)) / 3 >> 5);
+			cr = pal5bit((2 * (color0 & 0xf800) + (color1 & 0xf800)) / 3 >> 11);
+			return (ca << 24) | (cr << 16) | (cg << 8) | (cb);
+			break;
+		default:
+			cb = pal5bit(((color0 & 0x001f) + 2 * (color1 & 0x001f)) / 3);
+			cg = pal6bit(((color0 & 0x07e0) + 2 * (color1 & 0x07e0)) / 3 >> 5);
+			cr = pal5bit(((color0 & 0xf800) + 2 * (color1 & 0xf800)) / 3 >> 11);
+			return (ca << 24) | (cr << 16) | (cg << 8) | (cb);
+			break;
+		}
+	default:
+		return 0xff00ff00;
 	}
+}
+
+void nv2a_renderer::write_pixel(int x, int y, UINT32 color)
+{
+	void *addr;
+	UINT32 fbcolor;
+	UINT32 c[4], fb[4], s[4], d[4], cc[4];
+
+	addr = this->fb.raw_pixptr(y, x);
+	fbcolor = *((UINT32 *)addr);
+	c[3] = color >> 24;
+	c[2] = (color >> 16) & 255;
+	c[1] = (color >> 8) & 255;
+	c[0] = color & 255;
+	fb[3] = fbcolor >> 24;
+	fb[2] = (fbcolor >> 16) & 255;
+	fb[1] = (fbcolor >> 8) & 255;
+	fb[0] = fbcolor & 255;
+	cc[3] = blend_color >> 24;
+	cc[2] = (blend_color >> 16) & 255;
+	cc[1] = (blend_color >> 8) & 255;
+	cc[0] = blend_color & 255;
+	// ownership test and scissor test not done
+	// alpha test
+	if (alpha_test_enabled) {
+		switch (alpha_func) {
+		case nv2a_renderer::NEVER:
+			return;
+			break;
+		case nv2a_renderer::ALWAYS:
+		default:
+			break;
+		case nv2a_renderer::LESS:
+			if (c[3] >= alpha_reference)
+				return;
+			break;
+		case nv2a_renderer::LEQUAL:
+			if (c[3] > alpha_reference)
+				return;
+			break;
+		case nv2a_renderer::EQUAL:
+			if (c[3] != alpha_reference)
+				return;
+			break;
+		case nv2a_renderer::GEQUAL:
+			if (c[3] < alpha_reference)
+				return;
+			break;
+		case nv2a_renderer::GREATER:
+			if (c[3] <= alpha_reference)
+				return;
+			break;
+		case nv2a_renderer::NOTEQUAL:
+			if (c[3] == alpha_reference)
+				return;
+			break;
+		}
+	}
+	// stencil test not done
+	// depth buffer test not done
+	// blending
+	if (blending_enabled) {
+		switch (blend_function_source) {
+		case nv2a_renderer::ZERO:
+			s[3] = s[2] = s[1] = s[0] = 0;
+			break;
+		case nv2a_renderer::ONE:
+		default:
+			s[3] = s[2] = s[1] = s[0] = 255;
+			break;
+		case nv2a_renderer::DST_COLOR:
+			s[3] = fb[3];
+			s[2] = fb[2];
+			s[1] = fb[1];
+			s[0] = fb[0];
+			break;
+		case nv2a_renderer::ONE_MINUS_DST_COLOR:
+			s[3] = fb[3] ^ 255;
+			s[2] = fb[2] ^ 255;
+			s[1] = fb[1] ^ 255;
+			s[0] = fb[0] ^ 255;
+			break;
+		case nv2a_renderer::SRC_ALPHA:
+			s[3] = s[2] = s[1] = s[0] = c[3];
+			break;
+		case nv2a_renderer::ONE_MINUS_SRC_ALPHA:
+			s[3] = s[2] = s[1] = s[0] = c[3] ^ 255;
+			break;
+		case nv2a_renderer::DST_ALPHA:
+			s[3] = s[2] = s[1] = s[0] = fb[3];
+			break;
+		case nv2a_renderer::ONE_MINUS_DST_ALPHA:
+			s[3] = s[2] = s[1] = s[0] = fb[3] ^ 255;
+			break;
+		case nv2a_renderer::CONSTANT_COLOR:
+			s[3] = cc[3];
+			s[2] = cc[2];
+			s[1] = cc[1];
+			s[0] = cc[0];
+			break;
+		case nv2a_renderer::ONE_MINUS_CONSTANT_COLOR:
+			s[3] = cc[3] ^ 255;
+			s[2] = cc[2] ^ 255;
+			s[1] = cc[1] ^ 255;
+			s[0] = cc[0] ^ 255;
+			break;
+		case nv2a_renderer::CONSTANT_ALPHA:
+			s[3] = s[2] = s[1] = s[0] = cc[3];
+			break;
+		case nv2a_renderer::ONE_MINUS_CONSTANT_ALPHA:
+			s[3] = s[2] = s[1] = s[0] = cc[3] ^ 255;
+			break;
+		case nv2a_renderer::SRC_ALPHA_SATURATE:
+			s[3] = 255;
+			if (c[3] < (fb[3] ^ 255))
+				s[2] = c[3];
+			else
+				s[2] = fb[3];
+			s[1] = s[0] = s[2];
+			break;
+		}
+		switch (blend_function_destination) {
+		case nv2a_renderer::ZERO:
+		default:
+			d[3] = d[2] = d[1] = d[0] = 0;
+			break;
+		case nv2a_renderer::ONE:
+			d[3] = d[2] = d[1] = d[0] = 255;
+			break;
+		case nv2a_renderer::SRC_COLOR:
+			d[3] = c[3];
+			d[2] = c[2];
+			d[1] = c[1];
+			d[0] = c[0];
+			break;
+		case nv2a_renderer::ONE_MINUS_SRC_COLOR:
+			d[3] = c[3] ^ 255;
+			d[2] = c[2] ^ 255;
+			d[1] = c[1] ^ 255;
+			d[0] = c[0] ^ 255;
+			break;
+		case nv2a_renderer::SRC_ALPHA:
+			d[3] = d[2] = d[1] = d[0] = c[3];
+			break;
+		case nv2a_renderer::ONE_MINUS_SRC_ALPHA:
+			d[3] = d[2] = d[1] = d[0] = c[3] ^ 255;
+			break;
+		case nv2a_renderer::DST_ALPHA:
+			d[3] = d[2] = d[1] = d[0] = fb[3];
+			break;
+		case nv2a_renderer::ONE_MINUS_DST_ALPHA:
+			d[3] = d[2] = d[1] = d[0] = fb[3] ^ 255;
+			break;
+		case nv2a_renderer::CONSTANT_COLOR:
+			d[3] = cc[3];
+			d[2] = cc[2];
+			d[1] = cc[1];
+			d[0] = cc[0];
+			break;
+		case nv2a_renderer::ONE_MINUS_CONSTANT_COLOR:
+			d[3] = cc[3] ^ 255;
+			d[2] = cc[2] ^ 255;
+			d[1] = cc[1] ^ 255;
+			d[0] = cc[0] ^ 255;
+			break;
+		case nv2a_renderer::CONSTANT_ALPHA:
+			d[3] = d[2] = d[1] = d[0] = cc[3];
+			break;
+		case nv2a_renderer::ONE_MINUS_CONSTANT_ALPHA:
+			d[3] = d[2] = d[1] = d[0] = cc[3] ^ 255;
+			break;
+		}
+		switch (blend_equation) {
+		case nv2a_renderer::FUNC_ADD:
+			c[3] = (c[3]*s[3] + fb[3]*d[3]) / 255;
+			if (c[3] > 255)
+				c[3] = 255;
+			c[2] = (c[2]*s[2] + fb[2]*d[2]) / 255;
+			if (c[2] > 255)
+				c[2] = 255;
+			c[1] = (c[1]*s[1] + fb[1]*d[1]) / 255;
+			if (c[1] > 255)
+				c[1] = 255;
+			c[0] = (c[0]*s[0] + fb[0]*d[0]) / 255;
+			if (c[0] > 255)
+				c[0] = 255;
+			break;
+		case nv2a_renderer::FUNC_SUBTRACT:
+			c[3] = (c[3]*s[3] - fb[3]*d[3]) / 255;
+			if (c[3] < 0)
+				c[3] = 255;
+			c[2] = (c[2]*s[2] - fb[2]*d[2]) / 255;
+			if (c[2] < 0)
+				c[2] = 255;
+			c[1] = (c[1]*s[1] - fb[1]*d[1]) / 255;
+			if (c[1] < 0)
+				c[1] = 255;
+			c[0] = (c[0]*s[0] - fb[0]*d[0]) / 255;
+			if (c[0] < 0)
+				c[0] = 255;
+			break;
+		case nv2a_renderer::FUNC_REVERSE_SUBTRACT:
+			c[3] = (fb[3] * d[3] - c[3] * s[3]) / 255;
+			if (c[3] < 0)
+				c[3] = 255;
+			c[2] = (fb[2] * d[2] - c[2] * s[2]) / 255;
+			if (c[2] < 0)
+				c[2] = 255;
+			c[1] = (fb[1] * d[1] - c[1] * s[1]) / 255;
+			if (c[1] < 0)
+				c[1] = 255;
+			c[0] = (fb[0] * d[0] - c[0] * s[0]) / 255;
+			if (c[0] < 0)
+				c[0] = 255;
+			break;
+		case nv2a_renderer::MIN:
+			c[3] = s[3];
+			if (d[3] < c[3])
+				c[3] = d[3];
+			c[2] = s[2];
+			if (d[2] < c[2])
+				c[2] = d[2];
+			c[1] = s[1];
+			if (d[1] < c[1])
+				c[1] = d[1];
+			c[0] = s[0];
+			if (d[0] < c[0])
+				c[0] = d[0];
+			break;
+		case nv2a_renderer::MAX:
+			c[3] = s[3];
+			if (d[3] > c[3])
+				c[3] = d[3];
+			c[2] = s[2];
+			if (d[2] > c[2])
+				c[2] = d[2];
+			c[1] = s[1];
+			if (d[1] > c[1])
+				c[1] = d[1];
+			c[0] = s[0];
+			if (d[0] > c[0])
+				c[0] = d[0];
+			break;
+		}
+	}
+	// dithering not done
+	// logical operation
+	if (logical_operation_enabled) {
+		switch (logical_operation) {
+		case  nv2a_renderer::CLEAR:
+			c[3] = 0;
+			c[2] = 0;
+			c[1] = 0;
+			c[0] = 0;
+			break;
+		case  nv2a_renderer::AND:
+			c[3] = c[3] & fb[3];
+			c[2] = c[2] & fb[2];
+			c[1] = c[1] & fb[1];
+			c[0] = c[0] & fb[0];
+			break;
+		case  nv2a_renderer::AND_REVERSE:
+			c[3] = c[3] & (fb[3] ^ 255);
+			c[2] = c[2] & (fb[2] ^ 255);
+			c[1] = c[1] & (fb[1] ^ 255);
+			c[0] = c[0] & (fb[0] ^ 255);
+			break;
+		case  nv2a_renderer::COPY:
+		default:
+			break;
+		case  nv2a_renderer::AND_INVERTED:
+			c[3] = (c[3] ^ 255) & fb[3];
+			c[2] = (c[2] ^ 255) & fb[2];
+			c[1] = (c[1] ^ 255) & fb[1];
+			c[0] = (c[0] ^ 255) & fb[0];
+			break;
+		case  nv2a_renderer::NOOP:
+			c[3] = fb[3];
+			c[2] = fb[2];
+			c[1] = fb[1];
+			c[0] = fb[0];
+			break;
+		case  nv2a_renderer::XOR:
+			c[3] = c[3] ^ fb[3];
+			c[2] = c[2] ^ fb[2];
+			c[1] = c[1] ^ fb[1];
+			c[0] = c[0] ^ fb[0];
+			break;
+		case  nv2a_renderer::OR:
+			c[3] = c[3] | fb[3];
+			c[2] = c[2] | fb[2];
+			c[1] = c[1] | fb[1];
+			c[0] = c[0] | fb[0];
+			break;
+		case  nv2a_renderer::NOR:
+			c[3] = (c[3] | fb[3]) ^ 255;
+			c[2] = (c[2] | fb[2]) ^ 255;
+			c[1] = (c[1] | fb[1]) ^ 255;
+			c[0] = (c[0] | fb[0]) ^ 255;
+			break;
+		case  nv2a_renderer::EQUIV:
+			c[3] = (c[3] ^ fb[3]) ^ 255;
+			c[2] = (c[2] ^ fb[2]) ^ 255;
+			c[1] = (c[1] ^ fb[1]) ^ 255;
+			c[0] = (c[0] ^ fb[0]) ^ 255;
+			break;
+		case  nv2a_renderer::INVERT:
+			c[3] = fb[3] ^ 255;
+			c[2] = fb[2] ^ 255;
+			c[1] = fb[1] ^ 255;
+			c[0] = fb[0] ^ 255;
+			break;
+		case  nv2a_renderer::OR_REVERSE:
+			c[3] = c[3] | (fb[3] ^ 255);
+			c[2] = c[2] | (fb[2] ^ 255);
+			c[1] = c[1] | (fb[1] ^ 255);
+			c[0] = c[0] | (fb[0] ^ 255);
+			break;
+		case  nv2a_renderer::COPY_INVERTED:
+			c[3] = c[3] ^ 255;
+			c[2] = c[2] ^ 255;
+			c[1] = c[1] ^ 255;
+			c[0] = c[0] ^ 255;
+			break;
+		case  nv2a_renderer::OR_INVERTED:
+			c[3] = (c[3] ^ 255) | fb[3];
+			c[2] = (c[2] ^ 255) | fb[2];
+			c[1] = (c[1] ^ 255) | fb[1];
+			c[0] = (c[0] ^ 255) | fb[0];
+			break;
+		case  nv2a_renderer::NAND:
+			c[3] = (c[3] & fb[3]) ^ 255;
+			c[2] = (c[2] & fb[2]) ^ 255;
+			c[1] = (c[1] & fb[1]) ^ 255;
+			c[0] = (c[0] & fb[0]) ^ 255;
+			break;
+		case  nv2a_renderer::SET:
+			c[3] = 255;
+			c[2] = 255;
+			c[1] = 255;
+			c[0] = 255;
+			break;
+		}
+	}
+	fbcolor = (c[3] << 24) | (c[2] << 16) | (c[1] << 8) | c[0];
+	*((UINT32 *)addr) = fbcolor;
 }
 
 void nv2a_renderer::render_color(INT32 scanline, const extent_t &extent, const nvidia_object_data &objectdata, int threadid)
@@ -1385,7 +2527,7 @@ void nv2a_renderer::render_color(INT32 scanline, const extent_t &extent, const n
 		cr=(extent.param[2].start+(float)x*extent.param[2].dpdx);
 		ca=(extent.param[3].start+(float)x*extent.param[3].dpdx);
 		a8r8g8b8=(ca << 24)+(cr << 16)+(cg << 8)+cb; // pixel color obtained by interpolating the colors of the vertices
-		*((UINT32 *)objectdata.data->fb.raw_pixptr(scanline,xp))=a8r8g8b8;
+		write_pixel(xp, scanline, a8r8g8b8);
 		x--;
 	}
 }
@@ -1393,6 +2535,7 @@ void nv2a_renderer::render_color(INT32 scanline, const extent_t &extent, const n
 void nv2a_renderer::render_texture_simple(INT32 scanline, const extent_t &extent, const nvidia_object_data &objectdata, int threadid)
 {
 	int x;
+	UINT32 a8r8g8b8;
 
 	if (!objectdata.data->texture[0].enabled) {
 		return;
@@ -1404,7 +2547,8 @@ void nv2a_renderer::render_texture_simple(INT32 scanline, const extent_t &extent
 
 		up=(extent.param[4].start+(float)x*extent.param[4].dpdx)*(float)(objectdata.data->texture[0].sizeu-1); // x coordinate of texel in texture
 		vp=extent.param[5].start*(float)(objectdata.data->texture[0].sizev-1); // y coordinate of texel in texture
-		*((UINT32 *)fb.raw_pixptr(scanline,xp))=texture_get_texel(0, up, vp);
+		a8r8g8b8=texture_get_texel(0, up, vp);
+		write_pixel(xp, scanline, a8r8g8b8);
 		x--;
 	}
 }
@@ -1461,7 +2605,7 @@ void nv2a_renderer::render_register_combiners(INT32 scanline, const extent_t &ex
 		combiner_final_output();
 		a8r8g8b8=combiner_float_argb8(combiner.output);
 		// 3: write pixel
-		*((UINT32 *)objectdata.data->fb.raw_pixptr(scanline,xp))=a8r8g8b8;
+		write_pixel(xp, scanline, a8r8g8b8);
 		x--;
 	}
 	osd_lock_release(combiner.lock);
@@ -1607,6 +2751,101 @@ void dumpcombiners(UINT32 *m)
 }
 #endif
 
+/* Read vertices data from system memory. Method 0x1810 */
+int nv2a_renderer::read_vertices_0x1810(address_space & space, vertex *destination, int offset, int limit)
+{
+	UINT32 m, u;
+
+	for (m = 0; m < limit; m++) {
+		destination[m].attribute[0].iv[0] = space.read_dword(vertexbuffer_address[0] + (m + offset)*vertexbuffer_stride[0] + 0);
+		destination[m].attribute[0].iv[1] = space.read_dword(vertexbuffer_address[0] + (m + offset)*vertexbuffer_stride[0] + 4);
+		destination[m].attribute[0].iv[2] = space.read_dword(vertexbuffer_address[0] + (m + offset)*vertexbuffer_stride[0] + 8);
+		destination[m].attribute[0].iv[3] = space.read_dword(vertexbuffer_address[0] + (m + offset)*vertexbuffer_stride[0] + 12);
+		destination[m].attribute[3].iv[0] = space.read_dword(vertexbuffer_address[3] + (m + offset)*vertexbuffer_stride[3] + 0); // color
+		for (u = 0; u < 4; u++) {
+			destination[m].attribute[9 + u].iv[0] = space.read_dword(vertexbuffer_address[9 + u] + (m + offset)*vertexbuffer_stride[9 + u] + 0);
+			destination[m].attribute[9 + u].iv[1] = space.read_dword(vertexbuffer_address[9 + u] + (m + offset)*vertexbuffer_stride[9 + u] + 4);
+		}
+	}
+	return m;
+}
+
+/* Read vertices data from system memory. Method 0x1800 */
+int nv2a_renderer::read_vertices_0x1800(address_space & space, vertex *destination, UINT32 address, int limit)
+{
+	UINT32 data;
+	UINT32 m, u, i, c;
+
+	c = 0;
+	for (m = 0; m < limit; m++) {
+		if (indexesleft_count == 0) {
+			data = space.read_dword(address);
+			i = (indexesleft_first + indexesleft_count) & 7;
+			indexesleft[i] = data & 0xffff;
+			indexesleft[(i + 1) & 7] = (data >> 16) & 0xffff;
+			indexesleft_count = indexesleft_count + 2;
+			address += 4;
+			c++;
+		}
+		destination[m].attribute[0].iv[0] = space.read_dword(vertexbuffer_address[0] + indexesleft[indexesleft_first] * vertexbuffer_stride[0] + 0);
+		destination[m].attribute[0].iv[1] = space.read_dword(vertexbuffer_address[0] + indexesleft[indexesleft_first] * vertexbuffer_stride[0] + 4);
+		destination[m].attribute[0].iv[2] = space.read_dword(vertexbuffer_address[0] + indexesleft[indexesleft_first] * vertexbuffer_stride[0] + 8);
+		destination[m].attribute[0].iv[3] = space.read_dword(vertexbuffer_address[0] + indexesleft[indexesleft_first] * vertexbuffer_stride[0] + 12);
+		destination[m].attribute[3].iv[0] = space.read_dword(vertexbuffer_address[3] + indexesleft[indexesleft_first] * vertexbuffer_stride[3] + 0); // color
+		for (u = 0; u < 4; u++) {
+			destination[m].attribute[9 + u].iv[0] = space.read_dword(vertexbuffer_address[9 + u] + indexesleft[indexesleft_first] * vertexbuffer_stride[9 + u] + 0);
+			destination[m].attribute[9 + u].iv[1] = space.read_dword(vertexbuffer_address[9 + u] + indexesleft[indexesleft_first] * vertexbuffer_stride[9 + u] + 4);
+		}
+		indexesleft_first = (indexesleft_first + 1) & 7;
+		indexesleft_count--;
+	}
+	return (int)c;
+}
+
+/* Read vertices data from system memory. Method 0x1818 */
+int nv2a_renderer::read_vertices_0x1818(address_space & space, vertex *destination, UINT32 address, int limit)
+{
+	UINT32 m, u, vwords;
+
+	vwords = vertex_attribute_words[15] + vertex_attribute_offset[15];
+	for (m = 0; m < limit; m++) {
+		destination[m].attribute[0].iv[0] = space.read_dword(address + vertex_attribute_offset[0] * 4 + 0);
+		destination[m].attribute[0].iv[1] = space.read_dword(address + vertex_attribute_offset[0] * 4 + 4);
+		destination[m].attribute[0].iv[2] = space.read_dword(address + vertex_attribute_offset[0] * 4 + 8);
+		destination[m].attribute[0].iv[3] = space.read_dword(address + vertex_attribute_offset[0] * 4 + 12);
+		destination[m].attribute[3].iv[0] = space.read_dword(address + vertex_attribute_offset[3] * 4 + 0); // color
+		for (u = 0; u < 4; u++) {
+			destination[m].attribute[9 + u].iv[0] = space.read_dword(address + vertex_attribute_offset[9 + u] * 4 + 0);
+			destination[m].attribute[9 + u].iv[1] = space.read_dword(address + vertex_attribute_offset[9 + u] * 4 + 4);
+		}
+		address = address + vwords * 4;
+	}
+	return (int)(m*vwords);
+}
+
+void nv2a_renderer::convert_vertices_poly(vertex *source, vertex_t *destination, int count)
+{
+	int m, u;
+
+	for (m = 0; m < count; m++) {
+		destination[m].x = source[m].attribute[0].fv[0];
+		destination[m].y = source[m].attribute[0].fv[1];
+		u = source[m].attribute[3].iv[0];
+		destination[m].p[0] = u & 0xff; // b
+		destination[m].p[1] = (u & 0xff00) >> 8;  // g
+		destination[m].p[2] = (u & 0xff0000) >> 16;  // r
+		destination[m].p[3] = (u & 0xff000000) >> 24;  // a
+		for (u = 0; u < 4; u++) {
+			destination[m].p[4 + u * 2] = 0;
+			destination[m].p[5 + u * 2] = 0;
+			if (texture[u].enabled) {
+				destination[m].p[4 + u * 2] = source[m].attribute[9 + u].fv[0];
+				destination[m].p[5 + u * 2] = source[m].attribute[9 + u].fv[1];
+			}
+		}
+	}
+}
+
 void nv2a_renderer::geforce_exec_method(address_space & space,UINT32 chanel,UINT32 subchannel,UINT32 method,UINT32 address,int &countlen)
 {
 	UINT32 maddress;
@@ -1615,24 +2854,21 @@ void nv2a_renderer::geforce_exec_method(address_space & space,UINT32 chanel,UINT
 	maddress=method*4;
 	data=space.read_dword(address);
 	channel[chanel][subchannel].object.method[method]=data;
+	if (maddress == 0x17fc) {
+		indexesleft_count = 0;
+		indexesleft_first = 0;
+		primitives_count = 0;
+		countlen--;
+	}
 	if (maddress == 0x1810) {
 		// draw vertices
 		int offset,count,type;
-		//int vtxbuf_kind[16],vtxbuf_size[16];
-		int vtxbuf_stride[16];
-		UINT32 vtxbuf_address[16];
-		UINT32 dmahand[2],dmaoff[2],smasiz[2];
-		UINT32 tmp,n,m,u;
+		UINT32 n;
 		render_delegate renderspans;
 
 		offset=data & 0xffffff;
 		count=(data >> 24) & 0xff;
 		type=channel[chanel][subchannel].object.method[0x17fc/4];
-		tmp=channel[chanel][subchannel].object.method[0x1720/4];
-		dmahand[0]=channel[chanel][subchannel].object.method[0x019c/4];
-		dmahand[1]=channel[chanel][subchannel].object.method[0x01a0/4];
-		geforce_read_dma_object(dmahand[0],dmaoff[0],smasiz[0]);
-		geforce_read_dma_object(dmahand[1],dmaoff[1],smasiz[1]);
 		if (((channel[chanel][subchannel].object.method[0x1e60/4] & 7) > 0) && (combiner.used != 0)) {
 			renderspans=render_delegate(FUNC(nv2a_renderer::render_register_combiners),this);
 		} else if (texture[0].enabled) {
@@ -1642,116 +2878,28 @@ void nv2a_renderer::geforce_exec_method(address_space & space,UINT32 chanel,UINT
 #ifdef LOG_NV2A
 		printf("vertex %d %d %d\n\r",type,offset,count);
 #endif
-		for (n=0;n < 16;n++) {
-#ifdef LOG_NV2A
-			printf(" %08X %08X\n\r",channel[chanel][subchannel].object.method[0x1720/4+n],channel[chanel][subchannel].object.method[0x1760/4+n]);
-#endif
-			tmp=channel[chanel][subchannel].object.method[0x1760/4+n]; // VTXBUF_FMT
-			//vtxbuf_kind[n]=tmp & 15;
-			//vtxbuf_size[n]=(tmp >> 4) & 15;
-			vtxbuf_stride[n]=(tmp >> 8) & 255;
-			tmp=channel[chanel][subchannel].object.method[0x1720/4+n]; // VTXBUF_OFFSET
-			if (tmp & 0x80000000)
-				vtxbuf_address[n]=(tmp & 0x0fffffff)+dmaoff[1];
-			else
-				vtxbuf_address[n]=(tmp & 0x0fffffff)+dmaoff[0];
-		}
 		if (type == nv2a_renderer::QUADS) {
-#if 0
-			n=0;
-			if (n == 1)
-				dumpcombiners(channel[chanel][subchannel].object.method);
-#endif
-			for (n=0;n <= count;n+=4) {
+			for (n = 0; n <= count; n += 4) {
+				vertex vert[4];
 				vertex_t xy[4];
-				float z[4],w[4];
-				UINT32 c[4];
 
-				//printf("draw quad\n\r");
-				for (m=0;m < 4;m++) {
-					*((UINT32 *)(&xy[m].x))=space.read_dword(vtxbuf_address[0]+(n+m+offset)*vtxbuf_stride[0]+0);
-					*((UINT32 *)(&xy[m].y))=space.read_dword(vtxbuf_address[0]+(n+m+offset)*vtxbuf_stride[0]+4);
-					*((UINT32 *)(&z[m]))=space.read_dword(vtxbuf_address[0]+(n+m+offset)*vtxbuf_stride[0]+8);
-					*((UINT32 *)(&w[m]))=space.read_dword(vtxbuf_address[0]+(n+m+offset)*vtxbuf_stride[0]+12);
-					c[m]=space.read_dword(vtxbuf_address[3]+(n+m+offset)*vtxbuf_stride[0]+0); // color
-					xy[m].p[0]=c[m] & 0xff; // b
-					xy[m].p[1]=(c[m] & 0xff00) >> 8; // g
-					xy[m].p[2]=(c[m] & 0xff0000) >> 16; // r
-					xy[m].p[3]=(c[m] & 0xff000000) >> 24; // a
-					for (u=0;u < 4;u++) {
-						xy[m].p[4+u*2]=0;
-						xy[m].p[5+u*2]=0;
-						if (texture[u].enabled) {
-							*((UINT32 *)(&xy[m].p[4+u*2]))=space.read_dword(vtxbuf_address[9+u]+(n+m+offset)*vtxbuf_stride[9+u]+0);
-							*((UINT32 *)(&xy[m].p[5+u*2]))=space.read_dword(vtxbuf_address[9+u]+(n+m+offset)*vtxbuf_stride[9+u]+4);
-						}
-					}
-				}
-
-				render_polygon<4>(fb.cliprect(),renderspans,4+4*2,xy); // 4 rgba, 4 texture units 2 uv
-				/*myline(fb,xy[0].x,xy[0].y,xy[1].x,xy[1].y);
-				myline(fb,xy[1].x,xy[1].y,xy[2].x,xy[2].y);
-				myline(fb,xy[2].x,xy[2].y,xy[3].x,xy[3].y);
-				myline(fb,xy[3].x,xy[3].y,xy[0].x,xy[0].y);*/
-#ifdef LOG_NV2A
-				printf(" (%f,%f,%f)-(%f,%f,%f)-(%f,%f,%f)-(%f,%f,%f)\n\r",xy[0].x,xy[0].y,z[0],xy[1].x,xy[1].y,z[1],xy[2].x,xy[2].y,z[2],xy[3].x,xy[3].y,z[3]);
-#endif
+				read_vertices_0x1810(space, vert, n+offset, 4);
+				convert_vertices_poly(vert, xy, 4);
+				render_polygon<4>(fb.cliprect(), renderspans, 4 + 4 * 2, xy); // 4 rgba, 4 texture units 2 uv
 			}
 			wait();
 		} else if (type == nv2a_renderer::TRIANGLE_STRIP) {
-			vertex_t xy[3];
-			float z[3],w[3];
-			UINT32 c[3];
+			vertex vert[4];
+			vertex_t xy[4];
 
-			//printf("draw triangle\n\r");
-			// put first 2 vertices data in elements 0,1 of arrays
-			for (m=0;m < 2;m++) {
-				*((UINT32 *)(&xy[m].x))=space.read_dword(vtxbuf_address[0]+(m+offset)*vtxbuf_stride[0]+0);
-				*((UINT32 *)(&xy[m].y))=space.read_dword(vtxbuf_address[0]+(m+offset)*vtxbuf_stride[0]+4);
-				*((UINT32 *)(&z[m]))=space.read_dword(vtxbuf_address[0]+(m+offset)*vtxbuf_stride[0]+8);
-				*((UINT32 *)(&w[m]))=space.read_dword(vtxbuf_address[0]+(m+offset)*vtxbuf_stride[0]+12);
-				c[m]=space.read_dword(vtxbuf_address[3]+(m+offset)*vtxbuf_stride[0]+0); // color
-				xy[m].p[0]=c[m] & 0xff; // b
-				xy[m].p[1]=(c[m] & 0xff00) >> 8;  // g
-				xy[m].p[2]=(c[m] & 0xff0000) >> 16;  // r
-				xy[m].p[3]=(c[m] & 0xff000000) >> 24;  // a
-				for (u=0;u < 4;u++) {
-					xy[m].p[4+u*2]=0;
-					xy[m].p[5+u*2]=0;
-					if (texture[u].enabled) {
-						*((UINT32 *)(&xy[m].p[4+u*2]))=space.read_dword(vtxbuf_address[9+u]+(m+offset)*vtxbuf_stride[9+u]+0);
-						*((UINT32 *)(&xy[m].p[5+u*2]))=space.read_dword(vtxbuf_address[9+u]+(m+offset)*vtxbuf_stride[9+u]+4);
-					}
-				}
-			}
-			for (n=2;n <= count;n++) {
-				// put vertex n data in element 2 of arrays
-				*((UINT32 *)(&xy[2].x))=space.read_dword(vtxbuf_address[0]+(n+offset)*vtxbuf_stride[0]+0);
-				*((UINT32 *)(&xy[2].y))=space.read_dword(vtxbuf_address[0]+(n+offset)*vtxbuf_stride[0]+4);
-				*((UINT32 *)(&z[2]))=space.read_dword(vtxbuf_address[0]+(n+offset)*vtxbuf_stride[0]+8);
-				*((UINT32 *)(&w[2]))=space.read_dword(vtxbuf_address[0]+(n+offset)*vtxbuf_stride[0]+12);
-				c[2]=space.read_dword(vtxbuf_address[3]+(n+offset)*vtxbuf_stride[0]+0); // color
-				xy[2].p[0]=c[2] & 0xff; // b
-				xy[2].p[1]=(c[2] & 0xff00) >> 8; // g
-				xy[2].p[2]=(c[2] & 0xff0000) >> 16; // r
-				xy[2].p[3]=(c[2] & 0xff000000) >> 24; // a
-				for (u=0;u < 4;u++) {
-					xy[2].p[4+u*2]=0;
-					xy[2].p[5+u*2]=0;
-					if (texture[u].enabled) {
-						*((UINT32 *)(&xy[2].p[4+u*2]))=space.read_dword(vtxbuf_address[9+u]+(n+offset)*vtxbuf_stride[9+u]+0);
-						*((UINT32 *)(&xy[2].p[5+u*2]))=space.read_dword(vtxbuf_address[9+u]+(n+offset)*vtxbuf_stride[9+u]+4);
-					}
-				}
-				// draw triangle
-				render_triangle(fb.cliprect(),renderspans,4+4*2,xy[n & 1],xy[~n & 1],xy[2]); // 012,102,012,102...
-				// move elements 1,2 to 0,1
-				xy[0]=xy[1];
-				xy[1]=xy[2];
-				z[0]=z[1];
-				z[1]=z[2];
-				w[0]=w[1];
-				w[1]=w[2];
+			read_vertices_0x1810(space, vert, offset, 2);
+			convert_vertices_poly(vert, xy, 2);
+			count = count - 2;
+			offset = offset + 2;
+			for (n = 0; n <= count; n++) {
+				read_vertices_0x1810(space, vert + ((n+2) & 3), offset + n, 1);
+				convert_vertices_poly(vert + ((n + 2) & 3), xy + ((n + 2) & 3), 1);
+				render_triangle(fb.cliprect(), renderspans, 4 + 4 * 2, xy[((n & 1)+n) & 3], xy[((~n & 1)+n) & 3], xy[(2+n) & 3]);
 			}
 			wait();
 		} else {
@@ -1759,9 +2907,111 @@ void nv2a_renderer::geforce_exec_method(address_space & space,UINT32 chanel,UINT
 		}
 		countlen--;
 	}
+	if (maddress == 0x1800) {
+		UINT32 type, n;
+		render_delegate renderspans;
+
+		// vertices are selected from the vertex buffer using an array of indexes
+		// each dword after 1800 contains two 16 bit index values to select the vartices
+		type = channel[chanel][subchannel].object.method[0x17fc / 4];
+		if (((channel[chanel][subchannel].object.method[0x1e60 / 4] & 7) > 0) && (combiner.used != 0)) {
+			renderspans = render_delegate(FUNC(nv2a_renderer::render_register_combiners), this);
+		}
+		else if (texture[0].enabled) {
+			renderspans = render_delegate(FUNC(nv2a_renderer::render_texture_simple), this);
+		}
+		else
+			renderspans = render_delegate(FUNC(nv2a_renderer::render_color), this);
+#ifdef LOG_NV2A
+		printf("vertex %d %d %d\n\r", type, offset, count);
+#endif
+		if (type == nv2a_renderer::QUADS) {
+			while (1) {
+				vertex vert[4];
+				vertex_t xy[4];
+				int c;
+
+				if ((countlen * 2 + indexesleft_count) < 4)
+					break;
+				c=read_vertices_0x1800(space, vert, address, 4);
+				address = address + c*4;
+				countlen = countlen - c;
+				convert_vertices_poly(vert, xy, 4);
+				render_polygon<4>(fb.cliprect(), renderspans, 4 + 4 * 2, xy); // 4 rgba, 4 texture units 2 uv
+			}
+			while (countlen > 0) {
+				data = space.read_dword(address);
+				n = (indexesleft_first + indexesleft_count) & 7;
+				indexesleft[n] = data & 0xffff;
+				indexesleft[(n + 1) & 7] = (data >> 16) & 0xffff;
+				indexesleft_count = indexesleft_count + 2;
+				address += 4;
+				countlen--;
+			}
+			wait();
+		}
+		else if (type == nv2a_renderer::TRIANGLES) {
+			while (1) {
+				vertex vert[3];
+				vertex_t xy[3];
+				int c;
+
+				if ((countlen * 2 + indexesleft_count) < 3)
+					break;
+				c = read_vertices_0x1800(space, vert, address, 3);
+				address = address + c * 4;
+				countlen = countlen - c;
+				convert_vertices_poly(vert, xy, 3);
+				render_triangle(fb.cliprect(), renderspans, 4 + 4 * 2, xy[0], xy[1], xy[2]); // 4 rgba, 4 texture units 2 uv
+			}
+			while (countlen > 0) {
+				data = space.read_dword(address);
+				n = (indexesleft_first + indexesleft_count) & 7;
+				indexesleft[n] = data & 0xffff;
+				indexesleft[(n + 1) & 7] = (data >> 16) & 0xffff;
+				indexesleft_count = indexesleft_count + 2;
+				address += 4;
+				countlen--;
+			}
+			wait();
+		}
+		else if (type == nv2a_renderer::TRIANGLE_STRIP) {
+			if ((countlen * 2 + indexesleft_count) >= 3) {
+				vertex vert[4];
+				vertex_t xy[4];
+				int c, count;
+
+				c = read_vertices_0x1800(space, vert, address, 2);
+				convert_vertices_poly(vert, xy, 2);
+				address = address + c * 4;
+				countlen = countlen - c;
+				count = countlen * 2 + indexesleft_count;
+				for (n = 0; n < count; n++) { // <=
+					c = read_vertices_0x1800(space, vert + ((n + 2) & 3), address, 1);
+					address = address + c * 4;
+					countlen = countlen - c;
+					convert_vertices_poly(vert + ((n + 2) & 3), xy + ((n + 2) & 3), 1);
+					render_triangle(fb.cliprect(), renderspans, 4 + 4 * 2, xy[((n & 1) + n) & 3], xy[((~n & 1) + n) & 3], xy[(2 + n) & 3]);
+				}
+			}
+			while (countlen > 0) {
+				data = space.read_dword(address);
+				n = (indexesleft_first + indexesleft_count) & 7;
+				indexesleft[n] = data & 0xffff;
+				indexesleft[(n + 1) & 7] = (data >> 16) & 0xffff;
+				indexesleft_count = indexesleft_count + 2;
+				address += 4;
+				countlen--;
+			}
+			wait();
+		}
+		else {
+			logerror("Unsupported primitive %d for method 0x1800\n", type);
+			countlen = 0;
+		}
+	}
 	if (maddress == 0x1818) {
-		int n,m,u,vwords;
-		int vattrpos[16];
+		int n;
 		int type;
 		render_delegate renderspans;
 
@@ -1771,293 +3021,168 @@ void nv2a_renderer::geforce_exec_method(address_space & space,UINT32 chanel,UINT
 			renderspans=render_delegate(FUNC(nv2a_renderer::render_texture_simple),this);
 		} else
 			renderspans=render_delegate(FUNC(nv2a_renderer::render_color),this);
-		vwords=0;
-		for (n=0;n < 16;n++) {
-			vattrpos[n]=vwords;
-			if ((enabled_vertex_attributes & (1 << n)) != 0)
-				vwords += words_vertex_attributes[n];
-		}
 		// vertices are taken from the next words, not from a vertex buffer
 		// first send primitive type with 17fc
 		// then countlen number of dwords with 1818
 		// end with 17fc primitive type 0
 		// at 1760 16 words specify the vertex format:for each possible vertex attribute the number of components (0=not present) and type of each
-		if ((countlen % vwords) != 0) {
-			logerror("Method 0x1818 got %d words, at least %d were expected\n",countlen,(countlen/vwords+1)*vwords);
-			countlen=0;
-			return;
-		}
 		type=channel[chanel][subchannel].object.method[0x17fc/4];
 		if (type == nv2a_renderer::TRIANGLE_FAN) {
+			vertex vert[3];
 			vertex_t xy[3];
-			float z[3],w[3];
-			UINT32 c[3];
+			int c;
 
-			// put first 2 vertices data in elements 0,1 of arrays
-			for (m=0;m < 2;m++) {
-				// consider only attributes: position,color0,texture 0-3
-				// position
-				*((UINT32 *)(&xy[m].x))=space.read_dword(address+vattrpos[0]*4+0);
-				*((UINT32 *)(&xy[m].y))=space.read_dword(address+vattrpos[0]*4+4);
-				*((UINT32 *)(&z[m]))=space.read_dword(address+vattrpos[0]*4+8);
-				*((UINT32 *)(&w[m]))=space.read_dword(address+vattrpos[0]*4+12);
-				// color
-				c[m]=space.read_dword(address+vattrpos[3]*4+0); // color
-				xy[m].p[0]=c[m] & 0xff; // b
-				xy[m].p[1]=(c[m] & 0xff00) >> 8;  // g
-				xy[m].p[2]=(c[m] & 0xff0000) >> 16;  // r
-				xy[m].p[3]=(c[m] & 0xff000000) >> 24;  // a
-				// texture 0-3
-				for (u=0;u < 4;u++) {
-					xy[m].p[4+u*2]=0;
-					xy[m].p[5+u*2]=0;
-					if (texture[u].enabled) {
-						*((UINT32 *)(&xy[m].p[4+u*2]))=space.read_dword(address+vattrpos[9+u]*4+0);
-						*((UINT32 *)(&xy[m].p[5+u*2]))=space.read_dword(address+vattrpos[9+u]*4+4);
-					}
-				}
-				address=address+vwords*4;
-				countlen=countlen-vwords;
-			}
-			if (countlen <= 0) {
-				logerror("Method 0x1818 missing %d words to draw a complete primitive\n",-countlen+vwords);
-				countlen=0;
+			c=read_vertices_0x1818(space, vert, address, 2);
+			convert_vertices_poly(vert, xy, 2);
+			countlen = countlen - c;
+			if (countlen < 0) {
+				logerror("Method 0x1818 missing %d words to draw a complete primitive\n", -countlen);
+				countlen = 0;
 				return;
 			}
-			for (n=2;countlen > 0;n++) {
-				// put vertex n data in element 2 of arrays
-				// position
-				*((UINT32 *)(&xy[2].x))=space.read_dword(address+vattrpos[0]*4+0);
-				*((UINT32 *)(&xy[2].y))=space.read_dword(address+vattrpos[0]*4+4);
-				*((UINT32 *)(&z[2]))=space.read_dword(address+vattrpos[0]*4+8);
-				*((UINT32 *)(&w[2]))=space.read_dword(address+vattrpos[0]*4+12);
-				// color
-				c[2]=space.read_dword(address+vattrpos[3]*4+0); // color
-				xy[2].p[0]=c[2] & 0xff; // b
-				xy[2].p[1]=(c[2] & 0xff00) >> 8;  // g
-				xy[2].p[2]=(c[2] & 0xff0000) >> 16;  // r
-				xy[2].p[3]=(c[2] & 0xff000000) >> 24;  // a
-				// texture 0-3
-				for (u=0;u < 4;u++) {
-					xy[2].p[4+u*2]=0;
-					xy[2].p[5+u*2]=0;
-					if (texture[u].enabled) {
-						*((UINT32 *)(&xy[2].p[4+u*2]))=space.read_dword(address+vattrpos[9+u]*4+0);
-						*((UINT32 *)(&xy[2].p[5+u*2]))=space.read_dword(address+vattrpos[9+u]*4+4);
-					}
-				}
-				address=address+vwords*4;
-				countlen=countlen-vwords;
+			address = address + c * 4;
+			for (n = 1; countlen > 0; n++) {
+				c=read_vertices_0x1818(space, vert + ((n & 1) + 1), address, 1);
+				countlen = countlen - c;
 				if (countlen < 0) {
-					logerror("Method 0x1818 missing %d words to draw a complete primitive\n",-countlen);
-					countlen=0;
+					logerror("Method 0x1818 missing %d words to draw a complete primitive\n", -countlen);
+					countlen = 0;
 					break;
 				}
-				// draw triangle
-				render_triangle(fb.cliprect(),renderspans,4+4*2,xy[0],xy[1],xy[2]); // 012
-				// move element 2 to 1
-				xy[1]=xy[2];
-				z[1]=z[2];
-				w[1]=w[2];
+				address = address + c * 4;
+				convert_vertices_poly(vert + ((n & 1) + 1), xy + ((n & 1) + 1), 1);
+				render_triangle(fb.cliprect(), renderspans, 4 + 4 * 2, xy[0], xy[(~n & 1) + 1], xy[(n & 1) + 1]);
 			}
 			wait();
 		} else if (type == nv2a_renderer::TRIANGLE_STRIP) {
-			vertex_t xy[3];
-			float z[3],w[3];
-			UINT32 c[3];
+			vertex vert[4];
+			vertex_t xy[4];
+			int c;
 
-			// put first 2 vertices data in elements 0,1 of arrays
-			for (m=0;m < 2;m++) {
-				// consider only attributes: position,color0,texture 0-3
-				// position
-				*((UINT32 *)(&xy[m].x))=space.read_dword(address+vattrpos[0]*4+0);
-				*((UINT32 *)(&xy[m].y))=space.read_dword(address+vattrpos[0]*4+4);
-				*((UINT32 *)(&z[m]))=space.read_dword(address+vattrpos[0]*4+8);
-				*((UINT32 *)(&w[m]))=space.read_dword(address+vattrpos[0]*4+12);
-				// color
-				c[m]=space.read_dword(address+vattrpos[3]*4+0); // color
-				xy[m].p[0]=c[m] & 0xff; // b
-				xy[m].p[1]=(c[m] & 0xff00) >> 8;  // g
-				xy[m].p[2]=(c[m] & 0xff0000) >> 16;  // r
-				xy[m].p[3]=(c[m] & 0xff000000) >> 24;  // a
-				// texture 0-3
-				for (u=0;u < 4;u++) {
-					xy[m].p[4+u*2]=0;
-					xy[m].p[5+u*2]=0;
-					if (texture[u].enabled) {
-						*((UINT32 *)(&xy[m].p[4+u*2]))=space.read_dword(address+vattrpos[9+u]*4+0);
-						*((UINT32 *)(&xy[m].p[5+u*2]))=space.read_dword(address+vattrpos[9+u]*4+4);
-					}
-				}
-				address=address+vwords*4;
-				countlen=countlen-vwords;
-			}
-			if (countlen <= 0) {
-				logerror("Method 0x1818 missing %d words to draw a complete primitive\n",-countlen+vwords);
-				countlen=0;
+			c=read_vertices_0x1818(space, vert, address, 2);
+			convert_vertices_poly(vert, xy, 2);
+			countlen = countlen - c;
+			if (countlen < 0) {
+				logerror("Method 0x1818 missing %d words to draw a complete primitive\n", -countlen);
+				countlen = 0;
 				return;
 			}
-			for (n=2;countlen > 0;n++) {
-				// put vertex n data in element 2 of arrays
-				// put vertex n data in element 2 of arrays
-				// position
-				*((UINT32 *)(&xy[2].x))=space.read_dword(address+vattrpos[0]*4+0);
-				*((UINT32 *)(&xy[2].y))=space.read_dword(address+vattrpos[0]*4+4);
-				*((UINT32 *)(&z[2]))=space.read_dword(address+vattrpos[0]*4+8);
-				*((UINT32 *)(&w[2]))=space.read_dword(address+vattrpos[0]*4+12);
-				// color
-				c[2]=space.read_dword(address+vattrpos[3]*4+0); // color
-				xy[2].p[0]=c[2] & 0xff; // b
-				xy[2].p[1]=(c[2] & 0xff00) >> 8;  // g
-				xy[2].p[2]=(c[2] & 0xff0000) >> 16;  // r
-				xy[2].p[3]=(c[2] & 0xff000000) >> 24;  // a
-				// texture 0-3
-				for (u=0;u < 4;u++) {
-					xy[2].p[4+u*2]=0;
-					xy[2].p[5+u*2]=0;
-					if (texture[u].enabled) {
-						*((UINT32 *)(&xy[2].p[4+u*2]))=space.read_dword(address+vattrpos[9+u]*4+0);
-						*((UINT32 *)(&xy[2].p[5+u*2]))=space.read_dword(address+vattrpos[9+u]*4+4);
-					}
-				}
-				address=address+vwords*4;
-				countlen=countlen-vwords;
+			address = address + c * 4;
+			for (n = 0;countlen > 0; n++) {
+				c=read_vertices_0x1818(space, vert + ((n + 2) & 3), address, 1);
+				convert_vertices_poly(vert + ((n + 2) & 3), xy + ((n + 2) & 3), 1);
+				countlen = countlen - c;
 				if (countlen < 0) {
-					logerror("Method 0x1818 missing %d words to draw a complete primitive\n",-countlen);
-					countlen=0;
+					logerror("Method 0x1818 missing %d words to draw a complete primitive\n", -countlen);
+					countlen = 0;
 					break;
 				}
-				// draw triangle
-				render_triangle(fb.cliprect(),renderspans,4+4*2,xy[n & 1],xy[~n & 1],xy[2]); // 012,102,012,102...
-				// move elements 1,2 to 0,1
-				xy[0]=xy[1];
-				xy[1]=xy[2];
-				z[0]=z[1];
-				z[1]=z[2];
-				w[0]=w[1];
-				w[1]=w[2];
+				address = address + c * 4;
+				render_triangle(fb.cliprect(), renderspans, 4 + 4 * 2, xy[((n & 1) + n) & 3], xy[((~n & 1) + n) & 3], xy[(2 + n) & 3]);
 			}
 			wait();
 		} else if (type == nv2a_renderer::QUADS) {
-			vertex_t xy[4];
-			float z[4],w[4];
-			UINT32 c[4];
+			while (countlen > 0) {
+				vertex vert[4];
+				vertex_t xy[4];
+				int c;
 
-			for (n=0;countlen > 0;n+=4) {
-				for (m=0;m < 4;m++) {
-					// consider only attributes: position,color0,texture 0-3
-					// position
-					*((UINT32 *)(&xy[m].x))=space.read_dword(address+vattrpos[0]*4+0);
-					*((UINT32 *)(&xy[m].y))=space.read_dword(address+vattrpos[0]*4+4);
-					*((UINT32 *)(&z[m]))=space.read_dword(address+vattrpos[0]*4+8);
-					*((UINT32 *)(&w[m]))=space.read_dword(address+vattrpos[0]*4+12);
-					// color
-					c[m]=space.read_dword(address+vattrpos[3]*4+0); // color
-					xy[m].p[0]=c[m] & 0xff; // b
-					xy[m].p[1]=(c[m] & 0xff00) >> 8;  // g
-					xy[m].p[2]=(c[m] & 0xff0000) >> 16;  // r
-					xy[m].p[3]=(c[m] & 0xff000000) >> 24;  // a
-					// texture 0-3
-					for (u=0;u < 4;u++) {
-						xy[m].p[4+u*2]=0;
-						xy[m].p[5+u*2]=0;
-						if (texture[u].enabled) {
-							*((UINT32 *)(&xy[m].p[4+u*2]))=space.read_dword(address+vattrpos[9+u]*4+0);
-							*((UINT32 *)(&xy[m].p[5+u*2]))=space.read_dword(address+vattrpos[9+u]*4+4);
-						}
-					}
-					address=address+vwords*4;
-					countlen=countlen-vwords;
-				}
+				c = read_vertices_0x1818(space, vert, address, 4);
+				convert_vertices_poly(vert, xy, 4);
+				countlen = countlen - c;
 				if (countlen < 0) {
-					countlen=0;
+					logerror("Method 0x1818 missing %d words to draw a complete primitive\n", -countlen);
+					countlen = 0;
 					break;
 				}
-
-				render_polygon<4>(fb.cliprect(),renderspans,4+4*2,xy); // 4 rgba, 4 texture units 2 uv
+				address = address + c * 4;
+				render_polygon<4>(fb.cliprect(), renderspans, 4 + 4 * 2, xy); // 4 rgba, 4 texture units 2 uv
 			}
 			wait();
 		} else if (type == nv2a_renderer::QUAD_STRIP) {
+			vertex vert[4];
 			vertex_t xy[4];
-			float z[4],w[4];
-			UINT32 c[4];
+			int c;
 
-			// put first 2 vertices data in elements 0,1 of arrays
-			for (m=0;m < 2;m++) {
-				// consider only attributes: position,color0,texture 0-3
-				// position
-				*((UINT32 *)(&xy[m].x))=space.read_dword(address+vattrpos[0]*4+0);
-				*((UINT32 *)(&xy[m].y))=space.read_dword(address+vattrpos[0]*4+4);
-				*((UINT32 *)(&z[m]))=space.read_dword(address+vattrpos[0]*4+8);
-				*((UINT32 *)(&w[m]))=space.read_dword(address+vattrpos[0]*4+12);
-				// color
-				c[m]=space.read_dword(address+vattrpos[3]*4+0); // color
-				xy[m].p[0]=c[m] & 0xff; // b
-				xy[m].p[1]=(c[m] & 0xff00) >> 8;  // g
-				xy[m].p[2]=(c[m] & 0xff0000) >> 16;  // r
-				xy[m].p[3]=(c[m] & 0xff000000) >> 24;  // a
-				// texture 0-3
-				for (u=0;u < 4;u++) {
-					xy[m].p[4+u*2]=0;
-					xy[m].p[5+u*2]=0;
-					if (texture[u].enabled) {
-						*((UINT32 *)(&xy[m].p[4+u*2]))=space.read_dword(address+vattrpos[9+u]*4+0);
-						*((UINT32 *)(&xy[m].p[5+u*2]))=space.read_dword(address+vattrpos[9+u]*4+4);
-					}
-				}
-				address=address+vwords*4;
-				countlen=countlen-vwords;
-			}
-			if (countlen <= 0) {
-				countlen=0;
+			c=read_vertices_0x1818(space, vert, address, 2);
+			convert_vertices_poly(vert, xy, 2);
+			countlen = countlen - c;
+			if (countlen < 0) {
+				logerror("Method 0x1818 missing %d words to draw a complete primitive\n", -countlen);
+				countlen = 0;
 				return;
 			}
-			for (n=2;countlen > 0;n+=2) {
-				// put vertices n,n+1 data in elements 3,2 of arrays
-				for (m=3;m >= 2;m--) {
-					// position
-					*((UINT32 *)(&xy[m].x))=space.read_dword(address+vattrpos[0]*4+0);
-					*((UINT32 *)(&xy[m].y))=space.read_dword(address+vattrpos[0]*4+4);
-					*((UINT32 *)(&z[m]))=space.read_dword(address+vattrpos[0]*4+8);
-					*((UINT32 *)(&w[m]))=space.read_dword(address+vattrpos[0]*4+12);
-					// color
-					c[m]=space.read_dword(address+vattrpos[3]*4+0); // color
-					xy[m].p[0]=c[m] & 0xff; // b
-					xy[m].p[1]=(c[m] & 0xff00) >> 8;  // g
-					xy[m].p[2]=(c[m] & 0xff0000) >> 16;  // r
-					xy[m].p[3]=(c[m] & 0xff000000) >> 24;  // a
-					// texture 0-3
-					for (u=0;u < 4;u++) {
-						xy[m].p[4+u*2]=0;
-						xy[m].p[5+u*2]=0;
-						if (texture[u].enabled) {
-							*((UINT32 *)(&xy[m].p[4+u*2]))=space.read_dword(address+vattrpos[9+u]*4+0);
-							*((UINT32 *)(&xy[m].p[5+u*2]))=space.read_dword(address+vattrpos[9+u]*4+4);
-						}
-					}
-					address=address+vwords*4;
-					countlen=countlen-vwords;
-				}
+			address = address + c * 4;
+			for (n = 0; countlen > 0; n+=2) {
+				c = read_vertices_0x1818(space, vert + ((n + 2) & 3), address + ((n + 2) & 3), 2);
+				convert_vertices_poly(vert + ((n + 2) & 3), xy + ((n + 2) & 3), 2);
+				countlen = countlen - c;
 				if (countlen < 0) {
-					countlen=0;
-					break;
+					logerror("Method 0x1818 missing %d words to draw a complete primitive\n", -countlen);
+					countlen = 0;
+					return;
 				}
-				render_polygon<4>(fb.cliprect(),renderspans,4+4*2,xy); // 4 rgba, 4 texture units 2 uv
-				// copy elements 3,2 of arrays to elements 0,1 of arrays
-				xy[0]=xy[3];
-				z[0]=z[3];
-				w[0]=w[3];
-				xy[1]=xy[2];
-				z[1]=z[2];
-				w[1]=w[2];
+				address = address + c * 4;
+				render_triangle(fb.cliprect(), renderspans, 4 + 4 * 2, xy[n & 3], xy[(n + 1) & 3], xy[(n + 2) & 3]);
+				render_triangle(fb.cliprect(), renderspans, 4 + 4 * 2, xy[(n + 2) & 3], xy[(n + 1) & 3], xy[(n + 3) & 3]);
 			}
 			wait();
 		} else {
 			logerror("Unsupported primitive %d for method 0x1818\n",type);
+			countlen = 0;
 		}
+	}
+	if ((maddress >= 0x1720) && (maddress < 0x1760)) {
+		int bit = method - 0x1720 / 4;
+
+		if (data & 0x80000000)
+			vertexbuffer_address[bit] = (data & 0x0fffffff) + dma_offset[1];
+		else
+			vertexbuffer_address[bit] = (data & 0x0fffffff) + dma_offset[0];
+	}
+	if ((maddress >= 0x1760) && (maddress < 0x17A0)) {
+		int bit=method-0x1760/4;
+
+		vertexbuffer_stride[bit] = (data >> 8) & 255;
+		//vertexbuffer_kind[n]=tmp & 15;
+		//vertexbuffer_size[n]=(tmp >> 4) & 15;
+		data = data & 255;
+		switch (data & 15) {
+			case 0:
+				vertex_attribute_words[bit]=(((data >> 4) + 3) & 15) >> 2;
+				break;
+			case nv2a_renderer::FLOAT:
+				vertex_attribute_words[bit]=(data >> 4);
+				break;
+			case nv2a_renderer::UBYTE:
+				vertex_attribute_words[bit]=(((data >> 4) + 3) & 15) >> 2;
+				break;
+			case nv2a_renderer::USHORT:
+				vertex_attribute_words[bit]=(((data >> 4) + 1) & 15) >> 1;
+				break;
+			default:
+				vertex_attribute_words[bit]=0;
+		}
+		if (data > 15)
+			enabled_vertex_attributes |= (1 << bit);
+		else
+			enabled_vertex_attributes &= ~(1 << bit);
+		for (int n = bit+1; n < 16; n++) {
+			if ((enabled_vertex_attributes & (1 << (n - 1))) != 0)
+				vertex_attribute_offset[n] = vertex_attribute_offset[n - 1] + vertex_attribute_words[n - 1];
+			else
+				vertex_attribute_offset[n] = vertex_attribute_offset[n - 1];
+		}
+		countlen--;
 	}
 	if ((maddress == 0x1d6c) || (maddress == 0x1d70) || (maddress == 0x1a4))
 		countlen--;
+	if (maddress == 0x019c) {
+		geforce_read_dma_object(data, dma_offset[0], dma_size[0]);
+	}
+	if (maddress == 0x01a0) {
+		geforce_read_dma_object(data, dma_offset[1], dma_size[1]);
+	}
 	if (maddress == 0x1d70) {
 		// with 1d70 write the value at offest [1d6c] inside dma object [1a4]
 		UINT32 offset,base;
@@ -2071,17 +3196,55 @@ void nv2a_renderer::geforce_exec_method(address_space & space,UINT32 chanel,UINT
 		countlen--;
 	}
 	if (maddress == 0x1d94) {
+		// possible buffers: color, depth, stencil, and accumulation
 		// clear framebuffer
 		if (data & 0xf0) {
 			// clear colors
 			UINT32 color=channel[chanel][subchannel].object.method[0x1d90/4];
-			fb.fill(color & 0xffffff);
+			fb.fill(color);
 			//printf("clearscreen\n\r");
 		}
 		if (data & 0x03) {
 			// clear stencil+zbuffer
 		}
 		countlen--;
+	}
+	if (maddress == 0x0300) {
+		alpha_test_enabled = data != 0;
+	}
+	if (maddress == 0x033c) {
+		alpha_func = data;
+	}
+	if (maddress == 0x0340) {
+		alpha_reference = data;
+	}
+	if (maddress == 0x0304) {
+		if (logical_operation_enabled)
+			blending_enabled = false;
+		else
+			blending_enabled = data != 0;
+	}
+	if (maddress == 0x0344) {
+		blend_function_source = data;
+	}
+	if (maddress == 0x0348) {
+		blend_function_destination = data;
+	}
+	if (maddress == 0x034c) {
+		blend_color = data;
+	}
+	if (maddress == 0x0350) {
+		blend_equation = data;
+	}
+	if (maddress == 0x0d40) {
+		if (data != 0)
+			blending_enabled = false;
+		else
+			blending_enabled = channel[chanel][subchannel].object.method[0x0304 / 4] != 0;
+		logical_operation_enabled = data != 0;
+	}
+	if (maddress == 0x0d44) {
+		logical_operation = data;
 	}
 	// Texture Units
 	if ((maddress >= 0x1b00) && (maddress < 0x1c00)) {
@@ -2123,6 +3286,19 @@ void nv2a_renderer::geforce_exec_method(address_space & space,UINT32 chanel,UINT
 			texture[unit].sizew=1 << basesizew;
 			texture[unit].dilate=dilatechose[(basesizeu << 4)+basesizev];
 			texture[unit].format=format;
+			if (debug_grab_texttype == format) {
+				FILE *f;
+				int written;
+
+				debug_grab_texttype = -1;
+				f = fopen(debug_grab_textfile, "wb");
+				if (f) {
+					written=(int)fwrite(texture[unit].buffer, texture[unit].sizeu*texture[unit].sizev*4, 1, f);
+					fclose(f);
+					logerror("Written %d bytes of texture to specified file\n", written);
+				} else
+					logerror("Unable to save texture to specified file\n");
+			}
 		}
 		if (maddress == 0x1b0c) {
 			// enable texture
@@ -2136,31 +3312,82 @@ void nv2a_renderer::geforce_exec_method(address_space & space,UINT32 chanel,UINT
 		}
 		countlen--;
 	}
-	if ((maddress >= 0x1760) && (maddress < 0x17A0)) {
-		int bit=method-0x1760/4;
-
-		data=data & 255;
-		if (data > 15)
-			enabled_vertex_attributes |= (1 << bit);
-		else
-			enabled_vertex_attributes &= ~(1 << bit);
-		switch (data & 15) {
-			case 0:
-				words_vertex_attributes[bit]=(((data >> 4) + 3) & 15) >> 2;
-				break;
-			case nv2a_renderer::FLOAT:
-				words_vertex_attributes[bit]=(data >> 4);
-				break;
-			case nv2a_renderer::UBYTE:
-				words_vertex_attributes[bit]=(((data >> 4) + 3) & 15) >> 2;
-				break;
-			case nv2a_renderer::USHORT:
-				words_vertex_attributes[bit]=(((data >> 4) + 1) & 15) >> 1;
-				break;
-			default:
-				words_vertex_attributes[bit]=0;
-		}
+	// modelview matrix
+	if ((maddress >= 0x0480) && (maddress < 0x04c0)) {
+		maddress = (maddress - 0x0480) / 4;
+		*(UINT32 *)(&matrix.modelview[maddress]) = data;
+		countlen--;
 	}
+	// inverse modelview matrix
+	if ((maddress >= 0x0580) && (maddress < 0x05c0)) {
+		maddress = (maddress - 0x0580) / 4;
+		*(UINT32 *)(&matrix.modelview_inverse[maddress]) = data;
+		countlen--;
+	}
+	// projection matrix
+	if ((maddress >= 0x0680) && (maddress < 0x06c0)) {
+		maddress = (maddress - 0x0680) / 4;
+		*(UINT32 *)(&matrix.projection[maddress]) = data;
+		countlen--;
+	}
+	// viewport translate
+	if ((maddress >= 0x0a20) && (maddress < 0x0a30)) {
+		maddress = (maddress - 0x0a20) / 4;
+		*(UINT32 *)(&matrix.translate[maddress]) = data;
+		countlen--;
+	}
+	// viewport scale
+	if ((maddress >= 0x0af0) && (maddress < 0x0b00)) {
+		maddress = (maddress - 0x0af0) / 4;
+		*(UINT32 *)(&matrix.scale[maddress]) = data;
+		countlen--;
+	}
+	// Vertex program (shader)
+	if (maddress == 0x1e94) {
+		/*if (data == 2)
+		    logerror("Enabled vertex program\n");
+		else if (data == 4)
+		    logerror("Enabled fixed function pipeline\n");
+		else if (data == 6)
+		    logerror("Enabled both fixed function pipeline and vertex program ?\n");
+		else
+		    logerror("Unknown value %d to method 0x1e94\n",data);*/
+		vertex_pipeline = data & 6;
+		countlen--;
+	}
+	if (maddress == 0x1e9c) {
+		//logerror("VP_UPLOAD_FROM_ID %d\n",data);
+		vertexprogram.upload_instruction=data*4;
+		countlen--;
+	}
+	if (maddress == 0x1ea0) {
+		//logerror("VP_START_FROM_ID %d\n",data);
+		vertexprogram.instructions=vertexprogram.upload_instruction/4;
+		vertexprogram.start_instruction = data * 4;
+		countlen--;
+	}
+	if (maddress == 0x1ea4) {
+		//logerror("VP_UPLOAD_CONST_ID %d\n",data);
+		vertexprogram.upload_parameter=data*4;
+		countlen--;
+	}
+	if ((maddress >= 0x0b00) && (maddress < 0x0b80)) {
+		//logerror("VP_UPLOAD_INST\n");
+		if (vertexprogram.upload_instruction < 1024)
+			vertexprogram.instruction[vertexprogram.upload_instruction]=data;
+		else
+			logerror("Need to increase size of vertexprogram.instruction to %d\n\r", vertexprogram.upload_parameter);
+		vertexprogram.upload_instruction++;
+	}
+	if ((maddress >= 0x0b80) && (maddress < 0x0c00)) {
+		//logerror("VP_UPLOAD_CONST\n");
+		if (vertexprogram.upload_parameter < 1024)
+			*(UINT32 *)(&vertexprogram.parameter[vertexprogram.upload_parameter]) = data;
+		else
+			logerror("Need to increase size of vertexprogram.parameter to %d\n\r", vertexprogram.upload_parameter);
+		vertexprogram.upload_parameter++;
+	}
+	// Register combiners
 	if (maddress == 0x1e60) {
 		combiner.stages=data & 15;
 		countlen--;
@@ -2287,6 +3514,24 @@ int nv2a_renderer::toggle_register_combiners_usage()
 {
 	combiner.used=1-combiner.used;
 	return combiner.used;
+}
+
+void nv2a_renderer::debug_grab_texture(int type, const char *filename)
+{
+	debug_grab_texttype = type;
+	if (debug_grab_textfile == NULL)
+		debug_grab_textfile = (char *)malloc(128);
+	strncpy(debug_grab_textfile, filename, 127);
+}
+
+void nv2a_renderer::debug_grab_vertex_program_slot(int slot, UINT32 *instruction)
+{
+	if (slot >= 1024 / 4)
+		return;
+	instruction[0] = vertexprogram.instruction[slot * 4 + 0];
+	instruction[1] = vertexprogram.instruction[slot * 4 + 1];
+	instruction[2] = vertexprogram.instruction[slot * 4 + 2];
+	instruction[3] = vertexprogram.instruction[slot * 4 + 3];
 }
 
 void nv2a_renderer::savestate_items()
@@ -3251,6 +4496,7 @@ static void geforce_pci_w(device_t *busdevice, device_t *device, int function, i
  * ohci usb controller placeholder
  */
 
+#ifdef LOG_OHCI
 static const char *const usbregnames[]={
 	"HcRevision",
 	"HcControl",
@@ -3275,37 +4521,38 @@ static const char *const usbregnames[]={
 	"HcRhStatus",
 	"HcRhPortStatus[1]"
 };
+#endif
 
 READ32_MEMBER( chihiro_state::usbctrl_r )
 {
 	if (offset == 0) { /* hack needed until usb (and jvs) is implemented */
 		if (usbhack_counter == 0) {
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x6a79f,0x01);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x6a7a0,0x00);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x6b575,0x00);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x6b576,0x00);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x6b5af,0x75);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x6b78a,0x75);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x6b7ca,0x00);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x6b7b8,0x00);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x8f5b2,0x75);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x79a9e,0x74);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x79b80,0x74);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x79b97,0x74);
+			m_maincpu->space(0).write_byte(0x6a79f,0x01);
+			m_maincpu->space(0).write_byte(0x6a7a0,0x00);
+			m_maincpu->space(0).write_byte(0x6b575,0x00);
+			m_maincpu->space(0).write_byte(0x6b576,0x00);
+			m_maincpu->space(0).write_byte(0x6b5af,0x75);
+			m_maincpu->space(0).write_byte(0x6b78a,0x75);
+			m_maincpu->space(0).write_byte(0x6b7ca,0x00);
+			m_maincpu->space(0).write_byte(0x6b7b8,0x00);
+			m_maincpu->space(0).write_byte(0x8f5b2,0x75);
+			m_maincpu->space(0).write_byte(0x79a9e,0x74);
+			m_maincpu->space(0).write_byte(0x79b80,0x74);
+			m_maincpu->space(0).write_byte(0x79b97,0x74);
 		}
 		// after game loaded
 		if (usbhack_counter == 1) {
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x12e4cf,0x01);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x12e4d0,0x00);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x4793e,0x01);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x4793f,0x00);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x47aa3,0x01);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x47aa4,0x00);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x14f2b6,0x84);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x14f2d1,0x75);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x8732f,0x7d);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x87384,0x7d);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x87388,0xeb);
+			m_maincpu->space(0).write_byte(0x12e4cf,0x01);
+			m_maincpu->space(0).write_byte(0x12e4d0,0x00);
+			m_maincpu->space(0).write_byte(0x4793e,0x01);
+			m_maincpu->space(0).write_byte(0x4793f,0x00);
+			m_maincpu->space(0).write_byte(0x47aa3,0x01);
+			m_maincpu->space(0).write_byte(0x47aa4,0x00);
+			m_maincpu->space(0).write_byte(0x14f2b6,0x84);
+			m_maincpu->space(0).write_byte(0x14f2d1,0x75);
+			m_maincpu->space(0).write_byte(0x8732f,0x7d);
+			m_maincpu->space(0).write_byte(0x87384,0x7d);
+			m_maincpu->space(0).write_byte(0x87388,0xeb);
 		}
 		usbhack_counter++;
 	}
@@ -3335,26 +4582,116 @@ WRITE32_MEMBER( chihiro_state::usbctrl_w )
 READ32_MEMBER( chihiro_state::audio_apu_r )
 {
 	logerror("Audio_APU: read from %08X mask %08X\n",0xfe800000+offset*4,mem_mask);
-	if (offset == 0x20010/4)
+	if (offset == 0x20010/4) // some kind of internal counter or state value
 		return 0x20+4+8+0x48+0x80;
-	return 0;
+	return apust.memory[offset];
 }
 
 WRITE32_MEMBER( chihiro_state::audio_apu_w )
 {
+	//UINT32 old;
+	UINT32 v;
+
 	logerror("Audio_APU: write at %08X mask %08X value %08X\n",0xfe800000+offset*4,mem_mask,data);
-	if (offset == 0x2040/4)
-		apust.memory0_sgaddress=data;
-	if (offset == 0x20d4/4) {
-		apust.memory0_sgblocks=data;
-		apust.memory0_address=apust.space->read_dword(apust.memory0_sgaddress);
+	//old = apust.memory[offset];
+	apust.memory[offset] = data;
+	if (offset == 0x02040/4) // address of memory area with scatter-gather info (gpdsp scratch dma)
+		apust.gpdsp_sgaddress=data;
+	if (offset == 0x020d4/4) { // block count (gpdsp)
+		apust.gpdsp_sgblocks=data;
+		apust.gpdsp_address=apust.space->read_dword(apust.gpdsp_sgaddress); // memory address of first block
 		apust.timer->enable();
 		apust.timer->adjust(attotime::from_msec(1),0,attotime::from_msec(1));
 	}
-	if (offset == 0x2048/4)
-		apust.memory1_sgaddress=data;
-	if (offset == 0x20dc/4)
-		apust.memory1_sgblocks=data;
+	if (offset == 0x02048 / 4) // (epdsp scratch dma)
+		apust.epdsp_sgaddress=data;
+	if (offset == 0x020dc / 4) // (epdsp)
+		apust.epdsp_sgblocks=data;
+	if (offset == 0x0204c / 4) // address of memory area with information about blocks
+		apust.unknown_sgaddress = data;
+	if (offset == 0x020e0 / 4) // block count - 1
+		apust.unknown_sgblocks = data;
+	if (offset == 0x0202c / 4) { // address of memory area with 0x80 bytes for each voice
+		apust.voicedata_address = data;
+		return;
+	}
+	if (offset == 0x04024 / 4) // offset in memory area indicated by 0x204c (analog output ?)
+		return;
+	if (offset == 0x04034 / 4) // size
+		return;
+	if (offset == 0x04028 / 4) // offset in memory area indicated by 0x204c (digital output ?)
+		return;
+	if (offset == 0x04038 / 4) // size
+		return;
+	if (offset == 0x20804 / 4) { // block number for scatter-gather heap that stores sampled audio to be played
+		if (data >= 1024) {
+			logerror("Audio_APU: sg block number too high, increase size of voices_heap_blockaddr\n");
+			apust.memory[offset] = 1023;
+		}
+		return;
+	}
+	if (offset == 0x20808 / 4) { // block address for scatter-gather heap that stores sampled audio to be played
+		apust.voices_heap_blockaddr[apust.memory[0x20804 / 4]] = data;
+		return;
+	}
+	if (offset == 0x202f8 / 4) { // voice number for parameters ?
+		apust.voice_number = data;
+		return;
+	}
+	if (offset == 0x202fc / 4) // 1 when accessing voice parameters 0 otherwise
+		return;
+	if (offset == 0x20304 / 4) { // format
+		/*
+		  bits 28-31 sample format:
+		   0  8-bit pcm
+		   5  16-bit pcm
+		   10 adpcm ?
+		   14 24-bit pcm
+		   15 32-bit pcm
+		  bits 16-20 number of channels - 1:
+		   0  mono
+		   1  stereo
+		*/
+		return;
+	}
+	if (offset == 0x2037c / 4) { // value related to sample rate
+		INT16 v = (INT16)(data >> 16); // upper 16 bits as a signed 16 bit value
+		float vv = ((float)v) / 4096.0; // divide by 4096
+		float vvv = powf(2, vv); // two to the vv
+		int f = vvv*48000.0; // sample rate
+		apust.voices_frequency[apust.voice_number] = f;
+		return;
+	}
+	if (offset == 0x203a0 / 4) // start offset of data in scatter-gather heap
+		return;
+	if (offset == 0x203a4 / 4) { // first sample to play
+		apust.voices_position_start[apust.voice_number] = data*1000;
+		return;
+	}
+	if (offset == 0x203dc / 4) { // last sample to play
+		apust.voices_position_end[apust.voice_number] = data*1000;
+		return;
+	}
+	if (offset == 0x2010c / 4) // voice processor 0 idle 1 not idle ?
+		return;
+	if (offset == 0x20124 / 4) { // voice number to activate ?
+		v = apust.voice_number;
+		apust.voices_active[v >> 6] |= ((UINT64)1 << (v & 63));
+		apust.voices_position[v] = apust.voices_position_start[apust.voice_number];
+		apust.voices_position_increment[apust.voice_number] = apust.voices_frequency[apust.voice_number];
+		return;
+	}
+	if (offset == 0x20128 / 4) { // voice number to deactivate ?
+		v = apust.voice_number;
+		apust.voices_active[v >> 6] &= ~(1 << (v & 63));
+		return;
+	}
+	if (offset == 0x20140 / 4) // voice number to ?
+		return;
+	if ((offset >= 0x20200 / 4) && (offset < 0x20280 / 4)) // headroom for each of the 32 mixbins
+		return;
+	if (offset == 0x20280 / 4) // hrtf headroom ?
+		return;
 }
 
 READ32_MEMBER( chihiro_state::audio_ac93_r )
@@ -3402,11 +4739,30 @@ WRITE32_MEMBER( chihiro_state::audio_ac93_w )
 
 TIMER_CALLBACK_MEMBER(chihiro_state::audio_apu_timer)
 {
-	int cmd=apust.space->read_dword(apust.memory0_address+0x800+0x10);
+	int cmd;
+	int bb, b, v;
+	UINT64 bv;
+	UINT32 phys;
+
+	cmd=apust.space->read_dword(apust.gpdsp_address+0x800+0x10);
 	if (cmd == 3)
-		apust.space->write_dword(apust.memory0_address+0x800+0x10,0);
+		apust.space->write_dword(apust.gpdsp_address+0x800+0x10,0);
 	/*else
-	    logerror("Audio_APU: unexpected value at address %d\n",apust.memory0_address+0x800+0x10);*/
+	    logerror("Audio_APU: unexpected value at address %d\n",apust.gpdsp_address+0x800+0x10);*/
+	for (b = 0; b < 4; b++) {
+		bv = 1;
+		for (bb = 0; bb < 64; bb++) {
+			if (apust.voices_active[b] & bv) {
+				v = bb + (b << 6);
+				apust.voices_position[v] += apust.voices_position_increment[v];
+				while (apust.voices_position[v] >= apust.voices_position_end[v])
+					apust.voices_position[v] = apust.voices_position_start[v] + apust.voices_position[v] - apust.voices_position_end[v] - 1000;
+				phys = apust.voicedata_address + 0x80 * v;
+				apust.space->write_dword(phys + 0x58, apust.voices_position[v] / 1000);
+			}
+			bv = bv << 1;
+		}
+	}
 }
 
 /*
@@ -3686,25 +5042,6 @@ WRITE_LINE_MEMBER(chihiro_state::chihiro_pit8254_out2_changed)
 	//chihiro_speaker_set_input( state ? 1 : 0 );
 }
 
-static const struct pit8253_interface chihiro_pit8254_config =
-{
-	{
-		{
-			1125000,                /* heartbeat IRQ */
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(chihiro_state, chihiro_pit8254_out0_changed)
-		}, {
-			1125000,                /* (unused) dram refresh */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}, {
-			1125000,                /* (unused) pio port c pin 4, and speaker polling enough */
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(chihiro_state, chihiro_pit8254_out2_changed)
-		}
-	}
-};
-
 /*
  * SMbus devices
  */
@@ -3768,10 +5105,10 @@ int chihiro_state::smbus_eeprom(int command,int rw,int data)
 		// hack to avoid hanging if eeprom contents are not correct
 		// this would need dumping the serial eeprom on the xbox board
 		if (command == 0) {
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x3b744,0x90);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x3b745,0x90);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x3b766,0xc9);
-			chihiro_devs.pic8259_1->machine().firstcpu->space(0).write_byte(0x3b767,0xc3);
+			m_maincpu->space(0).write_byte(0x3b744,0x90);
+			m_maincpu->space(0).write_byte(0x3b745,0x90);
+			m_maincpu->space(0).write_byte(0x3b766,0xc9);
+			m_maincpu->space(0).write_byte(0x3b767,0xc3);
 		}
 		data = dummyeeprom[command]+dummyeeprom[command+1]*256;
 		logerror("eeprom: %d %d %d\n",command,rw,data);
@@ -3910,7 +5247,6 @@ void chihiro_state::machine_start()
 	smbus_register_device(0x10,smbus_callback_pic16lc);
 	smbus_register_device(0x45,smbus_callback_cx25871);
 	smbus_register_device(0x54,smbus_callback_eeprom);
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(chihiro_state::irq_callback),this));
 	chihiro_devs.pic8259_1 = machine().device<pic8259_device>( "pic8259_1" );
 	chihiro_devs.pic8259_2 = machine().device<pic8259_device>( "pic8259_2" );
 	chihiro_devs.ide = machine().device<bus_master_ide_controller_device>( "ide" );
@@ -3918,7 +5254,14 @@ void chihiro_state::machine_start()
 	if (chihiro_devs.dimmboard != NULL) {
 		dimm_board_memory=chihiro_devs.dimmboard->memory(dimm_board_memory_size);
 	}
-	apust.space=&machine().firstcpu->space();
+	memset(apust.memory, 0, sizeof(apust.memory));
+	memset(apust.voices_heap_blockaddr, 0, sizeof(apust.voices_heap_blockaddr));
+	memset(apust.voices_active, 0, sizeof(apust.voices_active));
+	memset(apust.voices_position, 0, sizeof(apust.voices_position));
+	memset(apust.voices_position_start, 0, sizeof(apust.voices_position_start));
+	memset(apust.voices_position_end, 0, sizeof(apust.voices_position_end));
+	memset(apust.voices_position_increment, 0, sizeof(apust.voices_position_increment));
+	apust.space = &m_maincpu->space();
 	apust.timer=machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(chihiro_state::audio_apu_timer),this),(void *)"APU Timer");
 	apust.timer->enable(false);
 	if (machine().debug_flags & DEBUG_FLAG_ENABLED)
@@ -3949,6 +5292,7 @@ static MACHINE_CONFIG_START( chihiro_base, chihiro_state )
 	MCFG_CPU_ADD("maincpu", PENTIUM3, 733333333) /* Wrong! family 6 model 8 stepping 10 */
 	MCFG_CPU_PROGRAM_MAP(xbox_map)
 	MCFG_CPU_IO_MAP(xbox_map_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(chihiro_state,irq_callback)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 
@@ -3967,7 +5311,14 @@ static MACHINE_CONFIG_START( chihiro_base, chihiro_state )
 	MCFG_PCI_BUS_LEGACY_DEVICE(0, "NV2A GeForce 3MX Integrated GPU/Northbridge", geforce_pci_r, geforce_pci_w)
 	MCFG_PIC8259_ADD( "pic8259_1", WRITELINE(chihiro_state, chihiro_pic8259_1_set_int_line), VCC, READ8(chihiro_state,get_slave_ack) )
 	MCFG_PIC8259_ADD( "pic8259_2", DEVWRITELINE("pic8259_1", pic8259_device, ir2_w), GND, NULL )
-	MCFG_PIT8254_ADD( "pit8254", chihiro_pit8254_config )
+
+	MCFG_DEVICE_ADD("pit8254", PIT8254, 0)
+	MCFG_PIT8253_CLK0(1125000) /* heartbeat IRQ */
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(chihiro_state, chihiro_pit8254_out0_changed))
+	MCFG_PIT8253_CLK1(1125000) /* (unused) dram refresh */
+	MCFG_PIT8253_CLK2(1125000) /* (unused) pio port c pin 4, and speaker polling enough */
+	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(chihiro_state, chihiro_pit8254_out2_changed))
+
 	MCFG_BUS_MASTER_IDE_CONTROLLER_ADD( "ide", ide_baseboard, NULL, "bb", true)
 	MCFG_ATA_INTERFACE_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir6_w))
 	MCFG_BUS_MASTER_IDE_CONTROLLER_SPACE("maincpu", AS_PROGRAM)
@@ -3981,7 +5332,7 @@ static MACHINE_CONFIG_START( chihiro_base, chihiro_state )
 	MCFG_SCREEN_UPDATE_DRIVER(chihiro_state,screen_update_callback)
 	MCFG_SCREEN_VBLANK_DRIVER(chihiro_state,vblank_callback)
 
-	MCFG_PALETTE_LENGTH(65536)
+	MCFG_PALETTE_ADD("palette", 65536)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( chihirogd, chihiro_base )
@@ -4013,8 +5364,28 @@ ROM_START( chihiro )
 	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
 ROM_END
 
+/*
+Title             THE HOUSE OF THE DEAD 3
+Media ID          2673
+Media Config      GD-ROM1/1
+Regions           J
+Peripheral String 0000000
+Product Number    GDX-0001
+Version           V1.004
+Release Date      20021029
+Manufacturer ID
+TOC DISC
+Track        Start Sector  End Sector  Track Size
+track01.bin           150         599     1058400
+track02.raw           750        2101     3179904
+track03.bin         45150      549299  1185760800
 
-
+PIC
+253-5508-0348
+317-0348-com
+BFN.BIN
+a8 0b f8 f2 b9 20 b9 97
+*/
 ROM_START( hotd3 )
 	CHIHIRO_BIOS
 
@@ -4023,6 +5394,66 @@ ROM_START( hotd3 )
 
 	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
 	ROM_LOAD("317-0348-com.data", 0x00, 0x50, CRC(d28219ef) SHA1(40dbbc092bc9f99b8d2ae67fbefacd62184f90ec) )
+ROM_END
+
+/*
+Title             CRAZY TAXI HIGHROLLER
+Media ID          0D2E
+Media Config      GD-ROM1/1
+Regions           J
+Peripheral String 0000000
+Product Number    GDX-0002B
+Version           V3.000
+Release Date      20030224
+Manufacturer ID
+TOC DISC
+Track        Start Sector  End Sector  Track Size
+track01.bin           150         599     1058400
+track02.raw           750        2101     3179904
+track03.bin         45150      549299  1185760800
+
+PIC
+253-5508-0353
+317-0353-COM
+*/
+ROM_START( crtaxihr )
+	CHIHIRO_BIOS
+
+	DISK_REGION( "gdrom" )
+	DISK_IMAGE_READONLY( "gdx-0002b", 0, SHA1(e77d31aea9d4bf150e427aecf29b97855c2096f6) )
+
+	ROM_REGION( 0x4000, "pic", ROMREGION_ERASEFF)
+	ROM_LOAD( "317-0353-com.pic", 0x000000, 0x004000, CRC(1c6830b1) SHA1(75be47441783c18ee296209a34c432864deed70d) )
+ROM_END
+
+/*
+Title             VIRTUA COP 3
+Media ID          C4AD
+Media Config      GD-ROM1/1
+Regions           J
+Peripheral String 0000000
+Product Number    GDX-0003A
+Version           V2.004
+Release Date      20030226
+Manufacturer ID
+TOC DISC
+Track        Start Sector  End Sector  Track Size
+track01.bin           150         599     1058400
+track02.raw           750        2101     3179904
+track03.bin         45150      549299  1185760800
+
+PIC
+255-5508-354
+317-054-COM
+*/
+ROM_START( vcop3 )
+	CHIHIRO_BIOS
+
+	DISK_REGION( "gdrom" )
+	DISK_IMAGE_READONLY( "gdx-0003a", 0, SHA1(04cd12bec50a9e9f1f05e7b7c2ef396800a385dd) )
+
+	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
+	ROM_LOAD("317-0354-com.data", 0x00, 0x50,  CRC(df7e3217) SHA1(9f0f4bf6b15f3b6eeea81eaa27b3d25bd94110da) )
 ROM_END
 
 ROM_START( outr2 )
@@ -4035,24 +5466,78 @@ ROM_START( outr2 )
 	ROM_LOAD("317-0372-com.data", 0x00, 0x50, CRC(a15c9666) SHA1(fd36c524744acb33e579ccb257c71375a5d3af67) )
 ROM_END
 
+ROM_START( mj2c )
+	CHIHIRO_BIOS
+
+	DISK_REGION( "gdrom" )
+	DISK_IMAGE_READONLY( "gdx-0006c", 0, BAD_DUMP SHA1(505653117a73ed8b256ccf19450e7573a4dc57e9) )
+
+	ROM_REGION( 0x50, "pic", ROMREGION_ERASE) // key was missing
+	ROM_LOAD("317-0374-jpn.data", 0x00, 0x50, NO_DUMP )
+ROM_END
+
 /*
-
-Title   GHOST SQUAD
-Media ID    004F
-Media Config    GD-ROM1/1
-Regions J
-Peripheral String   0000000
-Product Number  GDX-0012A
-Version V2.000
-Release Date    20041209
+Title             MJ2
+Media ID          3580
+Media Config      GD-ROM1/1
+Regions           J
+Peripheral String 0000000
+Product Number    GDX-0006G
+Version           V8.000
+Release Date      20050202
 Manufacturer ID
+TOC DISC
+Track        Start Sector  End Sector  Track Size
+track01.bin           150         599     1058400
+track02.raw 750 2101    3179904
+track03.bin 45150   549299  1185760800
+*/
+ROM_START( mj2 )
+	CHIHIRO_BIOS
 
+	DISK_REGION( "gdrom" )
+	DISK_IMAGE_READONLY( "gdx-0006g", 0, SHA1(e306837d5c093fdf1e9ff02239a8563535b1c181) )
+
+	ROM_REGION( 0x50, "pic", ROMREGION_ERASE) // key was missing
+	ROM_LOAD("317-0374-jpn.data", 0x00, 0x50, NO_DUMP )
+ROM_END
+
+ROM_START( ollie )
+	CHIHIRO_BIOS
+
+	DISK_REGION( "gdrom" )
+	DISK_IMAGE_READONLY( "gdx-0007", 0, BAD_DUMP SHA1(8898a571a427936bffcecd3ef27cb79087d22798) )
+
+	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
+	ROM_LOAD("317-0377-com.data", 0x00, 0x50, CRC(d2a8b31f) SHA1(e9ee2df30031826db6bc4bd91969e6680255dcf9) )
+ROM_END
+
+ROM_START( wangmid )
+	CHIHIRO_BIOS
+
+	DISK_REGION( "gdrom" )
+	DISK_IMAGE_READONLY( "gdx-0009b", 0, BAD_DUMP SHA1(e032b9fd8d5d09255592f02f7531a608e8179c9c) )
+
+	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
+	ROM_LOAD("317-5101-com.data", 0x00, 0x50, CRC(3af801f3) SHA1(e9a2558930f3f1f55d5b3c2cadad69329d931f26) )
+ROM_END
+
+/*
+Title             GHOST SQUAD
+Media ID          004F
+Media Config      GD-ROM1/1
+Regions           J
+Peripheral String 0000000
+Product Number    GDX-0012A
+Version           V2.000
+Release Date      20041209
+Manufacturer ID
+BHU.BIN
+970efe79ce32ab4a
 PIC
 253-5508-0398
 317-0398-COM
-
 */
-
 ROM_START( ghostsqu )
 	CHIHIRO_BIOS
 
@@ -4063,7 +5548,6 @@ ROM_START( ghostsqu )
 	ROM_LOAD("317-0398-com.data", 0x00, 0x50, CRC(8c5391a2) SHA1(e64cadeb30c94c3cd4002630cd79cc76c7bde2ed) )
 ROM_END
 
-
 ROM_START( gundamos )
 	CHIHIRO_BIOS
 
@@ -4071,127 +5555,7 @@ ROM_START( gundamos )
 	DISK_IMAGE_READONLY( "gdx-0013", 0, BAD_DUMP SHA1(96b3dafcc2d2d6803fe3bf43a245d43ee5e0e5a6) )
 
 	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
-	ROM_LOAD("gdx-0013.data", 0x00, 0x50, CRC(0479c383) SHA1(7e86a037d2f9d09cec61a38cb19de510bf9482b3) )
-ROM_END
-
-/*
-
-Title   VIRTUA COP 3
-Media ID    C4AD
-Media Config    GD-ROM1/1
-Regions J
-Peripheral String   0000000
-Product Number  GDX-0003A
-Version V2.004
-Release Date    20030226
-Manufacturer ID
-TOC DISC
-Track   Start Sector    End Sector  Track Size
-track01.bin 150 599 1058400
-track02.raw 750 2101    3179904
-track03.bin 45150   549299  1185760800
-
-
-PIC
-255-5508-354
-317-054-COM
-
-*/
-
-ROM_START( vcop3 )
-	CHIHIRO_BIOS
-
-	DISK_REGION( "gdrom" )
-	DISK_IMAGE_READONLY( "gdx-0003a", 0, BAD_DUMP  SHA1(cdfec1d2ef02ae9e29cb1462f08904177bc4c9ea) )
-
-	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
-	ROM_LOAD("317-0354-com.data", 0x00, 0x50,  CRC(df7e3217) SHA1(9f0f4bf6b15f3b6eeea81eaa27b3d25bd94110da) )
-ROM_END
-
-
-ROM_START( mj2 )
-	CHIHIRO_BIOS
-
-	DISK_REGION( "gdrom" )
-	DISK_IMAGE_READONLY( "gdx-0006c", 0, BAD_DUMP SHA1(505653117a73ed8b256ccf19450e7573a4dc57e9) )
-
-	ROM_REGION( 0x50, "pic", ROMREGION_ERASE) // key was missing
-	ROM_LOAD("gdx-0006c.pic_data", 0x00, 0x50, NO_DUMP )
-ROM_END
-
-ROM_START( ollie )
-	CHIHIRO_BIOS
-
-	DISK_REGION( "gdrom" )
-	DISK_IMAGE_READONLY( "gdx-0007", 0, BAD_DUMP SHA1(8898a571a427936bffcecd3ef27cb79087d22798) )
-
-	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
-	ROM_LOAD("gdx-0007.data", 0x00, 0x50, CRC(d2a8b31f) SHA1(e9ee2df30031826db6bc4bd91969e6680255dcf9) )
-ROM_END
-
-
-
-ROM_START( wangmid )
-	CHIHIRO_BIOS
-
-	DISK_REGION( "gdrom" )
-	DISK_IMAGE_READONLY( "gdx-0009b", 0, BAD_DUMP SHA1(e032b9fd8d5d09255592f02f7531a608e8179c9c) )
-
-	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
-	ROM_LOAD("gdx-0009b.data", 0x00, 0x50, CRC(3af801f3) SHA1(e9a2558930f3f1f55d5b3c2cadad69329d931f26) )
-ROM_END
-
-
-ROM_START( wangmid2 )
-	CHIHIRO_BIOS
-
-	DISK_REGION( "gdrom" )
-	DISK_IMAGE_READONLY( "gdx-0015", 0, BAD_DUMP SHA1(259483fd211a70c23205ffd852316d616c5a2740) )
-
-	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
-	ROM_LOAD("317-5106-com.data", 0x00, 0x50, CRC(75c716aa) SHA1(5c2bcf3d28a80b336c6882d5aeb010d04327f8c1) )
-ROM_END
-
-
-ROM_START( wangmd2b )
-	CHIHIRO_BIOS
-
-	DISK_REGION( "gdrom" )
-	DISK_IMAGE_READONLY( "gdx-0016a", 0, BAD_DUMP SHA1(cb306df60550bbd8df312634cb97014bb39f1631) )
-
-	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
-	ROM_LOAD("317-5106-com.data", 0x00, 0x50, CRC(75c716aa) SHA1(5c2bcf3d28a80b336c6882d5aeb010d04327f8c1) )
-ROM_END
-
-
-ROM_START( mj3 )
-	CHIHIRO_BIOS
-
-	DISK_REGION( "gdrom" )
-	DISK_IMAGE_READONLY( "gdx-0017d", 0, BAD_DUMP SHA1(cfbbd452c8f4efe0e99f398f5521fc3574b913bb) )
-
-	ROM_REGION( 0x50, "pic", ROMREGION_ERASE) // key was missing
-	ROM_LOAD("gdx-0017d.pic_data", 0x00, 0x50, NO_DUMP )
-ROM_END
-
-ROM_START( mj3f )
-	CHIHIRO_BIOS
-
-	DISK_REGION( "gdrom" )
-	DISK_IMAGE_READONLY( "gdx-0017f", 0, SHA1(a859313c80c5303bba5514ff734a7205cd12e456) )
-
-	ROM_REGION( 0x50, "pic", ROMREGION_ERASE) // key was missing
-	ROM_LOAD("gdx-0017f.pic_data", 0x00, 0x50, NO_DUMP )
-ROM_END
-
-ROM_START( scg06nt )
-	CHIHIRO_BIOS
-
-	DISK_REGION( "gdrom" )
-	DISK_IMAGE_READONLY( "gdx-0018a", 0, BAD_DUMP SHA1(e6f3dc8066392854ad7d83f81d3cbc81a5e340b3) )
-
-	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
-	ROM_LOAD("gdx-0018.data", 0x00, 0x50, CRC(1a210abd) SHA1(43a54d028315d2dfa9f8ea6fb59265e0b980b02f) )
+	ROM_LOAD("317-0400-jpn.data", 0x00, 0x50, CRC(0479c383) SHA1(7e86a037d2f9d09cec61a38cb19de510bf9482b3) )
 ROM_END
 
 ROM_START( outr2st )
@@ -4204,31 +5568,134 @@ ROM_START( outr2st )
 	ROM_LOAD( "317-0xxx-com.pic", 0x000000, 0x004000, CRC(f94cf26f) SHA1(dd4af2b52935c7b2d8cd196ec1a30c0ef0993322) )
 ROM_END
 
-ROM_START( crtaxihr )
+ROM_START( wangmd2b )
 	CHIHIRO_BIOS
 
 	DISK_REGION( "gdrom" )
-	DISK_IMAGE_READONLY( "gdx-0002b", 0, BAD_DUMP SHA1(4056ebd5587d6c897f475240bc5a4075a995aa8c) )
+	DISK_IMAGE_READONLY( "gdx-0015a", 0, BAD_DUMP SHA1(cb306df60550bbd8df312634cb97014bb39f1631) )
 
-	ROM_REGION( 0x4000, "pic", ROMREGION_ERASEFF)
-	ROM_LOAD( "317-0353-com.pic", 0x000000, 0x004000, CRC(1c6830b1) SHA1(75be47441783c18ee296209a34c432864deed70d) )
+	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
+	ROM_LOAD("317-5106-jpn.data", 0x00, 0x50, CRC(75c716aa) SHA1(5c2bcf3d28a80b336c6882d5aeb010d04327f8c1) )
+ROM_END
+
+ROM_START( wangmid2 )
+	CHIHIRO_BIOS
+
+	DISK_REGION( "gdrom" )
+	DISK_IMAGE_READONLY( "gdx-0016", 0, BAD_DUMP SHA1(259483fd211a70c23205ffd852316d616c5a2740) )
+
+	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
+	ROM_LOAD("317-5106-com.data", 0x00, 0x50, CRC(75c716aa) SHA1(5c2bcf3d28a80b336c6882d5aeb010d04327f8c1) )
+ROM_END
+
+ROM_START( mj3d )
+	CHIHIRO_BIOS
+
+	DISK_REGION( "gdrom" )
+	DISK_IMAGE_READONLY( "gdx-0017d", 0, BAD_DUMP SHA1(cfbbd452c8f4efe0e99f398f5521fc3574b913bb) )
+
+	ROM_REGION( 0x50, "pic", ROMREGION_ERASE) // key was missing
+	ROM_LOAD("317-0414-jpn.data", 0x00, 0x50, NO_DUMP )
+ROM_END
+
+ROM_START( mj3 )
+	CHIHIRO_BIOS
+
+	DISK_REGION( "gdrom" )
+	DISK_IMAGE_READONLY( "gdx-0017f", 0, SHA1(8641be9b2e1d8eb33cf27d3444956c0117debc2f) )
+
+	ROM_REGION( 0x50, "pic", ROMREGION_ERASE) // key was missing
+	ROM_LOAD("317-0414-jpn.data", 0x00, 0x50, NO_DUMP )
+ROM_END
+
+ROM_START( scg06nt )
+	CHIHIRO_BIOS
+
+	DISK_REGION( "gdrom" )
+	DISK_IMAGE_READONLY( "gdx-0018a", 0, BAD_DUMP SHA1(e6f3dc8066392854ad7d83f81d3cbc81a5e340b3) )
+
+	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
+	ROM_LOAD("gdx-0018.data", 0x00, 0x50, CRC(1a210abd) SHA1(43a54d028315d2dfa9f8ea6fb59265e0b980b02f) )
+ROM_END
+
+/*
+Title             BOX GDROM CF-BOX FIRM
+Media ID          EB08
+Media Config      GD-ROM1/1
+Regions           J
+Peripheral String 0000000
+Product Number    GDX-0024A
+Version           V2.000
+Release Date      20090331
+Manufacturer ID
+TOC DISC
+Track        Start Sector  End Sector  Track Size
+track01.bin           150        8740    20206032
+track02.raw          8891       10242     3179904
+track03.bin         45150      549299  1185760800
+
+PIC16C621A ()
+Sticker: 235-5508-0567
+VER0001, TEST_OK, BRN.BIN, '70 1F 71 1F' D96446469BDCE9C1
+*/
+ROM_START( ccfboxa )
+	CHIHIRO_BIOS
+
+	DISK_REGION( "gdrom" )
+	DISK_IMAGE_READONLY( "gdx-0024a", 0, SHA1(79d8c0faeec7cf6882f014760b8af938800b7e52) )
+
+	ROM_REGION( 0x50, "pic", ROMREGION_ERASE)
+	ROM_LOAD("317-0567-exp.data", 0x00, 0x50, NO_DUMP )
 ROM_END
 
 
+/* Main board */
+/*Chihiro*/ GAME( 2002, chihiro,  0,        chihiro_base, chihiro, driver_device, 0, ROT0, "Sega",                     "Chihiro Bios", GAME_NO_SOUND|GAME_NOT_WORKING|GAME_IS_BIOS_ROOT )
 
-GAME( 2002, chihiro,  0,       chihiro_base, chihiro, driver_device, 0, ROT0, "Sega",      "Chihiro Bios", GAME_NO_SOUND|GAME_NOT_WORKING|GAME_IS_BIOS_ROOT )
-GAME( 2002, hotd3,    chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",      "The House of the Dead III (GDX-0001)", GAME_NO_SOUND|GAME_NOT_WORKING )
-GAME( 2003, crtaxihr, chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",      "Crazy Taxi High Roller (Rev B) (GDX-0002B)", GAME_NO_SOUND|GAME_NOT_WORKING )
-GAME( 2003, vcop3,    chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",      "Virtua Cop 3 (Rev A) (GDX-0003A)", GAME_NO_SOUND|GAME_NOT_WORKING )
-GAME( 2003, outr2,    chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",      "Out Run 2 (Rev A) (GDX-0004A)", GAME_NO_SOUND|GAME_NOT_WORKING|GAME_SUPPORTS_SAVE )
-GAME( 2004, mj2,      chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",      "Sega Network Taisen Mahjong MJ 2 (Rev C) (GDX-0006C)", GAME_NO_SOUND|GAME_NOT_WORKING )
-GAME( 2004, ollie,    chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",      "Ollie King (GDX-0007)", GAME_NO_SOUND|GAME_NOT_WORKING )
-GAME( 2004, wangmid,  chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Namco",     "Wangan Midnight Maximum Tune (Export) (Rev B) (GDX-0009B)", GAME_NO_SOUND|GAME_NOT_WORKING )
-GAME( 2004, ghostsqu, chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",      "Ghost Squad (Rev A) (GDX-0012A)", GAME_NO_SOUND|GAME_NOT_WORKING )
-GAME( 2005, gundamos, chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Banpresto", "Gundam Battle Operating Simulator (GDX-0013)", GAME_NO_SOUND|GAME_NOT_WORKING )
-GAME( 2004, outr2st,  chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",      "Out Run 2 Special Tours (Rev A) (GDX-0014A)", GAME_NO_SOUND|GAME_NOT_WORKING )
-GAME( 2005, wangmid2, chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Namco",     "Wangan Midnight Maximum Tune 2 (Export) (GDX-0015)", GAME_NO_SOUND|GAME_NOT_WORKING )
-GAME( 2005, wangmd2b, chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Namco",     "Wangan Midnight Maximum Tune 2 (Japan) (Rev A) (GDX-0016A)", GAME_NO_SOUND|GAME_NOT_WORKING )
-GAME( 2005, mj3,      chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",      "Sega Network Taisen Mahjong MJ 3 (Rev D) (GDX-0017D)", GAME_NO_SOUND|GAME_NOT_WORKING )
-GAME( 2005, mj3f,     mj3,     chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",      "Sega Network Taisen Mahjong MJ 3 (Rev F) (GDX-0017F)", GAME_NO_SOUND|GAME_NOT_WORKING )
-GAME( 2005, scg06nt,  chihiro, chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",      "Sega Club Golf 2006 Next Tours (Rev A) (GDX-0018A)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* GDX-xxxx (Sega GD-ROM games) */
+/* 0001  */ GAME( 2002, hotd3,    chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega / Wow Entertainment", "The House of the Dead III (GDX-0001)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0002     GAME( 2003, crtaxhro, crtaxihr, chihirogd,    chihiro, driver_device, 0, ROT0, "Sega / Hitmaker",          "Crazy Taxi High Roller (GDX-0002)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0002A    GAME( 2003, crtaxhra, crtaxihr, chihirogd,    chihiro, driver_device, 0, ROT0, "Sega / Hitmaker",          "Crazy Taxi High Roller (Rev A) (GDX-0002A)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0002B */ GAME( 2003, crtaxihr, chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega / Hitmaker",          "Crazy Taxi High Roller (Rev B) (GDX-0002B)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0003     GAME( 2003, vcop3o,   vcop3,    chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Virtua Cop 3 (GDX-0003)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0003A */ GAME( 2003, vcop3,    chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Virtua Cop 3 (Rev A) (GDX-0003A)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0004     GAME( 2003, outr2o,   outr2,    chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Out Run 2 (GDX-0004)", GAME_NO_SOUND|GAME_NOT_WORKING|GAME_SUPPORTS_SAVE )
+/* 0004A */ GAME( 2003, outr2,    chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Out Run 2 (Rev A) (GDX-0004A)", GAME_NO_SOUND|GAME_NOT_WORKING|GAME_SUPPORTS_SAVE )
+// 0005     GAME( 2004, sgolcnpt, chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Golf Club Network Pro Tour (GDX-0005)", GAME_NO_SOUND|GAME_NOT_WORKING|GAME_SUPPORTS_SAVE )
+// 0006     GAME( 2004, mj2o,     mj2,      chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 2 (GDX-0006)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0006A    GAME( 2004, mj2a,     mj2,      chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 2 (Rev A) (GDX-0006A)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0006B    GAME( 2004, mj2b,     mj2,      chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 2 (Rev B) (GDX-0006B)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0006C */ GAME( 2004, mj2c,     mj2,      chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 2 (Rev C) (GDX-0006C)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0006D    GAME( 2004, mj2d,     mj2,      chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 2 (Rev D) (GDX-0006D)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0006E    GAME( 2004, mj2e,     mj2,      chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 2 (Rev E) (GDX-0006E)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0006F    GAME( 2004, mj2f,     mj2,      chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 2 (Rev F) (GDX-0006F)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0006G */ GAME( 2004, mj2,      chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 2 (Rev G) (GDX-0006G)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0007  */ GAME( 2004, ollie,    chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega / Amusement Vision",  "Ollie King (GDX-0007)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0008     GAME( 2004, wangmdjo, wangmidj, chihirogd,    chihiro, driver_device, 0, ROT0, "Namco",                    "Wangan Midnight Maximum Tune (Japan) (GDX-0008)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0008A    GAME( 2004, wangmdja, wangmidj, chihirogd,    chihiro, driver_device, 0, ROT0, "Namco",                    "Wangan Midnight Maximum Tune (Japan) (Rev A) (GDX-0008A)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0008B    GAME( 2004, wangmidj, wangmidj, chihirogd,    chihiro, driver_device, 0, ROT0, "Namco",                    "Wangan Midnight Maximum Tune (Japan) (Rev B) (GDX-0008B)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0009     GAME( 2004, wangmido, wangmid,  chihirogd,    chihiro, driver_device, 0, ROT0, "Namco",                    "Wangan Midnight Maximum Tune (Export) (GDX-0009)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0009A    GAME( 2004, wangmida, wangmid,  chihirogd,    chihiro, driver_device, 0, ROT0, "Namco",                    "Wangan Midnight Maximum Tune (Export) (Rev A) (GDX-0009A)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0009B */ GAME( 2004, wangmid,  chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Namco",                    "Wangan Midnight Maximum Tune (Export) (Rev B) (GDX-0009B)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0011     GAME( 2004, outr2sp,  chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Out Run 2 SP (Japan) (GDX-0011)", GAME_NO_SOUND|GAME_NOT_WORKING|GAME_SUPPORTS_SAVE )
+// 0012     GAME( 2004, ghostsqo, ghostsqu, chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Ghost Squad (GDX-0012)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0012A */ GAME( 2004, ghostsqu, chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Ghost Squad (Rev A) (GDX-0012A)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0013  */ GAME( 2005, gundamos, chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Banpresto",                "Gundam Battle Operating Simulator (GDX-0013)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0014     GAME( 2004, outr2sto, outr2st,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Out Run 2 Special Tours (GDX-0014)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0014A */ GAME( 2004, outr2st,  chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Out Run 2 Special Tours (Rev A) (GDX-0014A)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0015     GAME( 2005, wanmd2bo, wangmd2b, chihirogd,    chihiro, driver_device, 0, ROT0, "Namco",                    "Wangan Midnight Maximum Tune 2 (Japan) (GDX-0015)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0015A */ GAME( 2005, wangmd2b, chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Namco",                    "Wangan Midnight Maximum Tune 2 (Japan) (Rev A) (GDX-0015A)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0016  */ GAME( 2005, wangmid2, chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Namco",                    "Wangan Midnight Maximum Tune 2 (Export) (GDX-0016)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0017     GAME( 2005, mj3o,     mj3,      chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 3 (GDX-0017)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0017A    GAME( 2005, mj3a,     mj3,      chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 3 (Rev A) (GDX-0017A)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0017B    GAME( 2005, mj3b,     mj3,      chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 3 (Rev B) (GDX-0017B)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0017C    GAME( 2005, mj3c,     mj3,      chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 3 (Rev C) (GDX-0017C)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0017D */ GAME( 2005, mj3d,     mj3,      chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 3 (Rev D) (GDX-0017D)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0017E    GAME( 2005, mj3e,     mj3,      chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 3 (Rev E) (GDX-0017E)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0017F */ GAME( 2005, mj3,      chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 3 (Rev F) (GDX-0017F)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0018     GAME( 2005, scg06nto, scg06nt,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Club Golf 2006 Next Tours (GDX-0018)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0018A */ GAME( 2005, scg06nt,  chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Club Golf 2006 Next Tours (Rev A) (GDX-0018A)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0021     GAME( 2005, mj3evo,   mj3ev,    chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 3 Evolution (GDX-0021)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0021A    GAME( 2005, mj3ev,    chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Sega Network Taisen Mahjong MJ 3 Evolution (Rev A) (GDX-0021A)", GAME_NO_SOUND|GAME_NOT_WORKING )
+// 0024A    GAME( 2009, ccfboxo,  ccfboxa,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Chihiro Firmware Update For Compact Flash Box (GDX-0024)", GAME_NO_SOUND|GAME_NOT_WORKING )
+/* 0024A */ GAME( 2009, ccfboxa,  chihiro,  chihirogd,    chihiro, driver_device, 0, ROT0, "Sega",                     "Chihiro Firmware Update For Compact Flash Box (Rev A) (GDX-0024A)", GAME_NO_SOUND|GAME_NOT_WORKING )

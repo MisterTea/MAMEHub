@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /**************************************************************************
 
 Monitor commands
@@ -266,133 +268,14 @@ WRITE_LINE_MEMBER( superslave_state::ft_w )
 }
 
 
-//-------------------------------------------------
-//  Z80DART_INTERFACE( dart0_intf )
-//-------------------------------------------------
-
-static Z80DART_INTERFACE( dart0_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0)
-};
-
-
-//-------------------------------------------------
-//  Z80DART_INTERFACE( dart1_intf )
-//-------------------------------------------------
-
-static Z80DART_INTERFACE( dart1_intf )
-{
-	0, 0, 0, 0,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_C_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_C_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_C_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_C_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_D_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_D_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_D_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_D_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0)
-};
-
-
-//-------------------------------------------------
-//  Z80PIO_INTERFACE( pio_intf )
-//-------------------------------------------------
-
-static Z80PIO_INTERFACE( pio_intf )
-{
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232a_intf
-//-------------------------------------------------
-
 static DEVICE_INPUT_DEFAULTS_START( terminal )
-	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x0f, 0x06 ) // 9600
-	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x30, 0x00 ) // 8N1
+	DEVICE_INPUT_DEFAULTS( "RS232_TXBAUD", 0xff, RS232_BAUD_9600 )
+	DEVICE_INPUT_DEFAULTS( "RS232_RXBAUD", 0xff, RS232_BAUD_9600 )
+	DEVICE_INPUT_DEFAULTS( "RS232_STARTBITS", 0xff, RS232_STARTBITS_1 )
+	DEVICE_INPUT_DEFAULTS( "RS232_DATABITS", 0xff, RS232_DATABITS_8 )
+	DEVICE_INPUT_DEFAULTS( "RS232_PARITY", 0xff, RS232_PARITY_NONE )
+	DEVICE_INPUT_DEFAULTS( "RS232_STOPBITS", 0xff, RS232_STOPBITS_1 )
 DEVICE_INPUT_DEFAULTS_END
-
-static const rs232_port_interface rs232a_intf =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80DART_0_TAG, z80dart_device, dcda_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80DART_0_TAG, z80dart_device, ctsa_w)
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232b_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232b_intf =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80DART_0_TAG, z80dart_device, dcdb_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80DART_0_TAG, z80dart_device, ctsb_w)
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232c_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232c_intf =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80DART_1_TAG, z80dart_device, dcda_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80DART_1_TAG, z80dart_device, ctsa_w)
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232d_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232d_intf =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80DART_1_TAG, z80dart_device, dcdb_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(Z80DART_1_TAG, z80dart_device, ctsb_w)
-};
 
 
 //-------------------------------------------------
@@ -450,15 +333,52 @@ static MACHINE_CONFIG_START( superslave, superslave_state )
 
 	// devices
 	MCFG_PIC8259_ADD(AM9519_TAG, INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0), VCC, NULL)
-	MCFG_Z80DART_ADD(Z80DART_0_TAG, XTAL_8MHz/2, dart0_intf)
-	MCFG_Z80DART_ADD(Z80DART_1_TAG, XTAL_8MHz/2, dart1_intf)
-	MCFG_Z80PIO_ADD(Z80PIO_TAG, XTAL_8MHz/2, pio_intf)
-	MCFG_COM8116_ADD(BR1941_TAG, XTAL_5_0688MHz, NULL, WRITELINE(superslave_state, fr_w), WRITELINE(superslave_state, ft_w))
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, "serial_terminal")
-	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("serial_terminal", terminal)
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
-	MCFG_RS232_PORT_ADD(RS232_C_TAG, rs232c_intf, default_rs232_devices, NULL)
-	MCFG_RS232_PORT_ADD(RS232_D_TAG, rs232d_intf, default_rs232_devices, NULL)
+
+	MCFG_DEVICE_ADD(Z80PIO_TAG, Z80PIO, XTAL_8MHz/2)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_Z80DART_ADD(Z80DART_0_TAG, XTAL_8MHz/2, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, "terminal")
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80DART_0_TAG, z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80DART_0_TAG, z80dart_device, dcda_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80DART_0_TAG, z80dart_device, ctsa_w))
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("terminal", terminal)
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80DART_0_TAG, z80dart_device, rxb_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80DART_0_TAG, z80dart_device, dcdb_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80DART_0_TAG, z80dart_device, ctsb_w))
+
+	MCFG_Z80DART_ADD(Z80DART_1_TAG, XTAL_8MHz/2, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_C_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_C_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_C_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(RS232_D_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRB_CB(DEVWRITELINE(RS232_D_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSB_CB(DEVWRITELINE(RS232_D_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_RS232_PORT_ADD(RS232_C_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80DART_1_TAG, z80dart_device, rxa_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80DART_1_TAG, z80dart_device, dcda_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80DART_1_TAG, z80dart_device, ctsa_w))
+
+	MCFG_RS232_PORT_ADD(RS232_D_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80DART_1_TAG, z80dart_device, rxb_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(Z80DART_1_TAG, z80dart_device, dcdb_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(Z80DART_1_TAG, z80dart_device, ctsb_w))
+
+	MCFG_DEVICE_ADD(BR1941_TAG, COM8116, XTAL_5_0688MHz)
+	MCFG_COM8116_FR_HANDLER(WRITELINE(superslave_state, fr_w))
+	MCFG_COM8116_FT_HANDLER(WRITELINE(superslave_state, ft_w))
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)

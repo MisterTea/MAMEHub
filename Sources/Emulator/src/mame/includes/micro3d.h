@@ -7,6 +7,7 @@
 #include "cpu/tms34010/tms34010.h"
 #include "cpu/mcs51/mcs51.h"
 #include "sound/upd7759.h"
+#include "machine/mc68681.h"
 
 
 #define HOST_MONITOR_DISPLAY        0
@@ -32,10 +33,12 @@ public:
 		m_audiocpu(*this, "audiocpu"),
 		m_upd7759(*this, "upd7759"),
 		m_drmath(*this, "drmath"),
-		m_vgb(*this, "vgb") { }
+		m_vgb(*this, "vgb"),
+		m_palette(*this, "palette"),
+		m_duart68681(*this, "duart68681"),
+		m_generic_paletteram_16(*this, "paletteram") { }
 
 	required_shared_ptr<UINT16> m_shared_ram;
-	device_t            *m_duart68681;
 	UINT8               m_m68681_tx0;
 
 	/* Sound */
@@ -93,8 +96,6 @@ public:
 	DECLARE_READ16_MEMBER(micro3d_ti_uart_r);
 	DECLARE_WRITE32_MEMBER(micro3d_scc_w);
 	DECLARE_READ32_MEMBER(micro3d_scc_r);
-	DECLARE_READ16_MEMBER(micro3d_tms_host_r);
-	DECLARE_WRITE16_MEMBER(micro3d_tms_host_w);
 	DECLARE_WRITE32_MEMBER(micro3d_mac1_w);
 	DECLARE_READ32_MEMBER(micro3d_mac2_r);
 	DECLARE_WRITE32_MEMBER(micro3d_mac2_w);
@@ -132,11 +133,19 @@ public:
 	DECLARE_WRITE8_MEMBER(micro3d_upd7759_w);
 	DECLARE_WRITE8_MEMBER(data_from_i8031);
 	DECLARE_READ8_MEMBER(data_to_i8031);
+	DECLARE_WRITE_LINE_MEMBER(duart_irq_handler);
+	DECLARE_READ8_MEMBER(duart_input_r);
+	DECLARE_WRITE8_MEMBER(duart_output_w);
+	DECLARE_WRITE_LINE_MEMBER(duart_txb);
+
 	required_device<cpu_device> m_maincpu;
 	required_device<i8051_device> m_audiocpu;
 	required_device<upd7759_device> m_upd7759;
 	required_device<cpu_device> m_drmath;
-	required_device<cpu_device> m_vgb;
+	required_device<tms34010_device> m_vgb;
+	required_device<palette_device> m_palette;
+	required_device<mc68681_device> m_duart68681;
+	required_shared_ptr<UINT16> m_generic_paletteram_16;
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -146,14 +155,6 @@ struct micro3d_vtx
 {
 	INT32 x, y, z;
 };
-
-
-/*----------- defined in machine/micro3d.c -----------*/
-
-void micro3d_duart_irq_handler(device_t *device, int state, UINT8 vector);
-UINT8 micro3d_duart_input_r(device_t *device);
-void micro3d_duart_output_w(device_t *device, UINT8 data);
-void micro3d_duart_tx(device_t *device, int channel, UINT8 data);
 
 /*----------- defined in audio/micro3d.c -----------*/
 

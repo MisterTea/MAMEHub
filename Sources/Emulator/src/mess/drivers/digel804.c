@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:balrog,Jonathan Gevaryahu,Sandro Ronco
 /******************************************************************************
 *
 *  Wavetek/Digelec model 804/EP804 (eprom programmer) driver
@@ -65,21 +67,22 @@
 #include "machine/ram.h"
 #include "digel804.lh"
 
+#define TERMINAL_TAG "terminal"
 
 class digel804_state : public driver_device
 {
 public:
 	digel804_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu"),
-			m_terminal(*this, TERMINAL_TAG),
-			m_speaker(*this, "speaker"),
-			m_acia(*this, "acia"),
-			m_vfd(*this, "vfd"),
-			m_kb(*this, "74c923"),
-			m_ram(*this, RAM_TAG)
-		//, m_main_ram(*this, "main_ram")
-		{ }
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG),
+		m_speaker(*this, "speaker"),
+		m_acia(*this, "acia"),
+		m_vfd(*this, "vfd"),
+		m_kb(*this, "74c923"),
+		m_ram(*this, RAM_TAG)
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<generic_terminal_device> m_terminal;
@@ -114,8 +117,6 @@ public:
 	DECLARE_WRITE8_MEMBER( acia_control_w );
 	DECLARE_WRITE_LINE_MEMBER( da_w );
 	DECLARE_INPUT_CHANGED_MEMBER(mode_change);
-	// vfd helper stuff for port 44, should be unnecessary after 10937 gets a proper device
-	UINT8 m_vfd_sclk;
 	// current speaker state for port 45
 	UINT8 m_speaker_state;
 	// ram stuff for banking
@@ -161,7 +162,6 @@ DRIVER_INIT_MEMBER(digel804_state,digel804)
 void digel804_state::machine_reset()
 {
 	m_vfd->reset();
-	m_vfd_sclk = 0;
 }
 
 READ8_MEMBER( digel804_state::ip40 ) // eprom data bus read
@@ -285,12 +285,9 @@ WRITE8_MEMBER( digel804_state::op44 ) // state write
 #ifdef PORT44_W_VERBOSE
 	logerror("Digel804: port 0x44 vfd/state control had %02x written to it!\n", data);
 #endif
-	// latch vfd data on falling edge of clock only; this should really be part of the 10937 device, not here!
-	if (m_vfd_sclk && ((data&1)==0))
-	{
-		m_vfd->shift_data((data & 0x80) ? 0 : 1);
-	}
-	m_vfd_sclk = data & 1;
+	m_vfd->por(!(data&0x04));
+	m_vfd->data(data&0x80);
+	m_vfd->sclk(data&1);
 }
 
 WRITE8_MEMBER( digel804_state::op45 ) // speaker write
@@ -315,7 +312,7 @@ READ8_MEMBER( digel804_state::ip46 ) // keypad read
 	 * this value auto-latches on a key press and remains through multiple reads
 	 * this is done by a 74C923 integrated circuit
 	*/
-	UINT8 kbd = m_kb->data_out_r();
+	UINT8 kbd = m_kb->read();
 #ifdef PORT46_R_VERBOSE
 	logerror("Digel804: returning %02X for port 46 keypad read\n", kbd);
 #endif
@@ -564,27 +561,11 @@ WRITE8_MEMBER(digel804_state::digel804_serial_put)
 	//m_acia->receive_character(data);
 }
 
-static GENERIC_TERMINAL_INTERFACE( digel804_terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(digel804_state,digel804_serial_put)
-};
-
 WRITE_LINE_MEMBER( digel804_state::da_w )
 {
 	m_maincpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 	m_key_intq = state ? 0 : 1;
 }
-static MM74C923_INTERFACE( digel804_keypad_intf )
-{
-	0,  // FIXME
-	0,  // FIXME
-	DEVCB_DRIVER_LINE_MEMBER(digel804_state, da_w),
-	DEVCB_INPUT_PORT("LINE0"),
-	DEVCB_INPUT_PORT("LINE1"),
-	DEVCB_INPUT_PORT("LINE2"),
-	DEVCB_INPUT_PORT("LINE3"),
-	DEVCB_NULL
-};
 
 static MACHINE_CONFIG_START( digel804, digel804_state )
 	/* basic machine hardware */
@@ -593,17 +574,24 @@ static MACHINE_CONFIG_START( digel804, digel804_state )
 	MCFG_CPU_IO_MAP(z80_io_1_4)
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
-	MCFG_ROC10937_ADD("vfd",0,RIGHT_TO_LEFT)
+	MCFG_ROC10937_ADD("vfd",0) // RIGHT_TO_LEFT
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, digel804_terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(digel804_state, digel804_serial_put))
 
 	MCFG_DEFAULT_LAYOUT(layout_digel804)
 
-	MCFG_MM74C923_ADD("74c923", digel804_keypad_intf)
+	MCFG_DEVICE_ADD("74c923", MM74C923, 0)
+	MCFG_MM74C922_DA_CALLBACK(WRITELINE(digel804_state, da_w))
+	MCFG_MM74C922_X1_CALLBACK(IOPORT("LINE0"))
+	MCFG_MM74C922_X2_CALLBACK(IOPORT("LINE1"))
+	MCFG_MM74C922_X3_CALLBACK(IOPORT("LINE2"))
+	MCFG_MM74C922_X4_CALLBACK(IOPORT("LINE3"))
 
 	/* acia */
-	MCFG_MOS6551_ADD("acia", XTAL_1_8432MHz, NULL)
+	MCFG_DEVICE_ADD("acia", MOS6551, 0)
+	MCFG_MOS6551_XTAL(XTAL_1_8432MHz)
 
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("256K")

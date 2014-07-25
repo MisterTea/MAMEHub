@@ -103,7 +103,9 @@ public:
 	marinedt_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_tx_tileram(*this, "tx_tileram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_tx_tileram;
@@ -152,9 +154,11 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(marinedt);
 	UINT32 screen_update_marinedt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -291,14 +295,14 @@ WRITE8_MEMBER(marinedt_state::marinedt_pf_w)
 
 
 	//if ((m_pf & 0x07) != (data & 0x07))
-	//  mame_printf_debug("marinedt_pf_w: %02x\n", data & 0x07);
+	//  osd_printf_debug("marinedt_pf_w: %02x\n", data & 0x07);
 
 	if ((m_pf & 0x02) != (data & 0x02))
 	{
 		if (data & 0x02)
-			mame_printf_debug("tile flip\n");
+			osd_printf_debug("tile flip\n");
 		else
-			mame_printf_debug("tile non-flip\n");
+			osd_printf_debug("tile non-flip\n");
 
 		if (data & 0x02)
 			m_tx_tilemap->set_flip(TILEMAP_FLIPX | TILEMAP_FLIPY);
@@ -449,12 +453,12 @@ static GFXDECODE_START( marinedt )
 	GFXDECODE_ENTRY( "gfx3", 0, marinedt_objlayout,  32, 4 )
 GFXDECODE_END
 
-void marinedt_state::palette_init()
+PALETTE_INIT_MEMBER(marinedt_state, marinedt)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i,r,b,g;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2;
 
@@ -478,7 +482,7 @@ bit0 = 0;
 //      *(palette++) = 0x92 * bit0 + 0x46 * bit1 + 0x27 * bit2;
 		b = 0x27 * bit0 + 0x46 * bit1 + 0x92 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -494,7 +498,7 @@ TILE_GET_INFO_MEMBER(marinedt_state::get_tile_info)
 
 void marinedt_state::video_start()
 {
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(marinedt_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(marinedt_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_tx_tilemap->set_transparent_pen(0);
 	m_tx_tilemap->set_scrolldx(0, 4*8);
@@ -527,14 +531,14 @@ UINT32 marinedt_state::screen_update_marinedt(screen_device &screen, bitmap_ind1
 	m_tx_tilemap->draw(screen, *m_tile, cliprect, 0, 0);
 
 	m_obj1->fill(0);
-	drawgfx_transpen(*m_obj1, m_obj1->cliprect(), machine().gfx[1],
+	m_gfxdecode->gfx(1)->transpen(*m_obj1,m_obj1->cliprect(),
 			OBJ_CODE(m_obj1_a),
 			OBJ_COLOR(m_obj1_a),
 			OBJ_FLIPX(m_obj1_a), OBJ_FLIPY(m_obj1_a),
 			0, 0, 0);
 
 	m_obj2->fill(0);
-	drawgfx_transpen(*m_obj2, m_obj2->cliprect(), machine().gfx[2],
+	m_gfxdecode->gfx(2)->transpen(*m_obj2,m_obj2->cliprect(),
 			OBJ_CODE(m_obj2_a),
 			OBJ_COLOR(m_obj2_a),
 			OBJ_FLIPX(m_obj2_a), OBJ_FLIPY(m_obj2_a),
@@ -681,10 +685,11 @@ static MACHINE_CONFIG_START( marinedt, marinedt_state )
 	MCFG_SCREEN_SIZE(4*8+32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 4*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(marinedt_state, screen_update_marinedt)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(marinedt)
-	MCFG_PALETTE_LENGTH(64)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", marinedt)
+	MCFG_PALETTE_ADD("palette", 64)
+	MCFG_PALETTE_INIT_OWNER(marinedt_state, marinedt)
 
 	/* sound hardware */
 	//discrete sound

@@ -1,10 +1,8 @@
 /***************************************************************************
 
-  video.c
+  Mr. Do's Castle hardware
 
   Functions to emulate the video hardware of the machine.
-
-  (Cocktail mode implemented by Chad Hendrickson Aug 1, 1999)
 
 ***************************************************************************/
 
@@ -29,7 +27,7 @@
 
 ***************************************************************************/
 
-void docastle_state::palette_init()
+PALETTE_INIT_MEMBER(docastle_state, docastle)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -57,8 +55,8 @@ void docastle_state::palette_init()
 		/* because the graphics are decoded as 4bpp with the top bit used for transparency
 		   or priority, we create matching 3bpp sets of palette entries, which effectively
 		   ignores the value of the top bit */
-		palette_set_color(machine(), ((i & 0xf8) << 1) | 0x00 | (i & 0x07), MAKE_RGB(r,g,b));
-		palette_set_color(machine(), ((i & 0xf8) << 1) | 0x08 | (i & 0x07), MAKE_RGB(r,g,b));
+		palette.set_pen_color(((i & 0xf8) << 1) | 0x00 | (i & 0x07), rgb_t(r,g,b));
+		palette.set_pen_color(((i & 0xf8) << 1) | 0x08 | (i & 0x07), rgb_t(r,g,b));
 		color_prom++;
 	}
 }
@@ -75,30 +73,15 @@ WRITE8_MEMBER(docastle_state::docastle_colorram_w)
 	m_do_tilemap->mark_tile_dirty(offset);
 }
 
-READ8_MEMBER(docastle_state::docastle_flipscreen_off_r)
+READ8_MEMBER(docastle_state::flipscreen_r)
 {
-	flip_screen_set(0);
-	m_do_tilemap->mark_all_dirty();
-	return 0;
+	flip_screen_set(offset);
+	return (offset ? 1 : 0); // is this really needed?
 }
 
-READ8_MEMBER(docastle_state::docastle_flipscreen_on_r)
+WRITE8_MEMBER(docastle_state::flipscreen_w)
 {
-	flip_screen_set(1);
-	m_do_tilemap->mark_all_dirty();
-	return 1;
-}
-
-WRITE8_MEMBER(docastle_state::docastle_flipscreen_off_w)
-{
-	flip_screen_set(0);
-	m_do_tilemap->mark_all_dirty();
-}
-
-WRITE8_MEMBER(docastle_state::docastle_flipscreen_on_w)
-{
-	flip_screen_set(1);
-	m_do_tilemap->mark_all_dirty();
+	flip_screen_set(offset);
 }
 
 TILE_GET_INFO_MEMBER(docastle_state::get_tile_info)
@@ -111,7 +94,8 @@ TILE_GET_INFO_MEMBER(docastle_state::get_tile_info)
 
 void docastle_state::video_start_common( UINT32 tile_transmask )
 {
-	m_do_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(docastle_state::get_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 32);
+	m_do_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(docastle_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_do_tilemap->set_scrolldy(-32, -32);
 	m_do_tilemap->set_transmask(0, tile_transmask, 0x0000);
 }
 
@@ -135,7 +119,7 @@ void docastle_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, 
 	{
 		int sx, sy, flipx, flipy, code, color;
 
-		if (machine().gfx[1]->elements() > 256)
+		if (m_gfxdecode->gfx(1)->elements() > 256)
 		{
 			/* spriteram
 
@@ -152,12 +136,12 @@ void docastle_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, 
 			 p = palette
 			 t = tile number
 
-			 */
+			*/
 
 			code = m_spriteram[offs + 3];
 			color = m_spriteram[offs + 2] & 0x0f;
 			sx = ((m_spriteram[offs + 1] + 8) & 0xff) - 8;
-			sy = m_spriteram[offs];
+			sy = m_spriteram[offs] - 32;
 			flipx = m_spriteram[offs + 2] & 0x40;
 			flipy = 0;
 			if (m_spriteram[offs + 2] & 0x10) code += 0x100;
@@ -178,12 +162,12 @@ void docastle_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, 
 			 p = palette
 			 t = tile number
 
-			 */
+			*/
 
 			code = m_spriteram[offs + 3];
 			color = m_spriteram[offs + 2] & 0x1f;
 			sx = ((m_spriteram[offs + 1] + 8) & 0xff) - 8;
-			sy = m_spriteram[offs];
+			sy = m_spriteram[offs] - 32;
 			flipx = m_spriteram[offs + 2] & 0x40;
 			flipy = m_spriteram[offs + 2] & 0x80;
 		}
@@ -191,13 +175,13 @@ void docastle_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, 
 		if (flip_screen())
 		{
 			sx = 240 - sx;
-			sy = 240 - sy;
+			sy = 176 - sy;
 			flipx = !flipx;
 			flipy = !flipy;
 		}
 
 		/* first draw the sprite, visible */
-		pdrawgfx_transmask(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->prio_transmask(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,
@@ -206,7 +190,7 @@ void docastle_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, 
 				0x00,0x80ff);
 
 		/* then draw the mask, behind the background but obscuring following sprites */
-		pdrawgfx_transmask(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->prio_transmask(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,

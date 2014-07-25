@@ -13,7 +13,9 @@ public:
 		m_colorram(*this, "colorram"),
 		m_spriteram(*this, "spriteram"),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu"){ }
+		m_audiocpu(*this, "audiocpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -27,6 +29,9 @@ public:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(mouser_nmi_enable_w);
 	DECLARE_WRITE8_MEMBER(mouser_sound_interrupt_w);
 	DECLARE_READ8_MEMBER(mouser_sound_byte_r);
@@ -36,7 +41,7 @@ public:
 	DECLARE_DRIVER_INIT(mouser);
 	virtual void machine_start();
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(mouser);
 	UINT32 screen_update_mouser(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(mouser_nmi_interrupt);
 	INTERRUPT_GEN_MEMBER(mouser_sound_nmi_assert);

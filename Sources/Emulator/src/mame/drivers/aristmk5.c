@@ -412,37 +412,28 @@ void aristmk5_state::machine_reset()
 #if 0
 #define NVRAM_SIZE 256
 #define NVRAM_PAGE_SIZE 0   /* max size of one write request */
-
-static const i2cmem_interface i2cmem_interface =
-{
-	I2CMEM_SLAVE_ADDRESS, NVRAM_PAGE_SIZE, NVRAM_SIZE
-};
 #endif
 
-/* TODO: this isn't supposed to access a keyboard ... */
-static AAKART_INTERFACE( kart_interface )
-{
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 static MACHINE_CONFIG_START( aristmk5, aristmk5_state )
 	MCFG_CPU_ADD("maincpu", ARM, 12000000)
 	MCFG_CPU_PROGRAM_MAP(aristmk5_drame_map)
 	MCFG_WATCHDOG_TIME_INIT(attotime::from_seconds(2))  /* 1.6 - 2 seconds */
 
-//  MCFG_I2CMEM_ADD("i2cmem",i2cmem_interface)
-	MCFG_AAKART_ADD("kart", 12000000/128, kart_interface) // TODO: frequency
+//  MCFG_I2CMEM_ADD("i2cmem")
+//  MCFG_I2CMEM_PAGE_SIZE(NVRAM_PAGE_SIZE)
+//  MCFG_I2CMEM_DATA_SIZE(NVRAM_SIZE)
+	/* TODO: this isn't supposed to access a keyboard ... */
+	MCFG_DEVICE_ADD("kart", AAKART, 12000000/128) // TODO: frequency
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(640, 400)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 400-1)
-
-	MCFG_PALETTE_LENGTH(0x200)
-
 	MCFG_SCREEN_UPDATE_DRIVER(archimedes_state, screen_update)
+
+	MCFG_PALETTE_ADD("palette", 0x200)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_DAC_ADD("dac0")
@@ -475,18 +466,20 @@ static MACHINE_CONFIG_START( aristmk5_usa, aristmk5_state )
 	MCFG_CPU_PROGRAM_MAP(aristmk5_map)
 	MCFG_WATCHDOG_TIME_INIT(attotime::from_seconds(2))  /* 1.6 - 2 seconds */
 
-//  MCFG_I2CMEM_ADD("i2cmem",i2cmem_interface)
-	MCFG_AAKART_ADD("kart", 12000000/128, kart_interface) // TODO: frequency
+//  MCFG_I2CMEM_ADD("i2cmem")
+//  MCFG_I2CMEM_PAGE_SIZE(NVRAM_PAGE_SIZE)
+//  MCFG_I2CMEM_DATA_SIZE(NVRAM_SIZE)
+	/* TODO: this isn't supposed to access a keyboard ... */
+	MCFG_DEVICE_ADD("kart", AAKART, 12000000/128) // TODO: frequency
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(640, 400)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 400-1)
-
-	MCFG_PALETTE_LENGTH(0x200)
-
 	MCFG_SCREEN_UPDATE_DRIVER(archimedes_state, screen_update)
+
+	MCFG_PALETTE_ADD("palette", 0x200)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_DAC_ADD("dac0")

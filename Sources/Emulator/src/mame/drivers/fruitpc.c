@@ -83,40 +83,6 @@ ADDRESS_MAP_END
 
 
 static INPUT_PORTS_START( fruitpc )
-	PORT_START("pc_keyboard_0")
-//  PORT_BIT ( 0x0001, 0x0000, IPT_UNUSED )     /* unused scancode 0 */
-//  AT_KEYB_HELPER( 0x0002, "Esc",          KEYCODE_Q           ) /* Esc                         01  81 */
-
-	PORT_START("pc_keyboard_1")
-//  AT_KEYB_HELPER( 0x0010, "T",            KEYCODE_T           ) /* T                           14  94 */
-//  AT_KEYB_HELPER( 0x0020, "Y",            KEYCODE_Y           ) /* Y                           15  95 */
-//  AT_KEYB_HELPER( 0x0100, "O",            KEYCODE_O           ) /* O                           18  98 */
-//  AT_KEYB_HELPER( 0x1000, "Enter",        KEYCODE_ENTER       ) /* Enter                       1C  9C */
-
-	PORT_START("pc_keyboard_2")
-
-	PORT_START("pc_keyboard_3")
-//  AT_KEYB_HELPER( 0x0001, "B",            KEYCODE_B           ) /* B                           30  B0 */
-//  AT_KEYB_HELPER( 0x0002, "N",            KEYCODE_N           ) /* N                           31  B1 */
-//  AT_KEYB_HELPER( 0x0800, "F1",           KEYCODE_S           ) /* F1                          3B  BB */
-//  AT_KEYB_HELPER( 0x8000, "F5",           KEYCODE_F5          )
-
-	PORT_START("pc_keyboard_4")
-//  AT_KEYB_HELPER( 0x0004, "F8",           KEYCODE_F8          )
-
-	PORT_START("pc_keyboard_5")
-
-	PORT_START("pc_keyboard_6")
-//  AT_KEYB_HELPER( 0x0040, "(MF2)Cursor Up",       KEYCODE_UP          ) /* Up                          67  e7 */
-//  AT_KEYB_HELPER( 0x0080, "(MF2)Page Up",         KEYCODE_PGUP        ) /* Page Up                     68  e8 */
-//  AT_KEYB_HELPER( 0x0100, "(MF2)Cursor Left",     KEYCODE_LEFT        ) /* Left                        69  e9 */
-//  AT_KEYB_HELPER( 0x0200, "(MF2)Cursor Right",        KEYCODE_RIGHT       ) /* Right                       6a  ea */
-//  AT_KEYB_HELPER( 0x0800, "(MF2)Cursor Down",     KEYCODE_DOWN        ) /* Down                        6c  ec */
-//  AT_KEYB_HELPER( 0x1000, "(MF2)Page Down",       KEYCODE_PGDN        ) /* Page Down                   6d  ed */
-//  AT_KEYB_HELPER( 0x4000, "Del",                      KEYCODE_A           ) /* Delete                      6f  ef */
-
-	PORT_START("pc_keyboard_7")
-
 	PORT_START("INP1")
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x00fe, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -143,7 +109,6 @@ INPUT_PORTS_END
 
 void fruitpc_state::machine_start()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(fruitpc_state::irq_callback),this));
 }
 
 void fruitpc_state::machine_reset()
@@ -154,6 +119,7 @@ static MACHINE_CONFIG_START( fruitpc, fruitpc_state )
 	MCFG_CPU_ADD("maincpu", I486, 66000000) // ST STPCD0166BTC3 66 MHz 486 CPU
 	MCFG_CPU_PROGRAM_MAP(fruitpc_map)
 	MCFG_CPU_IO_MAP(fruitpc_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_1", pic8259_device, inta_cb)
 
 	MCFG_FRAGMENT_ADD( pcat_common )
 

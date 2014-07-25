@@ -152,7 +152,7 @@ WRITE16_MEMBER(overdriv_state::overdriv_cpuB_irq_y_w)
 static ADDRESS_MAP_START( overdriv_master_map, AS_PROGRAM, 16, overdriv_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x040000, 0x043fff) AM_RAM                 /* work RAM */
-	AM_RANGE(0x080000, 0x080fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x080000, 0x080fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0c0000, 0x0c0001) AM_READ_PORT("INPUTS")
 	AM_RANGE(0x0c0002, 0x0c0003) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x0e0000, 0x0e0001) AM_WRITENOP            /* unknown (always 0x30) */
@@ -260,37 +260,6 @@ static INPUT_PORTS_START( overdriv )
 INPUT_PORTS_END
 
 
-static const k053260_interface k053260_config =
-{
-	"shared"
-};
-
-static const k053247_interface overdriv_k053246_intf =
-{
-	"gfx1", 0,
-	NORMAL_PLANE_ORDER,
-	77, 22,
-	KONAMI_ROM_DEINTERLEAVE_4,
-	overdriv_sprite_callback
-};
-
-static const k051316_interface overdriv_k051316_intf_1 =
-{
-	"gfx2", 1,
-	4, TRUE, 0,
-	1, 14, -1,
-	overdriv_zoom_callback_0
-};
-
-static const k051316_interface overdriv_k051316_intf_2 =
-{
-	"gfx3", 2,
-	4, FALSE, 0,
-	0, 15, 1,
-	overdriv_zoom_callback_1
-};
-
-
 void overdriv_state::machine_start()
 {
 	save_item(NAME(m_cpuB_ctrl));
@@ -311,15 +280,6 @@ void overdriv_state::machine_reset()
 	/* start with cpu B halted */
 	m_subcpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
-
-static const k053252_interface overdriv_k053252_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	13*8, 2*8
-};
 
 
 static MACHINE_CONFIG_START( overdriv, overdriv_state )
@@ -345,25 +305,44 @@ static MACHINE_CONFIG_START( overdriv, overdriv_state )
 	MCFG_EEPROM_SERIAL_DATA(overdriv_default_eeprom, 128)
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(59)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_SIZE(64*8, 40*8)
 	MCFG_SCREEN_VISIBLE_AREA(13*8, (64-13)*8-1, 0*8, 32*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(overdriv_state, screen_update_overdriv)
+	MCFG_SCREEN_PALETTE("palette")
 
-//  MCFG_GFXDECODE(overdriv)
-	MCFG_PALETTE_LENGTH(2048)
+//  MCFG_GFXDECODE_ADD("gfxdecode", "palette", overdriv)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
-	MCFG_K053246_ADD("k053246", overdriv_k053246_intf)
-	MCFG_K051316_ADD("k051316_1", overdriv_k051316_intf_1)
-	MCFG_K051316_ADD("k051316_2", overdriv_k051316_intf_2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
+
+	MCFG_DEVICE_ADD("k053246", K053246, 0)
+	MCFG_K053246_CB(overdriv_state, sprite_callback)
+	MCFG_K053246_CONFIG("gfx1", 0, NORMAL_PLANE_ORDER, 77, 22)
+	MCFG_K053246_GFXDECODE("gfxdecode")
+	MCFG_K053246_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("k051316_1", K051316, 0)
+	MCFG_GFX_PALETTE("palette")
+	MCFG_K051316_OFFSETS(14, -1)
+	MCFG_K051316_WRAP(1)
+	MCFG_K051316_CB(overdriv_state, zoom_callback_1)
+
+	MCFG_DEVICE_ADD("k051316_2", K051316, 0)
+	MCFG_GFX_PALETTE("palette")
+	MCFG_K051316_OFFSETS(15, 1)
+	MCFG_K051316_CB(overdriv_state, zoom_callback_2)
+
 	MCFG_K053251_ADD("k053251")
-	MCFG_K053250_ADD("k053250_1", "screen", 0, 0)
-	MCFG_K053250_ADD("k053250_2", "screen", 0, 0)
-	MCFG_K053252_ADD("k053252", 24000000/4, overdriv_k053252_intf)
+	MCFG_K053250_ADD("k053250_1", "palette", "screen", 0, 0)
+	MCFG_K053250_ADD("k053250_2", "palette", "screen", 0, 0)
+
+	MCFG_DEVICE_ADD("k053252", K053252, 24000000/4)
+	MCFG_K053252_OFFSETS(13*8, 2*8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -373,12 +352,12 @@ static MACHINE_CONFIG_START( overdriv, overdriv_state )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.5)
 
 	MCFG_K053260_ADD("k053260_1", 3579545)
-	MCFG_SOUND_CONFIG(k053260_config)
+	MCFG_K053260_REGION("shared")
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.35)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.35)
 
 	MCFG_K053260_ADD("k053260_2", 3579545)
-	MCFG_SOUND_CONFIG(k053260_config)
+	MCFG_K053260_REGION("shared")
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.35)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.35)
 MACHINE_CONFIG_END
@@ -404,23 +383,23 @@ ROM_START( overdriv )
 	ROM_LOAD( "789.5",        0x00000, 0x10000, CRC(1085f069) SHA1(27228cedb357ff2e130a4bd6d8aa01cf537e034f) )
 
 	ROM_REGION( 0x400000, "gfx1", 0 )   /* graphics (addressable by the CPU) */
-	ROM_LOAD( "e12.r1",       0x000000, 0x100000, CRC(14a10fb2) SHA1(03fb9c15514c5ecc2d9ae4a53961c4bbb49cec73) )    /* sprites */
-	ROM_LOAD( "e13.r4",       0x100000, 0x100000, CRC(6314a628) SHA1(f8a8918998c266109348c77427a7696b503daeb3) )
-	ROM_LOAD( "e14.r10",      0x200000, 0x100000, CRC(b5eca14b) SHA1(a1c5f5e9cd8bbcfc875e2acb33be024724da63aa) )
-	ROM_LOAD( "e15.r15",      0x300000, 0x100000, CRC(5d93e0c3) SHA1(d5cb7666c0c28fd465c860c7f9dbb18a7f739a93) )
+	ROM_LOAD64_WORD( "e12.r1",       0x000000, 0x100000, CRC(14a10fb2) SHA1(03fb9c15514c5ecc2d9ae4a53961c4bbb49cec73) )    /* sprites */
+	ROM_LOAD64_WORD( "e13.r4",       0x000002, 0x100000, CRC(6314a628) SHA1(f8a8918998c266109348c77427a7696b503daeb3) )
+	ROM_LOAD64_WORD( "e14.r10",      0x000004, 0x100000, CRC(b5eca14b) SHA1(a1c5f5e9cd8bbcfc875e2acb33be024724da63aa) )
+	ROM_LOAD64_WORD( "e15.r15",      0x000006, 0x100000, CRC(5d93e0c3) SHA1(d5cb7666c0c28fd465c860c7f9dbb18a7f739a93) )
 
-	ROM_REGION( 0x020000, "gfx2", 0 )   /* graphics (addressable by the CPU) */
+	ROM_REGION( 0x020000, "k051316_1", 0 )
 	ROM_LOAD( "e06.a21",      0x000000, 0x020000, CRC(14a085e6) SHA1(86dad6f223e13ff8af7075c3d99bb0a83784c384) )    /* zoom/rotate */
 
-	ROM_REGION( 0x020000, "gfx3", 0 )   /* graphics (addressable by the CPU) */
+	ROM_REGION( 0x020000, "k051316_2", 0 )
 	ROM_LOAD( "e07.c23",      0x000000, 0x020000, CRC(8a6ceab9) SHA1(1a52b7361f71a6126cd648a76af00223d5b25c7a) )    /* zoom/rotate */
 
-	ROM_REGION( 0x0c0000, "k053250_1", 0 )  /* graphics (addressable by the CPU) */
+	ROM_REGION( 0x0c0000, "k053250_1", 0 )
 	ROM_LOAD( "e18.p22",      0x000000, 0x040000, CRC(985a4a75) SHA1(b726166c295be6fbec38a9d11098cc4a4a5de456) )
 	ROM_LOAD( "e19.r22",      0x040000, 0x040000, CRC(15c54ea2) SHA1(5b10bd28e48e51613359820ba8c75d4a91c2d322) )
 	ROM_LOAD( "e20.s22",      0x080000, 0x040000, CRC(ea204acd) SHA1(52b8c30234eaefcba1074496028a4ac2bca48e95) )
 
-	ROM_REGION( 0x080000, "k053250_2", 0 )  /* graphics (addressable by the CPU) */
+	ROM_REGION( 0x080000, "k053250_2", 0 )
 	ROM_LOAD( "e17.p17",      0x000000, 0x040000, CRC(04c07248) SHA1(873445002cbf90c9fc5a35bf4a8f6c43193ee342) )
 	ROM_LOAD( "e16.p12",      0x040000, 0x040000, CRC(9348dee1) SHA1(367193373e28962b5b0e54cc15d68ed88ab83f12) )
 

@@ -1,41 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 //============================================================
 //
 //  window.c - Win32 window handling
-//
-//============================================================
-//
-//  Copyright Aaron Giles
-//  All rights reserved.
-//
-//  Redistribution and use in source and binary forms, with or
-//  without modification, are permitted provided that the
-//  following conditions are met:
-//
-//    * Redistributions of source code must retain the above
-//      copyright notice, this list of conditions and the
-//      following disclaimer.
-//    * Redistributions in binary form must reproduce the
-//      above copyright notice, this list of conditions and
-//      the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//    * Neither the name 'MAME' nor the names of its
-//      contributors may be used to endorse or promote
-//      products derived from this software without specific
-//      prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND
-//  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-//  FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
-//  EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-//  DAMAGE (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-//  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-//  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-//  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-//  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-//  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //============================================================
 
@@ -64,7 +31,6 @@
 #include "window.h"
 #include "video.h"
 #include "input.h"
-#include "debugwin.h"
 #include "strconv.h"
 #include "config.h"
 #include "winutf8.h"
@@ -376,10 +342,6 @@ void winwindow_process_events(running_machine &machine, int ingame, bool nodispa
 	MSG message;
 
 	assert(GetCurrentThreadId() == main_threadid);
-
-	// if we're running, disable some parts of the debugger
-	if (ingame && (machine.debug_flags & DEBUG_FLAG_OSD_ENABLED) != 0)
-		debugwin_update_during_game(machine);
 
 	// remember the last time we did this
 	last_event_check = GetTickCount();
@@ -1211,6 +1173,9 @@ static int complete_create(win_window_info *window)
 	if (window->hwnd == NULL)
 		return 1;
 
+	// set window #0 as the focus window for all windows, required for D3D & multimonitor
+	window->focus_hwnd = win_window_list->hwnd;
+
 	// set a pointer back to us
 	SetWindowLongPtr(window->hwnd, GWLP_USERDATA, (LONG_PTR)window);
 
@@ -1376,15 +1341,17 @@ LRESULT CALLBACK winwindow_video_window_proc(HWND wnd, UINT message, WPARAM wpar
 		// syscommands: catch win_start_maximized
 		case WM_SYSCOMMAND:
 		{
+			UINT16 cmd = wparam & 0xfff0;
+
 			// prevent screensaver or monitor power events
-			if (wparam == SC_MONITORPOWER || wparam == SC_SCREENSAVE)
+			if (cmd == SC_MONITORPOWER || cmd == SC_SCREENSAVE)
 				return 1;
 
 			// most SYSCOMMANDs require us to invalidate the window
 			InvalidateRect(wnd, NULL, FALSE);
 
 			// handle maximize
-			if ((wparam & 0xfff0) == SC_MAXIMIZE)
+			if (cmd == SC_MAXIMIZE)
 			{
 				update_minmax_state(window);
 				if (window->ismaximized)
@@ -1929,7 +1896,7 @@ static void set_fullscreen(win_window_info *window, int fullscreen)
 	adjust_window_position_after_major_change(window);
 }
 
-#ifdef USE_QTDEBUG
+#if (USE_QTDEBUG)
 bool winwindow_qt_filter(void *message)
 {
 	MSG *msg = (MSG *)message;

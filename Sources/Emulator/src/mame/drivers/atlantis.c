@@ -45,12 +45,14 @@ class atlantis_state : public driver_device
 public:
 	atlantis_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_dcs(*this, "dcs") { }
 	DECLARE_DRIVER_INIT(mwskins);
 	virtual void machine_start();
 	virtual void machine_reset();
 	UINT32 screen_update_mwskins(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	required_device<cpu_device> m_maincpu;
+	required_device<mips3_device> m_maincpu;
+	required_device<dcs2_audio_denver_device> m_dcs;
 };
 
 
@@ -63,7 +65,7 @@ public:
 void atlantis_state::machine_start()
 {
 	/* set the fastest DRC options */
-	mips3drc_set_options(m_maincpu, MIPS3DRC_FASTEST_OPTIONS);
+	m_maincpu->mips3drc_set_options(MIPS3DRC_FASTEST_OPTIONS);
 }
 
 
@@ -76,8 +78,8 @@ void atlantis_state::machine_start()
 
 void atlantis_state::machine_reset()
 {
-	dcs_reset_w(machine(), 1);
-	dcs_reset_w(machine(), 0);
+	m_dcs->reset_w(1);
+	m_dcs->reset_w(0);
 }
 
 
@@ -128,37 +130,32 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static const mips3_config r4310_config =
-{
-	16384,              /* code cache size */
-	16384               /* data cache size */
-};
-
 static MACHINE_CONFIG_START( mwskins, atlantis_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", VR4310LE, 166666666)    // clock is TRUSTED
-	MCFG_CPU_CONFIG(r4310_config)
+	MCFG_MIPS3_ICACHE_SIZE(16384)
+	MCFG_MIPS3_DCACHE_SIZE(16384)
 	MCFG_CPU_PROGRAM_MAP(main_map)
 
 
 	MCFG_IDE_CONTROLLER_ADD("ide", ata_devices, "hdd", NULL, true)
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(320, 240)
 	MCFG_SCREEN_VISIBLE_AREA(0, 319, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(atlantis_state, screen_update_mwskins)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, BBBBB_GGGGG_RRRRR)
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD_BBBBBGGGGGRRRRR("palette")
 
 	/* sound hardware */
-	MCFG_FRAGMENT_ADD(dcs2_audio_denver)
+	MCFG_DEVICE_ADD("dcs", DCS2_AUDIO_DENVER, 0)
+	MCFG_DCS2_AUDIO_DRAM_IN_MB(8)
 MACHINE_CONFIG_END
 
 
@@ -201,7 +198,6 @@ ROM_END
 
 DRIVER_INIT_MEMBER(atlantis_state,mwskins)
 {
-	dcs2_init(machine(), 8, 0);
 }
 
 /*************************************

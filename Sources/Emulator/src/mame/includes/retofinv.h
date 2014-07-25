@@ -9,7 +9,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_subcpu(*this, "sub"),
-		m_68705(*this, "68705") { }
+		m_68705(*this, "68705"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	UINT8 m_cpu2_m6000;
 	required_shared_ptr<UINT8> m_fg_videoram;
@@ -64,7 +66,7 @@ public:
 	TILE_GET_INFO_MEMBER(bg_get_tile_info);
 	TILE_GET_INFO_MEMBER(fg_get_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(retofinv);
 	UINT32 screen_update_retofinv(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(main_vblank_irq);
 	INTERRUPT_GEN_MEMBER(sub_vblank_irq);
@@ -73,4 +75,6 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_subcpu;
 	optional_device<cpu_device> m_68705;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

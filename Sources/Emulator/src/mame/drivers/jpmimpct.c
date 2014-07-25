@@ -90,7 +90,7 @@
 
 IMPACT Games
 
-IMPACT apparently stands for Interactive Moving Picture Amusment Control
+IMPACT apparently stands for Interactive Moving Picture Amusement Control
 Technology, and is intended as a replacement for the JPM System 5 board.
 Large sections of the processing were moved to two identical custom ASICs
 (U1 and U2), only half of each is used.
@@ -166,22 +166,6 @@ MACHINE_RESET_MEMBER(jpmimpct_state,jpmimpct)
 //  m_duart_1.IVR=0x0f;
 }
 
-
-/*************************************
- *
- *  TMS34010 host interface
- *
- *************************************/
-
-WRITE16_MEMBER(jpmimpct_state::m68k_tms_w)
-{
-	tms34010_host_w(machine().device("dsp"), offset, data);
-}
-
-READ16_MEMBER(jpmimpct_state::m68k_tms_r)
-{
-	return tms34010_host_r(machine().device("dsp"), offset);
-}
 
 
 /*************************************
@@ -299,7 +283,7 @@ WRITE16_MEMBER(jpmimpct_state::duart_1_w)
 		}
 		case 0x3:
 		{
-			//mame_printf_debug("%c", data);
+			//osd_printf_debug("%c", data);
 			break;
 		}
 		case 0x4:
@@ -330,7 +314,7 @@ WRITE16_MEMBER(jpmimpct_state::duart_1_w)
 		}
 		case 0xb:
 		{
-			//mame_printf_debug("%c",data);
+			//osd_printf_debug("%c",data);
 			break;
 		}
 		case 0xc:
@@ -614,7 +598,7 @@ static ADDRESS_MAP_START( m68k_program_map, AS_PROGRAM, 16, jpmimpct_state )
 	AM_RANGE(0x00480082, 0x00480083) AM_WRITE(volume_w)
 	AM_RANGE(0x00480084, 0x00480085) AM_READ(upd7759_r)
 	AM_RANGE(0x004801e0, 0x004801ff) AM_READWRITE(duart_2_r, duart_2_w)
-	AM_RANGE(0x00800000, 0x00800007) AM_READWRITE(m68k_tms_r, m68k_tms_w)
+	AM_RANGE(0x00800000, 0x00800007) AM_DEVREADWRITE("dsp", tms34010_device, host_r, host_w)
 	AM_RANGE(0x00c00000, 0x00cfffff) AM_ROM
 	AM_RANGE(0x00d00000, 0x00dfffff) AM_ROM
 	AM_RANGE(0x00e00000, 0x00efffff) AM_ROM
@@ -665,7 +649,7 @@ ADDRESS_MAP_END
  *************************************/
 
 static ADDRESS_MAP_START( tms_program_map, AS_PROGRAM, 16, jpmimpct_state )
-	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00001ff) AM_DEVREADWRITE("dsp", tms34010_device, io_register_r, io_register_w)
 	AM_RANGE(0x00000000, 0x003fffff) AM_MIRROR(0xf8000000) AM_RAM AM_SHARE("vram")
 	AM_RANGE(0x00800000, 0x00ffffff) AM_MIRROR(0xf8000000) AM_ROM AM_REGION("user1", 0x100000)
 	AM_RANGE(0x02000000, 0x027fffff) AM_MIRROR(0xf8000000) AM_ROM AM_REGION("user1", 0)
@@ -842,7 +826,7 @@ static void jpmimpct_tms_irq(device_t *device, int state)
 	drvstate->update_irqs();
 }
 
-static const tms34010_config tms_config =
+static const tms340x0_config tms_config =
 {
 	TRUE,                       /* halt on reset */
 	"screen",                   /* the screen operated on */
@@ -867,7 +851,7 @@ static MACHINE_CONFIG_START( jpmimpct, jpmimpct_state )
 	MCFG_CPU_PROGRAM_MAP(m68k_program_map)
 
 	MCFG_CPU_ADD("dsp", TMS34010, 40000000)
-	MCFG_CPU_CONFIG(tms_config)
+	MCFG_TMS340X0_CONFIG(tms_config)
 	MCFG_CPU_PROGRAM_MAP(tms_program_map)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(30000))
@@ -880,7 +864,7 @@ static MACHINE_CONFIG_START( jpmimpct, jpmimpct_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(40000000/4, 156*4, 0, 100*4, 328, 0, 300)
 	MCFG_SCREEN_UPDATE_DEVICE("dsp", tms34010_device, tms340x0_rgb32)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_ADD("palette", 256)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("upd", UPD7759, UPD7759_STANDARD_CLOCK)
@@ -973,33 +957,10 @@ WRITE8_MEMBER(jpmimpct_state::payen_a_w)
 WRITE8_MEMBER(jpmimpct_state::display_c_w)
 {
 	//Reset 0x04, data 0x02, clock 0x01
-	if(data & 0x04)
-	{
-		int alpha_data = (data & 0x02)?0:1;
-		if (m_alpha_clock != (data & 0x01))
-		{
-			if (!m_alpha_clock)//falling edge
-			{
-				m_vfd->shift_data(alpha_data);
-			}
-		}
-		m_alpha_clock = (data & 0x01);
-	}
-	else
-	{
-		m_vfd->reset();
-	}
+	m_vfd->por(data & 0x04);
+	m_vfd->data(data & 0x02);
+	m_vfd->sclk(data & 0x01);
 }
-
-static I8255_INTERFACE (ppi8255_intf)
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(jpmimpct_state,payen_a_w),
-	DEVCB_DRIVER_MEMBER(jpmimpct_state,hopper_b_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(jpmimpct_state,hopper_c_r),
-	DEVCB_DRIVER_MEMBER(jpmimpct_state,display_c_w)
-};
 
 MACHINE_START_MEMBER(jpmimpct_state,impctawp)
 {
@@ -1366,13 +1327,18 @@ MACHINE_CONFIG_START( impctawp, jpmimpct_state )
 	MCFG_CPU_PROGRAM_MAP(awp68k_program_map)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(30000))
-	MCFG_ROC10937_ADD("vfd",0,RIGHT_TO_LEFT)
+	MCFG_S16LF01_ADD("vfd",0)
 
 	MCFG_MACHINE_START_OVERRIDE(jpmimpct_state,impctawp)
 	MCFG_MACHINE_RESET_OVERRIDE(jpmimpct_state,impctawp)
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_I8255_ADD( "ppi8255", ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(jpmimpct_state, payen_a_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(jpmimpct_state, hopper_b_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(jpmimpct_state, hopper_c_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(jpmimpct_state, display_c_w))
+
 	MCFG_TIMER_DRIVER_ADD("duart_1_timer", jpmimpct_state, duart_1_timer_event)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")

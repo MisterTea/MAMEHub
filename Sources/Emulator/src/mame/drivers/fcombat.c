@@ -293,10 +293,12 @@ static MACHINE_CONFIG_START( fcombat, fcombat_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(FCOMBAT_PIXEL_CLOCK, FCOMBAT_HTOTAL, FCOMBAT_HBEND, FCOMBAT_HBSTART, FCOMBAT_VTOTAL, FCOMBAT_VBEND, FCOMBAT_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(fcombat_state, screen_update_fcombat)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(fcombat)
-	MCFG_PALETTE_LENGTH(256*3)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", fcombat)
+	MCFG_PALETTE_ADD("palette", 256*3)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(fcombat_state, fcombat)
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -320,10 +322,10 @@ MACHINE_CONFIG_END
 DRIVER_INIT_MEMBER(fcombat_state,fcombat)
 {
 	UINT32 oldaddr, newaddr, length;
-	UINT8 *src, *dst, *temp;
+	UINT8 *src, *dst;
 
 	/* allocate some temporary space */
-	temp = auto_alloc_array(machine(), UINT8, 0x10000);
+	dynamic_buffer temp(0x10000);
 
 	/* make a temporary copy of the character data */
 	src = temp;
@@ -406,8 +408,6 @@ DRIVER_INIT_MEMBER(fcombat_state,fcombat)
 		memcpy(&dst[oldaddr * 32 * 8 * 2], &src[oldaddr * 32 * 8], 32 * 8);
 		memcpy(&dst[oldaddr * 32 * 8 * 2 + 32 * 8], &src[oldaddr * 32 * 8 + 0x2000], 32 * 8);
 	}
-
-	auto_free(machine(), temp);
 }
 
 ROM_START( fcombat )

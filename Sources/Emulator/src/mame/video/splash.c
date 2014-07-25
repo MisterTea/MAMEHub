@@ -44,8 +44,7 @@ TILE_GET_INFO_MEMBER(splash_state::get_tile_info_splash_tilemap0)
 	int attr = data >> 8;
 	int code = data & 0xff;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code + ((0x20 + (attr & 0x0f)) << 8),
 			(attr & 0xf0) >> 4,
 			0);
@@ -57,8 +56,7 @@ TILE_GET_INFO_MEMBER(splash_state::get_tile_info_splash_tilemap1)
 	int attr = data >> 8;
 	int code = data & 0xff;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			(code >> 2) + ((0x30 + (attr & 0x0f)) << 6),
 			(attr & 0xf0) >> 4,
 			TILE_FLIPXY(code & 0x03));
@@ -165,8 +163,8 @@ void splash_state::draw_bitmap(bitmap_ind16 &bitmap, const rectangle &cliprect)
 
 void splash_state::video_start()
 {
-	m_bg_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(splash_state::get_tile_info_splash_tilemap0),this), TILEMAP_SCAN_ROWS,  8,  8, 64, 32);
-	m_bg_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(splash_state::get_tile_info_splash_tilemap1),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_bg_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(splash_state::get_tile_info_splash_tilemap0),this), TILEMAP_SCAN_ROWS,  8,  8, 64, 32);
+	m_bg_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(splash_state::get_tile_info_splash_tilemap1),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 
 	m_bg_tilemap[0]->set_transparent_pen(0);
 	m_bg_tilemap[1]->set_transparent_pen(0);
@@ -206,7 +204,7 @@ void splash_state::video_start()
 void splash_state::splash_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
 {
 	int i;
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 
 	for (i = 0; i < 0x400; i += 4){
 		int sx = m_spriteram[i+2] & 0xff;
@@ -217,7 +215,7 @@ void splash_state::splash_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cli
 
 		if (attr2 & 0x80) sx += 256;
 
-		drawgfx_transpen(bitmap,cliprect,gfx,number,
+		gfx->transpen(bitmap,cliprect,number,
 			0x10 + (attr2 & 0x0f),attr & 0x40,attr & 0x80,
 			sx-8,sy,0);
 	}
@@ -226,7 +224,7 @@ void splash_state::splash_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cli
 void splash_state::funystrp_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
 {
 	int i;
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 
 	for (i = 0; i < 0x400; i += 4){
 		int sx = m_spriteram[i+2] & 0xff;
@@ -237,7 +235,7 @@ void splash_state::funystrp_draw_sprites(bitmap_ind16 &bitmap,const rectangle &c
 
 		if (attr2 & 0x80) sx += 256;
 
-		drawgfx_transpen(bitmap,cliprect,gfx,number,
+		gfx->transpen(bitmap,cliprect,number,
 			(attr2 & 0x7f),attr & 0x40,attr & 0x80,
 			sx-8,sy,0);
 	}

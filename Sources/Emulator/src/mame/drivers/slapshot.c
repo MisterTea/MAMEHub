@@ -140,31 +140,6 @@ Region byte at offset 0x031:
 #include "includes/slapshot.h"
 
 
-/******************************************************
-                COLOR
-******************************************************/
-
-READ16_MEMBER(slapshot_state::color_ram_word_r)
-{
-	return m_color_ram[offset];
-}
-
-WRITE16_MEMBER(slapshot_state::color_ram_word_w)
-{
-	int r,g,b;
-	COMBINE_DATA(&m_color_ram[offset]);
-
-	if ((offset % 2) == 1)  /* assume words written sequentially */
-	{
-		r = (m_color_ram[offset- 1 ] & 0xff);
-		g = (m_color_ram[offset] & 0xff00) >> 8;
-		b = (m_color_ram[offset] & 0xff);
-
-		palette_set_color(machine(), offset / 2, MAKE_RGB(r,g,b));
-	}
-}
-
-
 /***********************************************************
                 INTERRUPTS
 ***********************************************************/
@@ -257,9 +232,9 @@ WRITE8_MEMBER(slapshot_state::sound_bankswitch_w)
 WRITE16_MEMBER(slapshot_state::slapshot_msb_sound_w)
 {
 	if (offset == 0)
-		m_tc0140syt->tc0140syt_port_w(space, 0, (data >> 8) & 0xff);
+		m_tc0140syt->master_port_w(space, 0, (data >> 8) & 0xff);
 	else if (offset == 1)
-		m_tc0140syt->tc0140syt_comm_w(space, 0, (data >> 8) & 0xff);
+		m_tc0140syt->master_comm_w(space, 0, (data >> 8) & 0xff);
 
 #ifdef MAME_DEBUG
 	if (data & 0xff)
@@ -270,7 +245,7 @@ WRITE16_MEMBER(slapshot_state::slapshot_msb_sound_w)
 READ16_MEMBER(slapshot_state::slapshot_msb_sound_r)
 {
 	if (offset == 1)
-		return ((m_tc0140syt->tc0140syt_comm_r(space, 0) & 0xff) << 8);
+		return ((m_tc0140syt->master_comm_r(space, 0) & 0xff) << 8);
 	else
 		return 0;
 }
@@ -287,7 +262,7 @@ static ADDRESS_MAP_START( slapshot_map, AS_PROGRAM, 16, slapshot_state )
 	AM_RANGE(0x700000, 0x701fff) AM_RAM AM_SHARE("spriteext")   /* debugging */
 	AM_RANGE(0x800000, 0x80ffff) AM_DEVREADWRITE("tc0480scp", tc0480scp_device, word_r, word_w)    /* tilemaps */
 	AM_RANGE(0x830000, 0x83002f) AM_DEVREADWRITE("tc0480scp", tc0480scp_device, ctrl_word_r, ctrl_word_w)
-	AM_RANGE(0x900000, 0x907fff) AM_READWRITE(color_ram_word_r, color_ram_word_w) AM_SHARE("color_ram") /* 8bpg palette */
+	AM_RANGE(0x900000, 0x907fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xa00000, 0xa03fff) AM_DEVREADWRITE8("mk48t08", timekeeper_device, read, write, 0xff00) /* nvram (only low bytes used) */
 	AM_RANGE(0xb00000, 0xb0001f) AM_DEVWRITE8("tc0360pri", tc0360pri_device, write, 0xff00)  /* priority chip */
 	AM_RANGE(0xc00000, 0xc0000f) AM_DEVREADWRITE("tc0640fio", tc0640fio_device, halfword_byteswap_r, halfword_byteswap_w)
@@ -302,7 +277,7 @@ static ADDRESS_MAP_START( opwolf3_map, AS_PROGRAM, 16, slapshot_state )
 	AM_RANGE(0x700000, 0x701fff) AM_RAM AM_SHARE("spriteext")   /* debugging */
 	AM_RANGE(0x800000, 0x80ffff) AM_DEVREADWRITE("tc0480scp", tc0480scp_device, word_r, word_w)    /* tilemaps */
 	AM_RANGE(0x830000, 0x83002f) AM_DEVREADWRITE("tc0480scp", tc0480scp_device, ctrl_word_r, ctrl_word_w)
-	AM_RANGE(0x900000, 0x907fff) AM_READWRITE(color_ram_word_r, color_ram_word_w) AM_SHARE("color_ram") /* 8bpg palette */
+	AM_RANGE(0x900000, 0x907fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xa00000, 0xa03fff) AM_DEVREADWRITE8("mk48t08", timekeeper_device, read, write, 0xff00) /* nvram (only low bytes used) */
 	AM_RANGE(0xb00000, 0xb0001f) AM_DEVWRITE8("tc0360pri", tc0360pri_device, write, 0xff00)  /* priority chip */
 	AM_RANGE(0xc00000, 0xc0000f) AM_DEVREADWRITE("tc0640fio", tc0640fio_device, halfword_byteswap_r, halfword_byteswap_w)
@@ -319,8 +294,8 @@ static ADDRESS_MAP_START( opwolf3_z80_sound_map, AS_PROGRAM, 8, slapshot_state )
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank10")
 	AM_RANGE(0xc000, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xe003) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
-	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
-	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, slave_port_w)
+	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, slave_comm_r, slave_comm_w)
 	AM_RANGE(0xe400, 0xe403) AM_WRITENOP /* pan */
 	AM_RANGE(0xea00, 0xea00) AM_READNOP
 	AM_RANGE(0xee00, 0xee00) AM_WRITENOP /* ? */
@@ -491,27 +466,6 @@ WRITE_LINE_MEMBER(slapshot_state::irqhandler)
                  MACHINE DRIVERS
 ***********************************************************/
 
-static const tc0480scp_interface slapshot_tc0480scp_intf =
-{
-	1, 2,       /* gfxnum, txnum */
-	3,      /* pixels */
-	30, 9,      /* x_offset, y_offset */
-	-1, 1,      /* text_xoff, text_yoff */
-	0, 2,       /* flip_xoff, flip_yoff */
-	256     /* col_base */
-};
-
-static const tc0640fio_interface slapshot_io_intf =
-{
-	DEVCB_NULL, DEVCB_INPUT_PORT("COINS"),
-	DEVCB_INPUT_PORT("BUTTONS"), DEVCB_INPUT_PORT("SYSTEM"), DEVCB_INPUT_PORT("JOY")    /* port read handlers */
-};
-
-static const tc0140syt_interface slapshot_tc0140syt_intf =
-{
-	"maincpu", "audiocpu"
-};
-
 void slapshot_state::machine_start()
 {
 	membank("bank10")->configure_entries(0, 4, memregion("audiocpu")->base() + 0xc000, 0x4000);
@@ -534,8 +488,11 @@ static MACHINE_CONFIG_START( slapshot, slapshot_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(600))
 
-
-	MCFG_TC0640FIO_ADD("tc0640fio", slapshot_io_intf)
+	MCFG_DEVICE_ADD("tc0640fio", TC0640FIO, 0)
+	MCFG_TC0640FIO_READ_1_CB(IOPORT("COINS"))
+	MCFG_TC0640FIO_READ_2_CB(IOPORT("BUTTONS"))
+	MCFG_TC0640FIO_READ_3_CB(IOPORT("SYSTEM"))
+	MCFG_TC0640FIO_READ_7_CB(IOPORT("JOY"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -545,12 +502,22 @@ static MACHINE_CONFIG_START( slapshot, slapshot_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(slapshot_state, screen_update_slapshot)
 	MCFG_SCREEN_VBLANK_DRIVER(slapshot_state, screen_eof_taito_no_buffer)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(slapshot)
-	MCFG_PALETTE_LENGTH(8192)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", slapshot)
+	MCFG_PALETTE_ADD("palette", 8192)
+	MCFG_PALETTE_FORMAT(XRGB)
 
+	MCFG_DEVICE_ADD("tc0480scp", TC0480SCP, 0)
+	MCFG_TC0480SCP_GFX_REGION(1)
+	MCFG_TC0480SCP_TX_REGION(2)
+	MCFG_TC0480SCP_OFFSETS(30 + 3, 9)
+	MCFG_TC0480SCP_OFFSETS_TX(-1, -1)
+	MCFG_TC0480SCP_OFFSETS_FLIP(0, 2)
+	MCFG_TC0480SCP_COL_BASE(256)
+	MCFG_TC0480SCP_GFXDECODE("gfxdecode")
+	MCFG_TC0480SCP_PALETTE("palette")
 
-	MCFG_TC0480SCP_ADD("tc0480scp", slapshot_tc0480scp_intf)
 	MCFG_TC0360PRI_ADD("tc0360pri")
 
 	/* sound hardware */
@@ -565,7 +532,9 @@ static MACHINE_CONFIG_START( slapshot, slapshot_state )
 
 	MCFG_MK48T08_ADD( "mk48t08" )
 
-	MCFG_TC0140SYT_ADD("tc0140syt", slapshot_tc0140syt_intf)
+	MCFG_DEVICE_ADD("tc0140syt", TC0140SYT, 0)
+	MCFG_TC0140SYT_MASTER_CPU("maincpu")
+	MCFG_TC0140SYT_SLAVE_CPU("audiocpu")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( opwolf3, slapshot_state )
@@ -580,8 +549,11 @@ static MACHINE_CONFIG_START( opwolf3, slapshot_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(600))
 
-
-	MCFG_TC0640FIO_ADD("tc0640fio", slapshot_io_intf)
+	MCFG_DEVICE_ADD("tc0640fio", TC0640FIO, 0)
+	MCFG_TC0640FIO_READ_1_CB(IOPORT("COINS"))
+	MCFG_TC0640FIO_READ_2_CB(IOPORT("BUTTONS"))
+	MCFG_TC0640FIO_READ_3_CB(IOPORT("SYSTEM"))
+	MCFG_TC0640FIO_READ_7_CB(IOPORT("JOY"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -591,12 +563,22 @@ static MACHINE_CONFIG_START( opwolf3, slapshot_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(slapshot_state, screen_update_slapshot)
 	MCFG_SCREEN_VBLANK_DRIVER(slapshot_state, screen_eof_taito_no_buffer)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(slapshot)
-	MCFG_PALETTE_LENGTH(8192)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", slapshot)
+	MCFG_PALETTE_ADD("palette", 8192)
+	MCFG_PALETTE_FORMAT(XRGB)
 
+	MCFG_DEVICE_ADD("tc0480scp", TC0480SCP, 0)
+	MCFG_TC0480SCP_GFX_REGION(1)
+	MCFG_TC0480SCP_TX_REGION(2)
+	MCFG_TC0480SCP_OFFSETS(30 + 3, 9)
+	MCFG_TC0480SCP_OFFSETS_TX(-1, -1)
+	MCFG_TC0480SCP_OFFSETS_FLIP(0, 2)
+	MCFG_TC0480SCP_COL_BASE(256)
+	MCFG_TC0480SCP_GFXDECODE("gfxdecode")
+	MCFG_TC0480SCP_PALETTE("palette")
 
-	MCFG_TC0480SCP_ADD("tc0480scp", slapshot_tc0480scp_intf)
 	MCFG_TC0360PRI_ADD("tc0360pri")
 
 	/* sound hardware */
@@ -611,7 +593,9 @@ static MACHINE_CONFIG_START( opwolf3, slapshot_state )
 
 	MCFG_MK48T08_ADD( "mk48t08" )
 
-	MCFG_TC0140SYT_ADD("tc0140syt", slapshot_tc0140syt_intf)
+	MCFG_DEVICE_ADD("tc0140syt", TC0140SYT, 0)
+	MCFG_TC0140SYT_MASTER_CPU("maincpu")
+	MCFG_TC0140SYT_SLAVE_CPU("audiocpu")
 MACHINE_CONFIG_END
 
 /***************************************************************************

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     Cinemat/Leland driver
@@ -32,7 +34,9 @@ public:
 		m_eeprom(*this, "eeprom"),
 		m_sound(*this, "custom"),
 		m_dac0(*this, "dac0"),
-		m_dac1(*this, "dac1") { }
+		m_dac1(*this, "dac1"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")  { }
 
 	required_device<cpu_device> m_master;
 	required_device<cpu_device> m_slave;
@@ -40,6 +44,8 @@ public:
 	optional_device<leland_80186_sound_device> m_sound;
 	optional_device<dac_device> m_dac0;
 	optional_device<dac_device> m_dac1;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	UINT8 m_dac_control;
 	UINT8 *m_alleymas_kludge_mem;
@@ -314,6 +320,5 @@ ADDRESS_MAP_EXTERN(ataxx_80186_map_io, 16);
 
 /*----------- defined in video/leland.c -----------*/
 
-DECLARE_WRITE8_DEVICE_HANDLER( leland_gfx_port_w );
 MACHINE_CONFIG_EXTERN( leland_video );
 MACHINE_CONFIG_EXTERN( ataxx_video );

@@ -16,11 +16,9 @@
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "cpu/m68000/m68000.h"
-#include "video/vector.h"
 #include "includes/aztarac.h"
 #include "sound/ay8910.h"
 #include "machine/nvram.h"
-#include "scrlegcy.h"
 
 
 
@@ -38,7 +36,6 @@ IRQ_CALLBACK_MEMBER(aztarac_state::aztarac_irq_callback)
 
 void aztarac_state::machine_reset()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(aztarac_state::aztarac_irq_callback),this));
 }
 
 
@@ -151,6 +148,7 @@ static MACHINE_CONFIG_START( aztarac, aztarac_state )
 	MCFG_CPU_ADD("maincpu", M68000, 8000000)
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", aztarac_state,  irq4_line_hold)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(aztarac_state,aztarac_irq_callback)
 
 	MCFG_CPU_ADD("audiocpu", Z80, 2000000)
 	MCFG_CPU_PROGRAM_MAP(sound_map)
@@ -159,11 +157,12 @@ static MACHINE_CONFIG_START( aztarac, aztarac_state )
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
 	/* video hardware */
+	MCFG_VECTOR_ADD("vector")
 	MCFG_SCREEN_ADD("screen", VECTOR)
 	MCFG_SCREEN_REFRESH_RATE(40)
 	MCFG_SCREEN_SIZE(400, 300)
 	MCFG_SCREEN_VISIBLE_AREA(0, 1024-1, 0, 768-1)
-	MCFG_SCREEN_UPDATE_STATIC(vector)
+	MCFG_SCREEN_UPDATE_DEVICE("vector", vector_device, screen_update)
 
 
 	/* sound hardware */

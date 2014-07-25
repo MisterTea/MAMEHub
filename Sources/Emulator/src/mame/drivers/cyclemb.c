@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************************************
 
     Cycle Maabou (c) 1984 Taito Corporation / Seta
@@ -86,7 +88,9 @@ public:
 		m_cram(*this, "cram"),
 		m_obj1_ram(*this, "obj1_ram"),
 		m_obj2_ram(*this, "obj2_ram"),
-		m_obj3_ram(*this, "obj3_ram")
+		m_obj3_ram(*this, "obj3_ram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -96,6 +100,8 @@ public:
 	required_shared_ptr<UINT8> m_obj1_ram;
 	required_shared_ptr<UINT8> m_obj2_ram;
 	required_shared_ptr<UINT8> m_obj3_ram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	struct
 	{
@@ -118,7 +124,7 @@ public:
 	DECLARE_DRIVER_INIT(cyclemb);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(cyclemb);
 	UINT32 screen_update_cyclemb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_skydest(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void cyclemb_draw_tilemap(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -130,7 +136,7 @@ public:
 
 
 
-void cyclemb_state::palette_init()
+PALETTE_INIT_MEMBER(cyclemb_state, cyclemb)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i,r,g,b,val;
@@ -153,7 +159,7 @@ void cyclemb_state::palette_init()
 		bit2 = (val >> 2) & 0x01;
 		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -164,7 +170,7 @@ void cyclemb_state::video_start()
 
 void cyclemb_state::cyclemb_draw_tilemap(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = screen.machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	int x,y,count;
 	count = 0;
 
@@ -184,15 +190,15 @@ void cyclemb_state::cyclemb_draw_tilemap(screen_device &screen, bitmap_ind16 &bi
 
 			if(flip_screen())
 			{
-				drawgfx_opaque(bitmap,cliprect,gfx,tile,color,1,1,512-(x*8)-scrollx,256-(y*8));
+				gfx->opaque(bitmap,cliprect,tile,color,1,1,512-(x*8)-scrollx,256-(y*8));
 				/* wrap-around */
-				drawgfx_opaque(bitmap,cliprect,gfx,tile,color,1,1,512-(x*8)-scrollx+512,256-(y*8));
+				gfx->opaque(bitmap,cliprect,tile,color,1,1,512-(x*8)-scrollx+512,256-(y*8));
 			}
 			else
 			{
-				drawgfx_opaque(bitmap,cliprect,gfx,tile,color,0,0,(x*8)-scrollx,(y*8));
+				gfx->opaque(bitmap,cliprect,tile,color,0,0,(x*8)-scrollx,(y*8));
 				/* wrap-around */
-				drawgfx_opaque(bitmap,cliprect,gfx,tile,color,0,0,(x*8)-scrollx+512,(y*8));
+				gfx->opaque(bitmap,cliprect,tile,color,0,0,(x*8)-scrollx+512,(y*8));
 			}
 
 			count++;
@@ -253,14 +259,14 @@ void cyclemb_state::cyclemb_draw_sprites(screen_device &screen, bitmap_ind16 &bi
 			fx = !fx;
 			fy = !fy;
 		}
-		drawgfx_transpen(bitmap,cliprect,screen.machine().gfx[region],spr_offs,col,fx,fy,x,y,0);
+		m_gfxdecode->gfx(region)->transpen(bitmap,cliprect,spr_offs,col,fx,fy,x,y,0);
 	}
 }
 
 
 void cyclemb_state::skydest_draw_tilemap(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = screen.machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	int x,y;
 
 
@@ -291,9 +297,9 @@ void cyclemb_state::skydest_draw_tilemap(screen_device &screen, bitmap_ind16 &bi
 				scrolly = m_vram[(x-32)*64+1];
 
 
-			drawgfx_opaque(bitmap,cliprect,gfx,tile,color,0,0,x*8+scrollx,((y*8)-scrolly)&0xff);
-			drawgfx_opaque(bitmap,cliprect,gfx,tile,color,0,0,x*8+scrollx-480,((y*8)-scrolly)&0xff);
-			drawgfx_opaque(bitmap,cliprect,gfx,tile,color,0,0,x*8+scrollx+480,((y*8)-scrolly)&0xff);
+			gfx->opaque(bitmap,cliprect,tile,color,0,0,x*8+scrollx,((y*8)-scrolly)&0xff);
+			gfx->opaque(bitmap,cliprect,tile,color,0,0,x*8+scrollx-480,((y*8)-scrolly)&0xff);
+			gfx->opaque(bitmap,cliprect,tile,color,0,0,x*8+scrollx+480,((y*8)-scrolly)&0xff);
 
 
 		}
@@ -349,7 +355,7 @@ void cyclemb_state::skydest_draw_sprites(screen_device &screen, bitmap_ind16 &bi
 			fx = !fx;
 			fy = !fy;
 		}
-		drawgfx_transpen(bitmap,cliprect,screen.machine().gfx[region],spr_offs,col,fx,fy,x,y,0);
+		m_gfxdecode->gfx(region)->transpen(bitmap,cliprect,spr_offs,col,fx,fy,x,y,0);
 	}
 }
 
@@ -911,10 +917,11 @@ static MACHINE_CONFIG_START( cyclemb, cyclemb_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cyclemb_state, screen_update_cyclemb)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cyclemb)
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cyclemb)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(cyclemb_state, cyclemb)
 
 
 	/* sound hardware */
@@ -933,7 +940,7 @@ static MACHINE_CONFIG_DERIVED( skydest, cyclemb )
 	MCFG_SCREEN_VISIBLE_AREA(2*8, 34*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cyclemb_state, screen_update_skydest)
 
-//  MCFG_PALETTE_INIT_OVERRIDE(cyclemb_state,skydest)
+//  MCFG_PALETTE_INIT_OWNER(cyclemb_state,skydest)
 MACHINE_CONFIG_END
 
 /***************************************************************************

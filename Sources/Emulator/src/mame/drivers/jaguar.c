@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Aaron Giles,Nathan Woods,Angelo Salese, Robbbert
 /***************************************************************************
 
     Atari Jaguar (Home) & Atari CoJag (Arcade) hardware
@@ -342,6 +344,10 @@ Notes:
 #include "imagedev/snapquik.h"
 #include "sound/dac.h"
 #include "machine/eepromser.h"
+#include "sound/cdda.h"
+#include "cdrom.h"
+#include "imagedev/chd_cd.h"
+
 
 #define COJAG_CLOCK         XTAL_52MHz
 #define R3000_CLOCK         XTAL_40MHz
@@ -360,6 +366,38 @@ IRQ_CALLBACK_MEMBER(jaguar_state::jaguar_irq_callback)
 }
 
 
+/// HACK: Maximum force requests data but doesn't transfer it all before issuing another command.
+/// According to the ATA specification this is not allowed, more investigation is required.
+
+#include "machine/idehd.h"
+
+extern const device_type COJAG_HARDDISK;
+
+class cojag_hdd : public ide_hdd_device
+{
+public:
+	cojag_hdd(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+		: ide_hdd_device(mconfig, COJAG_HARDDISK, "HDD CoJag", tag, owner, clock, "cojag_hdd", __FILE__)
+	{
+	}
+
+	virtual DECLARE_WRITE16_MEMBER(write_cs0)
+	{
+		// the first write is to the device head register
+		if( offset == 6 && (m_status & IDE_STATUS_DRQ))
+		{
+			m_status &= ~IDE_STATUS_DRQ;
+		}
+
+		ide_hdd_device::write_cs0(space, offset, data, mem_mask);
+	}
+};
+
+const device_type COJAG_HARDDISK = &device_creator<cojag_hdd>;
+
+SLOT_INTERFACE_START(cojag_devices)
+	SLOT_INTERFACE("hdd", COJAG_HARDDISK)
+SLOT_INTERFACE_END
 
 /*************************************
  *
@@ -369,9 +407,6 @@ IRQ_CALLBACK_MEMBER(jaguar_state::jaguar_irq_callback)
 
 void jaguar_state::machine_reset()
 {
-	if (!m_is_cojag)
-		m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(jaguar_state::jaguar_irq_callback),this));
-
 	m_protection_check = 0;
 
 	/* 68020 only: copy the interrupt vectors into RAM */
@@ -379,6 +414,15 @@ void jaguar_state::machine_reset()
 	{
 		memcpy(m_shared_ram, m_rom_base, 0x400);    // do not increase, or Doom breaks
 		m_maincpu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+
+		if(m_is_jagcd)
+		{
+			m_shared_ram[0x4/4] = 0x00802000; /* hack until I understand */
+
+			m_cd_file = m_cdrom->get_cdrom_file();
+			m_butch_cmd_index = 0;
+			m_butch_cmd_size = 1;
+		}
 	}
 
 	/* configure banks for gfx/sound ROMs */
@@ -1077,7 +1121,194 @@ static ADDRESS_MAP_START( jaguar_map, AS_PROGRAM, 16, jaguar_state )
 	AM_RANGE(0xf1d000, 0xf1dfff) AM_READWRITE(wave_rom_r16, wave_rom_w16 )
 ADDRESS_MAP_END
 
+/*
+CD-Rom emulation, chip codename Butch (the HW engineer was definitely obsessed with T&J somehow ...)
+TODO: this needs to be device-ized, of course ...
 
+[0x00]: irq register
+(R)
+-x-- ---- ---- ---- CD uncorrectable data error pending
+--x- ---- ---- ---- Response from CD drive pending
+---x ---- ---- ---- Command to CD drive pending
+---- x--- ---- ---- Subcode data pending
+---- -x-- ---- ---- Frame pending
+---- --x- ---- ---- CD data FIFO half-full flag pending
+(W)
+---- ---- -x-- ---- CIRC failure irq
+---- ---- --x- ---- CD module command RX buffer full irq
+---- ---- ---x ---- CD module command TX buffer empty irq
+---- ---- ---- x--- Enable pre-set subcode time-match found irq
+---- ---- ---- -x-- Enable CD subcode frame-time irq
+---- ---- ---- --x- Enable CD data FIFO half full irq
+---- ---- ---- ---x set to enable irq
+[0x04]: DSA control register
+[0x0a]: DSA TX/RX data (sends commands with this)
+    0x01 Play Title (?)
+    0x02 Stop
+    0x03 Read TOC
+    0x04 Pause
+    0x05 Unpause
+    0x09 Get Title Len
+    0x0a Open Tray
+    0x0b Close Tray
+    0x0d Get Comp Time
+    0x10 Goto ABS Min
+    0x11 Goto ABS Sec
+    0x12 Goto ABS Frame
+    0x14 Read Long TOC
+    0x15 Set Mode
+    0x16 Get Error
+    0x17 Clear Error
+    0x18 Spin Up
+    0x20 Play AB Min
+    0x21 Play AB Sec
+    0x22 Play AB Frame
+    0x23 Stop AB Min
+    0x24 Stop AB Sec
+    0x25 Stop AB Frame
+    0x26 AB Release
+    0x50 Get Disc Status
+    0x51 Set Volume
+    0x54 Get Maxsession
+    0x70 Set DAC mode (?)
+    0xa0-0xaf User Define (???)
+    0xf0 Service
+    0xf1 Sledge
+    0xf2 Focus
+    0xf3 Turntable
+    0xf4 Radial
+
+[0x10]: I2S bus control register
+[0x14]: CD subcode control register
+[0x18]: Subcode data register A
+[0x1C]: Subcode data register B
+[0x20]: Subcode time and compare enable
+[0x24]: I2S FIFO data
+[0x28]: I2S FIFO data (old)
+[0x2c]: ? (used at start-up)
+
+*/
+
+READ16_MEMBER(jaguar_state::butch_regs_r16){ if (!(offset&1)) { return butch_regs_r(space, offset>>1, mem_mask<<16) >> 16;  } else { return butch_regs_r(space, offset>>1, mem_mask); } }
+WRITE16_MEMBER(jaguar_state::butch_regs_w16){ if (!(offset&1)) { butch_regs_w(space, offset>>1, data << 16, mem_mask << 16); } else { butch_regs_w(space, offset>>1, data, mem_mask); } }
+
+READ32_MEMBER(jaguar_state::butch_regs_r)
+{
+	switch(offset*4)
+	{
+		case 8: //DS DATA
+			//m_butch_regs[0] &= ~0x2000;
+			return m_butch_cmd_response[(m_butch_cmd_index++) % m_butch_cmd_size];
+	}
+
+	return m_butch_regs[offset];
+}
+
+WRITE32_MEMBER(jaguar_state::butch_regs_w)
+{
+	COMBINE_DATA(&m_butch_regs[offset]);
+
+	switch(offset*4)
+	{
+		case 8: //DS DATA
+			switch((m_butch_regs[offset] & 0xff00) >> 8)
+			{
+				case 0x03: // Read TOC
+					UINT32 msf;
+
+					if(m_butch_regs[offset] & 0xff) // Multi Session CD, TODO
+					{
+						m_butch_cmd_response[0] = 0x0029; // illegal value
+						m_butch_regs[0] |= 0x2000;
+						m_butch_cmd_index = 0;
+						m_butch_cmd_size = 1;
+						return;
+					}
+
+					msf = cdrom_get_track_start(m_cd_file, 0) + 150;
+
+					/* first track number */
+					m_butch_cmd_response[0] = 0x2000 | 1;
+					/* last track number */
+					m_butch_cmd_response[1] = 0x2100 | cdrom_get_last_track(m_cd_file);
+
+					/* start of first track minutes */
+					m_butch_cmd_response[2] = 0x2200 | ((msf / 60) / 60);
+					/* start of first track seconds */
+					m_butch_cmd_response[3] = 0x2300 | (msf / 60) % 60;
+					/* start of first track frame */
+					m_butch_cmd_response[4] = 0x2400 | (msf % 75);
+					m_butch_regs[0] |= 0x2000;
+					m_butch_cmd_index = 0;
+					m_butch_cmd_size = 5;
+					break;
+				case 0x14: // Read Long TOC
+					{
+						UINT32 msf;
+						int ntrks = cdrom_get_last_track(m_cd_file);
+
+						for(int i=0;i<ntrks;i++)
+						{
+							msf = cdrom_get_track_start(m_cd_file, i) + 150;
+
+							/* track number */
+							m_butch_cmd_response[i*5+0] = 0x6000 | (i+1);
+							/* attributes (?) */
+							m_butch_cmd_response[i*5+1] = 0x6100 | 0x00;
+
+							/* start of track minutes */
+							m_butch_cmd_response[i*5+2] = 0x6200 | ((msf / 60) / 60);
+							/* start of track seconds */
+							m_butch_cmd_response[i*5+3] = 0x6300 | (msf / 60) % 60;
+							/* start of track frame */
+							m_butch_cmd_response[i*5+4] = 0x6400 | (msf % 75);
+						}
+						m_butch_regs[0] |= 0x2000;
+						m_butch_cmd_index = 0;
+						m_butch_cmd_size = 5*ntrks;
+					}
+
+					break;
+				case 0x15: // Set Mode
+					m_butch_regs[0] |= 0x2000;
+					m_butch_cmd_response[0] = 0x1700 | (m_butch_regs[offset] & 0xff);
+					m_butch_cmd_index = 0;
+					m_butch_cmd_size = 1;
+					break;
+				case 0x70: // Set DAC Mode
+					m_butch_regs[0] |= 0x2000;
+					m_butch_cmd_response[0] = 0x7000 | (m_butch_regs[offset] & 0xff);
+					m_butch_cmd_index = 0;
+					m_butch_cmd_size = 1;
+					break;
+				default:
+					printf("%04x CMD\n",m_butch_regs[offset]);
+					break;
+			}
+			break;
+	}
+}
+
+static ADDRESS_MAP_START( jaguarcd_map, AS_PROGRAM, 16, jaguar_state )
+	ADDRESS_MAP_GLOBAL_MASK(0xffffff)
+	AM_RANGE(0x000000, 0x1fffff) AM_MIRROR(0x200000) AM_READWRITE(shared_ram_r16, shared_ram_w16 );
+	AM_RANGE(0x800000, 0x83ffff) AM_ROM AM_REGION("cdbios", 0)
+	AM_RANGE(0xdfff00, 0xdfff3f) AM_READWRITE(butch_regs_r16,butch_regs_w16 )
+	AM_RANGE(0xe00000, 0xe1ffff) AM_READWRITE(rom_base_r16, rom_base_w16 )
+	AM_RANGE(0xf00000, 0xf003ff) AM_READWRITE(tom_regs_r, tom_regs_w) // might be reversed endian of the others..
+	AM_RANGE(0xf00400, 0xf005ff) AM_MIRROR(0x000200) AM_READWRITE(gpu_clut_r16, gpu_clut_w16 )
+	AM_RANGE(0xf02100, 0xf021ff) AM_MIRROR(0x008000) AM_READWRITE(gpuctrl_r16, gpuctrl_w16)
+	AM_RANGE(0xf02200, 0xf022ff) AM_MIRROR(0x008000) AM_READWRITE(blitter_r16, blitter_w16)
+	AM_RANGE(0xf03000, 0xf03fff) AM_MIRROR(0x008000) AM_READWRITE(gpu_ram_r16, gpu_ram_w16 )
+	AM_RANGE(0xf10000, 0xf103ff) AM_READWRITE(jerry_regs_r, jerry_regs_w) // might be reversed endian of the others..
+	AM_RANGE(0xf14000, 0xf14003) AM_READWRITE(joystick_r16, joystick_w16)
+	AM_RANGE(0xf14800, 0xf14803) AM_READWRITE(eeprom_clk16,eeprom_w16)  // GPI00
+	AM_RANGE(0xf15000, 0xf15003) AM_READ(eeprom_cs16)               // GPI01
+	AM_RANGE(0xf1a100, 0xf1a13f) AM_READWRITE(dspctrl_r16, dspctrl_w16)
+	AM_RANGE(0xf1a140, 0xf1a17f) AM_READWRITE(serial_r16, serial_w16)
+	AM_RANGE(0xf1b000, 0xf1cfff) AM_READWRITE(dsp_ram_r16, dsp_ram_w16)
+	AM_RANGE(0xf1d000, 0xf1dfff) AM_READWRITE(wave_rom_r16, wave_rom_w16 )
+ADDRESS_MAP_END
 
 /*************************************
  *
@@ -1209,6 +1440,44 @@ static ADDRESS_MAP_START( jag_dsp_map, AS_PROGRAM, 32, jaguar_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xffffff)
 	AM_RANGE(0x000000, 0x1fffff) AM_MIRROR(0x200000) AM_RAM AM_SHARE("sharedram") AM_REGION("maincpu", 0)
 	AM_RANGE(0x800000, 0xdfffff) AM_ROM AM_SHARE("cart") AM_REGION("maincpu", 0x800000)
+	AM_RANGE(0xe00000, 0xe1ffff) AM_ROM AM_SHARE("rom") AM_REGION("maincpu", 0xe00000)
+	AM_RANGE(0xf00000, 0xf003ff) AM_READWRITE16(tom_regs_r, tom_regs_w, 0xffffffff)
+	AM_RANGE(0xf00400, 0xf005ff) AM_MIRROR(0x000200) AM_RAM AM_SHARE("gpuclut")
+	AM_RANGE(0xf02100, 0xf021ff) AM_MIRROR(0x008000) AM_READWRITE(gpuctrl_r, gpuctrl_w)
+	AM_RANGE(0xf02200, 0xf022ff) AM_MIRROR(0x008000) AM_READWRITE(blitter_r, blitter_w)
+	AM_RANGE(0xf03000, 0xf03fff) AM_MIRROR(0x008000) AM_RAM AM_SHARE("gpuram")
+	AM_RANGE(0xf10000, 0xf103ff) AM_READWRITE16(jerry_regs_r, jerry_regs_w, 0xffffffff)
+	AM_RANGE(0xf14000, 0xf14003) AM_READWRITE(joystick_r, joystick_w)
+	AM_RANGE(0xf1a100, 0xf1a13f) AM_READWRITE(dspctrl_r, dspctrl_w)
+	AM_RANGE(0xf1a140, 0xf1a17f) AM_READWRITE(serial_r, serial_w)
+	AM_RANGE(0xf1b000, 0xf1cfff) AM_RAM AM_SHARE("dspram")
+	AM_RANGE(0xf1d000, 0xf1dfff) AM_ROM AM_REGION("waverom", 0)
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( jagcd_gpu_map, AS_PROGRAM, 32, jaguar_state )
+	ADDRESS_MAP_GLOBAL_MASK(0xffffff)
+	AM_RANGE(0x000000, 0x1fffff) AM_RAM AM_MIRROR(0x200000)  AM_SHARE("sharedram") AM_REGION("maincpu", 0)
+	AM_RANGE(0x800000, 0x83ffff) AM_ROM AM_REGION("cdbios", 0)
+	AM_RANGE(0xdfff00, 0xdfff3f) AM_READWRITE(butch_regs_r,butch_regs_w )
+	AM_RANGE(0xe00000, 0xe1ffff) AM_ROM AM_SHARE("rom") AM_REGION("maincpu", 0xe00000)
+	AM_RANGE(0xf00000, 0xf003ff) AM_READWRITE16(tom_regs_r, tom_regs_w, 0xffffffff)
+	AM_RANGE(0xf00400, 0xf005ff) AM_MIRROR(0x000200) AM_RAM AM_SHARE("gpuclut")
+	AM_RANGE(0xf02100, 0xf021ff) AM_MIRROR(0x008000) AM_READWRITE(gpuctrl_r, gpuctrl_w)
+	AM_RANGE(0xf02200, 0xf022ff) AM_MIRROR(0x008000) AM_READWRITE(blitter_r, blitter_w)
+	AM_RANGE(0xf03000, 0xf03fff) AM_MIRROR(0x008000) AM_RAM AM_SHARE("gpuram")
+	AM_RANGE(0xf10000, 0xf103ff) AM_READWRITE16(jerry_regs_r, jerry_regs_w, 0xffffffff)
+	AM_RANGE(0xf14000, 0xf14003) AM_READWRITE(joystick_r, joystick_w)
+	AM_RANGE(0xf1a100, 0xf1a13f) AM_READWRITE(dspctrl_r, dspctrl_w)
+	AM_RANGE(0xf1a140, 0xf1a17f) AM_READWRITE(serial_r, serial_w)
+	AM_RANGE(0xf1b000, 0xf1cfff) AM_RAM AM_SHARE("dspram")
+	AM_RANGE(0xf1d000, 0xf1dfff) AM_ROM AM_SHARE("waverom") AM_REGION("waverom", 0)
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( jagcd_dsp_map, AS_PROGRAM, 32, jaguar_state )
+	ADDRESS_MAP_GLOBAL_MASK(0xffffff)
+	AM_RANGE(0x000000, 0x1fffff) AM_MIRROR(0x200000) AM_RAM AM_SHARE("sharedram") AM_REGION("maincpu", 0)
+	AM_RANGE(0x800000, 0x83ffff) AM_ROM AM_REGION("cdbios", 0)
+	AM_RANGE(0xdfff00, 0xdfff3f) AM_READWRITE(butch_regs_r,butch_regs_w )
 	AM_RANGE(0xe00000, 0xe1ffff) AM_ROM AM_SHARE("rom") AM_REGION("maincpu", 0xe00000)
 	AM_RANGE(0xf00000, 0xf003ff) AM_READWRITE16(tom_regs_r, tom_regs_w, 0xffffffff)
 	AM_RANGE(0xf00400, 0xf005ff) AM_MIRROR(0x000200) AM_RAM AM_SHARE("gpuclut")
@@ -1528,17 +1797,6 @@ INPUT_PORTS_END
  *
  *************************************/
 
-	static const jaguar_cpu_config gpu_config =
-{
-	&jaguar_state::gpu_cpu_int
-};
-
-
-static const jaguar_cpu_config dsp_config =
-{
-	&jaguar_state::dsp_cpu_int
-};
-
 static MACHINE_CONFIG_START( cojagr3k, jaguar_state )
 
 	/* basic machine hardware */
@@ -1547,22 +1805,21 @@ static MACHINE_CONFIG_START( cojagr3k, jaguar_state )
 	MCFG_CPU_PROGRAM_MAP(r3000_map)
 
 	MCFG_CPU_ADD("gpu", JAGUARGPU, COJAG_CLOCK/2)
-	MCFG_CPU_CONFIG(gpu_config)
+	MCFG_JAGUAR_IRQ_HANDLER(WRITELINE(jaguar_state, gpu_cpu_int))
 	MCFG_CPU_PROGRAM_MAP(gpu_map)
 
 	MCFG_CPU_ADD("dsp", JAGUARDSP, COJAG_CLOCK/2)
-	MCFG_CPU_CONFIG(dsp_config)
+	MCFG_JAGUAR_IRQ_HANDLER(WRITELINE(jaguar_state, dsp_cpu_int))
 	MCFG_CPU_PROGRAM_MAP(dsp_map)
 
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_VT83C461_ADD("ide", ata_devices, "hdd", NULL, true)
+	MCFG_VT83C461_ADD("ide", cojag_devices, "hdd", NULL, true)
 	MCFG_ATA_INTERFACE_IRQ_HANDLER(WRITELINE(jaguar_state, external_int))
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_RAW_PARAMS(COJAG_PIXEL_CLOCK/2, 456, 42, 402, 262, 17, 257)
 	MCFG_SCREEN_UPDATE_DRIVER(jaguar_state,screen_update)
 
@@ -1577,8 +1834,8 @@ static MACHINE_CONFIG_START( cojagr3k, jaguar_state )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( cojagr3k_rom, cojagr3k )
-	MCFG_DEVICE_REMOVE("ide:0")
-	MCFG_ATA_SLOT_ADD("ide:0", ata_devices, NULL, true)
+	MCFG_DEVICE_MODIFY("ide:0")
+	MCFG_SLOT_DEFAULT_OPTION(NULL)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( cojag68k, cojagr3k )
@@ -1594,20 +1851,21 @@ static MACHINE_CONFIG_START( jaguar, jaguar_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M68000, JAGUAR_CLOCK/2)
 	MCFG_CPU_PROGRAM_MAP(jaguar_map)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(jaguar_state,jaguar_irq_callback)
 
 	MCFG_CPU_ADD("gpu", JAGUARGPU, JAGUAR_CLOCK)
-	MCFG_CPU_CONFIG(gpu_config)
+	MCFG_JAGUAR_IRQ_HANDLER(WRITELINE(jaguar_state, gpu_cpu_int))
 	MCFG_CPU_PROGRAM_MAP(jag_gpu_map)
 
 	MCFG_CPU_ADD("dsp", JAGUARDSP, JAGUAR_CLOCK)
-	MCFG_CPU_CONFIG(dsp_config)
+	MCFG_JAGUAR_IRQ_HANDLER(WRITELINE(jaguar_state, dsp_cpu_int))
 	MCFG_CPU_PROGRAM_MAP(jag_dsp_map)
 
 //  MCFG_NVRAM_HANDLER(jaguar)
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_RAW_PARAMS(JAGUAR_CLOCK, 456, 42, 402, 262, 17, 257)
 	MCFG_SCREEN_UPDATE_DRIVER(jaguar_state,screen_update)
 
@@ -1633,7 +1891,21 @@ static MACHINE_CONFIG_START( jaguar, jaguar_state )
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 MACHINE_CONFIG_END
 
+static MACHINE_CONFIG_DERIVED( jaguarcd, jaguar )
+	MCFG_CPU_MODIFY("maincpu")
+	MCFG_CPU_PROGRAM_MAP(jaguarcd_map)
 
+	MCFG_CPU_MODIFY("gpu")
+	MCFG_JAGUAR_IRQ_HANDLER(WRITELINE(jaguar_state, gpu_cpu_int))
+	MCFG_CPU_PROGRAM_MAP(jagcd_gpu_map)
+
+	MCFG_CPU_MODIFY("dsp")
+	MCFG_JAGUAR_IRQ_HANDLER(WRITELINE(jaguar_state, dsp_cpu_int))
+	MCFG_CPU_PROGRAM_MAP(jagcd_dsp_map)
+
+	MCFG_CDROM_ADD("cdrom")
+	MCFG_CDROM_INTERFACE("jag_cdrom")
+MACHINE_CONFIG_END
 
 /*************************************
  *
@@ -1665,6 +1937,25 @@ DRIVER_INIT_MEMBER(jaguar_state,jaguar)
 	m_hacks_enabled = false;
 	save_item(NAME(m_joystick_data));
 	cart_start();
+	m_is_jagcd = false;
+
+	for (int i=0;i<0x20000/4;i++) // the cd bios is bigger.. check
+	{
+		m_rom_base[i] = ((m_rom_base[i] & 0xffff0000)>>16) | ((m_rom_base[i] & 0x0000ffff)<<16);
+	}
+
+	for (int i=0;i<0x1000/4;i++)
+	{
+		m_wave_rom[i] = ((m_wave_rom[i] & 0xffff0000)>>16) | ((m_wave_rom[i] & 0x0000ffff)<<16);
+	}
+}
+
+DRIVER_INIT_MEMBER(jaguar_state,jaguarcd)
+{
+	m_hacks_enabled = false;
+	save_item(NAME(m_joystick_data));
+//  cart_start();
+	m_is_jagcd = true;
 
 	for (int i=0;i<0x20000/4;i++) // the cd bios is bigger.. check
 	{
@@ -1721,11 +2012,11 @@ int jaguar_state::quickload(device_image_interface &image, const char *file_type
 		skip = 96;
 
 	else    /* ABS binary */
-	if (!mame_stricmp(image.filetype(), "abs"))
+	if (!core_stricmp(image.filetype(), "abs"))
 		start = 0xc000;
 
 	else    /* JAG binary */
-	if (!mame_stricmp(image.filetype(), "jag"))
+	if (!core_stricmp(image.filetype(), "jag"))
 		start = 0x5000;
 
 
@@ -1771,7 +2062,7 @@ int jaguar_state::cart_load(device_image_interface &image)
 		size = image.length();
 
 		/* .rom files load & run at 802000 */
-		if (!mame_stricmp(image.filetype(), "rom"))
+		if (!core_stricmp(image.filetype(), "rom"))
 		{
 			load_offset = 0x2000;       // fix load address
 			m_cart_base[0x101]=0x802000;    // fix exec address
@@ -1823,11 +2114,14 @@ ROM_END
 
 ROM_START( jaguarcd )
 	ROM_REGION( 0x1000000, "maincpu", 0 )
+	ROM_LOAD16_WORD( "jagboot.rom", 0xe00000, 0x020000, CRC(fb731aaa) SHA1(f8991b0c385f4e5002fa2a7e2f5e61e8c5213356) )
+	ROM_CART_LOAD("cart", 0x800000, 0x600000, ROM_NOMIRROR) // TODO: needs to be removed (CD BIOS runs in the cart space)
+
+	ROM_REGION(0x40000, "cdbios", 0 )
 	ROM_SYSTEM_BIOS( 0, "default", "Jaguar CD" )
-	ROMX_LOAD( "jag_cd.bin", 0xe00000, 0x040000, CRC(687068d5) SHA1(73883e7a6e9b132452436f7ab1aeaeb0776428e5), ROM_BIOS(1) )
+	ROMX_LOAD( "jag_cd.bin", 0x00000, 0x040000, CRC(687068d5) SHA1(73883e7a6e9b132452436f7ab1aeaeb0776428e5), ROM_GROUPWORD | ROM_REVERSE | ROM_BIOS(1) )
 	ROM_SYSTEM_BIOS( 1, "dev", "Jaguar Developer CD" )
-	ROMX_LOAD( "jagdevcd.bin", 0xe00000, 0x040000, CRC(55a0669c) SHA1(d61b7b5912118f114ef00cf44966a5ef62e455a5), ROM_BIOS(2) )
-	ROM_CART_LOAD("cart", 0x800000, 0x600000, ROM_NOMIRROR)
+	ROMX_LOAD( "jagdevcd.bin", 0x00000, 0x040000, CRC(55a0669c) SHA1(d61b7b5912118f114ef00cf44966a5ef62e455a5), ROM_GROUPWORD | ROM_REVERSE | ROM_BIOS(2) )
 
 	ROM_REGION16_BE( 0x1000, "waverom", 0 )
 	ROM_LOAD16_WORD("jagwave.rom", 0x0000, 0x1000, CRC(7a25ee5b) SHA1(58117e11fd6478c521fbd3fdbe157f39567552f0) )
@@ -2228,6 +2522,7 @@ ROM_END
 void jaguar_state::cojag_common_init(UINT16 gpu_jump_offs, UINT16 spin_pc)
 {
 	m_is_cojag = true;
+	m_is_jagcd = false;
 
 	/* copy over the ROM */
 	m_is_r3000 = (m_maincpu->type() == R3041);
@@ -2374,7 +2669,7 @@ DRIVER_INIT_MEMBER(jaguar_state,vcircle)
 
 /*    YEAR   NAME      PARENT    COMPAT  MACHINE   INPUT     INIT      COMPANY    FULLNAME */
 CONS( 1993,  jaguar,   0,        0,      jaguar,   jaguar,   jaguar_state, jaguar,   "Atari",   "Jaguar", GAME_UNEMULATED_PROTECTION | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING )
-CONS( 1995,  jaguarcd, jaguar,   0,      jaguar,   jaguar,   jaguar_state, jaguar,   "Atari",   "Jaguar CD", GAME_UNEMULATED_PROTECTION | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING )
+CONS( 1995,  jaguarcd, jaguar,   0,      jaguarcd, jaguar,   jaguar_state, jaguarcd, "Atari",   "Jaguar CD", GAME_UNEMULATED_PROTECTION | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING )
 
 GAME( 1996, area51,    0,        cojagr3k,  area51, jaguar_state,   area51,   ROT0, "Atari Games", "Area 51 (R3000)", 0 )
 GAME( 1995, area51t,   area51,   cojag68k,  area51, jaguar_state,   area51a,  ROT0, "Atari Games (Time Warner license)", "Area 51 (Time Warner license)", 0 )

@@ -15,7 +15,7 @@
 
 ***************************************************************************/
 
-void baraduke_state::palette_init()
+PALETTE_INIT_MEMBER(baraduke_state, baraduke)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -44,7 +44,7 @@ void baraduke_state::palette_init()
 		bit3 = (color_prom[0] >> 7) & 0x01;
 		b = 0x0e*bit0 + 0x1f*bit1 + 0x43*bit2 + 0x8f*bit3;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 		color_prom++;
 	}
 }
@@ -74,8 +74,7 @@ TILEMAP_MAPPER_MEMBER(baraduke_state::tx_tilemap_scan)
 
 TILE_GET_INFO_MEMBER(baraduke_state::tx_get_tile_info)
 {
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			m_textram[tile_index],
 			(m_textram[tile_index+0x400] << 2) & 0x1ff,
 			0);
@@ -86,8 +85,7 @@ TILE_GET_INFO_MEMBER(baraduke_state::get_tile_info0)
 	int code = m_videoram[2*tile_index];
 	int attr = m_videoram[2*tile_index + 1];
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code + ((attr & 0x03) << 8),
 			attr,
 			0);
@@ -98,8 +96,7 @@ TILE_GET_INFO_MEMBER(baraduke_state::get_tile_info1)
 	int code = m_videoram[0x1000 + 2*tile_index];
 	int attr = m_videoram[0x1000 + 2*tile_index + 1];
 
-	SET_TILE_INFO_MEMBER(
-			2,
+	SET_TILE_INFO_MEMBER(2,
 			code + ((attr & 0x03) << 8),
 			attr,
 			0);
@@ -115,15 +112,18 @@ TILE_GET_INFO_MEMBER(baraduke_state::get_tile_info1)
 
 void baraduke_state::video_start()
 {
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(baraduke_state::tx_get_tile_info),this),tilemap_mapper_delegate(FUNC(baraduke_state::tx_tilemap_scan),this),8,8,36,28);
-	m_bg_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(baraduke_state::get_tile_info0),this),TILEMAP_SCAN_ROWS,8,8,64,32);
-	m_bg_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(baraduke_state::get_tile_info1),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(baraduke_state::tx_get_tile_info),this),tilemap_mapper_delegate(FUNC(baraduke_state::tx_tilemap_scan),this),8,8,36,28);
+	m_bg_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(baraduke_state::get_tile_info0),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_bg_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(baraduke_state::get_tile_info1),this),TILEMAP_SCAN_ROWS,8,8,64,32);
 
 	m_tx_tilemap->set_transparent_pen(3);
 	m_bg_tilemap[0]->set_transparent_pen(7);
 	m_bg_tilemap[1]->set_transparent_pen(7);
 
-	m_tx_tilemap->set_scrolldx(0,512-288);
+	m_bg_tilemap[0]->set_scrolldx(-26, -227+26);
+	m_bg_tilemap[1]->set_scrolldx(-24, -227+24);
+	m_bg_tilemap[0]->set_scrolldy(-9, 9);
+	m_bg_tilemap[1]->set_scrolldy(-9, 9);
 	m_tx_tilemap->set_scrolldy(16,16);
 }
 
@@ -267,7 +267,7 @@ void baraduke_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 			{
 				for (x = 0;x <= sizex;x++)
 				{
-					drawgfx_transpen( bitmap, cliprect,machine().gfx[3],
+					m_gfxdecode->gfx(3)->transpen(bitmap,cliprect,
 						sprite + gfx_offs[y ^ (sizey * flipy)][x ^ (sizex * flipx)],
 						color,
 						flipx,flipy,
@@ -284,14 +284,12 @@ void baraduke_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 
 void baraduke_state::set_scroll(int layer)
 {
-	static const int xdisp[2] = { 26, 24 };
-	int scrollx, scrolly;
+	int scrollx = m_xscroll[layer];
+	int scrolly = m_yscroll[layer];
 
-	scrollx = m_xscroll[layer] + xdisp[layer];
-	scrolly = m_yscroll[layer] + 9;
 	if (flip_screen())
 	{
-		scrollx = -scrollx + 3;
+		scrollx = -scrollx;
 		scrolly = -scrolly;
 	}
 
@@ -306,9 +304,7 @@ UINT32 baraduke_state::screen_update_baraduke(screen_device &screen, bitmap_ind1
 	int back;
 
 	/* flip screen is embedded in the sprite control registers */
-	/* can't use flip_screen_set() because the visible area is asymmetrical */
-	flip_screen_set_no_update(spriteram[0x07f6] & 0x01);
-	machine().tilemap().set_flip_all(flip_screen() ? (TILEMAP_FLIPX | TILEMAP_FLIPY) : 0);
+	flip_screen_set(spriteram[0x07f6] & 0x01);
 	set_scroll(0);
 	set_scroll(1);
 

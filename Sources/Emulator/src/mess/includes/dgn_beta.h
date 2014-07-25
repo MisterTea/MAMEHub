@@ -90,7 +90,8 @@ public:
 			m_mc6845(*this, "crtc"),
 		m_videoram(*this, "videoram"),
 		m_maincpu(*this, "maincpu"),
-		m_ram(*this, RAM_TAG) { }
+		m_ram(*this, RAM_TAG),
+		m_palette(*this, "palette") { }
 
 	required_device<mc6845_device> m_mc6845;
 	required_shared_ptr<UINT8> m_videoram;
@@ -147,7 +148,7 @@ public:
 	int m_DrawInterlace;
 	virtual void machine_start();
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(dgn);
 	DECLARE_WRITE8_MEMBER(dgnbeta_ram_b0_w);
 	DECLARE_WRITE8_MEMBER(dgnbeta_ram_b1_w);
 	DECLARE_WRITE8_MEMBER(dgnbeta_ram_b2_w);
@@ -169,7 +170,7 @@ public:
 	DECLARE_WRITE8_MEMBER(d_pia0_pa_w);
 	DECLARE_READ8_MEMBER(d_pia0_pb_r);
 	DECLARE_WRITE8_MEMBER(d_pia0_pb_w);
-	DECLARE_WRITE8_MEMBER(d_pia0_cb2_w);
+	DECLARE_WRITE_LINE_MEMBER(d_pia0_cb2_w);
 	DECLARE_WRITE_LINE_MEMBER(d_pia0_irq_a);
 	DECLARE_WRITE_LINE_MEMBER(d_pia0_irq_b);
 	DECLARE_READ8_MEMBER(d_pia1_pa_r);
@@ -192,6 +193,7 @@ public:
 	// Page IO at FE00
 	DECLARE_READ8_MEMBER(dgn_beta_page_r);
 	DECLARE_WRITE8_MEMBER(dgn_beta_page_w);
+	MC6845_UPDATE_ROW(crtc_update_row);
 
 	/*  WD2797 FDC */
 	DECLARE_READ8_MEMBER(dgnbeta_wd2797_r);
@@ -210,17 +212,7 @@ public:
 	void dgn_beta_frame_interrupt (int data);
 	void dgn_beta_line_interrupt (int data);
 	required_device<ram_device> m_ram;
+	required_device<palette_device> m_palette;
 };
-
-
-/*----------- defined in machine/dgn_beta.c -----------*/
-
-extern const wd17xx_interface dgnbeta_wd17xx_interface;
-extern const pia6821_interface dgnbeta_pia_intf[];
-
-
-/*----------- defined in video/dgn_beta.c -----------*/
-
-extern const mc6845_interface dgnbeta_crtc6845_interface;
 
 #endif /* DGN_BETA_H_ */

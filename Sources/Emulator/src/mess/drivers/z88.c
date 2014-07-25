@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Kevin Thacker,Sandro Ronco
 /******************************************************************************
 
         z88.c
@@ -54,7 +56,7 @@ WRITE8_MEMBER(z88_state::bank2_cart_w) { m_carts[m_bank[2].slot]->write(space, (
 WRITE8_MEMBER(z88_state::bank3_cart_w) { m_carts[m_bank[3].slot]->write(space, (m_bank[3].page<<14) + offset, data); }
 
 
-void z88_state::bankswitch_update(int bank, UINT16 page, int rams)
+UPD65031_MEMORY_UPDATE(z88_state::bankswitch_update)
 {
 	char bank_tag[6];
 	sprintf(bank_tag, "bank%d", bank + 2);
@@ -603,33 +605,6 @@ READ8_MEMBER(z88_state::kb_r)
 	return data;
 }
 
-static UPD65031_MEMORY_UPDATE(z88_bankswitch_update)
-{
-	z88_state *state = device.machine().driver_data<z88_state>();
-	state->bankswitch_update(bank, page, rams);
-}
-
-static UPD65031_SCREEN_UPDATE(z88_screen_update)
-{
-	z88_state *state = device.machine().driver_data<z88_state>();
-	state->lcd_update(bitmap, sbf, hires0, hires1, lores0, lores1, flash);
-}
-
-static UPD65031_INTERFACE( z88_blink_intf )
-{
-	z88_screen_update,                                      // callback for update the LCD
-	z88_bankswitch_update,                                  // callback for update the bankswitch
-	DEVCB_DRIVER_MEMBER(z88_state, kb_r),                   // kb read input
-	DEVCB_CPU_INPUT_LINE("maincpu", 0),                     // INT line out
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_NMI),        // NMI line out
-	DEVCB_DEVICE_LINE_MEMBER("speaker", speaker_sound_device, level_w)         // Speaker line out
-};
-
-static const z88cart_interface z88_cart_interface =
-{
-	DEVCB_DEVICE_LINE_MEMBER("blink", upd65031_device, flp_w)
-};
-
 static SLOT_INTERFACE_START(z88_cart)
 	SLOT_INTERFACE("32krom",  Z88_32K_ROM)          // 32KB ROM cart
 	SLOT_INTERFACE("128krom", Z88_128K_ROM)         // 128KB ROM cart
@@ -654,12 +629,20 @@ static MACHINE_CONFIG_START( z88, z88_state )
 	MCFG_SCREEN_SIZE(Z88_SCREEN_WIDTH, Z88_SCREEN_HEIGHT)
 	MCFG_SCREEN_VISIBLE_AREA(0, (Z88_SCREEN_WIDTH - 1), 0, (Z88_SCREEN_HEIGHT - 1))
 	MCFG_SCREEN_UPDATE_DEVICE("blink", upd65031_device, screen_update)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(Z88_NUM_COLOURS)
+	MCFG_PALETTE_ADD("palette", Z88_NUM_COLOURS)
+	MCFG_PALETTE_INIT_OWNER(z88_state, z88)
 
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 
-	MCFG_UPD65031_ADD("blink", XTAL_9_8304MHz, z88_blink_intf)
+	MCFG_DEVICE_ADD("blink", UPD65031, XTAL_9_8304MHz)
+	MCFG_UPD65031_KB_CALLBACK(READ8(z88_state, kb_r))
+	MCFG_UPD65031_INT_CALLBACK(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_UPD65031_NMI_CALLBACK(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	MCFG_UPD65031_SPKR_CALLBACK(DEVWRITELINE("speaker", speaker_sound_device, level_w))
+	MCFG_UPD65031_SCR_UPDATE_CB(z88_state, lcd_update)
+	MCFG_UPD65031_MEM_UPDATE_CB(z88_state, bankswitch_update)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -672,9 +655,15 @@ static MACHINE_CONFIG_START( z88, z88_state )
 	MCFG_RAM_EXTRA_OPTIONS("32K,64K,256K,512k")
 
 	// cartridges
-	MCFG_Z88_CARTRIDGE_ADD("slot1", z88_cart_interface, z88_cart, NULL)
-	MCFG_Z88_CARTRIDGE_ADD("slot2", z88_cart_interface, z88_cart, NULL)
-	MCFG_Z88_CARTRIDGE_ADD("slot3", z88_cart_interface, z88_cart, NULL)
+	MCFG_DEVICE_ADD("slot1", Z88CART_SLOT, 0)
+	MCFG_DEVICE_SLOT_INTERFACE(z88_cart, NULL, false)
+	MCFG_Z88CART_SLOT_OUT_FLP_CB(DEVWRITELINE("blink", upd65031_device, flp_w))
+	MCFG_DEVICE_ADD("slot2", Z88CART_SLOT, 0)
+	MCFG_DEVICE_SLOT_INTERFACE(z88_cart, NULL, false)
+	MCFG_Z88CART_SLOT_OUT_FLP_CB(DEVWRITELINE("blink", upd65031_device, flp_w))
+	MCFG_DEVICE_ADD("slot3", Z88CART_SLOT, 0)
+	MCFG_DEVICE_SLOT_INTERFACE(z88_cart, NULL, false)
+	MCFG_Z88CART_SLOT_OUT_FLP_CB(DEVWRITELINE("blink", upd65031_device, flp_w))
 MACHINE_CONFIG_END
 
 

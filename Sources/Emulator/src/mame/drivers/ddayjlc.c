@@ -66,7 +66,9 @@ public:
 		m_videoram(*this, "videoram"),
 		m_bgram(*this, "bgram"),
 		m_audiocpu(*this, "audiocpu"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_mainram;
@@ -106,11 +108,13 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(ddayjlc);
 	UINT32 screen_update_ddayjlc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(ddayjlc_interrupt);
 	INTERRUPT_GEN_MEMBER(ddayjlc_snd_interrupt);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -386,7 +390,7 @@ TILE_GET_INFO_MEMBER(ddayjlc_state::get_tile_info_bg)
 
 void ddayjlc_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ddayjlc_state::get_tile_info_bg),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ddayjlc_state::get_tile_info_bg),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 UINT32 ddayjlc_state::screen_update_ddayjlc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -406,7 +410,7 @@ UINT32 ddayjlc_state::screen_update_ddayjlc(screen_device &screen, bitmap_ind16 
 
 		code = (code & 0x7f) | ((flags & 0x30) << 3);
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[0], code, color, xflip, yflip, x, y, 0);
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect, code, color, xflip, yflip, x, y, 0);
 	}
 
 	{
@@ -417,23 +421,13 @@ UINT32 ddayjlc_state::screen_update_ddayjlc(screen_device &screen, bitmap_ind16 
 			{
 				c = m_videoram[y * 32 + x];
 				if (x > 1 && x < 30)
-					drawgfx_transpen(bitmap, cliprect, machine().gfx[1], c + m_char_bank * 0x100, 2, 0, 0, x*8, y*8, 0);
+					m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, c + m_char_bank * 0x100, 2, 0, 0, x*8, y*8, 0);
 				else
-					drawgfx_opaque(bitmap, cliprect, machine().gfx[1], c + m_char_bank * 0x100, 2, 0, 0, x*8, y*8);
+					m_gfxdecode->gfx(1)->opaque(bitmap,cliprect, c + m_char_bank * 0x100, 2, 0, 0, x*8, y*8);
 			}
 	}
 	return 0;
 }
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 INTERRUPT_GEN_MEMBER(ddayjlc_state::ddayjlc_interrupt)
 {
@@ -481,7 +475,7 @@ void ddayjlc_state::machine_reset()
 	}
 }
 
-void ddayjlc_state::palette_init()
+PALETTE_INIT_MEMBER(ddayjlc_state, ddayjlc)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i,r,g,b,val;
@@ -504,7 +498,7 @@ void ddayjlc_state::palette_init()
 		bit2 = (val >> 2) & 0x01;
 		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -529,15 +523,16 @@ static MACHINE_CONFIG_START( ddayjlc, ddayjlc_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ddayjlc_state, screen_update_ddayjlc)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ddayjlc)
-	MCFG_PALETTE_LENGTH(0x200)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ddayjlc)
+	MCFG_PALETTE_ADD("palette", 0x200)
+	MCFG_PALETTE_INIT_OWNER(ddayjlc_state, ddayjlc)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 12000000/6)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 12000000/6)
@@ -665,8 +660,8 @@ DRIVER_INIT_MEMBER(ddayjlc_state,ddayjlc)
 
 	{
 		UINT32 oldaddr, newadr, length,j;
-		UINT8 *src, *dst, *temp;
-		temp = auto_alloc_array(machine(), UINT8, 0x10000);
+		UINT8 *src, *dst;
+		dynamic_buffer temp(0x10000);
 		src = temp;
 		dst = memregion("gfx1")->base();
 		length = memregion("gfx1")->bytes();
@@ -680,7 +675,6 @@ DRIVER_INIT_MEMBER(ddayjlc_state,ddayjlc)
 			newadr += 32;
 			oldaddr += 16;
 		}
-		auto_free(machine(), temp);
 	}
 
 	membank("bank1")->configure_entries(0, 3, memregion("user1")->base(), 0x4000);

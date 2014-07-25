@@ -114,7 +114,6 @@ Notes (couriersud)
 #include "cpu/m6502/m6502.h"
 #include "machine/rescap.h"
 #include "sound/samples.h"
-#include "machine/74123.h"
 #include "includes/m10.h"
 
 
@@ -138,33 +137,9 @@ WRITE8_MEMBER(m10_state::ic8j2_output_changed)
 {
 	/* written from /Q to A with slight delight */
 	LOG(("ic8j2: %d\n", data));
-	ttl74123_a_w(m_ic8j2, space, 0, data);
-	ttl74123_a_w(m_ic8j1, space, 0, data);
+	m_ic8j2->a_w(space, 0, data);
+	m_ic8j1->a_w(space, 0, data);
 }
-
-static const ttl74123_interface ic8j1_intf =
-{
-	/* completely illegible */
-	TTL74123_NOT_GROUNDED_DIODE,    /* the hook up type */
-	RES_K(1),               /* resistor connected to RCext */
-	CAP_U(1),               /* capacitor connected to Cext and RCext */
-	1,                  /* A pin - driven by the CRTC */
-	1,                  /* B pin - pulled high */
-	1,                  /* Clear pin - pulled high */
-	DEVCB_DRIVER_MEMBER(m10_state,ic8j1_output_changed)
-};
-
-static const ttl74123_interface ic8j2_intf =
-{
-	TTL74123_NOT_GROUNDED_DIODE,    /* the hook up type */
-	/* 10k + 20k variable resistor */
-	RES_K(22),              /* resistor connected to RCext */
-	CAP_U(2.2),             /* capacitor connected to Cext and RCext */
-	1,                  /* A pin - driven by the CRTC */
-	1,                  /* B pin - pulled high */
-	1,                  /* Clear pin - pulled high */
-	DEVCB_DRIVER_MEMBER(m10_state,ic8j2_output_changed)
-};
 
 /*************************************
  *
@@ -181,19 +156,16 @@ PALETTE_INIT_MEMBER(m10_state,m10)
 		rgb_t color;
 
 		if (i & 0x01)
-			color = MAKE_RGB(pal1bit(~i >> 3), pal1bit(~i >> 2), pal1bit(~i >> 1));
+			color = rgb_t(pal1bit(~i >> 3), pal1bit(~i >> 2), pal1bit(~i >> 1));
 		else
-			color = RGB_BLACK;
+			color = rgb_t::black;
 
-		palette_set_color(machine(), i, color);
+		palette.set_pen_color(i, color);
 	}
 }
 
 MACHINE_START_MEMBER(m10_state,m10)
 {
-	m_ic8j1 = machine().device("ic8j1");
-	m_ic8j2 = machine().device("ic8j2");
-
 	save_item(NAME(m_bottomline));
 	save_item(NAME(m_flip));
 	save_item(NAME(m_last));
@@ -466,8 +438,8 @@ READ8_MEMBER(m10_state::m10_a700_r)
 {
 	//LOG(("rd:%d\n",m_screen->vpos()));
 	LOG(("clear\n"));
-	ttl74123_clear_w(m_ic8j1, space, 0, 0);
-	ttl74123_clear_w(m_ic8j1, space, 0, 1);
+	m_ic8j1->clear_w(space, 0, 0);
+	m_ic8j1->clear_w(space, 0, 1);
 	return 0x00;
 }
 
@@ -476,8 +448,8 @@ READ8_MEMBER(m10_state::m11_a700_r)
 	//LOG(("rd:%d\n",m_screen->vpos()));
 	//m_maincpu->set_input_line(0, CLEAR_LINE);
 	LOG(("clear\n"));
-	ttl74123_clear_w(m_ic8j1, space, 0, 0);
-	ttl74123_clear_w(m_ic8j1, space, 0, 1);
+	m_ic8j1->clear_w(space, 0, 0);
+	m_ic8j1->clear_w(space, 0, 1);
 	return 0x00;
 }
 
@@ -853,17 +825,33 @@ static MACHINE_CONFIG_START( m10, m10_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(IREMM10_PIXEL_CLOCK, IREMM10_HTOTAL, IREMM10_HBEND, IREMM10_HBSTART, IREMM10_VTOTAL, IREMM10_VBEND, IREMM10_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(m10_state, screen_update_m10)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(m10)
-	MCFG_PALETTE_LENGTH(2*8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", m10)
+	MCFG_PALETTE_ADD("palette", 2*8)
 
-	MCFG_PALETTE_INIT_OVERRIDE(m10_state,m10)
+	MCFG_PALETTE_INIT_OWNER(m10_state,m10)
 	MCFG_VIDEO_START_OVERRIDE(m10_state,m10)
 
 	/* 74LS123 */
 
-	MCFG_TTL74123_ADD("ic8j1", ic8j1_intf)
-	MCFG_TTL74123_ADD("ic8j2", ic8j2_intf)
+	MCFG_DEVICE_ADD("ic8j1", TTL74123, 0) /* completely illegible */
+	MCFG_TTL74123_CONNECTION_TYPE(TTL74123_NOT_GROUNDED_DIODE)    /* the hook up type */
+	MCFG_TTL74123_RESISTOR_VALUE(RES_K(1))               /* resistor connected to RCext */
+	MCFG_TTL74123_CAPACITOR_VALUE(CAP_U(1))               /* capacitor connected to Cext and RCext */
+	MCFG_TTL74123_A_PIN_VALUE(1)                  /* A pin - driven by the CRTC */
+	MCFG_TTL74123_B_PIN_VALUE(1)                  /* B pin - pulled high */
+	MCFG_TTL74123_CLEAR_PIN_VALUE(1)                  /* Clear pin - pulled high */
+	MCFG_TTL74123_OUTPUT_CHANGED_CB(WRITE8(m10_state, ic8j1_output_changed))
+	MCFG_DEVICE_ADD("ic8j2", TTL74123, 0)
+	MCFG_TTL74123_CONNECTION_TYPE(TTL74123_NOT_GROUNDED_DIODE)    /* the hook up type */
+	/* 10k + 20k variable resistor */
+	MCFG_TTL74123_RESISTOR_VALUE(RES_K(22))               /* resistor connected to RCext */
+	MCFG_TTL74123_CAPACITOR_VALUE(CAP_U(2.2))               /* capacitor connected to Cext and RCext */
+	MCFG_TTL74123_A_PIN_VALUE(1)                  /* A pin - driven by the CRTC */
+	MCFG_TTL74123_B_PIN_VALUE(1)                  /* B pin - pulled high */
+	MCFG_TTL74123_CLEAR_PIN_VALUE(1)                  /* Clear pin - pulled high */
+	MCFG_TTL74123_OUTPUT_CHANGED_CB(WRITE8(m10_state, ic8j2_output_changed))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -898,10 +886,12 @@ static MACHINE_CONFIG_START( m15, m10_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(IREMM15_PIXEL_CLOCK, IREMM15_HTOTAL, IREMM15_HBEND, IREMM15_HBSTART, IREMM15_VTOTAL, IREMM15_VBEND, IREMM15_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(m10_state, screen_update_m15)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(2*8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
+	MCFG_PALETTE_ADD("palette", 2*8)
 
-	MCFG_PALETTE_INIT_OVERRIDE(m10_state,m10)
+	MCFG_PALETTE_INIT_OWNER(m10_state,m10)
 	MCFG_VIDEO_START_OVERRIDE(m10_state, m15 )
 
 	/* sound hardware */
@@ -1052,10 +1042,10 @@ ROM_START( greenber )
 	ROM_LOAD( "gb9", 0x3000, 0x0400, CRC(c27b9ba3) SHA1(a2f4f0c4b61eb03bba13ae5d25dc01009a4f86ee) ) // ok ?
 ROM_END
 
-GAME( 1979, andromed,  0,        m11,     skychut, m10_state,  andromed, ROT270, "IPM",  "Andromeda (Japan?)", GAME_NO_COCKTAIL | GAME_NO_SOUND | GAME_IMPERFECT_COLORS | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
-GAME( 1979, ipminvad,  0,        m10,     ipminvad, driver_device, 0,        ROT270, "IPM",  "IPM Invader", GAME_IMPERFECT_SOUND | GAME_NO_COCKTAIL | GAME_IMPERFECT_COLORS | GAME_SUPPORTS_SAVE )
+GAME( 1979, andromed,  0,        m11,     skychut, m10_state,  andromed, ROT270, "IPM",  "Andromeda (Japan?)", GAME_NO_SOUND | GAME_IMPERFECT_COLORS | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
+GAME( 1979, ipminvad,  0,        m10,     ipminvad, driver_device, 0,        ROT270, "IPM",  "IPM Invader", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_COLORS | GAME_SUPPORTS_SAVE )
 GAME( 1979, ipminvad1, ipminvad, m10,     ipminvad, m10_state, ipminva1, ROT270, "IPM",  "IPM Invader (Incomplete Dump)", GAME_IMPERFECT_SOUND | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
-GAME( 1980, skychut,   0,        m11,     skychut, driver_device,  0,        ROT270, "Irem", "Sky Chuter", GAME_NO_COCKTAIL | GAME_NO_SOUND | GAME_IMPERFECT_COLORS | GAME_SUPPORTS_SAVE )
-GAME( 1979, spacbeam,  0,        m15,     spacbeam, driver_device, 0,        ROT270, "Irem", "Space Beam", GAME_NO_COCKTAIL | GAME_NO_SOUND | GAME_IMPERFECT_COLORS | GAME_SUPPORTS_SAVE ) // IPM or Irem?
-GAME( 1979, headoni,   0,        headoni, headoni, driver_device,  0,        ROT270, "Irem", "Head On (Irem, M-15 Hardware)", GAME_NO_COCKTAIL | GAME_NO_SOUND | GAME_IMPERFECT_COLORS | GAME_SUPPORTS_SAVE )
-GAME( 1980, greenber,  0,        m15,     spacbeam, driver_device, 0,        ROT270, "Irem", "Green Beret (Irem)", GAME_NO_COCKTAIL | GAME_NO_SOUND | GAME_IMPERFECT_COLORS | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
+GAME( 1980, skychut,   0,        m11,     skychut, driver_device,  0,        ROT270, "Irem", "Sky Chuter", GAME_NO_SOUND | GAME_IMPERFECT_COLORS | GAME_SUPPORTS_SAVE )
+GAME( 1979, spacbeam,  0,        m15,     spacbeam, driver_device, 0,        ROT270, "Irem", "Space Beam", GAME_NO_SOUND | GAME_IMPERFECT_COLORS | GAME_SUPPORTS_SAVE ) // IPM or Irem?
+GAME( 1979, headoni,   0,        headoni, headoni, driver_device,  0,        ROT270, "Irem", "Head On (Irem, M-15 Hardware)", GAME_NO_SOUND | GAME_IMPERFECT_COLORS | GAME_SUPPORTS_SAVE )
+GAME( 1980, greenber,  0,        m15,     spacbeam, driver_device, 0,        ROT270, "Irem", "Green Beret (Irem)", GAME_NO_SOUND | GAME_IMPERFECT_COLORS | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )

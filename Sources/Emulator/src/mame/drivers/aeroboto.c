@@ -207,18 +207,6 @@ static GFXDECODE_START( aeroboto )
 	GFXDECODE_ENTRY( "gfx3", 0, spritelayout,   0,   8 )
 GFXDECODE_END
 
-
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r),
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch2_byte_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 void aeroboto_state::machine_start()
 {
 	m_stars_rom = memregion("gfx2")->base();
@@ -260,18 +248,18 @@ static MACHINE_CONFIG_START( formatz, aeroboto_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 31*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aeroboto_state, screen_update_aeroboto)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(aeroboto)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", aeroboto)
 
-	MCFG_PALETTE_LENGTH(256)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 256)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, XTAL_10MHz/8) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(driver_device, soundlatch2_byte_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, XTAL_10MHz/16) /* verified on pcb */

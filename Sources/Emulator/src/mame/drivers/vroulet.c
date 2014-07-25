@@ -49,7 +49,10 @@ public:
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_ball(*this, "ball"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_8(*this, "paletteram") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -65,6 +68,9 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_vroulet(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT8> m_generic_paletteram_8;
 };
 
 
@@ -86,7 +92,7 @@ WRITE8_MEMBER(vroulet_state::vroulet_paletteram_w)
 		{
 			a=m_generic_paletteram_8[((i*8+j)*2)&0xff ];
 			b=m_generic_paletteram_8[((i*8+j)*2+1)&0xff ];
-			palette_set_color_rgb(machine(),i*16+j,pal4bit(b),pal4bit(b>>4),pal4bit(a));
+			m_palette->set_pen_color(i*16+j,pal4bit(b),pal4bit(b>>4),pal4bit(a));
 		}
 	}
 }
@@ -114,14 +120,14 @@ TILE_GET_INFO_MEMBER(vroulet_state::get_bg_tile_info)
 
 void vroulet_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(vroulet_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(vroulet_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
 		8, 8, 32, 32);
 }
 
 UINT32 vroulet_state::screen_update_vroulet(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
-	drawgfx_transpen(bitmap, cliprect, machine().gfx[0], 0x320, 1, 0, 0,
+	m_gfxdecode->gfx(0)->transpen(bitmap,cliprect, 0x320, 1, 0, 0,
 		m_ball[1], m_ball[0] - 12, 0);
 	return 0;
 }
@@ -244,44 +250,11 @@ static GFXDECODE_START( vroulet )
 	GFXDECODE_ENTRY( "gfx1", 0x0000, charlayout,    0, 32 )
 GFXDECODE_END
 
-/* Sound Interface */
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSWA"),
-	DEVCB_INPUT_PORT("DSWB"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 /* PPI8255 Interface */
 
 WRITE8_MEMBER(vroulet_state::ppi8255_a_w){}// watchdog ?
 WRITE8_MEMBER(vroulet_state::ppi8255_b_w){}// lamps ?
 WRITE8_MEMBER(vroulet_state::ppi8255_c_w){}
-
-static I8255A_INTERFACE( ppi8255_0_intf )
-{
-	DEVCB_INPUT_PORT("IN0"),            /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_INPUT_PORT("IN1"),            /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_INPUT_PORT("IN2"),            /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
-static I8255A_INTERFACE( ppi8255_1_intf )
-{
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_DRIVER_MEMBER(vroulet_state,ppi8255_a_w),         /* Port A write */
-	DEVCB_NULL,                         /* Port B read */
-	DEVCB_DRIVER_MEMBER(vroulet_state,ppi8255_b_w),         /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_DRIVER_MEMBER(vroulet_state,ppi8255_c_w)          /* Port C write */
-};
-
 
 /* Machine Driver */
 
@@ -294,27 +267,34 @@ static MACHINE_CONFIG_START( vroulet, vroulet_state )
 
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_0_intf )
-	MCFG_I8255A_ADD( "ppi8255_1", ppi8255_1_intf )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(vroulet_state, ppi8255_a_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(vroulet_state, ppi8255_b_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(vroulet_state, ppi8255_c_w))
 
 	// video hardware
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(vroulet_state, screen_update_vroulet)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(vroulet)
-	MCFG_PALETTE_LENGTH(128*4)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", vroulet)
+	MCFG_PALETTE_ADD("palette", 128*4)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 2000000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSWA"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSWB"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 MACHINE_CONFIG_END

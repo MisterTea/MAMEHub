@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     Incredible Technologies/Strata system
@@ -30,7 +32,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_soundcpu(*this, "soundcpu"),
 		m_dsp1(*this, "dsp1"),
-		m_dsp2(*this, "dsp2") { }
+		m_dsp2(*this, "dsp2"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	optional_shared_ptr<UINT16> m_main_ram;
 	optional_shared_ptr<UINT16> m_nvram;
@@ -127,10 +131,7 @@ public:
 	DECLARE_WRITE32_MEMBER(itech020_color1_w);
 	DECLARE_WRITE32_MEMBER(itech020_color2_w);
 	DECLARE_WRITE32_MEMBER(itech020_plane_w);
-	DECLARE_WRITE16_MEMBER(timekill_paletteram_w);
 	DECLARE_WRITE16_MEMBER(bloodstm_paletteram_w);
-	DECLARE_WRITE32_MEMBER(drivedge_paletteram_w);
-	DECLARE_WRITE32_MEMBER(itech020_paletteram_w);
 	DECLARE_WRITE16_MEMBER(itech32_video_w);
 	DECLARE_READ16_MEMBER(itech32_video_r);
 	DECLARE_WRITE16_MEMBER(bloodstm_video_w);
@@ -140,7 +141,7 @@ public:
 	DECLARE_READ32_MEMBER(itech020_video_r);
 	DECLARE_CUSTOM_INPUT_MEMBER(special_port_r);
 	DECLARE_WRITE8_MEMBER(drivedge_portb_out);
-	DECLARE_WRITE8_MEMBER(drivedge_turbo_light);
+	DECLARE_WRITE_LINE_MEMBER(drivedge_turbo_light);
 	DECLARE_WRITE8_MEMBER(pia_portb_out);
 	DECLARE_DRIVER_INIT(gtclasscp);
 	DECLARE_DRIVER_INIT(shufshot);
@@ -191,4 +192,6 @@ public:
 	required_device<cpu_device> m_soundcpu;
 	optional_device<cpu_device> m_dsp1;
 	optional_device<cpu_device> m_dsp2;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };

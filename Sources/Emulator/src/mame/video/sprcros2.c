@@ -7,13 +7,10 @@ Super Cross II (JPN Ver.)
 #include "includes/sprcros2.h"
 
 
-void sprcros2_state::palette_init()
+PALETTE_INIT_MEMBER(sprcros2_state, sprcros2)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x20);
 
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x20; i++)
@@ -37,9 +34,9 @@ void sprcros2_state::palette_init()
 		bit0 = (color_prom[i] >> 6) & 0x01;
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		b = 0x47 * bit0 + 0xb8 * bit1;
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -49,14 +46,14 @@ void sprcros2_state::palette_init()
 	for (i = 0; i < 0x100; i++)
 	{
 		UINT8 ctabentry = (color_prom[i] & 0x0f) | ((color_prom[i + 0x100] & 0x0f) << 4);
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 
 	/* sprites & fg */
 	for (i = 0x100; i < 0x300; i++)
 	{
 		UINT8 ctabentry = color_prom[i + 0x100];
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 }
 
@@ -98,8 +95,7 @@ TILE_GET_INFO_MEMBER(sprcros2_state::get_sprcros2_bgtile_info)
 
 	tile_number += (attr&0x07)<<8;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile_number,
 			(attr&0xf0)>>4,
 			(attr&0x08)?TILE_FLIPX:0);
@@ -120,8 +116,7 @@ TILE_GET_INFO_MEMBER(sprcros2_state::get_sprcros2_fgtile_info)
 
 	tile_number += (attr&0x03)<<8;
 
-	SET_TILE_INFO_MEMBER(
-			2,
+	SET_TILE_INFO_MEMBER(2,
 			tile_number,
 			color,
 			0);
@@ -129,10 +124,10 @@ TILE_GET_INFO_MEMBER(sprcros2_state::get_sprcros2_fgtile_info)
 
 void sprcros2_state::video_start()
 {
-	m_bgtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sprcros2_state::get_sprcros2_bgtile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fgtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sprcros2_state::get_sprcros2_fgtile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bgtilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sprcros2_state::get_sprcros2_bgtile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fgtilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sprcros2_state::get_sprcros2_fgtile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
-	colortable_configure_tilemap_groups(machine().colortable, m_fgtilemap, machine().gfx[2], 0);
+	m_fgtilemap->configure_groups(*m_gfxdecode->gfx(2), 0);
 }
 
 void sprcros2_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
@@ -171,12 +166,12 @@ void sprcros2_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect
 				flipy = !flipy;
 			}
 
-			drawgfx_transmask(bitmap,cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transmask(bitmap,cliprect,
 				m_spriteram[offs],
 				color,
 				flipx,flipy,
 				sx,sy,
-				colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color, 0));
+				m_palette->transpen_mask(*m_gfxdecode->gfx(1), color, 0));
 		}
 	}
 }

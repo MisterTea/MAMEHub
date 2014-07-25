@@ -159,7 +159,7 @@ static ADDRESS_MAP_START( mrflea_master_map, AS_PROGRAM, 8, mrflea_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
 	AM_RANGE(0xe000, 0xe7ff) AM_RAM_WRITE(mrflea_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0xe800, 0xe83f) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe800, 0xe83f) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xec00, 0xecff) AM_RAM_WRITE(mrflea_spriteram_w) AM_SHARE("spriteram")
 ADDRESS_MAP_END
 
@@ -299,28 +299,6 @@ GFXDECODE_END
 
 /*************************************
  *
- *  Sound interfaces
- *
- *************************************/
-
-static const ay8910_interface mrflea_ay8910_interface_0 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("IN1"),
-	DEVCB_INPUT_PORT("IN0")
-};
-
-static const ay8910_interface mrflea_ay8910_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_INPUT_PORT("DSW1")
-};
-
-/*************************************
- *
  *  Machine driver
  *
  *************************************/
@@ -366,20 +344,24 @@ static MACHINE_CONFIG_START( mrflea, mrflea_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mrflea_state, screen_update_mrflea)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mrflea)
-	MCFG_PALETTE_LENGTH(32)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mrflea)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 2000000)
-	MCFG_SOUND_CONFIG(mrflea_ay8910_interface_0)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("IN0"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 2000000)
-	MCFG_SOUND_CONFIG(mrflea_ay8910_interface_1)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW2"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay3", AY8910, 2000000)

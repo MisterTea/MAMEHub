@@ -15,7 +15,6 @@
 #include "cpu/i386/i386.h"
 #include "machine/pcshare.h"
 #include "machine/pckeybrd.h"
-#include "machine/8042kbdc.h"
 #include "machine/mc146818.h"
 #include "machine/idectrl.h"
 
@@ -117,29 +116,6 @@ WRITE_LINE_MEMBER( pcat_base_state::pc_dack1_w ) { set_dma_channel(1, state); }
 WRITE_LINE_MEMBER( pcat_base_state::pc_dack2_w ) { set_dma_channel(2, state); }
 WRITE_LINE_MEMBER( pcat_base_state::pc_dack3_w ) { set_dma_channel(3, state); }
 
-static I8237_INTERFACE( dma8237_1_config )
-{
-	DEVCB_DRIVER_LINE_MEMBER(pcat_base_state, pc_dma_hrq_changed),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(pcat_base_state, pc_dma_read_byte),
-	DEVCB_DRIVER_MEMBER(pcat_base_state, pc_dma_write_byte),
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_DRIVER_LINE_MEMBER(pcat_base_state, pc_dack0_w), DEVCB_DRIVER_LINE_MEMBER(pcat_base_state, pc_dack1_w), DEVCB_DRIVER_LINE_MEMBER(pcat_base_state, pc_dack2_w), DEVCB_DRIVER_LINE_MEMBER(pcat_base_state, pc_dack3_w) }
-};
-
-static I8237_INTERFACE( dma8237_2_config )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL }
-};
-
-
 /******************
 8259 IRQ controller
 ******************/
@@ -152,66 +128,15 @@ READ8_MEMBER( pcat_base_state::get_slave_ack )
 	return 0x00;
 }
 
-IRQ_CALLBACK_MEMBER(pcat_base_state::irq_callback)
-{
-	return m_pic8259_1->acknowledge();
-}
-
-WRITE_LINE_MEMBER( pcat_base_state::at_pit8254_out0_changed )
-{
-	m_pic8259_1->ir0_w(state);
-}
-
-
 WRITE_LINE_MEMBER( pcat_base_state::at_pit8254_out2_changed )
 {
+	m_pit_out2 = state;
 	//at_speaker_set_input( state ? 1 : 0 );
+	m_kbdc->write_out2(state);
 }
 
 
-static const struct pit8253_interface at_pit8254_config =
-{
-	{
-		{
-			4772720/4,              /* heartbeat IRQ */
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(pcat_base_state, at_pit8254_out0_changed)
-		}, {
-			4772720/4,              /* dram refresh */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}, {
-			4772720/4,              /* pio port c pin 4, and speaker polling enough */
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(pcat_base_state, at_pit8254_out2_changed)
-		}
-	}
-};
-
-/*************************************************************
- *
- * Keyboard
- *
- *************************************************************/
-
-READ8_MEMBER(pcat_base_state::get_out2)
-{
-	return m_pit8254->get_output(2);
-}
-
-static const struct kbdc8042_interface at8042 =
-{
-	KBDC8042_AT386,
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_RESET),
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_A20),
-	DEVCB_DEVICE_LINE_MEMBER("pic8259_1", pic8259_device, ir1_w),
-	DEVCB_NULL,
-
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(pcat_base_state,get_out2)
-};
-
-ADDRESS_MAP_START( pcat32_io_common, AS_IO, 32, pcat_base_state )
+	ADDRESS_MAP_START( pcat32_io_common, AS_IO, 32, pcat_base_state )
 	AM_RANGE(0x0000, 0x001f) AM_DEVREADWRITE8("dma8237_1", am9517a_device, read, write, 0xffffffff)
 	AM_RANGE(0x0020, 0x003f) AM_DEVREADWRITE8("pic8259_1", pic8259_device, read, write, 0xffffffff)
 	AM_RANGE(0x0040, 0x005f) AM_DEVREADWRITE8("pit8254", pit8254_device, read, write, 0xffffffff)
@@ -225,10 +150,30 @@ ADDRESS_MAP_END
 MACHINE_CONFIG_FRAGMENT(pcat_common)
 	MCFG_PIC8259_ADD( "pic8259_1", INPUTLINE("maincpu", 0), VCC, READ8(pcat_base_state, get_slave_ack) )
 	MCFG_PIC8259_ADD( "pic8259_2", DEVWRITELINE("pic8259_1", pic8259_device, ir2_w), GND, NULL )
-	MCFG_I8237_ADD( "dma8237_1", XTAL_14_31818MHz/3, dma8237_1_config )
-	MCFG_I8237_ADD( "dma8237_2", XTAL_14_31818MHz/3, dma8237_2_config )
-	MCFG_PIT8254_ADD( "pit8254", at_pit8254_config )
-	MCFG_MC146818_IRQ_ADD("rtc", MC146818_STANDARD, DEVWRITELINE("pic8259_2", pic8259_device, ir0_w))
+	MCFG_DEVICE_ADD( "dma8237_1", AM9517A, XTAL_14_31818MHz/3 )
+	MCFG_I8237_OUT_HREQ_CB(WRITELINE(pcat_base_state, pc_dma_hrq_changed))
+	MCFG_I8237_IN_MEMR_CB(READ8(pcat_base_state, pc_dma_read_byte))
+	MCFG_I8237_OUT_MEMW_CB(WRITE8(pcat_base_state, pc_dma_write_byte))
+	MCFG_I8237_OUT_DACK_0_CB(WRITELINE(pcat_base_state, pc_dack0_w))
+	MCFG_I8237_OUT_DACK_1_CB(WRITELINE(pcat_base_state, pc_dack1_w))
+	MCFG_I8237_OUT_DACK_2_CB(WRITELINE(pcat_base_state, pc_dack2_w))
+	MCFG_I8237_OUT_DACK_3_CB(WRITELINE(pcat_base_state, pc_dack3_w))
+	MCFG_DEVICE_ADD( "dma8237_2", AM9517A, XTAL_14_31818MHz/3 )
 
-	MCFG_KBDC8042_ADD("kbdc", at8042)
+	MCFG_DEVICE_ADD("pit8254", PIT8254, 0)
+	MCFG_PIT8253_CLK0(4772720/4) /* heartbeat IRQ */
+	MCFG_PIT8253_OUT0_HANDLER(DEVWRITELINE("pic8259_1", pic8259_device, ir0_w))
+	MCFG_PIT8253_CLK1(4772720/4) /* dram refresh */
+	MCFG_PIT8253_CLK2(4772720/4) /* pio port c pin 4, and speaker polling enough */
+	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(pcat_base_state, at_pit8254_out2_changed))
+
+	MCFG_MC146818_ADD("rtc", XTAL_32_768kHz)
+	MCFG_MC146818_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir0_w))
+	MCFG_MC146818_CENTURY_INDEX(0x32)
+
+	MCFG_DEVICE_ADD("kbdc", KBDC8042, 0)
+	MCFG_KBDC8042_KEYBOARD_TYPE(KBDC8042_AT386)
+	MCFG_KBDC8042_SYSTEM_RESET_CB(INPUTLINE("maincpu", INPUT_LINE_RESET))
+	MCFG_KBDC8042_GATE_A20_CB(INPUTLINE("maincpu", INPUT_LINE_A20))
+	MCFG_KBDC8042_INPUT_BUFFER_FULL_CB(DEVWRITELINE("pic8259_1", pic8259_device, ir1_w))
 MACHINE_CONFIG_END

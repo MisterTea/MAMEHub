@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Roberto Fresca
 /******************************************************************************
 
    - NORAUT POKER SYSTEM -
@@ -575,7 +577,7 @@ UINT32 norautp_state::screen_update_norautp(screen_device &screen, bitmap_ind16 
 
 	count = 0;
 
-	bitmap.fill(machine().pens[0], cliprect); //black pen
+	bitmap.fill(m_palette->pen(0), cliprect); //black pen
 
 	for(y = 0; y < 8; y++)
 	{
@@ -587,7 +589,7 @@ UINT32 norautp_state::screen_update_norautp(screen_device &screen, bitmap_ind16 
 				int tile = m_np_vram[count] & 0x3f;
 				int colour = (m_np_vram[count] & 0xc0) >> 6;
 
-				drawgfx_opaque(bitmap,cliprect, machine().gfx[1], tile, colour, 0, 0, (x * 32) + 8, y * 32);
+				m_gfxdecode->gfx(1)->opaque(bitmap,cliprect, tile, colour, 0, 0, (x * 32) + 8, y * 32);
 
 				count+=2;
 			}
@@ -599,7 +601,7 @@ UINT32 norautp_state::screen_update_norautp(screen_device &screen, bitmap_ind16 
 				int tile = m_np_vram[count] & 0x3f;
 				int colour = (m_np_vram[count] & 0xc0) >> 6;
 
-				drawgfx_opaque(bitmap,cliprect, machine().gfx[0], tile, colour, 0, 0, x * 16, y * 32);
+				m_gfxdecode->gfx(0)->opaque(bitmap,cliprect, tile, colour, 0, 0, x * 16, y * 32);
 
 				count++;
 			}
@@ -610,17 +612,17 @@ UINT32 norautp_state::screen_update_norautp(screen_device &screen, bitmap_ind16 
 }
 
 
-void norautp_state::palette_init()
+PALETTE_INIT_MEMBER(norautp_state, norautp)
 {
 	/* 1st gfx bank */
-	palette_set_color(machine(), 0, MAKE_RGB(0x00, 0x00, 0xff));    /* blue */
-	palette_set_color(machine(), 1, MAKE_RGB(0xff, 0xff, 0x00));    /* yellow */
-	palette_set_color(machine(), 2, MAKE_RGB(0x00, 0x00, 0xff));    /* blue */
-	palette_set_color(machine(), 3, MAKE_RGB(0xff, 0xff, 0xff));    /* white */
-	palette_set_color(machine(), 4, MAKE_RGB(0xff, 0xff, 0xff));    /* white */
-	palette_set_color(machine(), 5, MAKE_RGB(0xff, 0x00, 0x00));    /* red */
-	palette_set_color(machine(), 6, MAKE_RGB(0xff, 0xff, 0xff));    /* white */
-	palette_set_color(machine(), 7, MAKE_RGB(0x00, 0x00, 0x00));    /* black */
+	palette.set_pen_color(0, rgb_t(0x00, 0x00, 0xff));    /* blue */
+	palette.set_pen_color(1, rgb_t(0xff, 0xff, 0x00));    /* yellow */
+	palette.set_pen_color(2, rgb_t(0x00, 0x00, 0xff));    /* blue */
+	palette.set_pen_color(3, rgb_t(0xff, 0xff, 0xff));    /* white */
+	palette.set_pen_color(4, rgb_t(0xff, 0xff, 0xff));    /* white */
+	palette.set_pen_color(5, rgb_t(0xff, 0x00, 0x00));    /* red */
+	palette.set_pen_color(6, rgb_t(0xff, 0xff, 0xff));    /* white */
+	palette.set_pen_color(7, rgb_t(0x00, 0x00, 0x00));    /* black */
 }
 
 
@@ -672,8 +674,8 @@ WRITE8_MEMBER(norautp_state::soundlamps_w)
 	output_set_lamp_value(9, (data >> 1) & 1);  /* BET / COLLECT lamp */
 
 	/* the 4 MSB are for discrete sound */
-	discrete_sound_w(m_discrete, space, NORAUTP_SND_EN, (data >> 7) & 0x01);
-	discrete_sound_w(m_discrete, space, NORAUTP_FREQ_DATA, (data >> 4) & 0x07);
+	m_discrete->write(space, NORAUTP_SND_EN, (data >> 7) & 0x01);
+	m_discrete->write(space, NORAUTP_FREQ_DATA, (data >> 4) & 0x07);
 
 //  popmessage("sound bits 4-5-6-7: %02x, %02x, %02x, %02x", ((data >> 4) & 0x01), ((data >> 5) & 0x01), ((data >> 6) & 0x01), ((data >> 7) & 0x01));
 }
@@ -1199,50 +1201,6 @@ static GFXDECODE_START( norautp )
 GFXDECODE_END
 
 
-/************************************
-*      PPI 8255 (x3) Interface      *
-************************************/
-
-static I8255_INTERFACE (ppi8255_intf_0)
-{
-	/* (60-63) Mode 0 - Port A set as input */
-	DEVCB_INPUT_PORT("DSW1"),       /* Port A read */
-	DEVCB_NULL,                     /* Port A write */
-	DEVCB_NULL,                     /* Port B read */
-	DEVCB_DRIVER_MEMBER(norautp_state,mainlamps_w),     /* Port B write */
-	DEVCB_NULL,                     /* Port C read */
-	DEVCB_DRIVER_MEMBER(norautp_state,counterlamps_w)   /* Port C write */
-};
-
-static I8255_INTERFACE (ppi8255_intf_1)
-{
-	/* (a0-a3) Mode 0 - Ports A & B set as input */
-	DEVCB_INPUT_PORT("IN0"),        /* Port A read */
-	DEVCB_NULL,                     /* Port A write */
-	DEVCB_INPUT_PORT("IN1"),        /* Port B read */
-	DEVCB_NULL,                     /* Port B write */
-	DEVCB_NULL,                     /* Port C read */
-	DEVCB_DRIVER_MEMBER(norautp_state,soundlamps_w)     /* Port C write */
-};
-
-//static I8255A_INTERFACE (ppi8255_intf_2)
-//{
-	/* (c0-c3) Group A Mode 2 (5-lines handshacked bidirectional port)
-	           Group B Mode 0, output;  (see below for lines PC0-PC2) */
-//  DEVCB_DRIVER_MEMBER(norautp_state,vram_data_r),     /* Port A read (VRAM data read)*/
-//  DEVCB_DRIVER_MEMBER(norautp_state,vram_data_w),     /* Port A write (VRAM data write) */
-//  DEVCB_NULL,                     /* Port B read */
-//  DEVCB_DRIVER_MEMBER(norautp_state,vram_addr_w),     /* Port B write (VRAM address write) */
-//  DEVCB_DRIVER_MEMBER(norautp_state,ppi2_portc_r),    /* Port C read */
-//  DEVCB_DRIVER_MEMBER(norautp_state,ppi2_portc_w)     /* Port C write */
-
-	/*  PPI-2 is configured as mixed mode2 and mode0 output.
-	    It means that port A should be bidirectional and port B just as output.
-	    Port C as hshk regs, and P0-P2 as input (norautp, norautjp) or output (other sets).
-	*/
-//};
-
-
 /*************************
 *    Machine Drivers     *
 *************************/
@@ -1256,10 +1214,29 @@ static MACHINE_CONFIG_START( noraut_base, norautp_state )
 
 	MCFG_NVRAM_ADD_0FILL("nvram")   /* doesn't work if placed at derivative drivers */
 
-	/* 3x 8255 */
-	MCFG_I8255_ADD( "ppi8255_0", ppi8255_intf_0 )
-	MCFG_I8255_ADD( "ppi8255_1", ppi8255_intf_1 )
-//  MCFG_I8255_ADD( "ppi8255_2", ppi8255_intf_2 )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255, 0)
+	/* (60-63) Mode 0 - Port A set as input */
+	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW1"))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(norautp_state, mainlamps_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(norautp_state, counterlamps_w))
+
+	MCFG_DEVICE_ADD("ppi8255_1", I8255, 0)
+	/* (a0-a3) Mode 0 - Ports A & B set as input */
+	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(norautp_state, soundlamps_w))
+
+	//MCFG_DEVICE_ADD("ppi8255_2", I8255, 0)
+	/* (c0-c3) Group A Mode 2 (5-lines handshacked bidirectional port)
+	 Group B Mode 0, output;  (see below for lines PC0-PC2) */
+	//MCFG_I8255_IN_PORTA_CB(READ8(norautp_state, vram_data_r)) // VRAM data read
+	//MCFG_I8255_OUT_PORTA_CB(WRITE8(norautp_state, vram_data_w))   // VRAM data write
+	//MCFG_I8255_OUT_PORTB_CB(WRITE8(norautp_state, vram_addr_w))   // VRAM address write
+	//MCFG_I8255_IN_PORTC_CB(READ8(norautp_state, ppi2_portc_r))
+	//MCFG_I8255_OUT_PORTC_CB(WRITE8(norautp_state, ppi2_portc_w))
+	/*  PPI-2 is configured as mixed mode2 and mode0 output.
+	 It means that port A should be bidirectional and port B just as output.
+	 Port C as hshk regs, and P0-P2 as input (norautp, norautjp) or output (other sets). */
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1268,10 +1245,12 @@ static MACHINE_CONFIG_START( noraut_base, norautp_state )
 	MCFG_SCREEN_SIZE(32*16, 32*16)
 	MCFG_SCREEN_VISIBLE_AREA(2*16, 31*16-1, (0*16) + 8, 16*16-1)    /* the hardware clips the top 8 pixels */
 	MCFG_SCREEN_UPDATE_DRIVER(norautp_state, screen_update_norautp)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(norautp)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", norautp)
 
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(norautp_state, norautp)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -3457,18 +3436,20 @@ ROM_END
 
 */
 
+/*
 ROM_START( pkii_dm )
-	ROM_REGION( 0x10000, "maincpu", 0 ) /* no stack, call's RET go to PC=0 */
-	ROM_LOAD( "12.u12", 0x0000, 0x1000, CRC(048e70d8) SHA1(f0eb16ba68455638de2ce68f51f305a13d0df287) )
-	ROM_LOAD( "13.u18", 0x1000, 0x1000, CRC(06cf6789) SHA1(587d883c399348b518e3be4d1dc2581824055328) )
+    ROM_REGION( 0x10000, "maincpu", 0 ) // no stack, call's RET go to PC=0
+    ROM_LOAD( "12.u12", 0x0000, 0x1000, CRC(048e70d8) SHA1(f0eb16ba68455638de2ce68f51f305a13d0df287) )
+    ROM_LOAD( "13.u18", 0x1000, 0x1000, CRC(06cf6789) SHA1(587d883c399348b518e3be4d1dc2581824055328) )
 
-	ROM_REGION( 0x1000,  "gfx", 0 )
-	ROM_FILL(                 0x0000, 0x0800, 0xff )
-	ROM_LOAD( "cgw-f506.u31", 0x0800, 0x0800, CRC(412fc492) SHA1(094ea0ffd0c22274cfe164f07c009ffe022331fd) )
+    ROM_REGION( 0x1000,  "gfx", 0 )
+    ROM_FILL(                 0x0000, 0x0800, 0xff )
+    ROM_LOAD( "cgw-f506.u31", 0x0800, 0x0800, CRC(412fc492) SHA1(094ea0ffd0c22274cfe164f07c009ffe022331fd) )
 
-	ROM_REGION( 0x0200,  "proms", 0 )
-	ROM_LOAD( "63s141n.u51",  0x0000, 0x0100, CRC(88302127) SHA1(aed1273974917673405f1234ab64e6f8b3856c34) )
+    ROM_REGION( 0x0200,  "proms", 0 )
+    ROM_LOAD( "63s141n.u51",  0x0000, 0x0100, CRC(88302127) SHA1(aed1273974917673405f1234ab64e6f8b3856c34) )
 ROM_END
+*/
 
 
 /**************************
@@ -3664,4 +3645,4 @@ GAME(  198?, fastdrwp, 0,       dphl,     norautp, driver_device,  0,   ROT0, "S
 GAME(  198?, dphlunka, 0,       dphl,     norautp, driver_device,  0,   ROT0, "SMS Manufacturing Corp.",  "Draw Poker HI-LO (unknown, rev 1)",   GAME_NOT_WORKING )
 GAME(  198?, dphlunkb, 0,       dphl,     norautp, driver_device,  0,   ROT0, "SMS Manufacturing Corp.",  "Draw Poker HI-LO (unknown, rev 2)",   GAME_NOT_WORKING )
 
-GAME(  198?, pkii_dm,  0,       nortest1, norautp, driver_device,  0,   ROT0, "<unknown>",                "Unknown Poker PKII/DM",               GAME_NOT_WORKING )
+//GAME(  198?, pkii_dm,  0,       nortest1, norautp, driver_device,  0,   ROT0, "<unknown>",                "Unknown Poker PKII/DM",               GAME_NOT_WORKING )

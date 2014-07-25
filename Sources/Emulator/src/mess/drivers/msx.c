@@ -1,9 +1,50 @@
 /*
 ** msx.c : driver for MSX
 **
-** Todo:
-** - Add Turbo-R support
-** - Add support for other MSX models (de,fr,jp,ru etc.)
+** cpc300:
+**  To get out of the MSX Tutor press the SELECT key. Entering SET SYSTEM 1 should
+**  disable the MSX Tutor on next boot and SET SYSTEM 0 should enable.
+**
+** tpp311:
+**  This machine is supposed to boot into logo; it was made to only run logo.
+**
+** tps312:
+**  - To get into MSX-WRITE type: CALL WRITE
+**  - To get into MSX-PLAN type: CALL MSXPLAN
+**
+**
+** Todo/known issues:
+** - piopx7: Laserdisc integration doesn't exist
+** - spc800: Haven't been able to test operation of the han rom yet
+** - svi728: Expansion slot not emulated
+** - svi738: v9938 not emulated
+** - svi738: rs232c not emulated
+** - hx10: Expansion slot not emulated (hx10s also??)
+** - y503iir: Keyboard not responding correctly
+** - y503iir, y503iir2: RTC not emulated
+** - y503iir, y503iir2: Net not emulated
+** - y503iir, y503iir2: Floppy support broken
+** - cpc300: Config for MSX Tutor ON/OFF is not saved
+** - fs4600: Kanji12 not emulated; how to trigger usage of kanji12??
+** - fsa1fm: Firmware not emulated
+** - fsa1fm: kanji12 not emulated
+** - fsa1fm: Modem not emulated
+** - nms8280, nms8280g: Digitizer functionality not emulated
+** - vg8230j: Floppy support broken?
+** - hbf1: Does not boot. This seems to be caused by a raise condition between setting the VBlank bit in the
+**         VDP status register and the z80 taking the interrupt. Currently the interrupt gets taken before the
+**         bit can be read, so the code goes into an infinite loop.
+** - hbf12: Does not boot; see hbf1.
+** - tpc310: Floppy support broken
+**           7fbb <- c7  => seek 199???
+** - hx23f: The builtin word processor displays white squares instead of text
+** - expert3i: IDE not emulated
+** - expert3t: Turbo not emulated
+** - expertac: Does not boot
+** - fsa1gt: Add Turbo-R support
+** - fsa1st: Add Turbo-R support
+**
+************************************************************************
 
 This following list is probably incomplete. Corrections are welcome.
 +
@@ -321,24 +362,36 @@ Yeno MX64 - MSX1 - mx64
 PCB Layouts missing
 
 
+===================================================
+
+External floppy drives:
+Philips VY-0010 - WD2793
+Sharp Epcom HB-3600 - WD2793
+Sony HBD-20W (drive+interface?) - xxxxxx - 1 3.5" DSDD drive
+Sony HBD-30X/30W (drive only?) (- xxxxxx) - 1 3.5" DSDD drive
+Sony HBD-50 (drive only?) (- WD2793) - 1 3.5" SSDD drive
+Sony HBD-F1 (interface only?) - WD2793 (- 1 3.5" DSDD)
+Sony HBK-30 (interface only, meant for 30W) - WD2793
+National FS-FD35 - MB8877A
+Panasonic FS-FD1 - TC8566AF
+Panasonic FS-FD1A - TC8566AF
+Spectravideo SVI-707 - MB8877A - 1 5.25" SSDD drive (320KB) - There seem to be 2 ROMs on the PCB, apparently one is for MSX and one is for CP/M operation?
+                     - See https://plus.google.com/photos/115644813183575095400/albums/5223347091895442113?banner=pwa
+
 */
 
 
 #include "includes/msx.h"
+#include "bus/centronics/covox.h"
+#include "formats/dsk_dsk.h"
+#include "machine/msx_matsushita.h"
+#include "machine/msx_s1985.h"
+#include "machine/msx_systemflags.h"
+
 
 static ADDRESS_MAP_START ( msx_memory_map, AS_PROGRAM, 8, msx_state )
-	AM_RANGE( 0x0000, 0x1fff) AM_READ_BANK("bank1") AM_WRITE(msx_page0_w)
-	AM_RANGE( 0x2000, 0x3fff) AM_READ_BANK("bank2") AM_WRITE(msx_page0_1_w)
-	AM_RANGE( 0x4000, 0x5fff) AM_READ_BANK("bank3") AM_WRITE(msx_page1_w)
-	AM_RANGE( 0x6000, 0x7ff7) AM_READ_BANK("bank4") AM_WRITE(msx_page1_1_w)
-	AM_RANGE( 0x7ff8, 0x7fff) AM_READ_BANK("bank5") AM_WRITE(msx_page1_2_w)
-	AM_RANGE( 0x8000, 0x97ff) AM_READ_BANK("bank6") AM_WRITE(msx_page2_w)
-	AM_RANGE( 0x9800, 0x9fff) AM_READ_BANK("bank7") AM_WRITE(msx_page2_1_w)
-	AM_RANGE( 0xa000, 0xb7ff) AM_READ_BANK("bank8") AM_WRITE(msx_page2_2_w)
-	AM_RANGE( 0xb800, 0xbfff) AM_READ_BANK("bank9") AM_WRITE(msx_page2_3_w)
-	AM_RANGE( 0xc000, 0xdfff) AM_READ_BANK("bank10") AM_WRITE(msx_page3_w)
-	AM_RANGE( 0xe000, 0xfffe) AM_READ_BANK("bank11") AM_WRITE(msx_page3_1_w)
-	AM_RANGE( 0xffff, 0xffff) AM_READWRITE(msx_sec_slot_r, msx_sec_slot_w)
+	AM_RANGE(0x0000, 0xfffe) AM_READWRITE(msx_mem_read, msx_mem_write)
+	AM_RANGE(0xffff, 0xffff) AM_READWRITE(msx_sec_slot_r, msx_sec_slot_w)
 ADDRESS_MAP_END
 
 
@@ -354,32 +407,57 @@ WRITE8_MEMBER(msx_state::msx_ay8910_w)
 static ADDRESS_MAP_START ( msx_io_map, AS_IO, 8, msx_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE( 0x77, 0x77) AM_WRITE(msx_90in1_w)
-	AM_RANGE( 0x7c, 0x7d) AM_WRITE(msx_fmpac_w)
-	AM_RANGE( 0x90, 0x90) AM_READWRITE(msx_printer_status_r, msx_printer_strobe_w)
-	AM_RANGE( 0x91, 0x91) AM_WRITE(msx_printer_data_w)
+	// 0x7c - 0x7d : MSX-MUSIC/FM-PAC write port. Handlers will be installed if MSX-MUSIC is present in a system
+	AM_RANGE( 0x90, 0x90) AM_DEVREAD("cent_status_in", input_buffer_device, read)
+	AM_RANGE( 0x90, 0x90) AM_DEVWRITE("cent_ctrl_out", output_latch_device, write)
+	AM_RANGE( 0x91, 0x91) AM_DEVWRITE("cent_data_out", output_latch_device, write)
 	AM_RANGE( 0xa0, 0xa7) AM_DEVREAD("ay8910", ay8910_device, data_r) AM_WRITE(msx_ay8910_w)
 	AM_RANGE( 0xa8, 0xab) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
 	AM_RANGE( 0x98, 0x98) AM_DEVREADWRITE("tms9928a", tms9928a_device, vram_read, vram_write)
 	AM_RANGE( 0x99, 0x99) AM_DEVREADWRITE("tms9928a", tms9928a_device, register_read, register_write)
 	AM_RANGE( 0xd8, 0xd9) AM_READWRITE(msx_kanji_r, msx_kanji_w)
+	// 0xfc - 0xff : Memory mapper I/O ports. I/O handlers will be installed if a memory mapper is present in a system
 ADDRESS_MAP_END
 
 
 static ADDRESS_MAP_START ( msx2_io_map, AS_IO, 8, msx_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE( 0x77, 0x77) AM_WRITE(msx_90in1_w)
-	AM_RANGE( 0x7c, 0x7d) AM_WRITE(msx_fmpac_w)
-	AM_RANGE( 0x90, 0x90) AM_READWRITE(msx_printer_status_r, msx_printer_strobe_w)
-	AM_RANGE( 0x91, 0x91) AM_WRITE(msx_printer_data_w)
+	AM_RANGE( 0x40, 0x4f) AM_READWRITE(msx_switched_r, msx_switched_w)
+	// 0x7c - 0x7d : MSX-MUSIC/FM-PAC write port. Handlers will be installed if MSX-MUSIC is present in a system
+	AM_RANGE( 0x90, 0x90) AM_DEVREAD("cent_status_in", input_buffer_device, read)
+	AM_RANGE( 0x90, 0x90) AM_DEVWRITE("cent_ctrl_out", output_latch_device, write)
+	AM_RANGE( 0x91, 0x91) AM_DEVWRITE("cent_data_out", output_latch_device, write)
 	AM_RANGE( 0xa0, 0xa7) AM_DEVREAD("ay8910", ay8910_device, data_r) AM_WRITE(msx_ay8910_w)
 	AM_RANGE( 0xa8, 0xab) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
 	AM_RANGE( 0x98, 0x9b) AM_DEVREADWRITE("v9938", v9938_device, read, write)
 	AM_RANGE( 0xb4, 0xb4) AM_WRITE(msx_rtc_latch_w)
 	AM_RANGE( 0xb5, 0xb5) AM_READWRITE(msx_rtc_reg_r, msx_rtc_reg_w)
 	AM_RANGE( 0xd8, 0xd9) AM_READWRITE(msx_kanji_r, msx_kanji_w)
-	AM_RANGE( 0xfc, 0xff) AM_READWRITE(msx_ram_mapper_r, msx_ram_mapper_w)
+	// 0xfc - 0xff : Memory mapper I/O ports. I/O handlers will be installed if a memory mapper is present in a system
+ADDRESS_MAP_END
+
+
+static ADDRESS_MAP_START ( msx2p_io_map, AS_IO, 8, msx_state )
+	ADDRESS_MAP_UNMAP_HIGH
+	ADDRESS_MAP_GLOBAL_MASK(0xff)
+	AM_RANGE( 0x40, 0x4f) AM_READWRITE(msx_switched_r, msx_switched_w)
+	// 0x7c - 0x7d : MSX-MUSIC/FM-PAC write port. Handlers will be installed if MSX-MUSIC is present in a system
+	AM_RANGE( 0x90, 0x90) AM_DEVREAD("cent_status_in", input_buffer_device, read)
+	AM_RANGE( 0x90, 0x90) AM_DEVWRITE("cent_ctrl_out", output_latch_device, write)
+	AM_RANGE( 0x91, 0x91) AM_DEVWRITE("cent_data_out", output_latch_device, write)
+	AM_RANGE( 0xa0, 0xa7) AM_DEVREAD("ay8910", ay8910_device, data_r) AM_WRITE(msx_ay8910_w)
+	AM_RANGE( 0xa8, 0xab) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
+	AM_RANGE( 0x98, 0x9b) AM_DEVREADWRITE("v9958", v9958_device, read, write)
+	AM_RANGE( 0xb4, 0xb4) AM_WRITE(msx_rtc_latch_w)
+	AM_RANGE( 0xb5, 0xb5) AM_READWRITE(msx_rtc_reg_r, msx_rtc_reg_w)
+	AM_RANGE( 0xd8, 0xd9) AM_READWRITE(msx_kanji_r, msx_kanji_w)
+	// 0xfc - 0xff : Memory mapper I/O ports. I/O handlers will be installed if a memory mapper is present in a system
+ADDRESS_MAP_END
+
+
+DEVICE_ADDRESS_MAP_START( switched_device_map, 8, msx_state )
+	ADDRESS_MAP_UNMAP_HIGH
 ADDRESS_MAP_END
 
 
@@ -412,9 +490,6 @@ static INPUT_PORTS_START( msx_dips )
 	PORT_DIPNAME( 0x40, 0, "Swap game port 1 and 2")
 	PORT_DIPSETTING( 0, DEF_STR( No ) )
 	PORT_DIPSETTING( 0x40, DEF_STR( Yes ) )
-	PORT_DIPNAME( 0x80, 0, "SIMPL")
-	PORT_DIPSETTING( 0x00, DEF_STR ( Off ) )
-	PORT_DIPSETTING( 0x80, DEF_STR ( On ) )
 	PORT_DIPNAME ( 0x03, 0, "Render resolution")
 	PORT_DIPSETTING( 0, DEF_STR( High ))
 	PORT_DIPSETTING( 1, DEF_STR( Low ))
@@ -1009,15 +1084,15 @@ static INPUT_PORTS_START( msx2kr )
 	PORT_INCLUDE( msx_dips )
 INPUT_PORTS_END
 
-static const ay8910_interface msx_ay8910_interface =
+
+// Some MSX2+ can switch the z80 clock between 3.5 and 5.3 MHz
+WRITE_LINE_MEMBER(msx_state::turbo_w)
 {
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(msx_state, msx_psg_port_a_r),
-	DEVCB_DRIVER_MEMBER(msx_state, msx_psg_port_b_r),
-	DEVCB_DRIVER_MEMBER(msx_state, msx_psg_port_a_w),
-	DEVCB_DRIVER_MEMBER(msx_state, msx_psg_port_b_w)
-};
+	// 0 - 5.369317 MHz
+	// 1 - 3.579545 MHz
+	m_maincpu->set_unscaled_clock(state ? XTAL_21_4772MHz/6 : XTAL_21_4772MHz/4);
+}
+
 
 #define MSX_XBORDER_PIXELS      15
 #define MSX_YBORDER_PIXELS      27
@@ -1026,42 +1101,84 @@ static const ay8910_interface msx_ay8910_interface =
 #define MSX_VISIBLE_XBORDER_PIXELS  8
 #define MSX_VISIBLE_YBORDER_PIXELS  24
 
-static const cassette_interface msx_cassette_interface =
-{
-	fmsx_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_PLAY),
-	"msx_cass",
-	NULL
-};
 
-static const floppy_interface msx_floppy_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	FLOPPY_STANDARD_5_25_DSHD,
-	LEGACY_FLOPPY_OPTIONS_NAME(msx),
-	NULL,
-	NULL
-};
+static MACHINE_CONFIG_FRAGMENT( msx1_cartlist )
+	MCFG_SOFTWARE_LIST_ADD("cart_list","msx1_cart")
+MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_FRAGMENT( msx_cartslot )
-	MCFG_CARTSLOT_ADD("cart1")
-	MCFG_CARTSLOT_EXTENSION_LIST("mx1,rom")
-	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_INTERFACE("msx_cart")
-	MCFG_CARTSLOT_LOAD(msx_state, msx_cart)
-	MCFG_CARTSLOT_UNLOAD(msx_state, msx_cart)
+static MACHINE_CONFIG_FRAGMENT( msx1_floplist )
+	MCFG_SOFTWARE_LIST_ADD("flop_list","msx1_flop")
+MACHINE_CONFIG_END
 
-	MCFG_CARTSLOT_ADD("cart2")
-	MCFG_CARTSLOT_EXTENSION_LIST("mx1,rom")
-	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_INTERFACE("msx_cart")
-	MCFG_CARTSLOT_LOAD(msx_state, msx_cart)
-	MCFG_CARTSLOT_UNLOAD(msx_state, msx_cart)
+static MACHINE_CONFIG_FRAGMENT( msx2_cartlist )
+	MCFG_SOFTWARE_LIST_ADD("cart_list","msx2_cart")
+	MCFG_SOFTWARE_LIST_COMPATIBLE_ADD("msx1_cart_list","msx1_cart")
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_FRAGMENT( msx2_floplist )
+	MCFG_SOFTWARE_LIST_ADD("flop_list","msx2_flop")
+	MCFG_SOFTWARE_LIST_COMPATIBLE_ADD("msx1_flop_list","msx1_flop")
+MACHINE_CONFIG_END
+
+FLOPPY_FORMATS_MEMBER( msx_state::floppy_formats )
+	FLOPPY_MSX_FORMAT
+FLOPPY_FORMATS_END
+
+static SLOT_INTERFACE_START( msx_floppies )
+	SLOT_INTERFACE( "35dd", FLOPPY_35_DD )
+	SLOT_INTERFACE( "35ssdd", FLOPPY_35_SSDD )
+SLOT_INTERFACE_END
+
+static MACHINE_CONFIG_FRAGMENT( msx_fd1793 )
+	MCFG_FD1793x_ADD("fdc", XTAL_4MHz / 4)
+	MCFG_WD_FDC_FORCE_READY
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_FRAGMENT( msx_wd2793_force_ready )
+	// From NMS8245 schematics:
+	// READY + HLT - pulled high
+	// SSO/-ENMF + -DDEN + ENP + -5/8 - pulled low
+	MCFG_WD2793x_ADD("fdc", XTAL_4MHz / 4)
+	MCFG_WD_FDC_FORCE_READY
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_FRAGMENT( msx_wd2793 )
+	MCFG_WD2793x_ADD("fdc", XTAL_4MHz / 4)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_FRAGMENT( msx_mb8877a )
+	// From CF-3300 FDC schematic:
+	// READY + HLT - pulled high
+	// -DDEN - pulled low
+	MCFG_MB8877x_ADD("fdc", XTAL_4MHz / 4)
+	MCFG_WD_FDC_FORCE_READY
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_FRAGMENT( msx_tc8566af )
+	MCFG_TC8566AF_ADD("fdc")
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_FRAGMENT( msx_microsol )
+	MCFG_WD2793x_ADD("fdc", XTAL_4MHz / 4)
+	MCFG_WD_FDC_FORCE_READY
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_FRAGMENT( msx_1_35_ssdd_drive )
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", msx_floppies, "35ssdd", msx_state::floppy_formats)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_FRAGMENT( msx_1_35_dd_drive )
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", msx_floppies, "35dd", msx_state::floppy_formats)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_FRAGMENT( msx_2_35_dd_drive )
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", msx_floppies, "35dd", msx_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", msx_floppies, "35dd", msx_state::floppy_formats)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_FRAGMENT( msx_ym2413 )
+	MCFG_SOUND_ADD("ym2413", YM2413, XTAL_21_4772MHz/6)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( msx, msx_state )
@@ -1075,7 +1192,10 @@ static MACHINE_CONFIG_START( msx, msx_state )
 	MCFG_MACHINE_START_OVERRIDE(msx_state, msx )
 	MCFG_MACHINE_RESET_OVERRIDE(msx_state, msx )
 
-	MCFG_I8255_ADD( "ppi8255", msx_ppi8255_interface )
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(msx_state, msx_ppi_port_a_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(msx_state, msx_ppi_port_b_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(msx_state, msx_ppi_port_c_w))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1084,40 +1204,40 @@ static MACHINE_CONFIG_START( msx, msx_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("ay8910", AY8910, XTAL_10_738635MHz/3/2)
-	MCFG_SOUND_CONFIG(msx_ay8910_interface)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
-	MCFG_SOUND_ADD("k051649", K051649, XTAL_10_738635MHz/3/2)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD("ym2413", YM2413, XTAL_10_738635MHz/3)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(msx_state, msx_psg_port_a_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(msx_state, msx_psg_port_b_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(msx_state, msx_psg_port_a_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(msx_state, msx_psg_port_b_w))
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
 	/* printer */
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_SLOT_OPTION_ADD( "covox", CENTRONICS_COVOX )
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit1))
 
-	MCFG_CASSETTE_ADD( "cassette", msx_cassette_interface )
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+	MCFG_DEVICE_ADD("cent_status_in", INPUT_BUFFER, 0)
 
-	MCFG_FD1793_ADD("wd179x", msx_wd17xx_interface ) // TODO confirm type
+	MCFG_DEVICE_ADD("cent_ctrl_out", OUTPUT_LATCH, 0)
+	MCFG_OUTPUT_LATCH_BIT1_HANDLER(DEVWRITELINE("centronics", centronics_device, write_strobe))
 
-	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(msx_floppy_interface)
-
-	MCFG_FRAGMENT_ADD(msx_cartslot)
+	/* cassette */
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(fmsx_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
+	MCFG_CASSETTE_INTERFACE("msx_cass")
 
 	/* Software lists */
-	MCFG_SOFTWARE_LIST_ADD("cart_list","msx1_cart")
 	MCFG_SOFTWARE_LIST_ADD("cass_list","msx1_cass")
 MACHINE_CONFIG_END
 
 
-static TMS9928A_INTERFACE(msx_tms9928a_interface)
-{
-	0x4000,
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0)
-};
-
-
 static MACHINE_CONFIG_DERIVED( msx_ntsc, msx )
 	/* Video hardware */
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9928A, msx_tms9928a_interface )
+	MCFG_DEVICE_ADD( "tms9928a", TMS9928A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(msx_state,msx_irq_source0))
 	MCFG_TMS9928A_SCREEN_ADD_NTSC( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE("tms9928a", tms9928a_device, screen_update)
 MACHINE_CONFIG_END
@@ -1125,7 +1245,9 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( msx_pal, msx )
 	/* Video hardware */
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9929A, msx_tms9928a_interface )
+	MCFG_DEVICE_ADD( "tms9928a", TMS9929A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(msx_state,msx_irq_source0))
 	MCFG_TMS9928A_SCREEN_ADD_PAL( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE("tms9928a", tms9928a_device, screen_update)
 MACHINE_CONFIG_END
@@ -1138,11 +1260,6 @@ MACHINE_CONFIG_END
 #define MSX2_VISIBLE_XBORDER_PIXELS 8 * 2
 #define MSX2_VISIBLE_YBORDER_PIXELS 14 * 2
 
-static RP5C01_INTERFACE( rtc_intf )
-{
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( msx2, msx_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_21_4772MHz/6)       /* 3.579545 MHz */
@@ -1154,21 +1271,23 @@ static MACHINE_CONFIG_START( msx2, msx_state )
 	MCFG_MACHINE_START_OVERRIDE(msx_state, msx2 )
 	MCFG_MACHINE_RESET_OVERRIDE(msx_state, msx2 )
 
-	MCFG_I8255_ADD( "ppi8255", msx_ppi8255_interface )
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(msx_state, msx_ppi_port_a_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(msx_state, msx_ppi_port_b_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(msx_state, msx_ppi_port_c_w))
 
 	/* video hardware */
 	MCFG_V9938_ADD("v9938", "screen", 0x20000)
-	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(msx_state,msx_vdp_interrupt))
+	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(msx_state,msx_irq_source0))
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_UPDATE_DEVICE("v9938", v9938_device, screen_update)
 	MCFG_SCREEN_SIZE(MSX2_TOTAL_XRES_PIXELS, 262*2)
 	MCFG_SCREEN_VISIBLE_AREA(MSX2_XBORDER_PIXELS - MSX2_VISIBLE_XBORDER_PIXELS, MSX2_TOTAL_XRES_PIXELS - MSX2_XBORDER_PIXELS + MSX2_VISIBLE_XBORDER_PIXELS - 1, MSX2_YBORDER_PIXELS - MSX2_VISIBLE_YBORDER_PIXELS, MSX2_TOTAL_YRES_PIXELS - MSX2_YBORDER_PIXELS + MSX2_VISIBLE_YBORDER_PIXELS - 1)
-
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_SCREEN_PALETTE("v9938:palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1177,31 +1296,102 @@ static MACHINE_CONFIG_START( msx2, msx_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("ay8910", AY8910, XTAL_21_4772MHz/6/2)
-	MCFG_SOUND_CONFIG(msx_ay8910_interface)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
-	MCFG_SOUND_ADD("k051649", K051649, XTAL_21_4772MHz/6/2)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD("ym2413", YM2413, XTAL_21_4772MHz/6)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(msx_state, msx_psg_port_a_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(msx_state, msx_psg_port_b_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(msx_state, msx_psg_port_a_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(msx_state, msx_psg_port_b_w))
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
 	/* printer */
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_SLOT_OPTION_ADD( "covox", CENTRONICS_COVOX )
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit1))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+	MCFG_DEVICE_ADD("cent_status_in", INPUT_BUFFER, 0)
+
+	MCFG_DEVICE_ADD("cent_ctrl_out", OUTPUT_LATCH, 0)
+	MCFG_OUTPUT_LATCH_BIT1_HANDLER(DEVWRITELINE("centronics", centronics_device, write_strobe))
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( "cassette", msx_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(fmsx_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
+	MCFG_CASSETTE_INTERFACE("msx_cass")
 
 	/* real time clock */
-	MCFG_RP5C01_ADD("rtc", XTAL_32_768kHz, rtc_intf)
-
-	MCFG_FD1793_ADD("wd179x", msx_wd17xx_interface ) // TODO confirm type
-
-	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(msx_floppy_interface)
-
-	MCFG_FRAGMENT_ADD(msx_cartslot)
+	MCFG_DEVICE_ADD("rtc", RP5C01, XTAL_32_768kHz)
 
 	/* Software lists */
-	MCFG_SOFTWARE_LIST_ADD("cart_list","msx2_cart")
-	MCFG_SOFTWARE_LIST_COMPATIBLE_ADD("msx1_list","msx1_cart")
+	MCFG_SOFTWARE_LIST_ADD("cass_list","msx1_cass")
+MACHINE_CONFIG_END
+
+
+static MACHINE_CONFIG_START( msx2p, msx_state )
+	/* basic machine hardware */
+	MCFG_CPU_ADD("maincpu", Z80, XTAL_21_4772MHz/6)       /* 3.579545 MHz */
+	MCFG_CPU_PROGRAM_MAP(msx_memory_map)
+	MCFG_CPU_IO_MAP(msx2p_io_map)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", msx_state, msx2p_interrupt, "screen", 0, 2)
+	MCFG_QUANTUM_TIME(attotime::from_hz(60))
+
+	MCFG_MACHINE_START_OVERRIDE(msx_state, msx2 )
+	MCFG_MACHINE_RESET_OVERRIDE(msx_state, msx2 )
+
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(msx_state, msx_ppi_port_a_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(msx_state, msx_ppi_port_b_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(msx_state, msx_ppi_port_c_w))
+
+	/* video hardware */
+	MCFG_V9958_ADD("v9958", "screen", 0x20000)
+	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(msx_state,msx_irq_source0))
+
+	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
+	MCFG_SCREEN_REFRESH_RATE(60)
+	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
+	MCFG_SCREEN_UPDATE_DEVICE("v9958", v9958_device, screen_update)
+	MCFG_SCREEN_SIZE(MSX2_TOTAL_XRES_PIXELS, 262*2)
+	MCFG_SCREEN_VISIBLE_AREA(MSX2_XBORDER_PIXELS - MSX2_VISIBLE_XBORDER_PIXELS, MSX2_TOTAL_XRES_PIXELS - MSX2_XBORDER_PIXELS + MSX2_VISIBLE_XBORDER_PIXELS - 1, MSX2_YBORDER_PIXELS - MSX2_VISIBLE_YBORDER_PIXELS, MSX2_TOTAL_YRES_PIXELS - MSX2_YBORDER_PIXELS + MSX2_VISIBLE_YBORDER_PIXELS - 1)
+	MCFG_SCREEN_PALETTE("v9958:palette")
+
+	/* sound hardware */
+	MCFG_SPEAKER_STANDARD_MONO("mono")
+	MCFG_SOUND_ADD("dac", DAC, 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	MCFG_SOUND_ADD("ay8910", AY8910, XTAL_21_4772MHz/6/2)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(msx_state, msx_psg_port_a_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(msx_state, msx_psg_port_b_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(msx_state, msx_psg_port_a_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(msx_state, msx_psg_port_b_w))
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
+
+	/* printer */
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_SLOT_OPTION_ADD( "covox", CENTRONICS_COVOX )
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit1))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+	MCFG_DEVICE_ADD("cent_status_in", INPUT_BUFFER, 0)
+
+	MCFG_DEVICE_ADD("cent_ctrl_out", OUTPUT_LATCH, 0)
+	MCFG_OUTPUT_LATCH_BIT1_HANDLER(DEVWRITELINE("centronics", centronics_device, write_strobe))
+
+	/* cassette */
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(fmsx_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
+	MCFG_CASSETTE_INTERFACE("msx_cass")
+
+	/* real time clock */
+	MCFG_DEVICE_ADD("rtc", RP5C01, XTAL_32_768kHz)
+
+	/* Software lists */
 	MCFG_SOFTWARE_LIST_ADD("cass_list","msx1_cass")
 MACHINE_CONFIG_END
 
@@ -1228,12 +1418,14 @@ ROM_START (msx)
 	ROM_LOAD ("msx.rom", 0x0000, 0x8000, CRC(8205795e) SHA1(829c00c3114f25b3dae5157c0a238b52a3ac37db))
 ROM_END
 
-MSX_LAYOUT_INIT (msx)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( msx_gen, msx_pal )
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Al Alamiah AX-170 */
 
@@ -1243,13 +1435,20 @@ ROM_START (ax170)
 	ROM_LOAD ("ax170arab.rom", 0x8000, 0x8000, CRC(339cd1aa) SHA1(0287b2ec897b9196788cd9f10c99e1487d7adbbb))
 ROM_END
 
-MSX_LAYOUT_INIT (ax170)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 1, 2, ROM, 0x8000, 0x8000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+
+static MACHINE_CONFIG_DERIVED( ax170, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("arab", 1, 0, 1, 2, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 2, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 2, 0, 4) /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Canon V-10 */
 
@@ -1258,12 +1457,18 @@ ROM_START (canonv10)
 	ROM_LOAD ("v10bios.rom", 0x0000, 0x8000, CRC(e9ccd789) SHA1(8963fc041975f31dc2ab1019cfdd4967999de53e))
 ROM_END
 
-MSX_LAYOUT_INIT (canonv10)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 3, 1, RAM, 0x4000, 0xC000)   /* 16KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( canonv10, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 3, 1)   /* 16KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot12", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Canon V-20 */
 ROM_START (canonv20)
@@ -1271,12 +1476,18 @@ ROM_START (canonv20)
 	ROM_LOAD ("v20bios.rom", 0x0000, 0x8000, CRC(e9ccd789) SHA1(8963fc041975f31dc2ab1019cfdd4967999de53e))
 ROM_END
 
-MSX_LAYOUT_INIT (canonv20)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( canonv20, msx_pal )
+	// YM2149
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Casio PV-16 */
 
@@ -1285,13 +1496,18 @@ ROM_START (pv16)
 	ROM_LOAD("pv16.rom", 0x0000, 0x8000, CRC(ee229390) SHA1(302afb5d8be26c758309ca3df611ae69cced2821))
 ROM_END
 
-// TODO: The pv16 had only 1 cartridge slot
-MSX_LAYOUT_INIT(pv16)
-	MSX_LAYOUT_SLOT(0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT(0, 0, 3, 1, RAM, 0x4000, 0xC000)   /* 16KB RAM */
-	MSX_LAYOUT_SLOT(1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT(2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( pv16, msx_ntsc )
+	// AY8910
+	// FDC: None, 0 drives
+	// 1 Cartridge slot
+	// No printer port
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 0, 0, 3, 1)   /* 16KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Daewoo DPC-100 */
 
@@ -1301,13 +1517,19 @@ ROM_START (dpc100)
 	ROM_LOAD ("100han.rom", 0x8000, 0x4000, CRC(97478efb) SHA1(4421fa2504cbce18f7c84b5ea97f04e017007f07))
 ROM_END
 
-MSX_LAYOUT_INIT (dpc100)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 3, 1, RAM, 0x4000, 0xC000)   /* 16KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( dpc100, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("han", 0, 0, 2, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 3, 1)   /* 16KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Daewoo DPC-180 */
 
@@ -1317,13 +1539,19 @@ ROM_START (dpc180)
 	ROM_LOAD ("180han.rom", 0x8000, 0x4000, CRC(97478efb) SHA1(4421fa2504cbce18f7c84b5ea97f04e017007f07))
 ROM_END
 
-MSX_LAYOUT_INIT (dpc180)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( dpc180, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("han", 0, 0, 2, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 2, 2)   /* 32KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Daewoo DPC-200 */
 
@@ -1333,13 +1561,19 @@ ROM_START (dpc200)
 	ROM_LOAD ("200han.rom", 0x8000, 0x4000, CRC(97478efb) SHA1(4421fa2504cbce18f7c84b5ea97f04e017007f07))
 ROM_END
 
-MSX_LAYOUT_INIT (dpc200)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( dpc200, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("han", 0, 0, 2, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Goldstar FC-200 */
 
@@ -1349,12 +1583,18 @@ ROM_START (gsfc200)
 	ROM_LOAD ("fc200bios.rom.u5b", 0x4000, 0x4000, CRC(1a99b1a1) SHA1(e18f72271b64693a2a2bc226e1b9ebd0448e07c0))
 ROM_END
 
-MSX_LAYOUT_INIT (gsfc200)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( gsfc200, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("rom", 0, 0, 0, 2,"maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Gradiente Expert 1.0 */
 
@@ -1363,12 +1603,18 @@ ROM_START (expert10)
 	ROM_LOAD ("expbios.rom", 0x0000, 0x8000, CRC(07610d77) SHA1(ef3e010eb57e4476700a3bbff9d2119ab3acdf62))
 ROM_END
 
-MSX_LAYOUT_INIT (expert10)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( expert10, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Gradiente Expert 1.1 */
 ROM_START (expert11)
@@ -1376,12 +1622,18 @@ ROM_START (expert11)
 	ROM_LOAD ("expbios11.rom", 0x0000, 0x8000, CRC(efb4b972) SHA1(d6720845928ee848cfa88a86accb067397685f02))
 ROM_END
 
-MSX_LAYOUT_INIT (expert11)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( expert11, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Gradiente Expert 1.3 */
 ROM_START (expert13)
@@ -1389,12 +1641,18 @@ ROM_START (expert13)
 	ROM_LOAD ("expbios13.rom", 0x0000, 0x8000, CRC(5638bc38) SHA1(605f5af3f358c6811f54e0173bad908614a198c0))
 ROM_END
 
-MSX_LAYOUT_INIT (expert13)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( expert13, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 2, 0, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Gradiente Expert DDPlus */
 ROM_START (expertdp)
@@ -1403,13 +1661,24 @@ ROM_START (expertdp)
 	ROM_LOAD ("eddpdisk.rom", 0x8000, 0x4000, CRC(549f1d90) SHA1(f1525de4e0b60a6687156c2a96f8a8b2044b6c56))
 ROM_END
 
-MSX_LAYOUT_INIT (expertdp)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM2, 0x4000, 0x8000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( expertdp, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: mb8877a, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// MSX Engine T7937A
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 3, 1, 1, "maincpu", 0x8000)
+
+	MCFG_FRAGMENT_ADD( msx_mb8877a )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx1_floplist )
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Gradiente Expert Plus */
 
@@ -1419,13 +1688,20 @@ ROM_START (expertpl)
 	ROM_LOAD ("exppdemo.rom", 0x8000, 0x4000, CRC(a9bbef64) SHA1(d4cea8c815f3eeabe0c6a1c845f902ec4318bf6b))
 ROM_END
 
-MSX_LAYOUT_INIT (expertpl)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 3, 2, 1, ROM, 0x4000, 0x8000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( expertpl, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// MSX Engine T7937A
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_ROM("demo", 3, 3, 2, 1, "maincpu", 0x8000)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - JVC HC-7GB */
 
@@ -1434,12 +1710,18 @@ ROM_START (jvchc7gb)
 	ROM_LOAD ("hc7gbbios.rom", 0x0000, 0x8000, CRC(e9ccd789) SHA1(8963fc041975f31dc2ab1019cfdd4967999de53e))
 ROM_END
 
-MSX_LAYOUT_INIT (jvchc7gb)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( jvchc7gb, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("rom", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Mitsubishi ML-F80 */
 
@@ -1448,12 +1730,18 @@ ROM_START (mlf80)
 	ROM_LOAD ("mlf80bios.rom", 0x0000, 0x8000, CRC(e9ccd789) SHA1(8963fc041975f31dc2ab1019cfdd4967999de53e))
 ROM_END
 
-MSX_LAYOUT_INIT (mlf80)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( mlf80, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 1, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 2, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Mitsubishi ML-FX1 */
 
@@ -1462,12 +1750,18 @@ ROM_START (mlfx1)
 	ROM_LOAD ("mlfx1bios.rom", 0x0000, 0x8000, CRC(62867dce) SHA1(0cbe0df4af45e8f531e9c761403ac9e71808f20c))
 ROM_END
 
-MSX_LAYOUT_INIT (mlfx1)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( mlfx1, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 2, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - National CF-1200 */
 
@@ -1476,12 +1770,18 @@ ROM_START (cf1200)
 	ROM_LOAD ("1200bios.rom", 0x0000, 0x8000, CRC(5ad03407) SHA1(c7a2c5baee6a9f0e1c6ee7d76944c0ab1886796c))
 ROM_END
 
-MSX_LAYOUT_INIT (cf1200)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 3, 1, RAM, 0x4000, 0xC000)   /* 16KB RAM */
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cf1200, msx_ntsc )
+	// AY8910
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 0, 0, 3, 1)   /* 16KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - National CF-2000 */
 
@@ -1490,12 +1790,18 @@ ROM_START (cf2000)
 	ROM_LOAD ("2000bios.rom", 0x0000, 0x8000, CRC(ee229390) SHA1(302afb5d8be26c758309ca3df611ae69cced2821))
 ROM_END
 
-MSX_LAYOUT_INIT (cf2000)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 3, 1, RAM, 0x4000, 0xC000)   /* 16KB RAM */
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cf2000, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 0, 0, 3, 1)   /* 16KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - National CF-2700 */
 ROM_START (cf2700)
@@ -1503,12 +1809,18 @@ ROM_START (cf2700)
 	ROM_LOAD ("2700bios.rom.ic32", 0x0000, 0x8000, CRC(5ad03407) SHA1(c7a2c5baee6a9f0e1c6ee7d76944c0ab1886796c))
 ROM_END
 
-MSX_LAYOUT_INIT (cf2700)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cf2700, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 0, 0, 2, 2)   /* 32KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - National CF-3000 */
 
@@ -1517,12 +1829,18 @@ ROM_START (cf3000)
 	ROM_LOAD ("3000bios.rom", 0x0000, 0x8000, CRC(5ad03407) SHA1(c7a2c5baee6a9f0e1c6ee7d76944c0ab1886796c))
 ROM_END
 
-MSX_LAYOUT_INIT (cf3000)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cf3000, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 1, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 2, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - National CF-3300 */
 ROM_START (cf3300)
@@ -1531,13 +1849,23 @@ ROM_START (cf3300)
 	ROM_LOAD ("3300disk.rom", 0x8000, 0x4000, CRC(549f1d90) SHA1(f1525de4e0b60a6687156c2a96f8a8b2044b6c56))
 ROM_END
 
-MSX_LAYOUT_INIT (cf3300)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 1, 1, 1, DISK_ROM2, 0x4000, 0x8000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cf3300, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: mb8877a, 1 3.5" SSDD drive
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 1, 1, 1, "maincpu", 0x8000)
+
+	MCFG_FRAGMENT_ADD( msx_mb8877a )
+	MCFG_FRAGMENT_ADD( msx_1_35_ssdd_drive )
+	MCFG_FRAGMENT_ADD( msx1_floplist )
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - National FS-1300 */
 
@@ -1546,31 +1874,44 @@ ROM_START (fs1300)
 	ROM_LOAD ("1300bios.rom", 0x0000, 0x8000, CRC(5ad03407) SHA1(c7a2c5baee6a9f0e1c6ee7d76944c0ab1886796c))
 ROM_END
 
-MSX_LAYOUT_INIT (fs1300)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fs1300, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - National FS-4000 */
 ROM_START (fs4000)
-	ROM_REGION (0x38000 ,"maincpu", 0)
+	ROM_REGION (0x18000 ,"maincpu", 0)
 	ROM_LOAD ("4000bios.rom", 0x0000, 0x8000, CRC(071135e0) SHA1(df48902f5f12af8867ae1a87f255145f0e5e0774))
 	ROM_LOAD ("4000word.rom", 0x8000, 0x8000, CRC(950b6c87) SHA1(931d6318774bd495a32ec3dabf8d0edfc9913324))
 	ROM_LOAD ("4000kdr.rom", 0x10000, 0x8000, CRC(ebaa5a1e) SHA1(77bd67d5d10d459d343e79eafcd8e17eb0f209dd))
-	ROM_LOAD ("4000kfn.rom", 0x18000, 0x20000, CRC(956dc96d) SHA1(9ed3ab6d893632b9246e91b412cd5db519e7586b))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("4000kfn.rom", 0, 0x20000, CRC(956dc96d) SHA1(9ed3ab6d893632b9246e91b412cd5db519e7586b))
 ROM_END
 
-MSX_LAYOUT_INIT (fs4000)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 2, ROM, 0x8000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x10000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_KANJI (0x18000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fs4000, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("word", 3, 0, 0, 2, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 1, 1, 2, "maincpu", 0x10000)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 2, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /*MSX - Olympia PHC-2*/
 
@@ -1579,12 +1920,18 @@ ROM_START (phc2)
 	ROM_LOAD ("phc2bios.rom", 0x0000, 0x8000, CRC(4f7bb04b) SHA1(ab0177624d46dd77ab4f50ffcb983c3ba88223f4))
 ROM_END
 
-MSX_LAYOUT_INIT (phc2)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( phc2, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Olympia PHC-28 */
 
@@ -1593,12 +1940,18 @@ ROM_START (phc28)
 	ROM_LOAD ("phc28bios.rom", 0x0000, 0x8000, CRC(eceb2802) SHA1(195950173701abeb460a1a070d83466f3f53b337))
 ROM_END
 
-MSX_LAYOUT_INIT (phc28)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( phc28, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 2, 2)   /* 32KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Panasonic CF-2700G */
 
@@ -1607,12 +1960,18 @@ ROM_START (cf2700g)
 	ROM_LOAD ("cf2700g.rom", 0x0000, 0x8000, CRC(4aa194f4) SHA1(69bf27b610e11437dad1f7a1c37a63179a293d12))
 ROM_END
 
-MSX_LAYOUT_INIT (cf2700g)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB?? RAM */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cf2700g, msx_pal )
+	// AY8910
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 1, 0, 0, 4)  /* 64KB?? RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 2, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Philips NMS-801 */
 
@@ -1621,12 +1980,15 @@ ROM_START (nms801)
 	ROM_LOAD ("801bios.rom", 0x0000, 0x8000, CRC(fa089461) SHA1(21329398c0f350e330b353f45f21aa7ba338fc8d))
 ROM_END
 
-MSX_LAYOUT_INIT (nms801)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( nms801, msx_pal )
+	// AY8910
+	// FDC: None, 0 drives
+	// 0 Cartridge slots
+	// No printer port
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+MACHINE_CONFIG_END
 
 /* MSX - Philips VG-8000 */
 
@@ -1635,13 +1997,19 @@ ROM_START (vg8000)
 	ROM_LOAD ("8000bios.rom", 0x0000, 0x8000, CRC(efd970b0) SHA1(42252cf87deeb58181a7bfec7c874190a1351779))
 ROM_END
 
-MSX_LAYOUT_INIT (vg8000)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 3, 1, RAM, 0x4000, 0x0000)   /* 16KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( vg8000, msx_pal )
+	// AY8910
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// No printer port
 
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 3, 1)   /* 16KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Philips VG-8010 */
 
@@ -1650,12 +2018,19 @@ ROM_START (vg8010)
 	ROM_LOAD ("8010bios.rom", 0x0000, 0x8000, CRC(efd970b0) SHA1(42252cf87deeb58181a7bfec7c874190a1351779))
 ROM_END
 
-MSX_LAYOUT_INIT (vg8010)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( vg8010, msx_pal )
+	// AY8910
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// No printer port
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 2, 2)   /* 32KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Philips VG-8010F */
 
@@ -1664,12 +2039,19 @@ ROM_START (vg8010f)
 	ROM_LOAD ("8010fbios.rom", 0x0000, 0x8000, CRC(df57c9ca) SHA1(898630ad1497dc9a329580c682ee55c4bcb9c30c))
 ROM_END
 
-MSX_LAYOUT_INIT (vg8010f)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( vg8010f, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// No printer port
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 2, 2)   /* 32KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Philips VG-8020-00 */
 
@@ -1678,12 +2060,18 @@ ROM_START (vg802000)
 	ROM_LOAD ("8020-00bios.rom", 0x0000, 0x8000, CRC(8205795e) SHA1(829c00c3114f25b3dae5157c0a238b52a3ac37db))
 ROM_END
 
-MSX_LAYOUT_INIT (vg802000)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( vg802000, msx_pal )
+	// YM2149
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Philips VG-8020-20 */
 
@@ -1692,12 +2080,19 @@ ROM_START (vg802020)
 	ROM_LOAD ("8020-20bios.rom", 0x0000, 0x8000, CRC(A317E6B4) SHA1(E998F0C441F4F1800EF44E42CD1659150206CF79))
 ROM_END
 
-MSX_LAYOUT_INIT (vg802020)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( vg802020, msx_pal )
+	// YM2149 (in S-3527 MSX Engine)
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// S-3527 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x10000)   /* 64KB Mapper RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Philips VG-8020F */
 
@@ -1706,12 +2101,19 @@ ROM_START (vg8020f)
 	ROM_LOAD ("vg8020f.rom", 0x0000, 0x8000, CRC(6e692fa1) SHA1(9eaad185efc8e224368d1db4949eb9659c26fb2c))
 ROM_END
 
-MSX_LAYOUT_INIT (vg8020f)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB?? RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( vg8020f, msx_pal )
+	// YM2149 (in S-3527 MSX Engine)
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// S-3527 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 2, 0, 4)  /* 64KB?? RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Pioneer PX-7 */
 
@@ -1722,13 +2124,19 @@ ROM_START (piopx7)
 	ROM_FILL( 0xa000, 0x2000, 0x6E )
 ROM_END
 
-MSX_LAYOUT_INIT (piopx7)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 1, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( piopx7, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 0, 0, 2, 2)   /* 32KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_ROM("rom2", 2, 0, 1, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Samsung SPC-800 */
 
@@ -1738,13 +2146,19 @@ ROM_START (spc800)
 	ROM_LOAD ("spc800han.rom", 0x8000, 0x4000, CRC(5ae2b013) SHA1(1e7616261a203580c1044205ad8766d104f1d874))
 ROM_END
 
-MSX_LAYOUT_INIT (spc800)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 4, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB?? RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( spc800, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("han", 0, 0, 4, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 0, 4)  /* 64KB?? RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sanyo MPC-64 */
 
@@ -1753,12 +2167,18 @@ ROM_START (mpc64)
 	ROM_LOAD ("mpc64bios.rom", 0x0000, 0x8000, CRC(d6e704ad) SHA1(d67be6d7d56d7229418f4e122f2ec27990db7d19))
 ROM_END
 
-MSX_LAYOUT_INIT (mpc64)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( mpc64, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sanyo MPC-100 */
 
@@ -1767,12 +2187,18 @@ ROM_START (mpc100)
 	ROM_LOAD ("mpc100bios.rom", 0x0000, 0x8000, CRC(e9ccd789) SHA1(8963fc041975f31dc2ab1019cfdd4967999de53e))
 ROM_END
 
-MSX_LAYOUT_INIT (mpc100)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( mpc100, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sanyo PHC-28L */
 
@@ -1781,12 +2207,18 @@ ROM_START (phc28l)
 	ROM_LOAD ("28lbios.rom", 0x0000, 0x8000, CRC(d2110d66) SHA1(d3af963e2529662eae63f04a2530454685a1989f))
 ROM_END
 
-MSX_LAYOUT_INIT (phc28l)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 0, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 0, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( phc28l, msx_pal )
+	// YM2149
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sanyo PHC-28S */
 
@@ -1795,12 +2227,18 @@ ROM_START (phc28s)
 	ROM_LOAD ("28sbios.rom", 0x0000, 0x8000, CRC(e5cf6b3c) SHA1(b1cce60ef61c058f5e42ef7ac635018d1a431168))
 ROM_END
 
-MSX_LAYOUT_INIT (phc28s)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( phc28s, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 2, 2)   /* 32KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sanyo Wavy MPC-10 */
 
@@ -1809,12 +2247,18 @@ ROM_START (mpc10)
 	ROM_LOAD ("mpc10.rom", 0x0000, 0x8000, CRC(e9ccd789) SHA1(8963fc041975f31dc2ab1019cfdd4967999de53e))
 ROM_END
 
-MSX_LAYOUT_INIT (mpc10)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( mpc10, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 2, 2)   /* 32KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sharp Epcom HotBit 1.1 */
 
@@ -1823,12 +2267,18 @@ ROM_START (hotbit11)
 	ROM_LOAD ("hotbit11.rom", 0x0000, 0x8000, CRC(b6942694) SHA1(663f8c512d04d213fa616b0db5eefe3774012a4b))
 ROM_END
 
-MSX_LAYOUT_INIT (hotbit11)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hotbit11, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sharp Epcom HotBit 1.2 */
 
@@ -1837,12 +2287,18 @@ ROM_START (hotbit12)
 	ROM_LOAD ("hotbit12.rom", 0x0000, 0x8000, CRC(f59a4a0c) SHA1(9425815446d468058705bae545ffa13646744a87))
 ROM_END
 
-MSX_LAYOUT_INIT (hotbit12)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hotbit12, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sharp Epcom HotBit 1.3b */
 
@@ -1851,12 +2307,18 @@ ROM_START (hotbi13b)
 	ROM_LOAD ("hotbit13b.rom", 0x0000, 0x8000, CRC(7a19820e) SHA1(e0c2bfb078562d15acabc5831020a2370ea87052))
 ROM_END
 
-MSX_LAYOUT_INIT (hotbi13b)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hotbi13b, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sharp Epcom HotBit 1.3p */
 
@@ -1865,12 +2327,18 @@ ROM_START (hotbi13p)
 	ROM_LOAD ("hotbit13p.rom", 0x0000, 0x8000, CRC(150e239c) SHA1(942f9507d206cd8156f15601fe8032fcf0e3875b))
 ROM_END
 
-MSX_LAYOUT_INIT (hotbi13p)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hotbi13p, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sony HB-10P */
 
@@ -1879,12 +2347,18 @@ ROM_START (hb10p)
 	ROM_LOAD ("10pbios.rom", 0x0000, 0x8000, CRC(0f488dd8) SHA1(5e7c8eab238712d1e18b0219c0f4d4dae180420d))
 ROM_END
 
-MSX_LAYOUT_INIT (hb10p)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hb10p, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sony HB-20P */
 
@@ -1893,12 +2367,18 @@ ROM_START (hb20p)
 	ROM_LOAD ("20pbios.rom", 0x0000, 0x8000, CRC(21af423f) SHA1(365c93d7652c9f727221689bcc348652832a7b7a))
 ROM_END
 
-MSX_LAYOUT_INIT (hb20p)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hb20p, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sony HB-201 */
 
@@ -1909,13 +2389,19 @@ ROM_START (hb201)
 	ROM_FILL( 0xc000, 0x4000, 0xff )
 ROM_END
 
-MSX_LAYOUT_INIT (hb201)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 2, ROM, 0x8000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hb201, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("note", 0, 0, 2, 2, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sony HB-201P */
 
@@ -1925,13 +2411,19 @@ ROM_START (hb201p)
 	ROM_LOAD ("201pnote.rom.ic8", 0x8000, 0x4000, CRC(1ff9b6ec) SHA1(e84d3ec7a595ee36b50e979683c84105c1871857))
 ROM_END
 
-MSX_LAYOUT_INIT (hb201p)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hb201p, msx_pal )
+	// YM2149
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("note", 0, 0, 2, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sony HB-501P */
 
@@ -1940,12 +2432,18 @@ ROM_START (hb501p)
 	ROM_LOAD ("501pbios.rom", 0x0000, 0x8000, CRC(0f488dd8) SHA1(5e7c8eab238712d1e18b0219c0f4d4dae180420d))
 ROM_END
 
-MSX_LAYOUT_INIT (hb501p)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hb501p, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sony HB-55D */
 
@@ -1955,13 +2453,19 @@ ROM_START (hb55d)
 	ROM_LOAD ("55dnote.rom", 0x8000, 0x4000, CRC(8aae0494) SHA1(97ce59892573cac3c440efff6d74c8a1c29a5ad3))
 ROM_END
 
-MSX_LAYOUT_INIT (hb55d)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 3, 1, RAM, 0x4000, 0xC000)   /* 16KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hb55d, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("note", 0, 0, 2, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 3, 1)   /* 16KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sony HB-55P */
 
@@ -1972,13 +2476,19 @@ ROM_START (hb55p)
 	ROM_LOAD ("55pnote.ic44", 0x8000, 0x4000, CRC(492b12f8) SHA1(b262aedc71b445303f84efe5e865cbb71fd7d952))
 ROM_END
 
-MSX_LAYOUT_INIT (hb55p)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 3, 1, RAM, 0x4000, 0xC000)   /* 16KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hb55p, msx_pal )
+	// AY8910
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("note", 0, 0, 2, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 3, 1)   /* 16KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sony HB-75D */
 
@@ -1988,13 +2498,19 @@ ROM_START (hb75d)
 	ROM_LOAD ("75dnote.rom", 0x8000, 0x4000, CRC(8aae0494) SHA1(97ce59892573cac3c440efff6d74c8a1c29a5ad3))
 ROM_END
 
-MSX_LAYOUT_INIT (hb75d)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hb75d, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("note", 0, 0, 2, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Sony HB-75P */
 
@@ -2005,29 +2521,41 @@ ROM_START (hb75p)
 	ROM_LOAD ("75pnote.ic44", 0x8000, 0x4000, CRC(492b12f8) SHA1(b262aedc71b445303f84efe5e865cbb71fd7d952))
 ROM_END
 
-MSX_LAYOUT_INIT (hb75p)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hb75p, msx_pal )
+	// AY8910
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("note", 0, 0, 2, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Spectravideo SVI-728 */
 
 ROM_START (svi728)
 	ROM_REGION (0xc000, "maincpu", 0)
 	ROM_LOAD ("728bios.rom", 0x0000, 0x8000, CRC(1ce9246c) SHA1(ea6a82cf8c6e65eb30b98755c8577cde8d9186c0))
-	ROM_LOAD ("707disk.rom", 0x8000, 0x4000, CRC(f9978853) SHA1(6aa856cc56eb98863c9da7a566571605682b5c6b))
+//  ROM_LOAD ("707disk.rom", 0x8000, 0x4000, CRC(f9978853) SHA1(6aa856cc56eb98863c9da7a566571605682b5c6b))
 ROM_END
 
-MSX_LAYOUT_INIT (svi728)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, DISK_ROM2, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( svi728, msx_pal )
+	// AY8910
+	// FDC: None, 0 drives
+	// 1 Cartridge slots, 1 Expansion slot (eg for SVI-707)
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 1, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot", 2, 0)
+//  MSX_LAYOUT_SLOT (3, 0, 1, 1, DISK_ROM2, 0x4000, 0x8000)
+//  MSX_LAYOUT_SLOT (3, 1, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Spectravideo SVI-738 */
 
@@ -2039,14 +2567,26 @@ ROM_START (svi738)
 	ROM_FILL (0xe000, 0x2000, 0xff)
 ROM_END
 
-MSX_LAYOUT_INIT (svi738)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 1, DISK_ROM2, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( svi738, msx_pal )
+	// AY8910
+	// FDC: wd1793, 1 3.5" SSDD drive
+	// 2 Cartridge slots
+	// builtin 80 columns card (V9938)
+	// RS-232C interface
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 1, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("rs232", 3, 0, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 1, 1, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 2)
+
+	MCFG_FRAGMENT_ADD( msx_fd1793 )
+	MCFG_FRAGMENT_ADD( msx_1_35_ssdd_drive )
+	MCFG_FRAGMENT_ADD( msx1_floplist )
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Spectravideo SVI-738 Swedish */
 
@@ -2058,14 +2598,26 @@ ROM_START (svi738sw)
 	ROM_FILL (0xe000, 0x2000, 0xff)
 ROM_END
 
-MSX_LAYOUT_INIT (svi738sw)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 1, DISK_ROM2, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( svi738sw, msx_pal )
+	// AY8910
+	// FDC: wd2793, 1 3.5" SSDD drive
+	// 2 Cartridge slots
+	// builtin 80 columns card (V9938)
+	// RS-232C interface
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 1, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("rs232", 3, 0, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 1, 1, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 2)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_ssdd_drive )
+	MCFG_FRAGMENT_ADD( msx1_floplist )
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Spectravideo SVI-738 Poland*/
 
@@ -2077,14 +2629,26 @@ ROM_START (svi738pl)
 	ROM_FILL (0xe000, 0x2000, 0xff)
 ROM_END
 
-MSX_LAYOUT_INIT (svi738pl)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 1, DISK_ROM2, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( svi738pl, msx_pal )
+	// AY8910
+	// FDC: wd2793, 1 3.5" SSDD drive
+	// 2 Cartridge slots
+	// builtin 80 columns card (V9938)
+	// RS-232C interface
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 1, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("rs232", 3, 0, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 1, 1, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 2)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_ssdd_drive )
+	MCFG_FRAGMENT_ADD( msx1_floplist )
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Talent DPC-200 / Daewoo DPC-200E */
 
@@ -2093,13 +2657,18 @@ ROM_START (tadpc200)
 	ROM_LOAD ("dpc200bios.rom", 0x0000, 0x8000, CRC(8205795e) SHA1(829c00c3114f25b3dae5157c0a238b52a3ac37db))
 ROM_END
 
-MSX_LAYOUT_INIT (tadpc200)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( tadpc200, msx_pal )
+	// AY8910
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
 
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 1, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 2, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Talent DPC-200A */
 
@@ -2108,12 +2677,18 @@ ROM_START (tadpc20a)
 	ROM_LOAD ("dpc200abios.rom", 0x0000, 0x8000, CRC(8205795e) SHA1(829c00c3114f25b3dae5157c0a238b52a3ac37db))
 ROM_END
 
-MSX_LAYOUT_INIT (tadpc20a)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( tadpc20a, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 1, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 2, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Toshiba HX-10 */
 /* The BIOS on the Toshiba HX-10 is inside a big 64pin Toshiba chip label TCX-1007 */
@@ -2123,12 +2698,18 @@ ROM_START (hx10)
 	ROM_LOAD ("tcx-1007.ic15", 0x0000, 0x8000, CRC(5486b711) SHA1(4dad9de7c28b452351cc12910849b51bd9a37ab3))
 ROM_END
 
-MSX_LAYOUT_INIT (hx10)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hx10, msx_pal )
+	// AY8910
+	// FDC: None, 0 drives
+	// 1 Cartridge slot, 1 Toshiba Expension slot
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 0, 4)  /* 64KB RAM */
+	//MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)    // Expansion slot
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Toshiba HX-10S */
 
@@ -2137,12 +2718,18 @@ ROM_START (hx10s)
 	ROM_LOAD ("hx10sbios.rom", 0x0000, 0x8000, CRC(5486b711) SHA1(4dad9de7c28b452351cc12910849b51bd9a37ab3))
 ROM_END
 
-MSX_LAYOUT_INIT (hx10s)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 3, 1, RAM, 0x4000, 0xC000)   /* 16KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hx10s, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 3, 1)   /* 16KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Toshiba HX-20 */
 
@@ -2152,30 +2739,43 @@ ROM_START (hx20)
 	ROM_LOAD ("hx20word.rom", 0x8000, 0x8000, CRC(39b3e1c0) SHA1(9f7cfa932bd7dfd0d9ecaadc51655fb557c2e125))
 ROM_END
 
-MSX_LAYOUT_INIT (hx20)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 2, ROM, 0x8000, 0x8000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hx20, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// T6950 VDP instead of TMS9928A
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram1", 0, 0, 2, 2)   /* 32KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram2", 3, 0, 2, 2)   /* 32KB RAM */
+	MCFG_MSX_LAYOUT_ROM("word", 3, 3, 1, 2, "maincpu", 0x8000)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Yamaha CX5M / Yamaha CX5M-2 */
 
 ROM_START (cx5m)
 	ROM_REGION (0x10000, "maincpu",0)
 	ROM_LOAD ("cx5mbios.rom", 0x0000, 0x8000, CRC(e2242b53) SHA1(706dd67036baeec7127e4ccd8c8db8f6ce7d0e4c))
-	ROM_LOAD ("sfg05m.rom",         0x8000, 0x8000, CRC(6c2545c9) SHA1(bc4b242647116f4886bb92e86421f97b1be51938))
 ROM_END
 
-MSX_LAYOUT_INIT (cx5m)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 2, ROM, 0x8000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cx5m, msx_pal )
+	// YM2149
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// 1 Expansion slot (60 pins interface instead of regular 50 pin cartridge interface)
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram", 0, 0, 2, 2)   /* 32KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_YAMAHA_EXPANSION("expansion", 3, 0, "sfg01")
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Yamaha CX5M-128 */
 
@@ -2183,19 +2783,24 @@ ROM_START (cx5m128)
 	ROM_REGION (0x18000, "maincpu",0)
 	ROM_LOAD ("cx5m128bios.rom", 0x0000, 0x8000, CRC(507b2caa) SHA1(0dde59e8d98fa524961cd37b0e100dbfb42cf576))
 	ROM_LOAD ("cx5m128ext.rom",  0x8000, 0x4000, CRC(feada82e) SHA1(48b0c2ff1f1e407cc44394219f7b3878efaa919f))
-	ROM_LOAD ("sfg05.rom",      0xc000, 0x8000, CRC(2425c279) SHA1(d956167e234f60ad916120437120f86fc8c3c321))
 	ROM_LOAD ("yrm502.rom",     0x14000,0x4000, CRC(5330fe21) SHA1(7b1798561ee1844a7d6432924fbee9b4fc591c19))
 ROM_END
 
-MSX_LAYOUT_INIT (cx5m128)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 1, ROM, 0x4000, 0x14000) /* YRM-502 */
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 0, 2, ROM, 0x8000, 0xc000) /* SFG-05 */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cx5m128, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 1, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("yrm", 3, 1, 1, 1, "maincpu", 0x14000) /* YRM-502 */
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_LAYOUT_YAMAHA_EXPANSION("expansion", 3, 3, "sfg05")
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Yamaha CX5MII */
 
@@ -2203,17 +2808,22 @@ ROM_START (cx5m2)
 	ROM_REGION (0x14000, "maincpu",0)
 	ROM_LOAD ("cx5m2bios.rom", 0x0000, 0x8000, CRC(507b2caa) SHA1(0dde59e8d98fa524961cd37b0e100dbfb42cf576))
 	ROM_LOAD ("cx5m2ext.rom",  0x8000, 0x4000, CRC(feada82e) SHA1(48b0c2ff1f1e407cc44394219f7b3878efaa919f))
-	ROM_LOAD ("sfg05.rom",       0xc000, 0x8000, CRC(2425c279) SHA1(d956167e234f60ad916120437120f86fc8c3c321))
 ROM_END
 
-MSX_LAYOUT_INIT (cx5m2)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 0, 2, ROM, 0x8000, 0xc000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cx5m2, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 1, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_LAYOUT_YAMAHA_EXPANSION("expansion", 3, 3, "sfg05")
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Yamaha YIS303 */
 
@@ -2223,13 +2833,19 @@ ROM_START (yis303)
 	ROM_FILL( 0x8000, 0xc000, 0xff )
 ROM_END
 
-MSX_LAYOUT_INIT (yis303)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 3, ROM, 0xC000, 0x0000)   /* Fill FF */
-	MSX_LAYOUT_SLOT (3, 0, 3, 1, RAM, 0x4000, 0xC000)   /* 16KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( yis303, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("fillff", 3, 0, 0, 3, "maincpu", 0x0000)   /* Fill FF */
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 3, 1)   /* 16KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Yamaha YIS503 */
 
@@ -2239,13 +2855,19 @@ ROM_START (yis503)
 	ROM_FILL( 0x8000, 0x8000, 0xff )
 ROM_END
 
-MSX_LAYOUT_INIT (yis503)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 3, ROM, 0xC000, 0x0000)   /* Fill FF */
-	MSX_LAYOUT_SLOT (3, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( yis503, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("fillff", 3, 0, 0, 3, "maincpu", 0x0000)   /* Fill FF */
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 2, 2)   /* 32KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Yamaha YIS503F */
 
@@ -2254,12 +2876,18 @@ ROM_START (yis503f)
 	ROM_LOAD ("yis503f.rom", 0x0000, 0x8000, CRC(e9ccd789) SHA1(8963fc041975f31dc2ab1019cfdd4967999de53e))
 ROM_END
 
-MSX_LAYOUT_INIT (yis503f)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB?? RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( yis503f, msx_pal )
+	// YM2149
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB?? RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Yamaha YIS503II */
 
@@ -2268,64 +2896,98 @@ ROM_START (yis503ii)
 	ROM_LOAD ("yis503iibios.rom", 0x0000, 0x8000, CRC(e2242b53) SHA1(706dd67036baeec7127e4ccd8c8db8f6ce7d0e4c))
 ROM_END
 
-MSX_LAYOUT_INIT (yis503ii)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( yis503ii, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Yamaha YIS503IIR Russian */
 
 ROM_START (y503iir)
-	ROM_REGION (0xe000, "maincpu",0)
+	ROM_REGION (0x10000, "maincpu",0)
 	ROM_LOAD ("yis503iirbios.rom",  0x0000, 0x8000, CRC(225a4f9e) SHA1(5173ac403e26c462f904f85c9ef5e7b1e19253e7))
 	ROM_LOAD ("yis503iirdisk.rom", 0x8000, 0x4000, CRC(9eb7e24d) SHA1(3a481c7b7e4f0406a55952bc5b9f8cf9d699376c))
 	ROM_LOAD ("yis503iirnet.rom",  0xc000, 0x2000, CRC(0731db3f) SHA1(264fbb2de69fdb03f87dc5413428f6aa19511a7f))
 ROM_END
 
-MSX_LAYOUT_INIT (y503iir)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 1, DISK_ROM2, 0x4000, 0x8000) /* National disk */
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, ROM, 0x2000, 0xc000)   /* Net */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( y503iir, msx_pal )
+	// YM2149 (in S-3527 MSX Engine)
+	// FDC: wd2793/mb8877?, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// S-3527 MSX Engine
+	// RTC
+	// V9938 VDP
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 1, 1, 1, "maincpu", 0x8000) /* National disk */
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 2, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_ROM("net", 3, 3, 1, 1, "maincpu", 0xc000)   /* Net */
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx1_floplist )
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Yamaha YIS503IIR Estonian */
 
 ROM_START (y503iir2)
-	ROM_REGION (0xe000, "maincpu",0)
+	ROM_REGION (0x10000, "maincpu",0)
 	ROM_LOAD ("yis503ii2bios.rom",  0x0000, 0x8000, CRC(1548cee3) SHA1(42c7fff25b1bd90776ac0aea971241aedce8947d))
 	ROM_LOAD ("yis503iirdisk.rom", 0x8000, 0x4000, CRC(9eb7e24d) SHA1(3a481c7b7e4f0406a55952bc5b9f8cf9d699376c))
 	ROM_LOAD ("yis503iirnet.rom",  0xc000, 0x2000, CRC(0731db3f) SHA1(264fbb2de69fdb03f87dc5413428f6aa19511a7f))
 ROM_END
 
-MSX_LAYOUT_INIT (y503iir2)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 1, DISK_ROM2, 0x4000, 0x8000) /* National disk */
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, ROM, 0x2000, 0xc000)   /* Net */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( y503iir2, msx_pal )
+	// AY8910/YM2149?
+	// FDC: wd2793/mb8877?, 1 3.5" DSDD drive?
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 1, 1, 1, "maincpu", 0x8000) /* National disk */
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 2, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_ROM("net", 3, 3, 1, 1, "maincpu", 0xc000)   /* Net */
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx1_floplist )
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Yamaha YIS503M */
 
 ROM_START (yis503m)
 	ROM_REGION (0x10000, "maincpu",0)
 	ROM_LOAD ("yis503mbios.rom", 0x0000, 0x8000, CRC(e2242b53) SHA1(706dd67036baeec7127e4ccd8c8db8f6ce7d0e4c))
-	ROM_LOAD ("sfg05m.rom",        0x8000, 0x8000, CRC(6c2545c9) SHA1(bc4b242647116f4886bb92e86421f97b1be51938))
 ROM_END
 
-MSX_LAYOUT_INIT (yis503m)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 2, ROM, 0x8000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( yis503m, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_YAMAHA_EXPANSION("expansion", 3, 0, "sfg05")
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 2, 2)   /* 32KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Yashica YC-64 */
 
@@ -2334,12 +2996,17 @@ ROM_START (yc64)
 	ROM_LOAD ("yc64bios.rom", 0x0000, 0x8000, CRC(e9ccd789) SHA1(8963fc041975f31dc2ab1019cfdd4967999de53e))
 ROM_END
 
-MSX_LAYOUT_INIT (yc64)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( yc64, msx_pal )
+	// YM2149
+	// FDC: None, 0 drives
+	// 1 Cartridge slot (slot 1)
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Yeno MX64 */
 
@@ -2348,12 +3015,18 @@ ROM_START (mx64)
 	ROM_LOAD ("mx64bios.rom", 0x0000, 0x8000, CRC(e0e894b7) SHA1(d99eebded5db5fce1e072d08e642c0909bc7efdd))
 ROM_END
 
-MSX_LAYOUT_INIT (mx64)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( mx64, msx_ntsc )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 2, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX - Frael Bruc 100-1 */
 
@@ -2362,12 +3035,18 @@ ROM_START (bruc100)
 		ROM_LOAD( "bruc100-1bios.rom", 0x0000, 0x8000, CRC(c7bc4298) SHA1(3abca440cba16ac5e162b602557d30169f77adab))
 ROM_END
 
-MSX_LAYOUT_INIT (bruc100)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( bruc100, msx_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx1_cartlist )
+MACHINE_CONFIG_END
 
 
 /********************************  MSX 2 **********************************/
@@ -2378,19 +3057,24 @@ ROM_START (msx2)
 	ROM_REGION (0x20000, "maincpu",0)
 	ROM_LOAD ("msx2.rom", 0x0000, 0x8000, CRC(f05ed518) SHA1(5e1a4bd6826b29302a1eb88c340477e7cbd0b50a))
 	ROM_LOAD ("msx2ext.rom", 0x8000, 0x4000, CRC(95db2959) SHA1(e7905d16d2ccd57a013c122dc432106cd59ef52c))
-	ROM_LOAD_OPTIONAL ("disk.rom", 0xc000, 0x4000, CRC(b7c58fad) SHA1(bc517b4a248c3a1338c5efc937b0128b6a783808))
-	ROM_LOAD_OPTIONAL ("fmpac.rom", 0x10000, 0x10000, CRC(0e84505d) SHA1(9d789166e3caf28e4742fe933d962e99618c633d))
+	ROM_LOAD ("disk.rom", 0xc000, 0x4000, CRC(b7c58fad) SHA1(bc517b4a248c3a1338c5efc937b0128b6a783808))
 ROM_END
 
-MSX_LAYOUT_INIT (msx2)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( msx2_gen, msx2_pal )
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 0, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 3, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Al Alamiah AX-350 */
 
@@ -2406,18 +3090,28 @@ ROM_START (ax350)
 	ROM_LOAD ("ax350disk.rom", 0x40000,  0x4000, CRC(1e7d6512) SHA1(78cd7f847e77fd8cd51a647efb2725ba93f4c471))
 ROM_END
 
-MSX_LAYOUT_INIT (ax350)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000,  0x0000)  /* Bios */
-	MSX_LAYOUT_SLOT (0, 1, 0, 1, ROM, 0x4000,  0x8000)  /* Ext */
-	MSX_LAYOUT_SLOT (0, 1, 1, 2, ROM, 0x8000,  0x20000)  /* Arab */
-	MSX_LAYOUT_SLOT (0, 2, 1, 2, ROM, 0x8000,  0x28000) /* SWP */
-	MSX_LAYOUT_SLOT (0, 3, 0, 4, ROM, 0x10000, 0x30000)  /* Paint */
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 1, DISK_ROM2, 0x4000, 0x40000) /* Disk */
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( ax350, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: wd2793/tc8566af?, 1 3.5" DSDD drive
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu",  0x0000)  /* Bios */
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 1, 0, 1, "maincpu", 0x8000)  /* Ext */
+	MCFG_MSX_LAYOUT_ROM("arab", 0, 1, 1, 2, "maincpu", 0x20000)  /* Arab */
+	MCFG_MSX_LAYOUT_ROM("swp", 0, 2, 1, 2, "maincpu", 0x28000) /* SWP */
+	MCFG_MSX_LAYOUT_ROM("paint", 0, 3, 0, 4, "maincpu", 0x30000)  /* Paint */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 1, 1, 1, "maincpu", 0x40000) /* Disk */
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Al Alamiah AX-370 */
 
@@ -2433,18 +3127,28 @@ ROM_START (ax370)
 	ROM_LOAD ("ax370disk.rom", 0x40000,  0x4000, CRC(60f8baba) SHA1(95de8809d2758fc0a743390ea5085b602e59e101))
 ROM_END
 
-MSX_LAYOUT_INIT (ax370)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000,  0x0000)  /* Bios */
-	MSX_LAYOUT_SLOT (0, 2, 1, 2, ROM, 0x8000,  0x28000) /* SWP */
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000,  0x8000)  /* Ext */
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000,  0x20000)  /* Arab */
-	//MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM, 0x4000, 0x40000) /* TC8566AF Disk controller*/
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, ROM, 0x10000, 0x30000)  /* Paint */
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( ax370, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: tc8566af, 1 3.5" DSDD drive
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)  /* Bios */
+	MCFG_MSX_LAYOUT_ROM("swp", 0, 2, 1, 2, "maincpu", 0x28000) /* SWP */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)  /* Ext */
+	MCFG_MSX_LAYOUT_ROM("arab", 3, 1, 1, 2, "maincpu", 0x20000)  /* Arab */
+	MCFG_MSX_LAYOUT_DISK3("disk", 3, 2, 1, 1, "maincpu", 0x40000)
+	MCFG_MSX_LAYOUT_ROM("paint", 3, 3, 0, 4, "maincpu", 0x30000)  /* Paint */
+
+	MCFG_FRAGMENT_ADD( msx_tc8566af )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Daewoo CPC-300 */
 
@@ -2457,15 +3161,24 @@ ROM_START (cpc300)
 	ROM_LOAD ("300han.rom", 0x28000, 0x8000, CRC(e78cd87f) SHA1(47a9d9a24e4fc6f9467c6e7d61a02d45f5a753ef))
 ROM_END
 
-MSX_LAYOUT_INIT (cpc300)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 1, 2, ROM, 0x8000, 0x28000)
-	MSX_LAYOUT_SLOT (0, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (0, 3, 0, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cpc300, msx2 )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("han", 0, 1, 1, 2, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 0, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 3, 0, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Daewoo CPC-300E */
 
@@ -2479,64 +3192,96 @@ ROM_START (cpc300e)
 	ROM_LOAD ("300ehan.rom", 0x28000, 0x4000, BAD_DUMP CRC(5afea78d) SHA1(f08c91f8c78d681e1f02eaaaaafb87ad81112b60))
 ROM_END
 
-MSX_LAYOUT_INIT (cpc300e)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 1, 1, ROM, 0x4000, 0x28000)
-	MSX_LAYOUT_SLOT (0, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (0, 3, 0, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cpc300e, msx2 )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+	// No joystick port??
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("han", 0, 1, 1, 1, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 0, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 3, 0, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Daewoo CPC-400 */
 ROM_START (cpc400)
-	ROM_REGION (0x50000, "maincpu", 0)
+	ROM_REGION (0x30000, "maincpu", 0)
 	ROM_LOAD ("400bios.rom", 0x0000, 0x8000, CRC(53850907) SHA1(affa3c5cd8db79a1450ad8a7f405a425b251653d))
 	ROM_LOAD ("400disk.rom", 0x8000, 0x4000, CRC(5fa517df) SHA1(914f6ccb25d78621186001f2f5e2aaa2d628cd0c))
 	/* 0x0c000 - 0x1ffff reserved for optional disk and fmpac roms from msx2 parent set */
 	ROM_FILL (0xc000, 0x14000, 0)
 	ROM_LOAD ("400ext.rom", 0x20000, 0x8000, CRC(2ba104a3) SHA1(b6d3649a6647fa9f6bd61efc317485a20901128f))
 	ROM_LOAD ("400han.rom", 0x28000, 0x8000, CRC(a8ead5e3) SHA1(87936f808423dddfd00629056d6807b4be1dc63e))
-	ROM_LOAD ("400kfn.rom", 0x30000, 0x20000, CRC(b663c605) SHA1(965f4982790f1817bcbabbb38c8777183b231a55))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("400kfn.rom", 0, 0x20000, CRC(b663c605) SHA1(965f4982790f1817bcbabbb38c8777183b231a55))
 ROM_END
 
-MSX_LAYOUT_INIT (cpc400)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 1, 2, ROM, 0x8000, 0x28000)
-	MSX_LAYOUT_SLOT (0, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (0, 3, 0, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 1, 1, DISK_ROM2, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_KANJI (0x30000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cpc400, msx2 )
+	// AY8910/YM2149?
+	// FDC: mb8877a, 1 3.5" DS?DD drive
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("han", 0, 1, 1, 2, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 0, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 3, 0, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_DISK2("disk", 2, 0, 1, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx_mb8877a )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Daewoo CPC-400S */
 
 ROM_START (cpc400s)
-	ROM_REGION (0x50000, "maincpu", 0)
+	ROM_REGION (0x30000, "maincpu", 0)
 	ROM_LOAD ("400sbios.rom", 0x0000, 0x8000, CRC(53850907) SHA1(affa3c5cd8db79a1450ad8a7f405a425b251653d))
 	ROM_LOAD ("400sdisk.rom", 0x8000, 0x4000, CRC(5fa517df) SHA1(914f6ccb25d78621186001f2f5e2aaa2d628cd0c))
 	/* 0x0c000 - 0x1ffff reserved for optional disk and fmpac roms from msx2 parent set */
 	ROM_FILL (0xc000, 0x14000, 0)
 	ROM_LOAD ("400sext.rom", 0x20000, 0x8000, CRC(2ba104a3) SHA1(b6d3649a6647fa9f6bd61efc317485a20901128f))
 	ROM_LOAD ("400shan.rom", 0x28000, 0x8000, CRC(975e7a31) SHA1(6a50295ea35e720ba6f4ba5616c3441128b384ed))
-	ROM_LOAD ("400skfn.rom", 0x30000, 0x20000, CRC(fa85368c) SHA1(30fff22e3e3d464993707488442721a5e56a9707))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("400skfn.rom", 0, 0x20000, CRC(fa85368c) SHA1(30fff22e3e3d464993707488442721a5e56a9707))
 ROM_END
 
-MSX_LAYOUT_INIT (cpc400s)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 1, 2, ROM, 0x8000, 0x28000)
-	MSX_LAYOUT_SLOT (0, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (0, 3, 0, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 1, 1, DISK_ROM2, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_KANJI (0x30000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cpc400s, msx2 )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: mb8877a, 1 3.5" DS?DD drive
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("han", 0, 1, 1, 2, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 0, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 3, 0, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_DISK2("disk", 2, 0, 1, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx_mb8877a )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Gradiente Expert 2.0 */
 
@@ -2550,16 +3295,26 @@ ROM_START (expert20)
 	ROM_LOAD ("microsoldisk.rom", 0x24000, 0x4000, CRC(6704ef81) SHA1(a3028515ed829e900cc8deb403e17b09a38bf9b0))
 ROM_END
 
-MSX_LAYOUT_INIT (expert20)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 1, 0, 1, ROM, 0x4000, 0x8000) /* EXT */
-	MSX_LAYOUT_SLOT (1, 1, 1, 1, ROM, 0x4000, 0x20000) /* BASIC */
-	MSX_LAYOUT_SLOT (1, 3, 1, 1, DISK_ROM, 0x4000, 0x24000) /* Microsol controller */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( expert20, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: microsol, 1? 3.5"? DS?DD drive
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 1, 1, 0, 1, "maincpu", 0x8000) /* EXT */
+	MCFG_MSX_LAYOUT_ROM("xbasic", 1, 1, 1, 1, "maincpu", 0x20000) /* BASIC */
+	MCFG_MSX_LAYOUT_DISK5("disk", 1, 3, 1, 1, "maincpu", 0x24000) /* Microsol controller */
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 2, 0, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx_microsol )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Mitsubishi ML-G30 Model 1/Model 2 */
 
@@ -2568,22 +3323,34 @@ ROM_START (mlg30)
 	ROM_LOAD ("g30bios.rom", 0x0000, 0x8000, CRC(a27c563d) SHA1(c1e46c00f1e38fc9e0ab487bf0513bd93ce61f3f))
 	ROM_LOAD ("g30ext.rom", 0x8000, 0x4000, CRC(4a48779c) SHA1(b8e30d604d319d511cbfbc61e5d8c38fbb9c5a33))
 	ROM_LOAD ("g30disk.rom", 0xc000, 0x4000, CRC(05661a3f) SHA1(e695fc0c917577a3183901a08ca9e5f9c60b8317))
-	ROM_LOAD ("g30kfn.rom", 0x20000, 0x20000, CRC(d23d4d2d) SHA1(db03211b7db46899df41db2b1dfbec972109a967))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("g30kfn.rom", 0x0000, 0x20000, CRC(d23d4d2d) SHA1(db03211b7db46899df41db2b1dfbec972109a967))
 ROM_END
 
-MSX_LAYOUT_INIT (mlg30)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)    /* Slot 2 subslot 0 */
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( mlg30, msx2 )
+	// AY8910/YM2149?
+	// FDC: wd2793/tc8566af?, 1 or 2? 3.5" DSDD drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)    /* Slot 2 subslot 0 */
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 0, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x10000)   /* 64KB Mapper RAM */
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - National FS-4500 */
 
 ROM_START (fs4500)
-	ROM_REGION (0x94000, "maincpu",0)
+	ROM_REGION (0x54000, "maincpu",0)
 	ROM_LOAD ("4500bios.rom", 0x0000, 0x8000, CRC(9b3e7b97) SHA1(0081ea0d25bc5cd8d70b60ad8cfdc7307812c0fd))
 	ROM_LOAD ("4500ext.rom", 0x8000, 0x4000, CRC(4a48779c) SHA1(b8e30d604d319d511cbfbc61e5d8c38fbb9c5a33))
 	/* 0x0c000 - 0x1ffff reserved for optional disk and fmpac roms from msx2 parent set */
@@ -2595,30 +3362,46 @@ ROM_START (fs4500)
 	ROM_LOAD ("4500wor2.rom", 0x40000, 0xc000, CRC(d9909451) SHA1(4c8ea05c09b40c41888fa18db065575a317fda16))
 	ROM_LOAD ("4500kdr1.rom", 0x4c000, 0x4000, CRC(f8c7f0db) SHA1(df07e89fa0b1c7874f9cdf184c136f964fea4ff4))
 	ROM_LOAD ("4500kdr2.rom", 0x50000, 0x4000, CRC(69e87c31) SHA1(c63db26660da96af56f8a7d3ea18544b9ae5a37c))
-	ROM_LOAD ("4500kfn.rom", 0x54000, 0x20000, CRC(956dc96d) SHA1(9ed3ab6d893632b9246e91b412cd5db519e7586b))
-	ROM_LOAD ("4500budi.rom", 0x74000, 0x20000, CRC(f94590f8) SHA1(1ebb06062428fcdc66808a03761818db2bba3c73))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("4500kfn.rom", 0, 0x20000, CRC(956dc96d) SHA1(9ed3ab6d893632b9246e91b412cd5db519e7586b))
+
+	/* Matsushita Bunsetsu Henkan ROM must be emulated */
+	ROM_REGION(0x20000, "bunsetsu", 0)
+	ROM_LOAD ("4500budi.rom", 0, 0x20000, CRC(f94590f8) SHA1(1ebb06062428fcdc66808a03761818db2bba3c73))
 ROM_END
 
-MSX_LAYOUT_INIT (fs4500)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (0, 2, 0, 1, ROM, 0x4000, 0x20000)
-	MSX_LAYOUT_SLOT (0, 3, 1, 2, ROM, 0x8000, 0x2c000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 3, ROM, 0xc000, 0x34000)
-	MSX_LAYOUT_SLOT (3, 0, 3, 1, ROM, 0x4000, 0x4c000)
-	MSX_LAYOUT_SLOT (3, 1, 0, 3, ROM, 0xc000, 0x40000)
-	MSX_LAYOUT_SLOT (3, 1, 3, 1, ROM, 0x4000, 0x50000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_KANJI (0x54000)
-/*  MSX_LAYOUT_BUNSETSU (0x74000) */ /* Matsushita Bunsetsu Henkan ROM must be emulated */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fs4500, msx2 )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+	// Matsushita switched device
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("font", 0, 2, 0, 1, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_BUNSETSU("buns", 0, 2, 1, 2, "maincpu", 0x24000, "bunsetsu")
+	MCFG_MSX_LAYOUT_ROM("jush", 0, 3, 1, 2, "maincpu", 0x2c000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("wor1", 3, 0, 0, 3, "maincpu", 0x34000)
+	MCFG_MSX_LAYOUT_ROM("kdr1", 3, 0, 3, 1, "maincpu", 0x4c000)
+	MCFG_MSX_LAYOUT_ROM("wor2", 3, 1, 0, 3, "maincpu", 0x40000)
+	MCFG_MSX_LAYOUT_ROM("kdr2", 3, 1, 3, 1, "maincpu", 0x50000)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 2, 0, 4)  /* 64KB RAM */
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_MSX_MATSUSHITA_ADD( "matsushita" )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - National FS-4600 */
 
 ROM_START (fs4600)
-	ROM_REGION (0x170000, "maincpu",0)
+	ROM_REGION (0x130000, "maincpu",0)
 	ROM_LOAD ("4600bios.rom", 0x0000, 0x8000, CRC(9b3e7b97) SHA1(0081ea0d25bc5cd8d70b60ad8cfdc7307812c0fd))
 	ROM_LOAD ("4600ext.rom", 0x8000, 0x4000, CRC(43e7a7fc) SHA1(0fbd45ef3dd7bb82d4c31f1947884f411f1ca344))
 	ROM_LOAD ("4600disk.rom", 0xc000, 0x4000, CRC(ae4e65b7) SHA1(073feb8bb645d935e099afaf61e6f04f52adee42))
@@ -2627,31 +3410,47 @@ ROM_START (fs4600)
 	ROM_LOAD ("4600fon1.rom", 0x20000, 0x4000, CRC(7391389b) SHA1(31292b9ca9fe7d1d8833530f44c0a5671bfefe4e))
 	ROM_LOAD ("4600fon2.rom", 0x24000, 0x4000, CRC(c3a6b445) SHA1(02155fc25c9bd23e1654fe81c74486351e1ecc28))
 	ROM_LOAD ("4600kdr.rom", 0x28000, 0x8000, CRC(b2db6bf5) SHA1(3a9a942ed888dd641cddf8deada1879c454df3c6))
-	ROM_LOAD ("4600kfn.rom", 0x30000, 0x20000, CRC(c61ddc5d) SHA1(5e872d5853698731a0ed22fb72dbcdfd59cd19c3))
-	ROM_LOAD ("4600kf12.rom", 0x50000, 0x20000, CRC(340d1ef7) SHA1(a7a23dc01314e88381eee88b4878b39931ab4818))
-	ROM_LOAD ("4600firm.rom", 0x70000, 0x100000, CRC(1df57472) SHA1(005794c10a4237de3907ba4a44d436078d3c06c2))
+	ROM_LOAD ("4600firm.rom", 0x30000, 0x100000, CRC(1df57472) SHA1(005794c10a4237de3907ba4a44d436078d3c06c2))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("4600kfn.rom", 0, 0x20000, CRC(c61ddc5d) SHA1(5e872d5853698731a0ed22fb72dbcdfd59cd19c3))
+
+	/* Matsushita 12 dots Kanji ROM must be emulated */
+	ROM_REGION(0x20000, "kanji12", 0)
+	ROM_LOAD ("4600kf12.rom", 0, 0x20000, CRC(340d1ef7) SHA1(a7a23dc01314e88381eee88b4878b39931ab4818))
 ROM_END
 
-MSX_LAYOUT_INIT (fs4600)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (0, 2, 0, 1, ROM, 0x4000, 0x20000)
-	MSX_LAYOUT_SLOT (0, 2, 1, 2, ROM, 0x8000, 0x28000)
-	MSX_LAYOUT_SLOT (0, 3, 0, 1, ROM, 0x4000, 0x24000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 1, 0, 4, ASCII16, 0x100000, 0x70000) /* National FS-4600 Mapper must be emulated */
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM2, 0x4000, 0xc000)
-	MSX_LAYOUT_KANJI (0x30000)
-/*  MSX_LAYOUT_KANJI_12 (0x50000) */ /* Matsushita 12 dots Kanji ROM must be emulated */
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fs4600, msx2 )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: mb8877a, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("fon1", 0, 2, 0, 1, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 0, 2, 1, 2, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_ROM("fon2", 0, 3, 0, 1, "maincpu", 0x24000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_FS4600("firm", 3, 1, 0, 4, "maincpu", 0x30000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx_mb8877a )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - National FS-4700 */
 
 ROM_START (fs4700)
-	ROM_REGION (0x94000, "maincpu",0)
+	ROM_REGION (0x54000, "maincpu",0)
 	ROM_LOAD ("4700bios.rom", 0x0000, 0x8000, CRC(9b3e7b97) SHA1(0081ea0d25bc5cd8d70b60ad8cfdc7307812c0fd))
 	ROM_LOAD ("4700ext.rom", 0x8000, 0x4000, CRC(4a48779c) SHA1(b8e30d604d319d511cbfbc61e5d8c38fbb9c5a33))
 	ROM_LOAD ("4700disk.rom", 0xc000, 0x4000, CRC(1e7d6512) SHA1(78cd7f847e77fd8cd51a647efb2725ba93f4c471))
@@ -2664,31 +3463,51 @@ ROM_START (fs4700)
 	ROM_LOAD ("4700wor2.rom", 0x40000, 0xc000, CRC(d9909451) SHA1(4c8ea05c09b40c41888fa18db065575a317fda16))
 	ROM_LOAD ("4700kdr1.rom", 0x4c000, 0x4000, CRC(f8c7f0db) SHA1(df07e89fa0b1c7874f9cdf184c136f964fea4ff4))
 	ROM_LOAD ("4700kdr2.rom", 0x50000, 0x4000, CRC(69e87c31) SHA1(c63db26660da96af56f8a7d3ea18544b9ae5a37c))
-	ROM_LOAD ("4700kfn.rom", 0x54000, 0x20000, CRC(956dc96d) SHA1(9ed3ab6d893632b9246e91b412cd5db519e7586b))
-	ROM_LOAD ("4700budi.rom", 0x74000, 0x20000, CRC(f94590f8) SHA1(1ebb06062428fcdc66808a03761818db2bba3c73))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("4700kfn.rom", 0, 0x20000, CRC(956dc96d) SHA1(9ed3ab6d893632b9246e91b412cd5db519e7586b))
+
+	/* Matsushita Bunsetsu Henkan ROM must be emulated */
+	ROM_REGION(0x20000, "bunsetsu", 0)
+	ROM_LOAD ("4700budi.rom", 0, 0x20000, CRC(f94590f8) SHA1(1ebb06062428fcdc66808a03761818db2bba3c73))
 ROM_END
 
-MSX_LAYOUT_INIT (fs4700)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (0, 2, 0, 1, ROM, 0x4000, 0x20000)
-	MSX_LAYOUT_SLOT (0, 3, 1, 2, ROM, 0x8000, 0x2c000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 3, ROM, 0xc000, 0x34000)
-	MSX_LAYOUT_SLOT (3, 0, 3, 1, ROM, 0x4000, 0x4c000)
-	MSX_LAYOUT_SLOT (3, 1, 0, 3, ROM, 0xc000, 0x40000)
-	MSX_LAYOUT_SLOT (3, 1, 3, 1, ROM, 0x4000, 0x50000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM2, 0x4000, 0xc000)
-	MSX_LAYOUT_KANJI (0x54000)
-/*  MSX_LAYOUT_BUNSETSU (0x74000) */ /* Matsushita Bunsetsu Henkan ROM must be emulated */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fs4700, msx2 )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: mb8877a, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+	// Matsushita switched device
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("font", 0, 2, 0, 1, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_BUNSETSU("buns", 0, 2, 1, 2, "maincpu", 0x24000, "bunsetsu")
+	MCFG_MSX_LAYOUT_ROM("jush", 0, 3, 1, 2, "maincpu", 0x2c000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("wor1", 3, 0, 0, 3, "maincpu", 0x34000)
+	MCFG_MSX_LAYOUT_ROM("kdr1", 3, 0, 3, 1, "maincpu", 0x4c000)
+	MCFG_MSX_LAYOUT_ROM("wor2", 3, 1, 0, 3, "maincpu", 0x40000)
+	MCFG_MSX_LAYOUT_ROM("kdr2", 3, 1, 3, 1, "maincpu", 0x50000)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 2, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_MSX_MATSUSHITA_ADD( "matsushita" )
+
+	MCFG_FRAGMENT_ADD( msx_mb8877a )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - National FS-5000 */
 
 ROM_START (fs5000)
-	ROM_REGION (0x50000, "maincpu",0)
+	ROM_REGION (0x30000, "maincpu",0)
 	ROM_LOAD ("5000bios.rom", 0x0000, 0x8000, CRC(a44ea707) SHA1(59967765d6e9328909dee4dac1cbe4cf9d47d315))
 	ROM_LOAD ("5000ext.rom", 0x8000, 0x4000, CRC(43e7a7fc) SHA1(0fbd45ef3dd7bb82d4c31f1947884f411f1ca344))
 	ROM_LOAD ("5000disk.rom", 0xc000, 0x4000, CRC(ae4e65b7) SHA1(073feb8bb645d935e099afaf61e6f04f52adee42))
@@ -2696,29 +3515,46 @@ ROM_START (fs5000)
 	ROM_FILL (0x10000, 0x10000, 0xff)
 	ROM_LOAD ("5000rtc.rom", 0x20000, 0x8000, CRC(03351598) SHA1(98bbfa3ab07b7a5cad55d7ddf7cbd9440caa2a86))
 	ROM_LOAD ("5000kdr.rom", 0x28000, 0x8000, CRC(b2db6bf5) SHA1(3a9a942ed888dd641cddf8deada1879c454df3c6))
-	ROM_LOAD ("5000kfn.rom", 0x30000, 0x20000, CRC(c61ddc5d) SHA1(5e872d5853698731a0ed22fb72dbcdfd59cd19c3))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("5000kfn.rom", 0, 0x20000, CRC(c61ddc5d) SHA1(5e872d5853698731a0ed22fb72dbcdfd59cd19c3))
 ROM_END
 
-MSX_LAYOUT_INIT (fs5000)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 0, 4, ROM, 0x10000, 0x10000)
-	MSX_LAYOUT_SLOT (0, 2, 0, 4, ROM, 0x10000, 0x10000)
-	MSX_LAYOUT_SLOT (0, 3, 0, 4, ROM, 0x10000, 0x10000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 2, ROM, 0x8000, 0x28000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM2, 0x4000, 0xc000)
-	MSX_LAYOUT_KANJI (0x30000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fs5000, msx2 )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: wd2793, 2 3.5" DSDD drives
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
 
-/* MSX2 - National FS-5500F1/F2*/
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("empty1", 0, 1, 0, 4, "maincpu", 0x10000)
+	MCFG_MSX_LAYOUT_ROM("empty2", 0, 2, 0, 4, "maincpu", 0x10000)
+	MCFG_MSX_LAYOUT_ROM("empty3", 0, 3, 0, 4, "maincpu", 0x10000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 0, 1, 2, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_ROM("rtcrom", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 3, 1, 1, "maincpu", 0xc000)
 
-ROM_START (fs5500)
-	ROM_REGION (0x50000, "maincpu",0)
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_2_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
+
+/* MSX2 - National FS-5500F2*/
+/* The National FS-5500 had two versions: */
+/* F1 has 1 floppy drive */
+/* F2 has 2 floppy drives */
+
+ROM_START (fs5500f1)
+	ROM_REGION (0x30000, "maincpu",0)
 	ROM_LOAD ("5500bios.rom", 0x0000, 0x8000, CRC(5bf38e13) SHA1(44e0dd215b2a9f0770dd76fb49187c05b083eed9))
 	ROM_LOAD ("5500ext.rom", 0x8000, 0x4000, CRC(3c42c367) SHA1(4be8371f3b03e70ddaca495958345f3c4f8e2d36))
 	ROM_LOAD ("5500disk.rom", 0xc000, 0x4000, CRC(1e7d6512) SHA1(78cd7f847e77fd8cd51a647efb2725ba93f4c471))
@@ -2726,24 +3562,89 @@ ROM_START (fs5500)
 	ROM_FILL (0x10000, 0x10000, 0xff)
 	ROM_LOAD ("5500imp.rom", 0x20000, 0x8000, CRC(6173a88c) SHA1(b677a861b67e8763a11d5dcf52416b42493ade57))
 	ROM_LOAD ("5500kdr.rom", 0x28000, 0x8000, CRC(b2db6bf5) SHA1(3a9a942ed888dd641cddf8deada1879c454df3c6))
-	ROM_LOAD ("5500kfn.rom", 0x30000, 0x20000, CRC(956dc96d) SHA1(9ed3ab6d893632b9246e91b412cd5db519e7586b))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("5500kfn.rom", 0, 0x20000, CRC(956dc96d) SHA1(9ed3ab6d893632b9246e91b412cd5db519e7586b))
 ROM_END
 
-MSX_LAYOUT_INIT (fs5500)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 0, 4, ROM, 0x10000, 0x10000)
-	MSX_LAYOUT_SLOT (0, 2, 0, 4, ROM, 0x10000, 0x10000)
-	MSX_LAYOUT_SLOT (0, 3, 0, 4, ROM, 0x10000, 0x10000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 2, ROM, 0x8000, 0x28000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM2, 0x4000, 0xc000)
-	MSX_LAYOUT_KANJI (0x30000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fs5500f1, msx2 )
+	// YM2149 in (S-1985 MSX Engine)
+	// FDC: mb8877a, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+	// Matsushita switched device
 
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("empty1", 0, 1, 0, 4, "maincpu", 0x10000)
+	MCFG_MSX_LAYOUT_ROM("empty2", 0, 2, 0, 4, "maincpu", 0x10000)
+	MCFG_MSX_LAYOUT_ROM("empty3", 0, 3, 0, 4, "maincpu", 0x10000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 0, 1, 2, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_ROM("imp", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 2, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_MSX_MATSUSHITA_ADD( "matsushita" )
+
+	MCFG_FRAGMENT_ADD( msx_mb8877a )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
+
+/* MSX2 - National FS-5500F2*/
+/* The National FS-5500 had two versions: */
+/* F1 has 1 floppy drive */
+/* F2 has 2 floppy drives */
+
+ROM_START (fs5500f2)
+	ROM_REGION (0x30000, "maincpu",0)
+	ROM_LOAD ("5500bios.rom", 0x0000, 0x8000, CRC(5bf38e13) SHA1(44e0dd215b2a9f0770dd76fb49187c05b083eed9))
+	ROM_LOAD ("5500ext.rom", 0x8000, 0x4000, CRC(3c42c367) SHA1(4be8371f3b03e70ddaca495958345f3c4f8e2d36))
+	ROM_LOAD ("5500disk.rom", 0xc000, 0x4000, CRC(1e7d6512) SHA1(78cd7f847e77fd8cd51a647efb2725ba93f4c471))
+	/* 0x10000 - 0x1ffff reserved for optional fmpac roms from msx2 parent set */
+	ROM_FILL (0x10000, 0x10000, 0xff)
+	ROM_LOAD ("5500imp.rom", 0x20000, 0x8000, CRC(6173a88c) SHA1(b677a861b67e8763a11d5dcf52416b42493ade57))
+	ROM_LOAD ("5500kdr.rom", 0x28000, 0x8000, CRC(b2db6bf5) SHA1(3a9a942ed888dd641cddf8deada1879c454df3c6))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("5500kfn.rom", 0, 0x20000, CRC(956dc96d) SHA1(9ed3ab6d893632b9246e91b412cd5db519e7586b))
+ROM_END
+
+static MACHINE_CONFIG_DERIVED( fs5500f2, msx2 )
+	// YM2149 in (S-1985 MSX Engine)
+	// FDC: mb8877a, 2 3.5" DSDD drive
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+	// Matsushita switched device
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("empty1", 0, 1, 0, 4, "maincpu", 0x10000)
+	MCFG_MSX_LAYOUT_ROM("empty2", 0, 2, 0, 4, "maincpu", 0x10000)
+	MCFG_MSX_LAYOUT_ROM("empty3", 0, 3, 0, 4, "maincpu", 0x10000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 0, 1, 2, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_ROM("imp", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 2, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_MSX_MATSUSHITA_ADD( "matsushita" )
+
+	MCFG_FRAGMENT_ADD( msx_mb8877a )
+	MCFG_FRAGMENT_ADD( msx_2_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Panasonic FS-A1 */
 
@@ -2757,15 +3658,21 @@ ROM_START (fsa1)
 	ROM_LOAD ("a1desk2.rom", 0x28000, 0x8000, CRC(7f6f4aa1) SHA1(7f5b76605e3d898cc4b5aacf1d7682b82fe84353))
 ROM_END
 
-MSX_LAYOUT_INIT (fsa1)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64 KB RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 1, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 3, 1, 2, ROM, 0x8000, 0x28000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fsa1, msx2 )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64 KB RAM */
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("desk1", 3, 2, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_ROM("desk2", 3, 3, 1, 2, "maincpu", 0x28000)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Panasonic FS-A1 (a) */
 
@@ -2779,20 +3686,26 @@ ROM_START (fsa1a)
 	ROM_LOAD ("a1desk2.rom", 0x28000, 0x8000, CRC(7f6f4aa1) SHA1(7f5b76605e3d898cc4b5aacf1d7682b82fe84353))
 ROM_END
 
-MSX_LAYOUT_INIT (fsa1a)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 1, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 3, 1, 2, ROM, 0x8000, 0x28000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fsa1a, msx2 )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 0, 0, 4)  /* 64KB RAM */
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("desk1", 3, 2, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_ROM("desk2", 3, 3, 1, 2, "maincpu", 0x28000)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Panasonic FS-A1F */
 
 ROM_START (fsa1f)
-	ROM_REGION (0x50000, "maincpu",0)
+	ROM_REGION (0x30000, "maincpu",0)
 	ROM_LOAD ("a1fbios.rom", 0x0000, 0x8000, CRC(9b3e7b97) SHA1(0081ea0d25bc5cd8d70b60ad8cfdc7307812c0fd))
 	ROM_LOAD ("a1fext.rom", 0x8000, 0x4000, CRC(43e7a7fc) SHA1(0fbd45ef3dd7bb82d4c31f1947884f411f1ca344))
 	ROM_LOAD ("a1fdisk.rom", 0xc000, 0x4000, CRC(e25cacca) SHA1(607cfca605eaf82e3efa33459d6583efb7ecc13b))
@@ -2800,49 +3713,74 @@ ROM_START (fsa1f)
 	ROM_FILL (0x10000, 0x10000, 0)
 	ROM_LOAD ("a1fkdr.rom", 0x20000, 0x8000, CRC(2dbea5ec) SHA1(ea35cc2cad9cfdf56cae224d8ee41579de37f000))
 	ROM_LOAD ("a1fcock.rom", 0x28000, 0x8000, CRC(5c2948cd) SHA1(4a99f2444f29c2b642efd6f084081d6fd96bfa9b))
-	ROM_LOAD ("a1fkfn.rom", 0x30000, 0x20000, CRC(c61ddc5d) SHA1(5e872d5853698731a0ed22fb72dbcdfd59cd19c3))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("a1fkfn.rom", 0, 0x20000, CRC(c61ddc5d) SHA1(5e872d5853698731a0ed22fb72dbcdfd59cd19c3))
 ROM_END
 
-MSX_LAYOUT_INIT (fsa1f)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-/*  MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM, 0x4000, 0xc000) */ /* FDC Emulation of TC8566AF must be emulated */
-	MSX_LAYOUT_SLOT (3, 3, 1, 2, ROM, 0x8000, 0x28000)
-	MSX_LAYOUT_KANJI (0x30000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fsa1f, msx2 )
+	// AY8910/YM2149?
+	// FDC: tc8566af, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("fkdr", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_DISK3("disk", 3, 2, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_ROM("fcock", 3, 3, 1, 2, "maincpu", 0x28000)
+
+	MCFG_FRAGMENT_ADD( msx_tc8566af )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Panasonic FS-A1FM */
 
 ROM_START (fsa1fm)
-	ROM_REGION (0x180000, "maincpu",0)
+	ROM_REGION (0x120000, "maincpu",0)
 	ROM_LOAD ("a1fmbios.rom", 0x0000, 0x8000, CRC(9b3e7b97) SHA1(0081ea0d25bc5cd8d70b60ad8cfdc7307812c0fd))
 	ROM_LOAD ("a1fmext.rom", 0x8000, 0x4000, CRC(ad295b5d) SHA1(d552319a19814494e3016de4b8f010e8f7b97e02))
 	ROM_LOAD ("a1fmdisk.rom", 0xc000, 0x4000, CRC(e25cacca) SHA1(607cfca605eaf82e3efa33459d6583efb7ecc13b))
 	/* 0x10000 - 0x1ffff reserved for optional fmpac roms from msx2 parent set */
 	ROM_FILL (0x10000, 0x10000, 0)
-	ROM_LOAD ("a1fmkfn.rom", 0x40000, 0x20000, CRC(c61ddc5d) SHA1(5e872d5853698731a0ed22fb72dbcdfd59cd19c3))
-	ROM_LOAD ("a1fmkf12.rom", 0x60000, 0x20000, CRC(340d1ef7) SHA1(a7a23dc01314e88381eee88b4878b39931ab4818))
-	ROM_LOAD ("a1fmfirm.rom", 0x80000, 0x100000, CRC(8ce0ece7) SHA1(f89e3d8f3b6855c29d71d3149cc762e0f6918ad5))
+	ROM_LOAD ("a1fmfirm.rom", 0x20000, 0x100000, CRC(8ce0ece7) SHA1(f89e3d8f3b6855c29d71d3149cc762e0f6918ad5))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("a1fmkfn.rom", 0, 0x20000, CRC(c61ddc5d) SHA1(5e872d5853698731a0ed22fb72dbcdfd59cd19c3))
+
+	/* Matsushita 12 dots Kanji ROM must be emulated */
+	ROM_REGION(0x20000, "kanji12", 0)
+	ROM_LOAD ("a1fmkf12.rom", 0, 0x20000, CRC(340d1ef7) SHA1(a7a23dc01314e88381eee88b4878b39931ab4818))
 ROM_END
 
-MSX_LAYOUT_INIT (fsa1fm)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
+static MACHINE_CONFIG_DERIVED( fsa1fm, msx2 )
+	// AY8910/YM2149?
+	// FDC: tc8566af, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// Integrated 1200baud modem
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
 /*  MSX_LAYOUT_SLOT (3, 1, 1, 4, MODEM_ROM, 0x20000, 0x20000) */ /* Modem Mapper of FS-CM1/A1FM must be emulated */
-/*  MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM, 0x4000, 0xc000) */ /* FDC Emulation of TC8566AF must be emulated */
-/*  MSX_LAYOUT_SLOT (3, 3, 0, 4, FSA1FM_ROM, 0x100000, 0x80000) */ /* Panasonic FS-A1FM Mapper must be emulated */
-	MSX_LAYOUT_KANJI (0x40000)
-/*  MSX_LAYOUT_KANJI_12 (0x60000) */ /* Matsushita 12 dots Kanji ROM must be emulated */
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+	MCFG_MSX_LAYOUT_DISK3("disk", 3, 2, 1, 1, "maincpu", 0xc000)
+/*  MSX_LAYOUT_SLOT (3, 3, 0, 4, FSA1FM_ROM, 0x100000, 0x20000) */ /* Panasonic FS-A1FM Mapper must be emulated */
+
+	MCFG_FRAGMENT_ADD( msx_tc8566af )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Panasonic FS-A1MK2 */
 
@@ -2857,17 +3795,23 @@ ROM_START (fsa1mk2)
 	ROM_LOAD ("a1mkcoc3.rom", 0x2c000, 0x8000, CRC(c1945676) SHA1(a3f4e2e4934074925d775afe30ac72f150ede543))
 ROM_END
 
-MSX_LAYOUT_INIT (fsa1mk2)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64 KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 2, 1, 1, ROM, 0x4000, 0x28000)
-	MSX_LAYOUT_SLOT (3, 3, 1, 2, ROM, 0x8000, 0x2c000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fsa1mk2, msx2 )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64 KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("coc1", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_ROM("coc2", 3, 2, 1, 1, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_ROM("coc3", 3, 3, 1, 2, "maincpu", 0x2c000)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips NMS-8220 - 2 possible sets (/00 /16) */
 
@@ -2880,15 +3824,22 @@ ROM_START (nms8220)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (nms8220)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( nms8220, msx2_pal )
+	// YM2149 (in S-3527 MSX Engine)
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// S-3527 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+	MCFG_MSX_LAYOUT_ROM("pen", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips NMS-8220 (a) */
 
@@ -2901,17 +3852,27 @@ ROM_START (nms8220a)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (nms8220a)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( nms8220a, msx2_pal )
+	// YM2149 (in S-3527 MSX Engine)
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// S-3527 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+	MCFG_MSX_LAYOUT_ROM("pen", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips NMS-8245 - 2 possible sets (/00 /16) */
+/* /00 - A16 = 0 */
+/* /16 - A16 = 1 */
+/* /19 - Azerty keyboard */
 
 ROM_START (nms8245)
 	ROM_REGION (0x40000, "maincpu", 0)
@@ -2920,17 +3881,29 @@ ROM_START (nms8245)
 	ROM_LOAD ("nms8245.u7", 0x20000, 0x20000, BAD_DUMP CRC(0c827d5f) SHA1(064e706cb1f12b99b329944ceeedc0efc3b2d9be))
 ROM_END
 
-MSX_LAYOUT_INIT (nms8245)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x28000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM, 0x4000, 0x2c000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( nms8245, msx2_pal )
+	// YM2149 (in S-3527 MSX Engine)
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// S-3527 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext",3, 0, 0, 1, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 3, 1, 1, "maincpu", 0x2c000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips NMS-8245F */
+/* NMS-8245/19? */
 
 ROM_START (nms8245f)
 	ROM_REGION (0x40000, "maincpu", 0)
@@ -2939,15 +3912,26 @@ ROM_START (nms8245f)
 	ROM_LOAD ("nms8245.u7", 0x20000, 0x20000, BAD_DUMP CRC(0c827d5f) SHA1(064e706cb1f12b99b329944ceeedc0efc3b2d9be))
 ROM_END
 
-MSX_LAYOUT_INIT (nms8245f)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x30000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x38000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM, 0x4000, 0x3c000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( nms8245f, msx2_pal )
+	// YM2149 (in S-3527 MSX Engine)
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// S-3527 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x30000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x38000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 3, 1, 1, "maincpu", 0x3c000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips NMS-8250 */
 /* Labels taken from an NMS-8250/00 */
@@ -2961,15 +3945,26 @@ ROM_START (nms8250)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (nms8250)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( nms8250, msx2_pal )
+	// YM2149 (in S-3527 MSX Engine)
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// S-3527 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips NMS-8250J */
 
@@ -2978,17 +3973,29 @@ ROM_START (nms8250j)
 	ROM_LOAD ("8250jbios.rom", 0x0000, 0x8000, CRC(9b3e7b97) SHA1(0081ea0d25bc5cd8d70b60ad8cfdc7307812c0fd))
 	ROM_LOAD ("8250jext.rom", 0x8000, 0x4000, CRC(4a48779c) SHA1(b8e30d604d319d511cbfbc61e5d8c38fbb9c5a33))
 	ROM_LOAD ("8250jdisk.rom", 0xc000, 0x4000, CRC(ca3307d3) SHA1(c3efedda7ab947a06d9345f7b8261076fa7ceeef))
-	ROM_LOAD ("8250jkfn.rom", 0x20000, 0x20000, CRC(5a59926e) SHA1(6acaf2eeb57f65f7408235d5e07b7563229de799))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("8250jkfn.rom", 0x00000, 0x20000, CRC(5a59926e) SHA1(6acaf2eeb57f65f7408235d5e07b7563229de799))
 ROM_END
 
-MSX_LAYOUT_INIT (nms8250j)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM, 0x4000, 0xc000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( nms8250j, msx2 )
+	// AY8910/YM2149?
+	// FDC: wd2793?, 1 3.5" DSDD drive
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips NMS-8255 */
 
@@ -3001,15 +4008,26 @@ ROM_START (nms8255)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (nms8255)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( nms8255, msx2_pal )
+	// YM2149 (in S-3527 MSX Engine)
+	// FDC: wd2793, 2 3.5" DSDD drives
+	// 2 Cartridge slots
+	// S-3527 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_2_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips NMS-8280 - 2 possible sets (/00 /16) */
 
@@ -3022,15 +4040,25 @@ ROM_START (nms8280)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (nms8280)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( nms8280, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: wd2793, 2 3.5" DSDD drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_2_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips NMS-8280G */
 
@@ -3043,15 +4071,25 @@ ROM_START (nms8280g)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (nms8280g)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( nms8280g, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: wd2793, 2 3.5" DSDD drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_2_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips VG-8230 (u11 - exp, u12 - basic, u13 - disk */
 
@@ -3064,15 +4102,26 @@ ROM_START (vg8230)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (vg8230)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( vg8230, msx2_pal )
+	// YM2149 (in S-3527 MSX Engine)
+	// FDC: wd2793, 1 3.5" SSDD drive
+	// 2 Cartridge slots
+	// S-3527 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_ssdd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips VG-8230J */
 
@@ -3083,17 +4132,29 @@ ROM_START (vg8230j)
 	ROM_LOAD ("8230jdisk.rom", 0xc000, 0x4000, CRC(7639758a) SHA1(0f5798850d11b316a4254b222ca08cc4ad6d4da2))
 	/* 0x10000 - 0x1ffff reserved for optional fmpac roms from msx2 parent set */
 	ROM_FILL (0x10000, 0x10000, 0)
-	ROM_LOAD ("8230jkfn.rom", 0x20000, 0x20000, CRC(5a59926e) SHA1(6acaf2eeb57f65f7408235d5e07b7563229de799))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("8230jkfn.rom", 0x00000, 0x20000, CRC(5a59926e) SHA1(6acaf2eeb57f65f7408235d5e07b7563229de799))
 ROM_END
 
-MSX_LAYOUT_INIT (vg8230j)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM, 0x4000, 0xc000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( vg8230j, msx2 )
+	// AY8910/YM2149?
+	// FDC: wd2793?, 1 3.5" SSDD drive?
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_ssdd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips VG-8235 3 psosible basic and ext roms (/00 /02 /19) */
 
@@ -3106,15 +4167,26 @@ ROM_START (vg8235)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (vg8235)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( vg8235, msx2_pal )
+	// YM2149 (in S-3527 MSX Engine)
+	// FDC: wd2793, 1 3.5" SSDD drive
+	// 2 Cartridge slots
+	// S-3527 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_ssdd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips VG-8235F */
 
@@ -3127,15 +4199,26 @@ ROM_START (vg8235f)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (vg8235f)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( vg8235f, msx2_pal )
+	// YM2149 (in S-3527 MSX Engine)
+	// FDC: wd2793, 1 3.5" SSDD drive
+	// 2 Cartridge slots
+	// S-3527 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_ssdd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Philips VG-8240 */
 
@@ -3148,15 +4231,25 @@ ROM_START (vg8240)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (vg8240)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0xf8)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( vg8240, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0xf8)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 3, 1, 1, "maincpu", 0xc000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sanyo MPC-2300 */
 
@@ -3168,13 +4261,19 @@ ROM_START (mpc2300)
 	ROM_FILL (0xc000, 0x14000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (mpc2300)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB?? Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( mpc2300, msx2 )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x20000)   /* 128KB?? Mapper RAM */
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sanyo Wavy MPC-25FD */
 
@@ -3185,16 +4284,26 @@ ROM_START (mpc25fd)
 	ROM_LOAD ("25fddisk.rom", 0xc000, 0x4000, CRC(38454059) SHA1(58ac78bba29a06645ca8d6a94ef2ac68b743ad32))
 ROM_END
 
-MSX_LAYOUT_INIT (mpc25fd)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 3, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 128KB?? RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( mpc25fd, msx2 )
+	// YM2149 (in S-3527 MSX Engine)
+	// FDC: wd2793, 1 drive
+	// 1 Cartridge slot (slot 1)
+	// S-3527 MSX Engine
 
-/* MSX2 - Sanyo Wavy PHC-23 */
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot", 1, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 2, 3, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 1, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB?? RAM */
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
+
+/* MSX2 - Sanyo Wavy PHC-23 = PHC-23J(B)*/
 
 ROM_START (phc23)
 	ROM_REGION (0x20000, "maincpu",0)
@@ -3204,13 +4313,22 @@ ROM_START (phc23)
 	ROM_FILL (0xc000, 0x14000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (phc23)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( phc23, msx2 )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 2, 0, 4)  /* 64KB RAM */
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sharp Epcom HotBit 2.0 */
 
@@ -3224,16 +4342,26 @@ ROM_START (hotbit20)
 	ROM_LOAD ("microsoldisk.rom", 0x24000, 0x4000, CRC(6704ef81) SHA1(a3028515ed829e900cc8deb403e17b09a38bf9b0))
 ROM_END
 
-MSX_LAYOUT_INIT (hotbit20)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 1, 0, 1, ROM, 0x4000, 0x8000) /* EXT */
-	MSX_LAYOUT_SLOT (1, 1, 1, 1, ROM, 0x4000, 0x20000) /* BASIC */
-	MSX_LAYOUT_SLOT (1, 3, 1, 1, DISK_ROM, 0x4000, 0x24000) /* Microsol controller */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hotbit20, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: microsol, 1 or 2 drives?
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 1, 1, 0, 1, "maincpu", 0x8000) /* EXT */
+	MCFG_MSX_LAYOUT_ROM("xbasic", 1, 1, 1, 1, "maincpu", 0x20000) /* BASIC */
+	MCFG_MSX_LAYOUT_DISK5("disk", 1, 3, 1, 1, "maincpu", 0x24000) /* Microsol controller */
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 2, 0, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx_microsol )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F1 */
 
@@ -3248,16 +4376,22 @@ ROM_START (hbf1)
 	ROM_LOAD ("f1note3.rom", 0x2c000, 0x8000, CRC(73eb9329) SHA1(58accf41a90693874b86ce98d8d43c27beb8b6dc))
 ROM_END
 
-MSX_LAYOUT_INIT (hbf1)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, ROM, 0x4000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x24000)
-	MSX_LAYOUT_SLOT (3, 2, 1, 2, ROM, 0x8000, 0x2c000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, RAM, 0x10000, 0x0000)  /* 64KB RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf1, msx2 )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("note1", 3, 0, 1, 1, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_ROM("note2", 3, 1, 1, 2, "maincpu", 0x24000)
+	MCFG_MSX_LAYOUT_ROM("note3", 3, 2, 1, 2, "maincpu", 0x2c000)
+	MCFG_MSX_LAYOUT_RAM("ram", 3, 3, 0, 4)  /* 64KB RAM */
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F1II */
 
@@ -3272,17 +4406,23 @@ ROM_START (hbf12)
 	ROM_LOAD ("f12note3.rom", 0x2c000, 0x8000, CRC(44a10e6a) SHA1(917d1c079e03c4a44de864f123d03c4e32c8daae))
 ROM_END
 
-MSX_LAYOUT_INIT (hbf12)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, ROM, 0x4000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x24000)
-	MSX_LAYOUT_SLOT (3, 2, 1, 2, ROM, 0x8000, 0x2c000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf12, msx2 )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("note1", 3, 0, 1, 1, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_ROM("note2", 3, 1, 1, 2, "maincpu", 0x24000)
+	MCFG_MSX_LAYOUT_ROM("note3", 3, 2, 1, 2, "maincpu", 0x2c000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 3, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F1XD */
 
@@ -3295,15 +4435,28 @@ ROM_START (hbf1xd)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (hbf1xd)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf1xd, msx2 )
+	// YM2149 (in S-1895 MSX Engine)
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 0, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 3, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx_wd2793 )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F1XDMK2 */
 
@@ -3316,15 +4469,25 @@ ROM_START (hbf1xdm2)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (hbf1xdm2)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf1xdm2, msx2 )
+	// AY8910/YM2149?
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 0, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 3, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793 )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F5 */
 
@@ -3335,37 +4498,54 @@ ROM_START (hbf5)
 	ROM_LOAD ("hbf5note.rom", 0xc000, 0x4000, CRC(0cdc0777) SHA1(06ba91d6732ee8a2ecd5dcc38b0ce42403d86708))
 ROM_END
 
-MSX_LAYOUT_INIT (hbf5)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (0, 1, 2, 1, ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (0, 2, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB?? Mapper RAM */
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf5, msx2_pal )
+	// YM2149
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("note", 0, 1, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 0, 2, 0x10000)   /* 64KB?? Mapper RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F500 */
 
 ROM_START (hbf500)
-	ROM_REGION (0x40000, "maincpu", 0)
+	ROM_REGION (0x20000, "maincpu", 0)
 	ROM_LOAD ("f500bios.rom", 0x0000, 0x8000, CRC(9b3e7b97) SHA1(0081ea0d25bc5cd8d70b60ad8cfdc7307812c0fd))
 	ROM_LOAD ("f500ext.rom", 0x8000, 0x4000, CRC(4a48779c) SHA1(b8e30d604d319d511cbfbc61e5d8c38fbb9c5a33))
 	ROM_LOAD ("f500disk.rom", 0xc000, 0x4000, CRC(f7f5b0ea) SHA1(e93b8da1e8dddbb3742292b0e5e58731b90e9313))
 	/* 0x10000 - 0x1ffff reserved for optional fmpac roms from msx2 parent set */
 	ROM_FILL (0x10000, 0x10000, 0)
-	ROM_LOAD ("f500kfn.rom", 0x20000, 0x20000, CRC(5a59926e) SHA1(6acaf2eeb57f65f7408235d5e07b7563229de799))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("f500kfn.rom", 0, 0x20000, CRC(5a59926e) SHA1(6acaf2eeb57f65f7408235d5e07b7563229de799))
 ROM_END
 
-MSX_LAYOUT_INIT (hbf500)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-	MSX_LAYOUT_SLOT (0, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (0, 1, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (0, 2, 0, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_KANJI (0x20000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf500, msx2 )
+	// AY8910/YM2149?
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram1", 0, 0, 2, 2)   /* 32KB RAM */
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 0, 1, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM("ram2", 0, 2, 0, 2)   /* 32KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F500P */
 
@@ -3377,16 +4557,26 @@ ROM_START (hbf500p)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (hbf500p)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-	MSX_LAYOUT_SLOT (0, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (0, 1, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (0, 2, 0, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, ROM, 0x10000, 0x10000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf500p, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 3 Cartridge slots or 2 Cartridge slots and 1 expansion slot ?
+
+	MCFG_FRAGMENT_ADD( msx_wd2793 )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram1", 0, 0, 2, 2)   /* 32KB RAM */
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 0, 1, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM("ram2", 0, 2, 0, 2)   /* 32KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("empty", 3, 0, 0, 4, "maincpu", 0x10000)     // Empty? or is this the 3rd cartridge/expansion slot ? 0x10000 used to be the "special" loading spot for the fmpac rom
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F700D */
 
@@ -3398,15 +4588,28 @@ ROM_START (hbf700d)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (hbf700d)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, RAM_MM, 0x40000, 0x0000)   /* 256KB Mapper RAM */
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf700d, msx2_pal )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 0, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 3, 0x40000)   /* 256KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx_wd2793 )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F700F */
 
@@ -3418,15 +4621,25 @@ ROM_START (hbf700f)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (hbf700f)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, RAM_MM, 0x40000, 0x0000)   /* 256KB Mapper RAM */
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf700f, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 0, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 3, 0x40000)   /* 256KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793 )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F700P */
 
@@ -3438,15 +4651,28 @@ ROM_START (hbf700p)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (hbf700p)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, RAM_MM, 0x40000, 0x0000)   /* 256KB Mapper RAM */
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf700p, msx2_pal )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 0, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 3, 0x40000)   /* 256KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F700S */
 
@@ -3458,63 +4684,95 @@ ROM_START (hbf700s)
 	ROM_FILL (0x10000, 0x10000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (hbf700s)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, RAM_MM, 0x40000, 0x0000)   /* 256KB Mapper RAM */
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf700s, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 0, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 3, 0x40000)   /* 256KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F900 */
 ROM_START (hbf900)
-	ROM_REGION (0x44000, "maincpu", 0)
+	ROM_REGION (0x24000, "maincpu", 0)
 	ROM_LOAD ("f900bios.rom", 0x0000, 0x8000, CRC(9b3e7b97) SHA1(0081ea0d25bc5cd8d70b60ad8cfdc7307812c0fd))
 	ROM_LOAD ("f900ext.rom", 0x8000, 0x4000, CRC(43e7a7fc) SHA1(0fbd45ef3dd7bb82d4c31f1947884f411f1ca344))
 	ROM_LOAD ("f900disk.rom", 0xc000, 0x4000, CRC(f83d0ea6) SHA1(fc760d1d7b16370abc7eea39955f230b95b37df6))
 	/* 0x10000 - 0x1ffff reserved for optional fmpac roms from msx2 parent set */
 	ROM_FILL (0x10000, 0x10000, 0)
 	ROM_LOAD ("f900util.rom", 0x20000, 0x4000, CRC(bc6c7c66) SHA1(558b7383544542cf7333700ff90c3efbf93ba2a3))
-	ROM_LOAD ("f900kfn.rom", 0x24000, 0x20000, CRC(5a59926e) SHA1(6acaf2eeb57f65f7408235d5e07b7563229de799))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("f900kfn.rom", 0, 0x20000, CRC(5a59926e) SHA1(6acaf2eeb57f65f7408235d5e07b7563229de799))
 ROM_END
 
-MSX_LAYOUT_INIT (hbf900)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 1, 0, 4, RAM_MM, 0x40000, 0x0000)   /* 256KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, ROM, 0x4000, 0x10000)
-	MSX_LAYOUT_KANJI (0x24000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf900, msx2 )
+	// AY8910/YM2149?
+	// FDC: wd2793, 2 3.5" DSDD drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 0, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 1, 0x40000)   /* 256KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("empty", 3, 3, 1, 1, "maincpu", 0x10000)    // Empty/unknown, optional fmpac rom used to be loaded here, or should the util rom be loaded?
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_2_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F900 (a) */
 ROM_START (hbf900a)
-	ROM_REGION (0x44000, "maincpu", 0)
+	ROM_REGION (0x24000, "maincpu", 0)
 	ROM_LOAD ("f900bios.rom", 0x0000, 0x8000, CRC(9b3e7b97) SHA1(0081ea0d25bc5cd8d70b60ad8cfdc7307812c0fd))
 	ROM_LOAD ("f900ext.rom", 0x8000, 0x4000, CRC(43e7a7fc) SHA1(0fbd45ef3dd7bb82d4c31f1947884f411f1ca344))
 	ROM_LOAD ("f900disa.rom", 0xc000, 0x4000, CRC(54c73ad6) SHA1(12f2cc79b3d09723840bae774be48c0d721ec1c6))
 	/* 0x10000 - 0x1ffff reserved for optional fmpac roms from msx2 parent set */
 	ROM_FILL (0x10000, 0x10000, 0)
 	ROM_LOAD ("f900util.rom", 0x20000, 0x4000, CRC(bc6c7c66) SHA1(558b7383544542cf7333700ff90c3efbf93ba2a3))
-	ROM_LOAD ("f900kfn.rom", 0x24000, 0x20000, CRC(5a59926e) SHA1(6acaf2eeb57f65f7408235d5e07b7563229de799))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("f900kfn.rom", 0, 0x20000, CRC(5a59926e) SHA1(6acaf2eeb57f65f7408235d5e07b7563229de799))
 ROM_END
 
-MSX_LAYOUT_INIT (hbf900a)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 1, 0, 4, RAM_MM, 0x40000, 0x0000)   /* 256KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, ROM, 0x4000, 0x10000)
-	MSX_LAYOUT_KANJI (0x24000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf900a, msx2 )
+	// AY8910/YM2149?
+	// FDC: wd2793, 2 3.5" DSDD drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 0, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 1, 0x40000)   /* 256KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("empty", 3, 3, 1, 1, "maincpu", 0x10000)    // Empty/unknown, optional fmpac rom used to be loaded here, or should the util rom be loaded?
+
+	MCFG_FRAGMENT_ADD( msx_wd2793 )
+	MCFG_FRAGMENT_ADD( msx_2_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F9P */
 
@@ -3527,16 +4785,24 @@ ROM_START (hbf9p)
 	ROM_LOAD ("f9pfirm2.rom.ic13", 0x20000, 0x8000, CRC(ea97069f) SHA1(2d1880d1f5a6944fcb1b198b997a3d90ecd1903d))
 ROM_END
 
-MSX_LAYOUT_INIT (hbf9p)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf9p, msx2_pal )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("firm1", 3, 0, 0, 2, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("firm2", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F9P Russian */
 
@@ -3546,13 +4812,22 @@ ROM_START (hbf9pr)
 	ROM_LOAD ("f9prext.rom", 0x8000, 0x4000, CRC(8b966f50) SHA1(65253cb38ab11084f355a2d4ad78fa6c64cbe660))
 ROM_END
 
-MSX_LAYOUT_INIT (hbf9pr)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB?? Mapper RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf9pr, msx2_pal )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-F9S */
 
@@ -3565,16 +4840,24 @@ ROM_START (hbf9s)
 	ROM_LOAD ("f9sfirm2.ic13", 0x20000, 0x8000, CRC(ea97069f) SHA1(2d1880d1f5a6944fcb1b198b997a3d90ecd1903d))
 ROM_END
 
-MSX_LAYOUT_INIT (hbf9s)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf9s, msx2_pal )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+	// S-1985 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("firm1", 3, 0, 0, 2, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("firm2", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-G900AP */
 
@@ -3595,18 +4878,27 @@ ROM_START (hbg900ap)
 	ROM_LOAD ("g900util.rom", 0x24000, 0x4000, CRC(d0417c20) SHA1(8779b004e7605a3c419825f0373a5d8fa84e1d5b))
 ROM_END
 
-MSX_LAYOUT_INIT (hbg900ap)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (0, 1, 1, 1, DISK_ROM, 0x4000, 0xc000)
-/*  MSX_LAYOUT_SLOT (0, 2, 1, 1, ROM, 0x4000, 0x20000) */ /* RS232C must be emulated */
-	MSX_LAYOUT_SLOT (0, 3, 1, 1, ROM, 0x4000, 0x24000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x80000, 0x0000)   /* 512KB Mapper RAM */
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbg900ap, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots?
 
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 0, 1, 1, 1, "maincpu", 0xc000)
+/*  MSX_LAYOUT_SLOT ("rs232c", 0, 2, 1, 1, "maincpu", 0x20000) */ /* RS232C must be emulated */
+	MCFG_MSX_LAYOUT_ROM("util", 0, 3, 1, 1, "maincpu", 0x24000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x80000)   /* 512KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793 )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Sony HB-G900P - 3x 32KB ROMs */
 
@@ -3621,17 +4913,27 @@ ROM_START (hbg900p)
 	ROM_LOAD ("g900util.rom", 0x24000, 0x4000, CRC(d0417c20) SHA1(8779b004e7605a3c419825f0373a5d8fa84e1d5b))
 ROM_END
 
-MSX_LAYOUT_INIT (hbg900p)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (0, 1, 1, 1, DISK_ROM, 0x4000, 0xc000)
-/*  MSX_LAYOUT_SLOT (0, 2, 1, 1, ROM, 0x4000, 0x20000) */ /* RS232C must be emulated */
-	MSX_LAYOUT_SLOT (0, 3, 1, 1, ROM, 0x4000, 0x24000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbg900p, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 0, 1, 1, 1, "maincpu", 0xc000)
+/*  MSX_LAYOUT_SLOT ("rs232c", 0, 2, 1, 1, "maincpu", 0x20000) */ /* RS232C must be emulated */
+	MCFG_MSX_LAYOUT_ROM("util", 0, 3, 1, 1, "maincpu", 0x24000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793 )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Talent TPC-310 */
 ROM_START (tpc310)
@@ -3645,17 +4947,29 @@ ROM_START (tpc310)
 	ROM_LOAD ("tpc310acc.rom",  0x24000, 0x8000, CRC(4fb8fab3) SHA1(cdeb0ed8adecaaadb78d5a5364fd603238591685))
 ROM_END
 
-MSX_LAYOUT_INIT (tpc310)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 1, 1, ROM, 0x4000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x24000)
-	MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM2, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( tpc310, msx2_pal )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: mb8877a?, 1 3.5" DSDD drive
+	// 1 Cartridge slot (slot 2)
+	// S-1985 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 1, 0, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("turbo", 3, 0, 1, 1, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_ROM("acc", 3, 1, 1, 2, "maincpu", 0x24000)
+	MCFG_MSX_LAYOUT_DISK2("disk", 3, 2, 1, 1, "maincpu", 0xc000)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx_mb8877a )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Talent TPP-311 */
 
@@ -3666,12 +4980,16 @@ ROM_START (tpp311)
 	ROM_LOAD ("311logo.rom", 0x20000, 0x8000, CRC(0e6ecb9f) SHA1(e45ddc5bf1a1e63756d11fb43fc50276ca35cab0))
 ROM_END
 
-MSX_LAYOUT_INIT (tpp311)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB?? Mapper RAM */
-	MSX_LAYOUT_SLOT (2, 0, 0, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( tpp311, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 0 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 1, 0, 0x10000)   /* 64KB?? Mapper RAM */
+	MCFG_MSX_LAYOUT_ROM("logo", 2, 0, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+MACHINE_CONFIG_END
 
 /* MSX2 - Talent TPS-312 */
 
@@ -3683,15 +5001,22 @@ ROM_START (tps312)
 	ROM_LOAD ("312write.rom", 0x28000, 0x4000, CRC(63c6992f) SHA1(93682f5baba7697c40088e26f99ee065c78e83b8))
 ROM_END
 
-MSX_LAYOUT_INIT (tps312)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB?? Mapper RAM */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x28000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( tps312, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 1, 0, 0x20000)   /* 128KB?? Mapper RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("write", 3, 1, 1, 1, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_ROM("plan", 3, 2, 1, 1, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_ROM("planlow", 3, 2, 0, 1, "maincpu", 0x24000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 3)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Toshiba HX-23 */
 
@@ -3705,16 +5030,21 @@ ROM_START (hx23)
 	ROM_FILL (0x28000, 0x8000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (hx23)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 0, 2, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 2, RAM, 0x8000, 0x0000)   /* 32KB RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, ROM, 0x10000, 0x20000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hx23, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_RAM("ram1", 0, 0, 2, 2)   /* 32KB RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM("ram2", 3, 0, 0, 2)   /* 32KB RAM */
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("word", 3, 3, 1, 2, "maincpu", 0x20000)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Toshiba HX-23F */
 
@@ -3728,15 +5058,21 @@ ROM_START (hx23f)
 	ROM_FILL (0x28000, 0x8000, 0)
 ROM_END
 
-MSX_LAYOUT_INIT (hx23f)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, ROM, 0x10000, 0x20000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hx23f, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("word", 3, 3, 1, 2, "maincpu", 0x20000)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Yamaha CX7M */
 
@@ -3746,18 +5082,23 @@ ROM_START (cx7m)
 	ROM_LOAD ("cx7mext.rom",   0x8000, 0x4000, CRC(66237ecf) SHA1(5c1f9c7fb655e43d38e5dd1fcc6b942b2ff68b02))
 	/* 0xc000 - 0x1ffff reserved for optional fmpac roms from msx2 parent set */
 	ROM_FILL (0xc000, 0x14000, 0)
-	ROM_LOAD ("sfg05m.rom", 0x20000, 0x8000, CRC(6c2545c9) SHA1(bc4b242647116f4886bb92e86421f97b1be51938))
 ROM_END
 
-MSX_LAYOUT_INIT (cx7m)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 0, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cx7m, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_YAMAHA_EXPANSION("expansion", 3, 3, "sfg05")
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2 - Yamaha CX7M-128 */
 
@@ -3767,46 +5108,58 @@ ROM_START (cx7m128)
 	ROM_LOAD ("cx7mext.rom",   0x8000, 0x4000, CRC(66237ecf) SHA1(5c1f9c7fb655e43d38e5dd1fcc6b942b2ff68b02))
 	/* 0xc000 - 0x1ffff reserved for optional fmpac roms from msx2 parent set */
 	ROM_FILL (0xc000, 0x14000, 0)
-	ROM_LOAD ("sfg05m.rom", 0x20000, 0x8000, CRC(6c2545c9) SHA1(bc4b242647116f4886bb92e86421f97b1be51938))
 	ROM_LOAD ("yrm502.rom", 0x28000, 0x4000, CRC(51f7ddd1) SHA1(2a4b4a4657e3077df8a88f98210b76883d3702b1))
 ROM_END
 
-MSX_LAYOUT_INIT (cx7m128)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 1, ROM, 0x4000, 0x28000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 3, 0, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( cx7m128, msx2_pal )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_ROM("ext", 0, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("yrm502", 3, 1, 1, 1, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_YAMAHA_EXPANSION("expansion", 3, 3, "sfg05")
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /********************************  MSX 2+ **********************************/
 
 /* MSX2+ */
 
 ROM_START (msx2p)
-	ROM_REGION (0x48000, "maincpu",0)
+	ROM_REGION (0x28000, "maincpu",0)
 	ROM_LOAD ("msx2p.rom", 0x0000, 0x8000, CRC(00870134) SHA1(e2fbd56e42da637609d23ae9df9efd1b4241b18a))
 	ROM_LOAD ("msx2pext.rom", 0x8000, 0x4000, CRC(b8ba44d3) SHA1(fe0254cbfc11405b79e7c86c7769bd6322b04995))
-	ROM_LOAD_OPTIONAL ("disk.rom", 0xc000, 0x4000, CRC(b7c58fad) SHA1(bc517b4a248c3a1338c5efc937b0128b6a783808))
-	ROM_LOAD_OPTIONAL ("fmpac.rom", 0x10000, 0x10000, CRC(0e84505d) SHA1(9d789166e3caf28e4742fe933d962e99618c633d))
+	ROM_LOAD ("disk.rom", 0xc000, 0x4000, CRC(b7c58fad) SHA1(bc517b4a248c3a1338c5efc937b0128b6a783808))
+	ROM_LOAD ("fmpac.rom", 0x10000, 0x10000, CRC(0e84505d) SHA1(9d789166e3caf28e4742fe933d962e99618c633d))
 	ROM_LOAD ("msx2pkdr.rom", 0x20000, 0x8000, CRC(a068cba9) SHA1(1ef3956f7f918873fb9b031339bba45d1e5e5878))
-	ROM_LOAD ("msx2pkfn.rom", 0x28000, 0x20000, CRC(b244f6cf) SHA1(e0e99cd91e88ce2676445663f832c835d74d6fd4))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("msx2pkfn.rom", 0, 0x20000, CRC(b244f6cf) SHA1(e0e99cd91e88ce2676445663f832c835d74d6fd4))
 ROM_END
 
-MSX_LAYOUT_INIT (msx2p)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_KANJI (0x28000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( msx2pgen, msx2p )
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x20000)   /* 128KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 2, 1, 1, "maincpu", 0xc000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Ciel Expert 3 IDE */
 
@@ -3819,16 +5172,28 @@ ROM_START (expert3i )
 	ROM_LOAD ("ide240a.rom", 0x20000, 0x10000, CRC(7adf857f) SHA1(8a919dbeed92db8c06a611279efaed8552810239))
 ROM_END
 
-MSX_LAYOUT_INIT (expert3i)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 1, 1, 1, ROM, 0x4000, 0x10000)
-	MSX_LAYOUT_SLOT (1, 2, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (1, 3, 0, 4, ROM, 0x10000, 0x20000)         /* IDE hardware needs to be emulated */
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM_MM, 0x40000, 0x0000)       /* 256KB?? Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( expert3i, msx2p )
+	// AY8910/YM2149?
+	// FDC: wd2793, 1 or 2? drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 1, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_MUSIC("mus", 1, 1, 1, 1, "maincpu", 0x10000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 1, 2, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_ROM("ide", 1, 3, 0, 4, "maincpu", 0x20000)         /* IDE hardware needs to be emulated */
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 2, 0, 0x40000)       /* 256KB?? Mapper RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx_ym2413 )
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Ciel Expert 3 Turbo */
 
@@ -3842,16 +5207,29 @@ ROM_START (expert3t )
 	ROM_LOAD ("turbo.rom", 0x20000, 0x4000, CRC(ab528416) SHA1(d468604269ae7664ac739ea9f922a05e14ffa3d1))
 ROM_END
 
-MSX_LAYOUT_INIT (expert3t)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 1, 1, 1, ROM, 0x4000, 0x10000)
-	MSX_LAYOUT_SLOT (1, 2, 1, 1, ROM, 0x4000, 0x20000)          /* Turbo hardware needs to be emulated */
-	MSX_LAYOUT_SLOT (1, 3, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM_MM, 0x40000, 0x0000)       /* 256KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( expert3t, msx2p )
+	// AY8910
+	// FDC: wd2793?, 1 or 2? drives
+	// 4 Cartridge/Expansion slots?
+	// FM/YM2413 built-in
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 1, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_MUSIC("mus", 1, 1, 1, 1, "maincpu", 0x10000)
+	MCFG_MSX_LAYOUT_ROM("turbo", 1, 2, 1, 1, "maincpu", 0x20000)          /* Turbo hardware needs to be emulated */
+	MCFG_MSX_LAYOUT_DISK1("disk", 1, 3, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 2, 0, 0x40000)       /* 256KB Mapper RAM */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
+
+	MCFG_FRAGMENT_ADD( msx_ym2413 )
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Gradiente Expert AC88+ */
 
@@ -3864,16 +5242,26 @@ ROM_START (expertac)
 	ROM_LOAD ("xbasic2.rom", 0x24000, 0x4000, CRC(2825b1a0) SHA1(47370bec7ca1f0615a54eda548b07fbc0c7ef398))
 ROM_END
 
-MSX_LAYOUT_INIT (expertac)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM?? */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 1, ROM, 0x4000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, ROM, 0x4000, 0x24000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( expertac, msx2p )
+	// AY8910/YM2149?
+	// FDC: wd2793?, 1 or 2? drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM?? */
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("asm", 3, 1, 1, 1, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 2, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_ROM("xbasic", 3, 3, 1, 1, "maincpu", 0x24000)
+
+	MCFG_FRAGMENT_ADD( msx_wd2793_force_ready )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Gradiente Expert DDX+ */
 
@@ -3886,21 +5274,31 @@ ROM_START (expertdx)
 	ROM_LOAD ("kanji.rom", 0x30000, 0x8000, CRC(b4fc574d) SHA1(dcc3a67732aa01c4f2ee8d1ad886444a4dbafe06))
 ROM_END
 
-MSX_LAYOUT_INIT (expertdx)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (1, 2, 1, 1, ROM, 0x4000, 0x20000)
-	MSX_LAYOUT_SLOT (1, 3, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM?? */
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
+static MACHINE_CONFIG_DERIVED( expertdx, msx2p )
+	// AY8910/YM2149?
+	// FDC: tc8566af, 1 3.5" DSDD drive?
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 1, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("xbasic", 1, 2, 1, 1, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_DISK3("disk", 1, 3, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 2, 0, 0x10000)   /* 64KB Mapper RAM?? */
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 3, 0)
 	/* Kanji? */
-MSX_LAYOUT_END
+
+	MCFG_FRAGMENT_ADD( msx_tc8566af )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Panasonic FS-A1FX */
 
 ROM_START (fsa1fx)
-	ROM_REGION (0x50000, "maincpu",0)
+	ROM_REGION (0x30000, "maincpu",0)
 	ROM_LOAD ("a1fxbios.rom", 0x0000, 0x8000, CRC(19771608) SHA1(e90f80a61d94c617850c415e12ad70ac41e66bb7))
 	ROM_LOAD ("a1fxext.rom", 0x8000, 0x4000, CRC(b8ba44d3) SHA1(fe0254cbfc11405b79e7c86c7769bd6322b04995))
 	ROM_LOAD ("a1fxdisk.rom", 0xc000, 0x4000, CRC(2bda0184) SHA1(2a0d228afde36ac7c5d3c2aac9c7c664dd071a8c))
@@ -3908,26 +5306,42 @@ ROM_START (fsa1fx)
 	ROM_FILL (0x10000, 0x10000, 0)
 	ROM_LOAD ("a1fxkdr.rom", 0x20000, 0x8000, CRC(a068cba9) SHA1(1ef3956f7f918873fb9b031339bba45d1e5e5878))
 	ROM_LOAD ("a1fxcock.rom", 0x28000, 0x8000, CRC(f662e6eb) SHA1(9d67fab55b85f4ac4f5924323a70020eb8589057))
-	ROM_LOAD ("a1fxkfn.rom", 0x30000, 0x20000, CRC(b244f6cf) SHA1(e0e99cd91e88ce2676445663f832c835d74d6fd4))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("a1fxkfn.rom", 0, 0x20000, CRC(b244f6cf) SHA1(e0e99cd91e88ce2676445663f832c835d74d6fd4))
 ROM_END
 
-MSX_LAYOUT_INIT (fsa1fx)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-/*  MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM, 0x4000, 0xc000) */ /* FDC Emulation of TC8566AF must be emulated */
-	MSX_LAYOUT_SLOT (3, 3, 1, 2, ROM, 0x8000, 0x28000)
-	MSX_LAYOUT_KANJI (0x30000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fsa1fx, msx2p )
+	// AY8910/YM2149?
+	// FDC: tc8566af, 1 3.5" DSDD drive
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_DISK3("disk", 3, 2, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_ROM("cock", 3, 3, 1, 2, "maincpu", 0x28000)
+
+	MCFG_MSX_MATSUSHITA_ADD( "matsushita" )
+	MCFG_MSX_MATSUSHITA_TURBO_CB(WRITELINE(msx_state, turbo_w))
+
+	MCFG_MSX_SYSTEMFLAGS_ADD("sysflags", 0xff)
+
+	MCFG_FRAGMENT_ADD( msx_tc8566af )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Panasonic FS-A1WSX */
 
 ROM_START (fsa1wsx)
-	ROM_REGION (0x270000, "maincpu",0)
+	ROM_REGION (0x230000, "maincpu",0)
 	ROM_LOAD ("a1wsbios.rom", 0x0000, 0x8000, CRC(358ec547) SHA1(f4433752d3bf876bfefb363c749d4d2e08a218b6))
 	ROM_LOAD ("a1wsext.rom", 0x8000, 0x4000, CRC(b8ba44d3) SHA1(fe0254cbfc11405b79e7c86c7769bd6322b04995))
 	ROM_LOAD ("a1wsdisk.rom", 0xc000, 0x4000, CRC(ac7d92b4) SHA1(b7068e2aab02072852ca249596b7550ac632c4c2))
@@ -3936,28 +5350,48 @@ ROM_START (fsa1wsx)
 	ROM_LOAD ("a1wskdr.rom", 0x20000, 0x8000, CRC(b4fc574d) SHA1(dcc3a67732aa01c4f2ee8d1ad886444a4dbafe06))
 	ROM_LOAD ("a1wsmusp.rom", 0x28000, 0x4000, CRC(456e494e) SHA1(6354ccc5c100b1c558c9395fa8c00784d2e9b0a3))
 	ROM_FILL (0x2c000, 0x4000, 0)
-	ROM_LOAD ("a1wskfn.rom", 0x30000, 0x40000, CRC(1f6406fb) SHA1(5aff2d9b6efc723bc395b0f96f0adfa83cc54a49))
-	ROM_LOAD ("a1wsfirm.rom", 0x70000, 0x200000, CRC(e363595d) SHA1(3330d9b6b76e3c4ccb7cf252496ed15d08b95d3f))
+	ROM_LOAD ("a1wsfirm.rom", 0x30000, 0x200000, CRC(e363595d) SHA1(3330d9b6b76e3c4ccb7cf252496ed15d08b95d3f))
+
+	ROM_REGION(0x40000, "kanji", 0)
+	ROM_LOAD ("a1wskfn.rom", 0, 0x40000, CRC(1f6406fb) SHA1(5aff2d9b6efc723bc395b0f96f0adfa83cc54a49))
 ROM_END
 
-MSX_LAYOUT_INIT (fsa1wsx)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 2, 1, 1, ROM, 0x4000, 0x28000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-/*  MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM, 0x4000, 0xc000) */ /* FDC Emulation of TC8566AF must be emulated */
-/*  MSX_LAYOUT_SLOT (3, 3, 1, 4, PANASONIC08, 0x200000, 0x70000) */ /* Panasonic 08KB Mapper must be emulated */
-	MSX_LAYOUT_KANJI (0x30000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fsa1wsx, msx2p )
+	// AY8910/YM2149?
+	// FDC: tc8566af, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// FM built-in
+	// No cassette port
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_MUSIC("mus", 0, 2, 1, 1, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_DISK3("disk", 3, 2, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_PANASONIC08("firm", 3, 3, 0, 4, "maincpu", 0x30000)
+
+	MCFG_MSX_MATSUSHITA_ADD( "matsushita" )
+	MCFG_MSX_MATSUSHITA_TURBO_CB(WRITELINE(msx_state, turbo_w))
+
+	MCFG_MSX_SYSTEMFLAGS_ADD("sysflags", 0xff)
+
+	MCFG_FRAGMENT_ADD( msx_ym2413 )
+
+	MCFG_FRAGMENT_ADD( msx_tc8566af )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Panasonic FS-A1WX */
 
 ROM_START (fsa1wx)
-	ROM_REGION (0x270000, "maincpu",0)
+	ROM_REGION (0x230000, "maincpu",0)
 	ROM_LOAD ("a1wxbios.rom", 0x0000, 0x8000, CRC(19771608) SHA1(e90f80a61d94c617850c415e12ad70ac41e66bb7))
 	ROM_LOAD ("a1wxext.rom", 0x8000, 0x4000, CRC(b8ba44d3) SHA1(fe0254cbfc11405b79e7c86c7769bd6322b04995))
 	ROM_LOAD ("a1wxdisk.rom", 0xc000, 0x4000, CRC(2bda0184) SHA1(2a0d228afde36ac7c5d3c2aac9c7c664dd071a8c))
@@ -3966,27 +5400,47 @@ ROM_START (fsa1wx)
 	ROM_LOAD ("a1wxkdr.rom", 0x20000, 0x8000, CRC(a068cba9) SHA1(1ef3956f7f918873fb9b031339bba45d1e5e5878))
 	ROM_LOAD ("a1wxmusp.rom", 0x28000, 0x4000, CRC(456e494e) SHA1(6354ccc5c100b1c558c9395fa8c00784d2e9b0a3))
 	ROM_FILL (0x2c000, 0x4000, 0)
-	ROM_LOAD ("a1wxkfn.rom", 0x30000, 0x40000, CRC(1f6406fb) SHA1(5aff2d9b6efc723bc395b0f96f0adfa83cc54a49))
-	ROM_LOAD ("a1wxfirm.rom", 0x70000, 0x200000, CRC(283f3250) SHA1(d37ab4bd2bfddd8c97476cbe7347ae581a6f2972))
+	ROM_LOAD ("a1wxfirm.rom", 0x30000, 0x200000, CRC(283f3250) SHA1(d37ab4bd2bfddd8c97476cbe7347ae581a6f2972))
+
+	ROM_REGION(0x40000, "kanji", 0)
+	ROM_LOAD ("a1wxkfn.rom", 0, 0x40000, CRC(1f6406fb) SHA1(5aff2d9b6efc723bc395b0f96f0adfa83cc54a49))
 ROM_END
 
-MSX_LAYOUT_INIT (fsa1wx)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 2, 1, 1, ROM, 0x4000, 0x28000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-/*  MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM, 0x4000, 0xc000) */ /* FDC Emulation of TC8566AF must be emulated */
-/*  MSX_LAYOUT_SLOT (3, 3, 1, 4, PANASONIC08, 0x200000, 0x70000) */ /* Panasonic 08KB Mapper must be emulated */
-	MSX_LAYOUT_KANJI (0x30000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fsa1wx, msx2p )
+	// AY8910/YM2149?
+	// FDC: tc8566af, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// FM built-in
+	// MSX Engine T9769A
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_MUSIC("mus", 0, 2, 1, 1, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_DISK3("disk", 3, 2, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_PANASONIC08("firm", 3, 3, 0, 4, "maincpu", 0x30000)
+
+	MCFG_MSX_MATSUSHITA_ADD( "matsushita" )
+	MCFG_MSX_MATSUSHITA_TURBO_CB(WRITELINE(msx_state, turbo_w))
+
+	MCFG_MSX_SYSTEMFLAGS_ADD("sysflags", 0xff)
+
+	MCFG_FRAGMENT_ADD( msx_ym2413 )
+
+	MCFG_FRAGMENT_ADD( msx_tc8566af )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Panasonic FS-A1WX (a) */
 ROM_START (fsa1wxa)
-	ROM_REGION (0x270000, "maincpu",0)
+	ROM_REGION (0x230000, "maincpu",0)
 	ROM_LOAD ("a1wxbios.rom", 0x0000, 0x8000, CRC(19771608) SHA1(e90f80a61d94c617850c415e12ad70ac41e66bb7))
 	ROM_LOAD ("a1wxext.rom", 0x8000, 0x4000, CRC(b8ba44d3) SHA1(fe0254cbfc11405b79e7c86c7769bd6322b04995))
 	ROM_LOAD ("a1wxdisk.rom", 0xc000, 0x4000, CRC(2bda0184) SHA1(2a0d228afde36ac7c5d3c2aac9c7c664dd071a8c))
@@ -3995,51 +5449,79 @@ ROM_START (fsa1wxa)
 	ROM_LOAD ("a1wxkdr.rom", 0x20000, 0x8000, CRC(a068cba9) SHA1(1ef3956f7f918873fb9b031339bba45d1e5e5878))
 	ROM_LOAD ("a1wxmusp.rom", 0x28000, 0x4000, CRC(456e494e) SHA1(6354ccc5c100b1c558c9395fa8c00784d2e9b0a3))
 	ROM_FILL (0x2c000, 0x4000, 0)
-	ROM_LOAD ("a1wxkfn.rom", 0x30000, 0x40000, CRC(1f6406fb) SHA1(5aff2d9b6efc723bc395b0f96f0adfa83cc54a49))
-	ROM_LOAD ("a1wxfira.rom", 0x70000, 0x200000, CRC(58440a8e) SHA1(8e0d4a77e7d5736e8225c2df4701509363eb230f))
+	ROM_LOAD ("a1wxfira.rom", 0x30000, 0x200000, CRC(58440a8e) SHA1(8e0d4a77e7d5736e8225c2df4701509363eb230f))
+
+	ROM_REGION(0x40000, "kanji", 0)
+	ROM_LOAD ("a1wxkfn.rom", 0, 0x40000, CRC(1f6406fb) SHA1(5aff2d9b6efc723bc395b0f96f0adfa83cc54a49))
 ROM_END
 
-MSX_LAYOUT_INIT (fsa1wxa)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 2, 1, 1, ROM, 0x4000, 0x28000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-/*  MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM, 0x4000, 0xc000) */ /* FDC Emulation of TC8566AF must be emulated */
-/*  MSX_LAYOUT_SLOT (3, 3, 1, 4, PANASONIC08, 0x200000, 0x70000) */ /* Panasonic 08KB Mapper must be emulated */
-	MSX_LAYOUT_KANJI (0x30000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fsa1wxa, msx2p )
+	// AY8910/YM2149?
+	// FDC: tc8566af, 1 3.5" DSDD drive
+	// 2 Cartridge slots?
+	// FM built-in
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_MUSIC("mus", 0, 2, 1, 1, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_DISK3("disk", 3, 2, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_PANASONIC08("firm", 3, 3, 0, 4, "maincpu", 0x30000)
+
+	MCFG_MSX_MATSUSHITA_ADD( "matsushita" )
+	MCFG_MSX_MATSUSHITA_TURBO_CB(WRITELINE(msx_state, turbo_w))
+
+	MCFG_MSX_SYSTEMFLAGS_ADD("sysflags", 0xff)
+
+	MCFG_FRAGMENT_ADD( msx_ym2413 )
+
+	MCFG_FRAGMENT_ADD( msx_tc8566af )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Sanyo Wavy PHC-35J */
 
 ROM_START (phc35j)
-	ROM_REGION (0x48000, "maincpu",0)
+	ROM_REGION (0x28000, "maincpu",0)
 	ROM_LOAD ("35jbios.rom", 0x0000, 0x8000, CRC(358ec547) SHA1(f4433752d3bf876bfefb363c749d4d2e08a218b6))
 	ROM_LOAD ("35jext.rom", 0x8000, 0x4000, CRC(b8ba44d3) SHA1(fe0254cbfc11405b79e7c86c7769bd6322b04995))
 	/* 0x0c000 - 0x1ffff reserved for optional disk and fmpac roms from msx2p parent set */
 	ROM_FILL (0xc000, 0x14000, 0)
 	ROM_LOAD ("35jkdr.rom", 0x20000, 0x8000, CRC(b4fc574d) SHA1(dcc3a67732aa01c4f2ee8d1ad886444a4dbafe06))
-	ROM_LOAD ("35jkfn.rom", 0x28000, 0x20000, CRC(c9651b32) SHA1(84a645becec0a25d3ab7a909cde1b242699a8662))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("35jkfn.rom", 0, 0x20000, CRC(c9651b32) SHA1(84a645becec0a25d3ab7a909cde1b242699a8662))
 ROM_END
 
-MSX_LAYOUT_INIT (phc35j)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_KANJI (0x28000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( phc35j, msx2p )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 1, 1, 2, "maincpu", 0x20000)
+
+	MCFG_MSX_SYSTEMFLAGS_ADD("sysflags", 0xff)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Sanyo Wavy PHC-70FD1 */
 
 ROM_START (phc70fd)
-	ROM_REGION (0x50000, "maincpu",0)
+	ROM_REGION (0x30000, "maincpu",0)
 	ROM_LOAD ("70fdbios.rom", 0x0000, 0x8000, CRC(19771608) SHA1(e90f80a61d94c617850c415e12ad70ac41e66bb7))
 	ROM_LOAD ("70fdext.rom", 0x8000, 0x4000, CRC(b8ba44d3) SHA1(fe0254cbfc11405b79e7c86c7769bd6322b04995))
 	ROM_LOAD ("70fddisk.rom", 0xc000, 0x4000, CRC(db7f1125) SHA1(9efa744be8355675e7bfdd3976bbbfaf85d62e1d))
@@ -4048,26 +5530,42 @@ ROM_START (phc70fd)
 	ROM_LOAD ("70fdkdr.rom", 0x20000, 0x8000, CRC(a068cba9) SHA1(1ef3956f7f918873fb9b031339bba45d1e5e5878))
 	ROM_LOAD ("70fdmus.rom", 0x28000, 0x4000, CRC(5c32eb29) SHA1(aad42ba4289b33d8eed225d42cea930b7fc5c228))
 	ROM_LOAD ("70fdbas.rom", 0x2c000, 0x4000, CRC(da7be246) SHA1(22b3191d865010264001b9d896186a9818478a6b))
-	ROM_LOAD ("70fdkfn.rom", 0x30000, 0x20000, CRC(c9651b32) SHA1(84a645becec0a25d3ab7a909cde1b242699a8662))
+
+	ROM_REGION(0x20000, "kanji", 0)
+	ROM_LOAD ("70fdkfn.rom", 0, 0x20000, CRC(c9651b32) SHA1(84a645becec0a25d3ab7a909cde1b242699a8662))
 ROM_END
 
-MSX_LAYOUT_INIT (phc70fd)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-/*  MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM, 0x4000, 0xc000) */ /* FDC Emulation of TC8566AF must be emulated */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, ROM, 0x4000, 0x28000)
-	MSX_LAYOUT_SLOT (3, 3, 2, 1, ROM, 0x4000, 0x2c000)
-	MSX_LAYOUT_KANJI (0x30000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( phc70fd, msx2p )
+	// AY8910/YM2149?
+	// FDC: tc8566af, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// FM built-in
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_DISK3("disk", 3, 2, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_MUSIC("mus", 3, 3, 1, 1, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_ROM("bas", 3, 3, 2, 1, "maincpu", 0x2c000)
+
+	MCFG_MSX_SYSTEMFLAGS_ADD("sysflags", 0xff)
+
+	MCFG_FRAGMENT_ADD( msx_ym2413 )
+
+	MCFG_FRAGMENT_ADD( msx_tc8566af )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Sanyo Wavy PHC-70FD2 */
 ROM_START (phc70fd2)
-	ROM_REGION (0x70000, "maincpu",0)
+	ROM_REGION (0x30000, "maincpu",0)
 	ROM_LOAD ("70f2bios.rom", 0x0000, 0x8000, CRC(19771608) SHA1(e90f80a61d94c617850c415e12ad70ac41e66bb7))
 	ROM_LOAD ("70f2ext.rom", 0x8000, 0x4000, CRC(b8ba44d3) SHA1(fe0254cbfc11405b79e7c86c7769bd6322b04995))
 	ROM_LOAD ("70f2disk.rom", 0xc000, 0x4000, CRC(db7f1125) SHA1(9efa744be8355675e7bfdd3976bbbfaf85d62e1d))
@@ -4076,27 +5574,43 @@ ROM_START (phc70fd2)
 	ROM_LOAD ("70f2kdr.rom", 0x20000, 0x8000, CRC(a068cba9) SHA1(1ef3956f7f918873fb9b031339bba45d1e5e5878))
 	ROM_LOAD ("70f2mus.rom", 0x28000, 0x4000, CRC(5c32eb29) SHA1(aad42ba4289b33d8eed225d42cea930b7fc5c228))
 	ROM_LOAD ("70f2bas.rom", 0x2c000, 0x4000, CRC(da7be246) SHA1(22b3191d865010264001b9d896186a9818478a6b))
-	ROM_LOAD ("70f2kfn.rom", 0x30000, 0x40000, CRC(9a850db9) SHA1(bcdb4dae303dfe5234f372d70a5e0271d3202c36))
+
+	ROM_REGION(0x40000, "kanji", 0)
+	ROM_LOAD ("70f2kfn.rom", 0, 0x40000, CRC(9a850db9) SHA1(bcdb4dae303dfe5234f372d70a5e0271d3202c36))
 ROM_END
 
-MSX_LAYOUT_INIT (phc70fd2)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-/*  MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM, 0x4000, 0xc000) */ /* FDC Emulation of TC8566AF must be emulated */
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, ROM, 0x4000, 0x28000)
-	MSX_LAYOUT_SLOT (3, 3, 2, 1, ROM, 0x4000, 0x2c000)
-	MSX_LAYOUT_KANJI (0x30000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( phc70fd2, msx2p )
+	// AY8910/YM2149?
+	// FDC: tc8566af, 2 3.5" DSDD drives
+	// 2 Cartridge slots
+	// FM built-in
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_DISK3("disk", 3, 2, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_MUSIC("mus", 3, 3, 1, 1, "maincpu", 0x28000)
+	MCFG_MSX_LAYOUT_ROM("bas", 3, 3, 2, 1, "maincpu", 0x2c000)
+
+	MCFG_MSX_SYSTEMFLAGS_ADD("sysflags", 0xff)
+
+	MCFG_FRAGMENT_ADD( msx_ym2413 )
+
+	MCFG_FRAGMENT_ADD( msx_tc8566af )
+	MCFG_FRAGMENT_ADD( msx_2_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Sony HB-F1XDJ */
 
 ROM_START (hbf1xdj)
-	ROM_REGION (0x170000, "maincpu",0)
+	ROM_REGION (0x130000, "maincpu",0)
 	ROM_LOAD ("f1xjbios.rom", 0x0000, 0x8000, CRC(00870134) SHA1(e2fbd56e42da637609d23ae9df9efd1b4241b18a))
 	ROM_LOAD ("f1xjext.rom", 0x8000, 0x4000, CRC(b8ba44d3) SHA1(fe0254cbfc11405b79e7c86c7769bd6322b04995))
 	ROM_LOAD ("f1xjdisk.rom", 0xc000, 0x4000, CRC(a21f5266) SHA1(c1bb307a570ab833e3bfcc4a58a4f4e12dc1df0f))
@@ -4105,28 +5619,47 @@ ROM_START (hbf1xdj)
 	ROM_LOAD ("f1xjkdr.rom", 0x20000, 0x8000, CRC(a068cba9) SHA1(1ef3956f7f918873fb9b031339bba45d1e5e5878))
 	ROM_LOAD ("f1xjmus.rom", 0x28000, 0x4000, CRC(5c32eb29) SHA1(aad42ba4289b33d8eed225d42cea930b7fc5c228))
 	ROM_FILL (0x2c000, 0x4000, 0)
-	ROM_LOAD ("f1xjkfn.rom", 0x30000, 0x40000, CRC(7016dfd0) SHA1(218d91eb6df2823c924d3774a9f455492a10aecb))
-	ROM_LOAD ("f1xjfirm.rom", 0x70000, 0x100000, CRC(77be583f) SHA1(ade0c5ba5574f8114d7079050317099b4519e88f))
+	ROM_LOAD ("f1xjfirm.rom", 0x30000, 0x100000, CRC(77be583f) SHA1(ade0c5ba5574f8114d7079050317099b4519e88f))
+
+	ROM_REGION(0x40000, "kanji", 0)
+	ROM_LOAD ("f1xjkfn.rom", 0, 0x40000, CRC(7016dfd0) SHA1(218d91eb6df2823c924d3774a9f455492a10aecb))
 ROM_END
 
-MSX_LAYOUT_INIT (hbf1xdj)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-/*  MSX_LAYOUT_SLOT (0, 3, 1, 4, SONY08, 0x100000, 0x70000) */ /* Sony 08KB MSX-JE Mapper must be emulated */
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, ROM, 0x4000, 0x28000)
-	MSX_LAYOUT_KANJI (0x30000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf1xdj, msx2p )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: wd2793, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// FM built-in
+	// S-1985 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_SONY08("firm", 0, 3, 0, 4, "maincpu", 0x30000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 2, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_MUSIC("mus", 3, 3, 1, 1, "maincpu", 0x28000)
+
+	MCFG_MSX_SYSTEMFLAGS_ADD("sysflags", 0x00)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx_ym2413 )
+
+	MCFG_FRAGMENT_ADD( msx_wd2793 )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Sony HB-F1XV */
 
 ROM_START (hbf1xv)
-	ROM_REGION (0x170000, "maincpu",0)
+	ROM_REGION (0x130000, "maincpu",0)
 	ROM_LOAD ("f1xvbios.rom", 0x0000, 0x8000, CRC(2c7ed27b) SHA1(174c9254f09d99361ff7607630248ff9d7d8d4d6))
 	ROM_LOAD ("f1xvext.rom", 0x8000, 0x4000, CRC(b8ba44d3) SHA1(fe0254cbfc11405b79e7c86c7769bd6322b04995))
 	ROM_LOAD ("f1xvdisk.rom", 0xc000, 0x4000, CRC(04e4e533) SHA1(5a4e7dbbfb759109c7d2a3b38bda9c60bf6ffef5))
@@ -4135,23 +5668,42 @@ ROM_START (hbf1xv)
 	ROM_LOAD ("f1xvkdr.rom", 0x20000, 0x8000, CRC(b4fc574d) SHA1(dcc3a67732aa01c4f2ee8d1ad886444a4dbafe06))
 	ROM_LOAD ("f1xvmus.rom", 0x28000, 0x4000, CRC(5c32eb29) SHA1(aad42ba4289b33d8eed225d42cea930b7fc5c228))
 	ROM_FILL (0x2c000, 0x4000, 0)
-	ROM_LOAD ("f1xvkfn.rom", 0x30000, 0x40000, CRC(7016dfd0) SHA1(218d91eb6df2823c924d3774a9f455492a10aecb))
-	ROM_LOAD ("f1xvfirm.rom", 0x70000, 0x100000, CRC(77be583f) SHA1(ade0c5ba5574f8114d7079050317099b4519e88f))
+	ROM_LOAD ("f1xvfirm.rom", 0x30000, 0x100000, CRC(77be583f) SHA1(ade0c5ba5574f8114d7079050317099b4519e88f))
+
+	ROM_REGION(0x40000, "kanji", 0)
+	ROM_LOAD ("f1xvkfn.rom", 0, 0x40000, CRC(7016dfd0) SHA1(218d91eb6df2823c924d3774a9f455492a10aecb))
 ROM_END
 
-MSX_LAYOUT_INIT (hbf1xv)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-/*  MSX_LAYOUT_SLOT (0, 3, 1, 4, SONY08, 0x100000, 0x70000) */ /* Sony 08KB MSX-JE Mapper must be emulated */
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 2, 1, 1, DISK_ROM, 0x4000, 0xc000)
-	MSX_LAYOUT_SLOT (3, 3, 1, 1, ROM, 0x4000, 0x28000)
-	MSX_LAYOUT_KANJI (0x30000)
-	MSX_LAYOUT_RAMIO_SET_BITS (0x80)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf1xv, msx2p )
+	// YM2149 (in S-1985 MSX Engine)
+	// FDC: wd2793, 1 3.5" DSDD drives
+	// 2 Cartridge slots
+	// FM built-in
+	// S-1985 MSX Engine
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_SONY08("firm", 0, 3, 0, 4, "maincpu", 0x30000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x10000)   /* 64KB Mapper RAM */
+	MCFG_MSX_RAMIO_SET_BITS(0x80)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 1, 1, 2, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_DISK1("disk", 3, 2, 1, 1, "maincpu", 0xc000)
+	MCFG_MSX_LAYOUT_MUSIC("mus", 3, 3, 1, 1, "maincpu", 0x28000)
+
+	MCFG_MSX_SYSTEMFLAGS_ADD("sysflags", 0x00)
+
+	MCFG_MSX_S1985_ADD("s1985")
+
+	MCFG_FRAGMENT_ADD( msx_ym2413 )
+
+	MCFG_FRAGMENT_ADD( msx_wd2793 )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX2+ - Sony HB-F9S+ */
 
@@ -4163,15 +5715,23 @@ ROM_START (hbf9sp)
 	ROM_LOAD ("f9spfrm2.rom", 0x24000, 0x8000, CRC(ea97069f) SHA1(2d1880d1f5a6944fcb1b198b997a3d90ecd1903d))
 ROM_END
 
-MSX_LAYOUT_INIT (hbf9sp)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 4, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 4, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 0, 2, 1, ROM, 0x4000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 1, 2, 2, ROM, 0x8000, 0x24000)
-	MSX_LAYOUT_SLOT (3, 2, 0, 4, RAM_MM, 0x10000, 0x0000)   /* 64KB?? Mapper RAM */
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( hbf9sp, msx2p )
+	// AY8910/YM2149?
+	// FDC: None, 0 drives
+	// 2 Cartridge slots?
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 0, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("firm1", 3, 0, 1, 1, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_ROM("firm2", 3, 1, 1, 2, "maincpu", 0x24000)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 2, 0x10000)   /* 64KB?? Mapper RAM */
+
+	MCFG_MSX_SYSTEMFLAGS_ADD("sysflags", 0x00)
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX Turbo-R - Panasonic FS-A1GT */
 
@@ -4187,18 +5747,34 @@ ROM_START (fsa1gt)
 	ROM_LOAD ("a1gtfirm.rom", 0x80000, 0x400000, CRC(feefeadc) SHA1(e779c338eb91a7dea3ff75f3fde76b8af22c4a3a))
 ROM_END
 
-MSX_LAYOUT_INIT (fsa1gt)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 2, 1, 1, ROM, 0x4000, 0x38000)
-	MSX_LAYOUT_SLOT (0, 3, 1, 1, ROM, 0x4000, 0x3c000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 0, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 0, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB?? Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x30000)
-	MSX_LAYOUT_SLOT (3, 2, 1, 3, ROM, 0xc000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, ROM, 0x10000, 0x80000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fsa1gt, msx2 )
+	// AY8910/YM2149?
+	// FDC: tc8566af, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// FM built-in
+	// MIDI
+
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_MUSIC("mus", 0, 2, 1, 1, "maincpu", 0x38000)
+	MCFG_MSX_LAYOUT_ROM("opt", 0, 3, 1, 1, "maincpu", 0x3c000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x20000)   /* 128KB?? Mapper RAM */
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 1, 1, 2, "maincpu", 0x30000)
+	MCFG_MSX_LAYOUT_DISK4("dos", 3, 2, 1, 3, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_ROM("firm", 3, 3, 0, 4, "maincpu", 0x80000)
+
+	MCFG_MSX_SYSTEMFLAGS_ADD("sysflags", 0x00)
+
+	MCFG_FRAGMENT_ADD( msx_ym2413 )
+
+	MCFG_FRAGMENT_ADD( msx_tc8566af )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
+
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 /* MSX Turbo-R - Panasonic FS-A1ST */
 
@@ -4214,342 +5790,194 @@ ROM_START (fsa1st)
 	ROM_LOAD ("a1stfirm.rom", 0x80000, 0x400000, CRC(139ac99c) SHA1(c212b11fda13f83dafed688c54d098e7e47ab225))
 ROM_END
 
-MSX_LAYOUT_INIT (fsa1st)
-	MSX_LAYOUT_SLOT (0, 0, 0, 2, ROM, 0x8000, 0x0000)
-	MSX_LAYOUT_SLOT (0, 2, 1, 1, ROM, 0x4000, 0x38000)
-	MSX_LAYOUT_SLOT (0, 3, 1, 1, ROM, 0x4000, 0x3c000)
-	MSX_LAYOUT_SLOT (1, 0, 0, 0, CARTRIDGE1, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (2, 0, 0, 0, CARTRIDGE2, 0x0000, 0x0000)
-	MSX_LAYOUT_SLOT (3, 0, 0, 4, RAM_MM, 0x20000, 0x0000)   /* 128KB?? Mapper RAM */
-	MSX_LAYOUT_SLOT (3, 1, 0, 1, ROM, 0x4000, 0x8000)
-	MSX_LAYOUT_SLOT (3, 1, 1, 2, ROM, 0x8000, 0x30000)
-	MSX_LAYOUT_SLOT (3, 2, 1, 3, ROM, 0xc000, 0x20000)
-	MSX_LAYOUT_SLOT (3, 3, 0, 4, ROM, 0x10000, 0x80000)
-MSX_LAYOUT_END
+static MACHINE_CONFIG_DERIVED( fsa1st, msx2 )
+	// AY8910/YM2149?
+	// FDC: tc8566af, 1 3.5" DSDD drive
+	// 2 Cartridge slots
+	// FM built-in
 
+	MCFG_MSX_LAYOUT_ROM("bios", 0, 0, 0, 2, "maincpu", 0x0000)
+	MCFG_MSX_LAYOUT_MUSIC("mus", 0, 2, 1, 1, "maincpu", 0x38000)
+	MCFG_MSX_LAYOUT_ROM("opt", 0, 3, 1, 1, "maincpu", 0x3c000)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot1", 1, 0)
+	MCFG_MSX_LAYOUT_CARTRIDGE("cartslot2", 2, 0)
+	MCFG_MSX_LAYOUT_RAM_MM("ram_mm", 3, 0, 0x20000)   /* 128KB?? Mapper RAM */
+	MCFG_MSX_LAYOUT_ROM("ext", 3, 1, 0, 1, "maincpu", 0x8000)
+	MCFG_MSX_LAYOUT_ROM("kdr", 3, 1, 1, 2, "maincpu", 0x30000)
+	MCFG_MSX_LAYOUT_DISK4("dos", 3, 2, 1, 3, "maincpu", 0x20000)
+	MCFG_MSX_LAYOUT_ROM("firm", 3, 3, 0, 4, "maincpu", 0x80000)
 
-MSX_DRIVER_LIST
-	/* MSX 1 */
-	MSX_DRIVER (msx)
-	MSX_DRIVER (ax170)
-	MSX_DRIVER (canonv10)
-	MSX_DRIVER (canonv20)
-	MSX_DRIVER (pv16)
-	MSX_DRIVER (dpc100)
-	MSX_DRIVER (dpc180)
-	MSX_DRIVER (dpc200)
-	MSX_DRIVER (gsfc200)
-	MSX_DRIVER (expert10)
-	MSX_DRIVER (expert11)
-	MSX_DRIVER (expert13)
-	MSX_DRIVER (expert20)
-	MSX_DRIVER (expertdp)
-	MSX_DRIVER (expertpl)
-	MSX_DRIVER (jvchc7gb)
-	MSX_DRIVER (mlf80)
-	MSX_DRIVER (mlfx1)
-	MSX_DRIVER (cf1200)
-	MSX_DRIVER (cf2000)
-	MSX_DRIVER (cf2700)
-	MSX_DRIVER (cf3000)
-	MSX_DRIVER (cf3300)
-	MSX_DRIVER (fs1300)
-	MSX_DRIVER (fs4000)
-	MSX_DRIVER (phc2)
-	MSX_DRIVER (phc28)
-	MSX_DRIVER (cf2700g)
-	MSX_DRIVER (nms801)
-	MSX_DRIVER (vg8000)
-	MSX_DRIVER (vg8010)
-	MSX_DRIVER (vg8010f)
-	MSX_DRIVER (vg802000)
-	MSX_DRIVER (vg802020)
-	MSX_DRIVER (vg8020f)
-	MSX_DRIVER (piopx7)
-	MSX_DRIVER (spc800)
-	MSX_DRIVER (mpc64)
-	MSX_DRIVER (mpc100)
-	MSX_DRIVER (phc28l)
-	MSX_DRIVER (phc28s)
-	MSX_DRIVER (mpc10)
-	MSX_DRIVER (hotbit11)
-	MSX_DRIVER (hotbit12)
-	MSX_DRIVER (hotbi13b)
-	MSX_DRIVER (hotbi13p)
-	MSX_DRIVER (hotbit20)
-	MSX_DRIVER (hb10p)
-	MSX_DRIVER (hb20p)
-	MSX_DRIVER (hb201)
-	MSX_DRIVER (hb201p)
-	MSX_DRIVER (hb501p)
-	MSX_DRIVER (hb55d)
-	MSX_DRIVER (hb55p)
-	MSX_DRIVER (hb75d)
-	MSX_DRIVER (hb75p)
-	MSX_DRIVER (svi728)
-	MSX_DRIVER (svi738)
-	MSX_DRIVER (svi738sw)
-	MSX_DRIVER (svi738pl)
-	MSX_DRIVER (tadpc200)
-	MSX_DRIVER (tadpc20a)
-	MSX_DRIVER (hx10)
-	MSX_DRIVER (hx10s)
-	MSX_DRIVER (hx20)
-	MSX_DRIVER (cx5m)
-	MSX_DRIVER (cx5m128)
-	MSX_DRIVER (cx5m2)
-	MSX_DRIVER (yis303)
-	MSX_DRIVER (yis503)
-	MSX_DRIVER (yis503f)
-	MSX_DRIVER (yis503ii)
-	MSX_DRIVER (y503iir)
-	MSX_DRIVER (y503iir2)
-	MSX_DRIVER (yis503m)
-	MSX_DRIVER (yc64)
-	MSX_DRIVER (mx64)
-	MSX_DRIVER (bruc100)
+	MCFG_MSX_SYSTEMFLAGS_ADD("sysflags", 0x00)
 
+	MCFG_FRAGMENT_ADD( msx_ym2413 )
 
+	MCFG_FRAGMENT_ADD( msx_tc8566af )
+	MCFG_FRAGMENT_ADD( msx_1_35_dd_drive )
+	MCFG_FRAGMENT_ADD( msx2_floplist )
 
-	MSX_DRIVER (msx2)
-	MSX_DRIVER (ax350)
-	MSX_DRIVER (ax370)
-	MSX_DRIVER (nms8220)
-	MSX_DRIVER (nms8220a)
-	MSX_DRIVER (vg8230)
-	MSX_DRIVER (vg8230j)
-	MSX_DRIVER (vg8235)
-	MSX_DRIVER (vg8235f)
-	MSX_DRIVER (vg8240)
-	MSX_DRIVER (nms8245)
-	MSX_DRIVER (nms8245f)
-	MSX_DRIVER (nms8250)
-	MSX_DRIVER (nms8250j)
-	MSX_DRIVER (nms8255)
-	MSX_DRIVER (nms8280)
-	MSX_DRIVER (nms8280g)
-	MSX_DRIVER (hbf5)
-	MSX_DRIVER (hbf9p)
-	MSX_DRIVER (hbf9pr)
-	MSX_DRIVER (hbf9s)
-	MSX_DRIVER (hbf500p)
-	MSX_DRIVER (hbf700d)
-	MSX_DRIVER (hbf700f)
-	MSX_DRIVER (hbf700p)
-	MSX_DRIVER (hbf700s)
-	MSX_DRIVER (hbg900ap)
-	MSX_DRIVER (hbg900p)
-	MSX_DRIVER (mlg30)
-	MSX_DRIVER (fs5500)
-	MSX_DRIVER (fs4500)
-	MSX_DRIVER (fs4700)
-	MSX_DRIVER (fs5000)
-	MSX_DRIVER (fs4600)
-	MSX_DRIVER (fsa1)
-	MSX_DRIVER (fsa1a)
-	MSX_DRIVER (fsa1mk2)
-	MSX_DRIVER (fsa1f)
-	MSX_DRIVER (fsa1fm)
-	MSX_DRIVER (hbf500)
-	MSX_DRIVER (hbf900)
-	MSX_DRIVER (hbf900a)
-	MSX_DRIVER (hbf1)
-	MSX_DRIVER (hbf12)
-	MSX_DRIVER (hbf1xd)
-	MSX_DRIVER (hbf1xdm2)
-	MSX_DRIVER (mpc2300)
-	MSX_DRIVER (mpc25fd)
-	MSX_DRIVER (phc23)
-	MSX_DRIVER (cpc300)
-	MSX_DRIVER (cpc300e)
-	MSX_DRIVER (cpc400)
-	MSX_DRIVER (cpc400s)
-
-	MSX_DRIVER (msx2p)
-	MSX_DRIVER (expert3i)
-	MSX_DRIVER (expert3t)
-	MSX_DRIVER (expertac)
-	MSX_DRIVER (expertdx)
-	MSX_DRIVER (fsa1fx)
-	MSX_DRIVER (fsa1wx)
-	MSX_DRIVER (fsa1wxa)
-	MSX_DRIVER (fsa1wsx)
-	MSX_DRIVER (hbf1xdj)
-	MSX_DRIVER (hbf1xv)
-	MSX_DRIVER (phc70fd)
-	MSX_DRIVER (phc70fd2)
-	MSX_DRIVER (phc35j)
-	MSX_DRIVER (hbf9sp)
-
-	MSX_DRIVER (tpc310)
-	MSX_DRIVER (tpp311)
-	MSX_DRIVER (tps312)
-	MSX_DRIVER (hx23)
-	MSX_DRIVER (hx23f)
-	MSX_DRIVER (cx7m)
-	MSX_DRIVER (cx7m128)
-
-MSX_DRIVER_END
+	MCFG_FRAGMENT_ADD( msx2_cartlist )
+MACHINE_CONFIG_END
 
 
 /*    YEAR  NAME      PARENT    COMPAT  MACHINE   INPUT     INIT         COMPANY              FULLNAME */
-COMP(1983, msx,       0,        0,      msx_pal,  msx, msx_state,      msx,     "ASCII & Microsoft", "MSX" , 0)
+COMP(1983, msx,       0,        0,      msx_gen,  msx, msx_state,      msx,     "ASCII & Microsoft", "MSX" , 0)
 
-COMP(1983, ax170,     msx,      0,      msx_pal,  msx, msx_state,      msx,     "Al Alamiah", "AX-170" , 0)
-COMP(1983, canonv10,  msx,      0,      msx_pal,  msx, msx_state,      msx,     "Canon", "V-10" , 0)
-COMP(1983, canonv20,  msx,      0,      msx_pal,  msx, msx_state,      msx,     "Canon", "V-20" , 0)
-COMP(1984, pv16,      msx,      0,      msx_ntsc, msx, msx_state,      msx,     "Casio", "PV-16", 0)
-COMP(1984, dpc100,    msx,      0,      msx_ntsc, msxkr, msx_state,    msx,     "Daewoo", "IQ-1000 DPC-100 (Korea)" , 0)
-COMP(1984, dpc180,    msx,      0,      msx_ntsc, msxkr, msx_state,    msx,     "Daewoo", "IQ-1000 DPC-180 (Korea)" , 0)
-COMP(1984, dpc200,    msx,      0,      msx_ntsc, msxkr, msx_state,    msx,     "Daewoo", "IQ-1000 DPC-200 (Korea)" , 0)
-COMP(1983, gsfc200,   msx,      0,      msx_pal,  msx, msx_state,      msx,     "Goldstar", "FC-200" , 0)
-COMP(1983, expert10,  msx,      0,      msx_ntsc, expert10, msx_state, msx,     "Gradiente", "Expert 1.0 (Brazil)" , 0)
-COMP(1984, expert11,  msx,      0,      msx_ntsc, expert11, msx_state, msx,     "Gradiente", "Expert 1.1 (Brazil)" , 0)
-COMP(1984, expert13,  msx,      0,      msx_ntsc, expert11, msx_state, msx,     "Gradiente", "Expert 1.3 (Brazil)" , 0)
-COMP(1985, expertdp,  msx,      0,      msx_ntsc, expert11, msx_state, msx,     "Gradiente", "Expert DDPlus (Brazil)", 0)
-COMP(1984, expertpl,  msx,      0,      msx_ntsc, expert11, msx_state, msx,     "Gradiente", "Expert Plus (Brazil)" , 0)
-COMP(1983, jvchc7gb,  msx,      0,      msx_pal,  msx, msx_state,      msx,     "JVC", "HC-7GB" , 0)
-COMP(1983, mlf80,     msx,      0,      msx_pal,  msx, msx_state,      msx,     "Mitsubishi", "ML-F80" , 0)
-COMP(1983, mlfx1,     msx,      0,      msx_pal,  msx, msx_state,      msx,     "Mitsubishi", "ML-FX1" , 0)
-COMP(1984, cf1200,    msx,      0,      msx_ntsc, msxjp, msx_state,    msx,     "National / Matsushita", "CF-1200 (Japan)" , 0)
-COMP(1983, cf2000,    msx,      0,      msx_ntsc, msxjp, msx_state,    msx,     "National / Matsushita", "CF-2000 (Japan)" , 0)
-COMP(1984, cf2700,    msx,      0,      msx_ntsc, msxjp, msx_state,    msx,     "National / Matsushita", "CF-2700 (Japan)" , 0)
-COMP(1984, cf3000,    msx,      0,      msx_ntsc, msxjp, msx_state,    msx,     "National / Matsushita", "CF-3000 (Japan)" , 0)
-COMP(1985, cf3300,    msx,      0,      msx_ntsc, msxjp, msx_state,    msx,     "National / Matsushita", "CF-3300 (Japan)", 0)
-COMP(1985, fs1300,    msx,      0,      msx_ntsc, msxjp, msx_state,    msx,     "National / Matsushita", "FS-1300 (Japan)" , 0)
-COMP(1985, fs4000,    msx,      0,      msx_ntsc, msxjp, msx_state,    msx,     "National / Matsushita", "FS-4000 (Japan)" , 0)
-COMP(1983, phc2,      msx,      0,      msx_pal,  msx, msx_state,      msx,     "Olympia", "PHC-2" , 0)
-COMP(19??, phc28,     msx,      0,      msx_pal,  msx, msx_state,      msx,     "Olympia", "PHC-28", 0)
-COMP(1984, cf2700g,   msx,      0,      msx_pal,  msx, msx_state,      msx,     "Panasonic", "CF-2700G (Germany)", 0)
-COMP(1983, nms801,    msx,      0,      msx_pal,  msx, msx_state,      msx,     "Philips", "NMS-801" , 0)
-COMP(1984, vg8000,    msx,      0,      msx_pal,  msx, msx_state,      msx,     "Philips", "VG-8000" , 0)
-COMP(1984, vg8010,    msx,      0,      msx_pal,  msx, msx_state,      msx,     "Philips", "VG-8010" , 0)
-COMP(1984, vg8010f,   msx,      0,      msx_pal,  msx, msx_state,      msx,     "Philips", "VG-8010F" , 0)
-COMP(1985, vg802000,  msx,      0,      msx_pal,  msx, msx_state,      msx,     "Philips", "VG-8020-00" , 0)
-COMP(1985, vg802020,  msx,      0,      msx_pal,  msx, msx_state,      msx,     "Philips", "VG-8020-20" , 0)
-COMP(19??, vg8020f,   msx,      0,      msx_pal,  msx, msx_state,      msx,     "Philips",  "VG-8020F", 0)
-COMP(1985, piopx7,    msx,      0,      msx_pal,  msx, msx_state,      msx,     "Pioneer", "PX-07" , 0)
-COMP(19??, spc800,    msx,      0,      msx_ntsc, msx, msx_state,      msx,     "Samsung",  "SPC-800", 0)
-COMP(1985, mpc64,     msx,      0,      msx_ntsc, msxjp, msx_state,    msx,     "Sanyo", "MPC-64" , 0)
-COMP(1985, mpc100,    msx,      0,      msx_pal,  msx, msx_state,      msx,     "Sanyo", "MPC-100" , 0)
-COMP(1983, phc28l,    msx,      0,      msx_pal,  msx, msx_state,      msx,     "Sanyo", "PHC-28L", 0)
-COMP(1983, phc28s,    msx,      0,      msx_pal,  msx, msx_state,      msx,     "Sanyo", "PHC-28S", 0)
-COMP(19??, mpc10,     msx,      0,      msx_pal,  msx, msx_state,      msx,     "Sanyo", "Wavy MPC-10", 0)
-COMP(1985, hotbit11,  msx,      0,      msx_ntsc, hotbit, msx_state,   msx,     "Sharp / Epcom", "HB-8000 Hotbit 1.1" , 0)
-COMP(1985, hotbit12,  msx,      0,      msx_ntsc, hotbit, msx_state,   msx,     "Sharp / Epcom", "HB-8000 Hotbit 1.2" , 0)
-COMP(1985, hotbi13b,  msx,      0,      msx_ntsc, hotbit, msx_state,   msx,     "Sharp / Epcom", "HB-8000 Hotbit 1.3b" , 0)
-COMP(1985, hotbi13p,  msx,      0,      msx_ntsc, hotbit, msx_state,   msx,     "Sharp / Epcom", "HB-8000 Hotbit 1.3p" , 0)
-COMP(1985, hb10p,     msx,      0,      msx_pal,  msx, msx_state,      msx,     "Sony", "HB-10P" , 0)
-COMP(1985, hb20p,     msx,      0,      msx_pal,  msx, msx_state,      msx,     "Sony", "HB-20P (Spanish)" , 0)
-COMP(1985, hb201,     msx,      0,      msx_ntsc, msxjp, msx_state,    msx,     "Sony", "HB-201 (Japan)" , 0)
-COMP(1985, hb201p,    msx,      0,      msx_pal,  msx, msx_state,      msx,     "Sony", "HB-201P" , 0)
-COMP(1984, hb501p,    msx,      0,      msx_pal,  msx, msx_state,      msx,     "Sony", "HB-501P" , 0)
-COMP(1983, hb55d,     msx,      0,      msx_pal,  msx, msx_state,      msx,     "Sony", "HB-55D (Germany)" , 0)
-COMP(1983, hb55p,     msx,      0,      msx_pal,  msx, msx_state,      msx,     "Sony", "HB-55P" , 0)
-COMP(1983, hb75d,     msx,      0,      msx_pal,  msx, msx_state,      msx,     "Sony", "HB-75D (Germany)" , 0)
-COMP(1983, hb75p,     msx,      0,      msx_pal,  msx, msx_state,      msx,     "Sony", "HB-75P" , 0)
-COMP(1985, svi728,    msx,      0,      msx_pal,  msx, msx_state,      msx,     "Spectravideo", "SVI-728", 0)
-COMP(1985, svi738,    msx,      0,      msx_pal,  msx, msx_state,      msx,     "Spectravideo", "SVI-738", 0)
-COMP(1985, svi738sw,  msx,      0,      msx_pal,  msx, msx_state,      msx,     "Spectravideo", "SVI-738 (Swedish)", 0)
-COMP(1985, svi738pl,  msx,      0,      msx_pal,  msx, msx_state,      msx,     "Spectravideo", "SVI-738 (Poland)", 0)
-COMP(1983, tadpc200,  msx,      0,      msx_pal,  msx, msx_state,      msx,     "Talent", "DPC-200" , 0)
-COMP(1983, tadpc20a,  msx,      0,      msx_pal,  msx, msx_state,      msx,     "Talent", "DPC-200A" , 0)
-COMP(1984, hx10,      msx,      0,      msx_pal,  msx, msx_state,      msx,     "Toshiba", "HX-10" , 0)
-COMP(1984, hx10s,     msx,      0,      msx_pal,  msx, msx_state,      msx,     "Toshiba", "HX-10S" , 0)
-COMP(1984, hx20,      msx,      0,      msx_pal,  msx, msx_state,      msx,     "Toshiba", "HX-20" , 0)
-COMP(1984, cx5m,      msx,      0,      msx_pal,  msx, msx_state,      msx,     "Yamaha", "CX5M" , 0)
-COMP(1984, cx5m128,   msx,      0,      msx_pal,  msx, msx_state,      msx,     "Yamaha", "CX5M-128" , 0)
-COMP(1984, cx5m2,     msx,      0,      msx_pal,  msx, msx_state,      msx,     "Yamaha", "CX5MII" , 0)
-COMP(1984, yis303,    msx,      0,      msx_pal,  msx, msx_state,      msx,     "Yamaha", "YIS303" , 0)
-COMP(1984, yis503,    msx,      0,      msx_pal,  msx, msx_state,      msx,     "Yamaha", "YIS503" , 0)
-COMP(19??, yis503f,   msx,      0,      msx_pal,  msx, msx_state,      msx,     "Yamaha", "YIS503F", 0)
-COMP(1984, yis503ii,  msx,      0,      msx_pal,  msx, msx_state,      msx,     "Yamaha", "YIS503II" , 0)
-COMP(1986, y503iir,   msx,      0,      msx_pal,  msx, msx_state,      msx,     "Yamaha", "YIS503IIR (Russian)" , 0)
-COMP(1986, y503iir2,  msx,      0,      msx_pal,  msx, msx_state,      msx,     "Yamaha", "YIS503IIR (Estonian)" , 0)
-COMP(1984, yis503m,   msx,      0,      msx_pal,  msx, msx_state,      msx,     "Yamaha", "YIS503M", 0)
-COMP(1984, yc64,      msx,      0,      msx_pal,  msx, msx_state,      msx,     "Yashica", "YC-64" , 0)
-COMP(1984, mx64,      msx,      0,      msx_ntsc, msxkr, msx_state,    msx,     "Yeno", "MX64" , 0)
-COMP(1984, bruc100,   msx,      0,      msx_pal,  msx, msx_state,      msx,     "Frael", "Bruc 100-1" , 0)
+COMP(1983, ax170,     msx,      0,      ax170,    msx, msx_state,      msx,     "Al Alamiah", "AX-170" , 0)
+COMP(1983, canonv10,  msx,      0,      canonv10, msx, msx_state,      msx,     "Canon", "V-10" , 0)
+COMP(1983, canonv20,  msx,      0,      canonv20, msx, msx_state,      msx,     "Canon", "V-20" , 0)
+COMP(1984, pv16,      msx,      0,      pv16,     msx, msx_state,      msx,     "Casio", "PV-16", 0)
+COMP(1984, dpc100,    msx,      0,      dpc100,   msxkr, msx_state,    msx,     "Daewoo", "IQ-1000 DPC-100 (Korea)" , 0)
+COMP(1984, dpc180,    msx,      0,      dpc180,   msxkr, msx_state,    msx,     "Daewoo", "IQ-1000 DPC-180 (Korea)" , 0)
+COMP(1984, dpc200,    msx,      0,      dpc200,   msxkr, msx_state,    msx,     "Daewoo", "IQ-1000 DPC-200 (Korea)" , 0)
+COMP(1983, gsfc200,   msx,      0,      gsfc200,  msx, msx_state,      msx,     "Goldstar", "FC-200" , 0)
+COMP(1983, expert10,  msx,      0,      expert10, expert10, msx_state, msx,     "Gradiente", "Expert 1.0 (Brazil)" , 0)
+COMP(1984, expert11,  msx,      0,      expert11, expert11, msx_state, msx,     "Gradiente", "Expert 1.1 (Brazil)" , 0)
+COMP(1984, expert13,  msx,      0,      expert13, expert11, msx_state, msx,     "Gradiente", "Expert 1.3 (Brazil)" , 0)
+COMP(1985, expertdp,  msx,      0,      expertdp, expert11, msx_state, msx,     "Gradiente", "Expert DDPlus (Brazil)", 0)
+COMP(1984, expertpl,  msx,      0,      expertpl, expert11, msx_state, msx,     "Gradiente", "Expert Plus (Brazil)" , 0)
+COMP(1983, jvchc7gb,  msx,      0,      jvchc7gb, msx, msx_state,      msx,     "JVC", "HC-7GB" , 0)
+COMP(1983, mlf80,     msx,      0,      mlf80,    msx, msx_state,      msx,     "Mitsubishi", "ML-F80" , 0)
+COMP(1983, mlfx1,     msx,      0,      mlfx1,    msx, msx_state,      msx,     "Mitsubishi", "ML-FX1" , 0)
+COMP(1984, cf1200,    msx,      0,      cf1200,   msxjp, msx_state,    msx,     "National / Matsushita", "CF-1200 (Japan)" , 0)
+COMP(1983, cf2000,    msx,      0,      cf2000,   msxjp, msx_state,    msx,     "National / Matsushita", "CF-2000 (Japan)" , 0)
+COMP(1984, cf2700,    msx,      0,      cf2700,   msxjp, msx_state,    msx,     "National / Matsushita", "CF-2700 (Japan)" , 0)
+COMP(1984, cf3000,    msx,      0,      cf3000,   msxjp, msx_state,    msx,     "National / Matsushita", "CF-3000 (Japan)" , 0)
+COMP(1985, cf3300,    msx,      0,      cf3300,   msxjp, msx_state,    msx,     "National / Matsushita", "CF-3300 (Japan)", 0)
+COMP(1985, fs1300,    msx,      0,      fs1300,   msxjp, msx_state,    msx,     "National / Matsushita", "FS-1300 (Japan)" , 0)
+COMP(1985, fs4000,    msx,      0,      fs4000,   msxjp, msx_state,    msx,     "National / Matsushita", "FS-4000 (Japan)" , 0)
+COMP(1983, phc2,      msx,      0,      phc2,     msx, msx_state,      msx,     "Olympia", "PHC-2" , 0)
+COMP(19??, phc28,     msx,      0,      phc28,    msx, msx_state,      msx,     "Olympia", "PHC-28", 0)
+COMP(1984, cf2700g,   msx,      0,      cf2700g,  msx, msx_state,      msx,     "Panasonic", "CF-2700G (Germany)", 0)
+COMP(1983, nms801,    msx,      0,      nms801,   msx, msx_state,      msx,     "Philips", "NMS-801" , 0)
+COMP(1984, vg8000,    msx,      0,      vg8000,   msx, msx_state,      msx,     "Philips", "VG-8000" , 0)
+COMP(1984, vg8010,    msx,      0,      vg8010,   msx, msx_state,      msx,     "Philips", "VG-8010" , 0)
+COMP(1984, vg8010f,   msx,      0,      vg8010f,  msx, msx_state,      msx,     "Philips", "VG-8010F" , 0)
+COMP(1985, vg802000,  msx,      0,      vg802000, msx, msx_state,      msx,     "Philips", "VG-8020-00" , 0)
+COMP(1985, vg802020,  msx,      0,      vg802020, msx, msx_state,      msx,     "Philips", "VG-8020-20" , 0)
+COMP(19??, vg8020f,   msx,      0,      vg8020f,  msx, msx_state,      msx,     "Philips",  "VG-8020F", 0)
+COMP(1985, piopx7,    msx,      0,      piopx7,   msx, msx_state,      msx,     "Pioneer", "PX-07" , 0)
+COMP(19??, spc800,    msx,      0,      spc800,   msx, msx_state,      msx,     "Samsung",  "SPC-800", 0)
+COMP(1985, mpc64,     msx,      0,      mpc64,    msxjp, msx_state,    msx,     "Sanyo", "MPC-64" , 0)
+COMP(1985, mpc100,    msx,      0,      mpc100,   msx, msx_state,      msx,     "Sanyo", "MPC-100" , 0)
+COMP(1983, phc28l,    msx,      0,      phc28l,   msx, msx_state,      msx,     "Sanyo", "PHC-28L", 0)
+COMP(1983, phc28s,    msx,      0,      phc28s,   msx, msx_state,      msx,     "Sanyo", "PHC-28S", 0)
+COMP(19??, mpc10,     msx,      0,      mpc10,    msx, msx_state,      msx,     "Sanyo", "Wavy MPC-10", 0)
+COMP(1985, hotbit11,  msx,      0,      hotbit11, hotbit, msx_state,   msx,     "Sharp / Epcom", "HB-8000 Hotbit 1.1" , 0)
+COMP(1985, hotbit12,  msx,      0,      hotbit12, hotbit, msx_state,   msx,     "Sharp / Epcom", "HB-8000 Hotbit 1.2" , 0)
+COMP(1985, hotbi13b,  msx,      0,      hotbi13b, hotbit, msx_state,   msx,     "Sharp / Epcom", "HB-8000 Hotbit 1.3b" , 0)
+COMP(1985, hotbi13p,  msx,      0,      hotbi13p, hotbit, msx_state,   msx,     "Sharp / Epcom", "HB-8000 Hotbit 1.3p" , 0)
+COMP(1985, hb10p,     msx,      0,      hb10p,    msx, msx_state,      msx,     "Sony", "HB-10P" , 0)
+COMP(1985, hb20p,     msx,      0,      hb20p,    msx, msx_state,      msx,     "Sony", "HB-20P (Spanish)" , 0)
+COMP(1985, hb201,     msx,      0,      hb201,    msxjp, msx_state,    msx,     "Sony", "HB-201 (Japan)" , 0)
+COMP(1985, hb201p,    msx,      0,      hb201p,   msx, msx_state,      msx,     "Sony", "HB-201P" , 0)
+COMP(1984, hb501p,    msx,      0,      hb501p,   msx, msx_state,      msx,     "Sony", "HB-501P" , 0)
+COMP(1983, hb55d,     msx,      0,      hb55d,    msx, msx_state,      msx,     "Sony", "HB-55D (Germany)" , 0)
+COMP(1983, hb55p,     msx,      0,      hb55p,    msx, msx_state,      msx,     "Sony", "HB-55P" , 0)
+COMP(1983, hb75d,     msx,      0,      hb75d,    msx, msx_state,      msx,     "Sony", "HB-75D (Germany)" , 0)
+COMP(1983, hb75p,     msx,      0,      hb75p,    msx, msx_state,      msx,     "Sony", "HB-75P" , 0)
+COMP(1985, svi728,    msx,      0,      svi728,   msx, msx_state,      msx,     "Spectravideo", "SVI-728", 0)
+COMP(1985, svi738,    msx,      0,      svi738,   msx, msx_state,      msx,     "Spectravideo", "SVI-738", 0)
+COMP(1985, svi738sw,  msx,      0,      svi738sw, msx, msx_state,      msx,     "Spectravideo", "SVI-738 (Swedish)", 0)
+COMP(1985, svi738pl,  msx,      0,      svi738pl, msx, msx_state,      msx,     "Spectravideo", "SVI-738 (Poland)", 0)
+COMP(1983, tadpc200,  msx,      0,      tadpc200, msx, msx_state,      msx,     "Talent", "DPC-200" , 0)
+COMP(1983, tadpc20a,  msx,      0,      tadpc20a, msx, msx_state,      msx,     "Talent", "DPC-200A" , 0)
+COMP(1984, hx10,      msx,      0,      hx10,     msx, msx_state,      msx,     "Toshiba", "HX-10" , 0)
+COMP(1984, hx10s,     msx,      0,      hx10s,    msx, msx_state,      msx,     "Toshiba", "HX-10S" , 0)
+COMP(1984, hx20,      msx,      0,      hx20,     msx, msx_state,      msx,     "Toshiba", "HX-20" , 0)
+COMP(1984, cx5m,      msx,      0,      cx5m,     msx, msx_state,      msx,     "Yamaha", "CX5M" , 0)
+COMP(1984, cx5m128,   msx,      0,      cx5m128,  msx, msx_state,      msx,     "Yamaha", "CX5M-128" , 0)
+COMP(1984, cx5m2,     msx,      0,      cx5m2,    msx, msx_state,      msx,     "Yamaha", "CX5MII" , 0)
+COMP(1984, yis303,    msx,      0,      yis303,   msx, msx_state,      msx,     "Yamaha", "YIS303" , 0)
+COMP(1984, yis503,    msx,      0,      yis503,   msx, msx_state,      msx,     "Yamaha", "YIS503" , 0)
+COMP(19??, yis503f,   msx,      0,      yis503f,  msx, msx_state,      msx,     "Yamaha", "YIS503F", 0)
+COMP(1984, yis503ii,  msx,      0,      yis503ii, msx, msx_state,      msx,     "Yamaha", "YIS503II" , 0)
+COMP(1986, y503iir,   msx,      0,      y503iir,  msx, msx_state,      msx,     "Yamaha", "YIS503IIR (Russian)" , 0)
+COMP(1986, y503iir2,  msx,      0,      y503iir2, msx, msx_state,      msx,     "Yamaha", "YIS503IIR (Estonian)" , 0)
+COMP(1984, yis503m,   msx,      0,      yis503m,  msx, msx_state,      msx,     "Yamaha", "YIS503M", 0)
+COMP(1984, yc64,      msx,      0,      yc64,     msx, msx_state,      msx,     "Yashica", "YC-64" , 0)
+COMP(1984, mx64,      msx,      0,      mx64,     msxkr, msx_state,    msx,     "Yeno", "MX64" , 0)
+COMP(1984, bruc100,   msx,      0,      bruc100,  msx, msx_state,      msx,     "Frael", "Bruc 100-1" , 0)
 
-COMP(1985, msx2,      0,        msx,    msx2_pal, msx2, msx_state,     msx,     "ASCII & Microsoft", "MSX2", 0)
-COMP(1986, ax350,     msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Al Alamiah", "AX-350", 0)
-COMP(1986, ax370,     msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Al Alamiah", "AX-370", 0)
-COMP(1986, expert20,  msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Gradiente", "Expert 2.0 (Brazil)" , GAME_NOT_WORKING) // Black screen
-COMP(1986, nms8220,   msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Philips", "NMS-8220 (12-jun-1986)", 0)
-COMP(1986, nms8220a,  msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Philips", "NMS-8220 (13-aug-1986)", 0)
-COMP(1986, vg8230,    msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Philips", "VG-8230", 0)
-COMP(1986, vg8235,    msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Philips", "VG-8235", 0)
-COMP(1986, vg8235f,   msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Philips", "VG-8235F", 0)
-COMP(1986, vg8240,    msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Philips", "VG-8240", 0)
-COMP(1986, nms8245,   msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Philips", "NMS-8245", 0)
-COMP(1986, nms8245f,  msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Philips", "NMS-8245F", 0)
-COMP(1986, nms8250,   msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Philips", "NMS-8250", 0)
-COMP(1986, nms8255,   msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Philips", "NMS-8255", 0)
-COMP(1986, nms8280,   msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Philips", "NMS-8280", 0)
-COMP(1986, nms8280g,  msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Philips", "NMS-8280G", 0)
-COMP(19??, hbf5,      msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Sony", "HB-F5", GAME_NOT_WORKING) // Will not go into basic
-COMP(1985, hbf9p,     msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Sony", "HB-F9P" , 0)
-COMP(19??, hbf9pr,    msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Sony", "HB-F9P Russion", GAME_NOT_WORKING) // Keyboard responds differently
-COMP(1985, hbf9s,     msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Sony", "HB-F9S" , 0)
-COMP(1985, hbf500p,   msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Sony", "HB-F500P", 0)
-COMP(1985, hbf700d,   msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Sony", "HB-F700D (Germany)" , 0)
-COMP(1985, hbf700f,   msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Sony", "HB-F700F" , 0)
-COMP(1985, hbf700p,   msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Sony", "HB-F700P" , 0)
-COMP(1985, hbf700s,   msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Sony", "HB-F700S (Spain)", 0)
-COMP(1986, hbg900ap,  msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Sony", "HB-G900AP", 0 )
-COMP(1986, hbg900p,   msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Sony", "HB-G900P", 0 )
-COMP(1986, hotbit20,  msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Sharp / Epcom", "HB-8000 Hotbit 2.0" , GAME_NOT_WORKING) // Black screen
-COMP(1986, tpc310,    msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Talent", "TPC-310", 0)
-COMP(19??, tpp311,    msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Talent", "TPP-311", 0)
-COMP(19??, tps312,    msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Talent", "TPS-312", 0)
-COMP(1986, hx23,      msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Toshiba", "HX-23", 0)
-COMP(1986, hx23f,     msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Toshiba", "HX-23F", 0)
-COMP(1986, cx7m,      msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Yamaha", "CX7M" , 0)
-COMP(1986, cx7m128,   msx2,     0,      msx2_pal, msx2, msx_state,     msx,     "Yamaha", "CX7M-128", 0)
-COMP(1983, mlg30,     msx2,     0,      msx2,     msx2, msx_state,     msx,     "Mistubishi", "ML-G30", GAME_NOT_WORKING) // Screen flashes a few times before going into basic
-COMP(1985, fs5500,    msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "National / Matsushita", "FS-5500F1/F2 (Japan)", 0 )
-COMP(1986, fs4500,    msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "National / Matsushita", "FS-4500 (Japan)", 0 )
-COMP(1986, fs4700,    msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "National / Matsushita", "FS-4700 (Japan)", 0 )
-COMP(1986, fs5000,    msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "National / Matsushita", "FS-5000F2 (Japan)", 0 )
-COMP(1986, fs4600,    msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "National / Matsushita", "FS-4600 (Japan)", 0 )
-COMP(1986, fsa1,      msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1 / 1st released version (Japan)", 0)
-COMP(1986, fsa1a,     msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1 / 2nd released version (Japan)", 0)
-COMP(1987, fsa1mk2,   msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1MK2 (Japan)", 0)
-COMP(1987, fsa1f,     msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1F (Japan)", 0 )
-COMP(1987, fsa1fm,    msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1FM (Japan)", 0 )
-COMP(19??, nms8250j,  msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Philips", "NMS-8250J", GAME_NOT_WORKING) // Screen flashes a few times before going into basic
-COMP(19??, vg8230j,   msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Philips", "VG-8230J", GAME_NOT_WORKING) // Screen flashes a few times before going into basic
-COMP(1986, hbf500,    msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Sony", "HB-F500 (Japan)", 0)
-COMP(1986, hbf900,    msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Sony", "HB-F900 / 1st released version (Japan)", 0)
-COMP(1986, hbf900a,   msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Sony", "HB-F900 / 2nd released version (Japan)", 0)
-COMP(1986, hbf1,      msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Sony", "HB-F1 (Japan)", GAME_NOT_WORKING ) // Screen stays a single color after a while
-COMP(1987, hbf12,     msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Sony", "HB-F1II (Japan)", GAME_NOT_WORKING ) // Screen stays a single color after a while
-COMP(1987, hbf1xd,    msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Sony", "HB-F1XD (Japan)", 0)
-COMP(1988, hbf1xdm2,  msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Sony", "HB-F1XDMK2 (Japan)", 0)
-COMP(19??, mpc2300,   msx2,     0,      msx2,     msx2, msx_state,     msx,     "Sanyo", "MPC-2300", GAME_NOT_WORKING) // Keyboard responds differently
-COMP(19??, mpc25fd,   msx2,     0,      msx2,     msx2, msx_state,     msx,     "Sanyo", "Wavy MPC-25FD", GAME_NOT_WORKING) // Screen stays black
-COMP(1988, phc23,     msx2,     0,      msx2,     msx2jp, msx_state,   msx,     "Sanyo", "Wavy PHC-23 (Japan)", 0)
-COMP(1986, cpc300,    msx2,     0,      msx2,     msx2kr, msx_state,   msx,     "Daewoo", "IQ-2000 CPC-300 (Korea)", 0)
-COMP(1986, cpc300e,   msx2,     0,      msx2,     msx2kr, msx_state,   msx,     "Daewoo", "IQ-2000 CPC-300E (Korea)", 0)
-COMP(1988, cpc400,    msx2,     0,      msx2,     msx2kr, msx_state,   msx,     "Daewoo", "X-II CPC-400 (Korea)", 0 )
-COMP(1988, cpc400s,   msx2,     0,      msx2,     msx2kr, msx_state,   msx,     "Daewoo", "X-II CPC-400S (Korea)", 0 )
+COMP(1985, msx2,      0,        msx,    msx2_gen, msx2, msx_state,     msx,     "ASCII & Microsoft", "MSX2", 0)
+COMP(1986, ax350,     msx2,     0,      ax350,    msx2, msx_state,     msx,     "Al Alamiah", "AX-350", 0)
+COMP(1986, ax370,     msx2,     0,      ax370,    msx2, msx_state,     msx,     "Al Alamiah", "AX-370", 0)
+COMP(1986, expert20,  msx2,     0,      expert20, msx2, msx_state,     msx,     "Gradiente", "Expert 2.0 (Brazil)" , 0)
+COMP(1986, nms8220,   msx2,     0,      nms8220,  msx2, msx_state,     msx,     "Philips", "NMS-8220 (12-jun-1986)", 0)
+COMP(1986, nms8220a,  msx2,     0,      nms8220a, msx2, msx_state,     msx,     "Philips", "NMS-8220 (13-aug-1986)", 0)
+COMP(1986, vg8230,    msx2,     0,      vg8230,   msx2, msx_state,     msx,     "Philips", "VG-8230", 0)
+COMP(1986, vg8235,    msx2,     0,      vg8235,   msx2, msx_state,     msx,     "Philips", "VG-8235", 0)
+COMP(1986, vg8235f,   msx2,     0,      vg8235f,  msx2, msx_state,     msx,     "Philips", "VG-8235F", 0)
+COMP(1986, vg8240,    msx2,     0,      vg8240,   msx2, msx_state,     msx,     "Philips", "VG-8240", 0)
+COMP(1986, nms8245,   msx2,     0,      nms8245,  msx2, msx_state,     msx,     "Philips", "NMS-8245", 0)
+COMP(1986, nms8245f,  msx2,     0,      nms8245f, msx2, msx_state,     msx,     "Philips", "NMS-8245F", 0)
+COMP(1986, nms8250,   msx2,     0,      nms8250,  msx2, msx_state,     msx,     "Philips", "NMS-8250", 0)
+COMP(1986, nms8255,   msx2,     0,      nms8255,  msx2, msx_state,     msx,     "Philips", "NMS-8255", 0)
+COMP(1986, nms8280,   msx2,     0,      nms8280,  msx2, msx_state,     msx,     "Philips", "NMS-8280", 0)
+COMP(1986, nms8280g,  msx2,     0,      nms8280g, msx2, msx_state,     msx,     "Philips", "NMS-8280G", 0)
+COMP(19??, hbf5,      msx2,     0,      hbf5,     msx2, msx_state,     msx,     "Sony", "HB-F5", 0)
+COMP(1985, hbf9p,     msx2,     0,      hbf9p,    msx2, msx_state,     msx,     "Sony", "HB-F9P" , 0)
+COMP(19??, hbf9pr,    msx2,     0,      hbf9pr,   msx2, msx_state,     msx,     "Sony", "HB-F9P Russion", GAME_NOT_WORKING) // Keyboard responds differently
+COMP(1985, hbf9s,     msx2,     0,      hbf9s,    msx2, msx_state,     msx,     "Sony", "HB-F9S" , 0)
+COMP(1985, hbf500p,   msx2,     0,      hbf500p,  msx2, msx_state,     msx,     "Sony", "HB-F500P", 0)
+COMP(1985, hbf700d,   msx2,     0,      hbf700d,  msx2, msx_state,     msx,     "Sony", "HB-F700D (Germany)" , 0)
+COMP(1985, hbf700f,   msx2,     0,      hbf700f,  msx2, msx_state,     msx,     "Sony", "HB-F700F" , 0)
+COMP(1985, hbf700p,   msx2,     0,      hbf700p,  msx2, msx_state,     msx,     "Sony", "HB-F700P" , 0)
+COMP(1985, hbf700s,   msx2,     0,      hbf700s,  msx2, msx_state,     msx,     "Sony", "HB-F700S (Spain)", 0)
+COMP(1986, hbg900ap,  msx2,     0,      hbg900ap, msx2, msx_state,     msx,     "Sony", "HB-G900AP", 0 )
+COMP(1986, hbg900p,   msx2,     0,      hbg900p,  msx2, msx_state,     msx,     "Sony", "HB-G900P", 0 )
+COMP(1986, hotbit20,  msx2,     0,      hotbit20, msx2, msx_state,     msx,     "Sharp / Epcom", "HB-8000 Hotbit 2.0" , 0) // Black screen
+COMP(1986, tpc310,    msx2,     0,      tpc310,   msx2, msx_state,     msx,     "Talent", "TPC-310", 0)
+COMP(19??, tpp311,    msx2,     0,      tpp311,   msx2, msx_state,     msx,     "Talent", "TPP-311", 0)
+COMP(19??, tps312,    msx2,     0,      tps312,   msx2, msx_state,     msx,     "Talent", "TPS-312", 0)
+COMP(1986, hx23,      msx2,     0,      hx23,     msx2, msx_state,     msx,     "Toshiba", "HX-23", 0)
+COMP(1986, hx23f,     msx2,     0,      hx23f,    msx2, msx_state,     msx,     "Toshiba", "HX-23F", 0)
+COMP(1986, cx7m,      msx2,     0,      cx7m,     msx2, msx_state,     msx,     "Yamaha", "CX7M" , 0)
+COMP(1986, cx7m128,   msx2,     0,      cx7m128,  msx2, msx_state,     msx,     "Yamaha", "CX7M-128", 0)
+COMP(1983, mlg30,     msx2,     0,      mlg30,    msx2, msx_state,     msx,     "Mistubishi", "ML-G30", 0)
+COMP(1985, fs5500f1,  msx2,     0,      fs5500f1, msx2jp, msx_state,   msx,     "National / Matsushita", "FS-5500F1 (Japan)", 0 )
+COMP(1985, fs5500f2,  msx2,     0,      fs5500f2, msx2jp, msx_state,   msx,     "National / Matsushita", "FS-5500F2 (Japan)", 0 )
+COMP(1986, fs4500,    msx2,     0,      fs4500,   msx2jp, msx_state,   msx,     "National / Matsushita", "FS-4500 (Japan)", 0 )
+COMP(1986, fs4700,    msx2,     0,      fs4700,   msx2jp, msx_state,   msx,     "National / Matsushita", "FS-4700 (Japan)", 0 )
+COMP(1986, fs5000,    msx2,     0,      fs5000,   msx2jp, msx_state,   msx,     "National / Matsushita", "FS-5000F2 (Japan)", 0 )
+COMP(1986, fs4600,    msx2,     0,      fs4600,   msx2jp, msx_state,   msx,     "National / Matsushita", "FS-4600 (Japan)", 0 )
+COMP(1986, fsa1,      msx2,     0,      fsa1,     msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1 / 1st released version (Japan)", 0)
+COMP(1986, fsa1a,     msx2,     0,      fsa1a,    msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1 / 2nd released version (Japan)", 0)
+COMP(1987, fsa1mk2,   msx2,     0,      fsa1mk2,  msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1MK2 (Japan)", 0)
+COMP(1987, fsa1f,     msx2,     0,      fsa1f,    msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1F (Japan)", 0 )
+COMP(1987, fsa1fm,    msx2,     0,      fsa1fm,   msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1FM (Japan)", 0 )
+COMP(19??, nms8250j,  msx2,     0,      nms8250j, msx2jp, msx_state,   msx,     "Philips", "NMS-8250J", 0)
+COMP(19??, vg8230j,   msx2,     0,      vg8230j,  msx2jp, msx_state,   msx,     "Philips", "VG-8230J", GAME_NOT_WORKING) // Screen flashes a few times before going into basic
+COMP(1986, hbf500,    msx2,     0,      hbf500,   msx2jp, msx_state,   msx,     "Sony", "HB-F500 (Japan)", 0)
+COMP(1986, hbf900,    msx2,     0,      hbf900,   msx2jp, msx_state,   msx,     "Sony", "HB-F900 / 1st released version (Japan)", 0)
+COMP(1986, hbf900a,   msx2,     0,      hbf900a,  msx2jp, msx_state,   msx,     "Sony", "HB-F900 / 2nd released version (Japan)", 0)
+COMP(1986, hbf1,      msx2,     0,      hbf1,     msx2jp, msx_state,   msx,     "Sony", "HB-F1 (Japan)", GAME_NOT_WORKING ) // Screen stays a single color after a while
+COMP(1987, hbf12,     msx2,     0,      hbf12,    msx2jp, msx_state,   msx,     "Sony", "HB-F1II (Japan)", GAME_NOT_WORKING ) // Screen stays a single color after a while
+COMP(1987, hbf1xd,    msx2,     0,      hbf1xd,   msx2jp, msx_state,   msx,     "Sony", "HB-F1XD (Japan)", 0)
+COMP(1988, hbf1xdm2,  msx2,     0,      hbf1xdm2, msx2jp, msx_state,   msx,     "Sony", "HB-F1XDMK2 (Japan)", 0)
+COMP(19??, mpc2300,   msx2,     0,      mpc2300,  msx2, msx_state,     msx,     "Sanyo", "MPC-2300", GAME_NOT_WORKING) // Keyboard responds differently
+COMP(19??, mpc25fd,   msx2,     0,      mpc25fd,  msx2, msx_state,     msx,     "Sanyo", "Wavy MPC-25FD", 0)
+COMP(1988, phc23,     msx2,     0,      phc23,    msx2jp, msx_state,   msx,     "Sanyo", "Wavy PHC-23 (Japan)", 0)
+COMP(1986, cpc300,    msx2,     0,      cpc300,   msx2kr, msx_state,   msx,     "Daewoo", "IQ-2000 CPC-300 (Korea)", 0)
+COMP(1986, cpc300e,   msx2,     0,      cpc300e,  msx2kr, msx_state,   msx,     "Daewoo", "IQ-2000 CPC-300E (Korea)", 0)
+COMP(1988, cpc400,    msx2,     0,      cpc400,   msx2kr, msx_state,   msx,     "Daewoo", "X-II CPC-400 (Korea)", 0 )
+COMP(1988, cpc400s,   msx2,     0,      cpc400s,  msx2kr, msx_state,   msx,     "Daewoo", "X-II CPC-400S (Korea)", 0 )
 
-COMP(1988, msx2p,     0,        msx,    msx2,     msx2jp, msx_state,   msx,     "ASCII & Microsoft", "MSX2+", 0)
-COMP(19??, expert3i,  msx2p,    0,      msx2,     msx2, msx_state,     msx,     "Ciel", "Expert 3 IDE", GAME_NOT_WORKING ) // Some hardware not emulated
-COMP(1996, expert3t,  msx2p,    0,      msx2,     msx2, msx_state,     msx,     "Ciel", "Expert 3 Turbo", GAME_NOT_WORKING ) // Some hardware not emulated
-COMP(19??, expertac,  msx2p,    0,      msx2,     msx2, msx_state,     msx,     "Gradiente", "Expert AC88+", GAME_NOT_WORKING ) // Some hardware not emulated
-COMP(19??, expertdx,  msx2p,    0,      msx2,     msx2, msx_state,     msx,     "Gradiente", "Expert DDX+", GAME_NOT_WORKING ) // Some hardware not emulated
-COMP(1988, fsa1fx,    msx2p,    0,      msx2,     msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1FX (Japan)", 0 )
-COMP(1988, fsa1wx,    msx2p,    0,      msx2,     msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1WX / 1st released version (Japan)", 0 )
-COMP(1988, fsa1wxa,   msx2p,    0,      msx2,     msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1WX / 2nd released version (Japan)", 0 )
-COMP(1989, fsa1wsx,   msx2p,    0,      msx2,     msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1WSX (Japan)", 0 )
-COMP(1988, hbf1xdj,   msx2p,    0,      msx2,     msx2jp, msx_state,   msx,     "Sony", "HB-F1XDJ (Japan)", 0 )
-COMP(1989, hbf1xv,    msx2p,    0,      msx2,     msx2jp, msx_state,   msx,     "Sony", "HB-F1XV (Japan)", 0 )
-COMP(1988, phc70fd,   msx2p,    0,      msx2,     msx2jp, msx_state,   msx,     "Sanyo", "WAVY PHC-70FD (Japan)", 0 )
-COMP(1988, phc70fd2,  msx2p,    0,      msx2,     msx2jp, msx_state,   msx,     "Sanyo", "WAVY PHC-70FD2 (Japan)", 0 )
-COMP(1989, phc35j,    msx2p,    0,      msx2,     msx2jp, msx_state,   msx,     "Sanyo", "WAVY PHC-35J (Japan)", 0)
-COMP(19??, hbf9sp,    msx2p,    0,      msx2,     msx2jp, msx_state,   msx,     "Sony", "HB-F9S+", GAME_NOT_WORKING) // No MSX animation, screen switches between 2 single colors
+COMP(1988, msx2p,     0,        msx,    msx2pgen, msx2jp, msx_state,   msx,     "ASCII & Microsoft", "MSX2+", 0)
+COMP(19??, expert3i,  msx2p,    0,      expert3i, msx2, msx_state,     msx,     "Ciel", "Expert 3 IDE", GAME_NOT_WORKING ) // Some hardware not emulated
+COMP(1996, expert3t,  msx2p,    0,      expert3t, msx2, msx_state,     msx,     "Ciel", "Expert 3 Turbo", GAME_NOT_WORKING ) // Some hardware not emulated
+COMP(19??, expertac,  msx2p,    0,      expertac, msx2, msx_state,     msx,     "Gradiente", "Expert AC88+", GAME_NOT_WORKING ) // Some hardware not emulated
+COMP(19??, expertdx,  msx2p,    0,      expertdx, msx2, msx_state,     msx,     "Gradiente", "Expert DDX+", GAME_NOT_WORKING ) // Some hardware not emulated
+COMP(1988, fsa1fx,    msx2p,    0,      fsa1fx,   msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1FX (Japan)", 0 )
+COMP(1988, fsa1wx,    msx2p,    0,      fsa1wx,   msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1WX / 1st released version (Japan)", 0 )
+COMP(1988, fsa1wxa,   msx2p,    0,      fsa1wxa,  msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1WX / 2nd released version (Japan)", 0 )
+COMP(1989, fsa1wsx,   msx2p,    0,      fsa1wsx,  msx2jp, msx_state,   msx,     "Panasonic / Matsushita", "FS-A1WSX (Japan)", 0 )
+COMP(1988, hbf1xdj,   msx2p,    0,      hbf1xdj,  msx2jp, msx_state,   msx,     "Sony", "HB-F1XDJ (Japan)", 0 )
+COMP(1989, hbf1xv,    msx2p,    0,      hbf1xv,   msx2jp, msx_state,   msx,     "Sony", "HB-F1XV (Japan)", 0 )
+COMP(1988, phc70fd,   msx2p,    0,      phc70fd,  msx2jp, msx_state,   msx,     "Sanyo", "WAVY PHC-70FD (Japan)", 0 )
+COMP(1988, phc70fd2,  msx2p,    0,      phc70fd2, msx2jp, msx_state,   msx,     "Sanyo", "WAVY PHC-70FD2 (Japan)", 0 )
+COMP(1989, phc35j,    msx2p,    0,      phc35j,   msx2jp, msx_state,   msx,     "Sanyo", "WAVY PHC-35J (Japan)", 0)
+COMP(19??, hbf9sp,    msx2p,    0,      hbf9sp,   msx2jp, msx_state,   msx,     "Sony", "HB-F9S+", 0)
 
 /* Temporary placeholders */
-COMP(19??, fsa1gt,    msx2p,    0,      msx2,     msx2jp, msx_state,   msx,     "Panasonic", "FS-A1GT", GAME_NOT_WORKING)
-COMP(19??, fsa1st,    msx2p,    0,      msx2,     msx2jp, msx_state,   msx,     "Panasonic", "FS-A1ST", GAME_NOT_WORKING)
+COMP(19??, fsa1gt,    msx2p,    0,      fsa1gt,   msx2jp, msx_state,   msx,     "Panasonic", "FS-A1GT", GAME_NOT_WORKING)
+COMP(19??, fsa1st,    msx2p,    0,      fsa1st,   msx2jp, msx_state,   msx,     "Panasonic", "FS-A1ST", GAME_NOT_WORKING)

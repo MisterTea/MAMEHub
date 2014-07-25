@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     rendlay.h
 
     Core rendering layout parser and manager.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -134,6 +105,7 @@ private:
 		void draw_text(running_machine &machine, bitmap_argb32 &dest, const rectangle &bounds);
 		void draw_simplecounter(running_machine &machine, bitmap_argb32 &dest, const rectangle &bounds, int state);
 		void draw_reel(running_machine &machine, bitmap_argb32 &dest, const rectangle &bounds, int state);
+		void draw_beltreel(running_machine &machine, bitmap_argb32 &dest, const rectangle &bounds, int state);
 		void load_bitmap();
 		void load_reel_bitmap(int number);
 		void draw_led7seg(bitmap_argb32 &dest, const rectangle &bounds, int pattern);
@@ -165,7 +137,7 @@ private:
 		int                 m_textalign;                // text alignment to box
 		bitmap_argb32       m_bitmap[MAX_BITMAPS];      // source bitmap for images
 		astring             m_dirname;                  // directory name of image file (for lazy loading)
-		emu_file *          m_file[MAX_BITMAPS];        // file object for reading image/alpha files
+		auto_pointer<emu_file> m_file[MAX_BITMAPS];        // file object for reading image/alpha files
 		astring             m_imagefile[MAX_BITMAPS];   // name of the image file (for lazy loading)
 		astring             m_alphafile[MAX_BITMAPS];   // name of the alpha file (for lazy loading)
 		bool                m_hasalpha[MAX_BITMAPS];    // is there any alpha component present?
@@ -177,7 +149,7 @@ private:
 		int                 m_stateoffset;
 		int                 m_reelreversed;
 		int                 m_numsymbolsvisible;
-
+		int                 m_beltreel;
 	};
 
 	// a texture encapsulates a texture for a given element in a given state
@@ -202,7 +174,7 @@ private:
 	simple_list<component> m_complist;      // list of components
 	int                 m_defstate;         // default state of this element
 	int                 m_maxstate;         // maximum state value for all components
-	texture *           m_elemtex;          // array of element textures used for managing the scaled bitmaps
+	dynamic_array<texture> m_elemtex;       // array of element textures used for managing the scaled bitmaps
 };
 
 
@@ -232,7 +204,7 @@ public:
 		const render_bounds &bounds() const { return m_bounds; }
 		const render_color &color() const { return m_color; }
 		int orientation() const { return m_orientation; }
-		render_container *screen_container(running_machine &machine) const { return (m_screen != NULL) ? &m_screen->container() : NULL; }
+		render_container *screen_container(running_machine &machine) const;
 		bool has_input() const { return bool(m_input_tag); }
 		const char *input_tag_and_mask(ioport_value &mask) const { mask = m_input_mask; return m_input_tag; }
 

@@ -29,7 +29,7 @@
 ****************************************************************************/
 
 
-#include "emu.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/z80/z80.h"
 #include "machine/pit8253.h"
 #include "machine/pic8259.h"
@@ -37,7 +37,6 @@
 #include "machine/mc146818.h"
 #include "machine/i8255.h"
 #include "machine/am9517a.h"
-#include "machine/serial.h"
 #include "video/upd7220.h"
 #include "machine/upd765.h"
 #include "machine/ram.h"
@@ -56,21 +55,24 @@ class qx10_state : public driver_device
 public:
 	qx10_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_pit_1(*this, "pit8253_1"),
-	m_pit_2(*this, "pit8253_2"),
-	m_pic_m(*this, "pic8259_master"),
-	m_pic_s(*this, "pic8259_slave"),
-	m_scc(*this, "upd7201"),
-	m_ppi(*this, "i8255"),
-	m_dma_1(*this, "8237dma_1"),
-	m_dma_2(*this, "8237dma_2"),
-	m_fdc(*this, "upd765"),
-	m_hgdc(*this, "upd7220"),
-	m_rtc(*this, "rtc"),
-	m_kbd(*this, "kbd"),
-	m_vram_bank(0),
-	m_maincpu(*this, "maincpu"),
-	m_ram(*this, RAM_TAG) { }
+		m_pit_1(*this, "pit8253_1"),
+		m_pit_2(*this, "pit8253_2"),
+		m_pic_m(*this, "pic8259_master"),
+		m_pic_s(*this, "pic8259_slave"),
+		m_scc(*this, "upd7201"),
+		m_ppi(*this, "i8255"),
+		m_dma_1(*this, "8237dma_1"),
+		m_dma_2(*this, "8237dma_2"),
+		m_fdc(*this, "upd765"),
+		m_hgdc(*this, "upd7220"),
+		m_rtc(*this, "rtc"),
+		m_kbd(*this, "kbd"),
+		m_vram_bank(0),
+		m_maincpu(*this, "maincpu"),
+		m_ram(*this, RAM_TAG),
+		m_palette(*this, "palette")
+	{
+	}
 
 	required_device<pit8253_device> m_pit_1;
 	required_device<pit8253_device> m_pit_2;
@@ -83,7 +85,7 @@ public:
 	required_device<upd765a_device> m_fdc;
 	required_device<upd7220_device> m_hgdc;
 	required_device<mc146818_device> m_rtc;
-	required_device<qx10_keyboard_device> m_kbd;
+	required_device<rs232_port_device> m_kbd;
 	UINT8 m_vram_bank;
 	//required_shared_ptr<UINT8> m_video_ram;
 	UINT8 *m_video_ram;
@@ -100,8 +102,7 @@ public:
 	DECLARE_WRITE8_MEMBER( qx10_18_w );
 	DECLARE_WRITE8_MEMBER( prom_sel_w );
 	DECLARE_WRITE8_MEMBER( cmos_sel_w );
-	void qx10_upd765_interrupt(bool state);
-	void drq_w(bool state);
+	DECLARE_WRITE_LINE_MEMBER( qx10_upd765_interrupt );
 	DECLARE_READ8_MEMBER( fdc_dma_r );
 	DECLARE_WRITE8_MEMBER( fdc_dma_w );
 	DECLARE_WRITE8_MEMBER( fdd_motor_w );
@@ -140,30 +141,31 @@ public:
 		UINT8 rx;
 	}m_rs232c;
 
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(qx10);
 	DECLARE_INPUT_CHANGED_MEMBER(key_stroke);
 	DECLARE_WRITE_LINE_MEMBER(dma_hrq_changed);
-	IRQ_CALLBACK_MEMBER(irq_callback);
 	required_device<cpu_device> m_maincpu;
 	required_device<ram_device> m_ram;
+	required_device<palette_device> m_palette;
+	UPD7220_DISPLAY_PIXELS_MEMBER( hgdc_display_pixels );
+	UPD7220_DRAW_TEXT_LINE_MEMBER( hgdc_draw_text );
 };
 
-static UPD7220_DISPLAY_PIXELS( hgdc_display_pixels )
+UPD7220_DISPLAY_PIXELS_MEMBER( qx10_state::hgdc_display_pixels )
 {
-	qx10_state *state = device->machine().driver_data<qx10_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	int xi,gfx[3];
 	UINT8 pen;
 
-	if(state->m_color_mode)
+	if(m_color_mode)
 	{
-		gfx[0] = state->m_video_ram[(address) + 0x00000];
-		gfx[1] = state->m_video_ram[(address) + 0x20000];
-		gfx[2] = state->m_video_ram[(address) + 0x40000];
+		gfx[0] = m_video_ram[(address) + 0x00000];
+		gfx[1] = m_video_ram[(address) + 0x20000];
+		gfx[2] = m_video_ram[(address) + 0x40000];
 	}
 	else
 	{
-		gfx[0] = state->m_video_ram[address];
+		gfx[0] = m_video_ram[address];
 		gfx[1] = 0;
 		gfx[2] = 0;
 	}
@@ -178,10 +180,9 @@ static UPD7220_DISPLAY_PIXELS( hgdc_display_pixels )
 	}
 }
 
-static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
+UPD7220_DRAW_TEXT_LINE_MEMBER( qx10_state::hgdc_draw_text )
 {
-	qx10_state *state = device->machine().driver_data<qx10_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	int x;
 	int xi,yi;
 	int tile;
@@ -192,14 +193,14 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 
 	for( x = 0; x < pitch; x++ )
 	{
-		tile = state->m_video_ram[(addr+x)*2];
-		attr = state->m_video_ram[(addr+x)*2+1];
+		tile = m_video_ram[(addr+x)*2];
+		attr = m_video_ram[(addr+x)*2+1];
 
-		color = (state->m_color_mode) ? 1 : (attr & 4) ? 2 : 1; /* TODO: color mode */
+		color = (m_color_mode) ? 1 : (attr & 4) ? 2 : 1; /* TODO: color mode */
 
 		for( yi = 0; yi < lr; yi++)
 		{
-			tile_data = (state->m_char_rom[tile*16+yi]);
+			tile_data = (m_char_rom[tile*16+yi]);
 
 			if(attr & 8)
 				tile_data^=0xff;
@@ -207,7 +208,7 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 			if(cursor_on && cursor_addr == addr+x) //TODO
 				tile_data^=0xff;
 
-			if(attr & 0x80 && device->machine().primary_screen->frame_number() & 0x10) //TODO: check for blinking interval
+			if(attr & 0x80 && machine().first_screen()->frame_number() & 0x10) //TODO: check for blinking interval
 				tile_data=0;
 
 			for( xi = 0; xi < 8; xi++)
@@ -217,7 +218,7 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 				res_x = x * 8 + xi;
 				res_y = y * lr + yi;
 
-				if(!device->machine().primary_screen->visible_area().contains(res_x, res_y))
+				if(!machine().first_screen()->visible_area().contains(res_x, res_y))
 					continue;
 
 				if(yi >= 16)
@@ -234,7 +235,7 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 
 UINT32 qx10_state::screen_update( screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect )
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	m_hgdc->screen_update(screen, bitmap, cliprect);
 
@@ -320,18 +321,13 @@ static SLOT_INTERFACE_START( qx10_floppies )
 	SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
 SLOT_INTERFACE_END
 
-void qx10_state::qx10_upd765_interrupt(bool state)
+WRITE_LINE_MEMBER( qx10_state::qx10_upd765_interrupt )
 {
 	m_fdcint = state;
 
 	//logerror("Interrupt from upd765: %d\n", state);
 	// signal interrupt
 	m_pic_m->ir6_w(state);
-}
-
-void qx10_state::drq_w(bool state)
-{
-	m_dma_1->dreq0_w(!state);
 }
 
 WRITE8_MEMBER( qx10_state::fdd_motor_w )
@@ -399,17 +395,6 @@ WRITE8_MEMBER(qx10_state::memory_write_byte)
 	return prog_space.write_byte(offset, data);
 }
 
-static I8237_INTERFACE( qx10_dma8237_1_interface )
-{
-	DEVCB_DRIVER_LINE_MEMBER(qx10_state,dma_hrq_changed),
-	DEVCB_DRIVER_LINE_MEMBER(qx10_state, tc_w),
-	DEVCB_DRIVER_MEMBER(qx10_state, memory_read_byte),
-	DEVCB_DRIVER_MEMBER(qx10_state, memory_write_byte),
-	{ DEVCB_DRIVER_MEMBER(qx10_state, fdc_dma_r), DEVCB_DRIVER_MEMBER(qx10_state, gdc_dack_r),/*DEVCB_DEVICE_HANDLER("upd7220", upd7220_dack_r)*/ DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_DRIVER_MEMBER(qx10_state, fdc_dma_w), DEVCB_DRIVER_MEMBER(qx10_state, gdc_dack_w),/*DEVCB_DEVICE_HANDLER("upd7220", upd7220_dack_w)*/ DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL }
-};
-
 /*
     8237 DMA (Slave)
     Channel 1: Option slots #1
@@ -417,29 +402,6 @@ static I8237_INTERFACE( qx10_dma8237_1_interface )
     Channel 3: Option slots #3
     Channel 4: Option slots #4
 */
-static I8237_INTERFACE( qx10_dma8237_2_interface )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL }
-};
-
-/*
-    8255
-*/
-static I8255_INTERFACE(qx10_i8255_interface)
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 /*
     MC146818
@@ -455,38 +417,6 @@ READ8_MEMBER(qx10_state::mc146818_r)
 	return m_rtc->read(space, !offset);
 }
 
-/*
-    UPD7201
-    Channel A: Keyboard
-    Channel B: RS232
-*/
-
-static UPD7201_INTERFACE(qx10_upd7201_interface)
-{
-	0, 0, 0, 0, // channel b clock set by pit2 channel 2
-
-	DEVCB_DEVICE_LINE_MEMBER("kbd", serial_keyboard_device, tx_r),
-	DEVCB_DEVICE_LINE_MEMBER("kbd", serial_keyboard_device, rx_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_DRIVER_LINE_MEMBER(qx10_state, keyboard_irq)
-};
-
-static struct serial_keyboard_interface qx10_keyboard_interface =
-{
-	DEVCB_NULL
-};
-
 WRITE_LINE_MEMBER(qx10_state::keyboard_irq)
 {
 	m_scc->m1_r(); // always set
@@ -499,40 +429,6 @@ WRITE_LINE_MEMBER(qx10_state::keyboard_clk)
 	m_scc->rxca_w(state);
 	m_scc->txca_w(state);
 }
-
-/*
-    Timer 0
-    Counter CLK                         Gate                    OUT             Operation
-    0       Keyboard clock (1200bps)    Memory register D0      Speaker timer   Speaker timer (100ms)
-    1       Keyboard clock (1200bps)    +5V                     8259A (10E) IR5 Software timer
-    2       Clock 1,9668MHz             Memory register D7      8259 (12E) IR1  Software timer
-*/
-
-static const struct pit8253_interface qx10_pit8253_1_config =
-{
-	{
-		{ 1200,         DEVCB_NULL,     DEVCB_NULL },
-		{ 1200,         DEVCB_LINE_VCC, DEVCB_NULL },
-		{ MAIN_CLK / 8, DEVCB_NULL,     DEVCB_NULL },
-	}
-};
-
-/*
-    Timer 1
-    Counter CLK                 Gate        OUT                 Operation
-    0       Clock 1,9668MHz     +5V         Speaker frequency   1kHz
-    1       Clock 1,9668MHz     +5V         Keyboard clock      1200bps (Clock / 1664)
-    2       Clock 1,9668MHz     +5V         RS-232C baud rate   9600bps (Clock / 208)
-*/
-static const struct pit8253_interface qx10_pit8253_2_config =
-{
-	{
-		{ MAIN_CLK / 8, DEVCB_LINE_VCC, DEVCB_NULL },
-		{ MAIN_CLK / 8, DEVCB_LINE_VCC, DEVCB_DRIVER_LINE_MEMBER(qx10_state, keyboard_clk) },
-		{ MAIN_CLK / 8, DEVCB_LINE_VCC, DEVCB_DEVICE_LINE_MEMBER("upd7201", z80dart_device, rxtxcb_w) },
-	}
-};
-
 
 /*
     Master PIC8259
@@ -549,7 +445,7 @@ static const struct pit8253_interface qx10_pit8253_2_config =
 READ8_MEMBER( qx10_state::get_slave_ack )
 {
 	if (offset==7) { // IRQ = 7
-		return m_pic_s->inta_r();
+		return m_pic_s->acknowledge();
 	}
 	return 0x00;
 }
@@ -567,11 +463,6 @@ READ8_MEMBER( qx10_state::get_slave_ack )
     IR7     External interrupt #5
 
 */
-
-IRQ_CALLBACK_MEMBER(qx10_state::irq_callback)
-{
-	return m_pic_m->acknowledge();
-}
 
 #if 0
 READ8_MEMBER( qx10_state::upd7201_r )
@@ -739,9 +630,6 @@ INPUT_PORTS_END
 
 void qx10_state::machine_start()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(qx10_state::irq_callback),this));
-	m_fdc->setup_intrq_cb(upd765a_device::line_cb(FUNC(qx10_state::qx10_upd765_interrupt), this));
-	m_fdc->setup_drq_cb(upd765a_device::line_cb(FUNC(qx10_state::drq_w), this));
 }
 
 void qx10_state::machine_reset()
@@ -762,15 +650,15 @@ void qx10_state::machine_reset()
 		if(m_color_mode) //color
 		{
 			for ( i = 0; i < 8; i++ )
-				palette_set_color_rgb(machine(), i, pal1bit((i >> 2) & 1), pal1bit((i >> 1) & 1), pal1bit((i >> 0) & 1));
+				m_palette->set_pen_color(i, pal1bit((i >> 2) & 1), pal1bit((i >> 1) & 1), pal1bit((i >> 0) & 1));
 		}
 		else //monochrome
 		{
 			for ( i = 0; i < 8; i++ )
-				palette_set_color_rgb(machine(), i, pal1bit(0), pal1bit(0), pal1bit(0));
+				m_palette->set_pen_color(i, pal1bit(0), pal1bit(0), pal1bit(0));
 
-			palette_set_color_rgb(machine(), 1, 0x00, 0x9f, 0x00);
-			palette_set_color_rgb(machine(), 2, 0x00, 0xff, 0x00);
+			m_palette->set_pen_color(1, 0x00, 0x9f, 0x00);
+			m_palette->set_pen_color(2, 0x00, 0xff, 0x00);
 			m_vram_bank = 0;
 		}
 	}
@@ -803,16 +691,7 @@ void qx10_state::video_start()
 	m_char_rom = memregion("chargen")->base();
 }
 
-static UPD7220_INTERFACE( hgdc_intf )
-{
-	hgdc_display_pixels,
-	hgdc_draw_text,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-void qx10_state::palette_init()
+PALETTE_INIT_MEMBER(qx10_state, qx10)
 {
 	// ...
 }
@@ -843,24 +722,16 @@ static ADDRESS_MAP_START( upd7220_map, AS_0, 8, qx10_state )
 	AM_RANGE(0x00000, 0x5ffff) AM_READWRITE(vram_r,vram_w)
 ADDRESS_MAP_END
 
-//-------------------------------------------------
-//  rs232_port_interface rs232_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
+static SLOT_INTERFACE_START(keyboard)
+	SLOT_INTERFACE("qx10", QX10_KEYBOARD)
+SLOT_INTERFACE_END
 
 static MACHINE_CONFIG_START( qx10, qx10_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",Z80, MAIN_CLK / 4)
 	MCFG_CPU_PROGRAM_MAP(qx10_mem)
 	MCFG_CPU_IO_MAP(qx10_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_master", pic8259_device, inta_cb)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -869,25 +740,85 @@ static MACHINE_CONFIG_START( qx10, qx10_state )
 	MCFG_SCREEN_UPDATE_DRIVER(qx10_state, screen_update)
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
-	MCFG_GFXDECODE(qx10)
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", qx10)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(qx10_state, qx10)
 
 	/* Devices */
-	MCFG_PIT8253_ADD("pit8253_1", qx10_pit8253_1_config)
-	MCFG_PIT8253_ADD("pit8253_2", qx10_pit8253_2_config)
+
+/*
+    Timer 0
+    Counter CLK                         Gate                    OUT             Operation
+    0       Keyboard clock (1200bps)    Memory register D0      Speaker timer   Speaker timer (100ms)
+    1       Keyboard clock (1200bps)    +5V                     8259A (10E) IR5 Software timer
+    2       Clock 1,9668MHz             Memory register D7      8259 (12E) IR1  Software timer
+*/
+
+	MCFG_DEVICE_ADD("pit8253_1", PIT8253, 0)
+	MCFG_PIT8253_CLK0(1200)
+	MCFG_PIT8253_CLK1(1200)
+	MCFG_PIT8253_CLK2(MAIN_CLK / 8)
+
+/*
+    Timer 1
+    Counter CLK                 Gate        OUT                 Operation
+    0       Clock 1,9668MHz     +5V         Speaker frequency   1kHz
+    1       Clock 1,9668MHz     +5V         Keyboard clock      1200bps (Clock / 1664)
+    2       Clock 1,9668MHz     +5V         RS-232C baud rate   9600bps (Clock / 208)
+*/
+	MCFG_DEVICE_ADD("pit8253_2", PIT8253, 0)
+	MCFG_PIT8253_CLK0(MAIN_CLK / 8)
+	MCFG_PIT8253_CLK1(MAIN_CLK / 8)
+	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(qx10_state, keyboard_clk))
+	MCFG_PIT8253_CLK2(MAIN_CLK / 8)
+	MCFG_PIT8253_OUT2_HANDLER(DEVWRITELINE("upd7201", z80dart_device, rxtxcb_w))
+
 	MCFG_PIC8259_ADD("pic8259_master", INPUTLINE("maincpu", 0), VCC, READ8(qx10_state, get_slave_ack))
 	MCFG_PIC8259_ADD("pic8259_slave", DEVWRITELINE("pic8259_master", pic8259_device, ir7_w), GND, NULL)
-	MCFG_UPD7201_ADD("upd7201", MAIN_CLK/4, qx10_upd7201_interface)
-	MCFG_I8255_ADD("i8255", qx10_i8255_interface)
-	MCFG_I8237_ADD("8237dma_1", MAIN_CLK/4, qx10_dma8237_1_interface)
-	MCFG_I8237_ADD("8237dma_2", MAIN_CLK/4, qx10_dma8237_2_interface)
-	MCFG_UPD7220_ADD("upd7220", MAIN_CLK/6, hgdc_intf, upd7220_map) // unk clock
-	MCFG_MC146818_IRQ_ADD( "rtc", MC146818_STANDARD, DEVWRITELINE("pic8259_slave", pic8259_device, ir2_w))
+
+	MCFG_UPD7201_ADD("upd7201", MAIN_CLK/4, 0, 0, 0, 0) // channel b clock set by pit2 channel 2
+	// Channel A: Keyboard
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE("kbd", rs232_port_device, write_txd))
+	// Channel B: RS232
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRB_CB(DEVWRITELINE(RS232_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSB_CB(DEVWRITELINE(RS232_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_INT_CB(WRITELINE(qx10_state, keyboard_irq))
+
+	MCFG_DEVICE_ADD("8237dma_1", AM9517A, MAIN_CLK/4)
+	MCFG_I8237_OUT_HREQ_CB(WRITELINE(qx10_state, dma_hrq_changed))
+	MCFG_I8237_OUT_EOP_CB(WRITELINE(qx10_state, tc_w))
+	MCFG_I8237_IN_MEMR_CB(READ8(qx10_state, memory_read_byte))
+	MCFG_I8237_OUT_MEMW_CB(WRITE8(qx10_state, memory_write_byte))
+	MCFG_I8237_IN_IOR_0_CB(READ8(qx10_state, fdc_dma_r))
+	MCFG_I8237_IN_IOR_1_CB(READ8(qx10_state, gdc_dack_r))
+	//MCFG_I8237_IN_IOR_2_CB(DEVREAD8("upd7220", upd7220_device, dack_r))
+	MCFG_I8237_OUT_IOW_0_CB(WRITE8(qx10_state, fdc_dma_w))
+	MCFG_I8237_OUT_IOW_1_CB(WRITE8(qx10_state, gdc_dack_w))
+	//MCFG_I8237_OUT_IOW_2_CB(DEVWRITE8("upd7220", upd7220_device, dack_w))
+	MCFG_DEVICE_ADD("8237dma_2", AM9517A, MAIN_CLK/4)
+
+	MCFG_DEVICE_ADD("i8255", I8255, 0)
+
+	MCFG_DEVICE_ADD("upd7220", UPD7220, MAIN_CLK/6) // unk clock
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, upd7220_map)
+	MCFG_UPD7220_DISPLAY_PIXELS_CALLBACK_OWNER(qx10_state, hgdc_display_pixels)
+	MCFG_UPD7220_DRAW_TEXT_CALLBACK_OWNER(qx10_state, hgdc_draw_text)
+	MCFG_VIDEO_SET_SCREEN("screen")
+
+	MCFG_MC146818_ADD( "rtc", XTAL_32_768kHz )
+	MCFG_MC146818_IRQ_HANDLER(DEVWRITELINE("pic8259_slave", pic8259_device, ir2_w))
 	MCFG_UPD765A_ADD("upd765", true, true)
+	MCFG_UPD765_INTRQ_CALLBACK(WRITELINE(qx10_state, qx10_upd765_interrupt))
+	MCFG_UPD765_DRQ_CALLBACK(DEVWRITELINE("8237dma_1", am9517a_device, dreq0_w)) MCFG_DEVCB_INVERT
 	MCFG_FLOPPY_DRIVE_ADD("upd765:0", qx10_floppies, "525dd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("upd765:1", qx10_floppies, "525dd", floppy_image_device::default_floppy_formats)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
-	MCFG_QX10_KEYBOARD_ADD("kbd", qx10_keyboard_interface)
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("upd7201", upd7201_device, rxb_w))
+
+	MCFG_RS232_PORT_ADD("kbd", keyboard, "qx10")
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("upd7201", z80dart_device, rxa_w))
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

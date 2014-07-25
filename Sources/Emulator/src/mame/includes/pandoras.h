@@ -15,7 +15,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_subcpu(*this, "sub"),
 		m_audiocpu(*this, "audiocpu"),
-		m_mcu(*this, "mcu"){ }
+		m_mcu(*this, "mcu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_spriteram;
@@ -37,6 +39,9 @@ public:
 	required_device<cpu_device> m_subcpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_mcu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(pandoras_int_control_w);
 	DECLARE_WRITE8_MEMBER(pandoras_cpua_irqtrigger_w);
 	DECLARE_WRITE8_MEMBER(pandoras_cpub_irqtrigger_w);
@@ -53,7 +58,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(pandoras);
 	UINT32 screen_update_pandoras(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(pandoras_master_interrupt);
 	INTERRUPT_GEN_MEMBER(pandoras_slave_interrupt);

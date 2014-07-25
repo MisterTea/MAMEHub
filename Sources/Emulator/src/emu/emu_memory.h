@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles,Olivier Galibert
 /***************************************************************************
 
     memory.h
 
     Functions which handle device memory accesses.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -101,6 +72,7 @@ class address_space;
 class address_table;
 class address_table_read;
 class address_table_write;
+class address_table_setoffset;
 
 
 // offsets and addresses are 32-bit (for now...)
@@ -111,28 +83,6 @@ typedef void (*address_map_constructor)(address_map &map, device_t &devconfig);
 
 // submap retriever delegate
 typedef delegate<void (address_map &, device_t &)> address_map_delegate;
-
-
-// legacy space read/write handlers
-typedef UINT8   (*read8_space_func)  (ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 mem_mask);
-typedef void    (*write8_space_func) (ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 data, ATTR_UNUSED UINT8 mem_mask);
-typedef UINT16  (*read16_space_func) (ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT16 mem_mask);
-typedef void    (*write16_space_func)(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT16 data, ATTR_UNUSED UINT16 mem_mask);
-typedef UINT32  (*read32_space_func) (ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT32 mem_mask);
-typedef void    (*write32_space_func)(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT32 data, ATTR_UNUSED UINT32 mem_mask);
-typedef UINT64  (*read64_space_func) (ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 mem_mask);
-typedef void    (*write64_space_func)(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 data, ATTR_UNUSED UINT64 mem_mask);
-
-// legacy device read/write handlers
-typedef UINT8   (*read8_device_func)  (ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 mem_mask);
-typedef void    (*write8_device_func) (ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 data, ATTR_UNUSED UINT8 mem_mask);
-typedef UINT16  (*read16_device_func) (ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT16 mem_mask);
-typedef void    (*write16_device_func)(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT16 data, ATTR_UNUSED UINT16 mem_mask);
-typedef UINT32  (*read32_device_func) (ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT32 mem_mask);
-typedef void    (*write32_device_func)(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT32 data, ATTR_UNUSED UINT32 mem_mask);
-typedef UINT64  (*read64_device_func) (ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 mem_mask);
-typedef void    (*write64_device_func)(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 data, ATTR_UNUSED UINT64 mem_mask);
-
 
 // struct with function pointers for accessors; use is generally discouraged unless necessary
 struct data_accessors
@@ -177,6 +127,10 @@ typedef device_delegate<void (address_space &, offs_t, UINT8, UINT8)> write8_del
 typedef device_delegate<void (address_space &, offs_t, UINT16, UINT16)> write16_delegate;
 typedef device_delegate<void (address_space &, offs_t, UINT32, UINT32)> write32_delegate;
 typedef device_delegate<void (address_space &, offs_t, UINT64, UINT64)> write64_delegate;
+
+// ======================> setoffset_delegate
+
+typedef device_delegate<void (address_space &, offs_t)> setoffset_delegate;
 
 
 // ======================> direct_read_data
@@ -270,6 +224,8 @@ public:
 	address_space_config();
 	address_space_config(const char *name, endianness_t endian, UINT8 datawidth, UINT8 addrwidth, INT8 addrshift = 0, address_map_constructor internal = NULL, address_map_constructor defmap = NULL);
 	address_space_config(const char *name, endianness_t endian, UINT8 datawidth, UINT8 addrwidth, INT8 addrshift, UINT8 logwidth, UINT8 pageshift, address_map_constructor internal = NULL, address_map_constructor defmap = NULL);
+	address_space_config(const char *name, endianness_t endian, UINT8 datawidth, UINT8 addrwidth, INT8 addrshift, address_map_delegate internal, address_map_delegate defmap = address_map_delegate());
+	address_space_config(const char *name, endianness_t endian, UINT8 datawidth, UINT8 addrwidth, INT8 addrshift, UINT8 logwidth, UINT8 pageshift, address_map_delegate internal, address_map_delegate defmap = address_map_delegate());
 
 	// getters
 	const char *name() const { return m_name; }
@@ -293,6 +249,8 @@ public:
 	UINT8               m_page_shift;
 	address_map_constructor m_internal_map;
 	address_map_constructor m_default_map;
+	address_map_delegate m_internal_map_delegate;
+	address_map_delegate m_default_map_delegate;
 };
 
 
@@ -304,6 +262,7 @@ class address_space
 	friend class address_table;
 	friend class address_table_read;
 	friend class address_table_write;
+	friend class address_table_setoffset;
 	friend class direct_read_data;
 	friend class simple_list<address_space>;
 	friend resource_pool_object<address_space>::~resource_pool_object();
@@ -326,7 +285,7 @@ public:
 	address_spacenum spacenum() const { return m_spacenum; }
 	address_map *map() const { return m_map; }
 
-	direct_read_data &direct() const { return m_direct; }
+	direct_read_data &direct() const { return *m_direct; }
 
 	int data_width() const { return m_config.data_width(); }
 	int addr_width() const { return m_config.addr_width(); }
@@ -387,6 +346,9 @@ public:
 	virtual void write_qword_unaligned(offs_t byteaddress, UINT64 data) = 0;
 	virtual void write_qword_unaligned(offs_t byteaddress, UINT64 data, UINT64 mask) = 0;
 
+	// Set address. This will invoke setoffset handlers for the respective entries.
+	virtual void set_address(offs_t byteaddress) = 0;
+
 	// address-to-byte conversion helpers
 	offs_t address_to_byte(offs_t address) const { return m_config.addr2byte(address); }
 	offs_t address_to_byte_end(offs_t address) const { return m_config.addr2byte_end(address); }
@@ -397,7 +359,7 @@ public:
 	void set_decrypted_region(offs_t addrstart, offs_t addrend, void *base);
 
 	// direct access
-	direct_update_delegate set_direct_update_handler(direct_update_delegate function) { return m_direct.set_direct_update(function); }
+	direct_update_delegate set_direct_update_handler(direct_update_delegate function) { return m_direct->set_direct_update(function); }
 	bool set_direct_region(offs_t &byteaddress);
 
 	// umap ranges (short form)
@@ -446,6 +408,10 @@ public:
 
 	void install_device_delegate(offs_t addrstart, offs_t addrend, device_t &device, address_map_delegate &map, int bits = 0, UINT64 unitmask = 0);
 
+	// install setoffset handler
+	void install_setoffset_handler(offs_t addrstart, offs_t addrend, setoffset_delegate sohandler, UINT64 unitmask = 0) { return install_setoffset_handler(addrstart, addrend, 0, 0, sohandler, unitmask); }
+	void install_setoffset_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, setoffset_delegate sohandler, UINT64 unitmask = 0);
+
 	// install new-style delegate handlers (short form)
 	UINT8 *install_read_handler(offs_t addrstart, offs_t addrend, read8_delegate rhandler, UINT64 unitmask = 0) { return install_read_handler(addrstart, addrend, 0, 0, rhandler, unitmask); }
 	UINT8 *install_write_handler(offs_t addrstart, offs_t addrend, write8_delegate whandler, UINT64 unitmask = 0) { return install_write_handler(addrstart, addrend, 0, 0, whandler, unitmask); }
@@ -474,62 +440,6 @@ public:
 	UINT64 *install_write_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, write64_delegate whandler, UINT64 unitmask = 0);
 	UINT64 *install_readwrite_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read64_delegate rhandler, write64_delegate whandler, UINT64 unitmask = 0);
 
-	// install legacy address space handlers (short form)
-	UINT8 *install_legacy_read_handler(offs_t addrstart, offs_t addrend, read8_space_func rhandler, const char *rname, UINT64 unitmask = 0) { return install_legacy_read_handler(addrstart, addrend, 0, 0, rhandler, rname, unitmask); }
-	UINT8 *install_legacy_write_handler(offs_t addrstart, offs_t addrend, write8_space_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_write_handler(addrstart, addrend, 0, 0, whandler, wname, unitmask); }
-	UINT8 *install_legacy_readwrite_handler(offs_t addrstart, offs_t addrend, read8_space_func rhandler, const char *rname, write8_space_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_readwrite_handler(addrstart, addrend, 0, 0, rhandler, rname, whandler, wname, unitmask); }
-	UINT16 *install_legacy_read_handler(offs_t addrstart, offs_t addrend, read16_space_func rhandler, const char *rname, UINT64 unitmask = 0) { return install_legacy_read_handler(addrstart, addrend, 0, 0, rhandler, rname, unitmask); }
-	UINT16 *install_legacy_write_handler(offs_t addrstart, offs_t addrend, write16_space_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_write_handler(addrstart, addrend, 0, 0, whandler, wname, unitmask); }
-	UINT16 *install_legacy_readwrite_handler(offs_t addrstart, offs_t addrend, read16_space_func rhandler, const char *rname, write16_space_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_readwrite_handler(addrstart, addrend, 0, 0, rhandler, rname, whandler, wname, unitmask); }
-	UINT32 *install_legacy_read_handler(offs_t addrstart, offs_t addrend, read32_space_func rhandler, const char *rname, UINT64 unitmask = 0) { return install_legacy_read_handler(addrstart, addrend, 0, 0, rhandler, rname, unitmask); }
-	UINT32 *install_legacy_write_handler(offs_t addrstart, offs_t addrend, write32_space_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_write_handler(addrstart, addrend, 0, 0, whandler, wname, unitmask); }
-	UINT32 *install_legacy_readwrite_handler(offs_t addrstart, offs_t addrend, read32_space_func rhandler, const char *rname, write32_space_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_readwrite_handler(addrstart, addrend, 0, 0, rhandler, rname, whandler, wname, unitmask); }
-	UINT64 *install_legacy_read_handler(offs_t addrstart, offs_t addrend, read64_space_func rhandler, const char *rname, UINT64 unitmask = 0) { return install_legacy_read_handler(addrstart, addrend, 0, 0, rhandler, rname, unitmask); }
-	UINT64 *install_legacy_write_handler(offs_t addrstart, offs_t addrend, write64_space_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_write_handler(addrstart, addrend, 0, 0, whandler, wname, unitmask); }
-	UINT64 *install_legacy_readwrite_handler(offs_t addrstart, offs_t addrend, read64_space_func rhandler, const char *rname, write64_space_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_readwrite_handler(addrstart, addrend, 0, 0, rhandler, rname, whandler, wname, unitmask); }
-
-	// install legacy address space handlers (with mirror/mask)
-	UINT8 *install_legacy_read_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read8_space_func rhandler, const char *rname, UINT64 unitmask = 0);
-	UINT8 *install_legacy_write_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, write8_space_func whandler, const char *wname, UINT64 unitmask = 0);
-	UINT8 *install_legacy_readwrite_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read8_space_func rhandler, const char *rname, write8_space_func whandler, const char *wname, UINT64 unitmask = 0);
-	UINT16 *install_legacy_read_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read16_space_func rhandler, const char *rname, UINT64 unitmask = 0);
-	UINT16 *install_legacy_write_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, write16_space_func whandler, const char *wname, UINT64 unitmask = 0);
-	UINT16 *install_legacy_readwrite_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read16_space_func rhandler, const char *rname, write16_space_func whandler, const char *wname, UINT64 unitmask = 0);
-	UINT32 *install_legacy_read_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read32_space_func rhandler, const char *rname, UINT64 unitmask = 0);
-	UINT32 *install_legacy_write_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, write32_space_func whandler, const char *wname, UINT64 unitmask = 0);
-	UINT32 *install_legacy_readwrite_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read32_space_func rhandler, const char *rname, write32_space_func whandler, const char *wname, UINT64 unitmask = 0);
-	UINT64 *install_legacy_read_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read64_space_func rhandler, const char *rname, UINT64 unitmask = 0);
-	UINT64 *install_legacy_write_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, write64_space_func whandler, const char *wname, UINT64 unitmask = 0);
-	UINT64 *install_legacy_readwrite_handler(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read64_space_func rhandler, const char *rname, write64_space_func whandler, const char *wname, UINT64 unitmask = 0);
-
-	// install legacy device handlers (short form)
-	UINT8 *install_legacy_read_handler(device_t &device, offs_t addrstart, offs_t addrend, read8_device_func rhandler, const char *rname, UINT64 unitmask = 0) { return install_legacy_read_handler(device, addrstart, addrend, 0, 0, rhandler, rname, unitmask); }
-	UINT8 *install_legacy_write_handler(device_t &device, offs_t addrstart, offs_t addrend, write8_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_write_handler(device, addrstart, addrend, 0, 0, whandler, wname, unitmask); }
-	UINT8 *install_legacy_readwrite_handler(device_t &device, offs_t addrstart, offs_t addrend, read8_device_func rhandler, const char *rname, write8_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_readwrite_handler(device, addrstart, addrend, 0, 0, rhandler, rname, whandler, wname, unitmask); }
-	UINT16 *install_legacy_read_handler(device_t &device, offs_t addrstart, offs_t addrend, read16_device_func rhandler, const char *rname, UINT64 unitmask = 0) { return install_legacy_read_handler(device, addrstart, addrend, 0, 0, rhandler, rname, unitmask); }
-	UINT16 *install_legacy_write_handler(device_t &device, offs_t addrstart, offs_t addrend, write16_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_write_handler(device, addrstart, addrend, 0, 0, whandler, wname, unitmask); }
-	UINT16 *install_legacy_readwrite_handler(device_t &device, offs_t addrstart, offs_t addrend, read16_device_func rhandler, const char *rname, write16_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_readwrite_handler(device, addrstart, addrend, 0, 0, rhandler, rname, whandler, wname, unitmask); }
-	UINT32 *install_legacy_read_handler(device_t &device, offs_t addrstart, offs_t addrend, read32_device_func rhandler, const char *rname, UINT64 unitmask = 0) { return install_legacy_read_handler(device, addrstart, addrend, 0, 0, rhandler, rname, unitmask); }
-	UINT32 *install_legacy_write_handler(device_t &device, offs_t addrstart, offs_t addrend, write32_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_write_handler(device, addrstart, addrend, 0, 0, whandler, wname, unitmask); }
-	UINT32 *install_legacy_readwrite_handler(device_t &device, offs_t addrstart, offs_t addrend, read32_device_func rhandler, const char *rname, write32_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_readwrite_handler(device, addrstart, addrend, 0, 0, rhandler, rname, whandler, wname, unitmask); }
-	UINT64 *install_legacy_read_handler(device_t &device, offs_t addrstart, offs_t addrend, read64_device_func rhandler, const char *rname, UINT64 unitmask = 0) { return install_legacy_read_handler(device, addrstart, addrend, 0, 0, rhandler, rname, unitmask); }
-	UINT64 *install_legacy_write_handler(device_t &device, offs_t addrstart, offs_t addrend, write64_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_write_handler(device, addrstart, addrend, 0, 0, whandler, wname, unitmask); }
-	UINT64 *install_legacy_readwrite_handler(device_t &device, offs_t addrstart, offs_t addrend, read64_device_func rhandler, const char *rname, write64_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_legacy_readwrite_handler(device, addrstart, addrend, 0, 0, rhandler, rname, whandler, wname, unitmask); }
-
-	// install legacy device handlers (with mirror/mask)
-	UINT8 *install_legacy_read_handler(device_t &device, offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read8_device_func rhandler, const char *rname, UINT64 unitmask = 0) { return install_read_handler(addrstart, addrend, addrmask, addrmirror, read8_delegate(rhandler, rname, &device), unitmask); }
-	UINT8 *install_legacy_write_handler(device_t &device, offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, write8_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_write_handler(addrstart, addrend, addrmask, addrmirror, write8_delegate(whandler, wname, &device), unitmask); }
-	UINT8 *install_legacy_readwrite_handler(device_t &device, offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read8_device_func rhandler, const char *rname, write8_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_readwrite_handler(addrstart, addrend, addrmask, addrmirror, read8_delegate(rhandler, rname, &device), write8_delegate(whandler, wname, &device), unitmask); }
-	UINT16 *install_legacy_read_handler(device_t &device, offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read16_device_func rhandler, const char *rname, UINT64 unitmask = 0) { return install_read_handler(addrstart, addrend, addrmask, addrmirror, read16_delegate(rhandler, rname, &device), unitmask); }
-	UINT16 *install_legacy_write_handler(device_t &device, offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, write16_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_write_handler(addrstart, addrend, addrmask, addrmirror, write16_delegate(whandler, wname, &device), unitmask); }
-	UINT16 *install_legacy_readwrite_handler(device_t &device, offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read16_device_func rhandler, const char *rname, write16_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_readwrite_handler(addrstart, addrend, addrmask, addrmirror, read16_delegate(rhandler, rname, &device), write16_delegate(whandler, wname, &device), unitmask); }
-	UINT32 *install_legacy_read_handler(device_t &device, offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read32_device_func rhandler, const char *rname, UINT64 unitmask = 0) { return install_read_handler(addrstart, addrend, addrmask, addrmirror, read32_delegate(rhandler, rname, &device), unitmask); }
-	UINT32 *install_legacy_write_handler(device_t &device, offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, write32_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_write_handler(addrstart, addrend, addrmask, addrmirror, write32_delegate(whandler, wname, &device), unitmask); }
-	UINT32 *install_legacy_readwrite_handler(device_t &device, offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read32_device_func rhandler, const char *rname, write32_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_readwrite_handler(addrstart, addrend, addrmask, addrmirror, read32_delegate(rhandler, rname, &device), write32_delegate(whandler, wname, &device), unitmask); }
-	UINT64 *install_legacy_read_handler(device_t &device, offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read64_device_func rhandler, const char *rname, UINT64 unitmask = 0) { return install_read_handler(addrstart, addrend, addrmask, addrmirror, read64_delegate(rhandler, rname, &device), unitmask); }
-	UINT64 *install_legacy_write_handler(device_t &device, offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, write64_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_write_handler(addrstart, addrend, addrmask, addrmirror, write64_delegate(whandler, wname, &device), unitmask); }
-	UINT64 *install_legacy_readwrite_handler(device_t &device, offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read64_device_func rhandler, const char *rname, write64_device_func whandler, const char *wname, UINT64 unitmask = 0) { return install_readwrite_handler(addrstart, addrend, addrmask, addrmirror, read64_delegate(rhandler, rname, &device), write64_delegate(whandler, wname, &device), unitmask); }
-
 	// setup
 	void prepare_map();
 	void populate_from_map(address_map *map = NULL);
@@ -540,7 +450,10 @@ private:
 	// internal helpers
 	virtual address_table_read &read() = 0;
 	virtual address_table_write &write() = 0;
+	virtual address_table_setoffset &setoffset() = 0;
+
 	void populate_map_entry(const address_map_entry &entry, read_or_write readorwrite);
+	void populate_map_entry_setoffset(const address_map_entry &entry);
 	void unmap_generic(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read_or_write readorwrite, bool quiet);
 	void *install_ram_generic(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, read_or_write readorwrite, void *baseptr);
 	void install_bank_generic(offs_t addrstart, offs_t addrend, offs_t addrmask, offs_t addrmirror, const char *rtag, const char *wtag);
@@ -556,7 +469,7 @@ protected:
 	address_space *         m_next;             // next address space in the global list
 	const address_space_config &m_config;       // configuration of this space
 	device_t &              m_device;           // reference to the owning device
-	address_map *           m_map;              // original memory map
+	auto_pointer<address_map> m_map;            // original memory map
 	offs_t                  m_addrmask;         // physical address mask
 	offs_t                  m_bytemask;         // byte-converted physical address mask
 	offs_t                  m_logaddrmask;      // logical address mask
@@ -565,7 +478,7 @@ protected:
 	address_spacenum        m_spacenum;         // address space index
 	bool                    m_debugger_access;  // treat accesses as coming from the debugger
 	bool                    m_log_unmap;        // log unmapped accesses in this space?
-	direct_read_data &      m_direct;           // fast direct-access read info
+	auto_pointer<direct_read_data> m_direct;    // fast direct-access read info
 	const char *            m_name;             // friendly name of the address space
 	UINT8                   m_addrchars;        // number of characters to use for physical addresses
 	UINT8                   m_logaddrchars;     // number of characters to use for logical addresses
@@ -611,7 +524,7 @@ private:
 	address_space &         m_space;                // which address space are we associated with?
 	offs_t                  m_bytestart, m_byteend; // byte-normalized start/end for verifying a match
 	UINT8 *                 m_data;                 // pointer to the data for this block
-	UINT8 *                 m_allocated;            // pointer to the actually allocated block
+	dynamic_buffer          m_allocated;            // pointer to the actually allocated block
 };
 
 
@@ -713,8 +626,7 @@ private:
 	offs_t                  m_bytestart;            // byte-adjusted start offset
 	offs_t                  m_byteend;              // byte-adjusted end offset
 	int                     m_curentry;             // current entry
-	bank_entry *            m_entry;                // array of entries (dynamically allocated)
-	int                     m_entry_count;          // number of allocated entries
+	dynamic_array<bank_entry> m_entry;              // array of entries (dynamically allocated)
 	astring                 m_name;                 // friendly name for this bank
 	astring                 m_tag;                  // tag for this bank
 	simple_list<bank_reference> m_reflist;          // linked list of address spaces referencing this bank
@@ -877,48 +789,8 @@ private:
 
 // opcode base adjustment handler function macro
 #define DIRECT_UPDATE_MEMBER(name)      offs_t name(ATTR_UNUSED direct_read_data &direct, ATTR_UNUSED offs_t address)
-#define DIRECT_UPDATE_HANDLER(name)     offs_t name(ATTR_UNUSED running_machine &machine, ATTR_UNUSED direct_read_data &direct, ATTR_UNUSED offs_t address)
 #define DECLARE_DIRECT_UPDATE_MEMBER(name)  offs_t name(ATTR_UNUSED direct_read_data &direct, ATTR_UNUSED offs_t address)
 
-
-// space read/write handler function macros
-#define READ8_HANDLER(name)             UINT8  name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 mem_mask)
-#define WRITE8_HANDLER(name)            void   name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 data, ATTR_UNUSED UINT8 mem_mask)
-#define READ16_HANDLER(name)            UINT16 name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT16 mem_mask)
-#define WRITE16_HANDLER(name)           void   name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT16 data, ATTR_UNUSED UINT16 mem_mask)
-#define READ32_HANDLER(name)            UINT32 name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT32 mem_mask)
-#define WRITE32_HANDLER(name)           void   name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT32 data, ATTR_UNUSED UINT32 mem_mask)
-#define READ64_HANDLER(name)            UINT64 name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 mem_mask)
-#define WRITE64_HANDLER(name)           void   name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 data, ATTR_UNUSED UINT64 mem_mask)
-
-#define DECLARE_READ8_HANDLER(name)             UINT8  name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 mem_mask = 0xff)
-#define DECLARE_WRITE8_HANDLER(name)            void   name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 data, ATTR_UNUSED UINT8 mem_mask = 0xff)
-#define DECLARE_READ16_HANDLER(name)            UINT16 name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT16 mem_mask = 0xffff)
-#define DECLARE_WRITE16_HANDLER(name)           void   name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT16 data, ATTR_UNUSED UINT16 mem_mask = 0xffff)
-#define DECLARE_READ32_HANDLER(name)            UINT32 name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT32 mem_mask = 0xffffffff)
-#define DECLARE_WRITE32_HANDLER(name)           void   name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT32 data, ATTR_UNUSED UINT32 mem_mask = 0xffffffff)
-#define DECLARE_READ64_HANDLER(name)            UINT64 name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 mem_mask = U64(0xffffffffffffffff))
-#define DECLARE_WRITE64_HANDLER(name)           void   name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 data, ATTR_UNUSED UINT64 mem_mask = U64(0xffffffffffffffff))
-
-
-// device read/write handler function macros
-#define READ8_DEVICE_HANDLER(name)      UINT8  name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 mem_mask)
-#define WRITE8_DEVICE_HANDLER(name)     void   name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 data, ATTR_UNUSED UINT8 mem_mask)
-#define READ16_DEVICE_HANDLER(name)     UINT16 name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT16 mem_mask)
-#define WRITE16_DEVICE_HANDLER(name)    void   name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT16 data, ATTR_UNUSED UINT16 mem_mask)
-#define READ32_DEVICE_HANDLER(name)     UINT32 name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT32 mem_mask)
-#define WRITE32_DEVICE_HANDLER(name)    void   name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT32 data, ATTR_UNUSED UINT32 mem_mask)
-#define READ64_DEVICE_HANDLER(name)     UINT64 name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 mem_mask)
-#define WRITE64_DEVICE_HANDLER(name)    void   name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 data, ATTR_UNUSED UINT64 mem_mask)
-
-#define DECLARE_READ8_DEVICE_HANDLER(name)      UINT8  name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 mem_mask = 0xff)
-#define DECLARE_WRITE8_DEVICE_HANDLER(name)     void   name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT8 data, ATTR_UNUSED UINT8 mem_mask = 0xff)
-#define DECLARE_READ16_DEVICE_HANDLER(name)     UINT16 name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT16 mem_mask = 0xffff)
-#define DECLARE_WRITE16_DEVICE_HANDLER(name)    void   name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT16 data, ATTR_UNUSED UINT16 mem_mask = 0xffff)
-#define DECLARE_READ32_DEVICE_HANDLER(name)     UINT32 name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT32 mem_mask = 0xffffffff)
-#define DECLARE_WRITE32_DEVICE_HANDLER(name)    void   name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT32 data, ATTR_UNUSED UINT32 mem_mask = 0xffffffff)
-#define DECLARE_READ64_DEVICE_HANDLER(name)     UINT64 name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 mem_mask = U64(0xffffffffffffffff))
-#define DECLARE_WRITE64_DEVICE_HANDLER(name)    void   name(ATTR_UNUSED device_t *device, ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 data, ATTR_UNUSED UINT64 mem_mask = U64(0xffffffffffffffff))
 
 
 // space read/write handler function macros
@@ -940,6 +812,8 @@ private:
 #define DECLARE_READ64_MEMBER(name)     UINT64 name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 mem_mask = U64(0xffffffffffffffff))
 #define DECLARE_WRITE64_MEMBER(name)    void   name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset, ATTR_UNUSED UINT64 data, ATTR_UNUSED UINT64 mem_mask = U64(0xffffffffffffffff))
 
+#define SETOFFSET_MEMBER(name)          void  name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset)
+#define DECLARE_SETOFFSET_MEMBER(name)      void  name(ATTR_UNUSED address_space &space, ATTR_UNUSED offs_t offset)
 
 // device delegate macros
 #define READ8_DELEGATE(_class, _member)                     read8_delegate(FUNC(_class::_member), this)

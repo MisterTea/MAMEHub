@@ -45,9 +45,10 @@ public:
 	required_device<sam6883_device> m_sam;
 	required_device<mc6847_base_device> m_vdg;
 
-	static const mc6847_interface mc6847_config;
-	static const sam6883_interface sam6883_config;
+	DECLARE_READ8_MEMBER( sam_read );
 
+	DECLARE_WRITE_LINE_MEMBER( horizontal_sync );
+	DECLARE_WRITE_LINE_MEMBER( field_sync );
 protected:
 	virtual void device_start();
 	virtual void update_cart_base(UINT8 *cart_base);
@@ -56,10 +57,6 @@ protected:
 	virtual void pia1_pb_changed(void);
 
 private:
-	DECLARE_WRITE_LINE_MEMBER( horizontal_sync );
-	DECLARE_WRITE_LINE_MEMBER( field_sync );
-
-	DECLARE_READ8_MEMBER( sam_read );
 
 	void configure_sam(void);
 };

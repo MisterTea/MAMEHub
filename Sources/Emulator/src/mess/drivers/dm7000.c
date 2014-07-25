@@ -256,37 +256,38 @@ void dm7000_state::machine_reset()
 	dcr[DCRSTB045_DISP_MODE] = 0x00880000;
 	dcr[DCRSTB045_FRAME_BUFR_BASE] = 0x0f000000;
 	m_scc0_lsr = UART_LSR_THRE | UART_LSR_TEMT;
+
+	m_maincpu->ppc4xx_set_dcr_read_handler(read32_delegate(FUNC(dm7000_state::dcr_r),this));
+	m_maincpu->ppc4xx_set_dcr_write_handler(write32_delegate(FUNC(dm7000_state::dcr_w),this));
 }
 
 void dm7000_state::video_start()
 {
 }
 
-UINT32 dm7000_state::screen_update_dm7000(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+UINT32 dm7000_state::screen_update_dm7000(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	return 0;
 }
 
-static READ32_DEVICE_HANDLER( dcr_r )
+READ32_MEMBER( dm7000_state::dcr_r )
 {
-	dm7000_state *state = space.machine().driver_data<dm7000_state>();
-	mame_printf_debug("DCR %03X read\n", offset);
+	osd_printf_debug("DCR %03X read\n", offset);
 	if(offset>=1024) {printf("get %04X\n", offset); return 0;} else
 	switch(offset) {
 		case DCRSTB045_CMD_STAT:
 			return 0; // assume that video dev is always ready
 		default:
-			return state->dcr[offset];
+			return dcr[offset];
 	}
 
 }
 
-static WRITE32_DEVICE_HANDLER( dcr_w )
+WRITE32_MEMBER( dm7000_state::dcr_w )
 {
-	mame_printf_debug("DCR %03X write = %08X\n", offset, data);
-	dm7000_state *state = space.machine().driver_data<dm7000_state>();
+	osd_printf_debug("DCR %03X write = %08X\n", offset, data);
 	if(offset>=1024) {printf("get %04X\n", offset); } else
-	state->dcr[offset] = data;
+	dcr[offset] = data;
 }
 
 WRITE8_MEMBER( dm7000_state::kbd_put )
@@ -296,23 +297,11 @@ WRITE8_MEMBER( dm7000_state::kbd_put )
 	m_scc0_lsr = 1;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(dm7000_state, kbd_put)
-};
-
-static const powerpc_config ppc405_config =
-{
-	252000000,
-	dcr_r,
-	dcr_w
-};
-
 static MACHINE_CONFIG_START( dm7000, dm7000_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",PPC405GP, 252000000 / 10) // Should be PPC405D4?
 	// Slowed down 10 times in order to get normal response for now
-	MCFG_CPU_CONFIG(ppc405_config)
+	MCFG_PPC_BUS_FREQUENCY(252000000)
 	MCFG_CPU_PROGRAM_MAP(dm7000_mem)
 
 
@@ -324,10 +313,8 @@ static MACHINE_CONFIG_START( dm7000, dm7000_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dm7000_state, screen_update_dm7000)
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
-
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(dm7000_state, kbd_put))
 
 MACHINE_CONFIG_END
 

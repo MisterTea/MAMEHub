@@ -10,6 +10,9 @@
 #ifndef KBDC8042_H
 #define KBDC8042_H
 
+#include "emu.h"
+#include "machine/pckeybrd.h"
+
 enum kbdc8042_type_t
 {
 	KBDC8042_STANDARD,
@@ -21,53 +24,61 @@ enum kbdc8042_type_t
 //  INTERFACE CONFIGURATION MACROS
 //**************************************************************************
 
-#define MCFG_KBDC8042_ADD(_tag, _interface) \
-	MCFG_DEVICE_ADD(_tag, KBDC8042, 0) \
-	MCFG_DEVICE_CONFIG(_interface)
+#define MCFG_KBDC8042_KEYBOARD_TYPE(_kbdt) \
+	kbdc8042_device::set_keyboard_type(*device, _kbdt);
 
+#define MCFG_KBDC8042_SYSTEM_RESET_CB(_devcb) \
+	devcb = &kbdc8042_device::set_system_reset_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_KBDC8042_GATE_A20_CB(_devcb) \
+	devcb = &kbdc8042_device::set_gate_a20_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_KBDC8042_INPUT_BUFFER_FULL_CB(_devcb) \
+	devcb = &kbdc8042_device::set_input_buffer_full_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_KBDC8042_OUTPUT_BUFFER_EMPTY_CB(_devcb) \
+	devcb = &kbdc8042_device::set_output_buffer_empty_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_KBDC8042_SPEAKER_CB(_devcb) \
+	devcb = &kbdc8042_device::set_speaker_callback(*device, DEVCB_##_devcb);
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-// ======================> kbdc8042_interface
-
-struct kbdc8042_interface
-{
-	kbdc8042_type_t     m_keybtype;
-	// interface to the host pc
-	devcb_write_line    m_system_reset_cb;
-	devcb_write_line    m_gate_a20_cb;
-	devcb_write_line    m_input_buffer_full_cb;
-	devcb_write_line    m_output_buffer_empty_cb;
-
-	devcb_write8        m_speaker_cb;
-	devcb_read8         m_getout2_cb;
-};
-
 // ======================> kbdc8042_device
 
-class kbdc8042_device : public device_t,
-						public kbdc8042_interface
+class kbdc8042_device : public device_t
 {
 public:
 	// construction/destruction
 	kbdc8042_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
+	virtual machine_config_constructor device_mconfig_additions() const;
+
+	static void set_keyboard_type(device_t &device, kbdc8042_type_t keybtype) { downcast<kbdc8042_device &>(device).m_keybtype = keybtype; }
+	template<class _Object> static devcb_base &set_system_reset_callback(device_t &device, _Object object) { return downcast<kbdc8042_device &>(device).m_system_reset_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_gate_a20_callback(device_t &device, _Object object) { return downcast<kbdc8042_device &>(device).m_gate_a20_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_input_buffer_full_callback(device_t &device, _Object object) { return downcast<kbdc8042_device &>(device).m_input_buffer_full_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_output_buffer_empty_callback(device_t &device, _Object object) { return downcast<kbdc8042_device &>(device).m_output_buffer_empty_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_speaker_callback(device_t &device, _Object object) { return downcast<kbdc8042_device &>(device).m_speaker_cb.set_callback(object); }
+
 	DECLARE_READ8_MEMBER( data_r );
 	DECLARE_WRITE8_MEMBER( data_w );
 
+	DECLARE_WRITE_LINE_MEMBER( write_out2 );
+	DECLARE_WRITE_LINE_MEMBER( keyboard_w );
+
 	void at_8042_set_outport(UINT8 data, int initial);
-	TIMER_CALLBACK_MEMBER( kbdc8042_time );
 	TIMER_CALLBACK_MEMBER( kbdc8042_clr_int );
 	void at_8042_receive(UINT8 data);
 	void at_8042_check_keyboard();
 	void at_8042_clear_keyboard_received();
+
 protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete();
 
 	UINT8 m_inport, m_outport, m_data, m_command;
 
@@ -88,19 +99,23 @@ protected:
 	int m_status_read_mode;
 
 	int m_speaker;
+	int m_out2;
 
 	/* temporary hack */
 	int m_offset1;
 
 	int m_poll_delay;
 
-	devcb_resolved_write_line   m_system_reset_func;
-	devcb_resolved_write_line   m_gate_a20_func;
-	devcb_resolved_write_line   m_input_buffer_full_func;
-	devcb_resolved_write_line   m_output_buffer_empty_func;
+	required_device<at_keyboard_device> m_keyboard_dev;
 
-	devcb_resolved_write8       m_speaker_func;
-	devcb_resolved_read8        m_getout2_func;
+	kbdc8042_type_t     m_keybtype;
+
+	devcb_write_line    m_system_reset_cb;
+	devcb_write_line    m_gate_a20_cb;
+	devcb_write_line    m_input_buffer_full_cb;
+	devcb_write_line    m_output_buffer_empty_cb;
+
+	devcb_write8        m_speaker_cb;
 };
 
 // device type definition

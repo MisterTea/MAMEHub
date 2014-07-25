@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, David Haywood
 /*******************************************************************************************
 
 Super Pool 99 (c) 1998 Electronic Projects
@@ -104,7 +106,8 @@ public:
 		m_cram(*this, "cram"),
 		m_maincpu(*this, "maincpu"),
 		m_eeprom(*this, "eeprom"),
-		m_oki(*this, "oki") { }
+		m_oki(*this, "oki"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT8> m_main;
 	required_shared_ptr<UINT8> m_vram;
@@ -124,6 +127,7 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<eeprom_serial_93cxx_device> m_eeprom;
 	required_device<okim6295_device> m_oki;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 TILE_GET_INFO_MEMBER(spool99_state::get_spool99_tile_info)
@@ -131,8 +135,7 @@ TILE_GET_INFO_MEMBER(spool99_state::get_spool99_tile_info)
 	int code = ((m_vram[tile_index*2+1]<<8) | (m_vram[tile_index*2+0]));
 	int color = m_cram[tile_index*2+0];
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code & 0x3fff,
 			color & 0x1f,
 			0);
@@ -140,7 +143,7 @@ TILE_GET_INFO_MEMBER(spool99_state::get_spool99_tile_info)
 
 void spool99_state::video_start()
 {
-	m_sc0_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(spool99_state::get_spool99_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_sc0_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(spool99_state::get_spool99_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 }
 
 UINT32 spool99_state::screen_update_spool99(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -223,7 +226,7 @@ static ADDRESS_MAP_START( spool99_map, AS_PROGRAM, 8, spool99_state )
 	AM_RANGE(0xafef, 0xafef) AM_WRITE(eeprom_dataline_w )
 	AM_RANGE(0xaff8, 0xaff8) AM_DEVWRITE("oki", okim6295_device, write)
 
-	AM_RANGE(0xb000, 0xb3ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xb000, 0xb3ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 
 	AM_RANGE(0xb800, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xefff) AM_RAM_WRITE(spool99_vram_w) AM_SHARE("vram")
@@ -269,7 +272,7 @@ static ADDRESS_MAP_START( vcarn_map, AS_PROGRAM, 8, spool99_state )
 	AM_RANGE(0xa747, 0xa747) AM_WRITE(eeprom_dataline_w )
 	AM_RANGE(0xa780, 0xa780) AM_DEVWRITE("oki", okim6295_device, write)
 
-	AM_RANGE(0xa800, 0xabff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xa800, 0xabff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 
 	AM_RANGE(0xb000, 0xdfff) AM_RAM
 //  AM_RANGE(0xdf00, 0xdfff) AM_READWRITE(vcarn_io_r,vcarn_io_w) AM_SHARE("vcarn_io")
@@ -350,7 +353,7 @@ static MACHINE_CONFIG_START( spool99, spool99_state )
 	MCFG_CPU_PROGRAM_MAP(spool99_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", spool99_state,  irq0_line_hold)
 
-	MCFG_GFXDECODE(spool99)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", spool99)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -358,8 +361,10 @@ static MACHINE_CONFIG_START( spool99, spool99_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(7*8, 55*8-1, 1*8, 31*8-1) //384x240,raw guess
 	MCFG_SCREEN_UPDATE_DRIVER(spool99_state, screen_update_spool99)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_PALETTE_ADD("palette", 0x200)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 

@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:R.Belmont
 /***************************************************************************
 
   macpci.c: second-generation Old World PowerMacs based on PCI instead of NuBus
@@ -84,18 +86,6 @@ UINT32 macpci_state::screen_update_pippin(screen_device &screen, bitmap_ind16 &b
 	return 0;
 }
 
-struct cdrom_interface pippin_cdrom =
-{
-	NULL,
-	NULL
-};
-
-static const cuda_interface mac_cuda_interface =
-{
-	DEVCB_DRIVER_LINE_MEMBER(macpci_state, cuda_reset_w),
-	DEVCB_DRIVER_LINE_MEMBER(macpci_state, cuda_adb_linechange_w)
-};
-
 static MACHINE_CONFIG_START( pippin, macpci_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", PPC603, 66000000)
@@ -108,9 +98,9 @@ static MACHINE_CONFIG_START( pippin, macpci_state )
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 	MCFG_SCREEN_UPDATE_DRIVER(macpci_state, screen_update_pippin)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -119,14 +109,26 @@ static MACHINE_CONFIG_START( pippin, macpci_state )
 	MCFG_SOUND_ROUTE( 0, "lspeaker", 1.00 )
 	MCFG_SOUND_ROUTE( 1, "rspeaker", 1.00 )
 
-	MCFG_CDROM_ADD("cdrom",pippin_cdrom)
+	MCFG_CDROM_ADD("cdrom")
 
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("32M")
 
-	MCFG_VIA6522_ADD("via6522_0", C7M/10, pcimac_via6522_intf)
-//  MCFG_SCC8530_ADD("scc", C7M, line_cb_t(FUNC(macpci_state::set_scc_interrupt), static_cast<macpci_state *>(owner)))
-	MCFG_CUDA_ADD(CUDA_341S0060, mac_cuda_interface)
+	MCFG_DEVICE_ADD("via6522_0", VIA6522, C7M/10)
+	MCFG_VIA6522_READPA_HANDLER(READ8(macpci_state, mac_via_in_a))
+	MCFG_VIA6522_READPB_HANDLER(READ8(macpci_state, mac_via_in_b))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(macpci_state,mac_via_out_a))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(macpci_state,mac_via_out_b))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(macpci_state, mac_adb_via_out_cb2))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(macpci_state,mac_via_irq))
+
+	//MCFG_DEVICE_ADD("scc", SCC8530, C7M)
+	//MCFG_Z8530_INTRQ_CALLBACK(WRITELINE(macpci_state, set_scc_interrupt))
+	MCFG_CUDA_ADD(CUDA_341S0060)
+	MCFG_CUDA_RESET_CALLBACK(WRITELINE(macpci_state, cuda_reset_w))
+	MCFG_CUDA_LINECHANGE_CALLBACK(WRITELINE(macpci_state, cuda_adb_linechange_w))
+	MCFG_CUDA_VIA_CLOCK_CALLBACK(DEVWRITELINE("via6522_0", via6522_device, write_cb1))
+	MCFG_CUDA_VIA_DATA_CALLBACK(DEVWRITELINE("via6522_0", via6522_device, write_cb2))
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 MACHINE_CONFIG_END
 

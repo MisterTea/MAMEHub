@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     chd.c
 
     MAME Compressed Hunks of Data file format
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -1441,6 +1412,7 @@ UINT32 chd_file::guess_unitbytes()
 	if (read_metadata(CDROM_OLD_METADATA_TAG, 0, metadata) == CHDERR_NONE ||
 		read_metadata(CDROM_TRACK_METADATA_TAG, 0, metadata) == CHDERR_NONE ||
 		read_metadata(CDROM_TRACK_METADATA2_TAG, 0, metadata) == CHDERR_NONE ||
+		read_metadata(GDROM_OLD_METADATA_TAG, 0, metadata) == CHDERR_NONE ||
 		read_metadata(GDROM_TRACK_METADATA_TAG, 0, metadata) == CHDERR_NONE)
 		return CD_FRAME_SIZE;
 
@@ -2345,7 +2317,6 @@ chd_file_compressor::chd_file_compressor()
 		m_write_hunk(0)
 {
 	// zap arrays
-	memset(m_work_item, 0, sizeof(m_work_item));
 	memset(m_codecs, 0, sizeof(m_codecs));
 
 	// allocate work queues
@@ -2392,8 +2363,7 @@ void chd_file_compressor::compress_begin()
 	m_read_error = false;
 
 	// reset work item state
-	m_work_buffer.resize(hunk_bytes() * (WORK_BUFFER_HUNKS + 1));
-	memset(m_work_buffer, 0, m_work_buffer.count());
+	m_work_buffer.resize_and_clear(hunk_bytes() * (WORK_BUFFER_HUNKS + 1));
 	m_compressed_buffer.resize(hunk_bytes() * WORK_BUFFER_HUNKS);
 	for (int itemnum = 0; itemnum < WORK_BUFFER_HUNKS; itemnum++)
 	{

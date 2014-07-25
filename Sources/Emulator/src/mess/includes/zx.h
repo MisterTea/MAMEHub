@@ -42,7 +42,8 @@ public:
 		m_io_row5(*this, "ROW5"),
 		m_io_row6(*this, "ROW6"),
 		m_io_row7(*this, "ROW7"),
-		m_io_config(*this, "CONFIG") { }
+		m_io_config(*this, "CONFIG"),
+		m_screen(*this, "screen") { }
 
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
@@ -75,7 +76,7 @@ public:
 	DECLARE_DRIVER_INIT(zx);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(zx);
 	DECLARE_PALETTE_INIT(ts1000);
 	DECLARE_MACHINE_RESET(pc8300);
 	DECLARE_MACHINE_RESET(pow3000);
@@ -100,6 +101,7 @@ protected:
 	required_ioport m_io_row6;
 	required_ioport m_io_row7;
 	optional_ioport m_io_config;
+	required_device<screen_device> m_screen;
 
 	void zx_ula_r(int offs, memory_region *region, const UINT8 param);
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);

@@ -18,13 +18,13 @@
 
 ******************************************************************************/
 
-void gomoku_state::palette_init()
+PALETTE_INIT_MEMBER(gomoku_state, gomoku)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 	int bit0, bit1, bit2, r, g, b;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		/* red component */
 		bit0 = (*color_prom >> 0) & 0x01;
@@ -42,7 +42,7 @@ void gomoku_state::palette_init()
 		bit2 = (*color_prom >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(),i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 		color_prom++;
 	}
 }
@@ -61,8 +61,7 @@ TILE_GET_INFO_MEMBER(gomoku_state::get_fg_tile_info)
 	int color = (attr& 0x0f);
 	int flipyx = (attr & 0xc0) >> 6;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			color,
 			TILE_FLIPYX(flipyx));
@@ -113,7 +112,7 @@ void gomoku_state::video_start()
 
 	m_screen->register_screen_bitmap(m_bg_bitmap);
 
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(gomoku_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(gomoku_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 

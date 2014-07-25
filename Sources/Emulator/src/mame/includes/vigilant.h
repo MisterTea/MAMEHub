@@ -8,13 +8,19 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
 		m_maincpu(*this, "maincpu"),
-		m_audio(*this, "m72") { }
+		m_audio(*this, "m72"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_8(*this, "paletteram") { }
 
 	required_shared_ptr<UINT8> m_spriteram;
 	required_shared_ptr<UINT8> m_videoram;
 
 	required_device<cpu_device> m_maincpu;
 	required_device<m72_audio_device> m_audio;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT8> m_generic_paletteram_8;
 
 	int m_horiz_scroll_low;
 	int m_horiz_scroll_high;

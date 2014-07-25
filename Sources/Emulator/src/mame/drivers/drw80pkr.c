@@ -9,7 +9,7 @@
     --- Technical Notes ---
 
     Name:    Draw 80 Poker
-    Company: IGT - International Gaming Technology
+    Company: IGT - International Game Technology
     Year:    1982
 
     Hardware:
@@ -36,7 +36,8 @@ class drw80pkr_state : public driver_device
 public:
 	drw80pkr_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	tilemap_t *m_bg_tilemap;
 	UINT8 m_t0;
@@ -70,9 +71,10 @@ public:
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void machine_start();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(drw80pkr);
 	UINT32 screen_update_drw80pkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -338,7 +340,7 @@ TILE_GET_INFO_MEMBER(drw80pkr_state::get_bg_tile_info)
 
 void drw80pkr_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(drw80pkr_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 24, 27);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(drw80pkr_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 24, 27);
 }
 
 UINT32 drw80pkr_state::screen_update_drw80pkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -348,12 +350,12 @@ UINT32 drw80pkr_state::screen_update_drw80pkr(screen_device &screen, bitmap_ind1
 	return 0;
 }
 
-void drw80pkr_state::palette_init()
+PALETTE_INIT_MEMBER(drw80pkr_state, drw80pkr)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int j;
 
-	for (j = 0; j < machine().total_colors(); j++)
+	for (j = 0; j < palette.entries(); j++)
 	{
 		int r, g, b, tr, tg, tb, i;
 
@@ -372,7 +374,7 @@ void drw80pkr_state::palette_init()
 		tb = 0xf0 - (0xf0 * ((color_prom[j] >> 2) & 0x01));
 		b = tb - (i * (tb / 5));
 
-		palette_set_color(machine(), j, MAKE_RGB(r, g, b));
+		palette.set_pen_color(j, rgb_t(r, g, b));
 	}
 }
 
@@ -479,10 +481,11 @@ static MACHINE_CONFIG_START( drw80pkr, drw80pkr_state )
 	MCFG_SCREEN_SIZE((31+1)*8, (31+1)*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 24*8-1, 0*8, 27*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(drw80pkr_state, screen_update_drw80pkr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(drw80pkr)
-	MCFG_PALETTE_LENGTH(16*16)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", drw80pkr)
+	MCFG_PALETTE_ADD("palette", 16*16)
+	MCFG_PALETTE_INIT_OWNER(drw80pkr_state, drw80pkr)
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
@@ -528,5 +531,5 @@ ROM_END
 *************************/
 
 /*    YEAR  NAME      PARENT  MACHINE   INPUT     INIT      ROT    COMPANY                                  FULLNAME                FLAGS   */
-GAME( 1982, drw80pkr, 0,      drw80pkr, drw80pkr, drw80pkr_state, drw80pkr, ROT0,  "IGT - International Gaming Technology", "Draw 80 Poker",        GAME_NOT_WORKING )
-GAME( 1983, drw80pk2, 0,      drw80pkr, drw80pkr, drw80pkr_state, drw80pkr, ROT0,  "IGT - International Gaming Technology", "Draw 80 Poker - Minn", GAME_NOT_WORKING )
+GAME( 1982, drw80pkr, 0,      drw80pkr, drw80pkr, drw80pkr_state, drw80pkr, ROT0,  "IGT - International Game Technology", "Draw 80 Poker",        GAME_NOT_WORKING )
+GAME( 1983, drw80pk2, 0,      drw80pkr, drw80pkr, drw80pkr_state, drw80pkr, ROT0,  "IGT - International Game Technology", "Draw 80 Poker - Minn", GAME_NOT_WORKING )

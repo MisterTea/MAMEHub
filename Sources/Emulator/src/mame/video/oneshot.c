@@ -49,9 +49,9 @@ WRITE16_MEMBER(oneshot_state::oneshot_fg_videoram_w)
 
 void oneshot_state::video_start()
 {
-	m_bg_tilemap =  &machine().tilemap().create(tilemap_get_info_delegate(FUNC(oneshot_state::get_oneshot_bg_tile_info),this),  TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_mid_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(oneshot_state::get_oneshot_mid_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_fg_tilemap =  &machine().tilemap().create(tilemap_get_info_delegate(FUNC(oneshot_state::get_oneshot_fg_tile_info),this),  TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_bg_tilemap =  &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(oneshot_state::get_oneshot_bg_tile_info),this),  TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_mid_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(oneshot_state::get_oneshot_mid_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_fg_tilemap =  &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(oneshot_state::get_oneshot_fg_tile_info),this),  TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 
 	m_bg_tilemap->set_transparent_pen(0);
 	m_mid_tilemap->set_transparent_pen(0);
@@ -94,7 +94,7 @@ void oneshot_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 {
 	const UINT16 *source = m_sprites;
 	const UINT16 *finish = source + (0x1000 / 2);
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 
 	int xpos, ypos;
 
@@ -122,19 +122,18 @@ void oneshot_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 		{
 			for (blocky = 0; blocky < ysize; blocky++)
 			{
-				drawgfx_transpen(
+						gfx->transpen(
 						bitmap,
 						cliprect,
-						gfx,
 						num + (blocky * xsize) + blockx,
 						1,
 						0,0,
 						xpos + blockx * 8, ypos + blocky * 8, 0);
 
-				drawgfx_transpen(
+
+						gfx->transpen(
 						bitmap,
 						cliprect,
-						gfx,
 						num + (blocky * xsize) + blockx,
 						1,
 						0,0,
@@ -148,7 +147,7 @@ void oneshot_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 
 UINT32 oneshot_state::screen_update_oneshot(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	m_mid_tilemap->set_scrollx(0, m_scroll[0] - 0x1f5);
 	m_mid_tilemap->set_scrolly(0, m_scroll[1]);
@@ -163,7 +162,7 @@ UINT32 oneshot_state::screen_update_oneshot(screen_device &screen, bitmap_ind16 
 
 UINT32 oneshot_state::screen_update_maddonna(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	m_mid_tilemap->set_scrolly(0, m_scroll[1]); // other registers aren't used so we don't know which layers they relate to
 

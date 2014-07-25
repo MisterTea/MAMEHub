@@ -19,9 +19,7 @@
 
 #define __STDC_FORMAT_MACROS
 
-#ifdef HAVE_CONFIG_H
 #include <thrift_config.h>
-#endif
 
 #include "TNonblockingServer.h"
 #include <thrift/concurrency/Exception.h>

@@ -156,13 +156,14 @@ class z100_state : public driver_device
 public:
 	z100_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_pia0(*this, "pia0"),
-	m_pia1(*this, "pia1"),
-	m_picm(*this, "pic8259_master"),
-	m_pics(*this, "pic8259_slave"),
-	m_fdc(*this, "z207_fdc"),
-	m_crtc(*this, "crtc")
+		m_maincpu(*this, "maincpu"),
+		m_pia0(*this, "pia0"),
+		m_pia1(*this, "pia1"),
+		m_picm(*this, "pic8259_master"),
+		m_pics(*this, "pic8259_slave"),
+		m_fdc(*this, "z207_fdc"),
+		m_crtc(*this, "crtc"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -172,6 +173,8 @@ public:
 	required_device<pic8259_device> m_pics;
 	required_device<fd1797_device> m_fdc;
 	required_device<mc6845_device> m_crtc;
+	required_device<palette_device> m_palette;
+
 	DECLARE_READ8_MEMBER(z100_vram_r);
 	DECLARE_WRITE8_MEMBER(z100_vram_w);
 	DECLARE_READ8_MEMBER(keyb_data_r);
@@ -181,12 +184,11 @@ public:
 	DECLARE_WRITE8_MEMBER(z100_6845_data_w);
 	DECLARE_READ8_MEMBER(z207_fdc_r);
 	DECLARE_WRITE8_MEMBER(z207_fdc_w);
-	DECLARE_WRITE_LINE_MEMBER(z100_pic_irq);
 	DECLARE_READ8_MEMBER(get_slave_ack);
 	DECLARE_WRITE8_MEMBER(video_pia_A_w);
 	DECLARE_WRITE8_MEMBER(video_pia_B_w);
 	DECLARE_WRITE_LINE_MEMBER(video_pia_CA2_w);
-	DECLARE_WRITE8_MEMBER(video_pia_CB2_w);
+	DECLARE_WRITE_LINE_MEMBER(video_pia_CB2_w);
 	UINT8 *m_gvram;
 	UINT8 m_keyb_press,m_keyb_status;
 	UINT8 m_vram_enable;
@@ -203,10 +205,8 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
 	UINT32 screen_update_z100(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_INPUT_CHANGED_MEMBER(key_stroke);
-	IRQ_CALLBACK_MEMBER(z100_irq_callback);
 };
 
 #define mc6845_h_char_total     (m_crtc_vreg[0])
@@ -263,7 +263,7 @@ UINT32 z100_state::screen_update_z100(screen_device &screen, bitmap_ind16 &bitma
 						dot = m_display_mask;
 
 					if(y*mc6845_tile_height+yi < 216 && x*8+xi < 640) /* TODO: safety check */
-						bitmap.pix16(y*mc6845_tile_height+yi, x*8+xi) = machine().pens[dot];
+						bitmap.pix16(y*mc6845_tile_height+yi, x*8+xi) = m_palette->pen(dot);
 				}
 			}
 		}
@@ -356,10 +356,10 @@ READ8_MEMBER( z100_state::z207_fdc_r )
 
 	switch(offset)
 	{
-		case 0: res = wd17xx_status_r(m_fdc,space, offset); break;
-		case 1: res = wd17xx_track_r(m_fdc,space, offset);  break;
-		case 2: res = wd17xx_sector_r(m_fdc,space, offset); break;
-		case 3: res = wd17xx_data_r(m_fdc,space, offset); break;
+		case 0: res = m_fdc->status_r(space, offset); break;
+		case 1: res = m_fdc->track_r(space, offset);  break;
+		case 2: res = m_fdc->sector_r(space, offset); break;
+		case 3: res = m_fdc->data_r(space, offset); break;
 	}
 
 	return res;
@@ -369,17 +369,17 @@ WRITE8_MEMBER( z100_state::z207_fdc_w )
 {
 	switch(offset)
 	{
-		case 0: wd17xx_command_w(m_fdc,space, offset,data); break;
-		case 1: wd17xx_track_w(m_fdc,space, offset,data); break;
-		case 2: wd17xx_sector_w(m_fdc,space, offset,data); break;
-		case 3: wd17xx_data_w(m_fdc,space, offset,data); break;
+		case 0: m_fdc->command_w(space, offset,data); break;
+		case 1: m_fdc->track_w(space, offset,data); break;
+		case 2: m_fdc->sector_w(space, offset,data); break;
+		case 3: m_fdc->data_w(space, offset,data); break;
 		case 4: // disk control
-			wd17xx_set_drive(m_fdc,data & 3);
+			m_fdc->set_drive(data & 3);
 			m_z207_cur_drive = data & 3;
 			break;
 		case 5: // aux control
-			floppy_mon_w(floppy_get_device(machine(), m_z207_cur_drive), !BIT(data, 1));
-			floppy_drive_set_ready_state(floppy_get_device(machine(), m_z207_cur_drive), data & 2,0);
+			floppy_get_device(machine(), m_z207_cur_drive)->floppy_mon_w(!BIT(data, 1));
+			floppy_get_device(machine(), m_z207_cur_drive)->floppy_drive_set_ready_state(data & 2,0);
 			break;
 
 	}
@@ -595,38 +595,13 @@ INPUT_PORTS_START( z100 )
 	PORT_CONFSETTING( 0x01, "Color" )
 INPUT_PORTS_END
 
-IRQ_CALLBACK_MEMBER(z100_state::z100_irq_callback)
-{
-	return m_picm->inta_r();
-}
-
-WRITE_LINE_MEMBER( z100_state::z100_pic_irq )
-{
-	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
-//  logerror("PIC#1: set IRQ line to %i\n",interrupt);
-}
-
 READ8_MEMBER( z100_state::get_slave_ack )
 {
 	if (offset==7) { // IRQ = 7
-		return m_pics->inta_r();
+		return m_pics->acknowledge();
 	}
 	return 0;
 }
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
 
 WRITE8_MEMBER( z100_state::video_pia_A_w )
 {
@@ -662,50 +637,10 @@ WRITE_LINE_MEMBER( z100_state::video_pia_CA2_w )
 		m_gvram[i] = m_clr_val;
 }
 
-WRITE8_MEMBER( z100_state::video_pia_CB2_w )
+WRITE_LINE_MEMBER( z100_state::video_pia_CB2_w )
 {
-	m_clr_val = (data & 1) ? 0x00 : 0xff;
+	m_clr_val = (state & 1) ? 0x00 : 0xff;
 }
-
-static const pia6821_interface pia0_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(z100_state, video_pia_A_w),     /* port A out */
-	DEVCB_DRIVER_MEMBER(z100_state, video_pia_B_w),     /* port B out */
-	DEVCB_DRIVER_LINE_MEMBER(z100_state, video_pia_CA2_w),      /* line CA2 out */
-	DEVCB_DRIVER_MEMBER(z100_state, video_pia_CB2_w),       /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-static const pia6821_interface pia1_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_NULL,     /* port A out */
-	DEVCB_NULL,     /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-static const wd17xx_interface z207_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	{FLOPPY_0, FLOPPY_1, NULL, NULL}
-};
 
 static LEGACY_FLOPPY_OPTIONS_START( z100 )
 	LEGACY_FLOPPY_OPTION( img2d, "2d", "2D disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
@@ -718,25 +653,13 @@ LEGACY_FLOPPY_OPTIONS_END
 
 static const floppy_interface z100_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSDD_40,
 	LEGACY_FLOPPY_OPTIONS_NAME(z100),
-	"floppy_5_25",
-	NULL
+	"floppy_5_25"
 };
-
-void z100_state::palette_init()
-{
-	// ...
-}
 
 void z100_state::machine_start()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(z100_state::z100_irq_callback),this));
 	m_mc6845 = machine().device<mc6845_device>("crtc");
 }
 
@@ -747,12 +670,12 @@ void z100_state::machine_reset()
 	if(ioport("CONFIG")->read() & 1)
 	{
 		for(i=0;i<8;i++)
-			palette_set_color_rgb(machine(), i,pal1bit(i >> 1),pal1bit(i >> 2),pal1bit(i >> 0));
+			m_palette->set_pen_color(i,pal1bit(i >> 1),pal1bit(i >> 2),pal1bit(i >> 0));
 	}
 	else
 	{
 		for(i=0;i<8;i++)
-			palette_set_color_rgb(machine(), i,pal3bit(0),pal3bit(i),pal3bit(0));
+			m_palette->set_pen_color(i,pal3bit(0),pal3bit(i),pal3bit(0));
 	}
 }
 
@@ -761,7 +684,7 @@ static MACHINE_CONFIG_START( z100, z100_state )
 	MCFG_CPU_ADD("maincpu",I8088, XTAL_14_31818MHz/3)
 	MCFG_CPU_PROGRAM_MAP(z100_mem)
 	MCFG_CPU_IO_MAP(z100_io)
-
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_master", pic8259_device, inta_cb)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -770,18 +693,29 @@ static MACHINE_CONFIG_START( z100, z100_state )
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 	MCFG_SCREEN_UPDATE_DRIVER(z100_state, screen_update_z100)
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_SCREEN_PALETTE("palette")
 
-	/* Devices */
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_14_31818MHz/8, mc6845_intf)    /* unknown clock, hand tuned to get ~50/~60 fps */
+	MCFG_PALETTE_ADD("palette", 8)
 
-	MCFG_PIC8259_ADD( "pic8259_master", WRITELINE(z100_state, z100_pic_irq), VCC, READ8(z100_state, get_slave_ack) )
+	/* devices */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_14_31818MHz/8)    /* unknown clock, hand tuned to get ~50/~60 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+
+	MCFG_PIC8259_ADD( "pic8259_master", INPUTLINE("maincpu", 0), VCC, READ8(z100_state, get_slave_ack) )
 	MCFG_PIC8259_ADD( "pic8259_slave", DEVWRITELINE("pic8259_master", pic8259_device, ir3_w), GND, NULL )
 
-	MCFG_PIA6821_ADD("pia0", pia0_intf)
-	MCFG_PIA6821_ADD("pia1", pia1_intf)
+	MCFG_DEVICE_ADD("pia0", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(z100_state, video_pia_A_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(z100_state, video_pia_B_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(z100_state, video_pia_CA2_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(z100_state, video_pia_CB2_w))
 
-	MCFG_FD1797_ADD("z207_fdc",z207_interface)
+	MCFG_DEVICE_ADD("pia1", PIA6821, 0)
+
+	MCFG_DEVICE_ADD("z207_fdc", FD1797, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE2_TAGS
+
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(z100_floppy_interface)
 MACHINE_CONFIG_END
 

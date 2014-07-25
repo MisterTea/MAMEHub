@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Cinemat/Leland driver
@@ -513,20 +515,26 @@ UINT32 leland_state::screen_update_ataxx(screen_device &screen, bitmap_ind16 &bi
 
 MACHINE_CONFIG_FRAGMENT( leland_video )
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_VIDEO_START_OVERRIDE(leland_state,leland)
 
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(BBGGGRRR)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_UPDATE_DRIVER(leland_state, screen_update_leland)
+	MCFG_SCREEN_PALETTE("palette")
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_DERIVED( ataxx_video, leland_video )
 	MCFG_VIDEO_START_OVERRIDE(leland_state,ataxx)
+
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(leland_state, screen_update_ataxx)
+
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 MACHINE_CONFIG_END

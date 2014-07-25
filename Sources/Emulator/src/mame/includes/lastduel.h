@@ -17,7 +17,9 @@ public:
 		m_vram(*this, "vram"),
 		m_scroll1(*this, "scroll1"),
 		m_scroll2(*this, "scroll2"),
-		m_paletteram(*this, "paletteram"){ }
+		m_paletteram(*this, "paletteram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"){ }
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
@@ -28,6 +30,9 @@ public:
 	required_shared_ptr<UINT16> m_scroll1;
 	required_shared_ptr<UINT16> m_scroll2;
 	required_shared_ptr<UINT16> m_paletteram;
+
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	/* video-related */
 	tilemap_t     *m_bg_tilemap;

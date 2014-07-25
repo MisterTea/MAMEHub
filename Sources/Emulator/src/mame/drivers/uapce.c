@@ -93,12 +93,11 @@ Alien Crush & Pac_Land: dumps made from PC-Engine dumps of JP versions
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "cpu/h6280/h6280.h"
+#include "video/huc6260.h"
+#include "video/huc6270.h"
 #include "sound/c6280.h"
 #include "machine/pcecommn.h"
-#include "video/vdc.h"
 #include "sound/discrete.h"
-#include "drivlgcy.h"
-#include "scrlegcy.h"
 
 
 class uapce_state : public pce_common_state
@@ -115,6 +114,7 @@ public:
 	virtual UINT8 joy_read();
 	virtual void machine_reset();
 	required_device<discrete_device> m_discrete;
+	DECLARE_WRITE_LINE_MEMBER(pce_irq_changed);
 };
 
 #define UAPCE_SOUND_EN  NODE_10
@@ -161,7 +161,7 @@ WRITE8_MEMBER(uapce_state::jamma_if_control_latch_w)
       752 Hz (D-3) square wave to be output on the common audio path.
       (1= Tone output ON, 0= Tone output OFF) */
 
-	discrete_sound_w(m_discrete, space, UAPCE_SOUND_EN, BIT(data,3));
+	m_discrete->write(space, UAPCE_SOUND_EN, BIT(data,3));
 
 /* D2 : Not latched, though software writes to this bit like it is. */
 
@@ -288,8 +288,8 @@ INPUT_PORTS_END
 static ADDRESS_MAP_START( pce_mem , AS_PROGRAM, 8, uapce_state )
 	AM_RANGE( 0x000000, 0x09FFFF) AM_ROM
 	AM_RANGE( 0x1F0000, 0x1F1FFF) AM_RAM AM_MIRROR(0x6000)
-	AM_RANGE( 0x1FE000, 0x1FE3FF) AM_READWRITE_LEGACY(vdc_0_r, vdc_0_w )
-	AM_RANGE( 0x1FE400, 0x1FE7FF) AM_READWRITE_LEGACY(vce_r, vce_w )
+	AM_RANGE( 0x1FE000, 0x1FE3FF) AM_DEVREADWRITE( "huc6270", huc6270_device, read, write )
+	AM_RANGE( 0x1FE400, 0x1FE7FF) AM_DEVREADWRITE( "huc6260", huc6260_device, read, write )
 	AM_RANGE( 0x1FE800, 0x1FEBFF) AM_DEVREADWRITE("c6280", c6280_device, c6280_r, c6280_w )
 	AM_RANGE( 0x1FEC00, 0x1FEFFF) AM_DEVREADWRITE("maincpu", h6280_device, timer_r, timer_w )
 	AM_RANGE( 0x1FF000, 0x1FF3FF) AM_READWRITE(pce_joystick_r, pce_joystick_w )
@@ -297,42 +297,44 @@ static ADDRESS_MAP_START( pce_mem , AS_PROGRAM, 8, uapce_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( pce_io , AS_IO, 8, uapce_state )
-	AM_RANGE( 0x00, 0x03) AM_READWRITE_LEGACY(vdc_0_r, vdc_0_w )
+	AM_RANGE( 0x00, 0x03) AM_DEVREADWRITE( "huc6270", huc6270_device, read, write )
 ADDRESS_MAP_END
 
-static const c6280_interface c6280_config =
+WRITE_LINE_MEMBER(uapce_state::pce_irq_changed)
 {
-	"maincpu"
-};
+	m_maincpu->set_input_line(0, state);
+}
+
 
 static MACHINE_CONFIG_START( uapce, uapce_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", H6280, PCE_MAIN_CLOCK/3)
 	MCFG_CPU_PROGRAM_MAP(pce_mem)
 	MCFG_CPU_IO_MAP(pce_io)
-	MCFG_TIMER_ADD_SCANLINE("scantimer", pce_interrupt, "screen", 0, 1)
 
 	MCFG_CPU_ADD("sub", Z80, 1400000)
 	MCFG_CPU_PROGRAM_MAP(z80_map)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
-
 	/* video hardware */
-
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS(PCE_MAIN_CLOCK/2, VDC_WPF, 70, 70 + 512 + 32, VDC_LPF, 14, 14+242)
-	MCFG_SCREEN_UPDATE_STATIC( pce )
+	MCFG_SCREEN_RAW_PARAMS(PCE_MAIN_CLOCK, HUC6260_WPF, 64, 64 + 1024 + 64, HUC6260_LPF, 18, 18 + 242)
+	MCFG_SCREEN_UPDATE_DRIVER( pce_common_state, screen_update )
+	MCFG_SCREEN_PALETTE("huc6260:palette")
 
-	/* MCFG_GFXDECODE( pce_gfxdecodeinfo ) */
-	MCFG_PALETTE_LENGTH(1024)
-	MCFG_PALETTE_INIT( vce )
-
-	MCFG_VIDEO_START( pce )
+	MCFG_DEVICE_ADD( "huc6260", HUC6260, PCE_MAIN_CLOCK )
+	MCFG_HUC6260_NEXT_PIXEL_DATA_CB(DEVREAD16("huc6270", huc6270_device, next_pixel))
+	MCFG_HUC6260_TIME_TIL_NEXT_EVENT_CB(DEVREAD16("huc6270", huc6270_device, time_until_next_event))
+	MCFG_HUC6260_VSYNC_CHANGED_CB(DEVWRITELINE("huc6270", huc6270_device, vsync_changed))
+	MCFG_HUC6260_HSYNC_CHANGED_CB(DEVWRITELINE("huc6270", huc6270_device, hsync_changed))
+	MCFG_DEVICE_ADD( "huc6270", HUC6270, 0 )
+	MCFG_HUC6270_VRAM_SIZE(0x10000)
+	MCFG_HUC6270_IRQ_CHANGED_CB(WRITELINE(uapce_state, pce_irq_changed))
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker","rspeaker")
 	MCFG_SOUND_ADD("c6280", C6280, PCE_MAIN_CLOCK/6)
-	MCFG_SOUND_CONFIG(c6280_config)
+	MCFG_C6280_CPU("maincpu")
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.5)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.5)
 

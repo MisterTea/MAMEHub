@@ -12,7 +12,9 @@ public:
 		m_tx_ram(*this, "tx_ram"),
 		m_attr_ram(*this, "attr_ram"),
 		m_spr_ram(*this, "spr_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_mcu_ram;
@@ -52,11 +54,13 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(chaknpop);
 	UINT32 screen_update_chaknpop(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void tx_tilemap_mark_all_dirty();
 	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
 	void draw_bitmap( bitmap_ind16 &bitmap, const rectangle &cliprect );
 	void mcu_update_seed( UINT8 data );
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

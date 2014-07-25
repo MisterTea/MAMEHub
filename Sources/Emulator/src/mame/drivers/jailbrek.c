@@ -229,23 +229,6 @@ static GFXDECODE_START( jailbrek )
 GFXDECODE_END
 
 
-/*************************************
- *
- *  Sound definitions
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 void jailbrek_state::machine_start()
 {
 	save_item(NAME(m_irq_enable));
@@ -268,20 +251,21 @@ static MACHINE_CONFIG_START( jailbrek, jailbrek_state )
 
 
 	/* video hardware */
-	MCFG_GFXDECODE(jailbrek)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jailbrek)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(jailbrek_state, jailbrek)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/3, 396, 8, 248, 256, 16, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(jailbrek_state, screen_update_jailbrek)
-
+	MCFG_SCREEN_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("snsnd", SN76489A, MASTER_CLOCK/12)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, VOICE_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)

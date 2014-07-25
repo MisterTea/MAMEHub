@@ -823,10 +823,10 @@ void m6800_cpu_device::write_port2()
 }
 
 /* include the opcode prototypes and function pointer tables */
-#include "6800tbl.c"
+#include "6800tbl.inc"
 
 /* include the opcode functions */
-#include "6800ops.c"
+#include "6800ops.inc"
 
 int m6800_cpu_device::m6800_rx()
 {
@@ -1049,7 +1049,16 @@ void m6800_cpu_device::device_start()
 	m_input_capture = 0;
 	m_rdr = 0;
 	m_tdr = 0;
+	m_rmcr = 0;
 	m_ram_ctrl = 0;
+
+	m_pc.d = 0;
+	m_s.d = 0;
+	m_x.d = 0;
+	m_d.d = 0;
+	m_cc = 0;
+	m_wai_state = 0;
+	m_irq_state[0] = m_irq_state[1] = m_irq_state[2] = 0;
 
 	save_item(NAME(m_ppc.w.l));
 	save_item(NAME(m_pc.w.l));
@@ -1149,6 +1158,7 @@ void m6800_cpu_device::device_reset()
 	m_port1_ddr = 0x00;
 	m_port2_ddr = 0x00;
 	m_port3_ddr = 0x00;
+	m_port1_data = 0;
 	m_p3csr = 0x00;
 	m_p3csr_is3_flag_read = 0;
 	m_port2_written = 0;
@@ -1776,4 +1786,14 @@ offs_t nsc8105_cpu_device::disasm_disassemble(char *buffer, offs_t pc, const UIN
 {
 	extern CPU_DISASSEMBLE( nsc8105 );
 	return CPU_DISASSEMBLE_NAME(nsc8105)(this, buffer, pc, oprom, opram, options);
+}
+
+WRITE_LINE_MEMBER( m6800_cpu_device::irq_line )
+{
+	set_input_line( M6800_IRQ_LINE, state );
+}
+
+WRITE_LINE_MEMBER( m6800_cpu_device::nmi_line )
+{
+	set_input_line( INPUT_LINE_NMI, state );
 }

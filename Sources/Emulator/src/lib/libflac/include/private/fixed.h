@@ -32,12 +32,12 @@
 #ifndef FLAC__PRIVATE__FIXED_H
 #define FLAC__PRIVATE__FIXED_H
 
-#if HAVE_CONFIG_H
+#ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
 #include "private/float.h"
-#include "flac/format.h"
+#include "FLAC/format.h"
 
 /*
  *  FLAC__fixed_compute_best_predictor()

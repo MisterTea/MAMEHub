@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic, Robbbert
 /******************************************************************************
 
         LLC driver by Miodrag Milanovic
@@ -48,6 +50,8 @@
 #include "machine/keyboard.h"
 #include "includes/llc.h"
 #include "llc1.lh"
+
+#define KEYBOARD_TAG "keyboard"
 
 /* Address maps */
 static ADDRESS_MAP_START( llc1_mem, AS_PROGRAM, 8, llc_state )
@@ -141,11 +145,6 @@ WRITE8_MEMBER( llc_state::kbd_put )
 		m_term_status = 0xff;
 }
 
-static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
-{
-	DEVCB_DRIVER_MEMBER(llc_state, kbd_put)
-};
-
 static const z80_daisy_config llc1_daisy_chain[] =
 {
 	{ "z80ctc" },
@@ -212,15 +211,31 @@ static MACHINE_CONFIG_START( llc1, llc_state )
 	MCFG_SCREEN_SIZE(64*8, 16*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 64*8-1, 0, 16*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(llc_state, screen_update_llc1)
-	MCFG_GFXDECODE(llc1)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", llc1)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 	MCFG_DEFAULT_LAYOUT(layout_llc1)
 
-	MCFG_Z80PIO_ADD( "z80pio1", XTAL_3MHz, llc1_z80pio1_intf )
-	MCFG_Z80PIO_ADD( "z80pio2", XTAL_3MHz, llc1_z80pio2_intf )
-	MCFG_Z80CTC_ADD( "z80ctc", XTAL_3MHz, llc1_ctc_intf )
-	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
+	MCFG_DEVICE_ADD("z80pio1", Z80PIO, XTAL_3MHz)
+	MCFG_Z80PIO_IN_PA_CB(READ8(llc_state, llc1_port1_a_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(llc_state, llc1_port1_a_w))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(llc_state, llc1_port1_b_w))
+
+	MCFG_DEVICE_ADD("z80pio2", Z80PIO, XTAL_3MHz)
+	MCFG_Z80PIO_IN_PA_CB(READ8(llc_state, llc1_port2_a_r))
+	MCFG_Z80PIO_IN_PB_CB(READ8(llc_state, llc1_port2_b_r))
+
+	MCFG_DEVICE_ADD("z80ctc", Z80CTC, XTAL_3MHz)
+	// timer 0 irq does digit display, and timer 3 irq does scan of the
+	// monitor keyboard.
+	// No idea how the CTC is connected, so guessed.
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(DEVWRITELINE("z80ctc", z80ctc_device, trg1))
+	MCFG_Z80CTC_ZC1_CB(DEVWRITELINE("z80ctc", z80ctc_device, trg3))
+
+	MCFG_DEVICE_ADD(KEYBOARD_TAG, GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(llc_state, kbd_put))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( llc2, llc_state )
@@ -239,18 +254,26 @@ static MACHINE_CONFIG_START( llc2, llc_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 64*8-1, 0, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(llc_state, screen_update_llc2)
-	MCFG_GFXDECODE(llc2)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", llc2)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.15)
 
-	MCFG_Z80PIO_ADD( "z80pio1", XTAL_3MHz, llc2_z80pio1_intf )
-	MCFG_Z80PIO_ADD( "z80pio2", XTAL_3MHz, llc2_z80pio2_intf )
-	MCFG_Z80CTC_ADD( "z80ctc", XTAL_3MHz, llc2_ctc_intf )
+	MCFG_DEVICE_ADD("z80pio1", Z80PIO, XTAL_3MHz)
+	MCFG_Z80PIO_IN_PA_CB(DEVREAD8(K7659_KEYBOARD_TAG, k7659_keyboard_device, read))
+	MCFG_Z80PIO_IN_PB_CB(READ8(llc_state, llc2_port1_b_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(llc_state, llc2_port1_b_w))
+
+	MCFG_DEVICE_ADD("z80pio2", Z80PIO, XTAL_3MHz)
+	MCFG_Z80PIO_IN_PA_CB(READ8(llc_state, llc2_port2_a_r))
+
+	MCFG_DEVICE_ADD("z80ctc", Z80CTC, XTAL_3MHz)
+
 	MCFG_K7659_KEYBOARD_ADD()
 
 	/* internal ram */

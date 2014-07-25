@@ -1,13 +1,13 @@
 #include "emu.h"
 #include "includes/xyonix.h"
 
-void xyonix_state::palette_init()
+PALETTE_INIT_MEMBER(xyonix_state, xyonix)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < palette.entries();i++)
 	{
 		int bit0,bit1,bit2,r,g,b;
 
@@ -26,7 +26,7 @@ void xyonix_state::palette_init()
 		bit1 = (color_prom[i] >> 4) & 0x01;
 		b = 0x4f * bit0 + 0xa8 * bit1;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
@@ -49,7 +49,7 @@ WRITE8_MEMBER(xyonix_state::xyonix_vidram_w)
 
 void xyonix_state::video_start()
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(xyonix_state::get_xyonix_tile_info),this), TILEMAP_SCAN_ROWS, 4, 8, 80, 32);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(xyonix_state::get_xyonix_tile_info),this), TILEMAP_SCAN_ROWS, 4, 8, 80, 32);
 }
 
 UINT32 xyonix_state::screen_update_xyonix(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)

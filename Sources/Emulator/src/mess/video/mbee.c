@@ -149,7 +149,7 @@ WRITE8_MEMBER( mbee_state::mbeeppc_1c_w )
 /*  d7 extended graphics (1=allow attributes and pcg banks)
     d5 bankswitch basic rom
     d4 select attribute ram
-    d3..d0 select state->m_videoram bank */
+    d3..d0 select m_videoram bank */
 
 	m_1c = data;
 	membank("basic")->set_entry(BIT(data, 5));
@@ -160,7 +160,7 @@ WRITE8_MEMBER( mbee_state::mbee256_1c_w )
 /*  d7 extended graphics (1=allow attributes and pcg banks)
     d5 bankswitch basic rom
     d4 select attribute ram
-    d3..d0 select state->m_videoram bank */
+    d3..d0 select m_videoram bank */
 
 	m_1c = data;
 }
@@ -291,11 +291,10 @@ void mbee_state::mbee_video_kbd_scan( int param )
 
 READ8_MEMBER( mbee_state::m6545_status_r )
 {
-	screen_device *screen = machine().first_screen();
-	const rectangle &visarea = screen->visible_area();
+	const rectangle &visarea = m_screen->visible_area();
 
 	UINT8 data = m_sy6545_status; // bit 6 = lpen strobe, bit 7 = update strobe
-	int y = machine().primary_screen->vpos();
+	int y = m_screen->vpos();
 
 	if( y < visarea.min_y || y > visarea.max_y )
 		data |= 0x20;   /* vertical blanking */
@@ -397,29 +396,26 @@ VIDEO_START_MEMBER(mbee_state,mbeeppc)
 UINT32 mbee_state::screen_update_mbee(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	m_framecnt++;
-	m_speed = m_sy6545_reg[10]&0x20, m_flash = m_sy6545_reg[10]&0x40;           // cursor modes
-	m_cursor = (m_sy6545_reg[14]<<8) | m_sy6545_reg[15];                    // get cursor position
 	m_crtc->screen_update(screen, bitmap, cliprect);
 	return 0;
 }
 
 
-MC6845_ON_UPDATE_ADDR_CHANGED( mbee_update_addr )
+MC6845_ON_UPDATE_ADDR_CHANGED( mbee_state::mbee_update_addr )
 {
 /* not sure what goes in here - parameters passed are device, address, strobe */
 }
 
-MC6845_ON_UPDATE_ADDR_CHANGED( mbee256_update_addr )
+MC6845_ON_UPDATE_ADDR_CHANGED( mbee_state::mbee256_update_addr )
 {
 /* not used on 256TC */
 }
 
 
 /* monochrome bee */
-MC6845_UPDATE_ROW( mbee_update_row )
+MC6845_UPDATE_ROW( mbee_state::mbee_update_row )
 {
-	mbee_state *state = device->machine().driver_data<mbee_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	UINT8 chr,gfx;
 	UINT16 mem,x;
 	UINT32 *p = &bitmap.pix32(y);
@@ -428,19 +424,16 @@ MC6845_UPDATE_ROW( mbee_update_row )
 	{
 		UINT8 inv=0;
 		mem = (ma + x) & 0x7ff;
-		chr = state->m_p_videoram[mem];
+		chr = m_p_videoram[mem];
 
-		state->mbee_video_kbd_scan(x+ma);
+		mbee_video_kbd_scan(x+ma);
 
 		/* process cursor */
-		if ((((!state->m_flash) && (!state->m_speed)) ||                    // (5,6)=(0,0) = cursor on always
-			((state->m_flash) && (state->m_speed) && (state->m_framecnt & 0x10)) ||     // (5,6)=(1,1) = cycle per 32 frames
-			((state->m_flash) && (!state->m_speed) && (state->m_framecnt & 8))) &&      // (5,6)=(0,1) = cycle per 16 frames
-			(mem == state->m_cursor))                   // displaying at cursor position?
-				inv ^= state->m_sy6545_cursor[ra];          // cursor scan row
+		if (x == cursor_x)
+			inv ^= m_sy6545_cursor[ra];          // cursor scan row
 
 		/* get pattern of pixels for that character scanline */
-		gfx = state->m_p_gfxram[(chr<<4) | ra] ^ inv;
+		gfx = m_p_gfxram[(chr<<4) | ra] ^ inv;
 
 		/* Display a scanline of a character (8 pixels) */
 		*p++ = palette[BIT(gfx, 7)];
@@ -455,33 +448,29 @@ MC6845_UPDATE_ROW( mbee_update_row )
 }
 
 /* prom-based colours */
-MC6845_UPDATE_ROW( mbeeic_update_row )
+MC6845_UPDATE_ROW( mbee_state::mbeeic_update_row )
 {
-	mbee_state *state = device->machine().driver_data<mbee_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	UINT8 chr,gfx,fg,bg;
 	UINT16 mem,x,col;
-	UINT16 colourm = (state->m_08 & 0x0e) << 7;
+	UINT16 colourm = (m_08 & 0x0e) << 7;
 	UINT32 *p = &bitmap.pix32(y);
 
 	for (x = 0; x < x_count; x++)           // for each character
 	{
 		UINT8 inv=0;
 		mem = (ma + x) & 0x7ff;
-		chr = state->m_p_videoram[mem];
-		col = state->m_p_colorram[mem] | colourm;                   // read a byte of colour
+		chr = m_p_videoram[mem];
+		col = m_p_colorram[mem] | colourm;                   // read a byte of colour
 
-		state->mbee_video_kbd_scan(x+ma);
+		mbee_video_kbd_scan(x+ma);
 
 		/* process cursor */
-		if ((((!state->m_flash) && (!state->m_speed)) ||                    // (5,6)=(0,0) = cursor on always
-			((state->m_flash) && (state->m_speed) && (state->m_framecnt & 0x10)) ||     // (5,6)=(1,1) = cycle per 32 frames
-			((state->m_flash) && (!state->m_speed) && (state->m_framecnt & 8))) &&      // (5,6)=(0,1) = cycle per 16 frames
-			(mem == state->m_cursor))                   // displaying at cursor position?
-				inv ^= state->m_sy6545_cursor[ra];          // cursor scan row
+		if (x == cursor_x)
+			inv ^= m_sy6545_cursor[ra];          // cursor scan row
 
 		/* get pattern of pixels for that character scanline */
-		gfx = state->m_p_gfxram[(chr<<4) | ra] ^ inv;
+		gfx = m_p_gfxram[(chr<<4) | ra] ^ inv;
 		fg = (col & 0x001f) | 64;                   // map to foreground palette
 		bg = (col & 0x07e0) >> 5;                   // and background palette
 
@@ -499,10 +488,9 @@ MC6845_UPDATE_ROW( mbeeic_update_row )
 
 
 /* new colours & hires2 */
-MC6845_UPDATE_ROW( mbeeppc_update_row )
+MC6845_UPDATE_ROW( mbee_state::mbeeppc_update_row )
 {
-	mbee_state *state = device->machine().driver_data<mbee_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	UINT8 gfx,fg,bg;
 	UINT16 mem,x,col,chr;
 	UINT32 *p = &bitmap.pix32(y);
@@ -511,12 +499,12 @@ MC6845_UPDATE_ROW( mbeeppc_update_row )
 	{
 		UINT8 inv=0;
 		mem = (ma + x) & 0x7ff;
-		chr = state->m_p_videoram[mem];
-		col = state->m_p_colorram[mem];                     // read a byte of colour
+		chr = m_p_videoram[mem];
+		col = m_p_colorram[mem];                     // read a byte of colour
 
-		if (state->m_1c & 0x80)                     // are extended features enabled?
+		if (m_1c & 0x80)                     // are extended features enabled?
 		{
-			UINT8 attr = state->m_p_attribram[mem];
+			UINT8 attr = m_p_attribram[mem];
 
 			if (chr & 0x80)
 				chr += ((attr & 15) << 7);          // bump chr to its particular pcg definition
@@ -524,21 +512,18 @@ MC6845_UPDATE_ROW( mbeeppc_update_row )
 			if (attr & 0x40)
 				inv ^= 0xff;                    // inverse attribute
 
-			if ((attr & 0x80) && (state->m_framecnt & 0x10))            // flashing attribute
+			if ((attr & 0x80) && (m_framecnt & 0x10))            // flashing attribute
 				chr = 0x20;
 		}
 
-		state->mbee_video_kbd_scan(x+ma);
+		mbee_video_kbd_scan(x+ma);
 
 		/* process cursor */
-		if ((((!state->m_flash) && (!state->m_speed)) ||                    // (5,6)=(0,0) = cursor on always
-			((state->m_flash) && (state->m_speed) && (state->m_framecnt & 0x10)) ||     // (5,6)=(1,1) = cycle per 32 frames
-			((state->m_flash) && (!state->m_speed) && (state->m_framecnt & 8))) &&      // (5,6)=(0,1) = cycle per 16 frames
-			(mem == state->m_cursor))                   // displaying at cursor position?
-				inv ^= state->m_sy6545_cursor[ra];          // cursor scan row
+		if (x == cursor_x)
+			inv ^= m_sy6545_cursor[ra];          // cursor scan row
 
 		/* get pattern of pixels for that character scanline */
-		gfx = state->m_p_gfxram[(chr<<4) | ra] ^ inv;
+		gfx = m_p_gfxram[(chr<<4) | ra] ^ inv;
 		fg = col & 15;                          // map to foreground palette
 		bg = (col & 0xf0) >> 4;                     // and background palette
 
@@ -574,7 +559,7 @@ PALETTE_INIT_MEMBER(mbee_state,mbeeic)
 		r = level[((i>>0)&1)|((i>>2)&2)];
 		g = level[((i>>1)&1)|((i>>3)&2)];
 		b = level[((i>>2)&1)|((i>>4)&2)];
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 
 	/* set up foreground palette (64-95) by reading the prom */
@@ -584,7 +569,7 @@ PALETTE_INIT_MEMBER(mbee_state,mbeeic)
 		r = level[((k>>2)&1)|((k>>4)&2)];
 		g = level[((k>>1)&1)|((k>>3)&2)];
 		b = level[((k>>0)&1)|((k>>2)&2)];
-		palette_set_color(machine(), i|64, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i|64, rgb_t(r, g, b));
 	}
 }
 
@@ -602,7 +587,7 @@ PALETTE_INIT_MEMBER(mbee_state,mbeepc85b)
 		r = level[((i>>0)&1)|((i>>2)&2)];
 		g = level[((i>>1)&1)|((i>>3)&2)];
 		b = level[((i>>2)&1)|((i>>4)&2)];
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 
 	level[2] = 0xff;
@@ -614,7 +599,7 @@ PALETTE_INIT_MEMBER(mbee_state,mbeepc85b)
 		r = level[((k>>2)&1)|((k>>4)&2)];
 		g = level[((k>>1)&1)|((k>>3)&2)];
 		b = level[((k>>0)&1)|((k>>2)&2)];
-		palette_set_color(machine(), i|64, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i|64, rgb_t(r, g, b));
 	}
 }
 
@@ -630,7 +615,7 @@ PALETTE_INIT_MEMBER(mbee_state,mbeeppc)
 		r = (i & 1) ? 0xc0 : 0;
 		g = (i & 2) ? 0xc0 : 0;
 		b = (i & 4) ? 0xc0 : 0;
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 
 	/* set up 8 high intensity colours */
@@ -639,6 +624,6 @@ PALETTE_INIT_MEMBER(mbee_state,mbeeppc)
 		r = (i & 1) ? 0xff : 0;
 		g = (i & 2) ? 0xff : 0;
 		b = (i & 4) ? 0xff : 0;
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }

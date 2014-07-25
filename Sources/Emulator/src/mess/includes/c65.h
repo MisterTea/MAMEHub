@@ -8,10 +8,12 @@
 #define C65_H_
 
 #include "machine/mos6526.h"
-#include "machine/cbmiec.h"
+#include "bus/cbmiec/cbmiec.h"
 #include "imagedev/cartslot.h"
 #include "imagedev/snapquik.h"
 #include "machine/ram.h"
+#include "sound/mos6581.h"
+#include "video/vic4567.h"
 
 #define C64_MAX_ROMBANK 64 // .crt files contain multiple 'CHIPs', i.e. rom banks (of variable size) with headers. Known carts have at most 64 'CHIPs'.
 
@@ -59,6 +61,10 @@ class c65_state : public driver_device
 public:
 	c65_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+			m_cia0(*this, "cia_0"),
+			m_cia1(*this, "cia_1"),
+			m_sid_r(*this, "sid_r"),
+			m_vic(*this, "vic3"),
 			m_iec(*this, CBM_IEC_TAG),
 			m_colorram(*this, "colorram"),
 			m_basic(*this, "basic"),
@@ -70,6 +76,10 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_ram(*this, RAM_TAG) { }
 
+	required_device<mos6526_device> m_cia0;
+	required_device<mos6526_device> m_cia1;
+	required_device<mos6581_device> m_sid_r;
+	required_device<vic3_device> m_vic;
 	optional_device<cbm_iec_device> m_iec;
 
 	required_shared_ptr<UINT8> m_colorram;
@@ -132,7 +142,6 @@ public:
 	DECLARE_READ8_MEMBER( sid_potx_r );
 	DECLARE_READ8_MEMBER( sid_poty_r );
 	DECLARE_MACHINE_START(c65);
-	DECLARE_PALETTE_INIT(c65);
 	UINT32 screen_update_c65(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vic3_raster_irq);
 	INTERRUPT_GEN_MEMBER(c65_frame_interrupt);

@@ -318,33 +318,6 @@ GFXDECODE_END
 
 /*************************************
  *
- *  Sound interfaces
- *
- *************************************/
-
-static const ay8910_interface ay8910_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r),
-	DEVCB_DRIVER_MEMBER(blueprnt_state,dipsw_w),
-	DEVCB_NULL
-};
-
-static const ay8910_interface ay8910_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DILSW1"),
-	DEVCB_INPUT_PORT("DILSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-/*************************************
- *
  *  Machine driver
  *
  *************************************/
@@ -384,19 +357,23 @@ static MACHINE_CONFIG_START( blueprnt, blueprnt_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_VIDEO_START_OVERRIDE(blueprnt_state, blueprnt)
 	MCFG_SCREEN_UPDATE_DRIVER(blueprnt_state, screen_update_blueprnt)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(blueprnt)
-	MCFG_PALETTE_LENGTH(128*4+8)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", blueprnt)
+	MCFG_PALETTE_ADD("palette", 128*4+8)
+	MCFG_PALETTE_INIT_OWNER(blueprnt_state, blueprnt)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 10000000/2/2/2)
-	MCFG_SOUND_CONFIG(ay8910_interface_1)
+	MCFG_AY8910_PORT_B_READ_CB(READ8(driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(blueprnt_state, dipsw_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 10000000/2/2/2/2)
-	MCFG_SOUND_CONFIG(ay8910_interface_2)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DILSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DILSW2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 

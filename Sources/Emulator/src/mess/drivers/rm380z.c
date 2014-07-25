@@ -87,6 +87,7 @@ Module timer tag static_vblank_timer name m_expire.seconds
 
 #include "includes/rm380z.h"
 
+#define KEYBOARD_TAG "keyboard"
 
 static ADDRESS_MAP_START(rm380z_mem, AS_PROGRAM, 8, rm380z_state)
 	AM_RANGE( 0xe000, 0xefff ) AM_ROM AM_REGION(RM380Z_MAINCPU_TAG, 0)
@@ -100,18 +101,13 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( rm380z_io , AS_IO, 8, rm380z_state)
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0xbf) AM_READWRITE(rm380z_portlow_r, rm380z_portlow_w)
-	AM_RANGE(0xc0, 0xc0) AM_DEVREADWRITE_LEGACY("wd1771", wd17xx_status_r, wd17xx_command_w)
-	AM_RANGE(0xc1, 0xc1) AM_DEVREADWRITE_LEGACY("wd1771", wd17xx_track_r, wd17xx_track_w)
-	AM_RANGE(0xc2, 0xc2) AM_DEVREADWRITE_LEGACY("wd1771", wd17xx_sector_r, wd17xx_sector_w)
-	AM_RANGE(0xc3, 0xc3) AM_DEVREADWRITE_LEGACY("wd1771", wd17xx_data_r, wd17xx_data_w)
+	AM_RANGE(0xc0, 0xc0) AM_DEVREADWRITE("wd1771", fd1771_device, status_r, command_w)
+	AM_RANGE(0xc1, 0xc1) AM_DEVREADWRITE("wd1771", fd1771_device, track_r, track_w)
+	AM_RANGE(0xc2, 0xc2) AM_DEVREADWRITE("wd1771", fd1771_device, sector_r, sector_w)
+	AM_RANGE(0xc3, 0xc3) AM_DEVREADWRITE("wd1771", fd1771_device, data_r, data_w)
 	AM_RANGE(0xc4, 0xc4) AM_WRITE(disk_0_control)
 	AM_RANGE(0xc5, 0xff) AM_READWRITE(rm380z_porthi_r, rm380z_porthi_w)
 ADDRESS_MAP_END
-
-static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
-{
-	DEVCB_DRIVER_MEMBER(rm380z_state, keyboard_put)
-};
 
 INPUT_PORTS_START( rm380z )
 //  PORT_START("additional_chars")
@@ -124,14 +120,8 @@ INPUT_PORTS_END
 
 static const floppy_interface rm380z_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_SSSD,
 	LEGACY_FLOPPY_OPTIONS_NAME(default),
-	NULL,
 	NULL
 };
 
@@ -155,21 +145,24 @@ static MACHINE_CONFIG_START( rm380z, rm380z_state )
 	// and there is at least 1 pixel between each row of characters
 	MCFG_SCREEN_SIZE((RM380Z_SCREENCOLS*(RM380Z_CHDIMX+1)), (RM380Z_SCREENROWS*(RM380Z_CHDIMY+1)))
 	MCFG_SCREEN_VISIBLE_AREA(0, (RM380Z_SCREENCOLS*(RM380Z_CHDIMX+1))-1, 0, (RM380Z_SCREENROWS*(RM380Z_CHDIMY+1))-1)
-
 	MCFG_SCREEN_UPDATE_DRIVER(rm380z_state, screen_update_rm380z)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* RAM configurations */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("56K")
 
 	/* floppy disk */
-	MCFG_FD1771_ADD("wd1771", default_wd17xx_interface)
+	MCFG_DEVICE_ADD("wd1771", FD1771, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE2_TAGS
+
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(rm380z_floppy_interface)
 
 	/* keyboard */
-	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
+	MCFG_DEVICE_ADD(KEYBOARD_TAG, GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(rm380z_state, keyboard_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

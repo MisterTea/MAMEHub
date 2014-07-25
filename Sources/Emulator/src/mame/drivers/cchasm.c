@@ -18,12 +18,9 @@
 #include "cpu/m68000/m68000.h"
 #include "sound/ay8910.h"
 #include "sound/dac.h"
-#include "video/vector.h"
 #include "machine/6840ptm.h"
 #include "machine/z80ctc.h"
 #include "includes/cchasm.h"
-#include "drivlgcy.h"
-#include "scrlegcy.h"
 
 #define CCHASM_68K_CLOCK (XTAL_8MHz)
 
@@ -73,14 +70,6 @@ WRITE_LINE_MEMBER(cchasm_state::cchasm_6840_irq)
 {
 	m_maincpu->set_input_line(4, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ptm6840_interface cchasm_6840_intf =
-{
-	CCHASM_68K_CLOCK/10,
-	{ 0, CCHASM_68K_CLOCK / 10, 0 },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	DEVCB_DRIVER_LINE_MEMBER(cchasm_state,cchasm_6840_irq)
-};
 
 /*************************************
  *
@@ -158,27 +147,28 @@ static const z80_daisy_config daisy_chain[] =
 static MACHINE_CONFIG_START( cchasm, cchasm_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000,CCHASM_68K_CLOCK)    /* 8 MHz (from schematics) */
+	MCFG_CPU_ADD("maincpu", M68000, CCHASM_68K_CLOCK)    /* 8 MHz (from schematics) */
 	MCFG_CPU_PROGRAM_MAP(memmap)
 
-	MCFG_CPU_ADD("audiocpu", Z80,3584229)       /* 3.58  MHz (from schematics) */
+	MCFG_CPU_ADD("audiocpu", Z80, 3584229)       /* 3.58  MHz (from schematics) */
 	MCFG_CPU_CONFIG(daisy_chain)
 	MCFG_CPU_PROGRAM_MAP(sound_memmap)
 	MCFG_CPU_IO_MAP(sound_portmap)
 
-	MCFG_Z80CTC_ADD("ctc", 3584229 /* same as "audiocpu" */, cchasm_ctc_intf)
+	MCFG_DEVICE_ADD("ctc", Z80CTC, 3584229 /* same as "audiocpu" */)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("audiocpu", INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC1_CB(WRITELINE(cchasm_state, ctc_timer_1_w))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(cchasm_state, ctc_timer_2_w))
 
 	/* video hardware */
+	MCFG_VECTOR_ADD("vector")
 	MCFG_SCREEN_ADD("screen", VECTOR)
 	MCFG_SCREEN_REFRESH_RATE(40)
 	MCFG_SCREEN_SIZE(400, 300)
 	MCFG_SCREEN_VISIBLE_AREA(0, 1024-1, 0, 768-1)
-	MCFG_SCREEN_UPDATE_STATIC(vector)
-
+	MCFG_SCREEN_UPDATE_DEVICE("vector", vector_device, screen_update)
 
 	/* sound hardware */
-	MCFG_SOUND_START(cchasm)
-
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 1818182)
@@ -194,7 +184,10 @@ static MACHINE_CONFIG_START( cchasm, cchasm_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* 6840 PTM */
-	MCFG_PTM6840_ADD("6840ptm", cchasm_6840_intf)
+	MCFG_DEVICE_ADD("6840ptm", PTM6840, 0)
+	MCFG_PTM6840_INTERNAL_CLOCK(CCHASM_68K_CLOCK/10)
+	MCFG_PTM6840_EXTERNAL_CLOCKS(0, CCHASM_68K_CLOCK / 10, 0)
+	MCFG_PTM6840_IRQ_CB(WRITELINE(cchasm_state, cchasm_6840_irq))
 MACHINE_CONFIG_END
 
 

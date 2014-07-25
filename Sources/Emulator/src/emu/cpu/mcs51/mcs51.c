@@ -277,9 +277,11 @@ mcs51_cpu_device::mcs51_cpu_device(const machine_config &mconfig, device_type ty
 	, m_data_config("data", ENDIANNESS_LITTLE, 8, 9, 0
 		, ( ( data_width == 7 ) ? ADDRESS_MAP_NAME(data_7bit) : ( ( data_width == 8 ) ? ADDRESS_MAP_NAME(data_8bit) : NULL ) ))
 	, m_io_config("io", ENDIANNESS_LITTLE, 8, 18, 0)
+	, m_pc(0)
 	, m_features(features)
 	, m_ram_mask( (data_width == 8) ? 0xFF : 0x7F )
 	, m_num_interrupts(5)
+	, m_rtemp(0)
 {
 	m_ds5002fp.mcon = 0;
 	m_ds5002fp.rpctl = 0;
@@ -1345,7 +1347,7 @@ void mcs51_cpu_device::i8051_set_serial_rx_callback(read8_delegate rx_func)
 
 #define OPHANDLER( _name ) void mcs51_cpu_device::_name (UINT8 r)
 
-#include "mcs51ops.c"
+#include "mcs51ops.inc"
 
 
 void mcs51_cpu_device::execute_op(UINT8 op)
@@ -2311,6 +2313,8 @@ void mcs51_cpu_device::device_reset()
 	m_uart.tx_clk = 0;
 	m_uart.bits_to_send = 0;
 	m_uart.delay_cycles = 0;
+
+	m_recalc_parity = 0;
 }
 
 

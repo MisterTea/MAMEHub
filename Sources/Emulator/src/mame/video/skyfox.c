@@ -86,7 +86,7 @@ WRITE8_MEMBER(skyfox_state::skyfox_vregs_w)
 
 ***************************************************************************/
 
-void skyfox_state::palette_init()
+PALETTE_INIT_MEMBER(skyfox_state, skyfox)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -114,13 +114,13 @@ void skyfox_state::palette_init()
 		bit3 = (color_prom[i + 2*256] >> 3) & 0x01;
 		b = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 
 	/* Grey scale for the background??? */
 	for (i = 0; i < 256; i++)
 	{
-		palette_set_color(machine(),i + 256, MAKE_RGB(i, i, i));
+		palette.set_pen_color(i + 256, rgb_t(i, i, i));
 	}
 }
 
@@ -191,8 +191,8 @@ void skyfox_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 		}
 
 #define DRAW_SPRITE(DX,DY,CODE) \
-		drawgfx_transpen(bitmap,\
-				cliprect,machine().gfx[0], \
+		m_gfxdecode->gfx(0)->transpen(bitmap,\
+				cliprect, \
 				(CODE), \
 				0, \
 				flipx,flipy, \

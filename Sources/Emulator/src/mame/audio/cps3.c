@@ -3,8 +3,9 @@
     Capcom CPS-3 Sound Hardware
 
 ***************************************************************************/
+
 #include "emu.h"
-#include "includes/cps3.h"
+#include "cps3.h"
 
 
 // device type definition
@@ -20,7 +21,7 @@ const device_type CPS3 = &device_creator<cps3_sound_device>;
 //-------------------------------------------------
 
 cps3_sound_device::cps3_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, CPS3, "CPS3 Custom", tag, owner, clock, "cps3_custom", __FILE__),
+	: device_t(mconfig, CPS3, "CPS3 Audio Custom", tag, owner, clock, "cps3_custom", __FILE__),
 		device_sound_interface(mconfig, *this),
 		m_stream(NULL),
 		m_key(0),
@@ -46,61 +47,69 @@ void cps3_sound_device::device_start()
 
 void cps3_sound_device::sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples)
 {
-	int i;
-
-	// the actual 'user5' region only exists on the nocd sets, on the others it's allocated in the initialization.
-	// it's a shared gfx/sound region, so can't be allocated as part of the sound device.
-	m_base = (INT8*)machine().driver_data<cps3_state>()->m_user5region;
-
 	/* Clear the buffers */
 	memset(outputs[0], 0, samples*sizeof(*outputs[0]));
 	memset(outputs[1], 0, samples*sizeof(*outputs[1]));
 
-	for (i = 0; i < CPS3_VOICES; i ++)
+	for (int i = 0; i < 16; i ++)
 	{
 		if (m_key & (1 << i))
 		{
-			int j;
+			/* note: unmarked bits are presumed to have no function (always 0)
+			0  -
+			1  xxxxxxxx xxxxxxxx  -------- --------  start address low
+			   -------- --------  xxxxxxxx xxxxxxxx  start address high
+			2  -------- --------  -------- -------x  loop enable
+			3  xxxxxxxx xxxxxxxx  -------- --------  frequency
+			   -------- --------  xxxxxxxx xxxxxxxx  loop address low
+			4  -------- --------  xxxxxxxx xxxxxxxx  loop address high
+			5  xxxxxxxx xxxxxxxx  -------- --------  end address low (*)
+			   -------- --------  xxxxxxxx xxxxxxxx  end address high
+			6  xxxxxxxx xxxxxxxx  -------- --------  end address low (*)
+			   -------- --------  xxxxxxxx xxxxxxxx  end address high
+			7  xxxxxxxx xxxxxxxx  -------- --------  volume right (signed?)
+			   -------- --------  xxxxxxxx xxxxxxxx  volume left (signed?)
 
-			/* TODO */
-			#define SWAP(a) ((a >> 16) | ((a & 0xffff) << 16))
-
+			(*) reg 5 and 6 are always the same. One of them probably means loop-end address,
+			    but we won't know which until we do tests on real hw.
+			*/
 			cps3_voice *vptr = &m_voice[i];
 
-			UINT32 start = vptr->regs[1];
-			UINT32 end   = vptr->regs[5];
-			UINT32 loop  = (vptr->regs[3] & 0xffff) + ((vptr->regs[4] & 0xffff) << 16);
-			UINT32 step  = (vptr->regs[3] >> 16);
+			UINT32 start = (vptr->regs[1] >> 16 & 0x0000ffff) | (vptr->regs[1] << 16 & 0xffff0000);
+			UINT32 end   = (vptr->regs[5] >> 16 & 0x0000ffff) | (vptr->regs[5] << 16 & 0xffff0000);
+			UINT32 loop  = (vptr->regs[3] & 0x0000ffff) | (vptr->regs[4] << 16 & 0xffff0000);
+			bool loop_enable = (vptr->regs[2] & 1) ? true : false;
+			UINT32 step  = vptr->regs[3] >> 16 & 0xffff;
 
 			INT16 vol_l = (vptr->regs[7] & 0xffff);
-			INT16 vol_r = ((vptr->regs[7] >> 16) & 0xffff);
+			INT16 vol_r = (vptr->regs[7] >> 16 & 0xffff);
 
 			UINT32 pos = vptr->pos;
-			UINT16 frac = vptr->frac;
+			UINT32 frac = vptr->frac;
 
 			/* TODO */
-			start = SWAP(start) - 0x400000;
-			end = SWAP(end) - 0x400000;
+			start -= 0x400000;
+			end -= 0x400000;
 			loop -= 0x400000;
 
 			/* Go through the buffer and add voice contributions */
-			for (j = 0; j < samples; j ++)
+			for (int j = 0; j < samples; j++)
 			{
 				INT32 sample;
 
 				pos += (frac >> 12);
 				frac &= 0xfff;
 
-
-				if (start + pos >= end)
+				if ((start + pos) >= end)
 				{
-					if (vptr->regs[2])
+					if (loop_enable)
 					{
-						pos = loop - start;
+						// loop
+						pos = (pos + loop) - end;
 					}
 					else
 					{
-						m_key &= ~(1 << i);
+						// sample end (don't force key off)
 						break;
 					}
 				}
@@ -108,8 +117,8 @@ void cps3_sound_device::sound_stream_update(sound_stream &stream, stream_sample_
 				sample = m_base[BYTE4_XOR_LE(start + pos)];
 				frac += step;
 
-				outputs[0][j] += (sample * (vol_l >> 8));
-				outputs[1][j] += (sample * (vol_r >> 8));
+				outputs[0][j] += ((sample * vol_l) >> 8);
+				outputs[1][j] += ((sample * vol_r) >> 8);
 			}
 
 			vptr->pos = pos;
@@ -129,10 +138,11 @@ WRITE32_MEMBER( cps3_sound_device::cps3_sound_w )
 	}
 	else if (offset == 0x80)
 	{
-		int i;
+		assert((mem_mask & 0xffff0000) == 0xffff0000); // doesn't happen
+
 		UINT16 key = data >> 16;
 
-		for (i = 0; i < CPS3_VOICES; i++)
+		for (int i = 0; i < 16; i++)
 		{
 			// Key off -> Key on
 			if ((key & (1 << i)) && !(m_key & (1 << i)))
@@ -145,8 +155,8 @@ WRITE32_MEMBER( cps3_sound_device::cps3_sound_w )
 	}
 	else
 	{
-		// during boot: Sound [84] 230000
-		logerror("Sound [%x] %x\n", offset, data);
+		// during boot: cps3_sound_w [84] = 230000
+		logerror("cps3_sound_w [%x] = %x & %x\n", offset, data, mem_mask);
 	}
 }
 
@@ -165,7 +175,7 @@ READ32_MEMBER( cps3_sound_device::cps3_sound_r )
 	}
 	else
 	{
-		logerror("Unk sound read : %x\n", offset);
+		logerror("cps3_sound_r unknown %x & %x\n", offset, mem_mask);
 		return 0;
 	}
 }

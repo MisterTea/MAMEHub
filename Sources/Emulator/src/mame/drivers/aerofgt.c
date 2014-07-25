@@ -140,7 +140,7 @@ static ADDRESS_MAP_START( pspikes_map, AS_PROGRAM, 16, aerofgt_state )
 	AM_RANGE(0xff8000, 0xff8fff) AM_RAM_WRITE(aerofgt_bg1videoram_w) AM_SHARE("bg1videoram")
 	AM_RANGE(0xffc000, 0xffc3ff) AM_WRITEONLY AM_SHARE("spriteram3")
 	AM_RANGE(0xffd000, 0xffdfff) AM_RAM AM_SHARE("rasterram")   /* bg1 scroll registers */
-	AM_RANGE(0xffe000, 0xffefff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xffe000, 0xffefff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xfff000, 0xfff001) AM_READ_PORT("IN0") AM_WRITE(pspikes_palette_bank_w)
 	AM_RANGE(0xfff002, 0xfff003) AM_READ_PORT("IN1") AM_WRITE(pspikes_gfxbank_w)
 	AM_RANGE(0xfff004, 0xfff005) AM_READ_PORT("DSW") AM_WRITE(aerofgt_bg1scrolly_w)
@@ -156,7 +156,7 @@ static ADDRESS_MAP_START( pspikesb_map, AS_PROGRAM, 16, aerofgt_state )
 	AM_RANGE(0xffc000, 0xffcbff) AM_RAM AM_SHARE("spriteram3")
 	AM_RANGE(0xffd200, 0xffd201) AM_WRITE(pspikesb_gfxbank_w)
 	AM_RANGE(0xffd000, 0xffdfff) AM_RAM AM_SHARE("rasterram")   /* bg1 scroll registers */
-	AM_RANGE(0xffe000, 0xffefff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xffe000, 0xffefff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xfff000, 0xfff001) AM_READ_PORT("IN0")
 	AM_RANGE(0xfff002, 0xfff003) AM_READ_PORT("IN1")
 	AM_RANGE(0xfff004, 0xfff005) AM_READ_PORT("DSW") AM_WRITE(aerofgt_bg1scrolly_w)
@@ -176,7 +176,7 @@ static ADDRESS_MAP_START( spikes91_map, AS_PROGRAM, 16, aerofgt_state )
 	AM_RANGE(0xffc000, 0xffcfff) AM_RAM AM_SHARE("spriteram3")
 	//AM_RANGE(0xffd200, 0xffd201) AM_WRITE(pspikesb_gfxbank_w)
 	AM_RANGE(0xffd000, 0xffdfff) AM_RAM AM_SHARE("rasterram")   /* bg1 scroll registers */
-	AM_RANGE(0xffe000, 0xffefff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xffe000, 0xffefff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xfff000, 0xfff001) AM_READ_PORT("IN0")
 	AM_RANGE(0xfff002, 0xfff003) AM_READ_PORT("IN1") AM_WRITE(pspikes_gfxbank_w)
 	AM_RANGE(0xfff004, 0xfff005) AM_READ_PORT("DSW") AM_WRITE(aerofgt_bg1scrolly_w)
@@ -191,7 +191,7 @@ static ADDRESS_MAP_START( pspikesc_map, AS_PROGRAM, 16, aerofgt_state )
 	AM_RANGE(0xff8000, 0xff8fff) AM_RAM_WRITE(aerofgt_bg1videoram_w) AM_SHARE("bg1videoram")
 	AM_RANGE(0xffc000, 0xffcbff) AM_RAM AM_SHARE("spriteram3")
 	AM_RANGE(0xffd000, 0xffdfff) AM_RAM AM_SHARE("rasterram")   /* bg1 scroll registers */
-	AM_RANGE(0xffe000, 0xffefff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xffe000, 0xffefff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xfff000, 0xfff001) AM_READ_PORT("IN0") AM_WRITE(pspikes_palette_bank_w)
 	AM_RANGE(0xfff002, 0xfff003) AM_READ_PORT("IN1") AM_WRITE(pspikes_gfxbank_w)
 	AM_RANGE(0xfff004, 0xfff005) AM_READ_PORT("DSW")
@@ -209,7 +209,7 @@ static ADDRESS_MAP_START( karatblz_map, AS_PROGRAM, 16, aerofgt_state )
 	AM_RANGE(0x0c0000, 0x0cffff) AM_RAM /* work RAM */
 	AM_RANGE(0x0f8000, 0x0fbfff) AM_RAM /* work RAM */
 	AM_RANGE(0x0fc000, 0x0fc7ff) AM_RAM AM_SHARE("spriteram3")
-	AM_RANGE(0x0fe000, 0x0fe7ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0fe000, 0x0fe7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0ff000, 0x0ff001) AM_READ_PORT("IN0")
 	AM_RANGE(0x0ff002, 0x0ff003) AM_READ_PORT("IN1") AM_WRITE(karatblz_gfxbank_w)
 	AM_RANGE(0x0ff004, 0x0ff005) AM_READ_PORT("IN2")
@@ -227,7 +227,7 @@ static ADDRESS_MAP_START( spinlbrk_map, AS_PROGRAM, 16, aerofgt_state )
 	AM_RANGE(0xff8000, 0xffbfff) AM_RAM /* work RAM */
 	AM_RANGE(0xffc000, 0xffc7ff) AM_RAM AM_SHARE("spriteram3")
 	AM_RANGE(0xffd000, 0xffd1ff) AM_RAM AM_SHARE("rasterram")   /* bg1 scroll registers */
-	AM_RANGE(0xffe000, 0xffe7ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xffe000, 0xffe7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xfff000, 0xfff001) AM_READ_PORT("IN0") AM_WRITE(spinlbrk_gfxbank_w)
 	AM_RANGE(0xfff002, 0xfff003) AM_READ_PORT("IN1") AM_WRITE(aerofgt_bg2scrollx_w)
 	AM_RANGE(0xfff004, 0xfff005) AM_READ_PORT("DSW")
@@ -245,7 +245,7 @@ static ADDRESS_MAP_START( turbofrc_map, AS_PROGRAM, 16, aerofgt_state )
 	AM_RANGE(0x0f8000, 0x0fbfff) AM_RAM /* work RAM */
 	AM_RANGE(0x0fc000, 0x0fc7ff) AM_RAM AM_SHARE("spriteram3")
 	AM_RANGE(0x0fd000, 0x0fdfff) AM_RAM AM_SHARE("rasterram")   /* bg1 scroll registers */
-	AM_RANGE(0x0fe000, 0x0fe7ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0fe000, 0x0fe7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0ff000, 0x0ff001) AM_READ_PORT("IN0")
 	AM_RANGE(0x0ff002, 0x0ff003) AM_READ_PORT("IN1") AM_WRITE(aerofgt_bg1scrolly_w)
 	AM_RANGE(0x0ff004, 0x0ff005) AM_READ_PORT("DSW") AM_WRITE(aerofgt_bg2scrollx_w)
@@ -265,7 +265,7 @@ static ADDRESS_MAP_START( aerofgtb_map, AS_PROGRAM, 16, aerofgt_state )
 	AM_RANGE(0x0e4000, 0x0e7fff) AM_RAM AM_SHARE("spriteram2")
 	AM_RANGE(0x0f8000, 0x0fbfff) AM_RAM /* work RAM */
 	AM_RANGE(0x0fc000, 0x0fc7ff) AM_RAM AM_SHARE("spriteram3")
-	AM_RANGE(0x0fd000, 0x0fd7ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0fd000, 0x0fd7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0fe000, 0x0fe001) AM_READ_PORT("IN0")
 	AM_RANGE(0x0fe002, 0x0fe003) AM_READ_PORT("IN1") AM_WRITE(aerofgt_bg1scrolly_w)
 	AM_RANGE(0x0fe004, 0x0fe005) AM_READ_PORT("DSW1") AM_WRITE(aerofgt_bg2scrollx_w)
@@ -278,7 +278,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( aerofgt_map, AS_PROGRAM, 16, aerofgt_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x1a0000, 0x1a07ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x1a0000, 0x1a07ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x1b0000, 0x1b07ff) AM_RAM AM_SHARE("rasterram")   /* used only for the scroll registers */
 	AM_RANGE(0x1b0800, 0x1b0801) AM_NOP /* ??? */
 	AM_RANGE(0x1b0ff0, 0x1b0fff) AM_RAM /* stack area during boot */
@@ -309,7 +309,7 @@ static ADDRESS_MAP_START( aerfboot_map, AS_PROGRAM, 16, aerofgt_state )
 	AM_RANGE(0x0e4000, 0x0e7fff) AM_RAM AM_SHARE("spriteram2")
 	AM_RANGE(0x0f8000, 0x0fbfff) AM_RAM /* work RAM */
 	AM_RANGE(0x0fc000, 0x0fc7ff) AM_RAM //AM_SHARE("spriteram3")
-	AM_RANGE(0x0fd000, 0x0fd7ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0fd000, 0x0fd7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0fe000, 0x0fe001) AM_READ_PORT("IN0")
 	AM_RANGE(0x0fe002, 0x0fe003) AM_READ_PORT("IN1")
 	AM_RANGE(0x0fe004, 0x0fe005) AM_READ_PORT("DSW1")
@@ -338,7 +338,7 @@ static ADDRESS_MAP_START( aerfboo2_map, AS_PROGRAM, 16, aerofgt_state )
 	AM_RANGE(0x0e4000, 0x0e7fff) AM_RAM AM_SHARE("spriteram2")
 	AM_RANGE(0x0f8000, 0x0fbfff) AM_RAM /* work RAM */
 	AM_RANGE(0x0fc000, 0x0fc7ff) AM_RAM AM_SHARE("spriteram3")
-	AM_RANGE(0x0fd000, 0x0fd7ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0fd000, 0x0fd7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0fe000, 0x0fe001) AM_READ_PORT("IN0")
 	AM_RANGE(0x0fe002, 0x0fe003) AM_READ_PORT("IN1")
 	AM_RANGE(0x0fe004, 0x0fe005) AM_READ_PORT("DSW1")
@@ -365,7 +365,7 @@ static ADDRESS_MAP_START( wbbc97_map, AS_PROGRAM, 16, aerofgt_state )
 	AM_RANGE(0xff8000, 0xff8fff) AM_RAM_WRITE(aerofgt_bg1videoram_w) AM_SHARE("bg1videoram")
 	AM_RANGE(0xffc000, 0xffc3ff) AM_WRITEONLY AM_SHARE("spriteram3")
 	AM_RANGE(0xffd000, 0xffdfff) AM_RAM AM_SHARE("rasterram")   /* bg1 scroll registers */
-	AM_RANGE(0xffe000, 0xffefff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xffe000, 0xffefff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xfff000, 0xfff001) AM_READ_PORT("IN0") AM_WRITE(pspikes_palette_bank_w)
 	AM_RANGE(0xfff002, 0xfff003) AM_READ_PORT("IN1") AM_WRITE(pspikes_gfxbank_w)
 	AM_RANGE(0xfff004, 0xfff005) AM_READ_PORT("DSW") AM_WRITE(aerofgt_bg1scrolly_w)
@@ -1325,14 +1325,17 @@ static MACHINE_CONFIG_START( pspikes, aerofgt_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8+4, 44*8+4-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aerofgt_state, screen_update_pspikes)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pspikes)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pspikes)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_DEVICE_ADD("vsystem_spr_old", VSYSTEM_SPR2, 0)
 	MCFG_VSYSTEM_SPR2_SET_TILE_INDIRECT( aerofgt_state, aerofgt_old_tile_callback )
 	MCFG_VSYSTEM_SPR2_SET_GFXREGION(1)
-
+	MCFG_VSYSTEM_SPR2_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR2_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(aerofgt_state,pspikes)
 
@@ -1366,9 +1369,11 @@ static MACHINE_CONFIG_START( spikes91, aerofgt_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 320-1, 0*8+4, 224+4-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aerofgt_state, screen_update_spikes91)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(spikes91)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", spikes91)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(aerofgt_state,pspikes)
 
@@ -1398,9 +1403,11 @@ static MACHINE_CONFIG_START( pspikesb, aerofgt_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8+4, 44*8+4-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aerofgt_state, screen_update_pspikesb)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pspikesb)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pspikesb)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(aerofgt_state,pspikes)
 
@@ -1428,13 +1435,17 @@ static MACHINE_CONFIG_START( pspikesc, aerofgt_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8+4, 44*8+4-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aerofgt_state, screen_update_pspikes)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pspikes)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pspikes)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_DEVICE_ADD("vsystem_spr_old", VSYSTEM_SPR2, 0)
 	MCFG_VSYSTEM_SPR2_SET_TILE_INDIRECT( aerofgt_state, aerofgt_old_tile_callback )
 	MCFG_VSYSTEM_SPR2_SET_GFXREGION(1)
+	MCFG_VSYSTEM_SPR2_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR2_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(aerofgt_state,pspikes)
 
@@ -1467,16 +1478,23 @@ static MACHINE_CONFIG_START( karatblz, aerofgt_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 45*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aerofgt_state, screen_update_karatblz)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(turbofrc)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", turbofrc)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_DEVICE_ADD("vsystem_spr_old", VSYSTEM_SPR2, 0)
 	MCFG_VSYSTEM_SPR2_SET_TILE_INDIRECT( aerofgt_state, aerofgt_old_tile_callback )
 	MCFG_VSYSTEM_SPR2_SET_GFXREGION(2)
+	MCFG_VSYSTEM_SPR2_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR2_PALETTE("palette")
+
 	MCFG_DEVICE_ADD("vsystem_spr_ol2", VSYSTEM_SPR2, 0)
 	MCFG_VSYSTEM_SPR2_SET_TILE_INDIRECT( aerofgt_state, aerofgt_ol2_tile_callback )
 	MCFG_VSYSTEM_SPR2_SET_GFXREGION(3)
+	MCFG_VSYSTEM_SPR2_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR2_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(aerofgt_state,karatblz)
 
@@ -1513,17 +1531,24 @@ static MACHINE_CONFIG_START( spinlbrk, aerofgt_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 45*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aerofgt_state, screen_update_spinlbrk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(turbofrc)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", turbofrc)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_DEVICE_ADD("vsystem_spr_old", VSYSTEM_SPR2, 0)
 	MCFG_VSYSTEM_SPR2_SET_PRITYPE(1)
 	MCFG_VSYSTEM_SPR2_SET_GFXREGION(2)
+	MCFG_VSYSTEM_SPR2_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR2_PALETTE("palette")
+
 	MCFG_DEVICE_ADD("vsystem_spr_ol2", VSYSTEM_SPR2, 0)
 	MCFG_VSYSTEM_SPR2_SET_TILE_INDIRECT( aerofgt_state, aerofgt_ol2_tile_callback ) // rom lookup
 	MCFG_VSYSTEM_SPR2_SET_PRITYPE(1)
 	MCFG_VSYSTEM_SPR2_SET_GFXREGION(3)
+	MCFG_VSYSTEM_SPR2_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR2_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(aerofgt_state,spinlbrk)
 
@@ -1560,16 +1585,23 @@ static MACHINE_CONFIG_START( turbofrc, aerofgt_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 44*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aerofgt_state, screen_update_turbofrc)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(turbofrc)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", turbofrc)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_DEVICE_ADD("vsystem_spr_old", VSYSTEM_SPR2, 0)
 	MCFG_VSYSTEM_SPR2_SET_TILE_INDIRECT( aerofgt_state, aerofgt_old_tile_callback )
 	MCFG_VSYSTEM_SPR2_SET_GFXREGION(2)
+	MCFG_VSYSTEM_SPR2_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR2_PALETTE("palette")
+
 	MCFG_DEVICE_ADD("vsystem_spr_ol2", VSYSTEM_SPR2, 0)
 	MCFG_VSYSTEM_SPR2_SET_TILE_INDIRECT( aerofgt_state, aerofgt_ol2_tile_callback )
 	MCFG_VSYSTEM_SPR2_SET_GFXREGION(3)
+	MCFG_VSYSTEM_SPR2_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR2_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(aerofgt_state,turbofrc)
 
@@ -1607,16 +1639,23 @@ static MACHINE_CONFIG_START( aerofgtb, aerofgt_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8+12, 40*8-1+12, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aerofgt_state, screen_update_turbofrc)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(aerofgtb)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", aerofgtb)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_DEVICE_ADD("vsystem_spr_old", VSYSTEM_SPR2, 0)
 	MCFG_VSYSTEM_SPR2_SET_TILE_INDIRECT( aerofgt_state, aerofgt_old_tile_callback )
 	MCFG_VSYSTEM_SPR2_SET_GFXREGION(2)
+	MCFG_VSYSTEM_SPR2_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR2_PALETTE("palette")
+
 	MCFG_DEVICE_ADD("vsystem_spr_ol2", VSYSTEM_SPR2, 0)
 	MCFG_VSYSTEM_SPR2_SET_TILE_INDIRECT( aerofgt_state, aerofgt_ol2_tile_callback )
 	MCFG_VSYSTEM_SPR2_SET_GFXREGION(3)
+	MCFG_VSYSTEM_SPR2_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR2_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(aerofgt_state,turbofrc)
 
@@ -1654,13 +1693,17 @@ static MACHINE_CONFIG_START( aerofgt, aerofgt_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aerofgt_state, screen_update_aerofgt)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(aerofgt)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", aerofgt)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_DEVICE_ADD("vsystem_spr", VSYSTEM_SPR, 0)
 	MCFG_VSYSTEM_SPR_SET_TILE_INDIRECT( aerofgt_state, aerofgt_tile_callback )
 	MCFG_VSYSTEM_SPR_SET_GFXREGION(2)
+	MCFG_VSYSTEM_SPR_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(aerofgt_state,turbofrc)
 
@@ -1696,9 +1739,11 @@ static MACHINE_CONFIG_START( aerfboot, aerofgt_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8+12, 40*8-1+12, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aerofgt_state, screen_update_aerfboot)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(aerfboot)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", aerfboot)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(aerofgt_state,turbofrc)
 
@@ -1727,9 +1772,11 @@ static MACHINE_CONFIG_START( aerfboo2, aerofgt_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8+12, 40*8-1+12, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aerofgt_state, screen_update_aerfboo2)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(aerfboo2)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", aerfboo2)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(aerofgt_state,turbofrc)
 
@@ -1761,12 +1808,15 @@ static MACHINE_CONFIG_START( wbbc97, aerofgt_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8+14, 44*8-1+4, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(aerofgt_state, screen_update_wbbc97)
 
-	MCFG_GFXDECODE(wbbc97)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", wbbc97)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_DEVICE_ADD("vsystem_spr_old", VSYSTEM_SPR2, 0)
 	MCFG_VSYSTEM_SPR2_SET_TILE_INDIRECT( aerofgt_state, aerofgt_old_tile_callback )
 	MCFG_VSYSTEM_SPR2_SET_GFXREGION(1)
+	MCFG_VSYSTEM_SPR2_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR2_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(aerofgt_state,wbbc97)
 
@@ -2015,7 +2065,7 @@ ROM_START( spikes91b ) // todo, check how this differs, only 1 of the 68k pair a
 
 	ROM_REGION( 0x020000, "user1", 0 ) /* lookup tables for the sprites  */
 	ROM_LOAD( "10(__spikes91b).ic104",    0x00000, 0x8000, CRC(b6fe4e57) SHA1(6b62936ff9d0f39fd02c3db488d53bc035c2272d) )
-	ROM_LOAD( "9(__spikes91b).ic103 ",    0x10000, 0x8000, CRC(5479ed35) SHA1(ca26289318352901841fcdf26d9b43e797ac39b6) )
+	ROM_LOAD( "9(__spikes91b).ic103",     0x10000, 0x8000, CRC(5479ed35) SHA1(ca26289318352901841fcdf26d9b43e797ac39b6) )
 
 	ROM_REGION( 0x20000, "cpu1", 0 ) /* Z80 Sound CPU + M5205 Samples */
 	ROM_LOAD( "1.ic140",   0x00000, 0x10000, CRC(e3065b1d) SHA1(c4a3a95ba7f43cdf1b0c574f41de06d007ad2bd8) )

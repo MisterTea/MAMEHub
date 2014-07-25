@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     render.h
 
     Core rendering routines for MAME.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************
 
@@ -191,7 +162,6 @@ class render_font;
 struct object_transform;
 class layout_element;
 class layout_view;
-class layout_file;
 
 
 // texture scaling callback
@@ -275,15 +245,11 @@ class render_screen_list
 	};
 
 public:
-	// construction/destruction
-	render_screen_list(resource_pool &pool = global_resource_pool())
-		: m_list(pool) { }
-
 	// getters
 	int count() const { return m_list.count(); }
 
 	// operations
-	void add(screen_device &screen) { m_list.append(*pool_alloc(m_list.pool(), item(screen))); }
+	void add(screen_device &screen) { m_list.append(*global_alloc(item(screen))); }
 	void reset() { m_list.reset(); }
 
 	// query
@@ -453,6 +419,7 @@ class render_texture
 public:
 	// getters
 	int format() const { return m_format; }
+	render_manager *manager() const { return m_manager; }
 
 	// configure the texture bitmap
 	void set_bitmap(bitmap_t &bitmap, const rectangle &sbounds, texture_format format);
@@ -483,8 +450,6 @@ private:
 	bitmap_t *          m_bitmap;                   // pointer to the original bitmap
 	rectangle           m_sbounds;                  // source bounds within the bitmap
 	texture_format      m_format;                   // format of the texture data
-	rgb_t *             m_bcglookup;                // dynamically allocated B/C/G lookup table
-	UINT32              m_bcglookup_entries;        // number of B/C/G lookup entries allocated
 	UINT64              m_osddata;                  // aux data to pass to osd
 
 	// scaling state (ARGB32 only)
@@ -608,11 +573,13 @@ private:
 	user_settings           m_user;                 // user settings
 	bitmap_argb32 *         m_overlaybitmap;        // overlay bitmap
 	render_texture *        m_overlaytexture;       // overlay texture
-	palette_client *        m_palclient;            // client to the system palette
+	auto_pointer<palette_client> m_palclient;       // client to the screen palette
+	dynamic_array<rgb_t>    m_bcglookup;            // full palette lookup with bcg adjustments
 	rgb_t                   m_bcglookup256[0x400];  // lookup table for brightness/contrast/gamma
-	rgb_t                   m_bcglookup[0x10000];   // full palette lookup with bcg adjustements
 };
 
+
+#include "rendlay.h"
 
 // ======================> render_target
 
@@ -724,7 +691,7 @@ private:
 	render_target *         m_next;                     // link to next target
 	render_manager &        m_manager;                  // reference to our owning manager
 	layout_view *           m_curview;                  // current view
-	simple_list<layout_file> &m_filelist;               // list of layout files
+	simple_list<layout_file> m_filelist;                // list of layout files
 	UINT32                  m_flags;                    // creation flags
 	render_primitive_list   m_primlist[NUM_PRIMLISTS];  // list of primitives
 	int                     m_listindex;                // index of next primlist to use
@@ -744,7 +711,7 @@ private:
 	INT32                   m_clear_extent_count;       // number of clear extents
 	INT32                   m_clear_extents[MAX_CLEAR_EXTENTS]; // array of clear extents
 
-	static const render_screen_list s_empty_screen_list;
+	static render_screen_list s_empty_screen_list;
 };
 
 

@@ -18,7 +18,9 @@ public:
 		m_cpu5(*this, "cpu5"),
 		m_soundcpu(*this, "soundcpu"),
 		m_oki1(*this, "oki1"),
-		m_oki2(*this, "oki2"){ }
+		m_oki2(*this, "oki2"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT16> m_vregs;
 	optional_shared_ptr_array<UINT16,3> m_scrollram;
@@ -43,10 +45,6 @@ public:
 	int m_debugsprites;
 	int m_show_unknown;
 	UINT16 *m_spriteram;
-	DECLARE_WRITE16_MEMBER(bigrun_paletteram16_w);
-	DECLARE_WRITE16_MEMBER(cischeat_paletteram16_w);
-	DECLARE_WRITE16_MEMBER(f1gpstar_paletteram16_w);
-	DECLARE_WRITE16_MEMBER(scudhamm_paletteram16_w);
 	DECLARE_WRITE16_MEMBER(scudhamm_motor_command_w);
 	DECLARE_WRITE16_MEMBER(scudhamm_leds_w);
 	DECLARE_WRITE16_MEMBER(scudhamm_enable_w);
@@ -112,4 +110,6 @@ public:
 	optional_device<cpu_device> m_soundcpu;
 	required_device<okim6295_device> m_oki1;
 	required_device<okim6295_device> m_oki2;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

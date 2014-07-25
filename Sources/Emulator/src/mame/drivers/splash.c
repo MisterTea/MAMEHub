@@ -100,7 +100,7 @@ static ADDRESS_MAP_START( splash_map, AS_PROGRAM, 16, splash_state )
 	AM_RANGE(0x880000, 0x8817ff) AM_RAM_WRITE(splash_vram_w) AM_SHARE("videoram")   /* Video RAM */
 	AM_RANGE(0x881800, 0x881803) AM_RAM AM_SHARE("vregs")                           /* Scroll registers */
 	AM_RANGE(0x881804, 0x881fff) AM_RAM                                                 /* Work RAM */
-	AM_RANGE(0x8c0000, 0x8c0fff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")/* Palette is xRRRRxGGGGxBBBBx */
+	AM_RANGE(0x8c0000, 0x8c0fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")/* Palette is xRRRRxGGGGxBBBBx */
 	AM_RANGE(0x900000, 0x900fff) AM_RAM AM_SHARE("spriteram")                       /* Sprite RAM */
 	AM_RANGE(0xffc000, 0xffffff) AM_RAM                                                 /* Work RAM */
 ADDRESS_MAP_END
@@ -173,7 +173,7 @@ static ADDRESS_MAP_START( roldfrog_map, AS_PROGRAM, 16, splash_state )
 	AM_RANGE(0x880000, 0x8817ff) AM_RAM_WRITE(splash_vram_w) AM_SHARE("videoram")   /* Video RAM */
 	AM_RANGE(0x881800, 0x881803) AM_RAM AM_SHARE("vregs")                           /* Scroll registers */
 	AM_RANGE(0x881804, 0x881fff) AM_RAM                                                 /* Work RAM */
-	AM_RANGE(0x8c0000, 0x8c0fff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")/* Palette is xRRRRxGGGGxBBBBx */
+	AM_RANGE(0x8c0000, 0x8c0fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")/* Palette is xRRRRxGGGGxBBBBx */
 	AM_RANGE(0xa00000, 0xa00001) AM_READ(roldfrog_bombs_r)
 	AM_RANGE(0xd00000, 0xd00fff) AM_RAM AM_SHARE("spriteram")                       /* Sprite RAM */
 	AM_RANGE(0xe00000, 0xe00001) AM_WRITEONLY AM_SHARE("bitmap_mode")           /* Bitmap Mode? */
@@ -234,7 +234,7 @@ static ADDRESS_MAP_START( funystrp_map, AS_PROGRAM, 16, splash_state )
 	AM_RANGE(0x880000, 0x8817ff) AM_RAM_WRITE(splash_vram_w) AM_SHARE("videoram")   /* Video RAM */
 	AM_RANGE(0x881800, 0x881803) AM_RAM AM_SHARE("vregs")                           /* Scroll registers */
 	AM_RANGE(0x881804, 0x881fff) AM_WRITENOP
-	AM_RANGE(0x8c0000, 0x8c0fff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")/* Palette is xRRRRxGGGGxBBBBx */
+	AM_RANGE(0x8c0000, 0x8c0fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")/* Palette is xRRRRxGGGGxBBBBx */
 	AM_RANGE(0xd00000, 0xd01fff) AM_READWRITE(spr_read, spr_write) AM_SHARE("spriteram")        /* Sprite RAM */
 	AM_RANGE(0xfe0000, 0xffffff) AM_RAM  AM_MASK(0xffff) /* there's fe0000 <-> ff0000 compare */                /* Work RAM */
 ADDRESS_MAP_END
@@ -471,11 +471,6 @@ static GFXDECODE_START( splash )
 	GFXDECODE_ENTRY( "gfx1", 0x000000, tilelayout16,0,128 )
 GFXDECODE_END
 
-static const msm5205_interface splash_msm5205_interface =
-{
-	DEVCB_DRIVER_LINE_MEMBER(splash_state,splash_msm5205_int), /* IRQ handler */
-	MSM5205_S48_4B      /* 8KHz */
-};
 
 MACHINE_RESET_MEMBER(splash_state,splash)
 {
@@ -501,9 +496,11 @@ static MACHINE_CONFIG_START( splash, splash_state )
 	MCFG_SCREEN_SIZE(64*8, 64*8)
 	MCFG_SCREEN_VISIBLE_AREA(2*8, 48*8-1, 2*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(splash_state, screen_update_splash)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(splash)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", splash)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	MCFG_MACHINE_RESET_OVERRIDE(splash_state, splash )
@@ -515,18 +512,11 @@ static MACHINE_CONFIG_START( splash, splash_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_SOUND_ADD("msm", MSM5205, XTAL_384kHz)
-	MCFG_SOUND_CONFIG(splash_msm5205_interface)     /* Sample rate = 384kHz/48 */
+	MCFG_MSM5205_VCLK_CB(WRITELINE(splash_state, splash_msm5205_int)) /* IRQ handler */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8KHz */     /* Sample rate = 384kHz/48 */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 MACHINE_CONFIG_END
 
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL,
-	DEVCB_NULL, DEVCB_NULL
-};
 
 INTERRUPT_GEN_MEMBER(splash_state::roldfrog_interrupt)
 {
@@ -552,11 +542,12 @@ static MACHINE_CONFIG_START( roldfrog, splash_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 64*8)
 	MCFG_SCREEN_VISIBLE_AREA(2*8, 48*8-1, 2*8, 32*8-1)
-
 	MCFG_SCREEN_UPDATE_DRIVER(splash_state, screen_update_splash)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(splash)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", splash)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	MCFG_MACHINE_RESET_OVERRIDE(splash_state, splash )
@@ -566,7 +557,6 @@ static MACHINE_CONFIG_START( roldfrog, splash_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_24MHz / 8)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(splash_state, ym_irq))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 	MCFG_SOUND_ROUTE(2, "mono", 0.20)
@@ -603,18 +593,6 @@ WRITE_LINE_MEMBER(splash_state::adpcm_int2)
 	}
 }
 
-static const msm5205_interface msm_interface1 =
-{
-	DEVCB_DRIVER_LINE_MEMBER(splash_state,adpcm_int1),         /* interrupt function */
-	MSM5205_S48_4B  /* 1 / 48 */
-};
-
-static const msm5205_interface msm_interface2 =
-{
-	DEVCB_DRIVER_LINE_MEMBER(splash_state,adpcm_int2),         /* interrupt function */
-	MSM5205_S96_4B  /* 1 / 96 */
-};
-
 static MACHINE_CONFIG_START( funystrp, splash_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_24MHz/2)       /* 12 MHz (24/2) */
@@ -632,9 +610,11 @@ static MACHINE_CONFIG_START( funystrp, splash_state )
 	MCFG_SCREEN_SIZE(64*8, 64*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 48*8-1, 2*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(splash_state, screen_update_funystrp)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(splash)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", splash)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	MCFG_MACHINE_RESET_OVERRIDE(splash_state, funystrp )
@@ -643,11 +623,13 @@ static MACHINE_CONFIG_START( funystrp, splash_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("msm1", MSM5205, XTAL_400kHz)
-	MCFG_SOUND_CONFIG(msm_interface1)       /* Sample rate = 400kHz/64 */
+	MCFG_MSM5205_VCLK_CB(WRITELINE(splash_state, adpcm_int1))         /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)  /* 1 / 48 */       /* Sample rate = 400kHz/64 */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_SOUND_ADD("msm2", MSM5205, XTAL_400kHz)
-	MCFG_SOUND_CONFIG(msm_interface2)       /* Sample rate = 400kHz/96 */
+	MCFG_MSM5205_VCLK_CB(WRITELINE(splash_state, adpcm_int2))         /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S96_4B)  /* 1 / 96 */       /* Sample rate = 400kHz/96 */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 MACHINE_CONFIG_END
 

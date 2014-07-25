@@ -13,29 +13,22 @@
 #include "emu.h"
 #include "includes/nes.h"
 #include "cpu/m6502/n2a03.h"
-#include "sound/nes_apu.h"
 #include "imagedev/flopdrv.h"
 #include "formats/nes_dsk.h"
 
-#include "machine/nes_slot.h"
-
-
 READ8_MEMBER(nes_state::psg_4015_r)
 {
-	device_t *device = machine().device("nessound");
-	return nes_psg_r(device, space, 0x15);
+	return m_sound->read(space, 0x15);
 }
 
 WRITE8_MEMBER(nes_state::psg_4015_w)
 {
-	device_t *device = machine().device("nessound");
-	nes_psg_w(device, space, 0x15, data);
+	m_sound->write(space, 0x15, data);
 }
 
 WRITE8_MEMBER(nes_state::psg_4017_w)
 {
-	device_t *device = machine().device("nessound");
-	nes_psg_w(device, space, 0x17, data);
+	m_sound->write(space, 0x17, data);
 }
 
 WRITE8_MEMBER(nes_state::nes_vh_sprite_dma_w)
@@ -46,7 +39,7 @@ WRITE8_MEMBER(nes_state::nes_vh_sprite_dma_w)
 static ADDRESS_MAP_START( nes_map, AS_PROGRAM, 8, nes_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM AM_MIRROR(0x1800)                   /* RAM */
 	AM_RANGE(0x2000, 0x3fff) AM_DEVREADWRITE("ppu", ppu2c0x_device, read, write)        /* PPU registers */
-	AM_RANGE(0x4000, 0x4013) AM_DEVREADWRITE_LEGACY("nessound", nes_psg_r, nes_psg_w)       /* PSG primary registers */
+	AM_RANGE(0x4000, 0x4013) AM_DEVREADWRITE("nessound", nesapu_device, read, write)       /* PSG primary registers */
 	AM_RANGE(0x4014, 0x4014) AM_WRITE(nes_vh_sprite_dma_w)              /* stupid address space hole */
 	AM_RANGE(0x4015, 0x4015) AM_READWRITE(psg_4015_r, psg_4015_w)       /* PSG status / first control register */
 	AM_RANGE(0x4016, 0x4016) AM_READWRITE(nes_in0_r, nes_in0_w)         /* IN0 - input port 1 */
@@ -647,54 +640,18 @@ static INPUT_PORTS_START( famicom )
 INPUT_PORTS_END
 
 
-static const nes_interface nes_apu_interface =
-{
-	"maincpu"
-};
-
-
 void nes_state::ppu_nmi(int *ppu_regs)
 {
 	m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
-static const ppu2c0x_interface nes_ppu_interface =
-{
-	"maincpu",
-	0,
-	0,
-	PPU_MIRROR_NONE
-};
-
 static const floppy_interface nes_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSHD,
 	LEGACY_FLOPPY_OPTIONS_NAME(nes_only),
-	"floppy_5_25",
-	NULL
+	"floppy_5_25"
 };
-
-
-static const nes_cart_interface nes_crt_interface =
-{
-};
-
-
-static const cassette_interface fc_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED),
-	"fc_cass",
-	NULL
-};
-
 
 
 static MACHINE_CONFIG_START( nes, nes_state )
@@ -712,22 +669,27 @@ static MACHINE_CONFIG_START( nes, nes_state )
 	MCFG_SCREEN_SIZE(32*8, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nes_state, screen_update_nes)
+	MCFG_SCREEN_PALETTE("palette")
 
+	MCFG_PALETTE_ADD("palette", 4*16*8)
+	MCFG_PALETTE_INIT_OWNER(nes_state, nes)
 
-	MCFG_PALETTE_LENGTH(4*16*8)
-
-	MCFG_PPU2C02_ADD("ppu", nes_ppu_interface)
+	MCFG_PPU2C02_ADD("ppu")
+	MCFG_PPU2C0X_CPU("maincpu")
 	MCFG_PPU2C0X_SET_NMI(nes_state, ppu_nmi)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("nessound", NES, NTSC_CLOCK)
-	MCFG_SOUND_CONFIG(nes_apu_interface)
+	MCFG_SOUND_ADD("nessound", NES_APU, NTSC_CLOCK)
+	MCFG_NES_APU_CPU("maincpu")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 
-	MCFG_NES_CARTRIDGE_ADD("nes_slot", nes_crt_interface, nes_cart, NULL)
+	MCFG_NES_CARTRIDGE_ADD("nes_slot", nes_cart, NULL)
 	MCFG_SOFTWARE_LIST_ADD("cart_list", "nes")
-	MCFG_SOFTWARE_LIST_ADD("ntb_list", "nes_ntbrom") // Nantettate Baseball mini_carts
+	MCFG_SOFTWARE_LIST_ADD("ade_list", "nes_ade")         // Camerica/Codemasters Aladdin Deck Enhancer mini-carts
+	MCFG_SOFTWARE_LIST_ADD("ntb_list", "nes_ntbrom")      // Sunsoft Nantettate! Baseball mini-carts
+	MCFG_SOFTWARE_LIST_ADD("kstudio_list", "nes_kstudio") // Bandai Karaoke Studio expansion carts
+	MCFG_SOFTWARE_LIST_ADD("datach_list", "nes_datach")   // Bandai Datach Joint ROM System mini-carts
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( nespal, nes )
@@ -737,7 +699,8 @@ static MACHINE_CONFIG_DERIVED( nespal, nes )
 	MCFG_CPU_CLOCK(PAL_CLOCK)
 
 	MCFG_DEVICE_REMOVE("ppu")
-	MCFG_PPU2C07_ADD("ppu", nes_ppu_interface)
+	MCFG_PPU2C07_ADD("ppu")
+	MCFG_PPU2C0X_CPU("maincpu")
 	MCFG_PPU2C0X_SET_NMI(nes_state, ppu_nmi)
 
 	/* video hardware */
@@ -748,8 +711,8 @@ static MACHINE_CONFIG_DERIVED( nespal, nes )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 30*8-1)
 
 	/* sound hardware */
-	MCFG_SOUND_REPLACE("nessound", NES, PAL_CLOCK)
-	MCFG_SOUND_CONFIG(nes_apu_interface)
+	MCFG_SOUND_REPLACE("nessound", NES_APU, PAL_CLOCK)
+	MCFG_NES_APU_CPU("maincpu")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 MACHINE_CONFIG_END
 
@@ -760,7 +723,8 @@ static MACHINE_CONFIG_DERIVED( dendy, nes )
 	MCFG_CPU_CLOCK( 26601712/15 ) /* 26.601712MHz / 15 == 1.77344746666... MHz */
 
 	MCFG_DEVICE_REMOVE("ppu")
-	MCFG_PPU2C07_ADD("ppu", nes_ppu_interface)
+	MCFG_PPU2C07_ADD("ppu")
+	MCFG_PPU2C0X_CPU("maincpu")
 	MCFG_PPU2C0X_SET_NMI(nes_state, ppu_nmi)
 
 	/* video hardware */
@@ -769,20 +733,23 @@ static MACHINE_CONFIG_DERIVED( dendy, nes )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC((106.53/(PAL_CLOCK/1000000)) * (PPU_VBLANK_LAST_SCANLINE_PAL-PPU_VBLANK_FIRST_SCANLINE+1+2)))
 
 	/* sound hardware */
-	MCFG_SOUND_REPLACE("nessound", NES, 26601712/15) /* 26.601712MHz / 15 == 1.77344746666... MHz */
-	MCFG_SOUND_CONFIG(nes_apu_interface)
+	MCFG_SOUND_REPLACE("nessound", NES_APU, 26601712/15) /* 26.601712MHz / 15 == 1.77344746666... MHz */
+	MCFG_NES_APU_CPU("maincpu")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( famicom, nes )
 	MCFG_DEVICE_REMOVE("nes_slot")
-	MCFG_NES_CARTRIDGE_ADD("nes_slot", nes_crt_interface, nes_cart, NULL)
+	MCFG_NES_CARTRIDGE_ADD("nes_slot", nes_cart, NULL)
 	MCFG_NES_CARTRIDGE_NOT_MANDATORY
 
 	MCFG_LEGACY_FLOPPY_DRIVE_ADD(FLOPPY_0, nes_floppy_interface)
 	MCFG_SOFTWARE_LIST_ADD("flop_list", "famicom_flop")
 
-	MCFG_CASSETTE_ADD( "tape", fc_cassette_interface )
+	MCFG_CASSETTE_ADD( "tape" )
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("fc_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list", "famicom_cass")
 MACHINE_CONFIG_END
 
@@ -798,12 +765,15 @@ ROM_END
 
 ROM_START( famicom )
 	ROM_REGION( 0x10000, "maincpu", 0 )  /* Main RAM */
-	ROM_LOAD_OPTIONAL( "disksys.rom", 0xe000, 0x2000, CRC(5e607dcf) SHA1(57fe1bdee955bb48d357e463ccbf129496930b62) )
+	ROM_SYSTEM_BIOS( 0, "2c33a-01a", "Famicom Disk System Bios")
+	ROMX_LOAD( "rp2c33a-01a.bin", 0xe000, 0x2000, CRC(5e607dcf) SHA1(57fe1bdee955bb48d357e463ccbf129496930b62), ROM_BIOS(1)) // newer, Nintendo logo has no shadow
+	ROM_SYSTEM_BIOS( 1, "2c33-01", "Famicom Disk System Bios, older")
+	ROMX_LOAD( "rp2c33-01.bin", 0xe000, 0x2000, CRC(1c7ae5d5) SHA1(af5af53f66982e749643fdf8b2acbb7d4d3ed229), ROM_BIOS(2)) // older, Nintendo logo has shadow
 ROM_END
 
 ROM_START( famitwin )
 	ROM_REGION( 0x10000, "maincpu", 0 )  /* Main RAM */
-	ROM_LOAD_OPTIONAL( "disksyst.rom", 0xe000, 0x2000, CRC(4df24a6c) SHA1(e4e41472c454f928e53eb10e0509bf7d1146ecc1) )
+	ROM_LOAD( "rp2c33a-02.bin", 0xe000, 0x2000, CRC(4df24a6c) SHA1(e4e41472c454f928e53eb10e0509bf7d1146ecc1) ) // "Famicom" logo instead of Nintendo logo
 ROM_END
 
 ROM_START( m82 )
@@ -827,6 +797,10 @@ ROM_START( dendy )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00 )  /* Main RAM */
 ROM_END
 
+ROM_START( gchinatv )
+	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00 )  /* Main RAM */
+	ROM_REGION( 0x800,   "ciram", ROMREGION_ERASE00 )  /* CI RAM */
+ROM_END
 
 /***************************************************************************
 
@@ -842,3 +816,4 @@ CONS( 1986, famitwin,  nes,    0,     famicom,  famicom, nes_state, famicom, "Sh
 CONS( 198?, m82,       nes,    0,     nes,      nes, driver_device,     0,       "Nintendo",  "M82 Display Unit", GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
 CONS( 1996, drpcjr,    nes,    0,     famicom,  famicom, nes_state, famicom, "Bung",      "Doctor PC Jr", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
 CONS( 1992, dendy,     nes,    0,     dendy,    nes, driver_device,     0,       "Steepler",  "Dendy Classic", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+CONS( 198?, gchinatv,  nes,    0,     nespal,   nes, driver_device,     0,       "Golden China",  "Golden China TV Game", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )

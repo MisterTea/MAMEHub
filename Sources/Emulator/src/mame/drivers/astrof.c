@@ -188,7 +188,7 @@ rgb_t astrof_state::make_pen( UINT8 data )
 	UINT8 g = (0xc0 * g1_bit) + (0x3f * g2_bit);
 	UINT8 b = (0xc0 * b1_bit) + (0x3f * b2_bit);
 
-	return MAKE_RGB(r, g, b);
+	return rgb_t(r, g, b);
 }
 
 
@@ -352,7 +352,7 @@ WRITE8_MEMBER(astrof_state::tomahawk_video_control_2_w)
 }
 
 
-void astrof_state::video_update_common( bitmap_rgb32 &bitmap, const rectangle &cliprect, pen_t *pens )
+void astrof_state::video_update_common( bitmap_rgb32 &bitmap, const rectangle &cliprect, pen_t *pens, int num_pens )
 {
 	offs_t offs;
 
@@ -363,8 +363,8 @@ void astrof_state::video_update_common( bitmap_rgb32 &bitmap, const rectangle &c
 
 		UINT8 color = m_colorram[offs >> 1];
 
-		pen_t back_pen = pens[color | 0x00];
-		pen_t fore_pen = pens[color | 0x01];
+		pen_t back_pen = pens[(color & (num_pens-1)) | 0x00];
+		pen_t fore_pen = pens[(color & (num_pens-1)) | 0x01];
 
 		UINT8 y = offs;
 		UINT8 x = offs >> 8 << 3;
@@ -402,7 +402,7 @@ UINT32 astrof_state::screen_update_astrof(screen_device &screen, bitmap_rgb32 &b
 
 	astrof_get_pens(pens);
 
-	video_update_common(bitmap, cliprect, pens);
+	video_update_common(bitmap, cliprect, pens, ASTROF_NUM_PENS);
 
 	return 0;
 }
@@ -414,7 +414,7 @@ UINT32 astrof_state::screen_update_tomahawk(screen_device &screen, bitmap_rgb32 
 
 	tomahawk_get_pens(pens);
 
-	video_update_common(bitmap, cliprect, pens);
+	video_update_common(bitmap, cliprect, pens, TOMAHAWK_NUM_PENS);
 
 	return 0;
 }
@@ -509,8 +509,6 @@ MACHINE_START_MEMBER(astrof_state,tomahawk)
 {
 	/* the 74175 outputs all HI's if not otherwise set */
 	tomahawk_set_video_control_2(0xff);
-
-	m_sn = machine().device("snsnd");
 
 	/* register for state saving */
 	save_item(NAME(m_red_on));
@@ -1153,6 +1151,24 @@ ROM_START( acombato )
 	ROM_LOAD( "astrf.clr",    0x0000, 0x0020, CRC(61329fd1) SHA1(15782d8757d4dda5a8b97815e94c90218f0e08dd) )
 ROM_END
 
+ROM_START( acombat3 )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "l.bin",  0xd000, 0x0400, CRC(41227b16) SHA1(1270f1b88e7fa2dd24fc80703dbc5ae33c8b454e) )
+	ROM_LOAD( "k.bin",  0xd400, 0x0400, CRC(99043e95) SHA1(5375c9389170a21c8e5a9a89ee98bba0a2fb4f34) )
+	ROM_LOAD( "m.bin",  0xd800, 0x0400, CRC(b77b0bdd) SHA1(95eb4758a3cbbfa5085c62a132f289fccfbaa818) )
+	ROM_LOAD( "n.bin",  0xdc00, 0x0400, CRC(d23637f2) SHA1(c13dc224c45506d141dcb107f323900ea6974c60) )
+	ROM_LOAD( "d.bin",  0xe000, 0x0400, CRC(7090c077) SHA1(283c60cdfafb3f9026dd2241f3fc35e7545d7cf6) )
+	ROM_LOAD( "c.bin",  0xe400, 0x0400, CRC(0101ab24) SHA1(90e99001ef6890fbc76b4f58cc54df12dfa79e2e) )
+	ROM_LOAD( "b(__acombat3).bin",  0xe800, 0x0400, CRC(4b847950) SHA1(49de63ac72dff22b962fc7b8d7b1c97939072b4a) ) // b.bin
+	ROM_LOAD( "a(__acombat3).bin",  0xec00, 0x0400, CRC(7eb7969b) SHA1(1aaf7af67b544d01a66a1f3d0eda8d42d2c5bb5d) ) // a.bin
+	ROM_LOAD( "j.bin",  0xf000, 0x0400, CRC(a7e2b47e) SHA1(97eda53dfc7f1914f7df36c13747d1d824b62734) )
+	ROM_LOAD( "h.bin",  0xf400, 0x0400, CRC(261ca943) SHA1(17136843f74d2236a5f81f2261b166c02dde138d) )
+	ROM_LOAD( "f.bin",  0xf800, 0x0400, CRC(6ce39b64) SHA1(ba99ddc2d1208afd3f27a9749dac1faca645bbdc) )
+	ROM_LOAD( "e.bin",  0xfc00, 0x0400, CRC(2acae469) SHA1(80019bc645a9919f9ec455452ea3e588d61a563f) )
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "8f-clr.bin",   0x0000, 0x0100, CRC(3bf3ccb0) SHA1(d61d19d38045f42a9adecf295e479fee239bed48) )
+ROM_END
 
 ROM_START( sstarbtl )
 	ROM_REGION( 0x10000, "maincpu", 0 )
@@ -1293,6 +1309,12 @@ DRIVER_INIT_MEMBER(astrof_state,sstarbtl)
 	m_maincpu->space(AS_PROGRAM).install_read_handler(0xa004, 0xa004, read8_delegate(FUNC(astrof_state::abattle_coin_prot_r),this));
 }
 
+DRIVER_INIT_MEMBER(astrof_state,acombat3)
+{
+	/* set up protection handlers */
+	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xa003, 0xa003, read8_delegate(FUNC(astrof_state::shoot_r),this));
+	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xa004, 0xa004, read8_delegate(FUNC(astrof_state::abattle_coin_prot_r),this));
+}
 
 
 /*************************************
@@ -1301,16 +1323,19 @@ DRIVER_INIT_MEMBER(astrof_state,sstarbtl)
  *
  *************************************/
 
-GAME( 1979, astrof,   0,        astrof,   astrof, driver_device,   0,       ROT90, "Data East",   "Astro Fighter (set 1)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1979, astrof2,  astrof,   astrof,   astrof, driver_device,   0,       ROT90, "Data East",   "Astro Fighter (set 2)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1979, astrof3,  astrof,   astrof,   astrof, driver_device,   0,       ROT90, "Data East",   "Astro Fighter (set 3)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1979, astrof,   0,        astrof,   astrof, driver_device,  0,       ROT90, "Data East",             "Astro Fighter (set 1)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1979, astrof2,  astrof,   astrof,   astrof, driver_device,  0,       ROT90, "Data East",             "Astro Fighter (set 2)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1979, astrof3,  astrof,   astrof,   astrof, driver_device,  0,       ROT90, "Data East",             "Astro Fighter (set 3)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1979, abattle,  astrof,   abattle,  abattle, astrof_state,  abattle, ROT90, "bootleg? (Sidam)",      "Astro Battle (set 1)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1979, abattle2, astrof,   abattle,  abattle, astrof_state,  abattle, ROT90, "bootleg? (Sidam)",      "Astro Battle (set 2)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1979, afire,    astrof,   abattle,  abattle, astrof_state,  afire,   ROT90, "bootleg (Rene Pierre)", "Astro Fire", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1979, acombat,  astrof,   abattle,  abattle, astrof_state,  afire,   ROT90, "bootleg",     "Astro Combat (newer, CB)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1979, acombato, astrof,   abattle,  abattle, astrof_state,  afire,   ROT90, "bootleg",     "Astro Combat (older, PZ)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1979, sstarbtl, astrof,   abattle,  abattle, astrof_state,  sstarbtl,ROT90, "bootleg",     "Super Star Battle", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1979, spfghmk2, 0,        spfghmk2, spfghmk2, driver_device, 0,       ROT90, "Data East",   "Space Fighter Mark II (set 1)", GAME_NO_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1979, spfghmk22,spfghmk2, spfghmk2, spfghmk22, driver_device,0,       ROT90, "Data East",   "Space Fighter Mark II (set 2)", GAME_NO_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1980, tomahawk, 0,        tomahawk, tomahawk, driver_device, 0,       ROT90, "Data East",   "Tomahawk 777 (rev 5)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1980, tomahawk1,tomahawk, tomahawk, tomahawk1, driver_device,0,       ROT90, "Data East",   "Tomahawk 777 (rev 1)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1979, acombat,  astrof,   abattle,  abattle, astrof_state,  afire,   ROT90, "bootleg",               "Astro Combat (newer, CB)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1979, acombato, astrof,   abattle,  abattle, astrof_state,  afire,   ROT90, "bootleg",               "Astro Combat (older, PZ)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1979, acombat3, astrof,   abattle,  abattle, astrof_state,  acombat3,ROT90, "bootleg (Proel)",       "Astro Combat (unencrypted)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1979, sstarbtl, astrof,   abattle,  abattle, astrof_state,  sstarbtl,ROT90, "bootleg",               "Super Star Battle", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+
+GAME( 1979, spfghmk2, 0,        spfghmk2, spfghmk2, driver_device,0,       ROT90, "Data East",            "Space Fighter Mark II (set 1)", GAME_NO_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1979, spfghmk22,spfghmk2, spfghmk2, spfghmk22,driver_device,0,       ROT90, "Data East",            "Space Fighter Mark II (set 2)", GAME_NO_SOUND | GAME_SUPPORTS_SAVE )
+
+GAME( 1980, tomahawk, 0,        tomahawk, tomahawk, driver_device,0,       ROT90, "Data East",            "Tomahawk 777 (rev 5)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1980, tomahawk1,tomahawk, tomahawk, tomahawk1,driver_device,0,       ROT90, "Data East",            "Tomahawk 777 (rev 1)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )

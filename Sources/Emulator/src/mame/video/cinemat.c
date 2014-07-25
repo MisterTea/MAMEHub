@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Cinematronics vector hardware
@@ -5,10 +7,8 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "video/vector.h"
 #include "cpu/ccpu/ccpu.h"
 #include "includes/cinemat.h"
-#include "scrlegcy.h"
 
 
 /*************************************
@@ -51,10 +51,10 @@ void cinemat_state::cinemat_vector_callback(INT16 sx, INT16 sy, INT16 ex, INT16 
 
 	/* move to the starting position if we're not there already */
 	if (sx != m_lastx || sy != m_lasty)
-		vector_add_point(machine(), sx << 16, sy << 16, 0, 0);
+		m_vector->add_point(sx << 16, sy << 16, 0, 0);
 
 	/* draw the vector */
-	vector_add_point(machine(), ex << 16, ey << 16, m_vector_color, intensity);
+	m_vector->add_point(ex << 16, ey << 16, m_vector_color, intensity);
 
 	/* remember the last point */
 	m_lastx = ex;
@@ -78,7 +78,7 @@ WRITE8_MEMBER(cinemat_state::cinemat_vector_control_w)
 	{
 		case COLOR_BILEVEL:
 			/* color is either bright or dim, selected by the value sent to the port */
-			m_vector_color = (data & 1) ? MAKE_RGB(0x80,0x80,0x80) : MAKE_RGB(0xff,0xff,0xff);
+			m_vector_color = (data & 1) ? rgb_t(0x80,0x80,0x80) : rgb_t(0xff,0xff,0xff);
 			break;
 
 		case COLOR_16LEVEL:
@@ -88,7 +88,7 @@ WRITE8_MEMBER(cinemat_state::cinemat_vector_control_w)
 			{
 				int xval = cpu->state_int(CCPU_X) & 0x0f;
 				i = (xval + 1) * 255 / 16;
-				m_vector_color = MAKE_RGB(i,i,i);
+				m_vector_color = rgb_t(i,i,i);
 			}
 			break;
 
@@ -100,7 +100,7 @@ WRITE8_MEMBER(cinemat_state::cinemat_vector_control_w)
 				int xval = cpu->state_int(CCPU_X);
 				xval = (~xval >> 2) & 0x3f;
 				i = (xval + 1) * 255 / 64;
-				m_vector_color = MAKE_RGB(i,i,i);
+				m_vector_color = rgb_t(i,i,i);
 			}
 			break;
 
@@ -116,7 +116,7 @@ WRITE8_MEMBER(cinemat_state::cinemat_vector_control_w)
 				g = g * 255 / 15;
 				b = (~xval >> 8) & 0x0f;
 				b = b * 255 / 15;
-				m_vector_color = MAKE_RGB(r,g,b);
+				m_vector_color = rgb_t(r,g,b);
 			}
 			break;
 
@@ -143,7 +143,7 @@ WRITE8_MEMBER(cinemat_state::cinemat_vector_control_w)
 					g = g * 255 / 7;
 					b = (~yval >> 6) & 0x03;
 					b = b * 255 / 3;
-					m_vector_color = MAKE_RGB(r,g,b);
+					m_vector_color = rgb_t(r,g,b);
 
 					/* restore the original X,Y values */
 					cpu->set_state_int(CCPU_X, m_qb3_lastx);
@@ -168,35 +168,30 @@ WRITE8_MEMBER(cinemat_state::cinemat_vector_control_w)
 void cinemat_state::video_start()
 {
 	m_color_mode = COLOR_BILEVEL;
-	VIDEO_START_CALL_LEGACY(vector);
 }
 
 
 VIDEO_START_MEMBER(cinemat_state,cinemat_16level)
 {
 	m_color_mode = COLOR_16LEVEL;
-	VIDEO_START_CALL_LEGACY(vector);
 }
 
 
 VIDEO_START_MEMBER(cinemat_state,cinemat_64level)
 {
 	m_color_mode = COLOR_64LEVEL;
-	VIDEO_START_CALL_LEGACY(vector);
 }
 
 
 VIDEO_START_MEMBER(cinemat_state,cinemat_color)
 {
 	m_color_mode = COLOR_RGB;
-	VIDEO_START_CALL_LEGACY(vector);
 }
 
 
 VIDEO_START_MEMBER(cinemat_state,cinemat_qb3color)
 {
 	m_color_mode = COLOR_QB3;
-	VIDEO_START_CALL_LEGACY(vector);
 }
 
 
@@ -209,8 +204,8 @@ VIDEO_START_MEMBER(cinemat_state,cinemat_qb3color)
 
 UINT32 cinemat_state::screen_update_cinemat(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	SCREEN_UPDATE32_CALL(vector);
-	vector_clear_list();
+	m_vector->screen_update(screen, bitmap, cliprect);
+	m_vector->clear_list();
 
 	m_maincpu->wdt_timer_trigger();
 

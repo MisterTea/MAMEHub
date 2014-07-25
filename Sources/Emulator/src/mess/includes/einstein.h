@@ -1,8 +1,11 @@
-/*****************************************************************************
- *
- * includes/einstein.h
- *
- ****************************************************************************/
+/***************************************************************************
+
+    Tatung Einstein
+
+    license: MAME
+    copyright-holders: Kevin Thacker, Dirk Best, Phill Harvey-Smith
+
+***************************************************************************/
 
 #ifndef EINSTEIN_H_
 #define EINSTEIN_H_
@@ -15,7 +18,7 @@
 #include "video/tms9928a.h"
 #include "machine/ram.h"
 #include "machine/i8251.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 
 /***************************************************************************
     CONSTANTS
@@ -74,7 +77,8 @@ public:
 		m_extra(*this, "EXTRA"),
 		m_buttons(*this, "BUTTONS"),
 		m_config(*this, "config"),
-		m_80column_dips(*this, "80column_dips") { }
+		m_80column_dips(*this, "80column_dips"),
+		m_palette(*this, "palette")  { }
 
 	required_device<wd1770_t> m_fdc;
 	required_device<screen_device> m_color_screen;
@@ -97,6 +101,10 @@ public:
 	UINT8 *m_crtc_ram;
 	UINT8   m_de;
 
+	int m_centronics_busy;
+	int m_centronics_perror;
+	int m_centronics_fault;
+
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
 	DECLARE_WRITE8_MEMBER(einstein_80col_ram_w);
 	DECLARE_READ8_MEMBER(einstein_80col_ram_r);
@@ -108,6 +116,9 @@ public:
 	DECLARE_WRITE8_MEMBER(einstein_kybintmsk_w);
 	DECLARE_WRITE8_MEMBER(einstein_adcintmsk_w);
 	DECLARE_WRITE8_MEMBER(einstein_fire_int_w);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_perror);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_fault);
 	virtual void machine_start();
 	virtual void machine_reset();
 	DECLARE_MACHINE_START(einstein2);
@@ -119,6 +130,7 @@ public:
 	DECLARE_WRITE8_MEMBER(einstein_drsel_w);
 	DECLARE_WRITE_LINE_MEMBER(einstein_serial_transmit_clock);
 	DECLARE_WRITE_LINE_MEMBER(einstein_serial_receive_clock);
+	MC6845_UPDATE_ROW(crtc_update_row);
 
 protected:
 	required_device<i8251_device> m_uart;
@@ -140,6 +152,8 @@ protected:
 	required_ioport m_buttons;
 	required_ioport m_config;
 	optional_ioport m_80column_dips;
+public:
+	optional_device<palette_device> m_palette;
 
 	void einstein_scan_keyboard();
 	void einstein_page_rom();

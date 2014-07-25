@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:smf
 /*
  * PlayStation CPU emulator
  *
@@ -113,39 +115,52 @@ enum
 	psxcpu_device::getcpu( *owner, cputag )->subdevice<psxdma_device>("dma")->install_write_handler( channel, handler );
 
 #define MCFG_PSX_GPU_READ_HANDLER(_devcb) \
-	devcb = &psxcpu_device::set_gpu_read_handler(*device, DEVCB2_##_devcb);
+	devcb = &psxcpu_device::set_gpu_read_handler(*device, DEVCB_##_devcb);
 #define MCFG_PSX_GPU_WRITE_HANDLER(_devcb) \
-	devcb = &psxcpu_device::set_gpu_write_handler(*device, DEVCB2_##_devcb);
+	devcb = &psxcpu_device::set_gpu_write_handler(*device, DEVCB_##_devcb);
 
 #define MCFG_PSX_SPU_READ_HANDLER(_devcb) \
-	devcb = &psxcpu_device::set_spu_read_handler(*device, DEVCB2_##_devcb);
+	devcb = &psxcpu_device::set_spu_read_handler(*device, DEVCB_##_devcb);
 #define MCFG_PSX_SPU_WRITE_HANDLER(_devcb) \
-	devcb = &psxcpu_device::set_spu_write_handler(*device, DEVCB2_##_devcb);
+	devcb = &psxcpu_device::set_spu_write_handler(*device, DEVCB_##_devcb);
 
 #define MCFG_PSX_CD_READ_HANDLER(_devcb) \
-	devcb = &psxcpu_device::set_cd_read_handler(*device, DEVCB2_##_devcb);
+	devcb = &psxcpu_device::set_cd_read_handler(*device, DEVCB_##_devcb);
 #define MCFG_PSX_CD_WRITE_HANDLER(_devcb) \
-	devcb = &psxcpu_device::set_cd_write_handler(*device, DEVCB2_##_devcb);
+	devcb = &psxcpu_device::set_cd_write_handler(*device, DEVCB_##_devcb);
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
+class psxcpu_state
+{
+public:
+	virtual ~psxcpu_state() {};
+
+	virtual UINT32 pc() = 0;
+	virtual UINT32 delayr() = 0;
+	virtual UINT32 delayv() = 0;
+	virtual UINT32 r(int i) = 0;
+};
+
 // ======================> psxcpu_device
 
-class psxcpu_device : public cpu_device
+class psxcpu_device : public cpu_device,
+	psxcpu_state
 {
 public:
 	// construction/destruction
 	psxcpu_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	virtual ~psxcpu_device() {};
 
 	// static configuration helpers
-	template<class _Object> static devcb2_base &set_gpu_read_handler(device_t &device, _Object object) { return downcast<psxcpu_device &>(device).m_gpu_read_handler.set_callback(object); }
-	template<class _Object> static devcb2_base &set_gpu_write_handler(device_t &device, _Object object) { return downcast<psxcpu_device &>(device).m_gpu_write_handler.set_callback(object); }
-	template<class _Object> static devcb2_base &set_spu_read_handler(device_t &device, _Object object) { return downcast<psxcpu_device &>(device).m_spu_read_handler.set_callback(object); }
-	template<class _Object> static devcb2_base &set_spu_write_handler(device_t &device, _Object object) { return downcast<psxcpu_device &>(device).m_spu_write_handler.set_callback(object); }
-	template<class _Object> static devcb2_base &set_cd_read_handler(device_t &device, _Object object) { return downcast<psxcpu_device &>(device).m_cd_read_handler.set_callback(object); }
-	template<class _Object> static devcb2_base &set_cd_write_handler(device_t &device, _Object object) { return downcast<psxcpu_device &>(device).m_cd_write_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_gpu_read_handler(device_t &device, _Object object) { return downcast<psxcpu_device &>(device).m_gpu_read_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_gpu_write_handler(device_t &device, _Object object) { return downcast<psxcpu_device &>(device).m_gpu_write_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_spu_read_handler(device_t &device, _Object object) { return downcast<psxcpu_device &>(device).m_spu_read_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_spu_write_handler(device_t &device, _Object object) { return downcast<psxcpu_device &>(device).m_spu_write_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_cd_read_handler(device_t &device, _Object object) { return downcast<psxcpu_device &>(device).m_cd_read_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_cd_write_handler(device_t &device, _Object object) { return downcast<psxcpu_device &>(device).m_cd_write_handler.set_callback(object); }
 
 	// public interfaces
 	DECLARE_WRITE32_MEMBER( berr_w );
@@ -209,7 +224,7 @@ protected:
 
 	// device_disasm_interface overrides
 	virtual UINT32 disasm_min_opcode_bytes() const { return 4; }
-	virtual UINT32 disasm_max_opcode_bytes() const { return 4; }
+	virtual UINT32 disasm_max_opcode_bytes() const { return 8; }
 	virtual offs_t disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options);
 
 	// CPU registers
@@ -323,14 +338,21 @@ protected:
 
 	gte m_gte;
 
-	devcb2_read32 m_gpu_read_handler;
-	devcb2_write32 m_gpu_write_handler;
-	devcb2_read16 m_spu_read_handler;
-	devcb2_write16 m_spu_write_handler;
-	devcb2_read8 m_cd_read_handler;
-	devcb2_write8 m_cd_write_handler;
+	devcb_read32 m_gpu_read_handler;
+	devcb_write32 m_gpu_write_handler;
+	devcb_read16 m_spu_read_handler;
+	devcb_write16 m_spu_write_handler;
+	devcb_read8 m_cd_read_handler;
+	devcb_write8 m_cd_write_handler;
 	required_device<ram_device> m_ram;
 	memory_region *m_rom;
+
+private:
+	// disassembler interface
+	virtual UINT32 pc() { return m_pc; }
+	virtual UINT32 delayr() { return m_delayr; }
+	virtual UINT32 delayv() { return m_delayv; }
+	virtual UINT32 r(int i) { return m_r[ i ]; }
 };
 
 class cxd8530aq_device : public psxcpu_device
@@ -502,16 +524,6 @@ extern const device_type CXD8606CQ;
 #define CF_TLBP ( 8 )
 #define CF_RFE ( 16 )
 
-
-
-struct DasmPSXCPU_state
-{
-	UINT32 pc;
-	int delayr;
-	UINT32 delayv;
-	UINT32 r[ 32 ];
-};
-
-extern unsigned DasmPSXCPU( DasmPSXCPU_state *state, char *buffer, UINT32 pc, const UINT8 *opram );
+extern unsigned DasmPSXCPU( psxcpu_state *state, char *buffer, UINT32 pc, const UINT8 *opram );
 
 #endif /* __PSXCPU_H__ */

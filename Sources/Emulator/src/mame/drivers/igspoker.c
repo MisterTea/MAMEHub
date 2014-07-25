@@ -79,12 +79,18 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_bg_tile_ram(*this, "bg_tile_ram"),
 		m_fg_tile_ram(*this, "fg_tile_ram"),
-		m_fg_color_ram(*this, "fg_color_ram"){ }
+		m_fg_color_ram(*this, "fg_color_ram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"){ }
 
 	required_device<cpu_device> m_maincpu;
 	optional_shared_ptr<UINT8> m_bg_tile_ram;
 	required_shared_ptr<UINT8> m_fg_tile_ram;
 	required_shared_ptr<UINT8> m_fg_color_ram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 	int m_nmi_enable;
 	int m_bg_enable;
 	int m_hopper;
@@ -193,15 +199,15 @@ WRITE8_MEMBER(igspoker_state::fg_color_w)
 
 void igspoker_state::video_start()
 {
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igspoker_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,   8,  8,  64, 32);
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igspoker_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,   8,  32, 64, 8);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igspoker_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,   8,  8,  64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igspoker_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,   8,  32, 64, 8);
 
 	m_fg_tilemap->set_transparent_pen(0);
 }
 
 UINT32 igspoker_state::screen_update_igs_video(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	// FIX: CSK227IT must have some way to disable background, or wrong gfx?
 	if (m_bg_enable) m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
@@ -213,7 +219,7 @@ UINT32 igspoker_state::screen_update_igs_video(screen_device &screen, bitmap_ind
 
 VIDEO_START_MEMBER(igspoker_state,cpokerpk)
 {
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igspoker_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,   8,  8,  64, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igspoker_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,   8,  8,  64, 32);
 }
 
 UINT32 igspoker_state::screen_update_cpokerpk(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -362,8 +368,8 @@ static ADDRESS_MAP_START( igspoker_prg_map, AS_PROGRAM, 8, igspoker_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( igspoker_io_map, AS_IO, 8, igspoker_state )
-	AM_RANGE(0x2000, 0x27ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_lo_w ) AM_SHARE("paletteram")
-	AM_RANGE(0x2800, 0x2fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_hi_w ) AM_SHARE("paletteram2")
+	AM_RANGE(0x2000, 0x27ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0x2800, 0x2fff) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0x4000, 0x4000) AM_READ_PORT("DSW1")           /* DSW1 */
 	AM_RANGE(0x4001, 0x4001) AM_READ_PORT("DSW2")           /* DSW2 */
 	AM_RANGE(0x4002, 0x4002) AM_READ_PORT("DSW3")           /* DSW3 */
@@ -1116,8 +1122,8 @@ INPUT_PORTS_END
 
 
 static ADDRESS_MAP_START( number10_io_map, AS_IO, 8, igspoker_state )
-	AM_RANGE(0x2000, 0x27ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_lo_w ) AM_SHARE("paletteram")
-	AM_RANGE(0x2800, 0x2fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_hi_w ) AM_SHARE("paletteram2")
+	AM_RANGE(0x2000, 0x27ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0x2800, 0x2fff) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0x4000, 0x4000) AM_READ_PORT("DSW1")           /* DSW1 */
 	AM_RANGE(0x4001, 0x4001) AM_READ_PORT("DSW2")           /* DSW2 */
 	AM_RANGE(0x4002, 0x4002) AM_READ_PORT("DSW3")           /* DSW3 */
@@ -1139,8 +1145,8 @@ static ADDRESS_MAP_START( number10_io_map, AS_IO, 8, igspoker_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( cpokerpk_io_map, AS_IO, 8, igspoker_state )
-	AM_RANGE(0x2000, 0x27ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_lo_w ) AM_SHARE("paletteram")
-	AM_RANGE(0x2800, 0x2fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_hi_w ) AM_SHARE("paletteram2")
+	AM_RANGE(0x2000, 0x27ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0x2800, 0x2fff) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0x4000, 0x4000) AM_READ_PORT("DSW1")           /* DSW1 */
 	AM_RANGE(0x4001, 0x4001) AM_READ_PORT("DSW2")           /* DSW2 */
 	AM_RANGE(0x4002, 0x4002) AM_READ_PORT("DSW3")           /* DSW3 */
@@ -1726,7 +1732,7 @@ static const gfx_layout charlayout =
 static const gfx_layout charlayout2 =
 {
 	8, 32,   /* 8*32 characters */
-	RGN_FRAC(1, 3),
+	RGN_FRAC(1, 3*4),
 	6,      /* 6 bits per pixel */
 	{ RGN_FRAC(0,3)+8,RGN_FRAC(0,3)+0,
 		RGN_FRAC(1,3)+8,RGN_FRAC(1,3)+0,
@@ -1781,10 +1787,11 @@ static MACHINE_CONFIG_START( igspoker, igspoker_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8) // TODO: wrong screen size!
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 0, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(igspoker_state, screen_update_igs_video)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(igspoker)
-	MCFG_PALETTE_LENGTH(2048)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", igspoker)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1820,7 +1827,7 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( cpokerpk, number10 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_IO_MAP(cpokerpk_io_map)
-	MCFG_GFXDECODE(cpokerpk)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", cpokerpk)
 MACHINE_CONFIG_END
 
 
@@ -2286,7 +2293,6 @@ DRIVER_INIT_MEMBER(igspoker_state,number10)
 {
 	int A;
 	int length;
-	UINT8 *tmp;
 	UINT8 *rom;
 
 	rom = memregion("maincpu")->base();
@@ -2321,15 +2327,13 @@ DRIVER_INIT_MEMBER(igspoker_state,number10)
 	/* Descramble graphic */
 	rom = memregion("gfx1")->base();
 	length = memregion("gfx1")->bytes();
-	tmp = auto_alloc_array(machine(), UINT8, length);
+	dynamic_buffer tmp(length);
 	memcpy(tmp,rom,length);
 	for (A = 0;A < length;A++)
 	{
 		int addr = (A & ~0xffff) | BITSWAP16(A,15,14,13,12,11,10,9,8,7,6,5,4,3,0,1,2);
 		rom[A] = tmp[addr];
 	}
-
-	auto_free(machine(), tmp);
 }
 
 

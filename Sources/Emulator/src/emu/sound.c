@@ -1,46 +1,17 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     sound.c
 
     Core sound functions and definitions.
 
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
-
 ***************************************************************************/
 
 #include "emu.h"
 #include "emuopts.h"
 #include "osdepend.h"
-#include "config.h"
+#include "emuconfig.h"
 #include "sound/wavwrite.h"
 
 
@@ -51,7 +22,7 @@
 
 #define VERBOSE         (0)
 
-#define VPRINTF(x)      do { if (VERBOSE) mame_printf_debug x; } while (0)
+#define VPRINTF(x)      do { if (VERBOSE) osd_printf_debug x; } while (0)
 
 
 
@@ -77,7 +48,7 @@ const attotime sound_manager::STREAMS_UPDATE_ATTOTIME = attotime::from_hz(STREAM
 //  sound_stream - constructor
 //-------------------------------------------------
 
-sound_stream::sound_stream(device_t &device, int inputs, int outputs, int sample_rate, void *param, stream_update_func callback)
+sound_stream::sound_stream(device_t &device, int inputs, int outputs, int sample_rate,  stream_update_delegate callback)
 	: m_device(device),
 		m_next(NULL),
 		m_sample_rate(sample_rate),
@@ -93,17 +64,15 @@ sound_stream::sound_stream(device_t &device, int inputs, int outputs, int sample
 		m_output_sampindex(0),
 		m_output_update_sampindex(0),
 		m_output_base_sampindex(0),
-		m_callback(callback),
-		m_param(param)
+		m_callback(callback)
 {
 	// get the device's sound interface
 	device_sound_interface *sound;
 	if (!device.interface(sound))
 		throw emu_fatalerror("Attempted to create a sound_stream with a non-sound device");
 
-	// this is also the implicit parameter if we are using our internal stub
-	if (m_callback == &sound_stream::device_stream_update_stub)
-		m_param = sound;
+	if(m_callback.isnull())
+		m_callback = stream_update_delegate(FUNC(device_sound_interface::sound_stream_update),(device_sound_interface *)sound);
 
 	// create a unique tag for saving
 	astring state_tag;
@@ -122,6 +91,16 @@ sound_stream::sound_stream(device_t &device, int inputs, int outputs, int sample
 		m_output[outputnum].m_stream = this;
 		m_device.machine().save().save_item("stream", state_tag, outputnum, NAME(m_output[outputnum].m_gain));
 	}
+
+	// Mark synchronous streams as such
+	m_synchronous = m_sample_rate == STREAM_SYNC;
+	if (m_synchronous)
+	{
+		m_sample_rate = 0;
+		m_sync_timer = m_device.machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(sound_stream::sync_update), this));
+	}
+	else
+		m_sync_timer = NULL;
 
 	// force an update to the sample rates; this will cause everything to be recomputed
 	// and will generate the initial resample buffers for our inputs
@@ -313,6 +292,15 @@ void sound_stream::update()
 }
 
 
+void sound_stream::sync_update(void *, INT32)
+{
+	update();
+	attotime time = m_device.machine().time();
+	attoseconds_t next_edge = m_attoseconds_per_sample - (time.attoseconds % m_attoseconds_per_sample);
+	m_sync_timer->adjust(attotime(0, next_edge));
+}
+
+
 //-------------------------------------------------
 //  output_since_last_update - return a pointer to
 //  the output buffer and the number of samples
@@ -457,18 +445,6 @@ void sound_stream::apply_sample_rate_changes()
 
 
 //-------------------------------------------------
-//  device_stream_update_stub - stub callback for
-//  passing through to modern devices
-//-------------------------------------------------
-
-STREAM_UPDATE( sound_stream::device_stream_update_stub )
-{
-	device_sound_interface *sound = reinterpret_cast<device_sound_interface *>(param);
-	sound->sound_stream_update(*stream, inputs, outputs, samples);
-}
-
-
-//-------------------------------------------------
 //  recompute_sample_rate_data - recompute sample
 //  rate data, and all streams that are affected
 //  by this stream
@@ -476,6 +452,26 @@ STREAM_UPDATE( sound_stream::device_stream_update_stub )
 
 void sound_stream::recompute_sample_rate_data()
 {
+	if (m_synchronous)
+	{
+		m_sample_rate = 0;
+		// When synchronous, pick the sample rate for the inputs, if any
+		for (int inputnum = 0; inputnum < m_input.count(); inputnum++)
+		{
+			stream_input &input = m_input[inputnum];
+			if (input.m_source != NULL)
+			{
+				if (!m_sample_rate)
+					m_sample_rate = input.m_source->m_stream->m_sample_rate;
+				else if (m_sample_rate != input.m_source->m_stream->m_sample_rate)
+					throw emu_fatalerror("Incompatible sample rates as input of a synchronous stream: %d and %d\n", m_sample_rate, input.m_source->m_stream->m_sample_rate);
+			}
+		}
+		if (!m_sample_rate)
+			m_sample_rate = 1000;
+	}
+
+
 	// recompute the timing parameters
 	attoseconds_t update_attoseconds = m_device.machine().sound().update_attoseconds();
 	m_attoseconds_per_sample = ATTOSECONDS_PER_SECOND / m_sample_rate;
@@ -512,6 +508,14 @@ void sound_stream::recompute_sample_rate_data()
 			assert(input.m_latency_attoseconds < update_attoseconds);
 		}
 	}
+
+	// If synchronous, prime the timer
+	if (m_synchronous)
+	{
+		attotime time = m_device.machine().time();
+		attoseconds_t next_edge = m_attoseconds_per_sample - (time.attoseconds % m_attoseconds_per_sample);
+		m_sync_timer->adjust(attotime(0, next_edge));
+	}
 }
 
 
@@ -529,16 +533,11 @@ void sound_stream::allocate_resample_buffers()
 	if (m_resample_bufalloc < bufsize)
 	{
 		// this becomes the new allocation size
-		int oldsize = m_resample_bufalloc;
 		m_resample_bufalloc = bufsize;
 
 		// iterate over outputs and realloc their buffers
 		for (int inputnum = 0; inputnum < m_input.count(); inputnum++)
-		{
-			stream_input &input = m_input[inputnum];
-			input.m_resample.resize(m_resample_bufalloc, true);
-			memset(&input.m_resample[oldsize], 0, (m_resample_bufalloc - oldsize) * sizeof(stream_sample_t));
-		}
+			m_input[inputnum].m_resample.resize_keep_and_clear_new(m_resample_bufalloc);
 	}
 }
 
@@ -555,16 +554,11 @@ void sound_stream::allocate_output_buffers()
 	if (m_output_bufalloc < bufsize)
 	{
 		// this becomes the new allocation size
-		int oldsize = m_output_bufalloc;
 		m_output_bufalloc = bufsize;
 
 		// iterate over outputs and realloc their buffers
 		for (int outputnum = 0; outputnum < m_output.count(); outputnum++)
-		{
-			stream_output &output = m_output[outputnum];
-			output.m_buffer.resize(m_output_bufalloc, true);
-			memset(&output.m_buffer[oldsize], 0, (m_output_bufalloc - oldsize) * sizeof(stream_sample_t));
-		}
+			m_output[outputnum].m_buffer.resize_keep_and_clear_new(m_output_bufalloc);
 	}
 }
 
@@ -625,7 +619,7 @@ void sound_stream::generate_samples(int samples)
 
 	// run the callback
 	VPRINTF(("  callback(%p, %d)\n", this, samples));
-	(*m_callback)(&m_device, this, m_param, m_input_array, m_output_array, samples);
+	m_callback(*this, m_input_array, m_output_array, samples);
 	VPRINTF(("  callback done\n"));
 }
 
@@ -648,7 +642,7 @@ stream_sample_t *sound_stream::generate_resampled_data(stream_input &input, UINT
 	// grab data from the output
 	stream_output &output = *input.m_source;
 	sound_stream &input_stream = *output.m_stream;
-	int gain = (input.m_gain * input.m_user_gain * output.m_gain) >> 16;
+	INT64 gain = (input.m_gain * input.m_user_gain * output.m_gain) >> 16;
 
 	// determine the time at which the current sample begins, accounting for the
 	// latency we calculated between the input and output streams
@@ -679,7 +673,7 @@ stream_sample_t *sound_stream::generate_resampled_data(stream_input &input, UINT
 		while (numsamples--)
 		{
 			// compute the sample
-			stream_sample_t sample = *source++;
+			INT64 sample = *source++;
 			*dest++ = (sample * gain) >> 8;
 		}
 	}
@@ -706,7 +700,7 @@ stream_sample_t *sound_stream::generate_resampled_data(stream_input &input, UINT
 			int endfrac = nextfrac >> (FRAC_BITS - 12);
 
 			// blend between the two samples accordingly
-			stream_sample_t sample = (source[0] * (0x1000 - startfrac) + source[1] * (endfrac - 0x1000)) / (endfrac - startfrac);
+			INT64 sample = ((INT64) source[0] * (0x1000 - startfrac) + (INT64) source[1] * (endfrac - 0x1000)) / (endfrac - startfrac);
 			*dest++ = (sample * gain) >> 8;
 
 			// advance
@@ -722,19 +716,19 @@ stream_sample_t *sound_stream::generate_resampled_data(stream_input &input, UINT
 		int smallstep = step >> (FRAC_BITS - 8);
 		while (numsamples--)
 		{
-			int remainder = smallstep;
+			INT64 remainder = smallstep;
 			int tpos = 0;
 
 			// compute the sample
-			int scale = (FRAC_ONE - basefrac) >> (FRAC_BITS - 8);
-			stream_sample_t sample = source[tpos++] * scale;
+			INT64 scale = (FRAC_ONE - basefrac) >> (FRAC_BITS - 8);
+			INT64 sample = (INT64) source[tpos++] * scale;
 			remainder -= scale;
 			while (remainder > 0x100)
 			{
-				sample += source[tpos++] * 0x100;
+				sample += (INT64) source[tpos++] * (INT64) 0x100;
 				remainder -= 0x100;
 			}
-			sample += source[tpos] * remainder;
+			sample += (INT64) source[tpos] * remainder;
 			sample /= smallstep;
 
 			*dest++ = (sample * gain) >> 8;
@@ -802,7 +796,7 @@ sound_manager::sound_manager(running_machine &machine)
 		m_rightmix(machine.sample_rate()),
 		m_muted(0),
 		m_attenuation(0),
-		m_nosound_mode(!machine.options().sound()),
+		m_nosound_mode(machine.osd().no_sound()),
 		m_wavfile(NULL),
 		m_update_attoseconds(STREAMS_UPDATE_ATTOTIME.attoseconds),
 		m_last_update(attotime::zero)
@@ -860,12 +854,9 @@ sound_manager::~sound_manager()
 //  stream_alloc - allocate a new stream
 //-------------------------------------------------
 
-sound_stream *sound_manager::stream_alloc(device_t &device, int inputs, int outputs, int sample_rate, void *param, sound_stream::stream_update_func callback)
+sound_stream *sound_manager::stream_alloc(device_t &device, int inputs, int outputs, int sample_rate, stream_update_delegate callback)
 {
-	if (callback != NULL)
-		return &m_stream_list.append(*global_alloc(sound_stream(device, inputs, outputs, sample_rate, param, callback)));
-	else
-		return &m_stream_list.append(*global_alloc(sound_stream(device, inputs, outputs, sample_rate)));
+	return &m_stream_list.append(*global_alloc(sound_stream(device, inputs, outputs, sample_rate, callback)));
 }
 
 

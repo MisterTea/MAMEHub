@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /***************************************************************************
 
     drivers/bw2.c
@@ -23,6 +25,7 @@
 ***************************************************************************/
 
 #include "includes/bw2.h"
+#include "bus/rs232/rs232.h"
 
 
 
@@ -216,7 +219,7 @@ static ADDRESS_MAP_START( bw2_io, AS_IO, 8, bw2_state )
 	AM_RANGE(0x30, 0x3f) AM_DEVREADWRITE(BW2_EXPANSION_SLOT_TAG, bw2_expansion_slot_device, slot_r, slot_w)
 	AM_RANGE(0x40, 0x40) AM_DEVREADWRITE(I8251_TAG, i8251_device, data_r, data_w)
 	AM_RANGE(0x41, 0x41) AM_DEVREADWRITE(I8251_TAG, i8251_device, status_r, control_w)
-	AM_RANGE(0x50, 0x50) AM_DEVWRITE(CENTRONICS_TAG, centronics_device, write)
+	AM_RANGE(0x50, 0x50) AM_DEVWRITE("cent_data_out", output_latch_device, write)
 	AM_RANGE(0x60, 0x63) AM_DEVREADWRITE(WD2797_TAG, wd2797_t, read, write)
 	AM_RANGE(0x70, 0x7f) AM_DEVREADWRITE(BW2_EXPANSION_SLOT_TAG, bw2_expansion_slot_device, modsel_r, modsel_w)
 ADDRESS_MAP_END
@@ -384,8 +387,13 @@ INPUT_PORTS_END
 //  DEVICE CONFIGURATION
 //**************************************************************************
 
+WRITE_LINE_MEMBER( bw2_state::write_centronics_busy )
+{
+	m_centronics_busy = state;
+}
+
 //-------------------------------------------------
-//  I8255A_INTERFACE( ppi_intf )
+//  I8255A interface
 //-------------------------------------------------
 
 WRITE8_MEMBER( bw2_state::ppi_pa_w )
@@ -415,7 +423,7 @@ WRITE8_MEMBER( bw2_state::ppi_pa_w )
 	if (m_floppy) m_floppy->mon_w(m_mtron);
 
 	// centronics strobe
-	m_centronics->strobe_w(BIT(data, 7));
+	m_centronics->write_strobe(BIT(data, 7));
 }
 
 READ8_MEMBER( bw2_state::ppi_pb_r )
@@ -480,7 +488,7 @@ READ8_MEMBER( bw2_state::ppi_pc_r )
 	UINT8 data = 0;
 
 	// centronics busy
-	data |= m_centronics->busy_r() << 4;
+	data |= m_centronics_busy << 4;
 
 	// floppy motor
 	data |= m_mfdbk << 5;
@@ -491,25 +499,14 @@ READ8_MEMBER( bw2_state::ppi_pc_r )
 	return data;
 }
 
-static I8255A_INTERFACE( ppi_intf )
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(bw2_state, ppi_pa_w),
-	DEVCB_DRIVER_MEMBER(bw2_state, ppi_pb_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(bw2_state, ppi_pc_r),
-	DEVCB_DRIVER_MEMBER(bw2_state, ppi_pc_w),
-};
-
-
 //-------------------------------------------------
 //  pit8253_config pit_intf
 //-------------------------------------------------
 
 WRITE_LINE_MEMBER( bw2_state::pit_out0_w )
 {
-	m_uart->transmit_clock();
-	m_uart->receive_clock();
+	m_uart->write_txc(state);
+	m_uart->write_rxc(state);
 }
 
 WRITE_LINE_MEMBER( bw2_state::mtron_w )
@@ -520,56 +517,11 @@ WRITE_LINE_MEMBER( bw2_state::mtron_w )
 	if (m_floppy) m_floppy->mon_w(m_mtron);
 }
 
-static const struct pit8253_interface pit_intf =
-{
-	{
-		{
-			XTAL_16MHz/4,   // 8251 USART TXC, RXC
-			DEVCB_LINE_VCC,
-			DEVCB_DRIVER_LINE_MEMBER(bw2_state, pit_out0_w)
-		},
-		{
-			11000,      // LCD controller
-			DEVCB_LINE_VCC,
-			DEVCB_DEVICE_LINE_MEMBER(I8253_TAG, pit8253_device, clk2_w)
-		},
-		{
-			0,      // Floppy /MTRON
-			DEVCB_LINE_VCC,
-			DEVCB_DRIVER_LINE_MEMBER(bw2_state, mtron_w)
-		}
-	}
-};
-
-
-//-------------------------------------------------
-//  i8251_interface usart_intf
-//-------------------------------------------------
-
-static const i8251_interface usart_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dsr_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 //-------------------------------------------------
 //  floppy_format_type floppy_formats
 //-------------------------------------------------
 
-void bw2_state::fdc_intrq_w(bool state)
-{
-	m_maincpu->set_input_line(INPUT_LINE_IRQ0, state ? ASSERT_LINE : CLEAR_LINE);
-}
-
-void bw2_state::fdc_drq_w(bool state)
+WRITE_LINE_MEMBER( bw2_state::fdc_drq_w )
 {
 	if (state)
 	{
@@ -593,30 +545,16 @@ static SLOT_INTERFACE_START( bw2_floppies )
 SLOT_INTERFACE_END
 
 
-//-------------------------------------------------
-//  rs232_port_interface rs232_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 
 //**************************************************************************
 //  MACHINE INITIALIZATION
 //**************************************************************************
 
 
-void bw2_state::palette_init()
+PALETTE_INIT_MEMBER(bw2_state, bw2)
 {
-	palette_set_color_rgb(machine(), 0, 0xa5, 0xad, 0xa5);
-	palette_set_color_rgb(machine(), 1, 0x31, 0x39, 0x10);
+	palette.set_pen_color(0, 0xa5, 0xad, 0xa5);
+	palette.set_pen_color(1, 0x31, 0x39, 0x10);
 }
 
 
@@ -626,15 +564,12 @@ void bw2_state::palette_init()
 
 void bw2_state::machine_start()
 {
-	// floppy callbacks
-	m_fdc->setup_intrq_cb(wd_fdc_t::line_cb(FUNC(bw2_state::fdc_intrq_w), this));
-	m_fdc->setup_drq_cb(wd_fdc_t::line_cb(FUNC(bw2_state::fdc_drq_w), this));
-
 	// register for state saving
 	save_item(NAME(m_kb));
 	save_item(NAME(m_bank));
 	save_item(NAME(m_mtron));
 	save_item(NAME(m_mfdbk));
+	save_item(NAME(m_centronics_busy));
 }
 
 
@@ -660,19 +595,50 @@ static MACHINE_CONFIG_START( bw2, bw2_state )
 	MCFG_SCREEN_UPDATE_DEVICE( MSM6255_TAG, msm6255_device, screen_update )
 	MCFG_SCREEN_SIZE(640, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_SCREEN_PALETTE("palette")
+	MCFG_PALETTE_ADD("palette", 2)
+	MCFG_PALETTE_INIT_OWNER(bw2_state, bw2)
 
 	// devices
-	MCFG_PIT8253_ADD(I8253_TAG, pit_intf)
-	MCFG_I8255A_ADD(I8255A_TAG, ppi_intf)
-	MCFG_MSM6255_ADD(MSM6255_TAG, XTAL_16MHz, 0, SCREEN_TAG, lcdc_map)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_I8251_ADD(I8251_TAG, usart_intf)
+	MCFG_DEVICE_ADD(I8253_TAG, PIT8253, 0)
+	MCFG_PIT8253_CLK0(XTAL_16MHz/4) // 8251 USART TXC, RXC
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(bw2_state, pit_out0_w))
+	MCFG_PIT8253_CLK1(11000) // LCD controller
+	MCFG_PIT8253_OUT1_HANDLER(DEVWRITELINE(I8253_TAG, pit8253_device, write_clk2))
+	MCFG_PIT8253_CLK2(0) // Floppy /MTRON
+	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(bw2_state, mtron_w))
+
+	MCFG_DEVICE_ADD(I8255A_TAG, I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(bw2_state, ppi_pa_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(bw2_state, ppi_pb_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(bw2_state, ppi_pc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(bw2_state, ppi_pc_w))
+
+	MCFG_DEVICE_ADD(MSM6255_TAG, MSM6255, XTAL_16MHz)
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, lcdc_map)
+	MCFG_VIDEO_SET_SCREEN(SCREEN_TAG)
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(bw2_state, write_centronics_busy))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
+
+	MCFG_DEVICE_ADD(I8251_TAG, I8251, 0)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_I8251_DTR_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_dtr))
+	MCFG_I8251_RTS_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_rts))
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(I8251_TAG, i8251_device, write_rxd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(I8251_TAG, i8251_device, write_dsr))
+
 	MCFG_WD2797x_ADD(WD2797_TAG, XTAL_16MHz/16)
+	MCFG_WD_FDC_INTRQ_CALLBACK(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(bw2_state, fdc_drq_w))
+
 	MCFG_FLOPPY_DRIVE_ADD(WD2797_TAG":0", bw2_floppies, "35dd", bw2_state::floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(WD2797_TAG":1", bw2_floppies, NULL,   bw2_state::floppy_formats)
 	MCFG_BW2_EXPANSION_SLOT_ADD(BW2_EXPANSION_SLOT_TAG, XTAL_16MHz, bw2_expansion_cards, NULL)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
 
 	// software list
 	MCFG_SOFTWARE_LIST_ADD("flop_list","bw2")

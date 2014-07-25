@@ -189,22 +189,10 @@ static GFXDECODE_START( dietgo )
 	GFXDECODE_ENTRY( "gfx2", 0, spritelayout,      512, 16 )    /* Sprites (16x16) */
 GFXDECODE_END
 
-static int dietgo_bank_callback(const int bank)
+DECO16IC_BANK_CB_MEMBER(dietgo_state::bank_callback)
 {
 	return ((bank >> 4) & 0x7) * 0x1000;
 }
-
-static const deco16ic_interface dietgo_deco16ic_tilegen1_intf =
-{
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0, 16, /* color base (default values) */
-	0x0f, 0x0f, /* color masks (default values) */
-	dietgo_bank_callback,
-	dietgo_bank_callback,
-	0,1,
-};
-
 
 void dietgo_state::machine_start()
 {
@@ -228,16 +216,34 @@ static MACHINE_CONFIG_START( dietgo, dietgo_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dietgo_state, screen_update_dietgo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(1024)
-	MCFG_GFXDECODE(dietgo)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dietgo)
 
 	MCFG_DECOCOMN_ADD("deco_common")
+	MCFG_DECOCOMN_PALETTE("palette")
 
-	MCFG_DECO16IC_ADD("tilegen1", dietgo_deco16ic_tilegen1_intf)
+	MCFG_DEVICE_ADD("tilegen1", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x10)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(dietgo_state, bank_callback)
+	MCFG_DECO16IC_BANK2_CB(dietgo_state, bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(1)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 2);
+	MCFG_DECO_SPRITE_GFX_REGION(2)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	MCFG_DECO104_ADD("ioprot104")
 	MCFG_DECO146_SET_INTERFACE_SCRAMBLE_INTERLEAVE

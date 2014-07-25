@@ -19,6 +19,7 @@
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "cpu/nec/nec.h"
+#include "cpu/nec/v25.h"
 #include "includes/iremipt.h"
 #include "machine/irem_cpu.h"
 #include "sound/dac.h"
@@ -74,7 +75,7 @@ static ADDRESS_MAP_START( m90_main_cpu_map, AS_PROGRAM, 16, m90_state )
 	AM_RANGE(0x80000, 0x8ffff) AM_ROMBANK("bank1")  /* Quiz F1 only */
 	AM_RANGE(0xa0000, 0xa3fff) AM_RAM
 	AM_RANGE(0xd0000, 0xdffff) AM_RAM_WRITE(m90_video_w) AM_SHARE("video_data")
-	AM_RANGE(0xe0000, 0xe03ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe0000, 0xe03ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xffff0, 0xfffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -83,7 +84,7 @@ static ADDRESS_MAP_START( dynablsb_main_cpu_map, AS_PROGRAM, 16, m90_state )
 	AM_RANGE(0x6000e, 0x60fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0xa0000, 0xa3fff) AM_RAM
 	AM_RANGE(0xd0000, 0xdffff) AM_RAM_WRITE(m90_video_w) AM_SHARE("video_data")
-	AM_RANGE(0xe0000, 0xe03ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe0000, 0xe03ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xffff0, 0xfffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -92,7 +93,7 @@ static ADDRESS_MAP_START( bomblord_main_cpu_map, AS_PROGRAM, 16, m90_state )
 	AM_RANGE(0xa0000, 0xa3fff) AM_RAM
 	AM_RANGE(0xc000e, 0xc0fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0xd0000, 0xdffff) AM_RAM_WRITE(m90_video_w) AM_SHARE("video_data")
-	AM_RANGE(0xe0000, 0xe03ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe0000, 0xe03ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xffff0, 0xfffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -413,7 +414,21 @@ static INPUT_PORTS_START( bbmanwj )
 	PORT_INCLUDE(bbmanw)
 
 	PORT_MODIFY("DSW")
-	PORT_DIPNAME( 0x0010, 0x0010, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:5") /* Manual says "NOT USE" */
+	PORT_DIPNAME( 0x0010, 0x0010, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:5") /* Manual says "NOT USE" - No Game Title Change */
+	PORT_DIPSETTING(      0x0010, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0600, 0x0200, DEF_STR( Cabinet ) ) PORT_DIPLOCATION("SW2:2,3") /* Cabinet type switched around */
+	PORT_DIPSETTING(      0x0600, "2 Player" )
+	PORT_DIPSETTING(      0x0200, "4 Player Separate Coins" )       /* Each player has a separate Coin Slot */
+	PORT_DIPSETTING(      0x0400, "4 Player Shared Coins" )     /* All 4 players Share coin 1&2 */
+	PORT_DIPSETTING(      0x0000, "4 Player 1&2 3&4 Share Coins" )  /* Players 1&2 share coin 1&2, Players 3&4 share coin 3&4 */
+INPUT_PORTS_END
+
+static INPUT_PORTS_START( newapunk )
+	PORT_INCLUDE(bbmanw)
+
+	PORT_MODIFY("DSW")
+	PORT_DIPNAME( 0x0010, 0x0010, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:5") /* Manual says "NOT USE" - No Game Title Change */
 	PORT_DIPSETTING(      0x0010, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
 INPUT_PORTS_END
@@ -666,7 +681,7 @@ GFXDECODE_END
 
 INTERRUPT_GEN_MEMBER(m90_state::fake_nmi)
 {
-	address_space &space = machine().firstcpu->space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int sample = m_audio->sample_r(space,0);
 	if (sample)
 		m_audio->sample_w(space,0,sample);
@@ -674,7 +689,7 @@ INTERRUPT_GEN_MEMBER(m90_state::fake_nmi)
 
 INTERRUPT_GEN_MEMBER(m90_state::bomblord_fake_nmi)
 {
-	address_space &space = machine().firstcpu->space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int sample = m_audio->sample_r(space,0);
 	if (sample != 0x80)
 		m_audio->sample_w(space,0,sample);
@@ -718,10 +733,11 @@ static MACHINE_CONFIG_START( m90, m90_state )
 	MCFG_SCREEN_SIZE(64*8, 64*8)
 	MCFG_SCREEN_VISIBLE_AREA(6*8, 54*8-1, 17*8, 47*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(m90_state, screen_update_m90)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(m90)
-	MCFG_PALETTE_LENGTH(512)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", m90)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -738,48 +754,42 @@ static MACHINE_CONFIG_START( m90, m90_state )
 MACHINE_CONFIG_END
 
 
-static const nec_config hasamu_config ={ gunforce_decryption_table, };
 static MACHINE_CONFIG_DERIVED( hasamu, m90 )
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CONFIG(hasamu_config)
+	MCFG_V25_CONFIG(gunforce_decryption_table)
 MACHINE_CONFIG_END
 
-static const nec_config quizf1_config ={    lethalth_decryption_table, };
 static MACHINE_CONFIG_DERIVED( quizf1, m90 )
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CONFIG(quizf1_config)
+	MCFG_V25_CONFIG(lethalth_decryption_table)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_VISIBLE_AREA(6*8, 54*8-1, 17*8-8, 47*8-1+8)
 MACHINE_CONFIG_END
 
-static const nec_config matchit2_config ={  matchit2_decryption_table, };
 static MACHINE_CONFIG_DERIVED( matchit2, m90 )
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CONFIG(matchit2_config)
+	MCFG_V25_CONFIG(matchit2_decryption_table)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_VISIBLE_AREA(6*8, 54*8-1, 17*8-8, 47*8-1+8)
 MACHINE_CONFIG_END
 
-static const nec_config riskchal_config ={  gussun_decryption_table, };
 static MACHINE_CONFIG_DERIVED( riskchal, m90 )
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CONFIG(riskchal_config)
+	MCFG_V25_CONFIG(gussun_decryption_table)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_VISIBLE_AREA(10*8, 50*8-1, 17*8, 47*8-1)
 MACHINE_CONFIG_END
 
-static const nec_config bomberman_config ={     bomberman_decryption_table, };
 static MACHINE_CONFIG_DERIVED( bombrman, m90 )
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CONFIG(bomberman_config)
+	MCFG_V25_CONFIG(bomberman_decryption_table)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_VISIBLE_AREA(10*8, 50*8-1, 17*8, 47*8-1)
 MACHINE_CONFIG_END
 
-static const nec_config dynablaster_config ={   dynablaster_decryption_table, };
 static MACHINE_CONFIG_DERIVED( bbmanwj, m90 )
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CONFIG(dynablaster_config)
+	MCFG_V25_CONFIG(dynablaster_decryption_table)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_VISIBLE_AREA(10*8, 50*8-1, 17*8, 47*8-1)
 MACHINE_CONFIG_END
@@ -1016,7 +1026,26 @@ ROM_START( bbmanwj )
 	ROM_COPY( "maincpu", 0x7fff0,  0xffff0, 0x10 )  /* start vector */
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
-	ROM_LOAD( "bbm2-sp-b.bin", 0x0000, 0x10000, CRC(b8d8108c) SHA1(ef4fb46d843819c273db2083754eb312f5abd44e) )
+	ROM_LOAD( "bbm2-sp-a.33", 0x0000, 0x10000, CRC(a4b0a66e) SHA1(834c809089c7ad424796f3fd0cc6747601af9fb6) ) /* Newer sound CPU code, same sound hardware as bbnanw / newapunk */
+
+	ROM_REGION( 0x200000, "gfx1", 0 )
+	ROM_LOAD( "bbm2-c0.81",  0x000000, 0x40000, CRC(e7ce058a) SHA1(f2336718ecbce4771f27abcdc4d28fe91c702a9e) )
+	ROM_LOAD( "bbm2-c1.82",  0x080000, 0x40000, CRC(636a78a9) SHA1(98562ea056e5bd36c1a094ae6f267367236d166f) )
+	ROM_LOAD( "bbm2-c2.83",  0x100000, 0x40000, CRC(9ac2142f) SHA1(744fe1acae2fcba0051c303b644081546b4aed9e) )
+	ROM_LOAD( "bbm2-c3.84",  0x180000, 0x40000, CRC(47af1750) SHA1(dce176a6ca95852208b6eba7fb88a0d96467c34b) )
+
+	ROM_REGION( 0x20000, "samples", 0 ) /* samples */
+	ROM_LOAD( "bbm2-v0-b.30",  0x0000, 0x20000, CRC(0ae655ff) SHA1(78752182662fd8f5b55bbbc2787c9f2b04096ea1) )
+ROM_END
+
+ROM_START( bbmanwja )
+	ROM_REGION( CODE_SIZE, "maincpu", 0 )
+	ROM_LOAD16_BYTE( "bbm2-h0.77",  0x00001, 0x40000, CRC(e1407b91) SHA1(6c94afc6b1d2a469295890ee5dd9d9d5a02ae5c4) )
+	ROM_LOAD16_BYTE( "bbm2-l0.79",  0x00000, 0x40000, CRC(20873b49) SHA1(30ae595f7961cd56f2506608ae76973b2d0e73ca) )
+	ROM_COPY( "maincpu", 0x7fff0,  0xffff0, 0x10 )  /* start vector */
+
+	ROM_REGION( 0x10000, "soundcpu", 0 )
+	ROM_LOAD( "bbm2-sp-b.33", 0x0000, 0x10000, CRC(b8d8108c) SHA1(ef4fb46d843819c273db2083754eb312f5abd44e) ) /* Differently mapped sound hardware */
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
 	ROM_LOAD( "bbm2-c0.81",  0x000000, 0x40000, CRC(e7ce058a) SHA1(f2336718ecbce4771f27abcdc4d28fe91c702a9e) )
@@ -1190,18 +1219,19 @@ DRIVER_INIT_MEMBER(m90_state,bomblord)
 
 
 
-GAME( 1991, hasamu,   0,        hasamu,   hasamu, driver_device,   0,        ROT0, "Irem", "Hasamu (Japan)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1991, hasamu,   0,        hasamu,   hasamu,   driver_device, 0,        ROT0, "Irem", "Hasamu (Japan)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1991, dynablst, 0,        bombrman, dynablst, driver_device, 0,        ROT0, "Irem (licensed from Hudson Soft)", "Dynablaster / Bomber Man", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1991, bombrman, dynablst, bombrman, bombrman, driver_device, 0,        ROT0, "Irem (licensed from Hudson Soft)", "Bomber Man (Japan)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1991, atompunk, dynablst, bombrman, atompunk, driver_device, 0,        ROT0, "Irem America (licensed from Hudson Soft)", "Atomic Punk (US)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1991, dynablstb,dynablst, dynablsb, dynablsb, driver_device, 0,        ROT0, "bootleg (Seitu)", "Dynablaster / Bomber Man (bootleg)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1991, dynablstb2,dynablst,dynablsb, dynablsb, driver_device, 0,        ROT0, "bootleg (Seitu)", "Dynablaster / Bomber Man (bootleg, alt)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 1992, bbmanw,   0,        bbmanw,   bbmanw, driver_device,   0,        ROT0, "Irem", "Bomber Man World / New Dyna Blaster - Global Quest", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 1992, bbmanwj,  bbmanw,   bbmanwj,  bbmanwj, driver_device,  0,        ROT0, "Irem", "Bomber Man World (Japan)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 1992, newapunk, bbmanw,   bbmanw,   bbmanwj, driver_device,  0,        ROT0, "Irem America", "New Atomic Punk - Global Quest (US)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 1992, bomblord, bbmanw,   bomblord, bbmanw, m90_state,   bomblord, ROT0, "bootleg", "Bomber Lord (bootleg)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 1992, quizf1,   0,        quizf1,   quizf1, m90_state,   quizf1,   ROT0, "Irem", "Quiz F1 1-2 Finish (Japan)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1992, bbmanw,   0,        bbmanw,   bbmanw,   driver_device, 0,        ROT0, "Irem", "Bomber Man World / New Dyna Blaster - Global Quest", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1992, bbmanwj,  bbmanw,   bbmanw,   bbmanwj,  driver_device, 0,        ROT0, "Irem", "Bomber Man World (Japan)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1992, bbmanwja, bbmanw,   bbmanwj,  bbmanwj,  driver_device, 0,        ROT0, "Irem", "Bomber Man World (Japan, revised sound hardware)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1992, newapunk, bbmanw,   bbmanw,   newapunk, driver_device, 0,        ROT0, "Irem America", "New Atomic Punk - Global Quest (US)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1992, bomblord, bbmanw,   bomblord, bbmanw,   m90_state,     bomblord, ROT0, "bootleg", "Bomber Lord (bootleg)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1992, quizf1,   0,        quizf1,   quizf1,   m90_state,     quizf1,   ROT0, "Irem", "Quiz F1 1-2 Finish (Japan)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1993, riskchal, 0,        riskchal, riskchal, driver_device, 0,        ROT0, "Irem", "Risky Challenge", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1993, gussun,   riskchal, riskchal, riskchal, driver_device, 0,        ROT0, "Irem", "Gussun Oyoyo (Japan)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1993, matchit2, 0,        matchit2, matchit2, driver_device, 0,        ROT0, "Tamtex", "Match It II", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 1993, shisen2,  matchit2, matchit2, shisen2, driver_device,  0,        ROT0, "Tamtex", "Shisensho II", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1993, shisen2,  matchit2, matchit2, shisen2,  driver_device, 0,        ROT0, "Tamtex", "Shisensho II", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )

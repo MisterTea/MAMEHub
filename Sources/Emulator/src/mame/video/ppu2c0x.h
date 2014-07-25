@@ -24,6 +24,10 @@
 #define PPU_MIRROR_LOW        4
 #define PPU_MIRROR_4SCREEN    5 // Same effect as NONE, but signals that we should never mirror
 
+#define PPU_DRAW_BG       0
+#define PPU_DRAW_OAM      1
+
+
 // registers definition
 enum
 {
@@ -79,31 +83,37 @@ enum
 //  INTERFACE CONFIGURATION MACROS
 ///*************************************************************************
 
-#define MCFG_PPU2C0X_ADD(_tag, _type, _intrf)   \
-	MCFG_DEVICE_ADD(_tag, _type, 0) \
-	MCFG_DEVICE_CONFIG(_intrf)
+#define MCFG_PPU2C0X_ADD(_tag, _type)   \
+	MCFG_DEVICE_ADD(_tag, _type, 0)
 
-#define MCFG_PPU2C02_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C02, _intrf)
-#define MCFG_PPU2C03B_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C03B, _intrf)
-#define MCFG_PPU2C04_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C04, _intrf)
-#define MCFG_PPU2C07_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C07, _intrf)
-#define MCFG_PPU2C05_01_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_01, _intrf)
-#define MCFG_PPU2C05_02_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_02, _intrf)
-#define MCFG_PPU2C05_03_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_03, _intrf)
-#define MCFG_PPU2C05_04_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_04, _intrf)
+#define MCFG_PPU2C02_ADD(_tag)   \
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C02)
+#define MCFG_PPU2C03B_ADD(_tag)   \
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C03B)
+#define MCFG_PPU2C04_ADD(_tag)   \
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C04)
+#define MCFG_PPU2C07_ADD(_tag)   \
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C07)
+#define MCFG_PPU2C05_01_ADD(_tag)   \
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_01)
+#define MCFG_PPU2C05_02_ADD(_tag)   \
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_02)
+#define MCFG_PPU2C05_03_ADD(_tag)   \
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_03)
+#define MCFG_PPU2C05_04_ADD(_tag)   \
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_04)
 
 #define MCFG_PPU2C0X_SET_SCREEN MCFG_VIDEO_SET_SCREEN
 
-#define MCFG_PPU2C0X_SET_NMI( _class, _method) \
+#define MCFG_PPU2C0X_CPU(_tag) \
+	ppu2c0x_device::set_cpu_tag(*device, "^"_tag);
+
+#define MCFG_PPU2C0X_COLORBASE(_color) \
+	ppu2c0x_device::set_color_base(*device, _color);
+
+#define MCFG_PPU2C0X_SET_NMI(_class, _method) \
 	ppu2c0x_device::set_nmi_delegate(*device, ppu2c0x_nmi_delegate(&_class::_method, #_class "::" #_method, NULL, (_class *)0));
+
 
 ///*************************************************************************
 //  TYPE DEFINITIONS
@@ -115,23 +125,11 @@ typedef device_delegate<int (int address, int data)> ppu2c0x_vidaccess_delegate;
 typedef device_delegate<void (offs_t offset)> ppu2c0x_latch_delegate;
 
 
-// ======================> ppu2c0x_interface
-
-struct ppu2c0x_interface
-{
-	const char        *cpu_tag;
-	int               gfx_layout_number;        /* gfx layout number used by each chip */
-	int               color_base;               /* color base to use per ppu */
-	int               mirroring;                /* mirroring options (PPU_MIRROR_* flag) */
-};
-
-
 // ======================> ppu2c0x_device
 
 class ppu2c0x_device :  public device_t,
 						public device_memory_interface,
-						public device_video_interface,
-						public ppu2c0x_interface
+						public device_video_interface
 {
 public:
 	// construction/destruction
@@ -150,10 +148,13 @@ public:
 	// address space configurations
 	const address_space_config      m_space_config;
 
+	static void set_cpu_tag(device_t &device, const char *tag) { downcast<ppu2c0x_device &>(device).m_cpu.set_tag(tag); }
+	static void set_color_base(device_t &device, int colorbase) { downcast<ppu2c0x_device &>(device).m_color_base = colorbase; }
+	static void set_nmi_delegate(device_t &device, ppu2c0x_nmi_delegate cb);
 
 	/* routines */
-	void init_palette( running_machine &machine, int first_entry );
-	void init_palette_rgb( running_machine &machine, int first_entry );
+	void init_palette( palette_device &palette, int first_entry );
+	void init_palette_rgb( palette_device &palette, int first_entry );
 
 	void draw_background( UINT8 *line_priority );
 	void draw_sprites( UINT8 *line_priority );
@@ -166,19 +167,23 @@ public:
 
 	int get_colorbase() { return m_color_base; };
 	int get_current_scanline() { return m_scanline; };
-	int is_sprite_8x16() { return BIT(m_regs[0], 5); }; // MMC5 has to be able to check this
 	void set_scanline_callback( ppu2c0x_scanline_delegate cb ) { m_scanline_callback_proc = cb; m_scanline_callback_proc.bind_relative_to(*owner()); };
 	void set_hblank_callback( ppu2c0x_hblank_delegate cb ) { m_hblank_callback_proc = cb; m_hblank_callback_proc.bind_relative_to(*owner()); };
 	void set_vidaccess_callback( ppu2c0x_vidaccess_delegate cb ) { m_vidaccess_callback_proc = cb; m_vidaccess_callback_proc.bind_relative_to(*owner()); };
-	static void set_nmi_delegate(device_t &device,ppu2c0x_nmi_delegate cb);
 	void set_scanlines_per_frame( int scanlines ) { m_scanlines_per_frame = scanlines; };
+
+	// MMC5 has to be able to check this
+	int is_sprite_8x16() { return m_regs[PPU_CONTROL0] & PPU_CONTROL0_SPRITE_SIZE; };
+	int get_draw_phase() { return m_draw_phase; };
+	int get_tilenum() { return m_tilecount; };
 
 	//27/12/2002 (HACK!)
 	void set_latch( ppu2c0x_latch_delegate cb ) { m_latch = cb; m_latch.bind_relative_to(*owner()); };
 
 	//  void update_screen(bitmap_t &bitmap, const rectangle &cliprect);
 
-	cpu_device                  *m_cpu;
+	required_device<cpu_device> m_cpu;
+
 	bitmap_ind16                *m_bitmap;          /* target bitmap */
 	UINT8                       *m_spriteram;           /* sprite ram */
 	pen_t                       *m_colortable;          /* color table modified at run time */
@@ -205,14 +210,14 @@ public:
 	int                         m_scan_scale;           /* scan scale */
 	int                         m_scanlines_per_frame;  /* number of scanlines per frame */
 	int                         m_security_value;       /* 2C05 protection */
+	int                         m_tilecount;            /* MMC5 can change attributes to subsets of the 34 visibile tiles */
+	int                         m_draw_phase;           /* MMC5 uses different regs for BG and OAM */
 	ppu2c0x_latch_delegate      m_latch;
 
 	// timers
 	emu_timer                   *m_hblank_timer;        /* hblank period at end of each scanline */
 	emu_timer                   *m_nmi_timer;           /* NMI timer */
 	emu_timer                   *m_scanline_timer;      /* scanline timer */
-
-	const char        *m_cpu_tag;
 
 private:
 	static const device_timer_id TIMER_HBLANK = 0;
@@ -221,6 +226,7 @@ private:
 
 	inline UINT8 readbyte(offs_t address);
 	inline void writebyte(offs_t address, UINT8 data);
+
 };
 
 class ppu2c02_device : public ppu2c0x_device {

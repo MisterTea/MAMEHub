@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:smf
 /**********************************************************************
 
     MOS Technology 6551 Asynchronous Communication Interface Adapter
@@ -30,166 +32,184 @@
 #define __MOS6551__
 
 #include "emu.h"
+#include "machine/clock.h"
 
+#define MCFG_MOS6551_XTAL(_xtal) \
+	mos6551_device::set_xtal(*device, _xtal);
 
+#define MCFG_MOS6551_IRQ_HANDLER(_devcb) \
+	devcb = &mos6551_device::set_irq_handler(*device, DEVCB_##_devcb);
 
-//**************************************************************************
-//  INTERFACE CONFIGURATION MACROS
-//**************************************************************************
+#define MCFG_MOS6551_TXD_HANDLER(_devcb) \
+	devcb = &mos6551_device::set_txd_handler(*device, DEVCB_##_devcb);
 
-#define MCFG_MOS6551_ADD(_tag, _clock, _irq) \
-	MCFG_DEVICE_ADD(_tag, MOS6551, _clock) \
-	downcast<mos6551_device *>(device)->set_irq_callback(DEVCB2_##_irq);
+#define MCFG_MOS6551_RXC_HANDLER(_devcb) \
+	devcb = &mos6551_device::set_rxc_handler(*device, DEVCB_##_devcb);
 
-#define MCFG_MOS6551_RXD_TXD_CALLBACKS(_rxd, _txd) \
-	downcast<mos6551_device *>(device)->set_rxd_txd_callbacks(DEVCB2_##_rxd, DEVCB2_##_txd);
+#define MCFG_MOS6551_RTS_HANDLER(_devcb) \
+	devcb = &mos6551_device::set_rts_handler(*device, DEVCB_##_devcb);
 
-#define MCFG_MOS6551_RTS_CALLBACK(_rts) \
-	downcast<mos6551_device *>(device)->set_rts_callback(DEVCB2_##_rts);
+#define MCFG_MOS6551_DTR_HANDLER(_devcb) \
+	devcb = &mos6551_device::set_dtr_handler(*device, DEVCB_##_devcb);
 
-#define MCFG_MOS6551_DTR_CALLBACK(_dtr) \
-	downcast<mos6551_device *>(device)->set_dtr_callback(DEVCB2_##_dtr);
-
-
-
-//**************************************************************************
-//  TYPE DEFINITIONS
-//**************************************************************************
-
-// ======================> mos6551_device
-
-class mos6551_device :  public device_t,
-						public device_serial_interface
+class mos6551_device : public device_t
 {
 public:
-	// construction/destruction
 	mos6551_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
-	template<class _irq> void set_irq_callback(_irq irq) { m_write_irq.set_callback(irq); }
-	template<class _rxd, class _txd> void set_rxd_txd_callbacks(_rxd rxd, _txd txd) {
-		m_read_rxd.set_callback(rxd);
-		m_write_txd.set_callback(txd);
-	}
-	template<class _rts> void set_rts_callback(_rts rts) { m_write_rts.set_callback(rts); }
-	template<class _dtr> void set_dtr_callback(_dtr dtr) { m_write_dtr.set_callback(dtr); }
+	static void set_xtal(device_t &device, UINT32 xtal) { downcast<mos6551_device &>(device).set_xtal(xtal); }
+	template<class _Object> static devcb_base &set_irq_handler(device_t &device, _Object object) { return downcast<mos6551_device &>(device).m_irq_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_txd_handler(device_t &device, _Object object) { return downcast<mos6551_device &>(device).m_txd_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_rxc_handler(device_t &device, _Object object) { return downcast<mos6551_device &>(device).m_rxc_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_rts_handler(device_t &device, _Object object) { return downcast<mos6551_device &>(device).m_rts_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_dtr_handler(device_t &device, _Object object) { return downcast<mos6551_device &>(device).m_dtr_handler.set_callback(object); }
 
-	DECLARE_READ8_MEMBER( read );
-	DECLARE_WRITE8_MEMBER( write );
+	DECLARE_READ8_MEMBER(read);
+	DECLARE_WRITE8_MEMBER(write);
 
-	DECLARE_WRITE_LINE_MEMBER( rxd_w );
-	DECLARE_WRITE_LINE_MEMBER( rxc_w );
-	DECLARE_WRITE_LINE_MEMBER( cts_w );
-	DECLARE_WRITE_LINE_MEMBER( dsr_w );
-	DECLARE_WRITE_LINE_MEMBER( dcd_w );
+	DECLARE_WRITE_LINE_MEMBER(write_xtal1); // txc
+	DECLARE_WRITE_LINE_MEMBER(write_rxd);
+	DECLARE_WRITE_LINE_MEMBER(write_rxc);
+	DECLARE_WRITE_LINE_MEMBER(write_cts);
+	DECLARE_WRITE_LINE_MEMBER(write_dsr);
+	DECLARE_WRITE_LINE_MEMBER(write_dcd);
 
-	void set_rxc(int clock);
+	DECLARE_WRITE_LINE_MEMBER(internal_clock);
+
+	void set_xtal(UINT32 clock);
 
 protected:
-	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
+	virtual machine_config_constructor device_mconfig_additions() const;
 
-	// device_serial_interface overrides
-	virtual void tra_callback();
-	virtual void tra_complete();
-	virtual void rcv_callback();
-	virtual void rcv_complete();
-	virtual void input_callback(UINT8 state);
-
+private:
 	enum
 	{
-		CTRL_BRG_16X_EXTCLK = 0,
-		CTRL_BRG_50,
-		CTRL_BRG_75,
-		CTRL_BRG_109_92,
-		CTRL_BRG_134_58,
-		CTRL_BRG_150,
-		CTRL_BRG_300,
-		CTRL_BRG_600,
-		CTRL_BRG_1200,
-		CTRL_BRG_1800,
-		CTRL_BRG_2400,
-		CTRL_BRG_3600,
-		CTRL_BRG_4800,
-		CTRL_BRG_7200,
-		CTRL_BRG_9600,
-		CTRL_BRG_19200,
-		CTRL_BRG_MASK = 0x0f,
-
-		CTRL_RXC_EXT = 0x00,
-		CTRL_RXC_BRG = 0x10,
-		CTRL_RXC_MASK = 0x10,
-
-		CTRL_WL_8 = 0x00,
-		CTRL_WL_7 = 0x20,
-		CTRL_WL_6 = 0x40,
-		CTRL_WL_5 = 0x60,
-		CTRL_WL_MASK = 0x60,
-
-		CTRL_SB_1 = 0x00,
-		CTRL_SB_2 = 0x80,
-		CTRL_SB_MASK = 0x80
+		SR_PARITY_ERROR = 0x01,
+		SR_FRAMING_ERROR = 0x02,
+		SR_OVERRUN = 0x04,
+		SR_RDRF = 0x08,
+		SR_TDRE = 0x10,
+		SR_DCD = 0x20,
+		SR_DSR = 0x40,
+		SR_IRQ = 0x80
 	};
 
 	enum
 	{
-		CMD_DTR = 0x01,
-
-		CMD_RIE = 0x02,
-
-		CMD_TC_RTS_HI = 0x00,
-		CMD_TC_TIE_RTS_LO = 0x04,
-		CMD_TC_RTS_LO = 0x08,
-		CMD_TC_BRK = 0x0c,
-		CMD_TC_MASK = 0x0c,
-
-		CMD_ECHO = 0x10,
-
-		CMD_PARITY = 0x20,
-		CMD_PARITY_ODD = 0x00,
-		CMD_PARITY_EVEN = 0x40,
-		CMD_PARITY_MARK = 0x80,
-		CMD_PARITY_SPACE = 0xc0,
-		CMD_PARITY_MASK = 0xc0
+		PARITY_NONE = 0,
+		PARITY_ODD = 1,
+		PARITY_EVEN = 3,
+		PARITY_MARK = 5,
+		PARITY_SPACE = 7
 	};
 
 	enum
 	{
-		ST_PE = 0x01,
-		ST_FE = 0x02,
-		ST_OR = 0x04,
-		ST_RDRF = 0x08,
-		ST_TDRE = 0x10,
-		ST_DCD = 0x20,
-		ST_DSR = 0x40,
-		ST_IRQ = 0x80
+		IRQ_DCD = 1,
+		IRQ_DSR = 2,
+		IRQ_RDRF = 4,
+		IRQ_TDRE = 8,
+		IRQ_CTS = 16
 	};
 
-	void update_serial();
+	enum
+	{
+		STATE_START,
+		STATE_DATA,
+		STATE_STOP
+	};
 
-	devcb2_write_line m_write_irq;
-	devcb2_read_line m_read_rxd;
-	devcb2_write_line m_write_txd;
-	devcb2_write_line m_write_rts;
-	devcb2_write_line m_write_dtr;
+	enum
+	{
+		OUTPUT_TXD,
+		OUTPUT_MARK,
+		OUTPUT_BREAK
+	};
 
-	UINT8 m_ctrl;
-	UINT8 m_cmd;
-	UINT8 m_st;
+	void output_irq(int irq);
+	void output_txd(int txd);
+	void output_rxc(int rxc);
+	void output_rts(int rts);
+	void output_dtr(int dtr);
+
+	void update_irq();
+	void update_divider();
+
+	UINT8 read_rdr();
+	UINT8 read_status();
+	UINT8 read_command();
+	UINT8 read_control();
+
+	void write_tdr(UINT8 data);
+	void write_reset(UINT8 data);
+	void write_command(UINT8 data);
+	void write_control(UINT8 data);
+
+	int stoplength();
+
+	DECLARE_WRITE_LINE_MEMBER(receiver_clock);
+	DECLARE_WRITE_LINE_MEMBER(transmitter_clock);
+
+	static const int internal_divider[16];
+	static const int transmitter_controls[4][3];
+
+	required_device<clock_device> m_internal_clock;
+	devcb_write_line m_irq_handler;
+	devcb_write_line m_txd_handler;
+	devcb_write_line m_rxc_handler;
+	devcb_write_line m_rts_handler;
+	devcb_write_line m_dtr_handler;
+
+	UINT8 m_control;
+	UINT8 m_command;
+	UINT8 m_status;
 	UINT8 m_tdr;
+	UINT8 m_rdr;
 
-	int m_ext_rxc;
+	UINT8 m_irq_state;
+
+	int m_irq;
+	int m_txd;
+	int m_rxc;
+	int m_rts;
+	int m_dtr;
+
+	UINT32 m_xtal;
+	int m_divide;
 	int m_cts;
 	int m_dsr;
 	int m_dcd;
+	int m_rxd;
 
-	static const int brg_divider[16];
+	int m_wordlength;
+	int m_extrastop;
+	int m_brk;
+	int m_echo_mode;
+	int m_parity;
+
+	int m_rx_state;
+	int m_rx_clock;
+	int m_rx_bits;
+	int m_rx_shift;
+	int m_rx_parity;
+	int m_rx_counter;
+	int m_rx_irq_enable;
+	int m_rx_internal_clock;
+
+	int m_tx_state;
+	int m_tx_output;
+	int m_tx_clock;
+	int m_tx_bits;
+	int m_tx_shift;
+	int m_tx_parity;
+	int m_tx_counter;
+	int m_tx_enable;
+	int m_tx_irq_enable;
+	int m_tx_internal_clock;
 };
 
-
-// device type definition
 extern const device_type MOS6551;
-
-
 
 #endif

@@ -10,30 +10,10 @@
   Wilbert Pol                 2004 (Megaduck/Cougar Boy)
 
   TODO list:
-  Done entries kept for historical reasons, besides that it's nice to see
-  what is already done instead of what has to be done.
-
-Priority:  Todo:                                                  Done:
-  2        Replace Marat's  video/gb.c  by Playboy code           *
-  2        Clean & speed up video/gb.c                            *
-  2        Replace Marat's  Z80gb/Z80gb.c by Playboy code           *
-  2        Transform Playboys Z80gb.c to big case method            *
-  2        Clean up Z80gb.c                                         *
-  2        Fix / optimise halt instruction                          *
-  2        Do correct lcd stat timing                               In Progress
-  2        Generate lcd stat interrupts                             *
-  2        Replace Marat's code in machine/gb.c by Playboy code     ?
-  1        Check, and fix if needed flags bug which troubles ffa    ?
-  1        Save/restore battery backed ram                          *
-  1        Add sound                                                *
-  0        Add supergb support                                      *
-  0        Add palette editting, save & restore
-  0        Add somekind of backdrop support
-  0        Speedups if remotly possible
-
-  2 = has to be done before first public release
-  1 = should be added later on
-  0 = bells and whistles
+  - Do correct lcd stat timing
+  - Add Game Boy Light (Japan, 1997) - does it differ from gbpocket?
+  - SGB should be moved to SNES driver
+  - Emulate OAM corruption bug on 16bit inc/dec in $fe** region
 
 
 Timers
@@ -443,13 +423,8 @@ space. This mapper uses 32KB sized banks.
 #include "emu.h"
 #include "rendlay.h"
 #include "includes/gb.h"
-#include "machine/gb_rom.h"
-#include "machine/gb_mbc.h"
-
-
-/* Initial value of the cpu registers (hacks until we get bios dumps) */
-static const UINT16 mgb_cpu_regs[6] = { 0xFFB0, 0x0013, 0x00D8, 0x014D, 0xFFFE, 0x0100 };   /* Game Boy Pocket / Super Game Boy 2 */
-static const UINT16 megaduck_cpu_regs[6] = { 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFE, 0x0000 };  /* Megaduck */
+#include "bus/gameboy/rom.h"
+#include "bus/gameboy/mbc.h"
 
 
 READ8_MEMBER(gb_state::gb_cart_r)
@@ -595,7 +570,7 @@ static ADDRESS_MAP_START(gbc_map, AS_PROGRAM, 8, gb_state )
 	AM_RANGE(0xff10, 0xff26) AM_DEVREADWRITE("custom", gameboy_sound_device, sound_r, sound_w)      /* sound controller */
 	AM_RANGE(0xff27, 0xff2f) AM_NOP                     /* unused */
 	AM_RANGE(0xff30, 0xff3f) AM_DEVREADWRITE("custom", gameboy_sound_device, wave_r, wave_w)        /* Wave RAM */
-	AM_RANGE(0xff40, 0xff7f) AM_DEVREAD("lcd", cgb_lcd_device, video_r) AM_WRITE(gbc_io2_w)        /* Other I/O and video controller */
+	AM_RANGE(0xff40, 0xff7f) AM_READWRITE(gbc_io2_r, gbc_io2_w)        /* Other I/O and video controller */
 	AM_RANGE(0xff80, 0xfffe) AM_RAM                     /* high RAM */
 	AM_RANGE(0xffff, 0xffff) AM_READWRITE(gb_ie_r, gb_ie_w)        /* Interrupt enable register */
 ADDRESS_MAP_END
@@ -635,30 +610,31 @@ static INPUT_PORTS_START( gameboy )
 INPUT_PORTS_END
 
 static SLOT_INTERFACE_START(gb_cart)
-	SLOT_INTERFACE_INTERNAL("rom",  GB_STD_ROM)
-	SLOT_INTERFACE_INTERNAL("rom_mbc1",  GB_ROM_MBC1)
-	SLOT_INTERFACE_INTERNAL("rom_mbc1col",  GB_ROM_MBC1_COL)
-	SLOT_INTERFACE_INTERNAL("rom_mbc2",  GB_ROM_MBC2)
-	SLOT_INTERFACE_INTERNAL("rom_mbc3",  GB_ROM_MBC3)
-	SLOT_INTERFACE_INTERNAL("rom_huc1",  GB_ROM_MBC3)
-	SLOT_INTERFACE_INTERNAL("rom_huc3",  GB_ROM_MBC3)
-	SLOT_INTERFACE_INTERNAL("rom_mbc5",  GB_ROM_MBC5)
-	SLOT_INTERFACE_INTERNAL("rom_mbc6",  GB_ROM_MBC6)
-	SLOT_INTERFACE_INTERNAL("rom_mbc7",  GB_ROM_MBC7)
-	SLOT_INTERFACE_INTERNAL("rom_tama5",  GB_ROM_TAMA5)
-	SLOT_INTERFACE_INTERNAL("rom_mmm01",  GB_ROM_MMM01)
+	SLOT_INTERFACE_INTERNAL("rom",         GB_STD_ROM)
+	SLOT_INTERFACE_INTERNAL("rom_mbc1",    GB_ROM_MBC1)
+	SLOT_INTERFACE_INTERNAL("rom_mbc1col", GB_ROM_MBC1_COL)
+	SLOT_INTERFACE_INTERNAL("rom_mbc2",    GB_ROM_MBC2)
+	SLOT_INTERFACE_INTERNAL("rom_mbc3",    GB_ROM_MBC3)
+	SLOT_INTERFACE_INTERNAL("rom_huc1",    GB_ROM_MBC3)
+	SLOT_INTERFACE_INTERNAL("rom_huc3",    GB_ROM_MBC3)
+	SLOT_INTERFACE_INTERNAL("rom_mbc5",    GB_ROM_MBC5)
+	SLOT_INTERFACE_INTERNAL("rom_mbc6",    GB_ROM_MBC6)
+	SLOT_INTERFACE_INTERNAL("rom_mbc7",    GB_ROM_MBC7)
+	SLOT_INTERFACE_INTERNAL("rom_tama5",   GB_ROM_TAMA5)
+	SLOT_INTERFACE_INTERNAL("rom_mmm01",   GB_ROM_MMM01)
 	SLOT_INTERFACE_INTERNAL("rom_wisdom",  GB_ROM_WISDOM)
-	SLOT_INTERFACE_INTERNAL("rom_yong",  GB_ROM_YONG)
+	SLOT_INTERFACE_INTERNAL("rom_yong",    GB_ROM_YONG)
 	SLOT_INTERFACE_INTERNAL("rom_lasama",  GB_ROM_LASAMA)
 	SLOT_INTERFACE_INTERNAL("rom_atvrac",  GB_ROM_ATVRAC)
 	SLOT_INTERFACE_INTERNAL("rom_camera",  GB_STD_ROM)
 	SLOT_INTERFACE_INTERNAL("rom_sintax",  GB_ROM_SINTAX)
-	SLOT_INTERFACE_INTERNAL("rom_chong",  GB_ROM_CHONGWU)
-	SLOT_INTERFACE_INTERNAL("rom_digimon",  GB_ROM_DIGIMON)
-	SLOT_INTERFACE_INTERNAL("rom_rock8",  GB_ROM_ROCKMAN8)
-	SLOT_INTERFACE_INTERNAL("rom_sm3sp",  GB_ROM_SM3SP)
+	SLOT_INTERFACE_INTERNAL("rom_chong",   GB_ROM_CHONGWU)
+	SLOT_INTERFACE_INTERNAL("rom_licheng", GB_ROM_LICHENG)
+	SLOT_INTERFACE_INTERNAL("rom_digimon", GB_ROM_DIGIMON)
+	SLOT_INTERFACE_INTERNAL("rom_rock8",   GB_ROM_ROCKMAN8)
+	SLOT_INTERFACE_INTERNAL("rom_sm3sp",   GB_ROM_SM3SP)
 //  SLOT_INTERFACE_INTERNAL("rom_dkong5",  GB_ROM_DKONG5)
-//  SLOT_INTERFACE_INTERNAL("rom_unk01",  GB_ROM_UNK01)
+//  SLOT_INTERFACE_INTERNAL("rom_unk01",   GB_ROM_UNK01)
 SLOT_INTERFACE_END
 
 static SLOT_INTERFACE_START(megaduck_cart)
@@ -667,7 +643,7 @@ SLOT_INTERFACE_END
 
 
 
-static const unsigned char palette[] =
+static const unsigned char palette_gb[] =
 {
 	/* Simple black and white palette */
 	/*  0xFF,0xFF,0xFF,
@@ -696,13 +672,13 @@ static const unsigned char palette_megaduck[] = {
 PALETTE_INIT_MEMBER(gb_state, gb)
 {
 	for (int i = 0; i < 4; i++)
-		palette_set_color_rgb(machine(), i, palette[i * 3 + 0], palette[i * 3 + 1], palette[i * 3 + 2]);
+		palette.set_pen_color(i, palette_gb[i * 3 + 0], palette_gb[i * 3 + 1], palette_gb[i * 3 + 2]);
 }
 
 PALETTE_INIT_MEMBER(gb_state, gbp)
 {
 	for (int i = 0; i < 4; i++)
-		palette_set_color_rgb(machine(), i, palette[(i + 4) * 3 + 0], palette[(i + 4) * 3 + 1], palette[(i + 4) * 3 + 2]);
+		palette.set_pen_color(i, palette_gb[(i + 4) * 3 + 0], palette_gb[(i + 4) * 3 + 1], palette_gb[(i + 4) * 3 + 2]);
 }
 
 PALETTE_INIT_MEMBER(gb_state, sgb)
@@ -714,7 +690,7 @@ PALETTE_INIT_MEMBER(gb_state, sgb)
 		r = (i & 0x1F) << 3;
 		g = ((i >> 5) & 0x1F) << 3;
 		b = ((i >> 10) & 0x1F) << 3;
-		palette_set_color_rgb(machine(), i, r, g, b);
+		palette.set_pen_color(i, r, g, b);
 	}
 }
 
@@ -727,44 +703,42 @@ PALETTE_INIT_MEMBER(gb_state, gbc)
 		r = (i & 0x1F) << 3;
 		g = ((i >> 5) & 0x1F) << 3;
 		b = ((i >> 10) & 0x1F) << 3;
-		palette_set_color_rgb(machine(), i, r, g, b);
+		palette.set_pen_color(i, r, g, b);
 	}
 }
 
 PALETTE_INIT_MEMBER(megaduck_state, megaduck)
 {
 	for (int i = 0; i < 4; i++)
-		palette_set_color_rgb(machine(), i, palette_megaduck[i * 3 + 0], palette_megaduck[i * 3 + 1], palette_megaduck[i * 3 + 2]);
+		palette.set_pen_color(i, palette_megaduck[i * 3 + 0], palette_megaduck[i * 3 + 1], palette_megaduck[i * 3 + 2]);
 }
 
 
 static MACHINE_CONFIG_START( gameboy, gb_state )
+
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", LR35902, 4194304)           /* 4.194304 MHz */
+	MCFG_CPU_ADD("maincpu", LR35902, XTAL_4_194304Mhz)
 	MCFG_CPU_PROGRAM_MAP(gameboy_map)
 	MCFG_LR35902_TIMER_CB( WRITE8( gb_state, gb_timer_callback ) )
 	MCFG_LR35902_HALT_BUG
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", gb_state,  gb_scanline_interrupt)  /* 1 dummy int each frame */
 
-	MCFG_QUANTUM_TIME(attotime::from_hz(60))
-
-	MCFG_MACHINE_START_OVERRIDE(gb_state, gb )
-	MCFG_MACHINE_RESET_OVERRIDE(gb_state, gb )
-
+	/* video hardware */
 	MCFG_SCREEN_ADD("screen", LCD)
 	MCFG_SCREEN_REFRESH_RATE(DMG_FRAMES_PER_SECOND)
 	MCFG_SCREEN_VBLANK_TIME(0)
 	MCFG_SCREEN_UPDATE_DEVICE("lcd", gb_lcd_device, screen_update)
+	MCFG_SCREEN_PALETTE("palette")
+
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 //  MCFG_SCREEN_SIZE(20*8, 18*8)
 	MCFG_SCREEN_SIZE( 458, 154 )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 20*8-1, 0*8, 18*8-1)
 
-	MCFG_GFXDECODE(gb)
-	MCFG_PALETTE_LENGTH(4)
-	MCFG_PALETTE_INIT_OVERRIDE(gb_state,gb)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", gb)
+	MCFG_PALETTE_ADD("palette", 4)
+	MCFG_PALETTE_INIT_OWNER(gb_state,gb)
 
-	MCFG_GB_LCD_DMG_ADD( "lcd" )
+	MCFG_GB_LCD_DMG_ADD("lcd")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -780,55 +754,60 @@ static MACHINE_CONFIG_START( gameboy, gb_state )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( supergb, gameboy )
-	MCFG_CPU_REPLACE("maincpu", LR35902, 4295454)   /* 4.295454 MHz */
+
+	/* basic machine hardware */
+	MCFG_CPU_REPLACE("maincpu", LR35902, 4295454) /* 4.295454 MHz, derived from SNES xtal */
 	MCFG_CPU_PROGRAM_MAP(sgb_map)
 
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_LR35902_TIMER_CB( WRITE8( gb_state, gb_timer_callback ) )
+	MCFG_LR35902_TIMER_CB( WRITE8(gb_state, gb_timer_callback ) )
 	MCFG_LR35902_HALT_BUG
 
-	MCFG_MACHINE_START_OVERRIDE(gb_state, sgb )
-	MCFG_MACHINE_RESET_OVERRIDE(gb_state, sgb )
+	MCFG_MACHINE_START_OVERRIDE(gb_state, sgb)
+	MCFG_MACHINE_RESET_OVERRIDE(gb_state, sgb)
 
-	MCFG_DEFAULT_LAYOUT(layout_horizont)    /* runs on a TV, not an LCD */
+	/* video hardware */
+	MCFG_DEFAULT_LAYOUT(layout_horizont) /* runs on a TV, not an LCD */
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_SIZE(32*8, 28*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 28*8-1)
-	MCFG_PALETTE_LENGTH(32768)
-	MCFG_PALETTE_INIT_OVERRIDE(gb_state,sgb)
+
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(32768)
+	MCFG_PALETTE_INIT_OWNER(gb_state,sgb)
 
 	MCFG_DEVICE_REMOVE("lcd")
-	MCFG_GB_LCD_SGB_ADD( "lcd" )
+	MCFG_GB_LCD_SGB_ADD("lcd")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( gbpocket, gameboy )
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_LR35902_TIMER_CB( WRITE8( gb_state, gb_timer_callback ) )
-	MCFG_LR35902_HALT_BUG
-	MCFG_LR35902_RESET_VALUES(mgb_cpu_regs)
 
-	MCFG_MACHINE_START_OVERRIDE(gb_state, gbpocket)
-	MCFG_MACHINE_RESET_OVERRIDE(gb_state, gbpocket)
-	MCFG_PALETTE_INIT_OVERRIDE(gb_state,gbp)
+	/* video hardware */
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(gb_state,gbp)
 
 	MCFG_DEVICE_REMOVE("lcd")
-	MCFG_GB_LCD_MGB_ADD( "lcd" )
+	MCFG_GB_LCD_MGB_ADD("lcd")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( gbcolor, gameboy )
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP( gbc_map)
-	MCFG_LR35902_TIMER_CB( WRITE8( gb_state, gb_timer_callback ) )
+
+	/* basic machine hardware */
+	MCFG_CPU_MODIFY("maincpu") // todo XTAL_8_388MHz
+	MCFG_CPU_PROGRAM_MAP(gbc_map)
+	MCFG_LR35902_TIMER_CB( WRITE8(gb_state, gb_timer_callback ) )
 
 	MCFG_MACHINE_START_OVERRIDE(gb_state,gbc)
 	MCFG_MACHINE_RESET_OVERRIDE(gb_state,gbc)
 
-	MCFG_PALETTE_LENGTH(32768)
-	MCFG_PALETTE_INIT_OVERRIDE(gb_state,gbc)
+	/* video hardware */
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(32768)
+	MCFG_PALETTE_INIT_OWNER(gb_state,gbc)
 
 	MCFG_DEVICE_REMOVE("lcd")
-	MCFG_GB_LCD_CGB_ADD( "lcd" )
+	MCFG_GB_LCD_CGB_ADD("lcd")
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -841,38 +820,41 @@ static MACHINE_CONFIG_DERIVED( gbcolor, gameboy )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( megaduck, megaduck_state )
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", LR35902, 4194304)           /* 4.194304 MHz */
-	MCFG_CPU_PROGRAM_MAP( megaduck_map)
-	MCFG_LR35902_TIMER_CB( WRITE8( gb_state, gb_timer_callback ) )
-	MCFG_LR35902_HALT_BUG
-	MCFG_LR35902_RESET_VALUES(megaduck_cpu_regs)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", gb_state,  gb_scanline_interrupt)  /* 1 int each scanline ! */
 
+	/* basic machine hardware */
+	MCFG_CPU_ADD("maincpu", LR35902, 4194304) /* 4.194304 MHz */
+	MCFG_CPU_PROGRAM_MAP(megaduck_map)
+	MCFG_LR35902_TIMER_CB( WRITE8(gb_state, gb_timer_callback ) )
+	MCFG_LR35902_HALT_BUG
+
+	/* video hardware */
 	MCFG_SCREEN_ADD("screen", LCD)
 	MCFG_SCREEN_REFRESH_RATE(DMG_FRAMES_PER_SECOND)
 	MCFG_SCREEN_VBLANK_TIME(0)
-	MCFG_QUANTUM_TIME(attotime::from_hz(60))
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_MACHINE_START_OVERRIDE(megaduck_state, megaduck )
-	MCFG_MACHINE_RESET_OVERRIDE(megaduck_state, megaduck )
+	MCFG_MACHINE_START_OVERRIDE(megaduck_state, megaduck)
+	MCFG_MACHINE_RESET_OVERRIDE(megaduck_state, megaduck)
 
 	MCFG_SCREEN_UPDATE_DEVICE("lcd", gb_lcd_device, screen_update)
 	MCFG_SCREEN_SIZE(20*8, 18*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 20*8-1, 0*8, 18*8-1)
 
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
-	MCFG_GFXDECODE(gb)
-	MCFG_PALETTE_LENGTH(4)
-	MCFG_PALETTE_INIT_OVERRIDE(megaduck_state,megaduck)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", gb)
 
-	MCFG_GB_LCD_DMG_ADD( "lcd" )
+	MCFG_PALETTE_ADD("palette", 4)
+	MCFG_PALETTE_INIT_OWNER(megaduck_state,megaduck)
 
+	MCFG_GB_LCD_DMG_ADD("lcd")
+
+	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("custom", GAMEBOY, 0)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
 
+	/* cartslot */
 	MCFG_MEGADUCK_CARTRIDGE_ADD("duckslot", megaduck_cart, NULL)
 	MCFG_SOFTWARE_LIST_ADD("cart_list", "megaduck")
 MACHINE_CONFIG_END
@@ -894,18 +876,13 @@ ROM_START( supergb )
 ROM_END
 
 ROM_START( gbpocket )
-	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
-/*  ROM_LOAD( "gbp_boot.bin", 0x0000, 0x0100, NO_DUMP ) */
-ROM_END
-
-ROM_START( gblight )
-	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
-/*  ROM_LOAD( "gbl_boot.bin", 0x0000, 0x0100, NO_DUMP ) */
+	ROM_REGION( 0x0100, "maincpu", 0 )
+	ROM_LOAD( "mgb_boot.bin", 0x0000, 0x0100, CRC(e6920754) SHA1(4e68f9da03c310e84c523654b9026e51f26ce7f0) )
 ROM_END
 
 ROM_START( gbcolor )
 	ROM_REGION( 0x800, "maincpu", 0 )
-	ROM_LOAD( "gbc_boot.1", 0x0000, 0x0100, CRC(779ea374) SHA1(e4b40c9fd593a97a1618cfb2696f290cf9596a62) )  /* Bootstrap code part 1 */
+	ROM_LOAD( "gbc_boot.1", 0x0000, 0x0100, CRC(779ea374) SHA1(e4b40c9fd593a97a1618cfb2696f290cf9596a62) ) /* Bootstrap code part 1 */
 	ROM_LOAD( "gbc_boot.2", 0x0100, 0x0700, CRC(f741807d) SHA1(f943b1e0b640cf1d371e1d8f0ada69af03ebb396) ) /* Bootstrap code part 2 */
 ROM_END
 
@@ -918,10 +895,7 @@ ROM_END
 CONS( 1990, gameboy,  0,       0,       gameboy,  gameboy, driver_device, 0,    "Nintendo", "Game Boy", GAME_SUPPORTS_SAVE )
 CONS( 1994, supergb,  gameboy, 0,       supergb,  gameboy, driver_device, 0,    "Nintendo", "Super Game Boy", GAME_SUPPORTS_SAVE )
 CONS( 1996, gbpocket, gameboy, 0,       gbpocket, gameboy, driver_device, 0,    "Nintendo", "Game Boy Pocket", GAME_SUPPORTS_SAVE )
-CONS( 1997, gblight,  gameboy, 0,       gbpocket, gameboy, driver_device, 0,    "Nintendo", "Game Boy Light", GAME_SUPPORTS_SAVE )
-CONS( 1998, gbcolor,  gameboy, 0,       gbcolor,  gameboy, driver_device, 0,    "Nintendo", "Game Boy Color", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+CONS( 1998, gbcolor,  0,       0,       gbcolor,  gameboy, driver_device, 0,    "Nintendo", "Game Boy Color", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
 
-/* Sound is not 100% yet, it generates some sounds which could be ok. Since we're lacking a real
-   system there's no way to verify. Same goes for the colors of the LCD. We are no using the default
-   Game Boy green colors */
-CONS( 1993, megaduck, 0,       0,       megaduck, gameboy, driver_device, 0,    "Creatronic/Videojet/Timlex/Cougar",  "MegaDuck/Cougar Boy" , GAME_SUPPORTS_SAVE )
+// Sound is not 100% yet, it generates some sounds which could be ok. Since we're lacking a real system there's no way to verify.
+CONS( 1993, megaduck, 0,       0,       megaduck, gameboy, driver_device, 0,    "Welback Holdings (Timlex International) / Creatronic / Videojet / Cougar USA", "Mega Duck / Cougar Boy", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )

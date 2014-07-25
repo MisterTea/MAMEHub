@@ -1,6 +1,7 @@
 #include "namcos2.h"
 #include "sound/dac.h"
 #include "sound/namco.h"
+#include "video/c45.h"
 
 class tceptor_state : public driver_device
 {
@@ -16,7 +17,9 @@ public:
 		m_m68k_shared_ram(*this, "m68k_shared_ram"),
 		m_sprite_ram(*this, "sprite_ram"),
 		m_c45_road(*this, "c45_road"),
-		m_2dscreen(*this, "2dscreen") { }
+		m_2dscreen(*this, "2dscreen"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	UINT8 m_m6809_irq_enable;
 	UINT8 m_m68k_irq_enable;
@@ -42,8 +45,8 @@ public:
 	bitmap_ind16 m_temp_bitmap;
 	UINT16 *m_sprite_ram_buffered;
 	int m_is_mask_spr[1024/16];
-	DECLARE_READ16_MEMBER(m68k_shared_word_r);
-	DECLARE_WRITE16_MEMBER(m68k_shared_word_w);
+	DECLARE_READ8_MEMBER(m68k_shared_r);
+	DECLARE_WRITE8_MEMBER(m68k_shared_w);
 	DECLARE_WRITE8_MEMBER(m6809_irq_enable_w);
 	DECLARE_WRITE8_MEMBER(m6809_irq_disable_w);
 	DECLARE_WRITE16_MEMBER(m68k_irq_enable_w);
@@ -61,15 +64,18 @@ public:
 	void tile_mark_dirty(int offset);
 	DECLARE_WRITE8_MEMBER(voice_w);
 
-	optional_device<namco_c45_road_device> m_c45_road;
+	required_device<namco_c45_road_device> m_c45_road;
 	required_device<screen_device> m_2dscreen;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	TILE_GET_INFO_MEMBER(get_tx_tile_info);
 	TILE_GET_INFO_MEMBER(get_bg1_tile_info);
 	TILE_GET_INFO_MEMBER(get_bg2_tile_info);
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(tceptor);
 	UINT32 screen_update_tceptor_2d(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_tceptor_3d_left(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_tceptor_3d_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);

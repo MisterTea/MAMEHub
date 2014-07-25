@@ -9,7 +9,7 @@
 
 #include "audio/gb.h"
 #include "cpu/lr35902/lr35902.h"
-#include "machine/gb_slot.h"
+#include "bus/gameboy/gb_slot.h"
 #include "machine/ram.h"
 #include "video/gb_lcd.h"
 
@@ -52,7 +52,8 @@ public:
 		m_region_maincpu(*this, "maincpu"),
 		m_rambank(*this, "cgb_ram"),
 		m_inputs(*this, "INPUTS"),
-		m_ram(*this, RAM_TAG) { }
+		m_ram(*this, RAM_TAG),
+		m_lcd(*this, "lcd") { }
 
 	//gb_state driver_data;
 	UINT8       m_gb_io[0x10];
@@ -92,19 +93,14 @@ public:
 	DECLARE_READ8_MEMBER(gb_io_r);
 	DECLARE_WRITE8_MEMBER(gbc_io2_w);
 	DECLARE_READ8_MEMBER(gbc_io2_r);
-	DECLARE_MACHINE_START(gb);
-	DECLARE_MACHINE_RESET(gb);
 	DECLARE_PALETTE_INIT(gb);
 	DECLARE_MACHINE_START(sgb);
 	DECLARE_MACHINE_RESET(sgb);
 	DECLARE_PALETTE_INIT(sgb);
-	DECLARE_MACHINE_START(gbpocket);
-	DECLARE_MACHINE_RESET(gbpocket);
 	DECLARE_PALETTE_INIT(gbp);
 	DECLARE_MACHINE_START(gbc);
 	DECLARE_MACHINE_RESET(gbc);
 	DECLARE_PALETTE_INIT(gbc);
-	INTERRUPT_GEN_MEMBER(gb_scanline_interrupt);
 	TIMER_CALLBACK_MEMBER(gb_serial_timer_proc);
 	DECLARE_WRITE8_MEMBER(gb_timer_callback);
 
@@ -124,6 +120,7 @@ protected:
 	optional_memory_bank m_rambank;   // cgb
 	required_ioport m_inputs;
 	optional_device<ram_device> m_ram;
+	required_device<gb_lcd_device> m_lcd;
 
 	void gb_timer_increment();
 	void gb_timer_check_irq();
@@ -135,6 +132,9 @@ protected:
 	void save_gb_base();
 	void save_gbc_only();
 	void save_sgb_only();
+
+	virtual void machine_start();
+	virtual void machine_reset();
 };
 
 

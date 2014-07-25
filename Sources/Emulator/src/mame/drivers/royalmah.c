@@ -105,11 +105,13 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
 		m_videoram(*this, "videoram"),
-		m_audiocpu(*this, "audiocpu") { }
+		m_audiocpu(*this, "audiocpu"),
+		m_rtc(*this, "rtc") { }
 
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT8> m_videoram;
 	optional_device<cpu_device> m_audiocpu;
+	optional_device<msm6242_device> m_rtc;
 	UINT8 m_input_port_select;
 	UINT8 m_dsw_select;
 	UINT8 m_rombank;
@@ -124,6 +126,7 @@ public:
 	UINT8 m_gfxdata1;
 	UINT8 m_jansou_colortable[16];
 	UINT8 m_mjifb_rom_enable;
+	UINT8 m_flip_screen;
 
 	DECLARE_WRITE8_MEMBER(royalmah_palbank_w);
 	DECLARE_WRITE8_MEMBER(mjderngr_coin_w);
@@ -196,7 +199,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(mjtensin_rtc_irq);
 	DECLARE_DRIVER_INIT(janptr96);
 	DECLARE_DRIVER_INIT(ippatsu);
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(royalmah);
 	DECLARE_PALETTE_INIT(mjderngr);
 	UINT32 screen_update_royalmah(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(suzume_irq);
@@ -209,7 +212,7 @@ public:
 
 
 
-void royalmah_state::palette_init()
+PALETTE_INIT_MEMBER(royalmah_state, royalmah)
 {
 	offs_t i;
 	const UINT8 *prom = memregion("proms")->base();
@@ -239,10 +242,9 @@ void royalmah_state::palette_init()
 		bit2 = (data >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color_rgb(machine(),i, r,g,b);
+		palette.set_pen_color(i, r,g,b);
 	}
 }
-
 
 PALETTE_INIT_MEMBER(royalmah_state,mjderngr)
 {
@@ -259,7 +261,7 @@ PALETTE_INIT_MEMBER(royalmah_state,mjderngr)
 		UINT8 g = BITSWAP8((data >>  5) & 0x1f,7,6,5,0,1,2,3,4 );
 		UINT8 b = BITSWAP8((data >> 10) & 0x1f,7,6,5,0,1,2,3,4 );
 
-		palette_set_color_rgb(machine(),i, pal5bit(r), pal5bit(g), pal5bit(b));
+		palette.set_pen_color(i, pal5bit(r), pal5bit(g), pal5bit(b));
 	}
 }
 
@@ -269,7 +271,8 @@ WRITE8_MEMBER(royalmah_state::royalmah_palbank_w)
 	/* bit 1 = coin counter */
 	coin_counter_w(machine(), 0,data & 2);
 
-	/* bit 2 always set? */
+	/* bit 2 = flip screen */
+	m_flip_screen = (data & 4) >> 2;
 
 	/* bit 3 = palette bank */
 	m_palette_base = (data >> 3) & 0x01;
@@ -281,7 +284,8 @@ WRITE8_MEMBER(royalmah_state::mjderngr_coin_w)
 	/* bit 1 = coin counter */
 	coin_counter_w(machine(), 0,data & 2);
 
-	/* bit 2 always set? */
+	/* bit 2 = flip screen */
+	m_flip_screen = (data & 4) >> 2;
 }
 
 
@@ -304,8 +308,8 @@ UINT32 royalmah_state::screen_update_royalmah(screen_device &screen, bitmap_ind1
 		UINT8 data1 = videoram[offs + 0x0000];
 		UINT8 data2 = videoram[offs + 0x4000];
 
-		UINT8 y = 255 - (offs >> 6);
-		UINT8 x = 255 - (offs << 2);
+		UINT8 y = (m_flip_screen) ? 255 - (offs >> 6) : (offs >> 6);
+		UINT8 x = (m_flip_screen) ? 255 - (offs << 2) : (offs << 2);
 
 		for (i = 0; i < 4; i++)
 		{
@@ -313,7 +317,7 @@ UINT32 royalmah_state::screen_update_royalmah(screen_device &screen, bitmap_ind1
 
 			bitmap.pix16(y, x) = (m_palette_base << 4) | pen;
 
-			x = x - 1;
+			x = (m_flip_screen) ? x - 1 : x + 1;
 			data1 = data1 >> 1;
 			data2 = data2 >> 1;
 		}
@@ -422,7 +426,7 @@ WRITE8_MEMBER(royalmah_state::mjapinky_bank_w)
 
 WRITE8_MEMBER(royalmah_state::mjapinky_palbank_w)
 {
-	flip_screen_set(~data & 4);
+	m_flip_screen = (data & 4) >> 2;
 	m_palette_base = (data >> 3) & 0x01;
 	coin_counter_w(machine(), 0,data & 2);  // in
 	coin_counter_w(machine(), 1,data & 1);  // out
@@ -654,8 +658,8 @@ static ADDRESS_MAP_START( mjderngr_iomap, AS_IO, 8, royalmah_state )
 	AM_RANGE( 0x10, 0x10 ) AM_WRITE(mjderngr_coin_w )   // palette bank is set separately
 	AM_RANGE( 0x11, 0x11 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
 	AM_RANGE( 0x20, 0x20 ) AM_WRITE(dynax_bank_w )
-	AM_RANGE( 0x40, 0x40 ) AM_READ_PORT("DSW3")
-	AM_RANGE( 0x4c, 0x4c ) AM_READ_PORT("DSW2")
+	AM_RANGE( 0x40, 0x40 ) AM_READ_PORT("DSW2")
+	AM_RANGE( 0x4c, 0x4c ) AM_READ_PORT("DSW1")
 	AM_RANGE( 0x60, 0x60 ) AM_WRITE(mjderngr_palbank_w )
 ADDRESS_MAP_END
 
@@ -774,8 +778,6 @@ WRITE8_MEMBER(royalmah_state::jansou_sound_w)
 	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
-
-
 static ADDRESS_MAP_START( jansou_map, AS_PROGRAM, 8, royalmah_state )
 	AM_RANGE( 0x0000, 0x3fff ) AM_ROM
 
@@ -795,7 +797,7 @@ static ADDRESS_MAP_START( jansou_map, AS_PROGRAM, 8, royalmah_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( jansou_sub_map, AS_PROGRAM, 8, royalmah_state )
-	AM_RANGE( 0x0000, 0xffff ) AM_ROM
+	AM_RANGE( 0x0000, 0xffff ) AM_ROM AM_WRITENOP // tries to write to the stack at irq generation
 ADDRESS_MAP_END
 
 
@@ -858,7 +860,7 @@ READ8_MEMBER(royalmah_state::janptr96_unknown_r)
 
 WRITE8_MEMBER(royalmah_state::janptr96_coin_counter_w)
 {
-	flip_screen_set(~data & 4);
+	m_flip_screen = (data & 4) >> 2;
 	coin_counter_w(machine(), 0,data & 2);  // in
 	coin_counter_w(machine(), 1,data & 1);  // out
 }
@@ -885,7 +887,7 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(royalmah_state::mjifb_coin_counter_w)
 {
-	flip_screen_set(data & 4);
+	m_flip_screen = ((data & 4) >> 2) ^ 1;
 	coin_counter_w(machine(), 0,data & 2);  // in
 	coin_counter_w(machine(), 1,data & 1);  // out
 }
@@ -1033,7 +1035,7 @@ WRITE8_MEMBER(royalmah_state::mjdejavu_rom_io_w)
 		case 0x8802:    m_palette_base = data & 0x1f;                   return;
 		case 0x9002:    machine().device<ay8910_device>("aysnd")->data_w(space,0,data);      return;
 		case 0x9003:    machine().device<ay8910_device>("aysnd")->address_w(space,0,data);   return;
-		case 0x9010:    mjifb_coin_counter_w(space,0,data);     return;
+		case 0x9010:    janptr96_coin_counter_w(space,0,data);     return;
 		case 0x9011:    input_port_select_w(space,0,data);      return;
 		case 0x9013:
 //          if (data)   popmessage("%02x",data);
@@ -1194,9 +1196,7 @@ READ8_MEMBER(royalmah_state::mjvegasa_rom_io_r)
 
 	if((offset & 0xfff0) == 0x8000)
 	{
-		msm6242_device *rtc = machine().device<msm6242_device>("rtc");
-
-		return rtc->read(space, offset & 0xf);
+		return m_rtc->read(space, offset & 0xf);
 	}
 
 	logerror("%04X: unmapped IO read at %04X\n", space.device().safe_pc(), offset);
@@ -1216,9 +1216,7 @@ WRITE8_MEMBER(royalmah_state::mjvegasa_rom_io_w)
 
 	if((offset & 0xfff0) == 0x8000)
 	{
-		msm6242_device *rtc = machine().device<msm6242_device>("rtc");
-
-		rtc->write(space, offset & 0xf,data);
+		m_rtc->write(space, offset & 0xf,data);
 		return;
 	}
 
@@ -1227,7 +1225,7 @@ WRITE8_MEMBER(royalmah_state::mjvegasa_rom_io_w)
 
 WRITE8_MEMBER(royalmah_state::mjvegasa_coin_counter_w)
 {
-	flip_screen_set(data & 4);
+	m_flip_screen = (data & 4) >> 2;
 	coin_counter_w(machine(), 0,data & 2);  // in
 	coin_counter_w(machine(), 1,data & 1);  // out
 }
@@ -2050,6 +2048,61 @@ static INPUT_PORTS_START( mjdiplob )
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
 	PORT_DIPNAME( 0x80, 0x80, "Full Tests" )            // seems to hang after the last animation
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+INPUT_PORTS_END
+
+static INPUT_PORTS_START( mjderngr )
+	PORT_INCLUDE( mjctrl2 )
+
+	PORT_START("DSW1")
+	PORT_DIPNAME( 0x03, 0x00, DEF_STR( Coinage ) )
+	PORT_DIPSETTING(    0x03, DEF_STR( 4C_1C ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( 1C_2C ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, "ROM & Animation Test" )
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+	PORT_START("DSW2")
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
@@ -3160,14 +3213,6 @@ static INPUT_PORTS_START( mjvegasa )
 INPUT_PORTS_END
 
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(royalmah_state,royalmah_player_1_port_r),
-	DEVCB_DRIVER_MEMBER(royalmah_state,royalmah_player_2_port_r)
-};
-
 static MACHINE_CONFIG_START( royalmah, royalmah_state )
 
 	/* basic machine hardware */
@@ -3179,7 +3224,8 @@ static MACHINE_CONFIG_START( royalmah, royalmah_state )
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(16*2)
+	MCFG_PALETTE_ADD("palette", 16*2)
+	MCFG_PALETTE_INIT_OWNER(royalmah_state,royalmah)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_SIZE(256, 256)
@@ -3187,12 +3233,14 @@ static MACHINE_CONFIG_START( royalmah, royalmah_state )
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_UPDATE_DRIVER(royalmah_state, screen_update_royalmah)
+	MCFG_SCREEN_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 18432000/12)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(royalmah_state, royalmah_player_1_port_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(royalmah_state, royalmah_player_2_port_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.33)
 MACHINE_CONFIG_END
 
@@ -3212,6 +3260,7 @@ static MACHINE_CONFIG_DERIVED( jansou, royalmah )
 
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(jansou_map)
+	MCFG_CPU_IO_MAP(royalmah_iomap)
 
 	MCFG_CPU_ADD("audiocpu", Z80, 4000000) /* 4.000 MHz */
 	MCFG_CPU_PROGRAM_MAP(jansou_sub_map)
@@ -3289,8 +3338,9 @@ static MACHINE_CONFIG_DERIVED( mjderngr, dondenmj )
 	MCFG_CPU_IO_MAP(mjderngr_iomap)
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(16*32)
-	MCFG_PALETTE_INIT_OVERRIDE(royalmah_state,mjderngr)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(16*32)
+	MCFG_PALETTE_INIT_OWNER(royalmah_state,mjderngr)
 MACHINE_CONFIG_END
 
 /* It runs in IM 2, thus needs a vector on the data bus */
@@ -3310,11 +3360,6 @@ WRITE_LINE_MEMBER(royalmah_state::janptr96_rtc_irq)
 	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0x82);   // rtc
 }
 
-static MSM6242_INTERFACE( janptr96_rtc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(royalmah_state,janptr96_rtc_irq)
-};
-
 static MACHINE_CONFIG_DERIVED( janptr96, mjderngr )
 	MCFG_DEVICE_REMOVE("maincpu")
 
@@ -3327,8 +3372,9 @@ static MACHINE_CONFIG_DERIVED( janptr96, mjderngr )
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 8, 255-8)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", janptr96_rtc_intf)
-MACHINE_CONFIG_END
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(royalmah_state, janptr96_rtc_irq))
+	MACHINE_CONFIG_END
 
 
 static MACHINE_CONFIG_DERIVED( mjifb, mjderngr )
@@ -3364,12 +3410,6 @@ WRITE_LINE_MEMBER(royalmah_state::mjtensin_rtc_irq)
 }
 
 
-static MSM6242_INTERFACE( mjtensin_rtc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(royalmah_state,mjtensin_rtc_irq)
-};
-
-
 static MACHINE_CONFIG_DERIVED( mjtensin, mjderngr )
 	MCFG_CPU_REPLACE("maincpu",TMP90841, 12000000)  /* ? */
 	MCFG_CPU_PROGRAM_MAP(mjtensin_map)
@@ -3380,7 +3420,8 @@ static MACHINE_CONFIG_DERIVED( mjtensin, mjderngr )
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 8, 255-8)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", mjtensin_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(royalmah_state, mjtensin_rtc_irq))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( cafetime, mjderngr )
@@ -3393,7 +3434,8 @@ static MACHINE_CONFIG_DERIVED( cafetime, mjderngr )
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 8, 255-8)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", mjtensin_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(royalmah_state, mjtensin_rtc_irq))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mjvegasa, mjderngr )
@@ -3406,7 +3448,8 @@ static MACHINE_CONFIG_DERIVED( mjvegasa, mjderngr )
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 8, 255-8)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", mjtensin_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(royalmah_state, mjtensin_rtc_irq))
 MACHINE_CONFIG_END
 
 
@@ -4731,10 +4774,10 @@ GAME( 1983,  janyoup2, royalmj,  ippatsu,  janyoup2, driver_device, 0,        RO
 GAME( 1981,  janputer, 0,        royalmah, royalmah, driver_device, 0,        ROT0,   "bootleg (Public Software Ltd. / Mes)", "New Double Bet Mahjong (bootleg of Janputer)", 0 ) // the original Janputer (Sanritsu) is not yet dumped
 GAME( 1984,  janoh,    0,        royalmah, royalmah, driver_device, 0,        ROT0,   "Toaplan",                    "Jan Oh (set 1)",                        GAME_NOT_WORKING )
 GAME( 1984,  janoha,   janoh,    janoh,    royalmah, driver_device, 0,        ROT0,   "Toaplan",                    "Jan Oh (set 2)",                        GAME_NOT_WORKING ) // this one is complete?
-GAME( 1985,  jansou,   0,        jansou,   jansou, driver_device,   0,        ROT180, "Dyna",                       "Jansou (set 1)",                        GAME_NOT_WORKING|GAME_NO_SOUND )
-GAME( 1985,  jansoua,  jansou,   jansou,   jansou, driver_device,   0,        ROT180, "Dyna",                       "Jansou (set 2)",                        0 )
+GAME( 1985,  jansou,   0,        jansou,   jansou, driver_device,   0,        ROT0,   "Dyna",                       "Jansou (set 1)",                        GAME_NOT_WORKING|GAME_NO_SOUND )
+GAME( 1985,  jansoua,  jansou,   jansou,   jansou, driver_device,   0,        ROT0,   "Dyna",                       "Jansou (set 2)",                        0 )
 GAME( 1986,  dondenmj, 0,        dondenmj, majs101b, driver_device, 0,        ROT0,   "Dyna Electronics",           "Don Den Mahjong [BET] (Japan)",         0 )
-GAME( 1986,  ippatsu,  0,        ippatsu,  ippatsu, royalmah_state,  ippatsu,  ROT0,   "Public Software / Paradais", "Ippatsu Gyakuten [BET] (Japan)",        0 )
+GAME( 1986,  ippatsu,  0,        ippatsu,  ippatsu, royalmah_state, ippatsu,  ROT0,   "Public Software / Paradais", "Ippatsu Gyakuten [BET] (Japan)",        0 )
 GAME( 1986,  suzume,   0,        suzume,   suzume, driver_device,   0,        ROT0,   "Dyna Electronics",           "Watashiha Suzumechan (Japan)",          0 )
 GAME( 1986,  mjsiyoub, 0,        royalmah, royalmah, driver_device, 0,        ROT0,   "Visco",                      "Mahjong Shiyou (Japan)",                GAME_NOT_WORKING )
 GAME( 1986,  mjsenka,  0,        royalmah, royalmah, driver_device, 0,        ROT0,   "Visco",                      "Mahjong Senka (Japan)",                 GAME_NOT_WORKING )
@@ -4747,7 +4790,7 @@ GAME( 1988,  majs101b, 0,        majs101b, majs101b, driver_device, 0,        RO
 GAME( 1988,  mjapinky, 0,        mjapinky, mjapinky, driver_device, 0,        ROT0,   "Dynax",                      "Almond Pinky [BET] (Japan)",            0 )
 GAME( 1989,  mjdejavu, 0,        mjdejavu, mjdejavu, driver_device, 0,        ROT0,   "Dynax",                      "Mahjong Shinkirou Deja Vu (Japan)",     0 )
 GAME( 1989,  mjdejav2, mjdejavu, mjdejavu, mjdejavu, driver_device, 0,        ROT0,   "Dynax",                      "Mahjong Shinkirou Deja Vu 2 (Japan)",   0 )
-GAME( 1989,  mjderngr, 0,        mjderngr, majs101b, driver_device, 0,        ROT0,   "Dynax",                      "Mahjong Derringer (Japan)",             0 )
+GAME( 1989,  mjderngr, 0,        mjderngr, mjderngr, driver_device, 0,        ROT0,   "Dynax",                      "Mahjong Derringer (Japan)",             0 )
 GAME( 1989,  daisyari, 0,        daisyari, daisyari, driver_device, 0,        ROT0,   "Best System",                "Daisyarin [BET] (Japan)",               0 )
 GAME( 1990,  mjifb,    0,        mjifb,    mjifb, driver_device,    0,        ROT0,   "Dynax",                      "Mahjong If...? [BET]",                  0 )
 GAME( 1990,  mjifb2,   mjifb,    mjifb,    mjifb, driver_device,    0,        ROT0,   "Dynax",                      "Mahjong If...? [BET](2921)",            0 )

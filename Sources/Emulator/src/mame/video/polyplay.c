@@ -13,19 +13,19 @@
 #include "includes/polyplay.h"
 
 
-void polyplay_state::palette_init()
+PALETTE_INIT_MEMBER(polyplay_state, polyplay)
 {
-	palette_set_color(machine(),0,MAKE_RGB(0x00,0x00,0x00));
-	palette_set_color(machine(),1,MAKE_RGB(0xff,0xff,0xff));
+	palette.set_pen_color(0,rgb_t(0x00,0x00,0x00));
+	palette.set_pen_color(1,rgb_t(0xff,0xff,0xff));
 
-	palette_set_color(machine(),2,MAKE_RGB(0x00,0x00,0x00));
-	palette_set_color(machine(),3,MAKE_RGB(0xff,0x00,0x00));
-	palette_set_color(machine(),4,MAKE_RGB(0x00,0xff,0x00));
-	palette_set_color(machine(),5,MAKE_RGB(0xff,0xff,0x00));
-	palette_set_color(machine(),6,MAKE_RGB(0x00,0x00,0xff));
-	palette_set_color(machine(),7,MAKE_RGB(0xff,0x00,0xff));
-	palette_set_color(machine(),8,MAKE_RGB(0x00,0xff,0xff));
-	palette_set_color(machine(),9,MAKE_RGB(0xff,0xff,0xff));
+	palette.set_pen_color(2,rgb_t(0x00,0x00,0x00));
+	palette.set_pen_color(3,rgb_t(0xff,0x00,0x00));
+	palette.set_pen_color(4,rgb_t(0x00,0xff,0x00));
+	palette.set_pen_color(5,rgb_t(0xff,0xff,0x00));
+	palette.set_pen_color(6,rgb_t(0x00,0x00,0xff));
+	palette.set_pen_color(7,rgb_t(0xff,0x00,0xff));
+	palette.set_pen_color(8,rgb_t(0x00,0xff,0xff));
+	palette.set_pen_color(9,rgb_t(0xff,0xff,0xff));
 }
 
 
@@ -33,7 +33,7 @@ WRITE8_MEMBER(polyplay_state::polyplay_characterram_w)
 {
 	if (m_characterram[offset] != data)
 	{
-		machine().gfx[1]->mark_dirty((offset >> 3) & 0x7f);
+		m_gfxdecode->gfx(1)->mark_dirty((offset >> 3) & 0x7f);
 
 		m_characterram[offset] = data;
 	}
@@ -41,7 +41,7 @@ WRITE8_MEMBER(polyplay_state::polyplay_characterram_w)
 
 void polyplay_state::video_start()
 {
-	machine().gfx[1]->set_source(m_characterram);
+	m_gfxdecode->gfx(1)->set_source(m_characterram);
 }
 
 
@@ -57,7 +57,7 @@ UINT32 polyplay_state::screen_update_polyplay(screen_device &screen, bitmap_ind1
 		int sy = offs >> 6 << 3;
 		UINT8 code = videoram[offs];
 
-		drawgfx_opaque(bitmap,cliprect, machine().gfx[(code >> 7) & 0x01],
+		m_gfxdecode->gfx((code >> 7) & 0x01)->opaque(bitmap,cliprect,
 				code, 0, 0, 0, sx, sy);
 	}
 

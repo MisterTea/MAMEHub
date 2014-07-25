@@ -12,7 +12,7 @@
 
 #include "emu.h"
 #include "includes/stadhero.h"
-#include "video/decmxc06.h"
+
 
 /******************************************************************************/
 
@@ -22,9 +22,11 @@ UINT32 stadhero_state::screen_update_stadhero(screen_device &screen, bitmap_ind1
 {
 //  machine().tilemap().set_flip_all(m_flipscreen ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
 
+	flip_screen_set(m_tilegen1->get_flip_state());
+
 	m_tilegen1->set_bppmultmask(0x8, 0x7);
 	m_tilegen1->deco_bac06_pf_draw(bitmap,cliprect,TILEMAP_DRAW_OPAQUE, 0x00, 0x00, 0x00, 0x00);
-	machine().device<deco_mxc06_device>("spritegen")->draw_sprites(machine(), bitmap, cliprect, m_spriteram, 0x00, 0x00, 0x0f);
+	m_spritegen->draw_sprites(machine(), bitmap, cliprect, m_spriteram, 0x00, 0x00, 0x0f);
 	m_pf1_tilemap->draw(screen, bitmap, cliprect, 0,0);
 	return 0;
 }
@@ -46,8 +48,7 @@ TILE_GET_INFO_MEMBER(stadhero_state::get_pf1_tile_info)
 	int color=tile >> 12;
 
 	tile=tile&0xfff;
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile,
 			color,
 			0);
@@ -55,7 +56,7 @@ TILE_GET_INFO_MEMBER(stadhero_state::get_pf1_tile_info)
 
 void stadhero_state::video_start()
 {
-	m_pf1_tilemap =     &machine().tilemap().create(tilemap_get_info_delegate(FUNC(stadhero_state::get_pf1_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8,32,32);
+	m_pf1_tilemap =     &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(stadhero_state::get_pf1_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8,32,32);
 	m_pf1_tilemap->set_transparent_pen(0);
 }
 

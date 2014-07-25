@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Taito Super Rider driver
@@ -327,25 +329,6 @@ static GFXDECODE_START( suprridr )
 GFXDECODE_END
 
 
-
-/*************************************
- *
- *  Sound interfaces
- *
- *************************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(suprridr_state,sound_data_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-
 /*************************************
  *
  *  Machine driver
@@ -371,10 +354,11 @@ static MACHINE_CONFIG_START( suprridr, suprridr_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(suprridr_state, screen_update_suprridr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(suprridr)
-	MCFG_PALETTE_LENGTH(96)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", suprridr)
+	MCFG_PALETTE_ADD("palette", 96)
+	MCFG_PALETTE_INIT_OWNER(suprridr_state, suprridr)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -383,7 +367,7 @@ static MACHINE_CONFIG_START( suprridr, suprridr_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, XTAL_49_152MHz/32)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(suprridr_state, sound_data_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 

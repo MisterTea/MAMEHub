@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, ???
 /***************************************************************************
 
 Taito Air System
@@ -289,7 +291,7 @@ WRITE16_MEMBER(taitoair_state::airsys_paletteram16_w)/* xxBBBBxRRRRxGGGG */
 	COMBINE_DATA(&m_paletteram[offset]);
 
 	a = m_paletteram[offset];
-	palette_set_color_rgb(machine(), offset, pal4bit(a >> 0), pal4bit(a >> 5), pal4bit(a >> 10));
+	m_palette->set_pen_color(offset, pal4bit(a >> 0), pal4bit(a >> 5), pal4bit(a >> 10));
 }
 
 WRITE16_MEMBER(taitoair_state::airsys_gradram_w)
@@ -320,7 +322,7 @@ WRITE16_MEMBER(taitoair_state::airsys_gradram_w)
 	//if(g == 0) { g = (pal_g); }
 	//if(b == 0) { b = (pal_b); }
 
-	palette_set_color_rgb(machine(), offset+0x2000, r, g, b);
+	m_palette->set_pen_color(offset+0x2000, r, g, b);
 }
 
 
@@ -401,8 +403,8 @@ static ADDRESS_MAP_START( airsys_map, AS_PROGRAM, 16, taitoair_state )
 	AM_RANGE(0xa00000, 0xa00007) AM_READ(stick_input_r)
 	AM_RANGE(0xa00100, 0xa00107) AM_READ(stick2_input_r)
 	AM_RANGE(0xa00200, 0xa0020f) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, read, write, 0x00ff) /* other I/O */
-	AM_RANGE(0xa80000, 0xa80001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0xa80002, 0xa80003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0xa80000, 0xa80001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, master_port_w, 0x00ff)
+	AM_RANGE(0xa80002, 0xa80003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, master_comm_r, master_comm_w, 0x00ff)
 	AM_RANGE(0xb00000, 0xb007ff) AM_RAM                     /* "power common ram" (mecha drive) */
 ADDRESS_MAP_END
 
@@ -413,8 +415,8 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, taitoair_state )
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")
 	AM_RANGE(0xc000, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xe003) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
-	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
-	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, slave_port_w)
+	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, slave_comm_r, slave_comm_w)
 	AM_RANGE(0xe400, 0xe403) AM_WRITENOP        /* pan control */
 	AM_RANGE(0xea00, 0xea00) AM_READNOP
 	AM_RANGE(0xee00, 0xee00) AM_WRITENOP        /* ? */
@@ -636,24 +638,6 @@ WRITE_LINE_MEMBER(taitoair_state::irqhandler)
                 MACHINE DRIVERS
 ************************************************************/
 
-static const tc0080vco_interface airsys_tc0080vco_intf =
-{
-	0, 1,   /* gfxnum, txnum */
-	1, 1, -2,
-	0
-};
-
-static const tc0220ioc_interface airsys_io_intf =
-{
-	DEVCB_INPUT_PORT("DSWA"), DEVCB_INPUT_PORT("DSWB"),
-	DEVCB_INPUT_PORT("IN0"), DEVCB_INPUT_PORT("IN1"), DEVCB_INPUT_PORT("IN2")   /* port read handlers */
-};
-
-static const tc0140syt_interface airsys_tc0140syt_intf =
-{
-	"maincpu", "audiocpu"
-};
-
 void taitoair_state::machine_start()
 {
 	UINT8 *ROM = memregion("audiocpu")->base();
@@ -705,7 +689,12 @@ static MACHINE_CONFIG_START( airsys, taitoair_state )
 
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
-	MCFG_TC0220IOC_ADD("tc0220ioc", airsys_io_intf)
+	MCFG_DEVICE_ADD("tc0220ioc", TC0220IOC, 0)
+	MCFG_TC0220IOC_READ_0_CB(IOPORT("DSWA"))
+	MCFG_TC0220IOC_READ_1_CB(IOPORT("DSWB"))
+	MCFG_TC0220IOC_READ_2_CB(IOPORT("IN0"))
+	MCFG_TC0220IOC_READ_3_CB(IOPORT("IN1"))
+	MCFG_TC0220IOC_READ_7_CB(IOPORT("IN2"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -714,12 +703,19 @@ static MACHINE_CONFIG_START( airsys, taitoair_state )
 	MCFG_SCREEN_SIZE(64*16, 64*16)
 	MCFG_SCREEN_VISIBLE_AREA(0*16, 32*16-1, 3*16, 28*16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(taitoair_state, screen_update_taitoair)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(airsys)
-	MCFG_PALETTE_LENGTH(512*16+512*16)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", airsys)
 
-	MCFG_TC0080VCO_ADD("tc0080vco", airsys_tc0080vco_intf)
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 512*16+512*16)
+
+	MCFG_DEVICE_ADD("tc0080vco", TC0080VCO, 0)
+	MCFG_TC0080VCO_GFX_REGION(0)
+	MCFG_TC0080VCO_TX_REGION(1)
+	MCFG_TC0080VCO_OFFSETS(1, 1)
+	MCFG_TC0080VCO_BGFLIP_OFFS(-2)
+	MCFG_TC0080VCO_GFXDECODE("gfxdecode")
+	MCFG_TC0080VCO_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -730,7 +726,9 @@ static MACHINE_CONFIG_START( airsys, taitoair_state )
 	MCFG_SOUND_ROUTE(1, "mono", 0.60)
 	MCFG_SOUND_ROUTE(2, "mono", 0.60)
 
-	MCFG_TC0140SYT_ADD("tc0140syt", airsys_tc0140syt_intf)
+	MCFG_DEVICE_ADD("tc0140syt", TC0140SYT, 0)
+	MCFG_TC0140SYT_MASTER_CPU("maincpu")
+	MCFG_TC0140SYT_SLAVE_CPU("audiocpu")
 MACHINE_CONFIG_END
 
 

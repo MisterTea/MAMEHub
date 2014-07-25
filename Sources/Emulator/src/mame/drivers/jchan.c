@@ -189,7 +189,8 @@ public:
 		m_mainsub_shared_ram(*this, "mainsub_shared"),
 		m_ctrl(*this, "ctrl"),
 		m_maincpu(*this,"maincpu"),
-		m_subcpu(*this,"sub")
+		m_subcpu(*this,"sub"),
+		m_palette(*this, "palette")
 		{ }
 
 	optional_device<kaneko_view2_tilemap_device> m_view2_0;
@@ -209,6 +210,7 @@ public:
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
+	required_device<palette_device> m_palette;
 	sknsspr_device* m_spritegen1;
 	sknsspr_device* m_spritegen2;
 
@@ -305,7 +307,7 @@ UINT32 jchan_state::screen_update_jchan(screen_device &screen, bitmap_ind16 &bit
 	UINT16 pixdata1;
 	UINT16 pixdata2;
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	screen.priority().fill(0, cliprect);
 
@@ -446,7 +448,7 @@ static ADDRESS_MAP_START( jchan_main, AS_PROGRAM, 16, jchan_state )
 	AM_RANGE(0x500000, 0x503fff) AM_RAM_WRITE(jchan_suprnova_sprite32_1_w) AM_SHARE("spriteram_1")
 	AM_RANGE(0x600000, 0x60003f) AM_RAM_WRITE(jchan_suprnova_sprite32regs_1_w) AM_SHARE("sprregs_1")
 
-	AM_RANGE(0x700000, 0x70ffff) AM_RAM_WRITE(paletteram_xGGGGGRRRRRBBBBB_word_w) AM_SHARE("paletteram") // palette for sprites?
+	AM_RANGE(0x700000, 0x70ffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // palette for sprites?
 
 	AM_RANGE(0xf00000, 0xf00007) AM_READWRITE(jchan_ctrl_r, jchan_ctrl_w) AM_SHARE("ctrl")
 
@@ -588,7 +590,7 @@ static MACHINE_CONFIG_START( jchan, jchan_state )
 	MCFG_CPU_ADD("sub", M68000, 16000000)
 	MCFG_CPU_PROGRAM_MAP(jchan_sub)
 
-	MCFG_GFXDECODE(jchan)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jchan)
 
 
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -597,12 +599,15 @@ static MACHINE_CONFIG_START( jchan, jchan_state )
 	MCFG_SCREEN_SIZE(64*8, 64*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(jchan_state, screen_update_jchan)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x10000)
+	MCFG_PALETTE_ADD("palette", 0x10000)
+	MCFG_PALETTE_FORMAT(xGGGGGRRRRRBBBBB)
 
 	MCFG_DEVICE_ADD("view2_0", KANEKO_TMAP, 0)
 	kaneko_view2_tilemap_device::set_gfx_region(*device, 1);
 	kaneko_view2_tilemap_device::set_offset(*device, 25, 11, 320, 240);
+	MCFG_KANEKO_TMAP_GFXDECODE("gfxdecode")
 
 
 

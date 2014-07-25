@@ -104,7 +104,7 @@ static ADDRESS_MAP_START( ashnojoe_map, AS_PROGRAM, 16, ashnojoe_state )
 	AM_RANGE(0x046000, 0x046fff) AM_RAM_WRITE(ashnojoe_tileram6_w) AM_SHARE("tileram_6")
 	AM_RANGE(0x047000, 0x047fff) AM_RAM_WRITE(ashnojoe_tileram7_w) AM_SHARE("tileram_7")
 	AM_RANGE(0x048000, 0x048fff) AM_RAM_WRITE(ashnojoe_tileram_w) AM_SHARE("tileram")
-	AM_RANGE(0x049000, 0x049fff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x049000, 0x049fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x04a000, 0x04a001) AM_READ_PORT("P1")
 	AM_RANGE(0x04a002, 0x04a003) AM_READ_PORT("P2")
 	AM_RANGE(0x04a004, 0x04a005) AM_READ_PORT("DSW")
@@ -289,16 +289,6 @@ WRITE8_MEMBER(ashnojoe_state::ym2203_write_b)
 	membank("bank4")->set_entry(data & 0x0f);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(ashnojoe_state,ym2203_write_a),
-	DEVCB_DRIVER_MEMBER(ashnojoe_state,ym2203_write_b),
-};
-
 WRITE_LINE_MEMBER(ashnojoe_state::ashnojoe_vclk_cb)
 {
 	if (m_msm5205_vclk_toggle == 0)
@@ -313,13 +303,6 @@ WRITE_LINE_MEMBER(ashnojoe_state::ashnojoe_vclk_cb)
 
 	m_msm5205_vclk_toggle ^= 1;
 }
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(ashnojoe_state,ashnojoe_vclk_cb),
-	MSM5205_S48_4B
-};
-
 
 void ashnojoe_state::machine_start()
 {
@@ -355,21 +338,24 @@ static MACHINE_CONFIG_START( ashnojoe, ashnojoe_state )
 	MCFG_SCREEN_SIZE(512, 512)
 	MCFG_SCREEN_VISIBLE_AREA(14*8, 50*8-1, 3*8, 29*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ashnojoe_state, screen_update_ashnojoe)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ashnojoe)
-	MCFG_PALETTE_LENGTH(0x1000/2)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ashnojoe)
+	MCFG_PALETTE_ADD("palette", 0x1000/2)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 4000000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(ashnojoe_state, ym2203_irq_handler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(ashnojoe_state, ym2203_write_a))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(ashnojoe_state, ym2203_write_b))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.1)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(ashnojoe_state, ashnojoe_vclk_cb))
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

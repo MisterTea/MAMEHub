@@ -2,7 +2,7 @@
 
   Copyright (C) Antoine Mine' 2008
 
-   Hewlett Packard HP48 S/SX & G/GX
+   Hewlett Packard HP48 S/SX & G/GX and HP49 G
 
 **********************************************************************/
 
@@ -11,20 +11,22 @@
 #endif
 #include "sound/dac.h"
 /* model */
-enum hp48_models {
+typedef enum {
 	HP48_S,
 	HP48_SX,
 	HP48_G,
 	HP48_GX,
 	HP48_GP,
-};
+	HP49_G,
+} hp48_models;
 
 /* memory module configuration */
-struct hp48_module
+typedef struct
 {
 	/* static part */
 	UINT32 off_mask;             /* offset bit-mask, indicates the real size */
 	read8_delegate read;
+	const char *read_name;
 	write8_delegate write;
 	void* data;                  /* non-NULL for banks */
 	int isnop;
@@ -34,7 +36,7 @@ struct hp48_module
 	UINT32 base;                 /* base address */
 	UINT32 mask;                 /* often improperly called size, it is an address select mask */
 
-};
+} hp48_module;
 
 
 /* screen image averaging */
@@ -46,17 +48,30 @@ public:
 	hp48_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
-		m_dac(*this, "dac") { }
+		m_dac(*this, "dac"),
+		m_palette(*this, "palette")  { }
 
 	UINT8 *m_videoram;
 	UINT8 m_io[64];
 	hp48_models m_model;
+
+	/* OUT register from SATURN (actually 12-bit) */
 	UINT16 m_out;
+
+	/* keyboard interrupt */
 	UINT8 m_kdn;
+
+	/* from highest to lowest priority: HDW, NCE2, CE1, CE2, NCE3, NCE1 */
 	hp48_module m_modules[6];
+
+	/* RAM/ROM extensions, GX/SX only (each UINT8 stores one nibble)
+	   port1: SX/GX: 32/128 KB
+	   port2: SX:32/128KB, GX:128/512/4096 KB
+	*/
 	UINT32 m_port_size[2];
 	UINT8 m_port_write[2];
 	UINT8* m_port_data[2];
+
 	UINT32 m_bank_switch;
 	UINT32 m_io_addr;
 	UINT16 m_crc;
@@ -67,9 +82,12 @@ public:
 #endif
 	UINT8 m_screens[ HP48_NB_SCREENS ][ 64 ][ 144 ];
 	int m_cur_screen;
+	UINT8* m_rom;
+
 	DECLARE_DRIVER_INIT(hp48);
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(hp48);
+	DECLARE_MACHINE_START(hp49g);
 	DECLARE_MACHINE_START(hp48gx);
 	DECLARE_MACHINE_START(hp48g);
 	DECLARE_MACHINE_START(hp48gp);
@@ -80,6 +98,7 @@ public:
 	DECLARE_WRITE8_MEMBER(hp48_io_w);
 	DECLARE_READ8_MEMBER(hp48_io_r);
 	DECLARE_READ8_MEMBER(hp48_bank_r);
+	DECLARE_WRITE8_MEMBER(hp49_bank_w);
 	TIMER_CALLBACK_MEMBER(hp48_rs232_byte_recv_cb);
 	TIMER_CALLBACK_MEMBER(hp48_rs232_byte_sent_cb);
 	TIMER_CALLBACK_MEMBER(hp48_chardev_byte_recv_cb);
@@ -90,6 +109,7 @@ public:
 	void hp48_apply_modules();
 	required_device<cpu_device> m_maincpu;
 	required_device<dac_device> m_dac;
+	required_device<palette_device> m_palette;
 	void hp48_pulse_irq( int irq_line);
 	void hp48_rs232_start_recv_byte( UINT8 data );
 	void hp48_rs232_send_byte(  );
@@ -98,6 +118,22 @@ public:
 	void hp48_reset_modules(  );
 	void hp48_decode_nibble( UINT8* dst, UINT8* src, int size );
 	void hp48_encode_nibble( UINT8* dst, UINT8* src, int size );
+
+	/* memory controller */
+	DECLARE_WRITE_LINE_MEMBER( hp48_mem_reset );
+	DECLARE_WRITE32_MEMBER( hp48_mem_config );
+	DECLARE_WRITE32_MEMBER( hp48_mem_unconfig );
+	DECLARE_READ32_MEMBER( hp48_mem_id );
+
+	/* CRC computation */
+	DECLARE_WRITE32_MEMBER( hp48_mem_crc );
+
+	/* IN/OUT registers */
+	DECLARE_READ32_MEMBER( hp48_reg_in );
+	DECLARE_WRITE32_MEMBER( hp48_reg_out );
+
+	/* keybord interrupt system */
+	DECLARE_WRITE_LINE_MEMBER( hp48_rsi );
 };
 
 
@@ -127,48 +163,29 @@ public:
     FUNCTION PROTOTYPES
 ***************************************************************************/
 
-
-/************************ Saturn's I/O *******************************/
-
-/* memory controller */
-void hp48_mem_reset( device_t *device );
-void hp48_mem_config( device_t *device, int v );
-void hp48_mem_unconfig( device_t *device, int v );
-int  hp48_mem_id( device_t *device );
-
-/* CRC computation */
-void hp48_mem_crc( device_t *device, int addr, int data );
-
-/* IN/OUT registers */
-int  hp48_reg_in( device_t *device );
-void hp48_reg_out( device_t *device, int v );
-
-/* keybord interrupt system */
-void hp48_rsi( device_t *device );
-
-
-/***************************** serial ********************************/
-
-extern void hp48_rs232_start_recv_byte( running_machine &machine, UINT8 data );
-
+/* list of memory modules from highest to lowest priority */
+#define HP48_HDW  0
+#define HP48_NCE2 1
+#define HP48_CE1  2
+#define HP48_CE2  3
+#define HP48_NCE3 4
+#define HP48_NCE1 5
 
 /****************************** cards ********************************/
 
-/* port specification */
-struct hp48_port_interface
-{
-	int port;                 /* port index: 0 or 1 (for port 1 and 2) */
-	int module;               /* memory module where the port is visible */
-	int max_size;             /* maximum size, in bytes 128 KB or 4 GB */
-};
-
 class hp48_port_image_device :  public device_t,
-								public device_image_interface,
-								public hp48_port_interface
+								public device_image_interface
 {
 public:
 	// construction/destruction
 	hp48_port_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	static void set_port_config(device_t &device, int port, int module, int max_size)
+	{
+		downcast<hp48_port_image_device &>(device).m_port = port;
+		downcast<hp48_port_image_device &>(device).m_module = module;
+		downcast<hp48_port_image_device &>(device).m_max_size = max_size;
+	}
 
 	// image-level overrides
 	virtual iodevice_t image_type() const { return IO_MEMCARD; }
@@ -192,16 +209,15 @@ protected:
 private:
 	void hp48_fill_port();
 	void hp48_unfill_port();
-};
 
-extern const struct hp48_port_interface hp48sx_port1_config;
-extern const struct hp48_port_interface hp48sx_port2_config;
-extern const struct hp48_port_interface hp48gx_port1_config;
-extern const struct hp48_port_interface hp48gx_port2_config;
+	int m_port;                 /* port index: 0 or 1 (for port 1 and 2) */
+	int m_module;               /* memory module where the port is visible */
+	int m_max_size;             /* maximum size, in bytes 128 KB or 4 GB */
+};
 
 // device type definition
 extern const device_type HP48_PORT;
 
-#define MCFG_HP48_PORT_ADD(_tag, _intrf) \
+#define MCFG_HP48_PORT_ADD(_tag, _port, _module, _max_size) \
 	MCFG_DEVICE_ADD(_tag, HP48_PORT, 0) \
-	MCFG_DEVICE_CONFIG(_intrf)
+	hp48_port_image_device::set_port_config(*device, _port, _module, _max_size);

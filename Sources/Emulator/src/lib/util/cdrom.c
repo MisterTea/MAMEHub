@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     cdrom.c
 
     Generic MAME CD-ROM utilties - build IDE and SCSI CD-ROMs on top of this
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************
 
@@ -58,7 +29,7 @@
 #define VERBOSE (0)
 #if VERBOSE
 #define LOG(x) do { if (VERBOSE) logerror x; } while (0)
-void CLIB_DECL logerror(const char *text,...);
+void CLIB_DECL logerror(const char *text, ...) ATTR_PRINTF(1,2);
 #else
 #define LOG(x)
 #endif
@@ -359,32 +330,44 @@ void cdrom_close(cdrom_file *file)
 
 chd_error read_partial_sector(cdrom_file *file, void *dest, UINT32 lbasector, UINT32 chdsector, UINT32 tracknum, UINT32 startoffs, UINT32 length)
 {
+	chd_error result = CHDERR_NONE;
+	bool needswap = false;
+
 	// if this is pregap info that isn't actually in the file, just return blank data
 	if ((file->cdtoc.tracks[tracknum].pgdatasize == 0) && (lbasector < (file->cdtoc.tracks[tracknum].logframeofs + file->cdtoc.tracks[tracknum].pregap)))
 	{
 //      printf("PG missing sector: LBA %d, trklog %d\n", lbasector, file->cdtoc.tracks[tracknum].logframeofs);
 		memset(dest, 0, length);
-		return CHDERR_NONE;
+		return result;
 	}
 
 	// if a CHD, just read
 	if (file->chd != NULL)
-		return file->chd->read_bytes(UINT64(chdsector) * UINT64(CD_FRAME_SIZE) + startoffs, dest, length);
+	{
+		result = file->chd->read_bytes(UINT64(chdsector) * UINT64(CD_FRAME_SIZE) + startoffs, dest, length);
+		/* swap CDDA in the case of LE GDROMs */
+		if ((file->cdtoc.flags & CD_FLAG_GDROMLE) && (file->cdtoc.tracks[tracknum].trktype == CD_TRACK_AUDIO))
+			needswap = true;
+	}
+	else
+	{
+		// else read from the appropriate file
+		core_file *srcfile = file->fhandle[tracknum];
 
-	// else read from the appropriate file
-	core_file *srcfile = file->fhandle[tracknum];
+		UINT64 sourcefileoffset = file->track_info.track[tracknum].offset;
+		int bytespersector = file->cdtoc.tracks[tracknum].datasize + file->cdtoc.tracks[tracknum].subsize;
 
-	UINT64 sourcefileoffset = file->track_info.track[tracknum].offset;
-	int bytespersector = file->cdtoc.tracks[tracknum].datasize + file->cdtoc.tracks[tracknum].subsize;
+		sourcefileoffset += chdsector * bytespersector + startoffs;
 
-	sourcefileoffset += chdsector * bytespersector + startoffs;
+		//  printf("Reading sector %d from track %d at offset %lld\n", chdsector, tracknum, sourcefileoffset);
 
-//  printf("Reading sector %d from track %d at offset %lld\n", chdsector, tracknum, sourcefileoffset);
+		core_fseek(srcfile, sourcefileoffset, SEEK_SET);
+		core_fread(srcfile, dest, length);
 
-	core_fseek(srcfile, sourcefileoffset, SEEK_SET);
-	core_fread(srcfile, dest, length);
+		needswap = file->track_info.track[tracknum].swap;
+	}
 
-	if (file->track_info.track[tracknum].swap)
+	if (needswap)
 	{
 		UINT8 *buffer = (UINT8 *)dest - startoffs;
 		for (int swapindex = startoffs; swapindex < 2352; swapindex += 2 )
@@ -394,7 +377,7 @@ chd_error read_partial_sector(cdrom_file *file, void *dest, UINT32 lbasector, UI
 			buffer[ swapindex + 1 ] = swaptemp;
 		}
 	}
-	return CHDERR_NONE;
+	return result;
 }
 
 
@@ -494,7 +477,7 @@ UINT32 cdrom_read_subcode(cdrom_file *file, UINT32 lbasector, void *buffer, bool
 	}
 
 	if (file->cdtoc.tracks[tracknum].subsize == 0)
-		return 1;
+		return 0;
 
 	// read the data
 	chd_error err = read_partial_sector(file, buffer, lbasector, chdsector, tracknum, file->cdtoc.tracks[tracknum].datasize, file->cdtoc.tracks[tracknum].subsize);
@@ -830,6 +813,8 @@ chd_error cdrom_parse_metadata(chd_file *chd, cdrom_toc *toc)
 	chd_error err;
 	int i;
 
+	toc->flags = 0;
+
 	/* start with no tracks */
 	for (toc->numtrks = 0; toc->numtrks < CD_MAX_TRACKS; toc->numtrks++)
 	{
@@ -868,7 +853,12 @@ chd_error cdrom_parse_metadata(chd_file *chd, cdrom_toc *toc)
 			}
 			else
 			{
-				err = chd->read_metadata(GDROM_TRACK_METADATA_TAG, toc->numtrks, metadata);
+				err = chd->read_metadata(GDROM_OLD_METADATA_TAG, toc->numtrks, metadata);
+				if (err == CHDERR_NONE)
+					/* legacy GDROM track was detected */
+					toc->flags |= CD_FLAG_GDROMLE;
+				else
+					err = chd->read_metadata(GDROM_TRACK_METADATA_TAG, toc->numtrks, metadata);
 
 				if (err == CHDERR_NONE)
 				{

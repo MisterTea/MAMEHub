@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     Driver for Midway Zeus games
@@ -561,7 +563,7 @@ static ADDRESS_MAP_START( zeus_map, AS_PROGRAM, 32, midzeus_state )
 	AM_RANGE(0x808000, 0x80807f) AM_READWRITE(tms32031_control_r, tms32031_control_w) AM_SHARE("tms32031_ctl")
 	AM_RANGE(0x880000, 0x8803ff) AM_READWRITE(zeus_r, zeus_w) AM_SHARE("zeusbase")
 	AM_RANGE(0x8d0000, 0x8d0004) AM_READWRITE(bitlatches_r, bitlatches_w)
-	AM_RANGE(0x990000, 0x99000f) AM_READWRITE_LEGACY(midway_ioasic_r, midway_ioasic_w)
+	AM_RANGE(0x990000, 0x99000f) AM_DEVREADWRITE("ioasic", midway_ioasic_device, read, write)
 	AM_RANGE(0x9e0000, 0x9e0000) AM_WRITENOP        // watchdog?
 	AM_RANGE(0x9f0000, 0x9f7fff) AM_READWRITE(cmos_r, cmos_w) AM_SHARE("nvram")
 	AM_RANGE(0x9f8000, 0x9f8000) AM_WRITE(cmos_protect_w)
@@ -569,16 +571,16 @@ static ADDRESS_MAP_START( zeus_map, AS_PROGRAM, 32, midzeus_state )
 ADDRESS_MAP_END
 
 
-static ADDRESS_MAP_START( zeus2_map, AS_PROGRAM, 32, midzeus_state )
+static ADDRESS_MAP_START( zeus2_map, AS_PROGRAM, 32, midzeus2_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000000, 0x03ffff) AM_RAM AM_SHARE("ram_base")
 	AM_RANGE(0x400000, 0x43ffff) AM_RAM
 	AM_RANGE(0x808000, 0x80807f) AM_READWRITE(tms32031_control_r, tms32031_control_w) AM_SHARE("tms32031_ctl")
-	AM_RANGE(0x880000, 0x88007f) AM_READWRITE_LEGACY(zeus2_r, zeus2_w) AM_SHARE("zeusbase")
+	AM_RANGE(0x880000, 0x88007f) AM_READWRITE(zeus2_r, zeus2_w) AM_SHARE("zeusbase")
 	AM_RANGE(0x8a0000, 0x8a003f) AM_READWRITE(linkram_r, linkram_w) AM_SHARE("linkram")
 	AM_RANGE(0x8d0000, 0x8d000a) AM_READWRITE(bitlatches_r, bitlatches_w)
 	AM_RANGE(0x900000, 0x91ffff) AM_READWRITE(zpram_r, zpram_w) AM_SHARE("nvram") AM_MIRROR(0x020000)
-	AM_RANGE(0x990000, 0x99000f) AM_READWRITE_LEGACY(midway_ioasic_r, midway_ioasic_w)
+	AM_RANGE(0x990000, 0x99000f) AM_DEVREADWRITE("ioasic", midway_ioasic_device, read, write)
 	AM_RANGE(0x9c0000, 0x9c000f) AM_READWRITE(analog_r, analog_w)
 	AM_RANGE(0x9e0000, 0x9e0000) AM_WRITENOP        // watchdog?
 	AM_RANGE(0x9f0000, 0x9f7fff) AM_READWRITE(zeus2_timekeeper_r, zeus2_timekeeper_w)
@@ -1091,16 +1093,27 @@ static MACHINE_CONFIG_START( midzeus, midzeus_state )
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD("palette", 32768)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MIDZEUS_VIDEO_CLOCK/8, 529, 0, 400, 278, 0, 256)
 	MCFG_SCREEN_UPDATE_DRIVER(midzeus_state, screen_update_midzeus)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(midzeus_state,midzeus)
 
 	/* sound hardware */
-	MCFG_FRAGMENT_ADD(dcs2_audio_2104)
+	MCFG_DEVICE_ADD("dcs", DCS2_AUDIO_2104, 0)
+
+	MCFG_DEVICE_ADD("ioasic", MIDWAY_IOASIC, 0)
+	MCFG_MIDWAY_IOASIC_SHUFFLE(MIDWAY_IOASIC_STANDARD)
+	MCFG_MIDWAY_SERIAL_PIC2_YEAR_OFFS(94)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( mk4, midzeus )
+	MCFG_DEVICE_MODIFY("ioasic")
+	MCFG_MIDWAY_IOASIC_UPPER(461/* or 474 */)
+	MCFG_MIDWAY_IOASIC_SHUFFLE_DEFAULT(1)
 MACHINE_CONFIG_END
 
 READ8_MEMBER(midzeus_state::PIC16C5X_T0_clk_r)
@@ -1114,35 +1127,52 @@ ADDRESS_MAP_END
 
 
 static MACHINE_CONFIG_DERIVED( invasn, midzeus )
-
 	MCFG_CPU_ADD("pic", PIC16C57, 8000000)  /* ? */
 	MCFG_CPU_IO_MAP(pic_io_map)
+
+	MCFG_DEVICE_MODIFY("ioasic")
+	MCFG_MIDWAY_IOASIC_UPPER(468/* or 488 */)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_START( midzeus2, midzeus_state )
+static MACHINE_CONFIG_START( midzeus2, midzeus2_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", TMS32032, CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(zeus2_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", midzeus_state,  display_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", midzeus2_state,  display_irq)
 
-	MCFG_MACHINE_START_OVERRIDE(midzeus_state,midzeus)
-	MCFG_MACHINE_RESET_OVERRIDE(midzeus_state,midzeus)
+	MCFG_MACHINE_START_OVERRIDE(midzeus2_state,midzeus)
+	MCFG_MACHINE_RESET_OVERRIDE(midzeus2_state,midzeus)
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MIDZEUS_VIDEO_CLOCK/4, 666, 0, 512, 438, 0, 400)
-	MCFG_SCREEN_UPDATE_DRIVER(midzeus_state, screen_update_midzeus2)
+	MCFG_SCREEN_UPDATE_DRIVER(midzeus2_state, screen_update_midzeus2)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_VIDEO_START_OVERRIDE(midzeus_state,midzeus2)
+	MCFG_VIDEO_START_OVERRIDE(midzeus2_state,midzeus2)
 
 	/* sound hardware */
-	MCFG_FRAGMENT_ADD(dcs2_audio_2104)
+	MCFG_DEVICE_ADD("dcs", DCS2_AUDIO_2104, 0)
 
 	MCFG_M48T35_ADD( "m48t35" )
+
+	MCFG_DEVICE_ADD("ioasic", MIDWAY_IOASIC, 0)
+	MCFG_MIDWAY_IOASIC_SHUFFLE(MIDWAY_IOASIC_STANDARD)
+	MCFG_MIDWAY_SERIAL_PIC2_YEAR_OFFS(99)
+	MCFG_MIDWAY_IOASIC_UPPER(474)
 MACHINE_CONFIG_END
 
+static MACHINE_CONFIG_DERIVED( crusnexo, midzeus2 )
+	MCFG_DEVICE_MODIFY("ioasic")
+	MCFG_MIDWAY_IOASIC_UPPER(472/* or 476,477,478,110 */)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( thegrid, midzeus2 )
+	MCFG_DEVICE_MODIFY("ioasic")
+	MCFG_MIDWAY_IOASIC_UPPER(474/* or 491 */)
+MACHINE_CONFIG_END
 
 
 /*************************************
@@ -1227,7 +1257,7 @@ ROM_START( invasnab ) /* Version 5.0 Program roms, v4.0 Graphics roms, v2.0 Soun
 	ROM_LOAD32_WORD( "invasion4.u19", 0x1000002, 0x200000, CRC(89fa6ee5) SHA1(572565e1308142b0b062aa72315c68e928f2419c) )
 ROM_END
 
-ROM_START( invasnv4 ) /* Version 4.0 Program roms & Graphics roms, v2.0 Sound roms */
+ROM_START( invasnab4 ) /* Version 4.0 Program roms & Graphics roms, v2.0 Sound roms */
 	ROM_REGION16_LE( 0x1000000, "dcs", ROMREGION_ERASEFF )  /* sound data */
 	ROM_LOAD16_BYTE( "invasion2.u2", 0x000000, 0x200000, CRC(59d2e1d6) SHA1(994a4311ac4841d4341449c0c7480952b6f3855d) ) /* These four sound roms were labeled as v2.0 */
 	ROM_LOAD16_BYTE( "invasion2.u3", 0x400000, 0x200000, CRC(86b956ae) SHA1(f7fd4601a2ce3e7e9b67e7d77908bfa206ee7e62) )
@@ -1248,6 +1278,29 @@ ROM_START( invasnv4 ) /* Version 4.0 Program roms & Graphics roms, v2.0 Sound ro
 	ROM_LOAD32_WORD( "invasion4.u17", 0x0c00002, 0x200000, CRC(97aa677a) SHA1(4d21cc59e0ffd4985f89c97c71d605c3b404a8a3) )
 	ROM_LOAD32_WORD( "invasion4.u18", 0x1000000, 0x200000, CRC(6930c656) SHA1(28054ff9a6c6f5764a371f8defe4c1f5730618f3) )
 	ROM_LOAD32_WORD( "invasion4.u19", 0x1000002, 0x200000, CRC(89fa6ee5) SHA1(572565e1308142b0b062aa72315c68e928f2419c) )
+ROM_END
+
+ROM_START( invasnab3 ) /* Version 3.0 Program roms & v2.0 Graphics roms, v2.0 Sound roms */
+	ROM_REGION16_LE( 0x1000000, "dcs", ROMREGION_ERASEFF )  /* sound data */
+	ROM_LOAD16_BYTE( "invasion2.u2", 0x000000, 0x200000, CRC(59d2e1d6) SHA1(994a4311ac4841d4341449c0c7480952b6f3855d) ) /* These four sound roms were labeled as v2.0 Dated 6/24/99 */
+	ROM_LOAD16_BYTE( "invasion2.u3", 0x400000, 0x200000, CRC(86b956ae) SHA1(f7fd4601a2ce3e7e9b67e7d77908bfa206ee7e62) )
+	ROM_LOAD16_BYTE( "invasion2.u4", 0x800000, 0x200000, CRC(5ef1fab5) SHA1(987afa0672fa89b18cf20d28644848a9e5ee9b17) )
+	ROM_LOAD16_BYTE( "invasion2.u5", 0xc00000, 0x200000, CRC(e42805c9) SHA1(e5b71eb1852809a649ac43a82168b3bdaf4b1526) )
+
+	ROM_REGION( 0x2000, "pic", 0 ) /* PIC16c57 Code */
+	ROM_LOAD( "pic16c57.u76", 0x00000, 0x2000, CRC(f62729c9) SHA1(9642c53dd7eceeb7eb178497d367691c44abc5c5) ) // is this even a valid dump?
+
+	ROM_REGION32_LE( 0x1800000, "user1", 0 )
+	ROM_LOAD32_WORD( "invasion3.u10", 0x0000000, 0x200000, CRC(8404830e) SHA1(808fea45fb09fb7bf60f9f1e195a51d39e9966f5) ) /* Roms U10 through U13 were labeled as v3.0 Dated 8/30 */
+	ROM_LOAD32_WORD( "invasion3.u11", 0x0000002, 0x200000, CRC(cb893a37) SHA1(c0b8283d9b6b2b1a5fed7f542a8964ed875182b1) )
+	ROM_LOAD32_WORD( "invasion3.u12", 0x0400000, 0x200000, CRC(79bfa881) SHA1(7c68a2f236223506f24a38d21836d132f2e10ac3) )
+	ROM_LOAD32_WORD( "invasion3.u13", 0x0400002, 0x200000, CRC(7a371a4a) SHA1(e87e7a9d6417057c2fc3dae2bd8c45b673420b08) )
+	ROM_LOAD32_WORD( "invasion2.u14", 0x0800000, 0x200000, CRC(b51ecabd) SHA1(435888ec9886dcd22a2f24a199789d10889550b3) ) /* Roms U14 through U19 were labeled as v2.0 Dated 6/24/99 */
+	ROM_LOAD32_WORD( "invasion2.u15", 0x0800002, 0x200000, CRC(584b0596) SHA1(cab8222977ecc8a689f1f3f7ebc38ff7bec6a43f) )
+	ROM_LOAD32_WORD( "invasion2.u16", 0x0c00000, 0x200000, CRC(5d422855) SHA1(ceafd60b020b03de051765b9e9dd0d01285a0335) )
+	ROM_LOAD32_WORD( "invasion2.u17", 0x0c00002, 0x200000, CRC(c6555769) SHA1(a97361001311dd6fb28f79df422e6e8c27ea2495) )
+	ROM_LOAD32_WORD( "invasion2.u18", 0x1000000, 0x200000, CRC(dbc9548e) SHA1(6deac9fde26144a61bd63833a197801d159f0c9a) )
+	ROM_LOAD32_WORD( "invasion2.u19", 0x1000002, 0x200000, CRC(4b05a2a9) SHA1(3d47c22a809f5883e4795a9153161d3e29c64662) )
 ROM_END
 
 ROM_START( crusnexo )
@@ -1444,24 +1497,17 @@ ROM_END
 
 DRIVER_INIT_MEMBER(midzeus_state,mk4)
 {
-	dcs2_init(machine(), 0, 0);
-	midway_ioasic_init(machine(), MIDWAY_IOASIC_STANDARD, 461/* or 474 */, 94, NULL);
-	midway_ioasic_set_shuffle_state(1);
 }
 
 
 DRIVER_INIT_MEMBER(midzeus_state,invasn)
 {
-	dcs2_init(machine(), 0, 0);
-	midway_ioasic_init(machine(), MIDWAY_IOASIC_STANDARD, 468/* or 488 */, 94, NULL);
 	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x9c0000, 0x9c0000, read32_delegate(FUNC(midzeus_state::invasn_gun_r),this), write32_delegate(FUNC(midzeus_state::invasn_gun_w),this));
 }
 
 
 DRIVER_INIT_MEMBER(midzeus_state,crusnexo)
 {
-	dcs2_init(machine(), 0, 0);
-	midway_ioasic_init(machine(), MIDWAY_IOASIC_STANDARD, 472/* or 476,477,478,110 */, 99, NULL);
 	membank("bank1")->configure_entries(0, 3, memregion("user2")->base(), 0x400000*4);
 	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x9b0004, 0x9b0007, read32_delegate(FUNC(midzeus_state::crusnexo_leds_r),this), write32_delegate(FUNC(midzeus_state::crusnexo_leds_w),this));
 	m_maincpu->space(AS_PROGRAM).install_write_handler    (0x8d0009, 0x8d000a, write32_delegate(FUNC(midzeus_state::keypad_select_w),this));
@@ -1470,8 +1516,6 @@ DRIVER_INIT_MEMBER(midzeus_state,crusnexo)
 
 DRIVER_INIT_MEMBER(midzeus_state,thegrid)
 {
-	dcs2_init(machine(), 0, 0);
-	midway_ioasic_init(machine(), MIDWAY_IOASIC_STANDARD, 474/* or 491 */, 99, NULL);
 	membank("bank1")->configure_entries(0, 3, memregion("user2")->base(), 0x400000*4);
 }
 
@@ -1483,15 +1527,16 @@ DRIVER_INIT_MEMBER(midzeus_state,thegrid)
  *
  *************************************/
 
-GAME(  1997, mk4,      0,        midzeus,  mk4, midzeus_state,      mk4,      ROT0, "Midway", "Mortal Kombat 4 (version 3.0)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME(  1997, mk4a,     mk4,      midzeus,  mk4, midzeus_state,      mk4,      ROT0, "Midway", "Mortal Kombat 4 (version 2.1)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME(  1997, mk4b,     mk4,      midzeus,  mk4, midzeus_state,      mk4,      ROT0, "Midway", "Mortal Kombat 4 (version 1.0)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME(  1999, invasnab, 0,        invasn,   invasn, midzeus_state,   invasn,   ROT0, "Midway", "Invasion - The Abductors (version 5.0)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME(  1999, invasnv4, invasnab, invasn,   invasn, midzeus_state,   invasn,   ROT0, "Midway", "Invasion - The Abductors (version 4.0)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAMEL( 1999, crusnexo, 0,        midzeus2, crusnexo, midzeus_state, crusnexo, ROT0, "Midway", "Cruis'n Exotica (version 2.4)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE, layout_crusnexo )
-GAMEL( 1999, crusnexoa,crusnexo, midzeus2, crusnexo, midzeus_state, crusnexo, ROT0, "Midway", "Cruis'n Exotica (version 2.0)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE, layout_crusnexo )
-GAMEL( 1999, crusnexob,crusnexo, midzeus2, crusnexo, midzeus_state, crusnexo, ROT0, "Midway", "Cruis'n Exotica (version 1.6)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE, layout_crusnexo )
-GAMEL( 1999, crusnexoc,crusnexo, midzeus2, crusnexo, midzeus_state, crusnexo, ROT0, "Midway", "Cruis'n Exotica (version 1.3)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE, layout_crusnexo )
-GAMEL( 1999, crusnexod,crusnexo, midzeus2, crusnexo, midzeus_state, crusnexo, ROT0, "Midway", "Cruis'n Exotica (version 1.0)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE, layout_crusnexo )
-GAME(  2001, thegrid,  0,        midzeus2, thegrid, midzeus_state,  thegrid,  ROT0, "Midway", "The Grid (version 1.2)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME(  2001, thegrida, thegrid,  midzeus2, thegrid, midzeus_state,  thegrid,  ROT0, "Midway", "The Grid (version 1.1)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME(  1997, mk4,      0,        mk4,      mk4,      midzeus_state, mk4,      ROT0, "Midway", "Mortal Kombat 4 (version 3.0)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME(  1997, mk4a,     mk4,      mk4,      mk4,      midzeus_state, mk4,      ROT0, "Midway", "Mortal Kombat 4 (version 2.1)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME(  1997, mk4b,     mk4,      mk4,      mk4,      midzeus_state, mk4,      ROT0, "Midway", "Mortal Kombat 4 (version 1.0)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME(  1999, invasnab, 0,        invasn,   invasn,   midzeus_state, invasn,   ROT0, "Midway", "Invasion - The Abductors (version 5.0)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME(  1999, invasnab4,invasnab, invasn,   invasn,   midzeus_state, invasn,   ROT0, "Midway", "Invasion - The Abductors (version 4.0)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME(  1999, invasnab3,invasnab, invasn,   invasn,   midzeus_state, invasn,   ROT0, "Midway", "Invasion - The Abductors (version 3.0)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAMEL( 1999, crusnexo, 0,        crusnexo, crusnexo, midzeus_state, crusnexo, ROT0, "Midway", "Cruis'n Exotica (version 2.4)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE, layout_crusnexo )
+GAMEL( 1999, crusnexoa,crusnexo, crusnexo, crusnexo, midzeus_state, crusnexo, ROT0, "Midway", "Cruis'n Exotica (version 2.0)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE, layout_crusnexo )
+GAMEL( 1999, crusnexob,crusnexo, crusnexo, crusnexo, midzeus_state, crusnexo, ROT0, "Midway", "Cruis'n Exotica (version 1.6)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE, layout_crusnexo )
+GAMEL( 1999, crusnexoc,crusnexo, crusnexo, crusnexo, midzeus_state, crusnexo, ROT0, "Midway", "Cruis'n Exotica (version 1.3)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE, layout_crusnexo )
+GAMEL( 1999, crusnexod,crusnexo, crusnexo, crusnexo, midzeus_state, crusnexo, ROT0, "Midway", "Cruis'n Exotica (version 1.0)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE, layout_crusnexo )
+GAME(  2001, thegrid,  0,        thegrid,  thegrid,  midzeus_state, thegrid,  ROT0, "Midway", "The Grid (version 1.2)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME(  2001, thegrida, thegrid,  thegrid,  thegrid,  midzeus_state, thegrid,  ROT0, "Midway", "The Grid (version 1.1)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )

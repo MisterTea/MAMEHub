@@ -148,7 +148,7 @@ static ADDRESS_MAP_START( rygar_map, AS_PROGRAM, 8, tecmo_state )
 	AM_RANGE(0xd800, 0xdbff) AM_RAM_WRITE(tecmo_fgvideoram_w) AM_SHARE("fgvideoram")
 	AM_RANGE(0xdc00, 0xdfff) AM_RAM_WRITE(tecmo_bgvideoram_w) AM_SHARE("bgvideoram")
 	AM_RANGE(0xe000, 0xe7ff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xe800, 0xefff) AM_RAM_WRITE(paletteram_xxxxBBBBRRRRGGGG_byte_be_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe800, 0xefff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xf000, 0xf7ff) AM_ROMBANK("bank1")
 	AM_RANGE(0xf800, 0xf800) AM_READ_PORT("JOY1")
 	AM_RANGE(0xf801, 0xf801) AM_READ_PORT("BUTTONS1")
@@ -175,7 +175,7 @@ static ADDRESS_MAP_START( gemini_map, AS_PROGRAM, 8, tecmo_state )
 	AM_RANGE(0xd000, 0xd7ff) AM_RAM_WRITE(tecmo_txvideoram_w) AM_SHARE("txvideoram")
 	AM_RANGE(0xd800, 0xdbff) AM_RAM_WRITE(tecmo_fgvideoram_w) AM_SHARE("fgvideoram")
 	AM_RANGE(0xdc00, 0xdfff) AM_RAM_WRITE(tecmo_bgvideoram_w) AM_SHARE("bgvideoram")
-	AM_RANGE(0xe000, 0xe7ff) AM_RAM_WRITE(paletteram_xxxxBBBBRRRRGGGG_byte_be_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe000, 0xe7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xe800, 0xefff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0xf000, 0xf7ff) AM_ROMBANK("bank1")
 	AM_RANGE(0xf800, 0xf800) AM_READ_PORT("JOY1")
@@ -204,7 +204,7 @@ static ADDRESS_MAP_START( silkworm_map, AS_PROGRAM, 8, tecmo_state )
 	AM_RANGE(0xc800, 0xcfff) AM_RAM_WRITE(tecmo_txvideoram_w) AM_SHARE("txvideoram")
 	AM_RANGE(0xd000, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xe7ff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xe800, 0xefff) AM_RAM_WRITE(paletteram_xxxxBBBBRRRRGGGG_byte_be_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe800, 0xefff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xf000, 0xf7ff) AM_ROMBANK("bank1")
 	AM_RANGE(0xf800, 0xf800) AM_READ_PORT("JOY1")
 	AM_RANGE(0xf801, 0xf801) AM_READ_PORT("BUTTONS1")
@@ -606,13 +606,6 @@ WRITE_LINE_MEMBER(tecmo_state::irqhandler)
 	m_soundcpu->set_input_line(0, state);
 }
 
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(tecmo_state,tecmo_adpcm_int),    /* interrupt function */
-	MSM5205_S48_4B      /* 8KHz               */
-};
-
-
 MACHINE_RESET_MEMBER(tecmo_state,rygar)
 {
 	m_adpcm_pos = 0;
@@ -637,9 +630,14 @@ static MACHINE_CONFIG_START( rygar, tecmo_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tecmo_state, screen_update_tecmo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tecmo)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tecmo)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBRRRRGGGG)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
+
+	MCFG_DEVICE_ADD("spritegen", TECMO_SPRITE, 0)
 
 	MCFG_VIDEO_START_OVERRIDE(tecmo_state,tecmo)
 
@@ -653,7 +651,8 @@ static MACHINE_CONFIG_START( rygar, tecmo_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("msm", MSM5205, XTAL_400kHz) /* verified on pcb, even if schematics shows a 384khz resonator */
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(tecmo_state, tecmo_adpcm_int))    /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8KHz               */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -696,9 +695,12 @@ static MACHINE_CONFIG_START( backfirt, tecmo_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tecmo_state, screen_update_tecmo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tecmo)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tecmo)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBRRRRGGGG)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 
 	MCFG_VIDEO_START_OVERRIDE(tecmo_state,tecmo)
 

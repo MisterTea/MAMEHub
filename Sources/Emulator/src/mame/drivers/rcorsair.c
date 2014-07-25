@@ -142,9 +142,10 @@ static MACHINE_CONFIG_START( rcorsair, rcorsair_state )
 	MCFG_SCREEN_UPDATE_DRIVER(rcorsair_state, screen_update)
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0, 256-1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(rcorsair)
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rcorsair)
+	MCFG_PALETTE_ADD("palette", 0x100)
 MACHINE_CONFIG_END
 
 ROM_START( rcorsair )

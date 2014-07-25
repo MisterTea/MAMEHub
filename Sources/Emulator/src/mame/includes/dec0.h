@@ -1,3 +1,4 @@
+#include "machine/bankdev.h"
 #include "video/decbac06.h"
 #include "video/decmxc06.h"
 #include "sound/msm5205.h"
@@ -9,20 +10,24 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_ram(*this, "ram"),
 		m_spriteram(*this, "spriteram"),
+		m_paletteram(*this, "palette"),
 		m_robocop_shared_ram(*this, "robocop_shared"),
 		m_hippodrm_shared_ram(*this, "hippodrm_shared"),
 		m_tilegen1(*this, "tilegen1"),
 		m_tilegen2(*this, "tilegen2"),
 		m_tilegen3(*this, "tilegen3"),
 		m_spritegen(*this, "spritegen"),
+		m_pfprotect(*this, "pfprotect"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_subcpu(*this, "sub"),
 		m_mcu(*this, "mcu"),
-		m_msm(*this, "msm") { }
+		m_msm(*this, "msm"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT16> m_ram;
 	required_shared_ptr<UINT16> m_spriteram;
+	required_shared_ptr<UINT16> m_paletteram;
 	optional_shared_ptr<UINT8> m_robocop_shared_ram;
 	optional_shared_ptr<UINT8> m_hippodrm_shared_ram;
 
@@ -30,6 +35,8 @@ public:
 	optional_device<deco_bac06_device> m_tilegen2;
 	optional_device<deco_bac06_device> m_tilegen3;
 	optional_device<deco_mxc06_device> m_spritegen;
+
+	optional_device<address_map_bank_device> m_pfprotect;
 
 	int m_GAME;
 	int m_i8751_return;
@@ -44,7 +51,6 @@ public:
 	DECLARE_WRITE16_MEMBER(dec0_control_w);
 	DECLARE_WRITE16_MEMBER(slyspy_control_w);
 	DECLARE_WRITE16_MEMBER(midres_sound_w);
-	DECLARE_WRITE16_MEMBER(unmapped_w);
 	DECLARE_READ16_MEMBER(slyspy_controls_r);
 	DECLARE_READ16_MEMBER(slyspy_protection_r);
 	DECLARE_WRITE16_MEMBER(slyspy_state_w);
@@ -62,8 +68,6 @@ public:
 	DECLARE_READ16_MEMBER(robocop_68000_share_r);
 	DECLARE_WRITE16_MEMBER(robocop_68000_share_w);
 	DECLARE_WRITE16_MEMBER(dec0_update_sprites_w);
-	DECLARE_WRITE16_MEMBER(dec0_paletteram_rg_w);
-	DECLARE_WRITE16_MEMBER(dec0_paletteram_b_w);
 	DECLARE_WRITE16_MEMBER(dec0_priority_w);
 	DECLARE_READ16_MEMBER(ffantasybl_242024_r);
 	DECLARE_READ16_MEMBER(ffantasybl_vblank_r);
@@ -85,13 +89,11 @@ public:
 	UINT32 screen_update_hippodrm(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_slyspy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_midres(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void update_24bitcol(int offset);
 	void baddudes_i8751_write(int data);
 	void birdtry_i8751_write(int data);
 	void dec0_i8751_write(int data);
 	void dec0_i8751_reset();
 	void h6280_decrypt(const char *cputag);
-	void slyspy_set_protection_map( int type);
 	DECLARE_WRITE_LINE_MEMBER(sound_irq);
 	DECLARE_WRITE_LINE_MEMBER(sound_irq2);
 	required_device<cpu_device> m_maincpu;
@@ -99,6 +101,7 @@ public:
 	optional_device<cpu_device> m_subcpu;
 	optional_device<cpu_device> m_mcu;
 	optional_device<msm5205_device> m_msm;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -121,7 +124,6 @@ public:
 	}
 	UINT16 m_automat_scroll_regs[4];
 
-	DECLARE_VIDEO_START(automat);
 	UINT32 screen_update_automat(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_secretab(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_WRITE_LINE_MEMBER(automat_vclk_cb);

@@ -2,13 +2,10 @@
 #include "includes/fastlane.h"
 
 
-void fastlane_state::palette_init()
+PALETTE_INIT_MEMBER(fastlane_state, fastlane)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int pal;
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x400);
 
 	for (pal = 0; pal < 0x10; pal++)
 	{
@@ -17,23 +14,8 @@ void fastlane_state::palette_init()
 		for (i = 0; i < 0x400; i++)
 		{
 			UINT8 ctabentry = (i & 0x3f0) | color_prom[(pal << 4) | (i & 0x0f)];
-			colortable_entry_set_value(machine().colortable, (pal << 10) | i, ctabentry);
+			palette.set_pen_indirect((pal << 10) | i, ctabentry);
 		}
-	}
-}
-
-
-void fastlane_state::set_pens(  )
-{
-	int i;
-
-	for (i = 0x00; i < 0x800; i += 2)
-	{
-		UINT16 data = m_paletteram[i | 1] | (m_paletteram[i] << 8);
-
-		rgb_t color = MAKE_RGB(pal5bit(data >> 0), pal5bit(data >> 5), pal5bit(data >> 10));
-
-		colortable_palette_set_color(machine().colortable, i >> 1, color);
 	}
 }
 
@@ -66,8 +48,7 @@ TILE_GET_INFO_MEMBER(fastlane_state::get_tile_info0)
 
 	bank = (bank & ~(mask << 1)) | ((ctrl_4 & mask) << 1);
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code+bank*256,
 			1 + 64 * (attr & 0x0f),
 			0);
@@ -94,8 +75,7 @@ TILE_GET_INFO_MEMBER(fastlane_state::get_tile_info1)
 
 	bank = (bank & ~(mask << 1)) | ((ctrl_4 & mask) << 1);
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code+bank*256,
 			0 + 64 * (attr & 0x0f),
 			0);
@@ -109,8 +89,8 @@ TILE_GET_INFO_MEMBER(fastlane_state::get_tile_info1)
 
 void fastlane_state::video_start()
 {
-	m_layer0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(fastlane_state::get_tile_info0),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_layer1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(fastlane_state::get_tile_info1),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_layer0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(fastlane_state::get_tile_info0),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_layer1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(fastlane_state::get_tile_info1),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_layer0->set_scroll_rows(32);
 
@@ -156,8 +136,6 @@ UINT32 fastlane_state::screen_update_fastlane(screen_device &screen, bitmap_ind1
 	finalclip0 &= cliprect;
 	finalclip1 &= cliprect;
 
-	set_pens();
-
 	/* set scroll registers */
 	address_space &space = machine().driver_data()->generic_space();
 	xoffs = m_k007121->ctrlram_r(space, 0);
@@ -167,7 +145,7 @@ UINT32 fastlane_state::screen_update_fastlane(screen_device &screen, bitmap_ind1
 	m_layer0->set_scrolly(0, m_k007121->ctrlram_r(space, 2));
 
 	m_layer0->draw(screen, bitmap, finalclip0, 0, 0);
-	m_k007121->sprites_draw(bitmap, cliprect, machine().gfx[0], machine().colortable, m_spriteram, 0, 40, 0, screen.priority(), (UINT32)-1);
+	m_k007121->sprites_draw(bitmap, cliprect, m_gfxdecode->gfx(0), m_palette, m_spriteram, 0, 40, 0, screen.priority(), (UINT32)-1);
 	m_layer1->draw(screen, bitmap, finalclip1, 0, 0);
 	return 0;
 }

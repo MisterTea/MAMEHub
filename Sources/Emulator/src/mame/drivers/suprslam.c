@@ -135,7 +135,7 @@ static ADDRESS_MAP_START( suprslam_map, AS_PROGRAM, 16, suprslam_state )
 //  AM_RANGE(0xff3000, 0xff3001) AM_WRITENOP // sprite buffer trigger?
 	AM_RANGE(0xff8000, 0xff8fff) AM_DEVREADWRITE("k053936", k053936_device, linectrl_r, linectrl_w)
 	AM_RANGE(0xff9000, 0xff9001) AM_WRITE(sound_command_w)
-	AM_RANGE(0xffa000, 0xffafff) AM_RAM_WRITE(paletteram_xGGGGGBBBBBRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xffa000, 0xffafff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xffd000, 0xffd01f) AM_DEVWRITE("k053936", k053936_device, ctrl_w)
 	AM_RANGE(0xffe000, 0xffe001) AM_WRITE(suprslam_bank_w)
 	AM_RANGE(0xfff000, 0xfff001) AM_READ_PORT("P1")
@@ -283,11 +283,6 @@ WRITE_LINE_MEMBER(suprslam_state::irqhandler)
 
 /*** MACHINE DRIVER **********************************************************/
 
-static const k053936_interface suprslam_k053936_intf =
-{
-	1, -45, -21 /* wrap, xoff, yoff */
-};
-
 void suprslam_state::machine_start()
 {
 	save_item(NAME(m_screen_bank));
@@ -313,24 +308,29 @@ static MACHINE_CONFIG_START( suprslam, suprslam_state )
 	MCFG_CPU_IO_MAP(sound_io_map)
 
 
-	MCFG_GFXDECODE(suprslam)
-
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", suprslam)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2300) /* hand-tuned */)
 	MCFG_SCREEN_SIZE(64*8, 64*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(suprslam_state, screen_update_suprslam)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x800)
+	MCFG_PALETTE_ADD("palette", 0x800)
+	MCFG_PALETTE_FORMAT(xGGGGGBBBBBRRRRR)
 
 	MCFG_DEVICE_ADD("vsystem_spr", VSYSTEM_SPR, 0)
 	MCFG_VSYSTEM_SPR_SET_TILE_INDIRECT( suprslam_state, suprslam_tile_callback )
 	MCFG_VSYSTEM_SPR_SET_GFXREGION(1)
+	MCFG_VSYSTEM_SPR_GFXDECODE("gfxdecode")
+	MCFG_VSYSTEM_SPR_PALETTE("palette")
 
-	MCFG_K053936_ADD("k053936", suprslam_k053936_intf)
+	MCFG_DEVICE_ADD("k053936", K053936, 0)
+	MCFG_K053936_WRAP(1)
+	MCFG_K053936_OFFSETS(-45, -21)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 

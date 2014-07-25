@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     render.c
 
     Core rendering system.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************
 
@@ -71,10 +42,10 @@
 #include "rendfont.h"
 #include "rendlay.h"
 #include "rendutil.h"
-#include "config.h"
+#include "emuconfig.h"
 #include "drivenum.h"
 #include "xmlfile.h"
-#include "ui.h"
+#include "ui/ui.h"
 
 
 
@@ -362,8 +333,6 @@ render_texture::render_texture()
 		m_next(NULL),
 		m_bitmap(NULL),
 		m_format(TEXFORMAT_ARGB32),
-		m_bcglookup(NULL),
-		m_bcglookup_entries(0),
 		m_osddata(~0L),
 		m_scaler(NULL),
 		m_param(NULL),
@@ -412,7 +381,7 @@ void render_texture::release()
 	for (int scalenum = 0; scalenum < ARRAY_LENGTH(m_scaled); scalenum++)
 	{
 		m_manager->invalidate_all(m_scaled[scalenum].bitmap);
-		auto_free(m_manager->machine(), m_scaled[scalenum].bitmap);
+		global_free(m_scaled[scalenum].bitmap);
 		m_scaled[scalenum].bitmap = NULL;
 		m_scaled[scalenum].seqid = 0;
 	}
@@ -423,11 +392,6 @@ void render_texture::release()
 	m_sbounds.set(0, -1, 0, -1);
 	m_format = TEXFORMAT_ARGB32;
 	m_curseq = 0;
-
-	// free any B/C/G lookup tables
-	auto_free(m_manager->machine(), m_bcglookup);
-	m_bcglookup = NULL;
-	m_bcglookup_entries = 0;
 }
 
 
@@ -458,7 +422,7 @@ void render_texture::set_bitmap(bitmap_t &bitmap, const rectangle &sbounds, text
 		if (m_scaled[scalenum].bitmap != NULL)
 		{
 			m_manager->invalidate_all(m_scaled[scalenum].bitmap);
-			auto_free(m_manager->machine(), m_scaled[scalenum].bitmap);
+			global_free(m_scaled[scalenum].bitmap);
 		}
 		m_scaled[scalenum].bitmap = NULL;
 		m_scaled[scalenum].seqid = 0;
@@ -496,7 +460,7 @@ bool render_texture::get_scaled(UINT32 dwidth, UINT32 dheight, render_texinfo &t
 	texinfo.osddata = m_osddata;
 
 	// are we scaler-free? if so, just return the source bitmap
-	const rgb_t *palbase = (m_format == TEXFORMAT_PALETTE16 || m_format == TEXFORMAT_PALETTEA16) ? palette_entry_list_adjusted(m_bitmap->palette()) : NULL;
+	const rgb_t *palbase = (m_format == TEXFORMAT_PALETTE16 || m_format == TEXFORMAT_PALETTEA16) ? m_bitmap->palette()->entry_list_adjusted() : NULL;
 	if (m_scaler == NULL || (m_bitmap != NULL && swidth == dwidth && sheight == dheight))
 	{
 		// add a reference and set up the source bitmap
@@ -542,11 +506,11 @@ bool render_texture::get_scaled(UINT32 dwidth, UINT32 dheight, render_texinfo &t
 		if (scaled->bitmap != NULL)
 		{
 			m_manager->invalidate_all(scaled->bitmap);
-			auto_free(m_manager->machine(), scaled->bitmap);
+			global_free(scaled->bitmap);
 		}
 
 		// allocate a new bitmap
-		scaled->bitmap = auto_alloc(m_manager->machine(), bitmap_argb32(dwidth, dheight));
+		scaled->bitmap = global_alloc(bitmap_argb32(dwidth, dheight));
 		scaled->seqid = ++m_curseq;
 
 		// let the scaler do the work
@@ -572,44 +536,20 @@ bool render_texture::get_scaled(UINT32 dwidth, UINT32 dheight, render_texinfo &t
 
 const rgb_t *render_texture::get_adjusted_palette(render_container &container)
 {
-	const rgb_t *adjusted;
-	int numentries;
-
 	// override the palette with our adjusted palette
 	switch (m_format)
 	{
 		case TEXFORMAT_PALETTE16:
 		case TEXFORMAT_PALETTEA16:
 
-			// if no adjustment necessary, return the raw palette
 			assert(m_bitmap->palette() != NULL);
-			adjusted = palette_entry_list_adjusted(m_bitmap->palette());
+
+			// if no adjustment necessary, return the raw palette
 			if (!container.has_brightness_contrast_gamma_changes())
-				return adjusted;
+				return m_bitmap->palette()->entry_list_adjusted();
 
-			// if this is the machine palette, return our precomputed adjusted palette
-			adjusted = container.bcg_lookup_table(m_format, m_bitmap->palette());
-			if (adjusted != NULL)
-				return adjusted;
-
-			// otherwise, ensure we have memory allocated and compute the adjusted result ourself
-			numentries = palette_get_num_colors(m_bitmap->palette()) * palette_get_num_groups(m_bitmap->palette());
-			if (m_bcglookup == NULL || m_bcglookup_entries < numentries)
-			{
-				rgb_t *newlookup = auto_alloc_array(m_manager->machine(), rgb_t, numentries);
-				memcpy(newlookup, m_bcglookup, m_bcglookup_entries * sizeof(rgb_t));
-				auto_free(m_manager->machine(), m_bcglookup);
-				m_bcglookup = newlookup;
-				m_bcglookup_entries = numentries;
-			}
-			for (int index = 0; index < numentries; index++)
-			{
-				UINT8 r = container.apply_brightness_contrast_gamma(RGB_RED(adjusted[index]));
-				UINT8 g = container.apply_brightness_contrast_gamma(RGB_GREEN(adjusted[index]));
-				UINT8 b = container.apply_brightness_contrast_gamma(RGB_BLUE(adjusted[index]));
-				m_bcglookup[index] = MAKE_ARGB(RGB_ALPHA(adjusted[index]), r, g, b);
-			}
-			return m_bcglookup;
+			// otherwise, return our adjusted palette
+			return container.bcg_lookup_table(m_format, m_bitmap->palette());
 
 		case TEXFORMAT_RGB32:
 		case TEXFORMAT_ARGB32:
@@ -640,33 +580,24 @@ const rgb_t *render_texture::get_adjusted_palette(render_container &container)
 render_container::render_container(render_manager &manager, screen_device *screen)
 	: m_next(NULL),
 		m_manager(manager),
-		m_itemlist(manager.machine().respool()),
-		m_item_allocator(manager.machine().respool()),
 		m_screen(screen),
 		m_overlaybitmap(NULL),
-		m_overlaytexture(NULL),
-		m_palclient(NULL)
+		m_overlaytexture(NULL)
 {
-	// all palette entries are opaque by default
-	for (int color = 0; color < ARRAY_LENGTH(m_bcglookup); color++)
-		m_bcglookup[color] = MAKE_ARGB(0xff,0x00,0x00,0x00);
-
 	// make sure it is empty
 	empty();
 
 	// if we have a screen, read and apply the options
-	if (screen != NULL)
+	if (m_screen != NULL)
 	{
 		// set the initial orientation and brightness/contrast/gamma
 		m_user.m_orientation = manager.machine().system().flags & ORIENTATION_MASK;
 		m_user.m_brightness = manager.machine().options().brightness();
 		m_user.m_contrast = manager.machine().options().contrast();
 		m_user.m_gamma = manager.machine().options().gamma();
+		// can't allocate palette client yet since palette and screen devices aren't started yet
 	}
 
-	// allocate a client to the main palette
-	if (manager.machine().palette != NULL)
-		m_palclient = palette_client_alloc(manager.machine().palette);
 	recompute_lookups();
 }
 
@@ -682,10 +613,6 @@ render_container::~render_container()
 
 	// free the overlay texture
 	m_manager.texture_free(m_overlaytexture);
-
-	// release our palette client
-	if (m_palclient != NULL)
-		palette_client_free(m_palclient);
 }
 
 
@@ -801,7 +728,15 @@ const rgb_t *render_container::bcg_lookup_table(int texformat, palette_t *palett
 	{
 		case TEXFORMAT_PALETTE16:
 		case TEXFORMAT_PALETTEA16:
-			return (palette != NULL && palette == palette_client_get_palette(m_palclient)) ? m_bcglookup : NULL;
+			if (m_palclient == NULL) // if adjusted palette hasn't been created yet, create it
+			{
+				assert(palette == m_screen->palette()->palette());
+				m_palclient.reset(global_alloc(palette_client(*palette)));
+				m_bcglookup.resize(palette->max_index());
+				recompute_lookups();
+			}
+			assert (palette == &m_palclient->palette());
+			return m_bcglookup;
 
 		case TEXFORMAT_RGB32:
 		case TEXFORMAT_ARGB32:
@@ -853,10 +788,10 @@ render_container::item &render_container::add_generic(UINT8 type, float x0, floa
 	newitem->m_bounds.y0 = y0;
 	newitem->m_bounds.x1 = x1;
 	newitem->m_bounds.y1 = y1;
-	newitem->m_color.r = (float)RGB_RED(argb) * (1.0f / 255.0f);
-	newitem->m_color.g = (float)RGB_GREEN(argb) * (1.0f / 255.0f);
-	newitem->m_color.b = (float)RGB_BLUE(argb) * (1.0f / 255.0f);
-	newitem->m_color.a = (float)RGB_ALPHA(argb) * (1.0f / 255.0f);
+	newitem->m_color.r = (float)argb.r() * (1.0f / 255.0f);
+	newitem->m_color.g = (float)argb.g() * (1.0f / 255.0f);
+	newitem->m_color.b = (float)argb.b() * (1.0f / 255.0f);
+	newitem->m_color.a = (float)argb.a() * (1.0f / 255.0f);
 	newitem->m_flags = 0;
 	newitem->m_internal = 0;
 	newitem->m_width = 0;
@@ -887,17 +822,17 @@ void render_container::recompute_lookups()
 	// recompute the palette entries
 	if (m_palclient != NULL)
 	{
-		palette_t *palette = palette_client_get_palette(m_palclient);
-		const pen_t *adjusted_palette = palette_entry_list_adjusted(palette);
-		int colors = palette_get_num_colors(palette) * palette_get_num_groups(palette);
+		palette_t &palette = m_palclient->palette();
+		const rgb_t *adjusted_palette = palette.entry_list_adjusted();
+		int colors = palette.max_index();
 
 		for (int i = 0; i < colors; i++)
 		{
-			pen_t newval = adjusted_palette[i];
+			rgb_t newval = adjusted_palette[i];
 			m_bcglookup[i] = (newval & 0xff000000) |
-										m_bcglookup256[0x200 + RGB_RED(newval)] |
-										m_bcglookup256[0x100 + RGB_GREEN(newval)] |
-										m_bcglookup256[0x000 + RGB_BLUE(newval)];
+										m_bcglookup256[0x200 + newval.r()] |
+										m_bcglookup256[0x100 + newval.g()] |
+										m_bcglookup256[0x000 + newval.b()];
 		}
 	}
 }
@@ -916,13 +851,13 @@ void render_container::update_palette()
 
 	// get the dirty list
 	UINT32 mindirty, maxdirty;
-	const UINT32 *dirty = palette_client_get_dirty_list(m_palclient, &mindirty, &maxdirty);
+	const UINT32 *dirty = m_palclient->dirty_list(mindirty, maxdirty);
 
 	// iterate over dirty items and update them
 	if (dirty != NULL)
 	{
-		palette_t *palette = palette_client_get_palette(m_palclient);
-		const pen_t *adjusted_palette = palette_entry_list_adjusted(palette);
+		palette_t &palette = m_palclient->palette();
+		const rgb_t *adjusted_palette = palette.entry_list_adjusted();
 
 		// loop over chunks of 32 entries, since we can quickly examine 32 at a time
 		for (UINT32 entry32 = mindirty / 32; entry32 <= maxdirty / 32; entry32++)
@@ -937,9 +872,9 @@ void render_container::update_palette()
 						UINT32 finalentry = entry32 * 32 + entry;
 						rgb_t newval = adjusted_palette[finalentry];
 						m_bcglookup[finalentry] = (newval & 0xff000000) |
-														m_bcglookup256[0x200 + RGB_RED(newval)] |
-														m_bcglookup256[0x100 + RGB_GREEN(newval)] |
-														m_bcglookup256[0x000 + RGB_BLUE(newval)];
+														m_bcglookup256[0x200 + newval.r()] |
+														m_bcglookup256[0x100 + newval.g()] |
+														m_bcglookup256[0x000 + newval.b()];
 					}
 		}
 	}
@@ -976,7 +911,6 @@ render_target::render_target(render_manager &manager, const char *layoutfile, UI
 	: m_next(NULL),
 		m_manager(manager),
 		m_curview(NULL),
-		m_filelist(*auto_alloc(manager.machine(), simple_list<layout_file>(manager.machine().respool()))),
 		m_flags(flags),
 		m_listindex(0),
 		m_width(640),
@@ -987,8 +921,7 @@ render_target::render_target(render_manager &manager, const char *layoutfile, UI
 		m_base_view(NULL),
 		m_base_orientation(ROT0),
 		m_maxtexwidth(65536),
-		m_maxtexheight(65536),
-		m_debug_containers(manager.machine().respool())
+		m_maxtexheight(65536)
 {
 	// determine the base layer configuration based on options
 	m_base_layerconfig.set_backdrops_enabled(manager.machine().options().use_backdrops());
@@ -1037,7 +970,6 @@ render_target::render_target(render_manager &manager, const char *layoutfile, UI
 
 render_target::~render_target()
 {
-	auto_free(m_manager.machine(), &m_filelist);
 }
 
 
@@ -1121,7 +1053,7 @@ int render_target::configured_view(const char *viewname, int targetindex, int nu
 	{
 		// scan for a matching view name
 		for (view = view_by_index(viewindex = 0); view != NULL; view = view_by_index(++viewindex))
-			if (mame_strnicmp(view->name(), viewname, strlen(viewname)) == 0)
+			if (core_strnicmp(view->name(), viewname, strlen(viewname)) == 0)
 				break;
 	}
 
@@ -1654,9 +1586,9 @@ bool render_target::load_layout_file(const char *dirname, const char *filename)
 	if (rootnode == NULL)
 	{
 		if (filename[0] != '<')
-			mame_printf_warning("Improperly formatted XML file '%s', ignoring\n", filename);
+			osd_printf_warning("Improperly formatted XML file '%s', ignoring\n", filename);
 		else
-			mame_printf_warning("Improperly formatted XML string, ignoring\n");
+			osd_printf_warning("Improperly formatted XML string, ignoring\n");
 		return false;
 	}
 
@@ -1664,14 +1596,14 @@ bool render_target::load_layout_file(const char *dirname, const char *filename)
 	bool result = true;
 	try
 	{
-		m_filelist.append(*auto_alloc(m_manager.machine(), layout_file(m_manager.machine(), *rootnode, dirname)));
+		m_filelist.append(*global_alloc(layout_file(m_manager.machine(), *rootnode, dirname)));
 	}
 	catch (emu_fatalerror &err)
 	{
 		if (filename[0] != '<')
-			mame_printf_warning("Error in XML file '%s': %s\n", filename, err.string());
+			osd_printf_warning("Error in XML file '%s': %s\n", filename, err.string());
 		else
-			mame_printf_warning("Error in XML string: %s", err.string());
+			osd_printf_warning("Error in XML string: %s\n", err.string());
 		result = false;
 	}
 
@@ -1945,7 +1877,7 @@ bool render_target::map_point_internal(INT32 target_x, INT32 target_y, render_co
 	// convert target coordinates to float
 	float target_fx = (float)(target_x - root_xform.xoffs) / viswidth;
 	float target_fy = (float)(target_y - root_xform.yoffs) / visheight;
-	if (ui_is_menu_active())
+	if (manager().machine().ui().is_menu_active())
 	{
 		target_fx = (float)target_x / m_width;
 		target_fy = (float)target_y / m_height;
@@ -2441,12 +2373,9 @@ done:
 
 render_manager::render_manager(running_machine &machine)
 	: m_machine(machine),
-		m_targetlist(machine.respool()),
 		m_ui_target(NULL),
 		m_live_textures(0),
-		m_texture_allocator(machine.respool()),
-		m_ui_container(auto_alloc(machine, render_container(*this))),
-		m_screen_container_list(machine.respool())
+		m_ui_container(global_alloc(render_container(*this)))
 {
 	// register callbacks
 	config_register(machine, "video", config_saveload_delegate(FUNC(render_manager::config_load), this), config_saveload_delegate(FUNC(render_manager::config_save), this));
@@ -2515,7 +2444,7 @@ float render_manager::max_update_rate() const
 
 render_target *render_manager::target_alloc(const char *layoutfile, UINT32 flags)
 {
-	return &m_targetlist.append(*auto_alloc(machine(), render_target(*this, layoutfile, flags)));
+	return &m_targetlist.append(*global_alloc(render_target(*this, layoutfile, flags)));
 }
 
 
@@ -2609,7 +2538,7 @@ void render_manager::texture_free(render_texture *texture)
 
 render_font *render_manager::font_alloc(const char *filename)
 {
-	return auto_alloc(machine(), render_font(*this, filename));
+	return global_alloc(render_font(*this, filename));
 }
 
 
@@ -2619,7 +2548,7 @@ render_font *render_manager::font_alloc(const char *filename)
 
 void render_manager::font_free(render_font *font)
 {
-	auto_free(machine(), font);
+	global_free(font);
 }
 
 
@@ -2646,7 +2575,7 @@ void render_manager::invalidate_all(void *refptr)
 
 render_container *render_manager::container_alloc(screen_device *screen)
 {
-	render_container *container = auto_alloc(machine(), render_container(*this, screen));
+	render_container *container = global_alloc(render_container(*this, screen));
 	if (screen != NULL)
 		m_screen_container_list.append(*container);
 	return container;
@@ -2659,8 +2588,7 @@ render_container *render_manager::container_alloc(screen_device *screen)
 
 void render_manager::container_free(render_container *container)
 {
-	m_screen_container_list.detach(*container);
-	auto_free(machine(), container);
+	m_screen_container_list.remove(*container);
 }
 
 

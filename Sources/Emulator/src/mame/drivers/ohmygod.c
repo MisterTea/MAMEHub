@@ -44,7 +44,7 @@ static ADDRESS_MAP_START( ohmygod_map, AS_PROGRAM, 16, ohmygod_state )
 	AM_RANGE(0x308000, 0x30ffff) AM_RAM
 	AM_RANGE(0x400000, 0x400001) AM_WRITE(ohmygod_scrollx_w)
 	AM_RANGE(0x400002, 0x400003) AM_WRITE(ohmygod_scrolly_w)
-	AM_RANGE(0x600000, 0x6007ff) AM_RAM_WRITE(paletteram_xGGGGGRRRRRBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x600000, 0x6007ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x700000, 0x703fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x704000, 0x707fff) AM_RAM
 	AM_RANGE(0x708000, 0x70ffff) AM_RAM     /* Work RAM */
@@ -329,10 +329,12 @@ static MACHINE_CONFIG_START( ohmygod, ohmygod_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(12*8, (64-12)*8-1, 0*8, 30*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(ohmygod_state, screen_update_ohmygod)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ohmygod)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ohmygod)
 
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xGGGGGRRRRRBBBBB)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

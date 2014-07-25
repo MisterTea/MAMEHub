@@ -266,15 +266,6 @@ void yiear_state::machine_reset()
 	m_yiear_nmi_enable = 0;
 }
 
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( yiear, yiear_state )
 
 	/* basic machine hardware */
@@ -291,10 +282,11 @@ static MACHINE_CONFIG_START( yiear, yiear_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(yiear_state, screen_update_yiear)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(yiear)
-	MCFG_PALETTE_LENGTH(32)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", yiear)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(yiear_state, yiear)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -303,7 +295,6 @@ static MACHINE_CONFIG_START( yiear, yiear_state )
 
 	MCFG_SOUND_ADD("snsnd", SN76489A, XTAL_18_432MHz/12)   /* verified on pcb */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, XTAL_3_579545MHz)   /* verified on pcb */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)

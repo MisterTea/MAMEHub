@@ -8,12 +8,10 @@
 
 ***************************************************************************/
 
-void _88games_tile_callback( running_machine &machine, int layer, int bank, int *code, int *color, int *flags, int *priority )
+K052109_CB_MEMBER(_88games_state::tile_callback)
 {
-	_88games_state *state = machine.driver_data<_88games_state>();
-
 	*code |= ((*color & 0x0f) << 8) | (bank << 12);
-	*color = state->m_layer_colorbase[layer] + ((*color & 0xf0) >> 4);
+	*color = m_layer_colorbase[layer] + ((*color & 0xf0) >> 4);
 }
 
 
@@ -23,12 +21,10 @@ void _88games_tile_callback( running_machine &machine, int layer, int bank, int 
 
 ***************************************************************************/
 
-void _88games_sprite_callback( running_machine &machine, int *code, int *color, int *priority, int *shadow )
+K051960_CB_MEMBER(_88games_state::sprite_callback)
 {
-	_88games_state *state = machine.driver_data<_88games_state>();
-
 	*priority = (*color & 0x20) >> 5;   /* ??? */
-	*color = state->m_sprite_colorbase + (*color & 0x0f);
+	*color = m_sprite_colorbase + (*color & 0x0f);
 }
 
 
@@ -38,13 +34,11 @@ void _88games_sprite_callback( running_machine &machine, int *code, int *color, 
 
 ***************************************************************************/
 
-void _88games_zoom_callback( running_machine &machine, int *code, int *color, int *flags )
+K051316_CB_MEMBER(_88games_state::zoom_callback)
 {
-	_88games_state *state = machine.driver_data<_88games_state>();
-
 	*flags = (*color & 0x40) ? TILE_FLIPX : 0;
 	*code |= ((*color & 0x07) << 8);
-	*color = state->m_zoom_colorbase + ((*color & 0x38) >> 3) + ((*color & 0x80) >> 4);
+	*color = m_zoom_colorbase + ((*color & 0x38) >> 3) + ((*color & 0x80) >> 4);
 }
 
 /***************************************************************************

@@ -24,9 +24,7 @@
 #include <thrift/windows/config.h>
 #endif
 
-#ifdef HAVE_CONFIG_H
 #include "thrift_config.h"
-#endif
 #include <stdio.h>
 #include <assert.h>
 

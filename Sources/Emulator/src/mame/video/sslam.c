@@ -4,27 +4,9 @@
 #include "includes/sslam.h"
 
 
-WRITE16_MEMBER(sslam_state::sslam_paletteram_w)
-{
-	int r, g, b, val;
-
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-
-	val = m_generic_paletteram_16[offset];
-	r = (val >> 11) & 0x1e;
-	g = (val >>  7) & 0x1e;
-	b = (val >>  3) & 0x1e;
-
-	r |= ((val & 0x08) >> 3);
-	g |= ((val & 0x04) >> 2);
-	b |= ((val & 0x02) >> 1);
-
-	palette_set_color_rgb(machine(), offset, pal5bit(r), pal5bit(g), pal5bit(b));
-}
-
 void sslam_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	UINT16 *source = m_spriteram;
 	UINT16 *finish = source + 0x1000/2;
 
@@ -57,28 +39,28 @@ void sslam_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 		{
 			if (flipx)
 			{
-				drawgfx_transpen(bitmap,cliprect,gfx,number,  colr,1,0,xpos+8,ypos,0);
-				drawgfx_transpen(bitmap,cliprect,gfx,number+1,colr,1,0,xpos+8,ypos+8,0);
-				drawgfx_transpen(bitmap,cliprect,gfx,number+2,colr,1,0,xpos,  ypos,0);
-				drawgfx_transpen(bitmap,cliprect,gfx,number+3,colr,1,0,xpos,  ypos+8,0);
+				gfx->transpen(bitmap,cliprect,number,  colr,1,0,xpos+8,ypos,0);
+				gfx->transpen(bitmap,cliprect,number+1,colr,1,0,xpos+8,ypos+8,0);
+				gfx->transpen(bitmap,cliprect,number+2,colr,1,0,xpos,  ypos,0);
+				gfx->transpen(bitmap,cliprect,number+3,colr,1,0,xpos,  ypos+8,0);
 			}
 			else
 			{
-				drawgfx_transpen(bitmap,cliprect,gfx,number,  colr,0,0,xpos,  ypos,0);
-				drawgfx_transpen(bitmap,cliprect,gfx,number+1,colr,0,0,xpos,  ypos+8,0);
-				drawgfx_transpen(bitmap,cliprect,gfx,number+2,colr,0,0,xpos+8,ypos,0);
-				drawgfx_transpen(bitmap,cliprect,gfx,number+3,colr,0,0,xpos+8,ypos+8,0);
+				gfx->transpen(bitmap,cliprect,number,  colr,0,0,xpos,  ypos,0);
+				gfx->transpen(bitmap,cliprect,number+1,colr,0,0,xpos,  ypos+8,0);
+				gfx->transpen(bitmap,cliprect,number+2,colr,0,0,xpos+8,ypos,0);
+				gfx->transpen(bitmap,cliprect,number+3,colr,0,0,xpos+8,ypos+8,0);
 			}
 		}
 		else
 		{
 			if (flipx)
 			{
-				drawgfx_transpen(bitmap,cliprect,gfx,number ^ 2,colr,1,0,xpos,ypos,0);
+				gfx->transpen(bitmap,cliprect,number ^ 2,colr,1,0,xpos,ypos,0);
 			}
 			else
 			{
-				drawgfx_transpen(bitmap,cliprect,gfx,number,colr,0,0,xpos,ypos,0);
+				gfx->transpen(bitmap,cliprect,number,colr,0,0,xpos,ypos,0);
 			}
 		}
 
@@ -155,9 +137,9 @@ WRITE16_MEMBER(sslam_state::powerbls_bg_tileram_w)
 
 VIDEO_START_MEMBER(sslam_state,sslam)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sslam_state::get_sslam_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_md_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sslam_state::get_sslam_md_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sslam_state::get_sslam_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sslam_state::get_sslam_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_md_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sslam_state::get_sslam_md_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sslam_state::get_sslam_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 
 	m_md_tilemap->set_transparent_pen(0);
 	m_tx_tilemap->set_transparent_pen(0);
@@ -168,7 +150,7 @@ VIDEO_START_MEMBER(sslam_state,sslam)
 
 VIDEO_START_MEMBER(sslam_state,powerbls)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sslam_state::get_powerbls_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sslam_state::get_powerbls_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
 
 	m_sprites_x_offset = -21;
 	save_item(NAME(m_sprites_x_offset));
@@ -178,7 +160,7 @@ UINT32 sslam_state::screen_update_sslam(screen_device &screen, bitmap_ind16 &bit
 {
 	if (!(m_regs[6] & 1))
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 		return 0;
 	}
 
@@ -216,7 +198,7 @@ UINT32 sslam_state::screen_update_powerbls(screen_device &screen, bitmap_ind16 &
 {
 	if (!(m_regs[6] & 1))
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 		return 0;
 	}
 

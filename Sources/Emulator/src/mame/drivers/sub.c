@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, David Haywood
 /*************************************************************************************
 
 Submarine (c) 1985 Sigma
@@ -123,7 +125,9 @@ public:
 		m_spriteram2(*this, "spriteram2"),
 		m_scrolly(*this, "scrolly"),
 		m_maincpu(*this, "maincpu"),
-		m_soundcpu(*this, "soundcpu") { }
+		m_soundcpu(*this, "soundcpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_attr;
 	required_shared_ptr<UINT8> m_vid;
@@ -134,11 +138,13 @@ public:
 	DECLARE_WRITE8_MEMBER(subm_to_sound_w);
 	DECLARE_WRITE8_MEMBER(nmi_mask_w);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(sub);
 	UINT32 screen_update_sub(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(subm_sound_irq);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_soundcpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 void sub_state::video_start()
@@ -147,8 +153,8 @@ void sub_state::video_start()
 
 UINT32 sub_state::screen_update_sub(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = machine().gfx[0];
-	gfx_element *gfx_1 = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
+	gfx_element *gfx_1 = m_gfxdecode->gfx(1);
 	int y,x;
 	int count = 0;
 
@@ -163,8 +169,8 @@ UINT32 sub_state::screen_update_sub(screen_device &screen, bitmap_ind16 &bitmap,
 			tile += (m_attr[count]&0xe0)<<3;
 			col = (m_attr[count]&0x1f);
 
-			drawgfx_opaque(bitmap,cliprect,gfx,tile,col+0x40,0,0,x*8,(y*8)-y_offs);
-			drawgfx_opaque(bitmap,cliprect,gfx,tile,col+0x40,0,0,x*8,(y*8)-y_offs+256);
+			gfx->opaque(bitmap,cliprect,tile,col+0x40,0,0,x*8,(y*8)-y_offs);
+			gfx->opaque(bitmap,cliprect,tile,col+0x40,0,0,x*8,(y*8)-y_offs+256);
 
 			count++;
 		}
@@ -196,7 +202,7 @@ UINT32 sub_state::screen_update_sub(screen_device &screen, bitmap_ind16 &bitmap,
 			if(fx) { x = 0xe0 - x; }
 			fy = (spriteram_2[i+0] & 0x40) ? 0 : 1;
 
-			drawgfx_transpen(bitmap,cliprect,gfx_1,spr_offs,col,0,fy,x,y,0);
+			gfx_1->transpen(bitmap,cliprect,spr_offs,col,0,fy,x,y,0);
 		}
 	}
 
@@ -216,8 +222,8 @@ UINT32 sub_state::screen_update_sub(screen_device &screen, bitmap_ind16 &bitmap,
 
 			if(x >= 28)
 			{
-				drawgfx_opaque(bitmap,cliprect,gfx,tile,col+0x40,0,0,x*8,(y*8)-y_offs);
-				drawgfx_opaque(bitmap,cliprect,gfx,tile,col+0x40,0,0,x*8,(y*8)-y_offs+256);
+				gfx->opaque(bitmap,cliprect,tile,col+0x40,0,0,x*8,(y*8)-y_offs);
+				gfx->opaque(bitmap,cliprect,tile,col+0x40,0,0,x*8,(y*8)-y_offs+256);
 			}
 
 			count++;
@@ -390,14 +396,11 @@ static GFXDECODE_START( sub )
 	GFXDECODE_ENTRY( "gfx2", 0, tiles16x32_layout, 0, 0x80 )
 GFXDECODE_END
 
-void sub_state::palette_init()
+PALETTE_INIT_MEMBER(sub_state, sub)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 	UINT8* lookup = memregion("proms2")->base();
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x100);
 
 	for (i = 0;i < 0x100;i++)
 	{
@@ -406,8 +409,8 @@ void sub_state::palette_init()
 		g = (color_prom[0x100] >> 0);
 		b = (color_prom[0x200] >> 0);
 
-		//colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(pal4bit(r), pal4bit(g), pal4bit(b)));
+		//palette.set_indirect_color(i, rgb_t(r, g, b));
+		palette.set_indirect_color(i, rgb_t(pal4bit(r), pal4bit(g), pal4bit(b)));
 
 		color_prom++;
 	}
@@ -416,7 +419,7 @@ void sub_state::palette_init()
 	for (i = 0;i < 0x400;i++)
 	{
 		UINT8 ctabentry = lookup[i+0x400] | (lookup[i+0x000] << 4);
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 
 }
@@ -449,10 +452,12 @@ static MACHINE_CONFIG_START( sub, sub_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(sub_state, screen_update_sub)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sub)
-	MCFG_PALETTE_LENGTH(0x400)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sub)
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_INDIRECT_ENTRIES(0x100)
+	MCFG_PALETTE_INIT_OWNER(sub_state, sub)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -497,4 +502,4 @@ ROM_START( sub )
 	ROM_LOAD( "prom pos c8 n82s129",      0x0600, 0x100, CRC(351e1ef8) SHA1(530c9012ff5abda1c4ba9787ca999ca1ae1a893d) )
 ROM_END
 
-GAME( 1985, sub,  0,    sub, sub, driver_device,  0, ROT270, "Sigma Enterprises Inc.", "Submarine", GAME_NO_COCKTAIL )
+GAME( 1985, sub,  0,    sub, sub, driver_device,  0, ROT270, "Sigma Enterprises Inc.", "Submarine (Sigma)", GAME_NO_COCKTAIL )

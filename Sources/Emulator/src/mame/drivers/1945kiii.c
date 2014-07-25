@@ -57,7 +57,9 @@ public:
 		m_spriteram_1(*this, "spritera1"),
 		m_spriteram_2(*this, "spritera2"),
 		m_bgram(*this, "bgram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	/* devices */
 	required_device<okim6295_device> m_oki1;
@@ -81,6 +83,8 @@ public:
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_k3(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -98,12 +102,12 @@ TILE_GET_INFO_MEMBER(k3_state::get_k3_bg_tile_info)
 
 void k3_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k3_state::get_k3_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 64);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(k3_state::get_k3_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 64);
 }
 
 void k3_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	UINT16 *source = m_spriteram_1;
 	UINT16 *source2 = m_spriteram_2;
 	UINT16 *finish = source + 0x1000 / 2;
@@ -116,10 +120,10 @@ void k3_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 		ypos = (source[0] & 0x00ff) >> 0;
 		tileno = (source2[0] & 0x7ffe) >> 1;
 		xpos |=  (source2[0] & 0x0001) << 8;
-		drawgfx_transpen(bitmap, cliprect, gfx, tileno, 1, 0, 0, xpos, ypos, 0);
-		drawgfx_transpen(bitmap, cliprect, gfx, tileno, 1, 0, 0, xpos, ypos - 0x100, 0); // wrap
-		drawgfx_transpen(bitmap, cliprect, gfx, tileno, 1, 0, 0, xpos - 0x200, ypos, 0); // wrap
-		drawgfx_transpen(bitmap, cliprect, gfx, tileno, 1, 0, 0, xpos - 0x200, ypos - 0x100, 0); // wrap
+			gfx->transpen(bitmap,cliprect, tileno, 1, 0, 0, xpos, ypos, 0);
+			gfx->transpen(bitmap,cliprect, tileno, 1, 0, 0, xpos, ypos - 0x100, 0); // wrap
+			gfx->transpen(bitmap,cliprect, tileno, 1, 0, 0, xpos - 0x200, ypos, 0); // wrap
+			gfx->transpen(bitmap,cliprect, tileno, 1, 0, 0, xpos - 0x200, ypos - 0x100, 0); // wrap
 
 		source++;
 		source2++;
@@ -156,7 +160,7 @@ static ADDRESS_MAP_START( k3_map, AS_PROGRAM, 16, k3_state )
 
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM // ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM // Main Ram
-	AM_RANGE(0x200000, 0x200fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")    // palette
+	AM_RANGE(0x200000, 0x200fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // palette
 	AM_RANGE(0x240000, 0x240fff) AM_RAM AM_SHARE("spritera1")
 	AM_RANGE(0x280000, 0x280fff) AM_RAM AM_SHARE("spritera2")
 	AM_RANGE(0x2c0000, 0x2c0fff) AM_RAM_WRITE(k3_bgram_w) AM_SHARE("bgram")
@@ -262,7 +266,7 @@ static MACHINE_CONFIG_START( k3, k3_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", k3_state,  irq4_line_hold)
 
 
-	MCFG_GFXDECODE(1945kiii)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", 1945kiii)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -270,9 +274,10 @@ static MACHINE_CONFIG_START( k3, k3_state )
 	MCFG_SCREEN_SIZE(64*8, 64*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(k3_state, screen_update_k3)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x800)
-
+	MCFG_PALETTE_ADD("palette", 0x800)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 

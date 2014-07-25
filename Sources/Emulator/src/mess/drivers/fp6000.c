@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     Casio FP-6000
@@ -28,14 +30,16 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_gvram(*this, "gvram"),
 		m_vram(*this, "vram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu")
+		, m_crtc(*this, "crtc"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
+	{ }
 
 	UINT8 *m_char_rom;
 	required_shared_ptr<UINT16> m_gvram;
 	required_shared_ptr<UINT16> m_vram;
 	UINT8 m_crtc_vreg[0x100],m_crtc_index;
-
-	mc6845_device *m_mc6845;
 
 	struct {
 		UINT16 cmd;
@@ -54,6 +58,9 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_fp6000(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<mc6845_device>m_crtc;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 void fp6000_state::video_start()
@@ -96,7 +103,7 @@ UINT32 fp6000_state::screen_update_fp6000(screen_device &screen, bitmap_ind16 &b
 				int dot = (m_gvram[count] >> (12-xi*4)) & 0xf;
 
 				if(y < 400 && x*4+xi < 640) /* TODO: safety check */
-					bitmap.pix16(y, x*4+xi) = machine().pens[dot];
+					bitmap.pix16(y, x*4+xi) = m_palette->pen(dot);
 			}
 
 			count++;
@@ -119,7 +126,7 @@ UINT32 fp6000_state::screen_update_fp6000(screen_device &screen, bitmap_ind16 &b
 
 					if(pen != -1)
 						if(y*mc6845_tile_height < 400 && x*8+xi < 640) /* TODO: safety check */
-							bitmap.pix16(y*mc6845_tile_height+yi, x*8+xi) = machine().pens[pen];
+							bitmap.pix16(y*mc6845_tile_height+yi, x*8+xi) = m_palette->pen(pen);
 				}
 			}
 		}
@@ -134,7 +141,7 @@ UINT32 fp6000_state::screen_update_fp6000(screen_device &screen, bitmap_ind16 &b
 			{
 				x = mc6845_cursor_addr % mc6845_h_display;
 				y = mc6845_cursor_addr / mc6845_h_display;
-				bitmap.pix16(y*mc6845_tile_height+yi, x*8+xi) = machine().pens[7];
+				bitmap.pix16(y*mc6845_tile_height+yi, x*8+xi) = m_palette->pen(7);
 			}
 		}
 	}
@@ -150,19 +157,19 @@ READ8_MEMBER(fp6000_state::fp6000_pcg_r)
 WRITE8_MEMBER(fp6000_state::fp6000_pcg_w)
 {
 	m_char_rom[offset] = data;
-	machine().gfx[0]->mark_dirty(offset >> 4);
+	m_gfxdecode->gfx(0)->mark_dirty(offset >> 4);
 }
 
 WRITE8_MEMBER(fp6000_state::fp6000_6845_address_w)
 {
 	m_crtc_index = data;
-	m_mc6845->address_w(space, offset, data);
+	m_crtc->address_w(space, offset, data);
 }
 
 WRITE8_MEMBER(fp6000_state::fp6000_6845_data_w)
 {
 	m_crtc_vreg[m_crtc_index] = data;
-	m_mc6845->register_w(space, offset, data);
+	m_crtc->register_w(space, offset, data);
 }
 
 static ADDRESS_MAP_START(fp6000_map, AS_PROGRAM, 16, fp6000_state )
@@ -275,33 +282,17 @@ GFXDECODE_END
 void fp6000_state::machine_start()
 {
 	m_char_rom = memregion("pcg")->base();
-	m_mc6845 = machine().device<mc6845_device>("crtc");
 }
 
 void fp6000_state::machine_reset()
 {
 }
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
 static MACHINE_CONFIG_START( fp6000, fp6000_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", I8086, 16000000/2)
 	MCFG_CPU_PROGRAM_MAP(fp6000_map)
 	MCFG_CPU_IO_MAP(fp6000_io)
-
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -310,12 +301,15 @@ static MACHINE_CONFIG_START( fp6000, fp6000_state )
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 	MCFG_SCREEN_UPDATE_DRIVER(fp6000_state, screen_update_fp6000)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_MC6845_ADD("crtc", H46505, "screen", 16000000/5, mc6845_intf)    /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_ADD("crtc", H46505, "screen", 16000000/5)    /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
-	MCFG_PALETTE_LENGTH(8)
-//  MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
-	MCFG_GFXDECODE(fp6000)
+	MCFG_PALETTE_ADD("palette", 8)
+//  MCFG_PALETTE_INIT(black_and_white)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", fp6000)
 
 MACHINE_CONFIG_END
 

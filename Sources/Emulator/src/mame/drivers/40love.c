@@ -229,18 +229,25 @@ Notes - Has jumper setting for 122HZ or 61HZ)
 #include "sound/dac.h"
 #include "includes/40love.h"
 
-TIMER_CALLBACK_MEMBER(fortyl_state::nmi_callback)
+void fortyl_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	if (m_sound_nmi_enable)
-		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
-	else
-		m_pending_nmi = 1;
+	switch(id)
+	{
+	case TIMER_NMI_CALLBACK:
+		if (m_sound_nmi_enable)
+			m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		else
+			m_pending_nmi = 1;
+		break;
+	default:
+			assert_always(FALSE, "Unknown id in fortyl_state::device_timer");
+	}
 }
 
 WRITE8_MEMBER(fortyl_state::sound_command_w)
 {
 	soundlatch_byte_w(space, 0, data);
-	machine().scheduler().synchronize(timer_expired_delegate(FUNC(fortyl_state::nmi_callback),this), data);
+	synchronize(TIMER_NMI_CALLBACK, data);
 }
 
 WRITE8_MEMBER(fortyl_state::nmi_disable_w)
@@ -946,22 +953,6 @@ static GFXDECODE_START( 40love )
 	GFXDECODE_ENTRY( "gfx1", 0, sprite_layout, 0, 64 )
 GFXDECODE_END
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(fortyl_state,sound_control_2_w),
-	DEVCB_DRIVER_MEMBER(fortyl_state,sound_control_3_w)
-};
-
-static const msm5232_interface msm5232_config =
-{
-	{ 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6 }, /* 1.0 uF capacitors (verified on real PCB) */
-	DEVCB_NULL
-};
-
 /*******************************************************************************/
 
 MACHINE_START_MEMBER(fortyl_state,40love)
@@ -1066,20 +1057,22 @@ static MACHINE_CONFIG_START( 40love, fortyl_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(128,128+255, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(fortyl_state, screen_update_fortyl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(40love)
-	MCFG_PALETTE_LENGTH(1024)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", 40love)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_INIT_OWNER(fortyl_state, fortyl)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 2000000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(fortyl_state, sound_control_2_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(fortyl_state, sound_control_3_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_SOUND_ADD("msm", MSM5232, 8000000/4)
-	MCFG_SOUND_CONFIG(msm5232_config)
+	MCFG_MSM5232_SET_CAPACITORS(1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6) /* 1.0 uF capacitors (verified on real PCB) */
 	MCFG_SOUND_ROUTE(0, "mono", 1.0)    // pin 28  2'-1
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)    // pin 29  4'-1
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)    // pin 30  8'-1
@@ -1121,20 +1114,22 @@ static MACHINE_CONFIG_START( undoukai, fortyl_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(128,128+255, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(fortyl_state, screen_update_fortyl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(40love)
-	MCFG_PALETTE_LENGTH(1024)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", 40love)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_INIT_OWNER(fortyl_state, fortyl)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 2000000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(fortyl_state, sound_control_2_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(fortyl_state, sound_control_3_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 
 	MCFG_SOUND_ADD("msm", MSM5232, 8000000/4)
-	MCFG_SOUND_CONFIG(msm5232_config)
+	MCFG_MSM5232_SET_CAPACITORS(1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6) /* 1.0 uF capacitors (verified on real PCB) */
 	MCFG_SOUND_ROUTE(0, "mono", 1.0)    // pin 28  2'-1
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)    // pin 29  4'-1
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)    // pin 30  8'-1

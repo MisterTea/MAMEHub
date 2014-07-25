@@ -42,10 +42,9 @@ int ipf_format::identify(io_generic *io, UINT32 form_factor)
 bool ipf_format::load(io_generic *io, UINT32 form_factor, floppy_image *image)
 {
 	UINT64 size = io_generic_size(io);
-	UINT8 *data = global_alloc_array(UINT8, size);
+	dynamic_buffer data(size);
 	io_generic_read(io, data, 0, size);
 	bool res = parse(data, size, image);
-	global_free(data);
 	return res;
 }
 
@@ -86,7 +85,8 @@ bool ipf_format::parse(UINT8 *data, UINT32 size, floppy_image *image)
 	bool res = scan_all_tags(data, size);
 	if(res)
 		res = generate_tracks(image);
-	global_free(tinfos);
+	global_free_array(tinfos);
+	tinfos = NULL;
 	return res;
 }
 
@@ -120,7 +120,7 @@ ipf_format::track_info *ipf_format::get_index(UINT32 idx)
 	if(idx >= tcount) {
 		track_info *ti1 = global_alloc_array_clear(track_info, idx+1);
 		memcpy(ti1, tinfos, tcount*sizeof(tinfos));
-		global_free(tinfos);
+		global_free_array(tinfos);
 		tcount = idx+1;
 		tinfos = ti1;
 	}
@@ -387,27 +387,19 @@ bool ipf_format::generate_track(track_info *t, floppy_image *image)
 	if(t->index_cells >= t->size_cells)
 		return false;
 
-	UINT32 *track = global_alloc_array(UINT32, t->size_cells);
-	UINT32 *data_pos = global_alloc_array(UINT32, t->block_count+1);
-	UINT32 *gap_pos  = global_alloc_array(UINT32, t->block_count);
-	UINT32 *splice_pos  = global_alloc_array(UINT32, t->block_count);
+	dynamic_array<UINT32> track(t->size_cells);
+	dynamic_array<UINT32> data_pos(t->block_count+1);
+	dynamic_array<UINT32> gap_pos(t->block_count);
+	dynamic_array<UINT32> splice_pos(t->block_count);
 
 	bool context = false;
 	UINT32 pos = 0;
 	for(UINT32 i = 0; i != t->block_count; i++) {
 		if(!generate_block(t, i, i == t->block_count-1 ? t->size_cells - t->index_cells : 0xffffffff, track, pos, data_pos[i], gap_pos[i], splice_pos[i], context)) {
-			global_free(track);
-			global_free(data_pos);
-			global_free(gap_pos);
-			global_free(splice_pos);
 			return false;
 		}
 	}
 	if(pos != t->size_cells) {
-		global_free(track);
-		global_free(data_pos);
-		global_free(gap_pos);
-		global_free(splice_pos);
 		return false;
 	}
 
@@ -416,10 +408,6 @@ bool ipf_format::generate_track(track_info *t, floppy_image *image)
 	mark_track_splice(track, splice_pos[t->block_count-1], t->size_cells);
 
 	if(!generate_timings(t, track, data_pos, gap_pos)) {
-		global_free(track);
-		global_free(data_pos);
-		global_free(gap_pos);
-		global_free(splice_pos);
 		return false;
 	}
 
@@ -427,11 +415,6 @@ bool ipf_format::generate_track(track_info *t, floppy_image *image)
 		rotate(track, t->size_cells - t->index_cells, t->size_cells);
 
 	generate_track_from_levels(t->cylinder, t->head, track, t->size_cells, splice_pos[t->block_count-1] + t->index_cells, image);
-
-	global_free(track);
-	global_free(data_pos);
-	global_free(gap_pos);
-	global_free(splice_pos);
 
 	return true;
 }
@@ -700,7 +683,7 @@ bool ipf_format::generate_block(track_info *t, UINT32 idx, UINT32 ipos, UINT32 *
 		return false;
 	if(!generate_block_data(data + r32(thead+28), data_end, track+dpos, track+gpos, context))
 		return false;
-	if(!generate_block_gap(r32(thead+20), gap_cells, r32(thead+24), spos, ipos-gpos, data + r32(thead+8), data_end, track+gpos, context))
+	if(!generate_block_gap(r32(thead+20), gap_cells, r32(thead+24), spos, ipos > gpos ? ipos-gpos : 0, data + r32(thead+8), data_end, track+gpos, context))
 		return false;
 	spos += gpos;
 

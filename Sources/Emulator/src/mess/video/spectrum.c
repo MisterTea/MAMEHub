@@ -26,7 +26,7 @@ VIDEO_START_MEMBER(spectrum_state,spectrum)
 	m_flash_invert = 0;
 
 	m_previous_border_x = 0; m_previous_border_y = 0;
-	machine().primary_screen->register_screen_bitmap(m_border_bitmap);
+	machine().first_screen()->register_screen_bitmap(m_border_bitmap);
 
 	m_screen_location = m_video_ram;
 }
@@ -38,7 +38,7 @@ VIDEO_START_MEMBER(spectrum_state,spectrum_128)
 	m_flash_invert = 0;
 
 	m_previous_border_x = 0; m_previous_border_y = 0;
-	machine().primary_screen->register_screen_bitmap(m_border_bitmap);
+	machine().first_screen()->register_screen_bitmap(m_border_bitmap);
 }
 
 
@@ -155,27 +155,27 @@ UINT32 spectrum_state::screen_update_spectrum(screen_device &screen, bitmap_ind1
 
 
 static const rgb_t spectrum_palette[16] = {
-	MAKE_RGB(0x00, 0x00, 0x00),
-	MAKE_RGB(0x00, 0x00, 0xbf),
-	MAKE_RGB(0xbf, 0x00, 0x00),
-	MAKE_RGB(0xbf, 0x00, 0xbf),
-	MAKE_RGB(0x00, 0xbf, 0x00),
-	MAKE_RGB(0x00, 0xbf, 0xbf),
-	MAKE_RGB(0xbf, 0xbf, 0x00),
-	MAKE_RGB(0xbf, 0xbf, 0xbf),
-	MAKE_RGB(0x00, 0x00, 0x00),
-	MAKE_RGB(0x00, 0x00, 0xff),
-	MAKE_RGB(0xff, 0x00, 0x00),
-	MAKE_RGB(0xff, 0x00, 0xff),
-	MAKE_RGB(0x00, 0xff, 0x00),
-	MAKE_RGB(0x00, 0xff, 0xff),
-	MAKE_RGB(0xff, 0xff, 0x00),
-	MAKE_RGB(0xff, 0xff, 0xff)
+	rgb_t(0x00, 0x00, 0x00),
+	rgb_t(0x00, 0x00, 0xbf),
+	rgb_t(0xbf, 0x00, 0x00),
+	rgb_t(0xbf, 0x00, 0xbf),
+	rgb_t(0x00, 0xbf, 0x00),
+	rgb_t(0x00, 0xbf, 0xbf),
+	rgb_t(0xbf, 0xbf, 0x00),
+	rgb_t(0xbf, 0xbf, 0xbf),
+	rgb_t(0x00, 0x00, 0x00),
+	rgb_t(0x00, 0x00, 0xff),
+	rgb_t(0xff, 0x00, 0x00),
+	rgb_t(0xff, 0x00, 0xff),
+	rgb_t(0x00, 0xff, 0x00),
+	rgb_t(0x00, 0xff, 0xff),
+	rgb_t(0xff, 0xff, 0x00),
+	rgb_t(0xff, 0xff, 0xff)
 };
 /* Initialise the palette */
 PALETTE_INIT_MEMBER(spectrum_state,spectrum)
 {
-	palette_set_colors(machine(), 0, spectrum_palette, ARRAY_LENGTH(spectrum_palette));
+	palette.set_pen_colors(0, spectrum_palette, ARRAY_LENGTH(spectrum_palette));
 }
 
 
@@ -183,8 +183,8 @@ PALETTE_INIT_MEMBER(spectrum_state,spectrum)
 
 void spectrum_state::spectrum_UpdateBorderBitmap()
 {
-	unsigned int x = machine().primary_screen->hpos();
-	unsigned int y = machine().primary_screen->vpos();
+	unsigned int x = machine().first_screen()->hpos();
+	unsigned int y = machine().first_screen()->vpos();
 	int width = m_border_bitmap.width();
 	int height = m_border_bitmap.height();
 

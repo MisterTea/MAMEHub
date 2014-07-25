@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari System 2 hardware
@@ -1188,44 +1190,17 @@ static GFXDECODE_START( atarisy2 )
 GFXDECODE_END
 
 
-
-/*************************************
- *
- *  Sound definitions
- *
- *************************************/
-
-static const pokey_interface pokey_interface_1 =
-{
-	{ DEVCB_NULL },
-	DEVCB_INPUT_PORT("DSW0")
-};
-
-static const pokey_interface pokey_interface_2 =
-{
-	{ DEVCB_NULL },
-	DEVCB_INPUT_PORT("DSW1")
-};
-
-
-
 /*************************************
  *
  *  Machine driver
  *
  *************************************/
 
-static const struct t11_setup t11_data =
-{
-	0x36ff          /* initial mode word has DAL15,14,11,8 pulled low */
-};
-
-
 static MACHINE_CONFIG_START( atarisy2, atarisy2_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", T11, MASTER_CLOCK/2)
-	MCFG_CPU_CONFIG(t11_data)
+	MCFG_T11_INITIAL_MODE(0x36ff)          /* initial mode word has DAL15,14,11,8 pulled low */
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", atarisy2_state,  vblank_int)
 
@@ -1239,18 +1214,20 @@ static MACHINE_CONFIG_START( atarisy2, atarisy2_state )
 	MCFG_EEPROM_2804_ADD("eeprom")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_GFXDECODE(atarisy2)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", atarisy2)
+	MCFG_PALETTE_ADD("palette", 256)
 
-	MCFG_TILEMAP_ADD_STANDARD("playfield", 2, atarisy2_state, get_playfield_tile_info, 8,8, SCAN_ROWS, 128,64)
-	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", 2, atarisy2_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,48, 0)
+	MCFG_TILEMAP_ADD_STANDARD("playfield", "gfxdecode", 2, atarisy2_state, get_playfield_tile_info, 8,8, SCAN_ROWS, 128,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", "gfxdecode", 2, atarisy2_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,48, 0)
 
 	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", atarisy2_state::s_mob_config)
+	MCFG_ATARI_MOTION_OBJECTS_GFXDECODE("gfxdecode")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_RAW_PARAMS(VIDEO_CLOCK/2, 640, 0, 512, 416, 0, 384)
 	MCFG_SCREEN_UPDATE_DRIVER(atarisy2_state, screen_update_atarisy2)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(atarisy2_state,atarisy2)
 
@@ -1261,12 +1238,12 @@ static MACHINE_CONFIG_START( atarisy2, atarisy2_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.60)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.60)
 
-	MCFG_POKEY_ADD("pokey1", SOUND_CLOCK/8)
-	MCFG_POKEY_CONFIG(pokey_interface_1)
+	MCFG_SOUND_ADD("pokey1", POKEY, SOUND_CLOCK/8)
+	MCFG_POKEY_ALLPOT_R_CB(IOPORT("DSW0"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.35)
 
-	MCFG_POKEY_ADD("pokey2", SOUND_CLOCK/8)
-	MCFG_POKEY_CONFIG(pokey_interface_2)
+	MCFG_SOUND_ADD("pokey2", POKEY, SOUND_CLOCK/8)
+	MCFG_POKEY_ALLPOT_R_CB(IOPORT("DSW1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.35)
 
 	MCFG_SOUND_ADD("tms", TMS5220C, MASTER_CLOCK/4/4/2)

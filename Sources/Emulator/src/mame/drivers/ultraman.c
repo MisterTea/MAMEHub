@@ -32,7 +32,7 @@ WRITE16_MEMBER(ultraman_state::sound_irq_trigger_w)
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, ultraman_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x080000, 0x08ffff) AM_RAM
-	AM_RANGE(0x180000, 0x183fff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")/* Palette */
+	AM_RANGE(0x180000, 0x183fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")/* Palette */
 	AM_RANGE(0x1c0000, 0x1c0001) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x1c0002, 0x1c0003) AM_READ_PORT("P1")
 	AM_RANGE(0x1c0004, 0x1c0005) AM_READ_PORT("P2")
@@ -156,38 +156,6 @@ static INPUT_PORTS_START( ultraman )
 INPUT_PORTS_END
 
 
-static const k051960_interface ultraman_k051960_intf =
-{
-	"gfx1", 0,
-	NORMAL_PLANE_ORDER,
-	KONAMI_ROM_DEINTERLEAVE_2,
-	ultraman_sprite_callback
-};
-
-static const k051316_interface ultraman_k051316_intf_0 =
-{
-	"gfx2", 1,
-	4, FALSE, 0,
-	0, 8, 0,
-	ultraman_zoom_callback_0
-};
-
-static const k051316_interface ultraman_k051316_intf_1 =
-{
-	"gfx3", 2,
-	4, FALSE, 0,
-	0, 8, 0,
-	ultraman_zoom_callback_1
-};
-
-static const k051316_interface ultraman_k051316_intf_2 =
-{
-	"gfx4", 3,
-	4, TRUE, 0,
-	0, 8, 0,
-	ultraman_zoom_callback_2
-};
-
 void ultraman_state::machine_start()
 {
 	save_item(NAME(m_bank0));
@@ -215,24 +183,37 @@ static MACHINE_CONFIG_START( ultraman, ultraman_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(600))
 
-
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(14*8, (64-14)*8-1, 2*8, 30*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(ultraman_state, screen_update_ultraman)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(8192)
+	MCFG_PALETTE_ADD("palette", 8192)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
+	MCFG_DEVICE_ADD("k051960", K051960, 0)
+	MCFG_GFX_PALETTE("palette")
+	MCFG_K051960_CB(ultraman_state, sprite_callback)
 
-	MCFG_K051960_ADD("k051960", ultraman_k051960_intf)
-	MCFG_K051316_ADD("k051316_1", ultraman_k051316_intf_0)
-	MCFG_K051316_ADD("k051316_2", ultraman_k051316_intf_1)
-	MCFG_K051316_ADD("k051316_3", ultraman_k051316_intf_2)
+	MCFG_DEVICE_ADD("k051316_1", K051316, 0)
+	MCFG_GFX_PALETTE("palette")
+	MCFG_K051316_OFFSETS(8, 0)
+	MCFG_K051316_CB(ultraman_state, zoom_callback_1)
+
+	MCFG_DEVICE_ADD("k051316_2", K051316, 0)
+	MCFG_GFX_PALETTE("palette")
+	MCFG_K051316_OFFSETS(8, 0)
+	MCFG_K051316_CB(ultraman_state, zoom_callback_2)
+
+	MCFG_DEVICE_ADD("k051316_3", K051316, 0)
+	MCFG_GFX_PALETTE("palette")
+	MCFG_K051316_OFFSETS(8, 0)
+	MCFG_K051316_CB(ultraman_state, zoom_callback_3)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -256,23 +237,23 @@ ROM_START( ultraman )
 	ROM_REGION( 0x010000, "audiocpu", 0 )   /* Z80 code */
 	ROM_LOAD( "910-a05.d05",    0x00000, 0x08000, CRC(ebaef189) SHA1(73e6163466d55ae782f55839ba9c98f06c30876b) )
 
-	ROM_REGION( 0x100000, "gfx1", 0 )   /* Sprites */
-	ROM_LOAD( "910-a19.l04",    0x000000, 0x080000, CRC(2dc9ffdc) SHA1(aa34247c82d48c8d13f5209be292127938a4a682) )
-	ROM_LOAD( "910-a20.l01",    0x080000, 0x080000, CRC(a4298dce) SHA1(62faf8f0c0490a9562b75ce27909fbee6e84b22a) )
+	ROM_REGION( 0x100000, "k051960", 0 )   /* Sprites */
+	ROM_LOAD32_WORD( "910-a19.l04",    0x000000, 0x080000, CRC(2dc9ffdc) SHA1(aa34247c82d48c8d13f5209be292127938a4a682) )
+	ROM_LOAD32_WORD( "910-a20.l01",    0x000002, 0x080000, CRC(a4298dce) SHA1(62faf8f0c0490a9562b75ce27909fbee6e84b22a) )
 
-	ROM_REGION( 0x080000, "gfx2", 0 )   /* BG 1  */
+	ROM_REGION( 0x080000, "k051316_1", 0 )
 	ROM_LOAD( "910-a07.j15",    0x000000, 0x020000, CRC(8b43a64e) SHA1(e373d0fd88b59fb01782dfaeccb1e13673a35766) )
 	ROM_LOAD( "910-a08.j16",    0x020000, 0x020000, CRC(c3829826) SHA1(0d383a7afac2a3b5da692375a2b2cd675848861a) )
 	ROM_LOAD( "910-a09.j18",    0x040000, 0x020000, CRC(ee10b519) SHA1(a34bd7d89bb8a19af7252ed96ffce212788c586b) )
 	ROM_LOAD( "910-a10.j19",    0x060000, 0x020000, CRC(cffbb0c3) SHA1(e9ebe350289f0436de10a6289b04eed3b6a9f98e) )
 
-	ROM_REGION( 0x080000, "gfx3", 0 ) /* BG 2 */
+	ROM_REGION( 0x080000, "k051316_2", 0 )
 	ROM_LOAD( "910-a11.l15",    0x000000, 0x020000, CRC(17a5581d) SHA1(aca5d465a0e181a266a165aeb0112a4696b0cd18) )
 	ROM_LOAD( "910-a12.l16",    0x020000, 0x020000, CRC(39763fb5) SHA1(0e1795af4bae545a0a2be265398837fb2d623232) )
 	ROM_LOAD( "910-a13.l18",    0x040000, 0x020000, CRC(66b25a4f) SHA1(954552b005582c90d570ae32c715108ec4b088f1) )
 	ROM_LOAD( "910-a14.l19",    0x060000, 0x020000, CRC(09fbd412) SHA1(d11587db7b03f3a75ad8964523bb34f4453bbaca) )
 
-	ROM_REGION( 0x080000, "gfx4", 0 ) /* BG 3 */
+	ROM_REGION( 0x080000, "k051316_3", 0 )
 	ROM_LOAD( "910-a15.m15",    0x000000, 0x020000, CRC(6d5bfbb7) SHA1(e98c594446b506cb32cc5cc958d2f0de22ebed5e) )
 	ROM_LOAD( "910-a16.m16",    0x020000, 0x020000, CRC(5f6f8c3d) SHA1(e365836d2263f36aa4602f0618bf7ce693d2e106) )
 	ROM_LOAD( "910-a17.m18",    0x040000, 0x020000, CRC(1f3ec4ff) SHA1(875f53516f47decc4ce31154cf4694c8429ee4ea) )

@@ -1,8 +1,9 @@
-#include "video/poly.h"
-#include "machine/scsibus.h"
+#include "video/polylgcy.h"
+#include "bus/scsi/scsi.h"
 #include "machine/53c810.h"
 #include "audio/dsbz80.h"
 #include "machine/eepromser.h"
+#include "sound/scsp.h"
 
 typedef float MATRIX[4][4];
 typedef float VECTOR[4];
@@ -20,16 +21,33 @@ public:
 	model3_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
-		m_lsi53c810(*this, "scsi:lsi53c810"),
+		m_lsi53c810(*this, "lsi53c810"),
+		m_audiocpu(*this, "audiocpu"),
+		m_scsp1(*this, "scsp1"),
+		m_eeprom(*this, "eeprom"),
+		m_screen(*this, "screen"),
 		m_work_ram(*this, "work_ram"),
 		m_paletteram64(*this, "paletteram64"),
 		m_dsbz80(*this, DSBZ80_TAG),
-		m_soundram(*this, "soundram"),
-		m_audiocpu(*this, "audiocpu"),
-		m_eeprom(*this, "eeprom"){ }
+		m_soundram(*this, "soundram") { }
+
+	struct TRIANGLE
+	{
+		poly_vertex v[3];
+		UINT8 texture_x, texture_y;
+		UINT8 texture_width, texture_height;
+		UINT8 transparency;
+		UINT8 texture_format, param;
+		int intensity;
+		UINT32 color;
+	};
 
 	required_device<cpu_device> m_maincpu;
 	optional_device<lsi53c810_device> m_lsi53c810;
+	required_device<cpu_device> m_audiocpu;
+	required_device<scsp_device> m_scsp1;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
+	required_device<screen_device> m_screen;
 
 	required_shared_ptr<UINT64> m_work_ram;
 	required_shared_ptr<UINT64> m_paletteram64;
@@ -67,7 +85,6 @@ public:
 	UINT64 m_real3d_status;
 	UINT64 *m_network_ram;
 	int m_prot_data_ptr;
-	int m_scsp_last_line;
 	UINT32 *m_vrom;
 	int m_step;
 	int m_m3_step;
@@ -100,7 +117,7 @@ public:
 	VECTOR3 m_parallel_light;
 	float m_parallel_light_intensity;
 	float m_ambient_light_intensity;
-	poly_manager *m_poly;
+	legacy_poly_manager *m_poly;
 	int m_list_depth;
 	int m_tick;
 	int m_debug_layer_disable;
@@ -207,30 +224,51 @@ public:
 	TIMER_CALLBACK_MEMBER(model3_sound_timer_tick);
 	TIMER_DEVICE_CALLBACK_MEMBER(model3_interrupt);
 	void model3_exit();
-	DECLARE_WRITE_LINE_MEMBER(scsp_irq);
-	required_device<cpu_device> m_audiocpu;
-	required_device<eeprom_serial_93cxx_device> m_eeprom;
+	DECLARE_WRITE8_MEMBER(scsp_irq);
+	LSI53C810_DMA_CB(real3d_dma_callback);
+	LSI53C810_FETCH_CB(scsi_fetch);
+	LSI53C810_IRQ_CB(scsi_irq_callback);
+	void update_irq_state();
+	void set_irq_line(UINT8 bit, int line);
+	void model3_init(int step);
+	// video
+	void draw_tile_4bit(bitmap_ind16 &bitmap, int tx, int ty, int tilenum);
+	void draw_tile_8bit(bitmap_ind16 &bitmap, int tx, int ty, int tilenum);
+	void draw_layer(bitmap_ind16 &bitmap, const rectangle &cliprect, int layer, int bitdepth);
+	void invalidate_texture(int page, int texx, int texy, int texwidth, int texheight);
+	cached_texture *get_texture(int page, int texx, int texy, int texwidth, int texheight, int format);
+	inline void write_texture16(int xpos, int ypos, int width, int height, int page, UINT16 *data);
+	void real3d_upload_texture(UINT32 header, UINT32 *data);
+	void init_matrix_stack();
+	void get_top_matrix(MATRIX *out);
+	void push_matrix_stack();
+	void pop_matrix_stack();
+	void multiply_matrix_stack(MATRIX matrix);
+	void translate_matrix_stack(float x, float y, float z);
+	void render_one(TRIANGLE *tri);
+	void draw_model(UINT32 addr);
+	UINT32 *get_memory_pointer(UINT32 address);
+	void load_matrix(int matrix_num, MATRIX *out);
+	void traverse_list4(int lod_num, UINT32 address);
+	void traverse_list(UINT32 address);
+	inline void process_link(UINT32 address, UINT32 link);
+	void draw_block(UINT32 address);
+	void draw_viewport(int pri, UINT32 address);
+	void real3d_traverse_display_list();
+#ifdef UNUSED_FUNCTION
+	inline void write_texture8(int xpos, int ypos, int width, int height, int page, UINT16 *data);
+	void draw_texture_sheet(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void copy_screen(bitmap_ind16 &bitmap, const rectangle &cliprect);
+#endif
+	void real3d_display_list_end();
+	void real3d_display_list1_dma(UINT32 src, UINT32 dst, int length, int byteswap);
+	void real3d_display_list2_dma(UINT32 src, UINT32 dst, int length, int byteswap);
+	void real3d_vrom_texture_dma(UINT32 src, UINT32 dst, int length, int byteswap);
+	void real3d_texture_fifo_dma(UINT32 src, int length, int byteswap);
+	void real3d_polygon_ram_dma(UINT32 src, UINT32 dst, int length, int byteswap);
+	// machine
+	void insert_id(UINT32 id, INT32 start_bit);
+	int tap_read();
+	void tap_write(int tck, int tms, int tdi, int trst);
+	void tap_reset();
 };
-
-
-/*----------- defined in drivers/model3.c -----------*/
-
-void model3_set_irq_line(running_machine &machine, UINT8 bit, int state);
-
-
-/*----------- defined in machine/model3.c -----------*/
-
-void model3_machine_init(running_machine &machine, int step);
-int model3_tap_read(running_machine &machine);
-void model3_tap_write(running_machine &machine, int tck, int tms, int tdi, int trst);
-void model3_tap_reset(running_machine &machine);
-
-
-/*----------- defined in video/model3.c -----------*/
-
-void real3d_display_list_end(running_machine &machine);
-void real3d_display_list1_dma(address_space &space, UINT32 src, UINT32 dst, int length, int byteswap);
-void real3d_display_list2_dma(address_space &space, UINT32 src, UINT32 dst, int length, int byteswap);
-void real3d_vrom_texture_dma(address_space &space, UINT32 src, UINT32 dst, int length, int byteswap);
-void real3d_texture_fifo_dma(address_space &space, UINT32 src, int length, int byteswap);
-void real3d_polygon_ram_dma(address_space &space, UINT32 src, UINT32 dst, int length, int byteswap);

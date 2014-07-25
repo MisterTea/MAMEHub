@@ -45,11 +45,40 @@ The source code there implies that *maybe* ff7e and ff7f are also open bus.
 */
 
 #include "emu.h"
-#include "includes/aim65_40.h"
 #include "cpu/m6502/m6502.h"
 #include "machine/6522via.h"
 #include "machine/mos6551.h"
 #include "aim65_40.lh"
+
+
+//**************************************************************************
+//  MACROS/CONSTANTS
+//**************************************************************************
+
+#define M6502_TAG       "m6502"
+#define M6522_0_TAG     "m6522_0"
+#define M6522_1_TAG     "m6522_1"
+#define M6522_2_TAG     "m6522_2"
+#define M6551_TAG       "m6551"
+
+
+//**************************************************************************
+//  TYPE DEFINITIONS
+//**************************************************************************
+
+class aim65_40_state : public driver_device
+{
+public:
+	aim65_40_state(const machine_config &mconfig, device_type type, const char *tag)
+		: driver_device(mconfig, type, tag) { }
+
+	// devices
+	device_t *m_via0;
+	device_t *m_via1;
+	device_t *m_via2;
+	device_t *m_speaker;
+};
+
 
 /***************************************************************************
     ADDRESS MAPS
@@ -73,61 +102,6 @@ static INPUT_PORTS_START( aim65_40 )
 INPUT_PORTS_END
 
 /***************************************************************************
-    DEVICE INTERFACES
-***************************************************************************/
-
-static const via6522_interface user_via_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const via6522_interface system_via_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const via6522_interface kb_via_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-/***************************************************************************
     MACHINE DRIVERS
 ***************************************************************************/
 
@@ -142,10 +116,11 @@ static MACHINE_CONFIG_START( aim65_40, aim65_40_state )
 	/* sound hardware */
 
 	/* devices */
-	MCFG_VIA6522_ADD(M6522_0_TAG, 0, user_via_intf)
-	MCFG_VIA6522_ADD(M6522_1_TAG, 0, system_via_intf)
-	MCFG_VIA6522_ADD(M6522_2_TAG, 0, kb_via_intf)
-	MCFG_MOS6551_ADD(M6551_TAG, XTAL_1_8432MHz, NULL)
+	MCFG_DEVICE_ADD(M6522_0_TAG, VIA6522, 0)
+	MCFG_DEVICE_ADD(M6522_1_TAG, VIA6522, 0)
+	MCFG_DEVICE_ADD(M6522_2_TAG, VIA6522, 0)
+	MCFG_DEVICE_ADD(M6551_TAG, MOS6551, 0)
+	MCFG_MOS6551_XTAL(XTAL_1_8432MHz)
 MACHINE_CONFIG_END
 
 /***************************************************************************

@@ -3,6 +3,7 @@
                 ------------------------------------
 ****************************************************************************/
 
+#include "cpu/m68000/m68000.h"
 #include "video/toaplan_scu.h"
 
 class toaplan1_state : public driver_device
@@ -10,17 +11,19 @@ class toaplan1_state : public driver_device
 public:
 	toaplan1_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_colorram1(*this, "colorram1"),
-		m_colorram2(*this, "colorram2"),
+		m_bgpaletteram(*this, "bgpalette"),
+		m_fgpaletteram(*this, "fgpalette"),
 		m_sharedram(*this, "sharedram"),
 		m_spriteram(*this, "spriteram"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_dsp(*this, "dsp") { }
+		m_dsp(*this, "dsp"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
-	int m_unk_reset_port;
-	required_shared_ptr<UINT16> m_colorram1;
-	required_shared_ptr<UINT16> m_colorram2;
+	required_shared_ptr<UINT16> m_bgpaletteram;
+	required_shared_ptr<UINT16> m_fgpaletteram;
 
 	optional_shared_ptr<UINT8> m_sharedram;
 
@@ -62,12 +65,6 @@ public:
 	INT32 m_pf3_scrolly;
 	INT32 m_pf4_scrollx;
 	INT32 m_pf4_scrolly;
-	INT32 m_scrollx_offs1;
-	INT32 m_scrollx_offs2;
-	INT32 m_scrollx_offs3;
-	INT32 m_scrollx_offs4;
-	INT32 m_scrolly_offs;
-
 
 #ifdef MAME_DEBUG
 	int m_display_pf1;
@@ -80,15 +77,11 @@ public:
 	INT32 m_tiles_offsetx;
 	INT32 m_tiles_offsety;
 
-	int m_reset;        /* Hack! See toaplan1_bcu_control below */
-
 	tilemap_t *m_pf1_tilemap;
 	tilemap_t *m_pf2_tilemap;
 	tilemap_t *m_pf3_tilemap;
 	tilemap_t *m_pf4_tilemap;
 
-	// an empty tile, so that we can safely disable tiles
-	UINT8        m_empty_tile[8*8];
 	DECLARE_WRITE16_MEMBER(toaplan1_intenable_w);
 	DECLARE_WRITE16_MEMBER(demonwld_dsp_addrsel_w);
 	DECLARE_READ16_MEMBER(demonwld_dsp_r);
@@ -102,21 +95,18 @@ public:
 	DECLARE_WRITE16_MEMBER(vimana_mcu_w);
 	DECLARE_READ16_MEMBER(toaplan1_shared_r);
 	DECLARE_WRITE16_MEMBER(toaplan1_shared_w);
-	DECLARE_WRITE16_MEMBER(toaplan1_reset_sound);
+	DECLARE_WRITE16_MEMBER(toaplan1_reset_sound_w);
 	DECLARE_WRITE8_MEMBER(toaplan1_coin_w);
 	DECLARE_WRITE16_MEMBER(samesame_coin_w);
+
 	DECLARE_READ16_MEMBER(toaplan1_frame_done_r);
 	DECLARE_WRITE16_MEMBER(toaplan1_tile_offsets_w);
-
-
 	DECLARE_WRITE16_MEMBER(toaplan1_bcu_flipscreen_w);
 	DECLARE_WRITE16_MEMBER(toaplan1_fcu_flipscreen_w);
 	DECLARE_READ16_MEMBER(toaplan1_spriteram_offs_r);
 	DECLARE_WRITE16_MEMBER(toaplan1_spriteram_offs_w);
-	DECLARE_READ16_MEMBER(toaplan1_colorram1_r);
-	DECLARE_WRITE16_MEMBER(toaplan1_colorram1_w);
-	DECLARE_READ16_MEMBER(toaplan1_colorram2_r);
-	DECLARE_WRITE16_MEMBER(toaplan1_colorram2_w);
+	DECLARE_WRITE16_MEMBER(toaplan1_bgpalette_w);
+	DECLARE_WRITE16_MEMBER(toaplan1_fgpalette_w);
 	DECLARE_READ16_MEMBER(toaplan1_spriteram16_r);
 	DECLARE_WRITE16_MEMBER(toaplan1_spriteram16_w);
 	DECLARE_READ16_MEMBER(toaplan1_spritesizeram16_r);
@@ -125,11 +115,10 @@ public:
 	DECLARE_READ16_MEMBER(toaplan1_tileram_offs_r);
 	DECLARE_WRITE16_MEMBER(toaplan1_tileram_offs_w);
 	DECLARE_READ16_MEMBER(toaplan1_tileram16_r);
-
-
 	DECLARE_WRITE16_MEMBER(toaplan1_tileram16_w);
 	DECLARE_READ16_MEMBER(toaplan1_scroll_regs_r);
 	DECLARE_WRITE16_MEMBER(toaplan1_scroll_regs_w);
+
 	DECLARE_DRIVER_INIT(toaplan1);
 	DECLARE_DRIVER_INIT(demonwld);
 	DECLARE_DRIVER_INIT(vimana);
@@ -148,10 +137,8 @@ public:
 	void screen_eof_samesame(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(toaplan1_interrupt);
 
-	void toaplan1_flipscreen();
 	void demonwld_restore_dsp();
 	void toaplan1_create_tilemaps();
-	void toaplan1_paletteram_alloc();
 	void toaplan1_vram_alloc();
 	void toaplan1_spritevram_alloc();
 	void toaplan1_set_scrolls();
@@ -159,13 +146,18 @@ public:
 	void toaplan1_log_vram();
 	void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect );
 	void demonwld_dsp(int enable);
+	void toaplan1_reset_sound();
 	void toaplan1_driver_savestate();
 	void demonwld_driver_savestate();
 	void vimana_driver_savestate();
 	DECLARE_WRITE_LINE_MEMBER(irqhandler);
-	required_device<cpu_device> m_maincpu;
+	DECLARE_WRITE_LINE_MEMBER(toaplan1_reset_callback);
+	required_device<m68000_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	optional_device<cpu_device> m_dsp;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 class toaplan1_rallybik_state : public toaplan1_state
@@ -173,17 +165,15 @@ class toaplan1_rallybik_state : public toaplan1_state
 public:
 	toaplan1_rallybik_state(const machine_config &mconfig, device_type type, const char *tag)
 		: toaplan1_state(mconfig, type, tag),
-		m_spritegen(*this, "toaplan_scu")
+		m_spritegen(*this, "scu")
 	{
 	}
 
-	DECLARE_WRITE16_MEMBER(rallybik_bcu_flipscreen_w);
 	DECLARE_WRITE8_MEMBER(rallybik_coin_w);
 	DECLARE_READ16_MEMBER(rallybik_tileram16_r);
 	DECLARE_VIDEO_START(rallybik);
 	UINT32 screen_update_rallybik(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_rallybik(screen_device &screen, bool state);
-	void rallybik_flipscreen();
 
 	required_device<toaplan_scu_device> m_spritegen;
 };

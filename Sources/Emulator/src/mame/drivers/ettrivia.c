@@ -38,7 +38,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_fg_videoram(*this, "fg_videoram"),
 		m_bg_videoram(*this, "bg_videoram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	int m_palreg;
 	int m_gfx_bank;
@@ -60,11 +61,12 @@ public:
 	TILE_GET_INFO_MEMBER(get_tile_info_bg);
 	TILE_GET_INFO_MEMBER(get_tile_info_fg);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(ettrivia);
 	UINT32 screen_update_ettrivia(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(ettrivia_interrupt);
 	inline void get_tile_info(tile_data &tileinfo, int tile_index, UINT8 *vidram, int gfx_code);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -219,7 +221,7 @@ TILE_GET_INFO_MEMBER(ettrivia_state::get_tile_info_fg)
 	get_tile_info(tileinfo, tile_index, m_fg_videoram, 1);
 }
 
-void ettrivia_state::palette_init()
+PALETTE_INIT_MEMBER(ettrivia_state, ettrivia)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances[2] = { 270, 130 };
@@ -232,7 +234,7 @@ void ettrivia_state::palette_init()
 			2, resistances, weights, 0, 0,
 			0, 0, 0, 0, 0);
 
-	for (i = 0;i < machine().total_colors(); i++)
+	for (i = 0;i < palette.entries(); i++)
 	{
 		int bit0, bit1;
 		int r, g, b;
@@ -252,14 +254,14 @@ void ettrivia_state::palette_init()
 		bit1 = (color_prom[i+0x100] >> 1) & 0x01;
 		b = combine_2_weights(weights, bit0, bit1);
 
-		palette_set_color(machine(), BITSWAP8(i,5,7,6,2,1,0,4,3), MAKE_RGB(r, g, b));
+		palette.set_pen_color(BITSWAP8(i,5,7,6,2,1,0,4,3), rgb_t(r, g, b));
 	}
 }
 
 void ettrivia_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ettrivia_state::get_tile_info_bg),this),TILEMAP_SCAN_ROWS,8,8,64,32 );
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ettrivia_state::get_tile_info_fg),this),TILEMAP_SCAN_ROWS,8,8,64,32 );
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ettrivia_state::get_tile_info_bg),this),TILEMAP_SCAN_ROWS,8,8,64,32 );
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ettrivia_state::get_tile_info_fg),this),TILEMAP_SCAN_ROWS,8,8,64,32 );
 
 	m_fg_tilemap->set_transparent_pen(0);
 }
@@ -270,27 +272,6 @@ UINT32 ettrivia_state::screen_update_ettrivia(screen_device &screen, bitmap_ind1
 	m_fg_tilemap->draw(screen, bitmap, cliprect, 0,0);
 	return 0;
 }
-
-static const ay8910_interface ay8912_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("IN1"),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface ay8912_interface_3 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("IN0"),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 
 INTERRUPT_GEN_MEMBER(ettrivia_state::ettrivia_interrupt)
 {
@@ -315,10 +296,11 @@ static MACHINE_CONFIG_START( ettrivia, ettrivia_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ettrivia_state, screen_update_ettrivia)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ettrivia)
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ettrivia)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(ettrivia_state, ettrivia)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -327,11 +309,11 @@ static MACHINE_CONFIG_START( ettrivia, ettrivia_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 1500000)
-	MCFG_SOUND_CONFIG(ay8912_interface_2)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay3", AY8910, 1500000)
-	MCFG_SOUND_CONFIG(ay8912_interface_3)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN0"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 

@@ -15,8 +15,7 @@ TILE_GET_INFO_MEMBER(taitol_state::get_bg18_tile_info)
 			| ((m_bankc[(attr & 0xc) >> 2]) << 10)
 			| (m_horshoes_gfxbank << 12);
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			(attr & 0xf0) >> 4,
 			0);
@@ -30,8 +29,7 @@ TILE_GET_INFO_MEMBER(taitol_state::get_bg19_tile_info)
 			| ((m_bankc[(attr & 0xc) >> 2]) << 10)
 			| (m_horshoes_gfxbank << 12);
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			(attr & 0xf0) >> 4,
 			0);
@@ -42,8 +40,7 @@ TILE_GET_INFO_MEMBER(taitol_state::get_ch1a_tile_info)
 	int attr = m_rambanks[2 * tile_index + 0xa000 + 1];
 	int code = m_rambanks[2 * tile_index + 0xa000] | ((attr & 0x01) << 8) | ((attr & 0x04) << 7);
 
-	SET_TILE_INFO_MEMBER(
-			2,
+	SET_TILE_INFO_MEMBER(2,
 			code,
 			(attr & 0xf0) >> 4,
 			0);
@@ -61,15 +58,15 @@ VIDEO_START_MEMBER(taitol_state,taitol)
 {
 	int i;
 
-	m_bg18_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(taitol_state::get_bg18_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
-	m_bg19_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(taitol_state::get_bg19_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
-	m_ch1a_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(taitol_state::get_ch1a_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_bg18_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(taitol_state::get_bg18_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_bg19_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(taitol_state::get_bg19_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_ch1a_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(taitol_state::get_ch1a_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_bg18_tilemap->set_transparent_pen(0);
 	m_ch1a_tilemap->set_transparent_pen(0);
 
 	for (i = 0; i < 256; i++)
-		palette_set_color(machine(), i, MAKE_RGB(0, 0, 0));
+		m_palette->set_pen_color(i, rgb_t(0, 0, 0));
 
 	m_ch1a_tilemap->set_scrolldx(-8, -8);
 	m_bg18_tilemap->set_scrolldx(28, -11);
@@ -141,42 +138,42 @@ READ8_MEMBER(taitol_state::taitol_control_r)
 
 void taitol_state::taitol_chardef14_m( int offset )
 {
-	machine().gfx[2]->mark_dirty(offset / 32 + 0);
+	m_gfxdecode->gfx(2)->mark_dirty(offset / 32 + 0);
 }
 
 void taitol_state::taitol_chardef15_m( int offset )
 {
-	machine().gfx[2]->mark_dirty(offset / 32 + 128);
+	m_gfxdecode->gfx(2)->mark_dirty(offset / 32 + 128);
 }
 
 void taitol_state::taitol_chardef16_m( int offset )
 {
-	machine().gfx[2]->mark_dirty(offset / 32 + 256);
+	m_gfxdecode->gfx(2)->mark_dirty(offset / 32 + 256);
 }
 
 void taitol_state::taitol_chardef17_m( int offset )
 {
-	machine().gfx[2]->mark_dirty(offset / 32 + 384);
+	m_gfxdecode->gfx(2)->mark_dirty(offset / 32 + 384);
 }
 
 void taitol_state::taitol_chardef1c_m( int offset )
 {
-	machine().gfx[2]->mark_dirty(offset / 32 + 512);
+	m_gfxdecode->gfx(2)->mark_dirty(offset / 32 + 512);
 }
 
 void taitol_state::taitol_chardef1d_m( int offset )
 {
-	machine().gfx[2]->mark_dirty(offset / 32 + 640);
+	m_gfxdecode->gfx(2)->mark_dirty(offset / 32 + 640);
 }
 
 void taitol_state::taitol_chardef1e_m( int offset )
 {
-	machine().gfx[2]->mark_dirty(offset / 32 + 768);
+	m_gfxdecode->gfx(2)->mark_dirty(offset / 32 + 768);
 }
 
 void taitol_state::taitol_chardef1f_m( int offset )
 {
-	machine().gfx[2]->mark_dirty(offset / 32 + 896);
+	m_gfxdecode->gfx(2)->mark_dirty(offset / 32 + 896);
 }
 
 void taitol_state::taitol_bg18_m( int offset )
@@ -256,7 +253,7 @@ void taitol_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, co
 			flipy = !flipy;
 		}
 
-		pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->prio_transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,
@@ -303,7 +300,7 @@ UINT32 taitol_state::screen_update_taitol(screen_device &screen, bitmap_ind16 &b
 		m_ch1a_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	}
 	else
-		bitmap.fill(machine().pens[0], cliprect);
+		bitmap.fill(m_palette->pen(0), cliprect);
 	return 0;
 }
 

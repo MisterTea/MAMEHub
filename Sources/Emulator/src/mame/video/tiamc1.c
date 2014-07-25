@@ -23,7 +23,7 @@ WRITE8_MEMBER(tiamc1_state::tiamc1_videoram_w)
 		m_charram[offset + 0x1800] = data;
 
 	if ((m_layers_ctrl & (16|8|4|2)) != (16|8|4|2))
-		machine().gfx[0]->mark_dirty((offset / 8) & 0xff);
+		m_gfxdecode->gfx(0)->mark_dirty((offset / 8) & 0xff);
 
 	if(!(m_layers_ctrl & 1)) {
 		m_tileram[offset] = data;
@@ -74,10 +74,10 @@ WRITE8_MEMBER(tiamc1_state::tiamc1_bg_hshift_w)
 
 WRITE8_MEMBER(tiamc1_state::tiamc1_palette_w)
 {
-	palette_set_color(machine(), offset, m_palette[data]);
+	m_palette->set_pen_color(offset, m_palette_ptr[data]);
 }
 
-void tiamc1_state::palette_init()
+PALETTE_INIT_MEMBER(tiamc1_state, tiamc1)
 {
 	// Voltage computed by Proteus
 	//static const float g_v[8]={1.05f,0.87f,0.81f,0.62f,0.44f,0.25f,0.19f,0.00f};
@@ -93,7 +93,7 @@ void tiamc1_state::palette_init()
 	int r, g, b, ir, ig, ib;
 	float tcol;
 
-	m_palette = auto_alloc_array(machine(), rgb_t, 256);
+	m_palette_ptr = auto_alloc_array(machine(), rgb_t, 256);
 
 	for (col = 0; col < 256; col++) {
 		ir = (col >> 3) & 7;
@@ -106,7 +106,7 @@ void tiamc1_state::palette_init()
 		tcol = 255.0f * b_v[ib] / b_v[0];
 		b = 255 - (((int)tcol) & 255);
 
-		m_palette[col] = MAKE_RGB(r,g,b);
+		m_palette_ptr[col] = rgb_t(r,g,b);
 	}
 }
 
@@ -136,11 +136,13 @@ void tiamc1_state::video_start()
 
 	save_pointer(NAME(video_ram), 0x3040);
 
-	m_bg_tilemap1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tiamc1_state::get_bg1_tile_info),this), TILEMAP_SCAN_ROWS,
+	m_bg_tilemap1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tiamc1_state::get_bg1_tile_info),this), TILEMAP_SCAN_ROWS,
 			8, 8, 32, 32);
 
-	m_bg_tilemap2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tiamc1_state::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS,
+	m_bg_tilemap2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tiamc1_state::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS,
 			8, 8, 32, 32);
+	m_bg_tilemap1->set_scrolldx(4, 4);
+	m_bg_tilemap2->set_scrolldx(4, 4);
 
 	m_bg_vshift = 0;
 	m_bg_hshift = 0;
@@ -149,7 +151,7 @@ void tiamc1_state::video_start()
 	save_item(NAME(m_bg_vshift));
 	save_item(NAME(m_bg_hshift));
 
-	machine().gfx[0]->set_source(m_charram);
+	m_gfxdecode->gfx(0)->set_source(m_charram);
 }
 
 void tiamc1_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -167,7 +169,7 @@ void tiamc1_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 		spritecode = m_spriteram_n[offs] ^ 0xff;
 
 		if (!(m_spriteram_a[offs] & 0x01))
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				spritecode,
 				0,
 				flipx, flipy,
@@ -177,21 +179,19 @@ void tiamc1_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 
 UINT32 tiamc1_state::screen_update_tiamc1(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-#if 0
 	int i;
 
 	for (i = 0; i < 32; i++)
 	{
-		m_bg_tilemap1->set_scrolly(i, m_bg_vshift ^ 0xff);
-		m_bg_tilemap2->set_scrolly(i, m_bg_vshift ^ 0xff);
+		m_bg_tilemap1->set_scrolly(i, m_bg_vshift);
+		m_bg_tilemap2->set_scrolly(i, m_bg_vshift);
 	}
 
 	for (i = 0; i < 32; i++)
 	{
-		m_bg_tilemap1->set_scrollx(i, m_bg_hshift ^ 0xff);
-		m_bg_tilemap2->set_scrollx(i, m_bg_hshift ^ 0xff);
+		m_bg_tilemap1->set_scrollx(i, m_bg_hshift);
+		m_bg_tilemap2->set_scrollx(i, m_bg_hshift);
 	}
-#endif
 
 	if (m_layers_ctrl & 0x80)
 		m_bg_tilemap2->draw(screen, bitmap, cliprect, 0, 0);

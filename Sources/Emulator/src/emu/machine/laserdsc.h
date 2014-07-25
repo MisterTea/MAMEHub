@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     laserdsc.h
 
     Core laserdisc player implementation.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 *************************************************************************/
 
@@ -90,6 +61,8 @@ enum laserdisc_field_code
 	laserdisc_device::static_set_get_disc(*device, _func);
 #define MCFG_LASERDISC_AUDIO(_func) \
 	laserdisc_device::static_set_audio(*device, _func);
+#define MCFG_LASERDISC_SCREEN(_tag) \
+	laserdisc_device::static_set_screen(*device, _tag);
 #define MCFG_LASERDISC_OVERLAY_STATIC(_width, _height, _func) \
 	laserdisc_device::static_set_overlay(*device, _width, _height, screen_update_delegate_smart(&screen_update_##_func, "screen_update_" #_func));
 #define MCFG_LASERDISC_OVERLAY_DRIVER(_width, _height, _class, _method) \
@@ -102,21 +75,23 @@ enum laserdisc_field_code
 	laserdisc_device::static_set_overlay_position(*device, _posx, _posy);
 #define MCFG_LASERDISC_OVERLAY_SCALE(_scalex, _scaley) \
 	laserdisc_device::static_set_overlay_scale(*device, _scalex, _scaley);
+#define MCFG_LASERDISC_OVERLAY_PALETTE(_palette_tag) \
+	laserdisc_device::static_set_overlay_palette(*device, "^" _palette_tag);
 
 // use these to add laserdisc screens with proper video update parameters
 #define MCFG_LASERDISC_SCREEN_ADD_NTSC(_tag, _ldtag) \
 	MCFG_DEVICE_MODIFY(_ldtag) \
 	laserdisc_device::static_set_screen(*device, _tag); \
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_SELF_RENDER) \
 	MCFG_SCREEN_ADD(_tag, RASTER) \
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_SELF_RENDER) \
 	MCFG_SCREEN_RAW_PARAMS(XTAL_14_31818MHz*2, 910, 0, 704, 525, 44, 524) \
 	MCFG_SCREEN_UPDATE_DEVICE(_ldtag, laserdisc_device, screen_update)
 // not correct yet; fix me...
 #define MCFG_LASERDISC_SCREEN_ADD_PAL(_tag, _ldtag) \
 	MCFG_DEVICE_MODIFY(_ldtag) \
 	laserdisc_device::static_set_screen(*device, _tag); \
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_SELF_RENDER) \
 	MCFG_SCREEN_ADD(_tag, RASTER) \
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_SELF_RENDER) \
 	MCFG_SCREEN_RAW_PARAMS(XTAL_14_31818MHz, 910, 0, 704, 525.0/2, 0, 480/2) \
 	MCFG_SCREEN_UPDATE_DEVICE(_ldtag, laserdisc_device, screen_update)
 
@@ -194,6 +169,7 @@ public:
 	static void static_set_overlay_clip(device_t &device, INT32 minx, INT32 maxx, INT32 miny, INT32 maxy);
 	static void static_set_overlay_position(device_t &device, float posx, float posy);
 	static void static_set_overlay_scale(device_t &device, float scalex, float scaley);
+	static void static_set_overlay_palette(device_t &device, const char *tag);
 
 protected:
 	// timer IDs
@@ -256,8 +232,8 @@ protected:
 	};
 
 	// subclass overrides
-	virtual void player_vsync(const vbi_metadata &vbi, int fieldnum, attotime curtime) = 0;
-	virtual INT32 player_update(const vbi_metadata &vbi, int fieldnum, attotime curtime) = 0;
+	virtual void player_vsync(const vbi_metadata &vbi, int fieldnum, const attotime &curtime) = 0;
+	virtual INT32 player_update(const vbi_metadata &vbi, int fieldnum, const attotime &curtime) = 0;
 	virtual void player_overlay(bitmap_yuy16 &bitmap) = 0;
 
 	// device-level overrides
@@ -265,6 +241,7 @@ protected:
 	virtual void device_stop();
 	virtual void device_reset();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+	virtual void device_validity_check(validity_checker &valid) const;
 
 	// device_sound_interface overrides
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
@@ -275,7 +252,7 @@ protected:
 	void set_slider_speed(INT32 tracks_per_vsync);
 	void advance_slider(INT32 numtracks);
 	slider_position get_slider_position();
-	INT32 generic_update(const vbi_metadata &vbi, int fieldnum, attotime curtime, player_state_info &curstate);
+	INT32 generic_update(const vbi_metadata &vbi, int fieldnum, const attotime &curtime, player_state_info &curstate);
 
 	// general helpers
 	bool is_start_of_frame(const vbi_metadata &vbi);
@@ -351,7 +328,7 @@ private:
 
 	// audio data
 	sound_stream *      m_stream;
-	INT16 *             m_audiobuffer[2];       // buffer for audio samples
+	dynamic_array<INT16> m_audiobuffer[2];      // buffer for audio samples
 	UINT32              m_audiobufsize;         // size of buffer
 	UINT32              m_audiobufin;           // input index
 	UINT32              m_audiobufout;          // output index
@@ -371,6 +348,7 @@ private:
 	screen_bitmap       m_overbitmap[2];        // overlay bitmaps
 	int                 m_overindex;            // index of the overlay bitmap
 	render_texture *    m_overtex;              // texture for the overlay
+	optional_device<palette_device> m_overlay_palette; // overlay screen palette
 };
 
 // iterator - interface iterator works for subclasses too

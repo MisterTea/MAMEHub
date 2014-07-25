@@ -26,7 +26,10 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_scroll_register(*this, "scroll_register"),
 		m_maincpu(*this, "maincpu"),
-		m_discrete(*this, "discrete"){ }
+		m_discrete(*this, "discrete"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"){ }
 
 	/* video-related */
 	required_shared_ptr<UINT8> m_alphap1_videoram;
@@ -61,6 +64,10 @@ public:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<discrete_device> m_discrete;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(atarifb_out1_w);
 	DECLARE_WRITE8_MEMBER(atarifb4_out1_w);
 	DECLARE_WRITE8_MEMBER(abaseb_out1_w);
@@ -81,7 +88,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(atarifb);
 	UINT32 screen_update_atarifb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_abaseb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_soccer(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);

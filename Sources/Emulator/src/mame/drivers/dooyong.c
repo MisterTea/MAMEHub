@@ -126,7 +126,7 @@ static ADDRESS_MAP_START( lastday_map, AS_PROGRAM, 8, dooyong_state )
 	AM_RANGE(0xc012, 0xc012) AM_WRITE(soundlatch_byte_w)
 	AM_RANGE(0xc013, 0xc013) AM_READ_PORT("DSWA")
 	AM_RANGE(0xc014, 0xc014) AM_READ_PORT("DSWB")
-	AM_RANGE(0xc800, 0xcfff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xc800, 0xcfff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xd000, 0xdfff) AM_RAM_WRITE(dooyong_txvideoram8_w) AM_SHARE("txvideoram")
 	AM_RANGE(0xe000, 0xefff) AM_RAM
 	AM_RANGE(0xf000, 0xffff) AM_RAM AM_SHARE("spriteram")
@@ -147,7 +147,7 @@ static ADDRESS_MAP_START( pollux_map, AS_PROGRAM, 8, dooyong_state )
 	AM_RANGE(0xf010, 0xf010) AM_WRITE(soundlatch_byte_w)
 	AM_RANGE(0xf018, 0xf01f) AM_WRITE(dooyong_bgscroll8_w)
 	AM_RANGE(0xf020, 0xf027) AM_WRITE(dooyong_fgscroll8_w)
-	AM_RANGE(0xf800, 0xffff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xf800, 0xffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( gulfstrm_map, AS_PROGRAM, 8, dooyong_state )
@@ -166,7 +166,7 @@ static ADDRESS_MAP_START( gulfstrm_map, AS_PROGRAM, 8, dooyong_state )
 	AM_RANGE(0xf010, 0xf010) AM_WRITE(soundlatch_byte_w)
 	AM_RANGE(0xf018, 0xf01f) AM_WRITE(dooyong_bgscroll8_w)
 	AM_RANGE(0xf020, 0xf027) AM_WRITE(dooyong_fgscroll8_w)
-	AM_RANGE(0xf800, 0xffff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xf800, 0xffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( bluehawk_map, AS_PROGRAM, 8, dooyong_state )
@@ -183,7 +183,7 @@ static ADDRESS_MAP_START( bluehawk_map, AS_PROGRAM, 8, dooyong_state )
 	AM_RANGE(0xc018, 0xc01f) AM_WRITE(dooyong_fg2scroll8_w)
 	AM_RANGE(0xc040, 0xc047) AM_WRITE(dooyong_bgscroll8_w)
 	AM_RANGE(0xc048, 0xc04f) AM_WRITE(dooyong_fgscroll8_w)
-	AM_RANGE(0xc800, 0xcfff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xc800, 0xcfff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xd000, 0xdfff) AM_RAM_WRITE(dooyong_txvideoram8_w) AM_SHARE("txvideoram")
 	AM_RANGE(0xe000, 0xefff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0xf000, 0xffff) AM_RAM
@@ -214,7 +214,7 @@ static ADDRESS_MAP_START( primella_map, AS_PROGRAM, 8, dooyong_state )
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
 	AM_RANGE(0xd000, 0xd3ff) AM_RAM /* what is this? looks like a palette? scratchpad RAM maybe? */
 	AM_RANGE(0xe000, 0xefff) AM_RAM_WRITE(dooyong_txvideoram8_w) AM_SHARE("txvideoram")
-	AM_RANGE(0xf000, 0xf7ff) AM_WRITE(paletteram_xRRRRRGGGGGBBBBB_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xf000, 0xf7ff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xf800, 0xf800) AM_READ_PORT("DSWA")
 	AM_RANGE(0xf800, 0xf800) AM_WRITE(primella_ctrl_w)  /* bank switch, flip screen etc */
 	AM_RANGE(0xf810, 0xf810) AM_READ_PORT("DSWB")
@@ -237,7 +237,7 @@ static ADDRESS_MAP_START( rshark_map, AS_PROGRAM, 16, dooyong_state )
 	AM_RANGE(0x0c0006, 0x0c0007) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x0c4000, 0x0c400f) AM_WRITE(dooyong_bgscroll16_w)
 	AM_RANGE(0x0c4010, 0x0c401f) AM_WRITE(dooyong_bg2scroll16_w)
-	AM_RANGE(0x0c8000, 0x0c8fff) AM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0c8000, 0x0c8fff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0c0012, 0x0c0013) AM_WRITE(soundlatch_word_w)
 	AM_RANGE(0x0c0014, 0x0c0015) AM_WRITE(rshark_ctrl_w)    /* flip screen + unknown stuff */
 	AM_RANGE(0x0cc000, 0x0cc00f) AM_WRITE(dooyong_fgscroll16_w)
@@ -255,7 +255,7 @@ static ADDRESS_MAP_START( superx_map, AS_PROGRAM, 16, dooyong_state )
 	AM_RANGE(0x080006, 0x080007) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x084000, 0x08400f) AM_WRITE(dooyong_bgscroll16_w)
 	AM_RANGE(0x084010, 0x08401f) AM_WRITE(dooyong_bg2scroll16_w)
-	AM_RANGE(0x088000, 0x088fff) AM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x088000, 0x088fff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x080012, 0x080013) AM_WRITE(soundlatch_word_w)
 	AM_RANGE(0x080014, 0x080015) AM_WRITE(rshark_ctrl_w)    /* flip screen + unknown stuff */
 	AM_RANGE(0x08c000, 0x08c00f) AM_WRITE(dooyong_fgscroll16_w)
@@ -276,7 +276,7 @@ static ADDRESS_MAP_START( popbingo_map, AS_PROGRAM, 16, dooyong_state )
 	AM_RANGE(0x0c0018, 0x0c001b) AM_WRITENOP // ?
 	AM_RANGE(0x0c4000, 0x0c400f) AM_WRITE(dooyong_bgscroll16_w)
 	AM_RANGE(0x0c4010, 0x0c401f) AM_WRITE(dooyong_bg2scroll16_w) // not used atm
-	AM_RANGE(0x0c8000, 0x0c8fff) AM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0c8000, 0x0c8fff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0cc000, 0x0cc00f) AM_WRITE(dooyong_fgscroll16_w) // not used atm
 	AM_RANGE(0x0cc010, 0x0cc01f) AM_WRITE(dooyong_fg2scroll16_w) // not used atm
 	AM_RANGE(0x0dc000, 0x0dc01f) AM_RAM // registers of some kind?
@@ -789,20 +789,6 @@ WRITE_LINE_MEMBER(dooyong_state::irqhandler_2203_2)
 	m_audiocpu->set_input_line(0, (m_interrupt_line_1 | m_interrupt_line_2) ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ay8910_interface ay8910_config_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(dooyong_state,unk_r), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
-static const ay8910_interface ay8910_config_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(dooyong_state,unk_r), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
 /***************************************************************************
 
     Machine driver(s)
@@ -815,12 +801,12 @@ static MACHINE_CONFIG_FRAGMENT( sound_2203 )
 
 	MCFG_SOUND_ADD("ym1", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(dooyong_state,irqhandler_2203_1))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config_1)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(dooyong_state, unk_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 
 	MCFG_SOUND_ADD("ym2", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(dooyong_state, irqhandler_2203_2))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config_2)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(dooyong_state, unk_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 MACHINE_CONFIG_END
 
@@ -872,9 +858,11 @@ static MACHINE_CONFIG_START( lastday, dooyong_state )
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 1*8, 31*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(dooyong_state, screen_update_lastday)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram8_device, vblank_copy_rising)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(lastday)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lastday)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	MCFG_VIDEO_START_OVERRIDE(dooyong_state,lastday)
 
@@ -883,12 +871,12 @@ static MACHINE_CONFIG_START( lastday, dooyong_state )
 
 	MCFG_SOUND_ADD("ym1", YM2203, 4000000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(dooyong_state,irqhandler_2203_1))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config_1)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(dooyong_state, unk_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 
 	MCFG_SOUND_ADD("ym2", YM2203, 4000000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(dooyong_state, irqhandler_2203_2))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config_2)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(dooyong_state, unk_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 
 MACHINE_CONFIG_END
@@ -916,9 +904,11 @@ static MACHINE_CONFIG_START( gulfstrm, dooyong_state )
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 1*8, 31*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(dooyong_state, screen_update_gulfstrm)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram8_device, vblank_copy_rising)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(lastday)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lastday)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(dooyong_state,gulfstrm)
 
@@ -949,9 +939,11 @@ static MACHINE_CONFIG_START( pollux, dooyong_state )
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 1*8, 31*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(dooyong_state, screen_update_pollux)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram8_device, vblank_copy_rising)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(lastday)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lastday)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(dooyong_state,pollux)
 
@@ -981,9 +973,11 @@ static MACHINE_CONFIG_START( bluehawk, dooyong_state )
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 1*8, 31*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(dooyong_state, screen_update_bluehawk)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram8_device, vblank_copy_rising)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bluehawk)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bluehawk)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(dooyong_state,bluehawk)
 
@@ -1013,9 +1007,11 @@ static MACHINE_CONFIG_START( flytiger, dooyong_state )
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 1*8, 31*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(dooyong_state, screen_update_flytiger)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram8_device, vblank_copy_rising)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(flytiger)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", flytiger)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(dooyong_state,flytiger)
 
@@ -1042,9 +1038,11 @@ static MACHINE_CONFIG_START( primella, dooyong_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 0*8, 32*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(dooyong_state, screen_update_primella)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(primella)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", primella)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(dooyong_state,primella)
 
@@ -1084,9 +1082,11 @@ static MACHINE_CONFIG_START( rshark, dooyong_state )
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 1*8, 31*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(dooyong_state, screen_update_rshark)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram16", buffered_spriteram16_device, vblank_copy_rising)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(rshark)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rshark)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(dooyong_state,rshark)
 
@@ -1114,9 +1114,11 @@ static MACHINE_CONFIG_START( superx, dooyong_state ) // dif mem map
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 1*8, 31*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(dooyong_state, screen_update_rshark)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram16", buffered_spriteram16_device, vblank_copy_rising)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(rshark)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rshark)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(dooyong_state,rshark)
 
@@ -1144,9 +1146,11 @@ static MACHINE_CONFIG_START( popbingo, dooyong_state )
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 1*8, 31*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(dooyong_state, screen_update_popbingo)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram16", buffered_spriteram16_device, vblank_copy_rising)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(popbingo)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", popbingo)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(dooyong_state,popbingo)
 
@@ -1274,6 +1278,43 @@ ROM_END
 ROM_START( gulfstrma )
 	ROM_REGION( 0x30000, "maincpu", 0 ) /* 64k for code + 128k for banks */
 	ROM_LOAD( "1.bin",       0x00000, 0x20000, CRC(d04fb06b) SHA1(bdf09ab692f90e3dea815605998f75b6478c8047) )
+	ROM_RELOAD(              0x10000, 0x20000 )             /* banked at 0x8000-0xbfff */
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )    /* sound */
+	ROM_LOAD( "3.c5",         0x00000, 0x10000, CRC(c029b015) SHA1(86f8d4f6560cb99e25e8e8baf72dde743a7b9c4c) )
+
+	ROM_REGION( 0x8000, "gfx1", 0 ) /* chars */
+	ROM_LOAD( "2.s4",         0x0000, 0x8000, CRC(c2d65a25) SHA1(a198b42c0737b253aca5bab6fb58ab561ccc1d5c) )    /* empty */
+	ROM_CONTINUE(             0x0000, 0x8000 )
+
+	ROM_REGION( 0x80000, "gfx2", 0 )    /* sprites */
+	ROM_LOAD16_BYTE( "14.b1",        0x00000, 0x20000, CRC(67bdf73d) SHA1(3e357448b6f255fdec731f143afa3d3149523ed2) )
+	ROM_LOAD16_BYTE( "16.c1",        0x00001, 0x20000, CRC(7770a76f) SHA1(4f9f5245f59008b26ed60e636285ea85271744e7) )
+	ROM_LOAD16_BYTE( "15.b1",        0x40000, 0x20000, CRC(84803f7e) SHA1(74b694c0d20c5b016b9d7258b0296229972151d5) )
+	ROM_LOAD16_BYTE( "17.e1",        0x40001, 0x20000, CRC(94706500) SHA1(8f4a6f7ce20b1b50577271601c2c2632b5a2292c) )
+
+	ROM_REGION( 0x80000, "gfx3", 0 )    /* tiles */
+	ROM_LOAD16_BYTE( "4.d8",         0x00000, 0x20000, CRC(858fdbb6) SHA1(4c317ab6069a8509287d3df88cf4272f512a40a3) )
+	ROM_LOAD16_BYTE( "5.b9",         0x00001, 0x20000, CRC(c0a552e8) SHA1(31dcb14eb8815c609b0bf4d5f1ea17b26ab18aec) )
+	ROM_LOAD16_BYTE( "6.d8",         0x40000, 0x20000, CRC(20eedda3) SHA1(8c8b1284e07f5380037f8431f2649aa99fd47542) )
+	ROM_LOAD16_BYTE( "7.d9",         0x40001, 0x20000, CRC(294f8c40) SHA1(b7afb87510ab52682151ff2b13029427487589ec) )
+
+	ROM_REGION( 0x40000, "gfx4", 0 )    /* tiles */
+	ROM_LOAD16_BYTE( "12.bin",       0x00000, 0x20000, CRC(3e3d3b57) SHA1(398a6cac7144ba7bacaa36c593bcb4b3c051eb0f) )
+	ROM_LOAD16_BYTE( "13.bin",       0x00001, 0x20000, CRC(66fcce80) SHA1(6ab2b7cd49447d374cde40b98db0a6209dcad461) )
+
+	ROM_REGION( 0x20000, "gfx5", 0 )    /* background tilemaps */
+	ROM_LOAD16_BYTE( "8.e8",         0x00000, 0x10000, CRC(8d7f4693) SHA1(a7c8573d9e54c8230decc3e88f76ae729d77b096) )
+	ROM_LOAD16_BYTE( "9.e9",         0x00001, 0x10000, CRC(34d440c4) SHA1(74b0e15e75f62106177234b6ea54a5d312628802) )
+
+	ROM_REGION( 0x20000, "gfx6", 0 )    /* fg tilemaps */
+	ROM_LOAD16_BYTE( "10.bin",       0x00000, 0x10000, CRC(08149140) SHA1(ff0094883ca0fc81bae991d6ea62d0064d6f7c47) )
+	ROM_LOAD16_BYTE( "11.bin",       0x00001, 0x10000, CRC(2ed7545b) SHA1(6a70743bbb03ef694310f2b5531f384209db62a1) )
+ROM_END
+
+ROM_START( gulfstrmb )
+	ROM_REGION( 0x30000, "maincpu", 0 ) /* 64k for code + 128k for banks */
+	ROM_LOAD( "(__gulfstrmb)1.l4",       0x00000, 0x20000, CRC(aabd95a5) SHA1(f1d3ade952e96b288e2cd4b172931862b16b4af9) )
 	ROM_RELOAD(              0x10000, 0x20000 )             /* banked at 0x8000-0xbfff */
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* sound */
@@ -1441,6 +1482,39 @@ ROM_START( polluxa2 )
 	ROM_LOAD16_BYTE( "pollux4.bin",  0x00001, 0x10000, CRC(2c6bd3be) SHA1(6648264be83588a01f264e7ec72d84e29e0d4795) )
 ROM_END
 
+ROM_START( polluxn )
+	ROM_REGION( 0x30000, "maincpu", 0 ) /* 64k for code + 128k for banks */
+	ROM_LOAD( "polluxntc_2.3g",  0x00000, 0x10000, CRC(96d3e3af) SHA1(fc0e7a60bee0ed74c28d403a97a852eb677f8189) )
+	ROM_RELOAD(               0x10000, 0x10000 )    /* banked at 0x8000-0xbfff */
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )    /* sound */
+	ROM_LOAD( "polluxntc_3.6t",  0x00000, 0x10000, CRC(85a9dc98) SHA1(a349bfb05d870ba920469066ce5c007363aca348) )
+
+	ROM_REGION( 0x10000, "gfx1", 0 )    /* chars */
+	ROM_LOAD( "polluxntc_1.3r",  0x08000, 0x08000, CRC(7f7135da) SHA1(0f77841e52b3d7e731d5142fba9ed5cd57343305) )
+	ROM_CONTINUE(             0x00000, 0x08000 )
+
+	ROM_REGION( 0x80000, "gfx2", 0 )    /* sprites */
+	ROM_LOAD16_WORD_SWAP( "polluxntc_dy-pl-m2_be023.3t", 0x00000, 0x80000, CRC(bdea6f7d) SHA1(b418710a6d12aa53037acf7bbec85a26dfac9ebe) )
+
+	ROM_REGION( 0x80000, "gfx3", 0 )    /* tiles */
+	ROM_LOAD16_WORD_SWAP( "polluxntc_dy-pl-m1_be002.8a", 0x00000, 0x80000, CRC(1d2dedd2) SHA1(9bcb1c80f05eabbca2c0738e409d3cadfc14b0c8) )
+
+	ROM_REGION( 0x80000, "gfx4", 0 )    /* tiles */
+	ROM_LOAD16_BYTE( "polluxntc_6.8m",  0x00000, 0x20000, CRC(b0391db5) SHA1(0c522c5074dc7c0a639ebfb7b9a9eddc90314081) )
+	ROM_LOAD16_BYTE( "polluxntc_7.8l",  0x00001, 0x20000, CRC(632f6e10) SHA1(a3605cbe7a9dc04cd8c1ab50110f72d93c78208b) )
+	ROM_FILL(                        0x40000, 0x40000, 0xff )
+
+	ROM_REGION( 0x20000, "gfx5", 0 )    /* bg tilemaps */
+	ROM_LOAD16_BYTE( "polluxntc_9.8b",  0x00000, 0x10000, CRC(378d8914) SHA1(ef95903971673bc26774fe2aff17e1581a7f0eb9) )
+	ROM_LOAD16_BYTE( "polluxntc_8.8j",  0x00001, 0x10000, CRC(8859fa70) SHA1(7b1b9edde3f762c7ae1f0b847aa17e30140e9ffa) )
+
+	ROM_REGION( 0x20000, "gfx6", 0 )    /* fg tilemaps */
+	ROM_LOAD16_BYTE( "polluxntc_5.8p",  0x00000, 0x10000, CRC(ac090d34) SHA1(6b554450d8d46165e25fd6f12ab4c4b9b63dcd35) )
+	ROM_LOAD16_BYTE( "polluxntc_4.8r",  0x00001, 0x10000, BAD_DUMP CRC(0195dc4e) SHA1(c87c90a38b382f11ee3377683c0becda745341e0) ) // need to confirm as bad, the same as other sets except it has some bits of data blanked out with 0xFF
+ROM_END
+
+
 ROM_START( bluehawk )
 	ROM_REGION( 0x30000, "maincpu", 0 ) /* 64k for code + 128k for banks */
 	ROM_LOAD( "rom19",        0x00000, 0x20000, CRC(24149246) SHA1(458fd429a895353b8636c717dcd58d57b8723012) )
@@ -1579,10 +1653,10 @@ ROM_START( flytiger )
 	ROM_CONTINUE(             0x00000, 0x8000 )
 
 	ROM_REGION( 0x80000, "gfx2", 0 )    /* sprites */
-	ROM_LOAD16_BYTE( "13.4h", 0x00000, 0x20000, CRC(8a158b95) SHA1(ed09d9c40b76a27e06601381e463a00b16555f1e) )
+	ROM_LOAD16_BYTE( "16.4h", 0x00000, 0x20000, CRC(8a158b95) SHA1(ed09d9c40b76a27e06601381e463a00b16555f1e) )
 	ROM_LOAD16_BYTE( "15.2h", 0x00001, 0x20000, CRC(399f6043) SHA1(ea0debd6d0f8c61f0078809c2828734fc15e891d) )
 	ROM_LOAD16_BYTE( "14.4k", 0x40000, 0x20000, CRC(df66b6f3) SHA1(3a29ae69a09306c5a2a2786acbf227832b408152) )
-	ROM_LOAD16_BYTE( "16.2k", 0x40001, 0x20000, CRC(f24a5099) SHA1(408559057989a40ca298baa85d5fe7cbde72d2b8) )
+	ROM_LOAD16_BYTE( "13.2k", 0x40001, 0x20000, CRC(f24a5099) SHA1(408559057989a40ca298baa85d5fe7cbde72d2b8) )
 
 	ROM_REGION( 0x80000, "gfx3",0 ) /* tiles + tilemaps */
 	ROM_LOAD16_WORD_SWAP( "dy-ft-m1.11n",   0x00000, 0x80000, CRC(f06589c2) SHA1(fb4aa12257e2e0162f2219ebea5177e8bb15e3f0) )
@@ -1592,6 +1666,40 @@ ROM_START( flytiger )
 
 	ROM_REGION( 0x80000, "oki", 0 ) /* OKI6295 samples */
 	ROM_LOAD( "4.9n",         0x00000, 0x20000, CRC(cd95cf9a) SHA1(d79e3aeda6a13d7b87369453bcf668778135b7fe) )
+ROM_END
+
+ROM_START( flytigera ) // alt pcb type
+	ROM_REGION( 0x30000, "maincpu", 0 ) /* 64k for code + 128k for banks */
+	ROM_LOAD( "ftiger_1.3c",  0x00000, 0x20000, CRC(02acd1ce) SHA1(48167a317d3785bfe688bdda01ff344e72d3b138) )
+	ROM_RELOAD(               0x10000, 0x20000 )                /* banked at 0x8000-0xbfff */
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )    /* sound */
+	ROM_LOAD( "ftiger_11.6p", 0x00000, 0x10000, CRC(d238df5e) SHA1(428fd7abd78238089c0c0fd73de57102f4f65a74))
+
+	ROM_REGION( 0x10000, "gfx1", 0 )    /* chars */
+	ROM_LOAD( "ftiger_2.4h",  0x08000, 0x08000, CRC(ca9d6713) SHA1(645cccc06c7f6744b25e7917f414956856419b8a) )
+	ROM_CONTINUE(             0x00000, 0x8000 )
+
+	ROM_REGION( 0x80000, "gfx2", 0 )    /* sprites */
+	ROM_LOAD16_BYTE( "ftiger_16.4h", 0x00000, 0x20000, CRC(8a158b95) SHA1(ed09d9c40b76a27e06601381e463a00b16555f1e) )
+	ROM_LOAD16_BYTE( "ftiger_15.2h", 0x00001, 0x20000, CRC(399f6043) SHA1(ea0debd6d0f8c61f0078809c2828734fc15e891d) )
+	ROM_LOAD16_BYTE( "ftiger_14.4k", 0x40000, 0x20000, CRC(df66b6f3) SHA1(3a29ae69a09306c5a2a2786acbf227832b408152) )
+	ROM_LOAD16_BYTE( "ftiger_13.2k", 0x40001, 0x20000, CRC(f24a5099) SHA1(408559057989a40ca298baa85d5fe7cbde72d2b8) )
+
+	ROM_REGION( 0x80000, "gfx3",0 ) /* tiles + tilemaps */ // same data, but split
+	ROM_LOAD16_BYTE( "ftiger_3.10p", 0x00001, 0x20000, CRC(9fc12ebd) SHA1(c8f03a20da01bd61a27813564eb79bb2e8483f28) )
+	ROM_LOAD16_BYTE( "ftiger_5.10l", 0x00000, 0x20000, CRC(06c9dd2a) SHA1(20235b7d55b9bc73ddb1fec5fd68e5ba32508d1b) )
+	ROM_LOAD16_BYTE( "ftiger_4.11p", 0x40001, 0x20000, CRC(fb30e884) SHA1(1f01ed15ae6cdebb120cc1f03ac65465c824dc89) )
+	ROM_LOAD16_BYTE( "ftiger_6.11l", 0x40000, 0x20000, CRC(dfb85152) SHA1(03a07e016d400c1c0e7a59716c08a61e23e5d60f) )
+
+	ROM_REGION( 0x80000, "gfx4",0 ) /* tiles + tilemaps */ // same data, but split
+	ROM_LOAD16_BYTE( "ftiger_8.11h", 0x00001, 0x20000, CRC(cbd8c22f) SHA1(e7e64c99990e99336abbdbd7ffadfa4c0f1a4c0f) )
+	ROM_LOAD16_BYTE( "ftiger_10.11f",0x00000, 0x20000, CRC(e2175f3b) SHA1(1ce17beb431bb3e8454bb1899f28d16c6a537183) )
+	ROM_LOAD16_BYTE( "ftiger_7.10h", 0x40001, 0x20000, CRC(be431c61) SHA1(3227912117700751370059c173e46d0a8367c5f8) )
+	ROM_LOAD16_BYTE( "ftiger_9.10f", 0x40000, 0x20000, CRC(91bcd84f) SHA1(3577b2d1d6ee4b560b75530ba9e9e6689c1e17e2) )
+
+	ROM_REGION( 0x80000, "oki", 0 ) /* OKI6295 samples */
+	ROM_LOAD( "ftiger_12.9n",         0x00000, 0x20000, CRC(cd95cf9a) SHA1(d79e3aeda6a13d7b87369453bcf668778135b7fe) )
 ROM_END
 
 ROM_START( sadari )
@@ -1926,21 +2034,33 @@ ROM_END
 /* The differences between the two lastday sets are only in the sound program
    and graphics. The main program is the same. */
 
-GAME( 1990, lastday,  0,        lastday,  lastday, driver_device,  0, ROT270, "Dooyong",  "The Last Day (set 1)", GAME_SUPPORTS_SAVE )
-GAME( 1990, lastdaya, lastday,  lastday,  lastday, driver_device,  0, ROT270, "Dooyong",  "The Last Day (set 2)", GAME_SUPPORTS_SAVE )
-GAME( 1991, gulfstrm, 0,        gulfstrm, gulfstrm, driver_device, 0, ROT270, "Dooyong",  "Gulf Storm (set 1)",   GAME_SUPPORTS_SAVE )
-GAME( 1991, gulfstrma,gulfstrm, gulfstrm, gulfstrm, driver_device, 0, ROT270, "Dooyong",  "Gulf Storm (set 2)",   GAME_SUPPORTS_SAVE )
+GAME( 1990, lastday,  0,        lastday,  lastday, driver_device,  0, ROT270, "Dooyong",                       "The Last Day (set 1)", GAME_SUPPORTS_SAVE )
+GAME( 1990, lastdaya, lastday,  lastday,  lastday, driver_device,  0, ROT270, "Dooyong",                       "The Last Day (set 2)", GAME_SUPPORTS_SAVE )
+
+GAME( 1991, gulfstrm, 0,        gulfstrm, gulfstrm, driver_device, 0, ROT270, "Dooyong",                       "Gulf Storm (set 1)",        GAME_SUPPORTS_SAVE )
+GAME( 1991, gulfstrma,gulfstrm, gulfstrm, gulfstrm, driver_device, 0, ROT270, "Dooyong",                       "Gulf Storm (set 2)",        GAME_SUPPORTS_SAVE )
+GAME( 1991, gulfstrmb,gulfstrm, gulfstrm, gulfstrm, driver_device, 0, ROT270, "Dooyong",                       "Gulf Storm (set 3)",        GAME_SUPPORTS_SAVE )
 GAME( 1991, gulfstrmm,gulfstrm, gulfstrm, gulfstrm, driver_device, 0, ROT270, "Dooyong (Media Shoji license)", "Gulf Storm (Media Shoji)",  GAME_SUPPORTS_SAVE )
-GAME( 1991, pollux,   0,        pollux,   pollux, driver_device,   0, ROT270, "Dooyong",  "Pollux (set 1)",       GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1991, polluxa,  pollux,   pollux,   pollux, driver_device,   0, ROT270, "Dooyong",  "Pollux (set 2)",       GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1991, polluxa2, pollux,   pollux,   pollux, driver_device,   0, ROT270, "Dooyong",  "Pollux (set 3)",       GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE ) /* Original Dooyong Board distributed by TCH */
-GAME( 1992, flytiger, 0,        flytiger, flytiger, driver_device, 0, ROT270, "Dooyong",  "Flying Tiger",         GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1993, bluehawk, 0,        bluehawk, bluehawk, driver_device, 0, ROT270, "Dooyong",  "Blue Hawk",            GAME_SUPPORTS_SAVE )
-GAME( 1993, bluehawkn,bluehawk, bluehawk, bluehawk, driver_device, 0, ROT270, "Dooyong (NTC license)", "Blue Hawk (NTC)", GAME_SUPPORTS_SAVE )
-GAME( 1993, sadari,   0,        primella, sadari, driver_device,   0, ROT0,   "Dooyong (NTC license)", "Sadari",  GAME_SUPPORTS_SAVE )
-GAME( 1994, gundl94,  0,        primella, primella, driver_device, 0, ROT0,   "Dooyong",  "Gun Dealer '94",       GAME_SUPPORTS_SAVE )
-GAME( 1994, primella, gundl94,  primella, primella, driver_device, 0, ROT0,   "Dooyong (NTC license)", "Primella",GAME_SUPPORTS_SAVE )
-GAME( 1994, superx,   0,        superx,   superx, driver_device,   0, ROT270, "NTC",      "Super-X (NTC)",        GAME_SUPPORTS_SAVE )
-GAME( 1994, superxm,  superx,   superx,   superx, driver_device,   0, ROT270, "NTC (Mitchell license)", "Super-X (Mitchell)", GAME_SUPPORTS_SAVE )
-GAME( 1995, rshark,   0,        rshark,   rshark, driver_device,   0, ROT270, "Dooyong",  "R-Shark",              GAME_SUPPORTS_SAVE )
-GAME( 1996, popbingo, 0,        popbingo, popbingo, driver_device, 0, ROT0,   "Dooyong",  "Pop Bingo",            GAME_SUPPORTS_SAVE )
+
+GAME( 1991, pollux,   0,        pollux,   pollux, driver_device,   0, ROT270, "Dooyong",                       "Pollux (set 1)",       GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1991, polluxa,  pollux,   pollux,   pollux, driver_device,   0, ROT270, "Dooyong",                       "Pollux (set 2)",       GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1991, polluxa2, pollux,   pollux,   pollux, driver_device,   0, ROT270, "Dooyong",                       "Pollux (set 3)",       GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE ) /* Original Dooyong Board distributed by TCH */
+GAME( 1991, polluxn,  pollux,   pollux,   pollux, driver_device,   0, ROT270, "Dooyong (NTC license)",         "Pollux (Japan, NTC license)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+
+GAME( 1992, flytiger, 0,        flytiger, flytiger, driver_device, 0, ROT270, "Dooyong",                       "Flying Tiger (set 1)",         GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, flytigera,flytiger, flytiger, flytiger, driver_device, 0, ROT270, "Dooyong",                       "Flying Tiger (set 2)",         GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+
+GAME( 1993, bluehawk, 0,        bluehawk, bluehawk, driver_device, 0, ROT270, "Dooyong",                       "Blue Hawk",            GAME_SUPPORTS_SAVE )
+GAME( 1993, bluehawkn,bluehawk, bluehawk, bluehawk, driver_device, 0, ROT270, "Dooyong (NTC license)",         "Blue Hawk (NTC)",      GAME_SUPPORTS_SAVE )
+
+GAME( 1993, sadari,   0,        primella, sadari, driver_device,   0, ROT0,   "Dooyong (NTC license)",         "Sadari",  GAME_SUPPORTS_SAVE )
+
+GAME( 1994, gundl94,  0,        primella, primella, driver_device, 0, ROT0,   "Dooyong",                       "Gun Dealer '94",       GAME_SUPPORTS_SAVE )
+GAME( 1994, primella, gundl94,  primella, primella, driver_device, 0, ROT0,   "Dooyong (NTC license)",         "Primella",             GAME_SUPPORTS_SAVE )
+
+GAME( 1994, superx,   0,        superx,   superx, driver_device,   0, ROT270, "Dooyong (NTC license)",         "Super-X (NTC)",      GAME_SUPPORTS_SAVE )
+GAME( 1994, superxm,  superx,   superx,   superx, driver_device,   0, ROT270, "Dooyong (Mitchell license)",    "Super-X (Mitchell)", GAME_SUPPORTS_SAVE )
+
+GAME( 1995, rshark,   0,        rshark,   rshark, driver_device,   0, ROT270, "Dooyong",                       "R-Shark",              GAME_SUPPORTS_SAVE )
+
+GAME( 1996, popbingo, 0,        popbingo, popbingo, driver_device, 0, ROT0,   "Dooyong",                       "Pop Bingo",            GAME_SUPPORTS_SAVE )

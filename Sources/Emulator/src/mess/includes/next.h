@@ -75,6 +75,7 @@ public:
 	DECLARE_WRITE32_MEMBER( timer_data_w );
 	DECLARE_READ32_MEMBER( timer_ctrl_r );
 	DECLARE_WRITE32_MEMBER( timer_ctrl_w );
+	DECLARE_WRITE8_MEMBER( ramdac_w );
 
 	UINT32 scr1;
 	UINT32 scr2;
@@ -94,28 +95,27 @@ public:
 
 	UINT32 eventc_latch;
 
-	void scc_irq(bool state);
-	void keyboard_irq(bool state);
-	void power_irq(bool state);
-	void nmi_irq(bool state);
+	DECLARE_WRITE_LINE_MEMBER(scc_irq);
+	DECLARE_WRITE_LINE_MEMBER(keyboard_irq);
+	DECLARE_WRITE_LINE_MEMBER(power_irq);
+	DECLARE_WRITE_LINE_MEMBER(nmi_irq);
 
 	DECLARE_WRITE_LINE_MEMBER(scsi_irq);
 	DECLARE_WRITE_LINE_MEMBER(scsi_drq);
 
-	void fdc_irq(bool state);
-	void fdc_drq(bool state);
+	DECLARE_WRITE_LINE_MEMBER(fdc_irq);
+	DECLARE_WRITE_LINE_MEMBER(fdc_drq);
 
-	void net_tx_irq(bool state);
-	void net_rx_irq(bool state);
-	void net_tx_drq(bool state);
-	void net_rx_drq(bool state);
+	DECLARE_WRITE_LINE_MEMBER(net_tx_irq);
+	DECLARE_WRITE_LINE_MEMBER(net_rx_irq);
+	DECLARE_WRITE_LINE_MEMBER(net_tx_drq);
+	DECLARE_WRITE_LINE_MEMBER(net_rx_drq);
 
-	void mo_irq(bool state);
-	void mo_drq(bool state);
+	DECLARE_WRITE_LINE_MEMBER(mo_irq);
+	DECLARE_WRITE_LINE_MEMBER(mo_drq);
 
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
-	static const cdrom_interface cdrom_intf;
-	static const harddisk_interface harddisk_intf;
+	void vblank_w(screen_device &screen, bool vblank_state);
 
 protected:
 	struct dma_slot {
@@ -152,6 +152,7 @@ protected:
 
 	int screen_sx, screen_sy, screen_skip;
 	bool screen_color;
+	bool vbl_enabled;
 
 	virtual void machine_start();
 	virtual void machine_reset();
@@ -171,6 +172,7 @@ protected:
 	void dma_check_end(int slot, bool eof);
 	void dma_done(int slot);
 	void dma_end(int slot);
+
 public:
 	DECLARE_DRIVER_INIT(nexts2);
 	DECLARE_DRIVER_INIT(next);

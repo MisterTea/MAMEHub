@@ -163,7 +163,6 @@ Notes:
 #include "cpu/v810/v810.h"
 #include "cpu/v60/v60.h"
 #include "machine/nvram.h"
-#include "sound/es5506.h"
 #include "includes/ssv.h"
 
 /***************************************************************************
@@ -316,7 +315,6 @@ WRITE16_MEMBER(ssv_state::ssv_lockout_inv_w)
 void ssv_state::machine_reset()
 {
 	m_requested_int = 0;
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(ssv_state::ssv_irq_callback),this));
 	membank("bank1")->set_base(memregion("user1")->base());
 }
 
@@ -412,7 +410,7 @@ READ16_MEMBER(ssv_state::fake_r){   return ssv_scroll[offset];  }
 	AM_RANGE(0x230000, 0x230071) AM_WRITEONLY AM_SHARE("irq_vectors")                       /*  IRQ Vec */  \
 	AM_RANGE(0x240000, 0x240071) AM_WRITE(ssv_irq_ack_w )                                           /*  IRQ Ack */  \
 	AM_RANGE(0x260000, 0x260001) AM_WRITE(ssv_irq_enable_w)                                         /*  IRQ En  */  \
-	AM_RANGE(0x300000, 0x30007f) AM_DEVREADWRITE8_LEGACY("ensoniq", es5506_r, es5506_w, 0x00ff)         /*  Sound   */  \
+	AM_RANGE(0x300000, 0x30007f) AM_DEVREADWRITE8("ensoniq", es5506_device, read, write, 0x00ff)         /*  Sound   */  \
 	AM_RANGE(_ROM, 0xffffff) AM_ROMBANK("bank1")                                                        /*  ROM     */
 /***************************************************************************
                                 Drift Out '94
@@ -666,7 +664,7 @@ WRITE16_MEMBER(ssv_state::srmp7_sound_bank_w)
 		int bank = 0x400000/2 * (data & 1); // UINT16 address
 		int voice;
 		for (voice = 0; voice < 32; voice++)
-			es5506_voice_bank_w(m_ensoniq, voice, bank);
+			m_ensoniq->voice_bank_w(voice, bank);
 	}
 //  popmessage("%04X",data);
 }
@@ -905,8 +903,8 @@ WRITE16_MEMBER(ssv_state::eaglshot_gfxram_w)
 {
 	offset += (m_scroll[0x76/2] & 0xf) * 0x40000/2;
 	COMBINE_DATA(&m_eaglshot_gfxram[offset]);
-	machine().gfx[0]->mark_dirty(offset / (16*8/2));
-	machine().gfx[1]->mark_dirty(offset / (16*8/2));
+	m_gfxdecode->gfx(0)->mark_dirty(offset / (16*8/2));
+	m_gfxdecode->gfx(1)->mark_dirty(offset / (16*8/2));
 }
 
 
@@ -2486,15 +2484,6 @@ GFXDECODE_END
 
 ***************************************************************************/
 
-static const es5506_interface es5506_config =
-{
-	"ensoniq.0",
-	"ensoniq.1",
-	"ensoniq.2",
-	"ensoniq.3",
-	1              /* channels */
-};
-
 /***************************************************************************
 
     Some games (e.g. hypreac2) oddly map the high bits of the tile code
@@ -2586,21 +2575,28 @@ static MACHINE_CONFIG_START( ssv, ssv_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", V60, SSV_MASTER_CLOCK) /* Based on STA-0001 & STA-0001B System boards */
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(ssv_state,ssv_irq_callback)
+
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ssv_state, ssv_interrupt, "screen", 0, 1)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(SSV_PIXEL_CLOCK,SSV_HTOTAL,SSV_HBEND,SSV_HBSTART,SSV_VTOTAL,SSV_VBEND,SSV_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(ssv_state, screen_update_ssv)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ssv)
-	MCFG_PALETTE_LENGTH(0x8000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ssv)
+	MCFG_PALETTE_ADD("palette", 0x8000)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ensoniq", ES5506, SSV_MASTER_CLOCK)
-	MCFG_SOUND_CONFIG(es5506_config)
+	MCFG_ES5506_REGION0("ensoniq.0")
+	MCFG_ES5506_REGION1("ensoniq.1")
+	MCFG_ES5506_REGION2("ensoniq.2")
+	MCFG_ES5506_REGION3("ensoniq.3")
+	MCFG_ES5506_CHANNELS(1)               /* channels */
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.1)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.1)
 MACHINE_CONFIG_END
@@ -2642,8 +2638,10 @@ static MACHINE_CONFIG_DERIVED( gdfs, ssv )
 	MCFG_SCREEN_UPDATE_DRIVER(ssv_state, screen_update_gdfs)
 
 	MCFG_DEVICE_ADD("st0020_spr", ST0020_SPRITES, 0)
+	MCFG_ST0020_SPRITES_GFXDECODE("gfxdecode")
+	MCFG_ST0020_SPRITES_PALETTE("palette")
 
-	MCFG_GFXDECODE(gdfs)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", gdfs)
 	MCFG_VIDEO_START_OVERRIDE(ssv_state,gdfs)
 MACHINE_CONFIG_END
 
@@ -2822,7 +2820,7 @@ static MACHINE_CONFIG_DERIVED( eaglshot, ssv )
 	MCFG_SCREEN_VISIBLE_AREA(0, (0xca - 0x2a)*2-1, 0, (0xf6 - 0x16)-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ssv_state, screen_update_eaglshot)
 
-	MCFG_GFXDECODE(eaglshot)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", eaglshot)
 	MCFG_VIDEO_START_OVERRIDE(ssv_state,eaglshot)
 MACHINE_CONFIG_END
 

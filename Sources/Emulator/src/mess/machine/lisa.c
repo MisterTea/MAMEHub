@@ -85,29 +85,6 @@ the drive type (TWIGGY or 3.5'')) */
     a hard disk
 */
 
-const via6522_interface lisa_via6522_0_intf =
-{
-	/* COPS via */
-	DEVCB_NULL, DEVCB_DRIVER_MEMBER(lisa_state,COPS_via_in_b),
-	DEVCB_NULL, DEVCB_NULL,
-	DEVCB_NULL, DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(lisa_state,COPS_via_out_a), DEVCB_DRIVER_MEMBER(lisa_state,COPS_via_out_b),
-	DEVCB_DRIVER_MEMBER(lisa_state,COPS_via_out_ca2), DEVCB_DRIVER_MEMBER(lisa_state,COPS_via_out_cb2),
-	DEVCB_NULL, DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(lisa_state,COPS_via_irq_func)
-};
-
-const via6522_interface lisa_via6522_1_intf =
-{
-	/* parallel interface via - incomplete */
-	DEVCB_NULL, DEVCB_DRIVER_MEMBER(lisa_state,parallel_via_in_b),
-	DEVCB_NULL, DEVCB_NULL,
-	DEVCB_NULL, DEVCB_NULL,
-	DEVCB_NULL, DEVCB_NULL,
-	DEVCB_NULL, DEVCB_NULL,
-	DEVCB_NULL, DEVCB_NULL
-};
-
 /*
     floppy disk interface
 */
@@ -217,13 +194,20 @@ void lisa_state::set_VTIR(int value)
 
 void lisa_state::COPS_send_data_if_possible()
 {
-	address_space &space = m_maincpu->space(AS_PROGRAM);
-
 	if ((! m_hold_COPS_data) && m_fifo_size && (! m_COPS_Ready))
 	{
 //        printf("COPsim: sending %02x to VIA\n", m_fifo_data[m_fifo_head]);
 
-		m_via0->write_porta(space, 0, m_fifo_data[m_fifo_head]);   /* output data */
+		UINT8 data = m_fifo_data[m_fifo_head];/* output data */
+		m_via0->write_pa0((data>>0)&1);
+		m_via0->write_pa1((data>>1)&1);
+		m_via0->write_pa2((data>>2)&1);
+		m_via0->write_pa3((data>>3)&1);
+		m_via0->write_pa4((data>>4)&1);
+		m_via0->write_pa5((data>>5)&1);
+		m_via0->write_pa6((data>>6)&1);
+		m_via0->write_pa7((data>>7)&1);
+
 		if (m_fifo_head == m_mouse_data_offset)
 			m_mouse_data_offset = -1;    /* we just phased out the mouse data in buffer */
 		m_fifo_head = (m_fifo_head+1) & 0x7;
@@ -259,8 +243,9 @@ void lisa_state::COPS_queue_data(const UINT8 *data, int len)
 			m_fifo_size++;
 		}
 
-		/*logerror("COPS_queue_data : trying to send data to VIA\n");*/
-		COPS_send_data_if_possible();
+		// do not try to send immediately here, the VIA is set to latch mode so
+		// sending too soon after a command can result in the DDR not yet being
+		// returned to input and the first byte gets trashed
 	}
 }
 
@@ -403,12 +388,13 @@ TIMER_CALLBACK_MEMBER(lisa_state::read_COPS_command)
 	address_space &space = m_maincpu->space(AS_PROGRAM);
 
 	m_COPS_Ready = 0;
+	m_via0->write_pb6(m_COPS_Ready);
 
 	/*logerror("read_COPS_command : trying to send data to VIA\n");*/
 	COPS_send_data_if_possible();
 
 	/* some pull-ups allow the COPS to read 1s when the VIA port is not set as output */
-	command = (m_COPS_command | (~ m_via0->read(space, VIA_DDRA))) & 0xff;
+	command = (m_COPS_command | (~ m_via0->read(space, via6522_device::VIA_DDRA))) & 0xff;
 
 //    printf("Dropping Ready, command = %02x\n", command);
 
@@ -573,6 +559,7 @@ TIMER_CALLBACK_MEMBER(lisa_state::read_COPS_command)
 TIMER_CALLBACK_MEMBER(lisa_state::set_COPS_ready)
 {
 	m_COPS_Ready = 1;
+	m_via0->write_pb6(m_COPS_Ready);
 
 	/* impulsion width : +/- 20us */
 	machine().scheduler().timer_set(attotime::from_usec(20), timer_expired_delegate(FUNC(lisa_state::read_COPS_command),this));
@@ -636,6 +623,7 @@ void lisa_state::plug_keyboard()
 void lisa_state::init_COPS()
 {
 	m_COPS_Ready = 0;
+	m_via0->write_pb6(m_COPS_Ready);
 
 	reset_COPS();
 }
@@ -655,9 +643,9 @@ WRITE8_MEMBER(lisa_state::COPS_via_out_a)
 	m_COPS_command = data;
 }
 
-WRITE8_MEMBER(lisa_state::COPS_via_out_ca2)
+WRITE_LINE_MEMBER(lisa_state::COPS_via_out_ca2)
 {
-	m_hold_COPS_data = data;
+	m_hold_COPS_data = state;
 
 	/*logerror("COPS CA2 line state : %d\n", val);*/
 
@@ -679,23 +667,11 @@ WRITE8_MEMBER(lisa_state::COPS_via_out_ca2)
     CB1 : not used
     CB2 (O) : sound output
 */
-READ8_MEMBER(lisa_state::COPS_via_in_b)
-{
-	int val = 0;
-
-	if (m_COPS_Ready)
-		val |= 0x40;
-
-	if (m_FDIR)
-		val |= 0x10;
-
-	return val;
-}
 
 WRITE8_MEMBER(lisa_state::COPS_via_out_b)
 {
 	/* pull-up */
-	data |= (~ m_via0->read(space,VIA_DDRA)) & 0x01;
+	data |= (~ m_via0->read(space, via6522_device::VIA_DDRA)) & 0x01;
 
 	if (data & 0x01)
 	{
@@ -716,9 +692,9 @@ WRITE8_MEMBER(lisa_state::COPS_via_out_b)
 	}
 }
 
-WRITE8_MEMBER(lisa_state::COPS_via_out_cb2)
+WRITE_LINE_MEMBER(lisa_state::COPS_via_out_cb2)
 {
-	m_speaker->level_w(data);
+	m_speaker->level_w(state);
 }
 
 void lisa_state::COPS_via_irq_func(int val)
@@ -750,24 +726,6 @@ void lisa_state::COPS_via_irq_func(int val)
     CB1 : not used
     CB2 (I) : current parity latch value
 */
-READ8_MEMBER(lisa_state::parallel_via_in_b)
-{
-	int val = 0;
-
-	if (m_DISK_DIAG)
-		val |= 0x40;
-
-	/* tell there is no hard disk : */
-	val |= 0x1;
-
-	/* keep busy high to work around a bug??? */
-	//val |= 0x2;
-
-	return val;
-}
-
-
-
 
 
 
@@ -799,7 +757,7 @@ UINT32 lisa_state::screen_update_lisa(screen_device &screen, bitmap_ind16 &bitma
 		for (x = 0; x < resx; x++)
 //          line_buffer[x] = (v[(x+y*resx)>>4] & (0x8000 >> ((x+y*resx) & 0xf))) ? 0 : 1;
 			line_buffer[x] = (v[(x+y*resx)>>4] & (0x8000 >> (x & 0xf))) ? 0 : 1;
-		draw_scanline8(bitmap, 0, y, resx, line_buffer, machine().pens);
+		draw_scanline8(bitmap, 0, y, resx, line_buffer, m_palette->pens());
 	}
 	return 0;
 }
@@ -884,60 +842,49 @@ DIRECT_UPDATE_HANDLER (lisa_OPbaseoverride)
 
 /* should save PRAM to file */
 /* TODO : save time difference with host clock, set default date, etc */
-NVRAM_HANDLER(lisa)
+void lisa_state::nvram_init(nvram_device &nvram, void *data, size_t size)
 {
-	lisa_state *state = machine.driver_data<lisa_state>();
+	memset(data, 0x00, size);
 
-	if (read_or_write)
 	{
-		file->write(state->m_fdc_ram, 1024);
+		/* Now we copy the host clock into the Lisa clock */
+		system_time systime;
+		machine().base_datetime(systime);
+
+		m_clock_regs.alarm = 0xfffffL;
+		/* The clock count starts on 1st January 1980 */
+		m_clock_regs.years = (systime.local_time.year - 1980) & 0xf;
+		m_clock_regs.days1 = (systime.local_time.day + 1) / 100;
+		m_clock_regs.days2 = ((systime.local_time.day + 1) / 10) % 10;
+		m_clock_regs.days3 = (systime.local_time.day + 1) % 10;
+		m_clock_regs.hours1 = systime.local_time.hour / 10;
+		m_clock_regs.hours2 = systime.local_time.hour % 10;
+		m_clock_regs.minutes1 = systime.local_time.minute / 10;
+		m_clock_regs.minutes2 = systime.local_time.minute % 10;
+		m_clock_regs.seconds1 = systime.local_time.second / 10;
+		m_clock_regs.seconds2 = systime.local_time.second % 10;
+		m_clock_regs.tenths = 0;
+
+		m_clock_regs.clock_mode = timer_disable;
+		m_clock_regs.clock_write_ptr = -1;
 	}
-	else
-	{
-		if (file)
-			file->read(state->m_fdc_ram, 1024);
-		else
-			memset(state->m_fdc_ram, 0, 1024);
-
-		{
-			/* Now we copy the host clock into the Lisa clock */
-			system_time systime;
-			machine.base_datetime(systime);
-
-			state->m_clock_regs.alarm = 0xfffffL;
-			/* The clock count starts on 1st January 1980 */
-			state->m_clock_regs.years = (systime.local_time.year - 1980) & 0xf;
-			state->m_clock_regs.days1 = (systime.local_time.day + 1) / 100;
-			state->m_clock_regs.days2 = ((systime.local_time.day + 1) / 10) % 10;
-			state->m_clock_regs.days3 = (systime.local_time.day + 1) % 10;
-			state->m_clock_regs.hours1 = systime.local_time.hour / 10;
-			state->m_clock_regs.hours2 = systime.local_time.hour % 10;
-			state->m_clock_regs.minutes1 = systime.local_time.minute / 10;
-			state->m_clock_regs.minutes2 = systime.local_time.minute % 10;
-			state->m_clock_regs.seconds1 = systime.local_time.second / 10;
-			state->m_clock_regs.seconds2 = systime.local_time.second % 10;
-			state->m_clock_regs.tenths = 0;
-		}
-		state->m_clock_regs.clock_mode = timer_disable;
-		state->m_clock_regs.clock_write_ptr = -1;
-	}
-
-
 #if 0
 	UINT32 temp32;
 	SINT8 temp8;
 	temp32 = (m_clock_regs.alarm << 12) | (m_clock_regs.years << 8) | (m_clock_regs.days1 << 4)
-			| m_clock_regs.days2;
+	| m_clock_regs.days2;
 
 	temp32 = (m_clock_regs.days3 << 28) | (m_clock_regs.hours1 << 24) | (m_clock_regs.hours2 << 20)
-			| (m_clock_regs.minutes1 << 16) | (m_clock_regs.minutes2 << 12)
-			| (m_clock_regs.seconds1 << 8) | (m_clock_regs.seconds2 << 4) | m_clock_regs.tenths;
+	| (m_clock_regs.minutes1 << 16) | (m_clock_regs.minutes2 << 12)
+	| (m_clock_regs.seconds1 << 8) | (m_clock_regs.seconds2 << 4) | m_clock_regs.tenths;
 
 	temp8 = clock_mode;         /* clock mode */
 
 	temp8 = m_clock_regs.clock_write_ptr;    /* clock byte to be written next (-1 if clock write disabled) */
 #endif
+
 }
+
 
 #ifdef UNUSED_FUNCTION
 void lisa_state::init_lisa1(void)
@@ -995,6 +942,8 @@ void lisa_state::machine_start()
 
 	/* read command every ms (don't know the real value) */
 	machine().scheduler().timer_pulse(attotime::from_msec(1), timer_expired_delegate(FUNC(lisa_state::set_COPS_ready),this));
+
+	m_nvram->set_base(m_fdc_ram, 1024);
 }
 
 void lisa_state::machine_reset()
@@ -1026,11 +975,23 @@ void lisa_state::machine_reset()
 	m_video_address_latch = 0;
 	m_videoram_ptr = (UINT16 *) m_ram_ptr;
 
+	m_FDIR = 0;
+	m_via0->write_pb4(m_FDIR);
+
+	/* tell there is no hard disk : */
+	m_via1->write_pb0(1);
+
+	/* keep busy high to work around a bug??? */
+	//m_via1->write_pb1(1);
+
+	m_DISK_DIAG = 0;
+	m_via1->write_pb6(m_DISK_DIAG);
+
 	/* reset COPS keyboard/mouse controller */
 	init_COPS();
 
 	{
-		COPS_via_out_ca2(generic_space(), 0, 0);    /* VIA core forgets to do so */
+		COPS_via_out_ca2(0);    /* VIA core forgets to do so */
 	}
 
 	/* initialize floppy */
@@ -1193,9 +1154,11 @@ void lisa_state::lisa_fdc_ttl_glue_access(offs_t offset)
 		break;
 	case 6:
 		m_DISK_DIAG = offset & 1;
+		m_via1->write_pb6(m_DISK_DIAG);
 		break;
 	case 7:
 		m_FDIR = offset & 1; /* Interrupt request to 68k */
+		m_via0->write_pb4(m_FDIR);
 		field_interrupts();
 		break;
 	}
@@ -1435,7 +1398,7 @@ READ16_MEMBER(lisa_state::lisa_r)
 				/* problem : due to collisions with video, timings of the LISA CPU
 				are slightly different from timings of a bare 68k */
 				/* so we use a kludge... */
-				int time_in_frame = machine().primary_screen->vpos();
+				int time_in_frame = machine().first_screen()->vpos();
 
 				/* the BOOT ROM only reads 56 bits, so there must be some wrap-around for
 				videoROM_address <= 56 */
@@ -1842,7 +1805,7 @@ READ16_MEMBER(lisa_state::lisa_IO_r)
 			if (m_VTIR<=1)
 // GFE : needs to be in phase with Serial NUM
 			{
-				int time_in_frame = machine().primary_screen->vpos();
+				int time_in_frame = machine().first_screen()->vpos();
 				if (m_features.has_mac_xl_video)
 				{
 					if ((time_in_frame >= 374) && (time_in_frame <= 392))   /* these values have not been tested */
@@ -1959,8 +1922,4 @@ WRITE16_MEMBER(lisa_state::lisa_IO_w)
 		}
 		break;
 	}
-}
-
-void lisa_state::set_scc_interrupt(bool value)
-{
 }

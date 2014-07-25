@@ -69,11 +69,10 @@ TODO :
 
 #include "emu.h"
 
-#include "cpu/tms9900/tms9900l.h"
+#include "cpu/tms9900/ti990_10.h"
 #include "sound/beep.h"
-#include "machine/ti990.h"
-#include "machine/990_hd.h"
-#include "machine/990_tap.h"
+#include "machine/ti99/990_hd.h"
+#include "machine/ti99/990_tap.h"
 #include "video/911_vdt.h"
 
 
@@ -82,59 +81,176 @@ class ti990_10_state : public driver_device
 public:
 	ti990_10_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag) ,
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_intlines(0),
+		m_ckon_state(0) { }
 
 	device_t *m_terminal;
 	DECLARE_DRIVER_INIT(ti990_10);
-	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	UINT32 screen_update_ti990_10(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	INTERRUPT_GEN_MEMBER(ti990_10_line_interrupt);
-	void idle_callback(int state);
+
+	DECLARE_WRITE_LINE_MEMBER( key_interrupt );
+	DECLARE_WRITE_LINE_MEMBER( line_interrupt );
+	DECLARE_WRITE_LINE_MEMBER( tape_interrupt );
+	void ti990_set_int_line(int line, int state);
+	WRITE_LINE_MEMBER(ti990_set_int13);
+	TIMER_CALLBACK_MEMBER(clear_load);
+	void ti990_hold_load();
+	WRITE_LINE_MEMBER(ti990_ckon_ckof_callback);
+	READ8_MEMBER( ti990_panel_read );
+	WRITE8_MEMBER( ti990_panel_write );
+
 	required_device<cpu_device> m_maincpu;
+	UINT16 m_intlines;
+	int m_ckon_state;
 };
 
 
-void ti990_10_state::machine_start()
+/*
+    Interrupt priority encoder.  Actually part of the CPU board.
+*/
+
+void ti990_10_state::ti990_set_int_line(int line, int state)
 {
-	MACHINE_START_CALL_LEGACY( ti990_hdc );
+	int level;
+
+
+	if (state)
+		m_intlines |= (1 << line);
+	else
+		m_intlines &= ~ (1 << line);
+
+	if (m_intlines)
+	{
+		for (level = 0; ! (m_intlines & (1 << level)); level++)
+			;
+		m_maincpu->set_input_line_and_vector(0, ASSERT_LINE, level);  /* interrupt it, baby */
+	}
+	else
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 }
+
+
+WRITE_LINE_MEMBER(ti990_10_state::ti990_set_int13)
+{
+	ti990_set_int_line(13, state);
+}
+
+/*
+    hold and debounce load line (emulation is inaccurate)
+*/
+
+TIMER_CALLBACK_MEMBER(ti990_10_state::clear_load)
+{
+	m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+}
+
+void ti990_10_state::ti990_hold_load()
+{
+	m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	machine().scheduler().timer_set(attotime::from_msec(100), timer_expired_delegate(FUNC(ti990_10_state::clear_load),this));
+}
+
+/*
+    line interrupt
+*/
+
+/* m_ckon_state: 1 if line clock active (RTCLR flip-flop on TI990/10 schematics -
+SMI sheet 4) */
+WRITE_LINE_MEMBER(ti990_10_state::line_interrupt)
+{
+	// set_int10(state);
+	if (m_ckon_state)
+		ti990_set_int_line(5, 1);
+}
+
+WRITE_LINE_MEMBER(ti990_10_state::ti990_ckon_ckof_callback)
+{
+	m_ckon_state = state;
+	if (! m_ckon_state)
+		ti990_set_int_line(5, 0);
+}
+
+
+
+/*
+    Control panel emulation
+
+    three panel types
+    * operator panel
+    * programmer panel
+    * MDU (external unit connected instead of the control panel, as seen in
+      945401-9701 p. 2-5 though 2-15)
+
+    Operator panel:
+    * Power led
+    * Fault led
+    * Off/On/Load switch
+
+    Programmer panel:
+    * 16 status light, 32 switches, IDLE, RUN leds
+    * interface to a low-level debugger in ROMs
+
+    * MDU:
+    * includes a programmer panel, a tape unit, and a few parts
+      (diagnostic tape, diagnostic ROMs, etc.)
+
+    CRU output:
+    0-7: lights 0-7
+    8: increment scan
+    9: clear scan (according to 990 handbook)
+    A: run light (additionally sets all data LEDs to 1s, the scan count to 0b10 and enables the HALT/SIE switch)
+    B: fault light
+    C: Memory Error Interrupt clear
+    D: Start panel timer
+    E: Set SIE function (interrupt after 2 instructions are executed)
+    F: flag (according to 990 handbook)
+
+    input :
+    0-7: switches 0-7 (or data from MDU tape)
+    8: scan count bit 1
+    9: scan count bit 0
+    A: timer active
+    B: programmer panel not present or locked
+    C: char in MDU tape unit buffer?
+    D: unused?
+    E: if 0, MDU unit present
+    F: flag (according to 990 handbook)
+*/
+
+READ8_MEMBER( ti990_10_state::ti990_panel_read )
+{
+	if (offset == 1)
+		return 0x48;
+
+	return 0;
+}
+
+WRITE8_MEMBER( ti990_10_state::ti990_panel_write )
+{
+}
+
 
 void ti990_10_state::machine_reset()
 {
-	ti990_hold_load(machine());
-
-	ti990_reset_int();
-
-	ti990_hdc_init(machine(), ti990_set_int13);
+	ti990_hold_load();
 }
 
-INTERRUPT_GEN_MEMBER(ti990_10_state::ti990_10_line_interrupt)
+/*
+void ti990_10_state::rset_callback)
 {
-	vdt911_keyboard(m_terminal);
+    ti990_cpuboard_reset();
 
-	ti990_line_interrupt(machine());
+    // clear controller panel and smi fault LEDs
 }
 
-#ifdef UNUSED_FUNCTION
-void ti990_10_state::idle_callback(int state)
+void ti990_10_state::lrex_callback)
 {
+    // right???
+    ti990_hold_load();
 }
-#endif
-
-static void rset_callback(device_t *device)
-{
-	ti990_cpuboard_reset();
-
-	/* clear controller panel and smi fault LEDs */
-}
-
-static void lrex_callback(device_t *device)
-{
-	/* right??? */
-	ti990_hold_load(device->machine());
-}
+*/
 
 /*
     TI990/10 video emulation.
@@ -142,25 +258,14 @@ static void lrex_callback(device_t *device)
     We emulate a single VDT911 CRT terminal.
 */
 
-
-static const vdt911_init_params_t vdt911_intf =
-{
-	char_1920,
-	vdt911_model_US/*vdt911_model_UK*//*vdt911_model_French*//*vdt911_model_French*/
-	/*vdt911_model_German*//*vdt911_model_Swedish*//*vdt911_model_Norwegian*/
-	/*vdt911_model_Japanese*//*vdt911_model_Arabic*//*vdt911_model_FrenchWP*/,
-	ti990_set_int10
-};
-
 void ti990_10_state::video_start()
 {
 	m_terminal = machine().device("vdt911");
 }
 
-UINT32 ti990_10_state::screen_update_ti990_10(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+WRITE_LINE_MEMBER(ti990_10_state::key_interrupt)
 {
-	vdt911_refresh(m_terminal, bitmap, cliprect, 0, 0);
-	return 0;
+	// set_int10(state);
 }
 
 /*
@@ -171,9 +276,9 @@ static ADDRESS_MAP_START(ti990_10_memmap, AS_PROGRAM, 16, ti990_10_state )
 
 	AM_RANGE(0x000000, 0x0fffff) AM_RAM     /* let's say we have 1MB of RAM */
 	AM_RANGE(0x100000, 0x1ff7ff) AM_NOP     /* free TILINE space */
-	AM_RANGE(0x1ff800, 0x1ff81f) AM_READWRITE_LEGACY(ti990_hdc_r, ti990_hdc_w)  /* disk controller TPCS */
+	AM_RANGE(0x1ff800, 0x1ff81f) AM_DEVREADWRITE("hdc", ti990_hdc_device, read, write)  /* disk controller TPCS */
 	AM_RANGE(0x1ff820, 0x1ff87f) AM_NOP     /* free TPCS */
-	AM_RANGE(0x1ff880, 0x1ff89f) AM_DEVREADWRITE_LEGACY("tpc",ti990_tpc_r, ti990_tpc_w) /* tape controller TPCS */
+	AM_RANGE(0x1ff880, 0x1ff89f) AM_DEVREADWRITE("tpc", tap_990_device, read, write) /* tape controller TPCS */
 	AM_RANGE(0x1ff8a0, 0x1ffbff) AM_NOP     /* free TPCS */
 	AM_RANGE(0x1ffc00, 0x1fffff) AM_ROM     /* LOAD ROM */
 
@@ -185,63 +290,42 @@ ADDRESS_MAP_END
 */
 
 static ADDRESS_MAP_START(ti990_10_io, AS_IO, 8, ti990_10_state )
-	AM_RANGE(0x10, 0x11) AM_DEVREAD_LEGACY("vdt911", vdt911_cru_r)
-	AM_RANGE(0x80, 0x8f) AM_DEVWRITE_LEGACY("vdt911", vdt911_cru_w)
-	AM_RANGE(0x1fa, 0x1fb) AM_READ_LEGACY(ti990_10_mapper_cru_r)
-	AM_RANGE(0x1fc, 0x1fd) AM_READ_LEGACY(ti990_10_eir_cru_r)
-	AM_RANGE(0x1fe, 0x1ff) AM_READ_LEGACY(ti990_panel_read)
-	AM_RANGE(0xfd0, 0xfdf) AM_WRITE_LEGACY(ti990_10_mapper_cru_w)
-	AM_RANGE(0xfe0, 0xfef) AM_WRITE_LEGACY(ti990_10_eir_cru_w)
-	AM_RANGE(0xff0, 0xfff) AM_WRITE_LEGACY(ti990_panel_write)
+	AM_RANGE(0x10, 0x11) AM_DEVREAD("vdt911", vdt911_device, cru_r)
+	AM_RANGE(0x80, 0x8f) AM_DEVWRITE("vdt911", vdt911_device, cru_w)
+	AM_RANGE(0x1fa, 0x1fb) AM_NOP // AM_READ(ti990_10_mapper_cru_r)
+	AM_RANGE(0x1fc, 0x1fd) AM_NOP // AM_READ(ti990_10_eir_cru_r)
+	AM_RANGE(0x1fe, 0x1ff) AM_READ(ti990_panel_read)
+	AM_RANGE(0xfd0, 0xfdf) AM_NOP // AM_WRITE(ti990_10_mapper_cru_w)
+	AM_RANGE(0xfe0, 0xfef) AM_NOP // AM_WRITE(ti990_10_eir_cru_w)
+	AM_RANGE(0xff0, 0xfff) AM_WRITE(ti990_panel_write)
 
 ADDRESS_MAP_END
 
-static const ti990_10reset_param reset_params =
+/*
+    Callback from the tape controller.
+*/
+WRITE_LINE_MEMBER(ti990_10_state::tape_interrupt)
 {
-	/*idle_callback*/NULL,
-	rset_callback,
-	lrex_callback,
-	ti990_ckon_ckof_callback,
-
-	ti990_set_int2
-};
-
-static const ti990_tpc_interface ti990_tpc =
-{
-	ti990_set_int9
-};
+	// set_int9(state);
+}
 
 static MACHINE_CONFIG_START( ti990_10, ti990_10_state )
 	/* basic machine hardware */
 	/* TI990/10 CPU @ 4.0(???) MHz */
-	MCFG_CPU_ADD("maincpu", TI990_10L, 4000000)
-	MCFG_CPU_CONFIG(reset_params)
-	MCFG_CPU_PROGRAM_MAP(ti990_10_memmap)
-	MCFG_CPU_IO_MAP(ti990_10_io)
-	MCFG_CPU_PERIODIC_INT_DRIVER(ti990_10_state, ti990_10_line_interrupt,  120/*or 100 in Europe*/)
+	MCFG_TMS99xx_ADD("maincpu", TI990_10, 4000000, ti990_10_memmap, ti990_10_io )
 
+	// VDT 911 terminal
+	MCFG_DEVICE_ADD("vdt911", VDT911, 0)
+	MCFG_VDT911_KEYINT_HANDLER(WRITELINE(ti990_10_state, key_interrupt))
+	MCFG_VDT911_LINEINT_HANDLER(WRITELINE(ti990_10_state, line_interrupt))
 
-	/* video hardware - we emulate a single 911 vdt display */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_SCREEN_SIZE(560, 280)
-	MCFG_SCREEN_VISIBLE_AREA(0, 560-1, 0, /*250*/280-1)
-	MCFG_SCREEN_UPDATE_DRIVER(ti990_10_state, screen_update_ti990_10)
+	// Hard disk
+	MCFG_DEVICE_ADD("hdc", TI990_HDC, 0)
+	MCFG_TI990_HDC_INT_CALLBACK(WRITELINE(ti990_10_state, ti990_set_int13))
 
-	MCFG_GFXDECODE(vdt911)
-	MCFG_PALETTE_LENGTH(8)
-
-	MCFG_VDT911_VIDEO_ADD("vdt911", vdt911_intf)
-
-	/* 911 VDT has a beep tone generator */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("beeper", BEEP, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-
-	MCFG_FRAGMENT_ADD( ti990_hdc )
-
-	MCFG_TI990_TAPE_CTRL_ADD("tpc",ti990_tpc)
+	// Tape controller
+	MCFG_DEVICE_ADD("tpc", TI990_TAPE_CTRL, 0)
+	MCFG_TI990_TAPE_INT_HANDLER(WRITELINE(ti990_10_state, tape_interrupt))
 MACHINE_CONFIG_END
 
 
@@ -297,12 +381,7 @@ DRIVER_INIT_MEMBER(ti990_10_state,ti990_10)
 
 	memmove(memregion("maincpu")->base()+0x1FFC00, memregion("maincpu")->base()+0x1FFC00+(page*0x400), 0x400);
 #endif
-	vdt911_init(machine());
 }
 
-static INPUT_PORTS_START(ti990_10)
-	VDT911_KEY_PORTS
-INPUT_PORTS_END
-
 /*    YEAR  NAME        PARENT  COMPAT  MACHINE     INPUT       INIT        COMPANY                 FULLNAME */
-COMP( 1975, ti990_10,   0,      0,      ti990_10,   ti990_10, ti990_10_state,   ti990_10,   "Texas Instruments",    "TI Model 990/10 Minicomputer System" , GAME_NOT_WORKING )
+COMP( 1975, ti990_10,   0,      0,      ti990_10,   0, ti990_10_state,   ti990_10,   "Texas Instruments",    "TI Model 990/10 Minicomputer System" , GAME_NOT_WORKING )

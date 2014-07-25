@@ -689,7 +689,7 @@ void segas24_state::reset_reset()
 		if(resetcontrol & 2) {
 			m_subcpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 			m_subcpu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
-//          mame_printf_debug("enable 2nd cpu!\n");
+//          osd_printf_debug("enable 2nd cpu!\n");
 //          debugger_break(machine);
 
 		} else
@@ -1106,7 +1106,7 @@ WRITE16_MEMBER( segas24_state::sys16_paletteram_w )
 	g |= g >> 5;
 	b |= b >> 5;
 
-	palette_set_color(machine(), offset, MAKE_RGB(r, g, b));
+	m_palette->set_pen_color(offset, rgb_t(r, g, b));
 
 	if(data & 0x8000) {
 		r = 255-0.6*(255-r);
@@ -1117,7 +1117,7 @@ WRITE16_MEMBER( segas24_state::sys16_paletteram_w )
 		g = 0.6*g;
 		b = 0.6*b;
 	}
-	palette_set_color(machine(), offset+machine().total_colors()/2, MAKE_RGB(r, g, b));
+	m_palette->set_pen_color(offset+m_palette->entries()/2, rgb_t(r, g, b));
 }
 
 
@@ -1941,17 +1941,20 @@ static MACHINE_CONFIG_START( system24, segas24_state )
 	MCFG_TIMER_ADD_NONE("frc_timer")
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("irq_frc", segas24_state, irq_frc_cb, attotime::from_hz(FRC_CLOCK_MODE1))
 
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
 	MCFG_S24TILE_DEVICE_ADD("tile", 0xfff)
+	MCFG_S24TILE_DEVICE_GFXDECODE("gfxdecode")
+	MCFG_S24TILE_DEVICE_PALETTE("palette")
 	MCFG_S24SPRITE_DEVICE_ADD("sprite")
 	MCFG_S24MIXER_DEVICE_ADD("mixer")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_RAW_PARAMS(VIDEO_CLOCK/2, 656, 0/*+69*/, 496/*+69*/, 424, 0/*+25*/, 384/*+25*/)
 	MCFG_SCREEN_UPDATE_DRIVER(segas24_state, screen_update_system24)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(8192*2)
+	MCFG_PALETTE_ADD("palette", 8192*2)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
@@ -2150,14 +2153,11 @@ ROM_START( sgmast )
 	ROM_LOAD16_BYTE( "epr-12186.ic1", 0x000001, 0x20000, CRC(ce76319d) SHA1(0ede61f0700f9161285c768fa97636f0e42b96f8) )
 
 	ROM_REGION( 0x2000, "subcpu:key", 0 )   /* decryption key */
-	ROM_LOAD( "317-0058-05d.key", 0x0000, 0x2000, NO_DUMP )
+	// reconstructed key; some of the RNG-independent bits could be incorrect
+	ROM_LOAD( "317-0058-05d.key", 0x0000, 0x2000, BAD_DUMP  CRC(c779738d) SHA1(f65355c20fbcb22781816d24633a509f13bec170) )
 
 	ROM_REGION( 0x1c2000, "floppy", 0)
-	/* not sure which of these images is best */
 	ROM_LOAD( "ds3-5000-05d.img",      0x000000, 0x1c2000, CRC(e9a69f93) SHA1(dc15e47ed78373688c1fab72a9605528068ad702) )
-	ROM_LOAD( "ds3-5000-05d_alt.img",  0x000000, 0x1c2000, CRC(e71a8ebf) SHA1(60feb0af1cfc0508c8d68c8572495eec1763dc93) )
-	ROM_LOAD( "ds3-5000-05d_alt2.img", 0x000000, 0x1c2000, CRC(460bdcd5) SHA1(49b7384ac5742b45b7369f220f33f04ef955e992) )
-
 ROM_END
 
 ROM_START( sgmastc )
@@ -2293,7 +2293,7 @@ ROM_START( dcclubfd )
 ROM_END
 
 ROM_START( roughrac )
-	ROM_REGION( 0x40000, "maincpu", 0 ) /* FD1094 code */
+	ROM_REGION( 0x40000, "maincpu", 0 ) /* 68000 code */
 	ROM_LOAD16_BYTE( "epr-12187.ic2", 0x000000, 0x20000, CRC(e83783f3) SHA1(4b3b32df7de85aef9cd77c8a4ffc17e10466b638) )
 	ROM_LOAD16_BYTE( "epr-12186.ic1", 0x000001, 0x20000, CRC(ce76319d) SHA1(0ede61f0700f9161285c768fa97636f0e42b96f8) )
 
@@ -2487,7 +2487,7 @@ DRIVER_INIT_MEMBER(segas24_state,roughrac)
 /* 04 */GAME( 1989, crkdown,   0,        system24_floppy_fd1094, crkdown, segas24_state,  crkdown,  ROT0,   "Sega", "Crack Down (World, Floppy Based, FD1094 317-0058-04c)", GAME_IMPERFECT_GRAPHICS ) // clipping probs / solid layer probs? (radar display)
 /* 04 */GAME( 1989, crkdownu,  crkdown,  system24_floppy_fd1094, crkdown, segas24_state,  crkdown,  ROT0,   "Sega", "Crack Down (US, Floppy Based, FD1094 317-0058-04d)", GAME_IMPERFECT_GRAPHICS ) // clipping probs / solid layer probs? (radar display)
 /* 04 */GAME( 1989, crkdownj,  crkdown,  system24_floppy_fd1094, crkdown, segas24_state,  crkdown,  ROT0,   "Sega", "Crack Down (Japan, Floppy Based, FD1094 317-0058-04b Rev A)", GAME_IMPERFECT_GRAPHICS ) // clipping probs / solid layer probs? (radar display)
-/* 05 */GAME( 1989, sgmast,    0,        system24_floppy_fd1094, sgmast, segas24_state,   sgmast,   ROT0,   "Sega", "Super Masters Golf (World?, Floppy Based, FD1094 317-0058-05d?)", GAME_NOT_WORKING|GAME_UNEMULATED_PROTECTION ) // NOT decrypted
+/* 05 */GAME( 1989, sgmast,    0,        system24_floppy_fd1094, sgmast, segas24_state,   sgmast,   ROT0,   "Sega", "Super Masters Golf (World?, Floppy Based, FD1094 317-0058-05d?)", 0 )
 /* 05 */GAME( 1989, sgmastc,   sgmast,   system24_floppy_fd1094, sgmast, segas24_state,   sgmast,   ROT0,   "Sega", "Jumbo Ozaki Super Masters Golf (World, Floppy Based, FD1094 317-0058-05c)", GAME_IMPERFECT_GRAPHICS ) // some gfx offset / colour probs?
 /* 05 */GAME( 1989, sgmastj,   sgmast,   system24_floppy_fd1094, sgmastj, segas24_state,  sgmast,   ROT0,   "Sega", "Jumbo Ozaki Super Masters Golf (Japan, Floppy Based, FD1094 317-0058-05b)", GAME_IMPERFECT_GRAPHICS ) // some gfx offset / colour probs?
 /* 06 */GAME( 1990, roughrac,  0,        system24_floppy_fd1094, roughrac, segas24_state, roughrac, ROT0,   "Sega", "Rough Racer (Japan, Floppy Based, FD1094 317-0058-06b)", 0 )

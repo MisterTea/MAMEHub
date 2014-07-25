@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Venture Line Super Rider driver
@@ -37,9 +39,9 @@ TILE_GET_INFO_MEMBER(suprridr_state::get_tile_info2)
 
 void suprridr_state::video_start()
 {
-	m_fg_tilemap          = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(suprridr_state::get_tile_info2),this), TILEMAP_SCAN_ROWS,  8,8, 32,32);
-	m_bg_tilemap          = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(suprridr_state::get_tile_info),this),  TILEMAP_SCAN_ROWS,       8,8, 32,32);
-	m_bg_tilemap_noscroll = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(suprridr_state::get_tile_info),this),  TILEMAP_SCAN_ROWS,       8,8, 32,32);
+	m_fg_tilemap          = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(suprridr_state::get_tile_info2),this), TILEMAP_SCAN_ROWS,  8,8, 32,32);
+	m_bg_tilemap          = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(suprridr_state::get_tile_info),this),  TILEMAP_SCAN_ROWS,       8,8, 32,32);
+	m_bg_tilemap_noscroll = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(suprridr_state::get_tile_info),this),  TILEMAP_SCAN_ROWS,       8,8, 32,32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 }
@@ -52,7 +54,7 @@ void suprridr_state::video_start()
  *
  *************************************/
 
-void suprridr_state::palette_init()
+PALETTE_INIT_MEMBER(suprridr_state, suprridr)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -76,7 +78,7 @@ void suprridr_state::palette_init()
 		bit1 = (*color_prom >> 7) & 0x01;
 		b = 0x4f * bit0 + 0xa8 * bit1;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 		color_prom++;
 	}
 }
@@ -205,7 +207,7 @@ UINT32 suprridr_state::screen_update_suprridr(screen_device &screen, bitmap_ind1
 			fy = !fy;
 			y = 240 - y;
 		}
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[2], code, color, fx, fy, x, y, 0);
+		m_gfxdecode->gfx(2)->transpen(bitmap,cliprect, code, color, fx, fy, x, y, 0);
 	}
 	return 0;
 }

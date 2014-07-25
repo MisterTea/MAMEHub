@@ -299,8 +299,8 @@ static ADDRESS_MAP_START( n64_map, AS_PROGRAM, 32, aleck64_state )
 	AM_RANGE(0x03f00000, 0x03f00027) AM_DEVREADWRITE("rcp", n64_periphs, rdram_reg_r, rdram_reg_w)
 	AM_RANGE(0x04000000, 0x04000fff) AM_RAM AM_SHARE("rsp_dmem")                    // RSP DMEM
 	AM_RANGE(0x04001000, 0x04001fff) AM_RAM AM_SHARE("rsp_imem")                    // RSP IMEM
-	AM_RANGE(0x04040000, 0x040fffff) AM_DEVREADWRITE_LEGACY("rsp", n64_sp_reg_r, n64_sp_reg_w)  // RSP
-	AM_RANGE(0x04100000, 0x041fffff) AM_DEVREADWRITE_LEGACY("rsp", n64_dp_reg_r, n64_dp_reg_w)  // RDP
+	AM_RANGE(0x04040000, 0x040fffff) AM_DEVREADWRITE("rcp", n64_periphs, sp_reg_r, sp_reg_w)  // RSP
+	AM_RANGE(0x04100000, 0x041fffff) AM_DEVREADWRITE("rcp", n64_periphs, dp_reg_r, dp_reg_w)  // RDP
 	AM_RANGE(0x04300000, 0x043fffff) AM_DEVREADWRITE("rcp", n64_periphs, mi_reg_r, mi_reg_w)    // MIPS Interface
 	AM_RANGE(0x04400000, 0x044fffff) AM_DEVREADWRITE("rcp", n64_periphs, vi_reg_r, vi_reg_w)    // Video Interface
 	AM_RANGE(0x04500000, 0x045fffff) AM_DEVREADWRITE("rcp", n64_periphs, ai_reg_r, ai_reg_w)    // Audio Interface
@@ -810,23 +810,22 @@ static INPUT_PORTS_START( srmvs )
 	PORT_DIPSETTING( 0x00000000, DEF_STR( On ) )
 INPUT_PORTS_END
 
-/* ?? */
-static const mips3_config vr4300_config =
-{
-	16384,              /* code cache size */
-	8192,               /* data cache size */
-	62500000            /* system clock */
-};
 
 static MACHINE_CONFIG_START( aleck64, aleck64_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", VR4300BE, 93750000)
-	MCFG_CPU_CONFIG(vr4300_config)
+	MCFG_MIPS3_ICACHE_SIZE(16384)
+	MCFG_MIPS3_DCACHE_SIZE(8192)
+	MCFG_MIPS3_SYSTEM_CLOCK(62500000)
 	MCFG_CPU_PROGRAM_MAP(n64_map)
 
 	MCFG_CPU_ADD("rsp", RSP, 62500000)
-	MCFG_CPU_CONFIG(n64_rsp_config)
+	MCFG_RSP_DP_REG_R_CB(DEVREAD32("rcp",n64_periphs, dp_reg_r))
+	MCFG_RSP_DP_REG_W_CB(DEVWRITE32("rcp",n64_periphs, dp_reg_w))
+	MCFG_RSP_SP_REG_R_CB(DEVREAD32("rcp",n64_periphs, sp_reg_r))
+	MCFG_RSP_SP_REG_W_CB(DEVWRITE32("rcp",n64_periphs, sp_reg_w))
+	MCFG_RSP_SP_SET_STATUS_CB(DEVWRITE32("rcp",n64_periphs, sp_set_status))
 	MCFG_CPU_PROGRAM_MAP(rsp_map)
 
 
@@ -837,7 +836,7 @@ static MACHINE_CONFIG_START( aleck64, aleck64_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(aleck64_state, screen_update_n64)
 
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_PALETTE_ADD("palette", 0x1000)
 
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

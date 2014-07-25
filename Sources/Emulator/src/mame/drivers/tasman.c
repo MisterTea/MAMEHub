@@ -34,10 +34,14 @@ public:
 	DECLARE_READ32_MEMBER(eeprom_r);
 	DECLARE_WRITE32_MEMBER(eeprom_w);
 	DECLARE_WRITE8_MEMBER(kongambl_ff_w);
+	DECLARE_READ32_MEMBER(test_r);
+	// DECLARE_READ32_MEMBER(rng_r);
 	DECLARE_DRIVER_INIT(kingtut);
 	DECLARE_VIDEO_START(kongambl);
 	UINT32 screen_update_kongambl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(kongambl_vblank);
+	K056832_CB_MEMBER(tile_callback);
+	K053246_CB_MEMBER(sprite_callback);
 };
 
 
@@ -57,7 +61,7 @@ VIDEO_START_MEMBER(kongambl_state,kongambl)
 UINT32 kongambl_state::screen_update_kongambl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	#if CUSTOM_DRAW
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	UINT32 count;
 
 	count = 0;
@@ -69,7 +73,7 @@ UINT32 kongambl_state::screen_update_kongambl(screen_device &screen, bitmap_ind1
 			UINT32 tile = m_vram[count] & 0xffff;
 
 			if(m_screen->visible_area().contains(x*8, y*8))
-				drawgfx_opaque(bitmap,cliprect,gfx,tile,0,0,0,x*8,y*8);
+				gfx->opaque(bitmap,cliprect,tile,0,0,0,x*8,y*8);
 
 			count++;
 		}
@@ -84,7 +88,7 @@ UINT32 kongambl_state::screen_update_kongambl(screen_device &screen, bitmap_ind1
 			UINT32 tile = m_vram[count] & 0xffff;
 
 			if(m_screen->visible_area().contains(x*8, y*8))
-				drawgfx_transpen(bitmap,cliprect,gfx,tile,0,0,0,x*8,y*8,0);
+				gfx->transpen(bitmap,cliprect,tile,0,0,0,x*8,y*8,0);
 
 			count++;
 		}
@@ -133,13 +137,13 @@ WRITE32_MEMBER(kongambl_state::eeprom_w)
 	}
 }
 
-static READ32_HANDLER( test_r )
+READ32_MEMBER(kongambl_state::test_r)
 {
 	return -1;//space.machine().rand();
 }
 
 /*
- static READ32_HANDLER( rng_r )
+ READ32_MEMBER(kongambl_state::rng_r)
 {
     return space.machine().rand();
 }
@@ -188,21 +192,21 @@ static ADDRESS_MAP_START( kongambl_map, AS_PROGRAM, 32, kongambl_state )
 	AM_RANGE(0x4c801c, 0x4c801f) AM_WRITENOP
 	AM_RANGE(0x4cc01c, 0x4cc01f) AM_WRITENOP
 
-	AM_RANGE(0x4cc000, 0x4cc003) AM_READ_LEGACY(test_r) // ???
-	AM_RANGE(0x4cc004, 0x4cc007) AM_READ_LEGACY(test_r) // ???
-	AM_RANGE(0x4cc008, 0x4cc00b) AM_READ_LEGACY(test_r) // "2G"
-	AM_RANGE(0x4cc00c, 0x4cc00f) AM_READ_LEGACY(test_r) // obj ROM
+	AM_RANGE(0x4cc000, 0x4cc003) AM_READ(test_r) // ???
+	AM_RANGE(0x4cc004, 0x4cc007) AM_READ(test_r) // ???
+	AM_RANGE(0x4cc008, 0x4cc00b) AM_READ(test_r) // "2G"
+	AM_RANGE(0x4cc00c, 0x4cc00f) AM_READ(test_r) // obj ROM
 
 	AM_RANGE(0x4d0000, 0x4d0003) AM_WRITE8(kongambl_ff_w,0xff000000)
 
-	AM_RANGE(0x500380, 0x500383) AM_READ_LEGACY(test_r)
+	AM_RANGE(0x500380, 0x500383) AM_READ(test_r)
 	AM_RANGE(0x500000, 0x5007ff) AM_RAM
 //  AM_RANGE(0x500400, 0x500403) AM_NOP //dual port?
 //  AM_RANGE(0x500420, 0x500423) AM_NOP //dual port?
 //  AM_RANGE(0x500500, 0x500503) AM_NOP // reads sound ROM in here, polled from m68k?
-	AM_RANGE(0x580000, 0x580007) AM_READ_LEGACY(test_r)
+	AM_RANGE(0x580000, 0x580007) AM_READ(test_r)
 
-	AM_RANGE(0x600000, 0x60000f) AM_READ_LEGACY(test_r)
+	AM_RANGE(0x600000, 0x60000f) AM_READ(test_r)
 
 	AM_RANGE(0x700000, 0x700003) AM_READ(eeprom_r)
 	AM_RANGE(0x700004, 0x700007) AM_READ_PORT("IN1")
@@ -531,15 +535,14 @@ static INPUT_PORTS_START( kongambl )
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
 INPUT_PORTS_END
 
-static void kongambl_sprite_callback( running_machine &machine, int *code, int *color, int *priority_mask )
+
+K053246_CB_MEMBER(kongambl_state::sprite_callback)
 {
 }
 
-
-static void kongambl_tile_callback( running_machine &machine, int layer, int *code, int *color, int *flags )
+K056832_CB_MEMBER(kongambl_state::tile_callback)
 {
 }
-
 
 
 static const gfx_layout charlayout8_tasman =
@@ -557,25 +560,6 @@ static GFXDECODE_START( tasman )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout8_tasman, 0, 0x8000/256 )
 GFXDECODE_END
 
-
-static const k056832_interface k056832_intf =
-{
-	"gfx1", 0,
-	K056832_BPP_8TASMAN,
-	0, 0,
-	KONAMI_ROM_DEINTERLEAVE_NONE,
-	kongambl_tile_callback, "none"
-};
-
-
-static const k053247_interface k053247_intf =
-{
-	"gfx2", 1,
-	TASMAN_PLANE_ORDER,
-	-48+1, 23,
-	KONAMI_ROM_DEINTERLEAVE_NONE,
-	kongambl_sprite_callback
-};
 
 TIMER_DEVICE_CALLBACK_MEMBER(kongambl_state::kongambl_vblank)
 {
@@ -605,19 +589,34 @@ static MACHINE_CONFIG_START( kongambl, kongambl_state )
 	MCFG_SCREEN_SIZE(96*8, 64*8+16)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 80*8-1, 0*8, 64*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(kongambl_state, screen_update_kongambl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x8000)
+	MCFG_PALETTE_ADD("palette", 0x8000)
 
 	MCFG_VIDEO_START_OVERRIDE(kongambl_state,kongambl)
 
-	MCFG_K053246_ADD("k053246", k053247_intf)
+	MCFG_DEVICE_ADD("k053246", K053246, 0)
+	MCFG_K053246_CB(kongambl_state, sprite_callback)
+	MCFG_K053246_CONFIG("gfx2", 1, TASMAN_PLANE_ORDER, -48+1, 23)
+	MCFG_K053246_GFXDECODE("gfxdecode")
+	MCFG_K053246_PALETTE("palette")
+
 	MCFG_K055555_ADD("k055555")
-	MCFG_K055673_ADD_NOINTF("k055673")
 
-	MCFG_GFXDECODE(tasman)
+	MCFG_DEVICE_ADD("k055673", K055673, 0)
+	// FIXME: for the moment copy the same cb & config as k053246, not being sure which chips has access to the gfx2 roms
+	MCFG_K055673_CB(kongambl_state, sprite_callback)
+	MCFG_K055673_CONFIG("gfx2", 1, K055673_LAYOUT_GX, -48+1, -23)
+	MCFG_K055673_GFXDECODE("gfxdecode")
+	MCFG_K055673_PALETTE("palette")
 
-	MCFG_K056832_ADD("k056832", k056832_intf)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tasman)
 
+	MCFG_DEVICE_ADD("k056832", K056832, 0)
+	MCFG_K056832_CB(kongambl_state, tile_callback)
+	MCFG_K056832_CONFIG("gfx1", 0, K056832_BPP_8TASMAN, 0, 0, "none")
+	MCFG_K056832_GFXDECODE("gfxdecode")
+	MCFG_K056832_PALETTE("palette")
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 MACHINE_CONFIG_END

@@ -8,7 +8,7 @@
 #ifndef FM_SCSI_H_
 #define FM_SCSI_H_
 
-#include "machine/scsihle.h"
+#include "machine/legscsi.h"
 
 // SCSI input lines (from target)
 #define FMSCSI_LINE_REQ   0x80
@@ -34,18 +34,19 @@
 	MCFG_DEVICE_ADD(_tag, FMSCSI, 0)
 
 #define MCFG_FMSCSI_IRQ_HANDLER(_devcb) \
-	devcb = &fmscsi_device::set_irq_handler(*device, DEVCB2_##_devcb);
+	devcb = &fmscsi_device::set_irq_handler(*device, DEVCB_##_devcb);
 #define MCFG_FMSCSI_DRQ_HANDLER(_devcb) \
-	devcb = &fmscsi_device::set_drq_handler(*device, DEVCB2_##_devcb);
-class fmscsi_device : public device_t
+	devcb = &fmscsi_device::set_drq_handler(*device, DEVCB_##_devcb);
+
+class fmscsi_device : public legacy_scsi_host_adapter
 {
 public:
 	// construction/destruction
 	fmscsi_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 	// static configuration helpers
-	template<class _Object> static devcb2_base &set_irq_handler(device_t &device, _Object object) { return downcast<fmscsi_device &>(device).m_irq_handler.set_callback(object); }
-	template<class _Object> static devcb2_base &set_drq_handler(device_t &device, _Object object) { return downcast<fmscsi_device &>(device).m_drq_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_irq_handler(device_t &device, _Object object) { return downcast<fmscsi_device &>(device).m_irq_handler.set_callback(object); }
+	template<class _Object> static devcb_base &set_drq_handler(device_t &device, _Object object) { return downcast<fmscsi_device &>(device).m_drq_handler.set_callback(object); }
 
 	// any publically accessible interfaces needed for runtime
 	UINT8 fmscsi_data_r(void);
@@ -74,11 +75,11 @@ private:
 	static const device_timer_id TIMER_PHASE = 1;
 
 	int get_scsi_cmd_len(UINT8 cbyte);
+	void stop_transfer();
 
-	devcb2_write_line m_irq_handler;
-	devcb2_write_line m_drq_handler;
+	devcb_write_line m_irq_handler;
+	devcb_write_line m_drq_handler;
 
-	scsihle_device* m_SCSIdevices[8];
 	UINT8 m_command[32];
 	//UINT8 m_result[32];
 	UINT8 m_command_index;

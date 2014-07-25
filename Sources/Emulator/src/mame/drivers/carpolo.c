@@ -18,7 +18,6 @@
 
 #include "emu.h"
 #include "cpu/m6502/m6502.h"
-#include "machine/7474.h"
 #include "machine/74153.h"
 #include "machine/6821pia.h"
 #include "includes/carpolo.h"
@@ -222,16 +221,6 @@ static GFXDECODE_START( carpolo )
 	GFXDECODE_ENTRY( "gfx3", 0, alphalayout,  12*2+2*16, 4 )
 GFXDECODE_END
 
-static const ttl74148_config carpolo_ttl74148_intf =
-{
-	carpolo_74148_3s_cb
-};
-
-static const ttl74153_config carpolo_ttl74153_intf =
-{
-	NULL
-};
-
 /*************************************
  *
  *  Machine driver
@@ -247,24 +236,44 @@ static MACHINE_CONFIG_START( carpolo, carpolo_state )
                                                        but it's supposed to happen 60
                                                        times a sec, so it's a good place */
 
-	MCFG_PIA6821_ADD("pia0", carpolo_pia0_intf)
-	MCFG_PIA6821_ADD("pia1", carpolo_pia1_intf)
+	MCFG_DEVICE_ADD("pia0", PIA6821, 0)
+	MCFG_PIA_READPB_HANDLER(READ8(carpolo_state, pia_0_port_b_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(carpolo_state, pia_0_port_a_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(carpolo_state, pia_0_port_b_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(carpolo_state, coin1_interrupt_clear_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(carpolo_state,coin2_interrupt_clear_w))
 
-	MCFG_7474_ADD("7474_2s_1", NOOP, WRITELINE(carpolo_state, carpolo_7474_2s_1_q_cb))
-	MCFG_7474_ADD("7474_2s_2", NOOP, WRITELINE(carpolo_state, carpolo_7474_2s_2_q_cb))
-	MCFG_7474_ADD("7474_2u_1", NOOP, WRITELINE(carpolo_state, carpolo_7474_2u_1_q_cb))
-	MCFG_7474_ADD("7474_2u_2", NOOP, WRITELINE(carpolo_state, carpolo_7474_2u_2_q_cb))
-	MCFG_7474_ADD("7474_1f_1", NOOP, NOOP)
-	MCFG_7474_ADD("7474_1f_2", NOOP, NOOP)
-	MCFG_7474_ADD("7474_1d_1", NOOP, NOOP)
-	MCFG_7474_ADD("7474_1d_2", NOOP, NOOP)
-	MCFG_7474_ADD("7474_1c_1", NOOP, NOOP)
-	MCFG_7474_ADD("7474_1c_2", NOOP, NOOP)
-	MCFG_7474_ADD("7474_1a_1", NOOP, NOOP)
-	MCFG_7474_ADD("7474_1a_2", NOOP, NOOP)
+	MCFG_DEVICE_ADD("pia1", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(carpolo_state, pia_1_port_a_r))
+	MCFG_PIA_READPB_HANDLER(READ8(carpolo_state, pia_1_port_b_r))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(carpolo_state, coin3_interrupt_clear_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(carpolo_state, coin4_interrupt_clear_w))
 
-	MCFG_74148_ADD("74148_3s", carpolo_ttl74148_intf)
-	MCFG_74153_ADD("74153_1k", carpolo_ttl74153_intf)
+	MCFG_DEVICE_ADD("7474_2s_1", TTL7474, 0)
+	MCFG_7474_COMP_OUTPUT_CB(WRITELINE(carpolo_state, carpolo_7474_2s_1_q_cb))
+
+	MCFG_DEVICE_ADD("7474_2s_2", TTL7474, 0)
+	MCFG_7474_COMP_OUTPUT_CB(WRITELINE(carpolo_state, carpolo_7474_2s_2_q_cb))
+
+	MCFG_DEVICE_ADD("7474_2u_1", TTL7474, 0)
+	MCFG_7474_COMP_OUTPUT_CB(WRITELINE(carpolo_state, carpolo_7474_2u_1_q_cb))
+
+	MCFG_DEVICE_ADD("7474_2u_2", TTL7474, 0)
+	MCFG_7474_COMP_OUTPUT_CB(WRITELINE(carpolo_state, carpolo_7474_2u_2_q_cb))
+
+	MCFG_DEVICE_ADD("7474_1f_1", TTL7474, 0)
+	MCFG_DEVICE_ADD("7474_1f_2", TTL7474, 0)
+	MCFG_DEVICE_ADD("7474_1d_1", TTL7474, 0)
+	MCFG_DEVICE_ADD("7474_1d_2", TTL7474, 0)
+	MCFG_DEVICE_ADD("7474_1c_1", TTL7474, 0)
+	MCFG_DEVICE_ADD("7474_1c_2", TTL7474, 0)
+	MCFG_DEVICE_ADD("7474_1a_1", TTL7474, 0)
+	MCFG_DEVICE_ADD("7474_1a_2", TTL7474, 0)
+
+	MCFG_DEVICE_ADD("74148_3s", TTL74148, 0)
+	MCFG_74148_OUTPUT_CB(carpolo_state, ttl74148_3s_cb)
+
+	MCFG_DEVICE_ADD("74153_1k", TTL74153, 0)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -274,9 +283,11 @@ static MACHINE_CONFIG_START( carpolo, carpolo_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 239, 0, 255)
 	MCFG_SCREEN_UPDATE_DRIVER(carpolo_state, screen_update_carpolo)
 	MCFG_SCREEN_VBLANK_DRIVER(carpolo_state, screen_eof_carpolo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(carpolo)
-	MCFG_PALETTE_LENGTH(12*2+2*16+4*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", carpolo)
+	MCFG_PALETTE_ADD("palette", 12*2+2*16+4*2)
+	MCFG_PALETTE_INIT_OWNER(carpolo_state,carpolo)
 
 MACHINE_CONFIG_END
 

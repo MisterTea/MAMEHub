@@ -16,7 +16,7 @@ UINT32 archimedes_state::screen_update(screen_device &screen, bitmap_rgb32 &bitm
 	const UINT8 x_step[4] = { 5, 7, 11, 19 };
 
 	/* border color */
-	bitmap.fill(machine().pens[0x10], cliprect);
+	bitmap.fill(m_palette->pen(0x10), cliprect);
 
 	/* define X display area through BPP mode register */
 	calc_dxs = (m_vidc_regs[VIDC_HDSR]*2)+x_step[m_vidc_bpp_mode & 3];
@@ -24,9 +24,9 @@ UINT32 archimedes_state::screen_update(screen_device &screen, bitmap_rgb32 &bitm
 
 	/* now calculate display clip rectangle start/end areas */
 	xstart = (calc_dxs)-m_vidc_regs[VIDC_HBSR];
-	ystart = (m_vidc_regs[VIDC_VDSR])-m_vidc_regs[VIDC_VBSR];
+	ystart = (m_vidc_regs[VIDC_VDSR]-m_vidc_regs[VIDC_VBSR]);
 	xend = (calc_dxe)+xstart;
-	yend = m_vidc_regs[VIDC_VDER]+ystart;
+	yend = (m_vidc_regs[VIDC_VDER] * (m_vidc_interlace+1))+ystart;
 
 	/* disable the screen if display params are invalid */
 	if(xstart > xend || ystart > yend)
@@ -61,14 +61,78 @@ UINT32 archimedes_state::screen_update(screen_device &screen, bitmap_rgb32 &bitm
 							if(m_vidc_interlace)
 							{
 								if (cliprect.contains(res_x, res_y) && (res_x) <= xend && (res_y) <= yend)
-									bitmap.pix32(res_y, res_x) = machine().pens[(pen>>(xi))&0x1];
+									bitmap.pix32(res_y, res_x) = m_palette->pen((pen>>(xi))&0x1);
 								if (cliprect.contains(res_x, res_y+1) && (res_x) <= xend && (res_y+1) <= yend)
-									bitmap.pix32(res_y+1, res_x) = machine().pens[(pen>>(xi))&0x1];
+									bitmap.pix32(res_y+1, res_x) = m_palette->pen((pen>>(xi))&0x1);
 							}
 							else
 							{
 								if (cliprect.contains(res_x, res_y) && (res_x) <= xend && (res_y) <= yend)
-									bitmap.pix32(res_y, res_x) = machine().pens[(pen>>(xi))&0x1];
+									bitmap.pix32(res_y, res_x) = m_palette->pen((pen>>(xi))&0x1);
+							}
+						}
+
+						count++;
+					}
+				}
+			}
+			break;
+			case 1: //2 bpp
+			{
+				for(y=0;y<ysize;y++)
+				{
+					for(x=0;x<xsize;x+=4)
+					{
+						pen = vram[count];
+
+						for(xi=0;xi<4;xi++)
+						{
+							res_x = x+xi+xstart;
+							res_y = (y+ystart)*(m_vidc_interlace+1);
+
+							if(m_vidc_interlace)
+							{
+								if (cliprect.contains(res_x, res_y) && (res_x) <= xend && (res_y) <= yend)
+									bitmap.pix32(res_y, res_x) = m_palette->pen((pen>>(xi*2))&0x3);
+								if (cliprect.contains(res_x, res_y+1) && (res_x) <= xend && (res_y+1) <= yend)
+									bitmap.pix32(res_y+1, res_x) = m_palette->pen((pen>>(xi*2))&0x3);
+							}
+							else
+							{
+								if (cliprect.contains(res_x, res_y) && (res_x) <= xend && (res_y) <= yend)
+									bitmap.pix32(res_y, res_x) = m_palette->pen((pen>>(xi*2))&0x3);
+							}
+						}
+
+						count++;
+					}
+				}
+			}
+			break;
+			case 2: //4 bpp
+			{
+				for(y=0;y<ysize;y++)
+				{
+					for(x=0;x<xsize;x+=2)
+					{
+						pen = vram[count];
+
+						for(xi=0;xi<2;xi++)
+						{
+							res_x = x+xi+xstart;
+							res_y = (y+ystart)*(m_vidc_interlace+1);
+
+							if(m_vidc_interlace)
+							{
+								if (cliprect.contains(res_x, res_y) && (res_x) <= xend && (res_y) <= yend)
+									bitmap.pix32(res_y, res_x) = m_palette->pen((pen>>(xi*4))&0xf);
+								if (cliprect.contains(res_x, res_y+1) && (res_x) <= xend && (res_y+1) <= yend)
+									bitmap.pix32(res_y+1, res_x) = m_palette->pen((pen>>(xi*4))&0xf);
+							}
+							else
+							{
+								if (cliprect.contains(res_x, res_y) && (res_x) <= xend && (res_y) <= yend)
+									bitmap.pix32(res_y, res_x) = m_palette->pen((pen>>(xi*4))&0xf);
 							}
 						}
 
@@ -91,14 +155,14 @@ UINT32 archimedes_state::screen_update(screen_device &screen, bitmap_rgb32 &bitm
 						if(m_vidc_interlace)
 						{
 							if (cliprect.contains(res_x, res_y) && (res_x) <= xend && (res_y) <= yend)
-								bitmap.pix32(res_y, res_x) = machine().pens[(pen&0xff)+0x100];
+								bitmap.pix32(res_y, res_x) = m_palette->pen((pen&0xff)+0x100);
 							if (cliprect.contains(res_x, res_y) && (res_x) <= xend && (res_y+1) <= yend)
-								bitmap.pix32(res_y+1, res_x) = machine().pens[(pen&0xff)+0x100];
+								bitmap.pix32(res_y+1, res_x) = m_palette->pen((pen&0xff)+0x100);
 						}
 						else
 						{
 							if (cliprect.contains(res_x, res_y) && (res_x) <= xend && (res_y) <= yend)
-								bitmap.pix32(res_y, res_x) = machine().pens[(pen&0xff)+0x100];
+								bitmap.pix32(res_y, res_x) = m_palette->pen((pen&0xff)+0x100);
 						}
 
 						count++;
@@ -106,8 +170,53 @@ UINT32 archimedes_state::screen_update(screen_device &screen, bitmap_rgb32 &bitm
 				}
 			}
 			break;
+			default:
+				popmessage("Unemulated bpp mode %02x, contact MAME/MESSdev",m_vidc_bpp_mode);
+				break;
+		}
+
+
+		if(m_cursor_enabled == true)
+		{
+			count = 0;
+			for(y=0;y<16;y++)
+			{
+				for(x=0;x<32;x+=4)
+				{
+					for(xi=0;xi<4;xi++)
+					{
+						UINT8 cursor_dot;
+						pen = m_cursor_vram[count];
+
+						res_x = x+xi+xstart;
+						res_y = (y+ystart)*(m_vidc_interlace+1);
+
+						cursor_dot = ((pen>>(xi*2))&0x3);
+
+						if(cursor_dot)
+						{
+							if(m_vidc_interlace)
+							{
+								if (cliprect.contains(res_x, res_y) && (res_x) <= xend && (res_y) <= yend)
+									bitmap.pix32(res_y, res_x) = m_palette->pen(cursor_dot+0x10);
+								if (cliprect.contains(res_x, res_y) && (res_x) <= xend && (res_y+1) <= yend)
+									bitmap.pix32(res_y+1, res_x) = m_palette->pen(cursor_dot+0x10);
+							}
+							else
+							{
+								if (cliprect.contains(res_x, res_y) && (res_x) <= xend && (res_y) <= yend)
+									bitmap.pix32(res_y, res_x) = m_palette->pen(cursor_dot+0x10);
+							}
+						}
+					}
+
+					count++;
+				}
+			}
 		}
 	}
+
+
 
 	return 0;
 }

@@ -124,7 +124,7 @@ WRITE8_MEMBER(senjyo_state::senjyo_paletteram_w)
 	int bb = b|((b!=0)?i:0);
 
 	m_generic_paletteram_8[offset] = data;
-	palette_set_color_rgb(machine(), offset, pal4bit(rr), pal4bit(gg), pal4bit(bb) );
+	m_palette->set_pen_color(offset, pal4bit(rr), pal4bit(gg), pal4bit(bb) );
 }
 
 static ADDRESS_MAP_START( senjyo_map, AS_PROGRAM, 8, senjyo_state )
@@ -549,23 +549,6 @@ static GFXDECODE_START( senjyo )
 GFXDECODE_END
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( senjyo, senjyo_state )
 
 	/* basic machine hardware */
@@ -578,9 +561,14 @@ static MACHINE_CONFIG_START( senjyo, senjyo_state )
 	MCFG_CPU_PROGRAM_MAP(senjyo_sound_map)
 	MCFG_CPU_IO_MAP(senjyo_sound_io_map)
 
+	MCFG_DEVICE_ADD("z80pio", Z80PIO, 2000000)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("sub", INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_IN_PA_CB(READ8(senjyo_state, pio_pa_r))
 
-	MCFG_Z80PIO_ADD( "z80pio", 2000000, senjyo_pio_intf )
-	MCFG_Z80CTC_ADD( "z80ctc", 2000000 /* same as "sub" */, senjyo_ctc_intf )
+	MCFG_DEVICE_ADD("z80ctc", Z80CTC, 2000000 /* same as "sub" */)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("sub", INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(DEVWRITELINE("z80ctc", z80ctc_device, trg1))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(senjyo_state, sound_line_clock))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -589,25 +577,23 @@ static MACHINE_CONFIG_START( senjyo, senjyo_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(senjyo_state, screen_update_senjyo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(senjyo)
-	MCFG_PALETTE_LENGTH(512+2)  /* 512 real palette + 2 for the radar */
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", senjyo)
+
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 512+2)  /* 512 real palette + 2 for the radar */
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn1", SN76496, 2000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76496, 2000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn3", SN76496, 2000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_DAC_ADD("dac")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.05)

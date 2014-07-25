@@ -186,7 +186,7 @@ static MACHINE_CONFIG_START( b2m, b2m_state )
 	MCFG_CPU_PROGRAM_MAP(b2m_mem)
 	MCFG_CPU_IO_MAP(b2m_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", b2m_state,  b2m_vblank_interrupt)
-
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259", pic8259_device, inta_cb)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -195,18 +195,34 @@ static MACHINE_CONFIG_START( b2m, b2m_state )
 	MCFG_SCREEN_SIZE(384, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 384-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(b2m_state, screen_update_b2m)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(4)
+	MCFG_PALETTE_ADD("palette", 4)
+	MCFG_PALETTE_INIT_OWNER(b2m_state, b2m)
 
-	MCFG_PIT8253_ADD( "pit8253", b2m_pit8253_intf )
+	MCFG_DEVICE_ADD("pit8253", PIT8253, 0)
+	MCFG_PIT8253_CLK0(0)
+	MCFG_PIT8253_OUT0_HANDLER(DEVWRITELINE("pic8259", pic8259_device, ir1_w))
+	MCFG_PIT8253_CLK1(2000000)
+	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(b2m_state,bm2_pit_out1))
+	MCFG_PIT8253_CLK2(2000000)
+	MCFG_PIT8253_OUT2_HANDLER(DEVWRITELINE("pit8253", pit8253_device, write_clk0))
 
-	MCFG_I8255_ADD( "ppi8255_1", b2m_ppi8255_interface_1 )
+	MCFG_DEVICE_ADD("ppi8255_1", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(b2m_state, b2m_8255_porta_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(b2m_state, b2m_8255_portb_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(b2m_state, b2m_8255_portb_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(b2m_state, b2m_8255_portc_w))
 
-	MCFG_I8255_ADD( "ppi8255_2", b2m_ppi8255_interface_2 )
+	MCFG_DEVICE_ADD("ppi8255_2", I8255, 0)
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(b2m_state, b2m_ext_8255_portc_w))
 
-	MCFG_I8255_ADD( "ppi8255_3", b2m_ppi8255_interface_3 )
+	MCFG_DEVICE_ADD("ppi8255_3", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(b2m_state, b2m_romdisk_porta_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(b2m_state, b2m_romdisk_portb_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(b2m_state, b2m_romdisk_portc_w))
 
-	MCFG_PIC8259_ADD( "pic8259", WRITELINE(b2m_state,b2m_pic_set_int_line), VCC, NULL )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	/* sound */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -214,9 +230,10 @@ static MACHINE_CONFIG_START( b2m, b2m_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* uart */
-	MCFG_I8251_ADD("uart", default_i8251_interface)
+	MCFG_DEVICE_ADD("uart", I8251, 0)
 
 	MCFG_FD1793x_ADD("fd1793", XTAL_8MHz / 8)
+	MCFG_WD_FDC_DRQ_CALLBACK(WRITELINE(b2m_state, b2m_fdc_drq))
 
 	MCFG_FLOPPY_DRIVE_ADD("fd0", b2m_floppies, "525qd", b2m_state::b2m_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("fd1", b2m_floppies, "525qd", b2m_state::b2m_floppy_formats)

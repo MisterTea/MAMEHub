@@ -1,7 +1,7 @@
 #include "cpu/upd7725/upd7725.h"
 #include "video/st0020.h"
 #include "machine/eepromser.h"
-
+#include "sound/es5506.h"
 
 class ssv_state : public driver_device
 {
@@ -33,11 +33,14 @@ public:
 		m_io_service(*this, "SERVICE"),
 		m_io_paddle(*this, "PADDLE"),
 		m_io_trackx(*this, "TRACKX"),
-		m_io_tracky(*this, "TRACKY")
+		m_io_tracky(*this, "TRACKY"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
-	required_device<device_t> m_ensoniq;
+	required_device<es5506_device> m_ensoniq;
 	optional_device<eeprom_serial_93cxx_device> m_eeprom;
 	optional_device<upd96050_device> m_dsp;
 
@@ -154,6 +157,7 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(gdfs_interrupt);
 	void update_irq_state();
 	IRQ_CALLBACK_MEMBER(ssv_irq_callback);
+	void ssv_drawgfx(bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx,UINT32 code,UINT32 color,int flipx,int flipy,int x0,int y0,int shadow);
 	void draw_row(bitmap_ind16 &bitmap, const rectangle &cliprect, int sx, int sy, int scroll);
 	void draw_layer(bitmap_ind16 &bitmap, const rectangle &cliprect, int  nr);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -176,4 +180,7 @@ protected:
 	optional_ioport m_io_paddle;
 	optional_ioport m_io_trackx;
 	optional_ioport m_io_tracky;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };

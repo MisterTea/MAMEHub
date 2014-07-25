@@ -10,12 +10,13 @@
 #define LISA_H_
 
 #include "emu.h"
+#include "cpu/m68000/m68000.h"
 #include "machine/6522via.h"
 #include "machine/8530scc.h"
 #include "machine/6522via.h"
+#include "machine/nvram.h"
 #include "machine/applefdc.h"
 #include "machine/sonydriv.h"
-#include "cpu/m68000/m68000.h"
 #include "sound/speaker.h"
 
 #define COP421_TAG      "u9f"
@@ -106,6 +107,7 @@ public:
 		m_fdc(*this, "fdc"),
 		m_scc(*this, "scc"),
 		m_speaker(*this, "speaker"),
+		m_nvram(*this, "nvram"),
 		m_fdc_rom(*this,"fdc_rom"),
 		m_fdc_ram(*this,"fdc_ram"),
 		m_io_line0(*this, "LINE0"),
@@ -117,7 +119,8 @@ public:
 		m_io_line6(*this, "LINE6"),
 		m_io_line7(*this, "LINE7"),
 		m_io_mouse_x(*this, "MOUSE_X"),
-		m_io_mouse_y(*this, "MOUSE_Y")
+		m_io_mouse_y(*this, "MOUSE_Y"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<m68000_base_device> m_maincpu;
@@ -126,6 +129,7 @@ public:
 	optional_device<applefdc_base_device> m_fdc;
 	required_device<scc8530_t> m_scc;
 	required_device<speaker_sound_device> m_speaker;
+	required_device<nvram_device> m_nvram;
 
 	required_shared_ptr<UINT8> m_fdc_rom;
 	required_shared_ptr<UINT8> m_fdc_ram;
@@ -140,6 +144,8 @@ public:
 	required_ioport m_io_line7;
 	required_ioport m_io_mouse_x;
 	required_ioport m_io_mouse_y;
+
+	required_device<palette_device> m_palette;
 
 	UINT8 *m_ram_ptr;
 	UINT8 *m_rom_ptr;
@@ -193,24 +199,22 @@ public:
 	DECLARE_READ16_MEMBER(lisa_IO_r);
 	DECLARE_WRITE16_MEMBER(lisa_IO_w);
 
-	void set_scc_interrupt(bool value);
 	DECLARE_DRIVER_INIT(lisa210);
 	DECLARE_DRIVER_INIT(mac_xl);
 	DECLARE_DRIVER_INIT(lisa2);
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
+	void nvram_init(nvram_device &nvram, void *data, size_t size);
 	UINT32 screen_update_lisa(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(lisa_interrupt);
 	TIMER_CALLBACK_MEMBER(handle_mouse);
 	TIMER_CALLBACK_MEMBER(read_COPS_command);
 	TIMER_CALLBACK_MEMBER(set_COPS_ready);
 	DECLARE_WRITE8_MEMBER(COPS_via_out_a);
-	DECLARE_WRITE8_MEMBER(COPS_via_out_ca2);
-	DECLARE_READ8_MEMBER(COPS_via_in_b);
+	DECLARE_WRITE_LINE_MEMBER(COPS_via_out_ca2);
 	DECLARE_WRITE8_MEMBER(COPS_via_out_b);
-	DECLARE_WRITE8_MEMBER(COPS_via_out_cb2);
-	DECLARE_READ8_MEMBER(parallel_via_in_b);
+	DECLARE_WRITE_LINE_MEMBER(COPS_via_out_cb2);
 
 	void field_interrupts();
 	void set_parity_error_pending(int value);
@@ -227,14 +231,5 @@ public:
 	void plug_keyboard();
 	void init_lisa1(void);
 };
-
-
-/*----------- defined in machine/lisa.c -----------*/
-
-extern const via6522_interface lisa_via6522_0_intf;
-extern const via6522_interface lisa_via6522_1_intf;
-
-extern NVRAM_HANDLER(lisa);
-
 
 #endif /* LISA_H_ */

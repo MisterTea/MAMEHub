@@ -21,15 +21,13 @@
 #include "sound/speaker.h"
 #include "sound/pokey.h"
 #include "video/gtia.h"
-#include "drivlgcy.h"
-#include "scrlegcy.h"
 
 
-class bartop52_state : public driver_device
+class bartop52_state : public atari_common_state
 {
 public:
 	bartop52_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+		: atari_common_state(mconfig, type, tag),
 		m_maincpu(*this, "maincpu") { }
 
 	required_device<cpu_device> m_maincpu;
@@ -39,8 +37,8 @@ public:
 static ADDRESS_MAP_START(a5200_mem, AS_PROGRAM, 8, bartop52_state )
 	AM_RANGE(0x0000, 0x3fff) AM_RAM
 	AM_RANGE(0x4000, 0xbfff) AM_ROM
-	AM_RANGE(0xc000, 0xc0ff) AM_READWRITE_LEGACY(atari_gtia_r, atari_gtia_w)
-	AM_RANGE(0xd400, 0xd5ff) AM_READWRITE_LEGACY(atari_antic_r, atari_antic_w)
+	AM_RANGE(0xc000, 0xc0ff) AM_READWRITE(atari_gtia_r, atari_gtia_w)
+	AM_RANGE(0xd400, 0xd5ff) AM_READWRITE(atari_antic_r, atari_antic_w)
 	AM_RANGE(0xe800, 0xe8ff) AM_DEVREADWRITE("pokey", pokey_device, read, write)
 	AM_RANGE(0xf800, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -102,28 +100,11 @@ static INPUT_PORTS_START(bartop52)
 INPUT_PORTS_END
 
 
-static const pokey_interface atari_pokey_interface =
-{
-	{
-		DEVCB_INPUT_PORT("analog_0"),
-		DEVCB_INPUT_PORT("analog_1"),
-		DEVCB_INPUT_PORT("analog_2"),
-		DEVCB_INPUT_PORT("analog_3"),
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-	},
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-};
-
 static MACHINE_CONFIG_START( a5200, bartop52_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6502, FREQ_17_EXACT)
 	MCFG_CPU_PROGRAM_MAP(a5200_mem)
-	MCFG_TIMER_ADD_SCANLINE("scantimer", a5200_interrupt, "screen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", atari_common_state, a5200_interrupt, "screen", 0, 1)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -131,18 +112,20 @@ static MACHINE_CONFIG_START( a5200, bartop52_state )
 	MCFG_SCREEN_VISIBLE_AREA(MIN_X, MAX_X, MIN_Y, MAX_Y)
 	MCFG_SCREEN_REFRESH_RATE(FRAME_RATE_60HZ)
 	MCFG_SCREEN_SIZE(HWIDTH*8, TOTAL_LINES_60HZ)
-	MCFG_SCREEN_UPDATE_STATIC(atari)
+	MCFG_SCREEN_UPDATE_DRIVER(atari_common_state, screen_update_atari)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(256)
-	MCFG_PALETTE_INIT(atari)
-
-	MCFG_VIDEO_START(atari)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(atari_common_state, atari)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_POKEY_ADD("pokey", FREQ_17_EXACT)
-	MCFG_POKEY_CONFIG(atari_pokey_interface)
+	MCFG_SOUND_ADD("pokey", POKEY, FREQ_17_EXACT)
+	MCFG_POKEY_POT0_R_CB(IOPORT("analog_0"))
+	MCFG_POKEY_POT1_R_CB(IOPORT("analog_1"))
+	MCFG_POKEY_POT2_R_CB(IOPORT("analog_2"))
+	MCFG_POKEY_POT3_R_CB(IOPORT("analog_3"))
 	MCFG_POKEY_KEYBOARD_HANDLER(atari_a5200_keypads)
 	MCFG_POKEY_INTERRUPT_HANDLER(atari_interrupt_cb)
 

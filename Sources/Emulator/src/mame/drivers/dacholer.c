@@ -47,7 +47,9 @@ public:
 		m_bgvideoram(*this, "bgvideoram"),
 		m_fgvideoram(*this, "fgvideoram"),
 		m_spriteram(*this, "spriteram"),
-		m_msm(*this, "msm"){ }
+		m_msm(*this, "msm"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
@@ -58,6 +60,8 @@ public:
 	required_shared_ptr<UINT8> m_spriteram;
 
 	optional_device<msm5205_device> m_msm;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	/* video-related */
 	tilemap_t  *m_bg_tilemap;
@@ -91,7 +95,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(dacholer);
 	UINT32 screen_update_dacholer(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(sound_irq);
 	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
@@ -110,8 +114,8 @@ TILE_GET_INFO_MEMBER(dacholer_state::get_fg_tile_info)
 
 void dacholer_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dacholer_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dacholer_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dacholer_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dacholer_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 }
@@ -149,7 +153,7 @@ void dacholer_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &clipre
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[2],
+		m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 				code,
 				0,
 				flipx,flipy,
@@ -575,14 +579,6 @@ WRITE_LINE_MEMBER(dacholer_state::adpcm_int)
 	}
 }
 
-static const msm5205_interface msm_interface =
-{
-	DEVCB_DRIVER_LINE_MEMBER(dacholer_state,adpcm_int),          /* interrupt function */
-	MSM5205_S96_4B  /* 1 / 96 = 3906.25Hz playback  - guess */
-};
-
-
-
 void dacholer_state::machine_start()
 {
 	save_item(NAME(m_bg_bank));
@@ -605,7 +601,7 @@ void dacholer_state::machine_reset()
 }
 
 /* guess: use the same resistor values as Crazy Climber (needs checking on the real HW) */
-void dacholer_state::palette_init()
+PALETTE_INIT_MEMBER(dacholer_state, dacholer)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances_rg[3] = { 1000, 470, 220 };
@@ -619,7 +615,7 @@ void dacholer_state::palette_init()
 			2, resistances_b,  weights_b,  0, 0,
 			0, 0, 0, 0, 0);
 
-	for (i = 0;i < machine().total_colors(); i++)
+	for (i = 0;i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2;
 		int r, g, b;
@@ -641,7 +637,7 @@ void dacholer_state::palette_init()
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		b = combine_2_weights(weights_b, bit0, bit1);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -667,9 +663,11 @@ static MACHINE_CONFIG_START( dacholer, dacholer_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 256-1-16)
 	MCFG_SCREEN_UPDATE_DRIVER(dacholer_state, screen_update_dacholer)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(32)
-	MCFG_GFXDECODE(dacholer)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(dacholer_state, dacholer)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dacholer)
 
 
 	/* sound hardware */
@@ -685,7 +683,8 @@ static MACHINE_CONFIG_START( dacholer, dacholer_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.15)
 
 	MCFG_SOUND_ADD("msm", MSM5205, XTAL_384kHz)
-	MCFG_SOUND_CONFIG(msm_interface)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(dacholer_state, adpcm_int))          /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S96_4B)  /* 1 / 96 = 3906.25Hz playback  - guess */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -698,7 +697,7 @@ static MACHINE_CONFIG_DERIVED( itaten, dacholer )
 	MCFG_CPU_IO_MAP(itaten_snd_io_map)
 	MCFG_CPU_VBLANK_INT_REMOVE()
 
-	MCFG_GFXDECODE(itaten)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", itaten)
 
 	MCFG_DEVICE_REMOVE("msm")
 MACHINE_CONFIG_END

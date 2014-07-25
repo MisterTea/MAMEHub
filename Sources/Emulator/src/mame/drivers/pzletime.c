@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Pierpaolo Prazzoli
 /*****************************************************************************************
 
     Puzzle Time (Prototype)
@@ -32,7 +34,10 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_maincpu(*this, "maincpu"),
 		m_oki(*this, "oki"),
-		m_eeprom(*this, "eeprom") { }
+		m_eeprom(*this, "eeprom"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_video_regs;
@@ -61,11 +66,14 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(pzletime);
 	UINT32 screen_update_pzletime(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<okim6295_device> m_oki;
 	required_device<eeprom_serial_93cxx_device> m_eeprom;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -90,8 +98,8 @@ TILE_GET_INFO_MEMBER(pzletime_state::get_txt_tile_info)
 
 void pzletime_state::video_start()
 {
-	m_mid_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pzletime_state::get_mid_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 16);
-	m_txt_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pzletime_state::get_txt_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
+	m_mid_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pzletime_state::get_mid_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 16);
+	m_txt_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(pzletime_state::get_txt_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
 
 	m_mid_tilemap->set_transparent_pen(0);
 	m_txt_tilemap->set_transparent_pen(0);
@@ -102,7 +110,7 @@ UINT32 pzletime_state::screen_update_pzletime(screen_device &screen, bitmap_ind1
 	int count;
 	int y, x;
 
-	bitmap.fill(machine().pens[0], cliprect); //bg pen
+	bitmap.fill(m_palette->pen(0), cliprect); //bg pen
 
 	m_txt_tilemap->set_scrolly(0, m_tilemap_regs[0] - 3);
 	m_txt_tilemap->set_scrollx(0, m_tilemap_regs[1]);
@@ -144,7 +152,7 @@ UINT32 pzletime_state::screen_update_pzletime(screen_device &screen, bitmap_ind1
 
 			// is spriteram[offs + 0] & 0x200 flipy? it's always set
 
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[1], spr_offs, colour, 0, 1, sx, sy, 0);
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, spr_offs, colour, 0, 1, sx, sy, 0);
 		}
 	}
 
@@ -195,7 +203,7 @@ WRITE16_MEMBER(pzletime_state::video_regs_w)
 		{
 			for (i = 0; i < 0x300; i++)
 			{
-				palette_set_pen_contrast(machine(), i, (double)0x8000/(double)m_video_regs[0]);
+				m_palette->set_pen_contrast(i, (double)0x8000/(double)m_video_regs[0]);
 			}
 		}
 	}
@@ -205,7 +213,7 @@ WRITE16_MEMBER(pzletime_state::video_regs_w)
 		{
 			for (i = 0x300; i < 32768 + 0x300; i++)
 			{
-				palette_set_pen_contrast(machine(), i, (double)0x8000/(double)m_video_regs[1]);
+				m_palette->set_pen_contrast(i, (double)0x8000/(double)m_video_regs[1]);
 			}
 		}
 	}
@@ -225,7 +233,7 @@ static ADDRESS_MAP_START( pzletime_map, AS_PROGRAM, 16, pzletime_state )
 	AM_RANGE(0x000000, 0x3fffff) AM_ROM
 	AM_RANGE(0x700000, 0x700005) AM_RAM_WRITE(video_regs_w) AM_SHARE("video_regs")
 	AM_RANGE(0x800000, 0x800001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x900000, 0x9005ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x900000, 0x9005ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xa00000, 0xa00007) AM_RAM AM_SHARE("tilemap_regs")
 	AM_RANGE(0xb00000, 0xb3ffff) AM_RAM AM_SHARE("bg_videoram")
 	AM_RANGE(0xc00000, 0xc00fff) AM_RAM_WRITE(mid_videoram_w) AM_SHARE("mid_videoram")
@@ -297,7 +305,7 @@ static GFXDECODE_START( pzletime )
 	GFXDECODE_ENTRY( "gfx3", 0, layout16x16, 0x000, 0x10 )
 GFXDECODE_END
 
-void pzletime_state::palette_init()
+PALETTE_INIT_MEMBER(pzletime_state, pzletime)
 {
 	int i;
 
@@ -305,7 +313,7 @@ void pzletime_state::palette_init()
 
 	/* initialize 555 RGB lookup */
 	for (i = 0; i < 32768; i++)
-		palette_set_color_rgb(machine(), i + 0x300, pal5bit(i >> 10), pal5bit(i >> 5), pal5bit(i >> 0));
+		palette.set_pen_color(i + 0x300, pal5bit(i >> 10), pal5bit(i >> 5), pal5bit(i >> 0));
 }
 
 void pzletime_state::machine_start()
@@ -333,8 +341,13 @@ static MACHINE_CONFIG_START( pzletime, pzletime_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 48*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pzletime_state, screen_update_pzletime)
-	MCFG_GFXDECODE(pzletime)
-	MCFG_PALETTE_LENGTH(0x300 + 32768)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pzletime)
+	MCFG_PALETTE_ADD("palette", 0x300 + 32768)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	MCFG_PALETTE_INIT_OWNER(pzletime_state, pzletime)
+
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 

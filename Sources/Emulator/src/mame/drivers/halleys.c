@@ -214,7 +214,8 @@ public:
 		m_blitter_ram(*this, "blitter_ram"),
 		m_io_ram(*this, "io_ram"),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu") { }
+		m_audiocpu(*this, "audiocpu"),
+		m_palette(*this, "palette") { }
 
 	UINT16 *m_render_layer[MAX_LAYERS];
 	UINT8 m_sound_fifo[MAX_SOUNDS];
@@ -245,12 +246,15 @@ public:
 	emu_timer *m_blitter_reset_timer;
 	offs_t m_collision_detection;
 	int m_latch_delay;
+	dynamic_array<UINT8> m_paletteram;
+
 	DECLARE_WRITE8_MEMBER(bgtile_w);
 	DECLARE_READ8_MEMBER(blitter_status_r);
 	DECLARE_READ8_MEMBER(blitter_r);
 	DECLARE_WRITE8_MEMBER(blitter_w);
 	DECLARE_READ8_MEMBER(collision_id_r);
-	DECLARE_WRITE8_MEMBER(halleys_paletteram_IIRRGGBB_w);
+	DECLARE_READ8_MEMBER(paletteram_r);
+	DECLARE_WRITE8_MEMBER(paletteram_w);
 	DECLARE_READ8_MEMBER(zero_r);
 	DECLARE_READ8_MEMBER(debug_r);
 	DECLARE_READ8_MEMBER(vector_r);
@@ -265,7 +269,7 @@ public:
 	DECLARE_DRIVER_INIT(halleys);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(halleys);
 	UINT32 screen_update_halleys(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_benberob(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(blitter_reset);
@@ -280,6 +284,7 @@ public:
 	void init_common();
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -1122,15 +1127,17 @@ READ8_MEMBER(halleys_state::collision_id_r)
 //**************************************************************************
 // Video Initializations and Updates
 
-void halleys_state::palette_init()
+PALETTE_INIT_MEMBER(halleys_state, halleys)
 {
 	UINT32 d, r, g, b, i, j, count;
+	// allocate memory for internal palette
+	m_internal_palette = auto_alloc_array(machine(), UINT32, PALETTE_SIZE);
 	UINT32 *pal_ptr = m_internal_palette;
 
 	for (count=0; count<1024; count++)
 	{
 		pal_ptr[count] = 0;
-		palette_set_color(machine(), count, MAKE_RGB(0, 0, 0));
+		palette.set_pen_color(count, rgb_t(0, 0, 0));
 	}
 
 	// 00-31: palette RAM(ffc0-ffdf)
@@ -1151,7 +1158,7 @@ void halleys_state::palette_init()
 			g = r + count + BG_MONO;
 			r += i;
 			pal_ptr[g] = d;
-			palette_set_color(machine(), g, MAKE_RGB(r, r, r));
+			palette.set_pen_color(g, rgb_t(r, r, r));
 		}
 	}
 
@@ -1166,7 +1173,7 @@ void halleys_state::palette_init()
 		g = d    & 0x0c; g |= i;
 		b = d<<2 & 0x0c; b |= i;
 
-		palette_set_color_rgb(machine(), j, pal4bit(r), pal4bit(g), pal4bit(b));
+		palette.set_pen_color(j, pal4bit(r), pal4bit(g), pal4bit(b));
 	}
 }
 
@@ -1184,7 +1191,7 @@ void halleys_state::halleys_decode_rgb(UINT32 *r, UINT32 *g, UINT32 *b, int addr
 	int bit0, bit1, bit2, bit3, bit4;
 
 	// the four 16x4-bit SN74S189 SRAM chips are assumed be the game's 32-byte palette RAM
-	sram_189 = m_generic_paletteram_8;
+	sram_189 = m_paletteram;
 
 	// each of the three 32-byte 6330 PROM is wired to an RGB component output
 	prom_6330 = memregion("proms")->base();
@@ -1215,12 +1222,17 @@ void halleys_state::halleys_decode_rgb(UINT32 *r, UINT32 *g, UINT32 *b, int addr
 	*b = prom_6330[0x40 + (bit0|bit1|bit2|bit3|bit4)];
 }
 
-WRITE8_MEMBER(halleys_state::halleys_paletteram_IIRRGGBB_w)
+READ8_MEMBER(halleys_state::paletteram_r)
+{
+	return m_paletteram[offset];
+}
+
+WRITE8_MEMBER(halleys_state::paletteram_w)
 {
 	UINT32 d, r, g, b, i, j;
 	UINT32 *pal_ptr = m_internal_palette;
 
-	m_generic_paletteram_8[offset] = data;
+	m_paletteram[offset] = data;
 	d = (UINT32)data;
 	j = d | BG_RGB;
 	pal_ptr[offset] = j;
@@ -1234,13 +1246,13 @@ WRITE8_MEMBER(halleys_state::halleys_paletteram_IIRRGGBB_w)
 	g = d    & 0x0c; g |= i;  g = g<<4 | g;
 	b = d<<2 & 0x0c; b |= i;  b = b<<4 | b;
 
-	palette_set_color(machine(), offset, MAKE_RGB(r, g, b));
-	palette_set_color(machine(), offset+SP_2BACK, MAKE_RGB(r, g, b));
-	palette_set_color(machine(), offset+SP_ALPHA, MAKE_RGB(r, g, b));
-	palette_set_color(machine(), offset+SP_COLLD, MAKE_RGB(r, g, b));
+	m_palette->set_pen_color(offset, rgb_t(r, g, b));
+	m_palette->set_pen_color(offset+SP_2BACK, rgb_t(r, g, b));
+	m_palette->set_pen_color(offset+SP_ALPHA, rgb_t(r, g, b));
+	m_palette->set_pen_color(offset+SP_COLLD, rgb_t(r, g, b));
 
 	halleys_decode_rgb(&r, &g, &b, offset, 0);
-	palette_set_color(machine(), offset+0x20, MAKE_RGB(r, g, b));
+	m_palette->set_pen_color(offset+0x20, rgb_t(r, g, b));
 }
 
 
@@ -1270,6 +1282,11 @@ void halleys_state::video_start()
 
 		m_alpha_table[(src<<8)+dst] = c | BG_RGB;
 	}
+
+	m_paletteram.resize(m_palette->entries());
+	m_palette->basemem().set(m_paletteram, ENDIANNESS_LITTLE, 1);
+
+	m_bgcolor         = m_palette->black_pen();
 }
 
 
@@ -1680,7 +1697,7 @@ static ADDRESS_MAP_START( halleys_map, AS_PROGRAM, 8, halleys_state )
 	AM_RANGE(0xff9c, 0xff9c) AM_WRITE(firq_ack_w)
 	AM_RANGE(0xff00, 0xffbf) AM_RAM AM_SHARE("io_ram")  // I/O write fall-through
 
-	AM_RANGE(0xffc0, 0xffdf) AM_RAM_WRITE(halleys_paletteram_IIRRGGBB_w) AM_SHARE("paletteram")
+	AM_RANGE(0xffc0, 0xffdf) AM_READWRITE(paletteram_r, paletteram_w)
 	AM_RANGE(0xffe0, 0xffff) AM_READ(vector_r)
 ADDRESS_MAP_END
 
@@ -1943,23 +1960,11 @@ void halleys_state::machine_reset()
 	m_blitter_busy    = 0;
 	m_collision_count = 0;
 	m_stars_enabled   = 0;
-	m_bgcolor         = get_black_pen(machine());
 	m_fftail = m_ffhead = m_ffcount = 0;
 
 	memset(m_io_ram, 0xff, m_io_ram.bytes());
 	memset(m_render_layer[0], 0, SCREEN_BYTESIZE * MAX_LAYERS);
 }
-
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(halleys_state,sndnmi_msk_w) // port Bwrite
-};
 
 
 static MACHINE_CONFIG_START( halleys, halleys_state )
@@ -1980,9 +1985,10 @@ static MACHINE_CONFIG_START( halleys, halleys_state )
 	MCFG_SCREEN_SIZE(SCREEN_WIDTH, SCREEN_HEIGHT)
 	MCFG_SCREEN_VISIBLE_AREA(VIS_MINX, VIS_MAXX, VIS_MINY, VIS_MAXY)
 	MCFG_SCREEN_UPDATE_DRIVER(halleys_state, screen_update_halleys)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(PALETTE_SIZE)
-
+	MCFG_PALETTE_ADD("palette", PALETTE_SIZE)
+	MCFG_PALETTE_INIT_OWNER(halleys_state, halleys)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1997,7 +2003,7 @@ static MACHINE_CONFIG_START( halleys, halleys_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.15)
 
 	MCFG_SOUND_ADD("ay4", AY8910, XTAL_6MHz/4) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(halleys_state, sndnmi_msk_w)) // port Bwrite
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.15)
 MACHINE_CONFIG_END
 
@@ -2181,10 +2187,6 @@ void halleys_state::init_common()
 
 	// allocate memory for alpha table
 	m_alpha_table = auto_alloc_array(machine(), UINT32, 0x10000);
-
-
-	// allocate memory for internal palette
-	m_internal_palette = auto_alloc_array(machine(), UINT32, PALETTE_SIZE);
 
 
 	// allocate memory for hardware collision list

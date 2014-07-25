@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Michael Zapf
 /***************************************************************************
 
     GROM emulation (aka TMC0430)
@@ -85,14 +87,14 @@
 #include "emu.h"
 #include "grom.h"
 
-#define LOG logerror
-#define VERBOSE 1
+#define TRACE_ADDRESS 0
 
 /*
     Constructor.
 */
 ti99_grom_device::ti99_grom_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-: bus8z_device(mconfig, GROM, "TI-99 GROM device", tag, owner, clock, "ti99_grom", __FILE__)
+: bus8z_device(mconfig, GROM, "TI-99 GROM device", tag, owner, clock, "ti99_grom", __FILE__),
+	m_gromready(*this)
 {
 }
 
@@ -137,8 +139,8 @@ READ8Z_MEMBER( ti99_grom_device::readz )
 		{
 			// GROMs are buffered. Data is retrieved from a buffer,
 			// while the buffer is replaced with the next cell content.
+			if (TRACE_ADDRESS) if (m_ident==0) logerror("grom0: %04x = %02x\n", m_address-1, m_buffer);
 			*value = m_buffer;
-
 			// Get next value, put it in buffer. Note that the GROM
 			// wraps at 8K boundaries.
 			UINT16 addr = m_address-(m_ident<<13);
@@ -149,7 +151,8 @@ READ8Z_MEMBER( ti99_grom_device::readz )
 				m_buffer = m_memptr[addr];
 		}
 		// Note that all GROMs update their address counter.
-		m_address = (m_address + 1)&0xFFFF;
+		// TODO: Check this on a real console
+		m_address = (m_address & 0xE000) | ((m_address + 1)&0x1FFF);
 
 		// Reset the read and write address flipflops.
 		m_raddr_LSB = m_waddr_LSB = false;
@@ -189,6 +192,7 @@ WRITE8_MEMBER( ti99_grom_device::write )
 				m_buffer = m_memptr[m_address-(m_ident<<13)];
 			}
 			m_waddr_LSB = false;
+			if (TRACE_ADDRESS) if (m_ident==0) logerror("grom0: %04x\n", m_address);
 		}
 		else
 		{
@@ -206,7 +210,7 @@ WRITE8_MEMBER( ti99_grom_device::write )
 			UINT16 write_addr;
 			// We need to rewind by 1 because the read address has already advanced.
 			// However, do not change the address counter!
-			write_addr = (m_address - 1) & 0xFFFF;
+			write_addr = (m_address & 0xE000) | ((m_address - 1)&0x1FFF);
 
 			// UINT16 addr = m_address-(m_ident<<13);
 			if (m_size > 0x1800 || ((m_address&0x1fff)<0x1800))
@@ -215,8 +219,7 @@ WRITE8_MEMBER( ti99_grom_device::write )
 		m_raddr_LSB = m_waddr_LSB = false;
 		clear_ready();
 	}
-
-	m_address = (m_address + 1) & 0xFFFF;
+	m_address = (m_address & 0xE000) | ((m_address + 1)&0x1FFF);
 }
 
 /*
@@ -250,7 +253,7 @@ void ti99_grom_device::device_start(void)
 	m_clockrate = conf->clockrate;
 	m_writable = conf->writable;
 	m_ident = conf->ident;
-	m_gromready.resolve(conf->ready, *this);
+	m_gromready.resolve_safe();
 
 	m_timer = timer_alloc(0);
 }

@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     save.h
 
     Save state management functions.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -74,8 +45,13 @@ typedef delegate<void ()> save_prepost_delegate;
 // use this to declare a given type is a simple, non-pointer type that can be
 // saved; in general, this is intended only to be used for specific enum types
 // defined by your device
-#define ALLOW_SAVE_TYPE(TYPE) template<> struct save_manager::type_checker<TYPE> { static const bool is_atom = true; static const bool is_pointer = false; }
+#define ALLOW_SAVE_TYPE(TYPE) \
+	template<> struct save_manager::type_checker<TYPE> { static const bool is_atom = true; static const bool is_pointer = false; }
 
+// use this as above, but also to declare that dynamic_array<TYPE> is safe as well
+#define ALLOW_SAVE_TYPE_AND_ARRAY(TYPE) \
+	ALLOW_SAVE_TYPE(TYPE); \
+	template<> inline void save_manager::save_item(const char *module, const char *tag, int index, dynamic_array<TYPE> &value, const char *name) { save_memory(module, tag, index, name, &value[0], sizeof(TYPE), value.count()); }
 
 
 // register items with explicit tags
@@ -167,7 +143,7 @@ public:
 
     void doPreSave();
     void doPostLoad();
-    
+
 	// file processing
 	static save_error check_file(running_machine &machine, emu_file &file, const char *gamename, void (CLIB_DECL *errormsg)(const char *fmt, ...));
 	save_error write_file(emu_file &file);
@@ -190,8 +166,8 @@ private:
 		state_callback *next() const { return m_next; }
 
 		// state
-		state_callback *	m_next;					// pointer to next entry
-		save_prepost_delegate m_func;				// delegate
+		state_callback *    m_next;                 // pointer to next entry
+		save_prepost_delegate m_func;               // delegate
 	};
 
 	class state_entry
@@ -207,41 +183,42 @@ private:
 		void flip_data();
 
 		// state
-		state_entry *		m_next;					// pointer to next entry
-		void *				m_data;					// pointer to the memory to save/restore
-		astring				m_name;					// full name
-		UINT8				m_typesize;				// size of the raw data type
-		UINT32				m_typecount;			// number of items
-		UINT32				m_offset;				// offset within the final structure
+		state_entry *       m_next;                 // pointer to next entry
+		void *              m_data;                 // pointer to the memory to save/restore
+		astring             m_name;                 // full name
+		UINT8               m_typesize;             // size of the raw data type
+		UINT32              m_typecount;            // number of items
+		UINT32              m_offset;               // offset within the final structure
 	};
 
 	// internal state
-	running_machine &		m_machine;				// reference to our machine
-	bool					m_reg_allowed;			// are registrations allowed?
-	int						m_illegal_regs;			// number of illegal registrations
+	running_machine &       m_machine;              // reference to our machine
+	bool                    m_reg_allowed;          // are registrations allowed?
+	int                     m_illegal_regs;         // number of illegal registrations
 
-	simple_list<state_entry> m_entry_list;			// list of reigstered entries
-	simple_list<state_callback> m_presave_list;		// list of pre-save functions
-	simple_list<state_callback> m_postload_list;	// list of post-load functions
+	simple_list<state_entry> m_entry_list;          // list of reigstered entries
+	simple_list<state_callback> m_presave_list;     // list of pre-save functions
+	simple_list<state_callback> m_postload_list;    // list of post-load functions
 };
 
 
 // template specializations to enumerate the fundamental atomic types you are allowed to save
-ALLOW_SAVE_TYPE(char);
-ALLOW_SAVE_TYPE(bool);
-ALLOW_SAVE_TYPE(INT8);
-ALLOW_SAVE_TYPE(UINT8);
-ALLOW_SAVE_TYPE(INT16);
-ALLOW_SAVE_TYPE(UINT16);
-ALLOW_SAVE_TYPE(INT32);
-ALLOW_SAVE_TYPE(UINT32);
-ALLOW_SAVE_TYPE(INT64);
-ALLOW_SAVE_TYPE(UINT64);
-ALLOW_SAVE_TYPE(PAIR);
-ALLOW_SAVE_TYPE(PAIR64);
-ALLOW_SAVE_TYPE(float);
-ALLOW_SAVE_TYPE(double);
-ALLOW_SAVE_TYPE(endianness_t);
+ALLOW_SAVE_TYPE_AND_ARRAY(char);
+ALLOW_SAVE_TYPE_AND_ARRAY(bool);
+ALLOW_SAVE_TYPE_AND_ARRAY(INT8);
+ALLOW_SAVE_TYPE_AND_ARRAY(UINT8);
+ALLOW_SAVE_TYPE_AND_ARRAY(INT16);
+ALLOW_SAVE_TYPE_AND_ARRAY(UINT16);
+ALLOW_SAVE_TYPE_AND_ARRAY(INT32);
+ALLOW_SAVE_TYPE_AND_ARRAY(UINT32);
+ALLOW_SAVE_TYPE_AND_ARRAY(INT64);
+ALLOW_SAVE_TYPE_AND_ARRAY(UINT64);
+ALLOW_SAVE_TYPE_AND_ARRAY(PAIR);
+ALLOW_SAVE_TYPE_AND_ARRAY(PAIR64);
+ALLOW_SAVE_TYPE_AND_ARRAY(float);
+ALLOW_SAVE_TYPE_AND_ARRAY(double);
+ALLOW_SAVE_TYPE_AND_ARRAY(endianness_t);
+ALLOW_SAVE_TYPE_AND_ARRAY(rgb_t);
 
 
 
@@ -292,41 +269,4 @@ inline void save_manager::save_item(const char *module, const char *tag, int ind
 }
 
 
-//-------------------------------------------------
-//  save_item - specialized save_item for
-//  dynamic_arrays
-//-------------------------------------------------
-
-// surely there must be a syntax for doing this templated??
-template<>
-inline void save_manager::save_item(const char *module, const char *tag, int index, dynamic_array<UINT8> &value, const char *name)
-{
-	save_memory(module, tag, index, name, &value[0], sizeof(UINT8), value.count());
-}
-
-template<>
-inline void save_manager::save_item(const char *module, const char *tag, int index, dynamic_array<UINT16> &value, const char *name)
-{
-	save_memory(module, tag, index, name, &value[0], sizeof(UINT16), value.count());
-}
-
-template<>
-inline void save_manager::save_item(const char *module, const char *tag, int index, dynamic_array<INT32> &value, const char *name)
-{
-	save_memory(module, tag, index, name, &value[0], sizeof(INT32), value.count());
-}
-
-template<>
-inline void save_manager::save_item(const char *module, const char *tag, int index, dynamic_array<UINT32> &value, const char *name)
-{
-	save_memory(module, tag, index, name, &value[0], sizeof(UINT32), value.count());
-}
-
-template<>
-inline void save_manager::save_item(const char *module, const char *tag, int index, dynamic_array<UINT64> &value, const char *name)
-{
-	save_memory(module, tag, index, name, &value[0], sizeof(UINT64), value.count());
-}
-
-
-#endif	/* __SAVE_H__ */
+#endif  /* __SAVE_H__ */

@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Michael Zapf
 /****************************************************************************
 
     Joystick port
@@ -22,15 +24,6 @@
 
 extern const device_type JOYPORT;
 
-struct joyport_config
-{
-	devcb_write_line        interrupt;
-	int                     vdp_clock;
-};
-
-#define JOYPORT_CONFIG(name) \
-	const joyport_config(name) =
-
 class joyport_device;
 
 /********************************************************************
@@ -38,18 +31,17 @@ class joyport_device;
 ********************************************************************/
 class joyport_attached_device : public device_t
 {
-	friend class joyport_device;
 public:
 	joyport_attached_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
 	: device_t(mconfig, type, name, tag, owner, clock, shortname, source) { }
 
+	virtual UINT8 read_dev() =0;
+	virtual void write_dev(UINT8 data) =0;
+	virtual void pulse_clock() { };
+
 protected:
 	virtual void device_config_complete();
 	joyport_device* m_joyport;
-
-private:
-	virtual UINT8 read_dev() =0;
-	virtual void write_dev(UINT8 data) =0;
 };
 
 /********************************************************************
@@ -62,13 +54,16 @@ public:
 	UINT8   read_port();
 	void    write_port(int data);
 	void    set_interrupt(int state);
+	void    pulse_clock();
+
+	template<class _Object> static devcb_base &static_set_int_callback(device_t &device, _Object object) { return downcast<joyport_device &>(device).m_interrupt.set_callback(object); }
 
 protected:
-	virtual void device_start() { };
-	virtual void device_config_complete();
+	void device_start();
+	void device_config_complete();
 
 private:
-	devcb_resolved_write_line   m_interrupt;
+	devcb_write_line           m_interrupt;
 	joyport_attached_device*    m_connected;
 };
 
@@ -76,19 +71,19 @@ SLOT_INTERFACE_EXTERN(joystick_port);
 SLOT_INTERFACE_EXTERN(joystick_port_994);
 SLOT_INTERFACE_EXTERN(joystick_port_gen);
 
-#define MCFG_GENEVE_JOYPORT_ADD( _tag, _conf )  \
+#define MCFG_JOYPORT_INT_HANDLER( _intcallb ) \
+	devcb = &joyport_device::static_set_int_callback( *device, DEVCB_##_intcallb );
+
+#define MCFG_GENEVE_JOYPORT_ADD( _tag )  \
 	MCFG_DEVICE_ADD(_tag, JOYPORT, 0) \
-	MCFG_DEVICE_CONFIG( _conf ) \
 	MCFG_DEVICE_SLOT_INTERFACE(joystick_port_gen, "twinjoy", false)
 
-#define MCFG_TI_JOYPORT4A_ADD( _tag, _conf )    \
+#define MCFG_TI_JOYPORT4A_ADD( _tag )    \
 	MCFG_DEVICE_ADD(_tag, JOYPORT, 0) \
-	MCFG_DEVICE_CONFIG( _conf ) \
 	MCFG_DEVICE_SLOT_INTERFACE(joystick_port, "twinjoy", false)
 
-#define MCFG_TI_JOYPORT4_ADD( _tag, _conf ) \
+#define MCFG_TI_JOYPORT4_ADD( _tag ) \
 	MCFG_DEVICE_ADD(_tag, JOYPORT, 0) \
-	MCFG_DEVICE_CONFIG( _conf ) \
 	MCFG_DEVICE_SLOT_INTERFACE(joystick_port_994, "twinjoy", false)
 
 #endif /* __JOYPORT__ */

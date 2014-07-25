@@ -30,28 +30,21 @@ tc0280grd_device::tc0280grd_device(const machine_config &mconfig, const char *ta
 	: device_t(mconfig, TC0280GRD, "Taito TC0280GRD & TC0430GRW", tag, owner, clock, "tc0280grd", __FILE__),
 	m_ram(NULL),
 	//m_ctrl[8](0),
-	m_base_color(0)
+	m_base_color(0),
+	m_gfxdecode(*this)
 {
 }
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
 //-------------------------------------------------
 
-void tc0280grd_device::device_config_complete()
+void tc0280grd_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
 {
-	// inherit a copy of the static data
-	const tc0280grd_interface *intf = reinterpret_cast<const tc0280grd_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<tc0280grd_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-	}
+	downcast<tc0280grd_device &>(device).m_gfxdecode.set_tag(tag);
 }
+
 
 //-------------------------------------------------
 //  device_start - device-specific startup
@@ -59,7 +52,10 @@ void tc0280grd_device::device_config_complete()
 
 void tc0280grd_device::device_start()
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0280grd_device::tc0280grd_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	if(!m_gfxdecode->started())
+		throw device_missing_dependencies();
+
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0280grd_device::tc0280grd_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 	m_tilemap->set_transparent_pen(0);
 
 	m_ram = auto_alloc_array_clear(machine(), UINT16, TC0280GRD_RAM_SIZE / 2);
@@ -87,8 +83,7 @@ void tc0280grd_device::device_reset()
 TILE_GET_INFO_MEMBER(tc0280grd_device::tc0280grd_get_tile_info)
 {
 	int attr = m_ram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			m_gfxnum,
+	SET_TILE_INFO_MEMBER(m_gfxnum,
 			attr & 0x3fff,
 			((attr & 0xc000) >> 14) + m_base_color,
 			0);

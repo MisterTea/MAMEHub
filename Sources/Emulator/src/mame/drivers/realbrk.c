@@ -154,7 +154,7 @@ WRITE16_MEMBER(realbrk_state::backup_ram_w)
 static ADDRESS_MAP_START( base_mem, AS_PROGRAM, 16, realbrk_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM                                         // ROM
 	AM_RANGE(0x200000, 0x203fff) AM_RAM                   AM_SHARE("spriteram") // Sprites
-	AM_RANGE(0x400000, 0x40ffff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram" )   // Palette
+	AM_RANGE(0x400000, 0x40ffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")   // Palette
 	AM_RANGE(0x600000, 0x601fff) AM_RAM_WRITE(realbrk_vram_0_w) AM_SHARE("vram_0")  // Background   (0)
 	AM_RANGE(0x602000, 0x603fff) AM_RAM_WRITE(realbrk_vram_1_w) AM_SHARE("vram_1")  // Background   (1)
 	AM_RANGE(0x604000, 0x604fff) AM_RAM_WRITE(realbrk_vram_2_w) AM_SHARE("vram_2")  // Text         (2)
@@ -167,13 +167,12 @@ ADDRESS_MAP_END
 
 /*realbrk specific memory map*/
 static ADDRESS_MAP_START( realbrk_mem, AS_PROGRAM, 16, realbrk_state )
-	AM_IMPORT_FROM(base_mem)
 	AM_RANGE(0x800008, 0x80000b) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff) //
 	AM_RANGE(0xc00000, 0xc00001) AM_READ_PORT("IN0")                            // P1 & P2 (Inputs)
 	AM_RANGE(0xc00002, 0xc00003) AM_READ_PORT("IN1")                            // Coins
 	AM_RANGE(0xc00004, 0xc00005) AM_RAM_READ(realbrk_dsw_r) AM_SHARE("dsw_select")  // DSW select
 	AM_RANGE(0xff0000, 0xfffbff) AM_RAM                                         // RAM
-	AM_RANGE(0xfffd0a, 0xfffd0b) AM_WRITE(realbrk_flipscreen_w              )   // Hack! Parallel port data register
+	AM_IMPORT_FROM(base_mem)
 ADDRESS_MAP_END
 
 /*pkgnsh specific memory map*/
@@ -757,8 +756,10 @@ static MACHINE_CONFIG_START( realbrk, realbrk_state )
 	MCFG_CPU_ADD("maincpu",M68000, XTAL_32MHz / 2)          /* !! TMP68301 !! */
 	MCFG_CPU_PROGRAM_MAP(realbrk_mem)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", realbrk_state,  realbrk_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("tmp68301",tmp68301_device,irq_callback)
 
-	MCFG_TMP68301_ADD("tmp68301")
+	MCFG_DEVICE_ADD("tmp68301", TMP68301, 0)
+	MCFG_TMP68301_OUT_PARALLEL_CB(WRITE16(realbrk_state,realbrk_flipscreen_w))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -767,10 +768,11 @@ static MACHINE_CONFIG_START( realbrk, realbrk_state )
 	MCFG_SCREEN_SIZE(0x140, 0xe0)
 	MCFG_SCREEN_VISIBLE_AREA(0, 0x140-1, 0, 0xe0-1)
 	MCFG_SCREEN_UPDATE_DRIVER(realbrk_state, screen_update_realbrk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(realbrk)
-	MCFG_PALETTE_LENGTH(0x8000)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", realbrk)
+	MCFG_PALETTE_ADD("palette", 0x8000)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -787,9 +789,12 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( pkgnsh, realbrk )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(pkgnsh_mem)
+
+	MCFG_DEVICE_MODIFY("tmp68301")
+	MCFG_TMP68301_OUT_PARALLEL_CB(NULL)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( pkgnshdx, realbrk )
+static MACHINE_CONFIG_DERIVED( pkgnshdx, pkgnsh )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(pkgnshdx_mem)
 MACHINE_CONFIG_END
@@ -798,7 +803,7 @@ static MACHINE_CONFIG_DERIVED( dai2kaku, realbrk )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(dai2kaku_mem)
 
-	MCFG_GFXDECODE(dai2kaku)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", dai2kaku)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(realbrk_state, screen_update_dai2kaku)
 MACHINE_CONFIG_END

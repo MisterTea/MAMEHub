@@ -224,23 +224,6 @@ GFXDECODE_END
 
 /*************************************
  *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
-/*************************************
- *
  *  Machine driver
  *
  *************************************/
@@ -281,21 +264,21 @@ static MACHINE_CONFIG_START( mikie, mikie_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mikie_state, screen_update_mikie)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mikie)
-	MCFG_PALETTE_LENGTH(16*8*16+16*8*16)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mikie)
+	MCFG_PALETTE_ADD("palette", 16*8*16+16*8*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(mikie_state, mikie)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn1", SN76489A, XTAL/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76489A, CLK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 /*************************************

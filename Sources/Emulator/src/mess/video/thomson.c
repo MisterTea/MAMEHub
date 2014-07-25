@@ -29,8 +29,7 @@
 
 int thomson_state::thom_update_screen_size()
 {
-	screen_device *screen = machine().first_screen();
-	const rectangle &visarea = screen->visible_area();
+	const rectangle &visarea = m_screen->visible_area();
 	UINT8 p = ioport("vconfig")->read();
 	int new_w, new_h, changed = 0;
 
@@ -53,7 +52,7 @@ int thomson_state::thom_update_screen_size()
 	if ( ( visarea.max_x != new_w ) || ( visarea.max_y != new_h ) )
 	{
 		changed = 1;
-		machine().primary_screen->set_visible_area(0, new_w, 0, new_h );
+		m_screen->set_visible_area(0, new_w, 0, new_h );
 	}
 
 	return changed;
@@ -664,9 +663,12 @@ END_UPDATE
 
 UPDATE_HI( overlay3 )
 {
+	/* Note: "Manuel Technique" doc implies that the palette entries are 0,1,2,4,8;
+	   we now use palette entries 0,1,2,3,4 instead, as this is what the TEO emulator uses and it has been confirmed correct
+	*/
 	static const int p[2][2][2][2] = {
-			{ { { 0, 1 }, { 2, 1 }, }, { { 4, 1 }, { 2, 1 } } },
-			{ { { 8, 1 }, { 2, 1 }, }, { { 4, 1 }, { 2, 1 } } }
+			{ { { 0, 1 }, { 2, 1 } }, { { 3, 1 }, { 2, 1 } } },
+			{ { { 4, 1 }, { 2, 1 } }, { { 3, 1 }, { 2, 1 } } }
 	};
 	int i;
 	for ( i = 0; i < 16; i += 4, rama >>= 1, ramb >>= 1 )
@@ -679,8 +681,8 @@ END_UPDATE
 UPDATE_LOW( overlay3 )
 {
 	static const int p[2][2][2][2] = {
-			{ { { 0, 1 }, { 2, 1 }, }, { { 4, 1 }, { 2, 1 } } },
-			{ { { 8, 1 }, { 2, 1 }, }, { { 4, 1 }, { 2, 1 } } }
+			{ { { 0, 1 }, { 2, 1 } }, { { 3, 1 }, { 2, 1 } } },
+			{ { { 4, 1 }, { 2, 1 } }, { { 3, 1 }, { 2, 1 } } }
 	};
 	int i;
 	for ( i = 0; i < 8; i += 2, rama >>= 1, ramb >>= 1 )
@@ -1094,7 +1096,7 @@ PALETTE_INIT_MEMBER(thomson_state, thom)
 		UINT8 g = 255. * pow( ((i>> 4) & 15) / 15., gamma );
 		UINT8 b = 255. * pow( ((i >> 8) & 15) / 15., gamma );
 		/* UINT8 alpha = i & 0x1000 ? 0 : 255;  TODO: transparency */
-		palette_set_color_rgb(machine(),  i, r, g, b );
+		palette.set_pen_color(i, r, g, b );
 	}
 }
 
@@ -1225,6 +1227,32 @@ WRITE8_MEMBER( thomson_state::to8_vcart_w )
 {
 	UINT8* dst = m_thom_vram + ( ( offset + 0x4000 * m_to8_cart_vpage ) & m_ram->mask() );
 	assert( offset < 0x4000 );
+	if ( *dst == data )
+		return;
+	*dst = data;
+	/* dirty whole scanline */
+	if ( m_to8_cart_vpage >= 4  )
+		return;
+	m_thom_vmem_dirty[ (offset & 0x1fff) / 40 ] = 1;
+}
+
+WRITE8_MEMBER( thomson_state::mo6_vcart_lo_w )
+{
+	UINT8* dst = m_thom_vram + ( ( offset + 0x3000 + 0x4000 * m_to8_cart_vpage ) & m_ram->mask() );
+	assert( offset < 0x1000 );
+	if ( *dst == data )
+		return;
+	*dst = data;
+	/* dirty whole scanline */
+	if ( m_to8_cart_vpage >= 4  )
+		return;
+	m_thom_vmem_dirty[ (offset & 0x1fff) / 40 ] = 1;
+}
+
+WRITE8_MEMBER( thomson_state::mo6_vcart_hi_w )
+{
+	UINT8* dst = m_thom_vram + ( ( offset + 0x4000 * m_to8_cart_vpage ) & m_ram->mask() );
+	assert( offset < 0x3000 );
 	if ( *dst == data )
 		return;
 	*dst = data;

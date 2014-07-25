@@ -110,7 +110,7 @@ static ADDRESS_MAP_START( dbz_map, AS_PROGRAM, 16, dbz_state )
 	AM_RANGE(0x498000, 0x49ffff) AM_DEVREAD("k056832", k056832_device, rom_word_8000_r)  // code near a60 in dbz2, subroutine at 730 in dbz
 	AM_RANGE(0x4a0000, 0x4a0fff) AM_DEVREADWRITE("k053246", k053247_device, k053247_word_r, k053247_word_w)
 	AM_RANGE(0x4a1000, 0x4a3fff) AM_RAM
-	AM_RANGE(0x4a8000, 0x4abfff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram") // palette
+	AM_RANGE(0x4a8000, 0x4abfff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // palette
 	AM_RANGE(0x4c0000, 0x4c0001) AM_DEVREAD("k053246", k053247_device, k053246_word_r)
 	AM_RANGE(0x4c0000, 0x4c0007) AM_DEVWRITE("k053246", k053247_device, k053246_word_w)
 	AM_RANGE(0x4c4000, 0x4c4007) AM_DEVWRITE("k053246", k053247_device, k053246_word_w)
@@ -289,44 +289,10 @@ GFXDECODE_END
 
 /**********************************************************************************/
 
-static const k056832_interface dbz_k056832_intf =
-{
-	"gfx1", 2,
-	K056832_BPP_4,
-	1, 1,
-	KONAMI_ROM_DEINTERLEAVE_2,
-	dbz_tile_callback, "none"
-};
-
-static const k053247_interface dbz_k053246_intf =
-{
-	"gfx2", 3,
-	NORMAL_PLANE_ORDER,
-	-52, 16,
-	KONAMI_ROM_DEINTERLEAVE_NONE,
-	dbz_sprite_callback
-};
-
-/* both k053936 use the same wrap/offs */
-static const k053936_interface dbz_k053936_intf =
-{
-	1, -46, -16
-};
-
 WRITE_LINE_MEMBER(dbz_state::dbz_irq2_ack_w)
 {
 	m_maincpu->set_input_line(M68K_IRQ_2, CLEAR_LINE);
 }
-
-
-static const k053252_interface dbz_k053252_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(dbz_state,dbz_irq2_ack_w),
-	DEVCB_NULL,
-	0, 0
-};
 
 void dbz_state::machine_start()
 {
@@ -361,27 +327,45 @@ static MACHINE_CONFIG_START( dbz, dbz_state )
 	MCFG_CPU_PROGRAM_MAP(dbz_sound_map)
 	MCFG_CPU_IO_MAP(dbz_sound_io_map)
 
-
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(55)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(64*8, 40*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 48*8-1, 0, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dbz_state, screen_update_dbz)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(dbz)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dbz)
 
-	MCFG_PALETTE_LENGTH(0x4000/2)
+	MCFG_PALETTE_ADD("palette", 0x4000/2)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
-	MCFG_K056832_ADD("k056832", dbz_k056832_intf)
-	MCFG_K053246_ADD("k053246", dbz_k053246_intf)
+	MCFG_DEVICE_ADD("k056832", K056832, 0)
+	MCFG_K056832_CB(dbz_state, tile_callback)
+	MCFG_K056832_CONFIG("gfx1", 2, K056832_BPP_4, 1, 1, "none")
+	MCFG_K056832_GFXDECODE("gfxdecode")
+	MCFG_K056832_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("k053246", K053246, 0)
+	MCFG_K053246_CB(dbz_state, sprite_callback)
+	MCFG_K053246_CONFIG("gfx2", 3, NORMAL_PLANE_ORDER, -87, 32) // or -52, 16?
+	MCFG_K053246_GFXDECODE("gfxdecode")
+	MCFG_K053246_PALETTE("palette")
+
 	MCFG_K053251_ADD("k053251")
-	MCFG_K053936_ADD("k053936_1", dbz_k053936_intf)
-	MCFG_K053936_ADD("k053936_2", dbz_k053936_intf)
-	MCFG_K053252_ADD("k053252", 16000000/2, dbz_k053252_intf)
+
+	MCFG_DEVICE_ADD("k053936_1", K053936, 0)
+	MCFG_K053936_WRAP(1)
+	MCFG_K053936_OFFSETS(-46, -16)
+
+	MCFG_DEVICE_ADD("k053936_2", K053936, 0)
+	MCFG_K053936_WRAP(1)
+	MCFG_K053936_OFFSETS(-46, -16)
+
+	MCFG_DEVICE_ADD("k053252", K053252, 16000000/2)
+	MCFG_K053252_INT1_ACK_CB(WRITELINE(dbz_state, dbz_irq2_ack_w))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -410,8 +394,8 @@ ROM_START( dbz )
 
 	/* tiles */
 	ROM_REGION( 0x400000, "gfx1", 0)
-	ROM_LOAD( "222a01.27c", 0x000000, 0x200000, CRC(9fce4ed4) SHA1(81e19375b351ee247f066434dd595149333d73c5) )
-	ROM_LOAD( "222a02.27e", 0x200000, 0x200000, CRC(651acaa5) SHA1(33942a90fb294b5da6a48e5bfb741b31babca188) )
+	ROM_LOAD32_WORD( "222a01.27c", 0x000000, 0x200000, CRC(9fce4ed4) SHA1(81e19375b351ee247f066434dd595149333d73c5) )
+	ROM_LOAD32_WORD( "222a02.27e", 0x000002, 0x200000, CRC(651acaa5) SHA1(33942a90fb294b5da6a48e5bfb741b31babca188) )
 
 	/* sprites */
 	ROM_REGION( 0x800000, "gfx2", 0)
@@ -445,8 +429,8 @@ ROM_START( dbza )
 
 	/* tiles */
 	ROM_REGION( 0x400000, "gfx1", 0)
-	ROM_LOAD( "222a01.27c", 0x000000, 0x200000, CRC(9fce4ed4) SHA1(81e19375b351ee247f066434dd595149333d73c5) )
-	ROM_LOAD( "222a02.27e", 0x200000, 0x200000, CRC(651acaa5) SHA1(33942a90fb294b5da6a48e5bfb741b31babca188) )
+	ROM_LOAD32_WORD( "222a01.27c", 0x000000, 0x200000, CRC(9fce4ed4) SHA1(81e19375b351ee247f066434dd595149333d73c5) )
+	ROM_LOAD32_WORD( "222a02.27e", 0x000002, 0x200000, CRC(651acaa5) SHA1(33942a90fb294b5da6a48e5bfb741b31babca188) )
 
 	/* sprites */
 	ROM_REGION( 0x800000, "gfx2", 0)
@@ -480,8 +464,8 @@ ROM_START( dbz2 )
 
 	/* tiles */
 	ROM_REGION( 0x400000, "gfx1", 0)
-	ROM_LOAD( "ds-b01.27c", 0x000000, 0x200000, CRC(8dc39972) SHA1(c6e3d4e0ff069e08bdb68e2b0ad24cc7314e4e93) )
-	ROM_LOAD( "ds-b02.27e", 0x200000, 0x200000, CRC(7552f8cd) SHA1(1f3beffe9733b1a18d44b5e8880ff1cc97e7a8ab) )
+	ROM_LOAD32_WORD( "ds-b01.27c", 0x000000, 0x200000, CRC(8dc39972) SHA1(c6e3d4e0ff069e08bdb68e2b0ad24cc7314e4e93) )
+	ROM_LOAD32_WORD( "ds-b02.27e", 0x000002, 0x200000, CRC(7552f8cd) SHA1(1f3beffe9733b1a18d44b5e8880ff1cc97e7a8ab) )
 
 	/* sprites */
 	ROM_REGION( 0x800000, "gfx2", 0)

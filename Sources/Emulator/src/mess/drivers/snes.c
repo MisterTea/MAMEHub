@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, R. Belmont, Anthony Kruize, Fabio Priuli
 /***************************************************************************
 
   snes.c
@@ -33,19 +35,8 @@
 
 #include "crsshair.h"
 
-#include "machine/sns_slot.h"
-#include "machine/sns_rom.h"
-#include "machine/sns_rom21.h"
-#include "machine/sns_bsx.h"
-#include "machine/sns_sa1.h"
-#include "machine/sns_sdd1.h"
-#include "machine/sns_sfx.h"
-#include "machine/sns_sgb.h"
-#include "machine/sns_spc7110.h"
-#include "machine/sns_sufami.h"
-#include "machine/sns_upd.h"
-#include "machine/sns_event.h"
-
+#include "bus/snes/snes_slot.h"
+#include "bus/snes/snes_carts.h"
 
 struct snes_mouse
 {
@@ -1470,7 +1461,7 @@ CUSTOM_INPUT_MEMBER( snes_console_state::sscope_offscreen_input )
 	INT16 y = ioport(portnames[port][2])->read();
 
 	/* these are the theoretical boundaries, but we currently are always onscreen... */
-	if (x < 0 || x >= SNES_SCR_WIDTH || y < 0 || y >= m_ppu.m_beam.last_visible_line)
+	if (x < 0 || x >= SNES_SCR_WIDTH || y < 0 || y >= m_ppu->m_beam.last_visible_line)
 		m_scope[port].offscreen = 1;
 	else
 		m_scope[port].offscreen = 0;
@@ -1489,12 +1480,12 @@ void snes_console_state::gun_latch(INT16 x, INT16 y)
 
 	if (y < 0)
 		y = 0;
-	if (y > (m_ppu.m_beam.last_visible_line - 1))
-		y = m_ppu.m_beam.last_visible_line - 1;
+	if (y > (m_ppu->m_beam.last_visible_line - 1))
+		y = m_ppu->m_beam.last_visible_line - 1;
 
-	m_ppu.m_beam.latch_horz = x;
-	m_ppu.m_beam.latch_vert = y;
-	m_ppu.m_stat78 |= 0x40;
+	m_ppu->m_beam.latch_horz = x;
+	m_ppu->m_beam.latch_vert = y;
+	m_ppu->m_stat78 |= 0x40;
 }
 
 void snes_console_state::input_read_sscope(int port)
@@ -1804,50 +1795,6 @@ UINT8 snes_console_state::oldjoy2_read(int latched)
  *
  *************************************/
 
-
-static SLOT_INTERFACE_START(snes_cart)
-	SLOT_INTERFACE_INTERNAL("lorom",         SNS_LOROM)
-	SLOT_INTERFACE_INTERNAL("lorom_bsx",     SNS_LOROM_BSX) // LoROM + BS-X slot - unsupported
-	SLOT_INTERFACE_INTERNAL("lorom_cx4",     SNS_LOROM) // Cart + CX4 - unsupported
-	SLOT_INTERFACE_INTERNAL("lorom_dsp",     SNS_LOROM_NECDSP)
-	SLOT_INTERFACE_INTERNAL("lorom_dsp4",    SNS_LOROM_NECDSP)
-	SLOT_INTERFACE_INTERNAL("lorom_obc1",    SNS_LOROM_OBC1)
-	SLOT_INTERFACE_INTERNAL("lorom_sa1",     SNS_LOROM_SA1) // Cart + SA1 - unsupported
-	SLOT_INTERFACE_INTERNAL("lorom_sdd1",    SNS_LOROM_SDD1)
-	SLOT_INTERFACE_INTERNAL("lorom_sfx",     SNS_LOROM_SUPERFX)
-	SLOT_INTERFACE_INTERNAL("lorom_sgb",     SNS_LOROM_SUPERGB) // SuperGB base cart - unsupported
-	SLOT_INTERFACE_INTERNAL("lorom_st010",   SNS_LOROM_SETA10)
-	SLOT_INTERFACE_INTERNAL("lorom_st011",   SNS_LOROM_SETA11)
-	SLOT_INTERFACE_INTERNAL("lorom_st018",   SNS_LOROM) // Cart + ST018 - unsupported
-	SLOT_INTERFACE_INTERNAL("lorom_sufami",  SNS_LOROM_SUFAMI)  // Sufami Turbo base cart
-	SLOT_INTERFACE_INTERNAL("hirom",         SNS_HIROM)
-	SLOT_INTERFACE_INTERNAL("hirom_bsx",     SNS_HIROM_BSX) // HiROM + BS-X slot - unsupported
-	SLOT_INTERFACE_INTERNAL("hirom_dsp",     SNS_HIROM_NECDSP)
-	SLOT_INTERFACE_INTERNAL("hirom_spc7110", SNS_HIROM_SPC7110)
-	SLOT_INTERFACE_INTERNAL("hirom_spcrtc",  SNS_HIROM_SPC7110_RTC)
-	SLOT_INTERFACE_INTERNAL("hirom_srtc",    SNS_HIROM_SRTC)
-	SLOT_INTERFACE_INTERNAL("bsxrom",        SNS_ROM_BSX)   // BS-X base cart - partial support only
-	SLOT_INTERFACE_INTERNAL("pfest94",       SNS_PFEST94)
-	// pirate carts
-	SLOT_INTERFACE_INTERNAL("lorom_poke",    SNS_LOROM_POKEMON)
-	SLOT_INTERFACE_INTERNAL("lorom_tekken2", SNS_LOROM_TEKKEN2)
-	SLOT_INTERFACE_INTERNAL("lorom_sbld",    SNS_LOROM_SOULBLAD)
-	SLOT_INTERFACE_INTERNAL("lorom_mcpir1",  SNS_LOROM_MCPIR1)
-	SLOT_INTERFACE_INTERNAL("lorom_mcpir2",  SNS_LOROM_MCPIR2)
-	SLOT_INTERFACE_INTERNAL("lorom_20col",   SNS_LOROM_20COL)
-	SLOT_INTERFACE_INTERNAL("lorom_pija",    SNS_LOROM_BANANA)  // not working yet
-	SLOT_INTERFACE_INTERNAL("lorom_bugs",    SNS_LOROM_BUGSLIFE)    // not working yet
-	// legacy slots to support DSPx games from fullpath
-	SLOT_INTERFACE_INTERNAL("lorom_dsp1leg", SNS_LOROM_NECDSP1_LEG)
-	SLOT_INTERFACE_INTERNAL("lorom_dsp1bleg",SNS_LOROM_NECDSP1B_LEG)
-	SLOT_INTERFACE_INTERNAL("lorom_dsp2leg", SNS_LOROM_NECDSP2_LEG)
-	SLOT_INTERFACE_INTERNAL("lorom_dsp3leg", SNS_LOROM_NECDSP3_LEG)
-	SLOT_INTERFACE_INTERNAL("lorom_dsp4leg", SNS_LOROM_NECDSP4_LEG)
-	SLOT_INTERFACE_INTERNAL("hirom_dsp1leg", SNS_HIROM_NECDSP1_LEG)
-	SLOT_INTERFACE_INTERNAL("lorom_st10leg", SNS_LOROM_SETA10_LEG)
-	SLOT_INTERFACE_INTERNAL("lorom_st11leg", SNS_LOROM_SETA11_LEG)
-SLOT_INTERFACE_END
-
 void snes_console_state::machine_start()
 {
 	snes_state::machine_start();
@@ -1868,12 +1815,12 @@ void snes_console_state::machine_start()
 		case SNES_Z80GB:      // skeleton support
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7dffff, read8_delegate(FUNC(snes_console_state::snessgb_lo_r),this), write8_delegate(FUNC(snes_console_state::snessgb_lo_w),this));
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x800000, 0xffffff, read8_delegate(FUNC(snes_console_state::snessgb_hi_r),this), write8_delegate(FUNC(snes_console_state::snessgb_hi_w),this));
-			set_5a22_map(m_maincpu);
+			m_maincpu->set_5a22_map();
 			break;
 		case SNES_SA1:      // skeleton support
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7dffff, read8_delegate(FUNC(snes_console_state::snessa1_lo_r),this), write8_delegate(FUNC(snes_console_state::snessa1_lo_w),this));
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x800000, 0xffffff, read8_delegate(FUNC(snes_console_state::snessa1_hi_r),this), write8_delegate(FUNC(snes_console_state::snessa1_hi_w),this));
-			set_5a22_map(m_maincpu);
+			m_maincpu->set_5a22_map();
 			break;
 		case SNES_DSP:
 			m_maincpu->space(AS_PROGRAM).install_read_handler(0x208000, 0x20ffff, 0, 0x9f0000, read8_delegate(FUNC(base_sns_cart_slot_device::chip_read),(base_sns_cart_slot_device*)m_cartslot));
@@ -1894,49 +1841,49 @@ void snes_console_state::machine_start()
 		case SNES_SFX:
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7dffff, read8_delegate(FUNC(snes_console_state::snessfx_lo_r),this), write8_delegate(FUNC(snes_console_state::snessfx_lo_w),this));
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x800000, 0xffffff, read8_delegate(FUNC(snes_console_state::snessfx_hi_r),this), write8_delegate(FUNC(snes_console_state::snessfx_hi_w),this));
-			set_5a22_map(m_maincpu);
+			m_maincpu->set_5a22_map();
 			break;
 		case SNES_SDD1:
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7dffff, read8_delegate(FUNC(snes_console_state::snessdd1_lo_r),this), write8_delegate(FUNC(snes_console_state::snessdd1_lo_w),this));
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x800000, 0xffffff, read8_delegate(FUNC(snes_console_state::snessdd1_hi_r),this), write8_delegate(FUNC(snes_console_state::snessdd1_hi_w),this));
-			set_5a22_map(m_maincpu);
+			m_maincpu->set_5a22_map();
 			break;
 		case SNES_BSX:
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7dffff, read8_delegate(FUNC(snes_console_state::snesbsx_lo_r),this), write8_delegate(FUNC(snes_console_state::snesbsx_lo_w),this));
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x800000, 0xffffff, read8_delegate(FUNC(snes_console_state::snesbsx_hi_r),this), write8_delegate(FUNC(snes_console_state::snesbsx_hi_w),this));
-			set_5a22_map(m_maincpu);
+			m_maincpu->set_5a22_map();
 			break;
 		// HiROM & HiROM + addons
 		case SNES_MODE21:
 		case SNES_BSXHI:
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7dffff, read8_delegate(FUNC(snes_console_state::snes21_lo_r),this), write8_delegate(FUNC(snes_console_state::snes21_lo_w),this));
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x800000, 0xffffff, read8_delegate(FUNC(snes_console_state::snes21_hi_r),this), write8_delegate(FUNC(snes_console_state::snes21_hi_w),this));
-			set_5a22_map(m_maincpu);
+			m_maincpu->set_5a22_map();
 			break;
 		case SNES_DSP_MODE21:
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7dffff, read8_delegate(FUNC(snes_console_state::snes21_lo_r),this), write8_delegate(FUNC(snes_console_state::snes21_lo_w),this));
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x800000, 0xffffff, read8_delegate(FUNC(snes_console_state::snes21_hi_r),this), write8_delegate(FUNC(snes_console_state::snes21_hi_w),this));
 			m_maincpu->space(AS_PROGRAM).install_read_handler(0x006000, 0x007fff, 0, 0x9f0000, read8_delegate(FUNC(base_sns_cart_slot_device::chip_read),(base_sns_cart_slot_device*)m_cartslot));
 			m_maincpu->space(AS_PROGRAM).install_write_handler(0x006000, 0x007fff, 0, 0x9f0000, write8_delegate(FUNC(base_sns_cart_slot_device::chip_write),(base_sns_cart_slot_device*)m_cartslot));
-			set_5a22_map(m_maincpu);
+			m_maincpu->set_5a22_map();
 			break;
 		case SNES_SRTC:
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7dffff, read8_delegate(FUNC(snes_console_state::snes21_lo_r),this), write8_delegate(FUNC(snes_console_state::snes21_lo_w),this));
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x800000, 0xffffff, read8_delegate(FUNC(snes_console_state::snes21_hi_r),this), write8_delegate(FUNC(snes_console_state::snes21_hi_w),this));
 			m_maincpu->space(AS_PROGRAM).install_read_handler(0x002800, 0x002800, 0, 0xbf0000, read8_delegate(FUNC(base_sns_cart_slot_device::chip_read),(base_sns_cart_slot_device*)m_cartslot));
 			m_maincpu->space(AS_PROGRAM).install_write_handler(0x002801, 0x002801, 0, 0xbf0000, write8_delegate(FUNC(base_sns_cart_slot_device::chip_write),(base_sns_cart_slot_device*)m_cartslot));
-			set_5a22_map(m_maincpu);
+			m_maincpu->set_5a22_map();
 			break;
 		case SNES_SPC7110:
 		case SNES_SPC7110_RTC:
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7dffff, read8_delegate(FUNC(snes_console_state::snes7110_lo_r),this), write8_delegate(FUNC(snes_console_state::snes7110_lo_w),this));
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x800000, 0xffffff, read8_delegate(FUNC(snes_console_state::snes7110_hi_r),this), write8_delegate(FUNC(snes_console_state::snes7110_hi_w),this));
-			set_5a22_map(m_maincpu);
+			m_maincpu->set_5a22_map();
 			break;
 		case SNES_PFEST94:
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7dffff, read8_delegate(FUNC(snes_console_state::pfest94_lo_r),this), write8_delegate(FUNC(snes_console_state::pfest94_lo_w),this));
 			m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x800000, 0xffffff, read8_delegate(FUNC(snes_console_state::pfest94_hi_r),this), write8_delegate(FUNC(snes_console_state::pfest94_hi_w),this));
-			set_5a22_map(m_maincpu);
+			m_maincpu->set_5a22_map();
 			break;
 			// pirate 'mappers'
 		case SNES_POKEMON:
@@ -1957,13 +1904,13 @@ void snes_console_state::machine_start()
 		case SNES_SOULBLAD:
 			// reads from xxx0-xxx3in range [80-bf] return a fixed sequence of 4bits; reads in range [c0-ff] return open bus
 			m_maincpu->space(AS_PROGRAM).install_read_handler(0x808000, 0x808003, 0, 0x3f7ff0, read8_delegate(FUNC(base_sns_cart_slot_device::chip_read),(base_sns_cart_slot_device*)m_cartslot));
-			m_maincpu->space(AS_PROGRAM).install_legacy_read_handler(0xc00000, 0xffffff, FUNC(snes_open_bus_r));
+			m_maincpu->space(AS_PROGRAM).install_read_handler(0xc00000, 0xffffff, read8_delegate(FUNC(snes_console_state::snes_open_bus_r),this));
 			break;
 		case SNES_BUGS:
 		case SNES_BANANA:
 //          m_maincpu->space(AS_PROGRAM).install_read_handler(0x808000, 0x80ffff, 0, 0x780000, read8_delegate(FUNC(base_sns_cart_slot_device::chip_read),(base_sns_cart_slot_device*)m_cartslot));
 //          m_maincpu->space(AS_PROGRAM).install_write_handler(0x808000, 0x80ffff, 0, 0x780000, write8_delegate(FUNC(base_sns_cart_slot_device::chip_write),(base_sns_cart_slot_device*)m_cartslot));
-//          set_5a22_map(m_maincpu);
+//          m_maincpu->set_5a22_map();
 			break;
 	}
 
@@ -2009,6 +1956,10 @@ static MACHINE_CONFIG_START( snes, snes_console_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(DOTCLK_NTSC * 2, SNES_HTOTAL * 2, 0, SNES_SCR_WIDTH * 2, SNES_VTOTAL_NTSC, 0, SNES_SCR_HEIGHT_NTSC)
 	MCFG_SCREEN_UPDATE_DRIVER( snes_state, screen_update )
+
+	MCFG_DEVICE_ADD("ppu", SNES_PPU, 0)
+	MCFG_SNES_PPU_OPENBUS_CB(READ8(snes_state, snes_open_bus_r))
+	MCFG_VIDEO_SET_SCREEN("screen")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

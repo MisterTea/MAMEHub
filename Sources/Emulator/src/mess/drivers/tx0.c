@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Raphael Nabet
 /*
     TX-0
 
@@ -226,7 +228,7 @@ static GFXDECODE_START( tx0 )
 GFXDECODE_END
 
 /* Initialise the palette */
-void tx0_state::palette_init()
+PALETTE_INIT_MEMBER(tx0_state, tx0)
 {
 	/* rgb components for the two color emissions */
 	const double r1 = .1, g1 = .1, b1 = .924, r2 = .7, g2 = .7, b2 = .076;
@@ -244,8 +246,6 @@ void tx0_state::palette_init()
 #endif
 	UINT8 i, r, g, b;
 
-	machine().colortable = colortable_alloc(machine(), total_colors_needed);
-
 	/* initialize CRT palette */
 
 	/* compute the decay factor per refresh frame */
@@ -261,7 +261,7 @@ void tx0_state::palette_init()
 		g = (int) ((g1*cur_level_1 + g2*cur_level_2) + .5);
 		b = (int) ((b1*cur_level_1 + b2*cur_level_2) + .5);
 		/* write color in palette */
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 		/* apply decay for next iteration */
 		cur_level_1 *= decay_1;
 		cur_level_2 *= decay_2;
@@ -275,62 +275,30 @@ void tx0_state::palette_init()
 		else
 			recommended_pen_crt_num_levels = ceil(log(cut_level)/log(decay_2))+1;
 		if (recommended_pen_crt_num_levels != pen_crt_num_levels)
-			mame_printf_debug("File %s line %d: recommended value for pen_crt_num_levels is %d\n", __FILE__, __LINE__, recommended_pen_crt_num_levels);
+			osd_printf_debug("File %s line %d: recommended value for pen_crt_num_levels is %d\n", __FILE__, __LINE__, recommended_pen_crt_num_levels);
 	}
 	/*if ((cur_level_1 > 255.*cut_level) || (cur_level_2 > 255.*cut_level))
-	    mame_printf_debug("File %s line %d: Please take higher value for pen_crt_num_levels or smaller value for decay\n", __FILE__, __LINE__);*/
+	    osd_printf_debug("File %s line %d: Please take higher value for pen_crt_num_levels or smaller value for decay\n", __FILE__, __LINE__);*/
 #endif
 #endif
-	colortable_palette_set_color(machine().colortable, 0, MAKE_RGB(0, 0, 0));
+	palette.set_indirect_color(0, rgb_t(0, 0, 0));
 
 	/* load static palette */
 	for ( i = 0; i < 6; i++ )
 	{
 		r = tx0_colors[i*3]; g = tx0_colors[i*3+1]; b = tx0_colors[i*3+2];
-		colortable_palette_set_color(machine().colortable, pen_crt_num_levels + i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(pen_crt_num_levels + i, rgb_t(r, g, b));
 	}
 
 	/* copy colortable to palette */
 	for( i = 0; i < total_colors_needed; i++ )
-		colortable_entry_set_value(machine().colortable, i, i);
+		palette.set_pen_indirect(i, i);
 
 	/* set up palette for text */
 	for( i = 0; i < 6; i++ )
-		colortable_entry_set_value(machine().colortable, total_colors_needed + i, tx0_palette[i]);
+		palette.set_pen_indirect(total_colors_needed + i, tx0_palette[i]);
 }
 
-static void tx0_io_cpy(device_t *device);
-static void tx0_io_r1l(device_t *device);
-static void tx0_io_r3l(device_t *device);
-static void tx0_io_p6h(device_t *device);
-static void tx0_io_p7h(device_t *device);
-static void tx0_io_prt(device_t *device);
-static void tx0_io_dis(device_t *device);
-static void tx0_sel(device_t *device);
-static void tx0_io_reset_callback(device_t *device);
-
-static const tx0_reset_param_t tx0_reset_param =
-{
-	{
-		tx0_io_cpy,
-		tx0_io_r1l,
-		tx0_io_dis,
-		tx0_io_r3l,
-		tx0_io_prt,
-		/*tx0_io_typ*/NULL,
-		tx0_io_p6h,
-		tx0_io_p7h
-	},
-	tx0_sel,
-	tx0_io_reset_callback
-};
-
-static const crt_interface tx0_crt_interface =
-{
-	pen_crt_num_levels,
-	crt_window_offset_x, crt_window_offset_y,
-	crt_window_width, crt_window_height
-};
 
 
 /*
@@ -338,17 +306,6 @@ static const crt_interface tx0_crt_interface =
 *
     Raphael Nabet, 2004
 */
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -703,51 +660,47 @@ TIMER_CALLBACK_MEMBER(tx0_state::puncher_callback)
 /*
     Initiate read of a 6-bit word from tape
 */
-static void tx0_io_r1l(device_t *device)
+WRITE_LINE_MEMBER( tx0_state::tx0_io_r1l )
 {
-	tx0_state *state = device->machine().driver_data<tx0_state>();
-	state->begin_tape_read( 0);
+	begin_tape_read( 0);
 }
 
 /*
     Initiate read of a 18-bit word from tape (used in read-in mode)
 */
-static void tx0_io_r3l(device_t *device)
+WRITE_LINE_MEMBER( tx0_state::tx0_io_r3l )
 {
-	tx0_state *state = device->machine().driver_data<tx0_state>();
-	state->begin_tape_read(1);
+	begin_tape_read(1);
 }
 
 /*
     Write a 7-bit word to tape (7th bit clear)
 */
-static void tx0_io_p6h(device_t *device)
+WRITE_LINE_MEMBER( tx0_state::tx0_io_p6h )
 {
-	tx0_state *state = device->machine().driver_data<tx0_state>();
 	int ac;
 
 	/* read current AC */
-	ac = device->state().state_int(TX0_AC);
+	ac = m_maincpu->state_int(TX0_AC);
 	/* shuffle and punch 6-bit word */
-	state->tape_write(((ac & 0100000) >> 15) | ((ac & 0010000) >> 11) | ((ac & 0001000) >> 7) | ((ac & 0000100) >> 3) | ((ac & 0000010) << 1) | ((ac & 0000001) << 5));
+	tape_write(((ac & 0100000) >> 15) | ((ac & 0010000) >> 11) | ((ac & 0001000) >> 7) | ((ac & 0000100) >> 3) | ((ac & 0000010) << 1) | ((ac & 0000001) << 5));
 
-	state->m_tape_puncher.timer->adjust(attotime::from_usec(15800));
+	m_tape_puncher.timer->adjust(attotime::from_usec(15800));
 }
 
 /*
     Write a 7-bit word to tape (7th bit set)
 */
-static void tx0_io_p7h(device_t *device)
+WRITE_LINE_MEMBER( tx0_state::tx0_io_p7h )
 {
-	tx0_state *state = device->machine().driver_data<tx0_state>();
 	int ac;
 
 	/* read current AC */
-	ac = device->state().state_int(TX0_AC);
+	ac = m_maincpu->state_int(TX0_AC);
 	/* shuffle and punch 6-bit word */
-	state->tape_write(((ac & 0100000) >> 15) | ((ac & 0010000) >> 11) | ((ac & 0001000) >> 7) | ((ac & 0000100) >> 3) | ((ac & 0000010) << 1) | ((ac & 0000001) << 5) | 0100);
+	tape_write(((ac & 0100000) >> 15) | ((ac & 0010000) >> 11) | ((ac & 0001000) >> 7) | ((ac & 0000100) >> 3) | ((ac & 0000010) << 1) | ((ac & 0000001) << 5) | 0100);
 
-	state->m_tape_puncher.timer->adjust(attotime::from_usec(15800));
+	m_tape_puncher.timer->adjust(attotime::from_usec(15800));
 }
 
 
@@ -791,25 +744,24 @@ void tx0_state::typewriter_out(UINT8 data)
 */
 TIMER_CALLBACK_MEMBER(tx0_state::prt_callback)
 {
-	m_maincpu->set_state_int(TX0_IOS,1);
+	m_maincpu->io_complete();
 }
 
 /*
     prt io callback
 */
-static void tx0_io_prt(device_t *device)
+WRITE_LINE_MEMBER( tx0_state::tx0_io_prt )
 {
-	tx0_state *state = device->machine().driver_data<tx0_state>();
 	int ac;
 	int ch;
 
 	/* read current AC */
-	ac = device->state().state_int(TX0_AC);
+	ac = m_maincpu->state_int(TX0_AC);
 	/* shuffle and print 6-bit word */
 	ch = ((ac & 0100000) >> 15) | ((ac & 0010000) >> 11) | ((ac & 0001000) >> 7) | ((ac & 0000100) >> 3) | ((ac & 0000010) << 1) | ((ac & 0000001) << 5);
-	state->typewriter_out(ch);
+	typewriter_out(ch);
 
-	state->m_typewriter.prt_timer->adjust(attotime::from_msec(100));
+	m_typewriter.prt_timer->adjust(attotime::from_msec(100));
 }
 
 
@@ -818,25 +770,24 @@ static void tx0_io_prt(device_t *device)
 */
 TIMER_CALLBACK_MEMBER(tx0_state::dis_callback)
 {
-	m_maincpu->set_state_int(TX0_IOS,1);
+	m_maincpu->io_complete();
 }
 
 /*
     Plot one point on crt
 */
-static void tx0_io_dis(device_t *device)
+WRITE_LINE_MEMBER( tx0_state::tx0_io_dis )
 {
-	tx0_state *state = device->machine().driver_data<tx0_state>();
 	int ac;
 	int x;
 	int y;
 
-	ac = device->state().state_int(TX0_AC);
+	ac = m_maincpu->state_int(TX0_AC);
 	x = ac >> 9;
 	y = ac & 0777;
-	state->tx0_plot(x, y);
+	tx0_plot(x, y);
 
-	state->m_dis_timer->adjust(attotime::from_usec(50));
+	m_dis_timer->adjust(attotime::from_usec(50));
 }
 
 
@@ -942,143 +893,142 @@ void tx0_magtape_image_device::call_unload()
 	}
 }
 
-static void magtape_callback(device_t *device)
+void tx0_state::magtape_callback()
 {
-	tx0_state *state = device->machine().driver_data<tx0_state>();
 	UINT8 buf = 0;
 	int lr;
 
-	switch (state->m_magtape.state)
+	switch (m_magtape.state)
 	{
 	case MTS_UNSELECTING:
-		state->m_magtape.state = MTS_UNSELECTED;
+		m_magtape.state = MTS_UNSELECTED;
 
 	case MTS_UNSELECTED:
-		if (state->m_magtape.sel_pending)
+		if (m_magtape.sel_pending)
 		{
 			int mar;
 
-			mar = device->state().state_int(TX0_MAR);
+			mar = m_maincpu->state_int(TX0_MAR);
 
 			if ((mar & 03) != 1)
 			{   /* unimplemented device: remain in unselected state and set rwc
                 flag? */
-				device->state().set_state_int(TX0_PF, device->state().state_int(TX0_PF) | PF_RWC);
+				m_maincpu->set_state_int(TX0_PF, m_maincpu->state_int(TX0_PF) | PF_RWC);
 			}
 			else
 			{
-				state->m_magtape.state = MTS_SELECTING;
+				m_magtape.state = MTS_SELECTING;
 
-				state->m_magtape.command = (mar & 014 >> 2);
+				m_magtape.command = (mar & 014 >> 2);
 
-				state->m_magtape.binary_flag = (mar & 020 >> 4);
+				m_magtape.binary_flag = (mar & 020 >> 4);
 
-				if (state->m_magtape.img)
-					state->schedule_select();
+				if (m_magtape.img)
+					schedule_select();
 			}
 
-			state->m_magtape.sel_pending = FALSE;
-			device->state().set_state_int(TX0_IOS,1);
+			m_magtape.sel_pending = FALSE;
+			m_maincpu->io_complete();
 		}
 		break;
 
 	case MTS_SELECTING:
-		state->m_magtape.state = MTS_SELECTED;
-		switch (state->m_magtape.command)
+		m_magtape.state = MTS_SELECTED;
+		switch (m_magtape.command)
 		{
 		case 0: /* backspace */
-			state->m_magtape.long_parity = 0177;
-			state->m_magtape.u.backspace_state = MTBSS_STATE0;
+			m_magtape.long_parity = 0177;
+			m_magtape.u.backspace_state = MTBSS_STATE0;
 			break;
 		case 1: /* read */
-			state->m_magtape.long_parity = 0177;
-			state->m_magtape.u.read.state = MTRDS_STATE0;
+			m_magtape.long_parity = 0177;
+			m_magtape.u.read.state = MTRDS_STATE0;
 			break;
 		case 2: /* rewind */
 			break;
 		case 3: /* write */
-			state->m_magtape.long_parity = 0177;
-			state->m_magtape.u.write.state = MTWTS_STATE0;
-			switch (state->m_magtape.irg_pos)
+			m_magtape.long_parity = 0177;
+			m_magtape.u.write.state = MTWTS_STATE0;
+			switch (m_magtape.irg_pos)
 			{
 			case MTIRGP_START:
-				state->m_magtape.u.write.counter = 150;
+				m_magtape.u.write.counter = 150;
 				break;
 			case MTIRGP_ENDMINUS1:
-				state->m_magtape.u.write.counter = 1;
+				m_magtape.u.write.counter = 1;
 				break;
 			case MTIRGP_END:
-				state->m_magtape.u.write.counter = 0;
+				m_magtape.u.write.counter = 0;
 				break;
 			}
 			break;
 		}
 
 	case MTS_SELECTED:
-		switch (state->m_magtape.command)
+		switch (m_magtape.command)
 		{
 		case 0: /* backspace */
-			if (state->m_magtape.img->ftell() == 0)
+			if (m_magtape.img->ftell() == 0)
 			{   /* tape at ldp */
-				state->m_magtape.state = MTS_UNSELECTING;
-				device->state().set_state_int(TX0_PF, device->state().state_int(TX0_PF) | PF_RWC);
-				state->schedule_unselect();
+				m_magtape.state = MTS_UNSELECTING;
+				m_maincpu->set_state_int(TX0_PF, m_maincpu->state_int(TX0_PF) | PF_RWC);
+				schedule_unselect();
 			}
-			else if (state->m_magtape.img->fseek( -1, SEEK_CUR))
+			else if (m_magtape.img->fseek( -1, SEEK_CUR))
 			{   /* eject tape */
-				state->m_magtape.img->unload();
+				m_magtape.img->unload();
 			}
-			else if (state->m_magtape.img->fread(&buf, 1) != 1)
+			else if (m_magtape.img->fread(&buf, 1) != 1)
 			{   /* eject tape */
-				state->m_magtape.img->unload();
+				m_magtape.img->unload();
 			}
-			else if (state->m_magtape.img->fseek( -1, SEEK_CUR))
+			else if (m_magtape.img->fseek( -1, SEEK_CUR))
 			{   /* eject tape */
-				state->m_magtape.img->unload();
+				m_magtape.img->unload();
 			}
 			else
 			{
 				buf &= 0x7f;    /* 7-bit tape, ignore 8th bit */
-				state->m_magtape.long_parity ^= buf;
-				switch (state->m_magtape.u.backspace_state)
+				m_magtape.long_parity ^= buf;
+				switch (m_magtape.u.backspace_state)
 				{
 				case MTBSS_STATE0:
 					/* STATE0 -> initial interrecord gap, longitudinal parity;
 					if longitudinal parity was all 0s, gap between longitudinal
 					parity and data, first byte of data */
 					if (buf != 0)
-						state->m_magtape.u.backspace_state = MTBSS_STATE1;
+						m_magtape.u.backspace_state = MTBSS_STATE1;
 					break;
 				case MTBSS_STATE1:
 					/* STATE1 -> first byte of gap between longitudinal parity and
 					data, second byte of data */
 					if (buf == 0)
-						state->m_magtape.u.backspace_state = MTBSS_STATE2;
+						m_magtape.u.backspace_state = MTBSS_STATE2;
 					else
-						state->m_magtape.u.backspace_state = MTBSS_STATE5;
+						m_magtape.u.backspace_state = MTBSS_STATE5;
 					break;
 				case MTBSS_STATE2:
 					/* STATE2 -> second byte of gap between longitudinal parity and
 					data */
 					if (buf == 0)
-						state->m_magtape.u.backspace_state = MTBSS_STATE3;
+						m_magtape.u.backspace_state = MTBSS_STATE3;
 					else
 					{
 						logerror("tape seems to be corrupt\n");
 						/* eject tape */
-						state->m_magtape.img->unload();
+						m_magtape.img->unload();
 					}
 					break;
 				case MTBSS_STATE3:
 					/* STATE3 -> third byte of gap between longitudinal parity and
 					data */
 					if (buf == 0)
-						state->m_magtape.u.backspace_state = MTBSS_STATE4;
+						m_magtape.u.backspace_state = MTBSS_STATE4;
 					else
 					{
 						logerror("tape seems to be corrupt\n");
 						/* eject tape */
-						state->m_magtape.img->unload();
+						m_magtape.img->unload();
 					}
 					break;
 				case MTBSS_STATE4:
@@ -1086,16 +1036,16 @@ static void magtape_callback(device_t *device)
 					interrecord gap after data */
 					if (buf == 0)
 					{
-						if (state->m_magtape.long_parity)
+						if (m_magtape.long_parity)
 							logerror("invalid longitudinal parity\n");
 						/* set EOR and unselect... */
-						state->m_magtape.state = MTS_UNSELECTING;
-						device->state().set_state_int(TX0_PF, device->state().state_int(TX0_PF) | PF_EOR);
-						state->schedule_unselect();
-						state->m_magtape.irg_pos = MTIRGP_ENDMINUS1;
+						m_magtape.state = MTS_UNSELECTING;
+						m_maincpu->set_state_int(TX0_PF, m_maincpu->state_int(TX0_PF) | PF_EOR);
+						schedule_unselect();
+						m_magtape.irg_pos = MTIRGP_ENDMINUS1;
 					}
 					else
-						state->m_magtape.u.backspace_state = MTBSS_STATE5;
+						m_magtape.u.backspace_state = MTBSS_STATE5;
 					break;
 				case MTBSS_STATE5:
 					/* STATE5 -> second byte of data word */
@@ -1103,10 +1053,10 @@ static void magtape_callback(device_t *device)
 					{
 						logerror("tape seems to be corrupt\n");
 						/* eject tape */
-						state->m_magtape.img->unload();
+						m_magtape.img->unload();
 					}
 					else
-						state->m_magtape.u.backspace_state = MTBSS_STATE6;
+						m_magtape.u.backspace_state = MTBSS_STATE6;
 					break;
 				case MTBSS_STATE6:
 					/* STATE6 -> third byte of data word */
@@ -1114,67 +1064,67 @@ static void magtape_callback(device_t *device)
 					{
 						logerror("tape seems to be corrupt\n");
 						/* eject tape */
-						state->m_magtape.img->unload();
+						m_magtape.img->unload();
 					}
 					else
-						state->m_magtape.u.backspace_state = MTBSS_STATE6;
+						m_magtape.u.backspace_state = MTBSS_STATE6;
 					break;
 				}
-				if (state->m_magtape.state != MTS_UNSELECTING)
-					state->m_magtape.timer->adjust(attotime::from_usec(66));
+				if (m_magtape.state != MTS_UNSELECTING)
+					m_magtape.timer->adjust(attotime::from_usec(66));
 			}
 			break;
 
 		case 1: /* read */
-			if (state->m_magtape.img->fread(&buf, 1) != 1)
+			if (m_magtape.img->fread(&buf, 1) != 1)
 			{   /* I/O error or EOF? */
 				/* The MAME fileio layer makes it very hard to make the
 				difference...  MAME seems to assume that I/O errors never
 				happen, whereas it is really easy to cause one by
 				deconnecting an external drive the image is located on!!! */
 				UINT64 offs;
-				offs = state->m_magtape.img->ftell();
-				if (state->m_magtape.img->fseek( 0, SEEK_END) || (offs != state->m_magtape.img->ftell()))
+				offs = m_magtape.img->ftell();
+				if (m_magtape.img->fseek( 0, SEEK_END) || (offs != m_magtape.img->ftell()))
 				{   /* I/O error */
 					/* eject tape */
-					state->m_magtape.img->unload();
+					m_magtape.img->unload();
 				}
 				else
 				{   /* end of tape -> ??? */
 					/* maybe we run past end of tape, so that tape is ejected from
 					upper reel and unit becomes unavailable??? */
-					/*state->m_magtape.img->unload();*/
+					/*m_magtape.img->unload();*/
 					/* Or do we stop at EOT mark??? */
-					state->m_magtape.state = MTS_UNSELECTING;
-					device->state().set_state_int(TX0_PF, device->state().state_int(TX0_PF) | PF_EOT);
-					state->schedule_unselect();
+					m_magtape.state = MTS_UNSELECTING;
+					m_maincpu->set_state_int(TX0_PF, m_maincpu->state_int(TX0_PF) | PF_EOT);
+					schedule_unselect();
 				}
 			}
 			else
 			{
 				buf &= 0x7f;    /* 7-bit tape, ignore 8th bit */
-				state->m_magtape.long_parity ^= buf;
-				switch (state->m_magtape.u.read.state)
+				m_magtape.long_parity ^= buf;
+				switch (m_magtape.u.read.state)
 				{
 				case MTRDS_STATE0:
 					/* STATE0 -> interrecord blank or first byte of data */
 					if (buf != 0)
 					{
-						if (state->m_magtape.cpy_pending)
+						if (m_magtape.cpy_pending)
 						{   /* read command */
-							state->m_magtape.u.read.space_flag = FALSE;
-							device->state().set_state_int(TX0_IOS,1);
-							device->state().set_state_int(TX0_LR, ((device->state().state_int(TX0_LR) >> 1) & 0333333)
+							m_magtape.u.read.space_flag = FALSE;
+							m_maincpu->set_state_int(TX0_IOS,1);
+							m_maincpu->set_state_int(TX0_LR, ((m_maincpu->state_int(TX0_LR) >> 1) & 0333333)
 														| ((buf & 040) << 12) | ((buf & 020) << 10) | ((buf & 010) << 8) | ((buf & 004) << 6) | ((buf & 002) << 4) | ((buf & 001) << 2));
 							/* check parity */
-							if (! (((buf ^ (buf >> 1) ^ (buf >> 2) ^ (buf >> 3) ^ (buf >> 4) ^ (buf >> 5) ^ (buf >> 6) ^ (buf >> 7)) & 1) ^ state->m_magtape.binary_flag))
-								device->state().set_state_int(TX0_PF, device->state().state_int(TX0_PF) | PF_PC);
+							if (! (((buf ^ (buf >> 1) ^ (buf >> 2) ^ (buf >> 3) ^ (buf >> 4) ^ (buf >> 5) ^ (buf >> 6) ^ (buf >> 7)) & 1) ^ m_magtape.binary_flag))
+								m_maincpu->set_state_int(TX0_PF, m_maincpu->state_int(TX0_PF) | PF_PC);
 						}
 						else
 						{   /* space command */
-							state->m_magtape.u.read.space_flag = TRUE;
+							m_magtape.u.read.space_flag = TRUE;
 						}
-						state->m_magtape.u.read.state = MTRDS_STATE1;
+						m_magtape.u.read.state = MTRDS_STATE1;
 					}
 					break;
 				case MTRDS_STATE1:
@@ -1183,17 +1133,17 @@ static void magtape_callback(device_t *device)
 					{
 						logerror("tape seems to be corrupt\n");
 						/* eject tape */
-						state->m_magtape.img->unload();
+						m_magtape.img->unload();
 					}
-					if (!state->m_magtape.u.read.space_flag)
+					if (!m_magtape.u.read.space_flag)
 					{
-						device->state().set_state_int(TX0_LR, ((device->state().state_int(TX0_LR) >> 1) & 0333333)
+						m_maincpu->set_state_int(TX0_LR, ((m_maincpu->state_int(TX0_LR) >> 1) & 0333333)
 													| ((buf & 040) << 12) | ((buf & 020) << 10) | ((buf & 010) << 8) | ((buf & 004) << 6) | ((buf & 002) << 4) | ((buf & 001) << 2));
 						/* check parity */
-						if (! (((buf ^ (buf >> 1) ^ (buf >> 2) ^ (buf >> 3) ^ (buf >> 4) ^ (buf >> 5) ^ (buf >> 6) ^ (buf >> 7)) & 1) ^ state->m_magtape.binary_flag))
-							device->state().set_state_int(TX0_PF, device->state().state_int(TX0_PF) | PF_PC);
+						if (! (((buf ^ (buf >> 1) ^ (buf >> 2) ^ (buf >> 3) ^ (buf >> 4) ^ (buf >> 5) ^ (buf >> 6) ^ (buf >> 7)) & 1) ^ m_magtape.binary_flag))
+							m_maincpu->set_state_int(TX0_PF, m_maincpu->state_int(TX0_PF) | PF_PC);
 					}
-					state->m_magtape.u.read.state = MTRDS_STATE2;
+					m_magtape.u.read.state = MTRDS_STATE2;
 					break;
 				case MTRDS_STATE2:
 					/* STATE2 -> third byte of data word */
@@ -1201,40 +1151,40 @@ static void magtape_callback(device_t *device)
 					{
 						logerror("tape seems to be corrupt\n");
 						/* eject tape */
-						state->m_magtape.img->unload();
+						m_magtape.img->unload();
 					}
-					if (!state->m_magtape.u.read.space_flag)
+					if (!m_magtape.u.read.space_flag)
 					{
-						device->state().set_state_int(TX0_LR, ((device->state().state_int(TX0_LR) >> 1) & 0333333)
+						m_maincpu->set_state_int(TX0_LR, ((m_maincpu->state_int(TX0_LR) >> 1) & 0333333)
 													| ((buf & 040) << 12) | ((buf & 020) << 10) | ((buf & 010) << 8) | ((buf & 004) << 6) | ((buf & 002) << 4) | ((buf & 001) << 2));
 						/* check parity */
-						if (! (((buf ^ (buf >> 1) ^ (buf >> 2) ^ (buf >> 3) ^ (buf >> 4) ^ (buf >> 5) ^ (buf >> 6) ^ (buf >> 7)) & 1) ^ state->m_magtape.binary_flag))
-							device->state().set_state_int(TX0_PF, device->state().state_int(TX0_PF) | PF_PC);
+						if (! (((buf ^ (buf >> 1) ^ (buf >> 2) ^ (buf >> 3) ^ (buf >> 4) ^ (buf >> 5) ^ (buf >> 6) ^ (buf >> 7)) & 1) ^ m_magtape.binary_flag))
+							m_maincpu->set_state_int(TX0_PF, m_maincpu->state_int(TX0_PF) | PF_PC);
 						/* synchronize with cpy instruction */
-						if (state->m_magtape.cpy_pending)
-							device->state().set_state_int(TX0_IOS,1);
+						if (m_magtape.cpy_pending)
+							m_maincpu->set_state_int(TX0_IOS,1);
 						else
-							device->state().set_state_int(TX0_PF, device->state().state_int(TX0_PF) | PF_RWC);
+							m_maincpu->set_state_int(TX0_PF, m_maincpu->state_int(TX0_PF) | PF_RWC);
 					}
-					state->m_magtape.u.read.state = MTRDS_STATE3;
+					m_magtape.u.read.state = MTRDS_STATE3;
 					break;
 				case MTRDS_STATE3:
 					/* STATE3 -> first byte of new word of data, or first byte
 					of gap between data and longitudinal parity */
 					if (buf != 0)
 					{
-						state->m_magtape.u.read.state = MTRDS_STATE1;
-						if (!state->m_magtape.u.read.space_flag)
+						m_magtape.u.read.state = MTRDS_STATE1;
+						if (!m_magtape.u.read.space_flag)
 						{
-							device->state().set_state_int(TX0_LR, ((device->state().state_int(TX0_LR) >> 1) & 0333333)
+							m_maincpu->set_state_int(TX0_LR, ((m_maincpu->state_int(TX0_LR) >> 1) & 0333333)
 														| ((buf & 040) << 12) | ((buf & 020) << 10) | ((buf & 010) << 8) | ((buf & 004) << 6) | ((buf & 002) << 4) | ((buf & 001) << 2));
 							/* check parity */
-							if (! (((buf ^ (buf >> 1) ^ (buf >> 2) ^ (buf >> 3) ^ (buf >> 4) ^ (buf >> 5) ^ (buf >> 6) ^ (buf >> 7)) & 1) ^ state->m_magtape.binary_flag))
-								device->state().set_state_int(TX0_PF, device->state().state_int(TX0_PF) | PF_PC);
+							if (! (((buf ^ (buf >> 1) ^ (buf >> 2) ^ (buf >> 3) ^ (buf >> 4) ^ (buf >> 5) ^ (buf >> 6) ^ (buf >> 7)) & 1) ^ m_magtape.binary_flag))
+								m_maincpu->set_state_int(TX0_PF, m_maincpu->state_int(TX0_PF) | PF_PC);
 						}
 					}
 					else
-						state->m_magtape.u.read.state = MTRDS_STATE4;
+						m_magtape.u.read.state = MTRDS_STATE4;
 					break;
 				case MTRDS_STATE4:
 					/* STATE4 -> second byte of gap between data and
@@ -1243,10 +1193,10 @@ static void magtape_callback(device_t *device)
 					{
 						logerror("tape seems to be corrupt\n");
 						/* eject tape */
-						state->m_magtape.img->unload();
+						m_magtape.img->unload();
 					}
 					else
-						state->m_magtape.u.read.state = MTRDS_STATE5;
+						m_magtape.u.read.state = MTRDS_STATE5;
 					break;
 
 				case MTRDS_STATE5:
@@ -1256,126 +1206,126 @@ static void magtape_callback(device_t *device)
 					{
 						logerror("tape seems to be corrupt\n");
 						/* eject tape */
-						state->m_magtape.img->unload();
+						m_magtape.img->unload();
 					}
 					else
-						state->m_magtape.u.read.state = MTRDS_STATE6;
+						m_magtape.u.read.state = MTRDS_STATE6;
 					break;
 
 				case MTRDS_STATE6:
 					/* STATE6 -> longitudinal parity */
 					/* check parity */
-					if (state->m_magtape.long_parity)
+					if (m_magtape.long_parity)
 					{
 						logerror("invalid longitudinal parity\n");
 						/* no idea if the original tx-0 magtape controller
 						checks parity, but can't harm if we do */
-						device->state().set_state_int(TX0_PF, device->state().state_int(TX0_PF) | PF_PC);
+						m_maincpu->set_state_int(TX0_PF, m_maincpu->state_int(TX0_PF) | PF_PC);
 					}
 					/* set EOR and unselect... */
-					state->m_magtape.state = MTS_UNSELECTING;
-					device->state().set_state_int(TX0_PF, device->state().state_int(TX0_PF) | PF_EOR);
-					state->schedule_unselect();
-					state->m_magtape.irg_pos = MTIRGP_START;
+					m_magtape.state = MTS_UNSELECTING;
+					m_maincpu->set_state_int(TX0_PF, m_maincpu->state_int(TX0_PF) | PF_EOR);
+					schedule_unselect();
+					m_magtape.irg_pos = MTIRGP_START;
 					break;
 				}
-				if (state->m_magtape.state != MTS_UNSELECTING)
-					state->m_magtape.timer->adjust(attotime::from_usec(66));
+				if (m_magtape.state != MTS_UNSELECTING)
+					m_magtape.timer->adjust(attotime::from_usec(66));
 			}
 			break;
 
 		case 2: /* rewind */
-			state->m_magtape.state = MTS_UNSELECTING;
+			m_magtape.state = MTS_UNSELECTING;
 			/* we rewind at 10*read speed (I don't know the real value) */
-			state->m_magtape.timer->adjust((attotime::from_nsec(6600) * state->m_magtape.img->ftell()));
+			m_magtape.timer->adjust((attotime::from_nsec(6600) * m_magtape.img->ftell()));
 			//schedule_unselect(state);
-			state->m_magtape.img->fseek( 0, SEEK_END);
-			state->m_magtape.irg_pos = MTIRGP_END;
+			m_magtape.img->fseek( 0, SEEK_END);
+			m_magtape.irg_pos = MTIRGP_END;
 			break;
 
 		case 3: /* write */
-			switch (state->m_magtape.u.write.state)
+			switch (m_magtape.u.write.state)
 			{
 			case MTWTS_STATE0:
-				if (state->m_magtape.u.write.counter != 0)
+				if (m_magtape.u.write.counter != 0)
 				{
-					state->m_magtape.u.write.counter--;
+					m_magtape.u.write.counter--;
 					buf = 0;
 					break;
 				}
 				else
 				{
-					state->m_magtape.u.write.state = MTWTS_STATE1;
+					m_magtape.u.write.state = MTWTS_STATE1;
 				}
 
 			case MTWTS_STATE1:
-				if (state->m_magtape.u.write.counter)
+				if (m_magtape.u.write.counter)
 				{
-					state->m_magtape.u.write.counter--;
-					lr = device->state().state_int(TX0_LR);
+					m_magtape.u.write.counter--;
+					lr = m_maincpu->state_int(TX0_LR);
 					buf = ((lr >> 10) & 040) | ((lr >> 8) & 020) | ((lr >> 6) & 010) | ((lr >> 4) & 004) | ((lr >> 2) & 002) | (lr & 001);
-					buf |= ((buf << 1) ^ (buf << 2) ^ (buf << 3) ^ (buf << 4) ^ (buf << 5) ^ (buf << 6) ^ ((!state->m_magtape.binary_flag) << 6)) & 0100;
-					device->state().set_state_int(TX0_LR, lr >> 1);
+					buf |= ((buf << 1) ^ (buf << 2) ^ (buf << 3) ^ (buf << 4) ^ (buf << 5) ^ (buf << 6) ^ ((!m_magtape.binary_flag) << 6)) & 0100;
+					m_maincpu->set_state_int(TX0_LR, lr >> 1);
 				}
 				else
 				{
-					if (state->m_magtape.cpy_pending)
+					if (m_magtape.cpy_pending)
 					{
-						device->state().set_state_int(TX0_IOS,1);
-						lr = device->state().state_int(TX0_LR);
+						m_maincpu->set_state_int(TX0_IOS,1);
+						lr = m_maincpu->state_int(TX0_LR);
 						buf = ((lr >> 10) & 040) | ((lr >> 8) & 020) | ((lr >> 6) & 010) | ((lr >> 4) & 004) | ((lr >> 2) & 002) | (lr & 001);
-						buf |= ((buf << 1) ^ (buf << 2) ^ (buf << 3) ^ (buf << 4) ^ (buf << 5) ^ (buf << 6) ^ ((!state->m_magtape.binary_flag) << 6)) & 0100;
-						device->state().set_state_int(TX0_LR, lr >> 1);
-						state->m_magtape.u.write.counter = 2;
+						buf |= ((buf << 1) ^ (buf << 2) ^ (buf << 3) ^ (buf << 4) ^ (buf << 5) ^ (buf << 6) ^ ((!m_magtape.binary_flag) << 6)) & 0100;
+						m_maincpu->set_state_int(TX0_LR, lr >> 1);
+						m_magtape.u.write.counter = 2;
 						break;
 					}
 					else
 					{
-						state->m_magtape.u.write.state = MTWTS_STATE2;
-						state->m_magtape.u.write.counter = 3;
+						m_magtape.u.write.state = MTWTS_STATE2;
+						m_magtape.u.write.counter = 3;
 					}
 				}
 
 			case MTWTS_STATE2:
-				if (state->m_magtape.u.write.counter != 0)
+				if (m_magtape.u.write.counter != 0)
 				{
-					state->m_magtape.u.write.counter--;
+					m_magtape.u.write.counter--;
 					buf = 0;
 					break;
 				}
 				else
 				{
-					buf = state->m_magtape.long_parity;
-					state->m_magtape.state = (state_t)MTWTS_STATE3;
-					state->m_magtape.u.write.counter = 150;
+					buf = m_magtape.long_parity;
+					m_magtape.state = (state_t)MTWTS_STATE3;
+					m_magtape.u.write.counter = 150;
 				}
 				break;
 
 			case MTWTS_STATE3:
-				if (state->m_magtape.u.write.counter != 0)
+				if (m_magtape.u.write.counter != 0)
 				{
-					state->m_magtape.u.write.counter--;
+					m_magtape.u.write.counter--;
 					buf = 0;
 					break;
 				}
 				else
 				{
-					state->m_magtape.state = MTS_UNSELECTING;
-					state->schedule_unselect();
-					state->m_magtape.irg_pos = MTIRGP_END;
+					m_magtape.state = MTS_UNSELECTING;
+					schedule_unselect();
+					m_magtape.irg_pos = MTIRGP_END;
 				}
 				break;
 			}
-			if (state->m_magtape.state != MTS_UNSELECTING)
+			if (m_magtape.state != MTS_UNSELECTING)
 			{   /* write data word */
-				state->m_magtape.long_parity ^= buf;
-				if (state->m_magtape.img->fwrite(&buf, 1) != 1)
+				m_magtape.long_parity ^= buf;
+				if (m_magtape.img->fwrite(&buf, 1) != 1)
 				{   /* I/O error */
 					/* eject tape */
-					state->m_magtape.img->unload();
+					m_magtape.img->unload();
 				}
 				else
-					state->m_magtape.timer->adjust(attotime::from_usec(66));
+					m_magtape.timer->adjust(attotime::from_usec(66));
 			}
 			break;
 		}
@@ -1383,42 +1333,40 @@ static void magtape_callback(device_t *device)
 	}
 }
 
-static void tx0_sel(device_t *device)
+WRITE_LINE_MEMBER( tx0_state::tx0_sel )
 {
-	tx0_state *state = device->machine().driver_data<tx0_state>();
-	state->m_magtape.sel_pending = TRUE;
+	m_magtape.sel_pending = TRUE;
 
-	if (state->m_magtape.state == MTS_UNSELECTED)
+	if (m_magtape.state == MTS_UNSELECTED)
 	{
 		if (0)
-			magtape_callback(device);
-		state->m_magtape.timer->adjust(attotime::zero);
+			magtape_callback();
+		m_magtape.timer->adjust(attotime::zero);
 	}
 }
 
-static void tx0_io_cpy(device_t *device)
+WRITE_LINE_MEMBER( tx0_state::tx0_io_cpy )
 {
-	tx0_state *state = device->machine().driver_data<tx0_state>();
-	switch (state->m_magtape.state)
+	switch (m_magtape.state)
 	{
 	case MTS_UNSELECTED:
 	case MTS_UNSELECTING:
 		/* ignore instruction and set rwc flag? */
-		device->state().set_state_int(TX0_IOS,1);
+		m_maincpu->io_complete();
 		break;
 
 	case MTS_SELECTING:
 	case MTS_SELECTED:
-		switch (state->m_magtape.command)
+		switch (m_magtape.command)
 		{
 		case 0: /* backspace */
 		case 2: /* rewind */
 			/* ignore instruction and set rwc flag? */
-			device->state().set_state_int(TX0_IOS,1);
+			m_maincpu->io_complete();
 			break;
 		case 1: /* read */
 		case 3: /* write */
-			state->m_magtape.cpy_pending = TRUE;
+			m_magtape.cpy_pending = TRUE;
 			break;
 		}
 		break;
@@ -1431,21 +1379,20 @@ static void tx0_io_cpy(device_t *device)
 
     IO devices should reset
 */
-static void tx0_io_reset_callback(device_t *device)
+WRITE_LINE_MEMBER( tx0_state::tx0_io_reset_callback )
 {
-	tx0_state *state = device->machine().driver_data<tx0_state>();
-	state->m_tape_reader.rcl = state->m_tape_reader.rc = 0;
-	if (state->m_tape_reader.timer)
-		state->m_tape_reader.timer->enable(0);
+	m_tape_reader.rcl = m_tape_reader.rc = 0;
+	if (m_tape_reader.timer)
+		m_tape_reader.timer->enable(0);
 
-	if (state->m_tape_puncher.timer)
-		state->m_tape_puncher.timer->enable(0);
+	if (m_tape_puncher.timer)
+		m_tape_puncher.timer->enable(0);
 
-	if (state->m_typewriter.prt_timer)
-		state->m_typewriter.prt_timer->enable(0);
+	if (m_typewriter.prt_timer)
+		m_typewriter.prt_timer->enable(0);
 
-	if (state->m_dis_timer)
-		state->m_dis_timer->enable(0);
+	if (m_dis_timer)
+		m_dis_timer->enable(0);
 }
 
 
@@ -1535,7 +1482,7 @@ INTERRUPT_GEN_MEMBER(tx0_state::tx0_interrupt)
 		}
 		if (control_transitions & tx0_read_in)
 		{   /* set cpu to read instructions from perforated tape */
-			m_maincpu->set_state_int(TX0_RESET, (UINT64)0);
+			m_maincpu->pulse_reset();
 			m_maincpu->set_state_int(TX0_RUN, (UINT64)0);
 			m_maincpu->set_state_int(TX0_RIM, 1);
 		}
@@ -1598,11 +1545,21 @@ static MACHINE_CONFIG_START( tx0_64kw, tx0_state )
 	/* basic machine hardware */
 	/* TX0 CPU @ approx. 167 kHz (no master clock, but the memory cycle time is approximately 6usec) */
 	MCFG_CPU_ADD("maincpu", TX0_64KW, 166667)
-	MCFG_CPU_CONFIG(tx0_reset_param)
+	MCFG_TX0_CONFIG(
+		WRITELINE( tx0_state, tx0_io_cpy ),
+		WRITELINE( tx0_state, tx0_io_r1l ),
+		WRITELINE( tx0_state, tx0_io_dis ),
+		WRITELINE( tx0_state, tx0_io_r3l ),
+		WRITELINE( tx0_state, tx0_io_prt ),
+		NULL,
+		WRITELINE( tx0_state, tx0_io_p6h ),
+		WRITELINE( tx0_state, tx0_io_p7h ),
+		WRITELINE( tx0_state, tx0_sel ),
+		WRITELINE( tx0_state, tx0_io_reset_callback )
+	)
 	MCFG_CPU_PROGRAM_MAP(tx0_64kw_map)
 	/* dummy interrupt: handles input */
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", tx0_state,  tx0_interrupt)
-
 
 	/* video hardware (includes the control panel and typewriter output) */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1612,16 +1569,22 @@ static MACHINE_CONFIG_START( tx0_64kw, tx0_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, virtual_width-1, 0, virtual_height-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tx0_state, screen_update_tx0)
 	MCFG_SCREEN_VBLANK_DRIVER(tx0_state, screen_eof_tx0)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_CRT_ADD( "crt", tx0_crt_interface )
+	MCFG_DEVICE_ADD("crt", CRT, 0)
+	MCFG_CRT_NUM_LEVELS(pen_crt_num_levels)
+	MCFG_CRT_OFFSETS(crt_window_offset_x, crt_window_offset_y)
+	MCFG_CRT_SIZE(crt_window_width, crt_window_height)
+
 	MCFG_DEVICE_ADD("readt", TX0_READTAPE, 0)
 	MCFG_DEVICE_ADD("punch", TX0_PUNCHTAPE, 0)
 	MCFG_DEVICE_ADD("typewriter", TX0_PRINTER, 0)
 	MCFG_DEVICE_ADD("magtape", TX0_MAGTAPE, 0)
 
-	MCFG_GFXDECODE(tx0)
-	MCFG_PALETTE_LENGTH(pen_crt_num_levels + sizeof(tx0_colors) / 3 + sizeof(tx0_palette))
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tx0)
+	MCFG_PALETTE_ADD("palette", total_colors_needed + sizeof(tx0_palette))
+	MCFG_PALETTE_INDIRECT_ENTRIES(total_colors_needed)
+	MCFG_PALETTE_INIT_OWNER(tx0_state, tx0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( tx0_8kw, tx0_64kw )
@@ -1630,7 +1593,6 @@ static MACHINE_CONFIG_DERIVED( tx0_8kw, tx0_64kw )
 	/* TX0 CPU @ approx. 167 kHz (no master clock, but the memory cycle time is
 	approximately 6usec) */
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CONFIG(tx0_reset_param)
 	MCFG_CPU_PROGRAM_MAP(tx0_8kw_map)
 	/*MCFG_CPU_PORTS(readport, writeport)*/
 MACHINE_CONFIG_END

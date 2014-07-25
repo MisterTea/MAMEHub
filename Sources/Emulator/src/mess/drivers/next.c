@@ -4,11 +4,7 @@
 
     TODO:
 
-    - Hook up the mouse (not before the system boots though, see the first problem)
-
-    - Find why the kernel doesn't manage to change the nvram at boot (readback error)
-
-    - Hook up the sound output, it seems to be shared with the keyboard port somehow
+    - Hook up the sound output, it is shared with the keyboard port
 
     - Implement more of the scc and its dma interactions so that the
       start up test passes, but not before sound out is done (if the scc
@@ -16,6 +12,8 @@
       infloops)
 
     - Really implement the MO, it's only faking it for the startup test right now
+
+    - Fix the networking
 
     - Find out why netbsd goes to hell even before loading the kernel
 
@@ -201,7 +199,7 @@ READ32_MEMBER( next_state::scr1_r )
 // remote    16    5 *
 // bus       15    5 *
 // dsp4      14    4
-// disk      13    3
+// disk/cvid 13    3
 // scsi      12    3 *
 // printer   11    3
 // enetx     10    3 *
@@ -279,7 +277,7 @@ const char *next_state::dma_targets[0x20] = {
 
 const int next_state::dma_irqs[0x20] = {
 	-1, 26, -1, -1, 23, 25, -1, -1, 22, 24, -1, -1, 21, 20, -1, -1,
-	-1, 28, -1, -1, -1, 27, -1, -1, -2, -1, -1, -1, 18, 19, -1, -1
+	-1, 28, -1, -1, -1, 27, -1, -1,  5, -1, -1, -1, 18, 19, -1, -1
 };
 
 const bool next_state::dma_has_saved[0x20] = {
@@ -348,9 +346,13 @@ void next_state::dma_read(int slot, UINT8 &val, bool &eof, bool &err)
 	eof = false;
 	switch(slot) {
 	case 1:
-		if(fdc && fdc->get_drq())
+		if(fdc && fdc->get_drq()) {
 			val = fdc->dma_r();
-		else
+			if(eof) {
+				fdc->tc_w(true);
+				fdc->tc_w(false);
+			}
+		} else
 			val = scsi->dma_r();
 		break;
 
@@ -360,6 +362,7 @@ void next_state::dma_read(int slot, UINT8 &val, bool &eof, bool &err)
 
 	case 21:
 		net->rx_dma_r(val, eof);
+		logerror("dma read net %02x %s\n", val, eof ? "eof" : "");
 		break;
 
 	default:
@@ -374,7 +377,14 @@ void next_state::dma_write(int slot, UINT8 data, bool eof, bool &err)
 	err = false;
 	switch(slot) {
 	case 1:
-		scsi->dma_w(data);
+		if(fdc && fdc->get_drq()) {
+			fdc->dma_w(data);
+			if(eof) {
+				fdc->tc_w(true);
+				fdc->tc_w(false);
+			}
+		} else
+			scsi->dma_w(data);
 		break;
 
 	case 4:
@@ -422,6 +432,7 @@ void next_state::dma_end(int slot)
 		ds.state &= ~DMA_SUPDATE;
 	}
 	ds.state |= DMA_COMPLETE;
+	logerror("dma end slot %d irq %d\n", slot, dma_irqs[slot]);
 	if(dma_irqs[slot] >= 0)
 		irq_set(dma_irqs[slot], true);
 }
@@ -517,7 +528,7 @@ void next_state::dma_do_ctrl_w(int slot, UINT8 data)
 {
 	const char *name = dma_name(slot);
 #if 0
-	fprintf(stderr, "dma_ctrl_w %s %02x (%08x)\n", name, data, maincpu->safe_pc());
+	fprintf(stderr, "dma_ctrl_w %s %02x (%08x)\n", name, data, maincpu->pc());
 
 	fprintf(stderr, "  ->%s%s%s%s%s%s%s\n",
 			data & DMA_SETENABLE ? " enable" : "",
@@ -722,62 +733,62 @@ void next_state::timer_start()
 	timer_tm->adjust(attotime::from_usec(timer_vbase));
 }
 
-void next_state::scc_irq(bool state)
+WRITE_LINE_MEMBER(next_state::scc_irq)
 {
 	irq_set(17, state);
 }
 
-void next_state::keyboard_irq(bool state)
+WRITE_LINE_MEMBER(next_state::keyboard_irq)
 {
 	irq_set(3, state);
 }
 
-void next_state::power_irq(bool state)
+WRITE_LINE_MEMBER(next_state::power_irq)
 {
 	irq_set(2, state);
 }
 
-void next_state::nmi_irq(bool state)
+WRITE_LINE_MEMBER(next_state::nmi_irq)
 {
 	irq_set(31, state);
 }
 
-void next_state::fdc_irq(bool state)
+WRITE_LINE_MEMBER(next_state::fdc_irq)
 {
 	irq_set(7, state);
 }
 
-void next_state::fdc_drq(bool state)
+WRITE_LINE_MEMBER(next_state::fdc_drq)
 {
 	dma_drq_w(1, state);
 }
 
-void next_state::net_tx_irq(bool state)
+WRITE_LINE_MEMBER(next_state::net_tx_irq)
 {
 	irq_set(10, state);
 }
 
-void next_state::net_rx_irq(bool state)
+WRITE_LINE_MEMBER(next_state::net_rx_irq)
 {
 	irq_set(9, state);
 }
 
-void next_state::net_tx_drq(bool state)
+WRITE_LINE_MEMBER(next_state::net_tx_drq)
 {
 	dma_drq_w(17, state);
 }
 
-void next_state::net_rx_drq(bool state)
+WRITE_LINE_MEMBER(next_state::net_rx_drq)
 {
 	dma_drq_w(21, state);
 }
 
-void next_state::mo_irq(bool state)
+WRITE_LINE_MEMBER(next_state::mo_irq)
 {
 	irq_set(13, state);
 }
 
-void next_state::mo_drq(bool state)
+WRITE_LINE_MEMBER(next_state::mo_drq)
 {
 	dma_drq_w(5, state);
 }
@@ -790,6 +801,35 @@ WRITE_LINE_MEMBER(next_state::scsi_irq)
 WRITE_LINE_MEMBER(next_state::scsi_drq)
 {
 	dma_drq_w(1, state);
+}
+
+WRITE8_MEMBER(next_state::ramdac_w)
+{
+	switch(offset) {
+	case 0:
+		switch(data) {
+		case 0x05:
+			if(screen_color)
+				irq_set(13, false);
+			else
+				irq_set(5, false);
+			vbl_enabled = false;
+			break;
+
+		case 0x06:
+			vbl_enabled = true;
+			break;
+
+		default:
+			fprintf(stderr, "ramdac_w %d, %02x\n", offset, data);
+			break;
+		}
+		break;
+
+	default:
+		fprintf(stderr, "ramdac_w %d, %02x\n", offset, data);
+		break;
+	}
 }
 
 void next_state::setup(UINT32 _scr1, int size_x, int size_y, int skip, bool color)
@@ -809,18 +849,32 @@ void next_state::machine_start()
 	save_item(NAME(irq_level));
 	save_item(NAME(phy));
 	save_item(NAME(scsictrl));
+	save_item(NAME(scsistat));
 	save_item(NAME(timer_tbase));
 	save_item(NAME(timer_vbase));
 	save_item(NAME(timer_data));
+	save_item(NAME(timer_next_data));
 	save_item(NAME(timer_ctrl));
 	save_item(NAME(eventc_latch));
+	save_item(NAME(esp));
+
+	for(int i=0; i<0x20; i++) {
+		save_item(NAME(dma_slots[i].start), i);
+		save_item(NAME(dma_slots[i].limit), i);
+		save_item(NAME(dma_slots[i].chain_start), i);
+		save_item(NAME(dma_slots[i].chain_limit), i);
+		save_item(NAME(dma_slots[i].current), i);
+		save_item(NAME(dma_slots[i].state), i);
+		save_item(NAME(dma_slots[i].supdate), i);
+		save_item(NAME(dma_slots[i].restart), i);
+		save_item(NAME(dma_slots[i].drq), i);
+	}
 
 	timer_tm = timer_alloc(0);
 
-	if(fdc) {
-		fdc->setup_intrq_cb(n82077aa_device::line_cb(FUNC(next_state::fdc_irq), this));
-		fdc->setup_drq_cb(n82077aa_device::line_cb(FUNC(next_state::fdc_drq), this));
-	}
+	system_time systime;
+	machine().base_datetime(systime);
+	rtc->set_counter(systime.time);
 }
 
 void next_state::machine_reset()
@@ -831,13 +885,25 @@ void next_state::machine_reset()
 	irq_level = 0;
 	esp = 0;
 	scsictrl = 0;
+	scsistat = 0;
 	phy[0] = phy[1] = 0;
 	eventc_latch = 0;
 	timer_vbase = 0;
 	timer_data = 0;
 	timer_next_data = 0;
 	timer_ctrl = 0;
+	vbl_enabled = true;
 	dma_drq_w(4, true); // soundout
+}
+
+void next_state::vblank_w(screen_device &screen, bool vblank_state)
+{
+	if(vbl_enabled) {
+		if(screen_color)
+			irq_set(13, vblank_state);
+		else
+			irq_set(5, vblank_state);
+	}
 }
 
 static ADDRESS_MAP_START( next_mem, AS_PROGRAM, 32, next_state )
@@ -864,8 +930,6 @@ static ADDRESS_MAP_START( next_mem, AS_PROGRAM, 32, next_state )
 	AM_RANGE(0x02016004, 0x02016007) AM_MIRROR(0x300000) AM_READWRITE(timer_ctrl_r, timer_ctrl_w)
 	AM_RANGE(0x02018000, 0x02018003) AM_MIRROR(0x300000) AM_DEVREADWRITE8("scc", scc8530_t, reg_r, reg_w, 0xffffffff)
 //  AM_RANGE(0x02018004, 0x02018007) AM_MIRROR(0x300000) SCC CLK
-//  AM_RANGE(0x02018100, 0x02018103) AM_MIRROR(0x300000) Color RAMDAC
-//  AM_RANGE(0x02018104, 0x02018107) AM_MIRROR(0x300000) Color CSR
 //  AM_RANGE(0x02018190, 0x02018197) AM_MIRROR(0x300000) warp 9c DRAM timing
 //  AM_RANGE(0x02018198, 0x0201819f) AM_MIRROR(0x300000) warp 9c VRAM timing
 	AM_RANGE(0x0201a000, 0x0201a003) AM_MIRROR(0x300000) AM_READ(event_counter_r) // EVENTC
@@ -882,7 +946,7 @@ static ADDRESS_MAP_START( next_mem, AS_PROGRAM, 32, next_state )
 //  AM_RANGE(0x1c000000, 0x1c03ffff) main RAM w AB function
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( next_0b_nofdc_mem, AS_PROGRAM, 32, next_state )
+static ADDRESS_MAP_START( next_0b_m_nofdc_mem, AS_PROGRAM, 32, next_state )
 	AM_RANGE(0x0b000000, 0x0b03ffff) AM_RAM AM_SHARE("vram")
 
 	AM_IMPORT_FROM(next_mem)
@@ -895,20 +959,28 @@ static ADDRESS_MAP_START( next_fdc_mem, AS_PROGRAM, 32, next_state )
 	AM_IMPORT_FROM(next_mem)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( next_0b_mem, AS_PROGRAM, 32, next_state )
+static ADDRESS_MAP_START( next_0b_m_mem, AS_PROGRAM, 32, next_state )
 	AM_RANGE(0x0b000000, 0x0b03ffff) AM_RAM AM_SHARE("vram")
 
 	AM_IMPORT_FROM(next_fdc_mem)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( next_0c_mem, AS_PROGRAM, 32, next_state )
+static ADDRESS_MAP_START( next_0c_m_mem, AS_PROGRAM, 32, next_state )
 	AM_RANGE(0x0c000000, 0x0c1fffff) AM_RAM AM_SHARE("vram")
 
 	AM_IMPORT_FROM(next_fdc_mem)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( next_2c_mem, AS_PROGRAM, 32, next_state )
+static ADDRESS_MAP_START( next_0c_c_mem, AS_PROGRAM, 32, next_state )
+	AM_RANGE(0x0c000000, 0x0c1fffff) AM_RAM AM_SHARE("vram")
+	AM_RANGE(0x02018180, 0x02018183) AM_MIRROR(0x300000) AM_WRITE8(ramdac_w, 0xffffffff)
+
+	AM_IMPORT_FROM(next_fdc_mem)
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( next_2c_c_mem, AS_PROGRAM, 32, next_state )
 	AM_RANGE(0x2c000000, 0x2c1fffff) AM_RAM AM_SHARE("vram")
+	AM_RANGE(0x02018180, 0x02018183) AM_MIRROR(0x300000) AM_WRITE8(ramdac_w, 0xffffffff)
 
 	AM_IMPORT_FROM(next_fdc_mem)
 ADDRESS_MAP_END
@@ -933,7 +1005,6 @@ static SLOT_INTERFACE_START( next_scsi_devices )
 SLOT_INTERFACE_END
 
 static MACHINE_CONFIG_FRAGMENT( ncr5390 )
-	MCFG_DEVICE_MODIFY(DEVICE_SELF)
 	MCFG_DEVICE_CLOCK(10000000)
 	MCFG_NCR5390_IRQ_HANDLER(DEVWRITELINE(":", next_state, scsi_irq))
 	MCFG_NCR5390_DRQ_HANDLER(DEVWRITELINE(":", next_state, scsi_drq))
@@ -948,18 +1019,19 @@ static MACHINE_CONFIG_START( next_base, next_state )
 	MCFG_SCREEN_UPDATE_DRIVER(next_state, screen_update)
 	MCFG_SCREEN_SIZE(1120, 900)
 	MCFG_SCREEN_VISIBLE_AREA(0, 1120-1, 0, 832-1)
+	MCFG_SCREEN_VBLANK_DRIVER(next_state, vblank_w)
 
 	// devices
 	MCFG_NSCSI_BUS_ADD("scsibus")
-	MCFG_MCCS1850_ADD("rtc", XTAL_32_768kHz,
-						line_cb_t(), line_cb_t(), line_cb_t())
-	MCFG_SCC8530_ADD("scc", XTAL_25MHz, line_cb_t(FUNC(next_state::scc_irq), static_cast<next_state *>(owner)))
-	MCFG_NEXTKBD_ADD("keyboard",
-						line_cb_t(FUNC(next_state::keyboard_irq), static_cast<next_state *>(owner)),
-						line_cb_t(FUNC(next_state::power_irq), static_cast<next_state *>(owner)),
-						line_cb_t(FUNC(next_state::nmi_irq), static_cast<next_state *>(owner)))
-	MCFG_NSCSI_ADD("scsibus:0", next_scsi_devices, "cdrom", false)
-	MCFG_NSCSI_ADD("scsibus:1", next_scsi_devices, "harddisk", false)
+	MCFG_DEVICE_ADD("rtc", MCCS1850, XTAL_32_768kHz)
+	MCFG_DEVICE_ADD("scc", SCC8530, XTAL_25MHz)
+	MCFG_Z8530_INTRQ_CALLBACK(WRITELINE(next_state, scc_irq))
+	MCFG_DEVICE_ADD("keyboard", NEXTKBD, 0)
+	MCFG_NEXTKBD_INT_CHANGE_CALLBACK(WRITELINE(next_state, keyboard_irq))
+	MCFG_NEXTKBD_INT_POWER_CALLBACK(WRITELINE(next_state, power_irq))
+	MCFG_NEXTKBD_INT_NMI_CALLBACK(WRITELINE(next_state, nmi_irq))
+	MCFG_NSCSI_ADD("scsibus:0", next_scsi_devices, "harddisk", false)
+	MCFG_NSCSI_ADD("scsibus:1", next_scsi_devices, "cdrom", false)
 	MCFG_NSCSI_ADD("scsibus:2", next_scsi_devices, 0, false)
 	MCFG_NSCSI_ADD("scsibus:3", next_scsi_devices, 0, false)
 	MCFG_NSCSI_ADD("scsibus:4", next_scsi_devices, 0, false)
@@ -968,23 +1040,26 @@ static MACHINE_CONFIG_START( next_base, next_state )
 	MCFG_NSCSI_ADD("scsibus:7", next_scsi_devices, "ncr5390", true)
 	MCFG_DEVICE_CARD_MACHINE_CONFIG("ncr5390", ncr5390)
 
-	MCFG_MB8795_ADD("net",
-					line_cb_t(FUNC(next_state::net_tx_irq), static_cast<next_state *>(owner)),
-					line_cb_t(FUNC(next_state::net_rx_irq), static_cast<next_state *>(owner)),
-					line_cb_t(FUNC(next_state::net_tx_drq), static_cast<next_state *>(owner)),
-					line_cb_t(FUNC(next_state::net_rx_drq), static_cast<next_state *>(owner)))
-	MCFG_NEXTMO_ADD("mo",
-					line_cb_t(FUNC(next_state::mo_irq), static_cast<next_state *>(owner)),
-					line_cb_t(FUNC(next_state::mo_drq), static_cast<next_state *>(owner)))
+	MCFG_DEVICE_ADD("net", MB8795, 0)
+	MCFG_MB8795_TX_IRQ_CALLBACK(WRITELINE(next_state, net_tx_irq))
+	MCFG_MB8795_RX_IRQ_CALLBACK(WRITELINE(next_state, net_rx_irq))
+	MCFG_MB8795_TX_DRQ_CALLBACK(WRITELINE(next_state, net_tx_drq))
+	MCFG_MB8795_RX_DRQ_CALLBACK(WRITELINE(next_state, net_rx_drq))
+
+	MCFG_DEVICE_ADD("mo", NEXTMO, 0)
+	MCFG_NEXTMO_IRQ_CALLBACK(WRITELINE(next_state, mo_irq))
+	MCFG_NEXTMO_DRQ_CALLBACK(WRITELINE(next_state, mo_drq))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( next, next_base )
 	MCFG_CPU_ADD("maincpu", M68030, XTAL_25MHz)
-	MCFG_CPU_PROGRAM_MAP(next_0b_nofdc_mem)
+	MCFG_CPU_PROGRAM_MAP(next_0b_m_nofdc_mem)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( next_fdc_base, next_base )
 	MCFG_N82077AA_ADD("fdc", n82077aa_device::MODE_PS2)
+	MCFG_UPD765_INTRQ_CALLBACK(WRITELINE(next_state, fdc_irq))
+	MCFG_UPD765_DRQ_CALLBACK(WRITELINE(next_state, fdc_drq))
 	MCFG_FLOPPY_DRIVE_ADD("fdc:0", next_floppies, "35ed", next_state::floppy_formats)
 
 	// software list
@@ -993,39 +1068,39 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( nexts, next_fdc_base )
 	MCFG_CPU_ADD("maincpu", M68040, XTAL_25MHz)
-	MCFG_CPU_PROGRAM_MAP(next_0b_mem)
+	MCFG_CPU_PROGRAM_MAP(next_0b_m_mem)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( nexts2, next_fdc_base )
 	MCFG_CPU_ADD("maincpu", M68040, XTAL_25MHz)
-	MCFG_CPU_PROGRAM_MAP(next_0b_mem)
+	MCFG_CPU_PROGRAM_MAP(next_0b_m_mem)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( nextsc, next_fdc_base )
 	MCFG_CPU_ADD("maincpu", M68040, XTAL_25MHz)
-	MCFG_CPU_PROGRAM_MAP(next_2c_mem)
+	MCFG_CPU_PROGRAM_MAP(next_2c_c_mem)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( nextst, next_fdc_base )
 	MCFG_CPU_ADD("maincpu", M68040, XTAL_33MHz)
-	MCFG_CPU_PROGRAM_MAP(next_0b_mem)
+	MCFG_CPU_PROGRAM_MAP(next_0b_m_mem)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( nextstc, next_fdc_base )
 	MCFG_CPU_ADD("maincpu", M68040, XTAL_33MHz)
-	MCFG_CPU_PROGRAM_MAP(next_0c_mem)
+	MCFG_CPU_PROGRAM_MAP(next_0c_c_mem)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_VISIBLE_AREA(0, 832-1, 0, 624-1)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( nextct, next_fdc_base )
 	MCFG_CPU_ADD("maincpu", M68040, XTAL_33MHz)
-	MCFG_CPU_PROGRAM_MAP(next_0c_mem)
+	MCFG_CPU_PROGRAM_MAP(next_0c_m_mem)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( nextctc, next_fdc_base )
 	MCFG_CPU_ADD("maincpu", M68040, XTAL_33MHz)
-	MCFG_CPU_PROGRAM_MAP(next_0c_mem)
+	MCFG_CPU_PROGRAM_MAP(next_0c_c_mem)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_VISIBLE_AREA(0, 832-1, 0, 624-1)
 MACHINE_CONFIG_END

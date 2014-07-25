@@ -2,6 +2,9 @@
 
     Intel 8089 I/O Processor
 
+    license: MAME, GPL-2.0+
+    copyright-holders: Dirk Best
+
 ***************************************************************************/
 
 #pragma once
@@ -21,10 +24,10 @@
 	i8089_device::set_databus_width(*device, _databus_width);
 
 #define MCFG_I8089_SINTR1(_sintr1) \
-	downcast<i8089_device *>(device)->set_sintr1_callback(DEVCB2_##_sintr1);
+	downcast<i8089_device *>(device)->set_sintr1_callback(DEVCB_##_sintr1);
 
 #define MCFG_I8089_SINTR2(_sintr2) \
-	downcast<i8089_device *>(device)->set_sintr2_callback(DEVCB2_##_sintr2);
+	downcast<i8089_device *>(device)->set_sintr2_callback(DEVCB_##_sintr2);
 
 
 //**************************************************************************
@@ -82,7 +85,7 @@ protected:
 
 	// device_disasm_interface overrides
 	virtual UINT32 disasm_min_opcode_bytes() const { return 1; }
-	virtual UINT32 disasm_max_opcode_bytes() const { return 6; }
+	virtual UINT32 disasm_max_opcode_bytes() const { return 7; }
 	virtual offs_t disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options);
 
 	// device_state_interface overrides
@@ -96,16 +99,16 @@ private:
 	bool remotebus_width() { return BIT(m_soc, 0); }
 	bool request_grant() { return BIT(m_soc, 1); }
 
-	UINT8 read_byte(offs_t address);
-	UINT16 read_word(offs_t address);
-	void write_byte(offs_t address, UINT8 data);
-	void write_word(offs_t address, UINT16 data);
+	UINT8 read_byte(bool space, offs_t address);
+	UINT16 read_word(bool space, offs_t address);
+	void write_byte(bool space, offs_t address, UINT8 data);
+	void write_word(bool space, offs_t address, UINT16 data);
 
 	required_device<i8089_channel> m_ch1;
 	required_device<i8089_channel> m_ch2;
 
-	devcb2_write_line m_write_sintr1;
-	devcb2_write_line m_write_sintr2;
+	devcb_write_line m_write_sintr1;
+	devcb_write_line m_write_sintr2;
 
 	void initialize();
 
@@ -145,6 +148,7 @@ private:
 	// state of input pins
 	int m_ca;
 	int m_sel;
+	bool m_last_chan;
 };
 
 

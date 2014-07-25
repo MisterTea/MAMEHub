@@ -48,7 +48,8 @@ Notes:
 #include "machine/i8255.h"
 #include "sound/2413intf.h"
 #include "sound/okim6295.h"
-
+#include "machine/igs025.h"
+#include "machine/igs022.h"
 
 class igs017_state : public driver_device
 {
@@ -60,7 +61,15 @@ public:
 		m_spriteram(*this, "spriteram", 0),
 		m_fg_videoram(*this, "fg_videoram", 0),
 		m_bg_videoram(*this, "bg_videoram", 0),
-		m_oki(*this, "oki"){ }
+		m_oki(*this, "oki"),
+		m_igs025(*this,"igs025"),
+		m_igs022(*this,"igs022"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_8(*this, "paletteram"),
+		m_generic_paletteram_16(*this, "paletteram")
+	{ }
 
 	int m_input_addr;
 	required_device<cpu_device> m_maincpu;
@@ -68,6 +77,15 @@ public:
 	optional_shared_ptr<UINT8> m_fg_videoram;
 	optional_shared_ptr<UINT8> m_bg_videoram;
 	required_device<okim6295_device> m_oki;
+	optional_device<igs025_device> m_igs025; // Mj Shuang Long Qiang Zhu 2
+	optional_device<igs022_device> m_igs022; // Mj Shuang Long Qiang Zhu 2
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+	optional_shared_ptr<UINT8> m_generic_paletteram_8;
+	optional_shared_ptr<UINT16> m_generic_paletteram_16;
+
+	void igs025_to_igs022_callback( void );
 
 	int m_toggle;
 	int m_debug_addr;
@@ -293,8 +311,8 @@ void igs017_state::expand_sprites()
 
 void igs017_state::video_start()
 {
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igs017_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(igs017_state::get_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igs017_state::get_fg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(igs017_state::get_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,32);
 
 	m_fg_tilemap->set_transparent_pen(0xf);
 	m_bg_tilemap->set_transparent_pen(0xf);
@@ -347,9 +365,9 @@ void igs017_state::draw_sprite(bitmap_ind16 &bitmap,const rectangle &cliprect, i
 	if ( addr + dimx * dimy >= m_sprites_gfx_size )
 		return;
 
-	gfx_element gfx(machine(), m_sprites_gfx + addr, dimx, dimy, dimx, 0x100, 32);
+	gfx_element gfx(m_palette, m_sprites_gfx + addr, dimx, dimy, dimx, m_palette->entries(), 0x100, 32);
 
-	drawgfx_transpen(   bitmap,cliprect, &gfx,
+	gfx.transpen(bitmap,cliprect,
 				0, color,
 				flipx, flipy,
 				sx, sy, 0x1f    );
@@ -450,7 +468,7 @@ UINT32 igs017_state::screen_update_igs017(screen_device &screen, bitmap_ind16 &b
 	if (debug_viewer(bitmap,cliprect))
 		return 0;
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	if (m_video_disable)
 		return 0;
@@ -657,7 +675,7 @@ void igs017_state::mgcs_decrypt_tiles()
 {
 	int length = memregion("tilemaps")->bytes();
 	UINT8 *rom = memregion("tilemaps")->base();
-	UINT8 *tmp = auto_alloc_array(machine(), UINT8, length);
+	dynamic_buffer tmp(length);
 	int i;
 
 	memcpy(tmp,rom,length);
@@ -666,8 +684,6 @@ void igs017_state::mgcs_decrypt_tiles()
 		int addr = (i & ~0xffff) | BITSWAP16(i,15,14,13,12,11,10,6,7,8,9,5,4,3,2,1,0);
 		rom[i] = tmp[addr];
 	}
-
-	auto_free(machine(), tmp);
 }
 
 void igs017_state::mgcs_flip_sprites()
@@ -953,7 +969,7 @@ void igs017_state::lhzb2_decrypt_tiles()
 {
 	int length = memregion("tilemaps")->bytes();
 	UINT8 *rom = memregion("tilemaps")->base();
-	UINT8 *tmp = auto_alloc_array(machine(), UINT8, length);
+	dynamic_buffer tmp(length);
 	int i;
 
 	int addr;
@@ -963,8 +979,6 @@ void igs017_state::lhzb2_decrypt_tiles()
 		addr = (i & ~0xffffff) | BITSWAP24(i,23,22,21,20,19,18,17,1,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,0);
 		rom[i] = tmp[addr];
 	}
-
-	auto_free(machine(), tmp);
 }
 
 void igs017_state::lhzb2_decrypt_sprites()
@@ -991,6 +1005,13 @@ void igs017_state::lhzb2_decrypt_sprites()
 		rom[i+1] = data >> 8;
 	}
 }
+
+void igs017_state::igs025_to_igs022_callback( void )
+{
+	m_igs022->IGS022_handle_command();
+}
+
+
 
 DRIVER_INIT_MEMBER(igs017_state,lhzb2)
 {
@@ -1081,6 +1102,13 @@ DRIVER_INIT_MEMBER(igs017_state,lhzb2)
 	lhzb2_decrypt_tiles();
 	lhzb2_decrypt_sprites();
 	lhzb2_patch_rom();
+
+	// install and configure protection device(s)
+//  m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xda5610, 0xda5613, read16_delegate(FUNC(igs025_device::killbld_igs025_prot_r), (igs025_device*)m_igs025), write16_delegate(FUNC(igs025_device::killbld_igs025_prot_w), (igs025_device*)m_igs025));
+//  m_igs022->m_sharedprotram = m_sharedprotram;
+//  m_igs025->m_kb_source_data = dw3_source_data;
+//  m_igs025->m_kb_source_data_offset = 0;
+//  m_igs025->m_kb_game_id = 0x00060000;
 }
 
 
@@ -1166,7 +1194,7 @@ void igs017_state::slqz2_decrypt_tiles()
 {
 	int length = memregion("tilemaps")->bytes();
 	UINT8 *rom = memregion("tilemaps")->base();
-	UINT8 *tmp = auto_alloc_array(machine(), UINT8, length);
+	dynamic_buffer tmp(length);
 	int i;
 
 	memcpy(tmp,rom,length);
@@ -1175,8 +1203,6 @@ void igs017_state::slqz2_decrypt_tiles()
 		int addr = (i & ~0xff) | BITSWAP8(i,7,4,5,6,3,2,1,0);
 		rom[i] = tmp[addr];
 	}
-
-	auto_free(machine(), tmp);
 }
 
 DRIVER_INIT_MEMBER(igs017_state,slqz2)
@@ -1258,6 +1284,13 @@ DRIVER_INIT_MEMBER(igs017_state,slqz2)
 	slqz2_decrypt_tiles();
 	lhzb2_decrypt_sprites();
 	slqz2_patch_rom();
+
+	// install and configure protection device(s)
+//  m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xda5610, 0xda5613, read16_delegate(FUNC(igs025_device::killbld_igs025_prot_r), (igs025_device*)m_igs025), write16_delegate(FUNC(igs025_device::killbld_igs025_prot_w), (igs025_device*)m_igs025));
+//  m_igs022->m_sharedprotram = m_sharedprotram;
+//  m_igs025->m_kb_source_data = dw3_source_data;
+//  m_igs025->m_kb_source_data_offset = 0;
+//  m_igs025->m_kb_game_id = 0x00060000;
 }
 
 // spkrform
@@ -1365,7 +1398,7 @@ static ADDRESS_MAP_START( iqblocka_io, AS_IO, 8, igs017_state )
 	AM_RANGE( 0x0000, 0x003f ) AM_RAM // internal regs
 
 	AM_RANGE( 0x1000, 0x17ff ) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE( 0x1800, 0x1bff ) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_byte_le_w ) AM_SHARE("paletteram")
+	AM_RANGE( 0x1800, 0x1bff ) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE( 0x1c00, 0x1fff ) AM_RAM
 
 //  AM_RANGE(0x200a, 0x200a) AM_WRITENOP
@@ -1481,7 +1514,7 @@ WRITE16_MEMBER(igs017_state::mgcs_paletteram_w)
 	// bitswap
 	bgr = BITSWAP16(bgr, 7,8,9,2,14,3,13,15,12,11,10,0,1,4,5,6);
 
-	palette_set_color_rgb(machine(), offset/2, pal5bit(bgr >> 0), pal5bit(bgr >> 5), pal5bit(bgr >> 10));
+	m_palette->set_pen_color(offset/2, pal5bit(bgr >> 0), pal5bit(bgr >> 5), pal5bit(bgr >> 10));
 }
 
 static ADDRESS_MAP_START( mgcs, AS_PROGRAM, 16, igs017_state )
@@ -1511,7 +1544,7 @@ WRITE16_MEMBER(igs017_state::sdmg2_paletteram_w)
 
 	int bgr = ((m_generic_paletteram_16[offset/2*2+1] & 0xff) << 8) | (m_generic_paletteram_16[offset/2*2+0] & 0xff);
 
-	palette_set_color_rgb(machine(), offset/2, pal5bit(bgr >> 0), pal5bit(bgr >> 5), pal5bit(bgr >> 10));
+	m_palette->set_pen_color(offset/2, pal5bit(bgr >> 0), pal5bit(bgr >> 5), pal5bit(bgr >> 10));
 }
 
 READ8_MEMBER(igs017_state::sdmg2_keys_r)
@@ -1729,7 +1762,7 @@ WRITE8_MEMBER(igs017_state::tjsb_paletteram_w)
 	// bitswap
 	bgr = BITSWAP16(bgr, 15,12,3,6,10,5,4,2,9,13,8,7,11,1,0,14);
 
-	palette_set_color_rgb(machine(), offset/2, pal5bit(bgr >> 0), pal5bit(bgr >> 5), pal5bit(bgr >> 10));
+	m_palette->set_pen_color(offset/2, pal5bit(bgr >> 0), pal5bit(bgr >> 5), pal5bit(bgr >> 10));
 }
 
 WRITE8_MEMBER(igs017_state::tjsb_output_w)
@@ -1848,7 +1881,7 @@ static ADDRESS_MAP_START( spkrform_io, AS_IO, 8, igs017_state )
 	AM_RANGE( 0x0000, 0x003f ) AM_RAM // internal regs
 
 	AM_RANGE( 0x1000, 0x17ff ) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE( 0x1800, 0x1bff ) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_le_w ) AM_SHARE("paletteram")
+	AM_RANGE( 0x1800, 0x1bff ) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE( 0x1c00, 0x1fff ) AM_RAM
 
 	AM_RANGE( 0x2010, 0x2013 ) AM_DEVREAD("ppi8255", i8255_device, read)
@@ -2194,7 +2227,7 @@ WRITE16_MEMBER(igs017_state::lhzb2a_paletteram_w)
 	// bitswap
 	bgr = BITSWAP16(bgr, 15,9,13,12,11,5,4,8,7,6,0,14,3,2,1,10);
 
-	palette_set_color_rgb(machine(), offset/2, pal5bit(bgr >> 0), pal5bit(bgr >> 5), pal5bit(bgr >> 10));
+	m_palette->set_pen_color(offset/2, pal5bit(bgr >> 0), pal5bit(bgr >> 5), pal5bit(bgr >> 10));
 }
 
 READ16_MEMBER(igs017_state::lhzb2a_input_r)
@@ -2299,7 +2332,7 @@ WRITE16_MEMBER(igs017_state::slqz2_paletteram_w)
 	// bitswap
 	bgr = BITSWAP16(bgr, 15,14,9,4,11,10,12,3,7,6,5,8,13,2,1,0);
 
-	palette_set_color_rgb(machine(), offset/2, pal5bit(bgr >> 0), pal5bit(bgr >> 5), pal5bit(bgr >> 10));
+	m_palette->set_pen_color(offset/2, pal5bit(bgr >> 0), pal5bit(bgr >> 5), pal5bit(bgr >> 10));
 }
 
 WRITE16_MEMBER(igs017_state::slqz2_magic_w)
@@ -3430,18 +3463,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(igs017_state::iqblocka_interrupt)
 }
 
 
-// Dips are read through the 8255
-static I8255A_INTERFACE( iqblocka_ppi8255_intf )
-{
-	DEVCB_INPUT_PORT("DSW1"),           /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_INPUT_PORT("DSW2"),           /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_INPUT_PORT("DSW3"),           /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
-
 MACHINE_RESET_MEMBER(igs017_state,iqblocka)
 {
 	m_nmi_enable = 0;
@@ -3455,7 +3476,10 @@ static MACHINE_CONFIG_START( iqblocka, igs017_state )
 	MCFG_CPU_IO_MAP(iqblocka_io)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", igs017_state, iqblocka_interrupt, "screen", 0, 1)
 
-	MCFG_I8255A_ADD( "ppi8255", iqblocka_ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW1"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW2"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW3"))
 
 	MCFG_MACHINE_RESET_OVERRIDE(igs017_state,iqblocka)
 
@@ -3466,9 +3490,11 @@ static MACHINE_CONFIG_START( iqblocka, igs017_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(igs017_state, screen_update_igs017)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(igs017)
-	MCFG_PALETTE_LENGTH(0x100*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", igs017)
+	MCFG_PALETTE_ADD("palette", 0x100*2)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	/* sound hardware */
@@ -3504,16 +3530,6 @@ MACHINE_RESET_MEMBER(igs017_state,mgcs)
 	memset(m_igs_magic, 0, sizeof(m_igs_magic));
 }
 
-static I8255A_INTERFACE( mgcs_ppi8255_intf )
-{
-	DEVCB_INPUT_PORT("COINS"),          /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_DRIVER_MEMBER(igs017_state,mgcs_keys_r),          /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
 static MACHINE_CONFIG_START( mgcs, igs017_state )
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_22MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(mgcs)
@@ -3521,7 +3537,9 @@ static MACHINE_CONFIG_START( mgcs, igs017_state )
 
 	MCFG_MACHINE_RESET_OVERRIDE(igs017_state,mgcs)
 
-	MCFG_I8255A_ADD( "ppi8255", mgcs_ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("COINS"))
+	MCFG_I8255_IN_PORTB_CB(READ8(igs017_state, mgcs_keys_r))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -3530,9 +3548,11 @@ static MACHINE_CONFIG_START( mgcs, igs017_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(igs017_state, screen_update_igs017)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(igs017_flipped)
-	MCFG_PALETTE_LENGTH(0x100*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", igs017_flipped)
+	MCFG_PALETTE_ADD("palette", 0x100*2)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	/* sound hardware */
@@ -3545,16 +3565,6 @@ MACHINE_CONFIG_END
 
 // lhzb2
 
-static I8255A_INTERFACE( lhzb2_ppi8255_intf )
-{
-	DEVCB_INPUT_PORT("COINS"),          /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_INPUT_PORT("DSW1"),           /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_INPUT_PORT("DSW2"),           /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
 static MACHINE_CONFIG_START( lhzb2, igs017_state )
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_22MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(lhzb2)
@@ -3562,7 +3572,10 @@ static MACHINE_CONFIG_START( lhzb2, igs017_state )
 
 	MCFG_MACHINE_RESET_OVERRIDE(igs017_state,mgcs)
 
-	MCFG_I8255A_ADD( "ppi8255", lhzb2_ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("COINS"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW1"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW2"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -3571,9 +3584,17 @@ static MACHINE_CONFIG_START( lhzb2, igs017_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(igs017_state, screen_update_igs017)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(igs017_swapped)
-	MCFG_PALETTE_LENGTH(0x100*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", igs017_swapped)
+	MCFG_PALETTE_ADD("palette", 0x100*2)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+
+	// protection
+	MCFG_DEVICE_ADD("igs025", IGS025, 0)
+	MCFG_IGS025_SET_EXTERNAL_EXECUTE( igs017_state, igs025_to_igs022_callback )
+
+	MCFG_DEVICE_ADD("igs022", IGS022, 0)
 
 
 	/* sound hardware */
@@ -3608,9 +3629,11 @@ static MACHINE_CONFIG_START( lhzb2a, igs017_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(igs017_state, screen_update_igs017)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(igs017_swapped)
-	MCFG_PALETTE_LENGTH(0x100*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", igs017_swapped)
+	MCFG_PALETTE_ADD("palette", 0x100*2)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	/* sound hardware */
@@ -3630,7 +3653,10 @@ static MACHINE_CONFIG_START( slqz2, igs017_state )
 
 	MCFG_MACHINE_RESET_OVERRIDE(igs017_state,mgcs)
 
-	MCFG_I8255A_ADD( "ppi8255", lhzb2_ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("COINS"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW1"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW2"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -3639,10 +3665,17 @@ static MACHINE_CONFIG_START( slqz2, igs017_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(igs017_state, screen_update_igs017)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(igs017)
-	MCFG_PALETTE_LENGTH(0x100*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", igs017)
+	MCFG_PALETTE_ADD("palette", 0x100*2)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
+	// protection
+	MCFG_DEVICE_ADD("igs025", IGS025, 0)
+	MCFG_IGS025_SET_EXTERNAL_EXECUTE( igs017_state, igs025_to_igs022_callback )
+
+	MCFG_DEVICE_ADD("igs022", IGS022, 0)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -3654,16 +3687,6 @@ MACHINE_CONFIG_END
 
 // sdmg2
 
-static I8255A_INTERFACE( sdmg2_ppi8255_intf )
-{
-	DEVCB_INPUT_PORT("DSW1"),           /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_INPUT_PORT("DSW2"),           /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
 static MACHINE_CONFIG_START( sdmg2, igs017_state )
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_22MHz/2)
 	MCFG_CPU_PROGRAM_MAP(sdmg2)
@@ -3671,7 +3694,9 @@ static MACHINE_CONFIG_START( sdmg2, igs017_state )
 
 	MCFG_MACHINE_RESET_OVERRIDE(igs017_state,mgcs)
 
-	MCFG_I8255A_ADD( "ppi8255", sdmg2_ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW1"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW2"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -3680,9 +3705,11 @@ static MACHINE_CONFIG_START( sdmg2, igs017_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(igs017_state, screen_update_igs017)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(igs017)
-	MCFG_PALETTE_LENGTH(0x100*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", igs017)
+	MCFG_PALETTE_ADD("palette", 0x100*2)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	/* sound hardware */
@@ -3705,16 +3732,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(igs017_state::mgdh_interrupt)
 		m_maincpu->set_input_line(3, HOLD_LINE); // lev 3 instead of 2
 }
 
-static I8255A_INTERFACE( mgdh_ppi8255_intf )
-{
-	DEVCB_INPUT_PORT("DSW1"),           /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_NULL,                         /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
 static MACHINE_CONFIG_START( mgdha, igs017_state )
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_22MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(mgdha_map)
@@ -3722,7 +3739,8 @@ static MACHINE_CONFIG_START( mgdha, igs017_state )
 
 	MCFG_MACHINE_RESET_OVERRIDE(igs017_state,mgcs)
 
-	MCFG_I8255A_ADD( "ppi8255", mgdh_ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW1"))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -3731,9 +3749,11 @@ static MACHINE_CONFIG_START( mgdha, igs017_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(igs017_state, screen_update_igs017)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(igs017_swapped)
-	MCFG_PALETTE_LENGTH(0x100*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", igs017_swapped)
+	MCFG_PALETTE_ADD("palette", 0x100*2)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	/* sound hardware */
@@ -3751,7 +3771,10 @@ static MACHINE_CONFIG_START( tjsb, igs017_state )
 	MCFG_CPU_IO_MAP(tjsb_io)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", igs017_state, iqblocka_interrupt, "screen", 0, 1)
 
-	MCFG_I8255A_ADD( "ppi8255", iqblocka_ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW1"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW2"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW3"))
 
 	MCFG_MACHINE_RESET_OVERRIDE(igs017_state,iqblocka)
 
@@ -3762,9 +3785,11 @@ static MACHINE_CONFIG_START( tjsb, igs017_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(igs017_state, screen_update_igs017)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(igs017)
-	MCFG_PALETTE_LENGTH(0x100*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", igs017)
+	MCFG_PALETTE_ADD("palette", 0x100*2)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	/* sound hardware */
@@ -3785,7 +3810,10 @@ static MACHINE_CONFIG_START( spkrform, igs017_state )
 	MCFG_CPU_IO_MAP(spkrform_io)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", igs017_state, iqblocka_interrupt, "screen", 0, 1)
 
-	MCFG_I8255A_ADD( "ppi8255", iqblocka_ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW1"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW2"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW3"))
 
 	MCFG_MACHINE_RESET_OVERRIDE(igs017_state,iqblocka)
 
@@ -3796,9 +3824,11 @@ static MACHINE_CONFIG_START( spkrform, igs017_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(igs017_state, screen_update_igs017)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(igs017)
-	MCFG_PALETTE_LENGTH(0x100*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", igs017)
+	MCFG_PALETTE_ADD("palette", 0x100*2)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 
 	/* sound hardware */
@@ -4113,7 +4143,7 @@ ROM_START( lhzb2 )
 	ROM_REGION( 0x80000, "maincpu", 0 )
 	ROM_LOAD16_WORD_SWAP( "p1100.u30", 0x00000, 0x80000, CRC(68102b25) SHA1(6c1e8d204be0efda0e9b6c2f49b5c6760712475f) )
 
-	ROM_REGION( 0x10000, "igs022", 0 )  // INTERNATIONAL GAMES SYSTEM CO.,LTD
+	ROM_REGION( 0x10000, "igs022data", 0 )  // INTERNATIONAL GAMES SYSTEM CO.,LTD
 	ROM_LOAD( "m1104.u11",0x0000, 0x10000, CRC(794d0276) SHA1(ac903d2faa3fb315438dc8da22c5337611a8790d) )
 
 	ROM_REGION( 0x400000, "sprites", 0 )    // adddress scrambling
@@ -4188,7 +4218,7 @@ ROM_START( slqz2 )
 	ROM_REGION( 0x80000, "maincpu", 0 )
 	ROM_LOAD16_WORD_SWAP( "p1100.u28", 0x00000, 0x80000, CRC(0b8e5c9e) SHA1(16572bd1163bba4da8a76b10649d2f71e50ad369) )
 
-	ROM_REGION( 0x10000, "igs022", 0 )  // INTERNATIONAL GAMES SYSTEM CO.,LTD
+	ROM_REGION( 0x10000, "igs022data", 0 )  // INTERNATIONAL GAMES SYSTEM CO.,LTD
 	ROM_LOAD( "m1103.u12", 0x00000, 0x10000, CRC(9f3b8d65) SHA1(5ee1ad025474399c2826f21d970e76f25d0fa1fd) )
 
 	ROM_REGION( 0x400000, "sprites", 0 )    // adddress scrambling

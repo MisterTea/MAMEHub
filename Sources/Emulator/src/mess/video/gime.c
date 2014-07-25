@@ -79,7 +79,7 @@
 #include "emu.h"
 #include "video/gime.h"
 #include "machine/6883sam.h"
-#include "machine/cococart.h"
+#include "bus/coco/cococart.h"
 #include "machine/ram.h"
 
 
@@ -107,7 +107,13 @@
 //-------------------------------------------------
 
 gime_base_device::gime_base_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const UINT8 *fontdata, const char *shortname, const char *source)
-	:   mc6847_friend_device(mconfig, type, name, tag, owner, clock, fontdata, true, 263, 25+192+26+3, false, shortname, source)
+	:   mc6847_friend_device(mconfig, type, name, tag, owner, clock, fontdata, true, 263, 25+192+26+3, false, shortname, source),
+		m_write_irq(*this),
+		m_write_firq(*this),
+		m_read_floating_bus(*this),
+		m_maincpu_tag(NULL),
+		m_ram_tag(NULL),
+		m_ext_tag(NULL)
 {
 }
 
@@ -119,22 +125,18 @@ gime_base_device::gime_base_device(const machine_config &mconfig, device_type ty
 
 void gime_base_device::device_start(void)
 {
-	// get the config
-	const gime_interface *config = (const gime_interface *) static_config();
-	assert(config);
-
 	// find the RAM device - make sure that it is started
-	m_ram = machine().device<ram_device>(config->m_ram_tag);
+	m_ram = machine().device<ram_device>(m_ram_tag);
 	if (!m_ram->started())
 		throw device_missing_dependencies();
 
 	// find the CART device - make sure that it is started
-	m_cart_device = machine().device<cococart_slot_device>(config->m_ext_tag);
+	m_cart_device = machine().device<cococart_slot_device>(m_ext_tag);
 	if (!m_cart_device->started())
 		throw device_missing_dependencies();
 
 	// find the CPU device - make sure that it is started
-	m_cpu = machine().device<cpu_device>(config->m_maincpu_tag);
+	m_cpu = machine().device<cpu_device>(m_maincpu_tag);
 	if (!m_cpu->started())
 		throw device_missing_dependencies();
 
@@ -162,14 +164,12 @@ void gime_base_device::device_start(void)
 	}
 
 	// resolve callbacks
-	m_res_out_hsync_func.resolve(config->m_out_hsync_func, *this);
-	m_res_out_fsync_func.resolve(config->m_out_fsync_func, *this);
-	m_res_out_irq_func.resolve(config->m_out_irq_func, *this);
-	m_res_out_firq_func.resolve(config->m_out_firq_func, *this);
-	m_res_in_floating_bus_func.resolve(config->m_in_floating_bus_func, *this);
+	m_write_irq.resolve_safe();
+	m_write_firq.resolve_safe();
+	m_read_floating_bus.resolve_safe(0);
 
 	// set up ROM/RAM pointers
-	m_rom = machine().root_device().memregion(config->m_maincpu_tag)->base();
+	m_rom = machine().root_device().memregion(m_maincpu_tag)->base();
 	m_cart_rom = m_cart_device->get_cart_base();
 
 	// populate palettes
@@ -190,6 +190,7 @@ void gime_base_device::device_start(void)
 	save_item(NAME(m_firq));
 	save_item(NAME(m_timer_value));
 	save_item(NAME(m_is_blinking));
+	save_pointer(NAME(m_palette_rotated[0]), 16);
 }
 
 
@@ -377,6 +378,20 @@ void gime_base_device::device_timer(emu_timer &timer, device_timer_id id, int pa
 
 
 //-------------------------------------------------
+//  device_pre_save - device-specific pre save
+//-------------------------------------------------
+
+void gime_base_device::device_pre_save()
+{
+	super::device_pre_save();
+
+	// copy to palette rotation position zero
+	for (offs_t i = 0; i < 16; i++)
+		m_palette_rotated[0][i] = m_palette_rotated[m_palette_rotated_position][i];
+}
+
+
+//-------------------------------------------------
 //  device_post_load - device-specific post load
 //-------------------------------------------------
 
@@ -384,6 +399,11 @@ void gime_base_device::device_post_load()
 {
 	super::device_post_load();
 	update_memory();
+	update_cpu_clock();
+
+	// we update to position zero
+	m_palette_rotated_position = 0;
+	m_palette_rotated_position_used = false;
 }
 
 
@@ -756,9 +776,7 @@ ATTR_FORCE_INLINE UINT8 gime_base_device::read_palette_register(offs_t offset)
 
 ATTR_FORCE_INLINE UINT8 gime_base_device::read_floating_bus(void)
 {
-	return m_res_in_floating_bus_func.isnull()
-		? 0
-		: m_res_in_floating_bus_func(0);
+	return m_read_floating_bus(0);
 }
 
 
@@ -1096,8 +1114,7 @@ void gime_base_device::interrupt_rising_edge(UINT8 interrupt)
 
 void gime_base_device::recalculate_irq(void)
 {
-	if (!m_res_out_irq_func.isnull())
-		m_res_out_irq_func(irq_r());
+	m_write_irq(irq_r());
 }
 
 
@@ -1108,8 +1125,7 @@ void gime_base_device::recalculate_irq(void)
 
 void gime_base_device::recalculate_firq(void)
 {
-	if (!m_res_out_firq_func.isnull())
-		m_res_out_firq_func(firq_r());
+	m_write_firq(firq_r());
 }
 
 
@@ -1626,8 +1642,6 @@ UINT32 gime_base_device::emit_dummy_samples(const scanline_record *scanline, int
 	return 0;
 }
 
-
-
 //-------------------------------------------------
 //  emit_mc6847_samples
 //-------------------------------------------------
@@ -1640,7 +1654,7 @@ ATTR_FORCE_INLINE UINT32 gime_base_device::emit_mc6847_samples(const scanline_re
 		sample_count,
 		pixels,
 		palette,
-		NULL,
+		super::m_charrom_cb,
 		sample_start,
 		scanline->m_line_in_row);
 }

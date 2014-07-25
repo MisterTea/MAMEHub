@@ -366,42 +366,6 @@ static INPUT_PORTS_START( bs94 )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Auditor") PORT_CODE(KEYCODE_9)
 INPUT_PORTS_END
 
-
-/***************************
-*    TMS9928a Interfase    *
-***************************/
-
-static TMS9928A_INTERFACE(re900_tms9928a_interface)
-{
-	0x4000,
-	DEVCB_DRIVER_LINE_MEMBER(re900_state,vdp_interrupt)
-};
-
-
-/*************************
-*    AY8910 Interfase    *
-*************************/
-
-static const ay8910_interface ay8910_re900 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(re900_state,re_psg_portA_r),
-	DEVCB_DRIVER_MEMBER(re900_state,re_psg_portB_r),
-	DEVCB_DRIVER_MEMBER(re900_state,re_mux_port_A_w),
-	DEVCB_DRIVER_MEMBER(re900_state,re_mux_port_B_w)
-};
-
-static const ay8910_interface ay8910_bs94 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("IN0"),
-	DEVCB_INPUT_PORT("IN1"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 /***************************
 *      Machine Driver      *
 ***************************/
@@ -414,7 +378,9 @@ static MACHINE_CONFIG_START( re900, re900_state )
 	MCFG_CPU_IO_MAP(mem_io)
 
 	/* video hardware */
-	MCFG_TMS9928A_ADD( "tms9128", TMS9128, re900_tms9928a_interface )   /* TMS9128NL on pcb */
+	MCFG_DEVICE_ADD( "tms9128", TMS9128, XTAL_10_738635MHz / 2 )   /* TMS9128NL on the board */
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(re900_state, vdp_interrupt))
 	MCFG_TMS9928A_SCREEN_ADD_NTSC( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9128", tms9128_device, screen_update )
 
@@ -423,7 +389,10 @@ static MACHINE_CONFIG_START( re900, re900_state )
 	/* sound hardware   */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ay_re900", AY8910, TMS_CLOCK) /* From TMS9128NL - Pin 37 (GROMCLK) */
-	MCFG_SOUND_CONFIG(ay8910_re900)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(re900_state, re_psg_portA_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(re900_state, re_psg_portB_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(re900_state, re_mux_port_A_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(re900_state, re_mux_port_B_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 MACHINE_CONFIG_END
 
@@ -431,7 +400,10 @@ static MACHINE_CONFIG_DERIVED( bs94, re900 )
 
 	/* sound hardware   */
 	MCFG_SOUND_MODIFY("ay_re900")
-	MCFG_SOUND_CONFIG(ay8910_bs94)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN0"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("IN1"))
+	MCFG_AY8910_PORT_A_WRITE_CB(NULL)
+	MCFG_AY8910_PORT_B_WRITE_CB(NULL)
 MACHINE_CONFIG_END
 
 

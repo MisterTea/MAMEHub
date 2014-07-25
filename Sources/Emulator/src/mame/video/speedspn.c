@@ -15,7 +15,7 @@ TILE_GET_INFO_MEMBER(speedspn_state::get_speedspn_tile_info)
 void speedspn_state::video_start()
 {
 	m_vidram = auto_alloc_array(machine(), UINT8, 0x1000 * 2);
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(speedspn_state::get_speedspn_tile_info),this),TILEMAP_SCAN_COLS, 8, 8,64,32);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(speedspn_state::get_speedspn_tile_info),this),TILEMAP_SCAN_COLS, 8, 8,64,32);
 }
 
 WRITE8_MEMBER(speedspn_state::speedspn_vidram_w)
@@ -54,7 +54,7 @@ WRITE8_MEMBER(speedspn_state::speedspn_global_display_w)
 
 void speedspn_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 	UINT8 *source = m_vidram+ 0x1000;
 	UINT8 *finish = source + 0x1000;
 
@@ -74,7 +74,7 @@ void speedspn_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 		tileno += ((attr & 0xe0) >> 5) * 0x100;
 		color = attr & 0x0f;
 
-		drawgfx_transpen(bitmap,cliprect,gfx,
+		gfx->transpen(bitmap,cliprect,
 				tileno,
 				color,
 				0,0,
@@ -89,7 +89,7 @@ UINT32 speedspn_state::screen_update_speedspn(screen_device &screen, bitmap_ind1
 {
 	if (m_display_disable)
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 		return 0;
 	}
 

@@ -7,7 +7,6 @@ driver by Chris Moore
 ****************************************************************************/
 
 #include "emu.h"
-#include "machine/6522via.h"
 #include "includes/gameplan.h"
 
 
@@ -67,7 +66,7 @@ void gameplan_state::gameplan_get_pens( pen_t *pens )
 	offs_t i;
 
 	for (i = 0; i < GAMEPLAN_NUM_PENS; i++)
-		pens[i] = MAKE_RGB(pal1bit(i >> 0), pal1bit(i >> 1), pal1bit(i >> 2));
+		pens[i] = rgb_t(pal1bit(i >> 0), pal1bit(i >> 1), pal1bit(i >> 2));
 }
 
 
@@ -83,7 +82,7 @@ void gameplan_state::leprechn_get_pens( pen_t *pens )
 		UINT8 g = (i & 2) ? 0xff : bk;
 		UINT8 b = (i & 4) ? 0xff : bk;
 
-		pens[i] = MAKE_RGB(r, g, b);
+		pens[i] = rgb_t(r, g, b);
 	}
 }
 
@@ -238,43 +237,6 @@ WRITE_LINE_MEMBER(gameplan_state::via_irq)
 	   leave time for the program to see the flag change. */
 	timer_set(attotime::from_usec(50), TIMER_VIA_IRQ_DELAYED, state);
 }
-
-
-READ8_MEMBER(gameplan_state::vblank_r)
-{
-	/* this is needed for trivia quest */
-	return 0x20;
-}
-
-
-const via6522_interface gameplan_via_0_interface =
-{
-	DEVCB_NULL, DEVCB_DRIVER_MEMBER(gameplan_state,vblank_r),                                       /*inputs : A/B         */
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,                             /*inputs : CA/B1,CA/B2 */
-	DEVCB_DRIVER_MEMBER(gameplan_state,video_data_w), DEVCB_DRIVER_MEMBER(gameplan_state,gameplan_video_command_w),     /*outputs: A/B         */
-	DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_LINE_MEMBER(gameplan_state,video_command_trigger_w), DEVCB_NULL,   /*outputs: CA/B1,CA/B2 */
-	DEVCB_DRIVER_LINE_MEMBER(gameplan_state,via_irq)                                                         /*irq                  */
-};
-
-
-const via6522_interface leprechn_via_0_interface =
-{
-	DEVCB_NULL, DEVCB_DRIVER_MEMBER(gameplan_state,vblank_r),                                       /*inputs : A/B         */
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,                             /*inputs : CA/B1,CA/B2 */
-	DEVCB_DRIVER_MEMBER(gameplan_state,video_data_w), DEVCB_DRIVER_MEMBER(gameplan_state,leprechn_video_command_w),     /*outputs: A/B         */
-	DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_LINE_MEMBER(gameplan_state,video_command_trigger_w), DEVCB_NULL,   /*outputs: CA/B1,CA/B2 */
-	DEVCB_DRIVER_LINE_MEMBER(gameplan_state,via_irq)                                                         /*irq                  */
-};
-
-
-const via6522_interface trvquest_via_0_interface =
-{
-	DEVCB_NULL, DEVCB_DRIVER_MEMBER(gameplan_state,vblank_r),                                       /*inputs : A/B         */
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,                             /*inputs : CA/B1,CA/B2 */
-	DEVCB_DRIVER_MEMBER(gameplan_state,video_data_w), DEVCB_DRIVER_MEMBER(gameplan_state,gameplan_video_command_w),     /*outputs: A/B         */
-	DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_LINE_MEMBER(gameplan_state,video_command_trigger_w), DEVCB_NULL,   /*outputs: CA/B1,CA/B2 */
-	DEVCB_NULL                                                                  /*irq                  */
-};
 
 
 TIMER_CALLBACK_MEMBER(gameplan_state::via_0_ca1_timer_callback)

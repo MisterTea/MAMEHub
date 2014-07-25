@@ -1,8 +1,9 @@
 /****************************************************************************
 
     Bally Astrocade consumer hardware
-    driver by Nicola Salmoria, Mike Coates, Frank Palazzolo, Aaron Giles,
-    Dirk Best
+
+    license: MAME
+    copyright-holders: Nicola Salmoria, Mike Coates, Frank Palazzolo, Aaron Giles, Dirk Best
 
 ****************************************************************************/
 
@@ -258,9 +259,10 @@ static MACHINE_CONFIG_START( astrocde, astrocde_mess_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(ASTROCADE_CLOCK, 455, 0, 352, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(astrocde_state, screen_update_astrocde)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(512)
-
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INIT_OWNER(astrocde_state, astrocde)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

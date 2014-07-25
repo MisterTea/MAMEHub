@@ -125,8 +125,8 @@ WRITE16_MEMBER(glass_state::glass_vram_w)
 
 void glass_state::video_start()
 {
-	m_pant[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(glass_state::get_tile_info_glass_screen0),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_pant[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(glass_state::get_tile_info_glass_screen1),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_pant[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(glass_state::get_tile_info_glass_screen0),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_pant[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(glass_state::get_tile_info_glass_screen1),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 	m_screen_bitmap = auto_bitmap_ind16_alloc (machine(), 320, 200);
 
 	save_item(NAME(*m_screen_bitmap));
@@ -162,7 +162,7 @@ void glass_state::video_start()
 void glass_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
 	int i;
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 
 	for (i = 3; i < (0x1000 - 6) / 2; i += 4)
 	{
@@ -177,7 +177,7 @@ void glass_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect 
 
 		number = ((number & 0x03) << 14) | ((number & 0x0fffc) >> 2);
 
-		drawgfx_transpen(bitmap,cliprect,gfx,number,
+		gfx->transpen(bitmap,cliprect,number,
 				0x10 + (color & 0x0f),xflip,yflip,
 				sx-0x0f,sy,0);
 	}
@@ -198,7 +198,7 @@ UINT32 glass_state::screen_update_glass(screen_device &screen, bitmap_ind16 &bit
 	m_pant[1]->set_scrollx(0, m_vregs[3]);
 
 	/* draw layers + sprites */
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 	copybitmap(bitmap, *m_screen_bitmap, 0, 0, 0x18, 0x24, cliprect);
 	m_pant[1]->draw(screen, bitmap, cliprect, 0, 0);
 	m_pant[0]->draw(screen, bitmap, cliprect, 0, 0);

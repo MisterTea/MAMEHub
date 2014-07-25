@@ -9,16 +9,29 @@
 #include "zippath.h"
 #include "floppy.h"
 #include "formats/imageutl.h"
-#include "uiimage.h"
+#include "ui/filesel.h"
+
+/*
+    Debugging flags. Set to 0 or 1.
+*/
+
+// Show step operation
+#define TRACE_STEP 1
 
 // device type definition
 const device_type FLOPPY_CONNECTOR = &device_creator<floppy_connector>;
+
+// generic 3" drives
 const device_type FLOPPY_3_SSDD = &device_creator<floppy_3_ssdd>;
 const device_type FLOPPY_3_DSDD = &device_creator<floppy_3_dsdd>;
+
+// generic 3.5" drives
 const device_type FLOPPY_35_SSDD = &device_creator<floppy_35_ssdd>;
 const device_type FLOPPY_35_DD = &device_creator<floppy_35_dd>;
 const device_type FLOPPY_35_HD = &device_creator<floppy_35_hd>;
 const device_type FLOPPY_35_ED = &device_creator<floppy_35_ed>;
+
+// generic 5.25" drives
 const device_type FLOPPY_525_SSSD_35T = &device_creator<floppy_525_sssd_35t>;
 const device_type FLOPPY_525_SD_35T = &device_creator<floppy_525_sd_35t>;
 const device_type FLOPPY_525_SSSD = &device_creator<floppy_525_sssd>;
@@ -28,13 +41,61 @@ const device_type FLOPPY_525_DD = &device_creator<floppy_525_dd>;
 const device_type FLOPPY_525_SSQD = &device_creator<floppy_525_ssqd>;
 const device_type FLOPPY_525_QD = &device_creator<floppy_525_qd>;
 const device_type FLOPPY_525_HD = &device_creator<floppy_525_hd>;
+
+// generic 8" drives
 const device_type FLOPPY_8_SSSD = &device_creator<floppy_8_sssd>;
 const device_type FLOPPY_8_DSSD = &device_creator<floppy_8_dssd>;
 const device_type FLOPPY_8_SSDD = &device_creator<floppy_8_ssdd>;
 const device_type FLOPPY_8_DSDD = &device_creator<floppy_8_dsdd>;
+
+// epson 3.5" drives
+#if 0
+const device_type EPSON_SMD_110 = &device_creator<epson_smd_110>;
+const device_type EPSON_SMD_120 = &device_creator<epson_smd_120>;
+const device_type EPSON_SMD_125 = &device_creator<epson_smd_125>;
+const device_type EPSON_SMD_130 = &device_creator<epson_smd_130>;
+const device_type EPSON_SMD_140 = &device_creator<epson_smd_140>;
+const device_type EPSON_SMD_150 = &device_creator<epson_smd_150>;
+const device_type EPSON_SMD_160 = &device_creator<epson_smd_160>;
+#endif
+const device_type EPSON_SMD_165 = &device_creator<epson_smd_165>;
+#if 0
+const device_type EPSON_SMD_170 = &device_creator<epson_smd_170>;
+const device_type EPSON_SMD_180 = &device_creator<epson_smd_180>;
+const device_type EPSON_SMD_240L = &device_creator<epson_smd_240l>;
+const device_type EPSON_SMD_280HL = &device_creator<epson_smd_280hl>;
+const device_type EPSON_SMD_440L = &device_creator<epson_smd_440l>;
+const device_type EPSON_SMD_449L = &device_creator<epson_smd_449l>;
+const device_type EPSON_SMD_480LM = &device_creator<epson_smd_480lm>;
+const device_type EPSON_SMD_489M = &device_creator<epson_smd_489m>;
+#endif
+
+// epson 5.25" drives
+#if 0
+const device_type EPSON_SD_311 = &device_creator<epson_sd_311>;
+#endif
+const device_type EPSON_SD_320 = &device_creator<epson_sd_320>;
+const device_type EPSON_SD_321 = &device_creator<epson_sd_321>;
+#if 0
+const device_type EPSON_SD_521L = &device_creator<epson_sd_531l>;
+const device_type EPSON_SD_525 = &device_creator<epson_sd_525>;
+const device_type EPSON_SD_543 = &device_creator<epson_sd_543>;
+const device_type EPSON_SD_545 = &device_creator<epson_sd_545>;
+const device_type EPSON_SD_560 = &device_creator<epson_sd_560>;
+const device_type EPSON_SD_580L = &device_creator<epson_sd_580l>;
+const device_type EPSON_SD_581L = &device_creator<epson_sd_581l>;
+const device_type EPSON_SD_621L = &device_creator<epson_sd_621l>;
+const device_type EPSON_SD_680L = &device_creator<epson_sd_680l>;
+#endif
+
+// sony 3.5" drives
 const device_type SONY_OA_D31V = &device_creator<sony_oa_d31v>;
 const device_type SONY_OA_D32W = &device_creator<sony_oa_d32w>;
 const device_type SONY_OA_D32V = &device_creator<sony_oa_d32v>;
+
+// ALPS 5.25" drives
+const device_type ALPS_3255190x = &device_creator<alps_3255190x>;
+
 
 const floppy_format_type floppy_image_device::default_floppy_formats[] = {
 	FLOPPY_D88_FORMAT,
@@ -86,7 +147,8 @@ floppy_image_device::floppy_image_device(const machine_config &mconfig, device_t
 	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_image_interface(mconfig, *this),
 		device_slot_card_interface(mconfig, *this),
-		image(NULL)
+		image(NULL),
+		fif_list(NULL)
 {
 	extension_list[0] = '\0';
 }
@@ -97,6 +159,12 @@ floppy_image_device::floppy_image_device(const machine_config &mconfig, device_t
 
 floppy_image_device::~floppy_image_device()
 {
+	for(floppy_image_format_t *format = fif_list; format; ) {
+		floppy_image_format_t* tmp_format = format;
+		format = format->next;
+		delete tmp_format;
+	}
+	fif_list = NULL;
 }
 
 void floppy_image_device::setup_load_cb(load_cb cb)
@@ -126,11 +194,8 @@ void floppy_image_device::setup_wpt_cb(wpt_cb cb)
 
 void floppy_image_device::set_formats(const floppy_format_type *formats)
 {
-	image_device_format **formatptr;
-	image_device_format *format;
-	formatptr = &m_formatlist;
 	extension_list[0] = '\0';
-	fif_list = 0;
+	fif_list = NULL;
 	for(int cnt=0; formats[cnt]; cnt++)
 	{
 		// allocate a new format
@@ -140,17 +205,9 @@ void floppy_image_device::set_formats(const floppy_format_type *formats)
 		else
 			fif_list->append(fif);
 
-		format = global_alloc_clear(image_device_format);
-		format->m_index       = cnt;
-		format->m_name        = fif->name();
-		format->m_description = fif->description();
-		format->m_extensions  = fif->extensions();
-		format->m_optspec     = "";
+		m_formatlist.append(*global_alloc(image_device_format(fif->name(), fif->description(), fif->extensions(), "")));
 
 		image_specify_extension( extension_list, 256, fif->extensions() );
-		// and append it to the list
-		*formatptr = format;
-		formatptr = &format->m_next;
 	}
 
 	// set brief and instance name
@@ -179,6 +236,7 @@ void floppy_image_device::set_rpm(float _rpm)
 
 	rpm = _rpm;
 	rev_time = attotime::from_double(60/rpm);
+	floppy_ratio_1 = int(1000*rpm/300+0.5);
 }
 
 void floppy_image_device::setup_write(floppy_image_format_t *_output_format)
@@ -208,7 +266,6 @@ void floppy_image_device::device_start()
 {
 	rpm = 0;
 	motor_always_on = false;
-	setup_characteristics();
 
 	idx = 0;
 
@@ -224,6 +281,8 @@ void floppy_image_device::device_start()
 	image_dirty = false;
 	ready = true;
 	ready_counter = 0;
+
+	setup_characteristics();
 }
 
 void floppy_image_device::device_reset()
@@ -300,7 +359,7 @@ bool floppy_image_device::call_load()
 	best_format->load(&io, form_factor, image);
 	output_format = is_readonly() ? 0 : best_format;
 
-	revolution_start_time = motor_always_on ? machine().time() : attotime::never;
+	revolution_start_time = mon ? attotime::never : machine().time();
 	revolution_count = 0;
 
 	index_resync();
@@ -392,7 +451,7 @@ attotime floppy_image_device::time_next_index()
 {
 	if(revolution_start_time.is_never())
 		return attotime::never;
-	return revolution_start_time + attotime::from_double(60/rpm);
+	return revolution_start_time + rev_time;
 }
 
 /* index pulses at rpm/60 Hz, and stays high for ~2ms at 300rpm */
@@ -413,12 +472,12 @@ void floppy_image_device::index_resync()
 		revolution_start_time += rev_time;
 		revolution_count++;
 	}
-	int position = (delta*(rpm/300)).as_ticks(1000000000);
+	int position = (delta*floppy_ratio_1).as_ticks(1000000000/1000);
 
-	int new_idx = position <= 20000;
+	int new_idx = position < 20000;
 
 	if(new_idx) {
-		attotime index_up_time = attotime::from_nsec(2000000*300.0/rpm+0.5);
+		attotime index_up_time = attotime::from_nsec((2000000*1000)/floppy_ratio_1);
 		index_timer->adjust(index_up_time - delta);
 	} else
 		index_timer->adjust(rev_time - delta);
@@ -469,7 +528,7 @@ void floppy_image_device::stp_w(int state)
 				if ( cyl < tracks-1 ) cyl++;
 			}
 			if(ocyl != cyl)
-				logerror("%s: track %d\n", tag(), cyl);
+				if (TRACE_STEP) logerror("%s: track %d\n", tag(), cyl);
 			/* Update disk detection if applicable */
 			if (exists())
 			{
@@ -498,22 +557,24 @@ int floppy_image_device::find_index(UINT32 position, const UINT32 *buf, int buf_
 	}
 }
 
-UINT32 floppy_image_device::find_position(attotime &base, attotime when)
+UINT32 floppy_image_device::find_position(attotime &base, const attotime &when)
 {
 	base = revolution_start_time;
-	UINT32 revc = revolution_count;
 	attotime delta = when - base;
 
 	while(delta >= rev_time) {
 		delta -= rev_time;
 		base += rev_time;
-		revc++;
+	}
+	while(delta < attotime::zero) {
+		delta += rev_time;
+		base -= rev_time;
 	}
 
-	return (delta*rpm/300).as_ticks(1000000000);
+	return (delta*floppy_ratio_1 + attotime::from_nsec(500)).as_ticks(1000000000/1000);
 }
 
-attotime floppy_image_device::get_next_transition(attotime from_when)
+attotime floppy_image_device::get_next_transition(const attotime &from_when)
 {
 	if(!image || mon)
 		return attotime::never;
@@ -539,19 +600,20 @@ attotime floppy_image_device::get_next_transition(attotime from_when)
 	else
 		next_position = 200000000 + (buf[1] & floppy_image::TIME_MASK);
 
-	//  logerror("Floppy: cuspos=%d nextpos=%d\n", position, next_position);
-	return base + attotime::from_nsec(UINT64(next_position)*300/rpm);
+	return base + attotime::from_nsec((UINT64(next_position)*2000/floppy_ratio_1+1)/2);
 }
 
-void floppy_image_device::write_flux(attotime start, attotime end, int transition_count, const attotime *transitions)
+void floppy_image_device::write_flux(const attotime &start, const attotime &end, int transition_count, const attotime *transitions)
 {
+	if(!image || mon)
+		return;
 	image_dirty = true;
 
 	attotime base;
 	int start_pos = find_position(base, start);
 	int end_pos   = find_position(base, end);
 
-	int *trans_pos = transition_count ? global_alloc_array(int, transition_count) : 0;
+	dynamic_array<int> trans_pos(transition_count);
 	for(int i=0; i != transition_count; i++)
 		trans_pos[i] = find_position(base, transitions[i]);
 
@@ -591,6 +653,7 @@ void floppy_image_device::write_flux(attotime start, attotime end, int transitio
 			write_zone(buf, cells, index, pos, next_pos, cur_mg);
 		else {
 			write_zone(buf, cells, index, pos, 200000000, cur_mg);
+			index = 0;
 			write_zone(buf, cells, index, 0, next_pos, cur_mg);
 		}
 		pos = next_pos;
@@ -598,9 +661,6 @@ void floppy_image_device::write_flux(attotime start, attotime end, int transitio
 	}
 
 	image->set_track_size(cyl, ss, cells);
-
-	if(trans_pos)
-		global_free(trans_pos);
 }
 
 void floppy_image_device::write_zone(UINT32 *buf, int &cells, int &index, UINT32 spos, UINT32 epos, UINT32 mg)
@@ -702,6 +762,14 @@ void floppy_image_device::write_zone(UINT32 *buf, int &cells, int &index, UINT32
 	}
 }
 
+void floppy_image_device::set_write_splice(const attotime &when)
+{
+	image_dirty = true;
+	attotime base;
+	int splice_pos = find_position(base, when);
+	image->set_write_splice_position(cyl, ss, splice_pos);
+}
+
 UINT32 floppy_image_device::get_form_factor() const
 {
 	return form_factor;
@@ -732,7 +800,7 @@ ui_menu_control_floppy_image::ui_menu_control_floppy_image(running_machine &mach
 
 ui_menu_control_floppy_image::~ui_menu_control_floppy_image()
 {
-	global_free(format_array);
+	global_free_array(format_array);
 }
 
 void ui_menu_control_floppy_image::do_load_create()
@@ -774,32 +842,29 @@ astring ui_menu_control_floppy_image::try_file(astring location, astring name, b
 void ui_menu_control_floppy_image::hook_load(astring filename, bool softlist)
 {
 	input_filename = filename;
-	if(softlist) {
-		char *swlist_name, *swname, *swpart;
-		software_name_split(filename.cstr(), &swlist_name, &swname, &swpart);
-		software_list *sw_list = software_list_open(machine().options(), swlist_name, FALSE, NULL);
-		software_info *sw_info = software_list_find(sw_list, swname, NULL);
-		software_part *sw_part = software_find_part(sw_info, swpart, NULL);
-		const char *parentname = software_get_clone(machine().options(), swlist_name, sw_info->shortname);
-		for(const rom_entry *region = sw_part->romdata; region; region = rom_next_region(region)) {
+	if (softlist)
+	{
+		astring swlist_name, swinfo_name, swpart_name;
+		device_image_interface::software_name_split(filename.cstr(), swlist_name, swinfo_name, swpart_name);
+		software_list_device *swlistdev = software_list_device::find_by_name(machine().config(), swlist_name);
+		software_info *swinfo = swlistdev->find(swinfo_name);
+		software_part *swpart = swinfo->find_part(swpart_name);
+		const char *parentname = swinfo->parentname();
+		for(const rom_entry *region = swpart->romdata(); region; region = rom_next_region(region)) {
 			const rom_entry *romp = region + 1;
 			UINT32 crc = 0;
 			bool has_crc = hash_collection(ROM_GETHASHDATA(romp)).crc(crc);
 
-			filename = try_file(astring(swlist_name) + PATH_SEPARATOR + astring(swname), ROM_GETNAME(romp), has_crc, crc);
+			filename = try_file(astring(swlistdev->list_name()) + PATH_SEPARATOR + astring(swinfo_name), ROM_GETNAME(romp), has_crc, crc);
 			if(filename == "")
 				filename = try_file(astring(swlist_name) + PATH_SEPARATOR + astring(parentname), ROM_GETNAME(romp), has_crc, crc);
 			if(filename == "")
-				filename = try_file(swname, ROM_GETNAME(romp), has_crc, crc);
+				filename = try_file(swinfo_name, ROM_GETNAME(romp), has_crc, crc);
 			if(filename == "")
 				filename = try_file(parentname, ROM_GETNAME(romp), has_crc, crc);
 			if(filename != "")
-				goto found;
+				break;
 		}
-
-	found:
-		software_list_close(sw_list);
-		global_free(swlist_name);
 	}
 
 	input_format = static_cast<floppy_image_device *>(image)->identify(filename);
@@ -1457,6 +1522,124 @@ void floppy_8_dsdd::handled_variants(UINT32 *variants, int &var_count) const
 //**************************************************************************
 
 //-------------------------------------------------
+//  epson smd-165
+//
+//  track to track: 6 ms
+//  average: 97 ms
+//  setting time: 15 ms
+//  motor start time: 1 s
+//
+//-------------------------------------------------
+
+epson_smd_165::epson_smd_165(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+	floppy_image_device(mconfig, EPSON_SD_321, "EPSON SMD-165 Floppy Disk Drive", tag, owner, clock, "epson_smd_165", __FILE__)
+{
+}
+
+epson_smd_165::~epson_smd_165()
+{
+}
+
+void epson_smd_165::setup_characteristics()
+{
+	form_factor = floppy_image::FF_35;
+	tracks = 40;
+	sides = 2;
+	set_rpm(300);
+}
+
+void epson_smd_165::handled_variants(UINT32 *variants, int &var_count) const
+{
+	var_count = 0;
+	variants[var_count++] = floppy_image::SSSD;
+	variants[var_count++] = floppy_image::DSSD;
+}
+
+//-------------------------------------------------
+//  epson sd-320
+//
+//  track to track: 15 ms
+//  average: 220 ms
+//  setting time: 15 ms
+//  head load time: 35 ms
+//  motor start time: 0.5 s
+//
+//  dip switch ss1
+//  1 = drive select 0
+//  2 = drive select 1
+//  3 = drive select 2
+//  4 = drive select 3
+//  5 = head load from pin 4
+//  6 = head load from drive select
+//
+//  dic switch ss2
+//  hs = load controlled by head-load
+//  ms = load controlled by motor enable
+//
+//  dic switch ss3
+//  ds = in-use led by drive select
+//  hl = in-use led by head load
+//
+//-------------------------------------------------
+
+epson_sd_320::epson_sd_320(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+	floppy_image_device(mconfig, EPSON_SD_320, "EPSON SD-320 Mini-Floppy Disk Drive", tag, owner, clock, "epson_sd_320", __FILE__)
+{
+}
+
+epson_sd_320::~epson_sd_320()
+{
+}
+
+void epson_sd_320::setup_characteristics()
+{
+	form_factor = floppy_image::FF_525;
+	tracks = 40;
+	sides = 2;
+	set_rpm(300);
+}
+
+void epson_sd_320::handled_variants(UINT32 *variants, int &var_count) const
+{
+	var_count = 0;
+	variants[var_count++] = floppy_image::SSSD;
+	variants[var_count++] = floppy_image::SSDD;
+	variants[var_count++] = floppy_image::DSDD;
+}
+
+//-------------------------------------------------
+//  epson sd-321
+//
+//  same as sd-320, but no head-load selenoid
+//
+//-------------------------------------------------
+
+epson_sd_321::epson_sd_321(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+	floppy_image_device(mconfig, EPSON_SD_321, "EPSON SD-321 Mini-Floppy Disk Drive", tag, owner, clock, "epson_sd_321", __FILE__)
+{
+}
+
+epson_sd_321::~epson_sd_321()
+{
+}
+
+void epson_sd_321::setup_characteristics()
+{
+	form_factor = floppy_image::FF_525;
+	tracks = 40;
+	sides = 2;
+	set_rpm(300);
+}
+
+void epson_sd_321::handled_variants(UINT32 *variants, int &var_count) const
+{
+	var_count = 0;
+	variants[var_count++] = floppy_image::SSSD;
+	variants[var_count++] = floppy_image::SSDD;
+	variants[var_count++] = floppy_image::DSDD;
+}
+
+//-------------------------------------------------
 //  sony oa-d31v
 //
 //  track to track: 15 ms
@@ -1559,4 +1742,35 @@ void sony_oa_d32v::handled_variants(UINT32 *variants, int &var_count) const
 	var_count = 0;
 	variants[var_count++] = floppy_image::SSSD;
 	variants[var_count++] = floppy_image::SSDD;
+}
+
+
+//-------------------------------------------------
+//  ALPS 32551901 (black) / 32551902 (brown)
+//
+//  used in the Commodoere 1541 disk drive
+//-------------------------------------------------
+
+alps_3255190x::alps_3255190x(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+	floppy_image_device(mconfig, ALPS_3255190x, "ALPS 32551901/32551902 Floppy Drive", tag, owner, clock, "alps_3255190x", __FILE__)
+{
+}
+
+alps_3255190x::~alps_3255190x()
+{
+}
+
+void alps_3255190x::setup_characteristics()
+{
+	form_factor = floppy_image::FF_525;
+	tracks = 84;
+	sides = 1;
+	set_rpm(300);
+	cyl = 34;
+}
+
+void alps_3255190x::handled_variants(UINT32 *variants, int &var_count) const
+{
+	var_count = 0;
+	variants[var_count++] = floppy_image::SSSD;
 }

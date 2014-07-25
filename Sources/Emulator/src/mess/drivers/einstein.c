@@ -1,7 +1,9 @@
 /******************************************************************************
 
     Tatung Einstein
-    system driver
+
+    license: MAME
+    copyright-holders: Kevin Thacker, Dirk Best, Phill Harvey-Smith
 
 
     TMS9129 VDP Graphics
@@ -56,7 +58,6 @@
 
 #include "emu.h"
 #include "machine/z80pio.h"
-#include "machine/z80sio.h"
 #include "cpu/z80/z80.h"
 #include "cpu/z80/z80daisy.h"
 #include "formats/dsk_dsk.h"
@@ -97,17 +98,16 @@ READ8_MEMBER(einstein_state::einstein_80col_ram_r)
    bit 12       jumper M004, this could be used to select two different character
                 sets.
 */
-static MC6845_UPDATE_ROW( einstein_6845_update_row )
+MC6845_UPDATE_ROW( einstein_state::crtc_update_row )
 {
-	einstein_state *einstein = device->machine().driver_data<einstein_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
-	UINT8 *data = einstein->m_region_gfx1->base();
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
+	UINT8 *data = m_region_gfx1->base();
 	UINT8 char_code, data_byte;
 	int i, x;
 
 	for (i = 0, x = 0; i < x_count; i++, x += 8)
 	{
-		char_code = einstein->m_crtc_ram[(ma + i) & 0x07ff];
+		char_code = m_crtc_ram[(ma + i) & 0x07ff];
 		data_byte = data[(char_code << 3) + (ra & 0x07) + ((ra & 0x08) << 8)];
 
 		bitmap.pix32(y, x + 0) = palette[TMS9928A_PALETTE_SIZE + BIT(data_byte, 7)];
@@ -269,12 +269,12 @@ TIMER_DEVICE_CALLBACK_MEMBER(einstein_state::einstein_ctc_trigger_callback)
 
 WRITE_LINE_MEMBER(einstein_state::einstein_serial_transmit_clock)
 {
-	m_uart->transmit_clock();
+	m_uart->write_txc(state);
 }
 
 WRITE_LINE_MEMBER(einstein_state::einstein_serial_receive_clock)
 {
-	m_uart->receive_clock();
+	m_uart->write_rxc(state);
 }
 
 
@@ -299,6 +299,21 @@ WRITE8_MEMBER(einstein_state::einstein_rom_w)
     INTERRUPTS
 ***************************************************************************/
 
+WRITE_LINE_MEMBER(einstein_state::write_centronics_busy)
+{
+	m_centronics_busy = state;
+}
+
+WRITE_LINE_MEMBER(einstein_state::write_centronics_perror)
+{
+	m_centronics_perror = state;
+}
+
+WRITE_LINE_MEMBER(einstein_state::write_centronics_fault)
+{
+	m_centronics_fault = state;
+}
+
 READ8_MEMBER(einstein_state::einstein_kybintmsk_r)
 {
 	UINT8 data = 0;
@@ -310,9 +325,9 @@ READ8_MEMBER(einstein_state::einstein_kybintmsk_r)
 	data |= m_buttons->read();
 
 	/* bit 2 to 4: printer status */
-	data |= m_centronics->busy_r() << 2;
-	data |= m_centronics->pe_r() << 3;
-	data |= m_centronics->fault_r() << 4;
+	data |= m_centronics_busy << 2;
+	data |= m_centronics_perror << 3;
+	data |= m_centronics_fault << 4;
 
 	/* bit 5 to 7: graph, control and shift key */
 	data |= m_extra->read();
@@ -381,12 +396,6 @@ WRITE8_MEMBER(einstein_state::einstein_fire_int_w)
     MACHINE EMULATION
 ***************************************************************************/
 
-static TMS9928A_INTERFACE(einstein_tms9929a_interface)
-{
-	0x4000, /* 16k RAM, provided by IC i040 and i041 */
-	DEVCB_NULL
-};
-
 void einstein_state::machine_start()
 {
 }
@@ -428,8 +437,8 @@ MACHINE_RESET_MEMBER(einstein_state,einstein2)
 	einstein_state::machine_reset();
 
 	/* 80 column card palette */
-	palette_set_color(machine(), TMS9928A_PALETTE_SIZE, RGB_BLACK);
-	palette_set_color(machine(), TMS9928A_PALETTE_SIZE + 1, MAKE_RGB(0, 224, 0));
+	m_palette->set_pen_color(TMS9928A_PALETTE_SIZE, rgb_t::black);
+	m_palette->set_pen_color(TMS9928A_PALETTE_SIZE + 1, rgb_t(0, 224, 0));
 }
 
 MACHINE_START_MEMBER(einstein_state,einstein2)
@@ -655,57 +664,6 @@ INPUT_PORTS_END
     MACHINE DRIVERS
 ***************************************************************************/
 
-static Z80CTC_INTERFACE( einstein_ctc_intf )
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(einstein_state,einstein_serial_transmit_clock),
-	DEVCB_DRIVER_LINE_MEMBER(einstein_state,einstein_serial_receive_clock),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF, z80ctc_device, trg3)
-};
-
-
-static Z80PIO_INTERFACE( einstein_pio_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER("centronics", centronics_device, write),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER("centronics", centronics_device, strobe_w),
-	DEVCB_NULL
-};
-
-static const ay8910_interface einstein_ay_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(einstein_state, einstein_keyboard_data_read),
-	DEVCB_DRIVER_MEMBER(einstein_state, einstein_keyboard_line_write),
-	DEVCB_NULL
-};
-
-static const centronics_interface einstein_centronics_config =
-{
-	DEVCB_DEVICE_LINE_MEMBER(IC_I063, z80pio_device, strobe_a),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static MC6845_INTERFACE( einstein_crtc6845_interface )
-{
-	false,
-	8,
-	NULL,
-	einstein_6845_update_row,
-	NULL,
-	DEVCB_DRIVER_LINE_MEMBER(einstein_state,einstein_6845_de_changed),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
-
 /* F4 Character Displayer */
 static const gfx_layout einstei2_charlayout =
 {
@@ -736,14 +694,19 @@ static MACHINE_CONFIG_START( einstein, einstein_state )
 	MCFG_CPU_IO_MAP(einstein_io)
 	MCFG_CPU_CONFIG(einstein_daisy_chain)
 
-
 	/* this is actually clocked at the system clock 4 MHz, but this would be too fast for our
 	driver. So we update at 50Hz and hope this is good enough. */
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("keyboard", einstein_state, einstein_keyboard_timer_callback, attotime::from_hz(50))
 
-	MCFG_Z80PIO_ADD(IC_I063, XTAL_X002 / 2, einstein_pio_intf)
+	MCFG_DEVICE_ADD(IC_I063, Z80PIO, XTAL_X002 / 2)
+	MCFG_Z80PIO_OUT_PA_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_Z80PIO_OUT_PB_CB(DEVWRITELINE("centronics", centronics_device, write_strobe))
 
-	MCFG_Z80CTC_ADD(IC_I058, XTAL_X002 / 2, einstein_ctc_intf)
+	MCFG_DEVICE_ADD(IC_I058, Z80CTC, XTAL_X002 / 2)
+	MCFG_Z80CTC_ZC0_CB(WRITELINE(einstein_state, einstein_serial_transmit_clock))
+	MCFG_Z80CTC_ZC1_CB(WRITELINE(einstein_state, einstein_serial_receive_clock))
+	MCFG_Z80CTC_ZC2_CB(DEVWRITELINE(IC_I058, z80ctc_device, trg3))
+
 	/* the input to channel 0 and 1 of the ctc is a 2 MHz clock */
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("ctc", einstein_state, einstein_ctc_trigger_callback, attotime::from_hz(XTAL_X002 /4))
 
@@ -753,7 +716,8 @@ static MACHINE_CONFIG_START( einstein, einstein_state )
 	MCFG_DEVICE_ADD("fire_daisy", EINSTEIN_FIRE_DAISY, 0)
 
 	/* video hardware */
-	MCFG_TMS9928A_ADD( "tms9929a", TMS9929A, einstein_tms9929a_interface )
+	MCFG_DEVICE_ADD( "tms9929a", TMS9929A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000) /* 16k RAM, provided by IC i040 and i041 */
 	MCFG_TMS9928A_SET_SCREEN( "screen" )
 	MCFG_TMS9928A_SCREEN_ADD_PAL( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9929a", tms9929a_device, screen_update )
@@ -761,14 +725,21 @@ static MACHINE_CONFIG_START( einstein, einstein_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD(IC_I030, AY8910, XTAL_X002 / 4)
-	MCFG_SOUND_CONFIG(einstein_ay_interface)
+	MCFG_AY8910_PORT_B_READ_CB(READ8(einstein_state, einstein_keyboard_data_read))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(einstein_state, einstein_keyboard_line_write))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	/* printer */
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", einstein_centronics_config)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_ACK_HANDLER(DEVWRITELINE(IC_I063, z80pio_device, strobe_a))
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(einstein_state, write_centronics_busy))
+	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(einstein_state, write_centronics_perror))
+	MCFG_CENTRONICS_FAULT_HANDLER(WRITELINE(einstein_state, write_centronics_fault))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	/* uart */
-	MCFG_I8251_ADD(IC_I060, default_i8251_interface)
+	MCFG_DEVICE_ADD(IC_I060, I8251, 0)
 
 	MCFG_WD1770x_ADD(IC_I042, XTAL_X002)
 
@@ -804,12 +775,16 @@ static MACHINE_CONFIG_DERIVED( einstei2, einstein )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 400-1)
 	MCFG_SCREEN_REFRESH_RATE(50)
 	MCFG_SCREEN_UPDATE_DRIVER(einstein_state, screen_update_einstein2)
-	MCFG_GFXDECODE(einstei2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", einstei2)
 
 	/* 2 additional colors for the 80 column screen */
-	MCFG_PALETTE_LENGTH(TMS9928A_PALETTE_SIZE + 2)
+	MCFG_PALETTE_ADD("palette", TMS9928A_PALETTE_SIZE + 2)
 
-	MCFG_MC6845_ADD("crtc", MC6845, "80column", XTAL_X002 / 4, einstein_crtc6845_interface)
+	MCFG_MC6845_ADD("crtc", MC6845, "80column", XTAL_X002 / 4)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(einstein_state, crtc_update_row)
+	MCFG_MC6845_OUT_DE_CB(WRITELINE(einstein_state, einstein_6845_de_changed))
 MACHINE_CONFIG_END
 
 

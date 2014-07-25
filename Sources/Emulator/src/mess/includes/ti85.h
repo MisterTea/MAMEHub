@@ -10,7 +10,7 @@
 #include "imagedev/snapquik.h"
 #include "video/t6a04.h"
 #include "sound/speaker.h"
-
+#include "machine/nvram.h"
 
 class ti85_state : public driver_device
 {
@@ -96,7 +96,7 @@ public:
 	DECLARE_READ8_MEMBER( ti83p_port_0002_r );
 	virtual void machine_start();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(ti85);
 	DECLARE_MACHINE_RESET(ti85);
 	DECLARE_PALETTE_INIT(ti82);
 	DECLARE_MACHINE_START(ti86);
@@ -111,11 +111,5 @@ public:
 	void ti86_setup_snapshot (UINT8 * data);
 	DECLARE_SNAPSHOT_LOAD_MEMBER( ti8x );
 };
-
-
-/*----------- defined in machine/ti85.c -----------*/
-NVRAM_HANDLER( ti83p );
-NVRAM_HANDLER( ti86 );
-
 
 #endif /* TI85_H_ */

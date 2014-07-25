@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari Arcade Classics hardware (prototypes)
@@ -144,7 +146,7 @@ WRITE16_MEMBER(arcadecl_state::latch_w)
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, arcadecl_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	AM_RANGE(0x200000, 0x21ffff) AM_RAM AM_SHARE("bitmap")
-	AM_RANGE(0x3c0000, 0x3c07ff) AM_RAM_WRITE(expanded_paletteram_666_w) AM_SHARE("paletteram")
+	AM_RANGE(0x3c0000, 0x3c07ff) AM_DEVREADWRITE8("palette", palette_device, read, write, 0xff00) AM_SHARE("palette")
 	AM_RANGE(0x3e0000, 0x3e07ff) AM_RAM AM_SHARE("mob")
 	AM_RANGE(0x3e0800, 0x3effbf) AM_RAM
 	AM_RANGE(0x3effc0, 0x3effff) AM_RAM AM_SHARE("mob:slip")
@@ -324,17 +326,21 @@ static MACHINE_CONFIG_START( arcadecl, arcadecl_state )
 	MCFG_ATARI_EEPROM_2804_ADD("eeprom")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_GFXDECODE(arcadecl)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", arcadecl)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(IRRRRRGGGGGBBBBB)
+	MCFG_PALETTE_MEMBITS(8)
 
 	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", arcadecl_state::s_mob_config)
+	MCFG_ATARI_MOTION_OBJECTS_GFXDECODE("gfxdecode")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	/* note: these parameters are from published specs, not derived */
 	/* the board uses an SOS-2 chip to generate video signals */
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/2, 456, 0+12, 336+12, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(arcadecl_state, screen_update_arcadecl)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(arcadecl_state,arcadecl)
 

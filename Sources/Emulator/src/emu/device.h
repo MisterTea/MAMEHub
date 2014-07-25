@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     device.h
 
     Device interface functions.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -64,16 +35,10 @@
 // configure devices
 #define MCFG_DEVICE_CONFIG(_config) \
 	device_t::static_set_static_config(*device, &(_config));
-#define MCFG_DEVICE_CONFIG_CLEAR() \
-	device_t::static_set_static_config(*device, NULL);
 #define MCFG_DEVICE_CLOCK(_clock) \
 	device_t::static_set_clock(*device, _clock);
 #define MCFG_DEVICE_INPUT_DEFAULTS(_config) \
 	device_t::static_set_input_default(*device, DEVICE_INPUT_DEFAULTS_NAME(_config));
-
-// macros for defining read_line/write_line functions
-#define READ_LINE_DEVICE_HANDLER(name)      int  name(ATTR_UNUSED device_t *device)
-#define WRITE_LINE_DEVICE_HANDLER(name)     void name(ATTR_UNUSED device_t *device, ATTR_UNUSED int state)
 
 #define DECLARE_READ_LINE_MEMBER(name)      int  name()
 #define READ_LINE_MEMBER(name)              int  name()
@@ -124,12 +89,6 @@ device_t *device_creator(const machine_config &mconfig, const char *tag, device_
 // timer IDs for devices
 typedef UINT32 device_timer_id;
 
-
-// read/write types for I/O lines (similar to read/write handlers but no offset)
-typedef int (*read_line_device_func)(device_t *device);
-typedef void (*write_line_device_func)(device_t *device, int state);
-
-
 // ======================> device_t
 
 // device_t represents a device
@@ -150,11 +109,11 @@ class device_t : public delegate_late_bind
 protected:
 	// construction/destruction
 	device_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
+public:
 	virtual ~device_t();
 
-public:
 	// getters
-	running_machine &machine() const { assert(m_machine != NULL); return *m_machine; }
+	running_machine &machine() const { /*assert(m_machine != NULL);*/ return *m_machine; }
 	const char *tag() const { return m_tag; }
 	const char *basetag() const { return m_basetag; }
 	device_type type() const { return m_type; }
@@ -173,6 +132,7 @@ public:
 	ioport_constructor input_ports() const { return device_input_ports(); }
 	UINT8 default_bios() const { return m_default_bios; }
 	UINT8 system_bios() const { return m_system_bios; }
+	astring default_bios_tag() const { return m_default_bios_tag; }
 
 	// interface helpers
 	template<class _DeviceClass> bool interface(_DeviceClass *&intf) { intf = dynamic_cast<_DeviceClass *>(this); return (intf != NULL); }
@@ -207,6 +167,7 @@ public:
 	static void static_set_clock(device_t &device, UINT32 clock);
 	static void static_set_static_config(device_t &device, const void *config) { device.m_static_config = config; }
 	static void static_set_input_default(device_t &device, const input_device_default *config) { device.m_input_defaults = config; }
+	static void static_set_default_bios_tag(device_t &device, const char *tag) { astring default_bios_tag(tag); device.m_default_bios_tag = default_bios_tag; }
 
 	// state helpers
 	void config_complete();
@@ -222,11 +183,11 @@ public:
 	double clock_scale() const { return m_clock_scale; }
 	void set_clock_scale(double clockscale);
 	attotime clocks_to_attotime(UINT64 clocks) const;
-	UINT64 attotime_to_clocks(attotime duration) const;
+	UINT64 attotime_to_clocks(const attotime &duration) const;
 
 	// timer interfaces
 	emu_timer *timer_alloc(device_timer_id id = 0, void *ptr = NULL);
-	void timer_set(attotime duration, device_timer_id id = 0, int param = 0, void *ptr = NULL);
+	void timer_set(const attotime &duration, device_timer_id id = 0, int param = 0, void *ptr = NULL);
 	void synchronize(device_timer_id id = 0, int param = 0, void *ptr = NULL) { timer_set(attotime::zero, id, param, ptr); }
 	void timer_expired(emu_timer &timer, device_timer_id id, int param, void *ptr) { device_timer(timer, id, param, ptr); }
 
@@ -243,7 +204,7 @@ public:
 
 	void set_default_bios(UINT8 bios) { m_default_bios = bios; }
 	void set_system_bios(UINT8 bios) { m_system_bios = bios; }
-	bool findit(bool isvalidation = false);
+	bool findit(bool isvalidation = false) const;
 
 protected:
 	// miscellaneous helpers
@@ -302,7 +263,7 @@ protected:
 	double                  m_clock_scale;          // clock scale factor
 	attoseconds_t           m_attoseconds_per_clock;// period in attoseconds
 
-	device_debug *          m_debug;
+	auto_pointer<device_debug> m_debug;
 	memory_region *         m_region;               // our device-local region
 	const machine_config &  m_machine_config;       // reference to the machine's configuration
 	const void *            m_static_config;        // static device configuration
@@ -310,6 +271,8 @@ protected:
 
 	UINT8                   m_system_bios;          // the system BIOS we wish to load
 	UINT8                   m_default_bios;         // the default system BIOS
+	astring                 m_default_bios_tag;     // tag of the default system BIOS
+
 private:
 	// private helpers
 	device_t *add_subdevice(device_type type, const char *tag, UINT32 clock);
@@ -352,6 +315,10 @@ public:
 	template<class _InterfaceClass> bool next(_InterfaceClass *&intf) const { return m_device.next(intf); }
 
 	// optional operation overrides
+	//
+	// WARNING: interface_pre_start must be callable multiple times in
+	// case another interface throws a missing dependency.  In
+	// particular, state saving registrations should be done in post.
 	virtual void interface_config_complete();
 	virtual void interface_validity_check(validity_checker &valid) const;
 	virtual void interface_pre_start();

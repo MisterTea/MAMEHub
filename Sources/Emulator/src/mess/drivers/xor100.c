@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /****************************************************************************************************
 
         XOR S-100-12
@@ -34,6 +36,7 @@
 
 
 #include "includes/xor100.h"
+#include "bus/rs232/rs232.h"
 
 /* Read/Write Handlers */
 
@@ -358,47 +361,27 @@ INPUT_PORTS_END
 
 WRITE_LINE_MEMBER( xor100_state::com5016_fr_w )
 {
-	m_uart_a->transmit_clock();
-	m_uart_a->receive_clock();
+	m_uart_a->write_txc(state);
+	m_uart_a->write_rxc(state);
 }
 
 WRITE_LINE_MEMBER( xor100_state::com5016_ft_w )
 {
-	m_uart_b->transmit_clock();
-	m_uart_b->receive_clock();
+	m_uart_b->write_txc(state);
+	m_uart_b->write_rxc(state);
 }
 
-/* Printer 8251A Interface */
-
-static const i8251_interface printer_8251_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dsr_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-/* Terminal 8251A Interface */
-
-static const i8251_interface terminal_8251_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dsr_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 /* Printer 8255A Interface */
+
+WRITE_LINE_MEMBER( xor100_state::write_centronics_busy )
+{
+	m_centronics_busy = state;
+}
+
+WRITE_LINE_MEMBER( xor100_state::write_centronics_select )
+{
+	m_centronics_select = state;
+}
 
 READ8_MEMBER(xor100_state::i8255_pc_r)
 {
@@ -420,30 +403,13 @@ READ8_MEMBER(xor100_state::i8255_pc_r)
 	UINT8 data = 0;
 
 	/* on line */
-	data |= m_centronics->vcc_r() << 4;
+	data |= m_centronics_select << 4;
 
 	/* busy */
-	data |= m_centronics->busy_r() << 5;
+	data |= m_centronics_busy << 5;
 
 	return data;
 }
-
-static I8255A_INTERFACE( printer_8255_intf )
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, write),
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(CENTRONICS_TAG, centronics_device, strobe_w),
-	DEVCB_DRIVER_MEMBER(xor100_state, i8255_pc_r),
-	DEVCB_NULL
-};
-
-static const centronics_interface xor100_centronics_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(I8255A_TAG, i8255_device, pc4_w),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 /* Z80-CTC Interface */
 
@@ -458,14 +424,6 @@ WRITE_LINE_MEMBER( xor100_state::ctc_z1_w )
 WRITE_LINE_MEMBER( xor100_state::ctc_z2_w )
 {
 }
-
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0), /* interrupt handler */
-	DEVCB_DRIVER_LINE_MEMBER(xor100_state, ctc_z0_w),           /* ZC/TO0 callback */
-	DEVCB_DRIVER_LINE_MEMBER(xor100_state, ctc_z1_w),           /* ZC/TO1 callback */
-	DEVCB_DRIVER_LINE_MEMBER(xor100_state, ctc_z2_w)        /* ZC/TO2 callback */
-};
 
 /* WD1795-02 Interface */
 
@@ -497,58 +455,14 @@ void xor100_state::fdc_drq_w(bool state)
 }
 
 
-//-------------------------------------------------
-//  rs232_port_interface rs232a_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232a_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232b_intf
-//-------------------------------------------------
-
 static DEVICE_INPUT_DEFAULTS_START( terminal )
-	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x0f, 0x06 ) // 9600
-	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x30, 0x00 ) // 8N1
+	DEVICE_INPUT_DEFAULTS( "RS232_TXBAUD", 0xff, RS232_BAUD_9600 )
+	DEVICE_INPUT_DEFAULTS( "RS232_RXBAUD", 0xff, RS232_BAUD_9600 )
+	DEVICE_INPUT_DEFAULTS( "RS232_STARTBITS", 0xff, RS232_STARTBITS_1 )
+	DEVICE_INPUT_DEFAULTS( "RS232_DATABITS", 0xff, RS232_DATABITS_8 )
+	DEVICE_INPUT_DEFAULTS( "RS232_PARITY", 0xff, RS232_PARITY_NONE )
+	DEVICE_INPUT_DEFAULTS( "RS232_STOPBITS", 0xff, RS232_STOPBITS_1 )
 DEVICE_INPUT_DEFAULTS_END
-
-static const rs232_port_interface rs232b_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static S100_INTERFACE( s100_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, Z80_INPUT_LINE_WAIT),
-	DEVCB_NULL,
-	DEVCB_NULL,
-};
 
 static SLOT_INTERFACE_START( xor100_s100_cards )
 SLOT_INTERFACE_END
@@ -574,6 +488,7 @@ void xor100_state::machine_start()
 	save_item(NAME(m_fdc_irq));
 	save_item(NAME(m_fdc_drq));
 	save_item(NAME(m_fdc_dden));
+	save_item(NAME(m_centronics_busy));
 }
 
 void xor100_state::machine_reset()
@@ -592,23 +507,56 @@ static MACHINE_CONFIG_START( xor100, xor100_state )
 	MCFG_CPU_IO_MAP(xor100_io)
 
 	/* devices */
-	MCFG_I8251_ADD(I8251_A_TAG, /*XTAL_8MHz/2,*/ printer_8251_intf)
-	MCFG_I8251_ADD(I8251_B_TAG, /*XTAL_8MHz/2,*/ terminal_8251_intf)
-	MCFG_I8255A_ADD(I8255A_TAG, printer_8255_intf)
-	MCFG_Z80CTC_ADD(Z80CTC_TAG, XTAL_8MHz/2, ctc_intf)
-	MCFG_COM8116_ADD(COM5016_TAG, XTAL_5_0688MHz, NULL, WRITELINE(xor100_state, com5016_fr_w), WRITELINE(xor100_state, com5016_ft_w))
+	MCFG_DEVICE_ADD(I8251_A_TAG, I8251, 0/*XTAL_8MHz/2,*/)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_I8251_DTR_HANDLER(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_I8251_RTS_HANDLER(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(I8251_A_TAG, i8251_device, write_rxd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(I8251_A_TAG, i8251_device, write_dsr))
+
+	MCFG_DEVICE_ADD(I8251_B_TAG, I8251, 0/*XTAL_8MHz/2,*/)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_I8251_DTR_HANDLER(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_I8251_RTS_HANDLER(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, "terminal")
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(I8251_B_TAG, i8251_device, write_rxd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(I8251_B_TAG, i8251_device, write_dsr))
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("terminal", terminal)
+
+	MCFG_DEVICE_ADD(COM5016_TAG, COM8116, XTAL_5_0688MHz)
+	MCFG_COM8116_FR_HANDLER(WRITELINE(xor100_state, com5016_fr_w))
+	MCFG_COM8116_FT_HANDLER(WRITELINE(xor100_state, com5016_ft_w))
+
+	MCFG_DEVICE_ADD(I8255A_TAG, I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_I8255_OUT_PORTB_CB(DEVWRITELINE(CENTRONICS_TAG, centronics_device, write_strobe))
+	MCFG_I8255_IN_PORTC_CB(READ8(xor100_state, i8255_pc_r))
+
+	MCFG_DEVICE_ADD(Z80CTC_TAG, Z80CTC, XTAL_8MHz/2)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(WRITELINE(xor100_state, ctc_z0_w))
+	MCFG_Z80CTC_ZC1_CB(WRITELINE(xor100_state, ctc_z1_w))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(xor100_state, ctc_z2_w))
+
 	MCFG_FD1795x_ADD(WD1795_TAG, XTAL_8MHz/4)
 	MCFG_FLOPPY_DRIVE_ADD(WD1795_TAG":0", xor100_floppies, "8ssdd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(WD1795_TAG":1", xor100_floppies, "8ssdd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(WD1795_TAG":2", xor100_floppies, NULL,    floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(WD1795_TAG":3", xor100_floppies, NULL,    floppy_image_device::default_floppy_formats)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, xor100_centronics_intf)
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, NULL)
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, "serial_terminal")
-	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("serial_terminal", terminal)
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_ACK_HANDLER(DEVWRITELINE(I8255A_TAG, i8255_device, pc4_w))
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(xor100_state, write_centronics_busy))
+	MCFG_CENTRONICS_SELECT_HANDLER(WRITELINE(xor100_state, write_centronics_select))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	// S-100
-	MCFG_S100_BUS_ADD(s100_intf)
+	MCFG_S100_BUS_ADD()
+	MCFG_S100_RDY_CALLBACK(INPUTLINE(Z80_TAG, Z80_INPUT_LINE_WAIT))
 	MCFG_S100_SLOT_ADD("s100_1", xor100_s100_cards, NULL)
 	MCFG_S100_SLOT_ADD("s100_2", xor100_s100_cards, NULL)
 	MCFG_S100_SLOT_ADD("s100_3", xor100_s100_cards, NULL)

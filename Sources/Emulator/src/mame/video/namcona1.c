@@ -14,116 +14,67 @@ void namcona1_state::tilemap_get_info(
 	tile_data &tileinfo,
 	int tile_index,
 	const UINT16 *tilemap_videoram,
-	int tilemap_color,
 	bool use_4bpp_gfx )
 {
-	UINT16 *source;
-
 	int data = tilemap_videoram[tile_index];
 	int tile = data&0xfff;
-	int gfx;
-
-	if( use_4bpp_gfx )
-	{
-		gfx = 1;
-		tilemap_color *= 0x10;
-		tilemap_color += (data & 0x7000)>>12;
-	}
-	else
-	{
-		gfx = 0;
-	}
+	int gfx = use_4bpp_gfx ? 1 : 0;
+	int color = use_4bpp_gfx ? (data & 0x7000)>>12 : 0;
 
 	if( data & 0x8000 )
 	{
-		SET_TILE_INFO_MEMBER( gfx,tile,tilemap_color,TILE_FORCE_LAYER0 );
+		SET_TILE_INFO_MEMBER(gfx,tile,color,TILE_FORCE_LAYER0 );
 	}
 	else
 	{
-		SET_TILE_INFO_MEMBER( gfx,tile,tilemap_color,0 );
-		if (ENDIANNESS_NATIVE == ENDIANNESS_BIG)
-			tileinfo.mask_data = (UINT8 *)(m_shaperam+4*tile);
-		else
-		{
-			UINT8 *mask_data = m_mask_data;
-			source = m_shaperam+4*tile;
-			mask_data[0] = source[0]>>8;
-			mask_data[1] = source[0]&0xff;
-			mask_data[2] = source[1]>>8;
-			mask_data[3] = source[1]&0xff;
-			mask_data[4] = source[2]>>8;
-			mask_data[5] = source[2]&0xff;
-			mask_data[6] = source[3]>>8;
-			mask_data[7] = source[3]&0xff;
-			tileinfo.mask_data = mask_data;
-		}
+		SET_TILE_INFO_MEMBER(gfx,tile,color,0 );
+		tileinfo.mask_data = &m_shaperam[tile*8];
 	}
 } /* tilemap_get_info */
 
 TILE_GET_INFO_MEMBER(namcona1_state::tilemap_get_info0)
 {
 	UINT16 *videoram = m_videoram;
-	tilemap_get_info(tileinfo,tile_index,0*0x1000+videoram,m_tilemap_palette_bank[0],m_vreg[0xbc/2]&1);
+	tilemap_get_info(tileinfo,tile_index,0*0x1000+videoram,m_vreg[0xbc/2]&1);
 }
 
 TILE_GET_INFO_MEMBER(namcona1_state::tilemap_get_info1)
 {
 	UINT16 *videoram = m_videoram;
-	tilemap_get_info(tileinfo,tile_index,1*0x1000+videoram,m_tilemap_palette_bank[1],m_vreg[0xbc/2]&2);
+	tilemap_get_info(tileinfo,tile_index,1*0x1000+videoram,m_vreg[0xbc/2]&2);
 }
 
 TILE_GET_INFO_MEMBER(namcona1_state::tilemap_get_info2)
 {
 	UINT16 *videoram = m_videoram;
-	tilemap_get_info(tileinfo,tile_index,2*0x1000+videoram,m_tilemap_palette_bank[2],m_vreg[0xbc/2]&4);
+	tilemap_get_info(tileinfo,tile_index,2*0x1000+videoram,m_vreg[0xbc/2]&4);
 }
 
 TILE_GET_INFO_MEMBER(namcona1_state::tilemap_get_info3)
 {
 	UINT16 *videoram = m_videoram;
-	tilemap_get_info(tileinfo,tile_index,3*0x1000+videoram,m_tilemap_palette_bank[3],m_vreg[0xbc/2]&8);
+	tilemap_get_info(tileinfo,tile_index,3*0x1000+videoram,m_vreg[0xbc/2]&8);
 }
 
 TILE_GET_INFO_MEMBER(namcona1_state::roz_get_info)
 {
-	UINT16 *videoram = m_videoram;
 	/* each logical tile is constructed from 4*4 normal tiles */
-	int tilemap_color = m_roz_palette;
 	int use_4bpp_gfx = m_vreg[0xbc/2]&16; /* ? */
 	int c = tile_index%0x40;
 	int r = tile_index/0x40;
-	int data = videoram[0x8000/2+(r/4)*0x40+c/4]&0xfbf; /* mask out bit 0x40 - patch for Emeraldia Japan */
+	int data = m_videoram[0x8000/2+(r/4)*0x40+c/4]&0xfbf; /* mask out bit 0x40 - patch for Emeraldia Japan */
 	int tile = (data+(c%4)+(r%4)*0x40)&0xfff;
-	int gfx = use_4bpp_gfx;
-	if( use_4bpp_gfx )
-	{
-		tilemap_color *= 0x10;
-		tilemap_color += (data & 0x7000)>>12;
-	}
+	int gfx = use_4bpp_gfx ? 1 : 0;
+	int color = use_4bpp_gfx ? (data & 0x7000)>>12 : 0;
+
 	if( data & 0x8000 )
 	{
-		SET_TILE_INFO_MEMBER( gfx,tile,tilemap_color,TILE_FORCE_LAYER0 );
+		SET_TILE_INFO_MEMBER(gfx,tile,color,TILE_FORCE_LAYER0 );
 	}
 	else
 	{
-		UINT8 *mask_data = (UINT8 *)(m_shaperam+4*tile);
-
-		if (ENDIANNESS_NATIVE == ENDIANNESS_LITTLE)
-		{
-			UINT16 *source = (UINT16 *)mask_data;
-			UINT8 *conv_data = m_conv_data;
-			conv_data[0] = source[0]>>8;
-			conv_data[1] = source[0]&0xff;
-			conv_data[2] = source[1]>>8;
-			conv_data[3] = source[1]&0xff;
-			conv_data[4] = source[2]>>8;
-			conv_data[5] = source[2]&0xff;
-			conv_data[6] = source[3]>>8;
-			conv_data[7] = source[3]&0xff;
-			mask_data = conv_data;
-		}
-		SET_TILE_INFO_MEMBER( gfx,tile,tilemap_color,0 );
-		tileinfo.mask_data = mask_data;
+		SET_TILE_INFO_MEMBER(gfx,tile,color,0 );
+		tileinfo.mask_data = &m_shaperam[tile*8];
 	}
 } /* roz_get_info */
 
@@ -135,27 +86,19 @@ WRITE16_MEMBER(namcona1_state::namcona1_videoram_w)
 	COMBINE_DATA( &videoram[offset] );
 	if( offset<0x8000/2 )
 	{
-		m_bg_tilemap[offset/0x1000]->mark_tile_dirty(offset&0xfff );
+		m_bg_tilemap[offset/0x1000]->mark_tile_dirty(offset&0xfff);
 	}
 	else if( offset<0xa000/2 )
 	{
-		m_roz_tilemap ->mark_all_dirty();
+		m_bg_tilemap[4]->mark_all_dirty();
 	}
 } /* namcona1_videoram_w */
 
-READ16_MEMBER(namcona1_state::namcona1_videoram_r)
-{
-	UINT16 *videoram = m_videoram;
-	return videoram[offset];
-} /* namcona1_videoram_r */
-
 /*************************************************************************/
 
-static void
-UpdatePalette(running_machine &machine, int offset )
+void namcona1_state::UpdatePalette( int offset )
 {
-	namcona1_state *state = machine.driver_data<namcona1_state>();
-	UINT16 data = state->m_generic_paletteram_16[offset]; /* -RRRRRGG GGGBBBBB */
+	UINT16 data = m_paletteram[offset]; /* -RRRRRGG GGGBBBBB */
 	/**
 	 * sprites can be configured to use an alternate interpretation of palette ram
 	 * (used in-game in Emeraldia)
@@ -165,22 +108,17 @@ UpdatePalette(running_machine &machine, int offset )
 	int r = (((data&0x00e0)>>5)+((data&0xe000)>>13)*2)*0xff/(0x7*3);
 	int g = (((data&0x001c)>>2)+((data&0x1c00)>>10)*2)*0xff/(0x7*3);
 	int b = (((data&0x0003)>>0)+((data&0x0300)>>8)*2)*0xff/(0x3*3);
-	palette_set_color_rgb( machine, offset+0x1000, r, g, b);
+	m_palette->set_pen_color(offset+0x1000, r, g, b);
 
-	palette_set_color_rgb( machine, offset, pal5bit(data >> 10), pal5bit(data >> 5), pal5bit(data >> 0));
+	m_palette->set_pen_color(offset, pal5bit(data >> 10), pal5bit(data >> 5), pal5bit(data >> 0));
 } /* namcona1_paletteram_w */
-
-READ16_MEMBER(namcona1_state::namcona1_paletteram_r)
-{
-	return m_generic_paletteram_16[offset];
-} /* namcona1_paletteram_r */
 
 WRITE16_MEMBER(namcona1_state::namcona1_paletteram_w)
 {
-	COMBINE_DATA( &m_generic_paletteram_16[offset] );
+	COMBINE_DATA( &m_paletteram[offset] );
 	if( m_vreg[0x8e/2] )
 	{ /* graphics enabled; update palette immediately */
-		UpdatePalette(machine(), offset );
+		UpdatePalette( offset );
 	}
 	else
 	{
@@ -188,42 +126,6 @@ WRITE16_MEMBER(namcona1_state::namcona1_paletteram_w)
 	}
 }
 
-/*************************************************************************/
-
-#define XOR(a) BYTE_XOR_BE(a)
-
-static const gfx_layout shape_layout =
-{
-	8,8,
-	0x1000,
-	1,
-	{ 0 },
-	{ 0,1,2,3,4,5,6,7 },
-	{ 8*XOR(0),8*XOR(1),8*XOR(2),8*XOR(3),8*XOR(4),8*XOR(5),8*XOR(6),8*XOR(7) },
-	8*8
-}; /* shape_layout */
-
-static const gfx_layout cg_layout_8bpp =
-{
-	8,8,
-	0x1000,
-	8, /* 8BPP */
-	{ 0,1,2,3,4,5,6,7 },
-	{ 8*XOR(0),8*XOR(1),8*XOR(2),8*XOR(3),8*XOR(4),8*XOR(5),8*XOR(6),8*XOR(7) },
-	{ 64*0,64*1,64*2,64*3,64*4,64*5,64*6,64*7 },
-	64*8
-}; /* cg_layout_8bpp */
-
-static const gfx_layout cg_layout_4bpp =
-{
-	8,8,
-	0x1000,
-	4, /* 4BPP */
-	{ 4,5,6,7 },
-	{ 8*XOR(0),8*XOR(1),8*XOR(2),8*XOR(3),8*XOR(4),8*XOR(5),8*XOR(6),8*XOR(7) },
-	{ 64*0,64*1,64*2,64*3,64*4,64*5,64*6,64*7 },
-	64*8
-}; /* cg_layout_4bpp */
 
 READ16_MEMBER(namcona1_state::namcona1_gfxram_r)
 {
@@ -232,7 +134,8 @@ READ16_MEMBER(namcona1_state::namcona1_gfxram_r)
 	{
 		if( offset<0x4000 )
 		{
-			return m_shaperam[offset];
+			offset *= 2;
+			return (m_shaperam[offset] << 8) | m_shaperam[offset+1];
 		}
 	}
 	else if( type == 0x02 )
@@ -251,10 +154,12 @@ WRITE16_MEMBER(namcona1_state::namcona1_gfxram_w)
 	{
 		if( offset<0x4000 )
 		{
-			old_word = m_shaperam[offset];
-			COMBINE_DATA( &m_shaperam[offset] );
-			if( m_shaperam[offset]!=old_word )
-				machine().gfx[2]->mark_dirty(offset/4);
+			offset *= 2;
+			if (ACCESSING_BITS_8_15)
+				m_shaperam[offset] = data >> 8;
+			if (ACCESSING_BITS_0_7)
+				m_shaperam[offset+1] = data;
+			m_gfxdecode->gfx(2)->mark_dirty(offset/8);
 		}
 	}
 	else if( type == 0x02 )
@@ -263,47 +168,31 @@ WRITE16_MEMBER(namcona1_state::namcona1_gfxram_w)
 		COMBINE_DATA( &m_cgram[offset] );
 		if( m_cgram[offset]!=old_word )
 		{
-			machine().gfx[0]->mark_dirty(offset/0x20);
-			machine().gfx[1]->mark_dirty(offset/0x20);
+			m_gfxdecode->gfx(0)->mark_dirty(offset/0x20);
+			m_gfxdecode->gfx(1)->mark_dirty(offset/0x20);
 		}
 	}
 } /* namcona1_gfxram_w */
 
-static void UpdateGfx(running_machine &machine)
-{
-} /* UpdateGfx */
-
 void namcona1_state::video_start()
 {
-	static const tilemap_get_info_delegate get_info[4] = {
-		tilemap_get_info_delegate(FUNC(namcona1_state::tilemap_get_info0),this),
-		tilemap_get_info_delegate(FUNC(namcona1_state::tilemap_get_info1),this),
-		tilemap_get_info_delegate(FUNC(namcona1_state::tilemap_get_info2),this),
-		tilemap_get_info_delegate(FUNC(namcona1_state::tilemap_get_info3),this)
-	};
-	int i;
+	// normal tilemaps
+	m_bg_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(namcona1_state::tilemap_get_info0),this), TILEMAP_SCAN_ROWS, 8,8,64,64 );
+	m_bg_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(namcona1_state::tilemap_get_info1),this), TILEMAP_SCAN_ROWS, 8,8,64,64 );
+	m_bg_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(namcona1_state::tilemap_get_info2),this), TILEMAP_SCAN_ROWS, 8,8,64,64 );
+	m_bg_tilemap[3] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(namcona1_state::tilemap_get_info3),this), TILEMAP_SCAN_ROWS, 8,8,64,64 );
 
-	m_roz_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(namcona1_state::roz_get_info),this), TILEMAP_SCAN_ROWS, 8,8,64,64 );
-	m_roz_palette = -1;
+	// roz tilemap
+	m_bg_tilemap[4] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(namcona1_state::roz_get_info),this), TILEMAP_SCAN_ROWS, 8,8,64,64 );
 
-	for( i=0; i<NAMCONA1_NUM_TILEMAPS; i++ )
-	{
-		m_bg_tilemap[i] = &machine().tilemap().create(get_info[i], TILEMAP_SCAN_ROWS, 8,8,64,64 );
-		m_tilemap_palette_bank[i] = -1;
-	}
+	m_shaperam.resize(0x8000);
 
-	m_shaperam           = auto_alloc_array(machine(), UINT16, 0x2000*4/2 );
-	m_cgram              = auto_alloc_array(machine(), UINT16, 0x1000*0x40/2 );
-
-	machine().gfx[0] = auto_alloc( machine(), gfx_element( machine(), cg_layout_8bpp, (UINT8 *)m_cgram, machine().total_colors()/256, 0 ));
-	machine().gfx[1] = auto_alloc( machine(), gfx_element( machine(), cg_layout_4bpp, (UINT8 *)m_cgram, machine().total_colors()/16, 0 ));
-	machine().gfx[2] = auto_alloc( machine(), gfx_element( machine(), shape_layout, (UINT8 *)m_shaperam, machine().total_colors()/2, 0 ));
-
+	m_gfxdecode->gfx(2)->set_source(m_shaperam);
 } /* namcona1_vh_start */
 
 /*************************************************************************/
 
-static void pdraw_tile(
+void namcona1_state::pdraw_tile(
 		screen_device &screen,
 		bitmap_ind16 &dest_bmp,
 		const rectangle &clip,
@@ -316,8 +205,8 @@ static void pdraw_tile(
 		int bOpaque,
 		int gfx_region )
 {
-	gfx_element *gfx = screen.machine().gfx[gfx_region];
-	gfx_element *mask = screen.machine().gfx[2];
+	gfx_element *gfx = m_gfxdecode->gfx(gfx_region);
+	gfx_element *mask = m_gfxdecode->gfx(2);
 
 	int pal_base = gfx->colorbase() + gfx->granularity() * (color % gfx->colors());
 	const UINT8 *source_base = gfx->get_data((code % gfx->elements()));
@@ -421,7 +310,7 @@ static void pdraw_tile(
 									if( (gfx_region == 0 && color == 0x0f) ||
 										(gfx_region == 1 && color == 0xff) )
 									{
-										pen_t *palette_shadow_table = screen.machine().shadow_table;
+										pen_t *palette_shadow_table = m_palette->shadow_table();
 										dest[x] = palette_shadow_table[dest[x]];
 									}
 									else
@@ -447,11 +336,10 @@ static void pdraw_tile(
 	}
 } /* pdraw_tile */
 
-static void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void namcona1_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	namcona1_state *state = screen.machine().driver_data<namcona1_state>();
 	int which;
-	const UINT16 *source = state->m_spriteram;
+	const UINT16 *source = m_spriteram;
 	UINT16 sprite_control;
 	UINT16 ypos,tile,color,xpos;
 	int priority;
@@ -460,7 +348,7 @@ static void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rect
 	int row,col;
 	int sx,sy;
 
-	sprite_control = state->m_vreg[0x22/2];
+	sprite_control = m_vreg[0x22/2];
 	if( sprite_control&1 ) source += 0x400; /* alternate spriteram bank */
 
 	for( which=0; which<0x100; which++ )
@@ -544,85 +432,76 @@ static void draw_pixel_line( UINT16 *pDest, UINT8 *pPri, UINT16 *pSource, const 
 	} /* next x */
 } /* draw_pixel_line */
 
-static void draw_background(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int which, int primask )
+void namcona1_state::draw_background(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int which, int primask )
 {
-	namcona1_state *state = screen.machine().driver_data<namcona1_state>();
-	UINT16 *videoram = state->m_videoram;
-	/*          scrollx lineselect
-	 *  tmap0   ffe000  ffe200
-	 *  tmap1   ffe400  ffe600
-	 *  tmap2   ffe800  ffea00
-	 *  tmap3   ffec00  ffee00
-	 */
-	int xadjust = 0x3a - which*2;
-	const UINT16 *scroll = state->m_scroll+0x200*which;
-	int line;
-	UINT16 xdata, ydata;
-	int scrollx, scrolly;
-	rectangle clip;
-	const pen_t *paldata;
-	gfx_element *pGfx;
-
-	pGfx = screen.machine().gfx[0];
-	paldata = &screen.machine().pens[pGfx->colorbase() + pGfx->granularity() * state->m_tilemap_palette_bank[which]];
-
-	/* draw one scanline at a time */
-	clip.min_x = cliprect.min_x;
-	clip.max_x = cliprect.max_x;
-	scrollx = 0;
-	scrolly = 0;
-	for( line=0; line<256; line++ )
+	if(which == 4)
 	{
-		clip.min_y = line;
-		clip.max_y = line;
-		xdata = scroll[line];
-		if( xdata )
-		{
-			/* screenwise linescroll */
-			scrollx = xadjust+xdata;
-		}
-		ydata = scroll[line+0x100];
-		if( ydata&0x4000 )
-		{
-			/* line select: dword offset from 0xff000 or tilemap source line */
-			scrolly = (ydata - line)&0x1ff;
-		}
+		/* draw the roz tilemap all at once */
+		int incxx = ((INT16)m_vreg[0xc0/2])<<8;
+		int incxy = ((INT16)m_vreg[0xc2/2])<<8;
+		int incyx = ((INT16)m_vreg[0xc4/2])<<8;
+		int incyy = ((INT16)m_vreg[0xc6/2])<<8;
+		INT16 xoffset = m_vreg[0xc8/2];
+		INT16 yoffset = m_vreg[0xca/2];
+		int dx = 46; /* horizontal adjust */
+		int dy = -8; /* vertical adjust */
+		UINT32 startx = (xoffset<<12)+incxx*dx+incyx*dy;
+		UINT32 starty = (yoffset<<12)+incxy*dx+incyy*dy;
+		m_bg_tilemap[4]->draw_roz(screen, bitmap, cliprect,
+			startx, starty, incxx, incxy, incyx, incyy, 0, 0, primask, 0);
+	}
+	else
+	{
+		/* draw one scanline at a time */
+		/*          scrollx lineselect
+		*  tmap0   ffe000  ffe200
+		*  tmap1   ffe400  ffe600
+		*  tmap2   ffe800  ffea00
+		*  tmap3   ffec00  ffee00
+		*/
+		const UINT16 *scroll = &m_scroll[which * 0x400/2];
+		const pen_t *paldata = &m_palette->pen(m_bg_tilemap[which]->palette_offset());
+		rectangle clip = cliprect;
+		int xadjust = 0x3a - which*2;
+		int scrollx = 0;
+		int scrolly = 0;
 
-		if (line >= cliprect.min_y && line <= cliprect.max_y)
+		for( int line = 0; line < 256; line++ )
 		{
-			if( xdata == 0xc001 )
+			clip.min_y = line;
+			clip.max_y = line;
+			int xdata = scroll[line];
+			int ydata = scroll[line + 0x200/2];
+
+			if( xdata )
 			{
-				/* This is a simplification, but produces the correct behavior for the only game that uses this
-				 * feature, Numan Athletics.
-				 */
-				draw_pixel_line(
-					&bitmap.pix16(line),
-					&screen.priority().pix8(line),
-					videoram + ydata + 25,
-					paldata );
+				/* screenwise linescroll */
+				scrollx = xadjust+xdata;
 			}
-			else
+
+			if( ydata&0x4000 )
 			{
-				if(which == NAMCONA1_NUM_TILEMAPS )
+				/* line select: dword offset from 0xff000 or tilemap source line */
+				scrolly = (ydata - line)&0x1ff;
+			}
+
+			if (line >= cliprect.min_y && line <= cliprect.max_y)
+			{
+				if( xdata == 0xc001 )
 				{
-					int incxx = ((INT16)state->m_vreg[0xc0/2])<<8;
-					int incxy = ((INT16)state->m_vreg[0xc2/2])<<8;
-					int incyx = ((INT16)state->m_vreg[0xc4/2])<<8;
-					int incyy = ((INT16)state->m_vreg[0xc6/2])<<8;
-					INT16 xoffset = state->m_vreg[0xc8/2];
-					INT16 yoffset = state->m_vreg[0xca/2];
-					int dx = 46; /* horizontal adjust */
-					int dy = -8; /* vertical adjust */
-					UINT32 startx = (xoffset<<12)+incxx*dx+incyx*dy;
-					UINT32 starty = (yoffset<<12)+incxy*dx+incyy*dy;
-					state->m_roz_tilemap->draw_roz(screen, bitmap, clip,
-						startx, starty, incxx, incxy, incyx, incyy, 0, 0, primask, 0);
+					/* This is a simplification, but produces the correct behavior for the only game that uses this
+					* feature, Numan Athletics.
+					*/
+					draw_pixel_line(&bitmap.pix16(line),
+								&screen.priority().pix8(line),
+								m_videoram + ydata + 25,
+								paldata );
 				}
 				else
 				{
-					state->m_bg_tilemap[which]->set_scrollx(0, scrollx );
-					state->m_bg_tilemap[which]->set_scrolly(0, scrolly );
-					state->m_bg_tilemap[which]->draw(screen, bitmap, clip, 0, primask, 0 );
+					m_bg_tilemap[which]->set_scrollx(0, scrollx );
+					m_bg_tilemap[which]->set_scrolly(0, scrolly );
+					m_bg_tilemap[which]->draw(screen, bitmap, clip, 0, primask, 0 );
 				}
 			}
 		}
@@ -643,29 +522,15 @@ UINT32 namcona1_state::screen_update_namcona1(screen_device &screen, bitmap_ind1
 			/* palette updates are delayed when graphics are disabled */
 			for( which=0; which<0x1000; which++ )
 			{
-				UpdatePalette(machine(), which );
+				UpdatePalette( which );
 			}
 			m_palette_is_dirty = 0;
 		}
-		UpdateGfx(machine());
-		for( which=0; which<NAMCONA1_NUM_TILEMAPS; which++ )
-		{
-			int tilemap_color = m_vreg[0xb0/2+(which&3)]&0xf;
-			if( tilemap_color!=m_tilemap_palette_bank[which] )
-			{
-				m_bg_tilemap[which] ->mark_all_dirty();
-				m_tilemap_palette_bank[which] = tilemap_color;
-			}
-		} /* next tilemap */
 
-		{ /* ROZ tilemap */
-			int color = m_vreg[0xba/2]&0xf;
-			if( color != m_roz_palette )
-			{
-				m_roz_tilemap ->mark_all_dirty();
-				m_roz_palette = color;
-			}
-		}
+		for( which=0; which < 4; which++ )
+			m_bg_tilemap[which]->set_palette_offset((m_vreg[0xb0/2 + which] & 0xf) * 256);
+
+		m_bg_tilemap[4]->set_palette_offset((m_vreg[0xba/2] & 0xf) * 256);
 
 		screen.priority().fill(0, cliprect );
 

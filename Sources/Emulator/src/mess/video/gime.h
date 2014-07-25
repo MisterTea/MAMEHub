@@ -21,30 +21,27 @@
 //  GIME CONFIG/INTERFACE
 //**************************************************************************
 
-/* interface */
-struct gime_interface
-{
-	const char *m_screen_tag;   /* screen we are acting on */
-	const char *m_maincpu_tag;  /* tag of main CPU */
-	const char *m_ram_tag;      /* tag of RAM device */
-	const char *m_ext_tag;      /* tag of expansion device */
+#define MCFG_GIME_HSYNC_CALLBACK    MCFG_MC6847_HSYNC_CALLBACK
 
-	/* if specified, this gets called for every change of the HSYNC pin */
-	devcb_write_line            m_out_hsync_func;
+#define MCFG_GIME_FSYNC_CALLBACK    MCFG_MC6847_FSYNC_CALLBACK
 
-	/* if specified, this gets called for every change of the FSYNC pin */
-	devcb_write_line            m_out_fsync_func;
+#define MCFG_GIME_IRQ_CALLBACK(_write) \
+	devcb = &gime_base_device::set_irq_wr_callback(*device, DEVCB_##_write);
 
-	/* if specified, this gets called for every change of the IRQ pin */
-	devcb_write_line            m_out_irq_func;
+#define MCFG_GIME_FIRQ_CALLBACK(_write) \
+	devcb = &gime_base_device::set_firq_wr_callback(*device, DEVCB_##_write);
 
-	/* if specified, this gets called for every change of the FIRQ pin */
-	devcb_write_line            m_out_firq_func;
+#define MCFG_GIME_FLOATING_BUS_CALLBACK(_read) \
+	devcb = &gime_base_device::set_floating_bus_rd_callback(*device, DEVCB_##_read);
 
-	/* if specified, this reads from the floating bus */
-	devcb_read8                 m_in_floating_bus_func;
-};
+#define MCFG_GIME_MAINCPU(_tag) \
+	gime_base_device::set_maincpu_tag(*device, _tag);
 
+#define MCFG_GIME_RAM(_tag) \
+	gime_base_device::set_ram_tag(*device, _tag);
+
+#define MCFG_GIME_EXT(_tag) \
+	gime_base_device::set_ext_tag(*device, _tag);
 
 
 //**************************************************************************
@@ -56,6 +53,13 @@ class cococart_slot_device;
 class gime_base_device : public mc6847_friend_device, public sam6883_friend_device
 {
 public:
+	template<class _Object> static devcb_base &set_irq_wr_callback(device_t &device, _Object object) { return downcast<gime_base_device &>(device).m_write_irq.set_callback(object); }
+	template<class _Object> static devcb_base &set_firq_wr_callback(device_t &device, _Object object) { return downcast<gime_base_device &>(device).m_write_firq.set_callback(object); }
+	template<class _Object> static devcb_base &set_floating_bus_rd_callback(device_t &device, _Object object) { return downcast<gime_base_device &>(device).m_read_floating_bus.set_callback(object); }
+	static void set_maincpu_tag(device_t &device, const char *tag) { downcast<gime_base_device &>(device).m_maincpu_tag = tag; }
+	static void set_ram_tag(device_t &device, const char *tag) { downcast<gime_base_device &>(device).m_ram_tag = tag; }
+	static void set_ext_tag(device_t &device, const char *tag) { downcast<gime_base_device &>(device).m_ext_tag = tag; }
+
 	// read/write
 	DECLARE_READ8_MEMBER( read ) { return read(offset); }
 	DECLARE_WRITE8_MEMBER( write ) { write(offset, data); }
@@ -91,6 +95,7 @@ protected:
 	virtual void device_start(void);
 	virtual void device_reset(void);
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+	virtual void device_pre_save(void);
 	virtual void device_post_load(void);
 	virtual ioport_constructor device_input_ports() const;
 
@@ -156,9 +161,9 @@ private:
 	static const UINT8 hires_font[128][12];
 
 	// callbacks
-	devcb_resolved_write_line   m_res_out_irq_func;
-	devcb_resolved_write_line   m_res_out_firq_func;
-	devcb_resolved_read8        m_res_in_floating_bus_func;
+	devcb_write_line   m_write_irq;
+	devcb_write_line   m_write_firq;
+	devcb_read8        m_read_floating_bus;
 
 	// device state
 	UINT8                       m_gime_registers[16];
@@ -194,6 +199,10 @@ private:
 	pixel_t                     m_composite_bw_palette[64];
 	pixel_t                     m_rgb_palette[64];
 	UINT8                       m_dummy_bank[0x2000];
+
+	const char *m_maincpu_tag;  /* tag of main CPU */
+	const char *m_ram_tag;      /* tag of RAM device */
+	const char *m_ext_tag;      /* tag of expansion device */
 
 	// timer constants
 	static const device_timer_id TIMER_FRAME = 0;

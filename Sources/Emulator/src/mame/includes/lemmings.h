@@ -12,14 +12,15 @@ public:
 		m_deco146(*this, "ioprot"),
 		m_spriteram(*this, "spriteram"),
 		m_spriteram2(*this, "spriteram2") ,
-		m_paletteram(*this, "paletteram"),
 		m_control_data(*this, "control_data"),
 		m_vram_data(*this, "vram_data"),
 		m_pixel_0_data(*this, "pixel_0_data"),
 		m_pixel_1_data(*this, "pixel_1_data"),
 		m_sprgen(*this, "spritegen"),
 		m_sprgen2(*this, "spritegen2"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* video-related */
 	bitmap_ind16 m_bitmap0;
@@ -33,7 +34,6 @@ public:
 	required_device<buffered_spriteram16_device> m_spriteram;
 	required_device<buffered_spriteram16_device> m_spriteram2;
 	/* memory pointers */
-	required_shared_ptr<UINT16> m_paletteram;
 	required_shared_ptr<UINT16> m_control_data;
 	required_shared_ptr<UINT16> m_vram_data;
 	required_shared_ptr<UINT16> m_pixel_0_data;
@@ -43,8 +43,7 @@ public:
 
 	DECLARE_WRITE16_MEMBER(lemmings_control_w);
 	DECLARE_READ16_MEMBER(lemmings_trackball_r);
-	DECLARE_WRITE16_MEMBER(lemmings_palette_24bit_w);
-	DECLARE_WRITE16_MEMBER(lemmings_sound_w);
+	void lemmings_sound_cb( address_space &space, UINT16 data, UINT16 mem_mask );
 	DECLARE_WRITE8_MEMBER(lemmings_sound_ack_w);
 	DECLARE_WRITE16_MEMBER(lemmings_pixel_0_w);
 	DECLARE_WRITE16_MEMBER(lemmings_pixel_1_w);
@@ -56,6 +55,8 @@ public:
 	void screen_eof_lemmings(screen_device &screen, bool state);
 	void lemmings_copy_bitmap(bitmap_rgb32& bitmap, bitmap_ind16& srcbitmap, int* xscroll, int* yscroll, const rectangle& cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	DECLARE_READ16_MEMBER( lem_protection_region_0_146_r );
 	DECLARE_WRITE16_MEMBER( lem_protection_region_0_146_w );

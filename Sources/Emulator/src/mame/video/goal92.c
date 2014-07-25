@@ -121,7 +121,7 @@ void goal92_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 
 		y = 256 - (y + 7);
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 				sprite,
 				color,fx,fy,x,y,15);
 	}
@@ -130,9 +130,9 @@ void goal92_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 
 void goal92_state::video_start()
 {
-	m_bg_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(goal92_state::get_back_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_fg_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(goal92_state::get_fore_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_tx_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(goal92_state::get_text_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_bg_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(goal92_state::get_back_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_fg_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(goal92_state::get_fore_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_tx_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(goal92_state::get_text_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_buffered_spriteram = auto_alloc_array(machine(), UINT16, 0x400 * 2);
 	save_pointer(NAME(m_buffered_spriteram), 0x400 * 2);
@@ -158,7 +158,7 @@ UINT32 goal92_state::screen_update_goal92(screen_device &screen, bitmap_ind16 &b
 		m_fg_layer->set_scrolly(0, m_scrollram[3] + 8);
 	}
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	m_bg_layer->draw(screen, bitmap, cliprect, 0, 0);
 	draw_sprites(bitmap, cliprect, 2);

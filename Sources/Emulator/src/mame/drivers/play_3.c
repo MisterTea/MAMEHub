@@ -44,32 +44,16 @@ DRIVER_INIT_MEMBER(play_3_state,play_3)
 {
 }
 
-static COSMAC_INTERFACE( cdp1802_config )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( play_3, play_3_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", CDP1802, 2950000)
 	MCFG_CPU_PROGRAM_MAP(play_3_map)
-	MCFG_CPU_CONFIG(cdp1802_config)
 MACHINE_CONFIG_END
 
 /*-------------------------------------------------------------------
 / Meg Aaton (1983)
 /-------------------------------------------------------------------*/
+
 ROM_START(megaaton)
 	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_LOAD("cpumegat.bin", 0x0000, 0x2000, CRC(7e7a4ede) SHA1(3194b367cbbf6e0cb2629cd5d82ddee6fe36985a))
@@ -78,7 +62,7 @@ ROM_START(megaaton)
 	ROM_RELOAD(0xc000, 0x2000)
 
 	ROM_REGION(0x10000, "cpu2", 0)
-	ROM_LOAD("smogot.bin", 0x0000, 0x2000, CRC(92fa0742) SHA1(ef3100a53323fd67e23b47fc3e72fdb4671e9b0a))
+	ROM_LOAD("smogot.bin", 0x0000, 0x2000, CRC(fefc3ab2) SHA1(e748d9b443a69fcdd587f22c87d41818b6c0e436))
 	ROM_RELOAD(0x4000, 0x2000)
 	ROM_RELOAD(0x8000, 0x2000)
 	ROM_RELOAD(0xc000, 0x2000)
@@ -88,4 +72,26 @@ ROM_START(megaaton)
 	ROM_RELOAD(0xe000, 0x1000)
 ROM_END
 
-GAME(1983,  megaaton,  0,  play_3,  play_3, play_3_state,  play_3,  ROT0,  "Playmatic",    "Meg Aaton",     GAME_IS_SKELETON_MECHANICAL)
+ROM_START(megaatona)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD("mega_u12.bin", 0x0000, 0x1000, CRC(65761b02) SHA1(dd9586eaf70698ef7a80ce1be293322f64829aea))
+	ROM_RELOAD(0x4000, 0x1000)
+	ROM_RELOAD(0x8000, 0x1000)
+	ROM_RELOAD(0xc000, 0x1000)
+	ROM_LOAD("mega_u11.bin", 0x1000, 0x1000, CRC(513f3683) SHA1(0f080a33426df1ffdb14e9b2e6382304e201e335))
+	ROM_RELOAD(0x5000, 0x1000)
+	ROM_RELOAD(0x9000, 0x1000)
+	ROM_RELOAD(0xd000, 0x1000)
+	ROM_REGION(0x10000, "cpu2", 0)
+	ROM_LOAD("smogot.bin", 0x0000, 0x2000, CRC(fefc3ab2) SHA1(e748d9b443a69fcdd587f22c87d41818b6c0e436))
+	ROM_RELOAD(0x4000, 0x2000)
+	ROM_RELOAD(0x8000, 0x2000)
+	ROM_RELOAD(0xc000, 0x2000)
+	ROM_LOAD("smegat.bin", 0x2000, 0x1000, CRC(910ab7fe) SHA1(0ddfd15c9c25f43b8fcfc4e11bc8ea180f6bd761))
+	ROM_RELOAD(0x6000, 0x1000)
+	ROM_RELOAD(0xa000, 0x1000)
+	ROM_RELOAD(0xe000, 0x1000)
+ROM_END
+
+GAME(1983,  megaaton,  0,  play_3,  play_3, play_3_state,  play_3,  ROT0,  "Playmatic",    "Meg-Aaton",     GAME_IS_SKELETON_MECHANICAL)
+GAME(1983,  megaatona, megaaton,  play_3,  play_3, play_3_state,  play_3,  ROT0,  "Playmatic",    "Meg-Aaton (alternate set)",     GAME_IS_SKELETON_MECHANICAL)

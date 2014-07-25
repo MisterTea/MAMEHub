@@ -36,9 +36,11 @@ WRITE16_MEMBER(tigeroad_state::tigeroad_videoctrl_w)
 		}
 
 		/* bits 4-5 are coin lockouts */
-
-		coin_lockout_w(machine(), 0, !(data & 0x10));
-		coin_lockout_w(machine(), 1, !(data & 0x20));
+		if (m_has_coinlock)
+		{
+			coin_lockout_w(machine(), 0, !(data & 0x10));
+			coin_lockout_w(machine(), 1, !(data & 0x20));
+		}
 
 		/* bits 6-7 are coin counters */
 
@@ -69,9 +71,6 @@ void tigeroad_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 	UINT16 *source = &m_spriteram->buffer()[m_spriteram->bytes()/2] - 4;
 	UINT16 *finish = m_spriteram->buffer();
 
-	// TODO: The Track Map should probably be drawn on top of the background tilemap...
-	//       Also convert the below into a for loop!
-
 	while (source >= finish)
 	{
 		int tile_number = source[0];
@@ -96,8 +95,8 @@ void tigeroad_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 				flipy = !flipy;
 			}
 
-			drawgfx_transpen(bitmap, cliprect,
-				machine().gfx[2],
+
+				m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 				tile_number,
 				color,
 				flipx, flipy,
@@ -110,7 +109,7 @@ void tigeroad_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 
 TILE_GET_INFO_MEMBER(tigeroad_state::get_bg_tile_info)
 {
-	UINT8 *tilerom = memregion("gfx4")->base();
+	UINT8 *tilerom = memregion("bgmap")->base();
 
 	int data = tilerom[tile_index];
 	int attr = tilerom[tile_index + 1];
@@ -142,10 +141,10 @@ TILEMAP_MAPPER_MEMBER(tigeroad_state::tigeroad_tilemap_scan)
 
 void tigeroad_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tigeroad_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(tigeroad_state::tigeroad_tilemap_scan),this),
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tigeroad_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(tigeroad_state::tigeroad_tilemap_scan),this),
 			32, 32, 128, 128);
 
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tigeroad_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tigeroad_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,
 			8, 8, 32, 32);
 
 	m_bg_tilemap->set_transmask(0, 0xffff, 0);

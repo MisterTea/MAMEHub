@@ -34,8 +34,7 @@
 #include "sound/pokey.h"
 #include "sound/tms5220.h"
 #include "sound/2151intf.h"
-#include "drivlgcy.h"
-#include "scrlegcy.h"
+
 
 
 class tomcat_state : public driver_device
@@ -285,8 +284,8 @@ WRITE8_MEMBER(tomcat_state::tomcat_nvram_w)
 static ADDRESS_MAP_START( tomcat_map, AS_PROGRAM, 16, tomcat_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_ROM
 	AM_RANGE(0x402000, 0x402001) AM_READ(tomcat_adcread_r) AM_WRITE(tomcat_adcon_w)
-	AM_RANGE(0x404000, 0x404001) AM_READ(tomcat_inputs_r) AM_WRITE_LEGACY(avgdvg_go_word_w)
-	AM_RANGE(0x406000, 0x406001) AM_WRITE_LEGACY(avgdvg_reset_word_w)
+	AM_RANGE(0x404000, 0x404001) AM_READ(tomcat_inputs_r) AM_DEVWRITE("avg", avg_tomcat_device, go_word_w)
+	AM_RANGE(0x406000, 0x406001) AM_DEVWRITE("avg", avg_tomcat_device, reset_word_w)
 	AM_RANGE(0x408000, 0x408001) AM_READWRITE(tomcat_inputs2_r, watchdog_reset16_w)
 	AM_RANGE(0x40a000, 0x40a001) AM_READWRITE(tomcat_320bio_r, tomcat_irqclr_w)
 	AM_RANGE(0x40e000, 0x40e001) AM_WRITE(tomcat_led1on_w)
@@ -348,7 +347,7 @@ ADDRESS_MAP_END
 
 static INPUT_PORTS_START( tomcat )
 	PORT_START("IN0")   /* INPUTS */
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM(avgdvg_done_r, NULL)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER("avg", avg_tomcat_device, done_r, NULL)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW,  IPT_UNUSED ) // SPARE
 	PORT_BIT( 0x04, IP_ACTIVE_LOW,  IPT_BUTTON5 ) // DIAGNOSTIC
 	PORT_SERVICE( 0x08, IP_ACTIVE_LOW )
@@ -381,27 +380,6 @@ void tomcat_state::machine_start()
 	m_dsp_BIO = 0;
 }
 
-static const riot6532_interface tomcat_riot6532_intf =
-{
-	DEVCB_NULL,
-/*
-    PA0 = /WS   OUTPUT  (TMS-5220 WRITE STROBE)
-    PA1 = /RS   OUTPUT  (TMS-5220 READ STROBE)
-    PA2 = /READY    INPUT   (TMS-5220 READY FLAG)
-    PA3 = FSEL  OUTPUT  Select TMS5220 clock;
-                0 = 325 KHz (8 KHz sampling)
-                1 = 398 KHz (10 KHz sampling)
-    PA4 = /CC1  OUTPUT  Coin Counter 1
-    PA5 = /CC2  OUTPUT  Coin Counter 2
-    PA6 = /MUSRES   OUTPUT  (Reset the Yamaha)
-    PA7 = MAINFLAG  INPUT
-*/
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL, //  PB0 - PB7   OUTPUT  Speech Data
-	DEVCB_NULL  // connected to IRQ line of 6502
-};
-
 static MACHINE_CONFIG_START( tomcat, tomcat_state )
 	MCFG_CPU_ADD("maincpu", M68010, XTAL_12MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(tomcat_map)
@@ -416,29 +394,44 @@ static MACHINE_CONFIG_START( tomcat, tomcat_state )
 	MCFG_DEVICE_DISABLE()
 	MCFG_CPU_PROGRAM_MAP( sound_map)
 
-	MCFG_RIOT6532_ADD("riot", XTAL_14_31818MHz / 8, tomcat_riot6532_intf)
+	MCFG_DEVICE_ADD("riot", RIOT6532, XTAL_14_31818MHz / 8)
+	/*
+	 PA0 = /WS   OUTPUT  (TMS-5220 WRITE STROBE)
+	 PA1 = /RS   OUTPUT  (TMS-5220 READ STROBE)
+	 PA2 = /READY    INPUT   (TMS-5220 READY FLAG)
+	 PA3 = FSEL  OUTPUT  Select TMS5220 clock;
+	 0 = 325 KHz (8 KHz sampling)
+	 1 = 398 KHz (10 KHz sampling)
+	 PA4 = /CC1  OUTPUT  Coin Counter 1
+	 PA5 = /CC2  OUTPUT  Coin Counter 2
+	 PA6 = /MUSRES   OUTPUT  (Reset the Yamaha)
+	 PA7 = MAINFLAG  INPUT
+	 */
+	// OUTB PB0 - PB7   OUTPUT  Speech Data
+	// IRQ CB connected to IRQ line of 6502
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(4000))
-
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	MCFG_M48T02_ADD( "m48t02" )
 
+	MCFG_VECTOR_ADD("vector")
 	MCFG_SCREEN_ADD("screen", VECTOR)
 	MCFG_SCREEN_REFRESH_RATE(40)
 	//MCFG_SCREEN_REFRESH_RATE((double)XTAL_12MHz / 16 / 16 / 16 / 12  / 5 )
 	MCFG_SCREEN_SIZE(400, 300)
 	MCFG_SCREEN_VISIBLE_AREA(0, 280, 0, 250)
-	MCFG_SCREEN_UPDATE_STATIC(vector)
+	MCFG_SCREEN_UPDATE_DEVICE("vector", vector_device, screen_update)
 
-	MCFG_VIDEO_START(avg_tomcat)
+	MCFG_DEVICE_ADD("avg", AVG_TOMCAT, 0)
+	MCFG_AVGDVG_VECTOR("vector")
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
-	MCFG_POKEY_ADD("pokey1", XTAL_14_31818MHz / 8)
+	MCFG_SOUND_ADD("pokey1", POKEY, XTAL_14_31818MHz / 8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.20)
 
-	MCFG_POKEY_ADD("pokey2", XTAL_14_31818MHz / 8)
+	MCFG_SOUND_ADD("pokey2", POKEY, XTAL_14_31818MHz / 8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.20)
 
 	MCFG_SOUND_ADD("tms", TMS5220, 325000)

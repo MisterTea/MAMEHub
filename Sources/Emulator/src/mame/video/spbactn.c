@@ -3,35 +3,6 @@
 #include "includes/spbactn.h"
 
 
-static void blendbitmaps(running_machine &machine,
-		bitmap_rgb32 &dest,bitmap_ind16 &src1,bitmap_ind16 &src2,
-		const rectangle &cliprect)
-{
-	int y,x;
-	const pen_t *paldata = machine.pens;
-
-	for (y = cliprect.min_y; y <= cliprect.max_y; y++)
-	{
-		UINT32 *dd  = &dest.pix32(y);
-		UINT16 *sd1 = &src1.pix16(y);
-		UINT16 *sd2 = &src2.pix16(y);
-
-		for (x = cliprect.min_x; x <= cliprect.max_x; x++)
-		{
-			if (sd2[x])
-			{
-				if (sd2[x] & 0x1000)
-					dd[x] = paldata[sd1[x] & 0x07ff] + paldata[sd2[x]];
-				else
-					dd[x] = paldata[sd2[x]];
-			}
-			else
-				dd[x] = paldata[sd1[x]];
-		}
-	}
-}
-
-
 
 WRITE16_MEMBER(spbactn_state::bg_videoram_w)
 {
@@ -43,7 +14,7 @@ TILE_GET_INFO_MEMBER(spbactn_state::get_bg_tile_info)
 {
 	int attr = m_bgvideoram[tile_index];
 	int tileno = m_bgvideoram[tile_index+0x2000];
-	SET_TILE_INFO_MEMBER(1, tileno, ((attr & 0x00f0)>>4)+0x80, 0);
+	SET_TILE_INFO_MEMBER(1, tileno, ((attr & 0x00f0)>>4), 0);
 }
 
 
@@ -62,9 +33,7 @@ TILE_GET_INFO_MEMBER(spbactn_state::get_fg_tile_info)
 
 	/* blending */
 	if (attr & 0x0008)
-		color += 0x00f0;
-	else
-		color |= 0x0080;
+		color += 0x0010;
 
 	SET_TILE_INFO_MEMBER(0, tileno, color, 0);
 }
@@ -76,9 +45,10 @@ VIDEO_START_MEMBER(spbactn_state,spbactn)
 	/* allocate bitmaps */
 	m_screen->register_screen_bitmap(m_tile_bitmap_bg);
 	m_screen->register_screen_bitmap(m_tile_bitmap_fg);
+	m_screen->register_screen_bitmap(m_sprite_bitmap);
 
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(spbactn_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 8, 64, 128);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(spbactn_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 8, 64, 128);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(spbactn_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 8, 64, 128);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(spbactn_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 8, 64, 128);
 	m_bg_tilemap->set_transparent_pen(0);
 	m_fg_tilemap->set_transparent_pen(0);
 
@@ -88,7 +58,7 @@ VIDEO_START_MEMBER(spbactn_state,spbactnp)
 {
 	VIDEO_START_CALL_MEMBER(spbactn);
 	// no idea..
-	m_extra_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(spbactn_state::get_extra_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 16, 16);
+	m_extra_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(spbactn_state::get_extra_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 16, 16);
 }
 WRITE16_MEMBER( spbactn_state::spbatnp_90002_w )
 {
@@ -148,27 +118,17 @@ TILE_GET_INFO_MEMBER(spbactn_state::get_extra_tile_info)
 
 int spbactn_state::draw_video(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, bool alt_sprites)
 {
+	m_tile_bitmap_bg.fill(0, cliprect);
 	m_tile_bitmap_fg.fill(0, cliprect);
+	m_sprite_bitmap.fill(0, cliprect);
+	bitmap.fill(0, cliprect);
 
-	m_bg_tilemap->draw(screen, m_tile_bitmap_bg, cliprect, TILEMAP_DRAW_OPAQUE, 0);
-
-
-
-	if (spbactn_draw_sprites(screen, m_tile_bitmap_bg, cliprect, 0, alt_sprites, m_spvideoram))
-	{
-		m_bg_tilemap->draw(screen, m_tile_bitmap_bg, cliprect, 0, 0);
-	}
-
-	spbactn_draw_sprites(screen, m_tile_bitmap_bg, cliprect, 1, alt_sprites, m_spvideoram);
-
+	m_sprgen->gaiden_draw_sprites(screen, m_gfxdecode, cliprect, m_spvideoram, 0, 0, flip_screen(), m_sprite_bitmap);
+	m_bg_tilemap->draw(screen, m_tile_bitmap_bg, cliprect, 0, 0);
 	m_fg_tilemap->draw(screen, m_tile_bitmap_fg, cliprect, 0, 0);
 
+	m_mixer->mix_bitmaps(screen, bitmap, cliprect, m_palette, &m_tile_bitmap_bg, &m_tile_bitmap_fg, (bitmap_ind16*)0, &m_sprite_bitmap);
 
-	spbactn_draw_sprites(screen, m_tile_bitmap_fg, cliprect, 2, alt_sprites, m_spvideoram);
-	spbactn_draw_sprites(screen, m_tile_bitmap_fg, cliprect, 3, alt_sprites, m_spvideoram);
-
-	/* mix & blend the tilemaps and sprites into a 32-bit bitmap */
-	blendbitmaps(machine(), bitmap, m_tile_bitmap_bg, m_tile_bitmap_fg, cliprect);
 	return 0;
 }
 

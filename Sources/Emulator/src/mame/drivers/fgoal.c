@@ -44,7 +44,7 @@ int fgoal_state::intensity(int bits)
 }
 
 
-void fgoal_state::palette_init()
+PALETTE_INIT_MEMBER(fgoal_state, fgoal)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -54,17 +54,17 @@ void fgoal_state::palette_init()
 	for (i = 0; i < 128; i++)
 	{
 		UINT8 color = color_prom[0x80 | i] & 63;
-		palette_set_color_rgb(machine(), i, intensity(color >> 4), intensity(color >> 2), intensity(color >> 0));
+		palette.set_pen_color(i, intensity(color >> 4), intensity(color >> 2), intensity(color >> 0));
 	}
 
 	for (i = 0; i < 8; i++)
 	{
-		palette_set_color(machine(), 128 + 0*8 + i, MAKE_RGB(0x2e,0x80,0x2e));
-		palette_set_color(machine(), 128 + 1*8 + i, MAKE_RGB(0x2e,0x2e,0x2e));
+		palette.set_pen_color(128 + 0*8 + i, rgb_t(0x2e,0x80,0x2e));
+		palette.set_pen_color(128 + 1*8 + i, rgb_t(0x2e,0x2e,0x2e));
 	}
 
 	/* ball is a fixed color */
-	palette_set_color_rgb(machine(), 128 + 16, intensity(0x38 >> 4), intensity(0x38 >> 2), intensity(0x38 >> 0));
+	palette.set_pen_color(128 + 16, intensity(0x38 >> 4), intensity(0x38 >> 2), intensity(0x38 >> 0));
 }
 
 
@@ -376,10 +376,11 @@ static MACHINE_CONFIG_START( fgoal, fgoal_state )
 	MCFG_SCREEN_SIZE(256, 263)
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 16, 255)
 	MCFG_SCREEN_UPDATE_DRIVER(fgoal_state, screen_update_fgoal)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(fgoal)
-	MCFG_PALETTE_LENGTH(128 + 16 + 1)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", fgoal)
+	MCFG_PALETTE_ADD("palette", 128 + 16 + 1)
+	MCFG_PALETTE_INIT_OWNER(fgoal_state, fgoal)
 
 	/* sound hardware */
 MACHINE_CONFIG_END

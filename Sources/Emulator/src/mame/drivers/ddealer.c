@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, David Haywood
 /*********************************************************************************************************
 
     Double Dealer (c)NMK 1991
@@ -128,7 +130,9 @@ public:
 		m_back_vram(*this, "back_vram"),
 		m_work_ram(*this, "work_ram"),
 		m_mcu_shared_ram(*this, "mcu_shared_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_vregs;
@@ -163,6 +167,9 @@ public:
 	INTERRUPT_GEN_MEMBER(ddealer_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(ddealer_mcu_sim);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	void ddealer_draw_video_layer( UINT16* vreg_base, UINT16* top, UINT16* bottom, bitmap_ind16 &bitmap, const rectangle &cliprect, int flipy);
 };
 
 
@@ -175,8 +182,7 @@ WRITE16_MEMBER(ddealer_state::ddealer_flipscreen_w)
 TILE_GET_INFO_MEMBER(ddealer_state::get_back_tile_info)
 {
 	int code = m_back_vram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code & 0xfff,
 			code >> 12,
 			0);
@@ -185,12 +191,12 @@ TILE_GET_INFO_MEMBER(ddealer_state::get_back_tile_info)
 void ddealer_state::video_start()
 {
 	m_flipscreen = 0;
-	m_back_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ddealer_state::get_back_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 64, 32);
+	m_back_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ddealer_state::get_back_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 64, 32);
 }
 
-static void ddealer_draw_video_layer( running_machine &machine, UINT16* vreg_base, UINT16* top, UINT16* bottom, bitmap_ind16 &bitmap, const rectangle &cliprect, int flipy)
+void ddealer_state::ddealer_draw_video_layer( UINT16* vreg_base, UINT16* top, UINT16* bottom, bitmap_ind16 &bitmap, const rectangle &cliprect, int flipy)
 {
-	gfx_element *gfx = machine.gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 
 	INT16 sx, sy;
 	int x,y, count;
@@ -219,7 +225,7 @@ static void ddealer_draw_video_layer( running_machine &machine, UINT16* vreg_bas
 				UINT16 tile = (src[count] & 0x0fff);
 				UINT16 colr = (src[count] & 0xf000) >> 12;
 				count++;
-				drawgfx_transpen(bitmap, cliprect, gfx, tile, colr, 0, flipy, (x * 16) - sx, (y * 16) - sy, 15);
+					gfx->transpen(bitmap,cliprect, tile, colr, 0, flipy, (x * 16) - sx, (y * 16) - sy, 15);
 			}
 		}
 		count = 0;
@@ -232,7 +238,7 @@ static void ddealer_draw_video_layer( running_machine &machine, UINT16* vreg_bas
 				UINT16 tile = (src[count] & 0x0fff);
 				UINT16 colr = (src[count] & 0xf000) >> 12;
 				count++;
-				drawgfx_transpen(bitmap, cliprect, gfx, tile, colr, 0, flipy, (x * 16) - sx, (y * 16) - sy, 15);
+					gfx->transpen(bitmap,cliprect, tile, colr, 0, flipy, (x * 16) - sx, (y * 16) - sy, 15);
 			}
 		}
 	}
@@ -251,7 +257,7 @@ static void ddealer_draw_video_layer( running_machine &machine, UINT16* vreg_bas
 				UINT16 tile = (src[count] & 0x0fff);
 				UINT16 colr = (src[count] & 0xf000) >> 12;
 				count++;
-				drawgfx_transpen(bitmap, cliprect, gfx, tile, colr, flipy, flipy, (x * 16) + sx, (y * 16) + sy, 15);
+					gfx->transpen(bitmap,cliprect, tile, colr, flipy, flipy, (x * 16) + sx, (y * 16) + sy, 15);
 			}
 		}
 		count = 0;
@@ -264,7 +270,7 @@ static void ddealer_draw_video_layer( running_machine &machine, UINT16* vreg_bas
 				UINT16 tile = (src[count] & 0x0fff);
 				UINT16 colr = (src[count] & 0xf000) >> 12;
 				count++;
-				drawgfx_transpen(bitmap, cliprect, gfx, tile, colr, flipy, flipy, (x * 16) + sx, (y * 16) + sy, 15);
+					gfx->transpen(bitmap,cliprect, tile, colr, flipy, flipy, (x * 16) + sx, (y * 16) + sy, 15);
 			}
 		}
 	}
@@ -287,24 +293,24 @@ UINT32 ddealer_state::screen_update_ddealer(screen_device &screen, bitmap_ind16 
 	{
 		if (m_vregs[0xcc / 2] & 0x80)
 		{
-			ddealer_draw_video_layer(machine(), &m_vregs[0x1e0 / 2], m_left_fg_vram_top, m_left_fg_vram_bottom, bitmap, cliprect, m_flipscreen);
-			ddealer_draw_video_layer(machine(), &m_vregs[0xcc / 2], m_right_fg_vram_top, m_right_fg_vram_bottom, bitmap, cliprect, m_flipscreen);
+			ddealer_draw_video_layer(&m_vregs[0x1e0 / 2], m_left_fg_vram_top, m_left_fg_vram_bottom, bitmap, cliprect, m_flipscreen);
+			ddealer_draw_video_layer(&m_vregs[0xcc / 2], m_right_fg_vram_top, m_right_fg_vram_bottom, bitmap, cliprect, m_flipscreen);
 		}
 		else
 		{
-			ddealer_draw_video_layer(machine(), &m_vregs[0x1e0 / 2], m_left_fg_vram_top, m_left_fg_vram_bottom, bitmap, cliprect, m_flipscreen);
+			ddealer_draw_video_layer(&m_vregs[0x1e0 / 2], m_left_fg_vram_top, m_left_fg_vram_bottom, bitmap, cliprect, m_flipscreen);
 		}
 	}
 	else
 	{
 		if (m_vregs[0xcc / 2] & 0x80)
 		{
-			ddealer_draw_video_layer(machine(), &m_vregs[0xcc / 2], m_left_fg_vram_top, m_left_fg_vram_bottom, bitmap, cliprect, m_flipscreen);
-			ddealer_draw_video_layer(machine(), &m_vregs[0x1e0 / 2], m_right_fg_vram_top, m_right_fg_vram_bottom, bitmap, cliprect, m_flipscreen);
+			ddealer_draw_video_layer(&m_vregs[0xcc / 2], m_left_fg_vram_top, m_left_fg_vram_bottom, bitmap, cliprect, m_flipscreen);
+			ddealer_draw_video_layer(&m_vregs[0x1e0 / 2], m_right_fg_vram_top, m_right_fg_vram_bottom, bitmap, cliprect, m_flipscreen);
 		}
 		else
 		{
-			ddealer_draw_video_layer(machine(), &m_vregs[0x1e0 / 2], m_left_fg_vram_top, m_left_fg_vram_bottom, bitmap, cliprect, m_flipscreen);
+			ddealer_draw_video_layer(&m_vregs[0x1e0 / 2], m_left_fg_vram_top, m_left_fg_vram_bottom, bitmap, cliprect, m_flipscreen);
 		}
 
 	}
@@ -474,7 +480,7 @@ static ADDRESS_MAP_START( ddealer, AS_PROGRAM, 16, ddealer_state )
 	AM_RANGE(0x080008, 0x080009) AM_READ_PORT("DSW1")
 	AM_RANGE(0x08000a, 0x08000b) AM_READ_PORT("UNK")
 	AM_RANGE(0x084000, 0x084003) AM_DEVWRITE8("ymsnd", ym2203_device, write, 0x00ff) // ym ?
-	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram") // palette ram
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // palette ram
 	AM_RANGE(0x08c000, 0x08cfff) AM_RAM_WRITE(ddealer_vregs_w) AM_SHARE("vregs") // palette ram
 
 	/* this might actually be 1 tilemap with some funky rowscroll / columnscroll enabled, I'm not sure */
@@ -624,7 +630,7 @@ static MACHINE_CONFIG_START( ddealer, ddealer_state )
 	// M50747 or NMK-110 8131 MCU
 
 
-	MCFG_GFXDECODE(ddealer)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ddealer)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -632,9 +638,10 @@ static MACHINE_CONFIG_START( ddealer, ddealer_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 48*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ddealer_state, screen_update_ddealer)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x400)
-
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("coinsim", ddealer_state, ddealer_mcu_sim, attotime::from_hz(10000))
 

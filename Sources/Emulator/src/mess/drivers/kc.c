@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Kevin Thacker,Sandro Ronco
 /******************************************************************************
 
     kc.c
@@ -66,13 +68,6 @@ static const z80_daisy_config kc85_daisy_chain[] =
 	{ NULL }
 };
 
-static const kcexp_interface kc85_exp_interface =
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", 0),
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_NMI),
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_HALT)
-};
-
 extern SLOT_INTERFACE_START(kc85_cart)
 	SLOT_INTERFACE("standard", KC_STANDARD) // standard 8KB ROM module
 	SLOT_INTERFACE("m006", KC_M006)         // BASIC
@@ -92,39 +87,6 @@ extern SLOT_INTERFACE_START(kc85_exp)
 SLOT_INTERFACE_END
 
 
-Z80PIO_INTERFACE( kc85_pio_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", 0),                     /* callback when change interrupt status */
-	DEVCB_DRIVER_MEMBER(kc_state, pio_porta_r),             /* port A read callback */
-	DEVCB_DRIVER_MEMBER(kc_state, pio_porta_w),             /* port A write callback */
-	DEVCB_DRIVER_LINE_MEMBER(kc_state, pio_ardy_cb),        /* portA ready active callback */
-	DEVCB_DRIVER_MEMBER(kc_state, pio_portb_r),             /* port B read callback */
-	DEVCB_DRIVER_MEMBER(kc_state, pio_portb_w),             /* port B write callback */
-	DEVCB_DRIVER_LINE_MEMBER(kc_state, pio_brdy_cb)         /* portB ready active callback */
-};
-
-Z80CTC_INTERFACE( kc85_ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", 0),
-	DEVCB_DRIVER_LINE_MEMBER(kc_state, ctc_zc0_callback),
-	DEVCB_DRIVER_LINE_MEMBER(kc_state, ctc_zc1_callback),
-	DEVCB_DRIVER_LINE_MEMBER(kc_state, video_toggle_blink_state)
-};
-
-const kc_keyb_interface kc85_keyboard_interface =
-{
-	DEVCB_DRIVER_LINE_MEMBER(kc_state, keyboard_cb)
-};
-
-static const cassette_interface kc_cassette_interface =
-{
-	kc_cassette_formats,
-	NULL,
-	CASSETTE_PLAY,
-	"kc_cass",
-	NULL
-};
-
 static MACHINE_CONFIG_START( kc85_3, kc_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, KC85_3_CLOCK)
@@ -133,19 +95,33 @@ static MACHINE_CONFIG_START( kc85_3, kc_state )
 	MCFG_CPU_CONFIG(kc85_daisy_chain)
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
-	MCFG_Z80PIO_ADD( "z80pio", KC85_3_CLOCK, kc85_pio_intf )
-	MCFG_Z80CTC_ADD( "z80ctc", KC85_3_CLOCK, kc85_ctc_intf )
+	MCFG_DEVICE_ADD("z80pio", Z80PIO, KC85_3_CLOCK)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", 0))
+	MCFG_Z80PIO_IN_PA_CB(READ8(kc_state, pio_porta_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(kc_state, pio_porta_w))
+	MCFG_Z80PIO_OUT_ARDY_CB(WRITELINE(kc_state, pio_ardy_cb))
+	MCFG_Z80PIO_IN_PB_CB(READ8(kc_state, pio_portb_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(kc_state, pio_portb_w))
+	MCFG_Z80PIO_OUT_BRDY_CB(WRITELINE(kc_state, pio_brdy_cb))
+
+	MCFG_DEVICE_ADD("z80ctc", Z80CTC, KC85_3_CLOCK)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", 0))
+	MCFG_Z80CTC_ZC0_CB(WRITELINE(kc_state, ctc_zc0_callback))
+	MCFG_Z80CTC_ZC1_CB(WRITELINE(kc_state, ctc_zc1_callback))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(kc_state, video_toggle_blink_state))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_28_37516MHz/2, 908, 0, 320, 312, 0, 256)
 	MCFG_SCREEN_UPDATE_DRIVER(kc_state, screen_update)
+	MCFG_SCREEN_PALETTE("palette")
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", kc_state, kc_scanline, "screen", 0, 1)
 
-	MCFG_PALETTE_LENGTH(KC85_PALETTE_SIZE)
-	MCFG_PALETTE_INIT_OVERRIDE(kc_state, kc85 )
+	MCFG_PALETTE_ADD("palette", KC85_PALETTE_SIZE)
+	MCFG_PALETTE_INIT_OWNER(kc_state, kc85 )
 
-	MCFG_KC_KEYBOARD_ADD("keyboard", XTAL_4MHz, kc85_keyboard_interface)
+	MCFG_DEVICE_ADD("keyboard", KC_KEYBOARD, XTAL_4MHz)
+	MCFG_KC_KEYBOARD_OUT_CALLBACK(WRITELINE(kc_state, keyboard_cb))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -157,14 +133,32 @@ static MACHINE_CONFIG_START( kc85_3, kc_state )
 	/* devices */
 	MCFG_QUICKLOAD_ADD("quickload", kc_state, kc, "kcc", 2)
 
-	MCFG_CASSETTE_ADD( "cassette", kc_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(kc_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
+	MCFG_CASSETTE_INTERFACE("kc_cass")
 
 	/* cartridge slot */
-	MCFG_KC85_CARTRIDGE_ADD("m8", "mc", kc85_exp_interface, kc85_cart, "m011")
-	MCFG_KC85_CARTRIDGE_ADD("mc", "exp", kc85_exp_interface, kc85_cart, NULL)
+	MCFG_DEVICE_ADD("m8", KCCART_SLOT, 0)
+	MCFG_DEVICE_SLOT_INTERFACE(kc85_cart, "m011", false)
+	MCFG_KCCART_SLOT_NEXT_SLOT("mc")
+	MCFG_KCCART_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
+	MCFG_KCCART_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	MCFG_KCCART_SLOT_OUT_HALT_CB(INPUTLINE("maincpu", INPUT_LINE_HALT))
+	MCFG_DEVICE_ADD("mc", KCCART_SLOT, 0)
+	MCFG_DEVICE_SLOT_INTERFACE(kc85_cart, NULL, false)
+	MCFG_KCCART_SLOT_NEXT_SLOT("exp")
+	MCFG_KCCART_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
+	MCFG_KCCART_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	MCFG_KCCART_SLOT_OUT_HALT_CB(INPUTLINE("maincpu", INPUT_LINE_HALT))
 
 	/* expansion interface */
-	MCFG_KC85_EXPANSION_ADD("exp", NULL, kc85_exp_interface, kc85_exp , NULL)
+	MCFG_DEVICE_ADD("exp", KCEXP_SLOT, 0)
+	MCFG_DEVICE_SLOT_INTERFACE(kc85_exp, NULL, false)
+	MCFG_KCCART_SLOT_NEXT_SLOT(NULL)
+	MCFG_KCCART_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
+	MCFG_KCCART_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	MCFG_KCCART_SLOT_OUT_HALT_CB(INPUTLINE("maincpu", INPUT_LINE_HALT))
 
 	/* Software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list", "kc_cart")
@@ -185,19 +179,33 @@ static MACHINE_CONFIG_START( kc85_4, kc85_4_state )
 	MCFG_CPU_CONFIG(kc85_daisy_chain)
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
-	MCFG_Z80PIO_ADD( "z80pio", KC85_4_CLOCK, kc85_pio_intf )
-	MCFG_Z80CTC_ADD( "z80ctc", KC85_4_CLOCK, kc85_ctc_intf )
+	MCFG_DEVICE_ADD("z80pio", Z80PIO, KC85_4_CLOCK)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", 0))
+	MCFG_Z80PIO_IN_PA_CB(READ8(kc_state, pio_porta_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(kc_state, pio_porta_w))
+	MCFG_Z80PIO_OUT_ARDY_CB(WRITELINE(kc_state, pio_ardy_cb))
+	MCFG_Z80PIO_IN_PB_CB(READ8(kc_state, pio_portb_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(kc_state, pio_portb_w))
+	MCFG_Z80PIO_OUT_BRDY_CB(WRITELINE(kc_state, pio_brdy_cb))
+
+	MCFG_DEVICE_ADD("z80ctc", Z80CTC, KC85_4_CLOCK)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", 0))
+	MCFG_Z80CTC_ZC0_CB(WRITELINE(kc_state, ctc_zc0_callback))
+	MCFG_Z80CTC_ZC1_CB(WRITELINE(kc_state, ctc_zc1_callback))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(kc_state, video_toggle_blink_state))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_28_37516MHz/2, 908, 0, 320, 312, 0, 256)
 	MCFG_SCREEN_UPDATE_DRIVER(kc85_4_state, screen_update)
+	MCFG_SCREEN_PALETTE("palette")
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", kc85_4_state, kc_scanline, "screen", 0, 1)
 
-	MCFG_PALETTE_LENGTH(KC85_PALETTE_SIZE)
-	MCFG_PALETTE_INIT_OVERRIDE(kc85_4_state, kc85 )
+	MCFG_PALETTE_ADD("palette", KC85_PALETTE_SIZE)
+	MCFG_PALETTE_INIT_OWNER(kc85_4_state, kc85 )
 
-	MCFG_KC_KEYBOARD_ADD("keyboard", XTAL_4MHz, kc85_keyboard_interface)
+	MCFG_DEVICE_ADD("keyboard", KC_KEYBOARD, XTAL_4MHz)
+	MCFG_KC_KEYBOARD_OUT_CALLBACK(WRITELINE(kc_state, keyboard_cb))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -209,14 +217,32 @@ static MACHINE_CONFIG_START( kc85_4, kc85_4_state )
 	/* devices */
 	MCFG_QUICKLOAD_ADD("quickload", kc_state, kc, "kcc", 2)
 
-	MCFG_CASSETTE_ADD( "cassette", kc_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(kc_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
+	MCFG_CASSETTE_INTERFACE("kc_cass")
 
 	/* cartridge slot */
-	MCFG_KC85_CARTRIDGE_ADD("m8", "mc", kc85_exp_interface, kc85_cart, NULL)
-	MCFG_KC85_CARTRIDGE_ADD("mc", "exp", kc85_exp_interface, kc85_cart, NULL)
+	MCFG_DEVICE_ADD("m8", KCCART_SLOT, 0)
+	MCFG_DEVICE_SLOT_INTERFACE(kc85_cart, "m011", false)
+	MCFG_KCCART_SLOT_NEXT_SLOT("mc")
+	MCFG_KCCART_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
+	MCFG_KCCART_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	MCFG_KCCART_SLOT_OUT_HALT_CB(INPUTLINE("maincpu", INPUT_LINE_HALT))
+	MCFG_DEVICE_ADD("mc", KCCART_SLOT, 0)
+	MCFG_DEVICE_SLOT_INTERFACE(kc85_cart, NULL, false)
+	MCFG_KCCART_SLOT_NEXT_SLOT("exp")
+	MCFG_KCCART_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
+	MCFG_KCCART_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	MCFG_KCCART_SLOT_OUT_HALT_CB(INPUTLINE("maincpu", INPUT_LINE_HALT))
 
 	/* expansion interface */
-	MCFG_KC85_EXPANSION_ADD("exp", NULL, kc85_exp_interface, kc85_exp , NULL)
+	MCFG_DEVICE_ADD("exp", KCEXP_SLOT, 0)
+	MCFG_DEVICE_SLOT_INTERFACE(kc85_exp, NULL, false)
+	MCFG_KCCART_SLOT_NEXT_SLOT(NULL)
+	MCFG_KCCART_SLOT_OUT_IRQ_CB(INPUTLINE("maincpu", 0))
+	MCFG_KCCART_SLOT_OUT_NMI_CB(INPUTLINE("maincpu", INPUT_LINE_NMI))
+	MCFG_KCCART_SLOT_OUT_HALT_CB(INPUTLINE("maincpu", INPUT_LINE_HALT))
 
 	/* Software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list", "kc_cart")

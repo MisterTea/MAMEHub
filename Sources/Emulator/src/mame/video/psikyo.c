@@ -74,8 +74,7 @@ Offset:
 TILE_GET_INFO_MEMBER(psikyo_state::get_tile_info_0)
 {
 	UINT16 code = ((UINT16 *)m_vram_0.target())[BYTE_XOR_BE(tile_index)];
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			(code & 0x1fff) + 0x2000 * m_tilemap_0_bank,
 			(code >> 13) & 7,
 			0);
@@ -84,8 +83,7 @@ TILE_GET_INFO_MEMBER(psikyo_state::get_tile_info_0)
 TILE_GET_INFO_MEMBER(psikyo_state::get_tile_info_1)
 {
 	UINT16 code = ((UINT16 *)m_vram_1.target())[BYTE_XOR_BE(tile_index)];
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			(code & 0x1fff) + 0x2000 * m_tilemap_1_bank,
 			((code >> 13) & 7) + 0x40, // So we only have to decode the gfx once.
 			0);
@@ -158,15 +156,15 @@ VIDEO_START_MEMBER(psikyo_state,psikyo)
 	/* The Hardware is Capable of Changing the Dimensions of the Tilemaps, its safer to create
 	   the various sized tilemaps now as opposed to later */
 
-	m_tilemap_0_size0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x80);
-	m_tilemap_0_size1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, 0x40, 0x40);
-	m_tilemap_0_size2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, 0x80, 0x20);
-	m_tilemap_0_size3 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, 0x100, 0x10);
+	m_tilemap_0_size0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x80);
+	m_tilemap_0_size1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, 0x40, 0x40);
+	m_tilemap_0_size2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, 0x80, 0x20);
+	m_tilemap_0_size3 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, 0x100, 0x10);
 
-	m_tilemap_1_size0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x80);
-	m_tilemap_1_size1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, 0x40, 0x40);
-	m_tilemap_1_size2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, 0x80, 0x20);
-	m_tilemap_1_size3 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, 0x100, 0x10);
+	m_tilemap_1_size0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x80);
+	m_tilemap_1_size1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, 0x40, 0x40);
+	m_tilemap_1_size2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, 0x80, 0x20);
+	m_tilemap_1_size3 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(psikyo_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, 0x100, 0x10);
 
 	m_spritebuf1 = auto_alloc_array(machine(), UINT32, 0x2000 / 4);
 	m_spritebuf2 = auto_alloc_array(machine(), UINT32, 0x2000 / 4);
@@ -343,7 +341,7 @@ void psikyo_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, co
 				int addr = (code * 2) & (TILES_LEN - 1);
 
 				if (zoomx == 32 && zoomy == 32)
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+					m_gfxdecode->gfx(0)->prio_transpen(bitmap,cliprect,
 							TILES[addr+1] * 256 + TILES[addr],
 							attr >> 8,
 							flipx, flipy,
@@ -351,7 +349,7 @@ void psikyo_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, co
 							screen.priority(),
 							pri[(attr & 0xc0) >> 6],trans_pen);
 				else
-					pdrawgfxzoom_transpen(bitmap,cliprect,machine().gfx[0],
+					m_gfxdecode->gfx(0)->prio_zoom_transpen(bitmap,cliprect,
 								TILES[addr+1] * 256 + TILES[addr],
 								attr >> 8,
 								flipx, flipy,
@@ -462,7 +460,7 @@ void psikyo_state::draw_sprites_bootleg( screen_device &screen, bitmap_ind16 &bi
 				int addr = (code * 2) & (TILES_LEN-1);
 
 				if (zoomx == 32 && zoomy == 32)
-					pdrawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+					m_gfxdecode->gfx(0)->prio_transpen(bitmap,cliprect,
 							TILES[addr+1] * 256 + TILES[addr],
 							attr >> 8,
 							flipx, flipy,
@@ -470,7 +468,7 @@ void psikyo_state::draw_sprites_bootleg( screen_device &screen, bitmap_ind16 &bi
 							screen.priority(),
 							pri[(attr & 0xc0) >> 6],trans_pen);
 				else
-					pdrawgfxzoom_transpen(bitmap,cliprect,machine().gfx[0],
+					m_gfxdecode->gfx(0)->prio_zoom_transpen(bitmap,cliprect,
 								TILES[addr+1] * 256 + TILES[addr],
 								attr >> 8,
 								flipx, flipy,
@@ -655,7 +653,7 @@ UINT32 psikyo_state::screen_update_psikyo(screen_device &screen, bitmap_ind16 &b
 	m_tilemap_1_size2->set_transparent_pen((layer1_ctrl & 8 ? 0 : 15));
 	m_tilemap_1_size3->set_transparent_pen((layer1_ctrl & 8 ? 0 : 15));
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	screen.priority().fill(0, cliprect);
 
@@ -828,7 +826,7 @@ UINT32 psikyo_state::screen_update_psikyo_bootleg(screen_device &screen, bitmap_
 	m_tilemap_1_size2->set_transparent_pen((layer1_ctrl & 8 ? 0 : 15));
 	m_tilemap_1_size3->set_transparent_pen((layer1_ctrl & 8 ? 0 : 15));
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	screen.priority().fill(0, cliprect);
 

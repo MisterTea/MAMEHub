@@ -12,7 +12,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_dac(*this, "dac"),
-		m_ymsnd(*this, "ymsnd")
+		m_ymsnd(*this, "ymsnd"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 	{
 	}
 
@@ -47,6 +49,8 @@ public:
 	optional_device<cpu_device> m_audiocpu;
 	optional_device<dac_device> m_dac;
 	optional_device<ym2203_device> m_ymsnd;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 	sn76489a_device *m_sn;
 	UINT8 m_prot_data;
 	DECLARE_READ8_MEMBER(mrokumei_keyboard_r);

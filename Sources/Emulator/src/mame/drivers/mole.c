@@ -58,25 +58,31 @@ class mole_state : public driver_device
 public:
 	mole_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode")
+	{ }
+
+	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 
 	/* video-related */
-	tilemap_t    *m_bg_tilemap;
-	int          m_tile_bank;
+	tilemap_t *m_bg_tilemap;
+	int m_tile_bank;
 
 	/* memory */
-	UINT16       m_tileram[0x400];
+	UINT16 m_tileram[0x400];
+
 	DECLARE_WRITE8_MEMBER(mole_tileram_w);
 	DECLARE_WRITE8_MEMBER(mole_tilebank_w);
+	DECLARE_WRITE8_MEMBER(mole_irqack_w);
 	DECLARE_WRITE8_MEMBER(mole_flipscreen_w);
 	DECLARE_READ8_MEMBER(mole_protection_r);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(mole);
 	UINT32 screen_update_mole(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -86,12 +92,10 @@ public:
  *
  *************************************/
 
-void mole_state::palette_init()
+PALETTE_INIT_MEMBER(mole_state, mole)
 {
-	int i;
-
-	for (i = 0; i < 8; i++)
-		palette_set_color_rgb(machine(), i, pal1bit(i >> 0), pal1bit(i >> 2), pal1bit(i >> 1));
+	for (int i = 0; i < 8; i++)
+		palette.set_pen_color(i, pal1bit(i >> 0), pal1bit(i >> 2), pal1bit(i >> 1));
 }
 
 TILE_GET_INFO_MEMBER(mole_state::get_bg_tile_info)
@@ -104,7 +108,7 @@ TILE_GET_INFO_MEMBER(mole_state::get_bg_tile_info)
 void mole_state::video_start()
 {
 	memset(m_tileram, 0, sizeof(m_tileram));
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mole_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 40, 25);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mole_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 40, 25);
 
 	save_item(NAME(m_tileram));
 }
@@ -118,6 +122,11 @@ WRITE8_MEMBER(mole_state::mole_tileram_w)
 WRITE8_MEMBER(mole_state::mole_tilebank_w)
 {
 	m_tile_bank = data;
+}
+
+WRITE8_MEMBER(mole_state::mole_irqack_w)
+{
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 WRITE8_MEMBER(mole_state::mole_flipscreen_w)
@@ -144,11 +153,11 @@ READ8_MEMBER(mole_state::mole_protection_r)
 	/*  Following are all known examples of Mole Attack
 	**  code reading from the protection circuitry:
 	**
-	**  5b0b:
+	**  5b09:
 	**  ram[0x0361] = (ram[0x885+ram[0x8a5])&ram[0x886]
 	**  ram[0x0363] = ram[0x886]
 	**
-	**  53c9:
+	**  53c7:
 	**  ram[0xe0] = ram[0x800]+ram[0x802]+ram[0x804]
 	**  ram[0xea] = ram[0x828]
 	**
@@ -166,12 +175,12 @@ READ8_MEMBER(mole_state::mole_protection_r)
 	{
 	case 0x08: return 0xb0; /* random mole placement */
 	case 0x26:
-		if (space.device().safe_pc() == 0x53d7)
+		if (space.device().safe_pc() == 0x53d5)
 		{
 			return 0x06; /* bonus round */
 		}
 		else
-		{ // pc == 0x515b, 0x5162
+		{ // pc == 0x5159, 0x5160
 			return 0xc6; /* game start */
 		}
 	case 0x86: return 0x91; /* game over */
@@ -206,7 +215,7 @@ static ADDRESS_MAP_START( mole_map, AS_PROGRAM, 8, mole_state )
 	AM_RANGE(0x8c40, 0x8c40) AM_WRITENOP // ???
 	AM_RANGE(0x8c80, 0x8c80) AM_WRITENOP // ???
 	AM_RANGE(0x8c81, 0x8c81) AM_WRITENOP // ???
-	AM_RANGE(0x8d00, 0x8d00) AM_READ_PORT("DSW") AM_WRITE(watchdog_reset_w)
+	AM_RANGE(0x8d00, 0x8d00) AM_READ_PORT("DSW") AM_WRITE(mole_irqack_w)
 	AM_RANGE(0x8d40, 0x8d40) AM_READ_PORT("IN0")
 	AM_RANGE(0x8d80, 0x8d80) AM_READ_PORT("IN1")
 	AM_RANGE(0x8dc0, 0x8dc0) AM_READ_PORT("IN2") AM_WRITE(mole_flipscreen_w)
@@ -317,20 +326,20 @@ static MACHINE_CONFIG_START( mole, mole_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6502, 4000000) // ???
 	MCFG_CPU_PROGRAM_MAP(mole_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", mole_state,  irq0_line_hold)
-
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", mole_state, irq0_line_assert)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
+	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_SIZE(40*8, 25*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 25*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mole_state, screen_update_mole)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mole)
-	MCFG_PALETTE_LENGTH(8)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mole)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(mole_state, mole)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

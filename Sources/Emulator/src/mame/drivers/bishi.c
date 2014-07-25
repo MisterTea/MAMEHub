@@ -122,7 +122,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(bishi_state::bishi_scanline)
 /* compensate for a bug in the ram/rom test */
 READ16_MEMBER(bishi_state::bishi_mirror_r)
 {
-	return m_generic_paletteram_16[offset];
+	return m_palette->basemem().read16(offset);
 }
 
 READ16_MEMBER(bishi_state::bishi_K056832_rom_r)
@@ -151,10 +151,10 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, bishi_state )
 	AM_RANGE(0x830000, 0x83003f) AM_DEVWRITE("k056832", k056832_device, word_w)
 	AM_RANGE(0x840000, 0x840007) AM_DEVWRITE("k056832", k056832_device, b_word_w)    // VSCCS
 	AM_RANGE(0x850000, 0x85001f) AM_DEVWRITE("k054338", k054338_device, word_w)  // CLTC
-	AM_RANGE(0x870000, 0x8700ff) AM_DEVWRITE("k055555", k055555_device, k055555_word_w)  // PCU2
+	AM_RANGE(0x870000, 0x8700ff) AM_DEVWRITE("k055555", k055555_device, K055555_word_w)  // PCU2
 	AM_RANGE(0x880000, 0x880003) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0xff00)
 	AM_RANGE(0xa00000, 0xa01fff) AM_DEVREADWRITE("k056832", k056832_device, ram_word_r, ram_word_w)  // Graphic planes
-	AM_RANGE(0xb00000, 0xb03fff) AM_RAM_WRITE(paletteram_xbgr_word_be_w) AM_SHARE("paletteram")
+	AM_RANGE(0xb00000, 0xb03fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xb04000, 0xb047ff) AM_READ(bishi_mirror_r)    // bug in the ram/rom test?
 	AM_RANGE(0xc00000, 0xc01fff) AM_READ(bishi_K056832_rom_r)
 ADDRESS_MAP_END
@@ -363,21 +363,6 @@ WRITE_LINE_MEMBER(bishi_state::sound_irq_gen)
 }
 
 
-static const k056832_interface bishi_k056832_intf =
-{
-	"gfx1", 0,
-	K056832_BPP_8,
-	1, 0,
-	KONAMI_ROM_DEINTERLEAVE_NONE,
-	bishi_tile_callback, "none"
-};
-
-static const k054338_interface bishi_k054338_intf =
-{
-	0,
-	"none"
-};
-
 void bishi_state::machine_start()
 {
 	save_item(NAME(m_cur_control));
@@ -397,22 +382,31 @@ static MACHINE_CONFIG_START( bishi, bishi_state )
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", bishi_state, bishi_scanline, "screen", 0, 1)
 
-
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS | VIDEO_HAS_HIGHLIGHTS | VIDEO_UPDATE_AFTER_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(1200))
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(29, 29+288-1, 16, 16+224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(bishi_state, screen_update_bishi)
 
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_PALETTE_ADD("palette", 4096)
+	MCFG_PALETTE_FORMAT(XBGR)
+	MCFG_PALETTE_ENABLE_SHADOWS()
+	MCFG_PALETTE_ENABLE_HILIGHTS()
 
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
 
-	MCFG_K056832_ADD("k056832", bishi_k056832_intf)
-	MCFG_K054338_ADD("k054338", bishi_k054338_intf)
+	MCFG_DEVICE_ADD("k056832", K056832, 0)
+	MCFG_K056832_CB(bishi_state, tile_callback)
+	MCFG_K056832_CONFIG("gfx1", 0, K056832_BPP_8, 1, 0, "none")
+	MCFG_K056832_GFXDECODE("gfxdecode")
+	MCFG_K056832_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("k054338", K054338, 0)
+	// FP 201404: any reason why this is not connected to the k055555 below?
+
 	MCFG_K055555_ADD("k055555")
 
 	/* sound hardware */

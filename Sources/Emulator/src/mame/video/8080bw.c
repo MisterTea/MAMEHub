@@ -31,14 +31,14 @@ PALETTE_INIT_MEMBER(_8080bw_state,rollingc)
 	// palette is 3bpp + intensity
 	for (int i = 0; i < 8; i++)
 	{
-		palette_set_color_rgb(machine(), i, pal1bit(i >> 2) >> 1, pal1bit(i >> 1) >> 1, pal1bit(i >> 0) >> 1);
-		palette_set_color_rgb(machine(), i | 8, pal1bit(i >> 2), pal1bit(i >> 1), pal1bit(i >> 0));
+		palette.set_pen_color(i, pal1bit(i >> 2) >> 1, pal1bit(i >> 1) >> 1, pal1bit(i >> 0) >> 1);
+		palette.set_pen_color(i | 8, pal1bit(i >> 2), pal1bit(i >> 1), pal1bit(i >> 0));
 	}
 
 	// but according to photos, pen 6 is clearly orange instead of dark-yellow, and pen 5 is less dark as well
 	// pens 1, 2 and 4 are good though. Maybe we're missing a color prom?
-	palette_set_color_rgb(machine(), 0x05, 0xff, 0x00, 0x80); // pink
-	palette_set_color_rgb(machine(), 0x06, 0xff, 0x80, 0x00); // orange
+	palette.set_pen_color(0x05, 0xff, 0x00, 0x80); // pink
+	palette.set_pen_color(0x06, 0xff, 0x80, 0x00); // orange
 }
 
 
@@ -48,7 +48,7 @@ void _8080bw_state::invadpt2_get_pens( pen_t *pens )
 
 	for (i = 0; i < NUM_PENS; i++)
 	{
-		pens[i] = MAKE_RGB(pal1bit(i >> 0), pal1bit(i >> 2), pal1bit(i >> 1));
+		pens[i] = rgb_t(pal1bit(i >> 0), pal1bit(i >> 2), pal1bit(i >> 1));
 	}
 }
 
@@ -57,11 +57,11 @@ void _8080bw_state::sflush_get_pens( pen_t *pens )
 {
 	offs_t i;
 
-	pens[0] = MAKE_RGB(0x80, 0x80, 0xff);
+	pens[0] = rgb_t(0x80, 0x80, 0xff);
 
 	for (i = 1; i < NUM_PENS; i++)
 	{
-		pens[i] = MAKE_RGB(pal1bit(i >> 0), pal1bit(i >> 2), pal1bit(i >> 1));
+		pens[i] = rgb_t(pal1bit(i >> 0), pal1bit(i >> 2), pal1bit(i >> 1));
 	}
 }
 
@@ -72,7 +72,7 @@ void _8080bw_state::cosmo_get_pens( pen_t *pens )
 
 	for (i = 0; i < NUM_PENS; i++)
 	{
-		pens[i] = MAKE_RGB(pal1bit(i >> 0), pal1bit(i >> 1), pal1bit(i >> 2));
+		pens[i] = rgb_t(pal1bit(i >> 0), pal1bit(i >> 1), pal1bit(i >> 2));
 	}
 }
 
@@ -264,10 +264,10 @@ UINT32 _8080bw_state::screen_update_rollingc(screen_device &screen, bitmap_rgb32
 		UINT8 fore_color = m_colorram[offs & 0x1f1f] & 0x0f;
 		UINT8 back_color = m_colorram2[offs & 0x1f1f] & 0x0f;
 
-		set_8_pixels(bitmap, y, x, data, machine().pens, fore_color, back_color);
+		set_8_pixels(bitmap, y, x, data, m_palette->pens(), fore_color, back_color);
 	}
 
-	clear_extra_columns(bitmap, machine().pens, 0);
+	clear_extra_columns(bitmap, m_palette->pens(), 0);
 
 	return 0;
 }
@@ -451,7 +451,7 @@ UINT32 _8080bw_state::screen_update_sflush(screen_device &screen, bitmap_rgb32 &
 
 UINT32 _8080bw_state::screen_update_shuttlei(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	pen_t pens[2] = { RGB_BLACK, RGB_WHITE };
+	pen_t pens[2] = { rgb_t::black, rgb_t::white };
 	offs_t offs;
 
 	for (offs = 0; offs < m_main_ram.bytes(); offs++)
@@ -479,7 +479,7 @@ UINT32 _8080bw_state::screen_update_shuttlei(screen_device &screen, bitmap_rgb32
 
 UINT32 _8080bw_state::screen_update_spacecom(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	pen_t pens[2] = { RGB_BLACK, RGB_WHITE };
+	pen_t pens[2] = { rgb_t::black, rgb_t::white };
 	offs_t offs;
 
 	for (offs = 0; offs < 0x1c00; offs++)

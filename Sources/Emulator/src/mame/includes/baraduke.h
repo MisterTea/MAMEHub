@@ -9,7 +9,9 @@ public:
 		m_videoram(*this, "videoram"),
 		m_textram(*this, "textram"),
 		m_maincpu(*this, "maincpu"),
-		m_cus30(*this, "namco") { }
+		m_cus30(*this, "namco"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	int m_inputport_selected;
 	int m_counter;
@@ -18,6 +20,8 @@ public:
 	required_shared_ptr<UINT8> m_textram;
 	required_device<cpu_device> m_maincpu;
 	required_device<namco_cus30_device> m_cus30;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 	tilemap_t *m_tx_tilemap;
 	tilemap_t *m_bg_tilemap[2];
 	int m_xscroll[2];
@@ -43,7 +47,7 @@ public:
 	TILE_GET_INFO_MEMBER(get_tile_info0);
 	TILE_GET_INFO_MEMBER(get_tile_info1);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(baraduke);
 	UINT32 screen_update_baraduke(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_baraduke(screen_device &screen, bool state);
 	void scroll_w(address_space &space, int layer, int offset, int data);

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /***************************************************************************
 
     Explorer 85
@@ -27,15 +29,11 @@
 */
 
 
-#include "emu.h"
+#include "includes/exp85.h"
 #include "cpu/i8085/i8085.h"
-#include "imagedev/cassette.h"
 #include "machine/i8155.h"
 #include "machine/i8355.h"
-#include "machine/terminal.h"
-#include "sound/speaker.h"
 #include "machine/ram.h"
-#include "includes/exp85.h"
 
 /* Memory Maps */
 
@@ -73,19 +71,6 @@ static INPUT_PORTS_START( exp85 )
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("R") PORT_CODE(KEYCODE_F1) PORT_CHANGED_MEMBER(DEVICE_SELF, exp85_state, trigger_reset, 0)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("I") PORT_CODE(KEYCODE_F2) PORT_CHANGED_MEMBER(DEVICE_SELF, exp85_state, trigger_rst75, 0)
 INPUT_PORTS_END
-
-/* 8155 Interface */
-
-static I8155_INTERFACE( i8155_intf )
-{
-	DEVCB_NULL, /* port A read */
-	DEVCB_NULL, /* port A write */
-	DEVCB_NULL, /* port B read */
-	DEVCB_NULL, /* port B write */
-	DEVCB_NULL, /* port C read */
-	DEVCB_NULL, /* port C write */
-	DEVCB_NULL  /* timer output */
-};
 
 /* 8355 Interface */
 
@@ -133,14 +118,6 @@ WRITE8_MEMBER( exp85_state::i8355_a_w )
 	m_speaker->level_w(!BIT(data, 7));
 }
 
-static I8355_INTERFACE( i8355_intf )
-{
-	DEVCB_DRIVER_MEMBER(exp85_state, i8355_a_r),
-	DEVCB_DRIVER_MEMBER(exp85_state, i8355_a_w),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 /* I8085A Interface */
 
 READ_LINE_MEMBER( exp85_state::sid_r )
@@ -153,7 +130,7 @@ READ_LINE_MEMBER( exp85_state::sid_r )
 	}
 	else
 	{
-		data = m_terminal->tx_r();
+		data = m_rs232->rxd_r();
 	}
 
 	return data;
@@ -167,21 +144,20 @@ WRITE_LINE_MEMBER( exp85_state::sod_w )
 	}
 	else
 	{
-		m_terminal->rx_w(state);
+		m_rs232->write_txd(state);
 	}
 }
 
 /* Terminal Interface */
 
 static DEVICE_INPUT_DEFAULTS_START( terminal )
-	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x0f, 0x06 ) // 9600
-	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x30, 0x10 ) // 7E1
+	DEVICE_INPUT_DEFAULTS( "RS232_TXBAUD", 0xff, RS232_BAUD_9600 )
+	DEVICE_INPUT_DEFAULTS( "RS232_RXBAUD", 0xff, RS232_BAUD_9600 )
+	DEVICE_INPUT_DEFAULTS( "RS232_STARTBITS", 0xff, RS232_STARTBITS_1 )
+	DEVICE_INPUT_DEFAULTS( "RS232_DATABITS", 0xff, RS232_DATABITS_7 )
+	DEVICE_INPUT_DEFAULTS( "RS232_PARITY", 0xff, RS232_PARITY_EVEN )
+	DEVICE_INPUT_DEFAULTS( "RS232_STOPBITS", 0xff, RS232_STOPBITS_1 )
 DEVICE_INPUT_DEFAULTS_END
-
-static const serial_terminal_interface terminal_intf =
-{
-	DEVCB_NULL
-};
 
 /* Machine Initialization */
 
@@ -199,15 +175,6 @@ void exp85_state::machine_start()
 
 /* Machine Driver */
 
-static const cassette_interface exp85_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED),
-	NULL,
-	NULL
-};
-
 static MACHINE_CONFIG_START( exp85, exp85_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD(I8085A_TAG, I8085A, XTAL_6_144MHz)
@@ -222,11 +189,16 @@ static MACHINE_CONFIG_START( exp85, exp85_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_I8155_ADD(I8155_TAG, XTAL_6_144MHz/2, i8155_intf)
-	MCFG_I8355_ADD(I8355_TAG, XTAL_6_144MHz/2, i8355_intf)
-	MCFG_CASSETTE_ADD("cassette", exp85_cassette_interface)
-	MCFG_SERIAL_TERMINAL_ADD(TERMINAL_TAG, terminal_intf, 9600)
-	MCFG_DEVICE_INPUT_DEFAULTS(terminal)
+	MCFG_DEVICE_ADD(I8155_TAG, I8155, XTAL_6_144MHz/2)
+
+	MCFG_DEVICE_ADD(I8355_TAG, I8355, XTAL_6_144MHz/2)
+	MCFG_I8355_IN_PA_CB(READ8(exp85_state, i8355_a_r))
+	MCFG_I8355_OUT_PA_CB(WRITE8(exp85_state, i8355_a_w))
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
+
+	MCFG_RS232_PORT_ADD("rs232", default_rs232_devices, "terminal")
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("terminal", terminal)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

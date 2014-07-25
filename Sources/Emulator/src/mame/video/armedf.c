@@ -50,8 +50,7 @@ TILE_GET_INFO_MEMBER(armedf_state::get_nb1414m4_tx_tile_info)
 	/* bit 3 controls priority, (0) nb1414m4 has priority over all the other video layers */
 	tileinfo.category = (attributes & 0x8) >> 3;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile_number + 256 * (attributes & 0x3),
 			attributes >> 4,
 			0);
@@ -76,8 +75,7 @@ TILE_GET_INFO_MEMBER(armedf_state::get_armedf_tx_tile_info)
 	/* bit 3 controls priority, (0) nb1414m4 has priority over all the other video layers */
 	tileinfo.category = (attributes & 0x8) >> 3;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile_number + 256 * (attributes & 0x3),
 			attributes >> 4,
 			0);
@@ -87,8 +85,7 @@ TILE_GET_INFO_MEMBER(armedf_state::get_armedf_tx_tile_info)
 TILE_GET_INFO_MEMBER(armedf_state::get_fg_tile_info)
 {
 	int data = m_fg_videoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			data&0x7ff,
 			data>>11,
 			0);
@@ -98,8 +95,7 @@ TILE_GET_INFO_MEMBER(armedf_state::get_fg_tile_info)
 TILE_GET_INFO_MEMBER(armedf_state::get_bg_tile_info)
 {
 	int data = m_bg_videoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			2,
+	SET_TILE_INFO_MEMBER(2,
 			data & 0x3ff,
 			data >> 11,
 			0);
@@ -117,10 +113,10 @@ VIDEO_START_MEMBER(armedf_state,terraf)
 {
 	m_sprite_offy = (m_scroll_type & 2 ) ? 0 : 128;  /* legion, legiono, crazy climber 2 */
 
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(armedf_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(armedf_state::get_fg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(armedf_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(armedf_state::get_fg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 32);
 
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(armedf_state::get_nb1414m4_tx_tile_info),this),
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(armedf_state::get_nb1414m4_tx_tile_info),this),
 		(m_scroll_type == 2) ? tilemap_mapper_delegate(FUNC(armedf_state::armedf_scan_type3),this) : tilemap_mapper_delegate(FUNC(armedf_state::armedf_scan_type2),this), 8, 8, 64, 32);
 
 	m_bg_tilemap->set_transparent_pen(0xf);
@@ -132,16 +128,18 @@ VIDEO_START_MEMBER(armedf_state,terraf)
 
 	m_text_videoram = auto_alloc_array(machine(), UINT8, 0x1000);
 	memset(m_text_videoram, 0x00, 0x1000);
+
+	save_pointer(NAME(m_text_videoram), 0x1000);
 }
 
 VIDEO_START_MEMBER(armedf_state,armedf)
 {
 	m_sprite_offy = (m_scroll_type & 2 ) ? 0 : 128;  /* legion, legiono, crazy climber 2 */
 
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(armedf_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(armedf_state::get_fg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(armedf_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(armedf_state::get_fg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 32);
 
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(armedf_state::get_armedf_tx_tile_info),this), tilemap_mapper_delegate(FUNC(armedf_state::armedf_scan_type1),this), 8, 8, 64, 32);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(armedf_state::get_armedf_tx_tile_info),this), tilemap_mapper_delegate(FUNC(armedf_state::armedf_scan_type1),this), 8, 8, 64, 32);
 
 	m_bg_tilemap->set_transparent_pen(0xf);
 	m_fg_tilemap->set_transparent_pen(0xf);
@@ -152,6 +150,8 @@ VIDEO_START_MEMBER(armedf_state,armedf)
 
 	m_text_videoram = auto_alloc_array(machine(), UINT8, 0x1000);
 	memset(m_text_videoram, 0x00, 0x1000);
+
+	save_pointer(NAME(m_text_videoram), 0x1000);
 }
 
 /***************************************************************************
@@ -260,7 +260,7 @@ void armedf_state::armedf_drawgfx(bitmap_ind16 &dest_bmp,const rectangle &clip,g
 							UINT32 code,UINT32 color, UINT32 clut,int flipx,int flipy,int offsx,int offsy,
 							int transparent_color)
 {
-	const pen_t *pal = &gfx->machine().pens[gfx->colorbase() + gfx->granularity() * (color % gfx->colors())];
+	const pen_t *pal = &m_palette->pen(gfx->colorbase() + gfx->granularity() * (color % gfx->colors()));
 	const UINT8 *source_base = gfx->get_data(code % gfx->elements());
 	int x_index_base, y_index, sx, sy, ex, ey;
 	int xinc, yinc;
@@ -351,7 +351,7 @@ void armedf_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 
 		if (((buffered_spriteram[offs + 0] & 0x3000) >> 12) == priority)
 		{
-			armedf_drawgfx(bitmap,cliprect,machine().gfx[3],
+			armedf_drawgfx(bitmap,cliprect,m_gfxdecode->gfx(3),
 				code & 0xfff,
 				color,clut,
 				flipx,flipy,

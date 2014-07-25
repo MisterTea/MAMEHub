@@ -440,23 +440,6 @@ static GFXDECODE_START( pingpong )
 GFXDECODE_END
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( pingpong, pingpong_state )
 
 	/* basic machine hardware */
@@ -471,17 +454,18 @@ static MACHINE_CONFIG_START( pingpong, pingpong_state )
 	MCFG_SCREEN_SIZE(456, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pingpong_state, screen_update_pingpong)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pingpong)
-	MCFG_PALETTE_LENGTH(64*4+64*4)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pingpong)
+	MCFG_PALETTE_ADD("palette", 64*4+64*4)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(pingpong_state, pingpong)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("snsnd", SN76496, 18432000/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 /* too fast! */

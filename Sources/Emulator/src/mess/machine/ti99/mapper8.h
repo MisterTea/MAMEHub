@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Michael Zapf
 /****************************************************************************
 
     TI-99/8 Address decoder and mapper
@@ -14,10 +16,12 @@
 #define __MAPPER8__
 
 #include "emu.h"
-#include "peribox.h"
 #include "ti99defs.h"
 
-extern const device_type MAPPER8;
+extern const device_type MAINBOARD8;
+extern const device_type OSO;
+
+#define OSO_TAG "oso"
 
 #define NATIVE 0
 #define TI99EM 1
@@ -28,24 +32,25 @@ extern const device_type MAPPER8;
 
 #define SRAMNAME "SRAM"
 #define ROM0NAME "ROM0"
-#define ROM1NAME "ROM1"
-#define ROM1ANAME "ROM1A"
+#define ROM1A0NAME "ROM1A"
+#define ROM1C0NAME "ROM1C"
 #define INTSNAME "INTS"
 #define DRAMNAME "DRAM"
+#define PCODENAME "PCODE"
 
 #define SRAM_SIZE 2048
 #define DRAM_SIZE 65536
 
-// Pseudo devices which are not implemented by a proper device. We use these
-// constants in the read/write functions.
+// We use these constants in the read/write functions.
 enum mapper8_device_kind
 {
 	MAP8_UNDEF = 0,
 	MAP8_SRAM,
 	MAP8_ROM0,
-	MAP8_ROM1,
-	MAP8_ROM1A,
+	MAP8_ROM1A0,
+	MAP8_ROM1C0,
 	MAP8_DRAM,
+	MAP8_PCODE,
 	MAP8_INTS,
 	MAP8_DEV        // device by name
 };
@@ -63,9 +68,11 @@ struct mapper8_list_entry
 #define MAPPER8_CONFIG(name) \
 	const mapper8_config(name) =
 
+#define MCFG_MAINBOARD8_READY_CALLBACK(_write) \
+	devcb = &mainboard8_device::set_ready_wr_callback(*device, DEVCB_##_write);
+
 struct mapper8_config
 {
-	devcb_write_line                ready;
 	const mapper8_list_entry        *devlist;
 };
 
@@ -75,7 +82,7 @@ struct mapper8_config
 class logically_addressed_device
 {
 	friend class simple_list<logically_addressed_device>;
-	friend class ti998_mapper_device;
+	friend class mainboard8_device;
 
 public:
 	logically_addressed_device(mapper8_device_kind kind, device_t *busdevice, const mapper8_list_entry &entry)
@@ -94,7 +101,7 @@ private:
 class physically_addressed_device
 {
 	friend class simple_list<physically_addressed_device>;
-	friend class ti998_mapper_device;
+	friend class mainboard8_device;
 
 public:
 	physically_addressed_device(mapper8_device_kind kind, device_t *busdevice, const mapper8_list_entry &entry)
@@ -108,20 +115,42 @@ private:
 };
 
 /*
-    Main class
+    Custom chip: OSO
 */
-class ti998_mapper_device : public bus8z_device
+class ti998_oso_device : public device_t
 {
 public:
-	ti998_mapper_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	ti998_oso_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	DECLARE_READ8_MEMBER( read );
+	DECLARE_WRITE8_MEMBER( write );
+	void device_start();
+
+private:
+	UINT8 m_data;
+	UINT8 m_status;
+	UINT8 m_control;
+	UINT8 m_xmit;
+};
+
+
+/*
+    Main class
+*/
+class mainboard8_device : public bus8z_device
+{
+public:
+	mainboard8_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	template<class _Object> static devcb_base &set_ready_wr_callback(device_t &device, _Object object) { return downcast<mainboard8_device &>(device).m_ready.set_callback(object); }
+
 	DECLARE_READ8_MEMBER( readm);       // used from address map
 	DECLARE_WRITE8_MEMBER( writem );    // used from address map
 
 	DECLARE_READ8Z_MEMBER( readz );
 	DECLARE_WRITE8_MEMBER( write );
 
-	void crureadz(offs_t offset, UINT8 *value);
-	void cruwrite(offs_t offset, UINT8 data);
+	DECLARE_READ8Z_MEMBER(crureadz);
+	DECLARE_WRITE8_MEMBER(cruwrite);
 
 	void CRUS_set(bool state);
 	void PTGE_set(bool state);
@@ -129,8 +158,9 @@ public:
 	void clock_in(int state);
 
 protected:
-	virtual void device_start(void);
-	virtual void device_reset(void);
+	void device_start(void);
+	void device_reset(void);
+	machine_config_constructor device_mconfig_additions() const;
 
 private:
 	bool access_logical_r(address_space& space, offs_t offset, UINT8 *value, UINT8 mem_mask );
@@ -140,7 +170,7 @@ private:
 	void mapwrite(int offset, UINT8 data);
 
 	// Ready line to the CPU
-	devcb_resolved_write_line m_ready;
+	devcb_write_line m_ready;
 
 	// All devices that are attached to the 16-bit address bus.
 	simple_list<logically_addressed_device> m_logcomp;
@@ -150,6 +180,9 @@ private:
 
 	// Select bit for the internal DSR.
 	bool    m_dsr_selected;
+
+	// Select bit for the Hexbus DSR.
+	bool    m_hexbus_selected;
 
 	// 99/4A compatibility mode. Name is taken from the spec. If 1, 99/4A compatibility is active.
 	bool    m_CRUS;
@@ -173,13 +206,22 @@ private:
 	// DRAM area of the system. Connected to the mapped address bus.
 	UINT8   *m_dram;
 
-	// ROM area of the system. Directly connected to the address decoder.
-	UINT8   *m_rom;
+	// ROM area of the system. Directly connected to the logical address decoder.
+	UINT8   *m_rom0;
+
+	// ROM area of the system. Directly connected to the physical address decoder.
+	UINT8   *m_rom1;
+
+	// P-Code ROM area of the system. Directly connected to the physical address decoder.
+	UINT8   *m_pcode;
+
+	// Custom chips
+	required_device<ti998_oso_device> m_oso;
 };
 
 
-#define MCFG_MAPPER8_ADD(_tag, _devices)            \
-	MCFG_DEVICE_ADD(_tag, MAPPER8, 0) \
+#define MCFG_MAINBOARD8_ADD(_tag, _devices)            \
+	MCFG_DEVICE_ADD(_tag, MAINBOARD8, 0) \
 	MCFG_DEVICE_CONFIG( _devices )
 
 #endif

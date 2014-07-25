@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
 Telmac TMC-600
@@ -99,7 +101,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( tmc600_io_map, AS_IO, 8, tmc600_state )
 	AM_RANGE(0x03, 0x03) AM_WRITE(keyboard_latch_w)
-	AM_RANGE(0x04, 0x04) AM_DEVWRITE(CENTRONICS_TAG, centronics_device, write)
+	AM_RANGE(0x04, 0x04) AM_DEVWRITE("cent_data_out", output_latch_device, write)
 	AM_RANGE(0x05, 0x05) AM_WRITE(vismac_data_w)
 //  AM_RANGE(0x06, 0x06) AM_WRITE(floppy_w)
 	AM_RANGE(0x07, 0x07) AM_WRITE(vismac_register_w)
@@ -216,22 +218,6 @@ WRITE_LINE_MEMBER( tmc600_state::q_w )
 	m_cassette->output(state ? +1.0 : -1.0);
 }
 
-static COSMAC_INTERFACE( cosmac_intf )
-{
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_LINE_MEMBER(tmc600_state, clear_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(tmc600_state, ef2_r),
-	DEVCB_DRIVER_LINE_MEMBER(tmc600_state, ef3_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(tmc600_state, q_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 /* Machine Initialization */
 
 void tmc600_state::machine_start()
@@ -266,28 +252,27 @@ void tmc600_state::machine_start()
 
 /* Machine Drivers */
 
-static const cassette_interface tmc600_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED),
-	NULL,
-	NULL
-};
-
 static MACHINE_CONFIG_START( tmc600, tmc600_state )
 	// basic system hardware
 	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, 3579545)  // ???
 	MCFG_CPU_PROGRAM_MAP(tmc600_map)
 	MCFG_CPU_IO_MAP(tmc600_io_map)
-	MCFG_CPU_CONFIG(cosmac_intf)
+	MCFG_COSMAC_WAIT_CALLBACK(VCC)
+	MCFG_COSMAC_CLEAR_CALLBACK(READLINE(tmc600_state, clear_r))
+	MCFG_COSMAC_EF2_CALLBACK(READLINE(tmc600_state, ef2_r))
+	MCFG_COSMAC_EF3_CALLBACK(READLINE(tmc600_state, ef3_r))
+	MCFG_COSMAC_Q_CALLBACK(WRITELINE(tmc600_state, q_w))
 
 	// sound and video hardware
 	MCFG_FRAGMENT_ADD(tmc600_video)
 
 	/* devices */
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_CASSETTE_ADD("cassette", tmc600_cassette_interface)
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -297,6 +282,7 @@ MACHINE_CONFIG_END
 
 /* ROMs */
 
+#if 0
 ROM_START( tmc600s1 )
 	ROM_REGION( 0x5000, CDP1802_TAG, 0 )
 	ROM_LOAD( "sb20",       0x0000, 0x1000, NO_DUMP )
@@ -308,6 +294,7 @@ ROM_START( tmc600s1 )
 	ROM_REGION( 0x1000, "chargen", 0 )
 	ROM_LOAD( "chargen",    0x0000, 0x1000, NO_DUMP )
 ROM_END
+#endif
 
 ROM_START( tmc600s2 )
 	ROM_REGION( 0x5000, CDP1802_TAG, 0 )

@@ -27,7 +27,7 @@ void maple_dc_device::static_set_irq_cb(device_t &device, void (*irq_cb)(running
 }
 
 maple_dc_device::maple_dc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, MAPLE_DC, "MAPLE_DC", tag, owner, clock, "maple_dc", __FILE__)
+	: device_t(mconfig, MAPLE_DC, "Dreamcast Maple Bus", tag, owner, clock, "maple_dc", __FILE__)
 {
 	// Do not move that in device_start or there will be a race
 	// condition with the maple devices call to register_port.
@@ -118,9 +118,9 @@ void maple_dc_device::dma_step()
 			ddtdata.size      = 4;       // bytes per word
 			ddtdata.buffer    = header;  // destination buffer
 			ddtdata.direction = 0;       // 0 source to buffer, 1 buffer to source
-			ddtdata.channel   = -1;      // not used
+			ddtdata.channel   = 0;
 			ddtdata.mode      = -1;      // copy from/to buffer
-			sh4_dma_ddt(cpu, &ddtdata);
+			cpu->sh4_dma_ddt(&ddtdata);
 			dma_adr += 8;
 
 			dma_endflag    = header[0] & 0x80000000;
@@ -134,9 +134,9 @@ void maple_dc_device::dma_step()
 			ddtdata.size      = 4;       // bytes per word
 			ddtdata.buffer    = data;    // destination buffer
 			ddtdata.direction = 0;       // 0 source to buffer, 1 buffer to source
-			ddtdata.channel   = -1;      // not used
+			ddtdata.channel   = 0;
 			ddtdata.mode      = -1;      // copy from/to buffer
-			sh4_dma_ddt(cpu, &ddtdata);
+			cpu->sh4_dma_ddt(&ddtdata);
 			dma_adr += length*4;
 
 			switch(pattern) {
@@ -189,9 +189,9 @@ void maple_dc_device::dma_step()
 			ddtdata.size        = 4;        // bytes per word
 			ddtdata.buffer      = &data;    // destination buffer
 			ddtdata.direction   = 1;        // 0 source to buffer, 1 buffer to source
-			ddtdata.channel     = -1;       // not used
+			ddtdata.channel     = 0;
 			ddtdata.mode        = -1;       // copy from/to buffer
-			sh4_dma_ddt(cpu, &ddtdata);
+			cpu->sh4_dma_ddt(&ddtdata);
 			dma_state = dma_endflag ? DMA_DONE : DMA_SEND;
 			break;
 		}
@@ -214,9 +214,9 @@ void maple_dc_device::dma_step()
 				ddtdata.size        = 4;        // bytes per word
 				ddtdata.buffer      = data;     // destination buffer
 				ddtdata.direction   = 1;        // 0 source to buffer, 1 buffer to source
-				ddtdata.channel     = -1;       // not used
+				ddtdata.channel     = 0;
 				ddtdata.mode        = -1;       // copy from/to buffer
-				sh4_dma_ddt(cpu, &ddtdata);
+				cpu->sh4_dma_ddt(&ddtdata);
 				dma_dest += length*4;
 			}
 

@@ -35,9 +35,7 @@ World Soccer Winning Eleven Arcade Game Style          C18JAA03    DIN5 dongle G
 World Soccer Winning Eleven Arcade Game Style 2003     C27JAA03    not used               KN00002
 ---------------------------------------------------------------------------------------------------------
 
-* denotes not dumped. If you can help with the remaining undumped games
-please contact us via http://mamedev.org or http://members.iinet.net.au/~lantra9jp1/gurudumps/
-
+* denotes not dumped.
 
 Konami PCB Layout
 -----------------
@@ -192,16 +190,11 @@ ADDRESS_MAP_END
 static INPUT_PORTS_START( pyson )
 INPUT_PORTS_END
 
-static const mips3_config r5000_config =
-{
-	16384,              /* code cache size - probably wrong */
-	16384               /* data cache size */
-};
-
 static MACHINE_CONFIG_START( pyson, pyson_state )
 	MCFG_CPU_ADD("maincpu", R5000LE, 294000000) // imported from namcops2.c driver
+	MCFG_MIPS3_ICACHE_SIZE(16384)
+	MCFG_MIPS3_DCACHE_SIZE(16384)
 	MCFG_CPU_PROGRAM_MAP(ps2_map)
-	MCFG_CPU_CONFIG(r5000_config)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -210,7 +203,7 @@ static MACHINE_CONFIG_START( pyson, pyson_state )
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 479)
 
-	MCFG_PALETTE_LENGTH(65536)
+	MCFG_PALETTE_ADD("palette", 65536)
 MACHINE_CONFIG_END
 
 #define PYSON_BIOS  \

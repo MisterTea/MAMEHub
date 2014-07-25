@@ -39,14 +39,14 @@ void mbee_state::device_timer(emu_timer &timer, device_timer_id id, int param, v
 
 WRITE_LINE_MEMBER( mbee_state::pio_ardy )
 {
-	m_printer->strobe_w((state) ? 0 : 1);
+	m_centronics->write_strobe((state) ? 0 : 1);
 }
 
 WRITE8_MEMBER( mbee_state::pio_port_a_w )
 {
 	/* hardware strobe driven by PIO ARDY, bit 7..0 = data */
 	m_pio->strobe_a(1); /* needed - otherwise nothing prints */
-	m_printer->write(space, 0, data);
+	m_cent_data_out->write(space, 0, data);
 };
 
 WRITE8_MEMBER( mbee_state::pio_port_b_w )
@@ -80,43 +80,21 @@ READ8_MEMBER( mbee_state::pio_port_b_r )
 	return data;
 };
 
-const z80pio_interface mbee_z80pio_intf =
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(mbee_state, pio_port_a_w),
-	DEVCB_DRIVER_LINE_MEMBER(mbee_state, pio_ardy),
-	DEVCB_DRIVER_MEMBER(mbee_state, pio_port_b_r),
-	DEVCB_DRIVER_MEMBER(mbee_state, pio_port_b_w),
-	DEVCB_NULL
-};
-
 /*************************************************************************************
 
-    Floppy DIsk
+    Floppy Disk
 
     The callback is quite simple, no interrupts are used.
     If either IRQ or DRQ activate, they set bit 7 of inport 0x48.
 
 *************************************************************************************/
 
-void mbee_state::fdc_intrq_w (bool state)
-{
-	m_fdc_intrq = state ? 0x80 : 0;
-}
-
-void mbee_state::fdc_drq_w (bool state)
-{
-	m_fdc_drq = state ? 0x80 : 0;
-}
-
-
 READ8_MEMBER( mbee_state::mbee_fdc_status_r )
 {
 /*  d7 indicate if IRQ or DRQ is occuring (1=happening)
     d6..d0 not used */
 
-	return 0x7f | m_fdc_intrq | m_fdc_drq;
+	return 0x7f | ((m_fdc->intrq_r() || m_fdc->drq_r()) ? 0x80 : 0);
 }
 
 WRITE8_MEMBER( mbee_state::mbee_fdc_motor_w )
@@ -398,8 +376,9 @@ WRITE8_MEMBER( mbee_state::mbee128_50_w )
 			m_bank8h->set_entry(0); // rom
 			break;
 		case 0x04:
-			mem.install_read_bank (0x8000, 0x87ff, "bank8l");
-			mem.install_read_bank (0x8800, 0x8fff, "bank8h");
+			// these 2 lines were read_bank but readwrite is needed for bios 2,3,4,5 to boot
+			mem.install_readwrite_bank (0x8000, 0x87ff, "bank8l");
+			mem.install_readwrite_bank (0x8800, 0x8fff, "bank8h");
 			mem.install_readwrite_handler (0xf000, 0xf7ff, read8_delegate(FUNC(mbee_state::mbeeppc_low_r),this), write8_delegate(FUNC(mbee_state::mbeeppc_low_w),this));
 			mem.install_readwrite_handler (0xf800, 0xffff, read8_delegate(FUNC(mbee_state::mbeeppc_high_r),this), write8_delegate(FUNC(mbee_state::mbeeppc_high_w),this));
 			m_bank8l->set_entry(1); // ram
@@ -592,8 +571,8 @@ INTERRUPT_GEN_MEMBER(mbee_state::mbee_interrupt)
 	    The line below does what the interrupt should be doing. */
 	/* But it would break any program loaded to that area of memory, such as CP/M programs */
 
-	//m_z80pio->strobe_a(centronics_busy_r(m_printer)); /* signal int when not busy (L->H) */
-	//space.write_byte(0x109, centronics_busy_r(m_printer));
+	//m_z80pio->strobe_a(centronics_busy_r(m_centronics)); /* signal int when not busy (L->H) */
+	//space.write_byte(0x109, centronics_busy_r(m_centronics));
 
 
 	/* once per frame, pulse the PIO B bit 7 - it is in the schematic as an option,
@@ -681,8 +660,6 @@ DRIVER_INIT_MEMBER(mbee_state,mbee56)
 	UINT8 *RAM = memregion("maincpu")->base();
 	m_boot->configure_entries(0, 2, &RAM[0x0000], 0xe000);
 	m_size = 0xe000;
-	m_fdc->setup_intrq_cb(wd2793_t::line_cb(FUNC(mbee_state::fdc_intrq_w), this));
-	m_fdc->setup_drq_cb(wd2793_t::line_cb(FUNC(mbee_state::fdc_drq_w), this));
 }
 
 DRIVER_INIT_MEMBER(mbee_state,mbee64)
@@ -698,8 +675,6 @@ DRIVER_INIT_MEMBER(mbee_state,mbee64)
 	m_boot->configure_entry(1, &RAM[0x0000]);
 
 	m_size = 0xf000;
-	m_fdc->setup_intrq_cb(wd2793_t::line_cb(FUNC(mbee_state::fdc_intrq_w), this));
-	m_fdc->setup_drq_cb(wd2793_t::line_cb(FUNC(mbee_state::fdc_drq_w), this));
 }
 
 DRIVER_INIT_MEMBER(mbee_state,mbee128)
@@ -720,8 +695,6 @@ DRIVER_INIT_MEMBER(mbee_state,mbee128)
 	m_bank8h->configure_entry(0, &RAM[0x0800]); // rom
 
 	m_size = 0x8000;
-	m_fdc->setup_intrq_cb(wd2793_t::line_cb(FUNC(mbee_state::fdc_intrq_w), this));
-	m_fdc->setup_drq_cb(wd2793_t::line_cb(FUNC(mbee_state::fdc_drq_w), this));
 }
 
 DRIVER_INIT_MEMBER(mbee_state,mbee256)
@@ -745,8 +718,6 @@ DRIVER_INIT_MEMBER(mbee_state,mbee256)
 	timer_set(attotime::from_hz(25), TIMER_MBEE256_KBD);   /* timer for kbd */
 
 	m_size = 0x8000;
-	m_fdc->setup_intrq_cb(wd2793_t::line_cb(FUNC(mbee_state::fdc_intrq_w), this));
-	m_fdc->setup_drq_cb(wd2793_t::line_cb(FUNC(mbee_state::fdc_drq_w), this));
 }
 
 DRIVER_INIT_MEMBER(mbee_state,mbeett)
@@ -775,7 +746,7 @@ DRIVER_INIT_MEMBER(mbee_state,mbeett)
     Quickload
 
     These load the standard BIN format, as well
-    as COM and MWB files.
+    as BEE, COM and MWB files.
 
 ************************************************************/
 
@@ -785,7 +756,7 @@ QUICKLOAD_LOAD_MEMBER( mbee_state, mbee )
 	UINT16 i, j;
 	UINT8 data, sw = ioport("CONFIG")->read() & 1;   /* reading the dipswitch: 1 = autorun */
 
-	if (!mame_stricmp(image.filetype(), "mwb"))
+	if (!core_stricmp(image.filetype(), "mwb"))
 	{
 		/* mwb files - standard basic files */
 		for (i = 0; i < quickload_size; i++)
@@ -815,7 +786,7 @@ QUICKLOAD_LOAD_MEMBER( mbee_state, mbee )
 		else
 			space.write_word(0xa2,0x8517);
 	}
-	else if (!mame_stricmp(image.filetype(), "com"))
+	else if (!core_stricmp(image.filetype(), "com"))
 	{
 		/* com files - most com files are just machine-language games with a wrapper and don't need cp/m to be present */
 		for (i = 0; i < quickload_size; i++)
@@ -838,6 +809,30 @@ QUICKLOAD_LOAD_MEMBER( mbee_state, mbee )
 		}
 
 		if (sw) m_maincpu->set_pc(0x100);
+	}
+	else if (!core_stricmp(image.filetype(), "bee"))
+	{
+		/* bee files - machine-language games that start at 0900 */
+		for (i = 0; i < quickload_size; i++)
+		{
+			j = 0x900 + i;
+
+			if (image.fread(&data, 1) != 1)
+			{
+				image.message("Unexpected EOF");
+				return IMAGE_INIT_FAIL;
+			}
+
+			if ((j < m_size) || (j > 0xefff))
+				space.write_byte(j, data);
+			else
+			{
+				image.message("Not enough memory in this microbee");
+				return IMAGE_INIT_FAIL;
+			}
+		}
+
+		if (sw) m_maincpu->set_pc(0x900);
 	}
 
 	return IMAGE_INIT_PASS;

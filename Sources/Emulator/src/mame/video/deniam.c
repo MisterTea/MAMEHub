@@ -61,8 +61,7 @@ TILE_GET_INFO_MEMBER(deniam_state::get_bg_tile_info)
 {
 	int page = tile_index >> 11;
 	UINT16 attr = m_videoram[m_bg_page[page] * 0x0800 + (tile_index & 0x7ff)];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			attr,
 			(attr & 0x1fc0) >> 6,
 			0);
@@ -72,8 +71,7 @@ TILE_GET_INFO_MEMBER(deniam_state::get_fg_tile_info)
 {
 	int page = tile_index >> 11;
 	UINT16 attr = m_videoram[m_fg_page[page] * 0x0800 + (tile_index & 0x7ff)];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			attr,
 			(attr & 0x1fc0) >> 6,
 			0);
@@ -82,8 +80,7 @@ TILE_GET_INFO_MEMBER(deniam_state::get_fg_tile_info)
 TILE_GET_INFO_MEMBER(deniam_state::get_tx_tile_info)
 {
 	UINT16 attr = m_textram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			attr & 0xf1ff,
 			(attr & 0x0e00) >> 9,
 			0);
@@ -99,9 +96,9 @@ TILE_GET_INFO_MEMBER(deniam_state::get_tx_tile_info)
 
 void deniam_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deniam_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(deniam_state::scan_pages),this), 8, 8, 128, 64);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deniam_state::get_fg_tile_info),this), tilemap_mapper_delegate(FUNC(deniam_state::scan_pages),this), 8, 8, 128, 64);
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deniam_state::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deniam_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(deniam_state::scan_pages),this), 8, 8, 128, 64);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deniam_state::get_fg_tile_info),this), tilemap_mapper_delegate(FUNC(deniam_state::scan_pages),this), 8, 8, 128, 64);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deniam_state::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 	m_tx_tilemap->set_transparent_pen(0);
@@ -147,7 +144,7 @@ WRITE16_MEMBER(deniam_state::deniam_palette_w)
 	r = ((data << 1) & 0x1e) | ((data >> 12) & 0x01);
 	g = ((data >> 3) & 0x1e) | ((data >> 13) & 0x01);
 	b = ((data >> 7) & 0x1e) | ((data >> 14) & 0x01);
-	palette_set_color_rgb(machine(), offset, pal5bit(r), pal5bit(g), pal5bit(b));
+	m_palette->set_pen_color(offset, pal5bit(r), pal5bit(g), pal5bit(b));
 }
 
 READ16_MEMBER(deniam_state::deniam_coinctrl_r)

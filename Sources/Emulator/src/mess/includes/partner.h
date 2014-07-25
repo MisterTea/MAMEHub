@@ -8,8 +8,7 @@
 #define partner_H_
 
 #include "machine/i8255.h"
-#include "machine/8257dma.h"
-#include "machine/wd17xx.h"
+#include "machine/wd_fdc.h"
 #include "machine/ram.h"
 
 class partner_state : public radio86_state
@@ -17,7 +16,8 @@ class partner_state : public radio86_state
 public:
 	partner_state(const machine_config &mconfig, device_type type, const char *tag)
 		: radio86_state(mconfig, type, tag),
-		m_ram(*this, RAM_TAG) { }
+		m_ram(*this, RAM_TAG),
+		m_fdc(*this, "wd1793") { }
 
 	UINT8 m_mem_page;
 	UINT8 m_win_mem_page;
@@ -28,19 +28,16 @@ public:
 	DECLARE_DRIVER_INIT(partner);
 	DECLARE_MACHINE_START(partner);
 	DECLARE_MACHINE_RESET(partner);
-	DECLARE_WRITE_LINE_MEMBER(partner_wd17xx_drq_w);
-	DECLARE_WRITE_LINE_MEMBER(hrq_w);
+	I8275_DRAW_CHARACTER_MEMBER(display_pixels);
+
 	void partner_window_1(UINT8 bank_num, UINT16 offset,UINT8 *rom);
 	void partner_window_2(UINT8 bank_num, UINT16 offset,UINT8 *rom);
 	void partner_iomap_bank(UINT8 *rom);
 	void partner_bank_switch();
 	required_device<ram_device> m_ram;
+	required_device<fd1793_t> m_fdc;
+	DECLARE_FLOPPY_FORMATS( floppy_formats );
 };
 
-
-/*----------- defined in machine/partner.c -----------*/
-
-extern const i8257_interface partner_dma;
-extern const wd17xx_interface partner_wd17xx_interface;
 
 #endif /* partner_H_ */

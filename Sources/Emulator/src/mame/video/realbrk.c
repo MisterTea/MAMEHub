@@ -72,8 +72,7 @@ TILE_GET_INFO_MEMBER(realbrk_state::get_tile_info_0)
 {
 	UINT16 attr = m_vram_0[tile_index * 2 + 0];
 	UINT16 code = m_vram_0[tile_index * 2 + 1];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			attr & 0x7f,
 			TILE_FLIPYX( attr >> 14 ));
@@ -83,8 +82,7 @@ TILE_GET_INFO_MEMBER(realbrk_state::get_tile_info_1)
 {
 	UINT16 attr = m_vram_1[tile_index * 2 + 0];
 	UINT16 code = m_vram_1[tile_index * 2 + 1];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			attr & 0x7f,
 			TILE_FLIPYX( attr >> 14 ));
@@ -119,8 +117,7 @@ WRITE16_MEMBER(realbrk_state::realbrk_vram_1_w)
 TILE_GET_INFO_MEMBER(realbrk_state::get_tile_info_2)
 {
 	UINT16 code = m_vram_2[tile_index];
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code & 0x0fff,
 			((code & 0xf000) >> 12) | ((m_vregs[0xa/2] & 0x7f) << 4),
 			0);
@@ -145,11 +142,11 @@ WRITE16_MEMBER(realbrk_state::realbrk_vram_2_w)
 void realbrk_state::video_start()
 {
 	/* Backgrounds */
-	m_tilemap_0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(realbrk_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, 0x40, 0x20);
-	m_tilemap_1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(realbrk_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, 0x40, 0x20);
+	m_tilemap_0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(realbrk_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, 0x40, 0x20);
+	m_tilemap_1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(realbrk_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, 0x40, 0x20);
 
 	/* Text */
-	m_tilemap_2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(realbrk_state::get_tile_info_2),this), TILEMAP_SCAN_ROWS,  8,  8, 0x40, 0x20);
+	m_tilemap_2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(realbrk_state::get_tile_info_2),this), TILEMAP_SCAN_ROWS,  8,  8, 0x40, 0x20);
 
 	m_tilemap_0->set_transparent_pen(0);
 	m_tilemap_1->set_transparent_pen(0);
@@ -288,7 +285,7 @@ void realbrk_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
 				{
 					m_tmpbitmap0->fill(0, spritetile_clip );
 					m_tmpbitmap1->fill(0, spritetile_clip );
-					drawgfxzoom_transpen(   *m_tmpbitmap0,spritetile_clip,machine().gfx[gfx],
+					m_gfxdecode->gfx(gfx)->zoom_transpen(*m_tmpbitmap0,spritetile_clip,
 									code++,
 									color,
 									flipx, flipy,
@@ -350,7 +347,7 @@ void realbrk_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
 						break;
 
 					default:
-						drawgfxzoom_transpen(   bitmap,cliprect,machine().gfx[gfx],
+						m_gfxdecode->gfx(gfx)->zoom_transpen(bitmap,cliprect,
 										code++,
 										color,
 										flipx, flipy,
@@ -431,7 +428,7 @@ void realbrk_state::dai2kaku_draw_sprites(bitmap_ind16 &bitmap,const rectangle &
 				int scalex = (sx + (x + 1) * xdim) / 0x10000 - currx;
 				int scaley = (sy + (y + 1) * ydim) / 0x10000 - curry;
 
-				drawgfxzoom_transpen(   bitmap,cliprect,machine().gfx[gfx],
+				m_gfxdecode->gfx(gfx)->zoom_transpen(bitmap,cliprect,
 								code++,
 								color,
 								flipx, flipy,
@@ -505,7 +502,7 @@ if ( machine().input().code_pressed(KEYCODE_Z) )
 
 	if (m_disable_video)
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 		return 0;
 	}
 	else
@@ -575,7 +572,7 @@ if ( machine().input().code_pressed(KEYCODE_Z) )
 
 	if (m_disable_video)
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 		return 0;
 	}
 	else

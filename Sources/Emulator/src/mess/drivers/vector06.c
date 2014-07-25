@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic
 /***************************************************************************
 
         Vector06c driver by Miodrag Milanovic
@@ -21,10 +23,10 @@ static ADDRESS_MAP_START(vector06_io, AS_IO, 8, vector06_state)
 	AM_RANGE( 0x00, 0x03) AM_READWRITE(vector06_8255_1_r, vector06_8255_1_w )
 	AM_RANGE( 0x04, 0x07) AM_READWRITE(vector06_8255_2_r, vector06_8255_2_w )
 	AM_RANGE( 0x0C, 0x0C) AM_WRITE(vector06_color_set)
-	AM_RANGE( 0x18, 0x18) AM_DEVREADWRITE_LEGACY("wd1793", wd17xx_data_r,wd17xx_data_w)
-	AM_RANGE( 0x19, 0x19) AM_DEVREADWRITE_LEGACY("wd1793", wd17xx_sector_r,wd17xx_sector_w)
-	AM_RANGE( 0x1A, 0x1A) AM_DEVREADWRITE_LEGACY("wd1793", wd17xx_track_r,wd17xx_track_w)
-	AM_RANGE( 0x1B, 0x1B) AM_DEVREADWRITE_LEGACY("wd1793", wd17xx_status_r,wd17xx_command_w)
+	AM_RANGE( 0x18, 0x18) AM_DEVREADWRITE("wd1793", fd1793_device, data_r, data_w)
+	AM_RANGE( 0x19, 0x19) AM_DEVREADWRITE("wd1793", fd1793_device, sector_r, sector_w)
+	AM_RANGE( 0x1A, 0x1A) AM_DEVREADWRITE("wd1793", fd1793_device, track_r, track_w)
+	AM_RANGE( 0x1B, 0x1B) AM_DEVREADWRITE("wd1793", fd1793_device, status_r, command_w)
 	AM_RANGE( 0x1C, 0x1C) AM_WRITE(vector06_disc_w)
 ADDRESS_MAP_END
 
@@ -117,15 +119,6 @@ static INPUT_PORTS_START( vector06 )
 
 INPUT_PORTS_END
 
-static const cassette_interface vector_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
-
 static LEGACY_FLOPPY_OPTIONS_START(vector)
 	LEGACY_FLOPPY_OPTION(vector, "fdd", "Vector disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
 		HEADS([2])
@@ -137,23 +130,9 @@ LEGACY_FLOPPY_OPTIONS_END
 
 static const floppy_interface vector_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSHD,
 	LEGACY_FLOPPY_OPTIONS_NAME(vector),
-	NULL,
 	NULL
-};
-
-const wd17xx_interface vector06_wd17xx_interface =
-{
-	DEVCB_LINE_VCC,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	{ FLOPPY_0, FLOPPY_1, NULL, NULL}
 };
 
 /* Machine driver */
@@ -164,7 +143,7 @@ static MACHINE_CONFIG_START( vector06, vector06_state )
 	MCFG_CPU_PROGRAM_MAP(vector06_mem)
 	MCFG_CPU_IO_MAP(vector06_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", vector06_state,  vector06_interrupt)
-
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(vector06_state,vector06_irq_callback)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -173,17 +152,34 @@ static MACHINE_CONFIG_START( vector06, vector06_state )
 	MCFG_SCREEN_SIZE(256+64, 256+64)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256+64-1, 0, 256+64-1)
 	MCFG_SCREEN_UPDATE_DRIVER(vector06_state, screen_update_vector06)
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(vector06_state, vector06)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	/* Devices */
-	MCFG_I8255_ADD("ppi8255", vector06_ppi8255_interface)
-	MCFG_I8255_ADD("ppi8255_2", vector06_ppi8255_2_interface)
-	MCFG_CASSETTE_ADD("cassette", vector_cassette_interface)
-	MCFG_FD1793_ADD("wd1793", vector06_wd17xx_interface)
+	/* devices */
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(vector06_state, vector06_8255_porta_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(vector06_state, vector06_8255_portb_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(vector06_state, vector06_8255_portb_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(vector06_state, vector06_8255_portc_r))
+
+	MCFG_DEVICE_ADD("ppi8255_2", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(vector06_state, vector06_romdisk_porta_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(vector06_state, vector06_romdisk_portb_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(vector06_state, vector06_romdisk_portc_w))
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
+
+	MCFG_DEVICE_ADD("wd1793", FD1793, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE2_TAGS
+	MCFG_WD17XX_DDEN_CALLBACK(VCC)
+
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(vector_floppy_interface)
 
 	/* cartridge */

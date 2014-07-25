@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /***************************************************************************
 
     Tiki 100
@@ -12,17 +14,19 @@
 
     TODO:
 
-    - floppy broken
+    - 3 expansion slots
     - palette RAM should be written during HBLANK
     - DART clocks
     - winchester hard disk
     - analog/digital I/O
     - light pen
     - 8088 CPU card
+    - 360KB floppy format
 
 */
 
 #include "includes/tiki100.h"
+#include "bus/rs232/rs232.h"
 
 /* Memory Banking */
 
@@ -94,10 +98,25 @@ void tiki100_state::bankswitch()
 
 READ8_MEMBER( tiki100_state::keyboard_r )
 {
-	UINT8 data = m_key_row[m_keylatch]->read();
+	UINT8 data = 0xff;
+
+	switch (m_keylatch)
+	{
+	case 0: data = m_y1->read(); break;
+	case 1: data = m_y2->read(); break;
+	case 2: data = m_y3->read(); break;
+	case 3: data = m_y4->read(); break;
+	case 4: data = m_y5->read(); break;
+	case 5: data = m_y6->read(); break;
+	case 6: data = m_y7->read(); break;
+	case 7: data = m_y8->read(); break;
+	case 8: data = m_y9->read(); break;
+	case 9: data = m_y10->read(); break;
+	case 10: data = m_y11->read(); break;
+	case 11: data = m_y12->read(); break;
+	}
 
 	m_keylatch++;
-
 	if (m_keylatch == 12) m_keylatch = 0;
 
 	return data;
@@ -130,9 +149,9 @@ WRITE8_MEMBER( tiki100_state::video_mode_w )
 	if (BIT(data, 7))
 	{
 		int color = data & 0x0f;
-		UINT8 colordata = ~m_palette;
+		UINT8 colordata = ~m_palette_val;
 
-		palette_set_color_rgb(machine(), color, pal3bit(colordata >> 5), pal3bit(colordata >> 2), pal2bit(colordata >> 0));
+		m_palette->set_pen_color(color, pal3bit(colordata >> 5), pal3bit(colordata >> 2), pal2bit(colordata >> 0));
 	}
 }
 
@@ -153,7 +172,7 @@ WRITE8_MEMBER( tiki100_state::palette_w )
 
 	*/
 
-	m_palette = data;
+	m_palette_val = data;
 }
 
 WRITE8_MEMBER( tiki100_state::system_w )
@@ -222,7 +241,7 @@ static ADDRESS_MAP_START( tiki100_io, AS_IO, 8, tiki100_state )
 	AM_RANGE(0x17, 0x17) AM_DEVREADWRITE(AY8912_TAG, ay8910_device, data_r, data_w)
 	AM_RANGE(0x18, 0x1b) AM_DEVREADWRITE(Z80CTC_TAG, z80ctc_device, read, write)
 	AM_RANGE(0x1c, 0x1c) AM_MIRROR(0x03) AM_WRITE(system_w)
-	AM_RANGE(0x20, 0x27) AM_NOP // winchester controller
+//  AM_RANGE(0x20, 0x27) AM_NOP // winchester controller
 //  AM_RANGE(0x60, 0x6f) analog I/O (SINTEF)
 //  AM_RANGE(0x60, 0x67) digital I/O (RVO)
 //  AM_RANGE(0x70, 0x77) analog/digital I/O
@@ -375,7 +394,7 @@ INPUT_PORTS_END
 
 UINT32 tiki100_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	UINT16 addr = (m_scroll << 7);
 	int sx, y, pixel, mode = (m_mode >> 4) & 0x03;
 
@@ -444,41 +463,76 @@ UINT32 tiki100_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap,
 	return 0;
 }
 
-/* Z80-DART Interface */
-
-static Z80DART_INTERFACE( dart_intf )
-{
-	0,
-	0,
-	0,
-	0,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0)
-};
-
 /* Z80-PIO Interface */
 
-static Z80PIO_INTERFACE( pio_intf )
+DECLARE_WRITE_LINE_MEMBER( tiki100_state::write_centronics_ack )
 {
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0), /* callback when change interrupt status */
-	DEVCB_NULL,                     /* port A read callback */
-	DEVCB_NULL,                     /* port A write callback */
-	DEVCB_NULL,                     /* portA ready active callback */
-	DEVCB_NULL,                     /* port B read callback */
-	DEVCB_NULL,                     /* port B write callback */
-	DEVCB_NULL                      /* portB ready active callback */
-};
+	m_centronics_ack = state;
+}
+
+DECLARE_WRITE_LINE_MEMBER( tiki100_state::write_centronics_busy )
+{
+	m_centronics_busy = state;
+}
+
+DECLARE_WRITE_LINE_MEMBER( tiki100_state::write_centronics_perror )
+{
+	m_centronics_perror = state;
+}
+
+READ8_MEMBER( tiki100_state::pio_pb_r )
+{
+	/*
+
+	    bit     description
+
+	    0
+	    1
+	    2
+	    3
+	    4       ACK
+	    5       BUSY
+	    6       NO PAPER
+	    7       UNIT SELECT, tape in
+
+	*/
+
+	UINT8 data = 0;
+
+	// centronics
+	data |= m_centronics_ack << 4;
+	data |= m_centronics_busy << 5;
+	data |= m_centronics_perror << 6;
+
+	// cassette
+	data |= (m_cassette->input() > 0.0) << 7;
+
+	return data;
+}
+
+WRITE8_MEMBER( tiki100_state::pio_pb_w )
+{
+	/*
+
+	    bit     description
+
+	    0       STRB
+	    1
+	    2
+	    3
+	    4
+	    5
+	    6       tape out
+	    7
+
+	*/
+
+	// centronics
+	m_centronics->write_strobe(BIT(data, 0));
+
+	// cassette
+	m_cassette->output(BIT(data, 6) ? -1 : 1);
+}
 
 /* Z80-CTC Interface */
 
@@ -491,17 +545,18 @@ TIMER_DEVICE_CALLBACK_MEMBER(tiki100_state::ctc_tick)
 	m_ctc->trg1(0);
 }
 
-WRITE_LINE_MEMBER( tiki100_state::ctc_z1_w )
+WRITE_LINE_MEMBER( tiki100_state::ctc_z0_w )
 {
+	m_ctc->trg2(state);
+
+	m_dart->rxca_w(state);
+	m_dart->txca_w(state);
 }
 
-static Z80CTC_INTERFACE( ctc_intf )
+WRITE_LINE_MEMBER( tiki100_state::ctc_z2_w )
 {
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0), /* interrupt handler */
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF, z80ctc_device, trg2), /* ZC/TO0 callback */
-	DEVCB_DRIVER_LINE_MEMBER(tiki100_state, ctc_z1_w),      /* ZC/TO1 callback */
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF, z80ctc_device, trg3)  /* ZC/TO2 callback */
-};
+	m_ctc->trg3(state);
+}
 
 /* FD1797 Interface */
 
@@ -510,6 +565,7 @@ FLOPPY_FORMATS_MEMBER( tiki100_state::floppy_formats )
 FLOPPY_FORMATS_END
 
 static SLOT_INTERFACE_START( tiki100_floppies )
+	SLOT_INTERFACE( "525ssdd", FLOPPY_525_SSDD )
 	SLOT_INTERFACE( "525dd", FLOPPY_525_DD ) // Tead FD-55A
 	SLOT_INTERFACE( "525qd", FLOPPY_525_QD ) // Teac FD-55F
 SLOT_INTERFACE_END
@@ -521,16 +577,6 @@ WRITE8_MEMBER( tiki100_state::video_scroll_w )
 	m_scroll = data;
 }
 
-static const ay8910_interface ay8910_intf =
-{
-	AY8910_SINGLE_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(tiki100_state, video_scroll_w),
-	DEVCB_NULL
-};
-
 /* Z80 Daisy Chain */
 
 static const z80_daisy_config tiki100_daisy_chain[] =
@@ -540,6 +586,13 @@ static const z80_daisy_config tiki100_daisy_chain[] =
 	{ Z80PIO_TAG },
 	{ NULL }
 };
+
+
+
+TIMER_DEVICE_CALLBACK_MEMBER( tiki100_state::tape_tick )
+{
+	m_pio->port_b_write((m_cassette->input() > 0.0) << 7);
+}
 
 /* Machine Start */
 
@@ -562,34 +615,27 @@ void tiki100_state::machine_start()
 
 	bankswitch();
 
-	// find keyboard rows
-	m_key_row[0] = m_y1;
-	m_key_row[1] = m_y2;
-	m_key_row[2] = m_y3;
-	m_key_row[3] = m_y4;
-	m_key_row[4] = m_y5;
-	m_key_row[5] = m_y6;
-	m_key_row[6] = m_y7;
-	m_key_row[7] = m_y8;
-	m_key_row[8] = m_y9;
-	m_key_row[9] = m_y10;
-	m_key_row[10] = m_y11;
-	m_key_row[11] = m_y12;
-
 	/* register for state saving */
 	save_item(NAME(m_rome));
 	save_item(NAME(m_vire));
 	save_item(NAME(m_scroll));
 	save_item(NAME(m_mode));
-	save_item(NAME(m_palette));
+	save_item(NAME(m_palette_val));
 	save_item(NAME(m_keylatch));
+}
+
+void tiki100_state::machine_reset()
+{
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+
+	system_w(space, 0, 0);
 }
 
 /* Machine Driver */
 
 static MACHINE_CONFIG_START( tiki100, tiki100_state )
 	/* basic machine hardware */
-	MCFG_CPU_ADD(Z80_TAG, Z80, XTAL_8MHz/4)
+	MCFG_CPU_ADD(Z80_TAG, Z80, XTAL_8MHz/2)
 	MCFG_CPU_PROGRAM_MAP(tiki100_mem)
 	MCFG_CPU_IO_MAP(tiki100_io)
 	MCFG_CPU_CONFIG(tiki100_daisy_chain)
@@ -602,22 +648,63 @@ static MACHINE_CONFIG_START( tiki100, tiki100_state )
 	MCFG_SCREEN_SIZE(1024, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 1024-1, 0, 256-1)
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
 	// pixel clock 20.01782 MHz
 
 	/* devices */
-	MCFG_Z80DART_ADD(Z80DART_TAG, XTAL_8MHz/4, dart_intf)
-	MCFG_Z80PIO_ADD(Z80PIO_TAG, XTAL_8MHz/4, pio_intf)
-	MCFG_Z80CTC_ADD(Z80CTC_TAG, XTAL_8MHz/4, ctc_intf)
+	MCFG_Z80DART_ADD(Z80DART_TAG, XTAL_8MHz/4, 0, 0, 0, 0 )
+	MCFG_Z80DART_OUT_TXDA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSA_CB(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_TXDB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_Z80DART_OUT_DTRB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_dtr))
+	MCFG_Z80DART_OUT_RTSB_CB(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+	MCFG_Z80DART_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+
+	MCFG_DEVICE_ADD(Z80PIO_TAG, Z80PIO, XTAL_8MHz/4)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_IN_PA_CB(DEVREAD8("cent_data_in", input_buffer_device, read))
+	MCFG_Z80PIO_OUT_PA_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_Z80PIO_IN_PB_CB(READ8(tiki100_state, pio_pb_r))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(tiki100_state, pio_pb_w))
+
+	MCFG_DEVICE_ADD(Z80CTC_TAG, Z80CTC, XTAL_8MHz/4)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(WRITELINE(tiki100_state, ctc_z0_w))
+	MCFG_Z80CTC_ZC1_CB(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxtxcb_w))
+	MCFG_Z80CTC_ZC2_CB(WRITELINE(tiki100_state, ctc_z2_w))
+
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("ctc", tiki100_state, ctc_tick, attotime::from_hz(XTAL_8MHz/4))
+
 	MCFG_FD1797x_ADD(FD1797_TAG, XTAL_8MHz/8) // FD1767PL-02 or FD1797-PL
-	MCFG_FLOPPY_DRIVE_ADD(FD1797_TAG":0", tiki100_floppies, "525dd", tiki100_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(FD1797_TAG":1", tiki100_floppies, "525dd", tiki100_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(FD1797_TAG":0", tiki100_floppies, "525qd", tiki100_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(FD1797_TAG":1", tiki100_floppies, "525qd", tiki100_state::floppy_formats)
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxa_w))
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(Z80DART_TAG, z80dart_device, rxb_w))
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_DATA_INPUT_BUFFER("cent_data_in")
+	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(tiki100_state, write_centronics_ack))
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(tiki100_state, write_centronics_busy))
+	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(tiki100_state, write_centronics_perror))
+
+	MCFG_DEVICE_ADD("cent_data_in", INPUT_BUFFER, 0)
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
+
+	MCFG_CASSETTE_ADD(CASSETTE_TAG)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED)
+
+	MCFG_TIMER_DRIVER_ADD_PERIODIC("tape", tiki100_state, tape_tick, attotime::from_hz(44100))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD(AY8912_TAG, AY8912, XTAL_8MHz/4)
-	MCFG_SOUND_CONFIG(ay8910_intf)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(tiki100_state, video_scroll_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* internal ram */
@@ -654,5 +741,5 @@ ROM_END
 /* System Drivers */
 
 /*    YEAR  NAME        PARENT      COMPAT  MACHINE     INPUT       INIT    COMPANY             FULLNAME        FLAGS */
-COMP( 1984, kontiki,    0,          0,      tiki100,    tiki100, driver_device, 0,      "Kontiki Data A/S", "KONTIKI 100",  GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
-COMP( 1984, tiki100,    kontiki,    0,      tiki100,    tiki100, driver_device, 0,      "Tiki Data A/S",    "TIKI 100",     GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
+COMP( 1984, kontiki,    0,          0,      tiki100,    tiki100, driver_device, 0,      "Kontiki Data A/S", "KONTIKI 100",  GAME_SUPPORTS_SAVE )
+COMP( 1984, tiki100,    kontiki,    0,      tiki100,    tiki100, driver_device, 0,      "Tiki Data A/S",    "TIKI 100",     GAME_SUPPORTS_SAVE )

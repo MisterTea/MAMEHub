@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     memarray.h
 
     Generic memory array accessor helper.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************
 
@@ -74,15 +45,21 @@ public:
 	// construction/destruction
 	memory_array();
 	memory_array(void *base, UINT32 bytes, int membits, endianness_t endianness, int bpe) { set(base, bytes, membits, endianness, bpe); }
+	template <typename _Type> memory_array(dynamic_array<_Type> &array, endianness_t endianness, int bpe) { set(array, endianness, bpe); }
 	memory_array(const address_space &space, void *base, UINT32 bytes, int bpe) { set(space, base, bytes, bpe); }
 	memory_array(const memory_share &share, int bpe) { set(share, bpe); }
-	memory_array(const memory_array &helper) { set(helper); }
+	memory_array(const memory_array &array) { set(array); }
 
 	// configuration
 	void set(void *base, UINT32 bytes, int membits, endianness_t endianness, int bpe);
+	template <typename _Type> void set(dynamic_array<_Type> &array, endianness_t endianness, int bpe) { set(&array[0], array.count(), 8*sizeof(_Type), endianness, bpe); }
 	void set(const address_space &space, void *base, UINT32 bytes, int bpe);
 	void set(const memory_share &share, int bpe);
-	void set(const memory_array &helper);
+	void set(const memory_array &array);
+
+	// piecewise configuration
+	void set_membits(int membits);
+	void set_endianness(endianness_t endianness);
 
 	// getters
 	void *base() const { return m_base; }
@@ -91,9 +68,19 @@ public:
 	endianness_t endianness() const { return m_endianness; }
 	int bytes_per_entry() const { return m_bytes_per_entry; }
 
-	// readers and writers
-	UINT32 read(int index) { return (this->*m_reader)(index); }
-	void write(int index, UINT32 data) { (this->*m_writer)(index, data); }
+	// entry-level readers and writers
+	UINT32 read(int index) { return (this->*m_read_entry)(index); }
+	void write(int index, UINT32 data) { (this->*m_write_entry)(index, data); }
+
+	// byte/word/dword-level readers and writers
+	UINT8 read8(offs_t offset) { return reinterpret_cast<UINT8 *>(m_base)[offset]; }
+	UINT16 read16(offs_t offset) { return reinterpret_cast<UINT16 *>(m_base)[offset]; }
+	UINT32 read32(offs_t offset) { return reinterpret_cast<UINT32 *>(m_base)[offset]; }
+	UINT64 read64(offs_t offset) { return reinterpret_cast<UINT64 *>(m_base)[offset]; }
+	void write8(offs_t offset, UINT8 data) { reinterpret_cast<UINT8 *>(m_base)[offset] = data; }
+	void write16(offs_t offset, UINT16 data, UINT16 mem_mask = 0xffff) { COMBINE_DATA(&reinterpret_cast<UINT16 *>(m_base)[offset]); }
+	void write32(offs_t offset, UINT32 data, UINT32 mem_mask = 0xffffffff) { COMBINE_DATA(&reinterpret_cast<UINT32 *>(m_base)[offset]); }
+	void write64(offs_t offset, UINT64 data, UINT64 mem_mask = U64(0xffffffffffffffff)) { COMBINE_DATA(&reinterpret_cast<UINT64 *>(m_base)[offset]); }
 
 private:
 	// internal read/write helpers for 1 byte entries
@@ -129,8 +116,8 @@ private:
 	int                 m_membits;
 	endianness_t        m_endianness;
 	int                 m_bytes_per_entry;
-	UINT32 (memory_array::*m_reader)(int);
-	void (memory_array::*m_writer)(int, UINT32);
+	UINT32 (memory_array::*m_read_entry)(int);
+	void (memory_array::*m_write_entry)(int, UINT32);
 };
 
 

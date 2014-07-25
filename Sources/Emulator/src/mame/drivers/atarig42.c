@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari G42 hardware
@@ -18,7 +20,6 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "machine/asic65.h"
 #include "video/atarirle.h"
 #include "includes/atarig42.h"
 
@@ -90,7 +91,7 @@ WRITE16_MEMBER(atarig42_state::io_latch_w)
 	if (ACCESSING_BITS_8_15)
 	{
 		/* bit 14 controls the ASIC65 reset line */
-		asic65_reset(machine(), (~data >> 14) & 1);
+		m_asic65->reset_line((~data >> 14) & 1);
 
 		/* bits 13-11 are the MO control bits */
 		m_rle->control_write(space, 0, (data >> 11) & 7);
@@ -342,11 +343,11 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, atarig42_state )
 	AM_RANGE(0xe03000, 0xe03001) AM_WRITE(video_int_ack_w)
 	AM_RANGE(0xe03800, 0xe03801) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0xe80000, 0xe80fff) AM_RAM
-	AM_RANGE(0xf40000, 0xf40001) AM_READ_LEGACY(asic65_io_r)
-	AM_RANGE(0xf60000, 0xf60001) AM_READ_LEGACY(asic65_r)
-	AM_RANGE(0xf80000, 0xf80003) AM_WRITE_LEGACY(asic65_data_w)
+	AM_RANGE(0xf40000, 0xf40001) AM_DEVREAD("asic65", asic65_device, io_r)
+	AM_RANGE(0xf60000, 0xf60001) AM_DEVREAD("asic65", asic65_device, read)
+	AM_RANGE(0xf80000, 0xf80003) AM_DEVWRITE("asic65", asic65_device, data_w)
 	AM_RANGE(0xfa0000, 0xfa0fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
-	AM_RANGE(0xfc0000, 0xfc0fff) AM_RAM_WRITE(paletteram_666_w) AM_SHARE("paletteram")
+	AM_RANGE(0xfc0000, 0xfc0fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xff0000, 0xff0fff) AM_RAM AM_SHARE("rle")
 	AM_RANGE(0xff2000, 0xff5fff) AM_DEVWRITE("playfield", tilemap_device, write) AM_SHARE("playfield")
 	AM_RANGE(0xff6000, 0xff6fff) AM_DEVWRITE("alpha", tilemap_device, write) AM_SHARE("alpha")
@@ -537,27 +538,26 @@ static MACHINE_CONFIG_START( atarig42, atarig42_state )
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_DEVICE_VBLANK_INT_DRIVER("screen", atarigen_state, video_int_gen)
 
-	/* ASIC65 */
-	MCFG_FRAGMENT_ADD(asic65)
-
 	MCFG_MACHINE_START_OVERRIDE(atarig42_state,atarig42)
 	MCFG_MACHINE_RESET_OVERRIDE(atarig42_state,atarig42)
 
 	MCFG_ATARI_EEPROM_2816_ADD("eeprom")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_GFXDECODE(atarig42)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", atarig42)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(IRRRRRGGGGGBBBBB)
 
-	MCFG_TILEMAP_ADD_CUSTOM("playfield", 2, atarig42_state, get_playfield_tile_info, 8,8, atarig42_playfield_scan, 128,64)
-	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", 2, atarig42_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,32, 0)
+	MCFG_TILEMAP_ADD_CUSTOM("playfield", "gfxdecode", 2, atarig42_state, get_playfield_tile_info, 8,8, atarig42_playfield_scan, 128,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", "gfxdecode", 2, atarig42_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,32, 0)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	/* note: these parameters are from published specs, not derived */
 	/* the board uses an SOS chip to generate video signals */
 	MCFG_SCREEN_RAW_PARAMS(ATARI_CLOCK_14MHz/2, 456, 0, 336, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(atarig42_state, screen_update_atarig42)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(atarig42_state,atarig42)
 
@@ -571,10 +571,16 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( atarig42_0x200, atarig42 )
 	MCFG_ATARIRLE_ADD("rle", modesc_0x200)
+
+	/* ASIC65 */
+	MCFG_ASIC65_ADD("asic65", ASIC65_ROMBASED)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( atarig42_0x400, atarig42 )
 	MCFG_ATARIRLE_ADD("rle", modesc_0x400)
+
+	/* ASIC65 */
+	MCFG_ASIC65_ADD("asic65", ASIC65_GUARDIANS)
 MACHINE_CONFIG_END
 
 
@@ -593,7 +599,7 @@ ROM_START( roadriot )
 	ROM_LOAD16_BYTE( "136089-2016.9d", 0x40000, 0x20000, CRC(6191653c) SHA1(97d1a84a585149e8f2c49cab7af22dc755dff350) )
 	ROM_LOAD16_BYTE( "136089-2015.9c", 0x40001, 0x20000, CRC(0d34419a) SHA1(f16e9fb4cd537d727611cb7dd5537c030671fe1e) )
 
-	ROM_REGION( 0x2000, "asic65", 0 )   /* ASIC65 TMS32015 code */
+	ROM_REGION( 0x2000, "asic65:asic65cpu", 0 )   /* ASIC65 TMS32015 code */
 	ROM_LOAD( "136089-1012.3f", 0x00000, 0x0a80, CRC(7c5498e7) SHA1(9d8b235baf7b75bef8ef9b168647c5b2b80b2cb3) )
 
 	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 6502 code */
@@ -651,7 +657,7 @@ ROM_START( roadrioto )
 	ROM_LOAD16_BYTE( "136089-2016.9d", 0x40000, 0x20000, CRC(6191653c) SHA1(97d1a84a585149e8f2c49cab7af22dc755dff350) ) /* PALs & BPROMs in White labels */
 	ROM_LOAD16_BYTE( "136089-2015.9c", 0x40001, 0x20000, CRC(0d34419a) SHA1(f16e9fb4cd537d727611cb7dd5537c030671fe1e) )
 
-	ROM_REGION( 0x2000, "asic65", 0 )   /* ASIC65 TMS32015 code */
+	ROM_REGION( 0x2000, "asic65:asic65cpu", 0 )   /* ASIC65 TMS32015 code */
 	ROM_LOAD( "136089-1012.3f", 0x00000, 0x0a80, CRC(7c5498e7) SHA1(9d8b235baf7b75bef8ef9b168647c5b2b80b2cb3) )
 
 	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 6502 code */
@@ -710,7 +716,7 @@ ROM_START( guardian )
 	ROM_LOAD16_BYTE( "136092-2023.9e",  0x40000, 0x20000, CRC(cfa29316) SHA1(4e0e76304e29ee59bc2ce9a704e3f651dc9d473c) )
 	ROM_LOAD16_BYTE( "136092-2022.9cd", 0x40001, 0x20000, CRC(ed2abc91) SHA1(81531040d5663f6ab82e924210056e3737e17a8d) )
 
-	ROM_REGION( 0x2000, "asic65", 0 )   /* ASIC65 TMS32015 code */
+	ROM_REGION( 0x2000, "asic65:asic65cpu", 0 )   /* ASIC65 TMS32015 code */
 	ROM_LOAD( "136089-1012.3f", 0x00000, 0x0a80, NO_DUMP )
 
 	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 6502 code */
@@ -778,26 +784,25 @@ DRIVER_INIT_MEMBER(atarig42_state,roadriot)
 	m_sloop_base = main.install_readwrite_handler(0x000000, 0x07ffff, read16_delegate(FUNC(atarig42_state::roadriot_sloop_data_r),this), write16_delegate(FUNC(atarig42_state::roadriot_sloop_data_w),this));
 	main.set_direct_update_handler(direct_update_delegate(FUNC(atarig42_state::atarig42_sloop_direct_handler), this));
 
-	asic65_config(machine(), ASIC65_ROMBASED);
-/*
-    Road Riot color MUX
+	/*
+	Road Riot color MUX
 
-    CRA10=!MGEP*!AN.VID7*AN.0               -- if (mopri < pfpri) && (!alpha)
-       +!AN.VID7*AN.0*MO.0                  or if (mopix == 0) && (!alpha)
+	CRA10=!MGEP*!AN.VID7*AN.0               -- if (mopri < pfpri) && (!alpha)
+	   +!AN.VID7*AN.0*MO.0                  or if (mopix == 0) && (!alpha)
 
-    CRA9=MGEP*!AN.VID7*AN.0*!MO.0           -- if (mopri >= pfpri) && (mopix != 0) && (!alpha)
-       +!AN.VID7*AN.0*PF.VID9               or if (pfpix & 0x200) && (!alpha)
+	CRA9=MGEP*!AN.VID7*AN.0*!MO.0           -- if (mopri >= pfpri) && (mopix != 0) && (!alpha)
+	   +!AN.VID7*AN.0*PF.VID9               or if (pfpix & 0x200) && (!alpha)
 
-    CRA8=MGEP*!AN.VID7*AN.0*!MO.0*MVID8     -- if (mopri >= pfpri) && (mopix != 0) && (mopix & 0x100) && (!alpha)
-       +!MGEP*!AN.VID7*AN.0*PF.VID8         or if (mopri < pfpri) && (pfpix & 0x100) && (!alpha)
-       +!AN.VID7*AN.0*MO.0*PF.VID8          or if (pfpix & 0x100) && (!alpha)
+	CRA8=MGEP*!AN.VID7*AN.0*!MO.0*MVID8     -- if (mopri >= pfpri) && (mopix != 0) && (mopix & 0x100) && (!alpha)
+	   +!MGEP*!AN.VID7*AN.0*PF.VID8         or if (mopri < pfpri) && (pfpix & 0x100) && (!alpha)
+	   +!AN.VID7*AN.0*MO.0*PF.VID8          or if (pfpix & 0x100) && (!alpha)
 
-    CRMUXB=!AN.VID7*AN.0                    -- if (!alpha)
+	CRMUXB=!AN.VID7*AN.0                    -- if (!alpha)
 
-    CRMUXA=!MGEP                            -- if (mopri < pfpri)
-       +MO.0                                or (mopix == 0)
-       +AN.VID7                             or (alpha)
-       +!AN.0
+	CRMUXA=!MGEP                            -- if (mopri < pfpri)
+	   +MO.0                                or (mopix == 0)
+	   +AN.VID7                             or (alpha)
+	   +!AN.0
 */
 }
 
@@ -814,26 +819,25 @@ DRIVER_INIT_MEMBER(atarig42_state,guardian)
 	m_sloop_base = main.install_readwrite_handler(0x000000, 0x07ffff, read16_delegate(FUNC(atarig42_state::guardians_sloop_data_r),this), write16_delegate(FUNC(atarig42_state::guardians_sloop_data_w),this));
 	main.set_direct_update_handler(direct_update_delegate(FUNC(atarig42_state::atarig42_sloop_direct_handler), this));
 
-	asic65_config(machine(), ASIC65_GUARDIANS);
-/*
-    Guardians color MUX
+	/*
+	Guardians color MUX
 
-    CRA10=MGEP*!AN.VID7*AN.0*!MO.0          -- if (mopri >= pfpri) && (!alpha) && (mopix != 0)
+	CRA10=MGEP*!AN.VID7*AN.0*!MO.0          -- if (mopri >= pfpri) && (!alpha) && (mopix != 0)
 
-    CRA9=MGEP*!AN.VID7*AN.0*!MO.0*MVID9     -- if (mopri >= pfpri) && (!alpha) && (mopix != 0) && (mopix & 0x200)
-       +!MGEP*!AN.VID7*AN.0*PF.VID9         or if (mopri < pfpri) && (!alpha) && (pfpix & 0x200)
-       +!AN.VID7*AN.0*MO.0*PF.VID9          or if (mopix == 0) && (!alpha) && (pfpix & 0x200)
+	CRA9=MGEP*!AN.VID7*AN.0*!MO.0*MVID9     -- if (mopri >= pfpri) && (!alpha) && (mopix != 0) && (mopix & 0x200)
+	   +!MGEP*!AN.VID7*AN.0*PF.VID9         or if (mopri < pfpri) && (!alpha) && (pfpix & 0x200)
+	   +!AN.VID7*AN.0*MO.0*PF.VID9          or if (mopix == 0) && (!alpha) && (pfpix & 0x200)
 
-    CRA8=MGEP*!AN.VID7*AN.0*!MO.0*MVID8     -- if (mopri >= pfpri) && (!alpha) && (mopix != 0) && (mopix & 0x100)
-       +!MGEP*!AN.VID7*AN.0*PF.VID8         or if (mopri < pfpri) && (!alpha) && (pfpix & 0x100)
-       +!AN.VID7*AN.0*MO.0*PF.VID8          or if (mopix == 0) && (!alpha) && (pfpix & 0x100)
+	CRA8=MGEP*!AN.VID7*AN.0*!MO.0*MVID8     -- if (mopri >= pfpri) && (!alpha) && (mopix != 0) && (mopix & 0x100)
+	   +!MGEP*!AN.VID7*AN.0*PF.VID8         or if (mopri < pfpri) && (!alpha) && (pfpix & 0x100)
+	   +!AN.VID7*AN.0*MO.0*PF.VID8          or if (mopix == 0) && (!alpha) && (pfpix & 0x100)
 
-    CRMUXB=!AN.VID7*AN.0                    -- if (!alpha)
+	CRMUXB=!AN.VID7*AN.0                    -- if (!alpha)
 
-    CRMUXA=!MGEP                            -- if (mopri < pfpri)
-       +MO.0                                or (mopix == 0)
-       +AN.VID7                             or (alpha)
-       +!AN.0
+	CRMUXA=!MGEP                            -- if (mopri < pfpri)
+	   +MO.0                                or (mopix == 0)
+	   +AN.VID7                             or (alpha)
+	   +!AN.0
 */
 }
 

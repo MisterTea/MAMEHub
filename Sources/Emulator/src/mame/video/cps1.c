@@ -60,6 +60,7 @@ Final Fight (USA 900613)                                           89624B-3   S2
 Final Fight (Japan)                                                ?          S222B            ?     ?            CPS-B-04  DL-0411-10005
 Final Fight (Japan 900112)                                         89625B-1   S222B            LWIO  88622-C-5    CPS-B-01  DL-0411-10001  None
 Final Fight (Japan 900305)                                         88622B-3   S222B            LWIO  88622-C-5    CPS-B-02  DL-0411-10002  None
+Final Fight (Japan 900613)                                         89625B-1   S222B            LWIO  88622-C-5    CPS-B-05  DL-0411-10006  None
 
 1941: Counter Attack (World)                                 1990  89624B-3   YI24B            IOB1  88622-C-5    CPS-B-05  DL-0411-10006  None
 1941: Counter Attack (World 900227)                                89624B-3   YI24B            IOB1  88622-C-5    CPS-B-05  DL-0411-10006  None
@@ -84,11 +85,13 @@ Carrier Air Wing (World 901012)                                    89624B-3   CA
 Carrier Air Wing (USA 901012)                                      89624B-3   CA24B            IOB1  88622-C-5    CPS-B-16  DL-0411-10011  None
 U.S. Navy (Japan 901012)                                           89625B-1   CA22B            IOB1  88622-C-5    CPS-B-16  DL-0411-10011  None
 
-Nemo (World 901130)                                          1990  89624B-3   NM24B            IOB1  88622-C-5    CPS-B-15  DL-0411-10010  None
+Nemo (World 901109)                                          1990  89624B-3   NM24B            IOB1  88622-C-5    CPS-B-15  DL-0411-10010  None
+Nemo (World 901130)                                                89624B-3   NM24B            IOB1  88622-C-5    CPS-B-15  DL-0411-10010  None
 Nemo (Japan 901120)                                                89625B-1   NM22B            ?     ?            CPS-B-15  DL-0411-10010
 
 Street Fighter II: The World Warrior (World 910214)          1991  90629B-2   STF29            IOB1  90632C-1     CPS-B-17  DL-0411-10012  C632
 Street Fighter II: The World Warrior (World 910228)                90629B-3   STF29            IOB2  90632C-1     CPS-B-18  DL-0411-10013  C632B
+Street Fighter II: The World Warrior (World 910318)                90629B-3   STF29            IOB1  90632C-1     CPS-B-05  DL-0411-10006  C632
 Street Fighter II: The World Warrior (World 910522)                90629B-3   STF29            IOB1  90632C-1     CPS-B-11  DL-0411-10004  C632
 Street Fighter II: The World Warrior (USA 910206)                  90629B-2   STF29            IOB1  90632C-1     CPS-B-17  DL-0411-10012  C632
 Street Fighter II: The World Warrior (USA 910214)                  90629B-3   STF29            IOB1  90632C-1     CPS-B-17  DL-0411-10012  C632
@@ -173,7 +176,7 @@ Muscle Bomber: The Body Explosion* (Japan 930713)                  91634B-2   MB
 Muscle Bomber Duo: Ultimate Team Battle* (World 931206)      1993  91635B-?   MB63B    BPRG1   IOB1  ?            CPS-B-21  DL-0921-10014          IOC1
 Muscle Bomber Duo: Heat Up Warriors* (Japan 931206)                91634B-2   MB63B    BPRG1   IOB1  92641C-1     CPS-B-21  DL-0921-10014          IOC1
 
-Ken Sei Mogura (Japan ??????)                                1994  ?          ?                ?     ?            ?         ?
+Ken Sei Mogura: Street Fighter II (Japan 940418, Ver 1.00)   1994  91634B-2   KNM10B   BPRG1   IOB1  92631C-6     CPS-B-21  DL-0921-10014  C632    IOC1
 
 Pnickies (Japan 940608)                                      1994  89625B-1   PKB10B           IOB1  92631C-6     CPS-B-21  DL-0921-10014  C632    IOC1
 
@@ -1266,6 +1269,113 @@ static const struct gfx_range mapper_cps2_table[] =
 };
 
 
+
+/*
+Name     knm10b;
+PartNo   ;
+Date     ;
+Revision ;
+Designer ;
+Company  ;
+Assembly ;
+Location ;
+Device   g16v8;
+
+ Dedicated input pins
+
+pin 1   = I0;  Input
+pin 2   = I1;  Input
+pin 3   = I2;  Input
+pin 4   = I3;  Input
+pin 5   = I4;  Input
+pin 6   = I5;  Input
+pin 7   = I6;  Input
+pin 8   = I7;  Input
+pin 9   = I8;  Input
+pin 11  = I9;  Input
+
+ Programmable output pins
+
+pin 12  = B0;  Combinatorial output
+pin 13  = B1;  Combinatorial output
+pin 14  = B2;  Combinatorial output
+pin 15  = B3;  Combinatorial output
+pin 16  = B4;  Combinatorial output
+pin 17  = B5;  Combinatorial output
+pin 18  = B6;  Combinatorial output
+pin 19  = B7;  Combinatorial output
+
+ Output equations
+
+!B7 = !I0 & !I1 & !I2 & !I3 & !I4 & !I5 & !I9
+    #  I0 & !I1 & !I2 & !I3 & !I4 & !I5 &  I9;
+!B6 = !I0 & !I1 & !I2 & !I3 & !I4 & !I5 & !I9
+    #  I0 & !I1 & !I2 & !I3 & !I4 & !I5 &  I9;
+!B5 = !I0 & !I1 & !I2 & !I3 & !I4 &  I5 & !I9
+    #  I0 & !I1 & !I2 & !I3 & !I4 &  I5 &  I9;
+!B4 = !I0 & !I1 & !I2 & !I3 & !I4 &  I5 & !I9
+    #  I0 & !I1 & !I2 & !I3 & !I4 &  I5 &  I9;
+!B3 = !I0 & !I1 & !I2 & !I3 &  I4 & !I5 & !I6 & !I7 & !I8 & !I9
+    # !I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 & !I7 & !I8 & !I9
+    # !I0 & !I1 &  I2 &  I3 & !I4 & !I5 & !I6 &  I7 & !I8 & !I9
+    # !I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 &  I7 & !I8 & !I9
+    # !I0 & !I1 & !I2 &  I3 & !I4 & !I5 & !I6 & !I7 &  I8 & !I9
+    # !I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 & !I7 &  I8 & !I9
+    # !I0 & !I1 &  I2 &  I3 & !I4 & !I5 & !I6 &  I7 &  I8 & !I9
+    # !I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 &  I7 &  I8 & !I9
+    #  I0 & !I1 & !I2 & !I3 &  I4 & !I5 & !I6 & !I7 & !I8 &  I9
+    #  I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 & !I7 & !I8 &  I9
+    #  I0 & !I1 &  I2 &  I3 & !I4 & !I5 & !I6 &  I7 & !I8 &  I9
+    #  I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 &  I7 & !I8 &  I9
+    #  I0 & !I1 & !I2 &  I3 & !I4 & !I5 & !I6 & !I7 &  I8 &  I9
+    #  I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 & !I7 &  I8 &  I9
+    #  I0 & !I1 &  I2 &  I3 & !I4 & !I5 & !I6 &  I7 &  I8 &  I9
+    #  I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 &  I7 &  I8 &  I9;
+!B2 = !I0 & !I1 & !I2 & !I3 &  I4 & !I5 & !I6 & !I7 & !I8 & !I9
+    # !I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 & !I7 & !I8 & !I9
+    # !I0 & !I1 &  I2 &  I3 & !I4 & !I5 & !I6 &  I7 & !I8 & !I9
+    # !I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 &  I7 & !I8 & !I9
+    # !I0 & !I1 & !I2 &  I3 & !I4 & !I5 & !I6 & !I7 &  I8 & !I9
+    # !I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 & !I7 &  I8 & !I9
+    # !I0 & !I1 &  I2 &  I3 & !I4 & !I5 & !I6 &  I7 &  I8 & !I9
+    # !I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 &  I7 &  I8 & !I9
+    #  I0 & !I1 & !I2 & !I3 &  I4 & !I5 & !I6 & !I7 & !I8 &  I9
+    #  I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 & !I7 & !I8 &  I9
+    #  I0 & !I1 &  I2 &  I3 & !I4 & !I5 & !I6 &  I7 & !I8 &  I9
+    #  I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 &  I7 & !I8 &  I9
+    #  I0 & !I1 & !I2 &  I3 & !I4 & !I5 & !I6 & !I7 &  I8 &  I9
+    #  I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 & !I7 &  I8 &  I9
+    #  I0 & !I1 &  I2 &  I3 & !I4 & !I5 & !I6 &  I7 &  I8 &  I9
+    #  I0 & !I1 &  I2 & !I3 & !I4 & !I5 &  I6 &  I7 &  I8 &  I9;
+!B1 = !I1 & !I2 & !I3 &  I4 & !I5 & !I6 & !I7 & !I8
+    # !I1 &  I2 & !I3 & !I4 & !I5 &  I6 & !I7 & !I8
+    # !I1 &  I2 &  I3 & !I4 & !I5 & !I6 &  I7 & !I8
+    # !I1 &  I2 & !I3 & !I4 & !I5 &  I6 &  I7 & !I8
+    # !I1 & !I2 &  I3 & !I4 & !I5 & !I6 & !I7 &  I8
+    # !I1 &  I2 & !I3 & !I4 & !I5 &  I6 & !I7 &  I8
+    # !I1 &  I2 &  I3 & !I4 & !I5 & !I6 &  I7 &  I8
+    # !I1 &  I2 & !I3 & !I4 & !I5 &  I6 &  I7 &  I8;
+!B0 =  I0 &  I9;
+
+*/
+// wrong, need to figure this out from the PAL
+
+#define mapper_KNM10B    { 0x8000, 0x8000, 0x8000, 0 }, mapper_KNM10B_table
+static const struct gfx_range mapper_KNM10B_table[] =
+{
+	/* type             start    end      bank */
+
+	{ GFXTYPE_SPRITES , 0x00000, 0x07fff, 0 },
+	{ GFXTYPE_SPRITES , 0x08000, 0x0ffff, 1 },
+	{ GFXTYPE_SPRITES , 0x10000, 0x17fff, 2 },
+	{ GFXTYPE_SCROLL2 , 0x04000, 0x07fff, 2 },
+	{ GFXTYPE_SCROLL1,  0x01000, 0x01fff, 2 },
+	{ GFXTYPE_SCROLL3 , 0x02000, 0x03fff, 2 },
+	{ 0 }
+};
+
+
+
 static const struct CPS1config cps1_config_table[]=
 {
 	/* name         CPSB          gfx mapper   in2  in3  out2   kludge */
@@ -1297,9 +1407,10 @@ static const struct CPS1config cps1_config_table[]=
 	{"ffightu1",    CPS_B_04,     mapper_S224B },
 	{"ffightua",    CPS_B_01,     mapper_S224B },
 	{"ffightub",    CPS_B_05,     mapper_S224B },
-	{"ffightj",     CPS_B_04,     mapper_S224B },   // wrong, this set uses S222B, still not dumped
-	{"ffightj1",    CPS_B_01,     mapper_S224B },   // wrong, this set uses S222B, still not dumped
-	{"ffightj2",    CPS_B_02,     mapper_S224B },   // wrong, this set uses S222B, still not dumped
+	{"ffightj",     CPS_B_04,     mapper_S224B },   // wrong, this set uses S222B
+	{"ffightj1",    CPS_B_01,     mapper_S224B },   // wrong, this set uses S222B
+	{"ffightj2",    CPS_B_02,     mapper_S224B },   // wrong, this set uses S222B
+	{"ffightj3",    CPS_B_05,     mapper_S224B },   // wrong, this set uses S222B
 	{"ffightjh",    CPS_B_01,     mapper_S224B },   // wrong, ffightjh hack doesn't even use the S222B PAL, since replaced with a GAL.
 	{"1941",        CPS_B_05,     mapper_YI24B },
 	{"1941r1",      CPS_B_05,     mapper_YI24B },
@@ -1315,10 +1426,11 @@ static const struct CPS1config cps1_config_table[]=
 	{"msword",      CPS_B_13,     mapper_MS24B },
 	{"mswordr1",    CPS_B_13,     mapper_MS24B },
 	{"mswordu",     CPS_B_13,     mapper_MS24B },
-	{"mswordj",     CPS_B_13,     mapper_MS24B },   // wrong, this set uses MS22B, still not dumped
+	{"mswordj",     CPS_B_13,     mapper_MS24B },   // wrong, this set uses MS22B, dumped but equations still not added
 	{"mtwins",      CPS_B_14,     mapper_CK24B },
 	{"chikij",      CPS_B_14,     mapper_CK24B },   // wrong, this set uses CK22B, dumped but equations still not added
 	{"nemo",        CPS_B_15,     mapper_NM24B },
+	{"nemor1",      CPS_B_15,     mapper_NM24B },
 	{"nemoj",       CPS_B_15,     mapper_NM24B },   // wrong, this set uses NM22B, still not dumped
 	{"cawing",      CPS_B_16,     mapper_CA24B },
 	{"cawingr1",    CPS_B_16,     mapper_CA24B },
@@ -1327,6 +1439,7 @@ static const struct CPS1config cps1_config_table[]=
 	{"cawingbl",    CPS_B_16,     mapper_CA22B },   // equivalent to CA24B
 	{"sf2",         CPS_B_11,     mapper_STF29,  0x36 },
 	{"sf2eb",       CPS_B_17,     mapper_STF29,  0x36 },
+	{"sf2ed",       CPS_B_05,     mapper_STF29,  0x36 },
 	{"sf2ee",       CPS_B_18,     mapper_STF29,  0x3c },
 	{"sf2ebbl",     CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1  },
 	{"sf2stt",      CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1  },
@@ -1389,9 +1502,11 @@ static const struct CPS1config cps1_config_table[]=
 	{"sf2red",      CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2v004",     CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2acc",      CPS_B_21_DEF, mapper_S9263B, 0x36 },
+	{"sf2ceblp",    CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2acca",     CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2accp2",    CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2amf",      CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 }, // probably wrong but this set is not completely dumped anyway
+	{"sf2amf2",     CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"sf2dkot2",    CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2m1",       CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2m2",       CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
@@ -1406,6 +1521,7 @@ static const struct CPS1config cps1_config_table[]=
 	{"sf2koryu",    CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"sf2mdt",      CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"sf2mdta",     CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
+	{"sf2mdtb",     CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"varth",       CPS_B_04,     mapper_VA63B },   /* CPSB test has been patched out (60=0008) register is also written to, possibly leftover from development */  // wrong, this set uses VA24B, dumped but equations still not added
 	{"varthr1",     CPS_B_04,     mapper_VA63B },   /* CPSB test has been patched out (60=0008) register is also written to, possibly leftover from development */  // wrong, this set uses VA24B, dumped but equations still not added
 	{"varthu",      CPS_B_04,     mapper_VA63B },   /* CPSB test has been patched out (60=0008) register is also written to, possibly leftover from development */
@@ -1447,11 +1563,11 @@ static const struct CPS1config cps1_config_table[]=
 	{"megamana",    CPS_B_21_DEF, mapper_RCM63B },
 	{"rockmanj",    CPS_B_21_DEF, mapper_RCM63B },
 	{"pnickj",      CPS_B_21_DEF, mapper_PKB10B },
-	{"pang3",       CPS_B_21_DEF, mapper_pang3 },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */   // should use one of these three CP1B1F,CP1B8K,CP1B9KA still not dumped
+	{"pang3",       CPS_B_21_DEF, mapper_pang3 },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */   // should use one of these three CP1B1F,CP1B8K,CP1B9KA
 	{"pang3r1",     CPS_B_21_DEF, mapper_pang3 },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */   // should use one of these three CP1B1F,CP1B8K,CP1B9K
 	{"pang3j",      CPS_B_21_DEF, mapper_pang3 },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */   // should use one of these three CP1B1F,CP1B8K,CP1B9K
 	{"pang3b",      CPS_B_21_DEF, mapper_pang3 },   /* EEPROM port is among the CPS registers (handled by DRIVER_INIT) */   // should use one of these three CP1B1F,CP1B8K,CP1B9K
-	{"ganbare",     CPS_B_21_DEF, mapper_sfzch },   // wrong, this set uses GBPR2, still not dumped
+	{"ganbare",     CPS_B_21_DEF, mapper_sfzch },   // wrong, this set uses GBPR2, dumped but equations still not added
 
 	/* CPS Changer */
 
@@ -1463,6 +1579,10 @@ static const struct CPS1config cps1_config_table[]=
 	/* CPS2 games */
 
 	{"cps2",        CPS_B_21_DEF, mapper_cps2 },
+
+	/* CPS1 board + extra support boards */
+
+	{"kenseim",     CPS_B_21_DEF, mapper_KNM10B },  // wrong, need to convert equations from PAL
 
 	{0}     /* End of table */
 };
@@ -1712,39 +1832,6 @@ WRITE16_MEMBER(cps_state::cps1_cps_b_w)
 }
 
 
-
-void cps_state::cps1_gfx_decode()
-{
-	int size = memregion("gfx")->bytes();
-	int i, j, gfxsize;
-	UINT8 *cps1_gfx = memregion("gfx")->base();
-
-	gfxsize = size / 4;
-
-	for (i = 0; i < gfxsize; i++)
-	{
-		UINT32 src = cps1_gfx[4 * i] + (cps1_gfx[4 * i + 1] << 8) + (cps1_gfx[4 * i + 2] << 16) + (cps1_gfx[4 * i + 3] << 24);
-		UINT32 dwval = 0;
-
-		for (j = 0; j < 8; j++)
-		{
-			int n = 0;
-			UINT32 mask = (0x80808080 >> j) & src;
-
-			if (mask & 0x000000ff) n |= 1;
-			if (mask & 0x0000ff00) n |= 2;
-			if (mask & 0x00ff0000) n |= 4;
-			if (mask & 0xff000000) n |= 8;
-
-			dwval |= n << (j * 4);
-		}
-		cps1_gfx[4 *i    ] = dwval >> 0;
-		cps1_gfx[4 *i + 1] = dwval >> 8;
-		cps1_gfx[4 *i + 2] = dwval >> 16;
-		cps1_gfx[4 *i + 3] = dwval >> 24;
-	}
-}
-
 void cps_state::unshuffle( UINT64 *buf, int len )
 {
 	int i;
@@ -1768,6 +1855,7 @@ void cps_state::unshuffle( UINT64 *buf, int len )
 	}
 }
 
+
 void cps_state::cps2_gfx_decode()
 {
 	const int banksize = 0x200000;
@@ -1776,15 +1864,11 @@ void cps_state::cps2_gfx_decode()
 
 	for (i = 0; i < size; i += banksize)
 		unshuffle((UINT64 *)(memregion("gfx")->base() + i), banksize / 8);
-
-	cps1_gfx_decode();
 }
 
 
 DRIVER_INIT_MEMBER(cps_state,cps1)
 {
-	cps1_gfx_decode();
-
 	m_scanline1 = 0;
 	m_scanline2 = 0;
 	m_scancalls = 0;
@@ -2007,8 +2091,7 @@ TILE_GET_INFO_MEMBER(cps_state::get_tile0_info)
 	     should alternate between the left and right side of the 16x16 tiles */
 	gfxset = (tile_index & 0x20) >> 5;
 
-	SET_TILE_INFO_MEMBER(
-			gfxset,
+	SET_TILE_INFO_MEMBER(gfxset,
 			code,
 			(attr & 0x1f) + 0x20,
 			TILE_FLIPYX((attr & 0x60) >> 5));
@@ -2027,8 +2110,7 @@ TILE_GET_INFO_MEMBER(cps_state::get_tile1_info)
 
 	code = gfxrom_bank_mapper(GFXTYPE_SCROLL2, code);
 
-	SET_TILE_INFO_MEMBER(
-			2,
+	SET_TILE_INFO_MEMBER(2,
 			code,
 			(attr & 0x1f) + 0x40,
 			TILE_FLIPYX((attr & 0x60) >> 5));
@@ -2046,8 +2128,7 @@ TILE_GET_INFO_MEMBER(cps_state::get_tile2_info)
 
 	code = gfxrom_bank_mapper(GFXTYPE_SCROLL3, code);
 
-	SET_TILE_INFO_MEMBER(
-			3,
+	SET_TILE_INFO_MEMBER(3,
 			code,
 			(attr & 0x1f) + 0x60,
 			TILE_FLIPYX((attr & 0x60) >> 5));
@@ -2097,9 +2178,9 @@ VIDEO_START_MEMBER(cps_state,cps)
 	m_stars_rom_size = 0x2000;  /* first 0x4000 of gfx ROM are used, but 0x0000-0x1fff is == 0x2000-0x3fff */
 
 	/* create tilemaps */
-	m_bg_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cps_state::get_tile0_info),this), tilemap_mapper_delegate(FUNC(cps_state::tilemap0_scan),this),  8,  8, 64, 64);
-	m_bg_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cps_state::get_tile1_info),this), tilemap_mapper_delegate(FUNC(cps_state::tilemap1_scan),this), 16, 16, 64, 64);
-	m_bg_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cps_state::get_tile2_info),this), tilemap_mapper_delegate(FUNC(cps_state::tilemap2_scan),this), 32, 32, 64, 64);
+	m_bg_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cps_state::get_tile0_info),this), tilemap_mapper_delegate(FUNC(cps_state::tilemap0_scan),this),  8,  8, 64, 64);
+	m_bg_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cps_state::get_tile1_info),this), tilemap_mapper_delegate(FUNC(cps_state::tilemap1_scan),this), 16, 16, 64, 64);
+	m_bg_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cps_state::get_tile2_info),this), tilemap_mapper_delegate(FUNC(cps_state::tilemap2_scan),this), 32, 32, 64, 64);
 
 	/* create empty tiles */
 	memset(m_empty_tile, 0x0f, sizeof(m_empty_tile));
@@ -2108,7 +2189,7 @@ VIDEO_START_MEMBER(cps_state,cps)
 	cps1_update_transmasks();
 
 	for (i = 0; i < cps1_palette_entries * 16; i++)
-		palette_set_color(machine(), i, MAKE_RGB(0,0,0));
+		m_palette->set_pen_color(i, rgb_t(0,0,0));
 
 	m_buffered_obj = auto_alloc_array_clear(machine(), UINT16, m_obj_size / 2);
 
@@ -2227,7 +2308,7 @@ void cps_state::cps1_build_palette( const UINT16* const palette_base )
 				g = ((palette >> 4) & 0x0f) * 0x11 * bright / 0x2d;
 				b = ((palette >> 0) & 0x0f) * 0x11 * bright / 0x2d;
 
-				palette_set_color (machine(), 0x200 * page + offset, MAKE_RGB(r, g, b));
+				m_palette->set_pen_color (0x200 * page + offset, rgb_t(r, g, b));
 			}
 		}
 		else
@@ -2314,15 +2395,15 @@ void cps_state::cps1_render_sprites( screen_device &screen, bitmap_ind16 &bitmap
 #define DRAWSPRITE(CODE,COLOR,FLIPX,FLIPY,SX,SY)                    \
 {                                                                   \
 	if (flip_screen())                                           \
-		pdrawgfx_transpen(bitmap,\
-				cliprect,machine().gfx[2],                            \
+		m_gfxdecode->gfx(2)->prio_transpen(bitmap,\
+				cliprect,                            \
 				CODE,                                               \
 				COLOR,                                              \
 				!(FLIPX),!(FLIPY),                                  \
-				511-16-(SX),255-16-(SY),    screen.priority(),0x02,15);                   \
+				512-16-(SX),256-16-(SY),    screen.priority(),0x02,15);                   \
 	else                                                            \
-		pdrawgfx_transpen(bitmap,\
-				cliprect,machine().gfx[2],                            \
+		m_gfxdecode->gfx(2)->prio_transpen(bitmap,\
+				cliprect,                            \
 				CODE,                                               \
 				COLOR,                                              \
 				FLIPX,FLIPY,                                        \
@@ -2547,15 +2628,15 @@ void cps_state::cps2_render_sprites( screen_device &screen, bitmap_ind16 &bitmap
 #define DRAWSPRITE(CODE,COLOR,FLIPX,FLIPY,SX,SY)                                    \
 {                                                                                   \
 	if (flip_screen())                                                           \
-		pdrawgfx_transpen(bitmap,\
-				cliprect,machine().gfx[2],                                            \
+		m_gfxdecode->gfx(2)->prio_transpen(bitmap,\
+				cliprect,                                            \
 				CODE,                                                               \
 				COLOR,                                                              \
 				!(FLIPX),!(FLIPY),                                                  \
-				511-16-(SX),255-16-(SY), screen.priority(),primasks[priority],15);                 \
+				512-16-(SX),256-16-(SY), screen.priority(),primasks[priority],15);                 \
 	else                                                                            \
-		pdrawgfx_transpen(bitmap,\
-				cliprect,machine().gfx[2],                                            \
+		m_gfxdecode->gfx(2)->prio_transpen(bitmap,\
+				cliprect,                                            \
 				CODE,                                                               \
 				COLOR,                                                              \
 				FLIPX,FLIPY,                                                        \
@@ -2715,8 +2796,8 @@ void cps_state::cps1_render_stars( screen_device &screen, bitmap_ind16 &bitmap, 
 				sy = (sy - m_stars2y) & 0xff;
 				if (flip_screen())
 				{
-					sx = 511 - sx;
-					sy = 255 - sy;
+					sx = 512 - sx;
+					sy = 256 - sy;
 				}
 
 				col = ((col & 0xe0) >> 1) + (screen.frame_number() / 16 & 0x0f);
@@ -2740,8 +2821,8 @@ void cps_state::cps1_render_stars( screen_device &screen, bitmap_ind16 &bitmap, 
 				sy = (sy - m_stars1y) & 0xff;
 				if (flip_screen())
 				{
-					sx = 511 - sx;
-					sy = 255 - sy;
+					sx = 512 - sx;
+					sy = 256 - sy;
 				}
 
 				col = ((col & 0xe0) >> 1) + (screen.frame_number() / 16 & 0x0f);
@@ -2850,7 +2931,7 @@ UINT32 cps_state::screen_update_cps1(screen_device &screen, bitmap_ind16 &bitmap
 		// Maybe Capcom changed the background handling due to the problems that
 		// it caused on several monitors (because the background extended into the
 		// blanking area instead of going black, causing the monitor to clip).
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 	}
 
 	cps1_render_stars(screen, bitmap, cliprect);

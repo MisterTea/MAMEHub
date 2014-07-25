@@ -216,7 +216,7 @@
 #include "e132xs.h"
 
 #ifdef MAME_DEBUG
-#define DEBUG_PRINTF(x) do { mame_printf_debug x; } while (0)
+#define DEBUG_PRINTF(x) do { osd_printf_debug x; } while (0)
 #else
 #define DEBUG_PRINTF(x) do { } while (0)
 #endif
@@ -4861,7 +4861,7 @@ void hyperstone_device::hyperstone_trap(struct hyperstone_device::regs_decode *d
 }
 
 
-#include "e132xsop.c"
+#include "e132xsop.inc"
 
 //**************************************************************************
 //  CORE EXECUTION LOOP

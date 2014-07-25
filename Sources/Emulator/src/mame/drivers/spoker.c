@@ -30,7 +30,10 @@ public:
 		m_bg_tile_ram(*this, "bg_tile_ram"),
 		m_fg_tile_ram(*this, "fg_tile_ram"),
 		m_fg_color_ram(*this, "fg_color_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_bg_tile_ram;
 	tilemap_t *m_bg_tilemap;
@@ -62,6 +65,9 @@ public:
 	UINT32 screen_update_spoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(spoker_interrupt);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 WRITE8_MEMBER(spoker_state::bg_tile_w)
@@ -96,14 +102,14 @@ WRITE8_MEMBER(spoker_state::fg_color_w)
 
 void spoker_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(spoker_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8,  32, 128, 8);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(spoker_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8,  8,  128, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(spoker_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8,  32, 128, 8);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(spoker_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8,  8,  128, 32);
 	m_fg_tilemap->set_transparent_pen(0);
 }
 
 UINT32 spoker_state::screen_update_spoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
@@ -223,8 +229,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( spoker_portmap, AS_IO, 8, spoker_state )
 	AM_RANGE( 0x0000, 0x003f ) AM_RAM // Z180 internal regs
 
-	AM_RANGE( 0x2000, 0x23ff ) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_lo_w ) AM_SHARE("paletteram")
-	AM_RANGE( 0x2400, 0x27ff ) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_hi_w ) AM_SHARE("paletteram2")
+	AM_RANGE( 0x2000, 0x23ff ) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE( 0x2400, 0x27ff ) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 
 	AM_RANGE( 0x3000, 0x33ff ) AM_RAM_WRITE(bg_tile_w ) AM_SHARE("bg_tile_ram")
 
@@ -254,8 +260,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( 3super8_portmap, AS_IO, 8, spoker_state )
 //  AM_RANGE( 0x1000, 0x1fff ) AM_WRITENOP
 
-	AM_RANGE( 0x2000, 0x27ff ) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_lo_w ) AM_SHARE("paletteram")
-	AM_RANGE( 0x2800, 0x2fff ) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_hi_w ) AM_SHARE("paletteram2")
+	AM_RANGE( 0x2000, 0x27ff ) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE( 0x2800, 0x2fff ) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 
 	AM_RANGE( 0x3000, 0x33ff ) AM_RAM_WRITE(bg_tile_w ) AM_SHARE("bg_tile_ram")
 
@@ -534,10 +540,11 @@ static MACHINE_CONFIG_START( spoker, spoker_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(spoker_state, screen_update_spoker)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(spoker)
-	MCFG_PALETTE_LENGTH(0x400)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", spoker)
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -557,7 +564,7 @@ static MACHINE_CONFIG_DERIVED( 3super8, spoker )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", spoker_state, spoker_interrupt)
 	MCFG_CPU_PERIODIC_INT_DRIVER(spoker_state, irq0_line_hold, 120) // this signal comes from the PIC
 
-	MCFG_GFXDECODE(3super8)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", 3super8)
 
 	MCFG_DEVICE_REMOVE("ymsnd")
 MACHINE_CONFIG_END

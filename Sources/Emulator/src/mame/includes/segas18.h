@@ -1,46 +1,17 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Sega System 16A/16B/18/Outrun/Hang On/X-Board/Y-Board hardware
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
 #include "cpu/m68000/m68000.h"
 #include "cpu/mcs51/mcs51.h"
 #include "cpu/z80/z80.h"
-#include "machine/megavdp.h"
 #include "machine/nvram.h"
 #include "machine/segaic16.h"
+#include "video/315_5313.h"
 #include "video/segaic16.h"
 #include "video/sega16sp.h"
 
@@ -69,7 +40,8 @@ public:
 			m_vdp_mixing(0),
 			m_mcu_data(0),
 			m_lghost_value(0),
-			m_lghost_select(0)
+			m_lghost_select(0),
+			m_gfxdecode(*this, "gfxdecode")
 	{
 		memset(m_misc_io_data, 0, sizeof(m_misc_io_data));
 		memset(m_wwally_last_x, 0, sizeof(m_wwally_last_x));
@@ -101,9 +73,9 @@ public:
 	DECLARE_READ16_MEMBER( genesis_vdp_r );
 	DECLARE_WRITE16_MEMBER( genesis_vdp_w );
 
-	DECLARE_WRITE_LINE_MEMBER(genesis_vdp_sndirqline_callback_segas18);
-	DECLARE_WRITE_LINE_MEMBER(genesis_vdp_lv6irqline_callback_segas18);
-	DECLARE_WRITE_LINE_MEMBER(genesis_vdp_lv4irqline_callback_segas18);
+	DECLARE_WRITE_LINE_MEMBER(vdp_sndirqline_callback_s18);
+	DECLARE_WRITE_LINE_MEMBER(vdp_lv6irqline_callback_s18);
+	DECLARE_WRITE_LINE_MEMBER(vdp_lv4irqline_callback_s18);
 
 
 	// custom I/O
@@ -116,8 +88,8 @@ public:
 	// video rendering
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
-	DECLARE_WRITE16_HANDLER( sega_tileram_0_w ) { m_segaic16vid->segaic16_tileram_0_w(space,offset,data,mem_mask); };
-	DECLARE_WRITE16_HANDLER( sega_textram_0_w ) { m_segaic16vid->segaic16_textram_0_w(space,offset,data,mem_mask); };
+	DECLARE_WRITE16_MEMBER( sega_tileram_0_w ) { m_segaic16vid->segaic16_tileram_0_w(space,offset,data,mem_mask); };
+	DECLARE_WRITE16_MEMBER( sega_textram_0_w ) { m_segaic16vid->segaic16_textram_0_w(space,offset,data,mem_mask); };
 
 protected:
 	// timer IDs
@@ -152,7 +124,7 @@ protected:
 	required_device<m68000_device> m_maincpu;
 	required_device<z80_device> m_soundcpu;
 	optional_device<i8751_device> m_mcu;
-	required_device<sega_genesis_vdp_device> m_vdp;
+	required_device<sega315_5313_device> m_vdp;
 	required_device<nvram_device> m_nvram;
 	required_device<sega_sys16b_sprite_device> m_sprites;
 	required_device<segaic16_video_device> m_segaic16vid;
@@ -179,4 +151,6 @@ protected:
 	UINT8               m_wwally_last_y[3];
 	UINT8               m_lghost_value;
 	UINT8               m_lghost_select;
+
+	required_device<gfxdecode_device> m_gfxdecode;
 };

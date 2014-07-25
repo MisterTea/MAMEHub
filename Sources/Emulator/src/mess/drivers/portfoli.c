@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
     Atari Portfolio
@@ -76,6 +78,7 @@
 */
 
 #include "includes/portfoli.h"
+#include "bus/rs232/rs232.h"
 #include "rendlay.h"
 
 
@@ -630,26 +633,6 @@ static INPUT_PORTS_START( portfolio )
 	PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_A) PORT_CHAR('a') PORT_CHAR('A')
 	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Esc") PORT_CODE(KEYCODE_ESC) PORT_CHAR(UCHAR_MAMEKEY(ESC))
 
-	PORT_START("PPI-PB")
-	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_SPECIAL) PORT_WRITE_LINE_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, strobe_w)
-	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_SPECIAL) PORT_WRITE_LINE_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, autofeed_w)
-	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_SPECIAL) PORT_WRITE_LINE_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, init_prime_w)
-	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_SPECIAL) // PORT_WRITE_LINE_DEVICE(CENTRONICS_TAG, centronics_select_in_w)
-	PORT_BIT(0x10, IP_ACTIVE_HIGH, IPT_UNUSED)
-	PORT_BIT(0x20, IP_ACTIVE_HIGH, IPT_UNUSED)
-	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_UNUSED)
-	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_UNUSED)
-
-	PORT_START("PPI-PC")
-	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_SPECIAL) PORT_READ_LINE_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, pe_r)
-	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_SPECIAL) PORT_READ_LINE_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, vcc_r)
-	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_UNUSED)
-	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_SPECIAL) PORT_READ_LINE_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, fault_r)
-	PORT_BIT(0x10, IP_ACTIVE_HIGH, IPT_SPECIAL) PORT_READ_LINE_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, busy_r)
-	PORT_BIT(0x20, IP_ACTIVE_HIGH, IPT_SPECIAL) PORT_READ_LINE_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, ack_r)
-	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_UNUSED)
-	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_UNUSED)
-
 	PORT_START("BATTERY")
 	PORT_CONFNAME( 0x01, 0x01, "Battery Status" )
 	PORT_CONFSETTING( 0x01, DEF_STR( Normal ) )
@@ -668,10 +651,10 @@ INPUT_PORTS_END
 //  VIDEO
 //**************************************************************************
 
-void portfolio_state::palette_init()
+PALETTE_INIT_MEMBER(portfolio_state, portfolio)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(138, 146, 148));
-	palette_set_color(machine(), 1, MAKE_RGB(92, 83, 88));
+	palette.set_pen_color(0, rgb_t(138, 146, 148));
+	palette.set_pen_color(1, rgb_t(92, 83, 88));
 }
 
 
@@ -679,18 +662,13 @@ void portfolio_state::palette_init()
 //  HD61830_INTERFACE( lcdc_intf )
 //-------------------------------------------------
 
-READ8_MEMBER(portfolio_state::hd61830_rd_r)
+READ8_MEMBER( portfolio_state::hd61830_rd_r )
 {
 	UINT16 address = ((offset & 0xff) << 3) | ((offset >> 12) & 0x07);
 	UINT8 data = m_char_rom->base()[address];
 
 	return data;
 }
-
-static HD61830_INTERFACE( lcdc_intf )
-{
-	DEVCB_DRIVER_MEMBER(portfolio_state,hd61830_rd_r)
-};
 
 
 //-------------------------------------------------
@@ -724,21 +702,6 @@ GFXDECODE_END
 //**************************************************************************
 
 //-------------------------------------------------
-//  I8255_INTERFACE( ppi_intf )
-//-------------------------------------------------
-
-static I8255_INTERFACE( ppi_intf )
-{
-	DEVCB_NULL,                                                 // Port A read
-	DEVCB_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, write),  // Port A write
-	DEVCB_NULL,                                                 // Port B read
-	DEVCB_INPUT_PORT("PPI-PB"),                                 // Port B write
-	DEVCB_INPUT_PORT("PPI-PC"),                                 // Port C read
-	DEVCB_NULL                                                  // Port C write
-};
-
-
-//-------------------------------------------------
 //  ins8250_interface i8250_intf
 //-------------------------------------------------
 
@@ -746,44 +709,6 @@ WRITE_LINE_MEMBER( portfolio_state::i8250_intrpt_w )
 {
 	trigger_interrupt(INT_EXTERNAL);
 }
-
-static const ins8250_interface i8250_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
-	DEVCB_DRIVER_LINE_MEMBER(portfolio_state, i8250_intrpt_w),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  centronics_interface centronics_intf
-//-------------------------------------------------
-
-static const centronics_interface centronics_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(M82C50A_TAG, ins8250_uart_device, rx_w),
-	DEVCB_DEVICE_LINE_MEMBER(M82C50A_TAG, ins8250_uart_device, dcd_w),
-	DEVCB_DEVICE_LINE_MEMBER(M82C50A_TAG, ins8250_uart_device, dsr_w),
-	DEVCB_DEVICE_LINE_MEMBER(M82C50A_TAG, ins8250_uart_device, ri_w),
-	DEVCB_DEVICE_LINE_MEMBER(M82C50A_TAG, ins8250_uart_device, cts_w)
-};
-
-
 
 //**************************************************************************
 //  IMAGE LOADING
@@ -811,9 +736,6 @@ DEVICE_IMAGE_LOAD_MEMBER( portfolio_state, portfolio_cart )
 void portfolio_state::machine_start()
 {
 	address_space &program = m_maincpu->space(AS_PROGRAM);
-
-	/* set CPU interrupt vector callback */
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(portfolio_state::portfolio_int_ack),this));
 
 	/* memory expansions */
 	switch (m_ram->size())
@@ -884,6 +806,7 @@ static MACHINE_CONFIG_START( portfolio, portfolio_state )
 	MCFG_CPU_ADD(M80C88A_TAG, I8088, XTAL_4_9152MHz)
 	MCFG_CPU_PROGRAM_MAP(portfolio_mem)
 	MCFG_CPU_IO_MAP(portfolio_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(portfolio_state,portfolio_int_ack)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD(SCREEN_TAG, LCD)
@@ -891,14 +814,18 @@ static MACHINE_CONFIG_START( portfolio, portfolio_state )
 	MCFG_SCREEN_UPDATE_DEVICE(HD61830_TAG, hd61830_device, screen_update)
 	MCFG_SCREEN_SIZE(240, 64)
 	MCFG_SCREEN_VISIBLE_AREA(0, 240-1, 0, 64-1)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_PALETTE_ADD("palette", 2)
+	MCFG_PALETTE_INIT_OWNER(portfolio_state, portfolio)
 
-	MCFG_GFXDECODE(portfolio)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", portfolio)
 
-	MCFG_HD61830_ADD(HD61830_TAG, XTAL_4_9152MHz/2/2, lcdc_intf)
+	MCFG_DEVICE_ADD(HD61830_TAG, HD61830, XTAL_4_9152MHz/2/2)
+	MCFG_HD61830_RD_CALLBACK(READ8(portfolio_state, hd61830_rd_r))
+	MCFG_VIDEO_SET_SCREEN(SCREEN_TAG)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -906,12 +833,41 @@ static MACHINE_CONFIG_START( portfolio, portfolio_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_I8255A_ADD(M82C55A_TAG, ppi_intf)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
-	MCFG_INS8250_ADD(M82C50A_TAG, i8250_intf, XTAL_1_8432MHz) // should be MCFG_INS8250A_ADD
+	MCFG_DEVICE_ADD(M82C55A_TAG, I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
+	MCFG_I8255_OUT_PORTB_CB(DEVWRITE8("cent_ctrl_out", output_latch_device, write))
+	MCFG_I8255_IN_PORTC_CB(DEVREAD8("cent_status_in", input_buffer_device, read))
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_ACK_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit5))
+	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit4))
+	MCFG_CENTRONICS_FAULT_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit3))
+	MCFG_CENTRONICS_SELECT_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit1))
+	MCFG_CENTRONICS_PERROR_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit0))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
+	MCFG_DEVICE_ADD("cent_status_in", INPUT_BUFFER, 0)
+
+	MCFG_DEVICE_ADD("cent_ctrl_out", OUTPUT_LATCH, 0)
+	MCFG_OUTPUT_LATCH_BIT0_HANDLER(DEVWRITELINE(CENTRONICS_TAG, centronics_device, write_strobe))
+	MCFG_OUTPUT_LATCH_BIT1_HANDLER(DEVWRITELINE(CENTRONICS_TAG, centronics_device, write_autofd))
+	MCFG_OUTPUT_LATCH_BIT2_HANDLER(DEVWRITELINE(CENTRONICS_TAG, centronics_device, write_init))
+	MCFG_OUTPUT_LATCH_BIT3_HANDLER(DEVWRITELINE(CENTRONICS_TAG, centronics_device, write_select_in))
+
+	MCFG_DEVICE_ADD(M82C50A_TAG, INS8250, XTAL_1_8432MHz) // should be INS8250A
+	MCFG_INS8250_OUT_TX_CB(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_INS8250_OUT_DTR_CB(DEVWRITELINE(RS232_TAG, rs232_port_device, write_dtr))
+	MCFG_INS8250_OUT_RTS_CB(DEVWRITELINE(RS232_TAG, rs232_port_device, write_rts))
+	MCFG_INS8250_OUT_INT_CB(WRITELINE(portfolio_state, i8250_intrpt_w))
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("counter", portfolio_state, counter_tick, attotime::from_hz(XTAL_32_768kHz/16384))
 	MCFG_TIMER_DRIVER_ADD_PERIODIC(TIMER_TICK_TAG, portfolio_state, system_tick, attotime::from_hz(XTAL_32_768kHz/32768))
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(M82C50A_TAG, ins8250_uart_device, rx_w))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(M82C50A_TAG, ins8250_uart_device, dcd_w))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(M82C50A_TAG, ins8250_uart_device, dsr_w))
+	MCFG_RS232_RI_HANDLER(DEVWRITELINE(M82C50A_TAG, ins8250_uart_device, ri_w))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(M82C50A_TAG, ins8250_uart_device, cts_w))
 
 	/* fake keyboard */
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("keyboard", portfolio_state, keyboard_tick, attotime::from_usec(2500))

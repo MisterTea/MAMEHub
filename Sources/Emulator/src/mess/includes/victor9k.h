@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /**********************************************************************
 
     Victor 9000 / ACT Sirius 1 emulation
@@ -12,18 +14,17 @@
 #ifndef __VICTOR9K__
 #define __VICTOR9K__
 
-#include "emu.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/i86/i86.h"
 #include "cpu/mcs48/mcs48.h"
 #include "imagedev/floppy.h"
 #include "machine/ram.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/6522via.h"
-#include "machine/ieee488.h"
+#include "bus/ieee488/ieee488.h"
 #include "machine/mc6852.h"
 #include "machine/pit8253.h"
 #include "machine/pic8259.h"
-#include "machine/serial.h"
 #include "machine/z80dart.h"
 #include "machine/victor9kb.h"
 #include "sound/hc55516.h"
@@ -49,6 +50,7 @@
 #define RS232_A_TAG     "rs232a"
 #define RS232_B_TAG     "rs232b"
 #define SCREEN_TAG      "screen"
+#define VICTOR9K_KEYBOARD_TAG   "victor9kb"
 
 class victor9k_state : public driver_device
 {
@@ -59,6 +61,7 @@ public:
 			m_fdc_cpu(*this, I8048_TAG),
 			m_ieee488(*this, IEEE488_TAG),
 			m_pic(*this, I8259A_TAG),
+			m_upd7201(*this, UPD7201_TAG),
 			m_ssda(*this, MC6852_TAG),
 			m_via1(*this, M6522_1_TAG),
 			m_via2(*this, M6522_2_TAG),
@@ -89,13 +92,15 @@ public:
 			m_lms(0),
 			m_brdy(1),
 			m_sync(1),
-			m_gcrerr(0)
+			m_gcrerr(0),
+			m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_fdc_cpu;
 	required_device<ieee488_device> m_ieee488;
 	required_device<pic8259_device> m_pic;
+	required_device<upd7201_device> m_upd7201;
 	required_device<mc6852_device> m_ssda;
 	required_device<via6522_device> m_via1;
 	required_device<via6522_device> m_via2;
@@ -122,47 +127,42 @@ public:
 	DECLARE_WRITE8_MEMBER( da_w );
 
 	DECLARE_WRITE8_MEMBER( via1_pa_w );
-	DECLARE_READ8_MEMBER( via1_pb_r );
+	DECLARE_WRITE_LINE_MEMBER( write_nfrd );
+	DECLARE_WRITE_LINE_MEMBER( write_ndac );
 	DECLARE_WRITE8_MEMBER( via1_pb_w );
 	DECLARE_WRITE_LINE_MEMBER( via1_irq_w );
 	DECLARE_WRITE_LINE_MEMBER( codec_vol_w );
 
-	DECLARE_READ8_MEMBER( via2_pa_r );
 	DECLARE_WRITE8_MEMBER( via2_pa_w );
 	DECLARE_WRITE8_MEMBER( via2_pb_w );
+	DECLARE_WRITE_LINE_MEMBER( write_ria );
+	DECLARE_WRITE_LINE_MEMBER( write_rib );
 	DECLARE_WRITE_LINE_MEMBER( via2_irq_w );
 
-	DECLARE_READ8_MEMBER( via3_pa_r );
-	DECLARE_READ8_MEMBER( via3_pb_r );
-	DECLARE_WRITE8_MEMBER( via3_pa_w );
 	DECLARE_WRITE8_MEMBER( via3_pb_w );
 	DECLARE_WRITE_LINE_MEMBER( via3_irq_w );
 
 	DECLARE_WRITE8_MEMBER( via4_pa_w );
 	DECLARE_WRITE8_MEMBER( via4_pb_w );
-	DECLARE_READ_LINE_MEMBER( ds0_r );
-	DECLARE_READ_LINE_MEMBER( ds1_r );
 	DECLARE_WRITE_LINE_MEMBER( mode_w );
 	DECLARE_WRITE_LINE_MEMBER( via4_irq_w );
 
-	DECLARE_READ8_MEMBER( via5_pa_r );
 	DECLARE_WRITE8_MEMBER( via5_pb_w );
-	DECLARE_READ_LINE_MEMBER( brdy_r );
-	DECLARE_READ_LINE_MEMBER( rdy0_r );
-	DECLARE_READ_LINE_MEMBER( rdy1_r );
 	DECLARE_WRITE_LINE_MEMBER( via5_irq_w );
 
 	DECLARE_READ8_MEMBER( via6_pa_r );
 	DECLARE_READ8_MEMBER( via6_pb_r );
 	DECLARE_WRITE8_MEMBER( via6_pa_w );
 	DECLARE_WRITE8_MEMBER( via6_pb_w );
-	DECLARE_READ_LINE_MEMBER( gcrerr_r );
 	DECLARE_WRITE_LINE_MEMBER( drw_w );
 	DECLARE_WRITE_LINE_MEMBER( erase_w );
 	DECLARE_WRITE_LINE_MEMBER( kbrdy_w );
+	DECLARE_WRITE_LINE_MEMBER( kbdata_w );
+	DECLARE_WRITE_LINE_MEMBER( vert_w );
 	DECLARE_WRITE_LINE_MEMBER( via6_irq_w );
 
 	DECLARE_WRITE_LINE_MEMBER( ssda_irq_w );
+	MC6845_UPDATE_ROW( crtc_update_row );
 
 	void ready0_cb(floppy_image_device *, int device);
 	int load0_cb(floppy_image_device *device);
@@ -214,7 +214,7 @@ public:
 
 	DECLARE_WRITE_LINE_MEMBER(mux_serial_b_w);
 	DECLARE_WRITE_LINE_MEMBER(mux_serial_a_w);
-	IRQ_CALLBACK_MEMBER(victor9k_irq_callback);
+	required_device<palette_device> m_palette;
 };
 
 #endif

@@ -179,13 +179,6 @@ const timex_cart_t *timex_cart_data(void)
 	return &timex_cart;
 }
 
-static const ay8910_interface spectrum_ay_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL
-};
-
 /****************************************************************************************************/
 /* TS2048 specific functions */
 
@@ -621,7 +614,7 @@ MACHINE_RESET_MEMBER(spectrum_state,tc2048)
 DEVICE_IMAGE_LOAD_MEMBER( spectrum_state, timex_cart )
 {
 	int file_size;
-	UINT8 * file_data;
+	dynamic_buffer file_data;
 
 	int chunks_in_file = 0;
 
@@ -637,12 +630,7 @@ DEVICE_IMAGE_LOAD_MEMBER( spectrum_state, timex_cart )
 		return IMAGE_INIT_FAIL;
 	}
 
-	file_data = (UINT8 *)malloc(file_size);
-	if (file_data == NULL)
-	{
-		logerror ("Memory allocating error\n");
-		return IMAGE_INIT_FAIL;
-	}
+	file_data.resize(file_size);
 
 	image.fread(file_data, file_size);
 
@@ -651,7 +639,6 @@ DEVICE_IMAGE_LOAD_MEMBER( spectrum_state, timex_cart )
 
 	if (chunks_in_file*0x2000+0x09 != file_size)
 	{
-		free (file_data);
 		logerror ("File corrupted\n");
 		return IMAGE_INIT_FAIL;
 	}
@@ -660,10 +647,9 @@ DEVICE_IMAGE_LOAD_MEMBER( spectrum_state, timex_cart )
 	{
 		case 0x00:  logerror ("DOCK cart\n");
 				timex_cart.type = TIMEX_CART_DOCK;
-				timex_cart.data = (UINT8*) malloc (0x10000);
+				timex_cart.data = global_alloc_array(UINT8, 0x10000);
 				if (!timex_cart.data)
 				{
-					free (file_data);
 					logerror ("Memory allocate error\n");
 					return IMAGE_INIT_FAIL;
 				}
@@ -684,11 +670,9 @@ DEVICE_IMAGE_LOAD_MEMBER( spectrum_state, timex_cart )
 							memset (timex_cart.data+i*0x2000, 0xff, 0x2000);
 					}
 				}
-				free (file_data);
 				break;
 
 		default:    logerror ("Cart type not supported\n");
-				free (file_data);
 				timex_cart.type = TIMEX_CART_NONE;
 				return IMAGE_INIT_FAIL;
 	}
@@ -703,7 +687,7 @@ DEVICE_IMAGE_UNLOAD_MEMBER( spectrum_state, timex_cart )
 {
 	if (timex_cart.data)
 	{
-		free (timex_cart.data);
+		global_free_array(timex_cart.data);
 		timex_cart.data = NULL;
 	}
 	timex_cart.type = TIMEX_CART_NONE;
@@ -743,13 +727,12 @@ static MACHINE_CONFIG_DERIVED( ts2068, spectrum_128 )
 	MCFG_SCREEN_VISIBLE_AREA(0, TS2068_SCREEN_WIDTH-1, 0, TS2068_SCREEN_HEIGHT-1)
 	MCFG_SCREEN_UPDATE_DRIVER(spectrum_state, screen_update_ts2068)
 
-	MCFG_GFXDECODE(ts2068)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", ts2068)
 
 	MCFG_VIDEO_START_OVERRIDE(spectrum_state, ts2068 )
 
 	/* sound */
 	MCFG_SOUND_REPLACE("ay8912", AY8912, XTAL_14_112MHz/8)        /* From Schematic; 1.764 MHz */
-	MCFG_SOUND_CONFIG(spectrum_ay_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* cartridge */

@@ -209,7 +209,7 @@
 #define MASTER_CLOCK    XTAL_6MHz   /* confirmed */
 
 #include "emu.h"
-#include "cpu/tms9900/tms9900l.h"
+#include "cpu/tms9900/tms9980a.h"
 #include "video/mc6845.h"
 #include "sound/sn76477.h"
 
@@ -220,7 +220,8 @@ public:
 	tmspoker_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	tilemap_t *m_bg_tilemap;
@@ -232,10 +233,11 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(tmspoker);
 	UINT32 screen_update_tmspoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(tmspoker_interrupt);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -260,12 +262,12 @@ TILE_GET_INFO_MEMBER(tmspoker_state::get_bg_tile_info)
 */
 	int code = m_videoram[tile_index];
 
-	SET_TILE_INFO_MEMBER( 0 /* bank */, code, 0 /* color */, 0);
+	SET_TILE_INFO_MEMBER(0 /* bank */, code, 0 /* color */, 0);
 }
 
 void tmspoker_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tmspoker_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tmspoker_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 UINT32 tmspoker_state::screen_update_tmspoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -274,7 +276,7 @@ UINT32 tmspoker_state::screen_update_tmspoker(screen_device &screen, bitmap_ind1
 	return 0;
 }
 
-void tmspoker_state::palette_init()
+PALETTE_INIT_MEMBER(tmspoker_state, tmspoker)
 {
 }
 
@@ -290,7 +292,8 @@ void tmspoker_state::palette_init()
 
 INTERRUPT_GEN_MEMBER(tmspoker_state::tmspoker_interrupt)
 {
-	device.execute().set_input_line_and_vector(0, ASSERT_LINE, 3);//2=nmi  3,4,5,6
+	m_maincpu->set_input_line(INT_9980A_LEVEL1, ASSERT_LINE); //_and_vector(0, ASSERT_LINE, 3);//2=nmi  3,4,5,6
+	m_maincpu->set_input_line(INT_9980A_LEVEL1, CLEAR_LINE);  // MZ: do we need this?
 }
 
 
@@ -542,38 +545,15 @@ static GFXDECODE_START( tmspoker )
 GFXDECODE_END
 
 
-/***********************
-*    CRTC Interface    *
-************************/
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-
 /*************************
 *    Machine Drivers     *
 *************************/
 
 static MACHINE_CONFIG_START( tmspoker, tmspoker_state )
 
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", TMS9980L, MASTER_CLOCK/4)   /* guess */
-	MCFG_CPU_PROGRAM_MAP(tmspoker_map)
-	MCFG_CPU_IO_MAP(tmspoker_cru_map)
+	// CPU TMS9980A; no line connections
+	MCFG_TMS99xx_ADD("maincpu", TMS9980A, MASTER_CLOCK/4, tmspoker_map, tmspoker_cru_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", tmspoker_state,  tmspoker_interrupt)
-
-//  MCFG_NVRAM_HANDLER(generic_0fill)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -581,14 +561,17 @@ static MACHINE_CONFIG_START( tmspoker, tmspoker_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
-
-	MCFG_GFXDECODE(tmspoker)
-
-	MCFG_PALETTE_LENGTH(256)
-
 	MCFG_SCREEN_UPDATE_DRIVER(tmspoker_state, screen_update_tmspoker)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/4, mc6845_intf) /* guess */
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tmspoker)
+
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(tmspoker_state, tmspoker)
+
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/4) /* guess */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
 MACHINE_CONFIG_END
 
@@ -599,6 +582,7 @@ MACHINE_CONFIG_END
 
 ROM_START( tmspoker )
 	ROM_REGION( 0x4000, "maincpu", 0 ) /* TMS9980 selectable code */
+
 	ROM_LOAD( "0.bin",  0x0000, 0x1000, CRC(a20ae6cb) SHA1(d47780119b4ebb16dc759a50dfc880ddbc6a1112) )  /* Program 1 */
 	ROM_LOAD( "8.bin",  0x1000, 0x1000, CRC(0c0a7159) SHA1(92cc3dc32a5bf4a7fa197e72c3931e583c96ef33) )  /* Program 2 */
 
@@ -617,14 +601,20 @@ ROM_END
 DRIVER_INIT_MEMBER(tmspoker_state,bus)
 {
 	/* decode the TMS9980 ROMs */
-	offs_t offs;
-	UINT8 *rom = memregion("maincpu")->base();
-	const size_t len = memregion("maincpu")->bytes();
 
-	for (offs = 0; offs < len; offs++)
-	{
-		rom[offs] = BITSWAP8(rom[offs],0,1,2,3,4,5,6,7);
-	}
+	// MZ: Does not make sense to swap the bit order, so I commented it out.
+	// Only when unswapped do the commands make sense; otherwise there is a lot
+	// of invalid opcodes, and the RESET vector at 0000 is invalid either.
+
+/*  offs_t offs;
+    UINT8 *rom = memregion("maincpu")->base();
+    const size_t len = memregion("maincpu")->bytes();
+
+    for (offs = 0; offs < len; offs++)
+    {
+        rom[offs] = BITSWAP8(rom[offs],0,1,2,3,4,5,6,7);
+    }
+*/
 
 	/* still need to decode the addressing lines */
 	/* text found in the ROM (A at 6, B at 8, etc: consistent with gfx rom byte offsets) suggests

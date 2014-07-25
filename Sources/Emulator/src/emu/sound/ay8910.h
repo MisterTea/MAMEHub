@@ -26,13 +26,6 @@ YMZ294: 0 I/O port
 #define YM2149_INTERNAL_RESISTANCE  (353)
 
 /*
- * Default values for resistor loads.
- * The macro should be used in AY8910interface if
- * the real values are unknown.
- */
-#define AY8910_DEFAULT_LOADS        {1000, 1000, 1000}
-
-/*
  * The following is used by all drivers not reviewed yet.
  * This will like the old behaviour, output between
  * 0 and 7FFF
@@ -56,13 +49,11 @@ YMZ294: 0 I/O port
 
 /*
  * The following define causes the driver to output
- * raw volume levels, i.e. 0 .. 15 and 0..31.
- * This is intended to be used in a subsequent
- * mixing modul (i.e. mpatrol ties 6 channels from
- * AY-3-8910 together). Do not use it now.
+ * resistor values. Intended to be used for
+ * netlist interfacing.
  */
-/* TODO: implement mixing module */
-#define AY8910_RAW_OUTPUT           (0x08)
+
+#define AY8910_RESISTOR_OUTPUT      (0x08)
 
 /*
  * This define specifies the initial state of YM2149
@@ -74,33 +65,50 @@ YMZ294: 0 I/O port
 #define YM2149_PIN26_LOW            (0x10)
 
 
-struct ay8910_interface
-{
-	int                 flags;          /* Flags */
-	int                 res_load[3];    /* Load on channel in ohms */
-	devcb_read8         portAread;
-	devcb_read8         portBread;
-	devcb_write8        portAwrite;
-	devcb_write8        portBwrite;
-};
+#define AY8910_NUM_CHANNELS 3
 
-/*********** An interface for SSG of YM2203 ***********/
 
-void *ay8910_start_ym(device_t *device, const ay8910_interface *intf);
+#define MCFG_AY8910_OUTPUT_TYPE(_flag) \
+	ay8910_device::set_flags(*device, _flag);
 
-void ay8910_stop_ym(void *chip);
-void ay8910_reset_ym(void *chip);
-void ay8910_set_clock_ym(void *chip, int clock);
-void ay8910_set_volume(void *chip ,int channel, int volume);
-void ay8910_write_ym(void *chip, int addr, int data);
-int ay8910_read_ym(void *chip);
+#define MCFG_AY8910_RES_LOADS(_res0, _res1, _res2) \
+	ay8910_device::set_resistors_load(*device, _res0, _res1, _res2);
+
+#define MCFG_AY8910_PORT_A_READ_CB(_devcb) \
+	devcb = &ay8910_device::set_port_a_read_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_AY8910_PORT_B_READ_CB(_devcb) \
+	devcb = &ay8910_device::set_port_b_read_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_AY8910_PORT_A_WRITE_CB(_devcb) \
+	devcb = &ay8910_device::set_port_a_write_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_AY8910_PORT_B_WRITE_CB(_devcb) \
+	devcb = &ay8910_device::set_port_b_write_callback(*device, DEVCB_##_devcb);
+
 
 class ay8910_device : public device_t,
 									public device_sound_interface
 {
 public:
+	enum psg_type_t
+	{
+		PSG_TYPE_AY,
+		PSG_TYPE_YM
+	};
+
+	// construction/destruction
 	ay8910_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	ay8910_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
+	ay8910_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner,
+					UINT32 clock, psg_type_t psg_type, int streams, int ioports, const char *shortname, const char *source);
+
+	// static configuration helpers
+	static void set_flags(device_t &device, int flags) { downcast<ay8910_device &>(device).m_flags = flags; }
+	static void set_resistors_load(device_t &device, int res_load0, int res_load1, int res_load2) { downcast<ay8910_device &>(device).m_res_load[0] = res_load0; downcast<ay8910_device &>(device).m_res_load[1] = res_load1; downcast<ay8910_device &>(device).m_res_load[2] = res_load2; }
+	template<class _Object> static devcb_base &set_port_a_read_callback(device_t &device, _Object object) { return downcast<ay8910_device &>(device).m_port_a_read_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_port_b_read_callback(device_t &device, _Object object) { return downcast<ay8910_device &>(device).m_port_b_read_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_port_a_write_callback(device_t &device, _Object object) { return downcast<ay8910_device &>(device).m_port_a_write_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_port_b_write_callback(device_t &device, _Object object) { return downcast<ay8910_device &>(device).m_port_b_write_cb.set_callback(object); }
 
 	DECLARE_READ8_MEMBER( data_r );
 	DECLARE_WRITE8_MEMBER( address_w );
@@ -116,20 +124,77 @@ public:
 	DECLARE_WRITE8_MEMBER( address_data_w );
 
 	void set_volume(int channel,int volume);
+	void ay_set_clock(int clock);
+
+	struct ay_ym_param
+	{
+		double r_up;
+		double r_down;
+		int    res_count;
+		double res[32];
+	};
+
+	struct mosfet_param
+	{
+		double m_Vth;
+		double m_Vg;
+		int    m_count;
+		double m_Kn[32];
+	};
+
+	void ay8910_write_ym(int addr, int data);
+	int ay8910_read_ym();
+	void ay8910_reset_ym();
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
-	virtual void device_stop();
 	virtual void device_reset();
 
 	// sound stream update overrides
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
 
+private:
+	// internal helpers
+	inline UINT16 mix_3D();
+	void ay8910_write_reg(int r, int v);
+	void build_mixer_table();
+	void ay8910_statesave();
+
 	// internal state
-	const ay8910_interface *m_ay8910_config;
-	void *m_psg;
+	psg_type_t m_type;
+	int m_streams;
+	int m_ioports;
+	int m_ready;
+	sound_stream *m_channel;
+	INT32 m_register_latch;
+	UINT8 m_regs[16];
+	INT32 m_last_enable;
+	INT32 m_count[AY8910_NUM_CHANNELS];
+	UINT8 m_output[AY8910_NUM_CHANNELS];
+	UINT8 m_prescale_noise;
+	INT32 m_count_noise;
+	INT32 m_count_env;
+	INT8 m_env_step;
+	UINT32 m_env_volume;
+	UINT8 m_hold,m_alternate,m_attack,m_holding;
+	INT32 m_rng;
+	UINT8 m_env_step_mask;
+	/* init parameters ... */
+	int m_step;
+	int m_zero_is_off;
+	UINT8 m_vol_enabled[AY8910_NUM_CHANNELS];
+	const ay_ym_param *m_par;
+	const ay_ym_param *m_par_env;
+	INT32 m_vol_table[AY8910_NUM_CHANNELS][16];
+	INT32 m_env_table[AY8910_NUM_CHANNELS][32];
+	INT32 m_vol3d_table[8*32*32*32];
+	int m_flags;          /* Flags */
+	int m_res_load[3];    /* Load on channel in ohms */
+	devcb_read8 m_port_a_read_cb;
+	devcb_read8 m_port_b_read_cb;
+	devcb_write8 m_port_a_write_cb;
+	devcb_write8 m_port_b_write_cb;
 };
 
 extern const device_type AY8910;
@@ -174,15 +239,11 @@ class ym2149_device : public ay8910_device
 {
 public:
 	ym2149_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	ym2149_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
-protected:
-	// device-level overrides
-	virtual void device_start();
 };
 
 extern const device_type YM2149;
 
-class ym3439_device : public ym2149_device
+class ym3439_device : public ay8910_device
 {
 public:
 	ym3439_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
@@ -190,7 +251,7 @@ public:
 
 extern const device_type YM3439;
 
-class ymz284_device : public ym2149_device
+class ymz284_device : public ay8910_device
 {
 public:
 	ymz284_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
@@ -198,7 +259,7 @@ public:
 
 extern const device_type YMZ284;
 
-class ymz294_device : public ym2149_device
+class ymz294_device : public ay8910_device
 {
 public:
 	ymz294_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);

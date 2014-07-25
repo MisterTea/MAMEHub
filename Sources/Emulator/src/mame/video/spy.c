@@ -1,5 +1,4 @@
 #include "emu.h"
-
 #include "includes/spy.h"
 
 
@@ -9,12 +8,11 @@
 
 ***************************************************************************/
 
-void spy_tile_callback( running_machine &machine, int layer, int bank, int *code, int *color, int *flags, int *priority )
+K052109_CB_MEMBER(spy_state::tile_callback)
 {
-	spy_state *state = machine.driver_data<spy_state>();
 	*flags = (*color & 0x20) ? TILE_FLIPX : 0;
 	*code |= ((*color & 0x03) << 8) | ((*color & 0x10) << 6) | ((*color & 0x0c) << 9) | (bank << 13);
-	*color = state->m_layer_colorbase[layer] + ((*color & 0xc0) >> 6);
+	*color = m_layer_colorbase[layer] + ((*color & 0xc0) >> 6);
 }
 
 
@@ -24,17 +22,15 @@ void spy_tile_callback( running_machine &machine, int layer, int bank, int *code
 
 ***************************************************************************/
 
-void spy_sprite_callback( running_machine &machine, int *code, int *color, int *priority_mask, int *shadow )
+K051960_CB_MEMBER(spy_state::sprite_callback)
 {
-	spy_state *state = machine.driver_data<spy_state>();
-
 	/* bit 4 = priority over layer A (0 = have priority) */
 	/* bit 5 = priority over layer B (1 = have priority) */
-	*priority_mask = 0x00;
-	if ( *color & 0x10) *priority_mask |= 0xa;
-	if (~*color & 0x20) *priority_mask |= 0xc;
+	*priority = 0x00;
+	if ( *color & 0x10) *priority |= 0xa;
+	if (~*color & 0x20) *priority |= 0xc;
 
-	*color = state->m_sprite_colorbase + (*color & 0x0f);
+	*color = m_sprite_colorbase + (*color & 0x0f);
 }
 
 

@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
 Seattle Computer SCP-300F S100 card. It has sockets on the card for
@@ -31,15 +33,17 @@ There is a 4MHz crystal connected to the 9513.
 #include "cpu/i86/i86.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class seattle_comp_state : public driver_device
 {
 public:
 	seattle_comp_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_maincpu(*this, "maincpu")
-		, m_terminal(*this, TERMINAL_TAG)
-	{ }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
 	DECLARE_READ16_MEMBER(read);
 	DECLARE_WRITE16_MEMBER(write);
@@ -100,11 +104,6 @@ WRITE8_MEMBER( seattle_comp_state::kbd_put )
 	m_key_available = 1;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(seattle_comp_state, kbd_put)
-};
-
 static MACHINE_CONFIG_START( seattle, seattle_comp_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", I8086, 4000000) // no idea
@@ -112,7 +111,8 @@ static MACHINE_CONFIG_START( seattle, seattle_comp_state )
 	MCFG_CPU_IO_MAP(seattle_io)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(seattle_comp_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

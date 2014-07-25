@@ -1,17 +1,18 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __XOR100__
 #define __XOR100__
 
 #include "emu.h"
+#include "bus/s100/s100.h"
 #include "cpu/z80/z80.h"
 #include "machine/ram.h"
 #include "machine/com8116.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/i8255.h"
 #include "machine/i8251.h"
-#include "machine/s100.h"
-#include "machine/serial.h"
 #include "machine/wd_fdc.h"
 #include "machine/z80ctc.h"
 
@@ -56,7 +57,7 @@ public:
 	required_device<z80ctc_device> m_ctc;
 	required_device<ram_device> m_ram;
 	required_device<centronics_device> m_centronics;
-	required_device<s100_device> m_s100;
+	required_device<s100_bus_t> m_s100;
 	required_device<floppy_connector> m_floppy0;
 	required_device<floppy_connector> m_floppy1;
 	required_device<floppy_connector> m_floppy2;
@@ -95,6 +96,11 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(ctc_z1_w);
 	DECLARE_WRITE_LINE_MEMBER(ctc_z2_w);
 	DECLARE_WRITE8_MEMBER(xor100_kbd_put);
+
+	int m_centronics_busy;
+	int m_centronics_select;
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_select);
 };
 
 #endif

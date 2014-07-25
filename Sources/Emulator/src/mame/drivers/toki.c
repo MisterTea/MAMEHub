@@ -90,7 +90,7 @@ static ADDRESS_MAP_START( toki_map, AS_PROGRAM, 16, toki_state )
 	AM_RANGE(0x000000, 0x05ffff) AM_ROM
 	AM_RANGE(0x060000, 0x06d7ff) AM_RAM
 	AM_RANGE(0x06d800, 0x06dfff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x06e000, 0x06e7ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x06e000, 0x06e7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x06e800, 0x06efff) AM_RAM_WRITE(toki_background1_videoram16_w) AM_SHARE("bg1_vram16")
 	AM_RANGE(0x06f000, 0x06f7ff) AM_RAM_WRITE(toki_background2_videoram16_w) AM_SHARE("bg2_vram16")
 	AM_RANGE(0x06f800, 0x06ffff) AM_RAM_WRITE(toki_foreground_videoram16_w) AM_SHARE("videoram")
@@ -105,7 +105,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( tokib_map, AS_PROGRAM, 16, toki_state )
 	AM_RANGE(0x000000, 0x05ffff) AM_ROM
 	AM_RANGE(0x060000, 0x06dfff) AM_RAM
-	AM_RANGE(0x06e000, 0x06e7ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x06e000, 0x06e7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x06e800, 0x06efff) AM_RAM_WRITE(toki_background1_videoram16_w) AM_SHARE("bg1_vram16")
 	AM_RANGE(0x06f000, 0x06f7ff) AM_RAM_WRITE(toki_background2_videoram16_w) AM_SHARE("bg2_vram16")
 	AM_RANGE(0x06f800, 0x06ffff) AM_RAM_WRITE(toki_foreground_videoram16_w) AM_SHARE("videoram")
@@ -402,13 +402,6 @@ GFXDECODE_END
 
 /*****************************************************************************/
 
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(toki_state,toki_adpcm_int), /* interrupt function */
-	MSM5205_S96_4B  /* 4KHz               */
-};
-
-
 static MACHINE_CONFIG_START( toki, toki_state ) /* KOYO 20.000MHz near the cpu */
 
 	/* basic machine hardware */
@@ -427,10 +420,11 @@ static MACHINE_CONFIG_START( toki, toki_state ) /* KOYO 20.000MHz near the cpu *
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)  /* verified */
 	MCFG_SCREEN_UPDATE_DRIVER(toki_state, screen_update_toki)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram16_device, vblank_copy_rising)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(toki)
-	MCFG_PALETTE_LENGTH(1024)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", toki)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	/* sound hardware */
 	SEIBU_SOUND_SYSTEM_YM3812_RAIDEN_INTERFACE(XTAL_14_31818MHz/4,XTAL_12MHz/12) /* verifed on pcb */
@@ -456,10 +450,11 @@ static MACHINE_CONFIG_START( tokib, toki_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)  /* verified */
 	MCFG_SCREEN_UPDATE_DRIVER(toki_state, screen_update_tokib)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram16_device, vblank_copy_rising)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tokib)
-	MCFG_PALETTE_LENGTH(1024)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tokib)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -468,7 +463,8 @@ static MACHINE_CONFIG_START( tokib, toki_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(toki_state, toki_adpcm_int)) /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S96_4B)  /* 4KHz               */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 MACHINE_CONFIG_END
 
@@ -782,7 +778,7 @@ ROM_END
 DRIVER_INIT_MEMBER(toki_state,toki)
 {
 	UINT8 *ROM = memregion("oki")->base();
-	UINT8 *buffer = auto_alloc_array(machine(), UINT8, 0x20000);
+	dynamic_buffer buffer(0x20000);
 	int i;
 
 	memcpy(buffer,ROM,0x20000);
@@ -791,15 +787,13 @@ DRIVER_INIT_MEMBER(toki_state,toki)
 		ROM[i] = buffer[BITSWAP24(i,23,22,21,20,19,18,17,16,13,14,15,12,11,10,9,8,7,6,5,4,3,2,1,0)];
 	}
 
-	auto_free(machine(), buffer);
-
 	m_seibu_sound->decrypt("audiocpu",0x2000);
 }
 
 
 DRIVER_INIT_MEMBER(toki_state,tokib)
 {
-	UINT8 *temp = auto_alloc_array(machine(), UINT8, 65536 * 2);
+	dynamic_buffer temp(65536 * 2);
 	int i, offs, len;
 	UINT8 *rom;
 
@@ -832,8 +826,6 @@ DRIVER_INIT_MEMBER(toki_state,tokib)
 			memcpy (&base[0x18000 + i * 0x800], &temp[0x1800 + i * 0x2000], 0x800);
 		}
 	}
-
-	auto_free (machine(), temp);
 }
 
 DRIVER_INIT_MEMBER(toki_state,jujuba)
@@ -872,7 +864,7 @@ DRIVER_INIT_MEMBER(toki_state,jujuba)
 
 	{
 		UINT8 *ROM = memregion("oki")->base();
-		UINT8 *buffer = auto_alloc_array(machine(), UINT8, 0x20000);
+		dynamic_buffer buffer(0x20000);
 		int i;
 
 		memcpy(buffer,ROM,0x20000);
@@ -880,8 +872,6 @@ DRIVER_INIT_MEMBER(toki_state,jujuba)
 		{
 			ROM[i] = buffer[BITSWAP24(i,23,22,21,20,19,18,17,16,13,14,15,12,11,10,9,8,7,6,5,4,3,2,1,0)];
 		}
-
-		auto_free(machine(), buffer);
 	}
 }
 

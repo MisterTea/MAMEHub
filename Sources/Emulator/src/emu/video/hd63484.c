@@ -20,20 +20,16 @@
 
 #include "emu.h"
 #include "video/hd63484.h"
-#include "devlegcy.h"
 
 #define LOG_COMMANDS 0
 
 const device_type HD63484 = &device_creator<hd63484_device>;
 
 hd63484_device::hd63484_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, HD63484, "HD63484", tag, owner, clock, "hd63484", __FILE__),
+	: device_t(mconfig, HD63484, "HD63484 CRTC", tag, owner, clock, "hd63484", __FILE__),
 	m_ram(NULL),
-	//m_reg[256/2],
 	m_fifo_counter(0),
-	//m_fifo[FIFO_LENGTH],
 	m_readfifo(0),
-	//m_pattern[16],
 	m_org(0),
 	m_org_dpd(0),
 	m_rwp(0),
@@ -59,28 +55,11 @@ hd63484_device::hd63484_device(const machine_config &mconfig, const char *tag, d
 	m_rwp_dn(0),
 	m_cpx(0),
 	m_cpy(0),
-	m_regno(0)
+	m_regno(0),
+	m_skattva_hack(0)
 {
-}
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void hd63484_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const hd63484_interface *intf = reinterpret_cast<const hd63484_interface *>(static_config());
-	if (intf != NULL)
-		*static_cast<hd63484_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-		m_skattva_hack = 0;
-	}
+	memset(m_reg, 0x00, sizeof(m_reg));
+	//m_pattern[16],
 }
 
 //-------------------------------------------------
@@ -123,7 +102,6 @@ void hd63484_device::device_start()
 	save_item(NAME(m_cpx));
 	save_item(NAME(m_cpy));
 	save_item(NAME(m_regno));
-	save_item(NAME(m_skattva_hack));
 }
 
 //-------------------------------------------------
@@ -1558,7 +1536,7 @@ READ16_MEMBER( hd63484_device::data_r )
 	int res;
 
 	if (m_regno == 0x80)
-		res = machine().primary_screen->vpos();
+		res = machine().first_screen()->vpos();
 	else if (m_regno == 0)
 	{
 #if LOG_COMMANDS

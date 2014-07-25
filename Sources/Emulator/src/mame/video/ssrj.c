@@ -13,8 +13,7 @@ TILE_GET_INFO_MEMBER(ssrj_state::get_tile_info1)
 {
 	int code;
 	code = m_vram1[tile_index<<1] + (m_vram1[(tile_index<<1)+1]<<8);
-	SET_TILE_INFO_MEMBER(
-		0,
+	SET_TILE_INFO_MEMBER(0,
 		code&0x3ff,
 		(code>>12)&0x3,
 		((code & 0x8000) ? TILE_FLIPY:0) |( (code & 0x4000) ? TILE_FLIPX:0) );
@@ -32,8 +31,7 @@ TILE_GET_INFO_MEMBER(ssrj_state::get_tile_info2)
 {
 	int code;
 	code = m_vram2[tile_index<<1] + (m_vram2[(tile_index<<1)+1]<<8);
-	SET_TILE_INFO_MEMBER(
-		0,
+	SET_TILE_INFO_MEMBER(0,
 		code&0x3ff,
 		((code>>12)&0x3)+4,
 		((code & 0x8000) ? TILE_FLIPY:0) |( (code & 0x4000) ? TILE_FLIPX:0) );
@@ -51,8 +49,7 @@ TILE_GET_INFO_MEMBER(ssrj_state::get_tile_info4)
 {
 	int code;
 	code = m_vram4[tile_index<<1] + (m_vram4[(tile_index<<1)+1]<<8);
-	SET_TILE_INFO_MEMBER(
-		0,
+	SET_TILE_INFO_MEMBER(0,
 		code&0x3ff,
 		((code>>12)&0x3)+12,
 		((code & 0x8000) ? TILE_FLIPY:0) |( (code & 0x4000) ? TILE_FLIPX:0) );
@@ -221,9 +218,9 @@ static const UINT8 fakecols[4*4][8][3]=
 
 void ssrj_state::video_start()
 {
-	m_tilemap1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ssrj_state::get_tile_info1),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
-	m_tilemap2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ssrj_state::get_tile_info2),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
-	m_tilemap4 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ssrj_state::get_tile_info4),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
+	m_tilemap1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ssrj_state::get_tile_info1),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
+	m_tilemap2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ssrj_state::get_tile_info2),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
+	m_tilemap4 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ssrj_state::get_tile_info4),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
 	m_tilemap2->set_transparent_pen(0);
 	m_tilemap4->set_transparent_pen(0);
 
@@ -249,8 +246,8 @@ void ssrj_state::draw_objects(bitmap_ind16 &bitmap, const rectangle &cliprect )
 					int offs = (i * 5 + k) * 64 + (31 - j) * 2;
 
 					code = m_vram3[offs] + 256 * m_vram3[offs + 1];
-					drawgfx_transpen(bitmap,
-						cliprect,machine().gfx[0],
+					m_gfxdecode->gfx(0)->transpen(bitmap,
+						cliprect,
 						code&1023,
 						((code>>12)&0x3)+8,
 						code&0x4000,
@@ -265,12 +262,12 @@ void ssrj_state::draw_objects(bitmap_ind16 &bitmap, const rectangle &cliprect )
 }
 
 
-void ssrj_state::palette_init()
+PALETTE_INIT_MEMBER(ssrj_state, ssrj)
 {
 	int i, j;
 	for(i=0; i<4*4; i++)
 		for(j=0; j<8; j++)
-			palette_set_color_rgb(machine(), i*8+j, fakecols[i][j][0], fakecols[i][j][1], fakecols[i][j][2]);
+			palette.set_pen_color(i*8+j, fakecols[i][j][0], fakecols[i][j][1], fakecols[i][j][2]);
 }
 
 UINT32 ssrj_state::screen_update_ssrj(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)

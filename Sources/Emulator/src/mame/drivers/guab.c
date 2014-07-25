@@ -37,7 +37,7 @@
  *************************************/
 
 #define LOG_FDC_COMMANDS    0
-#define FDC_LOG(x) do { if (LOG_FDC_COMMANDS) mame_printf_debug x; } while(0)
+#define FDC_LOG(x) do { if (LOG_FDC_COMMANDS) osd_printf_debug x; } while(0)
 
 
 enum int_levels
@@ -79,16 +79,19 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_tms34061(*this, "tms34061"),
-		m_sn(*this, "snsnd") { }
+		m_sn(*this, "snsnd"),
+		m_palette(*this, "palette") { }
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<tms34061_device> m_tms34061;
 	required_device<sn76489_device> m_sn;
+	required_device<palette_device> m_palette;
 
 	struct ef9369 m_pal;
 	emu_timer *m_fdc_timer;
 	struct wd1770 m_fdc;
+	DECLARE_WRITE_LINE_MEMBER(generate_tms34061_interrupt);
 	DECLARE_WRITE16_MEMBER(guab_tms34061_w);
 	DECLARE_READ16_MEMBER(guab_tms34061_r);
 	DECLARE_WRITE16_MEMBER(ef9369_w);
@@ -117,15 +120,6 @@ WRITE_LINE_MEMBER(guab_state::ptm_irq)
 	m_maincpu->set_input_line(INT_6840PTM, state);
 }
 
-static const ptm6840_interface ptm_intf =
-{
-	1000000,
-	{ 0, 0, 0 },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	DEVCB_DRIVER_LINE_MEMBER(guab_state,ptm_irq)
-};
-
-
 /*************************************
  *
  *  Video hardware
@@ -136,19 +130,10 @@ static const ptm6840_interface ptm_intf =
  * TMS34061 CRTC
  *****************/
 
-static void tms_interrupt(running_machine &machine, int state)
+WRITE_LINE_MEMBER(guab_state::generate_tms34061_interrupt)
 {
-	guab_state *drvstate = machine.driver_data<guab_state>();
-	drvstate->m_maincpu->set_input_line(INT_TMS34061, state);
+	m_maincpu->set_input_line(INT_TMS34061, state);
 }
-
-static const struct tms34061_interface tms34061intf =
-{
-	8,              /* VRAM address is (row << rowshift) | col */
-	0x40000,        /* Size of video RAM */
-	tms_interrupt   /* Interrupt gen callback */
-};
-
 
 WRITE16_MEMBER(guab_state::guab_tms34061_w)
 {
@@ -228,7 +213,7 @@ WRITE16_MEMBER(guab_state::ef9369_w)
 			col = pal.clut[entry] & 0xfff;
 
 			/* Update the MAME palette */
-			palette_set_color_rgb(machine(), entry, pal4bit(col >> 0), pal4bit(col >> 4), pal4bit(col >> 8));
+			m_palette->set_pen_color(entry, pal4bit(col >> 0), pal4bit(col >> 4), pal4bit(col >> 8));
 		}
 
 			/* Address register auto-increment */
@@ -265,7 +250,7 @@ UINT32 guab_state::screen_update_guab(screen_device &screen, bitmap_ind16 &bitma
 	/* If blanked, fill with black */
 	if (m_tms34061->m_display.blanked)
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 		return 0;
 	}
 
@@ -279,8 +264,8 @@ UINT32 guab_state::screen_update_guab(screen_device &screen, bitmap_ind16 &bitma
 			UINT8 pen = src[x >> 1];
 
 			/* Draw two 4-bit pixels */
-			*dest++ = machine().pens[pen >> 4];
-			*dest++ = machine().pens[pen & 0x0f];
+			*dest++ = m_palette->pen(pen >> 4);
+			*dest++ = m_palette->pen(pen & 0x0f);
 		}
 	}
 
@@ -592,7 +577,7 @@ READ16_MEMBER(guab_state::io_r)
 		}
 		default:
 		{
-			mame_printf_debug("Unknown IO R:0x%x\n", 0xc0000 + (offset * 2));
+			osd_printf_debug("Unknown IO R:0x%x\n", 0xc0000 + (offset * 2));
 			return 0;
 		}
 	}
@@ -675,7 +660,7 @@ WRITE16_MEMBER(guab_state::io_w)
 		}
 		default:
 		{
-			mame_printf_debug("Unknown IO W:0x%x with %x\n", 0xc0000 + (offset * 2), data);
+			osd_printf_debug("Unknown IO W:0x%x with %x\n", 0xc0000 + (offset * 2), data);
 		}
 	}
 }
@@ -777,23 +762,6 @@ INPUT_PORTS_END
 
 /*************************************
  *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
-/*************************************
- *
  *  Machine driver
  *
  *************************************/
@@ -821,20 +789,26 @@ static MACHINE_CONFIG_START( guab, guab_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 64*8-1, 0, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(guab_state, screen_update_guab)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
 
-	MCFG_TMS34061_ADD("tms34061", tms34061intf)
+	MCFG_DEVICE_ADD("tms34061", TMS34061, 0)
+	MCFG_TMS34061_ROWSHIFT(8)  /* VRAM address is (row << rowshift) | col */
+	MCFG_TMS34061_VRAM_SIZE(0x40000) /* size of video RAM */
+	MCFG_TMS34061_INTERRUPT_CB(WRITELINE(guab_state, generate_tms34061_interrupt))      /* interrupt gen callback */
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	/* TODO: Verify clock */
 	MCFG_SOUND_ADD("snsnd", SN76489, 2000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	/* 6840 PTM */
-	MCFG_PTM6840_ADD("6840ptm", ptm_intf)
+	MCFG_DEVICE_ADD("6840ptm", PTM6840, 0)
+	MCFG_PTM6840_INTERNAL_CLOCK(1000000)
+	MCFG_PTM6840_EXTERNAL_CLOCKS(0, 0, 0)
+	MCFG_PTM6840_IRQ_CB(WRITELINE(guab_state, ptm_irq))
 MACHINE_CONFIG_END
 
 

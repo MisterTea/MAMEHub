@@ -3,13 +3,13 @@
 #include "includes/pocketc.h"
 #include "includes/pc1251.h"
 
-static const POCKETC_FIGURE busy={
-	"11  1 1  11 1 1",
-	"1 1 1 1 1   1 1",
-	"11  1 1  1  1 1",
-	"1 1 1 1   1  1",
-	"11   1  11   1e"
-}, def={
+static const POCKETC_FIGURE /*busy={
+    "11  1 1  11 1 1",
+    "1 1 1 1 1   1 1",
+    "11  1 1  1  1 1",
+    "1 1 1 1   1  1",
+    "11   1  11   1e"
+},*/ def={
 	"11  111 111",
 	"1 1 1   1",
 	"1 1 111 11",
@@ -21,13 +21,13 @@ static const POCKETC_FIGURE busy={
 	" 1  111 1 11   1",
 	"  1 1 1 1 1    1",
 	"11  1 1 1 1    1e"
-}, hyp={
-	"1 1 1 1 11",
-	"1 1 1 1 1 1",
-	"111 1 1 11",
-	"1 1  1  1",
-	"1 1  1  1e"
-}, de={
+}, /*hyp={
+    "1 1 1 1 11",
+    "1 1 1 1 1 1",
+    "111 1 1 11",
+    "1 1  1  1",
+    "1 1  1  1e"
+},*/ de={
 	"11  111",
 	"1 1 1",
 	"1 1 111",
@@ -45,25 +45,25 @@ static const POCKETC_FIGURE busy={
 	"11  111 1 1",
 	"1 1 1 1 1 1",
 	"1 1 1 1 11e"
-}, braces={
-	" 1 1",
-	"1   1",
-	"1   1",
-	"1   1",
-	" 1 1e"
+}, /*braces={
+    " 1 1",
+    "1   1",
+    "1   1",
+    "1   1",
+    " 1 1e"
 }, m={
-	"1   1",
-	"11 11",
-	"1 1 1",
-	"1   1",
-	"1   1e"
+    "1   1",
+    "11 11",
+    "1 1 1",
+    "1   1",
+    "1   1e"
 }, e={
-	"111",
-	"1",
-	"111",
-	"1",
-	"111e"
-}, run={
+    "111",
+    "1",
+    "111",
+    "1",
+    "111e"
+},*/ run={
 	"11  1 1 1  1",
 	"1 1 1 1 11 1",
 	"11  1 1 1 11",
@@ -75,19 +75,19 @@ static const POCKETC_FIGURE busy={
 	"11  11  1 1",
 	"1   1 1 1 1",
 	"1   1 1  1e"
-}, japan={
-	"  1  1  11   1  1  1",
-	"  1 1 1 1 1 1 1 11 1",
-	"  1 111 11  111 1 11",
-	"1 1 1 1 1   1 1 1  1",
-	" 1  1 1 1   1 1 1  1e"
+}, /*japan={
+    "  1  1  11   1  1  1",
+    "  1 1 1 1 1 1 1 11 1",
+    "  1 111 11  111 1 11",
+    "1 1 1 1 1   1 1 1  1",
+    " 1  1 1 1   1 1 1  1e"
 }, sml={
-	" 11 1 1 1",
-	"1   111 1",
-	" 1  1 1 1",
-	"  1 1 1 1",
-	"11  1 1 111e"
-}, rsv={
+    " 11 1 1 1",
+    "1   111 1",
+    " 1  1 1 1",
+    "  1 1 1 1",
+    "11  1 1 111e"
+},*/ rsv={
 	"11   11 1   1",
 	"1 1 1   1   1",
 	"11   1   1 1",
@@ -125,14 +125,14 @@ UINT32 pc1251_state::screen_update_pc1251(screen_device &screen, bitmap_ind16 &b
 	for (x=RIGHT,y=DOWN, i=0; i<60; x+=3)
 	{
 		for (j=0; j<5; j++, i++, x+=3)
-			drawgfx_opaque(bitmap, cliprect, screen.machine().gfx[0], m_reg[i],
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect, m_reg[i],
 					PC1251_CONTRAST,0,0,
 					x,y);
 	}
 	for (i=0x7b; i>=0x40; x+=3)
 	{
 		for (j=0; j<5; j++, i--, x+=3)
-			drawgfx_opaque(bitmap, cliprect, screen.machine().gfx[0], m_reg[i],
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect, m_reg[i],
 					PC1251_CONTRAST,0,0,
 					x,y);
 	}

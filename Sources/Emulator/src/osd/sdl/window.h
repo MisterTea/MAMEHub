@@ -84,7 +84,6 @@ struct sdl_window_info
 	int                 blitwidth;
 	int                 blitheight;
 
-	int                 totalColors;        // total colors from machine/sdl_window_config
 	int                 start_viewscreen;
 
 	// GL specific
@@ -97,6 +96,9 @@ struct sdl_window_info
 	int                 resize_width;
 	int                 resize_height;
 	osd_ticks_t         last_resize;
+#else
+	int                 screen_width;
+	int                 screen_height;
 #endif
 };
 

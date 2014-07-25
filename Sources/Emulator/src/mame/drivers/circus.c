@@ -284,18 +284,18 @@ static MACHINE_CONFIG_START( circus, circus_state )
 
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)          /* needed for proper hardware collisions */
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)          /* needed for proper hardware collisions */
 	MCFG_SCREEN_REFRESH_RATE(57)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(3500)   /* frames per second, vblank duration (complete guess) */)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 31*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(circus_state, screen_update_circus)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(circus)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", circus)
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -324,11 +324,11 @@ static MACHINE_CONFIG_START( robotbwl, circus_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 31*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(circus_state, screen_update_robotbwl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(robotbwl)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", robotbwl)
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -364,11 +364,11 @@ static MACHINE_CONFIG_START( crash, circus_state )
 	MCFG_SCREEN_SIZE(40*8, 40*8) //TODO
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 31*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(circus_state, screen_update_crash)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(circus)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", circus)
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -389,18 +389,18 @@ static MACHINE_CONFIG_START( ripcord, circus_state )
 
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)          /* needed for proper hardware collisions */
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)          /* needed for proper hardware collisions */
 	MCFG_SCREEN_REFRESH_RATE(57)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(3500)   /* frames per second, vblank duration (complete guess) */)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 31*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(circus_state, screen_update_ripcord)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(circus)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", circus)
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

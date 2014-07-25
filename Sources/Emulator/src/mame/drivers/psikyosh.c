@@ -347,17 +347,6 @@ WRITE32_MEMBER(psikyosh_state::psikyosh_irqctrl_w)
 	}
 }
 
-WRITE32_MEMBER(psikyosh_state::paletteram32_RRRRRRRRGGGGGGGGBBBBBBBBxxxxxxxx_dword_w)
-{
-	int r, g, b;
-	COMBINE_DATA(&m_paletteram[offset]);
-
-	b = ((m_paletteram[offset] & 0x0000ff00) >>8);
-	g = ((m_paletteram[offset] & 0x00ff0000) >>16);
-	r = ((m_paletteram[offset] & 0xff000000) >>24);
-
-	palette_set_color(machine(), offset, MAKE_RGB(r, g, b));
-}
 
 WRITE32_MEMBER(psikyosh_state::psikyosh_vidregs_w)
 {
@@ -475,12 +464,12 @@ P1KEY11  29|30  P2KEY11
 
 		// HACK: read IPT_START1 from "INPUTS" to avoid listing it twice or having two independent STARTs listed
 		int start_depressed = ~value & 0x01000000;
-		keys |= start_depressed ? 1 << (sizeof(key_codes)/sizeof(key_codes[0]) - 1) : 0; // and bung it in at the end
+		keys |= start_depressed ? 1 << (ARRAY_LENGTH(key_codes) - 1) : 0; // and bung it in at the end
 
 		value |= 0xFFFF0000; // set top word
 		do {
 			// since we can't handle multiple keys, just return the first one depressed
-			if((keys & which_key) && (count < sizeof(key_codes)/sizeof(key_codes[0]))) {
+			if((keys & which_key) && (count < ARRAY_LENGTH(key_codes))) {
 				value &= ~((UINT32)(key_codes[count]) << 16); // mask in selected word as IP_ACTIVE_LOW
 				break;
 			}
@@ -501,7 +490,7 @@ static ADDRESS_MAP_START( ps3v1_map, AS_PROGRAM, 32, psikyosh_state )
 // video chip
 	AM_RANGE(0x03000000, 0x03003fff) AM_RAM AM_SHARE("spriteram") // video banks0-7 (sprites and sprite list)
 	AM_RANGE(0x03004000, 0x0300ffff) AM_RAM AM_SHARE("bgram") // video banks 7-0x1f (backgrounds and other effects)
-	AM_RANGE(0x03040000, 0x03044fff) AM_RAM_WRITE(paletteram32_RRRRRRRRGGGGGGGGBBBBBBBBxxxxxxxx_dword_w) AM_SHARE("paletteram") // palette..
+	AM_RANGE(0x03040000, 0x03044fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") // palette..
 	AM_RANGE(0x03050000, 0x030501ff) AM_RAM AM_SHARE("zoomram") // sprite zoom lookup table
 	AM_RANGE(0x0305ffdc, 0x0305ffdf) AM_READNOP AM_WRITE(psikyosh_irqctrl_w) // also writes to this address - might be vblank reads?
 	AM_RANGE(0x0305ffe0, 0x0305ffff) AM_RAM_WRITE(psikyosh_vidregs_w) AM_SHARE("vidregs") //  video registers
@@ -529,7 +518,7 @@ static ADDRESS_MAP_START( ps5_map, AS_PROGRAM, 32, psikyosh_state )
 // video chip
 	AM_RANGE(0x04000000, 0x04003fff) AM_RAM AM_SHARE("spriteram") // video banks0-7 (sprites and sprite list)
 	AM_RANGE(0x04004000, 0x0400ffff) AM_RAM AM_SHARE("bgram") // video banks 7-0x1f (backgrounds and other effects)
-	AM_RANGE(0x04040000, 0x04044fff) AM_RAM_WRITE(paletteram32_RRRRRRRRGGGGGGGGBBBBBBBBxxxxxxxx_dword_w) AM_SHARE("paletteram")
+	AM_RANGE(0x04040000, 0x04044fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x04050000, 0x040501ff) AM_RAM AM_SHARE("zoomram") // sprite zoom lookup table
 	AM_RANGE(0x0405ffdc, 0x0405ffdf) AM_READNOP AM_WRITE(psikyosh_irqctrl_w) // also writes to this address - might be vblank reads?
 	AM_RANGE(0x0405ffe0, 0x0405ffff) AM_RAM_WRITE(psikyosh_vidregs_w) AM_SHARE("vidregs") // video registers
@@ -801,8 +790,9 @@ static MACHINE_CONFIG_START( psikyo3v1, psikyosh_state )
 	MCFG_SCREEN_UPDATE_DRIVER(psikyosh_state, screen_update_psikyosh)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram32_device, vblank_copy_rising)
 
-	MCFG_GFXDECODE(psikyosh)
-	MCFG_PALETTE_LENGTH(0x5000/4)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", psikyosh)
+	MCFG_PALETTE_ADD("palette", 0x5000/4)
+	MCFG_PALETTE_FORMAT(RGBX)
 
 
 	/* sound hardware */
@@ -1179,63 +1169,86 @@ ROM_START( tgm2p )
 	ROM_LOAD( "tgm2p.default.nv", 0x000, 0x100, CRC(b2328b40) SHA1(e6cda4d6f4e91b9f78d2ca84a5eee6c3bd03fe02) )
 ROM_END
 
+void psikyosh_state::ps3_init()
+{
+	m_maincpu->sh2drc_add_fastram(0x03004000, 0x0300ffff, 0, &m_bgram[0]);
+	m_maincpu->sh2drc_add_fastram(0x03050000, 0x030501ff, 0, &m_zoomram[0]);
+	m_maincpu->sh2drc_add_fastram(0x06000000, 0x060fffff, 0, &m_ram[0]);
+}
+
+void psikyosh_state::ps5_init()
+{
+	m_maincpu->sh2drc_add_fastram(0x04004000, 0x0400ffff, 0, &m_bgram[0]);
+	m_maincpu->sh2drc_add_fastram(0x04050000, 0x040501ff, 0, &m_zoomram[0]);
+	m_maincpu->sh2drc_add_fastram(0x06000000, 0x060fffff, 0, &m_ram[0]);
+}
 
 DRIVER_INIT_MEMBER(psikyosh_state,soldivid)
 {
-	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
+	m_maincpu->sh2drc_set_options(SH2DRC_FASTEST_OPTIONS);
+	ps3_init();
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,s1945ii)
 {
-	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
+	m_maincpu->sh2drc_set_options(SH2DRC_FASTEST_OPTIONS);
+	ps3_init();
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,daraku)
 {
 	UINT8 *RAM = memregion("maincpu")->base();
 	membank("bank1")->set_base(&RAM[0x100000]);
-	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
+	m_maincpu->sh2drc_set_options(SH2DRC_FASTEST_OPTIONS);
+	ps3_init();
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,sbomberb)
 {
-	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
+	m_maincpu->sh2drc_set_options(SH2DRC_FASTEST_OPTIONS);
+	ps3_init();
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,gunbird2)
 {
 	UINT8 *RAM = memregion("maincpu")->base();
 	membank("bank1")->set_base(&RAM[0x100000]);
-	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
+	m_maincpu->sh2drc_set_options(SH2DRC_FASTEST_OPTIONS);
+	ps5_init();
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,s1945iii)
 {
 	UINT8 *RAM = memregion("maincpu")->base();
 	membank("bank1")->set_base(&RAM[0x100000]);
-	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
+	m_maincpu->sh2drc_set_options(SH2DRC_FASTEST_OPTIONS);
+	ps5_init();
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,dragnblz)
 {
-	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
+	m_maincpu->sh2drc_set_options(SH2DRC_FASTEST_OPTIONS);
+	ps5_init();
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,gnbarich)
 {
-	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
+	m_maincpu->sh2drc_set_options(SH2DRC_FASTEST_OPTIONS);
+	ps5_init();
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,tgm2)
 {
-	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
+	m_maincpu->sh2drc_set_options(SH2DRC_FASTEST_OPTIONS);
+	ps5_init();
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,mjgtaste)
 {
-	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
+	m_maincpu->sh2drc_set_options(SH2DRC_FASTEST_OPTIONS);
 	/* needs to install mahjong controls too (can select joystick in test mode tho) */
 	m_maincpu->space(AS_PROGRAM).install_read_handler(0x03000000, 0x03000003, read32_delegate(FUNC(psikyosh_state::mjgtaste_input_r),this));
+	ps5_init();
 }
 
 

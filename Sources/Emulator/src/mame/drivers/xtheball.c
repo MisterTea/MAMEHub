@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     X the Ball
@@ -235,7 +237,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, xtheball_state )
 	AM_RANGE(0x03040180, 0x0304018f) AM_READ(analogy_watchdog_r)
 	AM_RANGE(0x03060000, 0x0306000f) AM_DEVWRITE8("dac", dac_device, write_unsigned8, 0xff00)
 	AM_RANGE(0x04000000, 0x057fffff) AM_ROM AM_REGION("user2", 0)
-	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00001ff) AM_DEVREADWRITE("maincpu", tms34010_device, io_register_r, io_register_w)
 	AM_RANGE(0xfff80000, 0xffffffff) AM_ROM AM_REGION("user1", 0)
 ADDRESS_MAP_END
 
@@ -320,7 +322,7 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static const tms34010_config tms_config =
+static const tms340x0_config tms_config =
 {
 	FALSE,                          /* halt on reset */
 	"screen",                       /* the screen operated on */
@@ -344,7 +346,7 @@ static const tms34010_config tms_config =
 static MACHINE_CONFIG_START( xtheball, xtheball_state )
 
 	MCFG_CPU_ADD("maincpu", TMS34010, 40000000)
-	MCFG_CPU_CONFIG(tms_config)
+	MCFG_TMS340X0_CONFIG(tms_config)
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_CPU_PERIODIC_INT_DRIVER(xtheball_state, irq1_line_hold,  15000)
 

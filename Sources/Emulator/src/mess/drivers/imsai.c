@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
     Imsai MPU-B. One of the earliest single-board computers on a S100 card.
@@ -10,7 +12,6 @@
 
     ToDo:
     - Banking
-    - Connect PIT to UART clock.
     - Dipswitches
 
 ****************************************************************************/
@@ -21,22 +22,26 @@
 #include "machine/pit8253.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class imsai_state : public driver_device
 {
 public:
 	imsai_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_maincpu(*this, "maincpu")
-		, m_terminal(*this, TERMINAL_TAG)
-		, m_uart(*this, "uart")
-		, m_pit(*this, "pit")
-	{ }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG),
+		m_uart(*this, "uart"),
+		m_pit(*this, "pit")
+	{
+	}
 
 	DECLARE_WRITE8_MEMBER(kbd_put);
 	DECLARE_READ8_MEMBER(keyin_r);
 	DECLARE_READ8_MEMBER(status_r);
 	DECLARE_WRITE8_MEMBER(control_w);
+	DECLARE_WRITE_LINE_MEMBER(write_uart_clock);
+
 private:
 	UINT8 m_term_data;
 	virtual void machine_reset();
@@ -90,42 +95,11 @@ WRITE8_MEMBER( imsai_state::kbd_put )
 	m_term_data = data;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
+WRITE_LINE_MEMBER(imsai_state::write_uart_clock)
 {
-	DEVCB_DRIVER_MEMBER(imsai_state, kbd_put)
-};
-
-static const i8251_interface uart_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const struct pit8253_interface pit_intf =
-{
-	{
-		{
-			XTAL_6MHz / 3,                /* Timer 0: baud rate gen for 8251 */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}, {
-			XTAL_6MHz / 3,                /* Timer 1: user */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}, {
-			XTAL_6MHz / 3,                /* Timer 2: user */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}
-	}
-};
+	m_uart->write_txc(state);
+	m_uart->write_rxc(state);
+}
 
 WRITE8_MEMBER( imsai_state::control_w )
 {
@@ -143,11 +117,17 @@ static MACHINE_CONFIG_START( imsai, imsai_state )
 	MCFG_CPU_IO_MAP(imsai_io)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(imsai_state, kbd_put))
 
 	/* Devices */
-	MCFG_I8251_ADD("uart", uart_intf)
-	MCFG_PIT8253_ADD( "pit", pit_intf)
+	MCFG_DEVICE_ADD("uart", I8251, 0)
+
+	MCFG_DEVICE_ADD("pit", PIT8253, 0)
+	MCFG_PIT8253_CLK0(XTAL_6MHz / 3) /* Timer 0: baud rate gen for 8251 */
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(imsai_state, write_uart_clock))
+	MCFG_PIT8253_CLK1(XTAL_6MHz / 3) /* Timer 1: user */
+	MCFG_PIT8253_CLK2(XTAL_6MHz / 3) /* Timer 2: user */
 MACHINE_CONFIG_END
 
 /* ROM definition */

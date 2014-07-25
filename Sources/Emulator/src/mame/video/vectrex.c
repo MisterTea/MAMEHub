@@ -1,9 +1,7 @@
 #include <math.h>
 #include "emu.h"
 #include "includes/vectrex.h"
-#include "video/vector.h"
 #include "cpu/m6809/m6809.h"
-#include "scrlegcy.h"
 
 
 #define ANALOG_DELAY 7800
@@ -32,23 +30,6 @@ enum {
 	A_AUDIO,
 	A_Y,
 };
-
-/*********************************************************************
-
-   Local variables
-
-*********************************************************************/
-
-const via6522_interface vectrex_via6522_interface =
-{
-	DEVCB_DRIVER_MEMBER(vectrex_state,vectrex_via_pa_r), DEVCB_DRIVER_MEMBER(vectrex_state,vectrex_via_pb_r),         /* read PA/B */
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,                     /* read ca1, cb1, ca2, cb2 */
-	DEVCB_DRIVER_MEMBER(vectrex_state,v_via_pa_w), DEVCB_DRIVER_MEMBER(vectrex_state,v_via_pb_w),         /* write PA/B */
-	DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_MEMBER(vectrex_state,v_via_ca2_w), DEVCB_DRIVER_MEMBER(vectrex_state,v_via_cb2_w), /* write ca1, cb1, ca2, cb2 */
-	DEVCB_DRIVER_LINE_MEMBER(vectrex_state,vectrex_via_irq),                      /* IRQ */
-};
-
-
 
 /*********************************************************************
 
@@ -145,23 +126,21 @@ UINT32 vectrex_state::screen_update_vectrex(screen_device &screen, bitmap_rgb32 
 	vectrex_configuration();
 
 	/* start black */
-	vector_add_point(machine(),
-						m_points[m_display_start].x,
+	m_vector->add_point(m_points[m_display_start].x,
 						m_points[m_display_start].y,
 						m_points[m_display_start].col,
 						0);
 
 	for (i = m_display_start; i != m_display_end; i = (i + 1) % NVECT)
 	{
-		vector_add_point(machine(),
-							m_points[i].x,
+		m_vector->add_point(m_points[i].x,
 							m_points[i].y,
 							m_points[i].col,
 							m_points[i].intensity);
 	}
 
-	SCREEN_UPDATE32_CALL(vector);
-	vector_clear_list();
+	m_vector->screen_update(screen, bitmap, cliprect);
+	m_vector->clear_list();
 	return 0;
 }
 
@@ -254,8 +233,7 @@ TIMER_CALLBACK_MEMBER(vectrex_state::update_signal)
 
 void vectrex_state::video_start()
 {
-	screen_device *screen = machine().first_screen();
-	const rectangle &visarea = screen->visible_area();
+	const rectangle &visarea = m_screen->visible_area();
 
 	m_x_center=(visarea.width() / 2) << 16;
 	m_y_center=(visarea.height() / 2) << 16;
@@ -271,8 +249,6 @@ void vectrex_state::video_start()
 	m_lp_t = timer_alloc(TIMER_LIGHTPEN_TRIGGER);
 
 	m_refresh = timer_alloc(TIMER_VECTREX_REFRESH);
-
-	VIDEO_START_CALL_LEGACY(vector);
 }
 
 
@@ -387,18 +363,18 @@ WRITE8_MEMBER(vectrex_state::v_via_pa_w)
 }
 
 
-WRITE8_MEMBER(vectrex_state::v_via_ca2_w)
+WRITE_LINE_MEMBER(vectrex_state::v_via_ca2_w)
 {
-	if (data == 0)
+	if (state == 0)
 		timer_set(attotime::from_nsec(ANALOG_DELAY), TIMER_VECTREX_ZERO_INTEGRATORS);
 }
 
 
-WRITE8_MEMBER(vectrex_state::v_via_cb2_w)
+WRITE_LINE_MEMBER(vectrex_state::v_via_cb2_w)
 {
 	int dx, dy;
 
-	if (m_cb2 != data)
+	if (m_cb2 != state)
 	{
 		/* Check lightpen */
 		if (m_lightpen_port != 0)
@@ -412,13 +388,13 @@ WRITE8_MEMBER(vectrex_state::v_via_cb2_w)
 
 				dx = abs(m_pen_x - m_x_int);
 				dy = abs(m_pen_y - m_y_int);
-				if (dx < 500000 && dy < 500000 && data > 0)
+				if (dx < 500000 && dy < 500000 && state > 0)
 					timer_set(attotime::zero, TIMER_LIGHTPEN_TRIGGER);
 			}
 		}
 
-		timer_set(attotime::zero, TIMER_UPDATE_SIGNAL, data, &m_blank);
-		m_cb2 = data;
+		timer_set(attotime::zero, TIMER_UPDATE_SIGNAL, state, &m_blank);
+		m_cb2 = state;
 	}
 }
 
@@ -428,14 +404,6 @@ WRITE8_MEMBER(vectrex_state::v_via_cb2_w)
    RA+A Spectrum I+
 
 *****************************************************************/
-
-const via6522_interface spectrum1_via6522_interface =
-{
-	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_DRIVER_MEMBER(vectrex_state,vectrex_via_pa_r), DEVCB_DRIVER_MEMBER(vectrex_state,vectrex_s1_via_pb_r), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
-	/*outputs: A/B,CA/B1,CA/B2 */ DEVCB_DRIVER_MEMBER(vectrex_state,v_via_pa_w), DEVCB_DRIVER_MEMBER(vectrex_state,v_via_pb_w), DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_MEMBER(vectrex_state,v_via_ca2_w), DEVCB_DRIVER_MEMBER(vectrex_state,v_via_cb2_w),
-	/*irq                      */ DEVCB_DRIVER_LINE_MEMBER(vectrex_state,vectrex_via_irq),
-};
-
 
 WRITE8_MEMBER(vectrex_state::raaspec_led_w)
 {
@@ -447,8 +415,7 @@ WRITE8_MEMBER(vectrex_state::raaspec_led_w)
 
 VIDEO_START_MEMBER(vectrex_state,raaspec)
 {
-	screen_device *screen = machine().first_screen();
-	const rectangle &visarea = screen->visible_area();
+	const rectangle &visarea = m_screen->visible_area();
 
 	m_x_center=(visarea.width() / 2) << 16;
 	m_y_center=(visarea.height() / 2) << 16;
@@ -457,6 +424,4 @@ VIDEO_START_MEMBER(vectrex_state,raaspec)
 
 	vector_add_point_function = &vectrex_state::vectrex_add_point;
 	m_refresh = timer_alloc(TIMER_VECTREX_REFRESH);
-
-	VIDEO_START_CALL_LEGACY(vector);
 }

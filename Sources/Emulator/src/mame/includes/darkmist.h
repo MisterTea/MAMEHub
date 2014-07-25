@@ -11,7 +11,9 @@ public:
 		m_workram(*this, "workram"),
 		m_spriteram(*this, "spriteram"),
 		m_maincpu(*this, "maincpu"),
-		m_t5182(*this, "t5182") { }
+		m_t5182(*this, "t5182"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_spritebank;
 	required_shared_ptr<UINT8> m_scroll;
@@ -21,6 +23,8 @@ public:
 
 	required_device<cpu_device> m_maincpu;
 	required_device<t5182_device> m_t5182;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	int m_hw;
 	tilemap_t *m_bgtilemap;
@@ -33,10 +37,9 @@ public:
 	TILE_GET_INFO_MEMBER(get_fgtile_info);
 	TILE_GET_INFO_MEMBER(get_txttile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(darkmist);
 	UINT32 screen_update_darkmist(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(darkmist_scanline);
-	void set_pens();
 	void decrypt_gfx();
 	void decrypt_snd();
 };

@@ -163,8 +163,8 @@ static INPUT_PORTS_START( big10 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_CODE(KEYCODE_R) PORT_NAME("Reset")
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER )   PORT_CODE(KEYCODE_W) PORT_NAME("Payout")
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_COIN1 )   PORT_IMPULSE(2)
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )                    // in test mode, go to the game whilst keep pressed.
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )                    // in test mode, go to the game whilst keep pressed.
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_COIN2 )   PORT_IMPULSE(2)
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN3 )   PORT_IMPULSE(2)
 
@@ -193,7 +193,8 @@ static INPUT_PORTS_START( big10 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_CODE(KEYCODE_4) PORT_NAME("Take Score")
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON5 ) PORT_CODE(KEYCODE_A) PORT_NAME("Big")
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON6 ) PORT_CODE(KEYCODE_S) PORT_NAME("Small")
-	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x70, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )    // in test mode triggers a sound and screen turns black, hanging the game.
 
 	PORT_START("DSW1")
 	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) )          PORT_DIPLOCATION("DSW1:8")
@@ -225,21 +226,6 @@ static INPUT_PORTS_START( big10 )
 INPUT_PORTS_END
 
 
-/**********************************
-*       AY-3-8910 Interface       *
-**********************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_DRIVER_MEMBER(big10_state,mux_w),
-	DEVCB_NULL
-};
-
-
 /**************************************
 *           Machine Driver            *
 **************************************/
@@ -265,13 +251,14 @@ static MACHINE_CONFIG_START( big10, big10_state )
 	MCFG_SCREEN_UPDATE_DEVICE("v9938", v9938_device, screen_update)
 	MCFG_SCREEN_SIZE(512 + 32, (212 + 28) * 2)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512 + 32 - 1, 0, (212 + 28) * 2 - 1)
-
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_SCREEN_PALETTE("v9938:palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("aysnd", AY8910, MASTER_CLOCK/12)    /* guess */
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW2"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(big10_state, mux_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -292,5 +279,5 @@ ROM_END
 *           Game Driver(s)            *
 **************************************/
 
-/*    YEAR  NAME      PARENT  MACHINE   INPUT     INIT   ROT    COMPANY    FULLNAME   FLAGS  */
-GAME( 198?, big10,    0,      big10,    big10, driver_device,    0,     ROT0, "<unknown>", "Big 10",   0 )
+/*    YEAR  NAME      PARENT    MACHINE   INPUT     STATE          INIT      ROT      COMPANY      FULLNAME   FLAGS  */
+GAME( 198?, big10,    0,        big10,    big10,    driver_device, 0,        ROT0,   "<unknown>", "Big 10",   0 )

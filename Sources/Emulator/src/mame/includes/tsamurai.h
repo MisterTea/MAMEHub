@@ -10,7 +10,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_audio2(*this, "audio2"),
-		m_audio3(*this, "audio3") { }
+		m_audio3(*this, "audio3"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	int m_nmi_enabled;
 	int m_sound_command1;
@@ -70,4 +72,6 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	optional_device<cpu_device> m_audio2;
 	optional_device<cpu_device> m_audio3;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

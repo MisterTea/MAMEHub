@@ -34,14 +34,17 @@
 //  DEVICE CONFIGURATION MACROS
 //**************************************************************************
 
-#define Z80CTC_INTERFACE(name) \
-	const z80ctc_interface (name)=
+#define MCFG_Z80CTC_INTR_CB(_devcb) \
+	devcb = &z80ctc_device::set_intr_callback(*device, DEVCB_##_devcb);
 
+#define MCFG_Z80CTC_ZC0_CB(_devcb) \
+	devcb = &z80ctc_device::set_zc0_callback(*device, DEVCB_##_devcb);
 
-#define MCFG_Z80CTC_ADD(_tag, _clock, _intrf) \
-	MCFG_DEVICE_ADD(_tag, Z80CTC, _clock) \
-	MCFG_DEVICE_CONFIG(_intrf)
+#define MCFG_Z80CTC_ZC1_CB(_devcb) \
+	devcb = &z80ctc_device::set_zc1_callback(*device, DEVCB_##_devcb);
 
+#define MCFG_Z80CTC_ZC2_CB(_devcb) \
+	devcb = &z80ctc_device::set_zc2_callback(*device, DEVCB_##_devcb);
 
 
 //**************************************************************************
@@ -49,35 +52,19 @@
 //**************************************************************************
 
 
-// ======================> z80ctc_interface
-
-struct z80ctc_interface
-{
-	devcb_write_line    m_intr_cb;  // callback when change interrupt status
-	devcb_write_line    m_zc0_cb;   // ZC/TO0 callback
-	devcb_write_line    m_zc1_cb;   // ZC/TO1 callback
-	devcb_write_line    m_zc2_cb;   // ZC/TO2 callback
-};
-
-
-
 // ======================> z80ctc_device
 
 class z80ctc_device :   public device_t,
-						public device_z80daisy_interface,
-						public z80ctc_interface
+						public device_z80daisy_interface
 {
 public:
 	// construction/destruction
 	z80ctc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
-	// state getters
-	attotime period(int ch) const { return m_channel[ch].period(); }
-
-	// I/O operations
-	UINT8 read(int ch) { return m_channel[ch].read(); }
-	void write(int ch, UINT8 data) { m_channel[ch].write(data); }
-	void trigger(int ch, UINT8 data) { m_channel[ch].trigger(data); }
+	template<class _Object> static devcb_base &set_intr_callback(device_t &device, _Object object) { return downcast<z80ctc_device &>(device).m_intr_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_zc0_callback(device_t &device, _Object object) { return downcast<z80ctc_device &>(device).m_zc0_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_zc1_callback(device_t &device, _Object object) { return downcast<z80ctc_device &>(device).m_zc1_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_zc2_callback(device_t &device, _Object object) { return downcast<z80ctc_device &>(device).m_zc2_cb.set_callback(object); }
 
 	// read/write handlers
 	DECLARE_READ8_MEMBER( read );
@@ -87,9 +74,8 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( trg2 );
 	DECLARE_WRITE_LINE_MEMBER( trg3 );
 
-private:
+protected:
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
 	virtual void device_reset();
 
@@ -98,6 +84,7 @@ private:
 	virtual int z80daisy_irq_ack();
 	virtual void z80daisy_irq_reti();
 
+private:
 	// internal helpers
 	void interrupt_check();
 	void timercallback(int chanindex);
@@ -108,7 +95,7 @@ private:
 	public:
 		ctc_channel();
 
-		void start(z80ctc_device *device, int index, const devcb_write_line &write_line);
+		void start(z80ctc_device *device, int index);
 		void reset();
 
 		UINT8 read();
@@ -120,7 +107,6 @@ private:
 
 		z80ctc_device * m_device;               // pointer back to our device
 		int             m_index;                // our channel index
-		devcb_resolved_write_line m_zc;         // zero crossing callbacks
 		UINT16          m_mode;                 // current mode
 		UINT16          m_tconst;               // time constant
 		UINT16          m_down;                 // down counter (clock mode only)
@@ -133,7 +119,11 @@ private:
 	};
 
 	// internal state
-	devcb_resolved_write_line m_intr;           // interrupt callback
+	devcb_write_line   m_intr_cb;              // interrupt callback
+	devcb_write_line   m_zc0_cb;               // channel 0 zero crossing callbacks
+	devcb_write_line   m_zc1_cb;               // channel 1 zero crossing callbacks
+	devcb_write_line   m_zc2_cb;               // channel 2 zero crossing callbacks
+	devcb_write_line   m_zc3_cb;               // channel 3 zero crossing callbacks = NULL ?
 
 	UINT8               m_vector;               // interrupt vector
 	attotime            m_period16;             // 16/system clock

@@ -20,9 +20,8 @@ public:
 		m_rowaddress(*this, "rowaddress"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_tms34061(*this, "tms34061") { }
-
-	void init_nvram(nvram_device &nvram, void *base, size_t size);
+		m_tms34061(*this, "tms34061"),
+		m_screen(*this, "screen") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_rowaddress;
@@ -37,6 +36,8 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<tms34061_device> m_tms34061;
+	required_device<screen_device> m_screen;
+
 	DECLARE_WRITE8_MEMBER(capbowl_rom_select_w);
 	DECLARE_READ8_MEMBER(track_0_r);
 	DECLARE_READ8_MEMBER(track_1_r);
@@ -54,6 +55,7 @@ public:
 	TIMER_CALLBACK_MEMBER(capbowl_update);
 	inline rgb_t pen_for_pixel( UINT8 *src, UINT8 pix );
 	DECLARE_WRITE_LINE_MEMBER(firqhandler);
+	DECLARE_WRITE_LINE_MEMBER(generate_tms34061_interrupt);
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);

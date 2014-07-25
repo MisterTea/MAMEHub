@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     tilemap.h
 
     Generic tilemap management system.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************
 
@@ -198,7 +169,7 @@
 
             // set the common info for the tile
             SET_TILE_INFO(
-                1,              // use machine.gfx[1] for tile graphics
+                1,              // use m_gfxdecode->gfx(1) for tile graphics
                 code,           // the index of the graphics for this tile
                 color,          // the color to use for this tile
                 (flipx ? TILE_FLIPX : 0) |  // flags for this tile; also
@@ -388,6 +359,8 @@ enum tilemap_standard_mapper
 // primitives
 #define MCFG_TILEMAP_ADD(_tag) \
 	MCFG_DEVICE_ADD(_tag, TILEMAP, 0)
+#define MCFG_TILEMAP_GFXDECODE(_gfxtag) \
+	tilemap_device::static_set_gfxdecode_tag(*device, "^" _gfxtag);
 #define MCFG_TILEMAP_BYTES_PER_ENTRY(_bpe) \
 	tilemap_device::static_set_bytes_per_entry(*device, _bpe);
 #define MCFG_TILEMAP_INFO_CB_DRIVER(_class, _method) \
@@ -406,27 +379,31 @@ enum tilemap_standard_mapper
 	tilemap_device::static_set_transparent_pen(*device, _pen);
 
 // common cases
-#define MCFG_TILEMAP_ADD_STANDARD(_tag, _bytes_per_entry, _class, _method, _tilewidth, _tileheight, _mapper, _columns, _rows) \
+#define MCFG_TILEMAP_ADD_STANDARD(_tag, _gfxtag, _bytes_per_entry, _class, _method, _tilewidth, _tileheight, _mapper, _columns, _rows) \
 	MCFG_TILEMAP_ADD(_tag) \
+	MCFG_TILEMAP_GFXDECODE(_gfxtag) \
 	MCFG_TILEMAP_BYTES_PER_ENTRY(_bytes_per_entry) \
 	MCFG_TILEMAP_INFO_CB_DRIVER(_class, _method) \
 	MCFG_TILEMAP_LAYOUT_STANDARD(_mapper, _columns, _rows) \
 	MCFG_TILEMAP_TILE_SIZE(_tilewidth, _tileheight)
-#define MCFG_TILEMAP_ADD_CUSTOM(_tag, _bytes_per_entry, _class, _method, _tilewidth, _tileheight, _mapper, _columns, _rows) \
+#define MCFG_TILEMAP_ADD_CUSTOM(_tag, _gfxtag, _bytes_per_entry, _class, _method, _tilewidth, _tileheight, _mapper, _columns, _rows) \
 	MCFG_TILEMAP_ADD(_tag) \
+	MCFG_TILEMAP_GFXDECODE(_gfxtag) \
 	MCFG_TILEMAP_BYTES_PER_ENTRY(_bytes_per_entry) \
 	MCFG_TILEMAP_INFO_CB_DRIVER(_class, _method) \
 	MCFG_TILEMAP_LAYOUT_CB_DRIVER(_class, _mapper, _columns, _rows) \
 	MCFG_TILEMAP_TILE_SIZE(_tilewidth, _tileheight)
-#define MCFG_TILEMAP_ADD_STANDARD_TRANSPEN(_tag, _bytes_per_entry, _class, _method, _tilewidth, _tileheight, _mapper, _columns, _rows, _transpen) \
+#define MCFG_TILEMAP_ADD_STANDARD_TRANSPEN(_tag, _gfxtag, _bytes_per_entry, _class, _method, _tilewidth, _tileheight, _mapper, _columns, _rows, _transpen) \
 	MCFG_TILEMAP_ADD(_tag) \
+	MCFG_TILEMAP_GFXDECODE(_gfxtag) \
 	MCFG_TILEMAP_BYTES_PER_ENTRY(_bytes_per_entry) \
 	MCFG_TILEMAP_INFO_CB_DRIVER(_class, _method) \
 	MCFG_TILEMAP_LAYOUT_STANDARD(_mapper, _columns, _rows) \
 	MCFG_TILEMAP_TILE_SIZE(_tilewidth, _tileheight) \
 	MCFG_TILEMAP_TRANSPARENT_PEN(_transpen)
-#define MCFG_TILEMAP_ADD_CUSTOM_TRANSPEN(_tag, _bytes_per_entry, _class, _method, _tilewidth, _tileheight, _mapper, _columns, _rows, _transpen) \
+#define MCFG_TILEMAP_ADD_CUSTOM_TRANSPEN(_tag, _gfxtag, _bytes_per_entry, _class, _method, _tilewidth, _tileheight, _mapper, _columns, _rows, _transpen) \
 	MCFG_TILEMAP_ADD(_tag) \
+	MCFG_TILEMAP_GFXDECODE(_gfxtag) \
 	MCFG_TILEMAP_BYTES_PER_ENTRY(_bytes_per_entry) \
 	MCFG_TILEMAP_INFO_CB_DRIVER(_class, _method) \
 	MCFG_TILEMAP_LAYOUT_CB_DRIVER(_columns, _mapper, _rows, _class) \
@@ -452,6 +429,7 @@ typedef UINT32 tilemap_memory_index;
 // tile_data is filled in by the get_tile_info callback
 struct tile_data
 {
+	device_gfx_interface *decoder;  // set in tilemap_t::init()
 	const UINT8 *   pen_data;       // required
 	const UINT8 *   mask_data;      // required
 	pen_t           palette_base;   // defaults to 0
@@ -459,24 +437,16 @@ struct tile_data
 	UINT8           group;          // defaults to 0; range from 0..TILEMAP_NUM_GROUPS
 	UINT8           flags;          // defaults to 0; one or more of TILE_* flags above
 	UINT8           pen_mask;       // defaults to 0xff; mask to apply to pen_data while rendering the tile
-	UINT8           gfxnum;         // defaults to 0xff; specify index of machine.gfx for auto-invalidation on dirty
+	UINT8           gfxnum;         // defaults to 0xff; specify index of gfx for auto-invalidation on dirty
 
-	void set(running_machine &machine, int _gfxnum, int rawcode, int rawcolor, int _flags)
+	void set(int _gfxnum, int rawcode, int rawcolor, int _flags)
 	{
-		gfx_element *gfx = machine.gfx[_gfxnum];
+		gfx_element *gfx = decoder->gfx(_gfxnum);
 		int code = rawcode % gfx->elements();
 		pen_data = gfx->get_data(code);
 		palette_base = gfx->colorbase() + gfx->granularity() * rawcolor;
 		flags = _flags;
 		gfxnum = _gfxnum;
-	}
-
-	void set(running_machine &machine, gfx_element &gfx, int rawcode, int rawcolor, int _flags)
-	{
-		int code = rawcode % gfx.elements();
-		pen_data = gfx.get_data(code);
-		palette_base = gfx.colorbase() + gfx.granularity() * rawcolor;
-		flags = _flags;
 	}
 };
 
@@ -515,12 +485,13 @@ protected:
 	tilemap_t();
 	virtual ~tilemap_t();
 
-	tilemap_t &init(tilemap_manager &manager, tilemap_get_info_delegate tile_get_info, tilemap_mapper_delegate mapper, int tilewidth, int tileheight, int cols, int rows);
+	tilemap_t &init(tilemap_manager &manager, device_gfx_interface &decoder, tilemap_get_info_delegate tile_get_info, tilemap_mapper_delegate mapper, int tilewidth, int tileheight, int cols, int rows);
 
 public:
 	// getters
 	running_machine &machine() const;
 	tilemap_device *device() const { return m_device; }
+	palette_device *palette() const { return m_palette; }
 	tilemap_t *next() const { return m_next; }
 	void *user_data() const { return m_user_data; }
 	memory_array &basemem() { return m_basemem; }
@@ -528,6 +499,7 @@ public:
 	UINT32 width() const { return m_width; }
 	UINT32 height() const { return m_height; }
 	bool enabled() const { return m_enable; }
+	int palette_offset() const { return m_palette_offset; }
 	int scrolldx() const { return (m_attributes & TILEMAP_FLIPX) ? m_dx_flipped : m_dx; }
 	int scrolldy() const { return (m_attributes & TILEMAP_FLIPY) ? m_dy_flipped : m_dy; }
 	int scrollx(int which = 0) const { return (which < m_scrollrows) ? m_rowscroll[which] : 0; }
@@ -540,6 +512,7 @@ public:
 	// setters
 	void enable(bool enable = true) { m_enable = enable; }
 	void set_user_data(void *user_data) { m_user_data = user_data; }
+	void set_palette(palette_device *palette) { m_palette = palette; }
 	void set_palette_offset(UINT32 offset) { m_palette_offset = offset; }
 	void set_scrolldx(int dx, int dx_flipped) { m_dx = dx; m_dx_flipped = dx_flipped; }
 	void set_scrolldy(int dy, int dy_flipped) { m_dy = dy; m_dy_flipped = dy_flipped; }
@@ -560,13 +533,14 @@ public:
 	void map_pen_to_layer(int group, pen_t pen, UINT8 layermask) { map_pens_to_layer(group, pen, ~0, layermask); }
 	void set_transparent_pen(pen_t pen);
 	void set_transmask(int group, UINT32 fgmask, UINT32 bgmask);
+	void configure_groups(gfx_element &gfx, int transcolor);
 
 	// drawing
 	void draw(screen_device &screen, bitmap_ind16 &dest, const rectangle &cliprect, UINT32 flags, UINT8 priority = 0, UINT8 priority_mask = 0xff);
 	void draw(screen_device &screen, bitmap_rgb32 &dest, const rectangle &cliprect, UINT32 flags, UINT8 priority = 0, UINT8 priority_mask = 0xff);
 	void draw_roz(screen_device &screen, bitmap_ind16 &dest, const rectangle &cliprect, UINT32 startx, UINT32 starty, int incxx, int incxy, int incyx, int incyy, bool wraparound, UINT32 flags, UINT8 priority = 0, UINT8 priority_mask = 0xff);
 	void draw_roz(screen_device &screen, bitmap_rgb32 &dest, const rectangle &cliprect, UINT32 startx, UINT32 starty, int incxx, int incxy, int incyx, int incyy, bool wraparound, UINT32 flags, UINT8 priority = 0, UINT8 priority_mask = 0xff);
-	void draw_debug(bitmap_rgb32 &dest, UINT32 scrollx, UINT32 scrolly);
+	void draw_debug(screen_device &screen, bitmap_rgb32 &dest, UINT32 scrollx, UINT32 scrolly);
 
 	// mappers
 	// scan in row-major order with optional flipping
@@ -617,10 +591,10 @@ private:
 	void scanline_draw_masked_null(const UINT8 *maskptr, int mask, int value, int count, UINT8 *pri, UINT32 pcode);
 	void scanline_draw_opaque_ind16(UINT16 *dest, const UINT16 *source, int count, UINT8 *pri, UINT32 pcode);
 	void scanline_draw_masked_ind16(UINT16 *dest, const UINT16 *source, const UINT8 *maskptr, int mask, int value, int count, UINT8 *pri, UINT32 pcode);
-	void scanline_draw_opaque_rgb32(UINT32 *dest, const UINT16 *source, int count, const pen_t *pens, UINT8 *pri, UINT32 pcode);
-	void scanline_draw_masked_rgb32(UINT32 *dest, const UINT16 *source, const UINT8 *maskptr, int mask, int value, int count, const pen_t *pens, UINT8 *pri, UINT32 pcode);
-	void scanline_draw_opaque_rgb32_alpha(UINT32 *dest, const UINT16 *source, int count, const pen_t *pens, UINT8 *pri, UINT32 pcode, UINT8 alpha);
-	void scanline_draw_masked_rgb32_alpha(UINT32 *dest, const UINT16 *source, const UINT8 *maskptr, int mask, int value, int count, const pen_t *pens, UINT8 *pri, UINT32 pcode, UINT8 alpha);
+	void scanline_draw_opaque_rgb32(UINT32 *dest, const UINT16 *source, int count, const rgb_t *pens, UINT8 *pri, UINT32 pcode);
+	void scanline_draw_masked_rgb32(UINT32 *dest, const UINT16 *source, const UINT8 *maskptr, int mask, int value, int count, const rgb_t *pens, UINT8 *pri, UINT32 pcode);
+	void scanline_draw_opaque_rgb32_alpha(UINT32 *dest, const UINT16 *source, int count, const rgb_t *pens, UINT8 *pri, UINT32 pcode, UINT8 alpha);
+	void scanline_draw_masked_rgb32_alpha(UINT32 *dest, const UINT16 *source, const UINT8 *maskptr, int mask, int value, int count, const rgb_t *pens, UINT8 *pri, UINT32 pcode, UINT8 alpha);
 
 	// internal helpers
 	void postload();
@@ -636,12 +610,13 @@ private:
 	void configure_blit_parameters(blit_parameters &blit, bitmap_ind8 &priority_bitmap, const rectangle &cliprect, UINT32 flags, UINT8 priority, UINT8 priority_mask);
 	template<class _BitmapClass> void draw_common(screen_device &screen, _BitmapClass &dest, const rectangle &cliprect, UINT32 flags, UINT8 priority, UINT8 priority_mask);
 	template<class _BitmapClass> void draw_roz_common(screen_device &screen, _BitmapClass &dest, const rectangle &cliprect, UINT32 startx, UINT32 starty, int incxx, int incxy, int incyx, int incyy, bool wraparound, UINT32 flags, UINT8 priority, UINT8 priority_mask);
-	template<class _BitmapClass> void draw_instance(_BitmapClass &dest, const blit_parameters &blit, int xpos, int ypos);
-	template<class _BitmapClass> void draw_roz_core(_BitmapClass &destbitmap, const blit_parameters &blit, UINT32 startx, UINT32 starty, int incxx, int incxy, int incyx, int incyy, bool wraparound);
+	template<class _BitmapClass> void draw_instance(screen_device &screen, _BitmapClass &dest, const blit_parameters &blit, int xpos, int ypos);
+	template<class _BitmapClass> void draw_roz_core(screen_device &screen, _BitmapClass &destbitmap, const blit_parameters &blit, UINT32 startx, UINT32 starty, int incxx, int incxy, int incyx, int incyy, bool wraparound);
 
 	// managers and devices
 	tilemap_manager *           m_manager;              // reference to the owning manager
 	tilemap_device *            m_device;               // pointer to our owning device
+	palette_device *            m_palette;              // palette used for drawing
 	tilemap_t *                 m_next;                 // pointer to next tilemap
 	void *                      m_user_data;            // user data value
 
@@ -659,10 +634,8 @@ private:
 
 	// logical <-> memory mappings
 	tilemap_mapper_delegate     m_mapper;               // callback to map a row/column to a memory index
-	logical_index *             m_memory_to_logical;    // map from memory index to logical index
-	logical_index               m_max_logical_index;    // maximum valid logical index
-	tilemap_memory_index *      m_logical_to_memory;    // map from logical index to memory index
-	tilemap_memory_index        m_max_memory_index;     // maximum valid memory index
+	dynamic_array<logical_index> m_memory_to_logical;   // map from memory index to logical index
+	dynamic_array<tilemap_memory_index> m_logical_to_memory; // map from logical index to memory index
 
 	// callback to interpret video RAM for the tilemap
 	tilemap_get_info_delegate   m_tile_get_info;        // callback to get information about a tile
@@ -674,7 +647,6 @@ private:
 	bool                        m_all_tiles_dirty;      // true if all tiles are dirty
 	bool                        m_all_tiles_clean;      // true if all tiles are clean
 	UINT32                      m_palette_offset;       // palette offset
-	UINT32                      m_pen_data_offset;      // pen data offset
 	UINT32                      m_gfx_used;             // bitmask of gfx items used
 	UINT32                      m_gfx_dirtyseq[MAX_GFX_ELEMENTS]; // dirtyseq values from last check
 
@@ -693,7 +665,7 @@ private:
 
 	// transparency mapping
 	bitmap_ind8                 m_flagsmap;             // per-pixel flags
-	UINT8 *                     m_tileflags;            // per-tile flags
+	dynamic_array<UINT8>        m_tileflags;            // per-tile flags
 	UINT8                       m_pen_to_flags[MAX_PEN_TO_FLAGS * TILEMAP_NUM_GROUPS]; // mapping of pens to flags
 };
 
@@ -708,13 +680,14 @@ class tilemap_manager
 public:
 	// construction/destuction
 	tilemap_manager(running_machine &machine);
+	~tilemap_manager();
 
 	// getters
 	running_machine &machine() const { return m_machine; }
 
 	// tilemap creation
-	tilemap_t &create(tilemap_get_info_delegate tile_get_info, tilemap_mapper_delegate mapper, int tilewidth, int tileheight, int cols, int rows, tilemap_t *allocated = NULL);
-	tilemap_t &create(tilemap_get_info_delegate tile_get_info, tilemap_standard_mapper mapper, int tilewidth, int tileheight, int cols, int rows, tilemap_t *allocated = NULL);
+	tilemap_t &create(device_gfx_interface &decoder, tilemap_get_info_delegate tile_get_info, tilemap_mapper_delegate mapper, int tilewidth, int tileheight, int cols, int rows, tilemap_t *allocated = NULL);
+	tilemap_t &create(device_gfx_interface &decoder, tilemap_get_info_delegate tile_get_info, tilemap_standard_mapper mapper, int tilewidth, int tileheight, int cols, int rows, tilemap_t *allocated = NULL);
 
 	// tilemap list information
 	tilemap_t *find(int index) { return m_tilemap_list.find(index); }
@@ -748,6 +721,7 @@ public:
 	tilemap_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 	// static configuration
+	static void static_set_gfxdecode_tag(device_t &device, const char *tag);
 	static void static_set_bytes_per_entry(device_t &device, int bpe);
 	static void static_set_info_callback(device_t &device, tilemap_get_info_delegate tile_get_info);
 	static void static_set_layout(device_t &device, tilemap_standard_mapper mapper, int columns, int rows);
@@ -756,12 +730,12 @@ public:
 	static void static_set_transparent_pen(device_t &device, pen_t pen);
 
 	// write handlers
-	DECLARE_WRITE8_HANDLER(write);
-	DECLARE_WRITE16_HANDLER(write);
-	DECLARE_WRITE32_HANDLER(write);
-	DECLARE_WRITE8_HANDLER(write_ext);
-	DECLARE_WRITE16_HANDLER(write_ext);
-	DECLARE_WRITE32_HANDLER(write_ext);
+	DECLARE_WRITE8_MEMBER(write);
+	DECLARE_WRITE16_MEMBER(write);
+	DECLARE_WRITE32_MEMBER(write);
+	DECLARE_WRITE8_MEMBER(write_ext);
+	DECLARE_WRITE16_MEMBER(write_ext);
+	DECLARE_WRITE32_MEMBER(write_ext);
 
 	// pick one to use to avoid ambiguity errors
 	using device_t::machine;
@@ -771,6 +745,9 @@ protected:
 	virtual void device_start();
 
 private:
+	// devices
+	required_device<gfxdecode_device> m_gfxdecode;
+
 	// configuration state
 	tilemap_get_info_delegate m_get_info;
 	tilemap_standard_mapper m_standard_mapper;
@@ -792,7 +769,7 @@ private:
 
 // macros to help form flags for tilemap_draw
 #define TILEMAP_DRAW_CATEGORY(x)        (x)     // specify category to draw
-#define TILEMAP_DRAW_ALPHA(x)           (TILEMAP_DRAW_ALPHA_FLAG | (rgb_clamp(x) << 24))
+#define TILEMAP_DRAW_ALPHA(x)           (TILEMAP_DRAW_ALPHA_FLAG | (rgb_t::clamp(x) << 24))
 
 // function definition for a get info callback
 #define TILE_GET_INFO_MEMBER(_name)     void _name(tilemap_t &tilemap, tile_data &tileinfo, tilemap_memory_index tile_index)
@@ -801,7 +778,7 @@ private:
 #define TILEMAP_MAPPER_MEMBER(_name)    tilemap_memory_index _name(UINT32 col, UINT32 row, UINT32 num_cols, UINT32 num_rows)
 
 // useful macro inside of a TILE_GET_INFO callback to set tile information
-#define SET_TILE_INFO_MEMBER(GFX,CODE,COLOR,FLAGS)  tileinfo.set(machine(), GFX, CODE, COLOR, FLAGS)
+#define SET_TILE_INFO_MEMBER(GFX,CODE,COLOR,FLAGS)  tileinfo.set(GFX, CODE, COLOR, FLAGS)
 
 // Macros for setting tile attributes in the TILE_GET_INFO callback:
 //   TILE_FLIP_YX assumes that flipy is in bit 1 and flipx is in bit 0

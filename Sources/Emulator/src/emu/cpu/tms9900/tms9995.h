@@ -1,8 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Michael Zapf
 /*
   tms9995.h
 
   See tms9995.c for documentation
-  Also see tms9900.h for types of TMS9xxx processors.
+  Also see tms9900.h for types of TMS99xx processors.
 */
 
 #ifndef __TMS9995_H__
@@ -10,82 +12,44 @@
 
 #include "emu.h"
 #include "debugger.h"
+#include "tms99com.h"
 
-/*
-    Define symbols for interrupt lines.
-
-    We use a separate RESET signal which is not captured by the core.
-
-    Caution: Check irqline in set_input_line of each driver using this CPU.
-    Values have changed. Use these symbols instead.
-*/
-enum
-{
-	INPUT_LINE_99XX_RESET = 0,
-	INPUT_LINE_99XX_INTREQ = 1,
-	INPUT_LINE_99XX_INT1 = 2,
-	INPUT_LINE_99XX_INT4 = 3
-};
+// device type definition
+extern const device_type TMS9995;
+extern const device_type TMS9995_MP9537;
 
 enum
 {
-	TI990_10_ID = 1,
-	TMS9900_ID = 3,
-	TMS9940_ID = 4,
-	TMS9980_ID = 5,
-	TMS9985_ID = 6,
-	TMS9989_ID = 7,
-	TMS9995_ID = 9,
-	TMS99000_ID = 10,
-	TMS99105A_ID = 11,
-	TMS99110A_ID = 12
+	INT_9995_RESET = 0,
+	INT_9995_INTREQ = 1,
+	INT_9995_INT1 = 2,
+	INT_9995_INT4 = 3
 };
 
-#define MCFG_TMS9995_ADD(_tag, _device, _clock, _prgmap, _iomap, _config)       \
-	MCFG_DEVICE_ADD(_tag, _device, _clock / 4.0)        \
-	MCFG_DEVICE_PROGRAM_MAP(_prgmap)            \
-	MCFG_DEVICE_IO_MAP(_iomap)                  \
-	MCFG_DEVICE_CONFIG(_config)
+#define MCFG_TMS9995_EXTOP_HANDLER( _extop) \
+	devcb = &tms9995_device::static_set_extop_callback( *device, DEVCB_##_extop );
 
-enum
-{
-	IDLE_OP = 2,
-	RSET_OP = 3,
-	CKOF_OP = 5,
-	CKON_OP = 6,
-	LREX_OP = 7
-};
+#define MCFG_TMS9995_IAQ_HANDLER( _iaq )    \
+	devcb = &tms9995_device::static_set_iaq_callback( *device, DEVCB_##_iaq );
 
-/*
-    Configuration for the TMS9995. The connections are provided by the
-    main board which contains the processor.
-*/
-struct tms9995_config
-{
-	devcb_write8        external_callback;
-	devcb_write_line    iaq_line;
-	devcb_write_line    clock_out;
-	devcb_write_line    wait_line;
-	devcb_write_line    holda_line;
-	int                 mode;
-	int                 overflow;
-};
+#define MCFG_TMS9995_CLKOUT_HANDLER( _clkout ) \
+	devcb = &tms9995_device::static_set_clkout_callback( *device, DEVCB_##_clkout );
 
-#define TMS9995_CONFIG(name) \
-	const tms9995_config(name) =
+#define MCFG_TMS9995_HOLDA_HANDLER( _holda ) \
+	devcb = &tms9995_device::static_set_holda_callback( *device, DEVCB_##_holda );
 
-enum
-{
-	NO_INTERNAL_RAM = 0,
-	INTERNAL_RAM,
-	NO_OVERFLOW_INT = 0,
-	OVERFLOW_INT
-};
+#define MCFG_TMS9995_DBIN_HANDLER( _dbin ) \
+	devcb = &tms9995_device::static_set_dbin_callback( *device, DEVCB_##_dbin );
+
+#define MCFG_TMS9995_ENABLE_OVINT( _ovint ) \
+	downcast<tms9995_device*>(device)->set_overflow_interrupt( _ovint );
+
 
 class tms9995_device : public cpu_device
 {
 public:
 	tms9995_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	tms9995_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 	// READY input line. When asserted (high), the memory is ready for data exchange.
 	// We chose to use a direct method instead of a delegate to keep performance
@@ -96,6 +60,19 @@ public:
 	// data and address bus and enter the HOLD state. The entrance of this state
 	// is acknowledged by the HOLDA output line.
 	void set_hold(int state);
+
+	// Callbacks
+	template<class _Object> static devcb_base &static_set_extop_callback(device_t &device, _Object object) { return downcast<tms9995_device &>(device).m_external_operation.set_callback(object); }
+	template<class _Object> static devcb_base &static_set_iaq_callback(device_t &device, _Object object) { return downcast<tms9995_device &>(device).m_iaq_line.set_callback(object); }
+	template<class _Object> static devcb_base &static_set_clkout_callback(device_t &device, _Object object) { return downcast<tms9995_device &>(device).m_clock_out_line.set_callback(object); }
+	template<class _Object> static devcb_base &static_set_holda_callback(device_t &device, _Object object) { return downcast<tms9995_device &>(device).m_holda_line.set_callback(object); }
+	template<class _Object> static devcb_base &static_set_dbin_callback(device_t &device, _Object object) { return downcast<tms9995_device &>(device).m_dbin_line.set_callback(object); }
+
+	// For debugger access
+	UINT8 debug_read_onchip_memory(offs_t addr) { return m_onchip_memory[addr & 0xff]; };
+	bool is_onchip(offs_t addrb) { return (((addrb & 0xff00)==0xf000 && (addrb < 0xf0fc)) || ((addrb & 0xfffc)==0xfffc)) && !m_mp9537; }
+
+	void set_overflow_interrupt( int enable ) { m_check_overflow = (enable!=0); }
 
 protected:
 	// device-level overrides
@@ -116,6 +93,12 @@ protected:
 	virtual offs_t      disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options);
 
 	const address_space_config* memory_space_config(address_spacenum spacenum) const;
+
+	UINT64 execute_clocks_to_cycles(UINT64 clocks) const { return clocks / 4.0; }
+	UINT64 execute_cycles_to_clocks(UINT64 cycles) const { return cycles * 4.0; }
+
+	// Variant of the TMS9995 without internal RAM and decrementer
+	bool    m_mp9537;
 
 private:
 	// State / debug management
@@ -144,25 +127,28 @@ private:
 	address_space*                  m_prgspace;
 	address_space*                  m_cru;
 
-	// Variant of the TMS9995 without internal RAM and decrementer
-	bool    m_mp9537;
 
 	// Processor states
 	bool    m_idle_state;
 	bool    m_nmi_state;
 	bool    m_irq_state;
-	bool    m_ready_state;
-	bool    m_wait_state;
 	bool    m_hold_state;
 
+	// READY handling. The READY line is operated before the clock
+	// pulse falls. As the ready line is only set once in this emulation we
+	// keep the level in a buffer (like a latch)
+	bool    m_ready_bufd;   // buffered state
+	bool    m_ready;        // sampled value
+
 	// Auto-wait state generation
-	bool    m_auto_wait_state;
+	bool    m_request_auto_wait_state;
+	bool    m_auto_wait;
 
 	// Cycle counter
 	int     m_icount;
 
-	// The next memory access will address the low byte
-	bool    m_lowbyte;
+	// Phase of the memory access
+	int     m_mem_phase;
 
 	// Check the READY line?
 	bool    m_check_ready;
@@ -195,7 +181,12 @@ private:
 	bool    m_int_overflow;
 
 	bool    m_reset;
+	bool    m_from_reset;
 	bool    m_mid_flag;
+	bool    m_mid_active;
+
+	int     m_decrementer_clkdiv;
+	bool    m_servicing_interrupt;
 
 	// Flag field
 	int     m_int_pending;
@@ -213,10 +204,7 @@ private:
 	// Issue clock pulses. The TMS9995 uses one (output) clock cycle per machine cycle.
 	inline void pulse_clock(int count);
 
-	// Signal the wait state via the external line
-	inline void set_wait_state(bool state);
-
-	// Signal the wait state via the external line
+	// Signal the hold state via the external line
 	inline void set_hold_state(bool state);
 
 	// Only used for the DIV(S) operations. It seems sufficient to let the
@@ -423,25 +411,36 @@ private:
 	// We could realize this via the CRU access as well, but the data bus access
 	// is not that simple to emulate. For the sake of homogenity between the
 	// chip emulations we use a dedicated callback.
-	devcb_resolved_write8   m_external_operation;
+	devcb_write8   m_external_operation;
 
 	// Signal to the outside world that we are now getting an instruction (IAQ).
 	// In the real hardware this line is shared with the HOLDA line, and the
 	// /MEMEN line is used to decide which signal we have on the line. We do not
 	// emulate the /MEMEN line, so we have to use two separate lines.
-	devcb_resolved_write_line   m_iaq_line;
+	devcb_write_line   m_iaq_line;
 
 	// Clock output.
-	devcb_resolved_write_line   m_clock_out_line;
-
-	// Wait output. When asserted (high), the CPU is in a wait state.
-	devcb_resolved_write_line   m_wait_line;
+	devcb_write_line   m_clock_out_line;
 
 	// Asserted when the CPU is in a HOLD state
-	devcb_resolved_write_line   m_holda_line;
+	devcb_write_line   m_holda_line;
+
+	// DBIN line. When asserted (high), the CPU has disabled the data bus output buffers.
+	devcb_write_line   m_dbin_line;
 };
 
-// device type definition
-extern const device_type TMS9995;
+
+/*
+    Variant of the TMS9995 without on-chip RAM; used in the TI-99/8 console
+*/
+class tms9995_mp9537_device : public tms9995_device
+{
+public:
+	tms9995_mp9537_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tms9995_device(mconfig, TMS9995_MP9537, "TMS9995-MP9537", tag, owner, clock, "tms9995_mp9537", __FILE__)
+	{
+		m_mp9537 = true;
+	}
+};
 
 #endif /* __TMS9995_H__ */

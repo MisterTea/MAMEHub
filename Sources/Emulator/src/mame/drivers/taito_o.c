@@ -65,7 +65,7 @@ static ADDRESS_MAP_START( parentj_map, AS_PROGRAM, 16, taitoo_state )
 	AM_RANGE(0x200000, 0x20000f) AM_READWRITE(io_r, io_w) /* TC0220IOC ? */
 	AM_RANGE(0x300000, 0x300003) AM_DEVREADWRITE8("ymsnd", ym2203_device, read, write, 0x00ff)
 	AM_RANGE(0x400000, 0x420fff) AM_DEVREADWRITE("tc0080vco", tc0080vco_device, word_r, word_w)
-	AM_RANGE(0x500800, 0x500fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x500800, 0x500fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 static INPUT_PORTS_START( parentj )
@@ -222,21 +222,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(taitoo_state::parentj_interrupt)
 		m_maincpu->set_input_line(5, HOLD_LINE);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSWA"),DEVCB_INPUT_PORT("DSWB"),
-	DEVCB_NULL, DEVCB_NULL,
-};
-
-static const tc0080vco_interface parentj_intf =
-{
-	0, 1,   /* gfxnum, txnum */
-	1, 1, -2,
-	0
-};
-
 void taitoo_state::machine_start()
 {
 }
@@ -254,16 +239,25 @@ static MACHINE_CONFIG_START( parentj, taitoo_state )
 	MCFG_SCREEN_SIZE(64*16, 64*16)
 	MCFG_SCREEN_VISIBLE_AREA(0*16, 32*16-1, 3*16, 31*16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(taitoo_state, screen_update_parentj)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(parentj)
-	MCFG_PALETTE_LENGTH(33*16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", parentj)
+	MCFG_PALETTE_ADD("palette", 33*16)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
-	MCFG_TC0080VCO_ADD("tc0080vco", parentj_intf)
+	MCFG_DEVICE_ADD("tc0080vco", TC0080VCO, 0)
+	MCFG_TC0080VCO_GFX_REGION(0)
+	MCFG_TC0080VCO_TX_REGION(1)
+	MCFG_TC0080VCO_OFFSETS(1, 1)
+	MCFG_TC0080VCO_BGFLIP_OFFS(-2)
+	MCFG_TC0080VCO_GFXDECODE("gfxdecode")
+	MCFG_TC0080VCO_PALETTE("palette")
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 2000000) /*?? MHz */
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSWA"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSWB"))
 	MCFG_SOUND_ROUTE(0, "mono",  0.25)
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono",  1.0)

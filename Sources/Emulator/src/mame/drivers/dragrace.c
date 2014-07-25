@@ -70,21 +70,21 @@ void dragrace_state::dragrace_update_misc_flags( address_space &space )
 	set_led_status(machine(), 0, m_misc_flags & 0x00008000);
 	set_led_status(machine(), 1, m_misc_flags & 0x80000000);
 
-	discrete_sound_w(m_discrete, space, DRAGRACE_MOTOR1_DATA,  ~m_misc_flags & 0x0000001f);       // Speed1 data*
-	discrete_sound_w(m_discrete, space, DRAGRACE_EXPLODE1_EN, (m_misc_flags & 0x00000020) ? 1: 0);    // Explosion1 enable
-	discrete_sound_w(m_discrete, space, DRAGRACE_SCREECH1_EN, (m_misc_flags & 0x00000040) ? 1: 0);    // Screech1 enable
-	discrete_sound_w(m_discrete, space, DRAGRACE_KLEXPL1_EN, (m_misc_flags & 0x00000200) ? 1: 0); // KLEXPL1 enable
-	discrete_sound_w(m_discrete, space, DRAGRACE_MOTOR1_EN, (m_misc_flags & 0x00000800) ? 1: 0);  // Motor1 enable
+	m_discrete->write(space, DRAGRACE_MOTOR1_DATA,  ~m_misc_flags & 0x0000001f);       // Speed1 data*
+	m_discrete->write(space, DRAGRACE_EXPLODE1_EN, (m_misc_flags & 0x00000020) ? 1: 0);    // Explosion1 enable
+	m_discrete->write(space, DRAGRACE_SCREECH1_EN, (m_misc_flags & 0x00000040) ? 1: 0);    // Screech1 enable
+	m_discrete->write(space, DRAGRACE_KLEXPL1_EN, (m_misc_flags & 0x00000200) ? 1: 0); // KLEXPL1 enable
+	m_discrete->write(space, DRAGRACE_MOTOR1_EN, (m_misc_flags & 0x00000800) ? 1: 0);  // Motor1 enable
 
-	discrete_sound_w(m_discrete, space, DRAGRACE_MOTOR2_DATA, (~m_misc_flags & 0x001f0000) >> 0x10);  // Speed2 data*
-	discrete_sound_w(m_discrete, space, DRAGRACE_EXPLODE2_EN, (m_misc_flags & 0x00200000) ? 1: 0);    // Explosion2 enable
-	discrete_sound_w(m_discrete, space, DRAGRACE_SCREECH2_EN, (m_misc_flags & 0x00400000) ? 1: 0);    // Screech2 enable
-	discrete_sound_w(m_discrete, space, DRAGRACE_KLEXPL2_EN, (m_misc_flags & 0x02000000) ? 1: 0); // KLEXPL2 enable
-	discrete_sound_w(m_discrete, space, DRAGRACE_MOTOR2_EN, (m_misc_flags & 0x08000000) ? 1: 0);  // Motor2 enable
+	m_discrete->write(space, DRAGRACE_MOTOR2_DATA, (~m_misc_flags & 0x001f0000) >> 0x10);  // Speed2 data*
+	m_discrete->write(space, DRAGRACE_EXPLODE2_EN, (m_misc_flags & 0x00200000) ? 1: 0);    // Explosion2 enable
+	m_discrete->write(space, DRAGRACE_SCREECH2_EN, (m_misc_flags & 0x00400000) ? 1: 0);    // Screech2 enable
+	m_discrete->write(space, DRAGRACE_KLEXPL2_EN, (m_misc_flags & 0x02000000) ? 1: 0); // KLEXPL2 enable
+	m_discrete->write(space, DRAGRACE_MOTOR2_EN, (m_misc_flags & 0x08000000) ? 1: 0);  // Motor2 enable
 
-	discrete_sound_w(m_discrete, space, DRAGRACE_ATTRACT_EN, (m_misc_flags & 0x00001000) ? 1: 0); // Attract enable
-	discrete_sound_w(m_discrete, space, DRAGRACE_LOTONE_EN, (m_misc_flags & 0x00002000) ? 1: 0);  // LoTone enable
-	discrete_sound_w(m_discrete, space, DRAGRACE_HITONE_EN, (m_misc_flags & 0x20000000) ? 1: 0);  // HiTone enable
+	m_discrete->write(space, DRAGRACE_ATTRACT_EN, (m_misc_flags & 0x00001000) ? 1: 0); // Attract enable
+	m_discrete->write(space, DRAGRACE_LOTONE_EN, (m_misc_flags & 0x00002000) ? 1: 0);  // LoTone enable
+	m_discrete->write(space, DRAGRACE_HITONE_EN, (m_misc_flags & 0x20000000) ? 1: 0);  // HiTone enable
 }
 
 WRITE8_MEMBER(dragrace_state::dragrace_misc_w)
@@ -287,24 +287,24 @@ static GFXDECODE_START( dragrace )
 GFXDECODE_END
 
 
-void dragrace_state::palette_init()
+PALETTE_INIT_MEMBER(dragrace_state, dragrace)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(0xFF, 0xFF, 0xFF));   /* 2 color tiles */
-	palette_set_color(machine(), 1, MAKE_RGB(0x00, 0x00, 0x00));
-	palette_set_color(machine(), 2, MAKE_RGB(0x00, 0x00, 0x00));
-	palette_set_color(machine(), 3, MAKE_RGB(0xFF, 0xFF, 0xFF));
-	palette_set_color(machine(), 4, MAKE_RGB(0x00, 0x00, 0x00));
-	palette_set_color(machine(), 5, MAKE_RGB(0x00, 0x00, 0x00));
-	palette_set_color(machine(), 6, MAKE_RGB(0xFF, 0xFF, 0xFF));
-	palette_set_color(machine(), 7, MAKE_RGB(0xFF, 0xFF, 0xFF));
-	palette_set_color(machine(), 8, MAKE_RGB(0xFF, 0xFF, 0xFF));   /* 4 color tiles */
-	palette_set_color(machine(), 9, MAKE_RGB(0xB0, 0xB0, 0xB0));
-	palette_set_color(machine(), 10,MAKE_RGB(0x5F, 0x5F, 0x5F));
-	palette_set_color(machine(), 11,MAKE_RGB(0x00, 0x00, 0x00));
-	palette_set_color(machine(), 12,MAKE_RGB(0xFF, 0xFF, 0xFF));
-	palette_set_color(machine(), 13,MAKE_RGB(0x5F, 0x5F, 0x5F));
-	palette_set_color(machine(), 14,MAKE_RGB(0xB0, 0xB0, 0xB0));
-	palette_set_color(machine(), 15,MAKE_RGB(0x00, 0x00, 0x00));
+	palette.set_pen_color(0, rgb_t(0xFF, 0xFF, 0xFF));   /* 2 color tiles */
+	palette.set_pen_color(1, rgb_t(0x00, 0x00, 0x00));
+	palette.set_pen_color(2, rgb_t(0x00, 0x00, 0x00));
+	palette.set_pen_color(3, rgb_t(0xFF, 0xFF, 0xFF));
+	palette.set_pen_color(4, rgb_t(0x00, 0x00, 0x00));
+	palette.set_pen_color(5, rgb_t(0x00, 0x00, 0x00));
+	palette.set_pen_color(6, rgb_t(0xFF, 0xFF, 0xFF));
+	palette.set_pen_color(7, rgb_t(0xFF, 0xFF, 0xFF));
+	palette.set_pen_color(8, rgb_t(0xFF, 0xFF, 0xFF));   /* 4 color tiles */
+	palette.set_pen_color(9, rgb_t(0xB0, 0xB0, 0xB0));
+	palette.set_pen_color(10,rgb_t(0x5F, 0x5F, 0x5F));
+	palette.set_pen_color(11,rgb_t(0x00, 0x00, 0x00));
+	palette.set_pen_color(12,rgb_t(0xFF, 0xFF, 0xFF));
+	palette.set_pen_color(13,rgb_t(0x5F, 0x5F, 0x5F));
+	palette.set_pen_color(14,rgb_t(0xB0, 0xB0, 0xB0));
+	palette.set_pen_color(15,rgb_t(0x00, 0x00, 0x00));
 }
 
 
@@ -337,9 +337,11 @@ static MACHINE_CONFIG_START( dragrace, dragrace_state )
 	MCFG_SCREEN_SIZE(256, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(dragrace_state, screen_update_dragrace)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(dragrace)
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dragrace)
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(dragrace_state, dragrace)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

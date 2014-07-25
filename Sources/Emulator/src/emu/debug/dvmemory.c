@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*********************************************************************
 
     dvmemory.c
 
     Memory debugger view.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -160,14 +131,14 @@ void debug_view_memory::enumerate_sources()
 				{
 					address_space &space = memintf->space(spacenum);
 					name.printf("%s '%s' %s space memory", memintf->device().name(), memintf->device().tag(), space.name());
-					m_source_list.append(*auto_alloc(machine(), debug_view_memory_source(name, space)));
+					m_source_list.append(*global_alloc(debug_view_memory_source(name, space)));
 				}
 
 	// then add all the memory regions
 	for (memory_region *region = machine().memory().first_region(); region != NULL; region = region->next())
 	{
 		name.printf("Region '%s'", region->name());
-		m_source_list.append(*auto_alloc(machine(), debug_view_memory_source(name, *region)));
+		m_source_list.append(*global_alloc(debug_view_memory_source(name, *region)));
 	}
 
 	// finally add all global array symbols
@@ -185,12 +156,12 @@ void debug_view_memory::enumerate_sources()
 		if (strncmp(itemname, "timer/", 6))
 		{
 			name.cpy(itemname);
-			m_source_list.append(*auto_alloc(machine(), debug_view_memory_source(name, base, valsize, valcount)));
+			m_source_list.append(*global_alloc(debug_view_memory_source(name, base, valsize, valcount)));
 		}
 	}
 
 	// reset the source to a known good entry
-	set_source(*m_source_list.head());
+	set_source(*m_source_list.first());
 }
 
 
@@ -520,7 +491,7 @@ void debug_view_memory::recompute()
 	}
 
 	// derive total sizes from that
-	m_total.y = ((UINT64)m_maxaddr - (UINT64)m_byte_offset + (UINT64)m_bytes_per_row - 1) / m_bytes_per_row;
+	m_total.y = ((UINT64)m_maxaddr - (UINT64)m_byte_offset + (UINT64)m_bytes_per_row /*- 1*/) / m_bytes_per_row;
 
 	// reset the current cursor position
 	set_cursor_pos(pos);

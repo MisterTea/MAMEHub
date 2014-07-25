@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Jonathan Gevaryahu, Robbbert
 /******************************************************************************
 *
 *  Votrax Personal Speech System Driver
@@ -53,59 +55,69 @@
 <kevtris> but that's everything you need
 <LordNLptp> yeah
 
-*  (driver structure copied from vtech1.c)
+
+Things to be looked at:
+- Serial doesn't work, so has been disabled.
+- Bottom 3 dips must be off/serial/off, or else nothing works.
+- No sound at all.
+- volume and pitch should be controlled by ppi outputs
+- pit to be hooked up
+- bit 0 of portc is not connected according to text above, but it
+  completely changes the irq operation.
+
 ******************************************************************************/
 
 /* Core includes */
-#include "emu.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/z80/z80.h"
-#include "votrpss.lh"
+//#include "votrpss.lh"
 
 /* Components */
-//#include "sound/ay8910.h"
-//#include "sound/votrax.h"
-//#include "machine/i8255.h"
-//#include "machine/pit8253.h"
-//#include "machine/i8251.h"
+#include "sound/ay8910.h"
+#include "sound/votrax.h"
+#include "machine/clock.h"
+#include "machine/i8255.h"
+#include "machine/pit8253.h"
+#include "machine/i8251.h"
 
 /* For testing */
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class votrpss_state : public driver_device
 {
 public:
 	votrpss_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_terminal(*this, TERMINAL_TAG)
-	{ }
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG),
+		m_ppi(*this, "ppi"),
+		m_uart(*this, "uart")
+	{
+	}
 
+	DECLARE_WRITE8_MEMBER(kbd_put);
+	DECLARE_READ8_MEMBER(ppi_pa_r);
+	DECLARE_READ8_MEMBER(ppi_pb_r);
+	DECLARE_READ8_MEMBER(ppi_pc_r);
+	DECLARE_WRITE8_MEMBER(ppi_pa_w);
+	DECLARE_WRITE8_MEMBER(ppi_pb_w);
+	DECLARE_WRITE8_MEMBER(ppi_pc_w);
+	TIMER_DEVICE_CALLBACK_MEMBER(irq_timer);
+	DECLARE_WRITE_LINE_MEMBER(write_uart_clock);
+	IRQ_CALLBACK_MEMBER(irq_ack);
+private:
+	UINT8 m_term_data;
+	UINT8 m_porta;
+	UINT8 m_portb;
+	UINT8 m_portc;
+	virtual void machine_start();
 	required_device<cpu_device> m_maincpu;
 	required_device<generic_terminal_device> m_terminal;
-	DECLARE_READ8_MEMBER(votrpss_00_r);
-	DECLARE_READ8_MEMBER(votrpss_02_r);
-	DECLARE_READ8_MEMBER(votrpss_41_r);
-	DECLARE_WRITE8_MEMBER( votrpss_kbd_put );
-	UINT8 m_term_data;
-	UINT8 m_term_status;
+	required_device<i8255_device> m_ppi;
+	required_device<i8251_device> m_uart;
 };
-
-READ8_MEMBER( votrpss_state::votrpss_02_r )
-{
-	return m_term_status;
-}
-
-READ8_MEMBER( votrpss_state::votrpss_00_r )
-{
-	m_term_status = 0;
-	return m_term_data;
-}
-
-READ8_MEMBER( votrpss_state::votrpss_41_r )
-{
-	return 1;
-}
 
 
 /******************************************************************************
@@ -124,15 +136,12 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(votrpss_io, AS_IO, 8, votrpss_state)
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_READ(votrpss_00_r)
-	AM_RANGE(0x01, 0x01) AM_DEVWRITE(TERMINAL_TAG, generic_terminal_device, write)
-	AM_RANGE(0x02, 0x02) AM_READ(votrpss_02_r)
-	AM_RANGE(0x41, 0x41) AM_READ(votrpss_41_r)
-	//AM_RANGE(0x00, 0xff) AM_NOP /* temporary */
-	//AM_RANGE(0x00, 0x03) AM_READWRITE(8255ppi_r, 8255ppi_w) AM_MIRROR (0x3c)
-	//AM_RANGE(0x40, 0x41) AM_READWRITE(i8251_r, i8251_w) AM_MIRROR (0x3e)
-	//AM_RANGE(0x80, 0x83) AM_READWRITE(pit8253_r, pit8253_w) AM_MIRROR (0x3c)
-	//AM_RANGE(0xc0, 0xc3) AM_DEVREADWRITE("ay1", ay8910_device, data_r, data_w) AM_MIRROR (0x3c)
+	AM_RANGE(0x00, 0x03) AM_MIRROR(0x3c) AM_DEVREADWRITE("ppi", i8255_device, read, write)
+	AM_RANGE(0x40, 0x40) AM_MIRROR(0x3e) AM_DEVREADWRITE("uart", i8251_device, data_r, data_w)
+	AM_RANGE(0x41, 0x41) AM_MIRROR(0x3e) AM_DEVREADWRITE("uart", i8251_device, status_r, control_w)
+	AM_RANGE(0x80, 0x83) AM_MIRROR(0x3c) AM_DEVREADWRITE("pit", pit8253_device, read, write)
+	AM_RANGE(0xc0, 0xc0) AM_MIRROR(0x3e) AM_DEVREADWRITE("ay", ay8910_device, data_r, address_w)
+	AM_RANGE(0xc1, 0xc1) AM_MIRROR(0x3e) AM_DEVREADWRITE("ay", ay8910_device, data_r, data_w)
 ADDRESS_MAP_END
 
 
@@ -168,16 +177,74 @@ static INPUT_PORTS_START(votrpss)
 	PORT_DIPSETTING(    0x80, DEF_STR ( On )  )
 INPUT_PORTS_END
 
-WRITE8_MEMBER( votrpss_state::votrpss_kbd_put )
+void votrpss_state::machine_start()
 {
-	m_term_data = data;
-	m_term_status = 0x20;
 }
 
-static GENERIC_TERMINAL_INTERFACE( votrpss_terminal_intf )
+TIMER_DEVICE_CALLBACK_MEMBER( votrpss_state::irq_timer )
 {
-	DEVCB_DRIVER_MEMBER(votrpss_state, votrpss_kbd_put)
-};
+	m_maincpu->set_input_line(0, ASSERT_LINE);
+}
+
+IRQ_CALLBACK_MEMBER( votrpss_state::irq_ack )
+{
+	m_maincpu->set_input_line(0, CLEAR_LINE);
+	return 0x38;
+}
+
+READ8_MEMBER( votrpss_state::ppi_pa_r )
+{
+	UINT8 ret = m_term_data;
+	m_term_data = 0;
+	return ret;
+}
+
+READ8_MEMBER( votrpss_state::ppi_pb_r )
+{
+	return m_portb;
+}
+
+// Bit 0 controls what happens at interrupt time. See code around 518.
+READ8_MEMBER( votrpss_state::ppi_pc_r )
+{
+	UINT8 data = 0;
+
+	if (m_term_data)
+	{
+		m_ppi->pc4_w(0); // send a strobe pulse
+		data |= 0x20;
+	}
+
+	return (m_portc & 0xdb) | data;
+	//return data;
+}
+
+WRITE8_MEMBER( votrpss_state::ppi_pa_w )
+{
+	m_porta = data;
+}
+
+WRITE8_MEMBER( votrpss_state::ppi_pb_w )
+{
+	m_portb = data;
+	m_terminal->write(space, offset, data&0x7f);
+}
+
+WRITE8_MEMBER( votrpss_state::ppi_pc_w )
+{
+	m_portc = data;
+}
+
+WRITE8_MEMBER( votrpss_state::kbd_put )
+{
+	m_term_data = data;
+}
+
+DECLARE_WRITE_LINE_MEMBER( votrpss_state::write_uart_clock )
+{
+	m_uart->write_txc(state);
+	m_uart->write_rxc(state);
+}
 
 /******************************************************************************
  Machine Drivers
@@ -188,22 +255,48 @@ static MACHINE_CONFIG_START( votrpss, votrpss_state )
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_8MHz/2)  /* 4.000 MHz, verified */
 	MCFG_CPU_PROGRAM_MAP(votrpss_mem)
 	MCFG_CPU_IO_MAP(votrpss_io)
-	//MCFG_QUANTUM_TIME(attotime::from_hz(60))
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(votrpss_state,irq_ack)
 
 	/* video hardware */
 	//MCFG_DEFAULT_LAYOUT(layout_votrpss)
 
 	/* sound hardware */
-	//MCFG_SPEAKER_STANDARD_MONO("mono")
-	//MCFG_SOUND_ADD("ay1", AY8910, XTAL_8MHz/4) /* 2.000 MHz, verified */
-	//MCFG_SOUND_CONFIG(ay8910_config)
-	//MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	//votrax goes here too
+	MCFG_SPEAKER_STANDARD_MONO("mono")
+	MCFG_SOUND_ADD("ay", AY8910, XTAL_8MHz/4) /* 2.000 MHz, verified */
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))        // port B read
+	MCFG_AY8910_PORT_A_WRITE_CB(DEVWRITE8("votrax", votrax_sc01_device, write))     // port A write
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	MCFG_DEVICE_ADD("votrax", VOTRAX_SC01, 720000) /* 720 kHz? needs verify */
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
-	/* printer */
-	//MCFG_PRINTER_ADD("printer")
+	/* Devices */
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(votrpss_state, kbd_put))
 
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, votrpss_terminal_intf)
+	MCFG_DEVICE_ADD("uart", I8251, 0)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE("rs232", rs232_port_device, write_txd))
+	MCFG_I8251_DTR_HANDLER(DEVWRITELINE("rs232", rs232_port_device, write_dtr))
+	MCFG_I8251_RTS_HANDLER(DEVWRITELINE("rs232", rs232_port_device, write_rts))
+
+	MCFG_RS232_PORT_ADD("rs232", default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("uart", i8251_device, write_rxd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE("uart", i8251_device, write_dsr))
+
+	MCFG_DEVICE_ADD("pit", PIT8253, 0)
+	MCFG_PIT8253_CLK0(XTAL_8MHz) /* Timer 0: baud rate gen for 8251 */
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(votrpss_state, write_uart_clock))
+	MCFG_PIT8253_CLK1(XTAL_8MHz / 256) /* Timer 1: Pitch */
+	MCFG_PIT8253_CLK2(XTAL_8MHz / 4096) /* Timer 2: Volume */
+
+	MCFG_DEVICE_ADD("ppi", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(votrpss_state, ppi_pa_r))
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(votrpss_state, ppi_pa_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(votrpss_state, ppi_pb_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(votrpss_state, ppi_pb_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(votrpss_state, ppi_pc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(votrpss_state, ppi_pc_w))
+
+	MCFG_TIMER_DRIVER_ADD_PERIODIC("irq_timer", votrpss_state, irq_timer, attotime::from_msec(10))
 MACHINE_CONFIG_END
 
 

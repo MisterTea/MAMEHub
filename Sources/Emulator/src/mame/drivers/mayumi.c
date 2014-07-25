@@ -22,7 +22,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_i8255(*this, "i8255"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -48,6 +49,7 @@ public:
 	UINT32 screen_update_mayumi(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(mayumi_interrupt);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -67,7 +69,7 @@ TILE_GET_INFO_MEMBER(mayumi_state::get_tile_info)
 
 void mayumi_state::video_start()
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mayumi_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mayumi_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 }
 
 WRITE8_MEMBER(mayumi_state::mayumi_videoram_w)
@@ -318,17 +320,6 @@ READ8_MEMBER(mayumi_state::key_matrix_2p_r)
 	return key_matrix_r(1);
 }
 
-
-static I8255_INTERFACE(mayumi_i8255_intf)
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(mayumi_state,input_sel_w),
-	DEVCB_DRIVER_MEMBER(mayumi_state,key_matrix_2p_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(mayumi_state,key_matrix_1p_r),
-	DEVCB_NULL,
-};
-
 /*************************************
  *
  *  Graphics definitions
@@ -349,22 +340,6 @@ static const gfx_layout charlayout =
 static GFXDECODE_START( mayumi )
 	GFXDECODE_ENTRY( "gfx1", 0x00000, charlayout, 0, 32 )
 GFXDECODE_END
-
-/*************************************
- *
- *  Sound interfaces
- *
- *************************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 /*************************************
  *
@@ -397,8 +372,10 @@ static MACHINE_CONFIG_START( mayumi, mayumi_state )
 	MCFG_CPU_IO_MAP(mayumi_io_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", mayumi_state,  mayumi_interrupt)
 
-
-	MCFG_I8255_ADD( "i8255", mayumi_i8255_intf )
+	MCFG_DEVICE_ADD("i8255", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(mayumi_state, input_sel_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(mayumi_state, key_matrix_2p_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(mayumi_state, key_matrix_1p_r))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -407,17 +384,17 @@ static MACHINE_CONFIG_START( mayumi, mayumi_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(2*8, 62*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mayumi_state, screen_update_mayumi)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mayumi)
-	MCFG_PALETTE_LENGTH(256)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mayumi)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 256)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, MCLK/4)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)

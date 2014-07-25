@@ -5,7 +5,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	UINT8 m_payout;
 	UINT8 m_pulse;
@@ -20,10 +21,11 @@ public:
 	DECLARE_WRITE8_MEMBER(lvcards_colorram_w);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(lvcards);
 	DECLARE_MACHINE_START(lvpoker);
 	DECLARE_MACHINE_RESET(lvpoker);
 	DECLARE_PALETTE_INIT(ponttehk);
 	UINT32 screen_update_lvcards(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };

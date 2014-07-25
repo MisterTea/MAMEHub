@@ -48,7 +48,7 @@ READ8_MEMBER(cbasebal_state::bankedram_r)
 		return cbasebal_textram_r(space, offset);   /* VRAM */
 	case 1:
 		if (offset < 0x800)
-			return m_generic_paletteram_8[offset];
+			return m_palette->basemem().read8(offset);
 		else
 			return 0;
 		break;
@@ -66,7 +66,7 @@ WRITE8_MEMBER(cbasebal_state::bankedram_w)
 		break;
 	case 1:
 		if (offset < 0x800)
-			paletteram_xxxxBBBBRRRRGGGG_byte_le_w(space, offset, data);
+			m_palette->write(space, offset, data);
 		break;
 	default:
 		cbasebal_scrollram_w(space, offset, data);
@@ -92,7 +92,7 @@ WRITE8_MEMBER(cbasebal_state::cbasebal_coinctrl_w)
 static ADDRESS_MAP_START( cbasebal_map, AS_PROGRAM, 8, cbasebal_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
-	AM_RANGE(0xc000, 0xcfff) AM_READWRITE(bankedram_r, bankedram_w) AM_SHARE("paletteram")  /* palette + vram + scrollram */
+	AM_RANGE(0xc000, 0xcfff) AM_READWRITE(bankedram_r, bankedram_w) AM_SHARE("palette")  /* palette + vram + scrollram */
 	AM_RANGE(0xe000, 0xfdff) AM_RAM     /* work RAM */
 	AM_RANGE(0xfe00, 0xffff) AM_RAM AM_SHARE("spriteram")
 ADDRESS_MAP_END
@@ -261,18 +261,19 @@ static MACHINE_CONFIG_START( cbasebal, cbasebal_state )
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 2*8, 30*8-1 )
 	MCFG_SCREEN_UPDATE_DRIVER(cbasebal_state, screen_update_cbasebal)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cbasebal)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cbasebal)
 
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxBBBBRRRRGGGG)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

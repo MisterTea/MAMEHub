@@ -24,7 +24,10 @@ public:
 		m_bg3videoram(*this, "bg3videoram"),
 		m_radarram(*this, "radarram"),
 		m_bgstripesram(*this, "bgstripesram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_8(*this, "paletteram") { }
 
 	int m_int_delay_kludge;
 	UINT8 m_sound_cmd;
@@ -89,9 +92,10 @@ public:
 	void draw_radar(bitmap_ind16 &bitmap,const rectangle &cliprect);
 	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect,int priority);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT8> m_generic_paletteram_8;
 };
 
 /*----------- defined in audio/senjyo.c -----------*/
 extern const z80_daisy_config senjyo_daisy_chain[];
-extern const z80pio_interface senjyo_pio_intf;
-extern const z80ctc_interface senjyo_ctc_intf;

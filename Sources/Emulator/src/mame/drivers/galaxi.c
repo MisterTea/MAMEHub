@@ -55,7 +55,10 @@ public:
 		m_bg3_ram(*this, "bg3_ram"),
 		m_bg4_ram(*this, "bg4_ram"),
 		m_fg_ram(*this, "fg_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_bg1_ram;
@@ -98,6 +101,9 @@ public:
 	UINT32 screen_update_galaxi(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void show_out(  );
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -167,12 +173,12 @@ WRITE16_MEMBER(galaxi_state::galaxi_fg_w)
 
 void galaxi_state::video_start()
 {
-	m_bg1_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galaxi_state::get_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x10);
-	m_bg2_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galaxi_state::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x10);
-	m_bg3_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galaxi_state::get_bg3_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x10);
-	m_bg4_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galaxi_state::get_bg4_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x10);
+	m_bg1_tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(galaxi_state::get_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x10);
+	m_bg2_tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(galaxi_state::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x10);
+	m_bg3_tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(galaxi_state::get_bg3_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x10);
+	m_bg4_tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(galaxi_state::get_bg4_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x10);
 
-	m_fg_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galaxi_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 0x40, 0x20);
+	m_fg_tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(galaxi_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 0x40, 0x20);
 
 	m_bg1_tmap->set_transparent_pen(0);
 	m_bg2_tmap->set_transparent_pen(0);
@@ -202,7 +208,7 @@ UINT32 galaxi_state::screen_update_galaxi(screen_device &screen, bitmap_ind16 &b
 #endif
 
 	if (layers_ctrl & 1)    m_bg1_tmap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
-	else                bitmap.fill(get_black_pen(machine()), cliprect);
+	else                bitmap.fill(m_palette->black_pen(), cliprect);
 	if (layers_ctrl & 2)    m_bg2_tmap->draw(screen, bitmap, cliprect, 0, 0);
 	if (layers_ctrl & 4)    m_bg3_tmap->draw(screen, bitmap, cliprect, 0, 0);
 	if (layers_ctrl & 8)    m_bg4_tmap->draw(screen, bitmap, cliprect, 0, 0);
@@ -290,7 +296,7 @@ static ADDRESS_MAP_START( galaxi_map, AS_PROGRAM, 16, galaxi_state )
 	AM_RANGE(0x101000, 0x101fff) AM_RAM_WRITE(galaxi_fg_w ) AM_SHARE("fg_ram")
 	AM_RANGE(0x102000, 0x1047ff) AM_READNOP // unknown
 
-	AM_RANGE(0x300000, 0x3007ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x300000, 0x3007ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("INPUTS")
 	AM_RANGE(0x500000, 0x500001) AM_WRITE(galaxi_500000_w)
@@ -415,9 +421,11 @@ static MACHINE_CONFIG_START( galaxi, galaxi_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(16*5, 512-16*2-1, 16*1, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(galaxi_state, screen_update_galaxi)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(galaxi)
-	MCFG_PALETTE_LENGTH(0x400)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", galaxi)
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	/* sound hardware */

@@ -25,10 +25,9 @@ TILE_GET_INFO_MEMBER(rungun_state::ttl_get_tile_info)
 	SET_TILE_INFO_MEMBER(m_ttl_gfx_index, code, attr, 0);
 }
 
-void rng_sprite_callback( running_machine &machine, int *code, int *color, int *priority_mask )
+K055673_CB_MEMBER(rungun_state::sprite_callback)
 {
-	rungun_state *state = machine.driver_data<rungun_state>();
-	*color = state->m_sprite_colorbase | (*color & 0x001f);
+	*color = m_sprite_colorbase | (*color & 0x001f);
 }
 
 READ16_MEMBER(rungun_state::rng_ttl_ram_r)
@@ -75,22 +74,22 @@ void rungun_state::video_start()
 
 	int gfx_index;
 
-	m_936_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rungun_state::get_rng_936_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 128, 128);
+	m_936_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rungun_state::get_rng_936_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 128, 128);
 	m_936_tilemap->set_transparent_pen(0);
 
 	/* find first empty slot to decode gfx */
 	for (gfx_index = 0; gfx_index < MAX_GFX_ELEMENTS; gfx_index++)
-		if (machine().gfx[gfx_index] == 0)
+		if (m_gfxdecode->gfx(gfx_index) == 0)
 			break;
 
 	assert(gfx_index != MAX_GFX_ELEMENTS);
 
 	// decode the ttl layer's gfx
-	machine().gfx[gfx_index] = auto_alloc(machine(), gfx_element(machine(), charlayout, memregion("gfx3")->base(), machine().total_colors() / 16, 0));
+	m_gfxdecode->set_gfx(gfx_index, global_alloc(gfx_element(m_palette, charlayout, memregion("gfx3")->base(), 0, m_palette->entries() / 16, 0)));
 	m_ttl_gfx_index = gfx_index;
 
 	// create the tilemap
-	m_ttl_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(rungun_state::ttl_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_ttl_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(rungun_state::ttl_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_ttl_tilemap->set_transparent_pen(0);
 
@@ -99,7 +98,7 @@ void rungun_state::video_start()
 
 UINT32 rungun_state::screen_update_rng(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 	screen.priority().fill(0, cliprect);
 
 	m_k053936->zoom_draw(screen, bitmap, cliprect, m_936_tilemap, 0, 0, 1);

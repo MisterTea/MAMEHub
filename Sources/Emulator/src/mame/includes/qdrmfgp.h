@@ -15,21 +15,29 @@ public:
 		m_k056832(*this, "k056832"),
 		m_k054539(*this, "k054539"),
 		m_k053252(*this, "k053252"),
-		m_ata(*this, "ata")
+		m_ata(*this, "ata"),
+		m_inputs_port(*this, "INPUTS"),
+		m_dsw_port(*this, "DSW"),
+		m_palette(*this, "palette")
 	{
 	}
 
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT16> m_nvram;
-	UINT8 *m_sndram;
 	required_shared_ptr<UINT16> m_workram;
 	required_device<k056832_device> m_k056832;
 	required_device<k054539_device> m_k054539;
 	required_device<k053252_device> m_k053252;
 	required_device<ata_interface_device> m_ata;
+	required_ioport m_inputs_port;
+	required_ioport m_dsw_port;
+	required_device<palette_device> m_palette;
+
+	UINT8 *m_sndram;
 	UINT16 m_control;
 	INT32 m_gp2_irq_control;
 	INT32 m_pal;
+
 	DECLARE_WRITE16_MEMBER(gp_control_w);
 	DECLARE_WRITE16_MEMBER(gp2_control_w);
 	DECLARE_READ16_MEMBER(v_rom_r);
@@ -40,11 +48,11 @@ public:
 	DECLARE_READ16_MEMBER(sndram_r);
 	DECLARE_WRITE16_MEMBER(sndram_w);
 	DECLARE_READ16_MEMBER(gp2_ide_std_r);
-	DECLARE_CUSTOM_INPUT_MEMBER(inputs_r);
+	DECLARE_READ16_MEMBER(inputs_r);
 	DECLARE_CUSTOM_INPUT_MEMBER(battery_sensor_r);
-	DECLARE_WRITE_LINE_MEMBER(qdrmfgp_irq3_ack_w);
-	DECLARE_WRITE_LINE_MEMBER(qdrmfgp_irq4_ack_w);
+
 	virtual void machine_reset();
+
 	DECLARE_MACHINE_START(qdrmfgp);
 	DECLARE_VIDEO_START(qdrmfgp);
 	DECLARE_MACHINE_START(qdrmfgp2);
@@ -55,8 +63,7 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(qdrmfgp_interrupt);
 	DECLARE_WRITE_LINE_MEMBER(ide_interrupt);
 	DECLARE_WRITE_LINE_MEMBER(gp2_ide_interrupt);
+	DECLARE_WRITE_LINE_MEMBER(k054539_irq1_gen);
+	K056832_CB_MEMBER(qdrmfgp_tile_callback);
+	K056832_CB_MEMBER(qdrmfgp2_tile_callback);
 };
-
-/*----------- defined in video/qdrmfgp.c -----------*/
-void qdrmfgp_tile_callback(running_machine &machine, int layer, int *code, int *color, int *flags);
-void qdrmfgp2_tile_callback(running_machine &machine, int layer, int *code, int *color, int *flags);

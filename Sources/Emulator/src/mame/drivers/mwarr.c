@@ -62,7 +62,9 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_mwarr_ram(*this, "mwarr_ram"),
 		m_maincpu(*this, "maincpu"),
-		m_oki2(*this, "oki2") { }
+		m_oki2(*this, "oki2"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_bg_videoram;
@@ -105,6 +107,8 @@ public:
 	void draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect );
 	required_device<cpu_device> m_maincpu;
 	required_device<okim6295_device> m_oki2;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -189,7 +193,7 @@ WRITE16_MEMBER(mwarr_state::mwarr_brightness_w)
 	brightness = (double)(data & 0xff);
 	for (i = 0; i < 0x800; i++)
 	{
-		palette_set_pen_contrast(machine(), i, brightness/255);
+		m_palette->set_pen_contrast(i, brightness/255);
 	}
 }
 
@@ -210,7 +214,7 @@ static ADDRESS_MAP_START( mwarr_map, AS_PROGRAM, 16, mwarr_state )
 	AM_RANGE(0x103400, 0x1037ff) AM_RAM AM_SHARE("mlow_scrollram")
 	AM_RANGE(0x103800, 0x103bff) AM_RAM AM_SHARE("mhigh_scrollram")
 	AM_RANGE(0x103c00, 0x103fff) AM_RAM AM_SHARE("vidattrram")
-	AM_RANGE(0x104000, 0x104fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x104000, 0x104fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x108000, 0x108fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x110000, 0x110001) AM_READ_PORT("P1_P2")
 	AM_RANGE(0x110002, 0x110003) AM_READ_PORT("SYSTEM")
@@ -392,10 +396,10 @@ TILE_GET_INFO_MEMBER(mwarr_state::get_tx_tile_info)
 
 void mwarr_state::video_start()
 {
-	m_bg_tilemap    = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mwarr_state::get_bg_tile_info),this),    TILEMAP_SCAN_COLS, 16, 16, 64, 16);
-	m_mlow_tilemap  = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mwarr_state::get_mlow_tile_info),this),  TILEMAP_SCAN_COLS, 16, 16, 64, 16);
-	m_mhigh_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mwarr_state::get_mhigh_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 16);
-	m_tx_tilemap    = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mwarr_state::get_tx_tile_info),this),    TILEMAP_SCAN_ROWS,  8,  8, 64, 32);
+	m_bg_tilemap    = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mwarr_state::get_bg_tile_info),this),    TILEMAP_SCAN_COLS, 16, 16, 64, 16);
+	m_mlow_tilemap  = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mwarr_state::get_mlow_tile_info),this),  TILEMAP_SCAN_COLS, 16, 16, 64, 16);
+	m_mhigh_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mwarr_state::get_mhigh_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 16);
+	m_tx_tilemap    = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mwarr_state::get_tx_tile_info),this),    TILEMAP_SCAN_ROWS,  8,  8, 64, 32);
 
 	m_mlow_tilemap->set_transparent_pen(0);
 	m_mhigh_tilemap->set_transparent_pen(0);
@@ -412,7 +416,7 @@ void mwarr_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, con
 {
 	const UINT16 *source = m_sprites_buffer + 0x800 - 4;
 	const UINT16 *finish = m_sprites_buffer;
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	int x, y, color, flipx, dy, pri, pri_mask, i;
 
 	while (source >= finish)
@@ -433,9 +437,8 @@ void mwarr_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, con
 
 			for (i = 0; i <= dy; i++)
 			{
-				pdrawgfx_transpen( bitmap,
+				gfx->prio_transpen(bitmap,
 							cliprect,
-							gfx,
 							source[2]+i,
 							color,
 							flipx,0,
@@ -443,9 +446,8 @@ void mwarr_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, con
 							screen.priority(),pri_mask,0 );
 
 				/* wrap around x */
-				pdrawgfx_transpen( bitmap,
+				gfx->prio_transpen(bitmap,
 							cliprect,
-							gfx,
 							source[2]+i,
 							color,
 							flipx,0,
@@ -453,9 +455,8 @@ void mwarr_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, con
 							screen.priority(),pri_mask,0 );
 
 				/* wrap around y */
-				pdrawgfx_transpen( bitmap,
+				gfx->prio_transpen(bitmap,
 							cliprect,
-							gfx,
 							source[2]+i,
 							color,
 							flipx,0,
@@ -463,9 +464,8 @@ void mwarr_state::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, con
 							screen.priority(),pri_mask,0 );
 
 				/* wrap around x & y */
-				pdrawgfx_transpen( bitmap,
+				gfx->prio_transpen(bitmap,
 							cliprect,
-							gfx,
 							source[2]+i,
 							color,
 							flipx,0,
@@ -563,10 +563,11 @@ static MACHINE_CONFIG_START( mwarr, mwarr_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8+1, 48*8-1-8-1, 0, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mwarr_state, screen_update_mwarr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mwarr)
-	MCFG_PALETTE_LENGTH(0x800)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mwarr)
+	MCFG_PALETTE_ADD("palette", 0x800)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

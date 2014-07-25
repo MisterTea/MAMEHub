@@ -5,6 +5,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_fg_vidram(*this, "fg_vidram"),
 		m_fg_atrram(*this, "fg_atrram"),
+		m_bg_vidram(*this, "bg_vidram"),
+		m_bg_atrram(*this, "bg_atrram"),
 		m_reel1_ram(*this, "reel1_ram"),
 		m_reel2_ram(*this, "reel2_ram"),
 		m_reel3_ram(*this, "reel3_ram"),
@@ -14,7 +16,9 @@ public:
 		m_reel1_attrram(*this, "reel1_attrram"),
 		m_reel2_attrram(*this, "reel2_attrram"),
 		m_reel3_attrram(*this, "reel3_attrram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	int m_dataoffset;
 
@@ -22,13 +26,17 @@ public:
 	required_shared_ptr<UINT8> m_fg_vidram;
 	required_shared_ptr<UINT8> m_fg_atrram;
 
-	required_shared_ptr<UINT8> m_reel1_ram;
-	required_shared_ptr<UINT8> m_reel2_ram;
-	required_shared_ptr<UINT8> m_reel3_ram;
+	optional_shared_ptr<UINT8> m_bg_vidram;
+	optional_shared_ptr<UINT8> m_bg_atrram;
 
-	required_shared_ptr<UINT8> m_reel1_scroll;
-	required_shared_ptr<UINT8> m_reel2_scroll;
-	required_shared_ptr<UINT8> m_reel3_scroll;
+	optional_shared_ptr<UINT8> m_reel1_ram;
+	optional_shared_ptr<UINT8> m_reel2_ram;
+	optional_shared_ptr<UINT8> m_reel3_ram;
+
+	optional_shared_ptr<UINT8> m_reel1_scroll;
+	optional_shared_ptr<UINT8> m_reel2_scroll;
+	optional_shared_ptr<UINT8> m_reel3_scroll;
+
 
 	/* reelx_attrram for unkch sets */
 	optional_shared_ptr<UINT8> m_reel1_attrram;
@@ -42,9 +50,11 @@ public:
 
 	int m_bgcolor;
 	tilemap_t *m_fg_tilemap;
+	tilemap_t *m_bg_tilemap;
 	UINT8 m_cmaster_girl_num;
 	UINT8 m_cmaster_girl_pal;
 	UINT8 m_cm_enable_reg;
+	UINT8 m_sangho_enable_reg;
 	UINT8 m_cm_girl_scroll;
 	UINT8 m_lucky8_nmi_enable;
 	int m_tile_bank;
@@ -52,6 +62,8 @@ public:
 	DECLARE_WRITE8_MEMBER(protection_w);
 	DECLARE_READ8_MEMBER(protection_r);
 	DECLARE_WRITE8_MEMBER(ncb3_port81_w);
+	DECLARE_WRITE8_MEMBER(goldstar_lamps_w);
+	DECLARE_WRITE8_MEMBER(cb3_lamps_w);
 	DECLARE_WRITE8_MEMBER(cm_outport1_w);
 	DECLARE_WRITE8_MEMBER(lucky8_outport_w);
 	DECLARE_WRITE8_MEMBER(magodds_outb850_w);
@@ -83,14 +95,23 @@ public:
 	DECLARE_READ8_MEMBER(fixedval7d_r);
 	DECLARE_WRITE8_MEMBER(cm_girl_scroll_w);
 	DECLARE_WRITE8_MEMBER(cm_outport0_w);
+	DECLARE_WRITE8_MEMBER(sangho_enable_w);
+	DECLARE_WRITE8_MEMBER(sangho_coincount_w);
 	DECLARE_WRITE8_MEMBER(goldstar_fg_vidram_w);
 	DECLARE_WRITE8_MEMBER(goldstar_fg_atrram_w);
+	DECLARE_WRITE8_MEMBER(sangho_fg_vidram_w);
+	DECLARE_WRITE8_MEMBER(sangho_fg_atrram_w);
+	DECLARE_WRITE8_MEMBER(sangho_bg_vidram_w);
+	DECLARE_WRITE8_MEMBER(sangho_bg_atrram_w);
 	DECLARE_WRITE8_MEMBER(goldstar_reel1_ram_w);
 	DECLARE_WRITE8_MEMBER(goldstar_reel2_ram_w);
 	DECLARE_WRITE8_MEMBER(goldstar_reel3_ram_w);
 	DECLARE_WRITE8_MEMBER(unkch_reel1_attrram_w);
 	DECLARE_WRITE8_MEMBER(unkch_reel2_attrram_w);
 	DECLARE_WRITE8_MEMBER(unkch_reel3_attrram_w);
+	DECLARE_WRITE8_MEMBER(sangho_reel1_attrram_w);
+	DECLARE_WRITE8_MEMBER(sangho_reel2_attrram_w);
+	DECLARE_WRITE8_MEMBER(sangho_reel3_attrram_w);
 	DECLARE_WRITE8_MEMBER(goldstar_fa00_w);
 	DECLARE_WRITE8_MEMBER(cm_background_col_w);
 	DECLARE_WRITE8_MEMBER(system_outputa_w);
@@ -111,6 +132,8 @@ public:
 	DECLARE_DRIVER_INIT(chrygld);
 	DECLARE_DRIVER_INIT(rp35);
 	DECLARE_DRIVER_INIT(cb3);
+	DECLARE_DRIVER_INIT(cb3e);
+	DECLARE_DRIVER_INIT(wcherry);
 	DECLARE_DRIVER_INIT(cmv4);
 	DECLARE_DRIVER_INIT(nfb96_c2);
 	DECLARE_DRIVER_INIT(rp36);
@@ -126,7 +149,10 @@ public:
 	DECLARE_DRIVER_INIT(magoddsc);
 	DECLARE_DRIVER_INIT(nfb96_c1);
 	DECLARE_DRIVER_INIT(fb2010);
+	DECLARE_DRIVER_INIT(super9);
 	TILE_GET_INFO_MEMBER(get_goldstar_fg_tile_info);
+	TILE_GET_INFO_MEMBER(get_sangho_fg_tile_info);
+	TILE_GET_INFO_MEMBER(get_sangho_bg_tile_info);
 	TILE_GET_INFO_MEMBER(get_magical_fg_tile_info);
 	TILE_GET_INFO_MEMBER(get_cherrym_fg_tile_info);
 	TILE_GET_INFO_MEMBER(get_goldstar_reel1_tile_info);
@@ -135,7 +161,11 @@ public:
 	TILE_GET_INFO_MEMBER(get_unkch_reel1_tile_info);
 	TILE_GET_INFO_MEMBER(get_unkch_reel2_tile_info);
 	TILE_GET_INFO_MEMBER(get_unkch_reel3_tile_info);
+	TILE_GET_INFO_MEMBER(get_sangho_reel1_tile_info);
+	TILE_GET_INFO_MEMBER(get_sangho_reel2_tile_info);
+	TILE_GET_INFO_MEMBER(get_sangho_reel3_tile_info);
 	DECLARE_VIDEO_START(goldstar);
+	DECLARE_VIDEO_START(sangho);
 	DECLARE_PALETTE_INIT(cm);
 	DECLARE_VIDEO_START(cherrym);
 	DECLARE_PALETTE_INIT(cmast91);
@@ -150,10 +180,13 @@ public:
 	UINT32 screen_update_magical(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_amcoe1a(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_unkch(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	UINT32 screen_update_sangho(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(lucky8_irq);
 	void do_blockswaps(UINT8* ROM);
 	void dump_to_file( UINT8* ROM);
 	UINT8 decrypt(UINT8 cipherText, UINT16 address);
 	UINT8 chry10_decrypt(UINT8 cipherText);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

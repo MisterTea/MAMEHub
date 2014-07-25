@@ -49,7 +49,9 @@ public:
 	bmcpokr_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
-		m_videoram(*this, "videoram")
+		m_videoram(*this, "videoram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 		{ }
 
 	DECLARE_READ16_MEMBER( bmcpokr_unk_r )
@@ -59,6 +61,8 @@ public:
 
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT16> m_videoram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 	virtual void video_start();
 	UINT32 screen_update_bmcpokr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 };
@@ -201,7 +205,7 @@ GFXDECODE_END
 
 UINT32 bmcpokr_state::screen_update_bmcpokr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 
 	int count = 0;
 	for (int y=0;y<32;y++)
@@ -211,7 +215,7 @@ UINT32 bmcpokr_state::screen_update_bmcpokr(screen_device &screen, bitmap_ind16 
 			UINT16 data = m_videoram[count];
 			count++;
 
-			drawgfx_opaque(bitmap,cliprect,gfx,data,0,0,0,x*8,y*8);
+			gfx->opaque(bitmap,cliprect,data,0,0,0,x*8,y*8);
 
 		}
 	}
@@ -235,12 +239,12 @@ static MACHINE_CONFIG_START( bmcpokr, bmcpokr_state )
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_UPDATE_DRIVER(bmcpokr_state, screen_update_bmcpokr)
-
-	MCFG_GFXDECODE(bmcpokr)
-
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 0*8, 32*8-1)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bmcpokr)
 
 MACHINE_CONFIG_END
 

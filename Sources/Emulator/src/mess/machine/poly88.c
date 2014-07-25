@@ -25,9 +25,6 @@ void poly88_state::device_timer(emu_timer &timer, device_timer_id id, int param,
 	case TIMER_CASSETTE:
 		poly88_cassette_timer_callback(ptr, param);
 		break;
-	case TIMER_SETUP_MACHINE_STATE:
-		setup_machine_state(ptr, param);
-		break;
 	default:
 		assert_always(FALSE, "Unknown id in poly88_state::device_timer");
 	}
@@ -159,6 +156,11 @@ IRQ_CALLBACK_MEMBER(poly88_state::poly88_irq_callback)
 	return m_int_vector;
 }
 
+WRITE_LINE_MEMBER(poly88_state::write_cas_tx)
+{
+	m_cas_tx = state;
+}
+
 TIMER_CALLBACK_MEMBER(poly88_state::poly88_cassette_timer_callback)
 {
 	int data;
@@ -169,55 +171,48 @@ TIMER_CALLBACK_MEMBER(poly88_state::poly88_cassette_timer_callback)
 		/* tape reading */
 		if (m_cassette->get_state()&CASSETTE_PLAY)
 		{
-					if (m_clk_level_tape)
-					{
-						m_previous_level = (m_cassette->input() > 0.038) ? 1 : 0;
-						m_clk_level_tape = 0;
-					}
-					else
-					{
-						current_level = (m_cassette->input() > 0.038) ? 1 : 0;
+			if (m_clk_level_tape)
+			{
+				m_previous_level = (m_cassette->input() > 0.038) ? 1 : 0;
+				m_clk_level_tape = 0;
+			}
+			else
+			{
+				current_level = (m_cassette->input() > 0.038) ? 1 : 0;
 
-						if (m_previous_level!=current_level)
-						{
-							data = (!m_previous_level && current_level) ? 1 : 0;
+				if (m_previous_level!=current_level)
+				{
+					data = (!m_previous_level && current_level) ? 1 : 0;
 //data = current_level;
-							m_sercas->send_bit(data);
-							m_uart->receive_clock();
+					m_uart->write_rxd(data);
 
-							m_clk_level_tape = 1;
-						}
-					}
+					m_clk_level_tape = 1;
+				}
+			}
+
+			m_uart->write_rxc(m_clk_level_tape);
 		}
 
 		/* tape writing */
 		if (m_cassette->get_state()&CASSETTE_RECORD)
 		{
-			data = m_sercas->get_in_data_bit();
+			data = m_cas_tx;
 			data ^= m_clk_level_tape;
 			m_cassette->output(data&0x01 ? 1 : -1);
 
-			if (!m_clk_level_tape)
-				m_uart->transmit_clock();
-
 			m_clk_level_tape = m_clk_level_tape ? 0 : 1;
+			m_uart->write_txc(m_clk_level_tape);
 
 			return;
 		}
 
 		m_clk_level_tape = 1;
 
-		if (!m_clk_level)
-			m_uart->transmit_clock();
 		m_clk_level = m_clk_level ? 0 : 1;
+		m_uart->write_txc(m_clk_level);
 //  }
 }
 
-
-TIMER_CALLBACK_MEMBER(poly88_state::setup_machine_state)
-{
-	m_uart->connect(m_sercas);
-}
 
 DRIVER_INIT_MEMBER(poly88_state,poly88)
 {
@@ -231,11 +226,8 @@ DRIVER_INIT_MEMBER(poly88_state,poly88)
 
 void poly88_state::machine_reset()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(poly88_state::poly88_irq_callback),this));
 	m_intr = 0;
 	m_last_code = 0;
-
-	timer_set(attotime::zero, TIMER_SETUP_MACHINE_STATE);
 }
 
 INTERRUPT_GEN_MEMBER(poly88_state::poly88_interrupt)
@@ -249,19 +241,6 @@ WRITE_LINE_MEMBER(poly88_state::poly88_usart_rxready)
 	//drvm_int_vector = 0xe7;
 	//execute().set_input_line(0, HOLD_LINE);
 }
-
-const i8251_interface poly88_usart_interface=
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(poly88_state,poly88_usart_rxready),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 READ8_MEMBER(poly88_state::poly88_keyboard_r)
 {

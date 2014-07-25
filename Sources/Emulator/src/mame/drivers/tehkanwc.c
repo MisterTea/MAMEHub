@@ -220,7 +220,7 @@ static ADDRESS_MAP_START( main_mem, AS_PROGRAM, 8, tehkanwc_state )
 	AM_RANGE(0xc800, 0xcfff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0xd000, 0xd3ff) AM_RAM_WRITE(tehkanwc_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0xd400, 0xd7ff) AM_RAM_WRITE(tehkanwc_colorram_w) AM_SHARE("colorram")
-	AM_RANGE(0xd800, 0xddff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_be_w) AM_SHARE("paletteram")
+	AM_RANGE(0xd800, 0xddff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xde00, 0xdfff) AM_RAM AM_SHARE("share5") /* unused part of the palette RAM, I think? Gridiron uses it */
 	AM_RANGE(0xe000, 0xe7ff) AM_RAM_WRITE(tehkanwc_videoram2_w) AM_SHARE("videoram2")
 	AM_RANGE(0xe800, 0xebff) AM_RAM AM_SHARE("spriteram") /* sprites */
@@ -246,7 +246,7 @@ static ADDRESS_MAP_START( sub_mem, AS_PROGRAM, 8, tehkanwc_state )
 	AM_RANGE(0xc800, 0xcfff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0xd000, 0xd3ff) AM_RAM_WRITE(tehkanwc_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0xd400, 0xd7ff) AM_RAM_WRITE(tehkanwc_colorram_w) AM_SHARE("colorram")
-	AM_RANGE(0xd800, 0xddff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_be_w) AM_SHARE("paletteram")
+	AM_RANGE(0xd800, 0xddff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xde00, 0xdfff) AM_RAM AM_SHARE("share5") /* unused part of the palette RAM, I think? Gridiron uses it */
 	AM_RANGE(0xe000, 0xe7ff) AM_RAM_WRITE(tehkanwc_videoram2_w) AM_SHARE("videoram2")
 	AM_RANGE(0xe800, 0xebff) AM_RAM AM_SHARE("spriteram") /* sprites */
@@ -614,33 +614,6 @@ static GFXDECODE_START( tehkanwc )
 GFXDECODE_END
 
 
-
-static const ay8910_interface ay8910_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(tehkanwc_state,tehkanwc_portA_w),
-	DEVCB_DRIVER_MEMBER(tehkanwc_state,tehkanwc_portB_w)
-};
-
-static const ay8910_interface ay8910_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(tehkanwc_state,tehkanwc_portA_r),
-	DEVCB_DRIVER_MEMBER(tehkanwc_state,tehkanwc_portB_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(tehkanwc_state,tehkanwc_adpcm_int), /* interrupt function */
-	MSM5205_S48_4B      /* 8KHz               */
-};
-
 static MACHINE_CONFIG_START( tehkanwc, tehkanwc_state )
 
 	/* basic machine hardware */
@@ -666,24 +639,29 @@ static MACHINE_CONFIG_START( tehkanwc, tehkanwc_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tehkanwc_state, screen_update_tehkanwc)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tehkanwc)
-	MCFG_PALETTE_LENGTH(768)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tehkanwc)
+	MCFG_PALETTE_ADD("palette", 768)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 1536000)
-	MCFG_SOUND_CONFIG(ay8910_interface_1)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(tehkanwc_state, tehkanwc_portA_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(tehkanwc_state, tehkanwc_portB_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 1536000)
-	MCFG_SOUND_CONFIG(ay8910_interface_2)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(tehkanwc_state, tehkanwc_portA_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(tehkanwc_state, tehkanwc_portB_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(tehkanwc_state, tehkanwc_adpcm_int)) /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8KHz               */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.45)
 MACHINE_CONFIG_END
 

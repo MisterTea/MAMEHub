@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     Fujitsu MB90082 OSD
@@ -84,7 +86,7 @@ inline void mb90082_device::write_word(offs_t address, UINT16 data)
 //-------------------------------------------------
 
 mb90082_device::mb90082_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, MB90082, "mb90082", tag, owner, clock, "mb90082", __FILE__),
+	: device_t(mconfig, MB90082, "MB90082 OSD", tag, owner, clock, "mb90082", __FILE__),
 		device_memory_interface(mconfig, *this),
 		m_space_config("videoram", ENDIANNESS_LITTLE, 16, 16, 0, NULL, *ADDRESS_MAP_NAME(mb90082_vram))
 {
@@ -208,7 +210,7 @@ UINT32 mb90082_device::screen_update(screen_device &screen, bitmap_rgb32 &bitmap
 	bg_b = m_uc & 1 ? 0xdf : 0;
 	bg_g = m_uc & 2 ? 0xdf : 0;
 	bg_r = m_uc & 4 ? 0xdf : 0;
-	bitmap.fill(MAKE_ARGB(0xff,bg_r,bg_g,bg_b),cliprect);
+	bitmap.fill(rgb_t(0xff,bg_r,bg_g,bg_b),cliprect);
 
 	for(y=0;y<12;y++)
 	{

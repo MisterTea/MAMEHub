@@ -132,7 +132,7 @@ enum {
 };
 
 /* Pull in the ROM tables */
-#include "tms5110r.c"
+#include "tms5110r.inc"
 
 /*
   speed parameter
@@ -196,26 +196,6 @@ vlm5030_device::vlm5030_device(const machine_config &mconfig, const char *tag, d
 }
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void vlm5030_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const vlm5030_interface *intf = reinterpret_cast<const vlm5030_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<vlm5030_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-	m_memory_size = 0;
-	}
-}
-
-//-------------------------------------------------
 //  device_start - device-specific startup
 //-------------------------------------------------
 
@@ -233,14 +213,10 @@ void vlm5030_device::device_start()
 	device_reset();
 	m_phase = PH_IDLE;
 
-	m_rom = *region();
-	/* memory size */
-	if( m_memory_size == 0)
-		m_address_mask = region()->bytes()-1;
-	else
-		m_address_mask = m_memory_size-1;
+	m_rom = region()->base();
+	m_address_mask = (region()->bytes() - 1) & 0xffff;
 
-	m_channel = machine().sound().stream_alloc(*this, 0, 1, clock() / 440, this);
+	m_channel = machine().sound().stream_alloc(*this, 0, 1, clock() / 440);
 
 	/* don't restore "UINT8 *m_rom" when use vlm5030_set_rom() */
 
@@ -567,7 +543,7 @@ void vlm5030_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 					/* is this a zero energy frame? */
 					if (m_current_energy == 0)
 					{
-						/*mame_printf_debug("processing frame: zero energy\n");*/
+						/*osd_printf_debug("processing frame: zero energy\n");*/
 						m_target_energy = 0;
 						m_target_pitch = m_current_pitch;
 						for(i=0;i<=9;i++)
@@ -575,9 +551,9 @@ void vlm5030_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 					}
 					else
 					{
-						/*mame_printf_debug("processing frame: Normal\n");*/
-						/*mame_printf_debug("*** Energy = %d\n",m_current_energy);*/
-						/*mame_printf_debug("proc: %d %d\n",last_fbuf_head,fbuf_head);*/
+						/*osd_printf_debug("processing frame: Normal\n");*/
+						/*osd_printf_debug("*** Energy = %d\n",m_current_energy);*/
+						/*osd_printf_debug("proc: %d %d\n",last_fbuf_head,fbuf_head);*/
 						m_target_energy = m_new_energy;
 						m_target_pitch = m_new_pitch;
 						for(i=0;i<=9;i++)

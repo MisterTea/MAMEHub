@@ -117,14 +117,18 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_maincpu(*this, "maincpu"),
-		m_dac(*this, "dac") { }
+		m_dac(*this, "dac"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	DECLARE_WRITE8_MEMBER(outport_w);
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(murogem);
 	UINT32 screen_update_murogem(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<dac_device> m_dac;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -204,7 +208,7 @@ static GFXDECODE_START( murogem )
 GFXDECODE_END
 
 
-void murogem_state::palette_init()
+PALETTE_INIT_MEMBER(murogem_state, murogem)
 {}
 
 UINT32 murogem_state::screen_update_murogem(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -221,7 +225,7 @@ UINT32 murogem_state::screen_update_murogem(screen_device &screen, bitmap_ind16 
 			int tileno = m_videoram[count]&0x3f;
 			int attr = m_videoram[count+0x400]&0x0f;
 
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[0],tileno,attr,0,0,xx*8,yy*8,0);
+			m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,tileno,attr,0,0,xx*8,yy*8,0);
 
 			count++;
 
@@ -231,20 +235,6 @@ UINT32 murogem_state::screen_update_murogem(screen_device &screen, bitmap_ind16 
 
 	return 0;
 }
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
 
 
 static MACHINE_CONFIG_START( murogem, murogem_state )
@@ -260,12 +250,15 @@ static MACHINE_CONFIG_START( murogem, murogem_state )
 	MCFG_SCREEN_SIZE((39+1)*8, (38+1)*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(murogem_state, screen_update_murogem)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(murogem)
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", murogem)
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_INIT_OWNER(murogem_state, murogem)
 
-
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", 750000, mc6845_intf) /* ? MHz */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", 750000) /* ? MHz */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

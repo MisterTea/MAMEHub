@@ -39,7 +39,10 @@ public:
 		m_controller2_col3(*this, "controller2_col3"),
 		m_controller2_extra(*this, "controller2_extra"),
 		m_joysticks(*this, "joysticks") ,
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"),
+		m_screen(*this, "screen")  { }
 
 	DECLARE_READ8_MEMBER(arcadia_vsync_r);
 	DECLARE_READ8_MEMBER(arcadia_video_r);
@@ -90,7 +93,7 @@ public:
 	bitmap_ind16 *m_bitmap;
 	DECLARE_DRIVER_INIT(arcadia);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(arcadia);
 	UINT32 screen_update_arcadia(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(arcadia_video_line);
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( arcadia_cart );
@@ -113,5 +116,8 @@ protected:
 	int arcadia_sprite_collision(int n1, int n2);
 	void arcadia_draw_sprites();
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	required_device<screen_device> m_screen;
 };
 #endif /* ARCADIA_H_ */

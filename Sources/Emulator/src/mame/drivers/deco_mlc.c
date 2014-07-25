@@ -100,7 +100,6 @@
 #include "emu.h"
 #include "includes/decocrpt.h"
 #include "machine/eepromser.h"
-#include "sound/ymz280b.h"
 #include "cpu/arm/arm.h"
 #include "cpu/sh2/sh2.h"
 #include "includes/deco_mlc.h"
@@ -115,17 +114,6 @@ READ32_MEMBER(deco_mlc_state::test2_r)
 //   logerror("%08x:  Test2_r %d\n",space.device().safe_pc(),offset);
 	return machine().rand(); //0xffffffff;
 }
-
-READ32_MEMBER(deco_mlc_state::mlc_440000_r)
-{
-	return 0xffffffff;
-}
-
-READ32_MEMBER(deco_mlc_state::mlc_440004_r)
-{
-	return 0xffffffff;
-}
-
 
 READ32_MEMBER(deco_mlc_state::mlc_440008_r)
 {
@@ -190,7 +178,9 @@ WRITE32_MEMBER(deco_mlc_state::avengrs_eprom_w)
 //      }
 	}
 	else if (ACCESSING_BITS_0_7) {
-		//volume control todo
+		/* Master volume control (TODO: probably logaritmic) */
+		m_ymz->set_output_gain(0, (255.0 - data) / 255.0);
+		m_ymz->set_output_gain(1, (255.0 - data) / 255.0);
 	}
 	else
 		logerror("%s:  eprom_w %08x mask %08x\n",machine().describe_context(),data,mem_mask);
@@ -200,7 +190,7 @@ WRITE32_MEMBER(deco_mlc_state::avengrs_palette_w)
 {
 	COMBINE_DATA(&m_generic_paletteram_32[offset]);
 	/* x bbbbb ggggg rrrrr */
-	palette_set_color_rgb(machine(),offset,pal5bit(m_generic_paletteram_32[offset] >> 0),pal5bit(m_generic_paletteram_32[offset] >> 5),pal5bit(m_generic_paletteram_32[offset] >> 10));
+	m_palette->set_pen_color(offset,pal5bit(m_generic_paletteram_32[offset] >> 0),pal5bit(m_generic_paletteram_32[offset] >> 5),pal5bit(m_generic_paletteram_32[offset] >> 10));
 }
 
 
@@ -222,7 +212,10 @@ WRITE32_MEMBER(deco_mlc_state::mlc_irq_w)
 		m_maincpu->set_input_line(m_mainCpuIsArm ? ARM_IRQ_LINE : 1, CLEAR_LINE);
 		return;
 	case 0x14: /* Prepare scanline interrupt */
-		m_raster_irq_timer->adjust(m_screen->time_until_pos(m_irq_ram[0x14/4]));
+		if(m_irq_ram[0x14/4] == -1) // TODO: likely to be anything that doesn't fit into the screen v-pos range.
+			m_raster_irq_timer->adjust(attotime::never);
+		else
+			m_raster_irq_timer->adjust(m_screen->time_until_pos(m_irq_ram[0x14/4]));
 		//logerror("prepare scanline to fire at %d (currently on %d)\n", m_irq_ram[0x14/4], m_screen->vpos());
 		return;
 
@@ -307,8 +300,8 @@ static ADDRESS_MAP_START( decomlc_map, AS_PROGRAM, 32, deco_mlc_state )
 	AM_RANGE(0x0280000, 0x029ffff) AM_RAM AM_SHARE("mlc_vram") AM_MIRROR(0xff000000)
 	AM_RANGE(0x0300000, 0x0307fff) AM_RAM_WRITE(avengrs_palette_w) AM_SHARE("paletteram") AM_MIRROR(0xff000000)
 	AM_RANGE(0x0400000, 0x0400003) AM_READ_PORT("INPUTS") AM_MIRROR(0xff000000)
-	AM_RANGE(0x0440000, 0x0440003) AM_READ(mlc_440000_r) AM_MIRROR(0xff000000)
-	AM_RANGE(0x0440004, 0x0440007) AM_READ(mlc_440004_r) AM_MIRROR(0xff000000)
+	AM_RANGE(0x0440000, 0x0440003) AM_READ_PORT("INPUTS2") AM_MIRROR(0xff000000)
+	AM_RANGE(0x0440004, 0x0440007) AM_READ_PORT("INPUTS3") AM_MIRROR(0xff000000)
 	AM_RANGE(0x0440008, 0x044000b) AM_READ(mlc_440008_r) AM_MIRROR(0xff000000)
 	AM_RANGE(0x044001c, 0x044001f) AM_READWRITE(mlc_44001c_r, mlc_44001c_w) AM_MIRROR(0xff000000)
 	AM_RANGE(0x0500000, 0x0500003) AM_WRITE(avengrs_eprom_w) AM_MIRROR(0xff000000)
@@ -341,14 +334,84 @@ static INPUT_PORTS_START( mlc )
 	PORT_BIT( 0x00020000, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x00040000, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_SERVICE_NO_TOGGLE( 0x080000, IP_ACTIVE_LOW )
-	PORT_BIT( 0x00100000, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x00200000, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x00400000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00100000, IP_ACTIVE_LOW, IPT_COIN3 )
+	PORT_BIT( 0x00200000, IP_ACTIVE_LOW, IPT_COIN4 )
+	PORT_BIT( 0x00400000, IP_ACTIVE_LOW, IPT_SERVICE2 )
 	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0x01000000, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_PLAYER(1)
 	PORT_BIT( 0x02000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x04000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x08000000, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_PLAYER(2)
+	PORT_BIT( 0x10000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x20000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x40000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x80000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("INPUTS2")
+	PORT_BIT( 0x00000001, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000002, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000004, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000010, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000080, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000100, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000200, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000400, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000800, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00001000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00002000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00004000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00008000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_BIT( 0x00010000, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(3)
+	PORT_BIT( 0x00020000, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(3)
+	PORT_BIT( 0x00040000, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(3)
+	PORT_BIT( 0x00080000, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(3)
+	PORT_BIT( 0x00100000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(3)
+	PORT_BIT( 0x00200000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(3)
+	PORT_BIT( 0x00400000, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(3)
+	PORT_BIT( 0x00800000, IP_ACTIVE_LOW, IPT_START3 )
+	PORT_BIT( 0x01000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x02000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x04000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x08000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x10000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x20000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x40000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x80000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("INPUTS3")
+	PORT_BIT( 0x00000001, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000002, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000004, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000010, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000080, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000100, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000200, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000400, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00000800, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00001000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00002000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00004000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x00008000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_BIT( 0x00010000, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(4)
+	PORT_BIT( 0x00020000, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(4)
+	PORT_BIT( 0x00040000, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(4)
+	PORT_BIT( 0x00080000, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(4)
+	PORT_BIT( 0x00100000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(4)
+	PORT_BIT( 0x00200000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(4)
+	PORT_BIT( 0x00400000, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(4)
+	PORT_BIT( 0x00800000, IP_ACTIVE_LOW, IPT_START4 )
+	PORT_BIT( 0x01000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x02000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x04000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x08000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x10000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x20000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x40000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -431,10 +494,10 @@ static MACHINE_CONFIG_START( avengrgs, deco_mlc_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(deco_mlc_state, screen_update_mlc)
 	MCFG_SCREEN_VBLANK_DRIVER(deco_mlc_state, screen_eof_mlc)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_SCANLINE)
 
-	MCFG_GFXDECODE(deco_mlc)
-	MCFG_PALETTE_LENGTH(2048)
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_SCANLINE)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", deco_mlc)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 	MCFG_VIDEO_START_OVERRIDE(deco_mlc_state,mlc)
 
@@ -464,10 +527,10 @@ static MACHINE_CONFIG_START( mlc, deco_mlc_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(deco_mlc_state, screen_update_mlc)
 	MCFG_SCREEN_VBLANK_DRIVER(deco_mlc_state, screen_eof_mlc)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_SCANLINE)
 
-	MCFG_GFXDECODE(deco_mlc)
-	MCFG_PALETTE_LENGTH(2048)
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_SCANLINE)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", deco_mlc)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 	MCFG_VIDEO_START_OVERRIDE(deco_mlc_state,mlc)
 
@@ -483,11 +546,11 @@ static MACHINE_CONFIG_START( mlc, deco_mlc_state )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mlc_6bpp, mlc )
-	MCFG_GFXDECODE(6bpp)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", 6bpp)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mlc_5bpp, mlc )
-	MCFG_GFXDECODE(5bpp)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", 5bpp)
 MACHINE_CONFIG_END
 
 /***************************************************************************/
@@ -738,7 +801,7 @@ void deco_mlc_state::descramble_sound(  )
 	/* the same as simpl156 / heavy smash? */
 	UINT8 *rom = memregion("ymz")->base();
 	int length = memregion("ymz")->bytes();
-	UINT8 *buf1 = auto_alloc_array(machine(), UINT8, length);
+	dynamic_buffer buf1(length);
 
 	UINT32 x;
 
@@ -757,8 +820,6 @@ void deco_mlc_state::descramble_sound(  )
 	}
 
 	memcpy(rom,buf1,length);
-
-	auto_free(machine(), buf1);
 }
 
 READ32_MEMBER(deco_mlc_state::avengrgs_speedup_r)
@@ -774,11 +835,16 @@ READ32_MEMBER(deco_mlc_state::avengrgs_speedup_r)
 DRIVER_INIT_MEMBER(deco_mlc_state,avengrgs)
 {
 	// init options
-	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
+	dynamic_cast<sh2_device *>(m_maincpu.target())->sh2drc_set_options(SH2DRC_FASTEST_OPTIONS);
 
 	// set up speed cheat
-	sh2drc_add_pcflush(m_maincpu, 0x3234);
-	sh2drc_add_pcflush(m_maincpu, 0x32dc);
+	dynamic_cast<sh2_device *>(m_maincpu.target())->sh2drc_add_pcflush(0x3234);
+	dynamic_cast<sh2_device *>(m_maincpu.target())->sh2drc_add_pcflush(0x32dc);
+
+	dynamic_cast<sh2_device *>(m_maincpu.target())->sh2drc_add_fastram(0x0100000, 0x01088ff, 0, &m_mlc_ram[0]);
+	dynamic_cast<sh2_device *>(m_maincpu.target())->sh2drc_add_fastram(0x0108a00, 0x011ffff, 0, &m_mlc_ram[0x8a00/4]);
+	dynamic_cast<sh2_device *>(m_maincpu.target())->sh2drc_add_fastram(0x0200080, 0x02000ff, 0, &m_mlc_clip_ram[0]);
+	dynamic_cast<sh2_device *>(m_maincpu.target())->sh2drc_add_fastram(0x0280000, 0x029ffff, 0, &m_mlc_vram[0]);
 
 	m_mainCpuIsArm = 0;
 	m_maincpu->space(AS_PROGRAM).install_read_handler(0x01089a0, 0x01089a3, read32_delegate(FUNC(deco_mlc_state::avengrgs_speedup_r),this));
@@ -789,7 +855,7 @@ DRIVER_INIT_MEMBER(deco_mlc_state,mlc)
 {
 	/* The timing in the ARM core isn't as accurate as it should be, so bump up the
 	    effective clock rate here to compensate otherwise we have slowdowns in
-	    Skull Fung where there probably shouldn't be. */
+	    Skull Fang where there probably shouldn't be. */
 	m_maincpu->set_clock_scale(2.0f);
 	m_mainCpuIsArm = 1;
 	deco156_decrypt(machine());

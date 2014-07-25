@@ -20,11 +20,17 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
 			m_speaker(*this, "speaker"),
-			m_videoram(*this, "videoram")
-	{ }
+			m_gfxdecode(*this, "gfxdecode"),
+			m_palette(*this, "palette"),
+			m_videoram(*this, "videoram"),
+			m_keyboard(*this, "KEY")    { }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<speaker_sound_device> m_speaker;
+	optional_device<gfxdecode_device> m_gfxdecode;
+	optional_device<palette_device> m_palette;
+	required_shared_ptr<UINT8> m_videoram;
+	required_ioport_array<10> m_keyboard;
 	DECLARE_READ8_MEMBER(p2000t_port_000f_r);
 	DECLARE_READ8_MEMBER(p2000t_port_202f_r);
 	DECLARE_WRITE8_MEMBER(p2000t_port_101f_w);
@@ -35,7 +41,6 @@ public:
 	DECLARE_WRITE8_MEMBER(p2000t_port_8c90_w);
 	DECLARE_WRITE8_MEMBER(p2000t_port_9494_w);
 	DECLARE_READ8_MEMBER(videoram_r);
-	required_shared_ptr<UINT8> m_videoram;
 	UINT8 m_port_101f;
 	UINT8 m_port_202f;
 	UINT8 m_port_303f;

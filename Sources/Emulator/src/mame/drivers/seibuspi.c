@@ -876,8 +876,8 @@ READ8_MEMBER(seibuspi_state::sound_fifo_status_r)
 	// d0: fifo full flag (z80)
 	// d1: fifo empty flag (main)
 	// other bits: unused?
-	int d1 = (m_soundfifo2 != NULL) ? ~m_soundfifo2->ef_r() << 1 & 0x02 : 0;
-	return d1 | (~m_soundfifo1->ff_r() & 0x01);
+	int d1 = (m_soundfifo2 != NULL) ? m_soundfifo2->ef_r() << 1 : 0;
+	return d1 | m_soundfifo1->ff_r();
 }
 
 READ8_MEMBER(seibuspi_state::spi_status_r)
@@ -1058,8 +1058,8 @@ READ8_MEMBER(seibuspi_state::z80_soundfifo_status_r)
 	// d0: fifo full flag (main)
 	// d1: fifo empty flag (z80)
 	// other bits: unused?
-	int d0 = (m_soundfifo2 != NULL) ? ~m_soundfifo2->ff_r() & 0x01 : 0;
-	return d0 | (~m_soundfifo1->ef_r() << 1 & 0x02);
+	int d0 = (m_soundfifo2 != NULL) ? m_soundfifo2->ff_r() : 0;
+	return d0 | m_soundfifo1->ef_r() << 1;
 }
 
 WRITE8_MEMBER(seibuspi_state::z80_bank_w)
@@ -1796,8 +1796,6 @@ void seibuspi_state::init_rise11()
 
 void seibuspi_state::machine_start()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(seibuspi_state::spi_irq_callback),this));
-
 	// use this to determine the region code when adding a new SPI cartridge clone set
 	logerror("Game region code: %02X\n", memregion("maincpu")->base()[0x1ffffc]);
 
@@ -1824,6 +1822,7 @@ static MACHINE_CONFIG_START( spi, seibuspi_state )
 	MCFG_CPU_ADD("maincpu", I386, XTAL_50MHz/2) // AMD or Intel 386DX, 25MHz
 	MCFG_CPU_PROGRAM_MAP(spi_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", seibuspi_state, spi_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(seibuspi_state,spi_irq_callback)
 
 	MCFG_CPU_ADD("audiocpu", Z80, XTAL_28_63636MHz/4) // Z84C0008PEC, 7.159MHz
 	MCFG_CPU_PROGRAM_MAP(spi_soundmap)
@@ -1845,9 +1844,9 @@ static MACHINE_CONFIG_START( spi, seibuspi_state )
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, SPI_HTOTAL, SPI_HBEND, SPI_HBSTART, SPI_VTOTAL, SPI_VBEND, SPI_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(seibuspi_state, screen_update_spi)
 
-	MCFG_GFXDECODE(spi)
-	MCFG_PALETTE_LENGTH(6144)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", spi)
+
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 6144)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -1935,6 +1934,7 @@ static MACHINE_CONFIG_START( sys386i, seibuspi_state )
 	MCFG_CPU_ADD("maincpu", I386, XTAL_40MHz) // AMD 386DX, 40MHz
 	MCFG_CPU_PROGRAM_MAP(sys386i_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", seibuspi_state, spi_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(seibuspi_state,spi_irq_callback)
 
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
@@ -1943,9 +1943,9 @@ static MACHINE_CONFIG_START( sys386i, seibuspi_state )
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, SPI_HTOTAL, SPI_HBEND, SPI_HBSTART, SPI_VTOTAL, SPI_VBEND, SPI_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(seibuspi_state, screen_update_spi)
 
-	MCFG_GFXDECODE(spi)
-	MCFG_PALETTE_LENGTH(6144)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", spi)
+
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 6144)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1985,6 +1985,7 @@ static MACHINE_CONFIG_START( sys386f, seibuspi_state )
 	MCFG_CPU_ADD("maincpu", I386, XTAL_50MHz/2) // Intel i386DX, 25MHz
 	MCFG_CPU_PROGRAM_MAP(sys386f_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", seibuspi_state, spi_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(seibuspi_state,spi_irq_callback)
 
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
@@ -1994,13 +1995,13 @@ static MACHINE_CONFIG_START( sys386f, seibuspi_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 30*8-1)
+	MCFG_SCREEN_UPDATE_DRIVER(seibuspi_state, screen_update_sys386f)
 
-	MCFG_GFXDECODE(sys386f)
-	MCFG_PALETTE_LENGTH(8192)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sys386f)
+
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 8192)
 
 	MCFG_VIDEO_START_OVERRIDE(seibuspi_state, sys386f)
-	MCFG_SCREEN_UPDATE_DRIVER(seibuspi_state, screen_update_sys386f)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -2107,7 +2108,7 @@ READ32_MEMBER(seibuspi_state::viprp1_speedup_r)
 	/* viprp1ot */
 	if (space.device().safe_pc()==0x02026bd) space.device().execute().spin_until_interrupt(); // idle
 
-//  mame_printf_debug("%08x\n",space.device().safe_pc());
+//  osd_printf_debug("%08x\n",space.device().safe_pc());
 
 	return m_mainram[0x001e2e0/4];
 }
@@ -2116,7 +2117,7 @@ READ32_MEMBER(seibuspi_state::viprp1o_speedup_r)
 {
 	/* viperp1o */
 	if (space.device().safe_pc()==0x0201f99) space.device().execute().spin_until_interrupt(); // idle
-//  mame_printf_debug("%08x\n",space.device().safe_pc());
+//  osd_printf_debug("%08x\n",space.device().safe_pc());
 	return m_mainram[0x001d49c/4];
 }
 
@@ -2124,7 +2125,7 @@ READ32_MEMBER(seibuspi_state::viprp1o_speedup_r)
 // causes input problems?
 READ32_MEMBER(seibuspi_state::ejanhs_speedup_r)
 {
-// mame_printf_debug("%08x\n",space.device().safe_pc());
+// osd_printf_debug("%08x\n",space.device().safe_pc());
 	if (space.device().safe_pc()==0x03032c7) space.device().execute().spin_until_interrupt(); // idle
 	return m_mainram[0x002d224/4];
 }
@@ -2141,13 +2142,16 @@ READ32_MEMBER(seibuspi_state::rdft_speedup_r)
 	/* rdftj */
 	if (space.device().safe_pc()==0x0203f22) space.device().execute().spin_until_interrupt(); // idle
 
-	/* rdftdi */
+	/* rdfta, rdftadi, rdftam, rdftit */
 	if (space.device().safe_pc()==0x0203f46) space.device().execute().spin_until_interrupt(); // idle
 
 	/* rdftu */
 	if (space.device().safe_pc()==0x0203f3a) space.device().execute().spin_until_interrupt(); // idle
 
-//  mame_printf_debug("%08x\n",space.device().safe_pc());
+	/* rdftauge */
+	if (space.device().safe_pc()==0x0203f6e) space.device().execute().spin_until_interrupt(); // idle
+
+//  osd_printf_debug("%08x\n",space.device().safe_pc());
 
 	return m_mainram[0x00298d0/4];
 }
@@ -2166,7 +2170,7 @@ READ32_MEMBER(seibuspi_state::rf2_speedup_r)
 	/* rdft2a */
 	if (space.device().safe_pc()==0x0204366) space.device().execute().spin_until_interrupt(); // idle
 
-//  mame_printf_debug("%08x\n",space.device().safe_pc());
+//  osd_printf_debug("%08x\n",space.device().safe_pc());
 
 	return m_mainram[0x0282ac/4];
 }
@@ -2189,7 +2193,7 @@ READ32_MEMBER(seibuspi_state::rfjet_speedup_r)
 	/* rfjetj */
 	if (space.device().safe_pc()==0x0205f2e) space.device().execute().spin_until_interrupt(); // idle
 
-//  mame_printf_debug("%08x\n",space.device().safe_pc());
+//  osd_printf_debug("%08x\n",space.device().safe_pc());
 
 	return m_mainram[0x002894c/4];
 }
@@ -2454,6 +2458,38 @@ ROM_START( viprp1 )
 
 	ROM_REGION( 0x100000, "soundflash1", 0 ) /* on SPI motherboard */
 	ROM_LOAD("flash0_blank_regionbe.u1053", 0x000000, 0x100000, CRC(a4c181d0) SHA1(0aeea4cac4030f60ee77d62deca6b67c318c0866) )
+ROM_END
+
+ROM_START( viprp1k )
+	ROM_REGION32_LE( 0x200000, "maincpu", 0 ) /* i386 program */
+	ROM_LOAD32_BYTE("(__viprp1k)seibu1.211", 0x000000, 0x80000, CRC(5495c930) SHA1(056237965aefa4c0ea7782e0ee5ba1b58a045d7a) )
+	ROM_LOAD32_BYTE("(__viprp1k)seibu2.212", 0x000001, 0x80000, CRC(e0ad22ae) SHA1(1911d17f0b462a9bada9efee85e531f2445e4ac6) )
+	ROM_LOAD32_BYTE("(__viprp1k)seibu3.210", 0x000002, 0x80000, CRC(db7bcb90) SHA1(45f0a44e24d7b4b996d833e579f405bcf7584563) )
+	ROM_LOAD32_BYTE("(__viprp1k)seibu4.29",  0x000003, 0x80000, CRC(c6188bf9) SHA1(746a205c428a080c36d0daf1d4f6b2b0f8efb977) )
+
+	ROM_REGION( 0x40000, "audiocpu", ROMREGION_ERASE00 ) /* 256K RAM, ROM from Z80 point-of-view */
+
+	ROM_REGION( 0x30000, "gfx1", ROMREGION_ERASEFF ) /* text layer roms */
+	ROM_LOAD24_WORD("(__viprp1k)seibu5.u0413", 0x000000, 0x20000, CRC(1a35f2d8) SHA1(cd9b140f144a8c72756e18913eaef121963be341) )
+	ROM_LOAD24_BYTE("(__viprp1k)seibu6.u048",  0x000002, 0x10000, CRC(e88bf049) SHA1(62f35840dc90b505118ed81ac0d75397a689783b) )
+
+	ROM_REGION( 0x600000, "gfx2", ROMREGION_ERASEFF ) /* background layer roms */
+	ROM_LOAD24_WORD("v_bg-11.415",  0x000000, 0x200000, CRC(6fc96736) SHA1(12df47d8af2c1febc1bce5bcf3218766447885bd) )
+	ROM_LOAD24_BYTE("v_bg-12.415",  0x000002, 0x100000, CRC(d3c7281c) SHA1(340bca1f31486609b3c34dd7830362a216ff648e) )
+	ROM_LOAD24_WORD("v_bg-21.410",  0x300000, 0x100000, CRC(d65b4318) SHA1(6522970d95ffa7fa2f32e0b5b4f0eb69e0286b36) )
+	ROM_LOAD24_BYTE("v_bg-22.416",  0x300002, 0x080000, CRC(24a0a23a) SHA1(0b0330717620e3f3274a25845d9edaf8023b9db2) )
+
+	ROM_REGION( 0xc00000, "gfx3", 0 ) /* sprites */
+	ROM_LOAD("v_obj-1.322",  0x000000, 0x400000, CRC(3be5b631) SHA1(fd1064428d28ca166a9267b968c0ba846cfed656) )
+	ROM_LOAD("v_obj-2.324",  0x400000, 0x400000, CRC(924153b4) SHA1(db5dadcfb4cd5e6efe9d995085936ce4f4eb4254) )
+	ROM_LOAD("v_obj-3.323",  0x800000, 0x400000, CRC(e9fb9062) SHA1(18e97b4c5cced2b529e6e72d8041c6f78fcec76e) )
+
+	ROM_REGION32_LE( 0xa00000, "sound01", ROMREGION_ERASE00 ) /* sound roms */
+	ROM_LOAD32_BYTE("v_pcm.215",  0x000000, 0x080000, CRC(e3111b60) SHA1(f7a7747f29c392876e43efcb4e6c0741454082f2) )
+	ROM_CONTINUE(                 0x400000, 0x080000 )
+
+	ROM_REGION( 0x100000, "soundflash1", 0 ) /* on SPI motherboard */
+	ROM_LOAD("flash0_blank_region24.u1053", 0x000000, 0x100000, CRC(72a33dc4) SHA1(65a52f576ca4d240418fedd9a4922edcd6c0c8d1) )
 ROM_END
 
 ROM_START( viprp1u )
@@ -2812,6 +2848,40 @@ ROM_START( rdftau )
 	ROM_LOAD32_WORD("gd_pcm.217", 0x000000, 0x100000, CRC(31253ad7) SHA1(c81c8d50f8f287f5cbfaec77b30d969b01ce11a9) )
 	ROM_CONTINUE(                 0x400000, 0x100000 )
 	ROM_LOAD32_BYTE("gd_8.216",   0x800000, 0x080000, CRC(f88cb6e4) SHA1(fb35b41307b490d5d08e4b8a70f8ff4ce2ca8105) )
+
+	ROM_REGION( 0x100000, "soundflash1", 0 ) /* on SPI motherboard */
+	ROM_LOAD("flash0_blank_region9e.u1053", 0x000000, 0x100000, CRC(7ad6f17e) SHA1(9a2cc77a4f86c00208f739bd53aca4f55adf7ea7) )
+ROM_END
+
+ROM_START( rdftauge )  /* SPI Cart "SXX2C ROM SUB2", Australia region (Tuning license - Evaluation Software For Show, Germany) ~~ SPI PCB "(C)1995 SXX2C-MAIN V2.0" */
+	ROM_REGION32_LE( 0x200000, "maincpu", 0 ) /* i386 program */
+	ROM_LOAD32_BYTE("seibu.1.u0211", 0x000000, 0x80000, CRC(3e79da3c) SHA1(8d33da1dadb791ff97b353532ca647eb462c2ae4) )
+	ROM_LOAD32_BYTE("seibu.2.u0212", 0x000001, 0x80000, CRC(a6fbf98c) SHA1(ce0f5f6f1f5656dbac0a6b977795026276c8fa86) )
+	ROM_LOAD32_BYTE("seibu.3.u0210", 0x000002, 0x80000, CRC(ad31cc17) SHA1(12b735519cad190887cdbc6680d879f791ab3726) )
+	ROM_LOAD32_BYTE("seibu.4.u029",  0x000003, 0x80000, CRC(756d99ae) SHA1(38c234acf3e8204a29a9adb077328d37d97cfd6d) )
+
+	ROM_REGION( 0x40000, "audiocpu", ROMREGION_ERASE00 ) /* 256K RAM, ROM from Z80 point-of-view */
+
+	ROM_REGION( 0x30000, "gfx1", ROMREGION_ERASEFF ) /* text layer roms */
+	ROM_LOAD24_BYTE("seibu.5.u0423", 0x000000, 0x10000, CRC(8f8d4e14) SHA1(06c803975767ae98f40ba7ac5764a5bc8baa3a30) )
+	ROM_LOAD24_BYTE("seibu.6.u0424", 0x000001, 0x10000, CRC(6ac64968) SHA1(ec395205c24c4f864a1f805bb0d4641562d4faa9) )
+	ROM_LOAD24_BYTE("seibu.7.u048",  0x000002, 0x10000, CRC(4d87e1ea) SHA1(3230e9b643fad773e61ab8ce09c0cd7d4d0558e3) )
+
+	ROM_REGION( 0x600000, "gfx2", ROMREGION_ERASEFF ) /* background layer roms */
+	ROM_LOAD24_WORD("gun_dogs_bg1-d.u0415", 0x000000, 0x200000, CRC(6a68054c) SHA1(5cbfc4ac90045f1401c2dda7a51936558c9de07e) )
+	ROM_LOAD24_BYTE("gun_dogs_bg1-p.u0410", 0x000002, 0x100000, CRC(3400794a) SHA1(719808f7442bac612cefd7b7fffcd665e6337ad0) )
+	ROM_LOAD24_WORD("gun_dogs_bg2-d.u0416", 0x300000, 0x200000, CRC(61cd2991) SHA1(bb608e3948bf9ea35b5e1615d2ba6858d029dcbe) )
+	ROM_LOAD24_BYTE("gun_dogs_bg2-p.u049",  0x300002, 0x100000, CRC(502d5799) SHA1(c3a0e1a4f5a7b35572ae1ff31315da4ed08aa2fe) )
+
+	ROM_REGION( 0xc00000, "gfx3", 0 ) /* sprites */
+	ROM_LOAD("gun_dogs_obj-1.u0322", 0x000000, 0x400000, CRC(59d86c99) SHA1(d3c9241e7b51fe21f8351051b063f91dc69bf905) )
+	ROM_LOAD("gun_dogs_obj-2.u0324", 0x400000, 0x400000, CRC(1ceb0b6f) SHA1(97225a9b3e7be18080aa52f6570af2cce8f25c06) )
+	ROM_LOAD("gun_dogs_obj-3.u0323", 0x800000, 0x400000, CRC(36e93234) SHA1(51917a80b7da5c32a9434a1076fc2916d62e6a3e) )
+
+	ROM_REGION32_LE( 0xa00000, "sound01", ROMREGION_ERASE00 ) /* sound roms */
+	ROM_LOAD32_WORD("gun_dogs_pcm.u0217", 0x000000, 0x100000, CRC(31253ad7) SHA1(c81c8d50f8f287f5cbfaec77b30d969b01ce11a9) )
+	ROM_CONTINUE(                         0x400000, 0x100000 )
+	ROM_LOAD32_BYTE("seibu.8.u0216",      0x800000, 0x080000, CRC(f88cb6e4) SHA1(fb35b41307b490d5d08e4b8a70f8ff4ce2ca8105) )
 
 	ROM_REGION( 0x100000, "soundflash1", 0 ) /* on SPI motherboard */
 	ROM_LOAD("flash0_blank_region9e.u1053", 0x000000, 0x100000, CRC(7ad6f17e) SHA1(9a2cc77a4f86c00208f739bd53aca4f55adf7ea7) )
@@ -3636,47 +3706,49 @@ ROM_END
 /*****************************************************************************/
 
 /* SPI */
-GAME( 1995, senkyu,     0,        spi,     spi_3button, seibuspi_state, senkyu,   ROT0,   "Seibu Kaihatsu", "Senkyu (Japan set 1)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1995, senkyua,    senkyu,   spi,     spi_3button, seibuspi_state, senkyua,  ROT0,   "Seibu Kaihatsu", "Senkyu (Japan set 2)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1995, batlball,   senkyu,   spi,     spi_3button, seibuspi_state, batlball, ROT0,   "Seibu Kaihatsu (Tuning license)", "Battle Balls (Germany)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1995, batlballu,  senkyu,   spi,     spi_3button, seibuspi_state, batlball, ROT0,   "Seibu Kaihatsu (Fabtek license)", "Battle Balls (US)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1995, batlballa,  senkyu,   spi,     spi_3button, seibuspi_state, batlball, ROT0,   "Seibu Kaihatsu (Metrotainment license)", "Battle Balls (Asia)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1995, batlballe,  senkyu,   spi,     spi_3button, seibuspi_state, batlball, ROT0,   "Seibu Kaihatsu (Metrotainment license)", "Battle Balls (Asia, earlier)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1995, senkyu,     0,        spi,     spi_3button, seibuspi_state, senkyu,   ROT0,   "Seibu Kaihatsu",                         "Senkyu (Japan set 1)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1995, senkyua,    senkyu,   spi,     spi_3button, seibuspi_state, senkyua,  ROT0,   "Seibu Kaihatsu",                         "Senkyu (Japan set 2)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1995, batlball,   senkyu,   spi,     spi_3button, seibuspi_state, batlball, ROT0,   "Seibu Kaihatsu (Tuning license)",        "Battle Balls (Germany)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1995, batlballu,  senkyu,   spi,     spi_3button, seibuspi_state, batlball, ROT0,   "Seibu Kaihatsu (Fabtek license)",        "Battle Balls (US)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1995, batlballa,  senkyu,   spi,     spi_3button, seibuspi_state, batlball, ROT0,   "Seibu Kaihatsu (Metrotainment license)", "Battle Balls (Hong Kong)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1995, batlballe,  senkyu,   spi,     spi_3button, seibuspi_state, batlball, ROT0,   "Seibu Kaihatsu (Metrotainment license)", "Battle Balls (Hong Kong, earlier)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 
-GAME( 1995, viprp1,     0,        spi,     spi_3button, seibuspi_state, viprp1,   ROT270, "Seibu Kaihatsu", "Viper Phase 1 (New Version, World)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1995, viprp1u,    viprp1,   spi,     spi_3button, seibuspi_state, viprp1o,  ROT270, "Seibu Kaihatsu (Fabtek license)", "Viper Phase 1 (New Version, US set 1)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* New version, "=U.S.A=" seems part of title */
-GAME( 1995, viprp1ua,   viprp1,   spi,     spi_3button, seibuspi_state, viprp1o,  ROT270, "Seibu Kaihatsu (Fabtek license)", "Viper Phase 1 (New Version, US set 2)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* New version, "=U.S.A=" seems part of title */
-GAME( 1995, viprp1j,    viprp1,   spi,     spi_3button, seibuspi_state, viprp1,   ROT270, "Seibu Kaihatsu", "Viper Phase 1 (New Version, Japan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1995, viprp1s,    viprp1,   spi,     spi_3button, seibuspi_state, viprp1,   ROT270, "Seibu Kaihatsu", "Viper Phase 1 (New Version, Switzerland)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1995, viprp1,     0,        spi,     spi_3button, seibuspi_state, viprp1,   ROT270, "Seibu Kaihatsu",                         "Viper Phase 1 (New Version, World)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1995, viprp1k,    viprp1,   spi,     spi_3button, seibuspi_state, viprp1,   ROT270, "Seibu Kaihatsu (Dream Island license)",  "Viper Phase 1 (New Version, Korea)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1995, viprp1u,    viprp1,   spi,     spi_3button, seibuspi_state, viprp1o,  ROT270, "Seibu Kaihatsu (Fabtek license)",        "Viper Phase 1 (New Version, US set 1)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* New version, "=U.S.A=" seems part of title */
+GAME( 1995, viprp1ua,   viprp1,   spi,     spi_3button, seibuspi_state, viprp1o,  ROT270, "Seibu Kaihatsu (Fabtek license)",        "Viper Phase 1 (New Version, US set 2)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* New version, "=U.S.A=" seems part of title */
+GAME( 1995, viprp1j,    viprp1,   spi,     spi_3button, seibuspi_state, viprp1,   ROT270, "Seibu Kaihatsu",                         "Viper Phase 1 (New Version, Japan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1995, viprp1s,    viprp1,   spi,     spi_3button, seibuspi_state, viprp1,   ROT270, "Seibu Kaihatsu",                         "Viper Phase 1 (New Version, Switzerland)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) // counterintuitively this seems to be the oldest set of the game despite playing with the 'new version' rules, it has various typos not present in other sets eg. 'UPDATEING'
 
-GAME( 1995, viprp1ot,   viprp1,   spi,     spi_3button, seibuspi_state, viprp1,   ROT270, "Seibu Kaihatsu (Tuning license)", "Viper Phase 1 (Germany)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1995, viprp1oj,   viprp1,   spi,     spi_3button, seibuspi_state, viprp1o,  ROT270, "Seibu Kaihatsu", "Viper Phase 1 (Japan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1995, viprp1ot,   viprp1,   spi,     spi_3button, seibuspi_state, viprp1,   ROT270, "Seibu Kaihatsu (Tuning license)",        "Viper Phase 1 (Germany)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1995, viprp1oj,   viprp1,   spi,     spi_3button, seibuspi_state, viprp1o,  ROT270, "Seibu Kaihatsu",                         "Viper Phase 1 (Japan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 GAME( 1995, viprp1hk,   viprp1,   spi,     spi_3button, seibuspi_state, viprp1,   ROT270, "Seibu Kaihatsu (Metrotainment license)", "Viper Phase 1 (Hong Kong)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND ) /* "=HONG KONG=" seems part of title */
 
-GAME( 1996, ejanhs,     0,        spi,     spi_ejanhs,  seibuspi_state, ejanhs,   ROT0,   "Seibu Kaihatsu", "E-Jan High School (Japan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1996, ejanhs,     0,        spi,     spi_ejanhs,  seibuspi_state, ejanhs,   ROT0,   "Seibu Kaihatsu",                         "E-Jan High School (Japan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 
-GAME( 1996, rdft,       0,        spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu", "Raiden Fighters (Japan set 1)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1996, rdftj,      rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu", "Raiden Fighters (Japan set 2)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1996, rdftu,      rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu (Fabtek license)", "Raiden Fighters (US)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1996, rdftam,     rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu (Metrotainment license)", "Raiden Fighters (Asia)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1996, rdftadi,    rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu (Dream Island license)", "Raiden Fighters (Korea)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1996, rdftau,     rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu", "Raiden Fighters (Australia)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1996, rdftit,     rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu", "Raiden Fighters (Italy)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1996, rdfta,      rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu", "Raiden Fighters (Austria)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1996, rdft,       0,        spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu",                         "Raiden Fighters (Japan set 1)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1996, rdftj,      rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu",                         "Raiden Fighters (Japan set 2)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1996, rdftu,      rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu (Fabtek license)",        "Raiden Fighters (US)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1996, rdftam,     rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu (Metrotainment license)", "Raiden Fighters (Hong Kong)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1996, rdftadi,    rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu (Dream Island license)",  "Raiden Fighters (Korea)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1996, rdftau,     rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu",                         "Raiden Fighters (Australia)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1996, rdftauge,   rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu (Tuning license)",        "Raiden Fighters (Evaluation Software For Show, Germany)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1996, rdftit,     rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu",                         "Raiden Fighters (Italy)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1996, rdfta,      rdft,     spi,     spi_3button, seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu",                         "Raiden Fighters (Austria)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 
-GAME( 1997, rdft2,      0,        spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu (Tuning license)", "Raiden Fighters 2 - Operation Hell Dive (Europe)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1997, rdft2u,     rdft2,    spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu (Fabtek license)", "Raiden Fighters 2 - Operation Hell Dive (US)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1997, rdft2j,     rdft2,    spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu", "Raiden Fighters 2 - Operation Hell Dive (Japan set 1)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1997, rdft2j2,    rdft2,    spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu", "Raiden Fighters 2 - Operation Hell Dive (Japan set 2)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1997, rdft2a,     rdft2,    spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu (Metrotainment license)", "Raiden Fighters 2 - Operation Hell Dive (Asia)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1997, rdft2a2,    rdft2,    spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu (Dream Island license)", "Raiden Fighters 2 - Operation Hell Dive (Korea)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1997, rdft2t,     rdft2,    spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu", "Raiden Fighters 2 - Operation Hell Dive (Taiwan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1997, rdft2,      0,        spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu (Tuning license)",        "Raiden Fighters 2 - Operation Hell Dive (Germany)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1997, rdft2u,     rdft2,    spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu (Fabtek license)",        "Raiden Fighters 2 - Operation Hell Dive (US)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1997, rdft2j,     rdft2,    spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu",                         "Raiden Fighters 2 - Operation Hell Dive (Japan set 1)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1997, rdft2j2,    rdft2,    spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu",                         "Raiden Fighters 2 - Operation Hell Dive (Japan set 2)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1997, rdft2a,     rdft2,    spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu (Metrotainment license)", "Raiden Fighters 2 - Operation Hell Dive (Hong Kong)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1997, rdft2a2,    rdft2,    spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu (Dream Island license)",  "Raiden Fighters 2 - Operation Hell Dive (Korea)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1997, rdft2t,     rdft2,    spi,     spi_2button, seibuspi_state, rdft2,    ROT270, "Seibu Kaihatsu",                         "Raiden Fighters 2 - Operation Hell Dive (Taiwan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 
-GAME( 1998, rfjet,      0,        spi,     spi_2button, seibuspi_state, rfjet,    ROT270, "Seibu Kaihatsu (Tuning license)", "Raiden Fighters Jet (Europe)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1998, rfjetu,     rfjet,    spi,     spi_2button, seibuspi_state, rfjet,    ROT270, "Seibu Kaihatsu (Fabtek license)", "Raiden Fighters Jet (US)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1998, rfjetj,     rfjet,    spi,     spi_2button, seibuspi_state, rfjet,    ROT270, "Seibu Kaihatsu", "Raiden Fighters Jet (Japan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1998, rfjeta,     rfjet,    spi,     spi_2button, seibuspi_state, rfjet,    ROT270, "Seibu Kaihatsu (Dream Island license)", "Raiden Fighters Jet (Korea)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1998, rfjett,     rfjet,    spi,     spi_2button, seibuspi_state, rfjet,    ROT270, "Seibu Kaihatsu", "Raiden Fighters Jet (Taiwan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1998, rfjet,      0,        spi,     spi_2button, seibuspi_state, rfjet,    ROT270, "Seibu Kaihatsu (Tuning license)",        "Raiden Fighters Jet (Germany)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1998, rfjetu,     rfjet,    spi,     spi_2button, seibuspi_state, rfjet,    ROT270, "Seibu Kaihatsu (Fabtek license)",        "Raiden Fighters Jet (US)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1998, rfjetj,     rfjet,    spi,     spi_2button, seibuspi_state, rfjet,    ROT270, "Seibu Kaihatsu",                         "Raiden Fighters Jet (Japan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1998, rfjeta,     rfjet,    spi,     spi_2button, seibuspi_state, rfjet,    ROT270, "Seibu Kaihatsu (Dream Island license)",  "Raiden Fighters Jet (Korea)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1998, rfjett,     rfjet,    spi,     spi_2button, seibuspi_state, rfjet,    ROT270, "Seibu Kaihatsu",                         "Raiden Fighters Jet (Taiwan)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 
 /* SXX2E */
 GAME( 1996, rdfts,      rdft,     sxx2e,   sxx2e,       seibuspi_state, rdft,     ROT270, "Seibu Kaihatsu (Explorer System Corp. license)", "Raiden Fighters (Taiwan, single board)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )

@@ -77,7 +77,9 @@ public:
 			m_laserdisc(*this, "laserdisc") ,
 		m_tile_ram(*this, "tile_ram"),
 		m_tile_control_ram(*this, "tile_ctrl_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_device<pioneer_ldv1000_device> m_laserdisc;
 	required_shared_ptr<UINT8> m_tile_ram;
@@ -91,6 +93,8 @@ public:
 	INTERRUPT_GEN_MEMBER(vblank_callback_lgp);
 	TIMER_CALLBACK_MEMBER(irq_stop);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -105,7 +109,7 @@ UINT32 lgp_state::screen_update_lgp(screen_device &screen, bitmap_rgb32 &bitmap,
 	int charx, chary;
 
 	/* make color 0 transparent */
-	palette_set_color(machine(), 0, MAKE_ARGB(0,0,0,0));
+	m_palette->set_pen_color(0, rgb_t(0,0,0,0));
 
 	/* clear */
 	bitmap.fill(0, cliprect);
@@ -119,7 +123,7 @@ UINT32 lgp_state::screen_update_lgp(screen_device &screen, bitmap_rgb32 &bitmap,
 
 			/* Somewhere there's a flag that offsets the tilemap by 0x100*x */
 			/* Palette is likely set somewhere as well (tile_control_ram?) */
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[0],
+			m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 					m_tile_ram[current_screen_character],
 					0,
 					0, 0, charx*8, chary*8, 0);
@@ -373,14 +377,15 @@ static MACHINE_CONFIG_START( lgp, lgp_state )
 
 	MCFG_LASERDISC_LDV1000_ADD("laserdisc")
 	MCFG_LASERDISC_OVERLAY_DRIVER(256, 256, lgp_state, screen_update_lgp)
+	MCFG_LASERDISC_OVERLAY_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_LASERDISC_SCREEN_ADD_NTSC("screen", "laserdisc")
 
-	MCFG_PALETTE_LENGTH(256)
-	/* MCFG_PALETTE_INIT_OVERRIDE(lgp_state,lgp) */
+	MCFG_PALETTE_ADD("palette", 256)
+	/* MCFG_PALETTE_INIT_OWNER(lgp_state,lgp) */
 
-	MCFG_GFXDECODE(lgp)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lgp)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

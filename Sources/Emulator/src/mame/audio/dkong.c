@@ -1,14 +1,12 @@
 #include "emu.h"
 #include "cpu/mcs48/mcs48.h"
-#include "cpu/m6502/n2a03.h"
 #include "sound/nes_apu.h"
 #include "sound/discrete.h"
-#include "machine/latch8.h"
 
 #include "sound/tms5110.h"
 
 #include "includes/dkong.h"
-#include "drivlgcy.h"
+
 
 /****************************************************************
  *
@@ -186,6 +184,7 @@ static const discrete_lfsr_desc dkong_lfsr =
 
 static const double dkong_diode_mix_table[2] = {DK_1N5553_V, DK_1N5553_V * 2};
 
+#if !DK_USE_CUSTOM
 static const discrete_mixer_desc dkong_rc_jump_desc =
 {
 	DISC_MIXER_IS_RESISTOR,
@@ -209,6 +208,7 @@ static const discrete_mixer_desc dkong_rc_walk_desc =
 	0,
 	0, 1
 };
+#endif
 
 static const discrete_mixer_desc dkong_mixer_desc =
 {
@@ -1108,20 +1108,6 @@ DISCRETE_SOUND_END
 
 /****************************************************************
  *
- * Initialization
- *
- ****************************************************************/
-
-static SOUND_START( dkong)
-{
-	dkong_state *state = machine.driver_data<dkong_state>();
-
-	state->m_snd_rom = state->memregion("soundcpu")->base();
-}
-
-
-/****************************************************************
- *
  * M58817 Speech
  *
  ****************************************************************/
@@ -1214,15 +1200,15 @@ Addresses found at @0x510, cpu2
 
 WRITE8_MEMBER(dkong_state::M58817_command_w)
 {
-	tms5110_device *tms5110 = machine().device<tms5110_device>("tms");
-	tms5110->ctl_w(space, 0, data & 0x0f);
-	tms5110->pdc_w((data>>4) & 0x01);
+	m58817_device *m58817 = machine().device<m58817_device>("tms");
+	m58817->ctl_w(space, 0, data & 0x0f);
+	m58817->pdc_w((data>>4) & 0x01);
 	/* FIXME 0x20 is CS */
 }
 
-READ8_DEVICE_HANDLER(M58817_status_r)
+READ8_MEMBER(dkong_state::M58817_status_r)
 {
-	m58817_device *m58817 = (m58817_device *) device;
+	m58817_device *m58817 = machine().device<m58817_device>("tms");
 	return m58817->status_r(space, offset, mem_mask);
 }
 
@@ -1251,12 +1237,12 @@ READ8_MEMBER(dkong_state::dkong_voice_status_r)
 
 READ8_MEMBER(dkong_state::dkong_tune_r)
 {
-	device_t *device = machine().device("ls175.3d");
-	UINT8 page = latch8_r(m_dev_vp2, space, 0) & 0x47;
+	latch8_device *m_ls175_3d = machine().device<latch8_device>("ls175.3d");
+	UINT8 page = m_dev_vp2->read(space, 0) & 0x47;
 
 	if ( page & 0x40 )
 	{
-		return (latch8_r(device, space, 0) & 0x0F) | (dkong_voice_status_r(space, 0) << 4);
+		return (m_ls175_3d->read(space, 0) & 0x0F) | (dkong_voice_status_r(space, 0) << 4);
 	}
 	else
 	{
@@ -1267,7 +1253,7 @@ READ8_MEMBER(dkong_state::dkong_tune_r)
 
 WRITE8_MEMBER(dkong_state::dkong_p1_w)
 {
-	discrete_sound_w(m_discrete,space,DS_DAC,data);
+	m_discrete->write(space,DS_DAC,data);
 }
 
 
@@ -1316,7 +1302,7 @@ static ADDRESS_MAP_START( dkongjr_sound_io_map, AS_IO, 8, dkong_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( radarscp1_sound_io_map, AS_IO, 8, dkong_state )
-	AM_RANGE(0x00, 0x00) AM_MIRROR(0xff) AM_DEVREAD_LEGACY("ls175.3d", latch8_r)
+	AM_RANGE(0x00, 0x00) AM_MIRROR(0xff) AM_DEVREAD("ls175.3d", latch8_device, read)
 	AM_RANGE(0x00, 0xff) AM_WRITE(dkong_p1_w) /* DAC here */
 	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_LATCH8_READ("virtual_p1")
 									AM_WRITE(M58817_command_w)
@@ -1329,37 +1315,18 @@ static ADDRESS_MAP_START( dkong3_sound1_map, AS_PROGRAM, 8, dkong_state )
 	AM_RANGE(0x0000, 0x01ff) AM_RAM
 	AM_RANGE(0x4016, 0x4016) AM_LATCH8_READ("latch1")       /* overwrite default */
 	AM_RANGE(0x4017, 0x4017) AM_LATCH8_READ("latch2")
-	AM_RANGE(0x4000, 0x4017) AM_DEVREAD_LEGACY("nes1", nes_psg_r)
-	AM_RANGE(0x4000, 0x4017) AM_DEVWRITE_LEGACY("nes1", nes_psg_w)
+	AM_RANGE(0x4000, 0x4017) AM_DEVREAD("nesapu1", nesapu_device, read)
+	AM_RANGE(0x4000, 0x4017) AM_DEVWRITE("nesapu1", nesapu_device, write)
 	AM_RANGE(0xe000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( dkong3_sound2_map, AS_PROGRAM, 8, dkong_state )
 	AM_RANGE(0x0000, 0x01ff) AM_RAM
 	AM_RANGE(0x4016, 0x4016) AM_LATCH8_READ("latch3")       /* overwrite default */
-	AM_RANGE(0x4000, 0x4017) AM_DEVREAD_LEGACY("nes2", nes_psg_r)
-	AM_RANGE(0x4000, 0x4017) AM_DEVWRITE_LEGACY("nes2", nes_psg_w)
+	AM_RANGE(0x4000, 0x4017) AM_DEVREAD("nesapu2", nesapu_device, read)
+	AM_RANGE(0x4000, 0x4017) AM_DEVWRITE("nesapu2", nesapu_device, write)
 	AM_RANGE(0xe000, 0xffff) AM_ROM
 ADDRESS_MAP_END
-
-/*************************************
- *
- *  Sound interfaces
- *
- *************************************/
-
-static const nes_interface nes_interface_1 = { "n2a03a" };
-static const nes_interface nes_interface_2 = { "n2a03b" };
-
-const tms5110_interface tms_interface = {
-	NULL,
-	NULL,
-	DEVCB_DEVICE_LINE_MEMBER("m58819", tms6100_device, tms6100_m0_w),
-	DEVCB_DEVICE_LINE_MEMBER("m58819", tms6100_device, tms6100_m1_w),
-	DEVCB_DEVICE_MEMBER("m58819", tms6100_device, tms6100_addr_w),
-	DEVCB_DEVICE_LINE_MEMBER("m58819", tms6100_device, tms6100_data_r),
-	DEVCB_DEVICE_LINE_MEMBER("m58819", tms6100_device, tms6100_romclock_w)
-};
 
 /*************************************
  *
@@ -1369,8 +1336,6 @@ const tms5110_interface tms_interface = {
 
 MACHINE_CONFIG_FRAGMENT( dkong2b_audio )
 
-	MCFG_SOUND_START( dkong )
-
 	/* sound latches */
 
 	MCFG_LATCH8_ADD("ls175.3d") /* sound cmd latch */
@@ -1378,11 +1343,11 @@ MACHINE_CONFIG_FRAGMENT( dkong2b_audio )
 	MCFG_LATCH8_INVERT(0x0F)
 
 	MCFG_LATCH8_ADD("ls259.6h")
-	MCFG_LATCH8_DISCRETE_NODE("discrete", 0, DS_SOUND0_INP)
-	MCFG_LATCH8_DISCRETE_NODE("discrete", 1, DS_SOUND1_INP)
-	MCFG_LATCH8_DISCRETE_NODE("discrete", 2, DS_SOUND2_INP)
-	MCFG_LATCH8_DISCRETE_NODE("discrete", 6, DS_SOUND6_INP)
-	MCFG_LATCH8_DISCRETE_NODE("discrete", 7, DS_SOUND7_INP)
+	MCFG_LATCH8_WRITE_0(DEVWRITE8("discrete", discrete_device, write),DS_SOUND0_INP)
+	MCFG_LATCH8_WRITE_1(DEVWRITE8("discrete", discrete_device, write),DS_SOUND1_INP)
+	MCFG_LATCH8_WRITE_2(DEVWRITE8("discrete", discrete_device, write),DS_SOUND2_INP)
+	MCFG_LATCH8_WRITE_6(DEVWRITE8("discrete", discrete_device, write),DS_SOUND6_INP)
+	MCFG_LATCH8_WRITE_7(DEVWRITE8("discrete", discrete_device, write),DS_SOUND7_INP)
 
 	/*   If P2.Bit7 -> is apparently an external signal decay or other output control
 	 *   If P2.Bit6 -> activates the external compressed sample ROM (not radarscp1)
@@ -1393,8 +1358,8 @@ MACHINE_CONFIG_FRAGMENT( dkong2b_audio )
 
 	MCFG_LATCH8_ADD( "virtual_p2" ) /* virtual latch for port B */
 	MCFG_LATCH8_INVERT( 0x20 )      /* signal is inverted       */
-	MCFG_LATCH8_DEVREAD(5, "ls259.6h", latch8_r, 3)
-	MCFG_LATCH8_DISCRETE_NODE("discrete", 7, DS_DISCHARGE_INV)
+	MCFG_LATCH8_READ_5(DEVREAD8("ls259.6h", latch8_device, read), 3)
+	MCFG_LATCH8_WRITE_7(DEVWRITE8("discrete", discrete_device, write), DS_DISCHARGE_INV)
 
 	MCFG_CPU_ADD("soundcpu", MB8884, I8035_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(dkong_sound_map)
@@ -1420,16 +1385,19 @@ MACHINE_CONFIG_DERIVED( radarscp1_audio, radarscp_audio )
 	/* virtual_p2 is not read -see memory map-, all bits are output bits */
 	MCFG_LATCH8_ADD( "virtual_p1" ) /* virtual latch for port A */
 	MCFG_LATCH8_INVERT( 0x80 )      /* signal is inverted       */
-	MCFG_LATCH8_DEVREAD(7, "ls259.6h", latch8_r, 3)
-	MCFG_LATCH8_DEVREAD(6, "tms", M58817_status_r, 0)
+	MCFG_LATCH8_READ_7(DEVREAD8("ls259.6h", latch8_device, read), 3)
+	MCFG_LATCH8_READ_6(READ8(dkong_state,M58817_status_r), 0)
 
 	/* tms memory controller */
 	MCFG_DEVICE_ADD("m58819", M58819, 0)
 
 	MCFG_SOUND_ADD("tms", M58817, XTAL_640kHz)
-	MCFG_DEVICE_CONFIG(tms_interface)
+	MCFG_TMS5110_M0_CB(DEVWRITELINE("m58819", tms6100_device, tms6100_m0_w))
+	MCFG_TMS5110_M1_CB(DEVWRITELINE("m58819", tms6100_device, tms6100_m1_w))
+	MCFG_TMS5110_ADDR_CB(DEVWRITE8("m58819", tms6100_device, tms6100_addr_w))
+	MCFG_TMS5110_DATA_CB(DEVREADLINE("m58819", tms6100_device, tms6100_data_r))
+	MCFG_TMS5110_ROMCLK_CB(DEVWRITELINE("m58819", tms6100_device, tms6100_romclock_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_FRAGMENT( dkongjr_audio )
@@ -1440,22 +1408,22 @@ MACHINE_CONFIG_FRAGMENT( dkongjr_audio )
 	MCFG_LATCH8_MASKOUT(0xE0)
 
 	MCFG_LATCH8_ADD( "ls259.6h")
-	MCFG_LATCH8_DISCRETE_NODE("discrete", 0, DS_SOUND0_INP)
-	MCFG_LATCH8_DISCRETE_NODE("discrete", 1, DS_SOUND1_INP)
-	MCFG_LATCH8_DISCRETE_NODE("discrete", 2, DS_SOUND2_INP)
-	MCFG_LATCH8_DISCRETE_NODE("discrete", 7, DS_SOUND7_INP)
+	MCFG_LATCH8_WRITE_0(DEVWRITE8("discrete", discrete_device, write), DS_SOUND0_INP)
+	MCFG_LATCH8_WRITE_1(DEVWRITE8("discrete", discrete_device, write), DS_SOUND1_INP)
+	MCFG_LATCH8_WRITE_2(DEVWRITE8("discrete", discrete_device, write), DS_SOUND2_INP)
+	MCFG_LATCH8_WRITE_7(DEVWRITE8("discrete", discrete_device, write), DS_SOUND7_INP)
 
 	MCFG_LATCH8_ADD( "ls259.5h")
-	MCFG_LATCH8_DISCRETE_NODE("discrete", 1, DS_SOUND9_INP)
+	MCFG_LATCH8_WRITE_1(DEVWRITE8("discrete", discrete_device, write), DS_SOUND9_INP)
 
 	MCFG_LATCH8_ADD( "ls259.4h")
 
 	MCFG_LATCH8_ADD( "virtual_p2" ) /* virtual latch for port B */
 	MCFG_LATCH8_INVERT( 0x70 )      /* all signals are inverted */
-	MCFG_LATCH8_DEVREAD(6, "ls259.4h", latch8_r, 1)
-	MCFG_LATCH8_DEVREAD(5, "ls259.6h", latch8_r, 3)
-	MCFG_LATCH8_DEVREAD(4, "ls259.6h", latch8_r, 6)
-	MCFG_LATCH8_DISCRETE_NODE("discrete", 7, DS_DISCHARGE_INV)
+	MCFG_LATCH8_READ_6(DEVREAD8("ls259.4h", latch8_device, read), 1)
+	MCFG_LATCH8_READ_5(DEVREAD8("ls259.6h", latch8_device, read), 3)
+	MCFG_LATCH8_READ_4(DEVREAD8("ls259.6h", latch8_device, read), 6)
+	MCFG_LATCH8_WRITE_7(DEVWRITE8("discrete", discrete_device, write), DS_DISCHARGE_INV)
 
 	MCFG_CPU_ADD("soundcpu", MB8884, I8035_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(dkong_sound_map)
@@ -1484,12 +1452,12 @@ MACHINE_CONFIG_FRAGMENT( dkong3_audio )
 	MCFG_LATCH8_ADD( "latch3")
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("nes1", NES, N2A03_DEFAULTCLOCK)
-	MCFG_SOUND_CONFIG(nes_interface_1)
+	MCFG_SOUND_ADD("nesapu1", NES_APU, N2A03_DEFAULTCLOCK)
+	MCFG_NES_APU_CPU("n2a03a")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
-	MCFG_SOUND_ADD("nes2", NES, N2A03_DEFAULTCLOCK)
-	MCFG_SOUND_CONFIG(nes_interface_2)
+	MCFG_SOUND_ADD("nesapu2", NES_APU, N2A03_DEFAULTCLOCK)
+	MCFG_NES_APU_CPU("n2a03b")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 MACHINE_CONFIG_END

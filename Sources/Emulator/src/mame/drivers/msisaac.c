@@ -171,7 +171,7 @@ WRITE8_MEMBER(msisaac_state::msisaac_mcu_w)
 static ADDRESS_MAP_START( msisaac_map, AS_PROGRAM, 8, msisaac_state )
 	AM_RANGE(0x0000, 0xdfff) AM_ROM
 	AM_RANGE(0xe000, 0xe7ff) AM_RAM
-	AM_RANGE(0xe800, 0xefff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe800, 0xefff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xf000, 0xf000) AM_WRITE(msisaac_bg2_textbank_w)
 	AM_RANGE(0xf001, 0xf001) AM_WRITENOP                    //???
 	AM_RANGE(0xf002, 0xf002) AM_WRITENOP                    //???
@@ -416,12 +416,6 @@ static GFXDECODE_START( msisaac )
 	GFXDECODE_ENTRY( "gfx2", 0, tile_layout, 0, 64 )
 GFXDECODE_END
 
-static const msm5232_interface msm5232_config =
-{
-	{ 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6 }, /* 0.65 (???) uF capacitors (match the sample, not verified) */
-	DEVCB_NULL
-};
-
 
 /*******************************************************************************/
 
@@ -488,9 +482,11 @@ static MACHINE_CONFIG_START( msisaac, msisaac_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 32*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(msisaac_state, screen_update_msisaac)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(msisaac)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", msisaac)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 
 	/* sound hardware */
@@ -503,7 +499,7 @@ static MACHINE_CONFIG_START( msisaac, msisaac_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.15)
 
 	MCFG_SOUND_ADD("msm", MSM5232, 2000000)
-	MCFG_SOUND_CONFIG(msm5232_config)
+	MCFG_MSM5232_SET_CAPACITORS(0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6, 0.65e-6) /* 0.65 (???) uF capacitors (match the sample, not verified) */
 	MCFG_SOUND_ROUTE(0, "mono", 1.0)    // pin 28  2'-1
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)    // pin 29  4'-1
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)    // pin 30  8'-1

@@ -172,7 +172,7 @@ READ16_MEMBER(darius_state::darius_ioc_r)
 	switch (offset)
 	{
 		case 0x01:
-			return (m_tc0140syt->tc0140syt_comm_r(space, 0) & 0xff);    /* sound interface read */
+			return (m_tc0140syt->master_comm_r(space, 0) & 0xff);    /* sound interface read */
 
 		case 0x04:
 			return ioport("P1")->read();
@@ -201,12 +201,12 @@ WRITE16_MEMBER(darius_state::darius_ioc_w)
 	{
 		case 0x00:  /* sound interface write */
 
-			m_tc0140syt->tc0140syt_port_w(space, 0, data & 0xff);
+			m_tc0140syt->master_port_w(space, 0, data & 0xff);
 			return;
 
 		case 0x01:  /* sound interface write */
 
-			m_tc0140syt->tc0140syt_comm_w(space, 0, data & 0xff);
+			m_tc0140syt->master_comm_w(space, 0, data & 0xff);
 			return;
 
 		case 0x28:  /* unknown, written by both cpus - always 0? */
@@ -243,7 +243,7 @@ static ADDRESS_MAP_START( darius_map, AS_PROGRAM, 16, darius_state )
 	AM_RANGE(0xd20000, 0xd20003) AM_DEVWRITE("pc080sn", pc080sn_device, yscroll_word_w)
 	AM_RANGE(0xd40000, 0xd40003) AM_DEVWRITE("pc080sn", pc080sn_device, xscroll_word_w)
 	AM_RANGE(0xd50000, 0xd50003) AM_DEVWRITE("pc080sn", pc080sn_device, ctrl_word_w)
-	AM_RANGE(0xd80000, 0xd80fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")/* palette */
+	AM_RANGE(0xd80000, 0xd80fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")/* palette */
 	AM_RANGE(0xe00100, 0xe00fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0xe01000, 0xe02fff) AM_RAM AM_SHARE("share2")
 	AM_RANGE(0xe08000, 0xe0ffff) AM_RAM_WRITE(darius_fg_layer_w) AM_SHARE("fg_ram")
@@ -254,7 +254,7 @@ static ADDRESS_MAP_START( darius_cpub_map, AS_PROGRAM, 16, darius_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x040000, 0x04ffff) AM_RAM             /* local RAM */
 	AM_RANGE(0xc00000, 0xc0007f) AM_WRITE(darius_ioc_w) /* only writes $c00050 (?) */
-	AM_RANGE(0xd80000, 0xd80fff) AM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w)
+	AM_RANGE(0xd80000, 0xd80fff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xe00100, 0xe00fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0xe01000, 0xe02fff) AM_RAM AM_SHARE("share2")
 	AM_RANGE(0xe08000, 0xe0ffff) AM_RAM_WRITE(darius_fg_layer_w) AM_SHARE("fg_ram")
@@ -464,8 +464,8 @@ static ADDRESS_MAP_START( darius_sound_map, AS_PROGRAM, 8, darius_state )
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
 	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
 	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ym2", ym2203_device, read, write)
-	AM_RANGE(0xb000, 0xb000) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
-	AM_RANGE(0xb001, 0xb001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xb000, 0xb000) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, slave_port_w)
+	AM_RANGE(0xb001, 0xb001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, slave_comm_r, slave_comm_w)
 	AM_RANGE(0xc000, 0xc000) AM_WRITE(darius_fm0_pan)
 	AM_RANGE(0xc400, 0xc400) AM_WRITE(darius_fm1_pan)
 	AM_RANGE(0xc800, 0xc800) AM_WRITE(darius_psg0_pan)
@@ -487,12 +487,6 @@ WRITE_LINE_MEMBER(darius_state::darius_adpcm_int)
 	if (m_nmi_enable)
 		m_adpcm->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(darius_state,darius_adpcm_int),   /* interrupt function */
-	MSM5205_S48_4B      /* 8KHz   */
-};
 
 READ8_MEMBER(darius_state::adpcm_command_read)
 {
@@ -765,41 +759,9 @@ WRITE_LINE_MEMBER(darius_state::irqhandler) /* assumes Z80 sandwiched between 68
 	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ay8910_interface ay8910_config_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,                 /* portA read */
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(darius_state,darius_write_portA0),  /* portA write */
-	DEVCB_DRIVER_MEMBER(darius_state,darius_write_portB0),  /* portB write */
-};
-
-static const ay8910_interface ay8910_config_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,                 /* portA read */
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(darius_state,darius_write_portA1),  /* portA write */
-	DEVCB_DRIVER_MEMBER(darius_state,darius_write_portB1)       /* portB write */
-};
-
-
 /***********************************************************
                        MACHINE DRIVERS
 ***********************************************************/
-
-static const pc080sn_interface darius_pc080sn_intf =
-{
-	1,   /* gfxnum */
-	-16, 8, 0, 1    /* x_offset, y_offset, y_invert, dblwidth */
-};
-
-static const tc0140syt_interface darius_tc0140syt_intf =
-{
-	"maincpu", "audiocpu"
-};
 
 void darius_state::darius_postload()
 {
@@ -873,8 +835,9 @@ static MACHINE_CONFIG_START( darius, darius_state )
 
 
 	/* video hardware */
-	MCFG_GFXDECODE(darius)
-	MCFG_PALETTE_LENGTH(4096*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", darius)
+	MCFG_PALETTE_ADD("palette", 4096*2)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 	MCFG_DEFAULT_LAYOUT(layout_darius)
 
 	MCFG_SCREEN_ADD("lscreen", RASTER)
@@ -883,6 +846,7 @@ static MACHINE_CONFIG_START( darius, darius_state )
 	MCFG_SCREEN_SIZE(36*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 1*8, 29*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(darius_state, screen_update_darius_left)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("mscreen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -890,6 +854,7 @@ static MACHINE_CONFIG_START( darius, darius_state )
 	MCFG_SCREEN_SIZE(36*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 1*8, 29*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(darius_state, screen_update_darius_middle)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("rscreen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -897,16 +862,23 @@ static MACHINE_CONFIG_START( darius, darius_state )
 	MCFG_SCREEN_SIZE(36*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 1*8, 29*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(darius_state, screen_update_darius_right)
+	MCFG_SCREEN_PALETTE("palette")
 
-
-	MCFG_PC080SN_ADD("pc080sn", darius_pc080sn_intf)
+	MCFG_DEVICE_ADD("pc080sn", PC080SN, 0)
+	MCFG_PC080SN_GFX_REGION(1)
+	MCFG_PC080SN_OFFSETS(-16, 8)
+	MCFG_PC080SN_YINVERT(0)
+	MCFG_PC080SN_DBLWIDTH(1)
+	MCFG_PC080SN_GFXDECODE("gfxdecode")
+	MCFG_PC080SN_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 4000000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(darius_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config_1)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(darius_state, darius_write_portA0))  /* portA write */
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(darius_state, darius_write_portB0))  /* portB write */
 	MCFG_SOUND_ROUTE(0, "filter0.0l", 0.08)
 	MCFG_SOUND_ROUTE(0, "filter0.0r", 0.08)
 	MCFG_SOUND_ROUTE(1, "filter0.1l", 0.08)
@@ -917,7 +889,8 @@ static MACHINE_CONFIG_START( darius, darius_state )
 	MCFG_SOUND_ROUTE(3, "filter0.3r", 0.60)
 
 	MCFG_SOUND_ADD("ym2", YM2203, 4000000)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config_2)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(darius_state, darius_write_portA1))  /* portA write */
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(darius_state, darius_write_portB1))  /* portB write */
 	MCFG_SOUND_ROUTE(0, "filter1.0l", 0.08)
 	MCFG_SOUND_ROUTE(0, "filter1.0r", 0.08)
 	MCFG_SOUND_ROUTE(1, "filter1.1l", 0.08)
@@ -928,7 +901,8 @@ static MACHINE_CONFIG_START( darius, darius_state )
 	MCFG_SOUND_ROUTE(3, "filter1.3r", 0.60)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(darius_state, darius_adpcm_int))   /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8KHz   */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "msm5205.l", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "msm5205.r", 1.0)
 
@@ -971,7 +945,9 @@ static MACHINE_CONFIG_START( darius, darius_state )
 	MCFG_FILTER_VOLUME_ADD("msm5205.r", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
-	MCFG_TC0140SYT_ADD("tc0140syt", darius_tc0140syt_intf)
+	MCFG_DEVICE_ADD("tc0140syt", TC0140SYT, 0)
+	MCFG_TC0140SYT_MASTER_CPU("maincpu")
+	MCFG_TC0140SYT_SLAVE_CPU("audiocpu")
 MACHINE_CONFIG_END
 
 

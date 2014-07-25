@@ -30,7 +30,7 @@ static ADDRESS_MAP_START( dcon_map, AS_PROGRAM, 16, dcon_state )
 	AM_RANGE(0x8c800, 0x8cfff) AM_RAM_WRITE(dcon_foreground_w) AM_SHARE("fore_data")
 	AM_RANGE(0x8d000, 0x8d7ff) AM_RAM_WRITE(dcon_midground_w) AM_SHARE("mid_data")
 	AM_RANGE(0x8d800, 0x8e7ff) AM_RAM_WRITE(dcon_text_w) AM_SHARE("textram")
-	AM_RANGE(0x8e800, 0x8f7ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x8e800, 0x8f7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x8f800, 0x8ffff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x9d000, 0x9d7ff) AM_WRITE(dcon_gfxbank_w)
 
@@ -255,13 +255,6 @@ WRITE16_MEMBER( dcon_state::layer_scroll_w )
 	COMBINE_DATA(&m_scroll_ram[offset]);
 }
 
-
-SEIBU_CRTC_INTERFACE(crtc_intf)
-{
-	DEVCB_DRIVER_MEMBER16(dcon_state, layer_en_w),
-	DEVCB_DRIVER_MEMBER16(dcon_state, layer_scroll_w),
-};
-
 /******************************************************************************/
 
 static MACHINE_CONFIG_START( dcon, dcon_state )
@@ -280,11 +273,15 @@ static MACHINE_CONFIG_START( dcon, dcon_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dcon_state, screen_update_dcon)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_SEIBU_CRTC_ADD("crtc",crtc_intf,0)
+	MCFG_DEVICE_ADD("crtc", SEIBU_CRTC, 0)
+	MCFG_SEIBU_CRTC_LAYER_EN_CB(WRITE16(dcon_state, layer_en_w))
+	MCFG_SEIBU_CRTC_LAYER_SCROLL_CB(WRITE16(dcon_state, layer_scroll_w))
 
-	MCFG_GFXDECODE(dcon)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dcon)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	SEIBU_SOUND_SYSTEM_YM3812_INTERFACE(4000000,1320000)
@@ -306,11 +303,15 @@ static MACHINE_CONFIG_START( sdgndmps, dcon_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dcon_state, screen_update_sdgndmps)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_SEIBU_CRTC_ADD("crtc",crtc_intf,0)
+	MCFG_DEVICE_ADD("crtc", SEIBU_CRTC, 0)
+	MCFG_SEIBU_CRTC_LAYER_EN_CB(WRITE16(dcon_state, layer_en_w))
+	MCFG_SEIBU_CRTC_LAYER_SCROLL_CB(WRITE16(dcon_state, layer_scroll_w))
 
-	MCFG_GFXDECODE(dcon)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dcon)
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	SEIBU_SOUND_SYSTEM_YM2151_INTERFACE(14318180/4,1320000)

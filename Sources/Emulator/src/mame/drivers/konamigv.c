@@ -8,22 +8,22 @@
 Known Dumps
 -----------
 
-Game       Description                        Mother Board   Code       Version       Date   Time
+Game       Description                                              Mother Board   Code       Version       Date   Time
 
-powyak96   Jikkyou Powerful Pro Yakyuu '96    GV999          GV017   JAPAN 1.03   96.05.27  18:00
-hyperath   Hyper Athlete                      ZV610          GV021   JAPAN 1.00   96.06.09  19:00
-lacrazyc   Let's Attack Crazy Cross           ZV610          GV027   ASIA  1.10   96.01.18  12:00
-susume     Susume! Taisen Puzzle-Dama         ZV610          GV027   JAPAN 1.20   96.03.04  12:00
-btchamp    Beat the Champ                     GV999          GV053   UAA01        ?
-kdeadeye   Dead Eye                           GV999          GV054   UAA01        ?
-weddingr   Wedding Rhapsody                   ?              GX624   JAA          97.05.29   9:12
-tokimosh   Tokimeki Memorial Oshiete          ?              GE755   JAA          97.08.06  11:52
-           Your Heart
-tokimosp   Tokimeki Memorial Oshiete          ?              GE756   JAB          97.09.27   9:10
-           Your Heart Seal version PLUS
-nagano98   Winter Olypmics in Nagano 98       GV999          GX720   EAA01 1.03   98.01.08  10:45
-naganoj    Hyper Olympic in Nagano            GV999          GX720   JAA01 1.02   98.01.07  01:10
-simpbowl   Simpsons Bowling                   GV999          GQ829   UAA          ?
+powyak96   Jikkyou Powerful Pro Yakyuu '96                          GV999          GV017   JAPAN 1.03   96.05.27  18:00
+hyperath   Hyper Athlete                                            ZV610          GV021   JAPAN 1.00   96.06.09  19:00
+lacrazyc   Let's Attack Crazy Cross                                 ZV610          GV027   ASIA  1.10   96.01.18  12:00
+susume     Susume! Taisen Puzzle-Dama                               ZV610          GV027   JAPAN 1.20   96.03.04  12:00
+btchamp    Beat the Champ                                           GV999          GV053   UAA01        ?
+kdeadeye   Dead Eye                                                 GV999          GV054   UAA01        ?
+weddingr   Wedding Rhapsody                                         ?              GX624   JAA          97.05.29   9:12
+tmosh      Tokimeki Memorial Oshiete Your Heart                     ?              GQ673   JAA          97.03.14  ?
+tmoshs     Tokimeki Memorial Oshiete Your Heart Seal Version        ?              GE755   JAA          97.08.06  11:52
+tmoshspa   Tokimeki Memorial Oshiete Your Heart Seal Version Plus   ?              GE756   JAA          97.08.24  12:20
+tmoshsp    Tokimeki Memorial Oshiete Your Heart Seal Version Plus   ?              GE756   JAB          97.09.27   9:10
+nagano98   Winter Olypmics in Nagano 98                             GV999          GX720   EAA01 1.03   98.01.08  10:45
+naganoj    Hyper Olympic in Nagano                                  GV999          GX720   JAA01 1.02   98.01.07  01:10
+simpbowl   Simpsons Bowling                                         GV999          GQ829   UAA          ?
 
 PCB Layouts
 -----------
@@ -127,8 +127,8 @@ Notes:
 #include "machine/eepromser.h"
 #include "machine/intelfsh.h"
 #include "machine/mb89371.h"
-#include "machine/scsibus.h"
-#include "machine/scsicd.h"
+#include "bus/scsi/scsi.h"
+#include "bus/scsi/scsicd.h"
 #include "sound/spu.h"
 #include "sound/cdda.h"
 
@@ -137,7 +137,7 @@ class konamigv_state : public driver_device
 public:
 	konamigv_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_am53cf96(*this, "scsi:am53cf96"),
+		m_am53cf96(*this, "am53cf96"),
 		m_maincpu(*this, "maincpu")
 	{
 	}
@@ -174,7 +174,7 @@ private:
 };
 
 static ADDRESS_MAP_START( konamigv_map, AS_PROGRAM, 32, konamigv_state )
-	AM_RANGE(0x1f000000, 0x1f00001f) AM_DEVREADWRITE8("scsi:am53cf96", am53cf96_device, read, write, 0x00ff00ff)
+	AM_RANGE(0x1f000000, 0x1f00001f) AM_DEVREADWRITE8("am53cf96", am53cf96_device, read, write, 0x00ff00ff)
 	AM_RANGE(0x1f100000, 0x1f100003) AM_READ_PORT("P1")
 	AM_RANGE(0x1f100004, 0x1f100007) AM_READ_PORT("P2")
 	AM_RANGE(0x1f100008, 0x1f10000b) AM_READ_PORT("P3_P4")
@@ -212,7 +212,7 @@ static ADDRESS_MAP_START( kdeadeye_map, AS_PROGRAM, 32, konamigv_state )
 	AM_RANGE(0x1f6800e0, 0x1f6800e3) AM_WRITENOP
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( tokimosh_map, AS_PROGRAM, 32, konamigv_state )
+static ADDRESS_MAP_START( tmosh_map, AS_PROGRAM, 32, konamigv_state )
 	AM_IMPORT_FROM( konamigv_map )
 
 	AM_RANGE(0x1f680080, 0x1f680083) AM_READ16(tokimeki_serial_r, 0x0000ffff)
@@ -295,7 +295,7 @@ void konamigv_state::scsi_dma_write( UINT32 *p_n_psxram, UINT32 n_address, INT32
 			n_this--;
 		}
 
-		m_am53cf96->dma_write_data( n_this * 4, sector_buffer );
+		m_am53cf96->dma_write_data( i, sector_buffer );
 	}
 }
 
@@ -308,6 +308,12 @@ void konamigv_state::driver_start()
 	save_item(NAME(m_btc_trackball_prev));
 	save_item(NAME(m_btc_trackball_data));
 }
+
+static MACHINE_CONFIG_FRAGMENT( cdrom_config )
+	MCFG_DEVICE_MODIFY( "cdda" )
+	MCFG_SOUND_ROUTE( 0, "^^^^lspeaker", 1.0 )
+	MCFG_SOUND_ROUTE( 1, "^^^^rspeaker", 1.0 )
+MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( konamigv, konamigv_state )
 	/* basic machine hardware */
@@ -323,10 +329,13 @@ static MACHINE_CONFIG_START( konamigv, konamigv_state )
 	MCFG_DEVICE_ADD("mb89371", MB89371, 0)
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
-	MCFG_SCSIBUS_ADD("scsi")
-	MCFG_SCSIDEV_ADD("scsi:cdrom", SCSICD, SCSI_ID_4)
-	MCFG_AM53CF96_ADD("scsi:am53cf96")
-	MCFG_AM53CF96_IRQ_HANDLER(DEVWRITELINE("^maincpu:irq", psxirq_device, intin10))
+	MCFG_DEVICE_ADD("scsi", SCSI_PORT, 0)
+	MCFG_SCSIDEV_ADD("scsi:" SCSI_PORT_DEVICE1, "cdrom", SCSICD, SCSI_ID_4)
+	MCFG_SLOT_OPTION_MACHINE_CONFIG("cdrom", cdrom_config)
+
+	MCFG_DEVICE_ADD("am53cf96", AM53CF96, 0)
+	MCFG_LEGACY_SCSI_PORT("scsi")
+	MCFG_AM53CF96_IRQ_HANDLER(DEVWRITELINE("maincpu:irq", psxirq_device, intin10))
 
 	/* video hardware */
 	MCFG_PSXGPU_ADD( "maincpu", "gpu", CXD8514Q, 0x100000, XTAL_53_693175MHz )
@@ -337,10 +346,6 @@ static MACHINE_CONFIG_START( konamigv, konamigv_state )
 	MCFG_SPU_ADD( "spu", XTAL_67_7376MHz/2 )
 	MCFG_SOUND_ROUTE( 0, "lspeaker", 0.75 )
 	MCFG_SOUND_ROUTE( 1, "rspeaker", 0.75 )
-
-	MCFG_SOUND_MODIFY( "scsi:cdrom:cdda" )
-	MCFG_SOUND_ROUTE( 0, "^^^lspeaker", 1.0 )
-	MCFG_SOUND_ROUTE( 1, "^^^rspeaker", 1.0 )
 MACHINE_CONFIG_END
 
 
@@ -521,7 +526,7 @@ INPUT_PORTS_END
 
 READ16_MEMBER(konamigv_state::btc_trackball_r)
 {
-//  mame_printf_debug( "r %08x %08x %08x\n", space.device().safe_pc(), offset, mem_mask );
+//  osd_printf_debug( "r %08x %08x %08x\n", space.device().safe_pc(), offset, mem_mask );
 
 	if( offset == 3 )
 	{
@@ -545,7 +550,7 @@ READ16_MEMBER(konamigv_state::btc_trackball_r)
 
 WRITE16_MEMBER(konamigv_state::btc_trackball_w)
 {
-//  mame_printf_debug( "w %08x %08x %08x %08x\n", space.device().safe_pc(), offset, data, mem_mask );
+//  osd_printf_debug( "w %08x %08x %08x %08x\n", space.device().safe_pc(), offset, data, mem_mask );
 }
 
 static MACHINE_CONFIG_DERIVED( btchamp, konamigv )
@@ -575,7 +580,7 @@ INPUT_PORTS_END
 
 READ16_MEMBER(konamigv_state::tokimeki_serial_r)
 {
-	// bits checked: 0x80 and 0x20 for periodic status (800b6968 and 800b69e0 in tokimosh)
+	// bits checked: 0x80 and 0x20 for periodic status (800b6968 and 800b69e0 in tmoshs)
 	// 0x08 for reading the serial device (8005e624)
 
 	return 0xffff;
@@ -590,16 +595,16 @@ WRITE16_MEMBER(konamigv_state::tokimeki_serial_w)
 	    0x20 = clock
 	    0x10 = data
 
-	    tokimosh sends 6 bits: 110100 then reads 8 bits.
+	    tmoshs sends 6 bits: 110100 then reads 8 bits.
 	    readback is bit 3 (0x08) of serial_r
 	    This happens starting around 8005e580.
 	*/
 
 }
 
-static MACHINE_CONFIG_DERIVED( tokimosh, konamigv )
+static MACHINE_CONFIG_DERIVED( tmosh, konamigv )
 	MCFG_CPU_MODIFY( "maincpu" )
-	MCFG_CPU_PROGRAM_MAP( tokimosh_map )
+	MCFG_CPU_PROGRAM_MAP( tmosh_map )
 MACHINE_CONFIG_END
 
 /*
@@ -678,7 +683,8 @@ ROM_START( lacrazyc )
 
 	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
 	ROM_LOAD( "lacrazyc.25c",   0x000000, 0x000080, CRC(e20e5730) SHA1(066b49236c658a4ef2930f7bacc4b2354dd7f240) )
-	DISK_REGION( "scsi:cdrom" )
+
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "gv027-a1", 0, BAD_DUMP SHA1(840d0d4876cf1b814c9d8db975aa6c92e1fe4039) )
 ROM_END
 
@@ -687,7 +693,8 @@ ROM_START( susume )
 
 	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
 	ROM_LOAD( "susume.25c",   0x000000, 0x000080, CRC(52f17df7) SHA1(b8ad7787b0692713439d7d9bebfa0c801c806006) )
-	DISK_REGION( "scsi:cdrom" )
+
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "gv027j1", 0, BAD_DUMP SHA1(e7e6749ac65de7771eb8fed7d5eefaec3f902255) )
 ROM_END
 
@@ -697,8 +704,8 @@ ROM_START( hyperath )
 	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
 	ROM_LOAD( "hyperath.25c", 0x000000, 0x000080, CRC(20a8c435) SHA1(a0f203a999757fba68b391c525ac4b9684a57ba9) )
 
-	DISK_REGION( "scsi:cdrom" )
-	DISK_IMAGE_READONLY( "hyperath", 0, BAD_DUMP SHA1(694ef6200c61d3052316100cd9251b495eab88a1) )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
+	DISK_IMAGE_READONLY( "gv021-j1", 0, SHA1(579442444025b18da658cd6455c51459fbc3de0e) )
 ROM_END
 
 ROM_START( powyak96 )
@@ -707,7 +714,7 @@ ROM_START( powyak96 )
 	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
 	ROM_LOAD( "powyak96.25c", 0x000000, 0x000080, CRC(405a7fc9) SHA1(e2d978f49748ba3c4a425188abcd3d272ec23907) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "powyak96", 0, BAD_DUMP SHA1(ebd0ea18ff9ce300ea1e30d66a739a96acfb0621) )
 ROM_END
 
@@ -717,7 +724,7 @@ ROM_START( weddingr )
 	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
 	ROM_LOAD( "weddingr.25c", 0x000000, 0x000080, CRC(b90509a0) SHA1(41510a0ceded81dcb26a70eba97636d38d3742c3) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "weddingr", 0, BAD_DUMP SHA1(4e7122b191747ab7220fe4ce1b4483d62ab579af) )
 ROM_END
 
@@ -727,7 +734,7 @@ ROM_START( simpbowl )
 	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
 	ROM_LOAD( "simpbowl.25c", 0x000000, 0x000080, CRC(2c61050c) SHA1(16ae7f81cbe841c429c5c7326cf83e87db1782bf) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "simpbowl", 0, BAD_DUMP SHA1(72b32a863e6891ad3bfc1fdfe9cb90a2bd334d71) )
 ROM_END
 
@@ -737,7 +744,7 @@ ROM_START( btchamp )
 	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
 	ROM_LOAD( "btchmp.25c", 0x000000, 0x000080, CRC(6d02ea54) SHA1(d3babf481fd89db3aec17f589d0d3d999a2aa6e1) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "btchamp", 0, BAD_DUMP SHA1(c9c858e9034826e1a12c3c003dd068a49a3577e1) )
 ROM_END
 
@@ -747,7 +754,7 @@ ROM_START( kdeadeye )
 	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
 	ROM_LOAD( "kdeadeye.25c", 0x000000, 0x000080, CRC(3935d2df) SHA1(cbb855c475269077803c380dbc3621e522efe51e) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "kdeadeye", 0, BAD_DUMP SHA1(3c737c51717925be724dcb93d30769649029b8ce) )
 ROM_END
 
@@ -757,7 +764,7 @@ ROM_START( nagano98 )
 	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
 	ROM_LOAD( "nagano98.25c",  0x000000, 0x000080, CRC(b64b7451) SHA1(a77a37e0cc580934d1e7e05d523bae0acd2c1480) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "nagano98", 0, BAD_DUMP SHA1(1be7bd4531f249ff2233dd40a206c8d60054a8c6) )
 ROM_END
 
@@ -767,28 +774,48 @@ ROM_START( naganoj )
 	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
 	ROM_LOAD( "720ja.25c",  0x000000, 0x000080, CRC(34c473ba) SHA1(768225b04a293bdbc114a092d14dee28d52044e9) )
 
-	DISK_REGION( "scsi:cdrom" )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
 	DISK_IMAGE_READONLY( "720jaa01", 0, SHA1(437160996551ef4dfca43899d1d14beca62eb4c9) )
 ROM_END
 
-ROM_START( tokimosh )
+ROM_START( tmosh )
 	GV_BIOS
 
 	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
-	ROM_LOAD( "tokimosh.25c", 0x000000, 0x000080, CRC(e57b833f) SHA1(f18a0974a6be69dc179706643aab837ff61c2738) )
+	ROM_LOAD( "tmosh.25c", 0x000000, 0x000080, NO_DUMP )
 
-	DISK_REGION( "scsi:cdrom" )
-	DISK_IMAGE_READONLY( "755jaa01", 0, BAD_DUMP SHA1(4af080f9650e34d1ddb91bb763469d5fb3c754bd) )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
+	DISK_IMAGE_READONLY( "673jaa01", 0, SHA1(eaa76073749f9db48c1bee3dff9bea955683c8a8) )
 ROM_END
 
-ROM_START( tokimosp )
+ROM_START( tmoshs )
 	GV_BIOS
 
 	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
-	ROM_LOAD( "tokimosp.25c", 0x000000, 0x000080, CRC(af4cdd87) SHA1(97041e287e4c80066043967450779b81b62b2b8e) )
+	ROM_LOAD( "tmoshs.25c", 0x000000, 0x000080, CRC(e57b833f) SHA1(f18a0974a6be69dc179706643aab837ff61c2738) )
 
-	DISK_REGION( "scsi:cdrom" )
-	DISK_IMAGE_READONLY( "756jab01", 0, BAD_DUMP SHA1(7bd974d908ae5a7bfa8d30db185ab01ac38dff28) )
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
+	DISK_IMAGE_READONLY( "755jaa01", 0, SHA1(fc742a0b763ba38350ba7eb5d775948632aafd9d) )
+ROM_END
+
+ROM_START( tmoshsp )
+	GV_BIOS
+
+	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
+	ROM_LOAD( "tmoshsp.25c", 0x000000, 0x000080, CRC(af4cdd87) SHA1(97041e287e4c80066043967450779b81b62b2b8e) )
+
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
+	DISK_IMAGE_READONLY( "756jab01", 0, SHA1(b2c59b9801debccbbd986728152f314535c67e53) )
+ROM_END
+
+ROM_START( tmoshspa )
+	GV_BIOS
+
+	ROM_REGION16_BE( 0x0000080, "eeprom", 0 ) /* default eeprom */
+	ROM_LOAD( "tmoshsp.25c", 0x000000, 0x000080, CRC(af4cdd87) SHA1(97041e287e4c80066043967450779b81b62b2b8e) )
+
+	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
+	DISK_IMAGE_READONLY( "756jaa01", 0, BAD_DUMP SHA1(5e6d349ad1a22c0dbb1ec26aa05febc830254339) ) // The CD was damaged
 ROM_END
 
 /* BIOS placeholder */
@@ -801,8 +828,10 @@ GAME( 1996, susume,   lacrazyc, konamigv, konamigv, driver_device,  0,        RO
 GAME( 1996, btchamp,  konamigv, btchamp,  btchamp,  driver_device,  0,        ROT0, "Konami", "Beat the Champ (GV053 UAA01)", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
 GAME( 1996, kdeadeye, konamigv, kdeadeye, kdeadeye, driver_device,  0,        ROT0, "Konami", "Dead Eye (GV054 UAA01)", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
 GAME( 1997, weddingr, konamigv, konamigv, konamigv, driver_device,  0,        ROT0, "Konami", "Wedding Rhapsody (GX624 JAA)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
-GAME( 1997, tokimosh, konamigv, tokimosh, konamigv, driver_device,  0,        ROT0, "Konami", "Tokimeki Memorial Oshiete Your Heart (GE755 JAA)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING )
-GAME( 1997, tokimosp, konamigv, tokimosh, konamigv, driver_device,  0,        ROT0, "Konami", "Tokimeki Memorial Oshiete Your Heart Seal version PLUS (GE756 JAB)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING )
+GAME( 1997, tmosh,    konamigv, tmosh,    konamigv, driver_device,  0,        ROT0, "Konami", "Tokimeki Memorial Oshiete Your Heart (GQ673 JAA)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING )
+GAME( 1997, tmoshs,   konamigv, tmosh,    konamigv, driver_device,  0,        ROT0, "Konami", "Tokimeki Memorial Oshiete Your Heart Seal Version (GE755 JAA)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING )
+GAME( 1997, tmoshsp,  konamigv, tmosh,    konamigv, driver_device,  0,        ROT0, "Konami", "Tokimeki Memorial Oshiete Your Heart Seal Version Plus (GE756 JAB)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING )
+GAME( 1997, tmoshspa, tmoshsp,  tmosh,    konamigv, driver_device,  0,        ROT0, "Konami", "Tokimeki Memorial Oshiete Your Heart Seal Version Plus (GE756 JAA)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING )
 GAME( 1998, nagano98, konamigv, konamigv, konamigv, driver_device,  0,        ROT0, "Konami", "Nagano Winter Olympics '98 (GX720 EAA)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE)
 GAME( 1998, naganoj,  nagano98, konamigv, konamigv, driver_device,  0,        ROT0, "Konami", "Hyper Olympic in Nagano (GX720 JAA)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE)
 GAME( 2000, simpbowl, konamigv, simpbowl, simpbowl, konamigv_state, simpbowl, ROT0, "Konami", "Simpsons Bowling (GQ829 UAA)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE)

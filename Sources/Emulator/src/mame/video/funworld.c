@@ -62,7 +62,7 @@ PALETTE_INIT_MEMBER(funworld_state,funworld)
 			2,  resistances_g,  weights_g,  100,    0);
 
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -81,7 +81,7 @@ PALETTE_INIT_MEMBER(funworld_state,funworld)
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		g = combine_2_weights(weights_g, bit0, bit1);
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
@@ -123,14 +123,19 @@ TILE_GET_INFO_MEMBER(funworld_state::get_bg_tile_info)
 }
 
 
-VIDEO_START_MEMBER(funworld_state,funworld)
+VIDEO_START_MEMBER(funworld_state, funworld)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(funworld_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 4, 8, 96, 29);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(funworld_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 4, 8, 96, 29);
 }
 
-VIDEO_START_MEMBER(funworld_state,magicrd2)
+VIDEO_START_MEMBER(funworld_state, magicrd2)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(funworld_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 4, 8, 112, 34);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(funworld_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 4, 8, 112, 34);
+}
+
+VIDEO_START_MEMBER(funworld_state, chinatow)
+{
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(funworld_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 4, 8, 96, 31);
 }
 
 

@@ -190,26 +190,6 @@ Cisco Heat.
                                 Big Run
 **************************************************************************/
 
-WRITE16_MEMBER(cischeat_state::bigrun_paletteram16_w)
-{
-	UINT16 word = COMBINE_DATA(&m_generic_paletteram_16[offset]);
-	int r = pal5bit(((word >> 11) & 0x1E ) | ((word >> 3) & 0x01));
-	int g = pal5bit(((word >> 7 ) & 0x1E ) | ((word >> 2) & 0x01));
-	int b = pal5bit(((word >> 3 ) & 0x1E ) | ((word >> 1) & 0x01));
-
-	// Scroll 0
-	if ( (offset >= 0x0e00/2) && (offset <= 0x0fff/2) ) { palette_set_color(machine(), 0x000 + offset - 0x0e00/2, MAKE_RGB(r,g,b) ); return;}
-	// Scroll 1
-	if ( (offset >= 0x1600/2) && (offset <= 0x17ff/2) ) { palette_set_color(machine(), 0x100 + offset - 0x1600/2, MAKE_RGB(r,g,b) ); return;}
-	// Road 0
-	if ( (offset >= 0x1800/2) && (offset <= 0x1fff/2) ) { palette_set_color(machine(), 0x200 + offset - 0x1800/2, MAKE_RGB(r,g,b) ); return;}
-	// Road 1
-	if ( (offset >= 0x2000/2) && (offset <= 0x27ff/2) ) { palette_set_color(machine(), 0x600 + offset - 0x2000/2, MAKE_RGB(r,g,b) ); return;}
-	// Sprites
-	if ( (offset >= 0x2800/2) && (offset <= 0x2fff/2) ) { palette_set_color(machine(), 0xa00 + offset - 0x2800/2, MAKE_RGB(r,g,b) ); return;}
-	// Scroll 2
-	if ( (offset >= 0x3600/2) && (offset <= 0x37ff/2) ) { palette_set_color(machine(), 0xe00 + offset - 0x3600/2, MAKE_RGB(r,g,b) ); return;}
-}
 
 static ADDRESS_MAP_START( bigrun_map, AS_PROGRAM, 16, cischeat_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM                                                                 // ROM
@@ -224,7 +204,7 @@ static ADDRESS_MAP_START( bigrun_map, AS_PROGRAM, 16, cischeat_state )
 	AM_RANGE(0x094000, 0x097fff) AM_WRITE(cischeat_scrollram_1_w) AM_SHARE("scrollram.1")       // Scroll ram 1
 	AM_RANGE(0x098000, 0x09bfff) AM_WRITE(cischeat_scrollram_2_w) AM_SHARE("scrollram.2")       // Scroll ram 2
 
-	AM_RANGE(0x09c000, 0x09ffff) AM_WRITE(bigrun_paletteram16_w) AM_SHARE("paletteram")             // Palettes
+	AM_RANGE(0x09c000, 0x09ffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")            // Palettes
 	AM_RANGE(0x0f0000, 0x0fffff) AM_RAM AM_SHARE("ram")                                         // RAM
 	AM_RANGE(0x100000, 0x13ffff) AM_ROM AM_REGION("user1",0)                                                        // ROM
 ADDRESS_MAP_END
@@ -243,26 +223,6 @@ ADDRESS_MAP_END
     bd000-bd3ff     bd000-bdfff     sprites
     bec00-befff     <               text        */
 
-WRITE16_MEMBER(cischeat_state::cischeat_paletteram16_w)
-{
-	UINT16 word = COMBINE_DATA(&m_generic_paletteram_16[offset]);
-	int r = pal5bit(((word >> 11) & 0x1E ) | ((word >> 3) & 0x01));
-	int g = pal5bit(((word >> 7 ) & 0x1E ) | ((word >> 2) & 0x01));
-	int b = pal5bit(((word >> 3 ) & 0x1E ) | ((word >> 1) & 0x01));
-
-	// Scroll 0
-	if ( (offset >= 0x1c00/2) && (offset <= 0x1fff/2) ) { palette_set_color(machine(), 0x000 + offset - 0x1c00/2, MAKE_RGB(r,g,b) ); return;}
-	// Scroll 1
-	if ( (offset >= 0x2c00/2) && (offset <= 0x2fff/2) ) { palette_set_color(machine(), 0x200 + offset - 0x2c00/2, MAKE_RGB(r,g,b) ); return;}
-	// Scroll 2
-	if ( (offset >= 0x6c00/2) && (offset <= 0x6fff/2) ) { palette_set_color(machine(), 0x400 + offset - 0x6c00/2, MAKE_RGB(r,g,b) ); return;}
-	// Road 0
-	if ( (offset >= 0x3800/2) && (offset <= 0x3fff/2) ) { palette_set_color(machine(), 0x600 + offset - 0x3800/2, MAKE_RGB(r,g,b) ); return;}
-	// Road 1
-	if ( (offset >= 0x4800/2) && (offset <= 0x4fff/2) ) { palette_set_color(machine(), 0xa00 + offset - 0x4800/2, MAKE_RGB(r,g,b) ); return;}
-	// Sprites
-	if ( (offset >= 0x5000/2) && (offset <= 0x5fff/2) ) { palette_set_color(machine(), 0xe00 + offset - 0x5000/2, MAKE_RGB(r,g,b) ); return;}
-}
 
 static ADDRESS_MAP_START( cischeat_map, AS_PROGRAM, 16, cischeat_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM                                                                     // ROM
@@ -284,7 +244,7 @@ static ADDRESS_MAP_START( cischeat_map, AS_PROGRAM, 16, cischeat_state )
 	AM_RANGE(0x0a8000, 0x0affff) AM_RAM_WRITE(cischeat_scrollram_1_w) AM_SHARE("scrollram.1")       // Scroll ram 1
 	AM_RANGE(0x0b0000, 0x0b7fff) AM_RAM_WRITE(cischeat_scrollram_2_w) AM_SHARE("scrollram.2")       // Scroll ram 2
 
-	AM_RANGE(0x0b8000, 0x0bffff) AM_RAM_WRITE(cischeat_paletteram16_w) AM_SHARE("paletteram")               // Palettes
+	AM_RANGE(0x0b8000, 0x0bffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")              // Palettes
 
 	AM_RANGE(0x0f0000, 0x0fffff) AM_RAM AM_SHARE("ram")                                             // RAM
 	AM_RANGE(0x100000, 0x17ffff) AM_ROM AM_REGION("user1",0)                                                            // ROM
@@ -295,26 +255,6 @@ ADDRESS_MAP_END
                             F1 GrandPrix Star
 **************************************************************************/
 
-WRITE16_MEMBER(cischeat_state::f1gpstar_paletteram16_w)
-{
-	UINT16 word = COMBINE_DATA(&m_generic_paletteram_16[offset]);
-	int r = pal5bit(((word >> 11) & 0x1E ) | ((word >> 3) & 0x01));
-	int g = pal5bit(((word >> 7 ) & 0x1E ) | ((word >> 2) & 0x01));
-	int b = pal5bit(((word >> 3 ) & 0x1E ) | ((word >> 1) & 0x01));
-
-	// Scroll 0
-	if ( (offset >= 0x1e00/2) && (offset <= 0x1fff/2) ) { palette_set_color(machine(), 0x000 + offset - 0x1e00/2, MAKE_RGB(r,g,b) ); return;}
-	// Scroll 1
-	if ( (offset >= 0x2e00/2) && (offset <= 0x2fff/2) ) { palette_set_color(machine(), 0x100 + offset - 0x2e00/2, MAKE_RGB(r,g,b) ); return;}
-	// Scroll 2
-	if ( (offset >= 0x6e00/2) && (offset <= 0x6fff/2) ) { palette_set_color(machine(), 0x200 + offset - 0x6e00/2, MAKE_RGB(r,g,b) ); return;}
-	// Road 0
-	if ( (offset >= 0x3800/2) && (offset <= 0x3fff/2) ) { palette_set_color(machine(), 0x300 + offset - 0x3800/2, MAKE_RGB(r,g,b) ); return;}
-	// Road 1
-	if ( (offset >= 0x4800/2) && (offset <= 0x4fff/2) ) { palette_set_color(machine(), 0x700 + offset - 0x4800/2, MAKE_RGB(r,g,b) ); return;}
-	// Sprites
-	if ( (offset >= 0x5000/2) && (offset <= 0x5fff/2) ) { palette_set_color(machine(), 0xb00 + offset - 0x5000/2, MAKE_RGB(r,g,b) ); return;}
-}
 
 /*  F1 GP Star tests:
     0A0000-0B8000
@@ -338,7 +278,7 @@ static ADDRESS_MAP_START( f1gpstar_map, AS_PROGRAM, 16, cischeat_state )
 	AM_RANGE(0x0a8000, 0x0affff) AM_RAM_WRITE(cischeat_scrollram_1_w) AM_SHARE("scrollram.1")       // Scroll ram 1
 	AM_RANGE(0x0b0000, 0x0b7fff) AM_RAM_WRITE(cischeat_scrollram_2_w) AM_SHARE("scrollram.2")       // Scroll ram 2
 
-	AM_RANGE(0x0b8000, 0x0bffff) AM_RAM_WRITE(f1gpstar_paletteram16_w) AM_SHARE("paletteram")               // Palettes
+	AM_RANGE(0x0b8000, 0x0bffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")              // Palettes
 
 	AM_RANGE(0x0f0000, 0x0fffff) AM_RAM AM_SHARE("ram")                                             // RAM
 	AM_RANGE(0x100000, 0x17ffff) AM_ROM AM_REGION("user1",0)                                                            // ROM
@@ -364,7 +304,7 @@ static ADDRESS_MAP_START( f1gpstr2_map, AS_PROGRAM, 16, cischeat_state )
 	AM_RANGE(0x0a8000, 0x0affff) AM_RAM_WRITE(cischeat_scrollram_1_w) AM_SHARE("scrollram.1")       // Scroll ram 1
 	AM_RANGE(0x0b0000, 0x0b7fff) AM_RAM_WRITE(cischeat_scrollram_2_w) AM_SHARE("scrollram.2")       // Scroll ram 2
 
-	AM_RANGE(0x0b8000, 0x0bffff) AM_RAM_WRITE(f1gpstar_paletteram16_w) AM_SHARE("paletteram")               // Palettes
+	AM_RANGE(0x0b8000, 0x0bffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")               // Palettes
 
 	AM_RANGE(0x0f0000, 0x0fffff) AM_RAM AM_SHARE("ram")                                             // RAM
 	AM_RANGE(0x100000, 0x17ffff) AM_ROM AM_REGION("user1",0)                                                            // ROM
@@ -374,22 +314,6 @@ ADDRESS_MAP_END
 /**************************************************************************
                             Scud Hammer
 **************************************************************************/
-
-WRITE16_MEMBER(cischeat_state::scudhamm_paletteram16_w)
-{
-	int newword = COMBINE_DATA(&m_generic_paletteram_16[offset]);
-
-	int r = pal5bit(((newword >> 11) & 0x1E ) | ((newword >> 3) & 0x01));
-	int g = pal5bit(((newword >> 7 ) & 0x1E ) | ((newword >> 2) & 0x01));
-	int b = pal5bit(((newword >> 3 ) & 0x1E ) | ((newword >> 1) & 0x01));
-
-	// Scroll 0
-	if ( (offset >= 0x1e00/2) && (offset <= 0x1fff/2) ) { palette_set_color(machine(), 0x000 + offset - 0x1e00/2, MAKE_RGB(r,g,b) ); return;}
-	// Scroll 2
-	if ( (offset >= 0x4e00/2) && (offset <= 0x4fff/2) ) { palette_set_color(machine(), 0x100 + offset - 0x4e00/2, MAKE_RGB(r,g,b) ); return;}
-	// Sprites
-	if ( (offset >= 0x3000/2) && (offset <= 0x3fff/2) ) { palette_set_color(machine(), 0x200 + offset - 0x3000/2, MAKE_RGB(r,g,b) ); return;}
-}
 
 
 
@@ -493,7 +417,7 @@ static ADDRESS_MAP_START( scudhamm_map, AS_PROGRAM, 16, cischeat_state )
 	AM_RANGE(0x082000, 0x082fff) AM_RAM_WRITE(scudhamm_vregs_w) AM_SHARE("vregs")               // Video Registers + RAM
 	AM_RANGE(0x0a0000, 0x0a3fff) AM_RAM_WRITE(cischeat_scrollram_0_w) AM_SHARE("scrollram.0")   // Scroll RAM 0
 	AM_RANGE(0x0b0000, 0x0b3fff) AM_RAM_WRITE(cischeat_scrollram_2_w) AM_SHARE("scrollram.2")   // Scroll RAM 2
-	AM_RANGE(0x0b8000, 0x0bffff) AM_RAM_WRITE(scudhamm_paletteram16_w) AM_SHARE("paletteram")           // Palette
+	AM_RANGE(0x0b8000, 0x0bffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")          // Palette
 	AM_RANGE(0x0f0000, 0x0fffff) AM_RAM AM_SHARE("ram")                                         // Work RAM + Spriteram
 	AM_RANGE(0x100000, 0x100001) AM_WRITE(scudhamm_oki_bank_w)                                          // Sound
 	AM_RANGE(0x100008, 0x100009) AM_READ_PORT("IN0") AM_WRITE(scudhamm_leds_w)                          // Buttons
@@ -574,7 +498,7 @@ static ADDRESS_MAP_START( armchmp2_map, AS_PROGRAM, 16, cischeat_state )
 	AM_RANGE(0x082000, 0x082fff) AM_RAM_WRITE(scudhamm_vregs_w) AM_SHARE("vregs")               // Video Registers + RAM
 	AM_RANGE(0x0a0000, 0x0a3fff) AM_RAM_WRITE(cischeat_scrollram_0_w) AM_SHARE("scrollram.0")   // Scroll RAM 0
 	AM_RANGE(0x0b0000, 0x0b3fff) AM_RAM_WRITE(cischeat_scrollram_2_w) AM_SHARE("scrollram.2")   // Scroll RAM 2
-	AM_RANGE(0x0b8000, 0x0bffff) AM_RAM_WRITE(scudhamm_paletteram16_w) AM_SHARE("paletteram")           // Palette
+	AM_RANGE(0x0b8000, 0x0bffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")           // Palette
 	AM_RANGE(0x0f0000, 0x0fffff) AM_RAM AM_SHARE("ram")                                         // Work RAM + Spriteram
 	AM_RANGE(0x100000, 0x100001) AM_READ_PORT("IN2") AM_WRITE(scudhamm_oki_bank_w)                      // DSW + Sound
 	AM_RANGE(0x100004, 0x100005) AM_READ_PORT("IN3")                                                    // DSW
@@ -1465,12 +1389,12 @@ static const gfx_layout road_layout =
 **************************************************************************/
 
 static GFXDECODE_START( bigrun )
-	GFXDECODE_ENTRY( "gfx1", 0, tiles_8x8,  0x0000, 16 ) // [0] Scroll 0
-	GFXDECODE_ENTRY( "gfx2", 0, tiles_8x8,  0x0100, 16 ) // [1] Scroll 1
-	GFXDECODE_ENTRY( "gfx3", 0, tiles_8x8,  0x0e00, 16 ) // [2] Scroll 2
-	GFXDECODE_ENTRY( "gfx4", 0, tiles_16x16,    0x0a00, 64 ) // [3] Sprites
-	GFXDECODE_ENTRY( "gfx5", 0, road_layout,    0x0600, 64 ) // [4] Road 0
-	GFXDECODE_ENTRY( "gfx6", 0, road_layout,    0x0200, 64 ) // [5] Road 1
+	GFXDECODE_ENTRY( "gfx1", 0, tiles_8x8,  0x0e00/2 , 16 ) // [0] Scroll 0
+	GFXDECODE_ENTRY( "gfx2", 0, tiles_8x8,  0x1600/2 , 16 ) // [1] Scroll 1
+	GFXDECODE_ENTRY( "gfx3", 0, tiles_8x8,  0x3600/2 , 16 ) // [2] Scroll 2
+	GFXDECODE_ENTRY( "gfx4", 0, tiles_16x16,0x2800/2 , 64 ) // [3] Sprites
+	GFXDECODE_ENTRY( "gfx5", 0, road_layout,0x1800/2 , 64 ) // [4] Road 0
+	GFXDECODE_ENTRY( "gfx6", 0, road_layout,0x2000/2 , 64 ) // [5] Road 1
 GFXDECODE_END
 
 /**************************************************************************
@@ -1478,12 +1402,12 @@ GFXDECODE_END
 **************************************************************************/
 
 static GFXDECODE_START( cischeat )
-	GFXDECODE_ENTRY( "gfx1", 0, tiles_8x8,  0x0000, 32  ) // [0] Scroll 0
-	GFXDECODE_ENTRY( "gfx2", 0, tiles_8x8,  0x0200, 32  ) // [1] Scroll 1
-	GFXDECODE_ENTRY( "gfx3", 0, tiles_8x8,  0x0400, 32  ) // [2] Scroll 2
-	GFXDECODE_ENTRY( "gfx4", 0, tiles_16x16,    0x0e00, 128 ) // [3] Sprites
-	GFXDECODE_ENTRY( "gfx5", 0, road_layout,    0x0600, 64  ) // [4] Road 0
-	GFXDECODE_ENTRY( "gfx6", 0, road_layout,    0x0a00, 64  ) // [5] Road 1
+	GFXDECODE_ENTRY( "gfx1", 0, tiles_8x8,  0x1c00/2, 32  ) // [0] Scroll 0
+	GFXDECODE_ENTRY( "gfx2", 0, tiles_8x8,  0x2c00/2, 32  ) // [1] Scroll 1
+	GFXDECODE_ENTRY( "gfx3", 0, tiles_8x8,  0x6c00/2, 32  ) // [2] Scroll 2
+	GFXDECODE_ENTRY( "gfx4", 0, tiles_16x16,0x5000/2, 128 ) // [3] Sprites
+	GFXDECODE_ENTRY( "gfx5", 0, road_layout,0x3800/2, 64  ) // [4] Road 0
+	GFXDECODE_ENTRY( "gfx6", 0, road_layout,0x4800/2, 64  ) // [5] Road 1
 GFXDECODE_END
 
 /**************************************************************************
@@ -1491,12 +1415,12 @@ GFXDECODE_END
 **************************************************************************/
 
 static GFXDECODE_START( f1gpstar )
-	GFXDECODE_ENTRY( "gfx1", 0, tiles_8x8,  0x0000, 16  ) // [0] Scroll 0
-	GFXDECODE_ENTRY( "gfx2", 0, tiles_8x8,  0x0100, 16  ) // [1] Scroll 1
-	GFXDECODE_ENTRY( "gfx3", 0, tiles_8x8,  0x0200, 16  ) // [2] Scroll 2
-	GFXDECODE_ENTRY( "gfx4", 0, tiles_16x16,    0x0b00, 128 ) // [3] Sprites
-	GFXDECODE_ENTRY( "gfx5", 0, road_layout,    0x0300, 64  ) // [4] Road 0
-	GFXDECODE_ENTRY( "gfx6", 0, road_layout,    0x0700, 64  ) // [5] Road 1
+	GFXDECODE_ENTRY( "gfx1", 0, tiles_8x8,  0x1e00/2, 16  ) // [0] Scroll 0
+	GFXDECODE_ENTRY( "gfx2", 0, tiles_8x8,  0x2e00/2, 16  ) // [1] Scroll 1
+	GFXDECODE_ENTRY( "gfx3", 0, tiles_8x8,  0x6e00/2, 16  ) // [2] Scroll 2
+	GFXDECODE_ENTRY( "gfx4", 0, tiles_16x16,0x5000/2, 128 ) // [3] Sprites
+	GFXDECODE_ENTRY( "gfx5", 0, road_layout,0x3800/2, 64  ) // [4] Road 0
+	GFXDECODE_ENTRY( "gfx6", 0, road_layout,0x4800/2, 64  ) // [5] Road 1
 GFXDECODE_END
 
 /**************************************************************************
@@ -1504,10 +1428,10 @@ GFXDECODE_END
 **************************************************************************/
 
 static GFXDECODE_START( scudhamm )
-	GFXDECODE_ENTRY( "gfx1", 0, tiles_8x8,          0x0000, 16  )   // [0] Scroll 0
-	GFXDECODE_ENTRY( "gfx1", 0, tiles_8x8,          0x0000, 16  )   // [1] UNUSED
-	GFXDECODE_ENTRY( "gfx3", 0, tiles_8x8,          0x0100, 16  )   // [2] Scroll 2
-	GFXDECODE_ENTRY( "gfx4", 0, tiles_16x16_quad,   0x0200, 128 )   // [3] sprites
+	GFXDECODE_ENTRY( "gfx1", 0, tiles_8x8,          0x1e00/2, 16  )   // [0] Scroll 0
+	GFXDECODE_ENTRY( "gfx1", 0, tiles_8x8,          0x0000/2, 16  )   // [1] UNUSED
+	GFXDECODE_ENTRY( "gfx3", 0, tiles_8x8,          0x4e00/2, 16  )   // [2] Scroll 2
+	GFXDECODE_ENTRY( "gfx4", 0, tiles_16x16_quad,   0x3000/2, 128 )   // [3] sprites
 	// No Road Layers
 GFXDECODE_END
 
@@ -1569,17 +1493,20 @@ static MACHINE_CONFIG_START( bigrun, cischeat_state )
 	MCFG_QUANTUM_TIME(attotime::from_hz(1200))
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK | VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(30) //TODO: wrong!
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1,  0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cischeat_state, screen_update_bigrun)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bigrun)
-	MCFG_PALETTE_LENGTH(16*16 * 3 + 64*16 * 2 + 64*16)  /* scroll 0,1,2; road 0,1; sprites */
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bigrun)
+	MCFG_PALETTE_ADD("palette", 0x4000/2)
+	MCFG_PALETTE_ENABLE_SHADOWS()
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
+
 
 	MCFG_VIDEO_START_OVERRIDE(cischeat_state,bigrun)
 
@@ -1620,8 +1547,11 @@ static MACHINE_CONFIG_DERIVED( cischeat, bigrun )
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1,  0+16, 256-16-8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cischeat_state, screen_update_cischeat)
 
-	MCFG_GFXDECODE(cischeat)
-	MCFG_PALETTE_LENGTH(32*16 * 3 + 64*16 * 2 + 128*16) /* scroll 0,1,2; road 0,1; sprites */
+	MCFG_GFXDECODE_MODIFY("gfxdecode", cischeat)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(0x8000/2)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
+
 
 	MCFG_VIDEO_START_OVERRIDE(cischeat_state,cischeat)
 MACHINE_CONFIG_END
@@ -1646,8 +1576,10 @@ static MACHINE_CONFIG_DERIVED( f1gpstar, bigrun )
 	MCFG_CPU_PROGRAM_MAP(f1gpstar_sound_map)
 
 	/* video hardware */
-	MCFG_GFXDECODE(f1gpstar)
-	MCFG_PALETTE_LENGTH(16*16 * 3 + 64*16 * 2 + 128*16) /* scroll 0,1,2; road 0,1; sprites */
+	MCFG_GFXDECODE_MODIFY("gfxdecode", f1gpstar)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(0x8000/2)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	MCFG_VIDEO_START_OVERRIDE(cischeat_state,f1gpstar)
 	MCFG_SCREEN_MODIFY("screen")
@@ -1702,17 +1634,19 @@ static MACHINE_CONFIG_START( scudhamm, cischeat_state )
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", cischeat_state, scudhamm_scanline, "screen", 0, 1)
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK | VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(30) //TODO: wrong!
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500 * 3) /* not accurate */)
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0 +16, 256-1 -16)
 	MCFG_SCREEN_UPDATE_DRIVER(cischeat_state, screen_update_scudhamm)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(scudhamm)
-	MCFG_PALETTE_LENGTH(16*16+16*16+128*16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", scudhamm)
+	MCFG_PALETTE_ADD("palette", 0x8000/2)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
 	MCFG_VIDEO_START_OVERRIDE(cischeat_state,f1gpstar)
 
@@ -2992,7 +2926,7 @@ ROM_END
 
 ***************************************************************************/
 
-GAMEL( 1989, bigrun,   0,        bigrun,   bigrun, cischeat_state,   bigrun,   ROT0,   "Jaleco", "Big Run (11th Rallye version)", GAME_IMPERFECT_GRAPHICS, layout_cischeat )    // there's a 13th Rallye version (1991)
+GAMEL( 1989, bigrun,   0,        bigrun,   bigrun, cischeat_state,   bigrun,   ROT0,   "Jaleco", "Big Run (11th Rallye version)", GAME_IMPERFECT_GRAPHICS, layout_cischeat )    // there's a 13th Rallye version (1991) (only on the SNES?)
 GAMEL( 1990, cischeat, 0,        cischeat, cischeat, cischeat_state, cischeat, ROT0,   "Jaleco", "Cisco Heat",                    GAME_IMPERFECT_GRAPHICS, layout_cischeat )
 GAMEL( 1991, f1gpstar, 0,        f1gpstar, f1gpstar, cischeat_state, f1gpstar, ROT0,   "Jaleco", "Grand Prix Star",               GAME_IMPERFECT_GRAPHICS, layout_f1gpstar )
 GAME ( 1992, armchmp2, 0,        armchmp2, armchmp2, driver_device, 0,        ROT270, "Jaleco", "Arm Champs II v2.6",            GAME_IMPERFECT_GRAPHICS )

@@ -392,16 +392,6 @@ static INPUT_PORTS_START( galds )
 	PORT_DIPSETTING(      0x00, DEF_STR( On ) )
 INPUT_PORTS_END
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSWB"),
-	DEVCB_INPUT_PORT("DSWA"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 
 static MACHINE_CONFIG_START( pastelg, pastelg_state )
 
@@ -423,15 +413,17 @@ static MACHINE_CONFIG_START( pastelg, pastelg_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pastelg_state, screen_update_pastelg)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(32)
-
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(pastelg_state, pastelg)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1250000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSWB"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSWA"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35)
 
 	MCFG_DAC_ADD("dac")
@@ -479,15 +471,17 @@ static MACHINE_CONFIG_START( threeds, pastelg_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pastelg_state, screen_update_pastelg)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(32)
-
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(pastelg_state, pastelg)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1250000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSWB"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSWA"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35)
 
 	MCFG_DAC_ADD("dac")
@@ -518,7 +512,7 @@ ROM_START( pastelg )
 	ROM_LOAD( "pgal_bp2.bin", 0x0020, 0x0020, CRC(4433021e) SHA1(e0d6619a193d26ad24788d4af5ef01ee89cffacd) )
 ROM_END
 
-ROM_START( 3ds )
+ROM_START( threeds )
 	ROM_REGION( 0x10000, "maincpu", 0 ) /* program */
 	ROM_LOAD( "up9.9a",    0x00000, 0x04000, CRC(bc0e7cfd) SHA1(4e84f573fb2c1228757d34b8bc69649b145d9707) )
 	ROM_LOAD( "up10.10a",  0x04000, 0x04000, CRC(e185d9f5) SHA1(98d4a824ed6a89e42543fb87daed33ef606bcced) )
@@ -549,7 +543,7 @@ ROM_START( galds )
 
 	ROM_REGION( 0x08000, "voice", ROMREGION_ERASE00 ) /* voice */
 
-	ROM_REGION( 0x38000, "gfx1", 0 ) /* gfx - the same as 3ds */
+	ROM_REGION( 0x38000, "gfx1", 0 ) /* gfx - the same as threeds */
 	ROM_LOAD( "dg1.ic11",  0x00000, 0x08000, CRC(5734ca7d) SHA1(d22b9e604cc4e2c0bb4eb32ded06bb5fa519965f) )
 	ROM_LOAD( "dg2.ic10",  0x08000, 0x08000, CRC(c7f21718) SHA1(4b2956d499e4db63e7f2329420e3d0313e6360ed) )
 	ROM_LOAD( "dg3.ic9",   0x10000, 0x08000, CRC(87bd0a9e) SHA1(a0443017ef4c19f0135c4f764a96457f02cda743) )
@@ -565,6 +559,6 @@ ROM_END
 
 
 
-GAME( 1985, pastelg, 0,   pastelg, pastelg, driver_device, 0, ROT0, "Nichibutsu", "Pastel Gal (Japan 851224)", 0 )
-GAME( 1985, 3ds,     0,   threeds, threeds, driver_device, 0, ROT0, "Nichibutsu", "Three Ds - Three Dealers Casino House", 0 )
-GAME( 1985, galds,   3ds, threeds, galds,   driver_device, 0, ROT0, "Nihon System Corp.", "Gals Ds - Three Dealers Casino House (bootleg?)", 0 )
+GAME( 1985, pastelg, 0,       pastelg, pastelg, driver_device, 0, ROT0, "Nichibutsu", "Pastel Gal (Japan 851224)", 0 )
+GAME( 1985, threeds, 0,       threeds, threeds, driver_device, 0, ROT0, "Nichibutsu", "Three Ds - Three Dealers Casino House", 0 )
+GAME( 1985, galds,   threeds, threeds, galds,   driver_device, 0, ROT0, "Nihon System Corp.", "Gals Ds - Three Dealers Casino House (bootleg?)", 0 )

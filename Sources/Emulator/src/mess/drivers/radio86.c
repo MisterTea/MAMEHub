@@ -11,8 +11,6 @@
 #include "cpu/i8085/i8085.h"
 #include "sound/wave.h"
 #include "machine/i8255.h"
-#include "machine/8257dma.h"
-#include "video/i8275.h"
 #include "imagedev/cassette.h"
 #include "imagedev/cartslot.h"
 #include "formats/rk_cas.h"
@@ -25,7 +23,7 @@ static ADDRESS_MAP_START(radio86_mem, AS_PROGRAM, 8, radio86_state )
 	AM_RANGE( 0x8000, 0x8003 ) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write) AM_MIRROR(0x1ffc)
 	//AM_RANGE( 0xa000, 0xa003 ) AM_DEVREADWRITE("ppi8255_2", i8255_device, read, write) AM_MIRROR(0x1ffc)
 	AM_RANGE( 0xc000, 0xc001 ) AM_DEVREADWRITE("i8275", i8275_device, read, write) AM_MIRROR(0x1ffe) // video
-	AM_RANGE( 0xe000, 0xffff ) AM_DEVWRITE("dma8257", i8257_device, i8257_w)    // DMA
+	AM_RANGE( 0xe000, 0xffff ) AM_DEVWRITE("dma8257", i8257_device, write)    // DMA
 	AM_RANGE( 0xf000, 0xffff ) AM_ROM  // System ROM
 ADDRESS_MAP_END
 
@@ -45,7 +43,7 @@ static ADDRESS_MAP_START(radio86rom_mem, AS_PROGRAM, 8, radio86_state )
 	AM_RANGE( 0x8000, 0x8003 ) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write) AM_MIRROR(0x1ffc)
 	AM_RANGE( 0xa000, 0xa003 ) AM_DEVREADWRITE("ppi8255_2", i8255_device, read, write) AM_MIRROR(0x1ffc)
 	AM_RANGE( 0xc000, 0xc001 ) AM_DEVREADWRITE("i8275", i8275_device, read, write) AM_MIRROR(0x1ffe) // video
-	AM_RANGE( 0xe000, 0xffff ) AM_DEVWRITE("dma8257", i8257_device, i8257_w)    // DMA
+	AM_RANGE( 0xe000, 0xffff ) AM_DEVWRITE("dma8257", i8257_device, write)    // DMA
 	AM_RANGE( 0xf000, 0xffff ) AM_ROM  // System ROM
 ADDRESS_MAP_END
 
@@ -58,7 +56,7 @@ static ADDRESS_MAP_START(radio86ram_mem, AS_PROGRAM, 8, radio86_state )
 	AM_RANGE( 0xf780, 0xf7bf ) AM_DEVREADWRITE("i8275", i8275_device, read, write) // video
 	AM_RANGE( 0xf684, 0xf687 ) AM_DEVREADWRITE("ppi8255_2", i8255_device, read, write)
 	AM_RANGE( 0xf688, 0xf688 ) AM_WRITE(radio86_pagesel )
-	AM_RANGE( 0xf800, 0xffff ) AM_DEVWRITE("dma8257", i8257_device, i8257_w)    // DMA
+	AM_RANGE( 0xf800, 0xffff ) AM_DEVWRITE("dma8257", i8257_device, write)    // DMA
 	AM_RANGE( 0xf800, 0xffff ) AM_ROM  // System ROM page 1
 ADDRESS_MAP_END
 
@@ -70,7 +68,7 @@ static ADDRESS_MAP_START(radio86_16_mem, AS_PROGRAM, 8, radio86_state )
 	AM_RANGE( 0x8000, 0x8003 ) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write) AM_MIRROR(0x1ffc)
 	//AM_RANGE( 0xa000, 0xa003 ) AM_DEVREADWRITE("ppi8255_2", i8255_device, read, write) AM_MIRROR(0x1ffc)
 	AM_RANGE( 0xc000, 0xc001 ) AM_DEVREADWRITE("i8275", i8275_device, read, write) AM_MIRROR(0x1ffe) // video
-	AM_RANGE( 0xe000, 0xffff ) AM_DEVWRITE("dma8257", i8257_device, i8257_w)    // DMA
+	AM_RANGE( 0xe000, 0xffff ) AM_DEVWRITE("dma8257", i8257_device, write)    // DMA
 	AM_RANGE( 0xf000, 0xffff ) AM_ROM  // System ROM
 ADDRESS_MAP_END
 
@@ -81,7 +79,7 @@ static ADDRESS_MAP_START(mikron2_mem, AS_PROGRAM, 8, radio86_state )
 	AM_RANGE( 0xc000, 0xc003 ) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write) AM_MIRROR(0x00fc)
 	//AM_RANGE( 0xc100, 0xc103 ) AM_DEVREADWRITE_LEGACY("ppi8255_2", i8255a_r, i8255a_w) AM_MIRROR(0x00fc)
 	AM_RANGE( 0xc200, 0xc201 ) AM_DEVREADWRITE("i8275", i8275_device, read, write) AM_MIRROR(0x00fe) // video
-	AM_RANGE( 0xc300, 0xc3ff ) AM_DEVWRITE("dma8257", i8257_device, i8257_w)    // DMA
+	AM_RANGE( 0xc300, 0xc3ff ) AM_DEVWRITE("dma8257", i8257_device, write)    // DMA
 	AM_RANGE( 0xf000, 0xffff ) AM_ROM  // System ROM
 ADDRESS_MAP_END
 
@@ -91,7 +89,7 @@ static ADDRESS_MAP_START(impuls03_mem, AS_PROGRAM, 8, radio86_state )
 	AM_RANGE( 0x8000, 0x8003 ) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write) AM_MIRROR(0x1ffc)
 	AM_RANGE( 0xa000, 0xbfff ) AM_ROM  // Basic ROM
 	AM_RANGE( 0xc000, 0xc001 ) AM_DEVREADWRITE("i8275", i8275_device, read, write) AM_MIRROR(0x1ffe) // video
-	AM_RANGE( 0xe000, 0xffff ) AM_DEVWRITE("dma8257", i8257_device, i8257_w)    // DMA
+	AM_RANGE( 0xe000, 0xffff ) AM_DEVWRITE("dma8257", i8257_device, write)    // DMA
 	AM_RANGE( 0xf000, 0xffff ) AM_ROM  // System ROM
 ADDRESS_MAP_END
 
@@ -317,16 +315,6 @@ INPUT_PORTS_START( ms7007 )
 	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_CODE(KEYCODE_2_PAD) PORT_CHAR(UCHAR_MAMEKEY(2_PAD))
 INPUT_PORTS_END
 
-static const cassette_interface radio86_cassette_interface =
-{
-	rkr_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED),
-	"radio86_cass",
-	NULL
-};
-
-
 /* F4 Character Displayer */
 static const gfx_layout radio86_charlayout =
 {
@@ -354,27 +342,43 @@ static MACHINE_CONFIG_START( radio86, radio86_state )
 	MCFG_CPU_IO_MAP(radio86_io)
 	MCFG_MACHINE_RESET_OVERRIDE(radio86_state, radio86 )
 
-	MCFG_I8255_ADD( "ppi8255_1", radio86_ppi8255_interface_1 )
+	MCFG_DEVICE_ADD("ppi8255_1", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(radio86_state, radio86_8255_porta_w2))
+	MCFG_I8255_IN_PORTB_CB(READ8(radio86_state, radio86_8255_portb_r2))
+	MCFG_I8255_IN_PORTC_CB(READ8(radio86_state, radio86_8255_portc_r2))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(radio86_state, radio86_8255_portc_w2))
 
-	MCFG_I8275_ADD  ( "i8275", radio86_i8275_interface)
+	MCFG_DEVICE_ADD("i8275", I8275, XTAL_16MHz / 12)
+	MCFG_I8275_CHARACTER_WIDTH(6)
+	MCFG_I8275_DRAW_CHARACTER_CALLBACK_OWNER(radio86_state, display_pixels)
+	MCFG_I8275_DRQ_CALLBACK(DEVWRITELINE("dma8257",i8257_device, dreq2_w))
+
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_UPDATE_DEVICE("i8275", i8275_device, screen_update)
 	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_SIZE(78*6, 30*10)
 	MCFG_SCREEN_VISIBLE_AREA(0, 78*6-1, 0, 30*10-1)
-	MCFG_GFXDECODE(radio86)
-	MCFG_PALETTE_LENGTH(3)
-	MCFG_PALETTE_INIT_OVERRIDE(radio86_state,radio86)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", radio86)
+	MCFG_PALETTE_ADD("palette", 3)
+	MCFG_PALETTE_INIT_OWNER(radio86_state,radio86)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_I8257_ADD("dma8257", XTAL_16MHz / 9, radio86_dma)
+	MCFG_DEVICE_ADD("dma8257", I8257, XTAL_16MHz / 9)
+	MCFG_I8257_OUT_HRQ_CB(WRITELINE(radio86_state, hrq_w))
+	MCFG_I8257_IN_MEMR_CB(READ8(radio86_state, memory_read_byte))
+	MCFG_I8257_OUT_MEMW_CB(WRITE8(radio86_state, memory_write_byte))
+	MCFG_I8257_OUT_IOW_2_CB(DEVWRITE8("i8275", i8275_device, dack_w))
+	MCFG_I8257_REVERSE_RW_MODE(1)
 
-	MCFG_CASSETTE_ADD( "cassette", radio86_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(rkr_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
+	MCFG_CASSETTE_INTERFACE("radio86_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","radio86")
 MACHINE_CONFIG_END
 
@@ -390,7 +394,10 @@ static MACHINE_CONFIG_DERIVED( radiorom, radio86 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(radio86rom_mem)
 
-	MCFG_I8255_ADD( "ppi8255_2", radio86_ppi8255_interface_2 )
+	MCFG_DEVICE_ADD("ppi8255_2", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(radio86_state, radio86_romdisk_porta_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(radio86_state, radio86_romdisk_portb_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(radio86_state, radio86_romdisk_portc_w))
 
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("bin,rom")
@@ -402,7 +409,10 @@ static MACHINE_CONFIG_DERIVED( radioram, radio86 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(radio86ram_mem)
 
-	MCFG_I8255_ADD( "ppi8255_2", radio86_ppi8255_interface_2 )
+	MCFG_DEVICE_ADD("ppi8255_2", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(radio86_state, radio86_romdisk_porta_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(radio86_state, radio86_romdisk_portb_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(radio86_state, radio86_romdisk_portc_w))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( rk7007, radio86 )
@@ -410,7 +420,11 @@ static MACHINE_CONFIG_DERIVED( rk7007, radio86 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_IO_MAP(rk7007_io)
 
-	MCFG_I8255_ADD( "ms7007", rk7007_ppi8255_interface )
+	MCFG_DEVICE_ADD("ms7007", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(radio86_state, radio86_8255_porta_w2))
+	MCFG_I8255_IN_PORTB_CB(READ8(radio86_state, radio86_8255_portb_r2))
+	MCFG_I8255_IN_PORTC_CB(READ8(radio86_state, rk7007_8255_portc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(radio86_state, radio86_8255_portc_w2))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( rk700716, radio16 )
@@ -418,7 +432,11 @@ static MACHINE_CONFIG_DERIVED( rk700716, radio16 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_IO_MAP(rk7007_io)
 
-	MCFG_I8255_ADD( "ms7007", rk7007_ppi8255_interface )
+	MCFG_DEVICE_ADD("ms7007", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(radio86_state, radio86_8255_porta_w2))
+	MCFG_I8255_IN_PORTB_CB(READ8(radio86_state, radio86_8255_portb_r2))
+	MCFG_I8255_IN_PORTC_CB(READ8(radio86_state, rk7007_8255_portc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(radio86_state, radio86_8255_portc_w2))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mikron2, radio86 )

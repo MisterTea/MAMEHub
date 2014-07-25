@@ -18,7 +18,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_mcu(*this, "mcu"),
-		m_msm(*this, "msm") { }
+		m_msm(*this, "msm"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	optional_shared_ptr<UINT8> m_text_char_ram;
 	optional_shared_ptr<UINT8> m_text_attr_ram;
@@ -29,6 +31,8 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_mcu;
 	required_device<msm5205_device> m_msm;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	UINT8 *m_decrypt;
 	UINT8 m_fm_data;
@@ -76,11 +80,10 @@ public:
 	DECLARE_VIDEO_START(stfight);
 	DECLARE_VIDEO_START(cshooter);
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(stfight);
 	UINT32 screen_update_stfight(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_cshooter(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(stfight_vb_interrupt);
-	void set_pens();
 	void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void cshooter_draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 

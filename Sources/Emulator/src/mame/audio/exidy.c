@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*************************************************************************
 
     Exidy 6502 hardware
@@ -195,7 +197,7 @@ void exidy_sound_device::common_sh_start()
 	m_sh6840_clocks_per_sample = (int)((double)SH6840_CLOCK / (double)sample_rate * (double)(1 << 24));
 
 	/* allocate the stream */
-	m_stream = machine().sound().stream_alloc(*this, 0, 1, sample_rate, this);
+	m_stream = machine().sound().stream_alloc(*this, 0, 1, sample_rate);
 	m_maincpu = machine().device<cpu_device>("maincpu");
 
 	sh6840_register_state_globals();
@@ -455,17 +457,6 @@ READ8_MEMBER( exidy_sound_device::r6532_portb_r )
 }
 
 
-static const riot6532_interface r6532_interface =
-{
-	DEVCB_DEVICE_MEMBER("custom", exidy_sound_device, r6532_porta_r),  /* port A read handler */
-	DEVCB_DEVICE_MEMBER("custom", exidy_sound_device, r6532_portb_r),  /* port B read handler */
-	DEVCB_DEVICE_MEMBER("custom", exidy_sound_device, r6532_porta_w),  /* port A write handler */
-	DEVCB_DEVICE_MEMBER("custom", exidy_sound_device, r6532_portb_w),  /* port B write handler */
-	DEVCB_DEVICE_LINE_MEMBER("custom", exidy_sound_device, r6532_irq)          /* IRQ callback */
-};
-
-
-
 /*************************************
  *
  *  8253 state saving
@@ -675,39 +666,6 @@ WRITE8_MEMBER( venture_sound_device::filter_w )
  *
  *************************************/
 
-static const pia6821_interface venture_pia0_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DEVICE_MEMBER("pia1", pia6821_device, portb_w),       /* port A out */
-	DEVCB_DEVICE_MEMBER("pia1", pia6821_device, porta_w),       /* port B out */
-	DEVCB_DEVICE_LINE_MEMBER("pia1", pia6821_device, cb1_w),        /* line CA2 out */
-	DEVCB_DEVICE_LINE_MEMBER("pia1", pia6821_device, ca1_w),        /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-
-static const pia6821_interface venture_pia1_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DEVICE_MEMBER("pia0", pia6821_device, portb_w),       /* port A out */
-	DEVCB_DEVICE_MEMBER("pia0", pia6821_device, porta_w),       /* port B out */
-	DEVCB_DEVICE_LINE_MEMBER("pia0", pia6821_device, cb1_w),        /* line CA2 out */
-	DEVCB_DEVICE_LINE_MEMBER("pia0", pia6821_device, ca1_w),        /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_DEVICE_LINE_MEMBER("custom", exidy_sound_device, update_irq_state)       /* IRQB */
-};
-
 
 const device_type EXIDY_VENTURE = &device_creator<venture_sound_device>;
 
@@ -802,10 +760,25 @@ MACHINE_CONFIG_FRAGMENT( venture_audio )
 	MCFG_CPU_ADD("audiocpu", M6502, 3579545/4)
 	MCFG_CPU_PROGRAM_MAP(venture_audio_map)
 
-	MCFG_RIOT6532_ADD("riot", SH6532_CLOCK, r6532_interface)
+	MCFG_DEVICE_ADD("riot", RIOT6532, SH6532_CLOCK)
+	MCFG_RIOT6532_IN_PA_CB(DEVREAD8("custom", exidy_sound_device, r6532_porta_r))
+	MCFG_RIOT6532_OUT_PA_CB(DEVWRITE8("custom", exidy_sound_device, r6532_porta_w))
+	MCFG_RIOT6532_IN_PB_CB(DEVREAD8("custom", exidy_sound_device, r6532_portb_r))
+	MCFG_RIOT6532_OUT_PB_CB(DEVWRITE8("custom", exidy_sound_device, r6532_portb_w))
+	MCFG_RIOT6532_IRQ_CB(DEVWRITELINE("custom", exidy_sound_device, r6532_irq))
 
-	MCFG_PIA6821_ADD("pia0", venture_pia0_intf)
-	MCFG_PIA6821_ADD("pia1", venture_pia1_intf)
+	MCFG_DEVICE_ADD("pia0", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(DEVWRITE8("pia1", pia6821_device, portb_w))
+	MCFG_PIA_WRITEPB_HANDLER(DEVWRITE8("pia1", pia6821_device, porta_w))
+	MCFG_PIA_CA2_HANDLER(DEVWRITELINE("pia1", pia6821_device, cb1_w))
+	MCFG_PIA_CB2_HANDLER(DEVWRITELINE("pia1", pia6821_device, ca1_w))
+
+	MCFG_DEVICE_ADD("pia1", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(DEVWRITE8("pia0", pia6821_device, portb_w))
+	MCFG_PIA_WRITEPB_HANDLER(DEVWRITE8("pia0", pia6821_device, porta_w))
+	MCFG_PIA_CA2_HANDLER(DEVWRITELINE("pia0", pia6821_device, cb1_w))
+	MCFG_PIA_CB2_HANDLER(DEVWRITELINE("pia0", pia6821_device, ca1_w))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("custom", exidy_sound_device, update_irq_state))
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
@@ -891,7 +864,8 @@ READ8_MEMBER( victory_sound_device::response_r )
 
 	if (VICTORY_LOG_SOUND) logerror("%04X:!!!! Sound response read = %02X\n", m_maincpu->pcbase(), ret);
 
-	m_pia1->cb1_w(0);
+	m_pia1_cb1 = 0;
+	m_pia1->cb1_w(m_pia1_cb1);
 
 	return ret;
 }
@@ -899,7 +873,7 @@ READ8_MEMBER( victory_sound_device::response_r )
 
 READ8_MEMBER( victory_sound_device::status_r )
 {
-	UINT8 ret = (m_pia1->ca1_r() << 7) | (m_pia1->cb1_r() << 6);
+	UINT8 ret = (m_pia1_ca1 << 7) | (m_pia1_cb1 << 6);
 
 	if (VICTORY_LOG_SOUND) logerror("%04X:!!!! Sound status read = %02X\n", m_maincpu->pcbase(), ret);
 
@@ -909,8 +883,9 @@ READ8_MEMBER( victory_sound_device::status_r )
 
 TIMER_CALLBACK_MEMBER( victory_sound_device::delayed_command_w )
 {
-	m_pia1->set_a_input(param, 0);
-	m_pia1->ca1_w(0);
+	m_pia1->porta_w(param);
+	m_pia1_ca1 = 0;
+	m_pia1->ca1_w(m_pia1_ca1);
 }
 
 WRITE8_MEMBER( victory_sound_device::command_w )
@@ -921,40 +896,31 @@ WRITE8_MEMBER( victory_sound_device::command_w )
 }
 
 
-WRITE8_MEMBER( victory_sound_device::irq_clear_w )
+WRITE_LINE_MEMBER( victory_sound_device::irq_clear_w )
 {
-	if (VICTORY_LOG_SOUND) logerror("%s:!!!! Sound IRQ clear = %02X\n", space.machine().describe_context(), data);
+	if (VICTORY_LOG_SOUND) logerror("%s:!!!! Sound IRQ clear = %02X\n", machine().describe_context(), state);
 
-	if (!data) m_pia1->ca1_w(1);
+	if (!state)
+	{
+		m_pia1_ca1 = 1;
+		m_pia1->ca1_w(m_pia1_ca1);
+	}
 }
 
 
-WRITE8_MEMBER( victory_sound_device::main_ack_w )
+WRITE_LINE_MEMBER( victory_sound_device::main_ack_w )
 {
-	if (VICTORY_LOG_SOUND) logerror("%s:!!!! Sound Main ACK W = %02X\n", space.machine().describe_context(), data);
+	if (VICTORY_LOG_SOUND) logerror("%s:!!!! Sound Main ACK W = %02X\n", machine().describe_context(), state);
 
-	if (m_victory_sound_response_ack_clk && !data)
-		m_pia1->cb1_w(1);
+	if (m_victory_sound_response_ack_clk && !state)
+	{
+		m_pia1_cb1 = 1;
+		m_pia1->cb1_w(m_pia1_cb1);
+	}
 
-	m_victory_sound_response_ack_clk = data;
+	m_victory_sound_response_ack_clk = state;
 }
 
-
-static const pia6821_interface victory_pia1_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_NULL,     /* port A out */
-	DEVCB_NULL,     /* port B out */
-	DEVCB_DEVICE_MEMBER("custom", victory_sound_device, irq_clear_w),  /* line CA2 out */
-	DEVCB_DEVICE_MEMBER("custom", victory_sound_device, main_ack_w),         /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_DEVICE_LINE_MEMBER("custom", exidy_sound_device, update_irq_state)               /* IRQB */
-};
 
 const device_type EXIDY_VICTORY = &device_creator<victory_sound_device>;
 
@@ -1016,12 +982,14 @@ void victory_sound_device::device_reset()
 
 	/* the flip-flop @ F4 is reset */
 	m_victory_sound_response_ack_clk = 0;
-	m_pia1->cb1_w(1);
+	m_pia1_cb1 = 1;
+	m_pia1->cb1_w(m_pia1_cb1);
 
 	/* these two lines shouldn't be needed, but it avoids the log entry
 	   as the sound CPU checks port A before the main CPU ever writes to it */
-	m_pia1->set_a_input(0, 0);
-	m_pia1->ca1_w(1);
+	m_pia1->porta_w(0);
+	m_pia1_ca1 = 1;
+	m_pia1->ca1_w(m_pia1_ca1);
 }
 
 //-------------------------------------------------
@@ -1054,8 +1022,17 @@ MACHINE_CONFIG_FRAGMENT( victory_audio )
 	MCFG_CPU_ADD("audiocpu", M6502, VICTORY_AUDIO_CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(victory_audio_map)
 
-	MCFG_RIOT6532_ADD("riot", SH6532_CLOCK, r6532_interface)
-	MCFG_PIA6821_ADD("pia1", victory_pia1_intf)
+	MCFG_DEVICE_ADD("riot", RIOT6532, SH6532_CLOCK)
+	MCFG_RIOT6532_IN_PA_CB(DEVREAD8("custom", exidy_sound_device, r6532_porta_r))
+	MCFG_RIOT6532_OUT_PA_CB(DEVWRITE8("custom", exidy_sound_device, r6532_porta_w))
+	MCFG_RIOT6532_IN_PB_CB(DEVREAD8("custom", exidy_sound_device, r6532_portb_r))
+	MCFG_RIOT6532_OUT_PB_CB(DEVWRITE8("custom", exidy_sound_device, r6532_portb_w))
+	MCFG_RIOT6532_IRQ_CB(DEVWRITELINE("custom", exidy_sound_device, r6532_irq))
+
+	MCFG_DEVICE_ADD("pia1", PIA6821, 0)
+	MCFG_PIA_CA2_HANDLER(DEVWRITELINE("custom", victory_sound_device, irq_clear_w))
+	MCFG_PIA_CB2_HANDLER(DEVWRITELINE("custom", victory_sound_device, main_ack_w))
+	MCFG_PIA_IRQB_HANDLER(DEVWRITELINE("custom", exidy_sound_device, update_irq_state))
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 

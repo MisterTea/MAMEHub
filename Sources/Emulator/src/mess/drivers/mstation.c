@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 
     CIDCO MailStation
@@ -90,7 +92,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(mstation);
 	TIMER_DEVICE_CALLBACK_MEMBER(mstation_1hz_timer);
 	TIMER_DEVICE_CALLBACK_MEMBER(mstation_kb_timer);
 };
@@ -500,16 +502,12 @@ TIMER_DEVICE_CALLBACK_MEMBER(mstation_state::mstation_kb_timer)
 	refresh_ints();
 }
 
-void mstation_state::palette_init()
+PALETTE_INIT_MEMBER(mstation_state, mstation)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(138, 146, 148));
-	palette_set_color(machine(), 1, MAKE_RGB(92, 83, 88));
+	palette.set_pen_color(0, rgb_t(138, 146, 148));
+	palette.set_pen_color(1, rgb_t(92, 83, 88));
 }
 
-static RP5C01_INTERFACE( rtc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(mstation_state, rtc_irq)
-};
 
 static MACHINE_CONFIG_START( mstation, mstation_state )
 	/* basic machine hardware */
@@ -524,8 +522,10 @@ static MACHINE_CONFIG_START( mstation, mstation_state )
 	MCFG_SCREEN_UPDATE_DRIVER(mstation_state, screen_update)
 	MCFG_SCREEN_SIZE(320, 128)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 128-1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_PALETTE_ADD("palette", 2)
+	MCFG_PALETTE_INIT_OWNER(mstation_state, mstation)
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 
 	MCFG_AMD_29F080_ADD("flash0")
@@ -537,7 +537,8 @@ static MACHINE_CONFIG_START( mstation, mstation_state )
 	// IRQ 1 is used for scan the kb and for cursor blinking
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("kb_timer", mstation_state, mstation_kb_timer, attotime::from_hz(50))
 
-	MCFG_RP5C01_ADD("rtc", XTAL_32_768kHz, rtc_intf)
+	MCFG_DEVICE_ADD("rtc", RP5C01, XTAL_32_768kHz)
+	MCFG_RP5C01_OUT_ALARM_CB(WRITELINE(mstation_state, rtc_irq))
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

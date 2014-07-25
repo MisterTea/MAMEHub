@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Kevin Thacker,Sandro Ronco
 /***************************************************************************
 
   kc.c
@@ -48,7 +50,7 @@ static const UINT8 kc85_palette[KC85_PALETTE_SIZE * 3] =
 PALETTE_INIT_MEMBER(kc_state,kc85)
 {
 	for (int i = 0; i < sizeof(kc85_palette) / 3; i++ )
-		palette_set_color_rgb(machine(), i, kc85_palette[i*3], kc85_palette[i*3+1], kc85_palette[i*3+2]);
+		palette.set_pen_color(i, kc85_palette[i*3], kc85_palette[i*3+1], kc85_palette[i*3+2]);
 }
 
 /* set new blink state */
@@ -56,7 +58,7 @@ WRITE_LINE_MEMBER( kc_state::video_toggle_blink_state )
 {
 	if (state)
 	{
-		machine().primary_screen->update_partial(machine().primary_screen->vpos());
+		machine().first_screen()->update_partial(machine().first_screen()->vpos());
 
 		m_kc85_blink_state = !m_kc85_blink_state;
 	}

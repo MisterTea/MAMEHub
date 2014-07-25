@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:smf
 /***************************************************************************
 
     atahle.h
@@ -45,7 +47,7 @@ protected:
 	void set_dasp(int state);
 	void set_pdiag(int state);
 
-	void start_busy(attotime time, int param);
+	void start_busy(const attotime &time, int param);
 	void stop_busy();
 
 	int dev() { return (m_device_head & IDE_DEVICE_HEAD_DRV) >> 4; }
@@ -62,8 +64,8 @@ protected:
 	virtual bool is_ready() = 0;
 	virtual void perform_diagnostic() = 0;
 	virtual void signature() = 0;
-	virtual UINT16 read_data(UINT16 mem_mask);
-	virtual void write_data(UINT16 data, UINT16 mem_mask);
+	virtual UINT16 read_data();
+	virtual void write_data(UINT16 data);
 
 	int bit_to_mode(UINT16 word);
 	int single_word_dma_mode();
@@ -131,7 +133,11 @@ protected:
 
 	enum
 	{
-		IDE_SET_FEATURES_TRANSFER_MODE = 0x03
+		IDE_SET_FEATURES_ENABLE_8BIT_DATA_TRANSFERS = 0x01,
+		IDE_SET_FEATURES_TRANSFER_MODE = 0x03,
+		IDE_SET_FEATURES_DISABLE_REVERTING_TO_POWER_ON_DEFAULTS = 0x66,
+		IDE_SET_FEATURES_DISABLE_8BIT_DATA_TRANSFERS = 0x81,
+		IDE_SET_FEATURES_ENABLE_REVERTING_TO_POWER_ON_DEFAULTS = 0xcc
 	};
 
 	enum ide_transfer_type_t
@@ -168,7 +174,7 @@ protected:
 
 	attotime MINIMUM_COMMAND_TIME;
 
-	UINT8 *m_buffer;
+	dynamic_buffer m_buffer;
 	UINT16 m_buffer_offset;
 	UINT16 m_buffer_size;
 	UINT8 m_error;
@@ -183,6 +189,8 @@ protected:
 	UINT8 m_device_control;
 
 	UINT16 m_identify_buffer[256];
+	bool m_revert_to_defaults;
+	bool m_8bit_data_transfers;
 
 private:
 	void update_irq();

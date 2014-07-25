@@ -53,7 +53,7 @@ static ADDRESS_MAP_START( goal92_map, AS_PROGRAM, 16, goal92_state )
 	AM_RANGE(0x101000, 0x1017ff) AM_RAM_WRITE(goal92_foreground_w) AM_SHARE("fg_data")
 	AM_RANGE(0x101800, 0x101fff) AM_RAM // it has tiles for clouds, but they aren't used
 	AM_RANGE(0x102000, 0x102fff) AM_RAM_WRITE(goal92_text_w) AM_SHARE("tx_data")
-	AM_RANGE(0x103000, 0x103fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x103000, 0x103fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x104000, 0x13ffff) AM_RAM
 	AM_RANGE(0x140000, 0x1407ff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x140800, 0x140801) AM_WRITENOP
@@ -214,13 +214,6 @@ WRITE_LINE_MEMBER(goal92_state::irqhandler)
 	//m_audiocpu->set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
 WRITE_LINE_MEMBER(goal92_state::goal92_adpcm_int)
 {
 	m_msm->data_w(m_msm5205next);
@@ -230,12 +223,6 @@ WRITE_LINE_MEMBER(goal92_state::goal92_adpcm_int)
 	if (m_adpcm_toggle)
 		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(goal92_state,goal92_adpcm_int),   /* interrupt function */
-	MSM5205_S96_4B      /* 4KHz 4-bit */
-};
 
 static const gfx_layout layout_8x8x4 =
 {
@@ -322,24 +309,25 @@ static MACHINE_CONFIG_START( goal92, goal92_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 1*8, 31*8-1) // black border at bottom is a game bug...
 	MCFG_SCREEN_UPDATE_DRIVER(goal92_state, screen_update_goal92)
 	MCFG_SCREEN_VBLANK_DRIVER(goal92_state, screen_eof_goal92)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(goal92)
-	MCFG_PALETTE_LENGTH(128*16)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", goal92)
+	MCFG_PALETTE_ADD("palette", 128*16)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 2500000/2)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(goal92_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ym2", YM2203, 2500000/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(goal92_state, goal92_adpcm_int))   /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S96_4B)      /* 4KHz 4-bit */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 MACHINE_CONFIG_END
 

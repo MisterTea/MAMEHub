@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Tomasz Slanina, Angelo Salese, hap
 /* Cross Shooter (c) 1987 Seibu
 
  TS 01.05.2006:
@@ -97,14 +99,21 @@ public:
 		m_seibu_sound(*this, "seibu_sound"),
 		m_txram(*this, "txram"),
 		m_mainram(*this, "mainram"),
-		m_spriteram(*this, "spriteram")
-	{ }
+		m_spriteram(*this, "spriteram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_8(*this, "paletteram"),
+		m_generic_paletteram2_8(*this, "paletteram2") { }
 
 	required_device<cpu_device> m_maincpu;
 	optional_device<seibu_sound_device> m_seibu_sound;
 	required_shared_ptr<UINT8> m_txram;
 	optional_shared_ptr<UINT8> m_mainram;
 	optional_shared_ptr<UINT8> m_spriteram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT8> m_generic_paletteram_8;
+	required_shared_ptr<UINT8> m_generic_paletteram2_8;
 
 	tilemap_t *m_txtilemap;
 	int m_coin_stat;
@@ -121,7 +130,7 @@ public:
 	DECLARE_DRIVER_INIT(cshooter);
 	TILE_GET_INFO_MEMBER(get_cstx_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(cshooter);
 	DECLARE_MACHINE_RESET(cshooter);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_airraid(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -129,21 +138,18 @@ public:
 };
 
 
-void cshooter_state::palette_init()
+PALETTE_INIT_MEMBER(cshooter_state, cshooter)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	// allocate the colortable
-	machine().colortable = colortable_alloc(machine(), 0x100);
-
 	// text uses colors 0xc0-0xdf
 	for (i = 0; i < 0x40; i++)
-		colortable_entry_set_value(machine().colortable, i, (color_prom[i] & 0x1f) | 0xc0);
+		palette.set_pen_indirect(i, (color_prom[i] & 0x1f) | 0xc0);
 
 	// rest is still unknown..
 	for (i = 0x40; i < 0x100; i++)
-		colortable_entry_set_value(machine().colortable, i, color_prom[i]);
+		palette.set_pen_indirect(i, color_prom[i]);
 }
 
 TILE_GET_INFO_MEMBER(cshooter_state::get_cstx_tile_info)
@@ -163,7 +169,7 @@ WRITE8_MEMBER(cshooter_state::cshooter_txram_w)
 
 void cshooter_state::video_start()
 {
-	m_txtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cshooter_state::get_cstx_tile_info),this),TILEMAP_SCAN_ROWS, 8,8,32,32);
+	m_txtilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cshooter_state::get_cstx_tile_info),this),TILEMAP_SCAN_ROWS, 8,8,32,32);
 	m_txtilemap->set_transparent_pen(0);
 }
 
@@ -181,10 +187,10 @@ void cshooter_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 		tile_low += (tile_low > 0x9) ? 0x37 : 0x30;
 		tile_high += (tile_high > 0x9) ? 0x37 : 0x30;
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[0], tile_high << 1, m_spriteram[i+1], 0, 0, m_spriteram[i+3],m_spriteram[i+2],0);
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[0], tile_high << 1, m_spriteram[i+1], 0, 0, m_spriteram[i+3]+8,m_spriteram[i+2],0);
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[0], tile_low << 1, m_spriteram[i+1], 0, 0, m_spriteram[i+3]+8,m_spriteram[i+2]+8,0);
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[0], tile_low << 1, m_spriteram[i+1], 0, 0, m_spriteram[i+3],m_spriteram[i+2]+8,0);
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect, tile_high << 1, m_spriteram[i+1], 0, 0, m_spriteram[i+3],m_spriteram[i+2],0);
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect, tile_high << 1, m_spriteram[i+1], 0, 0, m_spriteram[i+3]+8,m_spriteram[i+2],0);
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect, tile_low << 1, m_spriteram[i+1], 0, 0, m_spriteram[i+3]+8,m_spriteram[i+2]+8,0);
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect, tile_low << 1, m_spriteram[i+1], 0, 0, m_spriteram[i+3],m_spriteram[i+2]+8,0);
 	}
 }
 
@@ -197,8 +203,8 @@ UINT32 cshooter_state::screen_update_airraid(screen_device &screen, bitmap_ind16
 		int g = m_generic_paletteram_8[i] >> 4;
 		int b = m_generic_paletteram2_8[i] & 0xf;
 
-		rgb_t color = MAKE_RGB(pal4bit(r), pal4bit(g), pal4bit(b));
-		colortable_palette_set_color(machine().colortable, i, color);
+		rgb_t color = rgb_t(pal4bit(r), pal4bit(g), pal4bit(b));
+		m_palette->set_indirect_color(i, color);
 	}
 
 	bitmap.fill(0x80, cliprect); // temp
@@ -447,9 +453,12 @@ static MACHINE_CONFIG_START( airraid, cshooter_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 256-1-16)
 	MCFG_SCREEN_UPDATE_DRIVER(cshooter_state, screen_update_airraid)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cshooter)
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cshooter)
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_INDIRECT_ENTRIES(0x100)
+	MCFG_PALETTE_INIT_OWNER(cshooter_state, cshooter)
 
 	/* sound hardware */
 	SEIBU_AIRRAID_SOUND_SYSTEM_YM2151_INTERFACE(XTAL_14_31818MHz/4)

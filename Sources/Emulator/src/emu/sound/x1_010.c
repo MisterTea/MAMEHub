@@ -86,35 +86,16 @@ x1_010_device::x1_010_device(const machine_config &mconfig, const char *tag, dev
 	: device_t(mconfig, X1_010, "X1-010", tag, owner, clock, "x1_010", __FILE__),
 		device_sound_interface(mconfig, *this),
 		m_rate(0),
+		m_adr(0),
 		m_stream(NULL),
 		m_region(NULL),
 		m_sound_enable(0),
-		//m_reg[0x2000],
-		//m_HI_WORD_BUF[0x2000],
-		//m_smp_offset[SETA_NUM_CHANNELS],
-		//m_env_offset[SETA_NUM_CHANNELS],
 		m_base_clock(0)
 {
-}
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void x1_010_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const x1_010_interface *intf = reinterpret_cast<const x1_010_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<x1_010_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-	m_adr = 0;
-	}
+	memset(m_reg, 0, sizeof(m_reg));
+	memset(m_HI_WORD_BUF, 0, sizeof(m_HI_WORD_BUF));
+	memset(m_smp_offset, 0, sizeof(SETA_NUM_CHANNELS));
+	memset(m_env_offset, 0, sizeof(SETA_NUM_CHANNELS));
 }
 
 //-------------------------------------------------
@@ -137,7 +118,7 @@ void x1_010_device::device_start()
 	LOG_SOUND(("masterclock = %d rate = %d\n", clock(), m_rate ));
 
 	/* get stream channels */
-	m_stream = machine().sound().stream_alloc(*this, 0, 2, m_rate, this);
+	m_stream = machine().sound().stream_alloc(*this, 0, 2, m_rate);
 
 	save_item(NAME(m_rate));
 	save_item(NAME(m_sound_enable));

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari System 1 hardware (available in TTL or LSI version)
@@ -193,7 +195,6 @@ RoadBlasters (aka Future Vette):005*
 #include "cpu/m6502/m6502.h"
 #include "machine/atarigen.h"
 #include "machine/6522via.h"
-#include "sound/tms5220.h"
 #include "sound/2151intf.h"
 #include "sound/pokey.h"
 #include "video/atarimo.h"
@@ -375,48 +376,34 @@ READ8_MEMBER(atarisy1_state::switch_6502_r)
 
 WRITE8_MEMBER(atarisy1_state::via_pa_w)
 {
-	tms5220_device *tms5220 = machine().device<tms5220_device>("tms");
-	tms5220->data_w(space, 0, data);
+	m_tms->data_w(space, 0, data);
 }
 
 
 READ8_MEMBER(atarisy1_state::via_pa_r)
 {
-	tms5220_device *tms5220 = machine().device<tms5220_device>("tms");
-	return tms5220->status_r(space, 0);
+	return m_tms->status_r(space, 0);
 }
 
 
 WRITE8_MEMBER(atarisy1_state::via_pb_w)
 {
-	tms5220_device *tms5220 = machine().device<tms5220_device>("tms");
 	/* write strobe */
-	tms5220->wsq_w(data & 1);
+	m_tms->wsq_w(data & 1);
 
 	/* read strobe */
-	tms5220->rsq_w((data & 2)>>1);
+	m_tms->rsq_w((data & 2)>>1);
 
 	/* bit 4 is connected to an up-counter, clocked by SYCLKB */
 	data = 5 | ((data >> 3) & 2);
-	tms5220->set_frequency(ATARI_CLOCK_14MHz/2 / (16 - data));
+	m_tms->set_frequency(ATARI_CLOCK_14MHz/2 / (16 - data));
 }
 
 
 READ8_MEMBER(atarisy1_state::via_pb_r)
 {
-	tms5220_device *tms5220 = machine().device<tms5220_device>("tms");
-	return (tms5220->readyq_r() << 2) | (tms5220->intq_r() << 3);
+	return (m_tms->readyq_r() << 2) | (m_tms->intq_r() << 3);
 }
-
-
-static const via6522_interface via_interface =
-{
-	/*inputs : A/B         */ DEVCB_DRIVER_MEMBER(atarisy1_state,via_pa_r), DEVCB_DRIVER_MEMBER(atarisy1_state,via_pb_r),
-	/*inputs : CA/B1,CA/B2 */ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
-	/*outputs: A/B         */ DEVCB_DRIVER_MEMBER(atarisy1_state,via_pa_w), DEVCB_DRIVER_MEMBER(atarisy1_state,via_pb_w),
-	/*outputs: CA/B1,CA/B2 */ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
-	/*irq                  */ DEVCB_NULL
-};
 
 
 
@@ -455,7 +442,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, atarisy1_state )
 	AM_RANGE(0xa00000, 0xa01fff) AM_RAM_DEVWRITE("playfield", tilemap_device, write) AM_SHARE("playfield")
 	AM_RANGE(0xa02000, 0xa02fff) AM_RAM_WRITE(atarisy1_spriteram_w) AM_SHARE("mob")
 	AM_RANGE(0xa03000, 0xa03fff) AM_RAM_DEVWRITE("alpha", tilemap_device, write) AM_SHARE("alpha")
-	AM_RANGE(0xb00000, 0xb007ff) AM_RAM_WRITE(paletteram_IIIIRRRRGGGGBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xb00000, 0xb007ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xf00000, 0xf00fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
 	AM_RANGE(0xf20000, 0xf20007) AM_READ(trakball_r)
 	AM_RANGE(0xf40000, 0xf4001f) AM_READWRITE(joystick_r, joystick_w)
@@ -740,20 +727,24 @@ static MACHINE_CONFIG_START( atarisy1, atarisy1_state )
 	MCFG_TIMER_DRIVER_ADD("yreset_timer", atarisy1_state, atarisy1_reset_yscroll_callback)
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-	MCFG_GFXDECODE(atarisy1)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", atarisy1)
 
-	MCFG_TILEMAP_ADD_STANDARD("playfield", 2, atarisy1_state, get_playfield_tile_info, 8,8, SCAN_ROWS, 64,64)
-	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", 2, atarisy1_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,32, 0)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(IIIIRRRRGGGGBBBB)
+
+	MCFG_TILEMAP_ADD_STANDARD("playfield", "gfxdecode", 2, atarisy1_state, get_playfield_tile_info, 8,8, SCAN_ROWS, 64,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", "gfxdecode", 2, atarisy1_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,32, 0)
 
 	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", atarisy1_state::s_mob_config)
+	MCFG_ATARI_MOTION_OBJECTS_GFXDECODE("gfxdecode")
 
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	/* note: these parameters are from published specs, not derived */
 	/* video timing comes from an 82S163 (H) and an 82S129 (V) */
 	MCFG_SCREEN_RAW_PARAMS(ATARI_CLOCK_14MHz/2, 456, 0, 336, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(atarisy1_state, screen_update_atarisy1)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(atarisy1_state,atarisy1)
 
@@ -766,7 +757,7 @@ static MACHINE_CONFIG_START( atarisy1, atarisy1_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.80)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.80)
 
-	MCFG_POKEY_ADD("pokey", ATARI_CLOCK_14MHz/8)
+	MCFG_SOUND_ADD("pokey", POKEY, ATARI_CLOCK_14MHz/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.40)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.40)
 
@@ -775,7 +766,11 @@ static MACHINE_CONFIG_START( atarisy1, atarisy1_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
 	/* via */
-	MCFG_VIA6522_ADD("via6522_0", 0, via_interface)
+	MCFG_DEVICE_ADD("via6522_0", VIA6522, 0)
+	MCFG_VIA6522_READPA_HANDLER(READ8(atarisy1_state, via_pa_r))
+	MCFG_VIA6522_READPB_HANDLER(READ8(atarisy1_state, via_pb_r))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(atarisy1_state, via_pa_w))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(atarisy1_state, via_pb_w))
 MACHINE_CONFIG_END
 
 

@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Miodrag Milanovic
 /***************************************************************************
 
     luaengine.h
 
     Controls execution of the core MAME system.
-
-****************************************************************************
-
-    Copyright Miodrag Milanovic
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY MIODRAG MILANOVIC ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL MIODRAG MILANOVIC BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -46,36 +17,86 @@
 #ifndef __LUA_ENGINE_H__
 #define __LUA_ENGINE_H__
 
+#include <map>
+
 struct lua_State;
 
 class lua_engine
 {
 public:
 	// construction/destruction
-	lua_engine(running_machine &machine);
+	lua_engine();
 	~lua_engine();
 
-	// getters
-	running_machine &machine() const { return m_machine; }
-
 	void initialize();
-	void lua_execute();
-	void report_errors(int status);
+	void start_console();
+	void load_script(const char *filename);
+	void load_string(const char *value);
 
-	void createvm();
-	void execute(const char *filename);
-	void execute_string(const char *value);
-	void close();
+	void serve_lua();
+	void periodic_check();
 
-	//static
-	static int emu_gamename(lua_State *L);
-	static int emu_keypost(lua_State *L);
+	void resume(lua_State *L, int nparam = 0, lua_State *root = NULL);
+	void set_machine(running_machine *machine) { m_machine = machine; update_machine(); }
 private:
+	struct hook {
+		lua_State *L;
+		int cb;
+
+		hook();
+		void set(lua_State *L, int idx);
+		lua_State *precall();
+		void call(lua_engine *engine, lua_State *T, int nparam);
+		bool active() const { return L != NULL; }
+	};
+
+	static const char *const tname_ioport;
+
 	// internal state
-	running_machine &   m_machine;                          // reference to our machine
-	lua_State*          m_lua_state;
+	lua_State          *m_lua_state;
+	running_machine *   m_machine;
+
+	hook hook_output_cb;
+	bool output_notifier_set;
 
 	static lua_engine*  luaThis;
+
+	std::map<lua_State *, std::pair<lua_State *, int> > thread_registry;
+
+	running_machine &machine() const { return *m_machine; }
+
+	void update_machine();
+	void output_notifier(const char *outname, INT32 value);
+	static void s_output_notifier(const char *outname, INT32 value, void *param);
+
+	void emu_after_done(void *_h, INT32 param);
+	int emu_after(lua_State *L);
+	int emu_wait(lua_State *L);
+	void emu_hook_output(lua_State *L);
+
+	static int l_ioport_write(lua_State *L);
+	static int l_emu_after(lua_State *L);
+	static int l_emu_wait(lua_State *L);
+	static int l_emu_time(lua_State *L);
+	static int l_emu_gamename(lua_State *L);
+	static int l_emu_keypost(lua_State *L);
+	static int l_emu_hook_output(lua_State *L);
+	static int l_emu_exit(lua_State *L);
+	static int l_emu_start(lua_State *L);
+
+	void resume(void *L, INT32 param);
+	void report_errors(int status);
+	void start();
+	static int luaopen_ioport(lua_State *L);
+	void close();
+
+	static void *checkparam(lua_State *L, int idx, const char *tname);
+	static void *getparam(lua_State *L, int idx, const char *tname);
+	static void push(lua_State *L, void *p, const char *tname);
+
+	int report(int status);
+	int docall(int narg, int nres);
+	int incomplete(int status) ;
 };
 
 #endif  /* __LUA_ENGINE_H__ */

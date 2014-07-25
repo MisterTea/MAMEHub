@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
     TODO:
 
@@ -13,7 +15,7 @@
 
 QUICKLOAD_LOAD_MEMBER( vic20_state, cbm_vc20 )
 {
-	return general_cbm_loadsnap(image, file_type, quickload_size, 0, cbm_quick_sethiaddress);
+	return general_cbm_loadsnap(image, file_type, quickload_size, m_maincpu->space(AS_PROGRAM), 0, cbm_quick_sethiaddress);
 }
 
 //**************************************************************************
@@ -383,10 +385,6 @@ INPUT_PORTS_END
 //  DEVICE CONFIGURATION
 //**************************************************************************
 
-//-------------------------------------------------
-//  via6522_interface via1_intf
-//-------------------------------------------------
-
 READ8_MEMBER( vic20_state::via1_pa_r )
 {
 	/*
@@ -413,15 +411,15 @@ READ8_MEMBER( vic20_state::via1_pa_r )
 	data |= m_iec->data_r() << 1;
 
 	// joystick / user port
-	UINT8 joy = m_joy1->joy_r();
+	UINT8 joy = m_joy->joy_r();
 
-	data |= (m_user->joy0_r() && BIT(joy, 0)) << 2;
-	data |= (m_user->joy1_r() && BIT(joy, 1)) << 3;
-	data |= (m_user->joy2_r() && BIT(joy, 2)) << 4;
-	data |= (m_user->light_pen_r() && BIT(joy, 5)) << 5;
+	data |= (m_user_joy0 && BIT(joy, 0)) << 2;
+	data |= (m_user_joy1 && BIT(joy, 1)) << 3;
+	data |= (m_user_joy2 && BIT(joy, 2)) << 4;
+	data |= (m_user_light_pen && BIT(joy, 5)) << 5;
 
 	// cassette switch
-	data |= (m_user->cassette_switch_r() && m_cassette->sense_r()) << 6;
+	data |= (m_user_cassette_switch && m_cassette->sense_r()) << 6;
 
 	return data;
 }
@@ -444,33 +442,25 @@ WRITE8_MEMBER( vic20_state::via1_pa_w )
 	*/
 
 	// light pen strobe
+	m_user->write_7(BIT(data, 5));
 	m_vic->lp_w(BIT(data, 5));
 
 	// serial attention out
+	m_user->write_9(!BIT(data, 7));
 	m_iec->atn_w(!BIT(data, 7));
 }
 
-static const via6522_interface via1_intf =
+WRITE8_MEMBER( vic20_state::via1_pb_w )
 {
-	DEVCB_DRIVER_MEMBER(vic20_state, via1_pa_r),
-	DEVCB_DEVICE_MEMBER(VIC20_USER_PORT_TAG, vic20_user_port_device, pb_r),
-	DEVCB_INPUT_PORT("RESTORE"),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(vic20_state, via1_pa_w),
-	DEVCB_DEVICE_MEMBER(VIC20_USER_PORT_TAG, vic20_user_port_device, pb_w),
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(VIC20_USER_PORT_TAG, vic20_user_port_device, cb1_w),
-	DEVCB_DEVICE_LINE_MEMBER(PET_DATASSETTE_PORT_TAG, pet_datassette_port_device, motor_w),
-	DEVCB_DEVICE_LINE_MEMBER(VIC20_USER_PORT_TAG, vic20_user_port_device, cb2_w),
-	DEVCB_CPU_INPUT_LINE(M6502_TAG, M6502_NMI_LINE)
-};
-
-
-//-------------------------------------------------
-//  via6522_interface via2_intf
-//-------------------------------------------------
+	m_user->write_c((data>>0)&1);
+	m_user->write_d((data>>1)&1);
+	m_user->write_e((data>>2)&1);
+	m_user->write_f((data>>3)&1);
+	m_user->write_h((data>>4)&1);
+	m_user->write_j((data>>5)&1);
+	m_user->write_k((data>>6)&1);
+	m_user->write_l((data>>7)&1);
+}
 
 READ8_MEMBER( vic20_state::via2_pa_r )
 {
@@ -523,7 +513,7 @@ READ8_MEMBER( vic20_state::via2_pb_r )
 	UINT8 data = 0xff;
 
 	// joystick
-	UINT8 joy = m_joy1->joy_r();
+	UINT8 joy = m_joy->joy_r();
 
 	data &= BIT(joy, 3) << 7;
 
@@ -566,25 +556,6 @@ WRITE_LINE_MEMBER( vic20_state::via2_cb2_w )
 	m_iec->data_w(!state);
 }
 
-static const via6522_interface via2_intf =
-{
-	DEVCB_DRIVER_MEMBER(vic20_state, via2_pa_r),
-	DEVCB_DRIVER_MEMBER(vic20_state, via2_pb_r),
-	DEVCB_DEVICE_LINE_MEMBER(PET_DATASSETTE_PORT_TAG, pet_datassette_port_device, read),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(vic20_state, via2_pb_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(vic20_state, via2_ca2_w),
-	DEVCB_DRIVER_LINE_MEMBER(vic20_state, via2_cb2_w),
-
-	DEVCB_CPU_INPUT_LINE(M6502_TAG, M6502_IRQ_LINE)
-};
-
 
 //-------------------------------------------------
 //  VIC20_EXPANSION_INTERFACE( expansion_intf )
@@ -592,25 +563,11 @@ static const via6522_interface via2_intf =
 
 WRITE_LINE_MEMBER( vic20_state::exp_reset_w )
 {
-	if (state == ASSERT_LINE)
+	if (!state)
 	{
 		machine_reset();
 	}
 }
-
-
-//-------------------------------------------------
-//  VIC20_USER_PORT_INTERFACE( user_intf )
-//-------------------------------------------------
-
-static VIC20_USER_PORT_INTERFACE( user_intf )
-{
-	DEVCB_DEVICE_LINE_MEMBER(M6560_TAG, mos6560_device, lp_w),
-	DEVCB_DEVICE_LINE_MEMBER(M6522_1_TAG, via6522_device, write_cb1),
-	DEVCB_DEVICE_LINE_MEMBER(M6522_1_TAG, via6522_device, write_cb2),
-	DEVCB_DRIVER_LINE_MEMBER(vic20_state, exp_reset_w)
-};
-
 
 
 //**************************************************************************
@@ -634,6 +591,12 @@ void vic20_state::machine_start()
 
 	// state saving
 	save_item(NAME(m_key_col));
+	save_item(NAME(m_light_pen));
+	save_item(NAME(m_user_joy0));
+	save_item(NAME(m_user_joy1));
+	save_item(NAME(m_user_joy2));
+	save_item(NAME(m_user_light_pen));
+	save_item(NAME(m_user_cassette_switch));
 }
 
 
@@ -647,10 +610,42 @@ void vic20_state::machine_reset()
 
 	m_iec->reset();
 	m_exp->reset();
-	m_user->reset();
+
+	m_user->write_3(0);
+	m_user->write_3(1);
 }
 
+WRITE_LINE_MEMBER(vic20_state::write_user_joy0)
+{
+	m_user_joy0 = state;
+}
 
+WRITE_LINE_MEMBER(vic20_state::write_user_joy1)
+{
+	m_user_joy1 = state;
+}
+
+WRITE_LINE_MEMBER(vic20_state::write_user_joy2)
+{
+	m_user_joy2 = state;
+}
+
+WRITE_LINE_MEMBER(vic20_state::write_light_pen)
+{
+	m_light_pen = state;
+	m_vic->lp_w(m_light_pen && m_user_light_pen);
+}
+
+WRITE_LINE_MEMBER(vic20_state::write_user_light_pen)
+{
+	m_user_light_pen = state;
+	m_vic->lp_w(m_light_pen && m_user_light_pen);
+}
+
+WRITE_LINE_MEMBER(vic20_state::write_user_cassette_switch)
+{
+	m_user_cassette_switch = state;
+}
 
 //**************************************************************************
 //  MACHINE DRIVERS
@@ -662,12 +657,48 @@ void vic20_state::machine_reset()
 
 static MACHINE_CONFIG_START( vic20, vic20_state )
 	// devices
-	MCFG_VIA6522_ADD(M6522_1_TAG, 0, via1_intf)
-	MCFG_VIA6522_ADD(M6522_2_TAG, 0, via2_intf)
+	MCFG_DEVICE_ADD(M6522_1_TAG, VIA6522, 0)
+	MCFG_VIA6522_READPA_HANDLER(READ8(vic20_state, via1_pa_r))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(vic20_state, via1_pa_w))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(vic20_state, via1_pb_w))
+	MCFG_VIA6522_CB1_HANDLER(DEVWRITELINE(PET_USER_PORT_TAG, pet_user_port_device, write_b))
+	MCFG_VIA6522_CA2_HANDLER(DEVWRITELINE(PET_DATASSETTE_PORT_TAG, pet_datassette_port_device, motor_w))
+	MCFG_VIA6522_CB2_HANDLER(DEVWRITELINE(PET_USER_PORT_TAG, pet_user_port_device, write_m))
+	MCFG_VIA6522_IRQ_HANDLER(DEVWRITELINE(M6502_TAG, m6502_device, nmi_line))
+
+	MCFG_DEVICE_ADD(M6522_2_TAG, VIA6522, 0)
+	MCFG_VIA6522_READPA_HANDLER(READ8(vic20_state, via2_pa_r))
+	MCFG_VIA6522_READPB_HANDLER(READ8(vic20_state, via2_pb_r))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(vic20_state, via2_pb_w))
+	MCFG_VIA6522_CA2_HANDLER(WRITELINE(vic20_state, via2_ca2_w))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(vic20_state, via2_cb2_w))
+	MCFG_VIA6522_IRQ_HANDLER(DEVWRITELINE(M6502_TAG, m6502_device, irq_line))
+
 	MCFG_PET_DATASSETTE_PORT_ADD(PET_DATASSETTE_PORT_TAG, cbm_datassette_devices, "c1530", DEVWRITELINE(M6522_2_TAG, via6522_device, write_ca1))
 	MCFG_CBM_IEC_ADD("c1541")
 	MCFG_CBM_IEC_BUS_SRQ_CALLBACK(DEVWRITELINE(M6522_2_TAG, via6522_device, write_cb1))
-	MCFG_VIC20_USER_PORT_ADD(VIC20_USER_PORT_TAG, user_intf, vic20_user_port_cards, NULL)
+
+	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, "joy")
+	MCFG_VCS_CONTROL_PORT_TRIGGER_CALLBACK(WRITELINE(vic20_state, write_light_pen))
+
+	MCFG_PET_USER_PORT_ADD(PET_USER_PORT_TAG, vic20_user_port_cards, NULL)
+	MCFG_PET_USER_PORT_3_HANDLER(WRITELINE(vic20_state, exp_reset_w))
+	MCFG_PET_USER_PORT_4_HANDLER(WRITELINE(vic20_state, write_user_joy0))
+	MCFG_PET_USER_PORT_5_HANDLER(WRITELINE(vic20_state, write_user_joy1))
+	MCFG_PET_USER_PORT_6_HANDLER(WRITELINE(vic20_state, write_user_joy2))
+	MCFG_PET_USER_PORT_7_HANDLER(WRITELINE(vic20_state, write_user_light_pen))
+	MCFG_PET_USER_PORT_8_HANDLER(WRITELINE(vic20_state, write_user_cassette_switch))
+	MCFG_PET_USER_PORT_B_HANDLER(DEVWRITELINE(M6522_1_TAG, via6522_device, write_cb1))
+	MCFG_PET_USER_PORT_C_HANDLER(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb0))
+	MCFG_PET_USER_PORT_D_HANDLER(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb1))
+	MCFG_PET_USER_PORT_E_HANDLER(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb2))
+	MCFG_PET_USER_PORT_F_HANDLER(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb3))
+	MCFG_PET_USER_PORT_H_HANDLER(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb4))
+	MCFG_PET_USER_PORT_J_HANDLER(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb5))
+	MCFG_PET_USER_PORT_K_HANDLER(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb6))
+	MCFG_PET_USER_PORT_L_HANDLER(DEVWRITELINE(M6522_1_TAG, via6522_device, write_pb7))
+	MCFG_PET_USER_PORT_M_HANDLER(DEVWRITELINE(M6522_1_TAG, via6522_device, write_cb2))
+
 	MCFG_QUICKLOAD_ADD("quickload", vic20_state, cbm_vc20, "p00,prg", CBM_QUICKLOAD_DELAY_SECONDS)
 
 	// software lists
@@ -689,17 +720,20 @@ static MACHINE_CONFIG_DERIVED( ntsc, vic20 )
 	// basic machine hardware
 	MCFG_CPU_ADD(M6502_TAG, M6502, MOS6560_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(vic20_mem)
+	MCFG_M6502_DISABLE_DIRECT() // address decoding is 100% dynamic, no RAM/ROM banks
 
 	// video/sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_MOS6560_ADD(M6560_TAG, SCREEN_TAG, MOS6560_CLOCK, vic_videoram_map, vic_colorram_map, DEVREAD8(CONTROL1_TAG, vcs_control_port_device, pot_x_r), DEVREAD8(CONTROL1_TAG, vcs_control_port_device, pot_y_r))
+	MCFG_MOS6560_ADD(M6560_TAG, SCREEN_TAG, MOS6560_CLOCK, vic_videoram_map, vic_colorram_map)
+	MCFG_MOS6560_POTX_CALLBACK(DEVREAD8(CONTROL1_TAG, vcs_control_port_device, pot_x_r))
+	MCFG_MOS6560_POTY_CALLBACK(DEVREAD8(CONTROL1_TAG, vcs_control_port_device, pot_y_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// devices
 	MCFG_VIC20_EXPANSION_SLOT_ADD(VIC20_EXPANSION_SLOT_TAG, MOS6560_CLOCK, vic20_expansion_cards, NULL)
-	MCFG_VIC20_EXPANSION_SLOT_IRQ_CALLBACKS(INPUTLINE(M6502_TAG, M6502_IRQ_LINE), INPUTLINE(M6502_TAG, M6502_NMI_LINE), WRITELINE(vic20_state, exp_reset_w))
-	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, "joy")
-	MCFG_VCS_CONTROL_PORT_TRIGGER_HANDLER(DEVWRITELINE(M6560_TAG, mos6560_device, lp_w))
+	MCFG_VIC20_EXPANSION_SLOT_IRQ_CALLBACK(INPUTLINE(M6502_TAG, M6502_IRQ_LINE))
+	MCFG_VIC20_EXPANSION_SLOT_NMI_CALLBACK(INPUTLINE(M6502_TAG, M6502_NMI_LINE))
+	MCFG_VIC20_EXPANSION_SLOT_RES_CALLBACK(WRITELINE(vic20_state, exp_reset_w))
 
 	// software lists
 	MCFG_SOFTWARE_LIST_FILTER("cart_list", "NTSC")
@@ -716,17 +750,20 @@ static MACHINE_CONFIG_DERIVED( pal, vic20 )
 	// basic machine hardware
 	MCFG_CPU_ADD(M6502_TAG, M6502, MOS6561_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(vic20_mem)
+	MCFG_M6502_DISABLE_DIRECT() // address decoding is 100% dynamic, no RAM/ROM banks
 
 	// video/sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_MOS6561_ADD(M6560_TAG, SCREEN_TAG, MOS6561_CLOCK, vic_videoram_map, vic_colorram_map, DEVREAD8(CONTROL1_TAG, vcs_control_port_device, pot_x_r), DEVREAD8(CONTROL1_TAG, vcs_control_port_device, pot_y_r))
+	MCFG_MOS6561_ADD(M6560_TAG, SCREEN_TAG, MOS6561_CLOCK, vic_videoram_map, vic_colorram_map)
+	MCFG_MOS6560_POTX_CALLBACK(DEVREAD8(CONTROL1_TAG, vcs_control_port_device, pot_x_r))
+	MCFG_MOS6560_POTY_CALLBACK(DEVREAD8(CONTROL1_TAG, vcs_control_port_device, pot_y_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// devices
 	MCFG_VIC20_EXPANSION_SLOT_ADD(VIC20_EXPANSION_SLOT_TAG, MOS6561_CLOCK, vic20_expansion_cards, NULL)
-	MCFG_VIC20_EXPANSION_SLOT_IRQ_CALLBACKS(INPUTLINE(M6502_TAG, M6502_IRQ_LINE), INPUTLINE(M6502_TAG, M6502_NMI_LINE), WRITELINE(vic20_state, exp_reset_w))
-	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, "joy")
-	MCFG_VCS_CONTROL_PORT_TRIGGER_HANDLER(DEVWRITELINE(M6561_TAG, mos6561_device, lp_w))
+	MCFG_VIC20_EXPANSION_SLOT_IRQ_CALLBACK(INPUTLINE(M6502_TAG, M6502_IRQ_LINE))
+	MCFG_VIC20_EXPANSION_SLOT_NMI_CALLBACK(INPUTLINE(M6502_TAG, M6502_NMI_LINE))
+	MCFG_VIC20_EXPANSION_SLOT_RES_CALLBACK(WRITELINE(vic20_state, exp_reset_w))
 
 	// software lists
 	MCFG_SOFTWARE_LIST_FILTER("cart_list", "PAL")

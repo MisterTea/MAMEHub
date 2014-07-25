@@ -17,9 +17,7 @@
  * under the License.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <thrift_config.h>
-#endif
 #include <cstring>
 #include <sstream>
 #ifdef HAVE_SYS_SOCKET_H

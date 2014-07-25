@@ -87,7 +87,7 @@ void deco32_state::updateAceRam()
 			r = (UINT8)((float)r + (((float)fadeptr - (float)r) * (float)fadepsr/255.0f));
 		}
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		m_palette->set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
@@ -106,7 +106,7 @@ WRITE32_MEMBER(deco32_state::deco32_nonbuffered_palette_w)
 	g = (m_generic_paletteram_32[offset] >> 8) & 0xff;
 	r = (m_generic_paletteram_32[offset] >> 0) & 0xff;
 
-	palette_set_color(machine(),offset,MAKE_RGB(r,g,b));
+	m_palette->set_pen_color(offset,rgb_t(r,g,b));
 }
 
 WRITE32_MEMBER(deco32_state::deco32_buffered_palette_w)
@@ -117,7 +117,7 @@ WRITE32_MEMBER(deco32_state::deco32_buffered_palette_w)
 
 WRITE32_MEMBER(deco32_state::deco32_palette_dma_w)
 {
-	const int m=machine().total_colors();
+	const int m=m_palette->entries();
 	int r,g,b,i;
 
 	for (i=0; i<m; i++) {
@@ -134,375 +134,12 @@ WRITE32_MEMBER(deco32_state::deco32_palette_dma_w)
 				g = (m_generic_paletteram_32[i] >> 8) & 0xff;
 				r = (m_generic_paletteram_32[i] >> 0) & 0xff;
 
-				palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+				m_palette->set_pen_color(i,rgb_t(r,g,b));
 			}
 		}
 	}
 }
 
-/******************************************************************************/
-
-
-INLINE void dragngun_drawgfxzoom(
-		bitmap_rgb32 &dest_bmp,const rectangle &clip,gfx_element *gfx,
-		UINT32 code,UINT32 color,int flipx,int flipy,int sx,int sy,
-		int transparent_color,
-		int scalex, int scaley,bitmap_ind8 *pri_buffer,UINT32 pri_mask, int sprite_screen_width, int  sprite_screen_height, UINT8 alpha )
-{
-	rectangle myclip;
-
-	if (!scalex || !scaley) return;
-
-	/*
-	scalex and scaley are 16.16 fixed point numbers
-	1<<15 : shrink to 50%
-	1<<16 : uniform scale
-	1<<17 : double to 200%
-	*/
-
-	/* KW 991012 -- Added code to force clip to bitmap boundary */
-	myclip = clip;
-	myclip &= dest_bmp.cliprect();
-
-	{
-		if( gfx )
-		{
-			const pen_t *pal = &gfx->machine().pens[gfx->colorbase() + gfx->granularity() * (color % gfx->colors())];
-			const UINT8 *code_base = gfx->get_data(code % gfx->elements());
-
-			if (sprite_screen_width && sprite_screen_height)
-			{
-				/* compute sprite increment per screen pixel */
-				int dx = (gfx->width()<<16)/sprite_screen_width;
-				int dy = (gfx->height()<<16)/sprite_screen_height;
-
-				int ex = sx+sprite_screen_width;
-				int ey = sy+sprite_screen_height;
-
-				int x_index_base;
-				int y_index;
-
-				if( flipx )
-				{
-					x_index_base = (sprite_screen_width-1)*dx;
-					dx = -dx;
-				}
-				else
-				{
-					x_index_base = 0;
-				}
-
-				if( flipy )
-				{
-					y_index = (sprite_screen_height-1)*dy;
-					dy = -dy;
-				}
-				else
-				{
-					y_index = 0;
-				}
-
-				if( sx < clip.min_x)
-				{ /* clip left */
-					int pixels = clip.min_x-sx;
-					sx += pixels;
-					x_index_base += pixels*dx;
-				}
-				if( sy < clip.min_y )
-				{ /* clip top */
-					int pixels = clip.min_y-sy;
-					sy += pixels;
-					y_index += pixels*dy;
-				}
-				/* NS 980211 - fixed incorrect clipping */
-				if( ex > clip.max_x+1 )
-				{ /* clip right */
-					int pixels = ex-clip.max_x-1;
-					ex -= pixels;
-				}
-				if( ey > clip.max_y+1 )
-				{ /* clip bottom */
-					int pixels = ey-clip.max_y-1;
-					ey -= pixels;
-				}
-
-				if( ex>sx )
-				{ /* skip if inner loop doesn't draw anything */
-					int y;
-
-					/* case 1: no alpha */
-					if (alpha == 0xff)
-					{
-						if (pri_buffer)
-						{
-							for( y=sy; y<ey; y++ )
-							{
-								const UINT8 *source = code_base + (y_index>>16) * gfx->rowbytes();
-								UINT32 *dest = &dest_bmp.pix32(y);
-								UINT8 *pri = &pri_buffer->pix8(y);
-
-								int x, x_index = x_index_base;
-								for( x=sx; x<ex; x++ )
-								{
-									int c = source[x_index>>16];
-									if( c != transparent_color )
-									{
-										if (((1 << pri[x]) & pri_mask) == 0)
-											dest[x] = pal[c];
-										pri[x] = 31;
-									}
-									x_index += dx;
-								}
-
-								y_index += dy;
-							}
-						}
-						else
-						{
-							for( y=sy; y<ey; y++ )
-							{
-								const UINT8 *source = code_base + (y_index>>16) * gfx->rowbytes();
-								UINT32 *dest = &dest_bmp.pix32(y);
-
-								int x, x_index = x_index_base;
-								for( x=sx; x<ex; x++ )
-								{
-									int c = source[x_index>>16];
-									if( c != transparent_color ) dest[x] = pal[c];
-									x_index += dx;
-								}
-
-								y_index += dy;
-							}
-						}
-					}
-
-					/* alpha-blended */
-					else
-					{
-						if (pri_buffer)
-						{
-							for( y=sy; y<ey; y++ )
-							{
-								const UINT8 *source = code_base + (y_index>>16) * gfx->rowbytes();
-								UINT32 *dest = &dest_bmp.pix32(y);
-								UINT8 *pri = &pri_buffer->pix8(y);
-
-								int x, x_index = x_index_base;
-								for( x=sx; x<ex; x++ )
-								{
-									int c = source[x_index>>16];
-									if( c != transparent_color )
-									{
-										if (((1 << pri[x]) & pri_mask) == 0)
-											dest[x] = alpha_blend_r32(dest[x], pal[c], alpha);
-										pri[x] = 31;
-									}
-									x_index += dx;
-								}
-
-								y_index += dy;
-							}
-						}
-						else
-						{
-							for( y=sy; y<ey; y++ )
-							{
-								const UINT8 *source = code_base + (y_index>>16) * gfx->rowbytes();
-								UINT32 *dest = &dest_bmp.pix32(y);
-
-								int x, x_index = x_index_base;
-								for( x=sx; x<ex; x++ )
-								{
-									int c = source[x_index>>16];
-									if( c != transparent_color ) dest[x] = alpha_blend_r32(dest[x], pal[c], alpha);
-									x_index += dx;
-								}
-
-								y_index += dy;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-void dragngun_state::dragngun_draw_sprites( bitmap_rgb32 &bitmap, const rectangle &cliprect, const UINT32 *spritedata)
-{
-	const UINT32 *layout_ram;
-	const UINT32 *lookup_ram;
-	int offs;
-
-	/*
-	    Sprites are built from main control ram, which references tile
-	    layout ram, which finally references tile lookup ram which holds
-	    the actual tile indices to draw and index into the banking
-	    control.  Tile lookup and tile layout ram are double buffered.
-
-
-	    Main sprite control ram, 8 * 32 bit words per sprite, so
-
-	    Word 0:
-	        0x0400 - Banking control for tile layout RAM + tile lookup ram
-	        0x0200 - ?
-	        0x01ff - Index into tile layout RAM
-	    Word 1 :
-	    Word 2 : X base position
-	    Word 3 : Y base position
-	    Word 4 :
-	        0x8000: X flip
-	        0x03ff: X size of block in pixels (for scaling)
-	    Word 5 :
-	        0x8000: Y flip
-	        0x03ff: Y size of block in pixels (for scaling)
-	    Word 6 :
-	        0x1f - colour.
-	        0x20 - ?  Used for background at 'frog' boss and title screen dragon.
-	        0x40 - ?  priority?
-	        0x80 - Alpha blending enable
-	    Word 7 :
-
-
-	    Tile layout ram, 4 * 32 bit words per sprite, so
-
-	    Word 0:
-	        0x2000 - Selector for tile lookup bank!?!?!?!?!?!?
-	        0x1fff - Index into tile lookup ram (16 bit word based, NOT 32)
-	    Word 1:
-	        0xff00 - ?
-	        0x00f0 - Width
-	        0x000f - Height
-	    Word 2:
-	        0x01ff - X block offset
-	    Word 3:
-	        0x01ff - Y block offset
-	*/
-
-	/* Sprite global disable bit */
-	if (m_dragngun_sprite_ctrl&0x40000000)
-		return;
-
-	for (offs = 0;offs < 0x800;offs += 8)
-	{
-		int sx,sy,colour,fx,fy,w,h,x,y,bx,by,alpha,scalex,scaley;
-		int zoomx,zoomy;
-		int xpos,ypos;
-
-		scalex=spritedata[offs+4]&0x3ff;
-		scaley=spritedata[offs+5]&0x3ff;
-		if (!scalex || !scaley) /* Zero pixel size in X or Y - skip block */
-			continue;
-
-		if (spritedata[offs+0]&0x400)
-			layout_ram = m_dragngun_sprite_layout_1_ram + ((spritedata[offs+0]&0x1ff)*4); //CHECK!
-		else
-			layout_ram = m_dragngun_sprite_layout_0_ram + ((spritedata[offs+0]&0x1ff)*4); //1ff in drag gun code??
-		h = (layout_ram[1]>>0)&0xf;
-		w = (layout_ram[1]>>4)&0xf;
-		if (!h || !w)
-			continue;
-
-		sx = spritedata[offs+2] & 0x3ff;
-		sy = spritedata[offs+3] & 0x3ff;
-		bx = layout_ram[2] & 0x1ff;
-		by = layout_ram[3] & 0x1ff;
-		if (bx&0x100) bx=1-(bx&0xff);
-		if (by&0x100) by=1-(by&0xff); /* '1 - ' is strange, but correct for Dragongun 'Winners' screen. */
-		if (sx >= 512) sx -= 1024;
-		if (sy >= 512) sy -= 1024;
-
-		colour = spritedata[offs+6]&0x1f;
-
-		if (spritedata[offs+6]&0x80)
-			alpha=0x80;
-		else
-			alpha=0xff;
-
-		fx = spritedata[offs+4]&0x8000;
-		fy = spritedata[offs+5]&0x8000;
-
-//      if (spritedata[offs+0]&0x400)
-		if (layout_ram[0]&0x2000)
-			lookup_ram = m_dragngun_sprite_lookup_1_ram + (layout_ram[0]&0x1fff);
-		else
-			lookup_ram = m_dragngun_sprite_lookup_0_ram + (layout_ram[0]&0x1fff);
-
-		zoomx=scalex * 0x10000 / (w*16);
-		zoomy=scaley * 0x10000 / (h*16);
-
-		if (!fy)
-			ypos=(sy<<16) - (by*zoomy); /* The block offset scales with zoom, the base position does not */
-		else
-			ypos=(sy<<16) + (by*zoomy) - (16*zoomy);
-
-		for (y=0; y<h; y++) {
-			if (!fx)
-				xpos=(sx<<16) - (bx*zoomx); /* The block offset scales with zoom, the base position does not */
-			else
-				xpos=(sx<<16) + (bx*zoomx) - (16*zoomx);
-
-			for (x=0; x<w; x++) {
-				int bank,sprite;
-
-				sprite = ((*(lookup_ram++))&0x3fff);
-
-				/* High bits of the sprite reference into the sprite control bits for banking */
-				switch (sprite&0x3000) {
-				default:
-				case 0x0000: sprite=(sprite&0xfff) | ((m_dragngun_sprite_ctrl&0x000f)<<12); break;
-				case 0x1000: sprite=(sprite&0xfff) | ((m_dragngun_sprite_ctrl&0x00f0)<< 8); break;
-				case 0x2000: sprite=(sprite&0xfff) | ((m_dragngun_sprite_ctrl&0x0f00)<< 4); break;
-				case 0x3000: sprite=(sprite&0xfff) | ((m_dragngun_sprite_ctrl&0xf000)<< 0); break;
-				}
-
-				/* Because of the unusual interleaved rom layout, we have to mangle the bank bits
-				even further to suit our gfx decode */
-				switch (sprite&0xf000) {
-				case 0x0000: sprite=0xc000 | (sprite&0xfff); break;
-				case 0x1000: sprite=0xd000 | (sprite&0xfff); break;
-				case 0x2000: sprite=0xe000 | (sprite&0xfff); break;
-				case 0x3000: sprite=0xf000 | (sprite&0xfff); break;
-
-				case 0xc000: sprite=0x0000 | (sprite&0xfff); break;
-				case 0xd000: sprite=0x1000 | (sprite&0xfff); break;
-				case 0xe000: sprite=0x2000 | (sprite&0xfff); break;
-				case 0xf000: sprite=0x3000 | (sprite&0xfff); break;
-				}
-
-				if (sprite&0x8000) bank=4; else bank=3;
-				sprite&=0x7fff;
-
-				if (zoomx!=0x10000 || zoomy!=0x10000)
-					dragngun_drawgfxzoom(
-						bitmap,cliprect,machine().gfx[bank],
-						sprite,
-						colour,
-						fx,fy,
-						xpos>>16,ypos>>16,
-						15,zoomx,zoomy,NULL,0,
-						((xpos+(zoomx<<4))>>16) - (xpos>>16), ((ypos+(zoomy<<4))>>16) - (ypos>>16), alpha );
-				else
-					drawgfx_alpha(bitmap,cliprect,machine().gfx[bank],
-						sprite,
-						colour,
-						fx,fy,
-						xpos>>16,ypos>>16,
-						15,alpha);
-
-				if (fx)
-					xpos-=zoomx<<4;
-				else
-					xpos+=zoomx<<4;
-			}
-			if (fy)
-				ypos-=zoomy<<4;
-			else
-				ypos+=zoomy<<4;
-		}
-	}
-}
 
 /******************************************************************************/
 
@@ -521,16 +158,20 @@ VIDEO_START_MEMBER(deco32_state,fghthist)
 VIDEO_START_MEMBER(dragngun_state,dragngun)
 {
 	m_dirty_palette = auto_alloc_array(machine(), UINT8, 4096);
+	m_screen->register_screen_bitmap(m_temp_render_bitmap);
 
 	memset(m_dirty_palette,0,4096);
 
 	save_item(NAME(m_dragngun_sprite_ctrl));
 	m_has_ace_ram=0;
+
+
 }
 
 VIDEO_START_MEMBER(dragngun_state,lockload)
 {
 	m_dirty_palette = auto_alloc_array(machine(), UINT8, 4096);
+	m_screen->register_screen_bitmap(m_temp_render_bitmap);
 
 	memset(m_dirty_palette,0,4096);
 
@@ -570,7 +211,7 @@ UINT32 deco32_state::screen_update_captaven(screen_device &screen, bitmap_ind16 
 	machine().tilemap().set_flip_all(flip_screen() ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
 
 	screen.priority().fill(0, cliprect);
-	bitmap.fill(machine().pens[0x000], cliprect); // Palette index not confirmed
+	bitmap.fill(m_palette->pen(0x000), cliprect); // Palette index not confirmed
 
 	m_deco_tilegen2->set_pf1_8bpp_mode(1);
 
@@ -600,33 +241,31 @@ UINT32 deco32_state::screen_update_captaven(screen_device &screen, bitmap_ind16 
 
 UINT32 dragngun_state::screen_update_dragngun(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	screen.priority().fill(0, cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	m_deco_tilegen1->pf_update(m_pf1_rowscroll, m_pf2_rowscroll);
 	m_deco_tilegen2->pf_update(m_pf3_rowscroll, m_pf4_rowscroll);
 
 	//m_deco_tilegen1->set_pf3_8bpp_mode(1); // despite being 8bpp this doesn't require the same shifting as captaven, why not?
 
-	m_deco_tilegen2->tilemap_2_draw(screen, bitmap, cliprect, 0, 0); // it uses pf3 in 8bpp mode instead, like captaven
-	m_deco_tilegen2->tilemap_1_draw(screen, bitmap, cliprect, 0, 0);
-	m_deco_tilegen1->tilemap_2_draw(screen, bitmap, cliprect, 0, 0);
+	m_deco_tilegen2->tilemap_2_draw(screen, bitmap, cliprect, 0, 1); // it uses pf3 in 8bpp mode instead, like captaven
+	m_deco_tilegen2->tilemap_1_draw(screen, bitmap, cliprect, 0, 2);
+	m_deco_tilegen1->tilemap_2_draw(screen, bitmap, cliprect, 0, 4);
+	m_deco_tilegen1->tilemap_1_draw(screen, bitmap, cliprect, 0, 8);
 
 	// zooming sprite draw is very slow, and sprites are buffered.. however, one of the levels attempts to use
 	// partial updates for every line, which causes things to be very slow... the sprites appear to support
 	// multiple layers of alpha, so rendering to a buffer for layer isn't easy (maybe there are multiple sprite
 	// chips at work?)
 	//
-	// really, it needs optimizing .. the raster effects also need fixing properly, they're not correct using
-	// partial updates right now but the old buffering of scroll values was a hack and doesn't work properly
-	// with the concept of generic tilemap code.
-	//
-	// for now we only draw these 2 layers on the last update call
+	// really, it needs optimizing ..
+	// so for now we only draw these 2 layers on the last update call
 	if (cliprect.max_y == 247)
 	{
 		rectangle clip(cliprect.min_x, cliprect.max_x, 8, 247);
 
-		dragngun_draw_sprites(bitmap,clip,m_spriteram->buffer());
-		m_deco_tilegen1->tilemap_1_draw(screen, bitmap, clip, 0, 0);
+		m_sprgenzoom->dragngun_draw_sprites(bitmap,clip,m_spriteram->buffer(), m_dragngun_sprite_layout_0_ram, m_dragngun_sprite_layout_1_ram, m_dragngun_sprite_lookup_0_ram, m_dragngun_sprite_lookup_1_ram, m_dragngun_sprite_ctrl, screen.priority(), m_temp_render_bitmap );
 
 	}
 
@@ -637,7 +276,7 @@ UINT32 dragngun_state::screen_update_dragngun(screen_device &screen, bitmap_rgb3
 UINT32 deco32_state::screen_update_fghthist(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	screen.priority().fill(0, cliprect);
-	bitmap.fill(machine().pens[0x300], cliprect); // Palette index not confirmed
+	bitmap.fill(m_palette->pen(0x300), cliprect); // Palette index not confirmed
 
 	m_deco_tilegen1->pf_update(m_pf1_rowscroll, m_pf2_rowscroll);
 	m_deco_tilegen2->pf_update(m_pf3_rowscroll, m_pf4_rowscroll);
@@ -676,10 +315,10 @@ UINT32 deco32_state::screen_update_fghthist(screen_device &screen, bitmap_rgb32 
 */
 void deco32_state::mixDualAlphaSprites(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, gfx_element *gfx0, gfx_element *gfx1, int mixAlphaTilemap)
 {
-	const pen_t *pens = machine().pens;
+	const pen_t *pens = m_palette->pens();
 	const pen_t *pal0 = &pens[gfx0->colorbase()];
 	const pen_t *pal1 = &pens[gfx1->colorbase()];
-	const pen_t *pal2 = &pens[machine().gfx[(m_pri&1) ? 1 : 2]->colorbase()];
+	const pen_t *pal2 = &pens[m_gfxdecode->gfx((m_pri&1) ? 1 : 2)->colorbase()];
 	int x,y;
 	bitmap_ind16& sprite0_mix_bitmap = machine().device<decospr_device>("spritegen1")->get_sprite_temp_bitmap();
 	bitmap_ind16& sprite1_mix_bitmap = machine().device<decospr_device>("spritegen2")->get_sprite_temp_bitmap();
@@ -820,7 +459,7 @@ UINT32 deco32_state::screen_update_nslasher(screen_device &screen, bitmap_rgb32 
 
 	screen.priority().fill(0, cliprect);
 
-	bitmap.fill(machine().pens[0x200], cliprect);
+	bitmap.fill(m_palette->pen(0x200), cliprect);
 
 	/* Draw sprites to temporary bitmaps, saving alpha & priority info for later mixing */
 	m_sprgen1->set_pix_raw_shift(8);
@@ -860,7 +499,7 @@ UINT32 deco32_state::screen_update_nslasher(screen_device &screen, bitmap_rgb32 
 		}
 	}
 
-	mixDualAlphaSprites(screen, bitmap, cliprect, machine().gfx[3], machine().gfx[4], alphaTilemap);
+	mixDualAlphaSprites(screen, bitmap, cliprect, m_gfxdecode->gfx(3), m_gfxdecode->gfx(4), alphaTilemap);
 
 	m_deco_tilegen1->tilemap_1_draw(screen, bitmap, cliprect, 0, 0);
 	return 0;

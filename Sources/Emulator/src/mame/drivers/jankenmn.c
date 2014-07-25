@@ -290,48 +290,13 @@ INPUT_PORTS_END
 
 
 /*********************************************
-*   CTC & Daisy Chain Interrupts Interface   *
+*   Daisy Chain Interrupts Interface   *
 *********************************************/
-
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),   /* interrupt handler */
-	DEVCB_NULL,         /* ZC/TO0 callback */
-	DEVCB_NULL,         /* ZC/TO1 callback */
-	DEVCB_NULL          /* ZC/TO2 callback */
-};
 
 static const z80_daisy_config daisy_chain[] =
 {
 	{ "ctc" },
 	{ NULL }
-};
-
-
-/*********************************************
-*          PPI 8255 (x2) Interface           *
-*********************************************/
-
-static I8255_INTERFACE (ppi8255_intf_0)
-{
-	/* (10-13) Mode 0 - Ports A & B set as input, high C & low C as output. */
-	DEVCB_INPUT_PORT("DSW"),
-	DEVCB_NULL,
-	DEVCB_INPUT_PORT("IN0"),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(jankenmn_state,jankenmn_lamps3_w)
-};
-
-static I8255_INTERFACE (ppi8255_intf_1)
-{
-	/* (20-23) Mode 0 - Ports A, B, high C & low C set as output. */
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER("dac", dac_device, write_unsigned8),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(jankenmn_state,jankenmn_lamps1_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(jankenmn_state,jankenmn_lamps2_w)
 };
 
 
@@ -346,10 +311,20 @@ static MACHINE_CONFIG_START( jankenmn, jankenmn_state )
 	MCFG_CPU_PROGRAM_MAP(jankenmn_map)
 	MCFG_CPU_IO_MAP(jankenmn_port_map)
 
-	MCFG_I8255_ADD( "ppi8255_0", ppi8255_intf_0 )
-	MCFG_I8255_ADD( "ppi8255_1", ppi8255_intf_1 )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255, 0)
+	/* (10-13) Mode 0 - Ports A & B set as input, high C & low C as output. */
+	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN0"))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(jankenmn_state, jankenmn_lamps3_w))
 
-	MCFG_Z80CTC_ADD("ctc", MASTER_CLOCK, ctc_intf)
+	MCFG_DEVICE_ADD("ppi8255_1", I8255, 0)
+	/* (20-23) Mode 0 - Ports A, B, high C & low C set as output. */
+	MCFG_I8255_OUT_PORTA_CB(DEVWRITE8("dac", dac_device, write_unsigned8))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(jankenmn_state, jankenmn_lamps1_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(jankenmn_state, jankenmn_lamps2_w))
+
+	MCFG_DEVICE_ADD("ctc", Z80CTC, MASTER_CLOCK)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
 
 	/* NO VIDEO */
 

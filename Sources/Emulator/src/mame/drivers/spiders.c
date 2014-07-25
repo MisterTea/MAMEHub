@@ -253,22 +253,6 @@ WRITE_LINE_MEMBER(spiders_state::audio_cpu_irq)
  *
  *************************************/
 
-static const pia6821_interface pia_1_intf =
-{
-	DEVCB_INPUT_PORT("IN0"),        /* port A in */
-	DEVCB_INPUT_PORT("IN1"),        /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_NULL,     /* port A out */
-	DEVCB_NULL,     /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_DRIVER_LINE_MEMBER(spiders_state,main_cpu_irq),       /* IRQA */
-	DEVCB_DRIVER_LINE_MEMBER(spiders_state,main_cpu_irq)        /* IRQB */
-};
-
 INTERRUPT_GEN_MEMBER(spiders_state::update_pia_1)
 {
 	pia6821_device *pia1 = machine().device<pia6821_device>("pia1");
@@ -290,78 +274,6 @@ INTERRUPT_GEN_MEMBER(spiders_state::update_pia_1)
 
 /*************************************
  *
- *  PIA2 - Main CPU
- *
- *************************************/
-
-static const pia6821_interface pia_2_intf =
-{
-	DEVCB_DRIVER_MEMBER(spiders_state,gfx_rom_r),       /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_NULL,     /* port A out */
-	DEVCB_DRIVER_MEMBER(spiders_state,gfx_rom_intf_w),      /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_DRIVER_LINE_MEMBER(spiders_state,flipscreen_w),       /* port CB2 out */
-	DEVCB_DRIVER_LINE_MEMBER(spiders_state,main_cpu_firq),      /* IRQA */
-	DEVCB_DRIVER_LINE_MEMBER(spiders_state,main_cpu_irq)        /* IRQB */
-};
-
-
-
-/*************************************
- *
- *  PIA3 - Main CPU
- *
- *************************************/
-
-static const pia6821_interface pia_3_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(spiders_state, spiders_audio_ctrl_w),       /* port A out */
-	DEVCB_DRIVER_MEMBER(spiders_state, spiders_audio_command_w),        /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_DRIVER_LINE_MEMBER(spiders_state,main_cpu_irq),       /* IRQA */
-	DEVCB_DRIVER_LINE_MEMBER(spiders_state,main_cpu_irq)        /* IRQB */
-};
-
-
-
-/*************************************
- *
- *  PIA -  Audio CPU
- *
- *************************************/
-
-static const pia6821_interface pia_4_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_DRIVER_MEMBER(spiders_state, spiders_audio_a_w),      /* port A out */
-	DEVCB_DRIVER_MEMBER(spiders_state, spiders_audio_b_w),      /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_DRIVER_LINE_MEMBER(spiders_state,audio_cpu_irq),      /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-
-
-/*************************************
- *
  *  IC60 - 74123
  *
  *  This timer is responsible for
@@ -377,20 +289,6 @@ WRITE8_MEMBER(spiders_state::ic60_74123_output_changed)
 	pia6821_device *pia2 = machine().device<pia6821_device>("pia2");
 	pia2->ca1_w(data);
 }
-
-
-static const ttl74123_interface ic60_intf =
-{
-	TTL74123_GROUNDED,  /* the hook up type */
-	RES_K(22),          /* resistor connected to RCext */
-	CAP_U(0.01),        /* capacitor connected to Cext and RCext */
-	1,                  /* A pin - driven by the CRTC */
-	1,                  /* B pin - pulled high */
-	1,                  /* Clear pin - pulled high */
-	DEVCB_DRIVER_MEMBER(spiders_state,ic60_74123_output_changed)
-};
-
-
 
 /*************************************
  *
@@ -423,32 +321,22 @@ WRITE_LINE_MEMBER(spiders_state::flipscreen_w)
 }
 
 
-static MC6845_BEGIN_UPDATE( begin_update )
+MC6845_BEGIN_UPDATE( spiders_state::crtc_begin_update )
 {
-	spiders_state *state = device->machine().driver_data<spiders_state>();
 	/* create the pens */
-	offs_t i;
-
-	for (i = 0; i < NUM_PENS; i++)
+	for (offs_t i = 0; i < NUM_PENS; i++)
 	{
-		state->m_pens[i] = MAKE_RGB(pal1bit(i >> 0), pal1bit(i >> 1), pal1bit(i >> 2));
+		m_pens[i] = rgb_t(pal1bit(i >> 0), pal1bit(i >> 1), pal1bit(i >> 2));
 	}
-
-	return state->m_pens;
 }
 
 
-static MC6845_UPDATE_ROW( update_row )
+MC6845_UPDATE_ROW( spiders_state::crtc_update_row )
 {
-	spiders_state *state = device->machine().driver_data<spiders_state>();
-	UINT8 cx;
-
-	pen_t *pens = (pen_t *)param;
 	UINT8 x = 0;
 
-	for (cx = 0; cx < x_count; cx++)
+	for (UINT8 cx = 0; cx < x_count; cx++)
 	{
-		int i;
 		UINT8 data1, data2, data3;
 
 		/* the memory is hooked up to the MA, RA lines this way */
@@ -456,18 +344,18 @@ static MC6845_UPDATE_ROW( update_row )
 						((ra << 5) & 0x00e0) |
 						((ma << 0) & 0x001f);
 
-		if (state->m_flipscreen)
+		if (m_flipscreen)
 			offs = offs ^ 0x3fff;
 
-		data1 = state->m_ram[0x0000 | offs];
-		data2 = state->m_ram[0x4000 | offs];
-		data3 = state->m_ram[0x8000 | offs];
+		data1 = m_ram[0x0000 | offs];
+		data2 = m_ram[0x4000 | offs];
+		data3 = m_ram[0x8000 | offs];
 
-		for (i = 0; i < 8; i++)
+		for (int i = 0; i < 8; i++)
 		{
 			UINT8 color;
 
-			if (state->m_flipscreen)
+			if (m_flipscreen)
 			{
 				color = ((data3 & 0x80) >> 5) |
 						((data2 & 0x80) >> 6) |
@@ -488,7 +376,7 @@ static MC6845_UPDATE_ROW( update_row )
 				data3 = data3 >> 1;
 			}
 
-			bitmap.pix32(y, x) = pens[color];
+			bitmap.pix32(y, x) = m_pens[color];
 
 			x = x + 1;
 		}
@@ -500,25 +388,8 @@ static MC6845_UPDATE_ROW( update_row )
 
 WRITE_LINE_MEMBER(spiders_state::display_enable_changed)
 {
-	address_space &space = generic_space();
-	ttl74123_a_w(machine().device("ic60"), space, 0, state);
+	machine().device<ttl74123_device>("ic60")->a_w(generic_space(), 0, state);
 }
-
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,                  /* show border area */
-	8,                      /* number of pixels per video memory address */
-	begin_update,           /* before pixel update callback */
-	update_row,             /* row update callback */
-	NULL,                   /* after pixel update callback */
-	DEVCB_DRIVER_LINE_MEMBER(spiders_state,display_enable_changed), /* callback for display state changes */
-	DEVCB_NULL,             /* callback for cursor state changes */
-	DEVCB_NULL,             /* HSYNC callback */
-	DEVCB_NULL,             /* VSYNC callback */
-	NULL                    /* update address callback */
-};
-
 
 
 /*************************************
@@ -705,16 +576,47 @@ static MACHINE_CONFIG_START( spiders, spiders_state )
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, 256, 0, 256, 256, 0, 256)   /* temporary, CRTC will configure screen */
 	MCFG_SCREEN_UPDATE_DEVICE("crtc", mc6845_device, screen_update)
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", CRTC_CLOCK, mc6845_intf)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", CRTC_CLOCK)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_BEGIN_UPDATE_CB(spiders_state, crtc_begin_update)
+	MCFG_MC6845_UPDATE_ROW_CB(spiders_state, crtc_update_row)
+	MCFG_MC6845_OUT_DE_CB(WRITELINE(spiders_state, display_enable_changed))
 
 	/* 74LS123 */
 
-	MCFG_PIA6821_ADD("pia1", pia_1_intf)
-	MCFG_PIA6821_ADD("pia2", pia_2_intf)
-	MCFG_PIA6821_ADD("pia3", pia_3_intf)
-	MCFG_PIA6821_ADD("pia4", pia_4_intf)
+	MCFG_DEVICE_ADD("pia1", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(IOPORT("IN0"))
+	MCFG_PIA_READPB_HANDLER(IOPORT("IN1"))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(spiders_state,main_cpu_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(spiders_state,main_cpu_irq))
 
-	MCFG_TTL74123_ADD("ic60", ic60_intf)
+	MCFG_DEVICE_ADD("pia2", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(spiders_state,gfx_rom_r))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(spiders_state,gfx_rom_intf_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(spiders_state,flipscreen_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(spiders_state,main_cpu_firq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(spiders_state,main_cpu_irq))
+
+	MCFG_DEVICE_ADD("pia3", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(spiders_state, spiders_audio_ctrl_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(spiders_state, spiders_audio_command_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(spiders_state,main_cpu_irq))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(spiders_state,main_cpu_irq))
+
+	MCFG_DEVICE_ADD("pia4", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(spiders_state, spiders_audio_a_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(spiders_state, spiders_audio_b_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(spiders_state, audio_cpu_irq))
+
+	MCFG_DEVICE_ADD("ic60", TTL74123, 0)
+	MCFG_TTL74123_CONNECTION_TYPE(TTL74123_GROUNDED)    /* the hook up type */
+	MCFG_TTL74123_RESISTOR_VALUE(RES_K(22))               /* resistor connected to RCext */
+	MCFG_TTL74123_CAPACITOR_VALUE(CAP_U(0.01))               /* capacitor connected to Cext and RCext */
+	MCFG_TTL74123_A_PIN_VALUE(1)                  /* A pin - driven by the CRTC */
+	MCFG_TTL74123_B_PIN_VALUE(1)                  /* B pin - pulled high */
+	MCFG_TTL74123_CLEAR_PIN_VALUE(1)                  /* Clear pin - pulled high */
+	MCFG_TTL74123_OUTPUT_CHANGED_CB(WRITE8(spiders_state, ic60_74123_output_changed))
 
 	/* audio hardware */
 	MCFG_FRAGMENT_ADD(spiders_audio)

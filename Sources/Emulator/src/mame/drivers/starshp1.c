@@ -29,26 +29,26 @@ WRITE8_MEMBER(starshp1_state::starshp1_audio_w)
 	{
 	case 0:
 		m_attract = data;
-		discrete_sound_w(m_discrete, space, STARSHP1_ATTRACT, data);
+		m_discrete->write(space, STARSHP1_ATTRACT, data);
 		break;
 	case 1:
 		m_phasor = data;
-		discrete_sound_w(m_discrete, space, STARSHP1_PHASOR_ON, data);
+		m_discrete->write(space, STARSHP1_PHASOR_ON, data);
 		break;
 	case 2:
-		discrete_sound_w(m_discrete, space, STARSHP1_KICKER, data);
+		m_discrete->write(space, STARSHP1_KICKER, data);
 		break;
 	case 3:
-		discrete_sound_w(m_discrete, space, STARSHP1_SL1, data);
+		m_discrete->write(space, STARSHP1_SL1, data);
 		break;
 	case 4:
-		discrete_sound_w(m_discrete, space, STARSHP1_SL2, data);
+		m_discrete->write(space, STARSHP1_SL2, data);
 		break;
 	case 5:
-		discrete_sound_w(m_discrete, space, STARSHP1_MOLVL, data);
+		m_discrete->write(space, STARSHP1_MOLVL, data);
 		break;
 	case 6:
-		discrete_sound_w(m_discrete, space, STARSHP1_NOISE_FREQ, data);
+		m_discrete->write(space, STARSHP1_NOISE_FREQ, data);
 		break;
 	}
 
@@ -107,13 +107,13 @@ WRITE8_MEMBER(starshp1_state::starshp1_analog_out_w)
 		m_ship_size = data;
 		break;
 	case 2:
-		discrete_sound_w(m_discrete, space, STARSHP1_NOISE_AMPLITUDE, data);
+		m_discrete->write(space, STARSHP1_NOISE_AMPLITUDE, data);
 		break;
 	case 3:
-		discrete_sound_w(m_discrete, space, STARSHP1_TONE_PITCH, data);
+		m_discrete->write(space, STARSHP1_TONE_PITCH, data);
 		break;
 	case 4:
-		discrete_sound_w(m_discrete, space, STARSHP1_MOTOR_SPEED, data);
+		m_discrete->write(space, STARSHP1_MOTOR_SPEED, data);
 		break;
 	case 5:
 		m_circle_hpos = data;
@@ -306,10 +306,12 @@ static MACHINE_CONFIG_START( starshp1, starshp1_state )
 	MCFG_SCREEN_RAW_PARAMS(STARSHP1_PIXEL_CLOCK, STARSHP1_HTOTAL, STARSHP1_HBEND, STARSHP1_HBSTART, STARSHP1_VTOTAL, STARSHP1_VBEND, STARSHP1_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(starshp1_state, screen_update_starshp1)
 	MCFG_SCREEN_VBLANK_DRIVER(starshp1_state, screen_eof_starshp1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(starshp1)
-	MCFG_PALETTE_LENGTH(19)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", starshp1)
+	MCFG_PALETTE_ADD("palette", 19)
+	MCFG_PALETTE_INDIRECT_ENTRIES(8)
+	MCFG_PALETTE_INIT_OWNER(starshp1_state, starshp1)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

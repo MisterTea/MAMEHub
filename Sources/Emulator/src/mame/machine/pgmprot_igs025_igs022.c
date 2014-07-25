@@ -1,22 +1,18 @@
 /***********************************************************************
  PGM 022 + 025 PGM protection emulation
 
- these are simulations of the IGS 022 and 025 protection combination
- used on the following PGM games
+ this file contains the game / pgm specifc hookups for the IGS022/IGS025
+ protection chips, actual simulation is in igs025_igs022.c
+
+ sed by
 
  The Killing Blade
- Dragon World 3*
- Dragon World 3 EX*
-
- * preliminary, not working
+ Dragon World 3
+ Dragon World 3 EX
 
  ----
 
- IGS022 is an encrypted DMA device, most likely an MCU of some sort
 
- IGS025 is some kind of state machine / logic device which the game
- uses for various securit checks, and to determine the region of the
- game based on string sequences.
 
  ***********************************************************************/
 
@@ -26,11 +22,14 @@
 /* The IGS022 is an MCU which performs encrypted DMA used by
  - The Killing Blade
  - Dragon World 3
+ - Dragon World 3 Ex
 
  There is also an automatic transfer which happens on startup using params stored in the data ROM.
  This has been verified on real hardware running without any 68k game program.
-
 */
+
+
+/* NON-device stuff, game specific, keep here */
 
 void pgm_022_025_state::pgm_dw3_decrypt()
 {
@@ -187,8 +186,9 @@ static const UINT8 killbld_source_data[0x0c][0xec] =  // offsets to these tables
 
 // all tables xored with data from $149c4c
 // tables are the same as olds and drgw2
-static const UINT8 dw3_source_data[0x07][0xec] =
+static const UINT8 dw3_source_data[0x08][0xec] =
 {
+	{ 0, },
 	{ // region 1, $14c21a
 		0x67, 0x51, 0xf3, 0x19, 0xa0, 0x09, 0xb1, 0x21, 0xb0, 0xee, 0xe3, 0xf6, 0xbe, 0x81, 0x35, 0xe3,
 		0xfb, 0xe6, 0xef, 0xdf, 0x61, 0x01, 0xfa, 0x22, 0x5d, 0x43, 0x01, 0xa5, 0x3b, 0x17, 0xd4, 0x74,
@@ -310,473 +310,57 @@ static const UINT8 dw3_source_data[0x07][0xec] =
 	}
 };
 
-void pgm_022_025_state::IGS022_do_dma(UINT16 src, UINT16 dst, UINT16 size, UINT16 mode)
-{
-	UINT16 param;
-	/*
-	P_SRC =0x300290 (offset from prot rom base)
-	P_DST =0x300292 (words from 0x300000)
-	P_SIZE=0x300294 (words)
-	P_MODE=0x300296
-
-	Mode 5 direct
-	Mode 6 swap nibbles and bytes
-
-	1,2,3 table based ops
-	*/
-
-	//mame_printf_debug("src %04x dst %04x size %04x mode %04x\n", src, dst, size, mode);
-
-	param = mode >> 8;
-	mode &=0xf;  // what are the other bits?
-
-	if ((mode == 0) || (mode == 1) || (mode == 2) || (mode == 3))
-	{
-		/* mode3 applies a xor from a 0x100 byte table to the data being
-		   transferred
-
-		   the table is stored at the start of the protection rom.
-
-		   the param used with the mode gives a start offset into the table
-
-		   odd offsets cause an overflow
-		*/
-
-		int x;
-		UINT16 *PROTROM = (UINT16*)memregion("igs022data")->base();
-
-		for (x = 0; x < size; x++)
-		{
-			UINT16 dat2 = PROTROM[src + x];
-
-			UINT8 extraoffset = param&0xff;
-			UINT8* dectable = (UINT8*)memregion("igs022data")->base(); // the basic decryption table is at the start of the mcu data rom! at least in killbld
-			UINT8 taboff = ((x*2)+extraoffset) & 0xff; // must allow for overflow in instances of odd offsets
-			UINT16 extraxor = ((dectable[taboff+0]) << 8) | (dectable[taboff+1] << 0);
-
-			dat2 = ((dat2 & 0x00ff)<<8) | ((dat2 & 0xff00)>>8);
-
-			//  mode==0 plain
-			if (mode==3) dat2 ^= extraxor;
-			if (mode==2) dat2 += extraxor;
-			if (mode==1) dat2 -= extraxor;
-
-			//if (dat!=dat2)
-			//  printf("Mode %04x Param %04x Mismatch %04x %04x\n", mode, param, dat, dat2);
-
-			m_sharedprotram[dst + x] = dat2;
-		}
-
-		/* Killing Blade: hack, patches out some additional security checks... we need to emulate them instead! */
-		// different region IGS025 devices supply different sequences - we currently only have the china sequence for Killing Blade
-		//if ((mode==3) && (param==0x54) && (src*2==0x2120) && (dst*2==0x2600)) m_sharedprotram[0x2600 / 2] = 0x4e75;
-
-	}
-	if (mode == 4)
-	{
-		mame_printf_debug("unhandled copy mode %04x!\n", mode);
-		// not used by killing blade
-		/* looks almost like a fixed value xor, but isn't */
-	}
-	else if (mode == 5)
-	{
-		/* mode 5 seems to be a straight copy */
-		int x;
-		UINT16 *PROTROM = (UINT16*)memregion("igs022data")->base();
-		for (x = 0; x < size; x++)
-		{
-			UINT16 dat = PROTROM[src + x];
-
-			m_sharedprotram[dst + x] = dat;
-		}
-	}
-	else if (mode == 6)
-	{
-		/* mode 6 seems to swap bytes and nibbles */
-		int x;
-		UINT16 *PROTROM = (UINT16*)memregion("igs022data")->base();
-		for (x = 0; x < size; x++)
-		{
-			UINT16 dat = PROTROM[src + x];
-
-			dat = ((dat & 0xf000) >> 12)|
-					((dat & 0x0f00) >> 4)|
-					((dat & 0x00f0) << 4)|
-					((dat & 0x000f) << 12);
-
-			m_sharedprotram[dst + x] = dat;
-		}
-	}
-	else if (mode == 7)
-	{
-		mame_printf_debug("unhandled copy mode %04x!\n", mode);
-		// not used by killing blade
-		/* weird mode, the params get left in memory? - maybe it's a NOP? */
-	}
-	else
-	{
-		mame_printf_debug("unhandled copy mode %04x!\n", mode);
-		// not used by killing blade
-		/* invalid? */
-
-	}
-}
-
-// the internal MCU boot code automatically does this DMA
-// and puts the version # of the data rom in ram
-void pgm_022_025_state::IGS022_reset()
-{
-	int i;
-	UINT16 *PROTROM = (UINT16*)memregion("igs022data")->base();
-	UINT16 tmp;
-
-	// fill ram with A5 patern
-	for (i = 0; i < 0x4000/2; i++)
-		m_sharedprotram[i] = 0xa55a;
-
-	// the auto-dma
-	UINT16 src = PROTROM[0x100 / 2];
-	UINT32 dst = PROTROM[0x102 / 2];
-	UINT16 size = PROTROM[0x104/ 2];
-	UINT16 mode = PROTROM[0x106 / 2];
-
-	src = ((src & 0xff00) >> 8) | ((src & 0x00ff) << 8);
-	dst = ((dst & 0xff00) >> 8) | ((dst & 0x00ff) << 8);
-	size = ((size & 0xff00) >> 8) | ((size & 0x00ff) << 8);
-	mode &= 0xff;
-
-	src >>= 1;
-
-//  printf("Auto-DMA %04x %04x %04x %04x\n",src,dst,size,mode);
-
-	IGS022_do_dma(src,dst,size,mode);
-
-	// there is also a version ID? (or is it some kind of checksum) that is stored in the data rom, and gets copied..
-	// Dragon World 3 checks it
-	tmp = PROTROM[0x114/2];
-	tmp = ((tmp & 0xff00) >> 8) | ((tmp & 0x00ff) << 8);
-	m_sharedprotram[0x2a2/2] = tmp;
-}
-
-void pgm_022_025_state::IGS022_handle_command()
-{
-	UINT16 cmd = m_sharedprotram[0x200/2];
-
-	//mame_printf_debug("command %04x\n", cmd);
-
-	if (cmd == 0x6d)    // Store values to asic ram
-	{
-		UINT32 p1 = (m_sharedprotram[0x298/2] << 16) | m_sharedprotram[0x29a/2];
-		UINT32 p2 = (m_sharedprotram[0x29c/2] << 16) | m_sharedprotram[0x29e/2];
-
-		if ((p2 & 0xffff) == 0x9)   // Set value
-		{
-			int reg = (p2 >> 16) & 0xffff;
-
-			if (reg & 0x200)
-				m_kb_regs[reg & 0xff] = p1;
-		}
-
-		if ((p2 & 0xffff) == 0x6)   // Add value
-		{
-			int src1 = (p1 >> 16) & 0xff;
-			int src2 = (p1 >> 0) & 0xff;
-			int dst = (p2 >> 16) & 0xff;
-
-			m_kb_regs[dst] = m_kb_regs[src2] - m_kb_regs[src1];
-		}
-
-		if ((p2 & 0xffff) == 0x1)   // Add Imm?
-		{
-			int reg = (p2 >> 16) & 0xff;
-			int imm = (p1 >> 0) & 0xffff;
-
-			m_kb_regs[reg] += imm;
-		}
-
-		if ((p2 & 0xffff) == 0xa)   // Get value
-		{
-			int reg = (p1 >> 16) & 0xFF;
-
-			m_sharedprotram[0x29c/2] = (m_kb_regs[reg] >> 16) & 0xffff;
-			m_sharedprotram[0x29e/2] = m_kb_regs[reg] & 0xffff;
-		}
-	}
-
-	if(cmd == 0x4f) //memcpy with encryption / scrambling
-	{
-		UINT16 src = m_sharedprotram[0x290 / 2] >> 1; // ?
-		UINT32 dst = m_sharedprotram[0x292 / 2];
-		UINT16 size = m_sharedprotram[0x294 / 2];
-		UINT16 mode = m_sharedprotram[0x296 / 2];
-
-		IGS022_do_dma(src,dst,size,mode);
-	}
-}
-
-void pgm_022_025_state::killbld_protection_calculate_hold(int y, int z)
-{
-	unsigned short old = m_kb_prot_hold;
-
-	m_kb_prot_hold = ((old << 1) | (old >> 15));
-
-	m_kb_prot_hold ^= 0x2bad;
-	m_kb_prot_hold ^= BIT(z, y);
-	m_kb_prot_hold ^= BIT( old,  7) <<  0;
-	m_kb_prot_hold ^= BIT(~old, 13) <<  4;
-	m_kb_prot_hold ^= BIT( old,  3) << 11;
-
-	m_kb_prot_hold ^= (m_kb_prot_hilo & ~0x0408) << 1;
-}
-
-void pgm_022_025_state::killbld_protection_calculate_hilo()
-{
-	UINT8 source;
-
-	m_kb_prot_hilo_select++;
-
-	if (m_kb_prot_hilo_select > 0xeb) {
-		m_kb_prot_hilo_select = 0;
-	}
-
-	source = m_kb_source_data[(ioport("Region")->read() - m_kb_source_data_offset)][m_kb_prot_hilo_select];
-
-	if (m_kb_prot_hilo_select & 1)
-	{
-		m_kb_prot_hilo = (m_kb_prot_hilo & 0x00ff) | (source << 8);
-	}
-	else
-	{
-		m_kb_prot_hilo = (m_kb_prot_hilo & 0xff00) | (source << 0);
-	}
-}
-
-WRITE16_MEMBER(pgm_022_025_state::killbld_igs025_prot_w )
-{
-	offset &= 0xf;
-
-	if (offset == 0)
-	{
-		m_kb_cmd = data;
-	}
-	else
-	{
-		switch (m_kb_cmd)
-		{
-			case 0x00:
-				m_kb_reg = data;
-			break;
-
-			//case 0x01: // ??
-			//break;
-
-			case 0x02:
-			{
-				if (data == 0x0001) {  // Execute cmd
-					IGS022_handle_command();
-					m_kb_reg++;
-				}
-			}
-			break;
-
-			case 0x03:
-				m_kb_swap = data;
-			break;
-
-			case 0x04:
-				m_kb_ptr = data;
-			break;
-
-			case 0x20:
-			case 0x21:
-			case 0x22:
-			case 0x23:
-			case 0x24:
-			case 0x25:
-			case 0x26:
-			case 0x27:
-				m_kb_ptr++;
-				killbld_protection_calculate_hold(m_kb_cmd & 0x0f, data & 0xff);
-			break;
-
-		//  default:
-		//      logerror("%06X: ASIC25 W CMD %X  VAL %X\n", space.device().safe_pc(), m_kb_cmd, data);
-		}
-	}
-}
-
-READ16_MEMBER(pgm_022_025_state::killbld_igs025_prot_r )
-{
-	if (offset)
-	{
-		switch (m_kb_cmd)
-		{
-			case 0x00:
-				return BITSWAP8((m_kb_swap+1)&0xff, 0,1,2,3,4,5,6,7); // dw3
-
-			case 0x01:
-				return m_kb_reg & 0x7f;
-
-			case 0x05:
-			{
-				logerror ("ptr: %d\n", m_kb_ptr);
-
-				switch (m_kb_ptr)
-				{
-					case 1:
-						return 0x3f00 | ioport("Region")->read();
-
-					case 2:
-						return 0x3f00 | ((m_kb_game_id >> 8) & 0xff);
-
-					case 3:
-						return 0x3f00 | ((m_kb_game_id >> 16) & 0xff);
-
-					case 4:
-						return 0x3f00 | ((m_kb_game_id >> 24) & 0xff);
-
-					case 5:
-					default: // >= 5
-						return 0x3f00 | BITSWAP8(m_kb_prot_hold, 5,2,9,7,10,13,12,15);
-				}
-
-				return 0;
-			}
-
-			case 0x40:
-				killbld_protection_calculate_hilo();
-				return 0; // is this used?
-
-			//default:
-			//  logerror("%06X: ASIC25 R CMD %X\n", space.device().safe_pc(), m_kb_cmd);
-		}
-	}
-
-	return 0;
-}
-
 MACHINE_RESET_MEMBER(pgm_022_025_state,killbld)
 {
+	int region = (ioport(":Region")->read()) & 0xff;
+
+	m_igs025->m_kb_region = region - 0x16;
+	m_igs025->m_kb_game_id = 0x89911400 | region;
+
 	MACHINE_RESET_CALL_MEMBER(pgm);
-	/* fill the protection ram with a5 + auto dma */
-	IGS022_reset();
-
-	// Reset IGS025 stuff
-	m_kb_prot_hold = 0;
-	m_kb_prot_hilo = 0;
-	m_kb_prot_hilo_select = 0;
-	m_kb_cmd = 0;
-	m_kb_reg = 0;
-	m_kb_ptr = 0;
-	m_kb_swap = 0;
-
-	memset(m_kb_regs, 0, 0x10 * sizeof(UINT32));
 }
+
+MACHINE_RESET_MEMBER(pgm_022_025_state, dw3)
+{
+	int region = (ioport(":Region")->read()) & 0xff;
+
+	m_igs025->m_kb_region = region;
+	m_igs025->m_kb_game_id = 0x00060000 | region;
+
+	MACHINE_RESET_CALL_MEMBER(pgm);
+}
+
+
+
+
+void pgm_022_025_state::igs025_to_igs022_callback( void )
+{
+//  printf("igs025_to_igs022_callback\n");
+	m_igs022->IGS022_handle_command();
+}
+
+
 
 DRIVER_INIT_MEMBER(pgm_022_025_state,killbld)
 {
 	pgm_basic_init();
 	pgm_killbld_decrypt();
 
-	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xd40000, 0xd40003, read16_delegate(FUNC(pgm_022_025_state::killbld_igs025_prot_r),this), write16_delegate(FUNC(pgm_022_025_state::killbld_igs025_prot_w),this));
-
-	m_kb_source_data = killbld_source_data;
-	m_kb_source_data_offset = 0x16;
-	m_kb_game_id = 0x89911400;
-
-	m_kb_prot_hold = 0;
-	m_kb_prot_hilo = 0;
-	m_kb_prot_hilo_select = 0;
-	m_kb_cmd = 0;
-	m_kb_reg = 0;
-	m_kb_ptr = 0;
-	m_kb_swap = 0;
-	memset(m_kb_regs, 0, 0x10 * sizeof(UINT32));
-
-	save_item(NAME(m_kb_prot_hold));
-	save_item(NAME(m_kb_prot_hilo));
-	save_item(NAME(m_kb_prot_hilo_select));
-	save_item(NAME(m_kb_cmd));
-	save_item(NAME(m_kb_reg));
-	save_item(NAME(m_kb_ptr));
-	save_item(NAME(m_kb_regs));
-}
-
-MACHINE_RESET_MEMBER(pgm_022_025_state,dw3)
-{
-	MACHINE_RESET_CALL_MEMBER(pgm);
-	/* fill the protection ram with a5 + auto dma */
-	IGS022_reset();
-
-	/* game won't boot unless various values are in protection RAM
-	 - these should almost certainly end up there as the result of executing the protection
-	   commands are startup, but which, and how? */
-
-	m_sharedprotram[0x200/2] = 0x006d;
-	m_sharedprotram[0x202/2] = 0x007c; // it cares about this, operation status flag?
-
-	m_sharedprotram[0x20c/2] = 0x0000;
-	m_sharedprotram[0x20e/2] = 0x0007;
-	m_sharedprotram[0x210/2] = 0x0000;
-	m_sharedprotram[0x212/2] = 0x0004;
-	m_sharedprotram[0x214/2] = 0x0000;
-	m_sharedprotram[0x216/2] = 0x0007;
-	m_sharedprotram[0x218/2] = 0x0000;
-	m_sharedprotram[0x21a/2] = 0x0004;
-
-	m_sharedprotram[0x288/2] = 0x0000;
-	m_sharedprotram[0x28a/2] = 0x00c2;
-	m_sharedprotram[0x28c/2] = 0x0000;
-	m_sharedprotram[0x28e/2] = 0x00c2;
-	m_sharedprotram[0x290/2] = 0x0500;
-	m_sharedprotram[0x292/2] = 0x1000;
-	m_sharedprotram[0x294/2] = 0x00c3;
-	m_sharedprotram[0x296/2] = 0x7104;
-	m_sharedprotram[0x298/2] = 0x0000;
-	m_sharedprotram[0x29a/2] = 0x0003;
-	m_sharedprotram[0x29c/2] = 0x0108;
-	m_sharedprotram[0x29e/2] = 0x0009;
-
-	m_sharedprotram[0x2a2/2] = 0x84f6; // it cares about this, it's the version number of the data rom, copied automatically!
-
-	m_sharedprotram[0x2ac/2] = 0x006d;
-	m_sharedprotram[0x2ae/2] = 0x0000;
-
-	m_sharedprotram[0x2b0/2] = 0xaf56;
-
-
-	// Reset IGS025 stuff
-	m_kb_prot_hold = 0;
-	m_kb_prot_hilo = 0;
-	m_kb_prot_hilo_select = 0;
-	m_kb_cmd = 0;
-	m_kb_reg = 0;
-	m_kb_ptr = 0;
-	m_kb_swap = 0;
-	memset(m_kb_regs, 0, 0x10 * sizeof(UINT32));
-
+	// install and configure protection device(s)
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xd40000, 0xd40003, read16_delegate(FUNC(igs025_device::killbld_igs025_prot_r), (igs025_device*)m_igs025), write16_delegate(FUNC(igs025_device::killbld_igs025_prot_w), (igs025_device*)m_igs025));
+	m_igs022->m_sharedprotram = m_sharedprotram;
+	m_igs025->m_kb_source_data = killbld_source_data;
 }
 
 DRIVER_INIT_MEMBER(pgm_022_025_state,drgw3)
 {
 	pgm_basic_init();
-
-	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xDA5610, 0xDA5613, read16_delegate(FUNC(pgm_022_025_state::killbld_igs025_prot_r),this), write16_delegate(FUNC(pgm_022_025_state::killbld_igs025_prot_w),this));
-
-	m_kb_source_data = dw3_source_data;
-	m_kb_source_data_offset = 1;
-	m_kb_game_id = 0x00060000;
-
-	m_kb_prot_hold = 0;
-	m_kb_prot_hilo = 0;
-	m_kb_prot_hilo_select = 0;
-	m_kb_cmd = 0;
-	m_kb_reg = 0;
-	m_kb_ptr = 0;
-	m_kb_swap = 0;
-	memset(m_kb_regs, 0, 0x10 * sizeof(UINT32));
-
 	pgm_dw3_decrypt();
+
+	// install and configure protection device(s)
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xda5610, 0xda5613, read16_delegate(FUNC(igs025_device::killbld_igs025_prot_r), (igs025_device*)m_igs025), write16_delegate(FUNC(igs025_device::killbld_igs025_prot_w), (igs025_device*)m_igs025));
+	m_igs022->m_sharedprotram = m_sharedprotram;
+	m_igs025->m_kb_source_data = dw3_source_data;
 }
 
 
@@ -787,24 +371,25 @@ static ADDRESS_MAP_START( killbld_mem, AS_PROGRAM, 16, pgm_022_025_state )
 ADDRESS_MAP_END
 
 
-
-MACHINE_CONFIG_START( pgm_022_025_kb, pgm_022_025_state )
+MACHINE_CONFIG_START( pgm_022_025, pgm_022_025_state )
 	MCFG_FRAGMENT_ADD(pgmbase)
 
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(killbld_mem)
 
-	MCFG_MACHINE_RESET_OVERRIDE(pgm_022_025_state,killbld)
+	MCFG_DEVICE_ADD("igs025", IGS025, 0)
+	MCFG_IGS025_SET_EXTERNAL_EXECUTE( pgm_022_025_state, igs025_to_igs022_callback )
+
+	MCFG_DEVICE_ADD("igs022", IGS022, 0)
+
 MACHINE_CONFIG_END
 
+MACHINE_CONFIG_DERIVED(pgm_022_025_dw3, pgm_022_025)
+	MCFG_MACHINE_RESET_OVERRIDE(pgm_022_025_state, dw3)
+MACHINE_CONFIG_END
 
-MACHINE_CONFIG_START( pgm_022_025_dw, pgm_022_025_state )
-	MCFG_FRAGMENT_ADD(pgmbase)
-
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_PROGRAM_MAP(killbld_mem)
-
-	MCFG_MACHINE_RESET_OVERRIDE(pgm_022_025_state,dw3)
+MACHINE_CONFIG_DERIVED(pgm_022_025_killbld, pgm_022_025)
+	MCFG_MACHINE_RESET_OVERRIDE(pgm_022_025_state, killbld)
 MACHINE_CONFIG_END
 
 
@@ -833,12 +418,29 @@ INPUT_PORTS_START( dw3 )
 	PORT_MODIFY("Region")   /* Region - supplied by protection device */
 	PORT_CONFNAME( 0x000f, 0x0006, DEF_STR( Region ) )
 //  PORT_CONFSETTING(      0x0000, "0" )
-	PORT_CONFSETTING(      0x0001, "1" )
-	PORT_CONFSETTING(      0x0002, "2" )
-	PORT_CONFSETTING(      0x0003, "3" )
-	PORT_CONFSETTING(      0x0004, "4" )
-	PORT_CONFSETTING(      0x0005, "5" )
+	PORT_CONFSETTING(      0x0001, DEF_STR( Japan ) )
+	PORT_CONFSETTING(      0x0002, DEF_STR( Korea ))
+	PORT_CONFSETTING(      0x0003, DEF_STR( Taiwan ) )
+	PORT_CONFSETTING(      0x0004, DEF_STR( Hong_Kong ) ) // typo Hokg Kong
+	PORT_CONFSETTING(      0x0005, DEF_STR( China ) )
 	PORT_CONFSETTING(      0x0006, DEF_STR( World ) )
-	PORT_CONFSETTING(      0x0007, "7" )
+	PORT_CONFSETTING(      0x0007, "Singapore" )
+
+INPUT_PORTS_END
+
+
+INPUT_PORTS_START( dw3j ) // for dw3100 set
+	PORT_INCLUDE ( pgm )
+
+	PORT_MODIFY("Region")   /* Region - supplied by protection device */
+	PORT_CONFNAME( 0x000f, 0x0001, DEF_STR( Region ) )
+//  PORT_CONFSETTING(      0x0000, "0" )
+	PORT_CONFSETTING(      0x0001, DEF_STR( Japan ) )
+//  PORT_CONFSETTING(      0x0002, DEF_STR( Korea ))
+//  PORT_CONFSETTING(      0x0003, DEF_STR( Taiwan ) )
+//  PORT_CONFSETTING(      0x0004, DEF_STR( Hong_Kong ) ) // typo Hokg Kong
+//  PORT_CONFSETTING(      0x0005, DEF_STR( China ) )
+//  PORT_CONFSETTING(      0x0006, DEF_STR( World ) )
+//  PORT_CONFSETTING(      0x0007, "Singapore" )
 
 INPUT_PORTS_END

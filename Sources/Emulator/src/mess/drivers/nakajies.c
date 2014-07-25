@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Wilbert Pol,Sandro Ronco
 /******************************************************************************
 
   Driver for the ES-2xx series electronic typewriters made by Nakajima.
@@ -293,7 +295,7 @@ public:
 	virtual void machine_reset();
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
-	void nakajies_update_irqs( running_machine &machine );
+	void nakajies_update_irqs();
 	DECLARE_READ8_MEMBER( irq_clear_r );
 	DECLARE_WRITE8_MEMBER( irq_clear_w );
 	DECLARE_READ8_MEMBER( irq_enable_r );
@@ -333,7 +335,7 @@ public:
 	/* Banking */
 	UINT8   m_bank[8];
 	UINT8   *m_bank_base[8];
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(nakajies);
 	DECLARE_INPUT_CHANGED_MEMBER(trigger_irq);
 	TIMER_DEVICE_CALLBACK_MEMBER(kb_timer);
 };
@@ -403,7 +405,7 @@ ADDRESS_MAP_END
   IRQ Handling
 *********************************************/
 
-void nakajies_state::nakajies_update_irqs( running_machine &machine )
+void nakajies_state::nakajies_update_irqs()
 {
 	// Hack: IRQ mask is temporarily disabled because doesn't allow the IRQ vector 0xFA
 	// and 0xFB that are used for scan the kb, this need further investigation.
@@ -440,7 +442,7 @@ READ8_MEMBER( nakajies_state::irq_clear_r )
 WRITE8_MEMBER( nakajies_state::irq_clear_w )
 {
 	m_irq_active &= ~data;
-	nakajies_update_irqs(machine());
+	nakajies_update_irqs();
 }
 
 
@@ -453,7 +455,7 @@ READ8_MEMBER( nakajies_state::irq_enable_r )
 WRITE8_MEMBER( nakajies_state::irq_enable_w )
 {
 	m_irq_enabled = data;
-	nakajies_update_irqs(machine());
+	nakajies_update_irqs();
 }
 
 
@@ -506,7 +508,7 @@ INPUT_CHANGED_MEMBER(nakajies_state::trigger_irq)
 	UINT8 irqs = ioport( "debug" )->read();
 
 	m_irq_active |= irqs;
-	nakajies_update_irqs(machine());
+	nakajies_update_irqs();
 }
 
 
@@ -691,14 +693,14 @@ TIMER_DEVICE_CALLBACK_MEMBER(nakajies_state::kb_timer)
 		m_irq_active |= 0x10;
 	}
 
-	nakajies_update_irqs(machine());
+	nakajies_update_irqs();
 }
 
 
-void nakajies_state::palette_init()
+PALETTE_INIT_MEMBER(nakajies_state, nakajies)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(138, 146, 148));
-	palette_set_color(machine(), 1, MAKE_RGB(92, 83, 88));
+	palette.set_pen_color(0, rgb_t(138, 146, 148));
+	palette.set_pen_color(1, rgb_t(92, 83, 88));
 }
 
 
@@ -732,11 +734,6 @@ static GFXDECODE_START( drwrt400 )
 	GFXDECODE_ENTRY( "bios", 0x580b6, nakajies_charlayout, 0, 1 )
 GFXDECODE_END
 
-static RP5C01_INTERFACE( rtc_intf )
-{
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( nakajies210, nakajies_state )
 	MCFG_CPU_ADD( "v20hl", V20, X301 / 2 )
 	MCFG_CPU_PROGRAM_MAP( nakajies_map)
@@ -747,8 +744,11 @@ static MACHINE_CONFIG_START( nakajies210, nakajies_state )
 	MCFG_SCREEN_UPDATE_DRIVER( nakajies_state, screen_update )
 	MCFG_SCREEN_SIZE( 80 * 6, 8 * 8 )
 	MCFG_SCREEN_VISIBLE_AREA( 0, 6 * 80 - 1, 0, 8 * 8 - 1 )
-	MCFG_GFXDECODE(wales210)
-	MCFG_PALETTE_LENGTH( 2 )
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", wales210)
+	MCFG_PALETTE_ADD( "palette", 2 )
+	MCFG_PALETTE_INIT_OWNER(nakajies_state, nakajies)
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 
 	/* sound */
@@ -757,24 +757,24 @@ static MACHINE_CONFIG_START( nakajies210, nakajies_state )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 
 	/* rtc */
-	MCFG_RP5C01_ADD("rtc", XTAL_32_768kHz, rtc_intf)
+	MCFG_DEVICE_ADD("rtc", RP5C01, XTAL_32_768kHz)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("kb_timer", nakajies_state, kb_timer, attotime::from_hz(250))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( dator3k, nakajies210 )
-	MCFG_GFXDECODE(dator3k)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", dator3k)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( nakajies220, nakajies210 )
-	MCFG_GFXDECODE(drwrt400)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", drwrt400)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( nakajies250, nakajies210 )
 	MCFG_SCREEN_MODIFY( "screen" )
 	MCFG_SCREEN_SIZE( 80 * 6, 16 * 8 )
 	MCFG_SCREEN_VISIBLE_AREA( 0, 6 * 80 - 1, 0, 16 * 8 - 1 )
-	MCFG_GFXDECODE(drwrt200)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", drwrt200)
 MACHINE_CONFIG_END
 
 

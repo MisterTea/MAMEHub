@@ -165,11 +165,6 @@ WRITE16_MEMBER(tatsumi_state::cyclwarr_cpu_bb_w)
 	COMBINE_DATA(&m_cyclwarr_cpub_ram[offset]);
 }
 
-READ16_MEMBER(tatsumi_state::cyclwarr_palette_r)
-{
-	return m_generic_paletteram_16[offset];
-}
-
 READ16_MEMBER(tatsumi_state::cyclwarr_sprite_r)
 {
 	return m_spriteram[offset];
@@ -218,7 +213,7 @@ WRITE16_MEMBER(tatsumi_state::cyclwarr_sound_w)
 static ADDRESS_MAP_START( apache3_v30_map, AS_PROGRAM, 16, tatsumi_state )
 	AM_RANGE(0x00000, 0x03fff) AM_RAM
 	AM_RANGE(0x04000, 0x07fff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0x08000, 0x08fff) AM_RAM_WRITE(apache3_palette_w) AM_SHARE("paletteram")
+	AM_RANGE(0x08000, 0x08fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0c000, 0x0dfff) AM_RAM_WRITE(roundup5_text_w) AM_SHARE("videoram")
 	AM_RANGE(0x0e800, 0x0e803) AM_WRITENOP // CRT
 	AM_RANGE(0x0f000, 0x0f001) AM_READ_PORT("DSW")
@@ -267,7 +262,7 @@ static ADDRESS_MAP_START( roundup5_v30_map, AS_PROGRAM, 16, tatsumi_state )
 	AM_RANGE(0x0d800, 0x0d801) AM_WRITEONLY AM_SHARE("ru5_unknown1") // VRAM2 X scroll (todo)
 	AM_RANGE(0x0dc00, 0x0dc01) AM_WRITEONLY AM_SHARE("ru5_unknown2") // VRAM2 Y scroll (todo)
 	AM_RANGE(0x0e000, 0x0e001) AM_WRITE(roundup5_control_w)
-	AM_RANGE(0x0f000, 0x0ffff) AM_RAM_WRITE(roundup5_palette_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0f000, 0x0ffff) AM_DEVREADWRITE8("palette", palette_device, read, write, 0x00ff) AM_SHARE("palette")
 	AM_RANGE(0x10000, 0x1ffff) AM_READWRITE(roundup_v30_z80_r, roundup_v30_z80_w)
 	AM_RANGE(0x20000, 0x2ffff) AM_READWRITE(tatsumi_v30_68000_r, tatsumi_v30_68000_w)
 	AM_RANGE(0x30000, 0x3ffff) AM_READWRITE(roundup5_vram_r, roundup5_vram_w)
@@ -317,7 +312,7 @@ static ADDRESS_MAP_START( cyclwarr_68000a_map, AS_PROGRAM, 16, tatsumi_state )
 	AM_RANGE(0x0ba008, 0x0ba009) AM_READWRITE(cyclwarr_control_r, cyclwarr_control_w)
 	AM_RANGE(0x0c0000, 0x0c3fff) AM_READWRITE(cyclwarr_sprite_r, cyclwarr_sprite_w) AM_SHARE("spriteram")
 	AM_RANGE(0x0ca000, 0x0ca1ff) AM_WRITE(tatsumi_sprite_control_w) AM_SHARE("sprite_ctlram")
-	AM_RANGE(0x0d0000, 0x0d3fff) AM_READWRITE(cyclwarr_palette_r, paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0d0000, 0x0d3fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x140000, 0x1bffff) AM_ROMBANK("bank2") /* CPU B ROM */
 	AM_RANGE(0x2c0000, 0x33ffff) AM_ROMBANK("bank1") /* CPU A ROM */
 ADDRESS_MAP_END
@@ -338,7 +333,7 @@ static ADDRESS_MAP_START( cyclwarr_68000b_map, AS_PROGRAM, 16, tatsumi_state )
 
 	AM_RANGE(0x0c0000, 0x0c3fff) AM_READWRITE(cyclwarr_sprite_r, cyclwarr_sprite_w)
 	AM_RANGE(0x0ca000, 0x0ca1ff) AM_WRITE(tatsumi_sprite_control_w)
-	AM_RANGE(0x0d0000, 0x0d3fff) AM_READWRITE(cyclwarr_palette_r, paletteram_xRRRRRGGGGGBBBBB_word_w)
+	AM_RANGE(0x0d0000, 0x0d3fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x140000, 0x1bffff) AM_ROMBANK("bank2") /* CPU B ROM */
 	AM_RANGE(0x2c0000, 0x33ffff) AM_ROMBANK("bank1") /* CPU A ROM */
 ADDRESS_MAP_END
@@ -373,7 +368,7 @@ static ADDRESS_MAP_START( bigfight_68000a_map, AS_PROGRAM, 16, tatsumi_state )
 	AM_RANGE(0x0ba008, 0x0ba009) AM_READWRITE(cyclwarr_control_r, cyclwarr_control_w)
 	AM_RANGE(0x0c0000, 0x0c3fff) AM_READWRITE(cyclwarr_sprite_r, cyclwarr_sprite_w) AM_SHARE("spriteram")
 	AM_RANGE(0x0ca000, 0x0ca1ff) AM_WRITE(tatsumi_sprite_control_w) AM_SHARE("sprite_ctlram")
-	AM_RANGE(0x0d0000, 0x0d3fff) AM_READWRITE(cyclwarr_palette_r, paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0d0000, 0x0d3fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x100000, 0x17ffff) AM_ROMBANK("bank2") /* CPU A ROM */
 	AM_RANGE(0x200000, 0x27ffff) AM_ROMBANK("bank1") /* CPU B ROM */
 ADDRESS_MAP_END
@@ -392,7 +387,7 @@ static ADDRESS_MAP_START( bigfight_68000b_map, AS_PROGRAM, 16, tatsumi_state )
 
 	AM_RANGE(0x0c0000, 0x0c3fff) AM_READWRITE(cyclwarr_sprite_r, cyclwarr_sprite_w)
 	AM_RANGE(0x0ca000, 0x0ca1ff) AM_WRITE(tatsumi_sprite_control_w)
-	AM_RANGE(0x0d0000, 0x0d3fff) AM_READWRITE(cyclwarr_palette_r, paletteram_xRRRRRGGGGGBBBBB_word_w)
+	AM_RANGE(0x0d0000, 0x0d3fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x100000, 0x17ffff) AM_ROMBANK("bank2") /* CPU A ROM */
 	AM_RANGE(0x200000, 0x27ffff) AM_ROMBANK("bank1") /* CPU B ROM */
 ADDRESS_MAP_END
@@ -495,55 +490,53 @@ static INPUT_PORTS_START( roundup5 )
 	PORT_START("STICKX")
 	PORT_BIT( 0xff, 0x7f, IPT_AD_STICK_X ) PORT_SENSITIVITY(25) PORT_KEYDELTA(15) PORT_PLAYER(1)
 
-	PORT_START("DSW")
-	PORT_DIPNAME( 0x0001, 0x0000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0001, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0002, 0x0000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0002, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0004, 0x0000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0004, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0008, 0x0000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0008, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0010, 0x0000, DEF_STR( Demo_Sounds ) )
-	PORT_DIPSETTING(    0x0010, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0020, 0x0000, DEF_STR( Language ) )
-	PORT_DIPSETTING(    0x0020, DEF_STR( Japanese ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( English ) )
-	PORT_DIPNAME( 0x0040, 0x0000, "Stage 5 Continue" )
-	PORT_DIPSETTING(    0x0040, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0080, 0x0000, "Output Mode" )
-	PORT_DIPSETTING(    0x0000, "A" )
-	PORT_DIPSETTING(    0x0080, "B" )
-	PORT_DIPNAME( 0x0100, 0x0000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0100, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0200, 0x0000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x0200, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0400, 0x0000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0400, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0800, 0x0000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0800, DEF_STR( On ) )
-	PORT_DIPNAME( 0x1000, 0x0000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x1000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x2000, 0x0000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x2000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x4000, 0x0000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x4000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x8000, 0x8000, DEF_STR( Test ) )
-	PORT_DIPSETTING(    0x8000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
+	PORT_START("DSW") /* Verified by Manual & in Game service menu */
+	PORT_DIPNAME( 0x0003, 0x0000, DEF_STR( Game_Time ) )    PORT_DIPLOCATION("SW-1:1,2")
+	PORT_DIPSETTING(      0x0003, "Shortest" )
+	PORT_DIPSETTING(      0x0002, "Short" )
+	PORT_DIPSETTING(      0x0000, DEF_STR( Medium ) )
+	PORT_DIPSETTING(      0x0001, "Long" )
+	PORT_DIPNAME( 0x000c, 0x0000, DEF_STR( Difficulty ) )   PORT_DIPLOCATION("SW-1:3,4")
+	PORT_DIPSETTING(      0x0004, DEF_STR( Easy ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( Medium ) )
+	PORT_DIPSETTING(      0x0008, DEF_STR( Hard ) )
+	PORT_DIPSETTING(      0x000c, DEF_STR( Hardest ) )
+	PORT_DIPNAME( 0x0010, 0x0000, DEF_STR( Demo_Sounds ) )  PORT_DIPLOCATION("SW-1:5")
+	PORT_DIPSETTING(      0x0010, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0020, 0x0000, DEF_STR( Language ) ) PORT_DIPLOCATION("SW-1:6")
+	PORT_DIPSETTING(      0x0020, DEF_STR( Japanese ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( English ) )
+	PORT_DIPNAME( 0x0040, 0x0000, "Stage 5 Continue" )  PORT_DIPLOCATION("SW-1:7")
+	PORT_DIPSETTING(      0x0040, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0080, 0x0000, "Output Mode" )       PORT_DIPLOCATION("SW-1:8")
+	PORT_DIPSETTING(      0x0000, "A (Light)" )
+	PORT_DIPSETTING(      0x0080, "B (Vibration)" )
+	PORT_DIPNAME( 0x0700, 0x0000, DEF_STR( Coin_A ) )   PORT_DIPLOCATION("SW-2:1,2,3")
+	PORT_DIPSETTING(      0x0600, DEF_STR( 6C_1C ) )
+	PORT_DIPSETTING(      0x0500, DEF_STR( 5C_1C ) )
+	PORT_DIPSETTING(      0x0400, DEF_STR( 4C_1C ) )
+	PORT_DIPSETTING(      0x0300, DEF_STR( 3C_1C ) )
+	PORT_DIPSETTING(      0x0200, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(      0x0100, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(      0x0700, DEF_STR( Free_Play ) )
+	PORT_DIPNAME( 0x3800, 0x0000, DEF_STR( Coin_B ) )   PORT_DIPLOCATION("SW-2:4,5,6")
+	PORT_DIPSETTING(      0x0000, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(      0x0800, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(      0x1000, DEF_STR( 1C_3C ) )
+	PORT_DIPSETTING(      0x1800, DEF_STR( 1C_4C ) )
+	PORT_DIPSETTING(      0x2000, DEF_STR( 1C_5C ) )
+	PORT_DIPSETTING(      0x2800, DEF_STR( 1C_6C ) )
+	PORT_DIPSETTING(      0x3000, DEF_STR( 1C_7C ) )
+	PORT_DIPSETTING(      0x3800, DEF_STR( Free_Play ) )
+	PORT_DIPNAME( 0x4000, 0x0000, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW-2:7") /* Manual only shows nothing for this one */
+	PORT_DIPSETTING(      0x4000, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x8000, 0x8000, "Hardware Test Mode" )    PORT_DIPLOCATION("SW-2:8") /* Manual only shows nothing for this one */
+	PORT_DIPSETTING(      0x8000, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( cyclwarr )
@@ -854,10 +847,9 @@ INTERRUPT_GEN_MEMBER(tatsumi_state::roundup5_interrupt)
 	device.execute().set_input_line_and_vector(0, HOLD_LINE, 0xc8/4);   /* VBL */
 }
 
-static void apache3_68000_reset(device_t *device)
+WRITE_LINE_MEMBER(tatsumi_state::apache3_68000_reset)
 {
-	tatsumi_state *state = device->machine().driver_data<tatsumi_state>();
-	state->m_subcpu2->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+	m_subcpu2->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
 }
 
 MACHINE_RESET_MEMBER(tatsumi_state,apache3)
@@ -865,7 +857,7 @@ MACHINE_RESET_MEMBER(tatsumi_state,apache3)
 	m_subcpu2->set_input_line(INPUT_LINE_RESET, ASSERT_LINE); // TODO
 
 	/* Hook the RESET line, which resets the Z80 */
-	m68k_set_reset_callback(m_subcpu, apache3_68000_reset);
+	m_subcpu->set_reset_callback(write_line_delegate(FUNC(tatsumi_state::apache3_68000_reset),this));
 }
 
 
@@ -896,8 +888,17 @@ static MACHINE_CONFIG_START( apache3, tatsumi_state )
 	MCFG_SCREEN_RAW_PARAMS(CLOCK_2 / 8, 400, 0, 320, 280, 0, 240) // TODO: Hook up CRTC
 	MCFG_SCREEN_UPDATE_DRIVER(tatsumi_state, screen_update_apache3)
 
-	MCFG_GFXDECODE(apache3)
-	MCFG_PALETTE_LENGTH(1024 + 4096) /* 1024 real colours, and 4096 arranged as series of cluts */
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", apache3)
+	MCFG_PALETTE_ADD("palette", 1024 + 4096) /* 1024 real colours, and 4096 arranged as series of cluts */
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+
+	/* apache 3 schematics state
+	bit 4:  250
+	bit 3:  500
+	bit 2:  1k
+	bit 1:  2k
+	bit 0:  3.9kOhm resistor
+	*/
 
 	MCFG_VIDEO_START_OVERRIDE(tatsumi_state,apache3)
 
@@ -937,8 +938,11 @@ static MACHINE_CONFIG_START( roundup5, tatsumi_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tatsumi_state, screen_update_roundup5)
 
-	MCFG_GFXDECODE(roundup5)
-	MCFG_PALETTE_LENGTH(1024 + 4096) /* 1024 real colours, and 4096 arranged as series of cluts */
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", roundup5)
+	MCFG_PALETTE_ADD("palette", 1024 + 4096) /* 1024 real colours, and 4096 arranged as series of cluts */
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	MCFG_PALETTE_MEMBITS(8)
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 
 	MCFG_VIDEO_START_OVERRIDE(tatsumi_state,roundup5)
 
@@ -979,8 +983,9 @@ static MACHINE_CONFIG_START( cyclwarr, tatsumi_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tatsumi_state, screen_update_cyclwarr)
 
-	MCFG_GFXDECODE(cyclwarr)
-	MCFG_PALETTE_LENGTH(8192 + 8192)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cyclwarr)
+	MCFG_PALETTE_ADD("palette", 8192 + 8192)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(tatsumi_state,cyclwarr)
 
@@ -1021,8 +1026,9 @@ static MACHINE_CONFIG_START( bigfight, tatsumi_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tatsumi_state, screen_update_bigfight)
 
-	MCFG_GFXDECODE(cyclwarr)
-	MCFG_PALETTE_LENGTH(8192 + 8192)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cyclwarr)
+	MCFG_PALETTE_ADD("palette", 8192 + 8192)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(tatsumi_state,bigfight)
 
@@ -1155,7 +1161,7 @@ ROM_START( roundup5 )
 	ROM_REGION( 0x80000, "sub", 0 ) /* 68000 sub cpu */
 	ROM_LOAD16_BYTE( "ru-20s",   0x000000, 0x20000, CRC(c5524558) SHA1(a94e7e4548148c83a332524ab4e06607732e13d5) )
 	ROM_LOAD16_BYTE( "ru-18s",   0x000001, 0x20000, CRC(163ef03d) SHA1(099ac2d74164bdc6402b08efb521f49275780858) )
-	ROM_LOAD16_BYTE( "ru-24s",   0x040000, 0x20000, CRC(b9f91b70) SHA1(43c5d9dafb60ed3e5c3eb0e612c2dbc5497f8a6c) )
+	ROM_LOAD16_BYTE( "ru-21s",   0x040000, 0x20000, CRC(b9f91b70) SHA1(43c5d9dafb60ed3e5c3eb0e612c2dbc5497f8a6c) )
 	ROM_LOAD16_BYTE( "ru-19s",   0x040001, 0x20000, CRC(e3953800) SHA1(28fbc6bf154b512fcefeb04fe12db598b1b20cfe) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 ) /* 64k code for sound Z80 */
@@ -1186,7 +1192,7 @@ ROM_START( roundup5 )
 
 	ROM_REGION( 0x40000, "oki", 0 )  /* ADPCM samples */
 	ROM_LOAD( "ru-17b",   0x000000, 0x20000, CRC(82391b47) SHA1(6b1977522c6e906503abc50bdd24c4c38cdc9bdb) )
-	ROM_LOAD( "ru-16e",   0x020000, 0x10000, CRC(374fe170) SHA1(5d190a2735698b0384948bfdb1a900f56f0d7ebc) )
+	ROM_LOAD( "ru-16b",   0x020000, 0x10000, CRC(374fe170) SHA1(5d190a2735698b0384948bfdb1a900f56f0d7ebc) )
 ROM_END
 
 ROM_START( cyclwarr )

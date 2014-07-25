@@ -14,7 +14,8 @@ public:
 		m_dac1(*this, "dac1"),
 		m_dac2(*this, "dac2"),
 		m_gfxram(*this, "gfxram"),
-		m_tileram(*this, "tileram")
+		m_tileram(*this, "tileram"),
+		m_gfxdecode(*this, "gfxdecode")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -22,6 +23,7 @@ public:
 	required_device<dac_device> m_dac2;
 	required_shared_ptr<UINT8> m_gfxram;
 	required_shared_ptr<UINT8> m_tileram;
+	required_device<gfxdecode_device> m_gfxdecode;
 
 	tilemap_t *m_tilemap;
 	DECLARE_WRITE8_MEMBER(mogura_tileram_w);
@@ -30,12 +32,12 @@ public:
 	TILE_GET_INFO_MEMBER(get_mogura_tile_info);
 	virtual void machine_start();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(mogura);
 	UINT32 screen_update_mogura(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 };
 
 
-void mogura_state::palette_init()
+PALETTE_INIT_MEMBER(mogura_state, mogura)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i, j;
@@ -61,7 +63,7 @@ void mogura_state::palette_init()
 		bit2 = BIT(color_prom[i], 7);
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), j, MAKE_RGB(r, g, b));
+		palette.set_pen_color(j, rgb_t(r, g, b));
 		j += 4;
 		if (j > 31) j -= 31;
 	}
@@ -73,8 +75,7 @@ TILE_GET_INFO_MEMBER(mogura_state::get_mogura_tile_info)
 	int code = m_tileram[tile_index];
 	int attr = m_tileram[tile_index + 0x800];
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			(attr >> 1) & 7,
 			0);
@@ -83,8 +84,8 @@ TILE_GET_INFO_MEMBER(mogura_state::get_mogura_tile_info)
 
 void mogura_state::video_start()
 {
-	machine().gfx[0]->set_source(m_gfxram);
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mogura_state::get_mogura_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_gfxdecode->gfx(0)->set_source(m_gfxram);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mogura_state::get_mogura_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 }
 
 UINT32 mogura_state::screen_update_mogura(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -122,7 +123,7 @@ WRITE8_MEMBER(mogura_state::mogura_gfxram_w)
 {
 	m_gfxram[offset] = data ;
 
-	machine().gfx[0]->mark_dirty(offset / 16);
+	m_gfxdecode->gfx(0)->mark_dirty(offset / 16);
 }
 
 
@@ -209,9 +210,11 @@ static MACHINE_CONFIG_START( mogura, mogura_state )
 	MCFG_SCREEN_SIZE(512, 512)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mogura_state, screen_update_mogura)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mogura)
-	MCFG_PALETTE_LENGTH(32)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mogura)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(mogura_state, mogura)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

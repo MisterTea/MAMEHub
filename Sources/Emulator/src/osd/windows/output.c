@@ -1,41 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 //============================================================
 //
 //  output.c - Win32 implementation of MAME output routines
-//
-//============================================================
-//
-//  Copyright Aaron Giles
-//  All rights reserved.
-//
-//  Redistribution and use in source and binary forms, with or
-//  without modification, are permitted provided that the
-//  following conditions are met:
-//
-//    * Redistributions of source code must retain the above
-//      copyright notice, this list of conditions and the
-//      following disclaimer.
-//    * Redistributions in binary form must reproduce the
-//      above copyright notice, this list of conditions and
-//      the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//    * Neither the name 'MAME' nor the names of its
-//      contributors may be used to endorse or promote
-//      products derived from this software without specific
-//      prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND
-//  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-//  FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
-//  EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-//  DAMAGE (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-//  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-//  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-//  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-//  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-//  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //============================================================
 
@@ -46,7 +13,7 @@
 // MAME headers
 #include "emu.h"
 #include "osdepend.h"
-
+#include "winmain.h"
 // MAMEOS headers
 #include "output.h"
 
@@ -99,7 +66,6 @@ static UINT                 om_mame_get_id_string;
 //  FUNCTION PROTOTYPES
 //============================================================
 
-static void winoutput_exit(running_machine &machine);
 static int create_window_class(void);
 static LRESULT CALLBACK output_window_proc(HWND wnd, UINT message, WPARAM wparam, LPARAM lparam);
 static LRESULT register_client(HWND hwnd, LPARAM id);
@@ -110,15 +76,12 @@ static void notifier_callback(const char *outname, INT32 value, void *param);
 
 
 //============================================================
-//  winoutput_init
+//  output_init
 //============================================================
 
-void winoutput_init(running_machine &machine)
+bool windows_osd_interface::output_init()
 {
 	int result;
-
-	// ensure we get cleaned up
-	machine.add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(winoutput_exit), &machine));
 
 	// reset globals
 	clientlist = NULL;
@@ -143,7 +106,7 @@ void winoutput_init(running_machine &machine)
 	assert(output_hwnd != NULL);
 
 	// set a pointer to the running machine
-	SetWindowLongPtr(output_hwnd, GWLP_USERDATA, (LONG_PTR)&machine);
+	SetWindowLongPtr(output_hwnd, GWLP_USERDATA, (LONG_PTR)&machine());
 
 	// allocate message ids
 	om_mame_start = RegisterWindowMessage(OM_MAME_START);
@@ -165,14 +128,16 @@ void winoutput_init(running_machine &machine)
 
 	// register a notifier for output changes
 	output_set_notifier(NULL, notifier_callback, NULL);
+
+	return true;
 }
 
 
 //============================================================
-//  winoutput_exit
+//  output_exit
 //============================================================
 
-static void winoutput_exit(running_machine &machine)
+void windows_osd_interface::output_exit()
 {
 	// free all the clients
 	while (clientlist != NULL)
@@ -302,7 +267,6 @@ static LRESULT unregister_client(HWND hwnd, LPARAM id)
 
 static LRESULT send_id_string(running_machine &machine, HWND hwnd, LPARAM id)
 {
-	copydata_id_string *temp;
 	COPYDATASTRUCT copydata;
 	const char *name;
 	int datalen;
@@ -318,8 +282,9 @@ static LRESULT send_id_string(running_machine &machine, HWND hwnd, LPARAM id)
 		name = "";
 
 	// allocate memory for the message
-	datalen = sizeof(*temp) + strlen(name);
-	temp = (copydata_id_string *)global_alloc_array(UINT8, datalen);
+	datalen = sizeof(copydata_id_string) + strlen(name) + 1;
+	dynamic_buffer buffer(datalen);
+	copydata_id_string *temp = (copydata_id_string *)&buffer[0];
 	temp->id = id;
 	strcpy(temp->string, name);
 
@@ -329,8 +294,6 @@ static LRESULT send_id_string(running_machine &machine, HWND hwnd, LPARAM id)
 	copydata.lpData = temp;
 	SendMessage(hwnd, WM_COPYDATA, (WPARAM)output_hwnd, (LPARAM)&copydata);
 
-	// free the data
-	global_free(temp);
 	return 0;
 }
 

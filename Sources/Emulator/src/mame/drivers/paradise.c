@@ -678,6 +678,7 @@ void paradise_state::machine_start()
 
 	save_item(NAME(m_palbank));
 	save_item(NAME(m_priority));
+	save_item(NAME(irq_count));
 }
 
 void paradise_state::machine_reset()
@@ -713,9 +714,10 @@ static MACHINE_CONFIG_START( paradise, paradise_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0+16, 256-1-16)
 	MCFG_SCREEN_UPDATE_DRIVER(paradise_state, screen_update_paradise)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(paradise)
-	MCFG_PALETTE_LENGTH(0x800 + 16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", paradise)
+	MCFG_PALETTE_ADD("palette", 0x800 + 16)
 
 
 	/* sound hardware */
@@ -742,7 +744,7 @@ static MACHINE_CONFIG_DERIVED( torus, paradise )
 	MCFG_CPU_PROGRAM_MAP(torus_map)
 	MCFG_CPU_IO_MAP(torus_io_map)
 
-	MCFG_GFXDECODE(torus)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", torus)
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(paradise_state, screen_update_torus)
 
@@ -756,7 +758,7 @@ static MACHINE_CONFIG_DERIVED( madball, paradise )
 	MCFG_CPU_PROGRAM_MAP(torus_map)
 	MCFG_CPU_IO_MAP(torus_io_map)
 
-	MCFG_GFXDECODE(madball)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", madball)
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(paradise_state, screen_update_madball)

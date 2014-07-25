@@ -364,7 +364,7 @@ void system1_state::machine_start()
 		membank("bank1")->configure_entry(0, memregion("maincpu")->base() + 0x8000);
 	membank("bank1")->set_entry(0);
 
-	z80_set_cycle_tables(m_maincpu, cc_op, cc_cb, cc_ed, cc_xy, cc_xycb, cc_ex);
+	m_maincpu->z80_set_cycle_tables(cc_op, cc_cb, cc_ed, cc_xy, cc_xycb, cc_ex);
 
 	m_mute_xor = 0x00;
 
@@ -1938,7 +1938,7 @@ static INPUT_PORTS_START( wbml )
 	PORT_DIPSETTING(    0x04, "3" )
 	PORT_DIPSETTING(    0x0c, "4" )
 	PORT_DIPSETTING(    0x08, "5" )
-/* 0x00 gives 4 lives */
+	PORT_DIPSETTING(    0x00, DEF_STR( Free_Play ) ) // starts with 2 coins inserted
 	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Bonus_Life ) )   PORT_DIPLOCATION("SWB:5")
 	PORT_DIPSETTING(    0x10, "30000 100000 200000" )
 	PORT_DIPSETTING(    0x00, "50000 150000 250000" )
@@ -1948,7 +1948,7 @@ static INPUT_PORTS_START( wbml )
 	PORT_DIPNAME( 0x40, 0x40, "Test Mode" )         PORT_DIPLOCATION("SWB:7")
 	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SWB:8")
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unused ) )      PORT_DIPLOCATION("SWB:8")
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
@@ -2100,51 +2100,6 @@ GFXDECODE_END
 
 /*************************************
  *
- *  Sound interface
- *
- *************************************/
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
-/*************************************
- *
- *  Machine driver
- *
- *************************************/
-
-static I8255A_INTERFACE( ppi8255_intf )
-{
-	DEVCB_NULL,                                         /* Port A read */
-	DEVCB_DRIVER_MEMBER(system1_state, soundport_w),    /* Port A write */
-	DEVCB_NULL,                                         /* Port B read */
-	DEVCB_DRIVER_MEMBER(system1_state, videomode_w),    /* Port B write */
-	DEVCB_NULL,                                         /* Port C read */
-	DEVCB_DRIVER_MEMBER(system1_state,sound_control_w)                      /* Port C write */
-};
-
-static Z80PIO_INTERFACE( pio_interface )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(system1_state, soundport_w),
-	DEVCB_CPU_INPUT_LINE("soundcpu", INPUT_LINE_NMI),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(system1_state, videomode_w),
-	DEVCB_NULL
-};
-
-
-
-/*************************************
- *
  *  Machine driver
  *
  *************************************/
@@ -2164,30 +2119,29 @@ static MACHINE_CONFIG_START( sys1ppi, system1_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 
-
-	MCFG_I8255A_ADD( "ppi8255", ppi8255_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(system1_state, soundport_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(system1_state, videomode_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(system1_state, sound_control_w))
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)  /* needed for proper hardware collisions */
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)  /* needed for proper hardware collisions */
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/2, 640, 0, 512, 260, 0, 224)
 	MCFG_SCREEN_UPDATE_DRIVER(system1_state, screen_update_system1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(system1)
-	MCFG_PALETTE_LENGTH(2048)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", system1)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn1", SN76489A, SOUND_CLOCK/4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76489A, SOUND_CLOCK/2)  /* selectable via jumper */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 /* reduced visible area for scrolling games */
@@ -2207,7 +2161,10 @@ static MACHINE_CONFIG_DERIVED( sys1pio, sys1ppi )
 	MCFG_CPU_IO_MAP(system1_pio_io_map)
 
 	MCFG_DEVICE_REMOVE("ppi8255")
-	MCFG_Z80PIO_ADD("pio", MASTER_CLOCK, pio_interface)
+	MCFG_DEVICE_ADD("pio", Z80PIO, MASTER_CLOCK)
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(system1_state, soundport_w))
+	MCFG_Z80PIO_OUT_ARDY_CB(INPUTLINE("soundcpu", INPUT_LINE_NMI))
+	MCFG_Z80PIO_OUT_PB_CB(WRITE8(system1_state, videomode_w))
 MACHINE_CONFIG_END
 
 /* reduced visible area for scrolling games */
@@ -3858,16 +3815,16 @@ Serial number of the pcb is 257
 There are 2 piggyback boards:
 
 The first is marked "SEGA 834-5764"  and it is placed on the socket of the sega sys1 protection chip and on a eprom socket.
-there are IC2 and IC3 eproms (I can't read the codes because the stickers are damaged)
-There is also a 40 pin socket in which they have put an unknown 42 NEC cpu (they have scratched the codes) with pin 21 and 22 cut!
+there are IC1 and IC2 eproms (triple checked - can be easy to mis-read).  There is also a 40 pin socket in which they have
+put an unknown 42 NEC cpu (they have scratched the codes) with pin 21 and 22 cut!
 
 The second piggyback is marked "SEGA 834-5755" and it contains proms and some logic.
 */
 
 ROM_START( wboy4 )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "ic2.bin",    0x0000, 0x8000, CRC(48b2c006) SHA1(35492330dae71d410712380466b4c09b81df8559) ) /* encrypted */
-	ROM_LOAD( "ic3.bin",    0x8000, 0x8000, CRC(466cae31) SHA1(e47e9084c83796a0a0dfeaa1f8f868cadd5f32c7) )
+	ROM_LOAD( "epr7622.ic1",    0x0000, 0x8000, CRC(48b2c006) SHA1(35492330dae71d410712380466b4c09b81df8559) ) /* encrypted */
+	ROM_LOAD( "epr7621.ic2",    0x8000, 0x8000, CRC(466cae31) SHA1(e47e9084c83796a0a0dfeaa1f8f868cadd5f32c7) )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
 	ROM_LOAD( "7583.126", 0x0000, 0x8000, CRC(99334b3c) SHA1(dfc09f63082b7666fa2152e22810c0455a7e5051) )    // epr7583.ic120
@@ -4740,12 +4697,6 @@ DRIVER_INIT_MEMBER(system1_state,dakkochn)
 	m_videomode_custom = &system1_state::dakkochn_custom_w;
 
 	mc8123_decrypt_rom(machine(), "maincpu", "key", "bank1", 4);
-
-//  m_maincpu->space(AS_IO).install_legacy_read_handler(0x00, 0x00, FUNC(dakkochn_port_00_r));
-//  m_maincpu->space(AS_IO).install_legacy_read_handler(0x03, 0x03, FUNC(dakkochn_port_03_r));
-//  m_maincpu->space(AS_IO).install_legacy_read_handler(0x04, 0x04, FUNC(dakkochn_port_04_r));
-
-//  m_maincpu->space(AS_IO).install_legacy_write_handler(0x15, 0x15, FUNC(dakkochn_port_15_w));
 }
 
 

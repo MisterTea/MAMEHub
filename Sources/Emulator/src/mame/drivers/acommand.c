@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /*******************************************************************************************
 
 Alien Command (c) 1993 Jaleco
@@ -71,7 +73,9 @@ public:
 		m_ac_devram(*this, "ac_devram"),
 		m_maincpu(*this, "maincpu"),
 		m_oki1(*this, "oki1"),
-		m_oki2(*this, "oki2") { }
+		m_oki2(*this, "oki2"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT16> m_ac_bgvram;
 	required_shared_ptr<UINT16> m_ac_txvram;
@@ -102,6 +106,8 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<okim6295_device> m_oki1;
 	required_device<okim6295_device> m_oki2;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -115,8 +121,7 @@ TILEMAP_MAPPER_MEMBER(acommand_state::bg_scan)
 TILE_GET_INFO_MEMBER(acommand_state::ac_get_bg_tile_info)
 {
 	int code = m_ac_bgvram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code & 0xfff,
 			(code & 0xf000) >> 12,
 			0);
@@ -125,8 +130,7 @@ TILE_GET_INFO_MEMBER(acommand_state::ac_get_bg_tile_info)
 TILE_GET_INFO_MEMBER(acommand_state::ac_get_tx_tile_info)
 {
 	int code = m_ac_txvram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code & 0xfff,
 			(code & 0xf000) >> 12,
 			0);
@@ -173,7 +177,7 @@ void acommand_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 				xx = w;
 				do
 				{
-					drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
+					m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 							code,
 							color,
 							flipx, flipy,
@@ -192,8 +196,8 @@ void acommand_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 
 void acommand_state::video_start()
 {
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(acommand_state::ac_get_tx_tile_info),this),TILEMAP_SCAN_COLS,8,8,512,32);
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(acommand_state::ac_get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(acommand_state::bg_scan),this),16,16,256,16);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(acommand_state::ac_get_tx_tile_info),this),TILEMAP_SCAN_COLS,8,8,512,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(acommand_state::ac_get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(acommand_state::bg_scan),this),16,16,256,16);
 
 	m_ac_vregs = auto_alloc_array(machine(), UINT16, 0x80/2);
 
@@ -466,7 +470,7 @@ static ADDRESS_MAP_START( acommand_map, AS_PROGRAM, 16, acommand_state )
 	AM_RANGE(0x082208, 0x082209) AM_WRITE(ac_unk2_w)
 	AM_RANGE(0x0a0000, 0x0a3fff) AM_RAM_WRITE(ac_bgvram_w) AM_SHARE("ac_bgvram")
 	AM_RANGE(0x0b0000, 0x0b3fff) AM_RAM_WRITE(ac_txvram_w) AM_SHARE("ac_txvram")
-	AM_RANGE(0x0b8000, 0x0bffff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0b8000, 0x0bffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0f0000, 0x0f7fff) AM_RAM
 	AM_RANGE(0x0f8000, 0x0f8fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x0f9000, 0x0fffff) AM_RAM
@@ -614,10 +618,11 @@ static MACHINE_CONFIG_START( acommand, acommand_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(acommand_state, screen_update_acommand)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(acommand)
-	MCFG_PALETTE_LENGTH(0x4000)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", acommand)
+	MCFG_PALETTE_ADD("palette", 0x4000)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

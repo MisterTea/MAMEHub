@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Kevin Thacker,Sandro Ronco
 /*****************************************************************************
  *
  * includes/avigo.h
@@ -7,11 +9,10 @@
 #ifndef AVIGO_H_
 #define AVIGO_H_
 
+#include "bus/rs232/rs232.h"
 #include "cpu/z80/z80.h"
 #include "machine/rp5c01.h"
 #include "machine/ins8250.h"
-#include "machine/serial.h"
-#include "machine/null_modem.h"
 #include "machine/intelfsh.h"
 #include "machine/nvram.h"
 #include "sound/speaker.h"
@@ -34,7 +35,8 @@ public:
 			m_ram(*this, RAM_TAG),
 			m_speaker(*this, "speaker"),
 			m_uart(*this, "ns16550"),
-			m_serport(*this, "serport")
+			m_serport(*this, "serport"),
+			m_palette(*this, "palette")
 		{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -42,6 +44,7 @@ public:
 	required_device<speaker_sound_device> m_speaker;
 	required_device<ns16550_device> m_uart;
 	required_device<rs232_port_device> m_serport;
+	required_device<palette_device> m_palette;
 
 	// defined in drivers/avigo.c
 	virtual void machine_start();
@@ -104,7 +107,7 @@ public:
 	UINT8               m_screen_column;
 	UINT8               m_warm_start;
 	UINT8 *             m_ram_base;
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(avigo);
 	TIMER_DEVICE_CALLBACK_MEMBER(avigo_scan_timer);
 	TIMER_DEVICE_CALLBACK_MEMBER(avigo_1hz_timer);
 

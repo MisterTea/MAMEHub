@@ -395,17 +395,17 @@ static MACHINE_CONFIG_START( mainsnk, mainsnk_state )
 	MCFG_CPU_PERIODIC_INT_DRIVER(mainsnk_state, irq0_line_hold,  244)
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(36*8, 28*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 1*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mainsnk_state, screen_update_mainsnk)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mainsnk)
-	MCFG_PALETTE_LENGTH(0x400)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mainsnk)
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_INIT_OWNER(mainsnk_state, mainsnk)
+	MCFG_PALETTE_ENABLE_SHADOWS()
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 

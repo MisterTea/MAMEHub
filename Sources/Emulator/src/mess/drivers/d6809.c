@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /*******************************************************************************
 
         6809 Portable
@@ -84,15 +86,17 @@ devices.
 #include "cpu/m6809/m6809.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class d6809_state : public driver_device
 {
 public:
 	d6809_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_terminal(*this, TERMINAL_TAG)
-	{ }
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<generic_terminal_device> m_terminal;
@@ -135,11 +139,6 @@ WRITE8_MEMBER( d6809_state::kbd_put )
 	m_term_data = data;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(d6809_state, kbd_put)
-};
-
 void d6809_state::machine_reset()
 {
 }
@@ -152,7 +151,8 @@ static MACHINE_CONFIG_START( d6809, d6809_state )
 
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(d6809_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

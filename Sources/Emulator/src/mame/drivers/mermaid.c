@@ -418,14 +418,6 @@ WRITE_LINE_MEMBER(mermaid_state::rougien_adpcm_int)
 	}
 }
 
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(mermaid_state,rougien_adpcm_int),  /* interrupt function */
-	MSM5205_S96_4B
-};
-
-
 INTERRUPT_GEN_MEMBER(mermaid_state::vblank_irq)
 {
 	if(m_nmi_mask)
@@ -448,10 +440,12 @@ static MACHINE_CONFIG_START( mermaid, mermaid_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(mermaid_state, screen_update_mermaid)
 	MCFG_SCREEN_VBLANK_DRIVER(mermaid_state, screen_eof_mermaid)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mermaid)
-	MCFG_PALETTE_LENGTH(4*16+2*2)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mermaid)
+	MCFG_PALETTE_ADD("palette", 4*16+2*2)
+	MCFG_PALETTE_INDIRECT_ENTRIES(64+1)
+	MCFG_PALETTE_INIT_OWNER(mermaid_state, mermaid)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -469,10 +463,12 @@ static MACHINE_CONFIG_DERIVED( rougien, mermaid )
 	MCFG_DEVICE_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(rougien_map)
 
-	MCFG_PALETTE_INIT_OVERRIDE(mermaid_state,rougien)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(mermaid_state,rougien)
 
 	MCFG_SOUND_ADD("adpcm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(mermaid_state, rougien_adpcm_int))  /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S96_4B)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 MACHINE_CONFIG_END
 

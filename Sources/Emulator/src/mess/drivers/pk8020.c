@@ -11,7 +11,6 @@
 #include "emu.h"
 #include "cpu/i8085/i8085.h"
 #include "machine/i8255.h"
-#include "machine/wd17xx.h"
 #include "imagedev/flopdrv.h"
 #include "formats/basicdsk.h"
 #include "includes/pk8020.h"
@@ -140,16 +139,6 @@ static INPUT_PORTS_START( pk8020 )
 		PORT_BIT(0xFF, IP_ACTIVE_HIGH, IPT_UNUSED)
 INPUT_PORTS_END
 
-/* Machine driver */
-static const cassette_interface pk8020_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_PLAY),
-	NULL,
-	NULL
-};
-
 static LEGACY_FLOPPY_OPTIONS_START(pk8020)
 	LEGACY_FLOPPY_OPTION(pk8020, "kdi", "PK8020 disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
 		HEADS([2])
@@ -161,23 +150,9 @@ LEGACY_FLOPPY_OPTIONS_END
 
 static const floppy_interface pk8020_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSHD,
 	LEGACY_FLOPPY_OPTIONS_NAME(pk8020),
-	"floppy_5_25",
-	NULL
-};
-
-static const wd17xx_interface pk8020_wd17xx_interface =
-{
-	DEVCB_LINE_VCC,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	{ FLOPPY_0, FLOPPY_1, FLOPPY_2, FLOPPY_3 }
+	"floppy_5_25"
 };
 
 /* F4 Character Displayer */
@@ -206,7 +181,7 @@ static MACHINE_CONFIG_START( pk8020, pk8020_state )
 	MCFG_CPU_PROGRAM_MAP(pk8020_mem)
 	MCFG_CPU_IO_MAP(pk8020_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", pk8020_state,  pk8020_interrupt)
-
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259", pic8259_device, inta_cb)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -215,20 +190,38 @@ static MACHINE_CONFIG_START( pk8020, pk8020_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pk8020_state, screen_update_pk8020)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(pk8020)
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pk8020)
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(pk8020_state, pk8020)
 
+	MCFG_DEVICE_ADD("ppi8255_1", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(pk8020_state, pk8020_porta_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(pk8020_state, pk8020_portb_w))
+	MCFG_I8255_IN_PORTC_CB(READ8(pk8020_state, pk8020_portc_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(pk8020_state, pk8020_portc_w))
 
-	MCFG_I8255_ADD( "ppi8255_1", pk8020_ppi8255_interface_1 )
-	MCFG_I8255_ADD( "ppi8255_2", pk8020_ppi8255_interface_2 )
-	MCFG_I8255_ADD( "ppi8255_3", pk8020_ppi8255_interface_3 )
-	MCFG_PIT8253_ADD( "pit8253", pk8020_pit8253_intf )
-	MCFG_PIC8259_ADD( "pic8259", WRITELINE(pk8020_state,pk8020_pic_set_int_line), VCC, NULL )
-	MCFG_I8251_ADD( "rs232", default_i8251_interface)
-	MCFG_I8251_ADD( "lan", default_i8251_interface)
+	MCFG_DEVICE_ADD("ppi8255_2", I8255, 0)
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(pk8020_state, pk8020_2_portc_w))
 
-	MCFG_FD1793_ADD( "wd1793", pk8020_wd17xx_interface )
+	MCFG_DEVICE_ADD("ppi8255_3", I8255, 0)
+
+	MCFG_DEVICE_ADD("pit8253", PIT8253, 0)
+	MCFG_PIT8253_CLK0(XTAL_20MHz / 10)
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(pk8020_state,pk8020_pit_out0))
+	MCFG_PIT8253_CLK1(XTAL_20MHz / 10)
+	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(pk8020_state,pk8020_pit_out1))
+	MCFG_PIT8253_CLK2((XTAL_20MHz / 8) / 164)
+	MCFG_PIT8253_OUT2_HANDLER(DEVWRITELINE("pic8259", pic8259_device, ir5_w))
+
+	MCFG_PIC8259_ADD("pic8259", INPUTLINE("maincpu", 0), VCC, NULL)
+	MCFG_DEVICE_ADD("rs232", I8251, 0)
+	MCFG_DEVICE_ADD("lan", I8251, 0)
+
+	MCFG_DEVICE_ADD("wd1793", FD1793, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE4_TAGS
+	MCFG_WD17XX_DDEN_CALLBACK(VCC)
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -237,7 +230,8 @@ static MACHINE_CONFIG_START( pk8020, pk8020_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( "cassette", pk8020_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
 
 	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(pk8020_floppy_interface)
 	MCFG_SOFTWARE_LIST_ADD("flop_list","korvet_flop")

@@ -22,7 +22,7 @@
 
 #define VERBOSE_LEVEL ( 0 )
 
-INLINE void ATTR_PRINTF(3,4) verboselog( running_machine &machine, int n_level, const char *s_fmt, ...)
+INLINE void ATTR_PRINTF(3,4) verboselog(running_machine &machine, int n_level, const char *s_fmt, ...)
 {
 	if (VERBOSE_LEVEL >= n_level)
 	{
@@ -60,7 +60,7 @@ inline rgb_t gp32_state::s3c240x_get_color_5551( UINT16 data)
 	g = BITS( data, 10, 6) << 3;
 	b = BITS( data, 5, 1) << 3;
 	i = BIT( data, 1) << 2;
-	return MAKE_RGB( r | i, g | i, b | i);
+	return rgb_t( r | i, g | i, b | i);
 }
 
 void gp32_state::s3c240x_lcd_dma_reload()
@@ -134,7 +134,7 @@ void gp32_state::s3c240x_lcd_render_01( )
 		UINT32 data = s3c240x_lcd_dma_read();
 		for (j = 0; j < 32; j++)
 		{
-			*scanline++ = palette_get_color( machine(), (data >> 31) & 0x01);
+			*scanline++ = m_palette->pen_color((data >> 31) & 0x01);
 			data = data << 1;
 			m_s3c240x_lcd.hpos++;
 			if (m_s3c240x_lcd.hpos >= (m_s3c240x_lcd.pagewidth_max << 4))
@@ -157,7 +157,7 @@ void gp32_state::s3c240x_lcd_render_02( )
 		UINT32 data = s3c240x_lcd_dma_read();
 		for (j = 0; j < 16; j++)
 		{
-			*scanline++ = palette_get_color( machine(), (data >> 30) & 0x03);
+			*scanline++ = m_palette->pen_color((data >> 30) & 0x03);
 			data = data << 2;
 			m_s3c240x_lcd.hpos++;
 			if (m_s3c240x_lcd.hpos >= (m_s3c240x_lcd.pagewidth_max << 3))
@@ -180,7 +180,7 @@ void gp32_state::s3c240x_lcd_render_04( )
 		UINT32 data = s3c240x_lcd_dma_read( );
 		for (j = 0; j < 8; j++)
 		{
-			*scanline++ = palette_get_color( machine(), (data >> 28) & 0x0F);
+			*scanline++ = m_palette->pen_color((data >> 28) & 0x0F);
 			data = data << 4;
 			m_s3c240x_lcd.hpos++;
 			if (m_s3c240x_lcd.hpos >= (m_s3c240x_lcd.pagewidth_max << 2))
@@ -203,7 +203,7 @@ void gp32_state::s3c240x_lcd_render_08( )
 		UINT32 data = s3c240x_lcd_dma_read();
 		for (j = 0; j < 4; j++)
 		{
-			*scanline++ = palette_get_color( machine(), (data >> 24) & 0xFF);
+			*scanline++ = m_palette->pen_color((data >> 24) & 0xFF);
 			data = data << 8;
 			m_s3c240x_lcd.hpos++;
 			if (m_s3c240x_lcd.hpos >= (m_s3c240x_lcd.pagewidth_max << 1))
@@ -241,7 +241,7 @@ void gp32_state::s3c240x_lcd_render_16( )
 
 TIMER_CALLBACK_MEMBER(gp32_state::s3c240x_lcd_timer_exp)
 {
-	screen_device *screen = machine().primary_screen;
+	screen_device *screen = machine().first_screen();
 	verboselog( machine(), 2, "LCD timer callback\n");
 	m_s3c240x_lcd.vpos = screen->vpos();
 	m_s3c240x_lcd.hpos = screen->hpos();
@@ -269,7 +269,7 @@ TIMER_CALLBACK_MEMBER(gp32_state::s3c240x_lcd_timer_exp)
 
 void gp32_state::video_start()
 {
-	machine().primary_screen->register_screen_bitmap(m_bitmap);
+	machine().first_screen()->register_screen_bitmap(m_bitmap);
 }
 
 UINT32 gp32_state::screen_update_gp32(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -289,7 +289,7 @@ READ32_MEMBER(gp32_state::s3c240x_lcd_r)
 		{
 			// make sure line counter is going
 			UINT32 lineval = BITS( m_s3c240x_lcd_regs[1], 23, 14);
-			data = (data & ~0xFFFC0000) | ((lineval - machine().primary_screen->vpos()) << 18);
+			data = (data & ~0xFFFC0000) | ((lineval - machine().first_screen()->vpos()) << 18);
 		}
 		break;
 	}
@@ -299,7 +299,7 @@ READ32_MEMBER(gp32_state::s3c240x_lcd_r)
 
 void gp32_state::s3c240x_lcd_configure()
 {
-	screen_device *screen = machine().primary_screen;
+	screen_device *screen = machine().first_screen();
 	UINT32 vspw, vbpd, lineval, vfpd, hspw, hbpd, hfpd, hozval, clkval, hclk;
 	double framerate, vclk;
 	rectangle visarea;
@@ -325,7 +325,7 @@ void gp32_state::s3c240x_lcd_configure()
 
 void gp32_state::s3c240x_lcd_start()
 {
-	screen_device *screen = machine().primary_screen;
+	screen_device *screen = machine().first_screen();
 	verboselog( machine(), 1, "LCD start\n");
 	s3c240x_lcd_configure();
 	s3c240x_lcd_dma_init();
@@ -387,7 +387,7 @@ WRITE32_MEMBER(gp32_state::s3c240x_lcd_palette_w)
 	{
 		verboselog( machine(), 0, "s3c240x_lcd_palette_w: unknown mask %08x\n", mem_mask);
 	}
-	palette_set_color( machine(), offset, s3c240x_get_color_5551( data & 0xFFFF));
+	m_palette->set_pen_color( offset, s3c240x_get_color_5551( data & 0xFFFF));
 }
 
 // CLOCK & POWER MANAGEMENT
@@ -1678,7 +1678,7 @@ static MACHINE_CONFIG_START( gp32, gp32_state )
 	MCFG_CPU_ADD("maincpu", ARM9, 40000000)
 	MCFG_CPU_PROGRAM_MAP(gp32_map)
 
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD("palette", 32768)
 
 	MCFG_SCREEN_ADD("screen", LCD)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -1690,7 +1690,6 @@ static MACHINE_CONFIG_START( gp32, gp32_state )
 	/* 320x240 is 4:3 but ROT270 causes an aspect ratio of 3:4 by default */
 	MCFG_DEFAULT_LAYOUT(layout_lcd_rot)
 
-
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("dac1", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
@@ -1699,7 +1698,7 @@ static MACHINE_CONFIG_START( gp32, gp32_state )
 
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_SMARTMEDIA_ADD("smartmedia")
+	MCFG_DEVICE_ADD("smartmedia", SMARTMEDIA, 0)
 
 	MCFG_SOFTWARE_LIST_ADD("memc_list","gp32")
 MACHINE_CONFIG_END

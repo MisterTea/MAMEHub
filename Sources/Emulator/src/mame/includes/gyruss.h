@@ -19,7 +19,10 @@ public:
 		m_colorram(*this, "colorram"),
 		m_videoram(*this, "videoram"),
 		m_flipscreen(*this, "flipscreen"),
-		m_spriteram(*this, "spriteram")
+		m_spriteram(*this, "spriteram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")
 	{ }
 
 	/* devices/memory pointers */
@@ -32,6 +35,9 @@ public:
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_flipscreen;
 	required_shared_ptr<UINT8> m_spriteram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	tilemap_t *m_tilemap;
 	UINT8 m_master_nmi_mask;
@@ -52,9 +58,10 @@ public:
 	TILE_GET_INFO_MEMBER(gyruss_get_tile_info);
 	virtual void machine_start();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(gyruss);
 	UINT32 screen_update_gyruss(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(master_vblank_irq);
 	INTERRUPT_GEN_MEMBER(slave_vblank_irq);
-	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element **gfx );
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void filter_w(address_space &space, int chip, int data );
 };

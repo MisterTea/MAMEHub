@@ -58,13 +58,13 @@ WRITE16_MEMBER(shadfrce_state::shadfrce_bg1videoram_w)
 
 void shadfrce_state::video_start()
 {
-	m_fgtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(shadfrce_state::get_shadfrce_fgtile_info),this),TILEMAP_SCAN_ROWS,    8,  8,64,32);
+	m_fgtilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(shadfrce_state::get_shadfrce_fgtile_info),this),TILEMAP_SCAN_ROWS,    8,  8,64,32);
 	m_fgtilemap->set_transparent_pen(0);
 
-	m_bg0tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(shadfrce_state::get_shadfrce_bg0tile_info),this),TILEMAP_SCAN_ROWS, 16, 16,32,32);
+	m_bg0tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(shadfrce_state::get_shadfrce_bg0tile_info),this),TILEMAP_SCAN_ROWS, 16, 16,32,32);
 	m_bg0tilemap->set_transparent_pen(0);
 
-	m_bg1tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(shadfrce_state::get_shadfrce_bg1tile_info),this),TILEMAP_SCAN_ROWS, 16, 16,32,32);
+	m_bg1tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(shadfrce_state::get_shadfrce_bg1tile_info),this),TILEMAP_SCAN_ROWS, 16, 16,32,32);
 
 	m_spvideoram_old = auto_alloc_array(machine(), UINT16, m_spvideoram.bytes()/2);
 }
@@ -108,7 +108,7 @@ void shadfrce_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, c
 	   P = priority
 	*/
 
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 	UINT16 *finish = m_spvideoram_old;
 	UINT16 *source = finish + 0x2000/2 - 8;
 	int hcount;
@@ -129,10 +129,10 @@ void shadfrce_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, c
 		height++;
 		if (enable) {
 			for (hcount=0;hcount<height;hcount++) {
-				pdrawgfx_transpen(bitmap,cliprect,gfx,tile+hcount,pal,flipx,flipy,xpos,ypos-hcount*16-16,screen.priority(),pri_mask,0);
-				pdrawgfx_transpen(bitmap,cliprect,gfx,tile+hcount,pal,flipx,flipy,xpos-0x200,ypos-hcount*16-16,screen.priority(),pri_mask,0);
-				pdrawgfx_transpen(bitmap,cliprect,gfx,tile+hcount,pal,flipx,flipy,xpos,ypos-hcount*16-16+0x200,screen.priority(),pri_mask,0);
-				pdrawgfx_transpen(bitmap,cliprect,gfx,tile+hcount,pal,flipx,flipy,xpos-0x200,ypos-hcount*16-16+0x200,screen.priority(),pri_mask,0);
+				gfx->prio_transpen(bitmap,cliprect,tile+hcount,pal,flipx,flipy,xpos,ypos-hcount*16-16,screen.priority(),pri_mask,0);
+				gfx->prio_transpen(bitmap,cliprect,tile+hcount,pal,flipx,flipy,xpos-0x200,ypos-hcount*16-16,screen.priority(),pri_mask,0);
+				gfx->prio_transpen(bitmap,cliprect,tile+hcount,pal,flipx,flipy,xpos,ypos-hcount*16-16+0x200,screen.priority(),pri_mask,0);
+				gfx->prio_transpen(bitmap,cliprect,tile+hcount,pal,flipx,flipy,xpos-0x200,ypos-hcount*16-16+0x200,screen.priority(),pri_mask,0);
 			}
 		}
 		source-=8;
@@ -152,7 +152,7 @@ UINT32 shadfrce_state::screen_update_shadfrce(screen_device &screen, bitmap_ind1
 	}
 	else
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 	}
 
 	return 0;

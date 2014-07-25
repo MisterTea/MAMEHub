@@ -113,21 +113,9 @@ WRITE8_MEMBER(mario_state::memory_write_byte)
 	return prog_space.write_byte(offset, data);
 }
 
-static Z80DMA_INTERFACE( mario_dma )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_HALT),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(mario_state, memory_read_byte),
-	DEVCB_DRIVER_MEMBER(mario_state, memory_write_byte),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 WRITE8_MEMBER(mario_state::mario_z80dma_rdy_w)
 {
-	device_t *device = machine().device("z80dma");
-	z80dma_rdy_w(device, data & 0x01);
+	m_z80dma->rdy_w(data & 0x01);
 }
 
 WRITE8_MEMBER(mario_state::nmi_mask_w)
@@ -181,7 +169,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mario_io_map, AS_IO, 8, mario_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_DEVREADWRITE_LEGACY("z80dma", z80dma_r, z80dma_w)   /* dma controller */
+	AM_RANGE(0x00, 0x00) AM_DEVREADWRITE("z80dma", z80dma_device, read, write)  /* dma controller */
 ADDRESS_MAP_END
 
 /*************************************
@@ -346,15 +334,19 @@ static MACHINE_CONFIG_START( mario_base, mario_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", mario_state,  vblank_irq)
 
 	/* devices */
-	MCFG_Z80DMA_ADD("z80dma", Z80_CLOCK, mario_dma)
+	MCFG_DEVICE_ADD("z80dma", Z80DMA, Z80_CLOCK)
+	MCFG_Z80DMA_OUT_BUSREQ_CB(INPUTLINE("maincpu", INPUT_LINE_HALT))
+	MCFG_Z80DMA_IN_MREQ_CB(READ8(mario_state, memory_read_byte))
+	MCFG_Z80DMA_OUT_MREQ_CB(WRITE8(mario_state, memory_write_byte))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(mario_state, screen_update_mario)
-	MCFG_GFXDECODE(mario)
-	MCFG_PALETTE_LENGTH(512)
-
+	MCFG_SCREEN_PALETTE("palette")
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mario)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INIT_OWNER(mario_state, mario)
 
 MACHINE_CONFIG_END
 

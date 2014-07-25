@@ -424,6 +424,12 @@ MACHINE_START_MEMBER(taito_f3_state,f3)
 	save_item(NAME(m_coin_word));
 }
 
+MACHINE_RESET_MEMBER(taito_f3_state,f3)
+{
+	/* start with sound m68k off, qtheater relies on it (otherwise main CPU tries to reset it while 68k is working with irq table vectors). */
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+}
+
 static MACHINE_CONFIG_START( f3, taito_f3_state )
 
 	/* basic machine hardware */
@@ -432,6 +438,7 @@ static MACHINE_CONFIG_START( f3, taito_f3_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", taito_f3_state,  f3_interrupt2)
 
 	MCFG_MACHINE_START_OVERRIDE(taito_f3_state,f3)
+	MCFG_MACHINE_RESET_OVERRIDE(taito_f3_state,f3)
 
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
@@ -444,8 +451,8 @@ static MACHINE_CONFIG_START( f3, taito_f3_state )
 	MCFG_SCREEN_UPDATE_DRIVER(taito_f3_state, screen_update_f3)
 	MCFG_SCREEN_VBLANK_DRIVER(taito_f3_state, screen_eof_f3)
 
-	MCFG_GFXDECODE(taito_f3)
-	MCFG_PALETTE_LENGTH(0x2000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", taito_f3)
+	MCFG_PALETTE_ADD("palette", 0x2000)
 
 	MCFG_VIDEO_START_OVERRIDE(taito_f3_state,f3)
 
@@ -481,7 +488,7 @@ static MACHINE_CONFIG_DERIVED( f3_eeprom, f3 )
 	MCFG_EEPROM_SERIAL_DATA(recalh_eeprom, 128) //TODO: convert this into ROM
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( f3_224b_eeprom, f3 )
+static MACHINE_CONFIG_DERIVED( f3_224b_eeprom, f3_224b )
 
 	MCFG_DEVICE_REMOVE("eeprom")
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
@@ -537,8 +544,8 @@ static MACHINE_CONFIG_START( bubsympb, taito_f3_state )
 	MCFG_SCREEN_UPDATE_DRIVER(taito_f3_state, screen_update_f3)
 	MCFG_SCREEN_VBLANK_DRIVER(taito_f3_state, screen_eof_f3)
 
-	MCFG_GFXDECODE(bubsympb)
-	MCFG_PALETTE_LENGTH(8192)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bubsympb)
+	MCFG_PALETTE_ADD("palette", 8192)
 
 	MCFG_VIDEO_START_OVERRIDE(taito_f3_state,f3)
 
@@ -2883,9 +2890,9 @@ ROM_START( tcobra2 )
 	ROM_LOAD16_BYTE("e15-06.ic41", 0x400000, 0x200000, CRC(b182a3e1) SHA1(db8569b069911bb84900b2aa5168c45ba3e985c7) )    // CC CD -std-
 
 	ROM_REGION( 0x034a, "pals", 0 )
-	ROM_LOAD( "d77-12.ic48.bin",    0x0000, 0x0117, CRC(6f93a4d8) SHA1(8c69688cf1159691439ebc4edfba52ab13f645b9) ) /* D77-12 @ IC48 (PALCE16V8Q-15PC/4) */
-	ROM_LOAD( "d77-14.ic21.bin",    0x0118, 0x0117, CRC(f2264f51) SHA1(6f18bad9e5318fa40dbce32c0a036b7588651660) ) /* D77-14 @ IC21 (PALCE16V8Q-15PC/4) */
-	ROM_LOAD( "palce16v8.ic37.bin", 0x0230, 0x0117, CRC(6ccd8168) SHA1(98f85455585ba2f5ab834fa30addec498e94f814) ) /* Label unreadable @ IC37 (PALCE16V8Q-15PC/4) */
+	ROM_LOAD( "d77-12.ic48.bin",    0x0000, 0x0117, BAD_DUMP CRC(6f93a4d8) SHA1(8c69688cf1159691439ebc4edfba52ab13f645b9) ) /* D77-12 @ IC48 (PALCE16V8Q-15PC/4) */
+	ROM_LOAD( "d77-14.ic21.bin",    0x0118, 0x0117, BAD_DUMP CRC(f2264f51) SHA1(6f18bad9e5318fa40dbce32c0a036b7588651660) ) /* D77-14 @ IC21 (PALCE16V8Q-15PC/4) */
+	ROM_LOAD( "palce16v8.ic37.bin", 0x0230, 0x0117, BAD_DUMP CRC(6ccd8168) SHA1(98f85455585ba2f5ab834fa30addec498e94f814) ) /* Label unreadable @ IC37 (PALCE16V8Q-15PC/4) */
 	ROM_LOAD( "d77-09.ic14.bin",    0x0348, 0x0001, NO_DUMP) /* D77-09 @ IC14 (PAL16L8ACN) */
 	ROM_LOAD( "d77-10.ic28.bin",    0x0349, 0x0001, NO_DUMP) /* D77-10 @ IC28 (PAL16L8ACN) */
 ROM_END
@@ -2920,9 +2927,9 @@ ROM_START( tcobra2u )
 	ROM_LOAD16_BYTE("e15-06.ic41", 0x400000, 0x200000, CRC(b182a3e1) SHA1(db8569b069911bb84900b2aa5168c45ba3e985c7) )    // CC CD -std-
 
 	ROM_REGION( 0x034a, "pals", 0 )
-	ROM_LOAD( "d77-12.ic48.bin",    0x0000, 0x0117, CRC(6f93a4d8) SHA1(8c69688cf1159691439ebc4edfba52ab13f645b9) ) /* D77-12 @ IC48 (PALCE16V8Q-15PC/4) */
-	ROM_LOAD( "d77-14.ic21.bin",    0x0118, 0x0117, CRC(f2264f51) SHA1(6f18bad9e5318fa40dbce32c0a036b7588651660) ) /* D77-14 @ IC21 (PALCE16V8Q-15PC/4) */
-	ROM_LOAD( "palce16v8.ic37.bin", 0x0230, 0x0117, CRC(6ccd8168) SHA1(98f85455585ba2f5ab834fa30addec498e94f814) ) /* Label unreadable @ IC37 (PALCE16V8Q-15PC/4) */
+	ROM_LOAD( "d77-12.ic48.bin",    0x0000, 0x0117, BAD_DUMP CRC(6f93a4d8) SHA1(8c69688cf1159691439ebc4edfba52ab13f645b9) ) /* D77-12 @ IC48 (PALCE16V8Q-15PC/4) */
+	ROM_LOAD( "d77-14.ic21.bin",    0x0118, 0x0117, BAD_DUMP CRC(f2264f51) SHA1(6f18bad9e5318fa40dbce32c0a036b7588651660) ) /* D77-14 @ IC21 (PALCE16V8Q-15PC/4) */
+	ROM_LOAD( "palce16v8.ic37.bin", 0x0230, 0x0117, BAD_DUMP CRC(6ccd8168) SHA1(98f85455585ba2f5ab834fa30addec498e94f814) ) /* Label unreadable @ IC37 (PALCE16V8Q-15PC/4) */
 	ROM_LOAD( "d77-09.ic14.bin",    0x0348, 0x0001, NO_DUMP) /* D77-09 @ IC14 (PAL16L8ACN) */
 	ROM_LOAD( "d77-10.ic28.bin",    0x0349, 0x0001, NO_DUMP) /* D77-10 @ IC28 (PAL16L8ACN) */
 ROM_END
@@ -2957,9 +2964,9 @@ ROM_START( ktiger2 )
 	ROM_LOAD16_BYTE("e15-06.ic41", 0x400000, 0x200000, CRC(b182a3e1) SHA1(db8569b069911bb84900b2aa5168c45ba3e985c7) )    // CC CD -std-
 
 	ROM_REGION( 0x034a, "pals", 0 )
-	ROM_LOAD( "d77-12.ic48.bin",    0x0000, 0x0117, CRC(6f93a4d8) SHA1(8c69688cf1159691439ebc4edfba52ab13f645b9) ) /* D77-12 @ IC48 (PALCE16V8Q-15PC/4) */
-	ROM_LOAD( "d77-14.ic21.bin",    0x0118, 0x0117, CRC(f2264f51) SHA1(6f18bad9e5318fa40dbce32c0a036b7588651660) ) /* D77-14 @ IC21 (PALCE16V8Q-15PC/4) */
-	ROM_LOAD( "palce16v8.ic37.bin", 0x0230, 0x0117, CRC(6ccd8168) SHA1(98f85455585ba2f5ab834fa30addec498e94f814) ) /* Label unreadable @ IC37 (PALCE16V8Q-15PC/4) */
+	ROM_LOAD( "d77-12.ic48.bin",    0x0000, 0x0117, BAD_DUMP CRC(6f93a4d8) SHA1(8c69688cf1159691439ebc4edfba52ab13f645b9) ) /* D77-12 @ IC48 (PALCE16V8Q-15PC/4) */
+	ROM_LOAD( "d77-14.ic21.bin",    0x0118, 0x0117, BAD_DUMP CRC(f2264f51) SHA1(6f18bad9e5318fa40dbce32c0a036b7588651660) ) /* D77-14 @ IC21 (PALCE16V8Q-15PC/4) */
+	ROM_LOAD( "palce16v8.ic37.bin", 0x0230, 0x0117, BAD_DUMP CRC(6ccd8168) SHA1(98f85455585ba2f5ab834fa30addec498e94f814) ) /* Label unreadable @ IC37 (PALCE16V8Q-15PC/4) */
 	ROM_LOAD( "d77-09.ic14.bin",    0x0348, 0x0001, NO_DUMP) /* D77-09 @ IC14 (PAL16L8ACN) */
 	ROM_LOAD( "d77-10.ic28.bin",    0x0349, 0x0001, NO_DUMP) /* D77-10 @ IC28 (PAL16L8ACN) */
 ROM_END

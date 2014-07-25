@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Curt Coder, Robbbert, and unknown others
 /***************************************************************************
 Jupiter Ace memory map
 
@@ -45,7 +47,7 @@ Ports:
 #include "formats/ace_tap.h"
 #include "imagedev/cassette.h"
 #include "imagedev/snapquik.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/i8255.h"
 #include "machine/ram.h"
 #include "machine/z80pio.h"
@@ -529,47 +531,7 @@ UINT32 ace_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, con
 //**************************************************************************
 
 //-------------------------------------------------
-//  cassette_interface ace_cassette_interface
-//-------------------------------------------------
-
-static const cassette_interface ace_cassette_interface =
-{
-	ace_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED),
-	NULL,
-	NULL
-};
-
-
-//-------------------------------------------------
-//  ay8910_interface psg_intf
-//-------------------------------------------------
-
-static const ay8910_interface psg_intf =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  sp0256_interface sp0256_intf
-//-------------------------------------------------
-
-static const sp0256_interface sp0256_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  I8255A_INTERFACE( ppi_intf )
+//  I8255A interface
 //-------------------------------------------------
 
 READ8_MEMBER(ace_state::sby_r)
@@ -615,19 +577,8 @@ WRITE8_MEMBER(ace_state::ald_w)
 	}
 }
 
-static I8255A_INTERFACE( ppi_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(ace_state,sby_r),
-	DEVCB_DRIVER_MEMBER(ace_state,ald_w),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 //-------------------------------------------------
-//  Z80PIO_INTERFACE( pio_intf )
+//  Z80PIO
 //-------------------------------------------------
 
 READ8_MEMBER( ace_state::pio_pa_r )
@@ -668,21 +619,8 @@ WRITE8_MEMBER( ace_state::pio_pa_w )
 	*/
 
 	// centronics strobe
-	m_centronics->strobe_w(!BIT(data, 6));
+	m_centronics->write_strobe(!BIT(data, 6));
 };
-
-static Z80PIO_INTERFACE( pio_intf )
-{
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0),
-	DEVCB_DRIVER_MEMBER(ace_state, pio_pa_r),
-	DEVCB_DRIVER_MEMBER(ace_state, pio_pa_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER(CENTRONICS_TAG, centronics_device, write),
-	DEVCB_NULL
-};
-
-
 
 //**************************************************************************
 //  MACHINE INITIALIZATION
@@ -734,13 +672,14 @@ static MACHINE_CONFIG_START( ace, ace_state )
 	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
 	MCFG_SCREEN_UPDATE_DRIVER(ace_state, screen_update)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_6_5MHz, 416, 0, 336, 312, 0, 304)
+	MCFG_SCREEN_PALETTE("palette")
+
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("set_irq", ace_state, set_irq, SCREEN_TAG, 31*8, 264)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("clear_irq", ace_state, clear_irq, SCREEN_TAG, 32*8, 264)
 
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
-	MCFG_GFXDECODE(ace)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ace)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -750,19 +689,30 @@ static MACHINE_CONFIG_START( ace, ace_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	MCFG_SOUND_ADD(AY8910_TAG, AY8910, XTAL_6_5MHz/2)
-	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD(SP0256AL2_TAG, SP0256, XTAL_3MHz)
-	MCFG_SOUND_CONFIG(sp0256_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// devices
-	MCFG_CASSETTE_ADD("cassette", ace_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_FORMATS(ace_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED)
+
 	MCFG_SNAPSHOT_ADD("snapshot", ace_state, ace, "ace", 1)
-	MCFG_I8255A_ADD(I8255_TAG, ppi_intf)
-	MCFG_Z80PIO_ADD(Z80PIO_TAG, XTAL_6_5MHz/2, pio_intf)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
+
+	MCFG_DEVICE_ADD(I8255_TAG, I8255A, 0)
+	MCFG_I8255_IN_PORTB_CB(READ8(ace_state, sby_r))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(ace_state, ald_w))
+
+	MCFG_DEVICE_ADD(Z80PIO_TAG, Z80PIO, XTAL_6_5MHz/2)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE(Z80_TAG, INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_IN_PA_CB(READ8(ace_state, pio_pa_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(ace_state, pio_pa_w))
+	MCFG_Z80PIO_OUT_PB_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)

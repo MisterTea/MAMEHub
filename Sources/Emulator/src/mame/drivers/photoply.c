@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /*******************************************************************************************************
 
 Photo Play (c) 199? Funworld
@@ -94,7 +96,6 @@ INPUT_PORTS_END
 
 void photoply_state::machine_start()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(photoply_state::irq_callback),this));
 }
 
 static const gfx_layout CGA_charlayout =
@@ -118,10 +119,11 @@ static MACHINE_CONFIG_START( photoply, photoply_state )
 	MCFG_CPU_ADD("maincpu", I486, 75000000) /* I486DX4, 75 or 100 Mhz */
 	MCFG_CPU_PROGRAM_MAP(photoply_map)
 	MCFG_CPU_IO_MAP(photoply_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_1", pic8259_device, inta_cb)
 
 	MCFG_FRAGMENT_ADD( pcat_common )
 
-	MCFG_GFXDECODE( photoply )
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", photoply )
 
 	MCFG_IDE_CONTROLLER_ADD("ide", ata_devices, "hdd", NULL, true)
 	MCFG_ATA_INTERFACE_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir6_w))

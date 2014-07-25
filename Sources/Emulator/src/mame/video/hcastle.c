@@ -8,13 +8,10 @@
 #include "includes/hcastle.h"
 
 
-void hcastle_state::palette_init()
+PALETTE_INIT_MEMBER(hcastle_state, hcastle)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int chip;
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x80);
 
 	for (chip = 0; chip < 2; chip++)
 	{
@@ -34,24 +31,9 @@ void hcastle_state::palette_init()
 				else
 					ctabentry = (pal << 4) | (color_prom[(clut << 8) | i] & 0x0f);
 
-				colortable_entry_set_value(machine().colortable, (chip << 11) | (pal << 8) | i, ctabentry);
+				palette.set_pen_indirect((chip << 11) | (pal << 8) | i, ctabentry);
 			}
 		}
-	}
-}
-
-
-void hcastle_state::set_pens()
-{
-	int i;
-
-	for (i = 0x00; i < 0x100; i += 2)
-	{
-		UINT16 data = m_paletteram[i | 1] | (m_paletteram[i] << 8);
-
-		rgb_t color = MAKE_RGB(pal5bit(data >> 0), pal5bit(data >> 5), pal5bit(data >> 10));
-
-		colortable_palette_set_color(machine().colortable, i >> 1, color);
 	}
 }
 
@@ -86,8 +68,7 @@ TILE_GET_INFO_MEMBER(hcastle_state::get_fg_tile_info)
 				((attr >> (bit2    )) & 0x08) |
 				((attr >> (bit3 - 1)) & 0x10);
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile + bank * 0x100 + m_pf1_bankbase,
 			((ctrl_6 & 0x30) * 2 + 16) + color,
 			0);
@@ -110,8 +91,7 @@ TILE_GET_INFO_MEMBER(hcastle_state::get_bg_tile_info)
 				((attr >> (bit2    )) & 0x08) |
 				((attr >> (bit3 - 1)) & 0x10);
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			tile + bank * 0x100 + m_pf2_bankbase,
 			((ctrl_6 & 0x30) * 2 + 16) + color,
 			0);
@@ -127,8 +107,8 @@ TILE_GET_INFO_MEMBER(hcastle_state::get_bg_tile_info)
 
 void hcastle_state::video_start()
 {
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(hcastle_state::get_fg_tile_info),this), tilemap_mapper_delegate(FUNC(hcastle_state::tilemap_scan),this), 8, 8, 64, 32);
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(hcastle_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(hcastle_state::tilemap_scan),this), 8, 8, 64, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(hcastle_state::get_fg_tile_info),this), tilemap_mapper_delegate(FUNC(hcastle_state::tilemap_scan),this), 8, 8, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(hcastle_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(hcastle_state::tilemap_scan),this), 8, 8, 64, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
 }
@@ -204,7 +184,7 @@ void hcastle_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect
 	int base_color = (k007121->ctrlram_r(space, 6) & 0x30) * 2;
 	int bank_base = (bank == 0) ? 0x4000 * (m_gfx_bank & 1) : 0;
 
-	k007121->sprites_draw(bitmap, cliprect, machine().gfx[bank], machine().colortable, sbank, base_color, 0, bank_base, priority_bitmap, (UINT32)-1);
+	k007121->sprites_draw(bitmap, cliprect, m_gfxdecode->gfx(bank), m_palette, sbank, base_color, 0, bank_base, priority_bitmap, (UINT32)-1);
 }
 
 /*****************************************************************************/
@@ -221,8 +201,6 @@ UINT32 hcastle_state::screen_update_hcastle(screen_device &screen, bitmap_ind16 
 	UINT8 ctrl_2_1 = m_k007121_2->ctrlram_r(space, 1);
 	UINT8 ctrl_2_2 = m_k007121_2->ctrlram_r(space, 2);
 	UINT8 ctrl_2_3 = m_k007121_2->ctrlram_r(space, 3);
-
-	set_pens();
 
 	m_pf1_bankbase = 0x0000;
 	m_pf2_bankbase = 0x4000 * ((m_gfx_bank & 2) >> 1);

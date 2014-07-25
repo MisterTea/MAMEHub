@@ -140,7 +140,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, bombjack_state )
 	AM_RANGE(0x9400, 0x97ff) AM_RAM_WRITE(bombjack_colorram_w) AM_SHARE("colorram")
 	AM_RANGE(0x9820, 0x987f) AM_WRITEONLY AM_SHARE("spriteram")
 	AM_RANGE(0x9a00, 0x9a00) AM_WRITENOP
-	AM_RANGE(0x9c00, 0x9cff) AM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0x9c00, 0x9cff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x9e00, 0x9e00) AM_WRITE(bombjack_background_w)
 	AM_RANGE(0xb000, 0xb000) AM_READ_PORT("P1")
 	AM_RANGE(0xb000, 0xb000) AM_WRITE(irq_mask_w)
@@ -369,9 +369,11 @@ static MACHINE_CONFIG_START( bombjack, bombjack_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(bombjack_state, screen_update_bombjack)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bombjack)
-	MCFG_PALETTE_LENGTH(128)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bombjack)
+	MCFG_PALETTE_ADD("palette", 128)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 
 	/* sound hardware */
@@ -461,7 +463,7 @@ ROM_START( bombjackt )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "9.1j",    0x0000, 0x4000, CRC(4b59a3bb) SHA1(dae45985d2575821c86757ead14b8313e922570d) ) // == 09_j01b.bin + 10_l01b.bin
 	ROM_LOAD( "12.1n",   0x4000, 0x4000, CRC(0a32506a) SHA1(2fb3ce695caebbae3ca7dd9f3d34ac5b734d77ed) ) // == 11_m01b.bin + (97.229004%) 12_n01b.bin
-	ROM_LOAD( "13.1r",   0xc000, 0x2000, CRC(964ac5c5) SHA1(8d235ae91aea1ae86411671c5aa050c146a52026) ) // (99.877930%) 13_r01b.bin
+	ROM_LOAD( "13(__bombjackt).1r",   0xc000, 0x2000, CRC(964ac5c5) SHA1(8d235ae91aea1ae86411671c5aa050c146a52026) ) // (99.877930%) 13_r01b.bin
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for sound board */
 	ROM_LOAD( "1.6h",  0x0000, 0x2000, CRC(8407917d) SHA1(318face9f7a7ab6c7eeac773995040425e780aaf) )

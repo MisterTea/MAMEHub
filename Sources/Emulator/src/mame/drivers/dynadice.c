@@ -44,7 +44,8 @@ public:
 	dynadice_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -65,9 +66,10 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(dynadice);
 	UINT32 screen_update_dynadice(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -209,8 +211,8 @@ TILE_GET_INFO_MEMBER(dynadice_state::get_tile_info)
 void dynadice_state::video_start()
 {
 	/* pacman - style videoram layout */
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dynadice_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_top_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dynadice_state::get_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 2, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dynadice_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_top_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dynadice_state::get_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 2, 32);
 	m_bg_tilemap->set_scrollx(0, -16);
 }
 
@@ -223,11 +225,11 @@ UINT32 dynadice_state::screen_update_dynadice(screen_device &screen, bitmap_ind1
 	return 0;
 }
 
-void dynadice_state::palette_init()
+PALETTE_INIT_MEMBER(dynadice_state, dynadice)
 {
 	int i;
 	for(i = 0; i < 8; i++)
-		palette_set_color_rgb(machine(), i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
+		palette.set_pen_color(i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
 }
 
 void dynadice_state::machine_start()
@@ -261,10 +263,11 @@ static MACHINE_CONFIG_START( dynadice, dynadice_state )
 	MCFG_SCREEN_SIZE(256+16, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 34*8-1, 3*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dynadice_state, screen_update_dynadice)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(dynadice)
-	MCFG_PALETTE_LENGTH(8)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dynadice)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(dynadice_state, dynadice)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 

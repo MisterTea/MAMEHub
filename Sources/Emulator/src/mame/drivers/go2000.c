@@ -42,7 +42,10 @@ public:
 		m_videoram(*this, "videoram"),
 		m_videoram2(*this, "videoram2"),
 		m_soundcpu(*this, "soundcpu"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_videoram;
@@ -57,6 +60,9 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_go2000(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -71,7 +77,7 @@ static ADDRESS_MAP_START( go2000_map, AS_PROGRAM, 16, go2000_state )
 	AM_RANGE(0x200000, 0x203fff) AM_RAM
 	AM_RANGE(0x600000, 0x60ffff) AM_RAM AM_SHARE("videoram")
 	AM_RANGE(0x610000, 0x61ffff) AM_RAM AM_SHARE("videoram2")
-	AM_RANGE(0x800000, 0x800fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x800000, 0x800fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xa00000, 0xa00001) AM_READ_PORT("INPUTS")
 	AM_RANGE(0xa00002, 0xa00003) AM_READ_PORT("DSW")
 	AM_RANGE(0x620002, 0x620003) AM_WRITE(sound_cmd_w)
@@ -189,7 +195,7 @@ UINT32 go2000_state::screen_update_go2000(screen_device &screen, bitmap_ind16 &b
 		{
 			int tile = m_videoram[count];
 			int attr = m_videoram2[count];
-			drawgfx_opaque(bitmap, cliprect, machine().gfx[0], tile, attr, 0, 0, x * 8, y * 8);
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect, tile, attr, 0, 0, x * 8, y * 8);
 			count++;
 		}
 	}
@@ -201,7 +207,7 @@ UINT32 go2000_state::screen_update_go2000(screen_device &screen, bitmap_ind16 &b
 		{
 			int tile = m_videoram[count];
 			int attr = m_videoram2[count];
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[0], tile, attr, 0, 0, x * 8, y * 8, 0xf);
+			m_gfxdecode->gfx(0)->transpen(bitmap,cliprect, tile, attr, 0, 0, x * 8, y * 8, 0xf);
 			count++;
 		}
 	}
@@ -289,7 +295,7 @@ UINT32 go2000_state::screen_update_go2000(screen_device &screen, bitmap_ind16 &b
 					tile_flipy = !tile_flipy;
 				}
 
-				drawgfx_transpen(   bitmap, cliprect,machine().gfx[0],
+				m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 							(tile & 0x1fff) + bank*0x4000,
 							attr,
 							tile_flipx, tile_flipy,
@@ -329,7 +335,7 @@ static MACHINE_CONFIG_START( go2000, go2000_state )
 	MCFG_CPU_IO_MAP(go2000_sound_io)
 
 
-	MCFG_GFXDECODE(go2000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", go2000)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -337,8 +343,10 @@ static MACHINE_CONFIG_START( go2000, go2000_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 48*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(go2000_state, screen_update_go2000)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x800)
+	MCFG_PALETTE_ADD("palette", 0x800)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

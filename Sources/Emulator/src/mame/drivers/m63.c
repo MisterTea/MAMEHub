@@ -135,7 +135,9 @@ public:
 		m_samples(*this, "samples"),
 		m_maincpu(*this, "maincpu"),
 		m_ay1(*this, "ay1"),
-		m_ay2(*this, "ay2")
+		m_ay2(*this, "ay2"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 	{
 	}
 
@@ -195,6 +197,8 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<ay8910_device> m_ay1;
 	optional_device<ay8910_device> m_ay2;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -226,7 +230,7 @@ PALETTE_INIT_MEMBER(m63_state,m63)
 		bit3 = (color_prom[i + 2*256] >> 3) & 0x01;
 		b =  0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
 
 	color_prom += 3 * 256;
@@ -250,7 +254,7 @@ PALETTE_INIT_MEMBER(m63_state,m63)
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		b = 0x4f * bit0 + 0xa8 * bit1;
 
-		palette_set_color(machine(),i+256,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i+256,rgb_t(r,g,b));
 	}
 }
 
@@ -315,8 +319,8 @@ TILE_GET_INFO_MEMBER(m63_state::get_fg_tile_info)
 
 VIDEO_START_MEMBER(m63_state,m63)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(m63_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(m63_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(m63_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(m63_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_bg_tilemap->set_scroll_cols(32);
 	m_fg_tilemap->set_transparent_pen(0);
@@ -343,8 +347,8 @@ void m63_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap, cliprect,
-			machine().gfx[2],
+
+			m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 			code, color,
 			flipx, flipy,
 			sx, sy, 0);
@@ -352,8 +356,7 @@ void m63_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 		/* sprite wrapping - verified on real hardware*/
 		if (sx > 0xf0)
 		{
-			drawgfx_transpen(bitmap, cliprect,
-			machine().gfx[2],
+			m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 			code, color,
 			flipx, flipy,
 			sx - 0x100, sy, 0);
@@ -771,11 +774,12 @@ static MACHINE_CONFIG_START( m63, m63_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(m63_state, screen_update_m63)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(m63)
-	MCFG_PALETTE_LENGTH(256+4)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", m63)
+	MCFG_PALETTE_ADD("palette", 256+4)
 
-	MCFG_PALETTE_INIT_OVERRIDE(m63_state,m63)
+	MCFG_PALETTE_INIT_OWNER(m63_state,m63)
 	MCFG_VIDEO_START_OVERRIDE(m63_state,m63)
 
 	/* sound hardware */
@@ -815,11 +819,10 @@ static MACHINE_CONFIG_START( fghtbskt, m63_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(m63_state, screen_update_m63)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(fghtbskt)
-	MCFG_PALETTE_LENGTH(256)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", fghtbskt)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 256)
 	MCFG_VIDEO_START_OVERRIDE(m63_state,m63)
 
 	/* sound hardware */

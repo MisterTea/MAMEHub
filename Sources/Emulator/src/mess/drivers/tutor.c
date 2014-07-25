@@ -166,15 +166,14 @@ A=AMA, P=PRO, these keys don't exist, and so the games cannot be played.
 
 *********************************************************************************************************/
 
-
 #include "emu.h"
-#include "cpu/tms9900/tms9900l.h"
+#include "cpu/tms9900/tms9995.h"
 #include "sound/wave.h"
 #include "video/tms9928a.h"
 #include "imagedev/cartslot.h"
 #include "imagedev/cassette.h"
 #include "sound/sn76496.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 
 
 class tutor_state : public driver_device
@@ -182,14 +181,17 @@ class tutor_state : public driver_device
 public:
 	tutor_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_cass(*this, "cassette"),
-	m_centronics(*this, "centronics")
-	{ }
+		m_maincpu(*this, "maincpu"),
+		m_cass(*this, "cassette"),
+		m_centronics(*this, "centronics"),
+		m_cent_data_out(*this, "cent_data_out")
+	{
+	}
 
-	required_device<cpu_device> m_maincpu;
+	required_device<tms9995_device> m_maincpu;
 	optional_device<cassette_image_device> m_cass;
 	optional_device<centronics_device> m_centronics;
+	optional_device<output_latch_device> m_cent_data_out;
 	DECLARE_READ8_MEMBER(key_r);
 	DECLARE_READ8_MEMBER(tutor_mapper_r);
 	DECLARE_WRITE8_MEMBER(tutor_mapper_w);
@@ -197,6 +199,8 @@ public:
 	DECLARE_WRITE8_MEMBER(tutor_cassette_w);
 	DECLARE_READ8_MEMBER(tutor_printer_r);
 	DECLARE_WRITE8_MEMBER(tutor_printer_w);
+
+	DECLARE_READ8_MEMBER(tutor_highmem_r);
 	char m_cartridge_enable;
 	char m_tape_interrupt_enable;
 	emu_timer *m_tape_interrupt_timer;
@@ -209,6 +213,9 @@ public:
 	TIMER_CALLBACK_MEMBER(tape_interrupt_handler);
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( tutor_cart );
 	DECLARE_DEVICE_IMAGE_UNLOAD_MEMBER( tutor_cart );
+
+	int m_centronics_busy;
+	DECLARE_WRITE_LINE_MEMBER( write_centronics_busy );
 };
 
 
@@ -243,13 +250,6 @@ DRIVER_INIT_MEMBER(tutor_state,pyuuta)
 	membank("bank1")->set_entry(1);
 }
 
-
-static TMS9928A_INTERFACE(tutor_tms9928a_interface)
-{
-	0x4000,
-	DEVCB_NULL
-};
-
 void tutor_state::machine_start()
 {
 }
@@ -262,6 +262,9 @@ void tutor_state::machine_reset()
 
 	m_printer_data = 0;
 	m_printer_strobe = 0;
+
+	// Enable auto wait states by lowering READY during reset
+	m_maincpu->set_ready(CLEAR_LINE);
 }
 
 /*
@@ -384,6 +387,16 @@ WRITE8_MEMBER( tutor_state::tutor_mapper_w )
 }
 
 /*
+    This is only called from the debugger; the on-chip memory is handled
+    within the CPU itself.
+*/
+READ8_MEMBER( tutor_state::tutor_highmem_r )
+{
+	if (m_maincpu->is_onchip(offset | 0xf000)) return m_maincpu->debug_read_onchip_memory(offset&0xff);
+	return 0;
+}
+
+/*
     Cassette interface:
 
     The cassette interface uses several ports in the >e000 range.
@@ -405,7 +418,7 @@ WRITE8_MEMBER( tutor_state::tutor_mapper_w )
 TIMER_CALLBACK_MEMBER(tutor_state::tape_interrupt_handler)
 {
 	//assert(m_tape_interrupt_enable);
-	m_maincpu->set_input_line(1, (m_cass->input() > 0.0) ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(INT_9995_INT4, (m_cass->input() > 0.0) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 /* CRU handler */
@@ -441,7 +454,7 @@ WRITE8_MEMBER( tutor_state::tutor_cassette_w )
 				else
 				{
 					m_tape_interrupt_timer->adjust(attotime::never);
-					m_maincpu->set_input_line(1, CLEAR_LINE);
+					m_maincpu->set_input_line(INT_9995_INT4, CLEAR_LINE);
 				}
 			}
 			break;
@@ -457,6 +470,11 @@ WRITE8_MEMBER( tutor_state::tutor_cassette_w )
 	}
 }
 
+WRITE_LINE_MEMBER( tutor_state::write_centronics_busy )
+{
+	m_centronics_busy = state;
+}
+
 /* memory handlers */
 READ8_MEMBER( tutor_state::tutor_printer_r )
 {
@@ -466,7 +484,7 @@ READ8_MEMBER( tutor_state::tutor_printer_r )
 	{
 	case 0x20:
 		/* busy */
-		reply = m_centronics->busy_r() ? 0x00 : 0xff;
+		reply = m_centronics_busy ? 0x00 : 0xff;
 		break;
 
 	default:
@@ -485,12 +503,12 @@ WRITE8_MEMBER( tutor_state::tutor_printer_w )
 	{
 	case 0x10:
 		/* data */
-		m_centronics->write(space, 0, data);
+		m_cent_data_out->write(space, 0, data);
 		break;
 
 	case 0x40:
 		/* strobe */
-		m_centronics->strobe_w(BIT(data, 7));
+		m_centronics->write_strobe(BIT(data, 7));
 		break;
 
 	default:
@@ -557,7 +575,7 @@ static ADDRESS_MAP_START(tutor_memmap, AS_PROGRAM, 8, tutor_state)
 	AM_RANGE(0xe800, 0xe8ff) AM_READWRITE(tutor_printer_r, tutor_printer_w) /*printer*/
 	AM_RANGE(0xee00, 0xeeff) AM_READNOP AM_WRITE( tutor_cassette_w)     /*cassette interface*/
 
-	AM_RANGE(0xf000, 0xffff) AM_NOP /*free for expansion (and internal processor RAM)*/
+	AM_RANGE(0xf000, 0xffff) AM_READ(tutor_highmem_r) AM_WRITENOP /*free for expansion (and internal processor RAM)*/
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(pyuutajr_mem, AS_PROGRAM, 8, tutor_state)
@@ -572,7 +590,7 @@ static ADDRESS_MAP_START(pyuutajr_mem, AS_PROGRAM, 8, tutor_state)
 	AM_RANGE(0xea00, 0xea00) AM_READ_PORT("LINE1")
 	AM_RANGE(0xec00, 0xec00) AM_READ_PORT("LINE2")
 	AM_RANGE(0xee00, 0xee00) AM_READ_PORT("LINE3")
-	AM_RANGE(0xf000, 0xffff) AM_NOP /*free for expansion (and internal processor RAM)*/
+	AM_RANGE(0xf000, 0xffff) AM_READ(tutor_highmem_r) AM_WRITENOP /*free for expansion (and internal processor RAM)*/
 ADDRESS_MAP_END
 
 /*
@@ -729,55 +747,33 @@ static INPUT_PORTS_START(pyuutajr)
 		PORT_BIT(0xff, IP_ACTIVE_HIGH, IPT_UNUSED)
 INPUT_PORTS_END
 
-
-static const struct tms9995reset_param tutor_processor_config =
-{
-#if 0
-	"maincpu",/* region for processor RAM */
-	0xf000,     /* offset : this area is unused in our region, and matches the processor address */
-	0xf0fc,     /* offset for the LOAD vector */
-	1,          /* use fast IDLE */
-#endif
-	1,          /* enable automatic wait state generation */
-	NULL        /* no IDLE callback */
-};
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( tutor, tutor_state )
-	/* basic machine hardware */
-	/* TMS9995 CPU @ 10.7 MHz */
-	MCFG_CPU_ADD("maincpu", TMS9995L, 10700000)
-	MCFG_CPU_CONFIG(tutor_processor_config)
-	MCFG_CPU_PROGRAM_MAP(tutor_memmap)
-	MCFG_CPU_IO_MAP(tutor_io)
-
+	// basic machine hardware
+	// TMS9995 CPU @ 10.7 MHz
+	// No lines connected yet
+	MCFG_TMS99xx_ADD("maincpu", TMS9995, XTAL_10_738635MHz, tutor_memmap, tutor_io)
 
 	/* video hardware */
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9928A, tutor_tms9928a_interface )
+	MCFG_DEVICE_ADD( "tms9928a", TMS9928A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
 	MCFG_TMS9928A_SCREEN_ADD_NTSC( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9928a_device, screen_update )
 
 	/* sound */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
 	MCFG_SOUND_ADD("sn76489a", SN76489A, 3579545)   /* 3.579545 MHz */
-	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
+
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(tutor_state, write_centronics_busy))
 
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
+
+	MCFG_CASSETTE_ADD( "cassette" )
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")

@@ -3,6 +3,7 @@
 #include "machine/ram.h"
 
 
+#if 0
 /* 16 colours, + 1 for border */
 static const unsigned short pcw16_colour_table[PCW16_NUM_COLOURS] =
 {
@@ -10,41 +11,42 @@ static const unsigned short pcw16_colour_table[PCW16_NUM_COLOURS] =
 	16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
 	29, 30, 31
 };
+#endif
 
 static const rgb_t pcw16_palette[PCW16_NUM_COLOURS] =
 {
-	MAKE_RGB(0x080, 0x080, 0x080),  /* light grey */
-	MAKE_RGB(0x080, 0x080, 0x080),  /* light grey */
-	MAKE_RGB(0x000, 0x080, 0x080),  /* magenta */
-	MAKE_RGB(0x000, 0x080, 0x080),  /* magenta */
-	MAKE_RGB(0x080, 0x080, 0x080),  /* light grey */
-	MAKE_RGB(0x080, 0x080, 0x080),  /* light grey */
-	MAKE_RGB(0x0ff, 0x080, 0x080),  /* pastel green */
-	MAKE_RGB(0x0ff, 0x080, 0x080),  /* pastel green */
-	MAKE_RGB(0x000, 0x000, 0x080),  /* blue */
-	MAKE_RGB(0x000, 0x000, 0x000),  /* black */
-	MAKE_RGB(0x000, 0x080, 0x0ff),  /* mauve */
-	MAKE_RGB(0x000, 0x000, 0x0ff),  /* bright blue */
-	MAKE_RGB(0x000, 0x080, 0x000),  /* red */
-	MAKE_RGB(0x000, 0x0ff, 0x000),  /* bright red */
-	MAKE_RGB(0x000, 0x0ff, 0x080),  /* purple */
-	MAKE_RGB(0x000, 0x0ff, 0x0ff),  /* bright magenta */
-	MAKE_RGB(0x0ff, 0x000, 0x080),  /* sea green */
-	MAKE_RGB(0x0ff, 0x000, 0x0ff),  /* bright green */
-	MAKE_RGB(0x0ff, 0x080, 0x0ff),  /* pastel cyan */
-	MAKE_RGB(0x0ff, 0x000, 0x0ff),  /* bright cyan */
-	MAKE_RGB(0x0ff, 0x080, 0x000),  /* lime green */
-	MAKE_RGB(0x0ff, 0x0ff, 0x000),  /* bright yellow */
-	MAKE_RGB(0x0ff, 0x0ff, 0x080),  /* pastel yellow */
-	MAKE_RGB(0x0ff, 0x0ff, 0x0ff),  /* bright white */
-	MAKE_RGB(0x080, 0x000, 0x080),  /* cyan */
-	MAKE_RGB(0x080, 0x000, 0x000),  /* green */
-	MAKE_RGB(0x080, 0x080, 0x0ff),  /* pastel blue */
-	MAKE_RGB(0x080, 0x000, 0x0ff),  /* sky blue */
-	MAKE_RGB(0x080, 0x080, 0x000),  /* yellow */
-	MAKE_RGB(0x080, 0x0ff, 0x000),  /* orange */
-	MAKE_RGB(0x080, 0x0ff, 0x080),  /* pink */
-	MAKE_RGB(0x080, 0x0ff, 0x0ff),  /* pastel magenta */
+	rgb_t(0x080, 0x080, 0x080),  /* light grey */
+	rgb_t(0x080, 0x080, 0x080),  /* light grey */
+	rgb_t(0x000, 0x080, 0x080),  /* magenta */
+	rgb_t(0x000, 0x080, 0x080),  /* magenta */
+	rgb_t(0x080, 0x080, 0x080),  /* light grey */
+	rgb_t(0x080, 0x080, 0x080),  /* light grey */
+	rgb_t(0x0ff, 0x080, 0x080),  /* pastel green */
+	rgb_t(0x0ff, 0x080, 0x080),  /* pastel green */
+	rgb_t(0x000, 0x000, 0x080),  /* blue */
+	rgb_t(0x000, 0x000, 0x000),  /* black */
+	rgb_t(0x000, 0x080, 0x0ff),  /* mauve */
+	rgb_t(0x000, 0x000, 0x0ff),  /* bright blue */
+	rgb_t(0x000, 0x080, 0x000),  /* red */
+	rgb_t(0x000, 0x0ff, 0x000),  /* bright red */
+	rgb_t(0x000, 0x0ff, 0x080),  /* purple */
+	rgb_t(0x000, 0x0ff, 0x0ff),  /* bright magenta */
+	rgb_t(0x0ff, 0x000, 0x080),  /* sea green */
+	rgb_t(0x0ff, 0x000, 0x0ff),  /* bright green */
+	rgb_t(0x0ff, 0x080, 0x0ff),  /* pastel cyan */
+	rgb_t(0x0ff, 0x000, 0x0ff),  /* bright cyan */
+	rgb_t(0x0ff, 0x080, 0x000),  /* lime green */
+	rgb_t(0x0ff, 0x0ff, 0x000),  /* bright yellow */
+	rgb_t(0x0ff, 0x0ff, 0x080),  /* pastel yellow */
+	rgb_t(0x0ff, 0x0ff, 0x0ff),  /* bright white */
+	rgb_t(0x080, 0x000, 0x080),  /* cyan */
+	rgb_t(0x080, 0x000, 0x000),  /* green */
+	rgb_t(0x080, 0x080, 0x0ff),  /* pastel blue */
+	rgb_t(0x080, 0x000, 0x0ff),  /* sky blue */
+	rgb_t(0x080, 0x080, 0x000),  /* yellow */
+	rgb_t(0x080, 0x0ff, 0x000),  /* orange */
+	rgb_t(0x080, 0x0ff, 0x080),  /* pink */
+	rgb_t(0x080, 0x0ff, 0x0ff),  /* pastel magenta */
 };
 
 
@@ -54,9 +56,9 @@ inline void pcw16_state::pcw16_plot_pixel(bitmap_ind16 &bitmap, int x, int y, UI
 }
 
 /* Initialise the palette */
-void pcw16_state::palette_init()
+PALETTE_INIT_MEMBER(pcw16_state, pcw16)
 {
-	palette_set_colors(machine(), 0, pcw16_palette, ARRAY_LENGTH(pcw16_palette));
+	palette.set_pen_colors(0, pcw16_palette, ARRAY_LENGTH(pcw16_palette));
 }
 
 void pcw16_state::video_start()

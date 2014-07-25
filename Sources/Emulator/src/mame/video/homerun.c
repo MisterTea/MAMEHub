@@ -87,7 +87,7 @@ WRITE8_MEMBER(homerun_state::homerun_color_w)
 	bit2 = (data >> 7) & 0x01;
 	b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-	palette_set_color(machine(), offset, MAKE_RGB(r,g,b));
+	m_palette->set_pen_color(offset, rgb_t(r,g,b));
 }
 
 
@@ -104,7 +104,7 @@ TILE_GET_INFO_MEMBER(homerun_state::get_homerun_tile_info)
 
 void homerun_state::video_start()
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(homerun_state::get_homerun_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(homerun_state::get_homerun_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 }
 
 
@@ -122,14 +122,14 @@ void homerun_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 		int flipx = (spriteram[offs + 2] & 0x40) >> 6;
 		int flipy = (spriteram[offs + 2] & 0x80) >> 7;
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,
 				sx,sy,0);
 
 		// wraparound
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,

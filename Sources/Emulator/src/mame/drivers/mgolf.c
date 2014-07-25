@@ -18,7 +18,10 @@ public:
 	mgolf_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_video_ram(*this, "video_ram"),
-		m_maincpu(*this, "maincpu"){ }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_video_ram;
@@ -34,6 +37,10 @@ public:
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(mgolf_vram_w);
 	DECLARE_READ8_MEMBER(mgolf_wram_r);
 	DECLARE_READ8_MEMBER(mgolf_dial_r);
@@ -43,7 +50,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(mgolf);
 	UINT32 screen_update_mgolf(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(interrupt_callback);
 	void update_plunger(  );
@@ -71,7 +78,7 @@ WRITE8_MEMBER(mgolf_state::mgolf_vram_w)
 
 void mgolf_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mgolf_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mgolf_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 
@@ -85,14 +92,14 @@ UINT32 mgolf_state::screen_update_mgolf(screen_device &screen, bitmap_ind16 &bit
 	/* draw sprites */
 	for (i = 0; i < 2; i++)
 	{
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 			m_video_ram[0x399 + 4 * i],
 			i,
 			0, 0,
 			m_video_ram[0x390 + 2 * i] - 7,
 			m_video_ram[0x398 + 4 * i] - 16, 0);
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 			m_video_ram[0x39b + 4 * i],
 			i,
 			0, 0,
@@ -280,12 +287,12 @@ static INPUT_PORTS_START( mgolf )
 INPUT_PORTS_END
 
 
-void mgolf_state::palette_init()
+PALETTE_INIT_MEMBER(mgolf_state, mgolf)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(0x80, 0x80, 0x80));
-	palette_set_color(machine(), 1, MAKE_RGB(0x00, 0x00, 0x00));
-	palette_set_color(machine(), 2, MAKE_RGB(0x80, 0x80, 0x80));
-	palette_set_color(machine(), 3, MAKE_RGB(0xff, 0xff, 0xff));
+	palette.set_pen_color(0, rgb_t(0x80, 0x80, 0x80));
+	palette.set_pen_color(1, rgb_t(0x00, 0x00, 0x00));
+	palette.set_pen_color(2, rgb_t(0x80, 0x80, 0x80));
+	palette.set_pen_color(3, rgb_t(0xff, 0xff, 0xff));
 }
 
 static const gfx_layout tile_layout =
@@ -355,10 +362,11 @@ static MACHINE_CONFIG_START( mgolf, mgolf_state )
 	MCFG_SCREEN_SIZE(256, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 223)
 	MCFG_SCREEN_UPDATE_DRIVER(mgolf_state, screen_update_mgolf)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mgolf)
-	MCFG_PALETTE_LENGTH(4)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mgolf)
+	MCFG_PALETTE_ADD("palette", 4)
+	MCFG_PALETTE_INIT_OWNER(mgolf_state, mgolf)
 
 	/* sound hardware */
 MACHINE_CONFIG_END

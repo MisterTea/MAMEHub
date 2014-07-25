@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     Advanced Personal Computer (c) 1982 NEC
@@ -80,7 +82,8 @@ public:
 		m_dmac(*this, "i8237"),
 		m_pit(*this, "pit8253"),
 		m_video_ram_1(*this, "video_ram_1"),
-		m_video_ram_2(*this, "video_ram_2")
+		m_video_ram_2(*this, "video_ram_2"),
+		m_palette(*this, "palette")
 	{ }
 
 	// devices
@@ -98,6 +101,8 @@ public:
 
 	required_shared_ptr<UINT8> m_video_ram_1;
 	required_shared_ptr<UINT8> m_video_ram_2;
+
+	required_device<palette_device> m_palette;
 
 	// screen updates
 	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
@@ -126,7 +131,6 @@ public:
 	}m_keyb;
 	DECLARE_INPUT_CHANGED_MEMBER(key_stroke);
 
-	DECLARE_WRITE_LINE_MEMBER(apc_master_set_int_line);
 	DECLARE_READ8_MEMBER(get_slave_ack);
 	DECLARE_WRITE_LINE_MEMBER(apc_dma_hrq_changed);
 	DECLARE_WRITE_LINE_MEMBER(apc_tc_w);
@@ -139,18 +143,14 @@ public:
 	DECLARE_READ8_MEMBER(apc_dma_read_byte);
 	DECLARE_WRITE8_MEMBER(apc_dma_write_byte);
 
-	void fdc_irq(bool state);
-	void fdc_drq(bool state);
-	DECLARE_WRITE_LINE_MEMBER(fdc_irq);
-	DECLARE_WRITE_LINE_MEMBER(fdc_drq);
-
 	DECLARE_DRIVER_INIT(apc);
 	DECLARE_PALETTE_INIT(apc);
 
 	int m_dack;
 	UINT8 m_dma_offset[4];
 
-	IRQ_CALLBACK_MEMBER(irq_callback);
+	UPD7220_DISPLAY_PIXELS_MEMBER( hgdc_display_pixels );
+	UPD7220_DRAW_TEXT_LINE_MEMBER( hgdc_draw_text );
 
 protected:
 	// driver_device overrides
@@ -158,7 +158,6 @@ protected:
 	virtual void machine_reset();
 
 	virtual void video_start();
-	virtual void palette_init();
 	inline void set_dma_channel(int channel, int state);
 };
 
@@ -170,7 +169,7 @@ void apc_state::video_start()
 
 UINT32 apc_state::screen_update( screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect )
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	/* graphics */
 	m_hgdc2->screen_update(screen, bitmap, cliprect);
@@ -180,24 +179,23 @@ UINT32 apc_state::screen_update( screen_device &screen, bitmap_rgb32 &bitmap, co
 }
 
 
-static UPD7220_DISPLAY_PIXELS( hgdc_display_pixels )
+UPD7220_DISPLAY_PIXELS_MEMBER( apc_state::hgdc_display_pixels )
 {
 	// ...
 }
 
-static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
+UPD7220_DRAW_TEXT_LINE_MEMBER( apc_state::hgdc_draw_text )
 {
-	apc_state *state = device->machine().driver_data<apc_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	int xi,yi,yi_trans;
 	int x;
 	UINT8 char_size;
 //  UINT8 interlace_on;
 
-//  if(state->m_video_ff[DISPLAY_REG] == 0) //screen is off
+//  if(m_video_ff[DISPLAY_REG] == 0) //screen is off
 //      return;
 
-//  interlace_on = state->m_video_reg[2] == 0x10; /* TODO: correct? */
+//  interlace_on = m_video_reg[2] == 0x10; /* TODO: correct? */
 	char_size = 19;
 
 	for(x=0;x<pitch;x++)
@@ -209,12 +207,12 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 		UINT32 tile_addr;
 		UINT8 tile_sel;
 
-//      tile_addr = addr+(x*(state->m_video_ff[WIDTH40_REG]+1));
+//      tile_addr = addr+(x*(m_video_ff[WIDTH40_REG]+1));
 		tile_addr = addr+(x*(1));
 
-		tile = state->m_video_ram_1[(tile_addr*2+1) & 0x1fff] & 0x00ff;
-		tile_sel = state->m_video_ram_1[(tile_addr*2) & 0x1fff] & 0x00ff;
-		attr = (state->m_video_ram_1[(tile_addr*2 & 0x1fff) | 0x2000] & 0x00ff);
+		tile = m_video_ram_1[(tile_addr*2+1) & 0x1fff] & 0x00ff;
+		tile_sel = m_video_ram_1[(tile_addr*2) & 0x1fff] & 0x00ff;
+		attr = (m_video_ram_1[(tile_addr*2 & 0x1fff) | 0x2000] & 0x00ff);
 
 		u_line = attr & 0x01;
 		o_line = attr & 0x02;
@@ -234,7 +232,7 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 				res_x = (x*8+xi);
 				res_y = y*lr+yi;
 
-				if(!device->machine().primary_screen->visible_area().contains(res_x, res_y))
+				if(!machine().first_screen()->visible_area().contains(res_x, res_y))
 					continue;
 
 				/*
@@ -258,18 +256,18 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 					if(yi & 0x10)
 						tile_data = 0;
 					else
-						tile_data = state->m_aux_pcg[(tile & 0xff)*0x20+yi*2];
+						tile_data = m_aux_pcg[(tile & 0xff)*0x20+yi*2];
 				}
 				else
-					tile_data = state->m_char_rom[(tile & 0x7f)+((tile & 0x80)<<4)+((yi_trans & 0xf)*0x80)+((yi_trans & 0x10)<<8)];
+					tile_data = m_char_rom[(tile & 0x7f)+((tile & 0x80)<<4)+((yi_trans & 0xf)*0x80)+((yi_trans & 0x10)<<8)];
 
 				if(reverse) { tile_data^=0xff; }
 				if(u_line && yi == lr-1) { tile_data = 0xff; }
 				if(o_line && yi == 0) { tile_data = 0xff; }
 				if(v_line)  { tile_data|=1; }
-				if(blink && device->machine().primary_screen->frame_number() & 0x20) { tile_data = 0; } // TODO: rate & correct behaviour
+				if(blink && machine().first_screen()->frame_number() & 0x20) { tile_data = 0; } // TODO: rate & correct behaviour
 
-				if(cursor_on && cursor_addr == tile_addr && device->machine().primary_screen->frame_number() & 0x10)
+				if(cursor_on && cursor_addr == tile_addr && machine().first_screen()->frame_number() & 0x10)
 					tile_data^=0xff;
 
 				if(yi >= char_size)
@@ -737,30 +735,9 @@ CASETBL:
 	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("CAPS LOCK") PORT_CODE(KEYCODE_CAPSLOCK) PORT_TOGGLE
 INPUT_PORTS_END
 
-void apc_state::fdc_drq(bool state)
-{
-//  printf("%02x DRQ\n",state);
-	m_dmac->dreq1_w(state);
-}
-
-void apc_state::fdc_irq(bool state)
-{
-//  printf("IRQ %d\n",state);
-	machine().device<pic8259_device>("pic8259_slave")->ir4_w(state);
-}
-
-IRQ_CALLBACK_MEMBER(apc_state::irq_callback)
-{
-	return machine().device<pic8259_device>( "pic8259_master" )->acknowledge();
-}
-
 void apc_state::machine_start()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(apc_state::irq_callback),this));
-
 	m_fdc->set_rate(500000);
-	m_fdc->setup_intrq_cb(upd765a_device::line_cb(FUNC(apc_state::fdc_irq), this));
-	m_fdc->setup_drq_cb(upd765a_device::line_cb(FUNC(apc_state::fdc_drq), this));
 
 	m_rtc->cs_w(1);
 //  m_rtc->oe_w(1);
@@ -772,30 +749,6 @@ void apc_state::machine_reset()
 	m_keyb.data = 0;
 	m_keyb.sig = 0;
 }
-
-
-void apc_state::palette_init()
-{
-}
-
-static UPD7220_INTERFACE( hgdc_1_intf )
-{
-	NULL,
-	hgdc_draw_text,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-static UPD7220_INTERFACE( hgdc_2_intf )
-{
-	hgdc_display_pixels,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 static const gfx_layout charset_8x16 =
 {
@@ -839,24 +792,6 @@ static ADDRESS_MAP_START( upd7220_2_map, AS_0, 8, apc_state )
 	AM_RANGE(0x00000, 0x3ffff) AM_RAM AM_SHARE("video_ram_2")
 ADDRESS_MAP_END
 
-static const struct pit8253_interface pit8253_config =
-{
-	{
-		{
-			MAIN_CLOCK,              /* heartbeat IRQ */
-			DEVCB_NULL,
-			DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir3_w)
-		}, {
-			MAIN_CLOCK,              /* Memory Refresh */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}, {
-			MAIN_CLOCK,              /* RS-232c */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}
-	}
-};
 /*
 irq assignment:
 (note: documentation shows ODA Printer at ir7 master, but clearly everything is shifted one place due of the
@@ -882,13 +817,6 @@ ir5 Option
 ir6 Option
 ir7 APU
 */
-
-WRITE_LINE_MEMBER(apc_state::apc_master_set_int_line)
-{
-	//printf("%02x\n",interrupt);
-//  printf("irq %d\n",state);
-	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
-}
 
 READ8_MEMBER(apc_state::get_slave_ack)
 {
@@ -968,16 +896,6 @@ CH1: FDC
 CH2: ("reserved for future graphics expansion")
 CH3: AUX
 */
-static I8237_INTERFACE( dmac_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(apc_state, apc_dma_hrq_changed),
-	DEVCB_DRIVER_LINE_MEMBER(apc_state, apc_tc_w),
-	DEVCB_DRIVER_MEMBER(apc_state, apc_dma_read_byte),
-	DEVCB_DRIVER_MEMBER(apc_state, apc_dma_write_byte),
-	{ DEVCB_NULL, DEVCB_DRIVER_MEMBER(apc_state,fdc_r), DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_NULL, DEVCB_DRIVER_MEMBER(apc_state,fdc_w), DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_DRIVER_LINE_MEMBER(apc_state, apc_dack0_w), DEVCB_DRIVER_LINE_MEMBER(apc_state, apc_dack1_w), DEVCB_DRIVER_LINE_MEMBER(apc_state, apc_dack2_w), DEVCB_DRIVER_LINE_MEMBER(apc_state, apc_dack3_w) }
-};
 
 static const floppy_format_type apc_floppy_formats[] = {
 	FLOPPY_D88_FORMAT,
@@ -995,12 +913,10 @@ PALETTE_INIT_MEMBER(apc_state,apc)
 	int i;
 
 	for(i=0;i<8;i++)
-		palette_set_color_rgb(machine(), i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
-	for(i=8;i<machine().total_colors();i++)
-		palette_set_color_rgb(machine(), i, pal1bit(0), pal1bit(0), pal1bit(0));
+		palette.set_pen_color(i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
+	for(i=8;i<palette.entries();i++)
+		palette.set_pen_color(i, pal1bit(0), pal1bit(0), pal1bit(0));
 }
-
-static const upd1771_interface upd1771c_config = { DEVCB_NULL };
 
 static MACHINE_CONFIG_START( apc, apc_state )
 
@@ -1008,16 +924,34 @@ static MACHINE_CONFIG_START( apc, apc_state )
 	MCFG_CPU_ADD("maincpu",I8086,MAIN_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(apc_map)
 	MCFG_CPU_IO_MAP(apc_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_master", pic8259_device, inta_cb)
 
-	MCFG_PIT8253_ADD( "pit8253", pit8253_config )
-	MCFG_PIC8259_ADD( "pic8259_master", WRITELINE(apc_state, apc_master_set_int_line), VCC, READ8(apc_state,get_slave_ack) )
+	MCFG_DEVICE_ADD("pit8253", PIT8253, 0)
+	MCFG_PIT8253_CLK0(MAIN_CLOCK) /* heartbeat IRQ */
+	MCFG_PIT8253_OUT0_HANDLER(DEVWRITELINE("pic8259_master", pic8259_device, ir3_w))
+	MCFG_PIT8253_CLK1(MAIN_CLOCK) /* Memory Refresh */
+	MCFG_PIT8253_CLK2(MAIN_CLOCK) /* RS-232c */
+
+	MCFG_PIC8259_ADD( "pic8259_master", INPUTLINE("maincpu", 0), VCC, READ8(apc_state,get_slave_ack) )
 	MCFG_PIC8259_ADD( "pic8259_slave", DEVWRITELINE("pic8259_master", pic8259_device, ir7_w), GND, NULL ) // TODO: check ir7_w
-	MCFG_I8237_ADD("i8237", MAIN_CLOCK, dmac_intf)
+	MCFG_DEVICE_ADD("i8237", AM9517A, MAIN_CLOCK)
+	MCFG_I8237_OUT_HREQ_CB(WRITELINE(apc_state, apc_dma_hrq_changed))
+	MCFG_I8237_OUT_EOP_CB(WRITELINE(apc_state, apc_tc_w))
+	MCFG_I8237_IN_MEMR_CB(READ8(apc_state, apc_dma_read_byte))
+	MCFG_I8237_OUT_MEMW_CB(WRITE8(apc_state, apc_dma_write_byte))
+	MCFG_I8237_IN_IOR_1_CB(READ8(apc_state, fdc_r))
+	MCFG_I8237_OUT_IOW_1_CB(WRITE8(apc_state, fdc_w))
+	MCFG_I8237_OUT_DACK_0_CB(WRITELINE(apc_state, apc_dack0_w))
+	MCFG_I8237_OUT_DACK_1_CB(WRITELINE(apc_state, apc_dack1_w))
+	MCFG_I8237_OUT_DACK_2_CB(WRITELINE(apc_state, apc_dack2_w))
+	MCFG_I8237_OUT_DACK_3_CB(WRITELINE(apc_state, apc_dack3_w))
 
 	MCFG_NVRAM_ADD_1FILL("cmos")
 	MCFG_UPD1990A_ADD("upd1990a", XTAL_32_768kHz, NULL, NULL)
 
 	MCFG_UPD765A_ADD("upd765", true, true)
+	MCFG_UPD765_INTRQ_CALLBACK(DEVWRITELINE("pic8259_slave", pic8259_device, ir4_w))
+	MCFG_UPD765_DRQ_CALLBACK(DEVWRITELINE("i8237", am9517a_device, dreq1_w))
 	MCFG_FLOPPY_DRIVE_ADD("upd765:0", apc_floppies, "8", apc_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("upd765:1", apc_floppies, "8", apc_floppy_formats)
 	MCFG_SOFTWARE_LIST_ADD("disk_list","apc")
@@ -1030,18 +964,22 @@ static MACHINE_CONFIG_START( apc, apc_state )
 	MCFG_SCREEN_SIZE(640, 494)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 640-1, 0*8, 494-1)
 
-	MCFG_GFXDECODE(apc)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", apc)
 
-	MCFG_UPD7220_ADD("upd7220_chr", XTAL_3_579545MHz, hgdc_1_intf, upd7220_1_map) // unk clock
-	MCFG_UPD7220_ADD("upd7220_btm", XTAL_3_579545MHz, hgdc_2_intf, upd7220_2_map) // unk clock
+	MCFG_DEVICE_ADD("upd7220_chr", UPD7220, 3579545) // unk clock
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, upd7220_1_map)
+	MCFG_UPD7220_DRAW_TEXT_CALLBACK_OWNER(apc_state, hgdc_draw_text)
 
-	MCFG_PALETTE_LENGTH(16)
-	MCFG_PALETTE_INIT_OVERRIDE(apc_state,apc)
+	MCFG_DEVICE_ADD("upd7220_btm", UPD7220, 3579545) // unk clock
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, upd7220_2_map)
+	MCFG_UPD7220_DISPLAY_PIXELS_CALLBACK_OWNER(apc_state, hgdc_display_pixels)
+
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(apc_state,apc)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD( "upd1771c", UPD1771C, MAIN_CLOCK ) //uPD1771C-006
-	MCFG_SOUND_CONFIG( upd1771c_config )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 MACHINE_CONFIG_END
 
@@ -1071,4 +1009,4 @@ DRIVER_INIT_MEMBER(apc_state,apc)
 	// ...
 }
 
-GAME( 1982, apc,  0,   apc,  apc, apc_state,  apc,       ROT0, "NEC",      "APC", GAME_NOT_WORKING | GAME_NO_SOUND )
+COMP( 1982, apc,  0,   0, apc,  apc, apc_state,  apc,      "NEC",      "APC", GAME_NOT_WORKING | GAME_NO_SOUND )

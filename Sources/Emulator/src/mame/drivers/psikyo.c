@@ -308,7 +308,7 @@ READ32_MEMBER(psikyo_state::s1945_input_r)
 static ADDRESS_MAP_START( psikyo_map, AS_PROGRAM, 32, psikyo_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM                                                     // ROM (not all used)
 	AM_RANGE(0x400000, 0x401fff) AM_RAM AM_SHARE("spriteram")       // Sprites, buffered by two frames (list buffered + fb buffered)
-	AM_RANGE(0x600000, 0x601fff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_dword_be_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x600000, 0x601fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x800000, 0x801fff) AM_RAM_WRITE(psikyo_vram_0_w) AM_SHARE("vram_0")       // Layer 0
 	AM_RANGE(0x802000, 0x803fff) AM_RAM_WRITE(psikyo_vram_1_w) AM_SHARE("vram_1")       // Layer 1
 	AM_RANGE(0x804000, 0x807fff) AM_RAM AM_SHARE("vregs")                           // RAM + Vregs
@@ -356,7 +356,7 @@ static ADDRESS_MAP_START( psikyo_bootleg_map, AS_PROGRAM, 32, psikyo_state )
 	AM_RANGE(0x200000, 0x200fff) AM_RAM AM_SHARE("boot_spritebuf")              // RAM (it copies the spritelist here, the HW probably doesn't have automatic buffering like the originals?
 
 	AM_RANGE(0x400000, 0x401fff) AM_RAM AM_SHARE("spriteram")       // Sprites, buffered by two frames (list buffered + fb buffered)
-	AM_RANGE(0x600000, 0x601fff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_dword_be_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x600000, 0x601fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x800000, 0x801fff) AM_RAM_WRITE(psikyo_vram_0_w) AM_SHARE("vram_0")       // Layer 0
 	AM_RANGE(0x802000, 0x803fff) AM_RAM_WRITE(psikyo_vram_1_w) AM_SHARE("vram_1")       // Layer 1
 	AM_RANGE(0x804000, 0x807fff) AM_RAM AM_SHARE("vregs")                               // RAM + Vregs
@@ -1049,9 +1049,11 @@ static MACHINE_CONFIG_START( sngkace, psikyo_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 256-32-1)
 	MCFG_SCREEN_UPDATE_DRIVER(psikyo_state, screen_update_psikyo)
 	MCFG_SCREEN_VBLANK_DRIVER(psikyo_state, screen_eof_psikyo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(psikyo)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", psikyo)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(psikyo_state,sngkace)
 
@@ -1093,9 +1095,11 @@ static MACHINE_CONFIG_START( gunbird, psikyo_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 256-32-1)
 	MCFG_SCREEN_UPDATE_DRIVER(psikyo_state, screen_update_psikyo)
 	MCFG_SCREEN_VBLANK_DRIVER(psikyo_state, screen_eof_psikyo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(psikyo)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", psikyo)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(psikyo_state,psikyo)
 
@@ -1126,9 +1130,11 @@ static MACHINE_CONFIG_START( s1945bl, psikyo_state ) /* Bootleg hardware based o
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 256-32-1)
 	MCFG_SCREEN_UPDATE_DRIVER(psikyo_state, screen_update_psikyo_bootleg)
 	MCFG_SCREEN_VBLANK_DRIVER(psikyo_state, screen_eof_psikyo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(psikyo)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", psikyo)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(psikyo_state,psikyo)
 
@@ -1174,9 +1180,11 @@ static MACHINE_CONFIG_START( s1945, psikyo_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 256-32-1)
 	MCFG_SCREEN_UPDATE_DRIVER(psikyo_state, screen_update_psikyo)
 	MCFG_SCREEN_VBLANK_DRIVER(psikyo_state, screen_eof_psikyo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(psikyo)
-	MCFG_PALETTE_LENGTH(0x1000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", psikyo)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	MCFG_VIDEO_START_OVERRIDE(psikyo_state,psikyo)
 

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 
     Alesis HR-16 and SR-16 drum machines
@@ -218,10 +220,10 @@ static INPUT_PORTS_START( sr16 )
 INPUT_PORTS_END
 
 
-void alesis_state::palette_init()
+PALETTE_INIT_MEMBER(alesis_state, alesis)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(138, 146, 148));
-	palette_set_color(machine(), 1, MAKE_RGB(92, 83, 88));
+	palette.set_pen_color(0, rgb_t(138, 146, 148));
+	palette.set_pen_color(1, rgb_t(92, 83, 88));
 }
 
 void alesis_state::machine_reset()
@@ -241,15 +243,6 @@ static HD44780_PIXEL_UPDATE(sr16_pixel_update)
 		bitmap.pix16(line*9 + y, pos*6 + x) = state;
 }
 
-static const cassette_interface hr16_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED),
-	"hr16_cass",
-	NULL
-};
-
 static MACHINE_CONFIG_START( hr16, alesis_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",I8031, XTAL_12MHz)
@@ -264,10 +257,14 @@ static MACHINE_CONFIG_START( hr16, alesis_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 6*16-1, 0, 9*2-1)
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 	MCFG_SCREEN_UPDATE_DEVICE("hd44780", hd44780_device, screen_update)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
+	MCFG_PALETTE_INIT_OWNER(alesis_state, alesis)
 
-	MCFG_CASSETTE_ADD( "cassette", hr16_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED)
+	MCFG_CASSETTE_INTERFACE("hr16_cass")
 
 	MCFG_HD44780_ADD("hd44780")
 	MCFG_HD44780_LCD_SIZE(2, 16)
@@ -289,8 +286,6 @@ static MACHINE_CONFIG_DERIVED( sr16, hr16 )
 	MCFG_SCREEN_SIZE(6*8, 9*2)
 	MCFG_SCREEN_VISIBLE_AREA(0, 6*8-1, 0, 9*2-1)
 	MCFG_DEFAULT_LAYOUT(layout_sr16)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
 
 	MCFG_DEVICE_MODIFY("hd44780")
 	MCFG_HD44780_LCD_SIZE(2, 8)

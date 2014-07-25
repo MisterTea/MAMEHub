@@ -51,7 +51,8 @@ public:
 	hotblock_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_vram(*this, "vram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_palette(*this, "palette")  { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_vram;
@@ -71,6 +72,7 @@ public:
 	UINT32 screen_update_hotblock(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(hotblocks_irq);
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -91,14 +93,14 @@ READ8_MEMBER(hotblock_state::hotblock_video_read)
 /* port 4 is some kind of eeprom / storage .. used to store the scores */
 READ8_MEMBER(hotblock_state::hotblock_port4_r)
 {
-//  mame_printf_debug("port4_r\n");
+//  osd_printf_debug("port4_r\n");
 	return 0x00;
 }
 
 
 WRITE8_MEMBER(hotblock_state::hotblock_port4_w)
 {
-//  mame_printf_debug("port4_w: pc = %06x : data %04x\n", space.device().safe_pc(), data);
+//  osd_printf_debug("port4_w: pc = %06x : data %04x\n", space.device().safe_pc(), data);
 //  popmessage("port4_w: pc = %06x : data %04x", space.device().safe_pc(), data);
 
 	m_port4 = data;
@@ -152,12 +154,12 @@ UINT32 hotblock_state::screen_update_hotblock(screen_device &screen, bitmap_ind1
 	int i;
 	static const int xxx = 320, yyy = 204;
 
-	bitmap.fill(get_black_pen(machine()));
+	bitmap.fill(m_palette->black_pen());
 
 	for (i = 0; i < 256; i++)
 	{
 		int dat = (m_pal[i * 2 + 1] << 8) | m_pal[i * 2];
-		palette_set_color_rgb(machine(), i, pal5bit(dat >> 0), pal5bit(dat >> 5), pal5bit(dat >> 10));
+		m_palette->set_pen_color(i, pal5bit(dat >> 0), pal5bit(dat >> 5), pal5bit(dat >> 10));
 	}
 
 	count = 0;
@@ -203,17 +205,6 @@ INTERRUPT_GEN_MEMBER(hotblock_state::hotblocks_irq)/* right? */
 	device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("P1"),
-	DEVCB_INPUT_PORT("P2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( hotblock, hotblock_state )
 
 	/* basic machine hardware */
@@ -229,15 +220,17 @@ static MACHINE_CONFIG_START( hotblock, hotblock_state )
 	MCFG_SCREEN_SIZE(1024,1024)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 200-1)
 	MCFG_SCREEN_UPDATE_DRIVER(hotblock_state, screen_update_hotblock)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_ADD("palette", 256)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1000000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("P1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("P2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

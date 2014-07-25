@@ -53,7 +53,9 @@ public:
 			m_videoram2(*this, "videoram2"),
 			m_videoram3(*this, "videoram3"),
 			m_maincpu(*this, "maincpu"),
-			m_oki(*this, "oki")
+			m_oki(*this, "oki"),
+			m_gfxdecode(*this, "gfxdecode"),
+			m_screen(*this, "screen")
 	{ }
 
 	/* memory pointers */
@@ -68,6 +70,8 @@ public:
 	// devices
 	required_device<cpu_device> m_maincpu;
 	required_device<okim6295_device> m_oki;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
 
 	// screen updates
 	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
@@ -84,9 +88,9 @@ public:
 	int       m_oki_bank;
 	UINT16  m_gfx_control;
 
-	DECLARE_WRITE16_HANDLER(gfx_ctrl_w);
-	DECLARE_WRITE16_HANDLER(tilemap1_scrollx_w);
-	DECLARE_WRITE16_HANDLER(tilemap1_scrolly_w);
+	DECLARE_WRITE16_MEMBER(gfx_ctrl_w);
+	DECLARE_WRITE16_MEMBER(tilemap1_scrollx_w);
+	DECLARE_WRITE16_MEMBER(tilemap1_scrolly_w);
 
 protected:
 	virtual void video_start();
@@ -99,8 +103,7 @@ protected:
 TILE_GET_INFO_MEMBER(_3x3puzzle_state::get_tile1_info)
 {
 	UINT16 code = m_videoram1_buffer[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			0,
 			0);
@@ -109,8 +112,7 @@ TILE_GET_INFO_MEMBER(_3x3puzzle_state::get_tile1_info)
 TILE_GET_INFO_MEMBER(_3x3puzzle_state::get_tile2_info)
 {
 	UINT16 code = m_videoram2_buffer[tile_index];
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code,
 			1,
 			0);
@@ -119,8 +121,7 @@ TILE_GET_INFO_MEMBER(_3x3puzzle_state::get_tile2_info)
 TILE_GET_INFO_MEMBER(_3x3puzzle_state::get_tile3_info)
 {
 	UINT16 code = m_videoram3_buffer[tile_index];
-	SET_TILE_INFO_MEMBER(
-			2,
+	SET_TILE_INFO_MEMBER(2,
 			code,
 			2,
 			0);
@@ -168,9 +169,9 @@ WRITE16_MEMBER(_3x3puzzle_state::tilemap1_scrolly_w)
 
 void _3x3puzzle_state::video_start()
 {
-	m_tilemap1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(_3x3puzzle_state::get_tile1_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_tilemap2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(_3x3puzzle_state::get_tile2_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
-	m_tilemap3 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(_3x3puzzle_state::get_tile3_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_tilemap1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(_3x3puzzle_state::get_tile1_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_tilemap2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(_3x3puzzle_state::get_tile2_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_tilemap3 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(_3x3puzzle_state::get_tile3_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 	m_tilemap2->set_transparent_pen(0);
 	m_tilemap3->set_transparent_pen(0);
 }
@@ -209,7 +210,7 @@ static ADDRESS_MAP_START( _3x3puzzle_map, AS_PROGRAM, 16, _3x3puzzle_state )
 	AM_RANGE(0x201000, 0x201fff) AM_RAM AM_SHARE("videoram2")
 	AM_RANGE(0x202000, 0x202fff) AM_RAM AM_SHARE("videoram3")
 	AM_RANGE(0x280000, 0x280001) AM_READ_PORT("VBLANK")
-	AM_RANGE(0x300000, 0x3005ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x300000, 0x3005ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x400000, 0x400001) AM_WRITE(tilemap1_scrollx_w)
 	AM_RANGE(0x480000, 0x480001) AM_WRITE(tilemap1_scrolly_w)
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("P1")
@@ -367,11 +368,13 @@ GFXDECODE_END
 void _3x3puzzle_state::machine_start()
 {
 	save_item(NAME(m_oki_bank));
+	save_item(NAME(m_gfx_control));
 }
 
 void _3x3puzzle_state::machine_reset()
 {
 	m_oki_bank = 0;
+	m_gfx_control = 0;
 }
 
 
@@ -390,9 +393,10 @@ static MACHINE_CONFIG_START( _3x3puzzle, _3x3puzzle_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 30*8-1)
 
-	MCFG_GFXDECODE(_3x3puzzle)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", _3x3puzzle)
 
-	MCFG_PALETTE_LENGTH(0x600/2)
+	MCFG_PALETTE_ADD("palette", 0x600/2)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -495,6 +499,6 @@ ROM_END
 
 
 
-GAME( 1998, 3x3puzzl,  0,          _3x3puzzle,  _3x3puzzle,  driver_device, 0,       ROT0, "Ace Enterprise",      "3X3 Puzzle (Enterprise)", 0 ) // 1998. 5. 28
-GAME( 1998, 3x3puzzla, 3x3puzzl,   _3x3puzzle,  _3x3puzzle,  driver_device, 0,       ROT0, "Ace Enterprise",      "3X3 Puzzle (Normal)", 0 ) // 1998. 5. 28
-GAME( 199?, casanova,  0,          _3x3puzzle,  casanova,    driver_device, 0,       ROT0, "<unknown>",           "Casanova", GAME_IMPERFECT_GRAPHICS )
+GAME( 1998, 3x3puzzl,  0,          _3x3puzzle,  _3x3puzzle,  driver_device, 0,       ROT0, "Ace Enterprise",      "3X3 Puzzle (Enterprise)", GAME_SUPPORTS_SAVE ) // 1998. 5. 28
+GAME( 1998, 3x3puzzla, 3x3puzzl,   _3x3puzzle,  _3x3puzzle,  driver_device, 0,       ROT0, "Ace Enterprise",      "3X3 Puzzle (Normal)", GAME_SUPPORTS_SAVE ) // 1998. 5. 28
+GAME( 199?, casanova,  0,          _3x3puzzle,  casanova,    driver_device, 0,       ROT0, "<unknown>",           "Casanova", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )

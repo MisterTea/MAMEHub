@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #ifndef __MC1000__
 #define __MC1000__
 
@@ -8,7 +10,7 @@
 #include "video/mc6845.h"
 #include "video/mc6847.h"
 #include "sound/ay8910.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/rescap.h"
 #include "machine/ram.h"
 
@@ -107,6 +109,9 @@ public:
 	int m_hsync;
 	int m_vsync;
 	UINT8 m_mc6847_attr;
+
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
+	int m_centronics_busy;
 
 	DECLARE_DRIVER_INIT(mc1000);
 	TIMER_DEVICE_CALLBACK_MEMBER(ne555_tick);

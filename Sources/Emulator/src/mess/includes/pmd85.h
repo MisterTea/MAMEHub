@@ -19,9 +19,7 @@ class pmd85_state : public driver_device
 public:
 	enum
 	{
-		TIMER_CASSETTE,
-		TIMER_RESET,
-		TIMER_SETUP_MACHINE_STATE
+		TIMER_CASSETTE
 	};
 
 	pmd85_state(const machine_config &mconfig, device_type type, const char *tag)
@@ -29,7 +27,6 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_ram(*this, RAM_TAG),
 		m_cassette(*this, "cassette"),
-		m_sercas(*this, "sercas"),
 		m_pit8253(*this, "pit8253"),
 		m_uart(*this, "uart"),
 		m_ppi8255_0(*this, "ppi8255_0"),
@@ -53,8 +50,8 @@ public:
 		m_bank14(*this, "bank14"),
 		m_bank15(*this, "bank15"),
 		m_bank16(*this, "bank16"),
-		m_io_reset(*this, "RESET"),
-		m_io_dsw0(*this, "DSW0") { }
+		m_io_dsw0(*this, "DSW0"),
+		m_palette(*this, "palette")  { }
 
 	UINT8 m_rom_module_present;
 	UINT8 m_ppi_port_outputs[4][3];
@@ -70,7 +67,6 @@ public:
 	DECLARE_WRITE8_MEMBER(pmd85_io_w);
 	DECLARE_READ8_MEMBER(mato_io_r);
 	DECLARE_WRITE8_MEMBER(mato_io_w);
-	DECLARE_DIRECT_UPDATE_MEMBER(pmd85_opbaseoverride);
 	DECLARE_DRIVER_INIT(mato);
 	DECLARE_DRIVER_INIT(pmd852a);
 	DECLARE_DRIVER_INIT(pmd851);
@@ -79,11 +75,10 @@ public:
 	DECLARE_DRIVER_INIT(c2717);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(pmd85);
 	UINT32 screen_update_pmd85(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(pmd85_cassette_timer_callback);
-	TIMER_CALLBACK_MEMBER(pmd_reset);
-	TIMER_CALLBACK_MEMBER(setup_machine_state);
+	DECLARE_WRITE_LINE_MEMBER(write_cas_tx);
 	DECLARE_READ8_MEMBER(pmd85_ppi_0_porta_r);
 	DECLARE_READ8_MEMBER(pmd85_ppi_0_portb_r);
 	DECLARE_READ8_MEMBER(pmd85_ppi_0_portc_r);
@@ -111,12 +106,12 @@ public:
 	DECLARE_WRITE8_MEMBER(pmd85_ppi_3_porta_w);
 	DECLARE_WRITE8_MEMBER(pmd85_ppi_3_portb_w);
 	DECLARE_WRITE8_MEMBER(pmd85_ppi_3_portc_w);
+	DECLARE_INPUT_CHANGED_MEMBER(pmd85_reset);
 
 protected:
 	required_device<cpu_device> m_maincpu;
 	required_device<ram_device> m_ram;
 	required_device<cassette_image_device> m_cassette;
-	required_device<serial_source_device> m_sercas;
 	required_device<pit8253_device> m_pit8253;
 	optional_device<i8251_device> m_uart;
 	optional_device<i8255_device> m_ppi8255_0;
@@ -140,9 +135,9 @@ protected:
 	optional_memory_bank m_bank14;
 	optional_memory_bank m_bank15;
 	optional_memory_bank m_bank16;
-	required_ioport m_io_reset;
 	optional_ioport m_io_dsw0;
 	ioport_port *m_io_port[16];
+	required_device<palette_device> m_palette;
 
 	void pmd851_update_memory();
 	void pmd852a_update_memory();
@@ -153,15 +148,9 @@ protected:
 	void pmd85_common_driver_init();
 	void pmd85_draw_scanline(bitmap_ind16 &bitmap, int pmd85_scanline);
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+
+	int m_cas_tx;
 };
-
-
-/*----------- defined in machine/pmd85.c -----------*/
-
-extern const struct pit8253_interface pmd85_pit8253_interface;
-extern const i8255_interface pmd85_ppi8255_interface[4];
-extern const i8255_interface alfa_ppi8255_interface[3];
-extern const i8255_interface mato_ppi8255_interface;
 
 /*----------- defined in video/pmd85.c -----------*/
 

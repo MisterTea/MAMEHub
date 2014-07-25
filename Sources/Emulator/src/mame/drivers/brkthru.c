@@ -354,6 +354,7 @@ void brkthru_state::machine_start()
 	save_item(NAME(m_bgscroll));
 	save_item(NAME(m_bgbasecolor));
 	save_item(NAME(m_flipscreen));
+	save_item(NAME(m_nmi_mask));
 }
 
 void brkthru_state::machine_reset()
@@ -361,6 +362,7 @@ void brkthru_state::machine_reset()
 	m_bgscroll = 0;
 	m_bgbasecolor = 0;
 	m_flipscreen = 0;
+	m_nmi_mask = 0;
 }
 
 INTERRUPT_GEN_MEMBER(brkthru_state::vblank_irq)
@@ -381,14 +383,16 @@ static MACHINE_CONFIG_START( brkthru, brkthru_state )
 
 
 	/* video hardware */
-	MCFG_GFXDECODE(brkthru)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", brkthru)
+
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(brkthru_state, brkthru)
 
 	/* not sure; assuming to be the same as darwin */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/2, 384, 8, 248, 272, 8, 248)
 	MCFG_SCREEN_UPDATE_DRIVER(brkthru_state, screen_update_brkthru)
-
+	MCFG_SCREEN_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -417,8 +421,10 @@ static MACHINE_CONFIG_START( darwin, brkthru_state )
 
 
 	/* video hardware */
-	MCFG_GFXDECODE(brkthru)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", brkthru)
+
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(brkthru_state, brkthru)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/2, 384, 8, 248, 272, 8, 248)
@@ -435,7 +441,7 @@ static MACHINE_CONFIG_START( darwin, brkthru_state )
 	              = 57.444855Hz
 	    tuned by Shingo SUZUKI(VSyncMAME Project) 2000/10/19 */
 	MCFG_SCREEN_UPDATE_DRIVER(brkthru_state, screen_update_brkthru)
-
+	MCFG_SCREEN_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

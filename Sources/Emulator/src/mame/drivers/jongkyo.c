@@ -43,6 +43,7 @@ public:
 	/* misc */
 	UINT8    m_rom_bank;
 	UINT8    m_mux_data;
+	UINT8    m_flip_screen;
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -58,7 +59,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(jongkyo);
 	UINT32 screen_update_jongkyo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 };
@@ -85,6 +86,7 @@ UINT32 jongkyo_state::screen_update_jongkyo(screen_device &screen, bitmap_ind16 
 		for (x = 0; x < 256; x += 4)
 		{
 			int b;
+			int res_x,res_y;
 			UINT8 data1;
 			UINT8 data2;
 			UINT8 data3;
@@ -103,7 +105,9 @@ UINT32 jongkyo_state::screen_update_jongkyo(screen_device &screen, bitmap_ind16 
 
 			for (b = 0; b < 4; ++b)
 			{
-				bitmap.pix16(255 - y, 255 - (x + b)) = ((data2 & 0x01)) + ((data2 & 0x10) >> 3) +
+				res_x = m_flip_screen ? 255 - (x + b) : (x + b);
+				res_y = m_flip_screen ? 255 - y : y;
+				bitmap.pix16(res_y, res_x) = ((data2 & 0x01)) + ((data2 & 0x10) >> 3) +
 															((data1 & 0x01) << 2) + ((data1 & 0x10) >> 1) +
 															((data3 & 0x01) << 4) + ((data3 & 0x10) << 1);
 				data1 >>= 1;
@@ -143,10 +147,13 @@ WRITE8_MEMBER(jongkyo_state::mux_w)
 
 WRITE8_MEMBER(jongkyo_state::jongkyo_coin_counter_w)
 {
+	/* bit 0 = hopper out? */
+
 	/* bit 1 = coin counter */
 	coin_counter_w(machine(), 0, data & 2);
 
 	/* bit 2 always set? */
+	m_flip_screen = (data & 4) >> 2;
 }
 
 READ8_MEMBER(jongkyo_state::input_1p_r)
@@ -244,6 +251,7 @@ static ADDRESS_MAP_START( jongkyo_portmap, AS_IO, 8, jongkyo_state )
 	AM_RANGE(0x10, 0x10) AM_READ_PORT("DSW") AM_WRITE(jongkyo_coin_counter_w)
 	AM_RANGE(0x11, 0x11) AM_READ_PORT("IN0") AM_WRITE(mux_w)
 	// W 11 select keyboard row (fe fd fb f7)
+	AM_RANGE(0x40, 0x40) AM_READNOP // unknown, if (A & 0xf) == 0x0a then a bit 0 write to 0x7520 doesn't occur
 	AM_RANGE(0x40, 0x45) AM_WRITE(bank_select_w)
 	AM_RANGE(0x46, 0x4f) AM_WRITE(unknown_w)
 ADDRESS_MAP_END
@@ -387,7 +395,7 @@ static INPUT_PORTS_START( jongkyo )
 	PORT_DIPNAME( 0x02, 0x00, "Memory Reset" )
 	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( Yes ) )
-	PORT_DIPNAME( 0x04, 0x00, "Analizer" )
+	PORT_DIPNAME( 0x04, 0x00, "Analyzer" )
 	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( Yes ) )
 	PORT_SERVICE( 0x08, IP_ACTIVE_HIGH )
@@ -433,7 +441,7 @@ INPUT_PORTS_END
  *
  *************************************/
 
-void jongkyo_state::palette_init()
+PALETTE_INIT_MEMBER(jongkyo_state, jongkyo)
 {
 	int i;
 	UINT8* proms = memregion("proms")->base();
@@ -445,27 +453,10 @@ void jongkyo_state::palette_init()
 		int g = (data  >> 3) & 0x07;
 		int b = (data  >> 6) & 0x03;
 
-			palette_set_color_rgb(machine(), i, r << 5, g << 5, b << 6 );
+			palette.set_pen_color(i, r << 5, g << 5, b << 6 );
 
 	}
 }
-
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(jongkyo_state,input_1p_r),
-	DEVCB_DRIVER_MEMBER(jongkyo_state,input_2p_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 
 /*************************************
  *
@@ -484,6 +475,7 @@ void jongkyo_state::machine_reset()
 {
 	m_rom_bank = 0;
 	m_mux_data = 0;
+	m_flip_screen = 1;
 }
 
 
@@ -503,13 +495,15 @@ static MACHINE_CONFIG_START( jongkyo, jongkyo_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 8, 256-8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(jongkyo_state, screen_update_jongkyo)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x100)
-
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_INIT_OWNER(jongkyo_state, jongkyo)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("aysnd", AY8910, JONGKYO_CLOCK/8)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(jongkyo_state, input_1p_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(jongkyo_state, input_2p_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.33)
 MACHINE_CONFIG_END
 

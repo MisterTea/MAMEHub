@@ -22,7 +22,7 @@ System80 is based on the SRU platform, but with more outputs and finally a separ
 
 
 #include "emu.h"
-#include "cpu/tms9900/tms9900l.h"
+#include "cpu/tms9900/tms9995.h"
 #include "sound/ay8910.h"
 #include "machine/tms9902.h"
 
@@ -33,6 +33,7 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu")
 	{ }
+	virtual void machine_reset();
 
 protected:
 
@@ -63,44 +64,25 @@ ADDRESS_MAP_END
 static INPUT_PORTS_START( jpms80 )
 INPUT_PORTS_END
 
-
-static const ay8910_interface ay8910_interface_jpm =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 // these are wrong
 #define MAIN_CLOCK 2000000
 #define SOUND_CLOCK 2000000
 #define DUART_CLOCK 2000000
 
-static const tms9902_interface tms9902_config =
+void jpms80_state::machine_reset()
 {
-	DEVCB_NULL,             /*int_callback,*/   /* called when interrupt pin state changes */
-	DEVCB_NULL,             /*rcv_callback,*/   /* called when a character shall be received  */
-	DEVCB_NULL,             /* called when a character is transmitted */
-	DEVCB_NULL              /* called for setting interface parameters and line states */
-};
-
+	// Disable auto wait state generation by raising the READY line on reset
+	static_cast<tms9995_device*>(machine().device("maincpu"))->set_ready(ASSERT_LINE);
+}
 
 static MACHINE_CONFIG_START( jpms80, jpms80_state )
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", TMS9995L, MAIN_CLOCK)
-	MCFG_CPU_PROGRAM_MAP(jpms80_map)
-	MCFG_CPU_IO_MAP(jpms80_io_map)
-
+	// CPU TMS9995, standard variant; no line connections
+	MCFG_TMS99xx_ADD("maincpu", TMS9995, MAIN_CLOCK, jpms80_map, jpms80_io_map)
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_TMS9902_ADD("tms9902duart", tms9902_config,    DUART_CLOCK)
+	MCFG_DEVICE_ADD("tms9902duart", TMS9902, DUART_CLOCK)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 2000000)
-	MCFG_SOUND_CONFIG(ay8910_interface_jpm)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

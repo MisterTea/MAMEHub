@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     samples.c
@@ -17,37 +19,6 @@
       - Maybe this should be part of the presentation layer
         (artwork etc.) with samples specified in .lay files instead of
         in drivers?
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -433,7 +404,7 @@ bool samples_device::read_sample(emu_file &file, sample_t &sample)
 	UINT32 offset = file.read(buf, 4);
 	if (offset < 4)
 	{
-		mame_printf_warning("Unable to read %s, 0-byte file?\n", file.filename());
+		osd_printf_warning("Unable to read %s, 0-byte file?\n", file.filename());
 		return false;
 	}
 
@@ -444,7 +415,7 @@ bool samples_device::read_sample(emu_file &file, sample_t &sample)
 		return read_flac_sample(file, sample);
 
 	// if nothing appropriate, emit a warning
-	mame_printf_warning("Unable to read %s, corrupt file?\n", file.filename());
+	osd_printf_warning("Unable to read %s, corrupt file?\n", file.filename());
 	return false;
 }
 
@@ -455,7 +426,7 @@ bool samples_device::read_sample(emu_file &file, sample_t &sample)
 
 bool samples_device::read_wav_sample(emu_file &file, sample_t &sample)
 {
-	// we already read the opening 'WAVE' header
+	// we already read the opening 'RIFF' tag
 	UINT32 offset = 4;
 
 	// get the total size
@@ -463,7 +434,7 @@ bool samples_device::read_wav_sample(emu_file &file, sample_t &sample)
 	offset += file.read(&filesize, 4);
 	if (offset < 8)
 	{
-		mame_printf_warning("Unexpected size offset %u (%s)\n", offset, file.filename());
+		osd_printf_warning("Unexpected size offset %u (%s)\n", offset, file.filename());
 		return false;
 	}
 	filesize = LITTLE_ENDIANIZE_INT32(filesize);
@@ -473,11 +444,14 @@ bool samples_device::read_wav_sample(emu_file &file, sample_t &sample)
 	offset += file.read(buf, 4);
 	if (offset < 12)
 	{
-		mame_printf_warning("Unexpected WAVE offset %u (%s)\n", offset, file.filename());
+		osd_printf_warning("Unexpected WAVE offset %u (%s)\n", offset, file.filename());
 		return false;
 	}
 	if (memcmp(&buf[0], "WAVE", 4) != 0)
+	{
+		osd_printf_warning("Could not find WAVE header (%s)\n", file.filename());
 		return false;
+	}
 
 	// seek until we find a format tag
 	UINT32 length;
@@ -494,7 +468,7 @@ bool samples_device::read_wav_sample(emu_file &file, sample_t &sample)
 		offset += length;
 		if (offset >= filesize)
 		{
-			mame_printf_warning("Could not find fmt tag (%s)\n", file.filename());
+			osd_printf_warning("Could not find fmt tag (%s)\n", file.filename());
 			return false;
 		}
 	}
@@ -505,7 +479,7 @@ bool samples_device::read_wav_sample(emu_file &file, sample_t &sample)
 	temp16 = LITTLE_ENDIANIZE_INT16(temp16);
 	if (temp16 != 1)
 	{
-		mame_printf_warning("unsupported format %u - only PCM is supported (%s)\n", temp16, file.filename());
+		osd_printf_warning("unsupported format %u - only PCM is supported (%s)\n", temp16, file.filename());
 		return false;
 	}
 
@@ -514,7 +488,7 @@ bool samples_device::read_wav_sample(emu_file &file, sample_t &sample)
 	temp16 = LITTLE_ENDIANIZE_INT16(temp16);
 	if (temp16 != 1)
 	{
-		mame_printf_warning("unsupported number of channels %u - only mono is supported (%s)\n", temp16, file.filename());
+		osd_printf_warning("unsupported number of channels %u - only mono is supported (%s)\n", temp16, file.filename());
 		return false;
 	}
 
@@ -532,7 +506,7 @@ bool samples_device::read_wav_sample(emu_file &file, sample_t &sample)
 	bits = LITTLE_ENDIANIZE_INT16(bits);
 	if (bits != 8 && bits != 16)
 	{
-		mame_printf_warning("unsupported bits/sample %u - only 8 and 16 are supported (%s)\n", bits, file.filename());
+		osd_printf_warning("unsupported bits/sample %u - only 8 and 16 are supported (%s)\n", bits, file.filename());
 		return false;
 	}
 
@@ -554,7 +528,7 @@ bool samples_device::read_wav_sample(emu_file &file, sample_t &sample)
 		offset += length;
 		if (offset >= filesize)
 		{
-			mame_printf_warning("Could not find data tag (%s)\n", file.filename());
+			osd_printf_warning("Could not find data tag (%s)\n", file.filename());
 			return false;
 		}
 	}
@@ -562,7 +536,7 @@ bool samples_device::read_wav_sample(emu_file &file, sample_t &sample)
 	// if there was a 0 length data block, we're done
 	if (length == 0)
 	{
-		mame_printf_warning("empty data block (%s)\n", file.filename());
+		osd_printf_warning("empty data block (%s)\n", file.filename());
 		return false;
 	}
 
@@ -664,6 +638,6 @@ void samples_device::load_samples()
 		if (filerr == FILERR_NONE)
 			read_sample(file, m_sample[index]);
 		else if (filerr == FILERR_NOT_FOUND)
-			mame_printf_warning("Sample '%s' NOT FOUND\n", samplename);
+			osd_printf_warning("Sample '%s' NOT FOUND\n", samplename);
 	}
 }

@@ -11,8 +11,7 @@
 
 #define RGB_MAX     191
 
-
-void grchamp_state::palette_init()
+PALETTE_INIT_MEMBER(grchamp_state, grchamp)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances[3] = { 100, 270, 470 };
@@ -47,7 +46,7 @@ void grchamp_state::palette_init()
 		bit1 = (color_prom[i] >> 7) & 1;
 		b = combine_2_weights(bweights, bit0, bit1);
 
-		m_bgcolor[i] = MAKE_RGB(r, g, b);
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -101,17 +100,17 @@ void grchamp_state::video_start()
 	m_work_bitmap.allocate(32,32);
 
 	/* allocate tilemaps for each of the three sections */
-	m_text_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(grchamp_state::get_text_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,32);
-	m_left_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(grchamp_state::get_left_tile_info),this), tilemap_mapper_delegate(FUNC(grchamp_state::get_memory_offset),this),  8,8, 64,32);
-	m_right_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(grchamp_state::get_right_tile_info),this), tilemap_mapper_delegate(FUNC(grchamp_state::get_memory_offset),this),  8,8, 64,32);
-	m_center_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(grchamp_state::get_center_tile_info),this), tilemap_mapper_delegate(FUNC(grchamp_state::get_memory_offset),this),  8,8, 64,32);
+	m_text_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(grchamp_state::get_text_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,32);
+	m_left_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(grchamp_state::get_left_tile_info),this), tilemap_mapper_delegate(FUNC(grchamp_state::get_memory_offset),this),  8,8, 64,32);
+	m_right_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(grchamp_state::get_right_tile_info),this), tilemap_mapper_delegate(FUNC(grchamp_state::get_memory_offset),this),  8,8, 64,32);
+	m_center_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(grchamp_state::get_center_tile_info),this), tilemap_mapper_delegate(FUNC(grchamp_state::get_memory_offset),this),  8,8, 64,32);
 }
 
 #if 0
 int grchamp_state::collision_check(grchamp_state *state, bitmap_ind16 &bitmap, int which )
 {
-	int bgcolor = machine().pens[0];
-	int sprite_transp = machine().pens[0x24];
+	int bgcolor = m_palette->pen(0);
+	int sprite_transp = m_palette->pen(0x24);
 	const rectangle &visarea = m_screen->visible_area();
 	int y0 = 240 - m_cpu0_out[3];
 	int x0 = 256 - m_cpu0_out[2];
@@ -122,9 +121,9 @@ int grchamp_state::collision_check(grchamp_state *state, bitmap_ind16 &bitmap, i
 	if( which==0 )
 	{
 		/* draw the current player sprite into a work bitmap */
-		drawgfx_opaque( m_work_bitmap,
+
+			m_gfxdecode->gfx(4)->opaque(m_work_bitmap,
 			m_work_bitmap.cliprect(),
-			machine().gfx[4],
 			m_cpu0_out[4]&0xf,
 			1, /* color */
 			0,0,
@@ -177,7 +176,7 @@ void grchamp_state::draw_fog(grchamp_state *state, bitmap_ind16 &bitmap, const r
 
 void grchamp_state::draw_sprites(grchamp_state *state, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = machine().gfx[5];
+	gfx_element *gfx = m_gfxdecode->gfx(5);
 	int bank = (m_cpu0_out[0] & 0x20) ? 0x40 : 0x00;
 	const UINT8 *source = m_spriteram + 0x40;
 	const UINT8 *finish = source + 0x40;
@@ -187,9 +186,9 @@ void grchamp_state::draw_sprites(grchamp_state *state, bitmap_ind16 &bitmap, con
 		int sx = source[3];
 		int sy = 240-source[0];
 		int color = source[2];
-		int code = source[1];
-		drawgfx_transpen(bitmap, cliprect,
-			gfx,
+		int code = source[1);
+
+			gfx->transpen(bitmap,cliprect,
 			bank + (code & 0x3f),
 			color,
 			code & 0x40,
@@ -247,7 +246,7 @@ void grchamp_state::draw_objects(int y, UINT8 *objdata)
 	memset(objdata, 0, 256);
 
 	/* now draw the sprites; this is done during HBLANK */
-	gfx = machine().gfx[4];
+	gfx = m_gfxdecode->gfx(4);
 	for (num = 0; num < 16; num++)
 	{
 		/*
@@ -299,7 +298,7 @@ void grchamp_state::draw_objects(int y, UINT8 *objdata)
 	}
 
 	/* finally draw the text characters; this is done as we read out the object buffers */
-	gfx = machine().gfx[0];
+	gfx = m_gfxdecode->gfx(0);
 	for (num = 0; num < 32; num++)
 	{
 		/*
@@ -346,16 +345,17 @@ UINT32 grchamp_state::screen_update_grchamp(screen_device &screen, bitmap_rgb32 
 {
 	static const rgb_t objpix_lookup[8] =
 	{
-		MAKE_RGB(0,0,0),
-		MAKE_RGB(0,0,RGB_MAX),
-		MAKE_RGB(0,RGB_MAX,0),
-		MAKE_RGB(0,RGB_MAX,RGB_MAX),
-		MAKE_RGB(RGB_MAX,0,0),
-		MAKE_RGB(RGB_MAX,0,RGB_MAX),
-		MAKE_RGB(RGB_MAX,RGB_MAX,0),
-		MAKE_RGB(RGB_MAX,RGB_MAX,RGB_MAX)
+		rgb_t(0,0,0),
+		rgb_t(0,0,RGB_MAX),
+		rgb_t(0,RGB_MAX,0),
+		rgb_t(0,RGB_MAX,RGB_MAX),
+		rgb_t(RGB_MAX,0,0),
+		rgb_t(RGB_MAX,0,RGB_MAX),
+		rgb_t(RGB_MAX,RGB_MAX,0),
+		rgb_t(RGB_MAX,RGB_MAX,RGB_MAX)
 	};
 
+	const pen_t *bgpen = m_palette->pens();
 	const UINT8 *amedata = memregion("gfx5")->base();
 	const UINT8 *headdata = memregion("gfx6")->base();
 	const UINT8 *pldata = memregion("gfx7")->base();
@@ -456,12 +456,12 @@ UINT32 grchamp_state::screen_update_grchamp(screen_device &screen, bitmap_rgb32 
 					{
 						if (objpix & 0x08)
 						{
-							mame_printf_debug("Collide car/object @ (%d,%d)\n", x, y);
+							osd_printf_debug("Collide car/object @ (%d,%d)\n", x, y);
 							m_collide = 0x1000 | 0x2000/* guess */ | ((~y & 0x80) << 3) | ((~y & 0xf8) << 2) | ((~x & 0xf8) >> 3);
 						}
 						else if ((mvid & 0x0f) != 0)
 						{
-							mame_printf_debug("Collide car/bg @ (%d,%d)\n", x, y);
+							osd_printf_debug("Collide car/bg @ (%d,%d)\n", x, y);
 							m_collide = 0x1000 | 0x4000/* guess */ | ((~y & 0x80) << 3) | ((~y & 0xf8) << 2) | ((~x & 0xf8) >> 3);
 						}
 					}
@@ -489,7 +489,7 @@ UINT32 grchamp_state::screen_update_grchamp(screen_device &screen, bitmap_rgb32 
 			/* handle collision detection between MVID and OBJECT */
 			if (!(m_collide & 0x1000) && (objpix & 0x08) && (mvid & 0x0f) != 0)
 			{
-mame_printf_debug("Collide bg/object @ (%d,%d)\n", x, y);
+osd_printf_debug("Collide bg/object @ (%d,%d)\n", x, y);
 				m_collide = 0x1000 | 0x8000 | ((~y & 0x80) << 3) | ((~y & 0xf8) << 2) | ((~x & 0xf8) >> 3);
 			}
 
@@ -519,15 +519,15 @@ mame_printf_debug("Collide bg/object @ (%d,%d)\n", x, y);
 
 			/* otherwise, it's the background, unless it's been KILL'ed */
 			else if (!kill)
-				finalpix = m_bgcolor[mvid | bgcolor];
+				finalpix = bgpen[mvid | bgcolor];
 
 			/* in which case it's black */
 			else
-				finalpix = MAKE_RGB(0,0,0);
+				finalpix = rgb_t(0,0,0);
 
 			/* if the headlamp is visible, adjust the brightness */
 			if (headbit)
-				finalpix += MAKE_RGB(64,64,64);
+				finalpix += rgb_t(64,64,64);
 
 			dest[x] = finalpix;
 		}

@@ -19,7 +19,7 @@
   Notes:
   MPS1- The hardware still uses TMS CPUs, but now with matrix driven lamps amongst other things. Later games used AY8910 as a sound chip instead of the SN76489.
 
-  MPS2- Basically MPS1 manufactured on a more compact board, replacing discrete logic with 'custom cells' - which are rebaged 8255 PPIs. This is the better
+  MPS2- Basically MPS1 manufactured on a more compact board, replacing discrete logic with 'custom cells' - which are rebadged 8255 PPIs. This is the better
   target to emulate, but some BwBs may struggle with the timing.
 
   this should be pretty easy to get going, my only concern is patches other drivers have to work around
@@ -28,25 +28,36 @@
 
 
 #include "emu.h"
-#include "cpu/tms9900/tms9900l.h"
+#include "cpu/tms9900/tms9995.h"
 #include "sound/sn76496.h"
 #include "machine/i8255.h"
 #include "machine/tms9902.h"
+#include "machine/meters.h"
+#include "jpmmps.lh"
 
 class jpmmps_state : public driver_device
 {
 public:
 	jpmmps_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu")
+			m_maincpu(*this, "maincpu"),
+			m_psg(*this, "sn")
 	{ }
+	UINT8 m_sound_buffer;
+	UINT8 m_psg_latch;
+	virtual void machine_reset();
 
 protected:
 
 	// devices
 	required_device<cpu_device> m_maincpu;
+	optional_device<sn76489_device> m_psg;
 public:
 	DECLARE_DRIVER_INIT(jpmmps);
+	DECLARE_WRITE8_MEMBER(jpmmps_meters_w);
+	DECLARE_WRITE8_MEMBER(jpmmps_psg_buf_w);
+	DECLARE_WRITE8_MEMBER(jpmmps_ic22_portc_w);
+	DECLARE_MACHINE_START(jpmmps);
 };
 
 static ADDRESS_MAP_START( jpmmps_map, AS_PROGRAM, 8, jpmmps_state )
@@ -88,63 +99,38 @@ ADDRESS_MAP_END
 static INPUT_PORTS_START( jpmmps )
 INPUT_PORTS_END
 
-static I8255_INTERFACE (ppi8255_intf_ic26)
+WRITE8_MEMBER(jpmmps_state::jpmmps_meters_w)
 {
-	DEVCB_NULL,                     /* Port A read */
-	DEVCB_NULL,                     /* Port A write */
-	DEVCB_NULL,                     /* Port B read */
-	DEVCB_NULL,                     /* Port B write */
-	DEVCB_NULL,                     /* Port C read */
-	DEVCB_NULL                      /* Port C write */
-};
+	int meter=0;
+	for (meter = 0; meter < 8; meter ++)
+	{
+		MechMtr_update(meter, (data & (1 << meter)));
+	}
+}
 
-static I8255_INTERFACE (ppi8255_intf_ic21)
-{
-	DEVCB_NULL,                     /* Port A read */
-	DEVCB_NULL,                     /* Port A write */
-	DEVCB_NULL,                     /* Port B read */
-	DEVCB_NULL,                     /* Port B write */
-	DEVCB_NULL,                     /* Port C read */
-	DEVCB_NULL                      /* Port C write */
-};
 
-static I8255_INTERFACE (ppi8255_intf_ic22)
+WRITE8_MEMBER(jpmmps_state::jpmmps_psg_buf_w)
 {
-	DEVCB_NULL,                     /* Port A read */
-	DEVCB_NULL,                     /* Port A write */
-	DEVCB_NULL,                     /* Port B read */
-	DEVCB_NULL,                     /* Port B write */
-	DEVCB_NULL,                     /* Port C read */
-	DEVCB_NULL                      /* Port C write */
-};
+	m_sound_buffer = data;
+}
 
-static I8255_INTERFACE (ppi8255_intf_ic25)
+WRITE8_MEMBER(jpmmps_state::jpmmps_ic22_portc_w)
 {
-	DEVCB_NULL,                     /* Port A read */
-	DEVCB_NULL,                     /* Port A write */
-	DEVCB_NULL,                     /* Port B read */
-	DEVCB_NULL,                     /* Port B write */
-	DEVCB_NULL,                     /* Port C read */
-	DEVCB_NULL                      /* Port C write */
-};
+	//Handle PSG
 
-// Communication with Reel MCU
-static const tms9902_interface tms9902_uart4_ic10_params =
-{
-	DEVCB_NULL,             /*int_callback,*/   /* called when interrupt pin state changes */
-	DEVCB_NULL,             /*rcv_callback,*/   /* called when a character shall be received  */
-	DEVCB_NULL,             /* called when a character is transmitted */
-	DEVCB_NULL              /* called for setting interface parameters and line states */
-};
+	if (m_psg_latch != (data & 0x04))
+	{
+		if (!m_psg_latch)//falling edge
+		{
+			m_psg->write(m_sound_buffer);
+		}
+	}
+	m_psg_latch = (data & 0x04);
 
-// Communication with Security / Printer
-static const tms9902_interface tms9902_uart2_ic5_params =
-{
-	DEVCB_NULL,             /*int_callback,*/   /* called when interrupt pin state changes */
-	DEVCB_NULL,             /*rcv_callback,*/   /* called when a character shall be received  */
-	DEVCB_NULL,             /* called when a character is transmitted */
-	DEVCB_NULL              /* called for setting interface parameters and line states */
-};
+	MechMtr_update(8, (data & 0x08));
+
+}
+
 
 // these are wrong
 #define MAIN_CLOCK 2000000
@@ -152,45 +138,47 @@ static const tms9902_interface tms9902_uart2_ic5_params =
 #define DUART_CLOCK 2000000
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
+MACHINE_START_MEMBER(jpmmps_state,jpmmps)
 {
-	DEVCB_NULL
-};
+	/* setup 9 mechanical meters */
+	MechMtr_config(machine(),9);
 
+}
+
+void jpmmps_state::machine_reset()
+{
+	// Disable auto wait state generation by raising the READY line on reset
+	static_cast<tms9995_device*>(machine().device("maincpu"))->set_ready(ASSERT_LINE);
+}
 
 static MACHINE_CONFIG_START( jpmmps, jpmmps_state )
 
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", TMS9995L, MAIN_CLOCK)
-	MCFG_CPU_PROGRAM_MAP(jpmmps_map)
-	MCFG_CPU_IO_MAP(jpmmps_io_map)
+	// CPU TMS9995, standard variant; no line connections
+	MCFG_TMS99xx_ADD("maincpu", TMS9995, MAIN_CLOCK, jpmmps_map, jpmmps_io_map)
 
-	MCFG_I8255_ADD( "ppi8255_ic26", ppi8255_intf_ic26 )
-	MCFG_I8255_ADD( "ppi8255_ic21", ppi8255_intf_ic21 )
-	MCFG_I8255_ADD( "ppi8255_ic22", ppi8255_intf_ic22 )
-	MCFG_I8255_ADD( "ppi8255_ic25", ppi8255_intf_ic25 )
+	MCFG_DEVICE_ADD("ppi8255_ic26", I8255, 0)
+	// Port B 0 is coin lockout
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(jpmmps_state, jpmmps_meters_w))
 
-	MCFG_TMS9902_ADD("tms9902_ic10", tms9902_uart4_ic10_params, DUART_CLOCK)
-	MCFG_TMS9902_ADD("tms9902_ic5",  tms9902_uart2_ic5_params,  DUART_CLOCK)
+	MCFG_DEVICE_ADD("ppi8255_ic21", I8255, 0)
 
+	MCFG_DEVICE_ADD("ppi8255_ic22", I8255, 0)
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(jpmmps_state, jpmmps_psg_buf_w)) // SN chip data
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(jpmmps_state, jpmmps_ic22_portc_w))  // C3 is last meter, C2 latches in data
+
+	MCFG_DEVICE_ADD("ppi8255_ic25", I8255, 0)
+
+	MCFG_DEVICE_ADD("tms9902_ic10", TMS9902, DUART_CLOCK) // Communication with Reel MCU
+	MCFG_DEVICE_ADD("tms9902_ic5", TMS9902, DUART_CLOCK) // Communication with Security / Printer
+
+	MCFG_MACHINE_START_OVERRIDE(jpmmps_state,jpmmps)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn", SN76489, SOUND_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-	MCFG_SOUND_CONFIG(psg_intf)
 
+	MCFG_DEFAULT_LAYOUT(layout_jpmmps)
 MACHINE_CONFIG_END
 
 DRIVER_INIT_MEMBER(jpmmps_state,jpmmps)

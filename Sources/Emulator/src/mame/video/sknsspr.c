@@ -20,7 +20,7 @@ const device_type SKNS_SPRITE = &device_creator<sknsspr_device>;
 
 
 sknsspr_device::sknsspr_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, SKNS_SPRITE, "sknsspr_device", tag, owner, clock, "sknsspr", __FILE__)
+	: device_t(mconfig, SKNS_SPRITE, "SKNS Sprite", tag, owner, clock, "sknsspr", __FILE__)
 {
 }
 
@@ -395,12 +395,12 @@ void sknsspr_device::skns_draw_sprites(running_machine &machine, bitmap_ind16 &b
 			if (sprite_flip&2)
 			{
 				xflip ^= 1;
-				sx = machine.primary_screen->visible_area().max_x+1 - sx;
+				sx = machine.first_screen()->visible_area().max_x+1 - sx;
 			}
 			if (sprite_flip&1)
 			{
 				yflip ^= 1;
-				sy = machine.primary_screen->visible_area().max_y+1 - sy;
+				sy = machine.first_screen()->visible_area().max_y+1 - sy;
 			}
 
 			/* Palette linking */

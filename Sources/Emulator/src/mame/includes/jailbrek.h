@@ -20,7 +20,9 @@ public:
 		m_scroll_x(*this, "scroll_x"),
 		m_scroll_dir(*this, "scroll_dir"),
 		m_maincpu(*this, "maincpu"),
-		m_vlm(*this, "vlm") { }
+		m_vlm(*this, "vlm"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_colorram;
@@ -32,6 +34,8 @@ public:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<vlm5030_device> m_vlm;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	/* video-related */
 	tilemap_t      *m_bg_tilemap;
@@ -49,7 +53,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(jailbrek);
 	UINT32 screen_update_jailbrek(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(jb_interrupt);
 	INTERRUPT_GEN_MEMBER(jb_interrupt_nmi);

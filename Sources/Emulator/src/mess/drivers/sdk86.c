@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic, Jonathan Gevaryahu, Robbbert
 /***************************************************************************
 
         Intel SDK-86
@@ -24,11 +26,11 @@ ToDo:
 
 ****************************************************************************/
 
-#include "emu.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/i86/i86.h"
+#include "machine/clock.h"
 #include "machine/i8251.h"
 #include "machine/i8279.h"
-#include "machine/serial.h"
 #include "sdk86.lh"
 
 #define I8251_TAG       "i8251"
@@ -38,11 +40,12 @@ ToDo:
 class sdk86_state : public driver_device
 {
 public:
-	sdk86_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-			m_maincpu(*this, "maincpu"),
-			m_usart(*this, I8251_TAG)
-	{ }
+	sdk86_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu"),
+		m_usart(*this, I8251_TAG)
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<i8251_device> m_usart;
@@ -51,7 +54,7 @@ public:
 	DECLARE_WRITE8_MEMBER(digit_w);
 	DECLARE_READ8_MEMBER(kbd_r);
 
-	TIMER_DEVICE_CALLBACK_MEMBER( serial_tick );
+	DECLARE_WRITE_LINE_MEMBER( write_usart_clock );
 
 	UINT8 m_digit;
 };
@@ -128,49 +131,20 @@ READ8_MEMBER( sdk86_state::kbd_r )
 	return data;
 }
 
-TIMER_DEVICE_CALLBACK_MEMBER( sdk86_state::serial_tick )
+WRITE_LINE_MEMBER( sdk86_state::write_usart_clock )
 {
-	m_usart->receive_clock();
-	m_usart->transmit_clock();
+	m_usart->write_txc(state);
+	m_usart->write_rxc(state);
 }
 
-static const i8251_interface usart_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dsr_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
-	DEVCB_NULL, // connected to CTS
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static I8279_INTERFACE( sdk86_intf )
-{
-	DEVCB_NULL, // irq
-	DEVCB_DRIVER_MEMBER(sdk86_state, scanlines_w),  // scan SL lines
-	DEVCB_DRIVER_MEMBER(sdk86_state, digit_w),      // display A&B
-	DEVCB_NULL,                     // BD
-	DEVCB_DRIVER_MEMBER(sdk86_state, kbd_r),        // kbd RL lines
-	DEVCB_LINE_GND,                     // Shift key
-	DEVCB_LINE_GND
-};
-
 static DEVICE_INPUT_DEFAULTS_START( terminal )
-	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x0f, 0x05 ) // 4800
-	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x30, 0x20 ) // 8N2
+	DEVICE_INPUT_DEFAULTS( "RS232_TXBAUD", 0xff, RS232_BAUD_4800 )
+	DEVICE_INPUT_DEFAULTS( "RS232_RXBAUD", 0xff, RS232_BAUD_4800 )
+	DEVICE_INPUT_DEFAULTS( "RS232_STARTBITS", 0xff, RS232_STARTBITS_1 )
+	DEVICE_INPUT_DEFAULTS( "RS232_DATABITS", 0xff, RS232_DATABITS_8 )
+	DEVICE_INPUT_DEFAULTS( "RS232_PARITY", 0xff, RS232_PARITY_NONE )
+	DEVICE_INPUT_DEFAULTS( "RS232_STOPBITS", 0xff, RS232_STOPBITS_2 )
 DEVICE_INPUT_DEFAULTS_END
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 static MACHINE_CONFIG_START( sdk86, sdk86_state )
 	/* basic machine hardware */
@@ -182,11 +156,26 @@ static MACHINE_CONFIG_START( sdk86, sdk86_state )
 	MCFG_DEFAULT_LAYOUT(layout_sdk86)
 
 	/* Devices */
-	MCFG_I8251_ADD(I8251_TAG, usart_intf)
-	MCFG_I8279_ADD("i8279", 2500000, sdk86_intf) // based on divider
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, "serial_terminal")
-	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("serial_terminal", terminal)
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("serial", sdk86_state, serial_tick, attotime::from_hz(307200))
+	MCFG_DEVICE_ADD(I8251_TAG, I8251, 0)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_I8251_DTR_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_dtr))
+	MCFG_I8251_RTS_HANDLER(DEVWRITELINE(I8251_TAG, i8251_device, write_cts))
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, "terminal")
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(I8251_TAG, i8251_device, write_rxd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE(I8251_TAG, i8251_device, write_dsr))
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("terminal", terminal)
+
+	MCFG_DEVICE_ADD("usart_clock", CLOCK, 307200)
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(sdk86_state, write_usart_clock))
+
+	MCFG_DEVICE_ADD("i8279", I8279, 2500000) // based on divider
+	MCFG_I8279_OUT_SL_CB(WRITE8(sdk86_state, scanlines_w))          // scan SL lines
+	MCFG_I8279_OUT_DISP_CB(WRITE8(sdk86_state, digit_w))            // display A&B
+	MCFG_I8279_IN_RL_CB(READ8(sdk86_state, kbd_r))                  // kbd RL lines
+	MCFG_I8279_IN_SHIFT_CB(GND)                                     // Shift key
+	MCFG_I8279_IN_CTRL_CB(GND)
+
 MACHINE_CONFIG_END
 
 /* ROM definition */

@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Mariusz Wojcieszek
 /********************************************************************************************************************
 
 Street Games (c) 1993 New Image Technologies
@@ -99,22 +101,12 @@ public:
 
 	UINT8 *m_banked_nvram;
 	required_device<ns16450_device> m_uart;
-	required_device<microtouch_serial_device> m_microtouch;
+	required_device<microtouch_device> m_microtouch;
 
 	DECLARE_WRITE8_MEMBER(pcat_nit_rombank_w);
 	DECLARE_READ8_MEMBER(pcat_nit_io_r);
 	DECLARE_DRIVER_INIT(pcat_nit);
 	virtual void machine_start();
-};
-
-static const ins8250_interface pcat_nit_com0_interface =
-{
-	DEVCB_DEVICE_LINE_MEMBER("microtouch", microtouch_serial_device, rx),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER("pic8259_1", pic8259_device, ir4_w),
-	DEVCB_NULL,
-	DEVCB_NULL
 };
 
 /*************************************
@@ -221,8 +213,6 @@ INPUT_PORTS_END
 
 void pcat_nit_state::machine_start()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(pcat_nit_state::irq_callback),this));
-
 	membank("rombank")->configure_entries(0, 0x80, memregion("game_prg")->base(), 0x8000 );
 	membank("rombank")->set_entry(0);
 }
@@ -232,13 +222,16 @@ static MACHINE_CONFIG_START( pcat_nit, pcat_nit_state )
 	MCFG_CPU_ADD("maincpu", I386, 14318180*2)   /* I386 ?? Mhz */
 	MCFG_CPU_PROGRAM_MAP(pcat_map)
 	MCFG_CPU_IO_MAP(pcat_nit_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_1", pic8259_device, inta_cb)
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_vga )
 
 	MCFG_FRAGMENT_ADD( pcat_common )
-	MCFG_NS16450_ADD( "ns16450_0", pcat_nit_com0_interface, XTAL_1_8432MHz )
-	MCFG_MICROTOUCH_SERIAL_ADD( "microtouch", 9600, DEVWRITELINE("ns16450_0", ins8250_uart_device, rx_w) ) // rate?
+	MCFG_DEVICE_ADD( "ns16450_0", NS16450, XTAL_1_8432MHz )
+	MCFG_INS8250_OUT_TX_CB(DEVWRITELINE("microtouch", microtouch_device, rx))
+	MCFG_INS8250_OUT_INT_CB(DEVWRITELINE("pic8259_1", pic8259_device, ir4_w))
+	MCFG_MICROTOUCH_ADD( "microtouch", 9600, DEVWRITELINE("ns16450_0", ins8250_uart_device, rx_w) ) // rate?
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 MACHINE_CONFIG_END
@@ -248,13 +241,16 @@ static MACHINE_CONFIG_START( bonanza, pcat_nit_state )
 	MCFG_CPU_ADD("maincpu", I386, 14318180*2)   /* I386 ?? Mhz */
 	MCFG_CPU_PROGRAM_MAP(bonanza_map)
 	MCFG_CPU_IO_MAP(bonanza_io_map)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_1", pic8259_device, inta_cb)
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_cirrus_vga )
 
 	MCFG_FRAGMENT_ADD( pcat_common )
-	MCFG_NS16450_ADD( "ns16450_0", pcat_nit_com0_interface, XTAL_1_8432MHz )
-	MCFG_MICROTOUCH_SERIAL_ADD( "microtouch", 9600, DEVWRITELINE("ns16450_0", ins8250_uart_device, rx_w) ) // rate?
+	MCFG_DEVICE_ADD( "ns16450_0", NS16450, XTAL_1_8432MHz )
+	MCFG_INS8250_OUT_TX_CB(DEVWRITELINE("microtouch", microtouch_device, rx))
+	MCFG_INS8250_OUT_INT_CB(DEVWRITELINE("pic8259_1", pic8259_device, ir4_w))
+	MCFG_MICROTOUCH_ADD( "microtouch", 9600, DEVWRITELINE("ns16450_0", ins8250_uart_device, rx_w) ) // rate?
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 MACHINE_CONFIG_END

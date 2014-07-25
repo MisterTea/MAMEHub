@@ -112,22 +112,22 @@ static const int colortable_source[] =
 	0x01, 0x02
 };
 
-void skydiver_state::palette_init()
+PALETTE_INIT_MEMBER(skydiver_state, skydiver)
 {
 	int i;
 
-	for (i = 0; i < sizeof(colortable_source) / sizeof(colortable_source[0]); i++)
+	for (i = 0; i < ARRAY_LENGTH(colortable_source); i++)
 	{
 		rgb_t color;
 
 		switch (colortable_source[i])
 		{
-		case 0:   color = RGB_BLACK; break;
-		case 1:   color = RGB_WHITE; break;
-		default:  color = MAKE_RGB(0xa0, 0xa0, 0xa0); break; /* grey */
+		case 0:   color = rgb_t::black; break;
+		case 1:   color = rgb_t::white; break;
+		default:  color = rgb_t(0xa0, 0xa0, 0xa0); break; /* grey */
 		}
 
-		palette_set_color(machine(), i, color);
+		palette.set_pen_color(i, color);
 	}
 }
 
@@ -148,12 +148,12 @@ WRITE8_MEMBER(skydiver_state::skydiver_nmion_w)
 INTERRUPT_GEN_MEMBER(skydiver_state::skydiver_interrupt)
 {
 	/* Convert range data to divide value and write to sound */
-	address_space &space = machine().firstcpu->space(AS_PROGRAM);
-	discrete_sound_w(m_discrete, space, SKYDIVER_RANGE_DATA, (0x01 << (~m_videoram[0x394] & 0x07)) & 0xff);   // Range 0-2
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	m_discrete->write(space, SKYDIVER_RANGE_DATA, (0x01 << (~m_videoram[0x394] & 0x07)) & 0xff);   // Range 0-2
 
-	discrete_sound_w(m_discrete, space, SKYDIVER_RANGE3_EN,  m_videoram[0x394] & 0x08);       // Range 3 - note disable
-	discrete_sound_w(m_discrete, space, SKYDIVER_NOTE_DATA, ~m_videoram[0x395] & 0xff);       // Note - freq
-	discrete_sound_w(m_discrete, space, SKYDIVER_NOISE_DATA,  m_videoram[0x396] & 0x0f);  // NAM - Noise Amplitude
+	m_discrete->write(space, SKYDIVER_RANGE3_EN,  m_videoram[0x394] & 0x08);       // Range 3 - note disable
+	m_discrete->write(space, SKYDIVER_NOTE_DATA, ~m_videoram[0x395] & 0xff);       // Note - freq
+	m_discrete->write(space, SKYDIVER_NOISE_DATA,  m_videoram[0x396] & 0x0f);  // NAM - Noise Amplitude
 
 	if (m_nmion)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
@@ -169,12 +169,12 @@ INTERRUPT_GEN_MEMBER(skydiver_state::skydiver_interrupt)
 
 WRITE8_MEMBER(skydiver_state::skydiver_sound_enable_w)
 {
-	discrete_sound_w(m_discrete, space, SKYDIVER_SOUND_EN, offset);
+	m_discrete->write(space, SKYDIVER_SOUND_EN, offset);
 }
 
 WRITE8_MEMBER(skydiver_state::skydiver_whistle_w)
 {
-	discrete_sound_w(m_discrete, space, NODE_RELATIVE(SKYDIVER_WHISTLE1_EN, (offset >> 1)), offset & 0x01);
+	m_discrete->write(space, NODE_RELATIVE(SKYDIVER_WHISTLE1_EN, (offset >> 1)), offset & 0x01);
 }
 
 
@@ -386,9 +386,11 @@ static MACHINE_CONFIG_START( skydiver, skydiver_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(skydiver_state, screen_update_skydiver)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(skydiver)
-	MCFG_PALETTE_LENGTH(sizeof(colortable_source) / sizeof(colortable_source[0]))
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", skydiver)
+	MCFG_PALETTE_ADD("palette", ARRAY_LENGTH(colortable_source))
+	MCFG_PALETTE_INIT_OWNER(skydiver_state, skydiver)
 
 
 	/* sound hardware */

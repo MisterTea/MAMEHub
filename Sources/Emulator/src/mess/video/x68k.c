@@ -23,22 +23,36 @@
          2 tilemapped layers - can be 8x8 or 16x16, 16 colours per tile, max 256 colours overall
          1 sprite layer - up to 128 16x16 sprites, 16 colours per sprite, maximum 16 sprites per scanline (not yet implemented).
 
+         Questions: What do the other bits in m_video.reg[2] do?
+                    What is "special priority mode"?
+                    How is the intensity applied during blending if at all?
+                    Black appears to be opaque only at priority 2 but not 3, is that right?
+                    Are the gfx layers blended from the bottom up or all at once?
+
 */
 
 #include "emu.h"
+
 #include "machine/mc68901.h"
 #include "includes/x68k.h"
 #include "machine/ram.h"
 
 
-
-
-inline void x68k_state::x68k_plot_pixel(bitmap_ind16 &bitmap, int x, int y, UINT32 color)
+PALETTE_DECODER_MEMBER(x68k_state, GGGGGRRRRRBBBBBI)
 {
-	bitmap.pix16(y, x) = (UINT16)color;
+	UINT8 i = raw & 1;
+	UINT8 r = pal6bit(((raw >> 5) & 0x3e) | i);
+	UINT8 g = pal6bit(((raw >> 10) & 0x3e) | i);
+	UINT8 b = pal6bit(((raw >> 0) & 0x3e) | i);
+	return rgb_t(r, g, b);
+}
+
+inline void x68k_state::x68k_plot_pixel(bitmap_rgb32 &bitmap, int x, int y, UINT32 color)
+{
+	bitmap.pix32(y, x) = (UINT16)color;
 }
 /*
-bitmap_ind16* ::x68k_get_gfx_page(int pri,int type)
+bitmap_rgb32* ::x68k_get_gfx_page(int pri,int type)
 {
     if(type == GFX16)
     {
@@ -76,34 +90,21 @@ bitmap_ind16* ::x68k_get_gfx_page(int pri,int type)
     return NULL;  // should never reach here either.
 }
 */
-void x68k_state::x68k_crtc_text_copy(int src, int dest)
+void x68k_state::x68k_crtc_text_copy(int src, int dest, UINT8 planes)
 {
 	// copys one raster in T-VRAM to another raster
-	UINT16* tvram;
 	int src_ram = src * 256;  // 128 bytes per scanline
 	int dest_ram = dest * 256;
-	int line;
 
-	if(m_is_32bit)
-		tvram = (UINT16*)m_tvram32.target();
-	else
-		tvram = (UINT16*)m_tvram16.target();
-
-	if(dest > 250)
-		return;  // for some reason, Salamander causes a SIGSEGV in a debug build in this function.
-
-	for(line=0;line<8;line++)
-	{
-		// update RAM in each plane
-		memcpy(tvram+dest_ram,tvram+src_ram,128);
-		memcpy(tvram+dest_ram+0x10000,tvram+src_ram+0x10000,128);
-		memcpy(tvram+dest_ram+0x20000,tvram+src_ram+0x20000,128);
-		memcpy(tvram+dest_ram+0x30000,tvram+src_ram+0x30000,128);
-
-		src_ram+=64;
-		dest_ram+=64;
-	}
-
+	// update RAM in each plane
+	if(planes & 1)
+		memcpy(m_tvram+dest_ram,m_tvram+src_ram,512);
+	if(planes & 2)
+		memcpy(m_tvram+dest_ram+0x10000,m_tvram+src_ram+0x10000,512);
+	if(planes & 4)
+		memcpy(m_tvram+dest_ram+0x20000,m_tvram+src_ram+0x20000,512);
+	if(planes & 8)
+		memcpy(m_tvram+dest_ram+0x30000,m_tvram+src_ram+0x30000,512);
 }
 
 TIMER_CALLBACK_MEMBER(x68k_state::x68k_crtc_operation_end)
@@ -131,6 +132,8 @@ void x68k_state::x68k_crtc_refresh_mode()
 	m_crtc.hend = (m_crtc.reg[3] * 8);
 	m_crtc.vbegin = (m_crtc.reg[6]) / m_crtc.vmultiple;
 	m_crtc.vend = (m_crtc.reg[7] - 1) / m_crtc.vmultiple;
+	if((m_crtc.vmultiple == 2) && !(m_crtc.reg[7] & 1)) // otherwise if the raster irq line == vblank line, the raster irq fires too late
+		m_crtc.vend++;
 	m_crtc.hsync_end = (m_crtc.reg[1]) * 8;
 	m_crtc.vsync_end = (m_crtc.reg[5]) / m_crtc.vmultiple;
 	m_crtc.hsyncadjust = m_crtc.reg[8];
@@ -166,8 +169,8 @@ void x68k_state::x68k_crtc_refresh_mode()
 
 //  logerror("CRTC regs - %i %i %i %i  - %i %i %i %i - %i - %i\n",m_crtc.reg[0],m_crtc.reg[1],m_crtc.reg[2],m_crtc.reg[3],
 //      m_crtc.reg[4],m_crtc.reg[5],m_crtc.reg[6],m_crtc.reg[7],m_crtc.reg[8],m_crtc.reg[9]);
-	logerror("video_screen_configure(machine.primary_screen,%i,%i,[%i,%i,%i,%i],55.45)\n",scr.max_x,scr.max_y,visiblescr.min_x,visiblescr.min_y,visiblescr.max_x,visiblescr.max_y);
-	machine().primary_screen->configure(scr.max_x,scr.max_y,visiblescr,HZ_TO_ATTOSECONDS(55.45));
+	logerror("video_screen_configure(machine.first_screen(),%i,%i,[%i,%i,%i,%i],55.45)\n",scr.max_x,scr.max_y,visiblescr.min_x,visiblescr.min_y,visiblescr.max_x,visiblescr.max_y);
+	m_screen->configure(scr.max_x,scr.max_y,visiblescr,HZ_TO_ATTOSECONDS(55.45));
 }
 
 TIMER_CALLBACK_MEMBER(x68k_state::x68k_hsync)
@@ -177,37 +180,41 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_hsync)
 
 	m_crtc.hblank = hstate;
 	m_mfpdev->i7_w(!m_crtc.hblank);
+
+	if(m_crtc.operation & 8)
+		x68k_crtc_text_copy((m_crtc.reg[22] & 0xff00) >> 8,(m_crtc.reg[22] & 0x00ff),(m_crtc.reg[21] & 0xf));
+
 	if(m_crtc.vmultiple == 2) // 256-line (doublescan)
 	{
 		if(hstate == 1)
 		{
 			if(m_oddscanline == 1)
 			{
-				int scan = machine().primary_screen->vpos();
+				int scan = m_screen->vpos();
 				if(scan > m_crtc.vend)
 					scan = m_crtc.vbegin;
-				hsync_time = machine().primary_screen->time_until_pos(scan,(m_crtc.htotal + m_crtc.hend) / 2);
+				hsync_time = m_screen->time_until_pos(scan,(m_crtc.htotal + m_crtc.hend) / 2);
 				m_scanline_timer->adjust(hsync_time);
 				if(scan != 0)
 				{
 					if((ioport("options")->read() & 0x04))
 					{
-						machine().primary_screen->update_partial(scan);
+						m_screen->update_partial(scan);
 					}
 				}
 			}
 			else
 			{
-				int scan = machine().primary_screen->vpos();
+				int scan = m_screen->vpos();
 				if(scan > m_crtc.vend)
 					scan = m_crtc.vbegin;
-				hsync_time = machine().primary_screen->time_until_pos(scan,m_crtc.hend / 2);
+				hsync_time = m_screen->time_until_pos(scan,m_crtc.hend / 2);
 				m_scanline_timer->adjust(hsync_time);
 				if(scan != 0)
 				{
 					if((ioport("options")->read() & 0x04))
 					{
-						machine().primary_screen->update_partial(scan);
+						m_screen->update_partial(scan);
 					}
 				}
 			}
@@ -216,18 +223,18 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_hsync)
 		{
 			if(m_oddscanline == 1)
 			{
-				int scan = machine().primary_screen->vpos();
+				int scan = m_screen->vpos();
 				if(scan > m_crtc.vend)
 					scan = m_crtc.vbegin;
 				else
 					scan++;
-				hsync_time = machine().primary_screen->time_until_pos(scan,m_crtc.hbegin / 2);
+				hsync_time = m_screen->time_until_pos(scan,m_crtc.hbegin / 2);
 				m_scanline_timer->adjust(hsync_time, 1);
 				m_oddscanline = 0;
 			}
 			else
 			{
-				hsync_time = machine().primary_screen->time_until_pos(machine().primary_screen->vpos(),(m_crtc.htotal + m_crtc.hbegin) / 2);
+				hsync_time = m_screen->time_until_pos(m_screen->vpos(),(m_crtc.htotal + m_crtc.hbegin) / 2);
 				m_scanline_timer->adjust(hsync_time, 1);
 				m_oddscanline = 1;
 			}
@@ -237,32 +244,29 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_hsync)
 	{
 		if(hstate == 1)
 		{
-			int scan = machine().primary_screen->vpos();
+			int scan = m_screen->vpos();
 			if(scan > m_crtc.vend)
 				scan = 0;
-			hsync_time = machine().primary_screen->time_until_pos(scan,m_crtc.hend);
+			hsync_time = m_screen->time_until_pos(scan,m_crtc.hend);
 			m_scanline_timer->adjust(hsync_time);
 			if(scan != 0)
 			{
 				if((ioport("options")->read() & 0x04))
 				{
-					machine().primary_screen->update_partial(scan);
+					m_screen->update_partial(scan);
 				}
 			}
 		}
 		if(hstate == 0)
 		{
-			hsync_time = machine().primary_screen->time_until_pos(machine().primary_screen->vpos()+1,m_crtc.hbegin);
+			hsync_time = m_screen->time_until_pos(m_screen->vpos()+1,m_crtc.hbegin);
 			m_scanline_timer->adjust(hsync_time, 1);
-	//      if(!(m_mfp.gpio & 0x40))  // if GPIP6 is active, clear it
-	//          m_mfp.gpio |= 0x40;
 		}
 	}
 }
 
 TIMER_CALLBACK_MEMBER(x68k_state::x68k_crtc_raster_end)
 {
-	m_mfp.gpio |= 0x40;
 	m_mfpdev->i6_w(1);
 }
 
@@ -274,21 +278,19 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_crtc_raster_irq)
 
 	if(scan <= m_crtc.vtotal)
 	{
-		m_mfp.gpio &= ~0x40;  // GPIP6
 		m_mfpdev->i6_w(0);
-		machine().primary_screen->update_partial(scan);
-		irq_time = machine().primary_screen->time_until_pos(scan,m_crtc.hbegin);
+		m_screen->update_partial(scan);
+		irq_time = m_screen->time_until_pos(scan,m_crtc.hbegin);
 		// end of HBlank period clears GPIP6 also?
-		end_time = machine().primary_screen->time_until_pos(scan,m_crtc.hend);
+		end_time = m_screen->time_until_pos(scan,m_crtc.hend);
 		m_raster_irq->adjust(irq_time, scan);
 		timer_set(end_time, TIMER_X68K_CRTC_RASTER_END);
-		logerror("GPIP6: Raster triggered at line %i (%i)\n",scan,machine().primary_screen->vpos());
+		logerror("GPIP6: Raster triggered at line %i (%i)\n",scan,m_screen->vpos());
 	}
 }
 
 TIMER_CALLBACK_MEMBER(x68k_state::x68k_crtc_vblank_irq)
 {
-	device_t *x68k_mfp = machine().device(MC68901_TAG);
 	int val = param;
 	attotime irq_time;
 	int vblank_line;
@@ -297,7 +299,7 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_crtc_vblank_irq)
 	{
 		m_crtc.vblank = 1;
 		vblank_line = m_crtc.vbegin;
-		irq_time = machine().primary_screen->time_until_pos(vblank_line,2);
+		irq_time = m_screen->time_until_pos(vblank_line,2);
 		m_vblank_irq->adjust(irq_time);
 		logerror("CRTC: VBlank on\n");
 	}
@@ -307,16 +309,13 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_crtc_vblank_irq)
 		vblank_line = m_crtc.vend;
 		if(vblank_line > m_crtc.vtotal)
 			vblank_line = m_crtc.vtotal;
-		irq_time = machine().primary_screen->time_until_pos(vblank_line,2);
+		irq_time = m_screen->time_until_pos(vblank_line,2);
 		m_vblank_irq->adjust(irq_time, 1);
 		logerror("CRTC: VBlank off\n");
 	}
 
-	if (x68k_mfp != NULL)
-	{
-		m_mfpdev->tai_w(!m_crtc.vblank);
-		m_mfpdev->i4_w(!m_crtc.vblank);
-	}
+	m_mfpdev->tai_w(!m_crtc.vblank);
+	m_mfpdev->i4_w(!m_crtc.vblank);
 }
 
 
@@ -369,7 +368,8 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_crtc_vblank_irq)
  */
 WRITE16_MEMBER(x68k_state::x68k_crtc_w )
 {
-	COMBINE_DATA(m_crtc.reg+offset);
+	if (offset < 0x24)
+		COMBINE_DATA(m_crtc.reg+offset);
 	switch(offset)
 	{
 	case 0:
@@ -386,7 +386,8 @@ WRITE16_MEMBER(x68k_state::x68k_crtc_w )
 	case 9:  // CRTC raster IRQ (GPIP6)
 		{
 			attotime irq_time;
-			irq_time = machine().primary_screen->time_until_pos((data) / m_crtc.vmultiple,2);
+			data = m_crtc.reg[9];
+			irq_time = m_screen->time_until_pos((data) / m_crtc.vmultiple,2);
 
 			if(irq_time.as_double() > 0)
 				m_raster_irq->adjust(irq_time, (data) / m_crtc.vmultiple);
@@ -437,17 +438,9 @@ WRITE16_MEMBER(x68k_state::x68k_crtc_w )
 		break;
 	case 576:  // operation register
 		m_crtc.operation = data;
-		if(data & 0x08)  // text screen raster copy
-		{
-			x68k_crtc_text_copy((m_crtc.reg[22] & 0xff00) >> 8,(m_crtc.reg[22] & 0x00ff));
-			timer_set(attotime::from_msec(1), TIMER_X68K_CRTC_OPERATION_END, 0x02);  // time taken to do operation is a complete guess.
-		}
 		if(data & 0x02)  // high-speed graphic screen clear
 		{
-			if(m_is_32bit)
-				memset(m_gvram32,0,0x40000);
-			else
-				memset(m_gvram16,0,0x40000);
+			memset(m_gvram,0,0x40000);
 			timer_set(attotime::from_msec(10), TIMER_X68K_CRTC_OPERATION_END, 0x02);  // time taken to do operation is a complete guess.
 		}
 		break;
@@ -457,15 +450,6 @@ WRITE16_MEMBER(x68k_state::x68k_crtc_w )
 
 READ16_MEMBER(x68k_state::x68k_crtc_r )
 {
-#if 0
-	switch(offset)
-	{
-	default:
-		logerror("CRTC: [%08x] Read from CRTC register %i\n",activecpu_get_pc(),offset);
-		return 0xff;
-	}
-#endif
-
 	if(offset < 24)
 	{
 //      logerror("CRTC: [%08x] Read %04x from CRTC register %i\n",m_maincpu->safe_pc(),m_crtc.reg[offset],offset);
@@ -497,7 +481,6 @@ READ16_MEMBER(x68k_state::x68k_crtc_r )
 
 WRITE16_MEMBER(x68k_state::x68k_gvram_w )
 {
-	UINT16* gvram;
 //  int xloc,yloc,pageoffset;
 	/*
 	   G-VRAM usage is determined by colour depth and "real" screen size.
@@ -514,16 +497,11 @@ WRITE16_MEMBER(x68k_state::x68k_gvram_w )
 	   Page 3 - 0xd00000-0xd7ffff    Page 4 - 0xd80000-0xdfffff
 	*/
 
-	if(m_is_32bit)
-		gvram = (UINT16*)m_gvram32.target();
-	else
-		gvram = (UINT16*)m_gvram16.target();
-
 	// handle different G-VRAM page setups
-	if(m_crtc.reg[20] & 0x08)  // G-VRAM set to buffer
+	if(m_crtc.reg[20] & 0x0800)  // G-VRAM set to buffer
 	{
 		if(offset < 0x40000)
-			COMBINE_DATA(gvram+offset);
+			COMBINE_DATA(m_gvram+offset);
 	}
 	else
 	{
@@ -531,34 +509,34 @@ WRITE16_MEMBER(x68k_state::x68k_gvram_w )
 		{
 			case 0x0300:
 				if(offset < 0x40000)
-					COMBINE_DATA(gvram+offset);
+					COMBINE_DATA(m_gvram+offset);
 				break;
 			case 0x0100:
 				if(offset < 0x40000)
 				{
-					gvram[offset] = (gvram[offset] & 0xff00) | (data & 0x00ff);
+					m_gvram[offset] = (m_gvram[offset] & 0xff00) | (data & 0x00ff);
 				}
 				if(offset >= 0x40000 && offset < 0x80000)
 				{
-					gvram[offset-0x40000] = (gvram[offset-0x40000] & 0x00ff) | ((data & 0x00ff) << 8);
+					m_gvram[offset-0x40000] = (m_gvram[offset-0x40000] & 0x00ff) | ((data & 0x00ff) << 8);
 				}
 				break;
 			case 0x0000:
 				if(offset < 0x40000)
 				{
-					gvram[offset] = (gvram[offset] & 0xfff0) | (data & 0x000f);
+					m_gvram[offset] = (m_gvram[offset] & 0xfff0) | (data & 0x000f);
 				}
 				if(offset >= 0x40000 && offset < 0x80000)
 				{
-					gvram[offset-0x40000] = (gvram[offset-0x40000] & 0xff0f) | ((data & 0x000f) << 4);
+					m_gvram[offset-0x40000] = (m_gvram[offset-0x40000] & 0xff0f) | ((data & 0x000f) << 4);
 				}
 				if(offset >= 0x80000 && offset < 0xc0000)
 				{
-					gvram[offset-0x80000] = (gvram[offset-0x80000] & 0xf0ff) | ((data & 0x000f) << 8);
+					m_gvram[offset-0x80000] = (m_gvram[offset-0x80000] & 0xf0ff) | ((data & 0x000f) << 8);
 				}
 				if(offset >= 0xc0000 && offset < 0x100000)
 				{
-					gvram[offset-0xc0000] = (gvram[offset-0xc0000] & 0x0fff) | ((data & 0x000f) << 12);
+					m_gvram[offset-0xc0000] = (m_gvram[offset-0xc0000] & 0x0fff) | ((data & 0x000f) << 12);
 				}
 				break;
 			default:
@@ -569,13 +547,7 @@ WRITE16_MEMBER(x68k_state::x68k_gvram_w )
 
 WRITE16_MEMBER(x68k_state::x68k_tvram_w )
 {
-	UINT16* tvram;
 	UINT16 text_mask;
-
-	if(m_is_32bit)
-		tvram = (UINT16*)m_tvram32.target();
-	else
-		tvram = (UINT16*)m_tvram16.target();
 
 	text_mask = ~(m_crtc.reg[23]) & mem_mask;
 
@@ -593,54 +565,48 @@ WRITE16_MEMBER(x68k_state::x68k_tvram_w )
 		{
 			if(wr & (1 << plane))
 			{
-				COMBINE_DATA(tvram+offset+(0x10000*plane));
+				COMBINE_DATA(m_tvram+offset+(0x10000*plane));
 			}
 		}
 	}
 	else
 	{
-		COMBINE_DATA(tvram+offset);
+		COMBINE_DATA(m_tvram+offset);
 	}
 }
 
 READ16_MEMBER(x68k_state::x68k_gvram_r )
 {
-	const UINT16* gvram;
 	UINT16 ret = 0;
 
-	if(m_is_32bit)
-		gvram = (const UINT16*)m_gvram32.target();
-	else
-		gvram = (const UINT16*)m_gvram16.target();
-
-	if(m_crtc.reg[20] & 0x08)  // G-VRAM set to buffer
-		return gvram[offset];
+	if(m_crtc.reg[20] & 0x0800)  // G-VRAM set to buffer
+		return m_gvram[offset];
 
 	switch(m_crtc.reg[20] & 0x0300)  // colour setup determines G-VRAM use
 	{
 		case 0x0300: // 65,536 colour (RGB) - 16-bits per word
 			if(offset < 0x40000)
-				ret = gvram[offset];
+				ret = m_gvram[offset];
 			else
 				ret = 0xffff;
 			break;
 		case 0x0100:  // 256 colour (paletted) - 8 bits per word
 			if(offset < 0x40000)
-				ret = gvram[offset] & 0x00ff;
+				ret = m_gvram[offset] & 0x00ff;
 			if(offset >= 0x40000 && offset < 0x80000)
-				ret = (gvram[offset-0x40000] & 0xff00) >> 8;
+				ret = (m_gvram[offset-0x40000] & 0xff00) >> 8;
 			if(offset >= 0x80000)
 				ret = 0xffff;
 			break;
 		case 0x0000:  // 16 colour (paletted) - 4 bits per word
 			if(offset < 0x40000)
-				ret = gvram[offset] & 0x000f;
+				ret = m_gvram[offset] & 0x000f;
 			if(offset >= 0x40000 && offset < 0x80000)
-				ret = (gvram[offset-0x40000] & 0x00f0) >> 4;
+				ret = (m_gvram[offset-0x40000] & 0x00f0) >> 4;
 			if(offset >= 0x80000 && offset < 0xc0000)
-				ret = (gvram[offset-0x80000] & 0x0f00) >> 8;
+				ret = (m_gvram[offset-0x80000] & 0x0f00) >> 8;
 			if(offset >= 0xc0000 && offset < 0x100000)
-				ret = (gvram[offset-0xc0000] & 0xf000) >> 12;
+				ret = (m_gvram[offset-0xc0000] & 0xf000) >> 12;
 			break;
 		default:
 			logerror("G-VRAM read while layer setup is undefined.\n");
@@ -652,62 +618,7 @@ READ16_MEMBER(x68k_state::x68k_gvram_r )
 
 READ16_MEMBER(x68k_state::x68k_tvram_r )
 {
-	const UINT16* tvram;
-
-	if(m_is_32bit)
-		tvram = (const UINT16*)m_tvram32.target();
-	else
-		tvram = (const UINT16*)m_tvram16.target();
-
-	return tvram[offset];
-}
-
-READ32_MEMBER(x68k_state::x68k_tvram32_r )
-{
-	UINT32 ret = 0;
-
-	if(ACCESSING_BITS_0_15)
-		ret |= (x68k_tvram_r(space,(offset*2)+1,0xffff));
-	if(ACCESSING_BITS_16_31)
-		ret |= x68k_tvram_r(space,offset*2,0xffff) << 16;
-
-	return ret;
-}
-
-READ32_MEMBER(x68k_state::x68k_gvram32_r )
-{
-	UINT32 ret = 0;
-
-	if(ACCESSING_BITS_0_15)
-		ret |= x68k_gvram_r(space,offset*2+1,0xffff);
-	if(ACCESSING_BITS_16_31)
-		ret |= x68k_gvram_r(space,offset*2,0xffff) << 16;
-
-	return ret;
-}
-
-WRITE32_MEMBER(x68k_state::x68k_tvram32_w )
-{
-	if(ACCESSING_BITS_0_7)
-		x68k_tvram_w(space,(offset*2)+1,data,0x00ff);
-	if(ACCESSING_BITS_8_15)
-		x68k_tvram_w(space,(offset*2)+1,data,0xff00);
-	if(ACCESSING_BITS_16_23)
-		x68k_tvram_w(space,offset*2,data >> 16,0x00ff);
-	if(ACCESSING_BITS_24_31)
-		x68k_tvram_w(space,offset*2,data >> 16,0xff00);
-}
-
-WRITE32_MEMBER(x68k_state::x68k_gvram32_w )
-{
-	if(ACCESSING_BITS_0_7)
-		x68k_gvram_w(space,(offset*2)+1,data,0x00ff);
-	if(ACCESSING_BITS_8_15)
-		x68k_gvram_w(space,(offset*2)+1,data,0xff00);
-	if(ACCESSING_BITS_16_23)
-		x68k_gvram_w(space,offset*2,data >> 16,0x00ff);
-	if(ACCESSING_BITS_24_31)
-		x68k_gvram_w(space,offset*2,data >> 16,0xff00);
+	return m_tvram[offset];
 }
 
 WRITE16_MEMBER(x68k_state::x68k_spritereg_w )
@@ -794,18 +705,12 @@ READ16_MEMBER(x68k_state::x68k_spriteram_r )
 	return m_spriteram[offset];
 }
 
-void x68k_state::x68k_draw_text(bitmap_ind16 &bitmap, int xscr, int yscr, rectangle rect)
+void x68k_state::x68k_draw_text(bitmap_rgb32 &bitmap, int xscr, int yscr, rectangle rect)
 {
-	const UINT16* tvram;
 	unsigned int line,pixel; // location on screen
 	UINT32 loc;  // location in TVRAM
 	UINT32 colour;
 	int bit;
-
-	if(m_is_32bit)
-		tvram = (const UINT16*)m_tvram32.target();
-	else
-		tvram = (const UINT16*)m_tvram16.target();
 
 	for(line=rect.min_y;line<=rect.max_y;line++)  // per scanline
 	{
@@ -816,19 +721,13 @@ void x68k_state::x68k_draw_text(bitmap_ind16 &bitmap, int xscr, int yscr, rectan
 		bit = 15 - (xscr & 0x0f);
 		for(pixel=rect.min_x;pixel<=rect.max_x;pixel++)  // per pixel
 		{
-			colour = (((tvram[loc] >> bit) & 0x01) ? 1 : 0)
-				+ (((tvram[loc+0x10000] >> bit) & 0x01) ? 2 : 0)
-				+ (((tvram[loc+0x20000] >> bit) & 0x01) ? 4 : 0)
-				+ (((tvram[loc+0x30000] >> bit) & 0x01) ? 8 : 0);
-			if(m_video.text_pal[colour] != 0x0000)  // any colour but black
-			{
-				// Colour 0 is displayable if the text layer is at the priority level 2
-				if(colour == 0 && (m_video.reg[1] & 0x0c00) == 0x0800)
-					bitmap.pix16(line, pixel) = 512 + (m_video.text_pal[colour] >> 1);
-				else
-					if(colour != 0)
-						bitmap.pix16(line, pixel) = 512 + (m_video.text_pal[colour] >> 1);
-			}
+			colour = (((m_tvram[loc] >> bit) & 0x01) ? 1 : 0)
+				+ (((m_tvram[loc+0x10000] >> bit) & 0x01) ? 2 : 0)
+				+ (((m_tvram[loc+0x20000] >> bit) & 0x01) ? 4 : 0)
+				+ (((m_tvram[loc+0x30000] >> bit) & 0x01) ? 8 : 0);
+			// Colour 0 is displayable if the text layer is at the priority level 2
+			if((m_pcgpalette->pen(colour) & 0xffffff) || ((m_video.reg[1] & 0x0c00) == 0x0800))
+				bitmap.pix32(line, pixel) = m_pcgpalette->pen(colour);
 			bit--;
 			if(bit < 0)
 			{
@@ -840,9 +739,8 @@ void x68k_state::x68k_draw_text(bitmap_ind16 &bitmap, int xscr, int yscr, rectan
 	}
 }
 
-void x68k_state::x68k_draw_gfx_scanline( bitmap_ind16 &bitmap, rectangle cliprect, UINT8 priority)
+bool x68k_state::x68k_draw_gfx_scanline( bitmap_ind16 &bitmap, rectangle cliprect, UINT8 priority)
 {
-	const UINT16* gvram;
 	int pixel;
 	int page;
 	UINT32 loc;  // location in GVRAM
@@ -851,11 +749,8 @@ void x68k_state::x68k_draw_gfx_scanline( bitmap_ind16 &bitmap, rectangle cliprec
 	UINT16 colour = 0;
 	int shift;
 	int scanline;
-
-	if(m_is_32bit)
-		gvram = (const UINT16*)m_gvram32.target();
-	else
-		gvram = (const UINT16*)m_gvram16.target();
+	bool blend, ret = false;
+	UINT16 *pal = (UINT16 *)m_gfxpalette->basemem().base();
 
 	for(scanline=cliprect.min_y;scanline<=cliprect.max_y;scanline++)  // per scanline
 	{
@@ -873,20 +768,20 @@ void x68k_state::x68k_draw_gfx_scanline( bitmap_ind16 &bitmap, rectangle cliprec
 					switch(lineoffset & 0xc0000)
 					{
 					case 0x00000:
-						colour = gvram[lineoffset + (loc & 0x3ff)] & 0x000f;
+						colour = m_gvram[lineoffset + (loc & 0x3ff)] & 0x000f;
 						break;
 					case 0x40000:
-						colour = (gvram[(lineoffset - 0x40000) + (loc & 0x3ff)] & 0x00f0) >> 4;
+						colour = (m_gvram[(lineoffset - 0x40000) + (loc & 0x3ff)] & 0x00f0) >> 4;
 						break;
 					case 0x80000:
-						colour = (gvram[(lineoffset - 0x80000) + (loc & 0x3ff)] & 0x0f00) >> 8;
+						colour = (m_gvram[(lineoffset - 0x80000) + (loc & 0x3ff)] & 0x0f00) >> 8;
 						break;
 					case 0xc0000:
-						colour = (gvram[(lineoffset - 0xc0000) + (loc & 0x3ff)] & 0xf000) >> 12;
+						colour = (m_gvram[(lineoffset - 0xc0000) + (loc & 0x3ff)] & 0xf000) >> 12;
 						break;
 					}
-					if(colour != 0)
-						bitmap.pix16(scanline, pixel) = 512 + (m_video.gfx_pal[colour] >> 1);
+					if(colour || (priority == 3))
+						bitmap.pix16(scanline, pixel) = colour;
 					loc++;
 					loc &= 0x3ff;
 				}
@@ -906,11 +801,30 @@ void x68k_state::x68k_draw_gfx_scanline( bitmap_ind16 &bitmap, rectangle cliprec
 					lineoffset = (((scanline - m_crtc.vbegin) + yscr) & 0x1ff) * 512;
 					loc = xscr & 0x1ff;
 					shift = 4;
+					if((m_video.reg[2] & 0x1a00) == 0x1a00)
+						ret = true;
 					for(pixel=m_crtc.hbegin;pixel<=m_crtc.hend;pixel++)
 					{
-						colour = ((gvram[lineoffset + loc] >> page*shift) & 0x000f);
-						if(colour != 0)
-							bitmap.pix16(scanline, pixel) = 512 + (m_video.gfx_pal[colour & 0x0f] >> 1);
+						colour = ((m_gvram[lineoffset + loc] >> page*shift) & 0x000f);
+						if(ret && (colour & 1))
+						{
+							blend = true;
+							colour &= 0xfe;
+						}
+						else
+							blend = false;
+						if(colour || (priority == 3))
+						{
+							if(ret)
+							{
+								if(blend && bitmap.pix16(scanline, pixel))
+									bitmap.pix16(scanline, pixel) = ((bitmap.pix16(scanline, pixel) >> 1) & 0x7bde) + ((pal[colour] >> 1) & 0x7bde) + 1;
+								else
+									bitmap.pix16(scanline, pixel) = (pal[colour] & 0xfffe) + blend;
+							}
+							else
+								bitmap.pix16(scanline, pixel) = colour;
+						}
 						loc++;
 						loc &= 0x1ff;
 					}
@@ -923,11 +837,30 @@ void x68k_state::x68k_draw_gfx_scanline( bitmap_ind16 &bitmap, rectangle cliprec
 						lineoffset = (((scanline - m_crtc.vbegin) + yscr) & 0x1ff) * 512;
 						loc = xscr & 0x1ff;
 						shift = 4;
+						if((m_video.reg[2] & 0x1a00) == 0x1a00)
+							ret = true;
 						for(pixel=m_crtc.hbegin;pixel<=m_crtc.hend;pixel++)
 						{
-							colour = ((gvram[lineoffset + loc] >> page*shift) & 0x00ff);
-							if(colour != 0)
-								bitmap.pix16(scanline, pixel) = 512 + (m_video.gfx_pal[colour & 0xff] >> 1);
+							colour = ((m_gvram[lineoffset + loc] >> page*shift) & 0x00ff);
+							if(ret && (colour & 1))
+							{
+								blend = true;
+								colour &= 0xfe;
+							}
+							else
+								blend = false;
+							if(colour || (priority == 3))
+							{
+								if(ret)
+								{
+									if(blend && bitmap.pix16(scanline, pixel))
+										bitmap.pix16(scanline, pixel) = ((bitmap.pix16(scanline, pixel) >> 1) & 0x7bde) + ((pal[colour] >> 1) & 0x7bde) + 1;
+									else
+										bitmap.pix16(scanline, pixel) = (pal[colour] & 0xfffe) + blend;
+								}
+								else
+									bitmap.pix16(scanline, pixel) = colour;
+							}
 							loc++;
 							loc &= 0x1ff;
 						}
@@ -940,9 +873,9 @@ void x68k_state::x68k_draw_gfx_scanline( bitmap_ind16 &bitmap, rectangle cliprec
 					loc = xscr & 0x1ff;
 					for(pixel=m_crtc.hbegin;pixel<=m_crtc.hend;pixel++)
 					{
-						colour = gvram[lineoffset + loc];
-						if(colour != 0)
-							bitmap.pix16(scanline, pixel) = 512 + (colour >> 1);
+						colour = m_gvram[lineoffset + loc];
+						if(colour || (priority == 3))
+							bitmap.pix16(scanline, pixel) = colour;
 						loc++;
 						loc &= 0x1ff;
 					}
@@ -951,11 +884,13 @@ void x68k_state::x68k_draw_gfx_scanline( bitmap_ind16 &bitmap, rectangle cliprec
 			}
 		}
 	}
+	return ret;
 }
 
-void x68k_state::x68k_draw_gfx(bitmap_ind16 &bitmap,rectangle cliprect)
+void x68k_state::x68k_draw_gfx(bitmap_rgb32 &bitmap,rectangle cliprect)
 {
-	int priority;
+	int priority, scanline, pixel;
+	bool gfxblend;
 	//rectangle rect;
 	//int xscr,yscr;
 	//int gpage;
@@ -963,9 +898,59 @@ void x68k_state::x68k_draw_gfx(bitmap_ind16 &bitmap,rectangle cliprect)
 	if(m_crtc.reg[20] & 0x0800)  // if graphic layers are set to buffer, then they aren't visible
 		return;
 
+	m_gfxbitmap->fill(0, cliprect);
+
 	for(priority=3;priority>=0;priority--)
 	{
-		x68k_draw_gfx_scanline(bitmap,cliprect,priority);
+		gfxblend = x68k_draw_gfx_scanline(*m_gfxbitmap,cliprect,priority);
+	}
+
+	for(scanline=cliprect.min_y;scanline<=cliprect.max_y;scanline++)
+	{
+		UINT16 colour;
+		bool blend = false;
+		for(pixel=m_crtc.hbegin;pixel<=m_crtc.hend;pixel++)
+		{
+			if((m_video.reg[0] & 0x03) == 3)
+			{
+				colour = m_gfxbitmap->pix16(scanline, pixel);
+				if(colour || (m_video.gfx_pri == 2))
+					bitmap.pix32(scanline, pixel) = GGGGGRRRRRBBBBBI_decoder(colour);
+			}
+			else if(gfxblend)
+			{
+				colour = m_gfxbitmap->pix16(scanline, pixel);
+				if(((m_video.reg[2] & 0x1900) == 0x1900) && (m_video.gfx_pri != 2) && (colour & 1))
+					blend = true;
+				else
+					blend = false;
+				if(colour || (m_video.gfx_pri == 2))
+				{
+					if(blend)
+						bitmap.pix32(scanline, pixel) = ((bitmap.pix32(scanline, pixel) >> 1) & 0xff7f7f7f) + ((pal555(colour, 6, 11, 1) >> 1) & 0x7f7f7f);
+					else
+						bitmap.pix32(scanline, pixel) = pal555(colour, 6, 11, 1);
+				}
+			}
+			else
+			{
+				colour = m_gfxbitmap->pix16(scanline, pixel) & 0xff;
+				if(((m_video.reg[2] & 0x1900) == 0x1900) && (m_video.gfx_pri != 2) && (colour & 1))
+				{
+					blend = true;
+					colour &= 0xfe;
+				}
+				else
+					blend = false;
+				if((colour && (m_gfxpalette->pen(colour) & 0xffffff)) || (m_video.gfx_pri == 2))
+				{
+					if(blend)
+						bitmap.pix32(scanline, pixel) = ((bitmap.pix32(scanline, pixel) >> 1) & 0xff7f7f7f) + ((m_gfxpalette->pen(colour) >> 1) & 0x7f7f7f);
+					else
+						bitmap.pix32(scanline, pixel) = m_gfxpalette->pen(colour);
+				}
+			}
+		}
 	}
 }
 
@@ -1027,22 +1012,8 @@ void x68k_state::x68k_draw_sprites(bitmap_ind16 &bitmap, int priority, rectangle
 			sx += m_crtc.bg_hshift;
 			sx += m_sprite_shift;
 
-			drawgfxzoom_transpen(bitmap,cliprect,machine().gfx[1],code,colour+0x10,xflip,yflip,m_crtc.hbegin+sx,m_crtc.vbegin+(sy*m_crtc.bg_double),0x10000,0x10000*m_crtc.bg_double,0x00);
+			m_gfxdecode->gfx(1)->zoom_transpen(bitmap,cliprect,code,colour,xflip,yflip,m_crtc.hbegin+sx,m_crtc.vbegin+(sy*m_crtc.bg_double),0x10000,0x10000*m_crtc.bg_double,0x00);
 		}
-	}
-}
-
-PALETTE_INIT_MEMBER(x68k_state,x68000)
-{
-	int pal;
-	int r,g,b;
-
-	for(pal=0;pal<32768;pal++)
-	{  // create 64k colour lookup
-		g = (pal & 0x7c00) >> 7;
-		r = (pal & 0x03e0) >> 2;
-		b = (pal & 0x001f) << 3;
-		palette_set_color_rgb(machine(),pal+512,r,g,b);
 	}
 }
 
@@ -1069,19 +1040,12 @@ static const gfx_layout x68k_pcg_16 =
 	128*8
 };
 
-#if 0
-static GFXDECODEINFO_START( x68k )
-	GFXDECODE_ENTRY( "user1", 0, x68k_pcg_8, 0x100, 16 )  // 8x8 sprite tiles
-	GFXDECODE_ENTRY( "user1", 0, x68k_pcg_16, 0x100, 16 )  // 16x16 sprite tiles
-GFXDECODEINFO_END
-#endif
-
 TILE_GET_INFO_MEMBER(x68k_state::x68k_get_bg0_tile)
 {
 	int code = m_spriteram[0x3000+tile_index] & 0x00ff;
 	int colour = (m_spriteram[0x3000+tile_index] & 0x0f00) >> 8;
 	int flags = (m_spriteram[0x3000+tile_index] & 0xc000) >> 14;
-	SET_TILE_INFO_MEMBER(0,code,colour+16,flags);
+	SET_TILE_INFO_MEMBER(0,code,colour,flags);
 }
 
 TILE_GET_INFO_MEMBER(x68k_state::x68k_get_bg1_tile)
@@ -1089,7 +1053,7 @@ TILE_GET_INFO_MEMBER(x68k_state::x68k_get_bg1_tile)
 	int code = m_spriteram[0x2000+tile_index] & 0x00ff;
 	int colour = (m_spriteram[0x2000+tile_index] & 0x0f00) >> 8;
 	int flags = (m_spriteram[0x2000+tile_index] & 0xc000) >> 14;
-	SET_TILE_INFO_MEMBER(0,code,colour+16,flags);
+	SET_TILE_INFO_MEMBER(0,code,colour,flags);
 }
 
 TILE_GET_INFO_MEMBER(x68k_state::x68k_get_bg0_tile_16)
@@ -1097,7 +1061,7 @@ TILE_GET_INFO_MEMBER(x68k_state::x68k_get_bg0_tile_16)
 	int code = m_spriteram[0x3000+tile_index] & 0x00ff;
 	int colour = (m_spriteram[0x3000+tile_index] & 0x0f00) >> 8;
 	int flags = (m_spriteram[0x3000+tile_index] & 0xc000) >> 14;
-	SET_TILE_INFO_MEMBER(1,code,colour+16,flags);
+	SET_TILE_INFO_MEMBER(1,code,colour,flags);
 }
 
 TILE_GET_INFO_MEMBER(x68k_state::x68k_get_bg1_tile_16)
@@ -1105,7 +1069,7 @@ TILE_GET_INFO_MEMBER(x68k_state::x68k_get_bg1_tile_16)
 	int code = m_spriteram[0x2000+tile_index] & 0x00ff;
 	int colour = (m_spriteram[0x2000+tile_index] & 0x0f00) >> 8;
 	int flags = (m_spriteram[0x2000+tile_index] & 0xc000) >> 14;
-	SET_TILE_INFO_MEMBER(1,code,colour+16,flags);
+	SET_TILE_INFO_MEMBER(1,code,colour,flags);
 }
 
 VIDEO_START_MEMBER(x68k_state,x68000)
@@ -1113,32 +1077,38 @@ VIDEO_START_MEMBER(x68k_state,x68000)
 	int gfx_index;
 
 	for (gfx_index = 0; gfx_index < MAX_GFX_ELEMENTS; gfx_index++)
-		if (machine().gfx[gfx_index] == 0)
+		if (m_gfxdecode->gfx(gfx_index) == 0)
 			break;
 
 	/* create the char set (gfx will then be updated dynamically from RAM) */
-	machine().gfx[gfx_index] = auto_alloc(machine(), gfx_element(machine(), x68k_pcg_8, memregion("user1")->base(), 32, 0));
+	m_gfxdecode->set_gfx(gfx_index, global_alloc(gfx_element(m_pcgpalette, x68k_pcg_8, memregion("user1")->base(), 0, 32, 0)));
 
 	gfx_index++;
 
-	machine().gfx[gfx_index] = auto_alloc(machine(), gfx_element(machine(), x68k_pcg_16, memregion("user1")->base(), 32, 0));
-	machine().gfx[gfx_index]->set_colors(32);
+	m_gfxdecode->set_gfx(gfx_index, global_alloc(gfx_element(m_pcgpalette, x68k_pcg_16, memregion("user1")->base(), 0, 32, 0)));
+	m_gfxdecode->gfx(gfx_index)->set_colors(32);
 
 	/* Tilemaps */
-	m_bg0_8 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(x68k_state::x68k_get_bg0_tile),this),TILEMAP_SCAN_ROWS,8,8,64,64);
-	m_bg1_8 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(x68k_state::x68k_get_bg1_tile),this),TILEMAP_SCAN_ROWS,8,8,64,64);
-	m_bg0_16 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(x68k_state::x68k_get_bg0_tile_16),this),TILEMAP_SCAN_ROWS,16,16,64,64);
-	m_bg1_16 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(x68k_state::x68k_get_bg1_tile_16),this),TILEMAP_SCAN_ROWS,16,16,64,64);
+	m_bg0_8 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(x68k_state::x68k_get_bg0_tile),this),TILEMAP_SCAN_ROWS,8,8,64,64);
+	m_bg1_8 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(x68k_state::x68k_get_bg1_tile),this),TILEMAP_SCAN_ROWS,8,8,64,64);
+	m_bg0_16 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(x68k_state::x68k_get_bg0_tile_16),this),TILEMAP_SCAN_ROWS,16,16,64,64);
+	m_bg1_16 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(x68k_state::x68k_get_bg1_tile_16),this),TILEMAP_SCAN_ROWS,16,16,64,64);
 
 	m_bg0_8->set_transparent_pen(0);
 	m_bg1_8->set_transparent_pen(0);
 	m_bg0_16->set_transparent_pen(0);
 	m_bg1_16->set_transparent_pen(0);
 
+	m_pcgbitmap = auto_bitmap_ind16_alloc(machine(), 1024, 1024);
+	m_pcgbitmap->fill(0);
+
+	m_gfxbitmap = auto_bitmap_ind16_alloc(machine(), 1024, 1024);
+	m_gfxbitmap->fill(0);
+
 //  m_scanline_timer->adjust(attotime::zero, 0, attotime::from_hz(55.45)/568);
 }
 
-UINT32 x68k_state::screen_update_x68000(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+UINT32 x68k_state::screen_update_x68000(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	rectangle rect(0,0,0,0);
 	int priority;
@@ -1146,6 +1116,7 @@ UINT32 x68k_state::screen_update_x68000(screen_device &screen, bitmap_ind16 &bit
 	int x;
 	tilemap_t* x68k_bg0;
 	tilemap_t* x68k_bg1;
+	int pixel, scanline;
 	//UINT8 *rom;
 
 	if((m_spritereg[0x408] & 0x03) == 0x00)  // Sprite/BG H-Res 0=8x8, 1=16x16, 2 or 3 = undefined.
@@ -1183,17 +1154,18 @@ UINT32 x68k_state::screen_update_x68000(screen_device &screen, bitmap_ind16 &bit
 	{
 		if(m_video.tile16_dirty[x] != 0)
 		{
-			machine().gfx[1]->mark_dirty(x);
+			m_gfxdecode->gfx(1)->mark_dirty(x);
 			m_video.tile16_dirty[x] = 0;
 		}
 		if(m_video.tile8_dirty[x] != 0)
 		{
-			machine().gfx[0]->mark_dirty(x);
+			m_gfxdecode->gfx(0)->mark_dirty(x);
 			m_video.tile8_dirty[x] = 0;
 		}
 	}
 
-	for(priority=3;priority>=0;priority--)
+
+	for(priority=2;priority>=0;priority--)
 	{
 		// Graphics screen(s)
 		if(priority == m_video.gfx_pri)
@@ -1202,39 +1174,50 @@ UINT32 x68k_state::screen_update_x68000(screen_device &screen, bitmap_ind16 &bit
 		// Sprite / BG Tiles
 		if(priority == m_video.sprite_pri /*&& (m_spritereg[0x404] & 0x0200)*/ && (m_video.reg[2] & 0x0040))
 		{
-			x68k_draw_sprites(bitmap,1,rect);
+			m_pcgbitmap->fill(0, rect);
+			x68k_draw_sprites(*m_pcgbitmap,1,rect);
 			if((m_spritereg[0x404] & 0x0008))
 			{
 				if((m_spritereg[0x404] & 0x0030) == 0x10)  // BG1 TXSEL
 				{
 					x68k_bg0->set_scrollx(0,(m_spritereg[0x402] - m_crtc.hbegin - m_crtc.bg_hshift) & 0x3ff);
 					x68k_bg0->set_scrolly(0,(m_spritereg[0x403] - m_crtc.vbegin) & 0x3ff);
-					x68k_bg0->draw(screen, bitmap,rect,0,0);
+					x68k_bg0->draw(screen, *m_pcgbitmap,rect,0,0);
 				}
 				else
 				{
 					x68k_bg1->set_scrollx(0,(m_spritereg[0x402] - m_crtc.hbegin - m_crtc.bg_hshift) & 0x3ff);
 					x68k_bg1->set_scrolly(0,(m_spritereg[0x403] - m_crtc.vbegin) & 0x3ff);
-					x68k_bg1->draw(screen, bitmap,rect,0,0);
+					x68k_bg1->draw(screen, *m_pcgbitmap,rect,0,0);
 				}
 			}
-			x68k_draw_sprites(bitmap,2,rect);
+			x68k_draw_sprites(*m_pcgbitmap,2,rect);
 			if((m_spritereg[0x404] & 0x0001))
 			{
 				if((m_spritereg[0x404] & 0x0006) == 0x02)  // BG0 TXSEL
 				{
 					x68k_bg0->set_scrollx(0,(m_spritereg[0x400] - m_crtc.hbegin - m_crtc.bg_hshift) & 0x3ff);
 					x68k_bg0->set_scrolly(0,(m_spritereg[0x401] - m_crtc.vbegin) & 0x3ff);
-					x68k_bg0->draw(screen, bitmap,rect,0,0);
+					x68k_bg0->draw(screen, *m_pcgbitmap,rect,0,0);
 				}
 				else
 				{
 					x68k_bg1->set_scrollx(0,(m_spritereg[0x400] - m_crtc.hbegin - m_crtc.bg_hshift) & 0x3ff);
 					x68k_bg1->set_scrolly(0,(m_spritereg[0x401] - m_crtc.vbegin) & 0x3ff);
-					x68k_bg1->draw(screen, bitmap,rect,0,0);
+					x68k_bg1->draw(screen, *m_pcgbitmap,rect,0,0);
 				}
 			}
-			x68k_draw_sprites(bitmap,3,rect);
+			x68k_draw_sprites(*m_pcgbitmap,3,rect);
+
+			for(scanline=rect.min_y;scanline<=rect.max_y;scanline++)
+			{
+				for(pixel=m_crtc.hbegin;pixel<=m_crtc.hend;pixel++)
+				{
+					UINT8 colour = m_pcgbitmap->pix16(scanline, pixel) & 0xff;
+					if((colour && (m_pcgpalette->pen(colour) & 0xffffff)) || ((m_video.reg[1] & 0x3000) == 0x2000))
+						bitmap.pix32(scanline, pixel) = m_pcgpalette->pen(colour);
+				}
+			}
 		}
 
 		// Text screen
@@ -1248,13 +1231,6 @@ UINT32 x68k_state::screen_update_x68000(screen_device &screen, bitmap_ind16 &bit
 	}
 
 #ifdef MAME_DEBUG
-	if(machine().input().code_pressed(KEYCODE_I))
-	{
-		m_mfp.isra = 0;
-		m_mfp.isrb = 0;
-//      mfp_trigger_irq(MFP_IRQ_GPIP6);
-//      m_maincpu->set_input_line_and_vector(6,ASSERT_LINE,0x43);
-	}
 	if(machine().input().code_pressed(KEYCODE_9))
 	{
 		m_sprite_shift--;
@@ -1277,12 +1253,7 @@ UINT32 x68k_state::screen_update_x68000(screen_device &screen, bitmap_ind16 &bit
 //  popmessage("VBlank : scanline = %i",m_scanline);
 //  popmessage("CRTC/BG compare H-TOTAL %i/%i H-DISP %i/%i V-DISP %i/%i BG Res %02x",m_crtc.reg[0],m_spritereg[0x405],m_crtc.reg[2],m_spritereg[0x406],
 //      m_crtc.reg[6],m_spritereg[0x407],m_spritereg[0x408]);
-//  popmessage("IER %02x %02x  IPR %02x %02x  ISR %02x %02x  IMR %02x %02x", m_mfp.iera,m_mfp.ierb,m_mfp.ipra,m_mfp.iprb,
-//      m_mfp.isra,m_mfp.isrb,m_mfp.imra,m_mfp.imrb);
 //  popmessage("BG Scroll - BG0 X %i Y %i  BG1 X %i Y %i",m_spriteram[0x400],m_spriteram[0x401],m_spriteram[0x402],m_spriteram[0x403]);
-//  popmessage("Keyboard buffer position = %i",m_keyboard.headpos);
-//  popmessage("IERA = 0x%02x, IERB = 0x%02x",m_mfp.iera,m_mfp.ierb);
-//  popmessage("IPRA = 0x%02x, IPRB = 0x%02x",m_mfp.ipra,m_mfp.iprb);
 //  popmessage("uPD72065 status = %02x",upd765_status_r(machine(), space, 0));
 //  popmessage("Layer enable - 0x%02x",m_video.reg[2] & 0xff);
 //  popmessage("Graphic layer scroll - %i, %i - %i, %i - %i, %i - %i, %i",

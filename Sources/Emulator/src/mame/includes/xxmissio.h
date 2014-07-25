@@ -7,7 +7,9 @@ public:
 		m_fgram(*this, "fgram"),
 		m_spriteram(*this, "spriteram"),
 		m_maincpu(*this, "maincpu"),
-		m_subcpu(*this, "sub") { }
+		m_subcpu(*this, "sub"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	UINT8 m_status;
 	required_shared_ptr<UINT8> m_bgram;
@@ -24,7 +26,6 @@ public:
 	DECLARE_WRITE8_MEMBER(xxmissio_flipscreen_w);
 	DECLARE_WRITE8_MEMBER(xxmissio_bgram_w);
 	DECLARE_READ8_MEMBER(xxmissio_bgram_r);
-	DECLARE_WRITE8_MEMBER(xxmissio_paletteram_w);
 	DECLARE_CUSTOM_INPUT_MEMBER(xxmissio_status_r);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	TILE_GET_INFO_MEMBER(get_fg_tile_info);
@@ -38,4 +39,6 @@ public:
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

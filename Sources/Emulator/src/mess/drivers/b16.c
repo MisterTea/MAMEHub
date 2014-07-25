@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     Hitachi B(asic Master?) 16
@@ -25,7 +27,9 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_vram(*this, "vram"),
 		m_dma8237(*this, "8237dma"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	UINT8 *m_char_rom;
 	required_shared_ptr<UINT16> m_vram;
@@ -48,6 +52,8 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 #define mc6845_h_char_total     (m_crtc_vreg[0])
@@ -77,7 +83,6 @@ void b16_state::video_start()
 
 UINT32 b16_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	b16_state *state = machine().driver_data<b16_state>();
 	int x,y;
 	int xi,yi;
 	UINT8 *gfx_rom = memregion("pcg")->base();
@@ -86,8 +91,8 @@ UINT32 b16_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, con
 	{
 		for(x=0;x<mc6845_h_display;x++)
 		{
-			int tile = state->m_vram[x+y*mc6845_h_display] & 0xff;
-			int color = (state->m_vram[x+y*mc6845_h_display] & 0x700) >> 8;
+			int tile = m_vram[x+y*mc6845_h_display] & 0xff;
+			int color = (m_vram[x+y*mc6845_h_display] & 0x700) >> 8;
 			int pen;
 
 			for(yi=0;yi<mc6845_tile_height;yi++)
@@ -97,7 +102,7 @@ UINT32 b16_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, con
 					pen = (gfx_rom[tile*16+yi] >> (7-xi) & 1) ? color : 0;
 
 					if(y*mc6845_tile_height < 400 && x*8+xi < 640) /* TODO: safety check */
-						bitmap.pix16(y*mc6845_tile_height+yi, x*8+xi) = machine().pens[pen];
+						bitmap.pix16(y*mc6845_tile_height+yi, x*8+xi) = m_palette->pen(pen);
 				}
 			}
 		}
@@ -110,7 +115,7 @@ WRITE8_MEMBER( b16_state::b16_pcg_w )
 {
 	m_char_rom[offset] = data;
 
-	machine().gfx[0]->mark_dirty(offset >> 4);
+	m_gfxdecode->gfx(0)->mark_dirty(offset >> 4);
 }
 
 static ADDRESS_MAP_START( b16_map, AS_PROGRAM, 16, b16_state)
@@ -250,21 +255,6 @@ void b16_state::machine_reset()
 }
 
 
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
 READ8_MEMBER(b16_state::memory_read_byte)
 {
 	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
@@ -276,17 +266,6 @@ WRITE8_MEMBER(b16_state::memory_write_byte)
 	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
 	return prog_space.write_byte(offset, data);
 }
-
-static I8237_INTERFACE( b16_dma8237_interface )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(b16_state, memory_read_byte),
-	DEVCB_DRIVER_MEMBER(b16_state, memory_write_byte),
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL }
-};
 
 
 static MACHINE_CONFIG_START( b16, b16_state )
@@ -303,13 +282,19 @@ static MACHINE_CONFIG_START( b16, b16_state )
 	MCFG_SCREEN_UPDATE_DRIVER(b16_state, screen_update)
 	MCFG_SCREEN_SIZE(640, 400)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 400-1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_MC6845_ADD("crtc", H46505, "screen", XTAL_14_31818MHz/5, mc6845_intf)    /* unknown clock, hand tuned to get ~60 fps */
-	MCFG_I8237_ADD("8237dma", XTAL_14_31818MHz/2, b16_dma8237_interface)
+	MCFG_MC6845_ADD("crtc", H46505, "screen", XTAL_14_31818MHz/5)    /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
-	MCFG_GFXDECODE(b16)
-	MCFG_PALETTE_LENGTH(8)
-//  MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white) // TODO
+	MCFG_DEVICE_ADD("8237dma", AM9517A, XTAL_14_31818MHz/2)
+	MCFG_I8237_IN_MEMR_CB(READ8(b16_state, memory_read_byte))
+	MCFG_I8237_OUT_MEMW_CB(WRITE8(b16_state, memory_write_byte))
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", b16)
+	MCFG_PALETTE_ADD("palette", 8)
+//  MCFG_PALETTE_INIT_STANDARD(black_and_white) // TODO
 
 MACHINE_CONFIG_END
 

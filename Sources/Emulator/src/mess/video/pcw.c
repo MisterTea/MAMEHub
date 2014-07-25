@@ -27,24 +27,26 @@ void pcw_state::video_start()
 	m_prn_output->fill(1, rect);
 }
 
+#if 0
 /* two colours */
 static const unsigned short pcw_colour_table[PCW_NUM_COLOURS] =
 {
 	0, 1
 };
+#endif
 
 /* black/white */
 static const rgb_t pcw_palette[PCW_NUM_COLOURS] =
 {
-	MAKE_RGB(0x000, 0x000, 0x000),
-	MAKE_RGB(0x0ff, 0x0ff, 0x0ff)
+	rgb_t(0x000, 0x000, 0x000),
+	rgb_t(0x0ff, 0x0ff, 0x0ff)
 };
 
 
 /* Initialise the palette */
-void pcw_state::palette_init()
+PALETTE_INIT_MEMBER(pcw_state, pcw)
 {
-	palette_set_colors(machine(), 0, pcw_palette, ARRAY_LENGTH(pcw_palette));
+	palette.set_pen_colors(0, pcw_palette, ARRAY_LENGTH(pcw_palette));
 }
 
 /***************************************************************************

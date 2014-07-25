@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic, Robbbert
 /***************************************************************************
 
         Pyldin-601
@@ -46,11 +48,11 @@ class pyl601_state : public driver_device
 public:
 	pyl601_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_speaker(*this, "speaker"),
-	m_fdc(*this, "upd765"),
-	m_ram(*this, RAM_TAG)
-	,
-		m_maincpu(*this, "maincpu") { }
+		m_speaker(*this, "speaker"),
+		m_fdc(*this, "upd765"),
+		m_ram(*this, RAM_TAG),
+		m_maincpu(*this, "maincpu"),
+		m_palette(*this, "palette") { }
 
 	UINT8 m_rom_page;
 	UINT32 m_vdisk_addr;
@@ -75,6 +77,8 @@ public:
 	DECLARE_WRITE8_MEMBER(led_w);
 	DECLARE_WRITE8_MEMBER(floppy_w);
 	DECLARE_READ8_MEMBER(floppy_r);
+	MC6845_UPDATE_ROW(pyl601_update_row);
+	MC6845_UPDATE_ROW(pyl601a_update_row);
 	UINT8 selectedline(UINT16 data);
 	required_device<speaker_sound_device> m_speaker;
 	required_device<upd765a_device> m_fdc;
@@ -85,6 +89,7 @@ public:
 	INTERRUPT_GEN_MEMBER(pyl601_interrupt);
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -380,19 +385,18 @@ void pyl601_state::video_start()
 {
 }
 
-static MC6845_UPDATE_ROW( pyl601_update_row )
+MC6845_UPDATE_ROW( pyl601_state::pyl601_update_row )
 {
-	pyl601_state *state = device->machine().driver_data<pyl601_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
-	UINT8 *charrom = state->memregion("chargen")->base();
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
+	UINT8 *charrom = memregion("chargen")->base();
 
 	int column, bit, i;
 	UINT8 data;
-	if (BIT(state->m_video_mode, 5) == 0)
+	if (BIT(m_video_mode, 5) == 0)
 	{
 		for (column = 0; column < x_count; column++)
 		{
-			UINT8 code = state->m_ram->pointer()[(((ma + column) & 0x0fff) + 0xf000)];
+			UINT8 code = m_ram->pointer()[(((ma + column) & 0x0fff) + 0xf000)];
 			code = ((code << 1) | (code >> 7)) & 0xff;
 			if (column == cursor_x-2)
 				data = 0xff;
@@ -413,7 +417,7 @@ static MC6845_UPDATE_ROW( pyl601_update_row )
 	{
 		for (i = 0; i < x_count; i++)
 		{
-			data = state->m_ram->pointer()[(((ma + i) << 3) | (ra & 0x07)) & 0xffff];
+			data = m_ram->pointer()[(((ma + i) << 3) | (ra & 0x07)) & 0xffff];
 			for (bit = 0; bit < 8; bit++)
 			{
 				bitmap.pix32(y, (i * 8) + bit) = palette[BIT(data, 7)];
@@ -423,19 +427,18 @@ static MC6845_UPDATE_ROW( pyl601_update_row )
 	}
 }
 
-static MC6845_UPDATE_ROW( pyl601a_update_row )
+MC6845_UPDATE_ROW( pyl601_state::pyl601a_update_row )
 {
-	pyl601_state *state = device->machine().driver_data<pyl601_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
-	UINT8 *charrom = state->memregion("chargen")->base();
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
+	UINT8 *charrom = memregion("chargen")->base();
 
 	int column, bit, i;
 	UINT8 data;
-	if (BIT(state->m_video_mode, 5) == 0)
+	if (BIT(m_video_mode, 5) == 0)
 	{
 		for (column = 0; column < x_count; column++)
 		{
-			UINT8 code = state->m_ram->pointer()[(((ma + column) & 0x0fff) + 0xf000)];
+			UINT8 code = m_ram->pointer()[(((ma + column) & 0x0fff) + 0xf000)];
 			data = charrom[((code << 4) | (ra & 0x07)) & 0xfff];
 			if (column == cursor_x)
 				data = 0xff;
@@ -454,7 +457,7 @@ static MC6845_UPDATE_ROW( pyl601a_update_row )
 	{
 		for (i = 0; i < x_count; i++)
 		{
-			data = state->m_ram->pointer()[(((ma + i) << 3) | (ra & 0x07)) & 0xffff];
+			data = m_ram->pointer()[(((ma + i) << 3) | (ra & 0x07)) & 0xffff];
 			for (bit = 0; bit < 8; bit++)
 			{
 				bitmap.pix32(y, (i * 8) + bit) = palette[BIT(data, 7)];
@@ -465,34 +468,6 @@ static MC6845_UPDATE_ROW( pyl601a_update_row )
 }
 
 
-
-static MC6845_INTERFACE( pyl601_crtc6845_interface )
-{
-	false,
-	8 /*?*/,
-	NULL,
-	pyl601_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
-
-static MC6845_INTERFACE( pyl601a_crtc6845_interface )
-{
-	false,
-	8 /*?*/,
-	NULL,
-	pyl601a_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
 
 DRIVER_INIT_MEMBER(pyl601_state,pyl601)
 {
@@ -554,7 +529,6 @@ static MACHINE_CONFIG_START( pyl601, pyl601_state )
 	MCFG_CPU_PROGRAM_MAP(pyl601_mem)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", pyl601_state,  pyl601_interrupt)
 
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(50)
@@ -562,9 +536,8 @@ static MACHINE_CONFIG_START( pyl601, pyl601_state )
 	MCFG_SCREEN_SIZE(640, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640 - 1, 0, 200 - 1)
 	MCFG_SCREEN_UPDATE_DEVICE("crtc", mc6845_device, screen_update)
-	MCFG_GFXDECODE(pyl601)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_green)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pyl601)
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -572,7 +545,11 @@ static MACHINE_CONFIG_START( pyl601, pyl601_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Devices */
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_2MHz, pyl601_crtc6845_interface)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_2MHz)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)   /* ? */
+	MCFG_MC6845_UPDATE_ROW_CB(pyl601_state, pyl601_update_row)
+
 	MCFG_UPD765A_ADD("upd765", true, true)
 	MCFG_FLOPPY_DRIVE_ADD("upd765:0", pyl601_floppies, "525hd", pyl601_state::floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("upd765:1", pyl601_floppies, "525hd", pyl601_state::floppy_formats)
@@ -587,9 +564,13 @@ static MACHINE_CONFIG_DERIVED( pyl601a, pyl601 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_CLOCK( XTAL_2MHz)
 
-	MCFG_GFXDECODE(pyl601a)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", pyl601a)
+
 	MCFG_DEVICE_REMOVE("crtc")
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_2MHz, pyl601a_crtc6845_interface)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_2MHz)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)   /* ? */
+	MCFG_MC6845_UPDATE_ROW_CB(pyl601_state, pyl601a_update_row)
 MACHINE_CONFIG_END
 
 /* ROM definition */

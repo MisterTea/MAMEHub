@@ -45,29 +45,29 @@ TILE_GET_INFO_MEMBER(f1gp_state::get_fg_tile_info)
 
 VIDEO_START_MEMBER(f1gp_state,f1gp)
 {
-	m_roz_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(f1gp_state::f1gp_get_roz_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(f1gp_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_roz_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(f1gp_state::f1gp_get_roz_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(f1gp_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_fg_tilemap->set_transparent_pen(0xff);
 
 	m_zoomdata = (UINT16 *)memregion("gfx4")->base();
-	machine().gfx[3]->set_source((UINT8 *)m_zoomdata);
+	m_gfxdecode->gfx(3)->set_source((UINT8 *)m_zoomdata);
 
-//  save_pointer(NAME(m_zoomdata), memregion("gfx4")->bytes());
+	save_pointer(NAME(m_zoomdata), memregion("gfx4")->bytes()/2);
 }
 
 
 VIDEO_START_MEMBER(f1gp_state,f1gpb)
 {
-	m_roz_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(f1gp_state::f1gp_get_roz_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(f1gp_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_roz_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(f1gp_state::f1gp_get_roz_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(f1gp_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_fg_tilemap->set_transparent_pen(0xff);
 
 	m_zoomdata = (UINT16 *)memregion("gfx4")->base();
-	machine().gfx[3]->set_source((UINT8 *)m_zoomdata);
+	m_gfxdecode->gfx(3)->set_source((UINT8 *)m_zoomdata);
 
-//  save_pointer(NAME(m_zoomdata), memregion("gfx4")->bytes());
+	save_pointer(NAME(m_zoomdata), memregion("gfx4")->bytes()/2);
 }
 
 /* new hw type */
@@ -91,8 +91,8 @@ UINT32 f1gp_state::f1gp_ol2_tile_callback( UINT32 code )
 
 VIDEO_START_MEMBER(f1gp_state,f1gp2)
 {
-	m_roz_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(f1gp_state::f1gp2_get_roz_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(f1gp_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_roz_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(f1gp_state::f1gp2_get_roz_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(f1gp_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_fg_tilemap->set_transparent_pen(0xff);
 	m_roz_tilemap->set_transparent_pen(0x0f);
@@ -117,7 +117,7 @@ READ16_MEMBER(f1gp_state::f1gp_zoomdata_r)
 WRITE16_MEMBER(f1gp_state::f1gp_zoomdata_w)
 {
 	COMBINE_DATA(&m_zoomdata[offset]);
-	machine().gfx[3]->mark_dirty(offset / 64);
+	m_gfxdecode->gfx(3)->mark_dirty(offset / 64);
 }
 
 READ16_MEMBER(f1gp_state::f1gp_rozvideoram_r)
@@ -210,7 +210,7 @@ UINT32 f1gp_state::screen_update_f1gp(screen_device &screen, bitmap_ind16 &bitma
 UINT32 f1gp_state::screen_update_f1gp2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	if (m_gfxctrl & 4)  /* blank screen */
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 	else
 	{
 		switch (m_gfxctrl & 3)
@@ -294,7 +294,7 @@ void f1gp_state::f1gpb_draw_sprites( screen_device &screen,bitmap_ind16 &bitmap,
 			gfx = 0;
 		}
 
-		pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1 + gfx],
+		m_gfxdecode->gfx(1 + gfx)->prio_transpen(bitmap,cliprect,
 			code,
 			color,
 			flipx,flipy,
@@ -303,7 +303,7 @@ void f1gp_state::f1gpb_draw_sprites( screen_device &screen,bitmap_ind16 &bitmap,
 			pri ? 0 : 0x2,15);
 
 		// wrap around x
-		pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1 + gfx],
+		m_gfxdecode->gfx(1 + gfx)->prio_transpen(bitmap,cliprect,
 			code,
 			color,
 			flipx,flipy,

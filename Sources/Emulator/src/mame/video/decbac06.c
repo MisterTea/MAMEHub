@@ -66,7 +66,7 @@ Priority word (Midres):
 const device_type DECO_BAC06 = &device_creator<deco_bac06_device>;
 
 deco_bac06_device::deco_bac06_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, DECO_BAC06, "decbac06_device", tag, owner, clock, "deco_bac06", __FILE__),
+	: device_t(mconfig, DECO_BAC06, "DECO BAC06 Tilemap", tag, owner, clock, "deco_bac06", __FILE__),
 		m_pf_data(NULL),
 		m_pf_rowscroll(NULL),
 		m_pf_colscroll(NULL),
@@ -77,14 +77,31 @@ deco_bac06_device::deco_bac06_device(const machine_config &mconfig, const char *
 		m_gfxregion16x16(0),
 		m_wide(0),
 		m_bppmult(0),
-		m_bppmask(0)
-		//m_pf_control_0[8]
-		//m_pf_control_1[8]
+		m_bppmask(0),
+		m_gfxdecode(*this)
 {
+	for (int i = 0; i < 8; i++)
+		{
+			m_pf_control_0[i] = 0;
+			m_pf_control_1[i] = 0;
+		}
+}
+
+//-------------------------------------------------
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
+//-------------------------------------------------
+
+void deco_bac06_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
+{
+	downcast<deco_bac06_device &>(device).m_gfxdecode.set_tag(tag);
 }
 
 void deco_bac06_device::device_start()
 {
+	if(!m_gfxdecode->started())
+		throw device_missing_dependencies();
+
 	m_pf_data = auto_alloc_array_clear(machine(), UINT16, 0x4000 / 2); // 0x2000 is the maximum needed, some games / chip setups map less and mirror - stadium hero banks this to 0x4000?!
 	m_pf_rowscroll = auto_alloc_array_clear(machine(), UINT16, 0x2000 / 2);
 	m_pf_colscroll = auto_alloc_array_clear(machine(), UINT16, 0x2000 / 2);
@@ -169,29 +186,29 @@ void deco_bac06_device::create_tilemaps(int region8x8, int region16x16)
 {
 	m_tile_region = region8x8;
 
-	m_pf8x8_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf8x8_tile_info),this),tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape0_8x8_scan),this), 8, 8,128, 32);
-	m_pf8x8_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf8x8_tile_info),this),tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape1_8x8_scan),this), 8, 8, 64, 64);
-	m_pf8x8_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf8x8_tile_info),this),tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape2_8x8_scan),this), 8, 8, 32,128);
+	m_pf8x8_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf8x8_tile_info),this),tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape0_8x8_scan),this), 8, 8,128, 32);
+	m_pf8x8_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf8x8_tile_info),this),tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape1_8x8_scan),this), 8, 8, 64, 64);
+	m_pf8x8_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf8x8_tile_info),this),tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape2_8x8_scan),this), 8, 8, 32,128);
 
 	m_tile_region = region16x16;
 
 	if (m_wide==2)
 	{
-		m_pf16x16_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this), tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape0_scan),this), 16, 16, 256, 16);
-		m_pf16x16_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this), tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape1_scan),this),  16, 16,  128, 32);
-		m_pf16x16_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this), tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape2_scan),this),  16, 16,  64, 64);
+		m_pf16x16_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this), tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape0_scan),this), 16, 16, 256, 16);
+		m_pf16x16_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this), tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape1_scan),this),  16, 16,  128, 32);
+		m_pf16x16_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this), tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape2_scan),this),  16, 16,  64, 64);
 	}
 	else if (m_wide==1)
 	{
-		m_pf16x16_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this), tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape0_scan),this), 16, 16, 128, 16);
-		m_pf16x16_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this), tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape1_scan),this),  16, 16,  64, 32);
-		m_pf16x16_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this), tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape2_scan),this),  16, 16,  32, 64);
+		m_pf16x16_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this), tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape0_scan),this), 16, 16, 128, 16);
+		m_pf16x16_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this), tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape1_scan),this),  16, 16,  64, 32);
+		m_pf16x16_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this), tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape2_scan),this),  16, 16,  32, 64);
 	}
 	else
 	{
-		m_pf16x16_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this),tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape0_scan),this),    16,16, 64, 16);
-		m_pf16x16_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this),tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape1_scan),this),    16,16, 32, 32);
-		m_pf16x16_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this),tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape2_scan),this),    16,16, 16, 64);
+		m_pf16x16_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this),tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape0_scan),this),    16,16, 64, 16);
+		m_pf16x16_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this),tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape1_scan),this),    16,16, 32, 32);
+		m_pf16x16_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(deco_bac06_device::get_pf16x16_tile_info),this),tilemap_mapper_delegate(FUNC(deco_bac06_device::tile_shape2_scan),this),    16,16, 16, 64);
 	}
 }
 

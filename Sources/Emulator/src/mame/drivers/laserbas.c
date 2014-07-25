@@ -218,7 +218,7 @@ static ADDRESS_MAP_START( laserbas_io, AS_IO, 8, laserbas_state )
 	AM_RANGE(0x20, 0x23) AM_WRITE(out_w)
 	AM_RANGE(0x40, 0x43) AM_DEVREADWRITE("pit0", pit8253_device, read, write)
 	AM_RANGE(0x44, 0x47) AM_DEVREADWRITE("pit1", pit8253_device, read, write)
-	AM_RANGE(0x80, 0x9f) AM_RAM_WRITE(paletteram_RRRGGGBB_byte_w) AM_SHARE("paletteram")
+	AM_RANGE(0x80, 0x9f) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 static INPUT_PORTS_START( laserbas )
@@ -286,64 +286,6 @@ void laserbas_state::machine_reset()
 	m_count = 0;
 }
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-
-/* TODO: clocks aren't known */
-static const struct pit8253_interface laserbas_pit8253_intf_0 =
-{
-	{
-		{
-			31250,
-			DEVCB_NULL,
-			DEVCB_NULL
-		},
-		{
-			31250,
-			DEVCB_NULL,
-			DEVCB_NULL
-		},
-		{
-			31250,
-			DEVCB_NULL,
-			DEVCB_NULL
-		}
-	}
-};
-
-static const struct pit8253_interface laserbas_pit8253_intf_1 =
-{
-	{
-		{
-			31250,
-			DEVCB_NULL,
-			DEVCB_NULL
-		},
-		{
-			31250,
-			DEVCB_NULL,
-			DEVCB_NULL
-		},
-		{
-			31250,
-			DEVCB_NULL,
-			DEVCB_NULL
-		}
-	}
-};
-
 static MACHINE_CONFIG_START( laserbas, laserbas_state )
 
 	MCFG_CPU_ADD("maincpu", Z80, 4000000)
@@ -352,9 +294,16 @@ static MACHINE_CONFIG_START( laserbas, laserbas_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", laserbas_state, irq0_line_hold)
 //  MCFG_TIMER_DRIVER_ADD_PERIODIC("nmi", laserbas_state, nmi_line_pulse, attotime::from_hz(60))
 
-	MCFG_PIT8253_ADD("pit0", laserbas_pit8253_intf_0)
-	MCFG_PIT8253_ADD("pit1", laserbas_pit8253_intf_1)
+	/* TODO: clocks aren't known */
+	MCFG_DEVICE_ADD("pit0", PIT8253, 0)
+	MCFG_PIT8253_CLK0(31250)
+	MCFG_PIT8253_CLK1(31250)
+	MCFG_PIT8253_CLK2(31250)
 
+	MCFG_DEVICE_ADD("pit1", PIT8253, 0)
+	MCFG_PIT8253_CLK0(31250)
+	MCFG_PIT8253_CLK1(31250)
+	MCFG_PIT8253_CLK2(31250)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -362,10 +311,14 @@ static MACHINE_CONFIG_START( laserbas, laserbas_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(laserbas_state, screen_update_laserbas)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_MC6845_ADD("crtc", H46505, "screen", 3000000/4, mc6845_intf) /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_ADD("crtc", H46505, "screen", 3000000/4) /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
-	MCFG_PALETTE_LENGTH(32)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_FORMAT(RRRGGGBB)
 MACHINE_CONFIG_END
 
 /*

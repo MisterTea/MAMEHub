@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Roberto Fresca
 /**************************************************************************
 
   Waku Waku Doubutsu Land TonTon (c) 199? Success.
@@ -228,30 +230,6 @@ WRITE8_MEMBER(tonton_state::ay_bout_w)
 	logerror("AY8910: Port B out: %02X\n", data);
 }
 
-
-/*************************************************
-*                Sound Interfaces                *
-*************************************************/
-
-static const ay8910_interface ay8910_intf =
-{
-/*
-  AY8910: Port A out: FF
-  AY8910: Port B out: FF
-  AY8910: Port A out: FF
-  AY8910: Port B out: FF
-  AY8910: Port A out: 00
-  AY8910: Port B out: 00
-*/
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,                 /* Seems unused */
-	DEVCB_NULL,                 /* Seems unused */
-	DEVCB_DRIVER_MEMBER(tonton_state,ay_aout_w),    /* Write all bits twice, and then reset them at boot */
-	DEVCB_DRIVER_MEMBER(tonton_state,ay_bout_w)     /* Write all bits twice, and then reset them at boot */
-};
-
-
 /*************************************************
 *                 Machine Driver                 *
 *************************************************/
@@ -268,27 +246,34 @@ static MACHINE_CONFIG_START( tonton, tonton_state )
 
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
-
 	MCFG_V9938_ADD("v9938", "screen", VDP_MEM)
 	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(tonton_state,tonton_vdp0_interrupt))
 
 	MCFG_SCREEN_ADD("screen",RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 
 	MCFG_SCREEN_SIZE(MSX2_TOTAL_XRES_PIXELS, MSX2_TOTAL_YRES_PIXELS)
 	MCFG_SCREEN_VISIBLE_AREA(MSX2_XBORDER_PIXELS - MSX2_VISIBLE_XBORDER_PIXELS, MSX2_TOTAL_XRES_PIXELS - MSX2_XBORDER_PIXELS + MSX2_VISIBLE_XBORDER_PIXELS - 1, MSX2_YBORDER_PIXELS - MSX2_VISIBLE_YBORDER_PIXELS, MSX2_TOTAL_YRES_PIXELS - MSX2_YBORDER_PIXELS + MSX2_VISIBLE_YBORDER_PIXELS - 1)
 	MCFG_SCREEN_UPDATE_DEVICE("v9938", v9938_device, screen_update)
-
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_SCREEN_PALETTE("v9938:palette")
 
 	MCFG_TICKET_DISPENSER_ADD("hopper", attotime::from_msec(HOPPER_PULSE), TICKET_MOTOR_ACTIVE_LOW, TICKET_STATUS_ACTIVE_LOW )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("aysnd", YM2149, YM2149_CLOCK)   /* Guess. According to other MSX2 based gambling games */
-	MCFG_SOUND_CONFIG(ay8910_intf)
+	/*
+	  AY8910: Port A out: FF
+	  AY8910: Port B out: FF
+	  AY8910: Port A out: FF
+	  AY8910: Port B out: FF
+	  AY8910: Port A out: 00
+	  AY8910: Port B out: 00
+	*/
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(tonton_state, ay_aout_w))    /* Write all bits twice, and then reset them at boot */
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(tonton_state, ay_bout_w))     /* Write all bits twice, and then reset them at boot */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 

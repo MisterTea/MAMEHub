@@ -66,13 +66,13 @@ ifeq ($(OS),Windows_NT)
 TARGETOS = win32
 else
 
-ifneq ($(CROSSBUILD),1)
+ifneq ($(CROSS_BUILD),1)
 
 ifneq ($(OS2_SHELL),)
 TARGETOS = os2
 else
 
-UNAME = $(shell uname -a)
+UNAME = $(shell uname -mps)
 
 ifeq ($(firstword $(filter Linux,$(UNAME))),Linux)
 TARGETOS = linux
@@ -262,6 +262,9 @@ BUILD_MIDILIB = 1
 # uncomment next line to enable networking
 # USE_NETWORK = 1
 
+# uncomment to enable SSE2 optimized code and SSE2 code generation (implicitly enabled by 64-bit compilers)
+SSE2 = 1
+
 # specify optimization level or leave commented to use the default
 # (default is OPTIMIZE = 3 normally, or OPTIMIZE = 0 with symbols)
 # OPTIMIZE = 3
@@ -275,6 +278,11 @@ BUILD_MIDILIB = 1
 #-------------------------------------------------
 # sanity check the configuration
 #-------------------------------------------------
+
+# enable symbols as it is useless without them
+ifdef SANITIZE
+SYMBOLS = 1
+endif
 
 # specify a default optimization level if none explicitly stated
 ifndef OPTIMIZE
@@ -292,6 +300,7 @@ PROFILER = 1
 endif
 endif
 
+# TODO: also move it up, so it isn't optimized by default?
 # allow gprof profiling as well, which overrides the internal PROFILER
 # also enable symbols as it is useless without them
 ifdef PROFILE
@@ -329,9 +338,11 @@ BUILD_EXE = $(EXE)
 endif
 
 # compiler, linker and utilities
+ifneq ($(TARGETOS),emscripten)
 AR = @ar
 CC = @gcc
 LD = @g++
+endif
 MD = -mkdir$(EXE)
 RM = @rm -f
 OBJDUMP = @objdump
@@ -353,6 +364,10 @@ ifeq ($(OSD),sdl)
 ifeq ($(TARGETOS),win32)
 PREFIXSDL = sdl
 endif
+endif
+
+ifeq ($(OSD),osdmini)
+PREFIXSDL = mini
 endif
 
 # 64-bit builds get a '64' suffix
@@ -396,6 +411,11 @@ SRC = src
 # build the targets in different object dirs, so they can co-exist
 OBJ = obj/$(PREFIX)$(OSD)$(SUFFIX)$(SUFFIX64)$(SUFFIXDEBUG)$(SUFFIXPROFILE)
 
+ifeq ($(CROSS_BUILD),1)
+ifndef NATIVE_OBJ
+NATIVE_OBJ = OBJ
+endif # NATIVE_OBJ
+endif # CROSS_BUILD
 
 
 #-------------------------------------------------
@@ -416,9 +436,6 @@ DEFS += -D_USE_MATH_DEFINES
 
 #Defines for boost
 DEFS += -DBOOST_THREAD_BUILD_LIB -DBOOST_ALL_NO_LIB
-
-#Define HAVE_CONFIG_H for vorbis
-DEFS += -DHAVE_CONFIG_H
 
 #Define _RAKNET_LIB for RakNet
 DEFS += -D_RAKNET_LIB
@@ -500,7 +517,7 @@ CCOMFLAGS += -pipe
 
 # add -g if we need symbols, and ensure we have frame pointers
 ifdef SYMBOLS
-CCOMFLAGS += -g$(SYMLEVEL) -fno-omit-frame-pointer
+CCOMFLAGS += -g$(SYMLEVEL) -fno-omit-frame-pointer -fno-optimize-sibling-calls
 endif
 
 # add -v if we need verbose build information
@@ -535,6 +552,10 @@ CCOMFLAGS += -flto
 endif
 endif
 
+ifdef SSE2
+CCOMFLAGS += -msse2
+endif
+
 # add a basic set of warnings
 CCOMFLAGS += \
 	-Wall \
@@ -559,15 +580,7 @@ COBJFLAGS += \
 CPPONLYFLAGS += \
 	-Woverloaded-virtual
 
-ifneq (,$(findstring clang,$(CC)))
-CCOMFLAGS += \
-	-Wno-cast-align \
-	-Wno-tautological-compare \
-	-Wno-constant-logical-operand \
-	-Wno-format-security \
-	-Wno-shift-count-overflow \
-	-Wno-self-assign-field
-endif
+include $(SRC)/build/cc_detection.mak
 
 ifdef SANITIZE
 CCOMFLAGS += -fsanitize=$(SANITIZE)
@@ -577,6 +590,12 @@ endif
 ifneq (,$(findstring memory,$(SANITIZE)))
 ifneq (,$(findstring clang,$(CC)))
 CCOMFLAGS += -fsanitize-memory-track-origins -fPIE
+endif
+endif
+ifneq (,$(findstring undefined,$(SANITIZE)))
+ifneq (,$(findstring clang,$(CC)))
+# TODO: check if linker is clang++
+CCOMFLAGS += -fno-sanitize=alignment -fno-sanitize=function -fno-sanitize=shift -fno-sanitize=null -fno-sanitize=signed-integer-overflow -fno-sanitize=vptr -fno-sanitize=float-cast-overflow -fno-sanitize=integer-divide-by-zero -fno-sanitize=float-divide-by-zero -fno-sanitize=object-size
 endif
 endif
 endif
@@ -636,6 +655,9 @@ ifeq ($(TARGETOS),macosx)
 ifeq ($(COMMAND_MODE),"legacy")
 ARFLAGS = -crs
 endif
+endif
+ifeq ($(TARGETOS),emscripten)
+ARFLAGS = cr
 endif
 
 
@@ -704,6 +726,7 @@ OBJDIRS = $(OBJ) $(OBJ)/$(TARGET)/$(SUBTARGET)
 
 LIBEMU = $(OBJ)/libemu.a
 LIBOPTIONAL = $(OBJ)/$(TARGET)/$(SUBTARGET)/liboptional.a
+LIBBUS = $(OBJ)/$(TARGET)/$(SUBTARGET)/libbus.a
 LIBDASM = $(OBJ)/$(TARGET)/$(SUBTARGET)/libdasm.a
 LIBUTIL = $(OBJ)/libutil.a
 LIBOCORE = $(OBJ)/libocore.a
@@ -773,6 +796,9 @@ LUA_LIB = $(OBJ)/liblua.a
 # add web library
 WEB_LIB = $(OBJ)/libweb.a
 
+# add SQLite3 library
+SQLITE3_LIB = $(OBJ)/libsqlite3.a
+
 # add PortMidi MIDI library
 ifeq ($(BUILD_MIDILIB),1)
 INCPATH += -I$(SRC)/lib/portmidi
@@ -829,6 +855,9 @@ BUILDSRC = $(SRC)/build
 BUILDOBJ = $(OBJ)/build
 BUILDOUT = $(BUILDOBJ)
 
+ifdef NATIVE_OBJ
+BUILDOUT = $(NATIVE_OBJ)/build
+endif # NATIVE_OBJ
 
 
 #-------------------------------------------------
@@ -899,7 +928,7 @@ tests: $(REGTESTS)
 
 mak: maketree $(MAKEMAK_TARGET)
 	@echo Rebuilding $(SUBTARGET).mak...
-	$(MAKEMAK) $(SRC)/targets/$(SUBTARGET).lst -I$(SRC)/emu -I$(SRC)/mame -I$(SRC)/mame/layout -I$(SRC)/mess -I$(SRC)/mess/layout $(SRC) > $(SUBTARGET).mak
+	$(MAKEMAK) $(SRC)/targets/$(SUBTARGET).lst -I. -I$(SRC)/emu -I$(SRC)/mame -I$(SRC)/mame/layout -I$(SRC)/mess -I$(SRC)/mess/layout $(SRC) > $(SUBTARGET).mak
 	$(MAKEMAK) $(SRC)/targets/$(SUBTARGET).lst > $(SUBTARGET).lst
 
 #-------------------------------------------------
@@ -917,7 +946,7 @@ $(sort $(OBJDIRS)):
 
 ifndef EXECUTABLE_DEFINED
 
-$(EMULATOR): $(EMUINFOOBJ) $(DRIVLISTOBJ) $(DRVLIBS) $(LIBOSD) $(LIBOPTIONAL) $(LIBEMU) $(LIBDASM) $(LIBUTIL) $(EXPAT) $(BOOST_THREAD) $(RAKNET) $(SOFTFLOAT) $(JPEG_LIB) $(FLAC_LIB) $(WEBM) $(PROTOBUF) $(THRIFT) $(7Z_LIB) $(FORMATS_LIB) $(LUA_LIB) $(WEB_LIB) $(ZLIB) $(LIBOCORE) $(MIDI_LIB) $(RESFILE)
+$(EMULATOR): $(EMUINFOOBJ) $(DRIVLISTOBJ) $(DRVLIBS) $(LIBOSD) $(LIBBUS) $(LIBOPTIONAL) $(LIBEMU) $(LIBDASM) $(LIBUTIL) $(EXPAT) $(BOOST_THREAD) $(RAKNET) $(SOFTFLOAT) $(JPEG_LIB) $(FLAC_LIB) $(WEBM) $(PROTOBUF) $(THRIFT) $(7Z_LIB) $(FORMATS_LIB) $(LUA_LIB) $(SQLITE3_LIB) $(WEB_LIB) $(ZLIB) $(LIBOCORE) $(MIDI_LIB) $(RESFILE)
 	$(CC) $(CDEFS) $(CFLAGS) -c $(SRC)/version.c -o $(VERSIONOBJ)
 	@echo Linking $@...
 ifeq ($(TARGETOS),win32)

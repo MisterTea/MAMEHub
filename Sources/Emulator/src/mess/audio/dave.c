@@ -61,7 +61,8 @@ dave_device::dave_device(const machine_config &mconfig, const char *tag, device_
 		m_io_space_config("i/o", ENDIANNESS_LITTLE, 8, 16, 0, *ADDRESS_MAP_NAME(io_map)),
 		m_write_irq(*this),
 		m_write_lh(*this),
-		m_write_rh(*this)
+		m_write_rh(*this),
+		m_irq_status(0)
 {
 }
 
@@ -106,7 +107,7 @@ void dave_device::device_start()
 	 the volumes are mixed internally and output as left and right volume */
 
 	/* 3 tone channels + 1 noise channel */
-	m_sound_stream_var = machine().sound().stream_alloc(*this, 0, 2, machine().sample_rate(), this);
+	m_sound_stream_var = machine().sound().stream_alloc(*this, 0, 2, machine().sample_rate());
 }
 
 

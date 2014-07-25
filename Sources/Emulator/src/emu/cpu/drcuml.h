@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     drcuml.h
 
     Universal machine language for dynamic recompiling CPU cores.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -139,7 +110,7 @@ public:
 
 	// instruction appending
 	uml::instruction &append();
-	void append_comment(const char *format, ...);
+	void append_comment(const char *format, ...) ATTR_PRINTF(2,3);
 
 	// this class is thrown if abort() is called
 	class abort_compilation : public emu_exception
@@ -159,7 +130,7 @@ private:
 	drcuml_block *          m_next;             // pointer to next block
 	UINT32                  m_nextinst;         // next instruction to fill in the cache
 	UINT32                  m_maxinst;          // maximum number of instructions
-	uml::instruction *      m_inst;             // pointer to the instruction list
+	dynamic_array<uml::instruction> m_inst;     // pointer to the instruction list
 	bool                    m_inuse;            // this block is in use
 };
 
@@ -223,7 +194,7 @@ public:
 
 	// logging
 	bool logging() const { return (m_umllog != NULL); }
-	void log_printf(const char *format, ...);
+	void log_printf(const char *format, ...) ATTR_PRINTF(2,3);
 	void log_flush() { if (logging()) fflush(m_umllog); }
 
 private:

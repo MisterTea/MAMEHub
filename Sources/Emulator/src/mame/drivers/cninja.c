@@ -785,119 +785,42 @@ WRITE8_MEMBER(cninja_state::sound_bankswitch_w)
 
 /**********************************************************************************/
 
-static int cninja_bank_callback( const int bank )
+DECO16IC_BANK_CB_MEMBER(cninja_state::cninja_bank_callback)
 {
 	if ((bank >> 4) & 0xf)
 		return 0x0000; /* Only 2 banks */
 	return 0x1000;
 }
 
-static int robocop2_bank_callback( const int bank )
+DECO16IC_BANK_CB_MEMBER(cninja_state::robocop2_bank_callback)
 {
 	return (bank & 0x30) << 8;
 }
 
-static int mutantf_1_bank_callback( const int bank )
+DECO16IC_BANK_CB_MEMBER(cninja_state::mutantf_1_bank_callback)
 {
 	return ((bank >> 4) & 0x3) << 12;
 }
 
-static int mutantf_2_bank_callback( const int bank )
+DECO16IC_BANK_CB_MEMBER(cninja_state::mutantf_2_bank_callback)
 {
 	return ((bank >> 5) & 0x1) << 14;
 }
 
-static const deco16ic_interface cninja_deco16ic_tilegen1_intf =
+
+DECOSPR_PRIORITY_CB_MEMBER(cninja_state::pri_callback)
 {
-	1, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0, 16, /* color base */
-	0x0f, 0x0f, /* color masks (default values) */
-	NULL,
-	NULL,
-	0, 1,
-};
+	/* Sprite/playfield priority */
+	switch (pri & 0xc000)
+	{
+		case 0x0000: return 0;
+		case 0x4000: return 0xf0;
+		case 0x8000: return 0xf0 | 0xcc;
+		case 0xc000: return 0xf0 | 0xcc; /* Perhaps 0xf0|0xcc|0xaa (Sprite under bottom layer) */
+	}
 
-static const deco16ic_interface cninja_deco16ic_tilegen2_intf =
-{
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0, 48, /* color base */
-	0x0f, 0x0f, /* color masks (default values) */
-	cninja_bank_callback,
-	cninja_bank_callback,
-	0, 2,
-};
-
-
-
-static const deco16ic_interface edrandy_deco16ic_tilegen1_intf =
-{
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0, 16, /* color base  */
-	0x0f, 0x0f, /* color masks (default values) */
-	NULL,
-	NULL,
-	0,1,
-};
-
-static const deco16ic_interface edrandy_deco16ic_tilegen2_intf =
-{
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0, 48, /* color base  */
-	0x0f, 0x0f, /* color masks (default values) */
-	cninja_bank_callback,
-	cninja_bank_callback,
-	0,2,
-};
-
-
-static const deco16ic_interface robocop2_deco16ic_tilegen1_intf =
-{
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0, 16, /* color base */
-	0x0f, 0x0f, /* color masks (default values) */
-	NULL,
-	robocop2_bank_callback,
-	0,1,
-};
-
-static const deco16ic_interface robocop2_deco16ic_tilegen2_intf =
-{
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0, 48, /* color base */
-	0x0f, 0x0f, /* color masks (default values) */
-	robocop2_bank_callback,
-	robocop2_bank_callback,
-	0,2,
-};
-
-
-static const deco16ic_interface mutantf_deco16ic_tilegen1_intf =
-{
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0, 0x30, /* color base */
-	0x0f, 0x0f, /* color masks (default values) */
-	mutantf_1_bank_callback,
-	mutantf_2_bank_callback,
-	0,1,
-};
-
-static const deco16ic_interface mutantf_deco16ic_tilegen2_intf =
-{
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0x20, 0x40, /* color base */
-	0x0f, 0x0f, /* color masks (default values) */
-	mutantf_1_bank_callback,
-	mutantf_1_bank_callback,
-	0,2,
-};
+	return 0;
+}
 
 
 void cninja_state::machine_start()
@@ -911,22 +834,6 @@ void cninja_state::machine_reset()
 	m_scanline = 0;
 	m_irq_mask = 0;
 }
-
-
-UINT16 cninja_pri_callback(UINT16 x)
-{
-	/* Sprite/playfield priority */
-	switch (x & 0xc000)
-	{
-		case 0x0000: return 0;
-		case 0x4000: return 0xf0;
-		case 0x8000: return 0xf0 | 0xcc;
-		case 0xc000: return 0xf0 | 0xcc; /* Perhaps 0xf0|0xcc|0xaa (Sprite under bottom layer) */
-	}
-
-	return 0;
-}
-
 
 static MACHINE_CONFIG_START( cninja, cninja_state )
 
@@ -947,20 +854,51 @@ static MACHINE_CONFIG_START( cninja, cninja_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cninja_state, screen_update_cninja)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cninja)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cninja)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
 	MCFG_DECOCOMN_ADD("deco_common")
+	MCFG_DECOCOMN_PALETTE("palette")
 
-	MCFG_DECO16IC_ADD("tilegen1", cninja_deco16ic_tilegen1_intf)
-	MCFG_DECO16IC_ADD("tilegen2", cninja_deco16ic_tilegen2_intf)
+	MCFG_DEVICE_ADD("tilegen1", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(1)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x10)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(1)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("tilegen2", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x30)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(cninja_state, cninja_bank_callback)
+	MCFG_DECO16IC_BANK2_CB(cninja_state, cninja_bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(2)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 3);
-	decospr_device::set_pri_callback(*device, cninja_pri_callback);
+	MCFG_DECO_SPRITE_GFX_REGION(3)
+	MCFG_DECO_SPRITE_PRIORITY_CB(cninja_state, pri_callback)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	MCFG_DECO104_ADD("ioprot104")
 	MCFG_DECO146_SET_USE_MAGIC_ADDRESS_XOR
@@ -1004,22 +942,53 @@ static MACHINE_CONFIG_START( stoneage, cninja_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cninja_state, screen_update_cninja)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cninja)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cninja)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 	MCFG_VIDEO_START_OVERRIDE(cninja_state,stoneage)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
 	MCFG_DECOCOMN_ADD("deco_common")
+	MCFG_DECOCOMN_PALETTE("palette")
 
-	MCFG_DECO16IC_ADD("tilegen1", cninja_deco16ic_tilegen1_intf)
-	MCFG_DECO16IC_ADD("tilegen2", cninja_deco16ic_tilegen2_intf)
+	MCFG_DEVICE_ADD("tilegen1", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(1)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x10)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(1)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("tilegen2", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x30)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(cninja_state, cninja_bank_callback)
+	MCFG_DECO16IC_BANK2_CB(cninja_state, cninja_bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(2)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 3);
-	decospr_device::set_pri_callback(*device, cninja_pri_callback);
+	MCFG_DECO_SPRITE_GFX_REGION(3)
+	MCFG_DECO_SPRITE_PRIORITY_CB(cninja_state, pri_callback)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	MCFG_DECO104_ADD("ioprot104")
 	MCFG_DECO146_SET_USE_MAGIC_ADDRESS_XOR
@@ -1060,16 +1029,45 @@ static MACHINE_CONFIG_START( cninjabl, cninja_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cninja_state, screen_update_cninjabl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cninjabl)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cninjabl)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
 	MCFG_DECOCOMN_ADD("deco_common")
+	MCFG_DECOCOMN_PALETTE("palette")
 
-	MCFG_DECO16IC_ADD("tilegen1", cninja_deco16ic_tilegen1_intf)
-	MCFG_DECO16IC_ADD("tilegen2", cninja_deco16ic_tilegen2_intf)
+	MCFG_DEVICE_ADD("tilegen1", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(1)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x10)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(1)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("tilegen2", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x30)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(cninja_state, cninja_bank_callback)
+	MCFG_DECO16IC_BANK2_CB(cninja_state, cninja_bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(2)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1103,20 +1101,51 @@ static MACHINE_CONFIG_START( edrandy, cninja_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cninja_state, screen_update_edrandy)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(cninja)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cninja)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
 	MCFG_DECOCOMN_ADD("deco_common")
+	MCFG_DECOCOMN_PALETTE("palette")
 
-	MCFG_DECO16IC_ADD("tilegen1", edrandy_deco16ic_tilegen1_intf)
-	MCFG_DECO16IC_ADD("tilegen2", edrandy_deco16ic_tilegen2_intf)
+	MCFG_DEVICE_ADD("tilegen1", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x10)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(1)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("tilegen2", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x30)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(cninja_state, cninja_bank_callback)
+	MCFG_DECO16IC_BANK2_CB(cninja_state, cninja_bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(2)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 3);
-	decospr_device::set_pri_callback(*device, cninja_pri_callback);
+	MCFG_DECO_SPRITE_GFX_REGION(3)
+	MCFG_DECO_SPRITE_PRIORITY_CB(cninja_state, pri_callback)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	MCFG_DECO146_ADD("ioprot")
 
@@ -1159,20 +1188,52 @@ static MACHINE_CONFIG_START( robocop2, cninja_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cninja_state, screen_update_robocop2)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(robocop2)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", robocop2)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
 	MCFG_DECOCOMN_ADD("deco_common")
+	MCFG_DECOCOMN_PALETTE("palette")
 
-	MCFG_DECO16IC_ADD("tilegen1", robocop2_deco16ic_tilegen1_intf)
-	MCFG_DECO16IC_ADD("tilegen2", robocop2_deco16ic_tilegen2_intf)
+	MCFG_DEVICE_ADD("tilegen1", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x10)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK2_CB(cninja_state, robocop2_bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(1)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("tilegen2", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x30)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(cninja_state, robocop2_bank_callback)
+	MCFG_DECO16IC_BANK2_CB(cninja_state, robocop2_bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(2)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 3);
-	decospr_device::set_pri_callback(*device, cninja_pri_callback);
+	MCFG_DECO_SPRITE_GFX_REGION(3)
+	MCFG_DECO_SPRITE_PRIORITY_CB(cninja_state, pri_callback)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	MCFG_DECO146_ADD("ioprot")
 	MCFG_DECO146_SET_USE_MAGIC_ADDRESS_XOR
@@ -1221,22 +1282,56 @@ static MACHINE_CONFIG_START( mutantf, cninja_state )
 
 	MCFG_VIDEO_START_OVERRIDE(cninja_state,mutantf)
 
-	MCFG_GFXDECODE(mutantf)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mutantf)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram2")
 
 	MCFG_DECOCOMN_ADD("deco_common")
+	MCFG_DECOCOMN_PALETTE("palette")
 
-	MCFG_DECO16IC_ADD("tilegen1", mutantf_deco16ic_tilegen1_intf)
-	MCFG_DECO16IC_ADD("tilegen2", mutantf_deco16ic_tilegen2_intf)
+	MCFG_DEVICE_ADD("tilegen1", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x30)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(cninja_state, mutantf_1_bank_callback)
+	MCFG_DECO16IC_BANK2_CB(cninja_state, mutantf_2_bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(1)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
+
+	MCFG_DEVICE_ADD("tilegen2", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x20)
+	MCFG_DECO16IC_PF2_COL_BANK(0x40)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(cninja_state, mutantf_1_bank_callback)
+	MCFG_DECO16IC_BANK2_CB(cninja_state, mutantf_1_bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(2)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("spritegen1", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 3);
+	MCFG_DECO_SPRITE_GFX_REGION(3)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("spritegen2", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 4);
+	MCFG_DECO_SPRITE_GFX_REGION(4)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	MCFG_DECO146_ADD("ioprot")
 

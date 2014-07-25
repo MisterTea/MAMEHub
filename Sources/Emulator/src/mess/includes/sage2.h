@@ -1,14 +1,15 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/i8251.h"
 #include "machine/i8255.h"
-#include "machine/ieee488.h"
+#include "bus/ieee488/ieee488.h"
 #include "machine/pit8253.h"
 #include "machine/pic8259.h"
 #include "machine/ram.h"
-#include "machine/serial.h"
 #include "machine/upd765.h"
 
 #define M68000_TAG      "u68"
@@ -70,13 +71,12 @@ public:
 	DECLARE_WRITE8_MEMBER( ppi0_pc_w );
 	DECLARE_READ8_MEMBER( ppi1_pb_r );
 	DECLARE_WRITE8_MEMBER( ppi1_pc_w );
-	DECLARE_WRITE_LINE_MEMBER( ack_w );
 
 	DECLARE_WRITE8_MEMBER(kbd_put);
 
 	DECLARE_DIRECT_UPDATE_MEMBER(sage2_direct_update_handler);
 
-	void fdc_irq(bool state);
+	DECLARE_WRITE_LINE_MEMBER( fdc_irq );
 
 	const UINT8 *m_rom;
 	int m_reset;
@@ -85,4 +85,15 @@ public:
 	int m_fdc_int;
 	int m_fdie;
 	DECLARE_DRIVER_INIT(sage2);
+
+	int m_centronics_busy;
+	int m_centronics_perror;
+	int m_centronics_select;
+	int m_centronics_fault;
+
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_ack);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_perror);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_select);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_fault);
 };

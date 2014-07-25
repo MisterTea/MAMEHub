@@ -7,6 +7,7 @@
 #ifndef PDP1_H_
 #define PDP1_H_
 
+#include "cpu/pdp1/pdp1.h"
 #include "video/crt.h"
 
 /* defines for each bit and mask in input port "CSW" */
@@ -234,7 +235,9 @@ class pdp1_state : public driver_device
 public:
 	pdp1_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	pdp1_reset_param_t m_reset_param;
 	int m_io_status;
@@ -260,7 +263,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(pdp1);
 	UINT32 screen_update_pdp1(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_pdp1(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(pdp1_interrupt);
@@ -270,7 +273,7 @@ public:
 	TIMER_CALLBACK_MEMBER(dpy_callback);
 	TIMER_CALLBACK_MEMBER(il_timer_callback);
 	void pdp1_machine_stop();
-	required_device<cpu_device> m_maincpu;
+	required_device<pdp1_device> m_maincpu;
 	inline void pdp1_plot_pixel(bitmap_ind16 &bitmap, int x, int y, UINT32 color);
 	void pdp1_plot(int x, int y);
 	void pdp1_draw_led(bitmap_ind16 &bitmap, int x, int y, int state);
@@ -297,5 +300,7 @@ public:
 	void drum_write(int field, int position, UINT32 data);
 	void pdp1_keyboard();
 	void pdp1_lightpen();
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 #endif /* PDP1_H_ */

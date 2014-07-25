@@ -67,23 +67,6 @@ static ADDRESS_MAP_START( ace_sp_map, AS_PROGRAM, 8, ace_sp_state )
 ADDRESS_MAP_END
 
 
-const pia6821_interface ace_sp_pia0_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_NULL,     /* port A out */
-	DEVCB_NULL,     /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-
 static ADDRESS_MAP_START( ace_sp_portmap, AS_IO, 8, ace_sp_state )
 	//AM_RANGE(0x02, 0x02) // misc
 	//AM_RANGE(0x05, 0x06) // AYs
@@ -99,7 +82,7 @@ static MACHINE_CONFIG_START( ace_sp, ace_sp_state )
 	MCFG_CPU_PROGRAM_MAP(ace_sp_map)
 	MCFG_CPU_IO_MAP(ace_sp_portmap)
 
-	MCFG_PIA6821_ADD("pia0", ace_sp_pia0_intf)
+	MCFG_DEVICE_ADD("pia0", PIA6821, 0)
 
 MACHINE_CONFIG_END
 
@@ -4401,8 +4384,8 @@ GAME( 199?, sp_poundbwbg    ,sp_pound   ,ace_sp ,ace_sp , ace_sp_state,ace_sp   
 
 GAME( 199?, sp_road         ,0          ,ace_sp ,ace_sp , ace_sp_state,ace_sp   ,ROT0   ,"Ace", "Road To Hell (Ace) (sp.ACE)",GAME_IS_SKELETON_MECHANICAL ) // incomplete program
 
-GAME( 199?, sp_skylm        ,0          ,ace_sp ,ace_sp , ace_sp_state,ace_sp   ,ROT0   ,"Ace", "Sky's The Limit Club, The (Ace) (sp.ACE) (set 1)",GAME_IS_SKELETON_MECHANICAL )
-GAME( 199?, sp_skylma       ,sp_skylm   ,ace_sp ,ace_sp , ace_sp_state,ace_sp   ,ROT0   ,"Ace", "Sky's The Limit Club, The (Ace) (sp.ACE) (set 2)",GAME_IS_SKELETON_MECHANICAL )
+GAME( 199?, sp_skylm        ,0          ,ace_sp ,ace_sp , ace_sp_state,ace_sp   ,ROT0   ,"Ace", "The Sky's The Limit Club (Ace) (sp.ACE) (set 1)",GAME_IS_SKELETON_MECHANICAL )
+GAME( 199?, sp_skylma       ,sp_skylm   ,ace_sp ,ace_sp , ace_sp_state,ace_sp   ,ROT0   ,"Ace", "The Sky's The Limit Club (Ace) (sp.ACE) (set 2)",GAME_IS_SKELETON_MECHANICAL )
 
 GAME( 199?, sp_tkpik        ,0          ,ace_sp ,ace_sp , ace_sp_state,ace_sp   ,ROT0   ,"Ace", "Take Your Pick (Ace) (sp.ACE) (set 1)",GAME_IS_SKELETON_MECHANICAL )
 GAME( 199?, sp_tkpika       ,sp_tkpik   ,ace_sp ,ace_sp , ace_sp_state,ace_sp   ,ROT0   ,"Ace", "Take Your Pick (Ace) (sp.ACE) (set 2)",GAME_IS_SKELETON_MECHANICAL )

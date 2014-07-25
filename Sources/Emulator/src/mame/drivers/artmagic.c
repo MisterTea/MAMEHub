@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles,Nicola Salmoria
 /***************************************************************************
 
     Art & Magic hardware
@@ -82,25 +84,6 @@ void artmagic_state::machine_reset()
 {
 	m_tms_irq = m_hack_irq = 0;
 	update_irq_state(machine());
-}
-
-
-
-/*************************************
- *
- *  TMS34010 interface
- *
- *************************************/
-
-READ16_MEMBER(artmagic_state::tms_host_r)
-{
-	return tms34010_host_r(machine().device("tms"), offset);
-}
-
-
-WRITE16_MEMBER(artmagic_state::tms_host_w)
-{
-	tms34010_host_w(machine().device("tms"), offset, data);
 }
 
 
@@ -437,7 +420,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, artmagic_state )
 	AM_RANGE(0x300000, 0x300003) AM_WRITE(control_w) AM_SHARE("control")
 	AM_RANGE(0x300004, 0x300007) AM_WRITE(protection_bit_w)
 	AM_RANGE(0x360000, 0x360001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x380000, 0x380007) AM_READWRITE(tms_host_r, tms_host_w)
+	AM_RANGE(0x380000, 0x380007) AM_DEVREADWRITE("tms", tms34010_device, host_r, host_w)
 ADDRESS_MAP_END
 
 
@@ -456,7 +439,7 @@ static ADDRESS_MAP_START( stonebal_map, AS_PROGRAM, 16, artmagic_state )
 	AM_RANGE(0x300000, 0x300003) AM_WRITE(control_w) AM_SHARE("control")
 	AM_RANGE(0x300004, 0x300007) AM_WRITE(protection_bit_w)
 	AM_RANGE(0x340000, 0x340001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x380000, 0x380007) AM_READWRITE(tms_host_r, tms_host_w)
+	AM_RANGE(0x380000, 0x380007) AM_DEVREADWRITE("tms", tms34010_device, host_r, host_w)
 ADDRESS_MAP_END
 
 READ16_MEMBER(artmagic_state::unk_r)
@@ -482,7 +465,7 @@ static ADDRESS_MAP_START( shtstar_map, AS_PROGRAM, 16, artmagic_state )
 	AM_RANGE(0x300000, 0x300003) AM_WRITE(control_w) AM_SHARE("control")
 	AM_RANGE(0x3c0004, 0x3c0007) AM_WRITE(protection_bit_w)
 	AM_RANGE(0x340000, 0x340001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x380000, 0x380007) AM_READWRITE(tms_host_r, tms_host_w)
+	AM_RANGE(0x380000, 0x380007) AM_DEVREADWRITE("tms", tms34010_device, host_r, host_w)
 ADDRESS_MAP_END
 
 
@@ -492,7 +475,7 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-static const tms34010_config tms_config =
+static const tms340x0_config tms_config =
 {
 	TRUE,                           /* halt on reset */
 	"screen",                       /* the screen operated on */
@@ -511,7 +494,7 @@ static ADDRESS_MAP_START( tms_map, AS_PROGRAM, 16, artmagic_state )
 	AM_RANGE(0x00400000, 0x005fffff) AM_RAM AM_SHARE("vram1")
 	AM_RANGE(0x00800000, 0x0080007f) AM_READWRITE(artmagic_blitter_r, artmagic_blitter_w)
 	AM_RANGE(0x00c00000, 0x00c000ff) AM_DEVREADWRITE8("tlc34076", tlc34076_device, read, write, 0x00ff)
-	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00001ff) AM_DEVREADWRITE("tms", tms34010_device, io_register_r, io_register_w)
 	AM_RANGE(0xffe00000, 0xffffffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -521,7 +504,7 @@ static ADDRESS_MAP_START( stonebal_tms_map, AS_PROGRAM, 16, artmagic_state )
 	AM_RANGE(0x00400000, 0x005fffff) AM_RAM AM_SHARE("vram1")
 	AM_RANGE(0x00800000, 0x0080007f) AM_READWRITE(artmagic_blitter_r, artmagic_blitter_w)
 	AM_RANGE(0x00c00000, 0x00c000ff) AM_DEVREADWRITE8("tlc34076", tlc34076_device, read, write, 0x00ff)
-	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00001ff) AM_DEVREADWRITE("tms", tms34010_device, io_register_r, io_register_w)
 	AM_RANGE(0xffc00000, 0xffffffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -844,7 +827,7 @@ static MACHINE_CONFIG_START( artmagic, artmagic_state )
 	MCFG_CPU_PROGRAM_MAP(main_map)
 
 	MCFG_CPU_ADD("tms", TMS34010, MASTER_CLOCK_40MHz)
-	MCFG_CPU_CONFIG(tms_config)
+	MCFG_TMS340X0_CONFIG(tms_config)
 	MCFG_CPU_PROGRAM_MAP(tms_map)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))

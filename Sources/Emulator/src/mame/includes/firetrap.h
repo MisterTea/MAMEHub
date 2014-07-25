@@ -16,7 +16,9 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_msm(*this, "msm"){ }
+		m_msm(*this, "msm"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_bg1videoram;
@@ -47,6 +49,9 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<msm5205_device> m_msm;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(firetrap_nmi_disable_w);
 	DECLARE_WRITE8_MEMBER(firetrap_bankselect_w);
 	DECLARE_READ8_MEMBER(firetrap_8751_bootleg_r);
@@ -73,7 +78,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(firetrap);
 	UINT32 screen_update_firetrap(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(firetrap_irq);
 	inline void get_bg_tile_info(tile_data &tileinfo, int tile_index, UINT8 *bgvideoram, int gfx_region);

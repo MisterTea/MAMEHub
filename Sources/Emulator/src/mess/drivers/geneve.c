@@ -1,4 +1,6 @@
-/*
+// license:MAME|LGPL-2.1+
+// copyright-holders:Michael Zapf
+/******************************************************************************
     MESS Driver for the Myarc Geneve 9640.
 
     The Geneve has two operation modes.  One is compatible with the TI-99/4a,
@@ -198,7 +200,7 @@
     Original version 2003 by Raphael Nabet
 
     Rewritten 2012 by Michael Zapf
-*/
+******************************************************************************/
 
 
 #include "emu.h"
@@ -208,12 +210,10 @@
 #include "sound/sn76496.h"
 
 #include "machine/ti99/genboard.h"
-#include "machine/ti99/peribox.h"
+#include "bus/ti99_peb/peribox.h"
 #include "machine/ti99/videowrp.h"
 
 #include "machine/ti99/joyport.h"
-
-#include "drivlgcy.h"
 
 #define VERBOSE 1
 #define LOG logerror
@@ -225,7 +225,14 @@ class geneve_state : public driver_device
 {
 public:
 	geneve_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_cpu(*this, "maincpu"),
+		m_tms9901(*this, TMS9901_TAG),
+		m_keyboard(*this, GKEYBOARD_TAG),
+		m_mapper(*this, GMAPPER_TAG),
+		m_peribox(*this, PERIBOX_TAG),
+		m_mouse(*this, GMOUSE_TAG),
+		m_joyport(*this,JOYPORT_TAG)    { }
 
 	// CRU (Communication Register Unit) handling
 	DECLARE_READ8_MEMBER(cruread);
@@ -240,19 +247,21 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(video_wait_states);
 
 	DECLARE_WRITE_LINE_MEMBER(clock_out);
+	DECLARE_WRITE_LINE_MEMBER(dbin_line);
+
 	DECLARE_WRITE8_MEMBER(external_operation);
 
 	DECLARE_WRITE8_MEMBER(tms9901_interrupt);
 
 	DECLARE_WRITE_LINE_MEMBER( keyboard_interrupt );
 
-	geneve_keyboard_device* m_keyboard;
-	geneve_mouse_device*    m_mouse;
-	tms9901_device*         m_tms9901;
-	geneve_mapper_device*   m_mapper;
-	peribox_device*         m_peribox;
-	tms9995_device*         m_cpu;
-	joyport_device*         m_joyport;
+	required_device<tms9995_device>         m_cpu;
+	required_device<tms9901_device>         m_tms9901;
+	required_device<geneve_keyboard_device> m_keyboard;
+	required_device<geneve_mapper_device>   m_mapper;
+	required_device<peribox_device>         m_peribox;
+	required_device<geneve_mouse_device>    m_mouse;
+	required_device<joyport_device>         m_joyport;
 
 	DECLARE_WRITE_LINE_MEMBER( inta );
 	DECLARE_WRITE_LINE_MEMBER( intb );
@@ -273,10 +282,6 @@ public:
 	line_state  m_video_wait; // reflects the line to the mapper for CRU query
 
 	int m_ready_line, m_ready_line1;
-
-private:
-	//int     m_joystick_select;
-	// Some values to keep. Rest is on the geneve_mapper.
 };
 
 /*
@@ -284,7 +289,7 @@ private:
 */
 
 static ADDRESS_MAP_START(memmap, AS_PROGRAM, 8, geneve_state)
-	AM_RANGE(0x0000, 0xffff) AM_DEVREADWRITE(GMAPPER_TAG, geneve_mapper_device, readm, writem)
+	AM_RANGE(0x0000, 0xffff) AM_DEVREADWRITE(GMAPPER_TAG, geneve_mapper_device, readm, writem) AM_DEVSETOFFSET(GMAPPER_TAG, geneve_mapper_device, setoffset)
 ADDRESS_MAP_END
 
 /*
@@ -405,7 +410,7 @@ WRITE8_MEMBER ( geneve_state::cruwrite )
 	}
 	else
 	{
-		m_peribox->cruwrite(addroff, data);
+		m_peribox->cruwrite(space, addroff, data);
 	}
 }
 
@@ -427,7 +432,7 @@ READ8_MEMBER( geneve_state::cruread )
 	// so we just don't arrive here
 
 	// Propagate the CRU access to external devices
-	m_peribox->crureadz(addroff, &value);
+	m_peribox->crureadz(space, addroff, &value);
 	return value;
 }
 
@@ -546,43 +551,46 @@ WRITE_LINE_MEMBER( geneve_state::video_wait_states )
 WRITE8_MEMBER( geneve_state::tms9901_interrupt )
 {
 	/* INTREQ is connected to INT1. */
-	m_cpu->set_input_line(INPUT_LINE_99XX_INT1, data);
+	m_cpu->set_input_line(INT_9995_INT1, data);
 }
 
-/* tms9901 setup */
+/*
+// tms9901 setup
 const tms9901_interface tms9901_wiring_geneve =
 {
-	TMS9901_INT1 | TMS9901_INT2 | TMS9901_INT8 | TMS9901_INTB | TMS9901_INTC,   /* only input pins whose state is always known */
+    TMS9901_INT1 | TMS9901_INT2 | TMS9901_INT8 | TMS9901_INTB | TMS9901_INTC,
 
-	// read handler
-	DEVCB_DRIVER_MEMBER(geneve_state, read_by_9901),
+    // read handler
+    DEVCB_DRIVER_MEMBER(geneve_state, read_by_9901),
 
-	{   /* write handlers */
-		DEVCB_DRIVER_LINE_MEMBER(geneve_state, peripheral_bus_reset),
-		DEVCB_DRIVER_LINE_MEMBER(geneve_state, VDP_reset),
-		DEVCB_DRIVER_LINE_MEMBER(geneve_state, joystick_select),
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DEVICE_LINE_MEMBER(GKEYBOARD_TAG, geneve_keyboard_device, reset_line),
-		DEVCB_DRIVER_LINE_MEMBER(geneve_state, extbus_wait_states),
-		DEVCB_NULL,
-		DEVCB_DRIVER_LINE_MEMBER(geneve_state, video_wait_states),
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+    {   // write handlers
+        DEVCB_DRIVER_LINE_MEMBER(geneve_state, peripheral_bus_reset),
+        DEVCB_DRIVER_LINE_MEMBER(geneve_state, VDP_reset),
+        DEVCB_DRIVER_LINE_MEMBER(geneve_state, joystick_select),
+        DEVCB_NULL,
+        DEVCB_NULL,
+        DEVCB_NULL,
+        DEVCB_DEVICE_LINE_MEMBER(GKEYBOARD_TAG, geneve_keyboard_device, reset_line),
+        DEVCB_DRIVER_LINE_MEMBER(geneve_state, extbus_wait_states),
+        DEVCB_NULL,
+        DEVCB_DRIVER_LINE_MEMBER(geneve_state, video_wait_states),
+        DEVCB_NULL,
+        DEVCB_NULL,
+        DEVCB_NULL,
+        DEVCB_NULL,
+        DEVCB_NULL,
+        DEVCB_NULL
+    },
 
-	/* interrupt handler */
-	DEVCB_DRIVER_MEMBER(geneve_state, tms9901_interrupt)
+    // interrupt handler
+    DEVCB_DRIVER_MEMBER(geneve_state, tms9901_interrupt)
 };
+*/
 
 /*******************************************************************
     Signal lines
 *******************************************************************/
+
 /*
     inta is connected to both tms9901 IRQ1 line and to tms9995 INT4/EC line.
 */
@@ -590,7 +598,7 @@ WRITE_LINE_MEMBER( geneve_state::inta )
 {
 	m_inta = (state!=0)? ASSERT_LINE : CLEAR_LINE;
 	m_tms9901->set_single_int(1, state);
-	m_cpu->set_input_line(INPUT_LINE_99XX_INT4, state);
+	m_cpu->set_input_line(INT_9995_INT4, state);
 }
 
 /*
@@ -604,7 +612,7 @@ WRITE_LINE_MEMBER( geneve_state::intb )
 
 WRITE_LINE_MEMBER( geneve_state::ext_ready )
 {
-	if (VERBOSE>6) LOG("ti99_8: READY level (ext) =%02x\n", state);
+	if (VERBOSE>6) LOG("geneve: READY level (ext) = %02x\n", state);
 	m_ready_line = state;
 	m_cpu->set_ready((m_ready_line == ASSERT_LINE && m_ready_line1 == ASSERT_LINE)? ASSERT_LINE : CLEAR_LINE);
 }
@@ -670,51 +678,13 @@ WRITE_LINE_MEMBER( geneve_state::clock_out )
 	m_mapper->clock_in(state);
 }
 
-static TMS9995_CONFIG( geneve_processor_config )
+/*
+    DBIN line from the CPU. Used to control wait state generation.
+*/
+WRITE_LINE_MEMBER( geneve_state::dbin_line )
 {
-	DEVCB_DRIVER_MEMBER(geneve_state, external_operation),
-	DEVCB_NULL,         // Instruction acquisition
-	DEVCB_DRIVER_LINE_MEMBER(geneve_state, clock_out),
-	DEVCB_NULL,         // wait
-	DEVCB_NULL,         // HOLDA
-	INTERNAL_RAM,       // use internal RAM
-	NO_OVERFLOW_INT     // The generally available versions of TMS9995 have a deactivated overflow interrupt
-};
-
-static TI_SOUND_CONFIG( sound_conf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(geneve_state, ext_ready)   // READY
-};
-
-static const mm58274c_interface geneve_mm58274c_interface =
-{
-	1,  /*  mode 24*/
-	0   /*  first day of week */
-};
-
-static GENEVE_KEYBOARD_CONFIG( geneve_keyb_conf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(geneve_state, keyboard_interrupt)
-};
-
-static PERIBOX_CONFIG( peribox_conf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(geneve_state, inta),           // INTA
-	DEVCB_DRIVER_LINE_MEMBER(geneve_state, intb),           // INTB
-	DEVCB_DRIVER_LINE_MEMBER(geneve_state, ext_ready),  // READY
-	0x00000                                         // Address bus prefix (Mapper will produce prefixes)
-};
-
-static GENEVE_MAPPER_CONFIG( mapper_conf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(geneve_state, mapper_ready)    // READY
-};
-
-static JOYPORT_CONFIG( joyport_60 )
-{
-	DEVCB_NULL,
-	60
-};
+	m_mapper->dbin_in(state);
+}
 
 DRIVER_INIT_MEMBER(geneve_state,geneve)
 {
@@ -722,13 +692,6 @@ DRIVER_INIT_MEMBER(geneve_state,geneve)
 
 void geneve_state::machine_start()
 {
-	m_tms9901 = static_cast<tms9901_device*>(machine().device(TMS9901_TAG));
-	m_mapper = static_cast<geneve_mapper_device*>(machine().device(GMAPPER_TAG));
-	m_keyboard = static_cast<geneve_keyboard_device*>(machine().device(GKEYBOARD_TAG));
-	m_peribox = static_cast<peribox_device*>(machine().device(PERIBOX_TAG));
-	m_mouse =  static_cast<geneve_mouse_device*>(machine().device(GMOUSE_TAG));
-	m_cpu = static_cast<tms9995_device*>(machine().device("maincpu"));
-	m_joyport = static_cast<joyport_device*>(machine().device(JOYPORT_TAG));
 }
 
 /*
@@ -755,8 +718,10 @@ void geneve_state::machine_reset()
 static MACHINE_CONFIG_START( geneve_60hz, geneve_state )
 	// basic machine hardware
 	// TMS9995 CPU @ 12.0 MHz
-	MCFG_TMS9995_ADD("maincpu", TMS9995, 12000000, memmap, crumap, geneve_processor_config)
-
+	MCFG_TMS99xx_ADD("maincpu", TMS9995, 12000000, memmap, crumap)
+	MCFG_TMS9995_EXTOP_HANDLER( WRITE8(geneve_state, external_operation) )
+	MCFG_TMS9995_CLKOUT_HANDLER( WRITELINE(geneve_state, clock_out) )
+	MCFG_TMS9995_DBIN_HANDLER( WRITELINE(geneve_state, dbin_line) )
 
 	// video hardware
 	// Although we should have a 60 Hz screen rate, we have to set it to 30 here.
@@ -768,20 +733,40 @@ static MACHINE_CONFIG_START( geneve_60hz, geneve_state )
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", geneve_state, geneve_hblank_interrupt, SCREEN_TAG, 0, 1) /* 262.5 in 60Hz, 312.5 in 50Hz */
 
 	// Main board components
-	MCFG_TMS9901_ADD(TMS9901_TAG, tms9901_wiring_geneve, 3000000)
-	MCFG_GENEVE_MAPPER_ADD(GMAPPER_TAG, mapper_conf)
-	MCFG_MM58274C_ADD(GCLOCK_TAG, geneve_mm58274c_interface)
+	MCFG_DEVICE_ADD(TMS9901_TAG, TMS9901, 3000000)
+	MCFG_TMS9901_READBLOCK_HANDLER( READ8(geneve_state, read_by_9901) )
+	MCFG_TMS9901_P0_HANDLER( WRITELINE( geneve_state, peripheral_bus_reset) )
+	MCFG_TMS9901_P1_HANDLER( WRITELINE( geneve_state, VDP_reset) )
+	MCFG_TMS9901_P2_HANDLER( WRITELINE( geneve_state, joystick_select) )
+	MCFG_TMS9901_P6_HANDLER( DEVWRITELINE( GKEYBOARD_TAG, geneve_keyboard_device, reset_line) )
+	MCFG_TMS9901_P7_HANDLER( WRITELINE( geneve_state, extbus_wait_states) )
+	MCFG_TMS9901_P9_HANDLER( WRITELINE( geneve_state, video_wait_states) )
+	MCFG_TMS9901_INTLEVEL_HANDLER( WRITE8( geneve_state, tms9901_interrupt) )
+
+	// Mapper
+	MCFG_DEVICE_ADD(GMAPPER_TAG, GENEVE_MAPPER, 0)
+	MCFG_GENEVE_READY_HANDLER( WRITELINE(geneve_state, mapper_ready) )
+
+	// Clock
+	MCFG_DEVICE_ADD(GCLOCK_TAG, MM58274C, 0)
+	MCFG_MM58274C_MODE24(1) // 24 hour
+	MCFG_MM58274C_DAY1(0)   // sunday
 
 	// Peripheral expansion box (Geneve composition)
-	MCFG_PERIBOX_GEN_ADD( PERIBOX_TAG, peribox_conf )
+	MCFG_DEVICE_ADD( PERIBOX_TAG, PERIBOX_GEN, 0)
+	MCFG_PERIBOX_INTA_HANDLER( WRITELINE(geneve_state, inta) )
+	MCFG_PERIBOX_INTB_HANDLER( WRITELINE(geneve_state, intb) )
+	MCFG_PERIBOX_READY_HANDLER( WRITELINE(geneve_state, ext_ready) )
 
 	// sound hardware
-	MCFG_TI_SOUND_76496_ADD( TISOUND_TAG, sound_conf )
+	MCFG_TI_SOUND_76496_ADD( TISOUND_TAG )
+	MCFG_TI_SOUND_READY_HANDLER( WRITELINE(geneve_state, ext_ready) )
 
 	// User interface devices
-	MCFG_GENEVE_KEYBOARD_ADD( GKEYBOARD_TAG, geneve_keyb_conf )
+	MCFG_DEVICE_ADD( GKEYBOARD_TAG, GENEVE_KEYBOARD, 0 )
+	MCFG_GENEVE_KBINT_HANDLER( WRITELINE(geneve_state, keyboard_interrupt) )
 	MCFG_GENEVE_MOUSE_ADD( GMOUSE_TAG )
-	MCFG_GENEVE_JOYPORT_ADD( JOYPORT_TAG, joyport_60 )
+	MCFG_GENEVE_JOYPORT_ADD( JOYPORT_TAG )
 
 MACHINE_CONFIG_END
 

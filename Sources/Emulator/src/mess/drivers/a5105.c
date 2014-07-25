@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, Robbbert
 /***************************************************************************
 
     A5105
@@ -47,7 +49,9 @@ public:
 			m_floppy2(*this, "upd765a:2"),
 			m_floppy3(*this, "upd765a:3"),
 			m_video_ram(*this, "video_ram"),
-			m_ram(*this, RAM_TAG)
+			m_ram(*this, RAM_TAG),
+			m_gfxdecode(*this, "gfxdecode"),
+			m_palette(*this, "palette")
 		{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -79,21 +83,24 @@ public:
 	UINT8 m_memsel[4];
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(a5105);
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
 	required_device<ram_device> m_ram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	UPD7220_DISPLAY_PIXELS_MEMBER( hgdc_display_pixels );
+	UPD7220_DRAW_TEXT_LINE_MEMBER( hgdc_draw_text );
 };
 
 /* TODO */
-static UPD7220_DISPLAY_PIXELS( hgdc_display_pixels )
+UPD7220_DISPLAY_PIXELS_MEMBER( a5105_state::hgdc_display_pixels )
 {
-	a5105_state *state = device->machine().driver_data<a5105_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 
 	int xi,gfx;
 	UINT8 pen;
 
-	gfx = state->m_video_ram[address & 0x1ffff];
+	gfx = m_video_ram[address & 0x1ffff];
 
 	for(xi=0;xi<8;xi++)
 	{
@@ -103,10 +110,9 @@ static UPD7220_DISPLAY_PIXELS( hgdc_display_pixels )
 	}
 }
 
-static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
+UPD7220_DRAW_TEXT_LINE_MEMBER( a5105_state::hgdc_draw_text )
 {
-	a5105_state *state = device->machine().driver_data<a5105_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	int x;
 	int xi,yi;
 	int tile,color;
@@ -114,14 +120,14 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 
 	for( x = 0; x < pitch; x++ )
 	{
-		tile = (state->m_video_ram[((addr+x)*2) & 0x1ffff] & 0xff);
-		color = (state->m_video_ram[((addr+x)*2+1) & 0x1ffff] & 0x0f);
+		tile = (m_video_ram[((addr+x)*2) & 0x1ffff] & 0xff);
+		color = (m_video_ram[((addr+x)*2+1) & 0x1ffff] & 0x0f);
 
 		for( yi = 0; yi < lr; yi++)
 		{
-			tile_data = state->m_char_ram[(tile*8+yi) & 0x7ff];
+			tile_data = m_char_ram[(tile*8+yi) & 0x7ff];
 
-			if(cursor_on && cursor_addr == addr+x && device->machine().primary_screen->frame_number() & 0x10)
+			if(cursor_on && cursor_addr == addr+x && machine().first_screen()->frame_number() & 0x10)
 				tile_data^=0xff;
 
 			for( xi = 0; xi < 8; xi++)
@@ -135,12 +141,12 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 				if(yi >= 8) { pen = 0; }
 
 				/* TODO: pitch is currently 40, this should actually go in the upd7220 device */
-				if(!device->machine().primary_screen->visible_area().contains(res_x*2+0, res_y))
+				if(!machine().first_screen()->visible_area().contains(res_x*2+0, res_y))
 					continue;
 
 				bitmap.pix32(res_y, res_x*2+0) = palette[pen];
 
-				if(!device->machine().primary_screen->visible_area().contains(res_x*2+1, res_y))
+				if(!machine().first_screen()->visible_area().contains(res_x*2+1, res_y))
 					continue;
 
 				bitmap.pix32(res_y, res_x*2+1) = palette[pen];
@@ -167,7 +173,7 @@ WRITE8_MEMBER( a5105_state::pcg_val_w )
 {
 	m_char_ram[m_pcg_addr | m_pcg_internal_addr] = data;
 
-	machine().gfx[0]->mark_dirty(m_pcg_addr >> 3);
+	m_gfxdecode->gfx(0)->mark_dirty(m_pcg_addr >> 3);
 
 	m_pcg_internal_addr++;
 	m_pcg_internal_addr&=7;
@@ -512,7 +518,7 @@ static GFXDECODE_START( a5105 )
 GFXDECODE_END
 
 
-void a5105_state::palette_init()
+PALETTE_INIT_MEMBER(a5105_state, a5105)
 {
 	int i;
 	int r,g,b;
@@ -523,7 +529,7 @@ void a5105_state::palette_init()
 		g = i & 2 ? ((i & 8) ? 0xaa : 0xff) : 0x00;
 		b = i & 1 ? ((i & 8) ? 0xaa : 0xff) : 0x00;
 
-		palette_set_color(machine(), i, MAKE_RGB(r,g,b));
+		palette.set_pen_color(i, rgb_t(r,g,b));
 	}
 }
 
@@ -532,15 +538,6 @@ void a5105_state::video_start()
 	// find memory regions
 	m_char_ram = memregion("pcg")->base();
 }
-
-static UPD7220_INTERFACE( hgdc_intf )
-{
-	hgdc_display_pixels,
-	hgdc_draw_text,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 static ADDRESS_MAP_START( upd7220_map, AS_0, 8, a5105_state)
 	ADDRESS_MAP_GLOBAL_MASK(0x1ffff)
@@ -554,25 +551,6 @@ FLOPPY_FORMATS_END
 static SLOT_INTERFACE_START( a5105_floppies )
 	SLOT_INTERFACE( "525qd", FLOPPY_525_QD )
 SLOT_INTERFACE_END
-
-static Z80CTC_INTERFACE( a5105_ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", 0),             /* interrupt callback */
-	DEVCB_DEVICE_LINE_MEMBER("z80ctc", z80ctc_device, trg2),        /* ZC/TO0 callback */
-	DEVCB_NULL,                                     /* ZC/TO1 callback */
-	DEVCB_DEVICE_LINE_MEMBER("z80ctc", z80ctc_device, trg3)     /* ZC/TO2 callback */
-};
-
-static Z80PIO_INTERFACE( a5105_pio_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", 0),             /* callback when change interrupt status */
-	DEVCB_NULL,                                     /* port A read callback */
-	DEVCB_NULL,                                     /* port A write callback */
-	DEVCB_NULL,                                     /* portA ready active callback */
-	DEVCB_NULL,                                     /* port B read callback */
-	DEVCB_NULL,                                     /* port B write callback */
-	DEVCB_NULL                                      /* portB ready active callback */
-};
 
 static const z80_daisy_config a5105_daisy_chain[] =
 {
@@ -595,8 +573,9 @@ static MACHINE_CONFIG_START( a5105, a5105_state )
 	MCFG_SCREEN_UPDATE_DEVICE("upd7220", upd7220_device, screen_update)
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 40*8-1, 0, 25*8-1)
-	MCFG_GFXDECODE(a5105)
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", a5105)
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(a5105_state, a5105)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -606,11 +585,20 @@ static MACHINE_CONFIG_START( a5105, a5105_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Devices */
-	MCFG_UPD7220_ADD("upd7220", XTAL_15MHz / 16, hgdc_intf, upd7220_map) // unk clock
-	MCFG_Z80CTC_ADD( "z80ctc", XTAL_15MHz / 4, a5105_ctc_intf )
-	MCFG_Z80PIO_ADD( "z80pio", XTAL_15MHz / 4, a5105_pio_intf )
+	MCFG_DEVICE_ADD("upd7220", UPD7220, XTAL_15MHz / 16) // unk clock
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, upd7220_map)
+	MCFG_UPD7220_DISPLAY_PIXELS_CALLBACK_OWNER(a5105_state, hgdc_display_pixels)
+	MCFG_UPD7220_DRAW_TEXT_CALLBACK_OWNER(a5105_state, hgdc_draw_text)
 
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_DEVICE_ADD("z80ctc", Z80CTC, XTAL_15MHz / 4)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", 0))
+	MCFG_Z80CTC_ZC0_CB(DEVWRITELINE("z80ctc", z80ctc_device, trg2))
+	MCFG_Z80CTC_ZC2_CB(DEVWRITELINE("z80ctc", z80ctc_device, trg3))
+
+	MCFG_DEVICE_ADD("z80pio", Z80PIO, XTAL_15MHz / 4)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", 0))
+
+	MCFG_CASSETTE_ADD( "cassette" )
 
 	MCFG_UPD765A_ADD("upd765a", true, true)
 	MCFG_FLOPPY_DRIVE_ADD("upd765a:0", a5105_floppies, "525qd", a5105_state::floppy_formats)

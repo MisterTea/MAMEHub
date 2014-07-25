@@ -85,7 +85,8 @@ public:
 		m_paletteram(*this, "paletteram"),
 		m_maincpu(*this, "maincpu"),
 		m_oki1(*this, "oki1"),
-		m_oki2(*this, "oki2") { }
+		m_oki2(*this, "oki2"),
+		m_palette(*this, "palette")  { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_wram;
@@ -116,6 +117,7 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<okim6295_device> m_oki1;
 	required_device<okim6295_device> m_oki2;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -155,10 +157,10 @@ WRITE16_MEMBER(pasha2_state::pasha2_palette_w)
 	offset &= 0xff;
 
 	color = (m_paletteram[offset] >> 8) | (m_paletteram[offset + 0x100] & 0xff00);
-	palette_set_color_rgb(machine(), offset * 2 + 0, pal5bit(color), pal5bit(color >> 5), pal5bit(color >> 10));
+	m_palette->set_pen_color(offset * 2 + 0, pal5bit(color), pal5bit(color >> 5), pal5bit(color >> 10));
 
 	color = (m_paletteram[offset] & 0xff) | ((m_paletteram[offset + 0x100] & 0xff) << 8);
-	palette_set_color_rgb(machine(), offset * 2 + 1, pal5bit(color), pal5bit(color >> 5), pal5bit(color >> 10));
+	m_palette->set_pen_color(offset * 2 + 1, pal5bit(color), pal5bit(color >> 5), pal5bit(color >> 10));
 }
 
 WRITE16_MEMBER(pasha2_state::vbuffer_set_w)
@@ -428,8 +430,9 @@ static MACHINE_CONFIG_START( pasha2, pasha2_state )
 	MCFG_SCREEN_SIZE(512, 512)
 	MCFG_SCREEN_VISIBLE_AREA(0, 383, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(pasha2_state, screen_update_pasha2)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_PALETTE_ADD("palette", 0x200)
 
 
 	/* sound hardware */

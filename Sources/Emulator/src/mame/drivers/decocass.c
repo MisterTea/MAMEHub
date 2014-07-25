@@ -644,7 +644,7 @@ static const gfx_layout spritelayout =
 static const gfx_layout tilelayout =
 {
 	16,16,
-	16+1,       /* 16 tiles (+1 empty tile used in the half-width bg tilemaps) */
+	16,
 	3,
 	{ 2*16*16*16+4, 2*16*16*16+0, 4 },
 	{ STEP4(3*16*8,1), STEP4(2*16*8,1), STEP4(1*16*8,1), STEP4(0*16*8,1) },
@@ -684,32 +684,30 @@ static GFXDECODE_START( decocass )
 	GFXDECODE_ENTRY( NULL, 0xd800, objlayout,       48, 4 )  /* object */
 GFXDECODE_END
 
-void decocass_state::palette_init()
+PALETTE_INIT_MEMBER(decocass_state, decocass)
 {
 	int i;
 
-	machine().colortable = colortable_alloc(machine(), 32);
-
 	/* set up 32 colors 1:1 pens */
 	for (i = 0; i < 32; i++)
-		colortable_entry_set_value(machine().colortable, i, i);
+		palette.set_pen_indirect(i, i);
 
 	/* setup straight/flipped colors for background tiles (D7 of color_center_bot ?) */
 	for (i = 0; i < 8; i++)
 	{
-		colortable_entry_set_value(machine().colortable, 32+i, 3*8+i);
-		colortable_entry_set_value(machine().colortable, 40+i, 3*8+((i << 1) & 0x04) + ((i >> 1) & 0x02) + (i & 0x01));
+		palette.set_pen_indirect(32+i, 3*8+i);
+		palette.set_pen_indirect(40+i, 3*8+((i << 1) & 0x04) + ((i >> 1) & 0x02) + (i & 0x01));
 	}
 
 	/* setup 4 colors for 1bpp object */
-	colortable_entry_set_value(machine().colortable, 48+0*2+0, 0);
-	colortable_entry_set_value(machine().colortable, 48+0*2+1, 25); /* testtape red from 4th palette section? */
-	colortable_entry_set_value(machine().colortable, 48+1*2+0, 0);
-	colortable_entry_set_value(machine().colortable, 48+1*2+1, 28); /* testtape blue from 4th palette section? */
-	colortable_entry_set_value(machine().colortable, 48+2*2+0, 0);
-	colortable_entry_set_value(machine().colortable, 48+2*2+1, 26); /* testtape green from 4th palette section? */
-	colortable_entry_set_value(machine().colortable, 48+3*2+0, 0);
-	colortable_entry_set_value(machine().colortable, 48+3*2+1, 23); /* ???? */
+	palette.set_pen_indirect(48+0*2+0, 0);
+	palette.set_pen_indirect(48+0*2+1, 25); /* testtape red from 4th palette section? */
+	palette.set_pen_indirect(48+1*2+0, 0);
+	palette.set_pen_indirect(48+1*2+1, 28); /* testtape blue from 4th palette section? */
+	palette.set_pen_indirect(48+2*2+0, 0);
+	palette.set_pen_indirect(48+2*2+1, 26); /* testtape green from 4th palette section? */
+	palette.set_pen_indirect(48+3*2+0, 0);
+	palette.set_pen_indirect(48+3*2+1, 23); /* ???? */
 }
 
 
@@ -735,9 +733,12 @@ static MACHINE_CONFIG_START( decocass, decocass_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(HCLK, 384, 0*8, 256, 272, 1*8, 248)
 	MCFG_SCREEN_UPDATE_DRIVER(decocass_state, screen_update_decocass)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(decocass)
-	MCFG_PALETTE_LENGTH(32+2*8+2*4)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", decocass)
+	MCFG_PALETTE_ADD("palette", 32+2*8+2*4)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(decocass_state, decocass)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1674,12 +1675,12 @@ DRIVER_INIT_MEMBER(decocass_state,cdsteljn)
 /* 23 */ GAME( 1982, cprogolf18,cprogolf, cprogolfj,cprogolf, decocass_state, decocass, ROT270, "Data East Corporation", "18 Challenge Pro Golf (DECO Cassette, Japan)", 0 ) // 1982.?? 18 Hole Pro Golf
 /* 24 */ // 1982.07 Tsumego Kaisyou
 /* 25 */ GAME( 1982, cadanglr,  decocass, cfishing, cfishing, decocass_state, decocass, ROT270, "Data East Corporation", "Angler Dangler (DECO Cassette)", 0 )
-/* 25 */ GAME( 1982, cfishing,  cadanglr, cfishing, cfishing, decocass_state, decocass, ROT270, "Data East Corporation", "Fishing (DECO Cassette)", 0 )
+/* 25 */ GAME( 1982, cfishing,  cadanglr, cfishing, cfishing, decocass_state, decocass, ROT270, "Data East Corporation", "Fishing (DECO Cassette, Japan)", 0 )
 /* 26 */ GAME( 1983, cbtime,    decocass, cbtime,   cbtime,   decocass_state, decocass, ROT270, "Data East Corporation", "Burger Time (DECO Cassette)", 0 )
 /*    */ GAME( 1982, chamburger,cbtime,   cbtime,   cbtime,   decocass_state, decocass, ROT270, "Data East Corporation", "Hamburger (DECO Cassette, Japan)", 0 )
 /* 27 */ GAME( 1982, cburnrub,  decocass, cburnrub, decocass, decocass_state, decocass, ROT270, "Data East Corporation", "Burnin' Rubber (DECO Cassette, set 1)", 0 )
 /*    */ GAME( 1982, cburnrub2, cburnrub, cburnrub, decocass, decocass_state, decocass, ROT270, "Data East Corporation", "Burnin' Rubber (DECO Cassette, set 2)", 0 )
-/*    */ GAME( 1982, cbnj,      cburnrub, cburnrub, decocass, decocass_state, decocass, ROT270, "Data East Corporation", "Bump 'n' Jump (DECO Cassette)", 0 )
+/*    */ GAME( 1982, cbnj,      cburnrub, cburnrub, decocass, decocass_state, decocass, ROT270, "Data East Corporation", "Bump 'n' Jump (DECO Cassette, Japan)", 0 )
 /* 28 */ GAME( 1983, cgraplop,  decocass, cgraplop, cgraplop, decocass_state, decocass, ROT270, "Data East Corporation", "Cluster Buster (DECO Cassette)", 0 )
 /*    */ GAME( 1983, cgraplop2, cgraplop, cgraplop2,cgraplop, decocass_state, decocass, ROT270, "Data East Corporation", "Graplop (no title screen) (DECO Cassette)", 0 ) // a version with title screen exists, see reference videos
 /* 29 */ GAME( 1983, clapapa,   decocass, clapapa,  decocass, decocass_state, decocass, ROT270, "Data East Corporation", "Rootin' Tootin' / La-Pa-Pa (DECO Cassette)" , 0) /* Displays 'La-Pa-Pa during attract */

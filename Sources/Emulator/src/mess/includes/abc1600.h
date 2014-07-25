@@ -1,19 +1,19 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __ABC1600__
 #define __ABC1600__
 
-#include "emu.h"
+#include "bus/abcbus/abcbus.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/m68000/m68000.h"
 #include "machine/8530scc.h"
-#include "machine/abckb.h"
-#include "machine/abc1600_bus.h"
+#include "bus/abckb/abckb.h"
 #include "machine/abc1600mac.h"
 #include "machine/e0516.h"
-#include "machine/lux4105.h"
 #include "machine/nmc9306.h"
 #include "machine/ram.h"
-#include "machine/serial.h"
 #include "machine/wd_fdc.h"
 #include "machine/z80dart.h"
 #include "machine/z80dma.h"
@@ -44,6 +44,7 @@
 #define BUS2_TAG            "bus2"
 #define RS232_A_TAG         "rs232a"
 #define RS232_B_TAG         "rs232b"
+#define ABC_KEYBOARD_PORT_TAG   "kb"
 
 
 
@@ -92,10 +93,10 @@ public:
 	required_device<floppy_connector> m_floppy0;
 	required_device<floppy_connector> m_floppy1;
 	required_device<floppy_connector> m_floppy2;
-	required_device<abc1600bus_slot_device> m_bus0i;
-	required_device<abc1600bus_slot_device> m_bus0x;
-	required_device<abc1600bus_slot_device> m_bus1;
-	required_device<abc1600bus_slot_device> m_bus2;
+	required_device<abcbus_slot_device> m_bus0i;
+	required_device<abcbus_slot_device> m_bus0x;
+	required_device<abcbus_slot_device> m_bus1;
+	required_device<abcbus_slot_device> m_bus2;
 
 	virtual void machine_start();
 	virtual void machine_reset();
@@ -124,8 +125,7 @@ public:
 
 	IRQ_CALLBACK_MEMBER( abc1600_int_ack );
 
-	void fdc_intrq_w(bool state);
-	void fdc_drq_w(bool state);
+	DECLARE_WRITE_LINE_MEMBER( fdc_drq_w );
 
 	UINT8 read_io(offs_t offset);
 	void write_io(offs_t offset, UINT8 data);
@@ -137,8 +137,6 @@ public:
 	void update_drdy0();
 	void update_drdy1();
 	void update_drdy2();
-
-	void scc_irq(bool status);
 
 	// DMA
 	int m_dmadis;

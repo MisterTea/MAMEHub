@@ -97,7 +97,10 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_gfxram(*this, "gfxram"),
 		m_tileram(*this, "tileram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"),
+		m_generic_paletteram_8(*this, "paletteram") { }
 
 	tilemap_t *m_bg_tilemap;
 	required_shared_ptr<UINT8> m_gfxram;
@@ -114,6 +117,9 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_trvmadns(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT8> m_generic_paletteram_8;
 };
 
 
@@ -191,7 +197,7 @@ WRITE8_MEMBER(trvmadns_state::trvmadns_banking_w)
 WRITE8_MEMBER(trvmadns_state::trvmadns_gfxram_w)
 {
 	m_gfxram[offset] = data;
-	machine().gfx[0]->mark_dirty(offset/16);
+	m_gfxdecode->gfx(0)->mark_dirty(offset/16);
 }
 
 WRITE8_MEMBER(trvmadns_state::trvmadns_palette_w)
@@ -205,7 +211,7 @@ WRITE8_MEMBER(trvmadns_state::trvmadns_palette_w)
 	r = (((datax & 0x0038)>>3) | ((datax & 0x0400)>>7)) ^ 0xf;
 	g = (((datax & 0x01c0)>>6) | ((datax & 0x0800)>>8)) ^ 0xf;
 
-	palette_set_color_rgb(machine(), offset, pal4bit(r), pal4bit(g), pal4bit(b));
+	m_palette->set_pen_color(offset, pal4bit(r), pal4bit(g), pal4bit(b));
 }
 
 
@@ -311,17 +317,17 @@ TILE_GET_INFO_MEMBER(trvmadns_state::get_bg_tile_info)
 
 void trvmadns_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(trvmadns_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(trvmadns_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 //  fg_tilemap->set_transparent_pen(1);
 
-	machine().gfx[0]->set_source(m_gfxram);
+	m_gfxdecode->gfx(0)->set_source(m_gfxram);
 }
 
 UINT32 trvmadns_state::screen_update_trvmadns(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	int x,y,count;
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 
 	bitmap.fill(0xd, cliprect);
 
@@ -338,7 +344,7 @@ UINT32 trvmadns_state::screen_update_trvmadns(screen_device &screen, bitmap_ind1
 			int flipy = attr & 2;
 
 			if(!(attr & 0x20))
-				drawgfx_opaque(bitmap,cliprect,gfx,tile,color,flipx,flipy,(x*8),(y*8));
+				gfx->opaque(bitmap,cliprect,tile,color,flipx,flipy,(x*8),(y*8));
 			count++;
 		}
 	}
@@ -356,7 +362,7 @@ UINT32 trvmadns_state::screen_update_trvmadns(screen_device &screen, bitmap_ind1
 			int flipy = attr & 2;
 
 			if(attr & 0x20)
-				drawgfx_transpen(bitmap,cliprect,gfx,tile,color,flipx,flipy,(x*8),(y*8),1);
+				gfx->transpen(bitmap,cliprect,tile,color,flipx,flipy,(x*8),(y*8),1);
 			count++;
 		}
 	}
@@ -383,9 +389,10 @@ static MACHINE_CONFIG_START( trvmadns, trvmadns_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 31*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(trvmadns_state, screen_update_trvmadns)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(trvmadns)
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", trvmadns)
+	MCFG_PALETTE_ADD("palette", 16)
 
 
 	/* sound hardware */

@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     diexec.h
 
     Device execution interfaces.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -128,6 +99,12 @@ enum
 	device_execute_interface::static_set_periodic_int(*device, device_interrupt_delegate(&_class::_func, #_class "::" #_func, _devtag, (_class *)0), attotime::from_hz(_rate));
 #define MCFG_DEVICE_PERIODIC_INT_REMOVE()  \
 	device_execute_interface::static_set_periodic_int(*device, device_interrupt_delegate(), attotime());
+#define MCFG_DEVICE_IRQ_ACKNOWLEDGE_DRIVER(_class, _func) \
+	device_execute_interface::static_set_irq_acknowledge_callback(*device, device_irq_acknowledge_delegate(&_class::_func, #_class "::" #_func, DEVICE_SELF, (_class *)0));
+#define MCFG_DEVICE_IRQ_ACKNOWLEDGE_DEVICE(_devtag, _class, _func) \
+	device_execute_interface::static_set_irq_acknowledge_callback(*device, device_irq_acknowledge_delegate(&_class::_func, #_class "::" #_func, _devtag, (_class *)0));
+#define MCFG_DEVICE_IRQ_ACKNOWLEDGE_REMOVE()  \
+	device_execute_interface::static_set_irq_acknowledge_callback(*device, device_irq_acknowledge_delegate());
 
 
 //**************************************************************************
@@ -143,7 +120,6 @@ typedef device_delegate<void (device_t &)> device_interrupt_delegate;
 
 // IRQ callback to be called by executing devices when an IRQ is actually taken
 typedef device_delegate<int (device_t &, int)> device_irq_acknowledge_delegate;
-/*ATTR_DEPRECATED*/ typedef int (*device_irq_acknowledge_callback)(device_t *device, int irqnum);
 
 
 
@@ -166,7 +142,7 @@ public:
 	UINT32 min_cycles() const { return execute_min_cycles(); }
 	UINT32 max_cycles() const { return execute_max_cycles(); }
 	attotime cycles_to_attotime(UINT64 cycles) const { return device().clocks_to_attotime(cycles_to_clocks(cycles)); }
-	UINT64 attotime_to_cycles(attotime duration) const { return clocks_to_cycles(device().attotime_to_clocks(duration)); }
+	UINT64 attotime_to_cycles(const attotime &duration) const { return clocks_to_cycles(device().attotime_to_clocks(duration)); }
 	UINT32 input_lines() const { return execute_input_lines(); }
 	UINT32 default_irq_vector() const { return execute_default_irq_vector(); }
 	bool is_octal() const { return m_is_octal; }
@@ -174,9 +150,8 @@ public:
 	// static inline configuration helpers
 	static void static_set_disable(device_t &device);
 	static void static_set_vblank_int(device_t &device, device_interrupt_delegate function, const char *tag, int rate = 0);
-	static void static_remove_vblank_int(device_t &device);
-	static void static_set_periodic_int(device_t &device, device_interrupt_delegate function, attotime rate);
-	static void static_remove_periodic_int(device_t &device);
+	static void static_set_periodic_int(device_t &device, device_interrupt_delegate function, const attotime &rate);
+	static void static_set_irq_acknowledge_callback(device_t &device, device_irq_acknowledge_delegate callback);
 
 	// execution management
 	bool executing() const;
@@ -190,8 +165,6 @@ public:
 	void set_input_line_vector(int linenum, int vector) { m_input[linenum].set_vector(vector); }
 	void set_input_line_and_vector(int linenum, int state, int vector) { m_input[linenum].set_state_synced(state, vector); }
 	int input_state(int linenum) { return m_input[linenum].m_curstate; }
-	ATTR_DEPRECATED void set_irq_acknowledge_callback(device_irq_acknowledge_callback callback);
-	void set_irq_acknowledge_callback(device_irq_acknowledge_delegate callback);
 
 	// suspend/resume
 	void suspend(UINT32 reason, bool eatcycles);
@@ -200,7 +173,7 @@ public:
 	void yield() { suspend(SUSPEND_REASON_TIMESLICE, false); }
 	void spin() { suspend(SUSPEND_REASON_TIMESLICE, true); }
 	void spin_until_trigger(int trigid) { suspend_until_trigger(trigid, true); }
-	void spin_until_time(attotime duration);
+	void spin_until_time(const attotime &duration);
 	void spin_until_interrupt() { spin_until_trigger(m_inttrigger); }
 
 	// triggers
@@ -247,7 +220,7 @@ protected:
 	virtual void interface_clock_changed();
 
 	// for use by devcpu for now...
-	static IRQ_CALLBACK( static_standard_irq_callback );
+	IRQ_CALLBACK_MEMBER(standard_irq_callback_member);
 	int standard_irq_callback(int irqline);
 
 	// internal information about the state of inputs
@@ -292,7 +265,6 @@ protected:
 	device_execute_interface *m_nextexec;               // pointer to the next device to execute, in order
 
 	// input states and IRQ callbacks
-	device_irq_acknowledge_callback m_driver_irq_legacy;// driver-specific IRQ callback
 	device_irq_acknowledge_delegate m_driver_irq;       // driver-specific IRQ callback
 	device_input            m_input[MAX_INPUT_LINES];   // data about inputs
 	emu_timer *             m_timedint_timer;           // reference to this device's periodic interrupt timer

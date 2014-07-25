@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic, Robbbert
 /***************************************************************************
 
         Robotron K8915
@@ -12,15 +14,17 @@
 #include "cpu/z80/z80.h"
 #include "machine/keyboard.h"
 
+#define KEYBOARD_TAG "keyboard"
 
 class k8915_state : public driver_device
 {
 public:
 	k8915_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu")
-	,
-		m_p_videoram(*this, "p_videoram"){ }
+		m_maincpu(*this, "maincpu"),
+		m_p_videoram(*this, "p_videoram")
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	DECLARE_READ8_MEMBER( k8915_52_r );
@@ -145,11 +149,6 @@ WRITE8_MEMBER( k8915_state::kbd_put )
 	m_term_data = data;
 }
 
-static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
-{
-	DEVCB_DRIVER_MEMBER(k8915_state, kbd_put)
-};
-
 static MACHINE_CONFIG_START( k8915, k8915_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_16MHz / 4)
@@ -163,10 +162,12 @@ static MACHINE_CONFIG_START( k8915, k8915_state )
 	MCFG_SCREEN_UPDATE_DRIVER(k8915_state, screen_update)
 	MCFG_SCREEN_SIZE(640, 250)
 	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 249)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_green)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN("palette")
+
+	MCFG_DEVICE_ADD(KEYBOARD_TAG, GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(k8915_state, kbd_put))
 MACHINE_CONFIG_END
 
 

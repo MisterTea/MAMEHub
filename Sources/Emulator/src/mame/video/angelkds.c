@@ -123,7 +123,7 @@ void angelkds_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 {
 	const UINT8 *source = m_spriteram + 0x100 - 4;
 	const UINT8 *finish = m_spriteram;
-	gfx_element *gfx = machine().gfx[3];
+	gfx_element *gfx = m_gfxdecode->gfx(3);
 
 	while (source >= finish)
 	{
@@ -161,10 +161,9 @@ void angelkds_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 
 		if (enable & enable_n)
 		{
-			drawgfx_transpen(
+					gfx->transpen(
 					bitmap,
 					cliprect,
-					gfx,
 					tile_no,
 					color*4,
 					flipx,flipy,
@@ -172,10 +171,10 @@ void angelkds_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 					);
 			/* wraparound */
 			if (xpos > 240)
-				drawgfx_transpen(
+
+						gfx->transpen(
 						bitmap,
 						cliprect,
-						gfx,
 						tile_no,
 						color*4,
 						flipx,flipy,
@@ -184,10 +183,9 @@ void angelkds_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 			/* wraparound */
 			if (ypos > 240)
 			{
-				drawgfx_transpen(
+						gfx->transpen(
 						bitmap,
 						cliprect,
-						gfx,
 						tile_no,
 						color*4,
 						flipx,flipy,
@@ -195,10 +193,10 @@ void angelkds_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 						);
 				/* wraparound */
 				if (xpos > 240)
-					drawgfx_transpen(
+
+							gfx->transpen(
 							bitmap,
 							cliprect,
-							gfx,
 							tile_no,
 							color*4,
 							flipx,flipy,
@@ -226,7 +224,7 @@ WRITE8_MEMBER(angelkds_state::angelkds_paletteram_w)
 	m_paletteram[offset] = data;
 
 	no = offset & 0xff;
-	palette_set_color_rgb(machine(), no, pal4bit(m_paletteram[no]), pal4bit(m_paletteram[no]>>4), pal4bit(m_paletteram[no + 0x100]));
+	m_palette->set_pen_color(no, pal4bit(m_paletteram[no]), pal4bit(m_paletteram[no]>>4), pal4bit(m_paletteram[no + 0x100]));
 }
 
 /*** Video Start & Update
@@ -235,13 +233,13 @@ WRITE8_MEMBER(angelkds_state::angelkds_paletteram_w)
 
 void angelkds_state::video_start()
 {
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(angelkds_state::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(angelkds_state::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_tx_tilemap->set_transparent_pen(0);
 
-	m_bgbot_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(angelkds_state::get_bgbot_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bgbot_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(angelkds_state::get_bgbot_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_bgbot_tilemap->set_transparent_pen(15);
 
-	m_bgtop_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(angelkds_state::get_bgtop_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bgtop_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(angelkds_state::get_bgtop_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_bgtop_tilemap->set_transparent_pen(15);
 }
 

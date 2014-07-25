@@ -12,13 +12,10 @@ Notes:
 - mjcamerb and mmcamera is the medal version of mjcamera, however the
    two don't run on the same hardware. mjcamera is in nbmj8688.c.
 
-TODO:
-
-- mjfocus was crashing because of nested NMIs, to fix that I bumped the
-  clock from 5 MHz to 10 MHz.
-
 - In mjfocus(Medal Type), sometimes CPU's hands are forced out from the screen.
   This is correct behaviour.
+
+TODO:
 
 - Telmajan cannot set to JAMMA type. I don't know why.
 
@@ -2509,18 +2506,6 @@ static INPUT_PORTS_START( taiwanmb )
 INPUT_PORTS_END
 
 
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSWA"),
-	DEVCB_INPUT_PORT("DSWB"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( gionbana, nbmj8891_state )
 
 	/* basic machine hardware */
@@ -2539,8 +2524,9 @@ static MACHINE_CONFIG_START( gionbana, nbmj8891_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 8, 248-1)
 	MCFG_SCREEN_UPDATE_DRIVER(nbmj8891_state, screen_update_nbmj8891)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_ADD("palette", 256)
 
 
 	/* sound hardware */
@@ -2580,7 +2566,8 @@ static MACHINE_CONFIG_DERIVED( omotesnd, gionbana )
 
 	/* sound hardware */
 	MCFG_SOUND_REPLACE("fmsnd", AY8910, 1250000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSWA"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSWB"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35)
 MACHINE_CONFIG_END
 
@@ -2830,7 +2817,8 @@ static MACHINE_CONFIG_DERIVED( mjfocusm, gionbana )
 
 	/* sound hardware */
 	MCFG_SOUND_REPLACE("fmsnd", AY8910, 1250000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSWA"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSWB"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
@@ -2860,7 +2848,8 @@ static MACHINE_CONFIG_DERIVED( taiwanmb, gionbana )
 
 	/* sound hardware */
 	MCFG_SOUND_REPLACE("fmsnd", AY8910, 1250000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSWA"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSWB"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 

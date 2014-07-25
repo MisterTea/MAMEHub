@@ -232,7 +232,7 @@ void taitob_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 
 		if ( zoomx || zoomy )
 		{
-			drawgfxzoom_transpen_raw(bitmap, cliprect, machine().gfx[1],
+			m_gfxdecode->gfx(1)->zoom_transpen_raw(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,
@@ -241,7 +241,7 @@ void taitob_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 		}
 		else
 		{
-			drawgfx_transpen_raw (bitmap,cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen_raw(bitmap,cliprect,
 				code,
 				color,
 				flipx,flipy,
@@ -396,7 +396,7 @@ UINT32 taitob_state::screen_update_taitob(screen_device &screen, bitmap_ind16 &b
 UINT32 taitob_state::screen_update_realpunc(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	address_space &space = machine().driver_data()->generic_space();
-	const rgb_t *palette = palette_entry_list_adjusted(machine().palette);
+	const pen_t *palette = m_palette->pens();
 	UINT8 video_control = m_tc0180vcu->get_videoctrl(space, 0);
 	int x, y;
 
@@ -444,7 +444,7 @@ UINT32 taitob_state::screen_update_realpunc(screen_device &screen, bitmap_rgb32 
 				b = (BIT(srcpix, 3)) | ((srcpix >> 3) & 0x1e);
 
 				if (srcpix)
-					bitmap.pix32(y, x) = MAKE_RGB(pal5bit(r), pal5bit(g), pal5bit(b));
+					bitmap.pix32(y, x) = rgb_t(pal5bit(r), pal5bit(g), pal5bit(b));
 			}
 
 			addr += stride;
@@ -456,7 +456,7 @@ UINT32 taitob_state::screen_update_realpunc(screen_device &screen, bitmap_rgb32 
 		for (y = 0; y <= cliprect.max_y; y++)
 		{
 			for (x = 0; x <= cliprect.max_x; x++)
-				bitmap.pix32(y, x) = MAKE_RGB(0x00, 0x00, 0x00);
+				bitmap.pix32(y, x) = rgb_t(0x00, 0x00, 0x00);
 		}
 	}
 

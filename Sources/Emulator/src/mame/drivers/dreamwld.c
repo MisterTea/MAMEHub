@@ -9,39 +9,6 @@ Note: this hardware is a copy of Psikyo's 68020 based hardware,
       transparent pen modification.  This makes it rather hard to
       merge with psikyo.c and it should probably be left separate.
 
-Dream World
-SemiCom, 2000
-
-PCB Layout
-----------
-
-|-------------------------------------------------|
-|    M6295  ROM5    62256   ACTEL           ROM10 |
-|VOL M6295  ROM6    62256   A40MX04               |
-|    PAL  PAL       32MHz                         |
-| 62256  62256              PAL                   |
-| ROM1 ROM3       68EC020   PAL    PAL            |
-| ROM2 ROM4                 PAL    PAL            |
-|J 62256 62256              PAL                   |
-|A                          PAL    27MHz          |
-|M                                 PAL            |
-|M                         ACTEL    M5M44260      |
-|A             6116        A40MX04  M5M44260      |
-|              6116                               |
-|                          PAL                    |
-|              6264        PAL                    |
-|              6264                               |
-| DSW1                      ROM11                 |
-|        8752        ROM7   ROM9                  |
-| DSW2               ROM8                         |
-|-------------------------------------------------|
-Notes:
-      68020 @ 16.0MHz [32/2]
-      M6295 (both) @ 1.0MHz [32/32]. pin 7 LOW
-      8752 @ 16.0MHz [32/2]
-      HSync @ 15.2kHz
-      VSync @ 58Hz
-
 
 Stephh's notes (based on the game M68EC020 code and some tests) :
 
@@ -119,7 +86,6 @@ Stephh's notes (based on the game M68EC020 code and some tests) :
 #include "cpu/m68000/m68000.h"
 #include "sound/okim6295.h"
 
-#define MASTER_CLOCK 32000000
 
 class dreamwld_state : public driver_device
 {
@@ -127,16 +93,16 @@ public:
 	dreamwld_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
-		m_paletteram(*this, "paletteram"),
 		m_bg_videoram(*this, "bg_videoram"),
 		m_bg2_videoram(*this, "bg2_videoram"),
 		m_vregs(*this, "vregs"),
 		m_workram(*this, "workram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT32> m_spriteram;
-	required_shared_ptr<UINT32> m_paletteram;
 	required_shared_ptr<UINT32> m_bg_videoram;
 	required_shared_ptr<UINT32> m_bg2_videoram;
 	required_shared_ptr<UINT32> m_vregs;
@@ -158,7 +124,6 @@ public:
 	DECLARE_READ32_MEMBER(dreamwld_protdata_r);
 	DECLARE_WRITE32_MEMBER(dreamwld_6295_0_bank_w);
 	DECLARE_WRITE32_MEMBER(dreamwld_6295_1_bank_w);
-	DECLARE_WRITE32_MEMBER(dreamwld_palette_w);
 	TILE_GET_INFO_MEMBER(get_dreamwld_bg_tile_info);
 	TILE_GET_INFO_MEMBER(get_dreamwld_bg2_tile_info);
 	virtual void machine_start();
@@ -168,13 +133,15 @@ public:
 	void screen_eof_dreamwld(screen_device &screen, bool state);
 	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
 
 void dreamwld_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	UINT32 *source = m_spritebuf1;
 	UINT32 *finish = m_spritebuf1 + 0x1000 / 4;
 	UINT16 *redirect = (UINT16 *)memregion("spritelut")->base();
@@ -222,10 +189,10 @@ void dreamwld_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &clipre
 		{
 			for (xct = 0; xct < xsize; xct++)
 			{
-				drawgfx_transpen(bitmap, cliprect, gfx, redirect[tileno], colour, xflip, yflip, xpos + xct * xinc, ypos + yct * yinc, 0);
-				drawgfx_transpen(bitmap, cliprect, gfx, redirect[tileno], colour, xflip, yflip, (xpos + xct * xinc) - 0x200, ypos + yct * yinc, 0);
-				drawgfx_transpen(bitmap, cliprect, gfx, redirect[tileno], colour, xflip, yflip, (xpos + xct * xinc) - 0x200, (ypos + yct * yinc) - 0x200, 0);
-				drawgfx_transpen(bitmap, cliprect, gfx, redirect[tileno], colour, xflip, yflip, xpos + xct * xinc, (ypos + yct * yinc) - 0x200 , 0);
+					gfx->transpen(bitmap,cliprect, redirect[tileno], colour, xflip, yflip, xpos + xct * xinc, ypos + yct * yinc, 0);
+					gfx->transpen(bitmap,cliprect, redirect[tileno], colour, xflip, yflip, (xpos + xct * xinc) - 0x200, ypos + yct * yinc, 0);
+					gfx->transpen(bitmap,cliprect, redirect[tileno], colour, xflip, yflip, (xpos + xct * xinc) - 0x200, (ypos + yct * yinc) - 0x200, 0);
+					gfx->transpen(bitmap,cliprect, redirect[tileno], colour, xflip, yflip, xpos + xct * xinc, (ypos + yct * yinc) - 0x200 , 0);
 
 				tileno++;
 			}
@@ -271,8 +238,8 @@ TILE_GET_INFO_MEMBER(dreamwld_state::get_dreamwld_bg2_tile_info)
 
 void dreamwld_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dreamwld_state::get_dreamwld_bg_tile_info),this),TILEMAP_SCAN_ROWS, 16, 16, 64,32);
-	m_bg2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dreamwld_state::get_dreamwld_bg2_tile_info),this),TILEMAP_SCAN_ROWS, 16, 16, 64,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dreamwld_state::get_dreamwld_bg_tile_info),this),TILEMAP_SCAN_ROWS, 16, 16, 64,32);
+	m_bg2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dreamwld_state::get_dreamwld_bg2_tile_info),this),TILEMAP_SCAN_ROWS, 16, 16, 64,32);
 	m_bg2_tilemap->set_transparent_pen(0);
 
 	m_bg_tilemap->set_scroll_rows(256); // line scrolling
@@ -442,30 +409,12 @@ WRITE32_MEMBER(dreamwld_state::dreamwld_6295_1_bank_w)
 		logerror("OKI1: unk bank write %x mem_mask %8x\n", data, mem_mask);
 }
 
-// why doesn't using paletteram_xRRRRRGGGGGBBBBB_word_w with a 16-bit handler work? colours are
-// severely corrupt on dream world's semicom screen + many sprites, seems palette values get duplicated.
-WRITE32_MEMBER(dreamwld_state::dreamwld_palette_w)
-{
-	UINT16 dat;
-	int color;
-
-	COMBINE_DATA(&m_paletteram[offset]);
-	color = offset * 2;
-
-	dat = m_paletteram[offset] & 0x7fff;
-	palette_set_color_rgb(machine(), color+1, pal5bit(dat >> 10), pal5bit(dat >> 5), pal5bit(dat >> 0));
-
-	dat = (m_paletteram[offset] >> 16) & 0x7fff;
-	palette_set_color_rgb(machine(), color, pal5bit(dat >> 10), pal5bit(dat >> 5), pal5bit(dat >> 0));
-}
-
-
 
 static ADDRESS_MAP_START( baryon_map, AS_PROGRAM, 32, dreamwld_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM  AM_WRITENOP
 
 	AM_RANGE(0x400000, 0x401fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x600000, 0x601fff) AM_RAM AM_WRITE(dreamwld_palette_w) AM_SHARE("paletteram")
+	AM_RANGE(0x600000, 0x601fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x800000, 0x801fff) AM_RAM_WRITE(dreamwld_bg_videoram_w ) AM_SHARE("bg_videoram")
 	AM_RANGE(0x802000, 0x803fff) AM_RAM_WRITE(dreamwld_bg2_videoram_w ) AM_SHARE("bg2_videoram")
 	AM_RANGE(0x804000, 0x805fff) AM_RAM AM_SHARE("vregs")  // scroll regs etc.
@@ -546,6 +495,81 @@ static INPUT_PORTS_START( dreamwld )
 INPUT_PORTS_END
 
 
+static INPUT_PORTS_START( baryon )
+	PORT_INCLUDE(dreamwld)
+
+	PORT_MODIFY("DSW")
+	PORT_DIPNAME( 0x0004, 0x0004, "Bomb Stock" ) PORT_DIPLOCATION("SW2:3")
+	PORT_DIPSETTING(      0x0004, "2" )
+	PORT_DIPSETTING(      0x0000, "3" )
+	PORT_DIPNAME( 0x0100, 0x0000, DEF_STR( Demo_Sounds ) )  PORT_DIPLOCATION("SW1:1")
+	PORT_DIPSETTING(      0x0100, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+INPUT_PORTS_END
+
+
+static INPUT_PORTS_START( rolcrush )
+	PORT_START("INPUTS")
+	PORT_BIT( 0x00000001, IP_ACTIVE_LOW, IPT_COIN1 )
+	PORT_BIT( 0x00000002, IP_ACTIVE_LOW, IPT_COIN2 )
+	PORT_BIT( 0x0000fffc, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00010000, IP_ACTIVE_LOW, IPT_START2 )
+	PORT_BIT( 0x00020000, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(2)
+	PORT_BIT( 0x00040000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2)
+	PORT_BIT( 0x00080000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
+	PORT_BIT( 0x00100000, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )  PORT_PLAYER(2)
+	PORT_BIT( 0x00200000, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(2)
+	PORT_BIT( 0x00400000, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )  PORT_PLAYER(2)
+	PORT_BIT( 0x00800000, IP_ACTIVE_LOW, IPT_JOYSTICK_UP )    PORT_PLAYER(2)
+	PORT_BIT( 0x01000000, IP_ACTIVE_LOW, IPT_START1 )
+	PORT_BIT( 0x02000000, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(1)
+	PORT_BIT( 0x04000000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(1)
+	PORT_BIT( 0x08000000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1)
+	PORT_BIT( 0x10000000, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )  PORT_PLAYER(1)
+	PORT_BIT( 0x20000000, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(1)
+	PORT_BIT( 0x40000000, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )  PORT_PLAYER(1)
+	PORT_BIT( 0x80000000, IP_ACTIVE_LOW, IPT_JOYSTICK_UP )    PORT_PLAYER(1)
+
+	PORT_START("c00004")
+	PORT_BIT( 0x0000ffff, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, driver_device,custom_port_read, "DSW")
+	PORT_BIT( 0xffff0000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, driver_device,custom_port_read, "DSW")
+
+	PORT_START("DSW")
+	PORT_DIPUNUSED_DIPLOC( 0x0001, IP_ACTIVE_LOW, "SW2:1" ) /* As listed in service mode, but tested */
+	PORT_DIPUNUSED_DIPLOC( 0x0002, IP_ACTIVE_LOW, "SW2:2" ) /* These might have some use, requires investigation of code */
+	PORT_DIPUNUSED_DIPLOC( 0x0004, IP_ACTIVE_LOW, "SW2:3" )
+	PORT_DIPUNUSED_DIPLOC( 0x0008, IP_ACTIVE_LOW, "SW2:4" )
+	PORT_DIPUNUSED_DIPLOC( 0x0010, IP_ACTIVE_LOW, "SW2:5" )
+	PORT_DIPUNUSED_DIPLOC( 0x0020, IP_ACTIVE_LOW, "SW2:6" )
+	PORT_DIPUNUSED_DIPLOC( 0x0040, IP_ACTIVE_LOW, "SW2:7" )
+	PORT_DIPNAME( 0x0080, 0x0080, DEF_STR( Free_Play ) )    PORT_DIPLOCATION("SW2:8")
+	PORT_DIPSETTING(      0x0080, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0100, 0x0000, DEF_STR( Demo_Sounds ) )  PORT_DIPLOCATION("SW1:1")
+	PORT_DIPSETTING(      0x0100, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0e00, 0x0e00, DEF_STR( Coinage ) )      PORT_DIPLOCATION("SW1:2,3,4")
+	PORT_DIPSETTING(      0x0000, DEF_STR( 5C_1C ) )
+	PORT_DIPSETTING(      0x0200, DEF_STR( 4C_1C ) )
+	PORT_DIPSETTING(      0x0400, DEF_STR( 3C_1C ) )
+	PORT_DIPSETTING(      0x0600, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(      0x0e00, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(      0x0a00, DEF_STR( 2C_3C ) )
+	PORT_DIPSETTING(      0x0c00, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(      0x0800, DEF_STR( 1C_3C ) )
+	PORT_DIPNAME( 0x7000, 0x7000, DEF_STR( Difficulty ) )   PORT_DIPLOCATION("SW1:5,6,7")
+	PORT_DIPSETTING(      0x2000, "Level 1" )
+	PORT_DIPSETTING(      0x1000, "Level 2" )
+	PORT_DIPSETTING(      0x0000, "Level 3" )
+	PORT_DIPSETTING(      0x7000, "Level 4" )
+	PORT_DIPSETTING(      0x6000, "Level 5" )
+	PORT_DIPSETTING(      0x5000, "Level 6" )
+	PORT_DIPSETTING(      0x4000, "Level 7" )
+	PORT_DIPSETTING(      0x3000, "Level 8" )
+	PORT_SERVICE_DIPLOC( 0x8000, IP_ACTIVE_LOW, "SW1:8" )
+INPUT_PORTS_END
+
+
 static const gfx_layout layout_16x16x4 =
 {
 	16,16,
@@ -565,7 +589,6 @@ static GFXDECODE_START( dreamwld )
 GFXDECODE_END
 
 
-
 void dreamwld_state::machine_start()
 {
 	save_item(NAME(m_protindex));
@@ -581,32 +604,33 @@ void dreamwld_state::machine_reset()
 }
 
 
-
-
 static MACHINE_CONFIG_START( baryon, dreamwld_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68EC020, MASTER_CLOCK/2)
+	MCFG_CPU_ADD("maincpu", M68EC020, XTAL_32MHz/2) /* 16MHz verified */
 	MCFG_CPU_PROGRAM_MAP(baryon_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", dreamwld_state,  irq4_line_hold)
 
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(58)
+	MCFG_SCREEN_REFRESH_RATE(57.793)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_SIZE(512,256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 304-1, 0, 224-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dreamwld_state, screen_update_dreamwld)
 	MCFG_SCREEN_VBLANK_DRIVER(dreamwld_state, screen_eof_dreamwld)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x1000)
-	MCFG_GFXDECODE(dreamwld)
+	MCFG_PALETTE_ADD("palette", 0x1000)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dreamwld)
 
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_OKIM6295_ADD("oki1", MASTER_CLOCK/32, OKIM6295_PIN7_LOW)
+	MCFG_OKIM6295_ADD("oki1", XTAL_32MHz/32, OKIM6295_PIN7_LOW) /* 1MHz verified */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
 MACHINE_CONFIG_END
@@ -618,17 +642,57 @@ static MACHINE_CONFIG_DERIVED( dreamwld, baryon )
 	MCFG_CPU_PROGRAM_MAP(dreamwld_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", dreamwld_state,  irq4_line_hold)
 
-	MCFG_OKIM6295_ADD("oki2", MASTER_CLOCK/32, OKIM6295_PIN7_LOW)
+	MCFG_OKIM6295_ADD("oki2", XTAL_32MHz/32, OKIM6295_PIN7_LOW) /* 1MHz verified */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
 MACHINE_CONFIG_END
 
+
+/*
+
+Dream World
+SemiCom, 2000
+
+PCB Layout
+----------
+
+|-------------------------------------------------|
+|    M6295  ROM5    62256   ACTEL           ROM10 |
+|VOL M6295  ROM6    62256   A40MX04               |
+|    PAL  PAL       32MHz                         |
+| 62256  62256              PAL                   |
+| ROM1 ROM3       68EC020   PAL    PAL            |
+| ROM2 ROM4                 PAL    PAL            |
+|J 62256 62256              PAL                   |
+|A                          PAL    27MHz          |
+|M                                 PAL            |
+|M                         ACTEL    M5M44260      |
+|A             6116        A40MX04  M5M44260      |
+|              6116                               |
+|                          PAL                    |
+|              6264        PAL                    |
+|              6264                               |
+| DSW1                      ROM11                 |
+|        8752        ROM7   ROM9    27C160*       |
+| DSW2               ROM8   27C160* 27C160*       |
+|-------------------------------------------------|
+
+* denotes unpopulated components
+
+Notes:
+      68020 @ 16.0MHz [32/2]
+      M6295 (both) @ 1.0MHz [32/32]. pin 7 LOW
+      8752 @ 16.0MHz [32/2]
+      HSync @ 15.2kHz
+      VSync @ 58Hz
+*/
+
 ROM_START( dreamwld )
 	ROM_REGION( 0x200000, "maincpu", 0 )
-	ROM_LOAD32_BYTE( "1.bin", 0x000002, 0x040000, CRC(35c94ee5) SHA1(3440a65a807622b619c97bc2a88fd7d875c26f66) )
-	ROM_LOAD32_BYTE( "2.bin", 0x000003, 0x040000, CRC(5409e7fc) SHA1(2f94a6a8e4c94b36b43f0b94d58525f594339a9d) )
 	ROM_LOAD32_BYTE( "3.bin", 0x000000, 0x040000, CRC(e8f7ae78) SHA1(cfd393cec6dec967c82e1131547b7e7fdc5d814f) )
 	ROM_LOAD32_BYTE( "4.bin", 0x000001, 0x040000, CRC(3ef5d51b) SHA1(82a00b4ff7155f6d5553870dfd510fed9469d9b5) )
+	ROM_LOAD32_BYTE( "1.bin", 0x000002, 0x040000, CRC(35c94ee5) SHA1(3440a65a807622b619c97bc2a88fd7d875c26f66) )
+	ROM_LOAD32_BYTE( "2.bin", 0x000003, 0x040000, CRC(5409e7fc) SHA1(2f94a6a8e4c94b36b43f0b94d58525f594339a9d) )
 
 	ROM_REGION( 0x10000, "cpu1", 0 ) /* 87C52 MCU Code */
 	ROM_LOAD( "87c52.mcu", 0x00000, 0x10000 , NO_DUMP ) /* can't be dumped. */
@@ -641,11 +705,11 @@ ROM_START( dreamwld )
 	  ram.  The interrupt vectors point at the code placed in RAM. */
 	ROM_LOAD( "protdata.bin", 0x000, 0x6c9 ,  CRC(f284b2fd) SHA1(9e8096c8aa8a288683f002311b38787b120748d1) ) /* extracted */
 
-	ROM_REGION( 0x100000, "oki1", 0 ) /* OKI Samples - 1st chip*/
+	ROM_REGION( 0x100000, "oki1", 0 ) /* OKI Samples - 1st chip */
 	ROM_LOAD( "5.bin", 0x000000, 0x80000, CRC(9689570a) SHA1(4414233da8f46214ca7e9022df70953922a63aa4) )
 	ROM_RELOAD(0x80000,0x80000) // for the banks
 
-	ROM_REGION( 0x100000, "oki2", 0 ) /* OKI Samples - 2nd chip*/
+	ROM_REGION( 0x100000, "oki2", 0 ) /* OKI Samples - 2nd chip */
 	ROM_LOAD( "6.bin", 0x000000, 0x80000, CRC(c8b91f30) SHA1(706004ca56d0a74bc7a3dfd73a21cdc09eb90f05) )
 	ROM_RELOAD(0x80000,0x80000) // for the banks
 
@@ -663,12 +727,123 @@ ROM_START( dreamwld )
 	ROM_LOAD( "11.bin", 0x000000, 0x10000, CRC(0da8db45) SHA1(7d5bd71c5b0b28ff74c732edd7c662f46f2ab25b) )
 ROM_END
 
+/*
+
+Rolling Crush
+Trust / SemiCom, 1999
+
+PCB Layout
+----------
+
+|-------------------------------------------------|
+|    M6295* 27C40*  62256   ACTEL           ROM10 |
+|VOL M6295  ROM6    62256   A40MX04               |
+|    PAL  PAL       32MHz                         |
+| 62256  62256              PAL                   |
+| ROM2 ROM4       68EC020   PAL    PAL            |
+| ROM1 ROM3                 PAL    PAL            |
+|J 62256 62256              PAL                   |
+|A                          PAL    27MHz          |
+|M                                 PAL            |
+|M                         ACTEL    M5M44260      |
+|A             6116        A40MX04  M5M44260      |
+|              6116                               |
+|                          PAL                    |
+|              6264        PAL                    |
+|              6264                               |
+| DSW1                      ROM9                  |
+|        8752        ROM7   ROM8    27C160*       |
+| DSW2               ROM6   27C160* 27C160*       |
+|-------------------------------------------------|
+
+Same PCB as Dream World except one OKI M6295 and it's sample rom are unpopulated
+
+* denotes unpopulated components
+
+Main CPU 68EC020FG16           @ 16MHz
+AD-65 (OKI MSM6295 rebadged)   @ 1MHz
+Atmel AT89C52 MCU (secured)    @ 16MHZ
+
+V-SYNC                         @57.793 Hz
+H-SYNC                         @ (floating) 15.19 - 15.27KHz
+
+*/
+
+ROM_START( rolcrush )
+	ROM_REGION( 0x200000, "maincpu", 0 )
+	ROM_LOAD32_BYTE( "mx27c2000_4.bin", 0x000000, 0x040000, CRC(c47f0540) SHA1(76712f41046e5852ad6be6dbf171cf34471e2409) )
+	ROM_LOAD32_BYTE( "mx27c2000_3.bin", 0x000001, 0x040000, CRC(7af59294) SHA1(f36b3d100e0d963bf51b7fbe8c4a0bdcf2180ba0) )
+	ROM_LOAD32_BYTE( "mx27c2000_2.bin", 0x000002, 0x040000, CRC(5eb24adb) SHA1(0329a02e18490bfe72ff34a64722d7316814720b) )
+	ROM_LOAD32_BYTE( "mx27c2000_1.bin", 0x000003, 0x040000, CRC(a37e15b2) SHA1(f0fc945a894d6ed58daf05390a17051d0f3cda20) )
+
+	ROM_REGION( 0x10000, "cpu1", 0 ) /* 87C52 MCU Code */
+	ROM_LOAD( "87c52.mcu", 0x00000, 0x10000 , NO_DUMP ) /* can't be dumped. */
+
+	ROM_REGION( 0x10000, "user1", ROMREGION_ERASE00 ) /* Protection data  */
+	ROM_LOAD( "protdata.bin", 0x000, 0x745, CRC(06b8a880) SHA1(b7d4bf26d34cb544825270c2c474bbd4c81a6c9e) ) /* extracted */
+
+	ROM_REGION( 0x100000, "oki1", 0 ) /* OKI Samples - 1st chip*/
+	ROM_LOAD( "mx27c4000_5.bin", 0x000000, 0x80000, CRC(7afa6adb) SHA1(d4049e1068a5f7abf0e14d0b9fbbbc6dfb5d0170) )
+	ROM_RELOAD(0x80000,0x80000) // for the banks
+
+	ROM_REGION( 0x100000, "oki2", ROMREGION_ERASE00 ) /* OKI Samples - 2nd chip (neither OKI or rom is present, empty sockets) */
+	/* not populared */
+
+	ROM_REGION( 0x400000, "gfx1", 0 ) /* Sprite Tiles - decoded */
+	ROM_LOAD16_WORD_SWAP( "m27c160.8.bin", 0x000000, 0x200000, CRC(a509bc36) SHA1(aaa008e07e4b24ff9dbcee5925d6516d1662931c) )
+
+	ROM_REGION( 0x200000, "gfx2", 0 ) /* BG Tiles - decoded */
+	ROM_LOAD16_WORD_SWAP( "m27c160.10.bin",0x000000, 0x200000, CRC(739b0cb0) SHA1(a7cc48502d84218586afa7276fa7ba759242f05e) )
+
+	ROM_REGION( 0x040000, "spritelut", 0 ) /* Sprite Code Lookup ... */
+	ROM_LOAD16_BYTE( "tms27c010_7.bin", 0x000000, 0x020000, CRC(4cb84384) SHA1(8dd02e2d9829c15cb19654779d2217a7d53d5971) )
+	ROM_LOAD16_BYTE( "tms27c010_6.bin", 0x000001, 0x020000, CRC(0c9d197a) SHA1(da057c8d08f41c4a5b9cb4f8f00de7e1461d98f0) )
+
+	ROM_REGION( 0x10000, "unknown", 0 ) /* ???? - not decoded seems to be in blocks of 0x41 bytes.. */
+	ROM_LOAD( "mx27c512.9.bin", 0x000000, 0x10000, CRC(0da8db45) SHA1(7d5bd71c5b0b28ff74c732edd7c662f46f2ab25b) )
+ROM_END
+
+/*
+
+Baryon
+SemiCom, 1997
+
+PCB Layout
+----------
+
+|-------------------------------------------------|
+|           ROM1   62256   ACTEL            ROM2  |
+|VOL        M6295  62256   A40MX04                |
+|    PAL  PAL              32MHz                  |
+| 62256  62256                PAL                 |
+| ROM3 ROM4         68EC020   PAL    PAL          |
+| ROM5 ROM6                   PAL    PAL          |
+|J 62256 62256                PAL                 |
+|A                            PAL    27MHz        |
+|M                                 PAL            |
+|M                         ACTEL    M5M44260      |
+|A             6116        A40MX04  M5M44260      |
+|              6116                               |
+|                          PAL                    |
+|              6264        PAL                    |
+|              6264                               |
+| DSW1                      ROM7                  |
+|       P87C52       ROM8   ROM9    27C160*       |
+| DSW2               ROM10  ROM11   27C160*       |
+|-------------------------------------------------|
+
+Baryon is a slightly different PCB, doesn't have a position for a 2nd OKI
+
+* denotes unpopulated components
+
+*/
+
 ROM_START( baryon )
 	ROM_REGION( 0x100000, "maincpu", 0 )
-	ROM_LOAD32_BYTE( "3.bin", 0x000002, 0x040000, CRC(046d4231) SHA1(05056efe5fec7f43c400f05278de516b01be0fdf) )
 	ROM_LOAD32_BYTE( "4.bin", 0x000000, 0x040000, CRC(59e0df20) SHA1(ff12f4adcf731f6984db7d0fbdd7fcc71ce66aa4) )
-	ROM_LOAD32_BYTE( "5.bin", 0x000003, 0x040000, CRC(63d5e7cb) SHA1(269bf5ffe10f2464f823c4d377921e19cfb8bc46) )
 	ROM_LOAD32_BYTE( "6.bin", 0x000001, 0x040000, CRC(abccbb3d) SHA1(01524f094543d872d775306024f51258a11e9240) )
+	ROM_LOAD32_BYTE( "3.bin", 0x000002, 0x040000, CRC(046d4231) SHA1(05056efe5fec7f43c400f05278de516b01be0fdf) )
+	ROM_LOAD32_BYTE( "5.bin", 0x000003, 0x040000, CRC(63d5e7cb) SHA1(269bf5ffe10f2464f823c4d377921e19cfb8bc46) )
 
 	ROM_REGION( 0x10000, "cpu1", 0 ) /* 87C52 MCU Code */
 	ROM_LOAD( "87c52.mcu", 0x00000, 0x10000 , NO_DUMP ) /* can't be dumped. */
@@ -696,7 +871,6 @@ ROM_START( baryon )
 ROM_END
 
 
-
-
-GAME( 1997, baryon,   0, baryon,   dreamwld, driver_device, 0, ROT270,  "SemiCom", "Baryon - Future Assault", GAME_SUPPORTS_SAVE )
-GAME( 2000, dreamwld, 0, dreamwld, dreamwld, driver_device, 0, ROT0,  "SemiCom", "Dream World", GAME_SUPPORTS_SAVE )
+GAME( 1997, baryon,   0, baryon,   baryon,   driver_device, 0, ROT270, "SemiCom",         "Baryon - Future Assault", GAME_SUPPORTS_SAVE )
+GAME( 2000, dreamwld, 0, dreamwld, dreamwld, driver_device, 0, ROT0,   "SemiCom",         "Dream World", GAME_SUPPORTS_SAVE )
+GAME( 1999, rolcrush, 0, baryon,   rolcrush, driver_device, 0, ROT0,   "Trust / SemiCom", "Rolling Crush (version 1.07.E - 1999/02/11)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS ) // wrong linescroll

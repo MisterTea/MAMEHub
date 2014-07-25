@@ -7,7 +7,9 @@ public:
 		m_bulletsram(*this, "bulletsram"),
 		m_videoram(*this, "videoram"),
 		m_maincpu(*this, "maincpu"),
-		m_samples(*this, "samples") { }
+		m_samples(*this, "samples"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_bulletsram;
 	required_shared_ptr<UINT8> m_videoram;
@@ -31,10 +33,12 @@ public:
 	DECLARE_INPUT_CHANGED_MEMBER(coin_inserted);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(tankbatt);
 	UINT32 screen_update_tankbatt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(tankbatt_interrupt);
 	void draw_bullets(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<samples_device> m_samples;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

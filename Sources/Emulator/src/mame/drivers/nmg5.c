@@ -239,7 +239,8 @@ public:
 		m_sprgen(*this, "spritegen"),
 		m_maincpu(*this, "maincpu"),
 		m_soundcpu(*this, "soundcpu"),
-		m_oki(*this, "oki")
+		m_oki(*this, "oki"),
+		m_gfxdecode(*this, "gfxdecode")
 	{ }
 
 	/* memory pointers */
@@ -265,6 +266,8 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_soundcpu;
 	required_device<okim6295_device> m_oki;
+	required_device<gfxdecode_device> m_gfxdecode;
+
 	DECLARE_WRITE16_MEMBER(fg_videoram_w);
 	DECLARE_WRITE16_MEMBER(bg_videoram_w);
 	DECLARE_WRITE16_MEMBER(nmg5_soundlatch_w);
@@ -351,7 +354,7 @@ WRITE8_MEMBER(nmg5_state::oki_banking_w)
 static ADDRESS_MAP_START( nmg5_map, AS_PROGRAM, 16, nmg5_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	AM_RANGE(0x120000, 0x12ffff) AM_RAM
-	AM_RANGE(0x140000, 0x1407ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x140000, 0x1407ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x160000, 0x1607ff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x180000, 0x180001) AM_WRITE(nmg5_soundlatch_w)
 	AM_RANGE(0x180002, 0x180003) AM_WRITENOP
@@ -371,7 +374,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( pclubys_map, AS_PROGRAM, 16, nmg5_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	AM_RANGE(0x200000, 0x20ffff) AM_RAM
-	AM_RANGE(0x440000, 0x4407ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x440000, 0x4407ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x460000, 0x4607ff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x480000, 0x480001) AM_WRITE(nmg5_soundlatch_w)
 	AM_RANGE(0x480002, 0x480003) AM_WRITENOP
@@ -852,8 +855,8 @@ TILE_GET_INFO_MEMBER(nmg5_state::bg_get_tile_info){ SET_TILE_INFO_MEMBER(0, m_bg
 
 void nmg5_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(nmg5_state::bg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(nmg5_state::fg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(nmg5_state::bg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(nmg5_state::fg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 	m_fg_tilemap->set_transparent_pen(0);
 }
 
@@ -1015,16 +1018,19 @@ static MACHINE_CONFIG_START( nmg5, nmg5_state )
 	MCFG_SCREEN_SIZE(320, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 319, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(nmg5_state, screen_update_nmg5)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(nmg5)
-	MCFG_PALETTE_LENGTH(0x400)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", nmg5)
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 1);
-	decospr_device::set_is_bootleg(*device, true);
-	decospr_device::set_flipallx(*device, 1);
-	decospr_device::set_offsets(*device, 0,8);
+	MCFG_DECO_SPRITE_GFX_REGION(1)
+	MCFG_DECO_SPRITE_ISBOOTLEG(true)
+	MCFG_DECO_SPRITE_FLIPALLX(1)
+	MCFG_DECO_SPRITE_OFFSETS(0, 8)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 
 	/* sound hardware */
@@ -1060,7 +1066,7 @@ static MACHINE_CONFIG_DERIVED( pclubys, nmg5 )
 	MCFG_CPU_MODIFY("soundcpu")
 	MCFG_CPU_PROGRAM_MAP(pclubys_sound_map)
 
-	MCFG_GFXDECODE(pclubys)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", pclubys)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( searchp2, nmg5 )
@@ -1070,7 +1076,7 @@ static MACHINE_CONFIG_DERIVED( searchp2, nmg5 )
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_REFRESH_RATE(55) // !
 
-	MCFG_GFXDECODE(pclubys)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", pclubys)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( 7ordi, nmg5 )
@@ -1145,6 +1151,36 @@ ROM_START( nmg5 )
 	ROM_LOAD( "xra1.bin", 0x00000, 0x20000, CRC(c74a4f3e) SHA1(2f6165c1d5bdd3e816b95ffd9303dd4bd07f7ac8) )
 ROM_END
 
+ROM_START( nmg5a )
+	ROM_REGION( 0x100000, "maincpu", 0 )        /* 68000 Code */
+	ROM_LOAD16_BYTE( "m5_p1.ub15", 0x000000, 0x80000, CRC(0d63a21d) SHA1(e669d0d280573a4e05ee7dbacb4e0bf70880af6e) )
+	ROM_LOAD16_BYTE( "m5_p2.ub16", 0x000001, 0x80000, CRC(230438db) SHA1(8ccd6a225a37b02afdcc987168f74b9fa568c71b) )
+
+	ROM_REGION( 0x10000, "soundcpu", 0 )        /* Z80 Code */
+	ROM_LOAD( "m5_sndcpu.xh15", 0x00000, 0x10000, CRC(12d047c4) SHA1(3123b1856219380ff598a2fad97a66863e30d80f) )
+
+	ROM_REGION( 0x400000, "gfx1", 0 )   /* 8x8x8 */
+	ROM_LOAD( "m5_12.srom1", 0x000000, 0x80000, CRC(3adff261) SHA1(c72d45a91cc03872fd3c5e1c7328097a48aac115) )
+	ROM_LOAD( "m5_8.srom2",  0x080000, 0x80000, CRC(b0736b66) SHA1(c8223aca5ef03348c132ff0625a43a7e56eccaee) )
+	ROM_LOAD( "m5_13.srom3", 0x100000, 0x80000, CRC(8e904919) SHA1(f6b0b92ccfaaf1b1129c433f6a54399fc0c0ad44) )
+	ROM_LOAD( "m5_9.srom4",  0x180000, 0x80000, CRC(779e0e30) SHA1(bb703ebe1bb48c4a1ae1c3e86e18db853d5f1816) )
+	ROM_LOAD( "m5_6.srom5",  0x200000, 0x80000, CRC(41061258) SHA1(85f55e9e8c67e514c890e88e5719b88399d9ce99) )
+	ROM_LOAD( "m5_10.srom6", 0x280000, 0x80000, CRC(8147d8ef) SHA1(d07300fc6b2bedbe8f5d09f8bb9becb14dd61a7c) )
+	ROM_LOAD( "m5_7.srom7",  0x300000, 0x80000, CRC(acb00d15) SHA1(b03d5f960ed527ac1132dbaa01539462cb325aa6) )
+	ROM_LOAD( "m5_11.srom8", 0x380000, 0x80000, CRC(0ba74fce) SHA1(62215eee4eb7100029ae3344e5a6d03da523eede))
+
+	ROM_REGION( 0x140000, "gfx2", 0 )   /* 16x16x5 */ // same as parent set
+	ROM_LOAD( "m5_3.uf1", 0x000000, 0x40000, CRC(9a9fb6f4) SHA1(4541d33493b9bba11b8e5ed35431271790763db4) )
+	ROM_LOAD( "m5_5.uf2", 0x040000, 0x40000, CRC(66954d63) SHA1(62a315640beb8b063886ea6ed1433a18f75e8d0d) )
+	ROM_LOAD( "m5_1.ufa1",0x080000, 0x40000, CRC(ba73ed2d) SHA1(efd2548fb0ada11ff98b73335689d2394cbf42a4) )
+	ROM_LOAD( "m5_4.uh1", 0x0c0000, 0x40000, CRC(f7726e8e) SHA1(f28669725609ffab7c6c3bfddbe293c55ddd0155) )
+	ROM_LOAD( "m5_2.uj1", 0x100000, 0x40000, CRC(54f7486e) SHA1(88a237a1005b1fd70b6d8544ef60a0d16cb38e6f) )
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
+	ROM_LOAD( "m5_oki.xra1", 0x00000, 0x20000, CRC(c74a4f3e) SHA1(2f6165c1d5bdd3e816b95ffd9303dd4bd07f7ac8) )
+ROM_END
+
+
 ROM_START( nmg5e )
 	ROM_REGION( 0x100000, "maincpu", 0 )        /* 68000 Code */
 	ROM_LOAD16_BYTE( "ub15.rom", 0x000000, 0x80000, CRC(578516e2) SHA1(87785e0071c62f17664e875d95cd6124984b8080) )
@@ -1173,6 +1209,7 @@ ROM_START( nmg5e )
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
 	ROM_LOAD( "xra1.bin", 0x00000, 0x20000, CRC(c74a4f3e) SHA1(2f6165c1d5bdd3e816b95ffd9303dd4bd07f7ac8) )
 ROM_END
+
 
 ROM_START( searchey )
 	ROM_REGION( 0x100000, "maincpu", 0 )        /* 68000 Code */
@@ -1510,8 +1547,9 @@ DRIVER_INIT_MEMBER(nmg5_state,prot_val_40)
 	m_prot_val = 0x40;
 }
 
-GAME( 1998, nmg5,     0,       nmg5,     nmg5, nmg5_state,     prot_val_10, ROT0, "Yun Sung", "Multi 5 / New Multi Game 5", GAME_SUPPORTS_SAVE )
-GAME( 1997, nmg5e,    nmg5,    nmg5,     nmg5, nmg5_state,     prot_val_10, ROT0, "Yun Sung", "Multi 5 / New Multi Game 5 (earlier)", GAME_SUPPORTS_SAVE )
+GAME( 1998, nmg5,     0,       nmg5,     nmg5, nmg5_state,     prot_val_10, ROT0, "Yun Sung", "Multi 5 / New Multi Game 5 (set 1)", GAME_SUPPORTS_SAVE )
+GAME( 1998, nmg5a,    nmg5,    nmg5,     nmg5, nmg5_state,     prot_val_10, ROT0, "Yun Sung", "Multi 5 / New Multi Game 5 (set 2)", GAME_SUPPORTS_SAVE )
+GAME( 1997, nmg5e,    nmg5,    nmg5,     nmg5, nmg5_state,     prot_val_10, ROT0, "Yun Sung", "Multi 5 / New Multi Game 5 (set 3, earlier)", GAME_SUPPORTS_SAVE )
 GAME( 1999, searchey, 0,       nmg5,     searchey, nmg5_state, prot_val_10, ROT0, "Yun Sung", "Search Eye", GAME_SUPPORTS_SAVE )
 GAME( 1999, searchp2, 0,       searchp2, searchp2, nmg5_state, prot_val_10, ROT0, "Yun Sung", "Search Eye Plus V2.0", GAME_SUPPORTS_SAVE )
 GAME( 2000, pclubys,  0,       pclubys,  pclubys, nmg5_state,  prot_val_10, ROT0, "Yun Sung", "Puzzle Club (Yun Sung, set 1)", GAME_SUPPORTS_SAVE )

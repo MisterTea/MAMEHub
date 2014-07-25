@@ -8,26 +8,35 @@
 **********************************************************************/
 
 /*
+
+To do:
+
+  - Display mode 1 (text)
+  - Display mode 3 (multicolor)
+
+
+SMS Display Timing
+------------------
     For more information, please see:
     - http://cgfm2.emuviews.com/txt/msvdp.txt
     - http://www.smspower.org/forums/viewtopic.php?p=44198
 
 A scanline contains the following sections:
-  - horizontal sync     1  ED      => HSYNC high/increment line counter/generate interrupts/etc
+  - horizontal sync     9  E9-ED   => HSYNC high
   - left blanking       2  ED-EE
-  - color burst        14  EE-EF
+  - color burst        14  EE-F5   => increment line counter/generate interrupts/etc
   - left blanking       8  F5-F9
   - left border        13  F9-FF
   - active display    256  00-7F
   - right border       15  80-87
   - right blanking      8  87-8B
-  - horizontal sync    25  8B-97   => HSYNC low
+  - horizontal sync    17  8B-93   => HSYNC low
 
 
 NTSC frame timing
                        256x192         256x224        256x240 (doesn't work on real hardware)
-  - vertical blanking   3  D5-D7        3  E5-E7       3  EE-F0
-  - top blanking       13  D8-E4       13  E8-F4      13  F1-FD
+  - vertical blanking   3  D5-D7        3  E5-E7       3  ED-EF
+  - top blanking       13  D8-E4       13  E8-F4      13  F0-FC
   - top border         27  E5-FF       11  F5-FF       3  FD-FF
   - active display    192  00-BF      224  00-DF     240  00-EF
   - bottom border      24  C0-D7        8  E0-E7       0  F0-F0
@@ -55,33 +64,35 @@ PAL frame timing
 #define STATUS_HINT           0x02  /* Pending horizontal interrupt flag */
 
 #define VINT_HPOS             24
-#define VINT_FLAG_HPOS        23
+#define VINT_FLAG_HPOS        24
 #define HINT_HPOS             26
+#define NMI_HPOS              28
 #define VCOUNT_CHANGE_HPOS    23
-#define SPROVR_HPOS           23
+#define SPROVR_HPOS           24
 #define SPRCOL_BASEHPOS       59
-#define DISPLAY_CB_HPOS       6  /* fix X-Scroll latchtime (Flubba's VDPTest) */
+#define X_SCROLL_HPOS         21
+#define DISPLAY_DISABLED_HPOS 17 /* fixes 'fantdizzy' (SMS PAL game) flicker */
+#define DISPLAY_CB_HPOS       2  /* fixes 'roadrash' (SMS game) title scrolling, due to line counter reload timing */
 
-#define DRAW_TIME_GG        86      /* 1 + 2 + 14 +8 + 96/2 */
-#define DRAW_TIME_SMS       0
+#define DRAW_TIME_GG        94      /* 9 + 2 + 14 + 8 + 13 + 96/2 */
+#define DRAW_TIME_SMS       46      /* 9 + 2 + 14 + 8 + 13 */
 
 #define PRIORITY_BIT          0x1000
 #define BACKDROP_COLOR        ((m_vdp_mode == 4 ? 0x10 : 0x00) + (m_reg[0x07] & 0x0f))
 
-#define INIT_VCOUNT           0
-#define VERTICAL_BLANKING     1
-#define TOP_BLANKING          2
-#define TOP_BORDER            3
-#define ACTIVE_DISPLAY_V      4
-#define BOTTOM_BORDER         5
-#define BOTTOM_BLANKING       6
+#define VERTICAL_BLANKING     0
+#define TOP_BLANKING          1
+#define TOP_BORDER            2
+#define ACTIVE_DISPLAY_V      3
+#define BOTTOM_BORDER         4
+#define BOTTOM_BLANKING       5
 
-static const UINT8 ntsc_192[7] = { 0xd5, 3, 13, 27, 192, 24, 3 };
-static const UINT8 ntsc_224[7] = { 0xe5, 3, 13, 11, 224,  8, 3 };
-static const UINT8 ntsc_240[7] = { 0xee, 3, 13,  3, 240,  0, 3 };
-static const UINT8 pal_192[7]  = { 0xba, 3, 13, 54, 192, 48, 3 };
-static const UINT8 pal_224[7]  = { 0xca, 3, 13, 38, 224, 32, 3 };
-static const UINT8 pal_240[7]  = { 0xd2, 3, 13, 30, 240, 24, 3 };
+static const UINT8 ntsc_192[6] = { 3, 13, 27, 192, 24, 3 };
+static const UINT8 ntsc_224[6] = { 3, 13, 11, 224,  8, 3 };
+static const UINT8 ntsc_240[6] = { 3, 13,  3, 240,  0, 3 };
+static const UINT8 pal_192[6]  = { 3, 13, 54, 192, 48, 3 };
+static const UINT8 pal_224[6]  = { 3, 13, 38, 224, 32, 3 };
+static const UINT8 pal_240[6]  = { 3, 13, 30, 240, 24, 3 };
 
 
 const device_type SEGA315_5124 = &device_creator<sega315_5124_device>;
@@ -97,25 +108,25 @@ PALETTE_INIT_MEMBER(sega315_5124_device, sega315_5124)
 		int r = i & 0x03;
 		int g = (i & 0x0c) >> 2;
 		int b = (i & 0x30) >> 4;
-		palette_set_color_rgb(machine(), i, pal2bit(r), pal2bit(g), pal2bit(b));
+		palette.set_pen_color(i, pal2bit(r), pal2bit(g), pal2bit(b));
 	}
 	/* TMS9918 palette */
-	palette_set_color_rgb(machine(), 64+ 0,   0,   0,   0);
-	palette_set_color_rgb(machine(), 64+ 1,   0,   0,   0);
-	palette_set_color_rgb(machine(), 64+ 2,  33, 200,  66);
-	palette_set_color_rgb(machine(), 64+ 3,  94, 220, 120);
-	palette_set_color_rgb(machine(), 64+ 4,  84,  85, 237);
-	palette_set_color_rgb(machine(), 64+ 5, 125, 118, 252);
-	palette_set_color_rgb(machine(), 64+ 6, 212,  82,  77);
-	palette_set_color_rgb(machine(), 64+ 7,  66, 235, 245);
-	palette_set_color_rgb(machine(), 64+ 8, 252,  85,  84);
-	palette_set_color_rgb(machine(), 64+ 9, 255, 121, 120);
-	palette_set_color_rgb(machine(), 64+10, 212, 193,  84);
-	palette_set_color_rgb(machine(), 64+11, 230, 206, 128);
-	palette_set_color_rgb(machine(), 64+12,  33, 176,  59);
-	palette_set_color_rgb(machine(), 64+13, 201,  91, 186);
-	palette_set_color_rgb(machine(), 64+14, 204, 204, 204);
-	palette_set_color_rgb(machine(), 64+15, 255, 255, 255);
+	palette.set_pen_color(64+ 0,   0,   0,   0);
+	palette.set_pen_color(64+ 1,   0,   0,   0);
+	palette.set_pen_color(64+ 2,  33, 200,  66);
+	palette.set_pen_color(64+ 3,  94, 220, 120);
+	palette.set_pen_color(64+ 4,  84,  85, 237);
+	palette.set_pen_color(64+ 5, 125, 118, 252);
+	palette.set_pen_color(64+ 6, 212,  82,  77);
+	palette.set_pen_color(64+ 7,  66, 235, 245);
+	palette.set_pen_color(64+ 8, 252,  85,  84);
+	palette.set_pen_color(64+ 9, 255, 121, 120);
+	palette.set_pen_color(64+10, 212, 193,  84);
+	palette.set_pen_color(64+11, 230, 206, 128);
+	palette.set_pen_color(64+12,  33, 176,  59);
+	palette.set_pen_color(64+13, 201,  91, 186);
+	palette.set_pen_color(64+14, 204, 204, 204);
+	palette.set_pen_color(64+15, 255, 255, 255);
 }
 
 
@@ -127,7 +138,7 @@ PALETTE_INIT_MEMBER(sega315_5378_device, sega315_5378)
 		int r = i & 0x000f;
 		int g = (i & 0x00f0) >> 4;
 		int b = (i & 0x0f00) >> 8;
-		palette_set_color_rgb(machine(), i, pal4bit(r), pal4bit(g), pal4bit(b));
+		palette.set_pen_color(i, pal4bit(r), pal4bit(g), pal4bit(b));
 	}
 }
 
@@ -139,13 +150,17 @@ ADDRESS_MAP_END
 
 
 sega315_5124_device::sega315_5124_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t( mconfig, SEGA315_5124, "Sega 315-5124", tag, owner, clock, "sega315_5124", __FILE__)
+	: device_t( mconfig, SEGA315_5124, "Sega 315-5124 VDP", tag, owner, clock, "sega315_5124", __FILE__)
 	, device_memory_interface(mconfig, *this)
 	, device_video_interface(mconfig, *this)
 	, m_cram_size( SEGA315_5124_CRAM_SIZE )
 	, m_palette_offset( 0 )
 	, m_supports_224_240( false )
+	, m_is_pal(false)
+	, m_int_cb(*this)
+	, m_pause_cb(*this)
 	, m_space_config("videoram", ENDIANNESS_LITTLE, 8, 14, 0, NULL, *ADDRESS_MAP_NAME(sega315_5124))
+	, m_palette(*this, "palette")
 {
 }
 
@@ -157,13 +172,17 @@ sega315_5124_device::sega315_5124_device(const machine_config &mconfig, device_t
 	, m_cram_size( cram_size )
 	, m_palette_offset( palette_offset )
 	, m_supports_224_240( supports_224_240 )
+	, m_is_pal(false)
+	, m_int_cb(*this)
+	, m_pause_cb(*this)
 	, m_space_config("videoram", ENDIANNESS_LITTLE, 8, 14, 0, NULL, *ADDRESS_MAP_NAME(sega315_5124))
+	, m_palette(*this, "palette")
 {
 }
 
 
 sega315_5246_device::sega315_5246_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: sega315_5124_device( mconfig, SEGA315_5246, "Sega 315-5246", tag, owner, clock, SEGA315_5124_CRAM_SIZE, 0, true, "sega315_5246", __FILE__)
+	: sega315_5124_device( mconfig, SEGA315_5246, "Sega 315-5246 VDP", tag, owner, clock, SEGA315_5124_CRAM_SIZE, 0, true, "sega315_5246", __FILE__)
 {
 }
 
@@ -209,21 +228,24 @@ void sega315_5124_device::set_display_settings()
 		{
 			m_vdp_mode = 0;
 		}
-		else
-//      if (M1 && !M2 && !M3)
-//      {
-//          m_vdp_mode = 1;
-//      }
-//      else
-		if (!M1 && M2 && !M3)
+#if 0
+		/* Mode 1, not implemented */
+		else if (M1 && !M2 && !M3)
+		{
+			m_vdp_mode = 1;
+		}
+#endif
+		else if (!M1 && M2 && !M3)
 		{
 			m_vdp_mode = 2;
-//      }
-//      else
-//      if (!M1 && !M2 && M3)
-//      {
-//          m_vdp_mode = 3;
 		}
+#if 0
+		/* Mode 3, not implemented */
+		else if (!M1 && !M2 && M3)
+		{
+			m_vdp_mode = 3;
+		}
+#endif
 		else
 		{
 			logerror("Unknown video mode detected (M1 = %c, M2 = %c, M3 = %c, M4 = %c)\n", M1 ? '1' : '0', M2 ? '1' : '0', M3 ? '1' : '0', M4 ? '1' : '0');
@@ -251,6 +273,7 @@ void sega315_5124_device::set_display_settings()
 READ8_MEMBER( sega315_5124_device::vcount_read )
 {
 	int vpos = m_screen->vpos();
+	int active_scr_start = m_frame_timing[VERTICAL_BLANKING] + m_frame_timing[TOP_BLANKING] + m_frame_timing[TOP_BORDER];
 
 	if (m_screen->hpos() < VCOUNT_CHANGE_HPOS)
 	{
@@ -259,7 +282,7 @@ READ8_MEMBER( sega315_5124_device::vcount_read )
 			vpos += m_screen->height();
 	}
 
-	return (m_frame_timing[INIT_VCOUNT] + vpos) & 0xff;
+	return (vpos - active_scr_start) & 0xff;
 }
 
 
@@ -277,7 +300,7 @@ void sega315_5124_device::hcount_latch_at_hpos( int hpos )
 	if (hclock < 0)
 		hclock += m_screen->width();
 
-	/* Calculate and write the new hcount. */
+	/* Calculate and store the new hcount. */
 	m_hcounter = ((hclock - 46) >> 1) & 0xff;
 }
 
@@ -303,30 +326,65 @@ void sega315_5124_device::device_timer(emu_timer &timer, device_timer_id id, int
 		draw_scanline( SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH, param, m_screen->vpos() - param );
 		break;
 
-	case TIMER_CHECK_HINT:
+	case TIMER_LBORDER:
+		{
+			rectangle rec;
+			rec.min_y = rec.max_y = param;
+
+			update_palette();
+
+			/* Draw left border */
+			rec.min_x = SEGA315_5124_LBORDER_START;
+			rec.max_x = SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH - 1;
+			m_tmpbitmap.fill(m_palette->pen(m_current_palette[BACKDROP_COLOR]), rec);
+			m_y1_bitmap.fill(1, rec);
+		}
+		break;
+
+	case TIMER_RBORDER:
+		{
+			rectangle rec;
+			rec.min_y = rec.max_y = param;
+
+			update_palette();
+
+			/* Draw right border */
+			rec.min_x = SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH + 256;
+			rec.max_x = rec.min_x + SEGA315_5124_RBORDER_WIDTH - 1;
+			m_tmpbitmap.fill(m_palette->pen(m_current_palette[BACKDROP_COLOR]), rec);
+			m_y1_bitmap.fill(1, rec);
+		}
+		break;
+
+	case TIMER_HINT:
 		if ((m_pending_status & STATUS_HINT) || (m_status & STATUS_HINT))
 		{
 			if ((m_reg[0x00] & 0x10))
 			{
 				m_irq_state = 1;
 
-				if ( !m_cb_int.isnull() )
-					m_cb_int(ASSERT_LINE);
+				if ( !m_int_cb.isnull() )
+					m_int_cb(ASSERT_LINE);
 			}
 		}
 		break;
 
-	case TIMER_CHECK_VINT:
+	case TIMER_VINT:
 		if ((m_pending_status & STATUS_VINT) || (m_status & STATUS_VINT))
 		{
 			if ((m_reg[0x01] & 0x20))
 			{
 				m_irq_state = 1;
 
-				if ( !m_cb_int.isnull() )
-					m_cb_int(ASSERT_LINE);
+				if ( !m_int_cb.isnull() )
+					m_int_cb(ASSERT_LINE);
 			}
 		}
+		break;
+
+	case TIMER_NMI:
+		if ( !m_pause_cb.isnull() )
+			m_pause_cb(0);
 		break;
 	}
 }
@@ -334,26 +392,15 @@ void sega315_5124_device::device_timer(emu_timer &timer, device_timer_id id, int
 
 void sega315_5124_device::process_line_timer()
 {
-	rectangle rec;
 	int vpos = m_screen->vpos();
 	int vpos_limit = m_frame_timing[VERTICAL_BLANKING] + m_frame_timing[TOP_BLANKING]
 					+ m_frame_timing[TOP_BORDER] + m_frame_timing[ACTIVE_DISPLAY_V]
 					+ m_frame_timing[BOTTOM_BORDER] + m_frame_timing[BOTTOM_BLANKING];
 
-	rec.min_y = rec.max_y = vpos;
+	m_display_disabled = !(m_reg[0x01] & 0x40);
 
 	/* Activate flags that were pending until the end of previous line. */
-	check_pending_flags(m_screen->width());
-
-	/* Check if we're on the last line of a frame */
-	if (vpos == vpos_limit - 1)
-	{
-		m_line_counter = m_reg[0x0a];
-		if ( !m_cb_pause.isnull() )
-			m_cb_pause(0);
-
-		return;
-	}
+	check_pending_flags();
 
 	vpos_limit -= m_frame_timing[BOTTOM_BLANKING];
 
@@ -374,7 +421,7 @@ void sega315_5124_device::process_line_timer()
 			if (m_line_counter == 0x00)
 			{
 				m_line_counter = m_reg[0x0a];
-				m_check_hint_timer->adjust( m_screen->time_until_pos( vpos, HINT_HPOS ) );
+				m_hint_timer->adjust( m_screen->time_until_pos( vpos, HINT_HPOS ) );
 				m_pending_status |= STATUS_HINT;
 			}
 			else
@@ -389,28 +436,18 @@ void sega315_5124_device::process_line_timer()
 
 		if (vpos == vpos_limit + 1)
 		{
-			m_check_vint_timer->adjust( m_screen->time_until_pos( vpos, VINT_HPOS ) );
+			m_vint_timer->adjust( m_screen->time_until_pos( vpos, VINT_HPOS ) );
 			m_pending_status |= STATUS_VINT;
 		}
 
-		update_palette();
-
-		/* Draw left border */
-		rec.min_x = SEGA315_5124_LBORDER_START;
-		rec.max_x = SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH - 1;
-		m_tmpbitmap.fill(machine().pens[m_current_palette[BACKDROP_COLOR]], rec);
-		m_y1_bitmap.fill(1, rec);
-
-		/* Draw right border */
-		rec.min_x = SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH + 256;
-		rec.max_x = rec.min_x + SEGA315_5124_RBORDER_WIDTH - 1;
-		m_tmpbitmap.fill(machine().pens[m_current_palette[BACKDROP_COLOR]], rec);
-		m_y1_bitmap.fill(1, rec);
+		/* Draw borders */
+		m_lborder_timer->adjust( m_screen->time_until_pos( vpos, SEGA315_5124_LBORDER_START ), vpos );
+		m_rborder_timer->adjust( m_screen->time_until_pos( vpos, SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH + 256 ), vpos );
 
 		/* Draw middle of the border */
 		/* We need to do this through the regular drawing function so it will */
 		/* be included in the gamegear scaling functions */
-		draw_scanline( SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH, vpos_limit - m_frame_timing[ACTIVE_DISPLAY_V], vpos - (vpos_limit - m_frame_timing[ACTIVE_DISPLAY_V]) );
+		m_draw_timer->adjust( m_screen->time_until_pos( vpos, m_draw_time ), vpos_limit - m_frame_timing[ACTIVE_DISPLAY_V] );
 		return;
 	}
 
@@ -423,11 +460,12 @@ void sega315_5124_device::process_line_timer()
 		{
 			m_reg9copy = m_reg[0x09];
 		}
+		m_reg8copy = m_reg[0x08];
 
 		if (m_line_counter == 0x00)
 		{
 			m_line_counter = m_reg[0x0a];
-			m_check_hint_timer->adjust( m_screen->time_until_pos( vpos, HINT_HPOS ) );
+			m_hint_timer->adjust( m_screen->time_until_pos( vpos, HINT_HPOS ) );
 			m_pending_status |= STATUS_HINT;
 		}
 		else
@@ -435,29 +473,13 @@ void sega315_5124_device::process_line_timer()
 			m_line_counter--;
 		}
 
-		update_palette();
+		/* Draw borders */
+		m_lborder_timer->adjust( m_screen->time_until_pos( vpos, SEGA315_5124_LBORDER_START ), vpos );
+		m_rborder_timer->adjust( m_screen->time_until_pos( vpos, SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH + 256 ), vpos );
 
-		/* Draw left border */
-		rec.min_x = SEGA315_5124_LBORDER_START;
-		rec.max_x = SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH - 1;
-		m_tmpbitmap.fill(machine().pens[m_current_palette[BACKDROP_COLOR]], rec);
-		m_y1_bitmap.fill(1, rec);
-
-		/* Draw right border */
-		rec.min_x = SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH + 256;
-		rec.max_x = rec.min_x + SEGA315_5124_RBORDER_WIDTH - 1;
-		m_tmpbitmap.fill(machine().pens[m_current_palette[BACKDROP_COLOR]], rec);
-		m_y1_bitmap.fill(1, rec);
-
+		/* Draw active display */
 		select_sprites( vpos - vpos_limit );
-		if ( m_draw_time > 0 )
-		{
-			m_draw_timer->adjust( m_screen->time_until_pos( vpos, m_draw_time ), vpos_limit );
-		}
-		else
-		{
-			draw_scanline( SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH, vpos_limit, vpos - vpos_limit );
-		}
+		m_draw_timer->adjust( m_screen->time_until_pos( vpos, m_draw_time ), vpos_limit );
 		return;
 	}
 
@@ -467,25 +489,22 @@ void sega315_5124_device::process_line_timer()
 	if (vpos >= vpos_limit)
 	{
 		m_line_counter = m_reg[0x0a];
-		update_palette();
 
-		/* Draw left border */
-		rec.min_x = SEGA315_5124_LBORDER_START;
-		rec.max_x = SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH - 1;
-		m_tmpbitmap.fill(machine().pens[m_current_palette[BACKDROP_COLOR]], rec);
-		m_y1_bitmap.fill(1, rec);
+		/* Check if we're on the last line of the top border */
+		if (vpos == vpos_limit + m_frame_timing[TOP_BORDER] - 1)
+		{
+			m_nmi_timer->adjust( m_screen->time_until_pos( vpos, NMI_HPOS ) );
+		}
 
-		/* Draw right border */
-		rec.min_x = SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH + 256;
-		rec.max_x = rec.min_x + SEGA315_5124_RBORDER_WIDTH - 1;
-		m_tmpbitmap.fill(machine().pens[m_current_palette[BACKDROP_COLOR]], rec);
-		m_y1_bitmap.fill(1, rec);
+		/* Draw borders */
+		m_lborder_timer->adjust( m_screen->time_until_pos( vpos, SEGA315_5124_LBORDER_START ), vpos );
+		m_rborder_timer->adjust( m_screen->time_until_pos( vpos, SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH + 256 ), vpos );
 
 		/* Draw middle of the border */
 		/* We need to do this through the regular drawing function so it will */
 		/* be included in the gamegear scaling functions */
 		select_sprites( vpos - (vpos_limit + m_frame_timing[TOP_BORDER]) );
-		draw_scanline( SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH, vpos_limit + m_frame_timing[TOP_BORDER], vpos - (vpos_limit + m_frame_timing[TOP_BORDER]) );
+		m_draw_timer->adjust( m_screen->time_until_pos( vpos, m_draw_time ), vpos_limit + m_frame_timing[TOP_BORDER] );
 		return;
 	}
 
@@ -512,19 +531,32 @@ READ8_MEMBER( sega315_5124_device::vram_read )
 		/* Load read buffer */
 		m_buffer = this->space().read_byte(m_addr & 0x3fff);
 
-		/* Bump internal addthis->ress register */
+		/* Bump internal address register */
 		m_addr += 1;
 	}
 	return temp;
 }
 
 
-void sega315_5124_device::check_pending_flags( int hpos )
+void sega315_5124_device::check_pending_flags()
 {
+	int hpos;
+
+	if (!m_pending_status)
+	{
+		return;
+	}
+
+	hpos = m_screen->hpos();
+	if (hpos < DISPLAY_CB_HPOS || m_display_timer->remaining() == attotime::zero)
+	{
+		hpos = m_screen->width();
+	}
+
 	if ((m_pending_status & STATUS_HINT) && hpos >= HINT_HPOS)
 	{
 		m_pending_status &= ~STATUS_HINT;
-		m_status |= STATUS_HINT;
+		m_status |= STATUS_HINT;   // fake flag.
 	}
 	if ((m_pending_status & STATUS_VINT) && hpos >= VINT_FLAG_HPOS)
 	{
@@ -549,7 +581,7 @@ READ8_MEMBER( sega315_5124_device::register_read )
 {
 	UINT8 temp;
 
-	check_pending_flags(m_screen->hpos());
+	check_pending_flags();
 	temp = m_status;
 
 	if ( !space.debugger_access() )
@@ -563,8 +595,8 @@ READ8_MEMBER( sega315_5124_device::register_read )
 		{
 			m_irq_state = 0;
 
-			if ( !m_cb_int.isnull() )
-				m_cb_int(CLEAR_LINE);
+			if ( !m_int_cb.isnull() )
+				m_int_cb(CLEAR_LINE);
 		}
 	}
 
@@ -590,14 +622,7 @@ WRITE8_MEMBER( sega315_5124_device::vram_write )
 			break;
 
 		case 0x03:
-			{
-				UINT16 address = m_addr & m_cram_mask;
-				if (data != m_CRAM->u8(address))
-				{
-					m_CRAM->u8(address) = data;
-					m_cram_dirty = 1;
-				}
-			}
+			cram_write(data);
 			break;
 	}
 
@@ -609,8 +634,9 @@ WRITE8_MEMBER( sega315_5124_device::vram_write )
 WRITE8_MEMBER( sega315_5124_device::register_write )
 {
 	int reg_num;
+	int hpos = m_screen->hpos();
 
-	check_pending_flags(m_screen->hpos());
+	check_pending_flags();
 
 	if (m_pending_reg_write == 0)
 	{
@@ -644,6 +670,12 @@ WRITE8_MEMBER( sega315_5124_device::register_write )
 			if (reg_num == 0 || reg_num == 1)
 				set_display_settings();
 
+			if (reg_num == 1 && hpos <= DISPLAY_DISABLED_HPOS)
+				m_display_disabled = !(m_reg[0x01] & 0x40);
+
+			if (reg_num == 8 && hpos <= X_SCROLL_HPOS)
+				m_reg8copy = m_reg[0x08];
+
 			if ( ( reg_num == 0 && (m_status & STATUS_HINT) ) ||
 					( reg_num == 1 && (m_status & STATUS_VINT) ) )
 			{
@@ -653,21 +685,21 @@ WRITE8_MEMBER( sega315_5124_device::register_write )
 				// So here, where the setting is done, the irq_state needs to be cleared.
 				//
 				// For VINT disabling through register 01:
-				// When running eagles5 on the sms2kr driver the irq_state is 1 because of some
+				// When running eagles5 on the smskr driver the irq_state is 1 because of some
 				// previos HINTs that occured. eagles5 sets register 01 to 0x02 and expects
 				// the irq state to be cleared after that.
 				// The following bit of code takes care of that.
 				//
-				if ( ( (m_status & STATUS_HINT) && !(m_reg[0x00] & 0x10) ) ||
-						( (m_status & STATUS_VINT) && !(m_reg[0x01] & 0x20) ) )
+				if ( ( reg_num == 0 && !(m_reg[0x00] & 0x10) ) ||
+						( reg_num == 1 && !(m_reg[0x01] & 0x20) ) )
 				{
 					if (m_irq_state == 1)
 					{
 						m_irq_state = 0;
 
-						if ( !m_cb_int.isnull() )
+						if ( !m_int_cb.isnull() )
 						{
-							m_cb_int(CLEAR_LINE);
+							m_int_cb(CLEAR_LINE);
 						}
 					}
 				}
@@ -681,8 +713,8 @@ WRITE8_MEMBER( sega315_5124_device::register_write )
 					//
 					m_irq_state = 1;
 
-					if ( !m_cb_int.isnull() )
-						m_cb_int(ASSERT_LINE);
+					if ( !m_int_cb.isnull() )
+						m_int_cb(ASSERT_LINE);
 				}
 			}
 			m_addrmode = 0;
@@ -756,8 +788,8 @@ void sega315_5124_device::draw_scanline_mode4( int *line_buffer, int *priority_s
 	UINT16 name_table_address = get_name_table_address();
 
 	/* if top 2 rows of screen not affected by horizontal scrolling, then x_scroll = 0 */
-	/* else x_scroll = m_reg[0x08]                                                       */
-	x_scroll = (((m_reg[0x00] & 0x40) && (line < 16)) ? 0 : 0x0100 - m_reg[0x08]);
+	/* else x_scroll = m_reg8copy                                                      */
+	x_scroll = (((m_reg[0x00] & 0x40) && (line < 16)) ? 0 : 0x0100 - m_reg8copy);
 
 	x_scroll_start_column = (x_scroll >> 3);             /* x starting column tile */
 
@@ -921,14 +953,12 @@ void sega315_5124_device::draw_sprites_mode4( int *line_buffer, int *priority_se
 	bool sprite_col_occurred = false;
 	int sprite_col_x = m_screen->width();
 
-	/* Draw sprite layer */
-
-	/* Check if display is disabled */
-	if (!(m_reg[0x01] & 0x40))
+	if (m_display_disabled)
 		return;
 
 	memset(m_collision_buffer, 0, SEGA315_5124_WIDTH);
 
+	/* Draw sprite layer */
 	for (int sprite_buffer_index = m_sprite_count - 1; sprite_buffer_index >= 0; sprite_buffer_index--)
 	{
 		int sprite_index = m_selected_sprite[sprite_buffer_index];
@@ -1080,14 +1110,12 @@ void sega315_5124_device::draw_sprites_tms9918_mode( int *line_buffer, int line 
 	int sprite_col_x = m_screen->width();
 	UINT16 sprite_pattern_base = ((m_reg[0x06] & 0x07) << 11);
 
-	/* Draw sprite layer */
-
-	/* Check if display is disabled */
-	if (!(m_reg[0x01] & 0x40))
+	if (m_display_disabled)
 		return;
 
 	memset(m_collision_buffer, 0, SEGA315_5124_WIDTH);
 
+	/* Draw sprite layer */
 	for (int sprite_buffer_index = m_sprite_count - 1; sprite_buffer_index >= 0; sprite_buffer_index--)
 	{
 		int sprite_index = m_selected_sprite[sprite_buffer_index];
@@ -1271,7 +1299,6 @@ void sega315_5124_device::draw_scanline_mode2( int *line_buffer, int line )
 	UINT16 name_table_base, color_base, pattern_base;
 	int pattern_mask, color_mask, pattern_offset;
 
-	/* Draw background layer */
 	name_table_base =  ((m_reg[0x02] & 0x0f) << 10) + ((line >> 3) * 32);
 	color_base = ((m_reg[0x03] & 0x80) << 6);
 	color_mask = ((m_reg[0x03] & 0x7f) << 3) | 0x07;
@@ -1279,6 +1306,7 @@ void sega315_5124_device::draw_scanline_mode2( int *line_buffer, int line )
 	pattern_mask = ((m_reg[0x04] & 0x03) << 8) | 0xff;
 	pattern_offset = (line & 0xc0) << 2;
 
+	/* Draw background layer */
 	for (tile_column = 0; tile_column < 32; tile_column++)
 	{
 		UINT8 name = space().read_byte( name_table_base + tile_column );
@@ -1320,11 +1348,11 @@ void sega315_5124_device::draw_scanline_mode0( int *line_buffer, int line )
 	int pixel_x, pixel_plot_x;
 	UINT16 name_base, color_base, pattern_base;
 
-	/* Draw background layer */
 	name_base = ((m_reg[0x02] & 0x0f) << 10) + ((line >> 3) * 32);
 	color_base = ((m_reg[0x03] << 6) & (VRAM_SIZE - 1));
 	pattern_base = ((m_reg[0x04] << 11) & (VRAM_SIZE - 1));
 
+	/* Draw background layer */
 	for (tile_column = 0; tile_column < 32; tile_column++)
 	{
 		UINT8 name = space().read_byte( name_base + tile_column );
@@ -1428,11 +1456,11 @@ void sega315_5124_device::draw_scanline( int pixel_offset_x, int pixel_plot_y, i
 	UINT8  *p_y1 = &m_y1_bitmap.pix8(pixel_plot_y + line, pixel_offset_x);
 
 	/* Check if display is disabled or we're below/above active area */
-	if (!(m_reg[0x01] & 0x40) || line < 0 || line >= m_frame_timing[ACTIVE_DISPLAY_V])
+	if (m_display_disabled || line < 0 || line >= m_frame_timing[ACTIVE_DISPLAY_V])
 	{
 		for (x = 0; x < 256; x++)
 		{
-			p_bitmap[x] = machine().pens[m_current_palette[BACKDROP_COLOR]];
+			p_bitmap[x] = m_palette->pen(m_current_palette[BACKDROP_COLOR]);
 			p_y1[x] = 1;
 		}
 	}
@@ -1440,7 +1468,7 @@ void sega315_5124_device::draw_scanline( int pixel_offset_x, int pixel_plot_y, i
 	{
 		for (x = 0; x < 256; x++)
 		{
-			p_bitmap[x] = machine().pens[blitline_buffer[x]];
+			p_bitmap[x] = m_palette->pen(blitline_buffer[x]);
 			p_y1[x] = ( priority_selected[x] & 0x0f ) ? 0 : 1;
 		}
 	}
@@ -1518,7 +1546,7 @@ void sega315_5378_device::draw_scanline( int pixel_offset_x, int pixel_plot_y, i
 	}
 
 	/* Check if display is disabled or we're below/above active area */
-	if (!(m_reg[0x01] & 0x40) || line < 0 || line >= m_frame_timing[ACTIVE_DISPLAY_V])
+	if (m_display_disabled || line < 0 || line >= m_frame_timing[ACTIVE_DISPLAY_V])
 	{
 		for (x = 0; x < 256; x++)
 		{
@@ -1590,14 +1618,14 @@ void sega315_5378_device::draw_scanline( int pixel_offset_x, int pixel_plot_y, i
 
 			for (x = 0 + 48; x < 160 + 48; x++)
 			{
-				rgb_t   c1 = machine().pens[line1[x]];
-				rgb_t   c2 = machine().pens[line2[x]];
-				rgb_t   c3 = machine().pens[line3[x]];
-				rgb_t   c4 = machine().pens[line4[x]];
+				rgb_t   c1 = m_palette->pen(line1[x]);
+				rgb_t   c2 = m_palette->pen(line2[x]);
+				rgb_t   c3 = m_palette->pen(line3[x]);
+				rgb_t   c4 = m_palette->pen(line4[x]);
 				m_tmpbitmap.pix32(pixel_plot_y, pixel_offset_x + x) =
-					MAKE_RGB((RGB_RED(c1) / 6 + RGB_RED(c2) / 3 + RGB_RED(c3) / 3 + RGB_RED(c4) / 6 ),
-						(RGB_GREEN(c1) / 6 + RGB_GREEN(c2) / 3 + RGB_GREEN(c3) / 3 + RGB_GREEN(c4) / 6 ),
-						(RGB_BLUE(c1) / 6 + RGB_BLUE(c2) / 3 + RGB_BLUE(c3) / 3 + RGB_BLUE(c4) / 6 ) );
+					rgb_t((c1.r() / 6 + c2.r() / 3 + c3.r() / 3 + c4.r() / 6 ),
+						(c1.g() / 6 + c2.g() / 3 + c3.g() / 3 + c4.g() / 6 ),
+						(c1.b() / 6 + c2.b() / 3 + c3.b() / 3 + c4.b() / 6 ) );
 			}
 			return;
 		}
@@ -1606,7 +1634,7 @@ void sega315_5378_device::draw_scanline( int pixel_offset_x, int pixel_plot_y, i
 
 	for (x = 0; x < 256; x++)
 	{
-		m_tmpbitmap.pix32(pixel_plot_y + line, pixel_offset_x + x) = machine().pens[blitline_buffer[x]];
+		m_tmpbitmap.pix32(pixel_plot_y + line, pixel_offset_x + x) = m_palette->pen(blitline_buffer[x]);
 	}
 }
 
@@ -1660,7 +1688,40 @@ void sega315_5378_device::update_palette()
 	{
 		for (i = 0; i < 32; i++)
 		{
-			m_current_palette[i] = ((m_CRAM->u8(i * 2 + 1) << 8) | m_CRAM->u8(i * 2)) & 0x0fff;
+			m_current_palette[i] = m_CRAM->u16(i) & 0x0fff;
+		}
+	}
+}
+
+
+void sega315_5124_device::cram_write(UINT8 data)
+{
+	UINT16 address = m_addr & m_cram_mask;
+	if (data != m_CRAM->u8(address))
+	{
+		m_CRAM->u8(address) = data;
+		m_cram_dirty = 1;
+	}
+}
+
+
+void sega315_5378_device::cram_write(UINT8 data)
+{
+	if (m_sega315_5124_compatibility_mode)
+	{
+		sega315_5124_device::cram_write(data);
+	}
+	else
+	{
+		if (m_addr & 1)
+		{
+			UINT16 address = (m_addr & m_cram_mask) >> 1;
+			UINT16 dataw = (data << 8) | m_buffer;
+			if (dataw != m_CRAM->u16(address))
+			{
+				m_CRAM->u16(address) = dataw;
+				m_cram_dirty = 1;
+			}
 		}
 	}
 }
@@ -1673,23 +1734,27 @@ UINT32 sega315_5124_device::screen_update( screen_device &screen, bitmap_rgb32 &
 }
 
 
+// MegaDrive/Genesis VDP (315-5313) is currently coded as superset of the 315-5124
+// To support properly SMS VDP in MegaTech and MegaPlay, we start the 315-5124
+// in all systems using MegaDrive/Genesis VDP, but this affects the performance
+// of the emulator hence we stop it in systems that don't need it
+// Proper way to handle this would be implement the 315-5124 modes in the 315-5313
+// device instead of running the two chips separately...
+void sega315_5124_device::stop_timers()
+{
+	m_display_timer->adjust(attotime::never);
+	m_hint_timer->adjust(attotime::never);
+	m_vint_timer->adjust(attotime::never);
+	m_nmi_timer->adjust(attotime::never);
+	m_draw_timer->adjust(attotime::never);
+	m_lborder_timer->adjust(attotime::never);
+	m_rborder_timer->adjust(attotime::never);
+}
+
+
 /*****************************************************************************
     DEVICE INTERFACE
 *****************************************************************************/
-
-void sega315_5124_device::device_config_complete()
-{
-	const sega315_5124_interface *intf = reinterpret_cast<const sega315_5124_interface *>(static_config());
-
-	if ( intf != NULL )
-	{
-		*static_cast<sega315_5124_interface *>(this) = *intf;
-	}
-	else
-	{
-		fatalerror("No sega315_5124_interface supplied\n");
-	}
-}
 
 void sega315_5124_device::vdp_postload()
 {
@@ -1712,8 +1777,8 @@ void sega315_5124_device::vdp_postload()
 void sega315_5124_device::device_start()
 {
 	/* Resolve callbacks */
-	m_cb_int.resolve( m_int_callback, *this );
-	m_cb_pause.resolve( m_pause_callback, *this );
+	m_int_cb.resolve();
+	m_pause_cb.resolve();
 
 	/* Allocate video RAM */
 	astring tempstring;
@@ -1729,12 +1794,16 @@ void sega315_5124_device::device_start()
 	m_display_timer = timer_alloc(TIMER_LINE);
 	m_display_timer->adjust(m_screen->time_until_pos(0, DISPLAY_CB_HPOS), 0, m_screen->scan_period());
 	m_draw_timer = timer_alloc(TIMER_DRAW);
-	m_check_hint_timer = timer_alloc(TIMER_CHECK_HINT);
-	m_check_vint_timer = timer_alloc(TIMER_CHECK_VINT);
+	m_lborder_timer = timer_alloc(TIMER_LBORDER);
+	m_rborder_timer = timer_alloc(TIMER_RBORDER);
+	m_hint_timer = timer_alloc(TIMER_HINT);
+	m_vint_timer = timer_alloc(TIMER_VINT);
+	m_nmi_timer = timer_alloc(TIMER_NMI);
 
 	save_item(NAME(m_status));
 	save_item(NAME(m_pending_status));
 	save_item(NAME(m_pending_sprcol_x));
+	save_item(NAME(m_reg8copy));
 	save_item(NAME(m_reg9copy));
 	save_item(NAME(m_addrmode));
 	save_item(NAME(m_addr));
@@ -1743,6 +1812,7 @@ void sega315_5124_device::device_start()
 	save_item(NAME(m_pending_reg_write));
 	save_item(NAME(m_buffer));
 	save_item(NAME(m_sega315_5124_compatibility_mode));
+	save_item(NAME(m_display_disabled));
 	save_item(NAME(m_irq_state));
 	save_item(NAME(m_vdp_mode));
 	save_item(NAME(m_y_pixels));
@@ -1780,10 +1850,12 @@ void sega315_5124_device::device_reset()
 	m_pending_status = 0;
 	m_pending_sprcol_x = 0;
 	m_pending_reg_write = 0;
+	m_reg8copy = 0;
 	m_reg9copy = 0;
 	m_addrmode = 0;
 	m_addr = 0;
 	m_sega315_5124_compatibility_mode = false;
+	m_display_disabled = false;
 	m_cram_mask = m_cram_size - 1;
 	m_cram_dirty = 1;
 	m_buffer = 0;
@@ -1803,7 +1875,8 @@ void sega315_5124_device::device_reset()
 }
 
 static MACHINE_CONFIG_FRAGMENT( sega315_5124 )
-	MCFG_PALETTE_INIT_OVERRIDE(sega315_5124_device, sega315_5124)
+	MCFG_PALETTE_ADD("palette", SEGA315_5124_PALETTE_SIZE)
+	MCFG_PALETTE_INIT_OWNER(sega315_5124_device, sega315_5124)
 MACHINE_CONFIG_END
 
 //-------------------------------------------------
@@ -1824,7 +1897,8 @@ void sega315_5378_device::device_reset()
 }
 
 static MACHINE_CONFIG_FRAGMENT( sega315_5378 )
-	MCFG_PALETTE_INIT_OVERRIDE(sega315_5378_device, sega315_5378)
+	MCFG_PALETTE_ADD("palette", SEGA315_5378_PALETTE_SIZE)
+	MCFG_PALETTE_INIT_OWNER(sega315_5378_device, sega315_5378)
 MACHINE_CONFIG_END
 
 //-------------------------------------------------

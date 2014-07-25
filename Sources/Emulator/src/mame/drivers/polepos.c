@@ -360,21 +360,6 @@ WRITE8_MEMBER(polepos_state::out_1)
 	coin_lockout_global_w(machine(), data & 1);
 }
 
-static const namco_51xx_interface namco_51xx_intf =
-{
-	{   /* port read handlers */
-		DEVCB_INPUT_PORT("IN0L"),
-		DEVCB_INPUT_PORT("IN0H"),
-		DEVCB_INPUT_PORT("DSWB"),
-		DEVCB_INPUT_PORT("DSWB_HI")
-	},
-	{   /* port write handlers */
-		DEVCB_DRIVER_MEMBER(polepos_state,out_0),
-		DEVCB_DRIVER_MEMBER(polepos_state,out_1)
-	}
-};
-
-
 READ8_MEMBER(polepos_state::namco_52xx_rom_r)
 {
 	UINT32 length = memregion("52xx")->bytes();
@@ -387,16 +372,6 @@ READ8_MEMBER(polepos_state::namco_52xx_si_r)
 	/* pulled to +5V */
 	return 1;
 }
-
-static const namco_52xx_interface namco_52xx_intf =
-{
-	"discrete",                         /* name of the discrete sound device */
-	NODE_04,                            /* index of the first node */
-	0,                                  /* external clock rate */
-	DEVCB_DRIVER_MEMBER(polepos_state,namco_52xx_rom_r),    /* ROM read handler */
-	DEVCB_DRIVER_MEMBER(polepos_state,namco_52xx_si_r)      /* SI (pin 6) read handler */
-};
-
 
 READ8_MEMBER(polepos_state::namco_53xx_k_r)
 {
@@ -430,19 +405,6 @@ READ8_MEMBER(polepos_state::steering_delta_r)
 {
 	return m_steer_delta;
 }
-
-static const namco_53xx_interface namco_53xx_intf =
-{
-	DEVCB_DRIVER_MEMBER(polepos_state,namco_53xx_k_r),          /* K port */
-	{
-		DEVCB_DRIVER_MEMBER(polepos_state,steering_changed_r),  /* R0 port */
-		DEVCB_DRIVER_MEMBER(polepos_state,steering_delta_r),    /* R1 port */
-		DEVCB_INPUT_PORT("DSWA"),           /* R2 port */
-		DEVCB_INPUT_PORT("DSWA_HI")         /* R3 port */
-	},
-	DEVCB_NULL                              /* P port (connected to test socket) */
-};
-
 
 TIMER_DEVICE_CALLBACK_MEMBER(polepos_state::polepos_scanline)
 {
@@ -490,8 +452,8 @@ static ADDRESS_MAP_START( z80_map, AS_PROGRAM, 8, polepos_state )
 	AM_RANGE(0x8000, 0x83bf) AM_MIRROR(0x0c00) AM_RAM                                   /* Sound Memory */
 	AM_RANGE(0x83c0, 0x83ff) AM_MIRROR(0x0c00) AM_DEVREADWRITE("namco", namco_device, polepos_sound_r, polepos_sound_w)    /* Sound data */
 
-	AM_RANGE(0x9000, 0x9000) AM_MIRROR(0x0eff) AM_DEVREADWRITE_LEGACY("06xx", namco_06xx_data_r, namco_06xx_data_w)
-	AM_RANGE(0x9100, 0x9100) AM_MIRROR(0x0eff) AM_DEVREADWRITE_LEGACY("06xx", namco_06xx_ctrl_r, namco_06xx_ctrl_w)
+	AM_RANGE(0x9000, 0x9000) AM_MIRROR(0x0eff) AM_DEVREADWRITE("06xx", namco_06xx_device, data_r, data_w)
+	AM_RANGE(0x9100, 0x9100) AM_MIRROR(0x0eff) AM_DEVREADWRITE("06xx", namco_06xx_device, ctrl_r, ctrl_w)
 	AM_RANGE(0xa000, 0xa000) AM_MIRROR(0x0cff) AM_READ(polepos_ready_r)                 /* READY */
 	AM_RANGE(0xa000, 0xa007) AM_MIRROR(0x0cf8) AM_WRITE(polepos_latch_w)                /* misc latches */
 	AM_RANGE(0xa100, 0xa100) AM_MIRROR(0x0cff) AM_WRITE(watchdog_reset_w)               /* Watchdog */
@@ -861,26 +823,6 @@ GFXDECODE_END
 
 
 /*********************************************************************
- * Sound interfaces
- *********************************************************************/
-
-static const namco_interface namco_config =
-{
-	8,              /* number of voices */
-	1               /* stereo */
-};
-
-const namco_06xx_config polepos_namco_06xx_intf =
-{
-	"maincpu", "51xx", "53xx", "52xx", "54xx"
-};
-
-const namco_54xx_config polepos_namco_54xx_intf =
-{
-	"discrete", NODE_01
-};
-
-/*********************************************************************
  * Machine driver
  *********************************************************************/
 
@@ -897,12 +839,39 @@ static MACHINE_CONFIG_START( polepos, polepos_state )
 	MCFG_CPU_ADD("sub2", Z8002, MASTER_CLOCK/8) /* 3.072 MHz */
 	MCFG_CPU_PROGRAM_MAP(z8002_map)
 
-	MCFG_NAMCO_51XX_ADD("51xx", MASTER_CLOCK/8/2, namco_51xx_intf)      /* 1.536 MHz */
-	MCFG_NAMCO_52XX_ADD("52xx", MASTER_CLOCK/8/2, namco_52xx_intf)      /* 1.536 MHz */
-	MCFG_NAMCO_53XX_ADD("53xx", MASTER_CLOCK/8/2, namco_53xx_intf)      /* 1.536 MHz */
-	MCFG_NAMCO_54XX_ADD("54xx", MASTER_CLOCK/8/2, polepos_namco_54xx_intf)  /* 1.536 MHz */
+	MCFG_NAMCO_51XX_ADD("51xx", MASTER_CLOCK/8/2)      /* 1.536 MHz */
+	MCFG_NAMCO_51XX_INPUT_0_CB(IOPORT("IN0L"))
+	MCFG_NAMCO_51XX_INPUT_1_CB(IOPORT("IN0H"))
+	MCFG_NAMCO_51XX_INPUT_2_CB(IOPORT("DSWB"))
+	MCFG_NAMCO_51XX_INPUT_3_CB(IOPORT("DSWB_HI"))
+	MCFG_NAMCO_51XX_OUTPUT_0_CB(WRITE8(polepos_state,out_0))
+	MCFG_NAMCO_51XX_OUTPUT_1_CB(WRITE8(polepos_state,out_1))
 
-	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/8/64, polepos_namco_06xx_intf)
+	MCFG_NAMCO_52XX_ADD("52xx", MASTER_CLOCK/8/2)      /* 1.536 MHz */
+	MCFG_NAMCO_52XX_DISCRETE("discrete")
+	MCFG_NAMCO_52XX_BASENODE(NODE_04)
+	MCFG_NAMCO_52XX_ROMREAD_CB(READ8(polepos_state,namco_52xx_rom_r))
+	MCFG_NAMCO_52XX_SI_CB(READ8(polepos_state,namco_52xx_si_r))
+
+	MCFG_NAMCO_53XX_ADD("53xx", MASTER_CLOCK/8/2)      /* 1.536 MHz */
+	MCFG_NAMCO_53XX_K_CB(READ8(polepos_state,namco_53xx_k_r))
+	MCFG_NAMCO_53XX_INPUT_0_CB(READ8(polepos_state,steering_changed_r))
+	MCFG_NAMCO_53XX_INPUT_1_CB(READ8(polepos_state,steering_delta_r))
+	MCFG_NAMCO_53XX_INPUT_2_CB(IOPORT("DSWA"))
+	MCFG_NAMCO_53XX_INPUT_3_CB(IOPORT("DSWA_HI"))
+
+	MCFG_NAMCO_54XX_ADD("54xx", MASTER_CLOCK/8/2)  /* 1.536 MHz */
+	MCFG_NAMCO_54XX_DISCRETE("discrete")
+	MCFG_NAMCO_54XX_BASENODE(NODE_01)
+
+	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/8/64)
+	MCFG_NAMCO_06XX_MAINCPU("maincpu")
+	MCFG_NAMCO_06XX_READ_0_CB(DEVREAD8("51xx", namco_51xx_device, read))
+	MCFG_NAMCO_06XX_WRITE_0_CB(DEVWRITE8("51xx", namco_51xx_device, write))
+	MCFG_NAMCO_06XX_READ_1_CB(DEVREAD8("53xx", namco_53xx_device, read))
+	MCFG_NAMCO_06XX_READ_REQUEST_1_CB(DEVWRITELINE("53xx", namco_53xx_device, read_request))
+	MCFG_NAMCO_06XX_WRITE_2_CB(DEVWRITE8("52xx", namco_52xx_device, write))
+	MCFG_NAMCO_06XX_WRITE_3_CB(DEVWRITE8("54xx", namco_54xx_device, write))
 
 	MCFG_WATCHDOG_VBLANK_INIT(16)   // 128V clocks the same as VBLANK
 
@@ -917,19 +886,22 @@ static MACHINE_CONFIG_START( polepos, polepos_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/4, 384, 0, 256, 264, 16, 224+16)
 	MCFG_SCREEN_UPDATE_DRIVER(polepos_state, screen_update_polepos)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(polepos)
-	MCFG_PALETTE_LENGTH(0x0f00)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", polepos)
+	MCFG_PALETTE_ADD("palette", 0x0f00)
+	MCFG_PALETTE_INDIRECT_ENTRIES(128)
 	MCFG_DEFAULT_LAYOUT(layout_polepos)
 
-	MCFG_PALETTE_INIT_OVERRIDE(polepos_state,polepos)
+	MCFG_PALETTE_INIT_OWNER(polepos_state,polepos)
 	MCFG_VIDEO_START_OVERRIDE(polepos_state,polepos)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("namco", NAMCO, MASTER_CLOCK/512)
-	MCFG_SOUND_CONFIG(namco_config)
+	MCFG_NAMCO_AUDIO_VOICES(8)
+	MCFG_NAMCO_AUDIO_STEREO(1)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.80)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.80)
 
@@ -945,26 +917,6 @@ static MACHINE_CONFIG_START( polepos, polepos_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.90 * 0.77)
 MACHINE_CONFIG_END
 
-/* doesn't exist on the bootleg, but required for now or the game only boots in test mode!
-   - they probably simulate some of the logic */
-static const namco_51xx_interface namco_51xx_bl_intf =
-{
-	{   /* port read handlers */
-		DEVCB_NULL,
-		DEVCB_INPUT_PORT("IN0H"),
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
-	{   /* port write handlers */
-		DEVCB_NULL,
-		DEVCB_NULL
-	}
-};
-
-const namco_06xx_config topracern_namco_06xx_intf =
-{
-	"maincpu", "51xx", NULL, NULL, NULL
-};
 
 static MACHINE_CONFIG_START( topracern, polepos_state )
 
@@ -980,8 +932,15 @@ static MACHINE_CONFIG_START( topracern, polepos_state )
 	MCFG_CPU_PROGRAM_MAP(z8002_map)
 
 	/* todo, remove these devices too, this bootleg doesn't have them, but the emulation doesn't boot without them.. */
-	MCFG_NAMCO_51XX_ADD("51xx", MASTER_CLOCK/8/2, namco_51xx_bl_intf)       /* 1.536 MHz */
-	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/8/64, topracern_namco_06xx_intf)
+	/* doesn't exist on the bootleg, but required for now or the game only boots in test mode!
+	   they probably simulate some of the logic */
+	MCFG_NAMCO_51XX_ADD("51xx", MASTER_CLOCK/8/2)       /* 1.536 MHz */
+	MCFG_NAMCO_51XX_INPUT_1_CB(IOPORT("IN0H"))
+
+	MCFG_NAMCO_06XX_ADD("06xx", MASTER_CLOCK/8/64)
+	MCFG_NAMCO_06XX_MAINCPU("maincpu")
+	MCFG_NAMCO_06XX_READ_0_CB(DEVREAD8("51xx", namco_51xx_device, read))
+	MCFG_NAMCO_06XX_WRITE_0_CB(DEVWRITE8("51xx", namco_51xx_device, write))
 
 	MCFG_WATCHDOG_VBLANK_INIT(16)   // 128V clocks the same as VBLANK
 
@@ -996,19 +955,22 @@ static MACHINE_CONFIG_START( topracern, polepos_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/4, 384, 0, 256, 264, 16, 224+16)
 	MCFG_SCREEN_UPDATE_DRIVER(polepos_state, screen_update_polepos)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(polepos)
-	MCFG_PALETTE_LENGTH(0x0f00)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", polepos)
+	MCFG_PALETTE_ADD("palette", 0x0f00)
+	MCFG_PALETTE_INDIRECT_ENTRIES(128)
 	MCFG_DEFAULT_LAYOUT(layout_topracer)
 
-	MCFG_PALETTE_INIT_OVERRIDE(polepos_state,polepos)
+	MCFG_PALETTE_INIT_OWNER(polepos_state,polepos)
 	MCFG_VIDEO_START_OVERRIDE(polepos_state,polepos)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("namco", NAMCO, MASTER_CLOCK/512)
-	MCFG_SOUND_CONFIG(namco_config)
+	MCFG_NAMCO_AUDIO_VOICES(8)
+	MCFG_NAMCO_AUDIO_STEREO(1)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.80)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.80)
 
@@ -1629,11 +1591,11 @@ ROM_START( ppspeed )
 	/* Z8002 #2 memory/ROM data */
 	ROM_REGION( 0x10000, "sub2", 0 )
 	ROM_LOAD16_BYTE( "tr5b.bin",     0x0001, 0x2000, CRC(4e5f7b9c) SHA1(d26b1f24dd9ef00388987890bc5b95d4db403815) )
-	ROM_LOAD16_BYTE( "tr6b.bin",     0x0000, 0x2000, CRC(b3641d0c) SHA1(38ce172b2e38895749cbd3cc1c0e2c0fe8be744a) )
+	ROM_LOAD16_BYTE( "tr6b(__ppspeed).bin",  0x0000, 0x2000, CRC(b3641d0c) SHA1(38ce172b2e38895749cbd3cc1c0e2c0fe8be744a) )
 
 	/* graphics data */
 	ROM_REGION( 0x01000, "gfx1", 0 )    /* 2bpp alpha layer */
-	ROM_LOAD( "tr28.bin",      0x0000, 0x1000, CRC(cd80b4c3) SHA1(5f237c1e7eb94ecb2680270afdf31c8e111164c5) )
+	ROM_LOAD( "tr28(__ppspeed).bin",   0x0000, 0x1000, CRC(cd80b4c3) SHA1(5f237c1e7eb94ecb2680270afdf31c8e111164c5) )
 
 	ROM_REGION( 0x01000, "gfx2", 0 )    /* 2bpp view layer */
 	ROM_LOAD( "tr29.bin",      0x0000, 0x1000, CRC(c6e15c21) SHA1(e2a70b3f7ce51a003068eb75d9fe82548f0206d7) )
@@ -1644,11 +1606,11 @@ ROM_START( ppspeed )
 
 	ROM_REGION( 0x10000, "gfx4", 0 )    /* 4bpp 32x32 sprites */
 	ROM_LOAD( "tr17.bin",      0x0000, 0x2000, CRC(613ab0df) SHA1(88aa4500275aae010fc9783c1d8d843feab89afa) )    /* 4bpp lg sprites, planes 0+1 */
-	ROM_LOAD( "tr19.bin",      0x2000, 0x2000, CRC(1ea04ccd) SHA1(1cec1e4d0f47365245d92489f78d3edd4f23481f) )
-	ROM_LOAD( "tr21.bin",      0x4000, 0x2000, CRC(bd7b4a62) SHA1(66175a9382f627053097f0bc9a3fd49a26f8ac8f) )
+	ROM_LOAD( "tr19(__ppspeed).bin",   0x2000, 0x2000, CRC(1ea04ccd) SHA1(1cec1e4d0f47365245d92489f78d3edd4f23481f) )
+	ROM_LOAD( "tr21(__ppspeed).bin",   0x4000, 0x2000, CRC(bd7b4a62) SHA1(66175a9382f627053097f0bc9a3fd49a26f8ac8f) )
 	ROM_LOAD( "tr18.bin",      0x8000, 0x2000, CRC(5fd933e3) SHA1(5b27a8519234c935308f943cd58abc1efc463726) )    /* 4bpp lg sprites, planes 2+3 */
-	ROM_LOAD( "tr20.bin",      0xa000, 0x2000, CRC(c572c6ed) SHA1(c2398a82a57be92a0bdc58330504e821878492ea) )
-	ROM_LOAD( "tr22.bin",      0xc000, 0x2000, CRC(db1bcdd8) SHA1(ffd4edd8c02914a0a85cd7e39153c27d79526457) )
+	ROM_LOAD( "tr20(__ppspeed).bin",   0xa000, 0x2000, CRC(c572c6ed) SHA1(c2398a82a57be92a0bdc58330504e821878492ea) )
+	ROM_LOAD( "tr22(__ppspeed).bin",   0xc000, 0x2000, CRC(db1bcdd8) SHA1(ffd4edd8c02914a0a85cd7e39153c27d79526457) )
 
 	ROM_REGION( 0x5000, "gfx5", 0 )     /* road generation ROMs needed at runtime */
 	ROM_LOAD( "tr30.bin",     0x0000, 0x2000, CRC(ee6b3315) SHA1(9cc26c6d3604c0f60d716f86e67e9d9c0487f87d) )    /* road control */

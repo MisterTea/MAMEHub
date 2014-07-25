@@ -58,7 +58,7 @@ void snk68_state::common_video_start()
 
 void snk68_state::video_start()
 {
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snk68_state::get_pow_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(snk68_state::get_pow_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
 	m_fg_tile_offset = 0;
 
 	common_video_start();
@@ -66,7 +66,7 @@ void snk68_state::video_start()
 
 VIDEO_START_MEMBER(snk68_state,searchar)
 {
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snk68_state::get_searchar_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(snk68_state::get_searchar_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
 
 	common_video_start();
 }
@@ -168,7 +168,7 @@ WRITE16_MEMBER(snk68_state::pow_paletteram16_word_w)
 	g = ((newword >> 3) & 0x1e) | ((newword >> 13) & 0x01) ;
 	b = ((newword << 1) & 0x1e) | ((newword >> 12) & 0x01) ;
 
-	palette_set_color_rgb(machine(),offset,pal5bit(r),pal5bit(g),pal5bit(b));
+	m_palette->set_pen_color(offset,pal5bit(r),pal5bit(g),pal5bit(b));
 }
 
 
@@ -188,7 +188,7 @@ void snk68_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, 
 	// pow has 0x4000 tiles and independent x/y flipping
 	// the other games have > 0x4000 tiles and flipping in only one direction
 	// (globally selected)
-	int const is_pow = (machine().gfx[1]->elements() <= 0x4000);
+	int const is_pow = (m_gfxdecode->gfx(1)->elements() <= 0x4000);
 	int offs;
 
 	for (offs = 0; offs < 0x800; offs += 0x40)
@@ -246,7 +246,7 @@ void snk68_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, 
 					fy = !fy;
 				}
 
-				drawgfx_transpen(bitmap,cliprect, machine().gfx[1],
+				m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 						tile,
 						color,
 						fx, fy,

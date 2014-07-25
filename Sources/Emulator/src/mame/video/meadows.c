@@ -34,7 +34,7 @@ TILE_GET_INFO_MEMBER(meadows_state::get_tile_info)
 
 void meadows_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(meadows_state::get_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,30);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(meadows_state::get_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,30);
 }
 
 
@@ -88,7 +88,7 @@ void meadows_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &clip)
 		int bank = i;                           /* that fixes it for now :-/ */
 		int flip = spriteram[i+8] >> 5;         /* bit #5 flip vertical flag */
 
-		drawgfx_transpen(bitmap, clip, machine().gfx[bank + 1], code, 0, flip, 0, x, y, 0);
+		m_gfxdecode->gfx(bank + 1)->transpen(bitmap,clip, code, 0, flip, 0, x, y, 0);
 	}
 }
 
@@ -106,7 +106,7 @@ UINT32 meadows_state::screen_update_meadows(screen_device &screen, bitmap_ind16 
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* draw the sprites */
-	if (machine().gfx[1])
+	if (m_gfxdecode->gfx(1))
 		draw_sprites(bitmap, cliprect);
 	return 0;
 }

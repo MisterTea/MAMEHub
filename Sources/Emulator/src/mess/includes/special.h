@@ -61,7 +61,8 @@ public:
 		m_io_line9(*this, "LINE9"),
 		m_io_line10(*this, "LINE10"),
 		m_io_line11(*this, "LINE11"),
-		m_io_line12(*this, "LINE12") { }
+		m_io_line12(*this, "LINE12"),
+		m_palette(*this, "palette")  { }
 
 	DECLARE_WRITE8_MEMBER(specimx_select_bank);
 	DECLARE_WRITE8_MEMBER(video_memory_w);
@@ -77,13 +78,11 @@ public:
 	DECLARE_WRITE8_MEMBER(erik_disk_reg_w);
 	DECLARE_READ8_MEMBER(specialist_8255_porta_r);
 	DECLARE_READ8_MEMBER(specialist_8255_portb_r);
+	DECLARE_READ8_MEMBER(specimx_8255_portb_r);
 	DECLARE_READ8_MEMBER(specialist_8255_portc_r);
 	DECLARE_WRITE8_MEMBER(specialist_8255_porta_w);
 	DECLARE_WRITE8_MEMBER(specialist_8255_portb_w);
 	DECLARE_WRITE8_MEMBER(specialist_8255_portc_w);
-	DECLARE_WRITE_LINE_MEMBER(specimx_pit8253_out0_changed);
-	DECLARE_WRITE_LINE_MEMBER(specimx_pit8253_out1_changed);
-	DECLARE_WRITE_LINE_MEMBER(specimx_pit8253_out2_changed);
 	void specimx_set_bank(offs_t i, UINT8 data);
 	void erik_set_bank();
 	UINT8 *m_specimx_colorram;
@@ -91,7 +90,6 @@ public:
 	UINT8 m_erik_color_2;
 	UINT8 m_erik_background;
 	UINT8 m_specimx_color;
-	specimx_sound_device *m_specimx_audio;
 	int m_specialist_8255_porta;
 	int m_specialist_8255_portb;
 	int m_specialist_8255_portc;
@@ -122,7 +120,7 @@ public:
 	UINT32 screen_update_erik(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_specialp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_specimx(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void fdc_drq(bool state);
+	DECLARE_WRITE_LINE_MEMBER(fdc_drq);
 	DECLARE_FLOPPY_FORMATS( specimx_floppy_formats );
 
 protected:
@@ -147,15 +145,9 @@ protected:
 	required_ioport m_io_line11;
 	required_ioport m_io_line12;
 
+	required_device<palette_device> m_palette;
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
-
-
-/*----------- defined in machine/special.c -----------*/
-
-extern const struct pit8253_interface specimx_pit8253_intf;
-extern const i8255_interface specialist_ppi8255_interface;
-
 
 /*----------- defined in video/special.c -----------*/
 
@@ -171,15 +163,16 @@ public:
 	specimx_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	~specimx_sound_device() { }
 
+	DECLARE_WRITE_LINE_MEMBER(set_input_ch0);
+	DECLARE_WRITE_LINE_MEMBER(set_input_ch1);
+	DECLARE_WRITE_LINE_MEMBER(set_input_ch2);
+
 protected:
 	// device-level overrides
 	virtual void device_start();
 
 	// sound stream update overrides
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
-
-public:
-	void set_input(int index, int state);
 
 private:
 	sound_stream *m_mixer_channel;

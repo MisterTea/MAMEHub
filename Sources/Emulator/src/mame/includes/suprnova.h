@@ -1,3 +1,7 @@
+
+#include "cpu/sh2/sh2.h"
+
+
 struct hit_t
 {
 	UINT16 x1p, y1p, z1p, x1s, y1s, z1s;
@@ -30,9 +34,11 @@ public:
 		m_palette_ram(*this, "palette_ram"),
 		m_v3t_ram(*this, "v3t_ram"),
 		m_main_ram(*this, "main_ram"),
-		m_cache_ram(*this, "cache_ram"){ }
+		m_cache_ram(*this, "cache_ram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
-	required_device<cpu_device> m_maincpu;
+	required_device<sh2_device> m_maincpu;
 	required_shared_ptr<UINT32> m_spriteram;
 
 	sknsspr_device* m_spritegen;
@@ -46,6 +52,8 @@ public:
 	required_shared_ptr<UINT32> m_v3t_ram;
 	required_shared_ptr<UINT32> m_main_ram;
 	required_shared_ptr<UINT32> m_cache_ram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 	hit_t m_hit;
 	UINT32 m_timer_0_temp[4];
 	bitmap_ind16 m_sprite_bitmap;

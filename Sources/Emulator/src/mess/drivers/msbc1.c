@@ -53,6 +53,8 @@ Notes:
 #include "machine/terminal.h"
 #include "includes/msbc1.h"
 
+#define TERMINAL_TAG "terminal"
+
 static ADDRESS_MAP_START( msbc1_mem, AS_PROGRAM, 16, msbc1_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000000, 0x03ffff) AM_RAM
@@ -65,18 +67,13 @@ INPUT_PORTS_END
 
 void msbc1_state::machine_reset()
 {
-	void *ram = machine().firstcpu->space(AS_PROGRAM).get_write_ptr(0);
+	void *ram = m_maincpu->space(AS_PROGRAM).get_write_ptr(0);
 	UINT8 *rom = memregion(MC68000R12_TAG)->base();
 
 	memcpy(ram, rom, 8);
 
-	machine().firstcpu->reset();
+	m_maincpu->reset();
 }
-
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_NULL
-};
 
 static MACHINE_CONFIG_START( msbc1, msbc1_state )
 	/* basic machine hardware */
@@ -84,7 +81,7 @@ static MACHINE_CONFIG_START( msbc1, msbc1_state )
 	MCFG_CPU_PROGRAM_MAP(msbc1_mem)
 
 	// devices
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
 MACHINE_CONFIG_END
 
 /* ROM definition */

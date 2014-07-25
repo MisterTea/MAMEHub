@@ -15,18 +15,18 @@
 ******************************************************************************/
 READ16_MEMBER(niyanpai_state::niyanpai_palette_r)
 {
-	return m_palette[offset];
+	return m_palette_ptr[offset];
 }
 
 WRITE16_MEMBER(niyanpai_state::niyanpai_palette_w)
 {
 	int r, g, b;
 	int offs_h, offs_l;
-	UINT16 oldword = m_palette[offset];
+	UINT16 oldword = m_palette_ptr[offset];
 	UINT16 newword;
 
-	COMBINE_DATA(&m_palette[offset]);
-	newword = m_palette[offset];
+	COMBINE_DATA(&m_palette_ptr[offset]);
+	newword = m_palette_ptr[offset];
 
 	if (oldword != newword)
 	{
@@ -35,20 +35,20 @@ WRITE16_MEMBER(niyanpai_state::niyanpai_palette_w)
 
 		if (ACCESSING_BITS_8_15)
 		{
-			r  = ((m_palette[(0x000 + (offs_h * 0x180) + offs_l)] & 0xff00) >> 8);
-			g  = ((m_palette[(0x080 + (offs_h * 0x180) + offs_l)] & 0xff00) >> 8);
-			b  = ((m_palette[(0x100 + (offs_h * 0x180) + offs_l)] & 0xff00) >> 8);
+			r  = ((m_palette_ptr[(0x000 + (offs_h * 0x180) + offs_l)] & 0xff00) >> 8);
+			g  = ((m_palette_ptr[(0x080 + (offs_h * 0x180) + offs_l)] & 0xff00) >> 8);
+			b  = ((m_palette_ptr[(0x100 + (offs_h * 0x180) + offs_l)] & 0xff00) >> 8);
 
-			palette_set_color(machine(), ((offs_h << 8) + (offs_l << 1) + 0), MAKE_RGB(r, g, b));
+			m_palette->set_pen_color(((offs_h << 8) + (offs_l << 1) + 0), rgb_t(r, g, b));
 		}
 
 		if (ACCESSING_BITS_0_7)
 		{
-			r  = ((m_palette[(0x000 + (offs_h * 0x180) + offs_l)] & 0x00ff) >> 0);
-			g  = ((m_palette[(0x080 + (offs_h * 0x180) + offs_l)] & 0x00ff) >> 0);
-			b  = ((m_palette[(0x100 + (offs_h * 0x180) + offs_l)] & 0x00ff) >> 0);
+			r  = ((m_palette_ptr[(0x000 + (offs_h * 0x180) + offs_l)] & 0x00ff) >> 0);
+			g  = ((m_palette_ptr[(0x080 + (offs_h * 0x180) + offs_l)] & 0x00ff) >> 0);
+			b  = ((m_palette_ptr[(0x100 + (offs_h * 0x180) + offs_l)] & 0x00ff) >> 0);
 
-			palette_set_color(machine(), ((offs_h << 8) + (offs_l << 1) + 1), MAKE_RGB(r, g, b));
+			m_palette->set_pen_color(((offs_h << 8) + (offs_l << 1) + 1), rgb_t(r, g, b));
 		}
 	}
 }
@@ -72,7 +72,7 @@ int niyanpai_state::niyanpai_blitter_r(int vram, int offset)
 	return ret;
 }
 
-void niyanpai_state::niyanpai_blitter_w(int vram, int offset, int data)
+void niyanpai_state::niyanpai_blitter_w(int vram, int offset, UINT8 data)
 {
 	switch (offset)
 	{
@@ -105,12 +105,12 @@ void niyanpai_state::niyanpai_blitter_w(int vram, int offset, int data)
 	}
 }
 
-void niyanpai_state::niyanpai_clutsel_w(int vram, int data)
+void niyanpai_state::niyanpai_clutsel_w(int vram, UINT8 data)
 {
 	m_clutsel[vram] = data;
 }
 
-void niyanpai_state::niyanpai_clut_w(int vram, int offset, int data)
+void niyanpai_state::niyanpai_clut_w(int vram, int offset, UINT8 data)
 {
 	m_clut[vram][((m_clutsel[vram] & 0xff) * 0x10) + (offset & 0x0f)] = data;
 }
@@ -331,21 +331,21 @@ void niyanpai_state::niyanpai_gfxdraw(int vram)
 
 
 ******************************************************************************/
-WRITE16_MEMBER(niyanpai_state::niyanpai_blitter_0_w){ niyanpai_blitter_w(0, offset, data); }
-WRITE16_MEMBER(niyanpai_state::niyanpai_blitter_1_w){ niyanpai_blitter_w(1, offset, data); }
-WRITE16_MEMBER(niyanpai_state::niyanpai_blitter_2_w){ niyanpai_blitter_w(2, offset, data); }
+WRITE8_MEMBER(niyanpai_state::niyanpai_blitter_0_w){ niyanpai_blitter_w(0, offset, data); }
+WRITE8_MEMBER(niyanpai_state::niyanpai_blitter_1_w){ niyanpai_blitter_w(1, offset, data); }
+WRITE8_MEMBER(niyanpai_state::niyanpai_blitter_2_w){ niyanpai_blitter_w(2, offset, data); }
 
-READ16_MEMBER(niyanpai_state::niyanpai_blitter_0_r){ return niyanpai_blitter_r(0, offset); }
-READ16_MEMBER(niyanpai_state::niyanpai_blitter_1_r){ return niyanpai_blitter_r(1, offset); }
-READ16_MEMBER(niyanpai_state::niyanpai_blitter_2_r){ return niyanpai_blitter_r(2, offset); }
+READ8_MEMBER(niyanpai_state::niyanpai_blitter_0_r){ return niyanpai_blitter_r(0, offset); }
+READ8_MEMBER(niyanpai_state::niyanpai_blitter_1_r){ return niyanpai_blitter_r(1, offset); }
+READ8_MEMBER(niyanpai_state::niyanpai_blitter_2_r){ return niyanpai_blitter_r(2, offset); }
 
-WRITE16_MEMBER(niyanpai_state::niyanpai_clut_0_w){ niyanpai_clut_w(0, offset, data); }
-WRITE16_MEMBER(niyanpai_state::niyanpai_clut_1_w){ niyanpai_clut_w(1, offset, data); }
-WRITE16_MEMBER(niyanpai_state::niyanpai_clut_2_w){ niyanpai_clut_w(2, offset, data); }
+WRITE8_MEMBER(niyanpai_state::niyanpai_clut_0_w){ niyanpai_clut_w(0, offset, data); }
+WRITE8_MEMBER(niyanpai_state::niyanpai_clut_1_w){ niyanpai_clut_w(1, offset, data); }
+WRITE8_MEMBER(niyanpai_state::niyanpai_clut_2_w){ niyanpai_clut_w(2, offset, data); }
 
-WRITE16_MEMBER(niyanpai_state::niyanpai_clutsel_0_w){ niyanpai_clutsel_w(0, data); }
-WRITE16_MEMBER(niyanpai_state::niyanpai_clutsel_1_w){ niyanpai_clutsel_w(1, data); }
-WRITE16_MEMBER(niyanpai_state::niyanpai_clutsel_2_w){ niyanpai_clutsel_w(2, data); }
+WRITE8_MEMBER(niyanpai_state::niyanpai_clutsel_0_w){ niyanpai_clutsel_w(0, data); }
+WRITE8_MEMBER(niyanpai_state::niyanpai_clutsel_1_w){ niyanpai_clutsel_w(1, data); }
+WRITE8_MEMBER(niyanpai_state::niyanpai_clutsel_2_w){ niyanpai_clutsel_w(2, data); }
 
 /******************************************************************************
 
@@ -365,7 +365,7 @@ void niyanpai_state::video_start()
 	m_videoworkram[0] = auto_alloc_array_clear(machine(), UINT16, width * height);
 	m_videoworkram[1] = auto_alloc_array_clear(machine(), UINT16, width * height);
 	m_videoworkram[2] = auto_alloc_array_clear(machine(), UINT16, width * height);
-	m_palette = auto_alloc_array(machine(), UINT16, 0x480);
+	m_palette_ptr = auto_alloc_array(machine(), UINT16, 0x480);
 	m_clut[0] = auto_alloc_array(machine(), UINT8, 0x1000);
 	m_clut[1] = auto_alloc_array(machine(), UINT8, 0x1000);
 	m_clut[2] = auto_alloc_array(machine(), UINT8, 0x1000);

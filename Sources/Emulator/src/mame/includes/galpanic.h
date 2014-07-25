@@ -7,13 +7,22 @@ public:
 		: kaneko16_state(mconfig, type, tag),
 			m_bgvideoram(*this, "bgvideoram"),
 			m_fgvideoram(*this, "fgvideoram"),
-			m_spriteram(*this, "spriteram") { }
+			m_spriteram(*this, "spriteram"),
+			m_gfxdecode(*this, "gfxdecode"),
+			m_screen(*this, "screen"),
+			m_palette(*this, "palette"),
+			m_generic_paletteram_16(*this, "paletteram") { }
 
 	required_shared_ptr<UINT16> m_bgvideoram;
 	required_shared_ptr<UINT16> m_fgvideoram;
 	bitmap_ind16 m_bitmap;
 	bitmap_ind16 m_sprites_bitmap;
 	optional_shared_ptr<UINT16> m_spriteram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+	required_shared_ptr<UINT16> m_generic_paletteram_16;
+
 	DECLARE_WRITE16_MEMBER(galpanic_6295_bankswitch_w);
 	DECLARE_WRITE16_MEMBER(galpanica_6295_bankswitch_w);
 	DECLARE_WRITE16_MEMBER(galpanica_misc_w);

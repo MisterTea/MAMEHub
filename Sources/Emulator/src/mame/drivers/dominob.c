@@ -72,7 +72,9 @@ public:
 		m_videoram(*this, "videoram"),
 		m_spriteram(*this, "spriteram"),
 		m_bgram(*this, "bgram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -89,11 +91,13 @@ public:
 	UINT32 screen_update_dominob(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 void dominob_state::video_start()
 {
-	machine().gfx[0]->set_granularity(8);
+	m_gfxdecode->gfx(0)->set_granularity(8);
 }
 
 void dominob_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
@@ -111,12 +115,12 @@ void dominob_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 
 		code = m_spriteram[offs + 3] + ((m_spriteram[offs + 2] & 0x03) << 8)  ;
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 				2 * code,
 				((m_spriteram[offs + 2] & 0xf8) >> 3)  ,
 				flip_screen_x(),flip_screen_y(),
 				sx,sy + (flip_screen_y() ? 8 : -8),0);
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 				2 * code + 1,
 				((m_spriteram[offs + 2] & 0xf8) >> 3)  ,
 				flip_screen_x(),flip_screen_y(),
@@ -135,9 +139,8 @@ UINT32 dominob_state::screen_update_dominob(screen_device &screen, bitmap_ind16 
 	{
 		for (x = 0; x < 256 / 32; x++)
 		{
-			drawgfx_opaque(bitmap,
+					m_gfxdecode->gfx(1)->opaque(bitmap,
 					cliprect,
-					machine().gfx[1],
 					m_bgram[index] + 256 * (m_bgram[index + 1] & 0xf),
 					m_bgram[index + 1] >> 4,
 					0, 0,
@@ -150,9 +153,8 @@ UINT32 dominob_state::screen_update_dominob(screen_device &screen, bitmap_ind16 
 	{
 		for (x = 0; x < 32; x++)
 		{
-			drawgfx_transpen(   bitmap,
+					m_gfxdecode->gfx(0)->transpen(bitmap,
 					cliprect,
-					machine().gfx[0],
 					m_videoram[(y * 32 + x) * 2 + 1] + (m_videoram[(y * 32 + x) * 2] & 7) * 256,
 					(m_videoram[(y * 32 + x) * 2] >> 3),
 					0, 0,
@@ -187,7 +189,7 @@ static ADDRESS_MAP_START( memmap, AS_PROGRAM, 8, dominob_state )
 	AM_RANGE(0xe840, 0xefff) AM_RAM
 	AM_RANGE(0xf000, 0xf07f) AM_RAM AM_SHARE("bgram")
 	AM_RANGE(0xf080, 0xf7ff) AM_RAM
-	AM_RANGE(0xf800, 0xfbff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xf800, 0xfbff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xfc00, 0xffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -284,17 +286,6 @@ static GFXDECODE_START( dominob )
 GFXDECODE_END
 
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_INPUT_PORT("DSW"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( dominob, dominob_state )
 
 	/* basic machine hardware */
@@ -310,15 +301,17 @@ static MACHINE_CONFIG_START( dominob, dominob_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dominob_state, screen_update_dominob)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(dominob)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dominob)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("aysnd", AY8910, XTAL_12MHz/4)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 

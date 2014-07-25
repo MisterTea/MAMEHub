@@ -56,7 +56,8 @@ public:
 		m_ppi8255_0(*this, "ppi8255_0"),
 		m_ppi8255_1(*this, "ppi8255_1"),
 		m_videoram(*this, "videoram"),
-		m_samples(*this, "samples"){ }
+		m_samples(*this, "samples"),
+		m_screen(*this, "screen"){ }
 
 	required_device<cpu_device> m_maincpu;
 	optional_device<i8255_device>  m_ppi8255_0;
@@ -72,6 +73,8 @@ public:
 	UINT8      m_color_latch;
 
 	required_device<samples_device> m_samples;
+	required_device<screen_device> m_screen;
+
 	DECLARE_WRITE8_MEMBER(color_latch_w);
 	DECLARE_WRITE8_MEMBER(spaceint_videoram_w);
 	DECLARE_READ8_MEMBER(kamikaze_ppi_r);
@@ -79,8 +82,11 @@ public:
 	DECLARE_WRITE8_MEMBER(spaceint_sound1_w);
 	DECLARE_WRITE8_MEMBER(spaceint_sound2_w);
 	DECLARE_INPUT_CHANGED_MEMBER(spaceint_coin_inserted);
-	DECLARE_WRITE8_MEMBER(astinvad_sound1_w);
-	DECLARE_WRITE8_MEMBER(astinvad_sound2_w);
+	DECLARE_WRITE8_MEMBER(kamikaze_sound1_w);
+	DECLARE_WRITE8_MEMBER(kamikaze_sound2_w);
+	DECLARE_WRITE8_MEMBER(spcking2_sound1_w);
+	DECLARE_WRITE8_MEMBER(spcking2_sound2_w);
+	DECLARE_WRITE8_MEMBER(spcking2_sound3_w);
 	DECLARE_DRIVER_INIT(kamikaze);
 	DECLARE_DRIVER_INIT(spcking2);
 	DECLARE_MACHINE_START(kamikaze);
@@ -96,37 +102,6 @@ public:
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
-};
-
-
-/*************************************
- *
- *  Prototypes and interfaces
- *
- *************************************/
-
-
-
-
-
-static I8255A_INTERFACE( ppi8255_0_intf )
-{
-	DEVCB_INPUT_PORT("IN0"),            /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_INPUT_PORT("IN1"),            /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_INPUT_PORT("IN2"),            /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
-static I8255A_INTERFACE( ppi8255_1_intf )
-{
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_DRIVER_MEMBER(astinvad_state,astinvad_sound1_w),  /* Port A write */
-	DEVCB_INPUT_PORT("CABINET"),        /* Port B read */
-	DEVCB_DRIVER_MEMBER(astinvad_state,astinvad_sound2_w),  /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_NULL                          /* Port C write */
 };
 
 
@@ -167,17 +142,17 @@ WRITE8_MEMBER(astinvad_state::spaceint_videoram_w)
 
 void astinvad_state::plot_byte( bitmap_rgb32 &bitmap, UINT8 y, UINT8 x, UINT8 data, UINT8 color )
 {
-	pen_t fore_pen = MAKE_RGB(pal1bit(color >> 0), pal1bit(color >> 2), pal1bit(color >> 1));
+	pen_t fore_pen = rgb_t(pal1bit(color >> 0), pal1bit(color >> 2), pal1bit(color >> 1));
 	UINT8 flip_xor = m_screen_flip & 7;
 
-	bitmap.pix32(y, x + (0 ^ flip_xor)) = (data & 0x01) ? fore_pen : RGB_BLACK;
-	bitmap.pix32(y, x + (1 ^ flip_xor)) = (data & 0x02) ? fore_pen : RGB_BLACK;
-	bitmap.pix32(y, x + (2 ^ flip_xor)) = (data & 0x04) ? fore_pen : RGB_BLACK;
-	bitmap.pix32(y, x + (3 ^ flip_xor)) = (data & 0x08) ? fore_pen : RGB_BLACK;
-	bitmap.pix32(y, x + (4 ^ flip_xor)) = (data & 0x10) ? fore_pen : RGB_BLACK;
-	bitmap.pix32(y, x + (5 ^ flip_xor)) = (data & 0x20) ? fore_pen : RGB_BLACK;
-	bitmap.pix32(y, x + (6 ^ flip_xor)) = (data & 0x40) ? fore_pen : RGB_BLACK;
-	bitmap.pix32(y, x + (7 ^ flip_xor)) = (data & 0x80) ? fore_pen : RGB_BLACK;
+	bitmap.pix32(y, x + (0 ^ flip_xor)) = (data & 0x01) ? fore_pen : 0;
+	bitmap.pix32(y, x + (1 ^ flip_xor)) = (data & 0x02) ? fore_pen : 0;
+	bitmap.pix32(y, x + (2 ^ flip_xor)) = (data & 0x04) ? fore_pen : 0;
+	bitmap.pix32(y, x + (3 ^ flip_xor)) = (data & 0x08) ? fore_pen : 0;
+	bitmap.pix32(y, x + (4 ^ flip_xor)) = (data & 0x10) ? fore_pen : 0;
+	bitmap.pix32(y, x + (5 ^ flip_xor)) = (data & 0x20) ? fore_pen : 0;
+	bitmap.pix32(y, x + (6 ^ flip_xor)) = (data & 0x40) ? fore_pen : 0;
+	bitmap.pix32(y, x + (7 ^ flip_xor)) = (data & 0x80) ? fore_pen : 0;
 }
 
 
@@ -352,7 +327,50 @@ WRITE8_MEMBER(astinvad_state::kamikaze_ppi_w)
  *
  *************************************/
 
-WRITE8_MEMBER(astinvad_state::astinvad_sound1_w)
+// Kamikaze
+WRITE8_MEMBER(astinvad_state::kamikaze_sound1_w)
+{
+	// d0: ufo sound generator
+	// d1: fire sound generator
+	// d2: tank explosion sound generator
+	// d3: invader destroyed sound generator
+	// d4: bonus sound generator
+	// d5: sound enabled
+	// other bits: unused
+
+	int bits_gone_hi = data & ~m_sound_state[0];
+	m_sound_state[0] = data;
+
+	if (bits_gone_hi & 0x01) m_samples->start(0, SND_UFO, true);
+	if (!(data & 0x01))      m_samples->stop(0);
+	if (bits_gone_hi & 0x02) m_samples->start(1, SND_SHOT);
+	if (bits_gone_hi & 0x04) m_samples->start(2, SND_BASEHIT);
+	if (bits_gone_hi & 0x08) m_samples->start(3, SND_INVADERHIT);
+	if (bits_gone_hi & 0x10) m_samples->start(3, SND_INVADERHIT);
+
+	machine().sound().system_enable(data & 0x20);
+}
+
+WRITE8_MEMBER(astinvad_state::kamikaze_sound2_w)
+{
+	// d0: red screen -> to video board
+	// d1: invaders advancing sound generator
+	// d4: ufo destroyed sound generator
+	// d5: flip screen -> to video board
+	// other bits: unused
+
+	int bits_gone_hi = data & ~m_sound_state[1];
+	m_sound_state[1] = data;
+
+	if (bits_gone_hi & 0x02) m_samples->start(5, SND_FLEET1);
+	if (bits_gone_hi & 0x10) m_samples->start(4, SND_UFOHIT);
+
+	m_screen_flip = (ioport("CABINET")->read() & data & 0x20) ? 0xff : 0x00;
+	m_screen_red = data & 0x01;
+}
+
+// Space King 2
+WRITE8_MEMBER(astinvad_state::spcking2_sound1_w)
 {
 	int bits_gone_hi = data & ~m_sound_state[0];
 	m_sound_state[0] = data;
@@ -364,11 +382,10 @@ WRITE8_MEMBER(astinvad_state::astinvad_sound1_w)
 	if (bits_gone_hi & 0x08) m_samples->start(3, SND_INVADERHIT);
 
 	machine().sound().system_enable(data & 0x20);
-	m_screen_red = data & 0x04;
+	m_screen_red = data & 0x04; // ?
 }
 
-
-WRITE8_MEMBER(astinvad_state::astinvad_sound2_w)
+WRITE8_MEMBER(astinvad_state::spcking2_sound2_w)
 {
 	int bits_gone_hi = data & ~m_sound_state[1];
 	m_sound_state[1] = data;
@@ -382,7 +399,12 @@ WRITE8_MEMBER(astinvad_state::astinvad_sound2_w)
 	m_screen_flip = (ioport("CABINET")->read() & data & 0x20) ? 0xff : 0x00;
 }
 
+WRITE8_MEMBER(astinvad_state::spcking2_sound3_w)
+{
+	// ?
+}
 
+// Space Intruder
 WRITE8_MEMBER(astinvad_state::spaceint_sound1_w)
 {
 	int bits_gone_hi = data & ~m_sound_state[0];
@@ -399,7 +421,6 @@ WRITE8_MEMBER(astinvad_state::spaceint_sound1_w)
 	if (bits_gone_hi & 0x40) m_samples->start(5, SND_FLEET3);
 	if (bits_gone_hi & 0x80) m_samples->start(5, SND_FLEET4);
 }
-
 
 WRITE8_MEMBER(astinvad_state::spaceint_sound2_w)
 {
@@ -621,8 +642,14 @@ static MACHINE_CONFIG_START( kamikaze, astinvad_state )
 	MCFG_MACHINE_START_OVERRIDE(astinvad_state, kamikaze)
 	MCFG_MACHINE_RESET_OVERRIDE(astinvad_state, kamikaze)
 
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_0_intf )
-	MCFG_I8255A_ADD( "ppi8255_1", ppi8255_1_intf )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
+
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(astinvad_state, kamikaze_sound1_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(astinvad_state, kamikaze_sound2_w))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -640,6 +667,12 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( spcking2, kamikaze )
 
 	/* basic machine hardware */
+	MCFG_DEVICE_MODIFY("ppi8255_1")
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(astinvad_state, spcking2_sound1_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(astinvad_state, spcking2_sound2_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(astinvad_state, spcking2_sound3_w))
+
+	/* video hardware */
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_RAW_PARAMS(VIDEO_CLOCK, 320, 0, 256, 256, 16, 240)
 MACHINE_CONFIG_END

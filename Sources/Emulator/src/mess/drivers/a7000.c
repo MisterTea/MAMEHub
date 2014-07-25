@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /***************************************************************************
 
     Acorn Archimedes 7000/7000+
@@ -24,10 +26,12 @@ class a7000_state : public driver_device
 public:
 	a7000_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu")
+		m_maincpu(*this, "maincpu"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
 	DECLARE_READ32_MEMBER(a7000_iomd_r);
 	DECLARE_WRITE32_MEMBER(a7000_iomd_w);
 	DECLARE_WRITE32_MEMBER(a7000_vidc20_w);
@@ -91,6 +95,7 @@ static const char *const vidc20_regnames[] =
 	"Data Control"                      // F
 };
 
+#if 0
 static const char *const vidc20_horz_regnames[] =
 {
 	"Horizontal Cycle",                 // 0x80 HCR
@@ -110,6 +115,7 @@ static const char *const vidc20_horz_regnames[] =
 	"Horizontal <UNDEFINED>",           // 0x8e
 	"Horizontal <UNDEFINED>"            // 0x8f
 };
+#endif
 
 #define HCR  0
 #define HSWR 1
@@ -120,6 +126,7 @@ static const char *const vidc20_horz_regnames[] =
 #define HCSR 6
 #define HIR  7
 
+#if 0
 static const char *const vidc20_vert_regnames[] =
 {
 	"Vertical Cycle",                   // 0x90 VCR
@@ -139,6 +146,7 @@ static const char *const vidc20_vert_regnames[] =
 	"Horizontal <UNDEFINED>",           // 0x9e
 	"Horizontal <UNDEFINED>"            // 0x9f
 };
+#endif
 
 #define VCR  0
 #define VSWR 1
@@ -169,7 +177,7 @@ void a7000_state::vidc20_dynamic_screen_change()
 		{
 			/* finally ready to change the resolution */
 			int hblank_period,vblank_period;
-			rectangle visarea = machine().primary_screen->visible_area();
+			rectangle visarea = machine().first_screen()->visible_area();
 			hblank_period = (m_vidc20_horz_reg[HCR] & 0x3ffc);
 			vblank_period = (m_vidc20_vert_reg[VCR] & 0x3fff);
 			/* note that we use the border registers as the visible area */
@@ -178,7 +186,7 @@ void a7000_state::vidc20_dynamic_screen_change()
 			visarea.min_y = (m_vidc20_vert_reg[VBSR] & 0x1fff);
 			visarea.max_y = (m_vidc20_vert_reg[VBER] & 0x1fff)-1;
 
-			machine().primary_screen->configure(hblank_period, vblank_period, visarea, machine().primary_screen->frame_period().attoseconds );
+			machine().first_screen()->configure(hblank_period, vblank_period, visarea, machine().first_screen()->frame_period().attoseconds );
 			logerror("VIDC20: successfully changed the screen to:\n Display Size = %d x %d\n Border Size %d x %d\n Cycle Period %d x %d\n",
 						(m_vidc20_horz_reg[HDER]-m_vidc20_horz_reg[HDSR]),(m_vidc20_vert_reg[VDER]-m_vidc20_vert_reg[VDSR]),
 						(m_vidc20_horz_reg[HBER]-m_vidc20_horz_reg[HBSR]),(m_vidc20_vert_reg[VBER]-m_vidc20_vert_reg[VBSR]),
@@ -198,7 +206,7 @@ WRITE32_MEMBER( a7000_state::a7000_vidc20_w )
 			g = (data & 0x00ff00) >> 8;
 			b = (data & 0xff0000) >> 16;
 
-			palette_set_color_rgb(machine(),m_vidc20_pal_index & 0xff,r,g,b);
+			m_palette->set_pen_color(m_vidc20_pal_index & 0xff,r,g,b);
 
 			/* auto-increment & wrap-around */
 			m_vidc20_pal_index++;
@@ -219,7 +227,7 @@ WRITE32_MEMBER( a7000_state::a7000_vidc20_w )
 			g = (data & 0x00ff00) >> 8;
 			b = (data & 0xff0000) >> 16;
 
-			palette_set_color_rgb(machine(),0x100,r,g,b);
+			m_palette->set_pen_color(0x100,r,g,b);
 			break;
 		case 5: // Cursor Palette Logical Colour n
 		case 6:
@@ -230,7 +238,7 @@ WRITE32_MEMBER( a7000_state::a7000_vidc20_w )
 			g = (data & 0x00ff00) >> 8;
 			b = (data & 0xff0000) >> 16;
 
-			palette_set_color_rgb(machine(),cursor_index,r,g,b);
+			m_palette->set_pen_color(cursor_index,r,g,b);
 			break;
 		case 8: // Horizontal
 			horz_reg = (data >> 24) & 0xf;
@@ -249,7 +257,7 @@ WRITE32_MEMBER( a7000_state::a7000_vidc20_w )
 			if(vert_reg == 4)
 			{
 				if(m_vidc20_vert_reg[VDER] != 0)
-					m_flyback_timer->adjust(machine().primary_screen->time_until_pos(m_vidc20_vert_reg[VDER]));
+					m_flyback_timer->adjust(machine().first_screen()->time_until_pos(m_vidc20_vert_reg[VDER]));
 				else
 					m_flyback_timer->adjust(attotime::never);
 			}
@@ -271,7 +279,7 @@ UINT32 a7000_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, c
 	UINT32 count;
 	UINT8 *vram = memregion("vram")->base();
 
-	bitmap.fill(machine().pens[0x100], cliprect);
+	bitmap.fill(m_palette->pen(0x100), cliprect);
 
 	x_size = (m_vidc20_horz_reg[HDER]-m_vidc20_horz_reg[HDSR]);
 	y_size = (m_vidc20_vert_reg[VDER]-m_vidc20_vert_reg[VDSR]);
@@ -295,7 +303,7 @@ UINT32 a7000_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, c
 				for(x=0;x<x_size;x+=8)
 				{
 					for(xi=0;xi<8;xi++)
-						bitmap.pix32(y+y_start, x+xi+x_start) = machine().pens[(vram[count]>>(xi))&1];
+						bitmap.pix32(y+y_start, x+xi+x_start) = m_palette->pen((vram[count]>>(xi))&1);
 
 					count++;
 				}
@@ -309,7 +317,7 @@ UINT32 a7000_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, c
 				for(x=0;x<x_size;x+=4)
 				{
 					for(xi=0;xi<4;xi++)
-						bitmap.pix32(y+y_start, x+xi+x_start) = machine().pens[(vram[count]>>(xi*2))&3];
+						bitmap.pix32(y+y_start, x+xi+x_start) = m_palette->pen((vram[count]>>(xi*2))&3);
 
 					count++;
 				}
@@ -323,7 +331,7 @@ UINT32 a7000_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, c
 				for(x=0;x<x_size;x+=2)
 				{
 					for(xi=0;xi<2;xi++)
-						bitmap.pix32(y+y_start, x+xi+x_start) = machine().pens[(vram[count]>>(xi*4))&0xf];
+						bitmap.pix32(y+y_start, x+xi+x_start) = m_palette->pen((vram[count]>>(xi*4))&0xf);
 
 					count++;
 				}
@@ -336,7 +344,7 @@ UINT32 a7000_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, c
 			{
 				for(x=0;x<x_size;x++)
 				{
-					bitmap.pix32(y+y_start, x+x_start) = machine().pens[(vram[count])&0xff];
+					bitmap.pix32(y+y_start, x+x_start) = m_palette->pen((vram[count])&0xff);
 
 					count++;
 				}
@@ -600,7 +608,7 @@ TIMER_CALLBACK_MEMBER(a7000_state::flyback_timer_callback)
 		generic_pulse_irq_line(m_maincpu, ARM7_IRQ_LINE,1);
 	}
 
-	m_flyback_timer->adjust(machine().primary_screen->time_until_pos(m_vidc20_vert_reg[VDER]));
+	m_flyback_timer->adjust(machine().first_screen()->time_until_pos(m_vidc20_vert_reg[VDER]));
 }
 
 void a7000_state::viddma_transfer_start()
@@ -635,7 +643,7 @@ READ32_MEMBER( a7000_state::a7000_iomd_r )
 			UINT8 flyback;
 			int vert_pos;
 
-			vert_pos = machine().primary_screen->vpos();
+			vert_pos = machine().first_screen()->vpos();
 			flyback = (vert_pos <= m_vidc20_vert_reg[VDSR] || vert_pos >= m_vidc20_vert_reg[VDER]) ? 0x80 : 0x00;
 
 			return m_IOMD_IO_ctrl | 0x34 | flyback;
@@ -801,7 +809,7 @@ static MACHINE_CONFIG_START( a7000, a7000_state )
 	MCFG_SCREEN_SIZE(1900, 1080) //max available size
 	MCFG_SCREEN_VISIBLE_AREA(0, 1900-1, 0, 1080-1)
 	MCFG_SCREEN_UPDATE_DRIVER(a7000_state, screen_update)
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_PALETTE_ADD("palette", 0x200)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( a7000p, a7000 )

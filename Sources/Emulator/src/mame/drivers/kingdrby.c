@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Andrew Gardner, Roberto Fresca, Luca Elia
 /*******************************************************************************************
 
 King Derby (c) 1981 Tatsumi
@@ -17,6 +19,12 @@ TODO:
 - the name "King Derby" is a raw guess, there's a chance that it uses a different name
   (but there isn't any title screen in the game?)
 - Fix I/O in the 1986 bootleg version;
+
+MC6845 interface:
+  screen size:  384x272    registers 00 & 04. (value-1)
+  visible area: 256x224    registers 01 & 06.
+
+  the clocks are a guess, but is the only logical combination I found to get a reasonable vertical of ~53Hz.
 
 ============================================================================================
 
@@ -82,7 +90,9 @@ public:
 		m_vram(*this, "vram"),
 		m_attr(*this, "attr"),
 		m_spriteram(*this, "spriteram"),
-		m_soundcpu(*this, "soundcpu"){ }
+		m_soundcpu(*this, "soundcpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	UINT8 m_sound_cmd;
 	required_shared_ptr<UINT8> m_vram;
@@ -114,6 +124,8 @@ public:
 	UINT32 screen_update_kingdrby(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_soundcpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -145,8 +157,7 @@ TILE_GET_INFO_MEMBER(kingdrby_state::get_sc0_tile_info)
 
 	tile&=0x1ff;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			tile,
 			color|0x40,
 			0);
@@ -162,8 +173,7 @@ TILE_GET_INFO_MEMBER(kingdrby_state::get_sc1_tile_info)
 	//0x13
 	//
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			tile,
 			color|0x40,
 			0);
@@ -173,9 +183,9 @@ TILE_GET_INFO_MEMBER(kingdrby_state::get_sc1_tile_info)
 
 void kingdrby_state::video_start()
 {
-	m_sc0_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(kingdrby_state::get_sc0_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,24);
-	m_sc1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(kingdrby_state::get_sc1_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,24);
-	m_sc0w_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(kingdrby_state::get_sc0_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_sc0_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(kingdrby_state::get_sc0_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,24);
+	m_sc1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(kingdrby_state::get_sc1_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,24);
+	m_sc0w_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(kingdrby_state::get_sc0_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
 
 	m_sc1_tilemap->set_transparent_pen(0);
 }
@@ -219,13 +229,13 @@ void kingdrby_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 		{
 			for(dy=0;dy<h;dy++)
 				for(dx=0;dx<w;dx++)
-					drawgfx_transpen(bitmap,cliprect,machine().gfx[0],spr_offs++,colour,1,0,((x+16*w)-(dx+1)*16),(y+dy*16),0);
+					m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,spr_offs++,colour,1,0,((x+16*w)-(dx+1)*16),(y+dy*16),0);
 		}
 		else
 		{
 			for(dy=0;dy<h;dy++)
 				for(dx=0;dx<w;dx++)
-					drawgfx_transpen(bitmap,cliprect,machine().gfx[0],spr_offs++,colour,0,0,(x+dx*16),(y+dy*16),0);
+					m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,spr_offs++,colour,0,0,(x+dx*16),(y+dy*16),0);
 		}
 	}
 }
@@ -470,65 +480,10 @@ static ADDRESS_MAP_START( cowrace_sound_io, AS_IO, 8, kingdrby_state )
 ADDRESS_MAP_END
 
 
-/*************************************
-*
-* PPI configuration
-*
-* 5000-5003 PPI group modes 0/0 - A & B as input, C (all) as output.
-* 6000-6003 PPI group modes 0/0 - B & C (lower) as input, A & C (upper) as output.
-*
-*************************************/
-
-static I8255A_INTERFACE( ppi8255_0_intf )
-{
-	/* A & B as input, C (all) as output */
-	DEVCB_DRIVER_MEMBER(kingdrby_state,hopper_io_r),            /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_INPUT_PORT("IN1"),            /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_DRIVER_MEMBER(kingdrby_state,hopper_io_w)         /* Port C write */
-};
-
-static I8255A_INTERFACE( ppi8255_1_intf )
-{
-	/* B & C (lower) as input, A & C (upper) as output */
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_DRIVER_MEMBER(kingdrby_state,sound_cmd_w),            /* Port A write */
-	DEVCB_DRIVER_MEMBER(kingdrby_state,key_matrix_r),       /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_DRIVER_MEMBER(kingdrby_state,input_mux_r),            /* Port C read */
-	DEVCB_DRIVER_MEMBER(kingdrby_state,outport2_w)          /* Port C write */
-};
-
 WRITE8_MEMBER(kingdrby_state::outportb_w)
 {
-//  printf("%02x B\n",data);
+	//  printf("%02x B\n",data);
 }
-
-
-static I8255A_INTERFACE( ppi8255_1986_0_intf )
-{
-	/* C as input, (all) as output */
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_DRIVER_MEMBER(kingdrby_state,sound_cmd_w),            /* Port A write */
-	DEVCB_INPUT_PORT("IN0"),            /* Port B read */
-	DEVCB_DRIVER_MEMBER(kingdrby_state,outportb_w),         /* Port B write */
-	DEVCB_INPUT_PORT("IN1"),            /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
-static I8255A_INTERFACE( ppi8255_1986_1_intf )
-{
-	/* actually unused */
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_NULL,                         /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_NULL,                         /* Port C write */
-};
-
 
 /*************************************
  *
@@ -903,56 +858,11 @@ static GFXDECODE_START( cowrace )
 	GFXDECODE_ENTRY( "gfx2", 0x000000, layout8x8x2, 0x000, 0x80 )
 GFXDECODE_END
 
-/**********************************************************************************************************
-*
-* MC6845 interface
-*
-* screen size:  384x272    registers 00 & 04. (value-1)
-* visible area: 256x224    registers 01 & 06.
-*
-* the clocks are a guess, but is the only logical combination I found to get a reasonable vertical of ~53Hz.
-*
-***********************************************************************************************************/
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
 /*************************************
  *
  *  Sound HW Config
  *
  *************************************/
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(kingdrby_state,sound_cmd_r),
-	DEVCB_NULL, /* discrete read? */
-	DEVCB_NULL,
-	DEVCB_NULL /* discrete write? */
-};
-
-static const ay8910_interface cowrace_ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(kingdrby_state,sound_cmd_r),                                    // read A
-	DEVCB_DEVICE_MEMBER("oki", okim6295_device, read),          // read B
-	DEVCB_NULL,                                                 // write A
-	DEVCB_DEVICE_MEMBER("oki", okim6295_device, write)          // write B
-};
 
 PALETTE_INIT_MEMBER(kingdrby_state,kingdrby)
 {
@@ -975,7 +885,7 @@ PALETTE_INIT_MEMBER(kingdrby_state,kingdrby)
 		bit2 = (color_prom[0] >> 5) & 0x01;
 		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 		color_prom++;
 	}
 }
@@ -1008,7 +918,7 @@ PALETTE_INIT_MEMBER(kingdrby_state,kingdrbb)
 		bit2 = (prom[i] >> 5) & 0x01;
 		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -1032,26 +942,38 @@ static MACHINE_CONFIG_START( kingdrby, kingdrby_state )
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_0_intf )
-	MCFG_I8255A_ADD( "ppi8255_1", ppi8255_1_intf )
+	// 5000-5003 PPI group modes 0/0 - A & B as input, C (all) as output.
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(kingdrby_state, hopper_io_r))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(kingdrby_state, hopper_io_w))
 
-	MCFG_GFXDECODE(kingdrby)
-	MCFG_PALETTE_LENGTH(0x200)
-	MCFG_PALETTE_INIT_OVERRIDE(kingdrby_state,kingdrby)
+	// 6000-6003 PPI group modes 0/0 - B & C (lower) as input, A & C (upper) as output.
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(kingdrby_state, sound_cmd_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(kingdrby_state, key_matrix_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(kingdrby_state, input_mux_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(kingdrby_state, outport2_w))
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", kingdrby)
+	MCFG_PALETTE_ADD("palette", 0x200)
+	MCFG_PALETTE_INIT_OWNER(kingdrby_state,kingdrby)
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0, 224-1)    /* controlled by CRTC */
 	MCFG_SCREEN_UPDATE_DRIVER(kingdrby_state, screen_update_kingdrby)
+	MCFG_SCREEN_PALETTE("palette")
 
-
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", CLK_1/32, mc6845_intf)  /* 53.333 Hz. guess */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", CLK_1/32)  /* 53.333 Hz. guess */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, CLK_1/8)    /* guess */
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(kingdrby_state, sound_cmd_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -1060,12 +982,21 @@ static MACHINE_CONFIG_DERIVED( kingdrbb, kingdrby )
 	MCFG_CPU_MODIFY("slave")
 	MCFG_CPU_PROGRAM_MAP(slave_1986_map)
 
-	MCFG_PALETTE_INIT_OVERRIDE(kingdrby_state,kingdrbb)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(kingdrby_state,kingdrbb)
 
 	MCFG_DEVICE_REMOVE("ppi8255_0")
 	MCFG_DEVICE_REMOVE("ppi8255_1")
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_1986_0_intf )
-	MCFG_I8255A_ADD( "ppi8255_1", ppi8255_1986_1_intf )
+
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	/* C as input, (all) as output */
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(kingdrby_state, sound_cmd_w))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN0"))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(kingdrby_state, outportb_w))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("IN1"))
+
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	/* actually unused */
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( cowrace, kingdrbb )
@@ -1074,13 +1005,16 @@ static MACHINE_CONFIG_DERIVED( cowrace, kingdrbb )
 	MCFG_CPU_PROGRAM_MAP(cowrace_sound_map)
 	MCFG_CPU_IO_MAP(cowrace_sound_io)
 
-	MCFG_GFXDECODE(cowrace)
-	MCFG_PALETTE_INIT_OVERRIDE(kingdrby_state,kingdrby)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", cowrace)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(kingdrby_state,kingdrby)
 	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_SOUND_REPLACE("aysnd", YM2203, 3000000)
-	MCFG_YM2203_AY8910_INTF(&cowrace_ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(kingdrby_state, sound_cmd_r))
+	MCFG_AY8910_PORT_B_READ_CB(DEVREAD8("oki", okim6295_device, read))   // read B
+	MCFG_AY8910_PORT_B_WRITE_CB(DEVWRITE8("oki", okim6295_device, write))   // write B
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 MACHINE_CONFIG_END
 
@@ -1222,8 +1156,7 @@ ROM_START( kingdrbb2 )
 	ROM_LOAD( "h6", 0x2000, 0x1000, CRC(257f4e0d) SHA1(cd61f3cf70c536aa207ebfdd28be54ac586b5249) ) // = im6_d.b6 kingdrby
 
 	ROM_REGION( 0x1000, "soundcpu", 0 )
-	// not in this set, using kingdrby one...
-	ROM_LOAD( "sg1_b.e1", 0x0000, 0x1000, NO_DUMP CRC(92ef3c13) SHA1(1bf1e4106b37aadfc02822184510740e18a54d5c) )
+	ROM_LOAD( "sg1_b.e1", 0x0000, 0x1000, BAD_DUMP CRC(92ef3c13) SHA1(1bf1e4106b37aadfc02822184510740e18a54d5c) )   // not in this set, using kingdrby one...
 
 	ROM_REGION( 0x4000, "slave", 0 )
 	ROM_LOAD( "h1", 0x0000, 0x1000, CRC(444aa020) SHA1(0d40e9499892177b4d8123ad7b6909e8f6e0c8ab) )

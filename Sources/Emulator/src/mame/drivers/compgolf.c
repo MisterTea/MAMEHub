@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Pierpaolo Prazzoli, Bryan McPhail
 /*******************************************************************************************
 
     Competition Golf Final Round (c) 1986 / 1985 Data East
@@ -202,17 +204,6 @@ WRITE_LINE_MEMBER(compgolf_state::sound_irq)
 	m_maincpu->set_input_line(0, state);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(compgolf_state,compgolf_scrollx_lo_w),
-	DEVCB_DRIVER_MEMBER(compgolf_state,compgolf_scrolly_lo_w),
-};
-
-
 /*************************************
  *
  *  Machine driver
@@ -252,16 +243,19 @@ static MACHINE_CONFIG_START( compgolf, compgolf_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 32*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(compgolf_state, screen_update_compgolf)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x100)
-	MCFG_GFXDECODE(compgolf)
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_INIT_OWNER(compgolf_state, compgolf)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", compgolf)
 
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(compgolf_state, sound_irq))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(compgolf_state, compgolf_scrollx_lo_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(compgolf_state, compgolf_scrolly_lo_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

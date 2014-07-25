@@ -12,7 +12,7 @@ Driver by Takahiro Nogi (nogi@kt.rim.or.jp) 1999/10/04
 
 /**************************************************************************/
 
-void ssozumo_state::palette_init()
+PALETTE_INIT_MEMBER(ssozumo_state, ssozumo)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int bit0, bit1, bit2, bit3, r, g, b;
@@ -36,7 +36,7 @@ void ssozumo_state::palette_init()
 		bit3 = (color_prom[64] >> 3) & 0x01;
 		b = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 		color_prom++;
 	}
 }
@@ -95,7 +95,7 @@ WRITE8_MEMBER(ssozumo_state::ssozumo_paletteram_w)
 	bit3 = (val >> 3) & 0x01;
 	b = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
 
-	palette_set_color(machine(), offs2 + 64, MAKE_RGB(r, g, b));
+	m_palette->set_pen_color(offs2 + 64, rgb_t(r, g, b));
 }
 
 WRITE8_MEMBER(ssozumo_state::ssozumo_scroll_w)
@@ -127,10 +127,10 @@ TILE_GET_INFO_MEMBER(ssozumo_state::get_fg_tile_info)
 
 void ssozumo_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ssozumo_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS_FLIP_X,
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ssozumo_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS_FLIP_X,
 			16, 16, 16, 32);
 
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ssozumo_state::get_fg_tile_info),this), TILEMAP_SCAN_COLS_FLIP_X,
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(ssozumo_state::get_fg_tile_info),this), TILEMAP_SCAN_COLS_FLIP_X,
 			8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(0);
@@ -160,8 +160,8 @@ void ssozumo_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect
 				flipy = !flipy;
 			}
 
-			drawgfx_transpen(bitmap, cliprect,
-				machine().gfx[2],
+
+				m_gfxdecode->gfx(2)->transpen(bitmap,cliprect,
 				code, color,
 				flipx, flipy,
 				sx, sy, 0);

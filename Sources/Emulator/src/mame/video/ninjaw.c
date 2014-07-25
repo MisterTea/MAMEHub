@@ -76,7 +76,7 @@ void ninjaw_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 		cury = y;
 		code = tilenum;
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 				code, color,
 				flipx, flipy,
 				curx, cury, 0);
@@ -109,7 +109,7 @@ UINT32 ninjaw_state::update_screen(screen_device &screen, bitmap_ind16 &bitmap, 
 
 	/* Ensure screen blanked even when bottom layers not drawn due to disable bit */
 	if (nodraw)
-		bitmap.fill(get_black_pen(screen.machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 
 	/* Sprites can be under/over the layer below text layer */
 	draw_sprites(bitmap, cliprect, 1, xoffs, 8); // draw sprites with priority 1 which are under the mid layer
@@ -124,6 +124,6 @@ UINT32 ninjaw_state::update_screen(screen_device &screen, bitmap_ind16 &bitmap, 
 	return 0;
 }
 
-UINT32 ninjaw_state::screen_update_ninjaw_left(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect){ return update_screen(screen, bitmap, cliprect, 36 * 8 * 0, machine().driver_data<ninjaw_state>()->m_tc0100scn_1); }
-UINT32 ninjaw_state::screen_update_ninjaw_middle(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect){ return update_screen(screen, bitmap, cliprect, 36 * 8 * 1, machine().driver_data<ninjaw_state>()->m_tc0100scn_2); }
-UINT32 ninjaw_state::screen_update_ninjaw_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect){ return update_screen(screen, bitmap, cliprect, 36 * 8 * 2, machine().driver_data<ninjaw_state>()->m_tc0100scn_3); }
+UINT32 ninjaw_state::screen_update_ninjaw_left(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect){ return update_screen(screen, bitmap, cliprect, 36 * 8 * 0, m_tc0100scn_1); }
+UINT32 ninjaw_state::screen_update_ninjaw_middle(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect){ return update_screen(screen, bitmap, cliprect, 36 * 8 * 1, m_tc0100scn_2); }
+UINT32 ninjaw_state::screen_update_ninjaw_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect){ return update_screen(screen, bitmap, cliprect, 36 * 8 * 2, m_tc0100scn_3); }

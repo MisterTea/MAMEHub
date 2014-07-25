@@ -50,9 +50,9 @@
 #include "video/newport.h"
 #include "sound/dac.h"
 #include "machine/nvram.h"
-#include "machine/scsibus.h"
-#include "machine/scsicd.h"
-#include "machine/scsihd.h"
+#include "bus/scsi/scsi.h"
+#include "bus/scsi/scsicd.h"
+#include "bus/scsi/scsihd.h"
 #include "machine/wd33c93.h"
 
 struct RTC_t
@@ -97,18 +97,31 @@ public:
 		TIMER_IP22_MSEC
 	};
 
-	ip22_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_wd33c93(*this, "scsi:wd33c93"),
-	m_unkpbus0(*this, "unkpbus0"),
-	m_mainram(*this, "mainram"),
-	m_lpt0(*this, "lpt_0"),
-	m_pit(*this, "pit8254"),
-	m_newport(*this, "newport"),
-	m_dac(*this, "dac"),
-	m_kbdc8042(*this, "kbdc")
-	{ }
+	ip22_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_wd33c93(*this, "wd33c93"),
+		m_unkpbus0(*this, "unkpbus0"),
+		m_mainram(*this, "mainram"),
+		m_lpt0(*this, "lpt_0"),
+		m_pit(*this, "pit8254"),
+		m_sgi_mc(*this, "sgi_mc"),
+		m_newport(*this, "newport"),
+		m_dac(*this, "dac"),
+		m_kbdc8042(*this, "kbdc")
+	{
+	}
+
+	required_device<mips3_device> m_maincpu;
+	required_device<wd33c93_device> m_wd33c93;
+	required_shared_ptr<UINT32> m_unkpbus0;
+	required_shared_ptr<UINT32> m_mainram;
+	required_device<pc_lpt_device> m_lpt0;
+	required_device<pit8254_device> m_pit;
+	required_device<sgi_mc_device> m_sgi_mc;
+	required_device<newport_video_device> m_newport;
+	required_device<dac_device> m_dac;
+	required_device<kbdc8042_device> m_kbdc8042;
 
 	RTC_t m_RTC;
 	UINT32 m_int3_regs[64];
@@ -137,22 +150,12 @@ public:
 	DECLARE_READ32_MEMBER(hpc3_unkpbus0_r);
 	DECLARE_WRITE32_MEMBER(hpc3_unkpbus0_w);
 	DECLARE_WRITE_LINE_MEMBER(scsi_irq);
-	DECLARE_READ8_MEMBER(ip22_get_out2);
 	DECLARE_DRIVER_INIT(ip225015);
 	virtual void machine_start();
 	virtual void machine_reset();
 	INTERRUPT_GEN_MEMBER(ip22_vbl);
 	TIMER_CALLBACK_MEMBER(ip22_dma);
 	TIMER_CALLBACK_MEMBER(ip22_timer);
-	required_device<cpu_device> m_maincpu;
-	required_device<wd33c93_device> m_wd33c93;
-	required_shared_ptr<UINT32> m_unkpbus0;
-	required_shared_ptr<UINT32> m_mainram;
-	required_device<pc_lpt_device> m_lpt0;
-	required_device<pit8254_device> m_pit;
-	required_device<newport_video_device> m_newport;
-	required_device<dac_device> m_dac;
-	required_device<kbdc8042_device> m_kbdc8042;
 	inline void ATTR_PRINTF(3,4) verboselog(int n_level, const char *s_fmt, ... );
 	void int3_raise_local0_irq(UINT8 source_mask);
 	void int3_lower_local0_irq(UINT8 source_mask);
@@ -183,31 +186,11 @@ inline void ATTR_PRINTF(3,4) ip22_state::verboselog(int n_level, const char *s_f
 }
 
 
-
-static const struct pit8253_interface ip22_pit8254_config =
-{
-	{
-		{
-			1000000,                /* Timer 0: 1MHz */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}, {
-			1000000,                /* Timer 1: 1MHz */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}, {
-			1000000,                /* Timer 2: 1MHz */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}
-	}
-};
-
-#define RTC_DAY     state->m_RTC.nRAM[0x09]
-#define RTC_HOUR    state->m_RTC.nRAM[0x08]
-#define RTC_MINUTE  state->m_RTC.nRAM[0x07]
-#define RTC_SECOND  state->m_RTC.nRAM[0x06]
-#define RTC_HUNDREDTH   state->m_RTC.nRAM[0x05]
+#define RTC_DAY     m_RTC.nRAM[0x09]
+#define RTC_HOUR    m_RTC.nRAM[0x08]
+#define RTC_MINUTE  m_RTC.nRAM[0x07]
+#define RTC_SECOND  m_RTC.nRAM[0x06]
+#define RTC_HUNDREDTH   m_RTC.nRAM[0x05]
 
 // interrupt sources handled by INT3
 #define INT3_LOCAL0_FIFO    (0x01)
@@ -311,7 +294,7 @@ READ32_MEMBER(ip22_state::hpc3_pbus6_r)
 	case 0xa4/4:
 	case 0xa8/4:
 	case 0xac/4:
-//      mame_printf_info("INT3: r @ %x mask %08x (PC=%x)\n", offset*4, mem_mask, activecpu_get_pc());
+//      osd_printf_info("INT3: r @ %x mask %08x (PC=%x)\n", offset*4, mem_mask, activecpu_get_pc());
 		return m_int3_regs[offset-0x80/4];
 	case 0xb0/4:
 		ret8 = m_pit->read(space, 0);
@@ -359,7 +342,7 @@ WRITE32_MEMBER(ip22_state::hpc3_pbus6_w)
 		cChar = data & 0x000000ff;
 		if( cChar >= 0x20 || cChar == 0x0d || cChar == 0x0a )
 		{
-//          mame_printf_info( "%c", cChar );
+//          osd_printf_info( "%c", cChar );
 		}
 		break;
 	case 0x034/4:
@@ -374,7 +357,7 @@ WRITE32_MEMBER(ip22_state::hpc3_pbus6_w)
 		cChar = data & 0x000000ff;
 		if( cChar >= 0x20 || cChar == 0x0d || cChar == 0x0a )
 		{
-//          mame_printf_info( "%c", cChar );
+//          osd_printf_info( "%c", cChar );
 		}
 		break;
 	case 0x40/4:
@@ -393,7 +376,7 @@ WRITE32_MEMBER(ip22_state::hpc3_pbus6_w)
 	case 0x9c/4:
 	case 0xa0/4:
 	case 0xa4/4:
-//      mame_printf_info("INT3: w %x to %x (reg %d) mask %08x (PC=%x)\n", data, offset*4, offset-0x80/4, mem_mask, activecpu_get_pc());
+//      osd_printf_info("INT3: w %x to %x (reg %d) mask %08x (PC=%x)\n", data, offset*4, offset-0x80/4, mem_mask, activecpu_get_pc());
 		m_int3_regs[offset-0x80/4] = data;
 
 		// if no local0 interrupts now, clear the input to the CPU
@@ -746,7 +729,7 @@ WRITE32_MEMBER(ip22_state::rtc_w)
 {
 	RTC_WRITECNT++;
 
-//  mame_printf_info("RTC_W: offset %x => %x (PC=%x)\n", data, offset, activecpu_get_pc());
+//  osd_printf_info("RTC_W: offset %x => %x (PC=%x)\n", data, offset, activecpu_get_pc());
 
 	if( offset <= 0x0d )
 	{
@@ -889,14 +872,14 @@ WRITE32_MEMBER(ip22_state::rtc_w)
 WRITE32_MEMBER(ip22_state::ip22_write_ram)
 {
 	// if banks 2 or 3 are enabled, do nothing, we don't support that much memory
-	if (sgi_mc_r(space, 0xc8/4, 0xffffffff) & 0x10001000)
+	if (m_sgi_mc->read(space, 0xc8/4, 0xffffffff) & 0x10001000)
 	{
 		// a random perturbation so the memory test fails
 		data ^= 0xffffffff;
 	}
 
 	// if banks 0 or 1 have 2 membanks, also kill it, we only want 128 MB
-	if (sgi_mc_r(space, 0xc0/4, 0xffffffff) & 0x40004000)
+	if (m_sgi_mc->read(space, 0xc0/4, 0xffffffff) & 0x40004000)
 	{
 		// a random perturbation so the memory test fails
 		data ^= 0xffffffff;
@@ -1201,7 +1184,7 @@ static ADDRESS_MAP_START( ip225015_map, AS_PROGRAM, 32, ip22_state )
 	AM_RANGE( 0x00000000, 0x0007ffff ) AM_RAMBANK( "bank1" )    /* mirror of first 512k of main RAM */
 	AM_RANGE( 0x08000000, 0x0fffffff ) AM_SHARE("mainram") AM_RAM_WRITE(ip22_write_ram)     /* 128 MB of main RAM */
 	AM_RANGE( 0x1f0f0000, 0x1f0f1fff ) AM_DEVREADWRITE("newport", newport_video_device, rex3_r, rex3_w )
-	AM_RANGE( 0x1fa00000, 0x1fa1ffff ) AM_READWRITE_LEGACY(sgi_mc_r, sgi_mc_w )
+	AM_RANGE( 0x1fa00000, 0x1fa1ffff ) AM_DEVREADWRITE("sgi_mc", sgi_mc_device, read, write )
 	AM_RANGE( 0x1fb90000, 0x1fb9ffff ) AM_READWRITE(hpc3_hd_enet_r, hpc3_hd_enet_w )
 	AM_RANGE( 0x1fbb0000, 0x1fbb0003 ) AM_RAM   /* unknown, but read a lot and discarded */
 	AM_RANGE( 0x1fbc0000, 0x1fbc7fff ) AM_READWRITE(hpc3_hd0_r, hpc3_hd0_w )
@@ -1239,7 +1222,7 @@ void ip22_state::machine_reset()
 
 	m_PBUS_DMA.nActive = 0;
 
-	mips3drc_set_options(m_maincpu, MIPS3DRC_COMPATIBLE_OPTIONS | MIPS3DRC_CHECK_OVERFLOWS);
+	m_maincpu->mips3drc_set_options(MIPS3DRC_COMPATIBLE_OPTIONS | MIPS3DRC_CHECK_OVERFLOWS);
 }
 
 void ip22_state::dump_chain(address_space &space, UINT32 ch_base)
@@ -1293,7 +1276,7 @@ WRITE_LINE_MEMBER(ip22_state::scsi_irq)
 				if (words <= (512/4))
 				{
 					// one-shot
-					//m_wd33c93->get_dma_data(m_wd33c93->get_dma_count(), m_dma_buffer);
+					//m_wd33c93->dma_read_data(m_wd33c93->get_dma_count(), m_dma_buffer);
 
 					while (words)
 					{
@@ -1320,13 +1303,13 @@ WRITE_LINE_MEMBER(ip22_state::scsi_irq)
 					}
 
 					words = m_wd33c93->get_dma_count();
-					m_wd33c93->write_data(words, m_dma_buffer);
+					m_wd33c93->dma_write_data(words, m_dma_buffer);
 				}
 				else
 				{
 					while (words)
 					{
-						//m_wd33c93->get_dma_data(512, m_dma_buffer);
+						//m_wd33c93->dma_read_data(512, m_dma_buffer);
 						twords = 512/4;
 						m_HPC3.nSCSI0Descriptor += 512;
 						dptr = 0;
@@ -1355,7 +1338,7 @@ WRITE_LINE_MEMBER(ip22_state::scsi_irq)
 							twords--;
 						}
 
-						m_wd33c93->write_data(512, m_dma_buffer);
+						m_wd33c93->dma_write_data(512, m_dma_buffer);
 
 						words -= (512/4);
 					}
@@ -1427,14 +1410,14 @@ WRITE_LINE_MEMBER(ip22_state::scsi_irq)
 				wptr = space.read_dword(m_HPC3.nSCSI0Descriptor);
 				sptr = 0;
 
-//              mame_printf_info("DMA from device: %d words @ %x\n", words, wptr);
+//              osd_printf_info("DMA from device: %d words @ %x\n", words, wptr);
 
 				dump_chain(space, m_HPC3.nSCSI0Descriptor);
 
 				if (words <= (1024/4))
 				{
 					// one-shot
-					m_wd33c93->get_dma_data(m_wd33c93->get_dma_count(), m_dma_buffer);
+					m_wd33c93->dma_read_data(m_wd33c93->get_dma_count(), m_dma_buffer);
 
 					while (words)
 					{
@@ -1457,7 +1440,7 @@ WRITE_LINE_MEMBER(ip22_state::scsi_irq)
 				{
 					while (words)
 					{
-						m_wd33c93->get_dma_data(512, m_dma_buffer);
+						m_wd33c93->dma_read_data(512, m_dma_buffer);
 						twords = 512/4;
 						sptr = 0;
 
@@ -1499,36 +1482,12 @@ WRITE_LINE_MEMBER(ip22_state::scsi_irq)
 	}
 }
 
-static const struct WD33C93interface wd33c93_intf =
-{
-	DEVCB_DRIVER_LINE_MEMBER(ip22_state,scsi_irq)      /* command completion IRQ */
-};
-
-READ8_MEMBER(ip22_state::ip22_get_out2)
-{
-	return m_pit->get_output(2);
-}
-
 void ip22_state::machine_start()
 {
-	sgi_mc_init(machine());
-
 	// SCSI init
 	machine().device<nvram_device>("nvram_user")->set_base(m_RTC.nUserRAM, 0x200);
 	machine().device<nvram_device>("nvram")->set_base(m_RTC.nRAM, 0x200);
 }
-
-static const struct kbdc8042_interface at8042 =
-{
-	KBDC8042_STANDARD,
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_RESET),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(ip22_state,ip22_get_out2)
-};
 
 DRIVER_INIT_MEMBER(ip22_state,ip225015)
 {
@@ -1619,17 +1578,19 @@ INTERRUPT_GEN_MEMBER(ip22_state::ip22_vbl)
 	}
 }
 
+#if 0
 static const mips3_config config =
 {
 	32768,  /* code cache size */
 	32768   /* data cache size */
 };
+#endif
 
-static const pc_lpt_interface ip22_lpt_config =
-{
-	DEVCB_NULL /* no idea if the lpt irq is connected and where */
-};
-
+static MACHINE_CONFIG_FRAGMENT( cdrom_config )
+	MCFG_DEVICE_MODIFY( "cdda" )
+	MCFG_SOUND_ROUTE( 0, "^^^^lspeaker", 1.0 )
+	MCFG_SOUND_ROUTE( 1, "^^^^rspeaker", 1.0 )
+MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( ip225015, ip22_state )
 	MCFG_CPU_ADD( "maincpu", R5000BE, 50000000*3 )
@@ -1641,7 +1602,11 @@ static MACHINE_CONFIG_START( ip225015, ip22_state )
 	MCFG_NVRAM_ADD_0FILL("nvram")
 	MCFG_NVRAM_ADD_0FILL("nvram_user")
 
-	MCFG_PIT8254_ADD( "pit8254", ip22_pit8254_config )
+	MCFG_DEVICE_ADD("pit8254", PIT8254, 0)
+	MCFG_PIT8253_CLK0(1000000)
+	MCFG_PIT8253_CLK1(1000000)
+	MCFG_PIT8253_CLK2(1000000)
+	MCFG_PIT8253_OUT2_HANDLER(DEVWRITELINE("kbdc", kbdc8042_device, write_out2))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1651,27 +1616,31 @@ static MACHINE_CONFIG_START( ip225015, ip22_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 1279, 0, 1023)
 	MCFG_SCREEN_UPDATE_DEVICE("newport", newport_video_device, screen_update)
 
-	MCFG_PALETTE_LENGTH(65536)
+	MCFG_PALETTE_ADD("palette", 65536)
 
 	MCFG_NEWPORT_ADD("newport")
 
-	MCFG_PC_LPT_ADD("lpt_0", ip22_lpt_config)
+	MCFG_DEVICE_ADD("sgi_mc", SGI_MC, 0)
+
+	MCFG_DEVICE_ADD("lpt_0", PC_LPT, 0)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD( "dac", DAC, 0 )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.5)
 
-	MCFG_SCSIBUS_ADD("scsi")
-	MCFG_SCSIDEV_ADD("scsi:harddisk1", SCSIHD, SCSI_ID_1)
-	MCFG_SCSIDEV_ADD("scsi:cdrom", SCSICD, SCSI_ID_4)
-	MCFG_WD33C93_ADD("scsi:wd33c93", wd33c93_intf)
+	MCFG_DEVICE_ADD("scsi", SCSI_PORT, 0)
+	MCFG_SCSIDEV_ADD("scsi:" SCSI_PORT_DEVICE1, "harddisk", SCSIHD, SCSI_ID_1)
+	MCFG_SCSIDEV_ADD("scsi:" SCSI_PORT_DEVICE2, "cdrom", SCSICD, SCSI_ID_4)
+	MCFG_SLOT_OPTION_MACHINE_CONFIG("cdrom", cdrom_config)
 
-	MCFG_SOUND_MODIFY( "scsi:cdrom:cdda" )
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "^^^lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "^^^rspeaker", 1.0)
+	MCFG_DEVICE_ADD("wd33c93", WD33C93, 0)
+	MCFG_LEGACY_SCSI_PORT("scsi")
+	MCFG_WD33C93_IRQ_CB(WRITELINE(ip22_state,scsi_irq))
 
-	MCFG_KBDC8042_ADD("kbdc", at8042)
+	MCFG_DEVICE_ADD("kbdc", KBDC8042, 0)
+	MCFG_KBDC8042_KEYBOARD_TYPE(KBDC8042_STANDARD)
+	MCFG_KBDC8042_SYSTEM_RESET_CB(INPUTLINE("maincpu", INPUT_LINE_RESET))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ip224613, ip225015 )

@@ -1,37 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     CHD compression frontend
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ****************************************************************************/
 
@@ -124,7 +95,7 @@ const int MODE_GDI = 2;
 
 typedef tagmap_t<astring *> parameters_t;
 
-static void report_error(int error, const char *format, ...);
+static void report_error(int error, const char *format, ...) ATTR_PRINTF(2,3);
 static void do_info(parameters_t &params);
 static void do_verify(parameters_t &params);
 static void do_create_raw(parameters_t &params);
@@ -244,7 +215,8 @@ class chd_chdfile_compressor : public chd_file_compressor
 public:
 	// construction/destruction
 	chd_chdfile_compressor(chd_file &file, UINT64 offset = 0, UINT64 maxoffset = ~0)
-		: m_file(file),
+		: m_toc(NULL),
+			m_file(file),
 			m_offset(offset),
 			m_maxoffset(MIN(maxoffset, file.logical_bytes())) { }
 
@@ -259,8 +231,45 @@ public:
 		chd_error err = m_file.read_bytes(offset, dest, length);
 		if (err != CHDERR_NONE)
 			throw err;
+
+		// if we have TOC - detect audio sectors and swap data
+		if (m_toc)
+		{
+			assert(offset % CD_FRAME_SIZE == 0);
+			assert(length % CD_FRAME_SIZE == 0);
+
+			int startlba = offset / CD_FRAME_SIZE;
+			int lenlba = length / CD_FRAME_SIZE;
+			UINT8 *_dest = reinterpret_cast<UINT8 *>(dest);
+
+			for (int chdlba = 0; chdlba < lenlba; chdlba++)
+			{
+				// find current frame's track number
+				int tracknum = m_toc->numtrks;
+				for (int track = 0; track < m_toc->numtrks; track++)
+					if ((chdlba + startlba) < m_toc->tracks[track + 1].chdframeofs)
+					{
+						tracknum = track;
+						break;
+					}
+				// is it audio ?
+				if (m_toc->tracks[tracknum].trktype != CD_TRACK_AUDIO)
+					continue;
+				// byteswap if yes
+				int dataoffset = chdlba * CD_FRAME_SIZE;
+				for (UINT32 swapindex = dataoffset; swapindex < (dataoffset + CD_MAX_SECTOR_DATA); swapindex += 2)
+				{
+					UINT8 temp = _dest[swapindex];
+					_dest[swapindex] = _dest[swapindex + 1];
+					_dest[swapindex + 1] = temp;
+				}
+			}
+		}
+
 		return length;
 	}
+
+const cdrom_toc *   m_toc;
 
 private:
 	// internal state
@@ -444,11 +453,7 @@ public:
 				if (averr != AVHERR_NONE)
 					report_error(1, "Error assembling data for frame %d", framenum);
 				if (m_rawdata.count() < m_info.bytes_per_frame)
-				{
-					UINT32 delta = m_info.bytes_per_frame - m_rawdata.count();
-					m_rawdata.resize(m_info.bytes_per_frame, true);
-					memset(&m_rawdata[m_info.bytes_per_frame - delta], 0, delta);
-				}
+					m_rawdata.resize_keep_and_clear_new(m_info.bytes_per_frame);
 
 				// copy to the destination
 				UINT64 start_offset = UINT64(framenum) * UINT64(m_info.bytes_per_frame);
@@ -1221,7 +1226,8 @@ void output_track_metadata(int mode, core_file *file, int tracknum, const cdrom_
 				size = 2352;
 				break;
 		}
-		core_fprintf(file, "%d %d %d %d %s %" I64FMT "d\n", tracknum+1, frameoffs, mode, size, filename, discoffs);
+		bool needquote = strchr(filename, ' ') != NULL;
+		core_fprintf(file, "%d %d %d %d %s%s%s %" I64FMT "d\n", tracknum+1, frameoffs, mode, size, needquote?"\"":"", filename, needquote?"\"":"", discoffs);
 	}
 	else if (mode == MODE_CUEBIN)
 	{
@@ -2075,8 +2081,10 @@ static void do_copy(parameters_t &params)
 			memcpy(compression, s_default_ld_compression, sizeof(compression));
 		else if (input_chd.read_metadata(CDROM_OLD_METADATA_TAG, 0, metadata) == CHDERR_NONE ||
 					input_chd.read_metadata(CDROM_TRACK_METADATA_TAG, 0, metadata) == CHDERR_NONE ||
-					input_chd.read_metadata(CDROM_TRACK_METADATA2_TAG, 0, metadata) == CHDERR_NONE)
-			memcpy(compression, s_default_cd_compression, sizeof(compression));
+					input_chd.read_metadata(CDROM_TRACK_METADATA2_TAG, 0, metadata) == CHDERR_NONE ||
+					input_chd.read_metadata(GDROM_OLD_METADATA_TAG, 0, metadata) == CHDERR_NONE ||
+					input_chd.read_metadata(GDROM_TRACK_METADATA_TAG, 0, metadata) == CHDERR_NONE)
+					memcpy(compression, s_default_cd_compression, sizeof(compression));
 		else
 			memcpy(compression, s_default_raw_compression, sizeof(compression));
 	}
@@ -2120,12 +2128,19 @@ static void do_copy(parameters_t &params)
 		UINT8 metaflags;
 		UINT32 index = 0;
 		bool redo_cd = false;
+		bool cdda_swap = false;
 		for (err = input_chd.read_metadata(CHDMETATAG_WILDCARD, index++, metadata, metatag, metaflags); err == CHDERR_NONE; err = input_chd.read_metadata(CHDMETATAG_WILDCARD, index++, metadata, metatag, metaflags))
 		{
 			// if this is an old CD-CHD tag, note that we want to re-do it
 			if (metatag == CDROM_OLD_METADATA_TAG || metatag == CDROM_TRACK_METADATA_TAG)
 			{
 				redo_cd = true;
+				continue;
+			}
+			// if this is old GD tag we want re-do it and swap CDDA
+			if (metatag == GDROM_OLD_METADATA_TAG)
+			{
+				cdda_swap = redo_cd = true;
 				continue;
 			}
 
@@ -2145,6 +2160,8 @@ static void do_copy(parameters_t &params)
 			err = cdrom_write_metadata(chd, toc);
 			if (err != CHDERR_NONE)
 				report_error(1, "Error writing upgraded CD metadata: %s", chd_file::error_string(err));
+			if (cdda_swap)
+				chd->m_toc = toc;
 		}
 
 		// compress it generically
@@ -2337,7 +2354,10 @@ static void do_extract_cd(parameters_t &params)
 				char temp[8];
 				sprintf(temp, "%02d", tracknum+1);
 				trackbin_name.cat(temp);
-				trackbin_name.cat(".bin");
+				if (toc->tracks[tracknum].trktype == CD_TRACK_AUDIO)
+					trackbin_name.cat(".raw");
+				else
+					trackbin_name.cat(".bin");
 
 				if (output_bin_file)
 				{
@@ -2387,8 +2407,9 @@ static void do_extract_cd(parameters_t &params)
 				// read the data
 				cdrom_read_data(cdrom, cdrom_get_track_start_phys(cdrom, tracknum) + frame, &buffer[bufferoffs], trackinfo.trktype, true);
 
-				// for CDRWin, audio tracks must be reversed
-				if ((mode == MODE_CUEBIN) && (trackinfo.trktype == CD_TRACK_AUDIO))
+				// for CDRWin and GDI audio tracks must be reversed
+				// in the case of GDI and CHD version < 5 we assuming source CHD image is GDROM so audio tracks is already reversed
+				if (((mode == MODE_GDI && input_chd.version() > 4) || (mode == MODE_CUEBIN)) && (trackinfo.trktype == CD_TRACK_AUDIO))
 					for (int swapindex = 0; swapindex < trackinfo.datasize; swapindex += 2)
 					{
 						UINT8 swaptemp = buffer[bufferoffs + swapindex];
@@ -2552,14 +2573,14 @@ static void do_extract_ld(parameters_t &params)
 			// read the hunk into the buffers
 			chd_error err = input_chd.read_hunk(framenum, NULL);
 			if (err != CHDERR_NONE)
-				report_error(1, "Error reading hunk %d from CHD file (%s): %s\n", framenum, params.find(OPTION_INPUT)->cstr(), chd_file::error_string(err));
+				report_error(1, "Error reading hunk %"I64FMT"d from CHD file (%s): %s\n", framenum, params.find(OPTION_INPUT)->cstr(), chd_file::error_string(err));
 
 			// write audio
 			for (int chnum = 0; chnum < channels; chnum++)
 			{
 				avi_error avierr = avi_append_sound_samples(output_file, chnum, avconfig.audio[chnum], actsamples, 0);
 				if (avierr != AVIERR_NONE)
-					report_error(1, "Error writing samples for hunk %d to file (%s): %s\n", framenum, output_file_str->cstr(), avi_error_string(avierr));
+					report_error(1, "Error writing samples for hunk %"I64FMT"d to file (%s): %s\n", framenum, output_file_str->cstr(), avi_error_string(avierr));
 			}
 
 			// write video
@@ -2567,7 +2588,7 @@ static void do_extract_ld(parameters_t &params)
 			{
 				avi_error avierr = avi_append_video_frame(output_file, fullbitmap);
 				if (avierr != AVIERR_NONE)
-					report_error(1, "Error writing video for hunk %d to file (%s): %s\n", framenum, output_file_str->cstr(), avi_error_string(avierr));
+					report_error(1, "Error writing video for hunk %"I64FMT"d to file (%s): %s\n", framenum, output_file_str->cstr(), avi_error_string(avierr));
 			}
 		}
 

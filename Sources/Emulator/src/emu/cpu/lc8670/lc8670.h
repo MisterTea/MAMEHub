@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /**********************************************************************
 
     Sanyo LC8670
@@ -63,7 +65,7 @@ typedef UINT32 (*lc8670_lcd_update)(device_t &device, bitmap_ind16 &bitmap, cons
 	lc8670_cpu_device::static_set_cpu_clock(*device, LC8670_RC_CLOCK, _rc_clock); \
 	lc8670_cpu_device::static_set_cpu_clock(*device, LC8670_CF_CLOCK, _cf_clock);
 #define MCFG_LC8670_BANKSWITCH_CB(_devcb) \
-	devcb = &lc8670_cpu_device::static_set_bankswitch_cb(*device, DEVCB2_##_devcb);
+	devcb = &lc8670_cpu_device::static_set_bankswitch_cb(*device, DEVCB_##_devcb);
 
 #define MCFG_LC8670_LCD_UPDATE_CB(_cb) \
 	lc8670_cpu_device::static_set_lcd_update_cb(*device, _cb);
@@ -91,7 +93,7 @@ public:
 	// static configuration helpers
 	static void static_set_cpu_clock(device_t &device, int _source, UINT32 _clock) { downcast<lc8670_cpu_device &>(device).m_clocks[_source] = _clock; }
 	static void static_set_lcd_update_cb(device_t &device, lc8670_lcd_update _cb) { downcast<lc8670_cpu_device &>(device).m_lcd_update_func = _cb; }
-	template<class _Object> static devcb2_base & static_set_bankswitch_cb(device_t &device, _Object object) { return downcast<lc8670_cpu_device &>(device).m_bankswitch_func.set_callback(object); }
+	template<class _Object> static devcb_base & static_set_bankswitch_cb(device_t &device, _Object object) { return downcast<lc8670_cpu_device &>(device).m_bankswitch_func.set_callback(object); }
 
 protected:
 	// device-level overrides
@@ -213,10 +215,10 @@ private:
 	UINT16              m_pc;
 	UINT16              m_ppc;
 	UINT8               m_op;
-	UINT8 *             m_sfr;                  // special function registers
-	UINT8 *             m_mram;                 // main RAM
-	UINT8 *             m_xram;                 // XRAM
-	UINT8 *             m_vtrbf;                // work RAM
+	UINT8               m_sfr[0x80];            // special function registers
+	UINT8               m_mram[0x200];          // main RAM
+	UINT8               m_xram[0xc6];           // XRAM
+	UINT8               m_vtrbf[0x200];         // work RAM
 	UINT16              m_irq_flag;
 	UINT8               m_irq_lev;
 	bool                m_after_reti;
@@ -231,7 +233,7 @@ private:
 
 	// configuration
 	UINT32              m_clocks[3];            // clock sources
-	devcb2_write8       m_bankswitch_func;      // bankswitch CB
+	devcb_write8       m_bankswitch_func;      // bankswitch CB
 	lc8670_lcd_update   m_lcd_update_func;      // LCD update CB
 
 	// interrupts vectors

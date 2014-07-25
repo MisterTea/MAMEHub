@@ -46,15 +46,11 @@ UINT32 dct11em_state::screen_update_dct11em(screen_device &screen, bitmap_ind16 
 	return 0;
 }
 
-static const struct t11_setup t11_data =
-{
-	0x1403          /* according to specs */
-};
 
 static MACHINE_CONFIG_START( dct11em, dct11em_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",T11, 7500000) // 7.5MHz XTAL
-	MCFG_CPU_CONFIG(t11_data)
+	MCFG_T11_INITIAL_MODE(0x1403)  /* according to specs */
 	MCFG_CPU_PROGRAM_MAP(dct11em_mem)
 
 
@@ -65,8 +61,9 @@ static MACHINE_CONFIG_START( dct11em, dct11em_state )
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dct11em_state, screen_update_dct11em)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 MACHINE_CONFIG_END
 
 /* ROM definition */

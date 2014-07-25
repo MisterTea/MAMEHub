@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic, Robbbert
 /***************************************************************************
 
         PK-8000
@@ -158,26 +160,6 @@ WRITE8_MEMBER(pk8000_state::pk8000_80_portc_w)
 	m_cassette->change_state((BIT(data, 4)) ? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED, CASSETTE_MASK_MOTOR);
 	m_cassette->output((BIT(data, 6)) ? +1.0 : 0.0);
 }
-
-static I8255_INTERFACE( pk8000_ppi8255_interface_1 )
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(pk8000_state,pk8000_80_porta_w),
-	DEVCB_DRIVER_MEMBER(pk8000_state,pk8000_80_portb_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(pk8000_state,pk8000_80_portc_w)
-};
-
-static I8255_INTERFACE( pk8000_ppi8255_interface_2 )
-{
-	DEVCB_DRIVER_MEMBER(pk8000_base_state,pk8000_84_porta_r),
-	DEVCB_DRIVER_MEMBER(pk8000_base_state,pk8000_84_porta_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(pk8000_base_state,pk8000_84_portc_w)
-};
 
 READ8_MEMBER(pk8000_state::pk8000_joy_1_r)
 {
@@ -350,7 +332,6 @@ void pk8000_state::machine_start()
 void pk8000_state::machine_reset()
 {
 	pk8000_set_bank(0);
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(pk8000_state::pk8000_irq_callback),this));
 }
 
 void pk8000_state::video_start()
@@ -362,23 +343,13 @@ UINT32 pk8000_state::screen_update_pk8000(screen_device &screen, bitmap_ind16 &b
 	return pk8000_video_update(screen, bitmap, cliprect, m_ram->pointer());
 }
 
-/* Machine driver */
-static const cassette_interface pk8000_cassette_interface =
-{
-	fmsx_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_PLAY),
-	NULL,
-	NULL
-};
-
 static MACHINE_CONFIG_START( pk8000, pk8000_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",I8080, 1780000)
 	MCFG_CPU_PROGRAM_MAP(pk8000_mem)
 	MCFG_CPU_IO_MAP(pk8000_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", pk8000_state,  pk8000_interrupt)
-
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(pk8000_state,pk8000_irq_callback)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -387,12 +358,20 @@ static MACHINE_CONFIG_START( pk8000, pk8000_state )
 	MCFG_SCREEN_SIZE(256+32, 192+32)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256+32-1, 0, 192+32-1)
 	MCFG_SCREEN_UPDATE_DRIVER(pk8000_state, screen_update_pk8000)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(pk8000_base_state, pk8000)
 
+	MCFG_DEVICE_ADD("ppi8255_1", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(pk8000_state, pk8000_80_porta_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(pk8000_state, pk8000_80_portb_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(pk8000_state, pk8000_80_portc_w))
 
-	MCFG_I8255_ADD( "ppi8255_1", pk8000_ppi8255_interface_1 )
-	MCFG_I8255_ADD( "ppi8255_2", pk8000_ppi8255_interface_2 )
+	MCFG_DEVICE_ADD("ppi8255_2", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(pk8000_base_state, pk8000_84_porta_r))
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(pk8000_base_state, pk8000_84_porta_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(pk8000_base_state,pk8000_84_portc_w))
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -401,7 +380,9 @@ static MACHINE_CONFIG_START( pk8000, pk8000_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( "cassette", pk8000_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(fmsx_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

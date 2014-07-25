@@ -192,7 +192,7 @@ WRITE8_MEMBER(atetris_state::nvram_enable_w)
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, atetris_state )
 	AM_RANGE(0x0000, 0x0fff) AM_RAM
 	AM_RANGE(0x1000, 0x1fff) AM_RAM_WRITE(atetris_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x2000, 0x20ff) AM_MIRROR(0x0300) AM_RAM_WRITE(paletteram_RRRGGGBB_byte_w) AM_SHARE("paletteram")
+	AM_RANGE(0x2000, 0x20ff) AM_MIRROR(0x0300) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x2400, 0x25ff) AM_MIRROR(0x0200) AM_RAM_WRITE(nvram_w) AM_SHARE("nvram")
 	AM_RANGE(0x2800, 0x280f) AM_MIRROR(0x03e0) AM_DEVREADWRITE("pokey1", pokey_device, read, write)
 	AM_RANGE(0x2810, 0x281f) AM_MIRROR(0x03e0) AM_DEVREADWRITE("pokey2", pokey_device, read, write)
@@ -209,7 +209,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( atetrisb2_map, AS_PROGRAM, 8, atetris_state )
 	AM_RANGE(0x0000, 0x0fff) AM_RAM
 	AM_RANGE(0x1000, 0x1fff) AM_RAM_WRITE(atetris_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x2000, 0x20ff) AM_RAM_WRITE(paletteram_RRRGGGBB_byte_w) AM_SHARE("paletteram")
+	AM_RANGE(0x2000, 0x20ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x2400, 0x25ff) AM_RAM_WRITE(nvram_w) AM_SHARE("nvram")
 	AM_RANGE(0x2802, 0x2802) AM_DEVWRITE("sn1", sn76496_device, write)
 	AM_RANGE(0x2804, 0x2804) AM_DEVWRITE("sn2", sn76496_device, write)
@@ -296,35 +296,6 @@ static GFXDECODE_START( atetris )
 GFXDECODE_END
 
 
-
-/*************************************
- *
- *  Sound definitions
- *
- *************************************/
-
-static const pokey_interface pokey_interface_1 =
-{
-	{ DEVCB_NULL },
-	DEVCB_INPUT_PORT("IN0")
-};
-
-
-static const pokey_interface pokey_interface_2 =
-{
-	{ DEVCB_NULL },
-	DEVCB_INPUT_PORT("IN1")
-};
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
 /*************************************
  *
  *  Machine driver
@@ -340,25 +311,28 @@ static MACHINE_CONFIG_START( atetris, atetris_state )
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
 	/* video hardware */
-	MCFG_GFXDECODE(atetris)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", atetris)
+
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_FORMAT(RRRGGGBB)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	/* note: these parameters are from published specs, not derived */
 	/* the board uses an SOS-2 chip to generate video signals */
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/2, 456, 0, 336, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(atetris_state, screen_update_atetris)
+	MCFG_SCREEN_PALETTE("palette")
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_POKEY_ADD("pokey1", MASTER_CLOCK/8)
-	MCFG_POKEY_CONFIG(pokey_interface_1)
+	MCFG_SOUND_ADD("pokey1", POKEY, MASTER_CLOCK/8)
+	MCFG_POKEY_ALLPOT_R_CB(IOPORT("IN0"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
-	MCFG_POKEY_ADD("pokey2", MASTER_CLOCK/8)
-	MCFG_POKEY_CONFIG(pokey_interface_2)
+	MCFG_SOUND_ADD("pokey2", POKEY, MASTER_CLOCK/8)
+	MCFG_POKEY_ALLPOT_R_CB(IOPORT("IN1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -372,14 +346,17 @@ static MACHINE_CONFIG_START( atetrisb2, atetris_state )
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
 	/* video hardware */
-	MCFG_GFXDECODE(atetris)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", atetris)
+
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_FORMAT(RRRGGGBB)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	/* note: these parameters are from published specs, not derived */
 	/* the board uses an SOS-2 chip to generate video signals */
 	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/2, 456, 0, 336, 262, 0, 240)
 	MCFG_SCREEN_UPDATE_DRIVER(atetris_state, screen_update_atetris)
+	MCFG_SCREEN_PALETTE("palette")
 
 
 	/* sound hardware */
@@ -387,15 +364,12 @@ static MACHINE_CONFIG_START( atetrisb2, atetris_state )
 
 	MCFG_SOUND_ADD("sn1", SN76496, BOOTLEG_CLOCK/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76496, BOOTLEG_CLOCK/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn3", SN76496, BOOTLEG_CLOCK/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 

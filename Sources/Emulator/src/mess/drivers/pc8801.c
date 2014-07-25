@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /*************************************************************************************************************************************
 
     PC-8801 (c) 1981 NEC
@@ -255,7 +257,7 @@
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "imagedev/cassette.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/i8255.h"
 #include "machine/upd1990a.h"
 #include "machine/upd765.h"
@@ -307,7 +309,8 @@ public:
 			m_cassette(*this, "cassette"),
 			m_beeper(*this, "beeper"),
 			m_opna(*this, "opna"),
-			m_opn(*this, "opn")
+			m_opn(*this, "opn"),
+			m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -318,6 +321,8 @@ public:
 	required_device<beep_device> m_beeper;
 	required_device<ym2608_device> m_opna;
 	required_device<ym2203_device> m_opn;
+	required_device<palette_device> m_palette;
+
 	UINT8 *m_work_ram;
 	UINT8 *m_hi_work_ram;
 	UINT8 *m_ext_work_ram;
@@ -445,9 +450,7 @@ public:
 	DECLARE_READ8_MEMBER(upd765_tc_r);
 	DECLARE_WRITE8_MEMBER(fdc_irq_vector_w);
 	DECLARE_WRITE8_MEMBER(fdc_drive_mode_w);
-	DECLARE_READ_LINE_MEMBER(rxdata_callback);
 	DECLARE_WRITE_LINE_MEMBER(txdata_callback);
-	DECLARE_READ_LINE_MEMBER(dsr_r);
 	DECLARE_WRITE_LINE_MEMBER(rxrdy_w);
 	DECLARE_READ8_MEMBER(pc8801_sound_board_r);
 	DECLARE_WRITE8_MEMBER(pc8801_sound_board_w);
@@ -468,13 +471,12 @@ public:
 	void fdc_irq_w(bool state);
 
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-
+	DECLARE_PALETTE_INIT(pc8801);
 protected:
 
 	virtual void video_start();
 	virtual void machine_start();
 	virtual void machine_reset();
-	virtual void palette_init();
 public:
 	DECLARE_MACHINE_RESET(pc8801_clock_speed);
 	DECLARE_MACHINE_RESET(pc8801_dic);
@@ -567,15 +569,15 @@ void pc8801_state::draw_bitmap_3bpp(bitmap_ind16 &bitmap,const rectangle &clipre
 				if(y_double)
 				{
 					if(cliprect.contains(x+xi, y+0))
-						bitmap.pix16(y+0, x+xi) = machine().pens[pen & 7];
+						bitmap.pix16(y+0, x+xi) = m_palette->pen(pen & 7);
 
 					if(cliprect.contains(x+xi, y+1))
-						bitmap.pix16(y+1, x+xi) = machine().pens[pen & 7];
+						bitmap.pix16(y+1, x+xi) = m_palette->pen(pen & 7);
 				}
 				else
 				{
 					if(cliprect.contains(x+xi, y+0))
-						bitmap.pix16(y, x+xi) = machine().pens[pen & 7];
+						bitmap.pix16(y, x+xi) = m_palette->pen(pen & 7);
 				}
 			}
 
@@ -613,15 +615,15 @@ void pc8801_state::draw_bitmap_1bpp(bitmap_ind16 &bitmap,const rectangle &clipre
 				if((m_gfx_ctrl & 1))
 				{
 					if(cliprect.contains(x+xi, y*2+0))
-						bitmap.pix16(y*2+0, x+xi) = machine().pens[pen ? color : 0];
+						bitmap.pix16(y*2+0, x+xi) = m_palette->pen(pen ? color : 0);
 
 					if(cliprect.contains(x+xi, y*2+1))
-						bitmap.pix16(y*2+1, x+xi) = machine().pens[pen ? color : 0];
+						bitmap.pix16(y*2+1, x+xi) = m_palette->pen(pen ? color : 0);
 				}
 				else
 				{
 					if(cliprect.contains(x+xi, y))
-						bitmap.pix16(y, x+xi) = machine().pens[pen ? color : 0];
+						bitmap.pix16(y, x+xi) = m_palette->pen(pen ? color : 0);
 				}
 			}
 
@@ -649,7 +651,7 @@ void pc8801_state::draw_bitmap_1bpp(bitmap_ind16 &bitmap,const rectangle &clipre
 						pen^=1;
 
 					if(cliprect.contains(x+xi, y))
-						bitmap.pix16(y, x+xi) = machine().pens[pen ? 7 : 0];
+						bitmap.pix16(y, x+xi) = m_palette->pen(pen ? 7 : 0);
 				}
 
 				count++;
@@ -673,7 +675,7 @@ UINT8 pc8801_state::calc_cursor_pos(int x,int y,int yi)
 		if(!(m_crtc.param[0][2] & 0x20))
 			return 1;
 
-		if(((machine().primary_screen->frame_number() / blink_speed) & 1) == 0)
+		if(((machine().first_screen()->frame_number() / blink_speed) & 1) == 0)
 			return 1;
 
 		return 0;
@@ -752,7 +754,7 @@ void pc8801_state::pc8801_draw_char(bitmap_ind16 &bitmap,int x,int y,int pal,UIN
 				res_x = x*8+xi*(width+1);
 				res_y = y*y_height+yi;
 
-				if(!machine().primary_screen->visible_area().contains(res_x, res_y))
+				if(!machine().first_screen()->visible_area().contains(res_x, res_y))
 					continue;
 
 				if(gfx_mode)
@@ -769,7 +771,7 @@ void pc8801_state::pc8801_draw_char(bitmap_ind16 &bitmap,int x,int y,int pal,UIN
 					UINT8 blink_mask;
 
 					blink_mask = 0;
-					if(blink && ((machine().primary_screen->frame_number() / blink_speed) & 3) == 1)
+					if(blink && ((machine().first_screen()->frame_number() / blink_speed) & 3) == 1)
 						blink_mask = 1;
 
 					if(yi >= (1 << (y_double+3)) || secret || blink_mask)
@@ -794,13 +796,13 @@ void pc8801_state::pc8801_draw_char(bitmap_ind16 &bitmap,int x,int y,int pal,UIN
 
 				if(color != -1)
 				{
-					bitmap.pix16(res_y, res_x) = machine().pens[color];
+					bitmap.pix16(res_y, res_x) = m_palette->pen(color);
 					if(width)
 					{
-						if(!machine().primary_screen->visible_area().contains(res_x+1, res_y))
+						if(!machine().first_screen()->visible_area().contains(res_x+1, res_y))
 							continue;
 
-						bitmap.pix16(res_y, res_x+1) = machine().pens[color];
+						bitmap.pix16(res_y, res_x+1) = m_palette->pen(color);
 					}
 				}
 			}
@@ -865,7 +867,7 @@ void pc8801_state::draw_text(bitmap_ind16 &bitmap,int y_size, UINT8 width)
 
 UINT32 pc8801_state::screen_update( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(machine().pens[0], cliprect);
+	bitmap.fill(m_palette->pen(0), cliprect);
 
 //  popmessage("%04x %04x %02x",m_dma_address[2],m_dma_counter[2],m_dmac_mode);
 
@@ -1239,7 +1241,7 @@ WRITE8_MEMBER(pc8801_state::pc8801_ext_rom_bank_w)
 
 UINT8 pc8801_state::pc8801_pixel_clock(void)
 {
-	int ysize = machine().primary_screen->height(); /* TODO: correct condition*/
+	int ysize = machine().first_screen()->height(); /* TODO: correct condition*/
 
 	return (ysize >= 400);
 }
@@ -1267,7 +1269,7 @@ void pc8801_state::pc8801_dynamic_res_change(void)
 	else
 		refresh = HZ_TO_ATTOSECONDS(PIXEL_CLOCK_15KHz) * (xsize) * ysize;
 
-	machine().primary_screen->configure(xsize, ysize, visarea, refresh);
+	machine().first_screen()->configure(xsize, ysize, visarea, refresh);
 }
 
 WRITE8_MEMBER(pc8801_state::pc8801_gfx_ctrl_w)
@@ -1424,7 +1426,7 @@ WRITE8_MEMBER(pc8801_state::pc8801_palram_w)
 		m_palram[offset].g = data & 4 ? 7 : 0;
 	}
 
-	palette_set_color_rgb(machine(), offset, pal3bit(m_palram[offset].r), pal3bit(m_palram[offset].g), pal3bit(m_palram[offset].b));
+	m_palette->set_pen_color(offset, pal3bit(m_palram[offset].r), pal3bit(m_palram[offset].g), pal3bit(m_palram[offset].b));
 }
 
 WRITE8_MEMBER(pc8801_state::pc8801_layer_masking_w)
@@ -1470,6 +1472,7 @@ READ8_MEMBER(pc8801_state::pc8801_crtc_status_r)
 	return m_crtc.status;
 }
 
+#if 0
 static const char *const crtc_command[] =
 {
 	"Reset / Stop Display",             // 0
@@ -1481,6 +1484,7 @@ static const char *const crtc_command[] =
 	"Reset Counters",                   // 6
 	"Read Status"                       // 7
 };
+#endif
 
 WRITE8_MEMBER(pc8801_state::pc88_crtc_cmd_w)
 {
@@ -1845,16 +1849,6 @@ WRITE8_MEMBER(pc8801_state::cpu_8255_c_w)
 }
 
 
-static I8255A_INTERFACE( master_fdd_intf )
-{
-	DEVCB_DEVICE_MEMBER("d8255_slave", i8255_device, pb_r), // Port A read
-	DEVCB_NULL,                         // Port A write
-	DEVCB_DEVICE_MEMBER("d8255_slave", i8255_device, pa_r), // Port B read
-	DEVCB_NULL,                         // Port B write
-	DEVCB_DRIVER_MEMBER(pc8801_state,cpu_8255_c_r),     // Port C read
-	DEVCB_DRIVER_MEMBER(pc8801_state,cpu_8255_c_w)          // Port C write
-};
-
 READ8_MEMBER(pc8801_state::fdc_8255_c_r)
 {
 //  machine().scheduler().synchronize(); // force resync
@@ -1868,17 +1862,6 @@ WRITE8_MEMBER(pc8801_state::fdc_8255_c_w)
 
 	m_i8255_1_pc = data;
 }
-
-static I8255A_INTERFACE( slave_fdd_intf )
-{
-	DEVCB_DEVICE_MEMBER("d8255_master", i8255_device, pb_r),    // Port A read
-	DEVCB_NULL,                         // Port A write
-	DEVCB_DEVICE_MEMBER("d8255_master", i8255_device, pa_r),    // Port B read
-	DEVCB_NULL,                         // Port B write
-	DEVCB_DRIVER_MEMBER(pc8801_state,fdc_8255_c_r),     // Port C read
-	DEVCB_DRIVER_MEMBER(pc8801_state,fdc_8255_c_w)          // Port C write
-};
-
 
 static ADDRESS_MAP_START( pc8801fdc_mem, AS_PROGRAM, 8, pc8801_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
@@ -2257,6 +2240,7 @@ static SLOT_INTERFACE_START( pc88_floppies )
 	SLOT_INTERFACE( "525hd", FLOPPY_525_HD )
 SLOT_INTERFACE_END
 
+#if 0
 /* Cassette Configuration */
 
 static const cassette_interface pc88_cassette_interface =
@@ -2264,9 +2248,9 @@ static const cassette_interface pc88_cassette_interface =
 	cassette_default_formats,   // we need T88 format support!
 	NULL,
 	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED),
-	"pc8801_cass",
-	NULL
+	"pc8801_cass"
 };
+#endif
 
 #ifdef USE_PROPER_I8214
 void pc8801_state::pc8801_raise_irq(UINT8 irq,UINT8 state)
@@ -2408,9 +2392,6 @@ INTERRUPT_GEN_MEMBER(pc8801_state::pc8801_vrtc_irq)
 
 void pc8801_state::machine_start()
 {
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(pc8801_state::pc8801_irq_callback),this));
-	machine().device<upd765a_device>("upd765")->setup_intrq_cb(upd765a_device::line_cb(FUNC(pc8801_state::fdc_irq_w), this));
-
 	machine().device<floppy_connector>("upd765:0")->get_device()->set_rpm(300);
 	machine().device<floppy_connector>("upd765:1")->get_device()->set_rpm(300);
 	machine().device<upd765a_device>("upd765")->set_rate(250000);
@@ -2507,7 +2488,7 @@ void pc8801_state::machine_reset()
 		int i;
 
 		for(i=0;i<0x10;i++) //text + bitmap
-			palette_set_color_rgb(machine(), i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
+			m_palette->set_pen_color(i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
 	}
 
 	m_has_clock_speed = 0;
@@ -2550,17 +2531,12 @@ MACHINE_RESET_MEMBER(pc8801_state,pc8801_cdrom)
 	}
 }
 
-void pc8801_state::palette_init()
+PALETTE_INIT_MEMBER(pc8801_state, pc8801)
 {
 	int i;
 
 	for(i=0;i<0x10;i++) //text + bitmap
-		palette_set_color_rgb(machine(), i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
-}
-
-void pc8801_state::fdc_irq_w(bool state)
-{
-	m_fdccpu->set_input_line(INPUT_LINE_IRQ0, state ? ASSERT_LINE : CLEAR_LINE);
+		palette.set_pen_color(i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
 }
 
 /* YM2203 Interface */
@@ -2583,38 +2559,7 @@ READ8_MEMBER(pc8801_state::opn_porta_r)
 }
 READ8_MEMBER(pc8801_state::opn_portb_r){ return ioport("OPN_PB")->read(); }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(pc8801_state,opn_porta_r),
-	DEVCB_DRIVER_MEMBER(pc8801_state,opn_portb_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface single_ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT | AY8910_SINGLE_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(pc8801_state,opn_porta_r),
-	DEVCB_DRIVER_MEMBER(pc8801_state,opn_portb_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 /* Cassette Configuration */
-READ_LINE_MEMBER( pc8801_state::rxdata_callback )
-{
-	return 0;
-	//return (m_cass->input() > -0.1) ? 1 : 0;
-}
-
-READ_LINE_MEMBER( pc8801_state::dsr_r )
-{
-	return 0; // bit 7 status
-}
-
 WRITE_LINE_MEMBER( pc8801_state::txdata_callback )
 {
 	//m_cass->output( (state) ? 0.8 : -0.8);
@@ -2625,34 +2570,13 @@ WRITE_LINE_MEMBER( pc8801_state::rxrdy_w )
 	// ...
 }
 
-static const i8251_interface uart_intf =
-{
-	DEVCB_DRIVER_LINE_MEMBER(pc8801_state,rxdata_callback), //rxd_cb
-	DEVCB_DRIVER_LINE_MEMBER(pc8801_state,txdata_callback), //txd_cb
-	DEVCB_DRIVER_LINE_MEMBER(pc8801_state,dsr_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(pc8801_state,rxrdy_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const cassette_interface pc8801_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED),
-	NULL,
-	NULL
-};
-
 static MACHINE_CONFIG_START( pc8801, pc8801_state )
 	/* main CPU */
 	MCFG_CPU_ADD("maincpu", Z80, MASTER_CLOCK)        /* 4 MHz */
 	MCFG_CPU_PROGRAM_MAP(pc8801_mem)
 	MCFG_CPU_IO_MAP(pc8801_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", pc8801_state,  pc8801_vrtc_irq)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(pc8801_state,pc8801_irq_callback)
 
 	/* sub CPU(5 inch floppy drive) */
 	MCFG_CPU_ADD("fdccpu", Z80, MASTER_CLOCK)       /* 4 MHz */
@@ -2662,20 +2586,34 @@ static MACHINE_CONFIG_START( pc8801, pc8801_state )
 	//MCFG_QUANTUM_TIME(attotime::from_hz(300000))
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
+	MCFG_DEVICE_ADD("d8255_master", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(DEVREAD8("d8255_slave", i8255_device, pb_r))
+	MCFG_I8255_IN_PORTB_CB(DEVREAD8("d8255_slave", i8255_device, pa_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(pc8801_state, cpu_8255_c_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(pc8801_state, cpu_8255_c_w))
 
-	MCFG_I8255_ADD( "d8255_master", master_fdd_intf )
-	MCFG_I8255_ADD( "d8255_slave", slave_fdd_intf )
+	MCFG_DEVICE_ADD("d8255_slave", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(DEVREAD8("d8255_master", i8255_device, pb_r))
+	MCFG_I8255_IN_PORTB_CB(DEVREAD8("d8255_master", i8255_device, pa_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(pc8801_state, fdc_8255_c_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(pc8801_state, fdc_8255_c_w))
 
 	MCFG_UPD765A_ADD("upd765", true, true)
+	MCFG_UPD765_INTRQ_CALLBACK(INPUTLINE("fdccpu", INPUT_LINE_IRQ0))
+
 	#ifdef USE_PROPER_I8214
 	MCFG_I8214_ADD(I8214_TAG, MASTER_CLOCK, pic_intf)
 	#endif
 	MCFG_UPD1990A_ADD(UPD1990A_TAG, XTAL_32_768kHz, NULL, NULL)
-	//MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
-	MCFG_CASSETTE_ADD("cassette", pc8801_cassette_interface)
+	//MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_MUTED)
+
 	MCFG_SOFTWARE_LIST_ADD("tape_list","pc8801_cass")
 
-	MCFG_I8251_ADD(I8251_TAG, uart_intf)
+	MCFG_DEVICE_ADD(I8251_TAG, I8251, 0)
+	MCFG_I8251_TXD_HANDLER(WRITELINE(pc8801_state, txdata_callback))
+	MCFG_I8251_RTS_HANDLER(WRITELINE(pc8801_state, rxrdy_w))
 
 	MCFG_FLOPPY_DRIVE_ADD("upd765:0", pc88_floppies, "525hd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("upd765:1", pc88_floppies, "525hd", floppy_image_device::default_floppy_formats)
@@ -2685,9 +2623,11 @@ static MACHINE_CONFIG_START( pc8801, pc8801_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK_24KHz,848,0,640,448,0,400)
 	MCFG_SCREEN_UPDATE_DRIVER(pc8801_state, screen_update)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE( pc8801 )
-	MCFG_PALETTE_LENGTH(0x10)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pc8801 )
+	MCFG_PALETTE_ADD("palette", 0x10)
+	MCFG_PALETTE_INIT_OWNER(pc8801_state, pc8801)
 
 //  MCFG_VIDEO_START_OVERRIDE(pc8801_state,pc8801)
 
@@ -2695,12 +2635,14 @@ static MACHINE_CONFIG_START( pc8801, pc8801_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("opn", YM2203, MASTER_CLOCK)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(pc8801_state, pc8801_sound_irq))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(pc8801_state, opn_porta_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(pc8801_state, opn_portb_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	MCFG_SOUND_ADD("opna", YM2608, MASTER_CLOCK*2)
 	MCFG_YM2608_IRQ_HANDLER(WRITELINE(pc8801_state, pc8801_sound_irq))
-	MCFG_YM2608_AY8910_INTF(&single_ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(pc8801_state, opn_porta_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(pc8801_state, opn_portb_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	MCFG_SOUND_ADD("beeper", BEEP, 0)

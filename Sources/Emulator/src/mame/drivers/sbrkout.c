@@ -44,7 +44,10 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_maincpu(*this, "maincpu"),
-		m_dac(*this, "dac") { }
+		m_dac(*this, "dac"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	emu_timer *m_scanline_timer;
@@ -74,6 +77,9 @@ public:
 	void update_nmi_state();
 	required_device<cpu_device> m_maincpu;
 	required_device<dac_device> m_dac;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -313,7 +319,7 @@ TILE_GET_INFO_MEMBER(sbrkout_state::get_bg_tile_info)
 
 void sbrkout_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sbrkout_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sbrkout_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 
@@ -345,7 +351,7 @@ UINT32 sbrkout_state::screen_update_sbrkout(screen_device &screen, bitmap_ind16 
 		int sx = 31 * 8 - videoram[0x380 + 0x10 + ball * 2];
 		int sy = 30 * 8 - videoram[0x380 + 0x18 + ball * 2];
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code, 0, 0, 0, sx, sy, 0);
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, code, 0, 0, 0, sx, sy, 0);
 	}
 	return 0;
 }
@@ -513,14 +519,14 @@ static MACHINE_CONFIG_START( sbrkout, sbrkout_state )
 	MCFG_WATCHDOG_VBLANK_INIT(8)
 
 	/* video hardware */
-	MCFG_GFXDECODE(sbrkout)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sbrkout)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(MAIN_CLOCK/2, 384, 0, 256, 262, 0, 224)
 	MCFG_SCREEN_UPDATE_DRIVER(sbrkout_state, screen_update_sbrkout)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

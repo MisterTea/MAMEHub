@@ -421,7 +421,7 @@ static ADDRESS_MAP_START( mjyuugi_map, AS_PROGRAM, 16, srmp2_state )
 	AM_RANGE(0x300000, 0x300001) AM_READ8(mjyuugi_irq4_ack_r,0x00ff) /* irq ack lv 4? */
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("DSW3-1")             /* DSW 3-1 */
 	AM_RANGE(0x500010, 0x500011) AM_READ_PORT("DSW3-2")             /* DSW 3-2 */
-	AM_RANGE(0x700000, 0x7003ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x700000, 0x7003ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x800000, 0x800001) AM_READNOP             /* ??? */
 	AM_RANGE(0x900000, 0x900001) AM_READWRITE8(iox_mux_r, iox_command_w,0x00ff) /* key matrix | I/O */
 	AM_RANGE(0x900002, 0x900003) AM_READWRITE8(iox_status_r,iox_data_w,0x00ff)
@@ -1112,24 +1112,6 @@ INPUT_PORTS_END
 
 ***************************************************************************/
 
-static const ay8910_interface srmp2_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(srmp2_state,srmp2_adpcm_int),            /* IRQ handler */
-	MSM5205_S48_4B              /* 8 KHz, 4 Bits  */
-};
-
-
 static const gfx_layout charlayout =
 {
 	16, 16,
@@ -1168,6 +1150,8 @@ static MACHINE_CONFIG_START( srmp2, srmp2_state )
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	MCFG_DEVICE_ADD("spritegen", SETA001_SPRITE, 0)
+	MCFG_SETA001_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_SETA001_SPRITE_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1176,21 +1160,25 @@ static MACHINE_CONFIG_START( srmp2, srmp2_state )
 	MCFG_SCREEN_SIZE(464, 256-16)
 	MCFG_SCREEN_VISIBLE_AREA(16, 464-1, 8, 256-1-24)
 	MCFG_SCREEN_UPDATE_DRIVER(srmp2_state, screen_update_srmp2)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(srmp2)
-	MCFG_PALETTE_LENGTH(1024)   /* sprites only */
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", srmp2)
+	MCFG_PALETTE_ADD("palette", 1024)   /* sprites only */
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
-	MCFG_PALETTE_INIT_OVERRIDE(srmp2_state,srmp2)
+	MCFG_PALETTE_INIT_OWNER(srmp2_state,srmp2)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 20000000/16)
-	MCFG_SOUND_CONFIG(srmp2_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW2"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(srmp2_state, srmp2_adpcm_int))            /* IRQ handler */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)              /* 8 KHz, 4 Bits  */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.45)
 MACHINE_CONFIG_END
 
@@ -1209,6 +1197,8 @@ static MACHINE_CONFIG_START( srmp3, srmp2_state )
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	MCFG_DEVICE_ADD("spritegen", SETA001_SPRITE, 0)
+	MCFG_SETA001_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_SETA001_SPRITE_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1217,21 +1207,25 @@ static MACHINE_CONFIG_START( srmp3, srmp2_state )
 	MCFG_SCREEN_SIZE(400, 256-16)
 	MCFG_SCREEN_VISIBLE_AREA(16, 400-1, 8, 256-1-24)
 	MCFG_SCREEN_UPDATE_DRIVER(srmp2_state, screen_update_srmp3)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(srmp3)
-	MCFG_PALETTE_LENGTH(512)    /* sprites only */
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", srmp3)
+	MCFG_PALETTE_ADD("palette", 512)    /* sprites only */
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
-	MCFG_PALETTE_INIT_OVERRIDE(srmp2_state,srmp3)
+	MCFG_PALETTE_INIT_OWNER(srmp2_state,srmp3)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 16000000/16)
-	MCFG_SOUND_CONFIG(srmp2_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW2"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(srmp2_state, srmp2_adpcm_int))            /* IRQ handler */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)              /* 8 KHz, 4 Bits  */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.45)
 MACHINE_CONFIG_END
 
@@ -1243,7 +1237,7 @@ static MACHINE_CONFIG_DERIVED( rmgoldyh, srmp3 )
 
 	MCFG_MACHINE_START_OVERRIDE(srmp2_state,rmgoldyh)
 
-	MCFG_GFXDECODE(rmgoldyh)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", rmgoldyh)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( mjyuugi, srmp2_state )
@@ -1259,6 +1253,8 @@ static MACHINE_CONFIG_START( mjyuugi, srmp2_state )
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	MCFG_DEVICE_ADD("spritegen", SETA001_SPRITE, 0)
+	MCFG_SETA001_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_SETA001_SPRITE_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1267,19 +1263,23 @@ static MACHINE_CONFIG_START( mjyuugi, srmp2_state )
 	MCFG_SCREEN_SIZE(400, 256-16)
 	MCFG_SCREEN_VISIBLE_AREA(16, 400-1, 0, 256-1-16)
 	MCFG_SCREEN_UPDATE_DRIVER(srmp2_state, screen_update_mjyuugi)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(srmp3)
-	MCFG_PALETTE_LENGTH(512)            /* sprites only */
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", srmp3)
+	MCFG_PALETTE_ADD("palette", 512)            /* sprites only */
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 16000000/16)
-	MCFG_SOUND_CONFIG(srmp2_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW2"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(srmp2_state, srmp2_adpcm_int))            /* IRQ handler */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)              /* 8 KHz, 4 Bits  */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.45)
 MACHINE_CONFIG_END
 

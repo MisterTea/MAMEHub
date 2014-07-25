@@ -60,17 +60,24 @@ void z80_daisy_chain::init(device_t *cpudevice, const z80_daisy_config *daisy)
 	for ( ; daisy->devname != NULL; daisy++)
 	{
 		// find the device
-		device_t *target = cpudevice->siblingdevice(daisy->devname);
-		if (target == NULL)
-			fatalerror("Unable to locate device '%s'\n", daisy->devname);
+		device_t *target;
+		if ((target = cpudevice->subdevice(daisy->devname)) == NULL)
+		{
+			if ((target = cpudevice->siblingdevice(daisy->devname)) == NULL)
+				fatalerror("Unable to locate device '%s'\n", daisy->devname);
+		}
 
 		// make sure it has an interface
 		device_z80daisy_interface *intf;
 		if (!target->interface(intf))
 			fatalerror("Device '%s' does not implement the z80daisy interface!\n", daisy->devname);
 
-		// append to the end
+		// append to the end, or overwrite existing entry
+		daisy_entry *next = (*tailptr) ? (*tailptr)->m_next : NULL;
+		if (*tailptr != NULL)
+			auto_free(cpudevice->machine(), *tailptr);
 		*tailptr = auto_alloc(cpudevice->machine(), daisy_entry(target));
+		(*tailptr)->m_next = next;
 		tailptr = &(*tailptr)->m_next;
 	}
 }
@@ -130,7 +137,7 @@ int z80_daisy_chain::call_ack_device()
 		if (state & Z80_DAISY_INT)
 			return vector;
 	}
-	logerror("z80daisy_call_ack_device: failed to find an device to ack!\n");
+	//logerror("z80daisy_call_ack_device: failed to find an device to ack!\n");
 	return vector;
 }
 

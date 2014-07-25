@@ -15,30 +15,6 @@ WRITE16_MEMBER(dec0_state::dec0_update_sprites_w)
 	memcpy(m_buffered_spriteram,m_spriteram,0x800);
 }
 
-/******************************************************************************/
-
-void dec0_state::update_24bitcol(int offset)
-{
-	int r,g,b;
-
-	r = (m_generic_paletteram_16[offset] >> 0) & 0xff;
-	g = (m_generic_paletteram_16[offset] >> 8) & 0xff;
-	b = (m_generic_paletteram2_16[offset] >> 0) & 0xff;
-
-	palette_set_color(machine(),offset,MAKE_RGB(r,g,b));
-}
-
-WRITE16_MEMBER(dec0_state::dec0_paletteram_rg_w)
-{
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-	update_24bitcol(offset);
-}
-
-WRITE16_MEMBER(dec0_state::dec0_paletteram_b_w)
-{
-	COMBINE_DATA(&m_generic_paletteram2_16[offset]);
-	update_24bitcol(offset);
-}
 
 /******************************************************************************/
 
@@ -266,7 +242,7 @@ UINT32 dec0_state::screen_update_birdtry(screen_device &screen, bitmap_ind16 &bi
 
 	/* This game doesn't have the extra playfield chip on the game board, but
 	the palette does show through. */
-	bitmap.fill(machine().pens[768], cliprect);
+	bitmap.fill(m_palette->pen(768), cliprect);
 	m_tilegen2->deco_bac06_pf_draw(bitmap,cliprect,0, 0x00, 0x00, 0x00, 0x00);
 	m_spritegen->draw_sprites(machine(), bitmap, cliprect, m_buffered_spriteram, 0x00, 0x00, 0x0f);
 	m_tilegen1->deco_bac06_pf_draw(bitmap,cliprect,0, 0x00, 0x00, 0x00, 0x00);
@@ -362,6 +338,8 @@ WRITE16_MEMBER(dec0_state::dec0_priority_w)
 
 VIDEO_START_MEMBER(dec0_state,dec0_nodma)
 {
+	save_item(NAME(m_pri));
+
 	m_buffered_spriteram = m_spriteram;
 }
 
@@ -369,10 +347,6 @@ VIDEO_START_MEMBER(dec0_state,dec0)
 {
 	VIDEO_START_CALL_MEMBER(dec0_nodma);
 	m_buffered_spriteram = auto_alloc_array(machine(), UINT16, 0x800/2);
-}
-
-VIDEO_START_MEMBER(dec0_automat_state,automat)
-{
 }
 
 /******************************************************************************/

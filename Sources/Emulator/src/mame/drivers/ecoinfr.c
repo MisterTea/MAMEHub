@@ -97,9 +97,6 @@ public:
 	DECLARE_CUSTOM_INPUT_MEMBER(ecoinfr_reel2_opto_r);
 	DECLARE_CUSTOM_INPUT_MEMBER(ecoinfr_reel3_opto_r);
 
-	DECLARE_READ8_MEMBER(i8251_in_rxd_cb);
-
-
 	DECLARE_DRIVER_INIT(ecoinfrbr);
 	DECLARE_DRIVER_INIT(ecoinfr);
 	DECLARE_DRIVER_INIT(ecoinfrmab);
@@ -775,25 +772,6 @@ MACHINE_START_MEMBER(ecoinfr_state,ecoinfr)
 	}
 }
 
-READ8_MEMBER(ecoinfr_state::i8251_in_rxd_cb)
-{
-	return 0x06;
-}
-
-static const i8251_interface i8251_intf =
-{
-	DEVCB_DRIVER_MEMBER(ecoinfr_state,i8251_in_rxd_cb), // in_rxd_cb
-	DEVCB_NULL, // out_txd_cb
-	DEVCB_NULL, // in_dsr_cb
-	DEVCB_NULL, // out_dtr_cb
-	DEVCB_NULL, // out_rts_cb
-	DEVCB_NULL, // out_rxrdy_cb
-	DEVCB_NULL, // out_txrdy_cb
-	DEVCB_NULL, // out_txempty_cb
-	DEVCB_NULL // out_syndet_cb
-};
-
-
 static MACHINE_CONFIG_START( ecoinfr, ecoinfr_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80,4000000)
@@ -805,7 +783,7 @@ static MACHINE_CONFIG_START( ecoinfr, ecoinfr_state )
 
 	MCFG_MACHINE_START_OVERRIDE(ecoinfr_state, ecoinfr )
 
-	MCFG_I8251_ADD(UPD8251_TAG, i8251_intf)
+	MCFG_DEVICE_ADD(UPD8251_TAG, I8251, 0)
 MACHINE_CONFIG_END
 
 
@@ -1463,12 +1441,12 @@ GAME_CUSTOM( 199?, ec_unk5__c,  ec_unk5,    "v1.1non_protocol.hex", 0x0000, 0x02
 ********************************************************************************************************************/
 
 // these are scrambled roms using 'MAB' hw.
+
 ROM_START( ec_bar7 )
 	ROM_REGION( 0x200000, "maincpu", 0 )
 	ROM_LOAD( "b7tok.bin", 0x0000, 0x020000, CRC(c3913709) SHA1(73024a3bbfbe13477e4daae78f54c694d112b936) )
-	ROM_REGION( 0x200000, "altrevs", 0 )
-	ROM_LOAD( "bar7", 0x0000, 0x008000, CRC(ce0429bc) SHA1(d9cda09589a6e7c72c4d777de2964abe6b4e18c3) ) //?
 ROM_END
+
 
 ROM_START( ec_barxmab )
 	ROM_REGION( 0x200000, "maincpu", 0 )
@@ -1711,6 +1689,7 @@ GAME( 19??, ec_supbxcon,ec_sbarx , ecoinfr,   ecoinfr_barx, ecoinfr_state,   eco
 GAME( 19??, ec_casmb,   0        , ecoinfr,   ecoinfr_barx, ecoinfr_state,   ecoinfrmab,    ROT0,  "Concept Games Ltd", "Casino Multi Bar (Concept Games Ltd) (?)"      , GAME_FLAGS)
 GAME( 19??, ec_supmb,   0        , ecoinfr,   ecoinfr_barx, ecoinfr_state,   ecoinfrmab,    ROT0,  "Concept Games Ltd", "Super Multi Bar (Concept Games Ltd) (?)"       , GAME_FLAGS)
 GAME( 19??, ec_stkex,   0        , ecoinfr,   ecoinfr_barx, ecoinfr_state,   ecoinfrmab,    ROT0,  "Concept Games Ltd", "Stake X (Concept Games Ltd) (?)"       , GAME_FLAGS)
+GAME( 19??, ec_bar7,    0        , ecoinfr,   ecoinfr_barx, ecoinfr_state,   ecoinfrmab,    ROT0,  "Concept Games Ltd", "Bar 7 (Concept Games Ltd) (?)"       , GAME_FLAGS)
 GAME( 19??, ec_fltr,    0        , ecoinfr,   ecoinfr_barx, ecoinfr_state,   ecoinfrmab,    ROT0,  "Concept Games Ltd", "Flutter (Concept Games Ltd) (?)"       , GAME_FLAGS)
 GAME( 19??, ec_rdht7,   0        , ecoinfr,   ecoinfr_barx, ecoinfr_state,   ecoinfrmab,    ROT0,  "Concept Games Ltd", "Red Hot 7 (MAB PCB?) (Concept Games Ltd) (?)"      , GAME_FLAGS)
 GAME( 19??, ec_unkt,    0        , ecoinfr,   ecoinfr_barx, ecoinfr_state,   ecoinfrmab,    ROT0,  "Concept Games Ltd", "unknown 'T' (MAB PCB?) (Concept Games Ltd) (?)"        , GAME_FLAGS)

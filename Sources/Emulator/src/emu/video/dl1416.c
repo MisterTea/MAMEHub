@@ -1,8 +1,9 @@
 /*****************************************************************************
  *
- * video/dl1416.c
+ *  DL1416
  *
- * DL1416
+ *  license: MAME, GPL-2.0+
+ *  copyright-holders: Dirk Best
  *
  * 4-Digit 16-Segment Alphanumeric Intelligent Display
  * with Memory/Decoder/Driver
@@ -99,32 +100,13 @@ dl1416_device::dl1416_device(const machine_config &mconfig, device_type type, co
 	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 	m_write_enable(FALSE),
 	m_chip_enable(FALSE),
-	m_cursor_enable(FALSE)
+	m_cursor_enable(FALSE),
+	m_update(*this)
 {
 	for (int i = 0; i < 4; i++)
 	{
 		m_digit_ram[i] = 0;
 		m_cursor_state[i] = 0;
-	}
-}
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void dl1416_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const dl1416_interface *intf = reinterpret_cast<const dl1416_interface *>(static_config());
-	if (intf != NULL)
-		*static_cast<dl1416_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-		memset(&m_update, 0, sizeof(m_update));
 	}
 }
 
@@ -140,7 +122,7 @@ void dl1416_device::device_start()
 	save_item(NAME(m_write_enable));
 	save_item(NAME(m_digit_ram));
 
-	m_update_func.resolve(m_update, *this);
+	m_update.resolve();
 }
 
 //-------------------------------------------------
@@ -155,8 +137,6 @@ void dl1416_device::device_reset()
 	m_chip_enable = FALSE;
 	m_write_enable = FALSE;
 	m_cursor_enable = FALSE;
-
-	m_update_func.resolve(m_update, *this);
 
 	/* randomize digit and cursor memory */
 	for (i = 0; i < 4; i++)
@@ -177,8 +157,8 @@ void dl1416_device::device_reset()
 			pattern = SEG_BLANK;
 
 		/* Call update function */
-		if (!m_update_func.isnull())
-			m_update_func(i, pattern);
+		if (!m_update.isnull())
+			m_update((offs_t)i, pattern);
 	}
 }
 
@@ -258,8 +238,8 @@ WRITE8_MEMBER( dl1416_device::data_w )
 						pattern = SEG_BLANK;
 
 					/* Call update function */
-					if (!m_update_func.isnull())
-						m_update_func(offset, pattern);
+					if (!m_update.isnull())
+						m_update(offset, pattern, mem_mask);
 				}
 			}
 			else {
@@ -286,8 +266,8 @@ WRITE8_MEMBER( dl1416_device::data_w )
 							pattern = SEG_BLANK;
 
 						/* Call update function */
-						if (!m_update_func.isnull())
-							m_update_func(i, pattern);
+						if (!m_update.isnull())
+							m_update(i, pattern, mem_mask);
 					}
 				}
 			}
@@ -310,8 +290,8 @@ WRITE8_MEMBER( dl1416_device::data_w )
 				pattern = SEG_BLANK;
 
 			/* Call update function */
-			if (!m_update_func.isnull())
-				m_update_func(offset, pattern);
+			if (!m_update.isnull())
+				m_update(offset, pattern, mem_mask);
 		}
 	}
 }

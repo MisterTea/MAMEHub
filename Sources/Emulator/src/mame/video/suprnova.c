@@ -213,7 +213,7 @@ WRITE32_MEMBER(skns_state::skns_palette_ram_w)
 		r <<= 3;
 	}
 
-	palette_set_color(machine(),offset,MAKE_RGB(r,g,b));
+	m_palette->set_pen_color(offset,rgb_t(r,g,b));
 }
 
 
@@ -246,7 +246,7 @@ void skns_state::palette_set_rgb_brightness (int offset, UINT8 brightness_r, UIN
 		r <<= 3;
 	}
 
-	palette_set_color(machine(),offset,MAKE_RGB(r,g,b));
+	m_palette->set_pen_color(offset,rgb_t(r,g,b));
 }
 
 
@@ -280,8 +280,7 @@ TILE_GET_INFO_MEMBER(skns_state::get_tilemap_A_tile_info)
 	if(m_tilemapA_ram[tile_index] & 0x80000000) flags |= TILE_FLIPX;
 	if(m_tilemapA_ram[tile_index] & 0x40000000) flags |= TILE_FLIPY;
 
-	SET_TILE_INFO_MEMBER(
-			0+depth,
+	SET_TILE_INFO_MEMBER(0+depth,
 			code,
 			0x40+colr,
 			flags);
@@ -307,8 +306,7 @@ TILE_GET_INFO_MEMBER(skns_state::get_tilemap_B_tile_info)
 	if(m_tilemapB_ram[tile_index] & 0x80000000) flags |= TILE_FLIPX;
 	if(m_tilemapB_ram[tile_index] & 0x40000000) flags |= TILE_FLIPY;
 
-	SET_TILE_INFO_MEMBER(
-			1+depth,
+	SET_TILE_INFO_MEMBER(1+depth,
 			code,
 			0x40+colr,
 			flags);
@@ -347,10 +345,10 @@ void skns_state::video_start()
 {
 	m_spritegen = machine().device<sknsspr_device>("spritegen");
 
-	m_tilemap_A = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(skns_state::get_tilemap_A_tile_info),this),TILEMAP_SCAN_ROWS,16,16,64, 64);
+	m_tilemap_A = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(skns_state::get_tilemap_A_tile_info),this),TILEMAP_SCAN_ROWS,16,16,64, 64);
 		m_tilemap_A->set_transparent_pen(0);
 
-	m_tilemap_B = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(skns_state::get_tilemap_B_tile_info),this),TILEMAP_SCAN_ROWS,16,16,64, 64);
+	m_tilemap_B = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(skns_state::get_tilemap_B_tile_info),this),TILEMAP_SCAN_ROWS,16,16,64, 64);
 		m_tilemap_B->set_transparent_pen(0);
 
 	m_sprite_bitmap.allocate(1024,1024);
@@ -361,8 +359,8 @@ void skns_state::video_start()
 	m_tilemap_bitmap_higher.allocate(320,240);
 	m_tilemap_bitmapflags_higher.allocate(320,240);
 
-	machine().gfx[2]->set_granularity(256);
-	machine().gfx[3]->set_granularity(256);
+	m_gfxdecode->gfx(2)->set_granularity(256);
+	m_gfxdecode->gfx(3)->set_granularity(256);
 }
 
 void skns_state::video_reset()
@@ -442,7 +440,7 @@ UINT32 skns_state::screen_update_skns(screen_device &screen, bitmap_rgb32 &bitma
 {
 	palette_update();
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 	m_tilemap_bitmap_lower.fill(0);
 	m_tilemap_bitmapflags_lower.fill(0);
 	m_tilemap_bitmap_higher.fill(0);
@@ -469,7 +467,7 @@ UINT32 skns_state::screen_update_skns(screen_device &screen, bitmap_rgb32 &bitma
 			UINT32* dst;
 			UINT16 pri, pri2, pri3;
 			UINT16 bgpri;
-			const pen_t *clut = &machine().pens[0];
+			const pen_t *clut = &m_palette->pen(0);
 //          int drawpri;
 
 

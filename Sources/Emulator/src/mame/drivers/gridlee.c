@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Videa Gridlee hardware
@@ -424,9 +426,10 @@ static MACHINE_CONFIG_START( gridlee, gridlee_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(GRIDLEE_PIXEL_CLOCK, GRIDLEE_HTOTAL, GRIDLEE_HBEND, GRIDLEE_HBSTART, GRIDLEE_VTOTAL, GRIDLEE_VBEND, GRIDLEE_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(gridlee_state, screen_update_gridlee)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(2048)
-
+	MCFG_PALETTE_ADD("palette", 2048)
+	MCFG_PALETTE_INIT_OWNER(gridlee_state,gridlee)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

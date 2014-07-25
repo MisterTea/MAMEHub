@@ -2,7 +2,7 @@
 #include "includes/mainsnk.h"
 
 
-void mainsnk_state::palette_init()
+PALETTE_INIT_MEMBER(mainsnk_state, mainsnk)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -30,7 +30,7 @@ void mainsnk_state::palette_init()
 		bit3 = (color_prom[i + num_colors] >> 1) & 0x01;
 		b = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
@@ -59,8 +59,7 @@ TILE_GET_INFO_MEMBER(mainsnk_state::get_bg_tile_info)
 {
 	int code = (m_bgram[tile_index]);
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			m_bg_tile_offset + code,
 			0,
 			0);
@@ -69,8 +68,8 @@ TILE_GET_INFO_MEMBER(mainsnk_state::get_bg_tile_info)
 
 void mainsnk_state::video_start()
 {
-	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mainsnk_state::get_tx_tile_info),this), tilemap_mapper_delegate(FUNC(mainsnk_state::marvins_tx_scan_cols),this), 8, 8, 36, 28);
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mainsnk_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS,    8, 8, 32, 32);
+	m_tx_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mainsnk_state::get_tx_tile_info),this), tilemap_mapper_delegate(FUNC(mainsnk_state::marvins_tx_scan_cols),this), 8, 8, 36, 28);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(mainsnk_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS,    8, 8, 32, 32);
 
 	m_tx_tilemap->set_transparent_pen(15);
 	m_tx_tilemap->set_scrolldy(8, 8);
@@ -83,7 +82,7 @@ void mainsnk_state::video_start()
 WRITE8_MEMBER(mainsnk_state::mainsnk_c600_w)
 {
 	int bank;
-	int total_elements = machine().gfx[0]->elements();
+	int total_elements = m_gfxdecode->gfx(0)->elements();
 
 	flip_screen_set(~data & 0x80);
 
@@ -119,7 +118,7 @@ WRITE8_MEMBER(mainsnk_state::mainsnk_bgram_w)
 
 void mainsnk_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int scrollx, int scrolly )
 {
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 	const UINT8 *source, *finish;
 	source =  m_spriteram;
 	finish =  source + 25*4;
@@ -148,7 +147,7 @@ void mainsnk_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen( bitmap,cliprect,gfx,
+		gfx->transpen(bitmap,cliprect,
 			tile_number,
 			color,
 			flipx,flipy,

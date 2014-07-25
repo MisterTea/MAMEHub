@@ -44,7 +44,7 @@ void paradise_state::update_pix_palbank()
 	int i;
 
 	for (i = 0; i < 15; i++)
-		palette_set_color_rgb(machine(), 0x800 + i, m_paletteram[0x200 + m_pixbank + i + 0x800 * 0], m_paletteram[0x200 + m_pixbank + i + 0x800 * 1],
+		m_palette->set_pen_color(0x800 + i, m_paletteram[0x200 + m_pixbank + i + 0x800 * 0], m_paletteram[0x200 + m_pixbank + i + 0x800 * 1],
 								m_paletteram[0x200 + m_pixbank + i + 0x800 * 2]);
 }
 
@@ -53,7 +53,7 @@ WRITE8_MEMBER(paradise_state::paradise_palette_w)
 {
 	m_paletteram[offset] = data;
 	offset %= 0x800;
-	palette_set_color_rgb(machine(), offset, m_paletteram[offset + 0x800 * 0], m_paletteram[offset + 0x800 * 1],
+	m_palette->set_pen_color(offset, m_paletteram[offset + 0x800 * 0], m_paletteram[offset + 0x800 * 1],
 		m_paletteram[offset + 0x800 * 2]);
 
 	update_pix_palbank();
@@ -152,9 +152,9 @@ WRITE8_MEMBER(paradise_state::paradise_pixmap_w)
 
 void paradise_state::video_start()
 {
-	m_tilemap_0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(paradise_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 8, 8, 0x20, 0x20);
-	m_tilemap_1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(paradise_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 8, 8, 0x20, 0x20);
-	m_tilemap_2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(paradise_state::get_tile_info_2),this), TILEMAP_SCAN_ROWS, 8, 8, 0x20, 0x20);
+	m_tilemap_0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(paradise_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 8, 8, 0x20, 0x20);
+	m_tilemap_1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(paradise_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 8, 8, 0x20, 0x20);
+	m_tilemap_2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(paradise_state::get_tile_info_2),this), TILEMAP_SCAN_ROWS, 8, 8, 0x20, 0x20);
 
 	/* pixmap */
 	m_screen->register_screen_bitmap(m_tmpbitmap);
@@ -199,20 +199,20 @@ void paradise_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &clipre
 			y = 0xf0 - y;   flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 				code + (attr << 8),
 				0,
 				flipx, flipy,
 				x,y, 0xff );
 
 		/* wrap around x */
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 				code + (attr << 8),
 				0,
 				flipx, flipy,
 				x - 256,y, 0xff );
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 				code + (attr << 8),
 				0,
 				flipx, flipy,
@@ -244,7 +244,7 @@ if (machine().input().code_pressed(KEYCODE_Z))
 }
 #endif
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	if (!(m_priority & 4))  /* Screen blanking */
 		return 0;
@@ -279,7 +279,7 @@ if (machine().input().code_pressed(KEYCODE_Z))
 /* no pix layer, no tilemap_0, different priority bits */
 UINT32 paradise_state::screen_update_torus(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	if (!(m_priority & 2))  /* Screen blanking */
 		return 0;
@@ -309,7 +309,7 @@ UINT32 paradise_state::screen_update_torus(screen_device &screen, bitmap_ind16 &
 /* I don't know how the priority bits work on this one */
 UINT32 paradise_state::screen_update_madball(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 	m_tilemap_0->draw(screen, bitmap, cliprect, 0, 0);
 	m_tilemap_1->draw(screen, bitmap, cliprect, 0, 0);
 	m_tilemap_2->draw(screen, bitmap, cliprect, 0, 0);

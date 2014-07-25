@@ -159,8 +159,8 @@ WRITE8_MEMBER(liberate_state::prosoccr_charram_w)
 	offset &= 0x7ff;
 
 	/* dirty char */
-	machine().gfx[0]->mark_dirty(offset >> 3);
-//  machine().gfx[0]->mark_dirty((offset | 0x1800) >> 3);
+	m_gfxdecode->gfx(0)->mark_dirty(offset >> 3);
+//  m_gfxdecode->gfx(0)->mark_dirty((offset | 0x1800) >> 3);
 }
 
 WRITE8_MEMBER(liberate_state::prosoccr_char_bank_w)
@@ -225,8 +225,8 @@ WRITE8_MEMBER(liberate_state::prosport_charram_w)
 	offset &= 0x7ff;
 
 	/* dirty char */
-	machine().gfx[3]->mark_dirty((offset + 0x800) >> 3);
-	machine().gfx[3 + 4]->mark_dirty((offset + 0x800) >> 5);
+	m_gfxdecode->gfx(3)->mark_dirty((offset + 0x800) >> 3);
+	m_gfxdecode->gfx(3 + 4)->mark_dirty((offset + 0x800) >> 5);
 }
 
 
@@ -837,10 +837,11 @@ static MACHINE_CONFIG_START( liberate, liberate_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(liberate_state, screen_update_liberate)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(liberate)
-	MCFG_PALETTE_LENGTH(33)
-	MCFG_PALETTE_INIT_OVERRIDE(liberate_state,liberate)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", liberate)
+	MCFG_PALETTE_ADD("palette", 33)
+	MCFG_PALETTE_INIT_OWNER(liberate_state,liberate)
 
 	MCFG_VIDEO_START_OVERRIDE(liberate_state,liberate)
 
@@ -887,7 +888,7 @@ static MACHINE_CONFIG_DERIVED( prosoccr, liberate )
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 31*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(liberate_state, screen_update_prosoccr)
 
-	MCFG_GFXDECODE(prosoccr)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", prosoccr)
 
 	MCFG_VIDEO_START_OVERRIDE(liberate_state,prosoccr)
 MACHINE_CONFIG_END
@@ -916,9 +917,10 @@ static MACHINE_CONFIG_START( prosport, liberate_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(liberate_state, screen_update_prosport)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(prosport)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", prosport)
+	MCFG_PALETTE_ADD("palette", 256)
 
 	MCFG_VIDEO_START_OVERRIDE(liberate_state,prosport)
 

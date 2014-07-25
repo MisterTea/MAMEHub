@@ -13,7 +13,10 @@ public:
 		m_subcpu(*this, "sub"),
 		m_videoram(*this, "videoram"),
 		m_scroll(*this, "scroll"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
@@ -21,6 +24,10 @@ public:
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_scroll;
 	required_shared_ptr<UINT8> m_spriteram;
+
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	/* video-related */
 	bitmap_ind16 m_sprite_bitmap;
@@ -34,7 +41,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(ikki);
 	UINT32 screen_update_ikki(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(ikki_irq);
 	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );

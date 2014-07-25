@@ -38,7 +38,9 @@ public:
 		m_colorram(*this, "colorram"),
 		m_spriteram(*this, "spriteram"),
 		m_scrollram(*this, "scrollram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -53,10 +55,12 @@ public:
 	DECLARE_WRITE8_MEMBER(nmi_enable_w);
 	TILE_GET_INFO_MEMBER(get_skyarmy_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(skyarmy);
 	UINT32 screen_update_skyarmy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(skyarmy_nmi_source);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 WRITE8_MEMBER(skyarmy_state::skyarmy_flip_screen_x_w)
@@ -74,7 +78,7 @@ TILE_GET_INFO_MEMBER(skyarmy_state::get_skyarmy_tile_info)
 	int code = m_videoram[tile_index];
 	int attr = BITSWAP8(m_colorram[tile_index], 7, 6, 5, 4, 3, 0, 1, 2) & 7;
 
-	SET_TILE_INFO_MEMBER( 0, code, attr, 0);
+	SET_TILE_INFO_MEMBER(0, code, attr, 0);
 }
 
 WRITE8_MEMBER(skyarmy_state::skyarmy_videoram_w)
@@ -89,7 +93,7 @@ WRITE8_MEMBER(skyarmy_state::skyarmy_colorram_w)
 	m_tilemap->mark_tile_dirty(offset);
 }
 
-void skyarmy_state::palette_init()
+PALETTE_INIT_MEMBER(skyarmy_state, skyarmy)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -113,14 +117,14 @@ void skyarmy_state::palette_init()
 		bit2 = (*color_prom >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 		color_prom++;
 	}
 }
 
 void skyarmy_state::video_start()
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(skyarmy_state::get_skyarmy_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(skyarmy_state::get_skyarmy_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_tilemap->set_scroll_cols(32);
 }
 
@@ -145,7 +149,7 @@ UINT32 skyarmy_state::screen_update_skyarmy(screen_device &screen, bitmap_ind16 
 		flipy = (spriteram[offs+1]&0x80)>>7;
 		flipx = (spriteram[offs+1]&0x40)>>6;
 
-		drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 			spriteram[offs+1]&0x3f,
 			pal,
 			flipx,flipy,
@@ -291,10 +295,11 @@ static MACHINE_CONFIG_START( skyarmy, skyarmy_state )
 	MCFG_SCREEN_SIZE(32*8,32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8,32*8-1,1*8,31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(skyarmy_state, screen_update_skyarmy)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(skyarmy)
-	MCFG_PALETTE_LENGTH(32)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", skyarmy)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(skyarmy_state, skyarmy)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

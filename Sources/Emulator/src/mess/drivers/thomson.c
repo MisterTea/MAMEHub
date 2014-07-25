@@ -69,11 +69,12 @@
 */
 
 #include "includes/thomson.h"
+#include "bus/rs232/rs232.h"
 #include "machine/6821pia.h"
 #include "machine/wd17xx.h"
-#include "machine/ctronics.h"
+#include "machine/clock.h"
+#include "bus/centronics/ctronics.h"
 #include "imagedev/flopdrv.h"
-#include "imagedev/serial.h"
 #include "formats/basicdsk.h"
 #include "machine/ram.h"
 
@@ -303,11 +304,11 @@ static ADDRESS_MAP_START ( to7, AS_PROGRAM, 8, thomson_state )
 	AM_RANGE ( 0x8000, 0xbfff ) AM_NOP       /* 16 KB (for extension) */
 	AM_RANGE ( 0xc000, 0xdfff ) AM_NOP       /*  8 KB (for extension) */
 	AM_RANGE ( 0xe000, 0xe7bf ) AM_ROMBANK   ( THOM_FLOP_BANK )
-	AM_RANGE ( 0xe7c0, 0xe7c7 ) AM_DEVREADWRITE_LEGACY("mc6846", mc6846_r, mc6846_w)
+	AM_RANGE ( 0xe7c0, 0xe7c7 ) AM_DEVREADWRITE("mc6846", mc6846_device, read, write)
 	AM_RANGE ( 0xe7c8, 0xe7cb ) AM_DEVREADWRITE( "pia_0", pia6821_device, read_alt, write_alt )
 	AM_RANGE ( 0xe7cc, 0xe7cf ) AM_DEVREADWRITE( "pia_1", pia6821_device, read_alt, write_alt )
 	AM_RANGE ( 0xe7d0, 0xe7df ) AM_READWRITE(to7_floppy_r, to7_floppy_w )
-	AM_RANGE ( 0xe7e0, 0xe7e3 ) AM_DEVREADWRITE( "pia_2", pia6821_device, read_alt, write_alt )
+	AM_RANGE ( 0xe7e0, 0xe7e3 ) AM_DEVREADWRITE( "to7_io:pia_2", pia6821_device, read_alt, write_alt )
 	AM_RANGE ( 0xe7e8, 0xe7eb ) AM_DEVREADWRITE( "acia",  mos6551_device, read, write )
 	AM_RANGE ( 0xe7f2, 0xe7f3 ) AM_READWRITE(to7_midi_r, to7_midi_w )
 	AM_RANGE ( 0xe7f8, 0xe7fb ) AM_DEVREADWRITE( "pia_3", pia6821_device, read_alt, write_alt )
@@ -563,59 +564,33 @@ static INPUT_PORTS_START ( t9000 )
 	PORT_INCLUDE ( to7 )
 INPUT_PORTS_END
 
-static WRITE_LINE_DEVICE_HANDLER(thomson_index_callback)
+WRITE_LINE_MEMBER( thomson_state::fdc_index_0_w )
 {
-	device->machine().driver_data<thomson_state>()->thomson_index_callback(device, state);
+	thomson_index_callback(machine().device<legacy_floppy_image_device>(FLOPPY_0), state);
 }
 
+WRITE_LINE_MEMBER( thomson_state::fdc_index_1_w )
+{
+	thomson_index_callback(machine().device<legacy_floppy_image_device>(FLOPPY_1), state);
+}
+
+WRITE_LINE_MEMBER( thomson_state::fdc_index_2_w )
+{
+	thomson_index_callback(machine().device<legacy_floppy_image_device>(FLOPPY_2), state);
+}
+
+WRITE_LINE_MEMBER( thomson_state::fdc_index_3_w )
+{
+	thomson_index_callback(machine().device<legacy_floppy_image_device>(FLOPPY_3), state);
+}
 
 static const floppy_interface thomson_floppy_interface =
 {
-	DEVCB_LINE(thomson_index_callback),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSHD,
 	LEGACY_FLOPPY_OPTIONS_NAME(thomson),
-	NULL,
 	NULL
 };
 
-
-/********************* devices ************************/
-const cassette_interface to7_cassette_interface =
-{
-	to7_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
-
-const cassette_interface mo5_cassette_interface =
-{
-	mo5_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
-
-const serial_image_interface to7_cc90232_config =
-{
-	2400, 7, 2, SERIAL_PARITY_NONE, 1, "to7_io"
-};
-
-const serial_image_interface to7_rf57932_config =
-{
-	2400, 7, 2, SERIAL_PARITY_NONE, 1, "acia"
-};
-
-const serial_image_interface to7_modem_config =
-{
-	2400, 7, 2, SERIAL_PARITY_NONE, 1, NULL
-};
 
 /* ------------ driver ------------ */
 
@@ -636,9 +611,10 @@ static MACHINE_CONFIG_START( to7, thomson_state )
 				0, THOM_TOTAL_HEIGHT - 1 )
 	MCFG_SCREEN_UPDATE_DRIVER( thomson_state, screen_update_thom )
 	MCFG_SCREEN_VBLANK_DRIVER( thomson_state, thom_vblank )
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH ( 4097 ) /* 12-bit color + transparency */
-	MCFG_PALETTE_INIT_OVERRIDE(thomson_state, thom)
+	MCFG_PALETTE_ADD ( "palette", 4097 ) /* 12-bit color + transparency */
+	MCFG_PALETTE_INIT_OWNER(thomson_state, thom)
 	MCFG_VIDEO_START_OVERRIDE( thomson_state, thom )
 	MCFG_DEFAULT_LAYOUT( layout_thomson )
 
@@ -651,40 +627,92 @@ static MACHINE_CONFIG_START( to7, thomson_state )
 	MCFG_SOUND_ADD ( "speech", DAC, 0 )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.) /* speech synthesis */
 
-/* printer */
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", to7_centronics_config)
-
 /* cassette */
-	MCFG_CASSETTE_ADD( "cassette", to7_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(to7_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
 
 /* timer */
-	MCFG_MC6846_ADD( "mc6846", to7_timer )
+	MCFG_DEVICE_ADD("mc6846", MC6846, 0)
+	MCFG_MC6846_OUT_PORT_CB(WRITE8(thomson_state, to7_timer_port_out))
+	MCFG_MC6846_OUT_CP2_CB(WRITE8(thomson_state, to7_timer_cp2_out))
+	MCFG_MC6846_IN_PORT_CB(READ8(thomson_state, to7_timer_port_in))
+	MCFG_MC6846_OUT_CTO_CB(WRITE8(thomson_state, to7_timer_tco_out))
+	MCFG_MC6846_IRQ_CB(WRITELINE(thomson_state, thom_dev_irq_0))
 
 /* speech synthesis */
-	MCFG_MEA8000_ADD( "mea8000", to7_speech )
+	MCFG_DEVICE_ADD("mea8000", MEA8000, 0)
+	MCFG_MEA8000_DAC("speech")
 
 /* floppy */
-	MCFG_MC6843_ADD( "mc6843", to7_6843_itf )
-	MCFG_WD2793_ADD( "wd2793", default_wd17xx_interface )
-	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(thomson_floppy_interface)
+	MCFG_DEVICE_ADD("mc6843", MC6843, 0)
+
+	MCFG_DEVICE_ADD("wd2793", WD2793, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE4_TAGS
+
+	MCFG_DEVICE_ADD(FLOPPY_0, LEGACY_FLOPPY, 0)
+	MCFG_DEVICE_CONFIG(thomson_floppy_interface)
+	MCFG_LEGACY_FLOPPY_IDX_CB(WRITELINE(thomson_state, fdc_index_0_w))
+	MCFG_DEVICE_ADD(FLOPPY_1, LEGACY_FLOPPY, 0)
+	MCFG_DEVICE_CONFIG(thomson_floppy_interface)
+	MCFG_LEGACY_FLOPPY_IDX_CB(WRITELINE(thomson_state, fdc_index_1_w))
+	MCFG_DEVICE_ADD(FLOPPY_2, LEGACY_FLOPPY, 0)
+	MCFG_DEVICE_CONFIG(thomson_floppy_interface)
+	MCFG_LEGACY_FLOPPY_IDX_CB(WRITELINE(thomson_state, fdc_index_2_w))
+	MCFG_DEVICE_ADD(FLOPPY_3, LEGACY_FLOPPY, 0)
+	MCFG_DEVICE_CONFIG(thomson_floppy_interface)
+	MCFG_LEGACY_FLOPPY_IDX_CB(WRITELINE(thomson_state, fdc_index_3_w))
 
 /* network */
-	MCFG_MC6854_ADD( "mc6854", to7_network_iface )
+	MCFG_DEVICE_ADD( "mc6854", MC6854, 0 )
+	MCFG_MC6854_OUT_FRAME_CB(thomson_state, to7_network_got_frame)
+
 
 /* pia */
-	MCFG_PIA6821_ADD( THOM_PIA_SYS, to7_pia6821_sys )
-	MCFG_PIA6821_ADD( THOM_PIA_IO, to7_pia6821_io )
-	MCFG_PIA6821_ADD( THOM_PIA_GAME, to7_pia6821_game )
-	MCFG_PIA6821_ADD( THOM_PIA_MODEM, to7_pia6821_modem )
+	MCFG_DEVICE_ADD(THOM_PIA_SYS, PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(thomson_state, to7_sys_porta_in))
+	MCFG_PIA_READPB_HANDLER(READ8(thomson_state, to7_sys_portb_in))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(thomson_state, to7_sys_portb_out))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(thomson_state, to7_set_cassette_motor))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(thomson_state, to7_sys_cb2_out))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(thomson_state, thom_firq_1))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(thomson_state, thom_firq_1))
 
-/* acia */
-	MCFG_MOS6551_ADD("acia", XTAL_1_8432MHz, NULL)
+	MCFG_DEVICE_ADD(THOM_PIA_GAME, PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(thomson_state, to7_game_porta_in))
+	MCFG_PIA_READPB_HANDLER(READ8(thomson_state, to7_game_portb_in))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(thomson_state, to7_game_portb_out))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(thomson_state, to7_game_cb2_out))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(thomson_state, thom_irq_1))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(thomson_state, thom_irq_1))
 
-/* to7 serial io line */
+/* TODO: CONVERT THIS TO A SLOT DEVICE (RF 57-932) */
+	MCFG_DEVICE_ADD("acia", MOS6551, 0)
+	MCFG_MOS6551_XTAL(XTAL_1_8432MHz)
+	MCFG_MOS6551_TXD_HANDLER(DEVWRITELINE("rs232", rs232_port_device, write_txd))
+
+	/// 2400 7N2
+	MCFG_RS232_PORT_ADD("rs232", default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("acia", mos6551_device, write_rxd))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE("acia", mos6551_device, write_dcd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE("acia", mos6551_device, write_dsr))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE("acia", mos6551_device, write_cts))
+
+
+/* TODO: CONVERT THIS TO A SLOT DEVICE (CC 90-232) */
 	MCFG_TO7_IO_LINE_ADD("to7_io")
 
-/* modem */
-	MCFG_ACIA6850_ADD( "acia6850", to7_modem )
+
+/* TODO: CONVERT THIS TO A SLOT DEVICE (MD 90-120) */
+	MCFG_DEVICE_ADD(THOM_PIA_MODEM, PIA6821, 0)
+
+	MCFG_DEVICE_ADD("acia6850", ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(WRITELINE(thomson_state, to7_modem_tx_w))
+	MCFG_ACIA6850_IRQ_HANDLER(WRITELINE(thomson_state, to7_modem_cb))
+
+	MCFG_DEVICE_ADD("acia_clock", CLOCK, 1200) /* 1200 bauds, might be divided by 16 */
+	MCFG_CLOCK_SIGNAL_HANDLER(WRITELINE(thomson_state, write_acia_clock))
+
 
 /* cartridge */
 	MCFG_CARTSLOT_ADD("cart")
@@ -698,10 +726,6 @@ static MACHINE_CONFIG_START( to7, thomson_state )
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("40K")
 	MCFG_RAM_EXTRA_OPTIONS("24K,48K")
-
-	MCFG_SERIAL_ADD("cc90232", to7_cc90232_config)
-	MCFG_SERIAL_ADD("rf57932", to7_rf57932_config)
-	MCFG_SERIAL_ADD("modem"  , to7_modem_config)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( t9000, to7 )
@@ -769,11 +793,11 @@ static ADDRESS_MAP_START ( to770, AS_PROGRAM, 8, thomson_state )
 	AM_RANGE ( 0x6000, 0x9fff ) AM_RAMBANK   ( THOM_BASE_BANK ) /* 16 KB */
 	AM_RANGE ( 0xa000, 0xdfff ) AM_RAMBANK   ( THOM_RAM_BANK )  /* 6 * 16 KB */
 	AM_RANGE ( 0xe000, 0xe7bf ) AM_ROMBANK   ( THOM_FLOP_BANK )
-	AM_RANGE ( 0xe7c0, 0xe7c7 ) AM_DEVREADWRITE_LEGACY("mc6846", mc6846_r, mc6846_w)
+	AM_RANGE ( 0xe7c0, 0xe7c7 ) AM_DEVREADWRITE("mc6846", mc6846_device, read, write)
 	AM_RANGE ( 0xe7c8, 0xe7cb ) AM_DEVREADWRITE( "pia_0", pia6821_device, read_alt, write_alt )
 	AM_RANGE ( 0xe7cc, 0xe7cf ) AM_DEVREADWRITE( "pia_1", pia6821_device, read_alt, write_alt )
 	AM_RANGE ( 0xe7d0, 0xe7df ) AM_READWRITE(to7_floppy_r, to7_floppy_w )
-	AM_RANGE ( 0xe7e0, 0xe7e3 ) AM_DEVREADWRITE( "pia_2", pia6821_device, read_alt, write_alt )
+	AM_RANGE ( 0xe7e0, 0xe7e3 ) AM_DEVREADWRITE( "to7_io:pia_2", pia6821_device, read_alt, write_alt )
 	AM_RANGE ( 0xe7e4, 0xe7e7 ) AM_READWRITE(to770_gatearray_r, to770_gatearray_w )
 	AM_RANGE ( 0xe7e8, 0xe7eb ) AM_DEVREADWRITE( "acia",  mos6551_device, read, write )
 	AM_RANGE ( 0xe7f2, 0xe7f3 ) AM_READWRITE(to7_midi_r, to7_midi_w )
@@ -873,9 +897,14 @@ static MACHINE_CONFIG_DERIVED( to770, to7 )
 	MCFG_CPU_MODIFY( "maincpu" )
 	MCFG_CPU_PROGRAM_MAP ( to770)
 
-	MCFG_PIA6821_MODIFY( THOM_PIA_SYS, to770_pia6821_sys )
+	MCFG_DEVICE_MODIFY(THOM_PIA_SYS)
+	MCFG_PIA_READPA_HANDLER(READ8(thomson_state, to770_sys_porta_in))
+	MCFG_PIA_READPB_HANDLER(NULL)
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(thomson_state, to770_sys_portb_out))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(thomson_state, to770_sys_cb2_out))
 
-	MCFG_MC6846_MODIFY( "mc6846", to770_timer )
+	MCFG_DEVICE_MODIFY("mc6846")
+	MCFG_MC6846_OUT_PORT_CB(WRITE8(thomson_state, to770_timer_port_out))
 
 	MCFG_CARTSLOT_MODIFY("cart")
 	MCFG_CARTSLOT_INTERFACE("to770_cart")
@@ -964,7 +993,7 @@ static ADDRESS_MAP_START ( mo5, AS_PROGRAM, 8, thomson_state )
 	AM_RANGE ( 0xa7cb, 0xa7cb ) AM_WRITE(mo5_ext_w )
 	AM_RANGE ( 0xa7cc, 0xa7cf ) AM_DEVREADWRITE( "pia_1", pia6821_device, read_alt, write_alt )
 	AM_RANGE ( 0xa7d0, 0xa7df ) AM_READWRITE(to7_floppy_r, to7_floppy_w )
-	AM_RANGE ( 0xa7e0, 0xa7e3 ) AM_DEVREADWRITE( "pia_2", pia6821_device, read_alt, write_alt )
+	AM_RANGE ( 0xa7e0, 0xa7e3 ) AM_DEVREADWRITE( "to7_io:pia_2", pia6821_device, read_alt, write_alt )
 	AM_RANGE ( 0xa7e4, 0xa7e7 ) AM_READWRITE(mo5_gatearray_r, mo5_gatearray_w )
 	AM_RANGE ( 0xa7e8, 0xa7eb ) AM_DEVREADWRITE( "acia",  mos6551_device, read, write )
 	AM_RANGE ( 0xa7f2, 0xa7f3 ) AM_READWRITE(to7_midi_r, to7_midi_w )
@@ -1057,11 +1086,19 @@ static MACHINE_CONFIG_DERIVED( mo5, to7 )
 	MCFG_CPU_MODIFY( "maincpu" )
 	MCFG_CPU_PROGRAM_MAP ( mo5)
 
-	MCFG_CASSETTE_MODIFY( "cassette", mo5_cassette_interface )
+	MCFG_CASSETTE_MODIFY( "cassette" )
+	MCFG_CASSETTE_FORMATS(mo5_cassette_formats)
 
 	MCFG_DEVICE_REMOVE( "mc6846" )
 
-	MCFG_PIA6821_MODIFY( THOM_PIA_SYS, mo5_pia6821_sys )
+	MCFG_DEVICE_MODIFY(THOM_PIA_SYS)
+	MCFG_PIA_READPA_HANDLER(READ8(thomson_state, mo5_sys_porta_in))
+	MCFG_PIA_READPB_HANDLER(READ8(thomson_state, mo5_sys_portb_in))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(thomson_state, mo5_sys_porta_out))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(thomson_state, mo5_sys_portb_out))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(thomson_state, mo5_set_cassette_motor))
+	MCFG_PIA_CB2_HANDLER(NULL)
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(thomson_state, thom_irq_1)) /* WARNING: differs from TO7 ! */
 
 	MCFG_CARTSLOT_MODIFY("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("m5,rom")
@@ -1164,7 +1201,7 @@ static ADDRESS_MAP_START ( to9, AS_PROGRAM, 8, thomson_state )
 	AM_RANGE ( 0x6000, 0x9fff ) AM_RAMBANK   ( THOM_BASE_BANK ) /* 16 KB */
 	AM_RANGE ( 0xa000, 0xdfff ) AM_RAMBANK   ( THOM_RAM_BANK )  /* 10 * 16 KB */
 	AM_RANGE ( 0xe000, 0xe7bf ) AM_ROMBANK   ( THOM_FLOP_BANK )
-	AM_RANGE ( 0xe7c0, 0xe7c7 ) AM_DEVREADWRITE_LEGACY("mc6846", mc6846_r, mc6846_w)
+	AM_RANGE ( 0xe7c0, 0xe7c7 ) AM_DEVREADWRITE("mc6846", mc6846_device, read, write)
 	AM_RANGE ( 0xe7c8, 0xe7cb ) AM_DEVREADWRITE( "pia_0", pia6821_device, read_alt, write_alt)
 	AM_RANGE ( 0xe7cc, 0xe7cf ) AM_DEVREADWRITE( "pia_1", pia6821_device, read_alt, write_alt)
 	AM_RANGE ( 0xe7d0, 0xe7d9 ) AM_READWRITE(to9_floppy_r, to9_floppy_w )
@@ -1398,14 +1435,19 @@ static MACHINE_CONFIG_DERIVED( to9, to7 )
 	MCFG_CPU_MODIFY( "maincpu" )
 	MCFG_CPU_PROGRAM_MAP ( to9)
 
-	MCFG_PIA6821_MODIFY( THOM_PIA_SYS, to9_pia6821_sys )
-	MCFG_DEVICE_REMOVE( THOM_PIA_IO )
+	MCFG_DEVICE_MODIFY(THOM_PIA_SYS)
+	MCFG_PIA_READPA_HANDLER(READ8(thomson_state, to9_sys_porta_in))
+	MCFG_PIA_READPB_HANDLER(NULL)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(thomson_state, to9_sys_porta_out))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(thomson_state, to9_sys_portb_out))
+	MCFG_PIA_CB2_HANDLER(NULL)
+	MCFG_PIA_IRQA_HANDLER(NULL)
 
-	MCFG_DEVICE_REMOVE("centronics")
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
+	MCFG_DEVICE_MODIFY("mc6846")
+	MCFG_MC6846_OUT_PORT_CB(WRITE8(thomson_state, to9_timer_port_out))
 
-	MCFG_MC6846_MODIFY( "mc6846", to9_timer )
-
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(thomson_state, write_centronics_busy))
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)
@@ -1489,7 +1531,7 @@ static ADDRESS_MAP_START ( to8, AS_PROGRAM, 8, thomson_state )
 	AM_RANGE ( 0xa000, 0xbfff ) AM_READ_BANK ( TO8_DATA_LO) AM_WRITE(to8_data_lo_w )
 	AM_RANGE ( 0xc000, 0xdfff ) AM_READ_BANK ( TO8_DATA_HI) AM_WRITE(to8_data_hi_w )
 	AM_RANGE ( 0xe000, 0xe7bf ) AM_ROMBANK   ( THOM_FLOP_BANK ) /* 2 * 2 KB */
-	AM_RANGE ( 0xe7c0, 0xe7c7 ) AM_DEVREADWRITE_LEGACY("mc6846", mc6846_r, mc6846_w)
+	AM_RANGE ( 0xe7c0, 0xe7c7 ) AM_DEVREADWRITE("mc6846", mc6846_device, read, write)
 	AM_RANGE ( 0xe7c8, 0xe7cb ) AM_DEVREADWRITE( "pia_0", pia6821_device, read_alt, write_alt)
 	AM_RANGE ( 0xe7cc, 0xe7cf ) AM_DEVREADWRITE( "pia_1", pia6821_device, read_alt, write_alt)
 	AM_RANGE ( 0xe7d0, 0xe7d9 ) AM_READWRITE(to8_floppy_r, to8_floppy_w )
@@ -1615,13 +1657,21 @@ static MACHINE_CONFIG_DERIVED( to8, to7 )
 	MCFG_CPU_MODIFY( "maincpu" )
 	MCFG_CPU_PROGRAM_MAP ( to8)
 
-	MCFG_PIA6821_MODIFY( THOM_PIA_SYS, to8_pia6821_sys )
-	MCFG_DEVICE_REMOVE( THOM_PIA_IO )
+	MCFG_DEVICE_MODIFY(THOM_PIA_SYS)
+	MCFG_PIA_READPA_HANDLER(READ8(thomson_state, to8_sys_porta_in))
+	MCFG_PIA_READPB_HANDLER(NULL)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(thomson_state, to9_sys_porta_out))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(thomson_state, to8_sys_portb_out))
+	MCFG_PIA_CB2_HANDLER(NULL)
+	MCFG_PIA_IRQA_HANDLER(NULL)
 
-	MCFG_DEVICE_REMOVE("centronics")
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(thomson_state, write_centronics_busy))
 
-	MCFG_MC6846_MODIFY( "mc6846", to8_timer )
+	MCFG_DEVICE_MODIFY("mc6846")
+	MCFG_MC6846_OUT_PORT_CB(WRITE8(thomson_state, to8_timer_port_out))
+	MCFG_MC6846_OUT_CP2_CB(WRITE8(thomson_state, to8_timer_cp2_out))
+	MCFG_MC6846_IN_PORT_CB(READ8(thomson_state, to8_timer_port_in))
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)
@@ -1684,7 +1734,7 @@ static ADDRESS_MAP_START ( to9p, AS_PROGRAM, 8, thomson_state )
 	AM_RANGE ( 0xa000, 0xbfff ) AM_READ_BANK ( TO8_DATA_LO) AM_WRITE(to8_data_lo_w )
 	AM_RANGE ( 0xc000, 0xdfff ) AM_READ_BANK ( TO8_DATA_HI) AM_WRITE(to8_data_hi_w )
 	AM_RANGE ( 0xe000, 0xe7bf ) AM_ROMBANK   ( THOM_FLOP_BANK ) /* 2 * 2 KB */
-	AM_RANGE ( 0xe7c0, 0xe7c7 ) AM_DEVREADWRITE_LEGACY("mc6846", mc6846_r, mc6846_w)
+	AM_RANGE ( 0xe7c0, 0xe7c7 ) AM_DEVREADWRITE("mc6846", mc6846_device, read, write)
 	AM_RANGE ( 0xe7c8, 0xe7cb ) AM_DEVREADWRITE( "pia_0", pia6821_device, read_alt, write_alt)
 	AM_RANGE ( 0xe7cc, 0xe7cf ) AM_DEVREADWRITE( "pia_1", pia6821_device, read_alt, write_alt)
 	AM_RANGE ( 0xe7d0, 0xe7d9 ) AM_READWRITE(to8_floppy_r, to8_floppy_w )
@@ -1762,13 +1812,22 @@ static MACHINE_CONFIG_DERIVED( to9p, to7 )
 	MCFG_CPU_MODIFY( "maincpu" )
 	MCFG_CPU_PROGRAM_MAP ( to9p)
 
-	MCFG_PIA6821_MODIFY( THOM_PIA_SYS, to9p_pia6821_sys )
-	MCFG_DEVICE_REMOVE( THOM_PIA_IO )
+	MCFG_DEVICE_MODIFY(THOM_PIA_SYS)
+	MCFG_PIA_READPA_HANDLER(READ8(thomson_state, to9_sys_porta_in))
+	MCFG_PIA_READPB_HANDLER(NULL)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(thomson_state, to9_sys_porta_out))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(thomson_state, to8_sys_portb_out))
+	MCFG_PIA_CB2_HANDLER(NULL)
+	MCFG_PIA_IRQA_HANDLER(NULL)
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(thomson_state, thom_firq_1))
 
-	MCFG_DEVICE_REMOVE("centronics")
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(thomson_state, write_centronics_busy))
 
-	MCFG_MC6846_MODIFY( "mc6846", to9p_timer )
+	MCFG_DEVICE_MODIFY("mc6846")
+	MCFG_MC6846_OUT_PORT_CB(WRITE8(thomson_state, to9p_timer_port_out))
+	MCFG_MC6846_OUT_CP2_CB(WRITE8(thomson_state, to8_timer_cp2_out))
+	MCFG_MC6846_IN_PORT_CB(READ8(thomson_state, to9p_timer_port_in))
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)
@@ -1855,8 +1914,10 @@ static ADDRESS_MAP_START ( mo6, AS_PROGRAM, 8, thomson_state )
 /*   AM_RANGE ( 0xa7f0, 0xa7f7 ) AM_READWRITE(to9_ieee_r, to9_ieee_w )*/
 	AM_RANGE ( 0xa7f2, 0xa7f3 ) AM_READWRITE(to7_midi_r, to7_midi_w )
 	AM_RANGE ( 0xa7fe, 0xa7ff ) AM_DEVREADWRITE("mea8000", mea8000_device, read, write)
-	AM_RANGE ( 0xb000, 0xefff ) AM_ROMBANK   ( THOM_CART_BANK )
-								AM_WRITE(mo6_cartridge_w )
+	AM_RANGE ( 0xb000, 0xbfff ) AM_ROMBANK   ( MO6_CART_LO )
+					AM_WRITE     ( mo6_cartridge_w )
+	AM_RANGE ( 0xc000, 0xefff ) AM_ROMBANK   ( MO6_CART_HI )
+					AM_WRITE     ( mo6_cartridge_w )
 	AM_RANGE ( 0xf000, 0xffff ) AM_ROMBANK   ( TO8_BIOS_BANK )
 
 /* 0x10000 - 0x1ffff: 64 KB external ROM cartridge */
@@ -2092,16 +2153,28 @@ static MACHINE_CONFIG_DERIVED( mo6, to7 )
 	MCFG_CPU_MODIFY( "maincpu" )
 	MCFG_CPU_PROGRAM_MAP ( mo6)
 
-	MCFG_CASSETTE_MODIFY( "cassette", mo5_cassette_interface )
+	MCFG_CASSETTE_MODIFY( "cassette" )
+	MCFG_CASSETTE_FORMATS(mo5_cassette_formats)
 
 	MCFG_DEVICE_REMOVE( "mc6846" )
 
-	MCFG_PIA6821_MODIFY( THOM_PIA_SYS, mo6_pia6821_sys )
-	MCFG_DEVICE_REMOVE( THOM_PIA_IO )
-	MCFG_PIA6821_MODIFY( THOM_PIA_GAME, mo6_pia6821_game )
+	MCFG_DEVICE_MODIFY(THOM_PIA_SYS)
+	MCFG_PIA_READPA_HANDLER(READ8(thomson_state, mo6_sys_porta_in))
+	MCFG_PIA_READPB_HANDLER(READ8(thomson_state, mo6_sys_portb_in))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(thomson_state, mo6_sys_porta_out))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(thomson_state, mo6_sys_portb_out))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(thomson_state, mo5_set_cassette_motor))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(thomson_state, mo6_sys_cb2_out))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(thomson_state, thom_irq_1)) /* differs from TO */
 
-	MCFG_DEVICE_REMOVE("centronics")
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", mo6_centronics_config)
+	MCFG_DEVICE_MODIFY(THOM_PIA_GAME)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(thomson_state, mo6_game_porta_out))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(thomson_state, mo6_game_cb2_out))
+
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(thomson_state, write_centronics_busy))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	MCFG_CARTSLOT_MODIFY("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("m5,rom")
@@ -2163,7 +2236,8 @@ static ADDRESS_MAP_START ( mo5nr, AS_PROGRAM, 8, thomson_state )
 	AM_RANGE ( 0xa7cc, 0xa7cf ) AM_DEVREADWRITE( "pia_1", pia6821_device, read_alt, write_alt)
 	AM_RANGE ( 0xa7d0, 0xa7d9 ) AM_READWRITE(mo5nr_net_r, mo5nr_net_w )
 	AM_RANGE ( 0xa7da, 0xa7dd ) AM_READWRITE(mo6_vreg_r, mo6_vreg_w )
-	AM_RANGE ( 0xa7e1, 0xa7e1 ) AM_DEVREADWRITE("centronics", centronics_device, read, write)
+	AM_RANGE ( 0xa7e1, 0xa7e1 ) AM_DEVREAD("cent_data_in", input_buffer_device, read)
+	AM_RANGE ( 0xa7e1, 0xa7e1 ) AM_DEVWRITE("cent_data_out", output_latch_device, write)
 	AM_RANGE ( 0xa7e3, 0xa7e3 ) AM_READWRITE(mo5nr_prn_r, mo5nr_prn_w )
 	AM_RANGE ( 0xa7e4, 0xa7e7 ) AM_READWRITE(mo6_gatearray_r, mo6_gatearray_w )
 	AM_RANGE ( 0xa7e8, 0xa7eb ) AM_DEVREADWRITE( "acia",  mos6551_device, read, write )
@@ -2171,7 +2245,10 @@ static ADDRESS_MAP_START ( mo5nr, AS_PROGRAM, 8, thomson_state )
 	AM_RANGE ( 0xa7f2, 0xa7f3 ) AM_READWRITE(to7_midi_r, to7_midi_w )
 	AM_RANGE ( 0xa7f8, 0xa7fb ) AM_DEVREADWRITE( "pia_3", pia6821_device, read_alt, write_alt)
 	AM_RANGE ( 0xa7fe, 0xa7ff ) AM_DEVREADWRITE("mea8000", mea8000_device, read, write)
-	AM_RANGE ( 0xb000, 0xefff ) AM_READ_BANK ( THOM_CART_BANK) AM_WRITE(mo6_cartridge_w ) /* 4 * 16 KB */
+	AM_RANGE ( 0xb000, 0xbfff ) AM_ROMBANK   ( MO6_CART_LO )
+					AM_WRITE     ( mo6_cartridge_w )
+	AM_RANGE ( 0xc000, 0xefff ) AM_ROMBANK   ( MO6_CART_HI )
+					AM_WRITE     ( mo6_cartridge_w )
 	AM_RANGE ( 0xf000, 0xffff ) AM_ROMBANK   ( TO8_BIOS_BANK )
 
 /* 0x10000 - 0x1ffff: 64 KB external ROM cartridge */
@@ -2321,12 +2398,24 @@ static MACHINE_CONFIG_DERIVED( mo5nr, to7 )
 
 	MCFG_DEVICE_REMOVE( "mc6846" )
 
-	MCFG_PIA6821_MODIFY( THOM_PIA_SYS, mo5nr_pia6821_sys )
-	MCFG_DEVICE_REMOVE( THOM_PIA_IO )
-	MCFG_PIA6821_MODIFY( THOM_PIA_GAME, mo5nr_pia6821_game )
+	MCFG_DEVICE_MODIFY(THOM_PIA_SYS)
+	MCFG_PIA_READPA_HANDLER(READ8(thomson_state, mo6_sys_porta_in))
+	MCFG_PIA_READPB_HANDLER(READ8(thomson_state, mo5nr_sys_portb_in))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(thomson_state, mo5nr_sys_porta_out))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(thomson_state, mo6_sys_portb_out))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(thomson_state, mo5_set_cassette_motor))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(thomson_state, mo6_sys_cb2_out))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(thomson_state, thom_irq_1)) /* differs from TO */
 
-	MCFG_DEVICE_REMOVE("centronics")
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
+	MCFG_DEVICE_MODIFY(THOM_PIA_GAME)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(thomson_state, mo6_game_porta_out))
+
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_DATA_INPUT_BUFFER("cent_data_in")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(thomson_state, write_centronics_busy))
+
+	MCFG_DEVICE_ADD("cent_data_in", INPUT_BUFFER, 0)
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
 	MCFG_CARTSLOT_MODIFY("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("m5,rom")

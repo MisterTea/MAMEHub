@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Roberto Fresca
 /***************************************************************************
 
     Umi de Poker (c) 1997 World Station Co.,LTD
@@ -32,7 +34,9 @@ public:
 		m_vram_2(*this, "vra2"),
 		m_vram_3(*this, "vra3"),
 		m_z80_wram(*this, "z80_wram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT16> m_vram_0;
 	required_shared_ptr<UINT16> m_vram_1;
@@ -70,6 +74,8 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_umipoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 TILE_GET_INFO_MEMBER(umipoker_state::get_tile_info_0)
@@ -77,8 +83,7 @@ TILE_GET_INFO_MEMBER(umipoker_state::get_tile_info_0)
 	int tile = m_vram_0[tile_index*2+0];
 	int color = m_vram_0[tile_index*2+1] & 0x3f;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile,
 			color,
 			0);
@@ -89,8 +94,7 @@ TILE_GET_INFO_MEMBER(umipoker_state::get_tile_info_1)
 	int tile = m_vram_1[tile_index*2+0];
 	int color = m_vram_1[tile_index*2+1] & 0x3f;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile,
 			color,
 			0);
@@ -101,8 +105,7 @@ TILE_GET_INFO_MEMBER(umipoker_state::get_tile_info_2)
 	int tile = m_vram_2[tile_index*2+0];
 	int color = m_vram_2[tile_index*2+1] & 0x3f;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile,
 			color,
 			0);
@@ -113,8 +116,7 @@ TILE_GET_INFO_MEMBER(umipoker_state::get_tile_info_3)
 	int tile = m_vram_3[tile_index*2+0];
 	int color = m_vram_3[tile_index*2+1] & 0x3f;
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			tile,
 			color,
 			0);
@@ -122,10 +124,10 @@ TILE_GET_INFO_MEMBER(umipoker_state::get_tile_info_3)
 
 void umipoker_state::video_start()
 {
-	m_tilemap_0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(umipoker_state::get_tile_info_0),this),TILEMAP_SCAN_ROWS,8,8,64,32);
-	m_tilemap_1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(umipoker_state::get_tile_info_1),this),TILEMAP_SCAN_ROWS,8,8,64,32);
-	m_tilemap_2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(umipoker_state::get_tile_info_2),this),TILEMAP_SCAN_ROWS,8,8,64,32);
-	m_tilemap_3 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(umipoker_state::get_tile_info_3),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_tilemap_0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(umipoker_state::get_tile_info_0),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_tilemap_1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(umipoker_state::get_tile_info_1),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_tilemap_2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(umipoker_state::get_tile_info_2),this),TILEMAP_SCAN_ROWS,8,8,64,32);
+	m_tilemap_3 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(umipoker_state::get_tile_info_3),this),TILEMAP_SCAN_ROWS,8,8,64,32);
 
 	m_tilemap_0->set_transparent_pen(0);
 	m_tilemap_1->set_transparent_pen(0);
@@ -141,7 +143,7 @@ UINT32 umipoker_state::screen_update_umipoker(screen_device &screen, bitmap_ind1
 	m_tilemap_2->set_scrolly(0, m_umipoker_scrolly[2]);
 	m_tilemap_3->set_scrolly(0, m_umipoker_scrolly[3]);
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	m_tilemap_0->draw(screen, bitmap, cliprect, 0,0);
 	m_tilemap_1->draw(screen, bitmap, cliprect, 0,0);
@@ -308,7 +310,7 @@ static ADDRESS_MAP_START( umipoker_map, AS_PROGRAM, 16, umipoker_state )
 	ADDRESS_MAP_UNMAP_LOW
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x400000, 0x403fff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0x600000, 0x6007ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")    // Palette
+	AM_RANGE(0x600000, 0x6007ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
 	AM_RANGE(0x800000, 0x801fff) AM_RAM_WRITE(umipoker_vram_0_w) AM_SHARE("vra0")
 	AM_RANGE(0x802000, 0x803fff) AM_RAM_WRITE(umipoker_vram_1_w) AM_SHARE("vra1")
 	AM_RANGE(0x804000, 0x805fff) AM_RAM_WRITE(umipoker_vram_2_w) AM_SHARE("vra2")
@@ -672,10 +674,12 @@ static MACHINE_CONFIG_START( umipoker, umipoker_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(8*8, 48*8-1, 2*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(umipoker_state, screen_update_umipoker)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(umipoker)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", umipoker)
 
-	MCFG_PALETTE_LENGTH(0x400)
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	/* sound hardware */

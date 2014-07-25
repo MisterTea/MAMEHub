@@ -76,7 +76,7 @@ static ADDRESS_MAP_START( ginganin_map, AS_PROGRAM, 16, ginganin_state )
 	AM_RANGE(0x020000, 0x023fff) AM_RAM
 	AM_RANGE(0x030000, 0x0307ff) AM_RAM_WRITE(ginganin_txtram16_w) AM_SHARE("txtram")
 	AM_RANGE(0x040000, 0x0407ff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x050000, 0x0507ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x050000, 0x0507ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x060000, 0x06000f) AM_RAM_WRITE(ginganin_vregs16_w) AM_SHARE("vregs")
 	AM_RANGE(0x068000, 0x06bfff) AM_RAM_WRITE(ginganin_fgram16_w) AM_SHARE("fgram")
 	AM_RANGE(0x070000, 0x070001) AM_READ_PORT("P1_P2")
@@ -219,13 +219,6 @@ static GFXDECODE_START( ginganin )
 GFXDECODE_END
 
 
-
-
-
-
-
-
-
 void ginganin_state::machine_start()
 {
 	save_item(NAME(m_layers_ctrl));
@@ -238,19 +231,11 @@ void ginganin_state::machine_reset()
 	m_flipscreen = 0;
 }
 
-
 WRITE8_MEMBER(ginganin_state::ptm_irq)
 {
 	m_audiocpu->set_input_line(0, (data & 1) ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ptm6840_interface ptm_intf =
-{
-	SOUND_CLOCK/2,
-	{ 0, 0, 0 },
-	{ DEVCB_DRIVER_MEMBER(ginganin_state,ptm_irq), DEVCB_NULL, DEVCB_NULL },
-	DEVCB_NULL
-};
 
 static MACHINE_CONFIG_START( ginganin, ginganin_state )
 
@@ -263,7 +248,10 @@ static MACHINE_CONFIG_START( ginganin, ginganin_state )
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 
 
-	MCFG_PTM6840_ADD("6840ptm", ptm_intf)
+	MCFG_DEVICE_ADD("6840ptm", PTM6840, 0)
+	MCFG_PTM6840_INTERNAL_CLOCK(SOUND_CLOCK/2)
+	MCFG_PTM6840_EXTERNAL_CLOCKS(0, 0, 0)
+	MCFG_PTM6840_OUT0_CB(WRITE8(ginganin_state, ptm_irq))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -272,10 +260,11 @@ static MACHINE_CONFIG_START( ginganin, ginganin_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0 + 16 , 255 - 16)
 	MCFG_SCREEN_UPDATE_DRIVER(ginganin_state, screen_update_ginganin)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ginganin)
-	MCFG_PALETTE_LENGTH(1024)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ginganin)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBxxxx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

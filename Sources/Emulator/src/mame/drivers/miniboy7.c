@@ -159,7 +159,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -168,9 +169,10 @@ public:
 	DECLARE_WRITE8_MEMBER(miniboy7_colorram_w);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(miniboy7);
 	UINT32 screen_update_miniboy7(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -211,7 +213,7 @@ TILE_GET_INFO_MEMBER(miniboy7_state::get_bg_tile_info)
 
 void miniboy7_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(miniboy7_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 37, 37);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(miniboy7_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 37, 37);
 }
 
 UINT32 miniboy7_state::screen_update_miniboy7(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -220,7 +222,7 @@ UINT32 miniboy7_state::screen_update_miniboy7(screen_device &screen, bitmap_ind1
 	return 0;
 }
 
-void miniboy7_state::palette_init()
+PALETTE_INIT_MEMBER(miniboy7_state, miniboy7)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 /*  FIXME... Can't get the correct palette.
@@ -239,7 +241,7 @@ void miniboy7_state::palette_init()
 	/* 0000IBGR */
 	if (color_prom == 0) return;
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < palette.entries();i++)
 	{
 		int bit0, bit1, bit2, r, g, b, inten, intenmin, intenmax;
 
@@ -263,7 +265,7 @@ void miniboy7_state::palette_init()
 		b = (bit2 * intenmin) + (inten * (bit2 * (intenmax - intenmin)));
 
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -388,62 +390,6 @@ static GFXDECODE_START( miniboy7 )
 
 GFXDECODE_END
 
-
-/**********************************
-*         CRTC Interface          *
-**********************************/
-
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-
-/*********************************
-*         PIA Interface          *
-*********************************/
-
-static const pia6821_interface miniboy7_pia0_intf =
-{
-	DEVCB_NULL,     /* port A in */
-	DEVCB_NULL,     /* port B in */
-	DEVCB_NULL,     /* line CA1 in */
-	DEVCB_NULL,     /* line CB1 in */
-	DEVCB_NULL,     /* line CA2 in */
-	DEVCB_NULL,     /* line CB2 in */
-	DEVCB_NULL,     /* port A out */
-	DEVCB_NULL,     /* port B out */
-	DEVCB_NULL,     /* line CA2 out */
-	DEVCB_NULL,     /* port CB2 out */
-	DEVCB_NULL,     /* IRQA */
-	DEVCB_NULL      /* IRQB */
-};
-
-
-/***********************************
-*         Sound Interface          *
-***********************************/
-
-static const ay8910_interface miniboy7_ay8910_intf =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 /***********************************
 *         Machine Drivers          *
 ***********************************/
@@ -456,7 +402,7 @@ static MACHINE_CONFIG_START( miniboy7, miniboy7_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", miniboy7_state,  nmi_line_pulse)
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
-	MCFG_PIA6821_ADD("pia0", miniboy7_pia0_intf)
+	MCFG_DEVICE_ADD("pia0", PIA6821, 0)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -465,17 +411,20 @@ static MACHINE_CONFIG_START( miniboy7, miniboy7_state )
 	MCFG_SCREEN_SIZE((47+1)*8, (39+1)*8)                  /* Taken from MC6845, registers 00 & 04. Normally programmed with (value-1) */
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 37*8-1, 0*8, 37*8-1)    /* Taken from MC6845, registers 01 & 06 */
 	MCFG_SCREEN_UPDATE_DRIVER(miniboy7_state, screen_update_miniboy7)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(miniboy7)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", miniboy7)
 
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(miniboy7_state, miniboy7)
 
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/12, mc6845_intf) /* guess */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/12) /* guess */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ay8910", AY8910, MASTER_CLOCK/8)    /* guess */
-	MCFG_SOUND_CONFIG(miniboy7_ay8910_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
 MACHINE_CONFIG_END
@@ -586,7 +535,7 @@ ROM_END
 *           Game Drivers           *
 ***********************************/
 
-/*    YEAR  NAME       PARENT    MACHINE   INPUT     INIT   ROT    COMPANY                     FULLNAME             FLAGS  */
+/*    YEAR  NAME       PARENT    MACHINE   INPUT     STATE          INIT   ROT    COMPANY                     FULLNAME             FLAGS  */
 GAME( 1983, miniboy7,  0,        miniboy7, miniboy7, driver_device, 0,     ROT0, "Bonanza Enterprises, Ltd", "Mini Boy 7 (set 1)", GAME_NO_SOUND | GAME_WRONG_COLORS | GAME_NOT_WORKING )
 GAME( 1983, miniboy7a, miniboy7, miniboy7, miniboy7, driver_device, 0,     ROT0, "Bonanza Enterprises, Ltd", "Mini Boy 7 (set 2)", GAME_NO_SOUND | GAME_WRONG_COLORS | GAME_NOT_WORKING )
 GAME( 1983, miniboy7b, miniboy7, miniboy7, miniboy7, driver_device, 0,     ROT0, "Bonanza Enterprises, Ltd", "Mini Boy 7 (set 3)", GAME_NO_SOUND | GAME_WRONG_COLORS | GAME_NOT_WORKING )

@@ -8,6 +8,7 @@
 
 #include "namcoic.h"
 #include "cpu/m6502/m3745x.h"
+#include "video/c45.h"
 
 /* CPU reference numbers */
 
@@ -107,7 +108,10 @@ public:
 			m_maincpu(*this, "maincpu"),
 			m_audiocpu(*this, "audiocpu"),
 			m_slave(*this, "slave"),
-			m_mcu(*this, "mcu") { }
+			m_mcu(*this, "mcu"),
+			m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	optional_device<cpu_device> m_dspmaster;
 	optional_device<cpu_device> m_dspslave;
@@ -116,6 +120,21 @@ public:
 	// game type helpers
 	bool is_system21();
 	int m_gametype;
+
+	// C123 Tilemap Emulation
+	// TODO: merge with namcos1.c implementation and convert to device
+public:
+	DECLARE_WRITE16_MEMBER( c123_tilemap_videoram_w );
+	DECLARE_READ16_MEMBER( c123_tilemap_videoram_r );
+	DECLARE_WRITE16_MEMBER( c123_tilemap_control_w );
+	DECLARE_READ16_MEMBER( c123_tilemap_control_r );
+	TILE_GET_INFO_MEMBER( get_tile_info0 );
+	TILE_GET_INFO_MEMBER( get_tile_info1 );
+	TILE_GET_INFO_MEMBER( get_tile_info2 );
+	TILE_GET_INFO_MEMBER( get_tile_info3 );
+	TILE_GET_INFO_MEMBER( get_tile_info4 );
+	TILE_GET_INFO_MEMBER( get_tile_info5 );
+	void namco_tilemap_init(int gfxbank, void *pMaskROM, void (*cb)( running_machine &machine, UINT16 code, int *gfx, int *mask) );
 
 	// C169 ROZ Layer Emulation
 public:
@@ -127,13 +146,7 @@ public:
 	DECLARE_WRITE16_MEMBER( c169_roz_bank_w );
 	DECLARE_READ16_MEMBER( c169_roz_videoram_r );
 	DECLARE_WRITE16_MEMBER( c169_roz_videoram_w );
-	TILE_GET_INFO_MEMBER( get_tile_info0 );
-	TILE_GET_INFO_MEMBER( get_tile_info1 );
-	TILE_GET_INFO_MEMBER( get_tile_info2 );
-	TILE_GET_INFO_MEMBER( get_tile_info3 );
-	TILE_GET_INFO_MEMBER( get_tile_info4 );
-	TILE_GET_INFO_MEMBER( get_tile_info5 );
-	void namco_tilemap_init(int gfxbank, void *pMaskROM, void (*cb)( running_machine &machine, UINT16 code, int *gfx, int *mask) );
+
 protected:
 	struct roz_parameters
 	{
@@ -221,6 +234,9 @@ public:
 	optional_device<cpu_device> m_audiocpu;
 	optional_device<cpu_device> m_slave;
 	optional_device<cpu_device> m_mcu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	optional_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 class namcos2_state : public namcos2_shared_state
@@ -327,10 +343,6 @@ public:
 
 	DECLARE_READ16_MEMBER( namcos2_68k_key_r );
 	DECLARE_WRITE16_MEMBER( namcos2_68k_key_w );
-	DECLARE_WRITE16_MEMBER( namco_tilemapvideoram16_w );
-	DECLARE_READ16_MEMBER( namco_tilemapvideoram16_r );
-	DECLARE_WRITE16_MEMBER( namco_tilemapcontrol16_w );
-	DECLARE_READ16_MEMBER( namco_tilemapcontrol16_r );
 	DECLARE_READ16_MEMBER( namcos2_finallap_prot_r );
 
 };

@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
       Camputers Lynx
@@ -85,28 +87,33 @@ class camplynx_state : public driver_device
 {
 public:
 	camplynx_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	//m_cass(*this, "cassette"),
-	//m_wave(*this, WAVE_TAG),
-	//m_printer(*this, "centronics"),
-	m_crtc(*this, "crtc")
-	//m_fdc(*this, "fdc")
+		: driver_device(mconfig, type, tag)
+		, m_palette(*this, "palette")
+		, m_maincpu(*this, "maincpu")
+		//, m_cass(*this, "cassette")
+		//, m_wave(*this, WAVE_TAG)
+		//, m_printer(*this, "centronics")
+		, m_crtc(*this, "crtc")
+		//, m_fdc(*this, "fdc")
 	{ }
 
+	DECLARE_WRITE8_MEMBER(lynx48k_bank_w);
+	DECLARE_WRITE8_MEMBER(lynx128k_bank_w);
+	DECLARE_WRITE8_MEMBER(lynx128k_irq);
+	DECLARE_DRIVER_INIT(lynx48k);
+	DECLARE_PALETTE_INIT(camplynx);
+	DECLARE_MACHINE_RESET(lynx128k);
+	MC6845_UPDATE_ROW(lynx48k_update_row);
+	MC6845_UPDATE_ROW(lynx128k_update_row);
+	required_device<palette_device> m_palette;
+private:
+	virtual void video_start();
 	required_device<cpu_device> m_maincpu;
 	//required_device<cassette_image_device> m_cass;
 	//required_device<> m_wave;
 	//required_device<> m_printer;
 	required_device<mc6845_device> m_crtc;
 	//optional_device<> m_fdc;
-	DECLARE_WRITE8_MEMBER(lynx48k_bank_w);
-	DECLARE_WRITE8_MEMBER(lynx128k_bank_w);
-	DECLARE_WRITE8_MEMBER(lynx128k_irq);
-	DECLARE_DRIVER_INIT(lynx48k);
-	virtual void video_start();
-	virtual void palette_init();
-	DECLARE_MACHINE_RESET(lynx128k);
 };
 
 /* These bankswitch handlers are very incomplete, just enough to get the
@@ -368,21 +375,21 @@ static const UINT8 lynx48k_palette[8*3] =
 	0xff, 0xff, 0xff,   /*  7 White     */
 };
 
-void camplynx_state::palette_init()
+PALETTE_INIT_MEMBER(camplynx_state, camplynx)
 {
 	UINT8 r, b, g, i=0, color_count = 8;
 
 	while (color_count--)
 	{
 		r = lynx48k_palette[i++]; g = lynx48k_palette[i++]; b = lynx48k_palette[i++];
-		palette_set_color(machine(), 7-color_count, MAKE_RGB(r, g, b));
+		palette.set_pen_color(7-color_count, rgb_t(r, g, b));
 	}
 }
 
-static MC6845_UPDATE_ROW( lynx48k_update_row )
+MC6845_UPDATE_ROW( camplynx_state::lynx48k_update_row )
 {
-	UINT8 *RAM = device->machine().root_device().memregion("maincpu")->base();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	UINT8 *RAM = machine().root_device().memregion("maincpu")->base();
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	UINT8 r,g,b;
 	UINT32 x, *p = &bitmap.pix32(y);
 
@@ -403,10 +410,10 @@ static MC6845_UPDATE_ROW( lynx48k_update_row )
 	}
 }
 
-static MC6845_UPDATE_ROW( lynx128k_update_row )
+MC6845_UPDATE_ROW( camplynx_state::lynx128k_update_row )
 {
-	UINT8 *RAM = device->machine().root_device().memregion("maincpu")->base();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	UINT8 *RAM = machine().root_device().memregion("maincpu")->base();
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	UINT8 r,g,b;
 	UINT32 x, *p = &bitmap.pix32(y);
 
@@ -431,36 +438,6 @@ void camplynx_state::video_start()
 {
 }
 
-static MC6845_INTERFACE( lynx48k_crtc6845_interface )
-{
-	false,
-	8,
-	NULL,
-	lynx48k_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
-
-
-static MC6845_INTERFACE( lynx128k_crtc6845_interface )
-{
-	false,
-	8,              /* dots per character */
-	NULL,
-	lynx128k_update_row,        /* callback to display one scanline */
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(camplynx_state, lynx128k_irq),  /* callback when cursor pin changes state */
-	DEVCB_NULL,
-	NULL
-};
-
-
 static MACHINE_CONFIG_START( lynx48k, camplynx_state )
 
 	/* basic machine hardware */
@@ -475,15 +452,19 @@ static MACHINE_CONFIG_START( lynx48k, camplynx_state )
 	MCFG_SCREEN_SIZE(512, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 479)
 	MCFG_SCREEN_UPDATE_DEVICE("crtc", mc6845_device, screen_update)
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(camplynx_state, camplynx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.8)
 
-	/* Devices */
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_12MHz / 8 /*? dot clock divided by dots per char */, lynx48k_crtc6845_interface)
+	/* devices */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_12MHz / 8 /*? dot clock divided by dots per char */)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(camplynx_state, lynx48k_update_row)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( lynx128k, camplynx_state )
@@ -502,15 +483,20 @@ static MACHINE_CONFIG_START( lynx128k, camplynx_state )
 	MCFG_SCREEN_SIZE(512, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 479)
 	MCFG_SCREEN_UPDATE_DEVICE("crtc", mc6845_device, screen_update)
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(camplynx_state, camplynx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.8)
 
-	/* Devices */
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_12MHz / 8 /*? dot clock divided by dots per char */, lynx128k_crtc6845_interface)
+	/* devices */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_12MHz / 8 /*? dot clock divided by dots per char */)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(camplynx_state, lynx128k_update_row)
+	MCFG_MC6845_OUT_HSYNC_CB(WRITE8(camplynx_state, lynx128k_irq))
 MACHINE_CONFIG_END
 
 DRIVER_INIT_MEMBER(camplynx_state,lynx48k)

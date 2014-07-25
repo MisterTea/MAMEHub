@@ -434,12 +434,12 @@ static const int dendego_pressure_table[0x100] =
 #define PIXEL_CLOCK         (10000000*2)
 
 // VSync - 55.6795Hz
-// HSync - 24.639kHz / 24.690kHz
-#define HTOTAL              (811)
+// HSync - 24.639kHz / 24.690kHz (may be inaccurate)
+#define HTOTAL              (768)
 #define HBEND               (0)
 #define HBSTART             (512)
 
-#define VTOTAL              (443) /* H/V - 442.51 / 443.43 total lines */
+#define VTOTAL              (468)
 #define VBEND               (0)
 #define VBSTART             (400)
 
@@ -590,7 +590,7 @@ void taitojc_state::debug_dsp_command()
 
 WRITE32_MEMBER(taitojc_state::dsp_shared_w)
 {
-	//mame_printf_debug("dsp_shared: %08X, %04X at %08X\n", offset, data >> 16, space.device().safe_pc());
+	//osd_printf_debug("dsp_shared: %08X, %04X at %08X\n", offset, data >> 16, space.device().safe_pc());
 	if (ACCESSING_BITS_24_31)
 	{
 		m_dsp_shared_ram[offset] &= 0x00ff;
@@ -973,7 +973,7 @@ WRITE16_MEMBER(taitojc_state::dsp_texture_w)
 {
 	int index;
 	int x, y;
-	//mame_printf_debug("texture write %08X, %04X\n", dsp_addr1, data);
+	//osd_printf_debug("texture write %08X, %04X\n", dsp_addr1, data);
 
 	x = (m_dsp_tex_offset >> 0 & 0x1f) | (m_dsp_tex_offset >> 5 & 0x20);
 	y = (m_dsp_tex_offset >> 5 & 0x1f) | (m_dsp_tex_offset >> 6 & 0x20);
@@ -992,7 +992,7 @@ READ16_MEMBER(taitojc_state::dsp_texaddr_r)
 WRITE16_MEMBER(taitojc_state::dsp_texaddr_w)
 {
 	m_dsp_tex_address = data;
-//  mame_printf_debug("texaddr = %08X at %08X\n", data, space.device().safe_pc());
+//  osd_printf_debug("texaddr = %08X at %08X\n", data, space.device().safe_pc());
 
 	m_texture_x = (((data >> 0) & 0x1f) << 1) | ((data >> 12) & 0x1);
 	m_texture_y = (((data >> 5) & 0x1f) << 1) | ((data >> 13) & 0x1);
@@ -1242,12 +1242,6 @@ INTERRUPT_GEN_MEMBER(taitojc_state::taitojc_vblank)
 	device.execute().set_input_line_and_vector(2, HOLD_LINE, 0x82); // where does it come from?
 }
 
-static const tc0640fio_interface taitojc_io_intf =
-{
-	DEVCB_INPUT_PORT("SERVICE"), DEVCB_INPUT_PORT("COINS"),
-	DEVCB_INPUT_PORT("START"), DEVCB_INPUT_PORT("UNUSED"), DEVCB_INPUT_PORT("BUTTONS")
-};
-
 
 static MACHINE_CONFIG_START( taitojc, taitojc_state )
 
@@ -1269,14 +1263,22 @@ static MACHINE_CONFIG_START( taitojc, taitojc_state )
 
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
-	MCFG_TC0640FIO_ADD("tc0640fio", taitojc_io_intf)
+	MCFG_DEVICE_ADD("tc0640fio", TC0640FIO, 0)
+	MCFG_TC0640FIO_READ_0_CB(IOPORT("SERVICE"))
+	MCFG_TC0640FIO_READ_1_CB(IOPORT("COINS"))
+	MCFG_TC0640FIO_READ_2_CB(IOPORT("START"))
+	MCFG_TC0640FIO_READ_3_CB(IOPORT("UNUSED"))
+	MCFG_TC0640FIO_READ_7_CB(IOPORT("BUTTONS"))
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", empty)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(taitojc_state, screen_update_taitojc)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD("palette", 32768)
 
 	/* sound hardware */
 	MCFG_FRAGMENT_ADD(taito_en_sound)

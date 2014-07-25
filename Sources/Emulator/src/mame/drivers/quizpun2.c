@@ -96,7 +96,9 @@ public:
 		m_fg_ram(*this, "fg_ram"),
 		m_bg_ram(*this, "bg_ram"),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu") { }
+		m_audiocpu(*this, "audiocpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	struct prot_t m_prot;
 	required_shared_ptr<UINT8> m_fg_ram;
@@ -117,6 +119,8 @@ public:
 	UINT32 screen_update_quizpun2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -153,8 +157,8 @@ WRITE8_MEMBER(quizpun2_state::fg_ram_w)
 
 void quizpun2_state::video_start()
 {
-	m_bg_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(quizpun2_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,8,16,0x20,0x20);
-	m_fg_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(quizpun2_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,8,16,0x20,0x20);
+	m_bg_tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(quizpun2_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,8,16,0x20,0x20);
+	m_fg_tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(quizpun2_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,8,16,0x20,0x20);
 
 	m_bg_tmap->set_transparent_pen(0);
 	m_fg_tmap->set_transparent_pen(0);
@@ -175,9 +179,9 @@ UINT32 quizpun2_state::screen_update_quizpun2(screen_device &screen, bitmap_ind1
 #endif
 
 	if (layers_ctrl & 1)    m_bg_tmap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
-	else                    bitmap.fill(get_black_pen(machine()), cliprect);
+	else                    bitmap.fill(m_palette->black_pen(), cliprect);
 
-bitmap.fill(get_black_pen(machine()), cliprect);
+bitmap.fill(m_palette->black_pen(), cliprect);
 	if (layers_ctrl & 2)    m_fg_tmap->draw(screen, bitmap, cliprect, 0, 0);
 
 	return 0;
@@ -370,7 +374,7 @@ static ADDRESS_MAP_START( quizpun2_map, AS_PROGRAM, 8, quizpun2_state )
 	AM_RANGE( 0xc000, 0xc7ff ) AM_RAM_WRITE(bg_ram_w ) AM_SHARE("bg_ram")   // 4 * 400
 	AM_RANGE( 0xc800, 0xcfff ) AM_RAM                                       //
 
-	AM_RANGE( 0xd000, 0xd3ff ) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_byte_le_w )  AM_SHARE("paletteram")
+	AM_RANGE( 0xd000, 0xd3ff ) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE( 0xe000, 0xffff ) AM_RAM
 ADDRESS_MAP_END
 
@@ -508,9 +512,11 @@ static MACHINE_CONFIG_START( quizpun2, quizpun2_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(quizpun2_state, screen_update_quizpun2)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(quizpun2)
-	MCFG_PALETTE_LENGTH(0x200)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", quizpun2)
+	MCFG_PALETTE_ADD("palette", 0x200)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 
 	/* sound hardware */

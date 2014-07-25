@@ -79,7 +79,7 @@ protected:
 			int crtc_regcount;
 		} svga_intf;
 
-		UINT8 *memory;
+		dynamic_buffer memory;
 		UINT32 pens[16]; /* the current 16 pens */
 
 		UINT8 miscellaneous_output;
@@ -190,6 +190,7 @@ protected:
 	} vga;
 
 	emu_timer *m_vblank_timer;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -397,6 +398,8 @@ public:
 	READ16_MEMBER(mach8_sourcey_r);
 	WRITE16_MEMBER(mach8_ext_leftscissor_w);
 	WRITE16_MEMBER(mach8_ext_topscissor_w);
+	READ16_MEMBER(mach8_clksel_r) { return mach8.clksel; }
+
 protected:
 	virtual void device_start();
 	struct
@@ -404,6 +407,7 @@ protected:
 		UINT16 scratch0;
 		UINT16 scratch1;
 		UINT16 linedraw;
+		UINT16 clksel;
 	} mach8;
 };
 
@@ -521,6 +525,7 @@ private:
 	{
 		UINT8 ext_reg[64];
 		UINT8 ext_reg_select;
+		UINT8 vga_chip_id;
 	} ati;
 	mach8_device* m_8514;
 };
@@ -555,6 +560,7 @@ public:
 protected:
 	// device-level overrides
 	virtual void device_start();
+	virtual void device_reset();
 	struct
 	{
 		UINT8 memory_config;
@@ -572,6 +578,15 @@ protected:
 		UINT8 id_low;
 		UINT8 revision;
 		UINT8 id_cr30;
+		UINT32 strapping;  // power-on strapping bits
+		UINT8 sr10;   // MCLK PLL
+		UINT8 sr11;   // MCLK PLL
+		UINT8 sr12;   // DCLK PLL
+		UINT8 sr13;   // DCLK PLL
+		UINT8 sr15;   // CLKSYN control 2
+		UINT8 clk_pll_r;  // individual DCLK PLL values
+		UINT8 clk_pll_m;
+		UINT8 clk_pll_n;
 
 		// data for memory-mapped I/O
 		UINT16 mmio_9ae8;
@@ -597,6 +612,8 @@ private:
 	UINT8 s3_crtc_reg_read(UINT8 index);
 	void s3_define_video_mode(void);
 	void s3_crtc_reg_write(UINT8 index, UINT8 data);
+	UINT8 s3_seq_reg_read(UINT8 index);
+	void s3_seq_reg_write(UINT8 index, UINT8 data);
 	ibm8514a_device* m_8514;
 };
 

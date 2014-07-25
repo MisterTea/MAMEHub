@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Victory video system
@@ -97,7 +99,7 @@ void victory_state::set_palette()
 	{
 		UINT16 data = m_paletteram[offs];
 
-		palette_set_color_rgb(machine(), offs, pal3bit(data >> 6), pal3bit(data >> 0), pal3bit(data >> 3));
+		m_palette->set_pen_color(offs, pal3bit(data >> 6), pal3bit(data >> 0), pal3bit(data >> 3));
 	}
 }
 

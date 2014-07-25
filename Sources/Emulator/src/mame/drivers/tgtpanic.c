@@ -19,13 +19,15 @@ public:
 	tgtpanic_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_ram(*this, "ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_screen(*this, "screen") { }
 
 	required_shared_ptr<UINT8> m_ram;
 	UINT8 m_color;
 	DECLARE_WRITE8_MEMBER(color_w);
 	UINT32 screen_update_tgtpanic(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<screen_device> m_screen;
 };
 
 
@@ -43,8 +45,8 @@ UINT32 tgtpanic_state::screen_update_tgtpanic(screen_device &screen, bitmap_rgb3
 
 	colors[0] = 0;
 	colors[1] = 0xffffffff;
-	colors[2] = MAKE_RGB(pal1bit(m_color >> 2), pal1bit(m_color >> 1), pal1bit(m_color >> 0));
-	colors[3] = MAKE_RGB(pal1bit(m_color >> 6), pal1bit(m_color >> 5), pal1bit(m_color >> 4));
+	colors[2] = rgb_t(pal1bit(m_color >> 2), pal1bit(m_color >> 1), pal1bit(m_color >> 0));
+	colors[3] = rgb_t(pal1bit(m_color >> 6), pal1bit(m_color >> 5), pal1bit(m_color >> 4));
 
 	for (offs = 0; offs < 0x2000; ++offs)
 	{

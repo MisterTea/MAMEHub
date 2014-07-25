@@ -169,15 +169,13 @@ Notes:
 
 */
 
-#define ADDRESS_MAP_MODERN
-
 #include "emu.h"
 #include "cpu/powerpc/ppc.h"
 #include "cpu/tlcs900/tlcs900.h"
 #include "machine/ataintf.h"
 #include "machine/idehd.h"
 #include "machine/nvram.h"
-#include "video/polynew.h"
+#include "video/poly.h"
 
 /*
     Interesting mem areas
@@ -544,15 +542,17 @@ public:
 		m_iocpu(*this, "iocpu"),
 		m_work_ram(*this, "work_ram"),
 		m_mbox_ram(*this, "mbox_ram"),
-		m_ata(*this, "ata")
+		m_ata(*this, "ata"),
+		m_screen(*this, "screen")
 	{
 	}
 
-	required_device<cpu_device> m_maincpu;
+	required_device<ppc_device> m_maincpu;
 	required_device<cpu_device> m_iocpu;
 	required_shared_ptr<UINT64> m_work_ram;
 	required_shared_ptr<UINT16> m_mbox_ram;
 	required_device<ata_interface_device> m_ata;
+	required_device<screen_device> m_screen;
 
 	DECLARE_READ64_MEMBER(ppc_common_r);
 	DECLARE_WRITE64_MEMBER(ppc_common_w);
@@ -585,10 +585,6 @@ public:
 	DECLARE_WRITE8_MEMBER(tlcs_rtc_w);
 
 	UINT8 m_rtcdata[8];
-
-	UINT16 ide_cs0_latch_r;
-	UINT16 ide_cs0_latch_w;
-	UINT16 ide_cs1_latch_w;
 
 
 	UINT32 m_reg105;
@@ -784,6 +780,7 @@ INLINE float finvsqrt(float number)
 	return y;
 }
 
+#if 0
 INLINE void normalize_vec3(VECTOR3 *v)
 {
 	float l = finvsqrt(*v[0] * *v[0] + *v[1] * *v[1] + *v[2] * *v[2]);
@@ -791,6 +788,7 @@ INLINE void normalize_vec3(VECTOR3 *v)
 	*v[1] *= l;
 	*v[2] *= l;
 }
+#endif
 
 INLINE float clamp_pos(float v)
 {
@@ -2442,7 +2440,7 @@ static INPUT_PORTS_START( landhigh )
 	PORT_BIT( 0x00000001, IP_ACTIVE_LOW, IPT_BUTTON5 )                                  // ID Button
 	PORT_BIT( 0x00000002, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x00000004, IP_ACTIVE_LOW, IPT_BUTTON6 )                                  // Lever Sync
-	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_START )                                    // Start
+	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_START1 )                                   // Start
 	PORT_BIT( 0x00000010, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -2500,7 +2498,7 @@ static INPUT_PORTS_START( batlgr2 )
 	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x00000010, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_START )                                    // Start
+	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_START1 )                                   // Start
 	PORT_BIT( 0x00000080, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("ANALOG1")       // Steering
@@ -2613,7 +2611,7 @@ static INPUT_PORTS_START( styphp )
 	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x00000010, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_START )                                    // Start
+	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_START1 )                                   // Start
 	PORT_BIT( 0x00000080, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("ANALOG1")       // Steering
@@ -2643,10 +2641,10 @@ void taitotz_state::machine_reset()
 void taitotz_state::machine_start()
 {
 	/* set conservative DRC options */
-	ppcdrc_set_options(m_maincpu, PPCDRC_COMPATIBLE_OPTIONS);
+	m_maincpu->ppcdrc_set_options(PPCDRC_COMPATIBLE_OPTIONS);
 
 	/* configure fast RAM regions for DRC */
-	ppcdrc_add_fastram(m_maincpu, 0x40000000, 0x40ffffff, FALSE, m_work_ram);
+	m_maincpu->ppcdrc_add_fastram(0x40000000, 0x40ffffff, FALSE, m_work_ram);
 }
 
 
@@ -2660,18 +2658,10 @@ WRITE_LINE_MEMBER(taitotz_state::ide_interrupt)
 	m_iocpu->set_input_line(TLCS900_INT2, state);
 }
 
-static const powerpc_config ppc603e_config =
-{
-	XTAL_66_6667MHz,        /* Multiplier 1.5, Bus = 66MHz, Core = 100MHz */
-	NULL,
-	NULL
-};
-
-
 static MACHINE_CONFIG_START( taitotz, taitotz_state )
 	/* IBM EMPPC603eBG-100 */
 	MCFG_CPU_ADD("maincpu", PPC603E, 100000000)
-	MCFG_CPU_CONFIG(ppc603e_config)
+	MCFG_PPC_BUS_FREQUENCY(XTAL_66_6667MHz)    /* Multiplier 1.5, Bus = 66MHz, Core = 100MHz */
 	MCFG_CPU_PROGRAM_MAP(ppc603e_mem)
 
 	/* TMP95C063F I/O CPU */

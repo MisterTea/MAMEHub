@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
     TEC-1 driver, written by Robbbert in April, 2009 for MESS.
@@ -430,7 +432,7 @@ static MACHINE_CONFIG_START( tecjmon, tec1_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* Devices */
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
 MACHINE_CONFIG_END
 
 

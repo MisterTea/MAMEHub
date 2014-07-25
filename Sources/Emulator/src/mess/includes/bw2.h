@@ -1,18 +1,19 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __BW2__
 #define __BW2__
 
 #include "emu.h"
+#include "bus/bw2/exp.h"
 #include "cpu/z80/z80.h"
 #include "formats/bw2_dsk.h"
-#include "machine/bw2exp.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "machine/i8251.h"
 #include "machine/i8255.h"
 #include "machine/pit8253.h"
 #include "machine/ram.h"
-#include "machine/serial.h"
 #include "machine/wd_fdc.h"
 #include "video/msm6255.h"
 #include "rendlay.h"
@@ -93,8 +94,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( pit_out0_w );
 	DECLARE_WRITE_LINE_MEMBER( mtron_w );
 
-	void fdc_intrq_w(bool state);
-	void fdc_drq_w(bool state);
+	DECLARE_WRITE_LINE_MEMBER( fdc_drq_w );
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
 
 	// keyboard state
@@ -109,7 +109,10 @@ public:
 
 	// video state
 	optional_shared_ptr<UINT8> m_video_ram;
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(bw2);
+
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
+	int m_centronics_busy;
 };
 
 #endif

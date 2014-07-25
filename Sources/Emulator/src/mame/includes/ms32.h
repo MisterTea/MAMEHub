@@ -8,14 +8,33 @@ public:
 		m_tx_scroll(*this, "tx_scroll"),
 		m_bg_scroll(*this, "bg_scroll"),
 		m_mahjong_input_select(*this, "mahjong_select"),
+		m_priram(*this, "priram", 32),
+		m_palram(*this, "palram", 32),
+		m_rozram(*this, "rozram", 32),
+		m_lineram(*this, "lineram", 32),
+		m_sprram(*this, "sprram", 32),
+		m_txram(*this, "txram", 32),
+		m_bgram(*this, "bgram", 32),
+		m_f1superb_extraram(*this, "f1sb_extraram", 32),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu")  { }
+		m_audiocpu(*this, "audiocpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")  { }
 
-	required_shared_ptr<UINT32> m_mainram;
-	required_shared_ptr<UINT32> m_roz_ctrl;
-	required_shared_ptr<UINT32> m_tx_scroll;
-	required_shared_ptr<UINT32> m_bg_scroll;
-	required_shared_ptr<UINT32> m_mahjong_input_select;
+	optional_shared_ptr<UINT32> m_mainram;
+	optional_shared_ptr<UINT32> m_roz_ctrl;
+	optional_shared_ptr<UINT32> m_tx_scroll;
+	optional_shared_ptr<UINT32> m_bg_scroll;
+	optional_shared_ptr<UINT32> m_mahjong_input_select;
+	optional_shared_ptr<UINT8> m_priram;
+	optional_shared_ptr<UINT16> m_palram;
+	optional_shared_ptr<UINT16> m_rozram;
+	optional_shared_ptr<UINT16> m_lineram;
+	optional_shared_ptr<UINT16> m_sprram;
+	optional_shared_ptr<UINT16> m_txram;
+	optional_shared_ptr<UINT16> m_bgram;
+	optional_shared_ptr<UINT16> m_f1superb_extraram;
 	UINT8 *m_nvram_8;
 	UINT32 m_to_main;
 	UINT16 m_irqreq;
@@ -23,15 +42,7 @@ public:
 	tilemap_t *m_roz_tilemap;
 	tilemap_t *m_bg_tilemap;
 	tilemap_t *m_bg_tilemap_alt;
-	UINT8* m_priram_8;
-	UINT16* m_palram_16;
-	UINT16* m_rozram_16;
-	UINT16* m_lineram_16;
-	UINT16* m_sprram_16;
-	UINT16* m_txram_16;
-	UINT16* m_bgram_16;
 	UINT32 m_tilemaplayoutcontrol;
-	UINT16* m_f1superb_extraram_16;
 	tilemap_t* m_extra_tilemap;
 	bitmap_ind16 m_temp_bitmap_tilemaps;
 	bitmap_ind16 m_temp_bitmap_sprites;
@@ -100,4 +111,7 @@ public:
 	void configure_banks();
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	optional_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };

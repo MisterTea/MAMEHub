@@ -14,12 +14,10 @@
 #include "machine/concept_exp.h"
 
 // FDC controller
-#include "machine/wd17xx.h"
 #include "imagedev/flopdrv.h"
 #include "formats/basicdsk.h"
 
 // HDC controller
-#include "includes/corvushd.h"
 #include "imagedev/harddriv.h"
 
 //**************************************************************************
@@ -124,7 +122,8 @@ concept_fdc_device::concept_fdc_device(const machine_config &mconfig, const char
 
 concept_hdc_device::concept_hdc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 					: device_t(mconfig, CONCEPT_HDC, "Corvus Concept HDC controller", tag, owner, clock, "concept_hdc", __FILE__),
-						concept_exp_card_device( mconfig, *this )
+						concept_exp_card_device( mconfig, *this ),
+						m_hdc(*this, "hdc")
 {
 }
 
@@ -167,7 +166,7 @@ enum
 
 void concept_fdc_device::device_start()
 {
-	m_wd179x = subdevice("wd179x");
+	m_wd179x = subdevice<fd1793_device>("wd179x");
 
 	save_item(NAME(m_fdc_local_status));
 	save_item(NAME(m_fdc_local_command));
@@ -197,14 +196,6 @@ WRITE_LINE_MEMBER(concept_fdc_device::drq_w)
 		m_fdc_local_status &= ~LS_DRQ_mask;
 }
 
-const wd17xx_interface concept_wd17xx_interface =
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, concept_fdc_device, intrq_w),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, concept_fdc_device, drq_w),
-	{FLOPPY_0, FLOPPY_1, FLOPPY_2, FLOPPY_3}
-};
-
 READ8_MEMBER(concept_fdc_device::reg_r)
 {
 	switch (offset)
@@ -213,16 +204,16 @@ READ8_MEMBER(concept_fdc_device::reg_r)
 			return m_fdc_local_status;
 
 		case  8:    // FDC STATUS REG
-			return wd17xx_status_r(m_wd179x, space, offset);
+			return m_wd179x->status_r(space, offset);
 
 		case  9:    // FDC TRACK REG
-			return wd17xx_track_r(m_wd179x, space, offset);
+			return m_wd179x->track_r(space, offset);
 
 		case 10:    // FDC SECTOR REG
-			return wd17xx_sector_r(m_wd179x, space, offset);
+			return m_wd179x->sector_r(space, offset);
 
 		case 11:    // FDC DATA REG
-			return wd17xx_data_r(m_wd179x, space, offset);
+			return m_wd179x->data_r(space, offset);
 	}
 
 	return 0;
@@ -237,30 +228,30 @@ WRITE8_MEMBER(concept_fdc_device::reg_w)
 		case 0:     // LOCAL COMMAND REG
 			m_fdc_local_command = data;
 
-			wd17xx_set_side(m_wd179x, (data & LC_FLPSD1_mask) != 0);
+			m_wd179x->set_side((data & LC_FLPSD1_mask) != 0);
 			current_drive = ((data >> LC_DE0_bit) & 1) | ((data >> (LC_DE1_bit-1)) & 2);
-			wd17xx_set_drive(m_wd179x, current_drive);
+			m_wd179x->set_drive(current_drive);
 			/*motor_on = (data & LC_MOTOROF_mask) == 0;*/
 			// floppy_drive_set_motor_state(floppy_get_device(machine(),  current_drive), (data & LC_MOTOROF_mask) == 0 ? 1 : 0);
 			/*flp_8in = (data & LC_FLP8IN_mask) != 0;*/
-			wd17xx_dden_w(m_wd179x, BIT(data, 7));
-			floppy_drive_set_ready_state(floppy_get_device(machine(), current_drive), 1, 0);
+			m_wd179x->dden_w(BIT(data, 7));
+			floppy_get_device(machine(), current_drive)->floppy_drive_set_ready_state(1, 0);
 			break;
 
 		case  8:    // FDC COMMAMD REG
-			wd17xx_command_w(m_wd179x, space, offset, data);
+			m_wd179x->command_w(space, offset, data);
 			break;
 
 		case  9:    // FDC TRACK REG
-			wd17xx_track_w(m_wd179x, space, offset, data);
+			m_wd179x->track_w(space, offset, data);
 			break;
 
 		case 10:    // FDC SECTOR REG
-			wd17xx_sector_w(m_wd179x, space, offset, data);
+			m_wd179x->sector_w(space, offset, data);
 			break;
 
 		case 11:    // FDC DATA REG
-			wd17xx_data_w(m_wd179x, space, offset, data);
+			m_wd179x->data_w(space, offset, data);
 			break;
 	}
 }
@@ -317,20 +308,18 @@ LEGACY_FLOPPY_OPTIONS_END
 
 static const floppy_interface concept_floppy_interface =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSHD,
 	LEGACY_FLOPPY_OPTIONS_NAME(concept),
-	NULL,
 	NULL
 };
 
 
 static MACHINE_CONFIG_FRAGMENT( fdc )
-	MCFG_FD1793_ADD("wd179x", concept_wd17xx_interface )
+	MCFG_DEVICE_ADD("wd179x", FD1793, 0)
+	MCFG_WD17XX_DEFAULT_DRIVE4_TAGS
+	MCFG_WD17XX_INTRQ_CALLBACK(WRITELINE(concept_fdc_device, intrq_w))
+	MCFG_WD17XX_DRQ_CALLBACK(WRITELINE(concept_fdc_device, drq_w))
+
 	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(concept_floppy_interface)
 MACHINE_CONFIG_END
 
@@ -344,7 +333,6 @@ machine_config_constructor concept_fdc_device::device_mconfig_additions() const
 
 void concept_hdc_device::device_start()
 {
-	corvus_hdc_init(machine());
 }
 
 
@@ -359,10 +347,10 @@ READ8_MEMBER(concept_hdc_device::reg_r)
 	switch (offset)
 	{
 		case 0:     // HDC Data Register
-			return corvus_hdc_data_r(space, offset);
+			return m_hdc->read(space, offset);
 
 		case 1:     // HDC Status Register
-			return corvus_hdc_status_r(space, offset);
+			return m_hdc->status_r(space, offset);
 	}
 
 	return 0;
@@ -374,7 +362,7 @@ WRITE8_MEMBER(concept_hdc_device::reg_w)
 	switch (offset)
 	{
 		case 0:     // HDC Data Register
-			corvus_hdc_data_w(space, offset, data);
+			m_hdc->write(space, offset, data);
 			break;
 	}
 }
@@ -389,6 +377,7 @@ READ8_MEMBER(concept_hdc_device::rom_r)
 
 
 static MACHINE_CONFIG_FRAGMENT( hdc )
+	MCFG_DEVICE_ADD("hdc", CORVUS_HDC, 0)
 	MCFG_HARDDISK_ADD( "harddisk1" )
 MACHINE_CONFIG_END
 

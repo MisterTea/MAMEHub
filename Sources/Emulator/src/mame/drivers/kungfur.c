@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:hap, Angelo Salese, Roberto Fresca
 /***************************************************************************
 
 KUNG-FU ROUSHI
@@ -69,7 +71,8 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_adpcm1(*this, "adpcm1"),
-		m_adpcm2(*this, "adpcm2") { }
+		m_adpcm2(*this, "adpcm2")
+	{ }
 
 	UINT8 m_latch[3];
 	UINT8 m_control;
@@ -265,41 +268,6 @@ INPUT_PORTS_END
 
 ***************************************************************************/
 
-static I8255A_INTERFACE( ppi8255_0_intf )
-{
-	// $4008 - always $83 (PPI mode 0, ports B & lower C as input)
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_DRIVER_MEMBER(kungfur_state,kungfur_output_w),    /* Port A write */
-	DEVCB_INPUT_PORT("IN0"),            /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_INPUT_PORT("IN1"),            /* Port C read */
-	DEVCB_DRIVER_MEMBER(kungfur_state,kungfur_control_w)    /* Port C write */
-};
-
-static I8255A_INTERFACE( ppi8255_1_intf )
-{
-	// $400c - always $80 (PPI mode 0, all ports as output)
-	DEVCB_NULL,                         /* Port A read */
-	DEVCB_DRIVER_MEMBER(kungfur_state,kungfur_latch1_w),    /* Port A write */
-	DEVCB_NULL,                         /* Port B read */
-	DEVCB_DRIVER_MEMBER(kungfur_state,kungfur_latch2_w),    /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_DRIVER_MEMBER(kungfur_state,kungfur_latch3_w)     /* Port C write */
-};
-
-
-static const msm5205_interface msm5205_config_1 =
-{
-	DEVCB_DRIVER_LINE_MEMBER(kungfur_state,kfr_adpcm1_int),
-	MSM5205_S48_4B
-};
-
-static const msm5205_interface msm5205_config_2 =
-{
-	DEVCB_DRIVER_LINE_MEMBER(kungfur_state,kfr_adpcm2_int),
-	MSM5205_S48_4B
-};
-
 void kungfur_state::machine_start()
 {
 	save_item(NAME(m_control));
@@ -322,20 +290,31 @@ static MACHINE_CONFIG_START( kungfur, kungfur_state )
 	MCFG_CPU_PROGRAM_MAP(kungfur_map)
 	MCFG_CPU_PERIODIC_INT_DRIVER(kungfur_state, kungfur_irq,  975)      // close approximation
 
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_0_intf )
-	MCFG_I8255A_ADD( "ppi8255_1", ppi8255_1_intf )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	// $4008 - always $83 (PPI mode 0, ports B & lower C as input)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(kungfur_state, kungfur_output_w))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN0"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("IN1"))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(kungfur_state, kungfur_control_w))
 
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	// $400c - always $80 (PPI mode 0, all ports as output)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(kungfur_state, kungfur_latch1_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(kungfur_state, kungfur_latch2_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(kungfur_state, kungfur_latch3_w))
 
 	/* no video! */
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("adpcm1", MSM5205, XTAL_384kHz)  // clock verified with recording
-	MCFG_SOUND_CONFIG(msm5205_config_1)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(kungfur_state, kfr_adpcm1_int))
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 
 	MCFG_SOUND_ADD("adpcm2", MSM5205, XTAL_384kHz)  // "
-	MCFG_SOUND_CONFIG(msm5205_config_2)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(kungfur_state, kfr_adpcm2_int))
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 MACHINE_CONFIG_END
 

@@ -94,27 +94,36 @@ tc0080vco_device::tc0080vco_device(const machine_config &mconfig, const char *ta
 	m_bg0_scrolly(0),
 	m_bg1_scrollx(0),
 	m_bg1_scrolly(0),
-	m_flipscreen(0)
+	m_flipscreen(0),
+	m_gfxnum(0),
+	m_txnum(0),
+	m_bg_xoffs(0),
+	m_bg_yoffs(0),
+	m_bg_flip_yoffs(0),
+	m_has_fg0(1),
+	m_gfxdecode(*this),
+	m_palette(*this)
 {
 }
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
 //-------------------------------------------------
 
-void tc0080vco_device::device_config_complete()
+void tc0080vco_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
 {
-	// inherit a copy of the static data
-	const tc0080vco_interface *intf = reinterpret_cast<const tc0080vco_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<tc0080vco_interface *>(this) = *intf;
+	downcast<tc0080vco_device &>(device).m_gfxdecode.set_tag(tag);
+}
 
-	// or initialize to defaults if none provided
-	else
-	{
-	}
+//-------------------------------------------------
+//  static_set_palette_tag: Set the tag of the
+//  palette device
+//-------------------------------------------------
+
+void tc0080vco_device::static_set_palette_tag(device_t &device, const char *tag)
+{
+	downcast<tc0080vco_device &>(device).m_palette.set_tag(tag);
 }
 
 //-------------------------------------------------
@@ -138,8 +147,11 @@ void tc0080vco_device::device_start()
 	16*8
 	};
 
-	m_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0080vco_device::get_bg0_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
-	m_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0080vco_device::get_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
+	if(!m_gfxdecode->started())
+		throw device_missing_dependencies();
+
+	m_tilemap[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0080vco_device::get_bg0_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
+	m_tilemap[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0080vco_device::get_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
 
 	m_tilemap[0]->set_transparent_pen(0);
 	m_tilemap[1]->set_transparent_pen(0);
@@ -153,7 +165,7 @@ void tc0080vco_device::device_start()
 	m_tilemap[0]->set_scroll_rows(512);
 
 	/* Perform extra initialisations for text layer */
-	m_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0080vco_device::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	m_tilemap[2] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0080vco_device::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 
 	m_tilemap[2]->set_scrolldx(0, 0);
 	m_tilemap[2]->set_scrolldy(48, -448);
@@ -179,7 +191,7 @@ void tc0080vco_device::device_start()
 	m_scroll_ram    = m_ram + 0x20800 / 2;
 
 	/* create the char set (gfx will then be updated dynamically from RAM) */
-	machine().gfx[m_txnum] = auto_alloc_clear(machine(), gfx_element(machine(), charlayout, (UINT8 *)m_char_ram, 64, 0));
+	m_gfxdecode->set_gfx(m_txnum, global_alloc(gfx_element(m_palette, charlayout, (UINT8 *)m_char_ram, 0, 64, 0)));
 
 	save_pointer(NAME(m_ram), TC0080VCO_RAM_SIZE / 2);
 	machine().save().register_postload(save_prepost_delegate(FUNC(tc0080vco_device::postload), this));
@@ -217,8 +229,7 @@ TILE_GET_INFO_MEMBER(tc0080vco_device::get_bg0_tile_info)
 
 	tileinfo.category = 0;
 
-	SET_TILE_INFO_MEMBER(
-			m_gfxnum,
+	SET_TILE_INFO_MEMBER(m_gfxnum,
 			tile,
 			color,
 			TILE_FLIPYX((m_bg0_ram_1[tile_index] & 0x00c0) >> 6));
@@ -233,8 +244,7 @@ TILE_GET_INFO_MEMBER(tc0080vco_device::get_bg1_tile_info)
 
 	tileinfo.category = 0;
 
-	SET_TILE_INFO_MEMBER(
-			m_gfxnum,
+	SET_TILE_INFO_MEMBER(m_gfxnum,
 			tile,
 			color,
 			TILE_FLIPYX((m_bg1_ram_1[tile_index] & 0x00c0) >> 6));
@@ -261,8 +271,7 @@ TILE_GET_INFO_MEMBER(tc0080vco_device::get_tx_tile_info)
 		tileinfo.category = 0;
 	}
 
-	SET_TILE_INFO_MEMBER(
-			m_txnum,
+	SET_TILE_INFO_MEMBER(m_txnum,
 			tile,
 			0x40,
 			0);     /* 0x20<<1 as 3bpp */
@@ -320,7 +329,7 @@ WRITE16_MEMBER( tc0080vco_device::word_w )
 
 	if (offset < 0x1000 / 2)
 	{
-		space.machine().gfx[m_txnum]->mark_dirty(offset / 8);
+		m_gfxdecode->gfx(m_txnum)->mark_dirty(offset / 8);
 #if 0
 		if (!m_has_fg0)
 		{
@@ -351,7 +360,7 @@ WRITE16_MEMBER( tc0080vco_device::word_w )
 
 	else if (offset < 0x11000 / 2)
 	{
-		space.machine().gfx[m_txnum]->mark_dirty((offset - 0x10000 / 2) / 8);
+		m_gfxdecode->gfx(m_txnum)->mark_dirty((offset - 0x10000 / 2) / 8);
 #if 0
 		if (!m_has_fg0)
 		{

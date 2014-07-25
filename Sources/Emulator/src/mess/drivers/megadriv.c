@@ -1,21 +1,13 @@
 
 #include "emu.h"
-#include "includes/megadriv.h"
-#include "machine/md_slot.h"
-#include "machine/md_rom.h"
-#include "machine/md_svp.h"
-#include "machine/md_sk.h"
-#include "machine/md_eeprom.h"
-#include "machine/md_jcart.h"
-#include "machine/md_stm95.h"
-
+#include "includes/md_cons.h"
 #include "sound/sn76496.h"
 
 #include "imagedev/chd_cd.h"
 #include "imagedev/cartslot.h"
 
 #include "formats/imageutl.h"
-#include "includes/md_cons.h"
+
 
 /*************************************
  *
@@ -91,7 +83,7 @@ READ8_MEMBER(md_cons_state::mess_md_io_read_data_port)
 			}
 		}
 
-	//  mame_printf_debug("read io data port stage %d port %d %02x\n",mess_io_stage[portnum],portnum,retdata);
+	//  osd_printf_debug("read io data port stage %d port %d %02x\n",mess_io_stage[portnum],portnum,retdata);
 
 		retdata |= (retdata << 8);
 	}
@@ -159,7 +151,7 @@ WRITE16_MEMBER(md_cons_state::mess_md_io_write_data_port)
 		}
 	}
 	m_megadrive_io_data_regs[portnum] = data;
-	//mame_printf_debug("Writing IO Data Register #%d data %04x\n",portnum,data);
+	//osd_printf_debug("Writing IO Data Register #%d data %04x\n",portnum,data);
 }
 
 
@@ -251,28 +243,6 @@ INPUT_PORTS_END
  *
  *************************************/
 
-
-UINT16 vdp_get_word_from_68k_mem_console(running_machine &machine, UINT32 source, address_space & space68k)
-{
-	md_cons_state *state = machine.driver_data<md_cons_state>();
-
-	if (source <= 0x3fffff)
-	{
-		if (state->m_slotcart->get_type() == SEGA_SVP)
-		{
-			source -= 2; // the SVP introduces some kind of DMA 'lag', which we have to compensate for, this is obvious even on gfx DMAd from ROM (the Speedometer)
-		}
-		return space68k.read_word(source);
-	}
-	else if ((source >= 0xe00000) && (source <= 0xffffff))
-		return space68k.read_word(source);
-	else
-	{
-		printf("DMA Read unmapped %06x\n",source);
-		return machine.rand();
-	}
-}
-
 MACHINE_START_MEMBER(md_cons_state, md_common)
 {
 	static const char *const pad6names[2][4] = {
@@ -293,13 +263,17 @@ MACHINE_START_MEMBER(md_cons_state, md_common)
 	// setup timers for 6 button pads
 	for (int i = 0; i < 3; i++)
 		m_io_timeout[i] = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(md_base_state::io_timeout_timer_callback),this), (void*)(FPTR)i);
+
+	m_vdp->stop_timers();
 }
 
 MACHINE_START_MEMBER(md_cons_state, ms_megadriv)
 {
 	MACHINE_START_CALL_MEMBER( md_common );
 
-	vdp_get_word_from_68k_mem = vdp_get_word_from_68k_mem_console;
+	// the SVP introduces some kind of DMA 'lag', which we have to compensate for, this is obvious even on gfx DMAd from ROM (the Speedometer)
+	if (m_slotcart->get_type() == SEGA_SVP)
+		m_vdp->set_dma_delay(2);
 
 	// for now m_cartslot is only in MD and not 32x and SegaCD
 	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7fffff, read16_delegate(FUNC(base_md_cart_slot_device::read),(base_md_cart_slot_device*)m_slotcart), write16_delegate(FUNC(base_md_cart_slot_device::write),(base_md_cart_slot_device*)m_slotcart));
@@ -308,77 +282,60 @@ MACHINE_START_MEMBER(md_cons_state, ms_megadriv)
 	m_maincpu->space(AS_PROGRAM).install_write_handler(0xa14000, 0xa14003, write16_delegate(FUNC(base_md_cart_slot_device::write_tmss_bank),(base_md_cart_slot_device*)m_slotcart));
 }
 
-MACHINE_RESET_MEMBER(md_cons_state,ms_megadriv )
+MACHINE_START_MEMBER(md_cons_state, ms_megacd)
+{
+	MACHINE_START_CALL_MEMBER( md_common );
+
+	// the segaCD introduces some kind of DMA 'lag', which we have to compensate for,
+	// at least when reading wordram? we might need to check what mode we're in the DMA...
+	m_vdp->set_dma_delay(2);
+}
+
+MACHINE_RESET_MEMBER(md_cons_state, ms_megadriv)
 {
 	m_maincpu->reset();
 	MACHINE_RESET_CALL_MEMBER( megadriv );
+
+	// if the system has a 32x, pause the extra CPUs until they are actually turned on
+	if (m_32x)
+		m_32x->pause_cpu();
 }
 
-static SLOT_INTERFACE_START(md_cart)
-	SLOT_INTERFACE_INTERNAL("rom",  MD_STD_ROM)
-	SLOT_INTERFACE_INTERNAL("rom_svp",  MD_ROM_SVP)
-	SLOT_INTERFACE_INTERNAL("rom_sk",  MD_ROM_SK)
-// NVRAM handling
-	SLOT_INTERFACE_INTERNAL("rom_sram",  MD_ROM_SRAM)
-	SLOT_INTERFACE_INTERNAL("rom_sramsafe",  MD_ROM_SRAM)
-	SLOT_INTERFACE_INTERNAL("rom_fram",  MD_ROM_FRAM)
-	SLOT_INTERFACE_INTERNAL("rom_hardbl95", MD_ROM_SRAM)
-	SLOT_INTERFACE_INTERNAL("rom_xinqig",  MD_ROM_SRAM)
-	SLOT_INTERFACE_INTERNAL("rom_beggarp",  MD_ROM_BEGGARP)
-	SLOT_INTERFACE_INTERNAL("rom_wukong",  MD_ROM_WUKONG)
-// EEPROM handling (not supported fully yet)
-	SLOT_INTERFACE_INTERNAL("rom_eeprom",  MD_STD_EEPROM)
-	SLOT_INTERFACE_INTERNAL("rom_nbajam",  MD_EEPROM_NBAJAM)
-	SLOT_INTERFACE_INTERNAL("rom_nbajamte",  MD_EEPROM_NBAJAMTE)
-	SLOT_INTERFACE_INTERNAL("rom_nflqb96",  MD_EEPROM_NFLQB)
-	SLOT_INTERFACE_INTERNAL("rom_cslam",  MD_EEPROM_CSLAM)
-	SLOT_INTERFACE_INTERNAL("rom_nhlpa",  MD_EEPROM_NHLPA)
-	SLOT_INTERFACE_INTERNAL("rom_blara",  MD_EEPROM_BLARA)
-// J-Cart controller (Sampras Tennis)
-	SLOT_INTERFACE_INTERNAL("rom_jcart",  MD_JCART)
-// J-Cart controller + EEPROM handling (not supported fully yet)
-	SLOT_INTERFACE_INTERNAL("rom_codemast",  MD_SEPROM_CODEMAST)
-	SLOT_INTERFACE_INTERNAL("rom_mm96",  MD_SEPROM_MM96)
-// STM95 EEPROM
-	SLOT_INTERFACE_INTERNAL("rom_stm95",  MD_EEPROM_STM95)
-// CodeMasters 2-in-1 (reset based)
-	SLOT_INTERFACE_INTERNAL("rom_cm2in1",  MD_ROM_CM2IN1)
-// unique bankswitch
-	SLOT_INTERFACE_INTERNAL("rom_ssf2",  MD_ROM_SSF2)
-	SLOT_INTERFACE_INTERNAL("rom_radica",  MD_ROM_RADICA)
-// pirate mappers (protection and/or bankswitch)
-	SLOT_INTERFACE_INTERNAL("rom_16mj2",  MD_ROM_16MJ2)
-	SLOT_INTERFACE_INTERNAL("rom_bugs",  MD_ROM_BUGSLIFE)
-	SLOT_INTERFACE_INTERNAL("rom_chinf3",  MD_ROM_CHINF3)
-	SLOT_INTERFACE_INTERNAL("rom_elfwor",  MD_ROM_ELFWOR)
-	SLOT_INTERFACE_INTERNAL("rom_yasech",  MD_ROM_YASECH)
-	SLOT_INTERFACE_INTERNAL("rom_kof98",  MD_ROM_KOF98)
-	SLOT_INTERFACE_INTERNAL("rom_kof99",  MD_ROM_KOF99)
-	SLOT_INTERFACE_INTERNAL("rom_lion2",  MD_ROM_LION2)
-	SLOT_INTERFACE_INTERNAL("rom_lion3",  MD_ROM_LION3)
-	SLOT_INTERFACE_INTERNAL("rom_mcpir",  MD_ROM_MCPIR)
-	SLOT_INTERFACE_INTERNAL("rom_mjlov",  MD_ROM_MJLOV)
-	SLOT_INTERFACE_INTERNAL("rom_pokea",  MD_ROM_POKEA)
-	SLOT_INTERFACE_INTERNAL("rom_pokestad",  MD_ROM_POKESTAD)
-	SLOT_INTERFACE_INTERNAL("rom_realtec",  MD_ROM_REALTEC)
-	SLOT_INTERFACE_INTERNAL("rom_redcl",  MD_ROM_REDCL)
-	SLOT_INTERFACE_INTERNAL("rom_rx3",  MD_ROM_RX3)
-	SLOT_INTERFACE_INTERNAL("rom_sbubl",  MD_ROM_SBUBL)
-	SLOT_INTERFACE_INTERNAL("rom_smb",  MD_ROM_SMB)
-	SLOT_INTERFACE_INTERNAL("rom_smb2",  MD_ROM_SMB2)
-	SLOT_INTERFACE_INTERNAL("rom_smw64",  MD_ROM_SMW64)
-	SLOT_INTERFACE_INTERNAL("rom_smouse",  MD_ROM_SMOUSE)
-	SLOT_INTERFACE_INTERNAL("rom_soulb",  MD_ROM_SOULB)
-	SLOT_INTERFACE_INTERNAL("rom_squir",  MD_ROM_SQUIR)
-	SLOT_INTERFACE_INTERNAL("rom_tekkensp",  MD_ROM_TEKKENSP)
-	SLOT_INTERFACE_INTERNAL("rom_topf",  MD_ROM_TOPF)
-SLOT_INTERFACE_END
+// same as screen_eof_megadriv but with addition of 32x and SegaCD/MegaCD pieces
+void md_cons_state::screen_eof_console(screen_device &screen, bool state)
+{
+	if (m_io_reset->read_safe(0x00) & 0x01)
+		m_maincpu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+
+	// rising edge
+	if (state)
+	{
+		if (!m_vdp->m_use_alt_timing)
+		{
+			bool mode3 = (m_vdp->get_imode() == 3);
+			m_vdp->vdp_handle_eof();
+			m_vdp->m_megadriv_scanline_timer->adjust(attotime::zero);
+
+			if (m_32x)
+			{
+				m_32x->m_32x_vblank_flag = 0;
+				m_32x->m_32x_hcount_compare_val = -1;
+				m_32x->update_total_scanlines(mode3);
+			}
+			if (m_segacd)
+				m_segacd->update_total_scanlines(mode3);
+		}
+	}
+}
 
 static MACHINE_CONFIG_START( ms_megadriv, md_cons_state )
 	MCFG_FRAGMENT_ADD( md_ntsc )
 
-	MCFG_MACHINE_START_OVERRIDE( md_cons_state, ms_megadriv )
-	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+	MCFG_MACHINE_START_OVERRIDE(md_cons_state, ms_megadriv)
+	MCFG_MACHINE_RESET_OVERRIDE(md_cons_state, ms_megadriv)
+
+	MCFG_SCREEN_MODIFY("megadriv")
+	MCFG_SCREEN_VBLANK_DRIVER(md_cons_state, screen_eof_console)
 
 	MCFG_MD_CARTRIDGE_ADD("mdslot", md_cart, NULL)
 	MCFG_SOFTWARE_LIST_ADD("cart_list","megadriv")
@@ -387,8 +344,11 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( ms_megadpal, md_cons_state )
 	MCFG_FRAGMENT_ADD( md_pal )
 
-	MCFG_MACHINE_START_OVERRIDE( md_cons_state, ms_megadriv )
-	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+	MCFG_MACHINE_START_OVERRIDE(md_cons_state, ms_megadriv)
+	MCFG_MACHINE_RESET_OVERRIDE(md_cons_state, ms_megadriv)
+
+	MCFG_SCREEN_MODIFY("megadriv")
+	MCFG_SCREEN_VBLANK_DRIVER(md_cons_state, screen_eof_console)
 
 	MCFG_MD_CARTRIDGE_ADD("mdslot", md_cart, NULL)
 	MCFG_SOFTWARE_LIST_ADD("cart_list","megadriv")
@@ -428,43 +388,86 @@ ROM_END
  *
  *************************************/
 
-DRIVER_INIT_MEMBER(md_cons_state,mess_md_common)
+DRIVER_INIT_MEMBER(md_cons_state, mess_md_common)
 {
 	m_megadrive_io_read_data_port_ptr = read8_delegate(FUNC(md_cons_state::mess_md_io_read_data_port),this);
 	m_megadrive_io_write_data_port_ptr = write16_delegate(FUNC(md_cons_state::mess_md_io_write_data_port),this);
 }
 
-DRIVER_INIT_MEMBER(md_cons_state,genesis)
+DRIVER_INIT_MEMBER(md_cons_state, genesis)
 {
 	DRIVER_INIT_CALL(megadriv);
 	DRIVER_INIT_CALL(mess_md_common);
+
+	if (m_32x)
+	{
+		m_32x->set_32x_pal(FALSE);
+		m_32x->set_framerate(60);
+		m_32x->set_total_scanlines(262);
+	}
+	if (m_segacd)
+	{
+		m_segacd->set_framerate(60);
+		m_segacd->set_total_scanlines(262);
+	}
+
+	m_version_hi_nibble = 0x80; // Export NTSC
+	if (!m_segacd)
+		m_version_hi_nibble |= 0x20;
 }
 
-DRIVER_INIT_MEMBER(md_cons_state,md_eur)
+DRIVER_INIT_MEMBER(md_cons_state, md_eur)
 {
 	DRIVER_INIT_CALL(megadrie);
 	DRIVER_INIT_CALL(mess_md_common);
+
+	if (m_32x)
+	{
+		m_32x->set_32x_pal(TRUE);
+		m_32x->set_framerate(50);
+		m_32x->set_total_scanlines(313);
+	}
+	if (m_segacd)
+	{
+		m_segacd->set_framerate(50);
+		m_segacd->set_total_scanlines(313);
+	}
+
+	m_version_hi_nibble = 0xc0; // Export PAL
+	if (!m_segacd)
+		m_version_hi_nibble |= 0x20;
 }
 
-DRIVER_INIT_MEMBER(md_cons_state,md_jpn)
+DRIVER_INIT_MEMBER(md_cons_state, md_jpn)
 {
 	DRIVER_INIT_CALL(megadrij);
 	DRIVER_INIT_CALL(mess_md_common);
+
+	if (m_32x)
+	{
+		m_32x->set_32x_pal(FALSE);
+		m_32x->set_framerate(60);
+		m_32x->set_total_scanlines(262);
+	}
+	if (m_segacd)
+	{
+		m_segacd->set_framerate(60);
+		m_segacd->set_total_scanlines(262);
+	}
+
+	m_version_hi_nibble = 0x00; // JPN NTSC
+	if (!m_segacd)
+		m_version_hi_nibble |= 0x20;
 }
 
 /****************************************** 32X emulation ****************************************/
 
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
 // FIXME: non-softlist loading should keep using ROM_CART_LOAD in the ROM definitions,
 // once we better integrate softlist with the old loading procedures
-DEVICE_IMAGE_LOAD_MEMBER( md_base_state, _32x_cart )
+DEVICE_IMAGE_LOAD_MEMBER( md_cons_state, _32x_cart )
 {
 	UINT32 length;
-	UINT8 *temp_copy;
+	dynamic_buffer temp_copy;
 	UINT16 *ROM16;
 	UINT32 *ROM32;
 	int i;
@@ -472,13 +475,13 @@ DEVICE_IMAGE_LOAD_MEMBER( md_base_state, _32x_cart )
 	if (image.software_entry() == NULL)
 	{
 		length = image.length();
-		temp_copy = auto_alloc_array(machine(), UINT8, length);
+		temp_copy.resize(length);
 		image.fread(temp_copy, length);
 	}
 	else
 	{
 		length = image.get_software_region_length("rom");
-		temp_copy = auto_alloc_array(machine(), UINT8, length);
+		temp_copy.resize(length);
 		memcpy(temp_copy, image.get_software_region("rom"), length);
 	}
 
@@ -496,19 +499,44 @@ DEVICE_IMAGE_LOAD_MEMBER( md_base_state, _32x_cart )
 	for (i = 0x00; i < length; i += 2)
 		ROM16[i / 2] = pick_integer_be(temp_copy, i, 2);
 
-	auto_free(machine(), temp_copy);
-
 	return IMAGE_INIT_PASS;
 }
 
 
+void md_cons_state::_32x_scanline_callback(int x, UINT32 priority, UINT16 &lineptr)
+{
+	if (m_32x)
+		m_32x->_32x_render_videobuffer_to_screenbuffer(x, priority, lineptr);
+}
+
+void md_cons_state::_32x_interrupt_callback(int scanline, int irq6)
+{
+	if (m_32x)
+		m_32x->_32x_interrupt_cb(scanline, irq6);
+}
+
+void md_cons_state::_32x_scanline_helper_callback(int scanline)
+{
+	if (m_32x)
+		m_32x->_32x_render_videobuffer_to_screenbuffer_helper(scanline);
+}
+
 static MACHINE_CONFIG_START( genesis_32x, md_cons_state )
 	MCFG_FRAGMENT_ADD( md_ntsc )
 
-	MCFG_MACHINE_START_OVERRIDE( md_cons_state, md_common )
-	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+	MCFG_MACHINE_START_OVERRIDE(md_cons_state, md_common)
+	MCFG_MACHINE_RESET_OVERRIDE(md_cons_state, ms_megadriv)
+
+	MCFG_DEVICE_MODIFY("gen_vdp")
+	MCFG_SEGA315_5313_32X_SCANLINE_CB(md_cons_state, _32x_scanline_callback);
+	MCFG_SEGA315_5313_32X_SCANLINE_HELPER_CB(md_cons_state, _32x_scanline_helper_callback);
+	MCFG_SEGA315_5313_32X_INTERRUPT_CB(md_cons_state, _32x_interrupt_callback);
 
 	MCFG_DEVICE_ADD("sega32x", SEGA_32X_NTSC, 0)
+	MCFG_SEGA_32X_PALETTE("gen_vdp:palette")
+
+	MCFG_SCREEN_MODIFY("megadriv")
+	MCFG_SCREEN_VBLANK_DRIVER(md_cons_state, screen_eof_console)
 
 	// we need to remove and re-add the sound system because the balance is different
 	// due to MAME / MESS having severe issues if the dac output is > 0.40? (sound is corrupted even if DAC is slient?!)
@@ -521,7 +549,6 @@ static MACHINE_CONFIG_START( genesis_32x, md_cons_state )
 
 	/* sound hardware */
 	MCFG_SOUND_ADD("snsnd", SEGAPSG, MASTER_CLOCK_NTSC/15)
-	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", (0.25)/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", (0.25)/2)
 
@@ -529,7 +556,7 @@ static MACHINE_CONFIG_START( genesis_32x, md_cons_state )
 	MCFG_CARTSLOT_EXTENSION_LIST("32x,bin")
 	MCFG_CARTSLOT_MANDATORY
 	MCFG_CARTSLOT_INTERFACE("_32x_cart")
-	MCFG_CARTSLOT_LOAD(md_base_state, _32x_cart)
+	MCFG_CARTSLOT_LOAD(md_cons_state, _32x_cart)
 
 	MCFG_SOFTWARE_LIST_ADD("cart_list","32x")
 	MCFG_SOFTWARE_LIST_FILTER("cart_list","NTSC-U")
@@ -539,10 +566,19 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( mdj_32x, md_cons_state )
 	MCFG_FRAGMENT_ADD( md_ntsc )
 
-	MCFG_MACHINE_START_OVERRIDE( md_cons_state, md_common )
-	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+	MCFG_MACHINE_START_OVERRIDE(md_cons_state, md_common)
+	MCFG_MACHINE_RESET_OVERRIDE(md_cons_state, ms_megadriv)
+
+	MCFG_DEVICE_MODIFY("gen_vdp")
+	MCFG_SEGA315_5313_32X_SCANLINE_CB(md_cons_state, _32x_scanline_callback);
+	MCFG_SEGA315_5313_32X_SCANLINE_HELPER_CB(md_cons_state, _32x_scanline_helper_callback);
+	MCFG_SEGA315_5313_32X_INTERRUPT_CB(md_cons_state, _32x_interrupt_callback);
 
 	MCFG_DEVICE_ADD("sega32x", SEGA_32X_NTSC, 0)
+	MCFG_SEGA_32X_PALETTE("gen_vdp:palette")
+
+	MCFG_SCREEN_MODIFY("megadriv")
+	MCFG_SCREEN_VBLANK_DRIVER(md_cons_state, screen_eof_console)
 
 	// we need to remove and re-add the sound system because the balance is different
 	// due to MAME / MESS having severe issues if the dac output is > 0.40? (sound is corrupted even if DAC is slient?!)
@@ -555,7 +591,6 @@ static MACHINE_CONFIG_START( mdj_32x, md_cons_state )
 
 	/* sound hardware */
 	MCFG_SOUND_ADD("snsnd", SEGAPSG, MASTER_CLOCK_NTSC/15)
-	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", (0.25)/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", (0.25)/2)
 
@@ -563,7 +598,7 @@ static MACHINE_CONFIG_START( mdj_32x, md_cons_state )
 	MCFG_CARTSLOT_EXTENSION_LIST("32x,bin")
 	MCFG_CARTSLOT_MANDATORY
 	MCFG_CARTSLOT_INTERFACE("_32x_cart")
-	MCFG_CARTSLOT_LOAD(md_base_state, _32x_cart)
+	MCFG_CARTSLOT_LOAD(md_cons_state, _32x_cart)
 
 	MCFG_SOFTWARE_LIST_ADD("cart_list","32x")
 	MCFG_SOFTWARE_LIST_FILTER("cart_list","NTSC-J")
@@ -573,10 +608,19 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( md_32x, md_cons_state )
 	MCFG_FRAGMENT_ADD( md_pal )
 
-	MCFG_MACHINE_START_OVERRIDE( md_cons_state, md_common )
-	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+	MCFG_MACHINE_START_OVERRIDE(md_cons_state, md_common)
+	MCFG_MACHINE_RESET_OVERRIDE(md_cons_state, ms_megadriv)
+
+	MCFG_DEVICE_MODIFY("gen_vdp")
+	MCFG_SEGA315_5313_32X_SCANLINE_CB(md_cons_state, _32x_scanline_callback);
+	MCFG_SEGA315_5313_32X_SCANLINE_HELPER_CB(md_cons_state, _32x_scanline_helper_callback);
+	MCFG_SEGA315_5313_32X_INTERRUPT_CB(md_cons_state, _32x_interrupt_callback);
 
 	MCFG_DEVICE_ADD("sega32x", SEGA_32X_PAL, 0)
+	MCFG_SEGA_32X_PALETTE("gen_vdp:palette")
+
+	MCFG_SCREEN_MODIFY("megadriv")
+	MCFG_SCREEN_VBLANK_DRIVER(md_cons_state, screen_eof_console)
 
 	// we need to remove and re-add the sound system because the balance is different
 	// due to MAME / MESS having severe issues if the dac output is > 0.40? (sound is corrupted even if DAC is slient?!)
@@ -589,7 +633,6 @@ static MACHINE_CONFIG_START( md_32x, md_cons_state )
 
 	/* sound hardware */
 	MCFG_SOUND_ADD("snsnd", SEGAPSG, MASTER_CLOCK_NTSC/15)
-	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", (0.25)/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", (0.25)/2)
 
@@ -597,7 +640,7 @@ static MACHINE_CONFIG_START( md_32x, md_cons_state )
 	MCFG_CARTSLOT_EXTENSION_LIST("32x,bin")
 	MCFG_CARTSLOT_MANDATORY
 	MCFG_CARTSLOT_INTERFACE("_32x_cart")
-	MCFG_CARTSLOT_LOAD(md_base_state, _32x_cart)
+	MCFG_CARTSLOT_LOAD(md_cons_state, _32x_cart)
 
 	MCFG_SOFTWARE_LIST_ADD("cart_list","32x")
 	MCFG_SOFTWARE_LIST_FILTER("cart_list","PAL")
@@ -637,20 +680,20 @@ ROM_END
 
 /****************************************** SegaCD emulation ****************************************/
 
-struct cdrom_interface scd_cdrom =
-{
-	"scd_cdrom",
-	NULL
-};
-
 static MACHINE_CONFIG_START( genesis_scd, md_cons_state )
 	MCFG_FRAGMENT_ADD( md_ntsc )
 
-	MCFG_MACHINE_START_OVERRIDE( md_cons_state, md_common )
-	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+	MCFG_MACHINE_START_OVERRIDE(md_cons_state, ms_megacd)
+	MCFG_MACHINE_RESET_OVERRIDE(md_cons_state, ms_megadriv)
+
+	MCFG_SCREEN_MODIFY("megadriv")
+	MCFG_SCREEN_VBLANK_DRIVER(md_cons_state, screen_eof_console)
 
 	MCFG_DEVICE_ADD("segacd", SEGA_SEGACD_US, 0)
-	MCFG_CDROM_ADD( "cdrom",scd_cdrom )
+	MCFG_GFX_PALETTE("gen_vdp:palette")
+
+	MCFG_CDROM_ADD( "cdrom" )
+	MCFG_CDROM_INTERFACE("scd_cdrom")
 
 	MCFG_SOFTWARE_LIST_ADD("cd_list","segacd")
 MACHINE_CONFIG_END
@@ -658,12 +701,17 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( md_scd, md_cons_state )
 	MCFG_FRAGMENT_ADD( md_pal )
 
-	MCFG_MACHINE_START_OVERRIDE( md_cons_state, md_common )
-	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+	MCFG_MACHINE_START_OVERRIDE(md_cons_state, ms_megacd)
+	MCFG_MACHINE_RESET_OVERRIDE(md_cons_state, ms_megadriv)
+
+	MCFG_SCREEN_MODIFY("megadriv")
+	MCFG_SCREEN_VBLANK_DRIVER(md_cons_state, screen_eof_console)
 
 	MCFG_DEVICE_ADD("segacd", SEGA_SEGACD_EUROPE, 0)
+	MCFG_GFX_PALETTE("gen_vdp:palette")
 
-	MCFG_CDROM_ADD( "cdrom",scd_cdrom )
+	MCFG_CDROM_ADD( "cdrom" )
+	MCFG_CDROM_INTERFACE("scd_cdrom")
 
 	MCFG_SOFTWARE_LIST_ADD("cd_list","megacd")
 MACHINE_CONFIG_END
@@ -671,11 +719,17 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( mdj_scd, md_cons_state )
 	MCFG_FRAGMENT_ADD( md_ntsc )
 
-	MCFG_MACHINE_START_OVERRIDE( md_cons_state, md_common )
-	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+	MCFG_MACHINE_START_OVERRIDE(md_cons_state, ms_megacd)
+	MCFG_MACHINE_RESET_OVERRIDE(md_cons_state, ms_megadriv)
+
+	MCFG_SCREEN_MODIFY("megadriv")
+	MCFG_SCREEN_VBLANK_DRIVER(md_cons_state, screen_eof_console)
 
 	MCFG_DEVICE_ADD("segacd", SEGA_SEGACD_JAPAN, 0)
-	MCFG_CDROM_ADD( "cdrom",scd_cdrom )
+	MCFG_GFX_PALETTE("gen_vdp:palette")
+
+	MCFG_CDROM_ADD( "cdrom" )
+	MCFG_CDROM_INTERFACE("scd_cdrom")
 
 	MCFG_SOFTWARE_LIST_ADD("cd_list","megacdj")
 MACHINE_CONFIG_END
@@ -684,6 +738,16 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( genesis_32x_scd, genesis_32x )
 
 	MCFG_DEVICE_ADD("segacd", SEGA_SEGACD_US, 0)
+	MCFG_GFX_PALETTE("gen_vdp:palette")
+
+	MCFG_CDROM_ADD( "cdrom" )
+	MCFG_CDROM_INTERFACE("scd_cdrom")
+
+	MCFG_MACHINE_START_OVERRIDE(md_cons_state, ms_megacd)
+
+	MCFG_DEVICE_MODIFY("cart")
+	MCFG_CARTSLOT_NOT_MANDATORY
+
 	//MCFG_QUANTUM_PERFECT_CPU("32x_master_sh2")
 MACHINE_CONFIG_END
 
@@ -760,6 +824,12 @@ ROM_START( megacd2j )
 	ROMX_LOAD( "mpr-15398.bin", 0x000000,  0x020000, CRC(1e4344e6) SHA1(4d1251a6973d932e734ae5e8c6b9b55eb40e4143), ROM_BIOS(1) | ROM_GROUPWORD | ROM_REVERSE )
 ROM_END
 
+ROM_START( aiwamcd )
+	ROM_REGION16_BE( 0x400000, "maincpu", ROMREGION_ERASE00 )
+	/* v2.11 */
+	ROM_LOAD( "mpr-15768-t.bin", 0x000000,  0x020000, CRC(8052c7a0) SHA1(219d284dcf63ce366a4dc6d1ff767a0d2eea283d) )
+ROM_END
+
 ROM_START( laseract )
 	ROM_REGION16_BE( 0x400000, "maincpu", ROMREGION_ERASE00 )
 	ROM_SYSTEM_BIOS(0, "v104", "v1.04")
@@ -770,8 +840,10 @@ ROM_END
 
 ROM_START( laseractj )
 	ROM_REGION16_BE( 0x400000, "maincpu", ROMREGION_ERASE00 )
-	/* v1.02 */
-	ROM_LOAD( "laseractive_bios_1_02_j.bin", 0x000000,  0x020000, CRC(00eedb3a) SHA1(26237b333db4a4c6770297fa5e655ea95840d5d9) )
+	ROM_SYSTEM_BIOS(0, "v105", "v1.05")
+	ROMX_LOAD( "mega-ld 1.05 bios.bin", 0x000000,  0x020000, CRC(474aaa44) SHA1(b3b1d880e288b6dc79eec0ff1b0480c229ec141d), ROM_BIOS(1) )
+	ROM_SYSTEM_BIOS(1, "v102", "v1.02")
+	ROMX_LOAD( "laseractive_bios_1_02_j.bin", 0x000000,  0x020000, CRC(00eedb3a) SHA1(26237b333db4a4c6770297fa5e655ea95840d5d9), ROM_BIOS(2) )
 ROM_END
 
 ROM_START( xeye )
@@ -852,6 +924,7 @@ CONS( 1991, megacda,    segacd,    0,      md_scd,          md, md_cons_state,  
 CONS( 1993, segacd2,    0,         0,      genesis_scd,     md, md_cons_state,     genesis,   "Sega",   "Sega CD 2 (USA, NTSC)", GAME_NOT_WORKING )
 CONS( 1993, megacd2,    segacd2,   0,      md_scd,          md, md_cons_state,     md_eur,    "Sega",   "Mega-CD 2 (Europe, PAL)", GAME_NOT_WORKING )
 CONS( 1993, megacd2j,   segacd2,   0,      mdj_scd,         md, md_cons_state,     md_jpn,    "Sega",   "Mega-CD 2 (Japan, NTSC)", GAME_NOT_WORKING )
+CONS( 1994, aiwamcd,    segacd2,   0,      mdj_scd,         md, md_cons_state,     md_jpn,    "AIWA",   "Mega-CD CSD-G1M (Japan, NTSC)", GAME_NOT_WORKING )
 CONS( 1993, laseract,   0,         0,      genesis_scd,     md, md_cons_state,     genesis,   "Pioneer","LaserActive (USA, NTSC)", GAME_NOT_WORKING )
 CONS( 1993, laseractj,  laseract,  0,      mdj_scd,         md, md_cons_state,     md_jpn,    "Pioneer","LaserActive (Japan, NTSC)", GAME_NOT_WORKING )
 CONS( 1993, xeye,       0,         0,      genesis_scd,     md, md_cons_state,     genesis,   "JVC",    "X'eye (USA, NTSC)", GAME_NOT_WORKING )

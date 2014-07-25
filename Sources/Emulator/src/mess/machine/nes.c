@@ -12,7 +12,6 @@
 #include "includes/nes.h"
 #include "imagedev/cartslot.h"
 #include "imagedev/flopdrv.h"
-#include "hashfile.h"
 
 /***************************************************************************
     CONSTANTS
@@ -159,8 +158,10 @@ void nes_state::machine_start()
 		m_ppu->set_latch(ppu2c0x_latch_delegate(FUNC(device_nes_cart_interface::ppu_latch),m_cartslot->m_cart));
 
 		// install additional handlers (read_h, read_ex, write_ex)
-		if (m_cartslot->get_pcb_id() == GG_NROM || m_cartslot->get_pcb_id() == SUNSOFT_DCS
-			|| m_cartslot->get_pcb_id() == AVE_MAXI15 || m_cartslot->get_pcb_id() == KAISER_KS7022 || m_cartslot->get_pcb_id() == KAISER_KS7031 || m_cartslot->get_pcb_id() == BMC_VT5201
+		if (m_cartslot->get_pcb_id() == STD_EXROM || m_cartslot->get_pcb_id() == STD_NROM368
+			|| m_cartslot->get_pcb_id() == GG_NROM || m_cartslot->get_pcb_id() == CAMERICA_ALADDIN || m_cartslot->get_pcb_id() == SUNSOFT_DCS
+			|| m_cartslot->get_pcb_id() == BANDAI_DATACH || m_cartslot->get_pcb_id() == BANDAI_KARAOKE || m_cartslot->get_pcb_id() == BTL_2A03_PURITANS || m_cartslot->get_pcb_id() == AVE_MAXI15
+			|| m_cartslot->get_pcb_id() == KAISER_KS7022 || m_cartslot->get_pcb_id() == KAISER_KS7031 || m_cartslot->get_pcb_id() == BMC_VT5201
 			|| m_cartslot->get_pcb_id() == UNL_LH32 || m_cartslot->get_pcb_id() == UNL_LH10 || m_cartslot->get_pcb_id() == UNL_2708
 			|| m_cartslot->get_pcb_id() == UNL_43272 || m_cartslot->get_pcb_id() == BMC_G63IN1 || m_cartslot->get_pcb_id() == BMC_8157
 			|| m_cartslot->get_pcb_id() == BMC_GOLD150 || m_cartslot->get_pcb_id() == BMC_CH001
@@ -962,8 +963,8 @@ DRIVER_INIT_MEMBER(nes_state,famicom)
 	m_fds_ram = auto_alloc_array_clear(machine(), UINT8, 0x8000);
 	save_pointer(NAME(m_fds_ram), 0x8000);
 
-	floppy_install_load_proc(floppy_get_device(machine(), 0), nes_load_proc);
-	floppy_install_unload_proc(floppy_get_device(machine(), 0), nes_unload_proc);
+	floppy_get_device(machine(), 0)->floppy_install_load_proc(nes_load_proc);
+	floppy_get_device(machine(), 0)->floppy_install_unload_proc(nes_unload_proc);
 
 	// setup alt input handlers for additional FC input devices
 	address_space &space = machine().device<cpu_device>("maincpu")->space(AS_PROGRAM);

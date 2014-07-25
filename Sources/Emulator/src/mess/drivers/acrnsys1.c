@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Dirk Best, Robbbert
 /******************************************************************************
 
  Acorn System 1 (Microcomputer Kit)
@@ -76,6 +78,7 @@ private:
 	UINT8 m_digit;
 	UINT8 m_cass_data[4];
 	bool m_cass_state;
+	bool m_cassold;
 };
 
 
@@ -113,6 +116,12 @@ WRITE8_MEMBER( acrnsys1_state::ins8154_b1_port_a_w )
 TIMER_DEVICE_CALLBACK_MEMBER(acrnsys1_state::acrnsys1_c)
 {
 	m_cass_data[3]++;
+
+	if (m_cass_state != m_cassold)
+	{
+		m_cass_data[3] = 0;
+		m_cassold = m_cass_state;
+	}
 
 	if (m_cass_state)
 		m_cass->output(BIT(m_cass_data[3], 0) ? -1.0 : +1.0); // 2400Hz
@@ -231,15 +240,6 @@ INPUT_PORTS_END
     MACHINE DRIVERS
 ***************************************************************************/
 
-static const ins8154_interface ins8154_b1 =
-{
-	DEVCB_DRIVER_MEMBER(acrnsys1_state, ins8154_b1_port_a_r),
-	DEVCB_DRIVER_MEMBER(acrnsys1_state, ins8154_b1_port_a_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(acrnsys1_state, acrnsys1_led_segment_w),
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( acrnsys1, acrnsys1_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6502, 1008000)  /* 1.008 MHz */
@@ -253,9 +253,12 @@ static MACHINE_CONFIG_START( acrnsys1, acrnsys1_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_INS8154_ADD("b1", ins8154_b1)
-	MCFG_TTL74145_ADD("ic8_7445", default_ttl74145)
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_DEVICE_ADD("b1", INS8154, 0)
+	MCFG_INS8154_IN_A_CB(READ8(acrnsys1_state, ins8154_b1_port_a_r))
+	MCFG_INS8154_OUT_A_CB(WRITE8(acrnsys1_state, ins8154_b1_port_a_w))
+	MCFG_INS8154_OUT_B_CB(WRITE8(acrnsys1_state, acrnsys1_led_segment_w))
+	MCFG_DEVICE_ADD("ic8_7445", TTL74145, 0)
+	MCFG_CASSETTE_ADD( "cassette" )
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("acrnsys1_c", acrnsys1_state, acrnsys1_c, attotime::from_hz(4800))
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("acrnsys1_p", acrnsys1_state, acrnsys1_p, attotime::from_hz(40000))
 MACHINE_CONFIG_END

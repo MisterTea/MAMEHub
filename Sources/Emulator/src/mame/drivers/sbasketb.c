@@ -179,16 +179,6 @@ INTERRUPT_GEN_MEMBER(sbasketb_state::vblank_irq)
 		device.execute().set_input_line(0, HOLD_LINE);
 }
 
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 static MACHINE_CONFIG_START( sbasketb, sbasketb_state )
 
 	/* basic machine hardware */
@@ -206,10 +196,12 @@ static MACHINE_CONFIG_START( sbasketb, sbasketb_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(sbasketb_state, screen_update_sbasketb)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sbasketb)
-	MCFG_PALETTE_LENGTH(16*16+16*16*16)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sbasketb)
+	MCFG_PALETTE_ADD("palette", 16*16+16*16*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256)
+	MCFG_PALETTE_INIT_OWNER(sbasketb_state, sbasketb)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -221,7 +213,6 @@ static MACHINE_CONFIG_START( sbasketb, sbasketb_state )
 
 	MCFG_SOUND_ADD("snsnd", SN76489, XTAL_14_31818MHz / 8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, XTAL_3_579545MHz) /* Schematics say 3.58MHz, but board uses 3.579545MHz xtal */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)

@@ -54,12 +54,12 @@ void deco102_decrypt_cpu(running_machine &machine, const char *cputag, int addre
 	UINT16 *rom = (UINT16 *)machine.root_device().memregion(cputag)->base();
 	int size = machine.root_device().memregion(cputag)->bytes();
 	UINT16 *opcodes = auto_alloc_array(machine, UINT16, size / 2);
-	UINT16 *buf = auto_alloc_array(machine, UINT16, size / 2);
+	dynamic_array<UINT16> buf(size / 2);
 
 	memcpy(buf, rom, size);
 
 	space.set_decrypted_region(0, size - 1, opcodes);
-	m68k_set_encrypted_opcode_range((m68000_base_device*)machine.device(cputag), 0, size);
+	((m68000_base_device*)machine.device(cputag))->set_encrypted_opcode_range(0, size);
 
 	for (i = 0; i < size / 2; i++)
 	{
@@ -88,6 +88,4 @@ void deco102_decrypt_cpu(running_machine &machine, const char *cputag, int addre
 		rom[i]     = decrypt(buf[src], i, data_select_xor);
 		opcodes[i] = decrypt(buf[src], i, opcode_select_xor);
 	}
-
-	auto_free(machine, buf);
 }

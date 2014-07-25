@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:hap
 /***************************************************************************
 
   Italian bootleg of Head On, by EFG Sanremo (late 70s to early 80s).
@@ -36,7 +38,8 @@ public:
 	headonb_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_video_ram(*this, "video_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	required_shared_ptr<UINT8> m_video_ram;
 
@@ -44,11 +47,11 @@ public:
 
 	DECLARE_WRITE8_MEMBER(headonb_video_ram_w);
 
-	virtual void palette_init();
 	virtual void video_start();
 	UINT32 screen_update_headonb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TILE_GET_INFO_MEMBER(get_headonb_tile_info);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -58,12 +61,6 @@ public:
 
 ***************************************************************************/
 
-void headonb_state::palette_init()
-{
-	palette_set_color(machine(), 0, RGB_BLACK);
-	palette_set_color(machine(), 1, RGB_WHITE);
-}
-
 TILE_GET_INFO_MEMBER(headonb_state::get_headonb_tile_info)
 {
 	UINT8 code = m_video_ram[tile_index];
@@ -72,7 +69,7 @@ TILE_GET_INFO_MEMBER(headonb_state::get_headonb_tile_info)
 
 void headonb_state::video_start()
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(headonb_state::get_headonb_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(headonb_state::get_headonb_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 UINT32 headonb_state::screen_update_headonb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -170,11 +167,11 @@ static MACHINE_CONFIG_START( headonb, headonb_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 28*8-1)
-
 	MCFG_SCREEN_UPDATE_DRIVER(headonb_state, screen_update_headonb)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(headonb)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", headonb)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	// TODO

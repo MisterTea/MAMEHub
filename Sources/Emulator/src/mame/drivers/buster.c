@@ -18,14 +18,18 @@ public:
 	buster_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_vram(*this, "vram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT8> m_vram;
 	DECLARE_READ8_MEMBER(test_r);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(buster);
 	UINT32 screen_update_buster(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -35,7 +39,7 @@ void buster_state::video_start()
 
 UINT32 buster_state::screen_update_buster(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	int count = 0x0000;
 
 	int y,x;
@@ -47,7 +51,7 @@ UINT32 buster_state::screen_update_buster(screen_device &screen, bitmap_ind16 &b
 		{
 			int tile = (m_vram[count+1])|(m_vram[count]<<8);
 			//int colour = tile>>12;
-			drawgfx_opaque(bitmap,cliprect,gfx,tile,0,0,0,x*8,y*4);
+			gfx->opaque(bitmap,cliprect,tile,0,0,0,x*8,y*4);
 
 			count+=2;
 		}
@@ -308,27 +312,13 @@ static GFXDECODE_START( buster )
 	GFXDECODE_ENTRY( "gfx1", 0, tiles8x8_layout, 0, 1 )
 GFXDECODE_END
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-void buster_state::palette_init()
+PALETTE_INIT_MEMBER(buster_state, buster)
 {
 	int i;
 
 	/* RGB format */
 	for(i=0;i<8;i++)
-		palette_set_color(machine(), i, MAKE_RGB(pal1bit(i >> 0),pal1bit(i >> 1),pal1bit(i >> 2)));
+		palette.set_pen_color(i, rgb_t(pal1bit(i >> 0),pal1bit(i >> 1),pal1bit(i >> 2)));
 }
 
 static MACHINE_CONFIG_START( buster, buster_state )
@@ -344,11 +334,15 @@ static MACHINE_CONFIG_START( buster, buster_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(buster_state, screen_update_buster)
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_3_579545MHz/4, mc6845_intf) //unknown clock / type
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(buster)
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_3_579545MHz/4) //unknown clock / type
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", buster)
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(buster_state, buster)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 

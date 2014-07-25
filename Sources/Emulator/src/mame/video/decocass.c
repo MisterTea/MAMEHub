@@ -200,29 +200,30 @@ TILEMAP_MAPPER_MEMBER(decocass_state::bgvideoram_scan_cols )
 TILE_GET_INFO_MEMBER(decocass_state::get_bg_l_tile_info)
 {
 	int color = (m_color_center_bot >> 7) & 1;
-	SET_TILE_INFO_MEMBER(
-			2,
-			(0x80 == (tile_index & 0x80)) ? 16 : m_bgvideoram[tile_index] >> 4,
+	SET_TILE_INFO_MEMBER(2,
+			m_bgvideoram[tile_index] >> 4,
 			color,
 			0);
+	if (tile_index & 0x80)
+		tileinfo.pen_data = m_empty_tile;
 }
 
 TILE_GET_INFO_MEMBER(decocass_state::get_bg_r_tile_info )
 {
 	int color = (m_color_center_bot >> 7) & 1;
-	SET_TILE_INFO_MEMBER(
-			2,
-			(0x00 == (tile_index & 0x80)) ? 16 : m_bgvideoram[tile_index] >> 4,
+	SET_TILE_INFO_MEMBER(2,
+			m_bgvideoram[tile_index] >> 4,
 			color,
 			TILE_FLIPY);
+	if (!(tile_index & 0x80))
+		tileinfo.pen_data = m_empty_tile;
 }
 
 TILE_GET_INFO_MEMBER(decocass_state::get_fg_tile_info )
 {
 	UINT8 code = m_fgvideoram[tile_index];
 	UINT8 attr = m_colorram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			256 * (attr & 3) + code,
 			m_color_center_bot & 1,
 			0);
@@ -248,10 +249,10 @@ void decocass_state::draw_object(bitmap_ind16 &bitmap, const rectangle &cliprect
 	else
 		sx = 91 - (m_part_h_shift & 0x7f);
 
-	drawgfx_transpen(bitmap, cliprect, machine().gfx[3], 0, color, 0, 0, sx + 64, sy, 0);
-	drawgfx_transpen(bitmap, cliprect, machine().gfx[3], 1, color, 0, 0, sx, sy, 0);
-	drawgfx_transpen(bitmap, cliprect, machine().gfx[3], 0, color, 0, 1, sx + 64, sy - 64, 0);
-	drawgfx_transpen(bitmap, cliprect, machine().gfx[3], 1, color, 0, 1, sx, sy - 64, 0);
+	m_gfxdecode->gfx(3)->transpen(bitmap,cliprect, 0, color, 0, 0, sx + 64, sy, 0);
+	m_gfxdecode->gfx(3)->transpen(bitmap,cliprect, 1, color, 0, 0, sx, sy, 0);
+	m_gfxdecode->gfx(3)->transpen(bitmap,cliprect, 0, color, 0, 1, sx + 64, sy - 64, 0);
+	m_gfxdecode->gfx(3)->transpen(bitmap,cliprect, 1, color, 0, 1, sx, sy - 64, 0);
 }
 
 void decocass_state::draw_center(bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -294,16 +295,16 @@ WRITE8_MEMBER(decocass_state::decocass_paletteram_w )
 	m_paletteram[offset] = data;
 
 	offset = (offset & 31) ^ 16;
-	colortable_palette_set_color(machine().colortable, offset, MAKE_RGB(pal3bit(~data >> 0), pal3bit(~data >> 3), pal2bit(~data >> 6)));
+	m_palette->set_indirect_color(offset, rgb_t(pal3bit(~data >> 0), pal3bit(~data >> 3), pal2bit(~data >> 6)));
 }
 
 WRITE8_MEMBER(decocass_state::decocass_charram_w )
 {
 	m_charram[offset] = data;
 	/* dirty sprite */
-	machine().gfx[1]->mark_dirty((offset >> 5) & 255);
+	m_gfxdecode->gfx(1)->mark_dirty((offset >> 5) & 255);
 	/* dirty char */
-	machine().gfx[0]->mark_dirty((offset >> 3) & 1023);
+	m_gfxdecode->gfx(0)->mark_dirty((offset >> 3) & 1023);
 }
 
 
@@ -329,7 +330,7 @@ WRITE8_MEMBER(decocass_state::decocass_tileram_w )
 {
 	m_tileram[offset] = data;
 	/* dirty tile (64 bytes per tile) */
-	machine().gfx[2]->mark_dirty((offset / 64) & 15);
+	m_gfxdecode->gfx(2)->mark_dirty((offset / 64) & 15);
 	/* first 1KB of tile RAM is shared with tilemap RAM */
 	if (offset < m_bgvideoram_size)
 		mark_bg_tile_dirty(offset);
@@ -339,8 +340,8 @@ WRITE8_MEMBER(decocass_state::decocass_objectram_w )
 {
 	m_objectram[offset] = data;
 	/* dirty the object */
-	machine().gfx[3]->mark_dirty(0);
-	machine().gfx[3]->mark_dirty(1);
+	m_gfxdecode->gfx(3)->mark_dirty(0);
+	m_gfxdecode->gfx(3)->mark_dirty(1);
 }
 
 WRITE8_MEMBER(decocass_state::decocass_bgvideoram_w )
@@ -515,7 +516,7 @@ void decocass_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 
 		sy -= sprite_y_adjust;
 
-		drawgfx_transpen(bitmap,cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				sprite_ram[offs + interleave],
 				color,
 				flipx,flipy,
@@ -524,7 +525,7 @@ void decocass_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 		sy += (flip_screen() ? -256 : 256);
 
 		// Wrap around
-		drawgfx_transpen(bitmap,cliprect, machine().gfx[1],
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				sprite_ram[offs + interleave],
 				color,
 				flipx,flipy,
@@ -656,9 +657,9 @@ void decocass_state::draw_edge(bitmap_ind16 &bitmap, const rectangle &cliprect, 
 
 void decocass_state::video_start()
 {
-	m_bg_tilemap_l = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(decocass_state::get_bg_l_tile_info),this), tilemap_mapper_delegate(FUNC(decocass_state::bgvideoram_scan_cols),this), 16, 16, 32, 32);
-	m_bg_tilemap_r = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(decocass_state::get_bg_r_tile_info),this), tilemap_mapper_delegate(FUNC(decocass_state::bgvideoram_scan_cols),this), 16, 16, 32, 32);
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(decocass_state::get_fg_tile_info),this), tilemap_mapper_delegate(FUNC(decocass_state::fgvideoram_scan_cols),this), 8, 8, 32, 32);
+	m_bg_tilemap_l = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(decocass_state::get_bg_l_tile_info),this), tilemap_mapper_delegate(FUNC(decocass_state::bgvideoram_scan_cols),this), 16, 16, 32, 32);
+	m_bg_tilemap_r = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(decocass_state::get_bg_r_tile_info),this), tilemap_mapper_delegate(FUNC(decocass_state::bgvideoram_scan_cols),this), 16, 16, 32, 32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(decocass_state::get_fg_tile_info),this), tilemap_mapper_delegate(FUNC(decocass_state::fgvideoram_scan_cols),this), 8, 8, 32, 32);
 
 	m_bg_tilemap_l->set_transparent_pen(0);
 	m_bg_tilemap_r->set_transparent_pen(0);
@@ -674,14 +675,13 @@ void decocass_state::video_start()
 	m_bgvideoram = m_tileram;
 	m_bgvideoram_size = 0x0400; /* d000-d3ff */
 
-	machine().gfx[0]->set_source(m_charram);
-	machine().gfx[1]->set_source(m_charram);
-	machine().gfx[2]->set_source(m_tileram);
-	machine().gfx[3]->set_source(m_objectram);
+	m_gfxdecode->gfx(0)->set_source(m_charram);
+	m_gfxdecode->gfx(1)->set_source(m_charram);
+	m_gfxdecode->gfx(2)->set_source(m_tileram);
+	m_gfxdecode->gfx(3)->set_source(m_objectram);
 
-	/* This should ensure that the fake 17th tile is left blank
-	 * now that dirty-tile tracking is handled by the core */
-	machine().gfx[2]->decode(16);
+	/* create an empty tile */
+	memset(m_empty_tile, 0, sizeof(m_empty_tile));
 }
 
 UINT32 decocass_state::screen_update_decocass(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)

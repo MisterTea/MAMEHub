@@ -372,7 +372,6 @@ D                                                                               
 #include "sound/samples.h"
 #include "machine/nvram.h"
 #include "includes/equites.h"
-#include "drivlgcy.h"
 
 #define HVOLTAGE_DEBUG  0
 #define EASY_TEST_MODE  0
@@ -411,15 +410,6 @@ TIMER_CALLBACK_MEMBER(equites_state::equites_frq_adjuster_callback)
 	m_hihatvol *= 0.94f;
 
 	m_msm->set_output_gain(10, m_hihatvol + m_cymvol * (m_ay_port_b & 3) * 0.33);   /* NO from msm5232 */
-}
-
-static SOUND_START(equites)
-{
-	equites_state *state = machine.driver_data<equites_state>();
-	state->m_nmi_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(equites_state::equites_nmi_callback),state));
-
-	state->m_adjuster_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(equites_state::equites_frq_adjuster_callback),state));
-	state->m_adjuster_timer->adjust(attotime::from_hz(60), 0, attotime::from_hz(60));
 }
 
 WRITE8_MEMBER(equites_state::equites_c0f8_w)
@@ -1099,24 +1089,6 @@ GFXDECODE_END
 
 /******************************************************************************/
 
-static const msm5232_interface equites_5232intf =
-{
-	{ 0.47e-6, 0.47e-6, 0.47e-6, 0.47e-6, 0.47e-6, 0.47e-6, 0.47e-6, 0.47e-6 }, // verified
-	DEVCB_DRIVER_LINE_MEMBER(equites_state,equites_msm5232_gate)
-};
-
-
-static const ay8910_interface equites_8910intf =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(equites_state,equites_8910porta_w),
-	DEVCB_DRIVER_MEMBER(equites_state,equites_8910portb_w)
-};
-
-
 static const char *const alphamc07_sample_names[] =
 {
 	"*equites",
@@ -1142,13 +1114,12 @@ static MACHINE_CONFIG_FRAGMENT( common_sound )
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 	MCFG_CPU_IO_MAP(sound_portmap)
 
-	MCFG_SOUND_START(equites)
-
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("msm", MSM5232, MSM5232_MAX_CLOCK)   // will be adjusted at runtime through PORT_ADJUSTER
-	MCFG_SOUND_CONFIG(equites_5232intf)
+	MCFG_MSM5232_SET_CAPACITORS(0.47e-6, 0.47e-6, 0.47e-6, 0.47e-6, 0.47e-6, 0.47e-6, 0.47e-6, 0.47e-6) // verified
+	MCFG_MSM5232_GATE_HANDLER_CB(WRITELINE(equites_state, equites_msm5232_gate))
 	MCFG_SOUND_ROUTE(0, "mono", MSM5232_BASE_VOLUME/2.2)    // pin 28  2'-1 : 22k resistor
 	MCFG_SOUND_ROUTE(1, "mono", MSM5232_BASE_VOLUME/1.5)    // pin 29  4'-1 : 15k resistor
 	MCFG_SOUND_ROUTE(2, "mono", MSM5232_BASE_VOLUME)        // pin 30  8'-1 : 10k resistor
@@ -1162,7 +1133,8 @@ static MACHINE_CONFIG_FRAGMENT( common_sound )
 	MCFG_SOUND_ROUTE(10,"mono", 0.12)       // pin 22 Noise Output (this actually feeds an analog section)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, XTAL_6_144MHz/4) /* verified on pcb */
-	MCFG_SOUND_CONFIG(equites_8910intf)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(equites_state, equites_8910porta_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(equites_state, equites_8910portb_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.15)
 
 	MCFG_DAC_ADD("dac1")
@@ -1199,6 +1171,11 @@ MACHINE_START_MEMBER(equites_state,equites)
 	save_item(NAME(m_hihat));
 	save_item(NAME(m_cymbal));
 #endif
+
+	m_nmi_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(equites_state::equites_nmi_callback), this));
+
+	m_adjuster_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(equites_state::equites_frq_adjuster_callback), this));
+	m_adjuster_timer->adjust(attotime::from_hz(60), 0, attotime::from_hz(60));
 }
 
 MACHINE_RESET_MEMBER(equites_state,equites)
@@ -1245,10 +1222,13 @@ static MACHINE_CONFIG_START( equites, equites_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 3*8, 29*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(equites_state, screen_update_equites)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(equites)
-	MCFG_PALETTE_LENGTH(0x180)
-	MCFG_PALETTE_INIT_OVERRIDE(equites_state,equites)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", equites)
+	MCFG_PALETTE_ADD("palette", 0x180)
+	MCFG_PALETTE_INDIRECT_ENTRIES(0x100)
+	MCFG_PALETTE_INIT_OWNER(equites_state,equites)
+
 	MCFG_VIDEO_START_OVERRIDE(equites_state,equites)
 
 	MCFG_MACHINE_START_OVERRIDE(equites_state,equites)
@@ -1282,10 +1262,13 @@ static MACHINE_CONFIG_START( splndrbt, equites_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 4*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(equites_state, screen_update_splndrbt)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(splndrbt)
-	MCFG_PALETTE_LENGTH(0x280)
-	MCFG_PALETTE_INIT_OVERRIDE(equites_state,splndrbt)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", splndrbt)
+	MCFG_PALETTE_ADD("palette", 0x280)
+	MCFG_PALETTE_INDIRECT_ENTRIES(0x100)
+	MCFG_PALETTE_INIT_OWNER(equites_state,splndrbt)
+
 	MCFG_VIDEO_START_OVERRIDE(equites_state,splndrbt)
 
 	MCFG_MACHINE_START_OVERRIDE(equites_state,equites)
@@ -1891,7 +1874,7 @@ DRIVER_INIT_MEMBER(equites_state,hvoltage)
 	unpack_region("gfx3");
 
 #if HVOLTAGE_DEBUG
-	m_maincpu->space(AS_PROGRAM).install_legacy_read_handler(0x000038, 0x000039, read16_delegate(FUNC(equites_state::hvoltage_debug_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x000038, 0x000039, read16_delegate(FUNC(equites_state::hvoltage_debug_r),this));
 #endif
 }
 

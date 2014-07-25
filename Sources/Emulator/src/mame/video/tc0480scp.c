@@ -133,7 +133,6 @@ Control registers
 
 #define TC0480SCP_RAM_SIZE 0x10000
 #define TC0480SCP_TOTAL_CHARS 256
-#define XOR(a) WORD_XOR_BE(a)
 
 
 const device_type TC0480SCP = &device_creator<tc0480scp_device>;
@@ -152,27 +151,38 @@ tc0480scp_device::tc0480scp_device(const machine_config &mconfig, const char *ta
 	//m_bgscrolly[4](NULL),
 	m_pri_reg(0),
 	m_dblwidth(0),
-	m_x_offs(0)
+	m_gfxnum(0),
+	m_txnum(0),
+	m_x_offset(0),
+	m_y_offset(0),
+	m_text_xoffs(0),
+	m_text_yoffs(0),
+	m_flip_xoffs(0),
+	m_flip_yoffs(0),
+	m_col_base(0),
+	m_gfxdecode(*this),
+	m_palette(*this)
 {
 }
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
 //-------------------------------------------------
 
-void tc0480scp_device::device_config_complete()
+void tc0480scp_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
 {
-	// inherit a copy of the static data
-	const tc0480scp_interface *intf = reinterpret_cast<const tc0480scp_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<tc0480scp_interface *>(this) = *intf;
+	downcast<tc0480scp_device &>(device).m_gfxdecode.set_tag(tag);
+}
 
-	// or initialize to defaults if none provided
-	else
-	{
-	}
+//-------------------------------------------------
+//  static_set_palette_tag: Set the tag of the
+//  palette device
+//-------------------------------------------------
+
+void tc0480scp_device::static_set_palette_tag(device_t &device, const char *tag)
+{
+	downcast<tc0480scp_device &>(device).m_palette.set_tag(tag);
 }
 
 //-------------------------------------------------
@@ -181,10 +191,10 @@ void tc0480scp_device::device_config_complete()
 
 void tc0480scp_device::device_start()
 {
-	int i, xd, yd;
+	if(!m_gfxdecode->started())
+		throw device_missing_dependencies();
 
-	m_x_offs = m_x_offset + m_pixels;
-
+	int xd, yd;
 
 	static const gfx_layout tc0480scp_charlayout =
 	{
@@ -192,27 +202,27 @@ void tc0480scp_device::device_start()
 		256,    /* 256 characters */
 		4,  /* 4 bits per pixel */
 		{ 0, 1, 2, 3 },
-		{ XOR(3)*4, XOR(2)*4, XOR(1)*4, XOR(0)*4, XOR(7)*4, XOR(6)*4, XOR(5)*4, XOR(4)*4 },
+		{ 3*4, 2*4, 1*4, 0*4, 7*4, 6*4, 5*4, 4*4 },
 		{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
 		32*8    /* every sprite takes 32 consecutive bytes */
 	};
 
 
 	/* Single width versions */
-	m_tilemap[0][0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg0_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_tilemap[1][0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_tilemap[2][0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_tilemap[3][0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg3_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
-	m_tilemap[4][0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0480scp_device::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	m_tilemap[0][0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg0_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_tilemap[1][0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_tilemap[2][0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_tilemap[3][0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg3_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_tilemap[4][0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0480scp_device::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 
 	/* Double width versions */
-	m_tilemap[0][1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg0_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 32);
-	m_tilemap[1][1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 32);
-	m_tilemap[2][1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 32);
-	m_tilemap[3][1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg3_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 32);
-	m_tilemap[4][1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tc0480scp_device::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
+	m_tilemap[0][1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg0_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 32);
+	m_tilemap[1][1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 32);
+	m_tilemap[2][1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 32);
+	m_tilemap[3][1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0480scp_device::get_bg3_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 32);
+	m_tilemap[4][1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tc0480scp_device::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 
-	for (i = 0; i < 2; i++)
+	for (int i = 0; i < 2; i++)
 	{
 		m_tilemap[0][i]->set_transparent_pen(0);
 		m_tilemap[1][i]->set_transparent_pen(0);
@@ -221,7 +231,7 @@ void tc0480scp_device::device_start()
 		m_tilemap[4][i]->set_transparent_pen(0);
 	}
 
-	xd = -m_x_offs;
+	xd = -m_x_offset;
 	yd =  m_y_offset;
 
 	/* Metalb and Deadconx have minor screenflip issues: blue planet
@@ -256,7 +266,7 @@ void tc0480scp_device::device_start()
 	m_tilemap[4][1]->set_scrolldx(xd - 3, 317 - xd);   /* text layer */
 	m_tilemap[4][1]->set_scrolldy(yd,     256 - yd);   /* text layer */
 
-	for (i = 0; i < 2; i++)
+	for (int i = 0; i < 2; i++)
 	{
 		/* Both sets of bg tilemaps scrollable per pixel row */
 		m_tilemap[0][i]->set_scroll_rows(512);
@@ -270,7 +280,7 @@ void tc0480scp_device::device_start()
 	set_layer_ptrs();
 
 	/* create the char set (gfx will then be updated dynamically from RAM) */
-	machine().gfx[m_txnum] = auto_alloc_clear(machine(), gfx_element(machine(), tc0480scp_charlayout, (UINT8 *)m_char_ram, 64, 0));
+	m_gfxdecode->set_gfx(m_txnum, global_alloc(gfx_element(m_palette, tc0480scp_charlayout, (UINT8 *)m_char_ram, NATIVE_ENDIAN_VALUE_LE_BE(8,0), 64, 0)));
 
 	save_pointer(NAME(m_ram), TC0480SCP_RAM_SIZE / 2);
 	save_item(NAME(m_ctrl));
@@ -284,11 +294,9 @@ void tc0480scp_device::device_start()
 
 void tc0480scp_device::device_reset()
 {
-	int i;
-
 	m_dblwidth = 0;
 
-	for (i = 0; i < 0x18; i++)
+	for (int i = 0; i < 0x18; i++)
 		m_ctrl[i] = 0;
 
 }
@@ -302,8 +310,7 @@ void tc0480scp_device::common_get_tc0480bg_tile_info( tile_data &tileinfo, int t
 {
 	int code = ram[2 * tile_index + 1] & 0x7fff;
 	int attr = ram[2 * tile_index];
-	SET_TILE_INFO_MEMBER(
-			gfxnum,
+	SET_TILE_INFO_MEMBER(gfxnum,
 			code,
 			(attr & 0xff) + m_col_base,
 			TILE_FLIPYX((attr & 0xc000) >> 14));
@@ -312,8 +319,7 @@ void tc0480scp_device::common_get_tc0480bg_tile_info( tile_data &tileinfo, int t
 void tc0480scp_device::common_get_tc0480tx_tile_info( tile_data &tileinfo, int tile_index, UINT16 *ram, int gfxnum )
 {
 	int attr = ram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			gfxnum,
+	SET_TILE_INFO_MEMBER(gfxnum,
 			attr & 0xff,
 			((attr & 0x3f00) >> 8) + m_col_base,
 			TILE_FLIPYX((attr & 0xc000) >> 14));
@@ -416,7 +422,7 @@ WRITE16_MEMBER( tc0480scp_device::word_w )
 		}
 		else if (offset <= 0x7fff)
 		{
-			space.machine().gfx[m_txnum]->mark_dirty((offset - 0x7000) / 16);
+			m_gfxdecode->gfx(m_txnum)->mark_dirty((offset - 0x7000) / 16);
 		}
 	}
 	else
@@ -434,7 +440,7 @@ WRITE16_MEMBER( tc0480scp_device::word_w )
 		}
 		else if (offset <= 0x7fff)
 		{
-			space.machine().gfx[m_txnum]->mark_dirty((offset - 0x7000) / 16);
+			m_gfxdecode->gfx(m_txnum)->mark_dirty((offset - 0x7000) / 16);
 		}
 	}
 }
@@ -711,7 +717,7 @@ void tc0480scp_device::bg01_draw( screen_device &screen, bitmap_ind16 &bitmap, c
 		if (!flip)
 		{
 			sx = ((m_bgscrollx[layer] + 15 + layer * 4) << 16) + ((255 - (m_ctrl[0x10 + layer] & 0xff)) << 8);
-			sx += (m_x_offs - 15 - layer * 4) * zoomx;
+			sx += (m_x_offset - 15 - layer * 4) * zoomx;
 
 			y_index = (m_bgscrolly[layer] << 16) + ((m_ctrl[0x14 + layer] & 0xff) << 8);
 			y_index -= (m_y_offset - min_y) * zoomy;
@@ -719,7 +725,7 @@ void tc0480scp_device::bg01_draw( screen_device &screen, bitmap_ind16 &bitmap, c
 		else    /* TC0480SCP tiles flipscreen */
 		{
 			sx = ((-m_bgscrollx[layer] + 15 + layer * 4 + m_flip_xoffs ) << 16) + ((255-(m_ctrl[0x10 + layer] & 0xff)) << 8);
-			sx += (m_x_offs - 15 - layer * 4) * zoomx;
+			sx += (m_x_offset - 15 - layer * 4) * zoomx;
 
 			y_index = ((-m_bgscrolly[layer] + m_flip_yoffs) << 16) + ((m_ctrl[0x14 + layer] & 0xff) << 8);
 			y_index -= (m_y_offset - min_y) * zoomy;
@@ -853,7 +859,7 @@ void tc0480scp_device::bg23_draw(screen_device &screen, bitmap_ind16 &bitmap, co
 	if (!flipscreen)
 	{
 		sx = ((m_bgscrollx[layer] + 15 + layer * 4) << 16) + ((255-(m_ctrl[0x10 + layer] & 0xff)) << 8);
-		sx += (m_x_offs - 15 - layer * 4) * zoomx;
+		sx += (m_x_offset - 15 - layer * 4) * zoomx;
 
 		y_index = (m_bgscrolly[layer] << 16) + ((m_ctrl[0x14 + layer] & 0xff) << 8);
 		y_index -= (m_y_offset - min_y) * zoomy;
@@ -861,7 +867,7 @@ void tc0480scp_device::bg23_draw(screen_device &screen, bitmap_ind16 &bitmap, co
 	else    /* TC0480SCP tiles flipscreen */
 	{
 		sx = ((-m_bgscrollx[layer] + 15 + layer * 4 + m_flip_xoffs ) << 16) + ((255 - (m_ctrl[0x10 + layer] & 0xff)) << 8);
-		sx += (m_x_offs - 15 - layer * 4) * zoomx;
+		sx += (m_x_offset - 15 - layer * 4) * zoomx;
 
 		y_index = ((-m_bgscrolly[layer] + m_flip_yoffs) << 16) + ((m_ctrl[0x14 + layer] & 0xff) << 8);
 		y_index -= (m_y_offset - min_y) * zoomy;
@@ -893,7 +899,7 @@ void tc0480scp_device::bg23_draw(screen_device &screen, bitmap_ind16 &bitmap, co
 		x_index = sx - ((m_bgscroll_ram[layer][row_index] << 16)) - ((m_bgscroll_ram[layer][row_index + 0x800] << 8) & 0xffff);
 
 		/* flawed calc ?? */
-		x_index -= (m_x_offs - 0x1f + layer * 4) * ((row_zoom & 0xff) << 8);
+		x_index -= (m_x_offset - 0x1f + layer * 4) * ((row_zoom & 0xff) << 8);
 
 /* We used to kludge 270 multiply factor, before adjusting x_index instead */
 

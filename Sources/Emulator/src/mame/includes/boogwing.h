@@ -27,12 +27,13 @@ public:
 			m_oki2(*this, "oki2"),
 			m_spriteram(*this, "spriteram"),
 			m_spriteram2(*this, "spriteram2") ,
-		m_pf1_rowscroll(*this, "pf1_rowscroll"),
-		m_pf2_rowscroll(*this, "pf2_rowscroll"),
-		m_pf3_rowscroll(*this, "pf3_rowscroll"),
-		m_pf4_rowscroll(*this, "pf4_rowscroll"),
-		m_sprgen1(*this, "spritegen1"),
-		m_sprgen2(*this, "spritegen2")
+			m_pf1_rowscroll(*this, "pf1_rowscroll"),
+			m_pf2_rowscroll(*this, "pf2_rowscroll"),
+			m_pf3_rowscroll(*this, "pf3_rowscroll"),
+			m_pf4_rowscroll(*this, "pf4_rowscroll"),
+			m_sprgen1(*this, "spritegen1"),
+			m_sprgen2(*this, "spritegen2"),
+			m_palette(*this, "palette")
 	{ }
 
 	/* devices */
@@ -53,6 +54,7 @@ public:
 	required_shared_ptr<UINT16> m_pf4_rowscroll;
 	required_device<decospr_device> m_sprgen1;
 	required_device<decospr_device> m_sprgen2;
+	required_device<palette_device> m_palette;
 
 	DECLARE_WRITE8_MEMBER(sound_bankswitch_w);
 	DECLARE_DRIVER_INIT(boogwing);
@@ -62,4 +64,6 @@ public:
 	DECLARE_READ16_MEMBER( boogwing_protection_region_0_104_r );
 	DECLARE_WRITE16_MEMBER( boogwing_protection_region_0_104_w );
 
+	DECO16IC_BANK_CB_MEMBER(bank_callback);
+	DECO16IC_BANK_CB_MEMBER(bank_callback2);
 };

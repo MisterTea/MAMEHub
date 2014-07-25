@@ -267,15 +267,6 @@ static GFXDECODE_START( bankp )
 	GFXDECODE_ENTRY( "gfx2", 0, charlayout2,  32*4, 16 )
 GFXDECODE_END
 
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
 /*************************************
  *
  *  Machine driver
@@ -307,25 +298,24 @@ static MACHINE_CONFIG_START( bankp, bankp_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(bankp_state, screen_update_bankp)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bankp)
-	MCFG_PALETTE_LENGTH(32*4+16*8)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bankp)
+	MCFG_PALETTE_ADD("palette", 32*4+16*8)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32)
+	MCFG_PALETTE_INIT_OWNER(bankp_state, bankp)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn1", SN76489, MASTER_CLOCK/6)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76489, MASTER_CLOCK/6)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn3", SN76489, MASTER_CLOCK/6)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 

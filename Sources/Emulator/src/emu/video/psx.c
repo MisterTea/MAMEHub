@@ -1,9 +1,13 @@
+// license:MAME
+// copyright-holders:smf
 /*
  * PlayStation GPU emulator
  *
- * Copyright 2003-2013 smf
+ * Copyright 2003-2014 smf
  *
  */
+
+#define DEBUG_VIEWER ( 0 )
 
 #include "emu.h"
 #include "video/psx.h"
@@ -21,6 +25,10 @@ const device_type CXD8654Q = &device_creator<cxd8654q_device>;
 psxgpu_device::psxgpu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
 	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 	m_vblank_handler(*this)
+#if DEBUG_VIEWER
+,
+	m_screen(*this, "screen")
+#endif
 {
 }
 
@@ -44,17 +52,17 @@ void psxgpu_device::device_reset( void )
 }
 
 cxd8514q_device::cxd8514q_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxgpu_device(mconfig, CXD8514Q, "CXD8514Q", tag, owner, clock, "cxd8514q", __FILE__)
+	: psxgpu_device(mconfig, CXD8514Q, "CXD8514Q GPU", tag, owner, clock, "cxd8514q", __FILE__)
 {
 }
 
 cxd8538q_device::cxd8538q_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxgpu_device(mconfig, CXD8538Q, "CXD8538Q", tag, owner, clock, "cxd8538q", __FILE__)
+	: psxgpu_device(mconfig, CXD8538Q, "CXD8538Q GPU", tag, owner, clock, "cxd8538q", __FILE__)
 {
 }
 
 cxd8561q_device::cxd8561q_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxgpu_device(mconfig, CXD8561Q, "CXD8561Q", tag, owner, clock, "cxd8561q", __FILE__)
+	: psxgpu_device(mconfig, CXD8561Q, "CXD8561Q GPU", tag, owner, clock, "cxd8561q", __FILE__)
 {
 }
 
@@ -64,12 +72,12 @@ cxd8561bq_device::cxd8561bq_device(const machine_config &mconfig, const char *ta
 }
 
 cxd8561cq_device::cxd8561cq_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxgpu_device(mconfig, CXD8561CQ, "CXD8561CQ", tag, owner, clock, "cxd8561cq", __FILE__)
+	: psxgpu_device(mconfig, CXD8561CQ, "CXD8561CQ GPU", tag, owner, clock, "cxd8561cq", __FILE__)
 {
 }
 
 cxd8654q_device::cxd8654q_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxgpu_device(mconfig, CXD8654Q, "CXD8654Q", tag, owner, clock, "cxd8654q", __FILE__)
+	: psxgpu_device(mconfig, CXD8654Q, "CXD8654Q GPU", tag, owner, clock, "cxd8654q", __FILE__)
 {
 }
 
@@ -82,20 +90,16 @@ static const UINT16 m_p_n_prevpointlist3[] = { 2, 0, 1 };
 
 #define SINT11( x ) ( ( (INT32)( x ) << 21 ) >> 21 )
 
-#define ADJUST_COORD( a ) \
-	a.w.l = SINT11( COORD_X( a ) ); \
-	a.w.h = SINT11( COORD_Y( a ) );
-
-#define COORD_X( a ) ( (INT16)a.w.l )
-#define COORD_Y( a ) ( (INT16)a.w.h )
+#define COORD_X( a ) ( a.sw.l )
+#define COORD_Y( a ) ( a.sw.h )
 #define SIZE_W( a ) ( a.w.l )
 #define SIZE_H( a ) ( a.w.h )
 #define BGR_C( a ) ( a.b.h3 )
 #define BGR_B( a ) ( a.b.h2 )
 #define BGR_G( a ) ( a.b.h )
 #define BGR_R( a ) ( a.b.l )
-#define TEXTURE_V( a ) ( (UINT8)a.b.h )
-#define TEXTURE_U( a ) ( (UINT8)a.b.l )
+#define TEXTURE_V( a ) ( a.b.h )
+#define TEXTURE_U( a ) ( a.b.l )
 
 INLINE void ATTR_PRINTF(3,4) verboselog( running_machine& machine, int n_level, const char *s_fmt, ... )
 {
@@ -110,13 +114,12 @@ INLINE void ATTR_PRINTF(3,4) verboselog( running_machine& machine, int n_level, 
 	}
 }
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 
 void psxgpu_device::DebugMeshInit( void )
 {
-	screen_device *screen = machine().primary_screen;
-	int width = screen->width();
-	int height = screen->height();
+	int width = m_screen->width();
+	int height = m_screen->height();
 
 	m_debug.b_mesh = 0;
 	m_debug.b_texture = 0;
@@ -131,9 +134,8 @@ void psxgpu_device::DebugMesh( int n_coordx, int n_coordy )
 {
 	int n_coord;
 	int n_colour;
-	screen_device *screen = machine().primary_screen;
-	int width = screen->width();
-	int height = screen->height();
+	int width = m_screen->width();
+	int height = m_screen->height();
 
 	n_coordx += m_n_displaystartx;
 	n_coordy += n_displaystarty;
@@ -202,8 +204,8 @@ void psxgpu_device::DebugMesh( int n_coordx, int n_coordy )
 			n_len = n_ylen;
 		}
 
-		n_x.w.h = n_xstart; n_x.w.l = 0;
-		n_y.w.h = n_ystart; n_y.w.l = 0;
+		n_x.sw.h = n_xstart; n_x.sw.l = 0;
+		n_y.sw.h = n_ystart; n_y.sw.l = 0;
 
 		if( n_len == 0 )
 		{
@@ -330,9 +332,8 @@ int psxgpu_device::DebugTextureDisplay( bitmap_ind16 &bitmap )
 
 	if( m_debug.b_texture )
 	{
-		screen_device *screen = machine().primary_screen;
-		int width = screen->width();
-		int height = screen->height();
+		int width = m_screen->width();
+		int height = m_screen->height();
 
 		for( n_y = 0; n_y < height; n_y++ )
 		{
@@ -360,7 +361,7 @@ int psxgpu_device::DebugTextureDisplay( bitmap_ind16 &bitmap )
 				}
 				p_n_interleave[ n_x ] = p_p_vram[ n_yi ][ n_xi ];
 			}
-			draw_scanline16( bitmap, 0, n_y, width, p_n_interleave, machine().pens );
+			draw_scanline16( bitmap, 0, n_y, width, p_n_interleave, m_screen->palette()->pens() );
 		}
 	}
 	return m_debug.b_texture;
@@ -433,14 +434,16 @@ void psxgpu_device::updatevisiblearea()
 		break;
 	}
 
+#if DEBUG_VIEWER
 	if( m_debug.b_mesh || m_debug.b_texture )
 	{
 		n_screenheight = 1024;
 		n_screenwidth = 1024;
 	}
+#endif
 
 	visarea.set(0, n_screenwidth - 1, 0, n_screenheight - 1);
-	machine().primary_screen->configure(n_screenwidth, n_screenheight, visarea, HZ_TO_ATTOSECONDS(refresh));
+	machine().first_screen()->configure(n_screenwidth, n_screenheight, visarea, HZ_TO_ATTOSECONDS(refresh));
 }
 
 void psxgpu_device::psx_gpu_init( int n_gputype )
@@ -455,7 +458,7 @@ void psxgpu_device::psx_gpu_init( int n_gputype )
 
 	m_n_gputype = n_gputype;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	DebugMeshInit();
 #endif
 
@@ -616,7 +619,7 @@ UINT32 psxgpu_device::update_screen(screen_device &screen, bitmap_ind16 &bitmap,
 	int n_overscantop;
 	int n_overscanleft;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( DebugMeshDisplay( bitmap, cliprect ) )
 	{
 		return 0;
@@ -963,6 +966,7 @@ void psxgpu_device::decode_tpage( UINT32 tpage )
 		} \
 		break; \
 	}
+
 #define FLATTEXTUREDPOLYGONUPDATE \
 	n_u.d += n_du; \
 	n_v.d += n_dv;
@@ -1274,6 +1278,10 @@ void psxgpu_device::decode_tpage( UINT32 tpage )
 		} \
 	}
 
+#define GET_COORD( a ) \
+	a.sw.l = SINT11( COORD_X( a ) ); \
+	a.sw.h = SINT11( COORD_Y( a ) );
+
 INLINE int CullVertex( int a, int b )
 {
 	int d = a - b;
@@ -1285,21 +1293,21 @@ INLINE int CullVertex( int a, int b )
 	return 0;
 }
 
-#define CULLTRIANGLE( PacketType, start ) \
-( \
-	CULLPOINT( PacketType, start, start + 1 ) || CULLPOINT( PacketType, start + 1, start + 2 ) || CULLPOINT( PacketType, start + 2, start ) \
-)
-
 #define CULLPOINT( PacketType, p1, p2 ) \
 ( \
 	CullVertex( COORD_Y( m_packet.PacketType.vertex[ p1 ].n_coord ), COORD_Y( m_packet.PacketType.vertex[ p2 ].n_coord ) ) || \
 	CullVertex( COORD_X( m_packet.PacketType.vertex[ p1 ].n_coord ), COORD_X( m_packet.PacketType.vertex[ p2 ].n_coord ) ) \
 )
 
+#define CULLTRIANGLE( PacketType, start ) \
+( \
+	CULLPOINT( PacketType, start, start + 1 ) || CULLPOINT( PacketType, start + 1, start + 2 ) || CULLPOINT( PacketType, start + 2, start ) \
+)
+
 #define FINDTOPLEFT( PacketType ) \
 	for( n_point = 0; n_point < n_points; n_point++ ) \
 	{ \
-		ADJUST_COORD( m_packet.PacketType.vertex[ n_point ].n_coord ); \
+		GET_COORD( m_packet.PacketType.vertex[ n_point ].n_coord ); \
 	} \
 	\
 	n_leftpoint = 0; \
@@ -1348,6 +1356,7 @@ INLINE int CullVertex( int a, int b )
 		} \
 	} \
 	n_rightpoint = n_leftpoint;
+
 void psxgpu_device::FlatPolygon( int n_points )
 {
 	INT16 n_y;
@@ -1381,7 +1390,7 @@ void psxgpu_device::FlatPolygon( int n_points )
 
 	UINT16 *p_vram;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 1 )
 	{
 		return;
@@ -1423,7 +1432,7 @@ void psxgpu_device::FlatPolygon( int n_points )
 					break;
 				}
 			}
-			n_cx1.w.h = COORD_X( m_packet.FlatPolygon.vertex[ n_leftpoint ].n_coord ); n_cx1.w.l = 0;
+			n_cx1.sw.h = COORD_X( m_packet.FlatPolygon.vertex[ n_leftpoint ].n_coord ); n_cx1.sw.l = 0;
 			n_leftpoint = p_n_leftpointlist[ n_leftpoint ];
 			n_distance = COORD_Y( m_packet.FlatPolygon.vertex[ n_leftpoint ].n_coord ) - n_y;
 			if( n_distance < 1 )
@@ -1442,7 +1451,7 @@ void psxgpu_device::FlatPolygon( int n_points )
 					break;
 				}
 			}
-			n_cx2.w.h = COORD_X( m_packet.FlatPolygon.vertex[ n_rightpoint ].n_coord ); n_cx2.w.l = 0;
+			n_cx2.sw.h = COORD_X( m_packet.FlatPolygon.vertex[ n_rightpoint ].n_coord ); n_cx2.sw.l = 0;
 			n_rightpoint = p_n_rightpointlist[ n_rightpoint ];
 			n_distance = COORD_Y( m_packet.FlatPolygon.vertex[ n_rightpoint ].n_coord ) - n_y;
 			if( n_distance < 1 )
@@ -1454,17 +1463,17 @@ void psxgpu_device::FlatPolygon( int n_points )
 
 		int drawy = n_y + n_drawoffset_y;
 
-		if( (INT16)n_cx1.w.h != (INT16)n_cx2.w.h && drawy >= (INT32)n_drawarea_y1 && drawy <= (INT32)n_drawarea_y2 )
+		if( (INT16)n_cx1.sw.h != (INT16)n_cx2.sw.h && drawy >= (INT32)n_drawarea_y1 && drawy <= (INT32)n_drawarea_y2 )
 		{
-			if( (INT16)n_cx1.w.h < (INT16)n_cx2.w.h )
+			if( (INT16)n_cx1.sw.h < (INT16)n_cx2.sw.h )
 			{
-				n_x = n_cx1.w.h;
-				n_distance = (INT16)n_cx2.w.h - n_x;
+				n_x = n_cx1.sw.h;
+				n_distance = (INT16)n_cx2.sw.h - n_x;
 			}
 			else
 			{
-				n_x = n_cx2.w.h;
-				n_distance = (INT16)n_cx1.w.h - n_x;
+				n_x = n_cx2.sw.h;
+				n_distance = (INT16)n_cx1.sw.h - n_x;
 			}
 
 			int drawx = n_x + n_drawoffset_x;
@@ -1534,7 +1543,7 @@ void psxgpu_device::FlatTexturedPolygon( int n_points )
 	UINT16 *p_vram;
 	UINT32 n_bgr;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 2 )
 	{
 		return;
@@ -1601,7 +1610,7 @@ void psxgpu_device::FlatTexturedPolygon( int n_points )
 					break;
 				}
 			}
-			n_cx1.w.h = COORD_X( m_packet.FlatTexturedPolygon.vertex[ n_leftpoint ].n_coord ); n_cx1.w.l = 0;
+			n_cx1.sw.h = COORD_X( m_packet.FlatTexturedPolygon.vertex[ n_leftpoint ].n_coord ); n_cx1.sw.l = 0;
 			n_cu1.w.h = TEXTURE_U( m_packet.FlatTexturedPolygon.vertex[ n_leftpoint ].n_texture ); n_cu1.w.l = 0;
 			n_cv1.w.h = TEXTURE_V( m_packet.FlatTexturedPolygon.vertex[ n_leftpoint ].n_texture ); n_cv1.w.l = 0;
 			n_leftpoint = p_n_leftpointlist[ n_leftpoint ];
@@ -1624,7 +1633,7 @@ void psxgpu_device::FlatTexturedPolygon( int n_points )
 					break;
 				}
 			}
-			n_cx2.w.h = COORD_X( m_packet.FlatTexturedPolygon.vertex[ n_rightpoint ].n_coord ); n_cx2.w.l = 0;
+			n_cx2.sw.h = COORD_X( m_packet.FlatTexturedPolygon.vertex[ n_rightpoint ].n_coord ); n_cx2.sw.l = 0;
 			n_cu2.w.h = TEXTURE_U( m_packet.FlatTexturedPolygon.vertex[ n_rightpoint ].n_texture ); n_cu2.w.l = 0;
 			n_cv2.w.h = TEXTURE_V( m_packet.FlatTexturedPolygon.vertex[ n_rightpoint ].n_texture ); n_cv2.w.l = 0;
 			n_rightpoint = p_n_rightpointlist[ n_rightpoint ];
@@ -1640,12 +1649,12 @@ void psxgpu_device::FlatTexturedPolygon( int n_points )
 
 		int drawy = n_y + n_drawoffset_y;
 
-		if( (INT16)n_cx1.w.h != (INT16)n_cx2.w.h && drawy >= (INT32)n_drawarea_y1 && drawy <= (INT32)n_drawarea_y2 )
+		if( (INT16)n_cx1.sw.h != (INT16)n_cx2.sw.h && drawy >= (INT32)n_drawarea_y1 && drawy <= (INT32)n_drawarea_y2 )
 		{
-			if( (INT16)n_cx1.w.h < (INT16)n_cx2.w.h )
+			if( (INT16)n_cx1.sw.h < (INT16)n_cx2.sw.h )
 			{
-				n_x = n_cx1.w.h;
-				n_distance = (INT16)n_cx2.w.h - n_x;
+				n_x = n_cx1.sw.h;
+				n_distance = (INT16)n_cx2.sw.h - n_x;
 
 				n_u.d = n_cu1.d;
 				n_v.d = n_cv1.d;
@@ -1654,8 +1663,8 @@ void psxgpu_device::FlatTexturedPolygon( int n_points )
 			}
 			else
 			{
-				n_x = n_cx2.w.h;
-				n_distance = (INT16)n_cx1.w.h - n_x;
+				n_x = n_cx2.sw.h;
+				n_distance = (INT16)n_cx1.sw.h - n_x;
 
 				n_u.d = n_cu2.d;
 				n_v.d = n_cv2.d;
@@ -1733,7 +1742,7 @@ void psxgpu_device::GouraudPolygon( int n_points )
 
 	UINT16 *p_vram;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 3 )
 	{
 		return;
@@ -1783,7 +1792,7 @@ void psxgpu_device::GouraudPolygon( int n_points )
 					break;
 				}
 			}
-			n_cx1.w.h = COORD_X( m_packet.GouraudPolygon.vertex[ n_leftpoint ].n_coord ); n_cx1.w.l = 0;
+			n_cx1.sw.h = COORD_X( m_packet.GouraudPolygon.vertex[ n_leftpoint ].n_coord ); n_cx1.sw.l = 0;
 			n_cr1.w.h = BGR_R( m_packet.GouraudPolygon.vertex[ n_leftpoint ].n_bgr ); n_cr1.w.l = 0;
 			n_cg1.w.h = BGR_G( m_packet.GouraudPolygon.vertex[ n_leftpoint ].n_bgr ); n_cg1.w.l = 0;
 			n_cb1.w.h = BGR_B( m_packet.GouraudPolygon.vertex[ n_leftpoint ].n_bgr ); n_cb1.w.l = 0;
@@ -1808,7 +1817,7 @@ void psxgpu_device::GouraudPolygon( int n_points )
 					break;
 				}
 			}
-			n_cx2.w.h = COORD_X( m_packet.GouraudPolygon.vertex[ n_rightpoint ].n_coord ); n_cx2.w.l = 0;
+			n_cx2.sw.h = COORD_X( m_packet.GouraudPolygon.vertex[ n_rightpoint ].n_coord ); n_cx2.sw.l = 0;
 			n_cr2.w.h = BGR_R( m_packet.GouraudPolygon.vertex[ n_rightpoint ].n_bgr ); n_cr2.w.l = 0;
 			n_cg2.w.h = BGR_G( m_packet.GouraudPolygon.vertex[ n_rightpoint ].n_bgr ); n_cg2.w.l = 0;
 			n_cb2.w.h = BGR_B( m_packet.GouraudPolygon.vertex[ n_rightpoint ].n_bgr ); n_cb2.w.l = 0;
@@ -1826,12 +1835,12 @@ void psxgpu_device::GouraudPolygon( int n_points )
 
 		int drawy = n_y + n_drawoffset_y;
 
-		if( (INT16)n_cx1.w.h != (INT16)n_cx2.w.h && drawy >= (INT32)n_drawarea_y1 && drawy <= (INT32)n_drawarea_y2 )
+		if( (INT16)n_cx1.sw.h != (INT16)n_cx2.sw.h && drawy >= (INT32)n_drawarea_y1 && drawy <= (INT32)n_drawarea_y2 )
 		{
-			if( (INT16)n_cx1.w.h < (INT16)n_cx2.w.h )
+			if( (INT16)n_cx1.sw.h < (INT16)n_cx2.sw.h )
 			{
-				n_x = n_cx1.w.h;
-				n_distance = (INT16)n_cx2.w.h - n_x;
+				n_x = n_cx1.sw.h;
+				n_distance = (INT16)n_cx2.sw.h - n_x;
 
 				n_r.d = n_cr1.d;
 				n_g.d = n_cg1.d;
@@ -1842,8 +1851,8 @@ void psxgpu_device::GouraudPolygon( int n_points )
 			}
 			else
 			{
-				n_x = n_cx2.w.h;
-				n_distance = (INT16)n_cx1.w.h - n_x;
+				n_x = n_cx2.sw.h;
+				n_distance = (INT16)n_cx1.sw.h - n_x;
 
 				n_r.d = n_cr2.d;
 				n_g.d = n_cg2.d;
@@ -1944,7 +1953,7 @@ void psxgpu_device::GouraudTexturedPolygon( int n_points )
 	UINT16 *p_vram;
 	UINT32 n_bgr;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 4 )
 	{
 		return;
@@ -2006,7 +2015,7 @@ void psxgpu_device::GouraudTexturedPolygon( int n_points )
 					break;
 				}
 			}
-			n_cx1.w.h = COORD_X( m_packet.GouraudTexturedPolygon.vertex[ n_leftpoint ].n_coord ); n_cx1.w.l = 0;
+			n_cx1.sw.h = COORD_X( m_packet.GouraudTexturedPolygon.vertex[ n_leftpoint ].n_coord ); n_cx1.sw.l = 0;
 			switch( n_cmd & 0x01 )
 			{
 			case 0x00:
@@ -2055,7 +2064,7 @@ void psxgpu_device::GouraudTexturedPolygon( int n_points )
 					break;
 				}
 			}
-			n_cx2.w.h = COORD_X( m_packet.GouraudTexturedPolygon.vertex[ n_rightpoint ].n_coord ); n_cx2.w.l = 0;
+			n_cx2.sw.h = COORD_X( m_packet.GouraudTexturedPolygon.vertex[ n_rightpoint ].n_coord ); n_cx2.sw.l = 0;
 			switch( n_cmd & 0x01 )
 			{
 			case 0x00:
@@ -2097,12 +2106,12 @@ void psxgpu_device::GouraudTexturedPolygon( int n_points )
 
 		int drawy = n_y + n_drawoffset_y;
 
-		if( (INT16)n_cx1.w.h != (INT16)n_cx2.w.h && drawy >= (INT32)n_drawarea_y1 && drawy <= (INT32)n_drawarea_y2 )
+		if( (INT16)n_cx1.sw.h != (INT16)n_cx2.sw.h && drawy >= (INT32)n_drawarea_y1 && drawy <= (INT32)n_drawarea_y2 )
 		{
-			if( (INT16)n_cx1.w.h < (INT16)n_cx2.w.h )
+			if( (INT16)n_cx1.sw.h < (INT16)n_cx2.sw.h )
 			{
-				n_x = n_cx1.w.h;
-				n_distance = (INT16)n_cx2.w.h - n_x;
+				n_x = n_cx1.sw.h;
+				n_distance = (INT16)n_cx2.sw.h - n_x;
 
 				n_r.d = n_cr1.d;
 				n_g.d = n_cg1.d;
@@ -2117,8 +2126,8 @@ void psxgpu_device::GouraudTexturedPolygon( int n_points )
 			}
 			else
 			{
-				n_x = n_cx2.w.h;
-				n_distance = (INT16)n_cx1.w.h - n_x;
+				n_x = n_cx2.sw.h;
+				n_distance = (INT16)n_cx1.sw.h - n_x;
 
 				n_r.d = n_cr2.d;
 				n_g.d = n_cg2.d;
@@ -2181,7 +2190,7 @@ void psxgpu_device::MonochromeLine( void )
 	UINT32 n_b;
 	UINT16 *p_vram;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 5 )
 	{
 		return;
@@ -2232,16 +2241,16 @@ void psxgpu_device::MonochromeLine( void )
 		n_len = 1;
 	}
 
-	n_x.w.h = n_xstart; n_x.w.l = 0;
-	n_y.w.h = n_ystart; n_y.w.l = 0;
+	n_x.sw.h = n_xstart; n_x.sw.l = 0;
+	n_y.sw.h = n_ystart; n_y.sw.l = 0;
 
 	n_dx = (INT32)( ( n_xend << 16 ) - n_x.d ) / n_len;
 	n_dy = (INT32)( ( n_yend << 16 ) - n_y.d ) / n_len;
 
 	while( n_len > 0 )
 	{
-		int drawx = n_x.w.h + n_drawoffset_x;
-		int drawy = n_y.w.h + n_drawoffset_y;
+		int drawx = n_x.sw.h + n_drawoffset_x;
+		int drawy = n_y.sw.h + n_drawoffset_y;
 
 		if( drawx >= (INT32)n_drawarea_x1 && drawy >= (INT32)n_drawarea_y1 &&
 			drawx <= (INT32)n_drawarea_x2 && drawy <= (INT32)n_drawarea_y2 )
@@ -2285,7 +2294,7 @@ void psxgpu_device::GouraudLine( void )
 	PAIR n_cb2;
 	UINT16 *p_vram;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 6 )
 	{
 		return;
@@ -2307,8 +2316,8 @@ void psxgpu_device::GouraudLine( void )
 	n_cg2.w.h = BGR_G( m_packet.GouraudLine.vertex[ 1 ].n_bgr ); n_cg1.w.l = 0;
 	n_cb2.w.h = BGR_B( m_packet.GouraudLine.vertex[ 1 ].n_bgr ); n_cb1.w.l = 0;
 
-	n_x.w.h = n_xstart; n_x.w.l = 0;
-	n_y.w.h = n_ystart; n_y.w.l = 0;
+	n_x.sw.h = n_xstart; n_x.sw.l = 0;
+	n_y.sw.h = n_ystart; n_y.sw.l = 0;
 	n_r.d = n_cr1.d;
 	n_g.d = n_cg1.d;
 	n_b.d = n_cb1.d;
@@ -2345,16 +2354,16 @@ void psxgpu_device::GouraudLine( void )
 		n_distance = 1;
 	}
 
-	n_dx = (INT32)( ( n_xend << 16 ) - n_x.d ) / n_distance;
-	n_dy = (INT32)( ( n_yend << 16 ) - n_y.d ) / n_distance;
+	n_dx = (INT32)( ( n_xend << 16 ) - n_x.sd ) / n_distance;
+	n_dy = (INT32)( ( n_yend << 16 ) - n_y.sd ) / n_distance;
 	n_dr = (INT32)( n_cr2.d - n_cr1.d ) / n_distance;
 	n_dg = (INT32)( n_cg2.d - n_cg1.d ) / n_distance;
 	n_db = (INT32)( n_cb2.d - n_cb1.d ) / n_distance;
 
 	while( n_distance > 0 )
 	{
-		int drawx = n_x.w.h + n_drawoffset_x;
-		int drawy = n_y.w.h + n_drawoffset_y;
+		int drawx = n_x.sw.h + n_drawoffset_x;
+		int drawy = n_y.sw.h + n_drawoffset_y;
 
 		if( drawx >= (INT32)n_drawarea_x1 && drawy >= (INT32)n_drawarea_y1 &&
 			drawx <= (INT32)n_drawarea_x2 && drawy <= (INT32)n_drawarea_y2 )
@@ -2365,8 +2374,8 @@ void psxgpu_device::GouraudLine( void )
 				p_n_greenshade[ MID_LEVEL | n_g.w.h ] |
 				p_n_blueshade[ MID_LEVEL | n_b.w.h ] );
 		}
-		n_x.d += n_dx;
-		n_y.d += n_dy;
+		n_x.sd += n_dx;
+		n_y.sd += n_dy;
 		n_r.d += n_dr;
 		n_g.d += n_dg;
 		n_b.d += n_db;
@@ -2385,7 +2394,7 @@ void psxgpu_device::FrameBufferRectangleDraw( void )
 	INT16 n_x;
 	UINT16 *p_vram;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 7 )
 	{
 		return;
@@ -2447,7 +2456,7 @@ void psxgpu_device::FlatRectangle( void )
 	INT32 n_h;
 	UINT16 *p_vram;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 8 )
 	{
 		return;
@@ -2517,7 +2526,7 @@ void psxgpu_device::FlatRectangle8x8( void )
 	INT32 n_h;
 	UINT16 *p_vram;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 9 )
 	{
 		return;
@@ -2587,7 +2596,7 @@ void psxgpu_device::FlatRectangle16x16( void )
 	INT32 n_h;
 	UINT16 *p_vram;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 10 )
 	{
 		return;
@@ -2668,7 +2677,7 @@ void psxgpu_device::FlatTexturedRectangle( void )
 	UINT16 *p_clut;
 	UINT16 n_bgr;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 11 )
 	{
 		return;
@@ -2771,7 +2780,7 @@ void psxgpu_device::Sprite8x8( void )
 	UINT16 *p_clut;
 	UINT16 n_bgr;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 12 )
 	{
 		return;
@@ -2874,7 +2883,7 @@ void psxgpu_device::Sprite16x16( void )
 	UINT16 *p_clut;
 	UINT16 n_bgr;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 13 )
 	{
 		return;
@@ -2952,7 +2961,7 @@ void psxgpu_device::Dot( void )
 	UINT32 n_b;
 	UINT16 *p_vram;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 14 )
 	{
 		return;
@@ -2991,7 +3000,7 @@ void psxgpu_device::MoveImage( void )
 	INT16 n_dstx;
 	UINT16 *p_vram;
 
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 	if( m_debug.n_skip == 15 )
 	{
 		return;
@@ -3737,7 +3746,7 @@ void psxgpu_device::vblank(screen_device &screen, bool vblank_state)
 {
 	if( vblank_state )
 	{
-#if defined( MAME_DEBUG )
+#if DEBUG_VIEWER
 		DebugCheckKeys();
 #endif
 
@@ -3784,21 +3793,22 @@ PALETTE_INIT_MEMBER( psxgpu_device, psx )
 
 	for( n_colour = 0; n_colour < 0x10000; n_colour++ )
 	{
-		palette_set_color_rgb( machine(), n_colour, pal5bit(n_colour >> 0), pal5bit(n_colour >> 5), pal5bit(n_colour >> 10) );
+		palette.set_pen_color( n_colour, pal555(n_colour,0, 5, 10) );
 	}
 }
 
 MACHINE_CONFIG_FRAGMENT( psxgpu )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE( 60 )
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC( 0 ))
+	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE( 1024, 1024 )
 	MCFG_SCREEN_VISIBLE_AREA( 0, 639, 0, 479 )
 	MCFG_SCREEN_UPDATE_DEVICE( DEVICE_SELF, psxgpu_device, update_screen )
 	((screen_device *)device)->register_vblank_callback(vblank_state_delegate(FUNC(psxgpu_device::vblank), (psxgpu_device *) owner));
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH( 65536 )
-	MCFG_PALETTE_INIT_OVERRIDE(psxgpu_device, psx)
+	MCFG_PALETTE_ADD( "palette", 65536 )
+	MCFG_PALETTE_INIT_OWNER(psxgpu_device, psx)
 MACHINE_CONFIG_END
 
 //-------------------------------------------------

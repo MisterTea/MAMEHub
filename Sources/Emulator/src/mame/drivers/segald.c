@@ -34,7 +34,9 @@ public:
 		m_out_ram(*this, "out_ram"),
 		m_color_ram(*this, "color_ram"),
 		m_fix_ram(*this, "fix_ram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	UINT8 m_nmi_enable;
 
@@ -63,6 +65,8 @@ public:
 	void astron_draw_characters(bitmap_rgb32 &bitmap,const rectangle &cliprect);
 	void astron_draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 /* VIDEO GOODS */
@@ -75,7 +79,7 @@ void segald_state::astron_draw_characters(bitmap_rgb32 &bitmap,const rectangle &
 		for (characterY = 0; characterY < 32; characterY++)
 		{
 			int current_screen_character = (characterY*32) + characterX;
-			drawgfx_transpen(bitmap, cliprect, machine().gfx[0], m_fix_ram[current_screen_character],
+			m_gfxdecode->gfx(0)->transpen(bitmap,cliprect, m_fix_ram[current_screen_character],
 					1, 0, 0, characterX*8, characterY*8, 0);
 		}
 	}
@@ -224,7 +228,7 @@ WRITE8_MEMBER(segald_state::astron_COLOR_write)
 	b = (highBits & 0x0f);
 	a = (highBits & 0x80) ? 0 : 255;
 
-	palette_set_color(machine(), palIndex, MAKE_ARGB(a, r, g, b));
+	m_palette->set_pen_color(palIndex, rgb_t(a, r, g, b));
 	logerror("COLOR write : 0x%04x @   0x%04x [0x%x]\n", data, offset, space.device().safe_pc());
 }
 
@@ -372,12 +376,13 @@ static MACHINE_CONFIG_START( astron, segald_state )
 
 	MCFG_LASERDISC_LDV1000_ADD("laserdisc")
 	MCFG_LASERDISC_OVERLAY_DRIVER(256, 256, segald_state, screen_update_astron)
+	MCFG_LASERDISC_OVERLAY_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_LASERDISC_SCREEN_ADD_NTSC("screen", "laserdisc")
 
-	MCFG_GFXDECODE(segald)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", segald)
+	MCFG_PALETTE_ADD("palette", 256)
 
 	/* sound hardare */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

@@ -21,7 +21,10 @@ public:
 			m_gfxrom(*this, "gfxrom"),
 			m_cvsd_sound(*this, "cvsd"),
 			m_adpcm_sound(*this, "adpcm") ,
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_palette(*this, "palette"),
+		m_dcs(*this, "dcs"),
+		m_generic_paletteram_16(*this, "paletteram") { }
 
 	required_shared_ptr<UINT16> m_nvram;
 	required_memory_region m_gfxrom;
@@ -72,6 +75,10 @@ public:
 	DECLARE_MACHINE_RESET(midtunit);
 	DECLARE_VIDEO_START(midtunit);
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
+	optional_device<dcs_audio_device> m_dcs;
+	required_shared_ptr<UINT16> m_generic_paletteram_16;
+
 	void register_state_saving();
 	void init_tunit_generic(int sound);
 	void init_nbajam_common(int te_protection);

@@ -78,7 +78,7 @@ PALETTE_INIT_MEMBER(stactics_state,stactics)
 		/* blue component */
 		int b = 0xff * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -252,8 +252,8 @@ void stactics_state::draw_background(bitmap_ind16 &bitmap, const rectangle &clip
 						(pixel_f << 5) |
 						(pixel_e << 6) |
 						(pixel_d << 7) |
-						((m_palette[0] & 0x01) << 8) |
-						((m_palette[1] & 0x01) << 9);
+						((m_palette_val[0] & 0x01) << 8) |
+						((m_palette_val[1] & 0x01) << 9);
 
 			/* compute the effective pixel coordinate after adjusting for the
 			   mirror movement - this is mechanical on the real machine */
@@ -393,18 +393,17 @@ UINT32 stactics_state::screen_update_stactics(screen_device &screen, bitmap_ind1
  *************************************/
 
 MACHINE_CONFIG_FRAGMENT( stactics_video )
-
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(stactics_state, screen_update_stactics)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x400)
+	MCFG_PALETTE_ADD("palette", 0x400)
 
-	MCFG_PALETTE_INIT_OVERRIDE(stactics_state,stactics)
+	MCFG_PALETTE_INIT_OWNER(stactics_state,stactics)
 	MCFG_VIDEO_START_OVERRIDE(stactics_state,stactics)
 MACHINE_CONFIG_END

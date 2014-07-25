@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     xmlfile.c
 
     XML file parsing code.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -593,17 +564,29 @@ const char *xml_normalize_string(const char *string)
 
 static void *expat_malloc(size_t size)
 {
-	return malloc(size);
-}
-
-static void *expat_realloc(void *ptr, size_t size)
-{
-	return realloc(ptr, size);
+	UINT32 *result = (UINT32 *)malloc(size + 4 * sizeof(UINT32));
+	*result = size;
+	return &result[4];
 }
 
 static void expat_free(void *ptr)
 {
-	free(ptr);
+	if (ptr != NULL)
+		free(&((UINT32 *)ptr)[-4]);
+}
+
+static void *expat_realloc(void *ptr, size_t size)
+{
+	void *newptr = expat_malloc(size);
+	if (newptr == NULL)
+		return NULL;
+	if (ptr != NULL)
+	{
+		UINT32 oldsize = ((UINT32 *)ptr)[-4];
+		memcpy(newptr, ptr, oldsize);
+		expat_free(ptr);
+	}
+	return newptr;
 }
 
 
@@ -687,7 +670,7 @@ static void expat_element_start(void *data, const XML_Char *name, const XML_Char
 
 
 /*-------------------------------------------------
-    expat_data - expat callback for a additional
+    expat_data - expat callback for an additional
     element data
 -------------------------------------------------*/
 
@@ -707,9 +690,16 @@ static void expat_data(void *data, const XML_Char *s, int len)
 		oldlen = (int)strlen((*curnode)->value);
 
 	/* realloc */
-	newdata = (char *)realloc((void *)(*curnode)->value, oldlen + len + 1);
+	newdata = (char *)malloc(oldlen + len + 1);
 	if (newdata == NULL)
 		return;
+	if ((*curnode)->value != NULL)
+	{
+		memcpy(newdata, (*curnode)->value, oldlen);
+        //JJG: Cast to fix bug with clang.
+		free((void*)((*curnode)->value));
+	}
+	(*curnode)->value = newdata;
 
 	/* copy in the new data a NULL-terminate */
 	memcpy(&newdata[oldlen], s, len);

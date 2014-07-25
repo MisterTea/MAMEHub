@@ -59,7 +59,7 @@ PALETTE_INIT_MEMBER(turbo_state,turbo)
 		bit1 = (i >> 7) & 1;
 		b = combine_2_weights(bweights, bit0, bit1);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -98,7 +98,7 @@ PALETTE_INIT_MEMBER(turbo_state,subroc3d)
 		bit1 = (i >> 7) & 1;
 		b = combine_2_weights(bweights, bit0, bit1);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -139,7 +139,7 @@ PALETTE_INIT_MEMBER(turbo_state,buckrog)
 		bit3 = (i >> 7) & 1;
 		b = combine_4_weights(bweights, bit0, bit1, bit2, bit3);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 	}
 }
 
@@ -161,14 +161,14 @@ TILE_GET_INFO_MEMBER(turbo_state::get_fg_tile_info)
 VIDEO_START_MEMBER(turbo_state,turbo)
 {
 	/* initialize the foreground tilemap */
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(turbo_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(turbo_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,32);
 }
 
 
 VIDEO_START_MEMBER(turbo_state,buckrog)
 {
 	/* initialize the foreground tilemap */
-	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(turbo_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,32);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(turbo_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,32);
 
 	/* allocate the bitmap RAM */
 	m_buckrog_bitmap_ram = auto_alloc_array(machine(), UINT8, 0xe000);

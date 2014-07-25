@@ -229,32 +229,6 @@ static GFXDECODE_START( kncljoe )
 	GFXDECODE_ENTRY( "gfx3", 0, spritelayout, 0x80, 16 )
 GFXDECODE_END
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(kncljoe_state,unused_w)
-};
 
 INTERRUPT_GEN_MEMBER(kncljoe_state::sound_nmi)
 {
@@ -293,33 +267,33 @@ static MACHINE_CONFIG_START( kncljoe, kncljoe_state )
 
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(1500))
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 31*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(kncljoe_state, screen_update_kncljoe)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(kncljoe)
-	MCFG_PALETTE_LENGTH(16*8+16*8)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", kncljoe)
+	MCFG_PALETTE_ADD("palette", 16*8+16*8)
+	MCFG_PALETTE_INDIRECT_ENTRIES(128+16)
+	MCFG_PALETTE_INIT_OWNER(kncljoe_state, kncljoe)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, XTAL_3_579545MHz/4) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(kncljoe_state, unused_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
 	MCFG_SOUND_ADD("sn1", SN76489, XTAL_3_579545MHz) /* verified on pcb */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76489, XTAL_3_579545MHz) /* verified on pcb */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 

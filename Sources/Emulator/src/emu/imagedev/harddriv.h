@@ -15,20 +15,9 @@
     TYPE DEFINITIONS
 ***************************************************************************/
 
-// ======================> harddisk_interface
-
-struct harddisk_interface
-{
-	device_image_load_func      m_device_image_load;
-	device_image_unload_func    m_device_image_unload;
-	const char *                    m_interface;
-	device_image_display_info_func  m_device_displayinfo;
-};
-
 // ======================> harddisk_image_device
 
 class harddisk_image_device :   public device_t,
-								public harddisk_interface,
 								public device_image_interface
 {
 public:
@@ -36,12 +25,15 @@ public:
 	harddisk_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	virtual ~harddisk_image_device();
 
+	static void static_set_device_load(device_t &device, device_image_load_delegate callback) { downcast<harddisk_image_device &>(device).m_device_image_load = callback; }
+	static void static_set_device_unload(device_t &device, device_image_func_delegate callback) { downcast<harddisk_image_device &>(device).m_device_image_unload = callback; }
+	static void static_set_interface(device_t &device, const char *_interface) { downcast<harddisk_image_device &>(device).m_interface = _interface; }
+
 	// image-level overrides
 	virtual bool call_load();
 	virtual bool call_create(int create_format, option_resolution *create_args);
 	virtual void call_unload();
-	virtual void call_display_info() { if (m_device_displayinfo) m_device_displayinfo(*this); }
-	virtual bool call_softlist_load(char *swlist, char *swname, rom_entry *start_entry) { load_software_part_region(this, swlist, swname, start_entry ); return TRUE; }
+	virtual bool call_softlist_load(software_list_device &swlist, const char *swname, const rom_entry *start_entry) { load_software_part_region(*this, swlist, swname, start_entry ); return TRUE; }
 
 	virtual iodevice_t image_type() const { return IO_HARDDISK; }
 
@@ -71,7 +63,9 @@ protected:
 	chd_file        m_diffchd;              /* handle to the diff CHD */
 	hard_disk_file  *m_hard_disk_handle;
 
-	image_device_format m_format;
+	device_image_load_delegate      m_device_image_load;
+	device_image_func_delegate      m_device_image_unload;
+	const char *                    m_interface;
 };
 
 // device type definition
@@ -83,7 +77,14 @@ extern const device_type HARDDISK;
 
 #define MCFG_HARDDISK_ADD(_tag) \
 	MCFG_DEVICE_ADD(_tag, HARDDISK, 0)
-#define MCFG_HARDDISK_CONFIG_ADD(_tag,_config) \
-	MCFG_DEVICE_ADD(_tag, HARDDISK, 0) \
-	MCFG_DEVICE_CONFIG(_config)
+
+#define MCFG_HARDDISK_LOAD(_class,_method)                                \
+	harddisk_image_device::static_set_device_load(*device, device_image_load_delegate(&DEVICE_IMAGE_LOAD_NAME(_class,_method), #_class "::device_image_load_" #_method, downcast<_class *>(owner)));
+
+#define MCFG_HARDDISK_UNLOAD(_class,_method)                            \
+	harddisk_image_device::static_set_device_unload(*device, device_image_func_delegate(&DEVICE_IMAGE_UNLOAD_NAME(_class,_method), #_class "::device_image_unload_" #_method, downcast<_class *>(owner)));
+
+#define MCFG_HARDDISK_INTERFACE(_interface)                         \
+	harddisk_image_device::static_set_interface(*device, _interface);
+
 #endif /* HARDDRIV_H */

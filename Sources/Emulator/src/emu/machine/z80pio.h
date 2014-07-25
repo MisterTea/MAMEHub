@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /***************************************************************************
 
     Zilog Z80 Parallel Input/Output Controller implementation
@@ -40,13 +42,26 @@
 //  DEVICE CONFIGURATION MACROS
 //**************************************************************************
 
-#define MCFG_Z80PIO_ADD(_tag, _clock, _intrf) \
-	MCFG_DEVICE_ADD(_tag, Z80PIO, _clock) \
-	MCFG_DEVICE_CONFIG(_intrf)
+#define MCFG_Z80PIO_OUT_INT_CB(_devcb) \
+	devcb = &z80pio_device::set_out_int_callback(*device, DEVCB_##_devcb);
 
-#define Z80PIO_INTERFACE(_name) \
-	const z80pio_interface (_name) =
+#define MCFG_Z80PIO_IN_PA_CB(_devcb) \
+	devcb = &z80pio_device::set_in_pa_callback(*device, DEVCB_##_devcb);
 
+#define MCFG_Z80PIO_OUT_PA_CB(_devcb) \
+	devcb = &z80pio_device::set_out_pa_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_Z80PIO_OUT_ARDY_CB(_devcb) \
+	devcb = &z80pio_device::set_out_ardy_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_Z80PIO_IN_PB_CB(_devcb) \
+	devcb = &z80pio_device::set_in_pb_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_Z80PIO_OUT_PB_CB(_devcb) \
+	devcb = &z80pio_device::set_out_pb_callback(*device, DEVCB_##_devcb);
+
+#define MCFG_Z80PIO_OUT_BRDY_CB(_devcb) \
+	devcb = &z80pio_device::set_out_brdy_callback(*device, DEVCB_##_devcb);
 
 
 //**************************************************************************
@@ -54,28 +69,10 @@
 //**************************************************************************
 
 
-// ======================> z80pio_interface
-
-struct z80pio_interface
-{
-	devcb_write_line    m_out_int_cb;
-
-	devcb_read8         m_in_pa_cb;
-	devcb_write8        m_out_pa_cb;
-	devcb_write_line    m_out_ardy_cb;
-
-	devcb_read8         m_in_pb_cb;
-	devcb_write8        m_out_pb_cb;
-	devcb_write_line    m_out_brdy_cb;
-};
-
-
-
 // ======================> z80pio_device
 
 class z80pio_device :   public device_t,
-						public device_z80daisy_interface,
-						public z80pio_interface
+						public device_z80daisy_interface
 {
 public:
 	enum
@@ -87,6 +84,14 @@ public:
 
 	// construction/destruction
 	z80pio_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	template<class _Object> static devcb_base &set_out_int_callback(device_t &device, _Object object) { return downcast<z80pio_device &>(device).m_out_int_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_in_pa_callback(device_t &device, _Object object) { return downcast<z80pio_device &>(device).m_in_pa_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_out_pa_callback(device_t &device, _Object object) { return downcast<z80pio_device &>(device).m_out_pa_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_out_ardy_callback(device_t &device, _Object object) { return downcast<z80pio_device &>(device).m_out_ardy_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_in_pb_callback(device_t &device, _Object object) { return downcast<z80pio_device &>(device).m_in_pb_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_out_pb_callback(device_t &device, _Object object) { return downcast<z80pio_device &>(device).m_out_pb_cb.set_callback(object); }
+	template<class _Object> static devcb_base &set_out_brdy_callback(device_t &device, _Object object) { return downcast<z80pio_device &>(device).m_out_brdy_cb.set_callback(object); }
 
 	// I/O line access
 	int rdy(int which) { return m_port[which].rdy(); }
@@ -117,6 +122,10 @@ public:
 	UINT8 port_b_read() { return port_read(PORT_B); }
 	void port_a_write(UINT8 data) { port_write(PORT_A, data); }
 	void port_b_write(UINT8 data) { port_write(PORT_B, data); }
+	DECLARE_WRITE8_MEMBER( pa_w ) { port_a_write(data); }
+	DECLARE_READ8_MEMBER( pa_r ) { return port_a_read(); }
+	DECLARE_WRITE8_MEMBER( pb_w ) { port_b_write(data); }
+	DECLARE_READ8_MEMBER( pb_r ) { return port_b_read(); }
 
 	// standard read/write, with C/D in bit 1, B/A in bit 0
 	DECLARE_READ8_MEMBER( read );
@@ -128,7 +137,6 @@ public:
 
 private:
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
 	virtual void device_reset();
 
@@ -148,7 +156,7 @@ private:
 	public:
 		pio_port();
 
-		void start(z80pio_device *device, int index, const devcb_read8 &infunc, const devcb_write8 &outfunc, const devcb_write_line &rdyfunc);
+		void start(z80pio_device *device, int index);
 		void reset();
 
 		bool interrupt_signalled();
@@ -173,10 +181,6 @@ private:
 		z80pio_device *             m_device;
 		int                         m_index;
 
-		devcb_resolved_read8        m_in_p_func;
-		devcb_resolved_write8       m_out_p_func;
-		devcb_resolved_write_line   m_out_rdy_func;
-
 		int m_mode;                 // mode register
 		int m_next_control_word;    // next control word
 		UINT8 m_input;              // input latch
@@ -196,8 +200,16 @@ private:
 	};
 
 	// internal state
-	pio_port                    m_port[2];
-	devcb_resolved_write_line   m_out_int_func;
+	pio_port             m_port[2];
+	devcb_write_line    m_out_int_cb;
+
+	devcb_read8         m_in_pa_cb;
+	devcb_write8        m_out_pa_cb;
+	devcb_write_line    m_out_ardy_cb;
+
+	devcb_read8         m_in_pb_cb;
+	devcb_write8        m_out_pb_cb;
+	devcb_write_line    m_out_brdy_cb;
 };
 
 

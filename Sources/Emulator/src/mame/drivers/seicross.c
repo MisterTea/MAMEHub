@@ -48,31 +48,17 @@ This info came from http://www.ne.jp/asahi/cc-sakura/akkun/old/fryski.html
 #include "sound/ay8910.h"
 #include "sound/dac.h"
 #include "includes/seicross.h"
-#include "mcfglgcy.h"
 
-static NVRAM_HANDLER( seicross )
+
+void seicross_state::nvram_init(nvram_device &nvram, void *data, size_t size)
 {
-	seicross_state *state = machine.driver_data<seicross_state>();
-	UINT8 *nvram = state->m_nvram;
-	size_t nvram_size = state->m_nvram.bytes();
+	static const UINT8 init[32] = {
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1,
+		0, 1, 0, 1, 0, 1, 0, 3, 0, 1, 0, 0, 0, 0, 0, 0, };
 
-	if (read_or_write)
-		file->write(nvram,nvram_size);
-	else
-	{
-		if (file)
-			file->read(nvram,nvram_size);
-		else
-		{
-			/* fill in the default values */
-			memset(nvram,0,nvram_size);
-			nvram[0x0d] = nvram[0x0f] = nvram[0x11] = nvram[0x13] = nvram[0x15] = nvram[0x19] = 1;
-			nvram[0x17] = 3;
-		}
-	}
+	memset(data, 0x00, size);
+	memcpy(data, init, sizeof(init));
 }
-
-
 
 void seicross_state::machine_reset()
 {
@@ -376,17 +362,6 @@ static GFXDECODE_START( seicross )
 GFXDECODE_END
 
 
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(seicross_state,friskyt_portB_r),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(seicross_state,friskyt_portB_w)
-};
-
 INTERRUPT_GEN_MEMBER(seicross_state::vblank_irq)
 {
 	if(m_irq_mask)
@@ -395,7 +370,7 @@ INTERRUPT_GEN_MEMBER(seicross_state::vblank_irq)
 }
 
 
-static MACHINE_CONFIG_START( nvram, seicross_state )
+static MACHINE_CONFIG_START( no_nvram, seicross_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, 3072000)   /* 3.072 MHz? */
@@ -404,11 +379,10 @@ static MACHINE_CONFIG_START( nvram, seicross_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", seicross_state,  vblank_irq)
 
 	MCFG_CPU_ADD("mcu", NSC8105, 3072000)   /* ??? */
-	MCFG_CPU_PROGRAM_MAP(mcu_nvram_map)
+	MCFG_CPU_PROGRAM_MAP(mcu_no_nvram_map)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(1200))  /* 20 CPU slices per frame - an high value to ensure proper */
 						/* synchronization of the CPUs */
-	MCFG_NVRAM_HANDLER(seicross)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -417,16 +391,18 @@ static MACHINE_CONFIG_START( nvram, seicross_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(seicross_state, screen_update_seicross)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(seicross)
-	MCFG_PALETTE_LENGTH(64)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", seicross)
+	MCFG_PALETTE_ADD("palette", 64)
+	MCFG_PALETTE_INIT_OWNER(seicross_state, seicross)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1536000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_B_READ_CB(READ8(seicross_state, friskyt_portB_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(seicross_state, friskyt_portB_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_DAC_ADD("dac")
@@ -434,13 +410,13 @@ static MACHINE_CONFIG_START( nvram, seicross_state )
 MACHINE_CONFIG_END
 
 
-static MACHINE_CONFIG_DERIVED( no_nvram, nvram )
+static MACHINE_CONFIG_DERIVED( nvram, no_nvram )
 
 	/* basic machine hardware */
 	MCFG_CPU_MODIFY("mcu")
-	MCFG_CPU_PROGRAM_MAP(mcu_no_nvram_map)
+	MCFG_CPU_PROGRAM_MAP(mcu_nvram_map)
 
-	MCFG_NVRAM_HANDLER(0)
+	MCFG_NVRAM_ADD_CUSTOM_DRIVER("nvram", seicross_state, nvram_init)
 MACHINE_CONFIG_END
 
 

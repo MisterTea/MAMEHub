@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic, Robbbert
 /***************************************************************************
 
         Plan-80
@@ -34,10 +36,10 @@ public:
 	};
 
 	plan80_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu")
-	,
-		m_p_videoram(*this, "p_videoram"){ }
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_p_videoram(*this, "p_videoram")
+	{ }
 
 	required_device<cpu_device> m_maincpu;
 	DECLARE_READ8_MEMBER(plan80_04_r);
@@ -239,9 +241,10 @@ static MACHINE_CONFIG_START( plan80, plan80_state )
 	MCFG_SCREEN_UPDATE_DRIVER(plan80_state, screen_update)
 	MCFG_SCREEN_SIZE(48*6, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 48*6-1, 0, 32*8-1)
-	MCFG_GFXDECODE(plan80)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_green)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", plan80)
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN("palette")
 MACHINE_CONFIG_END
 
 /* ROM definition */

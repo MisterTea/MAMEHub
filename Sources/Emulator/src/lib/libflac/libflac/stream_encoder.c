@@ -29,10 +29,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if HAVE_CONFIG_H
+#ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
 
+#if defined _MSC_VER || defined __MINGW32__
+#include <io.h> /* for _setmode() */
+#include <fcntl.h> /* for _O_BINARY */
+#endif
+#if defined __CYGWIN__ || defined __EMX__
+#include <io.h> /* for setmode(), O_BINARY */
+#include <fcntl.h> /* for _O_BINARY */
+#endif
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h> /* for malloc() */
@@ -46,8 +54,8 @@
 #define ftello ftell
 #endif
 #endif
-#include "flac/assert.h"
-#include "flac/stream_decoder.h"
+#include "FLAC/assert.h"
+#include "FLAC/stream_decoder.h"
 #include "share/alloc.h"
 #include "protected/stream_encoder.h"
 #include "private/bitwriter.h"
@@ -4336,7 +4344,6 @@ FLAC__StreamEncoderWriteStatus file_write_callback_(const FLAC__StreamEncoder *e
  */
 FILE *get_binary_stdout_(void)
 {
-#if 0
 	/* if something breaks here it is probably due to the presence or
 	 * absence of an underscore before the identifiers 'setmode',
 	 * 'fileno', and/or 'O_BINARY'; check your system header files.
@@ -4349,6 +4356,6 @@ FILE *get_binary_stdout_(void)
 #elif defined __EMX__
 	setmode(fileno(stdout), O_BINARY);
 #endif
-#endif
+
 	return stdout;
 }

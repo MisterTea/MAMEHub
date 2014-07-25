@@ -120,17 +120,46 @@ to through the chip.
 
 #include "emu.h"
 #include "k052109.h"
-#include "konami_helper.h"
 
 #define VERBOSE 0
 #define LOG(x) do { if (VERBOSE) logerror x; } while (0)
 
-#define XOR(a) WORD_XOR_BE(a)
-
 const device_type K052109 = &device_creator<k052109_device>;
 
+const gfx_layout k052109_device::charlayout =
+{
+	8,8,
+	RGN_FRAC(1,1),
+	4,
+	{ 24, 16, 8, 0 },
+	{ 0, 1, 2, 3, 4, 5, 6, 7 },
+	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
+	32*8
+};
+
+const gfx_layout k052109_device::charlayout_ram =
+{
+	8,8,
+	RGN_FRAC(1,1),
+	4,
+	{ 0, 1, 2, 3 },
+	{ 0*4, 1*4, 2*4, 3*4, 4*4, 5*4, 6*4, 7*4 },
+	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
+	32*8
+};
+
+GFXDECODE_MEMBER( k052109_device::gfxinfo )
+	GFXDECODE_DEVICE(DEVICE_SELF, 0, charlayout, 0, 1)
+GFXDECODE_END
+
+GFXDECODE_MEMBER( k052109_device::gfxinfo_ram )
+	GFXDECODE_DEVICE_RAM(DEVICE_SELF, 0, charlayout_ram, 0, 1)
+GFXDECODE_END
+
+
 k052109_device::k052109_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, K052109, "Konami 052109", tag, owner, clock, "k052109", __FILE__),
+	: device_t(mconfig, K052109, "K052109 Sprite/Tilemap Generator", tag, owner, clock, "k052109", __FILE__),
+	device_gfx_interface(mconfig, *this, gfxinfo),
 	m_ram(NULL),
 	m_videoram_F(NULL),
 	m_videoram_A(NULL),
@@ -141,43 +170,28 @@ k052109_device::k052109_device(const machine_config &mconfig, const char *tag, d
 	m_colorram_F(NULL),
 	m_colorram_A(NULL),
 	m_colorram_B(NULL),
-
-	//m_tilemap[3],
 	m_tileflip_enable(0),
-	//m_charrombank[4],
-	//m_charrombank_2[4],
 	m_has_extra_video_ram(0),
 	m_rmrd_line(0),
 	m_irq_enabled(0),
-	//m_dx[3], m_dy[3],
 	m_romsubbank(0),
-	m_scrollctrl(0)
+	m_scrollctrl(0),
+	m_char_rom(NULL),
+	m_char_size(0)
 {
 }
 
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
 
-void k052109_device::device_config_complete()
+void k052109_device::set_ram(device_t &device, bool ram)
 {
-	// inherit a copy of the static data
-	const k052109_interface *intf = reinterpret_cast<const k052109_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<k052109_interface *>(this) = *intf;
+	k052109_device &dev = downcast<k052109_device &>(device);
 
-	// or initialize to defaults if none provided
+	if (ram)
+		device_gfx_interface::static_set_info(dev, gfxinfo_ram);
 	else
-	{
-		m_gfx_memory_region = "";
-		m_gfx_num = 0;
-		m_plane_order = 0;
-		m_deinterleave = 0;
-		m_callback = NULL;
-	}
+		device_gfx_interface::static_set_info(dev, gfxinfo);
 }
+
 
 //-------------------------------------------------
 //  device_start - device-specific startup
@@ -185,52 +199,15 @@ void k052109_device::device_config_complete()
 
 void k052109_device::device_start()
 {
-	UINT32 total;
-	static const gfx_layout charlayout =
+	memory_region *ROM = region();
+	if (ROM != NULL)
 	{
-		8,8,
-		0,
-		4,
-		{ 24, 16, 8, 0 },
-		{ 0, 1, 2, 3, 4, 5, 6, 7 },
-		{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
-		32*8
-	};
-	static const gfx_layout charlayout_gradius3 =
-	{
-		8,8,
-		0,
-		4,
-		{ 0, 1, 2, 3 },
-		{ XOR(0)*4, XOR(1)*4, XOR(2)*4, XOR(3)*4, XOR(4)*4, XOR(5)*4, XOR(6)*4, XOR(7)*4 },
-		{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
-		32*8
-	};
-
-
-	/* decode the graphics */
-	switch (m_plane_order)
-	{
-	case NORMAL_PLANE_ORDER:
-		total = machine().root_device().memregion(m_gfx_memory_region)->bytes() / 32;
-		konami_decode_gfx(machine(), m_gfx_num, machine().root_device().memregion(m_gfx_memory_region)->base(), total, &charlayout, 4);
-		break;
-
-	case GRADIUS3_PLANE_ORDER:
-		total = 0x1000;
-		konami_decode_gfx(machine(), m_gfx_num, machine().root_device().memregion(m_gfx_memory_region)->base(), total, &charlayout_gradius3, 4);
-		break;
-
-	default:
-		fatalerror("Unsupported plane_order\n");
+		m_char_rom = ROM->base();
+		m_char_size = ROM->bytes();
 	}
 
-	/* deinterleave the graphics, if needed */
-	konami_deinterleave_gfx(machine(), m_gfx_memory_region, m_deinterleave);
-
-	m_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k052109_device::get_tile_info0),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
-	m_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k052109_device::get_tile_info1),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
-	m_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k052109_device::get_tile_info2),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	decode_gfx();
+	gfx(0)->set_colors(palette()->entries() / gfx(0)->depth());
 
 	m_ram = auto_alloc_array_clear(machine(), UINT8, 0x6000);
 
@@ -244,9 +221,16 @@ void k052109_device::device_start()
 	m_videoram2_A = &m_ram[0x4800];
 	m_videoram2_B = &m_ram[0x5000];
 
+	m_tilemap[0] = &machine().tilemap().create(*this, tilemap_get_info_delegate(FUNC(k052109_device::get_tile_info0),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_tilemap[1] = &machine().tilemap().create(*this, tilemap_get_info_delegate(FUNC(k052109_device::get_tile_info1),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+	m_tilemap[2] = &machine().tilemap().create(*this, tilemap_get_info_delegate(FUNC(k052109_device::get_tile_info2),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
+
 	m_tilemap[0]->set_transparent_pen(0);
 	m_tilemap[1]->set_transparent_pen(0);
 	m_tilemap[2]->set_transparent_pen(0);
+
+	// bind callbacks
+	m_k052109_cb.bind_relative_to(*owner());
 
 	save_pointer(NAME(m_ram), 0x6000);
 	save_item(NAME(m_rmrd_line));
@@ -255,8 +239,6 @@ void k052109_device::device_start()
 	save_item(NAME(m_irq_enabled));
 	save_item(NAME(m_charrombank));
 	save_item(NAME(m_charrombank_2));
-	save_item(NAME(m_dx));
-	save_item(NAME(m_dy));
 	save_item(NAME(m_has_extra_video_ram));
 	machine().save().register_postload(save_prepost_delegate(FUNC(k052109_device::tileflip_reset), this));
 }
@@ -267,8 +249,6 @@ void k052109_device::device_start()
 
 void k052109_device::device_reset()
 {
-	int i;
-
 	m_rmrd_line = CLEAR_LINE;
 	m_irq_enabled = 0;
 	m_romsubbank = 0;
@@ -276,10 +256,7 @@ void k052109_device::device_reset()
 
 	m_has_extra_video_ram = 0;
 
-	for (i = 0; i < 3; i++)
-		m_dx[i] = m_dy[i] = 0;
-
-	for (i = 0; i < 4; i++)
+	for (int i = 0; i < 4; i++)
 	{
 		m_charrombank[i] = 0;
 		m_charrombank_2[i] = 0;
@@ -314,6 +291,8 @@ READ8_MEMBER( k052109_device::read )
 	}
 	else    /* Punk Shot and TMNT read from 0000-1fff, Aliens from 2000-3fff */
 	{
+		assert (m_char_size != 0);
+
 		int code = (offset & 0x1fff) >> 5;
 		int color = m_romsubbank;
 		int flags = 0;
@@ -326,14 +305,14 @@ READ8_MEMBER( k052109_device::read )
 	if (m_has_extra_video_ram)
 		code |= color << 8; /* kludge for X-Men */
 	else
-		m_callback(space.machine(), 0, bank, &code, &color, &flags, &priority);
+		m_k052109_cb(0, bank, &code, &color, &flags, &priority);
 
 		addr = (code << 5) + (offset & 0x1f);
-		addr &= space.machine().root_device().memregion(m_gfx_memory_region)->bytes() - 1;
+		addr &= m_char_size - 1;
 
 //      logerror("%04x: off = %04x sub = %02x (bnk = %x) adr = %06x\n", space.device().safe_pc(), offset, m_romsubbank, bank, addr);
 
-		return space.machine().root_device().memregion(m_gfx_memory_region)->base()[addr];
+		return m_char_rom[addr];
 	}
 }
 
@@ -525,12 +504,12 @@ popmessage("%x %x %x %x",
 		m_tilemap[1]->set_scroll_rows(256);
 		m_tilemap[1]->set_scroll_cols(1);
 		yscroll = m_ram[0x180c];
-		m_tilemap[1]->set_scrolly(0, yscroll + m_dy[1]);
+		m_tilemap[1]->set_scrolly(0, yscroll);
 		for (offs = 0; offs < 256; offs++)
 		{
 			xscroll = scrollram[2 * (offs & 0xfff8) + 0] + 256 * scrollram[2 * (offs & 0xfff8) + 1];
 			xscroll -= 6;
-			m_tilemap[1]->set_scrollx((offs + yscroll) & 0xff, xscroll + m_dx[1]);
+			m_tilemap[1]->set_scrollx((offs + yscroll) & 0xff, xscroll);
 		}
 	}
 	else if ((m_scrollctrl & 0x03) == 0x03)
@@ -540,12 +519,12 @@ popmessage("%x %x %x %x",
 		m_tilemap[1]->set_scroll_rows(256);
 		m_tilemap[1]->set_scroll_cols(1);
 		yscroll = m_ram[0x180c];
-		m_tilemap[1]->set_scrolly(0, yscroll + m_dy[1]);
+		m_tilemap[1]->set_scrolly(0, yscroll);
 		for (offs = 0; offs < 256; offs++)
 		{
 			xscroll = scrollram[2 * offs + 0] + 256 * scrollram[2 * offs + 1];
 			xscroll -= 6;
-			m_tilemap[1]->set_scrollx((offs + yscroll) & 0xff, xscroll + m_dx[1]);
+			m_tilemap[1]->set_scrollx((offs + yscroll) & 0xff, xscroll);
 		}
 	}
 	else if ((m_scrollctrl & 0x04) == 0x04)
@@ -556,11 +535,11 @@ popmessage("%x %x %x %x",
 		m_tilemap[1]->set_scroll_cols(512);
 		xscroll = m_ram[0x1a00] + 256 * m_ram[0x1a01];
 		xscroll -= 6;
-		m_tilemap[1]->set_scrollx(0, xscroll + m_dx[1]);
+		m_tilemap[1]->set_scrollx(0, xscroll);
 		for (offs = 0; offs < 512; offs++)
 		{
 			yscroll = scrollram[offs / 8];
-			m_tilemap[1]->set_scrolly((offs + xscroll) & 0x1ff, yscroll + m_dy[1]);
+			m_tilemap[1]->set_scrolly((offs + xscroll) & 0x1ff, yscroll);
 		}
 	}
 	else
@@ -572,8 +551,8 @@ popmessage("%x %x %x %x",
 		xscroll = scrollram[0] + 256 * scrollram[1];
 		xscroll -= 6;
 		yscroll = m_ram[0x180c];
-		m_tilemap[1]->set_scrollx(0, xscroll + m_dx[1]);
-		m_tilemap[1]->set_scrolly(0, yscroll + m_dy[1]);
+		m_tilemap[1]->set_scrollx(0, xscroll);
+		m_tilemap[1]->set_scrolly(0, yscroll);
 	}
 
 	if ((m_scrollctrl & 0x18) == 0x10)
@@ -583,12 +562,12 @@ popmessage("%x %x %x %x",
 		m_tilemap[2]->set_scroll_rows(256);
 		m_tilemap[2]->set_scroll_cols(1);
 		yscroll = m_ram[0x380c];
-		m_tilemap[2]->set_scrolly(0, yscroll + m_dy[2]);
+		m_tilemap[2]->set_scrolly(0, yscroll);
 		for (offs = 0; offs < 256; offs++)
 		{
 			xscroll = scrollram[2 * (offs & 0xfff8) + 0] + 256 * scrollram[2 * (offs & 0xfff8) + 1];
 			xscroll -= 6;
-			m_tilemap[2]->set_scrollx((offs + yscroll) & 0xff, xscroll + m_dx[2]);
+			m_tilemap[2]->set_scrollx((offs + yscroll) & 0xff, xscroll);
 		}
 	}
 	else if ((m_scrollctrl & 0x18) == 0x18)
@@ -598,12 +577,12 @@ popmessage("%x %x %x %x",
 		m_tilemap[2]->set_scroll_rows(256);
 		m_tilemap[2]->set_scroll_cols(1);
 		yscroll = m_ram[0x380c];
-		m_tilemap[2]->set_scrolly(0, yscroll + m_dy[2]);
+		m_tilemap[2]->set_scrolly(0, yscroll);
 		for (offs = 0; offs < 256; offs++)
 		{
 			xscroll = scrollram[2 * offs + 0] + 256 * scrollram[2 * offs + 1];
 			xscroll -= 6;
-			m_tilemap[2]->set_scrollx((offs + yscroll) & 0xff, xscroll + m_dx[2]);
+			m_tilemap[2]->set_scrollx((offs + yscroll) & 0xff, xscroll);
 		}
 	}
 	else if ((m_scrollctrl & 0x20) == 0x20)
@@ -614,11 +593,11 @@ popmessage("%x %x %x %x",
 		m_tilemap[2]->set_scroll_cols(512);
 		xscroll = m_ram[0x3a00] + 256 * m_ram[0x3a01];
 		xscroll -= 6;
-		m_tilemap[2]->set_scrollx(0, xscroll + m_dx[2]);
+		m_tilemap[2]->set_scrollx(0, xscroll);
 		for (offs = 0; offs < 512; offs++)
 		{
 			yscroll = scrollram[offs / 8];
-			m_tilemap[2]->set_scrolly((offs + xscroll) & 0x1ff, yscroll + m_dy[2]);
+			m_tilemap[2]->set_scrolly((offs + xscroll) & 0x1ff, yscroll);
 		}
 	}
 	else
@@ -630,8 +609,8 @@ popmessage("%x %x %x %x",
 		xscroll = scrollram[0] + 256 * scrollram[1];
 		xscroll -= 6;
 		yscroll = m_ram[0x380c];
-		m_tilemap[2]->set_scrollx(0, xscroll + m_dx[2]);
-		m_tilemap[2]->set_scrolly(0, yscroll + m_dy[2]);
+		m_tilemap[2]->set_scrollx(0, xscroll);
+		m_tilemap[2]->set_scrolly(0, yscroll);
 	}
 
 #if 0
@@ -664,12 +643,6 @@ void k052109_device::tilemap_draw( screen_device &screen, bitmap_ind16 &bitmap, 
 int k052109_device::is_irq_enabled( )
 {
 	return m_irq_enabled;
-}
-
-void k052109_device::set_layer_offsets( int layer, int dx, int dy )
-{
-	m_dx[layer] = dx;
-	m_dy[layer] = dy;
 }
 
 
@@ -706,7 +679,7 @@ void k052109_device::get_tile_info( tile_data &tileinfo, int tile_index, int lay
 
 	flipy = color & 0x02;
 
-	m_callback(machine(), layer, bank, &code, &color, &flags, &priority);
+	m_k052109_cb(layer, bank, &code, &color, &flags, &priority);
 
 	/* if the callback set flip X but it is not enabled, turn it off */
 	if (!(m_tileflip_enable & 1))
@@ -716,8 +689,7 @@ void k052109_device::get_tile_info( tile_data &tileinfo, int tile_index, int lay
 	if (flipy && (m_tileflip_enable & 2))
 		flags |= TILE_FLIPY;
 
-	SET_TILE_INFO_MEMBER(
-			m_gfx_num,
+	SET_TILE_INFO_MEMBER(0,
 			code,
 			color,
 			flags);

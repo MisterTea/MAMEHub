@@ -8,9 +8,7 @@
 
 #include "emu.h"
 #include "cpu/t11/t11.h"
-#include "machine/wd17xx.h"
-#include "imagedev/flopdrv.h"
-#include "formats/basicdsk.h"
+#include "machine/wd_fdc.h"
 #include "machine/ram.h"
 #include "machine/i8255.h"
 
@@ -20,11 +18,13 @@ public:
 	ms0515_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
-			m_ram(*this, RAM_TAG)
+			m_ram(*this, RAM_TAG),
+			m_floppy(*this, "vg93:0:525qd")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<ram_device> m_ram;
+	required_device<floppy_image_device> m_floppy;
 
 	DECLARE_WRITE16_MEMBER(ms0515_bank_w);
 	DECLARE_WRITE8_MEMBER(ms0515_sys_w);
@@ -34,7 +34,7 @@ public:
 	UINT8 *m_video_ram;
 	UINT8 m_sysreg;
 	int m_blink;
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(ms0515);
 	UINT32 screen_update_ms0515(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_WRITE8_MEMBER(ms0515_portc_w);
 };
@@ -70,10 +70,10 @@ static ADDRESS_MAP_START(ms0515_mem, AS_PROGRAM, 16, ms0515_state)
 
 	AM_RANGE(0177600, 0177607) AM_DEVREADWRITE8("ppi8255_1", i8255_device, read, write, 0x00ff)
 
-	AM_RANGE(0177640, 0177641) AM_DEVREADWRITE8_LEGACY("vg93", wd17xx_status_r, wd17xx_command_w,0x00ff)
-	AM_RANGE(0177642, 0177643) AM_DEVREADWRITE8_LEGACY("vg93", wd17xx_track_r, wd17xx_track_w,0x00ff)
-	AM_RANGE(0177644, 0177645) AM_DEVREADWRITE8_LEGACY("vg93", wd17xx_sector_r, wd17xx_sector_w,0x00ff)
-	AM_RANGE(0177646, 0177647) AM_DEVREADWRITE8_LEGACY("vg93", wd17xx_data_r, wd17xx_data_w,0x00ff)
+	AM_RANGE(0177640, 0177641) AM_DEVREADWRITE8("vg93", fd1793_t, status_r, cmd_w,0x00ff)
+	AM_RANGE(0177642, 0177643) AM_DEVREADWRITE8("vg93", fd1793_t, track_r, track_w,0x00ff)
+	AM_RANGE(0177644, 0177645) AM_DEVREADWRITE8("vg93", fd1793_t, sector_r, sector_w,0x00ff)
+	AM_RANGE(0177646, 0177647) AM_DEVREADWRITE8("vg93", fd1793_t, data_r, data_w,0x00ff)
 
 	//AM_RANGE(0177700, 0177701) // read data
 	//AM_RANGE(0177720, 0177721) // write data     // protocol S2
@@ -126,48 +126,26 @@ void ms0515_state::machine_reset()
 	m_video_ram = ram + 0000000 + 0340000;
 	m_blink = 0;
 
-	floppy_mon_w(machine().device(FLOPPY_0), 0); // turn it on
+	m_floppy->mon_w(0); // turn it on
 }
 
 /* Input ports */
 static INPUT_PORTS_START( ms0515 )
 INPUT_PORTS_END
-
-static const struct t11_setup ms0515_data =
-{
-	0xf2ff
-};
-
-static const wd17xx_interface ms0515_wd17xx_interface =
-{
-	DEVCB_LINE_VCC,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	{ FLOPPY_0, NULL, NULL, NULL }
-};
-
-
+/*
 static LEGACY_FLOPPY_OPTIONS_START(ms0515)
-	LEGACY_FLOPPY_OPTION(ms0515, "dsk", "MS0515 disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([1])
-		TRACKS([80])
-		SECTORS([10])
-		SECTOR_LENGTH([512])
-		FIRST_SECTOR_ID([0]))
+    LEGACY_FLOPPY_OPTION(ms0515, "dsk", "MS0515 disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
+        HEADS([1])
+        TRACKS([80])
+        SECTORS([10])
+        SECTOR_LENGTH([512])
+        FIRST_SECTOR_ID([0]))
 LEGACY_FLOPPY_OPTIONS_END
+*/
 
-static const floppy_interface ms0515_floppy_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	FLOPPY_STANDARD_5_25_DSHD,
-	LEGACY_FLOPPY_OPTIONS_NAME(ms0515),
-	NULL,
-	NULL
-};
+static SLOT_INTERFACE_START( ms0515_floppies )
+	SLOT_INTERFACE( "525qd", FLOPPY_525_QD ) // 720 KB
+SLOT_INTERFACE_END
 
 UINT32 ms0515_state::screen_update_ms0515(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
@@ -216,50 +194,40 @@ UINT32 ms0515_state::screen_update_ms0515(screen_device &screen, bitmap_ind16 &b
 	return 0;
 }
 
-void ms0515_state::palette_init()
+PALETTE_INIT_MEMBER(ms0515_state, ms0515)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(0, 0, 0));
-	palette_set_color(machine(), 1, MAKE_RGB(0, 0, 127));
-	palette_set_color(machine(), 2, MAKE_RGB(127, 0, 0));
-	palette_set_color(machine(), 3, MAKE_RGB(127, 0, 127));
-	palette_set_color(machine(), 4, MAKE_RGB(0, 127, 0));
-	palette_set_color(machine(), 5, MAKE_RGB(0, 127, 127));
-	palette_set_color(machine(), 6, MAKE_RGB(127, 127, 0));
-	palette_set_color(machine(), 7, MAKE_RGB(127, 127, 127));
+	palette.set_pen_color(0, rgb_t(0, 0, 0));
+	palette.set_pen_color(1, rgb_t(0, 0, 127));
+	palette.set_pen_color(2, rgb_t(127, 0, 0));
+	palette.set_pen_color(3, rgb_t(127, 0, 127));
+	palette.set_pen_color(4, rgb_t(0, 127, 0));
+	palette.set_pen_color(5, rgb_t(0, 127, 127));
+	palette.set_pen_color(6, rgb_t(127, 127, 0));
+	palette.set_pen_color(7, rgb_t(127, 127, 127));
 
-	palette_set_color(machine(), 8, MAKE_RGB(127, 127, 127));
-	palette_set_color(machine(), 9, MAKE_RGB(127, 127, 255));
-	palette_set_color(machine(), 10, MAKE_RGB(255, 127, 127));
-	palette_set_color(machine(), 11, MAKE_RGB(255, 127, 255));
-	palette_set_color(machine(), 12, MAKE_RGB(127, 255, 127));
-	palette_set_color(machine(), 13, MAKE_RGB(127, 255, 255));
-	palette_set_color(machine(), 14, MAKE_RGB(255, 255, 127));
-	palette_set_color(machine(), 15, MAKE_RGB(255, 255, 255));
+	palette.set_pen_color(8, rgb_t(127, 127, 127));
+	palette.set_pen_color(9, rgb_t(127, 127, 255));
+	palette.set_pen_color(10, rgb_t(255, 127, 127));
+	palette.set_pen_color(11, rgb_t(255, 127, 255));
+	palette.set_pen_color(12, rgb_t(127, 255, 127));
+	palette.set_pen_color(13, rgb_t(127, 255, 255));
+	palette.set_pen_color(14, rgb_t(255, 255, 127));
+	palette.set_pen_color(15, rgb_t(255, 255, 255));
 }
 
 WRITE8_MEMBER(ms0515_state::ms0515_portc_w)
 {
 	m_sysreg = data;
 }
-I8255A_INTERFACE( ms0515_ppi8255_interface_1 )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(ms0515_state,ms0515_portc_w)
-};
 
 static MACHINE_CONFIG_START( ms0515, ms0515_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",T11, XTAL_4MHz) // Need proper CPU here
-	MCFG_CPU_CONFIG(ms0515_data)
+	MCFG_T11_INITIAL_MODE(0xf2ff)
 	MCFG_CPU_PROGRAM_MAP(ms0515_mem)
 
-	MCFG_FD1793_ADD( "vg93", ms0515_wd17xx_interface )
-
-	MCFG_LEGACY_FLOPPY_DRIVE_ADD(FLOPPY_0, ms0515_floppy_interface)
+	MCFG_DEVICE_ADD("vg93", FD1793x, 1000000)
+	MCFG_FLOPPY_DRIVE_ADD("vg93:0", ms0515_floppies, "525qd", floppy_image_device::default_floppy_formats)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -268,11 +236,15 @@ static MACHINE_CONFIG_START( ms0515, ms0515_state )
 	MCFG_SCREEN_SIZE(640, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
 	MCFG_SCREEN_UPDATE_DRIVER(ms0515_state, screen_update_ms0515)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_ADD("palette", 16)
+	MCFG_PALETTE_INIT_OWNER(ms0515_state, ms0515)
 
-	MCFG_I8255_ADD( "ppi8255_1", ms0515_ppi8255_interface_1 )
-	//MCFG_I8255_ADD( "ppi8255_2", ms0515_ppi8255_interface_2 )
+	MCFG_DEVICE_ADD("ppi8255_1", I8255, 0)
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(ms0515_state, ms0515_portc_w))
+
+	//MCFG_DEVICE_ADD("ppi8255_2", I8255, 0)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

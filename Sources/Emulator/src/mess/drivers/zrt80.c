@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Robbbert
 /***************************************************************************
 
         DEC ZRT-80
@@ -21,6 +23,7 @@
 #include "machine/keyboard.h"
 #include "sound/beep.h"
 
+#define KEYBOARD_TAG "keyboard"
 
 class zrt80_state : public driver_device
 {
@@ -32,28 +35,34 @@ public:
 
 	zrt80_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_crtc(*this, "crtc"),
-	m_8250(*this, "ins8250"),
-	m_beep(*this, "beeper"),
-	m_p_videoram(*this, "videoram"){ }
+		m_p_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_crtc(*this, "crtc"),
+		m_8250(*this, "ins8250"),
+		m_beep(*this, "beeper"),
+		m_palette(*this, "palette")
+	{
+	}
 
-	required_device<cpu_device> m_maincpu;
-	required_device<mc6845_device> m_crtc;
-	required_device<ins8250_device> m_8250;
-	required_device<beep_device> m_beep;
 	DECLARE_READ8_MEMBER(zrt80_10_r);
 	DECLARE_WRITE8_MEMBER(zrt80_30_w);
 	DECLARE_WRITE8_MEMBER(zrt80_38_w);
 	DECLARE_WRITE8_MEMBER(kbd_put);
-	UINT8 m_term_data;
-	required_shared_ptr<const UINT8> m_p_videoram;
+	MC6845_UPDATE_ROW(crtc_update_row);
 	const UINT8 *m_p_chargen;
-	virtual void machine_reset();
-	virtual void video_start();
-
+	required_shared_ptr<UINT8> m_p_videoram;
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+private:
+	UINT8 m_term_data;
+	virtual void machine_reset();
+	virtual void video_start();
+	required_device<cpu_device> m_maincpu;
+	required_device<mc6845_device> m_crtc;
+	required_device<ins8250_device> m_8250;
+	required_device<beep_device> m_beep;
+public:
+	required_device<palette_device> m_palette;
 };
 
 
@@ -206,21 +215,20 @@ void zrt80_state::video_start()
 	m_p_chargen = memregion("chargen")->base();
 }
 
-static MC6845_UPDATE_ROW( zrt80_update_row )
+MC6845_UPDATE_ROW( zrt80_state::crtc_update_row )
 {
-	zrt80_state *state = device->machine().driver_data<zrt80_state>();
-	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
 	UINT8 chr,gfx,inv;
 	UINT16 mem,x;
 	UINT32 *p = &bitmap.pix32(y);
-	UINT8 polarity = state->ioport("DIPSW1")->read() & 4 ? 0xff : 0;
+	UINT8 polarity = ioport("DIPSW1")->read() & 4 ? 0xff : 0;
 
 	for (x = 0; x < x_count; x++)
 	{
 		inv = polarity;
 		if (x == cursor_x) inv ^= 0xff;
 		mem = (ma + x) & 0x1fff;
-		chr = state->m_p_videoram[mem];
+		chr = m_p_videoram[mem];
 
 		if BIT(chr, 7)
 		{
@@ -228,7 +236,7 @@ static MC6845_UPDATE_ROW( zrt80_update_row )
 			chr &= 0x7f;
 		}
 
-		gfx = state->m_p_chargen[(chr<<4) | ra] ^ inv;
+		gfx = m_p_chargen[(chr<<4) | ra] ^ inv;
 
 		/* Display a scanline of a character */
 		*p++ = palette[BIT(gfx, 7)];
@@ -242,42 +250,11 @@ static MC6845_UPDATE_ROW( zrt80_update_row )
 	}
 }
 
-
-static MC6845_INTERFACE( zrt80_crtc6845_interface )
-{
-	false,
-	8 /*?*/,
-	NULL,
-	zrt80_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
-
-static const ins8250_interface zrt80_com_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 WRITE8_MEMBER( zrt80_state::kbd_put )
 {
 	m_term_data = data;
 	m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
-
-static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
-{
-	DEVCB_DRIVER_MEMBER(zrt80_state, kbd_put)
-};
-
 
 /* F4 Character Displayer */
 static const gfx_layout zrt80_charlayout =
@@ -310,9 +287,8 @@ static MACHINE_CONFIG_START( zrt80, zrt80_state )
 	MCFG_SCREEN_UPDATE_DEVICE("crtc", mc6845_device, screen_update)
 	MCFG_SCREEN_SIZE(640, 200)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640 - 1, 0, 200 - 1)
-	MCFG_GFXDECODE(zrt80)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_green)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", zrt80)
+	MCFG_PALETTE_ADD_MONOCHROME_GREEN("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -320,9 +296,15 @@ static MACHINE_CONFIG_START( zrt80, zrt80_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Devices */
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_20MHz / 8, zrt80_crtc6845_interface)
-	MCFG_INS8250_ADD( "ins8250", zrt80_com_interface, 2457600 )
-	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_20MHz / 8)
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8) /*?*/
+	MCFG_MC6845_UPDATE_ROW_CB(zrt80_state, crtc_update_row)
+
+	MCFG_DEVICE_ADD( "ins8250", INS8250, 2457600 )
+	MCFG_INS8250_OUT_RTS_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_DEVICE_ADD(KEYBOARD_TAG, GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(zrt80_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

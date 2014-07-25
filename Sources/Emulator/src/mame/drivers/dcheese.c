@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     HAR MadMax hardware
@@ -90,8 +92,6 @@ INTERRUPT_GEN_MEMBER(dcheese_state::dcheese_vblank)
 void dcheese_state::machine_start()
 {
 	m_bsmt = machine().device("bsmt");
-
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(dcheese_state::irq_callback),this));
 
 	save_item(NAME(m_irq_state));
 	save_item(NAME(m_soundlatch_full));
@@ -399,6 +399,7 @@ static MACHINE_CONFIG_START( dcheese, dcheese_state )
 	MCFG_CPU_ADD("maincpu", M68000, MAIN_OSC)
 	MCFG_CPU_PROGRAM_MAP(main_cpu_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", dcheese_state,  dcheese_vblank)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(dcheese_state,irq_callback)
 
 	MCFG_CPU_ADD("audiocpu", M6809, SOUND_OSC/16)
 	MCFG_CPU_PROGRAM_MAP(sound_cpu_map)
@@ -414,9 +415,10 @@ static MACHINE_CONFIG_START( dcheese, dcheese_state )
 	MCFG_SCREEN_SIZE(360, 262)  /* guess, need to see what the games write to the vid registers */
 	MCFG_SCREEN_VISIBLE_AREA(0, 319, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(dcheese_state, screen_update_dcheese)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(65534)
-
+	MCFG_PALETTE_ADD("palette", 65534)
+	MCFG_PALETTE_INIT_OWNER(dcheese_state, dcheese)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

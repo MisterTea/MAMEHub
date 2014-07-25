@@ -235,8 +235,8 @@ WRITE_LINE_MEMBER(gcpinbal_state::gcp_adpcm_int)
 static ADDRESS_MAP_START( gcpinbal_map, AS_PROGRAM, 16, gcpinbal_state )
 	AM_RANGE(0x000000, 0x1fffff) AM_ROM
 	AM_RANGE(0xc00000, 0xc03fff) AM_READWRITE(gcpinbal_tilemaps_word_r, gcpinbal_tilemaps_word_w) AM_SHARE("tilemapram")
-	AM_RANGE(0xc80000, 0xc80fff) AM_RAM AM_SHARE("spriteram")   /* sprite ram */
-	AM_RANGE(0xd00000, 0xd00fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0xc80000, 0xc81fff) AM_DEVREADWRITE8("spritegen", excellent_spr_device, read, write, 0x00ff)
+	AM_RANGE(0xd00000, 0xd00fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xd80000, 0xd800ff) AM_READWRITE(ioc_r, ioc_w) AM_SHARE("ioc_ram")
 	AM_RANGE(0xff0000, 0xffffff) AM_RAM /* RAM */
 ADDRESS_MAP_END
@@ -379,16 +379,6 @@ static GFXDECODE_START( gcpinbal )
 GFXDECODE_END
 
 
-/**************************************************************
-                            (SOUND)
-**************************************************************/
-
-static const msm5205_interface msm6585_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(gcpinbal_state,gcp_adpcm_int),      /* VCK function */
-	MSM6585_S40         /* 16 kHz */
-};
-
 /***********************************************************
                         MACHINE DRIVERS
 ***********************************************************/
@@ -445,11 +435,14 @@ static MACHINE_CONFIG_START( gcpinbal, gcpinbal_state )
 	MCFG_SCREEN_SIZE(40*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(gcpinbal_state, screen_update_gcpinbal)
+	MCFG_SCREEN_PALETTE("palette")
 
 
-	MCFG_GFXDECODE(gcpinbal)
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", gcpinbal)
+	MCFG_PALETTE_ADD("palette", 4096)
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBRGBx)
 
+	MCFG_DEVICE_ADD("spritegen", EXCELLENT_SPRITE, 0)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -458,7 +451,8 @@ static MACHINE_CONFIG_START( gcpinbal, gcpinbal_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
 	MCFG_SOUND_ADD("msm", MSM6585, XTAL_640kHz)
-	MCFG_SOUND_CONFIG(msm6585_config)
+	MCFG_MSM6585_VCLK_CB(WRITELINE(gcpinbal_state, gcp_adpcm_int))      /* VCK function */
+	MCFG_MSM6585_PRESCALER_SELECTOR(MSM6585_S40)         /* 16 kHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

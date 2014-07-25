@@ -279,9 +279,10 @@ static MACHINE_CONFIG_START( deniam16b, deniam_state )
 	//MCFG_SCREEN_VISIBLE_AREA(24*8, 64*8-1, 0*8, 28*8-1) // looks better but doesn't match hardware
 	MCFG_SCREEN_VISIBLE_AREA(24*8-4, 64*8-5, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(deniam_state, screen_update_deniam)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(deniam)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", deniam)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 
 	/* sound hardware */
@@ -311,9 +312,10 @@ static MACHINE_CONFIG_START( deniam16c, deniam_state )
 	//MCFG_SCREEN_VISIBLE_AREA(24*8, 64*8-1, 0*8, 28*8-1) // looks better but doesn't match hardware
 	MCFG_SCREEN_VISIBLE_AREA(24*8-4, 64*8-5, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(deniam_state, screen_update_deniam)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(deniam)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", deniam)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 
 	/* sound hardware */

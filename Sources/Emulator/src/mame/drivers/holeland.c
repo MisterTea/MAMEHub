@@ -5,7 +5,7 @@
     driver by Mathis Rosenhauer
 
     TODO:
-    - tile/sprite priority in holeland
+    - tile/sprite priority in holeland (fixed? Needs further testing)
     - missing high bit of sprite X coordinate? (see round 2 and 3 of attract mode
       in crzrally)
 
@@ -24,16 +24,16 @@ static ADDRESS_MAP_START( holeland_map, AS_PROGRAM, 8, holeland_state )
 	AM_RANGE(0xa000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xc001) AM_WRITE(holeland_pal_offs_w)
 	AM_RANGE(0xc006, 0xc007) AM_WRITE(holeland_flipscreen_w)
-	AM_RANGE(0xe000, 0xe3ff) AM_WRITE(holeland_colorram_w) AM_SHARE("colorram")
-	AM_RANGE(0xe400, 0xe7ff) AM_WRITE(holeland_videoram_w) AM_SHARE("videoram")
+	AM_RANGE(0xe000, 0xe3ff) AM_RAM_WRITE(holeland_colorram_w) AM_SHARE("colorram")
+	AM_RANGE(0xe400, 0xe7ff) AM_RAM_WRITE(holeland_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0xf000, 0xf3ff) AM_RAM AM_SHARE("spriteram")
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( crzrally_map, AS_PROGRAM, 8, holeland_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0xe000, 0xe3ff) AM_WRITE(holeland_colorram_w) AM_SHARE("colorram")
-	AM_RANGE(0xe400, 0xe7ff) AM_WRITE(holeland_videoram_w) AM_SHARE("videoram")
+	AM_RANGE(0xe000, 0xe3ff) AM_RAM_WRITE(holeland_colorram_w) AM_SHARE("colorram")
+	AM_RANGE(0xe400, 0xe7ff) AM_RAM_WRITE(holeland_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0xe800, 0xebff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0xf000, 0xf000) AM_WRITE(holeland_scroll_w)
 	AM_RANGE(0xf800, 0xf801) AM_WRITE(holeland_pal_offs_w)
@@ -251,29 +251,6 @@ static GFXDECODE_START( crzrally )
 GFXDECODE_END
 
 
-
-static const ay8910_interface ay8910_interface_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("IN0"),
-	DEVCB_INPUT_PORT("IN1"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface ay8910_interface_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"),
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-
 static MACHINE_CONFIG_START( holeland, holeland_state )
 
 	/* basic machine hardware */
@@ -289,22 +266,23 @@ static MACHINE_CONFIG_START( holeland, holeland_state )
 	MCFG_SCREEN_SIZE(32*16, 32*16)
 	MCFG_SCREEN_VISIBLE_AREA(0*16, 32*16-1, 2*16, 30*16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(holeland_state, screen_update_holeland)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(holeland)
-	MCFG_PALETTE_LENGTH(256)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", holeland)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 256)
 	MCFG_VIDEO_START_OVERRIDE(holeland_state,holeland)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 1818182)
-	MCFG_SOUND_CONFIG(ay8910_interface_1)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN0"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("IN1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 1818182)
-	MCFG_SOUND_CONFIG(ay8910_interface_2)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -359,22 +337,23 @@ static MACHINE_CONFIG_START( crzrally, holeland_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(holeland_state, screen_update_crzrally)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(crzrally)
-	MCFG_PALETTE_LENGTH(256)
-
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", crzrally)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 256)
 	MCFG_VIDEO_START_OVERRIDE(holeland_state,crzrally)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ay1", AY8910, 20000000/16)
-	MCFG_SOUND_CONFIG(ay8910_interface_1)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("IN0"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("IN1"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ay2", AY8910, 20000000/16)
-	MCFG_SOUND_CONFIG(ay8910_interface_2)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 

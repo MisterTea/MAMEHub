@@ -16,7 +16,9 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_mcu(*this, "mcu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_slave(*this, "slave"){ }
+		m_slave(*this, "slave"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -66,6 +68,9 @@ public:
 	optional_device<cpu_device> m_mcu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_slave;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(bublbobl_bankswitch_w);
 	DECLARE_WRITE8_MEMBER(tokio_bankswitch_w);
 	DECLARE_WRITE8_MEMBER(tokio_videoctrl_w);

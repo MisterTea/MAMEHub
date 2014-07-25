@@ -33,7 +33,7 @@ READ8_MEMBER(solomon_state::solomon_0xe603_r)
 	}
 	else
 	{
-		mame_printf_debug("unhandled solomon_0xe603_r %04x\n", space.device().safe_pc());
+		osd_printf_debug("unhandled solomon_0xe603_r %04x\n", space.device().safe_pc());
 		return 0;
 	}
 }
@@ -51,7 +51,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, solomon_state )
 	AM_RANGE(0xd800, 0xdbff) AM_RAM_WRITE(solomon_colorram2_w) AM_SHARE("colorram2")
 	AM_RANGE(0xdc00, 0xdfff) AM_RAM_WRITE(solomon_videoram2_w) AM_SHARE("videoram2")
 	AM_RANGE(0xe000, 0xe07f) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0xe400, 0xe5ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe400, 0xe5ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xe600, 0xe600) AM_READ_PORT("P1")
 	AM_RANGE(0xe601, 0xe601) AM_READ_PORT("P2")
 	AM_RANGE(0xe602, 0xe602) AM_READ_PORT("SYSTEM")
@@ -220,10 +220,11 @@ static MACHINE_CONFIG_START( solomon, solomon_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(solomon_state, screen_update_solomon)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(solomon)
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", solomon)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

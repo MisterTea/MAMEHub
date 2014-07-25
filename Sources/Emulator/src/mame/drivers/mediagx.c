@@ -90,13 +90,19 @@ public:
 		m_main_ram(*this, "main_ram"),
 		m_cga_ram(*this, "cga_ram"),
 		m_bios_ram(*this, "bios_ram"),
-		m_vram(*this, "vram") { }
+		m_vram(*this, "vram"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	required_device<ide_controller_32_device> m_ide;
 	required_shared_ptr<UINT32> m_main_ram;
 	required_shared_ptr<UINT32> m_cga_ram;
 	required_shared_ptr<UINT32> m_bios_ram;
 	required_shared_ptr<UINT32> m_vram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 	UINT8 m_pal[768];
 
 
@@ -214,10 +220,10 @@ public:
 
 static const rgb_t cga_palette[16] =
 {
-	MAKE_RGB( 0x00, 0x00, 0x00 ), MAKE_RGB( 0x00, 0x00, 0xaa ), MAKE_RGB( 0x00, 0xaa, 0x00 ), MAKE_RGB( 0x00, 0xaa, 0xaa ),
-	MAKE_RGB( 0xaa, 0x00, 0x00 ), MAKE_RGB( 0xaa, 0x00, 0xaa ), MAKE_RGB( 0xaa, 0x55, 0x00 ), MAKE_RGB( 0xaa, 0xaa, 0xaa ),
-	MAKE_RGB( 0x55, 0x55, 0x55 ), MAKE_RGB( 0x55, 0x55, 0xff ), MAKE_RGB( 0x55, 0xff, 0x55 ), MAKE_RGB( 0x55, 0xff, 0xff ),
-	MAKE_RGB( 0xff, 0x55, 0x55 ), MAKE_RGB( 0xff, 0x55, 0xff ), MAKE_RGB( 0xff, 0xff, 0x55 ), MAKE_RGB( 0xff, 0xff, 0xff ),
+	rgb_t( 0x00, 0x00, 0x00 ), rgb_t( 0x00, 0x00, 0xaa ), rgb_t( 0x00, 0xaa, 0x00 ), rgb_t( 0x00, 0xaa, 0xaa ),
+	rgb_t( 0xaa, 0x00, 0x00 ), rgb_t( 0xaa, 0x00, 0xaa ), rgb_t( 0xaa, 0x55, 0x00 ), rgb_t( 0xaa, 0xaa, 0xaa ),
+	rgb_t( 0x55, 0x55, 0x55 ), rgb_t( 0x55, 0x55, 0xff ), rgb_t( 0x55, 0xff, 0x55 ), rgb_t( 0x55, 0xff, 0xff ),
+	rgb_t( 0xff, 0x55, 0x55 ), rgb_t( 0xff, 0x55, 0xff ), rgb_t( 0xff, 0xff, 0x55 ), rgb_t( 0xff, 0xff, 0xff ),
 };
 
 void mediagx_state::video_start()
@@ -225,7 +231,7 @@ void mediagx_state::video_start()
 	int i;
 	for (i=0; i < 16; i++)
 	{
-		palette_set_color(machine(), i, cga_palette[i]);
+		m_palette->set_pen_color(i, cga_palette[i]);
 	}
 }
 
@@ -234,7 +240,7 @@ void mediagx_state::draw_char(bitmap_rgb32 &bitmap, const rectangle &cliprect, g
 	int i,j;
 	const UINT8 *dp;
 	int index = 0;
-	const pen_t *pens = gfx->machine().pens;
+	const pen_t *pens = &m_palette->pen(0);
 
 	dp = gfx->get_data(ch);
 
@@ -348,7 +354,7 @@ void mediagx_state::draw_framebuffer(bitmap_rgb32 &bitmap, const rectangle &clip
 void mediagx_state::draw_cga(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	int i, j;
-	gfx_element *gfx = machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 	UINT32 *cga = m_cga_ram;
 	int index = 0;
 
@@ -462,12 +468,12 @@ READ32_MEMBER(mediagx_state::biu_ctrl_r)
 
 WRITE32_MEMBER(mediagx_state::biu_ctrl_w)
 {
-	//mame_printf_debug("biu_ctrl_w %08X, %08X, %08X\n", data, offset, mem_mask);
+	//osd_printf_debug("biu_ctrl_w %08X, %08X, %08X\n", data, offset, mem_mask);
 	COMBINE_DATA(m_biu_ctrl_reg + offset);
 
 	if (offset == 3)        // BC_XMAP_3 register
 	{
-		//mame_printf_debug("BC_XMAP_3: %08X, %08X, %08X\n", data, offset, mem_mask);
+		//osd_printf_debug("BC_XMAP_3: %08X, %08X, %08X\n", data, offset, mem_mask);
 	}
 }
 
@@ -627,7 +633,7 @@ static UINT32 cx5510_pci_r(device_t *busdevice, device_t *device, int function, 
 {
 	mediagx_state *state = busdevice->machine().driver_data<mediagx_state>();
 
-	//mame_printf_debug("CX5510: PCI read %d, %02X, %08X\n", function, reg, mem_mask);
+	//osd_printf_debug("CX5510: PCI read %d, %02X, %08X\n", function, reg, mem_mask);
 	switch (reg)
 	{
 		case 0:     return 0x00001078;
@@ -640,7 +646,7 @@ static void cx5510_pci_w(device_t *busdevice, device_t *device, int function, in
 {
 	mediagx_state *state = busdevice->machine().driver_data<mediagx_state>();
 
-	//mame_printf_debug("CX5510: PCI write %d, %02X, %08X, %08X\n", function, reg, data, mem_mask);
+	//osd_printf_debug("CX5510: PCI write %d, %02X, %08X, %08X\n", function, reg, data, mem_mask);
 	COMBINE_DATA(state->m_cx5510_regs + (reg/4));
 }
 
@@ -846,9 +852,6 @@ void mediagx_state::machine_start()
 void mediagx_state::machine_reset()
 {
 	UINT8 *rom = memregion("bios")->base();
-
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(mediagx_state::irq_callback),this));
-
 	memcpy(m_bios_ram, rom, 0x40000);
 	m_maincpu->reset();
 
@@ -864,17 +867,13 @@ static ADDRESS_MAP_START( ramdac_map, AS_0, 8, mediagx_state )
 	AM_RANGE(0x000, 0x3ff) AM_DEVREADWRITE("ramdac",ramdac_device,ramdac_pal_r,ramdac_rgb666_w)
 ADDRESS_MAP_END
 
-static RAMDAC_INTERFACE( ramdac_intf )
-{
-	0
-};
-
 static MACHINE_CONFIG_START( mediagx, mediagx_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", MEDIAGX, 166000000)
 	MCFG_CPU_PROGRAM_MAP(mediagx_map)
 	MCFG_CPU_IO_MAP(mediagx_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_1", pic8259_device, inta_cb)
 
 	MCFG_FRAGMENT_ADD( pcat_common )
 
@@ -886,7 +885,7 @@ static MACHINE_CONFIG_START( mediagx, mediagx_state )
 
 	MCFG_TIMER_DRIVER_ADD("sound_timer", mediagx_state, sound_timer_callback)
 
-	MCFG_RAMDAC_ADD("ramdac", ramdac_intf, ramdac_map)
+	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -895,8 +894,9 @@ static MACHINE_CONFIG_START( mediagx, mediagx_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 639, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(mediagx_state, screen_update_mediagx)
 
-	MCFG_GFXDECODE(CGA)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", CGA)
+
+	MCFG_PALETTE_ADD("palette", 256)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

@@ -184,33 +184,31 @@ void m62_state::m62_amplify_contrast(palette_t *palette, UINT32 numcolors)
 {
 	// m62 palette is very dark, so amplify default contrast
 	UINT32 i, ymax=1;
-	if (!numcolors) numcolors = palette_get_num_colors(palette);
+	if (!numcolors) numcolors = palette->num_colors();
 
 	// find maximum brightness
 	for (i=0;i < numcolors;i++)
 	{
-		rgb_t rgb = palette_entry_get_color(palette,i);
-		UINT32 y = 299 * RGB_RED(rgb) + 587 * RGB_GREEN(rgb) + 114 * RGB_BLUE(rgb);
+		rgb_t rgb = palette->entry_color(i);
+		UINT32 y = 299 * rgb.r() + 587 * rgb.g() + 114 * rgb.b();
 		ymax = MAX(ymax, y);
 	}
 
-	palette_set_contrast(palette, 255000.0/ymax);
+	palette->set_contrast(255000.0/ymax);
 }
 
-void m62_state::palette_init()
+PALETTE_INIT_MEMBER(m62_state, m62)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
-	rgb_t *rgb;
+	dynamic_array<rgb_t> rgb;
 
-	rgb = compute_res_net_all(machine(), color_prom, &m62_tile_decode_info, &m62_tile_net_info);
-	palette_set_colors(machine(), 0x000, rgb, 0x100);
-	auto_free(machine(), rgb);
+	compute_res_net_all(rgb, color_prom, m62_tile_decode_info, m62_tile_net_info);
+	palette.set_pen_colors(0x000, rgb, 0x100);
 
-	rgb = compute_res_net_all(machine(), color_prom, &m62_sprite_decode_info, &m62_sprite_net_info);
-	palette_set_colors(machine(), 0x100, rgb, 0x100);
-	auto_free(machine(), rgb);
+	compute_res_net_all(rgb, color_prom, m62_sprite_decode_info, m62_sprite_net_info);
+	palette.set_pen_colors(0x100, rgb, 0x100);
 
-	m62_amplify_contrast(machine().palette,0);
+	m62_amplify_contrast(palette.palette(),0);
 
 	/* we'll need this at run time */
 	m_sprite_height_prom = color_prom + 0x600;
@@ -220,17 +218,15 @@ void m62_state::palette_init()
 PALETTE_INIT_MEMBER(m62_state,lotlot)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
-	rgb_t *rgb;
+	dynamic_array<rgb_t> rgb;
 
-	rgb = compute_res_net_all(machine(), color_prom, &lotlot_tile_decode_info, &m62_tile_net_info);
-	palette_set_colors(machine(), 0x000, rgb, 0x180);
-	auto_free(machine(), rgb);
+	compute_res_net_all(rgb, color_prom, lotlot_tile_decode_info, m62_tile_net_info);
+	palette.set_pen_colors(0x000, rgb, 0x180);
 
-	rgb = compute_res_net_all(machine(), color_prom, &lotlot_sprite_decode_info, &m62_sprite_net_info);
-	palette_set_colors(machine(), 0x180, rgb, 0x180);
-	auto_free(machine(), rgb);
+	compute_res_net_all(rgb, color_prom, lotlot_sprite_decode_info, m62_sprite_net_info);
+	palette.set_pen_colors(0x180, rgb, 0x180);
 
-	m62_amplify_contrast(machine().palette,0);
+	m62_amplify_contrast(palette.palette(),0);
 
 	/* we'll need this at run time */
 	m_sprite_height_prom = color_prom + 0x900;
@@ -240,23 +236,20 @@ PALETTE_INIT_MEMBER(m62_state,lotlot)
 PALETTE_INIT_MEMBER(m62_state,battroad)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
-	rgb_t *rgb;
+	dynamic_array<rgb_t> rgb;
 
 	// m62 palette
-	rgb = compute_res_net_all(machine(), color_prom, &m62_tile_decode_info, &m62_tile_net_info);
-	palette_set_colors(machine(), 0x000, rgb, 0x100);
-	auto_free(machine(), rgb);
+	compute_res_net_all(rgb, color_prom, m62_tile_decode_info, m62_tile_net_info);
+	palette.set_pen_colors(0x000, rgb, 0x100);
 
-	rgb = compute_res_net_all(machine(), color_prom, &m62_sprite_decode_info, &m62_sprite_net_info);
-	palette_set_colors(machine(), 0x100, rgb, 0x100);
-	auto_free(machine(), rgb);
+	compute_res_net_all(rgb, color_prom, m62_sprite_decode_info, m62_sprite_net_info);
+	palette.set_pen_colors(0x100, rgb, 0x100);
 
-	m62_amplify_contrast(machine().palette,0x200);
+	m62_amplify_contrast(palette.palette(),0x200);
 
 	// custom palette for foreground
-	rgb = compute_res_net_all(machine(), color_prom, &battroad_char_decode_info, &battroad_char_net_info);
-	palette_set_colors(machine(), 0x200, rgb, 0x020);
-	auto_free(machine(), rgb);
+	compute_res_net_all(rgb, color_prom, battroad_char_decode_info, battroad_char_net_info);
+	palette.set_pen_colors(0x200, rgb, 0x020);
 
 	/* we'll need this at run time */
 	m_sprite_height_prom = color_prom + 0x620;
@@ -266,17 +259,15 @@ PALETTE_INIT_MEMBER(m62_state,battroad)
 PALETTE_INIT_MEMBER(m62_state,spelunk2)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
-	rgb_t *rgb;
+	dynamic_array<rgb_t> rgb;
 
-	rgb = compute_res_net_all(machine(), color_prom, &spelunk2_tile_decode_info, &m62_tile_net_info);
-	palette_set_colors(machine(), 0x000, rgb, 0x200);
-	auto_free(machine(), rgb);
+	compute_res_net_all(rgb, color_prom, spelunk2_tile_decode_info, m62_tile_net_info);
+	palette.set_pen_colors(0x000, rgb, 0x200);
 
-	rgb = compute_res_net_all(machine(), color_prom, &spelunk2_sprite_decode_info, &m62_sprite_net_info);
-	palette_set_colors(machine(), 0x200, rgb, 0x100);
-	auto_free(machine(), rgb);
+	compute_res_net_all(rgb, color_prom, spelunk2_sprite_decode_info, m62_sprite_net_info);
+	palette.set_pen_colors(0x200, rgb, 0x100);
 
-	m62_amplify_contrast(machine().palette,0);
+	m62_amplify_contrast(palette.palette(),0);
 
 	/* we'll need this at run time */
 	m_sprite_height_prom = color_prom + 0x700;
@@ -391,7 +382,7 @@ void m62_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, i
 
 			do
 			{
-				drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+				m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 						code + i * incr,col,
 						flipx,flipy,
 						sx,sy + 16 * i,0);
@@ -404,7 +395,7 @@ void m62_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, i
 
 void m62_state::m62_start( tilemap_get_info_delegate tile_get_info, int rows, int cols, int x1, int y1, int x2, int y2 )
 {
-	m_bg_tilemap = &machine().tilemap().create(tile_get_info, TILEMAP_SCAN_ROWS,  x1, y1, x2, y2);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tile_get_info, TILEMAP_SCAN_ROWS,  x1, y1, x2, y2);
 
 	register_savestate();
 
@@ -417,7 +408,7 @@ void m62_state::m62_start( tilemap_get_info_delegate tile_get_info, int rows, in
 
 void m62_state::m62_textlayer( tilemap_get_info_delegate tile_get_info, int rows, int cols, int x1, int y1, int x2, int y2 )
 {
-	m_fg_tilemap = &machine().tilemap().create(tile_get_info, TILEMAP_SCAN_ROWS,  x1, y1, x2, y2);
+	m_fg_tilemap = &machine().tilemap().create(m_gfxdecode, tile_get_info, TILEMAP_SCAN_ROWS,  x1, y1, x2, y2);
 
 	if (rows != 0)
 		m_fg_tilemap->set_scroll_rows(rows);
@@ -556,11 +547,11 @@ UINT32 m62_state::screen_update_ldrun3(screen_device &screen, bitmap_ind16 &bitm
 
 		my_cliprect.min_y = 0 * 8;
 		my_cliprect.max_y = 1 * 8 - 1;
-		bitmap.fill(get_black_pen(machine()), my_cliprect);
+		bitmap.fill(m_palette->black_pen(), my_cliprect);
 
 		my_cliprect.min_y = 31 * 8;
 		my_cliprect.max_y = 32 * 8 - 1;
-		bitmap.fill(get_black_pen(machine()), my_cliprect);
+		bitmap.fill(m_palette->black_pen(), my_cliprect);
 	}
 
 	return 0;
@@ -731,7 +722,7 @@ TILE_GET_INFO_MEMBER(m62_state::get_kidniki_fg_tile_info)
 
 VIDEO_START_MEMBER(m62_state,kidniki)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(m62_state::get_kidniki_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(m62_state::get_kidniki_bg_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 64, 32);
 	m_bg_tilemap->set_transmask(0, 0xffff, 0x0000); /* split type 0 is totally transparent in front half */
 	m_bg_tilemap->set_transmask(1, 0x0001, 0xfffe); /* split type 1 has pen 0 transparent in front half */
 
@@ -823,7 +814,7 @@ TILE_GET_INFO_MEMBER(m62_state::get_spelunk2_bg_tile_info)
 	int color;
 	code = m_m62_tileram[tile_index << 1];
 	color = m_m62_tileram[(tile_index << 1) | 1];
-	SET_TILE_INFO_MEMBER( 0, code | ((color & 0xf0) << 4), (color & 0x0f) | (m_spelunkr_palbank << 4), 0 );
+	SET_TILE_INFO_MEMBER(0, code | ((color & 0xf0) << 4), (color & 0x0f) | (m_spelunkr_palbank << 4), 0 );
 }
 
 VIDEO_START_MEMBER(m62_state,spelunk2)
@@ -853,7 +844,7 @@ TILE_GET_INFO_MEMBER(m62_state::get_youjyudn_bg_tile_info)
 	int color;
 	code = m_m62_tileram[tile_index << 1];
 	color = m_m62_tileram[(tile_index << 1) | 1];
-	SET_TILE_INFO_MEMBER( 0, code | ((color & 0x60) << 3), color & 0x1f, 0);
+	SET_TILE_INFO_MEMBER(0, code | ((color & 0x60) << 3), color & 0x1f, 0);
 	if (((color & 0x1f) >> 1) >= 0x08)
 		tileinfo.group = 1;
 	else

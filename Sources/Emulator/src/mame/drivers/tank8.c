@@ -45,17 +45,17 @@ WRITE8_MEMBER(tank8_state::tank8_int_reset_w)
 
 WRITE8_MEMBER(tank8_state::tank8_crash_w)
 {
-	discrete_sound_w(m_discrete, space, TANK8_CRASH_EN, data);
+	m_discrete->write(space, TANK8_CRASH_EN, data);
 }
 
 WRITE8_MEMBER(tank8_state::tank8_explosion_w)
 {
-	discrete_sound_w(m_discrete, space, TANK8_EXPLOSION_EN, data);
+	m_discrete->write(space, TANK8_EXPLOSION_EN, data);
 }
 
 WRITE8_MEMBER(tank8_state::tank8_bugle_w)
 {
-	discrete_sound_w(m_discrete, space, TANK8_BUGLE_EN, data);
+	m_discrete->write(space, TANK8_BUGLE_EN, data);
 }
 
 WRITE8_MEMBER(tank8_state::tank8_bug_w)
@@ -63,20 +63,20 @@ WRITE8_MEMBER(tank8_state::tank8_bug_w)
 	/* D0 and D1 determine the on/off time off the square wave */
 	switch(data & 3) {
 		case 0:
-			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA1,8.0);
-			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA2,4.0);
+			m_discrete->write(space, TANK8_BUGLE_DATA1,8.0);
+			m_discrete->write(space, TANK8_BUGLE_DATA2,4.0);
 			break;
 		case 1:
-			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA1,8.0);
-			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA2,7.0);
+			m_discrete->write(space, TANK8_BUGLE_DATA1,8.0);
+			m_discrete->write(space, TANK8_BUGLE_DATA2,7.0);
 			break;
 		case 2:
-			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA1,8.0);
-			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA2,2.0);
+			m_discrete->write(space, TANK8_BUGLE_DATA1,8.0);
+			m_discrete->write(space, TANK8_BUGLE_DATA2,2.0);
 			break;
 		case 3:
-			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA1,16.0);
-			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA2,4.0);
+			m_discrete->write(space, TANK8_BUGLE_DATA1,16.0);
+			m_discrete->write(space, TANK8_BUGLE_DATA2,4.0);
 			break;
 	}
 
@@ -84,12 +84,12 @@ WRITE8_MEMBER(tank8_state::tank8_bug_w)
 
 WRITE8_MEMBER(tank8_state::tank8_attract_w)
 {
-	discrete_sound_w(m_discrete, space, TANK8_ATTRACT_EN, data);
+	m_discrete->write(space, TANK8_ATTRACT_EN, data);
 }
 
 WRITE8_MEMBER(tank8_state::tank8_motor_w)
 {
-	discrete_sound_w(m_discrete, space, NODE_RELATIVE(TANK8_MOTOR1_EN, offset), data);
+	m_discrete->write(space, NODE_RELATIVE(TANK8_MOTOR1_EN, offset), data);
 }
 
 static ADDRESS_MAP_START( tank8_cpu_map, AS_PROGRAM, 8, tank8_state )
@@ -331,19 +331,20 @@ static MACHINE_CONFIG_START( tank8, tank8_state )
 
 
 	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
-
 	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(30 * 1000000 / 15681))
 	MCFG_SCREEN_SIZE(512, 524)
 	MCFG_SCREEN_VISIBLE_AREA(16, 495, 0, 463)
 	MCFG_SCREEN_UPDATE_DRIVER(tank8_state, screen_update_tank8)
 	MCFG_SCREEN_VBLANK_DRIVER(tank8_state, screen_eof_tank8)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tank8)
-	MCFG_PALETTE_LENGTH(20)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tank8)
+	MCFG_PALETTE_ADD("palette", 20)
+	MCFG_PALETTE_INDIRECT_ENTRIES(10)
+	MCFG_PALETTE_INIT_OWNER(tank8_state, tank8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

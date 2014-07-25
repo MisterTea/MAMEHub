@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
     TODO:
@@ -7,6 +9,12 @@
 */
 
 #include "includes/c128.h"
+#include "bus/cbmiec/c1571.h"
+#include "bus/cbmiec/c1581.h"
+#include "cpu/z80/z80.h"
+#include "machine/cbm_snqk.h"
+#include "imagedev/cartslot.h"
+#include "sound/dac.h"
 
 
 
@@ -25,12 +33,34 @@
 #define VMA5 BIT(vma, 13)
 #define VMA4 BIT(vma, 12)
 
+enum
+{
+	PLA_OUT_SDEN = 0,
+	PLA_OUT_ROM4 = 1,
+	PLA_OUT_ROM2 = 2,
+	PLA_OUT_DIR = 3,
+	PLA_OUT_ROML = 4,
+	PLA_OUT_ROMH = 5,
+	PLA_OUT_CLRBANK = 6,
+	PLA_OUT_FROM1 = 7,
+	PLA_OUT_ROM3 = 8,
+	PLA_OUT_ROM1 = 9,
+	PLA_OUT_IOCS = 10,
+	PLA_OUT_DWE = 11,
+	PLA_OUT_CASENB = 12,
+	PLA_OUT_VIC = 13,
+	PLA_OUT_IOACC = 14,
+	PLA_OUT_GWE = 15,
+	PLA_OUT_COLORRAM = 16,
+	PLA_OUT_CHAROM = 17
+};
 
 
 QUICKLOAD_LOAD_MEMBER( c128_state, cbm_c64 )
 {
-	return general_cbm_loadsnap(image, file_type, quickload_size, 0, cbm_quick_sethiaddress);
+	return general_cbm_loadsnap(image, file_type, quickload_size, m_maincpu->space(AS_PROGRAM), 0, cbm_quick_sethiaddress);
 }
+
 
 //**************************************************************************
 //  INTERRUPTS
@@ -42,10 +72,8 @@ QUICKLOAD_LOAD_MEMBER( c128_state, cbm_c64 )
 
 inline void c128_state::check_interrupts()
 {
-	int restore = !BIT(m_restore->read(), 0);
-
 	int irq = m_cia1_irq || m_vic_irq || m_exp_irq;
-	int nmi = m_cia2_irq || restore || m_exp_nmi;
+	int nmi = m_cia2_irq || !m_restore || m_exp_nmi;
 	//int aec = m_exp_dma && m_z80_busack;
 	//int rdy = m_vic_aec && m_z80en && m_vic_ba;
 	//int busreq = !m_z80en || !(m_z80_busack && !aec)
@@ -66,9 +94,7 @@ inline void c128_state::check_interrupts()
 //  read_pla -
 //-------------------------------------------------
 
-void c128_state::read_pla(offs_t offset, offs_t ca, offs_t vma, int ba, int rw, int aec, int z80io, int ms3, int ms2, int ms1, int ms0,
-		int *sden, int *dir, int *gwe, int *rom1, int *rom2, int *rom3, int *rom4, int *charom, int *colorram, int *vic,
-		int *from1, int *romh, int *roml, int *dwe, int *ioacc, int *clrbank, int *iocs, int *casenb)
+int c128_state::read_pla(offs_t offset, offs_t ca, offs_t vma, int ba, int rw, int aec, int z80io, int ms3, int ms2, int ms1, int ms0)
 {
 	int _128_256 = 1;
 	int dmaack = 1;
@@ -83,28 +109,7 @@ void c128_state::read_pla(offs_t offset, offs_t ca, offs_t vma, int ba, int rw, 
 		m_exrom << 15 | m_game << 14 | rw << 13 | aec << 12 | A10 << 11 | A11 << 10 | A12 << 9 | A13 << 8 |
 		A14 << 7 | A15 << 6 | z80io << 5 | m_z80en << 4 | ms3 << 3 | vicfix << 2 | dmaack << 1 | _128_256;
 
-	UINT32 data = m_pla->read(input);
-
-	*sden = BIT(data, 0);
-	*rom4 = BIT(data, 1);
-	*rom2 = BIT(data, 2);
-	*dir = BIT(data, 3);
-	*roml = BIT(data, 4);
-	*romh = BIT(data, 5);
-	*clrbank = BIT(data, 6);
-	*from1 = BIT(data, 7);
-	*rom3 = BIT(data, 8);
-	*rom1 = BIT(data, 9);
-	*iocs = BIT(data, 10);
-	*dwe = BIT(data, 11);
-	*casenb = BIT(data, 12);
-	*vic = BIT(data, 13);
-	*ioacc = BIT(data, 14);
-	*gwe = BIT(data, 15);
-	*colorram = BIT(data, 16);
-	*charom = BIT(data, 17);
-
-	m_clrbank = *clrbank;
+	return m_pla->read(input);
 }
 
 
@@ -115,8 +120,6 @@ void c128_state::read_pla(offs_t offset, offs_t ca, offs_t vma, int ba, int rw, 
 UINT8 c128_state::read_memory(address_space &space, offs_t offset, offs_t vma, int ba, int aec, int z80io)
 {
 	int rw = 1, ms0 = 1, ms1 = 1, ms2 = 1, ms3 = 1, cas0 = 1, cas1 = 1;
-	int sden = 1, dir = 1, gwe = 1, rom1 = 1, rom2 = 1, rom3 = 1, rom4 = 1, charom = 1, colorram = 1, vic = 1,
-		from1 = 1, romh = 1, roml = 1, dwe = 1, ioacc = 1, clrbank = 1, iocs = 1, casenb = 1;
 	int io1 = 1, io2 = 1;
 	int sphi2 = m_vic->phi0_r();
 
@@ -142,11 +145,11 @@ UINT8 c128_state::read_memory(address_space &space, offs_t offset, offs_t vma, i
 
 	offs_t ca = ta | sa;
 
-	read_pla(offset, ca, vma, ba, rw, aec, z80io, ms3, ms2, ms1, ms0,
-		&sden, &dir, &gwe, &rom1, &rom2, &rom3, &rom4, &charom, &colorram, &vic,
-		&from1, &romh, &roml, &dwe, &ioacc, &clrbank, &iocs, &casenb);
+	int plaout = read_pla(offset, ca, vma, ba, rw, aec, z80io, ms3, ms2, ms1, ms0);
 
-	if (!casenb)
+	m_clrbank = BIT(plaout, PLA_OUT_CLRBANK);
+
+	if (!BIT(plaout, PLA_OUT_CASENB))
 	{
 		if (!cas0)
 		{
@@ -157,41 +160,41 @@ UINT8 c128_state::read_memory(address_space &space, offs_t offset, offs_t vma, i
 			data = m_ram->pointer()[0x10000 | ma];
 		}
 	}
-	if (!rom1)
+	if (!BIT(plaout, PLA_OUT_ROM1))
 	{
 		// CR: data = m_rom1[(ms3 << 14) | ((BIT(ta, 14) && BIT(offset, 13)) << 13) | (ta & 0x1000) | (offset & 0xfff)];
 		data = m_rom->base()[((BIT(ta, 14) && BIT(offset, 13)) << 13) | (ta & 0x1000) | (offset & 0xfff)];
 	}
-	if (!rom2)
+	if (!BIT(plaout, PLA_OUT_ROM2))
 	{
 		data = m_rom->base()[0x4000 | (offset & 0x3fff)];
 	}
-	if (!rom3)
+	if (!BIT(plaout, PLA_OUT_ROM3))
 	{
 		// CR: data = m_rom3[(BIT(offset, 15) << 14) | (offset & 0x3fff)];
 		data = m_rom->base()[0x8000 | (offset & 0x3fff)];
 	}
-	if (!rom4)
+	if (!BIT(plaout, PLA_OUT_ROM4))
 	{
 		data = m_rom->base()[0xc000 | (ta & 0x1000) | (offset & 0x2fff)];
 	}
-	if (!charom)
+	if (!BIT(plaout, PLA_OUT_CHAROM))
 	{
 		data = m_charom->base()[(ms3 << 12) | (ta & 0xf00) | sa];
 	}
-	if (!colorram && aec)
+	if (!BIT(plaout, PLA_OUT_COLORRAM) && aec)
 	{
-		data = m_color_ram[(clrbank << 10) | (ta & 0x300) | sa] & 0x0f;
+		data = m_color_ram[(m_clrbank << 10) | (ta & 0x300) | sa] & 0x0f;
 	}
-	if (!vic)
+	if (!BIT(plaout, PLA_OUT_VIC))
 	{
 		data = m_vic->read(space, offset & 0x3f);
 	}
-	if (!from1)
+	if (!BIT(plaout, PLA_OUT_FROM1))
 	{
 		data = m_from->base()[offset & 0x7fff];
 	}
-	if (!iocs && BIT(offset, 10))
+	if (!BIT(plaout, PLA_OUT_IOCS) && BIT(offset, 10))
 	{
 		switch ((BIT(offset, 11) << 2) | ((offset >> 8) & 0x03))
 		{
@@ -228,6 +231,9 @@ UINT8 c128_state::read_memory(address_space &space, offs_t offset, offs_t vma, i
 		}
 	}
 
+	int roml = BIT(plaout, PLA_OUT_ROML);
+	int romh = BIT(plaout, PLA_OUT_ROMH);
+
 	data = m_exp->cd_r(space, ca, data, sphi2, ba, roml, romh, io1, io2);
 
 	return m_mmu->read(offset, data);
@@ -241,8 +247,6 @@ UINT8 c128_state::read_memory(address_space &space, offs_t offset, offs_t vma, i
 void c128_state::write_memory(address_space &space, offs_t offset, offs_t vma, UINT8 data, int ba, int aec, int z80io)
 {
 	int rw = 0, ms0 = 1, ms1 = 1, ms2 = 1, ms3 = 1, cas0 = 1, cas1 = 1;
-	int sden = 1, dir = 1, gwe = 1, rom1 = 1, rom2 = 1, rom3 = 1, rom4 = 1, charom = 1, colorram = 1, vic = 1,
-		from1 = 1, romh = 1, roml = 1, dwe = 1, ioacc = 1, clrbank = 1, iocs = 1, casenb = 1;
 	int io1 = 1, io2 = 1;
 	int sphi2 = m_vic->phi0_r();
 
@@ -251,11 +255,11 @@ void c128_state::write_memory(address_space &space, offs_t offset, offs_t vma, U
 	offs_t ma = ta | (offset & 0xff);
 	offs_t sa = offset & 0xff;
 
-	read_pla(offset, ca, vma, ba, rw, aec, z80io, ms3, ms2, ms1, ms0,
-		&sden, &dir, &gwe, &rom1, &rom2, &rom3, &rom4, &charom, &colorram, &vic,
-		&from1, &romh, &roml, &dwe, &ioacc, &clrbank, &iocs, &casenb);
+	int plaout = read_pla(offset, ca, vma, ba, rw, aec, z80io, ms3, ms2, ms1, ms0);
 
-	if (!casenb && !dwe)
+	m_clrbank = BIT(plaout, PLA_OUT_CLRBANK);
+
+	if (!BIT(plaout, PLA_OUT_CASENB) && !BIT(plaout, PLA_OUT_DWE))
 	{
 		if (!cas0)
 		{
@@ -266,15 +270,15 @@ void c128_state::write_memory(address_space &space, offs_t offset, offs_t vma, U
 			m_ram->pointer()[0x10000 | ma] = data;
 		}
 	}
-	if (!colorram && !gwe)
+	if (!BIT(plaout, PLA_OUT_COLORRAM) && !BIT(plaout, PLA_OUT_GWE))
 	{
-		m_color_ram[(clrbank << 10) | (ta & 0x300) | sa] = data & 0x0f;
+		m_color_ram[(m_clrbank << 10) | (ta & 0x300) | sa] = data & 0x0f;
 	}
-	if (!vic)
+	if (!BIT(plaout, PLA_OUT_VIC))
 	{
 		m_vic->write(space, offset & 0x3f, data);
 	}
-	if (!iocs && BIT(offset, 10))
+	if (!BIT(plaout, PLA_OUT_IOCS) && BIT(offset, 10))
 	{
 		switch ((BIT(offset, 11) << 2) | ((offset >> 8) & 0x03))
 		{
@@ -310,6 +314,9 @@ void c128_state::write_memory(address_space &space, offs_t offset, offs_t vma, U
 			break;
 		}
 	}
+
+	int roml = BIT(plaout, PLA_OUT_ROML);
+	int romh = BIT(plaout, PLA_OUT_ROMH);
 
 	m_exp->cd_w(space, ca, data, sphi2, ba, roml, romh, io1, io2);
 
@@ -485,8 +492,10 @@ ADDRESS_MAP_END
 //  INPUT_PORTS( c128 )
 //-------------------------------------------------
 
-INPUT_CHANGED_MEMBER( c128_state::restore )
+WRITE_LINE_MEMBER( c128_state::write_restore )
 {
+	m_restore = state;
+
 	check_interrupts();
 }
 
@@ -607,7 +616,7 @@ static INPUT_PORTS_START( c128 )
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("ALT") PORT_CODE(KEYCODE_F7) PORT_CHAR(UCHAR_MAMEKEY(LALT))
 
 	PORT_START( "RESTORE" )
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("RESTORE") PORT_CODE(KEYCODE_PRTSCR)
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("RESTORE") PORT_CODE(KEYCODE_PRTSCR) PORT_WRITE_LINE_DEVICE_MEMBER(DEVICE_SELF, c128_state, write_restore)
 
 	PORT_START( "LOCK" )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("SHIFT LOCK") PORT_CODE(KEYCODE_CAPSLOCK) PORT_TOGGLE PORT_CHAR(UCHAR_MAMEKEY(CAPSLOCK))
@@ -852,38 +861,14 @@ READ_LINE_MEMBER( c128_state::mmu_sense40_r )
 	return BIT(m_40_80->read(), 0);
 }
 
-static MOS8722_INTERFACE( mmu_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(c128_state, mmu_z80en_w),
-	DEVCB_DRIVER_LINE_MEMBER(c128_state, mmu_fsdir_w),
-	DEVCB_DRIVER_LINE_MEMBER(c128_state, mmu_game_r),
-	DEVCB_DRIVER_LINE_MEMBER(c128_state, mmu_exrom_r),
-	DEVCB_DRIVER_LINE_MEMBER(c128_state, mmu_sense40_r)
-};
-
 
 //-------------------------------------------------
-//  mc6845_interface vdc_intf
+//  mc6845
 //-------------------------------------------------
 
 static GFXDECODE_START( c128 )
 	GFXDECODE_ENTRY( "charom", 0x0000, gfx_8x8x1, 0, 1 )
 GFXDECODE_END
-
-
-static MC6845_INTERFACE( vdc_intf )
-{
-	false,
-	8,
-	NULL,
-	NULL,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
 
 
 //-------------------------------------------------
@@ -1088,6 +1073,7 @@ WRITE8_MEMBER( c128_state::cia1_pb_w )
 WRITE_LINE_MEMBER( c128_state::cia1_cnt_w )
 {
 	m_cnt1 = state;
+	m_user->write_4(state);
 
 	update_iec();
 }
@@ -1095,6 +1081,7 @@ WRITE_LINE_MEMBER( c128_state::cia1_cnt_w )
 WRITE_LINE_MEMBER( c128_state::cia1_sp_w )
 {
 	m_sp1 = state;
+	m_user->write_5(state);
 
 	update_iec();
 }
@@ -1131,7 +1118,7 @@ READ8_MEMBER( c128_state::cia2_pa_r )
 	UINT8 data = 0;
 
 	// user port
-	data |= m_user->pa2_r() << 2;
+	data |= m_user_pa2 << 2;
 
 	// IEC bus
 	data |= m_iec->clk_r() << 6;
@@ -1162,7 +1149,7 @@ WRITE8_MEMBER( c128_state::cia2_pa_w )
 	m_va15 = BIT(data, 1);
 
 	// user port
-	m_user->pa2_w(BIT(data, 2));
+	m_user->write_m(BIT(data, 2));
 
 	// IEC bus
 	m_iec->atn_w(!BIT(data, 3));
@@ -1172,6 +1159,22 @@ WRITE8_MEMBER( c128_state::cia2_pa_w )
 	update_iec();
 }
 
+READ8_MEMBER( c128_state::cia2_pb_r )
+{
+	return m_user_pb;
+}
+
+WRITE8_MEMBER( c128_state::cia2_pb_w )
+{
+	m_user->write_c((data>>0)&1);
+	m_user->write_d((data>>1)&1);
+	m_user->write_e((data>>2)&1);
+	m_user->write_f((data>>3)&1);
+	m_user->write_h((data>>4)&1);
+	m_user->write_j((data>>5)&1);
+	m_user->write_k((data>>6)&1);
+	m_user->write_l((data>>7)&1);
+}
 
 //-------------------------------------------------
 //  M6510_INTERFACE( cpu_intf )
@@ -1320,11 +1323,30 @@ WRITE_LINE_MEMBER( c128_state::exp_dma_w )
 
 WRITE_LINE_MEMBER( c128_state::exp_reset_w )
 {
-	if (state == ASSERT_LINE)
+	if (!state)
 	{
 		machine_reset();
 	}
 }
+
+
+//-------------------------------------------------
+//  SLOT_INTERFACE( c128dcr_iec_devices )
+//-------------------------------------------------
+
+SLOT_INTERFACE_START( c128dcr_iec_devices )
+	SLOT_INTERFACE("c1571", C1571)
+	SLOT_INTERFACE("c1571cr", C1571CR)
+SLOT_INTERFACE_END
+
+
+//-------------------------------------------------
+//  SLOT_INTERFACE( c128d81_iec_devices )
+//-------------------------------------------------
+
+SLOT_INTERFACE_START( c128d81_iec_devices )
+	SLOT_INTERFACE("c1563", C1563)
+SLOT_INTERFACE_END
 
 
 
@@ -1389,7 +1411,9 @@ void c128_state::machine_reset()
 
 	m_iec->reset();
 	m_exp->reset();
-	m_user->reset();
+
+	m_user->write_3(0);
+	m_user->write_3(1);
 }
 
 
@@ -1404,51 +1428,108 @@ void c128_state::machine_reset()
 
 static MACHINE_CONFIG_START( ntsc, c128_state )
 	// basic hardware
-	MCFG_CPU_ADD(Z80A_TAG, Z80, VIC6567_CLOCK*2)
+	MCFG_CPU_ADD(Z80A_TAG, Z80, XTAL_14_31818MHz*2/3.5/2)
 	MCFG_CPU_PROGRAM_MAP(z80_mem)
 	MCFG_CPU_IO_MAP(z80_io)
 	MCFG_QUANTUM_PERFECT_CPU(Z80A_TAG)
 
-	MCFG_CPU_ADD(M8502_TAG, M8502, VIC6567_CLOCK)
+	MCFG_CPU_ADD(M8502_TAG, M8502, XTAL_14_31818MHz*2/3.5/8)
+	MCFG_M6502_DISABLE_DIRECT() // address decoding is 100% dynamic, no RAM/ROM banks
 	MCFG_M8502_PORT_CALLBACKS(READ8(c128_state, cpu_r), WRITE8(c128_state, cpu_w))
 	MCFG_M8502_PORT_PULLS(0x07, 0x20)
 	MCFG_CPU_PROGRAM_MAP(m8502_mem)
 	MCFG_QUANTUM_PERFECT_CPU(M8502_TAG)
 
 	// video hardware
-	MCFG_MOS8563_ADD(MOS8563_TAG, SCREEN_VDC_TAG, VIC6567_CLOCK*2, vdc_intf, vdc_videoram_map)
-	MCFG_MOS8564_ADD(MOS8564_TAG, SCREEN_VIC_TAG, M8502_TAG, VIC6567_CLOCK, vic_videoram_map, vic_colorram_map, WRITELINE(c128_state, vic_irq_w), WRITE8(c128_state, vic_k_w))
-	MCFG_GFXDECODE(c128)
+	MCFG_MOS8563_ADD(MOS8563_TAG, SCREEN_VDC_TAG, XTAL_16MHz, vdc_videoram_map)
+	MCFG_MC6845_SHOW_BORDER_AREA(true)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_SCREEN_ADD(SCREEN_VDC_TAG, RASTER)
+	MCFG_SCREEN_REFRESH_RATE(60)
+	MCFG_SCREEN_SIZE(640, 200)
+	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
+	MCFG_SCREEN_UPDATE_DEVICE(MOS8563_TAG, mos8563_device, screen_update)
+
+	MCFG_DEVICE_ADD(MOS8564_TAG, MOS8564, XTAL_14_31818MHz*2/3.5)
+	MCFG_MOS6566_CPU(M8502_TAG)
+	MCFG_MOS6566_IRQ_CALLBACK(WRITELINE(c128_state, vic_irq_w))
+	MCFG_MOS8564_K_CALLBACK(WRITE8(c128_state, vic_k_w))
+	MCFG_VIDEO_SET_SCREEN(SCREEN_VIC_TAG)
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, vic_videoram_map)
+	MCFG_DEVICE_ADDRESS_MAP(AS_1, vic_colorram_map)
+	MCFG_SCREEN_ADD(SCREEN_VIC_TAG, RASTER)
+	MCFG_SCREEN_REFRESH_RATE(VIC6567_VRETRACERATE)
+	MCFG_SCREEN_SIZE(VIC6567_COLUMNS, VIC6567_LINES)
+	MCFG_SCREEN_VISIBLE_AREA(0, VIC6567_VISIBLECOLUMNS - 1, 0, VIC6567_VISIBLELINES - 1)
+	MCFG_SCREEN_UPDATE_DEVICE(MOS8564_TAG, mos8564_device, screen_update)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", MOS8563_TAG":palette", c128)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(MOS6581_TAG, MOS6581, VIC6567_CLOCK)
-	MCFG_MOS6581_POTXY_CALLBACKS(READ8(c128_state, sid_potx_r), READ8(c128_state, sid_poty_r))
+	MCFG_SOUND_ADD(MOS6581_TAG, MOS6581, XTAL_14_31818MHz*2/3.5/8)
+	MCFG_MOS6581_POTX_CALLBACK(READ8(c128_state, sid_potx_r))
+	MCFG_MOS6581_POTY_CALLBACK(READ8(c128_state, sid_poty_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// devices
-	MCFG_MOS8722_ADD(MOS8722_TAG, mmu_intf)
+	MCFG_DEVICE_ADD(MOS8722_TAG, MOS8722, XTAL_14_31818MHz*2/3.5/8)
+	MCFG_MOS8722_Z80EN_CALLBACK(WRITELINE(c128_state, mmu_z80en_w))
+	MCFG_MOS8722_FSDIR_CALLBACK(WRITELINE(c128_state, mmu_fsdir_w))
+	MCFG_MOS8722_GAME_CALLBACK(READLINE(c128_state, mmu_game_r))
+	MCFG_MOS8722_EXROM_CALLBACK(READLINE(c128_state, mmu_exrom_r))
+	MCFG_MOS8722_SENSE40_CALLBACK(READLINE(c128_state, mmu_sense40_r))
 	MCFG_MOS8721_ADD(MOS8721_TAG)
-	MCFG_MOS6526_ADD(MOS6526_1_TAG, VIC6567_CLOCK, 60, WRITELINE(c128_state, cia1_irq_w))
-	MCFG_MOS6526_SERIAL_CALLBACKS(WRITELINE(c128_state, cia1_cnt_w), WRITELINE(c128_state, cia1_sp_w))
-	MCFG_MOS6526_PORT_A_CALLBACKS(READ8(c128_state, cia1_pa_r), NULL)
-	MCFG_MOS6526_PORT_B_CALLBACKS(READ8(c128_state, cia1_pb_r), WRITE8(c128_state, cia1_pb_w), NULL)
-	MCFG_MOS6526_ADD(MOS6526_2_TAG, VIC6567_CLOCK, 60, WRITELINE(c128_state, cia2_irq_w))
-	MCFG_MOS6526_SERIAL_CALLBACKS(DEVWRITELINE(C64_USER_PORT_TAG, c64_user_port_device, cnt2_w), DEVWRITELINE(C64_USER_PORT_TAG, c64_user_port_device, sp2_w))
-	MCFG_MOS6526_PORT_A_CALLBACKS(READ8(c128_state, cia2_pa_r), WRITE8(c128_state, cia2_pa_w))
-	MCFG_MOS6526_PORT_B_CALLBACKS(DEVREAD8(C64_USER_PORT_TAG, c64_user_port_device, pb_r), DEVWRITE8(C64_USER_PORT_TAG, c64_user_port_device, pb_w), DEVWRITELINE(C64_USER_PORT_TAG, c64_user_port_device, pc2_w))
+	MCFG_DEVICE_ADD(MOS6526_1_TAG, MOS6526, XTAL_14_31818MHz*2/3.5/8)
+	MCFG_MOS6526_TOD(60)
+	MCFG_MOS6526_IRQ_CALLBACK(WRITELINE(c128_state, cia1_irq_w))
+	MCFG_MOS6526_CNT_CALLBACK(WRITELINE(c128_state, cia1_cnt_w))
+	MCFG_MOS6526_SP_CALLBACK(WRITELINE(c128_state, cia1_sp_w))
+	MCFG_MOS6526_PA_INPUT_CALLBACK(READ8(c128_state, cia1_pa_r))
+	MCFG_MOS6526_PB_INPUT_CALLBACK(READ8(c128_state, cia1_pb_r))
+	MCFG_MOS6526_PB_OUTPUT_CALLBACK(WRITE8(c128_state, cia1_pb_w))
+	MCFG_DEVICE_ADD(MOS6526_2_TAG, MOS6526, XTAL_14_31818MHz*2/3.5/8)
+	MCFG_MOS6526_TOD(60)
+	MCFG_MOS6526_IRQ_CALLBACK(WRITELINE(c128_state, cia2_irq_w))
+	MCFG_MOS6526_CNT_CALLBACK(DEVWRITELINE(PET_USER_PORT_TAG, pet_user_port_device, write_6))
+	MCFG_MOS6526_SP_CALLBACK(DEVWRITELINE(PET_USER_PORT_TAG, pet_user_port_device, write_7))
+	MCFG_MOS6526_PA_INPUT_CALLBACK(READ8(c128_state, cia2_pa_r))
+	MCFG_MOS6526_PA_OUTPUT_CALLBACK(WRITE8(c128_state, cia2_pa_w))
+	MCFG_MOS6526_PB_INPUT_CALLBACK(READ8(c128_state, cia2_pb_r))
+	MCFG_MOS6526_PB_OUTPUT_CALLBACK(WRITE8(c128_state, cia2_pb_w))
+	MCFG_MOS6526_PC_CALLBACK(DEVWRITELINE(PET_USER_PORT_TAG, pet_user_port_device, write_8))
 	MCFG_PET_DATASSETTE_PORT_ADD(PET_DATASSETTE_PORT_TAG, cbm_datassette_devices, "c1530", DEVWRITELINE(MOS6526_2_TAG, mos6526_device, flag_w))
 	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, NULL)
-	MCFG_VCS_CONTROL_PORT_TRIGGER_HANDLER(DEVWRITELINE(MOS8564_TAG, mos8564_device, lp_w))
+	MCFG_VCS_CONTROL_PORT_TRIGGER_CALLBACK(DEVWRITELINE(MOS8564_TAG, mos8564_device, lp_w))
 	MCFG_VCS_CONTROL_PORT_ADD(CONTROL2_TAG, vcs_control_port_devices, "joy")
-	MCFG_C64_EXPANSION_SLOT_ADD(C64_EXPANSION_SLOT_TAG, VIC6567_CLOCK, c64_expansion_cards, NULL)
-	MCFG_C64_EXPANSION_SLOT_IRQ_CALLBACKS(WRITELINE(c128_state, exp_irq_w), WRITELINE(c128_state, exp_nmi_w), WRITELINE(c128_state, exp_reset_w))
-	MCFG_C64_EXPANSION_SLOT_DMA_CALLBACKS(READ8(c128_state, exp_dma_cd_r), WRITE8(c128_state, exp_dma_cd_w), WRITELINE(c128_state, exp_dma_w))
-	MCFG_C64_USER_PORT_ADD(C64_USER_PORT_TAG, c64_user_port_cards, NULL, WRITELINE(c128_state, exp_reset_w))
-	MCFG_C64_USER_PORT_CIA1_CALLBACKS(DEVWRITELINE(MOS6526_1_TAG, mos6526_device, cnt_w), DEVWRITELINE(MOS6526_1_TAG, mos6526_device, sp_w))
-	MCFG_C64_USER_PORT_CIA2_CALLBACKS(DEVWRITELINE(MOS6526_2_TAG, mos6526_device, cnt_w), DEVWRITELINE(MOS6526_2_TAG, mos6526_device, sp_w), DEVWRITELINE(MOS6526_2_TAG, mos6526_device, flag_w))
+	MCFG_C64_EXPANSION_SLOT_ADD(C64_EXPANSION_SLOT_TAG, XTAL_14_31818MHz*2/3.5/8, c64_expansion_cards, NULL)
+	MCFG_C64_EXPANSION_SLOT_IRQ_CALLBACK(WRITELINE(c128_state, exp_irq_w))
+	MCFG_C64_EXPANSION_SLOT_NMI_CALLBACK(WRITELINE(c128_state, exp_nmi_w))
+	MCFG_C64_EXPANSION_SLOT_RESET_CALLBACK(WRITELINE(c128_state, exp_reset_w))
+	MCFG_C64_EXPANSION_SLOT_CD_INPUT_CALLBACK(READ8(c128_state, exp_dma_cd_r))
+	MCFG_C64_EXPANSION_SLOT_CD_OUTPUT_CALLBACK(WRITE8(c128_state, exp_dma_cd_w))
+	MCFG_C64_EXPANSION_SLOT_DMA_CALLBACK(WRITELINE(c128_state, exp_dma_w))
+
+	MCFG_PET_USER_PORT_ADD(PET_USER_PORT_TAG, c64_user_port_cards, NULL)
+	MCFG_PET_USER_PORT_3_HANDLER(WRITELINE(c128_state, exp_reset_w))
+	MCFG_PET_USER_PORT_4_HANDLER(DEVWRITELINE(MOS6526_1_TAG, mos6526_device, cnt_w))
+	MCFG_PET_USER_PORT_5_HANDLER(DEVWRITELINE(MOS6526_1_TAG, mos6526_device, sp_w))
+	MCFG_PET_USER_PORT_6_HANDLER(DEVWRITELINE(MOS6526_2_TAG, mos6526_device, cnt_w))
+	MCFG_PET_USER_PORT_7_HANDLER(DEVWRITELINE(MOS6526_2_TAG, mos6526_device, sp_w))
+	MCFG_PET_USER_PORT_9_HANDLER(DEVWRITELINE(CBM_IEC_TAG, cbm_iec_device, atn_w))
+	MCFG_PET_USER_PORT_B_HANDLER(DEVWRITELINE(MOS6526_2_TAG, mos6526_device, flag_w))
+	MCFG_PET_USER_PORT_C_HANDLER(WRITELINE(c128_state, write_user_pb0))
+	MCFG_PET_USER_PORT_D_HANDLER(WRITELINE(c128_state, write_user_pb1))
+	MCFG_PET_USER_PORT_E_HANDLER(WRITELINE(c128_state, write_user_pb2))
+	MCFG_PET_USER_PORT_F_HANDLER(WRITELINE(c128_state, write_user_pb3))
+	MCFG_PET_USER_PORT_H_HANDLER(WRITELINE(c128_state, write_user_pb4))
+	MCFG_PET_USER_PORT_J_HANDLER(WRITELINE(c128_state, write_user_pb5))
+	MCFG_PET_USER_PORT_K_HANDLER(WRITELINE(c128_state, write_user_pb6))
+	MCFG_PET_USER_PORT_L_HANDLER(WRITELINE(c128_state, write_user_pb7))
+	MCFG_PET_USER_PORT_M_HANDLER(WRITELINE(c128_state, write_user_pa2))
+
 	MCFG_QUICKLOAD_ADD("quickload", c128_state, cbm_c64, "p00,prg", CBM_QUICKLOAD_DELAY_SECONDS)
 
 	// software list
@@ -1515,56 +1596,115 @@ MACHINE_CONFIG_END
 
 
 //-------------------------------------------------
-//  MACHINE_CONFIG( ntsc )
+//  MACHINE_CONFIG( pal )
 //-------------------------------------------------
 
 static MACHINE_CONFIG_START( pal, c128_state )
 	// basic hardware
-	MCFG_CPU_ADD(Z80A_TAG, Z80, VIC6569_CLOCK*2)
+	MCFG_CPU_ADD(Z80A_TAG, Z80, XTAL_17_734472MHz*2/4.5/2)
 	MCFG_CPU_PROGRAM_MAP(z80_mem)
 	MCFG_CPU_IO_MAP(z80_io)
 	MCFG_QUANTUM_PERFECT_CPU(Z80A_TAG)
 
-	MCFG_CPU_ADD(M8502_TAG, M8502, VIC6569_CLOCK)
+	MCFG_CPU_ADD(M8502_TAG, M8502, XTAL_17_734472MHz*2/4.5/8)
+	MCFG_M6502_DISABLE_DIRECT() // address decoding is 100% dynamic, no RAM/ROM banks
 	MCFG_M8502_PORT_CALLBACKS(READ8(c128_state, cpu_r), WRITE8(c128_state, cpu_w))
 	MCFG_M8502_PORT_PULLS(0x07, 0x20)
 	MCFG_CPU_PROGRAM_MAP(m8502_mem)
 	MCFG_QUANTUM_PERFECT_CPU(M8502_TAG)
 
 	// video hardware
-	MCFG_MOS8563_ADD(MOS8563_TAG, SCREEN_VDC_TAG, VIC6569_CLOCK*2, vdc_intf, vdc_videoram_map)
-	MCFG_MOS8566_ADD(MOS8564_TAG, SCREEN_VIC_TAG, M8502_TAG, VIC6569_CLOCK, vic_videoram_map, vic_colorram_map, WRITELINE(c128_state, vic_irq_w), WRITE8(c128_state, vic_k_w))
-	MCFG_GFXDECODE(c128)
+	MCFG_MOS8563_ADD(MOS8563_TAG, SCREEN_VDC_TAG, XTAL_16MHz, vdc_videoram_map)
+	MCFG_MC6845_SHOW_BORDER_AREA(true)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_SHOW_BORDER_AREA(true)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_SCREEN_ADD(SCREEN_VDC_TAG, RASTER)
+	MCFG_SCREEN_REFRESH_RATE(60)
+	MCFG_SCREEN_SIZE(640, 200)
+	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
+	MCFG_SCREEN_UPDATE_DEVICE(MOS8563_TAG, mos8563_device, screen_update)
+
+	MCFG_DEVICE_ADD(MOS8566_TAG, MOS8566, XTAL_17_734472MHz*2/4.5)
+	MCFG_MOS6566_CPU(M8502_TAG)
+	MCFG_MOS6566_IRQ_CALLBACK(WRITELINE(c128_state, vic_irq_w))
+	MCFG_MOS8564_K_CALLBACK(WRITE8(c128_state, vic_k_w))
+	MCFG_VIDEO_SET_SCREEN(SCREEN_VIC_TAG)
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, vic_videoram_map)
+	MCFG_DEVICE_ADDRESS_MAP(AS_1, vic_colorram_map)
+	MCFG_SCREEN_ADD(SCREEN_VIC_TAG, RASTER)
+	MCFG_SCREEN_REFRESH_RATE(VIC6569_VRETRACERATE)
+	MCFG_SCREEN_SIZE(VIC6569_COLUMNS, VIC6569_LINES)
+	MCFG_SCREEN_VISIBLE_AREA(0, VIC6569_VISIBLECOLUMNS - 1, 0, VIC6569_VISIBLELINES - 1)
+	MCFG_SCREEN_UPDATE_DEVICE(MOS8566_TAG, mos8566_device, screen_update)
+
+	MCFG_GFXDECODE_ADD("gfxdecode", MOS8563_TAG":palette", c128)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(MOS6581_TAG, MOS6581, VIC6569_CLOCK)
-	MCFG_MOS6581_POTXY_CALLBACKS(READ8(c128_state, sid_potx_r), READ8(c128_state, sid_poty_r))
+	MCFG_SOUND_ADD(MOS6581_TAG, MOS6581, XTAL_17_734472MHz*2/4.5/8)
+	MCFG_MOS6581_POTX_CALLBACK(READ8(c128_state, sid_potx_r))
+	MCFG_MOS6581_POTY_CALLBACK(READ8(c128_state, sid_poty_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// devices
-	MCFG_MOS8722_ADD(MOS8722_TAG, mmu_intf)
+	MCFG_DEVICE_ADD(MOS8722_TAG, MOS8722, XTAL_17_734472MHz*2/4.5/8)
+	MCFG_MOS8722_Z80EN_CALLBACK(WRITELINE(c128_state, mmu_z80en_w))
+	MCFG_MOS8722_FSDIR_CALLBACK(WRITELINE(c128_state, mmu_fsdir_w))
+	MCFG_MOS8722_GAME_CALLBACK(READLINE(c128_state, mmu_game_r))
+	MCFG_MOS8722_EXROM_CALLBACK(READLINE(c128_state, mmu_exrom_r))
+	MCFG_MOS8722_SENSE40_CALLBACK(READLINE(c128_state, mmu_sense40_r))
 	MCFG_MOS8721_ADD(MOS8721_TAG)
-	MCFG_MOS6526_ADD(MOS6526_1_TAG, VIC6569_CLOCK, 50, WRITELINE(c128_state, cia1_irq_w))
-	MCFG_MOS6526_SERIAL_CALLBACKS(WRITELINE(c128_state, cia1_cnt_w), WRITELINE(c128_state, cia1_sp_w))
-	MCFG_MOS6526_PORT_A_CALLBACKS(READ8(c128_state, cia1_pa_r), NULL)
-	MCFG_MOS6526_PORT_B_CALLBACKS(READ8(c128_state, cia1_pb_r), WRITE8(c128_state, cia1_pb_w), NULL)
-	MCFG_MOS6526_ADD(MOS6526_2_TAG, VIC6569_CLOCK, 50, WRITELINE(c128_state, cia2_irq_w))
-	MCFG_MOS6526_SERIAL_CALLBACKS(DEVWRITELINE(C64_USER_PORT_TAG, c64_user_port_device, cnt2_w), DEVWRITELINE(C64_USER_PORT_TAG, c64_user_port_device, sp2_w))
-	MCFG_MOS6526_PORT_A_CALLBACKS(READ8(c128_state, cia2_pa_r), WRITE8(c128_state, cia2_pa_w))
-	MCFG_MOS6526_PORT_B_CALLBACKS(DEVREAD8(C64_USER_PORT_TAG, c64_user_port_device, pb_r), DEVWRITE8(C64_USER_PORT_TAG, c64_user_port_device, pb_w), DEVWRITELINE(C64_USER_PORT_TAG, c64_user_port_device, pc2_w))
+	MCFG_DEVICE_ADD(MOS6526_1_TAG, MOS6526, XTAL_17_734472MHz*2/4.5/8)
+	MCFG_MOS6526_TOD(50)
+	MCFG_MOS6526_IRQ_CALLBACK(WRITELINE(c128_state, cia1_irq_w))
+	MCFG_MOS6526_CNT_CALLBACK(WRITELINE(c128_state, cia1_cnt_w))
+	MCFG_MOS6526_SP_CALLBACK(WRITELINE(c128_state, cia1_sp_w))
+	MCFG_MOS6526_PA_INPUT_CALLBACK(READ8(c128_state, cia1_pa_r))
+	MCFG_MOS6526_PB_INPUT_CALLBACK(READ8(c128_state, cia1_pb_r))
+	MCFG_MOS6526_PB_OUTPUT_CALLBACK(WRITE8(c128_state, cia1_pb_w))
+	MCFG_DEVICE_ADD(MOS6526_2_TAG, MOS6526, XTAL_17_734472MHz*2/4.5/8)
+	MCFG_MOS6526_TOD(50)
+	MCFG_MOS6526_IRQ_CALLBACK(WRITELINE(c128_state, cia2_irq_w))
+	MCFG_MOS6526_CNT_CALLBACK(DEVWRITELINE(PET_USER_PORT_TAG, pet_user_port_device, write_6))
+	MCFG_MOS6526_SP_CALLBACK(DEVWRITELINE(PET_USER_PORT_TAG, pet_user_port_device, write_7))
+	MCFG_MOS6526_PA_INPUT_CALLBACK(READ8(c128_state, cia2_pa_r))
+	MCFG_MOS6526_PA_OUTPUT_CALLBACK(WRITE8(c128_state, cia2_pa_w))
+	MCFG_MOS6526_PB_INPUT_CALLBACK(READ8(c128_state, cia2_pb_r))
+	MCFG_MOS6526_PB_OUTPUT_CALLBACK(WRITE8(c128_state, cia2_pb_w))
+	MCFG_MOS6526_PC_CALLBACK(DEVWRITELINE(PET_USER_PORT_TAG, pet_user_port_device, write_8))
 	MCFG_PET_DATASSETTE_PORT_ADD(PET_DATASSETTE_PORT_TAG, cbm_datassette_devices, "c1530", DEVWRITELINE(MOS6526_2_TAG, mos6526_device, flag_w))
 	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, NULL)
-	MCFG_VCS_CONTROL_PORT_TRIGGER_HANDLER(DEVWRITELINE(MOS8566_TAG, mos8566_device, lp_w))
+	MCFG_VCS_CONTROL_PORT_TRIGGER_CALLBACK(DEVWRITELINE(MOS8566_TAG, mos8566_device, lp_w))
 	MCFG_VCS_CONTROL_PORT_ADD(CONTROL2_TAG, vcs_control_port_devices, "joy")
-	MCFG_C64_EXPANSION_SLOT_ADD(C64_EXPANSION_SLOT_TAG, VIC6569_CLOCK, c64_expansion_cards, NULL)
-	MCFG_C64_EXPANSION_SLOT_IRQ_CALLBACKS(WRITELINE(c128_state, exp_irq_w), WRITELINE(c128_state, exp_nmi_w), WRITELINE(c128_state, exp_reset_w))
-	MCFG_C64_EXPANSION_SLOT_DMA_CALLBACKS(READ8(c128_state, exp_dma_cd_r), WRITE8(c128_state, exp_dma_cd_w), WRITELINE(c128_state, exp_dma_w))
-	MCFG_C64_USER_PORT_ADD(C64_USER_PORT_TAG, c64_user_port_cards, NULL, WRITELINE(c128_state, exp_reset_w))
-	MCFG_C64_USER_PORT_CIA1_CALLBACKS(DEVWRITELINE(MOS6526_1_TAG, mos6526_device, cnt_w), DEVWRITELINE(MOS6526_1_TAG, mos6526_device, sp_w))
-	MCFG_C64_USER_PORT_CIA2_CALLBACKS(DEVWRITELINE(MOS6526_2_TAG, mos6526_device, cnt_w), DEVWRITELINE(MOS6526_2_TAG, mos6526_device, sp_w), DEVWRITELINE(MOS6526_2_TAG, mos6526_device, flag_w))
+	MCFG_C64_EXPANSION_SLOT_ADD(C64_EXPANSION_SLOT_TAG, XTAL_17_734472MHz*2/4.5/8, c64_expansion_cards, NULL)
+	MCFG_C64_EXPANSION_SLOT_IRQ_CALLBACK(WRITELINE(c128_state, exp_irq_w))
+	MCFG_C64_EXPANSION_SLOT_NMI_CALLBACK(WRITELINE(c128_state, exp_nmi_w))
+	MCFG_C64_EXPANSION_SLOT_RESET_CALLBACK(WRITELINE(c128_state, exp_reset_w))
+	MCFG_C64_EXPANSION_SLOT_CD_INPUT_CALLBACK(READ8(c128_state, exp_dma_cd_r))
+	MCFG_C64_EXPANSION_SLOT_CD_OUTPUT_CALLBACK(WRITE8(c128_state, exp_dma_cd_w))
+	MCFG_C64_EXPANSION_SLOT_DMA_CALLBACK(WRITELINE(c128_state, exp_dma_w))
+
+	MCFG_PET_USER_PORT_ADD(PET_USER_PORT_TAG, c64_user_port_cards, NULL)
+	MCFG_PET_USER_PORT_3_HANDLER(WRITELINE(c128_state, exp_reset_w))
+	MCFG_PET_USER_PORT_4_HANDLER(DEVWRITELINE(MOS6526_1_TAG, mos6526_device, cnt_w))
+	MCFG_PET_USER_PORT_5_HANDLER(DEVWRITELINE(MOS6526_1_TAG, mos6526_device, sp_w))
+	MCFG_PET_USER_PORT_6_HANDLER(DEVWRITELINE(MOS6526_2_TAG, mos6526_device, cnt_w))
+	MCFG_PET_USER_PORT_7_HANDLER(DEVWRITELINE(MOS6526_2_TAG, mos6526_device, sp_w))
+	MCFG_PET_USER_PORT_9_HANDLER(DEVWRITELINE(CBM_IEC_TAG, cbm_iec_device, atn_w))
+	MCFG_PET_USER_PORT_B_HANDLER(DEVWRITELINE(MOS6526_2_TAG, mos6526_device, flag_w))
+	MCFG_PET_USER_PORT_C_HANDLER(WRITELINE(c128_state, write_user_pb0))
+	MCFG_PET_USER_PORT_D_HANDLER(WRITELINE(c128_state, write_user_pb1))
+	MCFG_PET_USER_PORT_E_HANDLER(WRITELINE(c128_state, write_user_pb2))
+	MCFG_PET_USER_PORT_F_HANDLER(WRITELINE(c128_state, write_user_pb3))
+	MCFG_PET_USER_PORT_H_HANDLER(WRITELINE(c128_state, write_user_pb4))
+	MCFG_PET_USER_PORT_J_HANDLER(WRITELINE(c128_state, write_user_pb5))
+	MCFG_PET_USER_PORT_K_HANDLER(WRITELINE(c128_state, write_user_pb6))
+	MCFG_PET_USER_PORT_L_HANDLER(WRITELINE(c128_state, write_user_pb7))
+	MCFG_PET_USER_PORT_M_HANDLER(WRITELINE(c128_state, write_user_pa2))
+
 	MCFG_QUICKLOAD_ADD("quickload", c128_state, cbm_c64, "p00,prg", CBM_QUICKLOAD_DELAY_SECONDS)
 
 	// software list

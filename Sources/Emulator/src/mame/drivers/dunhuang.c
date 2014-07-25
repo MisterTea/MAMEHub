@@ -63,7 +63,10 @@ class dunhuang_state : public driver_device
 public:
 	dunhuang_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* video-related */
 	tilemap_t         *m_tmap;
@@ -125,6 +128,9 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_dunhuang(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -148,8 +154,8 @@ TILE_GET_INFO_MEMBER(dunhuang_state::get_tile_info2)
 
 void dunhuang_state::video_start()
 {
-	m_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dunhuang_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8,8, 0x40,0x20);
-	m_tmap2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dunhuang_state::get_tile_info2),this), TILEMAP_SCAN_ROWS, 8,32, 0x40,0x8);
+	m_tmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dunhuang_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8,8, 0x40,0x20);
+	m_tmap2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(dunhuang_state::get_tile_info2),this), TILEMAP_SCAN_ROWS, 8,32, 0x40,0x8);
 
 	m_tmap->set_transparent_pen(0);
 	m_tmap2->set_transparent_pen(0);
@@ -175,7 +181,7 @@ if (machine().input().code_pressed(KEYCODE_Z))
 }
 #endif
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	switch (m_layers)
 	{
@@ -401,7 +407,7 @@ WRITE8_MEMBER(dunhuang_state::dunhuang_paldata_w)
 {
 	m_paldata[m_paloffs] = data;
 
-	palette_set_color_rgb( machine(), m_paloffs/3,
+	m_palette->set_pen_color( m_paloffs/3,
 		pal6bit(m_paldata[(m_paloffs/3)*3+0]),
 		pal6bit(m_paldata[(m_paloffs/3)*3+1]),
 		pal6bit(m_paldata[(m_paloffs/3)*3+2])
@@ -755,17 +761,6 @@ GFXDECODE_END
                                 Machine Drivers
 ***************************************************************************/
 
-static const ay8910_interface dunhuang_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	//  A                   B
-	DEVCB_NULL,                         DEVCB_DRIVER_MEMBER(dunhuang_state,dunhuang_dsw_r), // R
-	DEVCB_DRIVER_MEMBER(dunhuang_state, dunhuang_input_w),  DEVCB_NULL                      // W
-};
-
-
-
 void dunhuang_state::machine_start()
 {
 	UINT8 *ROM = memregion("maincpu")->base();
@@ -831,9 +826,10 @@ static MACHINE_CONFIG_START( dunhuang, dunhuang_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0+8, 512-8-1, 0+16, 256-16-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dunhuang_state, screen_update_dunhuang)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(dunhuang)
-	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dunhuang)
+	MCFG_PALETTE_ADD("palette", 0x100)
 
 
 	/* sound hardware */
@@ -843,7 +839,8 @@ static MACHINE_CONFIG_START( dunhuang, dunhuang_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_SOUND_ADD("ay8910", AY8910, 12000000/8)
-	MCFG_SOUND_CONFIG(dunhuang_ay8910_interface)
+	MCFG_AY8910_PORT_B_READ_CB(READ8(dunhuang_state, dunhuang_dsw_r))
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(dunhuang_state, dunhuang_input_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
 	MCFG_OKIM6295_ADD("oki", 12000000/8, OKIM6295_PIN7_HIGH)

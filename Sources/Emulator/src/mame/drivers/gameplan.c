@@ -111,20 +111,10 @@ READ8_MEMBER(gameplan_state::io_port_r)
 }
 
 
-WRITE8_MEMBER(gameplan_state::coin_w)
+WRITE_LINE_MEMBER(gameplan_state::coin_w)
 {
-	coin_counter_w(machine(), 0, ~data & 1);
+	coin_counter_w(machine(), 0, ~state & 1);
 }
-
-
-static const via6522_interface via_1_interface =
-{
-	DEVCB_DRIVER_MEMBER(gameplan_state,io_port_r), DEVCB_NULL,   /*inputs : A/B         */
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,      /*inputs : CA/B1,CA/B2 */
-	DEVCB_NULL, DEVCB_DRIVER_MEMBER(gameplan_state,io_select_w),     /*outputs: A/B         */
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_MEMBER(gameplan_state,coin_w), /*outputs: CA/B1,CA/B2 */
-	DEVCB_NULL               /*irq                  */
-};
 
 
 
@@ -134,11 +124,11 @@ static const via6522_interface via_1_interface =
  *
  *************************************/
 
-WRITE8_MEMBER(gameplan_state::audio_reset_w)
+WRITE_LINE_MEMBER(gameplan_state::audio_reset_w)
 {
-	m_audiocpu->set_input_line(INPUT_LINE_RESET, data ? CLEAR_LINE : ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, state ? CLEAR_LINE : ASSERT_LINE);
 
-	if (data == 0)
+	if (state == 0)
 	{
 		m_riot->reset();
 		machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(10));
@@ -152,20 +142,10 @@ WRITE8_MEMBER(gameplan_state::audio_cmd_w)
 }
 
 
-WRITE8_MEMBER(gameplan_state::audio_trigger_w)
+WRITE_LINE_MEMBER(gameplan_state::audio_trigger_w)
 {
-	m_riot->porta_in_set(data << 7, 0x80);
+	m_riot->porta_in_set(state << 7, 0x80);
 }
-
-
-static const via6522_interface via_2_interface =
-{
-	DEVCB_NULL, DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r),                /*inputs : A/B         */
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,                           /*inputs : CA/B1,CA/B2 */
-	DEVCB_DRIVER_MEMBER(gameplan_state,audio_cmd_w), DEVCB_NULL,                          /*outputs: A/B         */
-	DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_MEMBER(gameplan_state,audio_trigger_w), DEVCB_DRIVER_MEMBER(gameplan_state,audio_reset_w), /*outputs: CA/B1,CA/B2 */
-	DEVCB_NULL                                    /*irq                  */
-};
 
 
 
@@ -188,16 +168,6 @@ WRITE8_MEMBER(gameplan_state::r6532_soundlatch_w)
 	address_space &progspace = m_maincpu->space(AS_PROGRAM);
 	soundlatch_byte_w(progspace, 0, data);
 }
-
-
-static const riot6532_interface r6532_interface =
-{
-	DEVCB_NULL,                         /* port A read handler */
-	DEVCB_NULL,                         /* port B read handler */
-	DEVCB_NULL,                         /* port A write handler */
-	DEVCB_DRIVER_MEMBER(gameplan_state,r6532_soundlatch_w), /* port B write handler */
-	DEVCB_DRIVER_LINE_MEMBER(gameplan_state,r6532_irq)              /* IRQ callback */
-};
 
 
 /*************************************
@@ -961,16 +931,6 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW2"),
-	DEVCB_INPUT_PORT("DSW3")
-};
-
-
-
 MACHINE_START_MEMBER(gameplan_state,gameplan)
 {
 	/* register for save states */
@@ -979,6 +939,9 @@ MACHINE_START_MEMBER(gameplan_state,gameplan)
 	save_item(NAME(m_video_y));
 	save_item(NAME(m_video_command));
 	save_item(NAME(m_video_data));
+
+	/* this is needed for trivia quest */
+	m_via_0->write_pb5(1);
 }
 
 
@@ -1000,7 +963,9 @@ static MACHINE_CONFIG_START( gameplan, gameplan_state )
 	MCFG_CPU_ADD("audiocpu", M6502, GAMEPLAN_AUDIO_CPU_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(gameplan_audio_map)
 
-	MCFG_RIOT6532_ADD("riot", GAMEPLAN_AUDIO_CPU_CLOCK, r6532_interface)
+	MCFG_DEVICE_ADD("riot", RIOT6532, GAMEPLAN_AUDIO_CPU_CLOCK)
+	MCFG_RIOT6532_OUT_PB_CB(WRITE8(gameplan_state, r6532_soundlatch_w))
+	MCFG_RIOT6532_IRQ_CB(WRITELINE(gameplan_state, r6532_irq))
 
 	MCFG_MACHINE_START_OVERRIDE(gameplan_state,gameplan)
 	MCFG_MACHINE_RESET_OVERRIDE(gameplan_state,gameplan)
@@ -1012,13 +977,27 @@ static MACHINE_CONFIG_START( gameplan, gameplan_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, GAMEPLAN_AY8910_CLOCK)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW2"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW3"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.33)
 
 	/* via */
-	MCFG_VIA6522_ADD("via6522_0", 0, gameplan_via_0_interface)
-	MCFG_VIA6522_ADD("via6522_1", 0, via_1_interface)
-	MCFG_VIA6522_ADD("via6522_2", 0, via_2_interface)
+	MCFG_DEVICE_ADD("via6522_0", VIA6522, 0)
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(gameplan_state, video_data_w))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(gameplan_state, gameplan_video_command_w))
+	MCFG_VIA6522_CA2_HANDLER(WRITELINE(gameplan_state, video_command_trigger_w))
+	MCFG_VIA6522_IRQ_HANDLER(WRITELINE(gameplan_state, via_irq))
+
+	MCFG_DEVICE_ADD("via6522_1", VIA6522, 0)
+	MCFG_VIA6522_READPA_HANDLER(READ8(gameplan_state, io_port_r))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(gameplan_state, io_select_w))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(gameplan_state, coin_w))
+
+	MCFG_DEVICE_ADD("via6522_2", VIA6522, 0)
+	MCFG_VIA6522_READPB_HANDLER(READ8(driver_device, soundlatch_byte_r))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(gameplan_state, audio_cmd_w))
+	MCFG_VIA6522_CA2_HANDLER(WRITELINE(gameplan_state, audio_trigger_w))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(gameplan_state, audio_reset_w))
 MACHINE_CONFIG_END
 
 
@@ -1034,8 +1013,8 @@ static MACHINE_CONFIG_DERIVED( leprechn, gameplan )
 	MCFG_FRAGMENT_ADD(leprechn_video)
 
 	/* via */
-	MCFG_DEVICE_REMOVE("via6522_0")
-	MCFG_VIA6522_ADD("via6522_0", 0, leprechn_via_0_interface)
+	MCFG_DEVICE_MODIFY("via6522_0")
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(gameplan_state, leprechn_video_command_w))
 MACHINE_CONFIG_END
 
 

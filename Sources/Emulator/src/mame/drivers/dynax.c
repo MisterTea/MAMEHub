@@ -76,7 +76,6 @@ TODO:
 #include "cpu/z80/z80.h"
 #include "includes/dynax.h"
 #include "cpu/tlcs90/tlcs90.h"
-#include "machine/msm6242.h"
 #include "sound/ay8910.h"
 #include "sound/2203intf.h"
 #include "sound/3812intf.h"
@@ -325,7 +324,7 @@ WRITE8_MEMBER(dynax_state::hnoridur_palette_w)
 		int r = BITSWAP8((x >>  0) & 0x1f, 7, 6, 5, 0, 1, 2, 3, 4);
 		int g = BITSWAP8((x >>  5) & 0x1f, 7, 6, 5, 0, 1, 2, 3, 4);
 		int b = BITSWAP8((x >> 10) & 0x1f, 7, 6, 5, 0, 1, 2, 3, 4);
-		palette_set_color_rgb(machine(), 256 * m_palbank + offset, pal5bit(r), pal5bit(g), pal5bit(b));
+		m_palette->set_pen_color(256 * m_palbank + offset, pal5bit(r), pal5bit(g), pal5bit(b));
 	}
 }
 
@@ -341,9 +340,7 @@ WRITE8_MEMBER(dynax_state::yarunara_palette_w)
 
 		case 0x1c:  // RTC
 		{
-			msm6242_device *rtc = machine().device<msm6242_device>("rtc");
-
-			rtc->write(space, offset,data);
+			m_rtc->write(space, offset,data);
 		}
 		return;
 
@@ -358,7 +355,7 @@ WRITE8_MEMBER(dynax_state::yarunara_palette_w)
 		int r = br & 0x1f;
 		int g = bg & 0x1f;
 		int b = ((bg & 0xc0) >> 3) | ((br & 0xe0) >> 5);
-		palette_set_color_rgb(machine(), 256 * m_palbank + ((offset & 0x0f) | ((offset & 0x1e0) >> 1)), pal5bit(r), pal5bit(g), pal5bit(b));
+		m_palette->set_pen_color(256 * m_palbank + ((offset & 0x0f) | ((offset & 0x1e0) >> 1)), pal5bit(r), pal5bit(g), pal5bit(b));
 	}
 }
 
@@ -385,7 +382,7 @@ WRITE8_MEMBER(dynax_state::nanajign_palette_w)
 		int r = br & 0x1f;
 		int g = bg & 0x1f;
 		int b = ((bg & 0xc0) >> 3) | ((br & 0xe0) >> 5);
-		palette_set_color_rgb(machine(), 256 * m_palbank + offset, pal5bit(r), pal5bit(g), pal5bit(b));
+		m_palette->set_pen_color(256 * m_palbank + offset, pal5bit(r), pal5bit(g), pal5bit(b));
 	}
 }
 
@@ -1211,7 +1208,7 @@ WRITE8_MEMBER(dynax_state::tenkai_palette_w)
 		int r = br & 0x1f;
 		int g = bg & 0x1f;
 		int b = ((bg & 0xc0) >> 3) | ((br & 0xe0) >> 5);
-		palette_set_color_rgb(machine(), 256 * m_palbank + ((offset & 0xf) | ((offset & 0x1e0) >> 1)), pal5bit(r), pal5bit(g), pal5bit(b));
+		m_palette->set_pen_color(256 * m_palbank + ((offset & 0xf) | ((offset & 0x1e0) >> 1)), pal5bit(r), pal5bit(g), pal5bit(b));
 	}
 }
 
@@ -1275,9 +1272,7 @@ READ8_MEMBER(dynax_state::tenkai_8000_r)
 		return m_romptr[offset];
 	else if ((m_rombank == 0x10) && (offset < 0x10))
 	{
-		msm6242_device *rtc = machine().device<msm6242_device>("rtc");
-
-		return rtc->read(space, offset);
+		return m_rtc->read(space, offset);
 	}
 	else if (m_rombank == 0x12)
 		return tenkai_palette_r(space, offset);
@@ -1290,9 +1285,7 @@ WRITE8_MEMBER(dynax_state::tenkai_8000_w)
 {
 	if ((m_rombank == 0x10) && (offset < 0x10))
 	{
-		msm6242_device *rtc = machine().device<msm6242_device>("rtc");
-
-		rtc->write(space, offset, data);
+		m_rtc->write(space, offset, data);
 		return;
 	}
 	else if (m_rombank == 0x12)
@@ -3970,7 +3963,6 @@ INPUT_PORTS_END
 
 MACHINE_START_MEMBER(dynax_state,dynax)
 {
-	m_rtc = machine().device("rtc");
 	m_ymsnd = machine().device("ymsnd");
 
 	save_item(NAME(m_sound_irq));
@@ -4064,24 +4056,6 @@ MACHINE_START_MEMBER(dynax_state,hnoridur)
                                 Hana no Mai
 ***************************************************************************/
 
-static const ay8910_interface hanamai_ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"),           /* Port A Read: DSW */
-	DEVCB_INPUT_PORT("DSW0"),           /* Port B Read: DSW */
-	DEVCB_NULL,                         /* Port A Write */
-	DEVCB_NULL,                         /* Port B Write */
-};
-
-static const msm5205_interface hanamai_msm5205_interface =
-{
-	DEVCB_DRIVER_LINE_MEMBER(dynax_state,adpcm_int),          /* IRQ handler */
-	MSM5205_S48_4B      /* 8 KHz, 4 Bits  */
-};
-
-
-
 static MACHINE_CONFIG_START( hanamai, dynax_state )
 
 	/* basic machine hardware */
@@ -4102,10 +4076,11 @@ static MACHINE_CONFIG_START( hanamai, dynax_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1-4, 16+8, 255-8)
 	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_hanamai)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_PALETTE_ADD("palette", 512)
 
-	MCFG_PALETTE_INIT_OVERRIDE(dynax_state,sprtmtch)            // static palette
+	MCFG_PALETTE_INIT_OWNER(dynax_state,sprtmtch)            // static palette
 	MCFG_VIDEO_START_OVERRIDE(dynax_state,hanamai)
 
 	/* sound hardware */
@@ -4116,14 +4091,16 @@ static MACHINE_CONFIG_START( hanamai, dynax_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 22000000 / 8)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(dynax_state, sprtmtch_sound_callback))
-	MCFG_YM2203_AY8910_INTF(&hanamai_ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW0"))
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 	MCFG_SOUND_ROUTE(2, "mono", 0.20)
 	MCFG_SOUND_ROUTE(3, "mono", 0.50)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(hanamai_msm5205_interface)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(dynax_state, adpcm_int))          /* IRQ handler */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8 KHz, 4 Bits  */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -4132,13 +4109,6 @@ MACHINE_CONFIG_END
 /***************************************************************************
                                 Hana Oriduru
 ***************************************************************************/
-
-static const ay8910_interface hnoridur_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW0")        /* Port A Read: DSW */
-};
 
 static MACHINE_CONFIG_START( hnoridur, dynax_state )
 
@@ -4160,8 +4130,9 @@ static MACHINE_CONFIG_START( hnoridur, dynax_state )
 	MCFG_SCREEN_SIZE(512, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1-4, 16, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_hnoridur)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16*256)
+	MCFG_PALETTE_ADD("palette", 16*256)
 
 	MCFG_VIDEO_START_OVERRIDE(dynax_state,hnoridur)
 
@@ -4169,14 +4140,15 @@ static MACHINE_CONFIG_START( hnoridur, dynax_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 22000000 / 16)
-	MCFG_SOUND_CONFIG(hnoridur_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW0"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ymsnd", YM2413, 3579545)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(hanamai_msm5205_interface)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(dynax_state, adpcm_int))          /* IRQ handler */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8 KHz, 4 Bits  */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -4205,8 +4177,9 @@ static MACHINE_CONFIG_START( hjingi, dynax_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1-4, 16, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_hnoridur)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16*256)
+	MCFG_PALETTE_ADD("palette", 16*256)
 
 	MCFG_VIDEO_START_OVERRIDE(dynax_state,hnoridur)
 
@@ -4214,14 +4187,15 @@ static MACHINE_CONFIG_START( hjingi, dynax_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, XTAL_22MHz / 16)
-	MCFG_SOUND_CONFIG(hnoridur_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW0"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ymsnd", YM2413, XTAL_3_579545MHz )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("msm", MSM5205, XTAL_384kHz )
-	MCFG_SOUND_CONFIG(hanamai_msm5205_interface)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(dynax_state, adpcm_int))          /* IRQ handler */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8 KHz, 4 Bits  */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -4229,16 +4203,6 @@ MACHINE_CONFIG_END
 /***************************************************************************
                                 Sports Match
 ***************************************************************************/
-
-static const ay8910_interface sprtmtch_ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW0"),   /* Port A Read: DSW */
-	DEVCB_INPUT_PORT("DSW1"),   /* Port B Read: DSW */
-	DEVCB_NULL,                 /* Port A Write */
-	DEVCB_NULL,                 /* Port B Write */
-};
 
 static MACHINE_CONFIG_START( sprtmtch, dynax_state )
 
@@ -4260,10 +4224,11 @@ static MACHINE_CONFIG_START( sprtmtch, dynax_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 16, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_sprtmtch)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_PALETTE_ADD("palette", 512)
 
-	MCFG_PALETTE_INIT_OVERRIDE(dynax_state,sprtmtch)            // static palette
+	MCFG_PALETTE_INIT_OWNER(dynax_state,sprtmtch)            // static palette
 	MCFG_VIDEO_START_OVERRIDE(dynax_state,sprtmtch)
 
 	/* sound hardware */
@@ -4271,7 +4236,8 @@ static MACHINE_CONFIG_START( sprtmtch, dynax_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 22000000 / 8)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(dynax_state, sprtmtch_sound_callback))
-	MCFG_YM2203_AY8910_INTF(&sprtmtch_ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW0"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW1"))
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 	MCFG_SOUND_ROUTE(2, "mono", 0.20)
@@ -4303,10 +4269,11 @@ static MACHINE_CONFIG_START( mjfriday, dynax_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_mjdialq2)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_PALETTE_ADD("palette", 512)
 
-	MCFG_PALETTE_INIT_OVERRIDE(dynax_state,sprtmtch)            // static palette
+	MCFG_PALETTE_INIT_OWNER(dynax_state,sprtmtch)            // static palette
 	MCFG_VIDEO_START_OVERRIDE(dynax_state,mjdialq2)
 
 	/* sound hardware */
@@ -4349,11 +4316,6 @@ INTERRUPT_GEN_MEMBER(dynax_state::yarunara_clock_interrupt)
 	sprtmtch_update_irq(machine());
 }
 
-static MSM6242_INTERFACE( yarunara_rtc_intf )
-{
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_DERIVED( yarunara, hnoridur )
 
 	/* basic machine hardware */
@@ -4368,7 +4330,7 @@ static MACHINE_CONFIG_DERIVED( yarunara, hnoridur )
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 8, 256-1-8-1)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", yarunara_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
 MACHINE_CONFIG_END
 
 
@@ -4402,19 +4364,6 @@ MACHINE_CONFIG_END
 
 // dual monitor, 2 CPU's, 2 blitters
 
-static const ay8910_interface jantouki_ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
-static const msm5205_interface jantouki_msm5205_interface =
-{
-	DEVCB_DRIVER_LINE_MEMBER(dynax_state,adpcm_int_cpu1),         /* IRQ handler */
-	MSM5205_S48_4B      /* 8 KHz, 4 Bits  */
-};
-
 MACHINE_START_MEMBER(dynax_state,jantouki)
 {
 	UINT8 *MAIN = memregion("maincpu")->base();
@@ -4428,11 +4377,6 @@ MACHINE_START_MEMBER(dynax_state,jantouki)
 
 	MACHINE_START_CALL_MEMBER(dynax);
 }
-
-static MSM6242_INTERFACE( jantouki_rtc_intf )
-{
-	DEVCB_NULL
-};
 
 
 static MACHINE_CONFIG_START( jantouki, dynax_state )
@@ -4454,7 +4398,8 @@ static MACHINE_CONFIG_START( jantouki, dynax_state )
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INIT_OWNER(dynax_state,sprtmtch)            // static palette
 	MCFG_DEFAULT_LAYOUT(layout_dualhuov)
 
 	MCFG_SCREEN_ADD("top", RASTER)
@@ -4463,6 +4408,7 @@ static MACHINE_CONFIG_START( jantouki, dynax_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 16, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_jantouki_top)
+	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_SCREEN_ADD("bottom", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -4470,8 +4416,8 @@ static MACHINE_CONFIG_START( jantouki, dynax_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 16, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_jantouki_bottom)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_INIT_OVERRIDE(dynax_state,sprtmtch)            // static palette
 	MCFG_VIDEO_START_OVERRIDE(dynax_state,jantouki)
 
 	/* sound hardware */
@@ -4482,22 +4428,23 @@ static MACHINE_CONFIG_START( jantouki, dynax_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 22000000 / 8)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(dynax_state, jantouki_sound_callback))
-	MCFG_YM2203_AY8910_INTF(&jantouki_ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 	MCFG_SOUND_ROUTE(2, "mono", 0.20)
 	MCFG_SOUND_ROUTE(3, "mono", 0.50)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(jantouki_msm5205_interface)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(dynax_state, adpcm_int_cpu1))         /* IRQ handler */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      /* 8 KHz, 4 Bits  */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", jantouki_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( janyuki, jantouki )
-	MCFG_PALETTE_INIT_OVERRIDE(dynax_state,janyuki)         // static palette
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(dynax_state,janyuki)         // static palette
 MACHINE_CONFIG_END
 
 
@@ -4613,15 +4560,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(dynax_state::tenkai_interrupt)
 		m_maincpu->set_input_line(INPUT_LINE_IRQ1, HOLD_LINE);
 }
 
-static const ay8910_interface tenkai_ay8910_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	// A                // B
-	DEVCB_DRIVER_MEMBER(dynax_state,tenkai_dsw_r),  DEVCB_NULL,                     // Read
-	DEVCB_NULL,                     DEVCB_DRIVER_MEMBER(dynax_state,tenkai_dswsel_w)    // Write
-};
-
 MACHINE_START_MEMBER(dynax_state,tenkai)
 {
 	MACHINE_START_CALL_MEMBER(dynax);
@@ -4634,10 +4572,6 @@ WRITE_LINE_MEMBER(dynax_state::tenkai_rtc_irq)
 	m_maincpu->set_input_line(INPUT_LINE_IRQ2, HOLD_LINE);
 }
 
-static MSM6242_INTERFACE( tenkai_rtc_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(dynax_state,tenkai_rtc_irq)
-};
 
 static MACHINE_CONFIG_START( tenkai, dynax_state )
 
@@ -4659,8 +4593,9 @@ static MACHINE_CONFIG_START( tenkai, dynax_state )
 	MCFG_SCREEN_SIZE(512, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(4, 512-1, 4, 255-8-4)  // hide first 4 horizontal pixels (see scroll of gal 4 in test mode)
 	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_hnoridur)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(16*256)
+	MCFG_PALETTE_ADD("palette", 16*256)
 
 	MCFG_VIDEO_START_OVERRIDE(dynax_state,mjelctrn)
 
@@ -4668,19 +4603,22 @@ static MACHINE_CONFIG_START( tenkai, dynax_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 22000000 / 16)
-	MCFG_SOUND_CONFIG(tenkai_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(dynax_state, tenkai_dsw_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(dynax_state, tenkai_dswsel_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ymsnd", YM2413, 3579545)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* devices */
-	MCFG_MSM6242_ADD("rtc", tenkai_rtc_intf)
+	MCFG_DEVICE_ADD("rtc", MSM6242, XTAL_32_768kHz)
+	MCFG_MSM6242_OUT_INT_HANDLER(WRITELINE(dynax_state, tenkai_rtc_irq))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( majrjhdx, tenkai )
-	MCFG_PALETTE_LENGTH(512)
-	MCFG_PALETTE_INIT_OVERRIDE(dynax_state,sprtmtch)            // static palette
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(512)
+	MCFG_PALETTE_INIT_OWNER(dynax_state,sprtmtch)            // static palette
 MACHINE_CONFIG_END
 
 /***************************************************************************
@@ -4726,16 +4664,18 @@ static MACHINE_CONFIG_START( gekisha, dynax_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(2, 256-1, 16, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_mjdialq2)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(512)
-	MCFG_PALETTE_INIT_OVERRIDE(dynax_state,sprtmtch)            // static palette
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_INIT_OWNER(dynax_state,sprtmtch)            // static palette
 	MCFG_VIDEO_START_OVERRIDE(dynax_state,mjdialq2)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, XTAL_24MHz / 16)    // ?
-	MCFG_SOUND_CONFIG(tenkai_ay8910_interface)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(dynax_state, tenkai_dsw_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(dynax_state, tenkai_dswsel_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ymsnd", YM2413, XTAL_24MHz / 8) // ?
@@ -5000,6 +4940,21 @@ ROM_END
 
 ROM_START( mayaa )
 	ROM_REGION( 0x90000, "maincpu", 0 ) // Z80 Code
+	ROM_LOAD( "512-1.17e", 0x00000, 0x10000, CRC(00e3c72c) SHA1(2b01fafae242ec91a9c91deb2c6787265c0e2d4c) )
+	ROM_LOAD( "512-2.15e", 0x28000, 0x10000, CRC(7ea5b49a) SHA1(aaae848669d9f88c0660f46cc801e4eb0f5e3b89) )
+
+	ROM_REGION( 0xc0000, "gfx1", 0 )
+	ROM_LOAD( "27c020-1.18g", 0x00000, 0x40000, CRC(deb7ead8) SHA1(06f47a170382a837d8e997fa23f4b3b516386adc) )
+	ROM_LOAD( "27c020-2.17g", 0x40000, 0x40000, CRC(1929d93a) SHA1(a8d36aafac25b816598074d172ec8cb31c716afa) )
+	ROM_LOAD( "27c020-3.15g", 0x80000, 0x40000, CRC(5c80645a) SHA1(fed12fa85e6f4ab6b4b94211013f18f723246ad1) )
+
+	ROM_REGION( 0x400, "proms", 0 ) // Color PROMs
+	ROM_LOAD( "promat01.bin",  0x000, 0x200, CRC(d276bf61) SHA1(987058b37182a54a360a80a2f073b000606a11c9) ) // FIXED BITS (0xxxxxxx)
+	ROM_LOAD( "promat02.bin",  0x200, 0x200, CRC(e38eb360) SHA1(739960dd57ec3305edd57aa63816a81ddfbebf3e) )
+ROM_END
+
+ROM_START( mayab )
+	ROM_REGION( 0x90000, "maincpu", 0 ) // Z80 Code
 	ROM_LOAD( "512-1.bin", 0x00000, 0x10000, CRC(8ac94f49) SHA1(3c1e86c1aad67fb8cb1eb534a272222b58f1ff0f) )
 	ROM_LOAD( "512-2.bin", 0x28000, 0x10000, CRC(7ea5b49a) SHA1(aaae848669d9f88c0660f46cc801e4eb0f5e3b89) )
 
@@ -5119,11 +5074,12 @@ DRIVER_INIT_MEMBER(dynax_state,maya)
 	}
 
 	/* Address lines scrambling on the blitter data roms */
-	rom = auto_alloc_array(machine(), UINT8, 0xc0000);
-	memcpy(rom, gfx, 0xc0000);
-	for (i = 0; i < 0xc0000; i++)
-		gfx[i] = rom[BITSWAP24(i,23,22,21,20,19,18,14,15, 16,17,13,12,11,10,9,8, 7,6,5,4,3,2,1,0)];
-	auto_free(machine(), rom);
+	{
+		dynamic_buffer rom(0xc0000);
+		memcpy(rom, gfx, 0xc0000);
+		for (i = 0; i < 0xc0000; i++)
+			gfx[i] = rom[BITSWAP24(i,23,22,21,20,19,18,14,15, 16,17,13,12,11,10,9,8, 7,6,5,4,3,2,1,0)];
+	}
 }
 
 
@@ -5919,12 +5875,11 @@ DRIVER_INIT_MEMBER(dynax_state,mjelct3)
 	int i;
 	UINT8   *rom = memregion("maincpu")->base();
 	size_t  size = memregion("maincpu")->bytes();
-	UINT8   *rom1 = auto_alloc_array(machine(), UINT8, size);
+	dynamic_buffer rom1(size);
 
 	memcpy(rom1, rom, size);
 	for (i = 0; i < size; i++)
 		rom[i] = BITSWAP8(rom1[BITSWAP24(i,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8, 1,6,5,4,3,2,7, 0)], 7,6, 1,4,3,2,5,0);
-	auto_free(machine(), rom1);
 }
 
 DRIVER_INIT_MEMBER(dynax_state,mjelct3a)
@@ -5932,7 +5887,7 @@ DRIVER_INIT_MEMBER(dynax_state,mjelct3a)
 	int i, j;
 	UINT8   *rom = memregion("maincpu")->base();
 	size_t  size = memregion("maincpu")->bytes();
-	UINT8   *rom1 = auto_alloc_array(machine(), UINT8, size);
+	dynamic_buffer rom1(size);
 
 	memcpy(rom1, rom, size);
 	for (i = 0; i < size; i++)
@@ -5962,7 +5917,6 @@ DRIVER_INIT_MEMBER(dynax_state,mjelct3a)
 		}
 		rom[j] = rom1[i];
 	}
-	auto_free(machine(), rom1);
 
 	DRIVER_INIT_CALL(mjelct3);
 }
@@ -6940,9 +6894,10 @@ GAME( 1990, hjingi,   0,        hjingi,   hjingi,   driver_device, 0,        ROT
 GAME( 1989, hnoridur, hjingi,   hnoridur, hnoridur, driver_device, 0,        ROT180, "Dynax",                    "Hana Oriduru (Japan)",                                          GAME_SUPPORTS_SAVE )
 GAME( 1989, drgpunch, 0,        sprtmtch, drgpunch, driver_device, 0,        ROT0,   "Dynax",                    "Dragon Punch (Japan)",                                          GAME_SUPPORTS_SAVE )
 GAME( 1989, sprtmtch, drgpunch, sprtmtch, sprtmtch, driver_device, 0,        ROT0,   "Dynax (Fabtek license)",   "Sports Match",                                                  GAME_SUPPORTS_SAVE )
-/* these 4 are Korean hacks / bootlegs of Dragon Punch / Sports Match */
+/* these 5 are Korean hacks / bootlegs of Dragon Punch / Sports Match */
 GAME( 1994, maya,     0,        sprtmtch, drgpunch, dynax_state,   maya,     ROT0,   "Promat",                   "Maya (set 1)",                                                  GAME_SUPPORTS_SAVE ) // this set has backgrounds blacked out in attract
-GAME( 1994, mayaa,    maya,     sprtmtch, drgpunch, dynax_state,   maya,     ROT0,   "Promat",                   "Maya (set 2)",                                                  GAME_SUPPORTS_SAVE )
+GAME( 1994, mayaa,    maya,     sprtmtch, drgpunch, dynax_state,   maya,     ROT0,   "Promat",                   "Maya (set 2)",                                                  GAME_SUPPORTS_SAVE ) // this set has backgrounds blacked out in attract
+GAME( 1994, mayab,    maya,     sprtmtch, drgpunch, dynax_state,   maya,     ROT0,   "Promat",                   "Maya (set 3)",                                                  GAME_SUPPORTS_SAVE )
 GAME( 199?, inca,     0,        sprtmtch, drgpunch, dynax_state,   maya,     ROT0,   "<unknown>",                "Inca",                                                          GAME_SUPPORTS_SAVE )
 GAME( 199?, blktouch, 0,        sprtmtch, drgpunch, dynax_state,   blktouch, ROT0,   "Yang Gi Co Ltd.",          "Black Touch (Korea)",                                           GAME_SUPPORTS_SAVE )
 

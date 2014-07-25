@@ -24,7 +24,9 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
 		m_discrete(*this, "discrete"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	required_shared_ptr<UINT8> m_spriteram;
 	required_shared_ptr<UINT8> m_videoram;
@@ -44,7 +46,7 @@ public:
 	DECLARE_WRITE8_MEMBER(subs_invert1_w);
 	DECLARE_WRITE8_MEMBER(subs_invert2_w);
 	virtual void machine_reset();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(subs);
 	UINT32 screen_update_subs_left(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_subs_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(subs_interrupt);
@@ -56,6 +58,8 @@ public:
 	int subs_steering_1();
 	int subs_steering_2();
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 /*----------- defined in audio/subs.c -----------*/

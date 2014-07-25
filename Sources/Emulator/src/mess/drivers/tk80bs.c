@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese, Robbbert
 /***************************************************************************
 
 
@@ -6,13 +8,16 @@ NEC TK80BS
 TK-80BS (c) 1980 NEC
 
 Preliminary driver by Angelo Salese
+Various additions by Robbbert
 
 The TK80BS (Basic Station) has a plugin keyboard, BASIC in rom,
 and connected to a tv.
 
 TODO:
     - (try to) dump proper roms, the whole driver is based off fake roms;
-    - BASIC doesn't seem to work properly; (It does if you type NEW first)
+    - bios 0 BASIC doesn't seem to work properly; (It does if you type NEW first)
+    - bios 1 does not boot up because it runs off into the weeds
+    - bios 2 also does that, somehow it starts up anyway, but no commands work
 
 
 ****************************************************************************/
@@ -22,31 +27,34 @@ TODO:
 #include "machine/i8255.h"
 #include "machine/keyboard.h"
 
+#define KEYBOARD_TAG "keyboard"
 
 class tk80bs_state : public driver_device
 {
 public:
 	tk80bs_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_maincpu(*this, "maincpu")
-		, m_ppi(*this, "ppi")
-		, m_p_videoram(*this, "videoram")
-	{ }
+		: driver_device(mconfig, type, tag),
+		m_p_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_ppi(*this, "ppi"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
+	{
+	}
 
 	DECLARE_READ8_MEMBER(ppi_custom_r);
 	DECLARE_WRITE8_MEMBER(ppi_custom_w);
 	DECLARE_WRITE8_MEMBER(kbd_put);
 	DECLARE_READ8_MEMBER(port_a_r);
 	DECLARE_READ8_MEMBER(port_b_r);
-	UINT8 m_term_data;
-	UINT8 m_keyb_press;
-	UINT8 m_keyb_press_flag;
-	UINT8 m_shift_press_flag;
-	UINT8 m_ppi_portc;
 	UINT32 screen_update_tk80bs(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_shared_ptr<UINT8> m_p_videoram;
+private:
+	UINT8 m_term_data;
 	required_device<cpu_device> m_maincpu;
 	required_device<i8255_device> m_ppi;
-	required_shared_ptr<UINT8> m_p_videoram;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -63,7 +71,7 @@ UINT32 tk80bs_state::screen_update_tk80bs(screen_device &screen, bitmap_ind16 &b
 		{
 			int tile = m_p_videoram[count++];
 
-			drawgfx_opaque(bitmap, cliprect, machine().gfx[0], tile, 0, 0, 0, x*8, y*8);
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect, tile, 0, 0, 0, x*8, y*8);
 		}
 	}
 
@@ -135,28 +143,12 @@ READ8_MEMBER( tk80bs_state::port_b_r )
 		return 0;
 }
 
-static I8255_INTERFACE( ppi_intf )
-{
-	DEVCB_DRIVER_MEMBER(tk80bs_state, port_a_r),            /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_DRIVER_MEMBER(tk80bs_state, port_b_r),            /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_NULL,                         /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
 WRITE8_MEMBER( tk80bs_state::kbd_put )
 {
 	data &= 0x7f;
 	if (data > 0x5f) data-=0x20;
 	m_term_data = data;
 }
-
-static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
-{
-	DEVCB_DRIVER_MEMBER(tk80bs_state, kbd_put)
-};
-
 
 /* F4 Character Displayer */
 static const gfx_layout tk80bs_charlayout =
@@ -187,13 +179,18 @@ static MACHINE_CONFIG_START( tk80bs, tk80bs_state )
 	MCFG_SCREEN_SIZE(256, 128)
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 0, 128-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tk80bs_state, screen_update_tk80bs)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
-	MCFG_GFXDECODE(tk80bs)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tk80bs)
 
 	/* Devices */
-	MCFG_I8255_ADD( "ppi", ppi_intf)
-	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
+	MCFG_DEVICE_ADD("ppi", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(tk80bs_state, port_a_r))
+	MCFG_I8255_IN_PORTB_CB(READ8(tk80bs_state, port_b_r))
+
+	MCFG_DEVICE_ADD(KEYBOARD_TAG, GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(tk80bs_state, kbd_put))
 MACHINE_CONFIG_END
 
 

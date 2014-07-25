@@ -33,7 +33,9 @@ public:
 		m_k053250(*this, "k053250"),
 		m_k053251(*this, "k053251"),
 		m_k053252(*this, "k053252"),
-		m_k054338(*this, "k054338") { }
+		m_k054338(*this, "k054338"),
+		m_palette(*this, "palette"),
+		m_screen(*this, "screen") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_workram;
@@ -48,7 +50,6 @@ public:
 
 	/* misc */
 	UINT16     m_cur_control2;
-	INT32      m_cur_sound_region;
 	INT32      m_strip_0x1a;
 	int        m_suspension_active;
 	int        m_resume_trigger;
@@ -69,6 +70,8 @@ public:
 	required_device<k053251_device> m_k053251;
 	required_device<k053252_device> m_k053252;
 	required_device<k054338_device> m_k054338;
+	required_device<palette_device> m_palette;
+	required_device<screen_device> m_screen;
 	DECLARE_READ16_MEMBER(K053247_scattered_word_r);
 	DECLARE_WRITE16_MEMBER(K053247_scattered_word_w);
 	DECLARE_READ16_MEMBER(spriteram_mirror_r);
@@ -91,10 +94,7 @@ public:
 	void xexex_postload();
 	void xexex_objdma( int limiter );
 	void parse_control2(  );
-	void reset_sound_region();
+	K056832_CB_MEMBER(tile_callback);
+	K053246_CB_MEMBER(sprite_callback);
+	K054539_CB_MEMBER(ym_set_mixing);
 };
-
-/*----------- defined in video/xexex.c -----------*/
-
-extern void xexex_sprite_callback(running_machine &machine, int *code, int *color, int *priority_mask);
-extern void xexex_tile_callback(running_machine &machine, int layer, int *code, int *color, int *flags);

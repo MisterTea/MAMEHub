@@ -92,7 +92,7 @@ void sshangha_state::machine_reset()
 
 inline void sshangha_state::sshangha_set_color_888(pen_t color, int rshift, int gshift, int bshift, UINT32 data)
 {
-	palette_set_color_rgb(machine(), color, (data >> rshift) & 0xff, (data >> gshift) & 0xff, (data >> bshift) & 0xff);
+	m_palette->set_pen_color(color, (data >> rshift) & 0xff, (data >> gshift) & 0xff, (data >> bshift) & 0xff);
 }
 
 
@@ -372,30 +372,10 @@ WRITE_LINE_MEMBER(sshangha_state::irqhandler)
 	m_audiocpu->set_input_line(0, state);
 }
 
-static const ay8910_interface ay8910_config =
+DECO16IC_BANK_CB_MEMBER(sshangha_state::bank_callback)
 {
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
-static int sshangha_bank_callback( int bank )
-{
-	bank = bank >> 4;
-	return bank * 0x1000;
+	return (bank >> 4) * 0x1000;
 }
-
-static const deco16ic_interface sshangha_deco16ic_tilegen1_intf =
-{
-	0, 1,
-	0x0f, 0x0f, /* trans masks (default values) */
-	0x10, 0x00, /* color base */
-	0x0f, 0x0f, /* color masks (default values) */
-	sshangha_bank_callback,
-	sshangha_bank_callback,
-	0,1
-};
-
 
 static MACHINE_CONFIG_START( sshangha, sshangha_state )
 
@@ -417,16 +397,34 @@ static MACHINE_CONFIG_START( sshangha, sshangha_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(sshangha_state, screen_update_sshangha)
 
-	MCFG_GFXDECODE(sshangha)
-	MCFG_PALETTE_LENGTH(0x4000)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sshangha)
+	MCFG_PALETTE_ADD("palette", 0x4000)
 
-	MCFG_DECO16IC_ADD("tilegen1", sshangha_deco16ic_tilegen1_intf)
+	MCFG_DEVICE_ADD("tilegen1", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x10)
+	MCFG_DECO16IC_PF2_COL_BANK(0x00)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(sshangha_state, bank_callback)
+	MCFG_DECO16IC_BANK2_CB(sshangha_state, bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(1)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("spritegen1", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 2);
+	MCFG_DECO_SPRITE_GFX_REGION(2)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	MCFG_DEVICE_ADD("spritegen2", DECO_SPRITE, 0)
-	decospr_device::set_gfx_region(*device, 2);
+	MCFG_DECO_SPRITE_GFX_REGION(2)
+	MCFG_DECO_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_DECO_SPRITE_PALETTE("palette")
 
 	MCFG_DECO146_ADD("ioprot")
 
@@ -435,7 +433,6 @@ static MACHINE_CONFIG_START( sshangha, sshangha_state )
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 16000000/4)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(sshangha_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.33)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.33)
 

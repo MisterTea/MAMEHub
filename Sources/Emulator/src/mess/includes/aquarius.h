@@ -34,10 +34,13 @@ public:
 			m_y4(*this, "Y4"),
 			m_y5(*this, "Y5"),
 			m_y6(*this, "Y6"),
-			m_y7(*this, "Y7")
+			m_y7(*this, "Y7"),
+			m_gfxdecode(*this, "gfxdecode"),
+			m_screen(*this, "screen"),
+			m_palette(*this, "palette")
 	{ }
 
-	required_device<legacy_cpu_device> m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	required_device<cassette_image_device> m_cassette;
 	required_device<speaker_sound_device> m_speaker;
 	required_device<ram_device> m_ram;
@@ -52,6 +55,9 @@ public:
 	required_ioport m_y5;
 	required_ioport m_y6;
 	required_ioport m_y7;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 
 	UINT8 m_scrambler;
 	tilemap_t *m_tilemap;
@@ -70,7 +76,7 @@ public:
 	DECLARE_DRIVER_INIT(aquarius);
 	TILE_GET_INFO_MEMBER(aquarius_gettileinfo);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(aquarius);
 	UINT32 screen_update_aquarius(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_INPUT_CHANGED_MEMBER(aquarius_reset);
 };

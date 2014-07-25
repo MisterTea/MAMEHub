@@ -50,11 +50,12 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	UINT32 screen_update_dreambal(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	DECO16IC_BANK_CB_MEMBER(bank_callback);
 
 	DECLARE_READ16_MEMBER( dreambal_protection_region_0_104_r );
 	DECLARE_WRITE16_MEMBER( dreambal_protection_region_0_104_w );
 
-	DECLARE_WRITE16_HANDLER( dreambal_eeprom_w )
+	DECLARE_WRITE16_MEMBER( dreambal_eeprom_w )
 	{
 		if (data&0xfff8)
 		{
@@ -114,7 +115,7 @@ static ADDRESS_MAP_START( dreambal_map, AS_PROGRAM, 16, dreambal_state )
 	AM_RANGE(0x103000, 0x103fff) AM_RAM
 
 	AM_RANGE(0x120000, 0x123fff) AM_RAM
-	AM_RANGE(0x140000, 0x1403ff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x140000, 0x1403ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x161000, 0x16100f) AM_DEVWRITE("tilegen1", deco16ic_device, pf_control_w)
 
 	AM_RANGE(0x160000, 0x163fff) AM_READWRITE(dreambal_protection_region_0_104_r,dreambal_protection_region_0_104_w)AM_SHARE("prot16ram") /* Protection device */
@@ -285,21 +286,10 @@ static INPUT_PORTS_START( dreambal )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
 INPUT_PORTS_END
 
-static int dreambal_bank_callback( const int bank )
+DECO16IC_BANK_CB_MEMBER(dreambal_state::bank_callback)
 {
 	return ((bank >> 4) & 0x7) * 0x1000;
 }
-
-static const deco16ic_interface dreambal_deco16ic_tilegen1_intf =
-{
-	0, 1,
-	0x0f, 0x0f,     /* trans masks (default values) */
-	0, 16, /* color base (default values) */
-	0x0f, 0x0f, /* color masks (default values) */
-	dreambal_bank_callback,
-	dreambal_bank_callback,
-	0,1,
-};
 
 void dreambal_state::machine_start()
 {
@@ -324,15 +314,31 @@ static MACHINE_CONFIG_START( dreambal, dreambal_state )
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 1*8, 31*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dreambal_state, screen_update_dreambal)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(0x400/2)
-	MCFG_GFXDECODE(dreambal)
+	MCFG_PALETTE_ADD("palette", 0x400/2)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dreambal)
 
 	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")  // 93lc46b
 
 	MCFG_DECO104_ADD("ioprot104")
 
-	MCFG_DECO16IC_ADD("tilegen1", dreambal_deco16ic_tilegen1_intf)
+	MCFG_DEVICE_ADD("tilegen1", DECO16IC, 0)
+	MCFG_DECO16IC_SPLIT(0)
+	MCFG_DECO16IC_WIDTH12(1)
+	MCFG_DECO16IC_PF1_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF2_TRANS_MASK(0x0f)
+	MCFG_DECO16IC_PF1_COL_BANK(0x00)
+	MCFG_DECO16IC_PF2_COL_BANK(0x10)
+	MCFG_DECO16IC_PF1_COL_MASK(0x0f)
+	MCFG_DECO16IC_PF2_COL_MASK(0x0f)
+	MCFG_DECO16IC_BANK1_CB(dreambal_state, bank_callback)
+	MCFG_DECO16IC_BANK2_CB(dreambal_state, bank_callback)
+	MCFG_DECO16IC_PF12_8X8_BANK(0)
+	MCFG_DECO16IC_PF12_16X16_BANK(1)
+	MCFG_DECO16IC_GFXDECODE("gfxdecode")
+	MCFG_DECO16IC_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

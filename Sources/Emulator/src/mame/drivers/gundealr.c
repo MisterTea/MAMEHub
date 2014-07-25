@@ -390,16 +390,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(gundealr_state::gundealr_scanline)
 		m_maincpu->set_input_line_and_vector(0, HOLD_LINE,0xcf); /* RST 10h */
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( gundealr, gundealr_state )
 
 	/* basic machine hardware */
@@ -416,16 +406,16 @@ static MACHINE_CONFIG_START( gundealr, gundealr_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(gundealr_state, screen_update_gundealr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(gundealr)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", gundealr)
+	MCFG_PALETTE_ADD("palette", 512)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 

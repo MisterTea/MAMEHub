@@ -757,7 +757,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, tnzs_state )
 	/* arknoid2, extrmatn, plumppop and drtoppel have PROMs instead of RAM */
 	/* drtoppel writes here anyway! (maybe leftover from tests during development) */
 	/* so the handler is patched out in init_drtopple() */
-	AM_RANGE(0xf800, 0xfbff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xf800, 0xfbff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( cpu0_type2, AS_PROGRAM, 8, tnzs_state )
@@ -820,7 +820,7 @@ static ADDRESS_MAP_START( tnzsb_cpu1_map, AS_PROGRAM, 8, tnzs_state )
 	AM_RANGE(0xd000, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xefff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0xf000, 0xf003) AM_READONLY
-	AM_RANGE(0xf000, 0xf3ff) AM_WRITE(paletteram_xRRRRRGGGGGBBBBB_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xf000, 0xf3ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( kabukiz_cpu1_map, AS_PROGRAM, 8, tnzs_state )
@@ -835,7 +835,7 @@ static ADDRESS_MAP_START( kabukiz_cpu1_map, AS_PROGRAM, 8, tnzs_state )
 	AM_RANGE(0xc002, 0xc002) AM_READ_PORT("IN2")
 	AM_RANGE(0xd000, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xefff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0xf800, 0xfbff) AM_WRITE(paletteram_xRRRRRGGGGGBBBBB_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xf800, 0xfbff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( tnzsb_cpu2_map, AS_PROGRAM, 8, tnzs_state )
@@ -863,26 +863,6 @@ static ADDRESS_MAP_START( i8742_io_map, AS_IO, 8, tnzs_state )
 ADDRESS_MAP_END
 
 
-WRITE8_MEMBER(tnzs_state::jpopnics_palette_w)
-{
-	int r, g, b;
-	UINT16 paldata;
-	m_generic_paletteram_8[offset] = data;
-
-	offset = offset >> 1;
-
-	paldata = (m_generic_paletteram_8[offset * 2] << 8) | m_generic_paletteram_8[(offset * 2 + 1)];
-
-	g = (paldata >> 12) & 0x000f;
-	r = (paldata >> 4) & 0x000f;
-	b = (paldata >> 8) & 0x000f;
-	// the other bits seem to be used, and the colours are wrong..
-
-	palette_set_color_rgb(machine(), offset, r << 4, g << 4, b << 4);
-}
-
-
-
 static ADDRESS_MAP_START( jpopnics_main_map, AS_PROGRAM, 8, tnzs_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0xbfff) AM_READWRITE( tnzs_ramrom_bank_r, tnzs_ramrom_bank_w )
@@ -893,7 +873,7 @@ static ADDRESS_MAP_START( jpopnics_main_map, AS_PROGRAM, 8, tnzs_state )
 	AM_RANGE(0xf300, 0xf303) AM_MIRROR(0xfc) AM_DEVWRITE("spritegen", seta001_device, spritectrl_w8) /* control registers (0x80 mirror used by Arkanoid 2) */
 	AM_RANGE(0xf400, 0xf400) AM_DEVWRITE("spritegen", seta001_device, spritebgflag_w8)   /* enable / disable background transparency */
 	AM_RANGE(0xf600, 0xf600) AM_READNOP AM_WRITE(tnzs_ramrom_bankswitch_w)
-	AM_RANGE(0xf800, 0xffff) AM_RAM_WRITE(jpopnics_palette_w) AM_SHARE("paletteram")
+	AM_RANGE(0xf800, 0xffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 ADDRESS_MAP_END
 
 WRITE8_MEMBER(tnzs_state::jpopnics_subbankswitch_w)
@@ -1547,50 +1527,11 @@ static GFXDECODE_START( insectx )
 GFXDECODE_END
 
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSWA"),
-	DEVCB_INPUT_PORT("DSWB"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
 /* handler called by the 2203 emulator when the internal timers cause an IRQ */
 WRITE_LINE_MEMBER(tnzs_state::irqhandler)
 {
 	m_audiocpu->set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ay8910_interface kageki_ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(tnzs_state,kageki_csport_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(tnzs_state,kageki_csport_w)
-};
-
-
-static const ay8910_interface tnzsb_ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
-static const ay8910_interface kabukiz_ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(tnzs_state,kabukiz_sound_bank_w),
-	DEVCB_DRIVER_MEMBER(tnzs_state,kabukiz_sample_w)
-};
 
 static const samples_interface tnzs_samples_interface =
 {
@@ -1616,6 +1557,8 @@ static MACHINE_CONFIG_START( arknoid2, tnzs_state )
 	MCFG_MACHINE_RESET_OVERRIDE(tnzs_state,tnzs)
 
 	MCFG_DEVICE_ADD("spritegen", SETA001_SPRITE, 0)
+	MCFG_SETA001_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_SETA001_SPRITE_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1625,17 +1568,20 @@ static MACHINE_CONFIG_START( arknoid2, tnzs_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tnzs_state, screen_update_tnzs)
 	MCFG_SCREEN_VBLANK_DRIVER(tnzs_state, screen_eof_tnzs)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tnzs)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tnzs)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
-	MCFG_PALETTE_INIT_OVERRIDE(tnzs_state,arknoid2)
+	MCFG_PALETTE_INIT_OWNER(tnzs_state,arknoid2)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4) /* verified on pcb */
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSWA"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSWB"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -1657,6 +1603,8 @@ static MACHINE_CONFIG_START( drtoppel, tnzs_state )
 	MCFG_MACHINE_RESET_OVERRIDE(tnzs_state,tnzs)
 
 	MCFG_DEVICE_ADD("spritegen", SETA001_SPRITE, 0)
+	MCFG_SETA001_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_SETA001_SPRITE_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1666,17 +1614,19 @@ static MACHINE_CONFIG_START( drtoppel, tnzs_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tnzs_state, screen_update_tnzs)
 	MCFG_SCREEN_VBLANK_DRIVER(tnzs_state, screen_eof_tnzs)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tnzs)
-	MCFG_PALETTE_LENGTH(512)
-
-	MCFG_PALETTE_INIT_OVERRIDE(tnzs_state,arknoid2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tnzs)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
+	MCFG_PALETTE_INIT_OWNER(tnzs_state,arknoid2)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSWA"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSWB"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -1701,6 +1651,8 @@ static MACHINE_CONFIG_START( tnzs, tnzs_state )
 	MCFG_MACHINE_RESET_OVERRIDE(tnzs_state,tnzs)
 
 	MCFG_DEVICE_ADD("spritegen", SETA001_SPRITE, 0)
+	MCFG_SETA001_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_SETA001_SPRITE_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1710,16 +1662,18 @@ static MACHINE_CONFIG_START( tnzs, tnzs_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tnzs_state, screen_update_tnzs)
 	MCFG_SCREEN_VBLANK_DRIVER(tnzs_state, screen_eof_tnzs)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tnzs)
-	MCFG_PALETTE_LENGTH(512)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tnzs)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSWA"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSWB"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -1741,6 +1695,8 @@ static MACHINE_CONFIG_START( insectx, tnzs_state )
 	MCFG_MACHINE_RESET_OVERRIDE(tnzs_state,tnzs)
 
 	MCFG_DEVICE_ADD("spritegen", SETA001_SPRITE, 0)
+	MCFG_SETA001_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_SETA001_SPRITE_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1750,15 +1706,18 @@ static MACHINE_CONFIG_START( insectx, tnzs_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tnzs_state, screen_update_tnzs)
 	MCFG_SCREEN_VBLANK_DRIVER(tnzs_state, screen_eof_tnzs)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(insectx)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", insectx)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4) /* verified on pcb */
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSWA"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSWB"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -1780,6 +1739,8 @@ static MACHINE_CONFIG_START( kageki, tnzs_state )
 	MCFG_MACHINE_RESET_OVERRIDE(tnzs_state,tnzs)
 
 	MCFG_DEVICE_ADD("spritegen", SETA001_SPRITE, 0)
+	MCFG_SETA001_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_SETA001_SPRITE_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1789,15 +1750,18 @@ static MACHINE_CONFIG_START( kageki, tnzs_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tnzs_state, screen_update_tnzs)
 	MCFG_SCREEN_VBLANK_DRIVER(tnzs_state, screen_eof_tnzs)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tnzs)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tnzs)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4) /* verified on pcb */
-	MCFG_YM2203_AY8910_INTF(&kageki_ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(tnzs_state, kageki_csport_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(tnzs_state, kageki_csport_w))
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)
@@ -1829,6 +1793,8 @@ static MACHINE_CONFIG_START( tnzsb, tnzs_state )
 	MCFG_MACHINE_RESET_OVERRIDE(tnzs_state,tnzs)
 
 	MCFG_DEVICE_ADD("spritegen", SETA001_SPRITE, 0)
+	MCFG_SETA001_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_SETA001_SPRITE_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1838,16 +1804,17 @@ static MACHINE_CONFIG_START( tnzsb, tnzs_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tnzs_state, screen_update_tnzs)
 	MCFG_SCREEN_VBLANK_DRIVER(tnzs_state, screen_eof_tnzs)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tnzs)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tnzs)
+	MCFG_PALETTE_ADD("palette", 512)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4) /* verified on pcb */
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(tnzs_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&tnzsb_ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 1.0)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -1865,7 +1832,8 @@ static MACHINE_CONFIG_DERIVED( kabukiz, tnzsb )
 	MCFG_CPU_PROGRAM_MAP(kabukiz_cpu2_map)
 
 	MCFG_SOUND_MODIFY("ymsnd")
-	MCFG_YM2203_AY8910_INTF(&kabukiz_ay8910_config)
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(tnzs_state, kabukiz_sound_bank_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(tnzs_state, kabukiz_sample_w))
 
 	MCFG_DAC_ADD("dac")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
@@ -1889,6 +1857,8 @@ static MACHINE_CONFIG_START( jpopnics, tnzs_state )
 	MCFG_MACHINE_RESET_OVERRIDE(tnzs_state,jpopnics)
 
 	MCFG_DEVICE_ADD("spritegen", SETA001_SPRITE, 0)
+	MCFG_SETA001_SPRITE_GFXDECODE("gfxdecode")
+	MCFG_SETA001_SPRITE_PALETTE("palette")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1898,9 +1868,12 @@ static MACHINE_CONFIG_START( jpopnics, tnzs_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tnzs_state, screen_update_tnzs)
 	MCFG_SCREEN_VBLANK_DRIVER(tnzs_state, screen_eof_tnzs)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(tnzs)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tnzs)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(GGGGBBBBRRRRxxxx) /* wrong, the other 4 bits seem to be used as well */
+	MCFG_PALETTE_ENDIANNESS(ENDIANNESS_BIG)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

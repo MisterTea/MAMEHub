@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:David Haywood, Angelo Salese
 /*******************************************************************************************
 
 4nin-uchi Mahjong Jantotsu (c) 1983 Sanritsu
@@ -105,7 +107,8 @@ public:
 	jantotsu_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
-		m_adpcm(*this, "adpcm") { }
+		m_adpcm(*this, "adpcm") ,
+		m_palette(*this, "palette"){ }
 
 	/* sound-related */
 	UINT32   m_adpcm_pos;
@@ -131,11 +134,12 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(jantotsu);
 	UINT32 screen_update_jantotsu(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	DECLARE_WRITE_LINE_MEMBER(jan_adpcm_int);
 	required_device<cpu_device> m_maincpu;
 	required_device<msm5205_device> m_adpcm;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -173,7 +177,7 @@ UINT32 jantotsu_state::screen_update_jantotsu(screen_device &screen, bitmap_rgb3
 					color |= (((m_bitmap[count + pen_i*0x2000]) >> (7 - i)) & 1) << pen_i;
 
 				if (cliprect.contains(x + i, y))
-					bitmap.pix32(y, x + i) = machine().pens[color];
+					bitmap.pix32(y, x + i) = m_palette->pen(color);
 			}
 
 			count++;
@@ -205,7 +209,7 @@ WRITE8_MEMBER(jantotsu_state::bankaddr_w)
 		logerror("I/O port $07 write trips %02x\n",data);
 }
 
-void jantotsu_state::palette_init()
+PALETTE_INIT_MEMBER(jantotsu_state, jantotsu)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int bit0, bit1, bit2, r, g, b;
@@ -226,7 +230,7 @@ void jantotsu_state::palette_init()
 		bit2 = (color_prom[0] >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+		palette.set_pen_color(i, rgb_t(r, g, b));
 		color_prom++;
 	}
 }
@@ -460,29 +464,6 @@ INPUT_PORTS_END
 
 /*************************************
  *
- *  Sound interface
- *
- *************************************/
-
-static const msm5205_interface msm5205_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(jantotsu_state,jan_adpcm_int),  /* interrupt function */
-	MSM5205_S64_4B  /* 6 KHz */
-};
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
-/*************************************
- *
  *  Machine driver
  *
  *************************************/
@@ -527,22 +508,21 @@ static MACHINE_CONFIG_START( jantotsu, jantotsu_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(jantotsu_state, screen_update_jantotsu)
 
-	MCFG_PALETTE_LENGTH(0x20)
-
+	MCFG_PALETTE_ADD("palette", 0x20)
+	MCFG_PALETTE_INIT_OWNER(jantotsu_state, jantotsu)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn1", SN76489A, MAIN_CLOCK/4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76489A, MAIN_CLOCK/4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("adpcm", MSM5205, XTAL_384kHz)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(jantotsu_state, jan_adpcm_int))  /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S64_4B)  /* 6 KHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 MACHINE_CONFIG_END
 

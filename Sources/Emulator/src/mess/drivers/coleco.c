@@ -2,7 +2,7 @@
 
   coleco.c
 
-  Driver file to handle emulation of the Colecovision.
+  Driver file to handle emulation of the ColecoVision.
 
   Marat Fayzullin (ColEm source)
   Marcel de Kogel (AdamEm source)
@@ -63,6 +63,7 @@
 
 #include "includes/coleco.h"
 
+
 /* Read/Write Handlers */
 
 READ8_MEMBER( coleco_state::paddle_1_r )
@@ -85,11 +86,12 @@ WRITE8_MEMBER( coleco_state::paddle_on_w )
 	m_joy_mode = 1;
 }
 
+
 /* Memory Maps */
 
 static ADDRESS_MAP_START( coleco_map, AS_PROGRAM, 8, coleco_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
-	AM_RANGE(0x6000, 0x63ff) AM_RAM AM_MIRROR(0x1c00)
+	AM_RANGE(0x6000, 0x63ff) AM_RAM AM_MIRROR(0x1c00) AM_SHARE("ram")
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -106,20 +108,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( czz50_map, AS_PROGRAM, 8, coleco_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
-	AM_RANGE(0x6000, 0x63ff) AM_RAM AM_MIRROR(0x1c00)
+	AM_RANGE(0x6000, 0x63ff) AM_RAM AM_MIRROR(0x1c00) AM_SHARE("ram")
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( czz50_io_map, AS_IO, 8, coleco_state )
-	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x80, 0x80) AM_MIRROR(0x1f) AM_WRITE(paddle_off_w)
-	AM_RANGE(0xa0, 0xa0) AM_MIRROR(0x1e) AM_DEVREADWRITE("tms9928a", tms9928a_device, vram_read, vram_write)
-	AM_RANGE(0xa1, 0xa1) AM_MIRROR(0x1e) AM_DEVREADWRITE("tms9928a", tms9928a_device, register_read, register_write)
-	AM_RANGE(0xc0, 0xc0) AM_MIRROR(0x1f) AM_WRITE(paddle_on_w)
-	AM_RANGE(0xe0, 0xe0) AM_MIRROR(0x1f) AM_DEVWRITE("sn76489a", sn76489a_device, write)
-	AM_RANGE(0xe0, 0xe0) AM_MIRROR(0x1d) AM_READ(paddle_1_r)
-	AM_RANGE(0xe2, 0xe2) AM_MIRROR(0x1d) AM_READ(paddle_2_r)
-ADDRESS_MAP_END
 
 /* Input Ports */
 
@@ -162,6 +154,7 @@ static INPUT_PORTS_START( czz50 )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
 	PORT_BIT( 0xb0, IP_ACTIVE_LOW, IPT_UNKNOWN )
 INPUT_PORTS_END
+
 
 /* Interrupts */
 
@@ -229,27 +222,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(coleco_state::paddle_update_callback)
 	}
 }
 
-/* Machine Initialization */
-
-static TMS9928A_INTERFACE(coleco_tms9928a_interface)
-{
-	0x4000,
-	DEVCB_DRIVER_LINE_MEMBER(coleco_state,coleco_vdp_interrupt)
-};
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 void coleco_state::machine_start()
 {
+	memset(m_ram, 0xff, m_ram.bytes()); // initialize RAM
+
 	// init paddles
 	for (int port = 0; port < 2; port++)
 	{
@@ -273,10 +249,6 @@ void coleco_state::machine_start()
 void coleco_state::machine_reset()
 {
 	m_last_nmi_state = 0;
-
-	m_maincpu->set_input_line_vector(INPUT_LINE_IRQ0, 0xff);
-
-	memset(&memregion(Z80_TAG)->base()[0x6000], 0xff, 0x400);   // initialize RAM
 }
 
 //static int coleco_cart_verify(const UINT8 *cartdata, size_t size)
@@ -294,7 +266,7 @@ void coleco_state::machine_reset()
 
 DEVICE_IMAGE_LOAD_MEMBER( coleco_state,czz50_cart )
 {
-	UINT8 *ptr = memregion(Z80_TAG)->base() + 0x8000;
+	UINT8 *ptr = memregion("maincpu")->base() + 0x8000;
 	UINT32 size;
 
 	if (image.software_entry() == NULL)
@@ -311,24 +283,27 @@ DEVICE_IMAGE_LOAD_MEMBER( coleco_state,czz50_cart )
 	}
 }
 
+
 /* Machine Drivers */
 
 static MACHINE_CONFIG_START( coleco, coleco_state )
-	// basic machine hardware
-	MCFG_CPU_ADD(Z80_TAG, Z80, XTAL_7_15909MHz/2)   // 3.579545 MHz
+
+	/* basic machine hardware */
+	MCFG_CPU_ADD("maincpu", Z80, XTAL_7_15909MHz/2) // 3.579545 MHz
 	MCFG_CPU_PROGRAM_MAP(coleco_map)
 	MCFG_CPU_IO_MAP(coleco_io_map)
 
-	// video hardware
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9928A, coleco_tms9928a_interface )
+	/* video hardware */
+	MCFG_DEVICE_ADD( "tms9928a", TMS9928A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(coleco_state, coleco_vdp_interrupt))
 	MCFG_TMS9928A_SCREEN_ADD_NTSC( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9928a_device, screen_update )
 
-	// sound hardware
+	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("sn76489a", SN76489A, XTAL_7_15909MHz/2) /* 3.579545 MHz */
+	MCFG_SOUND_ADD("sn76489a", SN76489A, XTAL_7_15909MHz/2) // 3.579545 MHz
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")
@@ -342,68 +317,84 @@ static MACHINE_CONFIG_START( coleco, coleco_state )
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("paddle_timer", coleco_state, paddle_update_callback, attotime::from_msec(20))
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_START( czz50, coleco_state )
-	// basic machine hardware
-	MCFG_CPU_ADD(Z80_TAG, Z80, XTAL_7_15909MHz/2)   // ???
-	MCFG_CPU_PROGRAM_MAP(czz50_map)
-	MCFG_CPU_IO_MAP(czz50_io_map)
+static MACHINE_CONFIG_DERIVED( colecop, coleco )
 
-	// video hardware
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9928A, coleco_tms9928a_interface )
-	MCFG_TMS9928A_SCREEN_ADD_NTSC( "screen" )
-	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9928a_device, screen_update )
-
-	// sound hardware
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("sn76489a", SN76489A, XTAL_7_15909MHz/2) // ???
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-	MCFG_SOUND_CONFIG(psg_intf)
-
-	/* cartridge */
-	MCFG_CARTSLOT_ADD("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("rom,col,bin")
-	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(coleco_state,czz50_cart)
-	MCFG_CARTSLOT_INTERFACE("coleco_cart")
-
-	/* software lists */
-	MCFG_SOFTWARE_LIST_ADD("cart_list","coleco")
-
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("paddle_timer", coleco_state, paddle_update_callback, attotime::from_msec(20))
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_DERIVED( dina, czz50 )
+	/* video hardware */
 	MCFG_DEVICE_REMOVE("tms9928a")
 	MCFG_DEVICE_REMOVE("screen")
 
-	MCFG_TMS9928A_ADD( "tms9928a", TMS9929A, coleco_tms9928a_interface )
+	MCFG_DEVICE_ADD( "tms9928a", TMS9929A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(coleco_state, coleco_vdp_interrupt))
 	MCFG_TMS9928A_SCREEN_ADD_PAL( "screen" )
 	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9928a_device, screen_update )
 MACHINE_CONFIG_END
 
+static MACHINE_CONFIG_DERIVED( czz50, coleco )
+
+	/* basic machine hardware */
+	MCFG_CPU_MODIFY("maincpu") // note: cpu speed unverified, assume it's the same as ColecoVision
+	MCFG_CPU_PROGRAM_MAP(czz50_map)
+
+	/* cartridge */
+	MCFG_CARTSLOT_MODIFY("cart")
+	MCFG_CARTSLOT_LOAD(coleco_state, czz50_cart)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( dina, czz50 )
+
+	/* video hardware */
+	MCFG_DEVICE_REMOVE("tms9928a")
+	MCFG_DEVICE_REMOVE("screen")
+
+	MCFG_DEVICE_ADD( "tms9928a", TMS9929A, XTAL_10_738635MHz / 2 )
+	MCFG_TMS9928A_VRAM_SIZE(0x4000)
+	MCFG_TMS9928A_OUT_INT_LINE_CB(WRITELINE(coleco_state, coleco_vdp_interrupt))
+	MCFG_TMS9928A_SCREEN_ADD_PAL( "screen" )
+	MCFG_SCREEN_UPDATE_DEVICE( "tms9928a", tms9928a_device, screen_update )
+MACHINE_CONFIG_END
+
+
 /* ROMs */
 
 ROM_START (coleco)
-	ROM_REGION( 0x10000, Z80_TAG, 0 )
-	ROM_LOAD( "coleco.rom", 0x0000, 0x2000, CRC(3aa93ef3) SHA1(45bedc4cbdeac66c7df59e9e599195c778d86a92) )
-	ROM_CART_LOAD("cart", 0x8000, 0x8000, ROM_NOMIRROR | ROM_OPTIONAL)
-ROM_END
-
-ROM_START (colecoa)
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_SYSTEM_BIOS( 0, "original", "Original" )
+	ROMX_LOAD( "313 10031-4005 73108a.u2", 0x0000, 0x2000, CRC(3aa93ef3) SHA1(45bedc4cbdeac66c7df59e9e599195c778d86a92), ROM_BIOS(1) )
+	ROM_SYSTEM_BIOS( 1, "thick", "Thick characters" )
 	// differences to 0x3aa93ef3 modified characters, added a pad 2 related fix
-	ROM_REGION( 0x10000, Z80_TAG, 0 )
-	ROM_LOAD( "colecoa.rom", 0x0000, 0x2000, CRC(39bb16fc) SHA1(99ba9be24ada3e86e5c17aeecb7a2d68c5edfe59) )
+	ROMX_LOAD( "colecoa.rom", 0x0000, 0x2000, CRC(39bb16fc) SHA1(99ba9be24ada3e86e5c17aeecb7a2d68c5edfe59), ROM_BIOS(2) )
 	ROM_CART_LOAD("cart", 0x8000, 0x8000, ROM_NOMIRROR | ROM_OPTIONAL)
 ROM_END
 
-ROM_START (colecob)
-	ROM_REGION( 0x10000, Z80_TAG, 0 )
+/*  PAL Colecovision BIOS
+
+Country: Italy
+Serial number: C0039036
+Model number: 240020
+Circuit board: (C) 1983 91162 rev D
+
+Information about the chip
+
+Motorola logo
+(C)1983 COLECO
+R72114A
+8317   */
+
+ROM_START (colecop)
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "r72114a_8317.u2", 0x0000, 0x2000, CRC(d393c0cc) SHA1(160077afb139943725c634d6539898db59f33657) )
+	ROM_CART_LOAD("cart", 0x8000, 0x8000, ROM_NOMIRROR | ROM_OPTIONAL)
+ROM_END
+
+ROM_START (svi603)
+	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "svi603.rom", 0x0000, 0x2000, CRC(19e91b82) SHA1(8a30abe5ffef810b0f99b86db38b1b3c9d259b78) )
 	ROM_CART_LOAD("cart", 0x8000, 0x8000, ROM_NOMIRROR | ROM_OPTIONAL)
 ROM_END
 
 ROM_START( czz50 )
-	ROM_REGION( 0x10000, Z80_TAG, 0 )
+	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "czz50.rom", 0x0000, 0x2000, CRC(4999abc6) SHA1(96aecec3712c94517103d894405bc98a7dafa440) )
 	ROM_CONTINUE( 0x8000, 0x2000 )
 ROM_END
@@ -414,10 +405,10 @@ ROM_END
 
 /* System Drivers */
 
-//    YEAR  NAME      PARENT    COMPAT  MACHINE   INPUT     INIT     COMPANY             FULLNAME                            FLAGS
-CONS( 1982, coleco,   0,        0,      coleco,   coleco, driver_device,   0,       "Coleco",           "ColecoVision",                     0 )
-CONS( 1982, colecoa,  coleco,   0,      coleco,   coleco, driver_device,   0,       "Coleco",           "ColecoVision (Thick Characters)",  0 )
-CONS( 1983, colecob,  coleco,   0,      coleco,   coleco, driver_device,   0,       "Spectravideo",     "SVI-603 Coleco Game Adapter",      0 )
-CONS( 1986, czz50,    0,        coleco, czz50,    czz50,  driver_device,   0,       "Bit Corporation",  "Chuang Zao Zhe 50",                0 )
-CONS( 1988, dina,     czz50,    0,      dina,     czz50,  driver_device,   0,       "Telegames",        "Dina",                             0 )
-CONS( 1988, prsarcde, czz50,    0,      czz50,    czz50,  driver_device,   0,       "Telegames",        "Personal Arcade",                  0 )
+//    YEAR  NAME      PARENT    COMPAT  MACHINE   INPUT   INIT              COMPANY             FULLNAME                            FLAGS
+CONS( 1982, coleco,   0,        0,      coleco,   coleco, driver_device, 0, "Coleco",           "ColecoVision (NTSC)",              0 )
+CONS( 1983, colecop,  coleco,   0,      colecop,  coleco, driver_device, 0, "Coleco",           "ColecoVision (PAL)",               0 )
+CONS( 1983, svi603,   coleco,   0,      coleco,   coleco, driver_device, 0, "Spectravideo",     "SVI-603 Coleco Game Adapter",      0 )
+CONS( 1986, czz50,    0,        coleco, czz50,    czz50,  driver_device, 0, "Bit Corporation",  "Chuang Zao Zhe 50",                0 )
+CONS( 1988, dina,     czz50,    0,      dina,     czz50,  driver_device, 0, "Telegames",        "Dina",                             0 )
+CONS( 1988, prsarcde, czz50,    0,      czz50,    czz50,  driver_device, 0, "Telegames",        "Personal Arcade",                  0 )

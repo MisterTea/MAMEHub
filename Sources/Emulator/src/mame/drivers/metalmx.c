@@ -345,21 +345,21 @@ READ32_MEMBER(metalmx_state::sound_data_r)
 	UINT32 result = 0;
 
 	if (ACCESSING_BITS_0_15)
-		result |= cage_control_r(machine());
+		result |= m_cage->control_r();
 	if (ACCESSING_BITS_16_31)
-		result |= cage_main_r(space) << 16;
+		result |= m_cage->main_r() << 16;
 	return result;
 }
 
 WRITE32_MEMBER(metalmx_state::sound_data_w)
 {
 	if (ACCESSING_BITS_0_15)
-		cage_control_w(machine(), data);
+		m_cage->control_w(data);
 	if (ACCESSING_BITS_16_31)
-		cage_main_w(space, data >> 16);
+		m_cage->main_w(data >> 16);
 }
 
-static void cage_irq_callback(running_machine &machine, int reason)
+WRITE8_MEMBER(metalmx_state::cage_irq_callback)
 {
 	/* TODO */
 }
@@ -560,7 +560,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( gsp_map, AS_PROGRAM, 16, metalmx_state )
 	AM_RANGE(0x88800000, 0x8880000f) AM_RAM /* ? */
 	AM_RANGE(0x88c00000, 0x88c0000f) AM_RAM /* ? */
-	AM_RANGE(0xc0000000, 0xc00003ff) AM_READWRITE_LEGACY(tms34020_io_register_r, tms34020_io_register_w)
+	AM_RANGE(0xc0000000, 0xc00003ff) AM_DEVREADWRITE("gsp", tms34020_device, io_register_r, io_register_w)
 	AM_RANGE(0xff000000, 0xff7fffff) AM_RAM AM_SHARE("gsp_dram")
 	AM_RANGE(0xff800000, 0xffffffff) AM_RAM AM_SHARE("gsp_vram")
 ADDRESS_MAP_END
@@ -688,14 +688,7 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static const adsp21xx_config adsp_config =
-{
-	NULL,                   /* callback for serial receive */
-	NULL,                   /* callback for serial transmit */
-	NULL,                   /* callback for timer fired */
-};
-
-static const tms34010_config gsp_config =
+static const tms340x0_config gsp_config =
 {
 	TRUE,                   /* halt on reset */
 	"screen",               /* the screen operated on */
@@ -705,12 +698,6 @@ static const tms34010_config gsp_config =
 	NULL,                   /* scanline callback (rgb32) */
 	tms_interrupt,          /* generate interrupt */
 };
-
-static const dsp32_config dsp32c_config =
-{
-	NULL                    /* a change has occurred on an output pin */
-};
-
 
 /*************************************
  *
@@ -724,20 +711,17 @@ static MACHINE_CONFIG_START( metalmx, metalmx_state )
 	MCFG_CPU_PROGRAM_MAP(main_map)
 
 	MCFG_CPU_ADD("adsp", ADSP2105, XTAL_10MHz)
-	MCFG_ADSP21XX_CONFIG(adsp_config)
 	MCFG_CPU_PROGRAM_MAP(adsp_program_map)
 	MCFG_CPU_DATA_MAP(adsp_data_map)
 
 	MCFG_CPU_ADD("gsp", TMS34020, 40000000)         /* Unverified */
-	MCFG_CPU_CONFIG(gsp_config)
+	MCFG_TMS340X0_CONFIG(gsp_config)
 	MCFG_CPU_PROGRAM_MAP(gsp_map)
 
 	MCFG_CPU_ADD("dsp32c_1", DSP32C, 40000000)      /* Unverified */
-	MCFG_CPU_CONFIG(dsp32c_config)
 	MCFG_CPU_PROGRAM_MAP(dsp32c_1_map)
 
 	MCFG_CPU_ADD("dsp32c_2", DSP32C, 40000000)      /* Unverified */
-	MCFG_CPU_CONFIG(dsp32c_config)
 	MCFG_CPU_PROGRAM_MAP(dsp32c_2_map)
 
 
@@ -747,12 +731,13 @@ static MACHINE_CONFIG_START( metalmx, metalmx_state )
 	MCFG_SCREEN_SIZE(512, 384)
 	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 383)
 	MCFG_SCREEN_UPDATE_DRIVER(metalmx_state, screen_update_metalmx)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(65536)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRRR_GGGGGG_BBBBB)
+	MCFG_PALETTE_ADD_RRRRRGGGGGGBBBBB("palette")
 
-
-	MCFG_FRAGMENT_ADD(cage)
+	MCFG_DEVICE_ADD("cage", ATARI_CAGE, 0)
+	MCFG_ATARI_CAGE_SPEEDUP(0) // TODO: speedup address
+	MCFG_ATARI_CAGE_IRQ_CALLBACK(WRITE8(metalmx_state,cage_irq_callback))
 MACHINE_CONFIG_END
 
 
@@ -761,9 +746,6 @@ DRIVER_INIT_MEMBER(metalmx_state,metalmx)
 	UINT8 *adsp_boot = (UINT8*)memregion("adsp")->base();
 
 	m_adsp->load_boot_data(adsp_boot, m_adsp_internal_program_ram);
-
-	cage_init(machine(), 0); // TODO: speedup address
-	cage_set_irq_handler(cage_irq_callback);
 }
 
 void metalmx_state::machine_reset()

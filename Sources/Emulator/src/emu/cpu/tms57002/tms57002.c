@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Olivier Galibert
 /***************************************************************************
 
     tms57002.c
 
     TMS57002 "DASP" emulator.
-
-****************************************************************************
-
-    Copyright Olivier Galibert
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -51,32 +22,41 @@ ADDRESS_MAP_END
 
 tms57002_device::tms57002_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: cpu_device(mconfig, TMS57002, "TMS57002", tag, owner, clock, "tms57002", __FILE__),
+		device_sound_interface(mconfig, *this),
 		program_config("program", ENDIANNESS_LITTLE, 32, 8, -2, ADDRESS_MAP_NAME(internal_pgm)),
 		data_config("data", ENDIANNESS_LITTLE, 8, 20)
 {
 }
 
 
-WRITE8_MEMBER(tms57002_device::pload_w)
+WRITE_LINE_MEMBER(tms57002_device::pload_w)
 {
 	UINT8 olds = sti;
-	if(data)
+	if(state)
 		sti &= ~IN_PLOAD;
 	else
 		sti |= IN_PLOAD;
-	if(olds ^ sti)
-		hidx = 0;
+	if(olds ^ sti) {
+		if (sti & IN_PLOAD) {
+			hidx = 0;
+			hpc = 0;
+		}
+	}
 }
 
-WRITE8_MEMBER(tms57002_device::cload_w)
+WRITE_LINE_MEMBER(tms57002_device::cload_w)
 {
 	UINT8 olds = sti;
-	if(data)
+	if(state)
 		sti &= ~IN_CLOAD;
 	else
 		sti |= IN_CLOAD;
-	if(olds ^ sti)
-		hidx = 0;
+	if(olds ^ sti) {
+		if (sti & IN_CLOAD) {
+			hidx = 0;
+			ca = 0;
+		}
+	}
 }
 
 void tms57002_device::device_reset()
@@ -94,8 +74,8 @@ void tms57002_device::device_reset()
 	st1 &= ~(ST1_AOV | ST1_SFAI | ST1_SFAO | ST1_MOVM | ST1_MOV |
 			ST1_SFMA | ST1_SFMO | ST1_RND | ST1_CRM | ST1_DBP);
 
-	xba = 0; // Not sure but makes sense
-
+	xba = 0;
+	xoa = 0;
 	cache_flush();
 }
 
@@ -122,7 +102,7 @@ WRITE8_MEMBER(tms57002_device::data_w)
 				sti = (sti & ~SU_MASK) | SU_PRG;
 				break;
 			case SU_PRG:
-				program->write_dword((pc++) << 2, val);
+				program->write_dword(pc++ << 2, val);
 				break;
 			}
 		}
@@ -170,17 +150,22 @@ READ8_MEMBER(tms57002_device::data_r)
 	return res;
 }
 
-READ8_MEMBER(tms57002_device::empty_r)
+READ_LINE_MEMBER(tms57002_device::empty_r)
 {
 	return 1;
 }
 
-READ8_MEMBER(tms57002_device::dready_r)
+READ_LINE_MEMBER(tms57002_device::dready_r)
 {
 	return sti & S_HOST ? 0 : 1;
 }
 
-void tms57002_device::sync()
+READ_LINE_MEMBER(tms57002_device::pc0_r)
+{
+	return pc == 0 ? 0 : 1;
+}
+
+WRITE_LINE_MEMBER(tms57002_device::sync_w)
 {
 	if(sti & (IN_PLOAD | IN_CLOAD))
 		return;
@@ -219,67 +204,68 @@ void tms57002_device::xm_init()
 	xm_adr = adr & mask;
 }
 
-void tms57002_device::xm_step_read()
+inline void tms57002_device::xm_step_read()
 {
 	UINT32 adr = xm_adr;
 	UINT8 v = data->read_byte(adr);
 	int done;
 	if(st0 & ST0_WORD) {
 		if(st0 & ST0_SEL) {
-			int off = (adr & 3) << 3;
-			xrd = (xrd & ~(0xff << off)) | (v << off);
-			done = off == 16;
+			int off = 16 - ((adr & 3) << 3);
+			txrd = (txrd & ~(0xff << off)) | (v << off);
+			done = off == 0;
 		} else {
-			int off = (adr & 7) << 2;
-			xrd = (xrd & ~(0xf << off)) | ((v & 0xf) << off);
-			done = off == 20;
+			int off = 20 - ((adr & 7) << 2);
+			txrd = (txrd & ~(0xf << off)) | ((v & 0xf) << off);
+			done = off == 0;
 		}
 	} else {
 		if(st0 & ST0_SEL) {
-			int off = (adr & 1) << 3;
-			xrd = (xrd & ~(0xff << off)) | (v << off);
+			int off = 16 - ((adr & 1) << 3);
+			txrd = (txrd & ~(0xff << off)) | (v << off);
 			done = off == 8;
 			if(done)
-				xrd &= 0x00ffff;
+				txrd &= 0xffff00;
 		} else {
-			int off = (adr & 3) << 2;
-			xrd = (xrd & ~(0xf << off)) | ((v & 0xf) << off);
-			done = off == 12;
+			int off = 20 - ((adr & 3) << 2);
+			txrd = (txrd & ~(0xf << off)) | ((v & 0xf) << off);
+			done = off == 8;
 			if(done)
-				xrd &= 0x00ffff;
+				txrd &= 0xffff00;
 		}
 	}
 	if(done) {
+		xrd = txrd;
 		sti &= ~S_READ;
 		xm_adr = 0;
 	} else
 		xm_adr = adr+1;
 }
 
-void tms57002_device::xm_step_write()
+inline void tms57002_device::xm_step_write()
 {
 	UINT32 adr = xm_adr;
 	UINT8 v;
 	int done;
 	if(st0 & ST0_WORD) {
 		if(st0 & ST0_SEL) {
-			int off = (adr & 3) << 3;
+			int off = 16 - ((adr & 3) << 3);
 			v = xwr >> off;
-			done = off == 16;
+			done = off == 0;
 		} else {
-			int off = (adr & 7) << 2;
+			int off = 20 - ((adr & 7) << 2);
 			v = (xwr >> off) & 0xf;
-			done = off == 20;
+			done = off == 0;
 		}
 	} else {
 		if(st0 & ST0_SEL) {
-			int off = (adr & 1) << 3;
+			int off = 16 - ((adr & 1) << 3);
 			v = xwr >> off;
 			done = off == 8;
 		} else {
-			int off = (adr & 3) << 2;
+			int off = 20 - ((adr & 3) << 2);
 			v = (xwr >> off) & 0xf;
-			done = off == 12;
+			done = off == 8;
 		}
 	}
 	data->write_byte(adr, v);
@@ -699,6 +685,8 @@ int tms57002_device::decode_get_pc()
 		short ipc;
 		UINT32 opcode = program->read_dword(adr << 2);
 
+		cs.inc = 0;
+
 		if((opcode & 0xfc0000) == 0xfc0000)
 			decode_one(opcode, &cs, &tms57002_device::decode_cat3);
 		else {
@@ -706,7 +694,7 @@ int tms57002_device::decode_get_pc()
 			decode_one(opcode, &cs, &tms57002_device::decode_cat1);
 			decode_one(opcode, &cs, &tms57002_device::decode_cat2_post);
 		}
-		add_one(&cs, 0, 0);
+		add_one(&cs, cs.inc, 0);
 
 		if(cs.branch)
 			break;
@@ -754,6 +742,18 @@ void tms57002_device::execute_run()
 			case 0:
 				goto inst;
 
+			case 1:
+				++ca;
+				goto inst;
+
+			case 2:
+				++id;
+				goto inst;
+
+			case 3:
+				++ca, ++id;
+				goto inst;
+
 #define CINTRP
 #include "cpu/tms57002/tms57002.inc"
 #undef CINTRP
@@ -784,15 +784,60 @@ void tms57002_device::execute_run()
 		icount = 0;
 }
 
+void tms57002_device::sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples)
+{
+	assert(samples == 1);
+
+	if(st0 & ST0_SIM) {
+		si[0] = (inputs[0][0] << 8) & 0xffffff;
+		si[1] = (inputs[1][0] << 8) & 0xffffff;
+		si[2] = (inputs[2][0] << 8) & 0xffffff;
+		si[3] = (inputs[3][0] << 8) & 0xffffff;
+	} else {
+		si[0] = inputs[0][0] & 0xffffff;
+		si[1] = inputs[1][0] & 0xffffff;
+		si[2] = inputs[2][0] & 0xffffff;
+		si[3] = inputs[3][0] & 0xffffff;
+	}
+	outputs[0][0] = INT16(so[0] >> 8);
+	outputs[1][0] = INT16(so[1] >> 8);
+	outputs[2][0] = INT16(so[2] >> 8);
+	outputs[3][0] = INT16(so[3] >> 8);
+
+	sync_w(1);
+}
+
 void tms57002_device::device_start()
 {
 	sti = S_IDLE;
 	program = &space(AS_PROGRAM);
 	data    = &space(AS_DATA);
 
-	state_add(STATE_GENPC,"GENPC", pc).noshow();
+	state_add(STATE_GENPC,    "GENPC",  pc).noshow();
+	state_add(TMS57002_PC,    "PC",     pc);
+	state_add(TMS57002_ST0,   "ST0",    st0);
+	state_add(TMS57002_ST1,   "ST1",    st1);
+	state_add(TMS57002_RPTC,  "RPTC",   rptc);
+	state_add(TMS57002_AACC,  "AACC",   aacc);
+	state_add(TMS57002_MACC,  "MACC",   macc).mask(U64(0xfffffffffffff));
+	state_add(TMS57002_BA0,   "BA0",    ba0);
+	state_add(TMS57002_BA1,   "BA1",    ba1);
+	state_add(TMS57002_CREG,  "CREG",   creg);
+	state_add(TMS57002_CA,    "CA",     ca);
+	state_add(TMS57002_ID,    "ID",     id);
+	state_add(TMS57002_XBA,   "XBA",    xba);
+	state_add(TMS57002_XOA,   "XOA",    xoa);
+	state_add(TMS57002_XRD,   "XRD",    xrd);
+	state_add(TMS57002_XWR,   "XWR",    xwr);
+	state_add(TMS57002_HIDX,  "HIDX",   hidx);
+	state_add(TMS57002_HOST0, "HOST0",  host[0]);
+	state_add(TMS57002_HOST1, "HOST1",  host[1]);
+	state_add(TMS57002_HOST2, "HOST2",  host[2]);
+	state_add(TMS57002_HOST3, "HOST3",  host[3]);
 
 	m_icountptr = &icount;
+
+	stream_alloc(4, 4, STREAM_SYNC);
 
 	save_item(NAME(macc));
 
@@ -811,6 +856,7 @@ void tms57002_device::device_start()
 	save_item(NAME(xba));
 	save_item(NAME(xwr));
 	save_item(NAME(xrd));
+	save_item(NAME(txrd));
 	save_item(NAME(creg));
 
 	save_item(NAME(pc));

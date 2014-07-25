@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Michael Zapf
 /****************************************************************************
 
     SNUG SGCPU (a.k.a. 99/4p) system
@@ -41,14 +43,10 @@
 #include "sound/dac.h"
 
 #include "machine/tms9901.h"
-#include "machine/ti99/peribox.h"
-
 #include "imagedev/cassette.h"
 #include "machine/ti99/videowrp.h"
-#include "machine/ti99/peribox.h"
+#include "bus/ti99_peb/peribox.h"
 #include "machine/ti99/joyport.h"
-
-#include "drivlgcy.h"
 
 #define TMS9901_TAG "tms9901"
 #define SGCPU_TAG "sgcpu"
@@ -64,7 +62,13 @@ class ti99_4p_state : public driver_device
 public:
 	ti99_4p_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_cassette(*this, "cassette") { }
+		m_cpu(*this, "maincpu"),
+		m_tms9901(*this, TMS9901_TAG),
+		m_sound(*this, TISOUND_TAG),
+		m_video(*this, VIDEO_SYSTEM_TAG),
+		m_cassette(*this, "cassette"),
+		m_peribox(*this, PERIBOX_TAG),
+		m_joyport(*this, JOYPORT_TAG)   { }
 
 	DECLARE_WRITE_LINE_MEMBER( console_ready );
 	DECLARE_WRITE_LINE_MEMBER( console_ready_dmux );
@@ -102,13 +106,13 @@ public:
 
 	DECLARE_WRITE_LINE_MEMBER(set_tms9901_INT2_from_v9938);
 
-	tms9900_device*         m_cpu;
-	tms9901_device*         m_tms9901;
-	ti_sound_system_device* m_sound;
-	ti_exp_video_device*    m_video;
-	required_device<cassette_image_device> m_cassette;
-	peribox_device*         m_peribox;
-	joyport_device*         m_joyport;
+	required_device<tms9900_device>             m_cpu;
+	required_device<tms9901_device>             m_tms9901;
+	required_device<ti_sound_system_device> m_sound;
+	required_device<ti_exp_video_device>        m_video;
+	required_device<cassette_image_device>  m_cassette;
+	required_device<peribox_device>             m_peribox;
+	required_device<joyport_device>             m_joyport;
 
 	// Pointer to ROM0
 	UINT16  *m_rom0;
@@ -166,6 +170,10 @@ private:
 
 	// Mapper registers
 	UINT8 m_mapper[16];
+
+	// Latch for 9901 INT2, INT1 lines
+	int     m_9901_int;
+	void    set_9901_int(int line, line_state state);
 
 	int     m_ready_prev;       // for debugging purposes only
 
@@ -503,13 +511,13 @@ WRITE8_MEMBER( ti99_4p_state::cruwrite )
 	}
 
 	// No match - pass to peribox
-	m_peribox->cruwrite(addroff, data);
+	m_peribox->cruwrite(space, addroff, data);
 }
 
 READ8_MEMBER( ti99_4p_state::cruread )
 {
 	UINT8 value = 0;
-	m_peribox->crureadz(offset<<4, &value);
+	m_peribox->crureadz(space, offset<<4, &value);
 	return value;
 }
 
@@ -566,8 +574,8 @@ READ8_MEMBER( ti99_4p_state::read_by_9901 )
 	{
 	case TMS9901_CB_INT7:
 		// Read pins INT3*-INT7* of TI99's 9901.
-		// bit 1: INT1 status (interrupt; not set at this place)
-		// bit 2: INT2 status (interrupt; not set at this place)
+		// bit 1: INT1 status
+		// bit 2: INT2 status
 		// bit 3-7: keyboard status bits 0 to 4
 		//
 		// |K|K|K|K|K|I2|I1|C|
@@ -584,7 +592,7 @@ READ8_MEMBER( ti99_4p_state::read_by_9901 )
 		{
 			answer &= ~(ioport("ALPHA")->read());
 		}
-		answer = (answer << 3) & 0xf8;
+		answer = (answer << 3) | m_9901_int;
 		break;
 
 	case TMS9901_INT8_INT15:
@@ -679,36 +687,39 @@ WRITE_LINE_MEMBER( ti99_4p_state::cassette_output )
 	m_cassette->output((state!=0)? +1 : -1);
 }
 
-/* TMS9901 setup. The callback functions pass a reference to the TMS9901 as device. */
+/*
+// TMS9901 setup. The callback functions pass a reference to the TMS9901 as device.
 const tms9901_interface tms9901_wiring_sgcpu =
 {
-	TMS9901_INT1 | TMS9901_INT2 | TMS9901_INTC, /* only input pins whose state is always known */
+    TMS9901_INT1 | TMS9901_INT2 | TMS9901_INTC, // only input pins whose state is always known
 
-	// read handler
-	DEVCB_DRIVER_MEMBER(ti99_4p_state, read_by_9901),
+    // read handler
+    DEVCB_DRIVER_MEMBER(ti99_4p_state, read_by_9901),
 
-	{   // write handlers
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, keyC0),
-		DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, keyC1),
-		DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, keyC2),
-		DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, alphaW),
-		DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, cs_motor),
-		DEVCB_NULL,
-		DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, audio_gate),
-		DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, cassette_output),
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+    {   // write handlers
+        DEVCB_NULL,
+        DEVCB_NULL,
+        DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, keyC0),
+        DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, keyC1),
+        DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, keyC2),
+        DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, alphaW),
+        DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, cs_motor),
+        DEVCB_NULL,
+        DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, audio_gate),
+        DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, cassette_output),
+        DEVCB_NULL,
+        DEVCB_NULL,
+        DEVCB_NULL,
+        DEVCB_NULL,
+        DEVCB_NULL,
+        DEVCB_NULL
+    },
 
-	/* interrupt handler */
-	DEVCB_DRIVER_MEMBER(ti99_4p_state, tms9901_interrupt)
+    // interrupt handler
+    DEVCB_DRIVER_MEMBER(ti99_4p_state, tms9901_interrupt)
 };
+
+*/
 
 /***************************************************************************
     Control lines
@@ -751,12 +762,18 @@ WRITE_LINE_MEMBER( ti99_4p_state::console_ready_dmux )
 	m_cpu->set_ready(combined);
 }
 
+void ti99_4p_state::set_9901_int( int line, line_state state)
+{
+	m_tms9901->set_single_int(line, state);
+	// We latch the value for the read operation. Mind the negative logic.
+	if (state==CLEAR_LINE) m_9901_int |= (1<<line);
+	else m_9901_int &= ~(1<<line);
+}
 
 WRITE_LINE_MEMBER( ti99_4p_state::extint )
 {
 	if (VERBOSE>6) LOG("ti99_4p: EXTINT level = %02x\n", state);
-	if (m_tms9901 != NULL)
-		m_tms9901->set_single_int(1, state);
+	set_9901_int(1, (line_state)state);
 }
 
 WRITE_LINE_MEMBER( ti99_4p_state::notconnected )
@@ -777,7 +794,7 @@ WRITE8_MEMBER( ti99_4p_state::tms9901_interrupt )
 	// offset contains the interrupt level (0-15)
 	// However, the TI board just ignores that level and hardwires it to 1
 	// See below (interrupt_level)
-	m_cpu->set_input_line(INPUT_LINE_99XX_INTREQ, data);
+	m_cpu->set_input_line(INT_9900_INTREQ, data);
 }
 
 READ8_MEMBER( ti99_4p_state::interrupt_level )
@@ -795,33 +812,8 @@ WRITE8_MEMBER( ti99_4p_state::external_operation )
 
 /*****************************************************************************/
 
-static PERIBOX_CONFIG( peribox_conf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, extint),            // INTA
-	DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, notconnected),  // INTB
-	DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, console_ready), // READY
-	0x70000                                             // Address bus prefix (AMA/AMB/AMC)
-};
-
-static TMS99xx_CONFIG( sgcpu_cpuconf )
-{
-	DEVCB_DRIVER_MEMBER(ti99_4p_state, external_operation),
-	DEVCB_DRIVER_MEMBER(ti99_4p_state, interrupt_level),
-	DEVCB_NULL,     // Instruction acquisition
-	DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, clock_out),
-	DEVCB_NULL,     // wait
-	DEVCB_NULL      // Hold acknowledge
-};
-
 void ti99_4p_state::machine_start()
 {
-	m_cpu = static_cast<tms9900_device*>(machine().device("maincpu"));
-	m_peribox = static_cast<peribox_device*>(machine().device(PERIBOX_TAG));
-	m_sound = static_cast<ti_sound_system_device*>(machine().device(TISOUND_TAG));
-	m_video = static_cast<ti_exp_video_device*>(machine().device(VIDEO_SYSTEM_TAG));
-	m_tms9901 = static_cast<tms9901_device*>(machine().device(TMS9901_TAG));
-	m_joyport = static_cast<joyport_device*>(machine().device(JOYPORT_TAG));
-
 	m_ram = (UINT16*)(*memregion(SAMSMEM_TAG));
 	m_scratchpad = (UINT16*)(*memregion(PADMEM_TAG));
 
@@ -844,29 +836,19 @@ void ti99_4p_state::machine_start()
 */
 WRITE_LINE_MEMBER(ti99_4p_state::set_tms9901_INT2_from_v9938)
 {
-	m_tms9901->set_single_int(2, state);
+	set_9901_int(2, (line_state)state);
 }
-
-static TI_SOUND_CONFIG( sound_conf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(ti99_4p_state, console_ready)  // READY
-};
-
-static JOYPORT_CONFIG( joyport4a_60 )
-{
-	DEVCB_NULL,
-	60
-};
 
 /*
     Reset the machine.
 */
 MACHINE_RESET_MEMBER(ti99_4p_state,ti99_4p)
 {
-	m_tms9901->set_single_int(12, 0);
+	set_9901_int(12, CLEAR_LINE);
 
 	m_cpu->set_ready(ASSERT_LINE);
 	m_cpu->set_hold(CLEAR_LINE);
+	m_9901_int = 0x03; // INT2* and INT1* set to 1, i.e. inactive
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(ti99_4p_state::sgcpu_hblank_interrupt)
@@ -880,7 +862,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(ti99_4p_state::sgcpu_hblank_interrupt)
 static MACHINE_CONFIG_START( ti99_4p_60hz, ti99_4p_state )
 	/* basic machine hardware */
 	/* TMS9900 CPU @ 3.0 MHz */
-	MCFG_TMS99xx_ADD("maincpu", TMS9900, 3000000, memmap, cru_map, sgcpu_cpuconf)
+	MCFG_TMS99xx_ADD("maincpu", TMS9900, 3000000, memmap, cru_map)
+	MCFG_TMS99xx_EXTOP_HANDLER( WRITE8(ti99_4p_state, external_operation) )
+	MCFG_TMS99xx_INTLEVEL_HANDLER( READ8(ti99_4p_state, interrupt_level) )
+	MCFG_TMS99xx_CLKOUT_HANDLER( WRITELINE(ti99_4p_state, clock_out) )
 
 	/* video hardware */
 	// Although we should have a 60 Hz screen rate, we have to set it to 30 here.
@@ -892,23 +877,35 @@ static MACHINE_CONFIG_START( ti99_4p_60hz, ti99_4p_state )
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ti99_4p_state, sgcpu_hblank_interrupt, SCREEN_TAG, 0, 1)
 
 	// tms9901
-	MCFG_TMS9901_ADD(TMS9901_TAG, tms9901_wiring_sgcpu, 3000000)
+	MCFG_DEVICE_ADD(TMS9901_TAG, TMS9901, 3000000)
+	MCFG_TMS9901_READBLOCK_HANDLER( READ8(ti99_4p_state, read_by_9901) )
+	MCFG_TMS9901_P2_HANDLER( WRITELINE( ti99_4p_state, keyC0) )
+	MCFG_TMS9901_P3_HANDLER( WRITELINE( ti99_4p_state, keyC1) )
+	MCFG_TMS9901_P4_HANDLER( WRITELINE( ti99_4p_state, keyC2) )
+	MCFG_TMS9901_P6_HANDLER( WRITELINE( ti99_4p_state, cs_motor) )
+	MCFG_TMS9901_P8_HANDLER( WRITELINE( ti99_4p_state, audio_gate) )
+	MCFG_TMS9901_P9_HANDLER( WRITELINE( ti99_4p_state, cassette_output) )
+	MCFG_TMS9901_INTLEVEL_HANDLER( WRITE8( ti99_4p_state, tms9901_interrupt) )
 
 	// Peripheral expansion box (SGCPU composition)
-	MCFG_PERIBOX_SG_ADD( PERIBOX_TAG, peribox_conf )
+	MCFG_DEVICE_ADD( PERIBOX_TAG, PERIBOX_SG, 0)
+	MCFG_PERIBOX_INTA_HANDLER( WRITELINE(ti99_4p_state, extint) )
+	MCFG_PERIBOX_INTB_HANDLER( WRITELINE(ti99_4p_state, notconnected) )
+	MCFG_PERIBOX_READY_HANDLER( WRITELINE(ti99_4p_state, console_ready) )
 
 	// sound hardware
-	MCFG_TI_SOUND_94624_ADD( TISOUND_TAG, sound_conf )
+	MCFG_TI_SOUND_94624_ADD( TISOUND_TAG )
+	MCFG_TI_SOUND_READY_HANDLER( WRITELINE(ti99_4p_state, console_ready) )
 
 	// Cassette drives
 	MCFG_SPEAKER_STANDARD_MONO("cass_out")
-	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
 
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "cass_out", 0.25)
 
 	// Joystick port
-	MCFG_TI_JOYPORT4A_ADD( JOYPORT_TAG, joyport4a_60 )
+	MCFG_TI_JOYPORT4A_ADD( JOYPORT_TAG )
 
 MACHINE_CONFIG_END
 

@@ -293,30 +293,6 @@ WRITE_LINE_MEMBER(jr100_state::jr100_via_write_cb2)
 {
 	m_cassette->output(state ? -1.0 : +1.0);
 }
-static const via6522_interface jr100_via_intf =
-{
-	DEVCB_NULL,                                         /* in_a_func */
-	DEVCB_DRIVER_MEMBER(jr100_state,jr100_via_read_b),                  /* in_b_func */
-	DEVCB_NULL,                                         /* in_ca1_func */
-	DEVCB_NULL,                                         /* in_cb1_func */
-	DEVCB_NULL,                                         /* in_ca2_func */
-	DEVCB_NULL,                                         /* in_cb2_func */
-	DEVCB_DRIVER_MEMBER(jr100_state,jr100_via_write_a),                 /* out_a_func */
-	DEVCB_DRIVER_MEMBER(jr100_state,jr100_via_write_b),                 /* out_b_func */
-	DEVCB_NULL,                                         /* out_ca1_func */
-	DEVCB_NULL,                                         /* out_cb1_func */
-	DEVCB_NULL,                                         /* out_ca2_func */
-	DEVCB_DRIVER_LINE_MEMBER(jr100_state, jr100_via_write_cb2),                 /* out_cb2_func */
-	DEVCB_NULL                                          /* irq_func */
-};
-static const cassette_interface jr100_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED),
-	NULL,
-	NULL
-};
 
 TIMER_DEVICE_CALLBACK_MEMBER(jr100_state::sound_tick)
 {
@@ -399,13 +375,16 @@ static MACHINE_CONFIG_START( jr100, jr100_state )
 	MCFG_SCREEN_SIZE(256, 192) /* border size not accurate */
 	MCFG_SCREEN_VISIBLE_AREA(0, 256 - 1, 0, 192 - 1)
 	MCFG_SCREEN_UPDATE_DRIVER(jr100_state, screen_update_jr100)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(jr100)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", jr100)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
-
-	MCFG_VIA6522_ADD("via", XTAL_14_31818MHz / 16, jr100_via_intf)
+	MCFG_DEVICE_ADD("via", VIA6522, XTAL_14_31818MHz / 16)
+	MCFG_VIA6522_READPB_HANDLER(READ8(jr100_state,jr100_via_read_b))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(jr100_state,jr100_via_write_a))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(jr100_state,jr100_via_write_b))
+	MCFG_VIA6522_CB2_HANDLER(WRITELINE(jr100_state, jr100_via_write_cb2))
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
@@ -416,7 +395,8 @@ static MACHINE_CONFIG_START( jr100, jr100_state )
 	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.50)
 
-	MCFG_CASSETTE_ADD( "cassette", jr100_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("sound_tick", jr100_state, sound_tick, attotime::from_hz(XTAL_14_31818MHz / 16))
 

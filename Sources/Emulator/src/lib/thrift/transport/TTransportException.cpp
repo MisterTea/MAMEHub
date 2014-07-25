@@ -21,9 +21,7 @@
 #include <boost/lexical_cast.hpp>
 #include <cstring>
 
-#ifdef HAVE_CONFIG_H
 #include <thrift_config.h>
-#endif
 
 using std::string;
 using boost::lexical_cast;

@@ -274,39 +274,8 @@ FLOPPY_CONSTRUCT( imd_dsk_construct )
 }
 
 
-/***************************************************************************
-
-    Copyright Olivier Galibert
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
-
-****************************************************************************/
-
+// license:BSD-3-Clause
+// copyright-holders:Olivier Galibert
 /*********************************************************************
 
     formats/imd_dsk.h
@@ -365,7 +334,7 @@ int imd_format::identify(io_generic *io, UINT32 form_factor)
 bool imd_format::load(io_generic *io, UINT32 form_factor, floppy_image *image)
 {
 	UINT64 size = io_generic_size(io);
-	UINT8 *img = global_alloc_array(UINT8, size);
+	dynamic_buffer img(size);
 	io_generic_read(io, img, 0, size);
 
 	UINT64 pos;
@@ -441,10 +410,9 @@ bool imd_format::load(io_generic *io, UINT32 form_factor, floppy_image *image)
 
 		for(int i=0; i<sector_count; i++)
 			if(sects[i].data && (sects[i].data < img || sects[i].data >= img+size))
-				global_free(sects[i].data);
+				global_free_array(sects[i].data);
 	}
 
-	global_free(img);
 	return true;
 }
 

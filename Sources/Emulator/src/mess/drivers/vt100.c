@@ -17,12 +17,11 @@
         http://bitsavers.org/pdf/dec/terminal/vt125/MP01053_VT125_Mar82.pdf
 ****************************************************************************/
 
-#include "emu.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/i8085/i8085.h"
 #include "cpu/z80/z80.h"
 #include "machine/com8116.h"
 #include "machine/i8251.h"
-#include "machine/serial.h"
 #include "sound/beep.h"
 #include "video/vtvideo.h"
 #include "vt100.lh"
@@ -33,15 +32,16 @@
 class vt100_state : public driver_device
 {
 public:
-	vt100_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	vt100_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_crtc(*this, "vt100_video"),
 		m_speaker(*this, "beeper"),
 		m_uart(*this, "i8251"),
 		m_dbrg(*this, COM5016T_TAG),
 		m_p_ram(*this, "p_ram")
-		{ }
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<vt100_video_device> m_crtc;
@@ -54,7 +54,7 @@ public:
 	DECLARE_WRITE8_MEMBER(vt100_baud_rate_w);
 	DECLARE_WRITE8_MEMBER(vt100_nvr_latch_w);
 	DECLARE_READ8_MEMBER(vt100_read_video_ram_r);
-	DECLARE_WRITE8_MEMBER(vt100_clear_video_interrupt);
+	DECLARE_WRITE_LINE_MEMBER(vt100_clear_video_interrupt);
 	required_shared_ptr<UINT8> m_p_ram;
 	bool m_keyboard_int;
 	bool m_receiver_int;
@@ -360,8 +360,6 @@ void vt100_state::machine_reset()
 	output_set_value("l4_led", 1);
 
 	m_key_scan = 0;
-
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(vt100_state::vt100_irq_callback),this));
 }
 
 READ8_MEMBER( vt100_state::vt100_read_video_ram_r )
@@ -369,17 +367,10 @@ READ8_MEMBER( vt100_state::vt100_read_video_ram_r )
 	return m_p_ram[offset];
 }
 
-WRITE8_MEMBER( vt100_state::vt100_clear_video_interrupt )
+WRITE_LINE_MEMBER( vt100_state::vt100_clear_video_interrupt )
 {
 	m_vertical_int = 0;
 }
-
-static const vt_video_interface vt100_video_interface =
-{
-	"chargen",
-	DEVCB_DRIVER_MEMBER(vt100_state, vt100_read_video_ram_r),
-	DEVCB_DRIVER_MEMBER(vt100_state, vt100_clear_video_interrupt)
-};
 
 INTERRUPT_GEN_MEMBER(vt100_state::vt100_vertical_interrupt)
 {
@@ -405,35 +396,13 @@ static GFXDECODE_START( vt100 )
 	GFXDECODE_ENTRY( "chargen", 0x0000, vt100_charlayout, 0, 1 )
 GFXDECODE_END
 
-static const i8251_interface i8251_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dsr_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
-	DEVCB_NULL, // out_rxrdy_cb
-	DEVCB_NULL, // out_txrdy_cb
-	DEVCB_NULL, // out_txempty_cb
-	DEVCB_NULL // out_syndet_cb
-};
-
-static const rs232_port_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( vt100, vt100_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",I8080, XTAL_24_8832MHz / 9)
 	MCFG_CPU_PROGRAM_MAP(vt100_mem)
 	MCFG_CPU_IO_MAP(vt100_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", vt100_state,  vt100_vertical_interrupt)
-
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(vt100_state,vt100_irq_callback)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -442,21 +411,31 @@ static MACHINE_CONFIG_START( vt100, vt100_state )
 	MCFG_SCREEN_SIZE(80*10, 25*10)
 	MCFG_SCREEN_VISIBLE_AREA(0, 80*10-1, 0, 25*10-1)
 	MCFG_SCREEN_UPDATE_DRIVER(vt100_state, screen_update_vt100)
+	MCFG_SCREEN_PALETTE("vt100_video:palette")
 
-	MCFG_GFXDECODE(vt100)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_green)
+	MCFG_GFXDECODE_ADD("gfxdecode", "vt100_video:palette", vt100)
+//  MCFG_PALETTE_ADD_MONOCHROME_GREEN("palette")
 
 	MCFG_DEFAULT_LAYOUT( layout_vt100 )
 
-	MCFG_VT100_VIDEO_ADD("vt100_video", vt100_video_interface)
+	MCFG_DEVICE_ADD("vt100_video", VT100_VIDEO, 0)
+	MCFG_VT_SET_SCREEN("screen")
+	MCFG_VT_CHARGEN("chargen")
+	MCFG_VT_VIDEO_RAM_CALLBACK(READ8(vt100_state, vt100_read_video_ram_r))
+	MCFG_VT_VIDEO_CLEAR_VIDEO_INTERRUPT_CALLBACK(WRITELINE(vt100_state, vt100_clear_video_interrupt))
 
+	MCFG_DEVICE_ADD("i8251", I8251, 0)
+	MCFG_I8251_TXD_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_txd))
+	MCFG_I8251_DTR_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_dtr))
+	MCFG_I8251_RTS_HANDLER(DEVWRITELINE(RS232_TAG, rs232_port_device, write_rts))
 
-	/* i8251 uart */
-	MCFG_I8251_ADD("i8251", i8251_intf)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
-	MCFG_COM8116_ADD(COM5016T_TAG, XTAL_5_0688MHz, NULL, DEVWRITELINE("i8251", i8251_device, rxc_w), DEVWRITELINE("i8251", i8251_device, txc_w))
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("i8251", i8251_device, write_rxd))
+	MCFG_RS232_DSR_HANDLER(DEVWRITELINE("i8251", i8251_device, write_dsr))
 
+	MCFG_DEVICE_ADD(COM5016T_TAG, COM8116, XTAL_5_0688MHz)
+	MCFG_COM8116_FR_HANDLER(DEVWRITELINE("i8251", i8251_device, write_rxc))
+	MCFG_COM8116_FT_HANDLER(DEVWRITELINE("i8251", i8251_device, write_txc))
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -477,6 +456,7 @@ static MACHINE_CONFIG_DERIVED( vt102, vt100 )
 	MCFG_CPU_PROGRAM_MAP(vt100_mem)
 	MCFG_CPU_IO_MAP(vt100_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", vt100_state,  vt100_vertical_interrupt)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(vt100_state,vt100_irq_callback)
 MACHINE_CONFIG_END
 
 /* VT1xx models:
@@ -612,6 +592,7 @@ ROM_START( vt100 ) // This is from the schematics at http://www.bitsavers.org/pd
 	ROM_LOAD_OPTIONAL("23-094e2-00.e9", 0x0800, 0x0800, NO_DUMP) // optional ?word processing? alternate character set rom
 ROM_END
 
+#if 0
 ROM_START( vt100wp ) // This is from the schematics at http://www.bitsavers.org/pdf/dec/terminal/vt100/MP00633_VT100_Mar80.pdf
 // This is the standard vt100 cpu board, with the ?word processing? romset, included in the VT1xx-CE kit?
 // the vt103 can also use this rom set (-04 and -05 revs have it by default, -05 rev also has the optional alt charset rom by default)
@@ -703,6 +684,7 @@ ROM_START( vt103 ) // This is from the schematics at http://www.bitsavers.org/pd
 	ROM_REGION(0x80000, "lsi11cpu", 0) // rom for the LSI-11 cpu board
 	ROM_LOAD_OPTIONAL( "unknown.bin", 0x00000, 0x80000, NO_DUMP)
 ROM_END
+#endif
 
 ROM_START( vt105 ) // This is from anecdotal evidence and vt100.net, as the vt105 schematics are not scanned
 // This is the standard VT100 cpu board with the 'normal' roms (but later rev of eprom 0) populated but with a
@@ -719,6 +701,7 @@ ROM_START( vt105 ) // This is from anecdotal evidence and vt100.net, as the vt10
 	ROM_LOAD_OPTIONAL( "23-094e2-00.e9", 0x0800, 0x0800, NO_DUMP) // optional (comes default with some models) alternate character set rom
 ROM_END
 
+#if 0
 ROM_START( vt110 )
 // This is the standard VT100 cpu board with the 'normal' roms (but later rev of eprom 0) populated but with a
 // DECDataway DPM01 board, which adds 4 or 5 special network-addressable 50ohm? current loop serial lines
@@ -783,6 +766,7 @@ ROM_START( vt101 ) // p/n 5414185-01 'unupgradable/low cost' vt101/vt102/vt131 m
 	ROM_LOAD( "23-018e2-00.e3", 0x0000, 0x0800, CRC(6958458b) SHA1(103429674fc01c215bbc2c91962ae99231f8ae53))
 	ROM_LOAD_OPTIONAL( "23-094e2-00.e4", 0x0800, 0x0800, NO_DUMP) // optional (comes default with some models) alternate character set rom
 ROM_END
+#endif
 
 ROM_START( vt102 ) // p/n 5414185-01 'unupgradable/low cost' vt101/vt102/vt131 mainboard
 // has integrated STP and AVO both populated

@@ -34,7 +34,7 @@ const device_type NAMCO_15XX = &device_creator<namco_15xx_device>;
 const device_type NAMCO_CUS30 = &device_creator<namco_cus30_device>;
 
 namco_audio_device::namco_audio_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
-	: device_t(mconfig, NAMCO, "Namco", tag, owner, clock, "namco", __FILE__),
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, __FILE__),
 		device_sound_interface(mconfig, *this),
 		m_last_channel(NULL),
 		m_soundregs(NULL),
@@ -44,7 +44,9 @@ namco_audio_device::namco_audio_device(const machine_config &mconfig, device_typ
 		m_stream(NULL),
 		m_namco_clock(0),
 		m_sample_rate(0),
-		m_f_fracbits(0)
+		m_f_fracbits(0),
+		m_voices(0),
+		m_stereo(0)
 {
 }
 
@@ -54,36 +56,15 @@ namco_device::namco_device(const machine_config &mconfig, const char *tag, devic
 }
 
 namco_15xx_device::namco_15xx_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	:namco_audio_device(mconfig, NAMCO, "Namco 15XX", tag, owner, clock, "namco 15xx", __FILE__)
+	:namco_audio_device(mconfig, NAMCO_15XX, "Namco 15XX", tag, owner, clock, "namco_15xx", __FILE__)
 {
 }
 
 namco_cus30_device::namco_cus30_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: namco_audio_device(mconfig, NAMCO, "Namco CUS30", tag, owner, clock, "namco cus30", __FILE__)
+	: namco_audio_device(mconfig, NAMCO_CUS30, "Namco CUS30", tag, owner, clock, "namco_cus30", __FILE__)
 {
 }
 
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void namco_audio_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const namco_interface *intf = reinterpret_cast<const namco_interface *>(static_config());
-	if (intf != NULL)
-	*static_cast<namco_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-		m_voices = 0;
-		m_stereo = 0;
-	}
-}
 
 //-------------------------------------------------
 //  device_start - device-specific startup
@@ -116,9 +97,9 @@ void namco_audio_device::device_start()
 
 	/* get stream channels */
 	if (m_stereo)
-		m_stream = machine().sound().stream_alloc(*this, 0, 2, m_sample_rate, this);
+		m_stream = machine().sound().stream_alloc(*this, 0, 2, m_sample_rate);
 	else
-		m_stream = machine().sound().stream_alloc(*this, 0, 1, m_sample_rate, this);
+		m_stream = machine().sound().stream_alloc(*this, 0, 1, m_sample_rate);
 
 	/* start with sound enabled, many games don't have a sound enable register */
 	m_sound_enable = 1;

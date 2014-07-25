@@ -50,11 +50,13 @@ public:
 	sbowling_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
-		m_videoram(*this, "videoram"){ }
+		m_videoram(*this, "videoram"),
+		m_gfxdecode(*this, "gfxdecode") { }
 
 	int m_bgmap;
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT8> m_videoram;
+	required_device<gfxdecode_device> m_gfxdecode;
 
 	int m_sbw_system;
 	tilemap_t *m_sb_tilemap;
@@ -72,7 +74,7 @@ public:
 	DECLARE_READ8_MEMBER(controls_r);
 	TILE_GET_INFO_MEMBER(get_sb_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(sbowling);
 	UINT32 screen_update_sbowling(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(sbw_interrupt);
 };
@@ -129,7 +131,7 @@ UINT32 sbowling_state::screen_update_sbowling(screen_device &screen, bitmap_ind1
 void sbowling_state::video_start()
 {
 	m_tmpbitmap = auto_bitmap_ind16_alloc(machine(),32*8,32*8);
-	m_sb_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sbowling_state::get_sb_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_sb_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(sbowling_state::get_sb_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 WRITE8_MEMBER(sbowling_state::pix_shift_w)
@@ -336,7 +338,7 @@ static GFXDECODE_START( sbowling )
 GFXDECODE_END
 
 
-void sbowling_state::palette_init()
+PALETTE_INIT_MEMBER(sbowling_state, sbowling)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
@@ -351,7 +353,7 @@ void sbowling_state::palette_init()
 		3,  resistances_rg, outputs_g,  0,  100,
 		2,  resistances_b,  outputs_b,  0,  100);
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < palette.entries();i++)
 	{
 		int bit0,bit1,bit2,r,g,b;
 
@@ -372,7 +374,7 @@ void sbowling_state::palette_init()
 		bit2 = (color_prom[i+0x400] >> 3) & 0x01;
 		r = (int)(outputs_r[ (bit0<<0) | (bit1<<1) | (bit2<<2) ] + 0.5);
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
@@ -388,10 +390,12 @@ static MACHINE_CONFIG_START( sbowling, sbowling_state )
 	MCFG_SCREEN_SIZE(32*8, 262)     /* vert size taken from mw8080bw */
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 31*8-1, 4*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(sbowling_state, screen_update_sbowling)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(sbowling)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", sbowling)
 
-	MCFG_PALETTE_LENGTH(0x400)
+	MCFG_PALETTE_ADD("palette", 0x400)
+	MCFG_PALETTE_INIT_OWNER(sbowling_state, sbowling)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Michael Zapf
 /****************************************************************************
 
     TI-99/8 Speech Synthesizer
@@ -18,24 +20,21 @@
 
 extern const device_type TI99_SPEECH8;
 
-#define SPEECH8_CONFIG(name) \
-	const speech8_config(name) =
-
-struct speech8_config
-{
-	devcb_write_line ready;
-};
-
+#define MCFG_SPEECH8_READY_CALLBACK(_write) \
+	devcb = &ti998_spsyn_device::set_ready_wr_callback(*device, DEVCB_##_write);
 
 class ti998_spsyn_device : public bus8z_device
 {
 public:
 	ti998_spsyn_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	template<class _Object> static devcb_base &set_ready_wr_callback(device_t &device, _Object object) { return downcast<ti998_spsyn_device &>(device).m_ready.set_callback(object); }
+
 	DECLARE_READ8Z_MEMBER(readz);
 	DECLARE_WRITE8_MEMBER(write);
 
-	void crureadz(offs_t offset, UINT8 *value) { };
-	void cruwrite(offs_t offset, UINT8 value) { };
+	DECLARE_READ8Z_MEMBER(crureadz) { };
+	DECLARE_WRITE8_MEMBER(cruwrite) { };
 
 	DECLARE_WRITE_LINE_MEMBER( speech8_ready );
 
@@ -58,7 +57,7 @@ private:
 //  UINT32          m_sprom_length;         // length of data pointed by speechrom_data, from 0 to 2^18
 
 	// Ready line to the CPU
-	devcb_resolved_write_line m_ready;
+	devcb_write_line m_ready;
 };
 
 #define MCFG_TISPEECH8_ADD(_tag, _conf)     \

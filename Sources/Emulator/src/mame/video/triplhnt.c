@@ -20,7 +20,7 @@ void triplhnt_state::video_start()
 {
 	m_screen->register_screen_bitmap(m_helper);
 
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(triplhnt_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 16, 16);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(triplhnt_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 16, 16);
 }
 
 
@@ -72,7 +72,7 @@ void triplhnt_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprec
 
 		/* render sprite to auxiliary bitmap */
 
-		drawgfx_opaque(m_helper, cliprect, machine().gfx[m_sprite_zoom],
+		m_gfxdecode->gfx(m_sprite_zoom)->opaque(m_helper,cliprect,
 			2 * code + m_sprite_bank, 0, code & 8, 0,
 			rect.min_x, rect.min_y);
 
@@ -118,7 +118,7 @@ UINT32 triplhnt_state::screen_update_triplhnt(screen_device &screen, bitmap_ind1
 	draw_sprites(bitmap, cliprect);
 
 	address_space &space = machine().driver_data()->generic_space();
-	discrete_sound_w(m_discrete, space, TRIPLHNT_BEAR_ROAR_DATA, m_playfield_ram[0xfa] & 15);
-	discrete_sound_w(m_discrete, space, TRIPLHNT_SHOT_DATA, m_playfield_ram[0xfc] & 15);
+	m_discrete->write(space, TRIPLHNT_BEAR_ROAR_DATA, m_playfield_ram[0xfa] & 15);
+	m_discrete->write(space, TRIPLHNT_SHOT_DATA, m_playfield_ram[0xfc] & 15);
 	return 0;
 }

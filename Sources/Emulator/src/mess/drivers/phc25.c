@@ -1,14 +1,12 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder, Robbbert
 /***************************************************************************
 
         Sanyo PHC-25
 
-        Skeleton driver.
-
-****************************************************************************/
-
-/*
 
     http://www.geocities.jp/sanyo_phc_25/
+    http://www.phc25.com/
 
     Z80 @ 4 MHz
     MC6847 video
@@ -17,29 +15,27 @@
     16KB RAM
     6KB video RAM
 
-*/
+    LOCK key (CAPSLOCK) selects upper-case/lower-case on international version
+    (phc25), and selects hiragana/upper-case on Japanese version (phc25j).
 
-/*
+
 
     TODO:
 
-    - MC6847 mode selection lines
-    - tune cassette trigger level
-    - accurate video timing
-
-    10 SCREEN 2,1,1:CLS
-    20 FOR X=0 TO 8
-    30 LINE(X*24,0)-(X*24+16,191),X,BF
-    40 NEXT
-
-    10 SCREEN3,1,1:COLOR,,1:CLS
-    20 X1=INT(RND(1)*256):Y1=INT(RND(1)*192):X2=INT(RND(1)*256):Y2=INT(RND(1)*192):C=INT(RND(1)*4)+1:LINE(X1,Y1)-(X2,Y2),C:GOTO 20
-    RUN
+    - sound isn't working
+    - screen attribute bit 7 is unknown
 
 
-    10 SCREEN2,1,1:CLS:FORX=0TO8:LINE(X*24,0)-(X*24+16,191),X,BF:NEXT
 
-*/
+10 SCREEN3,1,1:COLOR,,1:CLS
+20 X1=INT(RND(1)*256):Y1=INT(RND(1)*192):X2=INT(RND(1)*256):Y2=INT(RND(1)*192):C=INT(RND(1)*4)+1:LINE(X1,Y1)-(X2,Y2),C:GOTO 20
+RUN
+
+
+10 SCREEN2,1,1:CLS:FORX=0TO8:LINE(X*24,0)-(X*24+16,191),X,BF:NEXT
+RUN
+
+*****************************************************************************/
 
 #include "includes/phc25.h"
 
@@ -71,7 +67,7 @@ READ8_MEMBER( phc25_state::port40_r )
 	data |= ((m_cassette)->input() < +0.3) << 5;
 
 	/* centronics busy */
-	data |= m_centronics->busy_r() << 6;
+	data |= m_centronics_busy << 6;
 
 	/* horizontal sync */
 	data |= !m_vdg->hs_r() << 7;
@@ -87,11 +83,11 @@ WRITE8_MEMBER( phc25_state::port40_w )
 
 	    0       cassette output
 	    1       cassette motor
-	    2       MC6847 INT/EXT
+	    2       LED in the LOCK button (on = capslock)
 	    3       centronics strobe
 	    4
-	    5       MC6847 GM1
-	    6       MC6847 GM0
+	    5       MC6847 GM0
+	    6       MC6847 CSS
 	    7       MC6847 A/G
 
 	*/
@@ -103,13 +99,18 @@ WRITE8_MEMBER( phc25_state::port40_w )
 	m_cassette->change_state(BIT(data,1) ? CASSETTE_MOTOR_DISABLED : CASSETTE_MOTOR_ENABLED, CASSETTE_MASK_MOTOR);
 
 	/* centronics strobe */
-	m_centronics->strobe_w(BIT(data, 3));
+	m_centronics->write_strobe(BIT(data, 3));
 
 	/* MC6847 */
-	m_vdg->intext_w(BIT(data, 2));
 	m_vdg->gm0_w(BIT(data, 5));
-	m_vdg->gm1_w(BIT(data, 6));
+	m_vdg->css_w(BIT(data, 6));
 	m_vdg->ag_w(BIT(data, 7));
+	m_port40 = data;
+}
+
+WRITE_LINE_MEMBER( phc25_state::write_centronics_busy )
+{
+	m_centronics_busy = state;
 }
 
 /* Memory Maps */
@@ -124,7 +125,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( phc25_io, AS_IO, 8, phc25_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_DEVWRITE(CENTRONICS_TAG, centronics_device, write)
+	AM_RANGE(0x00, 0x00) AM_DEVWRITE("cent_data_out", output_latch_device, write)
 	AM_RANGE(0x40, 0x40) AM_READWRITE(port40_r, port40_w)
 	AM_RANGE(0x80, 0x80) AM_READ_PORT("KEY0")
 	AM_RANGE(0x81, 0x81) AM_READ_PORT("KEY1")
@@ -135,8 +136,8 @@ static ADDRESS_MAP_START( phc25_io, AS_IO, 8, phc25_state )
 	AM_RANGE(0x86, 0x86) AM_READ_PORT("KEY6")
 	AM_RANGE(0x87, 0x87) AM_READ_PORT("KEY7")
 	AM_RANGE(0x88, 0x88) AM_READ_PORT("KEY8")
-	AM_RANGE(0xc0, 0xc0) AM_DEVWRITE(AY8910_TAG, ay8910_device, address_w)
-	AM_RANGE(0xc1, 0xc1) AM_DEVREADWRITE(AY8910_TAG, ay8910_device, data_r, data_w)
+	AM_RANGE(0xc0, 0xc0) AM_DEVREADWRITE(AY8910_TAG, ay8910_device, data_r, data_w)
+	AM_RANGE(0xc1, 0xc1) AM_DEVWRITE(AY8910_TAG, ay8910_device, address_w)
 ADDRESS_MAP_END
 
 /* Input Ports */
@@ -261,110 +262,70 @@ INPUT_PORTS_END
 
 READ8_MEMBER( phc25_state::video_ram_r )
 {
-	return m_video_ram[offset & 0x17ff];
+	if BIT(m_port40, 7) // graphics
+	{
+		return m_video_ram[offset];
+	}
+	else    // text
+	{
+		offset &= 0x7ff;
+		m_vdg->inv_w(BIT(m_video_ram[offset | 0x800], 0)); // cursor attribute
+		m_vdg->as_w(BIT(m_video_ram[offset | 0x800], 1)); // screen2 lores attribute
+		m_vdg->css_w(BIT(m_video_ram[offset | 0x800], 2)); // css attribute
+		// bit 7 is set for all text (not spaces), meaning is unknown
+		return m_video_ram[offset];
+	}
 }
 
-UINT8 phc25_state::pal_char_rom_r(running_machine &machine, UINT8 ch, int line)
+MC6847_GET_CHARROM_MEMBER(phc25_state::pal_char_rom_r)
 {
-	phc25_state *state = machine.driver_data<phc25_state>();
-
-	return state->m_char_rom[((ch - 2) * 12) + line + 4];
+	return m_char_rom[((ch - 2) * 12) + line + 4];
 }
 
-UINT8 phc25_state::ntsc_char_rom_r(running_machine &machine, UINT8 ch, int line)
+// irq is inverted in emulation, so we need this trampoline
+WRITE_LINE_MEMBER( phc25_state::irq_w )
 {
-	phc25_state *state = machine.driver_data<phc25_state>();
-
-	return state->m_char_rom[(ch * 16) + line];
+	m_maincpu->set_input_line(0, state ? CLEAR_LINE : ASSERT_LINE);
 }
 
-static const mc6847_interface ntsc_vdg_intf =
+MC6847_GET_CHARROM_MEMBER(phc25_state::ntsc_char_rom_r)
 {
-	SCREEN_TAG,
-	DEVCB_DRIVER_MEMBER(phc25_state, video_ram_r),
-
-	DEVCB_NULL,                                         /* horizontal sync */
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0),     /* field sync */
-
-	DEVCB_NULL,                                         /* AG */
-	DEVCB_NULL,                                         /* GM2 */
-	DEVCB_NULL,                                         /* GM1 */
-	DEVCB_NULL,                                         /* GM0 */
-	DEVCB_NULL,                                         /* CSS */
-	DEVCB_NULL,                                         /* AS */
-	DEVCB_NULL,                                         /* INTEXT */
-	DEVCB_NULL,                                         /* INV */
-
-	&phc25_state::ntsc_char_rom_r
-};
-
-static const mc6847_interface pal_vdg_intf =
-{
-	SCREEN_TAG,
-	DEVCB_DRIVER_MEMBER(phc25_state, video_ram_r),
-
-	DEVCB_NULL,                                         /* horizontal sync */
-	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0),     /* field sync */
-
-	DEVCB_NULL,                                         /* AG */
-	DEVCB_NULL,                                         /* GM2 */
-	DEVCB_NULL,                                         /* GM1 */
-	DEVCB_NULL,                                         /* GM0 */
-	DEVCB_NULL,                                         /* CSS */
-	DEVCB_NULL,                                         /* AS */
-	DEVCB_NULL,                                         /* INTEXT */
-	DEVCB_NULL,                                         /* INV */
-
-	&phc25_state::pal_char_rom_r
-};
-
+	return m_char_rom[(ch * 16) + line];
+}
 
 void phc25_state::video_start()
 {
 	/* find memory regions */
 	m_char_rom = memregion(Z80_TAG)->base() + 0x5000;
+	m_port40 = 0;
 }
-
-/* AY-3-8910 Interface */
-
-static const ay8910_interface ay8910_intf =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("JOY0"),
-	DEVCB_INPUT_PORT("JOY1"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-/* Cassette Configuration */
-
-static const cassette_interface phc25_cassette_interface =
-{
-	cassette_default_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED),
-	NULL,
-	NULL
-};
 
 /* Machine Driver */
 
 static MACHINE_CONFIG_START( phc25, phc25_state )
 	/* basic machine hardware */
-	MCFG_CPU_ADD(Z80_TAG, Z80, 4000000)
+	MCFG_CPU_ADD(Z80_TAG, Z80, XTAL_4MHz)
 	MCFG_CPU_PROGRAM_MAP(phc25_mem)
 	MCFG_CPU_IO_MAP(phc25_io)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD(AY8910_TAG, AY8910, 1996750)
-	MCFG_SOUND_CONFIG(ay8910_intf)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("JOY0"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("JOY1"))
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.15)
 
 	/* devices */
-	MCFG_CASSETTE_ADD("cassette", phc25_cassette_interface)
-	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_FORMATS(phc25_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(phc25_state, write_centronics_busy))
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -374,13 +335,25 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( pal, phc25 )
 	/* video hardware */
 	MCFG_SCREEN_MC6847_PAL_ADD(SCREEN_TAG, MC6847_TAG)
-	MCFG_MC6847_ADD(MC6847_TAG, MC6847_PAL, XTAL_4_433619MHz, pal_vdg_intf)
+
+	MCFG_DEVICE_ADD(MC6847_TAG, MC6847_PAL, XTAL_4_433619MHz)
+	MCFG_MC6847_FSYNC_CALLBACK(WRITELINE(phc25_state, irq_w))
+	MCFG_MC6847_INPUT_CALLBACK(READ8(phc25_state, video_ram_r))
+	MCFG_MC6847_CHARROM_CALLBACK(phc25_state, pal_char_rom_r)
+	MCFG_MC6847_FIXED_MODE(MC6847_MODE_GM2 | MC6847_MODE_GM1 | MC6847_MODE_INTEXT)
+	// other lines not connected
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ntsc, phc25 )
 	/* video hardware */
 	MCFG_SCREEN_MC6847_NTSC_ADD(SCREEN_TAG, MC6847_TAG)
-	MCFG_MC6847_ADD(MC6847_TAG, MC6847_NTSC, XTAL_3_579545MHz, ntsc_vdg_intf)
+
+	MCFG_DEVICE_ADD(MC6847_TAG, MC6847_NTSC, XTAL_3_579545MHz)
+	MCFG_MC6847_FSYNC_CALLBACK(WRITELINE(phc25_state, irq_w))
+	MCFG_MC6847_INPUT_CALLBACK(READ8(phc25_state, video_ram_r))
+	MCFG_MC6847_CHARROM_CALLBACK(phc25_state, ntsc_char_rom_r)
+	MCFG_MC6847_FIXED_MODE(MC6847_MODE_GM2 | MC6847_MODE_GM1 | MC6847_MODE_INTEXT)
+	// other lines not connected
 MACHINE_CONFIG_END
 
 /* ROMs */
@@ -406,6 +379,6 @@ ROM_END
 
 /* Driver */
 
-/*    YEAR  NAME    PARENT  COMPAT  MACHINE INPUT   INIT    COMPANY     FULLNAME            FLAGS */
-COMP( 1983, phc25,  0,      0,      pal,    phc25, driver_device,   0,      "Sanyo",    "PHC-25 (Europe)",  GAME_NOT_WORKING )
-COMP( 1983, phc25j, phc25,  0,      ntsc,   phc25j, driver_device,  0,      "Sanyo",    "PHC-25 (Japan)",   GAME_NOT_WORKING )
+/*    YEAR  NAME    PARENT  COMPAT  MACHINE INPUT   CLASS          INIT    COMPANY     FULLNAME            FLAGS */
+COMP( 1983, phc25,  0,      0,      pal,    phc25,  driver_device,  0,     "Sanyo",  "PHC-25 (Europe)",  GAME_NO_SOUND )
+COMP( 1983, phc25j, phc25,  0,      ntsc,   phc25j, driver_device,  0,     "Sanyo",  "PHC-25 (Japan)",   GAME_NO_SOUND )

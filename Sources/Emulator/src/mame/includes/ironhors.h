@@ -16,7 +16,9 @@ public:
 		m_spriteram2(*this, "spriteram2"),
 		m_spriteram(*this, "spriteram"),
 		m_maincpu(*this, "maincpu"),
-		m_soundcpu(*this, "soundcpu"){ }
+		m_soundcpu(*this, "soundcpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_interrupt_enable;
@@ -35,6 +37,9 @@ public:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_soundcpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(ironhors_sh_irqtrigger_w);
 	DECLARE_WRITE8_MEMBER(ironhors_videoram_w);
 	DECLARE_WRITE8_MEMBER(ironhors_colorram_w);
@@ -48,7 +53,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(ironhors);
 	DECLARE_VIDEO_START(farwest);
 	UINT32 screen_update_ironhors(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_farwest(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);

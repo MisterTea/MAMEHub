@@ -40,23 +40,9 @@ void lviv_state::lviv_update_memory ()
 	}
 }
 
-void lviv_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+INPUT_CHANGED_MEMBER(lviv_state::lviv_reset)
 {
-	switch (id)
-	{
-	case TIMER_RESET:
-		machine().schedule_soft_reset();
-		break;
-	default:
-		assert_always(FALSE, "Unknown id in lviv_state::device_timer");
-	}
-}
-
-DIRECT_UPDATE_MEMBER(lviv_state::lviv_directoverride)
-{
-	if (ioport("RESET")->read() & 0x01)
-		timer_set(attotime::from_usec(10), TIMER_RESET);
-	return address;
+	machine().schedule_soft_reset();
 }
 
 READ8_MEMBER(lviv_state::lviv_ppi_0_porta_r)
@@ -206,32 +192,10 @@ WRITE8_MEMBER(lviv_state::lviv_io_w)
 }
 
 
-I8255A_INTERFACE( lviv_ppi8255_interface_0 )
-{
-	DEVCB_DRIVER_MEMBER(lviv_state,lviv_ppi_0_porta_r),
-	DEVCB_DRIVER_MEMBER(lviv_state,lviv_ppi_0_porta_w),
-	DEVCB_DRIVER_MEMBER(lviv_state,lviv_ppi_0_portb_r),
-	DEVCB_DRIVER_MEMBER(lviv_state,lviv_ppi_0_portb_w),
-	DEVCB_DRIVER_MEMBER(lviv_state,lviv_ppi_0_portc_r),
-	DEVCB_DRIVER_MEMBER(lviv_state,lviv_ppi_0_portc_w)
-};
-
-I8255A_INTERFACE( lviv_ppi8255_interface_1 )
-{
-	DEVCB_DRIVER_MEMBER(lviv_state,lviv_ppi_1_porta_r),
-	DEVCB_DRIVER_MEMBER(lviv_state,lviv_ppi_1_porta_w),
-	DEVCB_DRIVER_MEMBER(lviv_state,lviv_ppi_1_portb_r),
-	DEVCB_DRIVER_MEMBER(lviv_state,lviv_ppi_1_portb_w),
-	DEVCB_DRIVER_MEMBER(lviv_state,lviv_ppi_1_portc_r),
-	DEVCB_DRIVER_MEMBER(lviv_state,lviv_ppi_1_portc_w)
-};
-
 void lviv_state::machine_reset()
 {
 	address_space &space = m_maincpu->space(AS_PROGRAM);
 	UINT8 *mem;
-
-	space.set_direct_update_handler(direct_update_delegate(FUNC(lviv_state::lviv_directoverride), this));
 
 	m_video_ram = m_ram->pointer() + 0xc000;
 
@@ -337,28 +301,18 @@ int lviv_state::lviv_verify_snapshot (UINT8 * data, UINT32 size)
 
 SNAPSHOT_LOAD_MEMBER( lviv_state, lviv )
 {
-	UINT8 *lviv_snapshot_data;
-
-	lviv_snapshot_data = (UINT8*)malloc(LVIV_SNAPSHOT_SIZE);
-	if (!lviv_snapshot_data)
-	{
-		logerror ("Unable to load snapshot file\n");
-		return IMAGE_INIT_FAIL;
-	}
+	dynamic_buffer lviv_snapshot_data(LVIV_SNAPSHOT_SIZE);
 
 	image.fread( lviv_snapshot_data, LVIV_SNAPSHOT_SIZE);
 
 	if(lviv_verify_snapshot(lviv_snapshot_data, snapshot_size) == IMAGE_VERIFY_FAIL)
 	{
-		free(lviv_snapshot_data);
 		return IMAGE_INIT_FAIL;
 	}
 
 	lviv_setup_snapshot (lviv_snapshot_data);
 
 	dump_registers();
-
-	free(lviv_snapshot_data);
 
 	logerror("Snapshot file loaded\n");
 	return IMAGE_INIT_PASS;

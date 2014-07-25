@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     makelist.c
 
     Create and sort the driver list.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -41,15 +12,12 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include "corefile.h"
+#include "cstrpool.h"
 
 
-#define MAX_DRIVERS 65536
-#define MAX_IGNORE  512
-
-static const char *drivlist[MAX_DRIVERS];
-static int drivcount;
-static const char *ignorelst[MAX_IGNORE];
-static int ignorecount;
+static dynamic_array<const char *> drivlist;
+static dynamic_array<const char *> ignorelst;
+static const_string_pool string_pool;
 
 
 //-------------------------------------------------
@@ -71,11 +39,9 @@ int sort_callback(const void *elem1, const void *elem2)
 
 bool isignored(const char *drivname)
 {
-	if (ignorecount>0) {
-		for(int i=0;i<ignorecount;i++) {
-			if (strcmp(ignorelst[i],drivname)==0) return true;
-		}
-	}
+	for (int i = 0; i < ignorelst.count(); i++)
+		if (strcmp(ignorelst[i], drivname) == 0)
+			return true;
 	return false;
 }
 
@@ -87,9 +53,8 @@ bool isignored(const char *drivname)
 int parse_file(const char *srcfile)
 {
 	// read source file
-	void *buffer;
-	UINT32 length;
-	file_error filerr = core_fload(srcfile, &buffer, &length);
+	dynamic_buffer buffer;
+	file_error filerr = core_fload(srcfile, buffer);
 	if (filerr != FILERR_NONE)
 	{
 		fprintf(stderr, "Unable to read source file '%s'\n", srcfile);
@@ -97,8 +62,8 @@ int parse_file(const char *srcfile)
 	}
 
 	// rip through it to find all drivers
-	char *srcptr = (char *)buffer;
-	char *endptr = srcptr + length;
+	char *srcptr = (char *)&buffer[0];
+	char *endptr = srcptr + buffer.count();
 	int linenum = 1;
 	bool in_comment = false;
 	while (srcptr < endptr)
@@ -170,9 +135,7 @@ int parse_file(const char *srcfile)
 				drivname[pos+1] = 0;
 			}
 			fprintf(stderr, "Place driver '%s' to ignore list\n", drivname);
-			char *name = (char *)malloc(strlen(drivname) + 1);
-			strcpy(name, drivname);
-			ignorelst[ignorecount++] = name;
+			ignorelst.append(string_pool.add(drivname));
 			continue;
 		}
 
@@ -196,15 +159,9 @@ int parse_file(const char *srcfile)
 		}
 
 		// add it to the list
-		if(!isignored(drivname))
-		{
-			char *name = (char *)malloc(strlen(drivname) + 1);
-			strcpy(name, drivname);
-			drivlist[drivcount++] = name;
-		}
+		if (!isignored(drivname))
+			drivlist.append(string_pool.add(drivname));
 	}
-
-	osd_free(buffer);
 
 	return 0;
 }
@@ -230,44 +187,42 @@ int main(int argc, char *argv[])
 	const char *srcfile = argv[1];
 
 	// parse the root file, exit early upon failure
-	drivcount = 0;
-	ignorecount = 0;
 	if (parse_file(srcfile))
 		return 1;
 
 	// output a count
-	if (drivcount == 0)
+	if (drivlist.count() == 0)
 	{
 		fprintf(stderr, "No drivers found\n");
 		return 1;
 	}
-	fprintf(stderr, "%d drivers found\n", drivcount);
+	fprintf(stderr, "%d drivers found\n", drivlist.count());
 
 	// add a reference to the ___empty driver
-	drivlist[drivcount++] = "___empty";
+	drivlist.append("___empty");
 
 	// sort the list
-	qsort(drivlist, drivcount, sizeof(*drivlist), sort_callback);
+	qsort(drivlist, drivlist.count(), sizeof(drivlist[0]), sort_callback);
 
 	// start with a header
 	printf("#include \"emu.h\"\n\n");
 	printf("#include \"drivenum.h\"\n\n");
 
 	// output the list of externs first
-	for (int index = 0; index < drivcount; index++)
+	for (int index = 0; index < drivlist.count(); index++)
 		printf("GAME_EXTERN(%s);\n", drivlist[index]);
 	printf("\n");
 
 	// then output the array
-	printf("const game_driver * const driver_list::s_drivers_sorted[%d] =\n", drivcount);
+	printf("const game_driver * const driver_list::s_drivers_sorted[%d] =\n", drivlist.count());
 	printf("{\n");
-	for (int index = 0; index < drivcount; index++)
-		printf("\t&GAME_NAME(%s)%s\n", drivlist[index], (index == drivcount - 1) ? "" : ",");
+	for (int index = 0; index < drivlist.count(); index++)
+		printf("\t&GAME_NAME(%s)%s\n", drivlist[index], (index == drivlist.count() - 1) ? "" : ",");
 	printf("};\n");
 	printf("\n");
 
 	// also output a global count
-	printf("int driver_list::s_driver_count = %d;\n", drivcount);
+	printf("int driver_list::s_driver_count = %d;\n", drivlist.count());
 
 	return 0;
 }

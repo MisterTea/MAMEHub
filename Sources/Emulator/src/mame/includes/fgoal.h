@@ -12,7 +12,10 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_video_ram(*this, "video_ram"),
 		m_maincpu(*this, "maincpu"),
-		m_mb14241(*this, "mb14241")
+		m_mb14241(*this, "mb14241"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette")
 		{ }
 
 	/* memory pointers */
@@ -34,6 +37,10 @@ public:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<mb14241_device> m_mb14241;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	DECLARE_READ8_MEMBER(fgoal_analog_r);
 	DECLARE_READ8_MEMBER(fgoal_nmi_reset_r);
 	DECLARE_READ8_MEMBER(fgoal_irq_reset_r);
@@ -53,7 +60,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(fgoal);
 	UINT32 screen_update_fgoal(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(interrupt_callback);
 	int intensity(int bits);

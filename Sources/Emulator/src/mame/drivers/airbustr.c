@@ -313,19 +313,9 @@ WRITE8_MEMBER(airbustr_state::soundcommand2_w)
 	m_soundlatch2_status = 1;   // soundlatch2 has been written
 }
 
-WRITE8_MEMBER(airbustr_state::airbustr_paletteram_w)
-{
-	int val;
 
-	/*  ! byte 1 ! ! byte 0 !   */
-	/*  xGGG GGRR   RRRB BBBB   */
-	/*  x432 1043   2104 3210   */
 
-	m_paletteram[offset] = data;
-	val = (m_paletteram[offset | 1] << 8) | m_paletteram[offset & ~1];
 
-	palette_set_color_rgb(machine(), offset / 2, pal5bit(val >> 5), pal5bit(val >> 10), pal5bit(val >> 0));
-}
 
 WRITE8_MEMBER(airbustr_state::airbustr_coin_counter_w)
 {
@@ -359,7 +349,7 @@ static ADDRESS_MAP_START( slave_map, AS_PROGRAM, 8, airbustr_state )
 	AM_RANGE(0xc400, 0xc7ff) AM_RAM_WRITE(airbustr_colorram2_w) AM_SHARE("colorram2")
 	AM_RANGE(0xc800, 0xcbff) AM_RAM_WRITE(airbustr_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0xcc00, 0xcfff) AM_RAM_WRITE(airbustr_colorram_w) AM_SHARE("colorram")
-	AM_RANGE(0xd000, 0xd5ff) AM_RAM_WRITE(airbustr_paletteram_w) AM_SHARE("paletteram")
+	AM_RANGE(0xd000, 0xd5ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xd600, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xefff) AM_RAM
 	AM_RANGE(0xf000, 0xffff) AM_RAM AM_SHARE("share1")
@@ -526,17 +516,6 @@ static GFXDECODE_START( airbustr )
 	GFXDECODE_ENTRY( "gfx2", 0, sprite_gfxlayout, 512, 16 ) // sprites
 GFXDECODE_END
 
-/* Sound Interfaces */
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW1"),       // DSW-1 connected to port A
-	DEVCB_INPUT_PORT("DSW2"),       // DSW-2 connected to port B
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 /* Interrupt Generators */
 
@@ -599,12 +578,6 @@ void airbustr_state::machine_reset()
 
 /* Machine Driver */
 
-static const kaneko_pandora_interface airbustr_pandora_config =
-{
-	1,  /* gfx_region */
-	0, 0    /* x_offs, y_offs */
-};
-
 static MACHINE_CONFIG_START( airbustr, airbustr_state )
 
 	/* basic machine hardware */
@@ -635,18 +608,23 @@ static MACHINE_CONFIG_START( airbustr, airbustr_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(airbustr_state, screen_update_airbustr)
 	MCFG_SCREEN_VBLANK_DRIVER(airbustr_state, screen_eof_airbustr)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(airbustr)
-	MCFG_PALETTE_LENGTH(768)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", airbustr)
+	MCFG_PALETTE_ADD("palette", 768)
+	MCFG_PALETTE_FORMAT(xGGGGGRRRRRBBBBB)
 
-	MCFG_KANEKO_PANDORA_ADD("pandora", airbustr_pandora_config)
-
+	MCFG_DEVICE_ADD("pandora", KANEKO_PANDORA, 0)
+	MCFG_KANEKO_PANDORA_GFX_REGION(1)
+	MCFG_KANEKO_PANDORA_GFXDECODE("gfxdecode")
+	MCFG_KANEKO_PANDORA_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3000000)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW1"))       // DSW-1 connected to port A
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW2"))       // DSW-2 connected to port B
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 	MCFG_SOUND_ROUTE(2, "mono", 0.25)

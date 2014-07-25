@@ -16,717 +16,863 @@
  *   - This entire notice must remain in the source code.
  *
  *****************************************************************************
- *  Currently this source emulates a TMS70x0, not any of the other variants
- *  Unimplemented is the MC pin which (in conjunection with IOCNT0 bits 7 and 6
- *  control the memory mapping.
+ *  Misc. improvements were done over the years by team MESS/MAME
  *
- *  This source implements the MC pin at Vss and mode bits in single chip mode.
+ *  TODO:
+ *  - dump CROM and emulate cpu at microinstruction level
+ *  - memory modes with IOCNT0, currently always running in full expansion mode
+ *  - timer event counter mode (timer control register, bit 6)
+ *  - TMS70x1/2 serial port and timer 3
+ *  - when they're needed, add TMS70Cx2, TMS7742, TMS77C82, SE70xxx
+ *
  *****************************************************************************/
 
-// SJE: Changed all references to ICount to icount (to match MAME requirements)
-// SJE: Changed RM/WM macros to reference newly created tms7000 read/write handlers & removed unused SRM(cpustate) macro
-// SJE: Fixed a mistake in tms70x0_pf_w where the wrong register was referenced
-// SJE: Implemented internal register file
-
-#include "emu.h"
-#include "debugger.h"
 #include "tms7000.h"
 
-#define VERBOSE 0
+// 7000 is the most basic one, 128 bytes internal RAM and no internal ROM.
+// 7020 and 7040 are same, but with 2KB and 4KB internal ROM respectively.
+const device_type TMS7000 = &device_creator<tms7000_device>;
+const device_type TMS7020 = &device_creator<tms7020_device>;
+const device_type TMS7040 = &device_creator<tms7040_device>;
 
-#define LOG(x)  do { if (VERBOSE) logerror x; } while (0)
+// Exelvision (spinoff of TI) 7020 added one custom opcode.
+const device_type TMS7020_EXL = &device_creator<tms7020_exl_device>;
 
-struct tms7000_state;
+// CMOS devices biggest difference in a 'real world' setting is that the power
+// requirements are much lower. This obviously has no use in software emulation.
+const device_type TMS70C00 = &device_creator<tms70c00_device>;
+const device_type TMS70C20 = &device_creator<tms70c20_device>;
+const device_type TMS70C40 = &device_creator<tms70c40_device>;
 
-/* Private prototypes */
+// 70C46 is same as 70C40, except with support for memory mapped I/O?
+// note: may also be labeled TMC70009
+const device_type TMS70C46 = &device_creator<tms70c46_device>;
 
-static void tms7000_set_irq_line(tms7000_state *cpustate, int irqline, int state);
-static void tms7000_check_IRQ_lines(tms7000_state *cpustate);
-static void tms7000_do_interrupt( tms7000_state *cpustate, UINT16 address, UINT8 line );
-static CPU_EXECUTE( tms7000 );
-static CPU_EXECUTE( tms7000_exl );
-static void tms7000_service_timer1( device_t *device );
-static UINT16 bcd_add( UINT16 a, UINT16 b );
-static UINT16 bcd_tencomp( UINT16 a );
-static UINT16 bcd_sub( UINT16 a, UINT16 b);
+// 70x1 features more peripheral I/O, the main addition being a serial port.
+// 70x2 is the same, just with twice more RAM (256 bytes)
+const device_type TMS7001 = &device_creator<tms7001_device>;
+const device_type TMS7041 = &device_creator<tms7041_device>;
+const device_type TMS7002 = &device_creator<tms7002_device>;
+const device_type TMS7042 = &device_creator<tms7042_device>;
 
-/* Static variables */
+// 70Cx2 is an update to 70x2 with some extra features. Due to some changes
+// in peripheral file I/O, it is not backward compatible to 70x2.
 
-#define RM(Addr) ((unsigned)cpustate->program->read_byte(Addr))
-#define WM(Addr,Value) (cpustate->program->write_byte(Addr, Value))
 
-#define IMMBYTE(b)  b = ((unsigned)cpustate->direct->read_raw_byte(pPC)); pPC++
-#define SIMMBYTE(b) b = ((signed)cpustate->direct->read_raw_byte(pPC)); pPC++
-#define IMMWORD(w)  w.b.h = (unsigned)cpustate->direct->read_raw_byte(pPC++); w.b.l = (unsigned)cpustate->direct->read_raw_byte(pPC++)
+// flag helpers
+#define SR_C        0x80 /* Carry */
+#define SR_N        0x40 /* Negative */
+#define SR_Z        0x20 /* Zero */
+#define SR_I        0x10 /* Interrupt */
 
-#define PUSHBYTE(b) pSP++; WM(pSP,b)
-#define PUSHWORD(w) pSP++; WM(pSP,w.b.h); pSP++; WM(pSP,w.b.l)
-#define PULLBYTE(b) b = RM(pSP); pSP--
-#define PULLWORD(w) w.b.l = RM(pSP); pSP--; w.b.h = RM(pSP); pSP--
+#define GET_C()     (m_sr >> 7 & 1)
+#define SET_C(x)    m_sr = (m_sr & 0x7f) | ((x) >> 1 & 0x80)
+#define SET_NZ(x)   m_sr = (m_sr & 0x9f) | ((x) >> 1 & 0x40) | (((x) & 0xff) ? 0 : 0x20)
+#define SET_CNZ(x)  m_sr = (m_sr & 0x1f) | ((x) >> 1 & 0xc0) | (((x) & 0xff) ? 0 : 0x20)
 
-struct tms7000_state
-{
-	PAIR        pc;         /* Program counter */
-	UINT8       sp;     /* Stack Pointer */
-	UINT8       sr;     /* Status Register */
-	UINT8       irq_state[3];   /* State of the three IRQs */
-	UINT8       rf[0x80];   /* Register file (SJE) */
-	UINT8       pf[0x100];  /* Perpherial file */
-	device_irq_acknowledge_callback irq_callback;
-	legacy_cpu_device *device;
-	address_space *program;
-	direct_read_data *direct;
-	address_space *io;
-	int         icount;
-	int         div_by_16_trigger;
-	int         cycles_per_INT2;
-	UINT8       t1_capture_latch; /* Timer 1 capture latch */
-	INT8        t1_prescaler;   /* Timer 1 prescaler (5 bits) */
-	INT16       t1_decrementer; /* Timer 1 decrementer (8 bits) */
-	UINT8       idle_state; /* Set after the execution of an idle instruction */
-};
 
-INLINE tms7000_state *get_safe_token(device_t *device)
-{
-	assert(device != NULL);
-	assert(device->type() == TMS7000 ||
-			device->type() == TMS7000_EXL);
-	return (tms7000_state *)downcast<legacy_cpu_device *>(device)->token();
-}
+// internal memory maps
+static ADDRESS_MAP_START(tms7000_io, AS_IO, 8, tms7000_device)
+	AM_RANGE(TMS7000_PORTB, TMS7000_PORTB) AM_READNOP
+ADDRESS_MAP_END
 
-#define pPC     cpustate->pc.w.l
-#define PC      cpustate->pc
-#define pSP     cpustate->sp
-#define pSR     cpustate->sr
+static ADDRESS_MAP_START(tms7000_mem, AS_PROGRAM, 8, tms7000_device )
+	AM_RANGE(0x0000, 0x007f) AM_RAM // 128 bytes internal RAM
+	AM_RANGE(0x0080, 0x00ff) AM_READWRITE(tms7000_unmapped_rf_r, tms7000_unmapped_rf_w)
+	AM_RANGE(0x0104, 0x0105) AM_WRITENOP // no port A write or ddr
+	AM_RANGE(0x0100, 0x010b) AM_READWRITE(tms7000_pf_r, tms7000_pf_w)
+ADDRESS_MAP_END
 
-#define RDA     RM(0x0000)
-#define RDB     RM(0x0001)
+static ADDRESS_MAP_START(tms7001_mem, AS_PROGRAM, 8, tms7000_device )
+	AM_RANGE(0x0000, 0x007f) AM_RAM // 128 bytes internal RAM
+	AM_RANGE(0x0080, 0x00ff) AM_READWRITE(tms7000_unmapped_rf_r, tms7000_unmapped_rf_w)
+	AM_RANGE(0x0100, 0x010b) AM_READWRITE(tms7000_pf_r, tms7000_pf_w)
+	AM_RANGE(0x0110, 0x0117) AM_READWRITE(tms7002_pf_r, tms7002_pf_w)
+ADDRESS_MAP_END
 
-#define WRA(Value) (WM(0x0000,Value))
-#define WRB(Value) (WM(0x0001,Value))
+static ADDRESS_MAP_START(tms7002_mem, AS_PROGRAM, 8, tms7000_device )
+	AM_RANGE(0x0000, 0x00ff) AM_RAM // 256 bytes internal RAM
+	AM_RANGE(0x0100, 0x010b) AM_READWRITE(tms7000_pf_r, tms7000_pf_w)
+	AM_RANGE(0x0110, 0x0117) AM_READWRITE(tms7002_pf_r, tms7002_pf_w)
+ADDRESS_MAP_END
 
-#define SR_C    0x80        /* Carry */
-#define SR_N    0x40        /* Negative */
-#define SR_Z    0x20        /* Zero */
-#define SR_I    0x10        /* Interrupt */
+static ADDRESS_MAP_START(tms7020_mem, AS_PROGRAM, 8, tms7000_device )
+	AM_RANGE(0xf000, 0xffff) AM_ROM // 2kB internal ROM
+	AM_IMPORT_FROM( tms7000_mem )
+ADDRESS_MAP_END
 
-#define CLR_NZC     pSR&=~(SR_N|SR_Z|SR_C)
-#define CLR_NZCI    pSR&=~(SR_N|SR_Z|SR_C|SR_I)
-#define SET_C8(a)   pSR|=((a&0x0100)>>1)
-#define SET_N8(a)   pSR|=((a&0x0080)>>1)
-#define SET_Z(a)    if(!a)pSR|=SR_Z
-#define SET_Z8(a)   SET_Z((UINT8)a)
-#define SET_Z16(a)  SET_Z((UINT8)a>>8)
-#define GET_C       (pSR >> 7)
+static ADDRESS_MAP_START(tms7040_mem, AS_PROGRAM, 8, tms7000_device )
+	AM_RANGE(0xf000, 0xffff) AM_ROM // 4kB internal ROM
+	AM_IMPORT_FROM( tms7000_mem )
+ADDRESS_MAP_END
 
-/* Not working */
-#define SET_C16(a)  pSR|=((a&0x010000)>>9)
+static ADDRESS_MAP_START(tms7041_mem, AS_PROGRAM, 8, tms7000_device )
+	AM_RANGE(0xf000, 0xffff) AM_ROM
+	AM_IMPORT_FROM( tms7001_mem )
+ADDRESS_MAP_END
 
-#define SETC        pSR |= SR_C
-#define SETZ        pSR |= SR_Z
-#define SETN        pSR |= SR_N
-
-static DECLARE_READ8_HANDLER( tms7000_internal_r );
-static DECLARE_WRITE8_HANDLER( tms7000_internal_w );
-static DECLARE_READ8_HANDLER( tms70x0_pf_r );
-static DECLARE_WRITE8_HANDLER( tms70x0_pf_w );
-
-static ADDRESS_MAP_START(tms7000_mem, AS_PROGRAM, 8, legacy_cpu_device )
-	AM_RANGE(0x0000, 0x007f)    AM_READWRITE_LEGACY(tms7000_internal_r, tms7000_internal_w) /* tms7000 internal RAM */
-	AM_RANGE(0x0080, 0x00ff)    AM_NOP                      /* reserved */
-	AM_RANGE(0x0100, 0x01ff)    AM_READWRITE_LEGACY(tms70x0_pf_r, tms70x0_pf_w)             /* tms7000 internal I/O ports */
+static ADDRESS_MAP_START(tms7042_mem, AS_PROGRAM, 8, tms7000_device )
+	AM_RANGE(0xf000, 0xffff) AM_ROM
+	AM_IMPORT_FROM( tms7002_mem )
 ADDRESS_MAP_END
 
 
-INLINE UINT16 RM16( tms7000_state *cpustate, UINT32 mAddr ) /* Read memory (16-bit) */
+// device definitions
+tms7000_device::tms7000_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: cpu_device(mconfig, TMS7000, "TMS7000", tag, owner, clock, "tms7000", __FILE__),
+	m_program_config("program", ENDIANNESS_BIG, 8, 16, 0, ADDRESS_MAP_NAME(tms7000_mem)),
+	m_io_config("io", ENDIANNESS_BIG, 8, 8, 0, ADDRESS_MAP_NAME(tms7000_io)),
+	m_info_flags(0)
 {
-	UINT32 result = RM(mAddr) << 8;
-	return result | RM((mAddr+1)&0xffff);
 }
 
-INLINE UINT16 RRF16( tms7000_state *cpustate, UINT32 mAddr )    /*Read register file (16 bit) */
+tms7000_device::tms7000_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, address_map_constructor internal, UINT32 info_flags, const char *shortname, const char *source)
+	: cpu_device(mconfig, type, name, tag, owner, clock, shortname, source),
+	m_program_config("program", ENDIANNESS_BIG, 8, 16, 0, internal),
+	m_io_config("io", ENDIANNESS_BIG, 8, 8, 0, ADDRESS_MAP_NAME(tms7000_io)),
+	m_info_flags(info_flags)
 {
-	PAIR result;
-	result.b.h = RM((mAddr-1)&0xffff);
-	result.b.l = RM(mAddr);
-	return result.w.l;
 }
 
-INLINE void WRF16( tms7000_state *cpustate, UINT32 mAddr, PAIR p )  /*Write register file (16 bit) */
+tms7020_device::tms7020_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tms7000_device(mconfig, TMS7020, "TMS7020", tag, owner, clock, ADDRESS_MAP_NAME(tms7020_mem), 0, "tms7020", __FILE__)
 {
-	WM( (mAddr-1)&0xffff, p.b.h );
-	WM( mAddr, p.b.l );
 }
 
-
-static CPU_INIT( tms7000 )
+tms7020_exl_device::tms7020_exl_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tms7000_device(mconfig, TMS7020_EXL, "TMS7020 (Exelvision)", tag, owner, clock, ADDRESS_MAP_NAME(tms7020_mem), 0, "tms7020_exl", __FILE__)
 {
-	tms7000_state *cpustate = get_safe_token(device);
-
-	cpustate->irq_callback = irqcallback;
-	cpustate->device = device;
-	cpustate->program = &device->space(AS_PROGRAM);
-	cpustate->direct = &cpustate->program->direct();
-	cpustate->io = &device->space(AS_IO);
-
-	memset(cpustate->pf, 0, 0x100);
-	memset(cpustate->rf, 0, 0x80);
-
-	/* Save register state */
-	device->save_item(NAME(pPC));
-	device->save_item(NAME(pSP));
-	device->save_item(NAME(pSR));
-
-	/* Save Interrupt state */
-	device->save_item(NAME(cpustate->irq_state));
-
-	/* Save register and perpherial file state */
-	device->save_item(NAME(cpustate->rf));
-	device->save_item(NAME(cpustate->pf));
-
-	/* Save timer state */
-	device->save_item(NAME(cpustate->t1_prescaler));
-	device->save_item(NAME(cpustate->t1_capture_latch));
-	device->save_item(NAME(cpustate->t1_decrementer));
-
-	device->save_item(NAME(cpustate->idle_state));
 }
 
-static CPU_RESET( tms7000 )
+tms7040_device::tms7040_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tms7000_device(mconfig, TMS7040, "TMS7040", tag, owner, clock, ADDRESS_MAP_NAME(tms7040_mem), 0, "tms7040", __FILE__)
 {
-	tms7000_state *cpustate = get_safe_token(device);
+}
 
-//  cpustate->architecture = (int)param;
+tms70c00_device::tms70c00_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tms7000_device(mconfig, TMS70C00, "TMS70C00", tag, owner, clock, ADDRESS_MAP_NAME(tms7000_mem), TMS7000_CHIP_IS_CMOS, "tms70c00", __FILE__)
+{
+}
 
-	cpustate->idle_state = 0;
-	cpustate->irq_state[ TMS7000_IRQ1_LINE ] = CLEAR_LINE;
-	cpustate->irq_state[ TMS7000_IRQ2_LINE ] = CLEAR_LINE;
-	cpustate->irq_state[ TMS7000_IRQ3_LINE ] = CLEAR_LINE;
+tms70c20_device::tms70c20_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tms7000_device(mconfig, TMS70C20, "TMS70C20", tag, owner, clock, ADDRESS_MAP_NAME(tms7020_mem), TMS7000_CHIP_IS_CMOS, "tms70c20", __FILE__)
+{
+}
 
-	WM( 0x100 + 9, 0 );     /* Data direction regs are cleared */
-	WM( 0x100 + 11, 0 );
+tms70c40_device::tms70c40_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tms7000_device(mconfig, TMS70C40, "TMS70C40", tag, owner, clock, ADDRESS_MAP_NAME(tms7040_mem), TMS7000_CHIP_IS_CMOS, "tms70c40", __FILE__)
+{
+}
 
-//  if( cpustate->architecture == TMS7000_NMOS )
-//  {
-		WM( 0x100 + 4, 0xff );      /* Output 0xff on port A */
-		WM( 0x100 + 8, 0xff );      /* Output 0xff on port C */
-		WM( 0x100 + 10, 0xff );     /* Output 0xff on port D */
-//  }
-//  else
-//  {
-//      WM( 0x100 + 4, 0xff );      /* Output 0xff on port A */
-//  }
+tms70c46_device::tms70c46_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tms7000_device(mconfig, TMS70C46, "TMS70C46", tag, owner, clock, ADDRESS_MAP_NAME(tms7040_mem), TMS7000_CHIP_IS_CMOS, "tms70c46", __FILE__)
+{
+}
 
-	pSP = 0x01;             /* Set stack pointer to r1 */
-	pSR = 0x00;             /* Clear status register (disabling interrupts */
-	WM( 0x100 + 0, 0 );     /* Write a zero to IOCNT0 */
+tms7001_device::tms7001_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tms7000_device(mconfig, TMS7001, "TMS7001", tag, owner, clock, ADDRESS_MAP_NAME(tms7001_mem), TMS7000_CHIP_FAMILY_70X2, "tms7001", __FILE__)
+{
+}
 
-	/* On TMS70x2 and TMS70Cx2 IOCNT1 is zero */
+tms7041_device::tms7041_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tms7000_device(mconfig, TMS7041, "TMS7041", tag, owner, clock, ADDRESS_MAP_NAME(tms7041_mem), TMS7000_CHIP_FAMILY_70X2, "tms7041", __FILE__)
+{
+}
 
-	WRA( cpustate->pc.b.h );    /* Write previous PC to A:B */
-	WRB( cpustate->pc.b.l );
-	pPC = RM16(cpustate, 0xfffe);       /* Load reset vector */
+tms7002_device::tms7002_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tms7000_device(mconfig, TMS7002, "TMS7002", tag, owner, clock, ADDRESS_MAP_NAME(tms7002_mem), TMS7000_CHIP_FAMILY_70X2, "tms7002", __FILE__)
+{
+}
 
-	cpustate->div_by_16_trigger = -16;
+tms7042_device::tms7042_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tms7000_device(mconfig, TMS7042, "TMS7042", tag, owner, clock, ADDRESS_MAP_NAME(tms7042_mem), TMS7000_CHIP_FAMILY_70X2, "tms7042", __FILE__)
+{
 }
 
 
+//-------------------------------------------------
+//  device_start - device-specific startup
+//-------------------------------------------------
 
-/**************************************************************************
- * Generic set_info
- **************************************************************************/
-
-static CPU_SET_INFO( tms7000 )
+void tms7000_device::device_start()
 {
-	tms7000_state *cpustate = get_safe_token(device);
+	// init/zerofill
+	m_program = &space(AS_PROGRAM);
+	m_direct = &m_program->direct();
+	m_io = &space(AS_IO);
 
-	switch (state)
+	m_icountptr = &m_icount;
+
+	m_irq_state[TMS7000_INT1_LINE] = false;
+	m_irq_state[TMS7000_INT3_LINE] = false;
+
+	m_idle_state = false;
+	m_idle_halt = false;
+	m_pc = 0;
+	m_sp = 0;
+	m_sr = 0;
+	m_op = 0;
+
+	memset(m_io_control, 0, 3);
+
+	memset(m_port_latch, 0, 4);
+	memset(m_port_ddr, 0, 4);
+	m_port_ddr[1] = 0xff; // !
+
+	for (int tmr = 0; tmr < 2; tmr++)
 	{
-		/* --- the following bits of info are set as 64-bit signed integers --- */
-		case CPUINFO_INT_INPUT_STATE + TMS7000_IRQ1_LINE:   tms7000_set_irq_line(cpustate, TMS7000_IRQ1_LINE, info->i); break;
-		case CPUINFO_INT_INPUT_STATE + TMS7000_IRQ2_LINE:   tms7000_set_irq_line(cpustate, TMS7000_IRQ2_LINE, info->i); break;
-		case CPUINFO_INT_INPUT_STATE + TMS7000_IRQ3_LINE:   tms7000_set_irq_line(cpustate, TMS7000_IRQ3_LINE, info->i); break;
+		m_timer_handle[tmr] = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(tms7000_device::simple_timer_cb), this));
+		m_timer_handle[tmr]->adjust(attotime::never, tmr);
 
-		case CPUINFO_INT_PC:
-		case CPUINFO_INT_REGISTER + TMS7000_PC: pPC = info->i; break;
-		case CPUINFO_INT_SP:
-		case CPUINFO_INT_REGISTER + TMS7000_SP: pSP = info->i;  break;
-		case CPUINFO_INT_REGISTER + TMS7000_ST: pSR = info->i;  tms7000_check_IRQ_lines(cpustate);  break;
-		case CPUINFO_INT_REGISTER + TMS7000_IDLE: cpustate->idle_state = info->i;   break;
-		case CPUINFO_INT_REGISTER + TMS7000_T1_CL: cpustate->t1_capture_latch = info->i;    break;
-		case CPUINFO_INT_REGISTER + TMS7000_T1_PS: cpustate->t1_prescaler = info->i;    break;
-		case CPUINFO_INT_REGISTER + TMS7000_T1_DEC: cpustate->t1_decrementer = info->i; break;
+		m_timer_data[tmr] = 0;
+		m_timer_control[tmr] = 0;
+		m_timer_decrementer[tmr] = 0;
+		m_timer_prescaler[tmr] = 0;
+		m_timer_capture_latch[tmr] = 0;
 	}
+
+	// register for savestates
+	save_item(NAME(m_irq_state));
+	save_item(NAME(m_idle_state));
+	save_item(NAME(m_pc));
+	save_item(NAME(m_sp));
+	save_item(NAME(m_sr));
+	save_item(NAME(m_op));
+
+	save_item(NAME(m_io_control));
+	save_item(NAME(m_port_latch));
+	save_item(NAME(m_port_ddr));
+	save_item(NAME(m_timer_data));
+	save_item(NAME(m_timer_control));
+	save_item(NAME(m_timer_decrementer));
+	save_item(NAME(m_timer_prescaler));
+	save_item(NAME(m_timer_capture_latch));
+
+	// register for debugger
+	state_add( TMS7000_PC, "PC", m_pc).formatstr("%02X");
+	state_add( TMS7000_SP, "S", m_sp).formatstr("%02X");
+	state_add( TMS7000_ST, "ST", m_sr).formatstr("%02X");
+
+	state_add(STATE_GENPC, "GENPC", m_pc).formatstr("%02X").noshow();
+	state_add(STATE_GENSP, "GENSP", m_sp).formatstr("%02X").noshow();
+	state_add(STATE_GENFLAGS, "GENFLAGS", m_sr).formatstr("%8s").noshow();
 }
 
-/**************************************************************************
- * Generic get_info
- **************************************************************************/
-
-CPU_GET_INFO( tms7000 )
+void tms7000_device::state_string_export(const device_state_entry &entry, astring &string)
 {
-	tms7000_state *cpustate = (device != NULL && device->token() != NULL) ? get_safe_token(device) : NULL;
-
-	switch( state )
+	switch (entry.index())
 	{
-		/* --- the following bits of info are returned as 64-bit signed integers --- */
-		case CPUINFO_INT_CONTEXT_SIZE:  info->i = sizeof(tms7000_state);    break;
-		case CPUINFO_INT_INPUT_LINES:   info->i = 3;    break;
-		case CPUINFO_INT_DEFAULT_IRQ_VECTOR:    info->i = 0;    break;
-		case CPUINFO_INT_ENDIANNESS:    info->i = ENDIANNESS_BIG;   break;
-		case CPUINFO_INT_CLOCK_MULTIPLIER:  info->i = 1;    break;
-		case CPUINFO_INT_CLOCK_DIVIDER: info->i = 1;    break;
-		case CPUINFO_INT_MIN_INSTRUCTION_BYTES: info->i = 1;    break;
-		case CPUINFO_INT_MAX_INSTRUCTION_BYTES: info->i = 4;    break;
-		case CPUINFO_INT_MIN_CYCLES:    info->i = 1;    break;
-		case CPUINFO_INT_MAX_CYCLES:    info->i = 48;   break; /* 48 represents the multiply instruction, the next highest is 17 */
-
-		case CPUINFO_INT_DATABUS_WIDTH + AS_PROGRAM:    info->i = 8;    break;
-		case CPUINFO_INT_ADDRBUS_WIDTH + AS_PROGRAM:    info->i = 16;   break;
-		case CPUINFO_INT_ADDRBUS_SHIFT + AS_PROGRAM:    info->i = 0;    break;
-		case CPUINFO_INT_DATABUS_WIDTH + AS_DATA:   info->i = 0;    break;
-		case CPUINFO_INT_ADDRBUS_WIDTH + AS_DATA:   info->i = 0;    break;
-		case CPUINFO_INT_ADDRBUS_SHIFT + AS_DATA:   info->i = 0;    break;
-		case CPUINFO_INT_DATABUS_WIDTH + AS_IO: info->i = 8;    break;
-		case CPUINFO_INT_ADDRBUS_WIDTH + AS_IO: info->i = 8;    break;
-		case CPUINFO_INT_ADDRBUS_SHIFT + AS_IO: info->i = 0;    break;
-
-		case CPUINFO_INT_INPUT_STATE + TMS7000_IRQ1_LINE:   info->i = cpustate->irq_state[TMS7000_IRQ1_LINE]; break;
-		case CPUINFO_INT_INPUT_STATE + TMS7000_IRQ2_LINE:   info->i = cpustate->irq_state[TMS7000_IRQ2_LINE]; break;
-		case CPUINFO_INT_INPUT_STATE + TMS7000_IRQ3_LINE:   info->i = cpustate->irq_state[TMS7000_IRQ3_LINE]; break;
-
-		case CPUINFO_INT_PREVIOUSPC:    info->i = 0; /* Not supported */    break;
-
-		case CPUINFO_INT_PC:
-		case CPUINFO_INT_REGISTER + TMS7000_PC: info->i = pPC;  break;
-		case CPUINFO_INT_SP:
-		case CPUINFO_INT_REGISTER + TMS7000_SP: info->i = pSP;  break;
-		case CPUINFO_INT_REGISTER + TMS7000_ST: info->i = pSR;  break;
-		case CPUINFO_INT_REGISTER + TMS7000_IDLE: info->i = cpustate->idle_state; break;
-		case CPUINFO_INT_REGISTER + TMS7000_T1_CL: info->i = cpustate->t1_capture_latch; break;
-		case CPUINFO_INT_REGISTER + TMS7000_T1_PS: info->i = cpustate->t1_prescaler; break;
-		case CPUINFO_INT_REGISTER + TMS7000_T1_DEC: info->i = cpustate->t1_decrementer; break;
-
-		/* --- the following bits of info are returned as pointers to data or functions --- */
-		case CPUINFO_FCT_SET_INFO:  info->setinfo = CPU_SET_INFO_NAME(tms7000); break;
-		case CPUINFO_FCT_INIT:  info->init = CPU_INIT_NAME(tms7000);    break;
-		case CPUINFO_FCT_RESET: info->reset = CPU_RESET_NAME(tms7000);  break;
-		case CPUINFO_FCT_EXECUTE:   info->execute = CPU_EXECUTE_NAME(tms7000);  break;
-		case CPUINFO_FCT_BURN:  info->burn = NULL;  /* Not supported */break;
-		case CPUINFO_FCT_DISASSEMBLE:   info->disassemble = CPU_DISASSEMBLE_NAME(tms7000);  break;
-		case CPUINFO_PTR_INSTRUCTION_COUNTER:   info->icount = &cpustate->icount;   break;
-		case CPUINFO_PTR_INTERNAL_MEMORY_MAP + AS_PROGRAM:  info->internal_map8 = ADDRESS_MAP_NAME(tms7000_mem); break;
-
-		/* --- the following bits of info are returned as NULL-terminated strings --- */
-		case CPUINFO_STR_NAME:  strcpy(info->s, "TMS7000"); break;
-		case CPUINFO_STR_SHORTNAME:  strcpy(info->s, "tms7000"); break;
-		case CPUINFO_STR_FAMILY:    strcpy(info->s, "Texas Instriuments TMS7000"); break;
-		case CPUINFO_STR_VERSION:   strcpy(info->s, "1.0"); break;
-		case CPUINFO_STR_SOURCE_FILE:   strcpy(info->s, __FILE__); break;
-		case CPUINFO_STR_CREDITS:   strcpy(info->s, "Copyright tim lindner"); break;
-
-		case CPUINFO_STR_FLAGS:
-				sprintf(info->s,  "%c%c%c%c%c%c%c%c",
-						cpustate->sr & 0x80 ? 'C':'c',
-						cpustate->sr & 0x40 ? 'N':'n',
-						cpustate->sr & 0x20 ? 'Z':'z',
-						cpustate->sr & 0x10 ? 'I':'i',
-						cpustate->sr & 0x08 ? '?':'.',
-						cpustate->sr & 0x04 ? '?':'.',
-						cpustate->sr & 0x02 ? '?':'.',
-						cpustate->sr & 0x01 ? '?':'.' );
-				break;
-
-		case CPUINFO_STR_REGISTER + TMS7000_PC: sprintf(info->s, "PC:%04X", cpustate->pc.w.l); break;
-		case CPUINFO_STR_REGISTER + TMS7000_SP: sprintf(info->s, "S:%02X", cpustate->sp); break;
-		case CPUINFO_STR_REGISTER + TMS7000_ST: sprintf(info->s, "ST:%02X", cpustate->sr); break;
-		case CPUINFO_STR_REGISTER + TMS7000_IDLE: sprintf(info->s, "Idle:%02X", cpustate->idle_state); break;
-		case CPUINFO_STR_REGISTER + TMS7000_T1_CL: sprintf(info->s, "T1CL:%02X", cpustate->t1_capture_latch); break;
-		case CPUINFO_STR_REGISTER + TMS7000_T1_PS: sprintf(info->s, "T1PS:%02X", cpustate->t1_prescaler & 0x1f); break;
-		case CPUINFO_STR_REGISTER + TMS7000_T1_DEC: sprintf(info->s, "T1DEC:%02X", cpustate->t1_decrementer & 0xff); break;
-
-	}
-}
-
-CPU_GET_INFO( tms7000_exl )
-{
-	switch( state )
-	{
-		case CPUINFO_FCT_EXECUTE:
-			info->execute = CPU_EXECUTE_NAME(tms7000_exl);
+		case STATE_GENFLAGS:
+			string.printf("%c%c%c%c%c%c%c%c",
+				m_sr & 0x80 ? 'C':'c',
+				m_sr & 0x40 ? 'N':'n',
+				m_sr & 0x20 ? 'Z':'z',
+				m_sr & 0x10 ? 'I':'i',
+				m_sr & 0x08 ? '?':'.',
+				m_sr & 0x04 ? '?':'.',
+				m_sr & 0x02 ? '?':'.',
+				m_sr & 0x01 ? '?':'.'
+			);
 			break;
-		default:
-			CPU_GET_INFO_CALL(tms7000);
-			break;
+
+		default: break;
 	}
 }
 
-void tms7000_set_irq_line(tms7000_state *cpustate, int irqline, int state)
+offs_t tms7000_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options)
 {
-	if (cpustate->irq_state[irqline] != state)
-	{   /* check for transition */
-		cpustate->irq_state[irqline] = state;
+	extern CPU_DISASSEMBLE( tms7000 );
+	return CPU_DISASSEMBLE_NAME(tms7000)(this, buffer, pc, oprom, opram, options);
+}
 
-		LOG(("tms7000: (cpu '%s') set_irq_line (INT%d, state %d)\n", cpustate->device->tag(), irqline+1, state));
 
-		if (state == CLEAR_LINE)
+//-------------------------------------------------
+//  device_reset - device-specific reset
+//-------------------------------------------------
+
+void tms7000_device::device_reset()
+{
+	if (m_idle_state)
+	{
+		m_pc++;
+		m_idle_state = false;
+	}
+
+	// while _RESET is asserted:
+	// clear ports
+	write_p(0x04, 0xff); // port a
+	write_p(0x06, 0xff); // port b
+
+	write_p(0x05, 0x00); // ddr a
+	write_p(0x09, 0x00); // ddr c
+	write_p(0x0b, 0x00); // ddr d
+
+	if (!chip_is_cmos())
+	{
+		write_p(0x08, 0xff); // port c
+		write_p(0x0a, 0xff); // port d
+	}
+
+	// when _RESET goes inactive (0 to 1)
+	m_sr = 0;
+
+	write_p(0x00, 0x00); // IOCNT0
+	if (chip_is_family_70x2())
+		write_p(0x10, 0x00); // IOCNT1
+
+	write_mem16(0, m_pc); // previous PC
+	m_sp = 0x01;
+	m_pc = read_mem16(0xfffe);
+	m_icount -= 17;
+}
+
+
+//-------------------------------------------------
+//  interrupts
+//-------------------------------------------------
+
+void tms7000_device::execute_set_input(int extline, int state)
+{
+	if (extline != TMS7000_INT1_LINE && extline != TMS7000_INT3_LINE)
+		return;
+
+	bool irqstate = (state == CLEAR_LINE) ? false : true;
+
+	// reverse polarity (70cx2-only)
+	if (m_io_control[2] & (0x01 << (4 * extline)))
+		irqstate = !irqstate;
+
+	if (m_irq_state[extline] != irqstate)
+	{
+		m_irq_state[extline] = irqstate;
+
+		// set/clear internal irq flag
+		flag_ext_interrupt(extline);
+
+		if (m_irq_state[extline])
 		{
+			// latch timer 1 on INT3
+			if (extline == TMS7000_INT3_LINE)
+				m_timer_capture_latch[0] = m_timer_decrementer[0];
+
+			// on 70cx2, latch timer 2 on INT1
+			if (extline == TMS7000_INT1_LINE && chip_is_family_70cx2())
+				m_timer_capture_latch[1] = m_timer_decrementer[1];
+
+			// clear external if it's edge-triggered (70cx2-only)
+			if (m_io_control[2] & (0x02 << (4 * extline)))
+				m_irq_state[extline] = false;
+
+			check_interrupts();
+		}
+	}
+}
+
+void tms7000_device::flag_ext_interrupt(int extline)
+{
+	if (extline != TMS7000_INT1_LINE && extline != TMS7000_INT3_LINE)
+		return;
+
+	// set/clear for pending external interrupt
+	if (m_irq_state[extline])
+		m_io_control[0] |= (0x02 << (4 * extline));
+	else
+		m_io_control[0] &= ~(0x02 << (4 * extline));
+}
+
+void tms7000_device::check_interrupts()
+{
+	// global interrupt bit
+	if (!(m_sr & SR_I))
+		return;
+
+	// check for and handle interrupt
+	for (int irqline = 0; irqline < 5; irqline++)
+	{
+		// INT 1,2,3 are in IOCNT0 d0-d5
+		// INT 4,5 are in IOCNT1 d0-d3
+		int shift = (irqline > 2) ? irqline * 2 - 6 : irqline * 2;
+		if ((m_io_control[irqline > 2] >> shift & 3) == 3)
+		{
+			// ack
+			m_io_control[irqline > 2] &= ~(0x02 << shift);
+			if (irqline == 0 || irqline == 2)
+				flag_ext_interrupt(irqline / 2);
+
+			do_interrupt(irqline);
 			return;
 		}
-
-		cpustate->pf[0] |= (0x02 << (irqline * 2)); /* Set INTx iocntl0 flag */
-
-		if( irqline == TMS7000_IRQ3_LINE )
-		{
-			/* Latch the value in perpherial file register 3 */
-			cpustate->t1_capture_latch = cpustate->t1_decrementer & 0x00ff;
-		}
-
-		tms7000_check_IRQ_lines(cpustate);
 	}
 }
 
-static void tms7000_check_IRQ_lines(tms7000_state *cpustate)
+void tms7000_device::do_interrupt(int irqline)
 {
-	if( pSR & SR_I ) /* Check Global Interrupt bit: Status register, bit 4 */
+	if (m_idle_state)
 	{
-		if ((cpustate->irq_state[TMS7000_IRQ1_LINE] == ASSERT_LINE) || (cpustate->pf[0] & 0x02))
-		{
-			if( cpustate->pf[0] & 0x01 ) /* INT1 Enable bit */
-			{
-				tms7000_do_interrupt( cpustate, 0xfffc, TMS7000_IRQ1_LINE );
-				cpustate->pf[0] &= ~0x02; /* Data Manual, page: 9-41 */
-				return;
-			}
-		}
-
-		if( cpustate->irq_state[ TMS7000_IRQ2_LINE ] == ASSERT_LINE )
-		{
-			if( cpustate->pf[0] & 0x04 ) /* INT2 Enable bit */
-			{
-				tms7000_do_interrupt( cpustate, 0xfffa, TMS7000_IRQ2_LINE );
-				return;
-			}
-		}
-
-		if ((cpustate->irq_state[TMS7000_IRQ3_LINE] == ASSERT_LINE) || (cpustate->pf[0] & 0x20))
-		{
-			if( cpustate->pf[0] & 0x10 ) /* INT3 Enable bit */
-			{
-				tms7000_do_interrupt( cpustate, 0xfff8, TMS7000_IRQ3_LINE );
-				cpustate->pf[0] &= ~0x20; /* Data Manual, page: 9-41 */
-				return;
-			}
-		}
+		m_icount -= 17;
+		m_pc++;
+		m_idle_state = false;
 	}
-}
-
-static void tms7000_do_interrupt( tms7000_state *cpustate, UINT16 address, UINT8 line )
-{
-	PUSHBYTE( pSR );        /* Push Status register */
-	PUSHWORD( PC );         /* Push Program Counter */
-	pSR = 0;                /* Clear Status register */
-	pPC = RM16(cpustate, address);  /* Load PC with interrupt vector */
-
-	if( cpustate->idle_state == 0 )
-		cpustate->icount -= 19;     /* 19 cycles used */
 	else
-	{
-		cpustate->icount -= 17;     /* 17 if idled */
-		cpustate->idle_state = 0;
-	}
+		m_icount -= 19;
 
-	(void)(*cpustate->irq_callback)(cpustate->device, line);
+	push8(m_sr);
+	push16(m_pc);
+	m_sr = 0;
+	m_pc = read_mem16(0xfffc - irqline * 2);
+
+	standard_irq_callback(irqline);
 }
 
-#include "tms70op.c"
-#include "tms70tb.c"
 
-static CPU_EXECUTE( tms7000 )
+//-------------------------------------------------
+//  timers
+//-------------------------------------------------
+
+void tms7000_device::timer_run(int tmr)
 {
-	tms7000_state *cpustate = get_safe_token(device);
-	int op;
+	m_timer_prescaler[tmr] = m_timer_control[tmr] & 0x1f;
 
-	cpustate->div_by_16_trigger += cpustate->icount;
-
-	tms7000_check_IRQ_lines(cpustate);
-
-	do
+	// run automatic timer if source is internal
+	if ((m_timer_control[tmr] & 0xe0) == 0x80)
 	{
-		debugger_instruction_hook(device, pPC);
-
-		if( cpustate->idle_state == 0 )
-		{
-			op = cpustate->direct->read_decrypted_byte(pPC++);
-
-			opfn[op](cpustate);
-		}
-		else
-			cpustate->icount -= 16;
-
-		/* Internal timer system */
-
-		while( cpustate->icount < cpustate->div_by_16_trigger )
-		{
-			cpustate->div_by_16_trigger -= 16;
-
-			if( (cpustate->pf[0x03] & 0x80) == 0x80 ) /* Is timer system active? */
-			{
-				if( (cpustate->pf[0x03] & 0x40) != 0x40) /* Is system clock (divided by 16) the timer source? */
-					tms7000_service_timer1(device);
-			}
-		}
-
-	} while( cpustate->icount > 0 );
-
-	cpustate->div_by_16_trigger -= cpustate->icount;
-}
-
-static CPU_EXECUTE( tms7000_exl )
-{
-	tms7000_state *cpustate = get_safe_token(device);
-	int op;
-
-	cpustate->div_by_16_trigger += cpustate->icount;
-
-	tms7000_check_IRQ_lines(cpustate);
-
-	do
-	{
-		debugger_instruction_hook(device, pPC);
-
-		if( cpustate->idle_state == 0 )
-		{
-			op = cpustate->direct->read_decrypted_byte(pPC++);
-
-			opfn_exl[op](cpustate);
-		}
-		else
-			cpustate->icount -= 16;
-
-		/* Internal timer system */
-
-		while( cpustate->icount < cpustate->div_by_16_trigger )
-		{
-			cpustate->div_by_16_trigger -= 16;
-
-			if( (cpustate->pf[0x03] & 0x80) == 0x80 ) /* Is timer system active? */
-			{
-				if( (cpustate->pf[0x03] & 0x40) != 0x40) /* Is system clock (divided by 16) the timer source? */
-					tms7000_service_timer1(device);
-			}
-		}
-
-	} while( cpustate->icount > 0 );
-
-	cpustate->div_by_16_trigger -= cpustate->icount;
-}
-
-/****************************************************************************
- * Trigger the event counter
- ****************************************************************************/
-void tms7000_A6EC1( device_t *device )
-{
-	tms7000_state *cpustate = get_safe_token(device);
-	if( (cpustate->pf[0x03] & 0x80) == 0x80 ) /* Is timer system active? */
-	{
-		if( (cpustate->pf[0x03] & 0x40) == 0x40) /* Is event counter the timer source? */
-			tms7000_service_timer1(device);
+		attotime period = attotime::from_hz(clock()) * 16 * (m_timer_prescaler[tmr] + 1); // fOSC/16
+		m_timer_handle[tmr]->adjust(period, tmr);
 	}
 }
 
-static void tms7000_service_timer1( device_t *device )
+void tms7000_device::timer_reload(int tmr)
 {
-	tms7000_state *cpustate = get_safe_token(device);
-	if( --cpustate->t1_prescaler < 0 ) /* Decrement prescaler and check for underflow */
-	{
-		cpustate->t1_prescaler = cpustate->pf[3] & 0x1f; /* Reload prescaler (5 bit) */
+	// stop possible running timer
+	m_timer_handle[tmr]->adjust(attotime::never, tmr);
 
-		if( --cpustate->t1_decrementer < 0 ) /* Decrement timer1 register and check for underflow */
-		{
-			cpustate->t1_decrementer = cpustate->pf[2]; /* Reload decrementer (8 bit) */
-			device->execute().set_input_line(TMS7000_IRQ2_LINE, HOLD_LINE);
-			//LOG( ("tms7000: trigger int2 (cycles: %d)\t%d\tdelta %d\n", cpustate->device->total_cycles(), cpustate->device->total_cycles() - tick, cpustate->cycles_per_INT2-(cpustate->device->total_cycles() - tick) );
-			//tick = cpustate->device->total_cycles() );
-			/* Also, cascade out to timer 2 - timer 2 unimplemented */
-		}
+	if (m_timer_control[tmr] & 0x80)
+	{
+		m_timer_decrementer[tmr] = m_timer_data[tmr];
+		timer_run(tmr);
 	}
-//  LOG( ( "tms7000: service timer1. 0x%2.2x 0x%2.2x (cycles %d)\t%d\t\n", cpustate->t1_prescaler, cpustate->t1_decrementer, cpustate->device->total_cycles(), cpustate->device->total_cycles() - tick2 ) );
-//  tick2 = cpustate->device->total_cycles();
 }
 
-static WRITE8_HANDLER( tms70x0_pf_w )   /* Perpherial file write */
+void tms7000_device::timer_tick_pre(int tmr)
 {
-	tms7000_state *cpustate = get_safe_token(&space.device());
-	UINT8   temp1, temp2, temp3;
-
-	switch( offset )
+	// timer prescaler underflow
+	if (--m_timer_prescaler[tmr] < 0)
 	{
-		case 0x00:  /* IOCNT0, Input/Ouput control */
-			temp1 = data & 0x2a;                            /* Record which bits to clear */
-			temp2 = cpustate->pf[0x00] & 0x2a;              /* Get copy of current bits */
-			temp3 = (~temp1) & temp2;                       /* Clear the requested bits */
-			cpustate->pf[0x00] = temp3 | (data & (~0x2a) ); /* OR in the remaining data */
+		m_timer_prescaler[tmr] = m_timer_control[tmr] & 0x1f;
+		timer_tick_low(tmr);
+	}
+}
+
+void tms7000_device::timer_tick_low(int tmr)
+{
+	// timer decrementer underflow
+	if (--m_timer_decrementer[tmr] < 0)
+	{
+		timer_reload(tmr);
+
+		// set INT2/INT5
+		m_io_control[tmr] |= 0x08;
+
+		// cascaded timer
+		if (tmr == 0 && (m_timer_control[1] & 0xa0) == 0xa0)
+			timer_tick_pre(tmr + 1);
+	}
+}
+
+TIMER_CALLBACK_MEMBER(tms7000_device::simple_timer_cb)
+{
+	int tmr = param;
+
+	// tick and restart timer
+	timer_tick_low(tmr);
+	timer_run(tmr);
+}
+
+
+//-------------------------------------------------
+//  peripheral file - read/write internal ports
+//  note: 7000 family is from $00 to $0b, 7002 family adds $10 to $17
+//-------------------------------------------------
+
+READ8_MEMBER(tms7000_device::tms7000_pf_r)
+{
+	switch (offset)
+	{
+		// i/o control
+		case 0x00: case 0x10:
+			return m_io_control[offset >> 4];
+
+		// timer 1/2 data
+		case 0x02: case 0x12:
+			// current decrementer value
+			return m_timer_decrementer[offset >> 4];
+
+		// timer 1 control
+		case 0x03:
+			// timer capture (latched by INT3)
+			return m_timer_capture_latch[0];
+
+		// port data
+		case 0x04: case 0x06: case 0x08: case 0x0a:
+		{
+			// note: port B is write-only, reading it returns the output value as if ddr is 0xff
+			int port = offset / 2 - 2;
+			if (!space.debugger_access())
+				return (m_io->read_byte(port) & ~m_port_ddr[port]) | (m_port_latch[port] & m_port_ddr[port]);
 			break;
-		case 0x02:
-			cpustate->t1_decrementer = cpustate->pf[0x02] = data;
-			cpustate->cycles_per_INT2 = 0x10*((cpustate->pf[3] & 0x1f)+1)*(cpustate->pf[0x02]+1);
-			LOG( ( "tms7000: Timer adjusted. Decrementer: 0x%2.2x (Cycles per interrupt: %d)\n", cpustate->t1_decrementer, cpustate->cycles_per_INT2 ) );
+		}
+
+		// port direction (note: 7000 doesn't support it for port A)
+		case 0x05: case 0x09: case 0x0b:
+			return m_port_ddr[offset / 2 - 2];
+
+		default:
+			if (!space.debugger_access())
+				logerror("'%s' (%04X): tms7000_pf_r @ $%04x\n", tag(), m_pc, offset);
 			break;
-		case 0x03:  /* T1CTL, timer 1 control */
-			if( ((cpustate->pf[0x03] & 0x80) == 0) && ((data & 0x80) == 0x80 ) )   /* Start timer? */
+	}
+
+	return 0;
+}
+
+WRITE8_MEMBER(tms7000_device::tms7000_pf_w)
+{
+	switch (offset)
+	{
+		// i/o control (IOCNT0)
+		case 0x00:
+			// d0,d2,d4: INT1,2,3 enable
+			// d1,d3,d5: INT1,2,3 flag (write 1 to clear flag)
+			// d6-d7: memory mode (currently not implemented)
+			m_io_control[0] = (m_io_control[0] & (~data & 0x2a)) | (data & 0xd5);
+
+			// possibly need to reactivate flags
+			if (data & 0x02)
+				flag_ext_interrupt(TMS7000_INT1_LINE);
+			if (data & 0x20)
+				flag_ext_interrupt(TMS7000_INT3_LINE);
+
+			check_interrupts();
+			break;
+
+		// i/o control (IOCNT1)
+		case 0x10:
+			// d0,d2: INT4,5 enable
+			// d1,d3: INT4,5 flag (write 1 to clear flag)
+			m_io_control[1] = (m_io_control[1] & (~data & 0x0a)) | (data & 0x05);
+			check_interrupts();
+			break;
+
+		// timer 1/2 data
+		case 0x02: case 0x12:
+			// decrementer reload value
+			m_timer_data[offset >> 4] = data;
+			break;
+
+		// timer 1/2 control
+		case 0x03:
+			// d5: t1: cmos low-power mode when IDLE opcode is used (not emulated)
+			// 0(normal), or 1(halt) - indicating it can only wake up with RESET or external interrupt
+			if (chip_is_cmos())
 			{
-				cpustate->pf[0x03] = data;
-				cpustate->t1_prescaler = cpustate->pf[3] & 0x1f; /* Reload prescaler (5 bit) */
-				cpustate->cycles_per_INT2 = 0x10*((cpustate->pf[3] & 0x1f)+1)*(cpustate->pf[0x02]+1);
-				LOG( ( "tms7000: Timer started. Prescaler: 0x%2.2x (Cycles per interrupt: %d)\n", cpustate->pf[3] & 0x1f, cpustate->cycles_per_INT2 ) );
+				m_idle_halt = (data & 0x20) ? true : false;
+				if (m_idle_halt)
+					logerror("%s: CMOS low-power halt mode enabled\n", tag());
 			}
-			else if( ((data & 0x80) == 0x80 ) && ((cpustate->pf[0x03] & 0x80) == 0) )   /* Timer Stopped? */
-			{
-				cpustate->pf[0x03] = data;
-				cpustate->t1_prescaler = cpustate->pf[3] & 0x1f; /* Reload prescaler (5 bit) */
-				cpustate->cycles_per_INT2 = 0x10*((cpustate->pf[3] & 0x1f)+1)*(cpustate->pf[0x02]+1);
-				LOG( ( "tms7000: Timer stopped. Prescaler: 0x%2.2x (Cycles per interrupt: %d)\n", cpustate->pf[3] & 0x1f, cpustate->cycles_per_INT2 ) );
-			}
-			else /* Don't modify timer state, but still store data */
-			{
-				cpustate->pf[0x03] = data;
-				cpustate->cycles_per_INT2 = 0x10*((cpustate->pf[3] & 0x1f)+1)*(cpustate->pf[0x02]+1);
-				LOG( ( "tms7000: Timer adjusted. Prescaler: 0x%2.2x (Cycles per interrupt: %d)\n", cpustate->pf[3] & 0x1f, cpustate->cycles_per_INT2 ) );
-			}
+			data &= ~0x20;
+		case 0x13:
+			// d0-d4: prescaler reload value
+			// d5: t2: cascade from t1
+			// d6: source (internal/external)
+			// d7: stop/start timer
+			m_timer_control[offset >> 4] = data;
+			timer_reload(offset >> 4);
+
+			// on cmos chip, clear INT2/INT5 as well
+			if (~data & 0x80 && chip_is_cmos())
+				m_io_control[offset >> 4] &= ~0x08;
+
 			break;
 
-		case 0x04: /* Port A write */
-			/* Port A is read only so this is a NOP */
+		// port data (note: 7000 doesn't support it for port A)
+		case 0x04: case 0x06: case 0x08: case 0x0a:
+		{
+			// note: in memory expansion modes, some port output pins are used for memory strobes.
+			// this is currently ignored, since port writes will always be visible externally on peripheral expansion anyway.
+			int port = offset / 2 - 2;
+			m_io->write_byte(port, data & m_port_ddr[port]);
+			m_port_latch[port] = data;
 			break;
+		}
 
-		case 0x06: /* Port B write */
-			cpustate->io->write_byte( TMS7000_PORTB, data );
-			cpustate->pf[ 0x06 ] = data;
-			break;
-
-		case 0x08: /* Port C write */
-			temp1 = data & cpustate->pf[ 0x09 ];    /* Mask off input bits */
-			cpustate->io->write_byte( TMS7000_PORTC, temp1 );
-			cpustate->pf[ 0x08 ] = temp1;
-			break;
-
-		case 0x0a: /* Port D write */
-			temp1 = data & cpustate->pf[ 0x0b ];    /* Mask off input bits */
-			cpustate->io->write_byte( TMS7000_PORTD, temp1 );
-			cpustate->pf[ 0x0a ] = temp1;
+		// port direction (note: 7000 doesn't support it for port A)
+		case 0x05: case 0x09: case 0x0b:
+			// note: changing port direction does not change(refresh) the output pins
+			m_port_ddr[offset / 2 - 2] = data;
 			break;
 
 		default:
-			/* Just stuff the other registers */
-			cpustate->pf[ offset ] = data;
+			logerror("'%s' (%04X): tms7000_pf_w @ $%04x = $%02x\n", tag(), m_pc, offset, data);
 			break;
 	}
 }
 
-static READ8_HANDLER( tms70x0_pf_r )    /* Perpherial file read */
-{
-	tms7000_state *cpustate = get_safe_token(&space.device());
-	UINT8 result;
-	UINT8   temp1, temp2, temp3;
 
-	switch( offset )
+//-------------------------------------------------
+//  execute
+//-------------------------------------------------
+
+#include "tms70op.inc"
+
+void tms7000_device::execute_run()
+{
+	check_interrupts();
+
+	do
 	{
-		case 0x00:  /* IOCNT0, Input/Ouput control */
-			result = cpustate->pf[0x00];
-			if (cpustate->irq_state[TMS7000_IRQ1_LINE] == ASSERT_LINE)
-				result |= 0x02;
-			if (cpustate->irq_state[TMS7000_IRQ3_LINE] == ASSERT_LINE)
-				result |= 0x20;
-			break;
+		debugger_instruction_hook(this, m_pc);
 
-		case 0x02:  /* T1DATA, timer 1 8-bit decrementer */
-			result = (cpustate->t1_decrementer & 0x00ff);
-			break;
+		m_op = m_direct->read_decrypted_byte(m_pc++);
+		execute_one(m_op);
+	} while (m_icount > 0);
+}
 
-		case 0x03:  /* T1CTL, timer 1 capture (latched by INT3) */
-			result = cpustate->t1_capture_latch;
-			break;
+void tms7000_device::execute_one(UINT8 op)
+{
+	switch (op)
+	{
+		case 0x00: nop(); break;
+		case 0x01: idle(); break;
+		case 0x05: eint(); break;
+		case 0x06: dint(); break;
+		case 0x07: setc(); break;
+		case 0x08: pop_st(); break;
+		case 0x09: stsp(); break;
+		case 0x0a: rets(); break;
+		case 0x0b: reti(); break;
+		case 0x0d: ldsp(); break;
+		case 0x0e: push_st(); break;
 
-		case 0x04: /* Port A read */
-			result = cpustate->io->read_byte( TMS7000_PORTA );
-			break;
+		case 0x12: am_r2a(&tms7000_device::op_mov); break;
+		case 0x13: am_r2a(&tms7000_device::op_and); break;
+		case 0x14: am_r2a(&tms7000_device::op_or); break;
+		case 0x15: am_r2a(&tms7000_device::op_xor); break;
+		case 0x16: am_r2a(&tms7000_device::op_btjo); break;
+		case 0x17: am_r2a(&tms7000_device::op_btjz); break;
+		case 0x18: am_r2a(&tms7000_device::op_add); break;
+		case 0x19: am_r2a(&tms7000_device::op_adc); break;
+		case 0x1a: am_r2a(&tms7000_device::op_sub); break;
+		case 0x1b: am_r2a(&tms7000_device::op_sbb); break;
+		case 0x1c: am_r2a(&tms7000_device::op_mpy); break;
+		case 0x1d: am_r2a(&tms7000_device::op_cmp); break;
+		case 0x1e: am_r2a(&tms7000_device::op_dac); break;
+		case 0x1f: am_r2a(&tms7000_device::op_dsb); break;
 
+		case 0x22: am_i2a(&tms7000_device::op_mov); break;
+		case 0x23: am_i2a(&tms7000_device::op_and); break;
+		case 0x24: am_i2a(&tms7000_device::op_or); break;
+		case 0x25: am_i2a(&tms7000_device::op_xor); break;
+		case 0x26: am_i2a(&tms7000_device::op_btjo); break;
+		case 0x27: am_i2a(&tms7000_device::op_btjz); break;
+		case 0x28: am_i2a(&tms7000_device::op_add); break;
+		case 0x29: am_i2a(&tms7000_device::op_adc); break;
+		case 0x2a: am_i2a(&tms7000_device::op_sub); break;
+		case 0x2b: am_i2a(&tms7000_device::op_sbb); break;
+		case 0x2c: am_i2a(&tms7000_device::op_mpy); break;
+		case 0x2d: am_i2a(&tms7000_device::op_cmp); break;
+		case 0x2e: am_i2a(&tms7000_device::op_dac); break;
+		case 0x2f: am_i2a(&tms7000_device::op_dsb); break;
 
-		case 0x06: /* Port B read */
-			/* Port B is write only, return a previous written value */
-			result = cpustate->pf[ 0x06 ];
-			break;
+		case 0x32: am_r2b(&tms7000_device::op_mov); break;
+		case 0x33: am_r2b(&tms7000_device::op_and); break;
+		case 0x34: am_r2b(&tms7000_device::op_or); break;
+		case 0x35: am_r2b(&tms7000_device::op_xor); break;
+		case 0x36: am_r2b(&tms7000_device::op_btjo); break;
+		case 0x37: am_r2b(&tms7000_device::op_btjz); break;
+		case 0x38: am_r2b(&tms7000_device::op_add); break;
+		case 0x39: am_r2b(&tms7000_device::op_adc); break;
+		case 0x3a: am_r2b(&tms7000_device::op_sub); break;
+		case 0x3b: am_r2b(&tms7000_device::op_sbb); break;
+		case 0x3c: am_r2b(&tms7000_device::op_mpy); break;
+		case 0x3d: am_r2b(&tms7000_device::op_cmp); break;
+		case 0x3e: am_r2b(&tms7000_device::op_dac); break;
+		case 0x3f: am_r2b(&tms7000_device::op_dsb); break;
 
-		case 0x08: /* Port C read */
-			temp1 = cpustate->pf[ 0x08 ] & cpustate->pf[ 0x09 ];    /* Get previous output bits */
-			temp2 = cpustate->io->read_byte( TMS7000_PORTC );           /* Read port */
-			temp3 = temp2 & (~cpustate->pf[ 0x09 ]);                /* Mask off output bits */
-			result = temp1 | temp3;                             /* OR together */
-			break;
+		case 0x42: am_r2r(&tms7000_device::op_mov); break;
+		case 0x43: am_r2r(&tms7000_device::op_and); break;
+		case 0x44: am_r2r(&tms7000_device::op_or); break;
+		case 0x45: am_r2r(&tms7000_device::op_xor); break;
+		case 0x46: am_r2r(&tms7000_device::op_btjo); break;
+		case 0x47: am_r2r(&tms7000_device::op_btjz); break;
+		case 0x48: am_r2r(&tms7000_device::op_add); break;
+		case 0x49: am_r2r(&tms7000_device::op_adc); break;
+		case 0x4a: am_r2r(&tms7000_device::op_sub); break;
+		case 0x4b: am_r2r(&tms7000_device::op_sbb); break;
+		case 0x4c: am_r2r(&tms7000_device::op_mpy); break;
+		case 0x4d: am_r2r(&tms7000_device::op_cmp); break;
+		case 0x4e: am_r2r(&tms7000_device::op_dac); break;
+		case 0x4f: am_r2r(&tms7000_device::op_dsb); break;
 
-		case 0x0a: /* Port D read */
-			temp1 = cpustate->pf[ 0x0a ] & cpustate->pf[ 0x0b ];    /* Get previous output bits */
-			temp2 = cpustate->io->read_byte( TMS7000_PORTD );           /* Read port */
-			temp3 = temp2 & (~cpustate->pf[ 0x0b ]);                /* Mask off output bits */
-			result = temp1 | temp3;                             /* OR together */
-			break;
+		case 0x52: am_i2b(&tms7000_device::op_mov); break;
+		case 0x53: am_i2b(&tms7000_device::op_and); break;
+		case 0x54: am_i2b(&tms7000_device::op_or); break;
+		case 0x55: am_i2b(&tms7000_device::op_xor); break;
+		case 0x56: am_i2b(&tms7000_device::op_btjo); break;
+		case 0x57: am_i2b(&tms7000_device::op_btjz); break;
+		case 0x58: am_i2b(&tms7000_device::op_add); break;
+		case 0x59: am_i2b(&tms7000_device::op_adc); break;
+		case 0x5a: am_i2b(&tms7000_device::op_sub); break;
+		case 0x5b: am_i2b(&tms7000_device::op_sbb); break;
+		case 0x5c: am_i2b(&tms7000_device::op_mpy); break;
+		case 0x5d: am_i2b(&tms7000_device::op_cmp); break;
+		case 0x5e: am_i2b(&tms7000_device::op_dac); break;
+		case 0x5f: am_i2b(&tms7000_device::op_dsb); break;
 
-		default:
-			/* Just unstuff the other registers */
-			result = cpustate->pf[ offset ];
-			break;
+		case 0x62: am_b2a(&tms7000_device::op_mov); break;
+		case 0x63: am_b2a(&tms7000_device::op_and); break;
+		case 0x64: am_b2a(&tms7000_device::op_or); break;
+		case 0x65: am_b2a(&tms7000_device::op_xor); break;
+		case 0x66: am_b2a(&tms7000_device::op_btjo); break;
+		case 0x67: am_b2a(&tms7000_device::op_btjz); break;
+		case 0x68: am_b2a(&tms7000_device::op_add); break;
+		case 0x69: am_b2a(&tms7000_device::op_adc); break;
+		case 0x6a: am_b2a(&tms7000_device::op_sub); break;
+		case 0x6b: am_b2a(&tms7000_device::op_sbb); break;
+		case 0x6c: am_b2a(&tms7000_device::op_mpy); break;
+		case 0x6d: am_b2a(&tms7000_device::op_cmp); break;
+		case 0x6e: am_b2a(&tms7000_device::op_dac); break;
+		case 0x6f: am_b2a(&tms7000_device::op_dsb); break;
+
+		case 0x72: am_i2r(&tms7000_device::op_mov); break;
+		case 0x73: am_i2r(&tms7000_device::op_and); break;
+		case 0x74: am_i2r(&tms7000_device::op_or); break;
+		case 0x75: am_i2r(&tms7000_device::op_xor); break;
+		case 0x76: am_i2r(&tms7000_device::op_btjo); break;
+		case 0x77: am_i2r(&tms7000_device::op_btjz); break;
+		case 0x78: am_i2r(&tms7000_device::op_add); break;
+		case 0x79: am_i2r(&tms7000_device::op_adc); break;
+		case 0x7a: am_i2r(&tms7000_device::op_sub); break;
+		case 0x7b: am_i2r(&tms7000_device::op_sbb); break;
+		case 0x7c: am_i2r(&tms7000_device::op_mpy); break;
+		case 0x7d: am_i2r(&tms7000_device::op_cmp); break;
+		case 0x7e: am_i2r(&tms7000_device::op_dac); break;
+		case 0x7f: am_i2r(&tms7000_device::op_dsb); break;
+
+		case 0x80: am_p2a(&tms7000_device::op_mov); break;
+		case 0x82: am_a2p(&tms7000_device::op_mov); break;
+		case 0x83: am_a2p(&tms7000_device::op_and); break;
+		case 0x84: am_a2p(&tms7000_device::op_or); break;
+		case 0x85: am_a2p(&tms7000_device::op_xor); break;
+		case 0x86: am_a2p(&tms7000_device::op_btjo); break;
+		case 0x87: am_a2p(&tms7000_device::op_btjz); break;
+		case 0x88: movd_dir(); break;
+		case 0x8a: lda_dir(); break;
+		case 0x8b: sta_dir(); break;
+		case 0x8c: br_dir(); break;
+		case 0x8d: cmpa_dir(); break;
+		case 0x8e: call_dir(); break;
+
+		case 0x91: am_p2b(&tms7000_device::op_mov); break;
+		case 0x92: am_b2p(&tms7000_device::op_mov); break;
+		case 0x93: am_b2p(&tms7000_device::op_and); break;
+		case 0x94: am_b2p(&tms7000_device::op_or); break;
+		case 0x95: am_b2p(&tms7000_device::op_xor); break;
+		case 0x96: am_b2p(&tms7000_device::op_btjo); break;
+		case 0x97: am_b2p(&tms7000_device::op_btjz); break;
+		case 0x98: movd_ind(); break;
+		case 0x9a: lda_ind(); break;
+		case 0x9b: sta_ind(); break;
+		case 0x9c: br_ind(); break;
+		case 0x9d: cmpa_ind(); break;
+		case 0x9e: call_ind(); break;
+
+		case 0xa2: am_i2p(&tms7000_device::op_mov); break;
+		case 0xa3: am_i2p(&tms7000_device::op_and); break;
+		case 0xa4: am_i2p(&tms7000_device::op_or); break;
+		case 0xa5: am_i2p(&tms7000_device::op_xor); break;
+		case 0xa6: am_i2p(&tms7000_device::op_btjo); break;
+		case 0xa7: am_i2p(&tms7000_device::op_btjz); break;
+		case 0xa8: movd_inx(); break;
+		case 0xaa: lda_inx(); break;
+		case 0xab: sta_inx(); break;
+		case 0xac: br_inx(); break;
+		case 0xad: cmpa_inx(); break;
+		case 0xae: call_inx(); break;
+
+		case 0xb0: am_a2a(&tms7000_device::op_mov); break; // aka clrc/tsta
+		case 0xb1: am_b2a(&tms7000_device::op_mov); break; // undocumented
+		case 0xb2: am_a(&tms7000_device::op_dec); break;
+		case 0xb3: am_a(&tms7000_device::op_inc); break;
+		case 0xb4: am_a(&tms7000_device::op_inv); break;
+		case 0xb5: am_a(&tms7000_device::op_clr); break;
+		case 0xb6: am_a(&tms7000_device::op_xchb); break;
+		case 0xb7: am_a(&tms7000_device::op_swap); break;
+		case 0xb8: push_a(); break;
+		case 0xb9: pop_a(); break;
+		case 0xba: am_a(&tms7000_device::op_djnz); break;
+		case 0xbb: decd_a(); break;
+		case 0xbc: am_a(&tms7000_device::op_rr); break;
+		case 0xbd: am_a(&tms7000_device::op_rrc); break;
+		case 0xbe: am_a(&tms7000_device::op_rl); break;
+		case 0xbf: am_a(&tms7000_device::op_rlc); break;
+
+		case 0xc0: am_a2b(&tms7000_device::op_mov); break;
+		case 0xc1: am_b2b(&tms7000_device::op_mov); break; // aka tstb
+		case 0xc2: am_b(&tms7000_device::op_dec); break;
+		case 0xc3: am_b(&tms7000_device::op_inc); break;
+		case 0xc4: am_b(&tms7000_device::op_inv); break;
+		case 0xc5: am_b(&tms7000_device::op_clr); break;
+		case 0xc6: am_b(&tms7000_device::op_xchb); break; // result equivalent to tstb
+		case 0xc7: am_b(&tms7000_device::op_swap); break;
+		case 0xc8: push_b(); break;
+		case 0xc9: pop_b(); break;
+		case 0xca: am_b(&tms7000_device::op_djnz); break;
+		case 0xcb: decd_b(); break;
+		case 0xcc: am_b(&tms7000_device::op_rr); break;
+		case 0xcd: am_b(&tms7000_device::op_rrc); break;
+		case 0xce: am_b(&tms7000_device::op_rl); break;
+		case 0xcf: am_b(&tms7000_device::op_rlc); break;
+
+		case 0xd0: am_a2r(&tms7000_device::op_mov); break;
+		case 0xd1: am_b2r(&tms7000_device::op_mov); break;
+		case 0xd2: am_r(&tms7000_device::op_dec); break;
+		case 0xd3: am_r(&tms7000_device::op_inc); break;
+		case 0xd4: am_r(&tms7000_device::op_inv); break;
+		case 0xd5: am_r(&tms7000_device::op_clr); break;
+		case 0xd6: am_r(&tms7000_device::op_xchb); break;
+		case 0xd7: am_r(&tms7000_device::op_swap); break;
+		case 0xd8: push_r(); break;
+		case 0xd9: pop_r(); break;
+		case 0xda: am_r(&tms7000_device::op_djnz); break;
+		case 0xdb: decd_r(); break;
+		case 0xdc: am_r(&tms7000_device::op_rr); break;
+		case 0xdd: am_r(&tms7000_device::op_rrc); break;
+		case 0xde: am_r(&tms7000_device::op_rl); break;
+		case 0xdf: am_r(&tms7000_device::op_rlc); break;
+
+		case 0xe0: jmp(true); break;
+		case 0xe1: jmp(m_sr & SR_N); break; // jn/jlt
+		case 0xe2: jmp(m_sr & SR_Z); break; // jz/jeq
+		case 0xe3: jmp(m_sr & SR_C); break; // jc/jhs
+		case 0xe4: jmp(!(m_sr & (SR_Z | SR_N))); break; // jp/jgt
+		case 0xe5: jmp(!(m_sr & SR_N)); break; // jpz/jge - note: error in TI official documentation
+		case 0xe6: jmp(!(m_sr & SR_Z)); break; // jnz/jne
+		case 0xe7: jmp(!(m_sr & SR_C)); break; // jnc/jl
+
+		case 0xe8: case 0xe9: case 0xea: case 0xeb: case 0xec: case 0xed: case 0xee: case 0xef:
+		case 0xf0: case 0xf1: case 0xf2: case 0xf3: case 0xf4: case 0xf5: case 0xf6: case 0xf7:
+		case 0xf8: case 0xf9: case 0xfa: case 0xfb: case 0xfc: case 0xfd: case 0xfe: case 0xff:
+			trap(op << 1); break;
+
+		default: illegal(op); break;
 	}
-
-	return result;
 }
 
-// BCD arthrimetic handling
-static UINT16 bcd_add( UINT16 a, UINT16 b )
+void tms7020_exl_device::execute_one(UINT8 op)
 {
-	UINT16  t1,t2,t3,t4,t5,t6;
-
-	/* Sure it is a lot of code, but it works! */
-	t1 = a + 0x0666;
-	t2 = t1 + b;
-	t3 = t1 ^ b;
-	t4 = t2 ^ t3;
-	t5 = ~t4 & 0x1110;
-	t6 = (t5 >> 2) | (t5 >> 3);
-	return t2-t6;
+	// TMS7020 Exelvision EXL 100 custom opcode(s)
+	if (op == 0xd7)
+		lvdp();
+	else
+		tms7000_device::execute_one(op);
 }
-
-static UINT16 bcd_tencomp( UINT16 a )
-{
-	UINT16  t1,t2,t3,t4,t5,t6;
-
-	t1 = 0xffff - a;
-	t2 = -a;
-	t3 = t1 ^ 0x0001;
-	t4 = t2 ^ t3;
-	t5 = ~t4 & 0x1110;
-	t6 = (t5 >> 2)|(t5>>3);
-	return t2-t6;
-}
-
-/*
-    Compute difference a-b???
-*/
-static UINT16 bcd_sub( UINT16 a, UINT16 b)
-{
-	//return bcd_tencomp(b) - bcd_tencomp(a);
-	return bcd_add(a, bcd_tencomp(b) & 0xff);
-}
-
-static WRITE8_HANDLER( tms7000_internal_w ) {
-	tms7000_state *cpustate = get_safe_token(&space.device());
-	cpustate->rf[ offset ] = data;
-}
-
-static READ8_HANDLER( tms7000_internal_r ) {
-	tms7000_state *cpustate = get_safe_token(&space.device());
-	return cpustate->rf[ offset ];
-}
-
-DEFINE_LEGACY_CPU_DEVICE(TMS7000, tms7000);
-DEFINE_LEGACY_CPU_DEVICE(TMS7000_EXL, tms7000_exl);

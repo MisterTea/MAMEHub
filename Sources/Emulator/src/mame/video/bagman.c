@@ -57,7 +57,7 @@ PALETTE_INIT_MEMBER(bagman_state,bagman)
 			2,  resistances_b,  weights_b,  470,    0);
 
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -76,22 +76,18 @@ PALETTE_INIT_MEMBER(bagman_state,bagman)
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		b = combine_2_weights(weights_b, bit0, bit1);
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 	}
 }
 
 WRITE8_MEMBER(bagman_state::bagman_flipscreen_w)
 {
-	if ((flip_screen() ^ data) & 1)
-	{
-		flip_screen_set(data & 0x01);
-		m_bg_tilemap->mark_all_dirty();
-	}
+	flip_screen_set(data & 0x01);
 }
 
 TILE_GET_INFO_MEMBER(bagman_state::get_bg_tile_info)
 {
-	int gfxbank = (machine().gfx[2] && (m_colorram[tile_index] & 0x10)) ? 2 : 0;
+	int gfxbank = (m_gfxdecode->gfx(2) && (m_colorram[tile_index] & 0x10)) ? 2 : 0;
 	int code = m_videoram[tile_index] + 8 * (m_colorram[tile_index] & 0x20);
 	int color = m_colorram[tile_index] & 0x0f;
 
@@ -100,10 +96,8 @@ TILE_GET_INFO_MEMBER(bagman_state::get_bg_tile_info)
 
 VIDEO_START_MEMBER(bagman_state,bagman)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bagman_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bagman_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
 			8, 8, 32, 32);
-
-	m_bg_tilemap->set_scrolldy(-1, -1);
 }
 
 
@@ -117,23 +111,20 @@ void bagman_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 		int sx,sy,flipx,flipy;
 
 		sx = spriteram[offs + 3];
-		sy = 255 - spriteram[offs + 2] - 16;
+		sy = 256 - spriteram[offs + 2] - 16;
 		flipx = spriteram[offs] & 0x40;
 		flipy = spriteram[offs] & 0x80;
-		if (flip_screen_x())
+		if (flip_screen())
 		{
-			sx = bitmap.width() - sx - 15;
+			sx = 256 - sx - 15;
+			sy = 255 - sy - 15;
 			flipx = !flipx;
-		}
-		if (flip_screen_y())
-		{
-			sy = bitmap.height() - sy - 15;
 			flipy = !flipy;
 		}
 
 		if (spriteram[offs + 2] && spriteram[offs + 3])
-			drawgfx_transpen(bitmap,
-					cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,
+					cliprect,
 					(spriteram[offs] & 0x3f) + 2 * (spriteram[offs + 1] & 0x20),
 					spriteram[offs + 1] & 0x1f,
 					flipx,flipy,

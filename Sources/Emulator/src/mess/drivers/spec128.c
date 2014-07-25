@@ -159,13 +159,6 @@ resulting mess can be seen in the F4 viewer display.
 #include "formats/tzx_cas.h"
 #include "machine/ram.h"
 
-static const ay8910_interface spectrum_ay_interface =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL
-};
-
 /****************************************************************************************************/
 /* Spectrum 128 specific functions */
 
@@ -225,7 +218,7 @@ void spectrum_state::spectrum_128_update_memory()
 
 READ8_MEMBER( spectrum_state::spectrum_128_ula_r )
 {
-	int vpos = machine().primary_screen->vpos();
+	int vpos = machine().first_screen()->vpos();
 
 	return vpos<193 ? m_screen_location[0x1800|(vpos&0xf8)<<2]:0xff;
 }
@@ -303,16 +296,13 @@ MACHINE_CONFIG_DERIVED( spectrum_128, spectrum )
 
 	/* video hardware */
 	MCFG_SCREEN_MODIFY("screen")
-	MCFG_PALETTE_LENGTH(16)
-	MCFG_PALETTE_INIT_OVERRIDE(spectrum_state, spectrum )
 	MCFG_SCREEN_RAW_PARAMS(X1_128_SINCLAIR / 2.5f, 456, 0, 352,  311, 0, 296)
 
 	MCFG_VIDEO_START_OVERRIDE(spectrum_state, spectrum_128 )
-	MCFG_GFXDECODE(spec128)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", spec128)
 
 	/* sound hardware */
 	MCFG_SOUND_ADD("ay8912", AY8912, 1773400)
-	MCFG_SOUND_CONFIG(spectrum_ay_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* internal ram */

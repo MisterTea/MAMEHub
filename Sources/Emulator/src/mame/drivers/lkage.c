@@ -133,7 +133,7 @@ READ8_MEMBER(lkage_state::sound_status_r)
 static ADDRESS_MAP_START( lkage_map, AS_PROGRAM, 8, lkage_state )
 	AM_RANGE(0x0000, 0xdfff) AM_ROM
 	AM_RANGE(0xe000, 0xe7ff) AM_RAM /* work ram */
-	AM_RANGE(0xe800, 0xefff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_byte_le_w) AM_SHARE("paletteram")
+	AM_RANGE(0xe800, 0xefff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xf000, 0xf003) AM_RAM AM_SHARE("vreg") /* video registers */
 	AM_RANGE(0xf060, 0xf060) AM_WRITE(lkage_sound_command_w)
 	AM_RANGE(0xf061, 0xf061) AM_WRITENOP AM_READ(sound_status_r)
@@ -479,13 +479,6 @@ WRITE_LINE_MEMBER(lkage_state::irqhandler)
 	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-};
-
 void lkage_state::machine_start()
 {
 	save_item(NAME(m_bg_tile_bank));
@@ -561,9 +554,11 @@ static MACHINE_CONFIG_START( lkage, lkage_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(2*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(lkage_state, screen_update_lkage)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(lkage)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lkage)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 
 	/* sound hardware */
@@ -571,7 +566,6 @@ static MACHINE_CONFIG_START( lkage, lkage_state )
 
 	MCFG_SOUND_ADD("ym1", YM2203, AUDIO_CLOCK )
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(lkage_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)
@@ -605,9 +599,11 @@ static MACHINE_CONFIG_START( lkageb, lkage_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(2*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(lkage_state, screen_update_lkage)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(lkage)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", lkage)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
 
 	/* sound hardware */
@@ -615,7 +611,6 @@ static MACHINE_CONFIG_START( lkageb, lkage_state )
 
 	MCFG_SOUND_ADD("ym1", YM2203, AUDIO_CLOCK)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(lkage_state, irqhandler))
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)

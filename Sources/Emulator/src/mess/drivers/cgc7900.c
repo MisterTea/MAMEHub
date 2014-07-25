@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /***************************************************************************
 
         Chromatics CGC 7900
@@ -58,7 +60,7 @@
 #define INT_BINT1           0x4000
 #define INT_RS232_RXRDY     0x8000
 
-static const int INT_LEVEL[] = { 5, 4, 5, 4, 4, 5, 4, 5, 5, 4, 5, 4, 4, 5, 4, 5 };
+//static const int INT_LEVEL[] = { 5, 4, 5, 4, 4, 5, 4, 5, 5, 4, 5, 4, 4, 5, 4, 5 };
 
 /***************************************************************************
     READ/WRITE HANDLERS
@@ -335,57 +337,6 @@ static INPUT_PORTS_START( cgc7900 )
 	PORT_BIT( 0x1ff, 0x0c0, IPT_LIGHTGUN_Y ) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_MINMAX(0, 383) PORT_SENSITIVITY(20) PORT_KEYDELTA(25)
 INPUT_PORTS_END
 
-/***************************************************************************
-    DEVICE CONFIGURATION
-***************************************************************************/
-
-/*-------------------------------------------------
-    i8251_interface rs232_intf
--------------------------------------------------*/
-
-static const i8251_interface rs232_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-/*-------------------------------------------------
-    i8251_interface rs449_intf
--------------------------------------------------*/
-
-static const i8251_interface rs449_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-/*-------------------------------------------------
-    ay8910_interface ay8910_intf
--------------------------------------------------*/
-
-static const ay8910_interface ay8910_intf =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 /***************************************************************************
     MACHINE INITIALIZATION
@@ -432,12 +383,14 @@ static MACHINE_CONFIG_START( cgc7900, cgc7900_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD(AY8910_TAG, AY8910, XTAL_28_48MHz/16)
-	MCFG_SOUND_CONFIG(ay8910_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_I8251_ADD(INS8251_0_TAG, rs232_intf)
-	MCFG_I8251_ADD(INS8251_1_TAG, rs449_intf)
+	MCFG_DEVICE_ADD(INS8251_0_TAG, I8251, 0)
+	// rs232
+
+	MCFG_DEVICE_ADD(INS8251_1_TAG, I8251, 0)
+	// rs449
 MACHINE_CONFIG_END
 
 /***************************************************************************

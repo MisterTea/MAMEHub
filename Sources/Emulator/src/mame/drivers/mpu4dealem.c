@@ -8,7 +8,7 @@ the Deal 'Em board design, rather than the one they ultimately used, suggesting 
 
 //     - Deal 'Em lockouts vary on certain cabinets (normally connected to AUX2, but not there?)
 //     - Deal 'Em has bad tiles (apostrophe, logo, bottom corner), black should actually be transparent
-//                to give black on green.
+//                to give black on green. (Possibly colour 0 being used in place of colour 10?)
 
 
 #include "emu.h"
@@ -22,7 +22,8 @@ class mpu4dealem_state : public mpu4_state
 public:
 	mpu4dealem_state(const machine_config &mconfig, device_type type, const char *tag)
 		: mpu4_state(mconfig, type, tag),
-			m_dealem_videoram(*this, "dealem_videoram")
+			m_dealem_videoram(*this, "dealem_videoram"),
+		m_gfxdecode(*this, "gfxdecode")
 	{
 	}
 
@@ -31,6 +32,7 @@ public:
 	DECLARE_PALETTE_INIT(dealem);
 	UINT32 screen_update_dealem(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_WRITE_LINE_MEMBER(dealem_vsync_changed);
+	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -107,7 +109,7 @@ PALETTE_INIT_MEMBER(mpu4dealem_state,dealem)
 		bit1 = BIT(*color_prom,7);
 		b = combine_2_weights(weights_b, bit0, bit1);
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 		color_prom++;
 	}
 }
@@ -124,7 +126,7 @@ UINT32 mpu4dealem_state::screen_update_dealem(screen_device &screen, bitmap_ind1
 		{
 			int tile = m_dealem_videoram[count + 0x1000] | (m_dealem_videoram[count] << 8);
 			count++;
-			drawgfx_opaque(bitmap,cliprect,machine().gfx[0],tile,0,0,0,x * 8,y * 8);
+			m_gfxdecode->gfx(0)->opaque(bitmap,cliprect,tile,0,0,0,x * 8,y * 8);
 		}
 	}
 
@@ -143,21 +145,6 @@ WRITE_LINE_MEMBER(mpu4dealem_state::dealem_vsync_changed)
  *  Machine driver
  *
  *************************************/
-
-static MC6845_INTERFACE( hd6845_intf )
-{
-	false,                              /* show border area */
-	8,                                  /* number of pixels per video memory address */
-	NULL,                               /* before pixel update callback */
-	NULL,                               /* row update callback */
-	NULL,                               /* after pixel update callback */
-	DEVCB_NULL,                         /* callback for display state changes */
-	DEVCB_NULL,                         /* callback for cursor state changes */
-	DEVCB_NULL,                         /* HSYNC callback */
-	DEVCB_DRIVER_LINE_MEMBER(mpu4dealem_state, dealem_vsync_changed),   /* VSYNC callback */
-	NULL                                /* update address callback */
-};
-
 
 static ADDRESS_MAP_START( dealem_memmap, AS_PROGRAM, 8, mpu4dealem_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM AM_SHARE("nvram")
@@ -184,7 +171,7 @@ MACHINE_RESET_MEMBER(mpu4dealem_state,dealem_vid)
 {
 	m_vfd->reset(); //for debug ports only
 
-	mpu4_stepper_reset(this);
+	mpu4_stepper_reset();
 
 	m_lamp_strobe    = 0;
 	m_lamp_strobe2   = 0;
@@ -215,7 +202,8 @@ static MACHINE_CONFIG_START( dealem, mpu4dealem_state )
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ay8913",AY8913, MPU4_MASTER_CLOCK/4)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_OUTPUT_TYPE(AY8910_SINGLE_OUTPUT)
+	MCFG_AY8910_RES_LOADS(820, 0, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
@@ -226,13 +214,17 @@ static MACHINE_CONFIG_START( dealem, mpu4dealem_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 31*8-1)      /* Taken from 6845 init, registers 01 & 06 */
 	MCFG_SCREEN_REFRESH_RATE(56)                            /* Measured accurately from the flip-flop, but 6845 handles this */
 	MCFG_SCREEN_UPDATE_DRIVER(mpu4dealem_state, screen_update_dealem)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(dealem)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dealem)
 
-	MCFG_PALETTE_LENGTH(32)
-	MCFG_PALETTE_INIT_OVERRIDE(mpu4dealem_state,dealem)
+	MCFG_PALETTE_ADD("palette", 32)
+	MCFG_PALETTE_INIT_OWNER(mpu4dealem_state,dealem)
 
-	MCFG_MC6845_ADD("crtc", HD6845, "screen", MPU4_MASTER_CLOCK / 4 / 8, hd6845_intf) /* HD68B45 */
+	MCFG_MC6845_ADD("crtc", HD6845, "screen", MPU4_MASTER_CLOCK / 4 / 8) /* HD68B45 */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_OUT_VSYNC_CB(WRITELINE(mpu4dealem_state, dealem_vsync_changed))
 MACHINE_CONFIG_END
 
 

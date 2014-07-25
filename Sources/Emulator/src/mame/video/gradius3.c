@@ -1,5 +1,4 @@
 #include "emu.h"
-
 #include "includes/gradius3.h"
 
 
@@ -12,15 +11,12 @@
 
 ***************************************************************************/
 
-void gradius3_tile_callback( running_machine &machine, int layer, int bank, int *code, int *color, int *flags, int *priority )
+K052109_CB_MEMBER(gradius3_state::tile_callback)
 {
-	gradius3_state *state = machine.driver_data<gradius3_state>();
-
 	/* (color & 0x02) is flip y handled internally by the 052109 */
 	*code |= ((*color & 0x01) << 8) | ((*color & 0x1c) << 7);
-	*color = state->m_layer_colorbase[layer] + ((*color & 0xe0) >> 5);
+	*color = m_layer_colorbase[layer] + ((*color & 0xe0) >> 5);
 }
-
 
 /***************************************************************************
 
@@ -28,7 +24,7 @@ void gradius3_tile_callback( running_machine &machine, int layer, int bank, int 
 
 ***************************************************************************/
 
-void gradius3_sprite_callback( running_machine &machine, int *code, int *color, int *priority_mask, int *shadow )
+K051960_CB_MEMBER(gradius3_state::sprite_callback)
 {
 	#define L0 0xaa
 	#define L1 0xcc
@@ -38,19 +34,17 @@ void gradius3_sprite_callback( running_machine &machine, int *code, int *color, 
 		{ L0|L2, L0, L0|L2, L0|L1|L2 },
 		{ L1|L2, L2, 0,     L0|L1|L2 }
 	};
-	gradius3_state *state = machine.driver_data<gradius3_state>();
+
 	int pri = ((*color & 0x60) >> 5);
 
-	if (state->m_priority == 0)
-		*priority_mask = primask[0][pri];
+	if (m_priority == 0)
+		*priority = primask[0][pri];
 	else
-		*priority_mask = primask[1][pri];
+		*priority = primask[1][pri];
 
 	*code |= (*color & 0x01) << 13;
-	*color = state->m_sprite_colorbase + ((*color & 0x1e) >> 1);
+	*color = m_sprite_colorbase + ((*color & 0x1e) >> 1);
 }
-
-
 
 /***************************************************************************
 
@@ -60,37 +54,18 @@ void gradius3_sprite_callback( running_machine &machine, int *code, int *color, 
 
 void gradius3_state::gradius3_postload()
 {
-	int i;
-
-	for (i = 0; i < 0x20000; i += 16)
-	{
-		machine().gfx[0]->mark_dirty(i / 16);
-	}
+	m_k052109->gfx(0)->mark_all_dirty();
 }
 
 void gradius3_state::video_start()
 {
-	int i;
-
 	m_layer_colorbase[0] = 0;
 	m_layer_colorbase[1] = 32;
 	m_layer_colorbase[2] = 48;
 	m_sprite_colorbase = 16;
 
-	m_k052109->set_layer_offsets(2, -2, 0);
-	m_k051960->k051960_set_sprite_offsets(2, 0);
-
-	/* re-decode the sprites because the ROMs are connected to the custom IC differently
-	   from how they are connected to the CPU. */
-	for (i = 0; i < TOTAL_SPRITES; i++)
-		machine().gfx[1]->mark_dirty(i);
-
-	machine().gfx[0]->set_source((UINT8 *)m_gfxram.target());
-
 	machine().save().register_postload(save_prepost_delegate(FUNC(gradius3_state::gradius3_postload), this));
 }
-
-
 
 /***************************************************************************
 
@@ -100,7 +75,7 @@ void gradius3_state::video_start()
 
 READ16_MEMBER(gradius3_state::gradius3_gfxrom_r)
 {
-	UINT8 *gfxdata = memregion("gfx2")->base();
+	UINT8 *gfxdata = memregion("k051960")->base();
 
 	return (gfxdata[2 * offset + 1] << 8) | gfxdata[2 * offset];
 }
@@ -112,7 +87,7 @@ WRITE16_MEMBER(gradius3_state::gradius3_gfxram_w)
 	COMBINE_DATA(&m_gfxram[offset]);
 
 	if (oldword != m_gfxram[offset])
-		machine().gfx[0]->mark_dirty(offset / 16);
+		m_k052109->gfx(0)->mark_dirty(offset / 16);
 }
 
 /***************************************************************************

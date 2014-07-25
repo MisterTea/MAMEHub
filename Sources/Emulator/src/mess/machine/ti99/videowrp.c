@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Michael Zapf
 /****************************************************************************
 
     TI-99/4(A) and /8 Video subsystem
@@ -41,12 +43,12 @@ ti_exp_video_device::ti_exp_video_device(const machine_config &mconfig, const ch
 }
 
 ti_sound_sn94624_device::ti_sound_sn94624_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: ti_sound_system_device(mconfig, TISOUND_94624, tag, "Onboard sound (SN94624)", owner, clock, "ti_sound_sn94624", __FILE__)
+	: ti_sound_system_device(mconfig, TISOUND_94624, "Onboard sound (SN94624)", tag, owner, clock, "ti_sound_sn94624", __FILE__)
 {
 }
 
 ti_sound_sn76496_device::ti_sound_sn76496_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: ti_sound_system_device(mconfig, TISOUND_76496, tag, "Onboard sound (SN76496)", owner, clock, "ti_sound_sn76496", __FILE__)
+	: ti_sound_system_device(mconfig, TISOUND_76496, "Onboard sound (SN76496)", tag, owner, clock, "ti_sound_sn76496", __FILE__)
 {
 }
 
@@ -56,6 +58,8 @@ ti_sound_sn76496_device::ti_sound_sn76496_device(const machine_config &mconfig, 
 */
 READ8Z_MEMBER( ti_std_video_device::readz )
 {
+	if (space.debugger_access()) return;
+
 	if (offset & 2)
 	{       /* read VDP status */
 		*value = m_tms9928a->register_read(space, 0);
@@ -68,6 +72,8 @@ READ8Z_MEMBER( ti_std_video_device::readz )
 
 WRITE8_MEMBER( ti_std_video_device::write )
 {
+	if (space.debugger_access()) return;
+
 	if (offset & 2)
 	{   /* write VDP address */
 		m_tms9928a->register_write(space, 0, data);
@@ -85,6 +91,8 @@ WRITE8_MEMBER( ti_std_video_device::write )
 */
 READ16_MEMBER( ti_exp_video_device::read16 )
 {
+	if (space.debugger_access()) return 0;
+
 	if (offset & 1)
 	{   /* read VDP status */
 		return ((int) m_v9938->status_r()) << 8;
@@ -97,6 +105,8 @@ READ16_MEMBER( ti_exp_video_device::read16 )
 
 WRITE16_MEMBER( ti_exp_video_device::write16 )
 {
+	if (space.debugger_access()) return;
+
 	switch (offset & 3)
 	{
 	case 0:
@@ -125,6 +135,8 @@ WRITE16_MEMBER( ti_exp_video_device::write16 )
 */
 READ8Z_MEMBER( ti_exp_video_device::readz )
 {
+	if (space.debugger_access()) return;
+
 	if (offset & 2)
 	{   /* read VDP status */
 		*value = m_v9938->status_r();
@@ -140,6 +152,8 @@ READ8Z_MEMBER( ti_exp_video_device::readz )
 */
 WRITE8_MEMBER( ti_exp_video_device::write )
 {
+	if (space.debugger_access()) return;
+
 	switch (offset & 6)
 	{
 	case 0:
@@ -192,20 +206,16 @@ void ti_video_device::device_reset(void)
     TODO: Seriously consider to simplify this by connecting to the datamux
     directly. We don't do anything reasonable here.
 */
-static const sn76496_config sound_config =
-{
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, ti_sound_system_device, sound_ready),
-};
 
 WRITE8_MEMBER( ti_sound_system_device::write )
 {
+	if (space.debugger_access()) return;
 	m_sound_chip->write(space, 0, data);
 }
 
 void ti_sound_system_device::device_start(void)
 {
-	const ti_sound_config *conf = reinterpret_cast<const ti_sound_config *>(static_config());
-	m_console_ready.resolve(conf->ready, *this);
+	m_console_ready.resolve();
 	m_sound_chip = subdevice<sn76496_base_device>(TISOUNDCHIP_TAG);
 }
 
@@ -216,16 +226,18 @@ WRITE_LINE_MEMBER( ti_sound_system_device::sound_ready )
 
 MACHINE_CONFIG_FRAGMENT( sn94624 )
 	MCFG_SPEAKER_STANDARD_MONO("sound_out")
+
 	MCFG_SOUND_ADD(TISOUNDCHIP_TAG, SN94624, 3579545/8) /* 3.579545 MHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "sound_out", 0.75)
-	MCFG_SOUND_CONFIG(sound_config)
+	MCFG_SN76496_READY_HANDLER(WRITELINE(ti_sound_system_device, sound_ready))
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_FRAGMENT( sn76496 )
 	MCFG_SPEAKER_STANDARD_MONO("sound_out")
+
 	MCFG_SOUND_ADD(TISOUNDCHIP_TAG, SN76496, 3579545)   /* 3.579545 MHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "sound_out", 0.75)
-	MCFG_SOUND_CONFIG(sound_config)
+	MCFG_SN76496_READY_HANDLER(WRITELINE(ti_sound_system_device, sound_ready))
 MACHINE_CONFIG_END
 
 machine_config_constructor ti_sound_sn94624_device::device_mconfig_additions() const

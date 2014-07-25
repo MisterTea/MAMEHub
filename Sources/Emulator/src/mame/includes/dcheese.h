@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     HAR MadMax hardware
@@ -17,7 +19,8 @@ public:
 	dcheese_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu") { }
+		m_audiocpu(*this, "audiocpu"),
+		m_screen(*this, "screen") { }
 
 	/* video-related */
 	UINT16   m_blitter_color[2];
@@ -37,6 +40,7 @@ public:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<screen_device> m_screen;
 	device_t *m_bsmt;
 	DECLARE_WRITE16_MEMBER(eeprom_control_w);
 	DECLARE_WRITE16_MEMBER(sound_command_w);
@@ -53,7 +57,7 @@ public:
 	DECLARE_CUSTOM_INPUT_MEMBER(sound_latch_state_r);
 	virtual void machine_start();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(dcheese);
 	UINT32 screen_update_dcheese(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(dcheese_vblank);
 	void dcheese_signal_irq(int which);

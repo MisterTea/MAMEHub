@@ -1,3 +1,5 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Michael Zapf
 /***************************************************************************
 
     TI-99/4(A) databus multiplexer circuit
@@ -50,7 +52,7 @@
     +---+                      +-+     |      | |                   :
       ^                     LS244|     |      | |
       |                          |     +--+---+-++
-      |                          +--------| DMUX |
+      |                          +--------| DMUX |---------------<--: READY
       +--- READY -------------------------+------+
 
          Databus width
@@ -73,12 +75,14 @@
     Constructor
 */
 ti99_datamux_device::ti99_datamux_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-: device_t(mconfig, DATAMUX, "Databus multiplexer", tag, owner, clock, "ti99_datamux", __FILE__)
-{
-}
+: device_t(mconfig, DATAMUX, "Databus multiplexer", tag, owner, clock, "ti99_datamux", __FILE__),
+	m_ready(*this) { }
 
-#define VERBOSE 0
-#define LOG logerror
+#define TRACE_READY 0
+#define TRACE_ACCESS 0
+#define TRACE_ADDRESS 0
+#define TRACE_WAITCOUNT 0
+#define TRACE_SETUP 0
 
 /***************************************************************************
     DEVICE ACCESSOR FUNCTIONS
@@ -120,54 +124,104 @@ void ti99_datamux_device::write_all(address_space& space, UINT16 addr, UINT8 val
 	}
 }
 
+void ti99_datamux_device::setaddress_all(address_space& space, UINT16 addr)
+{
+	attached_device *dev = m_devices.first();
+	while (dev != NULL)
+	{
+		if ((addr & dev->m_config->address_mask)==(dev->m_config->select | dev->m_config->write_select))
+		{
+			bus8z_device *devz = static_cast<bus8z_device *>(dev->m_device);
+			devz->setaddress_dbin(space, addr, m_read_mode? ASSERT_LINE : CLEAR_LINE);
+		}
+		dev = dev->m_next;
+	}
+}
+
+/*
+    Special debugger access; these routines have no influence on the wait
+    state generation.
+*/
+UINT16 ti99_datamux_device::debugger_read(address_space& space, UINT16 addr)
+{
+	UINT16 base32k = 0;
+	UINT8 lval, hval;
+
+	UINT16 addrb = addr << 1;
+	if (m_use32k)
+	{
+		if ((addrb & 0xe000)==0x2000) base32k = 0x1000;
+		if (((addrb & 0xe000)==0xa000) || ((addrb & 0xc000)==0xc000)) base32k = 0x4000;
+	}
+	if (base32k != 0)
+	{
+		return m_ram16b[addr - base32k];
+	}
+	else
+	{
+		lval = hval = 0;
+		read_all(space, addrb+1, &lval);
+		read_all(space, addrb, &hval);
+		return ((hval << 8)&0xff00) | (lval & 0xff);
+	}
+}
+
+void ti99_datamux_device::debugger_write(address_space& space, UINT16 addr, UINT16 data)
+{
+	UINT16 base32k = 0;
+
+	UINT16 addrb = addr << 1;
+	if (m_use32k)
+	{
+		if ((addrb & 0xe000)==0x2000) base32k = 0x1000;
+		if (((addrb & 0xe000)==0xa000) || ((addrb & 0xc000)==0xc000)) base32k = 0x4000;
+	}
+	if (base32k != 0)
+	{
+		m_ram16b[addr - base32k] = data;
+	}
+	else
+	{
+		write_all(space, addrb+1, data & 0xff);
+		write_all(space, addrb, (data >> 8) & 0xff);
+	}
+}
+
 /*
     Read access. We are using two loops because the delay between both
     accesses must not occur within the loop. So we have one access on the bus,
     a delay, and then the second access (each one with possibly many attached
     devices)
-
-    TODO: Check two-pass operation
 */
 READ16_MEMBER( ti99_datamux_device::read )
 {
-	UINT8 hbyte = 0;
-	UINT16 addr = (offset << 1);
+	// Care for debugger
+	if (space.debugger_access())
+	{
+		return debugger_read(space, offset);
+	}
 
 	// Looks ugly, but this is close to the real thing. If the 16bit
 	// memory expansion is installed in the console, and the access hits its
 	// space, just respond to the memory access and don't bother the
 	// datamux in any way. In particular, do not make the datamux insert wait
 	// states.
-	if (m_use32k)
+
+	if (m_base32k != 0)
 	{
-		UINT16 base = 0;
-		if ((addr & 0xe000)==0x2000) base = 0x1000;
-		if (((addr & 0xe000)==0xa000) || ((addr & 0xc000)==0xc000)) base = 0x4000;
-
-		if (base != 0)
-		{
-			UINT16 reply = m_ram16b[offset-base];
-			return reply & mem_mask;
-		}
+		UINT16 reply = m_ram16b[offset-m_base32k];
+		return reply & mem_mask;
 	}
+	else
+	{
+		// The byte from the odd address has already been read into the latch
+		// Reading the even address now (addr)
+		UINT8 hbyte = 0;
+		read_all(space, m_addr_buf, &hbyte);
+		if (TRACE_ACCESS) logerror("datamux: read even byte from address %04x -> %02x\n",  m_addr_buf, hbyte);
 
-	// Read the odd address into the latch
-	read_all(space, addr+1, &m_latch);
-
-	// Reading the even address now (addr)
-	read_all(space, addr, &hbyte);
-
-	// Insert four wait states and let CPU enter wait state
-	// The counter in the real console is implemented by a shift register
-	// that is triggered on a memory access
-
-	// We cannot split the wait states between the read accesses before we
-	// have a split-phase read access in the core
-	m_waitcount = 6;
-	m_ready(CLEAR_LINE);
-
-	// use the latch and the currently read byte and put it on the 16bit bus
-	return ((hbyte<<8) | m_latch) & mem_mask;
+		return ((hbyte<<8) | m_latch) & mem_mask;
+	}
 }
 
 /*
@@ -175,50 +229,154 @@ READ16_MEMBER( ti99_datamux_device::read )
 */
 WRITE16_MEMBER( ti99_datamux_device::write )
 {
-	UINT16 addr = (offset << 1);
+	// Addresses below 0x2000 are ROM and should be handled in the address map
+	// by the ROM entry, but as the write handler for ROM is not mapped, we end up
+	// here when there are invalid accesses, and this will mess up everything.
+	if (offset < 0x1000) return;
 
-	// Although MESS allows for using mem_mask to address parts of the
-	// data bus, this is not used in the TMS implementation. In fact, all
-	// accesses are true 16-bit accesses. We check for mem_mask always
-	// being ffff.
-
-//  printf("write addr=%04x, value=%04x\n", addr, data);
-
-	// Handle the internal 32K expansion
-	if (m_use32k)
+	if (space.debugger_access())
 	{
-		UINT16 base = 0;
-		if ((addr & 0xe000)==0x2000) base = 0x1000;
-		if (((addr & 0xe000)==0xa000) || ((addr & 0xc000)==0xc000)) base = 0x4000;
-
-		if (base != 0)
-		{
-			m_ram16b[offset-base] = data;
-			return;
-		}
+		debugger_write(space, offset, data);
+		return;
 	}
 
-	// write odd byte
-	write_all(space, addr+1, data & 0xff);
-	// write even byte
-	write_all(space, addr, (data>>8) & 0xff);
+	// Handle the internal 32K expansion
+	if (m_base32k != 0)
+	{
+		m_ram16b[offset-m_base32k] = data;
+	}
+	else
+	{
+		// Otherwise the datamux is in normal operation which means it puts
+		// the even value into the latch and outputs the odd value now.
+		m_latch = (data >> 8) & 0xff;
 
-	// Insert four wait states and let CPU enter wait state
-	m_waitcount = 6;
-	m_ready(CLEAR_LINE);
+		// write odd byte
+		if (TRACE_ACCESS) logerror("datamux: write odd byte to address %04x <- %02x\n",  m_addr_buf+1, data & 0xff);
+		write_all(space, m_addr_buf+1, data & 0xff);
+	}
+}
+
+/*
+    Called when the memory access starts by setting the address bus. From that
+    point on, we suspend the CPU until all operations are done.
+*/
+SETOFFSET_MEMBER( ti99_datamux_device::setoffset )
+{
+	if (TRACE_ADDRESS) logerror("datamux: set address %04x\n", offset << 1);
+	// Initialize counter
+	// 1 cycle for loading into the datamux
+	// 2 subsequent wait states (LSB)
+	// 2 subsequent wait states (MSB)
+	// clock cycle 6 is the nominal follower of the last wait state
+	m_waitcount = 5;
+	m_addr_buf = offset << 1;
+	m_spacep = &space;
+
+	m_base32k = 0;
+	if (m_use32k)
+	{
+		if ((m_addr_buf & 0xe000)==0x2000) m_base32k = 0x1000;
+		if (((m_addr_buf & 0xe000)==0xa000) || ((m_addr_buf & 0xc000)==0xc000)) m_base32k = 0x4000;
+	}
+
+	// Suspend the CPU if not using the 32K
+	if (m_base32k == 0)
+	{
+		// propagate the setaddress operation
+		// First the odd address
+		setaddress_all(space, m_addr_buf+1);
+		m_muxready = CLEAR_LINE;
+		ready_join();
+	}
+	else m_waitcount = 0;
 }
 
 /*
     The datamux is connected to the clock line in order to operate
-    the wait state counter.
+    the wait state counter and to read/write the bytes.
 */
-void ti99_datamux_device::clock_in(int clock)
+WRITE_LINE_MEMBER( ti99_datamux_device::clock_in )
 {
-	if (clock==ASSERT_LINE && m_waitcount!=0)
+	// return immediately if the datamux is currently inactive
+	if (m_waitcount>0)
 	{
-		m_waitcount--;
-		if (m_waitcount==0) m_ready(ASSERT_LINE);
+		if (TRACE_WAITCOUNT) logerror("datamux: wait count %d\n", m_waitcount);
+		if (m_sysready==CLEAR_LINE)
+		{
+			if (TRACE_READY) logerror("datamux: stalled due to external READY=0\n");
+			return;
+		}
+		if (m_read_mode)
+		{
+			// Reading
+			if (state==ASSERT_LINE)
+			{   // raising edge
+				m_waitcount--;
+				if (m_waitcount==0)
+				{
+					m_muxready = ASSERT_LINE;
+					ready_join();
+				}
+				if (m_waitcount==2)
+				{
+					// read odd byte
+					read_all(*m_spacep, m_addr_buf+1, &m_latch);
+					if (TRACE_ACCESS) logerror("datamux: read odd byte from address %04x -> %02x\n",  m_addr_buf+1, m_latch);
+					// do the setaddress for the even address
+					setaddress_all(*m_spacep, m_addr_buf);
+				}
+			}
+		}
+		else
+		{
+			if (state==ASSERT_LINE)
+			{   // raising edge
+				m_waitcount--;
+				if (m_waitcount==0)
+				{
+					m_muxready = ASSERT_LINE;
+					ready_join();
+				}
+			}
+			else
+			{   // falling edge
+				if (m_waitcount==2)
+				{
+					// do the setaddress for the even address
+					setaddress_all(*m_spacep, m_addr_buf);
+					// write even byte
+					if (TRACE_ACCESS) logerror("datamux: write even byte to address %04x <- %02x\n",  m_addr_buf, m_latch);
+					write_all(*m_spacep, m_addr_buf, m_latch);
+				}
+			}
+		}
 	}
+}
+
+/*
+    Combine the external (sysready) and the own (muxready) READY states.
+*/
+void ti99_datamux_device::ready_join()
+{
+	m_ready((m_sysready==CLEAR_LINE || m_muxready==CLEAR_LINE)? CLEAR_LINE : ASSERT_LINE);
+}
+
+WRITE_LINE_MEMBER( ti99_datamux_device::dbin_in )
+{
+	m_read_mode = (state==ASSERT_LINE);
+	if (TRACE_ADDRESS) logerror("datamux: data bus in = %d\n", m_read_mode? 1:0 );
+}
+
+WRITE_LINE_MEMBER( ti99_datamux_device::ready_line )
+{
+	if (TRACE_READY)
+	{
+		if (state != m_sysready) logerror("datamux: READY line from PBox = %d\n", state);
+	}
+	m_sysready = (line_state)state;
+	// Also propagate to CPU via driver
+	ready_join();
 }
 
 /***************************************************************************
@@ -228,11 +386,13 @@ void ti99_datamux_device::clock_in(int clock)
 void ti99_datamux_device::device_start(void)
 {
 	m_ram16b = NULL;
+	m_muxready = ASSERT_LINE;
+	m_ready.resolve();
 }
 
 void ti99_datamux_device::device_stop(void)
 {
-	if (m_ram16b) free(m_ram16b);
+	if (m_ram16b) global_free_array(m_ram16b);
 }
 
 void ti99_datamux_device::device_reset(void)
@@ -240,7 +400,6 @@ void ti99_datamux_device::device_reset(void)
 	const datamux_config *conf = reinterpret_cast<const datamux_config *>(static_config());
 
 	const dmux_device_list_entry *list = conf->devlist;
-	m_ready.resolve(conf->ready, *this);
 
 	m_cpu = machine().device("maincpu");
 	// m_space = &m_cpu->memory().space(AS_PROGRAM);
@@ -251,8 +410,7 @@ void ti99_datamux_device::device_reset(void)
 	// better use a region?
 	if (m_ram16b==NULL)
 	{
-		m_ram16b = (UINT16*)malloc(32768);
-		memset(m_ram16b, 0, 32768);
+		m_ram16b = global_alloc_array_clear(UINT16, 32768/2);
 	}
 
 	// Now building the list of active devices at this databus multiplex.
@@ -284,25 +442,30 @@ void ti99_datamux_device::device_reset(void)
 					{
 						attached_device *ad = new attached_device(dev, list[i]);
 						m_devices.append(*ad);
-						if (VERBOSE>8) LOG("datamux: Device %s mounted at index %d.\n", list[i].name, i);
+						if (TRACE_SETUP) logerror("datamux: Device %s mounted at index %d.\n", list[i].name, i);
 					}
 					else
 					{
-						if (VERBOSE>8) LOG("datamux: Device %s not found.\n", list[i].name);
+						if (TRACE_SETUP) logerror("datamux: Device %s not found.\n", list[i].name);
 					}
 				}
 				else
 				{
-					if (VERBOSE>8) LOG("datamux: Device %s not mounted due to configuration setting %s.\n", list[i].name, list[i].setting);
+					if (TRACE_SETUP) logerror("datamux: Device %s not mounted due to configuration setting %s.\n", list[i].name, list[i].setting);
 				}
 			}
 		}
 	}
-	if (VERBOSE>8) LOG("datamux: Device count = %d\n", m_devices.count());
-	m_ready(ASSERT_LINE);
+	if (TRACE_SETUP) logerror("datamux: Device count = %d\n", m_devices.count());
+
+	m_sysready = ASSERT_LINE;
+	m_muxready = ASSERT_LINE;
+	ready_join();
 
 	m_waitcount = 0;
 	m_latch = 0;
+
+	m_read_mode = true;
 }
 
 INPUT_PORTS_START( datamux )

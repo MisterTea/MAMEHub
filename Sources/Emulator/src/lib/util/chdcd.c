@@ -262,6 +262,7 @@ static UINT32 parse_wav_sample(const char *filename, UINT32 *dataoffs)
 	/* bits/sample */
 	osd_read(file, &bits, offset, 2, &actual);
 	offset += actual;
+	bits = LITTLE_ENDIANIZE_INT16(bits);
 	if (bits != 16)
 	{
 		osd_close(file);
@@ -633,6 +634,7 @@ static chd_error chdcd_parse_gdi(const char *tocfname, cdrom_toc &outtoc, chdcd_
 		outtoc.tracks[trknum].datasize = 0;
 		outtoc.tracks[trknum].subtype = CD_SUB_NONE;
 		outtoc.tracks[trknum].subsize = 0;
+		outtoc.tracks[trknum].pgsub = CD_SUB_NONE;
 
 		tok=strtok(NULL," ");
 		outtoc.tracks[trknum].physframeofs=atoi(tok);
@@ -657,6 +659,7 @@ static chd_error chdcd_parse_gdi(const char *tocfname, cdrom_toc &outtoc, chdcd_
 		{
 			outtoc.tracks[trknum].trktype=CD_TRACK_AUDIO;
 			outtoc.tracks[trknum].datasize=2352;
+			outinfo.track[trknum].swap = true;
 		}
 
 		astring name;
@@ -705,7 +708,7 @@ static chd_error chdcd_parse_gdi(const char *tocfname, cdrom_toc &outtoc, chdcd_
 }
 
 /*-------------------------------------------------
-    chdcd_parse_toc - parse a CDRWin format CUE file
+    chdcd_parse_cue - parse a CDRWin format CUE file
 -------------------------------------------------*/
 
 chd_error chdcd_parse_cue(const char *tocfname, cdrom_toc &outtoc, chdcd_track_input_info &outinfo)

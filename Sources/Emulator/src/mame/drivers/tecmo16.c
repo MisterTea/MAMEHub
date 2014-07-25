@@ -53,7 +53,7 @@ static ADDRESS_MAP_START( fstarfrc_map, AS_PROGRAM, 16, tecmo16_state )
 	AM_RANGE(0x121800, 0x121fff) AM_RAM_WRITE(tecmo16_colorram2_w) AM_SHARE("colorram2")
 	AM_RANGE(0x122000, 0x127fff) AM_RAM /* work area */
 	AM_RANGE(0x130000, 0x130fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x140000, 0x141fff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x140000, 0x141fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x150000, 0x150001) AM_WRITE(tecmo16_flipscreen_w)
 	AM_RANGE(0x150010, 0x150011) AM_WRITE(tecmo16_sound_command_w)
 	AM_RANGE(0x150030, 0x150031) AM_READ_PORT("DSW2") AM_WRITENOP   /* ??? */
@@ -76,7 +76,7 @@ static ADDRESS_MAP_START( ginkun_map, AS_PROGRAM, 16, tecmo16_state )
 	AM_RANGE(0x123000, 0x123fff) AM_RAM_WRITE(tecmo16_colorram2_w) AM_SHARE("colorram2")
 	AM_RANGE(0x124000, 0x124fff) AM_RAM /* extra RAM for Riot */
 	AM_RANGE(0x130000, 0x130fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x140000, 0x141fff) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x140000, 0x141fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x150000, 0x150001) AM_WRITE(tecmo16_flipscreen_w)
 	AM_RANGE(0x150010, 0x150011) AM_WRITE(tecmo16_sound_command_w)
 	AM_RANGE(0x150020, 0x150021) AM_READ_PORT("EXTRA") AM_WRITENOP  /* ??? */
@@ -355,20 +355,23 @@ static const gfx_layout spritelayout =
 
 static GFXDECODE_START( tecmo16 )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout,   1*16*16, 16   )
-	GFXDECODE_ENTRY( "gfx2", 0, tilelayout,   2*16*16, 16*2 )
-	GFXDECODE_ENTRY( "gfx3", 0, spritelayout, 0*16*16, 16   )
+	GFXDECODE_ENTRY( "gfx2", 0, tilelayout,   0, 0x1000 )
+	GFXDECODE_ENTRY( "gfx3", 0, spritelayout, 0, 0x1000   )
 GFXDECODE_END
 
 /******************************************************************************/
 
+#define MASTER_CLOCK XTAL_24MHz
+#define OKI_CLOCK XTAL_8MHz
+
 static MACHINE_CONFIG_START( fstarfrc, tecmo16_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000,24000000/2)          /* 12MHz */
+	MCFG_CPU_ADD("maincpu", M68000,MASTER_CLOCK/2)          /* 12MHz */
 	MCFG_CPU_PROGRAM_MAP(fstarfrc_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", tecmo16_state,  irq5_line_hold)
 
-	MCFG_CPU_ADD("audiocpu", Z80,8000000/2)         /* 4MHz */
+	MCFG_CPU_ADD("audiocpu", Z80,MASTER_CLOCK/6)         /* 4MHz */
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 								/* NMIs are triggered by the main CPU */
 	MCFG_QUANTUM_TIME(attotime::from_hz(600))
@@ -381,19 +384,30 @@ static MACHINE_CONFIG_START( fstarfrc, tecmo16_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(tecmo16_state, screen_update_tecmo16)
 
-	MCFG_GFXDECODE(tecmo16)
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tecmo16)
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 4096)
+	MCFG_PALETTE_FORMAT(xxxxBBBBGGGGRRRR)
 
+	MCFG_DEVICE_ADD("spritegen", TECMO_SPRITE, 0)
+	MCFG_TECMO_SPRITE_GFX_REGION(2)
+
+	MCFG_DEVICE_ADD("mixer", TECMO_MIXER, 0)
+	MCFG_TECMO_MIXER_SHIFTS(10,9,4)
+	MCFG_TECMO_MIXER_BLENDCOLS(   0x0400 + 0x300, 0x0400 + 0x200, 0x0400 + 0x100, 0x0400 + 0x000 )
+	MCFG_TECMO_MIXER_REGULARCOLS( 0x0000 + 0x300, 0x0000 + 0x200, 0x0000 + 0x100, 0x0000 + 0x000 )
+	MCFG_TECMO_MIXER_BLENDSOUCE( 0x0800 + 0x000, 0x0800 + 0x100) // riot seems to set palettes in 0x800 + 0x200, could be more to this..
+	MCFG_TECMO_MIXER_REVSPRITETILE
+	MCFG_TECMO_MIXER_BGPEN(0x000 + 0x300)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_YM2151_ADD("ymsnd", 8000000/2)
+	MCFG_YM2151_ADD("ymsnd", MASTER_CLOCK/6) // 4 MHz
 	MCFG_YM2151_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.60)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.60)
 
-	MCFG_OKIM6295_ADD("oki", 999900, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
+	MCFG_OKIM6295_ADD("oki", OKI_CLOCK/8, OKIM6295_PIN7_HIGH) // sample rate 1 MHz / 132
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.40)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.40)
 MACHINE_CONFIG_END

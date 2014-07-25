@@ -41,15 +41,15 @@
 WRITE8_MEMBER(cloak_state::cloak_paletteram_w)
 {
 	m_palette_ram[offset & 0x3f] = ((offset & 0x40) << 2) | data;
+	set_pen(offset & 0x3f);
 }
 
 
-void cloak_state::set_pens()
+void cloak_state::set_pen(int i)
 {
 	UINT16 *palette_ram = m_palette_ram;
 	static const int resistances[3] = { 10000, 4700, 2200 };
 	double weights[3];
-	int i;
 
 	/* compute the color output resistor weights */
 	compute_resistor_weights(0, 255, -1.0,
@@ -57,31 +57,28 @@ void cloak_state::set_pens()
 								0, 0, 0, 0, 0,
 								0, 0, 0, 0, 0);
 
-	for (i = 0; i < NUM_PENS; i++)
-	{
-		int r, g, b;
-		int bit0, bit1, bit2;
+	int r, g, b;
+	int bit0, bit1, bit2;
 
-		/* red component */
-		bit0 = (~palette_ram[i] >> 6) & 0x01;
-		bit1 = (~palette_ram[i] >> 7) & 0x01;
-		bit2 = (~palette_ram[i] >> 8) & 0x01;
-		r = combine_3_weights(weights, bit0, bit1, bit2);
+	/* red component */
+	bit0 = (~palette_ram[i] >> 6) & 0x01;
+	bit1 = (~palette_ram[i] >> 7) & 0x01;
+	bit2 = (~palette_ram[i] >> 8) & 0x01;
+	r = combine_3_weights(weights, bit0, bit1, bit2);
 
-		/* green component */
-		bit0 = (~palette_ram[i] >> 3) & 0x01;
-		bit1 = (~palette_ram[i] >> 4) & 0x01;
-		bit2 = (~palette_ram[i] >> 5) & 0x01;
-		g = combine_3_weights(weights, bit0, bit1, bit2);
+	/* green component */
+	bit0 = (~palette_ram[i] >> 3) & 0x01;
+	bit1 = (~palette_ram[i] >> 4) & 0x01;
+	bit2 = (~palette_ram[i] >> 5) & 0x01;
+	g = combine_3_weights(weights, bit0, bit1, bit2);
 
-		/* blue component */
-		bit0 = (~palette_ram[i] >> 0) & 0x01;
-		bit1 = (~palette_ram[i] >> 1) & 0x01;
-		bit2 = (~palette_ram[i] >> 2) & 0x01;
-		b = combine_3_weights(weights, bit0, bit1, bit2);
+	/* blue component */
+	bit0 = (~palette_ram[i] >> 0) & 0x01;
+	bit1 = (~palette_ram[i] >> 1) & 0x01;
+	bit2 = (~palette_ram[i] >> 2) & 0x01;
+	b = combine_3_weights(weights, bit0, bit1, bit2);
 
-		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
-	}
+	m_palette->set_pen_color(i, rgb_t(r, g, b));
 }
 
 
@@ -160,7 +157,7 @@ TILE_GET_INFO_MEMBER(cloak_state::get_bg_tile_info)
 
 void cloak_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cloak_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cloak_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_bitmap_videoram1 = auto_alloc_array(machine(), UINT8, 256*256);
 	m_bitmap_videoram2 = auto_alloc_array(machine(), UINT8, 256*256);
@@ -212,13 +209,12 @@ void cloak_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code, 0, flipx, flipy,   sx, sy, 0);
+		m_gfxdecode->gfx(1)->transpen(bitmap,cliprect, code, 0, flipx, flipy,   sx, sy, 0);
 	}
 }
 
 UINT32 cloak_state::screen_update_cloak(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	set_pens();
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	draw_bitmap(bitmap, cliprect);
 	draw_sprites(bitmap, cliprect);

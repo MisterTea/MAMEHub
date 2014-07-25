@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*
 
 Omnibyte OB68K1A
@@ -118,11 +120,11 @@ static ADDRESS_MAP_START( ob68k1a_mem, AS_PROGRAM, 16, ob68k1a_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000000, 0x01ffff) AM_RAM
 	AM_RANGE(0xfe0000, 0xfeffff) AM_ROM AM_REGION(MC68000L10_TAG, 0)
-	AM_RANGE(0xffff00, 0xffff01) AM_DEVREADWRITE8(MC6850_0_TAG, acia6850_device, status_read, control_write, 0x00ff)
-	AM_RANGE(0xffff02, 0xffff03) AM_DEVREADWRITE8(MC6850_0_TAG, acia6850_device, data_read, data_write, 0x00ff)
+	AM_RANGE(0xffff00, 0xffff01) AM_DEVREADWRITE8(MC6850_0_TAG, acia6850_device, status_r, control_w, 0x00ff)
+	AM_RANGE(0xffff02, 0xffff03) AM_DEVREADWRITE8(MC6850_0_TAG, acia6850_device, data_r, data_w, 0x00ff)
 	AM_RANGE(0xffff10, 0xffff11) AM_WRITE8(com8116_w, 0xff00)
-	AM_RANGE(0xffff20, 0xffff21) AM_DEVREADWRITE8(MC6850_1_TAG, acia6850_device, status_read, control_write, 0x00ff)
-	AM_RANGE(0xffff22, 0xffff23) AM_DEVREADWRITE8(MC6850_1_TAG, acia6850_device, data_read, data_write, 0x00ff)
+	AM_RANGE(0xffff20, 0xffff21) AM_DEVREADWRITE8(MC6850_1_TAG, acia6850_device, status_r, control_w, 0x00ff)
+	AM_RANGE(0xffff22, 0xffff23) AM_DEVREADWRITE8(MC6850_1_TAG, acia6850_device, data_r, data_w, 0x00ff)
 //  AM_RANGE(0xffff40, 0xffff47) AM_DEVREADWRITE8(MC6821_0_TAG, pia6821_device, read, write, 0x00ff)
 //  AM_RANGE(0xffff40, 0xffff47) AM_DEVREADWRITE8(MC6821_1_TAG, pia6821_device, read, write, 0xff00)
 	AM_RANGE(0xffff40, 0xffff47) AM_READWRITE8(pia_r, pia_w, 0xffff)
@@ -148,96 +150,6 @@ INPUT_PORTS_END
 //  DEVICE CONFIGURATION
 //**************************************************************************
 
-//-------------------------------------------------
-//  pia6821_interface pia0_intf
-//-------------------------------------------------
-
-static const pia6821_interface pia0_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  pia6821_interface pia1_intf
-//-------------------------------------------------
-
-static const pia6821_interface pia1_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  ptm6840_interface ptm_intf
-//-------------------------------------------------
-
-static const ptm6840_interface ptm_intf =
-{
-	XTAL_10MHz/10,
-	{ 0, 0, 0 },
-	{ DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL },
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  ACIA6850_INTERFACE( acia0_intf )
-//-------------------------------------------------
-
-static ACIA6850_INTERFACE( acia0_intf )
-{
-	0,
-	0,
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, cts_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dcd_r),
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  ACIA6850_INTERFACE( acia1_intf )
-//-------------------------------------------------
-
-static ACIA6850_INTERFACE( acia1_intf )
-{
-	0,
-	0,
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, rx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, cts_r),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
-	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dcd_r),
-	DEVCB_NULL,
-};
-
 
 //-------------------------------------------------
 //  COM8116_INTERFACE( dbrg_intf )
@@ -245,43 +157,15 @@ static ACIA6850_INTERFACE( acia1_intf )
 
 WRITE_LINE_MEMBER( ob68k1a_state::rx_tx_0_w )
 {
-	m_acia0->rx_clock_in();
-	m_acia0->tx_clock_in();
+	m_acia0->write_txc(state);
+	m_acia0->write_rxc(state);
 }
 
 WRITE_LINE_MEMBER( ob68k1a_state::rx_tx_1_w )
 {
-	m_acia1->rx_clock_in();
-	m_acia1->tx_clock_in();
+	m_acia1->write_txc(state);
+	m_acia1->write_rxc(state);
 }
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232a_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232a_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  rs232_port_interface rs232b_intf
-//-------------------------------------------------
-
-static const rs232_port_interface rs232b_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
 
 
 
@@ -338,14 +222,33 @@ static MACHINE_CONFIG_START( ob68k1a, ob68k1a_state )
 	MCFG_CPU_PROGRAM_MAP(ob68k1a_mem)
 
 	// devices
-	MCFG_PIA6821_ADD(MC6821_0_TAG, pia0_intf)
-	MCFG_PIA6821_ADD(MC6821_1_TAG, pia1_intf)
-	MCFG_PTM6840_ADD(MC6840_TAG, ptm_intf)
-	MCFG_ACIA6850_ADD(MC6850_0_TAG, acia0_intf)
-	MCFG_ACIA6850_ADD(MC6850_1_TAG, acia1_intf)
-	MCFG_COM8116_ADD(COM8116_TAG, XTAL_5_0688MHz, NULL, WRITELINE(ob68k1a_state, rx_tx_0_w), WRITELINE(ob68k1a_state, rx_tx_1_w))
-	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, "serial_terminal")
-	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
+	MCFG_DEVICE_ADD(MC6821_0_TAG, PIA6821, 0)
+	MCFG_DEVICE_ADD(MC6821_1_TAG, PIA6821, 0)
+	MCFG_DEVICE_ADD(MC6840_TAG, PTM6840, 0)
+	MCFG_PTM6840_INTERNAL_CLOCK(XTAL_10MHz/10)
+	MCFG_PTM6840_EXTERNAL_CLOCKS(0, 0, 0)
+
+	MCFG_DEVICE_ADD(MC6850_0_TAG, ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_txd))
+	MCFG_ACIA6850_RTS_HANDLER(DEVWRITELINE(RS232_A_TAG, rs232_port_device, write_rts))
+
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, default_rs232_devices, "terminal")
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(MC6850_0_TAG, acia6850_device, write_rxd))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(MC6850_0_TAG, acia6850_device, write_dcd))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(MC6850_0_TAG, acia6850_device, write_cts))
+
+	MCFG_DEVICE_ADD(MC6850_1_TAG, ACIA6850, 0)
+	MCFG_ACIA6850_TXD_HANDLER(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_txd))
+	MCFG_ACIA6850_RTS_HANDLER(DEVWRITELINE(RS232_B_TAG, rs232_port_device, write_rts))
+
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, default_rs232_devices, NULL)
+	MCFG_RS232_RXD_HANDLER(DEVWRITELINE(MC6850_1_TAG, acia6850_device, write_rxd))
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(MC6850_1_TAG, acia6850_device, write_dcd))
+	MCFG_RS232_CTS_HANDLER(DEVWRITELINE(MC6850_1_TAG, acia6850_device, write_cts))
+
+	MCFG_DEVICE_ADD(COM8116_TAG, COM8116, XTAL_5_0688MHz)
+	MCFG_COM8116_FR_HANDLER(WRITELINE(ob68k1a_state, rx_tx_0_w))
+	MCFG_COM8116_FT_HANDLER(WRITELINE(ob68k1a_state, rx_tx_1_w))
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)

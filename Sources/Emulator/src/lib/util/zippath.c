@@ -59,6 +59,7 @@ public:
 static const zip_file_header *zippath_find_sub_path(zip_file *zipfile, const char *subpath, osd_dir_entry_type *type);
 static int is_zip_file(const char *path);
 static int is_zip_file_separator(char c);
+static int is_7z_file(const char *path);
 
 
 /***************************************************************************
@@ -298,6 +299,11 @@ file_error zippath_fopen(const char *filename, UINT32 openflags, core_file *&fil
 				goto done;
 			}
 		}
+		else if (is_7z_file(mainpath))
+		{
+			filerr = FILERR_INVALID_DATA;
+			goto done;
+		}
 
 		if (subpath.len() == 0)
 			filerr = core_fopen(filename, openflags, &file);
@@ -376,6 +382,18 @@ static int is_root(const char *path)
 	return path[i] == '\0';
 }
 
+
+
+/*-------------------------------------------------
+    is_7z_file - tests to see if this file is a
+    7-zip file
+-------------------------------------------------*/
+
+static int is_7z_file(const char *path)
+{
+	const char *s = strrchr(path, '.');
+	return (s != NULL) && !core_stricmp(s, ".7z");
+}
 
 
 /*-------------------------------------------------
@@ -547,7 +565,7 @@ static file_error zippath_resolve(const char *path, osd_dir_entry_type &entry_ty
 		{
 			/* get the entry type and free the stat entry */
 			current_entry_type = current_entry->type;
-			free(current_entry);
+			osd_free(current_entry);
 			current_entry = NULL;
 		}
 		else
@@ -614,13 +632,16 @@ file_error zippath_opendir(const char *path, zippath_directory **directory)
 	file_error err;
 
 	/* allocate a directory */
-	zippath_directory *result = new(std::nothrow) zippath_directory;
-	if (result == NULL)
+	zippath_directory *result = NULL;
+	try
+	{
+		result = new zippath_directory;
+	}
+	catch (std::bad_alloc &)
 	{
 		err = FILERR_OUT_OF_MEMORY;
 		goto done;
 	}
-
 	/* resolve the path */
 	osd_dir_entry_type entry_type;
 	err = zippath_resolve(path, entry_type, result->zipfile, result->zipprefix);

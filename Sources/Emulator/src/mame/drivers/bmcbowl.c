@@ -33,7 +33,6 @@ BMC Bowling (c) 1994.05 BMC, Ltd
 TODO:
 
  - scroll (writes to $91800 and VIA port A - not used in game (only in test mode))
- - music - writes  ($20-$30 bytes) to $93000-$93003 range
  - VIA 6522(ports)
  - Crt
  - interrupts
@@ -106,6 +105,8 @@ Main board:
 #include "machine/nvram.h"
 #include "sound/ay8910.h"
 #include "sound/okim6295.h"
+#include "sound/2413intf.h"
+#include "video/ramdac.h"
 
 #define NVRAM_HACK
 
@@ -115,34 +116,31 @@ class bmcbowl_state : public driver_device
 public:
 	bmcbowl_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
 		m_stats_ram(*this, "nvram", 16),
 		m_vid1(*this, "vid1"),
 		m_vid2(*this, "vid2"),
-		m_maincpu(*this, "maincpu") { }
+		m_palette(*this, "palette") { }
 
+	required_device<cpu_device> m_maincpu;
 	optional_shared_ptr<UINT8> m_stats_ram;
 	required_shared_ptr<UINT16> m_vid1;
 	required_shared_ptr<UINT16> m_vid2;
-	UINT8 *m_bmc_colorram;
-	int m_clr_offset;
+	required_device<palette_device> m_palette;
 	int m_bmc_input;
 	DECLARE_READ16_MEMBER(bmc_random_read);
 	DECLARE_READ16_MEMBER(bmc_protection_r);
-	DECLARE_WRITE16_MEMBER(bmc_RAMDAC_offset_w);
-	DECLARE_WRITE16_MEMBER(bmc_RAMDAC_color_w);
 	DECLARE_WRITE16_MEMBER(scroll_w);
 	DECLARE_READ8_MEMBER(via_b_in);
 	DECLARE_WRITE8_MEMBER(via_a_out);
 	DECLARE_WRITE8_MEMBER(via_b_out);
-	DECLARE_WRITE8_MEMBER(via_ca2_out);
-	DECLARE_WRITE8_MEMBER(via_irq);
+	DECLARE_WRITE_LINE_MEMBER(via_ca2_out);
 	DECLARE_READ8_MEMBER(dips1_r);
 	DECLARE_WRITE8_MEMBER(input_mux_w);
 	DECLARE_DRIVER_INIT(bmcbowl);
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_bmcbowl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -160,7 +158,7 @@ UINT32 bmcbowl_state::screen_update_bmcbowl(screen_device &screen, bitmap_ind16 
 */
 
 	int x,y,z,pixdat;
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	z=0;
 	for (y=0;y<230;y++)
@@ -223,18 +221,6 @@ READ16_MEMBER(bmcbowl_state::bmc_protection_r)
 	return machine().rand();
 }
 
-WRITE16_MEMBER(bmcbowl_state::bmc_RAMDAC_offset_w)
-{
-	m_clr_offset=data*3;
-}
-
-WRITE16_MEMBER(bmcbowl_state::bmc_RAMDAC_color_w)
-{
-	m_bmc_colorram[m_clr_offset]=data;
-	palette_set_color_rgb(machine(),m_clr_offset/3,pal6bit(m_bmc_colorram[(m_clr_offset/3)*3]),pal6bit(m_bmc_colorram[(m_clr_offset/3)*3+1]),pal6bit(m_bmc_colorram[(m_clr_offset/3)*3+2]));
-	m_clr_offset=(m_clr_offset+1)%768;
-}
-
 WRITE16_MEMBER(bmcbowl_state::scroll_w)
 {
 	//TODO - scroll
@@ -257,15 +243,9 @@ WRITE8_MEMBER(bmcbowl_state::via_b_out)
 	//used
 }
 
-WRITE8_MEMBER(bmcbowl_state::via_ca2_out)
+WRITE_LINE_MEMBER(bmcbowl_state::via_ca2_out)
 {
 	//used
-}
-
-
-WRITE8_MEMBER(bmcbowl_state::via_irq)
-{
-		m_maincpu->set_input_line(4, data ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -329,9 +309,9 @@ void bmcbowl_state::machine_reset()
 static ADDRESS_MAP_START( bmcbowl_mem, AS_PROGRAM, 16, bmcbowl_state )
 	AM_RANGE(0x000000, 0x01ffff) AM_ROM
 
-	AM_RANGE(0x090000, 0x090001) AM_WRITE(bmc_RAMDAC_offset_w)
-	AM_RANGE(0x090002, 0x090003) AM_WRITE(bmc_RAMDAC_color_w)
-	AM_RANGE(0x090004, 0x090005) AM_WRITENOP//RAMDAC
+	AM_RANGE(0x090000, 0x090001) AM_DEVWRITE8("ramdac", ramdac_device, index_w, 0x00ff)
+	AM_RANGE(0x090002, 0x090003) AM_DEVWRITE8("ramdac", ramdac_device, pal_w, 0x00ff)
+	AM_RANGE(0x090004, 0x090005) AM_DEVWRITE8("ramdac", ramdac_device, mask_w, 0x00ff)
 
 	AM_RANGE(0x090800, 0x090803) AM_WRITENOP
 	AM_RANGE(0x091000, 0x091001) AM_WRITENOP
@@ -339,7 +319,7 @@ static ADDRESS_MAP_START( bmcbowl_mem, AS_PROGRAM, 16, bmcbowl_state )
 
 	AM_RANGE(0x092000, 0x09201f) AM_DEVREADWRITE8("via6522_0", via6522_device, read, write, 0x00ff)
 
-	AM_RANGE(0x093000, 0x093003) AM_WRITENOP  // related to music
+	AM_RANGE(0x093000, 0x093003) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0x092800, 0x092803) AM_DEVWRITE8("aysnd", ay8910_device, data_address_w, 0xff00)
 	AM_RANGE(0x092802, 0x092803) AM_DEVREAD8("aysnd", ay8910_device, data_r, 0xff00)
 	AM_RANGE(0x093802, 0x093803) AM_READ_PORT("IN0")
@@ -463,29 +443,12 @@ WRITE8_MEMBER(bmcbowl_state::input_mux_w)
 	m_bmc_input=data;
 }
 
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(bmcbowl_state,dips1_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(bmcbowl_state,input_mux_w)
-};
-
-
-static const via6522_interface via_interface =
-{
-	/*inputs : A/B         */ DEVCB_NULL, DEVCB_DRIVER_MEMBER(bmcbowl_state,via_b_in),
-	/*inputs : CA/B1,CA/B2 */ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
-	/*outputs: A/B         */ DEVCB_DRIVER_MEMBER(bmcbowl_state,via_a_out), DEVCB_DRIVER_MEMBER(bmcbowl_state,via_b_out),
-	/*outputs: CA/B1,CA/B2 */ DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_MEMBER(bmcbowl_state,via_ca2_out), DEVCB_NULL,
-	/*irq                  */ DEVCB_DRIVER_MEMBER(bmcbowl_state,via_irq)
-};
+static ADDRESS_MAP_START( ramdac_map, AS_0, 8, bmcbowl_state )
+	AM_RANGE(0x000, 0x3ff) AM_DEVREADWRITE("ramdac",ramdac_device,ramdac_pal_r,ramdac_rgb666_w)
+ADDRESS_MAP_END
 
 static MACHINE_CONFIG_START( bmcbowl, bmcbowl_state )
-	MCFG_CPU_ADD("maincpu", M68000, 21477270/2 )
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_21_4772MHz / 2 )
 	MCFG_CPU_PROGRAM_MAP(bmcbowl_mem)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", bmcbowl_state, irq2_line_hold)
 
@@ -495,15 +458,22 @@ static MACHINE_CONFIG_START( bmcbowl, bmcbowl_state )
 	MCFG_SCREEN_SIZE(35*8, 30*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 35*8-1, 0*8, 29*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(bmcbowl_state, screen_update_bmcbowl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_RAMDAC_ADD("ramdac", ramdac_map, "palette")
 
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("aysnd", AY8910, 3579545/2)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_SOUND_ADD("ymsnd", YM2413, XTAL_3_579545MHz )  // guessed chip type, clock not verified
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
+
+	MCFG_SOUND_ADD("aysnd", AY8910, XTAL_3_579545MHz / 2)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(bmcbowl_state, dips1_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(bmcbowl_state, input_mux_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
 
@@ -512,7 +482,12 @@ static MACHINE_CONFIG_START( bmcbowl, bmcbowl_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
 
 	/* via */
-	MCFG_VIA6522_ADD("via6522_0", 1000000, via_interface)
+	MCFG_DEVICE_ADD("via6522_0", VIA6522, 1000000)
+	MCFG_VIA6522_READPB_HANDLER(READ8(bmcbowl_state,via_b_in))
+	MCFG_VIA6522_WRITEPA_HANDLER(WRITE8(bmcbowl_state, via_a_out))
+	MCFG_VIA6522_WRITEPB_HANDLER(WRITE8(bmcbowl_state, via_b_out))
+	MCFG_VIA6522_CA2_HANDLER(WRITELINE(bmcbowl_state, via_ca2_out))
+	MCFG_VIA6522_IRQ_HANDLER(DEVWRITELINE("maincpu", m68000_device, write_irq4))
 MACHINE_CONFIG_END
 
 ROM_START( bmcbowl )
@@ -535,7 +510,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(bmcbowl_state,bmcbowl)
 {
-	m_bmc_colorram = auto_alloc_array(machine(), UINT8, 768);
+	save_item(NAME(m_bmc_input));
 }
 
-GAME( 1994, bmcbowl,    0, bmcbowl,    bmcbowl, bmcbowl_state,    bmcbowl, ROT0,  "BMC", "Konkyuu no Hoshi", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
+GAME( 1994, bmcbowl,    0, bmcbowl,    bmcbowl, bmcbowl_state,    bmcbowl, ROT0,  "BMC", "Konkyuu no Hoshi", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE)

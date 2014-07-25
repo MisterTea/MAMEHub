@@ -13,8 +13,9 @@
 
 #include "emu.h"
 #include "emuopts.h"
-#include "config.h"
-#include "ui.h"
+#include "emuconfig.h"
+
+
 
 /***************************************************************************
     FUNCTION PROTOTYPES
@@ -36,9 +37,6 @@ struct generic_machine_private
 	UINT32      coin_count[COIN_COUNTERS];
 	UINT32      coinlockedout[COIN_COUNTERS];
 	UINT32      lastcoin[COIN_COUNTERS];
-
-	/* memory card status */
-	int         memcard_inserted;
 };
 
 
@@ -73,18 +71,8 @@ void generic_machine_init(running_machine &machine)
 	machine.save().save_item(NAME(state->coinlockedout));
 	machine.save().save_item(NAME(state->lastcoin));
 
-	/* reset memory card info */
-	state->memcard_inserted = -1;
-
 	/* register for configuration */
 	config_register(machine, "counters", config_saveload_delegate(FUNC(counters_load), &machine), config_saveload_delegate(FUNC(counters_save), &machine));
-
-	/* for memory cards, request save state and an exit callback */
-	if (machine.config().m_memcard_handler != NULL)
-	{
-		machine.save().save_item(NAME(state->memcard_inserted));
-		machine.add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(memcard_eject), &machine));
-	}
 }
 
 
@@ -271,302 +259,6 @@ void coin_lockout_global_w(running_machine &machine, int on)
 }
 
 
-
-/***************************************************************************
-    NVRAM MANAGEMENT
-***************************************************************************/
-
-static const char *image_parent_basename(device_t *device)
-{
-	running_machine &machine = device->machine();
-	device_t *dev = device;
-	while(dev != &machine.root_device())
-	{
-		device_image_interface *intf = NULL;
-		if (dev!=NULL && dev->interface(intf))
-		{
-			return intf->basename_noext();
-		}
-		dev = dev->owner();
-	}
-	return NULL;
-}
-
-/*-------------------------------------------------
-    nvram_filename - returns filename of system's
-    NVRAM depending of selected BIOS
--------------------------------------------------*/
-
-astring &nvram_filename(astring &result, device_t &device)
-{
-	running_machine &machine = device.machine();
-
-	// start with either basename or basename_biosnum
-	result.cpy(machine.basename());
-	if (device.machine().root_device().system_bios() != 0 && device.machine().root_device().default_bios() != device.machine().root_device().system_bios())
-		result.catprintf("_%d", device.machine().root_device().system_bios() - 1);
-
-	// device-based NVRAM gets its own name in a subdirectory
-	if (&device != &device.machine().root_device())
-	{
-		// add per software nvrams into one folder
-		const char *software = image_parent_basename(&device);
-		if (software!=NULL && strlen(software)>0)
-		{
-			result.cat('\\').cat(software);
-		}
-		astring tag(device.tag());
-		tag.del(0, 1).replacechr(':', '_');
-		result.cat('\\').cat(tag);
-	}
-	return result;
-}
-
-/*-------------------------------------------------
-    nvram_load - load a system's NVRAM
--------------------------------------------------*/
-
-extern Common *netCommon;
-
-int nvram_size(running_machine &machine) {
-	int retval=0;
-	if (machine.config().m_nvram_handler != NULL)
-	{
-		astring filename;
-		emu_file file(machine.options().nvram_directory(), OPEN_FLAG_READ);
-		if (file.open(nvram_filename(filename, machine.root_device()),".nv") == FILERR_NONE)
-		{
-			retval += file.size();
-		}
-	}
-
-	nvram_interface_iterator iter(machine.root_device());
-	for (device_nvram_interface *nvram = iter.first(); nvram != NULL; nvram = iter.next())
-		{
-			astring filename;
-			emu_file file(machine.options().nvram_directory(), OPEN_FLAG_READ);
-			if (file.open(nvram_filename(filename, nvram->device())) == FILERR_NONE)
-			{
-				retval += file.size();
-			}
-		}
-	return retval;
-}
-
-void nvram_load(running_machine &machine)
-{
-	int overrideNVram = 0;
-	if(netCommon) {
-          if(nvram_size(machine)>=32*1024*1024) {
-            overrideNVram=1;
-            ui_popup_time(3, "The NVRAM for this game is too big, not loading NVRAM.");
-          }
-	}
-
-	if (machine.config().m_nvram_handler != NULL)
-	{
-		astring filename;
-		emu_file file(machine.options().nvram_directory(), OPEN_FLAG_READ);
-		if (!overrideNVram && file.open(nvram_filename(filename, machine.root_device()), ".nv") == FILERR_NONE)
-		{
-			(*machine.config().m_nvram_handler)(machine, &file, FALSE);
-			file.close();
-		}
-		else
-		{
-			(*machine.config().m_nvram_handler)(machine, NULL, FALSE);
-		}
-	}
-
-	nvram_interface_iterator iter(machine.root_device());
-	for (device_nvram_interface *nvram = iter.first(); nvram != NULL; nvram = iter.next())
-	{
-		astring filename;
-		emu_file file(machine.options().nvram_directory(), OPEN_FLAG_READ);
-		if (!overrideNVram && file.open(nvram_filename(filename, nvram->device())) == FILERR_NONE)
-		{
-			nvram->nvram_load(file);
-			file.close();
-		}
-		else
-			nvram->nvram_reset();
-	}
-}
-
-
-/*-------------------------------------------------
-    nvram_save - save a system's NVRAM
--------------------------------------------------*/
-
-void nvram_save(running_machine &machine)
-{
-  static bool first=true;
-	if(netCommon) {
-          if(nvram_size(machine)>=32*1024*1024) {
-            if(first) {
-              ui_popup_time(3, "The NVRAM for this game is too big, not saving NVRAM.");
-              first = false;
-            }
-            return;
-          }
-	}
-
-	if (machine.config().m_nvram_handler != NULL)
-	{
-		astring filename;
-		emu_file file(machine.options().nvram_directory(), OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
-		if (file.open(nvram_filename(filename, machine.root_device()), ".nv") == FILERR_NONE)
-		{
-			(*machine.config().m_nvram_handler)(machine, &file, TRUE);
-			file.close();
-		}
-	}
-
-	nvram_interface_iterator iter(machine.root_device());
-	for (device_nvram_interface *nvram = iter.first(); nvram != NULL; nvram = iter.next())
-	{
-		astring filename;
-		emu_file file(machine.options().nvram_directory(), OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
-		if (file.open(nvram_filename(filename, nvram->device())) == FILERR_NONE)
-		{
-			nvram->nvram_save(file);
-			file.close();
-		}
-	}
-}
-
-
-
-/***************************************************************************
-    MEMORY CARD MANAGEMENT
-***************************************************************************/
-
-/*-------------------------------------------------
-    memcard_name - determine the name of a memcard
-    file
--------------------------------------------------*/
-
-INLINE void memcard_name(int index, char *buffer)
-{
-	sprintf(buffer, "memcard.%03d", index);
-}
-
-
-/*-------------------------------------------------
-    memcard_create - create a new memory card with
-    the given index
--------------------------------------------------*/
-
-int memcard_create(running_machine &machine, int index, int overwrite)
-{
-	char name[16];
-
-	/* create a name */
-	memcard_name(index, name);
-
-	/* if we can't overwrite, fail if the file already exists */
-	astring fname(machine.basename(), PATH_SEPARATOR, name);
-	if (!overwrite)
-	{
-		emu_file testfile(machine.options().memcard_directory(), OPEN_FLAG_READ);
-		if (testfile.open(fname) == FILERR_NONE)
-			return 1;
-	}
-
-	/* create a new file */
-	emu_file file(machine.options().memcard_directory(), OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
-	file_error filerr = file.open(fname);
-	if (filerr != FILERR_NONE)
-		return 1;
-
-	/* initialize and then save the card */
-	if (machine.config().m_memcard_handler)
-		(*machine.config().m_memcard_handler)(machine, file, MEMCARD_CREATE);
-
-	/* close the file */
-	return 0;
-}
-
-
-/*-------------------------------------------------
-    memcard_insert - insert an existing memory card
-    with the given index
--------------------------------------------------*/
-
-int memcard_insert(running_machine &machine, int index)
-{
-	generic_machine_private *state = machine.generic_machine_data;
-	char name[16];
-
-	/* if a card is already inserted, eject it first */
-	if (state->memcard_inserted != -1)
-		memcard_eject(machine);
-	assert(state->memcard_inserted == -1);
-
-	/* create a name */
-	memcard_name(index, name);
-
-	/* open the file; if we can't, it's an error */
-	emu_file file(machine.options().memcard_directory(), OPEN_FLAG_READ);
-	file_error filerr = file.open(machine.basename(), PATH_SEPARATOR, name);
-	if (filerr != FILERR_NONE)
-		return 1;
-
-	/* initialize and then load the card */
-	if (machine.config().m_memcard_handler)
-		(*machine.config().m_memcard_handler)(machine, file, MEMCARD_INSERT);
-
-	/* close the file */
-	state->memcard_inserted = index;
-	return 0;
-}
-
-
-/*-------------------------------------------------
-    memcard_eject - eject a memory card, saving
-    its contents along the way
--------------------------------------------------*/
-
-void memcard_eject(running_machine &machine)
-{
-	generic_machine_private *state = machine.generic_machine_data;
-	char name[16];
-
-	/* if no card is preset, just ignore */
-	if (state->memcard_inserted == -1)
-		return;
-
-	/* create a name */
-	memcard_name(state->memcard_inserted, name);
-
-	/* open the file; if we can't, it's an error */
-	emu_file file(machine.options().memcard_directory(), OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
-	file_error filerr = file.open(machine.basename(), PATH_SEPARATOR, name);
-	if (filerr != FILERR_NONE)
-		return;
-
-	/* initialize and then load the card */
-	if (machine.config().m_memcard_handler)
-		(*machine.config().m_memcard_handler)(machine, file, MEMCARD_EJECT);
-
-	/* close the file */
-	state->memcard_inserted = -1;
-}
-
-
-/*-------------------------------------------------
-    memcard_present - return the currently loaded
-    card index, or -1 if none
--------------------------------------------------*/
-
-int memcard_present(running_machine &machine)
-{
-	generic_machine_private *state = machine.generic_machine_data;
-	return state->memcard_inserted;
-}
-
-
-
 /***************************************************************************
     LED CODE
 ***************************************************************************/
@@ -599,9 +291,3 @@ CUSTOM_INPUT_MEMBER( driver_device::custom_port_read )
 	const char *tag = (const char *)param;
 	return ioport(tag)->read();
 }
-
-// legacy
-void generic_pulse_irq_line(device_t *device, int irqline, int cycles) { device->machine().driver_data()->generic_pulse_irq_line(device->execute(), irqline, cycles); }
-
-// legacy
-INTERRUPT_GEN( irq2_line_hold ) { device->machine().driver_data()->irq2_line_hold(*device); }

@@ -34,9 +34,6 @@ PALETTE_INIT_MEMBER(champbas_state,champbas)
 			3, &resistances_rg[0], gweights, 0, 0,
 			2, &resistances_b[0],  bweights, 0, 0);
 
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x20);
-
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x20; i++)
 	{
@@ -60,7 +57,7 @@ PALETTE_INIT_MEMBER(champbas_state,champbas)
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		b = combine_2_weights(bweights, bit0, bit1);
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	color_prom += 0x20;
@@ -68,7 +65,7 @@ PALETTE_INIT_MEMBER(champbas_state,champbas)
 	for (i = 0; i < 0x200; i++)
 	{
 		UINT8 ctabentry = (color_prom[i & 0xff] & 0x0f) | ((i & 0x100) >> 4);
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 }
 
@@ -77,9 +74,6 @@ PALETTE_INIT_MEMBER(champbas_state,exctsccr)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-
-	/* allocate the colortable */
-	machine().colortable = colortable_alloc(machine(), 0x20);
 
 	/* create a lookup table for the palette */
 	for (i = 0; i < 0x20; i++)
@@ -105,7 +99,7 @@ PALETTE_INIT_MEMBER(champbas_state,exctsccr)
 		bit2 = (color_prom[i] >> 7) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
+		palette.set_indirect_color(i, rgb_t(r, g, b));
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
@@ -116,14 +110,14 @@ PALETTE_INIT_MEMBER(champbas_state,exctsccr)
 	{
 		int swapped_i = BITSWAP8(i, 2, 7, 6, 5, 4, 3, 1, 0);
 		UINT8 ctabentry = (color_prom[swapped_i] & 0x0f) | ((i & 0x80) >> 3);
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		palette.set_pen_indirect(i, ctabentry);
 	}
 
 	/* sprites (4bpp) */
 	for (i = 0; i < 0x100; i++)
 	{
 		UINT8 ctabentry = (color_prom[0x100 + i] & 0x0f) | 0x10;
-		colortable_entry_set_value(machine().colortable, i + 0x100, ctabentry);
+		palette.set_pen_indirect(i + 0x100, ctabentry);
 	}
 }
 
@@ -149,12 +143,12 @@ TILE_GET_INFO_MEMBER(champbas_state::exctsccr_get_bg_tile_info)
 
 VIDEO_START_MEMBER(champbas_state,champbas)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(champbas_state::champbas_get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(champbas_state::champbas_get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 VIDEO_START_MEMBER(champbas_state,exctsccr)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(champbas_state::exctsccr_get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(champbas_state::exctsccr_get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 
@@ -191,7 +185,7 @@ WRITE8_MEMBER(champbas_state::champbas_flipscreen_w)
 void champbas_state::champbas_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
 	int offs;
-	gfx_element* const gfx = machine().gfx[1];
+	gfx_element* const gfx = m_gfxdecode->gfx(1);
 
 	for (offs = m_spriteram.bytes() - 2; offs >= 0; offs -= 2)
 	{
@@ -202,20 +196,20 @@ void champbas_state::champbas_draw_sprites( bitmap_ind16 &bitmap, const rectangl
 		int sx = m_spriteram_2[offs + 1] - 16;
 		int sy = 255 - m_spriteram_2[offs];
 
-		drawgfx_transmask(bitmap, cliprect,
-				gfx,
+
+				gfx->transmask(bitmap,cliprect,
 				code, color,
 				flipx, flipy,
 				sx, sy,
-				colortable_get_transpen_mask(machine().colortable, gfx, color, 0));
+				m_palette->transpen_mask(*gfx, color, 0));
 
 		// wraparound
-		drawgfx_transmask(bitmap, cliprect,
-				gfx,
+
+				gfx->transmask(bitmap,cliprect,
 				code, color,
 				flipx, flipy,
 				sx + 256, sy,
-				colortable_get_transpen_mask(machine().colortable, gfx, color, 0));
+				m_palette->transpen_mask(*gfx, color, 0));
 	}
 }
 
@@ -240,8 +234,8 @@ void champbas_state::exctsccr_draw_sprites( bitmap_ind16 &bitmap, const rectangl
 		color = (obj1[offs + 1]) & 0x0f;
 		bank = ((obj1[offs + 1] >> 4) & 1);
 
-		drawgfx_transpen(bitmap,cliprect,
-				machine().gfx[1],
+
+				m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				code + (bank << 6),
 				color,
 				flipx, flipy,
@@ -263,13 +257,13 @@ void champbas_state::exctsccr_draw_sprites( bitmap_ind16 &bitmap, const rectangl
 		flipy = (~obj1[offs]) & 0x02;
 		color = (obj1[offs + 1]) & 0x0f;
 
-		drawgfx_transmask(bitmap,cliprect,
-				machine().gfx[2],
+
+				m_gfxdecode->gfx(2)->transmask(bitmap,cliprect,
 				code,
 				color,
 				flipx, flipy,
 				sx,sy,
-				colortable_get_transpen_mask(machine().colortable, machine().gfx[2], color, 0x10));
+				m_palette->transpen_mask(*m_gfxdecode->gfx(2), color, 0x10));
 	}
 }
 

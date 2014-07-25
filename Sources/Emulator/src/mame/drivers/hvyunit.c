@@ -82,7 +82,9 @@ public:
 		m_slavecpu(*this, "slave"),
 		m_mermaid(*this, "mermaid"),
 		m_soundcpu(*this, "soundcpu"),
-		m_pandora(*this, "pandora")
+		m_pandora(*this, "pandora"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 		{ }
 
 	/* Video */
@@ -107,6 +109,9 @@ public:
 	required_device<cpu_device> m_mermaid;
 	required_device<cpu_device> m_soundcpu;
 	required_device<kaneko_pandora_device> m_pandora;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(trigger_nmi_on_slave_cpu);
 	DECLARE_WRITE8_MEMBER(master_bankswitch_w);
 	DECLARE_WRITE8_MEMBER(mermaid_data_w);
@@ -174,7 +179,7 @@ TILE_GET_INFO_MEMBER(hvyunit_state::get_bg_tile_info)
 
 void hvyunit_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(hvyunit_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(hvyunit_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 }
 
 UINT32 hvyunit_state::screen_update_hvyunit(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -184,7 +189,7 @@ UINT32 hvyunit_state::screen_update_hvyunit(screen_device &screen, bitmap_ind16 
 
 	m_bg_tilemap->set_scrollx(0, ((m_port0_data & 0x40) << 2) + m_scrollx + SX_POS); // TODO
 	m_bg_tilemap->set_scrolly(0, ((m_port0_data & 0x80) << 1) + m_scrolly + SY_POS); // TODO
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	m_pandora->update(bitmap, cliprect);
 
@@ -419,8 +424,8 @@ static ADDRESS_MAP_START( slave_memory, AS_PROGRAM, 8, hvyunit_state )
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank2")
 	AM_RANGE(0xc000, 0xc3ff) AM_RAM_WRITE(hu_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0xc400, 0xc7ff) AM_RAM_WRITE(hu_colorram_w) AM_SHARE("colorram")
-	AM_RANGE(0xd000, 0xd1ff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_byte_split_hi_w) AM_SHARE("paletteram2")
-	AM_RANGE(0xd800, 0xd9ff) AM_RAM_WRITE(paletteram_xxxxRRRRGGGGBBBB_byte_split_lo_w) AM_SHARE("paletteram")
+	AM_RANGE(0xd000, 0xd1ff) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
+	AM_RANGE(0xd800, 0xd9ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0xd000, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xffff) AM_RAM AM_SHARE("share1")
 ADDRESS_MAP_END
@@ -620,13 +625,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(hvyunit_state::hvyunit_scanline)
 		m_mastercpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 }
 
-static const kaneko_pandora_interface hvyunit_pandora_config =
-{
-	0,          /* gfx_region */
-	0, 0        /* x_offs, y_offs */
-};
-
-
 /*************************************
  *
  *  Machine driver
@@ -655,7 +653,6 @@ static MACHINE_CONFIG_START( hvyunit, hvyunit_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 
-
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(58)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
@@ -663,12 +660,15 @@ static MACHINE_CONFIG_START( hvyunit, hvyunit_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 256-1, 16, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(hvyunit_state, screen_update_hvyunit)
 	MCFG_SCREEN_VBLANK_DRIVER(hvyunit_state, screen_eof_hvyunit)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(hvyunit)
-	MCFG_PALETTE_LENGTH(0x800)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", hvyunit)
+	MCFG_PALETTE_ADD("palette", 0x800)
+	MCFG_PALETTE_FORMAT(xxxxRRRRGGGGBBBB)
 
-	MCFG_KANEKO_PANDORA_ADD("pandora", hvyunit_pandora_config)
-
+	MCFG_DEVICE_ADD("pandora", KANEKO_PANDORA, 0)
+	MCFG_KANEKO_PANDORA_GFXDECODE("gfxdecode")
+	MCFG_KANEKO_PANDORA_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Sandro Ronco
 /***************************************************************************
 
     TI-89, TI-92, TI-92 plus, Voyage 200 PLT and TI-89 Titanium
@@ -23,7 +25,7 @@
 #include "machine/intelfsh.h"
 #include "rendlay.h"
 
-UINT8 ti68k_state::keypad_r (running_machine &machine)
+UINT8 ti68k_state::keypad_r()
 {
 	UINT8 bit, data = 0xff;
 
@@ -102,7 +104,7 @@ READ16_MEMBER ( ti68k_state::ti68k_io_r )
 			data = m_timer_val;
 			break;
 		case 0x0d:
-			data = ((!m_on_key) << 9) | keypad_r(machine());
+			data = ((!m_on_key) << 9) | keypad_r();
 			break;
 		default:
 			data= m_io_hw1[offset & 0x0f];
@@ -187,7 +189,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(ti68k_state::ti68k_timer_callback)
 		}
 	}
 
-	if (keypad_r(machine()) != 0xff)
+	if (keypad_r() != 0xff)
 		m_maincpu->set_input_line(M68K_IRQ_2, HOLD_LINE);
 }
 
@@ -506,10 +508,10 @@ UINT32 ti68k_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, c
 	return 0;
 }
 
-void ti68k_state::palette_init()
+PALETTE_INIT_MEMBER(ti68k_state, ti68k)
 {
-	palette_set_color(machine(), 0, MAKE_RGB(138, 146, 148));
-	palette_set_color(machine(), 1, MAKE_RGB(92, 83, 88));
+	palette.set_pen_color(0, rgb_t(138, 146, 148));
+	palette.set_pen_color(1, rgb_t(92, 83, 88));
 }
 
 static MACHINE_CONFIG_START( ti89, ti68k_state )
@@ -526,7 +528,10 @@ static MACHINE_CONFIG_START( ti89, ti68k_state )
 	MCFG_SCREEN_UPDATE_DRIVER(ti68k_state, screen_update)
 	MCFG_SCREEN_SIZE(240, 128)
 	MCFG_SCREEN_VISIBLE_AREA(0, 160-1, 0, 100-1)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_SCREEN_PALETTE("palette")
+
+	MCFG_PALETTE_ADD("palette", 2)
+	MCFG_PALETTE_INIT_OWNER(ti68k_state, ti68k)
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 
 	MCFG_SHARP_UNK128MBIT_ADD("flash")  //should be LH28F320 for ti89t and v200 and LH28F160S3T for other models

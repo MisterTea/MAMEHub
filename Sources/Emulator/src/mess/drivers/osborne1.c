@@ -142,11 +142,11 @@ static INPUT_PORTS_START( osborne1 )
 INPUT_PORTS_END
 
 
-void osborne1_state::palette_init()
+PALETTE_INIT_MEMBER(osborne1_state, osborne1)
 {
-	palette_set_color_rgb( machine(), 0, 0, 0, 0 ); /* Black */
-	palette_set_color_rgb( machine(), 1, 0, 255, 0 );   /* Full */
-	palette_set_color_rgb( machine(), 2, 0, 128, 0 );   /* Dimmed */
+	palette.set_pen_color( 0, 0, 0, 0 ); /* Black */
+	palette.set_pen_color( 1, 0, 255, 0 );   /* Full */
+	palette.set_pen_color( 2, 0, 128, 0 );   /* Dimmed */
 }
 
 
@@ -166,51 +166,45 @@ static const z80_daisy_config osborne1_daisy_chain[] =
  * - DEC 1820 double density: 40 tracks, 9 sectors per track, 512-byte sectors (180 KByte)
  *
  */
+	/*
 static LEGACY_FLOPPY_OPTIONS_START(osborne1 )
 	LEGACY_FLOPPY_OPTION( osd, "img", "Osborne single density", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([1])
-		TRACKS([40])
-		SECTORS([10])
-		SECTOR_LENGTH([256])
-		FIRST_SECTOR_ID([1]))
+	    HEADS([1])
+	    TRACKS([40])
+	    SECTORS([10])
+	    SECTOR_LENGTH([256])
+	    FIRST_SECTOR_ID([1]))
 	LEGACY_FLOPPY_OPTION( odd, "img", "Osborne double density", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([1])
-		TRACKS([40])
-		SECTORS([5])
-		SECTOR_LENGTH([1024])
-		FIRST_SECTOR_ID([1]))
+	    HEADS([1])
+	    TRACKS([40])
+	    SECTORS([5])
+	    SECTOR_LENGTH([1024])
+	    FIRST_SECTOR_ID([1]))
 	LEGACY_FLOPPY_OPTION( ibm, "img", "IBM Personal Computer", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([1])
-		TRACKS([40])
-		SECTORS([8])
-		SECTOR_LENGTH([512])
-		FIRST_SECTOR_ID([1]))
+	    HEADS([1])
+	    TRACKS([40])
+	    SECTORS([8])
+	    SECTOR_LENGTH([512])
+	    FIRST_SECTOR_ID([1]))
 	LEGACY_FLOPPY_OPTION( xerox, "img", "Xerox 820 Computer", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([1])
-		TRACKS([40])
-		SECTORS([18])
-		SECTOR_LENGTH([128])
-		FIRST_SECTOR_ID([1]))
+	    HEADS([1])
+	    TRACKS([40])
+	    SECTORS([18])
+	    SECTOR_LENGTH([128])
+	    FIRST_SECTOR_ID([1]))
 	LEGACY_FLOPPY_OPTION( dec, "img", "DEC 1820 double density", basicdsk_identify_default, basicdsk_construct_default, NULL,
-		HEADS([1])
-		TRACKS([40])
-		SECTORS([9])
-		SECTOR_LENGTH([512])
-		FIRST_SECTOR_ID([1]))
+	    HEADS([1])
+	    TRACKS([40])
+	    SECTORS([9])
+	    SECTOR_LENGTH([512])
+	    FIRST_SECTOR_ID([1]))
 LEGACY_FLOPPY_OPTIONS_END
+*/
 
-static const floppy_interface osborne1_floppy_interface =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	FLOPPY_STANDARD_5_25_SSDD_40,
-	LEGACY_FLOPPY_OPTIONS_NAME(osborne1),
-	"floppy_5_25",
-	NULL
-};
+static SLOT_INTERFACE_START( osborne1_floppies )
+	SLOT_INTERFACE( "525sssd", FLOPPY_525_SSSD ) // Siemens FDD 100-5, custom Osborne electronics
+	SLOT_INTERFACE( "525ssdd", FLOPPY_525_SSDD ) // MPI 52(?), custom Osborne electronics
+SLOT_INTERFACE_END
 
 /* F4 Character Displayer */
 static const gfx_layout osborne1_charlayout =
@@ -236,25 +230,40 @@ static MACHINE_CONFIG_START( osborne1, osborne1_state )
 	MCFG_CPU_IO_MAP( osborne1_io)
 	MCFG_CPU_CONFIG( osborne1_daisy_chain )
 
-
 	MCFG_DEVICE_ADD( "osborne1_daisy", OSBORNE1_DAISY, 0 )
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_UPDATE_DRIVER(osborne1_state, screen_update)
 	MCFG_SCREEN_RAW_PARAMS( MAIN_CLOCK/2, 512, 0, 416, 260, 0, 240 )
-	MCFG_GFXDECODE(osborne1)
-	MCFG_PALETTE_LENGTH( 3 )
+	MCFG_SCREEN_PALETTE("palette")
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", osborne1)
+	MCFG_PALETTE_ADD( "palette", 3 )
+	MCFG_PALETTE_INIT_OWNER(osborne1_state, osborne1)
 
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
 	MCFG_SOUND_ADD( "beeper", BEEP, 0 )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 
-	MCFG_PIA6821_ADD( "pia_0", osborne1_ieee_pia_config )
-	MCFG_PIA6821_ADD( "pia_1", osborne1_video_pia_config )
+	MCFG_DEVICE_ADD("pia_0", PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(DEVREAD8(IEEE488_TAG, ieee488_device, dio_r))
+	MCFG_PIA_READPB_HANDLER(READ8(osborne1_state, ieee_pia_pb_r))
+	MCFG_PIA_WRITEPA_HANDLER(DEVWRITE8(IEEE488_TAG, ieee488_device, dio_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(osborne1_state, ieee_pia_pb_w))
+	MCFG_PIA_CA2_HANDLER(DEVWRITELINE(IEEE488_TAG, ieee488_device, ifc_w))
+	MCFG_PIA_CB2_HANDLER(DEVWRITELINE(IEEE488_TAG, ieee488_device, ren_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(osborne1_state, ieee_pia_irq_a_func))
 
-	MCFG_MB8877_ADD("mb8877", default_wd17xx_interface_2_drives )
+	MCFG_DEVICE_ADD( "pia_1", PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(osborne1_state, video_pia_port_a_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(osborne1_state, video_pia_port_b_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(osborne1_state, video_pia_out_cb2_dummy))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(osborne1_state, video_pia_irq_a_func))
 
-	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(osborne1_floppy_interface)
+	MCFG_DEVICE_ADD("mb8877", MB8877x, MAIN_CLOCK/16)
+	MCFG_WD_FDC_FORCE_READY
+	MCFG_FLOPPY_DRIVE_ADD("mb8877:0", osborne1_floppies, "525ssdd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("mb8877:1", osborne1_floppies, "525ssdd", floppy_image_device::default_floppy_formats)
+
 	MCFG_IEEE488_BUS_ADD()
 	MCFG_IEEE488_SRQ_CALLBACK(DEVWRITELINE("pia_0", pia6821_device, ca2_w))
 	MCFG_SOFTWARE_LIST_ADD("flop_list","osborne1")

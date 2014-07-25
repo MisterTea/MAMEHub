@@ -3,13 +3,13 @@
 #include "includes/spdodgeb.h"
 
 
-void spdodgeb_state::palette_init()
+PALETTE_INIT_MEMBER(spdodgeb_state, spdodgeb)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 
-	for (i = 0;i < machine().total_colors();i++)
+	for (i = 0;i < palette.entries();i++)
 	{
 		int bit0,bit1,bit2,bit3,r,g,b;
 
@@ -27,13 +27,13 @@ void spdodgeb_state::palette_init()
 		bit3 = (color_prom[0] >> 7) & 0x01;
 		g = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
 		/* blue component */
-		bit0 = (color_prom[machine().total_colors()] >> 0) & 0x01;
-		bit1 = (color_prom[machine().total_colors()] >> 1) & 0x01;
-		bit2 = (color_prom[machine().total_colors()] >> 2) & 0x01;
-		bit3 = (color_prom[machine().total_colors()] >> 3) & 0x01;
+		bit0 = (color_prom[palette.entries()] >> 0) & 0x01;
+		bit1 = (color_prom[palette.entries()] >> 1) & 0x01;
+		bit2 = (color_prom[palette.entries()] >> 2) & 0x01;
+		bit3 = (color_prom[palette.entries()] >> 3) & 0x01;
 		b = 0x0e * bit0 + 0x1f * bit1 + 0x43 * bit2 + 0x8f * bit3;
 
-		palette_set_color(machine(),i,MAKE_RGB(r,g,b));
+		palette.set_pen_color(i,rgb_t(r,g,b));
 		color_prom++;
 	}
 }
@@ -55,8 +55,7 @@ TILE_GET_INFO_MEMBER(spdodgeb_state::get_bg_tile_info)
 {
 	UINT8 code = m_videoram[tile_index];
 	UINT8 attr = m_videoram[tile_index + 0x800];
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code + ((attr & 0x1f) << 8),
 			((attr & 0xe0) >> 5) + 8 * m_tile_palbank,
 			0);
@@ -71,7 +70,7 @@ TILE_GET_INFO_MEMBER(spdodgeb_state::get_bg_tile_info)
 
 void spdodgeb_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(spdodgeb_state::get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(spdodgeb_state::background_scan),this),8,8,64,32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(spdodgeb_state::get_bg_tile_info),this),tilemap_mapper_delegate(FUNC(spdodgeb_state::background_scan),this),8,8,64,32);
 }
 
 
@@ -141,14 +140,14 @@ WRITE8_MEMBER(spdodgeb_state::spdodgeb_videoram_w)
 
 ***************************************************************************/
 
-#define DRAW_SPRITE( order, sx, sy ) drawgfx_transpen( bitmap, \
-					cliprect,gfx, \
+#define DRAW_SPRITE( order, sx, sy ) gfx->transpen(bitmap,\
+					cliprect, \
 					(which+order),color+ 8 * m_sprite_palbank,flipx,flipy,sx,sy,0);
 
 void spdodgeb_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
 	UINT8 *spriteram = m_spriteram;
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 	UINT8 *src;
 	int i;
 

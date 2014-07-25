@@ -50,14 +50,13 @@ TIMER_DEVICE_CALLBACK_MEMBER(bladestl_state::bladestl_scanline)
  *  Memory handlers
  *
  *************************************/
+const char * const bladestl_state::trackball_tags[] =
+	{ "TRACKBALL_P1_1", "TRACKBALL_P1_2", "TRACKBALL_P2_1", "TRACKBALL_P2_2" };
 
 READ8_MEMBER(bladestl_state::trackball_r)
 {
-	static const char *const port[] = { "TRACKBALL_P1_1", "TRACKBALL_P1_2", "TRACKBALL_P2_1", "TRACKBALL_P1_2" };
-	int curr, delta;
-
-	curr = ioport(port[offset])->read();
-	delta = (curr - m_last_track[offset]) & 0xff;
+	int curr = m_trackball[offset]->read();
+	int delta = (curr - m_last_track[offset]) & 0xff;
 	m_last_track[offset] = curr;
 
 	return (delta & 0x80) | (curr >> 1);
@@ -76,7 +75,7 @@ WRITE8_MEMBER(bladestl_state::bladestl_bankswitch_w)
 	/* bit 4 = relay (???) */
 
 	/* bits 5-6 = bank number */
-	membank("bank1")->set_entry((data & 0x60) >> 5);
+	m_rombank->set_entry((data & 0x60) >> 5);
 
 	/* bit 7 = select sprite bank */
 	m_spritebank = (data & 0x80) << 3;
@@ -92,8 +91,17 @@ WRITE8_MEMBER(bladestl_state::bladestl_sh_irqtrigger_w)
 
 WRITE8_MEMBER(bladestl_state::bladestl_port_B_w)
 {
-	/* bit 1, 2 unknown */
+	// bits 3-5 = ROM bank select
 	m_upd7759->set_bank_base(((data & 0x38) >> 3) * 0x20000);
+
+	// bit 2 = SSG-C rc filter enable
+	m_filter3->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x04 ? CAP_N(150) : 0); /* YM2203-SSG-C */
+
+	// bit 1 = SSG-B rc filter enable
+	m_filter2->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x02 ? CAP_N(150) : 0); /* YM2203-SSG-B */
+
+	// bit 0 = SSG-A rc filter enable
+	m_filter1->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x01 ? CAP_N(150) : 0); /* YM2203-SSG-A */
 }
 
 READ8_MEMBER(bladestl_state::bladestl_speech_busy_r)
@@ -117,7 +125,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, bladestl_state )
 	AM_RANGE(0x0000, 0x1fff) AM_DEVREADWRITE("k007342", k007342_device, read, write)    /* Color RAM + Video RAM */
 	AM_RANGE(0x2000, 0x21ff) AM_DEVREADWRITE("k007420", k007420_device, read, write)    /* Sprite RAM */
 	AM_RANGE(0x2200, 0x23ff) AM_DEVREADWRITE("k007342", k007342_device, scroll_r, scroll_w)  /* Scroll RAM */
-	AM_RANGE(0x2400, 0x245f) AM_RAM AM_SHARE("paletteram")      /* palette */
+	AM_RANGE(0x2400, 0x245f) AM_RAM_DEVWRITE("palette", palette_device, write_indirect) AM_SHARE("palette")  /* palette */
 	AM_RANGE(0x2600, 0x2607) AM_DEVWRITE("k007342", k007342_device, vreg_w)          /* Video Registers */
 	AM_RANGE(0x2e00, 0x2e00) AM_READ_PORT("COINSW")             /* DIPSW #3, coinsw, startsw */
 	AM_RANGE(0x2e01, 0x2e01) AM_READ_PORT("P1")                 /* 1P controls */
@@ -131,7 +139,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, bladestl_state )
 	AM_RANGE(0x2f80, 0x2f9f) AM_DEVREADWRITE("k051733", k051733_device, read, write)    /* Protection: 051733 */
 	AM_RANGE(0x2fc0, 0x2fc0) AM_WRITENOP                        /* ??? */
 	AM_RANGE(0x4000, 0x5fff) AM_RAM                             /* Work RAM */
-	AM_RANGE(0x6000, 0x7fff) AM_ROMBANK("bank1")                        /* banked ROM */
+	AM_RANGE(0x6000, 0x7fff) AM_ROMBANK("rombank")              /* banked ROM */
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -258,8 +266,8 @@ static const gfx_layout spritelayout =
 };
 
 static GFXDECODE_START( bladestl )
-	GFXDECODE_ENTRY( "gfx1", 0x000000, charlayout,     0,   2 ) /* colors 00..31 */
-	GFXDECODE_ENTRY( "gfx1", 0x040000, spritelayout,   32,  16 )    /* colors 32..47 but using lookup table */
+	GFXDECODE_ENTRY( "gfx1", 0, charlayout,    0,  2 ) /* colors 00..31 */
+	GFXDECODE_ENTRY( "gfx2", 0, spritelayout, 32, 16 ) /* colors 32..47 but using lookup table */
 GFXDECODE_END
 
 
@@ -269,32 +277,9 @@ GFXDECODE_END
  *
  *************************************/
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER("upd", upd775x_device, port_w),
-	DEVCB_DRIVER_MEMBER(bladestl_state,bladestl_port_B_w)
-};
-
-static const k007342_interface bladestl_k007342_intf =
-{
-	0,  bladestl_tile_callback  /* gfx_num (for tile creation), callback */
-};
-
-static const k007420_interface bladestl_k007420_intf =
-{
-	0x3ff,  bladestl_sprite_callback    /* banklimit, callback */
-};
-
-
 void bladestl_state::machine_start()
 {
-	UINT8 *ROM = memregion("maincpu")->base();
-
-	membank("bank1")->configure_entries(0, 4, &ROM[0x10000], 0x2000);
+	m_rombank->configure_entries(0, 4, memregion("maincpu")->base(), 0x2000);
 
 	save_item(NAME(m_spritebank));
 	save_item(NAME(m_layer_colorbase));
@@ -333,12 +318,24 @@ static MACHINE_CONFIG_START( bladestl, bladestl_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(bladestl_state, screen_update_bladestl)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(bladestl)
-	MCFG_PALETTE_LENGTH(32 + 16*16)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bladestl)
+	MCFG_PALETTE_ADD("palette", 32 + 16*16)
+	MCFG_PALETTE_INDIRECT_ENTRIES(32+16)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
+	MCFG_PALETTE_INIT_OWNER(bladestl_state, bladestl)
 
-	MCFG_K007342_ADD("k007342", bladestl_k007342_intf)
-	MCFG_K007420_ADD("k007420", bladestl_k007420_intf)
+	MCFG_K007342_ADD("k007342")
+	MCFG_K007342_GFXNUM(0)
+	MCFG_K007342_CALLBACK_OWNER(bladestl_state, bladestl_tile_callback)
+	MCFG_K007342_GFXDECODE("gfxdecode")
+
+	MCFG_K007420_ADD("k007420")
+	MCFG_K007420_BANK_LIMIT(0x3ff)
+	MCFG_K007420_CALLBACK_OWNER(bladestl_state, bladestl_sprite_callback)
+	MCFG_K007420_PALETTE("palette")
+
 	MCFG_K051733_ADD("k051733")
 
 	/* sound hardware */
@@ -350,8 +347,19 @@ static MACHINE_CONFIG_START( bladestl, bladestl_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3579545)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.45)
+	MCFG_AY8910_PORT_A_WRITE_CB(DEVWRITE8("upd", upd775x_device, port_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(bladestl_state, bladestl_port_B_w))
+	MCFG_SOUND_ROUTE(0, "filter1", 0.45)
+	MCFG_SOUND_ROUTE(1, "filter2", 0.45)
+	MCFG_SOUND_ROUTE(2, "filter3", 0.45)
+	MCFG_SOUND_ROUTE(3, "mono", 0.45)
+
+	MCFG_FILTER_RC_ADD("filter1", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter2", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_FILTER_RC_ADD("filter3", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
 
@@ -362,16 +370,17 @@ MACHINE_CONFIG_END
  *************************************/
 
 ROM_START( bladestl )
-	ROM_REGION( 0x18000, "maincpu", 0 ) /* code + banked roms */
-	ROM_LOAD( "797-t01.19c", 0x10000, 0x08000, CRC(89d7185d) SHA1(0d2f346d9515cab0389106c0e227fb0bd84a2c9c) )   /* fixed ROM */
-	ROM_CONTINUE(            0x08000, 0x08000 )             /* banked ROM */
+	ROM_REGION( 0x10000, "maincpu", 0 ) /* code + banked roms */
+	ROM_LOAD( "797-t01.19c", 0x00000, 0x10000, CRC(89d7185d) SHA1(0d2f346d9515cab0389106c0e227fb0bd84a2c9c) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 ) /* 64k for the sound CPU */
 	ROM_LOAD( "797-c02.12d", 0x08000, 0x08000, CRC(65a331ea) SHA1(f206f6c5f0474542a5b7686b2f4d2cc7077dd5b9) )
 
-	ROM_REGION( 0x080000, "gfx1", 0 )
-	ROM_LOAD( "797a05.19h", 0x000000, 0x40000, CRC(5491ba28) SHA1(c807774827c55c211ab68f548e1e835289cc5744) )   /* tiles */
-	ROM_LOAD( "797a06.13h", 0x040000, 0x40000, CRC(d055f5cc) SHA1(3723b39b2a3e6dd8e7fc66bbfe1eef9f80818774) )   /* sprites */
+	ROM_REGION( 0x40000, "gfx1", 0 )
+	ROM_LOAD( "797a05.19h", 0x00000, 0x40000, CRC(5491ba28) SHA1(c807774827c55c211ab68f548e1e835289cc5744) )   /* tiles */
+
+	ROM_REGION( 0x40000, "gfx2", 0 )
+	ROM_LOAD( "797a06.13h", 0x00000, 0x40000, CRC(d055f5cc) SHA1(3723b39b2a3e6dd8e7fc66bbfe1eef9f80818774) )   /* sprites */
 
 	ROM_REGION( 0x0100, "proms", 0 )
 	ROM_LOAD( "797a07.16i", 0x0000, 0x0100, CRC(7aecad4e) SHA1(05150a8dd25bdd6ab0c5b350e6ffd272f040e46a) ) /* sprites lookup table, 63S141N BPROM */
@@ -382,16 +391,17 @@ ROM_START( bladestl )
 ROM_END
 
 ROM_START( bladestll )
-	ROM_REGION( 0x18000, "maincpu", 0 ) /* code + banked roms */
-	ROM_LOAD( "797-l01.19c", 0x10000, 0x08000, CRC(1ab14c40) SHA1(c566e31a666b467d75f5fc9fa427986c3ebc705c) )   /* fixed ROM */
-	ROM_CONTINUE(            0x08000, 0x08000 )             /* banked ROM */
+	ROM_REGION( 0x10000, "maincpu", 0 ) /* code + banked roms */
+	ROM_LOAD( "797-l01.19c", 0x00000, 0x10000, CRC(1ab14c40) SHA1(c566e31a666b467d75f5fc9fa427986c3ebc705c) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 ) /* 64k for the sound CPU */
 	ROM_LOAD( "797-c02.12d", 0x08000, 0x08000, CRC(65a331ea) SHA1(f206f6c5f0474542a5b7686b2f4d2cc7077dd5b9) )
 
-	ROM_REGION( 0x080000, "gfx1", 0 )
-	ROM_LOAD( "797a05.19h", 0x000000, 0x40000, CRC(5491ba28) SHA1(c807774827c55c211ab68f548e1e835289cc5744) )   /* tiles */
-	ROM_LOAD( "797a06.13h", 0x040000, 0x40000, CRC(d055f5cc) SHA1(3723b39b2a3e6dd8e7fc66bbfe1eef9f80818774) )   /* sprites */
+	ROM_REGION( 0x40000, "gfx1", 0 )
+	ROM_LOAD( "797a05.19h", 0x00000, 0x40000, CRC(5491ba28) SHA1(c807774827c55c211ab68f548e1e835289cc5744) )   /* tiles */
+
+	ROM_REGION( 0x40000, "gfx2", 0 )
+	ROM_LOAD( "797a06.13h", 0x00000, 0x40000, CRC(d055f5cc) SHA1(3723b39b2a3e6dd8e7fc66bbfe1eef9f80818774) )   /* sprites */
 
 	ROM_REGION( 0x0100, "proms", 0 )
 	ROM_LOAD( "797a07.16i", 0x0000, 0x0100, CRC(7aecad4e) SHA1(05150a8dd25bdd6ab0c5b350e6ffd272f040e46a) ) /* sprites lookup table, 63S141N BPROM */
@@ -402,16 +412,17 @@ ROM_START( bladestll )
 ROM_END
 
 ROM_START( bladestle )
-	ROM_REGION( 0x18000, "maincpu", 0 ) /* code + banked roms */
-	ROM_LOAD( "797-e01.19c", 0x10000, 0x08000, CRC(f8472e95) SHA1(8b6caa905fb1642300dd9da508871b00429872c3) )   /* fixed ROM */
-	ROM_CONTINUE(            0x08000, 0x08000 )             /* banked ROM */
+	ROM_REGION( 0x10000, "maincpu", 0 ) /* code + banked roms */
+	ROM_LOAD( "797-e01.19c", 0x00000, 0x10000, CRC(f8472e95) SHA1(8b6caa905fb1642300dd9da508871b00429872c3) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 ) /* 64k for the sound CPU */
 	ROM_LOAD( "797-c02.12d", 0x08000, 0x08000, CRC(65a331ea) SHA1(f206f6c5f0474542a5b7686b2f4d2cc7077dd5b9) )
 
-	ROM_REGION( 0x080000, "gfx1", 0 )
-	ROM_LOAD( "797a05.19h", 0x000000, 0x40000, CRC(5491ba28) SHA1(c807774827c55c211ab68f548e1e835289cc5744) )   /* tiles */
-	ROM_LOAD( "797a06.13h", 0x040000, 0x40000, CRC(d055f5cc) SHA1(3723b39b2a3e6dd8e7fc66bbfe1eef9f80818774) )   /* sprites */
+	ROM_REGION( 0x40000, "gfx1", 0 )
+	ROM_LOAD( "797a05.19h", 0x00000, 0x40000, CRC(5491ba28) SHA1(c807774827c55c211ab68f548e1e835289cc5744) )   /* tiles */
+
+	ROM_REGION( 0x40000, "gfx2", 0 )
+	ROM_LOAD( "797a06.13h", 0x00000, 0x40000, CRC(d055f5cc) SHA1(3723b39b2a3e6dd8e7fc66bbfe1eef9f80818774) )   /* sprites */
 
 	ROM_REGION( 0x0100, "proms", 0 )
 	ROM_LOAD( "797a07.16i", 0x0000, 0x0100, CRC(7aecad4e) SHA1(05150a8dd25bdd6ab0c5b350e6ffd272f040e46a) ) /* sprites lookup table, 63S141N BPROM */

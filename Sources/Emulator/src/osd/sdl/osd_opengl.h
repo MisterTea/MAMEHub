@@ -45,8 +45,8 @@
 	#define APIENTRY
 	#endif
 
-#include <OpenGL/gl.h>
-#include <OpenGL/glext.h>
+	#include <OpenGL/gl.h>
+	#include <OpenGL/glext.h>
 
 	typedef void (APIENTRY * PFNGLACTIVETEXTUREARBPROC) (GLenum target);
 #endif

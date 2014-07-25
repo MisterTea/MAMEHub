@@ -393,21 +393,6 @@ static GFXDECODE_START( cloud9 )
 GFXDECODE_END
 
 
-
-/*************************************
- *
- *  Sound interfaces
- *
- *************************************/
-
-static const pokey_interface pokey_config =
-{
-	{ DEVCB_NULL },
-	DEVCB_INPUT_PORT("DSW"),
-};
-
-
-
 /*************************************
  *
  *  Machine driver
@@ -425,8 +410,8 @@ static MACHINE_CONFIG_START( cloud9, cloud9_state )
 	MCFG_X2212_ADD_AUTOSAVE("nvram")
 
 	/* video hardware */
-	MCFG_GFXDECODE(cloud9)
-	MCFG_PALETTE_LENGTH(64)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cloud9)
+	MCFG_PALETTE_ADD("palette", 64)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE((float)PIXEL_CLOCK / (float)VTOTAL / (float)HTOTAL)
@@ -434,16 +419,16 @@ static MACHINE_CONFIG_START( cloud9, cloud9_state )
 	MCFG_SCREEN_VBLANK_TIME(0)          /* VBLANK is handled manually */
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 231)
 	MCFG_SCREEN_UPDATE_DRIVER(cloud9_state, screen_update_cloud9)
-
+	MCFG_SCREEN_PALETTE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_POKEY_ADD("pokey1", MASTER_CLOCK/8)
+	MCFG_SOUND_ADD("pokey1", POKEY, MASTER_CLOCK/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
-	MCFG_POKEY_ADD("pokey2", MASTER_CLOCK/8)
-	MCFG_POKEY_CONFIG(pokey_config)
+	MCFG_SOUND_ADD("pokey2", POKEY, MASTER_CLOCK/8)
+	MCFG_POKEY_ALLPOT_R_CB(IOPORT("DSW"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

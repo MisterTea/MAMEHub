@@ -1,4 +1,6 @@
+#include "cpu/mcs48/mcs48.h"
 #include "sound/dac.h"
+#include "sound/sn76477.h"
 
 class n8080_state : public driver_device
 {
@@ -8,7 +10,11 @@ public:
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_maincpu(*this, "maincpu"),
-		m_dac(*this, "dac") { }
+		m_audiocpu(*this, "audiocpu"),
+		m_dac(*this, "dac"),
+		m_sn(*this, "snsnd"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -43,6 +49,12 @@ public:
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<dac_device> m_dac;
+	optional_device<sn76477_device> m_sn;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
 	DECLARE_WRITE8_MEMBER(n8080_shift_bits_w);
 	DECLARE_WRITE8_MEMBER(n8080_shift_data_w);
 	DECLARE_READ8_MEMBER(n8080_shift_r);
@@ -61,23 +73,21 @@ public:
 	DECLARE_WRITE8_MEMBER(helifire_sound_ctrl_w);
 	DECLARE_WRITE_LINE_MEMBER(n8080_inte_callback);
 	DECLARE_WRITE8_MEMBER(n8080_status_callback);
-	DECLARE_MACHINE_START(spacefev);
+	virtual void machine_start();
 	DECLARE_MACHINE_RESET(spacefev);
 	DECLARE_VIDEO_START(spacefev);
 	DECLARE_PALETTE_INIT(n8080);
-	DECLARE_MACHINE_START(sheriff);
 	DECLARE_MACHINE_RESET(sheriff);
 	DECLARE_VIDEO_START(sheriff);
-	DECLARE_MACHINE_START(helifire);
 	DECLARE_MACHINE_RESET(helifire);
 	DECLARE_VIDEO_START(helifire);
 	DECLARE_PALETTE_INIT(helifire);
-	DECLARE_MACHINE_START(spacefev_sound);
-	DECLARE_MACHINE_RESET(spacefev_sound);
-	DECLARE_MACHINE_START(sheriff_sound);
-	DECLARE_MACHINE_RESET(sheriff_sound);
-	DECLARE_MACHINE_START(helifire_sound);
-	DECLARE_MACHINE_RESET(helifire_sound);
+	DECLARE_SOUND_START(spacefev);
+	DECLARE_SOUND_RESET(spacefev);
+	DECLARE_SOUND_START(sheriff);
+	DECLARE_SOUND_RESET(sheriff);
+	DECLARE_SOUND_START(helifire);
+	DECLARE_SOUND_RESET(helifire);
 	DECLARE_MACHINE_START(n8080);
 	DECLARE_MACHINE_RESET(n8080);
 	UINT32 screen_update_spacefev(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -91,7 +101,20 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(helifire_dac_volume_timer);
 	void spacefev_start_red_cannon(  );
 	void helifire_next_line(  );
-	required_device<dac_device> m_dac;
+	void spacefev_update_SN76477_status();
+	void sheriff_update_SN76477_status();
+	void update_SN76477_status();
+	void start_mono_flop( int n, const attotime &expire );
+	void stop_mono_flop( int n );
+	TIMER_CALLBACK_MEMBER( stop_mono_flop_callback );
+	void spacefev_sound_pins_changed();
+	void sheriff_sound_pins_changed();
+	void helifire_sound_pins_changed();
+	void sound_pins_changed();
+	void delayed_sound_1( int data );
+	TIMER_CALLBACK_MEMBER( delayed_sound_1_callback );
+	void delayed_sound_2( int data );
+	TIMER_CALLBACK_MEMBER( delayed_sound_2_callback );
 };
 
 /*----------- defined in audio/n8080.c -----------*/

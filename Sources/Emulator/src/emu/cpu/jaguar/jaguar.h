@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     jaguar.h
@@ -68,17 +70,11 @@ enum
 
 
 /***************************************************************************
-    CONFIGURATION STRUCTURE
+    CONFIGURATION
 ***************************************************************************/
 
-typedef void (*jaguar_int_func)(device_t *device);
-
-
-struct jaguar_cpu_config
-{
-	jaguar_int_func     cpu_int_callback;
-};
-
+#define MCFG_JAGUAR_IRQ_HANDLER(_devcb) \
+	devcb = &jaguar_cpu_device::set_int_func(*device, DEVCB_##_devcb);
 
 
 /***************************************************************************
@@ -111,7 +107,7 @@ public:
 	~jaguar_cpu_device();
 
 	// static configuration helpers
-	template<class _Object> static devcb2_base &set_int_func(device_t &device, _Object object) { return downcast<jaguar_cpu_device &>(device).m_cpu_interrupt.set_callback(object); }
+	template<class _Object> static devcb_base &set_int_func(device_t &device, _Object object) { return downcast<jaguar_cpu_device &>(device).m_cpu_interrupt.set_callback(object); }
 
 	virtual DECLARE_WRITE32_MEMBER(ctrl_w) { assert(0); }
 	virtual DECLARE_READ32_MEMBER(ctrl_r) { assert(0); return 0; }
@@ -154,7 +150,7 @@ protected:
 	bool        m_isdsp;
 	int         m_icount;
 	int         m_bankswitch_icount;
-	devcb2_write_line m_cpu_interrupt;
+	devcb_write_line m_cpu_interrupt;
 	address_space *m_program;
 	direct_read_data *m_direct;
 

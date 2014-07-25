@@ -44,7 +44,7 @@ WRITE8_MEMBER(snookr10_state::snookr10_colorram_w)
 }
 
 
-void snookr10_state::palette_init()
+PALETTE_INIT_MEMBER(snookr10_state, snookr10)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	/* GGBBBRRR */
@@ -60,7 +60,7 @@ void snookr10_state::palette_init()
 			2,  resistances_g,  weights_g,  100,    0);
 
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -81,7 +81,7 @@ void snookr10_state::palette_init()
 		bit1 = (color_prom[i] >> 7) & 0x01;
 		g = combine_2_weights(weights_g, bit0, bit1);
 
-		palette_set_color(machine(), i, MAKE_RGB(r,g,b));
+		palette.set_pen_color(i, rgb_t(r,g,b));
 	}
 }
 
@@ -126,7 +126,7 @@ PALETTE_INIT_MEMBER(snookr10_state, apple10)
 			2,  resistances_g,  weights_g,  100,    0);
 
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -150,7 +150,7 @@ PALETTE_INIT_MEMBER(snookr10_state, apple10)
 		/* encrypted color matrix */
 		cn = BITSWAP8(i,4,5,6,7,2,3,0,1);
 
-		palette_set_color(machine(), cn, MAKE_RGB(r,g,b));
+		palette.set_pen_color(cn, rgb_t(r,g,b));
 	}
 }
 
@@ -195,7 +195,7 @@ PALETTE_INIT_MEMBER(snookr10_state, crystalc)
 			2,  resistances_g,  weights_g,  100,    0);
 
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -219,7 +219,7 @@ PALETTE_INIT_MEMBER(snookr10_state, crystalc)
 		/* encrypted color matrix */
 		cn = BITSWAP8(i,7,5,6,4,3,2,1,0);
 
-		palette_set_color(machine(), cn, MAKE_RGB(r,g,b));
+		palette.set_pen_color(cn, rgb_t(r,g,b));
 	}
 }
 
@@ -241,17 +241,17 @@ TILE_GET_INFO_MEMBER(snookr10_state::crystalc_get_bg_tile_info)
 
 void snookr10_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snookr10_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 4, 8, 128, 30);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(snookr10_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 4, 8, 128, 30);
 }
 
 VIDEO_START_MEMBER(snookr10_state, apple10)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snookr10_state::apple10_get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 4, 8, 128, 30);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(snookr10_state::apple10_get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 4, 8, 128, 30);
 }
 
 VIDEO_START_MEMBER(snookr10_state, crystalc)
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snookr10_state::crystalc_get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 4, 8, 128, 30);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(snookr10_state::crystalc_get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 4, 8, 128, 30);
 }
 
 UINT32 snookr10_state::screen_update_snookr10(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)

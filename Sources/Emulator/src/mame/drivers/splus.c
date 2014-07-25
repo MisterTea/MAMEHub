@@ -7,7 +7,7 @@
     --- Technical Notes ---
 
     Name:    S+
-    Company: IGT - International Gaming Technology
+    Company: IGT - International Game Technology
     Year:    1994
 
     Hardware:
@@ -38,7 +38,9 @@ public:
 		m_program_ram(*this, "program_ram"),
 		m_reel_ram(*this, "reel_ram"),
 		m_io_port(*this, "io_port"),
-		m_maincpu(*this, "maincpu") {
+		m_maincpu(*this, "maincpu"),
+		m_i2cmem(*this, "i2cmem")
+	{
 		m_sda_dir = 0;
 		m_coin_state = 0;
 		m_last_cycles = 0;
@@ -103,6 +105,7 @@ public:
 	DECLARE_READ8_MEMBER(splus_reel_optics_r);
 	DECLARE_DRIVER_INIT(splus);
 	required_device<cpu_device> m_maincpu;
+	required_device<i2cmem_device> m_i2cmem;
 };
 
 /* Static Variables */
@@ -126,14 +129,6 @@ static const UINT8 optics[200] = {
 #define CPU_CLOCK           ((MASTER_CLOCK)/2)      /* divided by 2 - 7474 */
 #define SOUND_CLOCK         ((MASTER_CLOCK)/12)
 
-/* Static Variables */
-#define EEPROM_NVRAM_SIZE   0x200 // 4k Bit
-
-/* EEPROM is a X2404P 4K-bit Serial I2C Bus */
-static const i2cmem_interface i2cmem_interface =
-{
-	I2CMEM_SLAVE_ADDRESS, 8, EEPROM_NVRAM_SIZE
-};
 
 /*****************
 * Write Handlers *
@@ -181,7 +176,7 @@ WRITE8_MEMBER(splus_state::splus_io_w)
 		}
 #if DEBUG_OUTPUT
 		if ((data & 0x1f) == 0x01)
-			mame_printf_info("Steppers %02X-%02X-%02X-%02X-%02X Motor=%02X Dir=%02X reels=%02X unk=%02X\n", m_stop_pos[0],m_stop_pos[1],m_stop_pos[2],m_stop_pos[3],m_stop_pos[4],((m_bank40 >> 0) & 1),((m_bank10 >> 5) & 1),(data & 0x1f), m_p1_unknown);
+			osd_printf_info("Steppers %02X-%02X-%02X-%02X-%02X Motor=%02X Dir=%02X reels=%02X unk=%02X\n", m_stop_pos[0],m_stop_pos[1],m_stop_pos[2],m_stop_pos[3],m_stop_pos[4],((m_bank40 >> 0) & 1),((m_bank10 >> 5) & 1),(data & 0x1f), m_p1_unknown);
 #endif
 	}
 
@@ -204,40 +199,40 @@ WRITE8_MEMBER(splus_state::splus_serial_w)
 		case 0x00: // Bank 10
 			if (((m_bank10 >> 0) & 1) != ((data >> 0) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Coin Drop Meter =%02X\n",(data >> 0) & 1);
+				osd_printf_info("Coin Drop Meter =%02X\n",(data >> 0) & 1);
 #endif
 			}
 			if (((m_bank10 >> 1) & 1) != ((data >> 1) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Coin Out Meter =%02X\n",(data >> 1) & 1);
+				osd_printf_info("Coin Out Meter =%02X\n",(data >> 1) & 1);
 #endif
 			}
 			if (((m_bank10 >> 2) & 1) != ((data >> 2) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Coin In Meter =%02X\n",(data >> 2) & 1);
+				osd_printf_info("Coin In Meter =%02X\n",(data >> 2) & 1);
 #endif
 			}
 			if (((m_bank10 >> 3) & 1) != ((data >> 3) & 1)) {
-				//mame_printf_info("B Switch for SDS =%02X\n",(data >> 3) & 1);
+				//osd_printf_info("B Switch for SDS =%02X\n",(data >> 3) & 1);
 			}
 			if (((m_bank10 >> 4) & 1) != ((data >> 4) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Hopper Drive 2 =%02X\n",(data >> 4) & 1);
+				osd_printf_info("Hopper Drive 2 =%02X\n",(data >> 4) & 1);
 #endif
 			}
 			if (((m_bank10 >> 5) & 1) != ((data >> 5) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Stepper Motor Direction =%02X\n",(data >> 5) & 1);
+				osd_printf_info("Stepper Motor Direction =%02X\n",(data >> 5) & 1);
 #endif
 			}
 			if (((m_bank10 >> 6) & 1) != ((data >> 6) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Mechanical Bell =%02X\n",(data >> 6) & 1);
+				osd_printf_info("Mechanical Bell =%02X\n",(data >> 6) & 1);
 #endif
 			}
 			if (((m_bank10 >> 7) & 1) != ((data >> 7) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Cancelled Credits Meter =%02X\n",(data >> 7) & 1);
+				osd_printf_info("Cancelled Credits Meter =%02X\n",(data >> 7) & 1);
 #endif
 			}
 			m_bank10 = data;
@@ -254,17 +249,17 @@ WRITE8_MEMBER(splus_state::splus_serial_w)
 		case 0x01: // Bank 20
 			if (((m_bank20 >> 5) & 1) != ((data >> 5) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Games Played Meter =%02X\n",(data >> 5) & 1);
+				osd_printf_info("Games Played Meter =%02X\n",(data >> 5) & 1);
 #endif
 			}
 			if (((m_bank20 >> 6) & 1) != ((data >> 6) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Bill Acceptor Enable =%02X\n",(data >> 6) & 1);
+				osd_printf_info("Bill Acceptor Enable =%02X\n",(data >> 6) & 1);
 #endif
 			}
 			if (((m_bank20 >> 7) & 1) != ((data >> 7) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Jackpots Meter =%02X\n",(data >> 7) & 1);
+				osd_printf_info("Jackpots Meter =%02X\n",(data >> 7) & 1);
 #endif
 			}
 			m_bank20 = data;
@@ -281,22 +276,22 @@ WRITE8_MEMBER(splus_state::splus_serial_w)
 		case 0x02: // Bank 30
 			if (((m_bank30 >> 2) & 1) != ((data >> 2) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Handle Release =%02X\n",(data >> 2) & 1);
+				osd_printf_info("Handle Release =%02X\n",(data >> 2) & 1);
 #endif
 			}
 			if (((m_bank30 >> 3) & 1) != ((data >> 3) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Diverter =%02X\n",(data >> 3) & 1);
+				osd_printf_info("Diverter =%02X\n",(data >> 3) & 1);
 #endif
 			}
 			if (((m_bank30 >> 4) & 1) != ((data >> 4) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Coin Lockout =%02X\n",(data >> 4) & 1);
+				osd_printf_info("Coin Lockout =%02X\n",(data >> 4) & 1);
 #endif
 			}
 			if (((m_bank30 >> 5) & 1) != ((data >> 5) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Hopper Drive 1 =%02X\n",(data >> 5) & 1);
+				osd_printf_info("Hopper Drive 1 =%02X\n",(data >> 5) & 1);
 #endif
 			}
 			m_bank30 = data;
@@ -313,12 +308,12 @@ WRITE8_MEMBER(splus_state::splus_serial_w)
 		case 0x04: // Bank 40
 			if (((m_bank40 >> 0) & 1) != ((data >> 0) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Stepper Motor Power Supply =%02X\n",(data >> 0) & 1);
+				osd_printf_info("Stepper Motor Power Supply =%02X\n",(data >> 0) & 1);
 #endif
 			}
 			if (((m_bank40 >> 3) & 1) != ((data >> 3) & 1)) {
 #if DEBUG_OUTPUT
-				mame_printf_info("Jackpot/Hand Pay Lamp =%02X\n",(data >> 3) & 1);
+				osd_printf_info("Jackpot/Hand Pay Lamp =%02X\n",(data >> 3) & 1);
 #endif
 			}
 			m_bank40 = data;
@@ -357,10 +352,9 @@ WRITE8_MEMBER(splus_state::splus_duart_w)
 
 WRITE8_MEMBER(splus_state::i2c_nvram_w)
 {
-	device_t *device = machine().device("i2cmem");
-	i2cmem_scl_write(device,BIT(data, 2));
+	m_i2cmem->write_scl(BIT(data, 2));
 	m_sda_dir = BIT(data, 1);
-	i2cmem_sda_write(device,BIT(data, 0));
+	m_i2cmem->write_sda(BIT(data, 0));
 }
 
 /****************
@@ -372,7 +366,7 @@ READ8_MEMBER(splus_state::splus_serial_r)
 	UINT8 coin_out = 0x00;
 	UINT8 coin_optics = 0x00;
 	UINT8 door_optics = 0x00;
-	UINT32 curr_cycles = machine().firstcpu->total_cycles();
+	UINT32 curr_cycles = m_maincpu->total_cycles();
 
 	UINT8 in = 0x00;
 	UINT8 val = 0x00;
@@ -395,9 +389,9 @@ READ8_MEMBER(splus_state::splus_serial_r)
 			// Test for Coin-In
 			if ((ioport("SENSOR")->read_safe(0x00) & 0x01) == 0x01 && m_coin_state == 0) {
 				m_coin_state = 1; // Start Coin Cycle
-				m_last_cycles = machine().firstcpu->total_cycles();
+				m_last_cycles = m_maincpu->total_cycles();
 #if DEBUG_OUTPUT
-				mame_printf_info("coin=%02X\n", m_coin_state);
+				osd_printf_info("coin=%02X\n", m_coin_state);
 #endif
 			} else {
 				/* Process Next Coin Optic State */
@@ -405,9 +399,9 @@ READ8_MEMBER(splus_state::splus_serial_r)
 					m_coin_state++;
 					if (m_coin_state > 5)
 						m_coin_state = 0;
-					m_last_cycles = machine().firstcpu->total_cycles();
+					m_last_cycles = m_maincpu->total_cycles();
 #if DEBUG_OUTPUT
-					mame_printf_info("coin=%02X\n", m_coin_state);
+					osd_printf_info("coin=%02X\n", m_coin_state);
 #endif
 				}
 			}
@@ -457,7 +451,7 @@ READ8_MEMBER(splus_state::splus_serial_r)
 					m_coin_out_state = 3; // Coin-Out On
 				}
 
-				m_last_coin_out = machine().firstcpu->total_cycles();
+				m_last_coin_out = m_maincpu->total_cycles();
 			}
 
 			// Set Coin Out State
@@ -539,8 +533,6 @@ READ8_MEMBER(splus_state::splus_registers_r)
 
 READ8_MEMBER(splus_state::splus_reel_optics_r)
 {
-	device_t *device = machine().device("i2cmem");
-
 /*
         Bit 0 = REEL #1
         Bit 1 = REEL #2
@@ -559,7 +551,7 @@ READ8_MEMBER(splus_state::splus_reel_optics_r)
 
 	if(!m_sda_dir)
 	{
-		sda = i2cmem_sda_read(device);
+		sda = m_i2cmem->read_sda();
 	}
 
 	reel_optics = reel_optics | 0x40 | (sda<<7);
@@ -686,15 +678,16 @@ static MACHINE_CONFIG_START( splus, splus_state )   // basic machine hardware
 	MCFG_NVRAM_ADD_0FILL("cmosh")
 
 	// video hardware (ALL FAKE, NO VIDEO)
-	MCFG_PALETTE_LENGTH(16*16)
+	MCFG_PALETTE_ADD("palette", 16*16)
 	MCFG_SCREEN_ADD("scrn", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_UPDATE_DRIVER(splus_state, screen_update)
 	MCFG_SCREEN_SIZE((52+1)*8, (31+1)*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 25*8-1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_I2CMEM_ADD("i2cmem", i2cmem_interface)
+	MCFG_X2404P_ADD("i2cmem")
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -720,4 +713,4 @@ ROM_END
 *************************/
 
 /*     YEAR  NAME        PARENT  MACHINE  INPUT   INIT     ROT    COMPANY                                  FULLNAME                       FLAGS             LAYOUT  */
-GAMEL( 1994, spss4240,   0,      splus,   splus, splus_state,  splus,   ROT0,  "IGT - International Gaming Technology", "S-Plus (SS4240) Coral Reef",  GAME_NOT_WORKING, layout_splus )
+GAMEL( 1994, spss4240,   0,      splus,   splus, splus_state,  splus,   ROT0,  "IGT - International Game Technology", "S-Plus (SS4240) Coral Reef",  GAME_NOT_WORKING, layout_splus )

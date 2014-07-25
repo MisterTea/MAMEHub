@@ -37,7 +37,7 @@ static const char copyright_notice[] =
 #include "m68kcpu.h"
 #include "m68kops.h"
 
-#include "m68kfpu.c"
+#include "m68kfpu.inc"
 #include "m68kmmu.h"
 
 extern void m68040_fpu_op0(m68000_base_device *m68k);
@@ -677,8 +677,8 @@ static void m68k_presave(m68000_base_device *m68k)
 static void m68k_postload(m68000_base_device *m68k)
 {
 	m68ki_set_sr_noint_nosp(m68k, m68k->save_sr);
-	m68k->stopped = m68k->save_stopped ? STOP_LEVEL_STOP : 0
-				| m68k->save_halted  ? STOP_LEVEL_HALT : 0;
+	fprintf(stderr, "Reloaded, pc=%x\n", REG_PC(m68k));
+	m68k->stopped = (m68k->save_stopped ? STOP_LEVEL_STOP : 0) | (m68k->save_halted  ? STOP_LEVEL_HALT : 0);
 	m68ki_jump(m68k, REG_PC(m68k));
 }
 
@@ -705,6 +705,41 @@ static void m68k_cause_bus_error(m68000_base_device *m68k)
 	}
 
 	m68ki_jump_vector(m68k, EXCEPTION_BUS_ERROR);
+}
+
+WRITE_LINE_MEMBER( m68000_base_device::write_irq1 )
+{
+	set_input_line( M68K_IRQ_1, state );
+}
+
+WRITE_LINE_MEMBER( m68000_base_device::write_irq2 )
+{
+	set_input_line( M68K_IRQ_2, state );
+}
+
+WRITE_LINE_MEMBER( m68000_base_device::write_irq3 )
+{
+	set_input_line( M68K_IRQ_3, state );
+}
+
+WRITE_LINE_MEMBER( m68000_base_device::write_irq4 )
+{
+	set_input_line( M68K_IRQ_4, state );
+}
+
+WRITE_LINE_MEMBER( m68000_base_device::write_irq5 )
+{
+	set_input_line( M68K_IRQ_5, state );
+}
+
+WRITE_LINE_MEMBER( m68000_base_device::write_irq6 )
+{
+	set_input_line( M68K_IRQ_6, state );
+}
+
+WRITE_LINE_MEMBER( m68000_base_device::write_irq7 )
+{
+	set_input_line( M68K_IRQ_7, state );
 }
 
 bool m68000_base_device::memory_translate(address_spacenum space, int intention, offs_t &address)
@@ -805,8 +840,8 @@ inline void m68000_base_device::cpu_execute(void)
 			debugger_instruction_hook(this, REG_PC(this));
 
 			/* call external instruction hook (independent of debug mode) */
-			if (instruction_hook != NULL)
-				instruction_hook(this, REG_PC(this));
+			if (!instruction_hook.isnull())
+				instruction_hook(*program, REG_PC(this), 0xffffffff);
 
 			/* Record previous program counter */
 			REG_PPC(this) = REG_PC(this);
@@ -924,7 +959,7 @@ void m68000_base_device::init_cpu_common(void)
 
 	//this = device;//deviceparam;
 	program = &space(AS_PROGRAM);
-	int_ack_callback = static_standard_irq_callback;
+	int_ack_callback = device_irq_acknowledge_delegate(FUNC(m68000_base_device::standard_irq_callback_member), this);
 
 	/* disable all MMUs */
 	has_pmmu         = 0;
@@ -957,6 +992,40 @@ void m68000_base_device::init_cpu_common(void)
 	save_item(NAME(save_halted));
 	save_item(NAME(pref_addr));
 	save_item(NAME(pref_data));
+	save_item(NAME(reset_cycles));
+	save_item(NAME(nmi_pending));
+	save_item(NAME(has_pmmu));
+	save_item(NAME(has_hmmu));
+	save_item(NAME(pmmu_enabled));
+	save_item(NAME(hmmu_enabled));
+
+	save_item(NAME(mmu_crp_aptr));
+	save_item(NAME(mmu_crp_limit));
+	save_item(NAME(mmu_srp_aptr));
+	save_item(NAME(mmu_srp_limit));
+	save_item(NAME(mmu_urp_aptr));
+	save_item(NAME(mmu_tc));
+	save_item(NAME(mmu_sr));
+	save_item(NAME(mmu_sr_040));
+	save_item(NAME(mmu_atc_rr));
+	save_item(NAME(mmu_tt0));
+	save_item(NAME(mmu_tt1));
+	save_item(NAME(mmu_itt0));
+	save_item(NAME(mmu_itt1));
+	save_item(NAME(mmu_dtt0));
+	save_item(NAME(mmu_dtt1));
+	save_item(NAME(mmu_acr0));
+	save_item(NAME(mmu_acr1));
+	save_item(NAME(mmu_acr2));
+	save_item(NAME(mmu_acr3));
+	save_item(NAME(mmu_last_page_entry));
+	save_item(NAME(mmu_last_page_entry_addr));
+
+	for (int i=0; i<MMU_ATC_ENTRIES;i++) {
+		save_item(NAME(mmu_atc_tag[i]), i);
+		save_item(NAME(mmu_atc_data[i]), i);
+	}
+
 	machine().save().register_presave(save_prepost_delegate(FUNC(m68k_presave), this));
 	machine().save().register_postload(save_prepost_delegate(FUNC(m68k_postload), this));
 
@@ -1016,11 +1085,6 @@ void m68000_base_device::reset_cpu(void)
 		// clear instruction cache
 		m68ki_ic_clear(this);
 	}
-
-	// disable instruction hook
-	instruction_hook = NULL;
-
-
 }
 
 
@@ -1170,20 +1234,20 @@ void m68000_base_device::state_string_export(const device_state_entry &entry, as
 
 /* global access */
 
-void m68k_set_encrypted_opcode_range(m68000_base_device *device, offs_t start, offs_t end)
+void m68000_base_device::set_encrypted_opcode_range(offs_t start, offs_t end)
 {
-	device->encrypted_start = start;
-	device->encrypted_end = end;
+	encrypted_start = start;
+	encrypted_end = end;
 }
 
-void m68k_set_hmmu_enable(m68000_base_device *device, int enable)
+void m68000_base_device::set_hmmu_enable(int enable)
 {
-	device->hmmu_enabled = enable;
+	hmmu_enabled = enable;
 }
 
-void m68k_set_instruction_hook(m68000_base_device *device, instruction_hook_t ihook)
+void m68000_base_device::set_instruction_hook(read32_delegate ihook)
 {
-	device->instruction_hook = ihook;
+	instruction_hook = ihook;
 }
 
 /****************************************************************************
@@ -1225,6 +1289,13 @@ UINT16 m68000_base_device::simple_read_immediate_16(offs_t address)
 	return m_direct->read_decrypted_word(address);
 }
 
+void m68000_base_device::m68000_write_byte(offs_t address, UINT8 data)
+{
+	static const UINT16 masks[] = {0xff00, 0x00ff};
+
+	m_space->write_word(address & ~1, data | (data << 8), masks[address & 1]);
+}
+
 void m68000_base_device::init16(address_space &space)
 {
 	m_space = &space;
@@ -1235,7 +1306,7 @@ void m68000_base_device::init16(address_space &space)
 	read8 = m68k_read8_delegate(FUNC(address_space::read_byte), &space);
 	read16 = m68k_read16_delegate(FUNC(address_space::read_word), &space);
 	read32 = m68k_read32_delegate(FUNC(address_space::read_dword), &space);
-	write8 = m68k_write8_delegate(FUNC(address_space::write_byte), &space);
+	write8 = m68k_write8_delegate(FUNC(m68000_base_device::m68000_write_byte), this);
 	write16 = m68k_write16_delegate(FUNC(address_space::write_word), &space);
 	write32 = m68k_write32_delegate(FUNC(address_space::write_dword), &space);
 }
@@ -1607,33 +1678,40 @@ void m68000_base_device::init32hmmu(address_space &space)
 	write32 = m68k_write32_delegate(FUNC(m68000_base_device::writelong_d32_hmmu), this);
 }
 
-void m68k_set_reset_callback(m68000_base_device *device, m68k_reset_func callback)
+void m68000_base_device::set_reset_callback(write_line_delegate callback)
 {
-	device->reset_instr_callback = callback;
+	reset_instr_callback = callback;
 }
 
-void m68k_set_cmpild_callback(m68000_base_device *device, m68k_cmpild_func callback)
+// fault_addr = address to indicate fault at
+// rw = 0 for read, 1 for write
+// fc = 3-bit function code of access (usually you'd just put what m68k_get_fc() returns here)
+void m68000_base_device::set_buserror_details(UINT32 fault_addr, UINT8 rw, UINT8 fc)
 {
-	device->cmpild_instr_callback = callback;
+	aerr_address = fault_addr;
+	aerr_write_mode = rw;
+	aerr_fc = fc;
 }
 
-void m68k_set_rte_callback(m68000_base_device *device, m68k_rte_func callback)
+void m68000_base_device::set_cmpild_callback(write32_delegate callback)
 {
-	device->rte_instr_callback = callback;
+	cmpild_instr_callback = callback;
 }
 
-void m68k_set_tas_callback(m68000_base_device *device, m68k_tas_func callback)
+void m68000_base_device::set_rte_callback(write_line_delegate callback)
 {
-	device->tas_instr_callback = callback;
+	rte_instr_callback = callback;
 }
 
-UINT16 m68k_get_fc(m68000_base_device *device)
+void m68000_base_device::set_tas_write_callback(write8_delegate callback)
 {
-	return device->mmu_tmp_fc;
+	tas_write_callback = callback;
 }
 
-
-
+UINT16 m68000_base_device::get_fc()
+{
+	return mmu_tmp_fc;
+}
 
 /****************************************************************************
  * State definition
@@ -2193,7 +2271,7 @@ void m68000_base_device::m68ki_exception_interrupt(m68000_base_device *m68k, UIN
 		return;
 
 	/* Acknowledge the interrupt */
-	vector = (*int_ack_callback)(this, int_level);
+	vector = int_ack_callback(*this, int_level);
 
 	/* Get the interrupt vector */
 	if(vector == M68K_INT_ACK_AUTOVECTOR)
@@ -2340,13 +2418,7 @@ void m68000_base_device::clear_all()
 	cyc_instruction = 0;
 	cyc_exception = 0;
 
-	int_ack_callback = 0;
-	bkpt_ack_callback = 0;
-	reset_instr_callback = 0;
-	cmpild_instr_callback = 0;
-	rte_instr_callback = 0;
-	tas_instr_callback = 0;
-
+	int_ack_callback = device_irq_acknowledge_delegate();
 	program = 0;
 
 	opcode_xor = 0;
@@ -2401,8 +2473,6 @@ void m68000_base_device::clear_all()
 		ic_data[i] = 0;
 
 	internal = 0;
-
-	instruction_hook = 0;
 }
 
 

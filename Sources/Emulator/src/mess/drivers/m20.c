@@ -48,6 +48,8 @@ E I1     Vectored interrupt error
 
 #include "machine/keyboard.h"
 
+#define KEYBOARD_TAG "keyboard"
+
 class m20_state : public driver_device
 {
 public:
@@ -62,7 +64,10 @@ public:
 		m_fd1797(*this, "fd1797"),
 		m_floppy0(*this, "fd1797:0:5dd"),
 		m_floppy1(*this, "fd1797:1:5dd"),
-		m_p_videoram(*this, "p_videoram"){ }
+		m_p_videoram(*this, "p_videoram"),
+		m_palette(*this, "palette")
+	{
+	}
 
 	required_device<z8001_device> m_maincpu;
 	required_device<ram_device> m_ram;
@@ -75,6 +80,7 @@ public:
 	required_device<floppy_image_device> m_floppy1;
 
 	required_shared_ptr<UINT16> m_p_videoram;
+	required_device<palette_device> m_palette;
 
 	virtual void machine_start();
 	virtual void machine_reset();
@@ -87,7 +93,6 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(tty_clock_tick_w);
 	DECLARE_WRITE_LINE_MEMBER(kbd_clock_tick_w);
 	DECLARE_WRITE_LINE_MEMBER(timer_tick_w);
-	DECLARE_READ_LINE_MEMBER(kbd_rx);
 	DECLARE_WRITE_LINE_MEMBER(kbd_tx);
 	DECLARE_WRITE8_MEMBER(kbd_put);
 
@@ -107,7 +112,6 @@ public:
 
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
 
-	void fdc_intrq_w(bool state);
 	IRQ_CALLBACK_MEMBER(m20_irq_callback);
 };
 
@@ -126,7 +130,7 @@ UINT32 m20_state::screen_update_m20(screen_device &screen, bitmap_rgb32 &bitmap,
 	UINT8 pen;
 	UINT32 count;
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	count = (0);
 
@@ -139,7 +143,7 @@ UINT32 m20_state::screen_update_m20(screen_device &screen, bitmap_rgb32 &bitmap,
 				pen = (m_p_videoram[count]) >> (15 - i) & 1;
 
 				if (screen.visible_area().contains(x + i, y))
-					bitmap.pix32(y, x + i) = machine().pens[pen];
+					bitmap.pix32(y, x + i) = m_palette->pen(pen);
 			}
 
 			count++;
@@ -148,12 +152,7 @@ UINT32 m20_state::screen_update_m20(screen_device &screen, bitmap_rgb32 &bitmap,
 	return 0;
 }
 
-// these two i8251 callbacks will ask for/send 1 bit at a time.
-READ_LINE_MEMBER(m20_state::kbd_rx)
-{
-	/* TODO: correct hookup for keyboard, keyboard uses 8048 */
-	return 0x00;
-}
+/* TODO: correct hookup for keyboard, keyboard uses 8048 */
 
 WRITE_LINE_MEMBER(m20_state::kbd_tx)
 {
@@ -164,20 +163,24 @@ WRITE_LINE_MEMBER(m20_state::kbd_tx)
 		m_kbrecv_data = (m_kbrecv_data >> 1) | (state ? (1<<10) : 0);
 		if (m_kbrecv_bitcount == 11) {
 			data = (m_kbrecv_data >> 1) & 0xff;
-			printf ("0x%02X received by keyboard\n", data);
+//          printf ("0x%02X received by keyboard\n", data);
 			switch (data) {
 				case 0x03: m_kbdi8251->receive_character(2); printf ("sending 2 back from kb...\n"); break;
 				case 0x0a: break;
 				case 0x80: m_kbdi8251->receive_character(0x80); printf ("sending 0x80 back from kb...\n");break;
-				default: abort();
+				default: logerror("m20: keyboard hack got unexpected %02x\n", data); break;
 			}
 			m_kbrecv_in_progress = 0;
 		}
 	}
-	else {
-		m_kbrecv_in_progress = 1;
-		m_kbrecv_bitcount = 1;
-		m_kbrecv_data = state ? (1<<10) : 0;
+	else
+	{
+		if (state == 0)
+		{
+			m_kbrecv_in_progress = 1;
+			m_kbrecv_bitcount = 1;
+			m_kbrecv_data = state ? (1<<10) : 0;
+		}
 	}
 }
 
@@ -264,14 +267,14 @@ WRITE_LINE_MEMBER( m20_state::pic_irq_line_w )
 
 WRITE_LINE_MEMBER( m20_state::tty_clock_tick_w )
 {
-	m_ttyi8251->transmit_clock();
-	m_ttyi8251->receive_clock();
+	m_ttyi8251->write_txc(state);
+	m_ttyi8251->write_rxc(state);
 }
 
 WRITE_LINE_MEMBER( m20_state::kbd_clock_tick_w )
 {
-	m_kbdi8251->transmit_clock();
-	m_kbdi8251->receive_clock();
+	m_kbdi8251->write_txc(state);
+	m_kbdi8251->write_rxc(state);
 }
 
 WRITE_LINE_MEMBER( m20_state::timer_tick_w )
@@ -385,8 +388,6 @@ ADDRESS_MAP_END
 
 void m20_state::install_memory()
 {
-	m20_state *state = machine().driver_data<m20_state>();
-
 	m_memsize = m_ram->size();
 	UINT8 *memptr = m_ram->pointer();
 	address_space& pspace = m_maincpu->space(AS_PROGRAM);
@@ -465,14 +466,14 @@ void m20_state::install_memory()
 	pspace.install_readwrite_bank(0xa4000, 0xa7fff, 0x3fff, 0, "dram0_c000");
 	dspace.install_readwrite_bank(0xa4000, 0xa7fff, 0x3fff, 0, "dram0_c000");
 
-	//state->membank("dram0_0000")->set_base(memptr);
-	state->membank("dram0_4000")->set_base(memptr + 0x4000);
-	state->membank("dram0_8000")->set_base(memptr + 0x8000);
-	state->membank("dram0_c000")->set_base(memptr + 0xc000);
-	state->membank("dram0_10000")->set_base(memptr + 0x10000);
-	state->membank("dram0_14000")->set_base(memptr + 0x14000);
-	state->membank("dram0_18000")->set_base(memptr + 0x18000);
-	state->membank("dram0_1c000")->set_base(memptr + 0x1c000);
+	//membank("dram0_0000")->set_base(memptr);
+	membank("dram0_4000")->set_base(memptr + 0x4000);
+	membank("dram0_8000")->set_base(memptr + 0x8000);
+	membank("dram0_c000")->set_base(memptr + 0xc000);
+	membank("dram0_10000")->set_base(memptr + 0x10000);
+	membank("dram0_14000")->set_base(memptr + 0x14000);
+	membank("dram0_18000")->set_base(memptr + 0x18000);
+	membank("dram0_1c000")->set_base(memptr + 0x1c000);
 
 	if (m_memsize > 128 * 1024) {
 		/* install memory expansions (DRAM1..DRAM3) */
@@ -503,8 +504,8 @@ void m20_state::install_memory()
 			dspace.install_readwrite_bank(0x2c000, 0x2ffff, 0x3fff, 0, "dram1_0000");
 			dspace.install_readwrite_bank(0xa8000, 0xabfff, 0x3fff, 0, "dram1_4000");
 
-			state->membank("dram1_0000")->set_base(memptr + 0x20000);
-			state->membank("dram1_4000")->set_base(memptr + 0x24000);
+			membank("dram1_0000")->set_base(memptr + 0x20000);
+			membank("dram1_4000")->set_base(memptr + 0x24000);
 
 			if (m_memsize > 128 * 1024 + 32768) {
 				/* DRAM2, 32K */
@@ -531,8 +532,8 @@ void m20_state::install_memory()
 				dspace.install_readwrite_bank(0x98000, 0x9bfff, 0x3fff, 0, "dram2_4000");
 				dspace.install_readwrite_bank(0xac000, 0xaffff, 0x3fff, 0, "dram2_0000");
 
-				state->membank("dram2_0000")->set_base(memptr + 0x28000);
-				state->membank("dram2_4000")->set_base(memptr + 0x2c000);
+				membank("dram2_0000")->set_base(memptr + 0x28000);
+				membank("dram2_4000")->set_base(memptr + 0x2c000);
 			}
 			if (m_memsize > 128 * 1024 + 2 * 32768) {
 				/* DRAM3, 32K */
@@ -559,8 +560,8 @@ void m20_state::install_memory()
 				dspace.install_readwrite_bank(0xb0000, 0xb3fff, 0x3fff, 0, "dram3_4000");
 				dspace.install_readwrite_bank(0xc0000, 0xc3fff, 0x3fff, 0, "dram3_4000");
 
-				state->membank("dram3_0000")->set_base(memptr + 0x30000);
-				state->membank("dram3_4000")->set_base(memptr + 0x34000);
+				membank("dram3_0000")->set_base(memptr + 0x30000);
+				membank("dram3_4000")->set_base(memptr + 0x34000);
 			}
 		}
 		else {
@@ -618,14 +619,14 @@ void m20_state::install_memory()
 			dspace.install_readwrite_bank(0xb4000, 0xb7fff, 0x3fff, 0, "dram1_18000");
 			dspace.install_readwrite_bank(0xb8000, 0xbbfff, 0x3fff, 0, "dram1_1c000");
 
-			state->membank("dram1_0000")->set_base(memptr + 0x20000);
-			state->membank("dram1_4000")->set_base(memptr + 0x24000);
-			state->membank("dram1_8000")->set_base(memptr + 0x28000);
-			state->membank("dram1_c000")->set_base(memptr + 0x2c000);
-			state->membank("dram1_10000")->set_base(memptr + 0x30000);
-			state->membank("dram1_14000")->set_base(memptr + 0x34000);
-			state->membank("dram1_18000")->set_base(memptr + 0x38000);
-			state->membank("dram1_1c000")->set_base(memptr + 0x3c000);
+			membank("dram1_0000")->set_base(memptr + 0x20000);
+			membank("dram1_4000")->set_base(memptr + 0x24000);
+			membank("dram1_8000")->set_base(memptr + 0x28000);
+			membank("dram1_c000")->set_base(memptr + 0x2c000);
+			membank("dram1_10000")->set_base(memptr + 0x30000);
+			membank("dram1_14000")->set_base(memptr + 0x34000);
+			membank("dram1_18000")->set_base(memptr + 0x38000);
+			membank("dram1_1c000")->set_base(memptr + 0x3c000);
 
 			if (m_memsize > 256 * 1024) {
 				/* DRAM2, 128K */
@@ -677,14 +678,14 @@ void m20_state::install_memory()
 				dspace.install_readwrite_bank(0xd4000, 0xd7fff, 0x3fff, 0, "dram2_18000");
 				dspace.install_readwrite_bank(0xd8000, 0xdbfff, 0x3fff, 0, "dram2_1c000");
 
-				state->membank("dram2_0000")->set_base(memptr + 0x40000);
-				state->membank("dram2_4000")->set_base(memptr + 0x44000);
-				state->membank("dram2_8000")->set_base(memptr + 0x48000);
-				state->membank("dram2_c000")->set_base(memptr + 0x4c000);
-				state->membank("dram2_10000")->set_base(memptr + 0x50000);
-				state->membank("dram2_14000")->set_base(memptr + 0x54000);
-				state->membank("dram2_18000")->set_base(memptr + 0x58000);
-				state->membank("dram2_1c000")->set_base(memptr + 0x5c000);
+				membank("dram2_0000")->set_base(memptr + 0x40000);
+				membank("dram2_4000")->set_base(memptr + 0x44000);
+				membank("dram2_8000")->set_base(memptr + 0x48000);
+				membank("dram2_c000")->set_base(memptr + 0x4c000);
+				membank("dram2_10000")->set_base(memptr + 0x50000);
+				membank("dram2_14000")->set_base(memptr + 0x54000);
+				membank("dram2_18000")->set_base(memptr + 0x58000);
+				membank("dram2_1c000")->set_base(memptr + 0x5c000);
 			}
 			if (m_memsize > 384 * 1024) {
 				/* DRAM3, 128K */
@@ -739,14 +740,14 @@ void m20_state::install_memory()
 				dspace.install_readwrite_bank(0xf8000, 0xfbfff, 0x3fff, 0, "dram3_1c000");
 				dspace.install_readwrite_bank(0xfc000, 0xfffff, 0x3fff, 0, "dram3_0000");
 
-				state->membank("dram3_0000")->set_base(memptr + 0x60000);
-				state->membank("dram3_4000")->set_base(memptr + 0x64000);
-				state->membank("dram3_8000")->set_base(memptr + 0x68000);
-				state->membank("dram3_c000")->set_base(memptr + 0x6c000);
-				state->membank("dram3_10000")->set_base(memptr + 0x70000);
-				state->membank("dram3_14000")->set_base(memptr + 0x74000);
-				state->membank("dram3_18000")->set_base(memptr + 0x78000);
-				state->membank("dram3_1c000")->set_base(memptr + 0x7c000);
+				membank("dram3_0000")->set_base(memptr + 0x60000);
+				membank("dram3_4000")->set_base(memptr + 0x64000);
+				membank("dram3_8000")->set_base(memptr + 0x68000);
+				membank("dram3_c000")->set_base(memptr + 0x6c000);
+				membank("dram3_10000")->set_base(memptr + 0x70000);
+				membank("dram3_14000")->set_base(memptr + 0x74000);
+				membank("dram3_18000")->set_base(memptr + 0x78000);
+				membank("dram3_1c000")->set_base(memptr + 0x7c000);
 			}
 		}
 	}
@@ -809,8 +810,6 @@ IRQ_CALLBACK_MEMBER(m20_state::m20_irq_callback)
 
 void m20_state::machine_start()
 {
-	m_fd1797->setup_intrq_cb(fd1797_t::line_cb(FUNC(m20_state::fdc_intrq_w), this));
-
 	install_memory();
 }
 
@@ -824,8 +823,6 @@ void m20_state::machine_reset()
 	else
 		m_port21 = 0xff;
 
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(m20_state::m20_irq_callback),this));
-
 	m_fd1797->reset();
 
 	memcpy(RAM, ROM, 8);  // we need only the reset vector
@@ -833,65 +830,10 @@ void m20_state::machine_reset()
 }
 
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	16,         /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-static I8255A_INTERFACE( ppi_interface )
-{
-	DEVCB_NULL,     // port A read
-	DEVCB_NULL,     // port A write
-	DEVCB_NULL,     // port B read
-	DEVCB_NULL,     // port B write
-	DEVCB_NULL,     // port C read
-	DEVCB_NULL      // port C write
-};
-
 WRITE_LINE_MEMBER(m20_state::kbd_rxrdy_int)
 {
 	m_i8259->ir4_w(state);
 }
-
-void m20_state::fdc_intrq_w(bool state)
-{
-	m_i8259->ir0_w(state);
-}
-
-static const i8251_interface kbd_i8251_intf =
-{
-	DEVCB_DRIVER_LINE_MEMBER(m20_state, kbd_rx),
-	DEVCB_DRIVER_LINE_MEMBER(m20_state, kbd_tx),
-	DEVCB_NULL,         // dsr
-	DEVCB_NULL,         // dtr
-	DEVCB_NULL,         // rts
-	DEVCB_DRIVER_LINE_MEMBER(m20_state, kbd_rxrdy_int),  // rx ready
-	DEVCB_NULL,         // tx ready
-	DEVCB_NULL,         // tx empty
-	DEVCB_NULL          // syndet
-};
-
-static const i8251_interface tty_i8251_intf =
-{
-	DEVCB_NULL,         // rxd in
-	DEVCB_NULL,         // txd out
-	DEVCB_NULL,         // dsr
-	DEVCB_NULL,         // dtr
-	DEVCB_NULL,         // rts
-	DEVCB_NULL,         // rx ready
-	DEVCB_NULL,         // tx ready
-	DEVCB_NULL,         // tx empty
-	DEVCB_NULL          // syndet
-};
 
 static unsigned char kbxlat[] =
 {
@@ -923,32 +865,6 @@ WRITE8_MEMBER( m20_state::kbd_put )
 	}
 }
 
-static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
-{
-	DEVCB_DRIVER_MEMBER(m20_state, kbd_put)
-};
-
-const struct pit8253_interface pit8253_intf =
-{
-	{
-		{
-			1230782,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(m20_state, tty_clock_tick_w)
-		},
-		{
-			1230782,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(m20_state, kbd_clock_tick_w)
-		},
-		{
-			1230782,
-			DEVCB_NULL,
-			DEVCB_DRIVER_LINE_MEMBER(m20_state, timer_tick_w)
-		}
-	}
-};
-
 static SLOT_INTERFACE_START( m20_floppies )
 	SLOT_INTERFACE( "5dd", FLOPPY_525_DD )
 SLOT_INTERFACE_END
@@ -963,6 +879,7 @@ static MACHINE_CONFIG_START( m20, m20_state )
 	MCFG_CPU_PROGRAM_MAP(m20_program_mem)
 	MCFG_CPU_DATA_MAP(m20_data_mem)
 	MCFG_CPU_IO_MAP(m20_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(m20_state,m20_irq_callback)
 
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("160K")
@@ -983,21 +900,38 @@ static MACHINE_CONFIG_START( m20, m20_state )
 	MCFG_SCREEN_SIZE(512, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 512-1, 0, 256-1)
 	MCFG_SCREEN_UPDATE_DRIVER(m20_state, screen_update_m20)
-	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* Devices */
 	MCFG_FD1797x_ADD("fd1797", 1000000)
+	MCFG_WD_FDC_INTRQ_CALLBACK(DEVWRITELINE("i8259", pic8259_device, ir0_w))
 	MCFG_FLOPPY_DRIVE_ADD("fd1797:0", m20_floppies, "5dd", m20_state::floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("fd1797:1", m20_floppies, "5dd", m20_state::floppy_formats)
-	MCFG_MC6845_ADD("crtc", MC6845, "screen", PIXEL_CLOCK/8, mc6845_intf) /* hand tuned to get ~50 fps */
-	MCFG_I8255A_ADD("ppi8255",  ppi_interface)
-	MCFG_I8251_ADD("i8251_1", kbd_i8251_intf)
-	MCFG_I8251_ADD("i8251_2", tty_i8251_intf)
-	MCFG_PIT8253_ADD("pit8253", pit8253_intf)
+
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", PIXEL_CLOCK/8) /* hand tuned to get ~50 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(16)
+
+	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
+
+	MCFG_DEVICE_ADD("i8251_1", I8251, 0)
+	MCFG_I8251_TXD_HANDLER(WRITELINE(m20_state, kbd_tx))
+	MCFG_I8251_RXRDY_HANDLER(WRITELINE(m20_state, kbd_rxrdy_int))
+
+	MCFG_DEVICE_ADD("i8251_2", I8251, 0)
+
+	MCFG_DEVICE_ADD("pit8253", PIT8253, 0)
+	MCFG_PIT8253_CLK0(1230782)
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(m20_state, tty_clock_tick_w))
+	MCFG_PIT8253_CLK1(1230782)
+	MCFG_PIT8253_OUT1_HANDLER(WRITELINE(m20_state, kbd_clock_tick_w))
+	MCFG_PIT8253_CLK2(1230782)
+	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(m20_state, timer_tick_w))
+
 	MCFG_PIC8259_ADD("i8259", WRITELINE(m20_state, pic_irq_line_w), VCC, NULL)
 
-	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
+	MCFG_DEVICE_ADD(KEYBOARD_TAG, GENERIC_KEYBOARD, 0)
+	MCFG_GENERIC_KEYBOARD_CB(WRITE8(m20_state, kbd_put))
 
 	MCFG_SOFTWARE_LIST_ADD("flop_list","m20")
 MACHINE_CONFIG_END

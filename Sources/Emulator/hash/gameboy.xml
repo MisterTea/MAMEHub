@@ -184,7 +184,7 @@
 	</software>
 
 	<software name="advpinoc">
-		<description>The Adventures of Pinocchio (USA, Prototype)</description>
+		<description>The Adventures of Pinocchio (Prototype)</description>
 		<year>1993</year>
 		<publisher>Nintendo</publisher>
 		<part name="cart" interface="gameboy_cart">
@@ -1605,6 +1605,18 @@
 			<feature name="slot" value="rom_mbc1" />
 			<dataarea name="rom" size="131072">
 				<rom name="battle unit zeoth (usa, europe).bin" size="131072" crc="e67a92b3" sha1="eba09c60cd60feba0a7a9e82597dad080ce78d22" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="jetpack" cloneof="bzeoth">
+		<description>Jetpack (Battle Unit Zeoth Prototype)</description>
+		<year>1991</year>
+		<publisher>Jaleco</publisher>
+		<part name="cart" interface="gameboy_cart">
+			<feature name="slot" value="rom_mbc1" />
+			<dataarea name="rom" size="131072">
+				<rom name="jetpack.bin" size="131072" crc="1c223204" sha1="df7abbcaaccd5cff4c55bb331fa5d3049fb92896" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3818,10 +3830,10 @@
 
 	<software name="daffy">
 		<!-- Notes: SGB enhanced -->
-		<description>Daffy Duck - The Marvin Missions (Euro)</description>
+		<description>Daffy Duck - The Marvin Missions (Euro, USA)</description>
 		<year>1995</year>
 		<publisher>Sunsoft</publisher>
-		<info name="serial" value="DMG-YS-NOE-1"/>
+		<info name="serial" value="DMG-YS-USA, DMG-YS-NOE"/>
 		<part name="cart" interface="gameboy_cart">
 			<feature name="slot" value="rom_mbc1" />
 			<dataarea name="rom" size="262144">
@@ -3846,12 +3858,13 @@
 		</part>
 	</software>
 
-	<software name="daffyu" cloneof="daffy">
+<!-- This dump has been verified from an European cart by NoIntro guys, the duffy set is still unverified (maybe a Rev.1?) -->
+	<software name="daffya" cloneof="daffy">
 		<!-- Notes: SGB enhanced -->
-		<description>Daffy Duck - The Marvin Missions (USA)</description>
+		<description>Daffy Duck - The Marvin Missions (Euro, Alt)</description>
 		<year>1995</year>
 		<publisher>Sunsoft</publisher>
-		<info name="serial" value="DMG-YS-USA"/>
+		<info name="serial" value="DMG-YS-NOE"/>
 		<part name="cart" interface="gameboy_cart">
 			<feature name="slot" value="rom_mbc1" />
 			<dataarea name="rom" size="131072">
@@ -3979,6 +3992,19 @@
 			<feature name="slot" value="rom_mbc1" />
 			<dataarea name="rom" size="131072">
 				<rom name="darkwing duck (germany).bin" size="131072" crc="176c1fa2" sha1="5960dc01e06f19e166646504bc3097248f4a22cb" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="darkwings" cloneof="darkwing">
+		<description>Disney's Darkwing Duck (Spa)</description>
+		<year>1993</year>
+		<publisher>Sunsoft</publisher>
+		<info name="serial" value="DMG-DC-ESP"/>
+		<part name="cart" interface="gameboy_cart">
+			<feature name="slot" value="rom_mbc1" />
+			<dataarea name="rom" size="131072">
+				<rom name="darkwing.bin" size="131072" crc="a1d4c544" sha1="3d4b301aab995bdf19b15ed5040df7426a2e8057" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4260,10 +4286,10 @@
 
 	<software name="dkonga" cloneof="dkong">
 		<!-- Notes: SGB enhanced, also released by NP in 2000-03 -->
-		<description>Donkey Kong (Jpn)</description>
+		<description>Donkey Kong (Jpn, USA)</description>
 		<year>1994</year>
 		<publisher>Nintendo</publisher>
-		<info name="serial" value="DMG-QDA"/>
+		<info name="serial" value="DMG-QDA, DMG-QD-USA"/>
 		<info name="release" value="19940614 (JPN)"/>
 		<info name="alt_title" value="ドンキーコング"/>
 		<part name="cart" interface="gameboy_cart">
@@ -4743,6 +4769,17 @@
 		<part name="cart" interface="gameboy_cart">
 			<dataarea name="rom" size="32768">
 				<rom name="dr. mario (world).bin" size="32768" crc="10c98dd1" sha1="f1006d6cf77469092f3b9f266d0a65da9c91ac42" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="drmariop" cloneof="drmario">
+		<description>Dr. Mario (Prototype)</description>
+		<year>1990</year>
+		<publisher>Nintendo</publisher>
+		<part name="cart" interface="gameboy_cart">
+			<dataarea name="rom" size="32768">
+				<rom name="drmario.bin" size="32768" crc="2b2f4f8f" sha1="4b2343f40e7ca3c583108ed70a870c7bd906b108" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5269,6 +5306,18 @@
 			<feature name="slot" value="rom_mbc1" />
 			<dataarea name="rom" size="131072">
 				<rom name="f-15 strike eagle (usa, europe).bin" size="131072" crc="045dee8c" sha1="237a08abe860bce316f1ce337afb11ee0e566037" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="f15sep" cloneof="f15se">
+		<description>F-15 Strike Eagle (Prototype)</description>
+		<year>1993</year>
+		<publisher>MicroProse</publisher>
+		<part name="cart" interface="gameboy_cart">
+			<feature name="slot" value="rom_mbc1" />
+			<dataarea name="rom" size="131072">
+				<rom name="f-15 strike eagle dump 10 nov 2013.bin" size="131072" crc="d80bdbba" sha1="298c07ef596ab3a3c4a320b2f2d7e2c0dbaf764d" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -9095,7 +9144,7 @@
 	</software>
 
 	<software name="karakuri">
-		<description>Karakuri Kengouden Musashi Road (Jpn)</description>
+		<description>Karakuri Kengouden Musashi Lord (Jpn)</description>
 		<year>1991</year>
 		<publisher>Yutaka</publisher>
 		<info name="serial" value="DMG-MUJ"/>
@@ -15877,14 +15926,27 @@
 	</software>
 
 	<software name="powrace">
-		<description>Power Racer (Euro, USA)</description>
+		<description>Power Racer (Euro)</description>
 		<year>1990</year>
 		<publisher>Tecmo</publisher>
-		<info name="serial" value="DMG-PQ-USA, DMG-PQ-NOE"/>
+		<info name="serial" value="DMG-PQ-NOE"/>
 		<part name="cart" interface="gameboy_cart">
 			<feature name="slot" value="rom_mbc1" />
 			<dataarea name="rom" size="65536">
-				<rom name="power racer (usa, europe).bin" size="65536" crc="cf8aeee8" sha1="6e10f59bb4090c0d0e79b57a2e39d9577ce0282e" offset="000000" />
+				<rom name="power racer (europe).bin" size="65536" crc="cf8aeee8" sha1="6e10f59bb4090c0d0e79b57a2e39d9577ce0282e" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="powraceu" cloneof="powrace">
+		<description>Power Racer (USA)</description>
+		<year>1990</year>
+		<publisher>Tecmo</publisher>
+		<info name="serial" value="DMG-PQ-USA"/>
+		<part name="cart" interface="gameboy_cart">
+			<feature name="slot" value="rom_mbc1" />
+			<dataarea name="rom" size="65536">
+				<rom name="power racer (usa).bin" size="65536" crc="afc6a949" sha1="c0c8f28a9b66b6c08a0ed4d31a186c3382160c3d" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -16075,6 +16137,19 @@
 			<feature name="slot" value="rom_mbc1" />
 			<dataarea name="rom" size="131072">
 				<rom name="probotector 2 (europe).bin" size="131072" crc="b5090e43" sha1="d3eafed6727afd14bd30ffc31e2d3e4ee6cfc52e" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="probot2s" cloneof="probot2">
+		<!-- Notes: SGB enhanced -->
+		<description>Probotector 2 (Euro, Sample)</description>
+		<year>1995</year>
+		<publisher>Konami</publisher>
+		<part name="cart" interface="gameboy_cart">
+			<feature name="slot" value="rom_mbc1" />
+			<dataarea name="rom" size="131072">
+				<rom name="probotector 2 (sample).bin" size="131072" crc="7d60c005" sha1="8f060253ea228c43d2992458dbf904a0b0d7b01e" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -18408,7 +18483,7 @@
 		<description>Soccer (Euro)</description>
 		<year>1994</year>
 		<publisher>GameTek</publisher>
-		<info name="serial" value="DMG-YK-(NOE-1/UKV-1/ESP-1)"/>
+		<info name="serial" value="DMG-YK-(NOE-1/UKV-1/ESP-1/AUS)"/>
 		<part name="cart" interface="gameboy_cart">
 			<feature name="slot" value="rom_mbc1" />
 			<dataarea name="rom" size="131072">
@@ -18965,7 +19040,7 @@
 		<part name="cart" interface="gameboy_cart">
 			<feature name="slot" value="rom_mbc1" />
 			<dataarea name="rom" size="131072">
-				<rom name="spot - the cool adventure (usa).bin" size="131072" crc="0e08f59b" sha1="7e80ddc835ecde69ea11c4702a6cfb93575e917a" offset="000000" />
+				<rom name="spot - the cool adventure (usa).bin" size="131072" crc="76f67428" sha1="bcc923e6e73efe7e865625bb6ecf2ef08e380826" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -19556,7 +19631,7 @@
 		<description>Super Chinese Land 3 (Jpn)</description>
 		<year>1995</year>
 		<publisher>Culture Brain</publisher>
-		<info name="serial" value="DMG-ACLJ-JPN"/>
+		<info name="serial" value="DMG-ACLJ-JPN, DMG-214 CHN"/>
 		<info name="release" value="19950113"/>
 		<info name="alt_title" value="スーパーチャイニーズランド3"/>
 		<part name="cart" interface="gameboy_cart">
@@ -22244,6 +22319,19 @@
 		</part>
 	</software>
 
+	<software name="rogerrabs" cloneof="rogerrab">
+		<description>Who Framed Roger Rabbit (Spa)</description>
+		<year>1991</year>
+		<publisher>Capcom</publisher>
+		<info name="serial" value="DMG-RR-ESP"/>
+		<part name="cart" interface="gameboy_cart">
+			<feature name="slot" value="rom_mbc1" />
+			<dataarea name="rom" size="131072">
+				<rom name="who framed roger rabbit.bin" size="131072" crc="cd11c917" sha1="d92515a09d78099238565bb0f1873f57f00b6728" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="rogerrabu" cloneof="rogerrab">
 		<description>Who Framed Roger Rabbit (USA)</description>
 		<year>1991</year>
@@ -22978,7 +23066,7 @@
 	</software>
 
 	<software name="yuyu3">
-		<description>Yu Yu Hakusho Dai-3-dan - Makai no Tobira (Jpn)</description>
+		<description>Yu Yu Hakusho Dai-3-dan - Makai no Tobira Hen (Jpn)</description>
 		<year>1994</year>
 		<publisher>Tomy</publisher>
 		<info name="serial" value="DMG-UGJ"/>
@@ -23499,6 +23587,18 @@
 	</software>
 
 <!-- Other Asian pirate carts -->
+
+	<software name="smw7" cloneof="advisln2">
+		<description>Super Mario World 7 (Chi, ripped from 18 in 1 multicart)</description>
+		<year>1998</year>
+		<publisher>&lt;unknown&gt;</publisher>
+		<part name="cart" interface="gameboy_cart">
+			<feature name="slot" value="rom_mbc1" />
+			<dataarea name="rom" size="262144">
+				<rom name="super mario world 7 (unlicensed) (multicart rip).bin" size="262144" crc="aad1226e" sha1="0ee89297e9d24c1b4247765c8561a2cc90e383c9" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
 
 	<software name="rockman8">
 		<description>Rockman 8 (Chi)</description>

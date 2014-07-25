@@ -41,7 +41,7 @@ this seems more like 8-bit hardware, maybe it should be v25, not v35...
 *************************************************************************************************/
 
 #include "emu.h"
-#include "cpu/nec/nec.h"
+#include "cpu/nec/v25.h"
 #include "sound/ay8910.h"
 #include "machine/i8255.h"
 
@@ -53,7 +53,9 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_vram_fg(*this, "vrafg"),
 		m_vram_bg(*this, "vrabg"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")  { }
 
 	required_shared_ptr<UINT16> m_vram_fg;
 	required_shared_ptr<UINT16> m_vram_bg;
@@ -71,10 +73,12 @@ public:
 	TILE_GET_INFO_MEMBER(get_cb2001_reel2_tile_info);
 	TILE_GET_INFO_MEMBER(get_cb2001_reel3_tile_info);
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(cb2001);
 	UINT32 screen_update_cb2001(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -338,7 +342,7 @@ e3 -> c6
 UINT32 cb2001_state::screen_update_cb2001(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	int count,x,y;
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	count = 0x0000;
 
@@ -359,7 +363,7 @@ UINT32 cb2001_state::screen_update_cb2001(screen_device &screen, bitmap_rgb32 &b
 					tile += m_videobank*0x2000;
 
 
-					drawgfx_opaque(bitmap,cliprect,machine().gfx[0],tile,colour,0,0,x*8,y*8);
+					m_gfxdecode->gfx(0)->opaque(bitmap,cliprect,tile,colour,0,0,x*8,y*8);
 
 					count++;
 				}
@@ -425,7 +429,7 @@ UINT32 cb2001_state::screen_update_cb2001(screen_device &screen, bitmap_rgb32 &b
 				tile += 0x1000;
 			}
 
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[0],tile,colour,0,0,x*8,y*8,0);
+			m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,tile,colour,0,0,x*8,y*8,0);
 			count++;
 		}
 	}
@@ -475,8 +479,7 @@ TILE_GET_INFO_MEMBER(cb2001_state::get_cb2001_reel1_tile_info)
 
 	int colour = 0;//= (cb2001_out_c&0x7) + 8;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code+0x800,
 			colour,
 			0);
@@ -493,8 +496,7 @@ TILE_GET_INFO_MEMBER(cb2001_state::get_cb2001_reel2_tile_info)
 
 	int colour = 0;//(cb2001_out_c&0x7) + 8;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code+0x800,
 			colour,
 			0);
@@ -511,8 +513,7 @@ TILE_GET_INFO_MEMBER(cb2001_state::get_cb2001_reel3_tile_info)
 
 	code &=0xff;
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code+0x800,
 			colour,
 			0);
@@ -521,9 +522,9 @@ TILE_GET_INFO_MEMBER(cb2001_state::get_cb2001_reel3_tile_info)
 
 void cb2001_state::video_start()
 {
-	m_reel1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cb2001_state::get_cb2001_reel1_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
-	m_reel2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cb2001_state::get_cb2001_reel2_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
-	m_reel3_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cb2001_state::get_cb2001_reel3_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
+	m_reel1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cb2001_state::get_cb2001_reel1_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
+	m_reel2_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cb2001_state::get_cb2001_reel2_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
+	m_reel3_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(cb2001_state::get_cb2001_reel3_tile_info),this),TILEMAP_SCAN_ROWS, 8, 32, 64, 8);
 
 	m_reel1_tilemap->set_scroll_cols(64);
 	m_reel2_tilemap->set_scroll_cols(64);
@@ -773,7 +774,7 @@ static GFXDECODE_START( cb2001 )
 	GFXDECODE_ENTRY( "gfx", 0, cb2001_layout32, 0x0, 32 )
 GFXDECODE_END
 
-void cb2001_state::palette_init()
+PALETTE_INIT_MEMBER(cb2001_state, cb2001)
 {
 	int i;
 	for (i = 0; i < 0x200; i++)
@@ -793,59 +794,33 @@ void cb2001_state::palette_init()
 
 		if (length==0x400) // are the cb2001 proms dumped incorrectly?
 		{
-			if (!(i&0x20)) palette_set_color(machine(), (i&0x1f) | ((i&~0x3f)>>1), MAKE_RGB(r, g, b));
+			if (!(i&0x20)) palette.set_pen_color((i&0x1f) | ((i&~0x3f)>>1), rgb_t(r, g, b));
 		}
 		else
 		{
-			palette_set_color(machine(), i, MAKE_RGB(r, g, b));
+			palette.set_pen_color(i, rgb_t(r, g, b));
 		}
 	}
 }
 
-static I8255A_INTERFACE( ppi8255_0_intf )
-{
-	DEVCB_INPUT_PORT("IN0"),            /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_INPUT_PORT("IN1"),            /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_INPUT_PORT("IN2"),            /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
-static I8255A_INTERFACE( ppi8255_1_intf )
-{
-	DEVCB_INPUT_PORT("DSW1"),           /* Port A read */
-	DEVCB_NULL,                         /* Port A write */
-	DEVCB_INPUT_PORT("DSW2"),           /* Port B read */
-	DEVCB_NULL,                         /* Port B write */
-	DEVCB_INPUT_PORT("DSW3"),           /* Port C read */
-	DEVCB_NULL                          /* Port C write */
-};
-
-static const ay8910_interface cb2001_ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW4"),
-	DEVCB_INPUT_PORT("DSW5"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const nec_config cb2001_config = { cb2001_decryption_table, };
-
 static MACHINE_CONFIG_START( cb2001, cb2001_state )
 	MCFG_CPU_ADD("maincpu", V35, 20000000) // CPU91A-011-0016JK004; encrypted cpu like nec v25/35 used in some irem game
-	MCFG_CPU_CONFIG(cb2001_config)
+	MCFG_V25_CONFIG(cb2001_decryption_table)
 	MCFG_CPU_PROGRAM_MAP(cb2001_map)
 	MCFG_CPU_IO_MAP(cb2001_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", cb2001_state,  vblank_irq)
 
-	MCFG_I8255A_ADD( "ppi8255_0", ppi8255_0_intf )
-	MCFG_I8255A_ADD( "ppi8255_1", ppi8255_1_intf )
+	MCFG_DEVICE_ADD("ppi8255_0", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("IN0"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("IN1"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("IN2"))
 
-	MCFG_GFXDECODE(cb2001)
+	MCFG_DEVICE_ADD("ppi8255_1", I8255A, 0)
+	MCFG_I8255_IN_PORTA_CB(IOPORT("DSW1"))
+	MCFG_I8255_IN_PORTB_CB(IOPORT("DSW2"))
+	MCFG_I8255_IN_PORTC_CB(IOPORT("DSW3"))
 
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", cb2001)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -854,13 +829,14 @@ static MACHINE_CONFIG_START( cb2001, cb2001_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 64*8-1, 0, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(cb2001_state, screen_update_cb2001)
 
-	MCFG_PALETTE_LENGTH(0x100)
-
+	MCFG_PALETTE_ADD("palette", 0x100)
+	MCFG_PALETTE_INIT_OWNER(cb2001_state, cb2001)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("aysnd", AY8910, 1500000) // wrong
-	MCFG_SOUND_CONFIG(cb2001_ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("DSW4"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("DSW5"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

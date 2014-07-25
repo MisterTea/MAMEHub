@@ -1,3 +1,5 @@
+// license:?
+// copyright-holders:Angelo Salese, Tomasz Slanina, Phil Bennett, hap
 /***************************************************************************
 
     Midnight Landing
@@ -85,7 +87,8 @@ public:
 		m_g_ram(*this, "g_ram"),
 		m_cha_ram(*this, "cha_ram"),
 		m_dot_ram(*this, "dot_ram"),
-		m_power_ram(*this, "power_ram")
+		m_power_ram(*this, "power_ram"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -105,6 +108,8 @@ public:
 	required_shared_ptr<UINT16> m_cha_ram;
 	required_shared_ptr<UINT16> m_dot_ram;
 	required_shared_ptr<UINT8>  m_power_ram;
+
+	required_device<palette_device> m_palette;
 
 	UINT16  *m_dma_ram;
 	UINT8   m_dma_cpu_bank;
@@ -212,7 +217,7 @@ void mlanding_state::machine_reset()
 
 UINT32 mlanding_state::screen_update_mlanding(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	const pen_t *pens = machine().pens;
+	const pen_t *pens = m_palette->pens();
 
 	for (UINT32 y = cliprect.min_y; y <= cliprect.max_y; ++y)
 	{
@@ -724,7 +729,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, mlanding_state )
 	AM_RANGE(0x1c4000, 0x1cffff) AM_RAM AM_SHARE("sub_com_ram")
 	AM_RANGE(0x1d0000, 0x1d0001) AM_WRITE(dma_start_w)
 	AM_RANGE(0x1d0002, 0x1d0003) AM_WRITE(dma_stop_w)
-	AM_RANGE(0x200000, 0x20ffff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x200000, 0x20ffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x240004, 0x240005) AM_READNOP // Watchdog
 	AM_RANGE(0x240006, 0x240007) AM_READ(input_r)
 	AM_RANGE(0x280000, 0x280fff) AM_READWRITE(power_ram_r, power_ram_w)
@@ -737,8 +742,8 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, mlanding_state )
 	AM_RANGE(0x2b0006, 0x2b0007) AM_READ(analog2_lsb_r)
 	AM_RANGE(0x2c0000, 0x2c0001) AM_READ(analog3_msb_r)
 	AM_RANGE(0x2c0002, 0x2c0003) AM_READ(analog3_lsb_r)
-	AM_RANGE(0x2d0000, 0x2d0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x2d0002, 0x2d0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x2d0000, 0x2d0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, master_port_w, 0x00ff)
+	AM_RANGE(0x2d0002, 0x2d0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, master_comm_r, master_comm_w, 0x00ff)
 ADDRESS_MAP_END
 
 
@@ -792,8 +797,8 @@ static ADDRESS_MAP_START( audio_map_prog, AS_PROGRAM, 8, mlanding_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
 	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
-	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("tc0140syt", tc0140syt_device, slave_port_w)
+	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, slave_comm_r, slave_comm_w)
 	AM_RANGE(0xb000, 0xb000) AM_WRITE(msm5205_2_start_w)
 	AM_RANGE(0xc000, 0xc000) AM_WRITE(msm5205_2_stop_w)
 	AM_RANGE(0xd000, 0xd000) AM_WRITE(msm5205_1_start_w)
@@ -913,43 +918,6 @@ static INPUT_PORTS_START( mlanding )
 INPUT_PORTS_END
 
 
-
-/*************************************
- *
- *  Device configuration
- *
- *************************************/
-
-static const tc0140syt_interface mlanding_tc0140syt_intf =
-{
-	"maincpu", "audiocpu"
-};
-
-
-static Z80CTC_INTERFACE( ctc_intf )
-{
-	DEVCB_NULL, // Interrupt handler
-	DEVCB_DRIVER_LINE_MEMBER(mlanding_state, z80ctc_to0), // ZC/TO0 callback
-	DEVCB_NULL, // ZC/TO1 callback
-	DEVCB_NULL  // ZC/TO2 callback
-};
-
-
-static const msm5205_interface msm5205_1_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(mlanding_state, msm5205_1_vck), // VCK function
-	MSM5205_S48_4B      // 8 kHz, 4-bit
-};
-
-
-static const msm5205_interface msm5205_2_config =
-{
-	DEVCB_NULL,         // VCK function
-	MSM5205_SEX_4B      // Slave mode, 4-bit
-};
-
-
-
 /*************************************
  *
  *  Machine driver
@@ -979,8 +947,12 @@ static MACHINE_CONFIG_START( mlanding, mlanding_state )
 	MCFG_CPU_DATA_MAP(dsp_map_data)
 	MCFG_CPU_IO_MAP(dsp_map_io)
 
-	MCFG_Z80CTC_ADD("ctc", 4000000, ctc_intf)
-	MCFG_TC0140SYT_ADD("tc0140syt", mlanding_tc0140syt_intf)
+	MCFG_DEVICE_ADD("ctc", Z80CTC, 4000000)
+	MCFG_Z80CTC_ZC0_CB(WRITELINE(mlanding_state, z80ctc_to0))
+
+	MCFG_DEVICE_ADD("tc0140syt", TC0140SYT, 0)
+	MCFG_TC0140SYT_MASTER_CPU("maincpu")
+	MCFG_TC0140SYT_SLAVE_CPU("audiocpu")
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(600))
 
@@ -990,8 +962,10 @@ static MACHINE_CONFIG_START( mlanding, mlanding_state )
 	// Estimated
 	MCFG_SCREEN_RAW_PARAMS(16000000, 640, 0, 512, 462, 0, 400)
 	MCFG_SCREEN_UPDATE_DRIVER(mlanding_state, screen_update_mlanding)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD("palette", 32768)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1003,11 +977,12 @@ static MACHINE_CONFIG_START( mlanding, mlanding_state )
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 
 	MCFG_SOUND_ADD("msm1", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_1_config)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(mlanding_state, msm5205_1_vck)) // VCK function
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S48_4B)      // 8 kHz, 4-bit
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_SOUND_ADD("msm2", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_2_config)
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_SEX_4B)      // Slave mode, 4-bit
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.10)
 MACHINE_CONFIG_END
 

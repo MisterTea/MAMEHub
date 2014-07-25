@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Miodrag Milanovic, Robbbert
 /***************************************************************************
 
         mc-CP/M-Computer
@@ -55,16 +57,18 @@ PIO A-Data 0F4h, A-Command 0F5h, B-Data 0F6h, B-Command 0F7h
 #include "cpu/z80/z80.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
 
 class mccpm_state : public driver_device
 {
 public:
 	mccpm_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_terminal(*this, TERMINAL_TAG)
-	,
-		m_p_ram(*this, "p_ram"){ }
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG),
+		m_p_ram(*this, "p_ram")
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<generic_terminal_device> m_terminal;
@@ -120,11 +124,6 @@ WRITE8_MEMBER( mccpm_state::kbd_put )
 	m_term_data = data;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(mccpm_state, kbd_put)
-};
-
 static MACHINE_CONFIG_START( mccpm, mccpm_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",Z80, XTAL_4MHz)
@@ -132,7 +131,8 @@ static MACHINE_CONFIG_START( mccpm, mccpm_state )
 	MCFG_CPU_IO_MAP(mccpm_io)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(mccpm_state, kbd_put))
 MACHINE_CONFIG_END
 
 /* ROM definition */

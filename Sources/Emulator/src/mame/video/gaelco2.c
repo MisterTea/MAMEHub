@@ -234,7 +234,7 @@ WRITE16_MEMBER(gaelco2_state::gaelco2_palette_w)
 	b = pal5bit(b);
 
 	/* update game palette */
-	palette_set_color(machine(), 4096*0 + offset, MAKE_RGB(r, g, b));
+	m_palette->set_pen_color(4096*0 + offset, rgb_t(r, g, b));
 
 	/* update shadow/highligh palettes */
 	for (i = 1; i < 16; i++){
@@ -246,7 +246,7 @@ WRITE16_MEMBER(gaelco2_state::gaelco2_palette_w)
 		auxg = ADJUST_COLOR(g + pen_color_adjust[i]);
 		auxb = ADJUST_COLOR(b + pen_color_adjust[i]);
 
-		palette_set_color(machine(), 4096*i + offset, MAKE_RGB(auxr, auxg, auxb));
+		m_palette->set_pen_color(4096*i + offset, rgb_t(auxr, auxg, auxb));
 	}
 }
 
@@ -261,8 +261,8 @@ VIDEO_START_MEMBER(gaelco2_state,gaelco2)
 	m_videoram = m_spriteram->live();
 
 	/* create tilemaps */
-	m_pant[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(gaelco2_state::get_tile_info_gaelco2_screen0),this),TILEMAP_SCAN_ROWS,16,16,64,32);
-	m_pant[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(gaelco2_state::get_tile_info_gaelco2_screen1),this),TILEMAP_SCAN_ROWS,16,16,64,32);
+	m_pant[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(gaelco2_state::get_tile_info_gaelco2_screen0),this),TILEMAP_SCAN_ROWS,16,16,64,32);
+	m_pant[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(gaelco2_state::get_tile_info_gaelco2_screen1),this),TILEMAP_SCAN_ROWS,16,16,64,32);
 
 	/* set tilemap properties */
 	m_pant[0]->set_transparent_pen(0);
@@ -281,8 +281,8 @@ VIDEO_START_MEMBER(gaelco2_state,gaelco2_dual)
 	m_videoram = m_spriteram->live();
 
 	/* create tilemaps */
-	m_pant[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(gaelco2_state::get_tile_info_gaelco2_screen0_dual),this),TILEMAP_SCAN_ROWS,16,16,64,32);
-	m_pant[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(gaelco2_state::get_tile_info_gaelco2_screen1_dual),this),TILEMAP_SCAN_ROWS,16,16,64,32);
+	m_pant[0] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(gaelco2_state::get_tile_info_gaelco2_screen0_dual),this),TILEMAP_SCAN_ROWS,16,16,64,32);
+	m_pant[1] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(gaelco2_state::get_tile_info_gaelco2_screen1_dual),this),TILEMAP_SCAN_ROWS,16,16,64,32);
 
 	/* set tilemap properties */
 	m_pant[0]->set_transparent_pen(0);
@@ -336,7 +336,7 @@ void gaelco2_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, co
 {
 	UINT16 *buffered_spriteram16 = m_spriteram->buffer();
 	int j, x, y, ex, ey, px, py;
-	gfx_element *gfx = screen.machine().gfx[0];
+	gfx_element *gfx = m_gfxdecode->gfx(0);
 
 	/* get sprite ram start and end offsets */
 	int start_offset = (m_vregs[1] & 0x10)*0x100;
@@ -377,7 +377,7 @@ void gaelco2_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, co
 
 					/* normal sprite, pen 0 transparent */
 					if (color_effect == 0){
-						drawgfx_transpen(bitmap, cliprect, gfx, number,
+							gfx->transpen(bitmap,cliprect, number,
 							color, xflip, yflip,
 							((sx + ex*16) & 0x3ff) + spr_x_adjust,
 							((sy + ey*16) & 0x1ff), 0);

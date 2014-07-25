@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /***************************************************************************
 
     Tektronix 4107A/4109A
@@ -96,13 +98,14 @@ static MACHINE_CONFIG_START( tek4107a, tek4107a_state )
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 
-	MCFG_PALETTE_LENGTH(64)
-	MCFG_GFXDECODE(tek4107a)
+	MCFG_PALETTE_ADD("palette", 64)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", tek4107a)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( tek4109a, tek4107a )
 	/* video hardware */
-	MCFG_PALETTE_LENGTH(4096)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_ENTRIES(4096)
 MACHINE_CONFIG_END
 
 /* ROMs */

@@ -10,6 +10,7 @@
 #define _THOMSON_H_
 
 #include "emu.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/m6809/m6809.h"
 #include "machine/6821pia.h"
 #include "machine/mc6846.h"
@@ -17,7 +18,7 @@
 #include "machine/mos6551.h"
 #include "sound/dac.h"
 #include "audio/mea8000.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "imagedev/cartslot.h"
 #include "imagedev/cassette.h"
 #include "machine/mc6843.h"
@@ -52,6 +53,8 @@
 #define TO8_DATA_LO     "bank7" /* data RAM low 2 Kb */
 #define TO8_DATA_HI     "bank8" /* data RAM hi 2 Kb */
 #define TO8_BIOS_BANK   "bank9" /* BIOS ROM */
+#define MO6_CART_LO     "bank10"
+#define MO6_CART_HI     "bank11"
 
 
 /* original screen dimension (may be different from emulated screen!) */
@@ -85,38 +88,35 @@ struct thom_vsignal {
 };
 
 
-enum to7_io_dev
-{
-	TO7_IO_NONE,
-	TO7_IO_CENTRONICS,
-	TO7_IO_RS232
-};
-
-
 class thomson_state : public driver_device
 {
 public:
-	thomson_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+	thomson_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
+		m_mc6854(*this, "mc6854"),
 		m_maincpu(*this, "maincpu"),
 		m_cassette(*this, "cassette"),
 		m_buzzer(*this, "buzzer"),
 		m_dac(*this, "dac"),
 		m_centronics(*this, "centronics"),
+		m_cent_data_out(*this, "cent_data_out"),
 		m_pia_sys(*this, THOM_PIA_SYS),
-		m_pia_io(*this, THOM_PIA_IO),
 		m_pia_game(*this, THOM_PIA_GAME),
-		m_serial(*this, "cc90232"),
 		m_acia(*this, "acia6850"),
 		m_mea8000(*this, "mea8000"),
 		m_ram(*this, RAM_TAG),
-		m_mc6846(*this, "mc6846") { }
+		m_mc6846(*this, "mc6846"),
+		m_mc6843(*this, "mc6843"),
+		m_acia6850(*this, "acia6850"),
+		m_screen(*this, "screen")
+	{
+	}
 
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( to7_cartridge );
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( mo5_cartridge );
 
-	DECLARE_WRITE8_MEMBER( to7_set_cassette_motor );
-	DECLARE_WRITE8_MEMBER( mo5_set_cassette_motor );
+	DECLARE_WRITE_LINE_MEMBER( to7_set_cassette_motor );
+	DECLARE_WRITE_LINE_MEMBER( mo5_set_cassette_motor );
 	DECLARE_WRITE_LINE_MEMBER( thom_dev_irq_0 );
 	DECLARE_WRITE_LINE_MEMBER( thom_irq_1 );
 	DECLARE_WRITE_LINE_MEMBER( thom_firq_1 );
@@ -126,28 +126,25 @@ public:
 	DECLARE_WRITE8_MEMBER( to7_timer_cp2_out );
 	DECLARE_READ8_MEMBER( to7_timer_port_in );
 	DECLARE_WRITE8_MEMBER( to7_timer_tco_out );
-	DECLARE_WRITE8_MEMBER( to7_sys_cb2_out );
+	DECLARE_WRITE_LINE_MEMBER( to7_sys_cb2_out );
 	DECLARE_WRITE8_MEMBER( to7_sys_portb_out );
 	DECLARE_READ8_MEMBER( to7_sys_porta_in );
 	DECLARE_READ8_MEMBER( to7_sys_portb_in );
-	DECLARE_WRITE_LINE_MEMBER( to7_io_ack );
-	DECLARE_WRITE8_MEMBER( to7_io_portb_out );
-	DECLARE_WRITE8_MEMBER( to7_io_cb2_out );
 	DECLARE_WRITE_LINE_MEMBER( to7_modem_cb );
-	DECLARE_READ_LINE_MEMBER( to7_modem_rx_r );
 	DECLARE_WRITE_LINE_MEMBER( to7_modem_tx_w );
+	DECLARE_WRITE_LINE_MEMBER( write_acia_clock );
 	DECLARE_READ8_MEMBER( to7_modem_mea8000_r );
 	DECLARE_WRITE8_MEMBER( to7_modem_mea8000_w );
 	DECLARE_READ8_MEMBER( to7_game_porta_in );
 	DECLARE_READ8_MEMBER( to7_game_portb_in );
 	DECLARE_WRITE8_MEMBER( to7_game_portb_out );
-	DECLARE_WRITE8_MEMBER( to7_game_cb2_out );
+	DECLARE_WRITE_LINE_MEMBER( to7_game_cb2_out );
 	TIMER_CALLBACK_MEMBER( to7_game_update_cb );
 	DECLARE_READ8_MEMBER( to7_midi_r );
 	DECLARE_WRITE8_MEMBER( to7_midi_w );
 	DECLARE_MACHINE_RESET( to7 );
 	DECLARE_MACHINE_START( to7 );
-	DECLARE_WRITE8_MEMBER( to770_sys_cb2_out );
+	DECLARE_WRITE_LINE_MEMBER( to770_sys_cb2_out );
 	DECLARE_READ8_MEMBER( to770_sys_porta_in );
 	void to7_update_cart_bank_postload();
 	void to770_update_ram_bank_postload();
@@ -222,13 +219,13 @@ public:
 	DECLARE_WRITE8_MEMBER( mo6_ext_w );
 	DECLARE_WRITE_LINE_MEMBER( mo6_centronics_busy );
 	DECLARE_WRITE8_MEMBER( mo6_game_porta_out );
-	DECLARE_WRITE8_MEMBER( mo6_game_cb2_out );
+	DECLARE_WRITE_LINE_MEMBER( mo6_game_cb2_out );
 	TIMER_CALLBACK_MEMBER( mo6_game_update_cb );
 	DECLARE_READ8_MEMBER( mo6_sys_porta_in );
 	DECLARE_READ8_MEMBER( mo6_sys_portb_in );
 	DECLARE_WRITE8_MEMBER( mo6_sys_porta_out );
 	DECLARE_WRITE8_MEMBER( mo6_sys_portb_out );
-	DECLARE_WRITE8_MEMBER( mo6_sys_cb2_out );
+	DECLARE_WRITE_LINE_MEMBER( mo6_sys_cb2_out );
 	DECLARE_READ8_MEMBER( mo6_gatearray_r );
 	DECLARE_WRITE8_MEMBER( mo6_gatearray_w );
 	DECLARE_READ8_MEMBER( mo6_vreg_r );
@@ -243,7 +240,6 @@ public:
 	DECLARE_WRITE8_MEMBER( mo5nr_sys_porta_out );
 	DECLARE_MACHINE_RESET( mo5nr );
 	DECLARE_MACHINE_START( mo5nr );
-	to7_io_dev to7_io_mode();
 
 	TIMER_CALLBACK_MEMBER( thom_lightpen_step );
 	TIMER_CALLBACK_MEMBER( thom_scanline_start );
@@ -255,6 +251,8 @@ public:
 	DECLARE_WRITE8_MEMBER( to8_data_lo_w );
 	DECLARE_WRITE8_MEMBER( to8_data_hi_w );
 	DECLARE_WRITE8_MEMBER( to8_vcart_w );
+	DECLARE_WRITE8_MEMBER( mo6_vcart_lo_w );
+	DECLARE_WRITE8_MEMBER( mo6_vcart_hi_w );
 	TIMER_CALLBACK_MEMBER( thom_set_init );
 	void to770_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void mo5_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
@@ -302,23 +300,39 @@ public:
 	DECLARE_WRITE8_MEMBER( to7_floppy_w );
 	DECLARE_READ8_MEMBER( to9_floppy_r );
 	DECLARE_WRITE8_MEMBER( to9_floppy_w );
-	void thomson_index_callback(device_t *device, int state);
+	WRITE_LINE_MEMBER( fdc_index_0_w );
+	WRITE_LINE_MEMBER( fdc_index_1_w );
+	WRITE_LINE_MEMBER( fdc_index_2_w );
+	WRITE_LINE_MEMBER( fdc_index_3_w );
+	void thomson_index_callback(legacy_floppy_image_device *device, int state);
 	DECLARE_PALETTE_INIT(thom);
+
+	optional_device<mc6854_device> m_mc6854;
+
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_perror);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
+
+	int m_centronics_busy;
+	int m_centronics_perror;
+
+	MC6854_OUT_FRAME_CB(to7_network_got_frame);
 
 protected:
 	required_device<cpu_device> m_maincpu;
 	required_device<cassette_image_device> m_cassette;
 	required_device<dac_device> m_buzzer;
 	required_device<dac_device> m_dac;
-	required_device<centronics_device> m_centronics;
+	optional_device<centronics_device> m_centronics;
+	optional_device<output_latch_device> m_cent_data_out;
 	required_device<pia6821_device> m_pia_sys;
-	optional_device<pia6821_device> m_pia_io;
 	required_device<pia6821_device> m_pia_game;
-	required_device<device_image_interface> m_serial;
 	required_device<acia6850_device> m_acia;
 	required_device<mea8000_device> m_mea8000;
 	required_device<ram_device> m_ram;
-	optional_device<device_t> m_mc6846;
+	optional_device<mc6846_device> m_mc6846;
+	optional_device<mc6843_device> m_mc6843;
+	optional_device<acia6850_device> m_acia6850;
+	required_device<screen_device> m_screen;
 
 	/* bank logging and optimisations */
 	int m_old_cart_bank;
@@ -336,7 +350,6 @@ protected:
 	UINT8 m_thom_cart_bank;     /* current bank */
 	UINT8 m_to7_lightpen_step;
 	UINT8 m_to7_lightpen;
-	UINT8 m_to7_modem_rx;
 	UINT8 m_to7_modem_tx;
 	/* calls to7_game_update_cb periodically */
 	emu_timer* m_to7_game_timer;
@@ -508,26 +521,26 @@ protected:
 	unsigned to7_lightpen_gpl( int decx, int decy );
 
 	int thom_floppy_make_addr( chrn_id id, UINT8* dst, int sector_size );
-	int thom_floppy_make_sector( device_t* img, chrn_id id, UINT8* dst, int sector_size );
-	int thom_floppy_make_track( device_t* img, UINT8* dst, int sector_size, int side );
+	int thom_floppy_make_sector( legacy_floppy_image_device* img, chrn_id id, UINT8* dst, int sector_size );
+	int thom_floppy_make_track( legacy_floppy_image_device* img, UINT8* dst, int sector_size, int side );
 	int thom_qdd_make_addr( int sector, UINT8* dst );
-	int thom_qdd_make_sector( device_t* img, int sector, UINT8* dst );
-	int thom_qdd_make_disk ( device_t* img, UINT8* dst );
+	int thom_qdd_make_sector( legacy_floppy_image_device* img, int sector, UINT8* dst );
+	int thom_qdd_make_disk ( legacy_floppy_image_device* img, UINT8* dst );
 	void to7_5p14_reset();
 	void to7_5p14_init();
-	void to7_5p14_index_pulse_callback( device_t *controller,device_t *image, int state );
+	void to7_5p14_index_pulse_callback( device_t *controller,legacy_floppy_image_device *image, int state );
 	void to7_5p14sd_reset();
 	void to7_5p14sd_init();
-	void to7_qdd_index_pulse_cb( device_t *controller,device_t *image, int state );
-	device_t * to7_qdd_image();
+	void to7_qdd_index_pulse_cb( device_t *controller,legacy_floppy_image_device *image, int state );
+	legacy_floppy_image_device * to7_qdd_image();
 	void to7_qdd_stat_update();
 	UINT8 to7_qdd_read_byte();
 	void to7_qdd_write_byte( UINT8 data );
 	void to7_qdd_reset();
 	void to7_qdd_init();
-	device_t * thmfc_floppy_image();
-	int thmfc_floppy_is_qdd( device_image_interface *image );
-	void thmfc_floppy_index_pulse_cb( device_t *controller,device_t *image, int state );
+	legacy_floppy_image_device * thmfc_floppy_image();
+	int thmfc_floppy_is_qdd( legacy_floppy_image_device *image );
+	void thmfc_floppy_index_pulse_cb( device_t *controller,legacy_floppy_image_device *image, int state );
 	int thmfc_floppy_find_sector( chrn_id* dst );
 	void thmfc_floppy_cmd_complete();
 	UINT8 thmfc_floppy_read_byte();
@@ -546,35 +559,6 @@ protected:
 	void to7_midi_update_irq (  );
 	void to7_midi_ready_to_send_cb(  );
 };
-
-/*----------- defined in machine/thomson.c -----------*/
-
-extern const pia6821_interface to7_pia6821_sys;
-extern const pia6821_interface to7_pia6821_io;
-extern const pia6821_interface to7_pia6821_modem;
-extern const pia6821_interface to7_pia6821_game;
-extern const pia6821_interface to770_pia6821_sys;
-extern const pia6821_interface mo5_pia6821_sys;
-extern const pia6821_interface to9_pia6821_sys;
-extern const pia6821_interface to8_pia6821_sys;
-extern const pia6821_interface to9p_pia6821_sys;
-extern const pia6821_interface mo6_pia6821_game;
-extern const pia6821_interface mo6_pia6821_sys;
-extern const pia6821_interface mo5nr_pia6821_sys;
-extern const pia6821_interface mo5nr_pia6821_game;
-extern const centronics_interface to7_centronics_config;
-extern const centronics_interface mo6_centronics_config;
-extern const mc6846_interface to7_timer;
-extern const mea8000_interface to7_speech;
-extern const acia6850_interface to7_modem;
-extern const mc6846_interface to770_timer;
-extern const mc6846_interface to9_timer;
-
-/***************************** TO8 ******************************/
-
-extern const mc6846_interface to8_timer;
-extern const mc6846_interface to9p_timer;
-
 
 /*----------- defined in video/thomson.c -----------*/
 
@@ -621,24 +605,36 @@ extern const mc6846_interface to9p_timer;
 #define THOM_VMODE_NB         12
 
 
-class to7_io_line_device :  public device_t,
-							public device_serial_interface
+class to7_io_line_device : public device_t
 {
 public:
 	// construction/destruction
 	to7_io_line_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-
-	virtual void input_callback(UINT8 state);
 
 	/* read data register */
 	DECLARE_READ8_MEMBER(porta_in);
 
 	/* write data register */
 	DECLARE_WRITE8_MEMBER(porta_out);
+
+	DECLARE_WRITE_LINE_MEMBER(write_rxd);
+	DECLARE_WRITE_LINE_MEMBER(write_cts);
+	DECLARE_WRITE_LINE_MEMBER(write_dsr);
+	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
+
 protected:
 	// device-level overrides
 	virtual void device_start();
-	virtual void device_reset();
+	machine_config_constructor device_mconfig_additions() const;
+
+private:
+	required_device<pia6821_device> m_pia_io;
+	required_device<rs232_port_device> m_rs232;
+	int m_last_low;
+	int m_centronics_busy;
+	int m_rxd;
+	int m_cts;
+	int m_dsr;
 };
 
 extern const device_type TO7_IO_LINE;

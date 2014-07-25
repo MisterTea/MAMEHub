@@ -16,7 +16,9 @@ public:
 		m_oki(*this, "oki"),
 		m_eeprom(*this, "eeprom"),
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu") { }
+		m_audiocpu(*this, "audiocpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette") { }
 
 	/* memory pointers */
 	optional_shared_ptr<UINT16> m_bgvideoram;
@@ -25,7 +27,6 @@ public:
 	optional_shared_ptr<UINT16> m_videoram3;
 	required_shared_ptr<UINT16> m_spriteram;
 	optional_shared_ptr<UINT16> m_rowscroll;
-//      UINT16 *     m_paletteram;    // currently this uses generic palette handling
 
 	/* video-related */
 	tilemap_t   *m_tx_tilemap;
@@ -40,8 +41,6 @@ public:
 
 	int         m_xoffset;
 	int         m_yoffset;
-	int         m_txt_tile_offset;
-	int         m_fg_tile_offset;
 	int         m_pri_masks[3];
 	UINT16      m_scroll[7];
 
@@ -51,6 +50,7 @@ public:
 	UINT8       m_oki_control;
 	UINT8       m_oki_command;
 	int         m_old_oki_bank;
+	UINT8       m_dispenser_latch;
 
 	/* devices */
 	required_device<okim6295_device> m_oki;
@@ -58,12 +58,14 @@ public:
 	DECLARE_WRITE16_MEMBER(coinctrl_w);
 	DECLARE_WRITE16_MEMBER(wbeachvl_coin_eeprom_w);
 	DECLARE_WRITE16_MEMBER(hotmind_coin_eeprom_w);
+	DECLARE_WRITE16_MEMBER(luckboomh_dispenser_w);
 	DECLARE_WRITE16_MEMBER(hrdtimes_coin_w);
 	DECLARE_WRITE16_MEMBER(playmark_snd_command_w);
 	DECLARE_READ8_MEMBER(playmark_snd_command_r);
 	DECLARE_READ8_MEMBER(playmark_snd_flag_r);
 	DECLARE_WRITE8_MEMBER(playmark_oki_w);
 	DECLARE_WRITE8_MEMBER(playmark_snd_control_w);
+	DECLARE_WRITE8_MEMBER(hrdtimes_snd_control_w);
 	DECLARE_READ8_MEMBER(PIC16C5X_T0_clk_r);
 	DECLARE_WRITE16_MEMBER(wbeachvl_txvideoram_w);
 	DECLARE_WRITE16_MEMBER(wbeachvl_fgvideoram_w);
@@ -71,13 +73,12 @@ public:
 	DECLARE_WRITE16_MEMBER(hrdtimes_txvideoram_w);
 	DECLARE_WRITE16_MEMBER(hrdtimes_fgvideoram_w);
 	DECLARE_WRITE16_MEMBER(hrdtimes_bgvideoram_w);
-	DECLARE_WRITE16_MEMBER(bigtwin_paletteram_w);
 	DECLARE_WRITE16_MEMBER(bigtwin_scroll_w);
 	DECLARE_WRITE16_MEMBER(wbeachvl_scroll_w);
 	DECLARE_WRITE16_MEMBER(excelsr_scroll_w);
 	DECLARE_WRITE16_MEMBER(hrdtimes_scroll_w);
 	DECLARE_WRITE8_MEMBER(playmark_oki_banking_w);
-	DECLARE_DRIVER_INIT(bigtwin);
+	DECLARE_DRIVER_INIT(pic_decode);
 	TILE_GET_INFO_MEMBER(bigtwin_get_tx_tile_info);
 	TILE_GET_INFO_MEMBER(bigtwin_get_fg_tile_info);
 	TILE_GET_INFO_MEMBER(wbeachvl_get_tx_tile_info);
@@ -106,6 +107,9 @@ public:
 	void bigtwinb_draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int codeshift );
 	void draw_bitmap( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect );
 	UINT8 playmark_asciitohex(UINT8 data);
+	void playmark_decode_pic_hex_dump(void);
 	required_device<cpu_device> m_maincpu;
 	optional_device<pic16c57_device> m_audiocpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 };

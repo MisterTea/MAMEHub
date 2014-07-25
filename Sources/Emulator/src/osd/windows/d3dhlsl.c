@@ -1,41 +1,8 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 //============================================================
 //
 //  d3dhlsl.c - Win32 Direct3D HLSL implementation
-//
-//============================================================
-//
-//  Copyright Aaron Giles
-//  All rights reserved.
-//
-//  Redistribution and use in source and binary forms, with or
-//  without modification, are permitted provided that the
-//  following conditions are met:
-//
-//    * Redistributions of source code must retain the above
-//      copyright notice, this list of conditions and the
-//      following disclaimer.
-//    * Redistributions in binary form must reproduce the
-//      above copyright notice, this list of conditions and
-//      the following disclaimer in the documentation and/or
-//      other materials provided with the distribution.
-//    * Neither the name 'MAME' nor the names of its
-//      contributors may be used to endorse or promote
-//      products derived from this software without specific
-//      prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND
-//  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-//  FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
-//  EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-//  DAMAGE (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-//  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-//  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-//  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-//  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
-//  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //============================================================
 
@@ -60,7 +27,7 @@
 // MAME headers
 #include "emu.h"
 #include "render.h"
-#include "ui.h"
+#include "ui/ui.h"
 #include "rendutil.h"
 #include "options.h"
 #include "emuopts.h"
@@ -262,7 +229,7 @@ void shaders::window_save()
 	HRESULT result = (*d3dintf->device.create_texture)(d3d->get_device(), snap_width, snap_height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &snap_copy_texture);
 	if (result != D3D_OK)
 	{
-		mame_printf_verbose("Direct3D: Unable to init system-memory target for HLSL snapshot (%08x), bailing\n", (UINT32)result);
+		osd_printf_verbose("Direct3D: Unable to init system-memory target for HLSL snapshot (%08x), bailing\n", (UINT32)result);
 		return;
 	}
 	(*d3dintf->texture.get_surface_level)(snap_copy_texture, 0, &snap_copy_target);
@@ -270,7 +237,7 @@ void shaders::window_save()
 	result = (*d3dintf->device.create_texture)(d3d->get_device(), snap_width, snap_height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &snap_texture);
 	if (result != D3D_OK)
 	{
-		mame_printf_verbose("Direct3D: Unable to init video-memory target for HLSL snapshot (%08x), bailing\n", (UINT32)result);
+		osd_printf_verbose("Direct3D: Unable to init video-memory target for HLSL snapshot (%08x), bailing\n", (UINT32)result);
 		return;
 	}
 	(*d3dintf->texture.get_surface_level)(snap_texture, 0, &snap_target);
@@ -345,7 +312,7 @@ void shaders::avi_update_snap(surface *surface)
 
 	// unlock
 	result = (*d3dintf->surface.unlock_rect)(avi_copy_surface);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during texture unlock_rect call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during texture unlock_rect call\n", (int)result);
 }
 
 
@@ -418,7 +385,7 @@ void shaders::render_snapshot(surface *surface)
 			// now do the actual work
 			png_error error = png_write_bitmap(file, &pnginfo, avi_snap, 1 << 24, NULL);
 			if (error != PNGERR_NONE)
-				mame_printf_error("Error generating PNG for HLSL snapshot: png_error = %d\n", error);
+				osd_printf_error("Error generating PNG for HLSL snapshot: png_error = %d\n", error);
 
 			// free any data allocated
 			png_free(&pnginfo);
@@ -427,7 +394,7 @@ void shaders::render_snapshot(surface *surface)
 
 	// unlock
 	result = (*d3dintf->surface.unlock_rect)(snap_copy_target);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during texture unlock_rect call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during texture unlock_rect call\n", (int)result);
 
 	if(snap_texture != NULL)
 	{
@@ -564,7 +531,7 @@ void shaders::begin_avi_recording(const char *name)
 	// build up information about this new movie
 	avi_movie_info info;
 	info.video_format = 0;
-	info.video_timescale = 1000 * ((window->machine().primary_screen != NULL) ? ATTOSECONDS_TO_HZ(window->machine().primary_screen->frame_period().attoseconds) : screen_device::DEFAULT_FRAME_RATE);
+	info.video_timescale = 1000 * ((window->machine().first_screen() != NULL) ? ATTOSECONDS_TO_HZ(window->machine().first_screen()->frame_period().attoseconds) : screen_device::DEFAULT_FRAME_RATE);
 	info.video_sampletime = 1000;
 	info.video_numsamples = 0;
 	info.video_width = snap_width;
@@ -611,7 +578,7 @@ void shaders::begin_avi_recording(const char *name)
 		avi_error avierr = avi_create(fullpath, &info, &avi_output_file);
 		if (avierr != AVIERR_NONE)
 		{
-			mame_printf_error("Error creating AVI: %s\n", avi_error_string(avierr));
+			osd_printf_error("Error creating AVI: %s\n", avi_error_string(avierr));
 		}
 	}
 }
@@ -928,26 +895,26 @@ int shaders::create_resources(bool reset)
 	renderer *d3d = (renderer *)window->drawdata;
 
 	HRESULT result = (*d3dintf->device.get_render_target)(d3d->get_device(), 0, &backbuffer);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device get_render_target call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device get_render_target call\n", (int)result);
 
 	result = (*d3dintf->device.create_texture)(d3d->get_device(), 4, 4, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &black_texture);
 	if (result != D3D_OK)
 	{
-		mame_printf_verbose("Direct3D: Unable to init video-memory target for black texture (%08x)\n", (UINT32)result);
+		osd_printf_verbose("Direct3D: Unable to init video-memory target for black texture (%08x)\n", (UINT32)result);
 		return 1;
 	}
 	(*d3dintf->texture.get_surface_level)(black_texture, 0, &black_surface);
 	result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, black_surface);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 	result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 	result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, backbuffer);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 
 	result = (*d3dintf->device.create_texture)(d3d->get_device(), (int)snap_width, (int)snap_height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &avi_copy_texture);
 	if (result != D3D_OK)
 	{
-		mame_printf_verbose("Direct3D: Unable to init system-memory target for HLSL AVI dumping (%08x)\n", (UINT32)result);
+		osd_printf_verbose("Direct3D: Unable to init system-memory target for HLSL AVI dumping (%08x)\n", (UINT32)result);
 		return 1;
 	}
 	(*d3dintf->texture.get_surface_level)(avi_copy_texture, 0, &avi_copy_surface);
@@ -955,7 +922,7 @@ int shaders::create_resources(bool reset)
 	result = (*d3dintf->device.create_texture)(d3d->get_device(), (int)snap_width, (int)snap_height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &avi_final_texture);
 	if (result != D3D_OK)
 	{
-		mame_printf_verbose("Direct3D: Unable to init video-memory target for HLSL AVI dumping (%08x)\n", (UINT32)result);
+		osd_printf_verbose("Direct3D: Unable to init video-memory target for HLSL AVI dumping (%08x)\n", (UINT32)result);
 		return 1;
 	}
 	(*d3dintf->texture.get_surface_level)(avi_final_texture, 0, &avi_final_target);
@@ -1113,7 +1080,7 @@ void shaders::begin_draw()
 	yiq_decode_effect->set_technique("DecodeTechnique");
 
 	HRESULT result = (*d3dintf->device.get_render_target)(d3d->get_device(), 0, &backbuffer);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device get_render_target call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device get_render_target call\n", (int)result);
 }
 
 
@@ -1137,7 +1104,7 @@ void shaders::blit(surface *dst, texture *src, surface *new_dst, D3DPRIMITIVETYP
 	renderer *d3d = (renderer *)window->drawdata;
 
 	HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, dst);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 
 	curr_effect = default_effect;
 
@@ -1157,7 +1124,7 @@ void shaders::blit(surface *dst, texture *src, surface *new_dst, D3DPRIMITIVETYP
 		curr_effect->begin_pass(pass);
 		// add the primitives
 		HRESULT result = (*d3dintf->device.draw_primitive)(d3d->get_device(), prim_type, prim_index, prim_count);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 		curr_effect->end_pass();
 	}
 
@@ -1166,7 +1133,7 @@ void shaders::blit(surface *dst, texture *src, surface *new_dst, D3DPRIMITIVETYP
 	if (new_dst)
 	{
 		HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, new_dst);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 	}
 }
 
@@ -1182,9 +1149,9 @@ void shaders::blit(surface *dst, texture *src, surface *new_dst, D3DPRIMITIVETYP
 	renderer *d3d = (renderer *)window->drawdata;
 
 	HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, dst);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 	result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(1,0,0,0), 0, 0);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 	curr_effect = default_effect;
 
@@ -1204,7 +1171,7 @@ void shaders::blit(surface *dst, texture *src, surface *new_dst, D3DPRIMITIVETYP
 		curr_effect->begin_pass(pass);
 		// add the primitives
 		HRESULT result = (*d3dintf->device.draw_primitive)(d3d->get_device(), prim_type, prim_index, prim_count);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 		curr_effect->end_pass();
 	}
 
@@ -1215,7 +1182,7 @@ void shaders::blit(surface *dst, texture *src, surface *new_dst, D3DPRIMITIVETYP
 	if (new_dst)
 	{
 		HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, new_dst);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 	}
 }
 
@@ -1247,11 +1214,11 @@ void shaders::end_frame()
 	blit(backbuffer, rt->render_texture[1], NULL, vecbuf_type, vecbuf_index, vecbuf_count);
 
 	HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->target[1]);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 	result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 	result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, backbuffer);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);*/
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);*/
 }
 
 
@@ -1352,9 +1319,9 @@ void shaders::ntsc_pass(render_target *rt, vec2f &sourcedims, vec2f &delta)
 
 		HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->target[4]);
 
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 		result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 		curr_effect->begin(&num_passes, 0);
 
@@ -1363,7 +1330,7 @@ void shaders::ntsc_pass(render_target *rt, vec2f &sourcedims, vec2f &delta)
 			curr_effect->begin_pass(pass);
 			// add the primitives
 			result = (*d3dintf->device.draw_primitive)(d3d->get_device(), D3DPT_TRIANGLELIST, 0, 2);
-			if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+			if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 			curr_effect->end_pass();
 		}
 
@@ -1378,9 +1345,9 @@ void shaders::ntsc_pass(render_target *rt, vec2f &sourcedims, vec2f &delta)
 
 		result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->target[3]);
 
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 		result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 		curr_effect->begin(&num_passes, 0);
 
@@ -1389,7 +1356,7 @@ void shaders::ntsc_pass(render_target *rt, vec2f &sourcedims, vec2f &delta)
 			curr_effect->begin_pass(pass);
 			// add the primitives
 			result = (*d3dintf->device.draw_primitive)(d3d->get_device(), D3DPT_TRIANGLELIST, 0, 2);
-			if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+			if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 			curr_effect->end_pass();
 		}
 
@@ -1411,9 +1378,9 @@ void shaders::color_convolution_pass(render_target *rt, vec2f &texsize, vec2f &s
 
 	HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->smalltarget);
 
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 	result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 	curr_effect->begin(&num_passes, 0);
 
@@ -1422,7 +1389,7 @@ void shaders::color_convolution_pass(render_target *rt, vec2f &texsize, vec2f &s
 		curr_effect->begin_pass(pass);
 		// add the primitives
 		result = (*d3dintf->device.draw_primitive)(d3d->get_device(), D3DPT_TRIANGLELIST, 0, 2);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 		curr_effect->end_pass();
 	}
 
@@ -1441,16 +1408,16 @@ void shaders::prescale_pass(render_target *rt, vec2f &texsize, vec2f &sourcedims
 	curr_effect->begin(&num_passes, 0);
 
 	HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->prescaletarget);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 	result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 	for (UINT pass = 0; pass < num_passes; pass++)
 	{
 		curr_effect->begin_pass(pass);
 		// add the primitives
 		result = (*d3dintf->device.draw_primitive)(d3d->get_device(), D3DPT_TRIANGLELIST, 0, 2);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 		curr_effect->end_pass();
 	}
 
@@ -1469,16 +1436,16 @@ void shaders::deconverge_pass(render_target *rt, vec2f &texsize, vec2f &delta, v
 	curr_effect->begin(&num_passes, 0);
 
 	HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->target[2]);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call 6\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call 6\n", (int)result);
 	result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 	for (UINT pass = 0; pass < num_passes; pass++)
 	{
 		curr_effect->begin_pass(pass);
 		// add the primitives
 		result = (*d3dintf->device.draw_primitive)(d3d->get_device(), D3DPT_TRIANGLELIST, 0, 2);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 		curr_effect->end_pass();
 	}
 
@@ -1498,16 +1465,16 @@ void shaders::defocus_pass(render_target *rt, vec2f &texsize)
 	curr_effect->begin(&num_passes, 0);
 
 	HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->target[0]);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call 6\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call 6\n", (int)result);
 	result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 	for (UINT pass = 0; pass < num_passes; pass++)
 	{
 		curr_effect->begin_pass(pass);
 		// add the primitives
 		result = (*d3dintf->device.draw_primitive)(d3d->get_device(), D3DPT_TRIANGLELIST, 0, 2);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 		curr_effect->end_pass();
 	}
 
@@ -1520,14 +1487,14 @@ void shaders::defocus_pass(render_target *rt, vec2f &texsize)
 	curr_effect->begin(&num_passes, 0);
 
 	result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->target[1]);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call 7\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call 7\n", (int)result);
 
 	for (UINT pass = 0; pass < num_passes; pass++)
 	{
 		curr_effect->begin_pass(pass);
 		// add the primitives
 		result = (*d3dintf->device.draw_primitive)(d3d->get_device(), D3DPT_TRIANGLELIST, 0, 2);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 		curr_effect->end_pass();
 	}
 
@@ -1550,9 +1517,9 @@ void shaders::phosphor_pass(render_target *rt, cache_target *ct, vec2f &texsize,
 	curr_effect->set_texture("LastPass", ct->last_texture);
 
 	HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->target[0]);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call 4\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call 4\n", (int)result);
 	result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 	curr_effect->begin(&num_passes, 0);
 
@@ -1561,7 +1528,7 @@ void shaders::phosphor_pass(render_target *rt, cache_target *ct, vec2f &texsize,
 		curr_effect->begin_pass(pass);
 		// add the primitives
 		result = (*d3dintf->device.draw_primitive)(d3d->get_device(), D3DPT_TRIANGLELIST, 0, 2);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 		curr_effect->end_pass();
 	}
 
@@ -1574,9 +1541,9 @@ void shaders::phosphor_pass(render_target *rt, cache_target *ct, vec2f &texsize,
 	curr_effect->set_texture("LastPass", rt->render_texture[0]);
 
 	result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, ct->last_target); // Avoid changing targets due to page flipping
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call 5\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call 5\n", (int)result);
 	result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 	curr_effect->begin(&num_passes, 0);
 
@@ -1585,7 +1552,7 @@ void shaders::phosphor_pass(render_target *rt, cache_target *ct, vec2f &texsize,
 		curr_effect->begin_pass(pass);
 		// add the primitives
 		result = (*d3dintf->device.draw_primitive)(d3d->get_device(), D3DPT_TRIANGLELIST, 0, 2);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 		curr_effect->end_pass();
 	}
 
@@ -1607,7 +1574,7 @@ void shaders::avi_post_pass(render_target *rt, vec2f &texsize, vec2f &delta, vec
 		curr_effect->set_texture("DiffuseTexture", rt->render_texture[0]);
 
 		HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, avi_final_target);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 
 		curr_effect->begin(&num_passes, 0);
 
@@ -1616,7 +1583,7 @@ void shaders::avi_post_pass(render_target *rt, vec2f &texsize, vec2f &delta, vec
 			curr_effect->begin_pass(pass);
 			// add the primitives
 			result = (*d3dintf->device.draw_primitive)(d3d->get_device(), poly->get_type(), vertnum, poly->get_count());
-			if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+			if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 			curr_effect->end_pass();
 		}
 
@@ -1628,7 +1595,7 @@ void shaders::avi_post_pass(render_target *rt, vec2f &texsize, vec2f &delta, vec
 		curr_effect->set_texture("DiffuseTexture", rt->render_texture[0]);
 
 		HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, snap_target);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 
 		curr_effect->begin(&num_passes, 0);
 
@@ -1637,7 +1604,7 @@ void shaders::avi_post_pass(render_target *rt, vec2f &texsize, vec2f &delta, vec
 			curr_effect->begin_pass(pass);
 			// add the primitives
 			result = (*d3dintf->device.draw_primitive)(d3d->get_device(), poly->get_type(), vertnum, poly->get_count());
-			if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+			if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 			curr_effect->end_pass();
 		}
 
@@ -1663,7 +1630,7 @@ void shaders::screen_post_pass(render_target *rt, vec2f &texsize, vec2f &delta, 
 	HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->target[2]);
 
 	result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(1,0,0,0), 0, 0);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 	curr_effect->begin(&num_passes, 0);
 
@@ -1672,7 +1639,7 @@ void shaders::screen_post_pass(render_target *rt, vec2f &texsize, vec2f &delta, 
 		curr_effect->begin_pass(pass);
 		// add the primitives
 		result = (*d3dintf->device.draw_primitive)(d3d->get_device(), poly->get_type(), vertnum, poly->get_count());
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 		curr_effect->end_pass();
 	}
 
@@ -1697,18 +1664,21 @@ void shaders::raster_bloom_pass(render_target *rt, vec2f &texsize, vec2f &delta,
 	float bloom_height = rt->target_height;
 	vec2f screendims = d3d->get_dims();
 	curr_effect->set_vector("ScreenSize", 2, &screendims.c.x);
+	float bloom_dims[11][2];
 	for(; bloom_size >= 2.0f && bloom_index < 11; bloom_size *= 0.5f)
 	{
-		target_size[0] = bloom_width;
-		target_size[1] = bloom_height;
-		curr_effect->set_vector("TargetSize", 2, target_size);
+		bloom_dims[bloom_index][0] = bloom_width;
+		bloom_dims[bloom_index][1] = bloom_height;
+		curr_effect->set_vector("TargetSize", 2, bloom_dims[bloom_index]);
 
 		curr_effect->begin(&num_passes, 0);
 
 		curr_effect->set_texture("DiffuseTexture", (bloom_index == 0) ? rt->render_texture[2] : rt->bloom_texture[bloom_index - 1]);
 
 		HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->bloom_target[bloom_index]);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call 6\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call 6\n", (int)result);
+		result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 		for (UINT pass = 0; pass < num_passes; pass++)
 		{
@@ -1716,7 +1686,7 @@ void shaders::raster_bloom_pass(render_target *rt, vec2f &texsize, vec2f &delta,
 			// add the primitives
 			result = (*d3dintf->device.draw_primitive)(d3d->get_device(), D3DPT_TRIANGLELIST, 0, 2);
 			//result = (*d3dintf->device.draw_primitive)(d3d->get_device(), poly->get_type(), vertnum, poly->get_count());
-			if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+			if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 			curr_effect->end_pass();
 		}
 
@@ -1729,13 +1699,20 @@ void shaders::raster_bloom_pass(render_target *rt, vec2f &texsize, vec2f &delta,
 
 	curr_effect = bloom_effect;
 
+	float target_size[2] = { d3d->get_width(), d3d->get_height() };
+	curr_effect->set_vector("TargetSize", 2, target_size);
 	float weight0123[4] = { options->bloom_level0_weight, options->bloom_level1_weight, options->bloom_level2_weight, options->bloom_level3_weight };
 	float weight4567[4] = { options->bloom_level4_weight, options->bloom_level5_weight, options->bloom_level6_weight, options->bloom_level7_weight };
 	float weight89A[3]  = { options->bloom_level8_weight, options->bloom_level9_weight, options->bloom_level10_weight };
 	curr_effect->set_vector("Level0123Weight", 4, weight0123);
 	curr_effect->set_vector("Level4567Weight", 4, weight4567);
 	curr_effect->set_vector("Level89AWeight", 3, weight89A);
-	curr_effect->set_vector("TargetSize", 2, &screendims.c.x);
+	curr_effect->set_vector("Level01Size", 4, bloom_dims[0]);
+	curr_effect->set_vector("Level23Size", 4, bloom_dims[2]);
+	curr_effect->set_vector("Level45Size", 4, bloom_dims[4]);
+	curr_effect->set_vector("Level67Size", 4, bloom_dims[6]);
+	curr_effect->set_vector("Level89Size", 4, bloom_dims[8]);
+	curr_effect->set_vector("LevelASize", 2, bloom_dims[10]);
 
 	curr_effect->set_texture("DiffuseA", rt->render_texture[2]);
 
@@ -1754,14 +1731,14 @@ void shaders::raster_bloom_pass(render_target *rt, vec2f &texsize, vec2f &delta,
 	curr_effect->begin(&num_passes, 0);
 
 	HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, backbuffer);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call 6\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call 6\n", (int)result);
 
 	for (UINT pass = 0; pass < num_passes; pass++)
 	{
 		curr_effect->begin_pass(pass);
 		// add the primitives
 		result = (*d3dintf->device.draw_primitive)(d3d->get_device(), poly->get_type(), vertnum, poly->get_count());
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 		curr_effect->end_pass();
 	}
 
@@ -1842,20 +1819,20 @@ void shaders::render_quad(poly_info *poly, int vertnum)
 		curr_effect->begin(&num_passes, 0);
 
 		HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->target[0]);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 
 		for (UINT pass = 0; pass < num_passes; pass++)
 		{
 			curr_effect->begin_pass(pass);
 			// add the primitives
 			HRESULT result = (*d3dintf->device.draw_primitive)(d3d->get_device(), poly->get_type(), vertnum, poly->get_count());
-			if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+			if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 			curr_effect->end_pass();
 		}
 
 		curr_effect->end();
 		result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, backbuffer);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 
 		curr_effect = default_effect;
 
@@ -1875,35 +1852,30 @@ void shaders::render_quad(poly_info *poly, int vertnum)
 		int bloom_index = 0;
 		float bloom_width = rt->target_width;
 		float bloom_height = rt->target_height;
-		float prim_width = poly->get_prim_width();
-		float prim_height = poly->get_prim_height();
-		float prim_ratio[2] = { prim_width / bloom_width, prim_height / bloom_height };
 		float screen_size[2] = { d3d->get_width(), d3d->get_height() };
-		//float target_size[2] = { bloom_width * 0.5f, bloom_height * 0.5f };
 		curr_effect->set_vector("ScreenSize", 2, screen_size);
+		float bloom_dims[11][2];
 		for(; bloom_size >= 2.0f && bloom_index < 11; bloom_size *= 0.5f)
 		{
-			float target_size[2] = { bloom_width, bloom_height };
-			float source_size[2] = { bloom_width * 0.5f, bloom_height * 0.5f };
-			curr_effect->set_vector("TargetSize", 2, target_size);
-			curr_effect->set_vector("SourceSize", 2, source_size);
-			curr_effect->set_vector("PrimRatio", 2, prim_ratio);
+			bloom_dims[bloom_index][0] = bloom_width;
+			bloom_dims[bloom_index][1] = bloom_height;
+			curr_effect->set_vector("TargetSize", 2, bloom_dims[bloom_index]);
 
 			curr_effect->begin(&num_passes, 0);
 
-			curr_effect->set_texture("Diffuse", (bloom_index == 0) ? rt->render_texture[0] : rt->bloom_texture[bloom_index - 1]);
+			curr_effect->set_texture("DiffuseTexture", (bloom_index == 0) ? rt->render_texture[0] : rt->bloom_texture[bloom_index - 1]);
 
 			HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->bloom_target[bloom_index]);
-			if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call 6\n", (int)result);
-			//result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-			//if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+			if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call 6\n", (int)result);
+			result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
+			if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 			for (UINT pass = 0; pass < num_passes; pass++)
 			{
 				curr_effect->begin_pass(pass);
 				// add the primitives
 				result = (*d3dintf->device.draw_primitive)(d3d->get_device(), poly->get_type(), vertnum, poly->get_count());
-				if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+				if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 				curr_effect->end_pass();
 			}
 
@@ -1928,6 +1900,12 @@ void shaders::render_quad(poly_info *poly, int vertnum)
 		curr_effect->set_vector("Level0123Weight", 4, weight0123);
 		curr_effect->set_vector("Level4567Weight", 4, weight4567);
 		curr_effect->set_vector("Level89AWeight", 3, weight89A);
+		curr_effect->set_vector("Level01Size", 4, bloom_dims[0]);
+		curr_effect->set_vector("Level23Size", 4, bloom_dims[2]);
+		curr_effect->set_vector("Level45Size", 4, bloom_dims[4]);
+		curr_effect->set_vector("Level67Size", 4, bloom_dims[6]);
+		curr_effect->set_vector("Level89Size", 4, bloom_dims[8]);
+		curr_effect->set_vector("LevelASize", 2, bloom_dims[10]);
 
 		curr_effect->set_texture("DiffuseA", rt->render_texture[0]);
 
@@ -1946,16 +1924,16 @@ void shaders::render_quad(poly_info *poly, int vertnum)
 		curr_effect->begin(&num_passes, 0);
 
 		HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->target[1]);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call 6\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call 6\n", (int)result);
 		result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 		for (UINT pass = 0; pass < num_passes; pass++)
 		{
 			curr_effect->begin_pass(pass);
 			// add the primitives
 			result = (*d3dintf->device.draw_primitive)(d3d->get_device(), poly->get_type(), vertnum, poly->get_count());
-			if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+			if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 			curr_effect->end_pass();
 		}
 
@@ -1970,17 +1948,17 @@ void shaders::render_quad(poly_info *poly, int vertnum)
 			curr_effect->set_vector("ScreenDims", 2, &screendims.c.x);
 			curr_effect->set_vector("Phosphor", 3, options->phosphor);
 		}
-		curr_effect->set_float("TextureWidth", (float)d3d->get_width());
-		curr_effect->set_float("TextureHeight", (float)d3d->get_height());
+		float target_dims[2] = { d3d->get_width(), d3d->get_height() };
+		curr_effect->set_vector("TargetDims", 2, target_dims);
 		curr_effect->set_float("Passthrough", 0.0f);
 
 		curr_effect->set_texture("Diffuse", rt->render_texture[1]);
 		curr_effect->set_texture("LastPass", rt->render_texture[2]);
 
 		result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->target[3]);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call 4\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call 4\n", (int)result);
 		result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 
 		curr_effect->begin(&num_passes, 0);
 
@@ -1989,7 +1967,7 @@ void shaders::render_quad(poly_info *poly, int vertnum)
 			curr_effect->begin_pass(pass);
 			// add the primitives
 			result = (*d3dintf->device.draw_primitive)(d3d->get_device(), D3DPT_TRIANGLELIST, 0, 2);
-			if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+			if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 			curr_effect->end_pass();
 		}
 
@@ -1999,11 +1977,11 @@ void shaders::render_quad(poly_info *poly, int vertnum)
 		blit(backbuffer, rt->render_texture[3], backbuffer, poly->get_type(), vertnum, poly->get_count());
 
 		result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, rt->target[0]);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 		result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 		result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, backbuffer);
-		if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+		if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 
 		lines_pending = false;
 	}
@@ -2022,7 +2000,7 @@ void shaders::render_quad(poly_info *poly, int vertnum)
 			curr_effect->begin_pass(pass);
 			// add the primitives
 			HRESULT result = (*d3dintf->device.draw_primitive)(d3d->get_device(), poly->get_type(), vertnum, poly->get_count());
-			if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
+			if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device draw_primitive call\n", (int)result);
 			curr_effect->end_pass();
 		}
 
@@ -2165,11 +2143,11 @@ bool shaders::add_render_target(renderer* d3d, texture_info* info, int width, in
 	}
 
 	HRESULT result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, target->target[0]);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 	result = (*d3dintf->device.clear)(d3d->get_device(), 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0,0,0,0), 0, 0);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device clear call\n", (int)result);
 	result = (*d3dintf->device.set_render_target)(d3d->get_device(), 0, backbuffer);
-	if (result != D3D_OK) mame_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
+	if (result != D3D_OK) osd_printf_verbose("Direct3D: Error %08X during device set_render_target call\n", (int)result);
 
 	target->screen_index = screen_index;
 	target->page_index = page_index;
@@ -2403,22 +2381,22 @@ static void get_vector(const char *data, int count, float *out, int report_error
 	if (count > 3)
 	{
 		if (sscanf(data, "%f,%f,%f,%f", &out[0], &out[1], &out[2], &out[3]) < 4 && report_error)
-			mame_printf_error("Illegal quad vector value = %s\n", data);
+			osd_printf_error("Illegal quad vector value = %s\n", data);
 	}
 	else if(count > 2)
 	{
 		if (sscanf(data, "%f,%f,%f", &out[0], &out[1], &out[2]) < 3 && report_error)
-			mame_printf_error("Illegal triple vector value = %s\n", data);
+			osd_printf_error("Illegal triple vector value = %s\n", data);
 	}
 	else if(count > 1)
 	{
 		if (sscanf(data, "%f,%f", &out[0], &out[1]) < 2 && report_error)
-			mame_printf_error("Illegal double vector value = %s\n", data);
+			osd_printf_error("Illegal double vector value = %s\n", data);
 	}
 	else if(count > 0)
 	{
 		if (sscanf(data, "%f", &out[0]) < 1 && report_error)
-			mame_printf_error("Illegal single vector value = %s\n", data);
+			osd_printf_error("Illegal single vector value = %s\n", data);
 	}
 }
 
@@ -3177,9 +3155,6 @@ void uniform::update()
 			m_shader->set_vector("Floor", 3, options->floor);
 			break;
 
-		case CU_BLOOM_TARGET_SIZE:
-			m_shader->set_vector("TargetSize", 2, shadersys->target_size);
-			break;
 		case CU_BLOOM_RESCALE:
 			m_shader->set_float("BloomRescale", options->raster_bloom_scale);
 			break;
@@ -3298,7 +3273,7 @@ effect::effect(shaders *shadersys, device *dev, const char *name, const char *pa
 		}
 		else
 		{
-			printf("Unable to compile shader (unspecified reason)\n"); fflush(stdout);
+			printf("Shader %s is missing, corrupt or cannot be compiled.\n", (const char*)name); fflush(stdout);
 		}
 	}
 	else

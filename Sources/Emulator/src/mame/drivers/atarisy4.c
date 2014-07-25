@@ -17,7 +17,7 @@
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
 #include "cpu/tms32010/tms32010.h"
-#include "video/poly.h"
+#include "video/polylgcy.h"
 
 
 class atarisy4_state : public driver_device
@@ -29,7 +29,8 @@ public:
 		m_screen_ram(*this, "screen_ram"),
 		m_maincpu(*this, "maincpu"),
 		m_dsp0(*this, "dsp0"),
-		m_dsp1(*this, "dsp1") { }
+		m_dsp1(*this, "dsp1"),
+		m_palette(*this, "palette") { }
 
 	UINT8 m_r_color_table[256];
 	UINT8 m_g_color_table[256];
@@ -39,7 +40,7 @@ public:
 	required_shared_ptr<UINT16> m_m68k_ram;
 	UINT16 *m_shared_ram[2];
 	required_shared_ptr<UINT16> m_screen_ram;
-	poly_manager *m_poly;
+	legacy_poly_manager *m_poly;
 	DECLARE_WRITE16_MEMBER(gpu_w);
 	DECLARE_READ16_MEMBER(gpu_r);
 	DECLARE_READ16_MEMBER(m68k_shared_0_r);
@@ -72,6 +73,7 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_dsp0;
 	optional_device<cpu_device> m_dsp1;
+	required_device<palette_device> m_palette;
 };
 
 
@@ -195,8 +197,8 @@ UINT32 atarisy4_state::screen_update_atarisy4(screen_device &screen, bitmap_rgb3
 		{
 			UINT16 data = *src++;
 
-			*dest++ = machine().pens[data & 0xff];
-			*dest++ = machine().pens[data >> 8];
+			*dest++ = m_palette->pen(data & 0xff);
+			*dest++ = m_palette->pen(data >> 8);
 		}
 	}
 	return 0;
@@ -400,7 +402,7 @@ void atarisy4_state::execute_gpu_command()
 					m_b_color_table[table_offs] = val;
 
 				/* Update */
-				palette_set_color(machine(), table_offs, MAKE_RGB(m_r_color_table[table_offs], m_g_color_table[table_offs], m_b_color_table[table_offs]));
+				m_palette->set_pen_color(table_offs, rgb_t(m_r_color_table[table_offs], m_g_color_table[table_offs], m_b_color_table[table_offs]));
 
 				++table_offs;
 				++offset;
@@ -751,9 +753,9 @@ static MACHINE_CONFIG_START( atarisy4, atarisy4_state )
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(32000000/2, 660, 0, 512, 404, 0, 384)
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
+	MCFG_SCREEN_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_SCREEN_UPDATE_DRIVER(atarisy4_state, screen_update_atarisy4)
-	MCFG_PALETTE_LENGTH(256)
+	MCFG_PALETTE_ADD("palette", 256)
 
 MACHINE_CONFIG_END
 

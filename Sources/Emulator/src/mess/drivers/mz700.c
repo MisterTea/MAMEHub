@@ -1,9 +1,8 @@
 /******************************************************************************
  *  Sharp MZ700
  *
- *  system driver
- *
- *  Juergen Buchmueller <pullmoll@t-online.de>, Jul 2000
+ *  license: MAME
+ *  copyright-holders: Juergen Buchmueller, Dirk Best
  *
  *  Reference: http://sharpmz.computingmuseum.com
  *
@@ -70,7 +69,7 @@
 #include "machine/pit8253.h"
 #include "machine/z80pio.h"
 #include "machine/74145.h"
-#include "machine/ctronics.h"
+#include "bus/centronics/ctronics.h"
 #include "sound/sn76496.h"
 #include "sound/speaker.h"
 #include "sound/wave.h"
@@ -314,36 +313,9 @@ static GFXDECODE_START( mz800 )
 GFXDECODE_END
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 /***************************************************************************
     MACHINE DRIVERS
 ***************************************************************************/
-
-static const cassette_interface mz700_cassette_interface =
-{
-	mz700_cassette_formats,
-	NULL,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED),
-	"mz_cass",
-	NULL
-};
-
 
 static MACHINE_CONFIG_START( mz700, mz_state )
 	/* basic machine hardware */
@@ -356,9 +328,12 @@ static MACHINE_CONFIG_START( mz700, mz_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_17_73447MHz/2, 568, 0, 40*8, 312, 0, 25*8)
 	MCFG_SCREEN_UPDATE_DRIVER(mz_state, screen_update_mz700)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(mz700)
-	MCFG_PALETTE_LENGTH(256*2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mz700)
+	MCFG_PALETTE_ADD("palette", 256*2)
+	MCFG_PALETTE_INDIRECT_ENTRIES(8)
+	MCFG_PALETTE_INIT_OWNER(mz_state, mz)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -372,11 +347,27 @@ static MACHINE_CONFIG_START( mz700, mz_state )
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("other", mz_state, ne556_other_callback, attotime::from_hz(34.5))
 
 	/* devices */
-	MCFG_PIT8253_ADD("pit8253", mz700_pit8253_config)
-	MCFG_I8255_ADD("ppi8255", mz700_ppi8255_interface)
-	MCFG_TTL74145_ADD("ls145", default_ttl74145)
+	MCFG_DEVICE_ADD("pit8253", PIT8253, 0)
+	MCFG_PIT8253_CLK0(XTAL_17_73447MHz/20)
+	MCFG_PIT8253_OUT0_HANDLER(WRITELINE(mz_state, pit_out0_changed))
+	MCFG_PIT8253_CLK1(15611.0)
+	MCFG_PIT8253_OUT1_HANDLER(DEVWRITELINE("pit8253", pit8253_device, write_clk2))
+	MCFG_PIT8253_CLK2(0)
+	MCFG_PIT8253_OUT2_HANDLER(WRITELINE(mz_state, pit_irq_2))
 
-	MCFG_CASSETTE_ADD( "cassette", mz700_cassette_interface )
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(mz_state, pio_port_a_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(mz_state, pio_port_b_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(mz_state, pio_port_c_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(mz_state, pio_port_c_w))
+
+	MCFG_DEVICE_ADD("ls145", TTL74145, 0)
+
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(mz700_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
+	MCFG_CASSETTE_INTERFACE("mz_cass")
+
 	MCFG_SOFTWARE_LIST_ADD("cass_list","mz700_cass")
 
 	/* internal ram */
@@ -392,24 +383,32 @@ static MACHINE_CONFIG_DERIVED( mz800, mz700 )
 	MCFG_CPU_PROGRAM_MAP(mz800_mem)
 	MCFG_CPU_IO_MAP(mz800_io)
 
-	MCFG_GFXDECODE(mz800)
+	MCFG_GFXDECODE_MODIFY("gfxdecode",mz800)
+
 	MCFG_VIDEO_START_OVERRIDE(mz_state,mz800)
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(mz_state, screen_update_mz800)
 
 	MCFG_SOUND_ADD("sn76489n", SN76489, XTAL_17_73447MHz/5)
-	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_DEVICE_REMOVE("cass_list")
 	MCFG_SOFTWARE_LIST_ADD("cass_list","mz800_cass")
 
 	/* devices */
-	MCFG_DEVICE_REMOVE("pit8253")
-	MCFG_PIT8253_ADD("pit8253", mz800_pit8253_config)
-	MCFG_Z80PIO_ADD("z80pio", XTAL_17_73447MHz/5, mz800_z80pio_config)
-	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
+	MCFG_DEVICE_MODIFY("pit8253")
+	MCFG_PIT8253_CLK0(XTAL_17_73447MHz/16)
+
+	MCFG_DEVICE_ADD("z80pio", Z80PIO, XTAL_17_73447MHz/5)
+	MCFG_Z80PIO_OUT_INT_CB(WRITELINE(mz_state, mz800_z80pio_irq))
+	MCFG_Z80PIO_IN_PA_CB(READ8(mz_state, mz800_z80pio_port_a_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(mz_state, mz800_z80pio_port_a_w))
+	MCFG_Z80PIO_OUT_PB_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
+
+	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+
+	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 MACHINE_CONFIG_END
 
 

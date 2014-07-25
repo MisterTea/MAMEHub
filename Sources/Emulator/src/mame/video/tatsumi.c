@@ -43,71 +43,8 @@ WRITE16_MEMBER(tatsumi_state::roundup5_vram_w)
 
 	offset=offset%0xc000;
 
-	machine().gfx[1]->mark_dirty(offset/0x10);
+	m_gfxdecode->gfx(1)->mark_dirty(offset/0x10);
 }
-
-
-WRITE16_MEMBER(tatsumi_state::roundup5_palette_w)
-{
-//  static int hack=0;
-	int word;
-
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-
-//  if (offset==0xbfe)
-//      hack++;
-
-//  if (hack>1)
-//      return;
-
-/*
-apache 3 schematics state
-
-bit 4:  250
-bit 3:  500
-bit 2:  1k
-bit 1:  2k
-bit 0:  3.9kOhm resistor
-
-*/
-
-//  logerror("PAL: %04x %02x\n",offset,data);
-
-	offset&=~1;
-	word = ((m_generic_paletteram_16[offset] & 0xff)<<8) | (m_generic_paletteram_16[offset+1] & 0xff);
-	palette_set_color_rgb(machine(),offset/2,pal5bit(word >> 10),pal5bit(word >> 5),pal5bit(word >> 0));
-}
-
-
-WRITE16_MEMBER(tatsumi_state::apache3_palette_w)
-{
-//  static int hack=0;
-
-	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-
-//  if (offset==0xbfe)
-//      hack++;
-
-//  if (hack>1)
-//      return;
-
-/*
-apache 3 schematics state
-
-bit 4:  250
-bit 3:  500
-bit 2:  1k
-bit 1:  2k
-bit 0:  3.9kOhm resistor
-
-*/
-
-//  logerror("PAL: %04x %02x\n",offset,data);
-
-	data = m_generic_paletteram_16[offset];
-	palette_set_color_rgb(machine(),offset,pal5bit(data >> 10),pal5bit(data >> 5),pal5bit(data >> 0));
-}
-
 
 WRITE16_MEMBER(tatsumi_state::roundup5_text_w)
 {
@@ -163,8 +100,7 @@ TILE_GET_INFO_MEMBER(tatsumi_state::get_text_tile_info)
 {
 	UINT16 *videoram = m_videoram;
 	int tile = videoram[tile_index];
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			tile & 0xfff,
 			tile >> 12,
 			0);
@@ -188,7 +124,7 @@ TILE_GET_INFO_MEMBER(tatsumi_state::get_tile_info_bigfight_1)
 
 VIDEO_START_MEMBER(tatsumi_state,apache3)
 {
-	m_tx_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tatsumi_state::get_text_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
+	m_tx_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tatsumi_state::get_text_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
 	m_shadow_pen_array = auto_alloc_array_clear(machine(), UINT8, 8192);
 	m_temp_bitmap.allocate(512, 512);
 	m_apache3_road_x_ram = auto_alloc_array(machine(), UINT8, 512);
@@ -198,32 +134,32 @@ VIDEO_START_MEMBER(tatsumi_state,apache3)
 
 VIDEO_START_MEMBER(tatsumi_state,roundup5)
 {
-	m_tx_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tatsumi_state::get_text_tile_info),this),TILEMAP_SCAN_ROWS,8,8,128,64);
+	m_tx_layer = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tatsumi_state::get_text_tile_info),this),TILEMAP_SCAN_ROWS,8,8,128,64);
 	m_shadow_pen_array = auto_alloc_array_clear(machine(), UINT8, 8192);
 	m_roundup5_vram = auto_alloc_array(machine(), UINT16, (0x48000 * 4)/2);
 
 	m_tx_layer->set_transparent_pen(0);
 
-	machine().gfx[1]->set_source((UINT8 *)m_roundup5_vram);
+	m_gfxdecode->gfx(1)->set_source((UINT8 *)m_roundup5_vram);
 }
 
 VIDEO_START_MEMBER(tatsumi_state,cyclwarr)
 {
-	m_layer0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_0),this),TILEMAP_SCAN_ROWS,8,8,64,512);
-	//m_layer1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_0),this),TILEMAP_SCAN_ROWS,8,8,64,512);
-	m_layer1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_0),this),TILEMAP_SCAN_ROWS,8,8,128,256);
-	m_layer2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_1),this),TILEMAP_SCAN_ROWS,8,8,64,512);
-	m_layer3 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_1),this),TILEMAP_SCAN_ROWS,8,8,64,512);
+	m_layer0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_0),this),TILEMAP_SCAN_ROWS,8,8,64,512);
+	//m_layer1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_0),this),TILEMAP_SCAN_ROWS,8,8,64,512);
+	m_layer1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_0),this),TILEMAP_SCAN_ROWS,8,8,128,256);
+	m_layer2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_1),this),TILEMAP_SCAN_ROWS,8,8,64,512);
+	m_layer3 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_1),this),TILEMAP_SCAN_ROWS,8,8,64,512);
 
 	m_shadow_pen_array = auto_alloc_array_clear(machine(), UINT8, 8192);
 }
 
 VIDEO_START_MEMBER(tatsumi_state,bigfight)
 {
-	m_layer0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_0),this),TILEMAP_SCAN_ROWS,8,8,128,256);
-	m_layer1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_0),this),TILEMAP_SCAN_ROWS,8,8,128,256);
-	m_layer2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_1),this),TILEMAP_SCAN_ROWS,8,8,128,256);
-	m_layer3 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_1),this),TILEMAP_SCAN_ROWS,8,8,128,256);
+	m_layer0 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_0),this),TILEMAP_SCAN_ROWS,8,8,128,256);
+	m_layer1 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_0),this),TILEMAP_SCAN_ROWS,8,8,128,256);
+	m_layer2 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_1),this),TILEMAP_SCAN_ROWS,8,8,128,256);
+	m_layer3 = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(tatsumi_state::get_tile_info_bigfight_1),this),TILEMAP_SCAN_ROWS,8,8,128,256);
 
 	m_shadow_pen_array = auto_alloc_array_clear(machine(), UINT8, 8192);
 }
@@ -254,7 +190,7 @@ INLINE void roundupt_drawgfxzoomrotate(tatsumi_state *state,
 	{
 		if( gfx )
 		{
-			const pen_t *pal = &gfx->machine().pens[gfx->colorbase() + gfx->granularity() * (color % gfx->colors())];
+			const pen_t *pal = &state->m_palette->pen(gfx->colorbase() + gfx->granularity() * (color % gfx->colors()));
 			const UINT8 *shadow_pens = state->m_shadow_pen_array + (gfx->granularity() * (color % gfx->colors()));
 			const UINT8 *code_base = gfx->get_data(code % gfx->elements());
 
@@ -622,13 +558,13 @@ static void draw_sprites(running_machine &machine, _BitmapClass &bitmap, const r
 				for (w = 0; w < x_width; w++) {
 					if (rotate)
 						roundupt_drawgfxzoomrotate(state,
-								state->m_temp_bitmap,cliprect,machine.gfx[0],
+								state->m_temp_bitmap,cliprect,state->m_gfxdecode->gfx(0),
 								base,
 								color,flip_x,flip_y,x_pos,render_y,
 								scale,scale,0,write_priority_only);
 					else
 						roundupt_drawgfxzoomrotate(state,
-								bitmap,cliprect,machine.gfx[0],
+								bitmap,cliprect,state->m_gfxdecode->gfx(0),
 								base,
 								color,flip_x,flip_y,x_pos,render_y,
 								scale,scale,0,write_priority_only);
@@ -684,6 +620,7 @@ static void draw_sprites(running_machine &machine, _BitmapClass &bitmap, const r
 
 static void draw_sky(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect, int palette_base, int start_offset)
 {
+	tatsumi_state *state = machine.driver_data<tatsumi_state>();
 	// all todo
 	int x,y;
 
@@ -699,7 +636,7 @@ start_offset-=48;
 			if (col<palette_base) col=palette_base;
 			if (col>palette_base+127) col=palette_base+127;
 
-			bitmap.pix32(y, x) = machine.pens[col];
+			bitmap.pix32(y, x) = state->m_palette->pen(col);
 		}
 	}
 }
@@ -831,9 +768,9 @@ offset is from last pixel of first road segment?
 			int col = linedata[0]&0xf;
 			UINT8 shadow=shadow_bitmap.pix8(y, x);
 			if (shadow)
-				bitmap.pix32(y, x) = machine.pens[768 + pal*16 + col];
+				bitmap.pix32(y, x) = state->m_palette->pen(768 + pal*16 + col);
 			else
-				bitmap.pix32(y, x) = machine.pens[256 + pal*16 + col];
+				bitmap.pix32(y, x) = state->m_palette->pen(256 + pal*16 + col);
 		}
 
 		/* If startpos is negative, clip it and adjust the sampling position accordingly */
@@ -855,9 +792,9 @@ offset is from last pixel of first road segment?
 			//  col=linedata[0x7f]&0xf;
 
 			if (shadow)
-				bitmap.pix32(y, x) = machine.pens[768 + pal*16 + col];
+				bitmap.pix32(y, x) = state->m_palette->pen(768 + pal*16 + col);
 			else
-				bitmap.pix32(y, x) = machine.pens[256 + pal*16 + col];
+				bitmap.pix32(y, x) = state->m_palette->pen(256 + pal*16 + col);
 
 			samplePos+=step;
 		}
@@ -886,9 +823,9 @@ offset is from last pixel of first road segment?
 			//  col=linedata[0x7f]&0xf;
 
 			if (shadow)
-				bitmap.pix32(y, x) = machine.pens[768 + pal*16 + col + 32];
+				bitmap.pix32(y, x) = state->m_palette->pen(768 + pal*16 + col + 32);
 			else
-				bitmap.pix32(y, x) = machine.pens[256 + pal*16 + col + 32];
+				bitmap.pix32(y, x) = state->m_palette->pen(256 + pal*16 + col + 32);
 		}
 
 		if (endPos<0) {
@@ -910,9 +847,9 @@ offset is from last pixel of first road segment?
 				col=linedata[0x7f + 0x200]&0xf;
 
 			if (shadow)
-				bitmap.pix32(y, x) = machine.pens[768 + pal*16 + col + 32];
+				bitmap.pix32(y, x) = state->m_palette->pen(768 + pal*16 + col + 32);
 			else
-				bitmap.pix32(y, x) = machine.pens[256 + pal*16 + col + 32];
+				bitmap.pix32(y, x) = state->m_palette->pen(256 + pal*16 + col + 32);
 
 			samplePos+=step;
 		}
@@ -932,22 +869,22 @@ static void update_cluts(running_machine &machine, int fake_palette_offset, int 
 	const UINT8* bank1=state->m_rom_clut0;
 	const UINT8* bank2=state->m_rom_clut1;
 	for (i=0; i<length; i+=8) {
-		palette_set_color(machine,fake_palette_offset+i+0,palette_get_color(machine,bank1[1]+object_base));
+		state->m_palette->set_pen_color(fake_palette_offset+i+0,state->m_palette->pen_color(bank1[1]+object_base));
 		state->m_shadow_pen_array[i+0]=(bank1[1]==255);
-		palette_set_color(machine,fake_palette_offset+i+1,palette_get_color(machine,bank1[0]+object_base));
+		state->m_palette->set_pen_color(fake_palette_offset+i+1,state->m_palette->pen_color(bank1[0]+object_base));
 		state->m_shadow_pen_array[i+1]=(bank1[0]==255);
-		palette_set_color(machine,fake_palette_offset+i+2,palette_get_color(machine,bank1[3]+object_base));
+		state->m_palette->set_pen_color(fake_palette_offset+i+2,state->m_palette->pen_color(bank1[3]+object_base));
 		state->m_shadow_pen_array[i+2]=(bank1[3]==255);
-		palette_set_color(machine,fake_palette_offset+i+3,palette_get_color(machine,bank1[2]+object_base));
+		state->m_palette->set_pen_color(fake_palette_offset+i+3,state->m_palette->pen_color(bank1[2]+object_base));
 		state->m_shadow_pen_array[i+3]=(bank1[2]==255);
 
-		palette_set_color(machine,fake_palette_offset+i+4,palette_get_color(machine,bank2[1]+object_base));
+		state->m_palette->set_pen_color(fake_palette_offset+i+4,state->m_palette->pen_color(bank2[1]+object_base));
 		state->m_shadow_pen_array[i+4]=(bank2[1]==255);
-		palette_set_color(machine,fake_palette_offset+i+5,palette_get_color(machine,bank2[0]+object_base));
+		state->m_palette->set_pen_color(fake_palette_offset+i+5,state->m_palette->pen_color(bank2[0]+object_base));
 		state->m_shadow_pen_array[i+5]=(bank2[0]==255);
-		palette_set_color(machine,fake_palette_offset+i+6,palette_get_color(machine,bank2[3]+object_base));
+		state->m_palette->set_pen_color(fake_palette_offset+i+6,state->m_palette->pen_color(bank2[3]+object_base));
 		state->m_shadow_pen_array[i+6]=(bank2[3]==255);
-		palette_set_color(machine,fake_palette_offset+i+7,palette_get_color(machine,bank2[2]+object_base));
+		state->m_palette->set_pen_color(fake_palette_offset+i+7,state->m_palette->pen_color(bank2[2]+object_base));
 		state->m_shadow_pen_array[i+7]=(bank2[2]==255);
 
 		bank1+=4;
@@ -963,6 +900,7 @@ static void draw_bg(running_machine &machine, bitmap_rgb32 &dst, tilemap_t *src,
 	    Each tile (0x4000 of them) has a lookup table in ROM to build an individual 3-bit palette
 	    from sets of 8 bit palettes!
 	*/
+	tatsumi_state *state = machine.driver_data<tatsumi_state>();
 	const UINT8* tile_cluts = machine.root_device().memregion("gfx4")->base();
 	const bitmap_ind16 &src_bitmap = src->pixmap();
 	int src_y_mask=ysize-1;
@@ -987,7 +925,7 @@ static void draw_bg(running_machine &machine, bitmap_rgb32 &dst, tilemap_t *src,
 			ppp=pp + ((p&0x78)<<5);
 
 			if ((p&0x7)!=0 || ((p&0x7)==0 && (pp&0x7)!=0)) // Transparent pixels are set by both the tile pixel data==0 AND colour palette==0
-				dst.pix32(y, x) = machine.pens[ppp];
+				dst.pix32(y, x) = state->m_palette->pen(ppp);
 		}
 	}
 }
@@ -1065,7 +1003,7 @@ UINT32 tatsumi_state::screen_update_apache3(screen_device &screen, bitmap_rgb32 
 
 	m_tx_layer->set_scrollx(0,24);
 
-	bitmap.fill(machine().pens[0], cliprect);
+	bitmap.fill(m_palette->pen(0), cliprect);
 	draw_sky(machine(), bitmap, cliprect, 256, m_apache3_rotate_ctrl[1]);
 //  draw_ground(machine(), bitmap, cliprect);
 	draw_sprites(machine(), bitmap,cliprect,0, (m_sprite_control_ram[0x20]&0x1000) ? 0x1000 : 0);
@@ -1083,7 +1021,7 @@ UINT32 tatsumi_state::screen_update_roundup5(screen_device &screen, bitmap_rgb32
 	m_tx_layer->set_scrollx(0,24);
 	m_tx_layer->set_scrolly(0,0); //(((m_roundupt_crt_reg[0xe]<<8)|m_roundupt_crt_reg[0xf])>>5) + 96);
 
-	bitmap.fill(machine().pens[384], cliprect); // todo
+	bitmap.fill(m_palette->pen(384), cliprect); // todo
 	screen.priority().fill(0, cliprect);
 
 	draw_sprites(machine(), screen.priority(),cliprect,1,(m_sprite_control_ram[0xe0]&0x1000) ? 0x1000 : 0); // Alpha pass only
@@ -1105,7 +1043,7 @@ UINT32 tatsumi_state::screen_update_cyclwarr(screen_device &screen, bitmap_rgb32
 		m_bigfight_last_bank=m_bigfight_bank;
 	}
 
-	bitmap.fill(machine().pens[0], cliprect);
+	bitmap.fill(m_palette->pen(0), cliprect);
 
 	draw_bg(machine(), bitmap, m_layer3, &m_cyclwarr_videoram1[0x000], &m_cyclwarr_videoram1[0x100], m_cyclwarr_videoram1, m_bigfight_a40000[0], 8, -0x80, 512, 4096);
 	draw_bg(machine(), bitmap, m_layer2, &m_cyclwarr_videoram1[0x200], &m_cyclwarr_videoram1[0x300], m_cyclwarr_videoram1, m_bigfight_a40000[0], 8, -0x80, 512, 4096);
@@ -1129,7 +1067,7 @@ UINT32 tatsumi_state::screen_update_bigfight(screen_device &screen, bitmap_rgb32
 		m_bigfight_last_bank=m_bigfight_bank;
 	}
 
-	bitmap.fill(machine().pens[0], cliprect);
+	bitmap.fill(m_palette->pen(0), cliprect);
 	draw_bg(machine(), bitmap, m_layer3, &m_cyclwarr_videoram1[0x000], &m_cyclwarr_videoram1[0x100], m_cyclwarr_videoram1, m_bigfight_a40000[0], 8, -0x40, 1024, 2048);
 	draw_bg(machine(), bitmap, m_layer2, &m_cyclwarr_videoram1[0x200], &m_cyclwarr_videoram1[0x300], m_cyclwarr_videoram1, m_bigfight_a40000[0], 8, -0x40, 1024, 2048);
 	draw_bg(machine(), bitmap, m_layer1, &m_cyclwarr_videoram0[0x000], &m_cyclwarr_videoram0[0x100], m_cyclwarr_videoram0, m_bigfight_a40000[0], 8, -0x40, 1024, 2048);

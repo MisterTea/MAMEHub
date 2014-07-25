@@ -5,6 +5,7 @@
 ***************************************************************************/
 
 #include "video/tecmo_spr.h"
+#include "video/tecmo_mix.h"
 
 class gaiden_state : public driver_device
 {
@@ -16,7 +17,13 @@ public:
 		m_videoram3(*this, "videoram3"),
 		m_spriteram(*this, "spriteram"),
 		m_audiocpu(*this, "audiocpu"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette"),
+		m_sprgen(*this, "spritegen"),
+		m_mixer(*this, "mixer")
+		{ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_videoram;
@@ -68,12 +75,11 @@ public:
 	DECLARE_WRITE16_MEMBER(gaiden_bgoffsety_w);
 	DECLARE_WRITE16_MEMBER(gaiden_sproffsety_w);
 	DECLARE_WRITE16_MEMBER(gaiden_videoram3_w);
-	DECLARE_READ16_MEMBER(gaiden_videoram3_r);
 	DECLARE_WRITE16_MEMBER(gaiden_videoram2_w);
-	DECLARE_READ16_MEMBER(gaiden_videoram2_r);
 	DECLARE_WRITE16_MEMBER(gaiden_videoram_w);
 	DECLARE_DRIVER_INIT(raiga);
 	DECLARE_DRIVER_INIT(drgnbowl);
+	DECLARE_DRIVER_INIT(drgnbowla);
 	DECLARE_DRIVER_INIT(mastninj);
 	DECLARE_DRIVER_INIT(shadoww);
 	DECLARE_DRIVER_INIT(wildfang);
@@ -85,16 +91,18 @@ public:
 	DECLARE_MACHINE_RESET(raiga);
 	DECLARE_VIDEO_START(gaiden);
 	DECLARE_VIDEO_START(drgnbowl);
-	DECLARE_VIDEO_START(mastninj);
 	DECLARE_VIDEO_START(raiga);
 	UINT32 screen_update_gaiden(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_drgnbowl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_raiga(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void drgnbowl_draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void descramble_drgnbowl_gfx();
+	void descramble_drgnbowl(int descramble_cpu);
 	void descramble_mastninj_gfx(UINT8* src);
-	void blendbitmaps(bitmap_rgb32 &dest,bitmap_ind16 &src1,bitmap_ind16 &src2,bitmap_ind16 &src3,
-		int sx,int sy,const rectangle &cliprect);
 	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+	optional_device<tecmo_spr_device> m_sprgen;
+	optional_device<tecmo_mix_device> m_mixer;
 };

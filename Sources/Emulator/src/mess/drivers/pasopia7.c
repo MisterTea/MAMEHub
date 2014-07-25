@@ -1,3 +1,5 @@
+// license:MAME
+// copyright-holders:Angelo Salese
 /**************************************************************************************************
 
     Toshiba Pasopia 7 (c) 1983 Toshiba
@@ -42,7 +44,8 @@ public:
 	m_fdc(*this, "fdc"),
 	m_floppy(*this, "fdc:0:525hd"),
 	m_sn1(*this, "sn1"),
-	m_sn2(*this, "sn2")
+	m_sn2(*this, "sn2"),
+	m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -56,6 +59,8 @@ public:
 	required_device<floppy_image_device> m_floppy;
 	required_device<sn76489a_device> m_sn1;
 	required_device<sn76489a_device> m_sn2;
+	required_device<palette_device> m_palette;
+
 	DECLARE_READ8_MEMBER(vram_r);
 	DECLARE_WRITE8_MEMBER(vram_w);
 	DECLARE_WRITE8_MEMBER(pasopia7_memory_ctrl_w);
@@ -158,7 +163,7 @@ void pasopia7_state::draw_cg4_screen(bitmap_ind16 &bitmap,const rectangle &clipr
 
 					color =  pen_g<<2 | pen_r<<1 | pen_b<<0;
 
-					bitmap.pix16(y+yi, x+xi) = machine().pens[color];
+					bitmap.pix16(y+yi, x+xi) = m_palette->pen(color);
 				}
 				count+=8;
 			}
@@ -190,7 +195,7 @@ void pasopia7_state::draw_tv_screen(bitmap_ind16 &bitmap,const rectangle &clipre
 					int pen;
 					pen = ((gfx_data[tile*8+yi]>>(7-xi)) & 1) ? color : 0;
 
-					bitmap.pix16(y*8+yi, x*8+xi) = machine().pens[pen];
+					bitmap.pix16(y*8+yi, x*8+xi) = m_palette->pen(pen);
 				}
 			}
 
@@ -204,8 +209,8 @@ void pasopia7_state::draw_tv_screen(bitmap_ind16 &bitmap,const rectangle &clipre
 				{
 					case 0x00: cursor_on = 1; break; //always on
 					case 0x20: cursor_on = 0; break; //always off
-					case 0x40: if(machine().primary_screen->frame_number() & 0x10) { cursor_on = 1; } break; //fast blink
-					case 0x60: if(machine().primary_screen->frame_number() & 0x20) { cursor_on = 1; } break; //slow blink
+					case 0x40: if(machine().first_screen()->frame_number() & 0x10) { cursor_on = 1; } break; //fast blink
+					case 0x60: if(machine().first_screen()->frame_number() & 0x20) { cursor_on = 1; } break; //slow blink
 				}
 
 				if(cursor_on)
@@ -214,7 +219,7 @@ void pasopia7_state::draw_tv_screen(bitmap_ind16 &bitmap,const rectangle &clipre
 					{
 						for(xc=0;xc<8;xc++)
 						{
-							bitmap.pix16(y*8-yc+7, x*8+xc) = machine().pens[7];
+							bitmap.pix16(y*8-yc+7, x*8+xc) = m_palette->pen(7);
 						}
 					}
 				}
@@ -255,7 +260,7 @@ void pasopia7_state::draw_mixed_screen(bitmap_ind16 &bitmap,const rectangle &cli
 
 						pen =  pen_g<<2 | pen_r<<1 | pen_b<<0;
 
-						bitmap.pix16(y*8+yi, x*8+xi) = machine().pens[pen];
+						bitmap.pix16(y*8+yi, x*8+xi) = m_palette->pen(pen);
 					}
 				}
 				else
@@ -267,7 +272,7 @@ void pasopia7_state::draw_mixed_screen(bitmap_ind16 &bitmap,const rectangle &cli
 						int pen;
 						pen = ((gfx_data[tile*8+yi]>>(7-xi)) & 1) ? color : 0;
 
-						bitmap.pix16(y*8+yi, x*8+xi) = machine().pens[pen];
+						bitmap.pix16(y*8+yi, x*8+xi) = m_palette->pen(pen);
 					}
 				}
 			}
@@ -282,8 +287,8 @@ void pasopia7_state::draw_mixed_screen(bitmap_ind16 &bitmap,const rectangle &cli
 				{
 					case 0x00: cursor_on = 1; break; //always on
 					case 0x20: cursor_on = 0; break; //always off
-					case 0x40: if(machine().primary_screen->frame_number() & 0x10) { cursor_on = 1; } break; //fast blink
-					case 0x60: if(machine().primary_screen->frame_number() & 0x20) { cursor_on = 1; } break; //slow blink
+					case 0x40: if(machine().first_screen()->frame_number() & 0x10) { cursor_on = 1; } break; //fast blink
+					case 0x60: if(machine().first_screen()->frame_number() & 0x20) { cursor_on = 1; } break; //slow blink
 				}
 
 				if(cursor_on)
@@ -292,7 +297,7 @@ void pasopia7_state::draw_mixed_screen(bitmap_ind16 &bitmap,const rectangle &cli
 					{
 						for(xc=0;xc<8;xc++)
 						{
-							bitmap.pix16(y*8-yc+7, x*8+xc) = machine().pens[7];
+							bitmap.pix16(y*8-yc+7, x*8+xc) = m_palette->pen(7);
 						}
 					}
 				}
@@ -307,7 +312,7 @@ UINT32 pasopia7_state::screen_update_pasopia7(screen_device &screen, bitmap_ind1
 {
 	int width;
 
-	bitmap.fill(machine().pens[0], cliprect);
+	bitmap.fill(m_palette->pen(0), cliprect);
 
 	width = m_x_width ? 80 : 40;
 
@@ -724,29 +729,6 @@ static GFXDECODE_START( pasopia7 )
 	GFXDECODE_ENTRY( "kanji",  0x00000, p7_chars_16x16,  0, 0x10 )
 GFXDECODE_END
 
-static MC6845_INTERFACE( mc6845_intf )
-{
-	false,      /* show border area */
-	8,          /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	NULL,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
-};
-
-static Z80CTC_INTERFACE( z80ctc_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),       // interrupt handler
-	DEVCB_DEVICE_LINE_MEMBER("z80ctc", z80ctc_device, trg1),        // ZC/TO0 callback
-	DEVCB_DEVICE_LINE_MEMBER("z80ctc", z80ctc_device, trg2),        // ZC/TO1 callback, beep interface
-	DEVCB_DEVICE_LINE_MEMBER("z80ctc", z80ctc_device, trg3)     // ZC/TO2 callback
-};
-
-
 READ8_MEMBER( pasopia7_state::mux_r )
 {
 	return m_mux_data;
@@ -781,17 +763,6 @@ WRITE8_MEMBER( pasopia7_state::mux_w )
 	m_mux_data = data;
 }
 
-static Z80PIO_INTERFACE( z80pio_intf )
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0), //doesn't work?
-	DEVCB_DRIVER_MEMBER(pasopia7_state, mux_r),
-	DEVCB_DRIVER_MEMBER(pasopia7_state, mux_w),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(pasopia7_state, keyb_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 static const z80_daisy_config p7_daisy[] =
 {
 	{ "z80ctc" },
@@ -805,7 +776,7 @@ READ8_MEMBER( pasopia7_state::crtc_portb_r )
 	// --x- ---- vsync bit
 	// ---x ---- hardcoded bit, defines if the system screen is raster (1) or LCD (0)
 	// ---- x--- disp bit
-	UINT8 vdisp = (machine().primary_screen->vpos() < (m_screen_type ? 200 : 28)) ? 0x08 : 0x00; //TODO: check LCD vpos trigger
+	UINT8 vdisp = (machine().first_screen()->vpos() < (m_screen_type ? 200 : 28)) ? 0x08 : 0x00; //TODO: check LCD vpos trigger
 	UINT8 vsync = vdisp ? 0x00 : 0x20;
 
 	return 0x40 | (m_attr_latch & 0x87) | vsync | vdisp | (m_screen_type << 4);
@@ -906,36 +877,6 @@ READ8_MEMBER( pasopia7_state::nmi_portb_r )
 	return 0xf9 | m_nmi_trap | m_nmi_reset;
 }
 
-static I8255_INTERFACE( ppi8255_intf_0 )
-{
-	DEVCB_DRIVER_MEMBER(pasopia7_state, unk_r),         /* Port A read */
-	DEVCB_DRIVER_MEMBER(pasopia7_state, screen_mode_w), /* Port A write */
-	DEVCB_DRIVER_MEMBER(pasopia7_state, crtc_portb_r),  /* Port B read */
-	DEVCB_NULL,                     /* Port B write */
-	DEVCB_NULL,                     /* Port C read */
-	DEVCB_NULL                      /* Port C write */
-};
-
-static I8255_INTERFACE( ppi8255_intf_1 )
-{
-	DEVCB_NULL,                     /* Port A read */
-	DEVCB_DRIVER_MEMBER(pasopia7_state, plane_reg_w),       /* Port A write */
-	DEVCB_NULL,                     /* Port B read */
-	DEVCB_DRIVER_MEMBER(pasopia7_state, video_attr_w),  /* Port B write */
-	DEVCB_NULL,                     /* Port C read */
-	DEVCB_DRIVER_MEMBER(pasopia7_state, video_misc_w)       /* Port C write */
-};
-
-static I8255_INTERFACE( ppi8255_intf_2 )
-{
-	DEVCB_DRIVER_MEMBER(pasopia7_state, nmi_porta_r),       /* Port A read */
-	DEVCB_DRIVER_MEMBER(pasopia7_state, nmi_mask_w),        /* Port A write */
-	DEVCB_DRIVER_MEMBER(pasopia7_state, nmi_portb_r),       /* Port B read */
-	DEVCB_NULL,                     /* Port B write */
-	DEVCB_DRIVER_MEMBER(pasopia7_state, nmi_reg_r),     /* Port C read */
-	DEVCB_DRIVER_MEMBER(pasopia7_state, nmi_reg_w)      /* Port C write */
-};
-
 void pasopia7_state::machine_reset()
 {
 	UINT8 *bios = memregion("maincpu")->base();
@@ -953,7 +894,7 @@ PALETTE_INIT_MEMBER(pasopia7_state,p7_raster)
 	int i;
 
 	for( i = 0; i < 8; i++)
-		palette_set_color_rgb(machine(), i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
+		palette.set_pen_color(i, pal1bit(i >> 1), pal1bit(i >> 2), pal1bit(i >> 0));
 }
 
 /* TODO: palette values are mostly likely to be wrong in there */
@@ -961,10 +902,10 @@ PALETTE_INIT_MEMBER(pasopia7_state,p7_lcd)
 {
 	int i;
 
-	palette_set_color_rgb(machine(), 0, 0xa0, 0xa8, 0xa0);
+	palette.set_pen_color(0, 0xa0, 0xa8, 0xa0);
 
 	for( i = 1; i < 8; i++)
-		palette_set_color_rgb(machine(), i, 0x30, 0x38, 0x10);
+		palette.set_pen_color(i, 0x30, 0x38, 0x10);
 }
 
 void pasopia7_state::fdc_irq(bool state)
@@ -976,22 +917,6 @@ static SLOT_INTERFACE_START( pasopia7_floppies )
 	SLOT_INTERFACE( "525hd", FLOPPY_525_HD )
 SLOT_INTERFACE_END
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( p7_base, pasopia7_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",Z80, XTAL_4MHz)
@@ -1002,19 +927,43 @@ static MACHINE_CONFIG_START( p7_base, pasopia7_state )
 
 	/* Audio */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
+
 	MCFG_SOUND_ADD("sn1", SN76489A, 1996800) // unknown clock / divider
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
+
 	MCFG_SOUND_ADD("sn2", SN76489A, 1996800) // unknown clock / divider
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	/* Devices */
-	MCFG_Z80CTC_ADD( "z80ctc", XTAL_4MHz, z80ctc_intf )
-	MCFG_Z80PIO_ADD( "z80pio", XTAL_4MHz, z80pio_intf )
-	MCFG_I8255_ADD( "ppi8255_0", ppi8255_intf_0 )
-	MCFG_I8255_ADD( "ppi8255_1", ppi8255_intf_1 )
-	MCFG_I8255_ADD( "ppi8255_2", ppi8255_intf_2 )
+	MCFG_DEVICE_ADD("z80ctc", Z80CTC, XTAL_4MHz)
+	MCFG_Z80CTC_INTR_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80CTC_ZC0_CB(DEVWRITELINE("z80ctc", z80ctc_device, trg1))
+	MCFG_Z80CTC_ZC1_CB(DEVWRITELINE("z80ctc", z80ctc_device, trg2)) // beep interface
+	MCFG_Z80CTC_ZC2_CB(DEVWRITELINE("z80ctc", z80ctc_device, trg3))
+
+	MCFG_DEVICE_ADD("z80pio", Z80PIO, XTAL_4MHz)
+	MCFG_Z80PIO_OUT_INT_CB(INPUTLINE("maincpu", INPUT_LINE_IRQ0))
+	MCFG_Z80PIO_IN_PA_CB(READ8(pasopia7_state, mux_r))
+	MCFG_Z80PIO_OUT_PA_CB(WRITE8(pasopia7_state, mux_w))
+	MCFG_Z80PIO_IN_PB_CB(READ8(pasopia7_state, keyb_r))
+
+	MCFG_DEVICE_ADD("ppi8255_0", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(pasopia7_state, unk_r))
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(pasopia7_state, screen_mode_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(pasopia7_state, crtc_portb_r))
+
+	MCFG_DEVICE_ADD("ppi8255_1", I8255, 0)
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(pasopia7_state, plane_reg_w))
+	MCFG_I8255_OUT_PORTB_CB(WRITE8(pasopia7_state, video_attr_w))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(pasopia7_state, video_misc_w))
+
+	MCFG_DEVICE_ADD("ppi8255_2", I8255, 0)
+	MCFG_I8255_IN_PORTA_CB(READ8(pasopia7_state, nmi_porta_r))
+	MCFG_I8255_OUT_PORTA_CB(WRITE8(pasopia7_state, nmi_mask_w))
+	MCFG_I8255_IN_PORTB_CB(READ8(pasopia7_state, nmi_portb_r))
+	MCFG_I8255_IN_PORTC_CB(READ8(pasopia7_state, nmi_reg_r))
+	MCFG_I8255_OUT_PORTC_CB(WRITE8(pasopia7_state, nmi_reg_w))
+
 	MCFG_UPD765A_ADD("fdc", true, true)
 	MCFG_FLOPPY_DRIVE_ADD("fdc:0", pasopia7_floppies, "525hd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("fdc:1", pasopia7_floppies, "525hd", floppy_image_device::default_floppy_formats)
@@ -1026,13 +975,17 @@ static MACHINE_CONFIG_DERIVED( p7_raster, p7_base )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 32-1)
+	MCFG_SCREEN_PALETTE("palette")
+
 	MCFG_VIDEO_START_OVERRIDE(pasopia7_state,pasopia7)
 	MCFG_SCREEN_UPDATE_DRIVER(pasopia7_state, screen_update_pasopia7)
-	MCFG_PALETTE_LENGTH(8)
-	MCFG_PALETTE_INIT_OVERRIDE(pasopia7_state,p7_raster)
-	MCFG_GFXDECODE( pasopia7 )
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(pasopia7_state,p7_raster)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pasopia7 )
 
-	MCFG_MC6845_ADD("crtc", H46505, "screen", VDP_CLOCK, mc6845_intf) /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_ADD("crtc", H46505, "screen", VDP_CLOCK) /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
 MACHINE_CONFIG_END
 
 
@@ -1044,11 +997,16 @@ static MACHINE_CONFIG_DERIVED( p7_lcd, p7_base )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 200-1)
 	MCFG_VIDEO_START_OVERRIDE(pasopia7_state,pasopia7)
 	MCFG_SCREEN_UPDATE_DRIVER(pasopia7_state, screen_update_pasopia7)
-	MCFG_PALETTE_LENGTH(8)
-	MCFG_PALETTE_INIT_OVERRIDE(pasopia7_state,p7_lcd)
-	MCFG_GFXDECODE( pasopia7 )
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_MC6845_ADD("crtc", H46505, "screen", LCD_CLOCK, mc6845_intf) /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_PALETTE_ADD("palette", 8)
+	MCFG_PALETTE_INIT_OWNER(pasopia7_state,p7_lcd)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", pasopia7 )
+
+	MCFG_MC6845_ADD("crtc", H46505, "screen", LCD_CLOCK) /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_SHOW_BORDER_AREA(false)
+	MCFG_MC6845_CHAR_WIDTH(8)
+
 	MCFG_DEFAULT_LAYOUT( layout_lcd )
 MACHINE_CONFIG_END
 

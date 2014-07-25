@@ -25,7 +25,9 @@ public:
 		m_soundfifo1(*this, "soundfifo1"),
 		m_soundfifo2(*this, "soundfifo2"),
 		m_oki1(*this, "oki1"),
-		m_oki2(*this, "oki2")
+		m_oki2(*this, "oki2"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -40,6 +42,8 @@ public:
 	optional_device<fifo7200_device> m_soundfifo2;
 	optional_device<okim6295_device> m_oki1;
 	optional_device<okim6295_device> m_oki2;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	int m_z80_prg_transfer_pos;
 	int m_z80_lastbank;

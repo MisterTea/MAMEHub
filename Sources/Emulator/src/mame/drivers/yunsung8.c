@@ -452,13 +452,6 @@ WRITE_LINE_MEMBER(yunsung8_state::yunsung8_adpcm_int)
 		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
-static const msm5205_interface yunsung8_msm5205_interface =
-{
-	DEVCB_DRIVER_LINE_MEMBER(yunsung8_state,yunsung8_adpcm_int), /* interrupt function */
-	MSM5205_S96_4B      /* 4KHz, 4 Bits */
-};
-
-
 void yunsung8_state::machine_start()
 {
 	UINT8 *MAIN = memregion("maincpu")->base();
@@ -504,14 +497,12 @@ static MACHINE_CONFIG_START( yunsung8, yunsung8_state )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(512, 256)
-	MCFG_SCREEN_VISIBLE_AREA(0+64, 512-64-1, 0+8, 256-8-1)
+	MCFG_SCREEN_RAW_PARAMS(XTAL_16MHz/2, 512, 64, 512-64, 262, 8, 256-8) /* TODO: completely inaccurate */
 	MCFG_SCREEN_UPDATE_DRIVER(yunsung8_state, screen_update_yunsung8)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(yunsung8)
-	MCFG_PALETTE_LENGTH(2048)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", yunsung8)
+	MCFG_PALETTE_ADD("palette", 2048)
 
 
 	/* sound hardware */
@@ -522,7 +513,8 @@ static MACHINE_CONFIG_START( yunsung8, yunsung8_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
 	MCFG_SOUND_ADD("msm", MSM5205, XTAL_400kHz) /* verified on pcb */
-	MCFG_SOUND_CONFIG(yunsung8_msm5205_interface)
+	MCFG_MSM5205_VCLK_CB(WRITELINE(yunsung8_state, yunsung8_adpcm_int)) /* interrupt function */
+	MCFG_MSM5205_PRESCALER_SELECTOR(MSM5205_S96_4B)      /* 4KHz, 4 Bits */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.80)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.80)
 MACHINE_CONFIG_END
@@ -543,8 +535,8 @@ MACHINE_CONFIG_END
 Yun Sung, 1995
 
 +-------------------------------------+
-|VOL YM3104      6116               04|
-|     M5202 400KHz                  03|
+|VOL YM3014      6116               04|
+|     M5205 400KHz                  03|
 |     Z80A      CXK5118PN-15L       02|
 |      08       GM76C28-10          01|
 |    MCM2018AN45                      |
@@ -562,7 +554,7 @@ Yun Sung, 1995
 
  Main CPU: Z80B
 Sound CPU: Z80A
-    Sound: Yamaha YM3812 + Oki M5202 + YM3014 DAC
+    Sound: Yamaha YM3812 + Oki M5205 + YM3014 DAC
     Video: QuickLogic FPGA - unknown type / model
       OSC: 16MHz + 400Khz resontator
    Memory: 2 x MCM2018AN45, 2 x HM6264, CXK5118PN-15L, GM76C28-10 & 6116
@@ -630,8 +622,8 @@ Yun Sung, 1995
 
 Cannon Ball (vertical)
 +-------------------------------------+
-|VOL YM3104      6116         YunSung7|
-|     M5202 400KHz            YunSung6|
+|VOL YM3014      6116         YunSung7|
+|     M5205 400KHz            YunSung6|
 |     Z80A      CXK5118PN-15L YunSung5|
 |    YunSung8   GM76C28-10    YunSung4|
 |    MCM2018AN45                      |
@@ -649,7 +641,7 @@ Cannon Ball (vertical)
 
  Main CPU: Z80B
 Sound CPU: Z80A
-    Sound: Yamaha YM3812 + Oki M5202 + YM3014 DAC
+    Sound: Yamaha YM3812 + Oki M5205 + YM3014 DAC
     Video: Cypress CY7C384A - Very high speed 6K gate CMOS FPGA
       OSC: 16MHz + 400Khz resontator
    Memory: 2 x MCM2018AN45, 2 x HM6264, CXK5118PN-15L, GM76C28-10 & 6116
@@ -758,5 +750,5 @@ ROM_END
 GAME( 1995,  cannball,  0,        yunsung8, cannball, driver_device, 0, ROT0,   "Yun Sung / Soft Vision", "Cannon Ball (Yun Sung, horizontal)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1995,  cannballv, cannball, yunsung8, cannbalv, driver_device, 0, ROT270, "Yun Sung / T&K",         "Cannon Ball (Yun Sung, vertical)",   GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1995,  magix,     0,        yunsung8, magix,    driver_device, 0, ROT0,   "Yun Sung",               "Magix / Rock",                       GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1995,  magixb,    magix,    yunsung8, magix,    driver_device, 0, ROT0,   "bootleg",                "Magix / Rock (bootleg)",             GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1995,  magixb,    magix,    yunsung8, magix,    driver_device, 0, ROT0,   "Yun Sung",               "Magix / Rock (no copyright message)",GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE ) // was marked as bootleg, but has been seen on original PCBs
 GAME( 1994?, rocktris,  0,        yunsung8, rocktris, driver_device, 0, ROT0,   "Yun Sung",               "Rock Tris",                          GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )

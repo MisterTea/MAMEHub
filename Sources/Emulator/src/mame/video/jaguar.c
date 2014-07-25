@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Atari Jaguar hardware
@@ -274,18 +276,16 @@ void jaguar_state::update_cpu_irq()
 }
 
 
-void jaguar_state::gpu_cpu_int(device_t *device)
+WRITE_LINE_MEMBER( jaguar_state::gpu_cpu_int )
 {
-	jaguar_state &state = *device->machine().driver_data<jaguar_state>();
-	state.m_cpu_irq_state |= 2;
-	state.update_cpu_irq();
+	m_cpu_irq_state |= 2;
+	update_cpu_irq();
 }
 
-void jaguar_state::dsp_cpu_int(device_t *device)
+WRITE_LINE_MEMBER( jaguar_state::dsp_cpu_int )
 {
-	jaguar_state &state = *device->machine().driver_data<jaguar_state>();
-	state.m_cpu_irq_state |= 16;
-	state.update_cpu_irq();
+	m_cpu_irq_state |= 16;
+	update_cpu_irq();
 }
 
 
@@ -372,7 +372,7 @@ void jaguar_state::set_palette(UINT16 vmode)
 				UINT8 r = (red_lookup[i >> 8] * (i & 0xff)) >> 8;
 				UINT8 g = (grn_lookup[i >> 8] * (i & 0xff)) >> 8;
 				UINT8 b = (blu_lookup[i >> 8] * (i & 0xff)) >> 8;
-				m_pen_table[i] = MAKE_RGB(r, g, b);
+				m_pen_table[i] = rgb_t(r, g, b);
 			}
 			break;
 
@@ -394,7 +394,7 @@ void jaguar_state::set_palette(UINT16 vmode)
 					g = (g << 3) | (g >> 2);
 					b = (b << 3) | (b >> 2);
 				}
-				m_pen_table[i] = MAKE_RGB(r, g, b);
+				m_pen_table[i] = rgb_t(r, g, b);
 			}
 			break;
 
@@ -403,16 +403,16 @@ void jaguar_state::set_palette(UINT16 vmode)
 			for (i = 0; i < 65536; i++)
 			{
 				if (i & 1) // FIXME: controls RGB 5-5-5 / 5-6-5 format or it's just ignored? Used by UBI Soft logo in Rayman
-					m_pen_table[i] = MAKE_RGB(pal5bit(i >> 11), pal5bit(i >> 1), pal5bit(i >> 6));
+					m_pen_table[i] = rgb_t(pal5bit(i >> 11), pal5bit(i >> 1), pal5bit(i >> 6));
 				else
-					m_pen_table[i] = MAKE_RGB(pal5bit(i >> 11), pal6bit(i >> 0), pal5bit(i >> 6));
+					m_pen_table[i] = rgb_t(pal5bit(i >> 11), pal6bit(i >> 0), pal5bit(i >> 6));
 			}
 			break;
 
 		/* RGB full */
 		case 0x006:
 			for (i = 0; i < 65536; i++)
-				m_pen_table[i] = MAKE_RGB(pal5bit(i >> 11), pal6bit(i >> 0), pal5bit(i >> 6));
+				m_pen_table[i] = rgb_t(pal5bit(i >> 11), pal6bit(i >> 0), pal5bit(i >> 6));
 			break;
 
 		/* others */
@@ -513,12 +513,12 @@ blitter_stats[i][3]++;
 blitter_pixels[i] += (m_blitter_regs[B_COUNT] & 0xffff) * (m_blitter_regs[B_COUNT] >> 16);
 if (++reps % 100 == 99)
 {
-	mame_printf_debug("---\nBlitter stats:\n");
+	osd_printf_debug("---\nBlitter stats:\n");
 	for (i = 0; i < blitter_count; i++)
-		mame_printf_debug("  CMD=%08X A1=%08X A2=%08X %6d times, %08X%08X pixels\n",
+		osd_printf_debug("  CMD=%08X A1=%08X A2=%08X %6d times, %08X%08X pixels\n",
 				blitter_stats[i][0], blitter_stats[i][1], blitter_stats[i][2],
 				blitter_stats[i][3], (UINT32)(blitter_pixels[i] >> 32), (UINT32)(blitter_pixels[i]));
-	mame_printf_debug("---\n");
+	osd_printf_debug("---\n");
 }
 }
 
@@ -760,7 +760,7 @@ void jaguar_state::scanline_update(int param)
 		/* if we are first on this scanline, clear to the border color */
 		if (ENABLE_BORDERS && vc % 2 == 0)
 		{
-			rgb_t border = MAKE_RGB(m_gpu_regs[BORD1] & 0xff, m_gpu_regs[BORD1] >> 8, m_gpu_regs[BORD2] & 0xff);
+			rgb_t border = rgb_t(m_gpu_regs[BORD1] & 0xff, m_gpu_regs[BORD1] >> 8, m_gpu_regs[BORD2] & 0xff);
 			for (x = visarea.min_x; x <= visarea.max_x; x++)
 				dest[x] = border;
 		}
@@ -777,7 +777,7 @@ void jaguar_state::scanline_update(int param)
 					UINT8 r = m_pen_table[(scanline[x]&0xff)|256];
 					UINT8 g = m_pen_table[(scanline[x]>>8)|512];
 					UINT8 b = m_pen_table[scanline[x+1]&0xff];
-					dest[hdb++] = MAKE_RGB(r, g, b);
+					dest[hdb++] = rgb_t(r, g, b);
 				}
 		}
 		else

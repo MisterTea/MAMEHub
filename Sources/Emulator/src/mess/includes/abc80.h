@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 /*****************************************************************************
  *
  * includes/abc80.h
@@ -7,19 +9,16 @@
 #ifndef __ABC80__
 #define __ABC80__
 
-
-#include "emu.h"
+#include "bus/abcbus/abcbus.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/z80/z80.h"
 #include "cpu/z80/z80daisy.h"
 #include "imagedev/flopdrv.h"
 #include "imagedev/printer.h"
 #include "imagedev/cassette.h"
-#include "machine/abcbus.h"
 #include "machine/abc80kb.h"
-#include "machine/abc830.h"
 #include "machine/keyboard.h"
 #include "machine/ram.h"
-#include "machine/serial.h"
 #include "machine/z80pio.h"
 #include "sound/sn76477.h"
 
@@ -72,6 +71,7 @@ public:
 			m_kb(*this, ABC80_KEYBOARD_TAG),
 			m_ram(*this, RAM_TAG),
 			m_rs232(*this, RS232_TAG),
+			m_palette(*this, "palette"),
 			m_rom(*this, Z80_TAG),
 			m_mmu_rom(*this, "mmu"),
 			m_char_rom(*this, "chargen"),
@@ -92,6 +92,7 @@ public:
 	required_device<abc80_keyboard_device> m_kb;
 	required_device<ram_device> m_ram;
 	required_device<rs232_port_device> m_rs232;
+	required_device<palette_device> m_palette;
 	required_memory_region m_rom;
 	required_memory_region m_mmu_rom;
 	required_memory_region m_char_rom;

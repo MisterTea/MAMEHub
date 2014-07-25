@@ -31,7 +31,7 @@ ES-9104 PCB:
 |  VR1     ES8712    BAT1             |
 +-------------------------------------+
 
-       Z80A: Two Z80A CPUs frequency unknown (3MHz? 12MHz/4) (CPU2 used mainly for sound effects)
+       Z80A: Two Z80A CPUs frequency unknown (4MHz? 12MHz/3) (CPU2 used mainly for sound effects)
      YM2203: Two Yamaha YM2203+YM3014B sound chip combos. Frequency unknown (music + sound effects + video scrolling access)
       M5202: OKI M5202 ADPCM Speech Synthesis IC @ 384kHz
      ES8712: Excellent System ES-8712 Streaming single channel ADPCM, frequency unknown (samples)
@@ -218,6 +218,12 @@ TODO :
     - Hook up the OKI M5202
 */
 
+#define MAIN_CLOCK        XTAL_12MHz
+#define CPU_CLOCK         MAIN_CLOCK / 4
+#define YM2203_CLOCK      MAIN_CLOCK / 4
+#define ES8712_CLOCK      8000              // 8Khz, it's the only clock for sure (pin13) it come from pin14 of M5205.
+
+
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "sound/es8712.h"
@@ -230,22 +236,31 @@ class witch_state : public driver_device
 public:
 	witch_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub"),
+		m_gfxdecode(*this, "gfxdecode"),
 		m_gfx0_vram(*this, "gfx0_vram"),
 		m_gfx0_cram(*this, "gfx0_cram"),
 		m_gfx1_vram(*this, "gfx1_vram"),
 		m_gfx1_cram(*this, "gfx1_cram"),
 		m_sprite_ram(*this, "sprite_ram"),
-		m_maincpu(*this, "maincpu"),
-		m_subcpu(*this, "sub") { }
+		m_palette(*this, "palette")  { }
 
 	tilemap_t *m_gfx0a_tilemap;
 	tilemap_t *m_gfx0b_tilemap;
 	tilemap_t *m_gfx1_tilemap;
+
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+
 	required_shared_ptr<UINT8> m_gfx0_vram;
 	required_shared_ptr<UINT8> m_gfx0_cram;
 	required_shared_ptr<UINT8> m_gfx1_vram;
 	required_shared_ptr<UINT8> m_gfx1_cram;
 	required_shared_ptr<UINT8> m_sprite_ram;
+	required_device<palette_device> m_palette;
+
 	int m_scrollx;
 	int m_scrolly;
 	UINT8 m_reg_a002;
@@ -270,11 +285,7 @@ public:
 	TILE_GET_INFO_MEMBER(get_gfx1_tile_info);
 	virtual void video_start();
 	UINT32 screen_update_witch(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	INTERRUPT_GEN_MEMBER(witch_main_interrupt);
-	INTERRUPT_GEN_MEMBER(witch_sub_interrupt);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
-	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_subcpu;
 };
 
 
@@ -293,9 +304,8 @@ TILE_GET_INFO_MEMBER(witch_state::get_gfx0b_tile_info)
 		code=0;
 	}
 
-	SET_TILE_INFO_MEMBER(
-			1,
-			code,//tiles beyond 0x7ff only for sprites?
+	SET_TILE_INFO_MEMBER(1,
+			code,   //tiles beyond 0x7ff only for sprites?
 			color & 0x0f,
 			0);
 }
@@ -312,8 +322,7 @@ TILE_GET_INFO_MEMBER(witch_state::get_gfx0a_tile_info)
 		code=0;
 	}
 
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code,//tiles beyond 0x7ff only for sprites?
 			color & 0x0f,
 			0);
@@ -324,8 +333,7 @@ TILE_GET_INFO_MEMBER(witch_state::get_gfx1_tile_info)
 	int code  = m_gfx1_vram[tile_index];
 	int color = m_gfx1_cram[tile_index];
 
-	SET_TILE_INFO_MEMBER(
-			0,
+	SET_TILE_INFO_MEMBER(0,
 			code | ((color & 0xf0) << 4),
 			(color>>0) & 0x0f,
 			0);
@@ -479,26 +487,6 @@ WRITE8_MEMBER(witch_state::yscroll_w)
 	m_scrolly=data;
 }
 
-static const ay8910_interface ay8910_config_1 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("YM_PortA"),
-	DEVCB_INPUT_PORT("YM_PortB"),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-static const ay8910_interface ay8910_config_2 =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(witch_state,xscroll_w),
-	DEVCB_DRIVER_MEMBER(witch_state,yscroll_w)
-};
-
 static ADDRESS_MAP_START( map_main, AS_PROGRAM, 8, witch_state )
 	AM_RANGE(0x0000, UNBANKED_SIZE-1) AM_ROM
 	AM_RANGE(UNBANKED_SIZE, 0x7fff) AM_ROMBANK("bank1")
@@ -510,8 +498,8 @@ static ADDRESS_MAP_START( map_main, AS_PROGRAM, 8, witch_state )
 	AM_RANGE(0xc800, 0xcbff) AM_READWRITE(gfx1_vram_r, gfx1_vram_w) AM_SHARE("gfx1_vram")
 	AM_RANGE(0xcc00, 0xcfff) AM_READWRITE(gfx1_cram_r, gfx1_cram_w) AM_SHARE("gfx1_cram")
 	AM_RANGE(0xd000, 0xdfff) AM_RAM AM_SHARE("sprite_ram")
-	AM_RANGE(0xe000, 0xe7ff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_lo_w) AM_SHARE("paletteram")
-	AM_RANGE(0xe800, 0xefff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_split_hi_w) AM_SHARE("paletteram2")
+	AM_RANGE(0xe000, 0xe7ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
+	AM_RANGE(0xe800, 0xefff) AM_RAM_DEVWRITE("palette", palette_device, write_ext) AM_SHARE("palette_ext")
 	AM_RANGE(0xf000, 0xf0ff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0xf100, 0xf17f) AM_RAM AM_SHARE("nvram")
 	AM_RANGE(0xf180, 0xffff) AM_RAM AM_SHARE("share2")
@@ -721,7 +709,7 @@ F180 kkkbbppp ; Read onPORT 0xA005
 	PORT_DIPSETTING(    0x00, DEF_STR(High) )
 	PORT_DIPUNUSED_DIPLOC( 0x10, 0x10, "SW5:5" )
 	PORT_DIPUNUSED_DIPLOC( 0x20, 0x20, "SW5:6" )
-	PORT_DIPNAME( 0x40, 0x40, "Unknown Use" )   PORT_DIPLOCATION("SW5:7") /* As defined in the Excellent System version manual */
+	PORT_DIPNAME( 0x40, 0x00, "Unknown Use" )   PORT_DIPLOCATION("SW5:7") /* As defined in the Excellent System version manual */
 	PORT_DIPSETTING(    0x40, "Matrix" )
 	PORT_DIPSETTING(    0x00, "Straight (Normal)" )
 	PORT_DIPUNUSED_DIPLOC( 0x80, 0x80, "SW5:8" )
@@ -745,9 +733,9 @@ GFXDECODE_END
 
 void witch_state::video_start()
 {
-	m_gfx0a_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(witch_state::get_gfx0a_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
-	m_gfx0b_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(witch_state::get_gfx0b_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
-	m_gfx1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(witch_state::get_gfx1_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_gfx0a_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(witch_state::get_gfx0a_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_gfx0b_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(witch_state::get_gfx0b_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
+	m_gfx1_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(witch_state::get_gfx1_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32);
 
 	m_gfx0a_tilemap->set_transparent_pen(0);
 	m_gfx0b_tilemap->set_transparent_pen(0);
@@ -776,22 +764,22 @@ void witch_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 			color  =  flags & 0x0f;
 
 
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				tileno, color,
 				flipx, flipy,
 				sx+8*flipx,sy+8*flipy,0);
 
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				tileno+1, color,
 				flipx, flipy,
 				sx+8-8*flipx,sy+8*flipy,0);
 
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				tileno+2, color,
 				flipx, flipy,
 				sx+8*flipx,sy+8-8*flipy,0);
 
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 				tileno+3, color,
 				flipx, flipy,
 				sx+8-8*flipx,sy+8-8*flipy,0);
@@ -815,26 +803,18 @@ UINT32 witch_state::screen_update_witch(screen_device &screen, bitmap_ind16 &bit
 	return 0;
 }
 
-INTERRUPT_GEN_MEMBER(witch_state::witch_main_interrupt)
-{
-	device.execute().set_input_line(0,ASSERT_LINE);
-}
-
-INTERRUPT_GEN_MEMBER(witch_state::witch_sub_interrupt)
-{
-	device.execute().set_input_line(0,ASSERT_LINE);
-}
-
 static MACHINE_CONFIG_START( witch, witch_state )
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", Z80, XTAL_12MHz / 4)    /* 3MHz?? */
+	MCFG_CPU_ADD("maincpu", Z80, CPU_CLOCK)    /* 3 MHz */
 	MCFG_CPU_PROGRAM_MAP(map_main)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", witch_state,  witch_main_interrupt)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", witch_state,  irq0_line_assert)
 
 	/* 2nd z80 */
-	MCFG_CPU_ADD("sub", Z80, XTAL_12MHz / 4)    /* 3MHz?? */
+	MCFG_CPU_ADD("sub", Z80, CPU_CLOCK)    /* 3 MHz */
 	MCFG_CPU_PROGRAM_MAP(map_sub)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", witch_state,  witch_sub_interrupt)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", witch_state,  irq0_line_assert)
+
+	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
@@ -845,23 +825,26 @@ static MACHINE_CONFIG_START( witch, witch_state )
 	MCFG_SCREEN_SIZE(256, 256)
 	MCFG_SCREEN_VISIBLE_AREA(8, 256-1-8, 8*4, 256-8*4-1)
 	MCFG_SCREEN_UPDATE_DRIVER(witch_state, screen_update_witch)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(witch)
-	MCFG_PALETTE_LENGTH(0x800)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", witch)
+	MCFG_PALETTE_ADD("palette", 0x800)
+	MCFG_PALETTE_FORMAT(xBBBBBGGGGGRRRRR)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_ES8712_ADD("essnd", 8000) /* ?? */
+	MCFG_ES8712_ADD("essnd", ES8712_CLOCK)          /* 8Khz, it's the only clock for sure (pin13) it comes from pin14 of M5205 */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
-	MCFG_SOUND_ADD("ym1", YM2203, XTAL_12MHz / 8)   /* 1.5MHz?? */
-	MCFG_YM2203_AY8910_INTF(&ay8910_config_1)
+	MCFG_SOUND_ADD("ym1", YM2203, YM2203_CLOCK)     /* 3 MHz */
+	MCFG_AY8910_PORT_A_READ_CB(IOPORT("YM_PortA"))
+	MCFG_AY8910_PORT_B_READ_CB(IOPORT("YM_PortB"))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
-	MCFG_SOUND_ADD("ym2", YM2203, XTAL_12MHz / 8)   /* 1.5MHz?? */
-	MCFG_YM2203_AY8910_INTF(&ay8910_config_2)
+	MCFG_SOUND_ADD("ym2", YM2203, YM2203_CLOCK)     /* 3 MHz */
+	MCFG_AY8910_PORT_A_WRITE_CB(WRITE8(witch_state, xscroll_w))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(witch_state, yscroll_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
 MACHINE_CONFIG_END
@@ -869,6 +852,29 @@ MACHINE_CONFIG_END
 ROM_START( witch )
 	ROM_REGION( 0x30000, "maincpu", 0 )
 	ROM_LOAD( "u_5b.u5", 0x10000, 0x20000, CRC(5c9f685a) SHA1(b75950048009ffb8c3b356592b1c69f905a1a2bd) )
+	ROM_COPY( "maincpu" , 0x10000, 0x0000, 0x8000 )
+
+	ROM_REGION( 0x10000, "sub", 0 )
+	ROM_LOAD( "6.s6", 0x00000, 0x08000, CRC(82460b82) SHA1(d85a9d77edaa67dfab8ff6ac4cb6273f0904b3c0) )
+
+	ROM_REGION( 0x20000, "gfx1", 0 )
+	ROM_LOAD( "3.u3", 0x00000, 0x20000,  CRC(7007ced4) SHA1(6a0aac3ff9a4d5360c8ba1142f010add1b430ada) )
+
+	ROM_REGION( 0x40000, "gfx2", 0 )
+	ROM_LOAD( "5.a1", 0x00000, 0x40000,  CRC(fc37a9c2) SHA1(940d8c53d47eaa93a85a91e4ecb92fc4912d331d) )
+
+	ROM_REGION( 0x40000, "essnd", 0 )
+	ROM_LOAD( "1.v10", 0x00000, 0x40000, CRC(62e42371) SHA1(5042abc2176d0c35fd6b698eca4145f93b0a3944) )
+
+	ROM_REGION( 0x100, "prom", 0 )
+	ROM_LOAD( "tbp24s10n.10k", 0x000, 0x100, CRC(ee7b9d8f) SHA1(3a7b75befab83bc37e4e403ad3632841c2d37707) ) /* Currently unused, unknown use */
+ROM_END
+
+
+/* Witch (With ranking) */
+ROM_START( witchb )
+	ROM_REGION( 0x30000, "maincpu", 0 )
+	ROM_LOAD( "x.u5", 0x10000, 0x20000, CRC(d0818777) SHA1(a6232fef84bec3cfb4a6122a48e96e7b7950e013) )
 	ROM_COPY( "maincpu" , 0x10000, 0x0000, 0x8000 )
 
 	ROM_REGION( 0x10000, "sub", 0 )
@@ -940,6 +946,7 @@ DRIVER_INIT_MEMBER(witch_state,witch)
 	m_bank = -1;
 }
 
-GAME( 1992, witch,    0,     witch, witch, witch_state, witch, ROT0, "Excellent System",     "Witch", 0 )
+GAME( 1992, witch,    0,     witch, witch, witch_state, witch, ROT0, "Excellent System",     "Witch",                0 )
+GAME( 1992, witchb,   witch, witch, witch, witch_state, witch, ROT0, "Excellent System",     "Witch (With ranking)", 0 )
 GAME( 1992, witchs,   witch, witch, witch, witch_state, witch, ROT0, "Sega / Vic Tokai",     "Witch (Sega License)", 0 )
-GAME( 1995, pbchmp95, witch, witch, witch, witch_state, witch, ROT0, "Veltmeijer Automaten", "Pinball Champ '95", 0 )
+GAME( 1995, pbchmp95, witch, witch, witch, witch_state, witch, ROT0, "Veltmeijer Automaten", "Pinball Champ '95",    0 )

@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #include "includes/pc1512.h"
 
 
@@ -9,24 +11,24 @@
 #define LOG 0
 
 
-static const rgb_t PALETTE[] =
+static const rgb_t PALETTE_1512[] =
 {
-	RGB_BLACK,
-	MAKE_RGB(0x00, 0x00, 0xaa),
-	MAKE_RGB(0x00, 0xaa, 0x00),
-	MAKE_RGB(0x00, 0xaa, 0xaa),
-	MAKE_RGB(0xaa, 0x00, 0x00),
-	MAKE_RGB(0xaa, 0x00, 0xaa),
-	MAKE_RGB(0xaa, 0x55, 0x00),
-	MAKE_RGB(0xaa, 0xaa, 0xaa),
-	MAKE_RGB(0x55, 0x55, 0x55),
-	MAKE_RGB(0x55, 0x55, 0xff),
-	MAKE_RGB(0x55, 0xff, 0x55),
-	MAKE_RGB(0x55, 0xff, 0xff),
-	MAKE_RGB(0xff, 0x55, 0x55),
-	MAKE_RGB(0xff, 0x55, 0xff),
-	MAKE_RGB(0xff, 0xff, 0x55),
-	RGB_WHITE
+	rgb_t::black,
+	rgb_t(0x00, 0x00, 0xaa),
+	rgb_t(0x00, 0xaa, 0x00),
+	rgb_t(0x00, 0xaa, 0xaa),
+	rgb_t(0xaa, 0x00, 0x00),
+	rgb_t(0xaa, 0x00, 0xaa),
+	rgb_t(0xaa, 0x55, 0x00),
+	rgb_t(0xaa, 0xaa, 0xaa),
+	rgb_t(0x55, 0x55, 0x55),
+	rgb_t(0x55, 0x55, 0xff),
+	rgb_t(0x55, 0xff, 0x55),
+	rgb_t(0x55, 0xff, 0xff),
+	rgb_t(0xff, 0x55, 0x55),
+	rgb_t(0xff, 0x55, 0xff),
+	rgb_t(0xff, 0xff, 0x55),
+	rgb_t::white
 };
 
 static const int PALETTE_0[] = { 0, 3, 5, 7 };
@@ -55,8 +57,6 @@ enum
 #define COLOR_PALETTE_1     0x20
 
 
-#define VFP_HIRES           22
-#define HFP_HIRES           112
 #define VFP_LORES           22
 #define HFP_LORES           16
 
@@ -165,10 +165,11 @@ READ8_MEMBER( pc1512_state::vdu_r )
 		data |= 0x04;
 
 		// vertical sync
+		//data |= m_vdu->vsync_r();
 		int flyback = 0;
 
-		if (machine().primary_screen->vpos() < VFP_LORES - 16) flyback = 1;
-		if (machine().primary_screen->vpos() > VFP_LORES + 200) flyback = 1;
+		if (machine().first_screen()->vpos() < VFP_LORES - 16) flyback = 1;
+		if (machine().first_screen()->vpos() > VFP_LORES + 200) flyback = 1;
 
 		data |= flyback << 3;
 		break;
@@ -359,7 +360,7 @@ WRITE8_MEMBER( pc1512_state::vdu_w )
 
 
 //-------------------------------------------------
-//  mc6845_interface crtc_intf
+//  mc6845
 //-------------------------------------------------
 
 int pc1512_state::get_display_mode(UINT8 mode)
@@ -393,13 +394,13 @@ offs_t pc1512_state::get_char_rom_offset()
 	return ((m_lk->read() >> 5) & 0x03) << 11;
 }
 
-void pc1512_state::draw_alpha(bitmap_rgb32 &bitmap, const rectangle &cliprect, UINT16 ma, UINT8 ra, UINT16 y, UINT8 x_count, INT8 cursor_x, void *param)
+MC6845_UPDATE_ROW( pc1512_state::draw_alpha )
 {
 	offs_t char_rom_offset = get_char_rom_offset();
-	UINT32 *p = &bitmap.pix32(y + VFP_HIRES, HFP_HIRES);
+	UINT32 *p = &bitmap.pix32(y + vbp, hbp);
 
 	if (get_display_mode(m_vdu_mode) == ALPHA_40)
-		p = &bitmap.pix32(y + VFP_LORES, HFP_LORES);
+		p = &bitmap.pix32(y + vbp, hbp);
 
 	if (y > 199) return;
 
@@ -432,7 +433,7 @@ void pc1512_state::draw_alpha(bitmap_rgb32 &bitmap, const rectangle &cliprect, U
 		{
 			int color = BIT(data, 7) ? fg : bg;
 
-			*p = PALETTE[color]; p++;
+			*p = PALETTE_1512[de ? color : 0]; p++;
 
 			data <<= 1;
 		}
@@ -462,11 +463,11 @@ int pc1512_state::get_color(UINT8 data)
 	return color;
 };
 
-void pc1512_state::draw_graphics_1(bitmap_rgb32 &bitmap, const rectangle &cliprect, UINT16 ma, UINT8 ra, UINT16 y, UINT8 x_count, INT8 cursor_x, void *param)
+MC6845_UPDATE_ROW( pc1512_state::draw_graphics_1 )
 {
 	if (y > 199) return;
 
-	UINT32 *p = &bitmap.pix32(y + VFP_LORES, HFP_LORES);
+	UINT32 *p = &bitmap.pix32(y + vbp, hbp);
 
 	for (int column = 0; column < x_count; column++)
 	{
@@ -476,17 +477,17 @@ void pc1512_state::draw_graphics_1(bitmap_rgb32 &bitmap, const rectangle &clipre
 
 		for (int x = 0; x < 8; x++)
 		{
-			*p = PALETTE[get_color((BIT(b, 15) << 1) | BIT(b, 14))]; p++;
+			*p = PALETTE_1512[de ? get_color((BIT(b, 15) << 1) | BIT(b, 14)) : 0]; p++;
 			b <<= 2;
 		}
 	}
 }
 
-void pc1512_state::draw_graphics_2(bitmap_rgb32 &bitmap, const rectangle &cliprect, UINT16 ma, UINT8 ra, UINT16 y, UINT8 x_count, INT8 cursor_x, void *param)
+MC6845_UPDATE_ROW( pc1512_state::draw_graphics_2 )
 {
 	if (y > 199) return;
 
-	UINT32 *p = &bitmap.pix32(y + VFP_HIRES, HFP_HIRES);
+	UINT32 *p = &bitmap.pix32(y + vbp, hbp);
 
 	for (int column = 0; column < x_count; column++)
 	{
@@ -499,46 +500,30 @@ void pc1512_state::draw_graphics_2(bitmap_rgb32 &bitmap, const rectangle &clipre
 
 		for (int x = 0; x < 16; x++)
 		{
-			*p = PALETTE[(BIT(i, 15) << 3) | (BIT(r, 15) << 2) | (BIT(g, 15) << 1) | BIT(b, 15)]; p++;
+			*p = PALETTE_1512[de ? (BIT(i, 15) << 3) | (BIT(r, 15) << 2) | (BIT(g, 15) << 1) | BIT(b, 15) : 0]; p++;
 			i <<= 1; r <<= 1; g <<= 1; b <<= 1;
 		}
 	}
 }
 
-static MC6845_UPDATE_ROW( pc1512_update_row )
+MC6845_UPDATE_ROW( pc1512_state::crtc_update_row )
 {
-	pc1512_state *state = device->machine().driver_data<pc1512_state>();
-
-	switch (state->get_display_mode(state->m_vdu_mode))
+	switch (get_display_mode(m_vdu_mode))
 	{
 	case ALPHA_40:
 	case ALPHA_80:
-		state->draw_alpha(bitmap, cliprect, ma, ra, y, x_count, cursor_x, param);
+		draw_alpha(bitmap, cliprect, ma, ra, y, x_count, cursor_x, de, hbp, vbp);
 		break;
 
 	case GRAPHICS_1:
-		state->draw_graphics_1(bitmap, cliprect, ma, ra, y, x_count, cursor_x, param);
+		draw_graphics_1(bitmap, cliprect, ma, ra, y, x_count, cursor_x, de, hbp, vbp);
 		break;
 
 	case GRAPHICS_2:
-		state->draw_graphics_2(bitmap, cliprect, ma, ra, y, x_count, cursor_x, param);
+		draw_graphics_2(bitmap, cliprect, ma, ra, y, x_count, cursor_x, de, hbp, vbp);
 		break;
 	}
 }
-
-static MC6845_INTERFACE( crtc_intf )
-{
-	false,
-	8,
-	NULL,
-	pc1512_update_row,
-	NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	NULL
-};
 
 
 void pc1512_state::video_start()
@@ -583,11 +568,11 @@ UINT32 pc1512_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, 
 		case ALPHA_40:
 		case ALPHA_80:
 		case GRAPHICS_1:
-			bitmap.fill(PALETTE[m_vdu_color & 0x0f], cliprect);
+			bitmap.fill(PALETTE_1512[m_vdu_color & 0x0f], cliprect);
 			break;
 
 		case GRAPHICS_2:
-			bitmap.fill(PALETTE[m_vdu_border & 0x0f], cliprect);
+			bitmap.fill(PALETTE_1512[m_vdu_border & 0x0f], cliprect);
 			break;
 		}
 
@@ -595,7 +580,7 @@ UINT32 pc1512_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, 
 	}
 	else
 	{
-		bitmap.fill(RGB_BLACK, cliprect);
+		bitmap.fill(rgb_t::black, cliprect);
 	}
 
 	return 0;
@@ -614,5 +599,8 @@ MACHINE_CONFIG_FRAGMENT( pc1512_video )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_REFRESH_RATE(50)
 
-	MCFG_MC6845_ADD(AMS40041_TAG, AMS40041, SCREEN_TAG, XTAL_28_63636MHz/32, crtc_intf)
+	MCFG_MC6845_ADD(AMS40041_TAG, AMS40041, SCREEN_TAG, XTAL_28_63636MHz/32)
+	MCFG_MC6845_SHOW_BORDER_AREA(true)
+	MCFG_MC6845_CHAR_WIDTH(8)
+	MCFG_MC6845_UPDATE_ROW_CB(pc1512_state, crtc_update_row)
 MACHINE_CONFIG_END

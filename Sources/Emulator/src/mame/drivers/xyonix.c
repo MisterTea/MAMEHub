@@ -209,22 +209,6 @@ static GFXDECODE_START( xyonix )
 GFXDECODE_END
 
 
-/*************************************
- *
- *  Sound interface
- *
- *************************************/
-
-//-------------------------------------------------
-//  sn76496_config psg_intf
-//-------------------------------------------------
-
-static const sn76496_config psg_intf =
-{
-	DEVCB_NULL
-};
-
-
 /* MACHINE driver *************************************************************/
 
 static MACHINE_CONFIG_START( xyonix, xyonix_state )
@@ -243,21 +227,20 @@ static MACHINE_CONFIG_START( xyonix, xyonix_state )
 	MCFG_SCREEN_SIZE(80*4, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0, 80*4-1, 0, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(xyonix_state, screen_update_xyonix)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(xyonix)
-	MCFG_PALETTE_LENGTH(256)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", xyonix)
+	MCFG_PALETTE_ADD("palette", 256)
+	MCFG_PALETTE_INIT_OWNER(xyonix_state, xyonix)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("sn1", SN76496, 16000000/4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 
 	MCFG_SOUND_ADD("sn2", SN76496, 16000000/4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_CONFIG(psg_intf)
 MACHINE_CONFIG_END
 
 /* ROM Loading ***************************************************************/

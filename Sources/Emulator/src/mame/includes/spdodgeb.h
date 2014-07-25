@@ -10,7 +10,10 @@ public:
 		m_maincpu(*this,"maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_msm1(*this, "msm1"),
-		m_msm2(*this, "msm2"){ }
+		m_msm2(*this, "msm2"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_screen(*this, "screen"),
+		m_palette(*this, "palette") { }
 
 	int m_toggle;
 	int m_adpcm_pos[2];
@@ -50,7 +53,7 @@ public:
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void machine_reset();
 	virtual void video_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(spdodgeb);
 	UINT32 screen_update_spdodgeb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(spdodgeb_interrupt);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect );
@@ -62,4 +65,7 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	required_device<msm5205_device> m_msm1;
 	required_device<msm5205_device> m_msm2;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
 };

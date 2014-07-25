@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __CGC7900__
@@ -28,6 +30,7 @@ public:
 	cgc7900_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, M68000_TAG),
+			m_palette(*this, "palette"),
 			m_char_rom(*this, "gfx1"),
 			m_chrom_ram(*this, "chrom_ram"),
 			m_plane_ram(*this, "plane_ram"),
@@ -46,6 +49,7 @@ public:
 	{ }
 
 	required_device<cpu_device> m_maincpu;
+	required_device<palette_device> m_palette;
 	required_memory_region m_char_rom;
 	required_shared_ptr<UINT16> m_chrom_ram;
 	required_shared_ptr<UINT16> m_plane_ram;
@@ -65,6 +69,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 
+	DECLARE_PALETTE_INIT(cgc7900);
 	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 	DECLARE_READ16_MEMBER( keyboard_r );

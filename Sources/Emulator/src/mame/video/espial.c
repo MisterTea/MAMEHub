@@ -29,12 +29,12 @@
 
 ***************************************************************************/
 
-void espial_state::palette_init()
+PALETTE_INIT_MEMBER(espial_state, espial)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
-	for (i = 0; i < machine().total_colors(); i++)
+	for (i = 0; i < palette.entries(); i++)
 	{
 		int bit0, bit1, bit2, r, g, b;
 
@@ -45,16 +45,16 @@ void espial_state::palette_init()
 		r = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 		/* green component */
 		bit0 = (color_prom[i] >> 3) & 0x01;
-		bit1 = (color_prom[i + machine().total_colors()] >> 0) & 0x01;
-		bit2 = (color_prom[i + machine().total_colors()] >> 1) & 0x01;
+		bit1 = (color_prom[i + palette.entries()] >> 0) & 0x01;
+		bit2 = (color_prom[i + palette.entries()] >> 1) & 0x01;
 		g = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 		/* blue component */
 		bit0 = 0;
-		bit1 = (color_prom[i + machine().total_colors()] >> 2) & 0x01;
-		bit2 = (color_prom[i + machine().total_colors()] >> 3) & 0x01;
+		bit1 = (color_prom[i + palette.entries()] >> 2) & 0x01;
+		bit2 = (color_prom[i + palette.entries()] >> 3) & 0x01;
 		b = 0x21 * bit0 + 0x47 * bit1 + 0x97 * bit2;
 
-		palette_set_color(machine(), i, MAKE_RGB(r,g,b));
+		palette.set_pen_color(i, rgb_t(r,g,b));
 	}
 }
 
@@ -87,7 +87,7 @@ TILE_GET_INFO_MEMBER(espial_state::get_tile_info)
 
 void espial_state::video_start()
 {
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(espial_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(espial_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_bg_tilemap->set_scroll_cols(32);
 
 	save_item(NAME(m_flipscreen));
@@ -96,7 +96,7 @@ void espial_state::video_start()
 VIDEO_START_MEMBER(espial_state,netwars)
 {
 	/* Net Wars has a tile map that's twice as big as Espial's */
-	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(espial_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 64);
+	m_bg_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(espial_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 64);
 
 	m_bg_tilemap->set_scroll_cols(32);
 	m_bg_tilemap->set_scrolldy(0, 0x100);
@@ -184,11 +184,11 @@ void espial_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 		{
 			if (m_flipscreen)
 			{
-				drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+				m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 						code,color,
 						flipx,flipy,
 						sx,sy + 16,0);
-				drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+				m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 						code + 1,
 						color,
 						flipx,flipy,
@@ -196,11 +196,11 @@ void espial_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 			}
 			else
 			{
-				drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+				m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 						code,color,
 						flipx,flipy,
 						sx,sy - 16,0);
-				drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+				m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 						code + 1,color,
 						flipx,flipy,
 						sx,sy,0);
@@ -208,7 +208,7 @@ void espial_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect
 		}
 		else
 		{
-			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+			m_gfxdecode->gfx(1)->transpen(bitmap,cliprect,
 					code,color,
 					flipx,flipy,
 					sx,sy,0);

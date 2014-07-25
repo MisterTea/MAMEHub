@@ -37,7 +37,7 @@ static ADDRESS_MAP_START( citycon_map, AS_PROGRAM, 8, citycon_state )
 	AM_RANGE(0x3002, 0x3002) AM_READ_PORT("DSW2") AM_WRITE(soundlatch2_byte_w)
 	AM_RANGE(0x3004, 0x3005) AM_READNOP AM_WRITEONLY AM_SHARE("scroll")
 	AM_RANGE(0x3007, 0x3007) AM_READ(citycon_irq_ack_r)
-	AM_RANGE(0x3800, 0x3cff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_byte_be_w) AM_SHARE("paletteram")
+	AM_RANGE(0x3800, 0x3cff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x4000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -169,20 +169,6 @@ static GFXDECODE_START( citycon )
 	GFXDECODE_ENTRY( "gfx3", 0x0b000, tilelayout, 256, 16 )
 GFXDECODE_END
 
-
-
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r),
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch2_byte_r),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-
 void citycon_state::machine_start()
 {
 	save_item(NAME(m_bg_image));
@@ -213,11 +199,11 @@ static MACHINE_CONFIG_START( citycon, citycon_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(1*8, 31*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(citycon_state, screen_update_citycon)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(citycon)
-	MCFG_PALETTE_LENGTH(640+1024)   /* 640 real palette + 1024 virtual palette */
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black) /* guess */
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", citycon)
+	MCFG_PALETTE_ADD_INIT_BLACK("palette", 640+1024)   /* 640 real palette + 1024 virtual palette */
+	MCFG_PALETTE_FORMAT(RRRRGGGGBBBBxxxx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -226,7 +212,8 @@ static MACHINE_CONFIG_START( citycon, citycon_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1250000)
-	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(driver_device, soundlatch2_byte_r))
 	MCFG_SOUND_ROUTE(0, "mono", 0.40)
 	MCFG_SOUND_ROUTE(1, "mono", 0.40)
 	MCFG_SOUND_ROUTE(2, "mono", 0.40)

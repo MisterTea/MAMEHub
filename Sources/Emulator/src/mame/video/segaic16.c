@@ -373,8 +373,19 @@ const device_type SEGAIC16VID = &device_creator<segaic16_video_device>;
 
 segaic16_video_device::segaic16_video_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, SEGAIC16VID, "Sega 16-bit Video", tag, owner, clock, "segaic16_video", __FILE__),
-		device_video_interface(mconfig, *this)
+		device_video_interface(mconfig, *this),
+		m_gfxdecode(*this)
 {
+}
+
+//-------------------------------------------------
+//  static_set_gfxdecode_tag: Set the tag of the
+//  gfx decoder
+//-------------------------------------------------
+
+void segaic16_video_device::static_set_gfxdecode_tag(device_t &device, const char *tag)
+{
+	downcast<segaic16_video_device &>(device).m_gfxdecode.set_tag(tag);
 }
 
 
@@ -669,7 +680,7 @@ void segaic16_tilemap_16a_draw_layer(screen_device &screen, struct tilemap_info 
 	/* column AND row scroll */
 	if (info->colscroll && info->rowscroll)
 	{
-		if (PRINT_UNUSUAL_MODES) mame_printf_debug("Column AND row scroll\n");
+		if (PRINT_UNUSUAL_MODES) osd_printf_debug("Column AND row scroll\n");
 
 		/* loop over row chunks */
 		for (y = cliprect.min_y & ~7; y <= cliprect.max_y; y += 8)
@@ -707,7 +718,7 @@ void segaic16_tilemap_16a_draw_layer(screen_device &screen, struct tilemap_info 
 	}
 	else if (info->colscroll)
 	{
-		if (PRINT_UNUSUAL_MODES) mame_printf_debug("Column scroll\n");
+		if (PRINT_UNUSUAL_MODES) osd_printf_debug("Column scroll\n");
 
 		/* loop over column chunks */
 		for (x = cliprect.min_x & ~15; x <= cliprect.max_x; x += 16)
@@ -735,7 +746,7 @@ void segaic16_tilemap_16a_draw_layer(screen_device &screen, struct tilemap_info 
 	}
 	else if (info->rowscroll)
 	{
-		if (PRINT_UNUSUAL_MODES) mame_printf_debug("Row scroll\n");
+		if (PRINT_UNUSUAL_MODES) osd_printf_debug("Row scroll\n");
 
 		/* loop over row chunks */
 		for (y = cliprect.min_y & ~7; y <= cliprect.max_y; y += 8)
@@ -906,7 +917,7 @@ void segaic16_tilemap_16b_draw_layer(screen_device &screen, struct tilemap_info 
 	/* column scroll? */
 	if (yscroll & 0x8000)
 	{
-		if (PRINT_UNUSUAL_MODES) mame_printf_debug("Column AND row scroll\n");
+		if (PRINT_UNUSUAL_MODES) osd_printf_debug("Column AND row scroll\n");
 
 		/* loop over row chunks */
 		for (y = cliprect.min_y & ~7; y <= cliprect.max_y; y += 8)
@@ -950,7 +961,7 @@ void segaic16_tilemap_16b_draw_layer(screen_device &screen, struct tilemap_info 
 	}
 	else
 	{
-		if (PRINT_UNUSUAL_MODES) mame_printf_debug("Row scroll\n");
+		if (PRINT_UNUSUAL_MODES) osd_printf_debug("Row scroll\n");
 
 		/* loop over row chunks */
 		for (y = cliprect.min_y & ~7; y <= cliprect.max_y; y += 8)
@@ -1092,7 +1103,7 @@ void segaic16_video_device::segaic16_tilemap_init(running_machine &machine, int 
 	}
 
 	/* create the tilemap for the text layer */
-	info->textmap = &machine.tilemap().create(get_text_info, TILEMAP_SCAN_ROWS,  8,8, 64,28);
+	info->textmap = &machine.tilemap().create(m_gfxdecode, get_text_info, TILEMAP_SCAN_ROWS,  8,8, 64,28);
 
 	/* configure it */
 	info->textmap_info.rambase = info->textram;
@@ -1108,7 +1119,7 @@ void segaic16_video_device::segaic16_tilemap_init(running_machine &machine, int 
 	for (pagenum = 0; pagenum < info->numpages; pagenum++)
 	{
 		/* each page is 64x32 */
-		info->tilemaps[pagenum] = &machine.tilemap().create(get_tile_info, TILEMAP_SCAN_ROWS,  8,8, 64,32);
+		info->tilemaps[pagenum] = &machine.tilemap().create(m_gfxdecode, get_tile_info, TILEMAP_SCAN_ROWS,  8,8, 64,32);
 
 		/* configure the tilemap */
 		info->tmap_info[pagenum].rambase = info->tileram + pagenum * 64*32;

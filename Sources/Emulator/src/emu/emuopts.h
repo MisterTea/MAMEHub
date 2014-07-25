@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     emuopts.h
 
     Options file and command line management.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -60,6 +31,7 @@ enum
 	OPTION_PRIORITY_MAME_INI,
 	OPTION_PRIORITY_DEBUG_INI,
 	OPTION_PRIORITY_ORIENTATION_INI,
+	OPTION_PRIORITY_SYSTYPE_INI,
 	OPTION_PRIORITY_VECTOR_INI,
 	OPTION_PRIORITY_SOURCE_INI,
 	OPTION_PRIORITY_GPARENT_INI,
@@ -89,7 +61,6 @@ enum
 // core directory options
 #define OPTION_CFG_DIRECTORY        "cfg_directory"
 #define OPTION_NVRAM_DIRECTORY      "nvram_directory"
-#define OPTION_MEMCARD_DIRECTORY    "memcard_directory"
 #define OPTION_INPUT_DIRECTORY      "input_directory"
 #define OPTION_STATE_DIRECTORY      "state_directory"
 #define OPTION_SNAPSHOT_DIRECTORY   "snapshot_directory"
@@ -149,7 +120,6 @@ enum
 #define OPTION_FLICKER              "flicker"
 
 // core sound options
-#define OPTION_SOUND                "sound"
 #define OPTION_SAMPLERATE           "samplerate"
 #define OPTION_SAMPLES              "samples"
 #define OPTION_VOLUME               "volume"
@@ -183,11 +153,7 @@ enum
 #define OPTION_MOUSE_DEVICE         "mouse_device"
 
 // core debugging options
-#define OPTION_LOG                  "log"
-#define OPTION_VERBOSE              "verbose"
 #define OPTION_UPDATEINPAUSE        "update_in_pause"
-#define OPTION_DEBUG                "debug"
-#define OPTION_DEBUG_INTERNAL       "debug_internal"
 #define OPTION_DEBUGSCRIPT          "debugscript"
 
 // core misc options
@@ -219,6 +185,7 @@ enum
 #define OPTION_HTTP                 "http"
 #define OPTION_HTTP_PORT            "http_port"
 #define OPTION_HTTP_PATH            "http_path"
+#define OPTION_CONSOLE              "console"
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -228,7 +195,7 @@ enum
 struct game_driver;
 
 
-class emu_options : public core_options
+class emu_options : public osd_options
 {
 	static const UINT32 OPTION_FLAG_DEVICE = 0x80000000;
 
@@ -265,7 +232,6 @@ public:
 	// core directory options
 	const char *cfg_directory() const { return value(OPTION_CFG_DIRECTORY); }
 	const char *nvram_directory() const { return value(OPTION_NVRAM_DIRECTORY); }
-	const char *memcard_directory() const { return value(OPTION_MEMCARD_DIRECTORY); }
 	const char *input_directory() const { return value(OPTION_INPUT_DIRECTORY); }
 	const char *state_directory() const { return value(OPTION_STATE_DIRECTORY); }
 	const char *snapshot_directory() const { return value(OPTION_SNAPSHOT_DIRECTORY); }
@@ -325,7 +291,6 @@ public:
 	float flicker() const { return float_value(OPTION_FLICKER); }
 
 	// core sound options
-	bool sound() const { return bool_value(OPTION_SOUND); }
 	int sample_rate() const { return int_value(OPTION_SAMPLERATE); }
 	bool samples() const { return bool_value(OPTION_SAMPLES); }
 	int volume() const { return int_value(OPTION_VOLUME); }
@@ -357,10 +322,6 @@ public:
 	int coin_impulse() const { return int_value(OPTION_COIN_IMPULSE); }
 
 	// core debugging options
-	bool verbose() const { return bool_value(OPTION_VERBOSE); }
-	bool log() const { return bool_value(OPTION_LOG); }
-	bool debug() const { return bool_value(OPTION_DEBUG); }
-	bool debug_internal() const { return bool_value(OPTION_DEBUG_INTERNAL); }
 	const char *debug_script() const { return value(OPTION_DEBUGSCRIPT); }
 	bool update_in_pause() const { return bool_value(OPTION_UPDATEINPAUSE); }
 
@@ -393,6 +354,7 @@ public:
 	bool http() const { return bool_value(OPTION_HTTP); }
 	const char *http_port() const { return value(OPTION_HTTP_PORT); }
 	const char *http_path() const { return value(OPTION_HTTP_PATH); }
+	bool console() const { return bool_value(OPTION_CONSOLE); }
 
 	// device-specific options
 	const char *device_option(device_image_interface &image);

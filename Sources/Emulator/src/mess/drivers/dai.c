@@ -76,7 +76,7 @@ static ADDRESS_MAP_START( dai_mem , AS_PROGRAM, 8, dai_state )
 	AM_RANGE( 0xfc00, 0xfcff) AM_READWRITE(dai_pit_r, dai_pit_w) // AM_DEVREADWRITE("pit8253", pit8253_device, read, write)
 	AM_RANGE( 0xfd00, 0xfdff) AM_READWRITE(dai_io_discrete_devices_r, dai_io_discrete_devices_w )
 	AM_RANGE( 0xfe00, 0xfeff) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
-	AM_RANGE( 0xff00, 0xffff) AM_DEVREADWRITE("tms5501", tms5501_device, read, write )
+	AM_RANGE( 0xff00, 0xff0f) AM_MIRROR(0xf0) AM_DEVICE("tms5501", tms5501_device, io_map)
 ADDRESS_MAP_END
 
 
@@ -161,21 +161,6 @@ static INPUT_PORTS_START (dai)
 		PORT_BIT(0xcb, IP_ACTIVE_HIGH, IPT_UNUSED)
 INPUT_PORTS_END
 
-static const struct CassetteOptions dai_cassette_options = {
-	1,      /* channels */
-	16,     /* bits per sample */
-	44100       /* sample frequency */
-};
-
-static const cassette_interface dai_cassette_interface =
-{
-	cassette_default_formats,
-	&dai_cassette_options,
-	(cassette_state)(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
-
 /* F4 Character Displayer */
 static const gfx_layout dai_charlayout =
 {
@@ -200,12 +185,18 @@ static MACHINE_CONFIG_START( dai, dai_state )
 	MCFG_CPU_ADD("maincpu", I8080, 2000000)
 	MCFG_CPU_PROGRAM_MAP(dai_mem)
 	MCFG_CPU_IO_MAP(dai_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(dai_state,int_ack)
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
+	MCFG_DEVICE_ADD("pit8253", PIT8253, 0)
+	MCFG_PIT8253_CLK0(2000000)
+	MCFG_PIT8253_OUT0_HANDLER(DEVWRITELINE("custom", dai_sound_device, set_input_ch0))
+	MCFG_PIT8253_CLK1(2000000)
+	MCFG_PIT8253_OUT1_HANDLER(DEVWRITELINE("custom", dai_sound_device, set_input_ch1))
+	MCFG_PIT8253_CLK2(2000000)
+	MCFG_PIT8253_OUT2_HANDLER(DEVWRITELINE("custom", dai_sound_device, set_input_ch2))
 
-	MCFG_PIT8253_ADD( "pit8253", dai_pit8253_intf )
-
-	MCFG_I8255_ADD( "ppi8255", dai_ppi82555_intf )
+	MCFG_DEVICE_ADD("ppi8255", I8255, 0)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -214,9 +205,11 @@ static MACHINE_CONFIG_START( dai, dai_state )
 	MCFG_SCREEN_SIZE(1056, 542)
 	MCFG_SCREEN_VISIBLE_AREA(0, 1056-1, 0, 302-1)
 	MCFG_SCREEN_UPDATE_DRIVER(dai_state, screen_update_dai)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(dai)
-	MCFG_PALETTE_LENGTH(sizeof (dai_palette) / 3)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", dai)
+	MCFG_PALETTE_ADD("palette", sizeof (dai_palette) / 3)
+	MCFG_PALETTE_INIT_OWNER(dai_state, dai)
 
 
 	/* sound hardware */
@@ -229,10 +222,14 @@ static MACHINE_CONFIG_START( dai, dai_state )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( "cassette", dai_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_ENABLED)
 
 	/* tms5501 */
-	MCFG_TMS5501_ADD( "tms5501", 2000000, dai_tms5501_interface )
+	MCFG_DEVICE_ADD("tms5501", TMS5501, 2000000)
+	MCFG_TMS5501_IRQ_CALLBACK(INPUTLINE("maincpu", I8085_INTR_LINE))
+	MCFG_TMS5501_XI_CALLBACK(READ8(dai_state, dai_keyboard_r))
+	MCFG_TMS5501_XO_CALLBACK(WRITE8(dai_state, dai_keyboard_w))
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

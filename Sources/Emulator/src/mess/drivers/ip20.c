@@ -21,8 +21,8 @@
 #include "machine/8530scc.h"
 #include "machine/sgi.h"
 #include "machine/eepromser.h"
-#include "machine/scsibus.h"
-#include "machine/scsicd.h"
+#include "bus/scsi/scsi.h"
+#include "bus/scsi/scsicd.h"
 #include "machine/wd33c93.h"
 
 struct HPC_t
@@ -51,13 +51,14 @@ public:
 		TIMER_RTC
 	};
 
-	ip20_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-	m_wd33c93(*this, "scsi:wd33c93"),
-	m_scc(*this, "scc"),
-	m_eeprom(*this, "eeprom"),
-	m_maincpu(*this, "maincpu") { }
-
+	ip20_state(const machine_config &mconfig, device_type type, const char *tag) :
+		driver_device(mconfig, type, tag),
+		m_wd33c93(*this, "wd33c93"),
+		m_scc(*this, "scc"),
+		m_eeprom(*this, "eeprom"),
+		m_maincpu(*this, "maincpu")
+	{
+	}
 
 	HPC_t m_HPC;
 	RTC_t m_RTC;
@@ -108,14 +109,14 @@ UINT32 ip20_state::screen_update_ip204415(screen_device &screen, bitmap_ind16 &b
 
 
 
-#define RTC_DAYOFWEEK   state->m_RTC.nRAM[0x0e]
-#define RTC_YEAR        state->m_RTC.nRAM[0x0b]
-#define RTC_MONTH       state->m_RTC.nRAM[0x0a]
-#define RTC_DAY         state->m_RTC.nRAM[0x09]
-#define RTC_HOUR        state->m_RTC.nRAM[0x08]
-#define RTC_MINUTE      state->m_RTC.nRAM[0x07]
-#define RTC_SECOND      state->m_RTC.nRAM[0x06]
-#define RTC_HUNDREDTH   state->m_RTC.nRAM[0x05]
+#define RTC_DAYOFWEEK   m_RTC.nRAM[0x0e]
+#define RTC_YEAR        m_RTC.nRAM[0x0b]
+#define RTC_MONTH       m_RTC.nRAM[0x0a]
+#define RTC_DAY         m_RTC.nRAM[0x09]
+#define RTC_HOUR        m_RTC.nRAM[0x08]
+#define RTC_MINUTE      m_RTC.nRAM[0x07]
+#define RTC_SECOND      m_RTC.nRAM[0x06]
+#define RTC_HUNDREDTH   m_RTC.nRAM[0x05]
 
 READ32_MEMBER(ip20_state::hpc_r)
 {
@@ -269,14 +270,14 @@ WRITE32_MEMBER(ip20_state::hpc_w)
 		{
 			UINT32 next;
 
-			mame_printf_info("DMA activated for SCSI0\n");
-			mame_printf_info("Descriptor block:\n");
-			mame_printf_info("CTL: %08x BUFPTR: %08x DESCPTR %08x\n",
+			osd_printf_info("DMA activated for SCSI0\n");
+			osd_printf_info("Descriptor block:\n");
+			osd_printf_info("CTL: %08x BUFPTR: %08x DESCPTR %08x\n",
 				program_read_dword(m_HPC.nSCSI0Descriptor), program_read_dword(m_HPC.nSCSI0Descriptor+4),
 				program_read_dword(m_HPC.nSCSI0Descriptor+8));
 
 			next = program_read_dword(m_HPC.nSCSI0Descriptor+8);
-			mame_printf_info("CTL: %08x BUFPTR: %08x DESCPTR %08x\n",
+			osd_printf_info("CTL: %08x BUFPTR: %08x DESCPTR %08x\n",
 				program_read_dword(next), program_read_dword(next+4),
 				program_read_dword(next+8));
 		}
@@ -383,7 +384,7 @@ WRITE32_MEMBER(ip20_state::hpc_w)
 		if( ( data & 0x000000ff ) >= 0x00000020 )
 		{
 //          verboselog(2, "HPC DUART1 Channel B Control Write: %08x (%08x) %c\n", data, mem_mask, data & 0x000000ff );
-			//mame_printf_info( "%c", data & 0x000000ff );
+			//osd_printf_info( "%c", data & 0x000000ff );
 		}
 		else
 		{
@@ -394,7 +395,7 @@ WRITE32_MEMBER(ip20_state::hpc_w)
 		if( ( data & 0x000000ff ) >= 0x00000020 || ( data & 0x000000ff ) == 0x0d || ( data & 0x000000ff ) == 0x0a )
 		{
 			verboselog(2, "HPC DUART1 Channel B Data Write: %08x (%08x) %c\n", data, mem_mask, data & 0x000000ff );
-			mame_printf_info( "%c", data & 0x000000ff );
+			osd_printf_info( "%c", data & 0x000000ff );
 		}
 		else
 		{
@@ -402,37 +403,37 @@ WRITE32_MEMBER(ip20_state::hpc_w)
 		}
 		break;
 	case 0x0d18:
-		mame_printf_info("HPC DUART1 Channel A Control Write: %08x (%08x)\n", data, mem_mask );
+		osd_printf_info("HPC DUART1 Channel A Control Write: %08x (%08x)\n", data, mem_mask );
 		break;
 	case 0x0d1c:
 		verboselog(2, "HPC DUART1 Channel A Data Write: %08x (%08x)\n", data, mem_mask );
 		break;
 	case 0x0d20:
-		mame_printf_info("HPC DUART2 Channel B Control Write: %08x (%08x)\n", data, mem_mask );
+		osd_printf_info("HPC DUART2 Channel B Control Write: %08x (%08x)\n", data, mem_mask );
 		break;
 	case 0x0d24:
 		verboselog(2, "HPC DUART2 Channel B Data Write: %08x (%08x)\n", data, mem_mask );
 		break;
 	case 0x0d28:
-		mame_printf_info("HPC DUART2 Channel A Control Write: %08x (%08x)\n", data, mem_mask );
+		osd_printf_info("HPC DUART2 Channel A Control Write: %08x (%08x)\n", data, mem_mask );
 		break;
 	case 0x0d2c:
 		verboselog(2, "HPC DUART2 Channel A Data Write: %08x (%08x)\n", data, mem_mask );
 		break;
 	case 0x0d30:
-		mame_printf_info("HPC DUART3 Channel B Control Write: %08x (%08x)\n", data, mem_mask );
+		osd_printf_info("HPC DUART3 Channel B Control Write: %08x (%08x)\n", data, mem_mask );
 		break;
 	case 0x0d34:
 		verboselog(2, "HPC DUART3 Channel B Data Write: %08x (%08x)\n", data, mem_mask );
 		break;
 	case 0x0d38:
-		mame_printf_info("HPC DUART3 Channel A Control Write: %08x (%08x)\n", data, mem_mask );
+		osd_printf_info("HPC DUART3 Channel A Control Write: %08x (%08x)\n", data, mem_mask );
 		break;
 	case 0x0d3c:
 		verboselog(2, "HPC DUART3 Channel A Data Write: %08x (%08x)\n", data, mem_mask );
 		break;
 	default:
-		mame_printf_info("Unmapped HPC write: 0x%08x (%08x): %08x\n", 0x1fb80000 + offset, mem_mask, data);
+		osd_printf_info("Unmapped HPC write: 0x%08x (%08x): %08x\n", 0x1fb80000 + offset, mem_mask, data);
 		break;
 	}
 }
@@ -440,13 +441,13 @@ WRITE32_MEMBER(ip20_state::hpc_w)
 // INT/INT2/INT3 interrupt controllers
 READ32_MEMBER(ip20_state::int_r)
 {
-	mame_printf_info("INT: read @ ofs %x (mask %x) (PC=%x)\n", offset, mem_mask, space.device().safe_pc());
+	osd_printf_info("INT: read @ ofs %x (mask %x) (PC=%x)\n", offset, mem_mask, space.device().safe_pc());
 	return 0;
 }
 
 WRITE32_MEMBER(ip20_state::int_w)
 {
-	mame_printf_info("INT: write %x to ofs %x (mask %x) (PC=%x)\n", data, offset, mem_mask, space.device().safe_pc());
+	osd_printf_info("INT: write %x to ofs %x (mask %x) (PC=%x)\n", data, offset, mem_mask, space.device().safe_pc());
 }
 
 static ADDRESS_MAP_START( ip204415_map, AS_PROGRAM, 32, ip20_state )
@@ -457,7 +458,7 @@ static ADDRESS_MAP_START( ip204415_map, AS_PROGRAM, 32, ip20_state )
 	AM_RANGE( 0x0c000000, 0x0c7fffff ) AM_RAM AM_SHARE("share8")
 	AM_RANGE( 0x10000000, 0x107fffff ) AM_RAM AM_SHARE("share9")
 	AM_RANGE( 0x18000000, 0x187fffff ) AM_RAM AM_SHARE("share1")
-	AM_RANGE( 0x1fa00000, 0x1fa1ffff ) AM_READWRITE_LEGACY(sgi_mc_r, sgi_mc_w )
+	AM_RANGE( 0x1fa00000, 0x1fa1ffff ) AM_DEVREADWRITE("sgi_mc", sgi_mc_device, read, write )
 	AM_RANGE( 0x1fb80000, 0x1fb8ffff ) AM_READWRITE(hpc_r, hpc_w )
 	AM_RANGE( 0x1fbd9000, 0x1fbd903f ) AM_READWRITE(int_r, int_w )
 	AM_RANGE( 0x1fc00000, 0x1fc7ffff ) AM_ROM AM_SHARE("share2") AM_REGION( "user1", 0 )
@@ -470,7 +471,7 @@ static ADDRESS_MAP_START( ip204415_map, AS_PROGRAM, 32, ip20_state )
 	AM_RANGE( 0xac000000, 0xac7fffff ) AM_RAM AM_SHARE("share8")
 	AM_RANGE( 0xb0000000, 0xb07fffff ) AM_RAM AM_SHARE("share9")
 	AM_RANGE( 0xb8000000, 0xb87fffff ) AM_RAM AM_SHARE("share1")
-	AM_RANGE( 0xbfa00000, 0xbfa1ffff ) AM_READWRITE_LEGACY(sgi_mc_r, sgi_mc_w )
+	AM_RANGE( 0xbfa00000, 0xbfa1ffff ) AM_DEVREADWRITE("sgi_mc", sgi_mc_device, read, write )
 	AM_RANGE( 0xbfb80000, 0xbfb8ffff ) AM_READWRITE(hpc_r, hpc_w )
 	AM_RANGE( 0xbfbd9000, 0xbfbd903f ) AM_READWRITE(int_r, int_w )
 	AM_RANGE( 0xbfc00000, 0xbfc7ffff ) AM_ROM AM_SHARE("share2") /* BIOS Mirror */
@@ -479,11 +480,6 @@ ADDRESS_MAP_END
 WRITE_LINE_MEMBER(ip20_state::scsi_irq)
 {
 }
-
-static const struct WD33C93interface wd33c93_intf =
-{
-	DEVCB_DRIVER_LINE_MEMBER(ip20_state,scsi_irq)      /* command completion IRQ */
-};
 
 DRIVER_INIT_MEMBER(ip20_state,ip204415)
 {
@@ -503,8 +499,6 @@ void ip20_state::device_timer(emu_timer &timer, device_timer_id id, int param, v
 
 TIMER_CALLBACK_MEMBER(ip20_state::ip20_timer_rtc)
 {
-	ip20_state *state = machine().driver_data<ip20_state>();
-
 	// update RTC every 10 milliseconds
 	m_RTC.nTemp++;
 	if (m_RTC.nTemp >= 10)
@@ -562,8 +556,6 @@ TIMER_CALLBACK_MEMBER(ip20_state::ip20_timer_rtc)
 
 void ip20_state::machine_start()
 {
-	sgi_mc_init(machine());
-
 	m_HPC.nMiscStatus = 0;
 	m_HPC.nParBufPtr = 0;
 	m_HPC.nLocalIOReg0Mask = 0;
@@ -581,11 +573,18 @@ static INPUT_PORTS_START( ip204415 )
 	PORT_BIT ( 0xff, IP_ACTIVE_HIGH, IPT_UNUSED )
 INPUT_PORTS_END
 
+#if 0
 static const mips3_config config =
 {
 	32768,  /* code cache size */
 	32768   /* data cache size */
 };
+#endif
+
+static MACHINE_CONFIG_FRAGMENT( cdrom_config )
+	MCFG_DEVICE_MODIFY( "cdda" )
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "^^^^mono", 1.0)
+MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( ip204415, ip20_state )
 	MCFG_CPU_ADD( "maincpu", R4600BE, 50000000*3 )
@@ -600,20 +599,24 @@ static MACHINE_CONFIG_START( ip204415, ip20_state )
 	MCFG_SCREEN_SIZE(800, 600)
 	MCFG_SCREEN_VISIBLE_AREA(0, 799, 0, 599)
 	MCFG_SCREEN_UPDATE_DRIVER(ip20_state, screen_update_ip204415)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_LENGTH(65536)
+	MCFG_PALETTE_ADD("palette", 65536)
 
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SCC8530_ADD("scc", 7000000, line_cb_t())
+	MCFG_DEVICE_ADD("scc", SCC8530, 7000000)
 
-	MCFG_SCSIBUS_ADD("scsi")
-	MCFG_SCSIDEV_ADD("scsi:cdrom", SCSICD, SCSI_ID_6)
-	MCFG_WD33C93_ADD("scsi:wd33c93", wd33c93_intf)
+	MCFG_DEVICE_ADD("sgi_mc", SGI_MC, 0)
 
-	MCFG_SOUND_MODIFY( "scsi:cdrom:cdda" )
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "^^^mono", 1.0)
+	MCFG_DEVICE_ADD("scsi", SCSI_PORT, 0)
+	MCFG_SCSIDEV_ADD("scsi:" SCSI_PORT_DEVICE1, "cdrom", SCSICD, SCSI_ID_6)
+	MCFG_SLOT_OPTION_MACHINE_CONFIG("cdrom", cdrom_config)
+
+	MCFG_DEVICE_ADD("wd33c93", WD33C93, 0)
+	MCFG_LEGACY_SCSI_PORT("scsi")
+	MCFG_WD33C93_IRQ_CB(WRITELINE(ip20_state, scsi_irq))      /* command completion IRQ */
 
 	MCFG_EEPROM_SERIAL_93C56_ADD("eeprom")
 MACHINE_CONFIG_END

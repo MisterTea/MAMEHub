@@ -11,27 +11,25 @@
 #include "emu.h"
 #include "includes/moo.h"
 
-void moo_sprite_callback( running_machine &machine, int *code, int *color, int *priority_mask )
+K053246_CB_MEMBER(moo_state::sprite_callback)
 {
-	moo_state *state = machine.driver_data<moo_state>();
 	int pri = (*color & 0x03e0) >> 4;
 
-	if (pri <= state->m_layerpri[2])
+	if (pri <= m_layerpri[2])
 		*priority_mask = 0;
-	else if (pri <= state->m_layerpri[1])
+	else if (pri <= m_layerpri[1])
 		*priority_mask = 0xf0;
-	else if (pri <= state->m_layerpri[0])
+	else if (pri <= m_layerpri[0])
 		*priority_mask = 0xf0|0xcc;
 	else
 		*priority_mask = 0xf0|0xcc|0xaa;
 
-	*color = state->m_sprite_colorbase | (*color & 0x001f);
+	*color = m_sprite_colorbase | (*color & 0x001f);
 }
 
-void moo_tile_callback( running_machine &machine, int layer, int *code, int *color, int *flags )
+K056832_CB_MEMBER(moo_state::tile_callback)
 {
-	moo_state *state = machine.driver_data<moo_state>();
-	*color = state->m_layer_colorbase[layer] | (*color >> 2 & 0x0f);
+	*color = m_layer_colorbase[layer] | (*color >> 2 & 0x0f);
 }
 
 VIDEO_START_MEMBER(moo_state,moo)
@@ -109,8 +107,8 @@ UINT32 moo_state::screen_update_moo(screen_device &screen, bitmap_rgb32 &bitmap,
 
 	konami_sortlayers3(layers, m_layerpri);
 
-	m_k054338->update_all_shadows(0);
-	m_k054338->fill_backcolor(bitmap, 0);
+	m_k054338->update_all_shadows(0, m_palette);
+	m_k054338->fill_solid_bg(bitmap, cliprect);
 
 	screen.priority().fill(0, cliprect);
 

@@ -13,13 +13,13 @@ enum {
 	tms1xxx_cpu_device::set_output_pla(*device, _pla);
 
 #define MCFG_TMS1XXX_READ_K(_devcb) \
-	tms1xxx_cpu_device::set_read_k(*device, DEVCB2_##_devcb);
+	tms1xxx_cpu_device::set_read_k(*device, DEVCB_##_devcb);
 
 #define MCFG_TMS1XXX_WRITE_O(_devcb) \
-	tms1xxx_cpu_device::set_write_o(*device, DEVCB2_##_devcb);
+	tms1xxx_cpu_device::set_write_o(*device, DEVCB_##_devcb);
 
 #define MCFG_TMS1XXX_WRITE_R(_devcb) \
-	tms1xxx_cpu_device::set_write_r(*device, DEVCB2_##_devcb);
+	tms1xxx_cpu_device::set_write_r(*device, DEVCB_##_devcb);
 
 
 class tms1xxx_cpu_device : public cpu_device
@@ -32,6 +32,14 @@ public:
 		: cpu_device( mconfig, type, name, tag, owner, clock, shortname, source)
 		, m_program_config("program", ENDIANNESS_BIG, byte_size > 8 ? 16 : 8, program_addrbus_width, 0, program )
 		, m_data_config("data", ENDIANNESS_BIG, 8, data_addrbus_width, 0, data )
+		, m_pc(0)
+		, m_pa(0)
+		, m_sr(0)
+		, m_pb(0)
+		, m_a(0)
+		, m_x(0)
+		, m_y(0)
+		, m_status(0)
 		, m_o_mask( o_mask )
 		, m_r_mask( r_mask )
 		, m_pc_size( pc_size )
@@ -45,9 +53,9 @@ public:
 	{ }
 
 	// static configuration helpers
-	template<class _Object> static devcb2_base &set_read_k(device_t &device, _Object object) { return downcast<tms1xxx_cpu_device &>(device).m_read_k.set_callback(object); }
-	template<class _Object> static devcb2_base &set_write_o(device_t &device, _Object object) { return downcast<tms1xxx_cpu_device &>(device).m_write_o.set_callback(object); }
-	template<class _Object> static devcb2_base &set_write_r(device_t &device, _Object object) { return downcast<tms1xxx_cpu_device &>(device).m_write_r.set_callback(object); }
+	template<class _Object> static devcb_base &set_read_k(device_t &device, _Object object) { return downcast<tms1xxx_cpu_device &>(device).m_read_k.set_callback(object); }
+	template<class _Object> static devcb_base &set_write_o(device_t &device, _Object object) { return downcast<tms1xxx_cpu_device &>(device).m_write_o.set_callback(object); }
+	template<class _Object> static devcb_base &set_write_r(device_t &device, _Object object) { return downcast<tms1xxx_cpu_device &>(device).m_write_r.set_callback(object); }
 	static void set_output_pla(device_t &device, const UINT16 *output_pla) { downcast<tms1xxx_cpu_device &>(device).c_output_pla = output_pla; }
 
 protected:
@@ -117,9 +125,9 @@ protected:
 	address_space *m_data;
 
 	const UINT16 *c_output_pla;
-	devcb2_read8 m_read_k;
-	devcb2_write16 m_write_o;
-	devcb2_write16 m_write_r;
+	devcb_read8 m_read_k;
+	devcb_write16 m_write_o;
+	devcb_write16 m_write_r;
 
 };
 

@@ -486,7 +486,7 @@ void i960_cpu_device::do_call(UINT32 adr, int type, UINT32 stack)
 
 	// set the new RIP
 	m_r[I960_RIP] = m_IP;
-//  mame_printf_debug("CALL (type %d): FP %x, %x => %x, stack %x, rcache_pos %d\n", type, m_r[I960_FP], m_r[I960_RIP], adr, stack, m_rcache_pos);
+//  osd_printf_debug("CALL (type %d): FP %x, %x => %x, stack %x, rcache_pos %d\n", type, m_r[I960_FP], m_r[I960_RIP], adr, stack, m_rcache_pos);
 
 	// are we out of cache entries?
 	if (m_rcache_pos >= I960_RCACHE_SIZE) {
@@ -544,7 +544,7 @@ void i960_cpu_device::do_ret_0()
 		memcpy(m_r, m_rcache[m_rcache_pos], 0x10*sizeof(UINT32));
 	}
 
-//  mame_printf_debug("RET (type %d): FP %x, %x => %x, rcache_pos %d\n", type, m_r[I960_FP], m_IP, m_r[I960_RIP], m_rcache_pos);
+//  osd_printf_debug("RET (type %d): FP %x, %x => %x, rcache_pos %d\n", type, m_r[I960_FP], m_IP, m_r[I960_RIP], m_rcache_pos);
 	m_IP = m_r[I960_RIP];
 }
 
@@ -2013,6 +2013,7 @@ void i960_cpu_device::device_start()
 	m_program = &space(AS_PROGRAM);
 	m_direct = &m_program->direct();
 
+	save_item(NAME(m_IP));
 	save_item(NAME(m_PIP));
 	save_item(NAME(m_SAT));
 	save_item(NAME(m_PRCB));
@@ -2023,6 +2024,10 @@ void i960_cpu_device::device_start()
 	save_item(NAME(m_fp));
 	save_item(NAME(m_rcache));
 	save_item(NAME(m_rcache_frame_addr));
+	save_item(NAME(m_rcache_pos));
+	save_item(NAME(m_immediate_irq));
+	save_item(NAME(m_immediate_vector));
+	save_item(NAME(m_immediate_pri));
 
 	state_add( I960_SAT,  "sat", m_SAT).formatstr("%08X");
 	state_add( I960_PRCB, "prcb", m_PRCB).formatstr("%08X");

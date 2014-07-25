@@ -96,9 +96,9 @@ WRITE8_MEMBER(bwing_state::bwing_scrollram_w)
 	{
 		offs = offset;
 		if (offset < 0x1000)
-			machine().gfx[2]->mark_dirty(offset / 32);
+			m_gfxdecode->gfx(2)->mark_dirty(offset / 32);
 		else
-			machine().gfx[3]->mark_dirty(offset / 32);
+			m_gfxdecode->gfx(3)->mark_dirty(offset / 32);
 	}
 
 	(m_srbase[m_srbank])[offs] = data;
@@ -160,7 +160,7 @@ WRITE8_MEMBER(bwing_state::bwing_paletteram_w)
 		if (b > 0xff) b = 0xff;
 	}
 
-	palette_set_color(machine(), offset, MAKE_RGB(r, g, b));
+	m_palette->set_pen_color(offset, rgb_t(r, g, b));
 
 	#if BW_DEBUG
 		m_paletteram[offset + 0x40] = m_palatch;
@@ -172,14 +172,12 @@ WRITE8_MEMBER(bwing_state::bwing_paletteram_w)
 
 TILE_GET_INFO_MEMBER(bwing_state::get_fgtileinfo)
 {
-	tileinfo.pen_data = machine().gfx[2]->get_data(m_fgdata[tile_index] & (BW_NTILES - 1));
-	tileinfo.palette_base = machine().gfx[2]->colorbase() + ((m_fgdata[tile_index] >> 7) << 3);
+	SET_TILE_INFO_MEMBER(2, m_fgdata[tile_index] & 0x7f, m_fgdata[tile_index] >> 7, 0);
 }
 
 TILE_GET_INFO_MEMBER(bwing_state::get_bgtileinfo)
 {
-	tileinfo.pen_data = machine().gfx[3]->get_data(m_bgdata[tile_index] & (BW_NTILES - 1));
-	tileinfo.palette_base = machine().gfx[3]->colorbase() + ((m_bgdata[tile_index] >> 7) << 3);
+	SET_TILE_INFO_MEMBER(3, m_bgdata[tile_index] & 0x7f, m_bgdata[tile_index] >> 7, 0);
 }
 
 TILE_GET_INFO_MEMBER(bwing_state::get_charinfo)
@@ -198,9 +196,9 @@ void bwing_state::video_start()
 //  UINT32 *dwptr;
 	int i;
 
-	m_charmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bwing_state::get_charinfo),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
-	m_fgmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bwing_state::get_fgtileinfo),this), tilemap_mapper_delegate(FUNC(bwing_state::bwing_scan_cols),this), 16, 16, 64, 64);
-	m_bgmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(bwing_state::get_bgtileinfo),this), tilemap_mapper_delegate(FUNC(bwing_state::bwing_scan_cols),this), 16, 16, 64, 64);
+	m_charmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bwing_state::get_charinfo),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
+	m_fgmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bwing_state::get_fgtileinfo),this), tilemap_mapper_delegate(FUNC(bwing_state::bwing_scan_cols),this), 16, 16, 64, 64);
+	m_bgmap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(bwing_state::get_bgtileinfo),this), tilemap_mapper_delegate(FUNC(bwing_state::bwing_scan_cols),this), 16, 16, 64, 64);
 
 	m_charmap->set_transparent_pen(0);
 	m_fgmap->set_transparent_pen(0);
@@ -219,22 +217,11 @@ void bwing_state::video_start()
 	for (i = 0; i < 8; i++)
 		m_sreg[i] = 0;
 
-//  m_fgfx = machine().gfx[2];
-	machine().gfx[2]->set_source(m_srbase[1]);
+//  m_fgfx = m_gfxdecode->gfx(2);
+	m_gfxdecode->gfx(2)->set_source(m_srbase[1]);
 
-//  m_bgfx = machine().gfx[3];
-	machine().gfx[3]->set_source(m_srbase[1] + 0x1000);
-/*
-    WTF??
-
-    dwptr = machine().gfx[2]->pen_usage();
-    if (dwptr)
-    {
-        dwptr[0] = 0;
-        for(i = 1; i < BW_NTILES; i++)
-            dwptr[i] = -1;
-    }
-*/
+//  m_bgfx = m_gfxdecode->gfx(3);
+	m_gfxdecode->gfx(3)->set_source(m_srbase[1] + 0x1000);
 }
 
 //****************************************************************************
@@ -243,7 +230,7 @@ void bwing_state::video_start()
 void bwing_state::draw_sprites( bitmap_ind16 &bmp, const rectangle &clip, UINT8 *ram, int pri )
 {
 	int attrib, fx, fy, code, x, y, color, i;
-	gfx_element *gfx = machine().gfx[1];
+	gfx_element *gfx = m_gfxdecode->gfx(1);
 
 	for (i = 0; i < 0x200; i += 4)
 	{
@@ -274,9 +261,9 @@ void bwing_state::draw_sprites( bitmap_ind16 &bmp, const rectangle &clip, UINT8 
 
 		// single/double
 		if (!(attrib & 0x10))
-			drawgfx_transpen(bmp, clip, gfx, code, color, fx, fy, x, y, 0);
+				gfx->transpen(bmp,clip, code, color, fx, fy, x, y, 0);
 		else
-			drawgfxzoom_transpen(bmp, clip, gfx, code, color, fx, fy, x, y, 1<<16, 2<<16, 0);
+				gfx->zoom_transpen(bmp,clip, code, color, fx, fy, x, y, 1<<16, 2<<16, 0);
 	}
 }
 
@@ -307,7 +294,7 @@ UINT32 bwing_state::screen_update_bwing(screen_device &screen, bitmap_ind16 &bit
 		m_bgmap->draw(screen, bitmap, cliprect, 0, 0);
 	}
 	else
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(m_palette->black_pen(), cliprect);
 
 	// draw low priority sprites
 	draw_sprites(bitmap, cliprect, m_spriteram, 0);

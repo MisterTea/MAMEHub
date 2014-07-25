@@ -129,7 +129,7 @@ void system1_state::video_start_common(int pagecount)
 	/* create the tilemap pages */
 	for (pagenum = 0; pagenum < pagecount; pagenum++)
 	{
-		m_tilemap_page[pagenum] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(system1_state::tile_get_info),this), TILEMAP_SCAN_ROWS, 8,8, 32,32);
+		m_tilemap_page[pagenum] = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(system1_state::tile_get_info),this), TILEMAP_SCAN_ROWS, 8,8, 32,32);
 		m_tilemap_page[pagenum]->set_transparent_pen(0);
 		m_tilemap_page[pagenum]->set_user_data(m_videoram + 0x800 * pagenum);
 	}
@@ -255,7 +255,7 @@ inline void system1_state::videoram_wait_states(cpu_device *cpu)
 READ8_MEMBER(system1_state::system1_videoram_r)
 {
 	UINT8 *videoram = m_videoram;
-	videoram_wait_states(machine().firstcpu);
+	videoram_wait_states(m_maincpu);
 	offset |= 0x1000 * ((m_videoram_bank >> 1) % (m_tilemap_pages / 2));
 	return videoram[offset];
 }
@@ -263,7 +263,7 @@ READ8_MEMBER(system1_state::system1_videoram_r)
 WRITE8_MEMBER(system1_state::system1_videoram_w)
 {
 	UINT8 *videoram = m_videoram;
-	videoram_wait_states(machine().firstcpu);
+	videoram_wait_states(m_maincpu);
 	offset |= 0x1000 * ((m_videoram_bank >> 1) % (m_tilemap_pages / 2));
 	videoram[offset] = data;
 
@@ -347,7 +347,7 @@ WRITE8_MEMBER(system1_state::system1_paletteram_w)
 		b = pal2bit(data >> 6);
 	}
 
-	palette_set_color(machine(),offset,MAKE_RGB(r,g,b));
+	m_palette->set_pen_color(offset,rgb_t(r,g,b));
 }
 
 

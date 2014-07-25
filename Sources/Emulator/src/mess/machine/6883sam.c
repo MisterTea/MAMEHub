@@ -70,6 +70,9 @@ const device_type SAM6883 = &device_creator<sam6883_device>;
 
 sam6883_device::sam6883_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, SAM6883, "SAM6883", tag, owner, clock, "sam6883", __FILE__),
+		m_cpu_tag(NULL),
+		m_cpu_space_ref(AS_PROGRAM),
+		m_read_res(*this),
 		m_space_0000(*this),
 		m_space_8000(*this),
 		m_space_A000(*this),
@@ -91,14 +94,12 @@ sam6883_device::sam6883_device(const machine_config &mconfig, const char *tag, d
 
 void sam6883_device::device_start()
 {
-	const sam6883_interface *config = (const sam6883_interface *) static_config();
-
 	// find the CPU
-	m_cpu = machine().device<cpu_device>(config->m_cpu_tag);
-	m_cpu_space = &m_cpu->space(config->m_cpu_space);
+	m_cpu = machine().device<cpu_device>(m_cpu_tag);
+	m_cpu_space = &m_cpu->space(m_cpu_space_ref);
 
 	// resolve callbacks
-	m_res_input_func.resolve(config->m_input_func, *this);
+	m_read_res.resolve_safe(0);
 
 	// install SAM handlers
 	m_cpu_space->install_read_handler(0xFFC0, 0xFFDF, 0, 0, read8_delegate(FUNC(sam6883_device::read), this));
@@ -141,7 +142,7 @@ void sam6883_device::configure_bank(int bank, read8_delegate rhandler, write8_de
 
 void sam6883_device::configure_bank(int bank, UINT8 *memory, UINT32 memory_size, bool is_read_only, read8_delegate rhandler, write8_delegate whandler)
 {
-	assert((bank >= 0) && (bank < sizeof(m_banks) / sizeof(m_banks[0])));
+	assert((bank >= 0) && (bank < ARRAY_LENGTH(m_banks)));
 	m_banks[bank].m_memory = memory;
 	m_banks[bank].m_memory_size = memory_size;
 	m_banks[bank].m_memory_read_only = is_read_only;
@@ -152,19 +153,19 @@ void sam6883_device::configure_bank(int bank, UINT8 *memory, UINT32 memory_size,
 	switch(bank)
 	{
 		case 4:
-			m_space_FF00.point(&m_banks[4], 0x0000);
+			m_space_FF00.point(&m_banks[4], 0x0000, 0);
 			break;
 		case 5:
-			m_space_FF20.point(&m_banks[5], 0x0000);
+			m_space_FF20.point(&m_banks[5], 0x0000, 0);
 			break;
 		case 6:
-			m_space_FF40.point(&m_banks[6], 0x0000);
+			m_space_FF40.point(&m_banks[6], 0x0000, 0);
 			break;
 		case 7:
-			m_space_FF60.point(&m_banks[7], 0x0000);
+			m_space_FF60.point(&m_banks[7], 0x0000, 0);
 			break;
 		case 2:
-			m_space_FFE0.point(&m_banks[2], 0x1FE0);
+			m_space_FFE0.point(&m_banks[2], 0x1FE0, 0);
 			break;
 	}
 }
@@ -268,9 +269,9 @@ void sam6883_device::update_memory(void)
 			{
 				// full 64k RAM
 				m_space_0000.point(&m_banks[0], 0x0000, ram_mask);
-				m_space_8000.point(&m_banks[0], 0x8000);
-				m_space_A000.point(&m_banks[0], 0xA000);
-				m_space_C000.point(&m_banks[0], 0xC000);
+				m_space_8000.point(&m_banks[0], 0x8000, 0);
+				m_space_A000.point(&m_banks[0], 0xA000, 0);
+				m_space_C000.point(&m_banks[0], 0xC000, 0);
 				m_counter_mask = 0xFFFF;
 				m_counter_or = 0x0000;
 				setup_rom = false;
@@ -288,13 +289,13 @@ void sam6883_device::update_memory(void)
 
 	if (setup_rom)
 	{
-		m_space_8000.point(&m_banks[1], m_banks[1].m_memory_offset);
-		m_space_A000.point(&m_banks[2], m_banks[2].m_memory_offset);
-		m_space_C000.point(&m_banks[3], m_banks[3].m_memory_offset);
+		m_space_8000.point(&m_banks[1], m_banks[1].m_memory_offset, 0);
+		m_space_A000.point(&m_banks[2], m_banks[2].m_memory_offset, 0);
+		m_space_C000.point(&m_banks[3], m_banks[3].m_memory_offset, 0);
 	}
 
 	// update $FFE0-$FFFF
-	m_space_FFE0.point(&m_banks[2], m_banks[2].m_memory_offset + 0x1FE0);
+	m_space_FFE0.point(&m_banks[2], m_banks[2].m_memory_offset + 0x1FE0, 0);
 }
 
 

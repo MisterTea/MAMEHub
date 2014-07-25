@@ -3,13 +3,12 @@
 #ifndef __HX20__
 #define __HX20__
 
-#include "emu.h"
+#include "bus/rs232/rs232.h"
 #include "cpu/m6800/m6800.h"
 #include "imagedev/cassette.h"
-#include "machine/epson_sio.h"
+#include "bus/epson_sio/epson_sio.h"
 #include "machine/mc146818.h"
 #include "machine/ram.h"
-#include "machine/serial.h"
 #include "video/upd7227.h"
 #include "sound/speaker.h"
 #include "rendlay.h"
@@ -86,7 +85,7 @@ public:
 	required_ioport m_sw6;
 
 	virtual void machine_start();
-	virtual void palette_init();
+	DECLARE_PALETTE_INIT(hx20);
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 	DECLARE_WRITE8_MEMBER( ksc_w );
@@ -111,6 +110,9 @@ public:
 
 	DECLARE_WRITE_LINE_MEMBER( rtc_irq_w );
 
+	DECLARE_WRITE_LINE_MEMBER( sio_rx_w ) { m_sio_rx = state; }
+	DECLARE_WRITE_LINE_MEMBER( sio_pin_w ) { m_sio_pin = state; }
+
 	void update_interrupt();
 
 	// CPU state
@@ -126,6 +128,10 @@ public:
 
 	// video state
 	UINT8 m_lcd_data;
+
+	// sio state
+	int m_sio_rx;
+	int m_sio_pin;
 };
 
 #endif

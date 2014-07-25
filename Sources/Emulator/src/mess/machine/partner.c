@@ -10,10 +10,6 @@
 #include "emu.h"
 #include "cpu/i8085/i8085.h"
 #include "imagedev/cassette.h"
-#include "machine/i8255.h"
-#include "machine/8257dma.h"
-#include "machine/wd17xx.h"
-#include "video/i8275.h"
 #include "includes/radio86.h"
 #include "includes/partner.h"
 #include "imagedev/flopdrv.h"
@@ -24,27 +20,6 @@
 DRIVER_INIT_MEMBER(partner_state,partner)
 {
 	m_tape_value = 0x80;
-}
-
-WRITE_LINE_MEMBER(partner_state::partner_wd17xx_drq_w)
-{
-	i8257_device *device = machine().device<i8257_device>("dma8257");
-	if (state)
-		device->i8257_drq0_w(1);
-}
-
-const wd17xx_interface partner_wd17xx_interface =
-{
-	DEVCB_LINE_GND,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(partner_state,partner_wd17xx_drq_w),
-	{FLOPPY_0, FLOPPY_1, NULL, NULL}
-};
-
-MACHINE_START_MEMBER(partner_state,partner)
-{
-	device_t *fdc = machine().device("wd1793");
-	wd17xx_set_pause_time(fdc, 10);
 }
 
 void partner_state::partner_window_1(UINT8 bank_num, UINT16 offset,UINT8 *rom)
@@ -79,15 +54,13 @@ void partner_state::partner_window_2(UINT8 bank_num, UINT16 offset,UINT8 *rom)
 }
 
 READ8_MEMBER(partner_state::partner_floppy_r){
-	device_t *fdc = machine().device("wd1793");
-
 	if (offset<0x100) {
 		switch(offset & 3) {
-			case 0x00 : return wd17xx_status_r(fdc,space, 0);
-			case 0x01 : return wd17xx_track_r(fdc,space, 0);
-			case 0x02 : return wd17xx_sector_r(fdc,space, 0);
+			case 0x00 : return m_fdc->status_r(space, 0);
+			case 0x01 : return m_fdc->track_r(space, 0);
+			case 0x02 : return m_fdc->sector_r(space, 0);
 			default   :
-						return wd17xx_data_r(fdc,space, 0);
+						return m_fdc->data_r(space, 0);
 		}
 	} else {
 		return 0;
@@ -95,29 +68,32 @@ READ8_MEMBER(partner_state::partner_floppy_r){
 }
 
 WRITE8_MEMBER(partner_state::partner_floppy_w){
-	device_t *fdc = machine().device("wd1793");
-
 	if (offset<0x100) {
 		switch(offset & 3) {
-			case 0x00 : wd17xx_command_w(fdc,space, 0,data); break;
-			case 0x01 : wd17xx_track_w(fdc,space, 0,data);break;
-			case 0x02 : wd17xx_sector_w(fdc,space, 0,data);break;
-			default   : wd17xx_data_w(fdc,space, 0,data);break;
+			case 0x00 : m_fdc->cmd_w(space, 0,data); break;
+			case 0x01 : m_fdc->track_w(space, 0,data);break;
+			case 0x02 : m_fdc->sector_w(space, 0,data);break;
+			default   : m_fdc->data_w(space, 0,data);break;
 		}
 	} else {
-		floppy_mon_w(floppy_get_device(machine(), 0), 1);
-		floppy_mon_w(floppy_get_device(machine(), 1), 1);
+		floppy_image_device *floppy0 = m_fdc->subdevice<floppy_connector>("0")->get_device();
+		floppy_image_device *floppy1 = m_fdc->subdevice<floppy_connector>("1")->get_device();
+
 		if (((data >> 6) & 1)==1) {
-			wd17xx_set_drive(fdc,0);
-			floppy_mon_w(floppy_get_device(machine(), 0), 0);
-			floppy_drive_set_ready_state(floppy_get_device(machine(), 0), 1, 1);
+			m_fdc->set_floppy(floppy0);
+			floppy0->mon_w(0);
+			floppy0->ss_w(data >> 7);
 		}
+		else
+			floppy0->mon_w(1);
+
 		if (((data >> 3) & 1)==1) {
-			wd17xx_set_drive(fdc,1);
-			floppy_mon_w(floppy_get_device(machine(), 1), 0);
-			floppy_drive_set_ready_state(floppy_get_device(machine(), 1), 1, 1);
+			m_fdc->set_floppy(floppy1);
+			floppy1->mon_w(0);
+			floppy1->ss_w(data >> 7);
 		}
-		wd17xx_set_side(fdc,data >> 7);
+		else
+			floppy1->mon_w(1);
 	}
 }
 
@@ -354,26 +330,27 @@ WRITE8_MEMBER(partner_state::partner_mem_page_w)
 	partner_bank_switch();
 }
 
-WRITE_LINE_MEMBER(partner_state::hrq_w)
+I8275_DRAW_CHARACTER_MEMBER(partner_state::display_pixels)
 {
-	/* HACK - this should be connected to the BUSREQ line of Z80 */
-	m_maincpu->set_input_line(INPUT_LINE_HALT, state);
-
-	/* HACK - this should be connected to the BUSACK line of Z80 */
-	machine().device<i8257_device>("dma8257")->i8257_hlda_w(state);
+	int i;
+	const rgb_t *palette = m_palette->palette()->entry_list_raw();
+	const UINT8 *charmap = m_charmap + 0x400 * (gpa * 2 + hlgt);
+	UINT8 pixels = charmap[(linecount & 7) + (charcode << 3)] ^ 0xff;
+	if(linecount == 8)
+		pixels = 0;
+	if (vsp) {
+		pixels = 0;
+	}
+	if (lten) {
+		pixels = 0xff;
+	}
+	if (rvv) {
+		pixels ^= 0xff;
+	}
+	for(i=0;i<6;i++) {
+		bitmap.pix32(y, x + i) = palette[(pixels >> (5-i)) & 1];
+	}
 }
-
-I8257_INTERFACE( partner_dma )
-{
-	DEVCB_DRIVER_LINE_MEMBER(partner_state,hrq_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(radio86_state, memory_read_byte),
-	DEVCB_DRIVER_MEMBER(radio86_state, memory_write_byte),
-	{ DEVCB_DEVICE_HANDLER("wd1793", wd17xx_data_r), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_DEVICE_HANDLER("wd1793", wd17xx_data_w), DEVCB_NULL, DEVCB_DEVICE_MEMBER("i8275", i8275_device, dack_w), DEVCB_NULL }
-};
-
 
 MACHINE_RESET_MEMBER(partner_state,partner)
 {

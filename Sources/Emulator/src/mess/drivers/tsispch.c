@@ -1,11 +1,33 @@
+// license:MAME|LGPL-2.1+
+// copyright-holders:Jonathan Gevaryahu
 /******************************************************************************
 *
 *  Telesensory Systems Inc./Speech Plus
 *  1500 and 2000 series
 *  Prose 2020
-*  By Jonathan Gevaryahu AKA Lord Nightmare and Kevin 'kevtris' Horton
+*  Copyright (C) 2011-2013 Jonathan Gevaryahu AKA Lord Nightmare and Kevin 'kevtris' Horton
 *
-*  Skeleton Driver
+*  This source file is dual-licensed under the following licenses:
+*  1. The MAME license as of September 2013
+*  2. The GNU LGPLv2.1:
+*
+*  This library is free software; you can redistribute it and/or
+*  modify it under the terms of the GNU Lesser General Public
+*  License as published by the Free Software Foundation; either
+*  version 2.1 of the License, or (at your option) any later version.
+*
+*  This library is distributed in the hope that it will be useful,
+*  but WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+*  Lesser General Public License for more details.
+*
+*  You should have received a copy of the GNU Lesser General Public
+*  License along with this library; if not, write to the Free Software
+*  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+*
+*  Please contact the author if you require other licensing.
+*
+*
 *
 *  DONE:
 *  Skeleton Written
@@ -14,11 +36,11 @@
 *  Successful run
 *  Correctly Interleave 8086 CPU roms
 *  Debug LEDs hooked to popmessage
-*  Correctly load UPD7720 roms as UPD7725 data - done, this is utterly disgusting code.
+*  Correctly load UPD7720 roms as UPD7725 data - done; this is utterly disgusting code, but appears to work.
 *  Attached i8251a uart at u15
 *  Added dipswitch array S4
 *  Attached 8259 PIC
-   * IR0 = upd7720 p0 pin masked by (probably peripheral bit 0)
+   * IR0 = upd7720 p0 pin masked by (probably peripheral bit 8)
    * IR1 = i8251 rxrdy
    * IR2 = i8251 txempty
    * IR3 = i8251 txrdy
@@ -115,14 +137,6 @@
 /*
    Devices and handlers
  */
-//upd7720 (TODO: hook up p0, p1, int)
-static NECDSP_INTERFACE( upd7720_config )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 
 /*****************************************************************************
  USART 8251 and Terminal stuff
@@ -142,40 +156,10 @@ WRITE_LINE_MEMBER(tsispch_state::i8251_txrdy_int)
 	machine().device<pic8259_device>("pic8259")->ir3_w(state);
 }
 
-const i8251_interface i8251_config =
-{
-	DEVCB_NULL, // in rxd, serial (todo: proper hookup, currently using hack w/i8251_receive_character())
-	DEVCB_NULL, // out txd, serial
-	DEVCB_NULL, // in dsr
-	DEVCB_NULL, // out dtr
-	DEVCB_NULL, // out rts
-	DEVCB_DRIVER_LINE_MEMBER(tsispch_state,i8251_rxrdy_int), // out rxrdy
-	DEVCB_DRIVER_LINE_MEMBER(tsispch_state,i8251_txrdy_int), // out txrdy
-	DEVCB_DRIVER_LINE_MEMBER(tsispch_state,i8251_txempty_int), // out txempty
-	DEVCB_NULL  // out syndet
-};
-
 WRITE8_MEMBER( tsispch_state::i8251_rxd )
 {
 	i8251_device *uart = machine().device<i8251_device>("i8251a_u15");
 	uart->receive_character(data);
-}
-static GENERIC_TERMINAL_INTERFACE( tsispch_terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(tsispch_state, i8251_rxd)
-};
-
-/*****************************************************************************
- PIC 8259 stuff
-*****************************************************************************/
-WRITE_LINE_MEMBER(tsispch_state::pic8259_set_int_line)
-{
-	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
-}
-
-IRQ_CALLBACK_MEMBER(tsispch_state::irq_callback)
-{
-	return machine().device<pic8259_device>("pic8259")->acknowledge();
 }
 
 /*****************************************************************************
@@ -183,15 +167,14 @@ IRQ_CALLBACK_MEMBER(tsispch_state::irq_callback)
 *****************************************************************************/
 READ8_MEMBER( tsispch_state::dsw_r )
 {
-	UINT8 data;
 	/* the only dipswitch I'm really sure about is s4-7 which enables the test mode
 	 * The switches are, for normal operation on my unit:
+	 * 1  2  3   4   5   6   7   8
 	 * ON ON OFF OFF OFF OFF OFF OFF
 	 * which makes this register read 0xFC
 	 * When s4-7 is turned on, it reads 0xBC
 	 */
-	data = ioport("s4")->read();
-	return data;
+	return ioport("s4")->read();
 }
 
 WRITE8_MEMBER( tsispch_state::peripheral_w )
@@ -264,7 +247,6 @@ void tsispch_state::machine_reset()
 	int i;
 	for (i=0; i<32; i++) m_infifo[i] = 0;
 	m_infifo_tail_ptr = m_infifo_head_ptr = 0;
-	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(tsispch_state::irq_callback),this));
 	fprintf(stderr,"machine reset\n");
 }
 
@@ -402,26 +384,32 @@ static MACHINE_CONFIG_START( prose2k, tsispch_state )
 	MCFG_CPU_ADD("maincpu", I8086, 8000000) /* VERIFIED clock, unknown divider */
 	MCFG_CPU_PROGRAM_MAP(i8086_mem)
 	MCFG_CPU_IO_MAP(i8086_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259", pic8259_device, inta_cb)
 
 	/* TODO: the UPD7720 has a 10KHz clock to its INT pin */
 	/* TODO: the UPD7720 has a 2MHz clock to its SCK pin */
+	/* TODO: hook up p0, p1, int */
 	MCFG_CPU_ADD("dsp", UPD7725, 8000000) /* VERIFIED clock, unknown divider; correct dsp type is UPD77P20 */
 	MCFG_CPU_PROGRAM_MAP(dsp_prg_map)
 	MCFG_CPU_DATA_MAP(dsp_data_map)
-	MCFG_CPU_CONFIG(upd7720_config)
 
 	/* PIC 8259 */
-	MCFG_PIC8259_ADD("pic8259", WRITELINE(tsispch_state,pic8259_set_int_line), VCC, NULL)
+	MCFG_PIC8259_ADD("pic8259", INPUTLINE("maincpu", 0), VCC, NULL)
 
 	/* uarts */
-	MCFG_I8251_ADD("i8251a_u15", i8251_config)
+	MCFG_DEVICE_ADD("i8251a_u15", I8251, 0)
+	// (todo: proper hookup, currently using hack w/i8251_receive_character())
+	MCFG_I8251_RXRDY_HANDLER(WRITELINE(tsispch_state, i8251_rxrdy_int))
+	MCFG_I8251_TXRDY_HANDLER(WRITELINE(tsispch_state, i8251_txrdy_int))
+	MCFG_I8251_TXEMPTY_HANDLER(WRITELINE(tsispch_state, i8251_txempty_int))
 
 	/* sound hardware */
 	//MCFG_SPEAKER_STANDARD_MONO("mono")
 	//MCFG_SOUND_ADD("dac", DAC, 0) /* TODO: correctly figure out how the DAC works; apparently it is connected to the serial output of the upd7720, which will be "fun" to connect up */
 	//MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG,tsispch_terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(tsispch_state, i8251_rxd))
 MACHINE_CONFIG_END
 
 /******************************************************************************
@@ -465,16 +453,16 @@ ROM_START( prose2k )
 	//      3 - to /EN3 (pin 4) of 74S138N at U80
 	//          AND to EN1 (pin 6) of 74S138N at U78
 	//          i.e. one is activated when pin is high and other when pin is low
-	//          The 74S138N at U80:
+	//          The 74S138N at U80: [*ENABLED ONLY WITHIN/CONTROLS THE 3000-3FFF AREA*]
 	//              /EN2 - pulled to GND
 	//              EN1 - pulled to VCC through resistor R5
 	//              inputs: S0 - A9; S1 - A10; S2 - A11
-	//              /Y0 - /CS (pin 11) of iP8251A at U15
-	//              /Y1 - /CS (pin 1) of AMD 8259A at U4
-	//              /Y2 - pins 1, 4, 9 (1A, 2A, 3A inputs) of 74HCT32 Quad OR gate at U58 <wip, this is the 'peripheral' register, which deals with upd7720 control lines, LEDS and dipswitches>
-	//              /Y3 - pin 26 (/CS) of UPD77P20 at U29
-	//              /Y4 through /Y7 - seem unconnected SO FAR? <wip>
-	//          The 74S138N at U78: <wip>
+	//              /Y0 - /CS (pin 11) of iP8251A at U15 [0x3000-0x31FF]
+	//              /Y1 - /CS (pin 1) of AMD 8259A at U4 [0x3200-0x33FF]
+	//              /Y2 - pins 1, 4, 9 (1A, 2A, 3A inputs) of 74HCT32 Quad OR gate at U58 [0x3400-0x35FF]
+	//              /Y3 - pin 26 (/CS) of UPD77P20 at U29 [0x3600-0x37FF]
+	//              /Y4 through /Y7 - seem unconnected? [0x3800-0x3FFF]
+	//          The 74S138N at U78: [*ENABLED IN ALL AREAS EXCEPT 3000-3FFF*] <wip>
 	//              /EN3 - ? (TODO: figure these out)
 	//              /EN2 - ?
 	//              inputs: S0 - A18; S1 - A19; S2 - Pulled to GND

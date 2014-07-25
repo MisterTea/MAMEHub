@@ -1,6 +1,6 @@
 /***************************************************************************
 
-    Harriet (c) 1990 Quadtel
+    Harriet (c) 1990 Quantel
 
     TODO:
     - PCB pics would be very useful
@@ -14,14 +14,17 @@
 #include "cpu/m68000/m68000.h"
 #include "machine/terminal.h"
 
+#define TERMINAL_TAG "terminal"
+
 class harriet_state : public driver_device
 {
 public:
 	harriet_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu"),
-			m_terminal(*this, TERMINAL_TAG)
-	{ }
+		m_maincpu(*this, "maincpu"),
+		m_terminal(*this, TERMINAL_TAG)
+	{
+	}
 
 	// devices
 	required_device<cpu_device> m_maincpu;
@@ -40,14 +43,12 @@ public:
 	DECLARE_READ8_MEMBER(unk3_r);
 	DECLARE_READ8_MEMBER(keyboard_status_r);
 	DECLARE_WRITE8_MEMBER( kbd_put );
-
 protected:
 	// driver_device overrides
 	virtual void machine_start();
 	virtual void machine_reset();
 
 	virtual void video_start();
-	virtual void palette_init();
 };
 
 void harriet_state::video_start()
@@ -179,11 +180,6 @@ WRITE8_MEMBER( harriet_state::kbd_put )
 	m_teletype_status |= 0x80;
 }
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DRIVER_MEMBER(harriet_state, kbd_put)
-};
-
 void harriet_state::machine_start()
 {
 }
@@ -193,12 +189,6 @@ void harriet_state::machine_reset()
 }
 
 
-void harriet_state::palette_init()
-{
-}
-
-
-
 static MACHINE_CONFIG_START( harriet, harriet_state )
 
 	/* basic machine hardware */
@@ -206,9 +196,10 @@ static MACHINE_CONFIG_START( harriet, harriet_state )
 	MCFG_CPU_PROGRAM_MAP(harriet_map)
 
 	/* video hardware */
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_DEVICE_ADD(TERMINAL_TAG, GENERIC_TERMINAL, 0)
+	MCFG_GENERIC_TERMINAL_KEYBOARD_CB(WRITE8(harriet_state, kbd_put))
 
-	MCFG_PALETTE_LENGTH(8)
+	MCFG_PALETTE_ADD("palette", 8)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -229,4 +220,4 @@ ROM_START( harriet )
 	ROM_LOAD16_BYTE( "harriet 36-74c.tdb v5.01 hibyte 2a0c.bin", 0x0000, 0x4000, CRC(a61f441d) SHA1(76af6eddd5c042f1b2eef590eb822379944b9b28) )
 ROM_END
 
-GAME( 1990, harriet,  0,   harriet,  harriet, driver_device,  0,       ROT0, "Quadtel",      "Harriet", GAME_IS_SKELETON )
+COMP( 1990, harriet,  0,  0, harriet,  harriet, driver_device,  0,    "Quantel",      "Harriet", GAME_IS_SKELETON )

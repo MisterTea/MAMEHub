@@ -55,13 +55,13 @@ WRITE8_MEMBER(hitme_state::hitme_vidram_w)
 
 void hitme_state::video_start()
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(hitme_state::get_hitme_tile_info),this), TILEMAP_SCAN_ROWS, 8, 10, 40, 19);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(hitme_state::get_hitme_tile_info),this), TILEMAP_SCAN_ROWS, 8, 10, 40, 19);
 }
 
 
 VIDEO_START_MEMBER(hitme_state,barricad)
 {
-	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(hitme_state::get_hitme_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 24);
+	m_tilemap = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(hitme_state::get_hitme_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 24);
 }
 
 
@@ -190,15 +190,15 @@ WRITE8_MEMBER(hitme_state::output_port_0_w)
 	attotime duration = attotime(0, ATTOSECONDS_PER_SECOND * 0.45 * 6.8e-6 * resistance * (data + 1));
 	m_timeout_time = machine().time() + duration;
 
-	discrete_sound_w(m_discrete, space, HITME_DOWNCOUNT_VAL, data);
-	discrete_sound_w(m_discrete, space, HITME_OUT0, 1);
+	m_discrete->write(space, HITME_DOWNCOUNT_VAL, data);
+	m_discrete->write(space, HITME_OUT0, 1);
 }
 
 
 WRITE8_MEMBER(hitme_state::output_port_1_w)
 {
-	discrete_sound_w(m_discrete, space, HITME_ENABLE_VAL, data);
-	discrete_sound_w(m_discrete, space, HITME_OUT1, 1);
+	m_discrete->write(space, HITME_ENABLE_VAL, data);
+	m_discrete->write(space, HITME_OUT1, 1);
 }
 
 
@@ -321,11 +321,11 @@ static MACHINE_CONFIG_START( hitme, hitme_state )
 	MCFG_SCREEN_SIZE(40*8, 19*10)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 19*10-1)
 	MCFG_SCREEN_UPDATE_DRIVER(hitme_state, screen_update_hitme)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(hitme)
-	MCFG_PALETTE_LENGTH(2)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", hitme)
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
+	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -351,7 +351,7 @@ static MACHINE_CONFIG_DERIVED( barricad, hitme )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 24*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(hitme_state, screen_update_barricad)
 
-	MCFG_GFXDECODE(barricad)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", barricad)
 
 	MCFG_VIDEO_START_OVERRIDE(hitme_state,barricad)
 MACHINE_CONFIG_END

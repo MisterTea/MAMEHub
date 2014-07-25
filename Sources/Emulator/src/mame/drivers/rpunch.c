@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /***************************************************************************
 
     Rabbit Punch / Rabio Lepus
@@ -117,6 +119,25 @@
 
 /*************************************
  *
+ *  Machine initialization
+ *
+ *************************************/
+
+void rpunch_state::machine_start()
+{
+	save_item(NAME(m_sound_data));
+	save_item(NAME(m_sound_busy));
+	save_item(NAME(m_ym2151_irq));
+	save_item(NAME(m_upd_rom_bank));
+	save_item(NAME(m_sprite_xoffs));
+	save_item(NAME(m_videoflags));
+	save_item(NAME(m_crtc_register));
+	save_item(NAME(m_bins));
+	save_item(NAME(m_gins));
+}
+
+/*************************************
+ *
  *  Interrupt handling
  *
  *************************************/
@@ -223,7 +244,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, rpunch_state )
 	AM_RANGE(0x040000, 0x04ffff) AM_RAM AM_SHARE("bitmapram")
 	AM_RANGE(0x060000, 0x060fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x080000, 0x083fff) AM_RAM_WRITE(rpunch_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0x0a0000, 0x0a07ff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x0a0000, 0x0a07ff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x0c0000, 0x0c0007) AM_WRITE(rpunch_scrollreg_w)
 	AM_RANGE(0x0c0008, 0x0c0009) AM_WRITE(rpunch_crtc_data_w)
 	AM_RANGE(0x0c000c, 0x0c000d) AM_WRITE(rpunch_videoreg_w)
@@ -432,7 +453,7 @@ static const gfx_layout splayout =
 static GFXDECODE_START( rpunch )
 	GFXDECODE_ENTRY( "gfx1", 0, bglayout,   0, 16 )
 	GFXDECODE_ENTRY( "gfx2", 0, bglayout, 256, 16 )
-	GFXDECODE_ENTRY( "gfx3", 0, splayout,   0, 16*4 )
+	GFXDECODE_ENTRY( "sprites", 0, splayout,   0, 16*4 )
 GFXDECODE_END
 
 
@@ -461,7 +482,7 @@ static const gfx_layout bootleg_sprite_layout =
 static GFXDECODE_START( svolleybl )
 	GFXDECODE_ENTRY( "gfx1", 0, bootleg_tile_layout,   0, 16 )
 	GFXDECODE_ENTRY( "gfx2", 0, bootleg_tile_layout,   256, 16 )
-	GFXDECODE_ENTRY( "gfx3", 0, bootleg_sprite_layout,   0, 16*4 )
+	GFXDECODE_ENTRY( "sprites", 0, bootleg_sprite_layout,   0, 16*4 )
 GFXDECODE_END
 
 
@@ -487,10 +508,13 @@ static MACHINE_CONFIG_START( rpunch, rpunch_state )
 	MCFG_SCREEN_SIZE(304, 224)
 	MCFG_SCREEN_VISIBLE_AREA(8, 303-8, 0, 223-8)
 	MCFG_SCREEN_UPDATE_DRIVER(rpunch_state, screen_update_rpunch)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(rpunch)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rpunch)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
+	MCFG_VIDEO_START_OVERRIDE(rpunch_state,rpunch)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -502,6 +526,10 @@ static MACHINE_CONFIG_START( rpunch, rpunch_state )
 
 	MCFG_SOUND_ADD("upd", UPD7759, UPD7759_STANDARD_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( svolley, rpunch )
+	MCFG_VIDEO_START_OVERRIDE(rpunch_state,svolley)
 MACHINE_CONFIG_END
 
 
@@ -522,12 +550,16 @@ static MACHINE_CONFIG_START( svolleybl, rpunch_state )
 	MCFG_SCREEN_SIZE(304, 224)
 	MCFG_SCREEN_VISIBLE_AREA(8, 303-8, 0, 223-8)
 	MCFG_SCREEN_UPDATE_DRIVER(rpunch_state, screen_update_rpunch)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(svolleybl)
-	MCFG_PALETTE_LENGTH(1024)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", svolleybl)
+	MCFG_PALETTE_ADD("palette", 1024)
+	MCFG_PALETTE_FORMAT(xRRRRRGGGGGBBBBB)
 
+	MCFG_VIDEO_START_OVERRIDE(rpunch_state,rpunch)
 
 	/* sound hardware */
+
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_YM2151_ADD("ymsnd", MASTER_CLOCK/4)
@@ -568,7 +600,7 @@ ROM_START( rpunch )
 	ROM_LOAD( "rl_a13.bin", 0x40000, 0x08000, CRC(a39c2c16) SHA1(d8d55eb58d3fc79f982f535ec85f69593fe9d883) )
 	ROM_LOAD( "rpunch.54",  0x48000, 0x08000, CRC(e2969747) SHA1(8da996fc2e2e3d281f293d0ccaf35ebdb9379d48) )
 
-	ROM_REGION( 0x80000, "gfx3", ROMREGION_ERASEFF )
+	ROM_REGION( 0x80000, "sprites", ROMREGION_ERASEFF )
 	ROM_LOAD16_BYTE( "rl_4g.bin", 0x00000, 0x20000, CRC(c5cb4b7a) SHA1(2b6be85800ab62b000a0b01cff8af689b25c4c65) )
 	ROM_LOAD16_BYTE( "rl_4h.bin", 0x00001, 0x20000, CRC(8a4d3c99) SHA1(29fca0ea60ac040fc0b0f65b9d2069fcffe039bd) )
 	ROM_LOAD16_BYTE( "rl_1g.bin", 0x40000, 0x08000, CRC(74d41b2e) SHA1(cd690df46242dd54061bf5f6464203e1f29ce6d8) )
@@ -602,7 +634,7 @@ ROM_START( rabiolep )
 	ROM_LOAD( "rl_a13.bin", 0x40000, 0x08000, CRC(a39c2c16) SHA1(d8d55eb58d3fc79f982f535ec85f69593fe9d883) )
 	ROM_LOAD( "rl_a12.bin", 0x48000, 0x08000, CRC(970b0e32) SHA1(a1d4025ee4470a41aa047c6f06ca7aa98a1f7ffd) )
 
-	ROM_REGION( 0x80000, "gfx3", ROMREGION_ERASEFF )
+	ROM_REGION( 0x80000, "sprites", ROMREGION_ERASEFF )
 	ROM_LOAD16_BYTE( "rl_4g.bin", 0x00000, 0x20000, CRC(c5cb4b7a) SHA1(2b6be85800ab62b000a0b01cff8af689b25c4c65) )
 	ROM_LOAD16_BYTE( "rl_4h.bin", 0x00001, 0x20000, CRC(8a4d3c99) SHA1(29fca0ea60ac040fc0b0f65b9d2069fcffe039bd) )
 	ROM_LOAD16_BYTE( "rl_1g.bin", 0x40000, 0x08000, CRC(74d41b2e) SHA1(cd690df46242dd54061bf5f6464203e1f29ce6d8) )
@@ -639,13 +671,15 @@ ROM_START( svolley )
 	ROM_LOAD( "sps_08.bin", 0x30000, 0x10000, CRC(5430ffac) SHA1(163311d96f2f7e1ecb0901d0be73ac357b01bf6a) )
 	ROM_LOAD( "sps_09.bin", 0x40000, 0x10000, CRC(414a6278) SHA1(baa9dc9ab0dd3c5f27c128de23053edcddf45ad0) )
 
-	ROM_REGION( 0x80000, "gfx3", ROMREGION_ERASEFF )
+	ROM_REGION( 0x80000, "sprites", ROMREGION_ERASEFF )
 	ROM_LOAD16_BYTE( "sps_20.bin", 0x00000, 0x10000, CRC(c9e7206d) SHA1(af5b2f49387a3b46c6693f4782aa0e587f17ab25) )
 	ROM_LOAD16_BYTE( "sps_23.bin", 0x00001, 0x10000, CRC(7b15c805) SHA1(b55d67956ca10c172f244edce4dc0a8bd155b3ce) )
 	ROM_LOAD16_BYTE( "sps_19.bin", 0x20000, 0x08000, CRC(8ac2f232) SHA1(6ccd003d7e6fb933241e58964e682bd0fcc37b35) )
 	ROM_LOAD16_BYTE( "sps_22.bin", 0x20001, 0x08000, CRC(fcc754e3) SHA1(84a4083262095d099bca4d5c29829527d981130f) )
 	ROM_LOAD16_BYTE( "sps_18.bin", 0x30000, 0x08000, CRC(4d6c8f0c) SHA1(27f58a53cd6aef071c685eda532e4909ea915c8d) )
+	ROM_RELOAD(0x60000, 0x8000) // these mirrors are needed for the player hints to display
 	ROM_LOAD16_BYTE( "sps_21.bin", 0x30001, 0x08000, CRC(9dd28b42) SHA1(5f49456ee49ed7df59629d02a9da57eac370c388) )
+	ROM_RELOAD(0x60001, 0x8000)
 
 	ROM_REGION( 0x60000, "upd", 0 )
 	ROM_LOAD( "sps_16.bin", 0x20000, 0x20000, CRC(456d0f36) SHA1(3d1bdc5c79b41a7b33932d6a8b838f01cea9d4ed) )
@@ -675,15 +709,17 @@ ROM_START( svolleyk )
 	ROM_LOAD( "sps_07.bin", 0x20000, 0x10000, CRC(904b7709) SHA1(9b66a565cd599928b666baad9f97c50f35ffcc37) )
 	ROM_LOAD( "sps_08.bin", 0x30000, 0x10000, CRC(5430ffac) SHA1(163311d96f2f7e1ecb0901d0be73ac357b01bf6a) )
 	ROM_LOAD( "sps_09.bin", 0x40000, 0x10000, CRC(414a6278) SHA1(baa9dc9ab0dd3c5f27c128de23053edcddf45ad0) )
-	ROM_LOAD( "a09.bin",    0x50000, 0x08000, CRC(dd92dfe1) SHA1(08c956e11d567a215ec3cdaf6ef75fa9a886513a) )
+	ROM_LOAD( "a09.bin",    0x50000, 0x08000, CRC(dd92dfe1) SHA1(08c956e11d567a215ec3cdaf6ef75fa9a886513a) ) // contains Korea, GB and Spain flags
 
-	ROM_REGION( 0x80000, "gfx3", ROMREGION_ERASEFF )
+	ROM_REGION( 0x80000, "sprites", ROMREGION_ERASEFF )
 	ROM_LOAD16_BYTE( "sps_20.bin", 0x00000, 0x10000, CRC(c9e7206d) SHA1(af5b2f49387a3b46c6693f4782aa0e587f17ab25) )
 	ROM_LOAD16_BYTE( "sps_23.bin", 0x00001, 0x10000, CRC(7b15c805) SHA1(b55d67956ca10c172f244edce4dc0a8bd155b3ce) )
 	ROM_LOAD16_BYTE( "sps_19.bin", 0x20000, 0x08000, CRC(8ac2f232) SHA1(6ccd003d7e6fb933241e58964e682bd0fcc37b35) )
 	ROM_LOAD16_BYTE( "sps_22.bin", 0x20001, 0x08000, CRC(fcc754e3) SHA1(84a4083262095d099bca4d5c29829527d981130f) )
 	ROM_LOAD16_BYTE( "sps_18.bin", 0x30000, 0x08000, CRC(4d6c8f0c) SHA1(27f58a53cd6aef071c685eda532e4909ea915c8d) )
+	ROM_RELOAD(0x60000, 0x8000)
 	ROM_LOAD16_BYTE( "sps_21.bin", 0x30001, 0x08000, CRC(9dd28b42) SHA1(5f49456ee49ed7df59629d02a9da57eac370c388) )
+	ROM_RELOAD(0x60001, 0x8000)
 
 	ROM_REGION( 0x60000, "upd", 0 )
 	ROM_LOAD( "sps_16.bin", 0x20000, 0x20000, CRC(456d0f36) SHA1(3d1bdc5c79b41a7b33932d6a8b838f01cea9d4ed) )
@@ -713,15 +749,17 @@ ROM_START( svolleyu )
 	ROM_LOAD( "sps_07.bin", 0x20000, 0x10000, CRC(904b7709) SHA1(9b66a565cd599928b666baad9f97c50f35ffcc37) )
 	ROM_LOAD( "sps_08.bin", 0x30000, 0x10000, CRC(5430ffac) SHA1(163311d96f2f7e1ecb0901d0be73ac357b01bf6a) )
 	ROM_LOAD( "sps_09.bin", 0x40000, 0x10000, CRC(414a6278) SHA1(baa9dc9ab0dd3c5f27c128de23053edcddf45ad0) )
-	ROM_LOAD( "a09.bin",    0x50000, 0x08000, CRC(dd92dfe1) SHA1(08c956e11d567a215ec3cdaf6ef75fa9a886513a) )
+//  ROM_LOAD( "a09.bin",    0x50000, 0x08000, CRC(dd92dfe1) SHA1(08c956e11d567a215ec3cdaf6ef75fa9a886513a) ) // not on this set?
 
-	ROM_REGION( 0x80000, "gfx3", ROMREGION_ERASEFF )
+	ROM_REGION( 0x80000, "sprites", ROMREGION_ERASEFF )
 	ROM_LOAD16_BYTE( "sps_20.bin", 0x00000, 0x10000, CRC(c9e7206d) SHA1(af5b2f49387a3b46c6693f4782aa0e587f17ab25) )
 	ROM_LOAD16_BYTE( "sps_23.bin", 0x00001, 0x10000, CRC(7b15c805) SHA1(b55d67956ca10c172f244edce4dc0a8bd155b3ce) )
 	ROM_LOAD16_BYTE( "sps_19.bin", 0x20000, 0x08000, CRC(8ac2f232) SHA1(6ccd003d7e6fb933241e58964e682bd0fcc37b35) )
 	ROM_LOAD16_BYTE( "sps_22.bin", 0x20001, 0x08000, CRC(fcc754e3) SHA1(84a4083262095d099bca4d5c29829527d981130f) )
 	ROM_LOAD16_BYTE( "sps_18.bin", 0x30000, 0x08000, CRC(4d6c8f0c) SHA1(27f58a53cd6aef071c685eda532e4909ea915c8d) )
+	ROM_RELOAD(0x60000, 0x8000)
 	ROM_LOAD16_BYTE( "sps_21.bin", 0x30001, 0x08000, CRC(9dd28b42) SHA1(5f49456ee49ed7df59629d02a9da57eac370c388) )
+	ROM_RELOAD(0x60001, 0x8000)
 
 	ROM_REGION( 0x60000, "upd", 0 )
 	ROM_LOAD( "sps_16.bin", 0x20000, 0x20000, CRC(456d0f36) SHA1(3d1bdc5c79b41a7b33932d6a8b838f01cea9d4ed) )
@@ -752,7 +790,7 @@ ROM_START( svolleybl )
 	ROM_LOAD32_BYTE( "15.bin",       0x040002, 0x008000, CRC(911104d7) SHA1(66b48c34da2cc17faeffa1d36f5b6b7e15c2033b) )
 	ROM_LOAD32_BYTE( "18.bin",       0x040003, 0x008000, CRC(07265de1) SHA1(bad7f1b168640a7d90b0d4d9c255ba98fa4c6fa8) )
 
-	ROM_REGION( 0x080000, "gfx3", ROMREGION_INVERT )
+	ROM_REGION( 0x080000, "sprites", ROMREGION_INVERT )
 	ROM_LOAD32_BYTE( "19.bin",       0x000000, 0x010000, CRC(12a67e3f) SHA1(c77b264eae0f55af36728b6e5e5e1fec3d366eb1) )
 	ROM_LOAD32_BYTE( "20.bin",       0x000001, 0x010000, CRC(31828996) SHA1(b324902b9fff0bab1daa3af5136b96d50d12956f) )
 	ROM_LOAD32_BYTE( "21.bin",       0x000002, 0x010000, CRC(51cbe0d6) SHA1(d60b2a297d7e994c60db28e8ba60b0664e01f61d) )
@@ -795,11 +833,11 @@ DRIVER_INIT_MEMBER(rpunch_state,svolley)
  *
  *************************************/
 
-GAME( 1987, rabiolep, 0,        rpunch,   rabiolep, rpunch_state, rabiolep, ROT0, "V-System Co.", "Rabio Lepus (Japan)", GAME_NO_COCKTAIL )
-GAME( 1987, rpunch,   rabiolep, rpunch,   rpunch, rpunch_state,   rabiolep, ROT0, "V-System Co. (Bally/Midway/Sente license)", "Rabbit Punch (US)", GAME_NO_COCKTAIL )
-GAME( 1989, svolley,  0,        rpunch,   svolley, rpunch_state,  svolley,  ROT0, "V-System Co.", "Super Volleyball (Japan)", GAME_NO_COCKTAIL )
-GAME( 1989, svolleyk, svolley,  rpunch,   svolley, rpunch_state,  svolley,  ROT0, "V-System Co.", "Super Volleyball (Korea)", GAME_NO_COCKTAIL )
-GAME( 1989, svolleyu, svolley,  rpunch,   svolley, rpunch_state,  svolley,  ROT0, "V-System Co. (Data East license)", "Super Volleyball (US)", GAME_NO_COCKTAIL )
+GAME( 1987, rabiolep, 0,        rpunch,   rabiolep, rpunch_state, rabiolep, ROT0, "V-System Co.", "Rabio Lepus (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1987, rpunch,   rabiolep, rpunch,   rpunch, rpunch_state,   rabiolep, ROT0, "V-System Co. (Bally/Midway/Sente license)", "Rabbit Punch (US)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1989, svolley,  0,        svolley,  svolley, rpunch_state,  svolley,  ROT0, "V-System Co.", "Super Volleyball (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1989, svolleyk, svolley,  svolley,  svolley, rpunch_state,  svolley,  ROT0, "V-System Co.", "Super Volleyball (Korea)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1989, svolleyu, svolley,  svolley,  svolley, rpunch_state,  svolley,  ROT0, "V-System Co. (Data East license)", "Super Volleyball (US)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
 
 // video registers are changed, and there's some kind of RAM at 090xxx, possible a different sprite scheme for the bootleg (even if the original is intact)
 // the sound system seems to be ripped from the later Power Spikes (see aerofgt.c)

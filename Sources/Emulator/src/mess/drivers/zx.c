@@ -1,8 +1,10 @@
+// license:MAME
+// copyright-holders:Juergen Buchmueller, Krzysztof Strzecha, Robbbert
 /***************************************************************************
     zx.c
 
     Original driver by:
-    Juergen Buchmueller <pullmoll@t-online.de>, Dec 1999
+    Juergen Buchmueller, Dec 1999
 
     Fixes and additions by Krzysztof Strzecha:
     07.06.2004 Tape loading added. Some cleanups of debug code.
@@ -324,20 +326,20 @@ GFXDECODE_END
 /* Palette Initialization */
 
 
-void zx_state::palette_init()
+PALETTE_INIT_MEMBER(zx_state, zx)
 {
-	palette_set_color(machine(),0,RGB_WHITE); /* white */
-	palette_set_color(machine(),1,RGB_BLACK); /* black */
-	palette_set_color(machine(),2,RGB_BLACK); /* black */
-	palette_set_color(machine(),3,RGB_WHITE); /* white */
+	palette.set_pen_color(0,rgb_t::white); /* white */
+	palette.set_pen_color(1,rgb_t::black); /* black */
+	palette.set_pen_color(2,rgb_t::black); /* black */
+	palette.set_pen_color(3,rgb_t::white); /* white */
 }
 
 PALETTE_INIT_MEMBER(zx_state,ts1000)
 {
-	palette_set_color(machine(),0,MAKE_RGB(64, 244, 244)); /* cyan */
-	palette_set_color(machine(),1,RGB_BLACK); /* black */
-	palette_set_color(machine(),2,RGB_BLACK); /* black */
-	palette_set_color(machine(),3,MAKE_RGB(64, 244, 244)); /* cyan */
+	palette.set_pen_color(0,rgb_t(64, 244, 244)); /* cyan */
+	palette.set_pen_color(1,rgb_t::black); /* black */
+	palette.set_pen_color(2,rgb_t::black); /* black */
+	palette.set_pen_color(3,rgb_t(64, 244, 244)); /* cyan */
 }
 
 
@@ -355,30 +357,6 @@ PALETTE_INIT_MEMBER(zx_state,ts1000)
 
 /* Machine Drivers */
 
-static const struct CassetteOptions zx81_cassette_options = {
-	1,      /* channels */
-	16,     /* bits per sample */
-	44100   /* sample frequency */
-};
-
-static const cassette_interface zx80_cassette_interface =
-{
-	zx80_o_format,
-	&zx81_cassette_options,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED),
-	NULL
-};
-
-static const cassette_interface zx81_cassette_interface =
-{
-	zx81_p_format,
-	&zx81_cassette_options,
-	(cassette_state)(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED),
-	NULL,
-	NULL
-};
-
-
 static MACHINE_CONFIG_START( zx80, zx_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, ZX81_CPU_CLOCK)
@@ -394,10 +372,11 @@ static MACHINE_CONFIG_START( zx80, zx_state )
 	MCFG_SCREEN_SIZE(ZX81_PIXELS_PER_SCANLINE, ZX81_PAL_SCANLINES)
 	MCFG_SCREEN_VISIBLE_AREA(0, ZX81_PIXELS_PER_SCANLINE-1, 0, ZX81_PAL_SCANLINES-1)
 	MCFG_SCREEN_VBLANK_DRIVER(zx_state, screen_eof_zx)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(zx80)
-	MCFG_PALETTE_LENGTH(4)
-
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", zx80)
+	MCFG_PALETTE_ADD("palette", 4)
+	MCFG_PALETTE_INIT_OWNER(zx_state,zx)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -406,7 +385,9 @@ static MACHINE_CONFIG_START( zx80, zx_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( "cassette", zx80_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_FORMATS(zx80_o_format)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -419,14 +400,15 @@ static MACHINE_CONFIG_DERIVED( zx81, zx80 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_IO_MAP(zx81_io_map)
 
-	MCFG_GFXDECODE(zx81)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", zx81)
 
-	MCFG_CASSETTE_MODIFY( "cassette", zx81_cassette_interface )
+	MCFG_CASSETTE_MODIFY( "cassette" )
+	MCFG_CASSETTE_FORMATS(zx81_p_format)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ts1000, zx81 )
-
-	MCFG_PALETTE_INIT_OVERRIDE(zx_state,ts1000)
+	MCFG_PALETTE_MODIFY("palette")
+	MCFG_PALETTE_INIT_OWNER(zx_state,ts1000)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ts1500, ts1000 )
@@ -448,7 +430,7 @@ static MACHINE_CONFIG_DERIVED( pc8300, zx81 )
 	MCFG_SCREEN_SIZE(ZX81_PIXELS_PER_SCANLINE, ZX81_NTSC_SCANLINES)
 	MCFG_SCREEN_VISIBLE_AREA(0, ZX81_PIXELS_PER_SCANLINE-1, 0, ZX81_NTSC_SCANLINES-1)
 
-	MCFG_GFXDECODE(pc8300)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", pc8300)
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)
@@ -462,7 +444,7 @@ static MACHINE_CONFIG_DERIVED( pow3000, zx81 )
 
 	MCFG_MACHINE_RESET_OVERRIDE(zx_state,pow3000)
 
-	MCFG_GFXDECODE(pc8300)
+	MCFG_GFXDECODE_MODIFY("gfxdecode", pc8300)
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)

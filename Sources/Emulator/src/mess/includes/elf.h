@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:Curt Coder
 #pragma once
 
 #ifndef __INCLUDES_ELF__
@@ -56,6 +58,7 @@ public:
 	DECLARE_READ_LINE_MEMBER( ef4_r );
 	DECLARE_WRITE_LINE_MEMBER( q_w );
 	DECLARE_READ8_MEMBER( dma_r );
+	DECLARE_WRITE8_MEMBER( sc_w );
 	DECLARE_WRITE_LINE_MEMBER( da_w );
 	DECLARE_INPUT_CHANGED_MEMBER( input_w );
 

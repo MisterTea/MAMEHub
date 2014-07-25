@@ -178,16 +178,12 @@ NOTES:
 
 ***************************************************************************/
 
-#include "emu.h"
+#include "bus/midi/midi.h"
 #include "cpu/m6809/m6809.h"
 #include "sound/es5503.h"
-#include "machine/n68681.h"
+#include "machine/mc68681.h"
 #include "machine/wd_fdc.h"
-
 #include "machine/esqpanel.h"
-#include "machine/serial.h"
-#include "machine/midiinport.h"
-#include "machine/midioutport.h"
 
 #define WD1772_TAG      "wd1772"
 
@@ -395,11 +391,11 @@ public:
 	{ }
 
 	required_device<cpu_device> m_maincpu;
-	required_device<duartn68681_device> m_duart;
+	required_device<mc68681_device> m_duart;
 	required_device<esq1_filters> m_filters;
 	optional_device<wd1772_t> m_fdc;
 	optional_device<esqpanel2x40_device> m_panel;
-	optional_device<serial_port_device> m_mdout;
+	optional_device<midi_port_device> m_mdout;
 
 	DECLARE_READ8_MEMBER(wd1772_r);
 	DECLARE_WRITE8_MEMBER(wd1772_w);
@@ -411,8 +407,10 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(duart_irq_handler);
 	DECLARE_WRITE_LINE_MEMBER(duart_tx_a);
 	DECLARE_WRITE_LINE_MEMBER(duart_tx_b);
-	DECLARE_READ8_MEMBER(duart_input);
 	DECLARE_WRITE8_MEMBER(duart_output);
+
+	DECLARE_WRITE_LINE_MEMBER(esq1_doc_irq);
+	DECLARE_READ8_MEMBER(esq1_adc_read);
 
 	int m_mapper_state;
 	int m_seq_bank;
@@ -425,11 +423,11 @@ public:
 };
 
 
-static void esq1_doc_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(esq1_state::esq1_doc_irq)
 {
 }
 
-static UINT8 esq1_adc_read(device_t *device)
+READ8_MEMBER(esq1_state::esq1_adc_read)
 {
 	return 0x00;
 }
@@ -500,7 +498,7 @@ static ADDRESS_MAP_START( esq1_map, AS_PROGRAM, 8, esq1_state )
 	AM_RANGE(0x0000, 0x1fff) AM_RAM                 // OSRAM
 	AM_RANGE(0x4000, 0x5fff) AM_RAM                 // SEQRAM
 	AM_RANGE(0x6000, 0x63ff) AM_DEVREADWRITE("es5503", es5503_device, read, write)
-	AM_RANGE(0x6400, 0x640f) AM_DEVREADWRITE("duart", duartn68681_device, read, write)
+	AM_RANGE(0x6400, 0x640f) AM_DEVREADWRITE("duart", mc68681_device, read, write)
 	AM_RANGE(0x6800, 0x68ff) AM_WRITE(analog_w)
 	AM_RANGE(0x7000, 0x7fff) AM_ROMBANK("osbank")
 	AM_RANGE(0x8000, 0xffff) AM_ROM AM_REGION("osrom", 0x8000)  // OS "high" ROM is always mapped here
@@ -511,7 +509,7 @@ static ADDRESS_MAP_START( sq80_map, AS_PROGRAM, 8, esq1_state )
 	AM_RANGE(0x4000, 0x5fff) AM_RAM                 // SEQRAM
 //  AM_RANGE(0x4000, 0x5fff) AM_READWRITE(seqdosram_r, seqdosram_w)
 	AM_RANGE(0x6000, 0x63ff) AM_DEVREADWRITE("es5503", es5503_device, read, write)
-	AM_RANGE(0x6400, 0x640f) AM_DEVREADWRITE("duart", duartn68681_device, read, write)
+	AM_RANGE(0x6400, 0x640f) AM_DEVREADWRITE("duart", mc68681_device, read, write)
 	AM_RANGE(0x6800, 0x68ff) AM_WRITE(analog_w)
 	AM_RANGE(0x6c00, 0x6dff) AM_WRITE(mapper_w)
 	AM_RANGE(0x6e00, 0x6fff) AM_READWRITE(wd1772_r, wd1772_w)
@@ -539,16 +537,11 @@ WRITE_LINE_MEMBER(esq1_state::duart_irq_handler)
 	m_maincpu->set_input_line(M6809_IRQ_LINE, state);
 };
 
-READ8_MEMBER(esq1_state::duart_input)
-{
-	return 0;
-}
-
 WRITE8_MEMBER(esq1_state::duart_output)
 {
 	int bank = ((data >> 1) & 0x7);
 //  printf("DP [%02x]: %d mlo %d mhi %d tape %d\n", data, data&1, (data>>4)&1, (data>>5)&1, (data>>6)&3);
-//  printf("[%02x] bank %d => offset %x (PC=%x)\n", data, bank, bank * 0x1000, device->machine().firstcpu->safe_pc());
+//  printf("[%02x] bank %d => offset %x (PC=%x)\n", data, bank, bank * 0x1000, m_maincpu->safe_pc());
 	membank("osbank")->set_base(memregion("osrom")->base() + (bank * 0x1000) );
 
 	m_seq_bank = (data & 0x8) ? 0x8000 : 0x0000;
@@ -559,7 +552,7 @@ WRITE8_MEMBER(esq1_state::duart_output)
 // MIDI send
 WRITE_LINE_MEMBER(esq1_state::duart_tx_a)
 {
-	m_mdout->tx(state);
+	m_mdout->write_txd(state);
 }
 
 WRITE_LINE_MEMBER(esq1_state::duart_tx_b)
@@ -586,49 +579,24 @@ INPUT_CHANGED_MEMBER(esq1_state::key_stroke)
 	}
 }
 
-static SLOT_INTERFACE_START(midiin_slot)
-	SLOT_INTERFACE("midiin", MIDIIN_PORT)
-SLOT_INTERFACE_END
-
-static const serial_port_interface midiin_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER("duart", duartn68681_device, rx_a_w)   // route MIDI Tx send directly to 68681 channel A Rx
-};
-
-static SLOT_INTERFACE_START(midiout_slot)
-	SLOT_INTERFACE("midiout", MIDIOUT_PORT)
-SLOT_INTERFACE_END
-
-static const serial_port_interface midiout_intf =
-{
-	DEVCB_NULL  // midi out ports don't transmit inward
-};
-
-static const duartn68681_config duart_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(esq1_state, duart_irq_handler),
-	DEVCB_DRIVER_LINE_MEMBER(esq1_state, duart_tx_a),
-	DEVCB_DRIVER_LINE_MEMBER(esq1_state, duart_tx_b),
-	DEVCB_DRIVER_MEMBER(esq1_state, duart_input),
-	DEVCB_DRIVER_MEMBER(esq1_state, duart_output),
-
-	500000, 500000, // IP3, IP4
-	1000000, 1000000, // IP5, IP6
-};
-
-static const esqpanel_interface esqpanel_config =
-{
-	DEVCB_DEVICE_LINE_MEMBER("duart", duartn68681_device, rx_b_w)
-};
-
 static MACHINE_CONFIG_START( esq1, esq1_state )
 	MCFG_CPU_ADD("maincpu", M6809E, 4000000)    // how fast is it?
 	MCFG_CPU_PROGRAM_MAP(esq1_map)
 
-	MCFG_DUARTN68681_ADD("duart", 4000000, duart_config)
-	MCFG_ESQPANEL2x40_ADD("panel", esqpanel_config)
-	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin")
-	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout")
+	MCFG_MC68681_ADD("duart", 4000000)
+	MCFG_MC68681_SET_EXTERNAL_CLOCKS(500000, 500000, 1000000, 1000000)
+	MCFG_MC68681_IRQ_CALLBACK(WRITELINE(esq1_state, duart_irq_handler))
+	MCFG_MC68681_A_TX_CALLBACK(WRITELINE(esq1_state, duart_tx_a))
+	MCFG_MC68681_B_TX_CALLBACK(WRITELINE(esq1_state, duart_tx_b))
+	MCFG_MC68681_OUTPORT_CALLBACK(WRITE8(esq1_state, duart_output))
+
+	MCFG_ESQPANEL2x40_ADD("panel")
+	MCFG_ESQPANEL_TX_CALLBACK(DEVWRITELINE("duart", mc68681_device, rx_b_w))
+
+	MCFG_MIDI_PORT_ADD("mdin", midiin_slot, "midiin")
+	MCFG_MIDI_RX_HANDLER(DEVWRITELINE("duart", mc68681_device, rx_a_w)) // route MIDI Tx send directly to 68681 channel A Rx
+
+	MCFG_MIDI_PORT_ADD("mdout", midiout_slot, "midiout")
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
@@ -636,7 +604,11 @@ static MACHINE_CONFIG_START( esq1, esq1_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_ES5503_ADD("es5503", 7000000, 8, esq1_doc_irq, esq1_adc_read)
+	MCFG_ES5503_ADD("es5503", 7000000)
+	MCFG_ES5503_OUTPUT_CHANNELS(8)
+	MCFG_ES5503_IRQ_FUNC(WRITELINE(esq1_state, esq1_doc_irq))
+	MCFG_ES5503_ADC_FUNC(READ8(esq1_state, esq1_adc_read))
+
 	MCFG_SOUND_ROUTE_EX(0, "filters", 1.0, 0)
 	MCFG_SOUND_ROUTE_EX(1, "filters", 1.0, 1)
 	MCFG_SOUND_ROUTE_EX(2, "filters", 1.0, 2)

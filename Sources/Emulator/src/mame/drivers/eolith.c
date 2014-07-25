@@ -539,29 +539,6 @@ INPUT_PORTS_END
 
 /*************************************
  *
- *  QS1000 interface
- *
- *************************************/
-
-static QS1000_INTERFACE( qs1000_intf )
-{
-	/* External ROM */
-	true,
-
-	/* P1-P3 read handlers */
-	DEVCB_DRIVER_MEMBER(eolith_state, qs1000_p1_r),
-	DEVCB_NULL,
-	DEVCB_NULL,
-
-	/* P1-P3 write handlers */
-	DEVCB_DRIVER_MEMBER(eolith_state, qs1000_p1_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-};
-
-
-/*************************************
- *
  *  Machine driver
  *
  *************************************/
@@ -591,16 +568,19 @@ static MACHINE_CONFIG_START( eolith45, eolith_state )
 	MCFG_SCREEN_SIZE(512, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0, 319, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(eolith_state, screen_update_eolith)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRRR_GGGGG_BBBBB)
-	MCFG_PALETTE_LENGTH(32768)
+	MCFG_PALETTE_ADD_RRRRRGGGGGBBBBB("palette")
 
 	MCFG_VIDEO_START_OVERRIDE(eolith_state,eolith)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_QS1000_ADD("qs1000", XTAL_24MHz, qs1000_intf)
+	MCFG_SOUND_ADD("qs1000", QS1000, XTAL_24MHz)
+	MCFG_QS1000_EXTERNAL_ROM(true)
+	MCFG_QS1000_IN_P1_CB(READ8(eolith_state, qs1000_p1_r))
+	MCFG_QS1000_OUT_P1_CB(WRITE8(eolith_state, qs1000_p1_w))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -1602,7 +1582,7 @@ GAME( 1999, landbrka,  landbrk,  eolith45, landbrk,   eolith_state, landbrka, RO
 GAME( 1999, nhidctch,  0,        eolith45, hidctch2,  eolith_state, eolith,   ROT0, "Eolith", "New Hidden Catch (World) / New Tul Lin Gu Lim Chat Ki '98 (Korea) (pcb ver 3.02)", GAME_IMPERFECT_SOUND ) // or New Teurrin Geurim Chajgi '98
 GAME( 1999, penfan,    0,        eolith45, penfan,    eolith_state, eolith,   ROT0, "Eolith", "Penfan Girls - Step1. Mild Mind (set 1)",  GAME_IMPERFECT_SOUND ) // alt title of Ribbon
 GAME( 1999, penfana,   penfan,   eolith45, penfan,    eolith_state, eolith,   ROT0, "Eolith", "Penfan Girls - Step1. Mild Mind (set 2)",  GAME_IMPERFECT_SOUND )
-GAME( 2000, stealsee,  0,        eolith45, stealsee,  eolith_state, eolith,   ROT0, "Moov Generation / Eolith", "Steal See (& Get Land)",  GAME_IMPERFECT_SOUND )
+GAME( 2000, stealsee,  0,        eolith45, stealsee,  eolith_state, eolith,   ROT0, "Moov Generation / Eolith", "Steal See",  GAME_IMPERFECT_SOUND )
 GAME( 2000, hidctch3,  0,        eolith50, hidctch3,  eolith_state, hidctch3, ROT0, "Eolith", "Hidden Catch 3 (ver 1.00 / pcb ver 3.05)", GAME_IMPERFECT_SOUND )
 GAME( 2001, fort2b,    0,        eolith50, common,    eolith_state, eolith,   ROT0, "Eolith", "Fortress 2 Blue Arcade (ver 1.01 / pcb ver 3.05)",  GAME_IMPERFECT_SOUND )
 GAME( 2001, fort2ba,   fort2b,   eolith50, common,    eolith_state, eolith,   ROT0, "Eolith", "Fortress 2 Blue Arcade (ver 1.00 / pcb ver 3.05)",  GAME_IMPERFECT_SOUND )

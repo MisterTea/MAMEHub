@@ -13,6 +13,7 @@
 #include "includes/coco3.h"
 #include "cpu/m6809/m6809.h"
 #include "cpu/m6809/hd6309.h"
+#include "formats/coco_cas.h"
 #include "coco3.lh"
 
 
@@ -223,25 +224,18 @@ static INPUT_PORTS_START( coco3 )
 	PORT_INCLUDE( coco_rtc )
 INPUT_PORTS_END
 
+static DEVICE_INPUT_DEFAULTS_START( printer )
+	DEVICE_INPUT_DEFAULTS( "RS232_RXBAUD", 0xff, RS232_BAUD_600 )
+	DEVICE_INPUT_DEFAULTS( "RS232_STARTBITS", 0xff, RS232_STARTBITS_1 )
+	DEVICE_INPUT_DEFAULTS( "RS232_DATABITS", 0xff, RS232_DATABITS_8 )
+	DEVICE_INPUT_DEFAULTS( "RS232_PARITY", 0xff, RS232_PARITY_NONE )
+	DEVICE_INPUT_DEFAULTS( "RS232_STOPBITS", 0xff, RS232_STOPBITS_1 )
+DEVICE_INPUT_DEFAULTS_END
+
 
 //**************************************************************************
 //  MACHINE CONFIGURATION
 //**************************************************************************
-
-static const gime_interface coco_gime_config =
-{
-	/* device tags */
-	SCREEN_TAG,
-	MAINCPU_TAG,
-	RAM_TAG,
-	CARTRIDGE_TAG,
-
-	DEVCB_DEVICE_LINE_MEMBER(PIA0_TAG, pia6821_device, ca1_w),  /* horizontal sync */
-	DEVCB_DEVICE_LINE_MEMBER(PIA0_TAG, pia6821_device, cb1_w),  /* field sync */
-	DEVCB_DRIVER_LINE_MEMBER(coco3_state, gime_irq_w),
-	DEVCB_DRIVER_LINE_MEMBER(coco3_state, gime_firq_w),
-	DEVCB_DRIVER_MEMBER(coco_state, floating_bus_read)
-};
 
 static MACHINE_CONFIG_START( coco3, coco3_state )
 	// basic machine hardware
@@ -249,18 +243,52 @@ static MACHINE_CONFIG_START( coco3, coco3_state )
 	MCFG_CPU_PROGRAM_MAP(coco3_mem)
 
 	// devices
-	MCFG_PIA6821_ADD(PIA0_TAG, coco_state::pia0_config)
-	MCFG_PIA6821_ADD(PIA1_TAG, coco_state::pia1_config)
-	MCFG_CASSETTE_ADD("cassette", coco_state::coco_cassette_interface)
-	MCFG_BITBANGER_ADD(BITBANGER_TAG, coco_state::coco_bitbanger_config)
-	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, coco_state::cartridge_config, coco_cart, "fdcv11")
+	MCFG_DEVICE_ADD(PIA0_TAG, PIA6821, 0)
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(coco_state, pia0_pa_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(coco_state, pia0_pb_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(coco_state, pia0_ca2_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(coco_state, pia0_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(coco_state, pia0_irq_a))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(coco_state, pia0_irq_b))
+
+	MCFG_DEVICE_ADD(PIA1_TAG, PIA6821, 0)
+	MCFG_PIA_READPA_HANDLER(READ8(coco_state, pia1_pa_r))
+	MCFG_PIA_READPB_HANDLER(READ8(coco_state, pia1_pb_r))
+	MCFG_PIA_WRITEPA_HANDLER(WRITE8(coco_state, pia1_pa_w))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(coco_state, pia1_pb_w))
+	MCFG_PIA_CA2_HANDLER(WRITELINE(coco_state, pia1_ca2_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(coco_state, pia1_cb2_w))
+	MCFG_PIA_IRQA_HANDLER(WRITELINE(coco_state, pia1_firq_a))
+	MCFG_PIA_IRQB_HANDLER(WRITELINE(coco_state, pia1_firq_b))
+
+	MCFG_CASSETTE_ADD("cassette")
+	MCFG_CASSETTE_FORMATS(coco_cassette_formats)
+	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY | CASSETTE_MOTOR_DISABLED | CASSETTE_SPEAKER_MUTED)
+
+	MCFG_RS232_PORT_ADD(RS232_TAG, default_rs232_devices, "printer")
+	MCFG_RS232_DCD_HANDLER(DEVWRITELINE(PIA1_TAG, pia6821_device, ca1_w))
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("printer", printer)
+
+	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, coco_cart, "fdcv11")
+	MCFG_COCO_CARTRIDGE_CART_CB(WRITELINE(coco_state, cart_w))
+	MCFG_COCO_CARTRIDGE_NMI_CB(INPUTLINE(MAINCPU_TAG, INPUT_LINE_NMI))
+	MCFG_COCO_CARTRIDGE_HALT_CB(INPUTLINE(MAINCPU_TAG, INPUT_LINE_HALT))
+
 	MCFG_COCO_VHD_ADD(VHD0_TAG)
 	MCFG_COCO_VHD_ADD(VHD1_TAG)
 
 	// video hardware
-	MCFG_DEVICE_ADD(GIME_TAG, GIME_NTSC, XTAL_3_579545MHz)
-	MCFG_DEVICE_CONFIG(coco_gime_config)
 	MCFG_DEFAULT_LAYOUT(layout_coco3)
+
+	MCFG_DEVICE_ADD(GIME_TAG, GIME_NTSC, XTAL_3_579545MHz)
+	MCFG_GIME_MAINCPU(MAINCPU_TAG)
+	MCFG_GIME_RAM(RAM_TAG)
+	MCFG_GIME_EXT(CARTRIDGE_TAG)
+	MCFG_GIME_HSYNC_CALLBACK(DEVWRITELINE(PIA0_TAG, pia6821_device, ca1_w))
+	MCFG_GIME_FSYNC_CALLBACK(DEVWRITELINE(PIA0_TAG, pia6821_device, cb1_w))
+	MCFG_GIME_IRQ_CALLBACK(WRITELINE(coco3_state, gime_irq_w))
+	MCFG_GIME_FIRQ_CALLBACK(WRITELINE(coco3_state, gime_firq_w))
+	MCFG_GIME_FLOATING_BUS_CALLBACK(READ8(coco_state, floating_bus_read))
 
 	// composite monitor
 	MCFG_SCREEN_ADD(COMPOSITE_SCREEN_TAG, RASTER)
@@ -288,14 +316,20 @@ static MACHINE_CONFIG_START( coco3, coco3_state )
 
 	// software lists
 	MCFG_SOFTWARE_LIST_ADD("cart_list","coco_cart")
+
+	MCFG_SOFTWARE_LIST_ADD("flop_list","coco_flop")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( coco3p, coco3 )
-	MCFG_CPU_REPLACE(MAINCPU_TAG, M6809E, XTAL_3_579545MHz)
-	MCFG_CPU_PROGRAM_MAP(coco3_mem)
-
 	MCFG_DEVICE_REPLACE(GIME_TAG, GIME_PAL, XTAL_4_433619MHz)
-	MCFG_DEVICE_CONFIG(coco_gime_config)
+	MCFG_GIME_MAINCPU(MAINCPU_TAG)
+	MCFG_GIME_RAM(RAM_TAG)
+	MCFG_GIME_EXT(CARTRIDGE_TAG)
+	MCFG_GIME_HSYNC_CALLBACK(DEVWRITELINE(PIA0_TAG, pia6821_device, ca1_w))
+	MCFG_GIME_FSYNC_CALLBACK(DEVWRITELINE(PIA0_TAG, pia6821_device, cb1_w))
+	MCFG_GIME_IRQ_CALLBACK(WRITELINE(coco3_state, gime_irq_w))
+	MCFG_GIME_FIRQ_CALLBACK(WRITELINE(coco3_state, gime_firq_w))
+	MCFG_GIME_FLOATING_BUS_CALLBACK(READ8(coco_state, floating_bus_read))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( coco3h, coco3 )

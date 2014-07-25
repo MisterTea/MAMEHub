@@ -435,13 +435,6 @@ static GFXDECODE_START( rk )
 	GFXDECODE_ENTRY( "gfx4", 0x00000, rk_bglayout,       0, 32 )    /* bg tiles */
 GFXDECODE_END
 
-static const ay8910_interface ay8910_config =
-{
-	AY8910_LEGACY_OUTPUT,
-	AY8910_DEFAULT_LOADS,
-	DEVCB_DRIVER_MEMBER(driver_device, soundlatch_byte_r)
-};
-
 INTERRUPT_GEN_MEMBER(kingofb_state::kingofb_interrupt)
 {
 	if (m_nmi_enable)
@@ -490,18 +483,19 @@ static MACHINE_CONFIG_START( kingofb, kingofb_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(kingofb_state, screen_update_kingofb)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(kingobox)
-	MCFG_PALETTE_LENGTH(256+8*2)
-
-	MCFG_PALETTE_INIT_OVERRIDE(kingofb_state,kingofb)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", kingobox)
+	MCFG_PALETTE_ADD("palette", 256+8*2)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256+8)
+	MCFG_PALETTE_INIT_OWNER(kingofb_state,kingofb)
 	MCFG_VIDEO_START_OVERRIDE(kingofb_state,kingofb)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1500000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_DAC_ADD("dac")
@@ -540,18 +534,19 @@ static MACHINE_CONFIG_START( ringking, kingofb_state )
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(kingofb_state, screen_update_ringking)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(rk)
-	MCFG_PALETTE_LENGTH(256+8*2)
-
-	MCFG_PALETTE_INIT_OVERRIDE(kingofb_state,ringking)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", rk)
+	MCFG_PALETTE_ADD("palette", 256+8*2)
+	MCFG_PALETTE_INDIRECT_ENTRIES(256+8)
+	MCFG_PALETTE_INIT_OWNER(kingofb_state,ringking)
 	MCFG_VIDEO_START_OVERRIDE(kingofb_state,ringking)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1500000)
-	MCFG_SOUND_CONFIG(ay8910_config)
+	MCFG_AY8910_PORT_A_READ_CB(READ8(driver_device, soundlatch_byte_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_DAC_ADD("dac")
@@ -779,6 +774,7 @@ DRIVER_INIT_MEMBER(kingofb_state,ringking3)
 	/* expand the first color PROM to look like the kingofb ones... */
 	for (i = 0; i < 0x100; i++)
 		RAM[i] = RAM[i + 0x100] >> 4;
+	m_palette->update();
 }
 
 DRIVER_INIT_MEMBER(kingofb_state,ringkingw)
@@ -800,6 +796,7 @@ DRIVER_INIT_MEMBER(kingofb_state,ringkingw)
 			PROMS[j + 0x200 + 0x40 * k] = USER1[i + 0x800 + 0x100 * k]; /* B */
 		}
 	}
+	m_palette->update();
 }
 
 

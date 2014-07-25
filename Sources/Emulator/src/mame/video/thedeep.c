@@ -47,8 +47,7 @@ TILE_GET_INFO_MEMBER(thedeep_state::get_tile_info_0)
 {
 	UINT8 code  =   m_vram_0[ tile_index * 2 + 0 ];
 	UINT8 color =   m_vram_0[ tile_index * 2 + 1 ];
-	SET_TILE_INFO_MEMBER(
-			1,
+	SET_TILE_INFO_MEMBER(1,
 			code + (color << 8),
 			(color & 0xf0) >> 4,
 			TILE_FLIPX  );  // why?
@@ -58,8 +57,7 @@ TILE_GET_INFO_MEMBER(thedeep_state::get_tile_info_1)
 {
 	UINT8 code  =   m_vram_1[ tile_index * 2 + 0 ];
 	UINT8 color =   m_vram_1[ tile_index * 2 + 1 ];
-	SET_TILE_INFO_MEMBER(
-			2,
+	SET_TILE_INFO_MEMBER(2,
 			code + (color << 8),
 			(color & 0xf0) >> 4,
 			0);
@@ -84,12 +82,12 @@ WRITE8_MEMBER(thedeep_state::thedeep_vram_1_w)
 
 ***************************************************************************/
 
-void thedeep_state::palette_init()
+PALETTE_INIT_MEMBER(thedeep_state, thedeep)
 {
 	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 	for (i = 0;i < 512;i++)
-		palette_set_color_rgb(machine(),i,pal4bit(color_prom[0x400 + i] >> 0),pal4bit(color_prom[0x400 + i] >> 4),pal4bit(color_prom[0x200 + i] >> 0));
+		palette.set_pen_color(i,pal4bit(color_prom[0x400 + i] >> 0),pal4bit(color_prom[0x400 + i] >> 4),pal4bit(color_prom[0x200 + i] >> 0));
 }
 
 /***************************************************************************
@@ -100,8 +98,8 @@ void thedeep_state::palette_init()
 
 void thedeep_state::video_start()
 {
-	m_tilemap_0  = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(thedeep_state::get_tile_info_0),this),tilemap_mapper_delegate(FUNC(thedeep_state::tilemap_scan_rows_back),this),16,16,0x20,0x20);
-	m_tilemap_1  = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(thedeep_state::get_tile_info_1),this),TILEMAP_SCAN_ROWS,8,8,0x20,0x20);
+	m_tilemap_0  = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(thedeep_state::get_tile_info_0),this),tilemap_mapper_delegate(FUNC(thedeep_state::tilemap_scan_rows_back),this),16,16,0x20,0x20);
+	m_tilemap_1  = &machine().tilemap().create(m_gfxdecode, tilemap_get_info_delegate(FUNC(thedeep_state::get_tile_info_1),this),TILEMAP_SCAN_ROWS,8,8,0x20,0x20);
 
 	m_tilemap_0->set_transparent_pen(0 );
 	m_tilemap_1->set_transparent_pen(0 );
@@ -187,7 +185,7 @@ void thedeep_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect
 
 			for (y = 0; y < ny; y++)
 			{
-				drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
+				m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
 						code + (flipy ? (ny - y - 1) :  y),
 						color,
 						flipx,flipy,
@@ -218,7 +216,7 @@ UINT32 thedeep_state::screen_update_thedeep(screen_device &screen, bitmap_ind16 
 		m_tilemap_0->set_scrolly(x, y + scrolly);
 	}
 
-	bitmap.fill(get_black_pen(machine()), cliprect);
+	bitmap.fill(m_palette->black_pen(), cliprect);
 
 	m_tilemap_0->draw(screen, bitmap, cliprect, 0,0);
 	draw_sprites(bitmap,cliprect);

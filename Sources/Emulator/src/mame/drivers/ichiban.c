@@ -127,11 +127,11 @@ static MACHINE_CONFIG_START( ichibanjyan, ichibanjyan_state )
 	MCFG_SCREEN_UPDATE_DRIVER(ichibanjyan_state, screen_update)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
+	MCFG_SCREEN_PALETTE("palette")
 
-	MCFG_GFXDECODE(ichibanjyan)
+	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ichibanjyan)
 
-	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
-	MCFG_PALETTE_LENGTH(512)
+	MCFG_PALETTE_ADD_RRRRGGGGBBBB_PROMS("palette", 512)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

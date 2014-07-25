@@ -1,39 +1,10 @@
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 /*********************************************************************
 
     debugvw.c
 
     Debugger view engine.
-
-****************************************************************************
-
-    Copyright Aaron Giles
-    All rights reserved.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-        * Redistributions of source code must retain the above copyright
-          notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-          notice, this list of conditions and the following disclaimer in
-          the documentation and/or other materials provided with the
-          distribution.
-        * Neither the name 'MAME' nor the names of its contributors may be
-          used to endorse or promote products derived from this software
-          without specific prior written permission.
-
-    THIS SOFTWARE IS PROVIDED BY AARON GILES ''AS IS'' AND ANY EXPRESS OR
-    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL AARON GILES BE LIABLE FOR ANY DIRECT,
-    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
-    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-    POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
@@ -88,115 +59,6 @@ debug_view_source::~debug_view_source()
 //  DEBUG VIEW SOURCE LIST
 //**************************************************************************
 
-//-------------------------------------------------
-//  debug_view_source_list - constructor
-//-------------------------------------------------
-
-debug_view_source_list::debug_view_source_list(running_machine &machine)
-	: m_machine(machine),
-		m_head(NULL),
-		m_tail(NULL),
-		m_count(0)
-{
-}
-
-
-//-------------------------------------------------
-//  ~debug_view_source_list - destructor
-//-------------------------------------------------
-
-debug_view_source_list::~debug_view_source_list()
-{
-	reset();
-}
-
-
-//-------------------------------------------------
-//  index - return the index of a source
-//-------------------------------------------------
-
-int debug_view_source_list::index(const debug_view_source &source) const
-{
-	int result = 0;
-	for (debug_view_source *cursource = m_head; cursource != NULL; cursource = cursource->m_next)
-	{
-		if (cursource == &source)
-			break;
-		result++;
-	}
-	return result;
-}
-
-
-//-------------------------------------------------
-//  by_index - return a source given an index
-//-------------------------------------------------
-
-const debug_view_source *debug_view_source_list::by_index(int index) const
-{
-	if (m_head == NULL)
-		return NULL;
-	const debug_view_source *result;
-	for (result = m_head; index > 0 && result->m_next != NULL; result = result->m_next)
-		index--;
-	return result;
-}
-
-
-//-------------------------------------------------
-//  reset - free all the view_sources
-//-------------------------------------------------
-
-void debug_view_source_list::reset()
-{
-	// free from the head
-	while (m_head != NULL)
-	{
-		debug_view_source *source = m_head;
-		m_head = source->m_next;
-		auto_free(machine(), source);
-	}
-
-	// reset the tail pointer and index
-	m_tail = NULL;
-	m_count = 0;
-}
-
-
-//-------------------------------------------------
-//  append - add a view_source to the end of the
-//  list
-//-------------------------------------------------
-
-void debug_view_source_list::append(debug_view_source &source)
-{
-	// set the next and index values
-	source.m_next = NULL;
-
-	// append to the end
-	if (m_tail == NULL)
-		m_head = m_tail = &source;
-	else
-		m_tail->m_next = &source;
-	m_tail = &source;
-	m_count++;
-}
-
-
-//-------------------------------------------------
-//  match_device - find the first view that
-//  matches the given device
-//-------------------------------------------------
-
-const debug_view_source *debug_view_source_list::match_device(device_t *device) const
-{
-	for (debug_view_source *source = m_head; source != NULL; source = source->m_next)
-		if (device == source->m_device)
-			return source;
-	return m_head;
-}
-
-
 
 //**************************************************************************
 //  DEBUG VIEW
@@ -210,7 +72,6 @@ debug_view::debug_view(running_machine &machine, debug_view_type type, debug_vie
 	: m_next(NULL),
 		m_type(type),
 		m_source(NULL),
-		m_source_list(machine),
 		m_osdupdate(osdupdate),
 		m_osdprivate(osdprivate),
 		m_visible(10,10),
@@ -223,13 +84,9 @@ debug_view::debug_view(running_machine &machine, debug_view_type type, debug_vie
 		m_update_level(0),
 		m_update_pending(true),
 		m_osd_update_pending(true),
-		m_viewdata(NULL),
-		m_viewdata_size(0),
+		m_viewdata(m_visible.y * m_visible.x),
 		m_machine(machine)
 {
-	// allocate memory for the buffer
-	m_viewdata_size = m_visible.y * m_visible.x;
-	m_viewdata = auto_alloc_array(machine, debug_view_char, m_viewdata_size);
 }
 
 
@@ -259,13 +116,7 @@ void debug_view::end_update()
 			m_osd_update_pending = true;
 
 			// resize the viewdata if needed
-			int size = m_visible.x * m_visible.y;
-			if (size > m_viewdata_size)
-			{
-				m_viewdata_size = size;
-				auto_free(machine(), m_viewdata);
-				m_viewdata = auto_alloc_array(machine(), debug_view_char, m_viewdata_size);
-			}
+			m_viewdata.resize(m_visible.x * m_visible.y);
 
 			// update the view
 			view_update();
@@ -377,6 +228,20 @@ void debug_view::set_source(const debug_view_source &source)
 		view_notify(VIEW_NOTIFY_SOURCE_CHANGED);
 		end_update();
 	}
+}
+
+
+//-------------------------------------------------
+//  source_for_device - find the first source that
+//  matches the given device
+//-------------------------------------------------
+
+const debug_view_source *debug_view::source_for_device(device_t *device) const
+{
+	for (debug_view_source *source = m_source_list.first(); source != NULL; source = source->next())
+		if (device == source->device())
+			return source;
+	return m_source_list.first();
 }
 
 
