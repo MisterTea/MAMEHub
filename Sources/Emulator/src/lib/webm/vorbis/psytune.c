@@ -31,7 +31,7 @@
 #include "psy.h"
 #include "mdct.h"
 #include "smallft.h"
-#include "window.h"
+#include "vorbis_window.h"
 #include "scales.h"
 #include "lpc.h"
 #include "lsp.h"

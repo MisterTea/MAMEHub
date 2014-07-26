@@ -23,7 +23,7 @@
 #include "vorbis/codec.h"
 #include "codec_internal.h"
 #include "codebook.h"
-#include "window.h"
+#include "vorbis_window.h"
 #include "registry.h"
 #include "psy.h"
 #include "misc.h"
