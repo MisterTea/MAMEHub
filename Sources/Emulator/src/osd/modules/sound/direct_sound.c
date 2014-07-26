@@ -207,6 +207,27 @@ void sound_direct_sound::set_mastervolume(int attenuation)
 		IDirectSoundBuffer_SetVolume(stream_buffer, (attenuation == -32) ? DSBVOLUME_MIN : attenuation * 100);
 }
 
+void sound_direct_sound::pauseAudio(bool pause)
+{
+    HRESULT result;
+    if(pause)
+    {
+        result = IDirectSoundBuffer_Stop(stream_buffer);
+        if (result != DS_OK)
+        {
+            printf("DSOUND Error stopping: %08x\n", (UINT32)result);
+        }
+    }
+    else
+    {
+        result = IDirectSoundBuffer_Play(stream_buffer, 0, 0, DSBPLAY_LOOPING);
+        if (result != DS_OK)
+        {
+            printf("DSOUND Error resuming: %08x\n", (UINT32)result);
+        }
+    }
+}
+
 
 //============================================================
 //  dsound_init

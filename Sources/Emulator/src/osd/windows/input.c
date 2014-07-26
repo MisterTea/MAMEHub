@@ -36,7 +36,7 @@
 #include "input.h"
 #include "video.h"
 #include "strconv.h"
-#include "config.h"
+#include "emuconfig.h"
 
 //============================================================
 //  PARAMETERS

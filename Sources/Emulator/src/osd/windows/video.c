@@ -26,7 +26,7 @@
 #include "window.h"
 #include "input.h"
 #include "strconv.h"
-#include "config.h"
+#include "emuconfig.h"
 
 //============================================================
 //  GLOBAL VARIABLES

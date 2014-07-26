@@ -31,7 +31,7 @@
 #include "video.h"
 #include "input.h"
 #include "output.h"
-#include "config.h"
+#include "emuconfig.h"
 #include "osdepend.h"
 #include "strconv.h"
 #include "winutf8.h"
