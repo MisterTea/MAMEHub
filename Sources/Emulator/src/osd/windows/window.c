@@ -32,7 +32,7 @@
 #include "video.h"
 #include "input.h"
 #include "strconv.h"
-#include "config.h"
+#include "emuconfig.h"
 #include "winutf8.h"
 
 extern int drawnone_init(running_machine &machine, win_draw_callbacks *callbacks);

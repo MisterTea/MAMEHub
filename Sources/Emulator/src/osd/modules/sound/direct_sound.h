@@ -31,6 +31,7 @@ public:
 
 	virtual void update_audio_stream(const INT16 *buffer, int samples_this_frame);
 	virtual void set_mastervolume(int attenuation);
+	virtual void pauseAudio(bool pause);
 
 	HRESULT      dsound_init();
 	void         dsound_kill();

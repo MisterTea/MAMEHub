@@ -39,7 +39,7 @@
 #include "d3dintf.h"
 #include "winmain.h"
 #include "window.h"
-#include "config.h"
+#include "emuconfig.h"
 #include "d3dcomm.h"
 #include "drawd3d.h"
 #include "strconv.h"
