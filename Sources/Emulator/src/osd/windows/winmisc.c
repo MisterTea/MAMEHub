@@ -46,6 +46,9 @@ void (*s_debugger_stack_crawler)() = NULL;
 
 void *osd_malloc(size_t size)
 {
+#ifdef NO_MEM_TRACKING
+  return malloc(size);
+#else
 #ifndef MALLOC_DEBUG
 	return HeapAlloc(GetProcessHeap(), 0, size);
 #else
@@ -59,6 +62,7 @@ void *osd_malloc(size_t size)
 	*reinterpret_cast<size_t *>(result) = size;
 	return reinterpret_cast<UINT8 *>(result) + sizeof(size_t);
 #endif
+#endif
 }
 
 
@@ -68,6 +72,9 @@ void *osd_malloc(size_t size)
 
 void *osd_malloc_array(size_t size)
 {
+#ifdef NO_MEM_TRACKING
+  return malloc(size);
+#else
 #ifndef MALLOC_DEBUG
 	return HeapAlloc(GetProcessHeap(), 0, size);
 #else
@@ -94,6 +101,7 @@ void *osd_malloc_array(size_t size)
 	*reinterpret_cast<size_t *>(result) = size | 0x80000000;
 	return reinterpret_cast<UINT8 *>(result) + sizeof(size_t);
 #endif
+#endif
 }
 
 
@@ -103,6 +111,9 @@ void *osd_malloc_array(size_t size)
 
 void osd_free(void *ptr)
 {
+#ifdef NO_MEM_TRACKING
+  free(ptr);
+#else
 #ifndef MALLOC_DEBUG
 	HeapFree(GetProcessHeap(), 0, ptr);
 #else
@@ -118,6 +129,7 @@ void osd_free(void *ptr)
 		ULONG_PTR page_base = (reinterpret_cast<ULONG_PTR>(ptr) - sizeof(size_t)) & ~(PAGE_SIZE - 1);
 		VirtualFree(reinterpret_cast<void *>(page_base - PAGE_SIZE), 0, MEM_RELEASE);
 	}
+#endif
 #endif
 }
 
