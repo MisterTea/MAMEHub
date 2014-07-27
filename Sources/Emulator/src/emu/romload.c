@@ -9,6 +9,8 @@
 
 *********************************************************************/
 
+#include "NSM_Common.h"
+
 #include "emu.h"
 #include "emuopts.h"
 #include "drivenum.h"
@@ -16,8 +18,6 @@
 #include "harddisk.h"
 #include "emuconfig.h"
 #include "ui/ui.h"
-
-#include "NSM_Common.h"
 
 #ifdef WIN32
 #undef interface

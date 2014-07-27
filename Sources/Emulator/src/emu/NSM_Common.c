@@ -1,3 +1,5 @@
+#include "NSM_Common.h"
+
 #include <stdexcept>
 
 #include "RakNet/RakPeerInterface.h"
@@ -6,8 +8,6 @@
 #include "RakNet/BitStream.h"
 #include "RakNet/PacketLogger.h"
 #include "RakNet/RakNetTypes.h"
-
-#include "NSM_Common.h"
 
 #include "osdcore.h"
 
