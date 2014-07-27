@@ -68,6 +68,7 @@
 
 ***************************************************************************/
 
+#include "NSM_Common.h"
 #include "NSM_Server.h"
 #include "NSM_Client.h"
 

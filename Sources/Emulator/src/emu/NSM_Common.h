@@ -1,6 +1,12 @@
 #ifndef __NSM_COMMON__
 #define __NSM_COMMON__
 
+#include "thrift_config.h"
+
+#include "boost/circular_buffer.hpp"
+
+#include <boost/thread.hpp>
+
 //RAKNET MUST COME FIRST, OTHER LIBS TRY TO REPLACE new/delete/malloc/free WITH THEIR OWN SHIT
 //for ID_USER_PACKET_ENUM
 #include "RakNet/MessageIdentifiers.h"
@@ -28,10 +34,6 @@
 #include "nsm.pb.h"
 
 #include "zlib.h"
-
-#include "boost/circular_buffer.hpp"
-
-#include <boost/thread.hpp>
 
 int zlibGetMaxCompressedSize(int origSize);
 int lzmaGetMaxCompressedSize(int origSize);
