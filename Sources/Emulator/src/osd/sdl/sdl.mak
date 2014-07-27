@@ -534,7 +534,7 @@ INCPATH += `$(SDL_CONFIG) --cflags  | sed -e 's:/SDL[2]*::' -e 's:\(-D[^ ]*\)::g
 endif
 CCOMFLAGS += `$(SDL_CONFIG) --cflags  | sed -e 's:/SDL[2]*::' -e 's:\(-I[^ ]*\)::g'`
 
-LIBS += `-lm $(SDL_CONFIG) --static-libs`
+LIBS += `$(SDL_CONFIG) --static-libs`
 
 ifeq ($(SDL_LIBVER),sdl2)
 ifdef SDL_INSTALL_ROOT
@@ -556,7 +556,7 @@ endif
 
 # libs that Haiku doesn't want but are mandatory on *IX
 ifneq ($(TARGETOS),haiku)
-LIBS += -lm -lutil -lpthread
+LIBS += -lutil -lpthread
 endif
 
 endif # not Mac OS X
