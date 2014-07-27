@@ -4,7 +4,7 @@
 #include <QtGui/QtGui>
 
 #include "emu.h"
-#include "config.h"
+#include "emuconfig.h"
 #include "debugger.h"
 
 
