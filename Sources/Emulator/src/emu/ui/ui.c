@@ -312,8 +312,9 @@ void ui_manager::display_startup_screens(bool first_time, bool show_disclaimer)
 {
 	const int maxstate = 3;
 	int str = machine().options().seconds_to_run();
-	bool show_gameinfo = !machine().options().skip_gameinfo();
-	bool show_warnings = true;
+  //JJG: Don't show gameinfo/warnings in MAMEHub
+	bool show_gameinfo = false;
+	bool show_warnings = false;
 	int state;
 
 	// disable everything if we are using -str for 300 or fewer seconds, or if we're the empty driver,
