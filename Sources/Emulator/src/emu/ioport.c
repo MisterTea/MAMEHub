@@ -90,13 +90,14 @@
 
 ***************************************************************************/
 
+#include "NSM_Common.h"
+#include "NSM_Server.h"
+#include "NSM_Client.h"
+
 #include <map>
 #include <vector>
 #include <string>
 #include <iomanip>
-
-#include "NSM_Server.h"
-#include "NSM_Client.h"
 
 #include "emu.h"
 #include "emuopts.h"

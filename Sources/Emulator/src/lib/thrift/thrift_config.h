@@ -1,3 +1,5 @@
+#include <exception>
+
 #ifdef _WIN32
 
 /* config.h.  Generated from config.hin by configure.  */
