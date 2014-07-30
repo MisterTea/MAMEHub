@@ -362,7 +362,7 @@ SUFFIXPROFILE =
 # Windows SDL builds get an SDL prefix
 ifeq ($(OSD),sdl)
 ifeq ($(TARGETOS),win32)
-PREFIXSDL = sdl
+#PREFIXSDL = sdl
 endif
 endif
 

@@ -2,8 +2,6 @@
 
 #include "zlib.h"
 
-#include <boost/thread.hpp>
-
 Server *createGlobalServer(std::string _username,unsigned short _port);
 
 void deleteGlobalServer();
@@ -37,7 +35,7 @@ class Server : public Common
 
  protected:
   std::vector<MemoryBlock> initialBlocks;
-  attotime staleTime;
+  nsm::Attotime staleTime;
   int staleGeneration;
 
   int port;

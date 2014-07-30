@@ -44,7 +44,6 @@ resource_pool::resource_pool(int hash_size)
 		m_ordered_head(NULL),
 		m_ordered_tail(NULL)
 {
-	memset(m_hash, 0, hash_size * sizeof(m_hash[0]));
 }
 
 
@@ -75,7 +74,6 @@ void resource_pool::add(resource_pool_item &item, size_t size, const char *type)
 	item.m_next = m_hash[hashval];
 	m_hash[hashval] = &item;
 
-#ifndef NO_MEM_TRACKING
 	// fetch the ID of this item's pointer; some implementations put hidden data
 	// before, so if we don't find it, check 4 bytes ahead
 	item.m_id = ++s_id;
@@ -109,7 +107,6 @@ void resource_pool::add(resource_pool_item &item, size_t size, const char *type)
 		item.m_ordered_prev = NULL;
 		m_ordered_head = &item;
 	}
-#endif
 
 	osd_lock_release(m_listlock);
 }
@@ -152,7 +149,7 @@ void resource_pool::remove(void *ptr)
 			// delete the object and break
 			if (LOG_ALLOCS)
 				fprintf(stderr, "#%06d, delete %d bytes\n", (UINT32)deleteme->m_id, static_cast<UINT32>(deleteme->m_size));
-			delete deleteme;
+			global_free(deleteme);
 			break;
 		}
 

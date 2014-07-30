@@ -8,15 +8,25 @@
 #include "RakNet/RakNetTypes.h"
 #include "RakNet/RakSleep.h"
 
+#include "google/protobuf/io/lzma_protobuf_stream.h"
+#include "google/protobuf/io/zero_copy_stream_impl_lite.h"
+
 #include "NSM_Client.h"
 
 #include "NSM_Server.h"
+
+#include "gen-cpp/MameHubRpc.h"
+
+#include <transport/TSocket.h>
+#include <transport/TBufferTransports.h>
+#include <protocol/TJSONProtocol.h>
 
 #include <assert.h>
 #include <cstdio>
 #include <cstring>
 #include <stdlib.h>
 
+#define NO_MEM_TRACKING
 #include "osdcore.h"
 #include "emu.h"
 #include "emuopts.h"
@@ -25,20 +35,11 @@
 #include "ui/ui.h"
 #include "osdcore.h"
 
-#include "google/protobuf/io/lzma_protobuf_stream.h"
-#include "google/protobuf/io/zero_copy_stream_impl_lite.h"
-
 using namespace std;
 using namespace nsm;
 using namespace google::protobuf::io;
 
 Client *netClient=NULL;
-
-#include "gen-cpp/MameHubRpc.h"
-
-#include <transport/TSocket.h>
-#include <transport/TBufferTransports.h>
-#include <protocol/TJSONProtocol.h>
 
 using namespace apache::thrift;
 using namespace apache::thrift::protocol;
@@ -327,11 +328,13 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
       RakNet::RakNetGUID guid;
       memcpy(&(guid.g),dataPtr,sizeof(uint64_t));
       dataPtr += sizeof(uint64_t);
-      attotime startTime;
-      memcpy(&(startTime.seconds),dataPtr,sizeof(startTime.seconds));
-      dataPtr += sizeof(startTime.seconds);
-      memcpy(&(startTime.attoseconds),dataPtr,sizeof(startTime.attoseconds));
-      dataPtr += sizeof(startTime.attoseconds);
+      int secs;
+      long long attosecs;
+      memcpy(&secs,dataPtr,sizeof(secs));
+      dataPtr += sizeof(secs);
+      memcpy(&attosecs,dataPtr,sizeof(attosecs));
+      dataPtr += sizeof(attosecs);
+      nsm::Attotime startTime = newAttotime(secs,attosecs);
 
       char buf[4096];
       strcpy(buf,(char*)(dataPtr));
@@ -342,8 +345,9 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
         selfPeerID = peerID;
         // Default player index is in order of join.
         player = selfPeerID - 1;
-        mostRecentSentReport = startTime;
-        cout << "CLIENT STARTED AT TIME: " << startTime.seconds << "." << startTime.attoseconds << endl;
+        mostRecentSentReport.seconds = startTime.seconds();
+        mostRecentSentReport.attoseconds = startTime.attoseconds();
+        cout << "CLIENT STARTED AT TIME: " << startTime.seconds() << "." << startTime.attoseconds() << endl;
       }
       else
       {
@@ -361,11 +365,13 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
       int peerID;
       memcpy(&peerID,tmpbuf,sizeof(int));
       tmpbuf += sizeof(int);
-      attotime startTime;
-      memcpy(&(startTime.seconds),tmpbuf,sizeof(startTime.seconds));
-      tmpbuf += sizeof(startTime.seconds);
-      memcpy(&(startTime.attoseconds),tmpbuf,sizeof(startTime.attoseconds));
-      tmpbuf += sizeof(startTime.attoseconds);
+      int secs;
+      long long attosecs;
+      memcpy(&secs,tmpbuf,sizeof(secs));
+      tmpbuf += sizeof(secs);
+      memcpy(&(attosecs),tmpbuf,sizeof(attosecs));
+      tmpbuf += sizeof(attosecs);
+      nsm::Attotime startTime = newAttotime(secs,attosecs);
       cout << "Matching: " << p->systemAddress.ToString() << " To " << peerID << endl;
       char buf[4096];
       strcpy(buf,(char*)(tmpbuf));
@@ -427,7 +433,7 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
       strcpy(buf,(const char*)(p->data+2+sizeof(int)));
       string s(buf,strlen(buf));
       // Create peerdata for server
-      upsertPeer(p->guid,1,buf,attotime(0,0));
+      upsertPeer(p->guid,1,buf,newAttotime(0,0));
     }
     break;
     default:
@@ -720,11 +726,13 @@ bool Client::update(running_machine *machine)
       RakNet::RakNetGUID guid;
       memcpy(&(guid.g),tmpbuf,sizeof(uint64_t));
       tmpbuf += sizeof(uint64_t);
-      attotime startTime;
-      memcpy(&(startTime.seconds),tmpbuf,sizeof(startTime.seconds));
-      tmpbuf += sizeof(startTime.seconds);
-      memcpy(&(startTime.attoseconds),tmpbuf,sizeof(startTime.attoseconds));
-      tmpbuf += sizeof(startTime.attoseconds);
+      int secs;
+      long long attosecs;
+      memcpy(&secs,tmpbuf,sizeof(secs));
+      tmpbuf += sizeof(secs);
+      memcpy(&attosecs,tmpbuf,sizeof(attosecs));
+      tmpbuf += sizeof(attosecs);
+      nsm::Attotime startTime = newAttotime(secs,attosecs);
 	    
       char buf[4096];
       strcpy(buf,(char*)(tmpbuf));
@@ -733,8 +741,9 @@ bool Client::update(running_machine *machine)
       {
         //This is me, set my own ID and name
         selfPeerID = peerID;
-        mostRecentSentReport = startTime;
-        cout << "CLIENT STARTED AT TIME: " << startTime.seconds << "." << startTime.attoseconds << endl;
+        mostRecentSentReport.seconds = startTime.seconds();
+        mostRecentSentReport.attoseconds = startTime.attoseconds();
+        cout << "CLIENT STARTED AT TIME: " << startTime.seconds() << "." << startTime.attoseconds() << endl;
       }
       else
       {
@@ -760,7 +769,8 @@ bool Client::update(running_machine *machine)
       while(bytesUsed+GetPacketSize(p) >= compressedBufferSize)
       {
         compressedBufferSize *= 1.5;
-        compressedBuffer = (unsigned char*)realloc(compressedBuffer,compressedBufferSize);
+	free(compressedBuffer);
+        compressedBuffer = (unsigned char*)malloc(compressedBufferSize);
         if(!compressedBuffer)
         {
           cout << __FILE__ << ":" << __LINE__ << " OUT OF MEMORY\n";
@@ -780,7 +790,8 @@ bool Client::update(running_machine *machine)
       while(bytesUsed+GetPacketSize(p) >= compressedBufferSize)
       {
         compressedBufferSize *= 1.5;
-        compressedBuffer = (unsigned char*)realloc(compressedBuffer,compressedBufferSize);
+	free(compressedBuffer);
+        compressedBuffer = (unsigned char*)malloc(compressedBufferSize);
         if(!compressedBuffer)
         {
           cout << __FILE__ << ":" << __LINE__ << " OUT OF MEMORY\n";

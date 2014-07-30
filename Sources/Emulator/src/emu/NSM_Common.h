@@ -4,7 +4,6 @@
 #include "thrift_config.h"
 
 #include "boost/circular_buffer.hpp"
-
 #include <boost/thread.hpp>
 
 //RAKNET MUST COME FIRST, OTHER LIBS TRY TO REPLACE new/delete/malloc/free WITH THEIR OWN SHIT
@@ -27,9 +26,6 @@
 #include <string>
 #include <map>
 #include <cstring>
-
-#include "emu.h"
-#include "attotime.h"
 
 #include "nsm.pb.h"
 
@@ -86,6 +82,8 @@ class Common;
 extern Client *netClient;
 extern Server *netServer;
 extern Common *netCommon;
+
+class running_machine;
 
 class MemoryBlock
 {
@@ -177,13 +175,13 @@ class PeerData
   std::map<int, nsm::PeerInputData> delayedInputs;
 
   boost::circular_buffer<nsm::PeerInputData> oldInputs;
-  attotime startTime;
-  attotime lastInputTime;
+  nsm::Attotime startTime;
+  nsm::Attotime lastInputTime;
   int nextGC;
 
   PeerData() {}
 
- PeerData(std::string _name, attotime _startTime)
+ PeerData(std::string _name, nsm::Attotime _startTime)
    :
   name(_name),
     oldInputs(15000),
@@ -223,7 +221,7 @@ class Common
 
   virtual ~Common();
 
-  void upsertPeer(RakNet::RakNetGUID guid,int peerID,std::string name,attotime startTime);
+  void upsertPeer(RakNet::RakNetGUID guid,int peerID,std::string name,nsm::Attotime startTime);
 
   int getLargestPing();
 
@@ -252,6 +250,13 @@ class Common
     return blocks[i];
   }
 
+  nsm::Attotime newAttotime(int seconds, long long attoseconds) {
+    nsm::Attotime at;
+    at.set_seconds(seconds);
+    at.set_attoseconds(attoseconds);
+    return at;
+  }
+
   bool hasPeerWithID(int peerID);
 
   std::string getLatencyString(int peerID);
@@ -266,7 +271,7 @@ class Common
 
   virtual nsm::PeerInputData popInput(int peerID);
 
-  attotime getStartTime(int peerID);
+  nsm::Attotime getStartTime(int peerID);
 
   inline int getSelfPeerID()
   {
@@ -288,12 +293,12 @@ class Common
 
   void updateForces(const std::vector<std::pair<unsigned char *,int> > &ramBlocks);
 
-  void sendInputs(const attotime &inputTime, nsm::PeerInputData::PeerInputType inputType, const nsm::InputState &inputState);
-  void sendInputs(const attotime &inputTime, nsm::PeerInputData::PeerInputType inputType, const std::string &inputString);
+  void sendInputs(const nsm::Attotime &inputTime, nsm::PeerInputData::PeerInputType inputType, const nsm::InputState &inputState);
+  void sendInputs(const nsm::Attotime &inputTime, nsm::PeerInputData::PeerInputType inputType, const std::string &inputString);
 
   void receiveInputs(const nsm::PeerInputDataList *inputDataList);
 
-  std::pair<int,attotime> getOldestPeerInputTime();
+  std::pair<int,nsm::Attotime> getOldestPeerInputTime();
 
   int getPlayer() { return player; }
 

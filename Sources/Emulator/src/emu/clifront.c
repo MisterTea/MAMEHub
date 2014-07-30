@@ -95,10 +95,10 @@ cli_frontend::cli_frontend(cli_options &options, osd_interface &osd)
 	: m_options(options),
 		m_osd(osd),
 		m_result(MAMERR_NONE),
-		m_start_memory(next_memory_id())
+  m_start_memory(0/*next_memory_id()*/)
 {
 	// begin tracking memory
-	track_memory(true);
+	//track_memory(true);
 }
 
 
@@ -112,9 +112,9 @@ cli_frontend::~cli_frontend()
 	m_options.remove_device_options();
 
 	// report any unfreed memory on clean exits
-	track_memory(false);
-	if (m_result == MAMERR_NONE)
-		dump_unfreed_mem(m_start_memory);
+	//track_memory(false);
+	//if (m_result == MAMERR_NONE)
+	  //dump_unfreed_mem(m_start_memory);
 }
 
 

@@ -607,7 +607,7 @@ LIBS += -L$(SDL_INSTALL_ROOT)/lib
 #-Wl,-rpath,$(SDL_INSTALL_ROOT)/lib
 endif
 
-# LIBS += -lmingw32 -lSDL
+LIBS += -lmingw32 -lSDLmain -lSDL
 # Static linking
 
 LDFLAGS += -static-libgcc
@@ -622,7 +622,7 @@ ifndef NO_USE_QTDEBUG
 MOC = @moc
 endif
 
-LIBS += -lSDL.dll
+#LIBS += -lSDL.dll
 LIBS += -luser32 -lgdi32 -lddraw -ldsound -ldxguid -lwinmm -ladvapi32 -lcomctl32 -lshlwapi
 
 endif   # Win32

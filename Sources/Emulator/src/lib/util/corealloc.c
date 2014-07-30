@@ -8,6 +8,8 @@
 
 ***************************************************************************/
 
+#ifndef NO_MEM_TRACKING
+
 #include "corealloc.h"
 #include "osdcore.h"
 
@@ -170,14 +172,12 @@ void free_file_line(void *memory, const char *file, int line, bool array)
 		osd_break_into_debugger("Error: attempt to free single object with global_free_array");
 #endif
 	}
-#endif
 
 #ifdef OVERWRITE_FREED_MEMORY
 	// clear memory to a bogus value
 	memset(memory, 0xfc, entry->m_size);
 #endif
 
-#ifndef NO_MEM_TRACKING
 	// free the entry and the memory
 	memory_entry::release(entry, file, line);
 #endif
@@ -388,3 +388,5 @@ void memory_entry::report_unfreed(UINT64 start)
 	if (total > 0)
 		fprintf(stderr, "a total of %u bytes were not freed\n", total);
 }
+
+#endif // NO_MEM_TRACKING

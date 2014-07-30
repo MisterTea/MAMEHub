@@ -9,8 +9,6 @@
 
 *********************************************************************/
 
-#include "NSM_Common.h"
-
 #include "emu.h"
 #include "emuopts.h"
 #include "emuconfig.h"

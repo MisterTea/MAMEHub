@@ -94,6 +94,10 @@
 #include "NSM_Server.h"
 #include "NSM_Client.h"
 
+#include "nsm.pb.h"
+
+#include <boost/circular_buffer.hpp>
+
 #include <map>
 #include <vector>
 #include <string>
@@ -110,8 +114,6 @@
 
 #include <ctype.h>
 #include <time.h>
-
-#include <boost/circular_buffer.hpp>
 
 using namespace std;
 using namespace nsm;
@@ -3041,6 +3043,16 @@ void ioport_manager::frame_update_callback()
 		frame_update();
 }
 
+attotime protoToAttotime(const nsm::Attotime& at) {
+  return attotime(at.seconds(),at.attoseconds());
+}
+
+nsm::Attotime attotimeToProto(const attotime& at) {
+  nsm::Attotime nsmAttotime;
+  nsmAttotime.set_seconds(at.seconds);
+  nsmAttotime.set_attoseconds(at.attoseconds);
+  return nsmAttotime;
+}
 
 //-------------------------------------------------
 //  frame_update_internal - core logic for
@@ -3167,7 +3179,8 @@ g_profiler.start(PROFILER_INPUT);
       lastFutureInputTime = futureInputTime;
 
       //cout << "SENDING INPUTS AT TIME " << futureInputTime.seconds << "." << futureInputTime.attoseconds << endl;
-      netCommon->sendInputs(futureInputTime, PeerInputData::INPUT, inputState);
+      nsm::Attotime nsmAttotime = attotimeToProto(futureInputTime);
+      netCommon->sendInputs(nsmAttotime, PeerInputData::INPUT, inputState);
     }
 	}
 
@@ -3186,7 +3199,7 @@ void ioport_manager::processNetworkBuffer(PeerInputData *inputData,int peerID)
       //printf("GOT INPUT\n");
       attotime tmptime(inputData->time().seconds(), inputData->time().attoseconds());
       for(int a=0;a<inputData->inputstate().players_size();a++) {
-        int player = inputData->inputstate().players(a);
+        //int player = inputData->inputstate().players(a);
         //cout << "Peer " << peerID << " has input for player " << inputData->inputstate().players(a) << " at time " << tmptime.seconds << "." << tmptime.attoseconds << endl;
         circular_buffer<pair<attotime,InputState> > &onePlayerInputData = playerInputData[inputData->inputstate().players(a)];
         if(onePlayerInputData.empty()) {
@@ -3267,7 +3280,8 @@ void ioport_manager::pollForPeerCatchup() {
       realtime = time(NULL);
     }
         
-    pair<int,attotime> peerTimePair = netCommon->getOldestPeerInputTime();
+    pair<int,nsm::Attotime> peerTimeProtoPair = netCommon->getOldestPeerInputTime();
+    pair<int,attotime> peerTimePair = pair<int,attotime>(peerTimeProtoPair.first,protoToAttotime(peerTimeProtoPair.second));
     if(peerTimePair.first == -1 || peerTimePair.second > curMachineTime) {
       if(waitingForClientCatchup) {
         waitingForClientCatchup=false;

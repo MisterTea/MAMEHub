@@ -17,11 +17,14 @@
 #ifndef __INPTPORT_H__
 #define __INPTPORT_H__
 
-#include <vector>
-
 #include <time.h>
 
-#include "nsm.pb.h"
+namespace nsm {
+	class PeerInput;
+	class InputState;
+	class InputPort;
+	class PeerInputData;
+}
 
 //**************************************************************************
 //  CONSTANTS

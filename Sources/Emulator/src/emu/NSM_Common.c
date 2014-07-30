@@ -9,10 +9,13 @@
 #include "RakNet/PacketLogger.h"
 #include "RakNet/RakNetTypes.h"
 
-#include "osdcore.h"
-
 #include "lib7z/LzmaEnc.h"
 #include "lib7z/LzmaDec.h"
+
+#define NO_MEM_TRACKING
+#include "emu.h"
+#include "attotime.h"
+#include "osdcore.h"
 
 using namespace std;
 using namespace nsm;
@@ -249,10 +252,10 @@ std::string Common::doInflate(const unsigned char *inputString, int length) {
   return s;
 }
 
-void Common::upsertPeer(RakNet::RakNetGUID guid,int peerID,string name,attotime startTime)
+void Common::upsertPeer(RakNet::RakNetGUID guid,int peerID,string name,nsm::Attotime startTime)
 {
-  if(startTime.seconds<1) {
-    startTime = attotime(1,0);
+  if(startTime.seconds()<1) {
+    startTime = newAttotime(1,0);
   }
   cout << "UPSERTING PEER WITH ID: " << peerID << " AND NAME: " << name << endl;
   peerIDs[guid] = peerID;
@@ -408,7 +411,7 @@ PeerInputData Common::popInput(int peerID)
   }
 }
 
-attotime Common::getStartTime(int peerID)
+nsm::Attotime Common::getStartTime(int peerID)
 {
   if(peerData.find(peerID)==peerData.end())
     throw std::runtime_error("TRIED TO GET STARTTIME FROM UNKNOWN PEER");
@@ -605,30 +608,30 @@ void Common::updateForces(const vector<pair<unsigned char *,int> > &ramBlocks) {
   }
 }
 
-void Common::sendInputs(const attotime &inputTime, PeerInputData::PeerInputType inputType, const InputState &inputState)
+void Common::sendInputs(const nsm::Attotime &inputTime, PeerInputData::PeerInputType inputType, const InputState &inputState)
 {
   PeerInputData peerInputData;
   peerInputData.set_counter(globalInputCounter);
   peerInputData.set_inputtype(inputType);
   peerInputData.set_generation(generation);
   Attotime *inputDataTime = peerInputData.mutable_time();
-  inputDataTime->set_seconds(inputTime.seconds);
-  inputDataTime->set_attoseconds(inputTime.attoseconds);
+  inputDataTime->set_seconds(inputTime.seconds());
+  inputDataTime->set_attoseconds(inputTime.attoseconds());
   InputState *inputStateDest = peerInputData.mutable_inputstate();
   inputStateDest->MergeFrom(inputState);
 
   sendInputs(peerInputData);
 }
 
-void Common::sendInputs(const attotime &inputTime, PeerInputData::PeerInputType inputType, const string &inputString)
+void Common::sendInputs(const nsm::Attotime &inputTime, PeerInputData::PeerInputType inputType, const string &inputString)
 {
   PeerInputData peerInputData;
   peerInputData.set_counter(globalInputCounter);
   peerInputData.set_inputtype(inputType);
   peerInputData.set_generation(generation);
   Attotime *inputDataTime = peerInputData.mutable_time();
-  inputDataTime->set_seconds(inputTime.seconds);
-  inputDataTime->set_attoseconds(inputTime.attoseconds);
+  inputDataTime->set_seconds(inputTime.seconds());
+  inputDataTime->set_attoseconds(inputTime.attoseconds());
   peerInputData.set_inputbuffer(inputString);
 
   sendInputs(peerInputData);
@@ -704,7 +707,7 @@ void Common::sendInputs(const PeerInputData& peerInputData) {
   globalInputCounter++;
 }
 
-attotime protoToAttotime(const Attotime &at) {
+inline attotime protoToAttotime(const Attotime &at) {
   attotime t(at.seconds(), at.attoseconds());
   return t;
 }
@@ -713,7 +716,7 @@ void Common::receiveInputs(const PeerInputDataList *inputDataList) {
   int peerID = inputDataList->peer_id();
   //cout << "GOT INPUTS FROM " << peerID << endl;
   if(peerData.find(peerID)==peerData.end()) {
-    peerData[peerID] = PeerData("unknown", attotime(0,0));
+    peerData[peerID] = PeerData("unknown", newAttotime(0,0));
   }
     
   int nextGC = peerData[peerID].nextGC;
@@ -729,8 +732,8 @@ void Common::receiveInputs(const PeerInputDataList *inputDataList) {
     if(inputData.counter() == nextGC) {
       if(inputData.has_inputstate()) {
         attotime t = protoToAttotime(inputData.time());
-        if(t > peerData[peerID].lastInputTime) {
-          peerData[peerID].lastInputTime = t;
+        if(t > protoToAttotime(peerData[peerID].lastInputTime)) {
+          peerData[peerID].lastInputTime = inputData.time();
         }
       }
       availableInputs.push_back(inputData);
@@ -749,8 +752,8 @@ void Common::receiveInputs(const PeerInputDataList *inputDataList) {
     } else {
       availableInputs.push_back(it->second);
       attotime t = protoToAttotime(it->second.time());
-      if(t > peerData[peerID].lastInputTime) {
-        peerData[peerID].lastInputTime = t;
+      if(t > protoToAttotime(peerData[peerID].lastInputTime)) {
+        peerData[peerID].lastInputTime = it->second.time();
       }
       delayedInputs.erase(it);
       nextGC++;
@@ -760,9 +763,9 @@ void Common::receiveInputs(const PeerInputDataList *inputDataList) {
   peerData[peerID].nextGC = nextGC;
 }
 
-pair<int,attotime> Common::getOldestPeerInputTime() {
+pair<int,nsm::Attotime> Common::getOldestPeerInputTime() {
   int i = -1;
-  attotime t(0,0);
+  nsm::Attotime t = newAttotime(0,0);
   for(
     std::map<int,PeerData>::iterator it = peerData.begin();
     it != peerData.end();
@@ -773,12 +776,12 @@ pair<int,attotime> Common::getOldestPeerInputTime() {
       t = it->second.lastInputTime;
       i = it->first;
     } else {
-      if(t > it->second.lastInputTime) {
+      if(protoToAttotime(t) > protoToAttotime(it->second.lastInputTime)) {
         t = it->second.lastInputTime;
         i = it->first;
       }
     }
   }
-  return pair<int,attotime>(i,t);
+  return pair<int,nsm::Attotime>(i,t);
 }
 

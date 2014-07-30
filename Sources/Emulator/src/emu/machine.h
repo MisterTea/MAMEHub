@@ -18,7 +18,7 @@
 #define __MACHINE_H__
 
 #include <time.h>
-#include <vector>
+
 
 
 //**************************************************************************
@@ -66,9 +66,9 @@ const int DEBUG_FLAG_OSD_ENABLED    = 0x00001000;       // The OSD debugger is e
 //**************************************************************************
 
 // global allocation helpers
-#define auto_alloc(m, t)                pool_alloc_clear(static_cast<running_machine &>(m).respool(), t)
+#define auto_alloc(m, t)                pool_alloc(static_cast<running_machine &>(m).respool(), t)
 #define auto_alloc_clear(m, t)          pool_alloc_clear(static_cast<running_machine &>(m).respool(), t)
-#define auto_alloc_array(m, t, c)       pool_alloc_array_clear(static_cast<running_machine &>(m).respool(), t, c)
+#define auto_alloc_array(m, t, c)       pool_alloc_array(static_cast<running_machine &>(m).respool(), t, c)
 #define auto_alloc_array_clear(m, t, c) pool_alloc_array_clear(static_cast<running_machine &>(m).respool(), t, c)
 #define auto_free(m, v)                 pool_free(static_cast<running_machine &>(m).respool(), v)
 

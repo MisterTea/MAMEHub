@@ -17,13 +17,6 @@
 #include <algorithm>
 #include <stdlib.h>
 
-#include "emu.h"
-
-#include "unicode.h"
-#include "ui/ui.h"
-#include "osdcore.h"
-#include "emuopts.h"
-
 #include "google/protobuf/io/lzma_protobuf_stream.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 
@@ -32,6 +25,14 @@
 #include <server/TSimpleServer.h>
 #include <transport/TServerSocket.h>
 #include <transport/TTransportUtils.h>
+
+#define NO_MEM_TRACKING
+#include "emu.h"
+
+#include "unicode.h"
+#include "ui/ui.h"
+#include "osdcore.h"
+#include "emuopts.h"
 
 using boost::shared_ptr;
 
@@ -118,7 +119,7 @@ Server::Server(string username,int _port)
 
   syncCount=0;
 
-  upsertPeer(rakInterface->GetMyGUID(),1,username,attotime(1,0));
+  upsertPeer(rakInterface->GetMyGUID(),1,username,newAttotime(1,0));
   selfPeerID = 1;
 
   serverThread = boost::thread(mameHubServerProcessor);
@@ -212,7 +213,9 @@ void Server::acceptPeer(RakNet::RakNetGUID guidToAccept,running_machine *machine
     }
     assignID = lastUsedPeerID;
   }
-  upsertPeer(guidToAccept,assignID,candidateNames[guidToAccept],machine->machine_time());
+  nsm::Attotime at = newAttotime(machine->machine_time().seconds,
+				 machine->machine_time().attoseconds);
+  upsertPeer(guidToAccept,assignID,candidateNames[guidToAccept],at);
   candidateNames.erase(candidateNames.find(guidToAccept));
 
   printf("ASSIGNING ID %d TO NEW CLIENT\n",assignID);
@@ -221,10 +224,12 @@ void Server::acceptPeer(RakNet::RakNetGUID guidToAccept,running_machine *machine
   tmpbuf += sizeof(int);
   memcpy(tmpbuf,&(guidToAccept.g),sizeof(uint64_t));
   tmpbuf += sizeof(uint64_t);
-  memcpy(tmpbuf,&(peerData[assignID].startTime.seconds),sizeof(peerData[assignID].startTime.seconds));
-  tmpbuf += sizeof(peerData[assignID].startTime.seconds);
-  memcpy(tmpbuf,&(peerData[assignID].startTime.attoseconds),sizeof(peerData[assignID].startTime.attoseconds));
-  tmpbuf += sizeof(peerData[assignID].startTime.attoseconds);
+  int secs = peerData[assignID].startTime.seconds();
+  long long attosecs = peerData[assignID].startTime.attoseconds();
+  memcpy(tmpbuf,&secs,sizeof(secs));
+  tmpbuf += sizeof(secs);
+  memcpy(tmpbuf,&attosecs,sizeof(attosecs));
+  tmpbuf += sizeof(attosecs);
   strcpy(
     (char*)tmpbuf,
     peerData[assignID].name.c_str()
@@ -388,7 +393,7 @@ extern int nvram_size(running_machine &machine);
 
 void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine)
 {
-  cout << "INITIAL SYNC WITH GUID: " << guid.ToString() << " AT TIME " << staleTime.seconds << "." << staleTime.attoseconds << endl;
+  cout << "INITIAL SYNC WITH GUID: " << guid.ToString() << " AT TIME " << staleTime.seconds() << "." << staleTime.attoseconds() << endl;
   unsigned char checksum = 0;
 
   waitingForClientCatchup=true;
@@ -397,8 +402,8 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
   nsm::InitialSync initial_sync;
   initial_sync.set_generation(staleGeneration);
   nsm::Attotime* global_time = initial_sync.mutable_global_time();
-  global_time->set_seconds(staleTime.seconds);
-  global_time->set_attoseconds(staleTime.attoseconds);
+  global_time->set_seconds(staleTime.seconds());
+  global_time->set_attoseconds(staleTime.attoseconds());
 
   if(getSecondsBetweenSync())
   {
@@ -771,7 +776,8 @@ public:
     if(syncBufferSize <= totalSendSizeEstimate)
     {
       syncBufferSize = totalSendSizeEstimate*1.5;
-      syncBuffer = (unsigned char*)realloc(syncBuffer,totalSendSizeEstimate);
+      free(syncBuffer);
+      syncBuffer = (unsigned char*)malloc(totalSendSizeEstimate);
       if(!syncBuffer)
       {
         cout << __FILE__ << ":" << __LINE__ << " OUT OF MEMORY\n";
@@ -841,7 +847,8 @@ void Server::sync(running_machine *machine)
   syncProto.clear_block();
 
   staleGeneration = generation;
-  staleTime = machine->machine_time();
+  staleTime = newAttotime(machine->machine_time().seconds,
+			  machine->machine_time().attoseconds);
 
   cout << "IN CRITICAL SECTION\n";
     

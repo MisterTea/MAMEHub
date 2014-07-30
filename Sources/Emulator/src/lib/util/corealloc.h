@@ -13,6 +13,13 @@
 #ifndef __COREALLOC_H__
 #define __COREALLOC_H__
 
+// JJG: Define some std libraries here so they are not affected by the
+// mem tracker
+#include <map>
+#include <vector>
+#include <list>
+#include <new>
+
 #include <stdlib.h>
 #include <new>
 #include "osdcore.h"
@@ -57,7 +64,21 @@ void dump_unfreed_mem(UINT64 start = 0);
 // zeromem_t is a dummy class used to tell new to zero memory after allocation
 class zeromem_t { };
 
-#ifndef NO_MEM_TRACKING
+#ifdef NO_MEM_TRACKING
+
+// file/line new/delete operators
+ATTR_FORCE_INLINE inline void *operator new(std::size_t size, const char *file, int line) throw (std::bad_alloc) { return ::operator new(size); }
+ATTR_FORCE_INLINE inline void *operator new[](std::size_t size, const char *file, int line) throw (std::bad_alloc) { return ::operator new[](size); }
+ATTR_FORCE_INLINE inline void operator delete(void *ptr, const char *file, int line) { ::operator delete(ptr); ptr=NULL; }
+ATTR_FORCE_INLINE inline void operator delete[](void *ptr, const char *file, int line) { ::operator delete[](ptr); ptr=NULL; }
+
+// file/line new/delete operators with zeroing
+ATTR_FORCE_INLINE inline void *operator new(std::size_t size, const char *file, int line, const zeromem_t &) throw (std::bad_alloc) { void* tmp = ::operator new(size); memset(tmp,0,size); return tmp; }
+ATTR_FORCE_INLINE inline void *operator new[](std::size_t size, const char *file, int line, const zeromem_t &) throw (std::bad_alloc) { void* tmp = ::operator new[](size); memset(tmp,0,size); return tmp; }
+ATTR_FORCE_INLINE inline void operator delete(void *ptr, const char *file, int line, const zeromem_t &) { ::operator delete(ptr); ptr=NULL; }
+ATTR_FORCE_INLINE inline void operator delete[](void *ptr, const char *file, int line, const zeromem_t &) { ::operator delete[](ptr); ptr=NULL; }
+
+#else
 #error MEM TRACKING NOT SUPPORTED IN MAMEHUB
 
 // standard new/delete operators (try to avoid using)
@@ -65,8 +86,6 @@ ATTR_FORCE_INLINE inline void *operator new(std::size_t size) throw (std::bad_al
 ATTR_FORCE_INLINE inline void *operator new[](std::size_t size) throw (std::bad_alloc) { return malloc_file_line(size, NULL, 0, true, true, false); }
 ATTR_FORCE_INLINE inline void operator delete(void *ptr) throw() { if (ptr != NULL) free_file_line(ptr, NULL, 0, false); }
 ATTR_FORCE_INLINE inline void operator delete[](void *ptr) throw() { if (ptr != NULL) free_file_line(ptr, NULL, 0, true); }
-
-#endif
 
 // file/line new/delete operators
 ATTR_FORCE_INLINE inline void *operator new(std::size_t size, const char *file, int line) throw (std::bad_alloc) { return malloc_file_line(size, file, line, false, true, false); }
@@ -80,7 +99,7 @@ ATTR_FORCE_INLINE inline void *operator new[](std::size_t size, const char *file
 ATTR_FORCE_INLINE inline void operator delete(void *ptr, const char *file, int line, const zeromem_t &) { if (ptr != NULL) free_file_line(ptr, file, line, false); }
 ATTR_FORCE_INLINE inline void operator delete[](void *ptr, const char *file, int line, const zeromem_t &) { if (ptr != NULL) free_file_line(ptr, file, line, true); }
 
-
+#endif
 
 //**************************************************************************
 //  GLOBAL VARIABLES

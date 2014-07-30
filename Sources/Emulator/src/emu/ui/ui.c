@@ -464,7 +464,7 @@ void ui_manager::update_and_render(render_container *container)
 	if (m_handler_param == UI_HANDLER_CANCEL)
 		set_handler(handler_ingame, 0);
 
-	attotime curtime = machine().time();
+	//attotime curtime = machine().time();
 	if(waitingForClientCatchup)
 	{
         char buf[4096];
@@ -1822,7 +1822,10 @@ UINT32 ui_manager::handler_ingame(running_machine &machine, render_container *co
                                         memcpy(&(s[14]),&(locationsToIntersect[a].memoryMask),sizeof(unsigned char));
                                         memcpy(&(s[15]),&(value),sizeof(int));
                                         attotime curtime = machine.time();
-                                        netServer->sendInputs(curtime, PeerInputData::FORCE_VALUE,s);
+					nsm::Attotime nsmAttotime;
+					nsmAttotime.set_seconds(curtime.seconds);
+					nsmAttotime.set_attoseconds(curtime.attoseconds);
+                                        netServer->sendInputs(nsmAttotime, PeerInputData::FORCE_VALUE,s);
                                     }
                                     locationsToIntersect.clear();
                                 } else if(netServer && string(&chatString[0],6) == string("/clear")) {
@@ -1835,7 +1838,10 @@ UINT32 ui_manager::handler_ingame(running_machine &machine, render_container *co
                                 if(netCommon)
                                 {
                                     attotime curtime = machine.time();
-                                    netCommon->sendInputs(curtime, PeerInputData::CHAT,string(&chatString[0],chatString.size()));
+					nsm::Attotime nsmAttotime;
+					nsmAttotime.set_seconds(curtime.seconds);
+					nsmAttotime.set_attoseconds(curtime.attoseconds);
+                                    netCommon->sendInputs(nsmAttotime, PeerInputData::CHAT,string(&chatString[0],chatString.size()));
                                 }
                             }
                             chatString.clear();
