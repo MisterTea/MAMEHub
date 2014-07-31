@@ -1622,9 +1622,17 @@ UINT32 ui_manager::handler_ingame(running_machine &machine, render_container *co
 	// determine if we should disable the rest of the UI
 	bool ui_disabled = (machine.ioport().has_keyboard() && !machine.ui_active());
 
+	if(chatEnabled==false)
+	{
+
+    if(machine.input().code_pressed_once(KEYCODE_N))
+    {
+      statsVisible = !statsVisible;
+    }
 	// is ScrLk UI toggling applicable here?
 	if (machine.ioport().has_keyboard())
 	{
+
 		// are we toggling the UI with ScrLk?
 		if (ui_input_pressed(machine, IPT_UI_TOGGLE_UI))
 		{
@@ -1653,6 +1661,7 @@ UINT32 ui_manager::handler_ingame(running_machine &machine, render_container *co
 					"**Use ScrLock to toggle**");
 			}
 		}
+  }
 	}
 
 	// is the natural keyboard enabled?
