@@ -38,25 +38,6 @@
 #define global_free_array(_ptr)                     do { delete[] _ptr; } while (0)
 
 
-
-//**************************************************************************
-//  FUNCTION PROTOTYPES
-//**************************************************************************
-
-// allocate memory with file and line number information
-void *malloc_file_line(size_t size, const char *file, int line, bool array, bool throw_on_fail, bool clear);
-
-// free memory with file and line number information
-void free_file_line(void *memory, const char *file, int line, bool array);
-inline void free_file_line(const void *memory, const char *file, int line, bool array) { free_file_line(const_cast<void *>(memory), file, line, array); }
-
-// called from the exit path of any code that wants to check for unfreed memory
-void track_memory(bool track);
-UINT64 next_memory_id();
-void dump_unfreed_mem(UINT64 start = 0);
-
-
-
 //**************************************************************************
 //  INLINE FUNCTIONS
 //**************************************************************************
@@ -80,6 +61,22 @@ ATTR_FORCE_INLINE inline void operator delete[](void *ptr, const char *file, int
 
 #else
 #error MEM TRACKING NOT SUPPORTED IN MAMEHUB
+
+//**************************************************************************
+//  FUNCTION PROTOTYPES
+//**************************************************************************
+
+// allocate memory with file and line number information
+void *malloc_file_line(size_t size, const char *file, int line, bool array, bool throw_on_fail, bool clear);
+
+// free memory with file and line number information
+void free_file_line(void *memory, const char *file, int line, bool array);
+inline void free_file_line(const void *memory, const char *file, int line, bool array) { free_file_line(const_cast<void *>(memory), file, line, array); }
+
+// called from the exit path of any code that wants to check for unfreed memory
+void track_memory(bool track);
+UINT64 next_memory_id();
+void dump_unfreed_mem(UINT64 start = 0);
 
 // standard new/delete operators (try to avoid using)
 ATTR_FORCE_INLINE inline void *operator new(std::size_t size) throw (std::bad_alloc) { return malloc_file_line(size, NULL, 0, false, true, false); }

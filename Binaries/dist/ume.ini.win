@@ -42,6 +42,7 @@ wavwrite
 snapname                  %g/%i
 snapsize                  auto
 snapview                  internal
+statename                 %g
 burnin                    0
 
 #
@@ -95,7 +96,6 @@ flicker                   0
 #
 # CORE SOUND OPTIONS
 #
-sound                     1
 samplerate                48000
 samples                   1
 volume                    0
@@ -135,12 +135,8 @@ mouse_device              mouse
 #
 # CORE DEBUGGING OPTIONS
 #
-log                       0
-verbose                   0
 update_in_pause           0
-debug                     0
 debugscript               
-debug_internal            0
 
 #
 # CORE MISC OPTIONS
@@ -160,6 +156,7 @@ autoboot_script
 http                      0
 http_port                 8080
 http_path                 web
+console                   0
 username                  Player
 server                    0
 client                    0
@@ -170,10 +167,72 @@ secondsbetweensync        30
 synctransferseconds       10
 
 #
-# WINDOWS DEBUGGING OPTIONS
+# OSD DEBUGGING OPTIONS
 #
+log                       0
+verbose                   0
+debug                     0
+debugger                  auto
 oslog                     0
 watchdog                  0
+
+#
+# OSD PERFORMANCE OPTIONS
+#
+multithreading            0
+numprocessors             auto
+bench                     0
+
+#
+# OSD VIDEO OPTIONS
+#
+video                     auto
+numscreens                1
+window                    1
+maximize                  0
+keepaspect                1
+unevenstretch             0
+waitvsync                 0
+syncrefresh               0
+
+#
+# OSD PER-WINDOW VIDEO OPTIONS
+#
+screen                    auto
+aspect                    auto
+resolution                auto
+view                      auto
+screen0                   auto
+aspect0                   auto
+resolution0               auto
+view0                     auto
+screen1                   auto
+aspect1                   auto
+resolution1               auto
+view1                     auto
+screen2                   auto
+aspect2                   auto
+resolution2               auto
+view2                     auto
+screen3                   auto
+aspect3                   auto
+resolution3               auto
+view3                     auto
+
+#
+# OSD FULL SCREEN OPTIONS
+#
+switchres                 0
+
+#
+# OSD SOUND OPTIONS
+#
+sound                     auto
+audio_latency             1
+
+#
+# WINDOWS DEBUGGING OPTIONS
+#
 debugger_font             "Lucida Console"
 debugger_font_size        9
 
@@ -181,23 +240,12 @@ debugger_font_size        9
 # WINDOWS PERFORMANCE OPTIONS
 #
 priority                  0
-multithreading            0
-numprocessors             auto
 profile                   0
-bench                     0
 
 #
 # WINDOWS VIDEO OPTIONS
 #
-video                     d3d
-numscreens                1
-window                    1
-maximize                  0
-keepaspect                1
-unevenstretch             0
 prescale                  1
-waitvsync                 0
-syncrefresh               0
 menu                      0
 
 #
@@ -208,7 +256,7 @@ hwstretch                 1
 #
 # DIRECT3D-SPECIFIC OPTIONS
 #
-filter                    0
+filter                    1
 
 #
 # DIRECT3D POST-PROCESSING OPTIONS
@@ -294,45 +342,15 @@ bloom_lvl9_weight         0.10
 bloom_lvl10_weight        0.09
 
 #
-# PER-WINDOW VIDEO OPTIONS
-#
-screen                    auto
-aspect                    auto
-resolution                auto
-view                      auto
-screen0                   auto
-aspect0                   auto
-resolution0               auto
-view0                     auto
-screen1                   auto
-aspect1                   auto
-resolution1               auto
-view1                     auto
-screen2                   auto
-aspect2                   auto
-resolution2               auto
-view2                     auto
-screen3                   auto
-aspect3                   auto
-resolution3               auto
-view3                     auto
-
-#
 # FULL SCREEN OPTIONS
 #
 triplebuffer              0
 switchres                 0
 full_screen_brightness    1.0
-full_screen_contrast      1.1
-full_screen_gamma         0.9
-
-#
-# WINDOWS SOUND OPTIONS
-#
-audio_latency             1
+full_screen_contrast      1.0
+full_screen_gamma         1.0
 
 #
 # INPUT DEVICE OPTIONS
 #
-# hide_cursor               1
 dual_lightgun             0

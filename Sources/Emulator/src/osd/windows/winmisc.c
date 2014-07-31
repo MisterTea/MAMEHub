@@ -47,8 +47,11 @@ void (*s_debugger_stack_crawler)() = NULL;
 void *osd_malloc(size_t size)
 {
 #ifdef NO_MEM_TRACKING
-  return malloc(size);
+  void* ptr = malloc(size);
+  memset(ptr,0,size);
+  return ptr;
 #else
+#error MAMEHUB REQUIRES NO_MEM_TRACKING
 #ifndef MALLOC_DEBUG
 	return HeapAlloc(GetProcessHeap(), 0, size);
 #else
@@ -73,7 +76,9 @@ void *osd_malloc(size_t size)
 void *osd_malloc_array(size_t size)
 {
 #ifdef NO_MEM_TRACKING
-  return malloc(size);
+  void* ptr = malloc(size);
+  memset(ptr,0,size);
+  return ptr;
 #else
 #ifndef MALLOC_DEBUG
 	return HeapAlloc(GetProcessHeap(), 0, size);
