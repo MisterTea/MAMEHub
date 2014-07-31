@@ -29,7 +29,7 @@ class Client : public Common
 
   int syncGeneration;
   int syncSeconds;
-  INT64 syncAttoseconds;
+  long long syncAttoseconds;
 
  public:
   Client(std::string _username);
