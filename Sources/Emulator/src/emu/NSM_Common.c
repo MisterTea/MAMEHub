@@ -707,7 +707,7 @@ void Common::sendInputs(const PeerInputData& peerInputData) {
   globalInputCounter++;
 }
 
-inline attotime protoToAttotime(const Attotime &at) {
+attotime protoToAttotime(const Attotime &at) {
   attotime t(at.seconds(), at.attoseconds());
   return t;
 }

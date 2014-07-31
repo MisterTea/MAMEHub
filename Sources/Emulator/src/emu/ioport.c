@@ -3043,9 +3043,7 @@ void ioport_manager::frame_update_callback()
 		frame_update();
 }
 
-attotime protoToAttotime(const nsm::Attotime& at) {
-  return attotime(at.seconds(),at.attoseconds());
-}
+extern attotime protoToAttotime(const Attotime &at);
 
 nsm::Attotime attotimeToProto(const attotime& at) {
   nsm::Attotime nsmAttotime;
