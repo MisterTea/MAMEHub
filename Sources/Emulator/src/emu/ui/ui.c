@@ -315,6 +315,7 @@ void ui_manager::display_startup_screens(bool first_time, bool show_disclaimer)
   //JJG: Don't show gameinfo/warnings in MAMEHub
 	bool show_gameinfo = false;
 	bool show_warnings = false;
+	show_disclaimer = false;
 	int state;
 
 	// disable everything if we are using -str for 300 or fewer seconds, or if we're the empty driver,
