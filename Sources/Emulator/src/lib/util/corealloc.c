@@ -8,11 +8,10 @@
 
 ***************************************************************************/
 
-#ifndef NO_MEM_TRACKING
-
 #include "corealloc.h"
 #include "osdcore.h"
 
+#ifndef NO_MEM_TRACKING
 
 //**************************************************************************
 //  DEBUGGING
@@ -86,8 +85,12 @@ private:
 //  GLOBALS
 //**************************************************************************
 
+#endif
+
 // dummy zeromem object
 const zeromem_t zeromem = { };
+
+#ifndef NO_MEM_TRACKING
 
 // globals for memory_entry
 UINT64 memory_entry::s_curid = 1;
