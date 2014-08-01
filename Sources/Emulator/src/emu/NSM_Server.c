@@ -550,8 +550,77 @@ nsm::PeerInputData Server::popInput(int peerID) {
   return inputToPop;
 }
 
+void Server::processPotentialCandidates(running_machine *machine) {
+  if (potentialCandidates.size()==0) {
+    return;
+  }
+
+  if(syncCount<1 || syncPacketQueue.size())
+  {
+    cout << "IN THE MIDDLE OF A SYNC, HAVE TO DELAY ACCEPTING CLIENT\n";
+    return;
+  }
+
+  for (int a=0;a<potentialCandidates.size();a++) {
+    RakNet::SystemAddress systemAddress = potentialCandidates[a].systemAddress;
+    RakNet::RakNetGUID guid = potentialCandidates[a].guid;
+    std::string name = potentialCandidates[a].name;
+
+      //This client is requesting candidacy, set their info
+      {
+        candidateNames[guid] = name;
+      }
+
+      //Find a session index for the player
+      {
+        char buf[4096];
+        buf[0] = ID_SETTINGS;
+        buf[1] = ((syncCount <= 1) ? 0 : 1); //Should the client catch up?
+        memcpy(buf+2,&secondsBetweenSync,sizeof(int));
+        strcpy(buf+2+sizeof(int),username.c_str());
+        rakInterface->Send(
+          buf,
+          2+sizeof(int)+username.length()+1,
+          HIGH_PRIORITY,
+          RELIABLE_ORDERED,
+          ORDERING_CHANNEL_SYNC,
+          guid,
+          false
+          );
+      }
+      if(acceptedPeers.size()>=maxPeerID-1)
+      {
+        //Sorry, no room
+        rakInterface->CloseConnection(guid,true);
+      }
+      else if(acceptedPeers.size())
+      {
+        printf("Asking other peers to accept %s\n",guid.ToString());
+        waitingForAcceptFrom[guid] = std::vector<RakNet::RakNetGUID>();
+        for(int a=0; a<acceptedPeers.size(); a++)
+        {
+          RakNet::RakNetGUID guid = acceptedPeers[a];
+          waitingForAcceptFrom[guid].push_back(guid);
+          cout << "SENDING ADVERTIZE TO " << guid.ToString() << endl;
+          char buf[4096];
+          buf[0] = ID_ADVERTISE_SYSTEM;
+          strcpy(buf+1,systemAddress.ToString(true));
+          rakInterface->Send(buf,1+strlen(systemAddress.ToString(true))+1,HIGH_PRIORITY,RELIABLE_ORDERED,ORDERING_CHANNEL_SYNC,guid,false);
+        }
+        printf("Asking other peers to accept\n");
+      }
+      else
+      {
+        //First client, automatically accept
+        acceptPeer(guid,machine);
+      }
+  }
+  potentialCandidates.clear();
+}
+
 bool Server::update(running_machine *machine)
 {
+  processPotentialCandidates(machine);
   //cout << "SERVER TIME: " << RakNet::GetTimeMS()/1000.0f/60.0f << endl;
   //printf("Updating server\n");
   RakNet::Packet *p;
@@ -582,62 +651,18 @@ bool Server::update(running_machine *machine)
 
     case ID_CLIENT_INFO:
       cout << "GOT ID_CLIENT_INFO\n";
-      if(blockNewClients || (syncCount<1 && secondsBetweenSync>0) || syncPacketQueue.size())
+      if(blockNewClients)
       {
+        cout << "NOT ACCEPTING NEW CLIENTS\n";
         // We aren't allowing new clients
         rakInterface->CloseConnection(p->guid,true);
         break;
       }
 
-      //This client is requesting candidacy, set their info
       {
         char buf[4096];
         strcpy(buf,(char*)(p->data+1));
-        candidateNames[p->guid] = buf;
-      }
-
-      //Find a session index for the player
-      {
-        char buf[4096];
-        buf[0] = ID_SETTINGS;
-        buf[1] = ((syncCount <= 1) ? 0 : 1); //Should the client catch up?
-        memcpy(buf+2,&secondsBetweenSync,sizeof(int));
-        strcpy(buf+2+sizeof(int),username.c_str());
-        rakInterface->Send(
-          buf,
-          2+sizeof(int)+username.length()+1,
-          HIGH_PRIORITY,
-          RELIABLE_ORDERED,
-          ORDERING_CHANNEL_SYNC,
-          p->guid,
-          false
-          );
-      }
-      if(acceptedPeers.size()>=maxPeerID-1)
-      {
-        //Sorry, no room
-        rakInterface->CloseConnection(p->guid,true);
-      }
-      else if(acceptedPeers.size())
-      {
-        printf("Asking other peers to accept %s %s\n",p->systemAddress.ToString(),p->guid.ToString());
-        waitingForAcceptFrom[p->guid] = std::vector<RakNet::RakNetGUID>();
-        for(int a=0; a<acceptedPeers.size(); a++)
-        {
-          RakNet::RakNetGUID guid = acceptedPeers[a];
-          waitingForAcceptFrom[p->guid].push_back(guid);
-          cout << "SENDING ADVERTIZE TO " << guid.ToString() << endl;
-          char buf[4096];
-          buf[0] = ID_ADVERTISE_SYSTEM;
-          strcpy(buf+1,p->systemAddress.ToString(true));
-          rakInterface->Send(buf,1+strlen(p->systemAddress.ToString(true))+1,HIGH_PRIORITY,RELIABLE_ORDERED,ORDERING_CHANNEL_SYNC,guid,false);
-        }
-        printf("Asking other peers to accept\n");
-      }
-      else
-      {
-        //First client, automatically accept
-        acceptPeer(p->guid,machine);
+        potentialCandidates.push_back(NameGuidAddressTriple(buf,p->guid,p->systemAddress));
       }
       break;
 
@@ -762,10 +787,11 @@ public:
           if(SYNC_PACKET_SIZE==0) {
             SYNC_PACKET_SIZE = compressedSize;
           }
+          break;
         }
 
         // This sends the data at 20 KB/sec minimum
-        if(SYNC_PACKET_SIZE>=350 || actualSyncTransferSeconds==1) break;
+        if(SYNC_PACKET_SIZE>=350) break;
 
         actualSyncTransferSeconds--;
       }
@@ -916,12 +942,12 @@ void Server::sync(running_machine *machine)
     //cout << int(allStaleChecksum) << endl;
   }
 
-  //if(syncCount>0) // The first sync is not sent to clients
-  {
     printf("BLOCK CHECKSUM: %d\n",int(blockChecksum));
     printf("XOR CHECKSUM: %d\n",int(xorChecksum));
     printf("STALE CHECKSUM (dirty): %d\n",int(staleChecksum));
     printf("STALE CHECKSUM (all): %d\n",int(allStaleChecksum));
+  if(syncCount>0) // The first sync is not sent to clients
+  {
     SyncProcessor syncProcessor(&syncProto, &syncPacketQueue,
                                 syncTransferSeconds, &syncReady);
     syncThread = boost::thread(syncProcessor);

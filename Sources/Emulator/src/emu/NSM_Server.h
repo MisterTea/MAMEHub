@@ -28,6 +28,22 @@ class MameHubServerProcessor
   int port_;
 };
 
+class NameGuidAddressTriple {
+public:
+  std::string name;
+  RakNet::RakNetGUID guid;
+  RakNet::SystemAddress systemAddress;
+  
+NameGuidAddressTriple(
+  std::string _name,
+  RakNet::RakNetGUID _guid,
+  RakNet::SystemAddress _systemAddress) :
+  name(_name),
+    guid(_guid),
+    systemAddress(_systemAddress) {
+    }
+};
+
 class Server : public Common
 {
  public:
@@ -50,6 +66,7 @@ class Server : public Common
   std::map<RakNet::RakNetGUID,std::vector<RakNet::RakNetGUID> > waitingForAcceptFrom;
   int maxPeerID;
   std::map<RakNet::RakNetGUID,int> deadPeerIDs;
+  std::vector<NameGuidAddressTriple> potentialCandidates;
   std::map<RakNet::RakNetGUID,std::string> candidateNames;
 
   bool blockNewClients;
@@ -100,4 +117,7 @@ class Server : public Common
   }
 
   inline bool isBlockNewClients() { return blockNewClients; }
+
+private:
+  void processPotentialCandidates(running_machine *machine);
 };
