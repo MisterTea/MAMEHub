@@ -889,12 +889,17 @@ class InitialSync : public ::google::protobuf::Message {
 
   // accessors -------------------------------------------------------
 
-  // optional uint32 checksum = 1;
-  inline bool has_checksum() const;
+  // repeated uint32 checksum = 1;
+  inline int checksum_size() const;
   inline void clear_checksum();
   static const int kChecksumFieldNumber = 1;
-  inline ::google::protobuf::uint32 checksum() const;
-  inline void set_checksum(::google::protobuf::uint32 value);
+  inline ::google::protobuf::uint32 checksum(int index) const;
+  inline void set_checksum(int index, ::google::protobuf::uint32 value);
+  inline void add_checksum(::google::protobuf::uint32 value);
+  inline const ::google::protobuf::RepeatedField< ::google::protobuf::uint32 >&
+      checksum() const;
+  inline ::google::protobuf::RepeatedField< ::google::protobuf::uint32 >*
+      mutable_checksum();
 
   // repeated bytes initial_block = 2;
   inline int initial_block_size() const;
@@ -958,8 +963,6 @@ class InitialSync : public ::google::protobuf::Message {
 
   // @@protoc_insertion_point(class_scope:nsm.InitialSync)
  private:
-  inline void set_has_checksum();
-  inline void clear_has_checksum();
   inline void set_has_generation();
   inline void clear_has_generation();
   inline void set_has_global_time();
@@ -967,12 +970,12 @@ class InitialSync : public ::google::protobuf::Message {
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
+  ::google::protobuf::RepeatedField< ::google::protobuf::uint32 > checksum_;
   ::google::protobuf::RepeatedPtrField< ::std::string> initial_block_;
   ::google::protobuf::RepeatedPtrField< ::nsm::PeerInputDataList > peer_data_;
-  ::google::protobuf::uint32 checksum_;
-  ::google::protobuf::int32 generation_;
   ::google::protobuf::RepeatedPtrField< ::std::string> nvram_;
   ::nsm::Attotime* global_time_;
+  ::google::protobuf::int32 generation_;
 
   mutable int _cached_size_;
   ::google::protobuf::uint32 _has_bits_[(6 + 31) / 32];
@@ -1800,26 +1803,29 @@ inline void PeerInputDataList::set_peer_id(::google::protobuf::int32 value) {
 
 // InitialSync
 
-// optional uint32 checksum = 1;
-inline bool InitialSync::has_checksum() const {
-  return (_has_bits_[0] & 0x00000001u) != 0;
-}
-inline void InitialSync::set_has_checksum() {
-  _has_bits_[0] |= 0x00000001u;
-}
-inline void InitialSync::clear_has_checksum() {
-  _has_bits_[0] &= ~0x00000001u;
+// repeated uint32 checksum = 1;
+inline int InitialSync::checksum_size() const {
+  return checksum_.size();
 }
 inline void InitialSync::clear_checksum() {
-  checksum_ = 0u;
-  clear_has_checksum();
+  checksum_.Clear();
 }
-inline ::google::protobuf::uint32 InitialSync::checksum() const {
+inline ::google::protobuf::uint32 InitialSync::checksum(int index) const {
+  return checksum_.Get(index);
+}
+inline void InitialSync::set_checksum(int index, ::google::protobuf::uint32 value) {
+  checksum_.Set(index, value);
+}
+inline void InitialSync::add_checksum(::google::protobuf::uint32 value) {
+  checksum_.Add(value);
+}
+inline const ::google::protobuf::RepeatedField< ::google::protobuf::uint32 >&
+InitialSync::checksum() const {
   return checksum_;
 }
-inline void InitialSync::set_checksum(::google::protobuf::uint32 value) {
-  set_has_checksum();
-  checksum_ = value;
+inline ::google::protobuf::RepeatedField< ::google::protobuf::uint32 >*
+InitialSync::mutable_checksum() {
+  return &checksum_;
 }
 
 // repeated bytes initial_block = 2;

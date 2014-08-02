@@ -190,7 +190,7 @@ void save_manager::save_memory(const char *module, const char *tag, UINT32 index
 	// insert us into the list
 	m_entry_list.insert_after(*global_alloc(state_entry(val, totalname, valsize, valcount)), insert_after);
 
-	if(netCommon) netCommon->createMemoryBlock((unsigned char*)val,valsize*valcount);
+	if(netCommon) netCommon->createMemoryBlock(std::string(totalname.cstr()), (unsigned char*)val,valsize*valcount);
 }
 
 

@@ -97,20 +97,20 @@ void Client::shutdown()
   RakNet::RakPeerInterface::DestroyInstance(rakInterface);
 }
 
-MemoryBlock Client::createMemoryBlock(int size)
+MemoryBlock Client::createMemoryBlock(const std::string& name, int size)
 {
   if(initComplete)
   {
     cout << "ERROR: CREATED MEMORY BLOCK TOO LATE\n";
     exit(1);
   }
-  blocks.push_back(MemoryBlock(size));
-  staleBlocks.push_back(MemoryBlock(size));
-  syncCheckBlocks.push_back(MemoryBlock(size));
+  blocks.push_back(MemoryBlock(name, size));
+  staleBlocks.push_back(MemoryBlock(name,size));
+  syncCheckBlocks.push_back(MemoryBlock(name,size));
   return blocks.back();
 }
 
-vector<MemoryBlock> Client::createMemoryBlock(unsigned char *ptr,int size)
+vector<MemoryBlock> Client::createMemoryBlock(const std::string& name, unsigned char *ptr,int size)
 {
   if(initComplete)
   {
@@ -125,22 +125,22 @@ vector<MemoryBlock> Client::createMemoryBlock(unsigned char *ptr,int size)
     {
       if(a+BYTES_IN_MB>=size)
       {
-        vector<MemoryBlock> tmp = createMemoryBlock(ptr+a,size-a);
+        vector<MemoryBlock> tmp = createMemoryBlock(name,ptr+a,size-a);
         retval.insert(retval.end(),tmp.begin(),tmp.end());
         break;
       }
       else
       {
-        vector<MemoryBlock> tmp = createMemoryBlock(ptr+a,BYTES_IN_MB);
+        vector<MemoryBlock> tmp = createMemoryBlock(name,ptr+a,BYTES_IN_MB);
         retval.insert(retval.end(),tmp.begin(),tmp.end());
       }
     }
     return retval;
   }
   //printf("Creating memory block at %X with size %d\n",ptr,size);
-  blocks.push_back(MemoryBlock(ptr,size));
-  staleBlocks.push_back(MemoryBlock(size));
-  syncCheckBlocks.push_back(MemoryBlock(size));
+  blocks.push_back(MemoryBlock(name,ptr,size));
+  staleBlocks.push_back(MemoryBlock(name,size));
+  syncCheckBlocks.push_back(MemoryBlock(name,size));
   retval.push_back(blocks.back());
   return retval;
 }
@@ -530,11 +530,11 @@ void Client::createInitialBlocks(running_machine *machine) {
         staleBlocks[blockIndex].data[a] = blocks[blockIndex].data[a] ^ xorValue;
         checksum = checksum ^ staleBlocks[blockIndex].data[a];
       }
+      if(checksum != initial_sync.checksum(blockIndex)) {
+        cout << "CHECKSUM ERROR: " << int(checksum) << " != " << int(initial_sync.checksum(blockIndex)) << " " << blocks[blockIndex].name << " (index: " << blockIndex << ") " << endl;
+        exit(1);
+      }
     }
-  }
-  if(checksum != initial_sync.checksum()) {
-    cout << "CHECKSUM ERROR: " << int(checksum) << " != " << int(initial_sync.checksum()) << endl;
-    exit(1);
   }
 
   revert(machine);

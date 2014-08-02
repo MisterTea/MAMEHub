@@ -36,9 +36,9 @@ class Client : public Common
 
   void shutdown();
 
-  MemoryBlock createMemoryBlock(int size);
+  MemoryBlock createMemoryBlock(const std::string& name, int size);
 
-  std::vector<MemoryBlock> createMemoryBlock(unsigned char* ptr,int size);
+  std::vector<MemoryBlock> createMemoryBlock(const std::string& name, unsigned char* ptr,int size);
 
   bool initializeConnection(unsigned short selfPort,const char *hostname,unsigned short port,running_machine *machine);
 

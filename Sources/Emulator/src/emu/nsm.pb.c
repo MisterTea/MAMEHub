@@ -318,7 +318,7 @@ void protobuf_AddDesc_nsm_2eproto() {
     "\n\013FORCE_VALUE\020\002\"L\n\021PeerInputDataList\022&\n\n"
     "input_data\030\001 \003(\0132\022.nsm.PeerInputData\022\017\n\007"
     "peer_id\030\002 \002(\005\"\250\001\n\013InitialSync\022\020\n\010checksu"
-    "m\030\001 \001(\r\022\025\n\rinitial_block\030\002 \003(\014\022)\n\tpeer_d"
+    "m\030\001 \003(\r\022\025\n\rinitial_block\030\002 \003(\014\022)\n\tpeer_d"
     "ata\030\003 \003(\0132\026.nsm.PeerInputDataList\022\r\n\005nvr"
     "am\030\004 \003(\014\022\022\n\ngeneration\030\005 \002(\005\022\"\n\013global_t"
     "ime\030\006 \002(\0132\r.nsm.Attotime\"(\n\tSyncBlock\022\r\n"
@@ -2488,7 +2488,6 @@ InitialSync::InitialSync(const InitialSync& from)
 
 void InitialSync::SharedCtor() {
   _cached_size_ = 0;
-  checksum_ = 0u;
   generation_ = 0;
   global_time_ = NULL;
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
@@ -2526,13 +2525,13 @@ InitialSync* InitialSync::New() const {
 }
 
 void InitialSync::Clear() {
-  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    checksum_ = 0u;
+  if (_has_bits_[4 / 32] & (0xffu << (4 % 32))) {
     generation_ = 0;
     if (has_global_time()) {
       if (global_time_ != NULL) global_time_->::nsm::Attotime::Clear();
     }
   }
+  checksum_.Clear();
   initial_block_.Clear();
   peer_data_.Clear();
   nvram_.Clear();
@@ -2546,17 +2545,24 @@ bool InitialSync::MergePartialFromCodedStream(
   ::google::protobuf::uint32 tag;
   while ((tag = input->ReadTag()) != 0) {
     switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // optional uint32 checksum = 1;
+      // repeated uint32 checksum = 1;
       case 1: {
         if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
             ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+         parse_checksum:
+          DO_((::google::protobuf::internal::WireFormatLite::ReadRepeatedPrimitive<
                    ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
-                 input, &checksum_)));
-          set_has_checksum();
+                 1, 8, input, this->mutable_checksum())));
+        } else if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag)
+                   == ::google::protobuf::internal::WireFormatLite::
+                      WIRETYPE_LENGTH_DELIMITED) {
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPackedPrimitiveNoInline<
+                   ::google::protobuf::uint32, ::google::protobuf::internal::WireFormatLite::TYPE_UINT32>(
+                 input, this->mutable_checksum())));
         } else {
           goto handle_uninterpreted;
         }
+        if (input->ExpectTag(8)) goto parse_checksum;
         if (input->ExpectTag(18)) goto parse_initial_block;
         break;
       }
@@ -2654,9 +2660,10 @@ bool InitialSync::MergePartialFromCodedStream(
 
 void InitialSync::SerializeWithCachedSizes(
     ::google::protobuf::io::CodedOutputStream* output) const {
-  // optional uint32 checksum = 1;
-  if (has_checksum()) {
-    ::google::protobuf::internal::WireFormatLite::WriteUInt32(1, this->checksum(), output);
+  // repeated uint32 checksum = 1;
+  for (int i = 0; i < this->checksum_size(); i++) {
+    ::google::protobuf::internal::WireFormatLite::WriteUInt32(
+      1, this->checksum(i), output);
   }
 
   // repeated bytes initial_block = 2;
@@ -2696,9 +2703,10 @@ void InitialSync::SerializeWithCachedSizes(
 
 ::google::protobuf::uint8* InitialSync::SerializeWithCachedSizesToArray(
     ::google::protobuf::uint8* target) const {
-  // optional uint32 checksum = 1;
-  if (has_checksum()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteUInt32ToArray(1, this->checksum(), target);
+  // repeated uint32 checksum = 1;
+  for (int i = 0; i < this->checksum_size(); i++) {
+    target = ::google::protobuf::internal::WireFormatLite::
+      WriteUInt32ToArray(1, this->checksum(i), target);
   }
 
   // repeated bytes initial_block = 2;
@@ -2742,14 +2750,7 @@ void InitialSync::SerializeWithCachedSizes(
 int InitialSync::ByteSize() const {
   int total_size = 0;
 
-  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // optional uint32 checksum = 1;
-    if (has_checksum()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::UInt32Size(
-          this->checksum());
-    }
-
+  if (_has_bits_[4 / 32] & (0xffu << (4 % 32))) {
     // required int32 generation = 5;
     if (has_generation()) {
       total_size += 1 +
@@ -2765,6 +2766,16 @@ int InitialSync::ByteSize() const {
     }
 
   }
+  // repeated uint32 checksum = 1;
+  {
+    int data_size = 0;
+    for (int i = 0; i < this->checksum_size(); i++) {
+      data_size += ::google::protobuf::internal::WireFormatLite::
+        UInt32Size(this->checksum(i));
+    }
+    total_size += 1 * this->checksum_size() + data_size;
+  }
+
   // repeated bytes initial_block = 2;
   total_size += 1 * this->initial_block_size();
   for (int i = 0; i < this->initial_block_size(); i++) {
@@ -2812,13 +2823,11 @@ void InitialSync::MergeFrom(const ::google::protobuf::Message& from) {
 
 void InitialSync::MergeFrom(const InitialSync& from) {
   GOOGLE_CHECK_NE(&from, this);
+  checksum_.MergeFrom(from.checksum_);
   initial_block_.MergeFrom(from.initial_block_);
   peer_data_.MergeFrom(from.peer_data_);
   nvram_.MergeFrom(from.nvram_);
-  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_checksum()) {
-      set_checksum(from.checksum());
-    }
+  if (from._has_bits_[4 / 32] & (0xffu << (4 % 32))) {
     if (from.has_generation()) {
       set_generation(from.generation());
     }
@@ -2855,7 +2864,7 @@ bool InitialSync::IsInitialized() const {
 
 void InitialSync::Swap(InitialSync* other) {
   if (other != this) {
-    std::swap(checksum_, other->checksum_);
+    checksum_.Swap(&other->checksum_);
     initial_block_.Swap(&other->initial_block_);
     peer_data_.Swap(&other->peer_data_);
     nvram_.Swap(&other->nvram_);

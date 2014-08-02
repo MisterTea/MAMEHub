@@ -91,9 +91,9 @@ class Server : public Common
 
   bool initializeConnection();
 
-  MemoryBlock createMemoryBlock(int size);
+  MemoryBlock createMemoryBlock(const std::string& name, int size);
 
-  std::vector<MemoryBlock> createMemoryBlock(unsigned char* ptr,int size);
+  std::vector<MemoryBlock> createMemoryBlock(const std::string& name, unsigned char* ptr,int size);
 
   void initialSync(const RakNet::RakNetGUID &sa,running_machine *machine);
 

@@ -88,26 +88,30 @@ class running_machine;
 class MemoryBlock
 {
  public:
+  std::string name;
   unsigned char *data;
   int size;
 
- MemoryBlock()
+MemoryBlock(const std::string& _name)
    :
+  name(_name),
   data(NULL),
     size(0)
       {
       }
 
- MemoryBlock(int _size)
+MemoryBlock(const std::string& _name, int _size)
    :
+  name(_name),
   size(_size)
   {
     data = (unsigned char*)malloc(_size);
     memset(data,0,_size);
   }
 
- MemoryBlock(unsigned char *_data,int _size)
+ MemoryBlock(const std::string& _name, unsigned char *_data,int _size)
    :
+  name(_name),
   data(_data),
     size(_size)
     {
@@ -234,9 +238,9 @@ class Common
 
   void setSecondsBetweenSync(int _secondsBetweenSync);
 
-  virtual MemoryBlock createMemoryBlock(int size) = 0;
+  virtual MemoryBlock createMemoryBlock(const std::string& name, int size) = 0;
 
-  virtual std::vector<MemoryBlock> createMemoryBlock(unsigned char* ptr,int size) = 0;
+  virtual std::vector<MemoryBlock> createMemoryBlock(const std::string& name, unsigned char* ptr,int size) = 0;
 
   virtual bool update(running_machine *machine) = 0;
 

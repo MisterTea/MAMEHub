@@ -51,7 +51,7 @@ message PeerInputDataList {
 }
 
 message InitialSync {
-        optional uint32 checksum = 1;
+        repeated uint32 checksum = 1;
         repeated bytes initial_block = 2;
         repeated PeerInputDataList peer_data = 3;
         repeated bytes nvram = 4;

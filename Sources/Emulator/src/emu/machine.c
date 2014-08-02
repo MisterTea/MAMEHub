@@ -494,7 +494,7 @@ int running_machine::run(bool firstrun)
           netClient->createInitialBlocks(this);
         }
       }
-      else if(m_machine_time.seconds>0 && timePassed)
+      else if(m_machine_time.seconds>0 && m_scheduler.can_save() && timePassed)
       {
         if(
           netServer &&

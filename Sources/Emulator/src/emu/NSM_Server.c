@@ -345,15 +345,15 @@ bool Server::initializeConnection()
   return true;
 }
 
-MemoryBlock Server::createMemoryBlock(int size)
+MemoryBlock Server::createMemoryBlock(const std::string& name, int size)
 {
-  blocks.push_back(MemoryBlock(size));
-  staleBlocks.push_back(MemoryBlock(size));
-  initialBlocks.push_back(MemoryBlock(size));
+  blocks.push_back(MemoryBlock(name,size));
+  staleBlocks.push_back(MemoryBlock(name,size));
+  initialBlocks.push_back(MemoryBlock(name,size));
   return blocks.back();
 }
 
-vector<MemoryBlock> Server::createMemoryBlock(unsigned char *ptr,int size)
+vector<MemoryBlock> Server::createMemoryBlock(const std::string& name, unsigned char *ptr,int size)
 {
   if(blocks.size()==39)
   {
@@ -367,22 +367,22 @@ vector<MemoryBlock> Server::createMemoryBlock(unsigned char *ptr,int size)
     {
       if(a+BYTES_IN_MB>=size)
       {
-        vector<MemoryBlock> tmp = createMemoryBlock(ptr+a,size-a);
+        vector<MemoryBlock> tmp = createMemoryBlock(name,ptr+a,size-a);
         retval.insert(retval.end(),tmp.begin(),tmp.end());
         break;
       }
       else
       {
-        vector<MemoryBlock> tmp = createMemoryBlock(ptr+a,BYTES_IN_MB);
+        vector<MemoryBlock> tmp = createMemoryBlock(name,ptr+a,BYTES_IN_MB);
         retval.insert(retval.end(),tmp.begin(),tmp.end());
       }
     }
     return retval;
   }
   //printf("Creating memory block at %X with size %d\n",ptr,size);
-  blocks.push_back(MemoryBlock(ptr,size));
-  staleBlocks.push_back(MemoryBlock(size));
-  initialBlocks.push_back(MemoryBlock(size));
+  blocks.push_back(MemoryBlock(name,ptr,size));
+  staleBlocks.push_back(MemoryBlock(name,size));
+  initialBlocks.push_back(MemoryBlock(name,size));
   retval.push_back(blocks.back());
   return retval;
 }
@@ -426,9 +426,9 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
       }
       //cout << int(checksum) << endl;
       initial_sync.add_initial_block(&deltaBlock[0], deltaBlock.size());
+      initial_sync.add_checksum(checksum);
     }
     cout << "CHECKSUM: " << int(checksum) << endl;
-    initial_sync.set_checksum(checksum);
   }
 
   for(
