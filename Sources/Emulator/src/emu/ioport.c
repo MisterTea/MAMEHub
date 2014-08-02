@@ -3290,7 +3290,9 @@ void ioport_manager::pollForPeerCatchup() {
             
       if(framesSinceDelayCheck>=60 && netServer && !waitingForClientCatchup) {
         cout << "Decreasing base delay from " << baseDelayFromPing;
-        baseDelayFromPing = max(40,baseDelayFromPing-20);
+
+        int smallestBaseDelay = machine().options().baseDelay();
+        baseDelayFromPing = max(smallestBaseDelay,baseDelayFromPing-20);
         framesSinceDelayCheck=0;
         cout << " to " << baseDelayFromPing << endl;
         netServer->sendBaseDelay(baseDelayFromPing);

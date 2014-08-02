@@ -181,6 +181,7 @@ enum
 #define OPTION_SELFPORT                "selfport"
 #define OPTION_SECONDSBETWEENSYNC      "secondsbetweensync"
 #define OPTION_SYNCTRANSFERSECONDS     "synctransferseconds"
+#define OPTION_BASEDELAY               "basedelay"
 
 #define OPTION_HTTP                 "http"
 #define OPTION_HTTP_PORT            "http_port"
@@ -350,6 +351,7 @@ public:
 	bool client() const { return bool_value(OPTION_CLIENT); }
 	int secondsBetweenSync() const { return int_value(OPTION_SECONDSBETWEENSYNC); }
 	int syncTransferSeconds() const { return int_value(OPTION_SYNCTRANSFERSECONDS); }
+  int baseDelay() const { return int_value(OPTION_BASEDELAY); }
 
 	bool http() const { return bool_value(OPTION_HTTP); }
 	const char *http_port() const { return value(OPTION_HTTP_PORT); }

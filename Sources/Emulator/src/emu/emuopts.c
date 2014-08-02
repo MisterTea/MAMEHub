@@ -180,6 +180,7 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_SELFPORT,               "5805",         OPTION_INTEGER,    "local port for other peers to connect to" },
 	{ OPTION_SECONDSBETWEENSYNC,               "30",         OPTION_INTEGER,    "Number of seconds to wait between syncs" },
 	{ OPTION_SYNCTRANSFERSECONDS,               "10",         OPTION_INTEGER,    "Number of seconds to spend transfering the sync" },
+	{ OPTION_BASEDELAY,               "40",         OPTION_INTEGER,    "Lowest amount to add to ping when doing ping estimation" },
 
 	{ NULL }
 };

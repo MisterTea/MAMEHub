@@ -165,6 +165,7 @@ port                      5805
 selfport                  5805
 secondsbetweensync        30
 synctransferseconds       10
+basedelay                 40
 
 #
 # OSD DEBUGGING OPTIONS
