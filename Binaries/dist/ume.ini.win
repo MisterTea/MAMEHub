@@ -190,7 +190,7 @@ bench                     0
 video                     auto
 numscreens                1
 window                    1
-maximize                  0
+maximize                  1
 keepaspect                1
 unevenstretch             0
 waitvsync                 0
