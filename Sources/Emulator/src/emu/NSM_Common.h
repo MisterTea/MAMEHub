@@ -227,7 +227,7 @@ class Common
 
   void upsertPeer(RakNet::RakNetGUID guid,int peerID,std::string name,nsm::Attotime startTime);
 
-  int getLargestPing();
+  int getLargestPing(int machineSeconds);
 
   RakNet::SystemAddress ConnectBlocking(const char *defaultAddress, unsigned short defaultPort, bool newClient);
 

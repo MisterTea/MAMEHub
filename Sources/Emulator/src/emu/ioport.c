@@ -3159,8 +3159,8 @@ g_profiler.start(PROFILER_INPUT);
   //cout << "MOST RECENT SENT REPORT " << mostRecentSentReport.seconds << "." << mostRecentSentReport.attoseconds << endl;
   if(netCommon) {
     // Calculate the time that the new inputs will take effect
-    int delayFromPing=baseDelayFromPing;
-    delayFromPing = max(delayFromPing,min(600,baseDelayFromPing + netCommon->getLargestPing()/2));
+    int delayFromPing=40;
+    delayFromPing = max(delayFromPing,min(600,/*baseDelayFromPing +*/ netCommon->getLargestPing(curMachineTime.seconds)/2));
     attoseconds_t attosecondsToLead = ATTOSECONDS_PER_MILLISECOND*delayFromPing;
     attotime futureInputTime = curMachineTime + attotime(0,attosecondsToLead);
     if (futureInputTime < inputStartTime) {

@@ -277,14 +277,43 @@ void Common::setSecondsBetweenSync(int _secondsBetweenSync)
   secondsBetweenSync = _secondsBetweenSync;
 }
 
-int Common::getLargestPing()
+int lastSecondChecked=2;
+double predictedPingMean=100.0;
+double predictedPingVariance=10.0;
+int numPingSamples=0;
+
+int Common::getLargestPing(int currentSecond)
 {
+  if (currentSecond > lastSecondChecked) {
+    lastSecondChecked = currentSecond;
+    int lastPing=1;
+    for(int a=0; a<rakInterface->NumberOfConnections(); a++)
+    {
+      lastPing = max(rakInterface->GetAveragePing(rakInterface->GetSystemAddressFromIndex(a)),lastPing);
+      printf("PING: %d\n",rakInterface->GetAveragePing(rakInterface->GetSystemAddressFromIndex(a)));
+    }
+    if (numPingSamples==0) {
+      predictedPingMean = lastPing;
+    } else {
+      const int PRIOR_SAMPLE_ESTIMATE = 600;
+      double oldMean = predictedPingMean;
+      predictedPingMean = predictedPingMean + ((lastPing - predictedPingMean) / PRIOR_SAMPLE_ESTIMATE);
+      if (numPingSamples>=10) {
+        predictedPingVariance = (predictedPingVariance*(PRIOR_SAMPLE_ESTIMATE-1) + ((lastPing - oldMean)*(lastPing - predictedPingMean))) / PRIOR_SAMPLE_ESTIMATE;
+      }
+    }
+    numPingSamples++;
+  }
+  return int(predictedPingMean + sqrt(predictedPingVariance)*3);
+
+/*
   int largestPing=1;
   for(int a=0; a<rakInterface->NumberOfConnections(); a++)
   {
     largestPing = max(rakInterface->GetAveragePing(rakInterface->GetSystemAddressFromIndex(a)),largestPing);
   }
   return largestPing;
+*/
 }
 
 bool Common::hasPeerWithID(int peerID)
@@ -335,10 +364,12 @@ string Common::getStatisticsString()
       message,
       "Sent: %d\n"
       "Recv: %d\n"
-      "Loss: %.0f%%\n",
+      "Loss: %.0f%%\n"
+      "Latency: %d + %dms\n",
       (int)rss->valueOverLastSecond[RakNet::ACTUAL_BYTES_SENT],
       (int)rss->valueOverLastSecond[RakNet::ACTUAL_BYTES_RECEIVED],
-      rss->packetlossLastSecond
+      rss->packetlossLastSecond,
+      int(predictedPingMean),int(sqrt(predictedPingVariance)*3)
       );
     retval += string(message) + string("\n");
   }
