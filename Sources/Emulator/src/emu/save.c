@@ -248,8 +248,9 @@ save_error save_manager::read_file(emu_file &file)
 
 	// verify the header and report an error if it doesn't match
 	UINT32 sig = signature();
-	if (validate_header(header, machine().system().name, sig, popmessage, "Error: ")  != STATERR_NONE)
-		return STATERR_INVALID_HEADER;
+  // JJG: Allow invalid headers
+	//if (validate_header(header, machine().system().name, sig, popmessage, "Error: ")  != STATERR_NONE)
+  //return STATERR_INVALID_HEADER;
 
 	// determine whether or not to flip the data when done
 	bool flip = NATIVE_ENDIAN_VALUE_LE_BE((header[9] & SS_MSB_FIRST) != 0, (header[9] & SS_MSB_FIRST) == 0);
