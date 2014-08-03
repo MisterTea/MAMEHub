@@ -365,11 +365,11 @@ string Common::getStatisticsString()
       "Sent: %d\n"
       "Recv: %d\n"
       "Loss: %.0f%%\n"
-      "Latency: %d + %dms\n",
+      "Latency: %dms\n",
       (int)rss->valueOverLastSecond[RakNet::ACTUAL_BYTES_SENT],
       (int)rss->valueOverLastSecond[RakNet::ACTUAL_BYTES_RECEIVED],
       rss->packetlossLastSecond,
-      int(predictedPingMean),int(sqrt(predictedPingVariance)*3)
+      int((predictedPingMean + sqrt(predictedPingVariance)*3)/2)
       );
     retval += string(message) + string("\n");
   }
