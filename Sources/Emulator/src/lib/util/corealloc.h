@@ -48,8 +48,8 @@ class zeromem_t { };
 #ifdef NO_MEM_TRACKING
 
 // file/line new/delete operators
-ATTR_FORCE_INLINE inline void *operator new(std::size_t size, const char *file, int line) throw (std::bad_alloc) { return ::operator new(size); }
-ATTR_FORCE_INLINE inline void *operator new[](std::size_t size, const char *file, int line) throw (std::bad_alloc) { return ::operator new[](size); }
+ATTR_FORCE_INLINE inline void *operator new(std::size_t size, const char *file, int line) throw (std::bad_alloc) { void* tmp = ::operator new(size); memset(tmp,0,size); return tmp; }
+ATTR_FORCE_INLINE inline void *operator new[](std::size_t size, const char *file, int line) throw (std::bad_alloc) { void* tmp = ::operator new[](size); memset(tmp,0,size); return tmp; }
 ATTR_FORCE_INLINE inline void operator delete(void *ptr, const char *file, int line) { ::operator delete(ptr); ptr=NULL; }
 ATTR_FORCE_INLINE inline void operator delete[](void *ptr, const char *file, int line) { ::operator delete[](ptr); ptr=NULL; }
 
