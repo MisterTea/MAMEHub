@@ -286,6 +286,8 @@ void save_manager::doPreSave()
 	// call the pre-save functions
 	for (state_callback *func = m_presave_list.first(); func != NULL; func = func->next())
 		func->m_func();
+
+	printf("DONE WITH PRE SAVE\n");
 }
 
 save_error save_manager::write_file(emu_file &file)

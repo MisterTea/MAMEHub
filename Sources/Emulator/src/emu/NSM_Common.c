@@ -289,8 +289,8 @@ int Common::getLargestPing(int currentSecond)
     int lastPing=1;
     for(int a=0; a<rakInterface->NumberOfConnections(); a++)
     {
-      lastPing = max(rakInterface->GetAveragePing(rakInterface->GetSystemAddressFromIndex(a)),lastPing);
-      printf("PING: %d\n",rakInterface->GetAveragePing(rakInterface->GetSystemAddressFromIndex(a)));
+      lastPing = max(rakInterface->GetLastPing(rakInterface->GetSystemAddressFromIndex(a)),lastPing);
+      //printf("PING: %d\n",rakInterface->GetAveragePing(rakInterface->GetSystemAddressFromIndex(a)));
     }
     if (numPingSamples==0) {
       predictedPingMean = lastPing;
