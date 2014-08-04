@@ -5912,7 +5912,8 @@ bool RakPeer::RunUpdateCycle(BitStream &updateBitStream )
 			// Ping this guy if it is time to do so
 			if ( remoteSystem->connectMode==RemoteSystemStruct::CONNECTED && timeMS > remoteSystem->nextPingTime && ( occasionalPing || remoteSystem->lowestPing == (unsigned short)-1 ) )
 			{
-				remoteSystem->nextPingTime = timeMS + 5000;
+        // JJG: Ping every second instead of every 5 seconds
+				remoteSystem->nextPingTime = timeMS + 1000;
 				PingInternal( systemAddress, true, UNRELIABLE );
 
 				// Update again immediately after this tick so the ping goes out right away
