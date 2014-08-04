@@ -396,9 +396,6 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
   cout << "INITIAL SYNC WITH GUID: " << guid.ToString() << " AT TIME " << staleTime.seconds() << "." << staleTime.attoseconds() << endl;
   unsigned char checksum = 0;
 
-  waitingForClientCatchup=true;
-  machine->osd().pauseAudio(true);
-
   nsm::InitialSync initial_sync;
   initial_sync.set_generation(staleGeneration);
   nsm::Attotime* global_time = initial_sync.mutable_global_time();
@@ -430,6 +427,9 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
     }
     cout << "CHECKSUM: " << int(checksum) << endl;
   }
+
+  waitingForClientCatchup=true;
+  machine->osd().pauseAudio(true);
 
   for(
     map<int,PeerData >::iterator it = peerData.begin();
