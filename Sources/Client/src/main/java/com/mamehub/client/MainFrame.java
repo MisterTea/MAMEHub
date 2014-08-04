@@ -1479,6 +1479,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		handleException(e);
 	}
 
+  long lastNotificationTime;
+
 	@Override
 	public void handleMessage(final Message message) {
 		EventQueue.invokeLater(new Runnable() {
@@ -1497,7 +1499,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 							+ message.chat);
 					if (getChatStatus() == ChatStatus.ONLINE) {
 						// SoundEngine.instance.playSoundIfNotActive("ding");
-						if (Utils.windowIsInactive(mameHubEngine)) {
+						if (Utils.windowIsInactive(mameHubEngine) && lastNotificationTime+1000*60*60 < System.currentTimeMillis()) {
+              lastNotificationTime = System.currentTimeMillis();
 							String chatPiece = message.chat;
 							if (chatPiece.length() > 50) {
 								chatPiece = chatPiece.substring(0, 47) + "...";
