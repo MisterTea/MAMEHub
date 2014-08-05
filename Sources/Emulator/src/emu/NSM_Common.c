@@ -277,15 +277,16 @@ void Common::setSecondsBetweenSync(int _secondsBetweenSync)
   secondsBetweenSync = _secondsBetweenSync;
 }
 
-int lastSecondChecked=2;
+time_t lastSecondChecked=0;
 double predictedPingMean=100.0;
 double predictedPingVariance=10.0;
 int numPingSamples=0;
 
 int Common::getLargestPing(int currentSecond)
 {
-  if (currentSecond > lastSecondChecked) {
-    lastSecondChecked = currentSecond;
+  time_t curSec = time(NULL);
+  if (curSec > lastSecondChecked) {
+    lastSecondChecked = curSec;
     int lastPing=-1;
     for(int a=0; a<rakInterface->NumberOfConnections(); a++)
     {
