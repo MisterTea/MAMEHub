@@ -108,12 +108,15 @@ public class RomParser extends DefaultHandler {
 			romInfo.parentRom = attributes.getValue("romof");
 			romInfo.cloneRom = attributes.getValue("cloneof");
 			romInfo.id = attributes.getValue("name");
-			verbose = romInfo.id.equals("alien");
+			verbose = romInfo.id.equals("carpolo");
 			gameFailed = false;
 			chdFailed = false;
 			romsWithNoHash = goodRoms = 0;
 			possibleEntries = null;
-			if (attributes.getValue("ismechanical") != null) {
+			if (attributes.getValue("ismechanical") != null && attributes.getValue("ismechanical").equalsIgnoreCase("yes")) {
+			    if (verbose) {
+			        System.out.println("GAME IS MECHANICAL: " + attributes.getValue("ismechanical"));
+			    }
 			    // Reject mechanical games.
 			    gameFailed = true;
 			}
@@ -127,7 +130,8 @@ public class RomParser extends DefaultHandler {
 						&& chdMap.containsKey(attributes.getValue("sha1"))) {
 					romInfo.filenames.add(chdMap.get(attributes.getValue("sha1")));
 				} else {
-					//System.out.println("MISSING CHD: " + attributes.getValue("name") + " " + attributes.getValue("sha1"));
+				    if (verbose)
+					  System.out.println("MISSING CHD: " + attributes.getValue("name") + " " + attributes.getValue("sha1"));
 					chdFailed = true;
 				}
 			}
@@ -164,6 +168,10 @@ public class RomParser extends DefaultHandler {
 			List<RomHashEntryValue> entries = hashEntryMap.get(crc32);
 
 			if (entries == null) {
+			    if (verbose) {
+	                logger.info(matchFileName + " GOT 0 FOR "
+	                        + romInfo.id + " : " + name);
+			    }
 				gameFailed = true;
 				return;
 			}
