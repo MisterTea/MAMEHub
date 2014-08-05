@@ -127,9 +127,12 @@ public class ClientDatabaseEngine {
 
 	private boolean inMemory;
 
-	public ClientDatabaseEngine(String baseDbDirectory, String dbName, boolean wipe, boolean inMemory) throws IOException {
+    private boolean compression;
+
+	public ClientDatabaseEngine(String baseDbDirectory, String dbName, boolean wipe, boolean inMemory, boolean compression) throws IOException {
 		super();
 		this.inMemory = inMemory;
+		this.compression = compression;
 		logger.info("CREATING NEW DATABASE ENGINE");
 		/** create (or open existing) database using builder pattern*/
 		dbDirectory = new File(baseDbDirectory + "/" + dbName);
@@ -138,17 +141,20 @@ public class ClientDatabaseEngine {
 		if (wipe) {
 			wipeDatabase();
 		} else {
-			createDatabase();
+			createDatabase(compression);
 		}
 	}
 	
-	private void createDatabase() {
+	private void createDatabase(boolean compression) {
 		dbDirectory.mkdirs();
 		DBMaker dbMaker = null;
 		if(inMemory) {
 			dbMaker = DBMaker.newMemoryDirectDB();
 		} else {
 			dbMaker = DBMaker.newFileDB(new File(dbFileName));
+		}
+		if (compression) {
+	        dbMaker.compressionEnable();
 		}
 		//dbMaker.closeOnExit();
 		//dbMaker.disableTransactions();
@@ -168,7 +174,7 @@ public class ClientDatabaseEngine {
 			// Wipe the old database
 			FileUtils.deleteDirectory(dbDirectory);
 		}
-		createDatabase();
+		createDatabase(compression);
 	}
 	
 	@SuppressWarnings("rawtypes")

@@ -37,7 +37,7 @@ public class Utils {
   private static ClientDatabaseEngine auditDatabaseEngine;
   private static ClientDatabaseEngine applicationDatabaseEngine;
 
-  public static final int AUDIT_DATABASE_VERSION = 18;
+  public static final int AUDIT_DATABASE_VERSION = 19;
   public static final int APPLICATION_DATABASE_VERSION = 7;
 
   private static PlayerProfile playerProfile = null;
@@ -123,7 +123,7 @@ public class Utils {
       try {
         boolean inMemory = false;
         Utils.auditDatabaseEngine = new ClientDatabaseEngine(dbDirectory,
-            "MAMEHubAuditDB" + AUDIT_DATABASE_VERSION, false, inMemory);
+            "MAMEHubAuditDB" + AUDIT_DATABASE_VERSION, false, inMemory, true);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -137,7 +137,7 @@ public class Utils {
       try {
         boolean inMemory = false;
         Utils.applicationDatabaseEngine = new ClientDatabaseEngine(dbDirectory,
-            "MAMEHubAppDB" + APPLICATION_DATABASE_VERSION, false, inMemory);
+            "MAMEHubAppDB" + APPLICATION_DATABASE_VERSION, false, inMemory, false);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
