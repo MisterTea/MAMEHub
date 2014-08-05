@@ -113,6 +113,10 @@ public class RomParser extends DefaultHandler {
 			chdFailed = false;
 			romsWithNoHash = goodRoms = 0;
 			possibleEntries = null;
+			if (attributes.getValue("ismechanical") != null) {
+			    // Reject mechanical games.
+			    gameFailed = true;
+			}
 		} else if (qName.equals("description")) {
 			nextDataIsDescription = true;
 		} else if (qName.equals("disk")) {
