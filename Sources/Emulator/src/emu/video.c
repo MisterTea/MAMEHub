@@ -1407,12 +1407,12 @@ void video_manager::toggle_record_movie()
 {
 	if (!is_recording())
 	{
-		begin_recording(NULL, MF_MNG);
+		begin_recording(NULL, MF_WEBM);
 		popmessage("REC START");
 	}
 	else
 	{
-		end_recording(MF_MNG);
+		end_recording(MF_WEBM);
 		popmessage("REC STOP");
 	}
 }

@@ -292,19 +292,25 @@ int Common::getLargestPing(int currentSecond)
       lastPing = max(rakInterface->GetLastPing(rakInterface->GetSystemAddressFromIndex(a)),lastPing);
       //printf("PING: %d\n",rakInterface->GetAveragePing(rakInterface->GetSystemAddressFromIndex(a)));
     }
+    if (lastPing == 1) {
+      // No connections, don't update stats
+      return predictedPingMean;
+    }
     if (numPingSamples==0) {
       predictedPingMean = lastPing;
     } else {
       const int PRIOR_SAMPLE_ESTIMATE = 600;
       double oldMean = predictedPingMean;
       predictedPingMean = predictedPingMean + ((lastPing - predictedPingMean) / PRIOR_SAMPLE_ESTIMATE);
-      if (numPingSamples>=10) {
-        predictedPingVariance = (predictedPingVariance*(PRIOR_SAMPLE_ESTIMATE-1) + ((lastPing - oldMean)*(lastPing - predictedPingMean))) / PRIOR_SAMPLE_ESTIMATE;
-      }
+      predictedPingVariance = (predictedPingVariance*(PRIOR_SAMPLE_ESTIMATE-1) + ((lastPing - oldMean)*(lastPing - predictedPingMean))) / PRIOR_SAMPLE_ESTIMATE;
     }
     numPingSamples++;
   }
-  return int(predictedPingMean + sqrt(predictedPingVariance)*3);
+  if (numPingSamples<60) {
+    return int(predictedPingMean + 100);
+  } else {
+    return int(predictedPingMean + sqrt(predictedPingVariance)*3);
+  }
 
 /*
   int largestPing=1;
