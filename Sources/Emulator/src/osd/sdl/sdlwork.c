@@ -564,6 +564,9 @@ void osd_work_item_release(osd_work_item *item)
 
 static int effective_num_processors(void)
 {
+  // JJG: To keep mamehub completely deterministic, force the # of processors to 1.
+  return 1;
+
 	char *procsoverride;
 	int numprocs = 0;
 	int physprocs = osd_get_num_processors();
