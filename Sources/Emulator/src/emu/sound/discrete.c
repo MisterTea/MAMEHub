@@ -385,8 +385,8 @@ void discrete_base_node::init(discrete_device *pdev, const discrete_block *xbloc
 
 void discrete_base_node::save_state(void)
 {
-	if (m_block->node != NODE_SPECIAL)
-		m_device->save_item(NAME(m_output), m_block->node);
+  //if (m_block->node != NODE_SPECIAL)
+  //m_device->save_item(NAME(m_output), m_block->node);
 }
 
 discrete_base_node *discrete_device::discrete_find_node(int node)
