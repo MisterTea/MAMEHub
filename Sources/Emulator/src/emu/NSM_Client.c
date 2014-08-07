@@ -70,7 +70,7 @@ bool hasCompleteResync = false;
 
 Client::Client(string _username)
   :
-  Common(_username)
+  Common(_username,50)
 {
   initialSyncBuffer.reserve(1024*1024);
 
@@ -429,8 +429,9 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
         cout << "NOT DOING CATCHUP\n";
       }
       memcpy(&secondsBetweenSync,p->data+2,sizeof(int));
+      memcpy(&unmeasuredNoise,p->data+2+sizeof(int),sizeof(int));
       char buf[4096];
-      strcpy(buf,(const char*)(p->data+2+sizeof(int)));
+      strcpy(buf,(const char*)(p->data+2+(2*sizeof(int))));
       string s(buf,strlen(buf));
       // Create peerdata for server
       upsertPeer(p->guid,1,buf,newAttotime(0,0));
@@ -594,13 +595,18 @@ bool Client::update(running_machine *machine)
     //printf("Checking for packets\n");
   }
   bool inNegotiation=false;
+  
 
   do
   {
     RakNet::Packet *p = rakInterface->Receive();
     if(!p)
     {
-      continue;
+      if (inNegotiation) {
+        continue;
+      } else {
+        break;
+      }
     }
     unsigned char packetID = GetPacketIdentifier(p);
     //cout << "GOT PACKET WITH ID: " << packetID << endl;
@@ -834,7 +840,7 @@ bool Client::update(running_machine *machine)
 
     rakInterface->DeallocatePacket(p);
   }
-  while(inNegotiation);
+  while(true);
 
   return true;
 }

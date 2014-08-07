@@ -2,7 +2,7 @@
 
 #include "zlib.h"
 
-Server *createGlobalServer(std::string _username,unsigned short _port);
+Server *createGlobalServer(std::string _username,unsigned short _port, int _unmeasuredNoise);
 
 void deleteGlobalServer();
 
@@ -79,7 +79,7 @@ class Server : public Common
   boost::thread serverThread;
 
  public:
-  Server(std::string _username,int _port);
+  Server(std::string _username,int _port, int _unmeasuredNoise);
 
   virtual ~Server();
 

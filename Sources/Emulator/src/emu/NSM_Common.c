@@ -130,13 +130,14 @@ extern unsigned char GetPacketIdentifier(RakNet::Packet *p);
 extern unsigned char *GetPacketData(RakNet::Packet *p);
 extern int GetPacketSize(RakNet::Packet *p);
 
-Common::Common(string _username) :
+Common::Common(string _username, int _unmeasuredNoise) :
   secondsBetweenSync(0),
   globalInputCounter(0),
   selfPeerID(0),
   generation(1),
   username(_username),
-  player(0)
+  player(0),
+  unmeasuredNoise(_unmeasuredNoise)
 {
   if(username.length()>16)
   {
@@ -310,10 +311,10 @@ int Common::getLargestPing(int currentSecond)
   }
   if (numPingSamples<60) {
     // Guess what the variance will be, add for unmeasured noise
-    return int(predictedPingMean + 100 + 100);
+    return int(predictedPingMean + unmeasuredNoise*2 + 100);
   } else {
     // Use the computed variance, add for unmeasured noise
-    return int(predictedPingMean + 140 + sqrt(predictedPingVariance)*3);
+    return int(predictedPingMean + unmeasuredNoise*2 + sqrt(predictedPingVariance)*3);
   }
 
 /*
@@ -734,7 +735,7 @@ void Common::sendInputs(const PeerInputData& peerInputData) {
   rakInterface->Send(
     sCompress.c_str(),
     bytesUsed,
-    HIGH_PRIORITY,
+    IMMEDIATE_PRIORITY,
     RELIABLE,
     ORDERING_CHANNEL_INPUTS,
     RakNet::UNASSIGNED_SYSTEM_ADDRESS,

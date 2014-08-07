@@ -47,10 +47,10 @@ using namespace google::protobuf::io;
 
 Server *netServer=NULL;
 
-Server *createGlobalServer(string _username,unsigned short _port)
+Server *createGlobalServer(string _username,unsigned short _port, int _unmeasuredNoise)
 {
   cout << "Creating server on port " << _port << endl;
-  netServer = new Server(_username,_port);
+  netServer = new Server(_username,_port,_unmeasuredNoise);
   netCommon = netServer;
   return netServer;
 }
@@ -107,9 +107,9 @@ void MameHubServerProcessor::stop() {
   server_->stop();
 }
 
-Server::Server(string username,int _port)
+Server::Server(string username,int _port,int _unmeasuredNoise)
   :
-  Common(username),
+  Common(username,_unmeasuredNoise),
   syncOverride(false),
   port(_port),
   maxPeerID(10),
@@ -578,10 +578,11 @@ void Server::processPotentialCandidates(running_machine *machine) {
         buf[0] = ID_SETTINGS;
         buf[1] = ((syncCount <= 1) ? 0 : 1); //Should the client catch up?
         memcpy(buf+2,&secondsBetweenSync,sizeof(int));
-        strcpy(buf+2+sizeof(int),username.c_str());
+        memcpy(buf+2+sizeof(int),&unmeasuredNoise,sizeof(int));
+        strcpy(buf+2+(2*sizeof(int)),username.c_str());
         rakInterface->Send(
           buf,
-          2+sizeof(int)+username.length()+1,
+          2+(2*sizeof(int))+username.length()+1,
           HIGH_PRIORITY,
           RELIABLE_ORDERED,
           ORDERING_CHANNEL_SYNC,
@@ -774,9 +775,9 @@ public:
 
     int SYNC_PACKET_SIZE=1024*1024;
 
-    // If the sync is less than 16KB or syncTransferSeconds is 0, send
+    // If the sync is less than 2KB or syncTransferSeconds is 0, send
     // it all at once.
-    if(compressedSize > 16*1024 && syncTransferSeconds)
+    if(compressedSize > 2*1024 && syncTransferSeconds)
     {
       int actualSyncTransferSeconds=max(1,syncTransferSeconds);
       while(true)
@@ -791,8 +792,8 @@ public:
           break;
         }
 
-        // This sends the data at 20 KB/sec minimum
-        if(SYNC_PACKET_SIZE>=350) break;
+        // This sends the data at 2 KB/sec minimum
+        if(SYNC_PACKET_SIZE>=210) break;
 
         actualSyncTransferSeconds--;
       }
@@ -985,10 +986,21 @@ void Server::sync(running_machine *machine)
   syncCount++;
 }
 
+long long lastSyncQueueMs = -1;
+
 void Server::popSyncQueue()
 {
   if(!syncReady)
     return;
+  long long curRealTime = RakNet::GetTimeMS();
+
+  //cout << "SYNC TIMES: " << (curRealTime/100) << " " << (lastSyncQueueMs/100) << endl;
+  if (lastSyncQueueMs/100 == curRealTime/100) {
+    return;
+  }
+  
+  //cout << "sending packet (if it exists)" << endl;
+  lastSyncQueueMs = curRealTime;
   if(syncPacketQueue.size())
   {
     pair<unsigned char *,int> syncPacket = syncPacketQueue.front();
@@ -998,7 +1010,7 @@ void Server::popSyncQueue()
     rakInterface->Send(
       (const char*)syncPacket.first,
       syncPacket.second,
-      HIGH_PRIORITY,
+      MEDIUM_PRIORITY,
       RELIABLE_ORDERED,
       ORDERING_CHANNEL_SYNC,
       RakNet::UNASSIGNED_SYSTEM_ADDRESS,

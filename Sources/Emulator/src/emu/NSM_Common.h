@@ -211,6 +211,7 @@ class Common
 
   int selfPeerID;
   int generation;
+  int unmeasuredNoise;
 
   std::map<RakNet::RakNetGUID,int> peerIDs;
 
@@ -221,7 +222,7 @@ class Common
 
  public:
 
-  Common(std::string _username);
+  Common(std::string _username, int _unmeasuredNoise);
 
   virtual ~Common();
 
