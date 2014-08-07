@@ -310,7 +310,7 @@ int Common::getLargestPing(int currentSecond)
   }
   if (numPingSamples<60) {
     // Guess what the variance will be, add for unmeasured noise
-    return int(predictedPingMean + 100 + 10);
+    return int(predictedPingMean + 100 + 100);
   } else {
     // Use the computed variance, add for unmeasured noise
     return int(predictedPingMean + 140 + sqrt(predictedPingVariance)*3);
