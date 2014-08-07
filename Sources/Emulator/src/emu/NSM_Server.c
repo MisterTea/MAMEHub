@@ -115,6 +115,7 @@ Server::Server(string username,int _port)
   maxPeerID(10),
   blockNewClients(false),
   mameHubServerProcessor(_port + 1) {
+  syncReady = false;
   rakInterface = RakNet::RakPeerInterface::GetInstance();
 
   syncCount=0;
@@ -898,7 +899,7 @@ void Server::sync(running_machine *machine)
     }
 
     bool dirty=false;
-    if(memcmp(block.data, staleBlock.data, block.size)) {
+    if(syncCount==0 || memcmp(block.data, staleBlock.data, block.size)) {
       dirty = true;
     }
     if(dirty)

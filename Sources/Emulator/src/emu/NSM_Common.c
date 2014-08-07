@@ -306,13 +306,14 @@ int Common::getLargestPing(int currentSecond)
       predictedPingVariance = (predictedPingVariance*(PRIOR_SAMPLE_ESTIMATE-1) + ((lastPing - oldMean)*(lastPing - predictedPingMean))) / PRIOR_SAMPLE_ESTIMATE;
     }
     numPingSamples++;
+    cout << "UPDATED LATENCY PREDICTOR: " << predictedPingMean << " + " << predictedPingVariance << endl;
   }
   if (numPingSamples<60) {
     // Guess what the variance will be, add for unmeasured noise
-    return int(predictedPingMean + 100);
+    return int(predictedPingMean + 100 + 10);
   } else {
     // Use the computed variance, add for unmeasured noise
-    return int(predictedPingMean + sqrt(predictedPingVariance+200)*3);
+    return int(predictedPingMean + 140 + sqrt(predictedPingVariance)*3);
   }
 
 /*
