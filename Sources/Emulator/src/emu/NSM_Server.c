@@ -602,7 +602,7 @@ void Server::processPotentialCandidates(running_machine *machine) {
         for(int a=0; a<acceptedPeers.size(); a++)
         {
           RakNet::RakNetGUID acceptedGuid = acceptedPeers[a];
-          waitingForAcceptFrom[guid].push_back(guid);
+          waitingForAcceptFrom[guid].push_back(acceptedGuid);
           cout << "SENDING ADVERTIZE TO " << acceptedGuid.ToString() << endl;
           char buf[4096];
           buf[0] = ID_ADVERTISE_SYSTEM;
