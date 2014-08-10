@@ -247,8 +247,8 @@ save_error save_manager::read_file(emu_file &file)
 	file.compress(FCOMPRESS_MEDIUM);
 
 	// verify the header and report an error if it doesn't match
-	UINT32 sig = signature();
   // JJG: Allow invalid headers
+	//UINT32 sig = signature();
 	//if (validate_header(header, machine().system().name, sig, popmessage, "Error: ")  != STATERR_NONE)
   //return STATERR_INVALID_HEADER;
 

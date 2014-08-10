@@ -50,7 +50,7 @@ class Server : public Common
   bool syncOverride;
 
  protected:
-  std::vector<MemoryBlock> initialBlocks;
+  std::vector<boost::shared_ptr<MemoryBlock> > initialBlocks;
   nsm::Attotime staleTime;
   int staleGeneration;
 
@@ -91,9 +91,7 @@ class Server : public Common
 
   bool initializeConnection();
 
-  MemoryBlock createMemoryBlock(const std::string& name, int size);
-
-  std::vector<MemoryBlock> createMemoryBlock(const std::string& name, unsigned char* ptr,int size);
+  std::vector<boost::shared_ptr<MemoryBlock> > createMemoryBlock(const std::string& name, unsigned char* ptr,int size);
 
   void initialSync(const RakNet::RakNetGUID &sa,running_machine *machine);
 

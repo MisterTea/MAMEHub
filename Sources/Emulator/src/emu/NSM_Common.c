@@ -18,6 +18,7 @@
 #include "osdcore.h"
 
 using namespace std;
+using namespace boost;
 using namespace nsm;
 
 Common *netCommon = NULL;
@@ -118,6 +119,35 @@ void lzmaUncompress(
     cout << "ERROR DECOMPRESSING DATA\n";
     cout << res << ',' << finishStatus << endl;
     exit(1);
+  }
+}
+
+MemoryBlock::MemoryBlock(const std::string& _name, int _size)
+  :
+  name(_name),
+  size(_size),
+  ownsMemory(true)
+{
+  data = (unsigned char*)malloc(_size);
+  if (!data) {
+    throw std::runtime_error("Ran out of memory");
+  }
+  memset(data,0,_size);
+}
+
+MemoryBlock::MemoryBlock(const std::string& _name, unsigned char *_data,int _size)
+  :
+  name(_name),
+  data(_data),
+  size(_size),
+  ownsMemory(false)
+{
+}
+
+MemoryBlock::~MemoryBlock() {
+  if (ownsMemory) {
+    free(data);
+    data = NULL;
   }
 }
 
@@ -462,9 +492,9 @@ nsm::Attotime Common::getStartTime(int peerID)
 
 /*
   void addSubByteLocations(const vector<MemoryBlock> &blocks,unsigned char value,const set<BlockValueLocation> &locationsToIntersect,vector<BlockValueLocation> &newLocations) {
-	//cout << "ON SIZE: " << sizeof(T) << endl;
-	for(int a=0;a<(int)blocks.size();a++)
-	{
+  //cout << "ON SIZE: " << sizeof(T) << endl;
+  for(int a=0;a<(int)blocks.size();a++)
+  {
   //cout << "ON BLOCK: " << a << " WITH SIZE " << blocks[a].size << endl;
   for(int b=0;b<int(blocks[a].size);b++)
   {
@@ -505,98 +535,98 @@ nsm::Attotime Common::getStartTime(int peerID)
   }
   }
   }
-	}
+  }
   }
 */
 
 template<class T>
-void addLocations(const vector<MemoryBlock> &blocks,unsigned int value,const set<BlockValueLocation> &locationsToIntersect,vector<BlockValueLocation> &newLocations,const vector<pair<unsigned char *,int> > &ramBlocks)
+void addLocations(const vector<shared_ptr<MemoryBlock> > &blocks,unsigned int value,const set<BlockValueLocation> &locationsToIntersect,vector<BlockValueLocation> &newLocations,const vector<pair<unsigned char *,int> > &ramBlocks)
 {
-	//cout << "ON SIZE: " << sizeof(T) << endl;
-	for(int a=0;a<(int)blocks.size();a++)
-	{
-		//cout << "ON BLOCK: " << a << " WITH SIZE " << blocks[a].size << endl;
-		for(int b=0;b<int(blocks[a].size);b++)
-		{
-			//cout << "BLOCK INDEX: " << b << endl;
-			//if(b<=(int(blocks[a].size)-sizeof(T)))
+  //cout << "ON SIZE: " << sizeof(T) << endl;
+  for(int a=0;a<(int)blocks.size();a++)
+  {
+    //cout << "ON BLOCK: " << a << " WITH SIZE " << blocks[a].size << endl;
+    for(int b=0;b<int(blocks[a]->size);b++)
+    {
+      //cout << "BLOCK INDEX: " << b << endl;
+      //if(b<=(int(blocks[a].size)-sizeof(T)))
       //cout << "IN RANGE\n";
-			//cout << "VALUE: " << *((T*)(blocks[a].data+b)) << endl;
-			if(b>(int(blocks[a].size)-sizeof(T))) continue;
-			if( (((T)value) == *((T*)(blocks[a].data+b))) )
-			{
-				bool doNotAdd=false;
-				if(!doNotAdd)
-				{
-					BlockValueLocation bvl(0,a,b,sizeof(T),0);
-					if(locationsToIntersect.empty()==false)
-					{
-						doNotAdd=false;
-						if(locationsToIntersect.find(bvl)==locationsToIntersect.end())
-              doNotAdd=true;
-						if(!doNotAdd)
-						{
-							newLocations.push_back(bvl);
-						}
-					}
-					else
+      //cout << "VALUE: " << *((T*)(blocks[a].data+b)) << endl;
+      if(b>(int(blocks[a]->size)-sizeof(T))) continue;
+      if( (((T)value) == *((T*)(blocks[a]->data+b))) )
+      {
+        bool doNotAdd=false;
+        if(!doNotAdd)
+        {
+          BlockValueLocation bvl(0,a,b,sizeof(T),0);
+          if(locationsToIntersect.empty()==false)
           {
-						newLocations.push_back(bvl);
-					}
-				}
-			}
+            doNotAdd=false;
+            if(locationsToIntersect.find(bvl)==locationsToIntersect.end())
+              doNotAdd=true;
+            if(!doNotAdd)
+            {
+              newLocations.push_back(bvl);
+            }
+          }
+          else
+          {
+            newLocations.push_back(bvl);
+          }
+        }
+      }
     }
   }
-	//cout << "ON SIZE: " << sizeof(T) << endl;
-	for(int a=0;a<(int)ramBlocks.size();a++)
-	{
-		//cout << "ON BLOCK: " << a << " WITH SIZE " << blocks[a].size << endl;
-		for(int b=0;b<int(ramBlocks[a].second);b++)
-		{
-			//cout << "BLOCK INDEX: " << b << endl;
-			//if(b<=(int(blocks[a].size)-sizeof(T)))
+  //cout << "ON SIZE: " << sizeof(T) << endl;
+  for(int a=0;a<(int)ramBlocks.size();a++)
+  {
+    //cout << "ON BLOCK: " << a << " WITH SIZE " << blocks[a].size << endl;
+    for(int b=0;b<int(ramBlocks[a].second);b++)
+    {
+      //cout << "BLOCK INDEX: " << b << endl;
+      //if(b<=(int(blocks[a].size)-sizeof(T)))
       //cout << "IN RANGE\n";
-			//cout << "VALUE: " << *((T*)(blocks[a].data+b)) << endl;
-			if(b>(int(ramBlocks[a].second)-sizeof(T))) continue;
-			if( (((T)value) == *((T*)(ramBlocks[a].first+b))) )
-			{
-				bool doNotAdd=false;
-				if(!doNotAdd)
-				{
-					BlockValueLocation bvl(1,a,b,sizeof(T),0);
-					if(locationsToIntersect.empty()==false)
-					{
-						doNotAdd=false;
-						if(locationsToIntersect.find(bvl)==locationsToIntersect.end())
-							doNotAdd=true;
-						if(!doNotAdd)
-						{
-							newLocations.push_back(bvl);
-						}
-					}
-					else
-					{
-						newLocations.push_back(bvl);
-					}
-				}
-			}
-		}
-	}
+      //cout << "VALUE: " << *((T*)(blocks[a].data+b)) << endl;
+      if(b>(int(ramBlocks[a].second)-sizeof(T))) continue;
+      if( (((T)value) == *((T*)(ramBlocks[a].first+b))) )
+      {
+        bool doNotAdd=false;
+        if(!doNotAdd)
+        {
+          BlockValueLocation bvl(1,a,b,sizeof(T),0);
+          if(locationsToIntersect.empty()==false)
+          {
+            doNotAdd=false;
+            if(locationsToIntersect.find(bvl)==locationsToIntersect.end())
+              doNotAdd=true;
+            if(!doNotAdd)
+            {
+              newLocations.push_back(bvl);
+            }
+          }
+          else
+          {
+            newLocations.push_back(bvl);
+          }
+        }
+      }
+    }
+  }
 }
 
 vector<BlockValueLocation> Common::getLocationsWithValue(unsigned int value, const vector<BlockValueLocation> &locationsToIntersect, const vector<pair<unsigned char *,int> > &ramBlocks)
 {
-	set<BlockValueLocation> locationsSet(locationsToIntersect.begin(),locationsToIntersect.end());
-	//cout << "CHECKING FOR " << value << endl;
-	vector<BlockValueLocation> newLocations;
-	addLocations<unsigned int>(blocks,value,locationsSet,newLocations,ramBlocks);
-	//addLocations<signed int>(blocks,value,locationsSet,newLocations);
-	addLocations<unsigned short>(blocks,value,locationsSet,newLocations,ramBlocks);
-	//addLocations<signed short>(blocks,value,locationsSet,newLocations);
-	addLocations<unsigned char>(blocks,value,locationsSet,newLocations,ramBlocks);
-	//addLocations<signed char>(blocks,value,locationsSet,newLocations);
-	//addSubByteLocations(blocks,value,locationsSet,newLocations);
-	return newLocations;
+  set<BlockValueLocation> locationsSet(locationsToIntersect.begin(),locationsToIntersect.end());
+  //cout << "CHECKING FOR " << value << endl;
+  vector<BlockValueLocation> newLocations;
+  addLocations<unsigned int>(blocks,value,locationsSet,newLocations,ramBlocks);
+  //addLocations<signed int>(blocks,value,locationsSet,newLocations);
+  addLocations<unsigned short>(blocks,value,locationsSet,newLocations,ramBlocks);
+  //addLocations<signed short>(blocks,value,locationsSet,newLocations);
+  addLocations<unsigned char>(blocks,value,locationsSet,newLocations,ramBlocks);
+  //addLocations<signed char>(blocks,value,locationsSet,newLocations);
+  //addSubByteLocations(blocks,value,locationsSet,newLocations);
+  return newLocations;
 }
 
 void Common::updateForces(const vector<pair<unsigned char *,int> > &ramBlocks) {
@@ -605,7 +635,7 @@ void Common::updateForces(const vector<pair<unsigned char *,int> > &ramBlocks) {
     if(bvl.ramRegion==0) {
       if(bvl.memorySize==1) {
         if(bvl.memoryMask>0) {
-          unsigned char curValue = ((*((unsigned char*)(blocks[bvl.blockIndex].data+bvl.memoryStart))) & (~(bvl.memoryMask)));
+          unsigned char curValue = ((*((unsigned char*)(blocks[bvl.blockIndex]->data+bvl.memoryStart))) & (~(bvl.memoryMask)));
           // Calculate the shift from the mask
           int shift=0;
           unsigned char tmpMask = bvl.memoryMask;
@@ -613,16 +643,16 @@ void Common::updateForces(const vector<pair<unsigned char *,int> > &ramBlocks) {
             shift++;
             tmpMask>>=1;
           }
-          *((unsigned char*)(blocks[bvl.blockIndex].data+bvl.memoryStart)) = ((((unsigned char)forcedLocations[a].second)<<shift) | curValue);
+          *((unsigned char*)(blocks[bvl.blockIndex]->data+bvl.memoryStart)) = ((((unsigned char)forcedLocations[a].second)<<shift) | curValue);
         } else {
-          *((unsigned char*)(blocks[bvl.blockIndex].data+bvl.memoryStart)) = (unsigned char)forcedLocations[a].second;
+          *((unsigned char*)(blocks[bvl.blockIndex]->data+bvl.memoryStart)) = (unsigned char)forcedLocations[a].second;
         }
       }
       if(bvl.memorySize==2) {
-        *((unsigned short*)(blocks[bvl.blockIndex].data+bvl.memoryStart)) = (unsigned short)forcedLocations[a].second;
+        *((unsigned short*)(blocks[bvl.blockIndex]->data+bvl.memoryStart)) = (unsigned short)forcedLocations[a].second;
       }
       if(bvl.memorySize==4) {
-        *((unsigned int*)(blocks[bvl.blockIndex].data+bvl.memoryStart)) = (unsigned int)forcedLocations[a].second;
+        *((unsigned int*)(blocks[bvl.blockIndex]->data+bvl.memoryStart)) = (unsigned int)forcedLocations[a].second;
       }
     } else {
       if(bvl.memorySize==1) {
@@ -682,10 +712,10 @@ void Common::sendInputs(const nsm::Attotime &inputTime, PeerInputData::PeerInput
 void Common::sendInputs(const PeerInputData& peerInputData) {
   //cout << "SENDING INPUTS AT TIME " << peerInputData.time().seconds() << "." << peerInputData.time().attoseconds() << endl;
   //cout << "SELF PEER ID: " << selfPeerID << endl;
-	if(peerData.find(selfPeerID)==peerData.end()) {
-		throw std::runtime_error("DO NOT KNOW MY OWN PEER ID YET");
-	}
-	//cout << "INPUT STRING: " << inputString << endl;
+  if(peerData.find(selfPeerID)==peerData.end()) {
+    throw std::runtime_error("DO NOT KNOW MY OWN PEER ID YET");
+  }
+  //cout << "INPUT STRING: " << inputString << endl;
 
   PeerInputDataList peerInputDataList;
   peerInputDataList.set_peer_id(selfPeerID);

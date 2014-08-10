@@ -42,6 +42,7 @@ using namespace apache::thrift::transport;
 using namespace apache::thrift::server;
 
 using namespace std;
+using namespace boost;
 using namespace nsm;
 using namespace google::protobuf::io;
 
@@ -346,21 +347,13 @@ bool Server::initializeConnection()
   return true;
 }
 
-MemoryBlock Server::createMemoryBlock(const std::string& name, int size)
-{
-  blocks.push_back(MemoryBlock(name,size));
-  staleBlocks.push_back(MemoryBlock(name,size));
-  initialBlocks.push_back(MemoryBlock(name,size));
-  return blocks.back();
-}
-
-vector<MemoryBlock> Server::createMemoryBlock(const std::string& name, unsigned char *ptr,int size)
+vector<boost::shared_ptr<MemoryBlock> > Server::createMemoryBlock(const std::string& name, unsigned char *ptr,int size)
 {
   if(blocks.size()==39)
   {
     //throw ("OOPS");
   }
-  vector<MemoryBlock> retval;
+  vector<shared_ptr<MemoryBlock> > retval;
   const int BYTES_IN_MB=1024*1024;
   if(size>BYTES_IN_MB)
   {
@@ -368,22 +361,22 @@ vector<MemoryBlock> Server::createMemoryBlock(const std::string& name, unsigned 
     {
       if(a+BYTES_IN_MB>=size)
       {
-        vector<MemoryBlock> tmp = createMemoryBlock(name,ptr+a,size-a);
+        vector<shared_ptr<MemoryBlock> > tmp = createMemoryBlock(name,ptr+a,size-a);
         retval.insert(retval.end(),tmp.begin(),tmp.end());
         break;
       }
       else
       {
-        vector<MemoryBlock> tmp = createMemoryBlock(name,ptr+a,BYTES_IN_MB);
+        vector<shared_ptr<MemoryBlock> > tmp = createMemoryBlock(name,ptr+a,BYTES_IN_MB);
         retval.insert(retval.end(),tmp.begin(),tmp.end());
       }
     }
     return retval;
   }
   //printf("Creating memory block at %X with size %d\n",ptr,size);
-  blocks.push_back(MemoryBlock(name,ptr,size));
-  staleBlocks.push_back(MemoryBlock(name,size));
-  initialBlocks.push_back(MemoryBlock(name,size));
+  blocks.push_back(shared_ptr<MemoryBlock>(new MemoryBlock(name,ptr,size)));
+  staleBlocks.push_back(shared_ptr<MemoryBlock>(new MemoryBlock(name,size)));
+  initialBlocks.push_back(shared_ptr<MemoryBlock>(new MemoryBlock(name,size)));
   retval.push_back(blocks.back());
   return retval;
 }
@@ -415,11 +408,11 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
       vector<unsigned char> deltaBlock;
       //cout << "BLOCK " << blockIndex << ":\n";
             
-      for(int a=0; a<staleBlocks[blockIndex].size; a++)
+      for(int a=0; a<staleBlocks[blockIndex]->size; a++)
       {
-        checksum = checksum ^ staleBlocks[blockIndex].data[a];
-        //cout << int(staleBlocks[blockIndex].data[a]) << '\n';
-        unsigned char value = initialBlocks[blockIndex].data[a] ^ staleBlocks[blockIndex].data[a];
+        checksum = checksum ^ staleBlocks[blockIndex]->data[a];
+        //cout << int(staleBlocks[blockIndex]->data[a]) << '\n';
+        unsigned char value = initialBlocks[blockIndex]->data[a] ^ staleBlocks[blockIndex]->data[a];
         deltaBlock.push_back(value);
       }
       //cout << int(checksum) << endl;
@@ -890,13 +883,13 @@ void Server::sync(running_machine *machine)
   unsigned char allStaleChecksum=0;
   for(int blockIndex=0; blockIndex<int(blocks.size()); blockIndex++)
   {
-    MemoryBlock &block = blocks[blockIndex];
-    MemoryBlock &staleBlock = staleBlocks[blockIndex];
-    MemoryBlock &initialBlock = initialBlocks[blockIndex];
+    MemoryBlock &block = *(blocks[blockIndex]);
+    MemoryBlock &staleBlock = *(staleBlocks[blockIndex]);
+    MemoryBlock &initialBlock = *(initialBlocks[blockIndex]);
 
-    if(block.size != staleBlock.size)
+    if(block.size != staleBlock.size || block.size != initialBlock.size)
     {
-      cout << "BLOCK SIZE MISMATCH\n";
+      cout << "BLOCK SIZE MISMATCH: " << blockIndex << ": " << block.size << " " << staleBlock.size << " " << initialBlock.size << endl;;
     }
 
     bool dirty=false;
@@ -972,7 +965,7 @@ void Server::sync(running_machine *machine)
     unsigned char blockChecksum=0;
     for(int blockIndex=0; blockIndex<int(blocks.size()); blockIndex++)
     {
-      MemoryBlock &block = blocks[blockIndex];
+      MemoryBlock &block = *(blocks[blockIndex]);
       
       for(int a=0; a<block.size; a++)
       {
