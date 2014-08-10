@@ -601,13 +601,13 @@ void Server::processPotentialCandidates(running_machine *machine) {
         waitingForAcceptFrom[guid] = std::vector<RakNet::RakNetGUID>();
         for(int a=0; a<acceptedPeers.size(); a++)
         {
-          RakNet::RakNetGUID guid = acceptedPeers[a];
+          RakNet::RakNetGUID acceptedGuid = acceptedPeers[a];
           waitingForAcceptFrom[guid].push_back(guid);
-          cout << "SENDING ADVERTIZE TO " << guid.ToString() << endl;
+          cout << "SENDING ADVERTIZE TO " << acceptedGuid.ToString() << endl;
           char buf[4096];
           buf[0] = ID_ADVERTISE_SYSTEM;
           strcpy(buf+1,systemAddress.ToString(true));
-          rakInterface->Send(buf,1+strlen(systemAddress.ToString(true))+1,HIGH_PRIORITY,RELIABLE_ORDERED,ORDERING_CHANNEL_SYNC,guid,false);
+          rakInterface->Send(buf,1+strlen(systemAddress.ToString(true))+1,HIGH_PRIORITY,RELIABLE_ORDERED,ORDERING_CHANNEL_SYNC,acceptedGuid,false);
         }
         printf("Asking other peers to accept\n");
       }
