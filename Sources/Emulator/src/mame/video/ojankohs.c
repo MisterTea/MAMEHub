@@ -274,7 +274,8 @@ VIDEO_START_MEMBER(ojankohs_state,ojankoc)
 	m_videoram.allocate(0x8000);
 	m_paletteram.allocate(0x20);
 
-	save_item(NAME(m_tmpbitmap));
+	//JJG: Don't save resolution-dependent items.
+	//save_item(NAME(m_tmpbitmap));
 }
 
 

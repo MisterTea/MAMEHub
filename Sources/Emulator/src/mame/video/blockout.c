@@ -61,7 +61,9 @@ void blockout_state::video_start()
 {
 	/* Allocate temporary bitmaps */
 	m_screen->register_screen_bitmap(m_tmpbitmap);
-	save_item(NAME(m_tmpbitmap));
+
+	// JJG: Don't save resolution-dependent items
+	//save_item(NAME(m_tmpbitmap));
 }
 
 void blockout_state::update_pixels( int x, int y )

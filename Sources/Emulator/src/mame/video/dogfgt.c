@@ -72,7 +72,8 @@ void dogfgt_state::video_start()
 	save_pointer(NAME(m_bitmapram), BITMAPRAM_SIZE);
 
 	m_screen->register_screen_bitmap(m_pixbitmap);
-	save_item(NAME(m_pixbitmap));
+	//JJG: Don't save resolution-dependent bitmaps
+	//save_item(NAME(m_pixbitmap));
 }
 
 

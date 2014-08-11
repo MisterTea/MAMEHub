@@ -737,7 +737,8 @@ void cave_state::sprite_init_cave()
 
 	m_sprite_draw = &cave_state::sprite_draw_donpachi;
 
-	save_item(NAME(m_sprite_zbuf));
+	//JJG: Don't save resolution-dependent bitmaps
+	//save_item(NAME(m_sprite_zbuf));
 	save_item(NAME(m_sprite_zbuf_baseval));
 	save_item(NAME(m_num_sprites));
 	save_item(NAME(m_spriteram_bank));

@@ -99,9 +99,10 @@ void ms32_state::video_start()
 	m_brt[0] = m_brt[1] = 0xffff;
 
 	save_item(NAME(m_irqreq));
-	save_item(NAME(m_temp_bitmap_tilemaps));
-	save_item(NAME(m_temp_bitmap_sprites));
-	save_item(NAME(m_temp_bitmap_sprites_pri));
+	//JJG: resolution-dependent bitmaps
+	//save_item(NAME(m_temp_bitmap_tilemaps));
+	//save_item(NAME(m_temp_bitmap_sprites));
+	//save_item(NAME(m_temp_bitmap_sprites_pri));
 	save_item(NAME(m_tilemaplayoutcontrol));
 	save_item(NAME(m_reverse_sprite_order));
 	save_item(NAME(m_flipscreen));

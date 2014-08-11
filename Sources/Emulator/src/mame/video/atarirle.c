@@ -266,8 +266,9 @@ void atari_rle_objects_device::device_start()
 	save_item(NAME(m_vram[0][1]));
 	if (m_vrammask.mask() != 0)
 	{
-		save_item(NAME(m_vram[1][0]));
-		save_item(NAME(m_vram[1][1]));
+	  //JJG: resolution-dependent bitmaps
+	  //save_item(NAME(m_vram[1][0]));
+	  //save_item(NAME(m_vram[1][1]));
 	}
 	save_item(NAME(m_partial_scanline));
 	save_item(NAME(m_control_bits));

@@ -163,7 +163,8 @@ void paradise_state::video_start()
 	m_tilemap_1->set_transparent_pen(0xff);
 	m_tilemap_2->set_transparent_pen(0xff);
 
-	save_item(NAME(m_tmpbitmap));
+	//JJG: Don't save resolution-depdendent items.
+	//save_item(NAME(m_tmpbitmap));
 }
 
 

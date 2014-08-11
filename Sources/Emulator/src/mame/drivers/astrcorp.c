@@ -88,7 +88,8 @@ VIDEO_START_MEMBER(astrocorp_state,astrocorp)
 {
 	m_screen->register_screen_bitmap(m_bitmap);
 
-	save_item(NAME(m_bitmap));
+	//JJG: Resolution dependent bitmaps
+	//save_item(NAME(m_bitmap));
 	save_item       (NAME(m_screen_enable));
 	save_item       (NAME(m_draw_sprites));
 }

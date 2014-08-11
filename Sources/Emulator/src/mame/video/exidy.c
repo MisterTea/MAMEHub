@@ -43,7 +43,8 @@ void exidy_state::video_start()
 	save_item(NAME(m_collision_invert));
 	save_item(NAME(m_is_2bpp));
 	save_item(NAME(m_int_condition));
-	save_item(NAME(m_background_bitmap));
+	//JJG: Don't save resolution-dependent bitmaps
+	//save_item(NAME(m_background_bitmap));
 	save_item(NAME(m_motion_object_1_vid));
 	save_item(NAME(m_motion_object_2_vid));
 	save_item(NAME(m_motion_object_2_clip));
