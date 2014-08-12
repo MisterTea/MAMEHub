@@ -120,7 +120,8 @@ void airbustr_state::video_start()
 	m_fg_tilemap->set_scrolldx(0x094, 0x06a);
 	m_fg_tilemap->set_scrolldy(0x100, 0x1ff);
 
-	save_item(NAME(m_sprites_bitmap));
+	// JJG: Don't save resolution-dependent bitmaps
+	//save_item(NAME(m_sprites_bitmap));
 }
 
 

@@ -142,8 +142,9 @@ void lastfght_state::video_start()
 	for (i = 0; i < 2; i++)
 		m_screen->register_screen_bitmap(m_bitmap[i]);
 
-	save_item(NAME(m_bitmap[0]));
-	save_item(NAME(m_bitmap[1]));
+	//JJG: Resolution dependent bitmaps
+	//save_item(NAME(m_bitmap[0]));
+	//save_item(NAME(m_bitmap[1]));
 	save_item(NAME(m_colorram));
 }
 

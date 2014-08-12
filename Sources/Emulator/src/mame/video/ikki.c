@@ -114,7 +114,8 @@ void ikki_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 void ikki_state::video_start()
 {
 	m_screen->register_screen_bitmap(m_sprite_bitmap);
-	save_item(NAME(m_sprite_bitmap));
+	//JJG: Don't save resolution-dependent bitmaps.
+	//save_item(NAME(m_sprite_bitmap));
 }
 
 

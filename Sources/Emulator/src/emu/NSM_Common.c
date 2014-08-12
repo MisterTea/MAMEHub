@@ -326,7 +326,7 @@ int Common::getLargestPing(int currentSecond)
     }
     if (lastPing == -1) {
       // No connections, don't update stats
-      return predictedPingMean;
+      return unmeasuredNoise*2;
     }
     if (numPingSamples==0) {
       predictedPingMean = lastPing;

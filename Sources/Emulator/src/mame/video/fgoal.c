@@ -31,8 +31,9 @@ void fgoal_state::video_start()
 	m_screen->register_screen_bitmap(m_fgbitmap);
 	m_screen->register_screen_bitmap(m_bgbitmap);
 
-	save_item(NAME(m_fgbitmap));
-	save_item(NAME(m_bgbitmap));
+	//JJG: Don't save resolution-dependent items.
+	//save_item(NAME(m_fgbitmap));
+	//save_item(NAME(m_bgbitmap));
 }
 
 

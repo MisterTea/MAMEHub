@@ -125,9 +125,10 @@ VIDEO_START_MEMBER(cvs_state,cvs)
 	m_screen->register_screen_bitmap(m_scrolled_collision_background);
 
 	/* register save */
-	save_item(NAME(m_background_bitmap));
-	save_item(NAME(m_collision_background));
-	save_item(NAME(m_scrolled_collision_background));
+	//JJG: Don't save resolution-dependent bitmaps
+	//save_item(NAME(m_background_bitmap));
+	//save_item(NAME(m_collision_background));
+	//save_item(NAME(m_scrolled_collision_background));
 }
 
 

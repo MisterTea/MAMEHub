@@ -775,7 +775,7 @@ public:
       int actualSyncTransferSeconds=max(1,syncTransferSeconds);
       while(true)
       {
-        SYNC_PACKET_SIZE = compressedSize/60/actualSyncTransferSeconds;
+        SYNC_PACKET_SIZE = compressedSize/10/actualSyncTransferSeconds;
 
         if(actualSyncTransferSeconds==1) {
           // Make sure that we send SOMETHING each frame
