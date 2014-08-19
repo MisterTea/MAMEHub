@@ -232,7 +232,7 @@ void video_manager::frame_update(bool debug)
 	machine().ui().update_and_render(&machine().render().ui_container());
 
 	// if we're throttling, synchronize before rendering
-	attotime current_time = machine().time();
+	attotime current_time = machine().machine_time();
 	//Don't throttle if you are a network client
 	if (!netClient && !debug && !skipped_it && effective_throttle())
 		update_throttle(current_time);
@@ -396,7 +396,7 @@ void video_manager::begin_recording(const char *name, movie_format format)
 
 		// reset the state
 		m_avi_frame = 0;
-		m_avi_next_frame_time = machine().time();
+		m_avi_next_frame_time = machine().machine_time();
 
 		// build up information about this new movie
 		avi_movie_info info;
@@ -454,7 +454,7 @@ void video_manager::begin_recording(const char *name, movie_format format)
 
 		// reset the state
 		m_mng_frame = 0;
-		m_mng_next_frame_time = machine().time();
+		m_mng_next_frame_time = machine().machine_time();
 
 		// create a new movie file and start recording
 		m_mng_file.reset(global_alloc(emu_file(machine().options().snapshot_directory(), OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS)));
@@ -492,7 +492,7 @@ void video_manager::begin_recording(const char *name, movie_format format)
 
 		// reset the state
 		m_webm_frame = 0;
-		m_webm_next_frame_time = machine().time();
+		m_webm_next_frame_time = machine().machine_time();
 
 		// create a new temporary movie file
 		file_error filerr;
@@ -634,9 +634,9 @@ void video_manager::screenless_update_callback(void *ptr, int param)
 
 void video_manager::postload()
 {
-	m_avi_next_frame_time = machine().time();
-	m_mng_next_frame_time = machine().time();
-	m_webm_next_frame_time = machine().time();
+	m_avi_next_frame_time = machine().machine_time();
+	m_mng_next_frame_time = machine().machine_time();
+	m_webm_next_frame_time = machine().machine_time();
 }
 
 
@@ -1311,7 +1311,7 @@ void video_manager::record_frame()
 
 	// start the profiler and get the current time
 	g_profiler.start(PROFILER_MOVIE_REC);
-	attotime curtime = machine().time();
+	attotime curtime = machine().machine_time();
 
 	// create the bitmap
 	create_snapshot_bitmap(NULL);
