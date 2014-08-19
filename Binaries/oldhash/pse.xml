@@ -32205,30 +32205,4 @@
 		</part>
 	</software>
 
-<!-- Standard ROMs created by the MESS development team -->
-
-	<software name="firebugs" supported="partial">
-		<description>Firebugs (Europe)</description>
-		<year>199?</year>
-		<publisher>&lt;unknown&gt;</publisher>
-		<sharedfeat name="compatibility" value="PAL-E"/>
-		<part name="cdrom" interface="psx_cdrom">
-			<diskarea name="cdrom">
-				<disk name="firebugs (e)" sha1="763f232c64d2fa7091c3c6f8eed13686f636da49"/>
-			</diskarea>
-		</part>
-	</software>
-
-	<software name="terracon" supported="yes">
-		<description>Terracon (Europe)</description>
-		<year>199?</year>
-		<publisher>&lt;unknown&gt;</publisher>
-		<sharedfeat name="compatibility" value="PAL-E"/>
-		<part name="cdrom" interface="psx_cdrom">
-			<diskarea name="cdrom">
-				<disk name="terracon_pal" sha1="06f1e225c8e214cb7717d5a131a0c6ed9f53a42b"/>
-			</diskarea>
-		</part>
-	</software>
-
 </softwarelist>
