@@ -257,7 +257,7 @@ hwstretch                 1
 #
 # DIRECT3D-SPECIFIC OPTIONS
 #
-filter                    1
+filter                    0
 
 #
 # DIRECT3D POST-PROCESSING OPTIONS
