@@ -630,6 +630,9 @@ void osd_work_item_release(osd_work_item *item)
 
 static int effective_num_processors(void)
 {
+  // JJG: To keep MAMEHub completely deterministic, force the # of processors to 1.
+  return 1;
+
 	SYSTEM_INFO info;
 	// fetch the info from the system
 	GetSystemInfo(&info);

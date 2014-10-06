@@ -3069,7 +3069,7 @@ g_profiler.start(PROFILER_INPUT);
   }
 
 	// record/playback information about the current frame
-	attotime curtime = machine().time();
+	attotime curtime = machine().machine_time();
 	playback_frame(curtime);
 	record_frame(curtime);
 
@@ -3521,7 +3521,7 @@ INT32 ioport_manager::frame_interpolate(INT32 oldval, INT32 newval)
 		return newval;
 
 	// otherwise, interpolate
-	attoseconds_t nsec_since_last = (machine().time() - m_last_frame_time).as_attoseconds() / ATTOSECONDS_PER_NANOSECOND;
+	attoseconds_t nsec_since_last = (machine().machine_time() - m_last_frame_time).as_attoseconds() / ATTOSECONDS_PER_NANOSECOND;
 	return oldval + (INT64(newval - oldval) * nsec_since_last / m_last_delta_nsec);
 }
 

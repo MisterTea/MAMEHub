@@ -8,10 +8,11 @@
 	<description>MAMEHub Client</description>
 	<packaging>jar</packaging>
 	<build>
-		<sourceDirectory>src</sourceDirectory>
+    <!--
+		<sourceDirectory>src/main/java</sourceDirectory>
 		<resources>
 			<resource>
-				<directory>src</directory>
+				<directory>src/main/resources</directory>
 				<excludes>
 					<exclude>**/*.java</exclude>
 				</excludes>
@@ -23,6 +24,7 @@
 				</excludes>
 			</resource>
 		</resources>
+    -->
 		<plugins>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -44,7 +46,7 @@
 						</goals>
 						<configuration>
 							<sources>
-								<source>gen-java</source>
+								<source>src/gen/gen-java</source>
 							</sources>
 						</configuration>
 					</execution>

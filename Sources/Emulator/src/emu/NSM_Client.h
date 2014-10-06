@@ -14,7 +14,7 @@ class Client : public Common
 {
  protected:
 
-  std::vector<MemoryBlock> syncCheckBlocks;
+  std::vector<boost::shared_ptr<MemoryBlock> > syncCheckBlocks;
   std::vector<unsigned char> incomingMsg;
 
   bool initComplete;
@@ -36,9 +36,7 @@ class Client : public Common
 
   void shutdown();
 
-  MemoryBlock createMemoryBlock(const std::string& name, int size);
-
-  std::vector<MemoryBlock> createMemoryBlock(const std::string& name, unsigned char* ptr,int size);
+  std::vector<boost::shared_ptr<MemoryBlock> > createMemoryBlock(const std::string& name, unsigned char* ptr,int size);
 
   bool initializeConnection(unsigned short selfPort,const char *hostname,unsigned short port,running_machine *machine);
 
@@ -54,8 +52,6 @@ class Client : public Common
   void createInitialBlocks(running_machine *machine);
 
   bool resync(unsigned char *data,int size,running_machine *machine);
-
-  void checkMatch(Server *server);
 
   inline bool isInitComplete()
   {

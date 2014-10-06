@@ -36,6 +36,7 @@
 #include "osdcore.h"
 
 using namespace std;
+using namespace boost;
 using namespace nsm;
 using namespace google::protobuf::io;
 
@@ -70,7 +71,7 @@ bool hasCompleteResync = false;
 
 Client::Client(string _username)
   :
-  Common(_username)
+  Common(_username,50)
 {
   initialSyncBuffer.reserve(1024*1024);
 
@@ -97,27 +98,14 @@ void Client::shutdown()
   RakNet::RakPeerInterface::DestroyInstance(rakInterface);
 }
 
-MemoryBlock Client::createMemoryBlock(const std::string& name, int size)
+vector<boost::shared_ptr<MemoryBlock> > Client::createMemoryBlock(const std::string& name, unsigned char *ptr,int size)
 {
   if(initComplete)
   {
     cout << "ERROR: CREATED MEMORY BLOCK TOO LATE\n";
     exit(1);
   }
-  blocks.push_back(MemoryBlock(name, size));
-  staleBlocks.push_back(MemoryBlock(name,size));
-  syncCheckBlocks.push_back(MemoryBlock(name,size));
-  return blocks.back();
-}
-
-vector<MemoryBlock> Client::createMemoryBlock(const std::string& name, unsigned char *ptr,int size)
-{
-  if(initComplete)
-  {
-    cout << "ERROR: CREATED MEMORY BLOCK TOO LATE\n";
-    exit(1);
-  }
-  vector<MemoryBlock> retval;
+  vector<shared_ptr<MemoryBlock> > retval;
   const int BYTES_IN_MB=1024*1024;
   if(size>BYTES_IN_MB)
   {
@@ -125,22 +113,22 @@ vector<MemoryBlock> Client::createMemoryBlock(const std::string& name, unsigned 
     {
       if(a+BYTES_IN_MB>=size)
       {
-        vector<MemoryBlock> tmp = createMemoryBlock(name,ptr+a,size-a);
+        vector<shared_ptr<MemoryBlock> > tmp = createMemoryBlock(name,ptr+a,size-a);
         retval.insert(retval.end(),tmp.begin(),tmp.end());
         break;
       }
       else
       {
-        vector<MemoryBlock> tmp = createMemoryBlock(name,ptr+a,BYTES_IN_MB);
+        vector<shared_ptr<MemoryBlock> > tmp = createMemoryBlock(name,ptr+a,BYTES_IN_MB);
         retval.insert(retval.end(),tmp.begin(),tmp.end());
       }
     }
     return retval;
   }
   //printf("Creating memory block at %X with size %d\n",ptr,size);
-  blocks.push_back(MemoryBlock(name,ptr,size));
-  staleBlocks.push_back(MemoryBlock(name,size));
-  syncCheckBlocks.push_back(MemoryBlock(name,size));
+  blocks.push_back(shared_ptr<MemoryBlock>(new MemoryBlock(name,ptr,size)));
+  staleBlocks.push_back(shared_ptr<MemoryBlock>(new MemoryBlock(name,size)));
+  syncCheckBlocks.push_back(shared_ptr<MemoryBlock>(new MemoryBlock(name,size)));
   retval.push_back(blocks.back());
   return retval;
 }
@@ -429,8 +417,9 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
         cout << "NOT DOING CATCHUP\n";
       }
       memcpy(&secondsBetweenSync,p->data+2,sizeof(int));
+      memcpy(&unmeasuredNoise,p->data+2+sizeof(int),sizeof(int));
       char buf[4096];
-      strcpy(buf,(const char*)(p->data+2+sizeof(int)));
+      strcpy(buf,(const char*)(p->data+2+(2*sizeof(int))));
       string s(buf,strlen(buf));
       // Create peerdata for server
       upsertPeer(p->guid,1,buf,newAttotime(0,0));
@@ -513,25 +502,25 @@ void Client::createInitialBlocks(running_machine *machine) {
 
     for(int blockIndex=0; blockIndex<initial_sync.initial_block_size(); blockIndex++)
     {
-      if(initial_sync.initial_block(blockIndex).length() != blocks[blockIndex].size)
+      if(initial_sync.initial_block(blockIndex).length() != blocks[blockIndex]->size)
       {
         cout << "ERROR: CLIENT AND SERVER BLOCK SIZES AT INDEX " << blockIndex << " DO NOT MATCH!\n";
-        cout << initial_sync.initial_block(blockIndex).length() << " != " << blocks[blockIndex].size << endl;
+        cout << initial_sync.initial_block(blockIndex).length() << " != " << blocks[blockIndex]->size << endl;
         exit(1);
       }
 
-      //initialSyncStream.ReadBits(staleBlocks[blockIndex].data,blockSize*8);
+      //initialSyncStream.ReadBits(staleBlocks[blockIndex]->data,blockSize*8);
             
       //cout << "BLOCK " << blockIndex << ":\n";
-      for(int a=0; a<blocks[blockIndex].size; a++)
+      for(int a=0; a<blocks[blockIndex]->size; a++)
       {
         unsigned char xorValue = initial_sync.initial_block(blockIndex)[a];
-        //cout << int(blocks[blockIndex].data[a] ^ xorValue) << '\n';
-        staleBlocks[blockIndex].data[a] = blocks[blockIndex].data[a] ^ xorValue;
-        checksum = checksum ^ staleBlocks[blockIndex].data[a];
+        //cout << int(blocks[blockIndex]->data[a] ^ xorValue) << '\n';
+        staleBlocks[blockIndex]->data[a] = blocks[blockIndex]->data[a] ^ xorValue;
+        checksum = checksum ^ staleBlocks[blockIndex]->data[a];
       }
       if(checksum != initial_sync.checksum(blockIndex)) {
-        cout << "CHECKSUM ERROR: " << int(checksum) << " != " << int(initial_sync.checksum(blockIndex)) << " " << blocks[blockIndex].name << " (index: " << blockIndex << ") " << endl;
+        cout << "CHECKSUM ERROR: " << int(checksum) << " != " << int(initial_sync.checksum(blockIndex)) << " " << blocks[blockIndex]->name << " (index: " << blockIndex << ") " << endl;
         exit(1);
       }
     }
@@ -549,12 +538,12 @@ void Client::updateSyncCheck()
   for(int blockIndex=0; blockIndex<int(blocks.size()); blockIndex++)
   {
     memcpy(
-      syncCheckBlocks[blockIndex].data,
-      blocks[blockIndex].data,
-      blocks[blockIndex].size
+      syncCheckBlocks[blockIndex]->data,
+      blocks[blockIndex]->data,
+      blocks[blockIndex]->size
       );
-    for(int b=0;b<syncCheckBlocks[blockIndex].size;b++) {
-      checksum = checksum ^ syncCheckBlocks[blockIndex].data[b];
+    for(int b=0;b<syncCheckBlocks[blockIndex]->size;b++) {
+      checksum = checksum ^ syncCheckBlocks[blockIndex]->data[b];
     }
   }
   cout << "SYNC CHECK CHECKSUM: " << int(checksum) << endl;
@@ -594,13 +583,18 @@ bool Client::update(running_machine *machine)
     //printf("Checking for packets\n");
   }
   bool inNegotiation=false;
+  
 
   do
   {
     RakNet::Packet *p = rakInterface->Receive();
     if(!p)
     {
-      continue;
+      if (inNegotiation) {
+        continue;
+      } else {
+        break;
+      }
     }
     unsigned char packetID = GetPacketIdentifier(p);
     //cout << "GOT PACKET WITH ID: " << packetID << endl;
@@ -834,7 +828,7 @@ bool Client::update(running_machine *machine)
 
     rakInterface->DeallocatePacket(p);
   }
-  while(inNegotiation);
+  while(true);
 
   return true;
 }
@@ -876,9 +870,9 @@ bool Client::resync(unsigned char *data,int size,running_machine *machine)
       break;
     }
 
-    MemoryBlock &block = blocks[blockIndex];
-    MemoryBlock &syncCheckBlock = syncCheckBlocks[blockIndex];
-    MemoryBlock &staleBlock = staleBlocks[blockIndex];
+    MemoryBlock &block = *(blocks[blockIndex]);
+    MemoryBlock &syncCheckBlock = *(syncCheckBlocks[blockIndex]);
+    MemoryBlock &staleBlock = *(staleBlocks[blockIndex]);
 
     //cout << "CLIENT: GOT MESSAGE FOR INDEX: " << blockIndex << endl;
 
@@ -943,8 +937,8 @@ bool Client::resync(unsigned char *data,int size,running_machine *machine)
     for(int a=0;a<blocks.size();a++)
     {
       //cout << "BLOCK " << a << ": ";
-      for(int b=0;b<blocks[a].size;b++) {
-        checksum = checksum ^ blocks[a].data[b];
+      for(int b=0;b<blocks[a]->size;b++) {
+        checksum = checksum ^ blocks[a]->data[b];
       }
       //cout << int(checksum) << endl;
     }
@@ -966,51 +960,15 @@ void Client::revert(running_machine *machine)
     for(int a=0;a<blocks.size();a++)
     {
       //cout << "BLOCK " << a << ": ";
-      memcpy(blocks[a].data,staleBlocks[a].data,blocks[a].size);
-      for(int b=0;b<staleBlocks[a].size;b++) {
-        checksum = checksum ^ staleBlocks[a].data[b];
+      memcpy(blocks[a]->data,staleBlocks[a]->data,blocks[a]->size);
+      for(int b=0;b<staleBlocks[a]->size;b++) {
+        checksum = checksum ^ staleBlocks[a]->data[b];
       }
       //cout << int(checksum) << endl;
     }
     cout << "(revert) STALE CHECKSUM: " << int(checksum) << endl;
   }
 
-}
-
-void Client::checkMatch(Server *server)
-{
-  static int errorCount=0;
-
-  if(errorCount>=10)
-    exit(1);
-
-  if(blocks.size()!=server->getNumBlocks())
-  {
-    cout << "CLIENT AND SERVER ARE OUT OF SYNC (different block counts)\n";
-    errorCount++;
-    return;
-  }
-
-  for(int a=0; a<int(blocks.size()); a++)
-  {
-    if(getMemoryBlock(a).size != server->getMemoryBlock(a).size)
-    {
-      cout << "CLIENT AND SERVER ARE OUT OF SYNC (different block sizes)\n";
-      errorCount++;
-      return;
-    }
-
-    if(memcmp(getMemoryBlock(a).data,server->getMemoryBlock(a).data,getMemoryBlock(a).size))
-    {
-      cout << "CLIENT AND SERVER ARE OUT OF SYNC\n";
-      cout << "CLIENT BITCOUNT: " << getMemoryBlock(a).getBitCount()
-           << " SERVER BITCOUNT: " << server->getMemoryBlock(a).getBitCount()
-           << endl;
-      errorCount++;
-      return;
-    }
-  }
-  cout << "CLIENT AND SERVER ARE IN SYNC\n";
 }
 
 int Client::getNumSessions()

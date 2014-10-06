@@ -165,7 +165,7 @@ port                      5805
 selfport                  5805
 secondsbetweensync        30
 synctransferseconds       10
-basedelay                 40
+basedelay                 16
 
 #
 # OSD DEBUGGING OPTIONS
@@ -257,7 +257,7 @@ hwstretch                 1
 #
 # DIRECT3D-SPECIFIC OPTIONS
 #
-filter                    1
+filter                    0
 
 #
 # DIRECT3D POST-PROCESSING OPTIONS

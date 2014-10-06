@@ -2,7 +2,7 @@
 
 #include "zlib.h"
 
-Server *createGlobalServer(std::string _username,unsigned short _port);
+Server *createGlobalServer(std::string _username,unsigned short _port, int _unmeasuredNoise);
 
 void deleteGlobalServer();
 
@@ -50,7 +50,7 @@ class Server : public Common
   bool syncOverride;
 
  protected:
-  std::vector<MemoryBlock> initialBlocks;
+  std::vector<boost::shared_ptr<MemoryBlock> > initialBlocks;
   nsm::Attotime staleTime;
   int staleGeneration;
 
@@ -79,7 +79,7 @@ class Server : public Common
   boost::thread serverThread;
 
  public:
-  Server(std::string _username,int _port);
+  Server(std::string _username,int _port, int _unmeasuredNoise);
 
   virtual ~Server();
 
@@ -91,9 +91,7 @@ class Server : public Common
 
   bool initializeConnection();
 
-  MemoryBlock createMemoryBlock(const std::string& name, int size);
-
-  std::vector<MemoryBlock> createMemoryBlock(const std::string& name, unsigned char* ptr,int size);
+  std::vector<boost::shared_ptr<MemoryBlock> > createMemoryBlock(const std::string& name, unsigned char* ptr,int size);
 
   void initialSync(const RakNet::RakNetGUID &sa,running_machine *machine);
 

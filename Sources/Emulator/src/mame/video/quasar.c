@@ -95,7 +95,8 @@ VIDEO_START_MEMBER(quasar_state,quasar)
 	m_screen->register_screen_bitmap(m_collision_background);
 
 	/* register save */
-	save_item(NAME(m_collision_background));
+	// JJG: Don't save resolution-dependent sprites.
+	//save_item(NAME(m_collision_background));
 	save_pointer(NAME(m_effectram), 0x400);
 }
 

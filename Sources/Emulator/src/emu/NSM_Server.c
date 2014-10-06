@@ -42,15 +42,16 @@ using namespace apache::thrift::transport;
 using namespace apache::thrift::server;
 
 using namespace std;
+using namespace boost;
 using namespace nsm;
 using namespace google::protobuf::io;
 
 Server *netServer=NULL;
 
-Server *createGlobalServer(string _username,unsigned short _port)
+Server *createGlobalServer(string _username,unsigned short _port, int _unmeasuredNoise)
 {
   cout << "Creating server on port " << _port << endl;
-  netServer = new Server(_username,_port);
+  netServer = new Server(_username,_port,_unmeasuredNoise);
   netCommon = netServer;
   return netServer;
 }
@@ -107,14 +108,15 @@ void MameHubServerProcessor::stop() {
   server_->stop();
 }
 
-Server::Server(string username,int _port)
+Server::Server(string username,int _port,int _unmeasuredNoise)
   :
-  Common(username),
+  Common(username,_unmeasuredNoise),
   syncOverride(false),
   port(_port),
   maxPeerID(10),
   blockNewClients(false),
   mameHubServerProcessor(_port + 1) {
+  syncReady = false;
   rakInterface = RakNet::RakPeerInterface::GetInstance();
 
   syncCount=0;
@@ -345,21 +347,13 @@ bool Server::initializeConnection()
   return true;
 }
 
-MemoryBlock Server::createMemoryBlock(const std::string& name, int size)
-{
-  blocks.push_back(MemoryBlock(name,size));
-  staleBlocks.push_back(MemoryBlock(name,size));
-  initialBlocks.push_back(MemoryBlock(name,size));
-  return blocks.back();
-}
-
-vector<MemoryBlock> Server::createMemoryBlock(const std::string& name, unsigned char *ptr,int size)
+vector<boost::shared_ptr<MemoryBlock> > Server::createMemoryBlock(const std::string& name, unsigned char *ptr,int size)
 {
   if(blocks.size()==39)
   {
     //throw ("OOPS");
   }
-  vector<MemoryBlock> retval;
+  vector<shared_ptr<MemoryBlock> > retval;
   const int BYTES_IN_MB=1024*1024;
   if(size>BYTES_IN_MB)
   {
@@ -367,22 +361,22 @@ vector<MemoryBlock> Server::createMemoryBlock(const std::string& name, unsigned 
     {
       if(a+BYTES_IN_MB>=size)
       {
-        vector<MemoryBlock> tmp = createMemoryBlock(name,ptr+a,size-a);
+        vector<shared_ptr<MemoryBlock> > tmp = createMemoryBlock(name,ptr+a,size-a);
         retval.insert(retval.end(),tmp.begin(),tmp.end());
         break;
       }
       else
       {
-        vector<MemoryBlock> tmp = createMemoryBlock(name,ptr+a,BYTES_IN_MB);
+        vector<shared_ptr<MemoryBlock> > tmp = createMemoryBlock(name,ptr+a,BYTES_IN_MB);
         retval.insert(retval.end(),tmp.begin(),tmp.end());
       }
     }
     return retval;
   }
   //printf("Creating memory block at %X with size %d\n",ptr,size);
-  blocks.push_back(MemoryBlock(name,ptr,size));
-  staleBlocks.push_back(MemoryBlock(name,size));
-  initialBlocks.push_back(MemoryBlock(name,size));
+  blocks.push_back(shared_ptr<MemoryBlock>(new MemoryBlock(name,ptr,size)));
+  staleBlocks.push_back(shared_ptr<MemoryBlock>(new MemoryBlock(name,size)));
+  initialBlocks.push_back(shared_ptr<MemoryBlock>(new MemoryBlock(name,size)));
   retval.push_back(blocks.back());
   return retval;
 }
@@ -414,11 +408,11 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
       vector<unsigned char> deltaBlock;
       //cout << "BLOCK " << blockIndex << ":\n";
             
-      for(int a=0; a<staleBlocks[blockIndex].size; a++)
+      for(int a=0; a<staleBlocks[blockIndex]->size; a++)
       {
-        checksum = checksum ^ staleBlocks[blockIndex].data[a];
-        //cout << int(staleBlocks[blockIndex].data[a]) << '\n';
-        unsigned char value = initialBlocks[blockIndex].data[a] ^ staleBlocks[blockIndex].data[a];
+        checksum = checksum ^ staleBlocks[blockIndex]->data[a];
+        //cout << int(staleBlocks[blockIndex]->data[a]) << '\n';
+        unsigned char value = initialBlocks[blockIndex]->data[a] ^ staleBlocks[blockIndex]->data[a];
         deltaBlock.push_back(value);
       }
       //cout << int(checksum) << endl;
@@ -577,10 +571,11 @@ void Server::processPotentialCandidates(running_machine *machine) {
         buf[0] = ID_SETTINGS;
         buf[1] = ((syncCount <= 1) ? 0 : 1); //Should the client catch up?
         memcpy(buf+2,&secondsBetweenSync,sizeof(int));
-        strcpy(buf+2+sizeof(int),username.c_str());
+        memcpy(buf+2+sizeof(int),&unmeasuredNoise,sizeof(int));
+        strcpy(buf+2+(2*sizeof(int)),username.c_str());
         rakInterface->Send(
           buf,
-          2+sizeof(int)+username.length()+1,
+          2+(2*sizeof(int))+username.length()+1,
           HIGH_PRIORITY,
           RELIABLE_ORDERED,
           ORDERING_CHANNEL_SYNC,
@@ -599,13 +594,13 @@ void Server::processPotentialCandidates(running_machine *machine) {
         waitingForAcceptFrom[guid] = std::vector<RakNet::RakNetGUID>();
         for(int a=0; a<acceptedPeers.size(); a++)
         {
-          RakNet::RakNetGUID guid = acceptedPeers[a];
-          waitingForAcceptFrom[guid].push_back(guid);
-          cout << "SENDING ADVERTIZE TO " << guid.ToString() << endl;
+          RakNet::RakNetGUID acceptedGuid = acceptedPeers[a];
+          waitingForAcceptFrom[guid].push_back(acceptedGuid);
+          cout << "SENDING ADVERTIZE TO " << acceptedGuid.ToString() << endl;
           char buf[4096];
           buf[0] = ID_ADVERTISE_SYSTEM;
           strcpy(buf+1,systemAddress.ToString(true));
-          rakInterface->Send(buf,1+strlen(systemAddress.ToString(true))+1,HIGH_PRIORITY,RELIABLE_ORDERED,ORDERING_CHANNEL_SYNC,guid,false);
+          rakInterface->Send(buf,1+strlen(systemAddress.ToString(true))+1,HIGH_PRIORITY,RELIABLE_ORDERED,ORDERING_CHANNEL_SYNC,acceptedGuid,false);
         }
         printf("Asking other peers to accept\n");
       }
@@ -773,14 +768,14 @@ public:
 
     int SYNC_PACKET_SIZE=1024*1024;
 
-    // If the sync is less than 16KB or syncTransferSeconds is 0, send
+    // If the sync is less than 2KB or syncTransferSeconds is 0, send
     // it all at once.
-    if(compressedSize > 16*1024 && syncTransferSeconds)
+    if(compressedSize > 2*1024 && syncTransferSeconds)
     {
       int actualSyncTransferSeconds=max(1,syncTransferSeconds);
       while(true)
       {
-        SYNC_PACKET_SIZE = compressedSize/60/actualSyncTransferSeconds;
+        SYNC_PACKET_SIZE = compressedSize/10/actualSyncTransferSeconds;
 
         if(actualSyncTransferSeconds==1) {
           // Make sure that we send SOMETHING each frame
@@ -790,8 +785,8 @@ public:
           break;
         }
 
-        // This sends the data at 20 KB/sec minimum
-        if(SYNC_PACKET_SIZE>=350) break;
+        // This sends the data at 2 KB/sec minimum
+        if(SYNC_PACKET_SIZE>=210) break;
 
         actualSyncTransferSeconds--;
       }
@@ -888,17 +883,17 @@ void Server::sync(running_machine *machine)
   unsigned char allStaleChecksum=0;
   for(int blockIndex=0; blockIndex<int(blocks.size()); blockIndex++)
   {
-    MemoryBlock &block = blocks[blockIndex];
-    MemoryBlock &staleBlock = staleBlocks[blockIndex];
-    MemoryBlock &initialBlock = initialBlocks[blockIndex];
+    MemoryBlock &block = *(blocks[blockIndex]);
+    MemoryBlock &staleBlock = *(staleBlocks[blockIndex]);
+    MemoryBlock &initialBlock = *(initialBlocks[blockIndex]);
 
-    if(block.size != staleBlock.size)
+    if(block.size != staleBlock.size || block.size != initialBlock.size)
     {
-      cout << "BLOCK SIZE MISMATCH\n";
+      cout << "BLOCK SIZE MISMATCH: " << blockIndex << ": " << block.size << " " << staleBlock.size << " " << initialBlock.size << endl;;
     }
 
     bool dirty=false;
-    if(memcmp(block.data, staleBlock.data, block.size)) {
+    if(syncCount==0 || memcmp(block.data, staleBlock.data, block.size)) {
       dirty = true;
     }
     if(dirty)
@@ -970,7 +965,7 @@ void Server::sync(running_machine *machine)
     unsigned char blockChecksum=0;
     for(int blockIndex=0; blockIndex<int(blocks.size()); blockIndex++)
     {
-      MemoryBlock &block = blocks[blockIndex];
+      MemoryBlock &block = *(blocks[blockIndex]);
       
       for(int a=0; a<block.size; a++)
       {
@@ -984,10 +979,21 @@ void Server::sync(running_machine *machine)
   syncCount++;
 }
 
+long long lastSyncQueueMs = -1;
+
 void Server::popSyncQueue()
 {
   if(!syncReady)
     return;
+  long long curRealTime = RakNet::GetTimeMS();
+
+  //cout << "SYNC TIMES: " << (curRealTime/100) << " " << (lastSyncQueueMs/100) << endl;
+  if (lastSyncQueueMs/100 == curRealTime/100) {
+    return;
+  }
+  
+  //cout << "sending packet (if it exists)" << endl;
+  lastSyncQueueMs = curRealTime;
   if(syncPacketQueue.size())
   {
     pair<unsigned char *,int> syncPacket = syncPacketQueue.front();
@@ -997,7 +1003,7 @@ void Server::popSyncQueue()
     rakInterface->Send(
       (const char*)syncPacket.first,
       syncPacket.second,
-      HIGH_PRIORITY,
+      MEDIUM_PRIORITY,
       RELIABLE_ORDERED,
       ORDERING_CHANNEL_SYNC,
       RakNet::UNASSIGNED_SYSTEM_ADDRESS,

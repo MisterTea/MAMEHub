@@ -90,11 +90,11 @@ jar {
 task solid(type:Jar) { 
   // Build jar with dependencies
   from(configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }) {
-    exclude "META-INF/*.SF"
-    exclude "META-INF/*.DSA"
-    exclude "META-INF/*.RSA"
-    exclude "META-INF/license"
-    exclude "META-INF/LICENSE"
+    //exclude "META-INF/*.SF"
+    //exclude "META-INF/*.DSA"
+    //exclude "META-INF/*.RSA"
+    //exclude "META-INF/license"
+    //exclude "META-INF/LICENSE"
   }
   baseName = 'MAMEHubClient'
   destinationDir = new File("solid")

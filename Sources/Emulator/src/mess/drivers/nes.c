@@ -177,10 +177,11 @@ static INPUT_PORTS_START( nes )
 	PORT_CONFSETTING(  0x0040, "Arkanoid paddle" )
 	PORT_CONFSETTING(  0x0050, "Power Pad (Side A layout)" )
 	PORT_CONFSETTING(  0x0060, "Power Pad (Side B layout)" )
-	PORT_CONFNAME( 0x0f00, 0x0000, "P3 Controller")
+// JJG: Enable P3 + P4 Controllers by default
+	PORT_CONFNAME( 0x0f00, 0x0100, "P3 Controller")
 	PORT_CONFSETTING(  0x0000, "Unconnected" )
 	PORT_CONFSETTING(  0x0100, "Gamepad" )
-	PORT_CONFNAME( 0xf000, 0x0000, "P4 Controller")
+	PORT_CONFNAME( 0xf000, 0x1000, "P4 Controller")
 	PORT_CONFSETTING(  0x0000, "Unconnected" )
 	PORT_CONFSETTING(  0x1000, "Gamepad" )
 

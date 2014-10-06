@@ -281,10 +281,11 @@ void mazerbla_state::video_start()
 	m_screen->register_screen_bitmap(m_tmpbitmaps[2]);
 	m_screen->register_screen_bitmap(m_tmpbitmaps[3]);
 
-	save_item(NAME(m_tmpbitmaps[0]));
-	save_item(NAME(m_tmpbitmaps[1]));
-	save_item(NAME(m_tmpbitmaps[2]));
-	save_item(NAME(m_tmpbitmaps[3]));
+	//JJG: resolution-dependent bitmaps
+	//save_item(NAME(m_tmpbitmaps[0]));
+	//save_item(NAME(m_tmpbitmaps[1]));
+	//save_item(NAME(m_tmpbitmaps[2]));
+	//save_item(NAME(m_tmpbitmaps[3]));
 }
 
 

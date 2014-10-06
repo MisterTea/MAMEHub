@@ -1112,7 +1112,8 @@ void psikyosh_state::video_start()
 		m_bg_zoom[i] = (64 * 0x400) / (i + 64);
 	}
 
-	save_item(NAME(m_z_bitmap));
+	//JJG: Resolution dependent bitmap
+	//save_item(NAME(m_z_bitmap));
 	save_item(NAME(m_zoom_bitmap));
 	save_item(NAME(m_bg_bitmap));
 	save_pointer(NAME(m_bg_zoom), 256);

@@ -87,51 +87,19 @@ class running_machine;
 
 class MemoryBlock
 {
- public:
-  std::string name;
-  unsigned char *data;
-  int size;
+public:
+std::string name;
+unsigned char *data;
+int size;
+bool ownsMemory;
 
-MemoryBlock(const std::string& _name)
-   :
-  name(_name),
-  data(NULL),
-    size(0)
-      {
-      }
+MemoryBlock(const std::string& _name, int _size);
+MemoryBlock(const std::string& _name, unsigned char *_data,int _size);
+~MemoryBlock();
 
-MemoryBlock(const std::string& _name, int _size)
-   :
-  name(_name),
-  size(_size)
-  {
-    data = (unsigned char*)malloc(_size);
-    memset(data,0,_size);
-  }
-
- MemoryBlock(const std::string& _name, unsigned char *_data,int _size)
-   :
-  name(_name),
-  data(_data),
-    size(_size)
-    {
-    }
-
-  int getBitCount()
-  {
-    int bitCount=0;
-    for(int a=0;a<size;a++)
-      {
-        for(int bitNum=0;bitNum<7;bitNum++)
-          {
-            if( (data[a]&(1<<bitNum)) != 0)
-              {
-                bitCount++;
-              }
-          }
-      }
-    return bitCount;
-  }
+private:
+MemoryBlock(MemoryBlock const&);
+    MemoryBlock& operator=(MemoryBlock const&);
 };
 
 class BlockValueLocation
@@ -204,13 +172,14 @@ class Common
   int secondsBetweenSync;
   int globalInputCounter;
 
-  std::vector<MemoryBlock> blocks,staleBlocks;
+std::vector<boost::shared_ptr<MemoryBlock> > blocks,staleBlocks;
 
   z_stream inputStream;
   z_stream outputStream;
 
   int selfPeerID;
   int generation;
+  int unmeasuredNoise;
 
   std::map<RakNet::RakNetGUID,int> peerIDs;
 
@@ -221,7 +190,7 @@ class Common
 
  public:
 
-  Common(std::string _username);
+  Common(std::string _username, int _unmeasuredNoise);
 
   virtual ~Common();
 
@@ -238,9 +207,7 @@ class Common
 
   void setSecondsBetweenSync(int _secondsBetweenSync);
 
-  virtual MemoryBlock createMemoryBlock(const std::string& name, int size) = 0;
-
-  virtual std::vector<MemoryBlock> createMemoryBlock(const std::string& name, unsigned char* ptr,int size) = 0;
+  virtual std::vector<boost::shared_ptr<MemoryBlock> > createMemoryBlock(const std::string& name, unsigned char* ptr,int size) = 0;
 
   virtual bool update(running_machine *machine) = 0;
 
@@ -249,7 +216,7 @@ class Common
     return int(blocks.size());
   }
 
-  MemoryBlock getMemoryBlock(int i)
+  boost::shared_ptr<MemoryBlock> getMemoryBlock(int i)
   {
     return blocks[i];
   }

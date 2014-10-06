@@ -94,7 +94,9 @@ int osd_get_num_processors(void)
 void *osd_malloc(size_t size)
 {
 #ifndef MALLOC_DEBUG
-	return malloc(size);
+	void *ptr = malloc(size);
+  memset(ptr,0,size);
+  return ptr;
 #else
 #error "MALLOC_DEBUG not yet supported"
 #endif
@@ -108,7 +110,9 @@ void *osd_malloc(size_t size)
 void *osd_malloc_array(size_t size)
 {
 #ifndef MALLOC_DEBUG
-	return malloc(size);
+	void* ptr = malloc(size);
+  memset(ptr,0,size);
+  return ptr;
 #else
 #error "MALLOC_DEBUG not yet supported"
 #endif
@@ -123,6 +127,7 @@ void osd_free(void *ptr)
 {
 #ifndef MALLOC_DEBUG
 	free(ptr);
+  ptr=NULL;
 #else
 #error "MALLOC_DEBUG not yet supported"
 #endif

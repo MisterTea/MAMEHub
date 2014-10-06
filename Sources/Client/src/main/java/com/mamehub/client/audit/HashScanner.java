@@ -20,10 +20,12 @@ import java.util.concurrent.Future;
 import java.util.zip.CRC32;
 import java.util.zip.ZipException;
 
-import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
-import org.apache.commons.compress.archivers.zip.ZipFile;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipEncodingHelper;
+import org.apache.commons.compress.archivers.zip.ZipFile;
+import org.apache.commons.compress.utils.Charsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,7 +95,7 @@ public class HashScanner {
 
             ZipFile zf = null;
             try {
-              zf = new ZipFile(file);
+              zf = new ZipFile(file, Charsets.UTF_8.name(), false);
               for (Enumeration<ZipArchiveEntry> e = zf.getEntries(); e
                   .hasMoreElements();) {
                 ZipArchiveEntry ze = e.nextElement();

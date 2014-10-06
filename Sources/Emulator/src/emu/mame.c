@@ -220,7 +220,9 @@ int machine_manager::execute()
 		else if(m_options.server())
 		  {
 		    deleteGlobalServer();
-		    createGlobalServer(m_options.username(),(unsigned short)m_options.port());
+		    createGlobalServer(m_options.username(),
+                           (unsigned short)m_options.port(),
+                           m_options.baseDelay());
 		    netServer->setSyncTransferTime(m_options.syncTransferSeconds());
 		  }
 

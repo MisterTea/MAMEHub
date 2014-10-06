@@ -1822,8 +1822,10 @@ void sega315_5124_device::device_start()
 	save_item(NAME(m_current_palette));
 	save_pointer(NAME(m_line_buffer), 256 * 5);
 	save_item(NAME(m_collision_buffer));
-	save_item(NAME(m_tmpbitmap));
-	save_item(NAME(m_y1_bitmap));
+	// JJG: Do not put resolution-dependent bitmaps into the save
+	// state.
+	//save_item(NAME(m_tmpbitmap));
+	//save_item(NAME(m_y1_bitmap));
 	save_item(NAME(m_draw_time));
 	save_item(NAME(m_sprite_base));
 	save_item(NAME(m_selected_sprite));
