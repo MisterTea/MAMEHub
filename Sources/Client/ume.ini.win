@@ -14,7 +14,7 @@ artpath                   ../artwork
 ctrlrpath                 ../ctrlr
 inipath                   ../ini
 fontpath                  .
-cheatpath                 ../cheat
+cheatpath                 ../cheatpath/cheat
 crosshairpath             ../crosshair
 
 #
@@ -42,6 +42,7 @@ wavwrite
 snapname                  %g/%i
 snapsize                  auto
 snapview                  internal
+statename                 %g
 burnin                    0
 
 #
@@ -95,7 +96,6 @@ flicker                   0
 #
 # CORE SOUND OPTIONS
 #
-sound                     1
 samplerate                48000
 samples                   1
 volume                    0
@@ -111,6 +111,7 @@ lightgun                  0
 multikeyboard             0
 multimouse                0
 steadykey                 0
+ui_active                 0
 offscreen_reload          0
 joystick_map              auto
 joystick_deadzone         0.3
@@ -134,22 +135,28 @@ mouse_device              mouse
 #
 # CORE DEBUGGING OPTIONS
 #
-log                       0
-verbose                   0
 update_in_pause           0
-debug                     0
 debugscript               
-debug_internal            0
 
 #
 # CORE MISC OPTIONS
 #
+drc                       1
+drc_use_c                 0
 bios                      
 cheat                     1
 skip_gameinfo             1
 uifont                    default
 ramsize                   
 confirm_quit              0
+ui_mouse                  0
+autoboot_command          
+autoboot_delay            2
+autoboot_script           
+http                      0
+http_port                 8080
+http_path                 web
+console                   0
 username                  Player
 server                    0
 client                    0
@@ -158,106 +165,39 @@ port                      5805
 selfport                  5805
 secondsbetweensync        30
 synctransferseconds       10
+basedelay                 16
 
 #
-# WINDOWS DEBUGGING OPTIONS
+# OSD DEBUGGING OPTIONS
 #
+log                       0
+verbose                   0
+debug                     0
+debugger                  auto
 oslog                     0
 watchdog                  0
-debugger_font             "Lucida Console"
-debugger_font_size        9
 
 #
-# WINDOWS PERFORMANCE OPTIONS
+# OSD PERFORMANCE OPTIONS
 #
-priority                  0
 multithreading            0
 numprocessors             auto
-profile                   0
 bench                     0
 
 #
-# WINDOWS VIDEO OPTIONS
+# OSD VIDEO OPTIONS
 #
-video                     d3d
+video                     auto
 numscreens                1
 window                    1
-maximize                  0
+maximize                  1
 keepaspect                1
-prescale                  1
+unevenstretch             0
 waitvsync                 0
 syncrefresh               0
-menu                      0
-unevenstretch             0
 
 #
-# DIRECTDRAW-SPECIFIC OPTIONS
-#
-hwstretch                 1
-
-#
-# DIRECT3D-SPECIFIC OPTIONS
-#
-d3dversion                9
-filter                    0
-
-#
-# DIRECT3D POST-PROCESSING OPTIONS
-#
-hlsl_enable               0
-hlslpath                  ../hlsl
-hlsl_ini_read             0
-hlsl_ini_write            0
-hlslini                   %g
-hlsl_prescale_x           0
-hlsl_prescale_y           0
-hlsl_preset               -1
-hlsl_write                
-hlsl_snap_width           2048
-hlsl_snap_height          1536
-shadow_mask_alpha         0.0
-shadow_mask_texture       aperture.png
-shadow_mask_x_count       320
-shadow_mask_y_count       240
-shadow_mask_usize         0.09375
-shadow_mask_vsize         0.109375
-curvature                 0.0
-pincushion                0.0
-scanline_alpha            0.0
-scanline_size             1.0
-scanline_height           0.7
-scanline_bright_scale     1.0
-scanline_bright_offset    0.0
-scanline_jitter           0.0
-defocus                   0.0,0.0
-converge_x                0.0,0.0,0.0
-converge_y                0.0,0.0,0.0
-radial_converge_x         0.0,0.0,0.0
-radial_converge_y         0.0,0.0,0.0
-red_ratio                 1.0,0.0,0.0
-grn_ratio                 0.0,1.0,0.0
-blu_ratio                 0.0,0.0,1.0
-saturation                1.0
-offset                    0.0,0.0,0.0
-scale                     1.0,1.0,1.0
-power                     1.0,1.0,1.0
-floor                     0.0,0.0,0.0
-phosphor_life             0.0,0.0,0.0
-yiq_enable                0
-yiq_cc                    3.59754545
-yiq_a                     0.5
-yiq_b                     0.5
-yiq_o                     0.0
-yiq_p                     1.0
-yiq_n                     1.0
-yiq_y                     6.0
-yiq_i                     1.2
-yiq_q                     0.6
-yiq_scan_time             52.6
-yiq_phase_count           2
-
-#
-# PER-WINDOW VIDEO OPTIONS
+# OSD PER-WINDOW VIDEO OPTIONS
 #
 screen                    auto
 aspect                    auto
@@ -281,6 +221,128 @@ resolution3               auto
 view3                     auto
 
 #
+# OSD FULL SCREEN OPTIONS
+#
+switchres                 0
+
+#
+# OSD SOUND OPTIONS
+#
+sound                     auto
+audio_latency             1
+
+#
+# WINDOWS DEBUGGING OPTIONS
+#
+debugger_font             "Lucida Console"
+debugger_font_size        9
+
+#
+# WINDOWS PERFORMANCE OPTIONS
+#
+priority                  0
+profile                   0
+
+#
+# WINDOWS VIDEO OPTIONS
+#
+prescale                  1
+menu                      0
+
+#
+# DIRECTDRAW-SPECIFIC OPTIONS
+#
+hwstretch                 1
+
+#
+# DIRECT3D-SPECIFIC OPTIONS
+#
+filter                    0
+
+#
+# DIRECT3D POST-PROCESSING OPTIONS
+#
+hlsl_enable               0
+hlslpath                  ../hlsl
+hlsl_ini_read             0
+hlsl_ini_write            0
+hlslini                   %g
+# if it's too gpu intensive (it should not) try to reduce hlsl_prescale_x & y (minimum should be 1)
+hlsl_prescale_x           3
+hlsl_prescale_y           3
+hlsl_preset               -1
+hlsl_write               
+hlsl_snap_width           1280
+hlsl_snap_height          720
+shadow_mask_alpha         0.1
+shadow_mask_texture       aperture.png
+shadow_mask_x_count       320
+shadow_mask_y_count       240
+shadow_mask_usize         0.09375
+shadow_mask_vsize         0.109375
+curvature                 0.0
+pincushion                0.0
+scanline_alpha            1.0
+scanline_size             1.0
+scanline_height           1.0
+scanline_bright_scale     1.0
+scanline_bright_offset    0.0
+scanline_jitter           0.05
+defocus                   0.0,0.0
+converge_x                0.0,0.0,0.0
+converge_y                0.0,0.0,0.0
+radial_converge_x         0.0,0.0,0.0
+radial_converge_y         0.0,0.0,0.0
+red_ratio                 0.85,0.15,0.0
+grn_ratio                 -0.05,1.05,0.0
+blu_ratio                 -0.025,-0.025,1.05
+saturation                1.0
+offset                    -0.15,-0.16,-0.16
+scale                     1.15,1.16,1.16
+power                     1.1,0.95,0.8
+floor                     0.0,0.0,0.0
+phosphor_life             0.4,0.4,0.4
+
+#
+# NTSC POST-PROCESSING OPTIONS
+#
+yiq_enable                0
+yiq_cc                    3.59754545
+yiq_a                     0.5
+yiq_b                     0.5
+yiq_o                     1.570796325
+yiq_p                     1.0
+yiq_n                     1.0
+yiq_y                     6.0
+yiq_i                     1.2
+yiq_q                     0.6
+yiq_scan_time             52.6
+yiq_phase_count           2
+
+#
+# VECTOR POST-PROCESSING OPTIONS
+#
+vector_length_scale       0.8
+vector_length_ratio       500.0
+
+#
+# BLOOM POST-PROCESSING OPTIONS
+#
+vector_bloom_scale        0.3
+raster_bloom_scale        0.1
+bloom_lvl0_weight         1.0
+bloom_lvl1_weight         0.21
+bloom_lvl2_weight         0.19
+bloom_lvl3_weight         0.17
+bloom_lvl4_weight         0.15
+bloom_lvl5_weight         0.14
+bloom_lvl6_weight         0.13
+bloom_lvl7_weight         0.12
+bloom_lvl8_weight         0.11
+bloom_lvl9_weight         0.10
+bloom_lvl10_weight        0.09
+
+#
 # FULL SCREEN OPTIONS
 #
 triplebuffer              0
@@ -290,12 +352,6 @@ full_screen_contrast      1.0
 full_screen_gamma         1.0
 
 #
-# WINDOWS SOUND OPTIONS
-#
-audio_latency             2
-
-#
 # INPUT DEVICE OPTIONS
 #
-#hide_cursor               1
 dual_lightgun             0

@@ -13,7 +13,7 @@ artpath                   ../artwork
 ctrlrpath                 ../ctrlr
 inipath                   ../ini
 fontpath                  .
-cheatpath                 ../cheat
+cheatpath                 ../cheatpath/cheat
 crosshairpath             ../crosshair
 
 #
@@ -157,6 +157,7 @@ port                      5805
 selfport                  5805
 secondsbetweensync        30
 synctransferseconds       10
+basedelay                 16
 
 #
 # DEBUGGING OPTIONS
@@ -178,7 +179,7 @@ bench                     0
 video                     opengl
 numscreens                1
 window                    1
-maximize                  0
+maximize                  1
 keepaspect                1
 unevenstretch             0
 centerh                   1
@@ -253,7 +254,7 @@ useallheads               0
 #
 # SOUND OPTIONS
 #
-audio_latency             2
+audio_latency             1
 
 #
 # SDL KEYBOARD MAPPING
