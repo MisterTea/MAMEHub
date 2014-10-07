@@ -13,7 +13,7 @@ artpath                   ../artwork
 ctrlrpath                 ../ctrlr
 inipath                   ../ini
 fontpath                  .
-cheatpath                 ../cheat
+cheatpath                 ../cheatpath/cheat
 crosshairpath             ../crosshair
 
 #
