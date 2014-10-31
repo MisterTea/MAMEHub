@@ -47,7 +47,7 @@ sourceSets {
 repositories {
         
      maven { url "http://teleal.org/m2" }
-     maven { url "file:///Users/jgauci/github/MAMEHub/Sources/Client/repo" }
+     maven { url ("file://" + file("./repo").getAbsolutePath()) }
      maven { url "http://repo.maven.apache.org/maven2" }
 }
 dependencies {
