@@ -13,26 +13,26 @@ import org.eclipse.jetty.servlets.GzipFilter;
 public class ClientHttpServer {
 	private Thread httpServerThread;
 
-	public ClientHttpServer(int port) {
-		System.out.println("Creating server...");
-        final Server server = new Server(port);
- 
-        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.setContextPath("/");
-        server.setHandler(context);
-        
-        EnumSet<DispatcherType> all = EnumSet.of(DispatcherType.ASYNC, DispatcherType.ERROR, DispatcherType.FORWARD,
-                DispatcherType.INCLUDE, DispatcherType.REQUEST);
-	    FilterHolder gzipFilter = new FilterHolder(new GzipFilter());
-	    gzipFilter.setInitParameter("mimeTypes", "text/html,text/xml,text/plain,application/json,application/x-javascript,text/javascript,text/x-javascript,text/x-json");
-	    gzipFilter.setInitParameter("minGzipSize", "0");
-	    context.addFilter(gzipFilter, "/mamehubclient/*", all);
- 
-        context.addServlet(new ServletHolder(new MameHubClientServlet()),"/mamehubclient/*");
-
+	public ClientHttpServer(final int port) {
         httpServerThread = new Thread(new Runnable(){
 			@Override
 			public void run() {
+		        System.out.println("Creating server...");
+		        final Server server = new Server(port);
+		        
+		        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+		        context.setContextPath("/");
+		        server.setHandler(context);
+		        
+		        EnumSet<DispatcherType> all = EnumSet.of(DispatcherType.ASYNC, DispatcherType.ERROR, DispatcherType.FORWARD,
+		                DispatcherType.INCLUDE, DispatcherType.REQUEST);
+		        FilterHolder gzipFilter = new FilterHolder(new GzipFilter());
+		        gzipFilter.setInitParameter("mimeTypes", "text/html,text/xml,text/plain,application/json,application/x-javascript,text/javascript,text/x-javascript,text/x-json");
+		        gzipFilter.setInitParameter("minGzipSize", "0");
+		        context.addFilter(gzipFilter, "/mamehubclient/*", all);
+		 
+		        context.addServlet(new ServletHolder(new MameHubClientServlet()),"/mamehubclient/*");
+		        
 		        try {
 		        	System.out.println("Starting server");
 		        	server.start();

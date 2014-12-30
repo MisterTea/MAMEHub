@@ -1512,9 +1512,9 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 											playerName, chatPiece));
 						}
 					}
-					if (message.chat.contains(" " + rpcEngine.getMyself().name
+					if (message.chat.toLowerCase().contains(" " + rpcEngine.getMyself().name.toLowerCase()
 							+ " ")
-							|| message.chat.startsWith(rpcEngine.getMyself().name
+							|| message.chat.toLowerCase().startsWith(rpcEngine.getMyself().name.toLowerCase()
 									+ " ")) {
 						SoundEngine.instance.playSound("ding");
 					}
