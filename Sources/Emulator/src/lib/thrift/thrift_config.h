@@ -229,7 +229,7 @@
 /* #undef HAVE_SYS_WAIT_H */
 
 /* Define to 1 if you have the <unistd.h> header file. */
-/* #define HAVE_UNISTD_H 1 */
+#define HAVE_UNISTD_H 1
 
 /* Define to 1 if you have the `vfork' function. */
 /* #undef HAVE_VFORK */

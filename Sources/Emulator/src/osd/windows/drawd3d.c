@@ -19,6 +19,11 @@
 #include <windows.h>
 #include <tchar.h>
 #include <mmsystem.h>
+
+#ifdef __MINGW32__
+#include "specstrings.h"
+#endif
+
 #include <d3d9.h>
 #include <d3dx9.h>
 #include <math.h>

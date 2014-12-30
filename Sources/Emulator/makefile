@@ -181,6 +181,9 @@ PREFIX = cs
 # for details
 #-------------------------------------------------
 
+# uncomment for MXE builds
+# MXE = 1
+
 # uncomment next line to build a debug version
 # DEBUG = 1
 
@@ -327,7 +330,9 @@ endif
 EXE = 
 
 ifeq ($(TARGETOS),win32)
+ifndef MXE
 EXE = .exe
+endif
 endif
 ifeq ($(TARGETOS),os2)
 EXE = .exe
@@ -362,7 +367,7 @@ SUFFIXPROFILE =
 # Windows SDL builds get an SDL prefix
 ifeq ($(OSD),sdl)
 ifeq ($(TARGETOS),win32)
-#PREFIXSDL = sdl
+PREFIXSDL = sdl
 endif
 endif
 
@@ -397,8 +402,12 @@ endif
 FULLNAME ?= $(PREFIX)$(PREFIXSDL)$(NAME)$(SUFFIX)$(SUFFIX64)$(SUFFIXDEBUG)$(SUFFIXPROFILE)
 
 # add an EXE suffix to get the final emulator name
+ifndef MXE
 EMULATOR = $(FULLNAME)$(EXE)
-
+else
+# For MXE, add the exe manually
+EMULATOR = $(FULLNAME).exe
+endif
 
 
 #-------------------------------------------------
@@ -431,6 +440,11 @@ endif
 ifeq ($(TARGETOS),os2)
 DEFS = -DCRLF=3
 endif
+
+ifdef MXE
+DEFS += -DMXE
+endif
+
 #Define _USE_MATH_DEFINES for M_PI
 DEFS += -D_USE_MATH_DEFINES
 

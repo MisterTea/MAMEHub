@@ -9,6 +9,7 @@
 #include "mkvreader.hpp"
 
 #include <cassert>
+#include <stdio.h>
 
 namespace mkvparser
 {

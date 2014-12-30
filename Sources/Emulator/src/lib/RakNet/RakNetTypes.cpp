@@ -788,7 +788,7 @@ bool RakNetGUID::FromString(const char *source)
 
 
 
-#if   defined(WIN32)
+#if   defined(WIN32) && !defined(MXE)
 	g=_strtoui64(source, NULL, 10);
 
 

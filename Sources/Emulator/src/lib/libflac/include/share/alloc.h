@@ -28,6 +28,7 @@
  */
 
 #include <limits.h> /* for SIZE_MAX */
+#include <stdint.h> /* for SIZE_MAX in case limits.h didn't get it */
 #if !defined _MSC_VER && !defined __MINGW32__ && !defined __EMX__
 #include <stdint.h> /* for SIZE_MAX in case limits.h didn't get it */
 #endif

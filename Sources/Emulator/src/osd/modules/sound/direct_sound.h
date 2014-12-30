@@ -15,6 +15,10 @@
 #include <windows.h>
 #include <mmsystem.h>
 
+#ifdef __MINGW32__
+#include "specstrings.h"
+#endif
+
 // undef WINNT for dsound.h to prevent duplicate definition
 #undef WINNT
 #include <dsound.h>
