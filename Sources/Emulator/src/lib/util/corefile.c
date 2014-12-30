@@ -187,11 +187,28 @@ file_error core_fopen(const char *filename, UINT32 openflags, core_file **file)
 
 static file_error core_fopen_ram_internal(const void *data, size_t length, int copy_buffer, UINT32 openflags, core_file **file)
 {
+  if (openflags & OPEN_FLAG_CREATE) {
+    /* allocate the file itself */
+    *file = (core_file *)malloc(sizeof(**file));
+    if (*file == NULL)
+      return FILERR_OUT_OF_MEMORY;
+    memset(*file, 0, sizeof(**file));
+
+    // Create an initial buffer
+    (*file)->data = (unsigned char*)malloc(16*1024);
+    (*file)->length = 16*1024;
+    (*file)->openflags = openflags;
+    (*file)->data_allocated = TRUE;
+
+    return FILERR_NONE;
+  }
+
 	/* can only do this for read access */
 	if ((openflags & OPEN_FLAG_WRITE) != 0)
 		return FILERR_INVALID_ACCESS;
 	if ((openflags & OPEN_FLAG_CREATE) != 0)
 		return FILERR_INVALID_ACCESS;
+
 
 	/* allocate the file itself */
 	*file = (core_file *)malloc(sizeof(**file) + (copy_buffer ? length : 0));
@@ -811,9 +828,16 @@ UINT32 core_fwrite(core_file *file, const void *buffer, UINT32 length)
 {
 	UINT32 bytes_written = 0;
 
-	/* can't write to RAM-based stuff */
-	if (file->data != NULL)
-		return 0;
+  if (file->data != NULL && file->data_allocated) {
+    while (file->length <= file->offset+length) {
+      file->length += 16*1024;
+      file->data = (unsigned char*)realloc(file->data,file->length);
+    }
+    memcpy(file->data+file->offset,buffer,length);
+    file->offset += length;
+    return length;
+  }
+
 
 	/* flush any buffered char */
 	file->back_char_head = 0;

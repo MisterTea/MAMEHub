@@ -471,6 +471,7 @@ int running_machine::run(bool firstrun)
 				m_scheduler.timeslice();
       attotime timeAfter = time();
       bool timePassed = (timeBefore != timeAfter);
+      bool secondPassed = timeBefore.seconds != timeAfter.seconds;
       if (timeBefore != timeAfter) {
         m_machine_time += (timeAfter - timeBefore);
       }
@@ -585,6 +586,10 @@ int running_machine::run(bool firstrun)
       if (timePassed && m_saveload_schedule != SLS_NONE) {
 				handle_saveload();
       } else {
+        if(m_machine_time.seconds>0 && m_scheduler.can_save() && timePassed) {
+          immediate_save("test");
+          immediate_load("test");
+        }
       }
 
 			g_profiler.stop();
@@ -1064,8 +1069,19 @@ void running_machine::handle_saveload()
 		return;
 	}
 
+  static void *statePtr = NULL;
+  static int stateLength = 0;
+
 	// open the file
-	filerr = file.open(m_saveload_pending_file);
+  //filerr = file.open(m_saveload_pending_file);
+  //
+  if (m_saveload_schedule == SLS_LOAD) {
+    filerr = file.open_ram(statePtr,stateLength);
+  } else {
+    filerr = file.open_ram(NULL,0);
+  }
+  //
+  
 	if (filerr == FILERR_NONE)
 	{
 		// read/write the save state
@@ -1102,9 +1118,18 @@ void running_machine::handle_saveload()
 				break;
 		}
 
+    if (saverr == STATERR_NONE && m_saveload_schedule == SLS_SAVE) {
+      if (statePtr) free(statePtr);
+      stateLength = file.size();
+      statePtr = malloc(file.size());
+      file.seek(0,SEEK_SET);
+      file.read(statePtr,file.size());
+    }
+    
 		// close and perhaps delete the file
-		if (saverr != STATERR_NONE && m_saveload_schedule == SLS_SAVE)
+		if (saverr != STATERR_NONE && m_saveload_schedule == SLS_SAVE) {
 			file.remove_on_close();
+    }
 	}
 	else
 		popmessage("Error: Failed to open file for %s operation.", opname);
