@@ -1,6 +1,6 @@
 namespace * com.mamehub.thrift
 
-const i32 MAMEHUB_VERSION = 10
+const i32 MAMEHUB_VERSION = 11
 
 enum MR
 {
