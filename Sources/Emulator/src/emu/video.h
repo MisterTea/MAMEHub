@@ -96,6 +96,9 @@ public:
 	void end_recording(movie_format format);
 	void add_sound_to_recording(const INT16 *sound, int numsamples);
 
+  // Override time for rollback
+  void rollback(attotime rollbackAmount);
+
 private:
 	// internal helpers
 	void exit();

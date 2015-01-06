@@ -143,8 +143,8 @@ unsigned char GetPacketIdentifier(RakNet::Packet *p)
 
   if ((unsigned char)p->data[0] == ID_TIMESTAMP)
   {
-    assert(p->length > sizeof(unsigned char) + sizeof(RakNet::TimeMS));
-    return (unsigned char) p->data[sizeof(unsigned char) + sizeof(RakNet::TimeMS)];
+    assert(p->length > sizeof(unsigned char) + sizeof(RakNet::Time));
+    return (unsigned char) p->data[sizeof(unsigned char) + sizeof(RakNet::Time)];
   }
   else
     return (unsigned char) p->data[0];
@@ -157,8 +157,8 @@ unsigned char *GetPacketData(RakNet::Packet *p)
 
   if ((unsigned char)p->data[0] == ID_TIMESTAMP)
   {
-    assert(p->length > sizeof(unsigned char) + sizeof(RakNet::TimeMS));
-    return (unsigned char*) &(p->data[sizeof(unsigned char) + sizeof(RakNet::TimeMS)+1]);
+    assert(p->length > (2*sizeof(unsigned char)) + sizeof(RakNet::Time));
+    return (unsigned char*) &(p->data[(2*sizeof(unsigned char)) + sizeof(RakNet::Time)]);
   }
   else
   {
@@ -172,8 +172,8 @@ int GetPacketSize(RakNet::Packet *p)
 
   if ((unsigned char)p->data[0] == ID_TIMESTAMP)
   {
-    assert(p->length > sizeof(unsigned char) + sizeof(RakNet::TimeMS));
-    return int(p->length) - int(sizeof(unsigned char) + sizeof(RakNet::TimeMS));
+    assert(p->length > (2*sizeof(unsigned char)) + sizeof(RakNet::Time));
+    return int(p->length) - int((2*sizeof(unsigned char)) + sizeof(RakNet::Time));
   }
   else
   {
@@ -186,6 +186,8 @@ extern bool waitingForClientCatchup;
 extern int baseDelayFromPing;
 extern attotime mostRecentSentReport;
 int doCatchup=0;
+RakNet::RakNetGUID masterGuid;
+RakNet::Time largestPacketTime=0;
 
 bool Client::initializeConnection(unsigned short selfPort,const char *hostname,unsigned short port,running_machine *machine)
 {
@@ -228,6 +230,7 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
     return false;
   }
   RakNet::RakNetGUID guid = rakInterface->GetGuidFromSystemAddress(sa);
+  masterGuid = guid;
 
   {
     char buf[4096];
@@ -323,6 +326,8 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
       memcpy(&attosecs,dataPtr,sizeof(attosecs));
       dataPtr += sizeof(attosecs);
       nsm::Attotime startTime = newAttotime(secs,attosecs);
+      memcpy(&largestPacketTime,dataPtr,sizeof(RakNet::Time));
+      dataPtr += sizeof(RakNet::Time);
 
       char buf[4096];
       strcpy(buf,(char*)(dataPtr));
@@ -394,6 +399,17 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
     case ID_INPUTS:
     {
       if(initComplete) throw emu_fatalerror("GOT INPUT BEFORE INIT COMPLETE");
+      if (p->guid == masterGuid) {
+        // Inputs from server.  Record time if it's newer
+        RakNet::BitStream timeBS( (unsigned char*)&(p->data[1]), sizeof(RakNet::Time), false);
+        timeBS.EndianSwapBytes(0,sizeof(RakNet::Time));
+        RakNet::Time packetTime;
+        timeBS.Read(packetTime);
+        cout << "Got server time: " << packetTime << endl;
+        if (packetTime>largestPacketTime) {
+          largestPacketTime = packetTime;
+        }
+      }
       string s = doInflate(GetPacketData(p), GetPacketSize(p));
       PeerInputDataList inputDataList;
       inputDataList.ParseFromString(s);
@@ -805,6 +821,19 @@ bool Client::update(running_machine *machine)
       {
         throw std::runtime_error("GOT INPUTS FROM UNKNOWN PEER");
       }
+      if (p->data[0] != ID_TIMESTAMP) {
+        throw std::runtime_error("OLD VERSION OF MAMEHUB TRYING TO TALK TO NEW VERSION");
+      }
+      if (p->guid == masterGuid) {
+        // Inputs from server.  Record time if it's newer
+        RakNet::BitStream timeBS( (unsigned char*)&(p->data[1]), sizeof(RakNet::Time), false);
+        RakNet::Time packetTime;
+        timeBS.Read(packetTime);
+        if (packetTime>largestPacketTime) {
+          //cout << "GOT NEW PACKET TIME: " << packetTime << endl;
+          largestPacketTime = packetTime;
+        }
+      }
       string s = doInflate(GetPacketData(p), GetPacketSize(p));
       PeerInputDataList inputDataList;
       inputDataList.ParseFromString(s);
@@ -975,3 +1004,8 @@ int Client::getNumSessions()
 {
   return rakInterface->NumberOfConnections();
 }
+
+unsigned long long Client::getCurrentServerTime() {
+  return largestPacketTime + (rakInterface->GetLastPing(masterGuid)/2);
+}
+

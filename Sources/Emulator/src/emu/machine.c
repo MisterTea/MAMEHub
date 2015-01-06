@@ -72,6 +72,8 @@
 #include "NSM_Server.h"
 #include "NSM_Client.h"
 
+#include <boost/circular_buffer.hpp>
+
 #include "emu.h"
 #include "emuopts.h"
 #include "osdepend.h"
@@ -99,6 +101,7 @@ void js_set_main_loop(running_machine * machine);
 
 using namespace std;
 using namespace nsm;
+using boost::circular_buffer;
 
 //**************************************************************************
 //  GLOBAL VARIABLES
@@ -339,6 +342,7 @@ device_t &running_machine::add_dynamic_device(device_t &owner, device_type type,
 
 extern char CORE_SEARCH_PATH[4096];
 extern int doCatchup;
+bool catchingUp = false;
 
 //-------------------------------------------------
 //  run - execute the machine
@@ -455,6 +459,7 @@ int running_machine::run(bool firstrun)
 
 		// run the CPUs until a reset or exit
 		m_hard_reset_pending = false;
+    attotime largestEmulationTime(0,0);
 		while ((!m_hard_reset_pending && !m_exit_pending) || m_saveload_schedule != SLS_NONE)
 		{
       //printf("IN MAIN LOOP\n");
@@ -470,8 +475,14 @@ int running_machine::run(bool firstrun)
 			if (!m_paused)
 				m_scheduler.timeslice();
       attotime timeAfter = time();
+      if (timeAfter > largestEmulationTime) {
+        largestEmulationTime = timeAfter;
+        catchingUp = false;
+      }
       bool timePassed = (timeBefore != timeAfter);
       bool secondPassed = timeBefore.seconds != timeAfter.seconds;
+      bool tenthSecondPassed = secondPassed || ((timeBefore.attoseconds/(ATTOSECONDS_PER_SECOND/10ULL)) != (timeAfter.attoseconds/(ATTOSECONDS_PER_SECOND/10ULL)));
+      
       if (timeBefore != timeAfter) {
         m_machine_time += (timeAfter - timeBefore);
       }
@@ -512,7 +523,7 @@ int running_machine::run(bool firstrun)
           }
           else
           {
-            netServer->sync(this);
+            //netServer->sync(this);
             //nvram_save(*this);
             cout << "RAND/TIME AT SYNC: " << m_rand_seed << ' ' << time().seconds << '.' << time().attoseconds << endl;
           }
@@ -533,10 +544,10 @@ int running_machine::run(bool firstrun)
           else
           {
             //The client should update sync check just in case the server didn't have an anon timer
-            m_save.doPreSave();
-            netClient->updateSyncCheck();
+            //m_save.doPreSave();
+            //netClient->updateSyncCheck();
             cout << "RAND/TIME AT SYNC: " << m_rand_seed << ' ' << time().seconds << '.' << time().attoseconds << endl;
-            m_save.doPostLoad();
+            //m_save.doPostLoad();
           }
         }
 
@@ -586,9 +597,22 @@ int running_machine::run(bool firstrun)
       if (timePassed && m_saveload_schedule != SLS_NONE) {
 				handle_saveload();
       } else {
-        if(m_machine_time.seconds>0 && m_scheduler.can_save() && timePassed) {
+        if(m_machine_time.seconds>0 && m_scheduler.can_save() && tenthSecondPassed) {
+          cout << "Tenth second passed" << endl;
+          if (secondPassed) {
+            cout << "Second passed" << endl;
+          }
           immediate_save("test");
-          immediate_load("test");
+
+          static int biggestSecond=0;
+          if (time().seconds > biggestSecond) {
+            biggestSecond = time().seconds;
+            if (biggestSecond>10) {
+              cout << "Rolling back" << endl;
+              immediate_load("test");
+              catchingUp = true;
+            }
+          }
         }
       }
 
@@ -1044,8 +1068,16 @@ void running_machine::call_notifiers(machine_notification which)
 //  or load
 //-------------------------------------------------
 
+circular_buffer<pair<attotime, vector<unsigned char> > > states;
+
 void running_machine::handle_saveload()
 {
+  static int first=1;
+  if (first) {
+    first=0;
+    states.set_capacity(60*60);
+  }
+  
 	UINT32 openflags = (m_saveload_schedule == SLS_LOAD) ? OPEN_FLAG_READ : (OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
 	const char *opnamed = (m_saveload_schedule == SLS_LOAD) ? "loaded" : "saved";
 	const char *opname = (m_saveload_schedule == SLS_LOAD) ? "load" : "save";
@@ -1076,7 +1108,19 @@ void running_machine::handle_saveload()
   //filerr = file.open(m_saveload_pending_file);
   //
   if (m_saveload_schedule == SLS_LOAD) {
-    filerr = file.open_ram(statePtr,stateLength);
+    int skip=2;
+    for(circular_buffer<pair<attotime,vector<unsigned char> > >::reverse_iterator it = states.rbegin();
+        it != states.rend();
+        it++) {
+      if (skip) {
+        skip--;
+        continue;
+      }
+      cout << "Opening save file: " << it->first.seconds << "." << it->first.attoseconds << " < " << this->time().seconds << "." << this->time().attoseconds << endl;
+      vector<unsigned char> &v = it->second;
+      filerr = file.open_ram(&v[0],v.size());
+      break;
+    }
   } else {
     filerr = file.open_ram(NULL,0);
   }
@@ -1084,8 +1128,17 @@ void running_machine::handle_saveload()
   
 	if (filerr == FILERR_NONE)
 	{
+    attotime rollbackAmount = this->time();
 		// read/write the save state
+    if (m_saveload_schedule == SLS_LOAD) {
+      cout << "Time rolled back from " << this->time().seconds << "." << this->time().attoseconds;
+    }
 		save_error saverr = (m_saveload_schedule == SLS_LOAD) ? m_save.read_file(file) : m_save.write_file(file);
+    if (m_saveload_schedule == SLS_LOAD) {
+      cout << " to " << this->time().seconds << "." << this->time().attoseconds << endl;
+    }
+    rollbackAmount -= this->time();
+    m_machine_time -= rollbackAmount;
 
 		// handle the result
 		switch (saverr)
@@ -1119,12 +1172,28 @@ void running_machine::handle_saveload()
 		}
 
     if (saverr == STATERR_NONE && m_saveload_schedule == SLS_SAVE) {
-      if (statePtr) free(statePtr);
-      stateLength = file.size();
-      statePtr = malloc(file.size());
+      if (stateLength != file.size()) {
+        stateLength = file.size();
+        if (statePtr) statePtr = realloc(statePtr,stateLength);
+        else statePtr = malloc(file.size());
+      }
       file.seek(0,SEEK_SET);
       file.read(statePtr,file.size());
+      std::vector<unsigned char> v((unsigned char*)statePtr, ((unsigned char*)statePtr) + stateLength);
+      states.push_back(make_pair(this->time(),v));
     }
+
+    // Destroy any state saves after this point
+    if (saverr == STATERR_NONE && m_saveload_schedule == SLS_LOAD) {
+      while (states.back().first > this->time()) {
+        cout << "Destroying state at time " << states.back().first.seconds << "." << states.back().first.attoseconds << endl;
+        states.pop_back();
+        if (states.empty()) {
+          cout << "OOPS!  States is empty.  Crash coming" << endl;
+        }
+      }
+    }
+
     
 		// close and perhaps delete the file
 		if (saverr != STATERR_NONE && m_saveload_schedule == SLS_SAVE) {

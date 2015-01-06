@@ -205,6 +205,8 @@ extern bool waitingForClientCatchup;
 //  operations
 //-------------------------------------------------
 
+bool SKIP_OSD=false;
+
 void video_manager::frame_update(bool debug)
 {
 	// only render sound and video if we're in the running phase
@@ -232,14 +234,15 @@ void video_manager::frame_update(bool debug)
 	machine().ui().update_and_render(&machine().render().ui_container());
 
 	// if we're throttling, synchronize before rendering
+
 	attotime current_time = machine().machine_time();
 	//Don't throttle if you are a network client
-	if (!netClient && !debug && !skipped_it && effective_throttle())
+	if (!debug && !skipped_it && effective_throttle())
 		update_throttle(current_time);
 
 	// ask the OSD to update
 	g_profiler.start(PROFILER_BLIT);
-	machine().osd().update(!debug && skipped_it);
+	machine().osd().update(!debug && (skipped_it || SKIP_OSD));
 	g_profiler.stop();
 
 	machine().manager().lua()->periodic_check();
@@ -754,8 +757,11 @@ bool video_manager::finish_screen_updates()
 //  natural speed
 //-------------------------------------------------
 
+INT64 realtimeEmulationShift = 0;
+
 void video_manager::update_throttle(attotime emutime)
 {
+#if 0
 /*
 
    Throttling theory:
@@ -846,12 +852,12 @@ void video_manager::update_throttle(attotime emutime)
 
 		// if it has been more than a full second of real time since the last call to this
 		// function, we just need to resynchronize
-		if (diff_ticks >= ticks_per_second)
-		{
-			if (LOG_THROTTLE)
-				logerror("Resync due to real time advancing by more than 1 second\n");
-			break;
-		}
+		//if (diff_ticks >= ticks_per_second)
+		//{
+    //if (LOG_THROTTLE)
+    //logerror("Resync due to real time advancing by more than 1 second\n");
+    //break;
+		//}
 
 		// convert this value into attoseconds for easier comparison
 		attoseconds_t real_delta_attoseconds = diff_ticks * attoseconds_per_tick;
@@ -871,17 +877,21 @@ void video_manager::update_throttle(attotime emutime)
 
 		// if we're more than 1/10th of a second out, or if we are behind at all and emulation
 		// is taking longer than the real frame, we just need to resync
-		if (real_is_ahead_attoseconds < -ATTOSECONDS_PER_SECOND / 10 ||
-			(real_is_ahead_attoseconds < 0 && popcount[m_throttle_history & 0xff] < 6))
-		{
-			if (LOG_THROTTLE)
-				logerror("Resync due to being behind: %s (history=%08X)\n", attotime(0, -real_is_ahead_attoseconds).as_string(18), m_throttle_history);
-			break;
-		}
+		//if (real_is_ahead_attoseconds < -ATTOSECONDS_PER_SECOND / 10 ||
+    //(real_is_ahead_attoseconds < 0 && popcount[m_throttle_history & 0xff] < 6))
+		//{
+    //if (LOG_THROTTLE)
+    //logerror("Resync due to being behind: %s (history=%08X)\n", attotime(0, -real_is_ahead_attoseconds).as_string(18), m_throttle_history);
+    //break;
+		//}
 
 		// if we're behind, it's time to just get out
-		if (real_is_ahead_attoseconds < 0)
+		if (real_is_ahead_attoseconds < 0) {
+      cout << " We are behind real time by " << (-1*real_is_ahead_attoseconds/ATTOSECONDS_PER_MILLISECOND) << "ms" << endl;
 			return;
+    } else {
+      cout << " We are ahead real time by " << (real_is_ahead_attoseconds/ATTOSECONDS_PER_MILLISECOND) << "ms" << endl;
+    }
 
 		// compute the target real time, in ticks, where we want to be
 		osd_ticks_t target_ticks = m_throttle_last_ticks + real_is_ahead_attoseconds / attoseconds_per_tick;
@@ -897,8 +907,73 @@ void video_manager::update_throttle(attotime emutime)
 	if(!netServer) {
 	m_throttle_realtime = m_throttle_emutime = emutime;
 	}
+#endif
+
+  // For mamehub we need to do something different
+  const attoseconds_t attoseconds_per_tick = ATTOSECONDS_PER_SECOND / osd_ticks_per_second();
+  {
+    bool printed=false;
+
+    while(true) {
+      // Get current ticks
+      RakNet::Time curTime = RakNet::GetTimeMS();
+      if (netClient) {
+        curTime = netClient->getCurrentServerTime();
+      }
+      //cout << "Current time is: " << curTime << endl;
+      //osd_ticks_t currentTicks = osd_ticks() - realtimeEmulationShift;
+
+      // Convert ticks to emulation time
+      attotime expectedEmulationTime(
+        curTime/1000, // milliseconds to seconds
+        (curTime%1000)*ATTOSECONDS_PER_MILLISECOND); // milliseconds to attoseconds
+        //currentTicks/osd_ticks_per_second(),
+        //(currentTicks%osd_ticks_per_second())*attoseconds_per_tick);
+
+      if (expectedEmulationTime < emutime) {
+        if (!printed) {
+          printed=true;
+          cout << "We are caught up " << ((emutime - expectedEmulationTime).attoseconds/ATTOSECONDS_PER_MILLISECOND) << endl;
+        }
+        attotime tolerance(0,16*ATTOSECONDS_PER_MILLISECOND);
+        if ((emutime - expectedEmulationTime) < tolerance) {
+          //cout << "Returning " << ((emutime - expectedEmulationTime).attoseconds/ATTOSECONDS_PER_MILLISECOND) << endl;
+          return;
+        }
+
+        if (netClient) {
+          // Sleep for 15 ms and return
+          osd_sleep((osd_ticks_per_second()/1000)*15);
+          return;
+        } else {
+          // Sleep the processor and check again
+          osd_sleep(0);
+          continue;
+        }
+        
+      } else {
+        attotime diffTime = expectedEmulationTime - emutime;
+        
+        int msBehind = (diffTime.attoseconds/ATTOSECONDS_PER_MILLISECOND) + diffTime.seconds*1000;
+        
+        cout << "We are behind " << msBehind << endl;
+        if (msBehind > 16 && emutime.seconds>0) {
+          SKIP_OSD=true;
+        } else {
+          SKIP_OSD=false;
+        }
+        return;
+      }
+    }
+  }
 }
 
+void video_manager::rollback(attotime rollbackAmount) {
+  osd_ticks_t ticks_per_second = osd_ticks_per_second();
+  attoseconds_t attoseconds_per_tick = ATTOSECONDS_PER_SECOND / ticks_per_second * m_throttle_rate;
+  realtimeEmulationShift -= rollbackAmount.seconds*ticks_per_second;
+  realtimeEmulationShift -= rollbackAmount.attoseconds/attoseconds_per_tick;
+}
 
 //-------------------------------------------------
 //  throttle_until_ticks - spin until the

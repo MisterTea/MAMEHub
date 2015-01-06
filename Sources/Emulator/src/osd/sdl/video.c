@@ -663,6 +663,10 @@ static void extract_video_config(running_machine &machine)
 	video_config.centerh       = options.centerh();
 	video_config.centerv       = options.centerv();
 	video_config.waitvsync     = options.wait_vsync();
+  if (video_config.waitvsync) {
+    osd_printf_warning("MAMEHUB DOES NOT LIKE VSYNC");
+    exit(1);
+  }
 	video_config.syncrefresh   = options.sync_refresh();
 	if (!video_config.waitvsync && video_config.syncrefresh)
 	{

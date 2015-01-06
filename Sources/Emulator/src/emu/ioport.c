@@ -3374,10 +3374,10 @@ void ioport_manager::pollForDataAfter(int player, attotime curMachineTime) {
     {
       cout << "MISSING INPUT DATA FOR PLAYER " << player << " AT " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl;
       //throw emu_fatalerror("MISSING INPUT DATA FOR PLAYER");
+      osd_sleep(0);
       break;
     }
         
-    osd_sleep(0);
   }
 
   //if(printDebug)
