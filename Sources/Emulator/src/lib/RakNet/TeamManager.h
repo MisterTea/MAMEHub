@@ -1,3 +1,13 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 // TODO: optimize the list of teams and team members to be O(1). Store in hashes, use linked lists to get ordered traversal
 
 /// \file TeamManager.h
@@ -7,9 +17,7 @@
 /// Team members contain properties including which teams they are on and which teams they want to join if a team is not immediately joinable
 /// Advanced functionality includes the ability for a team member to be on multiple teams simultaneously, the ability to swap teams with other members, and the ability to resize the number of members supported per team
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 #include "NativeFeatureIncludes.h"
 #if _RAKNET_SUPPORT_TeamManager==1

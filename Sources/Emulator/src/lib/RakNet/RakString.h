@@ -1,3 +1,13 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #ifndef __RAK_STRING_H
 #define __RAK_STRING_H 
 
@@ -149,6 +159,9 @@ public:
 	void TerminateAtFirstCharacter(char c);
 	/// Set the last instance of c with a NULL terminator
 	void TerminateAtLastCharacter(char c);
+
+	void StartAfterFirstCharacter(char c);
+	void StartAfterLastCharacter(char c);
 
 	/// Returns how many occurances there are of \a c in the string
 	int GetCharacterCount(char c);

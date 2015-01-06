@@ -1,3 +1,13 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "RakNetSocket2.h"
 #include "RakMemoryOverride.h"
 #include "RakAssert.h"
@@ -425,8 +435,6 @@ void RNS2_Berkley::BlockOnStopRecvPollingThread(void)
 const RNS2_BerkleyBindParameters *RNS2_Berkley::GetBindings(void) const {return &binding;}
 RNS2Socket RNS2_Berkley::GetSocket(void) const {return rns2Socket;}
 // See RakNetSocket2_Berkley.cpp for WriteSharedIPV4, BindSharedIPV4And6 and other implementations
-
-
 
 
 

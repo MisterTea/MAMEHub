@@ -1,8 +1,16 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 
 #include "ReliabilityLayer.h"
@@ -727,12 +735,12 @@ bool ReliabilityLayer::HandleSocketReceiveFromConnectedPlayer(
 		}
 		for (i=0; i<incomingAcks.ranges.Size();i++)
 		{
-			if (incomingAcks.ranges[i].minIndex>incomingAcks.ranges[i].maxIndex)
+            if (incomingAcks.ranges[i].minIndex>incomingAcks.ranges[i].maxIndex || (incomingAcks.ranges[i].maxIndex == (uint24_t)(0xFFFFFFFF)))
 			{
 				RakAssert(incomingAcks.ranges[i].minIndex<=incomingAcks.ranges[i].maxIndex);
 
 				for (unsigned int messageHandlerIndex=0; messageHandlerIndex < messageHandlerList.Size(); messageHandlerIndex++)
-					messageHandlerList[messageHandlerIndex]->OnReliabilityLayerNotification("incomingAcks minIndex > maxIndex", BYTES_TO_BITS(length), systemAddress, true);
+					messageHandlerList[messageHandlerIndex]->OnReliabilityLayerNotification("incomingAcks minIndex > maxIndex or maxIndex is max value", BYTES_TO_BITS(length), systemAddress, true);
 				return false;
 			}
 			for (datagramNumber=incomingAcks.ranges[i].minIndex; datagramNumber >= incomingAcks.ranges[i].minIndex && datagramNumber <= incomingAcks.ranges[i].maxIndex; datagramNumber++)
@@ -3183,22 +3191,24 @@ InternalPacket * ReliabilityLayer::BuildPacketFromSplitPacketList( SplitPacketCh
 #else
 	unsigned int j;
 	InternalPacket * internalPacket, *splitPacket;
-	int splitPacketPartLength;
+	// int splitPacketPartLength;
 
 	// Reconstruct
 	internalPacket = CreateInternalPacketCopy( splitPacketChannel->splitPacketList[0], 0, 0, time );
 	internalPacket->dataBitLength=0;
 	for (j=0; j < splitPacketChannel->splitPacketList.Size(); j++)
 		internalPacket->dataBitLength+=splitPacketChannel->splitPacketList[j]->dataBitLength;
-	splitPacketPartLength=BITS_TO_BYTES(splitPacketChannel->firstPacket->dataBitLength);
+	// splitPacketPartLength=BITS_TO_BYTES(splitPacketChannel->firstPacket->dataBitLength);
 
 	internalPacket->data = (unsigned char*) rakMalloc_Ex( (size_t) BITS_TO_BYTES( internalPacket->dataBitLength ), _FILE_AND_LINE_ );
 	internalPacket->allocationScheme=InternalPacket::NORMAL;
 
+    BitSize_t offset = 0;
 	for (j=0; j < splitPacketChannel->splitPacketList.Size(); j++)
 	{
 		splitPacket=splitPacketChannel->splitPacketList[j];
-		memcpy(internalPacket->data+splitPacket->splitPacketIndex*splitPacketPartLength, splitPacket->data, (size_t) BITS_TO_BYTES(splitPacketChannel->splitPacketList[j]->dataBitLength));
+        memcpy(internalPacket->data + BITS_TO_BYTES(offset), splitPacket->data, (size_t)BITS_TO_BYTES(splitPacketChannel->splitPacketList[j]->dataBitLength));
+        offset += splitPacketChannel->splitPacketList[j]->dataBitLength;
 	}
 
 	for (j=0; j < splitPacketChannel->splitPacketList.Size(); j++)

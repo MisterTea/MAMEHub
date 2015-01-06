@@ -1,3 +1,13 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "NativeFeatureIncludes.h"
 #if _RAKNET_SUPPORT_NatPunchthroughClient==1
 
@@ -115,9 +125,9 @@ void NatPunchthroughClient::Update(void)
 		if (natPunchthroughDebugInterface)
 		{
 			natPunchthroughDebugInterface->OnClientMessage("CALCULATING_PORT_STRIDE timeout");
-			SendQueuedOpenNAT();
 		}
 
+		SendQueuedOpenNAT();
 		hasPortStride=UNKNOWN_PORT_STRIDE;
 	}
 
@@ -459,7 +469,7 @@ PluginReceiveResult NatPunchthroughClient::OnReceive(Packet *packet)
 				}
 			}
 		}
-		break;		
+		return RR_STOP_PROCESSING_AND_DEALLOCATE;	
 	case ID_OUT_OF_BAND_INTERNAL:
 		if (packet->length>=2 && packet->data[1]==ID_NAT_PONG)
 		{

@@ -1,7 +1,12 @@
-///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-/// Usage of RakNet is subject to the appropriate license agreement.
-///
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
 
 #ifndef __AUTOPATCHER_PATCH_CONTEXT_H
 #define __AUTOPATCHER_PATCH_CONTEXT_H

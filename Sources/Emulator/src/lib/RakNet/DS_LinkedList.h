@@ -1,10 +1,17 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file DS_LinkedList.h
 /// \internal
 /// \brief Straightforward linked list data structure.
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
 
 
 #ifndef __LINKED_LIST_H
@@ -29,7 +36,6 @@ namespace DataStructures
 	* \brief (Circular) Linked List ADT (Doubly Linked Pointer to Node Style) - 
 	* 
 	* \details
-	* By Kevin Jenkins (http://www.rakkar.org)
 	* Initilize with the following command
 	* LinkedList<TYPE>
 	* OR

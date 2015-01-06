@@ -1,10 +1,17 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file DS_OrderedChannelHeap.h
 /// \internal
 /// \brief Ordered Channel Heap .  This is a heap where you add to it on multiple ordered channels, with each channel having a different weight.
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
 
 
 #ifndef __RAKNET_ORDERED_CHANNEL_HEAP_H

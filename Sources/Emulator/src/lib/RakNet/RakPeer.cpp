@@ -1,9 +1,17 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 // \file
 //
-// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-//
-// Usage of RakNet is subject to the appropriate license agreement.
 
+#include <iostream>
 
 #define CAT_NEUTER_EXPORT /* Neuter dllimport for libcat */
 
@@ -3770,10 +3778,12 @@ void RakPeer::ShiftIncomingTimestamp( unsigned char *data, const SystemAddress &
 #endif
 
 	RakNet::BitStream timeBS( data, sizeof(RakNet::Time), false);
+  timeBS.EndianSwapBytes(0,sizeof(RakNet::Time));
 	RakNet::Time encodedTimestamp;
 	timeBS.Read(encodedTimestamp);
 
-	encodedTimestamp = encodedTimestamp - GetBestClockDifferential( systemAddress );
+  //JJG: For our purpose, we do not want the timestamp adjusted since we want everyone on the same time.
+	//encodedTimestamp = encodedTimestamp + GetBestClockDifferential( systemAddress );
 	timeBS.SetWriteOffset(0);
 	timeBS.Write(encodedTimestamp);
 }
@@ -4457,6 +4467,9 @@ union Buff6AndBuff8
 uint64_t RakPeerInterface::Get64BitUniqueRandomNumber(void)
 {
 	// Mac address is a poor solution because you can't have multiple connections from the same system
+
+
+
 
 
 
@@ -5912,7 +5925,7 @@ bool RakPeer::RunUpdateCycle(BitStream &updateBitStream )
 			// Ping this guy if it is time to do so
 			if ( remoteSystem->connectMode==RemoteSystemStruct::CONNECTED && timeMS > remoteSystem->nextPingTime && ( occasionalPing || remoteSystem->lowestPing == (unsigned short)-1 ) )
 			{
-        // JJG: Ping every second instead of every 5 seconds
+                // JJG: Ping every second instead of every 5 seconds
 				remoteSystem->nextPingTime = timeMS + 1000;
 				PingInternal( systemAddress, true, UNRELIABLE );
 
