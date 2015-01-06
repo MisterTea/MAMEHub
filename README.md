@@ -43,10 +43,10 @@ The MAMEHub Emulator is a fork of MAME that adds a fully-connected peer-to-peer 
 
 Building the MAMEHub Client
 ---------------------------
-The MAMEHub Client uses [Maven](http://maven.apache.org/).  To build the client, go to the Client/ directory and run this command in the client directory:
+The MAMEHub Client uses [Gradle](https://www.gradle.org/).  To build the client, first install [Thrift](https://thrift.apache.org/docs/install/), then go to the Client/ directory and run this command in the client directory:
 
-    mvn package
+    gradle solid
 
 Maven will automatically download the dependencies and build MAMEHub.  Then to run your client, run this command:
 
-    java -jar target/MAMEHubClient-0.0.1-SNAPSHOT.jar
+    java -jar solid/MAMEHubClient-0.0.1-SNAPSHOT.jar

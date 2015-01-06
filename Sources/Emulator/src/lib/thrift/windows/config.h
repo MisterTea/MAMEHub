@@ -85,7 +85,7 @@ typedef boost::uint8_t  uint8_t;
 typedef ptrdiff_t ssize_t;
 
 // Missing functions.
-#ifdef _MSC_VER
+#ifndef sleep
 #define usleep(ms) Sleep(ms)
 inline int sleep(DWORD ms)
 {
