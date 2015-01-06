@@ -1,3 +1,13 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "UDPForwarder.h"
 
 #if _RAKNET_SUPPORT_UDPForwarder==1
@@ -230,7 +240,7 @@ void UDPForwarder::RecvFrom(RakNet::TimeMS curTime, ForwardEntry *forwardEntry)
 #else
 		if (errno!=EAGAIN
 			&& errno!=0
-#if defined(__GNUC__) && !defined(WIN32)
+#if defined(__GNUC__)
 			&& errno!=EWOULDBLOCK
 #endif
 			)

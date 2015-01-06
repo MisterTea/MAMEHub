@@ -1,19 +1,16 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file HTTPConnection2.h
 /// \brief Contains HTTPConnection2, used to communicate with web servers
 ///
-/// This file is part of RakNet Copyright 2008 Kevin Jenkins.
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
-/// Creative Commons Licensees are subject to the
-/// license found at
-/// http://creativecommons.org/licenses/by-nc/2.5/
-/// Single application licensees are subject to the license found at
-/// http://www.jenkinssoftware.com/SingleApplicationLicense.html
-/// Custom license users are subject to the terms therein.
-/// GPL license users are subject to the GNU General Public
-/// License as published by the Free
-/// Software Foundation; either version 2 of the License, or (at your
-/// option) any later version.
 
 #include "NativeFeatureIncludes.h"
 #if _RAKNET_SUPPORT_HTTPConnection2==1 && _RAKNET_SUPPORT_TCPInterface==1
@@ -56,8 +53,9 @@ public:
 	/// \param[in] useSSL If to use SSL to connect. OPEN_SSL_CLIENT_SUPPORT must be defined to 1 in RakNetDefines.h or RakNetDefinesOverrides.h
 	/// \param[in] ipVersion 4 for IPV4, 6 for IPV6
 	/// \param[in] useAddress Assume we are connected to this address and send to it, rather than do a lookup
+	/// \param[in] userData
 	/// \return false if host is not a valid IP address or domain name
-	bool TransmitRequest(const char* stringToTransmit, const char* host, unsigned short port=80, bool useSSL=false, int ipVersion=4, SystemAddress useAddress=UNASSIGNED_SYSTEM_ADDRESS);
+	bool TransmitRequest(const char* stringToTransmit, const char* host, unsigned short port=80, bool useSSL=false, int ipVersion=4, SystemAddress useAddress=UNASSIGNED_SYSTEM_ADDRESS, void *userData=0);
 
 	/// \brief Check for and return a response from a prior call to TransmitRequest()
 	/// As TCP is stream based, you may get a webserver reply over several calls to TCPInterface::Receive()
@@ -68,7 +66,9 @@ public:
 	/// \param[out] responseReceived The response, if any
 	/// \param[out] hostReceived The SystemAddress from ProcessTCPPacket() or OnLostConnection()
 	/// \param[out] contentOffset The offset from the start of responseReceived to the data body. Equivalent to searching for \r\n\r\n in responseReceived.
+	/// \param[out] userData Whatever you passed to TransmitRequest
 	/// \return true if there was a response. false if not.
+	bool GetResponse( RakString &stringTransmitted, RakString &hostTransmitted, RakString &responseReceived, SystemAddress &hostReceived, int &contentOffset, void **userData );
 	bool GetResponse( RakString &stringTransmitted, RakString &hostTransmitted, RakString &responseReceived, SystemAddress &hostReceived, int &contentOffset );
 
 	/// \brief Return if any requests are pending
@@ -89,6 +89,7 @@ public:
 		int contentOffset;
 		int contentLength;
 		int ipVersion;
+		void *userData;
 		bool chunked;
 		size_t thisChunkSize;
 		size_t bytesReadForThisChunk;
