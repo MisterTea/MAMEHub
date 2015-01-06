@@ -3106,14 +3106,7 @@ g_profiler.start(PROFILER_INPUT);
 
   nsm::InputState inputState;
 	// loop over all input ports
-  vector<nsm::InputState*> remoteInputStates;
 
-  attotime curMachineTime = machine().machine_time();
-  if( curMachineTime > inputStartTime && netCommon) {
-    remoteInputStates = fetch_remote_inputs(curMachineTime);
-  }
-
-  int portIndex=0;
 	for (ioport_port *port = first_port(); port != NULL; port = port->next())
 	{
 		port->frame_update(mouse_field);
@@ -3124,10 +3117,70 @@ g_profiler.start(PROFILER_INPUT);
       store_local_port(*port, inputPort);
 
     }
+  }
+  
+  for(int a=0;a<MAX_PLAYERS;a++) {
+    if(netServer) {
+      if(a==0 || netServer->hasPeerWithID(a+1)==false) {
+        inputState.add_players(a);
+      }
+    } else if(netClient) {
+      if(a == netClient->getSelfPeerID()-1) {
+        inputState.add_players(a);
+      }
+    }
+  }
 
-    // handle playback
-		playback_port(*port);
+  attotime curMachineTime = machine().machine_time();
+  //cout << "AT TIME " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl;
+  
+  //cout << "MOST RECENT SENT REPORT " << mostRecentSentReport.seconds << "." << mostRecentSentReport.attoseconds << endl;
+  if(netCommon) {
+    // Calculate the time that the new inputs will take effect
+    int delayFromPing=40;
+    delayFromPing = max(delayFromPing,min(600,/*baseDelayFromPing +*/ netCommon->getLargestPing(curMachineTime.seconds)/2));
+    attoseconds_t attosecondsToLead = 0;//ATTOSECONDS_PER_MILLISECOND*delayFromPing;
+    attotime futureInputTime = curMachineTime + attotime(0,attosecondsToLead);
+    if (futureInputTime < inputStartTime) {
+      // Inputs before the input start time are not valid.
+    } else if(futureInputTime <= mostRecentSentReport) {
+      // We haven't caught up with the server yet, don't send.
+    } else if(futureInputTime < lastFutureInputTime) {
+      // This input would occur in the past, ignore it.
+    } else {
+      lastFutureInputTime = futureInputTime;
 
+      cout << "SENDING INPUTS AT TIME " << futureInputTime.seconds << "." << futureInputTime.attoseconds << endl;
+      nsm::Attotime nsmAttotime = attotimeToProto(futureInputTime);
+      netCommon->sendInputs(nsmAttotime, PeerInputData::INPUT, inputState);
+
+      // Process my own inputs immediately because we know they won't
+      // cause a rollback and we need to use them right away.
+      while(true) {
+        nsm::PeerInputData input = netCommon->popInput(netCommon->getSelfPeerID());
+        if (input.has_time()) {
+          machine().processNetworkBuffer(&input, netCommon->getSelfPeerID());
+        } else {
+          break;
+        }
+      }
+    }
+	}
+
+  vector<nsm::InputState*> remoteInputStates;
+
+  if( curMachineTime >= inputStartTime && netCommon) {
+    remoteInputStates = fetch_remote_inputs(curMachineTime);
+  }
+  
+  int portIndex=0;
+	for (ioport_port *port = first_port(); port != NULL; port = port->next())
+	{
+    if (!netCommon) {
+      // handle playback
+      playback_port(*port);
+    }
+    
     if(netCommon) {
       merge_ports(*port, remoteInputStates, portIndex);
     }
@@ -3144,134 +3197,19 @@ g_profiler.start(PROFILER_INPUT);
     portIndex++;
   }
 
-  for(int a=0;a<MAX_PLAYERS;a++) {
-    if(netServer) {
-      if(a==0 || netServer->hasPeerWithID(a+1)==false) {
-        inputState.add_players(a);
-      }
-    } else if(netClient) {
-      if(a == netClient->getSelfPeerID()-1) {
-        inputState.add_players(a);
-      }
-    }
-  }
-
-  //cout << "MOST RECENT SENT REPORT " << mostRecentSentReport.seconds << "." << mostRecentSentReport.attoseconds << endl;
-  if(netCommon) {
-    // Calculate the time that the new inputs will take effect
-    int delayFromPing=40;
-    delayFromPing = max(delayFromPing,min(600,/*baseDelayFromPing +*/ netCommon->getLargestPing(curMachineTime.seconds)/2));
-    attoseconds_t attosecondsToLead = ATTOSECONDS_PER_MILLISECOND*delayFromPing;
-    attotime futureInputTime = curMachineTime + attotime(0,attosecondsToLead);
-    if (futureInputTime < inputStartTime) {
-      // Inputs before the input start time are not valid.
-    } else if(futureInputTime <= mostRecentSentReport) {
-      // We haven't caught up with the server yet, don't send.
-    } else if(futureInputTime < lastFutureInputTime) {
-      // This input would occur in the past, ignore it.
-    } else {
-      if (lastFutureInputTime < inputStartTime) {
-        // Make sure that the first input is exactly on the input start time.
-        futureInputTime = inputStartTime;
-      }
-      lastFutureInputTime = futureInputTime;
-
-      //cout << "SENDING INPUTS AT TIME " << futureInputTime.seconds << "." << futureInputTime.attoseconds << endl;
-      nsm::Attotime nsmAttotime = attotimeToProto(futureInputTime);
-      netCommon->sendInputs(nsmAttotime, PeerInputData::INPUT, inputState);
-    }
-	}
-
 g_profiler.stop();
   //cout << "FINISHED UPDATING FRAME\n";
-}
-
-extern list< ChatLog > chatLogs;
-
-void ioport_manager::processNetworkBuffer(PeerInputData *inputData,int peerID)
-{
-  if(inputData != NULL)
-  {
-    if(inputData->inputtype() == PeerInputData::INPUT)
-    {
-      //printf("GOT INPUT\n");
-      attotime tmptime(inputData->time().seconds(), inputData->time().attoseconds());
-      for(int a=0;a<inputData->inputstate().players_size();a++) {
-        //int player = inputData->inputstate().players(a);
-        //cout << "Peer " << peerID << " has input for player " << inputData->inputstate().players(a) << " at time " << tmptime.seconds << "." << tmptime.attoseconds << endl;
-        circular_buffer<pair<attotime,InputState> > &onePlayerInputData = playerInputData[inputData->inputstate().players(a)];
-        if(onePlayerInputData.empty()) {
-          onePlayerInputData.insert(onePlayerInputData.begin(),pair<attotime,InputState>(tmptime,inputData->inputstate()));
-        } else {
-          for(circular_buffer<pair<attotime,InputState> >::reverse_iterator it = onePlayerInputData.rbegin();
-              it != onePlayerInputData.rend();
-              it++) {
-            //cout << "IN INPUT LOOP\n";
-            if(it->first < tmptime) {
-              onePlayerInputData.insert(
-                it.base(), // NOTE: base() returns the iterator 1 position in the past
-                pair<attotime,InputState>(tmptime,inputData->inputstate()));
-              break;
-            } else if(it->first == tmptime) {
-              //TODO: If two peers send inputs at the same time for the same player, break ties with peer id.
-              break;
-            } else if(it == onePlayerInputData.rend()) {
-              onePlayerInputData.insert(
-                onePlayerInputData.begin(),
-                pair<attotime,InputState>(tmptime,inputData->inputstate()));
-              break;
-            }
-          }
-        }
-      }
-    }
-    else if(inputData->inputtype() == PeerInputData::CHAT)
-    {
-      string buffer = inputData->inputbuffer();
-      cout << "GOT CHAT " << buffer << endl;
-      char buf[4096];
-      sprintf(buf,"%s: %s",netCommon->getPeerNameFromID(peerID).c_str(),buffer.c_str());
-      astring chatAString = astring(buf);
-      //Figure out the index of who spoke and send that
-      chatLogs.push_back(ChatLog(peerID,time(NULL),chatAString));
-    }
-    else if(inputData->inputtype() == PeerInputData::FORCE_VALUE)
-    {
-      const string &buffer = inputData->inputbuffer();
-      cout << "FORCING VALUE\n";
-      int blockIndex,memoryStart,memorySize,value;
-      unsigned char ramRegion,memoryMask;
-      memcpy(&ramRegion,&buffer[0]+1,sizeof(int));
-      memcpy(&blockIndex,&buffer[0]+2,sizeof(int));
-      memcpy(&memoryStart,&buffer[0]+6,sizeof(int));
-      memcpy(&memorySize,&buffer[0]+10,sizeof(int));
-      memcpy(&memoryMask,&buffer[0]+14,sizeof(unsigned char));
-      memcpy(&value,&buffer[0]+15,sizeof(int));
-      // New force
-      netCommon->forceLocation(BlockValueLocation(ramRegion,blockIndex,memoryStart,memorySize,memoryMask),value);
-      machine().ui().popup_time(3, "Server created new cheat");
-    }
-    else
-    {
-      printf("UNKNOWN INPUT BUFFER PACKET!!!\n");
-    }
-  }
-  else
-  {
-    //break;
-  }
 }
 
 bool waitingForClientCatchup = false;
 int framesSinceDelayCheck = 0;
 
-void ioport_manager::pollForPeerCatchup() {
-  attotime curMachineTime = machine().machine_time();
+void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
   bool thisIsBadFrame=false;
   bool gotStale = false;
   while(true) {
     static time_t realtime = time(NULL);
-    bool printDebug=false;
+    bool printDebug=true;
     if(printDebug || realtime != time(NULL))
     {
       printDebug=true;
@@ -3280,7 +3218,7 @@ void ioport_manager::pollForPeerCatchup() {
         
     pair<int,nsm::Attotime> peerTimeProtoPair = netCommon->getOldestPeerInputTime();
     pair<int,attotime> peerTimePair = pair<int,attotime>(peerTimeProtoPair.first,protoToAttotime(peerTimeProtoPair.second));
-    if(peerTimePair.first == -1 || peerTimePair.second > curMachineTime) {
+    if(peerTimePair.first == -1 || peerTimePair.second == curMachineTime) {
       if(waitingForClientCatchup) {
         waitingForClientCatchup=false;
         machine().osd().pauseAudio(false);
@@ -3312,7 +3250,7 @@ void ioport_manager::pollForPeerCatchup() {
         
     if(printDebug && !gotStale) {
       gotStale = true;
-      cout << "Peer " << peerTimePair.first << " is stale with last input at " << peerTimePair.second.seconds << "." << peerTimePair.second.attoseconds << endl;
+      cout << "Peer " << peerTimePair.first << " is stale with last input at " << peerTimePair.second.seconds << "." << peerTimePair.second.attoseconds << " (" << curMachineTime.seconds << "." << curMachineTime.attoseconds << ")" << endl;
     }
     if(peerTimePair.second.seconds+2 < curMachineTime.seconds) {
       waitingForClientCatchup=true;
@@ -3334,7 +3272,7 @@ void ioport_manager::pollForPeerCatchup() {
     PeerInputData peerInput = netCommon->popInput(peerTimePair.first);
         
     if (peerInput.has_time()) {
-      processNetworkBuffer(&peerInput, peerTimePair.first);
+      //processNetworkBuffer(&peerInput, peerTimePair.first);
     }
         
     osd_sleep(0);
@@ -3342,7 +3280,7 @@ void ioport_manager::pollForPeerCatchup() {
 }
 
 void ioport_manager::pollForDataAfter(int player, attotime curMachineTime) {
-  while(playerInputData[player].empty() || playerInputData[player].rbegin()->first <= curMachineTime) {
+  while(playerInputData[player].empty()) {
     static time_t realtime = time(NULL);
     bool printDebug=false;
     if(printDebug || realtime != time(NULL))
@@ -3365,7 +3303,7 @@ void ioport_manager::pollForDataAfter(int player, attotime curMachineTime) {
       PeerInputData peerInput = netCommon->popInput(peerID);
             
       if (peerInput.has_time()) {
-        processNetworkBuffer(&peerInput, peerID);
+        //processNetworkBuffer(&peerInput, peerID);
         gotInput=true;
       } 
     }
@@ -3388,13 +3326,13 @@ std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curMa
   vector<nsm::InputState*> retval;
     
   framesSinceDelayCheck++;
-  pollForPeerCatchup();
+  //pollForPeerCatchup(curMachineTime);
 
   for(int player=0;player<MAX_PLAYERS;player++) {
     // Poll for new player input data
 
     // Note we have to do this first or it will invalidate the iterators we assign further down
-    pollForDataAfter(player, curMachineTime);
+    //pollForDataAfter(player, curMachineTime);
   }
 
   for(int player=0;player<MAX_PLAYERS;player++) {
@@ -3407,19 +3345,11 @@ std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curMa
       {
         cout << "MISSING PLAYER INPUT IN THE PAST " << playerInputData[player].size() << endl;
         throw emu_fatalerror("OOPS: INVALID PLAYER INPUT");
+        //retval.push_back(NULL);
       }
       else if(it->first<=curMachineTime)
       {
-        if(it==itold)
-        {
-          //throw emu_fatalerror("OOPS");
-
-          // This can happen for a few frames after someone
-          // disconnects but before the server takes over.
-          retval.push_back(NULL);
-        } else {
-          retval.push_back(&(itold->second));
-        }
+        retval.push_back(&(it->second));
         break;
       } else {
         //cout << "GOT INPUT BUT TOO NEW: " << it->first.seconds << "." << it->first.attoseconds << " " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl; 

@@ -19,7 +19,9 @@
 
 #include <time.h>
 
-
+namespace nsm {
+  class PeerInputData;
+}
 
 //**************************************************************************
 //  CONSTANTS
@@ -197,6 +199,7 @@ public:
 	device_t &add_dynamic_device(device_t &owner, device_type type, const char *tag, UINT32 clock);
 
 	// immediate operations
+  void processNetworkBuffer(nsm::PeerInputData *inputData,int peerID);
 	int run(bool firstrun);
 	void pause();
 	void resume();
@@ -363,6 +366,9 @@ private:
 
   // strictly-increasing machine time
   attotime m_machine_time;
+
+  // Is this save/load a rollback?
+  bool isRollback;
 };
 
 

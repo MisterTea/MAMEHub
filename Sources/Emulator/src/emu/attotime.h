@@ -36,6 +36,7 @@
 #define __ATTOTIME_H__
 
 #include <math.h>
+#include <iostream>
 #undef min
 #undef max
 
@@ -401,5 +402,8 @@ inline attotime attotime::from_double(double _time)
 	return attotime(secs, attos);
 }
 
+inline std::ostream &operator<<(std::ostream &os, attotime const &t) { 
+    return os << t.seconds << '.' << t.attoseconds;
+}
 
 #endif  // __ATTOTIME_H__
