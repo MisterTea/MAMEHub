@@ -1,2 +1,3 @@
-scp csume www-data@10ghost.net:/var/www/MAMEHubDownloads/Emulators/Linux32/
-ssh www-data@10ghost.net gzip -f /var/www/MAMEHubDownloads/Emulators/Linux32/csume
+gzip --best -k csume
+scp csume.gz www-data@10ghost.net:/var/www/MAMEHubDownloads/Emulators/Linux32/csume_new.gz
+ssh www-data@10ghost.net mv /var/www/MAMEHubDownloads/Emulators/Linux32/csume_new.gz /var/www/MAMEHubDownloads/Emulators/Linux32/csume.gz
