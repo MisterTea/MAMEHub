@@ -206,7 +206,7 @@ save_error save_manager::check_file(running_machine &machine, emu_file &file, co
 	sig = machine.save().signature();
 
 	// seek to the beginning and read the header
-	//file.compress(FCOMPRESS_NONE);
+	file.compress(FCOMPRESS_NONE);
 	file.seek(0, SEEK_SET);
 	UINT8 header[HEADER_SIZE];
 	if (file.read(header, sizeof(header)) != sizeof(header))
@@ -239,12 +239,12 @@ save_error save_manager::read_file(emu_file &file)
 		return STATERR_ILLEGAL_REGISTRATIONS;
 
 	// read the header and turn on compression for the rest of the file
-	//file.compress(FCOMPRESS_NONE);
+	file.compress(FCOMPRESS_NONE);
 	file.seek(0, SEEK_SET);
 	UINT8 header[HEADER_SIZE];
 	if (file.read(header, sizeof(header)) != sizeof(header))
 		return STATERR_READ_ERROR;
-	//file.compress(FCOMPRESS_MEDIUM);
+	file.compress(FCOMPRESS_MEDIUM);
 
 	// verify the header and report an error if it doesn't match
   // JJG: Allow invalid headers
@@ -306,11 +306,11 @@ save_error save_manager::write_file(emu_file &file)
 	*(UINT32 *)&header[0x1c] = LITTLE_ENDIANIZE_INT32(sig);
 
 	// write the header and turn on compression for the rest of the file
-	//file.compress(FCOMPRESS_NONE);
+	file.compress(FCOMPRESS_NONE);
 	file.seek(0, SEEK_SET);
 	if (file.write(header, sizeof(header)) != sizeof(header))
 		return STATERR_WRITE_ERROR;
-	//file.compress(FCOMPRESS_MEDIUM);
+	file.compress(FCOMPRESS_MEDIUM);
 
 	// call the pre-save functions
 	for (state_callback *func = m_presave_list.first(); func != NULL; func = func->next())

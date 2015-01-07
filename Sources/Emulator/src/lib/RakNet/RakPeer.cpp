@@ -3782,8 +3782,7 @@ void RakPeer::ShiftIncomingTimestamp( unsigned char *data, const SystemAddress &
 	RakNet::Time encodedTimestamp;
 	timeBS.Read(encodedTimestamp);
 
-  //JJG: For our purpose, we do not want the timestamp adjusted since we want everyone on the same time.
-	//encodedTimestamp = encodedTimestamp + GetBestClockDifferential( systemAddress );
+	encodedTimestamp = encodedTimestamp + GetBestClockDifferential( systemAddress );
 	timeBS.SetWriteOffset(0);
 	timeBS.Write(encodedTimestamp);
 }

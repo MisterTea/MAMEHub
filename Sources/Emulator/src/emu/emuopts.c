@@ -181,6 +181,7 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_SECONDSBETWEENSYNC,               "30",         OPTION_INTEGER,    "Number of seconds to wait between syncs" },
 	{ OPTION_SYNCTRANSFERSECONDS,               "10",         OPTION_INTEGER,    "Number of seconds to spend transfering the sync" },
 	{ OPTION_BASEDELAY,               "16",         OPTION_INTEGER,    "Lowest amount to add to ping when doing ping estimation" },
+	{ OPTION_ROLLBACK,               "0",         OPTION_BOOLEAN,    "Enable rollback netplay (0-latency)" },
 
 	{ NULL }
 };

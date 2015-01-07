@@ -134,14 +134,14 @@ vector<boost::shared_ptr<MemoryBlock> > Client::createMemoryBlock(const std::str
 }
 
 // Copied from Multiplayer.cpp
-// If the first byte is ID_TIMESTAMP, then we want the 5th byte
+// If the first byte is ID_TIMESTAMP or ID_MAMEHUB_TIMESTAMP, then we want the 5th byte
 // Otherwise we want the 1st byte
 unsigned char GetPacketIdentifier(RakNet::Packet *p)
 {
   if (p==0)
     return 255;
 
-  if ((unsigned char)p->data[0] == ID_TIMESTAMP)
+  if ((unsigned char)p->data[0] == ID_TIMESTAMP || (unsigned char)p->data[0] == ID_MAMEHUB_TIMESTAMP)
   {
     assert(p->length > sizeof(unsigned char) + sizeof(RakNet::Time));
     return (unsigned char) p->data[sizeof(unsigned char) + sizeof(RakNet::Time)];
@@ -155,7 +155,7 @@ unsigned char *GetPacketData(RakNet::Packet *p)
   if (p==0)
     return 0;
 
-  if ((unsigned char)p->data[0] == ID_TIMESTAMP)
+  if ((unsigned char)p->data[0] == ID_TIMESTAMP || (unsigned char)p->data[0] == ID_MAMEHUB_TIMESTAMP)
   {
     assert(p->length > (2*sizeof(unsigned char)) + sizeof(RakNet::Time));
     return (unsigned char*) &(p->data[(2*sizeof(unsigned char)) + sizeof(RakNet::Time)]);
@@ -170,7 +170,7 @@ int GetPacketSize(RakNet::Packet *p)
   if (p==0)
     return 0;
 
-  if ((unsigned char)p->data[0] == ID_TIMESTAMP)
+  if ((unsigned char)p->data[0] == ID_TIMESTAMP || (unsigned char)p->data[0] == ID_MAMEHUB_TIMESTAMP)
   {
     assert(p->length > (2*sizeof(unsigned char)) + sizeof(RakNet::Time));
     return int(p->length) - int((2*sizeof(unsigned char)) + sizeof(RakNet::Time));
@@ -821,16 +821,17 @@ bool Client::update(running_machine *machine)
       {
         throw std::runtime_error("GOT INPUTS FROM UNKNOWN PEER");
       }
-      if (p->data[0] != ID_TIMESTAMP) {
+      if (p->data[0] != ID_MAMEHUB_TIMESTAMP) {
         throw std::runtime_error("OLD VERSION OF MAMEHUB TRYING TO TALK TO NEW VERSION");
       }
       if (p->guid == masterGuid) {
         // Inputs from server.  Record time if it's newer
         RakNet::BitStream timeBS( (unsigned char*)&(p->data[1]), sizeof(RakNet::Time), false);
         RakNet::Time packetTime;
+        timeBS.EndianSwapBytes(0,sizeof(RakNet::Time));
         timeBS.Read(packetTime);
         if (packetTime>largestPacketTime) {
-          //cout << "GOT NEW PACKET TIME: " << packetTime << endl;
+          cout << "GOT NEW PACKET TIME: " << packetTime << endl;
           largestPacketTime = packetTime;
         }
       }
@@ -1006,6 +1007,7 @@ int Client::getNumSessions()
 }
 
 unsigned long long Client::getCurrentServerTime() {
+  cout << "LAST PING: " << largestPacketTime << " " << (rakInterface->GetLastPing(masterGuid)/2) << endl;
   return largestPacketTime + (rakInterface->GetLastPing(masterGuid)/2);
 }
 

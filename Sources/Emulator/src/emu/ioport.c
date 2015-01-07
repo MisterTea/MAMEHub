@@ -3132,6 +3132,7 @@ g_profiler.start(PROFILER_INPUT);
   }
 
   attotime curMachineTime = machine().machine_time();
+  bool rollback = machine().options().rollback();
   //cout << "AT TIME " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl;
   
   //cout << "MOST RECENT SENT REPORT " << mostRecentSentReport.seconds << "." << mostRecentSentReport.attoseconds << endl;
@@ -3139,7 +3140,10 @@ g_profiler.start(PROFILER_INPUT);
     // Calculate the time that the new inputs will take effect
     int delayFromPing=40;
     delayFromPing = max(delayFromPing,min(600,/*baseDelayFromPing +*/ netCommon->getLargestPing(curMachineTime.seconds)/2));
-    attoseconds_t attosecondsToLead = 0;//ATTOSECONDS_PER_MILLISECOND*delayFromPing;
+    attoseconds_t attosecondsToLead = 0;
+    if (!rollback) {
+      attosecondsToLead = ATTOSECONDS_PER_MILLISECOND*delayFromPing;
+    }
     attotime futureInputTime = curMachineTime + attotime(0,attosecondsToLead);
     if (futureInputTime < inputStartTime) {
       // Inputs before the input start time are not valid.
@@ -3148,9 +3152,13 @@ g_profiler.start(PROFILER_INPUT);
     } else if(futureInputTime < lastFutureInputTime) {
       // This input would occur in the past, ignore it.
     } else {
+      if (!rollback && lastFutureInputTime < inputStartTime) {
+        // Make sure that the first input is exactly on the input start time.
+        futureInputTime = inputStartTime;
+      }
       lastFutureInputTime = futureInputTime;
 
-      cout << "SENDING INPUTS AT TIME " << futureInputTime.seconds << "." << futureInputTime.attoseconds << endl;
+      //cout << "SENDING INPUTS AT TIME " << futureInputTime.seconds << "." << futureInputTime.attoseconds << endl;
       nsm::Attotime nsmAttotime = attotimeToProto(futureInputTime);
       netCommon->sendInputs(nsmAttotime, PeerInputData::INPUT, inputState);
 
@@ -3197,7 +3205,7 @@ g_profiler.start(PROFILER_INPUT);
     portIndex++;
   }
 
-g_profiler.stop();
+  g_profiler.stop();
   //cout << "FINISHED UPDATING FRAME\n";
 }
 
@@ -3207,9 +3215,10 @@ int framesSinceDelayCheck = 0;
 void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
   bool thisIsBadFrame=false;
   bool gotStale = false;
+  bool rollback = machine().options().rollback();
   while(true) {
     static time_t realtime = time(NULL);
-    bool printDebug=true;
+    bool printDebug=false;
     if(printDebug || realtime != time(NULL))
     {
       printDebug=true;
@@ -3218,7 +3227,7 @@ void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
         
     pair<int,nsm::Attotime> peerTimeProtoPair = netCommon->getOldestPeerInputTime();
     pair<int,attotime> peerTimePair = pair<int,attotime>(peerTimeProtoPair.first,protoToAttotime(peerTimeProtoPair.second));
-    if(peerTimePair.first == -1 || peerTimePair.second == curMachineTime) {
+    if(peerTimePair.first == -1 || peerTimePair.second > curMachineTime) {
       if(waitingForClientCatchup) {
         waitingForClientCatchup=false;
         machine().osd().pauseAudio(false);
@@ -3272,7 +3281,7 @@ void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
     PeerInputData peerInput = netCommon->popInput(peerTimePair.first);
         
     if (peerInput.has_time()) {
-      //processNetworkBuffer(&peerInput, peerTimePair.first);
+      machine().processNetworkBuffer(&peerInput, peerTimePair.first);
     }
         
     osd_sleep(0);
@@ -3280,7 +3289,7 @@ void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
 }
 
 void ioport_manager::pollForDataAfter(int player, attotime curMachineTime) {
-  while(playerInputData[player].empty()) {
+  while(playerInputData[player].empty() || playerInputData[player].rbegin()->first <= curMachineTime) {
     static time_t realtime = time(NULL);
     bool printDebug=false;
     if(printDebug || realtime != time(NULL))
@@ -3303,7 +3312,7 @@ void ioport_manager::pollForDataAfter(int player, attotime curMachineTime) {
       PeerInputData peerInput = netCommon->popInput(peerID);
             
       if (peerInput.has_time()) {
-        //processNetworkBuffer(&peerInput, peerID);
+        machine().processNetworkBuffer(&peerInput, peerID);
         gotInput=true;
       } 
     }
@@ -3323,16 +3332,19 @@ void ioport_manager::pollForDataAfter(int player, attotime curMachineTime) {
 }
 
 std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curMachineTime) {
+  bool rollback = machine().options().rollback();
   vector<nsm::InputState*> retval;
     
   framesSinceDelayCheck++;
-  //pollForPeerCatchup(curMachineTime);
+  if (!rollback) {
+    pollForPeerCatchup(curMachineTime);
 
-  for(int player=0;player<MAX_PLAYERS;player++) {
-    // Poll for new player input data
+    for(int player=0;player<MAX_PLAYERS;player++) {
+      // Poll for new player input data
 
-    // Note we have to do this first or it will invalidate the iterators we assign further down
-    //pollForDataAfter(player, curMachineTime);
+      // Note we have to do this first or it will invalidate the iterators we assign further down
+      pollForDataAfter(player, curMachineTime);
+    }
   }
 
   for(int player=0;player<MAX_PLAYERS;player++) {
@@ -3345,11 +3357,23 @@ std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curMa
       {
         cout << "MISSING PLAYER INPUT IN THE PAST " << playerInputData[player].size() << endl;
         throw emu_fatalerror("OOPS: INVALID PLAYER INPUT");
-        //retval.push_back(NULL);
       }
       else if(it->first<=curMachineTime)
       {
-        retval.push_back(&(it->second));
+        if (rollback) {
+          retval.push_back(&(it->second));
+        } else {
+          if(it==itold)
+          {
+            //throw emu_fatalerror("OOPS");
+
+            // This can happen for a few frames after someone
+            // disconnects but before the server takes over.
+            retval.push_back(NULL);
+          } else {
+            retval.push_back(&(itold->second));
+          }
+        }
         break;
       } else {
         //cout << "GOT INPUT BUT TOO NEW: " << it->first.seconds << "." << it->first.attoseconds << " " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl; 

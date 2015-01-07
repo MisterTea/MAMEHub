@@ -371,33 +371,56 @@ void running_machine::processNetworkBuffer(PeerInputData *inputData,int peerID)
         if(onePlayerInputData.empty()) {
           onePlayerInputData.insert(onePlayerInputData.begin(),pair<attotime,InputState>(tmptime,inputData->inputstate()));
         } else {
-          circular_buffer<pair<attotime,InputState> >::reverse_iterator it = onePlayerInputData.rbegin();
-          // Check if the input states are equal.
-          std::string s1;
-          //cout << "First serialize\n";
-          inputData->inputstate().SerializeToString(&s1);
-          std::string s2;
-          //cout << "Second serialize\n";
-          it->second.SerializeToString(&s2);
-          if (s1 != s2) {
-            attotime currentMachineTime = machine_time();
-            if (currentMachineTime > tmptime) {
-              if (doRollback) {
-                if (rollbackTime > tmptime) {
-                  // Roll back further
+          //TODO: Re-think this and clean it up
+          if (options().rollback()) {
+            circular_buffer<pair<attotime,InputState> >::reverse_iterator it = onePlayerInputData.rbegin();
+            // Check if the input states are equal.
+            std::string s1;
+            //cout << "First serialize\n";
+            inputData->inputstate().SerializeToString(&s1);
+            std::string s2;
+            //cout << "Second serialize\n";
+            it->second.SerializeToString(&s2);
+            if (s1 != s2) {
+              attotime currentMachineTime = machine_time();
+              if (currentMachineTime > tmptime) {
+                if (doRollback) {
+                  if (rollbackTime > tmptime) {
+                    // Roll back further
+                    rollbackTime = tmptime;
+                    cout << "Rolling back further from " << currentMachineTime << " to " << tmptime;
+                  }
+                } else {
+                  // Roll back
+                  cout << "Rolling back from " << currentMachineTime << " to " << tmptime;
                   rollbackTime = tmptime;
-                  cout << "Rolling back further from " << currentMachineTime << " to " << tmptime;
+                  doRollback=true;
                 }
-              } else {
-                // Roll back
-                cout << "Rolling back from " << currentMachineTime << " to " << tmptime;
-                rollbackTime = tmptime;
-                doRollback=true;
+              }
+            }
+
+            onePlayerInputData.push_back(make_pair(tmptime,inputData->inputstate()));
+          } else { // no rollback
+            for(circular_buffer<pair<attotime,InputState> >::reverse_iterator it = onePlayerInputData.rbegin();
+                it != onePlayerInputData.rend();
+                it++) {
+              //cout << "IN INPUT LOOP\n";
+              if(it->first < tmptime) {
+                onePlayerInputData.insert(
+                  it.base(), // NOTE: base() returns the iterator 1 position in the past
+                  pair<attotime,InputState>(tmptime,inputData->inputstate()));
+                break;
+              } else if(it->first == tmptime) {
+                //TODO: If two peers send inputs at the same time for the same player, break ties with peer id.
+                break;
+              } else if(it == onePlayerInputData.rend()) {
+                onePlayerInputData.insert(
+                  onePlayerInputData.begin(),
+                  pair<attotime,InputState>(tmptime,inputData->inputstate()));
+                break;
               }
             }
           }
-
-          onePlayerInputData.push_back(make_pair(tmptime,inputData->inputstate()));
         }
       }
     }
@@ -625,6 +648,7 @@ int running_machine::run(bool firstrun)
           netServer &&
           lastSyncSecond != m_machine_time.seconds &&
           netServer->getSecondsBetweenSync()>0 &&
+          !options().rollback() && 
           (m_machine_time.seconds%netServer->getSecondsBetweenSync())==0
           )
         {
@@ -636,7 +660,7 @@ int running_machine::run(bool firstrun)
           }
           else
           {
-            //netServer->sync(this);
+            netServer->sync(this);
             //nvram_save(*this);
             cout << "RAND/TIME AT SYNC: " << m_rand_seed << ' ' << time().seconds << '.' << time().attoseconds << endl;
           }
@@ -646,6 +670,7 @@ int running_machine::run(bool firstrun)
           netClient &&
           lastSyncSecond != m_machine_time.seconds &&
           netClient->getSecondsBetweenSync()>0 &&
+          !options().rollback() && 
           (m_machine_time.seconds%netClient->getSecondsBetweenSync())==0
           )
         {
@@ -657,10 +682,10 @@ int running_machine::run(bool firstrun)
           else
           {
             //The client should update sync check just in case the server didn't have an anon timer
-            //m_save.doPreSave();
-            //netClient->updateSyncCheck();
+            m_save.doPreSave();
+            netClient->updateSyncCheck();
             cout << "RAND/TIME AT SYNC: " << m_rand_seed << ' ' << time().seconds << '.' << time().attoseconds << endl;
-            //m_save.doPostLoad();
+            m_save.doPostLoad();
           }
         }
 
@@ -709,7 +734,7 @@ int running_machine::run(bool firstrun)
 			// handle save/load
       if (timePassed && m_saveload_schedule != SLS_NONE) {
 				handle_saveload();
-      } else {
+      } else if (options().rollback()) {
         if(m_machine_time.seconds>0 && m_scheduler.can_save() && tenthSecondPassed) {
           cout << "Tenth second passed" << endl;
           if (secondPassed) {

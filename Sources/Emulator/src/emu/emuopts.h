@@ -182,6 +182,7 @@ enum
 #define OPTION_SECONDSBETWEENSYNC      "secondsbetweensync"
 #define OPTION_SYNCTRANSFERSECONDS     "synctransferseconds"
 #define OPTION_BASEDELAY               "basedelay"
+#define OPTION_ROLLBACK                "rollback"
 
 #define OPTION_HTTP                 "http"
 #define OPTION_HTTP_PORT            "http_port"
@@ -352,6 +353,7 @@ public:
 	int secondsBetweenSync() const { return int_value(OPTION_SECONDSBETWEENSYNC); }
 	int syncTransferSeconds() const { return int_value(OPTION_SYNCTRANSFERSECONDS); }
   int baseDelay() const { return int_value(OPTION_BASEDELAY); }
+  bool rollback() const { return bool_value(OPTION_ROLLBACK); }
 
 	bool http() const { return bool_value(OPTION_HTTP); }
 	const char *http_port() const { return value(OPTION_HTTP_PORT); }
