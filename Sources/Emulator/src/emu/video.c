@@ -765,6 +765,7 @@ void video_manager::update_throttle(attotime emutime)
   const attoseconds_t attoseconds_per_tick = ATTOSECONDS_PER_SECOND / osd_ticks_per_second();
   {
     bool printed=false;
+    SKIP_OSD=false;
 
     while(true) {
       // Get current ticks
@@ -811,8 +812,6 @@ void video_manager::update_throttle(attotime emutime)
         //cout << "We are behind " << msBehind << " " << curTime << endl;
         if (msBehind > 16 && emutime.seconds>0) {
           SKIP_OSD=true;
-        } else {
-          SKIP_OSD=false;
         }
         return;
       }

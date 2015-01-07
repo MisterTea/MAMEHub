@@ -831,7 +831,7 @@ bool Client::update(running_machine *machine)
         timeBS.EndianSwapBytes(0,sizeof(RakNet::Time));
         timeBS.Read(packetTime);
         if (packetTime>largestPacketTime) {
-          cout << "GOT NEW PACKET TIME: " << packetTime << endl;
+          //cout << "GOT NEW PACKET TIME: " << packetTime << endl;
           largestPacketTime = packetTime;
         }
       }
@@ -1007,7 +1007,7 @@ int Client::getNumSessions()
 }
 
 unsigned long long Client::getCurrentServerTime() {
-  cout << "LAST PING: " << largestPacketTime << " " << (rakInterface->GetLastPing(masterGuid)/2) << endl;
+  //cout << "LAST PING: " << largestPacketTime << " " << (rakInterface->GetLastPing(masterGuid)/2) << endl;
   return largestPacketTime + (rakInterface->GetLastPing(masterGuid)/2);
 }
 
