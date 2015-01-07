@@ -709,6 +709,8 @@ void Common::sendInputs(const nsm::Attotime &inputTime, PeerInputData::PeerInput
   sendInputs(peerInputData);
 }
 
+extern RakNet::Time emulationStartTime;
+
 void Common::sendInputs(const PeerInputData& peerInputData) {
   //cout << "SENDING INPUTS AT TIME " << peerInputData.time().seconds() << "." << peerInputData.time().attoseconds() << endl;
   //cout << "SELF PEER ID: " << selfPeerID << endl;
@@ -744,7 +746,7 @@ void Common::sendInputs(const PeerInputData& peerInputData) {
   sCompress[0] = ID_MAMEHUB_TIMESTAMP;
   RakNet::BitStream timeBS( (unsigned char*)&(sCompress[1]), sizeof(RakNet::Time), false);
   timeBS.SetWriteOffset(0);
-  RakNet::Time t = RakNet::GetTimeMS();
+  RakNet::Time t = RakNet::GetTimeMS() - emulationStartTime;
   timeBS.Write(t);
   timeBS.EndianSwapBytes(0,sizeof(RakNet::Time));
   memcpy(&sCompress[1],&t,sizeof(RakNet::Time));

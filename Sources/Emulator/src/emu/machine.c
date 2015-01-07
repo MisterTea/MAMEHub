@@ -461,6 +461,8 @@ void running_machine::processNetworkBuffer(PeerInputData *inputData,int peerID)
   }
 }
 
+RakNet::Time emulationStartTime=0;
+
 int running_machine::run(bool firstrun)
 {
   // JJG: Guarantee reproducability of floating point across architectures
@@ -570,6 +572,8 @@ int running_machine::run(bool firstrun)
 		soft_reset();
     printf("SOFT RESET FINISHED\n");
 
+    emulationStartTime = RakNet::GetTimeMS();
+    
 		// run the CPUs until a reset or exit
 		m_hard_reset_pending = false;
     attotime largestEmulationTime(0,0);

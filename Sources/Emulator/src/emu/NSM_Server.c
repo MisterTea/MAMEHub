@@ -143,6 +143,8 @@ void Server::shutdown()
   RakNet::RakPeerInterface::DestroyInstance(rakInterface);
 }
 
+extern RakNet::Time emulationStartTime;
+
 void Server::acceptPeer(RakNet::RakNetGUID guidToAccept,running_machine *machine)
 {
   cout << "ACCEPTED PEER " << guidToAccept.ToString() << endl;
@@ -232,7 +234,7 @@ void Server::acceptPeer(RakNet::RakNetGUID guidToAccept,running_machine *machine
   tmpbuf += sizeof(secs);
   memcpy(tmpbuf,&attosecs,sizeof(attosecs));
   tmpbuf += sizeof(attosecs);
-  RakNet::Time t = RakNet::GetTimeMS();
+  RakNet::Time t = RakNet::GetTimeMS() - emulationStartTime;
   memcpy(tmpbuf,&t,sizeof(RakNet::Time));
   tmpbuf += sizeof(RakNet::Time);
   strcpy(
@@ -988,7 +990,7 @@ void Server::popSyncQueue()
 {
   if(!syncReady)
     return;
-  long long curRealTime = RakNet::GetTimeMS();
+  long long curRealTime = RakNet::GetTimeMS() - emulationStartTime;
 
   //cout << "SYNC TIMES: " << (curRealTime/100) << " " << (lastSyncQueueMs/100) << endl;
   if (lastSyncQueueMs/100 == curRealTime/100) {

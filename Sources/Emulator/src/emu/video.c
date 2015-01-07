@@ -758,6 +758,7 @@ bool video_manager::finish_screen_updates()
 //-------------------------------------------------
 
 INT64 realtimeEmulationShift = 0;
+extern RakNet::Time emulationStartTime;
 
 void video_manager::update_throttle(attotime emutime)
 {
@@ -769,7 +770,7 @@ void video_manager::update_throttle(attotime emutime)
 
     while(true) {
       // Get current ticks
-      RakNet::Time curTime = RakNet::GetTimeMS();
+      RakNet::Time curTime = RakNet::GetTimeMS() - emulationStartTime;
       if (netClient) {
         curTime = netClient->getCurrentServerTime();
       }
