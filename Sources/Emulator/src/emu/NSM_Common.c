@@ -221,7 +221,7 @@ RakNet::SystemAddress Common::ConnectBlocking(const char *defaultAddress, unsign
   {
     for (packet=rakInterface->Receive(); packet; rakInterface->DeallocatePacket(packet), packet=rakInterface->Receive())
     {
-      unsigned char packetID = GetPacketIdentifier(p);
+      unsigned char packetID = GetPacketIdentifier(packet);
       cout << "GOT PACKET: " << int(packetID - ID_USER_PACKET_ENUM) << endl;
 
       if (packetID == ID_CONNECTION_REQUEST_ACCEPTED)
