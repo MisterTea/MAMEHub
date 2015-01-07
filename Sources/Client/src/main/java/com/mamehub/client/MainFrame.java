@@ -1710,7 +1710,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 									+ outputFile.getCanonicalPath().replace(
 											"/", "\\") + "\"");
 						} else {
-							java.awt.Desktop.getDesktop().edit(outputFile);
+						    try {
+						        java.awt.Desktop.getDesktop().edit(outputFile);
+						    } catch (UnsupportedOperationException uoe) {
+						    }
 						}
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
