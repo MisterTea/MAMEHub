@@ -221,21 +221,22 @@ RakNet::SystemAddress Common::ConnectBlocking(const char *defaultAddress, unsign
   {
     for (packet=rakInterface->Receive(); packet; rakInterface->DeallocatePacket(packet), packet=rakInterface->Receive())
     {
-      cout << "GOT PACKET: " << int(packet->data[0] - ID_USER_PACKET_ENUM) << endl;
+      unsigned char packetID = GetPacketIdentifier(p);
+      cout << "GOT PACKET: " << int(packetID - ID_USER_PACKET_ENUM) << endl;
 
-      if (packet->data[0]==ID_CONNECTION_REQUEST_ACCEPTED)
+      if (packetID == ID_CONNECTION_REQUEST_ACCEPTED)
       {
         printf("Connected!\n");
         return packet->systemAddress;
       }
-      else if(packet->data[0]==ID_INPUTS)
+      else if(packetID == ID_INPUTS)
       {
         string s = doInflate(GetPacketData(packet), GetPacketSize(packet));
         PeerInputDataList inputDataList;
         inputDataList.ParseFromString(s);
         receiveInputs(&inputDataList);
       }
-      else if(packet->data[0]== ID_BASE_DELAY)
+      else if(packetID == ID_BASE_DELAY)
       {
         cout << "Changing base delay from " << baseDelayFromPing;
         memcpy(&baseDelayFromPing,GetPacketData(packet),sizeof(int));
