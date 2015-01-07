@@ -8,6 +8,8 @@
 
 ***************************************************************************/
 
+#include "RakNet/GetTime.h"
+
 #include "emu.h"
 #include "chd.h"
 #include "emuopts.h"
@@ -125,6 +127,9 @@ cli_frontend::~cli_frontend()
 
 int cli_frontend::execute(int argc, char **argv)
 {
+  // Initialize raknet time.
+  RakNet::GetTime();
+  
 	// wrap the core execution in a try/catch to field all fatal errors
 	m_result = MAMERR_NONE;
 	try

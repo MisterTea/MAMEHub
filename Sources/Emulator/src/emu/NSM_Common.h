@@ -72,6 +72,7 @@ enum CustomPacketType
     ID_HOST_ACCEPTED,
     ID_SEND_PEER_ID,
     ID_CLIENT_INFO,
+    ID_MAMEHUB_TIMESTAMP,
     ID_END
   };
 

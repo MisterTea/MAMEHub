@@ -59,7 +59,9 @@ USE_DISPATCH_GL = 1
 # active development on sdlmame or SDL.
 
 # uncomment the next line to compile and link against SDL2.0
-# SDL_LIBVER = sdl2
+
+# JJG: MAMEHub requires SDL 2.0 to bypass vsync
+SDL_LIBVER = sdl2
 
 # uncomment the next line to use couriersud's multi-keyboard patch for SDL 2.1? (this API was removed prior to the 2.0 release)
 # SDL2_MULTIAPI = 1
@@ -486,10 +488,10 @@ else
 
 # files (header files are #include "SDL/something.h", so the extra "/SDL"
 # causes a significant problem)
-INCPATH += `sdl-config --cflags | sed 's:/SDL::'`
+INCPATH += `$(SDL_CONFIG) --cflags | sed 's/SDL2 / /g'`
 CCOMFLAGS += -DNO_SDL_GLEXT
 # Remove libSDLmain, as its symbols conflict with SDLMain_tmpl.m
-LIBS += `sdl-config --static-libs | sed 's/-lSDLmain//'` -lpthread -framework OpenGL
+LIBS += `$(SDL_CONFIG) --static-libs | sed 's/-lSDL2main//'` -lpthread -framework OpenGL
 DEFS += -DMACOSX_USE_LIBSDL
 endif   # MACOSX_USE_LIBSDL
 
@@ -633,8 +635,8 @@ endif   # Win32
 
 ifeq ($(BASE_TARGETOS),os2)
 
-INCPATH += `sdl-config --cflags`
-LIBS += `sdl-config --static-libs` -lpthread
+INCPATH += `$(SDL_CONFIG) --cflags`
+LIBS += `$(SDL_CONFIG) --static-libs` -lpthread
 
 endif # OS2
 

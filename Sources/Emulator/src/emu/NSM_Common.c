@@ -154,7 +154,7 @@ MemoryBlock::~MemoryBlock() {
 extern volatile bool memoryBlocksLocked;
 
 // Copied from Multiplayer.cpp
-// If the first byte is ID_TIMESTAMP, then we want the 5th byte
+// If the first byte is ID_TIMESTAMP or ID_MAMEHUB_TIMESTAMP, then we want the 5th byte
 // Otherwise we want the 1st byte
 extern unsigned char GetPacketIdentifier(RakNet::Packet *p);
 extern unsigned char *GetPacketData(RakNet::Packet *p);
@@ -740,16 +740,23 @@ void Common::sendInputs(const PeerInputData& peerInputData) {
   string sNoHeader;
   peerInputDataList.AppendToString(&sNoHeader);
 
-  string sCompress(sNoHeader.length()*2, 0);
-  sCompress[0] = ID_INPUTS;
+  string sCompress(sNoHeader.length()*2 + 128, 0);
+  sCompress[0] = ID_MAMEHUB_TIMESTAMP;
+  RakNet::BitStream timeBS( (unsigned char*)&(sCompress[1]), sizeof(RakNet::Time), false);
+  timeBS.SetWriteOffset(0);
+  RakNet::Time t = RakNet::GetTimeMS();
+  timeBS.Write(t);
+  timeBS.EndianSwapBytes(0,sizeof(RakNet::Time));
+  memcpy(&sCompress[1],&t,sizeof(RakNet::Time));
+  sCompress[1+sizeof(RakNet::Time)] = ID_INPUTS;
   deflateReset(&outputStream);
 
   outputStream.avail_in = sNoHeader.length();
   outputStream.next_in = (Bytef*)sNoHeader.c_str();
-  outputStream.avail_out = sCompress.length() - 1;
-  outputStream.next_out = (Bytef*)&(sCompress[1]);
+  outputStream.avail_out = sCompress.length() - (2+sizeof(RakNet::Time));
+  outputStream.next_out = (Bytef*)&(sCompress[2+sizeof(RakNet::Time)]);
   while(outputStream.avail_in>0) {
-    if (deflate(&outputStream, Z_FINISH) == Z_STREAM_ERROR) {
+    if (deflate(&outputStream, Z_FINISH) != Z_STREAM_END) {
       printf("ZLIB ERROR\n");
       exit(1);
     }
@@ -760,7 +767,7 @@ void Common::sendInputs(const PeerInputData& peerInputData) {
   }
   int bytesUsed = sCompress.length() - outputStream.avail_out;
 
-  //cout << "SENDING INPUT PACKET OF SIZE: " << sNoHeader.length() << " (compresses to " << bytesUsed << ")" << endl;
+  //cout << "SENDING INPUT PACKET OF SIZE: " << sNoHeader.length() << " (compresses to " << bytesUsed << ") AT TIME " << t << endl;
 
   rakInterface->Send(
     sCompress.c_str(),

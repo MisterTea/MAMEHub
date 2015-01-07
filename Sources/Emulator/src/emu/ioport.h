@@ -1399,9 +1399,8 @@ public:
 	ioport_type token_to_input_type(const char *string, int &player) const;
 	const char *input_type_to_token(astring &string, ioport_type type, int player);
 
-  void processNetworkBuffer(nsm::PeerInputData *inputData,int peerID);
   void pollForDataAfter(int player, attotime curtime);
-  void pollForPeerCatchup();
+  void pollForPeerCatchup(attotime curMachineTime);
   std::vector<nsm::InputState*> fetch_remote_inputs(attotime curtime);
   void store_local_port(ioport_port &port, nsm::InputPort *inputPort);
   void merge_ports(ioport_port &port, const std::vector<nsm::InputState*> &remoteInputStates, int portIndex);

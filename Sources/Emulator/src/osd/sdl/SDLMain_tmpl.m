@@ -285,6 +285,7 @@ static void CustomApplicationMain (int argc, char **argv)
     return TRUE;
 }
 
+int RunApp(int argc, char *argv[]);
 
 /* Called when the internal event loop has just started running */
 - (void) applicationDidFinishLaunching: (NSNotification *) note
@@ -301,7 +302,7 @@ static void CustomApplicationMain (int argc, char **argv)
 
     /* Hand off to main application code */
     gCalledAppMainline = TRUE;
-    status = SDL_main (gArgc, gArgv);
+    status = RunApp(gArgc, gArgv);
 
     /* We're done, thank you for playing */
     exit(status);
@@ -356,7 +357,7 @@ static void CustomApplicationMain (int argc, char **argv)
 
 
 /* Main entry point to executable - should *not* be SDL_main! */
-int main (int argc, char **argv)
+int RunApp(int argc, char *argv[])
 {
     /* Copy the arguments into a global variable */
     /* This is passed if we are launched by double-clicking */

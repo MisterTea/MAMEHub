@@ -60,4 +60,5 @@ class Client : public Common
 
   int getNumSessions();
 
+  unsigned long long getCurrentServerTime();
 };

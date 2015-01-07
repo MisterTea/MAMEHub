@@ -428,6 +428,10 @@ void emu_file::close()
 
 file_error emu_file::compress(int level)
 {
+  if (m_filename == "RAM") {
+    // Silently ignore compress requests for ramfiles.
+    return FILERR_NONE;
+  }
 	return core_fcompress(m_file, level);
 }
 

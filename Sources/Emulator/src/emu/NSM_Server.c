@@ -66,7 +66,7 @@ void deleteGlobalServer()
 }
 
 // Copied from Multiplayer.cpp
-// If the first byte is ID_TIMESTAMP, then we want the 5th byte
+// If the first byte is ID_TIMESTAMP or ID_MAMEHUB_TIMESTAMP, then we want the 5th byte
 // Otherwise we want the 1st byte
 extern unsigned char GetPacketIdentifier(RakNet::Packet *p);
 extern unsigned char *GetPacketData(RakNet::Packet *p);
@@ -155,7 +155,7 @@ void Server::acceptPeer(RakNet::RakNetGUID guidToAccept,running_machine *machine
 
   //Accept this host
   acceptedPeers.push_back(guidToAccept);
-  char buf[4096];
+  char buf[16*4096];
   buf[0] = ID_HOST_ACCEPTED;
   int assignID=-1;
   for(
@@ -232,6 +232,9 @@ void Server::acceptPeer(RakNet::RakNetGUID guidToAccept,running_machine *machine
   tmpbuf += sizeof(secs);
   memcpy(tmpbuf,&attosecs,sizeof(attosecs));
   tmpbuf += sizeof(attosecs);
+  RakNet::Time t = RakNet::GetTimeMS();
+  memcpy(tmpbuf,&t,sizeof(RakNet::Time));
+  tmpbuf += sizeof(RakNet::Time);
   strcpy(
     (char*)tmpbuf,
     peerData[assignID].name.c_str()
@@ -507,7 +510,7 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
       );
     machine->ui().update_and_render(&machine->render().ui_container());
     machine->osd().update(false);
-    RakSleep(10);
+    RakSleep(0);
   }
   {
     RakNet::BitStream bitStreamPart(packetSize+32);
@@ -524,7 +527,7 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
       );
     machine->ui().update_and_render(&machine->render().ui_container());
     machine->osd().update(false);
-    RakSleep(10);
+    RakSleep(0);
   }
 
   cout << "FINISHED SENDING BLOCKS TO CLIENT\n";
