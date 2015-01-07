@@ -8,6 +8,8 @@
  *
  */
 
+#include "RakNetTypes.h"
+
 #include "NativeFeatureIncludes.h"
 #if _RAKNET_SUPPORT_TwoWayAuthentication==1
 

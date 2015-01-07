@@ -229,7 +229,9 @@
 /* #undef HAVE_SYS_WAIT_H */
 
 /* Define to 1 if you have the <unistd.h> header file. */
+#ifdef MXE
 #define HAVE_UNISTD_H 1
+#endif
 
 /* Define to 1 if you have the `vfork' function. */
 /* #undef HAVE_VFORK */
