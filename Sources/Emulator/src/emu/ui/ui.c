@@ -467,7 +467,7 @@ void ui_manager::update_and_render(render_container *container)
 		set_handler(handler_ingame, 0);
 
 	//attotime curtime = machine().time();
-	if(waitingForClientCatchup && false)
+	if(waitingForClientCatchup && !machine().options().rollback())
 	{
         char buf[4096];
         sprintf(buf,"A new client is joining, please wait...");

@@ -785,7 +785,7 @@ void video_manager::update_throttle(attotime emutime)
       if (expectedEmulationTime < emutime) {
         if (!printed) {
           printed=true;
-          cout << "We are caught up " << ((emutime - expectedEmulationTime).attoseconds/ATTOSECONDS_PER_MILLISECOND) << endl;
+          //cout << "We are caught up " << ((emutime - expectedEmulationTime).attoseconds/ATTOSECONDS_PER_MILLISECOND) << endl;
         }
         attotime tolerance(0,16*ATTOSECONDS_PER_MILLISECOND);
         if ((emutime - expectedEmulationTime) < tolerance) {
@@ -808,7 +808,7 @@ void video_manager::update_throttle(attotime emutime)
         
         int msBehind = (diffTime.attoseconds/ATTOSECONDS_PER_MILLISECOND) + diffTime.seconds*1000;
         
-        cout << "We are behind " << msBehind << " " << curTime << endl;
+        //cout << "We are behind " << msBehind << " " << curTime << endl;
         if (msBehind > 16 && emutime.seconds>0) {
           SKIP_OSD=true;
         } else {
