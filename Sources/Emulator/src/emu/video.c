@@ -810,8 +810,12 @@ void video_manager::update_throttle(attotime emutime)
         
         int msBehind = (diffTime.attoseconds/ATTOSECONDS_PER_MILLISECOND) + diffTime.seconds*1000;
         
-        //cout << "We are behind " << msBehind << " " << curTime << endl;
-        if (msBehind > 16 && emutime.seconds>0) {
+        if (msBehind > 100 && emutime.seconds>0) {
+          static int lastSecondBehind = 0;
+          if (lastSecondBehind < emutime.seconds) {
+            cout << "We are behind " << msBehind << "ms.  Skipping video." << endl;
+            lastSecondBehind = emutime.seconds;
+          }
           SKIP_OSD=true;
         }
         return;
