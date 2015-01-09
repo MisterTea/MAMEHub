@@ -127,6 +127,14 @@ cli_frontend::~cli_frontend()
 
 int cli_frontend::execute(int argc, char **argv)
 {
+  // JJG: Guarantee reproducability of floating point across architectures
+#ifdef _MSC_VER
+  _controlfp(_PC_24, _MCW_PC);
+#ifdef WIN32
+  _controlfp(_RC_NEAR, _MCW_RC);
+#endif
+#endif
+
   // Initialize raknet time.
   RakNet::GetTime();
   

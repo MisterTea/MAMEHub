@@ -465,14 +465,6 @@ RakNet::Time emulationStartTime=0;
 
 int running_machine::run(bool firstrun)
 {
-  // JJG: Guarantee reproducability of floating point across architectures
-#ifdef _MSC_VER
-  _controlfp(_PC_24, _MCW_PC);
-#ifdef WIN32
-  _controlfp(_RC_NEAR, _MCW_RC);
-#endif
-#endif
-
   //JJG: Add media path to mess search path
   strcpy(CORE_SEARCH_PATH,options().media_path());
 

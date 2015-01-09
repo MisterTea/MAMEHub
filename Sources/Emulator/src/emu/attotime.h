@@ -37,6 +37,7 @@
 
 #include <math.h>
 #include <iostream>
+#include <cstdio>
 #undef min
 #undef max
 
@@ -115,7 +116,36 @@ public:
 	static attotime from_msec(INT64 msec) { return attotime(msec / 1000, (msec % 1000) * (ATTOSECONDS_PER_SECOND / 1000)); }
 	static attotime from_usec(INT64 usec) { return attotime(usec / 1000000, (usec % 1000000) * (ATTOSECONDS_PER_SECOND / 1000000)); }
 	static attotime from_nsec(INT64 nsec) { return attotime(nsec / 1000000000, (nsec % 1000000000) * (ATTOSECONDS_PER_SECOND / 1000000000)); }
-	static attotime from_hz(double frequency) { assert(frequency > 0); double d = 1 / frequency; return attotime(floor(d), modf(d, &d) * ATTOSECONDS_PER_SECOND); }
+	static attotime from_hz(INT64 frequency) {
+    if (frequency < 1) {
+      printf("UH O, GOT A BAD FREQUENCY: %d\n",(int)frequency);
+    }
+    assert(frequency >= 1);
+
+    return attotime(0, ATTOSECONDS_PER_SECOND / frequency);
+  }
+	static attotime from_hz(INT32 frequency) {
+    if (frequency < 1) {
+      printf("UH O, GOT A BAD FREQUENCY: %d\n",frequency);
+    }
+    assert(frequency >= 1);
+
+    return attotime(0, ATTOSECONDS_PER_SECOND / frequency);
+  }
+	static attotime from_hz(UINT32 frequency) {
+    if (frequency < 1) {
+      printf("UH O, GOT A BAD FREQUENCY: %u\n",frequency);
+    }
+    assert(frequency >= 1);
+
+    return attotime(0, ATTOSECONDS_PER_SECOND / frequency);
+  }
+  static attotime from_hz(double frequency) {
+    printf("UH O, GOT A BAD FREQUENCY.  CHECKSUM ERROR MIGHT HAPPEN: %lf\n",frequency);
+    assert(frequency >= 1);
+
+    return attotime(0, ATTOSECONDS_PER_SECOND / frequency);
+  }
 
 	// math
 	attotime &operator+=(const attotime &right);
