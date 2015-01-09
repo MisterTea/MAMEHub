@@ -372,7 +372,7 @@ void running_machine::processNetworkBuffer(PeerInputData *inputData,int peerID)
           onePlayerInputData.insert(onePlayerInputData.begin(),pair<attotime,InputState>(tmptime,inputData->inputstate()));
         } else {
           //TODO: Re-think this and clean it up
-          if (options().rollback()) {
+          if (netCommon->isRollback()) {
             circular_buffer<pair<attotime,InputState> >::reverse_iterator it = onePlayerInputData.rbegin();
             // Check if the input states are equal.
             std::string s1;
@@ -644,7 +644,7 @@ int running_machine::run(bool firstrun)
           netServer &&
           lastSyncSecond != m_machine_time.seconds &&
           netServer->getSecondsBetweenSync()>0 &&
-          !options().rollback() && 
+          !netCommon->isRollback() && 
           (m_machine_time.seconds%netServer->getSecondsBetweenSync())==0
           )
         {
@@ -666,7 +666,7 @@ int running_machine::run(bool firstrun)
           netClient &&
           lastSyncSecond != m_machine_time.seconds &&
           netClient->getSecondsBetweenSync()>0 &&
-          !options().rollback() && 
+          !netCommon->isRollback() && 
           (m_machine_time.seconds%netClient->getSecondsBetweenSync())==0
           )
         {
@@ -730,7 +730,7 @@ int running_machine::run(bool firstrun)
 			// handle save/load
       if (timePassed && m_saveload_schedule != SLS_NONE) {
 				handle_saveload();
-      } else if (options().rollback()) {
+      } else if (netCommon->isRollback()) {
         if(m_machine_time.seconds>0 && m_scheduler.can_save() && tenthSecondPassed) {
           cout << "Tenth second passed" << endl;
           if (secondPassed) {
@@ -1217,16 +1217,10 @@ void running_machine::call_notifiers(machine_notification which)
 //  or load
 //-------------------------------------------------
 
-circular_buffer<pair<attotime, vector<unsigned char> > > states;
+circular_buffer<pair<attotime, vector<unsigned char> > > states(20);
 
 void running_machine::handle_saveload()
 {
-  static int first=1;
-  if (first) {
-    first=0;
-    states.set_capacity(60*60);
-  }
-  
 	UINT32 openflags = (m_saveload_schedule == SLS_LOAD) ? OPEN_FLAG_READ : (OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
 	const char *opnamed = (m_saveload_schedule == SLS_LOAD) ? "loaded" : "saved";
 	const char *opname = (m_saveload_schedule == SLS_LOAD) ? "load" : "save";
@@ -1258,16 +1252,22 @@ void running_machine::handle_saveload()
   filerr = file.open(m_saveload_pending_file);
   } else {
   if (m_saveload_schedule == SLS_LOAD) {
+    bool foundState = false;
     for(circular_buffer<pair<attotime,vector<unsigned char> > >::reverse_iterator it = states.rbegin();
         it != states.rend();
         it++) {
       if (it->first >= rollbackTime) {
         continue;
       }
+      foundState = true;
       cout << "Opening save file: " << it->first.seconds << "." << it->first.attoseconds << " < " << this->time().seconds << "." << this->time().attoseconds << endl;
       vector<unsigned char> &v = it->second;
       filerr = file.open_ram(&v[0],v.size());
       break;
+    }
+    if (!foundState) {
+      cout << "ERROR: COULD NOT FIND ROLLBACK STATE FOR TIME " << rollbackTime << " " << machine_time() << endl;
+      exit(1);
     }
   } else {
     filerr = file.open_ram(NULL,0);

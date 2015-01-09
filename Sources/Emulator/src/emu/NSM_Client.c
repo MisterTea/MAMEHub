@@ -326,6 +326,11 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
       memcpy(&attosecs,dataPtr,sizeof(attosecs));
       dataPtr += sizeof(attosecs);
       nsm::Attotime startTime = newAttotime(secs,attosecs);
+
+      memcpy(&rollback,dataPtr,sizeof(bool));
+      dataPtr += sizeof(bool);
+      cout << "ROLLBACK " << (rollback?"ENABLED":"DISABLED") << endl;
+      
       memcpy(&largestPacketTime,dataPtr,sizeof(RakNet::Time));
       dataPtr += sizeof(RakNet::Time);
 

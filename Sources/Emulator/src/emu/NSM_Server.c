@@ -48,10 +48,11 @@ using namespace google::protobuf::io;
 
 Server *netServer=NULL;
 
-Server *createGlobalServer(string _username,unsigned short _port, int _unmeasuredNoise)
+Server *createGlobalServer(string _username,unsigned short _port, int _unmeasuredNoise,
+  bool _rollback)
 {
   cout << "Creating server on port " << _port << endl;
-  netServer = new Server(_username,_port,_unmeasuredNoise);
+  netServer = new Server(_username,_port,_unmeasuredNoise, _rollback);
   netCommon = netServer;
   return netServer;
 }
@@ -108,7 +109,7 @@ void MameHubServerProcessor::stop() {
   server_->stop();
 }
 
-Server::Server(string username,int _port,int _unmeasuredNoise)
+Server::Server(string username,int _port,int _unmeasuredNoise, bool _rollback)
   :
   Common(username,_unmeasuredNoise),
   syncOverride(false),
@@ -116,6 +117,10 @@ Server::Server(string username,int _port,int _unmeasuredNoise)
   maxPeerID(10),
   blockNewClients(false),
   mameHubServerProcessor(_port + 1) {
+
+  rollback = _rollback;
+  cout << "ROLLBACK " << (rollback?"ENABLED":"DISABLED") << endl;
+
   syncReady = false;
   rakInterface = RakNet::RakPeerInterface::GetInstance();
 
@@ -234,9 +239,14 @@ void Server::acceptPeer(RakNet::RakNetGUID guidToAccept,running_machine *machine
   tmpbuf += sizeof(secs);
   memcpy(tmpbuf,&attosecs,sizeof(attosecs));
   tmpbuf += sizeof(attosecs);
+
+  memcpy(tmpbuf,&rollback,sizeof(bool));
+  tmpbuf += sizeof(bool);
+  
   RakNet::Time t = RakNet::GetTimeMS() - emulationStartTime;
   memcpy(tmpbuf,&t,sizeof(RakNet::Time));
-  tmpbuf += sizeof(RakNet::Time);
+  tmpbuf += sizeof(RakNet::Time);  
+  
   strcpy(
     (char*)tmpbuf,
     peerData[assignID].name.c_str()

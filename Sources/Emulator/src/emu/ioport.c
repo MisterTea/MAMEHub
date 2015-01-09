@@ -3132,7 +3132,7 @@ g_profiler.start(PROFILER_INPUT);
   }
 
   attotime curMachineTime = machine().machine_time();
-  bool rollback = machine().options().rollback();
+  bool rollback = netCommon->isRollback();
   //cout << "AT TIME " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl;
   
   //cout << "MOST RECENT SENT REPORT " << mostRecentSentReport.seconds << "." << mostRecentSentReport.attoseconds << endl;
@@ -3215,7 +3215,7 @@ int framesSinceDelayCheck = 0;
 void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
   bool thisIsBadFrame=false;
   bool gotStale = false;
-  bool rollback = machine().options().rollback();
+  bool rollback = netCommon->isRollback();
   while(true) {
     static time_t realtime = time(NULL);
     bool printDebug=false;
@@ -3332,7 +3332,7 @@ void ioport_manager::pollForDataAfter(int player, attotime curMachineTime) {
 }
 
 std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curMachineTime) {
-  bool rollback = machine().options().rollback();
+  bool rollback = netCommon->isRollback();
   vector<nsm::InputState*> retval;
     
   framesSinceDelayCheck++;
