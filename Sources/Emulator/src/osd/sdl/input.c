@@ -1749,6 +1749,7 @@ void sdlinput_poll(running_machine &machine)
 			/* more caps-lock hack */
 			event.type = SDL_KEYDOWN;
 		}
+    SDL_Keycode sym;
 		switch(event.type) {
 		case SDL_KEYDOWN:
 #ifdef SDL2_MULTIAPI
@@ -1759,7 +1760,10 @@ void sdlinput_poll(running_machine &machine)
 #endif
 			devinfo->keyboard.state[OSD_SDL_INDEX_KEYSYM(&event.key.keysym)] = 0x80;
 //#if (!SDLMAME_SDL2)
-			ui_input_push_char_event(machine, sdl_window_list->target, (unicode_char) event.key.keysym.sym);
+      sym = event.key.keysym.sym;
+      if (sym == SDLK_RETURN || sym == SDLK_BACKSPACE) {
+        ui_input_push_char_event(machine, sdl_window_list->target, (unicode_char) event.key.keysym.sym);
+      }
 //#endif
 			break;
 		case SDL_KEYUP:
@@ -1945,9 +1949,6 @@ void sdlinput_poll(running_machine &machine)
 			break;
 #else
 		case SDL_TEXTINPUT:
-      // JJG: SDL_TEXTINPUT doesn't support backspace/enter so don't
-      // bother using it.
-      /*
 			if (*event.text.text)
 			{
 				sdl_window_info *window = GET_FOCUS_WINDOW(&event.text);
@@ -1958,7 +1959,6 @@ void sdlinput_poll(running_machine &machine)
 					ui_input_push_char_event(machine, window->target, result);
 				}
 			}
-      */
 			break;
 		case SDL_WINDOWEVENT:
 		{
