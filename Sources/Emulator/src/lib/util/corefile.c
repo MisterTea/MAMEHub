@@ -185,6 +185,9 @@ file_error core_fopen(const char *filename, UINT32 openflags, core_file **file)
     and return an error code
 -------------------------------------------------*/
 
+unsigned char* ram_save_buffer = NULL;
+int ram_save_size = 16*1024*1024;
+
 static file_error core_fopen_ram_internal(const void *data, size_t length, int copy_buffer, UINT32 openflags, core_file **file)
 {
   if (openflags & OPEN_FLAG_CREATE) {
@@ -195,10 +198,13 @@ static file_error core_fopen_ram_internal(const void *data, size_t length, int c
     memset(*file, 0, sizeof(**file));
 
     // Create an initial buffer
-    (*file)->data = (unsigned char*)malloc(16*1024);
-    (*file)->length = 16*1024;
+    if (ram_save_buffer == NULL) {
+      ram_save_buffer = (unsigned char*)malloc(ram_save_size);
+    }
+    (*file)->data = ram_save_buffer;
+    (*file)->length = ram_save_size;
     (*file)->openflags = openflags;
-    (*file)->data_allocated = TRUE;
+    (*file)->data_allocated = FALSE;
 
     return FILERR_NONE;
   }
@@ -828,11 +834,19 @@ UINT32 core_fwrite(core_file *file, const void *buffer, UINT32 length)
 {
 	UINT32 bytes_written = 0;
 
-  if (file->data != NULL && file->data_allocated) {
+  if (file->data != NULL) {
     while (file->length <= file->offset+length) {
+      printf("Expanding buffer\n");
       file->length += 16*1024;
+      ram_save_size += file->length;
+
       file->data = (unsigned char*)realloc(file->data,file->length);
+      if (!(file->data)) {
+	printf("UH O!  COULD NOT ALLOCATE FILE OF SIZE: %d\n",(int)file->length);
+      }
+      ram_save_buffer = file->data;
     }
+    //printf("Writing to buffer %d %d\n",int(file->data),int(file->offset));
     memcpy(file->data+file->offset,buffer,length);
     file->offset += length;
     return length;
