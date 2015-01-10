@@ -37,7 +37,7 @@ public class Utils {
   private static ClientDatabaseEngine auditDatabaseEngine;
   private static ClientDatabaseEngine applicationDatabaseEngine;
 
-  public static final int AUDIT_DATABASE_VERSION = 21;
+  public static final int AUDIT_DATABASE_VERSION = 22;
   public static final int APPLICATION_DATABASE_VERSION = 9;
 
   private static PlayerProfile playerProfile = null;
@@ -332,7 +332,7 @@ public class Utils {
     if (Utils.class.getResource("Utils.class").toString().contains("jar")) {
       return new File("../hash");
     } else {
-      return new File("../Emulator/hash");
+      return new File("../../Binaries/hash");
     }
   }
 }
