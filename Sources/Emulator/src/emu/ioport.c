@@ -3132,11 +3132,11 @@ g_profiler.start(PROFILER_INPUT);
   }
 
   attotime curMachineTime = machine().machine_time();
-  bool rollback = netCommon->isRollback();
   //cout << "AT TIME " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl;
   
   //cout << "MOST RECENT SENT REPORT " << mostRecentSentReport.seconds << "." << mostRecentSentReport.attoseconds << endl;
   if(netCommon) {
+    bool rollback = netCommon->isRollback();
     // Calculate the time that the new inputs will take effect
     int delayFromPing=40;
     delayFromPing = max(delayFromPing,min(600,/*baseDelayFromPing +*/ netCommon->getLargestPing(curMachineTime.seconds)/2));
