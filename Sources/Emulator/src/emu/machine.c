@@ -1217,7 +1217,9 @@ void running_machine::call_notifiers(machine_notification which)
 //  or load
 //-------------------------------------------------
 
-circular_buffer<pair<attotime, vector<unsigned char> > > states(50);
+const int MAX_STATES = 50;
+pair<attotime, vector<unsigned char> > states[MAX_STATES];
+int onState = 0;
 
 void running_machine::handle_saveload()
 {
@@ -1252,23 +1254,30 @@ void running_machine::handle_saveload()
   filerr = file.open(m_saveload_pending_file);
   } else {
   if (m_saveload_schedule == SLS_LOAD) {
-    bool foundState = false;
-    for(circular_buffer<pair<attotime,vector<unsigned char> > >::reverse_iterator it = states.rbegin();
-        it != states.rend();
-        it++) {
-      if (it->first >= rollbackTime) {
+    int bestState = -1;
+    for (int a=0;a<MAX_STATES;a++) {
+      attotime stateTime = states[a].first;
+      if (stateTime.seconds == 0 && stateTime.attoseconds == 0) {
+        // Empty state
         continue;
       }
-      foundState = true;
-      cout << "Opening save file: " << it->first.seconds << "." << it->first.attoseconds << " < " << this->time().seconds << "." << this->time().attoseconds << endl;
-      vector<unsigned char> &v = it->second;
-      filerr = file.open_ram(&v[0],v.size());
-      break;
+      if (stateTime >= rollbackTime) {
+        // State in the future
+        continue;
+      }
+      if (bestState != -1 && states[bestState].first > stateTime) {
+        // We already found a better state
+        continue;
+      }
+      bestState = a;
     }
-    if (!foundState) {
+    if (bestState == -1) {
       cout << "ERROR: COULD NOT FIND ROLLBACK STATE FOR TIME " << rollbackTime << " " << machine_time() << endl;
       exit(1);
     }
+    cout << "Opening save file: " << states[bestState].first.seconds << "." << states[bestState].first.attoseconds << " < " << this->time().seconds << "." << this->time().attoseconds << endl;
+    vector<unsigned char> &v = states[bestState].second;
+    filerr = file.open_ram(&v[0],v.size());
   } else {
     filerr = file.open_ram(NULL,0);
   }
@@ -1322,28 +1331,33 @@ void running_machine::handle_saveload()
 		}
 
     if (isRollback) {
-    if (saverr == STATERR_NONE && m_saveload_schedule == SLS_SAVE) {
-      if (stateLength != file.size()) {
-        stateLength = file.size();
-        if (statePtr) statePtr = realloc(statePtr,stateLength);
-        else statePtr = malloc(file.size());
+      if (saverr == STATERR_NONE && m_saveload_schedule == SLS_SAVE) {
+        if (stateLength != file.size()) {
+          stateLength = file.size();
+          if (statePtr) statePtr = realloc(statePtr,stateLength);
+          else statePtr = malloc(file.size());
+        }
+        file.seek(0,SEEK_SET);
+        file.read(statePtr,file.size());
+        states[onState].first = this->time();
+        states[onState].second.clear();
+        states[onState].second.insert(
+          states[onState].second.begin(),
+          (unsigned char*)statePtr,
+          ((unsigned char*)statePtr) + stateLength);
+        onState = (onState+1)%MAX_STATES;
       }
-      file.seek(0,SEEK_SET);
-      file.read(statePtr,file.size());
-      std::vector<unsigned char> v((unsigned char*)statePtr, ((unsigned char*)statePtr) + stateLength);
-      states.push_back(make_pair(this->time(),v));
-    }
 
-    // Destroy any state saves after this point
-    if (saverr == STATERR_NONE && m_saveload_schedule == SLS_LOAD) {
-      while (states.back().first > this->time()) {
-        cout << "Destroying state at time " << states.back().first.seconds << "." << states.back().first.attoseconds << endl;
-        states.pop_back();
-        if (states.empty()) {
-          cout << "OOPS!  States is empty.  Crash coming" << endl;
+      // Destroy any state saves after this point
+      if (saverr == STATERR_NONE && m_saveload_schedule == SLS_LOAD) {
+        for (int a=0;a<MAX_STATES;a++) {
+          if (states[a].first > this->time()) {
+            cout << "Destroying state at time " << states[a].first << endl;
+            states[a].first.seconds = 0;
+            states[a].first.attoseconds = 0;
+          }
         }
       }
-    }
     }
 
     
