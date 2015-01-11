@@ -730,7 +730,7 @@ int running_machine::run(bool firstrun)
 			// handle save/load
       if (timePassed && m_saveload_schedule != SLS_NONE) {
 				handle_saveload();
-      } else if (netCommon->isRollback()) {
+      } else if (netCommon && netCommon->isRollback()) {
         if(m_machine_time.seconds>0 && m_scheduler.can_save() && tenthSecondPassed) {
           cout << "Tenth second passed" << endl;
           if (secondPassed) {
