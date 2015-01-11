@@ -1217,7 +1217,7 @@ void running_machine::call_notifiers(machine_notification which)
 //  or load
 //-------------------------------------------------
 
-circular_buffer<pair<attotime, vector<unsigned char> > > states(20);
+circular_buffer<pair<attotime, vector<unsigned char> > > states(50);
 
 void running_machine::handle_saveload()
 {

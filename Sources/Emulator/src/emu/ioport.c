@@ -3336,15 +3336,18 @@ std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curMa
   vector<nsm::InputState*> retval;
     
   framesSinceDelayCheck++;
-  if (!rollback) {
-    pollForPeerCatchup(curMachineTime);
+  attotime checkInputTime = curMachineTime;
+  if (rollback) {
+    // Only make sure we have inputs from at least a second ago
+    checkInputTime.seconds -= 1;
+  }
+  pollForPeerCatchup(checkInputTime);
 
-    for(int player=0;player<MAX_PLAYERS;player++) {
-      // Poll for new player input data
+  for(int player=0;player<MAX_PLAYERS;player++) {
+    // Poll for new player input data
 
-      // Note we have to do this first or it will invalidate the iterators we assign further down
-      pollForDataAfter(player, curMachineTime);
-    }
+    // Note we have to do this first or it will invalidate the iterators we assign further down
+    pollForDataAfter(player, checkInputTime);
   }
 
   for(int player=0;player<MAX_PLAYERS;player++) {
