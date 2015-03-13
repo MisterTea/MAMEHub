@@ -85,6 +85,10 @@ public class Main {
 					"Could not load default logging.properties file");
 			java.util.logging.Logger.getAnonymousLogger().severe(e.getMessage());
 		}
+		
+		// Ensure that databases are made in the main thread.
+		Utils.getApplicationDatabaseEngine();
+		Utils.getAuditDatabaseEngine();
 
 		new SwtLoader();
 		new CommandLineFlags(args);

@@ -1012,6 +1012,8 @@ void sound_manager::config_save(int config_type, xml_data_node *parentnode)
 //  and send it to the OSD layer
 //-------------------------------------------------
 
+extern bool catchingUp;
+
 void sound_manager::update(void *ptr, int param)
 {
 	VPRINTF(("sound_update\n"));
@@ -1054,8 +1056,9 @@ void sound_manager::update(void *ptr, int param)
 	// play the result
 	if (finalmix_offset > 0)
 	{
-		if (!m_nosound_mode)
+		if (!m_nosound_mode && !catchingUp)
 			machine().osd().update_audio_stream(finalmix, finalmix_offset / 2);
+    // JJG: TODO: Should we send sound to the recording is we are catching up?
 		machine().video().add_sound_to_recording(finalmix, finalmix_offset / 2);
 		if (m_wavfile != NULL)
 			wav_add_data_16(m_wavfile, finalmix, finalmix_offset);

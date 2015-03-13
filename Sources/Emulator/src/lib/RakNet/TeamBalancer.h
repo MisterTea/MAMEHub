@@ -1,11 +1,19 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file TeamBalancer.h
 /// \brief Set and network team selection (supports peer to peer or client/server)
 /// \details Automatically handles transmission and resolution of team selection, including team switching and balancing
 /// \deprecated Use TeamManager intead
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 #include "NativeFeatureIncludes.h"
 #if _RAKNET_SUPPORT_TeamBalancer==1

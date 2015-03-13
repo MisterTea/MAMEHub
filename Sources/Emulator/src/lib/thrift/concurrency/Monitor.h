@@ -25,6 +25,9 @@
 
 #include <boost/utility.hpp>
 
+#ifdef HAVE_PTHREAD_H
+#include <pthread.h>
+#endif
 
 namespace apache { namespace thrift { namespace concurrency {
 

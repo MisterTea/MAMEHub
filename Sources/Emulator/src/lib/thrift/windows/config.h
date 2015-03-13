@@ -85,12 +85,14 @@ typedef boost::uint8_t  uint8_t;
 typedef ptrdiff_t ssize_t;
 
 // Missing functions.
+#ifndef sleep
 #define usleep(ms) Sleep(ms)
 inline int sleep(DWORD ms)
 {
-    Sleep(ms);
-    return 0;
+   Sleep(ms);
+   return 0;
 }
+#endif
 
 #if WINVER <= 0x0502 //XP, Server2003
 #define POLLIN  0x0300

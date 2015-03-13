@@ -1,12 +1,20 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "NativeFeatureIncludes.h"
 #if _RAKNET_SUPPORT_TCPInterface==1
 
 /// \file
 /// \brief A simple TCP based server allowing sends and receives.  Can be connected to by a telnet client.
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 
 #include "TCPInterface.h"
@@ -1358,8 +1366,10 @@ bool RemoteClient::InitSSL(SSL_CTX* ctx, SSL_METHOD *meth)
 				// http://www.openssl.org/docs/ssl/SSL_get_error.html
 				char buff[1024];
 				unsigned long ege = ERR_get_error();
-				if (ege==0)
-					printf("SSL_ERROR_SYSCALL SSL_get_error ret=\n", res);
+				if (ege==0 && res==0)
+					printf("SSL_ERROR_SYSCALL EOF in violation of the protocol\n");
+				else if (ege==0 && res==-1)
+					printf("SSL_ERROR_SYSCALL %s\n", strerror(errno));
 				else
 					printf("SSL_ERROR_SYSCALL %s\n", ERR_error_string(ege, buff));
 			}

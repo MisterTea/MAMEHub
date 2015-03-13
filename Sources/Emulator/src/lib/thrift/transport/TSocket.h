@@ -26,6 +26,10 @@
 #include "TVirtualTransport.h"
 #include "TServerSocket.h"
 
+#ifdef HAVE_PTHREAD_H
+#include <pthread.h>
+#endif
+
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif

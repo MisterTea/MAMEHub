@@ -1,8 +1,15 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
 
 
 #include "RakNetTypes.h"
@@ -186,7 +193,7 @@ int SystemAddress::size(void)
 #if RAKNET_SUPPORT_IPV6==1
 	return sizeof(sockaddr_in6) + sizeof(char);
 #else
-	return sizeof(unsigned long) + sizeof(unsigned short) + sizeof(char);
+	return sizeof(uint32_t) + sizeof(unsigned short) + sizeof(char);
 #endif
 }
 unsigned long SystemAddress::ToInteger( const SystemAddress &sa )

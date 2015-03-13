@@ -72,6 +72,7 @@ enum CustomPacketType
     ID_HOST_ACCEPTED,
     ID_SEND_PEER_ID,
     ID_CLIENT_INFO,
+    ID_MAMEHUB_TIMESTAMP,
     ID_END
   };
 
@@ -180,6 +181,7 @@ std::vector<boost::shared_ptr<MemoryBlock> > blocks,staleBlocks;
   int selfPeerID;
   int generation;
   int unmeasuredNoise;
+  bool rollback;
 
   std::map<RakNet::RakNetGUID,int> peerIDs;
 
@@ -276,6 +278,8 @@ std::vector<boost::shared_ptr<MemoryBlock> > blocks,staleBlocks;
   void setPlayer(int newPlayer) { player = newPlayer; }
 
   inline int getInputCounter() { return globalInputCounter; }
+
+  inline bool isRollback() { return rollback; }
 
  protected:
   void sendInputs(const nsm::PeerInputData &peerInputData);

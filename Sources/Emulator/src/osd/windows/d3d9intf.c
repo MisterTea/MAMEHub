@@ -9,6 +9,11 @@
 // standard windows headers
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
+#ifdef __MINGW32__
+#include "specstrings.h"
+#endif
+
 #include <d3d9.h>
 #include <d3dx9.h>
 #undef interface

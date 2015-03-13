@@ -154,7 +154,7 @@ MemoryBlock::~MemoryBlock() {
 extern volatile bool memoryBlocksLocked;
 
 // Copied from Multiplayer.cpp
-// If the first byte is ID_TIMESTAMP, then we want the 5th byte
+// If the first byte is ID_TIMESTAMP or ID_MAMEHUB_TIMESTAMP, then we want the 5th byte
 // Otherwise we want the 1st byte
 extern unsigned char GetPacketIdentifier(RakNet::Packet *p);
 extern unsigned char *GetPacketData(RakNet::Packet *p);
@@ -221,21 +221,22 @@ RakNet::SystemAddress Common::ConnectBlocking(const char *defaultAddress, unsign
   {
     for (packet=rakInterface->Receive(); packet; rakInterface->DeallocatePacket(packet), packet=rakInterface->Receive())
     {
-      cout << "GOT PACKET: " << int(packet->data[0] - ID_USER_PACKET_ENUM) << endl;
+      unsigned char packetID = GetPacketIdentifier(packet);
+      cout << "GOT PACKET: " << int(packetID - ID_USER_PACKET_ENUM) << endl;
 
-      if (packet->data[0]==ID_CONNECTION_REQUEST_ACCEPTED)
+      if (packetID == ID_CONNECTION_REQUEST_ACCEPTED)
       {
         printf("Connected!\n");
         return packet->systemAddress;
       }
-      else if(packet->data[0]==ID_INPUTS)
+      else if(packetID == ID_INPUTS)
       {
         string s = doInflate(GetPacketData(packet), GetPacketSize(packet));
         PeerInputDataList inputDataList;
         inputDataList.ParseFromString(s);
         receiveInputs(&inputDataList);
       }
-      else if(packet->data[0]== ID_BASE_DELAY)
+      else if(packetID == ID_BASE_DELAY)
       {
         cout << "Changing base delay from " << baseDelayFromPing;
         memcpy(&baseDelayFromPing,GetPacketData(packet),sizeof(int));
@@ -709,6 +710,8 @@ void Common::sendInputs(const nsm::Attotime &inputTime, PeerInputData::PeerInput
   sendInputs(peerInputData);
 }
 
+extern RakNet::Time emulationStartTime;
+
 void Common::sendInputs(const PeerInputData& peerInputData) {
   //cout << "SENDING INPUTS AT TIME " << peerInputData.time().seconds() << "." << peerInputData.time().attoseconds() << endl;
   //cout << "SELF PEER ID: " << selfPeerID << endl;
@@ -740,16 +743,23 @@ void Common::sendInputs(const PeerInputData& peerInputData) {
   string sNoHeader;
   peerInputDataList.AppendToString(&sNoHeader);
 
-  string sCompress(sNoHeader.length()*2, 0);
-  sCompress[0] = ID_INPUTS;
+  string sCompress(sNoHeader.length()*2 + 128, 0);
+  sCompress[0] = ID_MAMEHUB_TIMESTAMP;
+  RakNet::BitStream timeBS( (unsigned char*)&(sCompress[1]), sizeof(RakNet::Time), false);
+  timeBS.SetWriteOffset(0);
+  RakNet::Time t = RakNet::GetTimeMS() - emulationStartTime;
+  timeBS.Write(t);
+  timeBS.EndianSwapBytes(0,sizeof(RakNet::Time));
+  memcpy(&sCompress[1],&t,sizeof(RakNet::Time));
+  sCompress[1+sizeof(RakNet::Time)] = ID_INPUTS;
   deflateReset(&outputStream);
 
   outputStream.avail_in = sNoHeader.length();
   outputStream.next_in = (Bytef*)sNoHeader.c_str();
-  outputStream.avail_out = sCompress.length() - 1;
-  outputStream.next_out = (Bytef*)&(sCompress[1]);
+  outputStream.avail_out = sCompress.length() - (2+sizeof(RakNet::Time));
+  outputStream.next_out = (Bytef*)&(sCompress[2+sizeof(RakNet::Time)]);
   while(outputStream.avail_in>0) {
-    if (deflate(&outputStream, Z_FINISH) == Z_STREAM_ERROR) {
+    if (deflate(&outputStream, Z_FINISH) != Z_STREAM_END) {
       printf("ZLIB ERROR\n");
       exit(1);
     }
@@ -760,7 +770,7 @@ void Common::sendInputs(const PeerInputData& peerInputData) {
   }
   int bytesUsed = sCompress.length() - outputStream.avail_out;
 
-  //cout << "SENDING INPUT PACKET OF SIZE: " << sNoHeader.length() << " (compresses to " << bytesUsed << ")" << endl;
+  //cout << "SENDING INPUT PACKET OF SIZE: " << sNoHeader.length() << " (compresses to " << bytesUsed << ") AT TIME " << t << endl;
 
   rakInterface->Send(
     sCompress.c_str(),

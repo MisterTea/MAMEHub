@@ -19,6 +19,9 @@
 #ifndef __OSDCORE_H__
 #define __OSDCORE_H__
 
+// for va_list
+#include <stdarg.h>
+
 #include "osdcomm.h"
 #include "delegate.h"
 
@@ -37,6 +40,7 @@
 #define OPEN_FLAG_CREATE        0x0004      /* create & truncate file */
 #define OPEN_FLAG_CREATE_PATHS  0x0008      /* create paths as necessary */
 #define OPEN_FLAG_NO_PRELOAD    0x0010      /* do not decompress on open */
+#define OPEN_FLAG_MEMORY        0x0020      /* is an in-memory file */
 
 /* error codes returned by routines below */
 enum file_error

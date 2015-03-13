@@ -48,10 +48,11 @@ using namespace google::protobuf::io;
 
 Server *netServer=NULL;
 
-Server *createGlobalServer(string _username,unsigned short _port, int _unmeasuredNoise)
+Server *createGlobalServer(string _username,unsigned short _port, int _unmeasuredNoise,
+  bool _rollback)
 {
   cout << "Creating server on port " << _port << endl;
-  netServer = new Server(_username,_port,_unmeasuredNoise);
+  netServer = new Server(_username,_port,_unmeasuredNoise, _rollback);
   netCommon = netServer;
   return netServer;
 }
@@ -66,7 +67,7 @@ void deleteGlobalServer()
 }
 
 // Copied from Multiplayer.cpp
-// If the first byte is ID_TIMESTAMP, then we want the 5th byte
+// If the first byte is ID_TIMESTAMP or ID_MAMEHUB_TIMESTAMP, then we want the 5th byte
 // Otherwise we want the 1st byte
 extern unsigned char GetPacketIdentifier(RakNet::Packet *p);
 extern unsigned char *GetPacketData(RakNet::Packet *p);
@@ -108,7 +109,7 @@ void MameHubServerProcessor::stop() {
   server_->stop();
 }
 
-Server::Server(string username,int _port,int _unmeasuredNoise)
+Server::Server(string username,int _port,int _unmeasuredNoise, bool _rollback)
   :
   Common(username,_unmeasuredNoise),
   syncOverride(false),
@@ -116,6 +117,10 @@ Server::Server(string username,int _port,int _unmeasuredNoise)
   maxPeerID(10),
   blockNewClients(false),
   mameHubServerProcessor(_port + 1) {
+
+  rollback = _rollback;
+  cout << "ROLLBACK " << (rollback?"ENABLED":"DISABLED") << endl;
+
   syncReady = false;
   rakInterface = RakNet::RakPeerInterface::GetInstance();
 
@@ -143,6 +148,8 @@ void Server::shutdown()
   RakNet::RakPeerInterface::DestroyInstance(rakInterface);
 }
 
+extern RakNet::Time emulationStartTime;
+
 void Server::acceptPeer(RakNet::RakNetGUID guidToAccept,running_machine *machine)
 {
   cout << "ACCEPTED PEER " << guidToAccept.ToString() << endl;
@@ -155,7 +162,7 @@ void Server::acceptPeer(RakNet::RakNetGUID guidToAccept,running_machine *machine
 
   //Accept this host
   acceptedPeers.push_back(guidToAccept);
-  char buf[4096];
+  char buf[16*4096];
   buf[0] = ID_HOST_ACCEPTED;
   int assignID=-1;
   for(
@@ -232,6 +239,14 @@ void Server::acceptPeer(RakNet::RakNetGUID guidToAccept,running_machine *machine
   tmpbuf += sizeof(secs);
   memcpy(tmpbuf,&attosecs,sizeof(attosecs));
   tmpbuf += sizeof(attosecs);
+
+  memcpy(tmpbuf,&rollback,sizeof(bool));
+  tmpbuf += sizeof(bool);
+  
+  RakNet::Time t = RakNet::GetTimeMS() - emulationStartTime;
+  memcpy(tmpbuf,&t,sizeof(RakNet::Time));
+  tmpbuf += sizeof(RakNet::Time);  
+  
   strcpy(
     (char*)tmpbuf,
     peerData[assignID].name.c_str()
@@ -507,7 +522,7 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
       );
     machine->ui().update_and_render(&machine->render().ui_container());
     machine->osd().update(false);
-    RakSleep(10);
+    RakSleep(0);
   }
   {
     RakNet::BitStream bitStreamPart(packetSize+32);
@@ -524,7 +539,7 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
       );
     machine->ui().update_and_render(&machine->render().ui_container());
     machine->osd().update(false);
-    RakSleep(10);
+    RakSleep(0);
   }
 
   cout << "FINISHED SENDING BLOCKS TO CLIENT\n";
@@ -985,7 +1000,7 @@ void Server::popSyncQueue()
 {
   if(!syncReady)
     return;
-  long long curRealTime = RakNet::GetTimeMS();
+  long long curRealTime = RakNet::GetTimeMS() - emulationStartTime;
 
   //cout << "SYNC TIMES: " << (curRealTime/100) << " " << (lastSyncQueueMs/100) << endl;
   if (lastSyncQueueMs/100 == curRealTime/100) {

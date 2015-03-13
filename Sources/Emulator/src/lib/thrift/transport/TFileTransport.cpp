@@ -351,7 +351,7 @@ void TFileTransport::writerThread() {
       seekToEnd();
       // throw away any partial events
       offset_ += readState_.lastDispatchPtr_;
-#ifndef _WIN32
+#if !defined(WIN32) || defined(MXE)
       ftruncate(fd_, offset_);
 #else
       _chsize_s(fd_, offset_);

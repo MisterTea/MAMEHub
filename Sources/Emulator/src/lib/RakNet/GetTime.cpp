@@ -1,11 +1,19 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
 
 
-#if defined(_WIN32)
+#if 0
+//#if defined(_WIN32)
 #include "WindowsIncludes.h"
 
  #if !defined(WINDOWS_PHONE_8)
@@ -21,7 +29,8 @@
 
 
 
-#if defined(_WIN32)
+#if 0
+//#if defined(_WIN32)
 //DWORD mProcMask;
 //DWORD mSysMask;
 //HANDLE mThread;
@@ -129,7 +138,8 @@ RakNet::TimeMS RakNet::GetTimeMS( void )
 
 
 
-#if   defined(_WIN32)
+#if 0
+//#if   defined(_WIN32)
 RakNet::TimeUS GetTimeUS_Windows( void )
 {
 	if ( initialized == false)
@@ -170,7 +180,9 @@ RakNet::TimeUS GetTimeUS_Windows( void )
 	return curTime;
 #endif // #if defined(GET_TIME_SPIKE_LIMIT) && GET_TIME_SPIKE_LIMIT>0
 }
-#elif defined(__GNUC__)  || defined(__GCCXML__) || defined(__S3E__)
+//JJG: ALWAYS USE LINUX TIME CODE
+//#elif defined(__GNUC__)  || defined(__GCCXML__) || defined(__S3E__)
+#else
 RakNet::TimeUS GetTimeUS_Linux( void )
 {
 	timeval tp;
@@ -204,7 +216,8 @@ RakNet::TimeUS RakNet::GetTimeUS( void )
 
 
 
-#if   defined(_WIN32)
+#if 0
+//#if   defined(_WIN32)
 	return GetTimeUS_Windows();
 #else
 	return GetTimeUS_Linux();

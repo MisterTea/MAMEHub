@@ -47,7 +47,7 @@ sourceSets {
 repositories {
         
      maven { url "http://teleal.org/m2" }
-     maven { url "file:///Users/jgauci/github/MAMEHub/Sources/Client/repo" }
+     maven { url ("file://" + file("./repo").getAbsolutePath()) }
      maven { url "http://repo.maven.apache.org/maven2" }
 }
 dependencies {
@@ -55,7 +55,7 @@ dependencies {
     compile group: 'org.slf4j', name: 'slf4j-log4j12', version:'1.6.6'
     compile group: 'log4j', name: 'log4j', version:'1.2.16'
     compile group: 'org.apache.thrift', name: 'libthrift', version:'0.9.1'
-    compile group: 'org.mapdb', name: 'mapdb', version:'0.9.11'
+    compile group: 'org.mapdb', name: 'mapdb', version:'1.0.5'
     compile group: 'commons-validator', name: 'commons-validator', version:'1.4.0'
     compile group: 'commons-io', name: 'commons-io', version:'2.4'
     compile group: 'commons-cli', name: 'commons-cli', version:'1.2'

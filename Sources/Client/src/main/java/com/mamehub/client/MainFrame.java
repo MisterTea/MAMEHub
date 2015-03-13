@@ -1512,9 +1512,9 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 											playerName, chatPiece));
 						}
 					}
-					if (message.chat.contains(" " + rpcEngine.getMyself().name
+					if (message.chat.toLowerCase().contains(" " + rpcEngine.getMyself().name.toLowerCase()
 							+ " ")
-							|| message.chat.startsWith(rpcEngine.getMyself().name
+							|| message.chat.toLowerCase().startsWith(rpcEngine.getMyself().name.toLowerCase()
 									+ " ")) {
 						SoundEngine.instance.playSound("ding");
 					}
@@ -1710,7 +1710,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 									+ outputFile.getCanonicalPath().replace(
 											"/", "\\") + "\"");
 						} else {
-							java.awt.Desktop.getDesktop().edit(outputFile);
+						    try {
+						        java.awt.Desktop.getDesktop().edit(outputFile);
+						    } catch (UnsupportedOperationException uoe) {
+						    }
 						}
 					} catch (IOException e) {
 						// TODO Auto-generated catch block

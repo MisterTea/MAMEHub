@@ -65,6 +65,7 @@ public class GameAuditor implements Runnable {
 	private HashScanner hashScanner;
 	private ConcurrentMap<String, ArrayList<RomHashEntryValue>> hashEntryMap = null;
 	private ConcurrentMap<String, String> chdMap = null;
+	private ConcurrentMap<String, Boolean> filesScanned = null;
 	ConcurrentMap<String, RomInfo> mameRoms = getMameRomInfoMap();
 	ConcurrentMap<String, RomInfo> messRoms = getMessRomInfoMap();
 	private File indexDir;
@@ -87,6 +88,7 @@ public class GameAuditor implements Runnable {
 				"HashEntryMap2");
 		chdMap = Utils.getAuditDatabaseEngine().getOrCreatePrimitiveMap(
 				"ChdMap");
+		filesScanned = Utils.getAuditDatabaseEngine().getOrCreatePrimitiveMap("FilesScanned");
 
 		if (!hashEntryMap.isEmpty() && indexDir.exists()) {
 			runScanner = false;
@@ -139,7 +141,7 @@ public class GameAuditor implements Runnable {
 		}
 
 		List<File> paths = new IniParser().getRomPaths();
-		hashScanner = new HashScanner(handler, hashEntryMap, chdMap, systemNames);
+		hashScanner = new HashScanner(handler, hashEntryMap, chdMap, filesScanned, systemNames);
 		hashScanner.scan(paths);
 		hashScanner = null;
 		if (GameAuditor.abort) {
