@@ -148,7 +148,7 @@ cheat                     1
 skip_gameinfo             1
 uifont                    default
 ramsize                   
-confirm_quit              0
+confirm_quit              1
 ui_mouse                  0
 autoboot_command          
 autoboot_delay            2
