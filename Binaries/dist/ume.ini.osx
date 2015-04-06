@@ -149,7 +149,7 @@ cheat                     0
 skip_gameinfo             0
 uifont                    default
 ramsize                   
-confirm_quit              0
+confirm_quit              1
 username                  Player
 server                    0
 client                    0
