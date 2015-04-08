@@ -363,7 +363,7 @@ void running_machine::processNetworkBuffer(PeerInputData *inputData,int peerID)
     {
       //printf("GOT INPUT\n");
       attotime tmptime(inputData->time().seconds(), inputData->time().attoseconds());
-      
+
       for(int a=0;a<inputData->inputstate().players_size();a++) {
         //int player = inputData->inputstate().players(a);
         //cout << "Peer " << peerID << " has input for player " << inputData->inputstate().players(a) << " at time " << tmptime.seconds << "." << tmptime.attoseconds << endl;
@@ -374,6 +374,15 @@ void running_machine::processNetworkBuffer(PeerInputData *inputData,int peerID)
           //TODO: Re-think this and clean it up
           if (netCommon->isRollback()) {
             circular_buffer<pair<attotime,InputState> >::reverse_iterator it = onePlayerInputData.rbegin();
+            attotime lastInputTime = it->first;
+            if (lastInputTime == tmptime) {
+              return;
+            }
+            if (lastInputTime > tmptime) {
+              cout << "unexpected time " << lastInputTime << " " << tmptime << "\n";
+              exit(1);
+            }
+
             // Check if the input states are equal.
             std::string s1;
             //cout << "First serialize\n";
@@ -388,11 +397,11 @@ void running_machine::processNetworkBuffer(PeerInputData *inputData,int peerID)
                   if (rollbackTime > tmptime) {
                     // Roll back further
                     rollbackTime = tmptime;
-                    cout << "Rolling back further from " << currentMachineTime << " to " << tmptime;
+                    cout << "Rolling back further from " << currentMachineTime << " to " << tmptime << endl;
                   }
                 } else {
                   // Roll back
-                  cout << "Rolling back from " << currentMachineTime << " to " << tmptime;
+                  cout << "Rolling back from " << currentMachineTime << " to " << tmptime << endl;
                   rollbackTime = tmptime;
                   doRollback=true;
                 }
@@ -565,7 +574,7 @@ int running_machine::run(bool firstrun)
     printf("SOFT RESET FINISHED\n");
 
     emulationStartTime = RakNet::GetTimeMS();
-    
+
 		// run the CPUs until a reset or exit
 		m_hard_reset_pending = false;
     attotime largestEmulationTime(0,0);
@@ -580,7 +589,8 @@ int running_machine::run(bool firstrun)
 			#endif
 
       attotime timeBefore = time();
-      
+      attotime machineTimeBefore = machine_time();
+
 			// execute CPUs if not paused
 			if (!m_paused)
 				m_scheduler.timeslice();
@@ -594,11 +604,14 @@ int running_machine::run(bool firstrun)
         catchingUp = false;
       }
       bool timePassed = (timeBefore != timeAfter);
-      bool secondPassed = timeBefore.seconds != timeAfter.seconds;
-      bool tenthSecondPassed = secondPassed || ((timeBefore.attoseconds/(ATTOSECONDS_PER_SECOND/10ULL)) != (timeAfter.attoseconds/(ATTOSECONDS_PER_SECOND/10ULL)));
-      
-      if (timeBefore != timeAfter) {
+      bool secondPassed = false;
+      bool tenthSecondPassed = false;
+
+      if (timePassed) {
         m_machine_time += (timeAfter - timeBefore);
+        attotime machineTimeAfter = machine_time();
+        secondPassed = machineTimeBefore.seconds != machineTimeAfter.seconds;
+        tenthSecondPassed = secondPassed || ((machineTimeBefore.attoseconds/(ATTOSECONDS_PER_SECOND/10ULL)) != (machineTimeAfter.attoseconds/(ATTOSECONDS_PER_SECOND/10ULL)));
 
         if (netCommon) {
           // Process any remaining packets.
@@ -620,7 +633,7 @@ int running_machine::run(bool firstrun)
             }
           }
         }
-        
+
       }
 
       static int lastSyncSecond = 0;
@@ -644,7 +657,7 @@ int running_machine::run(bool firstrun)
           netServer &&
           lastSyncSecond != m_machine_time.seconds &&
           netServer->getSecondsBetweenSync()>0 &&
-          !netCommon->isRollback() && 
+          !netCommon->isRollback() &&
           (m_machine_time.seconds%netServer->getSecondsBetweenSync())==0
           )
         {
@@ -658,7 +671,7 @@ int running_machine::run(bool firstrun)
           {
             netServer->sync(this);
             //nvram_save(*this);
-            cout << "RAND/TIME AT SYNC: " << m_rand_seed << ' ' << time().seconds << '.' << time().attoseconds << endl;
+            cout << "RAND/TIME AT SYNC: " << m_rand_seed << ' ' << machine_time().seconds << '.' << machine_time().attoseconds << endl;
           }
         }
 
@@ -666,7 +679,7 @@ int running_machine::run(bool firstrun)
           netClient &&
           lastSyncSecond != m_machine_time.seconds &&
           netClient->getSecondsBetweenSync()>0 &&
-          !netCommon->isRollback() && 
+          !netCommon->isRollback() &&
           (m_machine_time.seconds%netClient->getSecondsBetweenSync())==0
           )
         {
@@ -680,7 +693,7 @@ int running_machine::run(bool firstrun)
             //The client should update sync check just in case the server didn't have an anon timer
             m_save.doPreSave();
             netClient->updateSyncCheck();
-            cout << "RAND/TIME AT SYNC: " << m_rand_seed << ' ' << time().seconds << '.' << time().attoseconds << endl;
+            cout << "RAND/TIME AT SYNC: " << m_rand_seed << ' ' << machine_time().seconds << '.' << machine_time().attoseconds << endl;
             m_save.doPostLoad();
           }
         }
@@ -730,7 +743,7 @@ int running_machine::run(bool firstrun)
 			// handle save/load
       if (timePassed && m_saveload_schedule != SLS_NONE) {
 				handle_saveload();
-      } else if (netCommon && netCommon->isRollback()) {
+      } else if (timePassed && netCommon && netCommon->isRollback()) {
         if(m_machine_time.seconds>0 && m_scheduler.can_save() && tenthSecondPassed) {
           cout << "Tenth second passed" << endl;
           if (secondPassed) {
@@ -1223,10 +1236,15 @@ int onState = 0;
 
 void running_machine::handle_saveload()
 {
+  if (!m_scheduler.can_save()) {
+    cout << "CANNOT SAVE!\n";
+  }
+
 	UINT32 openflags = (m_saveload_schedule == SLS_LOAD) ? OPEN_FLAG_READ : (OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
 	const char *opnamed = (m_saveload_schedule == SLS_LOAD) ? "loaded" : "saved";
 	const char *opname = (m_saveload_schedule == SLS_LOAD) ? "load" : "save";
 	file_error filerr = FILERR_NONE;
+  int nextBestState = -1;
 
 	// if no name, bail
 	emu_file file(m_saveload_searchpath, openflags);
@@ -1267,34 +1285,36 @@ void running_machine::handle_saveload()
       }
       if (bestState != -1 && states[bestState].first > stateTime) {
         // We already found a better state
+        if (nextBestState == -1 || states[nextBestState].first < stateTime) {
+          nextBestState = a;
+        }
         continue;
       }
+      nextBestState = bestState;
       bestState = a;
     }
-    if (bestState == -1) {
+    if (nextBestState == -1) {
       cout << "ERROR: COULD NOT FIND ROLLBACK STATE FOR TIME " << rollbackTime << " " << machine_time() << endl;
       exit(1);
     }
-    cout << "Opening save file: " << states[bestState].first.seconds << "." << states[bestState].first.attoseconds << " < " << this->time().seconds << "." << this->time().attoseconds << endl;
-    vector<unsigned char> &v = states[bestState].second;
+    cout << "Opening save file: " << states[nextBestState].first.seconds << "." << states[nextBestState].first.attoseconds << " < " << this->machine_time().seconds << "." << this->machine_time().attoseconds << endl;
+    vector<unsigned char> &v = states[nextBestState].second;
     filerr = file.open_ram(&v[0],v.size());
   } else {
     filerr = file.open_ram(NULL,0);
   }
   }
-  
+
 	if (filerr == FILERR_NONE)
 	{
-    attotime rollbackAmount = this->time();
 		// read/write the save state
     if (isRollback && m_saveload_schedule == SLS_LOAD) {
-      cout << "Time rolled back from " << this->time().seconds << "." << this->time().attoseconds;
+      cout << "Time rolled back from " << this->machine_time().seconds << "." << this->machine_time().attoseconds;
     }
 		save_error saverr = (m_saveload_schedule == SLS_LOAD) ? m_save.read_file(file) : m_save.write_file(file);
     if (isRollback && m_saveload_schedule == SLS_LOAD) {
-      cout << " to " << this->time().seconds << "." << this->time().attoseconds << endl;
-      rollbackAmount -= this->time();
-      m_machine_time -= rollbackAmount;
+      m_machine_time = states[nextBestState].first;
+      cout << " to " << this->machine_time().seconds << "." << this->machine_time().attoseconds << endl;
     }
 
 		// handle the result
@@ -1339,19 +1359,29 @@ void running_machine::handle_saveload()
         }
         file.seek(0,SEEK_SET);
         file.read(statePtr,file.size());
-        states[onState].first = this->time();
+        states[onState].first = this->machine_time();
         states[onState].second.clear();
         states[onState].second.insert(
           states[onState].second.begin(),
           (unsigned char*)statePtr,
           ((unsigned char*)statePtr) + stateLength);
+
+        vector<unsigned char> &v = states[onState].second;
+        emu_file file2(m_saveload_searchpath, OPEN_FLAG_READ);
+        filerr = file2.open_ram(&v[0],v.size());
+        save_error saverr2 = m_save.read_file(file2);
+        if (saverr2 != STATERR_NONE) {
+          cout << "OOPS: " << saverr2 << endl;
+          exit(1);
+        }
+
         onState = (onState+1)%MAX_STATES;
       }
 
       // Destroy any state saves after this point
       if (saverr == STATERR_NONE && m_saveload_schedule == SLS_LOAD) {
         for (int a=0;a<MAX_STATES;a++) {
-          if (states[a].first > this->time()) {
+          if (states[a].first > this->machine_time()) {
             cout << "Destroying state at time " << states[a].first << endl;
             states[a].first.seconds = 0;
             states[a].first.attoseconds = 0;
@@ -1360,7 +1390,7 @@ void running_machine::handle_saveload()
       }
     }
 
-    
+
 		// close and perhaps delete the file
 		if (saverr != STATERR_NONE && m_saveload_schedule == SLS_SAVE)
 			file.remove_on_close();

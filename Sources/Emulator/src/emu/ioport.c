@@ -1583,9 +1583,9 @@ const input_seq &ioport_field::seq(bool checkMapping, input_seq_type seqtype) co
       typeToMap = IPT_TILT1;
       playerToMap = type() - IPT_TILT1;
     }
-        
+
     map<const ioport_field*,const ioport_field*>::iterator it = playerFieldMap.find(this);
-        
+
     if(it != playerFieldMap.end()) {
       if(player != playerToMap) {
         // We shouldn't be controlling this player
@@ -2049,7 +2049,7 @@ void ioport_field::frame_update(ioport_value &result, bool mouse_down)
 
 	// if we're active, set the appropriate bits in the digital state
 	if (curstate)
-		result |= m_mask;
+    result |= m_mask;
 }
 
 
@@ -2732,7 +2732,7 @@ time_t ioport_manager::initialize()
       }
     }
   }
-    
+
 
 	// open playback and record files if specified
 	time_t basetime = playback_init();
@@ -3118,7 +3118,7 @@ g_profiler.start(PROFILER_INPUT);
 
     }
   }
-  
+
   for(int a=0;a<MAX_PLAYERS;a++) {
     if(netServer) {
       if(a==0 || netServer->hasPeerWithID(a+1)==false) {
@@ -3133,7 +3133,7 @@ g_profiler.start(PROFILER_INPUT);
 
   attotime curMachineTime = machine().machine_time();
   //cout << "AT TIME " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl;
-  
+
   //cout << "MOST RECENT SENT REPORT " << mostRecentSentReport.seconds << "." << mostRecentSentReport.attoseconds << endl;
   if(netCommon) {
     bool rollback = netCommon->isRollback();
@@ -3180,7 +3180,7 @@ g_profiler.start(PROFILER_INPUT);
   if( curMachineTime >= inputStartTime && netCommon) {
     remoteInputStates = fetch_remote_inputs(curMachineTime);
   }
-  
+
   int portIndex=0;
 	for (ioport_port *port = first_port(); port != NULL; port = port->next())
 	{
@@ -3188,7 +3188,7 @@ g_profiler.start(PROFILER_INPUT);
       // handle playback
       playback_port(*port);
     }
-    
+
     if(netCommon) {
       merge_ports(*port, remoteInputStates, portIndex);
     }
@@ -3224,7 +3224,7 @@ void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
       printDebug=true;
       realtime = time(NULL);
     }
-        
+
     pair<int,nsm::Attotime> peerTimeProtoPair = netCommon->getOldestPeerInputTime();
     pair<int,attotime> peerTimePair = pair<int,attotime>(peerTimeProtoPair.first,protoToAttotime(peerTimeProtoPair.second));
     if(peerTimePair.first == -1 || peerTimePair.second > curMachineTime) {
@@ -3234,7 +3234,7 @@ void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
       }
       if(printDebug)
         cout << "Peer " << peerTimePair.first << " is caught up with " << peerTimePair.second.seconds << "." << peerTimePair.second.attoseconds << endl;
-            
+
       if(framesSinceDelayCheck>=60 && netServer && !waitingForClientCatchup) {
         cout << "Decreasing base delay from " << baseDelayFromPing;
 
@@ -3244,10 +3244,10 @@ void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
         cout << " to " << baseDelayFromPing << endl;
         netServer->sendBaseDelay(baseDelayFromPing);
       }
-            
+
       break;
     }
-        
+
     if(!thisIsBadFrame && netServer && framesSinceDelayCheck>=30 && !waitingForClientCatchup) {
       cout << "Increasing base delay from " << baseDelayFromPing;
       baseDelayFromPing = min(210,baseDelayFromPing+20);
@@ -3256,7 +3256,7 @@ void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
       cout << " to " << baseDelayFromPing << endl;
       netServer->sendBaseDelay(baseDelayFromPing);
     }
-        
+
     if(printDebug && !gotStale) {
       gotStale = true;
       cout << "Peer " << peerTimePair.first << " is stale with last input at " << peerTimePair.second.seconds << "." << peerTimePair.second.attoseconds << " (" << curMachineTime.seconds << "." << curMachineTime.attoseconds << ")" << endl;
@@ -3267,23 +3267,23 @@ void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
     }
     machine().ui().update_and_render(&machine().render().ui_container());
     machine().osd().update(false);
-        
+
     if(!netCommon->update(&(machine()))) {
       cout << "NETWORK FAILED\n";
       ::exit(1);
     }
-        
+
     if(netCommon->hasPeerWithID(peerTimePair.first)==false) {
       //The peer we were waiting on is gone.
       continue;
     }
-        
+
     PeerInputData peerInput = netCommon->popInput(peerTimePair.first);
-        
+
     if (peerInput.has_time()) {
       machine().processNetworkBuffer(&peerInput, peerTimePair.first);
     }
-        
+
     osd_sleep(0);
   }
 }
@@ -3297,26 +3297,26 @@ void ioport_manager::pollForDataAfter(int player, attotime curMachineTime) {
       printDebug=true;
       realtime = time(NULL);
     }
-        
+
     if(printDebug) {
       cout << "PLAYER " << player << " is stale with last input before " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl;
     }
-        
+
     bool gotInput = false;
     vector<int> peerIDs;
     netCommon->getPeerIDs(peerIDs);
-        
+
     for(int a=0; a<(int)peerIDs.size(); a++)
     {
       int peerID = peerIDs[a];
       PeerInputData peerInput = netCommon->popInput(peerID);
-            
+
       if (peerInput.has_time()) {
         machine().processNetworkBuffer(&peerInput, peerID);
         gotInput=true;
-      } 
+      }
     }
-        
+
     if(!gotInput)
     {
       cout << "MISSING INPUT DATA FOR PLAYER " << player << " AT " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl;
@@ -3324,7 +3324,7 @@ void ioport_manager::pollForDataAfter(int player, attotime curMachineTime) {
       osd_sleep(0);
       break;
     }
-        
+
   }
 
   //if(printDebug)
@@ -3334,7 +3334,7 @@ void ioport_manager::pollForDataAfter(int player, attotime curMachineTime) {
 std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curMachineTime) {
   bool rollback = netCommon->isRollback();
   vector<nsm::InputState*> retval;
-    
+
   framesSinceDelayCheck++;
   attotime checkInputTime = curMachineTime;
   if (rollback) {
@@ -3379,7 +3379,7 @@ std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curMa
         }
         break;
       } else {
-        //cout << "GOT INPUT BUT TOO NEW: " << it->first.seconds << "." << it->first.attoseconds << " " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl; 
+        //cout << "GOT INPUT BUT TOO NEW: " << it->first.seconds << "." << it->first.attoseconds << " " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl;
       }
 
       itold = it;
@@ -3400,7 +3400,7 @@ void ioport_manager::store_local_port(ioport_port &port, nsm::InputPort *inputPo
   for (analog_field *analog = port.live().analoglist.first(); analog != NULL; analog = analog->next())
   {
     nsm::AnalogPort *analogPort = inputPort->add_analogports();
-        
+
     analogPort->set_accum(analog->m_accum);
     analogPort->set_previous(analog->m_previous);
     analogPort->set_sensitivity(analog->m_sensitivity);
