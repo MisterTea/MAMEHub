@@ -3225,8 +3225,31 @@ void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
       realtime = time(NULL);
     }
 
+    if(!netCommon->update(&(machine()))) {
+      cout << "NETWORK FAILED\n";
+      ::exit(1);
+    }
+
+    while (true) {
+      int oldestPeer = netCommon->getOldestPeerInputTime().first;
+
+      if(netCommon->hasPeerWithID(oldestPeer)==false) {
+        //The peer we were waiting on is gone.
+        continue;
+      }
+
+      PeerInputData peerInput = netCommon->popInput(oldestPeer);
+
+      if (peerInput.has_time()) {
+        machine().processNetworkBuffer(&peerInput, oldestPeer);
+      } else {
+        break;
+      }
+    }
+
     pair<int,nsm::Attotime> peerTimeProtoPair = netCommon->getOldestPeerInputTime();
     pair<int,attotime> peerTimePair = pair<int,attotime>(peerTimeProtoPair.first,protoToAttotime(peerTimeProtoPair.second));
+
     if(peerTimePair.first == -1 || peerTimePair.second > curMachineTime) {
       if(waitingForClientCatchup) {
         waitingForClientCatchup=false;
@@ -3253,7 +3276,7 @@ void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
       baseDelayFromPing = min(210,baseDelayFromPing+20);
       thisIsBadFrame=true;
       framesSinceDelayCheck = 0;
-      cout << " to " << baseDelayFromPing << endl;
+      cout << " to " << baseDelayFromPing << ": " << peerTimePair.second << " <= " << curMachineTime << endl;
       netServer->sendBaseDelay(baseDelayFromPing);
     }
 
@@ -3267,22 +3290,6 @@ void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
     }
     machine().ui().update_and_render(&machine().render().ui_container());
     machine().osd().update(false);
-
-    if(!netCommon->update(&(machine()))) {
-      cout << "NETWORK FAILED\n";
-      ::exit(1);
-    }
-
-    if(netCommon->hasPeerWithID(peerTimePair.first)==false) {
-      //The peer we were waiting on is gone.
-      continue;
-    }
-
-    PeerInputData peerInput = netCommon->popInput(peerTimePair.first);
-
-    if (peerInput.has_time()) {
-      machine().processNetworkBuffer(&peerInput, peerTimePair.first);
-    }
 
     osd_sleep(0);
   }
