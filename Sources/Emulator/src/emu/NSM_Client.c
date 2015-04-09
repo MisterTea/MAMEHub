@@ -55,7 +55,7 @@ Client *createGlobalClient(string _username)
 
 void deleteGlobalClient()
 {
-  if(netClient) 
+  if(netClient)
   {
     netClient->shutdown();
   }
@@ -146,8 +146,9 @@ unsigned char GetPacketIdentifier(RakNet::Packet *p)
     assert(p->length > sizeof(unsigned char) + sizeof(RakNet::Time));
     return (unsigned char) p->data[sizeof(unsigned char) + sizeof(RakNet::Time)];
   }
-  else
+  else {
     return (unsigned char) p->data[0];
+  }
 }
 
 unsigned char *GetPacketData(RakNet::Packet *p)
@@ -236,7 +237,7 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
     char buf[4096];
     buf[0] = ID_CLIENT_INFO;
     strcpy(buf+1,username.c_str());
-    rakInterface->Send(buf,1+username.length()+1,HIGH_PRIORITY,RELIABLE_ORDERED,0,sa,false);
+    rakInterface->Send(buf,1+username.length()+1,IMMEDIATE_PRIORITY,RELIABLE_ORDERED,0,sa,false);
   }
 
   peerIDs[guid] = 1;
@@ -330,7 +331,7 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
       memcpy(&rollback,dataPtr,sizeof(bool));
       dataPtr += sizeof(bool);
       cout << "ROLLBACK " << (rollback?"ENABLED":"DISABLED") << endl;
-      
+
       memcpy(&largestPacketTime,dataPtr,sizeof(RakNet::Time));
       dataPtr += sizeof(RakNet::Time);
 
@@ -468,7 +469,7 @@ void Client::loadInitialData(unsigned char *data,int size,running_machine *machi
     LzmaInputStream lis(&ais);
     initial_sync.ParseFromZeroCopyStream(&lis);
   }
-    
+
   waitingForClientCatchup=true;
 
   syncGeneration = initial_sync.generation();
@@ -531,7 +532,7 @@ void Client::createInitialBlocks(running_machine *machine) {
       }
 
       //initialSyncStream.ReadBits(staleBlocks[blockIndex]->data,blockSize*8);
-            
+
       //cout << "BLOCK " << blockIndex << ":\n";
       for(int a=0; a<blocks[blockIndex]->size; a++)
       {
@@ -604,7 +605,7 @@ bool Client::update(running_machine *machine)
     //printf("Checking for packets\n");
   }
   bool inNegotiation=false;
-  
+
 
   do
   {
@@ -615,7 +616,7 @@ bool Client::update(running_machine *machine)
         continue;
       } else {
         break;
-      }
+     }
     }
     unsigned char packetID = GetPacketIdentifier(p);
     //cout << "GOT PACKET WITH ID: " << packetID << endl;
@@ -709,7 +710,7 @@ bool Client::update(running_machine *machine)
         tmpbuf += sizeof(startTime.attoseconds);
         strcpy(tmpbuf,username.c_str());
         tmpbuf += username.length()+1;
-        rakInterface->Send(buf,int(tmpbuf-buf),HIGH_PRIORITY,RELIABLE_ORDERED,0,sa2,false);
+        rakInterface->Send(buf,int(tmpbuf-buf),IMMEDIATE_PRIORITY,RELIABLE_ORDERED,0,sa2,false);
       }
       if(sa2==RakNet::UNASSIGNED_SYSTEM_ADDRESS)
       {
@@ -717,7 +718,7 @@ bool Client::update(running_machine *machine)
         char buf[4096];
         buf[0] = ID_REJECT_NEW_HOST;
         strcpy(buf+1,((char*)p->data)+1);
-        rakInterface->Send(buf,1+strlen(((char*)p->data)+1)+1,HIGH_PRIORITY,RELIABLE_ORDERED,0,rakInterface->GetSystemAddressFromIndex(0),false);
+        rakInterface->Send(buf,1+strlen(((char*)p->data)+1)+1,IMMEDIATE_PRIORITY,RELIABLE_ORDERED,0,rakInterface->GetSystemAddressFromIndex(0),false);
       }
       else
       {
@@ -725,7 +726,7 @@ bool Client::update(running_machine *machine)
         char buf[4096];
         buf[0] = ID_ACCEPT_NEW_HOST;
         strcpy(buf+1,((char*)p->data)+1);
-        rakInterface->Send(buf,1+strlen(((char*)p->data)+1)+1,HIGH_PRIORITY,RELIABLE_ORDERED,0,rakInterface->GetSystemAddressFromIndex(0),false);
+        rakInterface->Send(buf,1+strlen(((char*)p->data)+1)+1,IMMEDIATE_PRIORITY,RELIABLE_ORDERED,0,rakInterface->GetSystemAddressFromIndex(0),false);
       }
 
     }
@@ -748,7 +749,7 @@ bool Client::update(running_machine *machine)
       memcpy(&attosecs,tmpbuf,sizeof(attosecs));
       tmpbuf += sizeof(attosecs);
       nsm::Attotime startTime = newAttotime(secs,attosecs);
-	    
+
       char buf[4096];
       strcpy(buf,(char*)(tmpbuf));
       cout << "HOST ACCEPTED\n";
@@ -857,7 +858,7 @@ bool Client::update(running_machine *machine)
       memcpy(&secondsBetweenSync,p->data+1,sizeof(int));
       break;
     default:
-      printf("GOT AN INVALID PACKET TYPE: %d\n",int(packetID));
+      printf("GOT AN INVALID PACKET TYPE: %d %d %d\n",int(packetID), (int(packetID) - int(ID_USER_PACKET_ENUM)), GetPacketSize(p));
       return false;
     }
 
@@ -1015,4 +1016,3 @@ unsigned long long Client::getCurrentServerTime() {
   //cout << "LAST PING: " << largestPacketTime << " " << (rakInterface->GetLastPing(masterGuid)/2) << endl;
   return largestPacketTime + (rakInterface->GetLastPing(masterGuid)/2);
 }
-
