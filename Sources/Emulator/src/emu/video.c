@@ -506,16 +506,16 @@ void video_manager::begin_recording(const char *name, movie_format format)
 				filerr = tempfile.open(name);
 			else
 				filerr = open_next(tempfile, "webm");
-            
+
 			// compute the frame time
 			m_webm_frame_period.seconds = 0;
 			m_webm_frame_period.attoseconds = ATTOSECONDS_PER_SECOND / 30;
-            
+
 			// if we succeeded, make a copy of the name and create the real file over top
 			if (filerr == FILERR_NONE)
 				fullpath = tempfile.fullpath();
 		}
-        
+
 		if (filerr == FILERR_NONE)
 		{
             m_webmencoder = global_alloc(WebMEncoder(fullpath.cstr(),m_snap_bitmap.width(),m_snap_bitmap.height(),WebMEncoder::IVF_RGBA,1,30,machine().sample_rate(),2));
@@ -766,7 +766,6 @@ void video_manager::update_throttle(attotime emutime)
   const attoseconds_t attoseconds_per_tick = ATTOSECONDS_PER_SECOND / osd_ticks_per_second();
   {
     bool printed=false;
-    SKIP_OSD=false;
 
     while(true) {
       // Get current ticks
@@ -785,9 +784,12 @@ void video_manager::update_throttle(attotime emutime)
         //(currentTicks%osd_ticks_per_second())*attoseconds_per_tick);
 
       if (expectedEmulationTime < emutime) {
+        if (SKIP_OSD) {
+          SKIP_OSD=false;
+          cout << "We are caught up " << ((emutime - expectedEmulationTime).attoseconds/ATTOSECONDS_PER_MILLISECOND) << "ms" << endl;
+        }
         if (!printed) {
           printed=true;
-          //cout << "We are caught up " << ((emutime - expectedEmulationTime).attoseconds/ATTOSECONDS_PER_MILLISECOND) << endl;
         }
         attotime tolerance(0,16*ATTOSECONDS_PER_MILLISECOND);
         if ((emutime - expectedEmulationTime) < tolerance) {
@@ -800,16 +802,16 @@ void video_manager::update_throttle(attotime emutime)
           osd_sleep((osd_ticks_per_second()/1000)*15);
           return;
         } else {
-          // Sleep the processor and check again
-          osd_sleep(0);
+          // Sleep the processor 1ms and check again
+          osd_sleep((osd_ticks_per_second()/1000));
           continue;
         }
-        
+
       } else {
         attotime diffTime = expectedEmulationTime - emutime;
-        
+
         int msBehind = (diffTime.attoseconds/ATTOSECONDS_PER_MILLISECOND) + diffTime.seconds*1000;
-        
+
         if (msBehind > 100 && emutime.seconds>0) {
           static int lastSecondBehind = 0;
           if (lastSecondBehind < emutime.seconds) {

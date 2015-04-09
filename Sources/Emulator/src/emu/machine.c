@@ -478,6 +478,7 @@ int running_machine::run(bool firstrun)
   strcpy(CORE_SEARCH_PATH,options().media_path());
 
 	int error = MAMERR_NONE;
+  vector<int> peerIDs;
 
 	// use try/catch for deep error recovery
 	try
@@ -620,7 +621,6 @@ int running_machine::run(bool firstrun)
             ::exit(1);
           }
 
-          vector<int> peerIDs;
           netCommon->getPeerIDs(peerIDs);
           for (int a=0;a<peerIDs.size();a++) {
             while(true) {
