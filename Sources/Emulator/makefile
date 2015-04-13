@@ -443,6 +443,9 @@ endif
 
 ifdef MXE
 DEFS += -DMXE
+
+# Set version of msvc for mxe
+DEFS += -D__MSVCRT_VERSION__=0x800 -D_WIN32_WINNT=0x0501
 endif
 
 #Define _USE_MATH_DEFINES for M_PI

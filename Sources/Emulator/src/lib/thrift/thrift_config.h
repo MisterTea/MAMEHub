@@ -39,7 +39,9 @@
 /* #undef HAVE_BZERO */
 
 /* Define to 1 if you have the `clock_gettime' function. */
+#ifndef MXE
 #define HAVE_CLOCK_GETTIME 1
+#endif
 
 /* Define to 1 if you have the declaration of `strerror_r', and to 0 if you
    don't. */

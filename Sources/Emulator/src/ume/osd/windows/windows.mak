@@ -26,8 +26,8 @@ $(LIBOCORE_NOMAIN): $(OSDCOREOBJS:$(WINOBJ)/main.o=)
 #-------------------------------------------------
 
 $(UME_WINOBJ)/%.res: $(UME_WINSRC)/%.rc
-	@echo Compiling resources $<...
-	$(RC) $(RCDEFS) $(RCFLAGS) --include-dir $(UME_WINOBJ) -o $@ -i $<
+	@echo Compiling resourceszzz $<...
+	/Users/jgauci/github/mxe//usr/bin/i686-pc-mingw32-windres $(RCDEFS) $(RCFLAGS) --include-dir $(UME_WINOBJ) -o $@ -i $<
 
 
 #-------------------------------------------------

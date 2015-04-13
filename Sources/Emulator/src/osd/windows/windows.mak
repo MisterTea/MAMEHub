@@ -73,7 +73,6 @@
 ##################   END USER-CONFIGURABLE OPTIONS   ######################
 ###########################################################################
 
-
 #-------------------------------------------------
 # object and source roots
 #-------------------------------------------------
@@ -449,7 +448,7 @@ $(LEDUTIL): $(LEDUTILOBJS) $(LIBOCORE)
 
 $(WINOBJ)/%.res: $(WINSRC)/%.rc | $(OSPREBUILD)
 	@echo Compiling resources $<...
-	$(RC) $(RCDEFS) $(RCFLAGS) -o $@ -i $<
+	/Users/jgauci/github/mxe//usr/bin/i686-pc-mingw32-windres $(RCDEFS) $(RCFLAGS) -o $@ -i $<
 
 
 

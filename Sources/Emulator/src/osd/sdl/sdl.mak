@@ -288,20 +288,31 @@ ifdef SYMBOLS
 CCOMFLAGS += -mlong-branch
 endif   # SYMBOLS
 ifeq ($(PTR64),1)
+ifndef MXE
 CCOMFLAGS += -arch ppc64
 LDFLAGS += -arch ppc64
+endif
 else
+ifndef MXE
 CCOMFLAGS += -arch ppc
 LDFLAGS += -arch ppc
+endif
 endif
 $(OBJ)/emu/cpu/tms57002/tms57002.o : CCOMFLAGS += -O0
 else    # BIGENDIAN
 ifeq ($(PTR64),1)
+ifndef MXE
 CCOMFLAGS += -arch x86_64
 LDFLAGS += -arch x86_64
+endif
+else
+ifndef MXE
+CCOMFLAGS += -m32
+LDFLAGS += -m32
 else
 CCOMFLAGS += -m32 -arch i386
 LDFLAGS += -m32 -arch i386
+endif
 endif
 endif   # BIGENDIAN
 
@@ -609,7 +620,11 @@ LIBS += -L$(SDL_INSTALL_ROOT)/lib
 #-Wl,-rpath,$(SDL_INSTALL_ROOT)/lib
 endif
 
+ifdef MXE
+LIBS += -lmingw32 -lSDL
+else
 LIBS += -lmingw32 -lSDLmain -lSDL
+endif
 # Static linking
 
 LDFLAGS += -static-libgcc
