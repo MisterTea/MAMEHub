@@ -242,11 +242,11 @@ void Server::acceptPeer(RakNet::RakNetGUID guidToAccept,running_machine *machine
 
   memcpy(tmpbuf,&rollback,sizeof(bool));
   tmpbuf += sizeof(bool);
-  
+
   RakNet::Time t = RakNet::GetTimeMS() - emulationStartTime;
   memcpy(tmpbuf,&t,sizeof(RakNet::Time));
-  tmpbuf += sizeof(RakNet::Time);  
-  
+  tmpbuf += sizeof(RakNet::Time);
+
   strcpy(
     (char*)tmpbuf,
     peerData[assignID].name.c_str()
@@ -255,7 +255,7 @@ void Server::acceptPeer(RakNet::RakNetGUID guidToAccept,running_machine *machine
   rakInterface->Send(
     buf,
     int(tmpbuf-buf),
-    HIGH_PRIORITY,
+    IMMEDIATE_PRIORITY,
     RELIABLE_ORDERED,
     ORDERING_CHANNEL_SYNC,
     RakNet::UNASSIGNED_SYSTEM_ADDRESS,
@@ -422,7 +422,7 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
     {
       vector<unsigned char> deltaBlock;
       //cout << "BLOCK " << blockIndex << ":\n";
-            
+
       for(int a=0; a<staleBlocks[blockIndex]->size; a++)
       {
         checksum = checksum ^ staleBlocks[blockIndex]->data[a];
@@ -448,19 +448,19 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
   {
     nsm::PeerInputDataList* peer_data = initial_sync.add_peer_data();
     peer_data->set_peer_id(it->first);
-        
+
     for(int a=0; a<int(it->second.oldInputs.size()); a++)
     {
       nsm::PeerInputData* input_data = peer_data->add_input_data();
       input_data->CopyFrom(it->second.oldInputs[a]);
     }
-    for(list<PeerInputData>::iterator it2 = it->second.availableInputs.begin(); 
+    for(list<PeerInputData>::iterator it2 = it->second.availableInputs.begin();
         it2 != it->second.availableInputs.end(); it2++)
     {
       nsm::PeerInputData* input_data = peer_data->add_input_data();
       input_data->CopyFrom(*it2);
     }
-    for(map<int,PeerInputData>::iterator it2 = it->second.delayedInputs.begin(); 
+    for(map<int,PeerInputData>::iterator it2 = it->second.delayedInputs.begin();
         it2 != it->second.delayedInputs.end(); it2++)
     {
       nsm::PeerInputData* input_data = peer_data->add_input_data();
@@ -469,7 +469,7 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
   }
 
   bool writenvram=(nvram_size(*machine)<1024*1024*32);
-  if(writenvram) 
+  if(writenvram)
   {
     nvram_interface_iterator iter(machine->root_device());
     for (device_nvram_interface *nvram = iter.first(); nvram != NULL; nvram = iter.next())
@@ -514,7 +514,7 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
     offset += packetSize;
     rakInterface->Send(
       &bitStreamPart,
-      MEDIUM_PRIORITY,
+      IMMEDIATE_PRIORITY,
       RELIABLE_ORDERED,
       ORDERING_CHANNEL_SYNC,
       guid,
@@ -531,7 +531,7 @@ void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine
     bitStreamPart.WriteBits((const unsigned char*)(s.c_str()+offset),8*sizeRemaining);
     rakInterface->Send(
       &bitStreamPart,
-      MEDIUM_PRIORITY,
+      IMMEDIATE_PRIORITY,
       RELIABLE_ORDERED,
       ORDERING_CHANNEL_SYNC,
       guid,
@@ -591,7 +591,7 @@ void Server::processPotentialCandidates(running_machine *machine) {
         rakInterface->Send(
           buf,
           2+(2*sizeof(int))+username.length()+1,
-          HIGH_PRIORITY,
+          IMMEDIATE_PRIORITY,
           RELIABLE_ORDERED,
           ORDERING_CHANNEL_SYNC,
           guid,
@@ -615,7 +615,7 @@ void Server::processPotentialCandidates(running_machine *machine) {
           char buf[4096];
           buf[0] = ID_ADVERTISE_SYSTEM;
           strcpy(buf+1,systemAddress.ToString(true));
-          rakInterface->Send(buf,1+strlen(systemAddress.ToString(true))+1,HIGH_PRIORITY,RELIABLE_ORDERED,ORDERING_CHANNEL_SYNC,acceptedGuid,false);
+          rakInterface->Send(buf,1+strlen(systemAddress.ToString(true))+1,IMMEDIATE_PRIORITY,RELIABLE_ORDERED,ORDERING_CHANNEL_SYNC,acceptedGuid,false);
         }
         printf("Asking other peers to accept\n");
       }
@@ -887,7 +887,7 @@ void Server::sync(running_machine *machine)
 			  machine->machine_time().attoseconds);
 
   cout << "IN CRITICAL SECTION\n";
-    
+
   int bytesSynched=0;
   //cout << "IN CRITICAL SECTION\n";
   //cout << "SERVER: Syncing with clients\n";
@@ -981,7 +981,7 @@ void Server::sync(running_machine *machine)
     for(int blockIndex=0; blockIndex<int(blocks.size()); blockIndex++)
     {
       MemoryBlock &block = *(blocks[blockIndex]);
-      
+
       for(int a=0; a<block.size; a++)
       {
         blockChecksum = blockChecksum ^ block.data[a];
@@ -1006,7 +1006,7 @@ void Server::popSyncQueue()
   if (lastSyncQueueMs/100 == curRealTime/100) {
     return;
   }
-  
+
   //cout << "sending packet (if it exists)" << endl;
   lastSyncQueueMs = curRealTime;
   if(syncPacketQueue.size())
@@ -1014,11 +1014,14 @@ void Server::popSyncQueue()
     pair<unsigned char *,int> syncPacket = syncPacketQueue.front();
     printf("Sending sync message of size %d (%lu packets left)\n",syncPacket.second,syncPacketQueue.size());
     syncPacketQueue.pop_front();
+    cout << "PACKET HEADER: " << int(syncPacket.first[0]) << " SIZE " << syncPacket.second << endl;
 
+    // TODO: Found memory corruption when waiting to send, either
+    // change all of these to immediate or find the corruption.
     rakInterface->Send(
       (const char*)syncPacket.first,
       syncPacket.second,
-      MEDIUM_PRIORITY,
+      IMMEDIATE_PRIORITY,
       RELIABLE_ORDERED,
       ORDERING_CHANNEL_SYNC,
       RakNet::UNASSIGNED_SYSTEM_ADDRESS,
@@ -1036,7 +1039,7 @@ void Server::sendBaseDelay(int baseDelay)
   rakInterface->Send(
     dataToSend,
     5,
-    MEDIUM_PRIORITY,
+    IMMEDIATE_PRIORITY,
     RELIABLE_ORDERED,
     ORDERING_CHANNEL_BASE_DELAY,
     RakNet::UNASSIGNED_SYSTEM_ADDRESS,
@@ -1044,4 +1047,3 @@ void Server::sendBaseDelay(int baseDelay)
     );
   free(dataToSend);
 }
-
