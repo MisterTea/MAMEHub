@@ -23,7 +23,7 @@
 // MAMEOS headers
 #include "winmain.h"
 #include "window.h"
-#include "config.h"
+#include "emuconfig.h"
 
 
 

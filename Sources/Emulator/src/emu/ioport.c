@@ -3318,8 +3318,8 @@ void ioport_manager::pollForDataAfter(int player, attotime curMachineTime) {
     bool stale=true;
     if (!playerInputData[player].empty()) {
       if (netCommon->isRollback()) {
-        if (playerInputData[player].rbegin()->second.framecount() >= m_framecount) {
-          // In rollback, we check framecount
+        if (playerInputData[player].rbegin()->second.framecount() >= (m_framecount-60)) {
+          // In rollback, we check framecount to see that we aren't 1s behind or more
           stale = false;
         }
       } else {

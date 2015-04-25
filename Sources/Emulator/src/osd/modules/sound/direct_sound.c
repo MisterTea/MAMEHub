@@ -68,7 +68,7 @@ public:
 
 	virtual void update_audio_stream(bool is_throttled, const INT16 *buffer, int samples_this_frame);
 	virtual void set_mastervolume(int attenuation);
-
+	virtual void pauseAudio(bool pause);
 private:
 	HRESULT      dsound_init();
 	void         dsound_kill();
@@ -239,6 +239,7 @@ void sound_direct_sound::update_audio_stream(bool is_throttled, const INT16 *buf
 //  set_mastervolume
 //============================================================
 
+int previousAttenuation = 0;
 void sound_direct_sound::set_mastervolume(int attenuation)
 {
 	// clamp the attenuation to 0-32 range
@@ -246,6 +247,7 @@ void sound_direct_sound::set_mastervolume(int attenuation)
 		attenuation = 0;
 	if (attenuation < -32)
 		attenuation = -32;
+	previousAttenuation = attenuation;
 
 	// set the master volume
 	if (stream_buffer != NULL)
@@ -254,6 +256,16 @@ void sound_direct_sound::set_mastervolume(int attenuation)
 
 void sound_direct_sound::pauseAudio(bool pause)
 {
+	if (pause) {
+	// set the master volume
+	if (stream_buffer != NULL)
+		IDirectSoundBuffer_SetVolume(stream_buffer, DSBVOLUME_MIN);
+	} else {
+	// set the master volume
+	if (stream_buffer != NULL)
+		IDirectSoundBuffer_SetVolume(stream_buffer, (previousAttenuation == -32) ? DSBVOLUME_MIN : previousAttenuation * 100);
+	}
+/*
     HRESULT result;
     if(pause)
     {
@@ -271,6 +283,7 @@ void sound_direct_sound::pauseAudio(bool pause)
             printf("DSOUND Error resuming: %08x\n", (UINT32)result);
         }
     }
+*/
 }
 
 

@@ -616,7 +616,7 @@ int running_machine::run(bool firstrun)
 			#endif
 
 			manager().web()->serve();
-      attotime timeBefore = m_scheduler.first_device_time();
+      attotime timeBefore = m_scheduler.time();
       attotime machineTimeBefore = machine_time();
 
 			// execute CPUs if not paused
@@ -627,7 +627,7 @@ int running_machine::run(bool firstrun)
 			else
 				m_video->frame_update();
 
-      attotime timeAfter = m_scheduler.first_device_time();
+      attotime timeAfter = m_scheduler.time();
       if (timeBefore > timeAfter) {
         cout << "OOPS! WE WENT BACK IN TIME SOMEHOW\n";
         exit(1);
@@ -641,7 +641,7 @@ int running_machine::run(bool firstrun)
       bool tenthSecondPassed = false;
 
       if (timePassed) {
-        cout << "TIME MOVED FROM " << timeBefore << " TO " << timeAfter << endl;
+        //cout << "TIME MOVED FROM " << timeBefore << " TO " << timeAfter << endl;
         m_machine_time += (timeAfter - timeBefore);
         attotime machineTimeAfter = machine_time();
         secondPassed = machineTimeBefore.seconds != machineTimeAfter.seconds;

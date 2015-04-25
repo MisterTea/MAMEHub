@@ -891,6 +891,8 @@ file_error osd_get_full_path(char **dst, const char *path);
     MIDI I/O INTERFACES
 ***************************************************************************/
 
+#undef poll
+
 class osd_midi_device
 {
 public:
