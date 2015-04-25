@@ -1412,6 +1412,7 @@ public:
   void store_local_port(ioport_port &port, nsm::InputPort *inputPort);
   void merge_ports(ioport_port &port, const std::vector<nsm::InputState*> &remoteInputStates, int portIndex);
 
+  inline INT64 framecount() { return m_framecount; }
 private:
 	// internal helpers
 	void init_port_types();

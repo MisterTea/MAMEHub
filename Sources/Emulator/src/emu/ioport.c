@@ -3166,7 +3166,7 @@ g_profiler.start(PROFILER_INPUT);
       // We haven't caught up with the server yet, don't send.
     } else if(futureInputTime <= lastFutureInputTime) {
       // This input would occur in the past or be a duplicate, ignore it.
-    } else if(m_framecount+2 <= lastInputFramecount) {
+    } else if(m_framecount <= lastInputFramecount) {
       // This input would occur in the past or be a duplicate, ignore it.
     } else {
       if (!rollback && lastFutureInputTime < inputStartTime) {
@@ -3174,7 +3174,7 @@ g_profiler.start(PROFILER_INPUT);
         futureInputTime = inputStartTime;
       }
       lastFutureInputTime = futureInputTime;
-      lastInputFramecount = m_framecount+2;
+      lastInputFramecount = m_framecount;
 
       //cout << "SENDING INPUTS AT TIME " << futureInputTime.seconds << "." << futureInputTime.attoseconds << endl;
       nsm::Attotime nsmAttotime = attotimeToProto(futureInputTime);
