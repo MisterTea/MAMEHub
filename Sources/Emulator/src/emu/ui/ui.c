@@ -594,6 +594,7 @@ void ui_manager::update_and_render(render_container *container)
         //
         chatIndex++;
     }
+
 	if(chatEnabled)
 	{
 		string promptString("Chat: _");
@@ -1813,7 +1814,9 @@ UINT32 ui_manager::handler_ingame(running_machine &machine, render_container *co
 			/* if this was a UI_EVENT_CHAR event, post it */
 			if (event.event_type == UI_EVENT_CHAR)
 			{
-				if(!chatEnabled && (event.ch=='T' || event.ch=='t') && netCommon)
+			  if (!chatEnabled && (event.ch=='N' || event.ch=='n')) {
+			    statsVisible = !statsVisible;
+			  } else if(!chatEnabled && (event.ch=='T' || event.ch=='t') && netCommon)
 				{
 					chatEnabled=true;
 					chatString.clear();
