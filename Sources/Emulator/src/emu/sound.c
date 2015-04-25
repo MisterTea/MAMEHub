@@ -1013,6 +1013,7 @@ void sound_manager::config_save(int config_type, xml_data_node *parentnode)
 //-------------------------------------------------
 
 extern bool catchingUp;
+extern bool SKIP_OSD;
 
 void sound_manager::update(void *ptr, int param)
 {
@@ -1056,7 +1057,7 @@ void sound_manager::update(void *ptr, int param)
 	// play the result
 	if (finalmix_offset > 0)
 	{
-		if (!m_nosound_mode && !catchingUp)
+		if (!m_nosound_mode && !catchingUp && !SKIP_OSD)
 			machine().osd().update_audio_stream(finalmix, finalmix_offset / 2);
     // JJG: TODO: Should we send sound to the recording is we are catching up?
 		machine().video().add_sound_to_recording(finalmix, finalmix_offset / 2);
