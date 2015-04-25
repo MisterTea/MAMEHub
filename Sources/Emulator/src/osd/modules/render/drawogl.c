@@ -1500,10 +1500,11 @@ void sdl_info_ogl::loadGLExtensions()
 //============================================================
 
 extern bool SKIP_OSD;
+extern bool catchingUp;
 
 int sdl_info_ogl::draw(const int update)
 {
-  if (SKIP_OSD) {
+  if (SKIP_OSD || catchingUp) {
     return 0;
   }
 	render_primitive *prim;

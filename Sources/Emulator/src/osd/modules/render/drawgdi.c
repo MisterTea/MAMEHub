@@ -136,6 +136,8 @@ render_primitive_list *renderer_gdi::get_primitives()
 }
 
 
+extern bool SKIP_OSD;
+extern bool catchingUp;
 
 //============================================================
 //  drawgdi_window_draw
@@ -164,6 +166,10 @@ int renderer_gdi::draw(const int update)
 		bmsize = pitch * height * 4 * 2;
 		global_free_array(bmdata);
 		bmdata = global_alloc_array(UINT8, bmsize);
+	}
+
+	if (SKIP_OSD || catchingUp) {
+	  return 0;
 	}
 
 	// draw the primitives to the bitmap

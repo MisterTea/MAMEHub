@@ -211,6 +211,7 @@ extern bool waitingForClientCatchup;
 //-------------------------------------------------
 
 bool SKIP_OSD=false;
+extern bool catchingUp;
 
 void video_manager::frame_update(bool debug)
 {

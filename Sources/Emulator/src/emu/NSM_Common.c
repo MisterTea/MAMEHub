@@ -345,7 +345,7 @@ int Common::getLargestPing(int currentSecond)
     return int(predictedPingMean + unmeasuredNoise*2 + 100);
   } else {
     // Use the computed variance, add for unmeasured noise
-    return int(predictedPingMean + unmeasuredNoise*2 + sqrt(predictedPingVariance)*3);
+    return int(predictedPingMean + unmeasuredNoise*2 + sqrt(predictedPingVariance)*2);
   }
 
 /*

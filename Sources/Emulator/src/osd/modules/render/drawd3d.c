@@ -287,8 +287,15 @@ int drawd3d_init(running_machine &machine, osd_draw_callbacks *callbacks)
 //  drawd3d_window_draw
 //============================================================
 
+extern bool SKIP_OSD;
+extern bool catchingUp;
+
 int d3d::renderer::draw(const int update)
 {
+  if (SKIP_OSD || catchingUp) {
+    return 0;
+  }
+
 	int check = pre_window_draw_check();
 	if (check >= 0)
 		return check;

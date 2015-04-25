@@ -316,11 +316,18 @@ render_primitive_list *renderer_dd::get_primitives()
 //  drawdd_window_draw
 //============================================================
 
+extern bool SKIP_OSD;
+extern bool catchingUp;
+
 int renderer_dd::draw(const int update)
 {
 	render_primitive *prim;
 	int usemembuffer = FALSE;
 	HRESULT result;
+
+	if (SKIP_OSD || catchingUp) {
+	  return 0;
+	}
 
 	// if we're updating, remember to erase the outer stuff
 	if (update)

@@ -1300,7 +1300,7 @@ void running_machine::call_notifiers(machine_notification which)
 //  or load
 //-------------------------------------------------
 
-const int MAX_STATES = 50;
+const int MAX_STATES = 10 * 5;
 pair<attotime, vector<unsigned char> > states[MAX_STATES];
 int onState = 0;
 
@@ -1315,6 +1315,7 @@ void running_machine::handle_saveload()
 	const char *opname = (m_saveload_schedule == SLS_LOAD) ? "load" : "save";
 	file_error filerr = FILERR_NONE;
   int nextBestState = -1;
+  int bestState = -1;
 
 	// if no name, bail
 	emu_file file(m_saveload_searchpath, openflags);
@@ -1342,7 +1343,6 @@ void running_machine::handle_saveload()
 	filerr = file.open(m_saveload_pending_file);
   } else {
   if (m_saveload_schedule == SLS_LOAD) {
-    int bestState = -1;
     for (int a=0;a<MAX_STATES;a++) {
       attotime stateTime = states[a].first;
       if (stateTime.seconds == 0 && stateTime.attoseconds == 0) {
@@ -1367,9 +1367,9 @@ void running_machine::handle_saveload()
       cout << "ERROR: COULD NOT FIND ROLLBACK STATE FOR TIME " << rollbackTime << " " << machine_time() << endl;
       exit(1);
     }
-    cout << "Opening save file: " << states[nextBestState].first.seconds << "." << states[nextBestState].first.attoseconds << " < " << this->machine_time().seconds << "." << this->machine_time().attoseconds << endl;
+    cout << "Opening save file: " << states[bestState].first.seconds << "." << states[bestState].first.attoseconds << " < " << this->machine_time().seconds << "." << this->machine_time().attoseconds << endl;
     cout << "ROLLBACK TIME: " << rollbackTime << endl;
-    vector<unsigned char> &v = states[nextBestState].second;
+    vector<unsigned char> &v = states[bestState].second;
     filerr = file.open_ram(&v[0],v.size());
   } else {
     filerr = file.open_ram(NULL,0);
@@ -1384,7 +1384,7 @@ void running_machine::handle_saveload()
     }
 		save_error saverr = (m_saveload_schedule == SLS_LOAD) ? m_save.read_file(file) : m_save.write_file(file);
     if (isRollback && m_saveload_schedule == SLS_LOAD) {
-      m_machine_time = states[nextBestState].first;
+      m_machine_time = states[bestState].first;
       cout << " to " << this->machine_time().seconds << "." << this->machine_time().attoseconds << endl;
     }
 
